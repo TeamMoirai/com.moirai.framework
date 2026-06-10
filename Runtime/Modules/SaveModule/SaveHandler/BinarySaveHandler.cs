@@ -7,6 +7,13 @@ namespace Moirai.Atropos.Save
     /// <summary>
     /// 此保存加载方法将文件保存并加载为二进制文件
     /// </summary>
+    /// <remarks>
+    /// SECURITY WARNING: BinaryFormatter is vulnerable to deserialization attacks (RCE).
+    /// It has been deprecated by Microsoft and is removed in .NET 9+.
+    /// Consider migrating to JsonSaveHandler for new projects.
+    /// See: https://learn.microsoft.com/en-us/dotnet/standard/serialization/binaryformatter-security-guide
+    /// </remarks>
+    [System.Obsolete("BinaryFormatter is insecure and deprecated. Use JsonSaveHandler instead. See https://aka.ms/binaryformatter")]
     public class BinarySaveHandler : ISaveHandler
     {
         private readonly BinaryFormatter _formatter = new BinaryFormatter();

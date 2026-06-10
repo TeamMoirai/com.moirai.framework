@@ -9,7 +9,8 @@ namespace Moirai.Atropos.Save
 
         [SerializeField] private ESaveType m_SaveType = ESaveType.Binary;
         [ShowIf(nameof(IsEncrypted))]
-        [SerializeField] private string m_EncryptionKey = "ThisIsTheKey";
+        // SECURITY: Must be changed to a unique, per-project secret before shipping.
+        [SerializeField] private string m_EncryptionKey = "CHANGE_ME_BEFORE_SHIPPING";
         [SerializeField] private string m_SaveFileExtension = ".sav";
 
         private bool IsEncrypted => m_SaveType == ESaveType.BinaryEncrypted ||  m_SaveType == ESaveType.JsonEncrypted;

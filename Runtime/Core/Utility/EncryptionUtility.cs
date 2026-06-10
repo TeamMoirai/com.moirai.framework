@@ -172,6 +172,8 @@ namespace Moirai.Atropos
         /// </summary>
         /// <param name="context">需要加密的字符</param>
         /// <returns>加密后的结果</returns>
+        /// <remarks>SECURITY: MD5 is cryptographically broken. Use SHA-256 or stronger for security-sensitive hashing.</remarks>
+        [System.Obsolete("MD5 is cryptographically broken. Use SHA-256 (e.g. HmacSHA256) for security-sensitive hashing.")]
         public static string MD5Encrypt16(string context)
         {
             byte[] md5Bytes = Encoding.UTF8.GetBytes(context);
@@ -191,6 +193,8 @@ namespace Moirai.Atropos
         /// </summary>
         /// <param name="context">需要加密的字符</param>
         /// <returns>加密后的结果</returns>
+        /// <remarks>SECURITY: MD5 is cryptographically broken. Use SHA-256 or stronger for security-sensitive hashing.</remarks>
+        [System.Obsolete("MD5 is cryptographically broken. Use SHA-256 (e.g. HmacSHA256) for security-sensitive hashing.")]
         public static string MD5Encrypt32(string context)
         {
             byte[] md5Bytes = Encoding.UTF8.GetBytes(context);
@@ -212,6 +216,8 @@ namespace Moirai.Atropos
         /// </summary>
         /// <param name="context">需要加密的字符</param>
         /// <returns>加密后的结果</returns>
+        /// <remarks>SECURITY: MD5 is cryptographically broken. Use SHA-256 or stronger for security-sensitive hashing.</remarks>
+        [System.Obsolete("MD5 is cryptographically broken. Use SHA-256 (e.g. HmacSHA256) for security-sensitive hashing.")]
         public static string MD5Encrypt(string context)
         {
             byte[] md5Bytes = Encoding.UTF8.GetBytes(context);
