@@ -9,11 +9,14 @@ namespace Moirai.Atropos.Save
     /// </summary>
     public abstract class SaveEncryptor
     {
-        /// <summary>保存和加载文件的密钥</summary>
-        public virtual string Key { get; set; } = "yourDefaultKey";
+        /// <summary>
+        /// 保存和加载文件的密钥。
+        /// SECURITY: Must be overridden with a unique, per-project secret before shipping.
+        /// </summary>
+        public virtual string Key { get; set; } = "CHANGE_ME_BEFORE_SHIPPING";
 
-        // 要加的盐文
-        private const string SALT_TEXT = "TEAM_MOIRAI";
+        // SECURITY: Must be changed to a unique, per-project value before shipping.
+        private const string SALT_TEXT = "CHANGE_ME_SALT";
 
         /// <summary>
         /// 使用参数中传入的密钥将指定的输入流加密到指定的输出流中
@@ -23,7 +26,7 @@ namespace Moirai.Atropos.Save
         /// <param name="sKey"></param>
         protected virtual void Encrypt(Stream inputStream, Stream outputStream, string sKey)
         {
-            RijndaelManaged algorithm = new RijndaelManaged();
+            using var algorithm = Aes.Create();
             Rfc2898DeriveBytes key = new Rfc2898DeriveBytes(sKey, Encoding.ASCII.GetBytes(SALT_TEXT));
 
             algorithm.Key = key.GetBytes(algorithm.KeySize / 8);
@@ -41,7 +44,7 @@ namespace Moirai.Atropos.Save
         /// <param name="sKey"></param>
         protected virtual void Decrypt(Stream inputStream, Stream outputStream, string sKey)
         {
-            RijndaelManaged algorithm = new RijndaelManaged();
+            using var algorithm = Aes.Create();
             Rfc2898DeriveBytes key = new Rfc2898DeriveBytes(sKey, Encoding.ASCII.GetBytes(SALT_TEXT));
 
             algorithm.Key = key.GetBytes(algorithm.KeySize / 8);
