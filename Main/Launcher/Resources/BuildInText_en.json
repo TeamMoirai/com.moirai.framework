@@ -1,0 +1,85 @@
+﻿{
+  "Label_Load_Progress": "The resource file is being downloaded, please be patient\nCurrent download speed: {0}/s Resource file size: {1}",
+  "Label_Load_FirstUnpack": "Entering the game for the first time, initializing game resources... (This process does not consume network traffic)",
+  "Label_Load_Unpacking": "Updating local resource version, please be patient... (This process does not consume network traffic)",
+  "Label_Load_Checking": "Detect update settings {0}...",
+  "Label_Load_Checked": "The latest version is detected",
+  "Label_Load_Package": "The current version is too low, please download and install the latest version",
+  "Label_Load_Platform": "The current version is too low, please go to the app store to install the latest version",
+  "Label_Load_Notice": "An optional resource update was detected, and the update package size <color=#BA3026>{0}</color>,\nIt is recommended to complete the update to improve the game experience",
+  "Label_Load_Force": "A version update has been detected, and canceling the update will result in not being able to enter the game",
+
+  "Label_Load_Force_WIFI":
+  "Detects that there is new game content that needs to be updated,\nUpdate package size <color=#BA3026>{0}</color>, \nCanceling the update will result in not being able to enter the game, you are currently on a <color=#BA3026>wifi network</color>, please start the update",
+
+  "Label_Load_Force_NO_WIFI":
+  "Detects that there is new game content that needs to be updated,\nUpdate package size <color=#BA3026>{0}</color>, \nCanceling the update will result in not being able to enter the game, please start the update",
+
+  "Label_Load_Error": "The update parameter is incorrect {0}, click OK to restart the game",
+  "Label_Load_FirstEnterGame_Error": "The first time you enter the game resource, it is abnormal",
+  "Label_Load_UnpackComplete": "Loading latest resource files... (This process does not consume network traffic)",
+  "Label_Load_UnPackError": "If the resource extraction fails, click OK to restart the game",
+  "Label_Load_Load_Progress": "Loading... {0}%",
+  "Label_Load_Load_Complete": "Loading is complete",
+  "Label_Load_Init": "Initialize the resources...",
+  "Label_Load_InitFailed": "Initialize failed!",
+  "Label_Load_RetryInit": "Reinitialize the resource...",
+  "Label_Net_UnReachable": "The current network is unavailable, check the local network settings and click OK to try again",
+  "Label_Net_ReachableViaCarrierDataNetwork": "It is currently a mobile network, whether to continue downloading",
+  "Label_Net_Error": "The network is abnormal, please try again",
+  "Label_Net_Changed": "Network switching, trying to reconnect, {0} times",
+  "Label_Data_Empty": "Data anomalies",
+  "Label_Memory_Low": "If the initialization resource fails to be loaded, check whether the local memory is sufficient",
+  "Label_Memory_Low_Load": "Whether the memory is sufficient and cannot be updated",
+  "Label_Memory_UnZip_Low": "The memory is insufficient and cannot be decompressed",
+  "Label_App_id": "APPVer {0}",
+  "Label_Res_id": "ResVer {0}",
+  "Label_Clear_Confirm": "Do you clean up your local resources? (After the cleanup is completed, the game will be closed and the latest resources will be re-downloaded)",
+  "Label_RestartApp": "This update requires a restart of the app, please click OK to restart the game",
+  "Label_DownLoadFailed": "The network is too slow, whether to continue downloading",
+  "Label_ClearConfig": "To clear the environment configuration, you need to restart the application",
+  
+  "Label_RegionInfoIllegal": "The server information is empty",
+  "Label_RemoteUrlIsNull": "The update address is empty",
+  "Label_FirstPackageNotFound": "The first package of resources failed to be loaded",
+  "Label_RequestReginInfo": "The request for regional server information is being {0} times",
+  "Label_RequestTimeOut": "Do you want to try again if the request for regional server information times out?",
+  "Label_Region_ArgumentError": "The parameter is incorrect",
+  "Label_Region_IndexOutOfRange": "The index is out of bounds",
+  "Label_Region_NonConfigApplication": "This app is not configured",
+  "Label_Region_SystemError": "The system is abnormal",
+
+  "Label_PreventionOfAddiction":
+  "Human rights of authors: XX City XXX Co., Ltd. Soft copyright registration number: 2022SR0000000\nResist bad games and reject pirated games. Pay attention to self-protection and beware of being deceived. Moderate games are good for the brain, and addiction to games hurts the body. Organize your time wisely and enjoy a healthy life.",
+
+  "Label_Btn_Update": "OK",
+  "Label_Btn_Ignore": "Cancel",
+  "Label_Btn_Package": "Update",
+
+  "Label_Dlc_ConfigDetectionStage": "Detecting the configuration...",
+  "Label_Dlc_ConfigVerificationStage": "Verifying the configuration...",
+  "Label_Dlc_ConfigLoadingStage": "Downloading the configuration...",
+
+  "Label_Dlc_Load_Force_WIFI":
+  "Detected that there is new game content that needs to be updated, canceling the update will result in not being able to enter the game, you are currently on a <color=#BA3026>wifi network</color>, please start the update",
+
+  "Label_Dlc_Load_Force_NO_WIFI":
+  "A new game content has been detected that needs to be updated, and canceling the update will result in the inability to enter the game, so please start the update",
+
+  "Label_Had_Update": "A version update has been detected...",
+  "Label_RequestVersionIng": "In the process of requesting version information from the server...",
+  "Label_RequestVersionInfo": "Version information is being requested from the server {0} times",
+  
+  "Label_CreateDownloader": "Create a patch downloader...",
+  "Label_Download_Start": "Start downloading the update file...",
+  "Label_Download_Progress": "Downloading... {0}%",
+  "Label_Download_Complete": "Downloading is complete",
+  "Label_Download_Detail1": "Updating, updated {0}/{1} ({2:F2}%)",
+  "Label_Download_Detail2": "The size has been updated {0}MB/{1}MB",
+  "Label_Download_Detail3": "Current internet speed {0}/s，Time remaining {1}",
+  
+  "Label_ClearCache": "Clean up unused cache files...",
+  "Label_ClearCache_Completed": "Cleanup Complete is about to enter the game...",
+  
+  "Label_UpdateManifest": "Update the manifest file..."
+}
