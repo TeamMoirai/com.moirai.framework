@@ -1,0 +1,282 @@
+﻿#if UNITY_EDITOR
+
+using UnityEngine;
+using UnityEditor;
+using System.Collections.Generic;
+
+namespace Moirai.Atropos.Editor
+{
+    /// <summary>
+    /// 预制体查找器 ①搜索整个项目缺失脚本的预制体，②查找含有指定 MonoBehaviour 脚本的预制体 
+    /// </summary>
+    public class FindPrefabsByMono : EditorWindow
+    {
+        protected Vector2 _scrollView;
+        protected string[] _tabs = new string[] { "查找缺少组件的预制体", "通过 MonoBehaviour 查找预制体" };
+        protected int _selectedTab;
+        protected int _lastSelectedTab = -1;
+        protected MonoScript _searchedMonoBehaviour;
+        protected MonoScript _lastSearchedMonoBehaviour;
+        protected string _searchedMonoBehaviourName = "";
+        protected List<string> _resultsList;
+
+        static GUIStyle _padded;
+        static GUIStyle _horizontalPadded;
+        static int _horizontalPadding = 20;
+        static int _verticalPadding = 20;
+        static RectOffset _padding;
+        static RectOffset _horizontalPaddingOnly;
+
+        /// <summary>
+        /// Menu bound method
+        /// </summary>
+        [MenuItem("Tools/资产相关/预制体查找器", false, 504)]
+        public static void MenuAction()
+        {
+            OpenWindow();
+        }
+
+        /// <summary>
+        /// Opens and resizes the window
+        /// </summary>
+        public static void OpenWindow()
+        {
+            InitializePaddingAndStyles();
+            FindPrefabsByMono window = (FindPrefabsByMono)EditorWindow.GetWindow(typeof(FindPrefabsByMono));
+            window.position = new Rect(400, 400, 800, 600);
+            window.titleContent = new GUIContent("Prefabs Finder");
+            window.Show();
+        }
+
+        /// <summary>
+        /// Initializes padding variables and GUI styles
+        /// </summary>
+        static void InitializePaddingAndStyles()
+        {
+            if (_padding == null)
+            {
+                _padding = new RectOffset(_horizontalPadding, _horizontalPadding, _verticalPadding, _verticalPadding);
+                _horizontalPaddingOnly = new RectOffset(_horizontalPadding, _horizontalPadding, 0, 0);
+                _padded = new GUIStyle
+                {
+                    name = "padded",
+                    padding = _padding
+                };
+                _horizontalPadded = new GUIStyle
+                {
+                    name = "horizontalPadded",
+                    padding = _horizontalPaddingOnly
+                };
+            }
+        }
+
+        /// <summary>
+        /// Draws tab buttons
+        /// </summary>
+        protected virtual void DrawTabs()
+        {
+            GUI.skin.box.padding = _padding;
+            GUILayout.BeginHorizontal("box");
+                GUILayout.Space(10);
+                _selectedTab = GUILayout.Toolbar(_selectedTab, _tabs);
+            GUILayout.EndHorizontal();
+        }
+
+        /// <summary>
+        /// Detects changes in tabs selection
+        /// </summary>
+        protected virtual void HandleTabsChange()
+        {
+            if (_lastSelectedTab != _selectedTab)
+            {
+                _lastSelectedTab = _selectedTab;
+                _resultsList = new List<string>();
+                _searchedMonoBehaviourName = _searchedMonoBehaviour == null ? "" : _searchedMonoBehaviour.name;
+                _lastSearchedMonoBehaviour = null;
+            }
+        }
+
+        /// <summary>
+        /// Draws the content of the selected tab
+        /// </summary>
+        protected virtual void DrawSelectedTab()
+        {
+            switch (_selectedTab)
+            {
+                case 0:
+                    DrawSearchMissing();
+                    break;
+                case 1:
+                    DrawSearchByMonoBehaviour();
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// Draws the search by mono form
+        /// </summary>
+        protected virtual void DrawSearchByMonoBehaviour()
+        {
+            GUILayout.BeginHorizontal("box");
+                GUILayout.Space(20);
+                GUILayout.BeginVertical();
+                    GUILayout.Label("选择要搜索的 MonoBehaviour：");
+                    _searchedMonoBehaviour = (MonoScript)EditorGUILayout.ObjectField(_searchedMonoBehaviour, typeof(MonoScript), false);
+                GUILayout.EndVertical();
+                GUILayout.Space(10);
+
+                if (_searchedMonoBehaviour != _lastSearchedMonoBehaviour)
+                {
+                    string[] allPrefabsInProject = GetAllPrefabsInProject();
+
+                    _lastSearchedMonoBehaviour = _searchedMonoBehaviour;
+                    _searchedMonoBehaviourName = _searchedMonoBehaviour.name;
+                    AssetDatabase.SaveAssets();
+                    string searchedMonoBehaviourPath = AssetDatabase.GetAssetPath(_searchedMonoBehaviour);
+                    _resultsList = new List<string>();
+                    foreach (string prefab in allPrefabsInProject)
+                    {
+                        string[] pathName = new string[] { prefab };
+                        string[] monoDependenciesPaths = AssetDatabase.GetDependencies(pathName, false);
+                        foreach (string monoDependencyPath in monoDependenciesPaths)
+                        {
+                            if (monoDependencyPath == searchedMonoBehaviourPath)
+                            {
+                                _resultsList.Add(prefab);
+                            }
+                        }
+                    }
+                }
+            GUILayout.EndHorizontal();
+        }
+        
+        /// <summary>
+        /// Draws the search missing form
+        /// </summary>
+        protected virtual void DrawSearchMissing()
+        {
+            GUILayout.BeginHorizontal("box");
+            GUILayout.Space(20);
+            if (GUILayout.Button("在项目中搜索缺少脚本的预制体"))
+            {
+                string[] allPrefabs = GetAllPrefabsInProject();
+                _resultsList = new List<string>();
+                foreach (string prefab in allPrefabs)
+                {
+                    UnityEngine.Object asset = AssetDatabase.LoadMainAssetAtPath(prefab);
+                    GameObject assetGameObject;
+                    try
+                    {
+                        assetGameObject = (GameObject)asset;
+                        Component[] components = assetGameObject.GetComponentsInChildren<Component>(true);
+                        foreach (Component component in components)
+                        {
+                            if (component == null)
+                            {
+                                _resultsList.Add(prefab);
+                            }
+                        }
+                    }
+                    catch
+                    {
+                        Log.Info("预制体出现错误 " + prefab);
+                    }
+                }
+            }
+            GUILayout.EndHorizontal();
+        }
+
+        /// <summary>
+        /// Draws the result list
+        /// </summary>
+        protected virtual void DrawResultsList()
+        {
+            GUILayout.BeginHorizontal(_padded); 
+            if (_resultsList != null)
+            {
+                if (_resultsList.Count == 0)
+                {
+                    switch (_selectedTab)
+                    {
+                        case 0:
+                            GUILayout.Label("没有预制体缺少组件。", EditorStyles.boldLabel);
+                            break;
+
+                        case 1:
+                            if (!string.IsNullOrEmpty(_searchedMonoBehaviourName))
+                            {
+                                GUILayout.Label("没有预制体使用组件 " + _searchedMonoBehaviourName, EditorStyles.boldLabel);
+                            }
+                            break;
+                    }
+                    GUILayout.EndHorizontal(); // end padded
+                }
+                else
+                {
+                    switch (_selectedTab)
+                    {
+                        case 0:
+                            GUILayout.Label("这些预制体缺少组件：", EditorStyles.boldLabel);
+                            break;
+
+                        case 1:
+                            GUILayout.Label("MonoBehaviour " + _searchedMonoBehaviourName + " 应用在这些预制体中：", EditorStyles.boldLabel);
+                            break;
+                    }
+                    GUILayout.EndHorizontal(); // end padded
+
+                    GUILayout.BeginHorizontal();
+                    GUI.skin.scrollView.padding = _padding;
+                    _scrollView = GUILayout.BeginScrollView(_scrollView);
+                    foreach (string s in _resultsList)
+                    {
+                        GUILayout.BeginHorizontal(_horizontalPadded);
+                        GUILayout.Label(s, GUILayout.Width(4 * (position.width - 4 * _horizontalPadding) / 5));
+                        GUI.skin.button.alignment = TextAnchor.MiddleCenter;
+                        if (GUILayout.Button("Select prefab", GUILayout.Width((position.width - 4 * _horizontalPadding) / 5 - 20)))
+                        {
+                            Selection.activeObject = AssetDatabase.LoadMainAssetAtPath(s);
+                        }
+                        GUILayout.EndHorizontal();
+                    }
+                    GUILayout.EndScrollView();
+                    GUILayout.EndHorizontal();
+                }
+            }
+        }
+        
+        #if  UNITY_EDITOR
+        /// <summary>
+        /// On GUI we draw our window's contents
+        /// </summary>
+        protected virtual void OnGUI()
+        {
+            InitializePaddingAndStyles();
+            DrawTabs();
+            HandleTabsChange();
+            DrawSelectedTab();
+            DrawResultsList();
+        }
+        #endif
+        
+        /// <summary>
+        /// Gets all prefabs and sorts them alphabetically
+        /// </summary>
+        /// <returns></returns>
+        public static string[] GetAllPrefabsInProject()
+        {
+            string[] assetPaths = AssetDatabase.GetAllAssetPaths();
+            List<string> results = new List<string>();
+            foreach (string assetPath in assetPaths)
+            {
+                if (assetPath.Contains(".prefab"))
+                {
+                    results.Add(assetPath);
+                }
+            }
+            results.Sort();
+            return results.ToArray();
+        }
+    }
+}
+#endif

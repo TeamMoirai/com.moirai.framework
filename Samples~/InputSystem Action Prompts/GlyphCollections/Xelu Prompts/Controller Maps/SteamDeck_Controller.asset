@@ -1,0 +1,78 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c4fe62e74444b90408a503a8ed1de522, type: 3}
+  m_Name: SteamDeck_Controller
+  m_EditorClassIdentifier: 
+  m_DeviceGlyphs:
+  - DeviceName: SteamController
+    DeviceSprite: {fileID: 0}
+  - DeviceName: GamePad
+    DeviceSprite: {fileID: 0}
+  m_DeviceDescription: Steam Deck Controller (shows up as Gamepad on device)
+  m_ActionGlyphs:
+  - Icon: {fileID: -1839300380, guid: c32c0c315cb8fa943956f85167518142, type: 3}
+    ActionBindingPath: <Gamepad>/leftStick
+    TextMeshSpriteSheetName: xelu_dark_SteamDeck_SpriteSheet
+  - Icon: {fileID: 1493589930, guid: c32c0c315cb8fa943956f85167518142, type: 3}
+    ActionBindingPath: <Gamepad>/rightStick
+    TextMeshSpriteSheetName: xelu_dark_SteamDeck_SpriteSheet
+  - Icon: {fileID: 4088238, guid: c32c0c315cb8fa943956f85167518142, type: 3}
+    ActionBindingPath: <Gamepad>/dpad
+    TextMeshSpriteSheetName: xelu_dark_SteamDeck_SpriteSheet
+  - Icon: {fileID: 1688436411, guid: c32c0c315cb8fa943956f85167518142, type: 3}
+    ActionBindingPath: <Gamepad>/dpad/up
+    TextMeshSpriteSheetName: xelu_dark_SteamDeck_SpriteSheet
+  - Icon: {fileID: 331433675, guid: c32c0c315cb8fa943956f85167518142, type: 3}
+    ActionBindingPath: <Gamepad>/dpad/down
+    TextMeshSpriteSheetName: xelu_dark_SteamDeck_SpriteSheet
+  - Icon: {fileID: -1501494927, guid: c32c0c315cb8fa943956f85167518142, type: 3}
+    ActionBindingPath: <Gamepad>/dpad/left
+    TextMeshSpriteSheetName: xelu_dark_SteamDeck_SpriteSheet
+  - Icon: {fileID: -969170076, guid: c32c0c315cb8fa943956f85167518142, type: 3}
+    ActionBindingPath: <Gamepad>/dpad/right
+    TextMeshSpriteSheetName: xelu_dark_SteamDeck_SpriteSheet
+  - Icon: {fileID: -1264735545, guid: c32c0c315cb8fa943956f85167518142, type: 3}
+    ActionBindingPath: <Gamepad>/buttonWest
+    TextMeshSpriteSheetName: xelu_dark_SteamDeck_SpriteSheet
+  - Icon: {fileID: -449274042, guid: c32c0c315cb8fa943956f85167518142, type: 3}
+    ActionBindingPath: <Gamepad>/buttonSouth
+    TextMeshSpriteSheetName: xelu_dark_SteamDeck_SpriteSheet
+  - Icon: {fileID: -1828314101, guid: c32c0c315cb8fa943956f85167518142, type: 3}
+    ActionBindingPath: <Gamepad>/buttonEast
+    TextMeshSpriteSheetName: xelu_dark_SteamDeck_SpriteSheet
+  - Icon: {fileID: -1474078820, guid: c32c0c315cb8fa943956f85167518142, type: 3}
+    ActionBindingPath: <Gamepad>/buttonNorth
+    TextMeshSpriteSheetName: xelu_dark_SteamDeck_SpriteSheet
+  - Icon: {fileID: -1023900147, guid: c32c0c315cb8fa943956f85167518142, type: 3}
+    ActionBindingPath: <Gamepad>/leftShoulder
+    TextMeshSpriteSheetName: xelu_dark_SteamDeck_SpriteSheet
+  - Icon: {fileID: 344612696, guid: c32c0c315cb8fa943956f85167518142, type: 3}
+    ActionBindingPath: <Gamepad>/rightShoulder
+    TextMeshSpriteSheetName: xelu_dark_SteamDeck_SpriteSheet
+  - Icon: {fileID: 547247404, guid: c32c0c315cb8fa943956f85167518142, type: 3}
+    ActionBindingPath: <Gamepad>/leftStickPress
+    TextMeshSpriteSheetName: xelu_dark_SteamDeck_SpriteSheet
+  - Icon: {fileID: 1969192439, guid: c32c0c315cb8fa943956f85167518142, type: 3}
+    ActionBindingPath: <Gamepad>/rightStickPress
+    TextMeshSpriteSheetName: xelu_dark_SteamDeck_SpriteSheet
+  - Icon: {fileID: -2037757489, guid: c32c0c315cb8fa943956f85167518142, type: 3}
+    ActionBindingPath: <Gamepad>/leftTrigger
+    TextMeshSpriteSheetName: xelu_dark_SteamDeck_SpriteSheet
+  - Icon: {fileID: -259878959, guid: c32c0c315cb8fa943956f85167518142, type: 3}
+    ActionBindingPath: <Gamepad>/rightTrigger
+    TextMeshSpriteSheetName: xelu_dark_SteamDeck_SpriteSheet
+  - Icon: {fileID: -1694932298, guid: c32c0c315cb8fa943956f85167518142, type: 3}
+    ActionBindingPath: <Gamepad>/start
+    TextMeshSpriteSheetName: xelu_dark_SteamDeck_SpriteSheet
+  - Icon: {fileID: 984420317, guid: c32c0c315cb8fa943956f85167518142, type: 3}
+    ActionBindingPath: <Gamepad>/select
+    TextMeshSpriteSheetName: xelu_dark_SteamDeck_SpriteSheet

@@ -1,0 +1,79 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c4fe62e74444b90408a503a8ed1de522, type: 3}
+  m_Name: PS5_Controller
+  m_EditorClassIdentifier: 
+  m_DeviceGlyphs:
+  - DeviceName: DualSenseGamepadHID
+    DeviceSprite: {fileID: 0}
+  m_DeviceDescription: PlayStation5 DualSense Controller
+  m_ActionGlyphs:
+  - Icon: {fileID: 2066886687, guid: 5d629559d6e6dd245bb86826f8af7814, type: 3}
+    ActionBindingPath: <Gamepad>/leftStick
+    TextMeshSpriteSheetName: xelu_dark_PS5_SpriteSheet
+  - Icon: {fileID: 1301934008, guid: 5d629559d6e6dd245bb86826f8af7814, type: 3}
+    ActionBindingPath: <Gamepad>/rightStick
+    TextMeshSpriteSheetName: xelu_dark_PS5_SpriteSheet
+  - Icon: {fileID: 734841920, guid: 5d629559d6e6dd245bb86826f8af7814, type: 3}
+    ActionBindingPath: <Gamepad>/dpad
+    TextMeshSpriteSheetName: xelu_dark_PS5_SpriteSheet
+  - Icon: {fileID: 387669957, guid: 5d629559d6e6dd245bb86826f8af7814, type: 3}
+    ActionBindingPath: <Gamepad>/dpad/up
+    TextMeshSpriteSheetName: xelu_dark_PS5_SpriteSheet
+  - Icon: {fileID: 1689314830, guid: 5d629559d6e6dd245bb86826f8af7814, type: 3}
+    ActionBindingPath: <Gamepad>/dpad/down
+    TextMeshSpriteSheetName: xelu_dark_PS5_SpriteSheet
+  - Icon: {fileID: 518151432, guid: 5d629559d6e6dd245bb86826f8af7814, type: 3}
+    ActionBindingPath: <Gamepad>/dpad/left
+    TextMeshSpriteSheetName: xelu_dark_PS5_SpriteSheet
+  - Icon: {fileID: 399501258, guid: 5d629559d6e6dd245bb86826f8af7814, type: 3}
+    ActionBindingPath: <Gamepad>/dpad/right
+    TextMeshSpriteSheetName: xelu_dark_PS5_SpriteSheet
+  - Icon: {fileID: 277876230, guid: 5d629559d6e6dd245bb86826f8af7814, type: 3}
+    ActionBindingPath: <Gamepad>/buttonWest
+    TextMeshSpriteSheetName: xelu_dark_PS5_SpriteSheet
+  - Icon: {fileID: 590594711, guid: 5d629559d6e6dd245bb86826f8af7814, type: 3}
+    ActionBindingPath: <Gamepad>/buttonSouth
+    TextMeshSpriteSheetName: xelu_dark_PS5_SpriteSheet
+  - Icon: {fileID: 702219342, guid: 5d629559d6e6dd245bb86826f8af7814, type: 3}
+    ActionBindingPath: <Gamepad>/buttonEast
+    TextMeshSpriteSheetName: xelu_dark_PS5_SpriteSheet
+  - Icon: {fileID: 1586460377, guid: 5d629559d6e6dd245bb86826f8af7814, type: 3}
+    ActionBindingPath: <Gamepad>/buttonNorth
+    TextMeshSpriteSheetName: xelu_dark_PS5_SpriteSheet
+  - Icon: {fileID: -734595714, guid: 5d629559d6e6dd245bb86826f8af7814, type: 3}
+    ActionBindingPath: <Gamepad>/leftShoulder
+    TextMeshSpriteSheetName: xelu_dark_PS5_SpriteSheet
+  - Icon: {fileID: -1021566568, guid: 5d629559d6e6dd245bb86826f8af7814, type: 3}
+    ActionBindingPath: <Gamepad>/rightShoulder
+    TextMeshSpriteSheetName: xelu_dark_PS5_SpriteSheet
+  - Icon: {fileID: 1465183284, guid: 5d629559d6e6dd245bb86826f8af7814, type: 3}
+    ActionBindingPath: <Gamepad>/leftStickPress
+    TextMeshSpriteSheetName: xelu_dark_PS5_SpriteSheet
+  - Icon: {fileID: -385913153, guid: 5d629559d6e6dd245bb86826f8af7814, type: 3}
+    ActionBindingPath: <Gamepad>/rightStickPress
+    TextMeshSpriteSheetName: xelu_dark_PS5_SpriteSheet
+  - Icon: {fileID: -1738294213, guid: 5d629559d6e6dd245bb86826f8af7814, type: 3}
+    ActionBindingPath: <Gamepad>/leftTrigger
+    TextMeshSpriteSheetName: xelu_dark_PS5_SpriteSheet
+  - Icon: {fileID: -1480523447, guid: 5d629559d6e6dd245bb86826f8af7814, type: 3}
+    ActionBindingPath: <Gamepad>/rightTrigger
+    TextMeshSpriteSheetName: xelu_dark_PS5_SpriteSheet
+  - Icon: {fileID: -400449327, guid: 5d629559d6e6dd245bb86826f8af7814, type: 3}
+    ActionBindingPath: <Gamepad>/start
+    TextMeshSpriteSheetName: xelu_dark_PS5_SpriteSheet
+  - Icon: {fileID: 839947442, guid: 5d629559d6e6dd245bb86826f8af7814, type: 3}
+    ActionBindingPath: <Gamepad>/select
+    TextMeshSpriteSheetName: xelu_dark_PS5_SpriteSheet
+  - Icon: {fileID: 155391063, guid: 5d629559d6e6dd245bb86826f8af7814, type: 3}
+    ActionBindingPath: <Gamepad>/touchpadButton
+    TextMeshSpriteSheetName: xelu_dark_PS5_SpriteSheet

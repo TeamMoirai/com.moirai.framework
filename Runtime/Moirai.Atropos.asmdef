@@ -1,0 +1,78 @@
+{
+    "name": "Moirai.Atropos",
+    "rootNamespace": "Moirai.Atropos",
+    "references": [
+        "GUID:2665a8d13d1b3f18800f46e256720795",
+        "GUID:e0cd26848372d4e5c891c569017e11f1",
+        "GUID:d8b63aba1907145bea998dd612889d6b",
+        "GUID:f51ebe6a0ceec4240a699833d6309b23",
+        "GUID:e34a5702dd353724aa315fb8011f08c3",
+        "GUID:75469ad4d38634e559750d17036d5f7c",
+        "GUID:6055be8ebefd69e48b49212b09b47b2f",
+        "GUID:f06555f75b070af458a003d92f9efb00",
+        "GUID:77221876cc6b8244180b96e320b1bcd4",
+        "GUID:33661e06c33d31b4c9223810bf503247",
+        "GUID:13ba8ce62aa80c74598530029cb2d649",
+        "GUID:4140bd2e2764f1f47ab93125ecb61942"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": true,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [
+        {
+            "name": "com.unity.ugui",
+            "expression": "1.0.0",
+            "define": "UNITY_UGUI_INSTALLED"
+        },
+        {
+            "name": "com.unity.ugui",
+            "expression": "2.0.0",
+            "define": "UNITY_UGUI2_INSTALLED"
+        },
+        {
+            "name": "com.unity.mathematics",
+            "expression": "1.0.0",
+            "define": "MATHEMATICS_INSTALLED"
+        },
+        {
+            "name": "com.unity.nuget.newtonsoft-json",
+            "expression": "1.0.0",
+            "define": "NEWTONSOFT_JSON_INSTALLED"
+        },
+        {
+            "name": "com.unity.textmeshpro",
+            "expression": "1.0.0",
+            "define": "TEXT_MESH_PRO_INSTALLED"
+        },
+        {
+            "name": "com.unity.timeline",
+            "expression": "1.0.0",
+            "define": "TIMELINE_INSTALLED"
+        },
+        {
+            "name": "org.nuget.r3",
+            "expression": "1.0.0",
+            "define": "R3_INSTALLED"
+        },
+        {
+            "name": "org.nuget.zstring",
+            "expression": "1.0.0",
+            "define": "ZSTRING_INSTALLED"
+        },
+        {
+            "name": "com.code-philosophy.hybridclr",
+            "expression": "2.0.0",
+            "define": "HYBRIDCLR_INSTALLED"
+        },
+        {
+            "name": "com.code-philosophy.obfuz",
+            "expression": "1.0.0",
+            "define": "OBFUZ_INSTALLED"
+        }
+    ],
+    "noEngineReferences": false
+}

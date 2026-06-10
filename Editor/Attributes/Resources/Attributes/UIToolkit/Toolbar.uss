@@ -1,0 +1,19 @@
+/* Button toolbars */
+
+.toolbar-field {
+    margin-top: 5px;
+    margin-left: 1px;
+    margin-right: -1px;
+    border-width: 0;
+}
+
+.toolbar-field ToolbarButton {
+    border-width: 1px;
+    -unity-text-align: middle-center;
+}
+
+.toolbar-field ToolbarButton.main-call-to-action {
+    background-color: rgba(30, 94, 88, 1);
+    color: white;
+    -unity-text-align: middle-center;
+}

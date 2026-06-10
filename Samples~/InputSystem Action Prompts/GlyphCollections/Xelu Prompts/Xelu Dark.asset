@@ -1,0 +1,27 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5b8c5c78a80347368d8fef8cc3424ac8, type: 3}
+  m_Name: Xelu Dark
+  m_EditorClassIdentifier: 
+  m_Key: xelu_dark
+  m_OffsetX: 0
+  m_OffsetY: 80
+  m_Advance: 0
+  m_ScaleFactor: 1.2
+  m_PromptMaps:
+  - {fileID: 11400000, guid: f8114c7cafebbd848822efbe5aa6d12a, type: 2}
+  - {fileID: 11400000, guid: e0fea9c146c9b464a9f13b826035c02c, type: 2}
+  - {fileID: 11400000, guid: ac8de87eb2ff91c4db98c98531846246, type: 2}
+  - {fileID: 11400000, guid: 432e971995f71144682e1ea631285467, type: 2}
+  - {fileID: 11400000, guid: 9ab5ce7a3bb6fda41b0d5b9776a929ae, type: 2}
+  - {fileID: 11400000, guid: 5cc099c4258b82644a77d1da8ddec198, type: 2}
+  - {fileID: 11400000, guid: 0791e49b2ad1828479b7335b3eff7971, type: 2}

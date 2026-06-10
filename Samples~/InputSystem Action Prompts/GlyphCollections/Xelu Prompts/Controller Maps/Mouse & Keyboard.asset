@@ -1,0 +1,267 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c4fe62e74444b90408a503a8ed1de522, type: 3}
+  m_Name: Mouse & Keyboard
+  m_EditorClassIdentifier: 
+  m_DeviceGlyphs:
+  - DeviceName: Mouse
+    DeviceSprite: {fileID: 0}
+  - DeviceName: Keyboard
+    DeviceSprite: {fileID: 0}
+  m_DeviceDescription: "\u9F20\u6807\u548C\u952E\u76D8"
+  m_ActionGlyphs:
+  - Icon: {fileID: -565983218, guid: 2ea81a6f5e6677b49a218baf3c254f48, type: 3}
+    ActionBindingPath: <Keyboard>/0
+    TextMeshSpriteSheetName: xelu_dark_MouseKeyboardDark_SpriteSheet
+  - Icon: {fileID: -2075605450, guid: 2ea81a6f5e6677b49a218baf3c254f48, type: 3}
+    ActionBindingPath: <Keyboard>/1
+    TextMeshSpriteSheetName: xelu_dark_MouseKeyboardDark_SpriteSheet
+  - Icon: {fileID: 1533274798, guid: 2ea81a6f5e6677b49a218baf3c254f48, type: 3}
+    ActionBindingPath: <Keyboard>/2
+    TextMeshSpriteSheetName: xelu_dark_MouseKeyboardDark_SpriteSheet
+  - Icon: {fileID: 1166118545, guid: 2ea81a6f5e6677b49a218baf3c254f48, type: 3}
+    ActionBindingPath: <Keyboard>/3
+    TextMeshSpriteSheetName: xelu_dark_MouseKeyboardDark_SpriteSheet
+  - Icon: {fileID: -1444976073, guid: 2ea81a6f5e6677b49a218baf3c254f48, type: 3}
+    ActionBindingPath: <Keyboard>/4
+    TextMeshSpriteSheetName: xelu_dark_MouseKeyboardDark_SpriteSheet
+  - Icon: {fileID: -1272928128, guid: 2ea81a6f5e6677b49a218baf3c254f48, type: 3}
+    ActionBindingPath: <Keyboard>/5
+    TextMeshSpriteSheetName: xelu_dark_MouseKeyboardDark_SpriteSheet
+  - Icon: {fileID: 1517352244, guid: 2ea81a6f5e6677b49a218baf3c254f48, type: 3}
+    ActionBindingPath: <Keyboard>/6
+    TextMeshSpriteSheetName: xelu_dark_MouseKeyboardDark_SpriteSheet
+  - Icon: {fileID: 770608894, guid: 2ea81a6f5e6677b49a218baf3c254f48, type: 3}
+    ActionBindingPath: <Keyboard>/7
+    TextMeshSpriteSheetName: xelu_dark_MouseKeyboardDark_SpriteSheet
+  - Icon: {fileID: -1214375081, guid: 2ea81a6f5e6677b49a218baf3c254f48, type: 3}
+    ActionBindingPath: <Keyboard>/8
+    TextMeshSpriteSheetName: xelu_dark_MouseKeyboardDark_SpriteSheet
+  - Icon: {fileID: 1759079506, guid: 2ea81a6f5e6677b49a218baf3c254f48, type: 3}
+    ActionBindingPath: <Keyboard>/9
+    TextMeshSpriteSheetName: xelu_dark_MouseKeyboardDark_SpriteSheet
+  - Icon: {fileID: -1206022415, guid: 2ea81a6f5e6677b49a218baf3c254f48, type: 3}
+    ActionBindingPath: <Keyboard>/a
+    TextMeshSpriteSheetName: xelu_dark_MouseKeyboardDark_SpriteSheet
+  - Icon: {fileID: -1343760832, guid: 2ea81a6f5e6677b49a218baf3c254f48, type: 3}
+    ActionBindingPath: <Keyboard>/b
+    TextMeshSpriteSheetName: xelu_dark_MouseKeyboardDark_SpriteSheet
+  - Icon: {fileID: -682152417, guid: 2ea81a6f5e6677b49a218baf3c254f48, type: 3}
+    ActionBindingPath: <Keyboard>/c
+    TextMeshSpriteSheetName: xelu_dark_MouseKeyboardDark_SpriteSheet
+  - Icon: {fileID: -2108932728, guid: 2ea81a6f5e6677b49a218baf3c254f48, type: 3}
+    ActionBindingPath: <Keyboard>/d
+    TextMeshSpriteSheetName: xelu_dark_MouseKeyboardDark_SpriteSheet
+  - Icon: {fileID: -929264005, guid: 2ea81a6f5e6677b49a218baf3c254f48, type: 3}
+    ActionBindingPath: <Keyboard>/e
+    TextMeshSpriteSheetName: xelu_dark_MouseKeyboardDark_SpriteSheet
+  - Icon: {fileID: -864326533, guid: 2ea81a6f5e6677b49a218baf3c254f48, type: 3}
+    ActionBindingPath: <Keyboard>/f
+    TextMeshSpriteSheetName: xelu_dark_MouseKeyboardDark_SpriteSheet
+  - Icon: {fileID: 1578800870, guid: 2ea81a6f5e6677b49a218baf3c254f48, type: 3}
+    ActionBindingPath: <Keyboard>/g
+    TextMeshSpriteSheetName: xelu_dark_MouseKeyboardDark_SpriteSheet
+  - Icon: {fileID: 1138183401, guid: 2ea81a6f5e6677b49a218baf3c254f48, type: 3}
+    ActionBindingPath: <Keyboard>/h
+    TextMeshSpriteSheetName: xelu_dark_MouseKeyboardDark_SpriteSheet
+  - Icon: {fileID: 1800182072, guid: 2ea81a6f5e6677b49a218baf3c254f48, type: 3}
+    ActionBindingPath: <Keyboard>/i
+    TextMeshSpriteSheetName: xelu_dark_MouseKeyboardDark_SpriteSheet
+  - Icon: {fileID: 875008327, guid: 2ea81a6f5e6677b49a218baf3c254f48, type: 3}
+    ActionBindingPath: <Keyboard>/j
+    TextMeshSpriteSheetName: xelu_dark_MouseKeyboardDark_SpriteSheet
+  - Icon: {fileID: 1192368556, guid: 2ea81a6f5e6677b49a218baf3c254f48, type: 3}
+    ActionBindingPath: <Keyboard>/k
+    TextMeshSpriteSheetName: xelu_dark_MouseKeyboardDark_SpriteSheet
+  - Icon: {fileID: -1820222448, guid: 2ea81a6f5e6677b49a218baf3c254f48, type: 3}
+    ActionBindingPath: <Keyboard>/l
+    TextMeshSpriteSheetName: xelu_dark_MouseKeyboardDark_SpriteSheet
+  - Icon: {fileID: -250574078, guid: 2ea81a6f5e6677b49a218baf3c254f48, type: 3}
+    ActionBindingPath: <Keyboard>/m
+    TextMeshSpriteSheetName: xelu_dark_MouseKeyboardDark_SpriteSheet
+  - Icon: {fileID: 322525672, guid: 2ea81a6f5e6677b49a218baf3c254f48, type: 3}
+    ActionBindingPath: <Keyboard>/n
+    TextMeshSpriteSheetName: xelu_dark_MouseKeyboardDark_SpriteSheet
+  - Icon: {fileID: 709448934, guid: 2ea81a6f5e6677b49a218baf3c254f48, type: 3}
+    ActionBindingPath: <Keyboard>/o
+    TextMeshSpriteSheetName: xelu_dark_MouseKeyboardDark_SpriteSheet
+  - Icon: {fileID: -1597482162, guid: 2ea81a6f5e6677b49a218baf3c254f48, type: 3}
+    ActionBindingPath: <Keyboard>/p
+    TextMeshSpriteSheetName: xelu_dark_MouseKeyboardDark_SpriteSheet
+  - Icon: {fileID: -1521197335, guid: 2ea81a6f5e6677b49a218baf3c254f48, type: 3}
+    ActionBindingPath: <Keyboard>/q
+    TextMeshSpriteSheetName: xelu_dark_MouseKeyboardDark_SpriteSheet
+  - Icon: {fileID: -2131608156, guid: 2ea81a6f5e6677b49a218baf3c254f48, type: 3}
+    ActionBindingPath: <Keyboard>/r
+    TextMeshSpriteSheetName: xelu_dark_MouseKeyboardDark_SpriteSheet
+  - Icon: {fileID: -726352277, guid: 2ea81a6f5e6677b49a218baf3c254f48, type: 3}
+    ActionBindingPath: <Keyboard>/s
+    TextMeshSpriteSheetName: xelu_dark_MouseKeyboardDark_SpriteSheet
+  - Icon: {fileID: 464722343, guid: 2ea81a6f5e6677b49a218baf3c254f48, type: 3}
+    ActionBindingPath: <Keyboard>/t
+    TextMeshSpriteSheetName: xelu_dark_MouseKeyboardDark_SpriteSheet
+  - Icon: {fileID: 1008060985, guid: 2ea81a6f5e6677b49a218baf3c254f48, type: 3}
+    ActionBindingPath: <Keyboard>/u
+    TextMeshSpriteSheetName: xelu_dark_MouseKeyboardDark_SpriteSheet
+  - Icon: {fileID: 1265292450, guid: 2ea81a6f5e6677b49a218baf3c254f48, type: 3}
+    ActionBindingPath: <Keyboard>/v
+    TextMeshSpriteSheetName: xelu_dark_MouseKeyboardDark_SpriteSheet
+  - Icon: {fileID: 1828843263, guid: 2ea81a6f5e6677b49a218baf3c254f48, type: 3}
+    ActionBindingPath: <Keyboard>/w
+    TextMeshSpriteSheetName: xelu_dark_MouseKeyboardDark_SpriteSheet
+  - Icon: {fileID: 1813705892, guid: 2ea81a6f5e6677b49a218baf3c254f48, type: 3}
+    ActionBindingPath: <Keyboard>/x
+    TextMeshSpriteSheetName: xelu_dark_MouseKeyboardDark_SpriteSheet
+  - Icon: {fileID: -357208706, guid: 2ea81a6f5e6677b49a218baf3c254f48, type: 3}
+    ActionBindingPath: <Keyboard>/y
+    TextMeshSpriteSheetName: xelu_dark_MouseKeyboardDark_SpriteSheet
+  - Icon: {fileID: -876838417, guid: 2ea81a6f5e6677b49a218baf3c254f48, type: 3}
+    ActionBindingPath: <Keyboard>/z
+    TextMeshSpriteSheetName: xelu_dark_MouseKeyboardDark_SpriteSheet
+  - Icon: {fileID: -1972809648, guid: 2ea81a6f5e6677b49a218baf3c254f48, type: 3}
+    ActionBindingPath: <Keyboard>/alt
+    TextMeshSpriteSheetName: xelu_dark_MouseKeyboardDark_SpriteSheet
+  - Icon: {fileID: 1896530796, guid: 2ea81a6f5e6677b49a218baf3c254f48, type: 3}
+    ActionBindingPath: <Keyboard>/downArrow
+    TextMeshSpriteSheetName: xelu_dark_MouseKeyboardDark_SpriteSheet
+  - Icon: {fileID: -1245878986, guid: 2ea81a6f5e6677b49a218baf3c254f48, type: 3}
+    ActionBindingPath: <Keyboard>/leftArrow
+    TextMeshSpriteSheetName: xelu_dark_MouseKeyboardDark_SpriteSheet
+  - Icon: {fileID: -885169119, guid: 2ea81a6f5e6677b49a218baf3c254f48, type: 3}
+    ActionBindingPath: <Keyboard>/rightArrow
+    TextMeshSpriteSheetName: xelu_dark_MouseKeyboardDark_SpriteSheet
+  - Icon: {fileID: 266764642, guid: 2ea81a6f5e6677b49a218baf3c254f48, type: 3}
+    ActionBindingPath: <Keyboard>/upArrow
+    TextMeshSpriteSheetName: xelu_dark_MouseKeyboardDark_SpriteSheet
+  - Icon: {fileID: -213354661, guid: 2ea81a6f5e6677b49a218baf3c254f48, type: 3}
+    ActionBindingPath: <Keyboard>/numpadMultiply
+    TextMeshSpriteSheetName: xelu_dark_MouseKeyboardDark_SpriteSheet
+  - Icon: {fileID: -122408485, guid: 2ea81a6f5e6677b49a218baf3c254f48, type: 3}
+    ActionBindingPath: <Keyboard>/backspace
+    TextMeshSpriteSheetName: xelu_dark_MouseKeyboardDark_SpriteSheet
+  - Icon: {fileID: 1326247381, guid: 2ea81a6f5e6677b49a218baf3c254f48, type: 3}
+    ActionBindingPath: <Keyboard>/leftBracket
+    TextMeshSpriteSheetName: xelu_dark_MouseKeyboardDark_SpriteSheet
+  - Icon: {fileID: 1077829635, guid: 2ea81a6f5e6677b49a218baf3c254f48, type: 3}
+    ActionBindingPath: <Keyboard>/rightBracket
+    TextMeshSpriteSheetName: xelu_dark_MouseKeyboardDark_SpriteSheet
+  - Icon: {fileID: -85097804, guid: 2ea81a6f5e6677b49a218baf3c254f48, type: 3}
+    ActionBindingPath: <Keyboard>/capsLock
+    TextMeshSpriteSheetName: xelu_dark_MouseKeyboardDark_SpriteSheet
+  - Icon: {fileID: -676145714, guid: 2ea81a6f5e6677b49a218baf3c254f48, type: 3}
+    ActionBindingPath: 
+    TextMeshSpriteSheetName: xelu_dark_MouseKeyboardDark_SpriteSheet
+  - Icon: {fileID: 257387088, guid: 2ea81a6f5e6677b49a218baf3c254f48, type: 3}
+    ActionBindingPath: <Keyboard>/ctrl
+    TextMeshSpriteSheetName: xelu_dark_MouseKeyboardDark_SpriteSheet
+  - Icon: {fileID: 1605984260, guid: 2ea81a6f5e6677b49a218baf3c254f48, type: 3}
+    ActionBindingPath: <Keyboard>/delete
+    TextMeshSpriteSheetName: xelu_dark_MouseKeyboardDark_SpriteSheet
+  - Icon: {fileID: 282881663, guid: 2ea81a6f5e6677b49a218baf3c254f48, type: 3}
+    ActionBindingPath: <Keyboard>/end
+    TextMeshSpriteSheetName: xelu_dark_MouseKeyboardDark_SpriteSheet
+  - Icon: {fileID: -837170670, guid: 2ea81a6f5e6677b49a218baf3c254f48, type: 3}
+    ActionBindingPath: <Keyboard>/enter
+    TextMeshSpriteSheetName: xelu_dark_MouseKeyboardDark_SpriteSheet
+  - Icon: {fileID: 484604706, guid: 2ea81a6f5e6677b49a218baf3c254f48, type: 3}
+    ActionBindingPath: <Keyboard>/escape
+    TextMeshSpriteSheetName: xelu_dark_MouseKeyboardDark_SpriteSheet
+  - Icon: {fileID: -103378313, guid: 2ea81a6f5e6677b49a218baf3c254f48, type: 3}
+    ActionBindingPath: <Keyboard>/home
+    TextMeshSpriteSheetName: xelu_dark_MouseKeyboardDark_SpriteSheet
+  - Icon: {fileID: -1528415547, guid: 2ea81a6f5e6677b49a218baf3c254f48, type: 3}
+    ActionBindingPath: <Keyboard>/insert
+    TextMeshSpriteSheetName: xelu_dark_MouseKeyboardDark_SpriteSheet
+  - Icon: {fileID: 508624091, guid: 2ea81a6f5e6677b49a218baf3c254f48, type: 3}
+    ActionBindingPath: 
+    TextMeshSpriteSheetName: xelu_dark_MouseKeyboardDark_SpriteSheet
+  - Icon: {fileID: 288131055, guid: 2ea81a6f5e6677b49a218baf3c254f48, type: 3}
+    ActionBindingPath: 
+    TextMeshSpriteSheetName: xelu_dark_MouseKeyboardDark_SpriteSheet
+  - Icon: {fileID: -1546335909, guid: 2ea81a6f5e6677b49a218baf3c254f48, type: 3}
+    ActionBindingPath: <Keyboard>/minus
+    TextMeshSpriteSheetName: xelu_dark_MouseKeyboardDark_SpriteSheet
+  - Icon: {fileID: -372199344, guid: 2ea81a6f5e6677b49a218baf3c254f48, type: 3}
+    ActionBindingPath: <Keyboard>/numLock
+    TextMeshSpriteSheetName: xelu_dark_MouseKeyboardDark_SpriteSheet
+  - Icon: {fileID: -1895691866, guid: 2ea81a6f5e6677b49a218baf3c254f48, type: 3}
+    ActionBindingPath: <Keyboard>/pageDown
+    TextMeshSpriteSheetName: xelu_dark_MouseKeyboardDark_SpriteSheet
+  - Icon: {fileID: 1159344395, guid: 2ea81a6f5e6677b49a218baf3c254f48, type: 3}
+    ActionBindingPath: <Keyboard>/pageUp
+    TextMeshSpriteSheetName: xelu_dark_MouseKeyboardDark_SpriteSheet
+  - Icon: {fileID: 415273177, guid: 2ea81a6f5e6677b49a218baf3c254f48, type: 3}
+    ActionBindingPath: 
+    TextMeshSpriteSheetName: xelu_dark_MouseKeyboardDark_SpriteSheet
+  - Icon: {fileID: -1292464888, guid: 2ea81a6f5e6677b49a218baf3c254f48, type: 3}
+    ActionBindingPath: <Keyboard>/printScreen
+    TextMeshSpriteSheetName: xelu_dark_MouseKeyboardDark_SpriteSheet
+  - Icon: {fileID: -1632993421, guid: 2ea81a6f5e6677b49a218baf3c254f48, type: 3}
+    ActionBindingPath: 
+    TextMeshSpriteSheetName: xelu_dark_MouseKeyboardDark_SpriteSheet
+  - Icon: {fileID: 460877792, guid: 2ea81a6f5e6677b49a218baf3c254f48, type: 3}
+    ActionBindingPath: 
+    TextMeshSpriteSheetName: xelu_dark_MouseKeyboardDark_SpriteSheet
+  - Icon: {fileID: -60574681, guid: 2ea81a6f5e6677b49a218baf3c254f48, type: 3}
+    ActionBindingPath: <Keyboard>/semicolon
+    TextMeshSpriteSheetName: xelu_dark_MouseKeyboardDark_SpriteSheet
+  - Icon: {fileID: -927634649, guid: 2ea81a6f5e6677b49a218baf3c254f48, type: 3}
+    ActionBindingPath: <Keyboard>/shift
+    TextMeshSpriteSheetName: xelu_dark_MouseKeyboardDark_SpriteSheet
+  - Icon: {fileID: 781899812, guid: 2ea81a6f5e6677b49a218baf3c254f48, type: 3}
+    ActionBindingPath: <Keyboard>/backslash
+    TextMeshSpriteSheetName: xelu_dark_MouseKeyboardDark_SpriteSheet
+  - Icon: {fileID: -1707516993, guid: 2ea81a6f5e6677b49a218baf3c254f48, type: 3}
+    ActionBindingPath: <Keyboard>/space
+    TextMeshSpriteSheetName: xelu_dark_MouseKeyboardDark_SpriteSheet
+  - Icon: {fileID: -1727276284, guid: 2ea81a6f5e6677b49a218baf3c254f48, type: 3}
+    ActionBindingPath: <Keyboard>/tab
+    TextMeshSpriteSheetName: xelu_dark_MouseKeyboardDark_SpriteSheet
+  - Icon: {fileID: 1842526010, guid: 2ea81a6f5e6677b49a218baf3c254f48, type: 3}
+    ActionBindingPath: 
+    TextMeshSpriteSheetName: xelu_dark_MouseKeyboardDark_SpriteSheet
+  - Icon: {fileID: -36299734, guid: 2ea81a6f5e6677b49a218baf3c254f48, type: 3}
+    ActionBindingPath: 
+    TextMeshSpriteSheetName: xelu_dark_MouseKeyboardDark_SpriteSheet
+  - Icon: {fileID: -1586294742, guid: 2ea81a6f5e6677b49a218baf3c254f48, type: 3}
+    ActionBindingPath: 
+    TextMeshSpriteSheetName: xelu_dark_MouseKeyboardDark_SpriteSheet
+  - Icon: {fileID: 2121031872, guid: 2ea81a6f5e6677b49a218baf3c254f48, type: 3}
+    ActionBindingPath: 
+    TextMeshSpriteSheetName: xelu_dark_MouseKeyboardDark_SpriteSheet
+  - Icon: {fileID: 782013955, guid: 2ea81a6f5e6677b49a218baf3c254f48, type: 3}
+    ActionBindingPath: 
+    TextMeshSpriteSheetName: xelu_dark_MouseKeyboardDark_SpriteSheet
+  - Icon: {fileID: -587933148, guid: 2ea81a6f5e6677b49a218baf3c254f48, type: 3}
+    ActionBindingPath: <Mouse>/leftButton
+    TextMeshSpriteSheetName: xelu_dark_MouseKeyboardDark_SpriteSheet
+  - Icon: {fileID: 1970736822, guid: 2ea81a6f5e6677b49a218baf3c254f48, type: 3}
+    ActionBindingPath: <Mouse>/rightButton
+    TextMeshSpriteSheetName: xelu_dark_MouseKeyboardDark_SpriteSheet
+  - Icon: {fileID: 30538136, guid: 2ea81a6f5e6677b49a218baf3c254f48, type: 3}
+    ActionBindingPath: 
+    TextMeshSpriteSheetName: xelu_dark_MouseKeyboardDark_SpriteSheet
+  - Icon: {fileID: 2084837134, guid: 2ea81a6f5e6677b49a218baf3c254f48, type: 3}
+    ActionBindingPath: 
+    TextMeshSpriteSheetName: xelu_dark_MouseKeyboardDark_SpriteSheet
+  - Icon: {fileID: -1815695679, guid: 2ea81a6f5e6677b49a218baf3c254f48, type: 3}
+    ActionBindingPath: 
+    TextMeshSpriteSheetName: xelu_dark_MouseKeyboardDark_SpriteSheet
+  - Icon: {fileID: -533230085, guid: 2ea81a6f5e6677b49a218baf3c254f48, type: 3}
+    ActionBindingPath: 
+    TextMeshSpriteSheetName: xelu_dark_MouseKeyboardDark_SpriteSheet
+  - Icon: {fileID: 1369760213, guid: 2ea81a6f5e6677b49a218baf3c254f48, type: 3}
+    ActionBindingPath: WASD
+    TextMeshSpriteSheetName: xelu_dark_MouseKeyboardDark_SpriteSheet
+  - Icon: {fileID: 609533083, guid: 2ea81a6f5e6677b49a218baf3c254f48, type: 3}
+    ActionBindingPath: ARROWS
+    TextMeshSpriteSheetName: xelu_dark_MouseKeyboardDark_SpriteSheet

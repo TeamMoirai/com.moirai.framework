@@ -1,0 +1,97 @@
+<div align="center">
+
+![Logo](Documentation~/src/logo.jpg)
+
+[![Unity Version](https://img.shields.io/badge/Unity-2021.3.20%2B-blue.svg?style=for-the-badge)](https://unity3d.com/)
+[![License](https://img.shields.io/github/license/Lx34r/com.moirai.framework?style=for-the-badge)](LICENSE)
+[![Last Commit](https://img.shields.io/github/last-commit/Lx34r/com.moirai.framework?style=for-the-badge)](https://github.com/Lx34r/com.moirai.framework)
+[![Issues](https://img.shields.io/github/issues/Lx34r/com.moirai.framework?style=for-the-badge)](https://github.com/Lx34r/com.moirai.framework/issues)
+[![Top Language](https://img.shields.io/github/languages/top/Lx34r/com.moirai.framework?style=for-the-badge)](https://github.com/Lx34r/com.moirai.framework)
+
+</div>
+
+## 📖 简介
+
+**Moirai Framework** 是一个简单（新手友好、开箱即用）且强大的 Unity 框架全平台解决方案。
+
+### ✨ 核心特性
+
+- 🚀 **开箱即用** - 5 分钟即可上手整套开发流程，代码整洁，思路清晰
+- 🔥 **高性能** - 基于 UniTask 的异步系统，零 GC 事件分发，严格的内存管理
+- 🧩 **高内聚低耦合** - 模块化设计，可轻松移除或替换不需要的模块
+- 🔄 **热更新支持** - 集成 HybridCLR，全平台热更新流程已跑通
+- 📦 **资源管理** - 集成 YooAsset，支持 LRU、ARC 缓存策略，自动资源释放
+- 📊 **配置表系统** - 集成 Luban，支持懒加载、异步加载、同步加载
+- 🎨 **UI 框架** - 商业化 UI 开发流程，支持代码自动生成
+- 🌍 **全平台支持** - Windows、Android、iOS、WebGL、微信小游戏等
+
+---
+
+## 📚 目录
+
+- [快速开始](#-快速开始)
+- [贡献与支持](#-贡献与支持)
+
+---
+
+## 🚀 快速开始
+
+### 环境要求
+
+- **Unity 版本**: 2021.3.20f1c1（推荐）或更高
+- **支持版本**: Unity 2019.4 / 2020.3 / 2021.3 / 2022.3
+- **开发环境**: .NET 4.x
+- **支持平台**: Windows、OSX、Android、iOS、WebGL
+
+### 快速上手
+
+1. 在 **Project Settings/Unity Package Manager** 中，手动添加 **Scoped Registry**：
+
+   ```
+   // 输入以下内容（国际版）
+   Name: Open UPM
+   URL: https://package.openupm.com
+   Scope(s): com.cysharp
+   		  com.tuyoogame
+   ```
+
+2. 在 **Unity Package Manager** 中，通过 Git URL 添加框架：
+
+   ```text
+   https://github.com/Lx34r/com.moirai.framework.git
+   ```
+
+3. **打开项目**
+
+   - 使用 Unity 2021.3.20f1c1 打开项目
+
+4. **编辑器模式运行**
+
+   - 选择顶部菜单栏 `YooAsset/Editor PlayMode` 编辑器下的模拟模式
+   - 点击 `Play` 开始运行
+
+5. **打包运行**（热更新流程）
+   - 运行菜单 `HybridCLR/Install...` 安装 HybridCLR
+   - 运行菜单 `HybridCLR/Define Symbols/Enable HybridCLR` 开启热更新
+   - 运行菜单 `HybridCLR/Generate/All` 进行必要的生成操作
+   - 运行菜单 `HybridCLR/Build/BuildAssets And CopyTo AssemblyPath` 生成热更新 DLL
+   - 运行菜单 `YooAsset/AssetBundle Builder` 构建 AB
+   - 打开 Build Settings，点击 Build And Run
+
+> 💡 **提示**: 遇到问题请查看 [HybridCLR 常见错误](https://hybridclr.doc.code-philosophy.com/docs/help/commonerrors)
+
+---
+
+## 🤝 贡献与支持
+
+### 🌟 生态依赖
+
+| 项目 | 描述 |
+|------|------|
+| **[TEngine](https://github.com/Alex-Rachel/TEngine)** | Unity 商用级别开发框架 |
+| **[YooAsset](https://github.com/tuyoogame/YooAsset)** | 商业级经历百万 DAU 游戏验证的资源管理系统 |
+| **[HybridCLR](https://github.com/focus-creative-games/hybridclr)** | 特性完整、零成本、高性能、低内存的近乎完美的 Unity 全平台原生 C# 热更方案。 |
+| **[Luban](https://github.com/focus-creative-games/luban)** | 最佳游戏配置解决方案 |
+
+### 👥 贡献者
+[![Contributors](https://contrib.rocks/image?repo=Lx34r/com.moirai.framework)](https://github.com/Lx34r/com.moirai.framework/graphs/contributors)
