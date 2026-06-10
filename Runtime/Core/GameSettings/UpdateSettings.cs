@@ -101,12 +101,14 @@ namespace Moirai.Atropos
         public static EUpdateNotice UpdateNotice => Instance.m_UpdateNotice;
 
         [Tooltip("资源服务器地址")]
-        [SerializeField] private string m_ResDownLoadPath = "http://127.0.0.1:8081";
+        // SECURITY: Use HTTPS in production to prevent man-in-the-middle asset injection.
+        [SerializeField] private string m_ResDownLoadPath = "https://your-cdn-domain.com/resources";
         /// <summary>资源服务器地址。</summary>
         private static string ResDownLoadPath => Instance.m_ResDownLoadPath;
 
         [Tooltip("资源服务备用地址")]
-        [SerializeField] private string m_FallbackResDownLoadPath = "http://127.0.0.1:8082";
+        // SECURITY: Use HTTPS in production to prevent man-in-the-middle asset injection.
+        [SerializeField] private string m_FallbackResDownLoadPath = "https://your-cdn-fallback.com/resources";
         /// <summary>资源服务备用地址。</summary>
         private static string FallbackResDownLoadPath => Instance.m_FallbackResDownLoadPath;
 

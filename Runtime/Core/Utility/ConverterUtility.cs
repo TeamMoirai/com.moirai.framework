@@ -961,6 +961,11 @@ namespace Moirai.Atropos
         /// </summary>
         /// <param name="obj">对象</param>
         /// <returns>byte数组</returns>
+        /// <remarks>
+        /// SECURITY WARNING: BinaryFormatter is vulnerable to deserialization attacks.
+        /// See: https://learn.microsoft.com/en-us/dotnet/standard/serialization/binaryformatter-security-guide
+        /// </remarks>
+        [System.Obsolete("BinaryFormatter is insecure and deprecated. Use JSON serialization instead. See https://aka.ms/binaryformatter")]
         public static byte[] Object2Bytes(object obj)
         {
             using (MemoryStream ms = new MemoryStream())

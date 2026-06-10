@@ -613,6 +613,11 @@ namespace Moirai.Atropos
         /// <param name="fileFullPath">完整文件路径，带后缀名</param>
         /// <param name="context">内容</param>
         /// <returns>是否写入成功</returns>
+        /// <remarks>
+        /// SECURITY WARNING: BinaryFormatter is vulnerable to deserialization attacks.
+        /// See: https://learn.microsoft.com/en-us/dotnet/standard/serialization/binaryformatter-security-guide
+        /// </remarks>
+        [System.Obsolete("BinaryFormatter is insecure and deprecated. Use JSON serialization instead. See https://aka.ms/binaryformatter")]
         public static bool WriterFormattedBinary(string fileFullPath, object context)
         {
             var folderPath = System.IO.Path.GetDirectoryName(fileFullPath);
@@ -635,6 +640,7 @@ namespace Moirai.Atropos
         /// <param name="fileName">带后缀的文件名</param>
         /// <param name="context">内容</param>
         /// <returns>是否写入成功</returns>
+        [System.Obsolete("BinaryFormatter is insecure and deprecated. Use JSON serialization instead. See https://aka.ms/binaryformatter")]
         public static bool WriterFormattedBinary(string filePath, string fileName, object context)
         {
             if (!Directory.Exists(filePath))
@@ -654,6 +660,7 @@ namespace Moirai.Atropos
         /// </summary>
         /// <param name="fileFullPath">完整文件路径</param>
         /// <returns>内容</returns>
+        [System.Obsolete("BinaryFormatter is insecure and deprecated. Use JSON serialization instead. See https://aka.ms/binaryformatter")]
         public static object ReadFormattedBinary(string fileFullPath)
         {
             if (!System.IO.File.Exists(fileFullPath))
