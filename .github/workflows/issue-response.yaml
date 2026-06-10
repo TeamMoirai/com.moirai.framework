@@ -1,0 +1,94 @@
+name: Issue Auto Response
+
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  auto-response:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Analyze and respond to issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue = context.payload.issue;
+            const title = issue.title;
+            const body = issue.body || '';
+            const content = (title + ' ' + body).toLowerCase();
+
+            // Detect language: if content contains CJK characters, treat as Chinese
+            const isChinese = /[\u4e00-\u9fff]/.test(title + body);
+
+            // Keyword-based guidance rules with bilingual messages
+            const rules = [
+              {
+                keywords: ['install', 'setup', '安装', '配置', '环境', 'unity version', 'package manager'],
+                zh: '📚 看起来您的问题可能与安装或环境配置有关，请参考 [快速开始指南](https://github.com/Lx34r/com.moirai.framework#-%E5%BF%AB%E9%80%9F%E5%BC%80%E5%A7%8B) 获取详细步骤。',
+                en: '📚 This looks like it might be related to installation or setup. Please check our [Quick Start Guide](https://github.com/Lx34r/com.moirai.framework#-%E5%BF%AB%E9%80%9F%E5%BC%80%E5%A7%8B) for detailed instructions.'
+              },
+              {
+                keywords: ['hybridclr', 'hot update', '热更', 'hotfix', 'dll'],
+                zh: '📚 这似乎与 HybridCLR / 热更新相关，建议查阅 [HybridCLR 常见错误](https://hybridclr.doc.code-philosophy.com/docs/help/commonerrors) 页面。',
+                en: '📚 This seems related to HybridCLR / hot update. You may find the [HybridCLR Common Errors](https://hybridclr.doc.code-philosophy.com/docs/help/commonerrors) page helpful.'
+              },
+              {
+                keywords: ['yooasset', 'asset', '资源', 'bundle', 'assetbundle', 'ab包', '资源管理'],
+                zh: '📚 这似乎与资源管理相关，请参考 [YooAsset 文档](https://github.com/tuyoogame/YooAsset) 了解更多。',
+                en: '📚 This appears to be related to asset management. Please refer to the [YooAsset documentation](https://github.com/tuyoogame/YooAsset) for more details.'
+              },
+              {
+                keywords: ['atlas', 'sprite', '图集', 'texture', 'packing'],
+                zh: '📚 这似乎与 Atlas Maker / 图集相关，请确认 `AtlasConfiguration` 配置是否正确。',
+                en: '📚 This seems related to Atlas Maker. Please verify your `AtlasConfiguration` settings are correct.'
+              },
+              {
+                keywords: ['luban', '配置表', 'config table', 'excel'],
+                zh: '📚 这似乎与配置表系统相关，请参考 [Luban 文档](https://github.com/focus-creative-games/luban) 获取帮助。',
+                en: '📚 This seems related to the config table system. Please refer to the [Luban documentation](https://github.com/focus-creative-games/luban) for help.'
+              },
+              {
+                keywords: ['ui', 'ugui', 'canvas', '界面', 'panel'],
+                zh: '📚 这似乎与 UI 框架相关，请查阅项目中的 UI 模块文档。',
+                en: '📚 This looks like a UI framework question. Please check the UI module documentation in the project.'
+              }
+            ];
+
+            const matched = rules
+              .filter(r => r.keywords.some(kw => content.includes(kw)))
+              .map(r => isChinese ? r.zh : r.en);
+
+            let guidance;
+            if (matched.length > 0) {
+              const heading = isChinese
+                ? '**以下资源可能对您有所帮助：**'
+                : '**The following resources may help:**';
+              guidance = '\n\n' + heading + '\n\n' + matched.join('\n\n');
+            } else {
+              guidance = isChinese
+                ? '\n\n📚 您也可以查阅 [README](https://github.com/Lx34r/com.moirai.framework#readme) 获取更多项目信息。'
+                : '\n\n📚 You can also check the [README](https://github.com/Lx34r/com.moirai.framework#readme) for more project information.';
+            }
+
+            const greeting = isChinese
+              ? '👋 感谢您提交 Issue！'
+              : '👋 Thank you for submitting this issue!';
+
+            const status = isChinese
+              ? '我们已收到您的反馈，团队会尽快查看并处理。'
+              : 'We have received your feedback and our team will review it as soon as possible.';
+
+            const footer = isChinese
+              ? '> 🤖 此回复由 GitHub Actions 自动生成，维护者会尽快跟进。'
+              : '> 🤖 This is an automated response. A maintainer will follow up shortly.';
+
+            const comment = `${greeting}\n\n${status}${guidance}\n\n---\n${footer}`;
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number,
+              body: comment
+            });
