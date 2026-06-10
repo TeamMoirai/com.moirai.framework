@@ -2,6 +2,7 @@
 // 使用方法：将本文件放入 Unity 工程的 Assets/Editor/ 目录，
 // 脚本会自动检测并添加 OpenUPM Scoped Registry，然后导入框架。
 // 安装完成后可删除本文件。
+#if UNITY_EDITOR
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -597,3 +598,4 @@ namespace Moirai.Installer
         #endregion
     }
 }
+#endif
