@@ -15,8 +15,11 @@ namespace Moirai.Atropos.Save
         /// </summary>
         public virtual string Key { get; set; } = "CHANGE_ME_BEFORE_SHIPPING";
 
-        // SECURITY: Must be changed to a unique, per-project value before shipping.
-        private const string SALT_TEXT = "CHANGE_ME_SALT";
+        /// <summary>
+        /// 加密盐文。
+        /// SECURITY: Must be overridden with a unique, per-project value before shipping.
+        /// </summary>
+        public virtual string Salt { get; set; } = "CHANGE_ME_SALT";
 
         /// <summary>
         /// 使用参数中传入的密钥将指定的输入流加密到指定的输出流中
@@ -27,7 +30,7 @@ namespace Moirai.Atropos.Save
         protected virtual void Encrypt(Stream inputStream, Stream outputStream, string sKey)
         {
             using var algorithm = Aes.Create();
-            Rfc2898DeriveBytes key = new Rfc2898DeriveBytes(sKey, Encoding.ASCII.GetBytes(SALT_TEXT));
+            Rfc2898DeriveBytes key = new Rfc2898DeriveBytes(sKey, Encoding.ASCII.GetBytes(Salt));
 
             algorithm.Key = key.GetBytes(algorithm.KeySize / 8);
             algorithm.IV = key.GetBytes(algorithm.BlockSize / 8);
@@ -45,7 +48,7 @@ namespace Moirai.Atropos.Save
         protected virtual void Decrypt(Stream inputStream, Stream outputStream, string sKey)
         {
             using var algorithm = Aes.Create();
-            Rfc2898DeriveBytes key = new Rfc2898DeriveBytes(sKey, Encoding.ASCII.GetBytes(SALT_TEXT));
+            Rfc2898DeriveBytes key = new Rfc2898DeriveBytes(sKey, Encoding.ASCII.GetBytes(Salt));
 
             algorithm.Key = key.GetBytes(algorithm.KeySize / 8);
             algorithm.IV = key.GetBytes(algorithm.BlockSize / 8);
