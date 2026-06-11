@@ -58,25 +58,26 @@
 ### 环境要求
 
 - **Unity 版本**: 2022.3.x（推荐）或更高
-- **支持版本**: Unity 2019.4 / 2020.3 / 2021.3 / 2022.3
 - **开发环境**: .NET 4.x
 - **支持平台**: Windows、OSX、Android、iOS、WebGL
 
 ### 快速上手
 
-#### 方式一：一键安装（推荐）
+#### 下载安装
+
+##### 方式一：一键安装（推荐）
 
 1. 克隆 `install` 分支至工程目录
 
    ```bash
-   git clone --branch install --single-branch https://github.com/Lx34r/com.moirai.framework.git
+   git clone --branch installer --single-branch https://github.com/Lx34r/com.moirai.framework.git FrameworkInstaller
    ```
 
 2. 回到 Unity，手动执行菜单 `Tools/Settings/Install Framework`
 
-3. 安装完成后可安全删除该脚本，然后从下方第 3 步继续
+3. 安装完成后可安全删除该脚本
 
-#### 方式二：手动安装
+##### 方式二：UPM 安装
 
 1. 在 **Project Settings/Unity Package Manager** 中，手动添加 **Scoped Registry**：
 
@@ -86,24 +87,27 @@
    URL: https://package.openupm.com
    Scope(s): com.cysharp
    		  com.tuyoogame
+   		  com.moirai
    ```
 
-2. 在 **Unity Package Manager** 中，通过 Git URL 添加框架：
+   <img src="Documentation~\src\quick-start-2-scoped-registries.png" alt="quick-start-scoped-registries" />
 
-   ```text
-   https://github.com/Lx34r/com.moirai.framework.git
-   ```
+2. 在 **Window/Package Manager** 中，选中 **Moirai Framework**，点击 **Install** 进行安装：
 
-3. **打开项目**
+    <img src="Documentation~\src\quick-start-2-package-detail.png" alt="quick-start-package-detail" />
 
-   - 使用 Unity 2021.3.20f1c1 打开项目
+##### 方式三：手动安装
 
-4. **编辑器模式运行**
+​	在发布的Release版本中，选择最新版本下载 **Source Code** 压缩包。
 
+#### 快捷功能
+
+1. **编辑器模式运行**
    - 选择顶部菜单栏 `YooAsset/Editor PlayMode` 编辑器下的模拟模式
    - 点击 `Play` 开始运行
+   
+2. **打包运行**（热更新流程）
 
-5. **打包运行**（热更新流程）
    - 运行菜单 `HybridCLR/Install...` 安装 HybridCLR
    - 运行菜单 `HybridCLR/Define Symbols/Enable HybridCLR` 开启热更新
    - 运行菜单 `HybridCLR/Generate/All` 进行必要的生成操作
