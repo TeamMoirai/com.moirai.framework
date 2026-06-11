@@ -5,9 +5,22 @@
   "description": "Unity development framework integrating HybridCLR for high-performance hot updates, Obfuz for code obfuscation and hardening, and YooAssets for enterprise-grade resource management.",
   "version": "0.0.1",
   "unity": "2022.3",
+  "unityRelease": "0f1",
+  "license": "MIT",
   "keywords": [
     "Moirai",
-    "Framework"
+    "Framework",
+    "HybridCLR",
+    "Hot Update",
+    "YooAsset",
+    "Resource Management",
+    "UI Framework",
+    "Event System",
+    "Localization",
+    "Audio",
+    "FSM",
+    "Object Pool",
+    "Luban"
   ],
   "repository": {
     "name": "com.moirai.framework",
@@ -20,6 +33,14 @@
 	"email": "zyssmart@live.com"
   },
   "changelogUrl": "https://github.com/Lx34r/com.moirai.framework/releases",
+  "documentationUrl": "https://github.com/Lx34r/com.moirai.framework#readme",
+  "samples": [
+    {
+      "displayName": "InputSystem Action Prompts",
+      "description": "Controller prompt sprites (PS4/PS5/Xbox/Switch/SteamDeck/Mouse-Keyboard), TMP sprite assets, controller map assets, prefabs, sample scene, and WebGL template.",
+      "path": "Samples~"
+    }
+  ],
   "dependencies": {
     "com.cysharp.unitask": "2.5.11",
     "com.tuyoogame.yooasset": "2.3.19",
