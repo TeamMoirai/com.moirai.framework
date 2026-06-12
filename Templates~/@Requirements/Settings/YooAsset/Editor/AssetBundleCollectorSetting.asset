@@ -1,0 +1,160 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 185f6993d5150494d98da50e26cb1c25, type: 3}
+  m_Name: AssetBundleCollectorSetting
+  m_EditorClassIdentifier: 
+  ShowPackageView: 0
+  ShowEditorAlias: 1
+  UniqueBundleName: 0
+  Packages:
+  - PackageName: DefaultPackage
+    PackageDesc: "\u9ED8\u8BA4\u8D44\u6E90\u5305"
+    EnableAddressable: 0
+    SupportExtensionless: 1
+    LocationToLower: 0
+    IncludeAssetGUID: 0
+    AutoCollectShaders: 1
+    IgnoreRuleName: CustomNormalIgnoreRule
+    Groups:
+    - GroupName: Actor
+      GroupDesc: "\u89D2\u8272"
+      AssetTags: Actor
+      ActiveRuleName: EnableGroup
+      Collectors:
+      - CollectPath: Assets/AssetRaw/Default/Actor
+        CollectorGUID: 55bdfbe1ab1bc1245bb15237676185e4
+        CollectorType: 0
+        AddressRuleName: AddressByFileName
+        PackRuleName: PackTopDirectory
+        FilterRuleName: CollectAll
+        AssetTags: 
+        UserData: 
+    - GroupName: Audio
+      GroupDesc: "\u97F3\u9891"
+      AssetTags: Audio
+      ActiveRuleName: EnableGroup
+      Collectors:
+      - CollectPath: Assets/AssetRaw/Default/Audio
+        CollectorGUID: 3992c0f3ac6c83a4e9e69868d1fe5480
+        CollectorType: 2
+        AddressRuleName: AddressByFileName
+        PackRuleName: PackGroup
+        FilterRuleName: AudioFilter
+        AssetTags: 
+        UserData: 
+    - GroupName: Config
+      GroupDesc: "\u914D\u7F6E\u8868"
+      AssetTags: Config
+      ActiveRuleName: EnableGroup
+      Collectors:
+      - CollectPath: Assets/AssetRaw/Default/Config
+        CollectorGUID: 4afb25aff2a78f746a62956a1ebf33ce
+        CollectorType: 0
+        AddressRuleName: AddressByFileName
+        PackRuleName: PackGroup
+        FilterRuleName: CollectAll
+        AssetTags: PRELOAD
+        UserData: 
+    - GroupName: DLL
+      GroupDesc: "\u4EE3\u7801"
+      AssetTags: DLL
+      ActiveRuleName: DisableGroup
+      Collectors: []
+    - GroupName: VFX
+      GroupDesc: "\u7279\u6548"
+      AssetTags: VFX
+      ActiveRuleName: EnableGroup
+      Collectors:
+      - CollectPath: Assets/AssetRaw/Default/VFX
+        CollectorGUID: cc02618e91673eb479b1fa001fe08389
+        CollectorType: 2
+        AddressRuleName: AddressByFileName
+        PackRuleName: PackTopDirectory
+        FilterRuleName: CollectAll
+        AssetTags: 
+        UserData: 
+    - GroupName: Font
+      GroupDesc: "\u5B57\u4F53"
+      AssetTags: Font
+      ActiveRuleName: EnableGroup
+      Collectors:
+      - CollectPath: Assets/AssetRaw/Default/Font
+        CollectorGUID: f1b1bb50777c0984baed6535168d78a9
+        CollectorType: 0
+        AddressRuleName: AddressByFileName
+        PackRuleName: PackGroup
+        FilterRuleName: CollectAll
+        AssetTags: 
+        UserData: 
+    - GroupName: Scene
+      GroupDesc: "\u573A\u666F"
+      AssetTags: Scene
+      ActiveRuleName: EnableGroup
+      Collectors:
+      - CollectPath: Assets/AssetRaw/Default/Scene
+        CollectorGUID: 3ea0c6b752a349b4a9de40f171dda725
+        CollectorType: 0
+        AddressRuleName: AddressByFileName
+        PackRuleName: PackGroup
+        FilterRuleName: CollectAll
+        AssetTags: 
+        UserData: 
+    - GroupName: Shader
+      GroupDesc: "\u7740\u8272\u5668"
+      AssetTags: Shader
+      ActiveRuleName: EnableGroup
+      Collectors:
+      - CollectPath: Assets/AssetRaw/Default/Shader
+        CollectorGUID: e98eec3a1de21674ca11503d7153010f
+        CollectorType: 1
+        AddressRuleName: AddressByFileName
+        PackRuleName: PackCollector
+        FilterRuleName: CollectShader
+        AssetTags: 
+        UserData: 
+      - CollectPath: Assets/AssetRaw/Default/ShaderVariants
+        CollectorGUID: 3e44a4f502841554aa7c9bb2eff80b3a
+        CollectorType: 1
+        AddressRuleName: AddressByFileName
+        PackRuleName: PackCollector
+        FilterRuleName: CollectShaderVariants
+        AssetTags: 
+        UserData: 
+    - GroupName: UI
+      GroupDesc: "UI\u9762\u677F"
+      AssetTags: UI
+      ActiveRuleName: EnableGroup
+      Collectors:
+      - CollectPath: Assets/AssetRaw/Default/UI/Atlas
+        CollectorGUID: 0369ae1f8f172af4798de1cde812416f
+        CollectorType: 0
+        AddressRuleName: AddressByFileName
+        PackRuleName: PackCollector
+        FilterRuleName: CollectAll
+        AssetTags: 
+        UserData: 
+      - CollectPath: Assets/AssetRaw/Default/UI/Texture
+        CollectorGUID: 5f1d76912b7e78c4584e6b3902976210
+        CollectorType: 1
+        AddressRuleName: AddressByFileName
+        PackRuleName: PackCollector
+        FilterRuleName: CollectAll
+        AssetTags: 
+        UserData: 
+      - CollectPath: Assets/AssetRaw/Default/UI/Window
+        CollectorGUID: 00664f5244250674488584ade393ce75
+        CollectorType: 0
+        AddressRuleName: AddressByFileName
+        PackRuleName: PackCollector
+        FilterRuleName: CollectAll
+        AssetTags: 
+        UserData: 

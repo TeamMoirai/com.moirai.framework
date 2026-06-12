@@ -57,12 +57,12 @@ namespace Moirai.Atropos
         public static string ProjectName => Instance.m_ProjectName;
 
         [Header("自动同步 [HybridCLRGlobalSettings]")]
-        [SerializeField] private List<string> m_HotUpdateAssemblies = new List<string>() {"GameLogic.dll" };
+        [SerializeField] private List<string> m_HotUpdateAssemblies = new List<string>() { "GameProto.dll", "GameLogic.dll" };
         /// <summary>热更新 dll</summary>
         public static List<string> HotUpdateAssemblies => Instance.m_HotUpdateAssemblies;
 
         [Header("需要手动设置！")]
-        [SerializeField] private List<string> m_AOTMetaAssemblies = new List<string>() { "mscorlib.dll", "System.dll", "System.Core.dll", "UnityEngine.CoreModule.dll", "Moirai.Atropos.dll" ,"UniTask.dll", "YooAsset.dll", "R3.dll", "R3.Unity.dll"};
+        [SerializeField] private List<string> m_AOTMetaAssemblies = new List<string>() { "mscorlib.dll", "System.dll", "System.Core.dll", "UnityEngine.CoreModule.dll", "Moirai.Atropos.dll" ,"UniTask.dll", "YooAsset.dll", "R3.dll", "R3.Unity.dll" };
         /// <summary>补充元数据 dll</summary>
         public static List<string> AOTMetaAssemblies => Instance.m_AOTMetaAssemblies;
 

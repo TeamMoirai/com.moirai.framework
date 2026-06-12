@@ -118,9 +118,17 @@ Moirai Framework
 
     <img src="Documentation~\src\quick-start-2-package-detail.png" alt="quick-start-package-detail" />
 
+3. Manually copy all contents from the **@Requirements** folder under `ProjectRoot/Library/PackageCach/com.moirai.framework@xxx/Templates~/` to the **ProjectRoot/Asset**s directory.
+
+    (Optional) Copy an appropriate template from the same directory into the project as needed; generally, choose **NormalTemplate**.
+
 ##### Option 3: Manual Install
 
-Download the **Source Code** archive from the latest release on the Releases page.
+1. Download the **Source Code** archive from the latest release on the Releases page.
+
+2. Refer to **Option 2: UPM Install.3**.
+
+---
 
 #### Quick Tips
 
