@@ -24,16 +24,15 @@
   ],
   "repository": {
     "name": "com.moirai.framework",
-    "url": "https://github.com/Lx34r/com.moirai.framework.git",
+    "url": "https://github.com/TeamMoirai/com.moirai.framework.git",
     "type": "git"
   },
   "author": {
-    "name": "Lx34r",
-    "url": "https://github.com/Lx34r",
-	"email": "zyssmart@live.com"
+    "name": "Team Moirai",
+    "url": "https://github.com/TeamMoirai"
   },
-  "changelogUrl": "https://github.com/Lx34r/com.moirai.framework/releases",
-  "documentationUrl": "https://github.com/Lx34r/com.moirai.framework#readme",
+  "changelogUrl": "https://github.com/TeamMoirai/com.moirai.framework/releases",
+  "documentationUrl": "https://github.com/TeamMoirai/com.moirai.framework#readme",
   "samples": [
     {
       "displayName": "InputSystem Action Prompts",
