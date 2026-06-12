@@ -26,8 +26,8 @@ jobs:
             const rules = [
               {
                 keywords: ['install', 'setup', '安装', '配置', '环境', 'unity version', 'package manager'],
-                zh: '📚 看起来您的问题可能与安装或环境配置有关，请参考 [快速开始指南](https://github.com/Lx34r/com.moirai.framework#-%E5%BF%AB%E9%80%9F%E5%BC%80%E5%A7%8B) 获取详细步骤。',
-                en: '📚 This looks like it might be related to installation or setup. Please check our [Quick Start Guide](https://github.com/Lx34r/com.moirai.framework#-%E5%BF%AB%E9%80%9F%E5%BC%80%E5%A7%8B) for detailed instructions.'
+                zh: '📚 看起来您的问题可能与安装或环境配置有关，请参考 [快速开始指南](https://github.com/TeamMoirai/com.moirai.framework#-%E5%BF%AB%E9%80%9F%E5%BC%80%E5%A7%8B) 获取详细步骤。',
+                en: '📚 This looks like it might be related to installation or setup. Please check our [Quick Start Guide](https://github.com/TeamMoirai/com.moirai.framework#-%E5%BF%AB%E9%80%9F%E5%BC%80%E5%A7%8B) for detailed instructions.'
               },
               {
                 keywords: ['hybridclr', 'hot update', '热更', 'hotfix', 'dll'],
@@ -68,8 +68,8 @@ jobs:
               guidance = '\n\n' + heading + '\n\n' + matched.join('\n\n');
             } else {
               guidance = isChinese
-                ? '\n\n📚 您也可以查阅 [README](https://github.com/Lx34r/com.moirai.framework#readme) 获取更多项目信息。'
-                : '\n\n📚 You can also check the [README](https://github.com/Lx34r/com.moirai.framework#readme) for more project information.';
+                ? '\n\n📚 您也可以查阅 [README](https://github.com/TeamMoirai/com.moirai.framework#readme) 获取更多项目信息。'
+                : '\n\n📚 You can also check the [README](https://github.com/TeamMoirai/com.moirai.framework#readme) for more project information.';
             }
 
             const greeting = isChinese
