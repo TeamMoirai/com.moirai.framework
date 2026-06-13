@@ -93,7 +93,7 @@ Moirai Framework
    - Clone the `install` branch to your project directory (Assets/...):
 
       ```bash
-      git clone --branch installer --single-branch https://github.com/TeamMoirai/com.moirai.framework.git com.moirai.framework.installer
+      git clone --branch installer --single-branch https://github.com/TeamMoirai/com.moirai.framework.git Scripts/Installer
       ```
 
 2. Return to Unity and manually run menu `Tools/Settings/Install Framework`
