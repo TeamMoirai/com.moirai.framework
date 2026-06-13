@@ -94,7 +94,7 @@ Moirai Framework
    - 克隆 `install` 分支至工程目录（Assets/...）：
 
       ```bash
-      git clone --branch installer --single-branch https://github.com/TeamMoirai/com.moirai.framework.git com.moirai.framework.installer
+      git clone --branch installer --single-branch https://github.com/TeamMoirai/com.moirai.framework.git Scripts/Installer
       ```
    
 2. 回到 Unity，手动执行菜单 `Tools/Settings/Install Framework`
