@@ -126,7 +126,16 @@ Moirai Framework
 
 ##### 方式三：手动安装
 
-1. 在发布的Release版本中，选择最新版本下载 **Source Code** 压缩包。
+1. 以下获取框架的方式任选其一：
+
+   - 在 **Window/Package Manager** 中，通过 Git URL 安装：
+
+     ```
+     https://github.com/TeamMoirai/com.moirai.framework.git
+     ```
+
+   - 在发布的Release版本中，选择最新版本下载 **Source Code** 压缩包。
+
 2. 参见 **方式二：UPM 安装.3**。
 
 ---
