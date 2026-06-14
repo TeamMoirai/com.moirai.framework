@@ -173,6 +173,7 @@ namespace Moirai.Atropos.ConfigTable.Editor
 
             string clientDataOutPutPath = ClientDataOutPutPath;
             string clientCodeOutPutPath = ClientCodeOutPutPath;
+            Log.Warning("[ConfigTable] ClientDataOutPutPath:{0}\nClientCodeOutPutPath:{1}", ClientDataOutPutPath, ClientCodeOutPutPath);
 
             string content = File.ReadAllText(confPath);
             content = ReplaceConfValue(content, "DATA_OUTPUT_PATH_CLIENT", clientDataOutPutPath);
