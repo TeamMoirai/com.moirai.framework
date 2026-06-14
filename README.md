@@ -143,15 +143,28 @@ Moirai Framework
 
 ---
 
+#### 初始设置
+
+##### 场景打包
+
+将 `Scenes/main.unity` 加入打包
+
+- Unity6.0+： `File -> Build Profiles -> SceneList`
+- Unity6.0-：`File -> Build Settings -> Scene In Build`
+
+##### 配置表模块
+
+   - 选择 `Tools/Settings/ConfigTableSettings` ，点击 `生成 Config 到指定目录`。
+   - 如果移动配置表目录，则需要在  `Tools/Settings/ConfigTableSettings` 手动更新——`重定向 Config 目录`
+
+---
+
 #### 快捷功能
 
-1. **配置表模块初始化**
-   - 选择 `Tools/Settings/ConfigTableSettings` ，点击 `生成 Config 到指定目录`。
-   - 如果移动配置表目录，则需要在  `Tools/Settings/ConfigTableSettings` 手动更新——`重定向 Config 目录`。
-2. **编辑器模式运行**
+1. **编辑器模式运行**
    - 选择顶部菜单栏 `YooAsset/Editor PlayMode` 编辑器下的模拟模式
    - 点击 `Play` 开始运行
-3. **打包运行**（热更新流程）
+2. **打包运行**（热更新流程）
    - 运行菜单 `HybridCLR/Install...` 安装 HybridCLR
    - 运行菜单 `HybridCLR/Define Symbols/Enable HybridCLR` 开启热更新
    - 运行菜单 `HybridCLR/Generate/All` 进行必要的生成操作
