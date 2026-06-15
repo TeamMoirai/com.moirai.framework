@@ -52,16 +52,17 @@ namespace GameLogic
 
             MainThreadDispatcher.Instance.Dispatch(() => { Log.Info("Init UnityMainThreadDispatcher"); });
 
-            // 事件通知
-            HotfixEntryEvent.Trigger();
-
             StartGameLogic();
         }
         
         private static void StartGameLogic()
         {
             Log.Info("<b><color=orange>======= Start Game Logic =======</color></b>");
-            // 开始游戏相关逻辑
+
+            // 事件通知
+            HotfixEntryEvent.Trigger();
+
+            // ------------- 开始游戏相关逻辑 -------------
         }
         
         private static void Release()
