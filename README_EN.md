@@ -182,13 +182,13 @@ com.moirai.framework/
 │   │   ├── Pool/         #   Object pool (generic/UniTask/GameObject)
 │   │   ├── Tween/        #   Easing system
 │   │   ├── Tasks/        #   Task/sequence system
-│   │   ├── GameConfig/   #   Luban config table management
 │   │   ├── GameLog/      #   Logging system
 │   │   ├── GameSettings/ #   Graphics settings
 │   │   ├── DataStructure/#   IoC container, priority queue, sparse array, etc.
 │   │   └── Extension/    #   Common extension methods
-│   └── Modules/          # 13 functional modules
+│   └── Modules/          #   Functional modules
 │       ├── ResourceModule/    # YooAsset asset management
+│       ├── ConfigTableModule/ # Config table management
 │       ├── UIModule/          # UI framework (windows/widgets/layers)
 │       ├── AudioModule/       # Audio system (categories/agents/fade)
 │       ├── LocalizationModule/# Localization (text/image/audio/Google Translate)
