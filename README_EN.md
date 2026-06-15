@@ -118,7 +118,7 @@ Moirai Framework
 
     <img src="Documentation~\src\quick-start-2-package-detail.png" alt="quick-start-package-detail" />
 
-3. Manually copy all contents from the **@Requirements** folder under `ProjectRoot/Library/PackageCach/com.moirai.framework@xxx/Templates~/` to the **ProjectRoot/Asset**s directory.
+3. <a id="manual-import"></a>Manually copy all contents from the **@Requirements** folder under `ProjectRoot/Library/PackageCach/com.moirai.framework@xxx/Templates~/` to the **ProjectRoot/Asset**s directory.
 
     (Optional) Copy an appropriate template from the same directory into the project as needed; generally, choose **NormalTemplate**.
 
@@ -126,9 +126,26 @@ Moirai Framework
 
 1. Download the **Source Code** archive from the latest release on the Releases page.
 
-2. Refer to **Option 2: UPM Install.3**.
+2. Refer to **[Quick Start - Getting Started - Installation - Option 2: UPM Install - 3](#manual-import)**.
 
 ---
+
+#### Initial Setup
+
+##### Scene Building
+
+Add `Scenes/main.unity` to the build:
+
+- Unity 6.0+: `File -> Build Profiles -> Scene List`
+
+- Unity 6.0-:` File -> Build Settings -> Scene In Build`
+
+#####  Config Table Module
+   - Select `Tools/Settings/ConfigTableSettings`, click `生成 Config 到指定目录`.
+
+   - When generating for the first time, before exporting, first run the **build-luban** compilation or manually import Luban to the configuration table root directory.
+
+   - If the config table directory is moved, you need to manually update it in `Tools/Settings/ConfigTableSettings` — Redirect Config Directory
 
 #### Quick Tips
 
