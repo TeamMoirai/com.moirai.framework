@@ -35,9 +35,9 @@ namespace Moirai.Atropos.Events.Editor
     }
 
 #if UNITY_6000_0_OR_NEWER
-   [UxmlElement("event-type-search-field")]
+    [UxmlElement]
 #endif
-   internal partial class EventTypeSearchField : ToolbarSearchField
+    public partial class EventTypeSearchField : ToolbarSearchField
     {
 #if !UNITY_6000_0_OR_NEWER
         public new class UxmlFactory : UxmlFactory<EventTypeSearchField, UxmlTraits> { }
@@ -266,7 +266,7 @@ namespace Moirai.Atropos.Events.Editor
         private void AddType(Type type, bool value)
         {
             var methodInfo = type.GetMethod("TypeId", BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy);
-            if (methodInfo == null)
+            if (methodInfo == null || methodInfo.ContainsGenericParameters)
                 return;
 
             var typeId = (long)methodInfo.Invoke(null, null);
