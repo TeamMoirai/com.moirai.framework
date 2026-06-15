@@ -39,7 +39,7 @@ namespace Moirai.Atropos.ConfigTable.Editor
         /// </summary>
         /// <remarks>将绝对路径转换为相对于指定目录的 Unity 风格相对路径</remarks>
         private static string GetRelativePath(string relativeTo, string path) =>
-            PathUtility.FormatToSysFilePath(Path.GetRelativePath(relativeTo, path)) + "/";
+            PathUtility.FormatToSysFilePath(Path.GetRelativePath(relativeTo, path) + "/");
 
         #region 初始化配置根目录
 
@@ -189,7 +189,7 @@ namespace Moirai.Atropos.ConfigTable.Editor
 
             string content = File.ReadAllText(confPath);
             content = ReplaceConfValue(content, "DATA_OUTPUT_PATH_CLIENT", clientDataOutPutPath);
-            content = ReplaceConfValue(content, "CODE_OUTPUT_PATH_CLIENT", clientCodeOutPutPath + "Gen/");
+            content = ReplaceConfValue(content, "CODE_OUTPUT_PATH_CLIENT", clientCodeOutPutPath + "Gen\\");
             content = ReplaceConfValue(content, "CONFIG_SCRIPT_TARGET", clientCodeOutPutPath + "ConfigTableModule.cs");
             // ReSharper disable once StringLiteralTypo
             content = ReplaceConfValue(content, "CONFIGINIT_SCRIPT_TARGET", clientCodeOutPutPath + "ConfigTableModule_Init.cs");
