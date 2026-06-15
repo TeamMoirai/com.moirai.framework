@@ -15,7 +15,7 @@ dotnet %LUBAN_DLL% ^
     -c cs-bin ^
     -d bin^
     --conf %CONF% ^
-    --customTemplateDir %CONF_ROOT%\CustomTemplate\CustomTemplate_Client_%TEMPLATE_SUFFIX% ^
+    --customTemplateDir %CUSTOM_TEMPLATE_ROOT%CustomTemplate_Client_%TEMPLATE_SUFFIX% ^
     -x code.lineEnding=crlf ^
     -x pathValidator.rootDir=%PATH_VALIDATOR_ROOT% ^
     -x outputCodeDir=%CODE_OUTPUT_PATH_CLIENT% ^

@@ -23,14 +23,14 @@ dotnet "${LUBAN_DLL}" \
     -c cs-bin \
     -d bin \
     --conf "${CONF}" \
-    --customTemplateDir "${CONF_ROOT}\CustomTemplate\CustomTemplate_Client_${TEMPLATE_SUFFIX}" \
+    --customTemplateDir "${CUSTOM_TEMPLATE_ROOT}CustomTemplate_Client_${TEMPLATE_SUFFIX}" \
     -x code.lineEnding=crlf \
-    -x pathValidator.rootDir="${PATH_VALIDATOR_ROOT"" \
+    -x pathValidator.rootDir="${PATH_VALIDATOR_ROOT}" \
     -x outputCodeDir="${CODE_OUTPUT_PATH_CLIENT}" \
     -x outputDataDir="${DATA_OUTPUT_PATH_CLIENT}" \
-    -x l10n.provider="default" \
+    -x l10n.provider=default \
     -x l10n.textFile.path="${L10N_TEXTFILE_PATH}" \
-    -x l10n.textFile.keyFieldName="key"
+    -x l10n.textFile.keyFieldName=key
 
 echo "操作完成，按任意键退出..."
 read -k1

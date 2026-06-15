@@ -11,11 +11,10 @@ while IFS='=' read -r key value; do
     # 去除两端空格
     key=$(echo "$key" | xargs)
     value=$(echo "$value" | xargs)
-    # 导出为环境变量
+    # 将反斜杠转为正斜杠
+    value="${value//\\//}"
+    # 输出环境变量
+    echo "export $(key)=$(value)"
+    # 导出环境变量    
     export "$key=$value"
 done < "path_export.conf"
-
-# 测试输出
-# echo "CONF_ROOT=$CONF_ROOT"
-# echo "LUBAN_DLL=$LUBAN_DLL"
-# echo "PATH_VALIDATOR_ROOT=$PATH_VALIDATOR_ROOT"
