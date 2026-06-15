@@ -31,7 +31,7 @@ namespace Moirai.Atropos.Audio
             get
             {
                 // 如果没有配置 audioGroupConfigs，则从传入的 audioMixer 读取音轨配置
-                if (Instance.m_AudioGroupConfigs.Length == 0)
+                if (Instance.m_AudioGroupConfigs == null || Instance.m_AudioGroupConfigs.Length == 0)
                 {
                     var audioMixerGroups = AudioMixer.FindMatchingGroups("Master/");
                     Instance.m_AudioGroupConfigs = new AudioGroupConfig[audioMixerGroups.Length];
