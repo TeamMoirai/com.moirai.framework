@@ -5,7 +5,7 @@ using Moirai.Atropos;
 using SimpleJSON;
 using UnityEngine;
 
-namespace Moirai.GameProto.ConfigTable
+namespace GameProto.Config
 {
 	/// <summary>
 	/// 配置加载器。桥接 Luban 生成代码与 MoiraiFramework YooAsset 资源系统。
