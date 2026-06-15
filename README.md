@@ -193,13 +193,13 @@ com.moirai.framework/
 │   │   ├── Pool/         #   对象池（通用/UniTask/GameObject）
 │   │   ├── Tween/        #   缓动系统
 │   │   ├── Tasks/        #   任务/序列系统
-│   │   ├── GameConfig/   #   Luban 配置表管理
 │   │   ├── GameLog/      #   日志系统
 │   │   ├── GameSettings/ #   画面设置
 │   │   ├── DataStructure/#   IOC容器、优先队列、稀疏数组等
 │   │   └── Extension/    #   通用扩展方法
 │   └── Modules/          #   功能模块
 │       ├── ResourceModule/    # YooAsset 资源管理
+│       ├── ConfigTableModule/ # 配置表管理
 │       ├── UIModule/          # UI 框架（窗口/控件/层）
 │       ├── AudioModule/       # 音频系统（分类/代理/淡入淡出）
 │       ├── LocalizationModule/# 本地化（文本/图片/音频/Google翻译）
