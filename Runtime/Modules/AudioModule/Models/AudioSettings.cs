@@ -66,6 +66,11 @@ namespace Moirai.Atropos.Audio
                     {
 #if UNITY_EDITOR
                         s_Instance = SettingHelper.LoadSettingSO<AudioSettings>(SETTINGS_DATA_FILE);
+
+                        // 设置默认值
+                        _ = AudioGroupConfigs;
+
+                        UnityEditor.EditorUtility.SetDirty(s_Instance);
 #else
                         Log.Error($"Could not find Settings at path '{SETTINGS_DATA_FILE} - Create using Tools->Settings->{SETTINGS_DATA_NAME}'");
 #endif

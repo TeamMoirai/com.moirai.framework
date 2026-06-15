@@ -117,10 +117,12 @@ namespace Moirai.Atropos.Procedure
 #if UNITY_EDITOR
                         s_Instance = SettingHelper.LoadSettingSO<ProcedureSettings>(SETTINGS_DATA_FILE);
 
-                        // 默认值
+                        // 设置默认值
                         var procedureTypeNames = TypeUtility.GetRuntimeTypeNames(typeof(ProcedureBase));
                         s_Instance.m_AvailableProcedureTypeNames = procedureTypeNames;
                         s_Instance.m_EntranceProcedureTypeName = procedureTypeNames.Single(x => x.Contains("ProcedureLaunch"));
+
+                        UnityEditor.EditorUtility.SetDirty(s_Instance);
 #else
                         Log.Error($"Could not find Settings at path '{SETTINGS_DATA_FILE} - Create using Tools->Settings->{SETTINGS_DATA_NAME}'");
 #endif
