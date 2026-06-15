@@ -126,7 +126,7 @@ Moirai Framework
 
     <img src="Documentation~\src\quick-start-2-package-detail.png" alt="quick-start-package-detail" />
 
-3. 手动复制 `工程根目录/Library/PackageCach/com.moirai.framework@xxx/Templates~/` 下 **@Requirements** 文件夹内的所有内容到 **工程根目录/Assets** 目录。
+3. <a id="manual-import"></a>手动复制 `工程根目录/Library/PackageCach/com.moirai.framework@xxx/Templates~/` 下 **@Requirements** 文件夹内的所有内容到 **工程根目录/Assets** 目录。
 
     （可选）根据需要选择同目录下合适的模板复制到工程，一般选择 **NormalTemplate** 即可。
 
@@ -142,7 +142,7 @@ Moirai Framework
 
    - 在发布的Release版本中，选择最新版本下载 **Source Code** 压缩包。
 
-2. 参见 **方式二：UPM 安装.3**。
+2. 参见 **[快速开始 - 快速上手 - 下载安装 - 方式二：UPM 安装 - 3](#manual-import)**。
 
 ---
 
@@ -158,6 +158,7 @@ Moirai Framework
 ##### 配置表模块
 
    - 选择 `Tools/Settings/ConfigTableSettings` ，点击 `生成 Config 到指定目录`。
+   - 初次生成时，导出前先执行 **build-luban** 编译或者自行导入 Luban至配置表根目录。
    - 如果移动配置表目录，则需要在  `Tools/Settings/ConfigTableSettings` 手动更新——`重定向 Config 目录`
 
 ---
