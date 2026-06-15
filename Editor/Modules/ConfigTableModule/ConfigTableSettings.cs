@@ -131,7 +131,7 @@ namespace Moirai.Atropos.ConfigTable.Editor
             EditorUtility.SetDirty(this);
             AssetDatabase.SaveAssets();
 
-            Log.Warning("已自动设置 ConfigRootRelativePath: {0}", relativePath);
+            Debug.LogWarning($"已自动设置 ConfigRootRelativePath: {relativePath}");
         }
 
         private static void CopyDirectory(string source, string destination)
@@ -159,7 +159,7 @@ namespace Moirai.Atropos.ConfigTable.Editor
         {
             if (!IsConfigRootValid)
             {
-                Log.Error("配置表路径无效，请生成或重定向指定目录。");
+                Debug.LogError("配置表路径无效，请生成或重定向指定目录。");
                 return;
             }
 
@@ -168,7 +168,7 @@ namespace Moirai.Atropos.ConfigTable.Editor
             UpdatePathExportConf(configRoot);
             UpdateConfigTableModuleInit(configRoot);
 
-            Log.Info("已更新 path_export.conf 和 ConfigTableModule_Init.cs");
+            Debug.Log("已更新 path_export.conf 和 ConfigTableModule_Init.cs");
         }
 
         private void UpdatePathExportConf(string configRoot)
@@ -176,13 +176,16 @@ namespace Moirai.Atropos.ConfigTable.Editor
             string confPath = Path.Combine(configRoot, "path_export.conf");
             if (!File.Exists(confPath))
             {
-                Log.Warning("path_export.conf 不存在: {0}", confPath);
+                Debug.LogWarning($"path_export.conf 不存在: {confPath}");
                 return;
             }
 
             string clientDataOutPutPath = ClientDataOutPutPath;
             string clientCodeOutPutPath = ClientCodeOutPutPath;
-            Log.Warning("[ConfigTable] Update OutPut Path\nClientDataOutPutPath:{0}\nClientCodeOutPutPath:{1}", clientDataOutPutPath, clientCodeOutPutPath);
+
+            Debug.LogWarning($"[ConfigTable] Update OutPut Path\n" +
+                             $"ClientDataOutPutPath:{clientDataOutPutPath}\n" +
+                             $"ClientCodeOutPutPath:{clientCodeOutPutPath}");
 
             string content = File.ReadAllText(confPath);
             content = ReplaceConfValue(content, "DATA_OUTPUT_PATH_CLIENT", clientDataOutPutPath);
@@ -202,21 +205,20 @@ namespace Moirai.Atropos.ConfigTable.Editor
             string initPath = Path.Combine(configRoot, "CustomTemplate", "ConfigTableModule_Init.cs");
             if (!File.Exists(initPath))
             {
-                Log.Warning("ConfigTableModule_Init.cs 不存在: {0}", initPath);
+                Debug.LogWarning($"ConfigTableModule_Init.cs 不存在: {initPath}");
                 return;
             }
 
             string configPath = ExtractUnityAssetPath(ClientDataOutPutPath);
             if (string.IsNullOrEmpty(configPath))
             {
-                Log.Warning("无法从 ClientDataOutPutPath 提取 Unity 资源路径: {0}", ClientDataOutPutPath);
+                Debug.LogWarning($"无法从 ClientDataOutPutPath 提取 Unity 资源路径: {configPath}");
                 return;
             }
 
             string content = File.ReadAllText(initPath);
             string target = $"private const string CONFIG_PATH = \"{configPath}\";";
-            if (content.Contains(target))
-                return;
+            if (content.Contains(target)) return;
 
             content = ReplaceConstString(content, "CONFIG_PATH", configPath);
             File.WriteAllText(initPath, content);
