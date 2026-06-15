@@ -26,12 +26,14 @@ namespace Moirai.Atropos.Editor
         [OnOpenAsset(0)]
         private static bool OnOpenAsset(int instanceID, int line)
         {
-            if (line <= 0)
-            {
-                return false;
-            }
+            if (line <= 0) return false;
+
             // 获取资源路径
-            string assetPath = AssetDatabase.GetAssetPath(instanceID);
+            string assetPath = AssetDatabase.GetAssetPath(
+#if UNITY_6000_0_OR_NEWER
+                (UnityEngine.EntityId)
+#endif
+                instanceID);
             
             // 判断资源类型
             if (!assetPath.EndsWith(".cs"))
