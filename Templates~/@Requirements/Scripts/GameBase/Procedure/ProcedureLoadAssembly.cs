@@ -79,7 +79,7 @@ namespace Moirai.Main
                         var assetLocation = hotUpdateDllName;
                         if (!_enableAddressable)
                         {
-                            assetLocation = PathUtility.GetRegularPath(
+                            assetLocation = PathUtility.FormatToUnityPath(
                                 Path.Combine(
                                     "Assets",
                                     UpdateSettings.AssemblyTextAssetPath,
@@ -238,7 +238,7 @@ namespace Moirai.Main
                 var assetLocation = aotDllName;
                 if (!_enableAddressable)
                 {
-                    assetLocation = PathUtility.GetRegularPath(
+                    assetLocation = PathUtility.FormatToUnityPath(
                         Path.Combine(
                             "Assets",
                             UpdateSettings.AssemblyTextAssetPath,
