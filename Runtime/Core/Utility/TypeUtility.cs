@@ -1,7 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Reflection;
 
-namespace Moirai.Atropos.Editor
+namespace Moirai.Atropos
 {
     /// <summary>
     /// 类型相关的实用函数。
