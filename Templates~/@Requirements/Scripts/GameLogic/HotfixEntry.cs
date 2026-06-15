@@ -40,25 +40,28 @@ namespace GameLogic
         {
             s_HotfixAssembly = (List<Assembly>)objects[0];
 
-            Log.Info("<b><color=orange>======= Entrance GameMain =======</color></b>");
+            Log.Info("<b><color=orange>======= HotFix Logic Entry =======</color></b>");
+
             UnityUtility.AddDestroyListener(Release);
+
+            // 保证 UIModule 正常初始化
+            GameModule.UI.CloseAll();
+
+            // 初始化多语言配置
+            GameModule.Localization.InitLanguageSettings();
+
+            MainThreadDispatcher.Instance.Dispatch(() => { Log.Info("Init UnityMainThreadDispatcher"); });
+
+            // 事件通知
+            HotfixEntryEvent.Trigger();
+
             StartGameLogic();
         }
         
         private static void StartGameLogic()
         {
-            Log.Info("<b><color=orange>======= StartGameLogic =======</color></b>");
-
-            MainThreadDispatcher.Instance.Dispatch(() => { Log.Info("Init UnityMainThreadDispatcher"); });
-            
-            // 保证 UIModule 正常初始化
-            GameModule.UI.CloseAll();
-            
-            // 初始化多语言配置
-            GameModule.Localization.InitLanguageSettings();
-            
-            // 事件通知
-            HotfixEntryEvent.Trigger();
+            Log.Info("<b><color=orange>======= Start Game Logic =======</color></b>");
+            // 开始游戏相关逻辑
         }
         
         private static void Release()
