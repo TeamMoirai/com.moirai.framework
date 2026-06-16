@@ -14,28 +14,28 @@ namespace Moirai.Atropos.Editor
 
         private sealed class SettingEntry
         {
-            public Type Type;
-            public string Title;
-            public string Description;
-            public int Order;
-            public string SaveFolder;
-            public ScriptableObject Instance;
+            public Type type;
+            public string title;
+            public string description;
+            public int order;
+            public string saveFolder;
+            public FrameworkSettings instance;
 
-            public bool Exists => Instance != null;
-            public string AssetPath => SaveFolder + Type.Name + ".asset";
+            public bool Exists => instance != null;
+            public string AssetPath => saveFolder + type.Name + ".asset";
         }
 
         #endregion
 
         #region Fields
 
-        private List<SettingEntry> m_Entries;
-        private int m_SelectedIndex = -1;
-        private string m_Search = "";
-        private Vector2 m_SidebarScroll;
-        private Vector2 m_ContentScroll;
-        private UnityEditor.Editor m_CachedEditor;
-        private readonly List<int> m_Filtered = new();
+        private List<SettingEntry> _entries;
+        private int _selectedIndex = -1;
+        private string _search = "";
+        private Vector2 _sidebarScroll;
+        private Vector2 _contentScroll;
+        private UnityEditor.Editor _cachedEditor;
+        private readonly List<int> _filtered = new();
 
         private const float SIDEBAR_WIDTH = 244f;
         private const float ENTRY_HEIGHT = 40f;
@@ -92,13 +92,13 @@ namespace Moirai.Atropos.Editor
         {
             if (Selection.activeObject is ScriptableObject so)
             {
-                for (int i = 0; i < (m_Entries?.Count ?? 0); i++)
+                for (int i = 0; i < (_entries?.Count ?? 0); i++)
                 {
-                    if (m_Entries[i].Type == so.GetType())
+                    if (_entries[i].type == so.GetType())
                     {
-                        m_SelectedIndex = i;
+                        _selectedIndex = i;
                         RecreateEditor();
-                        m_SidebarScroll = CalculateScrollToEntry(i);
+                        _sidebarScroll = CalculateScrollToEntry(i);
                         Repaint();
                         return;
                     }
@@ -113,35 +113,35 @@ namespace Moirai.Atropos.Editor
         private void Discover()
         {
             DestroyEditor();
-            m_Entries = new List<SettingEntry>();
-            m_SelectedIndex = -1;
-            m_Search = "";
+            _entries = new List<SettingEntry>();
+            _selectedIndex = -1;
+            _search = "";
 
             foreach (var t in FindSettingsTypes())
             {
                 var attr = t.GetCustomAttribute<FrameworkSettingAttribute>();
                 string folder = attr?.SaveFolder ?? FrameworkSettingAttribute.DEFAULT_SAVE_FOLDER;
 
-                m_Entries.Add(new SettingEntry
+                _entries.Add(new SettingEntry
                 {
-                    Type        = t,
-                    Title       = attr?.Title ?? ObjectNames.NicifyVariableName(t.Name),
-                    Description = attr?.Description,
-                    Order       = attr?.Order ?? 0,
-                    SaveFolder  = folder,
-                    Instance    = TryLoadAsset(folder + t.Name + ".asset", t)
+                    type        = t,
+                    title       = attr?.Title ?? ObjectNames.NicifyVariableName(t.Name),
+                    description = attr?.Description,
+                    order       = attr?.Order ?? 0,
+                    saveFolder  = folder,
+                    instance    = TryLoadAsset(folder + t.Name + ".asset", t)
                 });
             }
 
-            m_Entries.Sort((a, b) =>
+            _entries.Sort((a, b) =>
             {
-                int cmp = a.Order.CompareTo(b.Order);
-                return cmp != 0 ? cmp : string.Compare(a.Title, b.Title, StringComparison.Ordinal);
+                int cmp = a.order.CompareTo(b.order);
+                return cmp != 0 ? cmp : string.Compare(a.title, b.title, StringComparison.Ordinal);
             });
 
             ApplyFilter();
-            if (m_Entries.Count > 0)
-                m_SelectedIndex = m_Filtered.Count > 0 ? m_Filtered[0] : -1;
+            if (_entries.Count > 0)
+                _selectedIndex = _filtered.Count > 0 ? _filtered[0] : -1;
         }
 
         /// <summary>
@@ -149,12 +149,12 @@ namespace Moirai.Atropos.Editor
         /// </summary>
         private void RefreshInstances()
         {
-            if (m_Entries == null) return;
-            for (int i = 0; i < m_Entries.Count; i++)
+            if (_entries == null) return;
+            for (int i = 0; i < _entries.Count; i++)
             {
-                var e = m_Entries[i];
-                if (e.Instance == null)
-                    e.Instance = TryLoadAsset(e.AssetPath, e.Type);
+                var e = _entries[i];
+                if (e.instance == null)
+                    e.instance = TryLoadAsset(e.AssetPath, e.type);
             }
         }
 
@@ -162,9 +162,9 @@ namespace Moirai.Atropos.Editor
         /// 直接通过 AssetDatabase 从磁盘加载已存在的 asset。
         /// 文件不存在 → 返回 null，不做任何创建。
         /// </summary>
-        private static ScriptableObject TryLoadAsset(string assetPath, Type type)
+        private static FrameworkSettings TryLoadAsset(string assetPath, Type type)
         {
-            return AssetDatabase.LoadAssetAtPath(assetPath, type) as ScriptableObject;
+            return AssetDatabase.LoadAssetAtPath(assetPath, type) as FrameworkSettings;
         }
 
         private static IEnumerable<Type> FindSettingsTypes()
@@ -195,22 +195,22 @@ namespace Moirai.Atropos.Editor
 
         private void ApplyFilter()
         {
-            m_Filtered.Clear();
-            if (m_Entries == null) return;
+            _filtered.Clear();
+            if (_entries == null) return;
 
-            for (int i = 0; i < m_Entries.Count; i++)
+            for (int i = 0; i < _entries.Count; i++)
             {
-                if (MatchesSearch(m_Entries[i]))
-                    m_Filtered.Add(i);
+                if (MatchesSearch(_entries[i]))
+                    _filtered.Add(i);
             }
         }
 
         private bool MatchesSearch(SettingEntry e)
         {
-            if (string.IsNullOrEmpty(m_Search)) return true;
-            return e.Title.IndexOf(m_Search, StringComparison.OrdinalIgnoreCase) >= 0
-                || e.Type.Name.IndexOf(m_Search, StringComparison.OrdinalIgnoreCase) >= 0
-                || (e.Description != null && e.Description.IndexOf(m_Search, StringComparison.OrdinalIgnoreCase) >= 0);
+            if (string.IsNullOrEmpty(_search)) return true;
+            return e.title.IndexOf(_search, StringComparison.OrdinalIgnoreCase) >= 0
+                || e.type.Name.IndexOf(_search, StringComparison.OrdinalIgnoreCase) >= 0
+                || (e.description != null && e.description.IndexOf(_search, StringComparison.OrdinalIgnoreCase) >= 0);
         }
 
         #endregion
@@ -219,31 +219,31 @@ namespace Moirai.Atropos.Editor
 
         private void SelectEntry(int absoluteIndex)
         {
-            if (m_SelectedIndex == absoluteIndex) return;
-            m_SelectedIndex = absoluteIndex;
+            if (_selectedIndex == absoluteIndex) return;
+            _selectedIndex = absoluteIndex;
             RecreateEditor();
         }
 
         private void RecreateEditor()
         {
             DestroyEditor();
-            if (m_SelectedIndex >= 0 && m_SelectedIndex < m_Entries.Count && m_Entries[m_SelectedIndex].Exists)
-                m_CachedEditor = UnityEditor.Editor.CreateEditor(m_Entries[m_SelectedIndex].Instance);
+            if (_selectedIndex >= 0 && _selectedIndex < _entries.Count && _entries[_selectedIndex].Exists)
+                _cachedEditor = UnityEditor.Editor.CreateEditor(_entries[_selectedIndex].instance);
         }
 
         private void DestroyEditor()
         {
-            if (m_CachedEditor != null)
+            if (_cachedEditor != null)
             {
-                DestroyImmediate(m_CachedEditor);
-                m_CachedEditor = null;
+                DestroyImmediate(_cachedEditor);
+                _cachedEditor = null;
             }
         }
 
         private Vector2 CalculateScrollToEntry(int absoluteIndex)
         {
-            int filteredPos = m_Filtered.IndexOf(absoluteIndex);
-            if (filteredPos < 0) return m_SidebarScroll;
+            int filteredPos = _filtered.IndexOf(absoluteIndex);
+            if (filteredPos < 0) return _sidebarScroll;
             float targetY = filteredPos * ENTRY_HEIGHT;
             return new Vector2(0, Mathf.Max(0, targetY - ENTRY_HEIGHT));
         }
@@ -274,11 +274,11 @@ namespace Moirai.Atropos.Editor
             {
                 EditorGUI.BeginChangeCheck();
 
-                m_Search = EditorGUILayout.TextField(m_Search, "Search", GUILayout.Width(240));
+                _search = EditorGUILayout.TextField(_search, "Search", GUILayout.Width(240));
 
                 if (GUILayout.Button("", "ToolbarSearchCancelButton"))
                 {
-                    m_Search = "";
+                    _search = "";
                     GUI.FocusControl(null);
                 }
 
@@ -287,8 +287,8 @@ namespace Moirai.Atropos.Editor
 
                 GUILayout.FlexibleSpace();
 
-                int total = m_Entries?.Count ?? 0;
-                int loaded = m_Entries?.Count(e => e.Exists) ?? 0;
+                int total = _entries?.Count ?? 0;
+                int loaded = _entries?.Count(e => e.Exists) ?? 0;
                 GUILayout.Label(
                     $"{loaded} / {total} loaded",
                     EditorStyles.miniLabel,
@@ -312,12 +312,12 @@ namespace Moirai.Atropos.Editor
             {
                 var bgRect = GUILayoutUtility.GetRect(0, 0, GUILayout.ExpandWidth(true), GUILayout.ExpandHeight(true));
 
-                m_SidebarScroll = EditorGUILayout.BeginScrollView(
-                    m_SidebarScroll,
+                _sidebarScroll = EditorGUILayout.BeginScrollView(
+                    _sidebarScroll,
                     GUIStyle.none,
                     GUI.skin.verticalScrollbar);
 
-                if (m_Entries == null || m_Entries.Count == 0)
+                if (_entries == null || _entries.Count == 0)
                 {
                     GUILayout.FlexibleSpace();
                     EditorGUILayout.LabelField(
@@ -325,7 +325,7 @@ namespace Moirai.Atropos.Editor
                         new GUIStyle(EditorStyles.centeredGreyMiniLabel) { fontSize = 11 });
                     GUILayout.FlexibleSpace();
                 }
-                else if (m_Filtered.Count == 0)
+                else if (_filtered.Count == 0)
                 {
                     GUILayout.FlexibleSpace();
                     EditorGUILayout.LabelField(
@@ -335,10 +335,10 @@ namespace Moirai.Atropos.Editor
                 }
                 else
                 {
-                    for (int i = 0; i < m_Filtered.Count; i++)
+                    for (int i = 0; i < _filtered.Count; i++)
                     {
-                        int idx = m_Filtered[i];
-                        DrawSidebarEntry(m_Entries[idx], idx);
+                        int idx = _filtered[i];
+                        DrawSidebarEntry(_entries[idx], idx);
                     }
 
                     GUILayout.FlexibleSpace();
@@ -352,7 +352,7 @@ namespace Moirai.Atropos.Editor
         {
             Rect rect = GUILayoutUtility.GetRect(SIDEBAR_WIDTH, ENTRY_HEIGHT, GUILayout.ExpandWidth(true));
 
-            bool isSelected = absoluteIndex == m_SelectedIndex;
+            bool isSelected = absoluteIndex == _selectedIndex;
             bool isHover = rect.Contains(Event.current.mousePosition);
 
             if (isSelected)
@@ -373,7 +373,7 @@ namespace Moirai.Atropos.Editor
             Color titleColor = isSelected ? Color.white : new Color(0.88f, 0.88f, 0.88f);
 
             var titleRect = new Rect(textX, rect.y + 4, textW, 18);
-            GUI.Label(titleRect, entry.Title,
+            GUI.Label(titleRect, entry.title,
                 new GUIStyle(EditorStyles.boldLabel)
                 {
                     normal = { textColor = titleColor },
@@ -381,10 +381,10 @@ namespace Moirai.Atropos.Editor
                     clipping = TextClipping.Overflow
                 });
 
-            if (!string.Equals(entry.Title, entry.Type.Name, StringComparison.Ordinal))
+            if (!string.Equals(entry.title, entry.type.Name, StringComparison.Ordinal))
             {
                 var subRect = new Rect(textX, rect.y + 22, textW, 14);
-                GUI.Label(subRect, entry.Type.Name,
+                GUI.Label(subRect, entry.type.Name,
                     new GUIStyle(EditorStyles.miniLabel) { normal = { textColor = s_MutedText } });
             }
 
@@ -417,7 +417,7 @@ namespace Moirai.Atropos.Editor
 
         private void DrawContentArea()
         {
-            if (m_SelectedIndex < 0 || m_SelectedIndex >= (m_Entries?.Count ?? 0))
+            if (_selectedIndex < 0 || _selectedIndex >= (_entries?.Count ?? 0))
             {
                 GUILayout.FlexibleSpace();
                 GUILayout.Label("Select a setting from the sidebar",
@@ -426,13 +426,13 @@ namespace Moirai.Atropos.Editor
                 return;
             }
 
-            var entry = m_Entries[m_SelectedIndex];
+            var entry = _entries[_selectedIndex];
 
             // 只在 Instance 为 null 时尝试加载，不调用 Instance 属性
-            if (entry.Instance == null)
+            if (entry.instance == null)
             {
-                entry.Instance = TryLoadAsset(entry.AssetPath, entry.Type);
-                if (entry.Instance != null)
+                entry.instance = TryLoadAsset(entry.AssetPath, entry.type);
+                if (entry.instance != null)
                     RecreateEditor();
             }
 
@@ -461,7 +461,7 @@ namespace Moirai.Atropos.Editor
                 {
                     using (new EditorGUILayout.HorizontalScope())
                     {
-                        GUILayout.Label(entry.Title,
+                        GUILayout.Label(entry.title,
                             new GUIStyle(EditorStyles.boldLabel)
                             {
                                 fontSize = 16,
@@ -482,9 +482,9 @@ namespace Moirai.Atropos.Editor
                             });
                     }
 
-                    if (!string.IsNullOrEmpty(entry.Description))
+                    if (!string.IsNullOrEmpty(entry.description))
                     {
-                        GUILayout.Label(entry.Description,
+                        GUILayout.Label(entry.description,
                             new GUIStyle(EditorStyles.wordWrappedLabel)
                             {
                                 normal = { textColor = new Color(0.62f, 0.62f, 0.62f) },
@@ -493,7 +493,7 @@ namespace Moirai.Atropos.Editor
                     }
 
                     GUILayout.Label(
-                        $"{entry.Type.FullName}  ·  {entry.AssetPath}",
+                        $"{entry.type.FullName}  ·  {entry.AssetPath}",
                         new GUIStyle(EditorStyles.miniLabel)
                         {
                             normal = { textColor = s_MutedText },
@@ -512,9 +512,9 @@ namespace Moirai.Atropos.Editor
                         else
                         {
                             if (GUILayout.Button("Select", GUILayout.Width(62)))
-                                Selection.activeObject = entry.Instance;
+                                Selection.activeObject = entry.instance;
                             if (GUILayout.Button("Ping", GUILayout.Width(52)))
-                                EditorGUIUtility.PingObject(entry.Instance);
+                                EditorGUIUtility.PingObject(entry.instance);
                             if (GUILayout.Button("Reset", GUILayout.Width(56)))
                                 ResetSetting(entry);
                         }
@@ -532,16 +532,16 @@ namespace Moirai.Atropos.Editor
         {
             if (entry.Exists)
             {
-                if (m_CachedEditor == null || m_CachedEditor.target != entry.Instance)
+                if (_cachedEditor == null || _cachedEditor.target != entry.instance)
                     RecreateEditor();
 
-                if (m_CachedEditor != null)
+                if (_cachedEditor != null)
                 {
-                    m_ContentScroll = EditorGUILayout.BeginScrollView(m_ContentScroll);
+                    _contentScroll = EditorGUILayout.BeginScrollView(_contentScroll);
                     EditorGUI.BeginChangeCheck();
-                    m_CachedEditor.OnInspectorGUI();
+                    _cachedEditor.OnInspectorGUI();
                     if (EditorGUI.EndChangeCheck())
-                        EditorUtility.SetDirty(entry.Instance);
+                        EditorUtility.SetDirty(entry.instance);
                     EditorGUILayout.EndScrollView();
                 }
                 else
@@ -588,9 +588,9 @@ namespace Moirai.Atropos.Editor
             if (entry.Exists)
             {
                 menu.AddItem(new GUIContent("Select"), false,
-                    () => Selection.activeObject = entry.Instance);
+                    () => Selection.activeObject = entry.instance);
                 menu.AddItem(new GUIContent("Ping"), false,
-                    () => EditorGUIUtility.PingObject(entry.Instance));
+                    () => EditorGUIUtility.PingObject(entry.instance));
                 menu.AddSeparator("");
                 menu.AddItem(new GUIContent("Reset"), false,
                     () => ResetSetting(entry));
@@ -611,28 +611,28 @@ namespace Moirai.Atropos.Editor
 
         /// <summary>
         /// 纯 Editor 侧创建：ScriptableObject.CreateInstance + AssetDatabase.CreateAsset。
-        /// 绝不调用 Instance 属性。
         /// </summary>
         private void CreateAsset(SettingEntry entry)
         {
             // 确保目录存在
-            if (!string.IsNullOrEmpty(entry.SaveFolder) && !Directory.Exists(entry.SaveFolder))
+            if (!string.IsNullOrEmpty(entry.saveFolder) && !Directory.Exists(entry.saveFolder))
             {
-                Directory.CreateDirectory(entry.SaveFolder);
+                Directory.CreateDirectory(entry.saveFolder);
                 AssetDatabase.Refresh();
             }
 
             string path = entry.AssetPath;
 
             // 直接创建，绕开 Instance 属性
-            var asset = ScriptableObject.CreateInstance(entry.Type);
+            var asset = (FrameworkSettings)ScriptableObject.CreateInstance(entry.type);
             AssetDatabase.CreateAsset(asset, path);
+            entry.instance.Reset();
 
             EditorUtility.SetDirty(asset);
             AssetDatabase.SaveAssets();
 
             // 直接把刚创建的实例赋给 entry，不再重新加载
-            entry.Instance = asset;
+            entry.instance = asset;
             RecreateEditor();
             EditorGUIUtility.PingObject(asset);
         }
@@ -643,17 +643,14 @@ namespace Moirai.Atropos.Editor
 
             if (!EditorUtility.DisplayDialog(
                 "Reset Setting",
-                $"Reset '{entry.Title}' to default values?\n\nThis cannot be undone.",
+                $"Reset '{entry.title}' to default values?\n\nThis cannot be undone.",
                 "Reset",
                 "Cancel"))
                 return;
 
-            var resetMethod = entry.Type.GetMethod(
-                "Reset",
-                BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
-            resetMethod?.Invoke(entry.Instance, null);
+            entry.instance.Reset();
 
-            EditorUtility.SetDirty(entry.Instance);
+            EditorUtility.SetDirty(entry.instance);
             AssetDatabase.SaveAssets();
 
             RecreateEditor();
@@ -661,7 +658,7 @@ namespace Moirai.Atropos.Editor
 
         private void OpenSaveFolder(SettingEntry entry)
         {
-            string folder = entry.SaveFolder;
+            string folder = entry.saveFolder;
 
             while (!string.IsNullOrEmpty(folder) && !Directory.Exists(folder))
             {
@@ -671,7 +668,7 @@ namespace Moirai.Atropos.Editor
             if (!string.IsNullOrEmpty(folder) && Directory.Exists(folder))
                 EditorUtility.RevealInFinder(folder);
             else
-                Debug.Log($"[FrameworkSettings] No existing folder found for: {entry.SaveFolder}");
+                Debug.Log($"[FrameworkSettings] No existing folder found for: {entry.saveFolder}");
         }
 
         #endregion
