@@ -9,8 +9,8 @@ namespace Moirai.Atropos.Editor
     {
         private const string ENABLE_PROFILER_ENABLE_SYMBOL = "PROFILER_ENABLE";
         
-        private const string MENU_ITEM_PATH = "Tools/Profiler Define/";
-        private const int MENU_ITEM_PRIORITY = 51;
+        private const string MENU_ITEM_PATH = DefineSymbols.MENU_ITEM_PATH + "Profiler/";
+        private const int MENU_ITEM_PRIORITY = DefineSymbols.MENU_ITEM_PRIORITY;
 
 #if PROFILER_ENABLE
         /// <summary>

@@ -35,7 +35,9 @@ namespace Moirai.Atropos.ConfigTable.Editor
         {
             if (Directory.Exists(ConfigTableSettings.ConfigRootFullPath)) return true;
 
-            if (EditorUtility.DisplayDialog("配置目录不存在", $"ConfigRootPath 无效:\n{ConfigTableSettings.ConfigRootFullPath}\n\n是否打开设置界面进行配置？", "打开设置", "取消"))
+            if (EditorUtility.DisplayDialog("配置表目录不存在",
+                    $"ConfigRootPath 无效:\n{ConfigTableSettings.ConfigRootFullPath}\n\n是否打开设置界面进行配置？",
+                    "打开设置", "取消"))
             {
                 Selection.activeObject = ConfigTableSettings.Instance;
             }
