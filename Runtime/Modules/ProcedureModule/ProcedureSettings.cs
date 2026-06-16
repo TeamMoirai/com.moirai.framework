@@ -103,7 +103,7 @@ namespace Moirai.Atropos.Procedure
 
 #if UNITY_EDITOR
 
-        protected override void Reset()
+        protected internal override void Reset()
         {
             // 设置默认值
             var procedureTypeNames = TypeUtility.GetRuntimeTypeNames(typeof(ProcedureBase));

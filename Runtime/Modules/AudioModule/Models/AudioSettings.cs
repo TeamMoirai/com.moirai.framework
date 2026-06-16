@@ -19,7 +19,7 @@ namespace Moirai.Atropos.Audio
 
 #if UNITY_EDITOR
 
-        protected override void Reset()
+        protected internal override void Reset()
         {
             // 从 Resources 中读取默认 AudioMixer
             m_AudioMixer = Resources.Load<AudioMixer>("AudioMixer");

@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Reflection;
 using UnityEngine;
 
@@ -35,10 +34,22 @@ namespace Moirai.Atropos
     }
 
     /// <summary>
+    /// 框架设置非泛型基类，用于编辑器侧类型擦除访问。
+    /// </summary>
+    public abstract class FrameworkSettings : ScriptableObject
+    {
+        /// <summary>
+        /// 重置设置为默认值。
+        /// </summary>
+        /// <remarks>一般用于编辑器相关操作</remarks>
+        protected internal virtual void Reset() { }
+    }
+
+    /// <summary>
     /// 框架设置基类。提供统一的元数据查询、类型注册和实例加载。
     /// 所有框架设置 ScriptableObject 应继承此类。
     /// </summary>
-    public abstract class FrameworkSettings<T> : ScriptableObject where T : FrameworkSettings<T>
+    public abstract class FrameworkSettings<T> : FrameworkSettings where T : FrameworkSettings<T>
     {
         private static T s_Instance;
         /// <summary>获取设置实例。</summary>
@@ -46,75 +57,36 @@ namespace Moirai.Atropos
         {
             get
             {
+                if (s_Instance != null) return s_Instance;
+
+                // 新建配置SO
+
+                var type = typeof(T);
+                var attr = type.GetCustomAttribute<FrameworkSettingAttribute>();
+                var saveFolder = attr != null ? attr.SaveFolder : FrameworkSettingAttribute.DEFAULT_SAVE_FOLDER;
+
+                const string keyword = "/Resources/";
+                int index = saveFolder.IndexOf(keyword);
+                if (index != -1)
+                {
+                    s_Instance = Resources.Load<T>(saveFolder.Substring(index + keyword.Length) + type.Name);
+                }
+
                 if (s_Instance == null)
                 {
-                    var type = typeof(T);
-                    var attr = type.GetCustomAttribute<FrameworkSettingAttribute>();
-                    var saveFolder = attr != null ? attr.SaveFolder : FrameworkSettingAttribute.DEFAULT_SAVE_FOLDER;
-
-                    const string keyword = "/Resources/";
-                    int index = saveFolder.IndexOf(keyword);
-                    if (index != -1)
-                    {
-                        s_Instance = Resources.Load<T>(saveFolder.Substring(index + keyword.Length) + type.Name);
-                    }
-
-                    if (s_Instance == null)
-                    {
-                        string filePath = saveFolder + type.Name + ".asset";
+                    string filePath = saveFolder + type.Name + ".asset";
 #if UNITY_EDITOR
-                        s_Instance = SettingHelper.LoadSettingSO<T>(filePath);
-                        s_Instance.Reset();
+                    s_Instance = SettingHelper.LoadSettingSO<T>(filePath);
+                    s_Instance.Reset();
 
-                        UnityEditor.EditorUtility.SetDirty(s_Instance);
-                        UnityEditor.AssetDatabase.SaveAssets();
+                    UnityEditor.EditorUtility.SetDirty(s_Instance);
+                    UnityEditor.AssetDatabase.SaveAssets();
 #else
-                        Log.Error($"Could not find {type.Name} at path '{filePath}'!");
+                    Log.Error($"Could not find {type.Name} at path '{filePath}'!");
 #endif
-                    }
                 }
                 return s_Instance;
             }
-        }
-
-        /// <summary>
-        /// 创建配置时的必要初始化
-        /// </summary>
-        /// <remarks>一般用于编辑器相关操作</remarks>
-        protected virtual void Reset() { }
-
-        private static readonly List<Type> s_RegisteredTypes = new();
-        /// <summary>所有已注册的设置类型。</summary>
-        public static IReadOnlyList<Type> RegisteredTypes => s_RegisteredTypes;
-
-        /// <summary>注册一个设置类型。</summary>
-        public static void RegisterType(Type type)
-        {
-            if (!s_RegisteredTypes.Contains(type))
-            {
-                s_RegisteredTypes.Add(type);
-            }
-        }
-
-        /// <summary>获取排序顺序。</summary>
-        public static int GetOrder(Type settingType)
-        {
-            var attr = settingType.GetCustomAttribute<FrameworkSettingAttribute>();
-            return attr?.Order ?? 0;
-        }
-
-        /// <summary>获取显示标题。</summary>
-        public static string GetTitle(Type settingType)
-        {
-            var attr = settingType.GetCustomAttribute<FrameworkSettingAttribute>();
-            return attr?.Title ?? settingType.Name;
-        }
-
-        /// <summary>获取描述。</summary>
-        public static string GetDescription(Type settingType)
-        {
-            var attr = settingType.GetCustomAttribute<FrameworkSettingAttribute>();
-            return attr?.Description;
         }
     }
 }
