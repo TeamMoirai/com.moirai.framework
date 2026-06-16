@@ -1,14 +1,14 @@
 ﻿using UnityEditor;
 
-namespace Moirai.Atropos
+namespace Moirai.Atropos.Editor
 {
     /// <summary>
     /// <see cref="DebugDrawHelper"/> 宏定义
     /// </summary>
     public static class DebugDrawsDefineSymbols
     {
-        private const string MENU_ITEM_PATH = "Tools/Draws Define/";
-        private const int MENU_ITEM_PRIORITY = 50;
+        private const string MENU_ITEM_PATH = "Tools/DefineSymbols/Draws/";
+        private const int MENU_ITEM_PRIORITY = DefineSymbols.MENU_ITEM_PRIORITY;
 
         /// <summary>
         /// 添加用于启用显示调试绘制的菜单项

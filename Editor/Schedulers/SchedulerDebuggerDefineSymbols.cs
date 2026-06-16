@@ -10,8 +10,8 @@ namespace Moirai.Atropos.Schedulers.Editor
     {
         private const string STACK_TRACE_SCHEDULER_DISABLE_SYMBOL = "SCHEDULER_STACK_TRACE_DISABLE";
         
-        public const string MENU_ITEM_PATH = "Tools/Scheduler Debugger Define/";
-        private const int MENU_ITEM_PRIORITY = 52;
+        public const string MENU_ITEM_PATH = "Tools/DefineSymbols/Scheduler/";
+        private const int MENU_ITEM_PRIORITY = DefineSymbols.MENU_ITEM_PRIORITY;
 
 #if SCHEDULER_STACK_TRACE_DISABLE
         /// <summary>

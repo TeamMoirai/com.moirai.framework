@@ -19,8 +19,8 @@ namespace Moirai.Atropos.Editor
         private const string LOG_ERROR_ENABLE_SYMBOL = "LOG_ERROR_ENABLE";
         private const string LOG_FATAL_ENABLE_SYMBOL = "LOG_FATAL_ENABLE";
         
-        private const string MENU_ITEM_PATH = "Tools/Log Define/";
-        private const int MENU_ITEM_PRIORITY = 50;
+        private const string MENU_ITEM_PATH = DefineSymbols.MENU_ITEM_PATH + "Log/";
+        private const int MENU_ITEM_PRIORITY = DefineSymbols.MENU_ITEM_PRIORITY - 1;
 
         private static readonly string[] s_AboveLogScriptingDefineSymbols = new string[]
         {
@@ -58,7 +58,7 @@ namespace Moirai.Atropos.Editor
                 ScriptingDefineSymbols.RemoveScriptingDefineSymbol(aboveLogScriptingDefineSymbol);
             }
         }
-        
+
         /// <summary>
         /// 开启所有日志脚本宏定义。
         /// </summary>
