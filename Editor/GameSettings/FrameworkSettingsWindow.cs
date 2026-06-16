@@ -307,11 +307,9 @@ namespace Moirai.Atropos.Editor
         private void DrawSidebar()
         {
             using (new EditorGUILayout.VerticalScope(
-                GUILayout.Width(SIDEBAR_WIDTH),
-                GUILayout.ExpandHeight(true)))
+                       GUILayout.Width(SIDEBAR_WIDTH),
+                       GUILayout.ExpandHeight(true)))
             {
-                var bgRect = GUILayoutUtility.GetRect(0, 0, GUILayout.ExpandWidth(true), GUILayout.ExpandHeight(true));
-
                 _sidebarScroll = EditorGUILayout.BeginScrollView(
                     _sidebarScroll,
                     GUIStyle.none,
@@ -411,7 +409,8 @@ namespace Moirai.Atropos.Editor
 
         private void DrawVerticalDivider()
         {
-            var r = GUILayoutUtility.GetRect(1, 1, GUILayout.ExpandHeight(true));
+            // 加上 Width(1) 把它锁死为 1 像素，不再参与弹性分配
+            var r = GUILayoutUtility.GetRect(1, 1, GUILayout.Width(1), GUILayout.ExpandHeight(true));
             EditorGUI.DrawRect(r, s_Divider);
         }
 
@@ -436,7 +435,8 @@ namespace Moirai.Atropos.Editor
                     RecreateEditor();
             }
 
-            using (new EditorGUILayout.VerticalScope(GUILayout.ExpandHeight(true)))
+            // 加上 ExpandWidth(true) 主动索取所有剩余水平空间
+            using (new EditorGUILayout.VerticalScope(GUILayout.ExpandHeight(true), GUILayout.ExpandWidth(true)))
             {
                 DrawContentHeader(entry);
 
