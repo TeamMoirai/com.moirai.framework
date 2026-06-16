@@ -24,16 +24,31 @@ namespace Moirai.Atropos.Input
 
         private bool _hasUIModal;
 
-        public bool Enabled { get; set; } = true;
+        private bool _enabled = true;
+        public bool Enabled
+        {
+            get => _enabled;
+            set
+            {
+                if (_enabled == value) return;
+
+                _enabled = value;
+
+                if (!_enabled) _inputHandler.ResetAllInputStates();
+            }
+        }
 
         public bool LockPlayerController
         {
-            get => !Enabled || _inputStateFlags.HasFlag(InputStateFlags.LockPlayerController) || _hasUIModal;
+            get => !_enabled || _inputStateFlags.HasFlag(InputStateFlags.LockPlayerController) || _hasUIModal;
             set
             {
+                if (_inputStateFlags.HasFlag(InputStateFlags.LockPlayerController) == value) return;
+
                 if (value)
                 {
                     _inputStateFlags |= InputStateFlags.LockPlayerController;
+                    _inputHandler.ResetAllInputStates();
                 }
                 else
                 {
@@ -45,13 +60,15 @@ namespace Moirai.Atropos.Input
         
         public bool PreventInteractionUI
         {
-            get => !Enabled || _inputStateFlags.HasFlag(InputStateFlags.PreventInteractionUI);
+            get => !_enabled || _inputStateFlags.HasFlag(InputStateFlags.PreventInteractionUI);
             set
             {
+                if (_inputStateFlags.HasFlag(InputStateFlags.PreventInteractionUI) == value) return;
+
                 if (value)
                 {
                     _inputStateFlags |= InputStateFlags.PreventInteractionUI;
-                }
+                    _inputHandler.ResetAllInputStates(); }
                 else
                 {
                     _inputStateFlags &= ~InputStateFlags.PreventInteractionUI;
@@ -99,12 +116,10 @@ namespace Moirai.Atropos.Input
             {
                 case MessageEventType.ApplicationFocus:
                     Enabled = true;
-                    _inputHandler.ResetAllInputStates();
                     break;
 
                 case MessageEventType.NotApplicationFocus:
                     Enabled = false;
-                    _inputHandler.ResetAllInputStates();
                     break;
             }
         }
