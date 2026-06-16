@@ -13,7 +13,7 @@ namespace Moirai.Atropos.Installer.Editor
 {
     public sealed class FrameworkInstallerWindow : EditorWindow
     {
-        private const string MENU_PATH = "Tools/Settings/Install Framework";
+        private const string MENU_PATH = "Tools/Install Framework";
         private const string TEMPLATES_PATH = "Packages/" + CORE_PACKAGE_NAME + "/Templates~";
         private const string TEMPLATE_REQUIREMENTS_PATH = TEMPLATES_PATH + "/@Requirements";
         private const string TEMPLATE_NORMAL_PATH = TEMPLATES_PATH + "/NormalTemplate";
@@ -75,7 +75,7 @@ namespace Moirai.Atropos.Installer.Editor
             HybridTemplate
         }
 
-        [MenuItem(MENU_PATH, false, -3001)]
+        [MenuItem(MENU_PATH, false, -100000)]
         private static void OpenWindow()
         {
             FrameworkInstallerWindow window = GetWindow<FrameworkInstallerWindow>();
