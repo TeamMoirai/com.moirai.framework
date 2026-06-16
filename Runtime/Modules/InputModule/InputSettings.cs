@@ -1,9 +1,10 @@
-﻿using UnityEngine;
+using UnityEngine;
 
 namespace Moirai.Atropos.Input
 {
     // ReSharper disable once InconsistentNaming
-    public sealed class InputSettings : ScriptableObject
+    [FrameworkSetting("输入设置", "输入管理器类型选择", -461)]
+    public sealed class InputSettings : FrameworkSettings<InputSettings>
     {
         /// <summary>
         /// 定义了由相关联的输入处理器获取的输入的性质。
@@ -62,41 +63,5 @@ namespace Moirai.Atropos.Input
                 Instance._inputHandler?.OnInit();
             }
         }
-
-        #region 设置单例
-
-        private const string SETTINGS_DATA_NAME = "InputSettings";
-        private const string SETTINGS_DATA_FILE = "Assets/Settings/Framework/Resources/" + SETTINGS_DATA_NAME + ".asset";
-        private static InputSettings s_Instance;
-        private static InputSettings Instance
-        {
-            get
-            {
-                if (s_Instance == null)
-                {
-                    s_Instance = Resources.Load<InputSettings>(SETTINGS_DATA_NAME);
-                    if (s_Instance == null)
-                    {
-#if UNITY_EDITOR
-                        s_Instance = SettingHelper.LoadSettingSO<InputSettings>(SETTINGS_DATA_FILE);
-#else
-                        Log.Error($"Could not find Settings at path '{SETTINGS_DATA_FILE} - Create using Tools->Settings->{SETTINGS_DATA_NAME}'");
-#endif
-                    }
-                }
-                
-                return s_Instance;
-            }
-        }
-
-#if UNITY_EDITOR
-        [UnityEditor.MenuItem("Tools/Settings/" + SETTINGS_DATA_NAME, priority = -461)]
-        private static void CreateSettings()
-        {
-            UnityEditor.Selection.activeObject = SettingHelper.LoadSettingSO<InputSettings>(SETTINGS_DATA_FILE);
-        }
-#endif
-
-        #endregion
     }
 }

@@ -9,7 +9,9 @@ namespace Moirai.Atropos.Input.Prompts
     /// <summary>
     /// InputSystem 的设备提示设置
     /// </summary>
-    public class InputSystemDevicePromptSettings : ScriptableObject
+    [FrameworkSetting("按键提示设置", "按键提示图标设置", -460,
+        "Assets/Settings/InputSystem/Resources/")]
+    public class InputSystemDevicePromptSettings : FrameworkSettings<InputSystemDevicePromptSettings>
     {
         [Tooltip("文本替换要考虑的所有动作列表")]
         [ListDrawerSettings(ShowFoldout = true)]
@@ -87,40 +89,5 @@ namespace Moirai.Atropos.Input.Prompts
             public RuntimePlatform platform;
             public GlyphMap devicePromptData;
         }
-
-        #region 设置单例
-
-        private const string SETTINGS_DATA_NAME = "InputSystemDevicePromptSettings";
-        private const string SETTINGS_DATA_FILE = "Assets/Settings/InputSystem/Resources/" + SETTINGS_DATA_NAME + ".asset";
-        private static InputSystemDevicePromptSettings s_Instance;
-        public static InputSystemDevicePromptSettings Instance
-        {
-            get
-            {
-                if (s_Instance == null)
-                {
-                    s_Instance = Resources.Load<InputSystemDevicePromptSettings>(SETTINGS_DATA_NAME);
-                    if (s_Instance == null)
-                    {
-#if UNITY_EDITOR
-                        s_Instance = SettingHelper.LoadSettingSO<InputSystemDevicePromptSettings>(SETTINGS_DATA_FILE);
-#else
-                        Log.Error($"Could not find Settings at path '{SETTINGS_DATA_FILE} - Create using Tools->Settings->{SETTINGS_DATA_NAME}'");
-#endif
-                    }
-                }
-                return s_Instance;
-            }
-        }
-        
-#if UNITY_EDITOR
-        [UnityEditor.MenuItem("Tools/Settings/" + SETTINGS_DATA_NAME, priority = -460)]
-        private static void CreateSettings()
-        {
-            UnityEditor.Selection.activeObject = SettingHelper.LoadSettingSO<InputSystemDevicePromptSettings>(SETTINGS_DATA_FILE);
-        }
-#endif
-
-        #endregion
     }
 }
