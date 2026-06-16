@@ -1,13 +1,13 @@
 Moirai Framework
 ===
 
-[![Unity Version](https://img.shields.io/badge/Unity-2022.3%2B-blue.svg?style=flat-square)](https://unity3d.com/)
-[![Releases](https://img.shields.io/github/release/TeamMoirai/com.moirai.framework.svg?style=flat-square)](https://github.com/TeamMoirai/com.moirai.framework/releases)
-[![License](https://img.shields.io/github/license/TeamMoirai/com.moirai.framework?style=flat-square)](LICENSE)
-[![Issues](https://img.shields.io/github/issues/TeamMoirai/com.moirai.framework?style=flat-square)](https://github.com/TeamMoirai/com.moirai.framework/issues)
-[![Last Commit](https://img.shields.io/github/last-commit/TeamMoirai/com.moirai.framework?style=flat-square)](https://github.com/TeamMoirai/com.moirai.framework)
-[![Top Language](https://img.shields.io/github/languages/top/TeamMoirai/com.moirai.framework?style=flat-square)](https://github.com/TeamMoirai/com.moirai.framework)
-[![README](https://img.shields.io/badge/README-English-FFA500?style=flat-square)](https://github.com/TeamMoirai/com.moirai.framework/blob/main/README_EN.md)
+[![Unity Version](https://img.shields.io/badge/Unity-2022.3%2B-blue.svg)](https://unity3d.com/)
+[![openupm](https://img.shields.io/npm/v/com.moirai.framework?label=openupm&registry_uri=https://package.openupm.com)](https://openupm.com/packages/com.moirai.framework/)
+[![License](https://img.shields.io/github/license/TeamMoirai/com.moirai.framework)](LICENSE)
+[![Issues](https://img.shields.io/github/issues/TeamMoirai/com.moirai.framework)](https://github.com/TeamMoirai/com.moirai.framework/issues)
+[![Last Commit](https://img.shields.io/github/last-commit/TeamMoirai/com.moirai.framework)](https://github.com/TeamMoirai/com.moirai.framework)
+[![Top Language](https://img.shields.io/github/languages/top/TeamMoirai/com.moirai.framework)](https://github.com/TeamMoirai/com.moirai.framework)
+[![README](https://img.shields.io/badge/README-English-FFA500)](https://github.com/TeamMoirai/com.moirai.framework/blob/main/README_EN.md)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/TeamMoirai/com.moirai.framework)
 
 ## 📖 简介
