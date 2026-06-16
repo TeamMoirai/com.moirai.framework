@@ -1,9 +1,11 @@
 using Sirenix.OdinInspector;
+using Moirai.Atropos;
 using UnityEngine;
 
 namespace Moirai.Atropos.Save
 {
-    public class SaveSettings : ScriptableObject
+    [FrameworkSetting("存档设置", "存档格式与加密配置", -470)]
+    public class SaveSettings : FrameworkSettings<SaveSettings>
     {
         private enum ESaveType { Binary, BinaryEncrypted, Json, JsonEncrypted }
 
@@ -56,41 +58,5 @@ namespace Moirai.Atropos.Save
 
         public static string EncryptionKey => Instance.m_EncryptionKey; // TODO 使用用户ID加密？
         public static string SaveFileExtension => Instance.m_SaveFileExtension;
-
-        #region 设置单例
-
-        private const string SETTINGS_DATA_NAME = "SaveSettings";
-        private const string SETTINGS_DATA_FILE = "Assets/Settings/Framework/Resources/" + SETTINGS_DATA_NAME + ".asset";
-        private static SaveSettings s_Instance;
-        private static SaveSettings Instance
-        {
-            get
-            {
-                if (s_Instance == null)
-                {
-                    s_Instance = Resources.Load<SaveSettings>(SETTINGS_DATA_NAME);
-                    if (s_Instance == null)
-                    {
-#if UNITY_EDITOR
-                        s_Instance = SettingHelper.LoadSettingSO<SaveSettings>(SETTINGS_DATA_FILE);
-#else
-                        Log.Error($"Could not find Settings at path '{SETTINGS_DATA_FILE} - Create using Tools->Settings->{SETTINGS_DATA_NAME}'");
-#endif
-                    }
-                }
-
-                return s_Instance;
-            }
-        }
-
-#if UNITY_EDITOR
-        [UnityEditor.MenuItem("Tools/Settings/" + SETTINGS_DATA_NAME, priority = -470)]
-        private static void CreateSettings()
-        {
-            UnityEditor.Selection.activeObject = SettingHelper.LoadSettingSO<SaveSettings>(SETTINGS_DATA_FILE);
-        }
-#endif
-
-        #endregion
     }
 }

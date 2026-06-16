@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using Cysharp.Threading.Tasks;
 using Moirai.Atropos.Fsm;
@@ -7,7 +7,8 @@ using UnityEngine;
 namespace Moirai.Atropos.Procedure
 {
     // ReSharper disable once InconsistentNaming
-    public sealed class ProcedureSettings : ScriptableObject
+    [FrameworkSetting("流程设置", "游戏流程状态机配置", -490)]
+    public sealed class ProcedureSettings : FrameworkSettings<ProcedureSettings>
     {
         [SerializeField] private string[] m_AvailableProcedureTypeNames = null;
         
@@ -100,46 +101,16 @@ namespace Moirai.Atropos.Procedure
             Instance._procedureModule.StartProcedure(Instance._entranceProcedure.GetType());
         }
 
-        #region 设置单例
-
-        private const string SETTINGS_DATA_NAME = "ProcedureSettings";
-        private const string SETTINGS_DATA_FILE = "Assets/Settings/Framework/Resources/" + SETTINGS_DATA_NAME + ".asset";
-        private static ProcedureSettings s_Instance;
-        private static ProcedureSettings Instance
-        {
-            get
-            {
-                if (s_Instance == null)
-                {
-                    s_Instance = Resources.Load<ProcedureSettings>(SETTINGS_DATA_NAME);
-                    if (s_Instance == null)
-                    {
 #if UNITY_EDITOR
-                        s_Instance = SettingHelper.LoadSettingSO<ProcedureSettings>(SETTINGS_DATA_FILE);
 
-                        // 设置默认值
-                        var procedureTypeNames = TypeUtility.GetRuntimeTypeNames(typeof(ProcedureBase));
-                        s_Instance.m_AvailableProcedureTypeNames = procedureTypeNames;
-                        s_Instance.m_EntranceProcedureTypeName = procedureTypeNames.Single(x => x.Contains("ProcedureLaunch"));
-
-                        UnityEditor.EditorUtility.SetDirty(s_Instance);
-#else
-                        Log.Error($"Could not find Settings at path '{SETTINGS_DATA_FILE} - Create using Tools->Settings->{SETTINGS_DATA_NAME}'");
-#endif
-                    }
-                }
-                return s_Instance;
-            }
-        }
-        
-#if UNITY_EDITOR
-        [UnityEditor.MenuItem("Tools/Settings/" + SETTINGS_DATA_NAME, priority = -490)]
-        private static void CreateSettings()
+        protected override void Reset()
         {
-            UnityEditor.Selection.activeObject = SettingHelper.LoadSettingSO<ProcedureSettings>(SETTINGS_DATA_FILE);
+            // 设置默认值
+            var procedureTypeNames = TypeUtility.GetRuntimeTypeNames(typeof(ProcedureBase));
+            m_AvailableProcedureTypeNames = procedureTypeNames;
+            m_EntranceProcedureTypeName = procedureTypeNames.Single(x => x.Contains("ProcedureLaunch"));
         }
-#endif
 
-        #endregion
+#endif
     }
 }

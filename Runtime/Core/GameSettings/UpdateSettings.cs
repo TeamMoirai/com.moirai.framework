@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
@@ -49,7 +49,8 @@ namespace Moirai.Atropos
     }
 
     // ReSharper disable once InconsistentNaming
-    public class UpdateSettings : ScriptableObject
+    [FrameworkSetting("热更设置", "热更新与资源下载配置", -450)]
+    public class UpdateSettings : FrameworkSettings<UpdateSettings>
     {
         [Tooltip("项目名称")]
         [SerializeField] private string m_ProjectName = "DEMO";
@@ -206,41 +207,5 @@ namespace Moirai.Atropos
             }
 #endif
         }
-
-        #region 设置单例
-
-        private const string SETTINGS_DATA_NAME = "UpdateSettings";
-        private const string SETTINGS_DATA_FILE = "Assets/Settings/Framework/Resources/" + SETTINGS_DATA_NAME + ".asset";
-        private static UpdateSettings s_Instance;
-
-        private static UpdateSettings Instance
-        {
-            get
-            {
-                if (s_Instance == null)
-                {
-                    s_Instance = Resources.Load<UpdateSettings>(SETTINGS_DATA_NAME);
-                    if (s_Instance == null)
-                    {
-#if UNITY_EDITOR
-                        s_Instance = SettingHelper.LoadSettingSO<UpdateSettings>(SETTINGS_DATA_FILE);
-#else
-                        Log.Error($"Could not find Settings at path '{SETTINGS_DATA_FILE} - Create using Tools->Settings->{SETTINGS_DATA_NAME}'");
-#endif
-                    }
-                }
-                return s_Instance;
-            }
-        }
-        
-#if UNITY_EDITOR
-        [UnityEditor.MenuItem("Tools/Settings/" + SETTINGS_DATA_NAME, priority = -450)]
-        private static void CreateSettings()
-        {
-            UnityEditor.Selection.activeObject = SettingHelper.LoadSettingSO<UpdateSettings>(SETTINGS_DATA_FILE);
-        }
-#endif
-
-        #endregion
     }
 }

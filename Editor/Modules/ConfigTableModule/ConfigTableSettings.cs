@@ -7,7 +7,9 @@ using UnityEngine;
 
 namespace Moirai.Atropos.ConfigTable.Editor
 {
-    public sealed class ConfigTableSettings : ScriptableObject
+    [FrameworkSetting("配置表设置", "配置表导出与代码生成路径", -501,
+        "Assets/Settings/Framework/Editor/")]
+    public sealed class ConfigTableSettings : FrameworkSettings<ConfigTableSettings>
     {
         private bool IsConfigRootValid => Directory.Exists(Application.dataPath + m_ConfigRootRelativePath);
 
@@ -264,30 +266,5 @@ namespace Moirai.Atropos.ConfigTable.Editor
 
         #endregion
 
-        #region 设置单例
-
-        private const string SETTINGS_DATA_NAME = "ConfigTableSettings";
-        private const string SETTINGS_DATA_FILE = "Assets/Settings/Framework/Editor/" + SETTINGS_DATA_NAME + ".asset";
-        private static ConfigTableSettings s_Instance;
-        internal static ConfigTableSettings Instance
-        {
-            get
-            {
-                if (s_Instance == null)
-                {
-                    s_Instance = SettingHelper.LoadSettingSO<ConfigTableSettings>(SETTINGS_DATA_FILE);
-                }
-
-                return s_Instance;
-            }
-        }
-
-        [MenuItem("Tools/Settings/" + SETTINGS_DATA_NAME, priority = -501)]
-        private static void CreateSettings()
-        {
-            Selection.activeObject = SettingHelper.LoadSettingSO<ConfigTableSettings>(SETTINGS_DATA_FILE);
-        }
-
-        #endregion
     }
 }

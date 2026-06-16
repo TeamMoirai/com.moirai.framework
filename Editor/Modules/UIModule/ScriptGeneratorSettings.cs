@@ -78,7 +78,9 @@ namespace Moirai.Atropos.Editor.ModulesUI
         }
     }
     
-    public class ScriptGeneratorSettings : ScriptableObject
+    [FrameworkSetting("UI组件生成", "自动生成组件绑定代码设置", -500,
+        "Assets/Settings/Framework/Editor/")]
+    public class ScriptGeneratorSettings : FrameworkSettings<ScriptGeneratorSettings>
     {
         /// <!-- 组件绑定 -->
         private const string BIND_COMPONENT_GROUP = "组件绑定";
@@ -227,30 +229,5 @@ namespace Moirai.Atropos.Editor.ModulesUI
             }
             return null;
         }
-
-        #region 设置单例
-
-        private const string SETTINGS_DATA_NAME = "ScriptGeneratorSettings";
-        private const string SETTINGS_DATA_FILE = "Assets/Settings/Framework/Editor/" + SETTINGS_DATA_NAME + ".asset";
-        private static ScriptGeneratorSettings s_Instance;
-        public static ScriptGeneratorSettings Instance
-        {
-            get
-            {
-                if (s_Instance == null)
-                {
-                    s_Instance = SettingHelper.LoadSettingSO<ScriptGeneratorSettings>(SETTINGS_DATA_FILE);
-                }
-                return s_Instance;
-            }
-        }
-
-        [MenuItem("Tools/Settings/" + SETTINGS_DATA_NAME, priority = -500)]
-        private static void CreateAutoBindGlobalSetting()
-        {
-            Selection.activeObject = SettingHelper.LoadSettingSO<ScriptGeneratorSettings>(SETTINGS_DATA_FILE);
-        }
-
-        #endregion
     }
 }
