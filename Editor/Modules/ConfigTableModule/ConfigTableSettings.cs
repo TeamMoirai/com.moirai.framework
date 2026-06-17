@@ -211,7 +211,7 @@ namespace Moirai.Atropos.ConfigTable.Editor
                 return;
             }
 
-            string configPath = ExtractUnityAssetPath(ClientDataOutPutPath);
+            string configPath = ClientDataOutPutPath;
             if (string.IsNullOrEmpty(configPath))
             {
                 Debug.LogWarning($"无法从 ClientDataOutPutPath 提取 Unity 资源路径: {configPath}");
@@ -224,16 +224,6 @@ namespace Moirai.Atropos.ConfigTable.Editor
 
             content = ReplaceConstString(content, "CONFIG_PATH", configPath);
             File.WriteAllText(initPath, content);
-        }
-
-        private static string ExtractUnityAssetPath(string relativePath)
-        {
-            const string marker = "Assets/";
-            int idx = relativePath.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
-            if (idx < 0) return null;
-            string assetPath = relativePath.Substring(idx);
-            if (!assetPath.EndsWith("/")) assetPath += "/";
-            return assetPath;
         }
 
         private static string ReplaceConfValue(string content, string key, string newValue)
