@@ -28,7 +28,7 @@ namespace GameLogic
 #if OBFUZ_INSTALLED && ENABLE_OBFUZ
     [ObfuzIgnore(ObfuzScope.TypeName | ObfuzScope.MethodName)]
 #endif
-    public partial class HotfixEntry
+    public sealed partial class HotfixEntry
     {
         private static List<Assembly> s_HotfixAssembly;
         
@@ -52,18 +52,14 @@ namespace GameLogic
 
             MainThreadDispatcher.Instance.Dispatch(() => { Log.Info("Init UnityMainThreadDispatcher"); });
 
-            StartGameLogic();
-        }
-        
-        private static void StartGameLogic()
-        {
-            Log.Info("<b><color=orange>======= Start Game Logic =======</color></b>");
-
             // 事件通知
             HotfixEntryEvent.Trigger();
 
-            // ------------- 开始游戏相关逻辑 -------------
+            // 开始游戏相关逻辑
+            StartGameLogic();
         }
+
+        private static partial void StartGameLogic();
         
         private static void Release()
         {
