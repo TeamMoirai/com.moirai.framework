@@ -83,7 +83,11 @@ namespace Moirai.Atropos.ConfigTable.Editor
 
             CopyDirectory(sourcePath, targetPath);
 
-            EditorUtility.DisplayDialog("完成", $"生成 Config 到:\n{targetPath}", "确定");
+            EditorUtility.DisplayDialog($"生成 Config 到指定目录",
+                $"生成 Config 到:{targetPath}\n\n" +
+                "现在打开配置目录（Tools/Config/打开表格目录）手动执行 build-luban 编译最新版Luban，" +
+                "或者将编译好的文件导入配置目录的[Luban]文件夹。",
+                "确定");
         }
 
         [Button("重定向 Config 目录", ButtonSizes.Large), PropertyOrder(-998f)]
