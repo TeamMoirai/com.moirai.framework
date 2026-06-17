@@ -61,7 +61,7 @@ namespace GameProto.Config
                      " \u25bc\u25bc\u25bc\u25bc</color>");
             
             // 获取类型 -> 多语言Bean
-            Type type = typeof(LocalizedStringBean);
+            Type type = typeof(LocalizedBean);
 
             // 获取所有公共实例字段
             FieldInfo[] fields = type.GetFields(BindingFlags.Public | BindingFlags.Instance);
