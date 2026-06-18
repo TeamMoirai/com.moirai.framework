@@ -136,7 +136,7 @@ namespace Moirai.Main
             Type appType = mainFullName != null ? _mainLogicAssembly.GetType(mainFullName) : null;
             if (appType == null)
             {
-                Log.Fatal($"Main logic({_mainLogicAssembly.GetName().Name}) type '{0}' missing.", mainFullName);
+                Log.Fatal("Main logic({0}) type '{1}' missing.", _mainLogicAssembly.GetName().Name, mainFullName);
                 return;
             }
             
