@@ -77,7 +77,7 @@ namespace Moirai.Atropos.UI
         /// </summary>
         public int HideTimeToClose { get; set; }
         
-        public int HideTimerId { get; set; }
+        public ulong HideTimerId { get; set; }
         
         /// <summary>
         /// 缓存实例，关闭时不销毁。
@@ -607,10 +607,10 @@ namespace Moirai.Atropos.UI
         internal void CancelHideToCloseTimer()
         {
             IsHide = false;
-            if (HideTimerId > 0)
+            if (HideTimerId != 0UL)
             {
                 GameModule.Timer.RemoveTimer(HideTimerId);
-                HideTimerId = 0;
+                HideTimerId = 0UL;
             }
         }
 
