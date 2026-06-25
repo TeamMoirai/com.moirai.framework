@@ -23,7 +23,7 @@ namespace Moirai.Atropos.ReferenceFinder
             {
                 SortWithIndex[columnIndex].Invoke();
                 ResourceReferenceInfo curWindow = EditorWindow.GetWindow<ResourceReferenceInfo>();
-                curWindow.mAssetTreeView.SortExpandItem();
+                curWindow.assetTreeView.SortExpandItem();
             }
         }
 

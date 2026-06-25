@@ -5,16 +5,19 @@ using UnityEditor;
 using UnityEditor.IMGUI.Controls;
 using UnityEngine;
 
+#if UNITY_6000_2_OR_NEWER
+using TreeViewState = UnityEditor.IMGUI.Controls.TreeViewState<int>;
+#endif
+
 namespace Moirai.Atropos.ReferenceFinder
 {
     internal sealed class ResourceReferenceInfo : EditorWindow
     {
         private const string IS_DEPEND_PREF_KEY = "ReferenceFinderData_IsDepend";
-        public static readonly ReferenceFinderData Data = new ReferenceFinderData();
-        private static bool _initializedData;
+        public static readonly ReferenceFinderData s_Data = new ReferenceFinderData();
+        private static bool s_InitializedData;
 
-        [SerializeField]
-        private TreeViewState _treeViewState;
+        [SerializeField] private TreeViewState m_TreeViewState;
 
         public bool needUpdateAssetTree;
         public bool needUpdateState = true;
@@ -27,7 +30,7 @@ namespace Moirai.Atropos.ReferenceFinder
         private bool _isDepend;
         private GUIStyle _toolbarButtonGUIStyle;
         private GUIStyle _toolbarGUIStyle;
-        public AssetTreeView mAssetTreeView;
+        public AssetTreeView assetTreeView;
 
         private void OnEnable() => _isDepend = PlayerPrefs.GetInt(IS_DEPEND_PREF_KEY, 0) == 1;
 
@@ -37,7 +40,7 @@ namespace Moirai.Atropos.ReferenceFinder
             InitGUIStyleIfNeeded();
             DrawOptionBar();
             UpdateAssetTree();
-            mAssetTreeView?.OnGUI(new Rect(0, _toolbarGUIStyle.fixedHeight, position.width, position.height - _toolbarGUIStyle.fixedHeight));
+            assetTreeView?.OnGUI(new Rect(0, _toolbarGUIStyle.fixedHeight, position.width, position.height - _toolbarGUIStyle.fixedHeight));
         }
 
         [MenuItem("Tools/资产相关/查找资产引用 _F10", false, 520)]
@@ -61,11 +64,11 @@ namespace Moirai.Atropos.ReferenceFinder
 
         private static void InitDataIfNeeded()
         {
-            if (!_initializedData)
+            if (!s_InitializedData)
             {
-                if (!Data.ReadFromCache())
-                    Data.CollectDependenciesInfo();
-                _initializedData = true;
+                if (!s_Data.ReadFromCache())
+                    s_Data.CollectDependenciesInfo();
+                s_InitializedData = true;
             }
         }
 
@@ -145,23 +148,23 @@ namespace Moirai.Atropos.ReferenceFinder
             if (needUpdateAssetTree && selectedAssetGuid.Count != 0)
             {
                 AssetViewItem root = SelectedAssetGuidToRootItem(selectedAssetGuid);
-                if (mAssetTreeView == null)
+                if (assetTreeView == null)
                 {
-                    if (_treeViewState == null)
-                        _treeViewState = new TreeViewState();
+                    if (m_TreeViewState == null)
+                        m_TreeViewState = new TreeViewState();
                     MultiColumnHeaderState headerState = AssetTreeView.CreateDefaultMultiColumnHeaderState(position.width, _isDepend);
                     ClickColumn multiColumnHeader = new ClickColumn(headerState);
-                    mAssetTreeView = new AssetTreeView(_treeViewState, multiColumnHeader);
+                    assetTreeView = new AssetTreeView(m_TreeViewState, multiColumnHeader);
                 }
                 else
                 {
                     MultiColumnHeaderState headerState = AssetTreeView.CreateDefaultMultiColumnHeaderState(position.width, _isDepend);
                     ClickColumn multiColumnHeader = new ClickColumn(headerState);
-                    mAssetTreeView.multiColumnHeader = multiColumnHeader;
+                    assetTreeView.multiColumnHeader = multiColumnHeader;
                 }
 
-                mAssetTreeView.assetRoot = root;
-                mAssetTreeView.Reload();
+                assetTreeView.assetRoot = root;
+                assetTreeView.Reload();
                 needUpdateAssetTree = false;
                 int totalPrefab = 0;
                 int totalMat = 0;
@@ -204,7 +207,7 @@ namespace Moirai.Atropos.ReferenceFinder
             EditorGUILayout.BeginHorizontal(_toolbarGUIStyle);
             if (GUILayout.Button("点击更新本地缓存", _toolbarButtonGUIStyle))
             {
-                Data.CollectDependenciesInfo();
+                s_Data.CollectDependenciesInfo();
                 needUpdateAssetTree = true;
                 GUIUtility.ExitGUI();
             }
@@ -214,9 +217,9 @@ namespace Moirai.Atropos.ReferenceFinder
             if (preIsDepend != _isDepend)
                 OnModelSelect();
             if (GUILayout.Button("展开", _toolbarButtonGUIStyle))
-                mAssetTreeView?.ExpandAll();
+                assetTreeView?.ExpandAll();
             if (GUILayout.Button("折叠", _toolbarButtonGUIStyle))
-                mAssetTreeView?.CollapseAll();
+                assetTreeView?.CollapseAll();
             EditorGUILayout.EndHorizontal();
         }
 
@@ -251,12 +254,12 @@ namespace Moirai.Atropos.ReferenceFinder
                 return null;
             if (needUpdateState && !_updatedAssetSet.Contains(guid))
             {
-                Data.UpdateAssetState(guid);
+                s_Data.UpdateAssetState(guid);
                 _updatedAssetSet.Add(guid);
             }
 
             ++elementCount;
-            ReferenceFinderData.AssetDescription referenceData = Data.assetDict[guid];
+            ReferenceFinderData.AssetDescription referenceData = s_Data.assetDict[guid];
             AssetViewItem root = new AssetViewItem { id = elementCount, displayName = referenceData.name, data = referenceData, depth = depth };
             List<string> childGuids = _isDepend ? referenceData.dependencies : referenceData.references;
             _parentAssetIsAdd.Add(guid);

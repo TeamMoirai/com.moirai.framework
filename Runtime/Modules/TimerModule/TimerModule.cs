@@ -17,6 +17,10 @@ namespace Moirai.Atropos.Timer
         }
     }
 
+    /// <summary>
+    /// 极致性能计时器。<br/>
+    /// 四级时间轮算法 · 无全量扫描 · 精准承载技能 CD / 心跳 / 延时任务
+    /// </summary>
     internal sealed class TimerModule : Module, IUpdateModule, ITimerModule
     {
         private const int PAGE_SHIFT = 8;

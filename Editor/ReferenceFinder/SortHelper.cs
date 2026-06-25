@@ -94,7 +94,7 @@ namespace Moirai.Atropos.ReferenceFinder
 
         public static int CompareWithName(string lString, string rString)
         {
-            Dictionary<string, ReferenceFinderData.AssetDescription> asset = ResourceReferenceInfo.Data.assetDict;
+            Dictionary<string, ReferenceFinderData.AssetDescription> asset = ResourceReferenceInfo.s_Data.assetDict;
             return string.Compare(asset[lString].name, asset[rString].name, StringComparison.Ordinal);
         }
 
@@ -102,7 +102,7 @@ namespace Moirai.Atropos.ReferenceFinder
 
         public static int CompareWithPath(string lString, string rString)
         {
-            Dictionary<string, ReferenceFinderData.AssetDescription> asset = ResourceReferenceInfo.Data.assetDict;
+            Dictionary<string, ReferenceFinderData.AssetDescription> asset = ResourceReferenceInfo.s_Data.assetDict;
             return string.Compare(asset[lString].path, asset[rString].path, StringComparison.Ordinal);
         }
 

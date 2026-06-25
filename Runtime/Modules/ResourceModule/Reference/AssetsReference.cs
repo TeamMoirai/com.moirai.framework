@@ -8,14 +8,23 @@ namespace Moirai.Atropos.Resource
     [Serializable]
     public struct AssetsRefInfo
     {
-        public int instanceId;
+#if UNITY_6000_1_OR_NEWER
+        public readonly EntityId instanceID;
+#else
+        public readonly int instanceID;
+#endif
 
-        public UnityEngine.Object refAsset;
+        public Object refAsset;
 
-        public AssetsRefInfo(UnityEngine.Object refAsset)
+        public AssetsRefInfo(Object refAsset)
         {
             this.refAsset = refAsset;
-            instanceId = this.refAsset.GetInstanceID();
+
+#if UNITY_6000_1_OR_NEWER
+            instanceID = refAsset.GetEntityId();
+#else
+            instanceID = refAsset.GetInstanceID();
+#endif
         }
     }
 

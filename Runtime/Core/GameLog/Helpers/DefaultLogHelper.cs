@@ -21,7 +21,7 @@ namespace Moirai.Atropos
         }
 
         private const ELogLevel FILTER_LEVEL = ELogLevel.Info;
-        private static readonly StringBuilder _stringBuilder = new StringBuilder(1024);
+        private static readonly StringBuilder s_StringBuilder = new StringBuilder(1024);
 
         /// <summary>
         /// 打印游戏日志。
@@ -67,46 +67,46 @@ namespace Moirai.Atropos
         /// <returns>StringBuilder。</returns>
         private static StringBuilder GetFormatString(ELogLevel eLogLevel, string logString, bool bColor)
         {
-            _stringBuilder.Clear();
+            s_StringBuilder.Clear();
             switch (eLogLevel)
             {
                 case ELogLevel.Debug:
-                    _stringBuilder.AppendFormat(
+                    s_StringBuilder.AppendFormat(
                         bColor
                             ? "<color=#CFCFCF><b>[Debug]</b></color> - <color=#00FF18>{0}</color>"
                             : "<color=#00FF18><b>[Debug]</b></color> - {0}",
                         logString);
                     break;
                 case ELogLevel.Info:
-                    _stringBuilder.AppendFormat(
+                    s_StringBuilder.AppendFormat(
                         bColor
                             ? "<color=#CFCFCF><b>[INFO]</b></color> - <color=#CFCFCF>{0}</color>"
                             : "<color=#CFCFCF><b>[INFO]</b></color> - {0}",
                         logString);
                     break;
                 case ELogLevel.Assert:
-                    _stringBuilder.AppendFormat(
+                    s_StringBuilder.AppendFormat(
                         bColor
                             ? "<color=#FF00BD><b>[ASSERT]</b></color> - <color=green>{0}</color>"
                             : "<color=#FF00BD><b>[ASSERT]</b></color> - {0}",
                         logString);
                     break;
                 case ELogLevel.Warning:
-                    _stringBuilder.AppendFormat(
+                    s_StringBuilder.AppendFormat(
                         bColor
                             ? "<color=#FF9400><b>[WARNING]</b></color> - <color=yellow>{0}</color>"
                             : "<color=#FF9400><b>[WARNING]</b></color> - {0}",
                         logString);
                     break;
                 case ELogLevel.Error:
-                    _stringBuilder.AppendFormat(
+                    s_StringBuilder.AppendFormat(
                         bColor
                             ? "<color=red><b>[ERROR]</b></color> - <color=red>{0}</color>"
                             : "<color=red><b>[ERROR]</b></color> - {0}",
                         logString);
                     break;
                 case ELogLevel.Exception:
-                    _stringBuilder.AppendFormat(
+                    s_StringBuilder.AppendFormat(
                         bColor
                             ? "<color=red><b>[EXCEPTION]</b></color> - <color=red>{0}</color>"
                             : "<color=red><b>[EXCEPTION]</b></color> - {0}",
@@ -114,7 +114,7 @@ namespace Moirai.Atropos
                     break;
             }
 
-            return _stringBuilder;
+            return s_StringBuilder;
         }
 
         private static void LogImp(ELogLevel type, string logString)

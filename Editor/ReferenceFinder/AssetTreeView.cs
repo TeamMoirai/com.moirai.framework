@@ -3,8 +3,15 @@ using UnityEditor;
 using UnityEditor.IMGUI.Controls;
 using UnityEngine;
 
+#if UNITY_6000_2_OR_NEWER
+using TreeView = UnityEditor.IMGUI.Controls.TreeView<int>;
+using TreeViewItem = UnityEditor.IMGUI.Controls.TreeViewItem<int>;
+using TreeViewState = UnityEditor.IMGUI.Controls.TreeViewState<int>;
+#endif
+
 namespace Moirai.Atropos.ReferenceFinder
 {
+    [System.Serializable]
     internal sealed class AssetTreeView : TreeView
     {
         private const float K_ICON_WIDTH = 18f;
@@ -144,7 +151,7 @@ namespace Moirai.Atropos.ReferenceFinder
                     GUI.Label(cellRect, ReferenceFinderData.GetInfoByState(item.data.state), _stateGuiStyle);
                     break;
                 case MyColumns.RefCount:
-                    GUI.Label(cellRect, ResourceReferenceInfo.Data.GetRefCount(item.data, (item.parent as AssetViewItem)?.data), _stateGuiStyle);
+                    GUI.Label(cellRect, ResourceReferenceInfo.s_Data.GetRefCount(item.data, (item.parent as AssetViewItem)?.data), _stateGuiStyle);
                     break;
             }
         }
