@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Cysharp.Threading.Tasks;
@@ -479,7 +479,7 @@ namespace Moirai.Atropos.UI
             window.CancelHideToCloseTimer();
             window.Visible = false;
             window.IsHide = true;
-            window.HideTimerId = GameModule.Timer.AddTimer((arg) =>
+            window.HideTimerId = GameModule.Timer.AddTimer(() =>
             {
                 CloseUI(type);
             } ,window.HideTimeToClose);
