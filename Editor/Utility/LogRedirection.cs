@@ -15,7 +15,7 @@ namespace Moirai.Atropos.Editor
     internal static class LogRedirection
     {
         // 包装 LOG 类
-        private static readonly string[] LOG_SCRIPTS = new string[]
+        private static readonly string[] s_LogScripts = new string[]
         {
             "Log.cs",
             "LogUtility.cs",
@@ -24,27 +24,32 @@ namespace Moirai.Atropos.Editor
         };
         
         [OnOpenAsset(0)]
-        private static bool OnOpenAsset(int instanceID, int line)
+#if UNITY_6000_1_OR_NEWER
+        private static bool OnOpenAsset(UnityEngine.EntityId entityId, int line)
+        {
+            return OnOpenAsset(AssetDatabase.GetAssetPath(entityId), line);
+        }
+#else
+       private static bool OnOpenAsset(int instanceID, int line)
+        {
+            return OnOpenAsset(AssetDatabase.GetAssetPath(instanceID), line);
+        }
+#endif
+
+        private static bool OnOpenAsset(string assetPath, int line)
         {
             if (line <= 0) return false;
 
-            // 获取资源路径
-            string assetPath = AssetDatabase.GetAssetPath(
-#if UNITY_6000_0_OR_NEWER
-                (UnityEngine.EntityId)
-#endif
-                instanceID);
-            
             // 判断资源类型
             if (!assetPath.EndsWith(".cs"))
             {
                 return false;
             }
             
-            bool autoFirstMatch = CheckMethod(assetPath, LOG_SCRIPTS);
+            bool autoFirstMatch = CheckMethod(assetPath, s_LogScripts);
             
             var stackTrace = GetStackTrace();
-            if (!string.IsNullOrEmpty(stackTrace) && CheckMethod(stackTrace, LOG_SCRIPTS))
+            if (!string.IsNullOrEmpty(stackTrace) && CheckMethod(stackTrace, s_LogScripts))
             {
                 if (!autoFirstMatch)
                 {
@@ -62,7 +67,7 @@ namespace Moirai.Atropos.Editor
                 {
                     var pathLine = matches.Groups[1].Value;
 
-                    if (!CheckMethod(pathLine, LOG_SCRIPTS))
+                    if (!CheckMethod(pathLine, s_LogScripts))
                     {
                         var splitIndex = pathLine.LastIndexOf(":", StringComparison.Ordinal);
                         // 脚本路径

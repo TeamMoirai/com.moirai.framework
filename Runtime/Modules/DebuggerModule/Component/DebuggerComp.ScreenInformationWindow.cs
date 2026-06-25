@@ -58,7 +58,11 @@ namespace Moirai.Atropos.Debugger
 
             private string GetResolutionString(Resolution resolution)
             {
+#if UNITY_2022_2_OR_NEWER
                 return TextUtility.Format("{0} x {1} @ {2}Hz", resolution.width, resolution.height, resolution.refreshRateRatio);
+#else
+                return TextUtility.Format("{0} x {1} @ {2}Hz", resolution.width, resolution.height, resolution.refreshRate);
+#endif
             }
 
             private string GetCutoutsString(Rect[] cutouts)
