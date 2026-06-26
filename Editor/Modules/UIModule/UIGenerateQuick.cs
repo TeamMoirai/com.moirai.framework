@@ -37,7 +37,7 @@ namespace Moirai.Atropos.UI.Editor
             Debug.Log("没有找到符合规则路径的生成配置 请检查!");
         }
 
-        [MenuItem("GameObject/ScriptGenerator/仅复制属性", priority = 51)]
+        [MenuItem("GameObject/ScriptGenerator/复制绑定属性", priority = 51)]
         public static void UICopyBindVariableContent()
         {
             GameObject selectedObject = Selection.gameObjects.FirstOrDefault();

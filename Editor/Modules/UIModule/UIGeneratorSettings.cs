@@ -191,10 +191,12 @@ namespace Moirai.Atropos.UI.Editor
 
         [Header("路径设置")]
         [Tooltip("生成的UI脚本路径（相对Assets）")]
+        [FolderPath]
         [SerializeField] private string m_GenerateHolderCodePath;
         public string GenerateHolderCodePath => m_GenerateHolderCodePath;
 
         [Tooltip("UI Prefab根目录")]
+        [FolderPath]
         [SerializeField] private string m_UIPrefabRootPath;
         public string UIPrefabRootPath => m_UIPrefabRootPath;
 
