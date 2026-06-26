@@ -98,131 +98,53 @@ namespace Moirai.Atropos
         }
         
         /// <summary>
-        /// 获取已加载的程序集中指定的程序集
+        /// 获取已加载的程序集中的指定类型的子类列表。
         /// </summary>
-        /// <param name="assemblyName">程序集名</param>
-        /// <returns>程序集</returns>
-        public static Assembly GetAssembly(string assemblyName)
+        /// <param name="type">指定类型</param>
+        /// <returns></returns>
+        public static List<string> GetRuntimeTypeNames(Type type)
         {
-            foreach (var assembly in _assemblies)
+            var types = GetTypes();
+            List<string> results = new List<string>();
+            foreach (var t in types)
             {
-                if (assembly.GetName().Name == assemblyName)
-                    return assembly;
-            }
-
-            return null;
-        }
-        
-        /// <summary>
-        /// 反射工具，得到反射类的对象
-        /// 被反射对象必须是有无参公共构造 
-        /// </summary>
-        /// <param name="typeName">类型名</param>
-        /// <returns>实例化后的对象</returns>
-        public static object GetTypeInstance(string typeName)
-        {
-            object inst = null;
-            foreach (var a in _assemblies)
-            {
-                var dstType = a.GetType(typeName);
-                if (dstType != null)
+                if (t.IsAbstract || !t.IsClass)
                 {
-                    inst = Activator.CreateInstance(dstType);
-                    break;
+                    continue;
+                }
+
+                if (t.IsSubclassOf(type) || t.IsImplWithInterface(type))
+                {
+                    results.Add(t.FullName);
                 }
             }
 
-            return inst;
+            return results;
         }
-        
+
         /// <summary>
-        /// 反射工具，得到反射类的对象
+        /// 获取已加载的程序集中的指定类型的子类列表。
         /// </summary>
-        /// <param name="typeName">类型名</param>
-        /// <param name="args">构造参数</param>
-        /// <returns>实例化后的对象</returns>
-        public static object GetTypeInstance(string typeName, object[] args)
+        /// <param name="typeBase">指定类型</param>
+        /// <returns></returns>
+        public static List<Type> GetRuntimeTypes(Type typeBase)
         {
-            object inst = null;
-            foreach (var a in _assemblies)
+            var types = GetTypes();
+            List<Type> results = new List<Type>();
+            foreach (var t in types)
             {
-                var dstType = a.GetType(typeName);
-                if (dstType != null)
+                if (t.IsAbstract || !t.IsClass)
                 {
-                    inst = Activator.CreateInstance(dstType, args);
-                    break;
+                    continue;
+                }
+
+                if (t.IsSubclassOf(typeBase) || t.IsImplWithInterface(typeBase))
+                {
+                    results.Add(t);
                 }
             }
 
-            return inst;
-        }
-        
-        /// <summary>
-        /// 反射工具，得到反射类的对象
-        /// 被反射对象必须是有无参公共构造 ，强转至泛型类型。
-        /// </summary>
-        /// <typeparam name="T">类型</typeparam>
-        /// <param name="typeName">类型名</param>
-        /// <returns>实例化后的对象</returns>
-        public static T GetTypeInstance<T>(string typeName)
-        {
-            T inst = default;
-            foreach (var a in _assemblies)
-            {
-                var dstType = a.GetType(typeName);
-                if (dstType != null)
-                {
-                    inst = (T)Activator.CreateInstance(dstType);
-                    break;
-                }
-            }
-
-            return inst;
-        }
-        
-        /// <summary>
-        /// 获取某类型在指定程序集的所有派生类完全限定名数组
-        /// </summary>
-        /// <typeparam name="T">基类</typeparam>
-        /// <returns>非抽象派生类完全限定名</returns>
-        public static string[] GetDerivedTypeNames<T>()
-            where T : class
-        {
-            return ReflectionUtility.GetDerivedTypeNames(typeof(T), _assemblies);
-        }
-        
-        /// <summary>
-        /// 执行单例方法
-        /// </summary>
-        /// <param name="className">类名</param>
-        /// <param name="methodName">方法名</param>
-        /// <param name="parameters">方法参数</param>
-        /// <returns>返回值</returns>
-        public static object InvokeInstanceMethod(string className, string methodName, object[] parameters = null)
-        {
-            // 查找指定类名的类型
-            var type = _assemblies.SelectMany(assembly => assembly.GetTypes()).FirstOrDefault(t => t.Name == className);
-            if (type == null)
-            {
-                throw new Exception($"需要检查是否有正确生成{className}类!");
-            }
-
-            // 获取单例的实例
-            var property = type.BaseType?.GetProperty("Instance", BindingFlags.Public | BindingFlags.Static);
-            if (property == null)
-            {
-                throw new Exception($"无法获取 {className} 的单例实例!");
-            }
-            var instance = property.GetValue(null, null);
-
-            // 获取方法并执行
-            var method = type.GetMethod(methodName, BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static | BindingFlags.NonPublic);
-            if (method == null)
-            {
-                throw new Exception($"类中 : {type} 找不到此方法 : {methodName}!");
-            }
-
-            return method.Invoke(instance, parameters);
+            return results;
         }
     }
 }
