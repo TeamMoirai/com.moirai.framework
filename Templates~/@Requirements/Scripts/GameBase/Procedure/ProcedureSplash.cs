@@ -1,5 +1,4 @@
-﻿using Moirai.Atropos.Events;
-using Moirai.Atropos.Fsm;
+﻿using Moirai.Atropos.Fsm;
 using Moirai.Atropos.Procedure;
 
 namespace Moirai.Main
@@ -18,11 +17,11 @@ namespace Moirai.Main
         {
             base.OnEnter(procedureOwner);
 
-            if (SplashScreenManager.Instance.ShowSplashScreen)
+            if (SplashScreenManager.HasInstance && SplashScreenManager.Instance.ShowSplashScreen)
             {
                 _procedureOwner = procedureOwner;
                 // 播放 Splash 动画
-                SplashScreenEvent.Trigger(SplashScreenEvent.SplashStage.Start);
+                SplashScreenEvent.SplashStart();
                 EventManager.RegisterCallback<SplashScreenEvent>(OnSplashScreenEvent);
             }
             else
@@ -74,9 +73,15 @@ namespace Moirai.Main
             return evt;
         }
 
-        public static void Trigger(SplashStage stage)
+        public static void SplashStart()
         {
-            using var evt = GetPooled(stage);
+            using var evt = GetPooled(SplashStage.Start);
+            EventManager.SendEvent(evt);
+        }
+
+        public static void SplashEnd()
+        {
+            using var evt = GetPooled(SplashStage.End);
             EventManager.SendEvent(evt);
         }
     }

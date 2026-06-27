@@ -55,7 +55,7 @@ namespace Moirai.Main
         {
             if (!_isSplashing) return;
             
-            SplashScreenEvent.Trigger(SplashScreenEvent.SplashStage.End);
+            SplashScreenEvent.SplashEnd();
             _isSplashing = false;
         }
     }

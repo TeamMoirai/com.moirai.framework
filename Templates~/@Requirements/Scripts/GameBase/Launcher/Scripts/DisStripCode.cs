@@ -51,7 +51,7 @@ namespace Moirai.Main
         private void RegisterType<T>()
         {
 #if UNITY_EDITOR && false
-      Debug.Log($"DisStripCode RegisterType :{typeof(T)}");
+			Debug.Log($"DisStripCode RegisterType :{typeof(T)}");
 #endif
         }
     }

@@ -122,7 +122,7 @@ namespace Moirai.Main
 
         private void AllAssemblyLoadComplete()
         {
-            ChangeState<ProcedurePrepare4Main>(_procedureOwner);
+            ChangeState<ProcedurePrepare4Entrance>(_procedureOwner);
 #if UNITY_EDITOR
             _mainLogicAssembly = GetMainLogicAssembly();
 #endif

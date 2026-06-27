@@ -28,6 +28,7 @@ namespace GameLogic
 #if OBFUZ_INSTALLED && ENABLE_OBFUZ
     [ObfuzIgnore(ObfuzScope.TypeName | ObfuzScope.MethodName)]
 #endif
+    // ReSharper disable once ClassNeverInstantiated.Global
     public sealed partial class HotfixEntry
     {
         private static List<Assembly> s_HotfixAssembly;
@@ -36,6 +37,7 @@ namespace GameLogic
         /// 热更域App主入口。
         /// </summary>
         /// <param name="objects"></param>
+        [UnityEngine.Scripting.Preserve]
         public static void Entrance(object[] objects)
         {
             s_HotfixAssembly = (List<Assembly>)objects[0];
