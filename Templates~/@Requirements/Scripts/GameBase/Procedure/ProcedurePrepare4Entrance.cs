@@ -5,10 +5,10 @@ using Moirai.Atropos.Procedure;
 namespace Moirai.Main
 {
     /// <summary>
-    /// 流程 => 准备进入主游戏流程（<see cref="Moirai.Clotho.GameMain"/>）
+    /// 流程 => 准备进入主游戏流程（<see cref="GameLogic.HotfixEntry.Entrance"/>）
     /// </summary>
     // ReSharper disable once ClassNeverInstantiated.Global
-    public class ProcedurePrepare4Main : ProcedurePremainBase
+    public class ProcedurePrepare4Entrance : ProcedurePremainBase
     {
         public override bool UseNativeDialog { get; }
 
