@@ -158,9 +158,9 @@ namespace Moirai.Atropos.UI.Editor
                 new UIElementRegexData("Video", "UnityEngine.Video.VideoPlayer"),
                 new UIElementRegexData("CanvasGroup", "CanvasGroup"),
 #if (TEXT_MESH_PRO_INSTALLED || UNITY_UGUI2_INSTALLED)
-                new UIElementRegexData("Tmp", "TMPro.TextMeshProUGUI"),
                 new UIElementRegexData("TmpInput", "TMPro.TMP_InputField"),
                 new UIElementRegexData("TmpDropdown", "TMPro.TMP_Dropdown"),
+                new UIElementRegexData("Tmp", "TMPro.TextMeshProUGUI"),
 #endif
 
                 // 框架组件
