@@ -626,13 +626,13 @@ namespace Moirai.Atropos.Editor
             // 直接创建，绕开 Instance 属性
             var asset = (FrameworkSettings)ScriptableObject.CreateInstance(entry.type);
             AssetDatabase.CreateAsset(asset, path);
+
+            // 先赋值再 Reset，确保 Reset 作用于正确的对象
+            entry.instance = asset;
             entry.instance.Reset();
 
             EditorUtility.SetDirty(asset);
             AssetDatabase.SaveAssets();
-
-            // 直接把刚创建的实例赋给 entry，不再重新加载
-            entry.instance = asset;
             RecreateEditor();
             EditorGUIUtility.PingObject(asset);
         }

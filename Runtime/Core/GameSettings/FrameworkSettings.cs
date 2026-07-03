@@ -43,6 +43,14 @@ namespace Moirai.Atropos
         /// </summary>
         /// <remarks>一般用于编辑器相关操作</remarks>
         protected internal virtual void Reset() { }
+
+        /// <summary>
+        /// 公共重置入口，供编辑器工具调用。
+        /// </summary>
+        public void ResetToDefaults()
+        {
+            Reset();
+        }
     }
 
     /// <summary>
@@ -77,10 +85,8 @@ namespace Moirai.Atropos
                     string filePath = saveFolder + type.Name + ".asset";
 #if UNITY_EDITOR
                     s_Instance = LoadSettingSO<T>(filePath);
-                    s_Instance.Reset();
-
-                    UnityEditor.EditorUtility.SetDirty(s_Instance);
-                    UnityEditor.AssetDatabase.SaveAssets();
+                    // 只在创建新资产时 Reset，加载已有资产不应重置
+                    // Reset 已移到 SettingHelper.CreateSettingSO 中
 #else
                     Log.Error($"Could not find {type.Name} at path '{filePath}'!");
 #endif
