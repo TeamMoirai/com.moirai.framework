@@ -6,7 +6,7 @@ using UnityEngine;
 
 namespace Moirai.Atropos
 {
-    public static class SettingHelper
+    public partial class FrameworkSettings
     {
         /// <summary>
         /// 创建设置文件

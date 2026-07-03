@@ -36,7 +36,7 @@ namespace Moirai.Atropos
     /// <summary>
     /// 框架设置非泛型基类，用于编辑器侧类型擦除访问。
     /// </summary>
-    public abstract class FrameworkSettings : ScriptableObject
+    public abstract partial class FrameworkSettings : ScriptableObject
     {
         /// <summary>
         /// 重置设置为默认值。
@@ -76,7 +76,7 @@ namespace Moirai.Atropos
                 {
                     string filePath = saveFolder + type.Name + ".asset";
 #if UNITY_EDITOR
-                    s_Instance = SettingHelper.LoadSettingSO<T>(filePath);
+                    s_Instance = LoadSettingSO<T>(filePath);
                     s_Instance.Reset();
 
                     UnityEditor.EditorUtility.SetDirty(s_Instance);

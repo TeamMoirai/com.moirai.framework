@@ -137,8 +137,8 @@ namespace Moirai.Atropos.UI.Editor
             {
                 // 系统组件
                 new UIElementRegexData("Obj", "GameObject"),
-                new UIElementRegexData("Tf", "UnityEngine.Transform"),
-                new UIElementRegexData("Rect", "UnityEngine.RectTransform"),
+                new UIElementRegexData("Tf", "Transform"),
+                new UIElementRegexData("Rect", "RectTransform"),
                 new UIElementRegexData("Text", "UnityEngine.UI.Text"),
                 new UIElementRegexData("Btn", "UnityEngine.UI.Button"),
                 new UIElementRegexData("Slider", "UnityEngine.UI.Slider"),
@@ -156,7 +156,7 @@ namespace Moirai.Atropos.UI.Editor
                 new UIElementRegexData("Dropdown", "UnityEngine.UI.Dropdown"),
                 new UIElementRegexData("Mask2D", "UnityEngine.UI.RectMask2D"),
                 new UIElementRegexData("Video", "UnityEngine.Video.VideoPlayer"),
-                new UIElementRegexData("CanvasGroup", "UnityEngine.CanvasGroup"),
+                new UIElementRegexData("CanvasGroup", "CanvasGroup"),
 #if (TEXT_MESH_PRO_INSTALLED || UNITY_UGUI2_INSTALLED)
                 new UIElementRegexData("Tmp", "TMPro.TextMeshProUGUI"),
                 new UIElementRegexData("TmpInput", "TMPro.TMP_InputField"),
