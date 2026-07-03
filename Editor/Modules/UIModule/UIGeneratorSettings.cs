@@ -164,10 +164,11 @@ namespace Moirai.Atropos.UI.Editor
 #endif
 
                 // 框架组件
-                new UIElementRegexData("Label", "Moirai.Clotho.UILabel"),
-                new UIElementRegexData("SBtn", "Moirai.Clotho.ButtonSuper"),
-                new UIElementRegexData("Menu", "Moirai.Clotho.UIMenu"),
-                new UIElementRegexData("MenuItem", "Moirai.Clotho.UIMenuItem"),
+                new UIElementRegexData("Label", "Moirai.Clotho.UI.UILabel"),
+                new UIElementRegexData("SBtn", "Moirai.Clotho.UI.ButtonSuper"),
+                new UIElementRegexData("Menu", "Moirai.Clotho.UI.UIMenu"),
+                new UIElementRegexData("MenuItem", "Moirai.Clotho.UI.UIMenuItem"),
+
 #if MOIRAI_CLOTHO_UIPRO
                 new UIElementRegexData("Carousel","Moirai.Clotho.UIPro.Carousel"),
                 new UIElementRegexData("ListCarousel","Moirai.Clotho.UIPro.ListCarousel"),
