@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -714,7 +714,8 @@ namespace #ClassNameSpace#
                 .Replace("#ReferenceNameSpace#", GetReferenceNamespace(context))
                 .Replace("#ClassNameSpace#", context.ScriptGenerateData.NameSpace)
                 .Replace("#ClassName#", context.ClassName)
-                .Replace("#Variable#", GetVariableContent(context));
+                .Replace("#Variable#", GetVariableContent(context))
+                .Replace("#Controller#", ScriptCodeEmitter.GetControllerContent(context.ClassName, context.BindData, GetPublicComponentName));
         }
 
         private static string GetClassGenerateName(GameObject targetObject, UIScriptGenerateData scriptGenerateData)

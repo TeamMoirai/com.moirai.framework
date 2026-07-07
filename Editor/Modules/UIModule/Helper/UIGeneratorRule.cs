@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -30,6 +30,8 @@ namespace Moirai.Atropos.UI.Editor
         string GetReferenceNamespaces(List<UIBindData> uiBindData);
 
         string GetVariableContent(List<UIBindData> uiBindData, Func<string, string> publicNameFactory);
+
+        string GetControllerContent(string className, IReadOnlyList<UIBindData> uiBindData, Func<string, string> publicNameFactory);
     }
 
     public interface IUIScriptFileWriter
@@ -298,6 +300,65 @@ namespace Moirai.Atropos.UI.Editor
 
             return declaration.ToString();
         }
+
+        public string GetControllerContent(string className, IReadOnlyList<UIBindData> uiBindData, Func<string, string> publicNameFactory)
+        {
+            var propertyAccessors = GeneratePropertyAccessors(uiBindData, publicNameFactory);
+
+            var controllerContent = new StringBuilder();
+            controllerContent.AppendLine();
+            controllerContent.AppendLine($"    public partial class {className}");
+            controllerContent.AppendLine("    {");
+            controllerContent.AppendLine($"        private {className}Binder _bindComponent;");
+
+            if (!string.IsNullOrEmpty(propertyAccessors))
+            {
+                controllerContent.AppendLine();
+                controllerContent.Append(propertyAccessors);
+            }
+
+            controllerContent.AppendLine();
+            controllerContent.AppendLine("        protected override void ScriptGenerator()");
+            controllerContent.AppendLine("\t\t{");
+            controllerContent.AppendLine($"\t\t\t_bindComponent = gameObject.GetComponent<{className}Binder>();");
+            controllerContent.AppendLine("\t\t\tif(_bindComponent == null)");
+            controllerContent.AppendLine("\t\t\t{");
+            controllerContent.AppendLine($"\t\t\t\tLog.Error($\"根物体: {{gameObject.name}} 缺少组件 {className}Binder, 请检查！！！\");");
+            controllerContent.AppendLine("\t\t\t\treturn;");
+            controllerContent.AppendLine("            }");
+            controllerContent.AppendLine("\t\t}");
+            controllerContent.AppendLine("    }");
+
+            return controllerContent.ToString();
+        }
+
+        private static string GeneratePropertyAccessors(IReadOnlyList<UIBindData> uiBindData, Func<string, string> publicNameFactory)
+        {
+            if (uiBindData == null || uiBindData.Count == 0)
+            {
+                return string.Empty;
+            }
+
+            var accessors = new StringBuilder();
+            foreach (var bindData in uiBindData.Where(d => d != null && !string.IsNullOrEmpty(d.Name)))
+            {
+                var publicName = publicNameFactory(bindData.Name);
+                var firstType = bindData.GetFirstOrDefaultType();
+                var typeName = firstType?.Name ?? "Component";
+                var privateName = "_" + char.ToLowerInvariant(publicName[0]) + publicName.Substring(1);
+
+                if (bindData.BindType == EBindType.ListCom)
+                {
+                    accessors.AppendLine($"\t\tprivate {typeName}[] {privateName} => _bindComponent.{publicName};");
+                }
+                else
+                {
+                    accessors.AppendLine($"\t\tprivate {typeName} {privateName} => _bindComponent.{publicName};");
+                }
+            }
+
+            return accessors.ToString();
+        }
     }
 
     public sealed class DefaultUIScriptFileWriter : IUIScriptFileWriter
@@ -315,23 +376,6 @@ namespace Moirai.Atropos.UI.Editor
 
             #region 自动生成脚本
 
-            // TODO 自动订阅必要组件事件？
-            scriptContent = scriptContent.Replace("#Controller#", @"
-    public partial class #ClassName#
-    {
-        private #ClassName#Binder _bindComponent;
-
-        protected override void ScriptGenerator()
-		{
-			_bindComponent = gameObject.GetComponent<#ClassName#Binder>();
-			if(_bindComponent == null)
-			{
-				Log.Error($""根物体: {gameObject.name} 缺少组件 #ClassName#Binder, 请检查！！！"");
-				return;
-            }
-		}
-    }".Replace("#ClassName#", className));
-
             if (File.Exists(scriptFilePath) && IsContentUnchanged(scriptFilePath, scriptContent))
             {
                 UIScriptGeneratorHelper.BindUIScript();
@@ -347,7 +391,7 @@ namespace Moirai.Atropos.UI.Editor
             var windowFilePath = Path.Combine(scriptFolderPath, $"{className}.cs");
             if (!File.Exists(windowFilePath))
             {
-                string windowScript = @"using Moirai.Atropos.UI;
+                string templateText = @"using Moirai.Atropos.UI;
 
 namespace GameLogic.UI
 {
@@ -357,7 +401,7 @@ namespace GameLogic.UI
     }
 }".Replace("#ClassName#", className);
 
-                File.WriteAllText(windowFilePath, windowScript, Encoding.UTF8);
+                File.WriteAllText(windowFilePath, templateText, Encoding.UTF8);
             }
 
             #endregion
