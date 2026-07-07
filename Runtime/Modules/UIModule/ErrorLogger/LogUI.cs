@@ -20,7 +20,7 @@ namespace Moirai.Atropos.UI
         }
         #endregion
 
-        #region 事件
+        #region 事件 [EVENTS]
         private void OnClickCloseBtn()
         {
             PopErrorLog().Forget();

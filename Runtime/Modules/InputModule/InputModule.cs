@@ -108,7 +108,7 @@ namespace Moirai.Atropos.Input
 
         #endregion
 
-        #region 事件 [EVENT]
+        #region 事件 [EVENTS]
 
         private void ResetInput(MessageEvent evt)
         {
