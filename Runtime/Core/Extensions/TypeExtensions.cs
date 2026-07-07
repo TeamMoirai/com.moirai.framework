@@ -1,7 +1,7 @@
 ﻿namespace System
 {
     [UnityEngine.Scripting.Preserve]
-    public static class TypeExtensions
+    public static class TypeExtension
     {
         [UnityEngine.Scripting.Preserve]
         public static bool IsImplWithInterface(this Type self, Type target)

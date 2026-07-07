@@ -2,7 +2,7 @@
 
 namespace Moirai.Atropos
 {
-    public static class CollectionExtension
+    public static class CollectionExtensions
     {
         public static void AddRange<T>(this ICollection<T> @this, IEnumerable<T> items)
         {

@@ -2,7 +2,7 @@
 
 namespace Moirai.Atropos
 {
-    public static class ColorExtension
+    public static class ColorExtensions
     {
         /// <summary>
         /// 返回指定的两个最小值/最大值之间的随机颜色
