@@ -9,9 +9,9 @@ namespace Moirai.Atropos
     // ReSharper disable once InconsistentNaming
     public static class GameProfiler
     {
-        private static int _profileLevel = -1;
-        private static int _currLevel = 0;
-        private static int _sampleLevel = 0;
+        private static int s_ProfileLevel = -1;
+        private static int s_CurrLevel = 0;
+        private static int s_SampleLevel = 0;
 
         /// <summary>
         /// 设置分析器等级。
@@ -19,7 +19,7 @@ namespace Moirai.Atropos
         /// <param name="level">调试器等级。</param>
         public static void SetProfileLevel(int level)
         {
-            _profileLevel = level;
+            s_ProfileLevel = level;
         }
         
         /// <summary>
@@ -29,13 +29,13 @@ namespace Moirai.Atropos
         [Conditional("PROFILER_ENABLE")]
         public static void BeginSample(string name)
         {
-            _currLevel++;
-            if (_profileLevel >= 0 && _currLevel > _profileLevel)
+            s_CurrLevel++;
+            if (s_ProfileLevel >= 0 && s_CurrLevel > s_ProfileLevel)
             {
                 return;
             }
 
-            _sampleLevel++;
+            s_SampleLevel++;
             Profiler.BeginSample(name);
         }
 
@@ -45,13 +45,13 @@ namespace Moirai.Atropos
         [Conditional("PROFILER_ENABLE")]
         public static void EndSample()
         {
-            if (_currLevel <= _sampleLevel)
+            if (s_CurrLevel <= s_SampleLevel)
             {
                 Profiler.EndSample();
-                _sampleLevel--;
+                s_SampleLevel--;
             }
 
-            _currLevel--;
+            s_CurrLevel--;
         }
     }
 }

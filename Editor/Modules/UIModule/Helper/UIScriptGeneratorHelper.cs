@@ -316,6 +316,14 @@ namespace #ClassNameSpace#
                 context.ScriptGenerateData.NameSpace,
                 context.BindData,
                 GetPublicComponentName);
+
+            var windowFilePath = Path.Combine(context.ScriptGenerateData.GenerateHolderCodePath, $"{context.ClassName}.cs");
+            if (File.Exists(windowFilePath))
+            {
+                var existingContent = File.ReadAllText(windowFilePath);
+                windowContent = ScriptCodeEmitter.PatchWindowContent(existingContent, windowContent);
+            }
+
             ScriptFileWriter.Write(context.TargetObject, context.ClassName, scriptContent, context.ScriptGenerateData, windowContent);
         }
 

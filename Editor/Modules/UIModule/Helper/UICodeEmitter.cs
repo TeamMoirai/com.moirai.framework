@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace Moirai.Atropos.UI.Editor
 {
@@ -29,6 +30,11 @@ namespace Moirai.Atropos.UI.Editor
         /// 获取窗口实现类代码内容
         /// </summary>
         string GetWindowContent(string className, string nameSpace, IReadOnlyList<UIBindData> uiBindData, Func<string, string> publicNameFactory);
+
+        /// <summary>
+        /// 将新生成的窗口内容中缺失的事件方法补充到已存在的窗口实现类内容中
+        /// </summary>
+        string PatchWindowContent(string existingContent, string newWindowContent);
     }
 
     /// <summary>
@@ -36,7 +42,13 @@ namespace Moirai.Atropos.UI.Editor
     /// </summary>
     public sealed class DefaultUIScriptCodeEmitter : IUIScriptCodeEmitter
     {
+        private const string EVENTS_REGION_START = "#region 事件 [EVENTS]";
+        private const string EVENTS_REGION_END = "#endregion 事件 [EVENTS]";
+
         private const string BINDER_VARIABLE_NAME = "_bindComponent";
+
+        private static readonly Regex s_MethodSignatureRegex = new Regex(
+            @"private\s+partial\s+void\s+(\w+)\s*\(([^)]*)\)", RegexOptions.Compiled);
 
         /// <inheritdoc/>
         public string GetReferenceNamespaces(List<UIBindData> uiBindData)
@@ -138,9 +150,11 @@ namespace Moirai.Atropos.UI.Editor
             if (!string.IsNullOrEmpty(eventHandlers))
             {
                 controllerContent.AppendLine();
-                controllerContent.AppendLine("\t\t#region 事件 [EVENTS]");
-                controllerContent.AppendLine(eventHandlers);
-                controllerContent.AppendLine("\t\t#endregion");
+                controllerContent.AppendLine($"\t\t{EVENTS_REGION_START}");
+                controllerContent.AppendLine();
+                controllerContent.Append(eventHandlers);
+                controllerContent.AppendLine();
+                controllerContent.AppendLine($"\t\t{EVENTS_REGION_END}");
             }
 
             controllerContent.Append("\t}");
@@ -296,10 +310,11 @@ namespace Moirai.Atropos.UI.Editor
 
             if (!string.IsNullOrEmpty(eventHandlers))
             {
-                content.AppendLine("\t\t#region 事件 [EVENTS]");
+                content.AppendLine($"\t\t{EVENTS_REGION_START}");
                 content.AppendLine();
                 content.Append(eventHandlers);
-                content.AppendLine("\t#endregion");
+                content.AppendLine();
+                content.AppendLine($"\t\t{EVENTS_REGION_END}");
             }
 
             content.AppendLine("\t}");
@@ -346,11 +361,109 @@ namespace Moirai.Atropos.UI.Editor
                 var signature = string.IsNullOrEmpty(config.CallbackSignature) ? "()" : config.CallbackSignature;
 
                 handlers.AppendLine($"\t\tprivate partial void {eventName}{signature}");
-                handlers.AppendLine("\t{");
-                handlers.AppendLine("\t}");
+                handlers.AppendLine("\t\t{");
+                handlers.AppendLine("\t\t\t// do something");
+                handlers.AppendLine("\t\t}");
             }
 
             return handlers.ToString();
+        }
+
+        /// <inheritdoc/>
+        public string PatchWindowContent(string existingContent, string newWindowContent)
+        {
+            var existingMethodNames = ExtractMethodNames(existingContent);
+            var newMethodSignatures = ExtractMethodSignatures(newWindowContent);
+
+            var missingStubs = new List<string>();
+            foreach (var (methodName, signatureLine) in newMethodSignatures)
+            {
+                if (existingMethodNames.Contains(methodName))
+                {
+                    continue;
+                }
+
+                var indent = DetectIndent(existingContent);
+                missingStubs.Add($"{indent}{signatureLine}\n{indent}{{\n{indent}\t// do something\n{indent}}}");
+            }
+
+            if (missingStubs.Count == 0)
+            {
+                return existingContent;
+            }
+
+            var missingContent = string.Join(Environment.NewLine, missingStubs);
+            return InsertMissingMethods(existingContent, missingContent);
+        }
+
+        private static HashSet<string> ExtractMethodNames(string content)
+        {
+            var names = new HashSet<string>();
+            foreach (Match match in s_MethodSignatureRegex.Matches(content))
+            {
+                names.Add(match.Groups[1].Value);
+            }
+            return names;
+        }
+
+        private static List<(string methodName, string signatureLine)> ExtractMethodSignatures(string content)
+        {
+            var result = new List<(string, string)>();
+            var regionStartIdx = content.IndexOf(EVENTS_REGION_START, StringComparison.Ordinal);
+            if (regionStartIdx < 0) return result;
+
+            var regionEndIdx = content.IndexOf(EVENTS_REGION_END, regionStartIdx + EVENTS_REGION_START.Length, StringComparison.Ordinal);
+            if (regionEndIdx < 0) return result;
+
+            var regionContent = content.Substring(regionStartIdx, regionEndIdx - regionStartIdx);
+
+            foreach (Match match in s_MethodSignatureRegex.Matches(regionContent))
+            {
+                result.Add((match.Groups[1].Value, match.Value));
+            }
+
+            return result;
+        }
+
+        private static string DetectIndent(string content)
+        {
+            var regionIdx = content.IndexOf(EVENTS_REGION_START, StringComparison.Ordinal);
+            if (regionIdx >= 0)
+            {
+                var lineStart = content.LastIndexOf('\n', regionIdx);
+                var line = lineStart >= 0 ? content.Substring(lineStart + 1, regionIdx - lineStart - 1) : content.Substring(0, regionIdx);
+                var indent = line.TrimEnd('\r');
+                if (indent.Length > 0) return indent;
+            }
+
+            return "\t\t";
+        }
+
+        private static string InsertMissingMethods(string existingContent, string missingMethods)
+        {
+            var regionStartIdx = existingContent.IndexOf(EVENTS_REGION_START, StringComparison.Ordinal);
+            if (regionStartIdx >= 0)
+            {
+                var regionEndIdx = existingContent.IndexOf(EVENTS_REGION_END, regionStartIdx + EVENTS_REGION_START.Length, StringComparison.Ordinal);
+                if (regionEndIdx >= 0)
+                {
+                    var lineStart = existingContent.LastIndexOf('\n', regionEndIdx);
+                    var insertIdx = lineStart >= 0 ? lineStart + 1 : 0;
+                    return existingContent.Substring(0, insertIdx) + missingMethods + Environment.NewLine + Environment.NewLine + existingContent.Substring(insertIdx);
+                }
+            }
+
+            var lastBrace = existingContent.LastIndexOf('}');
+            if (lastBrace >= 0)
+            {
+                var indent = DetectIndent(existingContent);
+                var eventsSection = Environment.NewLine + indent + EVENTS_REGION_START + Environment.NewLine + Environment.NewLine
+                    + missingMethods + Environment.NewLine
+                    + indent + EVENTS_REGION_END + Environment.NewLine;
+                return existingContent.Substring(0, lastBrace) + eventsSection + existingContent.Substring(lastBrace);
+            }
+
+            return existingContent + Environment.NewLine + missingMethods;
         }
     }
 }
