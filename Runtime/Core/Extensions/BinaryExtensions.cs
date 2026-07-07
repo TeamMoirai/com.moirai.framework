@@ -4,9 +4,9 @@ using System.IO;
 namespace Moirai.Atropos
 {
     /// <summary>
-    /// 对 BinaryReader 和 BinaryWriter 的扩展方法。
+    /// 对 <see cref="BinaryReader"/> 和 <see cref="BinaryWriter"/> 的扩展方法。
     /// </summary>
-    public static class BinaryExtension
+    public static class BinaryExtensions
     {
         private static readonly byte[] s_CachedBytes = new byte[byte.MaxValue + 1];
 

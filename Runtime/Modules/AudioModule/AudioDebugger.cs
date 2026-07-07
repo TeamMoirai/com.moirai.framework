@@ -58,7 +58,7 @@ namespace Moirai.Atropos.Audio
         private readonly Color[] _colorBases = new []{ ColorsUtility.ReunoYellow, ColorsUtility.Coral, ColorsUtility.SteelBlue, ColorsUtility.Aquamarine, ColorsUtility.Burlywood };
 
         private readonly Color _baseColor = new Color32(150, 150, 150, 255);
-        private readonly ColorExtension.ColoringMode _coloringMode = ColorExtension.ColoringMode.Add;
+        private readonly ColorExtensions.ColoringMode _coloringMode = ColorExtensions.ColoringMode.Add;
 
         public override bool RequiresConstantRepaint() => true;
 
