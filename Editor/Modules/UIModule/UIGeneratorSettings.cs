@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Sirenix.OdinInspector;
@@ -88,6 +88,12 @@ namespace Moirai.Atropos.UI.Editor
         [SerializeField] private List<UIElementRegexData> m_UIElementRegexConfigs = new List<UIElementRegexData>();
         public static List<UIElementRegexData> UIElementRegexConfigs => Instance.m_UIElementRegexConfigs;
 
+        [Header("事件绑定规则（根据组件类型匹配）")]
+        [TabGroup(ELEMENT_MAPPING_GROUP)]
+        [TableList(AlwaysExpanded = true, ShowPaging = true)]
+        [SerializeField] private List<UIEventBindingConfig> m_UIEventBindingConfigs = new List<UIEventBindingConfig>();
+        public static List<UIEventBindingConfig> UIEventBindingConfigs => Instance.m_UIEventBindingConfigs;
+
         protected internal override void Reset()
         {
             m_UIIdentifierFormatterTypeName = typeof(DefaultUIIdentifierFormatter).FullName;
@@ -153,6 +159,25 @@ namespace Moirai.Atropos.UI.Editor
                 new UIElementRegexData("Carousel","Moirai.Clotho.UIPro.Carousel"),
                 new UIElementRegexData("ListCarousel","Moirai.Clotho.UIPro.ListCarousel"),
                 new UIElementRegexData("SlideToggle","Moirai.Clotho.UIPro.SlideToggle"),
+#endif
+            };
+
+            m_UIEventBindingConfigs = new List<UIEventBindingConfig>
+            {
+                // 系统组件
+                new UIEventBindingConfig("UnityEngine.UI.Button", "onClick", "Click", ""),
+                new UIEventBindingConfig("UnityEngine.UI.Toggle", "onValueChanged", "Change", "(bool isOn)"),
+                new UIEventBindingConfig("UnityEngine.UI.Slider", "onValueChanged", "Change", "(float value)"),
+                new UIEventBindingConfig("UnityEngine.UI.Dropdown", "onValueChanged", "Change", "(int selectedIndex)"),
+#if (TEXT_MESH_PRO_INSTALLED || UNITY_UGUI2_INSTALLED)
+                new UIEventBindingConfig("TMPro.TMP_Dropdown", "onValueChanged", "Change", "(int selectedIndex)"),
+#endif
+
+                // 框架组件
+                new UIEventBindingConfig("Moirai.Clotho.UI.ButtonSuper", "onClick", "Click", ""),
+                new UIEventBindingConfig("Moirai.Clotho.UI.UIMenuItem", "onSubmit", "Click", "(UIMenuItem item)"),
+#if MOIRAI_CLOTHO_UIPRO
+                new UIEventBindingConfig("Moirai.Clotho.UIPro.SlideToggle", "onValueChanged", "Change", "(bool isOn)"),
 #endif
             };
         }
@@ -226,6 +251,34 @@ namespace Moirai.Atropos.UI.Editor
         {
             m_UIElementRegex = uiElementRegex;
             m_ComponentType = componentType;
+        }
+    }
+
+    [Serializable]
+    public class UIEventBindingConfig
+    {
+        [Tooltip("组件类型全名（如 UnityEngine.UI.Button）")]
+        [SerializeField] private string m_ComponentType;
+        public string ComponentType => m_ComponentType;
+
+        [Tooltip("事件成员名（如 onClick）")]
+        [SerializeField] private string m_EventMember;
+        public string EventMember => m_EventMember;
+
+        [Tooltip("事件触发名（如 Click），用于方法命名 On{Trigger}{VarName}{Abbr}")]
+        [SerializeField] private string m_TriggerName;
+        public string TriggerName => m_TriggerName;
+
+        [Tooltip("回调方法签名（如 (bool isOn)），为空表示无参数")]
+        [SerializeField] private string m_CallbackSignature;
+        public string CallbackSignature => m_CallbackSignature;
+
+        public UIEventBindingConfig(string componentType, string eventMember, string triggerName, string callbackSignature)
+        {
+            m_ComponentType = componentType;
+            m_EventMember = eventMember;
+            m_TriggerName = triggerName;
+            m_CallbackSignature = callbackSignature;
         }
     }
 }
