@@ -120,6 +120,12 @@ namespace Moirai.Atropos.Input
         {
             _inputActionsDictionary.Clear();
 
+            if (InputSystem.actions == null)
+            {
+                Log.Error("Please set Input Actions in 'Project Settings -> Input System Package'");
+                return;
+            }
+
             for (int i = 0; i < InputSystem.actions.actionMaps.Count; i++)
             {
                 InputActionMap actionMap = InputSystem.actions.actionMaps[i];
