@@ -43,52 +43,32 @@ namespace Moirai.Atropos.UI.Editor
         [ValueDropdown(nameof(GetUIIdentifierFormatterTypes))]
         [SerializeField] private string m_UIIdentifierFormatterTypeName;
         public static string UIIdentifierFormatterTypeName => Instance.m_UIIdentifierFormatterTypeName;
-        private static IEnumerable<string> GetUIIdentifierFormatterTypes()
-        {
-            return AppDomain.CurrentDomain.GetAssemblies()
-                .SelectMany(a => a.GetTypes())
-                 .Where(t => typeof(IUIIdentifierFormatter).IsAssignableFrom(t) && !t.IsInterface && !t.IsAbstract)
-                .Select(t => t.FullName);
-        }
+        private static IEnumerable<string> GetUIIdentifierFormatterTypes() =>
+            GetTypeOptions(typeof(IUIIdentifierFormatter), typeof(DefaultUIIdentifierFormatter).FullName);
 
         [TabGroup(GENERAL_GROUP)]
         [LabelText("ResourcePath Resolver")]
         [ValueDropdown(nameof(GetUIResourcePathResolverTypes))]
         [SerializeField] private string m_UIResourcePathResolverTypeName;
         public static string UIResourcePathResolverTypeName => Instance.m_UIResourcePathResolverTypeName;
-        private static IEnumerable<string> GetUIResourcePathResolverTypes()
-        {
-            return AppDomain.CurrentDomain.GetAssemblies()
-                .SelectMany(a => a.GetTypes())
-                .Where(t => typeof(IUIResourcePathResolver).IsAssignableFrom(t) && !t.IsInterface && !t.IsAbstract)
-                .Select(t => t.FullName);
-        }
+        private static IEnumerable<string> GetUIResourcePathResolverTypes() =>
+            GetTypeOptions(typeof(IUIResourcePathResolver), typeof(DefaultUIResourcePathResolver).FullName);
 
         [TabGroup(GENERAL_GROUP)]
         [LabelText("ScriptCode Emitter")]
         [ValueDropdown(nameof(GetUIScriptCodeEmitterTypes))]
         [SerializeField] private string m_UIScriptCodeEmitterTypeName;
         public static string UIScriptCodeEmitterTypeName => Instance.m_UIScriptCodeEmitterTypeName;
-        private static IEnumerable<string> GetUIScriptCodeEmitterTypes()
-        {
-            return AppDomain.CurrentDomain.GetAssemblies()
-                .SelectMany(a => a.GetTypes())
-                .Where(t => typeof(IUIScriptCodeEmitter).IsAssignableFrom(t) && !t.IsInterface && !t.IsAbstract)
-                .Select(t => t.FullName);
-        }
+        private static IEnumerable<string> GetUIScriptCodeEmitterTypes() =>
+            GetTypeOptions(typeof(IUIScriptCodeEmitter), typeof(DefaultUIScriptCodeEmitter).FullName);
 
         [TabGroup(GENERAL_GROUP)]
         [LabelText("ScriptFile Writer")]
         [ValueDropdown(nameof(GetUIScriptFileWriterTypes))]
         [SerializeField] private string m_UIScriptFileWriterTypeName;
         public static string UIScriptFileWriterTypeName => Instance.m_UIScriptFileWriterTypeName;
-        private static IEnumerable<string> GetUIScriptFileWriterTypes()
-        {
-            return AppDomain.CurrentDomain.GetAssemblies()
-                .SelectMany(a => a.GetTypes())
-                .Where(t => typeof(IUIScriptFileWriter).IsAssignableFrom(t) && !t.IsInterface && !t.IsAbstract)
-                .Select(t => t.FullName);
-        }
+        private static IEnumerable<string> GetUIScriptFileWriterTypes() =>
+            GetTypeOptions(typeof(IUIScriptFileWriter), typeof(DefaultUIScriptFileWriter).FullName);
 
         /// <!-- 脚本生成 -->
         private const string SCRIPT_GENERATION_GROUP = "Script Generation";
@@ -151,8 +131,8 @@ namespace Moirai.Atropos.UI.Editor
                 new UIElementRegexData("HLayout", "UnityEngine.UI.HorizontalLayoutGroup"),
                 new UIElementRegexData("VLayout", "UnityEngine.UI.VerticalLayoutGroup"),
                 new UIElementRegexData("SizeFitter", "UnityEngine.UI.ContentSizeFitter"),
-                new UIElementRegexData("Tog", "UnityEngine.UI.Toggle"),
                 new UIElementRegexData("TogGroup", "UnityEngine.UI.ToggleGroup"),
+                new UIElementRegexData("Tog", "UnityEngine.UI.Toggle"),
                 new UIElementRegexData("Dropdown", "UnityEngine.UI.Dropdown"),
                 new UIElementRegexData("Mask2D", "UnityEngine.UI.RectMask2D"),
                 new UIElementRegexData("Video", "UnityEngine.Video.VideoPlayer"),
@@ -175,6 +155,21 @@ namespace Moirai.Atropos.UI.Editor
                 new UIElementRegexData("SlideToggle","Moirai.Clotho.UIPro.SlideToggle"),
 #endif
             };
+        }
+
+        private static IEnumerable<string> GetTypeOptions(Type interfaceType, string defaultTypeName)
+        {
+            var options = AssemblyUtility.GetRuntimeTypeNames(interfaceType)
+                .Distinct(StringComparer.Ordinal)
+                .OrderBy(typeName => typeName, StringComparer.Ordinal)
+                .ToList();
+
+            if (!options.Contains(defaultTypeName))
+            {
+                options.Insert(0, defaultTypeName);
+            }
+
+            return options;
         }
     }
 

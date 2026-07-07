@@ -10,12 +10,12 @@ namespace Moirai.Atropos
     /// </summary>
     public static class AssemblyUtility
     {
-        private static readonly Assembly[] _assemblies = null;
-        private static readonly Dictionary<string, Type> _cachedTypes = new Dictionary<string, Type>(StringComparer.Ordinal);
+        private static readonly Assembly[] s_Assemblies = null;
+        private static readonly Dictionary<string, Type> s_CachedTypes = new Dictionary<string, Type>(StringComparer.Ordinal);
         
         static AssemblyUtility()
         {
-            _assemblies = AppDomain.CurrentDomain.GetAssemblies();
+            s_Assemblies = AppDomain.CurrentDomain.GetAssemblies();
         }
 
         /// <summary>
@@ -24,7 +24,7 @@ namespace Moirai.Atropos
         /// <returns>已加载的程序集。</returns>
         public static Assembly[] GetAssemblies()
         {
-            return _assemblies;
+            return s_Assemblies;
         }
 
         /// <summary>
@@ -34,7 +34,7 @@ namespace Moirai.Atropos
         public static Type[] GetTypes()
         {
             List<Type> results = new List<Type>();
-            foreach (Assembly assembly in _assemblies)
+            foreach (Assembly assembly in s_Assemblies)
             {
                 results.AddRange(assembly.GetTypes());
             }
@@ -54,7 +54,7 @@ namespace Moirai.Atropos
             }
 
             results.Clear();
-            foreach (Assembly assembly in _assemblies)
+            foreach (Assembly assembly in s_Assemblies)
             {
                 results.AddRange(assembly.GetTypes());
             }
@@ -72,7 +72,7 @@ namespace Moirai.Atropos
                 throw new GameException("Type name is invalid.");
             }
 
-            if (_cachedTypes.TryGetValue(typeName, out Type type))
+            if (s_CachedTypes.TryGetValue(typeName, out Type type))
             {
                 return type;
             }
@@ -80,16 +80,16 @@ namespace Moirai.Atropos
             type = Type.GetType(typeName);
             if (type != null)
             {
-                _cachedTypes.Add(typeName, type);
+                s_CachedTypes.Add(typeName, type);
                 return type;
             }
 
-            foreach (Assembly assembly in _assemblies)
+            foreach (Assembly assembly in s_Assemblies)
             {
                 type = Type.GetType(TextUtility.Format("{0}, {1}", typeName, assembly.FullName));
                 if (type != null)
                 {
-                    _cachedTypes.Add(typeName, type);
+                    s_CachedTypes.Add(typeName, type);
                     return type;
                 }
             }
