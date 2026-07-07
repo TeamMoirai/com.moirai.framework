@@ -10,7 +10,7 @@ namespace Moirai.Atropos
     /// </summary>
     public class DefaultLogHelper : LogUtility.ILogHelper
     {
-        private enum ELogLevel
+        private enum ELogType
         {
             Info,
             Debug,
@@ -20,7 +20,7 @@ namespace Moirai.Atropos
             Exception,
         }
 
-        private const ELogLevel FILTER_LEVEL = ELogLevel.Info;
+        private const ELogType FILTER_LEVEL = ELogType.Info;
         private static readonly StringBuilder s_StringBuilder = new StringBuilder(1024);
 
         /// <summary>
@@ -34,23 +34,23 @@ namespace Moirai.Atropos
             switch (level)
             {
                 case LogLevel.Debug:
-                    LogImp(ELogLevel.Debug, TextUtility.Format("<color=#888888>{0}</color>", message));
+                    LogImp(ELogType.Debug, TextUtility.Format("<color=#888888>{0}</color>", message));
                     break;
 
                 case LogLevel.Info:
-                    LogImp(ELogLevel.Info, message.ToString());
+                    LogImp(ELogType.Info, message.ToString());
                     break;
 
                 case LogLevel.Warning:
-                    LogImp(ELogLevel.Warning, message.ToString());
+                    LogImp(ELogType.Warning, message.ToString());
                     break;
 
                 case LogLevel.Error:
-                    LogImp(ELogLevel.Error, message.ToString());
+                    LogImp(ELogType.Error, message.ToString());
                     break;
 
                 case LogLevel.Fatal:
-                    LogImp(ELogLevel.Exception, message.ToString());
+                    LogImp(ELogType.Exception, message.ToString());
                     break;
 
                 default:
@@ -61,51 +61,51 @@ namespace Moirai.Atropos
         /// <summary>
         /// 获取日志格式。
         /// </summary>
-        /// <param name="eLogLevel">日志级别。</param>
+        /// <param name="logType">日志级别。</param>
         /// <param name="logString">日志字符。</param>
         /// <param name="bColor">是否使用颜色。</param>
         /// <returns>StringBuilder。</returns>
-        private static StringBuilder GetFormatString(ELogLevel eLogLevel, string logString, bool bColor)
+        private static StringBuilder GetFormatString(ELogType logType, string logString, bool bColor)
         {
             s_StringBuilder.Clear();
-            switch (eLogLevel)
+            switch (logType)
             {
-                case ELogLevel.Debug:
+                case ELogType.Debug:
                     s_StringBuilder.AppendFormat(
                         bColor
                             ? "<color=#CFCFCF><b>[Debug]</b></color> - <color=#00FF18>{0}</color>"
                             : "<color=#00FF18><b>[Debug]</b></color> - {0}",
                         logString);
                     break;
-                case ELogLevel.Info:
+                case ELogType.Info:
                     s_StringBuilder.AppendFormat(
                         bColor
                             ? "<color=#CFCFCF><b>[INFO]</b></color> - <color=#CFCFCF>{0}</color>"
                             : "<color=#CFCFCF><b>[INFO]</b></color> - {0}",
                         logString);
                     break;
-                case ELogLevel.Assert:
+                case ELogType.Assert:
                     s_StringBuilder.AppendFormat(
                         bColor
                             ? "<color=#FF00BD><b>[ASSERT]</b></color> - <color=green>{0}</color>"
                             : "<color=#FF00BD><b>[ASSERT]</b></color> - {0}",
                         logString);
                     break;
-                case ELogLevel.Warning:
+                case ELogType.Warning:
                     s_StringBuilder.AppendFormat(
                         bColor
                             ? "<color=#FF9400><b>[WARNING]</b></color> - <color=yellow>{0}</color>"
                             : "<color=#FF9400><b>[WARNING]</b></color> - {0}",
                         logString);
                     break;
-                case ELogLevel.Error:
+                case ELogType.Error:
                     s_StringBuilder.AppendFormat(
                         bColor
                             ? "<color=red><b>[ERROR]</b></color> - <color=red>{0}</color>"
                             : "<color=red><b>[ERROR]</b></color> - {0}",
                         logString);
                     break;
-                case ELogLevel.Exception:
+                case ELogType.Exception:
                     s_StringBuilder.AppendFormat(
                         bColor
                             ? "<color=red><b>[EXCEPTION]</b></color> - <color=red>{0}</color>"
@@ -117,7 +117,7 @@ namespace Moirai.Atropos
             return s_StringBuilder;
         }
 
-        private static void LogImp(ELogLevel type, string logString)
+        private static void LogImp(ELogType type, string logString)
         {
             if (type < FILTER_LEVEL)
             {
@@ -128,7 +128,7 @@ namespace Moirai.Atropos
             string logStr = infoBuilder.ToString();
 
             // 获取C#堆栈,Warning以上级别日志才获取堆栈
-            if (type == ELogLevel.Error || type == ELogLevel.Warning || type == ELogLevel.Exception)
+            if (type == ELogType.Error || type == ELogType.Warning || type == ELogType.Exception)
             {
                 StackFrame[] stackFrames = new StackTrace().GetFrames();
                 // ReSharper disable once PossibleNullReferenceException
@@ -145,20 +145,20 @@ namespace Moirai.Atropos
 
             switch (type)
             {
-                case ELogLevel.Info:
-                case ELogLevel.Debug:
+                case ELogType.Info:
+                case ELogType.Debug:
                     Debug.Log(logStr);
                     break;
-                case ELogLevel.Warning:
+                case ELogType.Warning:
                     Debug.LogWarning(logStr);
                     break;
-                case ELogLevel.Assert:
+                case ELogType.Assert:
                     Debug.LogAssertion(logStr);
                     break;
-                case ELogLevel.Error:
+                case ELogType.Error:
                     Debug.LogError(logStr);
                     break;
-                case ELogLevel.Exception:
+                case ELogType.Exception:
                     throw new Exception(logStr);
             }
         }
