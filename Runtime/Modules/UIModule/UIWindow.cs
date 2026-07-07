@@ -533,33 +533,29 @@ namespace Moirai.Atropos.UI
 
         #region 交互相关
 
-        /// <summary>
-        /// 是否准备好了，即可进行交互
-        /// </summary>
+        /// <summary>是否准备好了，即可进行交互</summary>
         public virtual bool IsReady { get; private set; }
-        /// <summary>
-        /// 打开弹窗后的可交互延迟
-        /// </summary>
-        /// <remarks>用于动画演出</remarks>
-        protected virtual float InteractDelayOnCreate => 0.3f;
-        /// <summary>
-        /// 关闭上层弹窗后的可交互的延迟
-        /// </summary>
-        /// <remarks>用于避免立即触发</remarks>
-        protected virtual float InteractDelayOnRefresh => 0.25f;
 
         protected CancellationTokenSource _cts;
-        protected async UniTaskVoid SetInteractWaiter(bool open)
+        private async UniTaskVoid SetInteractWaiter(bool open)
         {
-            if (!GameModule.UI.IsModal(this)) return;
+            if (GameModule.UI.GetTopWindow() != this) return;
 
             _cts = new CancellationTokenSource();
 
             IsReady = false;
-            await UniTask.WaitForSeconds(open ? InteractDelayOnCreate : InteractDelayOnRefresh, true, cancellationToken:_cts.Token);
+            await InteractWaiter(open);
             IsReady = true;
 
             PreventInteraction(true).Forget();
+        }
+
+        /// <summary>
+        /// 可交互延迟
+        /// </summary>
+        protected virtual async UniTask InteractWaiter(bool open)
+        {
+            await UniTask.WaitForSeconds(open ? 0.5f : 0.25f, true, cancellationToken:_cts.Token);
         }
 
         /// <summary>
