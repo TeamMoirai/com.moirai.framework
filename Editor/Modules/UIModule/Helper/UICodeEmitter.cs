@@ -1,252 +1,44 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Text;
-using System.Text.RegularExpressions;
-using UnityEditor;
-using UnityEngine;
 
 namespace Moirai.Atropos.UI.Editor
 {
-    public interface IUIIdentifierFormatter
-    {
-        string GetPrivateComponentName(string regexName, string componentName, EBindType bindType);
-
-        string GetPublicComponentName(string variableName);
-
-        string GetClassName(GameObject targetObject);
-    }
-
-    public interface IUIResourcePathResolver
-    {
-        string GetResourcePath(GameObject targetObject, UIScriptGenerateData scriptGenerateData);
-
-        bool CanGenerate(GameObject targetObject, UIScriptGenerateData scriptGenerateData);
-    }
-
+    /// <summary>
+    /// 脚本代码生成器接口，定义UI脚本代码的生成方法
+    /// </summary>
     public interface IUIScriptCodeEmitter
     {
+        /// <summary>
+        /// 获取引用的命名空间
+        /// </summary>
         string GetReferenceNamespaces(List<UIBindData> uiBindData);
 
+        /// <summary>
+        /// 获取变量声明内容
+        /// </summary>
         string GetVariableContent(List<UIBindData> uiBindData, Func<string, string> publicNameFactory);
 
+        /// <summary>
+        /// 获取Controller部分代码内容
+        /// </summary>
         string GetControllerContent(string className, IReadOnlyList<UIBindData> uiBindData, Func<string, string> publicNameFactory);
 
+        /// <summary>
+        /// 获取窗口实现类代码内容
+        /// </summary>
         string GetWindowContent(string className, string nameSpace, IReadOnlyList<UIBindData> uiBindData, Func<string, string> publicNameFactory);
     }
 
-    public interface IUIScriptFileWriter
-    {
-        void Write(GameObject targetObject, string className, string scriptContent, UIScriptGenerateData scriptGenerateData, string windowScriptContent = null);
-    }
-
-    public sealed class DefaultUIIdentifierFormatter : IUIIdentifierFormatter
-    {
-        private static readonly HashSet<string> s_CSharpKeywords = new HashSet<string>(StringComparer.Ordinal)
-        {
-            "abstract", "as", "base", "bool", "break", "byte", "case", "catch", "char", "checked",
-            "class", "const", "continue", "decimal", "default", "delegate", "do", "double", "else",
-            "enum", "event", "explicit", "extern", "false", "finally", "fixed", "float", "for",
-            "foreach", "goto", "if", "implicit", "in", "int", "interface", "internal", "is", "lock",
-            "long", "namespace", "new", "null", "object", "operator", "out", "override", "params",
-            "private", "protected", "public", "readonly", "ref", "return", "sbyte", "sealed", "short",
-            "sizeof", "stackalloc", "static", "string", "struct", "switch", "this", "throw", "true",
-            "try", "typeof", "uint", "ulong", "unchecked", "unsafe", "ushort", "using", "virtual",
-            "void", "volatile", "while"
-        };
-
-        public string GetPrivateComponentName(string regexName, string componentName, EBindType bindType)
-        {
-            var endPrefix = bindType == EBindType.ListCom ? "List" : string.Empty;
-            var endNameIndex = componentName.IndexOf(UIGeneratorSettings.ComCheckEndName, StringComparison.Ordinal);
-            var componentSuffix = endNameIndex >= 0 ? componentName.Substring(endNameIndex + 1) : componentName;
-            var fieldName = $"m_{NormalizeIdentifier(regexName)}{NormalizeIdentifier(componentSuffix)}{endPrefix}";
-            return MakeSafeIdentifier(string.IsNullOrWhiteSpace(fieldName) ? "m_Component" : fieldName);
-        }
-
-        public string GetPublicComponentName(string variableName)
-        {
-            if (string.IsNullOrEmpty(variableName))
-            {
-                return variableName;
-            }
-
-            var publicName = variableName.StartsWith("m_", StringComparison.Ordinal) && variableName.Length > 2
-                ? variableName.Substring(2)
-                : variableName;
-
-            publicName = NormalizeIdentifier(publicName);
-            return MakeSafeIdentifier(string.IsNullOrEmpty(publicName) ? "Component" : publicName);
-        }
-
-        public string GetClassName(GameObject targetObject)
-        {
-            var objectName = NormalizeIdentifier(targetObject.name);
-            var className = $"{objectName}";
-            return MakeSafeIdentifier(string.IsNullOrEmpty(className) ? "View" : className);
-        }
-
-        private static string NormalizeIdentifier(string value)
-        {
-            if (string.IsNullOrWhiteSpace(value))
-            {
-                return string.Empty;
-            }
-
-            var parts = Regex.Split(value, "[^A-Za-z0-9_]+")
-                .Where(part => !string.IsNullOrWhiteSpace(part))
-                .ToArray();
-
-            if (parts.Length == 0)
-            {
-                return string.Empty;
-            }
-
-            var builder = new StringBuilder();
-            foreach (var part in parts)
-            {
-                builder.Append(part[0]);
-                if (part.Length > 1)
-                {
-                    builder.Append(part.Substring(1));
-                }
-            }
-
-            return builder.ToString();
-        }
-
-        private static string MakeSafeIdentifier(string identifier)
-        {
-            if (string.IsNullOrWhiteSpace(identifier))
-            {
-                return "_";
-            }
-
-            var safeIdentifier = identifier;
-            if (char.IsDigit(safeIdentifier[0]))
-            {
-                safeIdentifier = "_" + safeIdentifier;
-            }
-
-            if (s_CSharpKeywords.Contains(safeIdentifier))
-            {
-                safeIdentifier += "_";
-            }
-
-            return safeIdentifier;
-        }
-    }
-
-    public sealed class DefaultUIResourcePathResolver : IUIResourcePathResolver
-    {
-        public string GetResourcePath(GameObject targetObject, UIScriptGenerateData scriptGenerateData)
-        {
-            if (targetObject == null)
-            {
-                return $"\"{nameof(targetObject)}\"";
-            }
-
-            var defaultPath = targetObject.name;
-            var assetPath = UIGenerateQuick.GetPrefabAssetPath(targetObject);
-            if (string.IsNullOrEmpty(assetPath) || !assetPath.StartsWith("Assets/", StringComparison.Ordinal))
-            {
-                return defaultPath;
-            }
-
-            assetPath = assetPath.Replace('\\', '/');
-
-            return scriptGenerateData.FromResources ?
-                GetResourcesPath(assetPath, scriptGenerateData, defaultPath) :
-                GetAssetBundlePath(assetPath, scriptGenerateData, defaultPath);
-        }
-
-        public bool CanGenerate(GameObject targetObject, UIScriptGenerateData scriptGenerateData)
-        {
-            if (targetObject == null || scriptGenerateData == null)
-            {
-                return false;
-            }
-
-            var assetPath = UIGenerateQuick.GetPrefabAssetPath(targetObject);
-            if (string.IsNullOrEmpty(assetPath) || !assetPath.StartsWith("Assets/", StringComparison.Ordinal))
-            {
-                return false;
-            }
-
-            assetPath = assetPath.Replace('\\', '/');
-            var isValidPath = assetPath.StartsWith(scriptGenerateData.UIPrefabRootPath, StringComparison.OrdinalIgnoreCase);
-            if (!isValidPath)
-            {
-                Debug.LogWarning(
-                    $"UI asset path does not match UIGenerateConfiguration.UIPrefabRootPath.\n[AssetPath]{assetPath}\n[ConfigPath]{scriptGenerateData.UIPrefabRootPath}");
-            }
-
-            return isValidPath;
-        }
-
-        private static string GetResourcesPath(string assetPath, UIScriptGenerateData scriptGenerateData, string defaultPath)
-        {
-            var resourcesRoot = scriptGenerateData.UIPrefabRootPath;
-            var relPath = GetResourcesRelativePath(assetPath, resourcesRoot);
-            if (relPath == null)
-            {
-                Debug.LogWarning($"[UI Generate] Resource {assetPath} is not under configured Resources root: {resourcesRoot}");
-                return defaultPath;
-            }
-
-            return relPath;
-        }
-
-        private static string GetAssetBundlePath(string assetPath, UIScriptGenerateData scriptGenerateData, string defaultPath)
-        {
-            try
-            {
-                var defaultPackage = YooAsset.Editor.AssetBundleCollectorSettingData.Setting.GetPackage("DefaultPackage");
-                if (defaultPackage?.EnableAddressable == true)
-                {
-                    return defaultPath;
-                }
-            }
-            catch
-            {
-                // ignored
-            }
-
-            var bundleRoot = scriptGenerateData.UIPrefabRootPath;
-            if (!assetPath.StartsWith(bundleRoot, StringComparison.OrdinalIgnoreCase))
-            {
-                Debug.LogWarning($"[UI Generate] Resource {assetPath} is not under configured AssetBundle root: {bundleRoot}");
-                return defaultPath;
-            }
-
-            return Path.ChangeExtension(assetPath, null);
-        }
-
-        private static string GetResourcesRelativePath(string assetPath, string resourcesRoot)
-        {
-            if (string.IsNullOrEmpty(assetPath) || string.IsNullOrEmpty(resourcesRoot))
-            {
-                return null;
-            }
-
-            assetPath = assetPath.Replace('\\', '/');
-            resourcesRoot = resourcesRoot.Replace('\\', '/');
-
-            if (!assetPath.StartsWith(resourcesRoot, StringComparison.OrdinalIgnoreCase))
-            {
-                return null;
-            }
-
-            var relPath = assetPath.Substring(resourcesRoot.Length).TrimStart('/');
-            return Path.ChangeExtension(relPath, null);
-        }
-    }
-
+    /// <summary>
+    /// 默认脚本代码生成器实现
+    /// </summary>
     public sealed class DefaultUIScriptCodeEmitter : IUIScriptCodeEmitter
     {
         private const string BINDER_VARIABLE_NAME = "_bindComponent";
 
+        /// <inheritdoc/>
         public string GetReferenceNamespaces(List<UIBindData> uiBindData)
         {
             var namespaceSet = new HashSet<string>(StringComparer.Ordinal) { "UnityEngine" };
@@ -261,6 +53,7 @@ namespace Moirai.Atropos.UI.Editor
             return string.Join(Environment.NewLine, namespaceSet.OrderBy(ns => ns, StringComparer.Ordinal).Select(ns => $"using {ns};"));
         }
 
+        /// <inheritdoc/>
         public string GetVariableContent(List<UIBindData> uiBindData, Func<string, string> publicNameFactory)
         {
             if (uiBindData == null || uiBindData.Count == 0)
@@ -305,6 +98,7 @@ namespace Moirai.Atropos.UI.Editor
             return declaration.ToString();
         }
 
+        /// <inheritdoc/>
         public string GetControllerContent(string className, IReadOnlyList<UIBindData> uiBindData, Func<string, string> publicNameFactory)
         {
             var propertyAccessors = GeneratePropertyAccessors(uiBindData, publicNameFactory);
@@ -313,9 +107,9 @@ namespace Moirai.Atropos.UI.Editor
 
             var controllerContent = new StringBuilder();
             controllerContent.AppendLine();
-            controllerContent.AppendLine($"    public partial class {className}");
-            controllerContent.AppendLine("    {");
-            controllerContent.AppendLine($"        private {className}Binder {BINDER_VARIABLE_NAME};");
+            controllerContent.AppendLine($"\tpublic partial class {className}");
+            controllerContent.AppendLine("\t{");
+            controllerContent.AppendLine($"\t\tprivate {className}Binder {BINDER_VARIABLE_NAME};");
 
             if (!string.IsNullOrEmpty(propertyAccessors))
             {
@@ -324,14 +118,14 @@ namespace Moirai.Atropos.UI.Editor
             }
 
             controllerContent.AppendLine();
-            controllerContent.AppendLine("        protected override void ScriptGenerator()");
+            controllerContent.AppendLine("\t\tprotected override void ScriptGenerator()");
             controllerContent.AppendLine("\t\t{");
             controllerContent.AppendLine($"\t\t\t{BINDER_VARIABLE_NAME} = gameObject.GetComponent<{className}Binder>();");
             controllerContent.AppendLine($"\t\t\tif({BINDER_VARIABLE_NAME} == null)");
             controllerContent.AppendLine("\t\t\t{");
             controllerContent.AppendLine($"\t\t\t\tLog.Error($\"根物体: {{gameObject.name}} 缺少组件 {className}Binder, 请检查！！！\");");
             controllerContent.AppendLine("\t\t\t\treturn;");
-            controllerContent.AppendLine("            }");
+            controllerContent.AppendLine("\t\t\t}");
 
             if (!string.IsNullOrEmpty(eventSubscriptions))
             {
@@ -349,7 +143,7 @@ namespace Moirai.Atropos.UI.Editor
                 controllerContent.AppendLine("\t\t#endregion");
             }
 
-            controllerContent.Append("    }");
+            controllerContent.Append("\t}");
 
             return controllerContent.ToString();
         }
@@ -485,6 +279,7 @@ namespace Moirai.Atropos.UI.Editor
             return $"On{triggerName}{publicName}";
         }
 
+        /// <inheritdoc/>
         public string GetWindowContent(string className, string nameSpace, IReadOnlyList<UIBindData> uiBindData, Func<string, string> publicNameFactory)
         {
             var eventHandlers = GenerateWindowEventHandlers(uiBindData, publicNameFactory);
@@ -495,19 +290,19 @@ namespace Moirai.Atropos.UI.Editor
             content.AppendLine();
             content.AppendLine($"namespace {nameSpace}");
             content.AppendLine("{");
-            content.AppendLine("    [Window(UILayer.UI)]");
-            content.AppendLine($"    public partial class {className} : UIWindow");
-            content.AppendLine("    {");
+            content.AppendLine("\t[Window(UILayer.UI)]");
+            content.AppendLine($"\tpublic partial class {className} : UIWindow");
+            content.AppendLine("\t{");
 
             if (!string.IsNullOrEmpty(eventHandlers))
             {
-                content.AppendLine("        #region 事件 [EVENTS]");
+                content.AppendLine("\t\t#region 事件 [EVENTS]");
                 content.AppendLine();
                 content.Append(eventHandlers);
-                content.AppendLine("        #endregion");
+                content.AppendLine("\t#endregion");
             }
 
-            content.AppendLine("    }");
+            content.AppendLine("\t}");
             content.AppendLine("}");
 
             return content.ToString();
@@ -550,57 +345,12 @@ namespace Moirai.Atropos.UI.Editor
                 var eventName = GetEventFuncName(publicName, config);
                 var signature = string.IsNullOrEmpty(config.CallbackSignature) ? "()" : config.CallbackSignature;
 
-                handlers.AppendLine($"        private partial void {eventName}{signature}");
-                handlers.AppendLine("        {");
-                handlers.AppendLine("        }");
+                handlers.AppendLine($"\t\tprivate partial void {eventName}{signature}");
+                handlers.AppendLine("\t{");
+                handlers.AppendLine("\t}");
             }
 
             return handlers.ToString();
-        }
-    }
-
-    public sealed class DefaultUIScriptFileWriter : IUIScriptFileWriter
-    {
-        public void Write(GameObject targetObject, string className, string scriptContent, UIScriptGenerateData scriptGenerateData, string windowScriptContent = null)
-        {
-            if (string.IsNullOrEmpty(className)) throw new ArgumentNullException(nameof(className));
-            if (scriptContent == null) throw new ArgumentNullException(nameof(scriptContent));
-            if (scriptGenerateData == null) throw new ArgumentNullException(nameof(scriptGenerateData));
-
-            var scriptFolderPath = scriptGenerateData.GenerateHolderCodePath;
-            var scriptFilePath = Path.Combine(scriptFolderPath, $"{className}.g.cs");
-
-            Directory.CreateDirectory(scriptFolderPath);
-
-            #region 自动生成脚本
-
-            if (File.Exists(scriptFilePath) && IsContentUnchanged(scriptFilePath, scriptContent))
-            {
-                UIScriptGeneratorHelper.BindUIScript();
-                return;
-            }
-
-            File.WriteAllText(scriptFilePath, scriptContent, Encoding.UTF8);
-
-            #endregion
-
-            #region 窗口实现类模板
-
-            var windowFilePath = Path.Combine(scriptFolderPath, $"{className}.cs");
-            if (!File.Exists(windowFilePath))
-            {
-                File.WriteAllText(windowFilePath, windowScriptContent, Encoding.UTF8);
-            }
-
-            #endregion
-
-            AssetDatabase.Refresh();
-        }
-
-        private static bool IsContentUnchanged(string filePath, string newContent)
-        {
-            var oldText = File.ReadAllText(filePath, Encoding.UTF8);
-            return oldText.Equals(newContent, StringComparison.Ordinal);
         }
     }
 }

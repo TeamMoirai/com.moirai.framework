@@ -907,7 +907,7 @@ namespace Moirai.Atropos.Audio
         
         #endregion 资源池 [ASSET POOL]
         
-        #region 事件方法 [EVENT METHOD]
+        #region 事件 [EVENTS]
 
         /// <summary>
         /// 播放音频事件
