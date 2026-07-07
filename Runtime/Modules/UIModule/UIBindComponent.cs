@@ -9,6 +9,7 @@ namespace Moirai.Atropos.UI
     public abstract class UIBindComponent : MonoBehaviour
     {
 #if UNITY_EDITOR
+        [HideInInspector]
         [SerializeField] private Vector3 m_Scale;
 
         /// <remarks>fix: Apply Override 操作时会将 Scale 重置为 (0,0,0)</remarks>

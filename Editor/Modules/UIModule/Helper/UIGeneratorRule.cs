@@ -32,11 +32,13 @@ namespace Moirai.Atropos.UI.Editor
         string GetVariableContent(List<UIBindData> uiBindData, Func<string, string> publicNameFactory);
 
         string GetControllerContent(string className, IReadOnlyList<UIBindData> uiBindData, Func<string, string> publicNameFactory);
+
+        string GetWindowContent(string className, string nameSpace, IReadOnlyList<UIBindData> uiBindData, Func<string, string> publicNameFactory);
     }
 
     public interface IUIScriptFileWriter
     {
-        void Write(GameObject targetObject, string className, string scriptContent, UIScriptGenerateData scriptGenerateData);
+        void Write(GameObject targetObject, string className, string scriptContent, UIScriptGenerateData scriptGenerateData, string windowScriptContent = null);
     }
 
     public sealed class DefaultUIIdentifierFormatter : IUIIdentifierFormatter
@@ -243,6 +245,8 @@ namespace Moirai.Atropos.UI.Editor
 
     public sealed class DefaultUIScriptCodeEmitter : IUIScriptCodeEmitter
     {
+        private const string BINDER_VARIABLE_NAME = "_bindComponent";
+
         public string GetReferenceNamespaces(List<UIBindData> uiBindData)
         {
             var namespaceSet = new HashSet<string>(StringComparer.Ordinal) { "UnityEngine" };
@@ -304,12 +308,14 @@ namespace Moirai.Atropos.UI.Editor
         public string GetControllerContent(string className, IReadOnlyList<UIBindData> uiBindData, Func<string, string> publicNameFactory)
         {
             var propertyAccessors = GeneratePropertyAccessors(uiBindData, publicNameFactory);
+            var eventSubscriptions = GenerateEventSubscriptions(uiBindData, publicNameFactory);
+            var eventHandlers = GenerateEventHandlers(uiBindData, publicNameFactory);
 
             var controllerContent = new StringBuilder();
             controllerContent.AppendLine();
             controllerContent.AppendLine($"    public partial class {className}");
             controllerContent.AppendLine("    {");
-            controllerContent.AppendLine($"        private {className}Binder _bindComponent;");
+            controllerContent.AppendLine($"        private {className}Binder {BINDER_VARIABLE_NAME};");
 
             if (!string.IsNullOrEmpty(propertyAccessors))
             {
@@ -320,14 +326,30 @@ namespace Moirai.Atropos.UI.Editor
             controllerContent.AppendLine();
             controllerContent.AppendLine("        protected override void ScriptGenerator()");
             controllerContent.AppendLine("\t\t{");
-            controllerContent.AppendLine($"\t\t\t_bindComponent = gameObject.GetComponent<{className}Binder>();");
-            controllerContent.AppendLine("\t\t\tif(_bindComponent == null)");
+            controllerContent.AppendLine($"\t\t\t{BINDER_VARIABLE_NAME} = gameObject.GetComponent<{className}Binder>();");
+            controllerContent.AppendLine($"\t\t\tif({BINDER_VARIABLE_NAME} == null)");
             controllerContent.AppendLine("\t\t\t{");
             controllerContent.AppendLine($"\t\t\t\tLog.Error($\"根物体: {{gameObject.name}} 缺少组件 {className}Binder, 请检查！！！\");");
             controllerContent.AppendLine("\t\t\t\treturn;");
             controllerContent.AppendLine("            }");
+
+            if (!string.IsNullOrEmpty(eventSubscriptions))
+            {
+                controllerContent.AppendLine();
+                controllerContent.Append(eventSubscriptions);
+            }
+
             controllerContent.AppendLine("\t\t}");
-            controllerContent.AppendLine("    }");
+
+            if (!string.IsNullOrEmpty(eventHandlers))
+            {
+                controllerContent.AppendLine();
+                controllerContent.AppendLine("\t\t#region 事件 [EVENTS]");
+                controllerContent.AppendLine(eventHandlers);
+                controllerContent.AppendLine("\t\t#endregion");
+            }
+
+            controllerContent.Append("    }");
 
             return controllerContent.ToString();
         }
@@ -349,21 +371,197 @@ namespace Moirai.Atropos.UI.Editor
 
                 if (bindData.BindType == EBindType.ListCom)
                 {
-                    accessors.AppendLine($"\t\tprivate {typeName}[] {privateName} => _bindComponent.{publicName};");
+                    accessors.AppendLine($"\t\tprivate {typeName}[] {privateName} => {BINDER_VARIABLE_NAME}.{publicName};");
                 }
                 else
                 {
-                    accessors.AppendLine($"\t\tprivate {typeName} {privateName} => _bindComponent.{publicName};");
+                    accessors.AppendLine($"\t\tprivate {typeName} {privateName} => {BINDER_VARIABLE_NAME}.{publicName};");
                 }
             }
 
             return accessors.ToString();
         }
+
+        private static string GenerateEventSubscriptions(IReadOnlyList<UIBindData> uiBindData, Func<string, string> publicNameFactory)
+        {
+            if (uiBindData == null || uiBindData.Count == 0)
+            {
+                return string.Empty;
+            }
+
+            var eventConfigs = UIGeneratorSettings.UIEventBindingConfigs;
+            if (eventConfigs == null || eventConfigs.Count == 0)
+            {
+                return string.Empty;
+            }
+
+            var subscriptions = new StringBuilder();
+            foreach (var bindData in uiBindData.Where(d => d != null && !string.IsNullOrEmpty(d.Name)))
+            {
+                if (bindData.BindType == EBindType.ListCom)
+                {
+                    continue;
+                }
+
+                var firstType = bindData.GetFirstOrDefaultType();
+                if (firstType == null)
+                {
+                    continue;
+                }
+
+                var config = FindEventConfig(firstType.FullName, eventConfigs);
+                if (config == null)
+                {
+                    continue;
+                }
+
+                var publicName = publicNameFactory(bindData.Name);
+                var privateName = "_" + char.ToLowerInvariant(publicName[0]) + publicName.Substring(1);
+                var eventName = GetEventFuncName(publicName, config);
+
+                subscriptions.AppendLine($"\t\t\t{privateName}.{config.EventMember}.AddListener({eventName});");
+            }
+
+            return subscriptions.ToString();
+        }
+
+        private static string GenerateEventHandlers(IReadOnlyList<UIBindData> uiBindData, Func<string, string> publicNameFactory)
+        {
+            if (uiBindData == null || uiBindData.Count == 0)
+            {
+                return string.Empty;
+            }
+
+            var eventConfigs = UIGeneratorSettings.UIEventBindingConfigs;
+            if (eventConfigs == null || eventConfigs.Count == 0)
+            {
+                return string.Empty;
+            }
+
+            var handlers = new StringBuilder();
+            foreach (var bindData in uiBindData.Where(d => d != null && !string.IsNullOrEmpty(d.Name)))
+            {
+                if (bindData.BindType == EBindType.ListCom)
+                {
+                    continue;
+                }
+
+                var firstType = bindData.GetFirstOrDefaultType();
+                if (firstType == null)
+                {
+                    continue;
+                }
+
+                var config = FindEventConfig(firstType.FullName, eventConfigs);
+                if (config == null)
+                {
+                    continue;
+                }
+
+                var publicName = publicNameFactory(bindData.Name);
+                var eventName = GetEventFuncName(publicName, config);
+                var signature = string.IsNullOrEmpty(config.CallbackSignature) ? "()" : config.CallbackSignature;
+
+                handlers.AppendLine($"\t\tprivate partial void {eventName}{signature};");
+            }
+
+            return handlers.ToString();
+        }
+
+        private static UIEventBindingConfig FindEventConfig(string componentTypeFullName, List<UIEventBindingConfig> configs)
+        {
+            if (string.IsNullOrEmpty(componentTypeFullName))
+            {
+                return null;
+            }
+
+            return configs.FirstOrDefault(c =>
+                string.Equals(c.ComponentType, componentTypeFullName, StringComparison.Ordinal));
+        }
+
+        private static string GetEventFuncName(string publicName, UIEventBindingConfig config)
+        {
+            var triggerName = config.TriggerName;
+            return $"On{triggerName}{publicName}";
+        }
+
+        public string GetWindowContent(string className, string nameSpace, IReadOnlyList<UIBindData> uiBindData, Func<string, string> publicNameFactory)
+        {
+            var eventHandlers = GenerateWindowEventHandlers(uiBindData, publicNameFactory);
+
+            var content = new StringBuilder();
+            content.AppendLine("using Moirai.Atropos.UI;");
+            content.AppendLine("using UnityEngine;");
+            content.AppendLine();
+            content.AppendLine($"namespace {nameSpace}");
+            content.AppendLine("{");
+            content.AppendLine("    [Window(UILayer.UI)]");
+            content.AppendLine($"    public partial class {className} : UIWindow");
+            content.AppendLine("    {");
+
+            if (!string.IsNullOrEmpty(eventHandlers))
+            {
+                content.AppendLine("        #region 事件 [EVENTS]");
+                content.AppendLine();
+                content.Append(eventHandlers);
+                content.AppendLine("        #endregion");
+            }
+
+            content.AppendLine("    }");
+            content.AppendLine("}");
+
+            return content.ToString();
+        }
+
+        private static string GenerateWindowEventHandlers(IReadOnlyList<UIBindData> uiBindData, Func<string, string> publicNameFactory)
+        {
+            if (uiBindData == null || uiBindData.Count == 0)
+            {
+                return string.Empty;
+            }
+
+            var eventConfigs = UIGeneratorSettings.UIEventBindingConfigs;
+            if (eventConfigs == null || eventConfigs.Count == 0)
+            {
+                return string.Empty;
+            }
+
+            var handlers = new StringBuilder();
+            foreach (var bindData in uiBindData.Where(d => d != null && !string.IsNullOrEmpty(d.Name)))
+            {
+                if (bindData.BindType == EBindType.ListCom)
+                {
+                    continue;
+                }
+
+                var firstType = bindData.GetFirstOrDefaultType();
+                if (firstType == null)
+                {
+                    continue;
+                }
+
+                var config = FindEventConfig(firstType.FullName, eventConfigs);
+                if (config == null)
+                {
+                    continue;
+                }
+
+                var publicName = publicNameFactory(bindData.Name);
+                var eventName = GetEventFuncName(publicName, config);
+                var signature = string.IsNullOrEmpty(config.CallbackSignature) ? "()" : config.CallbackSignature;
+
+                handlers.AppendLine($"        private partial void {eventName}{signature}");
+                handlers.AppendLine("        {");
+                handlers.AppendLine("        }");
+            }
+
+            return handlers.ToString();
+        }
     }
 
     public sealed class DefaultUIScriptFileWriter : IUIScriptFileWriter
     {
-        public void Write(GameObject targetObject, string className, string scriptContent, UIScriptGenerateData scriptGenerateData)
+        public void Write(GameObject targetObject, string className, string scriptContent, UIScriptGenerateData scriptGenerateData, string windowScriptContent = null)
         {
             if (string.IsNullOrEmpty(className)) throw new ArgumentNullException(nameof(className));
             if (scriptContent == null) throw new ArgumentNullException(nameof(scriptContent));
@@ -391,17 +589,7 @@ namespace Moirai.Atropos.UI.Editor
             var windowFilePath = Path.Combine(scriptFolderPath, $"{className}.cs");
             if (!File.Exists(windowFilePath))
             {
-                string templateText = @"using Moirai.Atropos.UI;
-
-namespace GameLogic.UI
-{
-    [Window(UILayer.UI)]
-    public partial class #ClassName# : UIWindow
-    {
-    }
-}".Replace("#ClassName#", className);
-
-                File.WriteAllText(windowFilePath, templateText, Encoding.UTF8);
+                File.WriteAllText(windowFilePath, windowScriptContent, Encoding.UTF8);
             }
 
             #endregion

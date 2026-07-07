@@ -755,7 +755,12 @@ namespace #ClassNameSpace#
 
         private static void WriteScriptContent(UIGenerationContext context, string scriptContent)
         {
-            ScriptFileWriter.Write(context.TargetObject, context.ClassName, scriptContent, context.ScriptGenerateData);
+            var windowContent = ScriptCodeEmitter.GetWindowContent(
+                context.ClassName,
+                context.ScriptGenerateData.NameSpace,
+                context.BindData,
+                GetPublicComponentName);
+            ScriptFileWriter.Write(context.TargetObject, context.ClassName, scriptContent, context.ScriptGenerateData, windowContent);
         }
 
         [DidReloadScripts]
