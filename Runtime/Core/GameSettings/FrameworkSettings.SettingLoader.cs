@@ -70,13 +70,6 @@ namespace Moirai.Atropos
             TSetting setting = ScriptableObject.CreateInstance<TSetting>();
             AssetDatabase.CreateAsset(setting, settingPath);
 
-            // 新创建的资产需要重置为默认值
-            if (setting is FrameworkSettings frameworkSetting)
-            {
-                frameworkSetting.ResetToDefaults();
-                EditorUtility.SetDirty(setting);
-            }
-
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
             Debug.Log($"创建{typeof(TSetting).Name}，路径:{settingPath}");
