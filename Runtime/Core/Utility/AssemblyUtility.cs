@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Reflection;
 
 namespace Moirai.Atropos
@@ -96,52 +95,46 @@ namespace Moirai.Atropos
 
             return null;
         }
-        
+
         /// <summary>
-        /// 获取已加载的程序集中的指定类型的子类列表。
+        /// 获取已加载的程序集中的指定类型（接口或基类）的所有实现类/子类名称。
         /// </summary>
-        /// <param name="type">指定类型</param>
-        /// <returns></returns>
+        /// <param name="type">指定接口或基类类型</param>
+        /// <returns>所有实现类/子类的完整名称列表</returns>
         public static List<string> GetRuntimeTypeNames(Type type)
         {
             var types = GetTypes();
             List<string> results = new List<string>();
             foreach (var t in types)
             {
-                if (t.IsAbstract || !t.IsClass)
+                if (t.IsAbstract || t.IsInterface || !type.IsAssignableFrom(t))
                 {
                     continue;
                 }
 
-                if (t.IsSubclassOf(type) || t.IsImplWithInterface(type))
-                {
-                    results.Add(t.FullName);
-                }
+                results.Add(t.FullName);
             }
 
             return results;
         }
 
         /// <summary>
-        /// 获取已加载的程序集中的指定类型的子类列表。
+        /// 获取已加载的程序集中的指定类型（接口或基类）的所有实现类/子类。
         /// </summary>
-        /// <param name="typeBase">指定类型</param>
-        /// <returns></returns>
+        /// <param name="typeBase">指定接口或基类类型</param>
+        /// <returns>所有实现类/子类的 Type 列表</returns>
         public static List<Type> GetRuntimeTypes(Type typeBase)
         {
             var types = GetTypes();
             List<Type> results = new List<Type>();
             foreach (var t in types)
             {
-                if (t.IsAbstract || !t.IsClass)
+                if (t.IsAbstract || t.IsInterface || !typeBase.IsAssignableFrom(t))
                 {
                     continue;
                 }
 
-                if (t.IsSubclassOf(typeBase) || t.IsImplWithInterface(typeBase))
-                {
-                    results.Add(t);
-                }
+                results.Add(t);
             }
 
             return results;
