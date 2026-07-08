@@ -58,19 +58,13 @@ namespace Moirai.Atropos
         /// 获取指定接口的实现类
         /// </summary>
         /// <param name="interfaceType"></param>
-        /// <param name="defaultTypeName"></param>
         /// <returns></returns>
-        protected static IEnumerable<string> GetTypeOptions(Type interfaceType, string defaultTypeName)
+        protected static IEnumerable<string> GetTypeOptions(Type interfaceType)
         {
             var options = AssemblyUtility.GetRuntimeTypeNames(interfaceType)
                 .Distinct(StringComparer.Ordinal)
                 .OrderBy(typeName => typeName, StringComparer.Ordinal)
                 .ToList();
-
-            if (!options.Contains(defaultTypeName))
-            {
-                options.Insert(0, defaultTypeName);
-            }
 
             return options;
         }

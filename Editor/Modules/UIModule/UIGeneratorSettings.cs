@@ -15,24 +15,24 @@ namespace Moirai.Atropos.UI.Editor
         [TabGroup(GENERAL_GROUP)]
         [LabelText("组件分隔符")]
         [Tooltip("组件检查分隔符，例如：Button#Close")]
-        [SerializeField] private string m_ComCheckSplitName = "#";
+        [SerializeField] private string m_ComCheckSplitName;
         public static string ComCheckSplitName => Instance.m_ComCheckSplitName;
 
         [TabGroup(GENERAL_GROUP)]
         [LabelText("组件结尾符")]
         [Tooltip("组件结尾分隔符，例如：@End")]
-        [SerializeField] private string m_ComCheckEndName = "@";
+        [SerializeField] private string m_ComCheckEndName;
         public static string ComCheckEndName => Instance.m_ComCheckEndName;
 
         [TabGroup(GENERAL_GROUP)]
         [LabelText("数组分隔")]
         [Tooltip("数组组件检查分隔符，例如：*Item")]
-        [SerializeField] private string m_ArrayComSplitName = "*";
+        [SerializeField] private string m_ArrayComSplitName;
         public static string ArrayComSplitName => Instance.m_ArrayComSplitName;
 
         [TabGroup(GENERAL_GROUP)]
         [Tooltip("排除的关键字（匹配则不生成）")]
-        [SerializeField] private string[] m_ExcludeKeywords = { "ViewHolder" };
+        [SerializeField] private string[] m_ExcludeKeywords;
         public static string[] ExcludeKeywords => Instance.m_ExcludeKeywords;
 
         [Header("UI脚本生成辅助类")]
@@ -42,32 +42,28 @@ namespace Moirai.Atropos.UI.Editor
         [ValueDropdown(nameof(GetUIIdentifierFormatterTypes))]
         [SerializeField] private string m_UIIdentifierFormatterTypeName;
         public static string UIIdentifierFormatterTypeName => Instance.m_UIIdentifierFormatterTypeName;
-        private static IEnumerable<string> GetUIIdentifierFormatterTypes() =>
-            GetTypeOptions(typeof(IUIIdentifierFormatter), typeof(DefaultUIIdentifierFormatter).FullName);
+        private static IEnumerable<string> GetUIIdentifierFormatterTypes() => GetTypeOptions(typeof(IUIIdentifierFormatter));
 
         [TabGroup(GENERAL_GROUP)]
         [LabelText("ResourcePath Resolver")]
         [ValueDropdown(nameof(GetUIResourcePathResolverTypes))]
         [SerializeField] private string m_UIResourcePathResolverTypeName;
         public static string UIResourcePathResolverTypeName => Instance.m_UIResourcePathResolverTypeName;
-        private static IEnumerable<string> GetUIResourcePathResolverTypes() =>
-            GetTypeOptions(typeof(IUIResourcePathResolver), typeof(DefaultUIResourcePathResolver).FullName);
+        private static IEnumerable<string> GetUIResourcePathResolverTypes() => GetTypeOptions(typeof(IUIResourcePathResolver));
 
         [TabGroup(GENERAL_GROUP)]
         [LabelText("ScriptCode Emitter")]
         [ValueDropdown(nameof(GetUIScriptCodeEmitterTypes))]
         [SerializeField] private string m_UIScriptCodeEmitterTypeName;
         public static string UIScriptCodeEmitterTypeName => Instance.m_UIScriptCodeEmitterTypeName;
-        private static IEnumerable<string> GetUIScriptCodeEmitterTypes() =>
-            GetTypeOptions(typeof(IUIScriptCodeEmitter), typeof(DefaultUIScriptCodeEmitter).FullName);
+        private static IEnumerable<string> GetUIScriptCodeEmitterTypes() => GetTypeOptions(typeof(IUIScriptCodeEmitter));
 
         [TabGroup(GENERAL_GROUP)]
         [LabelText("ScriptFile Writer")]
         [ValueDropdown(nameof(GetUIScriptFileWriterTypes))]
         [SerializeField] private string m_UIScriptFileWriterTypeName;
         public static string UIScriptFileWriterTypeName => Instance.m_UIScriptFileWriterTypeName;
-        private static IEnumerable<string> GetUIScriptFileWriterTypes() =>
-            GetTypeOptions(typeof(IUIScriptFileWriter), typeof(DefaultUIScriptFileWriter).FullName);
+        private static IEnumerable<string> GetUIScriptFileWriterTypes() => GetTypeOptions(typeof(IUIScriptFileWriter));
 
         /// <!-- 脚本生成 -->
         private const string SCRIPT_GENERATION_GROUP = "Script Generation";
@@ -75,7 +71,7 @@ namespace Moirai.Atropos.UI.Editor
         [TabGroup(SCRIPT_GENERATION_GROUP)]
         [ListDrawerSettings(ShowPaging = false)]
         [Tooltip("UI脚本生成配置（支持多个项目）")]
-        [SerializeField] private List<UIScriptGenerateData> m_UIScriptGenerateConfigs = new List<UIScriptGenerateData>();
+        [SerializeField] private List<UIScriptGenerateData> m_UIScriptGenerateConfigs;
         public static List<UIScriptGenerateData> UIScriptGenerateConfigs => Instance.m_UIScriptGenerateConfigs;
 
         /// <!-- 组件绑定 -->
@@ -84,17 +80,22 @@ namespace Moirai.Atropos.UI.Editor
         [Header("UI生成规则（根据正则匹配）")]
         [TabGroup(ELEMENT_MAPPING_GROUP)]
         [TableList(AlwaysExpanded = true, ShowPaging = true)]
-        [SerializeField] private List<UIElementRegexData> m_UIElementRegexConfigs = new List<UIElementRegexData>();
+        [SerializeField] private List<UIElementRegexData> m_UIElementRegexConfigs;
         public static List<UIElementRegexData> UIElementRegexConfigs => Instance.m_UIElementRegexConfigs;
 
         [Header("事件绑定规则（根据组件类型匹配）")]
         [TabGroup(ELEMENT_MAPPING_GROUP)]
         [TableList(AlwaysExpanded = true, ShowPaging = true)]
-        [SerializeField] private List<UIEventBindingConfig> m_UIEventBindingConfigs = new List<UIEventBindingConfig>();
+        [SerializeField] private List<UIEventBindingConfig> m_UIEventBindingConfigs;
         public static List<UIEventBindingConfig> UIEventBindingConfigs => Instance.m_UIEventBindingConfigs;
 
         protected internal override void Reset()
         {
+            m_ComCheckSplitName = "#";
+            m_ComCheckEndName = "@";
+            m_ArrayComSplitName = "*";
+            m_ExcludeKeywords = new []{ "ViewHolder" };
+
             m_UIIdentifierFormatterTypeName = typeof(DefaultUIIdentifierFormatter).FullName;
             m_UIResourcePathResolverTypeName = typeof(DefaultUIResourcePathResolver).FullName;
             m_UIScriptCodeEmitterTypeName = typeof(DefaultUIScriptCodeEmitter).FullName;
