@@ -8,6 +8,10 @@ using UnityEngine;
 
 namespace Moirai.Atropos.Editor
 {
+    /// <summary>
+    /// 框架配置统一管理窗口。自动发现所有 FrameworkSettings&lt;T&gt; 子类，
+    /// 侧边栏展示所有配置条目及其存在状态，支持创建、查看、Ping 和重置操作。
+    /// </summary>
     public class FrameworkSettingsWindow : EditorWindow
     {
         #region Types
@@ -15,6 +19,9 @@ namespace Moirai.Atropos.Editor
         private sealed class SettingEntry
         {
             public Type type;
+            // 缓存 FrameworkSettings<T> 泛型基类及其 Instance 属性，避免每次操作都遍历继承链
+            public Type genericBase;
+            public PropertyInfo instanceProp;
             public string title;
             public string description;
             public int order;
@@ -24,6 +31,21 @@ namespace Moirai.Atropos.Editor
             public bool Exists => instance != null;
             public string AssetPath => saveFolder + type.Name + ".asset";
         }
+
+        #endregion
+
+        #region Constants
+
+        private const float SIDEBAR_WIDTH = 244f;
+        private const float ENTRY_HEIGHT = 40f;
+
+        private static readonly Color s_ExistsColor = new(0.24f, 0.82f, 0.34f);
+        private static readonly Color s_MissingColor = new(0.96f, 0.56f, 0.14f);
+        private static readonly Color s_HoverBg = new(1f, 1f, 1f, 0.04f);
+        private static readonly Color s_SelectedBg = new(0.17f, 0.33f, 0.56f);
+        private static readonly Color s_SidebarBg = new(0.196f, 0.196f, 0.196f);
+        private static readonly Color s_Divider = new(0.12f, 0.12f, 0.12f);
+        private static readonly Color s_MutedText = new(0.45f, 0.45f, 0.45f);
 
         #endregion
 
@@ -37,21 +59,13 @@ namespace Moirai.Atropos.Editor
         private UnityEditor.Editor _cachedEditor;
         private readonly List<int> _filtered = new();
 
-        private const float SIDEBAR_WIDTH = 244f;
-        private const float ENTRY_HEIGHT = 40f;
-
-        private static readonly Color s_ExistsColor  = new(0.24f, 0.82f, 0.34f);
-        private static readonly Color s_MissingColor = new(0.96f, 0.56f, 0.14f);
-        private static readonly Color s_HoverBg      = new(1f, 1f, 1f, 0.04f);
-        private static readonly Color s_SelectedBg   = new(0.17f, 0.33f, 0.56f);
-        private static readonly Color s_SidebarBg    = new(0.196f, 0.196f, 0.196f);
-        private static readonly Color s_Divider      = new(0.12f, 0.12f, 0.12f);
-        private static readonly Color s_MutedText    = new(0.45f, 0.45f, 0.45f);
-
         #endregion
 
         #region Menu
 
+        /// <summary>
+        /// 通过菜单 Tools > Framework Settings 打开窗口。
+        /// </summary>
         [MenuItem("Tools/Framework Settings", false, -99999)]
         public static void Open()
         {
@@ -77,7 +91,6 @@ namespace Moirai.Atropos.Editor
 
         private void OnProjectChange()
         {
-            // 只补加载还没有 Instance 的条目，不会触发 Instance 属性
             RefreshInstances();
             Repaint();
         }
@@ -88,6 +101,9 @@ namespace Moirai.Atropos.Editor
             Repaint();
         }
 
+        /// <summary>
+        /// Project 窗口选中 ScriptableObject 时，同步高亮侧边栏中对应的配置条目。
+        /// </summary>
         private void OnSelectionChange()
         {
             if (Selection.activeObject is ScriptableObject so)
@@ -110,6 +126,9 @@ namespace Moirai.Atropos.Editor
 
         #region Discovery
 
+        /// <summary>
+        /// 完整刷新：发现所有设置类型 → 读取元数据 → 缓存反射信息 → 加载已有资产 → 排序。
+        /// </summary>
         private void Discover()
         {
             DestroyEditor();
@@ -122,14 +141,19 @@ namespace Moirai.Atropos.Editor
                 var attr = t.GetCustomAttribute<FrameworkSettingAttribute>();
                 string folder = attr?.SaveFolder ?? FrameworkSettingAttribute.DEFAULT_SAVE_FOLDER;
 
+                var genericBase = FindGenericBaseType(t);
+                var instanceProp = genericBase?.GetProperty("Instance", BindingFlags.Public | BindingFlags.Static);
+
                 _entries.Add(new SettingEntry
                 {
-                    type        = t,
-                    title       = attr?.Title ?? ObjectNames.NicifyVariableName(t.Name),
+                    type = t,
+                    genericBase = genericBase,
+                    instanceProp = instanceProp,
+                    title = attr?.Title ?? ObjectNames.NicifyVariableName(t.Name),
                     description = attr?.Description,
-                    order       = attr?.Order ?? 0,
-                    saveFolder  = folder,
-                    instance    = TryLoadAsset(folder + t.Name + ".asset", t)
+                    order = attr?.Order ?? 0,
+                    saveFolder = folder,
+                    instance = TryLoadAsset(folder + t.Name + ".asset", t)
                 });
             }
 
@@ -145,7 +169,32 @@ namespace Moirai.Atropos.Editor
         }
 
         /// <summary>
-        /// 只补加载 Instance 为空的条目，绝不调用 Instance 属性。
+        /// 使用 TypeCache 发现所有 FrameworkSettings&lt;T&gt; 的具体子类（编辑器专用 API，支持域重载）。
+        /// </summary>
+        private static IEnumerable<Type> FindSettingsTypes()
+        {
+            return TypeCache.GetTypesDerivedFrom(typeof(FrameworkSettings<>))
+                .Where(t => !t.IsAbstract && !t.IsGenericTypeDefinition && !t.IsInterface);
+        }
+
+        /// <summary>
+        /// 向上遍历继承链，找到具体的 FrameworkSettings&lt;T&gt; 泛型基类。
+        /// CRTP 模式下无法用 IsAssignableFrom 直接判断，必须检查泛型定义。
+        /// </summary>
+        private static Type FindGenericBaseType(Type type)
+        {
+            var c = type.BaseType;
+            while (c != null && c != typeof(ScriptableObject))
+            {
+                if (c.IsGenericType && c.GetGenericTypeDefinition() == typeof(FrameworkSettings<>))
+                    return c;
+                c = c.BaseType;
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// 仅补加载 instance 为 null 的条目，绝不调用 Instance 属性（避免意外创建）。
         /// </summary>
         private void RefreshInstances()
         {
@@ -159,34 +208,11 @@ namespace Moirai.Atropos.Editor
         }
 
         /// <summary>
-        /// 直接通过 AssetDatabase 从磁盘加载已存在的 asset。
-        /// 文件不存在 → 返回 null，不做任何创建。
+        /// 仅从磁盘加载已存在的 asset，不调用 Instance（避免意外创建缺失的配置文件）。
         /// </summary>
         private static FrameworkSettings TryLoadAsset(string assetPath, Type type)
         {
             return AssetDatabase.LoadAssetAtPath(assetPath, type) as FrameworkSettings;
-        }
-
-        private static IEnumerable<Type> FindSettingsTypes()
-        {
-            return AppDomain.CurrentDomain.GetAssemblies()
-                .SelectMany(a => { try { return a.GetTypes(); } catch { return Type.EmptyTypes; } })
-                .Where(t => !t.IsAbstract
-                         && !t.IsGenericTypeDefinition
-                         && !t.IsInterface
-                         && InheritsFrameworkSettings(t));
-        }
-
-        private static bool InheritsFrameworkSettings(Type type)
-        {
-            var c = type.BaseType;
-            while (c != null && c != typeof(ScriptableObject))
-            {
-                if (c.IsGenericType && c.GetGenericTypeDefinition() == typeof(FrameworkSettings<>))
-                    return true;
-                c = c.BaseType;
-            }
-            return false;
         }
 
         #endregion
@@ -205,6 +231,9 @@ namespace Moirai.Atropos.Editor
             }
         }
 
+        /// <summary>
+        /// 搜索匹配：标题、类型名、描述（不区分大小写）。
+        /// </summary>
         private bool MatchesSearch(SettingEntry e)
         {
             if (string.IsNullOrEmpty(_search)) return true;
@@ -215,7 +244,7 @@ namespace Moirai.Atropos.Editor
 
         #endregion
 
-        #region Editor Caching
+        #region Editor Cache
 
         private void SelectEntry(int absoluteIndex)
         {
@@ -240,6 +269,9 @@ namespace Moirai.Atropos.Editor
             }
         }
 
+        /// <summary>
+        /// 计算滚动偏移使指定条目在侧边栏中可见。
+        /// </summary>
         private Vector2 CalculateScrollToEntry(int absoluteIndex)
         {
             int filteredPos = _filtered.IndexOf(absoluteIndex);
@@ -250,7 +282,7 @@ namespace Moirai.Atropos.Editor
 
         #endregion
 
-        #region GUI — Main
+        #region GUI - Main
 
         private void OnGUI()
         {
@@ -266,7 +298,7 @@ namespace Moirai.Atropos.Editor
 
         #endregion
 
-        #region GUI — Toolbar
+        #region GUI - Toolbar
 
         private void DrawToolbar()
         {
@@ -289,11 +321,7 @@ namespace Moirai.Atropos.Editor
 
                 int total = _entries?.Count ?? 0;
                 int loaded = _entries?.Count(e => e.Exists) ?? 0;
-                GUILayout.Label(
-                    $"{loaded} / {total} loaded",
-                    EditorStyles.miniLabel,
-                    GUILayout.Width(80)
-                );
+                GUILayout.Label($"{loaded}/{total}", EditorStyles.miniLabel, GUILayout.Width(40));
 
                 if (GUILayout.Button("Refresh", EditorStyles.toolbarButton, GUILayout.Width(58)))
                     Discover();
@@ -302,7 +330,7 @@ namespace Moirai.Atropos.Editor
 
         #endregion
 
-        #region GUI — Sidebar
+        #region GUI - Sidebar
 
         private void DrawSidebar()
         {
@@ -311,23 +339,19 @@ namespace Moirai.Atropos.Editor
                        GUILayout.ExpandHeight(true)))
             {
                 _sidebarScroll = EditorGUILayout.BeginScrollView(
-                    _sidebarScroll,
-                    GUIStyle.none,
-                    GUI.skin.verticalScrollbar);
+                    _sidebarScroll, GUIStyle.none, GUI.skin.verticalScrollbar);
 
                 if (_entries == null || _entries.Count == 0)
                 {
                     GUILayout.FlexibleSpace();
-                    EditorGUILayout.LabelField(
-                        "No FrameworkSettings types found.",
+                    EditorGUILayout.LabelField("No FrameworkSettings types found.",
                         new GUIStyle(EditorStyles.centeredGreyMiniLabel) { fontSize = 11 });
                     GUILayout.FlexibleSpace();
                 }
                 else if (_filtered.Count == 0)
                 {
                     GUILayout.FlexibleSpace();
-                    EditorGUILayout.LabelField(
-                        "No matching results.",
+                    EditorGUILayout.LabelField("No matching results.",
                         new GUIStyle(EditorStyles.centeredGreyMiniLabel) { fontSize = 11 });
                     GUILayout.FlexibleSpace();
                 }
@@ -364,7 +388,7 @@ namespace Moirai.Atropos.Editor
                 rect.y + (ENTRY_HEIGHT - dotSize) * 0.5f,
                 dotSize, dotSize);
 
-            DrawRoundedRect(dotRect, entry.Exists ? s_ExistsColor : s_MissingColor);
+            EditorGUI.DrawRect(dotRect, entry.Exists ? s_ExistsColor : s_MissingColor);
 
             float textX = rect.x + 26;
             float textW = rect.width - 36;
@@ -405,11 +429,10 @@ namespace Moirai.Atropos.Editor
 
         #endregion
 
-        #region GUI — Content Area
+        #region GUI - Content Area
 
         private void DrawVerticalDivider()
         {
-            // 加上 Width(1) 把它锁死为 1 像素，不再参与弹性分配
             var r = GUILayoutUtility.GetRect(1, 1, GUILayout.Width(1), GUILayout.ExpandHeight(true));
             EditorGUI.DrawRect(r, s_Divider);
         }
@@ -427,7 +450,6 @@ namespace Moirai.Atropos.Editor
 
             var entry = _entries[_selectedIndex];
 
-            // 只在 Instance 为 null 时尝试加载，不调用 Instance 属性
             if (entry.instance == null)
             {
                 entry.instance = TryLoadAsset(entry.AssetPath, entry.type);
@@ -435,7 +457,6 @@ namespace Moirai.Atropos.Editor
                     RecreateEditor();
             }
 
-            // 加上 ExpandWidth(true) 主动索取所有剩余水平空间
             using (new EditorGUILayout.VerticalScope(GUILayout.ExpandHeight(true), GUILayout.ExpandWidth(true)))
             {
                 DrawContentHeader(entry);
@@ -469,17 +490,6 @@ namespace Moirai.Atropos.Editor
                             });
 
                         GUILayout.Space(10);
-
-                        string badgeText = entry.Exists ? "● Loaded" : "● Missing";
-                        Color badgeColor = entry.Exists ? s_ExistsColor : s_MissingColor;
-
-                        GUILayout.Label(badgeText,
-                            new GUIStyle(EditorStyles.miniLabel)
-                            {
-                                normal = { textColor = badgeColor },
-                                fontStyle = FontStyle.Bold,
-                                padding = new RectOffset(0, 0, 3, 0)
-                            });
                     }
 
                     if (!string.IsNullOrEmpty(entry.description))
@@ -492,8 +502,7 @@ namespace Moirai.Atropos.Editor
                             });
                     }
 
-                    GUILayout.Label(
-                        $"{entry.type.FullName}  ·  {entry.AssetPath}",
+                    GUILayout.Label($"{entry.type.FullName}  ·  {entry.AssetPath}",
                         new GUIStyle(EditorStyles.miniLabel)
                         {
                             normal = { textColor = s_MutedText },
@@ -504,17 +513,16 @@ namespace Moirai.Atropos.Editor
 
                     using (new EditorGUILayout.HorizontalScope())
                     {
+                        // 配置不存在时显示 Create；已存在时显示 Ping（调用 Instance 返回缓存）+ Reset
                         if (!entry.Exists)
                         {
-                            if (GUILayout.Button("Create Setting Asset", GUILayout.Width(155)))
-                                CreateAsset(entry);
+                            if (GUILayout.Button("Create", GUILayout.Width(65)))
+                                CreateOrPingAsset(entry);
                         }
                         else
                         {
-                            if (GUILayout.Button("Select", GUILayout.Width(62)))
-                                Selection.activeObject = entry.instance;
                             if (GUILayout.Button("Ping", GUILayout.Width(52)))
-                                EditorGUIUtility.PingObject(entry.instance);
+                                CreateOrPingAsset(entry);
                             if (GUILayout.Button("Reset", GUILayout.Width(56)))
                                 ResetSetting(entry);
                         }
@@ -528,6 +536,9 @@ namespace Moirai.Atropos.Editor
             }
         }
 
+        /// <summary>
+        /// 内容区主体：已存在时显示 Inspector，不存在时显示创建提示。
+        /// </summary>
         private void DrawContentBody(SettingEntry entry)
         {
             if (entry.Exists)
@@ -540,6 +551,7 @@ namespace Moirai.Atropos.Editor
                     _contentScroll = EditorGUILayout.BeginScrollView(_contentScroll);
                     EditorGUI.BeginChangeCheck();
                     _cachedEditor.OnInspectorGUI();
+                    // Inspector 修改后标记 dirty，确保变更可被保存
                     if (EditorGUI.EndChangeCheck())
                         EditorUtility.SetDirty(entry.instance);
                     EditorGUILayout.EndScrollView();
@@ -547,8 +559,7 @@ namespace Moirai.Atropos.Editor
                 else
                 {
                     GUILayout.FlexibleSpace();
-                    EditorGUILayout.LabelField(
-                        "Failed to create editor for this asset.",
+                    EditorGUILayout.LabelField("Failed to create editor for this asset.",
                         new GUIStyle(EditorStyles.centeredGreyMiniLabel) { fontSize = 11 });
                     GUILayout.FlexibleSpace();
                 }
@@ -557,7 +568,7 @@ namespace Moirai.Atropos.Editor
             {
                 GUILayout.FlexibleSpace();
                 EditorGUILayout.LabelField(
-                    "Setting asset not found.\nClick 'Create Setting Asset' above to generate one.",
+                    "Setting asset not found.\nClick 'Create' above to generate one.",
                     new GUIStyle(EditorStyles.centeredGreyMiniLabel)
                     {
                         fontSize = 12,
@@ -570,73 +581,36 @@ namespace Moirai.Atropos.Editor
 
         #endregion
 
-        #region GUI — Helpers
-
-        private static void DrawRoundedRect(Rect rect, Color color)
-        {
-            EditorGUI.DrawRect(rect, color);
-        }
-
-        #endregion
-
         #region Actions
 
-        private void ShowContextMenu(SettingEntry entry)
+        /// <summary>
+        /// 创建或 Ping 配置资产。通过反射调用 FrameworkSettings&lt;T&gt;.Instance，
+        /// 因为具体泛型参数 T 在编译期未知。
+        /// </summary>
+        private void CreateOrPingAsset(SettingEntry entry)
         {
-            var menu = new GenericMenu();
-
-            if (entry.Exists)
+            if (entry.genericBase == null || entry.instanceProp == null)
             {
-                menu.AddItem(new GUIContent("Select"), false,
-                    () => Selection.activeObject = entry.instance);
-                menu.AddItem(new GUIContent("Ping"), false,
-                    () => EditorGUIUtility.PingObject(entry.instance));
-                menu.AddSeparator("");
-                menu.AddItem(new GUIContent("Reset"), false,
-                    () => ResetSetting(entry));
-                menu.AddSeparator("");
-            }
-            else
-            {
-                menu.AddItem(new GUIContent("Create Setting Asset"), false,
-                    () => CreateAsset(entry));
-                menu.AddSeparator("");
+                Debug.LogWarning($"[FrameworkSettings] Cannot invoke Instance for {entry.type.Name}: reflection failed.");
+                return;
             }
 
-            menu.AddItem(new GUIContent("Open Folder"), false,
-                () => OpenSaveFolder(entry));
+            var instance = entry.instanceProp.GetValue(null) as FrameworkSettings;
+            if (instance == null)
+            {
+                Debug.LogWarning($"[FrameworkSettings] Instance returned null for {entry.type.Name}.");
+                return;
+            }
 
-            menu.ShowAsContext();
+            entry.instance = instance;
+            RecreateEditor();
+            EditorGUIUtility.PingObject(instance);
+            Repaint();
         }
 
         /// <summary>
-        /// 纯 Editor 侧创建：ScriptableObject.CreateInstance + AssetDatabase.CreateAsset。
+        /// 二次确认后重置配置到默认值，调用非泛型基类的 ResetToDefaults()。
         /// </summary>
-        private void CreateAsset(SettingEntry entry)
-        {
-            // 确保目录存在
-            if (!string.IsNullOrEmpty(entry.saveFolder) && !Directory.Exists(entry.saveFolder))
-            {
-                Directory.CreateDirectory(entry.saveFolder);
-                AssetDatabase.Refresh();
-            }
-
-            string path = entry.AssetPath;
-
-            // 直接创建，绕开 Instance 属性
-            var asset = (FrameworkSettings)ScriptableObject.CreateInstance(entry.type);
-            AssetDatabase.CreateAsset(asset, path);
-
-            // 先赋值再 Reset，确保 Reset 作用于正确的对象
-            entry.instance = asset;
-            entry.instance.Reset();
-
-            EditorUtility.SetDirty(asset);
-            AssetDatabase.SaveAssets();
-            RecreateEditor();
-            EditorGUIUtility.PingObject(asset);
-        }
-
         private void ResetSetting(SettingEntry entry)
         {
             if (!entry.Exists) return;
@@ -648,27 +622,67 @@ namespace Moirai.Atropos.Editor
                 "Cancel"))
                 return;
 
-            entry.instance.Reset();
-
+            entry.instance.ResetToDefaults();
             EditorUtility.SetDirty(entry.instance);
             AssetDatabase.SaveAssets();
-
             RecreateEditor();
         }
 
+        /// <summary>
+        /// 在资源管理器中打开配置资产所在目录。优先定位资产文件，资产不存在时回退到 saveFolder。
+        /// </summary>
         private void OpenSaveFolder(SettingEntry entry)
         {
-            string folder = entry.saveFolder;
-
-            while (!string.IsNullOrEmpty(folder) && !Directory.Exists(folder))
+            if (entry.instance != null)
             {
-                folder = Path.GetDirectoryName(folder);
+                var path = AssetDatabase.GetAssetPath(entry.instance);
+                if (!string.IsNullOrEmpty(path))
+                {
+                    EditorUtility.RevealInFinder(path);
+                    return;
+                }
             }
+
+            // saveFolder 可能不存在（如 Editor-only 配置），向上回退到最近的已有目录
+            string folder = entry.saveFolder;
+            while (!string.IsNullOrEmpty(folder) && !Directory.Exists(folder))
+                folder = Path.GetDirectoryName(folder);
 
             if (!string.IsNullOrEmpty(folder) && Directory.Exists(folder))
                 EditorUtility.RevealInFinder(folder);
             else
                 Debug.Log($"[FrameworkSettings] No existing folder found for: {entry.saveFolder}");
+        }
+
+        /// <summary>
+        /// 侧边栏右键菜单。已存在的配置显示 Select/Ping/Reset，不存在的显示 Create。
+        /// </summary>
+        private void ShowContextMenu(SettingEntry entry)
+        {
+            var menu = new GenericMenu();
+
+            if (entry.Exists)
+            {
+                menu.AddItem(new GUIContent("Select"), false,
+                    () => Selection.activeObject = entry.instance);
+                menu.AddItem(new GUIContent("Ping"), false,
+                    () => CreateOrPingAsset(entry));
+                menu.AddSeparator("");
+                menu.AddItem(new GUIContent("Reset"), false,
+                    () => ResetSetting(entry));
+                menu.AddSeparator("");
+            }
+            else
+            {
+                menu.AddItem(new GUIContent("Create"), false,
+                    () => CreateOrPingAsset(entry));
+                menu.AddSeparator("");
+            }
+
+            menu.AddItem(new GUIContent("Open Folder"), false,
+                () => OpenSaveFolder(entry));
+
+            menu.ShowAsContext();
         }
 
         #endregion
