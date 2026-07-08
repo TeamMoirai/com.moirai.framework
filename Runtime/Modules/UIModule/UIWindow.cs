@@ -26,6 +26,8 @@ namespace Moirai.Atropos.UI
         private Action<UIWindow> _prepareCallback;
         private SetUISafeFitHelper _setUISafeFitHelper;
 
+        protected CancellationTokenSource _cts;
+
         public override UIType Type => UIType.Window;
 
         /// <summary>
@@ -453,26 +455,14 @@ namespace Moirai.Atropos.UI
             CancelCts();
             _cts = new CancellationTokenSource();
 
-            Interactable = false;
-            if (GameModule.UI != null && GameModule.UI.IsModal(this))
-            {
-                if (GameModule.Input != null) GameModule.Input.LockPlayerController = true;
-                if (GameModule.Input != null) GameModule.Input.PreventInteractionUI = true;
-            }
+            LockInteraction();
 
-            try
-            {
-                await CloseAnimation();
-            }
+            try { await CloseAnimation(); }
             catch (OperationCanceledException) { return; }
 
             if (IsDestroyed) return;
 
-            Interactable = true;
-            if (GameModule.UI != null && GameModule.UI.IsModal(this))
-            {
-                if (GameModule.Input != null) GameModule.Input.PreventInteractionUI = false;
-            }
+            UnlockInteraction();
 
             CancelCts();
             gameObject.SetActive(false);
@@ -498,11 +488,7 @@ namespace Moirai.Atropos.UI
 
             // 清理交互状态
             CancelCts();
-            Interactable = true;
-            if (GameModule.UI != null && GameModule.UI.IsModal(this))
-            {
-                if (GameModule.Input != null) GameModule.Input.PreventInteractionUI = false;
-            }
+            UnlockInteraction();
 
             // 销毁面板对象
             if (!isShutDown && CacheInstance)
@@ -569,7 +555,23 @@ namespace Moirai.Atropos.UI
 
         #region 交互相关
 
-        protected CancellationTokenSource _cts;
+        private void LockInteraction()
+        {
+            Interactable = false;
+            if (GameModule.UI != null && GameModule.UI.IsModal(this))
+            {
+                if (GameModule.Input != null) GameModule.Input.PreventInteractionUI = true;
+            }
+        }
+
+        private void UnlockInteraction()
+        {
+            Interactable = true;
+            if (GameModule.UI != null && GameModule.UI.IsModal(this))
+            {
+                if (GameModule.Input != null) GameModule.Input.PreventInteractionUI = false;
+            }
+        }
 
         private void CancelCts()
         {
@@ -613,12 +615,7 @@ namespace Moirai.Atropos.UI
             CancelCts();
             _cts = new CancellationTokenSource();
 
-            if (GameModule.UI.IsModal(this))
-            {
-                if (GameModule.Input != null) GameModule.Input.LockPlayerController = true;
-                if (GameModule.Input != null) GameModule.Input.PreventInteractionUI = true;
-            }
-            Interactable = false;
+            LockInteraction();
 
             try
             {
@@ -629,11 +626,7 @@ namespace Moirai.Atropos.UI
 
             if (IsDestroyed) return;
 
-            Interactable = true;
-            if (GameModule.UI.IsModal(this))
-            {
-                if (GameModule.Input != null) GameModule.Input.PreventInteractionUI = false;
-            }
+            UnlockInteraction();
         }
 
         #endregion
