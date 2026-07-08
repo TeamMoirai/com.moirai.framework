@@ -144,22 +144,27 @@ namespace Moirai.Atropos.UI.Editor
                 new UIElementRegexData("Video", "UnityEngine.Video.VideoPlayer"),
                 new UIElementRegexData("CanvasGroup", "CanvasGroup"),
 #if (TEXT_MESH_PRO_INSTALLED || UNITY_UGUI2_INSTALLED)
+                new UIElementRegexData("Tmp", "TMPro.TextMeshProUGUI"),
                 new UIElementRegexData("TmpInput", "TMPro.TMP_InputField"),
                 new UIElementRegexData("TmpDropdown", "TMPro.TMP_Dropdown"),
-                new UIElementRegexData("Tmp", "TMPro.TextMeshProUGUI"),
 #endif
 
-                // 框架组件
+                // 框架组件 - Gameplay
                 new UIElementRegexData("Label", "Moirai.Clotho.UI.UILabel"),
-                new UIElementRegexData("SBtn", "Moirai.Clotho.UI.ButtonSuper"),
-                new UIElementRegexData("MenuItem", "Moirai.Clotho.UI.UIMenuItem"),
+                new UIElementRegexData("SuperBtn", "Moirai.Clotho.UI.ButtonSuper"),
                 new UIElementRegexData("Menu", "Moirai.Clotho.UI.UIMenu"),
+                new UIElementRegexData("MenuItem", "Moirai.Clotho.UI.UIMenuItem"),
+                new UIElementRegexData("Pbar", "Moirai.Clotho.UI.ProgressBar"),
 
 #if MOIRAI_CLOTHO_UIPRO
                 new UIElementRegexData("Carousel","Moirai.Clotho.UIPro.Carousel"),
                 new UIElementRegexData("ListCarousel","Moirai.Clotho.UIPro.ListCarousel"),
                 new UIElementRegexData("SlideToggle","Moirai.Clotho.UIPro.SlideToggle"),
 #endif
+
+                // 框架组件 - Juice
+                new UIElementRegexData("AnimPbar", "Moirai.Lachesis.UI.AnimateProgressBar"),
+
             };
 
             m_UIEventBindingConfigs = new List<UIEventBindingConfig>
@@ -173,7 +178,7 @@ namespace Moirai.Atropos.UI.Editor
                 new UIEventBindingConfig("TMPro.TMP_Dropdown", "onValueChanged", "Change", "(int selectedIndex)"),
 #endif
 
-                // 框架组件
+                // 框架组件 - Gameplay
                 new UIEventBindingConfig("Moirai.Clotho.UI.ButtonSuper", "onClick", "Click", ""),
                 new UIEventBindingConfig("Moirai.Clotho.UI.UIMenuItem", "onSubmit", "Click", "(UIMenuItem item)"),
 #if MOIRAI_CLOTHO_UIPRO
