@@ -567,7 +567,7 @@ Log.Error("严重错误!");
   │       │   ├── GameBase/          # 主程序程序集（启动器与流程）
   │       │   ├── GameLib/           # 第三方库程序集 [Dll]
   │       │   ├── GameLogic/         # 游戏业务逻辑程序集 [Dll]
-  │       │       ├── HotfixEntry.cs     # 热更主入口
+  │       │       ├── HotfixEntry.cs # 热更主入口
   │       │   └── GameProto/         # 游戏配置协议程序集 [Dll]
   │       └── YooAsset/              # YooAsset 配置
   └── Config/                        # 配置表工程

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
@@ -192,7 +192,7 @@ namespace Moirai.Atropos.UI
         /// <summary>
         /// 窗口交互性
         /// </summary>
-        private bool Interactable
+        public bool Interactable
         {
             get
             {
@@ -445,7 +445,36 @@ namespace Moirai.Atropos.UI
         protected internal virtual void InternalClose()
         {
             OnClose();
-            PreventInteraction(false).Forget();
+            InternalCloseAsync().Forget();
+        }
+
+        private async UniTaskVoid InternalCloseAsync()
+        {
+            CancelCts();
+            _cts = new CancellationTokenSource();
+
+            Interactable = false;
+            if (GameModule.UI != null && GameModule.UI.IsModal(this))
+            {
+                if (GameModule.Input != null) GameModule.Input.LockPlayerController = true;
+                if (GameModule.Input != null) GameModule.Input.PreventInteractionUI = true;
+            }
+
+            try
+            {
+                await CloseAnimation();
+            }
+            catch (OperationCanceledException) { return; }
+
+            if (IsDestroyed) return;
+
+            Interactable = true;
+            if (GameModule.UI != null && GameModule.UI.IsModal(this))
+            {
+                if (GameModule.Input != null) GameModule.Input.PreventInteractionUI = false;
+            }
+
+            CancelCts();
             gameObject.SetActive(false);
         }
 
@@ -466,7 +495,14 @@ namespace Moirai.Atropos.UI
             _prepareCallback = null;
 
             OnDestroy();
-            PreventInteraction(false).Forget();
+
+            // 清理交互状态
+            CancelCts();
+            Interactable = true;
+            if (GameModule.UI != null && GameModule.UI.IsModal(this))
+            {
+                if (GameModule.Input != null) GameModule.Input.PreventInteractionUI = false;
+            }
 
             // 销毁面板对象
             if (!isShutDown && CacheInstance)
@@ -533,58 +569,70 @@ namespace Moirai.Atropos.UI
 
         #region 交互相关
 
-        /// <summary>是否准备好了，即可进行交互</summary>
-        public virtual bool IsReady { get; private set; }
-
         protected CancellationTokenSource _cts;
+
+        private void CancelCts()
+        {
+            if (_cts != null)
+            {
+                _cts.Cancel();
+                _cts.Dispose();
+                _cts = null;
+            }
+        }
+
+        /// <summary>
+        /// 打开动画等待。子类可 override 以播放打开动画（淡入、缩放等）。
+        /// </summary>
+        protected virtual async UniTask OpenAnimation()
+        {
+            await UniTask.WaitForSeconds(0.5f, true, cancellationToken: _cts.Token);
+        }
+
+        /// <summary>
+        /// 关闭动画等待。子类可 override 以播放关闭动画（淡出、缩放等）。
+        /// 窗口在动画期间保持可见，动画结束后自动隐藏。
+        /// </summary>
+        protected virtual async UniTask CloseAnimation()
+        {
+            await UniTask.WaitForSeconds(0.25f, true, cancellationToken: _cts.Token);
+        }
+
+        /// <summary>
+        /// 上层窗口关闭后的交互延迟。子类可 override 以自定义延迟行为。
+        /// </summary>
+        protected virtual async UniTask TopRefreshWaiter()
+        {
+            await UniTask.WaitForSeconds(0.25f, true, cancellationToken: _cts.Token);
+        }
+
         private async UniTaskVoid SetInteractWaiter(bool open)
         {
             if (GameModule.UI.GetTopWindow() != this) return;
 
+            CancelCts();
             _cts = new CancellationTokenSource();
 
-            IsReady = false;
-            await InteractWaiter(open);
-            IsReady = true;
-
-            PreventInteraction(true).Forget();
-        }
-
-        /// <summary>
-        /// 可交互延迟
-        /// </summary>
-        protected virtual async UniTask InteractWaiter(bool open)
-        {
-            await UniTask.WaitForSeconds(open ? 0.5f : 0.25f, true, cancellationToken:_cts.Token);
-        }
-
-        /// <summary>
-        /// 禁止输入交互相关
-        /// </summary>
-        protected async UniTaskVoid PreventInteraction(bool state)
-        {
-            if (GameModule.UI != null && !GameModule.UI.IsModal(this)) return;
-
-            // Log.Warning($"PreventInteraction {state}");
-            if (GameModule.Input != null) GameModule.Input.LockPlayerController = state;
-
-            // 打开弹窗时避免立即交互
-            if (state)
+            if (GameModule.UI.IsModal(this))
             {
+                if (GameModule.Input != null) GameModule.Input.LockPlayerController = true;
                 if (GameModule.Input != null) GameModule.Input.PreventInteractionUI = true;
-                Interactable = false;
-                // Log.Info("[UI]{0} {1} Prevent Interaction", WindowName, Time.time);
-                await UniTask.WaitUntil(() => IsReady, cancellationToken:_cts.Token, cancelImmediately:true);
-                if (GameModule.Input != null) GameModule.Input.PreventInteractionUI = false;
-                Interactable = true;
-                // Log.Info("[UI]{0} {1} Allow Interaction", WindowName, Time.time);
             }
-            else
+            Interactable = false;
+
+            try
+            {
+                if (open) await OpenAnimation();
+                else await TopRefreshWaiter();
+            }
+            catch (OperationCanceledException) { return; }
+
+            if (IsDestroyed) return;
+
+            Interactable = true;
+            if (GameModule.UI.IsModal(this))
             {
                 if (GameModule.Input != null) GameModule.Input.PreventInteractionUI = false;
-                Interactable = true;
-                _cts?.Cancel();
-                _cts?.Dispose();
             }
         }
 
