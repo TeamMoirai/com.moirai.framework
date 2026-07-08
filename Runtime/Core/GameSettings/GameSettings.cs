@@ -12,7 +12,7 @@ namespace Moirai.Atropos
     {
         [DisableInPlayMode]
         [ValueDropdown(nameof(GetLanguageOptions))]
-        [SerializeField] private string m_EditorLanguage = "Unspecified";
+        [SerializeField] private string m_EditorLanguage;
         private static IEnumerable<string> GetLanguageOptions() => Language.BuiltinLanguages.Select(lang => lang.Name);
 
         private const string HELPER_GROUP = "Global Helpers";
@@ -20,51 +20,46 @@ namespace Moirai.Atropos
         [BoxGroup(HELPER_GROUP), DisableInPlayMode]
         [LabelText("Version Helper")]
         [ValueDropdown(nameof(GetVersionHelperTypes))]
-        [SerializeField] private string m_VersionHelperTypeName = typeof(DefaultVersionHelper).FullName;
-        private static IEnumerable<string> GetVersionHelperTypes() =>
-            GetTypeOptions(typeof(VersionUtility.IVersionHelper), typeof(DefaultVersionHelper).FullName);
+        [SerializeField] private string m_VersionHelperTypeName;
+        private static IEnumerable<string> GetVersionHelperTypes() => GetTypeOptions(typeof(VersionUtility.IVersionHelper));
 
         [BoxGroup(HELPER_GROUP), DisableInPlayMode]
         [LabelText("Format Helper")]
         [ValueDropdown(nameof(GetFormatHelperTypes))]
-        [SerializeField] private string m_FormatHelperTypeName = typeof(DefaultFormatHelper).FullName;
-        private static IEnumerable<string> GetFormatHelperTypes() =>
-            GetTypeOptions(typeof(TextUtility.IFormatHelper), typeof(DefaultFormatHelper).FullName);
+        [SerializeField] private string m_FormatHelperTypeName;
+        private static IEnumerable<string> GetFormatHelperTypes() => GetTypeOptions(typeof(TextUtility.IFormatHelper));
 
         [BoxGroup(HELPER_GROUP), DisableInPlayMode]
         [LabelText("Log Helper")]
         [ValueDropdown(nameof(GetLogHelperTypes))]
-        [SerializeField] private string m_LogHelperTypeName = typeof(DefaultLogHelper).FullName;
-        private static IEnumerable<string> GetLogHelperTypes() =>
-            GetTypeOptions(typeof(LogUtility.ILogHelper), typeof(DefaultLogHelper).FullName);
+        [SerializeField] private string m_LogHelperTypeName;
+        private static IEnumerable<string> GetLogHelperTypes() => GetTypeOptions(typeof(LogUtility.ILogHelper));
 
         [BoxGroup(HELPER_GROUP), DisableInPlayMode]
         [LabelText("Object Helper")]
         [ValueDropdown(nameof(GetObjectHelperTypes))]
-        [SerializeField] private string m_ObjectHelperTypeName = typeof(UnityObjectHelper).FullName;
-        private static IEnumerable<string> GetObjectHelperTypes() =>
-            GetTypeOptions(typeof(ObjectUtility.IObjectHelper), typeof(UnityObjectHelper).FullName);
+        [SerializeField] private string m_ObjectHelperTypeName;
+        private static IEnumerable<string> GetObjectHelperTypes() => GetTypeOptions(typeof(ObjectUtility.IObjectHelper));
 
         [BoxGroup(HELPER_GROUP), DisableInPlayMode]
         [LabelText("Json Helper")]
         [ValueDropdown(nameof(GetJsonHelperTypes))]
-        [SerializeField] private string m_JsonHelperTypeName = typeof(UnityJsonHelper).FullName;
-        private static IEnumerable<string> GetJsonHelperTypes() =>
-            GetTypeOptions(typeof(JSONUtility.IJsonHelper), typeof(UnityJsonHelper).FullName);
+        [SerializeField] private string m_JsonHelperTypeName;
+        private static IEnumerable<string> GetJsonHelperTypes() => GetTypeOptions(typeof(JSONUtility.IJsonHelper));
 
         [DisableInPlayMode]
         [Range(1, 300)]
-        [SerializeField] private int m_FrameRate = 120;
+        [SerializeField] private int m_FrameRate;
 
         [DisableInPlayMode]
         [Range(0f, 8f)]
-        [SerializeField] private float m_GameSpeed = 1f;
+        [SerializeField] private float m_GameSpeed;
 
         [DisableInPlayMode]
-        [SerializeField] private bool m_RunInBackground = true;
+        [SerializeField] private bool m_RunInBackground;
 
         [DisableInPlayMode]
-        [SerializeField] private bool m_NeverSleep = true;
+        [SerializeField] private bool m_NeverSleep;
 
         private static float s_GameSpeedBeforePause = 1f;
         private const int DEFAULT_DPI = 96;  // default windows dpi
@@ -122,6 +117,22 @@ namespace Moirai.Atropos
                 Instance.m_NeverSleep = value;
                 Screen.sleepTimeout = value ? SleepTimeout.NeverSleep : SleepTimeout.SystemSetting;
             }
+        }
+
+        protected internal override void Reset()
+        {
+            m_EditorLanguage = "Unspecified";
+
+            m_VersionHelperTypeName = typeof(DefaultVersionHelper).FullName;
+            m_FormatHelperTypeName = typeof(DefaultFormatHelper).FullName;
+            m_LogHelperTypeName = typeof(DefaultLogHelper).FullName;
+            m_ObjectHelperTypeName = typeof(UnityObjectHelper).FullName;
+            m_JsonHelperTypeName = typeof(UnityJsonHelper).FullName;
+
+            m_FrameRate = 120;
+            m_GameSpeed = 1f;
+            m_RunInBackground = true;
+            m_NeverSleep = true;
         }
 
         public static void InitSettings()
