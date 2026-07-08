@@ -164,6 +164,7 @@ MonoBehaviour:
   m_EncryptionType: 0
   m_UpdatableWhilePlaying: 0
   m_Milliseconds: 30
+  m_AutoUnloadBundleWhenUnused: 0
   m_DownloadingMaxNum: 10
   m_FailedTryAgain: 3
   m_AssetAutoReleaseInterval: 60
@@ -184,6 +185,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   m_CheckCanReleaseInterval: 30
   m_AutoReleaseInterval: 60
+  m_MaxProcessPerFrame: 50
 --- !u!1 &7696541955266276702
 GameObject:
   m_ObjectHideFlags: 0
@@ -193,7 +195,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 7696541955266276700}
-  - component: {fileID: 7696541955266276701}
   - component: {fileID: 7696541955266276690}
   m_Layer: 0
   m_Name: GameEntry
@@ -221,30 +222,6 @@ Transform:
   - {fileID: 5550035055454355162}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &7696541955266276701
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7696541955266276702}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: fdf67b39cb924343bb79dd202dc5dd2d, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  m_EditorLanguage: Unspecified
-  m_VersionHelperTypeName: Moirai.Atropos.DefaultVersionHelper
-  m_FormatHelperTypeName: Moirai.Atropos.DefaultFormatHelper
-  m_LogHelperTypeName: Moirai.Atropos.DefaultLogHelper
-  m_ObjectHelperTypeName: Moirai.Atropos.UnityObjectHelper
-  m_JsonHelperTypeName: Moirai.Atropos.UnityJsonHelper
-  m_SaveHelperTypeName: Moirai.Atropos.JsonSaveHelper
-  m_SaveEncryptionKey: ThisIsTheKey
-  m_FrameRate: 120
-  m_GameSpeed: 1
-  m_RunInBackground: 1
-  m_NeverSleep: 1
 --- !u!114 &7696541955266276690
 MonoBehaviour:
   m_ObjectHideFlags: 0

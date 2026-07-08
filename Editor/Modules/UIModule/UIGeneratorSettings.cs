@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using Sirenix.OdinInspector;
 using UnityEngine;
 
@@ -180,21 +179,6 @@ namespace Moirai.Atropos.UI.Editor
                 new UIEventBindingConfig("Moirai.Clotho.UIPro.SlideToggle", "onValueChanged", "Change", "(bool isOn)"),
 #endif
             };
-        }
-
-        private static IEnumerable<string> GetTypeOptions(Type interfaceType, string defaultTypeName)
-        {
-            var options = AssemblyUtility.GetRuntimeTypeNames(interfaceType)
-                .Distinct(StringComparer.Ordinal)
-                .OrderBy(typeName => typeName, StringComparer.Ordinal)
-                .ToList();
-
-            if (!options.Contains(defaultTypeName))
-            {
-                options.Insert(0, defaultTypeName);
-            }
-
-            return options;
         }
     }
 

@@ -1,6 +1,6 @@
 ﻿namespace Moirai.Atropos.Events
 {
-    public enum MessageEventType
+    public enum EMessageEventType
     {
         // 框架事件，10000起步
         Empty = 10000,
@@ -36,16 +36,16 @@
     public interface IMessageEvent { }
     public class MessageEvent : EventBase<MessageEvent>, IMessageEvent
     {
-        public MessageEventType EventType { get; private set; }
+        public EMessageEventType EventType { get; private set; }
         
-        private static MessageEvent GetPooled(MessageEventType eventType)
+        private static MessageEvent GetPooled(EMessageEventType eventType)
         {
             var evt = GetPooled();
             evt.EventType = eventType;
             return evt;
         }
         
-        public static void Trigger(MessageEventType eventType)
+        public static void Trigger(EMessageEventType eventType)
         {
             // Debug.Log($"MessageEvent: {(int)eventType}");
             using var evt = GetPooled(eventType);

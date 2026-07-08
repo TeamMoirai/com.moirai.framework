@@ -114,11 +114,11 @@ namespace Moirai.Atropos.Input
         {
             switch (evt.EventType)
             {
-                case MessageEventType.ApplicationFocus:
+                case EMessageEventType.ApplicationFocus:
                     Enabled = true;
                     break;
 
-                case MessageEventType.NotApplicationFocus:
+                case EMessageEventType.NotApplicationFocus:
                     Enabled = false;
                     break;
             }
