@@ -123,12 +123,16 @@ namespace Moirai.Atropos.UI.Editor
             {
                 // 系统组件
                 new UIElementRegexData("Obj", "GameObject"),
+                // ReSharper disable once StringLiteralTypo
                 new UIElementRegexData("Tf", "Transform"),
                 new UIElementRegexData("Rect", "RectTransform"),
                 new UIElementRegexData("Text", "UnityEngine.UI.Text"),
+                // ReSharper disable once StringLiteralTypo
                 new UIElementRegexData("Btn", "UnityEngine.UI.Button"),
                 new UIElementRegexData("Slider", "UnityEngine.UI.Slider"),
+                // ReSharper disable once StringLiteralTypo
                 new UIElementRegexData("Img", "UnityEngine.UI.Image"),
+                // ReSharper disable once StringLiteralTypo
                 new UIElementRegexData("RImg", "UnityEngine.UI.RawImage"),
                 new UIElementRegexData("Scrollbar", "UnityEngine.UI.Scrollbar"),
                 new UIElementRegexData("ScrollRect", "UnityEngine.UI.ScrollRect"),
@@ -144,25 +148,33 @@ namespace Moirai.Atropos.UI.Editor
                 new UIElementRegexData("Video", "UnityEngine.Video.VideoPlayer"),
                 new UIElementRegexData("CanvasGroup", "CanvasGroup"),
 #if (TEXT_MESH_PRO_INSTALLED || UNITY_UGUI2_INSTALLED)
+                // ReSharper disable once StringLiteralTypo
                 new UIElementRegexData("Tmp", "TMPro.TextMeshProUGUI"),
+                // ReSharper disable once StringLiteralTypo
                 new UIElementRegexData("TmpInput", "TMPro.TMP_InputField"),
+                // ReSharper disable once StringLiteralTypo
                 new UIElementRegexData("TmpDropdown", "TMPro.TMP_Dropdown"),
 #endif
 
                 // 框架组件 - Gameplay
                 new UIElementRegexData("Label", "Moirai.Clotho.UI.UILabel"),
+                // ReSharper disable once StringLiteralTypo
                 new UIElementRegexData("SuperBtn", "Moirai.Clotho.UI.ButtonSuper"),
                 new UIElementRegexData("Menu", "Moirai.Clotho.UI.UIMenu"),
                 new UIElementRegexData("MenuItem", "Moirai.Clotho.UI.UIMenuItem"),
+                // ReSharper disable once StringLiteralTypo
                 new UIElementRegexData("Pbar", "Moirai.Clotho.UI.ProgressBar"),
 
 #if MOIRAI_CLOTHO_UIPRO
-                new UIElementRegexData("Carousel","Moirai.Clotho.UIPro.Carousel"),
-                new UIElementRegexData("ListCarousel","Moirai.Clotho.UIPro.ListCarousel"),
-                new UIElementRegexData("SlideToggle","Moirai.Clotho.UIPro.SlideToggle"),
+                // ReSharper disable once StringLiteralTypo
+                new UIElementRegexData("Crsl","Moirai.Clotho.UIPro.Carousel"),
+                // ReSharper disable once StringLiteralTypo
+                new UIElementRegexData("ListCrsl","Moirai.Clotho.UIPro.ListCarousel"),
+                new UIElementRegexData("SlideTog","Moirai.Clotho.UIPro.SlideToggle"),
 #endif
 
                 // 框架组件 - Juice
+                // ReSharper disable once StringLiteralTypo
                 new UIElementRegexData("AnimPbar", "Moirai.Lachesis.UI.AnimateProgressBar"),
 
             };
