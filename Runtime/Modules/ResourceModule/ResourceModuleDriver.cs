@@ -10,7 +10,7 @@ namespace Moirai.Atropos.Resource
     [DisallowMultipleComponent]
     public class ResourceModuleDriver : MonoBehaviour
     {
-        #region Propreties
+        #region Properties
 
         private const int DEFAULT_PRIORITY = 0;
 
