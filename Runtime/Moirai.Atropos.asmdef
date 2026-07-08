@@ -54,12 +54,12 @@
             "define": "TIMELINE_INSTALLED"
         },
         {
-            "name": "org.nuget.r3",
+            "name": "com.cysharp.r3",
             "expression": "1.0.0",
             "define": "R3_INSTALLED"
         },
         {
-            "name": "org.nuget.zstring",
+            "name": "com.cysharp.zstring",
             "expression": "1.0.0",
             "define": "ZSTRING_INSTALLED"
         },
