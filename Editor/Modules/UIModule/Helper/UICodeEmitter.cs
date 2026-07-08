@@ -454,13 +454,16 @@ namespace Moirai.Atropos.UI.Editor
             }
 
             var lastBrace = existingContent.LastIndexOf('}');
-            if (lastBrace >= 0)
+            if (lastBrace > 0)
             {
+                var secondLastBrace = existingContent.LastIndexOf('}', lastBrace - 1);
+                var insertPos = secondLastBrace >= 0 ? secondLastBrace : lastBrace;
+
                 var indent = DetectIndent(existingContent);
                 var eventsSection = Environment.NewLine + indent + EVENTS_REGION_START + Environment.NewLine + Environment.NewLine
                     + missingMethods + Environment.NewLine
                     + indent + EVENTS_REGION_END + Environment.NewLine;
-                return existingContent.Substring(0, lastBrace) + eventsSection + existingContent.Substring(lastBrace);
+                return existingContent.Substring(0, insertPos) + eventsSection + existingContent.Substring(insertPos);
             }
 
             return existingContent + Environment.NewLine + missingMethods;
