@@ -1,11 +1,10 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
 using Moirai.Atropos.Editor.Inspector;
-using Moirai.Atropos.Procedure;
 using UnityEditor;
 using UnityEngine;
 
-namespace Moirai.Atropos.Editor.GameSettings
+namespace Moirai.Atropos.Procedure.Editor
 {
     [CustomEditor(typeof(ProcedureSettings))]
     // ReSharper disable once InconsistentNaming

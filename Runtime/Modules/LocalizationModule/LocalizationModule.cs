@@ -55,15 +55,17 @@ namespace Moirai.Atropos.Localization
             }
             else
             {
+#if UNITY_EDITOR
                 // 如果处于编辑器模拟模式下，使用编辑器设置的语言
-                if (GameModule.Resource.PlayMode == EPlayMode.EditorSimulateMode
-                    && GameModule.Base.EditorLanguage != Language.Unspecified.Name)
+                if (GameSettings.EditorLanguage != Language.Unspecified.Name)
                 {
-                    language = GameModule.Base.EditorLanguage;
+                    language = GameSettings.EditorLanguage;
                     settingSource = "EditorSetting";
                 }
+                else
+#endif
                 // 如果已设置语言，则使用设置的语言
-                else if (SettingUtility.HasSetting(Constant.Setting.LANGUAGE))
+                if (SettingUtility.HasSetting(Constant.Setting.LANGUAGE))
                 {
                     language = SettingUtility.GetString(Constant.Setting.LANGUAGE);
                     settingSource = "SavedSetting";

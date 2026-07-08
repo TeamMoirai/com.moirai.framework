@@ -1,5 +1,6 @@
 ﻿using Moirai.Atropos.Audio;
 using Moirai.Atropos.Debugger;
+using Moirai.Atropos.Events;
 using Moirai.Atropos.Fsm;
 using Moirai.Atropos.Input;
 using Moirai.Atropos.Localization;
@@ -26,12 +27,6 @@ namespace Moirai.Atropos
 
         #region 框架模块
         
-        private static RootModule s_Base;
-        /// <summary>
-        /// 获取游戏基础模块。
-        /// </summary>
-        public static RootModule Base => s_Base;
-
         private static IDebuggerModule s_Debugger;
         /// <summary>
         /// 获取调试模块。
@@ -120,15 +115,20 @@ namespace Moirai.Atropos
             return module;
         }
 
+        #region 引擎方法 [UNITY METHODS]
+
+        /// <summary>
+        /// 游戏框架模块初始化。
+        /// </summary>
         private void Awake()
         {
             Log.Info("GameModule Active");
             s_IsShutdown = false;
             
             gameObject.name = $"[{nameof(GameModule)}]";
-            
-            s_Base = GetComponent<RootModule>();
-            
+
+            GameSettings.InitSettings();
+
             ModuleSystem.GetModule<IUpdateDriver>();
             ModuleSystem.GetModule<IResourceModule>();
             ModuleSystem.GetModule<IDebuggerModule>();
@@ -138,6 +138,9 @@ namespace Moirai.Atropos
             ProcedureSettings.StartProcedure().Forget();
 
             DontDestroyOnLoad(gameObject);
+
+            Application.lowMemory += OnLowMemory;
+            GameTime.StartFrame();
         }
 
         private void OnEnable()
@@ -154,22 +157,45 @@ namespace Moirai.Atropos
 #endif
         }
 
-#if UNITY_EDITOR
-        private static void HandlePlayModeStateChanged(UnityEditor.PlayModeStateChange state)
+        private void Update()
         {
-            if (state ==  UnityEditor.PlayModeStateChange.ExitingPlayMode)
-            {
-                Shutdown();
-            }
+            GameTime.StartFrame();
+            ModuleSystem.Update(GameTime.deltaTime, GameTime.unscaledDeltaTime);
         }
-#endif
+
+        private void FixedUpdate()
+        {
+            GameTime.StartFrame();
+            ModuleSystem.FixedUpdate(GameTime.deltaTime, GameTime.unscaledDeltaTime);
+        }
+
+        private void LateUpdate()
+        {
+            GameTime.StartFrame();
+            ModuleSystem.LateUpdate(GameTime.deltaTime, GameTime.unscaledDeltaTime);
+        }
+
+        private void OnApplicationFocus(bool hasFocus)
+        {
+            MessageEvent.Trigger(hasFocus ? EMessageEventType.ApplicationFocus : EMessageEventType.NotApplicationFocus);
+        }
+
+        private void OnApplicationQuit()
+        {
+            MessageEvent.Trigger(EMessageEventType.ApplicationQuit);
+            Application.lowMemory -= OnLowMemory;
+            StopAllCoroutines();
+        }
+
+        #endregion
 
         public static void Shutdown()
         {
             Log.Info("GameModule Shutdown");
             s_IsShutdown = true;
- 
-            s_Base = null;
+
+            ModuleSystem.Shutdown();
+
             s_Debugger = null;
             s_Fsm = null;
             s_Procedure = null;
@@ -183,5 +209,32 @@ namespace Moirai.Atropos
             s_Input = null;
             s_Save = null;
         }
+
+        private void OnLowMemory()
+        {
+            Log.Warning("Low memory reported...");
+
+            IObjectPoolModule objectPoolModule = ModuleSystem.GetModule<IObjectPoolModule>();
+            if (objectPoolModule != null)
+            {
+                objectPoolModule.ReleaseAllUnused();
+            }
+
+            IResourceModule resourceModule = ModuleSystem.GetModule<IResourceModule>();
+            if (resourceModule != null)
+            {
+                resourceModule.ForceUnloadUnusedAssets(true);
+            }
+        }
+
+#if UNITY_EDITOR
+        private static void HandlePlayModeStateChanged(UnityEditor.PlayModeStateChange state)
+        {
+            if (state ==  UnityEditor.PlayModeStateChange.ExitingPlayMode)
+            {
+                Shutdown();
+            }
+        }
+#endif
     }
 }

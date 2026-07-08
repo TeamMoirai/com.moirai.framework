@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using UnityEngine;
 
@@ -50,6 +52,56 @@ namespace Moirai.Atropos
         public void ResetToDefaults()
         {
             Reset();
+        }
+
+        /// <summary>
+        /// 获取指定接口的实现类
+        /// </summary>
+        /// <param name="interfaceType"></param>
+        /// <param name="defaultTypeName"></param>
+        /// <returns></returns>
+        protected static IEnumerable<string> GetTypeOptions(Type interfaceType, string defaultTypeName)
+        {
+            var options = AssemblyUtility.GetRuntimeTypeNames(interfaceType)
+                .Distinct(StringComparer.Ordinal)
+                .OrderBy(typeName => typeName, StringComparer.Ordinal)
+                .ToList();
+
+            if (!options.Contains(defaultTypeName))
+            {
+                options.Insert(0, defaultTypeName);
+            }
+
+            return options;
+        }
+
+        /// <summary>
+        /// 实例化接口类型
+        /// </summary>
+        /// <param name="typeName"></param>
+        /// <typeparam name="T"></typeparam>
+        /// <returns></returns>
+        /// <exception cref="GameException"></exception>
+        protected static T ResolveTypeOption<T>(string typeName)
+        {
+            if (string.IsNullOrEmpty(typeName))
+            {
+                throw new GameException("Type can not be null or empty!.");
+            }
+
+            Type helperType = AssemblyUtility.GetType(typeName);
+            if (helperType == null)
+            {
+                throw new GameException(TextUtility.Format("Can not find helper type '{0}'.", typeName));
+            }
+
+            T instance = (T)Activator.CreateInstance(helperType);
+            if (instance == null)
+            {
+                throw new GameException(TextUtility.Format("Can not create helper instance '{0}'.", typeName));
+            }
+
+            return instance;
         }
     }
 
