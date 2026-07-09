@@ -143,6 +143,13 @@ namespace Moirai.Atropos
             GameTime.StartFrame();
         }
 
+        private void OnDestroy()
+        {
+#if !UNITY_EDITOR
+            ModuleSystem.Shutdown();
+#endif
+        }
+
         private void OnEnable()
         {
 #if UNITY_EDITOR
@@ -193,8 +200,6 @@ namespace Moirai.Atropos
         {
             Log.Info("GameModule Shutdown");
             s_IsShutdown = true;
-
-            ModuleSystem.Shutdown();
 
             s_Debugger = null;
             s_Fsm = null;

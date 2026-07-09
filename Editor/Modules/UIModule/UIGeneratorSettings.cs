@@ -33,6 +33,7 @@ namespace Moirai.Atropos.UI.Editor
         [TabGroup(GENERAL_GROUP)]
         [Tooltip("排除的关键字（匹配则不生成）")]
         [SerializeField] private string[] m_ExcludeKeywords;
+        /// <remarks>子字符串匹配。直接跳过整个子树，不递归遍历其子节点</remarks>
         public static string[] ExcludeKeywords => Instance.m_ExcludeKeywords;
 
         [Header("UI脚本生成辅助类")]
