@@ -9,7 +9,7 @@ namespace Moirai.Atropos.Audio
     /// <summary>
     /// 音量设置绑定
     /// </summary>
-    public class AudioSettingsBinder : MonoBehaviour
+    public class AudioSettingsWidget : MonoBehaviour
     {
         [Tooltip("切换组件的 On 代表静音，反之 Off 代表静音")]
         [SerializeField] private bool m_ToggleOnIsMute = true;
