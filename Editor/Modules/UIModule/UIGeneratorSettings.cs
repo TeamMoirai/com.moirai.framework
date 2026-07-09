@@ -185,15 +185,16 @@ namespace Moirai.Atropos.UI.Editor
                 new UIEventBindingConfig("UnityEngine.UI.Button", "onClick", "Click", ""),
                 new UIEventBindingConfig("UnityEngine.UI.Toggle", "onValueChanged", "Change", "(bool isOn)"),
                 new UIEventBindingConfig("UnityEngine.UI.Slider", "onValueChanged", "Change", "(float value)"),
-                new UIEventBindingConfig("UnityEngine.UI.Dropdown", "onValueChanged", "Change", "(int selectedIndex)"),
+                new UIEventBindingConfig("UnityEngine.UI.Dropdown", "onValueChanged", "Change", "(int index)"),
 #if (TEXT_MESH_PRO_INSTALLED || UNITY_UGUI2_INSTALLED)
-                new UIEventBindingConfig("TMPro.TMP_Dropdown", "onValueChanged", "Change", "(int selectedIndex)"),
+                new UIEventBindingConfig("TMPro.TMP_Dropdown", "onValueChanged", "Change", "(int index)"),
 #endif
 
                 // 框架组件 - Gameplay
                 new UIEventBindingConfig("Moirai.Clotho.UI.ButtonSuper", "onClick", "Click", ""),
                 new UIEventBindingConfig("Moirai.Clotho.UI.UIMenuItem", "onSubmit", "Click", "(UIMenuItem item)"),
 #if MOIRAI_CLOTHO_UIPRO
+                new UIEventBindingConfig("Moirai.Clotho.UIPro.ListCarousel", "onValueChanged", "Change", "(int index)"),
                 new UIEventBindingConfig("Moirai.Clotho.UIPro.SlideToggle", "onValueChanged", "Change", "(bool isOn)"),
 #endif
             };
