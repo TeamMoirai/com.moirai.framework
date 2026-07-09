@@ -191,25 +191,19 @@ namespace Moirai.Atropos.UI
             }
         }
 
+        private bool _interactable;
         /// <summary>
         /// 窗口交互性
         /// </summary>
         public bool Interactable
         {
-            get
-            {
-                if (_raycaster != null)
-                {
-                    return _raycaster.enabled;
-                }
-                else
-                {
-                    return false;
-                }
-            }
+            get => _interactable;
 
             set
             {
+                if (_interactable == value) return;
+
+                // Log.Info("{0}'s Interactable: {1}", WindowName, value);
                 if (_raycaster != null)
                 {
                     _raycaster.enabled = value;
@@ -218,6 +212,8 @@ namespace Moirai.Atropos.UI
                         _childRaycaster[i].enabled = value;
                     }
                 }
+
+                _interactable = value;
             }
         }
 
