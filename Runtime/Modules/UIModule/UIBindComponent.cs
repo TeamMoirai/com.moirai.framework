@@ -20,6 +20,6 @@ namespace Moirai.Atropos.UI
             else
                 m_Scale = transform.localScale;
         }
-    }
 #endif
+    }
 }
