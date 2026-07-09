@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using Sirenix.OdinInspector;
 using UnityEngine;
 
 namespace Moirai.Atropos.Input
@@ -6,17 +8,16 @@ namespace Moirai.Atropos.Input
     [FrameworkSetting("输入设置", "输入管理器类型选择", -461)]
     public sealed class InputSettings : FrameworkSettings<InputSettings>
     {
-        /// <summary>
-        /// 定义了由相关联的输入处理器获取的输入的性质。
-        /// </summary>
-        private enum EInputType { InputManager, InputSystem, UIMobile }
-        
-        [Tooltip("输入管理器：Unity 的旧版输入管理器\n\n" +
-                 "UI 移动端：它使用场景中的特定 UI 元素（InputButton 和 InputAxes 组件）作为输入。" +
-                 "请确保这些元素的“动作名称”与想要触发的角色动作相匹配。")] 
-        [SerializeField] private EInputType m_InputType = EInputType.InputSystem;
-        
-        private IInputHandler _inputHandler = null;
+        [InfoBox("输入管理器：Unity 的旧版输入管理器\n" +
+                 "UI 移动端：它使用场景中的特定 UI 元素（InputButton 和 InputAxes 组件）作为输入。\n\n" +
+                 "请确保这些元素的“动作名称”与想要触发的角色动作相匹配。", InfoMessageType.None)]
+
+        [LabelText("InputHandler")]
+        [ValueDropdown(nameof(GetInputHandleTypes))]
+        [SerializeField] private string m_InputHandlerTypeName;
+        private static IEnumerable<string> GetInputHandleTypes() => GetTypeOptions(typeof(IInputHandler));
+
+        private static IInputHandler _inputHandler = null;
         /// <summary>
         /// 获取/设置当前的输入处理器组件。
         /// </summary>
@@ -24,44 +25,28 @@ namespace Moirai.Atropos.Input
         {
             get
             {
-                if (Instance._inputHandler != null) return Instance._inputHandler;
+                if (_inputHandler != null) return _inputHandler;
 
                 // 初始化
-                switch (Instance.m_InputType)
-                {
-                    case EInputType.InputManager:
-#if !ENABLE_LEGACY_INPUT_MANAGER
-                        Log.Error("Please enable {0} Handling in Project Settings!", Instance.m_InputType);
-                        return null;
-#else
-                        Instance._inputHandler = new UnityInputManagerHandler();
-                        Instance._inputHandler.OnInit();
-#endif
-                        break;
+                _inputHandler = ResolveTypeOption<IInputHandler>(Instance.m_InputHandlerTypeName);
+                _inputHandler.OnInit();
 
-                    case EInputType.InputSystem:
-#if !ENABLE_INPUT_SYSTEM
-                        Log.Error("Please install {0} package!", Instance.m_InputType);
-                        return null;
-#else
-                        Instance._inputHandler = new UnityInputSystemHandler();
-                        Instance._inputHandler.OnInit();
-#endif
-                        break;
-
-                    case EInputType.UIMobile:
-                        Instance._inputHandler = new UIMobileInputHandler();
-                        Instance._inputHandler.OnInit();
-                        break;
-                }
-
-                return Instance._inputHandler;
+                return _inputHandler;
             }
             set
             {
-                Instance._inputHandler = value;
-                Instance._inputHandler?.OnInit();
+                _inputHandler = value;
+                _inputHandler?.OnInit();
             }
+        }
+
+        protected internal override void Reset()
+        {
+#if ENABLE_INPUT_SYSTEM
+            m_InputHandlerTypeName = typeof(UnityInputSystemHandler).FullName;
+#elif ENABLE_LEGACY_INPUT_MANAGER
+            m_InputHandlerTypeName = typeof(UnityInputManagerHandler).FullName;
+#endif
         }
     }
 }
