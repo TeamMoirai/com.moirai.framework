@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿#if ENABLE_INPUT_SYSTEM
+using UnityEngine;
 using UnityEngine.InputSystem;
 
 namespace Moirai.Atropos.Input.Prompts
@@ -45,3 +46,4 @@ namespace Moirai.Atropos.Input.Prompts
         }
     }
 }
+#endif

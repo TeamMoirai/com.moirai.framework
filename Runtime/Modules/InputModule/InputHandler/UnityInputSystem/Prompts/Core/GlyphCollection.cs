@@ -1,4 +1,5 @@
-﻿using System;
+﻿#if ENABLE_INPUT_SYSTEM
+using System;
 using Sirenix.OdinInspector;
 using UnityEngine;
 
@@ -60,3 +61,4 @@ namespace Moirai.Atropos.Input.Prompts
         public PromptGlyph UnboundGlyph => m_UnboundGlyph;
     }
 }
+#endif
