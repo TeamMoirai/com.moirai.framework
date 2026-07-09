@@ -130,14 +130,7 @@ namespace Moirai.Atropos
                 {
                     string filePath = saveFolder + type.Name + ".asset";
 #if UNITY_EDITOR
-                    s_Instance = LoadSettingSO<T>(filePath);
-
-                    // 只在创建新资产时 Reset，加载已有资产不应重置
-                    s_Instance.ResetToDefaults();
-
-                    UnityEditor.EditorUtility.SetDirty(s_Instance);
-                    UnityEditor.AssetDatabase.SaveAssets();
-                    UnityEditor.AssetDatabase.Refresh();
+                    s_Instance = LoadSettingSO<T>(filePath, t => t.ResetToDefaults());
 #else
                     Log.Error($"Could not find {type.Name} at path '{filePath}'!");
 #endif
