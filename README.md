@@ -10,6 +10,12 @@ Moirai Framework
 [![README](https://img.shields.io/badge/README-English-FFA500)](https://github.com/TeamMoirai/com.moirai.framework/blob/main/README_EN.md)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/TeamMoirai/com.moirai.framework)
 
+---
+
+[![Repobeats analytics image](https://repobeats.axiom.co/api/embed/7a3672ae3c424e1c04e25afe6ef553652e788130.svg "Repobeats analytics image")](https://github.com/TeamMoirai/com.moirai.framework/pulse)
+
+---
+
 ## 📖 简介
 
 **Moirai Framework** 是一个简单（新手友好、开箱即用）且强大的 Unity 框架全平台解决方案。
