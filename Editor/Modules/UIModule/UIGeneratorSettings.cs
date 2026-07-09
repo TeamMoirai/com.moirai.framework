@@ -193,7 +193,8 @@ namespace Moirai.Atropos.UI.Editor
 
                 // 框架组件 - Gameplay
                 new UIEventBindingConfig("Moirai.Clotho.UI.ButtonSuper", "onClick", "Click", ""),
-                new UIEventBindingConfig("Moirai.Clotho.UI.UIMenuItem", "onSubmit", "Click", "(UIMenuItem item)"),
+                new UIEventBindingConfig("Moirai.Clotho.UI.UIMenu", "onValueChanged", "Change", "(int index)"),
+                new UIEventBindingConfig("Moirai.Clotho.UI.UIMenuItem", "onSubmit", "Submit", ""),
 #if MOIRAI_CLOTHO_UIPRO
                 new UIEventBindingConfig("Moirai.Clotho.UIPro.ListCarousel", "onValueChanged", "Change", "(int index)"),
                 new UIEventBindingConfig("Moirai.Clotho.UIPro.SlideToggle", "onValueChanged", "Change", "(bool isOn)"),
