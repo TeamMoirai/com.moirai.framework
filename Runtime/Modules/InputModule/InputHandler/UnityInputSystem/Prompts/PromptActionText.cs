@@ -1,3 +1,4 @@
+#if ENABLE_INPUT_SYSTEM
 using Moirai.Atropos.Attributes;
 using Sirenix.OdinInspector;
 using TMPro;
@@ -42,3 +43,4 @@ namespace Moirai.Atropos.Input.Prompts
         }
     }
 }
+#endif

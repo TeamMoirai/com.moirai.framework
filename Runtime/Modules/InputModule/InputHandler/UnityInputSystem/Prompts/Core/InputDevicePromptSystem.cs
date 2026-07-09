@@ -1,4 +1,5 @@
-﻿using System;
+﻿#if ENABLE_INPUT_SYSTEM
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -692,3 +693,4 @@ namespace Moirai.Atropos.Input.Prompts
         
     }
 }
+#endif

@@ -1,3 +1,4 @@
+#if ENABLE_INPUT_SYSTEM
 using System;
 using System.Collections;
 using System.Linq;
@@ -191,3 +192,4 @@ namespace Moirai.Atropos.Input.Prompts
         }
     }
 }
+#endif

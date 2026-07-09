@@ -1,3 +1,4 @@
+#if ENABLE_INPUT_SYSTEM
 using System.Collections.Generic;
 using Moirai.Atropos.Attributes;
 using Sirenix.OdinInspector;
@@ -91,3 +92,4 @@ namespace Moirai.Atropos.Input.Prompts
         }
     }
 }
+#endif

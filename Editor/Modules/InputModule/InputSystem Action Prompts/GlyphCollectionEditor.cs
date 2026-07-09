@@ -1,4 +1,5 @@
-﻿using System;
+﻿#if ENABLE_INPUT_SYSTEM
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -296,3 +297,4 @@ namespace Moirai.Atropos.Editor.Input.Prompts
 	    }
 	}
 }
+#endif

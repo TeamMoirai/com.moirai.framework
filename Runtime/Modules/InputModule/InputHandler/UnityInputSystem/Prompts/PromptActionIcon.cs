@@ -1,3 +1,4 @@
+#if ENABLE_INPUT_SYSTEM
 using Sirenix.OdinInspector;
 using UnityEngine;
 using UnityEngine.UI;
@@ -69,3 +70,4 @@ namespace Moirai.Atropos.Input.Prompts
         }
     }
 }
+#endif
