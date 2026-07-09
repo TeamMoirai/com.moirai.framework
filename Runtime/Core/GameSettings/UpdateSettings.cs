@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using Sirenix.OdinInspector;
 using UnityEngine;
 
 namespace Moirai.Atropos
@@ -136,6 +137,7 @@ namespace Moirai.Atropos
         public static bool ReplaceAssetPathWithAddress => Instance.m_ReplaceAssetPathWithAddress;
 
         [Header("内置热更UI自定义")]
+        [FolderPath(ParentFolder = "Assets/Resources")]
         [SerializeField] private string m_UIWindowPath = "UIWindow/";
         public static string UIWindowPath => Instance.m_UIWindowPath;
 
