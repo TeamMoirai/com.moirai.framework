@@ -283,8 +283,26 @@ namespace Moirai.Atropos.UI.Editor
                 return null;
             }
 
-            return configs.FirstOrDefault(c =>
+            // 先尝试精确匹配
+            var exactMatch = configs.FirstOrDefault(c =>
                 string.Equals(c.ComponentType, componentTypeFullName, StringComparison.Ordinal));
+            if (exactMatch != null)
+            {
+                return exactMatch;
+            }
+
+            // 尝试继承匹配：检查配置的类型是否是实际类型的基类
+            var actualType = AssemblyUtility.GetType(componentTypeFullName);
+            if (actualType == null)
+            {
+                return null;
+            }
+
+            return configs.FirstOrDefault(c =>
+            {
+                var configType = AssemblyUtility.GetType(c.ComponentType);
+                return configType != null && configType.IsAssignableFrom(actualType);
+            });
         }
 
         private static string GetEventFuncName(string publicName, UIEventBindingConfig config)
