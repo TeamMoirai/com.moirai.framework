@@ -45,7 +45,7 @@ namespace Moirai.Atropos.UI.Editor
         private const string EVENTS_REGION_START = "#region 事件 [EVENTS]";
         private const string EVENTS_REGION_END = "#endregion 事件 [EVENTS]";
 
-        private const string BINDER_VARIABLE_NAME = "_bindComponent";
+        private const string BINDER_VARIABLE_NAME = "_binder";
 
         private static readonly Regex s_MethodSignatureRegex = new Regex(
             @"private\s+partial\s+void\s+(\w+)\s*\(([^)]*)\)", RegexOptions.Compiled);
@@ -133,7 +133,7 @@ namespace Moirai.Atropos.UI.Editor
             controllerContent.AppendLine("\t\tprotected override void ScriptGenerator()");
             controllerContent.AppendLine("\t\t{");
             controllerContent.AppendLine($"\t\t\t{BINDER_VARIABLE_NAME} = gameObject.GetComponent<{className}Binder>();");
-            controllerContent.AppendLine($"\t\t\tif({BINDER_VARIABLE_NAME} == null)");
+            controllerContent.AppendLine($"\t\t\tif ({BINDER_VARIABLE_NAME} == null)");
             controllerContent.AppendLine("\t\t\t{");
             controllerContent.AppendLine($"\t\t\t\tLog.Error($\"根物体: {{gameObject.name}} 缺少组件 {className}Binder, 请检查！！！\");");
             controllerContent.AppendLine("\t\t\t\treturn;");
