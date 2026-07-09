@@ -106,15 +106,15 @@ namespace Moirai.Atropos.UI.Editor
                 new UIScriptGenerateData(
                     "MainProject",
                     "GameMain.UI",
-                    "Assets/Scripts/GameBase/UI",
-                    "Assets/Resources/UI/",
+                    "Assets/Scripts/GameBase/UI/Window",
+                    "Assets/Resources/UI/Window",
                     true
                     ),
                 new UIScriptGenerateData(
                     "Hotfix",
                     "GameLogic.UI",
-                    "Assets/Scripts/GameLogic/UI",
-                    "Assets/AssetRaw/Default/UI/",
+                    "Assets/Scripts/GameLogic/UI/Window",
+                    "Assets/AssetRaw/Default/UI/Window",
                     false
                     )
             };
