@@ -1,4 +1,5 @@
 #if UNITY_EDITOR
+using System;
 using System.IO;
 using System.Threading;
 using UnityEditor;
@@ -9,12 +10,9 @@ namespace Moirai.Atropos
     public partial class FrameworkSettings
     {
         /// <summary>
-        /// 创建设置文件
+        /// 加载或创建设置文件，新创建时通过 onNewAsset 回调初始化
         /// </summary>
-        /// <param name="settingPath"></param>
-        /// <typeparam name="TSetting"></typeparam>
-        // ReSharper disable once InconsistentNaming
-        public static TSetting LoadSettingSO<TSetting>(string settingPath) where TSetting : ScriptableObject
+        public static TSetting LoadSettingSO<TSetting>(string settingPath, Action<TSetting> onNewAsset = null) where TSetting : ScriptableObject
         {
             #region 保证配置文件唯一
 
@@ -67,13 +65,16 @@ namespace Moirai.Atropos
             #endregion
 
             #region 创建配置文件
+
             TSetting setting = ScriptableObject.CreateInstance<TSetting>();
+            onNewAsset?.Invoke(setting);
             AssetDatabase.CreateAsset(setting, settingPath);
 
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
             Debug.Log($"创建{typeof(TSetting).Name}，路径:{settingPath}");
             return setting;
+
             #endregion
         }
 
