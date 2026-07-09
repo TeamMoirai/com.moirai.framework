@@ -477,11 +477,15 @@ namespace Moirai.Atropos.UI.Editor
                 var secondLastBrace = existingContent.LastIndexOf('}', lastBrace - 1);
                 var insertPos = secondLastBrace >= 0 ? secondLastBrace : lastBrace;
 
+                // 定位到插入点所在行的行首，保留该行的缩进
+                var lineStart = existingContent.LastIndexOf('\n', insertPos);
+                var insertIdx = lineStart >= 0 ? lineStart + 1 : 0;
+
                 var indent = DetectIndent(existingContent);
                 var eventsSection = Environment.NewLine + indent + EVENTS_REGION_START + Environment.NewLine + Environment.NewLine
                     + missingMethods + Environment.NewLine
                     + indent + EVENTS_REGION_END + Environment.NewLine;
-                return existingContent.Substring(0, insertPos) + eventsSection + existingContent.Substring(insertPos);
+                return existingContent.Substring(0, insertIdx) + eventsSection + existingContent.Substring(insertIdx);
             }
 
             return existingContent + Environment.NewLine + missingMethods;
