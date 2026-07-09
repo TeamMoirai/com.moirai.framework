@@ -59,7 +59,7 @@ namespace Moirai.Atropos
             }
 
             string typeName = _type.FullName;
-            return string.IsNullOrEmpty(_name) ? typeName : TextUtility.Format("{0}.{1}", typeName, _name);
+            return string.IsNullOrEmpty(_name) ? typeName : $"{typeName}.{_name}";
         }
 
         /// <summary>
