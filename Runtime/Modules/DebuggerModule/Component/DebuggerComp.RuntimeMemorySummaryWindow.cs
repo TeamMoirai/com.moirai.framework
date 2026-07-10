@@ -33,7 +33,7 @@ namespace Moirai.Atropos.Debugger
                     }
                     else
                     {
-                        GUILayout.Label(TextUtility.Format("<b>{0} Objects ({1}) obtained at {2:yyyy-MM-dd HH:mm:ss}.</b>", _sampleCount, GetByteLengthString(_sampleSize), _sampleTime.ToLocalTime()));
+                        GUILayout.Label(StringUtility.Format("<b>{0} Objects ({1}) obtained at {2:yyyy-MM-dd HH:mm:ss}.</b>", _sampleCount, GetByteLengthString(_sampleSize), _sampleTime.ToLocalTime()));
 
                         GUILayout.BeginHorizontal();
                         {

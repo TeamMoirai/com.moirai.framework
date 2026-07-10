@@ -93,8 +93,8 @@ namespace Moirai.Atropos.Debugger
                     DrawItem("LOD Bias", QualitySettings.lodBias.ToString());
                     DrawItem("Maximum LOD Level", QualitySettings.maximumLODLevel.ToString());
                     DrawItem("Particle Raycast Budget", QualitySettings.particleRaycastBudget.ToString());
-                    DrawItem("Async Upload Time Slice", TextUtility.Format("{0} ms", QualitySettings.asyncUploadTimeSlice));
-                    DrawItem("Async Upload Buffer Size", TextUtility.Format("{0} MB", QualitySettings.asyncUploadBufferSize));
+                    DrawItem("Async Upload Time Slice", StringUtility.Format("{0} ms", QualitySettings.asyncUploadTimeSlice));
+                    DrawItem("Async Upload Buffer Size", StringUtility.Format("{0} MB", QualitySettings.asyncUploadBufferSize));
 #if UNITY_2018_3_OR_NEWER
                     DrawItem("Async Upload Persistent Buffer", QualitySettings.asyncUploadPersistentBuffer.ToString());
 #endif

@@ -350,7 +350,7 @@ namespace Moirai.Atropos.Debugger
             string[] debuggerWindowNames = debuggerWindowGroup.GetDebuggerWindowNames();
             for (int i = 0; i < debuggerWindowNames.Length; i++)
             {
-                names.Add(TextUtility.Format("<b>{0}</b>", debuggerWindowNames[i]));
+                names.Add(StringUtility.Format("<b>{0}</b>", debuggerWindowNames[i]));
             }
 
             if (debuggerWindowGroup == _debuggerModule.DebuggerWindowRoot)
@@ -409,7 +409,7 @@ namespace Moirai.Atropos.Debugger
                 color = m_ConsoleWindow.GetLogStringColor(LogType.Log);
             }
 
-            string title = TextUtility.Format("<color=#{0:x2}{1:x2}{2:x2}{3:x2}><b>FPS: {4:F2}</b></color>", color.r, color.g, color.b, color.a, _fpsCounter.CurrentFps);
+            string title = StringUtility.Format("<color=#{0:x2}{1:x2}{2:x2}{3:x2}><b>FPS: {4:F2}</b></color>", color.r, color.g, color.b, color.a, _fpsCounter.CurrentFps);
             if (GUILayout.Button(title, GUILayout.Width(100f), GUILayout.Height(40f)))
             {
                 ShowFullWindow = true;

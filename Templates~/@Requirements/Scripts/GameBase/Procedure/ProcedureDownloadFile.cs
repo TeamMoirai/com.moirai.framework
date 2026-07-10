@@ -77,9 +77,9 @@ namespace Moirai.Main
             float progressPercentage = _resourceModule.Downloader.Progress * 100;
             string speed = FileUtility.GetLengthString((int)CurrentSpeed);
 
-            string line1 = TextUtility.Format(LoadText.Instance.Label_Download_Detail1, downloadUpdateData.CurrentDownloadCount, downloadUpdateData.TotalDownloadCount, progressPercentage);
-            string line2 = TextUtility.Format(LoadText.Instance.Label_Download_Detail2, currentSizeMb, totalSizeMb);
-            string line3 = TextUtility.Format(LoadText.Instance.Label_Download_Detail3, speed, GetRemainingTime(downloadUpdateData.TotalDownloadBytes, downloadUpdateData.CurrentDownloadBytes, CurrentSpeed));
+            string line1 = StringUtility.Format(LoadText.Instance.Label_Download_Detail1, downloadUpdateData.CurrentDownloadCount, downloadUpdateData.TotalDownloadCount, progressPercentage);
+            string line2 = StringUtility.Format(LoadText.Instance.Label_Download_Detail2, currentSizeMb, totalSizeMb);
+            string line3 = StringUtility.Format(LoadText.Instance.Label_Download_Detail3, speed, GetRemainingTime(downloadUpdateData.TotalDownloadBytes, downloadUpdateData.CurrentDownloadBytes, CurrentSpeed));
             
             LauncherMgr.RefreshProgress(_resourceModule.Downloader.Progress);
             LauncherMgr.ShowUI<LoadUpdateUI>($"{line1}\n{line2}\n{line3}");

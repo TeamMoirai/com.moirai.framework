@@ -36,7 +36,7 @@ namespace Moirai.Atropos.Debugger
 
             private void DrawObjectPool(ObjectPoolBase objectPool)
             {
-                GUILayout.Label(TextUtility.Format("<b>Object Pool: {0}</b>", objectPool.FullName));
+                GUILayout.Label(StringUtility.Format("<b>Object Pool: {0}</b>", objectPool.FullName));
                 GUILayout.BeginVertical("box");
                 {
                     DrawItem("Name", objectPool.Name);

@@ -46,7 +46,7 @@ namespace Moirai.Main
 
             _loadedFlag.Clear();
 
-            LauncherMgr.ShowUI<LoadUpdateUI>(TextUtility.Format(LoadText.Instance.Label_Load_Load_Progress, 0));
+            LauncherMgr.ShowUI<LoadUpdateUI>(StringUtility.Format(LoadText.Instance.Label_Load_Load_Progress, 0));
             LauncherMgr.RefreshVersion(VersionUtility.GameVersion, VersionUtility.ResourceVersion);
             
             PreloadResources();
@@ -79,7 +79,7 @@ namespace Moirai.Main
             if (!isComplete)
             {
                 string progressStr = $"{progress * 100:f1}";
-                LauncherMgr.ShowUI<LoadUpdateUI>(TextUtility.Format(LoadText.Instance.Label_Load_Load_Progress, progressStr));
+                LauncherMgr.ShowUI<LoadUpdateUI>(StringUtility.Format(LoadText.Instance.Label_Load_Load_Progress, progressStr));
                 return;
             }
 

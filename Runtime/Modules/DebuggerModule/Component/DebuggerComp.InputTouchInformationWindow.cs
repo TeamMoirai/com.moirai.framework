@@ -28,7 +28,7 @@ namespace Moirai.Atropos.Debugger
 
             private string GetTouchString(Touch touch)
             {
-                return TextUtility.Format("{0}, {1}, {2}, {3}, {4}", touch.position, touch.deltaPosition, touch.rawPosition, touch.pressure, touch.phase);
+                return StringUtility.Format("{0}, {1}, {2}, {3}, {4}", touch.position, touch.deltaPosition, touch.rawPosition, touch.pressure, touch.phase);
             }
 
             private string GetTouchesString(Touch[] touches)

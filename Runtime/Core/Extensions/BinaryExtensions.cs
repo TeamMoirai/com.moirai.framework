@@ -176,7 +176,7 @@ namespace Moirai.Atropos
             int length = ConverterUtility.GetBytes(value, s_CachedBytes);
             if (length > byte.MaxValue)
             {
-                throw new GameException(TextUtility.Format("String '{0}' is too long.", value));
+                throw new GameException(StringUtility.Format("String '{0}' is too long.", value));
             }
 
             EncryptionUtility.GetSelfXorBytes(s_CachedBytes, encryptBytes);

@@ -152,7 +152,7 @@ namespace Moirai.Atropos.Fsm
             TypeNamePair typeNamePair = new TypeNamePair(typeof(T), name);
             if (HasFsm<T>(name))
             {
-                throw new GameException(TextUtility.Format("Already exist FSM '{0}'.", typeNamePair));
+                throw new GameException(StringUtility.Format("Already exist FSM '{0}'.", typeNamePair));
             }
 
             Fsm<T> fsm = Fsm<T>.Create(name, owner, states);
@@ -170,7 +170,7 @@ namespace Moirai.Atropos.Fsm
             TypeNamePair typeNamePair = new TypeNamePair(typeof(T), name);
             if (HasFsm<T>(name))
             {
-                throw new GameException(TextUtility.Format("Already exist FSM '{0}'.", typeNamePair));
+                throw new GameException(StringUtility.Format("Already exist FSM '{0}'.", typeNamePair));
             }
 
             Fsm<T> fsm = Fsm<T>.Create(name, owner, states);

@@ -79,7 +79,7 @@ namespace Moirai.Atropos.Editor.Inspector
 
                             if (GUILayout.Button("Export CSV Data"))
                             {
-                                string exportFileName = EditorUtility.SaveFilePanel("Export CSV Data", string.Empty, TextUtility.Format("Memory Pool Data - {0}.csv", assemblyMemoryPoolInfo.Key), string.Empty);
+                                string exportFileName = EditorUtility.SaveFilePanel("Export CSV Data", string.Empty, StringUtility.Format("Memory Pool Data - {0}.csv", assemblyMemoryPoolInfo.Key), string.Empty);
                                 if (!string.IsNullOrEmpty(exportFileName))
                                 {
                                     try
@@ -89,15 +89,15 @@ namespace Moirai.Atropos.Editor.Inspector
                                         data[index++] = "Class Name,Full Class Name,Unused,Using,Acquire,Release,Add,Remove";
                                         foreach (MemoryPoolInfo memoryPoolInfo in assemblyMemoryPoolInfo.Value)
                                         {
-                                            data[index++] = TextUtility.Format("{0},{1},{2},{3},{4},{5},{6},{7}", memoryPoolInfo.Type.Name, memoryPoolInfo.Type.FullName, memoryPoolInfo.UnusedMemoryCount.ToString(), memoryPoolInfo.UsingMemoryCount.ToString(), memoryPoolInfo.AcquireMemoryCount.ToString(), memoryPoolInfo.ReleaseMemoryCount.ToString(), memoryPoolInfo.AddMemoryCount.ToString(), memoryPoolInfo.RemoveMemoryCount.ToString());
+                                            data[index++] = StringUtility.Format("{0},{1},{2},{3},{4},{5},{6},{7}", memoryPoolInfo.Type.Name, memoryPoolInfo.Type.FullName, memoryPoolInfo.UnusedMemoryCount.ToString(), memoryPoolInfo.UsingMemoryCount.ToString(), memoryPoolInfo.AcquireMemoryCount.ToString(), memoryPoolInfo.ReleaseMemoryCount.ToString(), memoryPoolInfo.AddMemoryCount.ToString(), memoryPoolInfo.RemoveMemoryCount.ToString());
                                         }
 
                                         File.WriteAllLines(exportFileName, data, Encoding.UTF8);
-                                        Debug.Log(TextUtility.Format("Export memory pool CSV data to '{0}' success.", exportFileName));
+                                        Debug.Log(StringUtility.Format("Export memory pool CSV data to '{0}' success.", exportFileName));
                                     }
                                     catch (Exception exception)
                                     {
-                                        Debug.LogError(TextUtility.Format("Export memory pool CSV data to '{0}' failure, exception is '{1}'.", exportFileName, exception.ToString()));
+                                        Debug.LogError(StringUtility.Format("Export memory pool CSV data to '{0}' failure, exception is '{1}'.", exportFileName, exception.ToString()));
                                     }
                                 }
                             }
@@ -125,7 +125,7 @@ namespace Moirai.Atropos.Editor.Inspector
 
         private void DrawMemoryPoolInfo(MemoryPoolInfo memoryPoolInfo)
         {
-            EditorGUILayout.LabelField(m_ShowFullClassName ? memoryPoolInfo.Type.FullName : memoryPoolInfo.Type.Name, TextUtility.Format("{0}\t{1}\t{2}\t{3}\t{4}\t{5}", memoryPoolInfo.UnusedMemoryCount.ToString(), memoryPoolInfo.UsingMemoryCount.ToString(), memoryPoolInfo.AcquireMemoryCount.ToString(), memoryPoolInfo.ReleaseMemoryCount.ToString(), memoryPoolInfo.AddMemoryCount.ToString(), memoryPoolInfo.RemoveMemoryCount.ToString()));
+            EditorGUILayout.LabelField(m_ShowFullClassName ? memoryPoolInfo.Type.FullName : memoryPoolInfo.Type.Name, StringUtility.Format("{0}\t{1}\t{2}\t{3}\t{4}\t{5}", memoryPoolInfo.UnusedMemoryCount.ToString(), memoryPoolInfo.UsingMemoryCount.ToString(), memoryPoolInfo.AcquireMemoryCount.ToString(), memoryPoolInfo.ReleaseMemoryCount.ToString(), memoryPoolInfo.AddMemoryCount.ToString(), memoryPoolInfo.RemoveMemoryCount.ToString()));
         }
 
         private int Comparison(MemoryPoolInfo a, MemoryPoolInfo b)

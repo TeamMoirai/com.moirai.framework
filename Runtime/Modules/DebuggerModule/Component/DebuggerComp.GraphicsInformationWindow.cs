@@ -17,7 +17,7 @@ namespace Moirai.Atropos.Debugger
                     DrawItem("Device Vendor", SystemInfo.graphicsDeviceVendor);
                     DrawItem("Device Type", SystemInfo.graphicsDeviceType.ToString());
                     DrawItem("Device Version", SystemInfo.graphicsDeviceVersion);
-                    DrawItem("Memory Size", TextUtility.Format("{0} MB", SystemInfo.graphicsMemorySize));
+                    DrawItem("Memory Size", StringUtility.Format("{0} MB", SystemInfo.graphicsMemorySize));
                     DrawItem("Multi Threaded", SystemInfo.graphicsMultiThreaded.ToString());
 #if UNITY_2019_3_OR_NEWER
                     DrawItem("Rendering Threading Mode", SystemInfo.renderingThreadingMode.ToString());
@@ -155,7 +155,7 @@ namespace Moirai.Atropos.Debugger
 
             private string GetShaderLevelString(int shaderLevel)
             {
-                return TextUtility.Format("Shader Model {0}.{1}", shaderLevel / 10, shaderLevel % 10);
+                return StringUtility.Format("Shader Model {0}.{1}", shaderLevel / 10, shaderLevel % 10);
             }
         }
     }

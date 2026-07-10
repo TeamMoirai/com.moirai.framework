@@ -116,7 +116,7 @@ namespace Moirai.Atropos.Editor
             foreach (FsmBase fsm in fsms)
             {
                 EditorGUILayout.LabelField(fsm.Name,
-                    fsm.IsRunning ? TextUtility.Format("{0}, {1:F1} s", fsm.CurrentStateName, fsm.CurrentStateTime) : (fsm.IsDestroyed ? "Destroyed" : "Not Running"));
+                    fsm.IsRunning ? StringUtility.Format("{0}, {1:F1} s", fsm.CurrentStateName, fsm.CurrentStateTime) : (fsm.IsDestroyed ? "Destroyed" : "Not Running"));
             }
         }
 
@@ -164,10 +164,10 @@ namespace Moirai.Atropos.Editor
                             {
                                 EditorGUILayout.LabelField(string.IsNullOrEmpty(objectInfo.Name) ? "<None>" : objectInfo.Name,
                                     objectPool.AllowMultiSpawn
-                                        ? TextUtility.Format("{0}\t{1}\t{2}\t{3}\t{4:yyyy-MM-dd HH:mm:ss}", objectInfo.Locked, objectInfo.SpawnCount,
+                                        ? StringUtility.Format("{0}\t{1}\t{2}\t{3}\t{4:yyyy-MM-dd HH:mm:ss}", objectInfo.Locked, objectInfo.SpawnCount,
                                             objectInfo.CustomCanReleaseFlag,
                                             objectInfo.Priority, objectInfo.LastUseTime.ToLocalTime())
-                                        : TextUtility.Format("{0}\t{1}\t{2}\t{3}\t{4:yyyy-MM-dd HH:mm:ss}", objectInfo.Locked, objectInfo.IsInUse,
+                                        : StringUtility.Format("{0}\t{1}\t{2}\t{3}\t{4:yyyy-MM-dd HH:mm:ss}", objectInfo.Locked, objectInfo.IsInUse,
                                             objectInfo.CustomCanReleaseFlag,
                                             objectInfo.Priority, objectInfo.LastUseTime.ToLocalTime()));
                             }
@@ -185,7 +185,7 @@ namespace Moirai.Atropos.Editor
                             if (GUILayout.Button("Export CSV Data"))
                             {
                                 string exportFileName = EditorUtility.SaveFilePanel("Export CSV Data", string.Empty,
-                                    TextUtility.Format("Object Pool Data - {0}.csv", objectPool.Name),
+                                    StringUtility.Format("Object Pool Data - {0}.csv", objectPool.Name),
                                     string.Empty);
                                 if (!string.IsNullOrEmpty(exportFileName))
                                 {
@@ -193,25 +193,25 @@ namespace Moirai.Atropos.Editor
                                     {
                                         int index = 0;
                                         string[] data = new string[objectInfos.Length + 1];
-                                        data[index++] = TextUtility.Format("Name,Locked,{0},Custom Can Release Flag,Priority,Last Use Time",
+                                        data[index++] = StringUtility.Format("Name,Locked,{0},Custom Can Release Flag,Priority,Last Use Time",
                                             objectPool.AllowMultiSpawn ? "Count" : "In Use");
                                         foreach (ObjectInfo objectInfo in objectInfos)
                                         {
                                             data[index++] = objectPool.AllowMultiSpawn
-                                                ? TextUtility.Format("{0},{1},{2},{3},{4},{5:yyyy-MM-dd HH:mm:ss}", objectInfo.Name, objectInfo.Locked,
+                                                ? StringUtility.Format("{0},{1},{2},{3},{4},{5:yyyy-MM-dd HH:mm:ss}", objectInfo.Name, objectInfo.Locked,
                                                     objectInfo.SpawnCount,
                                                     objectInfo.CustomCanReleaseFlag, objectInfo.Priority, objectInfo.LastUseTime.ToLocalTime())
-                                                : TextUtility.Format("{0},{1},{2},{3},{4},{5:yyyy-MM-dd HH:mm:ss}", objectInfo.Name, objectInfo.Locked,
+                                                : StringUtility.Format("{0},{1},{2},{3},{4},{5:yyyy-MM-dd HH:mm:ss}", objectInfo.Name, objectInfo.Locked,
                                                     objectInfo.IsInUse,
                                                     objectInfo.CustomCanReleaseFlag, objectInfo.Priority, objectInfo.LastUseTime.ToLocalTime());
                                         }
 
                                         File.WriteAllLines(exportFileName, data, Encoding.UTF8);
-                                        Debug.Log(TextUtility.Format("Export object pool CSV data to '{0}' success.", exportFileName));
+                                        Debug.Log(StringUtility.Format("Export object pool CSV data to '{0}' success.", exportFileName));
                                     }
                                     catch (Exception exception)
                                     {
-                                        Debug.LogError(TextUtility.Format("Export object pool CSV data to '{0}' failure, exception is '{1}'.", exportFileName,
+                                        Debug.LogError(StringUtility.Format("Export object pool CSV data to '{0}' failure, exception is '{1}'.", exportFileName,
                                             exception));
                                     }
                                 }

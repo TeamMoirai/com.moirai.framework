@@ -2,7 +2,7 @@
 using UnityEngine;
 using UnityEngine.TestTools;
 
-namespace Moirai.Atropos.Tests
+namespace Moirai.Atropos.Utility
 {
     public class TweenTest
     {

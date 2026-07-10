@@ -30,14 +30,14 @@ namespace Moirai.Atropos.Editor
 
         public void Init(SerializedObject serializedObject)
         {
-            m_HelperTypeName = serializedObject.FindProperty(TextUtility.Format("m_{0}HelperTypeName", m_Name));
-            m_CustomHelper = serializedObject.FindProperty(TextUtility.Format("m_Custom{0}Helper", m_Name));
+            m_HelperTypeName = serializedObject.FindProperty(StringUtility.Format("m_{0}HelperTypeName", m_Name));
+            m_CustomHelper = serializedObject.FindProperty(StringUtility.Format("m_Custom{0}Helper", m_Name));
         }
 
         public void Draw()
         {
             string displayName = FieldNameForDisplay(m_Name);
-            int selectedIndex = EditorGUILayout.Popup(TextUtility.Format("{0} Helper", displayName), m_HelperTypeNameIndex, m_HelperTypeDisplayNames);
+            int selectedIndex = EditorGUILayout.Popup(StringUtility.Format("{0} Helper", displayName), m_HelperTypeNameIndex, m_HelperTypeDisplayNames);
             if (selectedIndex != m_HelperTypeNameIndex)
             {
                 m_HelperTypeNameIndex = selectedIndex;
@@ -49,7 +49,7 @@ namespace Moirai.Atropos.Editor
                 EditorGUILayout.PropertyField(m_CustomHelper);
                 if (m_CustomHelper.objectReferenceValue == null)
                 {
-                    EditorGUILayout.HelpBox(TextUtility.Format("You must set Custom {0} Helper.", displayName), MessageType.Error);
+                    EditorGUILayout.HelpBox(StringUtility.Format("You must set Custom {0} Helper.", displayName), MessageType.Error);
                 }
             }
         }

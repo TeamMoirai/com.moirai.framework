@@ -11,7 +11,7 @@ namespace Moirai.Atropos.Debugger
                 GUILayout.Label("<b>Time Information</b>");
                 GUILayout.BeginVertical("box");
                 {
-                    DrawItem("Time Scale", TextUtility.Format("{0} [{1}]", UnityEngine.Time.timeScale, GetTimeScaleDescription(UnityEngine.Time.timeScale)));
+                    DrawItem("Time Scale", StringUtility.Format("{0} [{1}]", UnityEngine.Time.timeScale, GetTimeScaleDescription(UnityEngine.Time.timeScale)));
                     DrawItem("Realtime Since Startup", UnityEngine.Time.realtimeSinceStartup.ToString());
                     DrawItem("Time Since Level Load", UnityEngine.Time.timeSinceLevelLoad.ToString());
                     DrawItem("Time", UnityEngine.Time.time.ToString());

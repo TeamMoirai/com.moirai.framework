@@ -27,7 +27,7 @@ namespace Moirai.Atropos.Audio
             _maxChannel = audioGroupConfig.MaxChannel;
             
             AudioAgents = new List<AudioAgent>(_maxChannel);
-            InstanceRoot = new GameObject(TextUtility.Format("Audio Category - {0}", audioGroupConfig.AudioMixerGroup.name)).transform;
+            InstanceRoot = new GameObject(StringUtility.Format("Audio Category - {0}", audioGroupConfig.AudioMixerGroup.name)).transform;
             InstanceRoot.SetParent(GameModule.Audio.InstanceRoot);
             for (int index = 0; index < _maxChannel; index++)
             {

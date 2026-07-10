@@ -17,8 +17,8 @@ namespace Moirai.Atropos.Debugger
                     DrawItem("Device Model", SystemInfo.deviceModel);
                     DrawItem("Processor Type", SystemInfo.processorType);
                     DrawItem("Processor Count", SystemInfo.processorCount.ToString());
-                    DrawItem("Processor Frequency", TextUtility.Format("{0} MHz", SystemInfo.processorFrequency));
-                    DrawItem("System Memory Size", TextUtility.Format("{0} MB", SystemInfo.systemMemorySize));
+                    DrawItem("Processor Frequency", StringUtility.Format("{0} MHz", SystemInfo.processorFrequency));
+                    DrawItem("System Memory Size", StringUtility.Format("{0} MB", SystemInfo.systemMemorySize));
 #if UNITY_5_5_OR_NEWER
                     DrawItem("Operating System Family", SystemInfo.operatingSystemFamily.ToString());
 #endif
