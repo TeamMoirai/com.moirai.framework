@@ -55,6 +55,12 @@ namespace Moirai.Atropos
             return this;
         }
 
+        public StringUtility.IStringBuilder Append(char value, int repeatCount)
+        {
+            builder.Append(value, repeatCount);
+            return this;
+        }
+
         public StringUtility.IStringBuilder Append(int value)
         {
             builder.Append(value);
