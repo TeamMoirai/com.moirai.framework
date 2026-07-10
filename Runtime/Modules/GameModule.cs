@@ -127,8 +127,6 @@ namespace Moirai.Atropos
             
             gameObject.name = $"[{nameof(GameModule)}]";
 
-            GameSettings.InitSettings();
-
             ModuleSystem.GetModule<IUpdateDriver>();
             ModuleSystem.GetModule<IResourceModule>();
             ModuleSystem.GetModule<IDebuggerModule>();

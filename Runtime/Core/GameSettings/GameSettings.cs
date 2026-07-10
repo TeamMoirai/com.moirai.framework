@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using Moirai.Atropos.Localization;
@@ -22,6 +22,18 @@ namespace Moirai.Atropos
         [ValueDropdown(nameof(GetVersionHelperTypes))]
         [SerializeField] private string m_VersionHelperTypeName;
         private static IEnumerable<string> GetVersionHelperTypes() => GetTypeOptions(typeof(VersionUtility.IVersionHelper));
+
+        [BoxGroup(HELPER_GROUP), DisableInPlayMode]
+        [LabelText("Setting Helper")]
+        [ValueDropdown(nameof(GetSettingHelperTypes))]
+        [SerializeField] private string m_SettingHelperTypeName;
+        private static IEnumerable<string> GetSettingHelperTypes() => GetTypeOptions(typeof(SettingUtility.ISettingHelper));
+
+        [BoxGroup(HELPER_GROUP), DisableInPlayMode]
+        [LabelText("String Helper")]
+        [ValueDropdown(nameof(GetStringHelperTypes))]
+        [SerializeField] private string m_StringHelperTypeName;
+        private static IEnumerable<string> GetStringHelperTypes() => GetTypeOptions(typeof(StringUtility.IStringHelper));
 
         [BoxGroup(HELPER_GROUP), DisableInPlayMode]
         [LabelText("Log Helper")]
@@ -118,6 +130,8 @@ namespace Moirai.Atropos
             m_EditorLanguage = "Unspecified";
 
             m_VersionHelperTypeName = typeof(DefaultVersionHelper).FullName;
+            m_SettingHelperTypeName = typeof(DefaultSettingHelper).FullName;
+            m_StringHelperTypeName = typeof(DefaultStringHelper).FullName;
             m_LogHelperTypeName = typeof(DefaultLogHelper).FullName;
             m_ObjectHelperTypeName = typeof(UnityObjectHelper).FullName;
             m_JsonHelperTypeName = typeof(UnityJsonHelper).FullName;
@@ -128,16 +142,22 @@ namespace Moirai.Atropos
             m_NeverSleep = true;
         }
 
-        public static void InitSettings()
+        /// <summary>
+        /// 游戏设置初始化
+        /// </summary>
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void Initiation()
         {
-            VersionUtility.SetVersionHelper(ResolveTypeOption<VersionUtility.IVersionHelper>(Instance.m_VersionHelperTypeName));
-            LogUtility.SetLogHelper(ResolveTypeOption<LogUtility.ILogHelper>(Instance.m_LogHelperTypeName));
+            StringUtility.SetHelper(ResolveTypeOption<StringUtility.IStringHelper>(Instance.m_StringHelperTypeName));
+            VersionUtility.SetHelper(ResolveTypeOption<VersionUtility.IVersionHelper>(Instance.m_VersionHelperTypeName));
+            LogUtility.SetHelper(ResolveTypeOption<LogUtility.ILogHelper>(Instance.m_LogHelperTypeName));
+            SettingUtility.SetHelper(ResolveTypeOption<SettingUtility.ISettingHelper>(Instance.m_SettingHelperTypeName));
 
             Log.Info("Game Version: {0} ({1})", VersionUtility.GameVersion, VersionUtility.InternalGameVersion);
             Log.Info("Unity Version: {0}", Application.unityVersion);
 
-            ObjectUtility.SetObjectHelper(ResolveTypeOption<ObjectUtility.IObjectHelper>(Instance.m_ObjectHelperTypeName));
-            JSONUtility.SetJsonHelper(ResolveTypeOption<JSONUtility.IJsonHelper>(Instance.m_JsonHelperTypeName));
+            ObjectUtility.SetHelper(ResolveTypeOption<ObjectUtility.IObjectHelper>(Instance.m_ObjectHelperTypeName));
+            JSONUtility.SetHelper(ResolveTypeOption<JSONUtility.IJsonHelper>(Instance.m_JsonHelperTypeName));
             ConverterUtility.ScreenDpi = Screen.dpi;
             if (ConverterUtility.ScreenDpi <= 0)
             {

@@ -19,19 +19,10 @@ namespace Moirai.Atropos
         private static string s_UserId = "";
 
         /// <summary>
-        /// 初始化游戏配置模块
-        /// </summary>
-        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        private static void Initiation()
-        {
-            SetSettingHelper(new DefaultSettingHelper());
-        }
-
-        /// <summary>
         /// 设置游戏配置辅助器。
         /// </summary>
         /// <param name="settingHelper">游戏配置辅助器。</param>
-        public static void SetSettingHelper(ISettingHelper settingHelper)
+        public static void SetHelper(ISettingHelper settingHelper)
         {
             s_SettingHelper = settingHelper;
             s_SettingHelper.OnInit();
