@@ -43,6 +43,11 @@ namespace Moirai.Atropos
             IStringBuilder Append(char value);
 
             /// <summary>
+            /// 追加字符。
+            /// </summary>
+            IStringBuilder Append(char value, int repeatCount);
+
+            /// <summary>
             /// 追加 int。
             /// </summary>
             IStringBuilder Append(int value);
