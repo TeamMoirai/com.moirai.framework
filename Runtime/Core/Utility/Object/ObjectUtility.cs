@@ -10,7 +10,7 @@ namespace Moirai.Atropos
         /// 设置对象辅助器
         /// </summary>
         /// <param name="objectHelper"></param>
-        public static void SetObjectHelper(IObjectHelper objectHelper)
+        public static void SetHelper(IObjectHelper objectHelper)
         {
             s_Object = objectHelper;
         }

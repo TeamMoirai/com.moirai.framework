@@ -15,7 +15,7 @@ namespace Moirai.Atropos
         /// 设置 JSON 辅助器。
         /// </summary>
         /// <param name="jsonHelper">要设置的 JSON 辅助器。</param>
-        public static void SetJsonHelper(IJsonHelper jsonHelper)
+        public static void SetHelper(IJsonHelper jsonHelper)
         {
             s_JsonHelper = jsonHelper;
         }

@@ -11,7 +11,7 @@
         /// 设置游戏框架日志辅助器。
         /// </summary>
         /// <param name="logHelper">要设置的游戏框架日志辅助器。</param>
-        public static void SetLogHelper(ILogHelper logHelper)
+        public static void SetHelper(ILogHelper logHelper)
         {
             s_LogHelper = logHelper;
         }

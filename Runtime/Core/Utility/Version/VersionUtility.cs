@@ -11,7 +11,7 @@
         /// 设置版本号辅助器。
         /// </summary>
         /// <param name="versionHelper">要设置的版本号辅助器。</param>
-        public static void SetVersionHelper(IVersionHelper versionHelper)
+        public static void SetHelper(IVersionHelper versionHelper)
         {
             s_VersionHelper = versionHelper;
         }
