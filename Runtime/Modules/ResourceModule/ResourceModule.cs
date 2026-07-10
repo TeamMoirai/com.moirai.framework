@@ -922,7 +922,7 @@ namespace Moirai.Atropos.Resource
 
             if (!CheckLocationValid(location, packageName))
             {
-                string errorMessage = TextUtility.Format("Could not found location [{0}].", location);
+                string errorMessage = StringUtility.Format("Could not found location [{0}].", location);
                 Log.Error(errorMessage);
                 if (loadAssetCallbacks.LoadAssetFailureCallback != null)
                 {
@@ -953,7 +953,7 @@ namespace Moirai.Atropos.Resource
             {
                 _assetLoadingList.Remove(assetObjectKey);
 
-                string errorMessage = TextUtility.Format("Can not load asset '{0}' because :'{1}'.", location, assetInfo.Error);
+                string errorMessage = StringUtility.Format("Can not load asset '{0}' because :'{1}'.", location, assetInfo.Error);
                 if (loadAssetCallbacks.LoadAssetFailureCallback != null)
                 {
                     loadAssetCallbacks.LoadAssetFailureCallback(location, LoadResourceStatus.NotExist, errorMessage, userData);
@@ -976,7 +976,7 @@ namespace Moirai.Atropos.Resource
             {
                 _assetLoadingList.Remove(assetObjectKey);
 
-                string errorMessage = TextUtility.Format("Can not load asset '{0}'.", location);
+                string errorMessage = StringUtility.Format("Can not load asset '{0}'.", location);
                 if (loadAssetCallbacks.LoadAssetFailureCallback != null)
                 {
                     loadAssetCallbacks.LoadAssetFailureCallback(location, LoadResourceStatus.NotReady, errorMessage, userData);
@@ -1023,7 +1023,7 @@ namespace Moirai.Atropos.Resource
 
             if (!CheckLocationValid(location, packageName))
             {
-                string errorMessage = TextUtility.Format("Could not found location [{0}].", location);
+                string errorMessage = StringUtility.Format("Could not found location [{0}].", location);
                 Log.Error(errorMessage);
                 if (loadAssetCallbacks.LoadAssetFailureCallback != null)
                 {
@@ -1054,7 +1054,7 @@ namespace Moirai.Atropos.Resource
             {
                 _assetLoadingList.Remove(assetObjectKey);
 
-                string errorMessage = TextUtility.Format("Can not load asset '{0}' because :'{1}'.", location, assetInfo.Error);
+                string errorMessage = StringUtility.Format("Can not load asset '{0}' because :'{1}'.", location, assetInfo.Error);
                 if (loadAssetCallbacks.LoadAssetFailureCallback != null)
                 {
                     loadAssetCallbacks.LoadAssetFailureCallback(location, LoadResourceStatus.NotExist, errorMessage, userData);
@@ -1077,7 +1077,7 @@ namespace Moirai.Atropos.Resource
             {
                 _assetLoadingList.Remove(assetObjectKey);
 
-                string errorMessage = TextUtility.Format("Can not load asset '{0}'.", location);
+                string errorMessage = StringUtility.Format("Can not load asset '{0}'.", location);
                 if (loadAssetCallbacks.LoadAssetFailureCallback != null)
                 {
                     loadAssetCallbacks.LoadAssetFailureCallback(location, LoadResourceStatus.NotReady, errorMessage, userData);

@@ -12,8 +12,8 @@ namespace Moirai.Atropos.Debugger
                 GUILayout.BeginVertical("box");
                 {
                     DrawItem("Current Resolution", GetResolutionString(Screen.currentResolution));
-                    DrawItem("Screen Width", TextUtility.Format("{0} px / {1:F2} in / {2:F2} cm", Screen.width, ConverterUtility.GetInchesFromPixels(Screen.width), ConverterUtility.GetCentimetersFromPixels(Screen.width)));
-                    DrawItem("Screen Height", TextUtility.Format("{0} px / {1:F2} in / {2:F2} cm", Screen.height, ConverterUtility.GetInchesFromPixels(Screen.height), ConverterUtility.GetCentimetersFromPixels(Screen.height)));
+                    DrawItem("Screen Width", StringUtility.Format("{0} px / {1:F2} in / {2:F2} cm", Screen.width, ConverterUtility.GetInchesFromPixels(Screen.width), ConverterUtility.GetCentimetersFromPixels(Screen.width)));
+                    DrawItem("Screen Height", StringUtility.Format("{0} px / {1:F2} in / {2:F2} cm", Screen.height, ConverterUtility.GetInchesFromPixels(Screen.height), ConverterUtility.GetCentimetersFromPixels(Screen.height)));
                     DrawItem("Screen DPI", Screen.dpi.ToString("F2"));
                     DrawItem("Screen Orientation", Screen.orientation.ToString());
                     DrawItem("Is Full Screen", Screen.fullScreen.ToString());
@@ -59,9 +59,9 @@ namespace Moirai.Atropos.Debugger
             private string GetResolutionString(Resolution resolution)
             {
 #if UNITY_2022_2_OR_NEWER
-                return TextUtility.Format("{0} x {1} @ {2}Hz", resolution.width, resolution.height, resolution.refreshRateRatio);
+                return StringUtility.Format("{0} x {1} @ {2}Hz", resolution.width, resolution.height, resolution.refreshRateRatio);
 #else
-                return TextUtility.Format("{0} x {1} @ {2}Hz", resolution.width, resolution.height, resolution.refreshRate);
+                return StringUtility.Format("{0} x {1} @ {2}Hz", resolution.width, resolution.height, resolution.refreshRate);
 #endif
             }
 

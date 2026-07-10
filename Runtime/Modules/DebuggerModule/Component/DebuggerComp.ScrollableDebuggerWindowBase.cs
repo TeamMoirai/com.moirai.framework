@@ -57,35 +57,35 @@ namespace Moirai.Atropos.Debugger
             {
                 if (byteLength < 1024L) // 2 ^ 10
                 {
-                    return TextUtility.Format("{0} Bytes", byteLength);
+                    return StringUtility.Format("{0} Bytes", byteLength);
                 }
 
                 if (byteLength < 1048576L) // 2 ^ 20
                 {
-                    return TextUtility.Format("{0:F2} KB", byteLength / 1024f);
+                    return StringUtility.Format("{0:F2} KB", byteLength / 1024f);
                 }
 
                 if (byteLength < 1073741824L) // 2 ^ 30
                 {
-                    return TextUtility.Format("{0:F2} MB", byteLength / 1048576f);
+                    return StringUtility.Format("{0:F2} MB", byteLength / 1048576f);
                 }
 
                 if (byteLength < 1099511627776L) // 2 ^ 40
                 {
-                    return TextUtility.Format("{0:F2} GB", byteLength / 1073741824f);
+                    return StringUtility.Format("{0:F2} GB", byteLength / 1073741824f);
                 }
 
                 if (byteLength < 1125899906842624L) // 2 ^ 50
                 {
-                    return TextUtility.Format("{0:F2} TB", byteLength / 1099511627776f);
+                    return StringUtility.Format("{0:F2} TB", byteLength / 1099511627776f);
                 }
 
                 if (byteLength < 1152921504606846976L) // 2 ^ 60
                 {
-                    return TextUtility.Format("{0:F2} PB", byteLength / 1125899906842624f);
+                    return StringUtility.Format("{0:F2} PB", byteLength / 1125899906842624f);
                 }
 
-                return TextUtility.Format("{0:F2} EB", byteLength / 1152921504606846976f);
+                return StringUtility.Format("{0:F2} EB", byteLength / 1152921504606846976f);
             }
         }
     }

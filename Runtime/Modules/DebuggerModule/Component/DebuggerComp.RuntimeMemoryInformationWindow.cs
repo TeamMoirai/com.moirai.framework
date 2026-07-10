@@ -23,34 +23,34 @@ namespace Moirai.Atropos.Debugger
             protected override void OnDrawScrollableWindow()
             {
                 string typeName = typeof(T).Name;
-                GUILayout.Label(TextUtility.Format("<b>{0} Runtime Memory Information</b>", typeName));
+                GUILayout.Label(StringUtility.Format("<b>{0} Runtime Memory Information</b>", typeName));
                 GUILayout.BeginVertical("box");
                 {
-                    if (GUILayout.Button(TextUtility.Format("Take Sample for {0}", typeName), GUILayout.Height(30f)))
+                    if (GUILayout.Button(StringUtility.Format("Take Sample for {0}", typeName), GUILayout.Height(30f)))
                     {
                         TakeSample();
                     }
 
                     if (_sampleTime <= DateTime.MinValue)
                     {
-                        GUILayout.Label(TextUtility.Format("<b>Please take sample for {0} first.</b>", typeName));
+                        GUILayout.Label(StringUtility.Format("<b>Please take sample for {0} first.</b>", typeName));
                     }
                     else
                     {
                         if (_duplicateSimpleCount > 0)
                         {
-                            GUILayout.Label(TextUtility.Format("<b>{0} {1}s ({2}) obtained at {3:yyyy-MM-dd HH:mm:ss}, while {4} {1}s ({5}) might be duplicated.</b>", _samples.Count, typeName, GetByteLengthString(_sampleSize), _sampleTime.ToLocalTime(), _duplicateSimpleCount, GetByteLengthString(_duplicateSampleSize)));
+                            GUILayout.Label(StringUtility.Format("<b>{0} {1}s ({2}) obtained at {3:yyyy-MM-dd HH:mm:ss}, while {4} {1}s ({5}) might be duplicated.</b>", _samples.Count, typeName, GetByteLengthString(_sampleSize), _sampleTime.ToLocalTime(), _duplicateSimpleCount, GetByteLengthString(_duplicateSampleSize)));
                         }
                         else
                         {
-                            GUILayout.Label(TextUtility.Format("<b>{0} {1}s ({2}) obtained at {3:yyyy-MM-dd HH:mm:ss}.</b>", _samples.Count, typeName, GetByteLengthString(_sampleSize), _sampleTime.ToLocalTime()));
+                            GUILayout.Label(StringUtility.Format("<b>{0} {1}s ({2}) obtained at {3:yyyy-MM-dd HH:mm:ss}.</b>", _samples.Count, typeName, GetByteLengthString(_sampleSize), _sampleTime.ToLocalTime()));
                         }
 
                         if (_samples.Count > 0)
                         {
                             GUILayout.BeginHorizontal();
                             {
-                                GUILayout.Label(TextUtility.Format("<b>{0} Name</b>", typeName));
+                                GUILayout.Label(StringUtility.Format("<b>{0} Name</b>", typeName));
                                 GUILayout.Label("<b>Type</b>", GUILayout.Width(240f));
                                 GUILayout.Label("<b>Size</b>", GUILayout.Width(80f));
                             }
@@ -62,9 +62,9 @@ namespace Moirai.Atropos.Debugger
                         {
                             GUILayout.BeginHorizontal();
                             {
-                                GUILayout.Label(_samples[i].Highlight ? TextUtility.Format("<color=yellow>{0}</color>", _samples[i].Name) : _samples[i].Name);
-                                GUILayout.Label(_samples[i].Highlight ? TextUtility.Format("<color=yellow>{0}</color>", _samples[i].Type) : _samples[i].Type, GUILayout.Width(240f));
-                                GUILayout.Label(_samples[i].Highlight ? TextUtility.Format("<color=yellow>{0}</color>", GetByteLengthString(_samples[i].Size)) : GetByteLengthString(_samples[i].Size), GUILayout.Width(80f));
+                                GUILayout.Label(_samples[i].Highlight ? StringUtility.Format("<color=yellow>{0}</color>", _samples[i].Name) : _samples[i].Name);
+                                GUILayout.Label(_samples[i].Highlight ? StringUtility.Format("<color=yellow>{0}</color>", _samples[i].Type) : _samples[i].Type, GUILayout.Width(240f));
+                                GUILayout.Label(_samples[i].Highlight ? StringUtility.Format("<color=yellow>{0}</color>", GetByteLengthString(_samples[i].Size)) : GetByteLengthString(_samples[i].Size), GUILayout.Width(80f));
                             }
                             GUILayout.EndHorizontal();
 

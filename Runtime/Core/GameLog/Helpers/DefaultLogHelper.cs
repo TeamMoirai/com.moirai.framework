@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Diagnostics;
 using System.Text;
 using Debug = UnityEngine.Debug;
@@ -34,7 +34,7 @@ namespace Moirai.Atropos
             switch (level)
             {
                 case LogLevel.Debug:
-                    LogImp(ELogType.Debug, TextUtility.Format("<color=#888888>{0}</color>", message));
+                    LogImp(ELogType.Debug, StringUtility.Format("<color=#888888>{0}</color>", message));
                     break;
 
                 case LogLevel.Info:

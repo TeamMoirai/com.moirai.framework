@@ -269,7 +269,7 @@ namespace Moirai.Atropos.ObjectPool
                 }
                 else
                 {
-                    throw new GameException(TextUtility.Format(
+                    throw new GameException(StringUtility.Format(
                         "Can not find target in object pool '{0}', target type is '{1}', target value is '{2}'.", new TypeNamePair(typeof(T), Name),
                         target.GetType().FullName, target));
                 }
@@ -309,7 +309,7 @@ namespace Moirai.Atropos.ObjectPool
                 }
                 else
                 {
-                    throw new GameException(TextUtility.Format(
+                    throw new GameException(StringUtility.Format(
                         "Can not find target in object pool '{0}', target type is '{1}', target value is '{2}'.", new TypeNamePair(typeof(T), Name),
                         target.GetType().FullName, target));
                 }
@@ -349,7 +349,7 @@ namespace Moirai.Atropos.ObjectPool
                 }
                 else
                 {
-                    throw new GameException(TextUtility.Format(
+                    throw new GameException(StringUtility.Format(
                         "Can not find target in object pool '{0}', target type is '{1}', target value is '{2}'.", new TypeNamePair(typeof(T), Name),
                         target.GetType().FullName, target));
                 }

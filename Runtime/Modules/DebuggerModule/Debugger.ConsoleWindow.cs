@@ -191,10 +191,10 @@ namespace Moirai.Atropos.Debugger
                     }
                     m_LockScroll = GUILayout.Toggle(m_LockScroll, "Lock Scroll", GUILayout.Width(90f));
                     GUILayout.FlexibleSpace();
-                    m_InfoFilter = GUILayout.Toggle(m_InfoFilter, TextUtility.Format("Info ({0})", _infoCount), GUILayout.Width(90f));
-                    m_WarningFilter = GUILayout.Toggle(m_WarningFilter, TextUtility.Format("Warning ({0})", _warningCount), GUILayout.Width(90f));
-                    m_ErrorFilter = GUILayout.Toggle(m_ErrorFilter, TextUtility.Format("Error ({0})", _errorCount), GUILayout.Width(90f));
-                    m_FatalFilter = GUILayout.Toggle(m_FatalFilter, TextUtility.Format("Fatal ({0})", _fatalCount), GUILayout.Width(90f));
+                    m_InfoFilter = GUILayout.Toggle(m_InfoFilter, StringUtility.Format("Info ({0})", _infoCount), GUILayout.Width(90f));
+                    m_WarningFilter = GUILayout.Toggle(m_WarningFilter, StringUtility.Format("Warning ({0})", _warningCount), GUILayout.Width(90f));
+                    m_ErrorFilter = GUILayout.Toggle(m_ErrorFilter, StringUtility.Format("Error ({0})", _errorCount), GUILayout.Width(90f));
+                    m_FatalFilter = GUILayout.Toggle(m_FatalFilter, StringUtility.Format("Fatal ({0})", _fatalCount), GUILayout.Width(90f));
                 }
                 GUILayout.EndHorizontal();
 
@@ -266,9 +266,9 @@ namespace Moirai.Atropos.Debugger
                         if (_selectedNode != null)
                         {
                             Color32 color = GetLogStringColor(_selectedNode.LogType);
-                            if (GUILayout.Button(TextUtility.Format("<color=#{0:x2}{1:x2}{2:x2}{3:x2}><b>{4}</b></color>{6}{6}{5}", color.r, color.g, color.b, color.a, _selectedNode.LogMessage, _selectedNode.StackTrack, Environment.NewLine), "label"))
+                            if (GUILayout.Button(StringUtility.Format("<color=#{0:x2}{1:x2}{2:x2}{3:x2}><b>{4}</b></color>{6}{6}{5}", color.r, color.g, color.b, color.a, _selectedNode.LogMessage, _selectedNode.StackTrack, Environment.NewLine), "label"))
                             {
-                                CopyToClipboard(TextUtility.Format("{0}{2}{2}{1}", _selectedNode.LogMessage, _selectedNode.StackTrack, Environment.NewLine));
+                                CopyToClipboard(StringUtility.Format("{0}{2}{2}{1}", _selectedNode.LogMessage, _selectedNode.StackTrack, Environment.NewLine));
                             }
                         }
                     }
@@ -376,7 +376,7 @@ namespace Moirai.Atropos.Debugger
             private string GetLogString(LogNode logNode)
             {
                 Color32 color = GetLogStringColor(logNode.LogType);
-                return TextUtility.Format("<color=#{0:x2}{1:x2}{2:x2}{3:x2}>[{4:HH:mm:ss.fff}][{5}] {6}</color>", color.r, color.g, color.b, color.a, logNode.LogTime.ToLocalTime(), logNode.LogFrameCount, logNode.LogMessage);
+                return StringUtility.Format("<color=#{0:x2}{1:x2}{2:x2}{3:x2}>[{4:HH:mm:ss.fff}][{5}] {6}</color>", color.r, color.g, color.b, color.a, logNode.LogTime.ToLocalTime(), logNode.LogFrameCount, logNode.LogMessage);
             }
 
             internal Color32 GetLogStringColor(LogType logType)

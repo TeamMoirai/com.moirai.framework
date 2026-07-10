@@ -102,7 +102,7 @@ namespace Moirai.Atropos.Fsm
                 Type stateType = state.GetType();
                 if (fsm._states.ContainsKey(stateType))
                 {
-                    throw new GameException(TextUtility.Format("FSM '{0}' state '{1}' is already exist.", new TypeNamePair(typeof(T), name), stateType.FullName));
+                    throw new GameException(StringUtility.Format("FSM '{0}' state '{1}' is already exist.", new TypeNamePair(typeof(T), name), stateType.FullName));
                 }
 
                 fsm._states.Add(stateType, state);
@@ -145,7 +145,7 @@ namespace Moirai.Atropos.Fsm
                 Type stateType = state.GetType();
                 if (fsm._states.ContainsKey(stateType))
                 {
-                    throw new GameException(TextUtility.Format("FSM '{0}' state '{1}' is already exist.", new TypeNamePair(typeof(T), name), stateType.FullName));
+                    throw new GameException(StringUtility.Format("FSM '{0}' state '{1}' is already exist.", new TypeNamePair(typeof(T), name), stateType.FullName));
                 }
 
                 fsm._states.Add(stateType, state);
@@ -193,7 +193,7 @@ namespace Moirai.Atropos.Fsm
             FsmState<T> state = GetState<TState>();
             if (state == null)
             {
-                throw new GameException(TextUtility.Format("FSM '{0}' can not start state '{1}' which is not exist.", new TypeNamePair(typeof(T), Name), typeof(TState).FullName));
+                throw new GameException(StringUtility.Format("FSM '{0}' can not start state '{1}' which is not exist.", new TypeNamePair(typeof(T), Name), typeof(TState).FullName));
             }
 
             _currentStateTime = 0f;
@@ -219,13 +219,13 @@ namespace Moirai.Atropos.Fsm
 
             if (!typeof(FsmState<T>).IsAssignableFrom(stateType))
             {
-                throw new GameException(TextUtility.Format("State type '{0}' is invalid.", stateType.FullName));
+                throw new GameException(StringUtility.Format("State type '{0}' is invalid.", stateType.FullName));
             }
 
             FsmState<T> state = GetState(stateType);
             if (state == null)
             {
-                throw new GameException(TextUtility.Format("FSM '{0}' can not start state '{1}' which is not exist.", new TypeNamePair(typeof(T), Name), stateType.FullName));
+                throw new GameException(StringUtility.Format("FSM '{0}' can not start state '{1}' which is not exist.", new TypeNamePair(typeof(T), Name), stateType.FullName));
             }
 
             _currentStateTime = 0f;
@@ -257,7 +257,7 @@ namespace Moirai.Atropos.Fsm
 
             if (!typeof(FsmState<T>).IsAssignableFrom(stateType))
             {
-                throw new GameException(TextUtility.Format("State type '{0}' is invalid.", stateType.FullName));
+                throw new GameException(StringUtility.Format("State type '{0}' is invalid.", stateType.FullName));
             }
 
             return _states.ContainsKey(stateType);
@@ -292,7 +292,7 @@ namespace Moirai.Atropos.Fsm
 
             if (!typeof(FsmState<T>).IsAssignableFrom(stateType))
             {
-                throw new GameException(TextUtility.Format("State type '{0}' is invalid.", stateType.FullName));
+                throw new GameException(StringUtility.Format("State type '{0}' is invalid.", stateType.FullName));
             }
 
             FsmState<T> state = null;
@@ -492,7 +492,7 @@ namespace Moirai.Atropos.Fsm
             FsmState<T> state = GetState(stateType);
             if (state == null)
             {
-                throw new GameException(TextUtility.Format("FSM '{0}' can not change state to '{1}' which is not exist.", new TypeNamePair(typeof(T), Name), stateType.FullName));
+                throw new GameException(StringUtility.Format("FSM '{0}' can not change state to '{1}' which is not exist.", new TypeNamePair(typeof(T), Name), stateType.FullName));
             }
 
             _currentState.OnExit(this, false);

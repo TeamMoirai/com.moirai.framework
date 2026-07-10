@@ -127,7 +127,7 @@ namespace Moirai.Atropos
             Type interfaceType = typeof(T);
             if (!interfaceType.IsInterface)
             {
-                throw new GameException(TextUtility.Format("You must get module by interface, but '{0}' is not.", interfaceType.FullName));
+                throw new GameException(StringUtility.Format("You must get module by interface, but '{0}' is not.", interfaceType.FullName));
             }
 
             if (s_ModuleMaps.TryGetValue(interfaceType, out Module module))
@@ -135,11 +135,11 @@ namespace Moirai.Atropos
                 return module as T;
             }
 
-            string moduleName = TextUtility.Format("{0}.{1}, {2}", interfaceType.Namespace, interfaceType.Name.Substring(1), interfaceType.Assembly.GetName().Name);
+            string moduleName = StringUtility.Format("{0}.{1}, {2}", interfaceType.Namespace, interfaceType.Name.Substring(1), interfaceType.Assembly.GetName().Name);
             Type moduleType = Type.GetType(moduleName);
             if (moduleType == null)
             {
-                throw new GameException(TextUtility.Format("Can not find Game Framework module type '{0}'.", moduleName));
+                throw new GameException(StringUtility.Format("Can not find Game Framework module type '{0}'.", moduleName));
             }
 
             return GetModule(moduleType) as T;
@@ -166,7 +166,7 @@ namespace Moirai.Atropos
             Module module = (Module)Activator.CreateInstance(moduleType);
             if (module == null)
             {
-                throw new GameException(TextUtility.Format("Can not create module '{0}'.", moduleType.FullName));
+                throw new GameException(StringUtility.Format("Can not create module '{0}'.", moduleType.FullName));
             }
 
             RegisterModule(moduleType, module);
@@ -185,7 +185,7 @@ namespace Moirai.Atropos
             Type interfaceType = typeof(T);
             if (!interfaceType.IsInterface)
             {
-                throw new GameException(TextUtility.Format("You must get module by interface, but '{0}' is not.", interfaceType.FullName));
+                throw new GameException(StringUtility.Format("You must get module by interface, but '{0}' is not.", interfaceType.FullName));
             }
 
             RegisterModule(interfaceType, module);

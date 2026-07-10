@@ -61,7 +61,6 @@ namespace Moirai.Atropos.Localization
             var matches = s_LocalizedRegex.Matches(format);
             if (matches.Count == 0) return format;
 
-            StringBuilder result = new StringBuilder(format);
             foreach (Match match in matches)
             {
                 string textId = match.Groups[2].Value.Trim(); // LocalizedRegex 的第二个捕获组专门用于匹配文本 ID。
@@ -76,7 +75,7 @@ namespace Moirai.Atropos.Localization
 
                     string replacement = GameModule.Localization.GetTextFromId(textId);
                     // Log.Info($"Resolving localization for ID: {textId}({replacement})");
-                    result.Replace(match.Value, replacement);
+                    format = format.Replace(match.Value, replacement);
                 }
                 catch (Exception ex)
                 {
@@ -84,7 +83,7 @@ namespace Moirai.Atropos.Localization
                 }
             }
 
-            return result.ToString();
+            return format;
         }
 
         #endregion

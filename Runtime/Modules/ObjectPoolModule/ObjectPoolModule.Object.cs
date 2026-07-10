@@ -171,7 +171,7 @@ namespace Moirai.Atropos.ObjectPool
                 _spawnCount--;
                 if (_spawnCount < 0)
                 {
-                    throw new GameException(TextUtility.Format("Object '{0}' spawn count is less than 0.", Name));
+                    throw new GameException(StringUtility.Format("Object '{0}' spawn count is less than 0.", Name));
                 }
             }
 

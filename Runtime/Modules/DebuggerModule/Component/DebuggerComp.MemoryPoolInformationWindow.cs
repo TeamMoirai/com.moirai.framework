@@ -45,7 +45,7 @@ namespace Moirai.Atropos.Debugger
 
                 foreach (KeyValuePair<string, List<MemoryPoolInfo>> assemblyMemoryPoolInfo in _memoryPoolInfos)
                 {
-                    GUILayout.Label(TextUtility.Format("<b>Assembly: {0}</b>", assemblyMemoryPoolInfo.Key));
+                    GUILayout.Label(StringUtility.Format("<b>Assembly: {0}</b>", assemblyMemoryPoolInfo.Key));
                     GUILayout.BeginVertical("box");
                     {
                         GUILayout.BeginHorizontal();

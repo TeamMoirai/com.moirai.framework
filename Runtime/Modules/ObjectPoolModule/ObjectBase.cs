@@ -119,7 +119,7 @@ namespace Moirai.Atropos.ObjectPool
         {
             if (target == null)
             {
-                throw new GameException(TextUtility.Format("Target '{0}' is invalid.", name));
+                throw new GameException(StringUtility.Format("Target '{0}' is invalid.", name));
             }
 
             _name = name ?? string.Empty;

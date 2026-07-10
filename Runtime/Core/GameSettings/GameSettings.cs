@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Moirai.Atropos.Localization;
@@ -22,12 +22,6 @@ namespace Moirai.Atropos
         [ValueDropdown(nameof(GetVersionHelperTypes))]
         [SerializeField] private string m_VersionHelperTypeName;
         private static IEnumerable<string> GetVersionHelperTypes() => GetTypeOptions(typeof(VersionUtility.IVersionHelper));
-
-        [BoxGroup(HELPER_GROUP), DisableInPlayMode]
-        [LabelText("Format Helper")]
-        [ValueDropdown(nameof(GetFormatHelperTypes))]
-        [SerializeField] private string m_FormatHelperTypeName;
-        private static IEnumerable<string> GetFormatHelperTypes() => GetTypeOptions(typeof(TextUtility.IFormatHelper));
 
         [BoxGroup(HELPER_GROUP), DisableInPlayMode]
         [LabelText("Log Helper")]
@@ -124,7 +118,6 @@ namespace Moirai.Atropos
             m_EditorLanguage = "Unspecified";
 
             m_VersionHelperTypeName = typeof(DefaultVersionHelper).FullName;
-            m_FormatHelperTypeName = typeof(DefaultFormatHelper).FullName;
             m_LogHelperTypeName = typeof(DefaultLogHelper).FullName;
             m_ObjectHelperTypeName = typeof(UnityObjectHelper).FullName;
             m_JsonHelperTypeName = typeof(UnityJsonHelper).FullName;
@@ -137,7 +130,6 @@ namespace Moirai.Atropos
 
         public static void InitSettings()
         {
-            TextUtility.SetFormatHelper(ResolveTypeOption<TextUtility.IFormatHelper>(Instance.m_FormatHelperTypeName));
             VersionUtility.SetVersionHelper(ResolveTypeOption<VersionUtility.IVersionHelper>(Instance.m_VersionHelperTypeName));
             LogUtility.SetLogHelper(ResolveTypeOption<LogUtility.ILogHelper>(Instance.m_LogHelperTypeName));
 

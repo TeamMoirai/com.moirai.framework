@@ -158,7 +158,7 @@ namespace Moirai.Atropos.Audio
         {
             _audioModule = ModuleSystem.GetModule<IAudioModule>();
             _resourceModule = ModuleSystem.GetModule<IResourceModule>();
-            GameObject host = new GameObject(TextUtility.Format("{0} - {1}", audioCategory.AudioMixerGroup.name, index));
+            GameObject host = new GameObject(StringUtility.Format("{0} - {1}", audioCategory.AudioMixerGroup.name, index));
             host.transform.SetParent(audioCategory.InstanceRoot);
             host.transform.localPosition = Vector3.zero;
             _transform = host.transform;
@@ -174,7 +174,7 @@ namespace Moirai.Atropos.Audio
                 //  - Sfx
                 //      - Sfx - 0
                 AudioMixerGroup[] audioMixerGroups =
-                    audioCategory.AudioMixer.FindMatchingGroups(TextUtility.Format("Master/{0}/{1}", audioCategory.AudioMixerGroup.name,
+                    audioCategory.AudioMixer.FindMatchingGroups(StringUtility.Format("Master/{0}/{1}", audioCategory.AudioMixerGroup.name,
                         $"{audioCategory.AudioMixerGroup.name} - {index}"));
                 _audioMixerGroup = audioMixerGroups.Length > 0 ? audioMixerGroups[0] : audioCategory.AudioMixerGroup;
             }

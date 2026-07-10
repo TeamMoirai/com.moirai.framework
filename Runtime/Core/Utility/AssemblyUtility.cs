@@ -85,7 +85,7 @@ namespace Moirai.Atropos
 
             foreach (Assembly assembly in s_Assemblies)
             {
-                type = Type.GetType(TextUtility.Format("{0}, {1}", typeName, assembly.FullName));
+                type = Type.GetType(StringUtility.Format("{0}, {1}", typeName, assembly.FullName));
                 if (type != null)
                 {
                     s_CachedTypes.Add(typeName, type);

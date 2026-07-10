@@ -1,7 +1,7 @@
 using System;
 using NUnit.Framework;
 
-namespace Moirai.Atropos.Tests
+namespace Moirai.Atropos.Utility
 {
     public class ConverterUtilityTest
     {

@@ -92,7 +92,7 @@ namespace Moirai.Atropos.Fsm
 
             if (!typeof(FsmState<T>).IsAssignableFrom(stateType))
             {
-                throw new GameException(TextUtility.Format("State type '{0}' is invalid.", stateType.FullName));
+                throw new GameException(StringUtility.Format("State type '{0}' is invalid.", stateType.FullName));
             }
 
             fsmImplement.ChangeState(stateType);

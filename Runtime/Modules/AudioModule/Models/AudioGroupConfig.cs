@@ -58,7 +58,7 @@ namespace Moirai.Atropos.Audio
         /// <summary>
         /// 设置保存 -> 静音设置Key
         /// </summary>
-        private string SettingConstantMute => TextUtility.Format(Constant.Setting.AUDIO_GROUP_MUTED, m_AudioTrack);
+        private string SettingConstantMute => StringUtility.Format(Constant.Setting.AUDIO_GROUP_MUTED, m_AudioTrack);
         /// <summary>
         /// 当前音轨是否静音
         /// </summary>
@@ -78,7 +78,7 @@ namespace Moirai.Atropos.Audio
         /// <summary>
         /// 设置保存 -> 音量设置Key
         /// </summary>
-        private string SettingConstantVolume => TextUtility.Format(Constant.Setting.AUDIO_GROUP_VOLUME, m_AudioTrack);
+        private string SettingConstantVolume => StringUtility.Format(Constant.Setting.AUDIO_GROUP_VOLUME, m_AudioTrack);
         /// <summary>
         /// 当前音轨的音量
         /// </summary>

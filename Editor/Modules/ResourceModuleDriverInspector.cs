@@ -474,7 +474,7 @@ namespace Moirai.Atropos.Editor.Inspector
                         {
                             EditorGUILayout.LabelField("资源回收状态:", GUILayout.Width(100));
                             EditorGUILayout.LabelField(
-                                TextUtility.Format("{0:F2} / {1:F2}",
+                                StringUtility.Format("{0:F2} / {1:F2}",
                                     t.LastUnloadUnusedAssetsOperationElapseSeconds,
                                     t.MaxUnloadUnusedAssetsInterval),
                                 EditorStyles.miniLabel);

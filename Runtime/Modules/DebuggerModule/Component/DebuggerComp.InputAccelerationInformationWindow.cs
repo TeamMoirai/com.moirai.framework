@@ -24,7 +24,7 @@ namespace Moirai.Atropos.Debugger
 
             private string GetAccelerationEventString(AccelerationEvent accelerationEvent)
             {
-                return TextUtility.Format("{0}, {1}", accelerationEvent.acceleration, accelerationEvent.deltaTime);
+                return StringUtility.Format("{0}, {1}", accelerationEvent.acceleration, accelerationEvent.deltaTime);
             }
 
             private string GetAccelerationEventsString(AccelerationEvent[] accelerationEvents)

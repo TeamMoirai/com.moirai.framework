@@ -2757,7 +2757,7 @@ namespace Moirai.Atropos
         {
             if (!condition)
             {
-                string message = TextUtility.Format("{0}\n{1}", "Assert Failed", System.Environment.StackTrace);
+                string message = StringUtility.Format("{0}\n{1}", "Assert Failed", System.Environment.StackTrace);
                 Fatal(message);
             }
         }
@@ -2772,7 +2772,7 @@ namespace Moirai.Atropos
         {
             if (!condition)
             {
-                string message = TextUtility.Format("{0}\n{1}", "Assert Failed" + retStr, System.Environment.StackTrace);
+                string message = StringUtility.Format("{0}\n{1}", "Assert Failed" + retStr, System.Environment.StackTrace);
                 Fatal(message);
             }
         }

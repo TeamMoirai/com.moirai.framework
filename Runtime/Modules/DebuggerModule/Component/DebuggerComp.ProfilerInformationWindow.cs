@@ -16,7 +16,7 @@ namespace Moirai.Atropos.Debugger
                 {
                     DrawItem("Supported", Profiler.supported.ToString());
                     DrawItem("Enabled", Profiler.enabled.ToString());
-                    DrawItem("Enable Binary Log", Profiler.enableBinaryLog ? TextUtility.Format("True, {0}", Profiler.logFile) : "False");
+                    DrawItem("Enable Binary Log", Profiler.enableBinaryLog ? StringUtility.Format("True, {0}", Profiler.logFile) : "False");
 #if UNITY_2019_3_OR_NEWER
                     DrawItem("Enable Allocation Callstacks", Profiler.enableAllocationCallstacks.ToString());
 #endif

@@ -44,7 +44,7 @@ namespace Moirai.Atropos
                     throw;
                 }
 
-                throw new GameException(TextUtility.Format("Can not convert to JSON with exception '{0}'.", exception), exception);
+                throw new GameException(StringUtility.Format("Can not convert to JSON with exception '{0}'.", exception), exception);
             }
         }
 
@@ -72,7 +72,7 @@ namespace Moirai.Atropos
                     throw;
                 }
 
-                throw new GameException(TextUtility.Format("Can not convert to object with exception '{0}'.", exception), exception);
+                throw new GameException(StringUtility.Format("Can not convert to object with exception '{0}'.", exception), exception);
             }
         }
 
@@ -105,7 +105,7 @@ namespace Moirai.Atropos
                     throw;
                 }
 
-                throw new GameException(TextUtility.Format("Can not convert to object with exception '{0}'.", exception), exception);
+                throw new GameException(StringUtility.Format("Can not convert to object with exception '{0}'.", exception), exception);
             }
         }
         

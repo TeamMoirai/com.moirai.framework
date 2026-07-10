@@ -66,7 +66,7 @@ namespace Moirai.Atropos.ObjectPool
 
             if (!typeof(ObjectBase).IsAssignableFrom(objectType))
             {
-                throw new GameException(TextUtility.Format("Object type '{0}' is invalid.", objectType.FullName));
+                throw new GameException(StringUtility.Format("Object type '{0}' is invalid.", objectType.FullName));
             }
 
             return InternalHasObjectPool(new TypeNamePair(objectType));
@@ -98,7 +98,7 @@ namespace Moirai.Atropos.ObjectPool
 
             if (!typeof(ObjectBase).IsAssignableFrom(objectType))
             {
-                throw new GameException(TextUtility.Format("Object type '{0}' is invalid.", objectType.FullName));
+                throw new GameException(StringUtility.Format("Object type '{0}' is invalid.", objectType.FullName));
             }
 
             return InternalHasObjectPool(new TypeNamePair(objectType, name));
@@ -136,7 +136,7 @@ namespace Moirai.Atropos.ObjectPool
 
             if (!typeof(ObjectBase).IsAssignableFrom(objectType))
             {
-                throw new GameException(TextUtility.Format("Object type '{0}' is invalid.", objectType.FullName));
+                throw new GameException(StringUtility.Format("Object type '{0}' is invalid.", objectType.FullName));
             }
 
             return InternalGetObjectPool(new TypeNamePair(objectType));
@@ -156,7 +156,7 @@ namespace Moirai.Atropos.ObjectPool
 
             if (!typeof(ObjectBase).IsAssignableFrom(objectType))
             {
-                throw new GameException(TextUtility.Format("Object type '{0}' is invalid.", objectType.FullName));
+                throw new GameException(StringUtility.Format("Object type '{0}' is invalid.", objectType.FullName));
             }
 
             return InternalGetObjectPool(new TypeNamePair(objectType, name));
@@ -592,7 +592,7 @@ namespace Moirai.Atropos.ObjectPool
 
             if (!typeof(ObjectBase).IsAssignableFrom(objectType))
             {
-                throw new GameException(TextUtility.Format("Object type '{0}' is invalid.", objectType.FullName));
+                throw new GameException(StringUtility.Format("Object type '{0}' is invalid.", objectType.FullName));
             }
 
             return InternalDestroyObjectPool(new TypeNamePair(objectType));
@@ -612,7 +612,7 @@ namespace Moirai.Atropos.ObjectPool
 
             if (!typeof(ObjectBase).IsAssignableFrom(objectType))
             {
-                throw new GameException(TextUtility.Format("Object type '{0}' is invalid.", objectType.FullName));
+                throw new GameException(StringUtility.Format("Object type '{0}' is invalid.", objectType.FullName));
             }
 
             return InternalDestroyObjectPool(new TypeNamePair(objectType, name));
@@ -680,7 +680,7 @@ namespace Moirai.Atropos.ObjectPool
             TypeNamePair typeNamePair = new TypeNamePair(typeof(T), name);
             if (HasObjectPool<T>(name))
             {
-                throw new GameException(TextUtility.Format("Already exist object pool '{0}'.", typeNamePair));
+                throw new GameException(StringUtility.Format("Already exist object pool '{0}'.", typeNamePair));
             }
 
             ObjectPool<T> objectPool = new ObjectPool<T>(name, allowMultiSpawn, autoReleaseInterval, capacity, expireTime, priority);
@@ -698,13 +698,13 @@ namespace Moirai.Atropos.ObjectPool
 
             if (!typeof(ObjectBase).IsAssignableFrom(objectType))
             {
-                throw new GameException(TextUtility.Format("Object type '{0}' is invalid.", objectType.FullName));
+                throw new GameException(StringUtility.Format("Object type '{0}' is invalid.", objectType.FullName));
             }
 
             TypeNamePair typeNamePair = new TypeNamePair(objectType, name);
             if (HasObjectPool(objectType, name))
             {
-                throw new GameException(TextUtility.Format("Already exist object pool '{0}'.", typeNamePair));
+                throw new GameException(StringUtility.Format("Already exist object pool '{0}'.", typeNamePair));
             }
 
             Type objectPoolType = typeof(ObjectPool<>).MakeGenericType(objectType);

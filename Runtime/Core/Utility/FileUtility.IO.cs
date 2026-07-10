@@ -355,7 +355,7 @@ namespace Moirai.Atropos
             {
                 using (StreamReader reader = new StreamReader(stream, UTF8Encoding))
                 {
-                    result = StringUtility.Append(reader.ReadToEnd());
+                    result = reader.ReadToEnd();
                 }
             }
 

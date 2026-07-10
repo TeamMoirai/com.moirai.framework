@@ -26,8 +26,8 @@ namespace Moirai.Atropos.Debugger
 #else
                     DrawItem("Game Identifier", Application.bundleIdentifier);
 #endif
-                    DrawItem("Game Version", TextUtility.Format("{0} ({1})", VersionUtility.GameVersion, VersionUtility.InternalGameVersion));
-                    DrawItem("Resource Version", TextUtility.Format("{0} ({1})", VersionUtility.ResourceVersion, VersionUtility.InternalResourceVersion));
+                    DrawItem("Game Version", StringUtility.Format("{0} ({1})", VersionUtility.GameVersion, VersionUtility.InternalGameVersion));
+                    DrawItem("Resource Version", StringUtility.Format("{0} ({1})", VersionUtility.ResourceVersion, VersionUtility.InternalResourceVersion));
                     DrawItem("Application Version", Application.version);
                     DrawItem("Unity Version", Application.unityVersion);
                     DrawItem("Platform", Application.platform.ToString());
