@@ -20,37 +20,37 @@ namespace Moirai.Atropos
         [BoxGroup(HELPER_GROUP), DisableInPlayMode]
         [LabelText("Version Helper")]
         [ValueDropdown(nameof(GetVersionHelperTypes))]
-        [SerializeField] private string m_VersionHelperTypeName;
+        [SerializeField] private string m_VersionHelperTypeName = typeof(DefaultVersionHelper).FullName;
         private static IEnumerable<string> GetVersionHelperTypes() => GetTypeOptions(typeof(VersionUtility.IVersionHelper));
 
         [BoxGroup(HELPER_GROUP), DisableInPlayMode]
         [LabelText("Setting Helper")]
         [ValueDropdown(nameof(GetSettingHelperTypes))]
-        [SerializeField] private string m_SettingHelperTypeName;
+        [SerializeField] private string m_SettingHelperTypeName = typeof(DefaultSettingHelper).FullName;
         private static IEnumerable<string> GetSettingHelperTypes() => GetTypeOptions(typeof(SettingUtility.ISettingHelper));
 
         [BoxGroup(HELPER_GROUP), DisableInPlayMode]
         [LabelText("String Helper")]
         [ValueDropdown(nameof(GetStringHelperTypes))]
-        [SerializeField] private string m_StringHelperTypeName;
+        [SerializeField] private string m_StringHelperTypeName = typeof(DefaultStringHelper).FullName;
         private static IEnumerable<string> GetStringHelperTypes() => GetTypeOptions(typeof(StringUtility.IStringHelper));
 
         [BoxGroup(HELPER_GROUP), DisableInPlayMode]
         [LabelText("Log Helper")]
         [ValueDropdown(nameof(GetLogHelperTypes))]
-        [SerializeField] private string m_LogHelperTypeName;
+        [SerializeField] private string m_LogHelperTypeName = typeof(DefaultLogHelper).FullName;
         private static IEnumerable<string> GetLogHelperTypes() => GetTypeOptions(typeof(LogUtility.ILogHelper));
 
         [BoxGroup(HELPER_GROUP), DisableInPlayMode]
         [LabelText("Object Helper")]
         [ValueDropdown(nameof(GetObjectHelperTypes))]
-        [SerializeField] private string m_ObjectHelperTypeName;
+        [SerializeField] private string m_ObjectHelperTypeName = typeof(UnityObjectHelper).FullName;
         private static IEnumerable<string> GetObjectHelperTypes() => GetTypeOptions(typeof(ObjectUtility.IObjectHelper));
 
         [BoxGroup(HELPER_GROUP), DisableInPlayMode]
         [LabelText("Json Helper")]
         [ValueDropdown(nameof(GetJsonHelperTypes))]
-        [SerializeField] private string m_JsonHelperTypeName;
+        [SerializeField] private string m_JsonHelperTypeName = typeof(UnityJsonHelper).FullName;
         private static IEnumerable<string> GetJsonHelperTypes() => GetTypeOptions(typeof(JSONUtility.IJsonHelper));
 
         [DisableInPlayMode]
