@@ -843,6 +843,9 @@ namespace Moirai.Atropos.UI
                 insertIndex = 0;
             }
 
+            // 模态窗口会屏蔽下层的可交互
+            if (insertIndex > 0 && IsModal(window)) _uiStack[insertIndex - 1].Interactable = false;
+
             // 最后插入到堆栈
             _uiStack.Insert(insertIndex, window);
             UIModuleEvent.Shown(window);
