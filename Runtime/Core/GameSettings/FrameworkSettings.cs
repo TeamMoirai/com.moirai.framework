@@ -1,6 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Reflection;
 using UnityEngine;
 
@@ -55,28 +53,18 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 获取指定接口的实现类
+        /// 根据类型全名创建并返回指定接口的实现类实例。
         /// </summary>
-        /// <param name="interfaceType"></param>
-        /// <returns></returns>
-        protected static IEnumerable<string> GetTypeOptions(Type interfaceType)
-        {
-            var options = AssemblyUtility.GetRuntimeTypeNames(interfaceType)
-                .Distinct(StringComparer.Ordinal)
-                .OrderBy(typeName => typeName, StringComparer.Ordinal)
-                .ToList();
-
-            return options;
-        }
-
-        /// <summary>
-        /// 实例化接口类型
-        /// </summary>
-        /// <param name="typeName"></param>
-        /// <typeparam name="T"></typeparam>
-        /// <returns></returns>
-        /// <exception cref="GameException"></exception>
-        protected static T ResolveTypeOption<T>(string typeName)
+        /// <typeparam name="T">接口类型。</typeparam>
+        /// <param name="typeName">实现类的完整类型名称（包括命名空间）。</param>
+        /// <returns>类型为 <typeparamref name="T"/> 的实例。</returns>
+        /// <exception cref="GameException">当类型名为空、类型不存在或实例化失败时抛出。</exception>
+        /// <remarks>
+        /// 此方法通过反射动态创建对象。在 Unity 2019.3+ 环境中，
+        /// 建议使用 <see cref="UnityEngine.SerializeReference"/> 直接序列化抽象基类引用，Unity 会自动处理派生类的序列化与反序列化，
+        /// 无需手动调用 Activator.CreateInstance。
+        /// </remarks>
+        public static T ResolveTypeOption<T>(string typeName)
         {
             if (string.IsNullOrEmpty(typeName))
             {

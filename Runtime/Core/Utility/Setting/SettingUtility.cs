@@ -10,7 +10,19 @@ namespace Moirai.Atropos
     /// <remarks>仅用于游戏配置，禁止用于游戏内容保存。</remarks>
     public static partial class SettingUtility
     {
-        private static ISettingHelper s_SettingHelper = null;
+        private static SettingHandler s_Handler = null;
+        /// <summary>
+        /// 获取/设置游戏配置处理器。
+        /// </summary>
+        public static SettingHandler Handler
+        {
+            get
+            {
+                s_Handler ??= new DefaultSettingHandler();
+                return s_Handler;
+            }
+            set => s_Handler = value;
+        }
 
         /// <summary>
         /// 当前用户标识（用于生成用户隔离的存储键）。
@@ -18,86 +30,33 @@ namespace Moirai.Atropos
         private static string s_UserId = "";
 
         /// <summary>
-        /// 设置游戏配置辅助器。
-        /// </summary>
-        /// <param name="settingHelper">游戏配置辅助器。</param>
-        public static void SetHelper(ISettingHelper settingHelper)
-        {
-            s_SettingHelper = settingHelper;
-            s_SettingHelper.OnInit();
-        }
-
-        /// <summary>
         /// 获取游戏配置项数量。
         /// </summary>
-        public static int Count
-        {
-            get
-            {
-                if (s_SettingHelper == null)
-                {
-                    throw new GameException("Setting helper is invalid.");
-                }
-
-                return s_SettingHelper.Count;
-            }
-        }
+        public static int Count => Handler.Count;
 
         /// <summary>
         /// 加载游戏配置。
         /// </summary>
         /// <returns>是否加载游戏配置成功。</returns>
-        public static bool Load()
-        {
-            if (s_SettingHelper == null)
-            {
-                throw new GameException("Setting helper is invalid.");
-            }
-
-            return s_SettingHelper.Load();
-        }
+        public static bool Load() => Handler.Load();
 
         /// <summary>
         /// 保存游戏配置。
         /// </summary>
         /// <returns>是否保存游戏配置成功。</returns>
-        public static bool Save()
-        {
-            if (s_SettingHelper == null)
-            {
-                throw new GameException("Setting helper is invalid.");
-            }
-
-            return s_SettingHelper.Save();
-        }
+        public static bool Save() => Handler.Save();
 
         /// <summary>
         /// 获取所有游戏配置项的名称。
         /// </summary>
         /// <returns>所有游戏配置项的名称。</returns>
-        public static string[] GetAllSettingNames()
-        {
-            if (s_SettingHelper == null)
-            {
-                throw new GameException("Setting helper is invalid.");
-            }
-
-            return s_SettingHelper.GetAllSettingNames();
-        }
+        public static string[] GetAllSettingNames() => Handler.GetAllSettingNames();
 
         /// <summary>
         /// 获取所有游戏配置项的名称。
         /// </summary>
         /// <param name="results">所有游戏配置项的名称。</param>
-        public static void GetAllSettingNames(List<string> results)
-        {
-            if (s_SettingHelper == null)
-            {
-                throw new GameException("Setting helper is invalid.");
-            }
-
-            s_SettingHelper.GetAllSettingNames(results);
-        }
+        public static void GetAllSettingNames(List<string> results) => Handler.GetAllSettingNames(results);
 
         /// <summary>
         /// 检查是否存在指定游戏配置项。
@@ -106,17 +65,12 @@ namespace Moirai.Atropos
         /// <returns>指定的游戏配置项是否存在。</returns>
         public static bool HasSetting(string settingName)
         {
-            if (s_SettingHelper == null)
-            {
-                throw new GameException("Setting helper is invalid.");
-            }
-
             if (string.IsNullOrEmpty(settingName))
             {
                 throw new GameException("Setting name is invalid.");
             }
 
-            return s_SettingHelper.HasSetting(settingName);
+            return Handler.HasSetting(settingName);
         }
 
         /// <summary>
@@ -126,17 +80,12 @@ namespace Moirai.Atropos
         /// <returns>是否移除指定游戏配置项成功。</returns>
         public static bool RemoveSetting(string settingName)
         {
-            if (s_SettingHelper == null)
-            {
-                throw new GameException("Setting helper is invalid.");
-            }
-
             if (string.IsNullOrEmpty(settingName))
             {
                 throw new GameException("Setting name is invalid.");
             }
 
-            return s_SettingHelper.RemoveSetting(settingName);
+            return Handler.RemoveSetting(settingName);
         }
 
         /// <summary>
@@ -144,12 +93,7 @@ namespace Moirai.Atropos
         /// </summary>
         public static void RemoveAllSettings()
         {
-            if (s_SettingHelper == null)
-            {
-                throw new GameException("Setting helper is invalid.");
-            }
-
-            s_SettingHelper.RemoveAllSettings();
+            Handler.RemoveAllSettings();
         }
 
         /// <summary>
@@ -159,17 +103,12 @@ namespace Moirai.Atropos
         /// <returns>读取的布尔值。</returns>
         public static bool GetBool(string settingName)
         {
-            if (s_SettingHelper == null)
-            {
-                throw new GameException("Setting helper is invalid.");
-            }
-
             if (string.IsNullOrEmpty(settingName))
             {
                 throw new GameException("Setting name is invalid.");
             }
 
-            return s_SettingHelper.GetBool(settingName);
+            return Handler.GetBool(settingName);
         }
 
         /// <summary>
@@ -180,17 +119,12 @@ namespace Moirai.Atropos
         /// <returns>读取的布尔值。</returns>
         public static bool GetBool(string settingName, bool defaultValue)
         {
-            if (s_SettingHelper == null)
-            {
-                throw new GameException("Setting helper is invalid.");
-            }
-
             if (string.IsNullOrEmpty(settingName))
             {
                 throw new GameException("Setting name is invalid.");
             }
 
-            return s_SettingHelper.GetBool(settingName, defaultValue);
+            return Handler.GetBool(settingName, defaultValue);
         }
 
         /// <summary>
@@ -200,17 +134,12 @@ namespace Moirai.Atropos
         /// <param name="value">要写入的布尔值。</param>
         public static void SetBool(string settingName, bool value)
         {
-            if (s_SettingHelper == null)
-            {
-                throw new GameException("Setting helper is invalid.");
-            }
-
             if (string.IsNullOrEmpty(settingName))
             {
                 throw new GameException("Setting name is invalid.");
             }
 
-            s_SettingHelper.SetBool(settingName, value);
+            Handler.SetBool(settingName, value);
         }
 
         /// <summary>
@@ -220,17 +149,12 @@ namespace Moirai.Atropos
         /// <returns>读取的整数值。</returns>
         public static int GetInt(string settingName)
         {
-            if (s_SettingHelper == null)
-            {
-                throw new GameException("Setting helper is invalid.");
-            }
-
             if (string.IsNullOrEmpty(settingName))
             {
                 throw new GameException("Setting name is invalid.");
             }
 
-            return s_SettingHelper.GetInt(settingName);
+            return Handler.GetInt(settingName);
         }
 
         /// <summary>
@@ -241,17 +165,12 @@ namespace Moirai.Atropos
         /// <returns>读取的整数值。</returns>
         public static int GetInt(string settingName, int defaultValue)
         {
-            if (s_SettingHelper == null)
-            {
-                throw new GameException("Setting helper is invalid.");
-            }
-
             if (string.IsNullOrEmpty(settingName))
             {
                 throw new GameException("Setting name is invalid.");
             }
 
-            return s_SettingHelper.GetInt(settingName, defaultValue);
+            return Handler.GetInt(settingName, defaultValue);
         }
 
         /// <summary>
@@ -261,17 +180,12 @@ namespace Moirai.Atropos
         /// <param name="value">要写入的整数值。</param>
         public static void SetInt(string settingName, int value)
         {
-            if (s_SettingHelper == null)
-            {
-                throw new GameException("Setting helper is invalid.");
-            }
-
             if (string.IsNullOrEmpty(settingName))
             {
                 throw new GameException("Setting name is invalid.");
             }
 
-            s_SettingHelper.SetInt(settingName, value);
+            Handler.SetInt(settingName, value);
         }
 
         /// <summary>
@@ -281,17 +195,12 @@ namespace Moirai.Atropos
         /// <returns>读取的浮点数值。</returns>
         public static float GetFloat(string settingName)
         {
-            if (s_SettingHelper == null)
-            {
-                throw new GameException("Setting helper is invalid.");
-            }
-
             if (string.IsNullOrEmpty(settingName))
             {
                 throw new GameException("Setting name is invalid.");
             }
 
-            return s_SettingHelper.GetFloat(settingName);
+            return Handler.GetFloat(settingName);
         }
 
         /// <summary>
@@ -302,17 +211,12 @@ namespace Moirai.Atropos
         /// <returns>读取的浮点数值。</returns>
         public static float GetFloat(string settingName, float defaultValue)
         {
-            if (s_SettingHelper == null)
-            {
-                throw new GameException("Setting helper is invalid.");
-            }
-
             if (string.IsNullOrEmpty(settingName))
             {
                 throw new GameException("Setting name is invalid.");
             }
 
-            return s_SettingHelper.GetFloat(settingName, defaultValue);
+            return Handler.GetFloat(settingName, defaultValue);
         }
 
         /// <summary>
@@ -322,17 +226,12 @@ namespace Moirai.Atropos
         /// <param name="value">要写入的浮点数值。</param>
         public static void SetFloat(string settingName, float value)
         {
-            if (s_SettingHelper == null)
-            {
-                throw new GameException("Setting helper is invalid.");
-            }
-
             if (string.IsNullOrEmpty(settingName))
             {
                 throw new GameException("Setting name is invalid.");
             }
 
-            s_SettingHelper.SetFloat(settingName, value);
+            Handler.SetFloat(settingName, value);
         }
 
         /// <summary>
@@ -342,17 +241,12 @@ namespace Moirai.Atropos
         /// <returns>读取的字符串值。</returns>
         public static string GetString(string settingName)
         {
-            if (s_SettingHelper == null)
-            {
-                throw new GameException("Setting helper is invalid.");
-            }
-
             if (string.IsNullOrEmpty(settingName))
             {
                 throw new GameException("Setting name is invalid.");
             }
 
-            return s_SettingHelper.GetString(settingName);
+            return Handler.GetString(settingName);
         }
 
         /// <summary>
@@ -363,17 +257,12 @@ namespace Moirai.Atropos
         /// <returns>读取的字符串值。</returns>
         public static string GetString(string settingName, string defaultValue)
         {
-            if (s_SettingHelper == null)
-            {
-                throw new GameException("Setting helper is invalid.");
-            }
-
             if (string.IsNullOrEmpty(settingName))
             {
                 throw new GameException("Setting name is invalid.");
             }
 
-            return s_SettingHelper.GetString(settingName, defaultValue);
+            return Handler.GetString(settingName, defaultValue);
         }
 
         /// <summary>
@@ -383,17 +272,12 @@ namespace Moirai.Atropos
         /// <param name="value">要写入的字符串值。</param>
         public static void SetString(string settingName, string value)
         {
-            if (s_SettingHelper == null)
-            {
-                throw new GameException("Setting helper is invalid.");
-            }
-
             if (string.IsNullOrEmpty(settingName))
             {
                 throw new GameException("Setting name is invalid.");
             }
 
-            s_SettingHelper.SetString(settingName, value);
+            Handler.SetString(settingName, value);
         }
 
         // 用户隔离支持方法 ---------------------------

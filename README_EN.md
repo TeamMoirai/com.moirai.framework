@@ -99,7 +99,7 @@ Moirai Framework
       git clone --branch installer --single-branch https://github.com/TeamMoirai/com.moirai.framework.git Scripts/Installer
       ```
 
-2. Return to Unity and manually run menu `Tools/Settings/Install Framework`
+2. Return to Unity and manually run menu `Tools/Install Framework`
 
 3. After installation completes, you can safely delete the installer script
 

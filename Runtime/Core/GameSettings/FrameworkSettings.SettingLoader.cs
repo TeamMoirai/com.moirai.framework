@@ -12,6 +12,7 @@ namespace Moirai.Atropos
         /// <summary>
         /// 加载或创建设置文件，新创建时通过 onNewAsset 回调初始化
         /// </summary>
+        // ReSharper disable once InconsistentNaming
         public static TSetting LoadSettingSO<TSetting>(string settingPath, Action<TSetting> onNewAsset = null) where TSetting : ScriptableObject
         {
             #region 保证配置文件唯一

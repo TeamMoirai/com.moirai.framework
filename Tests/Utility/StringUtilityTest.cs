@@ -1,6 +1,7 @@
+using Moirai.Atropos;
 using NUnit.Framework;
 
-namespace Moirai.Atropos.Utility
+namespace Utility
 {
     public class StringUtilityTest
     {

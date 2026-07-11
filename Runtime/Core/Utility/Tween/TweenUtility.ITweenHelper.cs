@@ -70,7 +70,7 @@ namespace Moirai.Atropos
     }
 
     /// <summary>
-    /// 动画辅助器接口。
+    /// 动画处理器基类。
     /// </summary>
     public interface ITweenHelper
     {

@@ -9,15 +9,18 @@ namespace Moirai.Atropos
     // ReSharper disable once InconsistentNaming
     public static partial class JSONUtility
     {
-        private static IJsonHelper s_JsonHelper = new UnityJsonHelper();
-
+        private static JsonHandler s_Handler;
         /// <summary>
-        /// 设置 JSON 辅助器。
+        /// 获取/设置 JSON 工具实现。
         /// </summary>
-        /// <param name="jsonHelper">要设置的 JSON 辅助器。</param>
-        public static void SetHelper(IJsonHelper jsonHelper)
+        public static JsonHandler Handler
         {
-            s_JsonHelper = jsonHelper;
+            get
+            {
+                s_Handler ??= new UnityJsonHandler();
+                return s_Handler;
+            }
+            set => s_Handler = value;
         }
 
         /// <summary>
@@ -28,14 +31,9 @@ namespace Moirai.Atropos
         /// <returns>序列化后的 JSON 字符串。</returns>
         public static string ToJson(object obj, bool prettyPrint = false)
         {
-            if (s_JsonHelper == null)
-            {
-                throw new GameException("JSON helper is invalid.");
-            }
-
             try
             {
-                return s_JsonHelper.ToJson(obj, prettyPrint);
+                return Handler.ToJson(obj, prettyPrint);
             }
             catch (Exception exception)
             {
@@ -56,14 +54,9 @@ namespace Moirai.Atropos
         /// <returns>反序列化后的对象。</returns>
         public static T ToObject<T>(string json)
         {
-            if (s_JsonHelper == null)
-            {
-                throw new GameException("JSON helper is invalid.");
-            }
-
             try
             {
-                return s_JsonHelper.ToObject<T>(json);
+                return Handler.ToObject<T>(json);
             }
             catch (Exception exception)
             {
@@ -84,11 +77,6 @@ namespace Moirai.Atropos
         /// <returns>反序列化后的对象。</returns>
         public static object ToObject(Type objectType, string json)
         {
-            if (s_JsonHelper == null)
-            {
-                throw new GameException("JSON helper is invalid.");
-            }
-
             if (objectType == null)
             {
                 throw new GameException("Object type is invalid.");
@@ -96,7 +84,7 @@ namespace Moirai.Atropos
 
             try
             {
-                return s_JsonHelper.ToObject(objectType, json);
+                return Handler.ToObject(objectType, json);
             }
             catch (Exception exception)
             {

@@ -5,79 +5,38 @@
     /// </summary>
     public static partial class VersionUtility
     {
-        private static IVersionHelper s_VersionHelper = null;
-
+        private static VersionHandler s_Handler = null;
         /// <summary>
-        /// 设置版本号辅助器。
+        /// 获取/设置版本号处理器。
         /// </summary>
-        /// <param name="versionHelper">要设置的版本号辅助器。</param>
-        public static void SetHelper(IVersionHelper versionHelper)
-        {
-            s_VersionHelper = versionHelper;
-        }
-        
-        /// <summary>
-        /// 获取游戏版本号。
-        /// </summary>
-        public static string GameVersion
+        public static VersionHandler Handler
         {
             get
             {
-                if (s_VersionHelper == null)
-                {
-                    return string.Empty;
-                }
-
-                return s_VersionHelper.GameVersion;
+                s_Handler ??= new DefaultVersionHandler();
+                return s_Handler;
             }
+            set => s_Handler = value;
         }
+
+        /// <summary>
+        /// 获取游戏版本号。
+        /// </summary>
+        public static string GameVersion => Handler.GameVersion;
 
         /// <summary>
         /// 获取内部游戏版本号。
         /// </summary>
-        public static string InternalGameVersion
-        {
-            get
-            {
-                if (s_VersionHelper == null)
-                {
-                    return string.Empty;
-                }
+        public static string InternalGameVersion => Handler.InternalGameVersion;
 
-                return s_VersionHelper.InternalGameVersion;
-            }
-        }
-        
         /// <summary>
         /// 获取资源版本号。
         /// </summary>
-        public static string ResourceVersion
-        {
-            get
-            {
-                if (s_VersionHelper == null)
-                {
-                    return string.Empty;
-                }
+        public static string ResourceVersion => Handler.ResourceVersion;
 
-                return s_VersionHelper.ResourceVersion;
-            }
-        }
-        
         /// <summary>
         /// 获取内部资源版本号。
         /// </summary>
-        public static string InternalResourceVersion
-        {
-            get
-            {
-                if (s_VersionHelper == null)
-                {
-                    return string.Empty;
-                }
-
-                return s_VersionHelper.InternalResourceVersion;
-            }
-        }
+        public static string InternalResourceVersion => Handler.InternalResourceVersion;
     }
 }

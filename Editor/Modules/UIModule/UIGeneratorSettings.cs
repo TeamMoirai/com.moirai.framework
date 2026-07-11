@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Moirai.Atropos.Attributes;
 using Sirenix.OdinInspector;
 using UnityEngine;
 
@@ -13,19 +14,19 @@ namespace Moirai.Atropos.UI.Editor
         private const string GENERAL_GROUP = "General";
 
         [TabGroup(GENERAL_GROUP)]
-        [LabelText("组件分隔符")]
+        [CustomLabel("组件分隔符")]
         [Tooltip("组件检查分隔符，例如：Button#Close")]
         [SerializeField] private string m_ComCheckSplitName;
         public static string ComCheckSplitName => Instance.m_ComCheckSplitName;
 
         [TabGroup(GENERAL_GROUP)]
-        [LabelText("组件结尾符")]
+        [CustomLabel("组件结尾符")]
         [Tooltip("组件结尾分隔符，例如：@End")]
         [SerializeField] private string m_ComCheckEndName;
         public static string ComCheckEndName => Instance.m_ComCheckEndName;
 
         [TabGroup(GENERAL_GROUP)]
-        [LabelText("数组分隔")]
+        [CustomLabel("数组分隔")]
         [Tooltip("数组组件检查分隔符，例如：*Item")]
         [SerializeField] private string m_ArrayComSplitName;
         public static string ArrayComSplitName => Instance.m_ArrayComSplitName;
@@ -39,32 +40,24 @@ namespace Moirai.Atropos.UI.Editor
         [Header("UI脚本生成辅助类")]
 
         [TabGroup(GENERAL_GROUP)]
-        [LabelText("Identifier Formatter")]
-        [ValueDropdown(nameof(GetUIIdentifierFormatterTypes))]
+        [HelperDropdown(typeof(IUIIdentifierFormatter), "Identifier Formatter")]
         [SerializeField] private string m_UIIdentifierFormatterTypeName;
         public static string UIIdentifierFormatterTypeName => Instance.m_UIIdentifierFormatterTypeName;
-        private static IEnumerable<string> GetUIIdentifierFormatterTypes() => GetTypeOptions(typeof(IUIIdentifierFormatter));
 
         [TabGroup(GENERAL_GROUP)]
-        [LabelText("ResourcePath Resolver")]
-        [ValueDropdown(nameof(GetUIResourcePathResolverTypes))]
+        [HelperDropdown(typeof(IUIResourcePathResolver), "ResourcePath Resolver")]
         [SerializeField] private string m_UIResourcePathResolverTypeName;
         public static string UIResourcePathResolverTypeName => Instance.m_UIResourcePathResolverTypeName;
-        private static IEnumerable<string> GetUIResourcePathResolverTypes() => GetTypeOptions(typeof(IUIResourcePathResolver));
 
         [TabGroup(GENERAL_GROUP)]
-        [LabelText("ScriptCode Emitter")]
-        [ValueDropdown(nameof(GetUIScriptCodeEmitterTypes))]
+        [HelperDropdown(typeof(IUIScriptCodeEmitter), "ScriptCode Emitter")]
         [SerializeField] private string m_UIScriptCodeEmitterTypeName;
         public static string UIScriptCodeEmitterTypeName => Instance.m_UIScriptCodeEmitterTypeName;
-        private static IEnumerable<string> GetUIScriptCodeEmitterTypes() => GetTypeOptions(typeof(IUIScriptCodeEmitter));
 
         [TabGroup(GENERAL_GROUP)]
-        [LabelText("ScriptFile Writer")]
-        [ValueDropdown(nameof(GetUIScriptFileWriterTypes))]
+        [HelperDropdown(typeof(IUIScriptFileWriter), "ScriptFile Writer")]
         [SerializeField] private string m_UIScriptFileWriterTypeName;
         public static string UIScriptFileWriterTypeName => Instance.m_UIScriptFileWriterTypeName;
-        private static IEnumerable<string> GetUIScriptFileWriterTypes() => GetTypeOptions(typeof(IUIScriptFileWriter));
 
         /// <!-- 脚本生成 -->
         private const string SCRIPT_GENERATION_GROUP = "Script Generation";

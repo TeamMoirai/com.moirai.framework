@@ -10,9 +10,9 @@ namespace Moirai.Atropos
         private static ITweenHelper s_TweenHelper = null;
 
         /// <summary>
-        /// 设置动画辅助器。
+        /// 设置动画处理器。
         /// </summary>
-        /// <param name="textHelper">要设置的动画辅助器。</param>
+        /// <param name="textHelper">要设置的动画处理器。</param>
         public static void SetTweenHelper(ITweenHelper textHelper)
         {
             s_TweenHelper = textHelper;
