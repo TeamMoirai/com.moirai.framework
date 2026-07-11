@@ -13,7 +13,7 @@ namespace Moirai.Atropos.Localization
     public static class LocalizationHelper
     {
         /// <summary>不存在时的默认语言</summary>
-        public static readonly Language DefaultLanguage = Language.English;
+        public static readonly Language defaultLanguage = Language.English;
         
         // 已加载的语言
         private static readonly HashSet<Language> s_LoadedLanguage = new HashSet<Language>();
@@ -188,7 +188,7 @@ namespace Moirai.Atropos.Localization
         {
             if (string.IsNullOrEmpty(str))
             {
-                str = DefaultLanguage.Name.ToLower();
+                str = defaultLanguage.Name.ToLower();
             }
 
             str = str.ToLower();
@@ -225,11 +225,11 @@ namespace Moirai.Atropos.Localization
             // 处理边界条件：str 为空或 null
             if (string.IsNullOrEmpty(str))
             {
-                return DefaultLanguage;
+                return defaultLanguage;
             }
             
             str = str.ToLower();
-            Language target = DefaultLanguage;
+            Language target = defaultLanguage;
             // 尝试从语言代码映射中获取语言
             if (s_AllBuildInLanguageCodeMap.TryGetValue(str, out var langFromCode))
             {
@@ -244,7 +244,7 @@ namespace Moirai.Atropos.Localization
 
             if (!onlySupported) return target;
             
-            return s_LoadedLanguage.Contains(target) ? target : DefaultLanguage;
+            return s_LoadedLanguage.Contains(target) ? target : defaultLanguage;
         }
     }
 }

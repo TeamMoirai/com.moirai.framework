@@ -4,17 +4,20 @@ namespace Moirai.Atropos
 {
     public static partial class ObjectUtility
     {
-        private static IObjectHelper s_Object = new UnityObjectHelper();
-        
+        private static ObjectHandler s_Handler = null;
         /// <summary>
-        /// 设置对象辅助器
+        /// 获取/设置游戏对象处理器。
         /// </summary>
-        /// <param name="objectHelper"></param>
-        public static void SetHelper(IObjectHelper objectHelper)
+        public static ObjectHandler Handler
         {
-            s_Object = objectHelper;
+            get
+            {
+                s_Handler ??= new UnityObjectHandler();
+                return s_Handler;
+            }
+            set => s_Handler = value;
         }
-        
+
         /// <summary>
         /// 实例化对象
         /// </summary>
@@ -26,7 +29,7 @@ namespace Moirai.Atropos
         public static T InstantiateObject<T>(T original, bool playerOwned = false, bool allowNetworked = true)
             where T : UnityEngine.Object
         {
-            return s_Object.InstantiateObject(original, playerOwned, allowNetworked);
+            return Handler.InstantiateObject(original, playerOwned, allowNetworked);
         }
         
         /// <summary>
@@ -41,7 +44,7 @@ namespace Moirai.Atropos
         public static T InstantiateObject<T>(T original, Transform parent, bool playerOwned = false,
             bool allowNetworked = true) where T : UnityEngine.Object
         {
-            return s_Object.InstantiateObject(original, parent, playerOwned, allowNetworked);
+            return Handler.InstantiateObject(original, parent, playerOwned, allowNetworked);
         }
 
         /// <summary>
@@ -57,7 +60,7 @@ namespace Moirai.Atropos
         public static T InstantiateObject<T>(T original, Vector3 position, Quaternion rotation,
             bool playerOwned = false, bool allowNetworked = true) where T : UnityEngine.Object
         {
-            return s_Object.InstantiateObject(original, position, rotation, playerOwned, allowNetworked);
+            return Handler.InstantiateObject(original, position, rotation, playerOwned, allowNetworked);
         }
 
         /// <summary>
@@ -74,7 +77,7 @@ namespace Moirai.Atropos
         public static T InstantiateObject<T>(T original, Vector3 position, Quaternion rotation, Transform parent,
             bool playerOwned = false, bool allowNetworked = true) where T : UnityEngine.Object
         {
-            return s_Object.InstantiateObject(original, position, rotation, parent, playerOwned, allowNetworked);
+            return Handler.InstantiateObject(original, position, rotation, parent, playerOwned, allowNetworked);
         }
 
         /// <summary>
@@ -84,7 +87,7 @@ namespace Moirai.Atropos
         /// <param name="allowNetworked">销毁联网对象</param>
         public static void DestroyObject(UnityEngine.Object target, bool allowNetworked = true)
         {
-            s_Object.DestroyObject(target, allowNetworked);
+            Handler.DestroyObject(target, allowNetworked);
         }
     }
 }

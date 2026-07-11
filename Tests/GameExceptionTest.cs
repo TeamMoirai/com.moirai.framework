@@ -1,7 +1,8 @@
 using System;
+using Moirai.Atropos;
 using NUnit.Framework;
 
-namespace Moirai.Atropos.Tests
+namespace Tests
 {
     public class GameExceptionTest
     {

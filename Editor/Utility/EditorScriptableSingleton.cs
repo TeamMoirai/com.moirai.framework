@@ -8,18 +8,17 @@ namespace Moirai.Atropos.Editor
 {
     public class EditorScriptableSingleton<T> : ScriptableObject where T : ScriptableObject
     {
-        private static T _instance;
-
+        private static T s_Instance;
         public static T Instance
         {
             get
             {
-                if (!_instance)
+                if (!s_Instance)
                 {
                     LoadOrCreate();
                 }
 
-                return _instance;
+                return s_Instance;
             }
         }
 
@@ -29,19 +28,19 @@ namespace Moirai.Atropos.Editor
             if (!string.IsNullOrEmpty(filePath))
             {
                 var arr = InternalEditorUtility.LoadSerializedFileAndForget(filePath);
-                _instance = arr.Length > 0 ? arr[0] as T : _instance ?? CreateInstance<T>();
+                s_Instance = arr.Length > 0 ? arr[0] as T : s_Instance ?? CreateInstance<T>();
             }
             else
             {
                 Debug.LogError($"save location of {nameof(EditorScriptableSingleton<T>)} is invalid");
             }
 
-            return _instance;
+            return s_Instance;
         }
 
         public static void Save(bool saveAsText = true)
         {
-            if (!_instance)
+            if (!s_Instance)
             {
                 Debug.LogError("Cannot save ScriptableSingleton: no instance!");
                 return;
@@ -59,7 +58,7 @@ namespace Moirai.Atropos.Editor
                     }
                 }
 
-                UnityEngine.Object[] obj = { _instance };
+                UnityEngine.Object[] obj = { s_Instance };
                 InternalEditorUtility.SaveToSerializedFileAndForget(obj, filePath, saveAsText);
             }
         }
@@ -88,22 +87,22 @@ namespace Moirai.Atropos.Editor
         {
             get
             {
-                if (this.m_FilePath == null && this.m_RelativePath != null)
+                if (m_FilePath == null && m_RelativePath != null)
                 {
-                    this.m_FilePath = CombineFilePath(this.m_RelativePath, this.m_Location);
-                    this.m_RelativePath = (string)null;
+                    m_FilePath = CombineFilePath(m_RelativePath, m_Location);
+                    m_RelativePath = (string)null;
                 }
 
-                return this.m_FilePath;
+                return m_FilePath;
             }
         }
 
         public FilePathAttribute(string relativePath, Location location)
         {
-            this.m_RelativePath = !string.IsNullOrEmpty(relativePath)
+            m_RelativePath = !string.IsNullOrEmpty(relativePath)
                 ? relativePath
                 : throw new ArgumentException("Invalid relative path (it is empty)");
-            this.m_Location = location;
+            m_Location = location;
         }
 
         private static string CombineFilePath(string relativePath, Location location)

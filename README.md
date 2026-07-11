@@ -109,7 +109,7 @@ Moirai Framework
       git clone --branch installer --single-branch https://github.com/TeamMoirai/com.moirai.framework.git Scripts/Installer
       ```
    
-2. 回到 Unity，手动执行菜单 `Tools/Settings/Install Framework`
+2. 回到 Unity，手动执行菜单 `Tools/Install Framework`
 
 3. 安装完成后可安全删除该脚本
 

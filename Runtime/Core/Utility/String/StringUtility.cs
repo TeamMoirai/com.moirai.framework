@@ -26,15 +26,18 @@ namespace Moirai.Atropos
     /// </remarks>
     public static partial class StringUtility
     {
-        private static IStringHelper s_Helper;
-
+        private static StringHandler s_Handler;
         /// <summary>
-        /// 设置字符串工具实现。
+        /// 获取/设置字符串工具实现。
         /// </summary>
-        /// <param name="helper">要设置的工具实现。</param>
-        public static void SetHelper(IStringHelper helper)
+        public static StringHandler Handler
         {
-            s_Helper = helper;
+            get
+            {
+                s_Handler ??= new DefaultStringHandler();
+                return s_Handler;
+            }
+            set => s_Handler = value;
         }
 
         /// <summary>
@@ -42,35 +45,21 @@ namespace Moirai.Atropos
         /// </summary>
         /// <param name="capacity">初始容量。</param>
         /// <returns>可复用的字符串构建器适配器。</returns>
-        public static IStringBuilder CreateStringBuilder(int capacity = 256)
-        {
-            if (s_Helper == null)
-            {
-                s_Helper = new DefaultStringHelper();
-            }
-            return s_Helper.CreateStringBuilder(capacity);
-        }
+        public static StringHandler.IStringBuilder CreateStringBuilder(int capacity = 256) => Handler.CreateStringBuilder(capacity);
 
         /// <summary>
         /// 使用适配器构建字符串（简化模式）。
         /// </summary>
         /// <param name="action">构建字符串的操作。</param>
         /// <returns>构建的字符串。</returns>
-        public static string GetString(Action<IStringBuilder> action)
-        {
-            if (s_Helper == null)
-            {
-                s_Helper = new DefaultStringHelper();
-            }
-            return s_Helper.GetString(action);
-        }
+        public static string GetString(Action<StringHandler.IStringBuilder> action) => Handler.GetString(action);
 
         /// <summary>
         /// 清空所有缓存和池。
         /// </summary>
         public static void Clear()
         {
-            s_Helper?.Clear();
+            s_Handler?.Clear();
         }
     }
 }

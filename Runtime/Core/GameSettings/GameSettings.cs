@@ -12,46 +12,34 @@ namespace Moirai.Atropos
     {
         [DisableInPlayMode]
         [ValueDropdown(nameof(GetLanguageOptions))]
-        [SerializeField] private string m_EditorLanguage;
+        [SerializeField] private string m_EditorLanguage = Language.Unspecified.Name;
         private static IEnumerable<string> GetLanguageOptions() => Language.BuiltinLanguages.Select(lang => lang.Name);
 
         private const string HELPER_GROUP = "Global Helpers";
 
         [BoxGroup(HELPER_GROUP), DisableInPlayMode]
-        [LabelText("Version Helper")]
-        [ValueDropdown(nameof(GetVersionHelperTypes))]
-        [SerializeField] private string m_VersionHelperTypeName = typeof(DefaultVersionHelper).FullName;
-        private static IEnumerable<string> GetVersionHelperTypes() => GetTypeOptions(typeof(VersionUtility.IVersionHelper));
+        [ReferenceDropdown]
+        [SerializeReference] private VersionHandler m_VersionHandler = new DefaultVersionHandler();
 
         [BoxGroup(HELPER_GROUP), DisableInPlayMode]
-        [LabelText("Setting Helper")]
-        [ValueDropdown(nameof(GetSettingHelperTypes))]
-        [SerializeField] private string m_SettingHelperTypeName = typeof(DefaultSettingHelper).FullName;
-        private static IEnumerable<string> GetSettingHelperTypes() => GetTypeOptions(typeof(SettingUtility.ISettingHelper));
+        [ReferenceDropdown]
+        [SerializeReference] private SettingHandler m_SettingHandler = new DefaultSettingHandler();
 
         [BoxGroup(HELPER_GROUP), DisableInPlayMode]
-        [LabelText("String Helper")]
-        [ValueDropdown(nameof(GetStringHelperTypes))]
-        [SerializeField] private string m_StringHelperTypeName = typeof(DefaultStringHelper).FullName;
-        private static IEnumerable<string> GetStringHelperTypes() => GetTypeOptions(typeof(StringUtility.IStringHelper));
+        [ReferenceDropdown]
+        [SerializeReference] private StringHandler m_StringHandler = new DefaultStringHandler();
 
         [BoxGroup(HELPER_GROUP), DisableInPlayMode]
-        [LabelText("Log Helper")]
-        [ValueDropdown(nameof(GetLogHelperTypes))]
-        [SerializeField] private string m_LogHelperTypeName = typeof(DefaultLogHelper).FullName;
-        private static IEnumerable<string> GetLogHelperTypes() => GetTypeOptions(typeof(LogUtility.ILogHelper));
+        [ReferenceDropdown]
+        [SerializeReference] private LogHandler m_LogHandler = new DefaultLogHelper();
 
         [BoxGroup(HELPER_GROUP), DisableInPlayMode]
-        [LabelText("Object Helper")]
-        [ValueDropdown(nameof(GetObjectHelperTypes))]
-        [SerializeField] private string m_ObjectHelperTypeName = typeof(UnityObjectHelper).FullName;
-        private static IEnumerable<string> GetObjectHelperTypes() => GetTypeOptions(typeof(ObjectUtility.IObjectHelper));
+        [ReferenceDropdown]
+        [SerializeReference] private ObjectHandler m_ObjectHandler = new UnityObjectHandler();
 
         [BoxGroup(HELPER_GROUP), DisableInPlayMode]
-        [LabelText("Json Helper")]
-        [ValueDropdown(nameof(GetJsonHelperTypes))]
-        [SerializeField] private string m_JsonHelperTypeName = typeof(UnityJsonHelper).FullName;
-        private static IEnumerable<string> GetJsonHelperTypes() => GetTypeOptions(typeof(JSONUtility.IJsonHelper));
+        [ReferenceDropdown]
+        [SerializeReference] private JsonHandler m_JsonHandler = new UnityJsonHandler();
 
         [DisableInPlayMode]
         [Range(1, 300)]
@@ -127,14 +115,14 @@ namespace Moirai.Atropos
 
         protected internal override void Reset()
         {
-            m_EditorLanguage = "Unspecified";
+            m_EditorLanguage = Language.Unspecified.Name;
 
-            m_VersionHelperTypeName = typeof(DefaultVersionHelper).FullName;
-            m_SettingHelperTypeName = typeof(DefaultSettingHelper).FullName;
-            m_StringHelperTypeName = typeof(DefaultStringHelper).FullName;
-            m_LogHelperTypeName = typeof(DefaultLogHelper).FullName;
-            m_ObjectHelperTypeName = typeof(UnityObjectHelper).FullName;
-            m_JsonHelperTypeName = typeof(UnityJsonHelper).FullName;
+            m_VersionHandler = new DefaultVersionHandler();
+            m_SettingHandler = new DefaultSettingHandler();
+            m_StringHandler = new DefaultStringHandler();
+            m_LogHandler = new DefaultLogHelper();
+            m_ObjectHandler = new UnityObjectHandler();
+            m_JsonHandler = new UnityJsonHandler();
 
             m_FrameRate = 120;
             m_GameSpeed = 1f;
@@ -148,16 +136,17 @@ namespace Moirai.Atropos
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         private static void Initiation()
         {
-            StringUtility.SetHelper(ResolveTypeOption<StringUtility.IStringHelper>(Instance.m_StringHelperTypeName));
-            VersionUtility.SetHelper(ResolveTypeOption<VersionUtility.IVersionHelper>(Instance.m_VersionHelperTypeName));
-            LogUtility.SetHelper(ResolveTypeOption<LogUtility.ILogHelper>(Instance.m_LogHelperTypeName));
-            SettingUtility.SetHelper(ResolveTypeOption<SettingUtility.ISettingHelper>(Instance.m_SettingHelperTypeName));
+            StringUtility.Handler = Instance.m_StringHandler;
+            VersionUtility.Handler = Instance.m_VersionHandler;
+            LogUtility.Handler = Instance.m_LogHandler;
+            SettingUtility.Handler = Instance.m_SettingHandler;
 
             Log.Info("Game Version: {0} ({1})", VersionUtility.GameVersion, VersionUtility.InternalGameVersion);
             Log.Info("Unity Version: {0}", Application.unityVersion);
 
-            ObjectUtility.SetHelper(ResolveTypeOption<ObjectUtility.IObjectHelper>(Instance.m_ObjectHelperTypeName));
-            JSONUtility.SetHelper(ResolveTypeOption<JSONUtility.IJsonHelper>(Instance.m_JsonHelperTypeName));
+            JSONUtility.Handler = Instance.m_JsonHandler;
+            ObjectUtility.Handler = Instance.m_ObjectHandler;
+
             ConverterUtility.ScreenDpi = Screen.dpi;
             if (ConverterUtility.ScreenDpi <= 0)
             {

@@ -1,8 +1,9 @@
 ﻿using System.Collections;
+using Moirai.Atropos;
 using UnityEngine;
 using UnityEngine.TestTools;
 
-namespace Moirai.Atropos.Utility
+namespace Utility
 {
     public class TweenTest
     {

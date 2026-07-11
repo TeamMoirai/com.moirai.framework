@@ -99,19 +99,14 @@ namespace Moirai.Atropos
         /// <summary>
         /// 获取已加载的程序集中的指定类型（接口或基类）的所有实现类/子类名称。
         /// </summary>
-        /// <param name="type">指定接口或基类类型</param>
+        /// <param name="typeBase">指定接口或基类类型</param>
         /// <returns>所有实现类/子类的完整名称列表</returns>
-        public static List<string> GetRuntimeTypeNames(Type type)
+        public static List<string> GetRuntimeTypeNames(Type typeBase)
         {
-            var types = GetTypes();
+            var runtimeTypes = GetRuntimeTypes(typeBase);
             List<string> results = new List<string>();
-            foreach (var t in types)
+            foreach (var t in runtimeTypes)
             {
-                if (t.IsAbstract || t.IsInterface || !type.IsAssignableFrom(t))
-                {
-                    continue;
-                }
-
                 results.Add(t.FullName);
             }
 
@@ -129,7 +124,10 @@ namespace Moirai.Atropos
             List<Type> results = new List<Type>();
             foreach (var t in types)
             {
-                if (t.IsAbstract || t.IsInterface || !typeBase.IsAssignableFrom(t))
+                if (t.IsAbstract || // 排除抽象类
+                    t.IsInterface || // 虽然 IsAbstract 已经覆盖了接口，但为了追求代码自解释保留
+                    t.Assembly.GetName().Name.EndsWith(".Tests") || // 排除测试程序集
+                    !typeBase.IsAssignableFrom(t)) // 排除非派生类型
                 {
                     continue;
                 }
