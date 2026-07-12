@@ -13,7 +13,10 @@
         "GUID:77221876cc6b8244180b96e320b1bcd4",
         "GUID:33661e06c33d31b4c9223810bf503247",
         "GUID:13ba8ce62aa80c74598530029cb2d649",
-        "GUID:4140bd2e2764f1f47ab93125ecb61942"
+        "GUID:4140bd2e2764f1f47ab93125ecb61942",
+        "GUID:3b570a5146f9d4f0fa107ed4559471a3",
+        "GUID:3aa1866a824b5472da50fe142777d95f",
+        "GUID:80ecb87cae9c44d19824e70ea7229748"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
@@ -72,6 +75,16 @@
             "name": "com.code-philosophy.obfuz",
             "expression": "1.0.0",
             "define": "OBFUZ_INSTALLED"
+        },
+        {
+            "name": "com.annulusgames.lit-motion",
+            "expression": "1.0.0",
+            "define": "LITMOTION_INSTALLED"
+        },
+        {
+            "name": "com.kyrylokuzyk.primetween",
+            "expression": "1.0.0",
+            "define": "PRIMETWEEN_INSTALLED"
         }
     ],
     "noEngineReferences": false
