@@ -8,6 +8,14 @@ namespace Moirai.Atropos
     [Serializable]
     public sealed class UnityJsonHandler : JsonHandler
     {
+        protected override void OnInit()
+        {
+        }
+
+        protected override void Shutdown()
+        {
+        }
+
         public override string ToJson(object obj, bool prettyPrint = false)
         {
             return UnityEngine.JsonUtility.ToJson(obj, prettyPrint);

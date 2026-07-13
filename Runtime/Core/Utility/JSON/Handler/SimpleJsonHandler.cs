@@ -15,9 +15,13 @@ namespace Moirai.Atropos
         [Tooltip("删除空值")]
         [SerializeField] private bool m_RemoveNulls = true;
 
-        public SimpleJsonHandler()
+        protected override void OnInit()
         {
             SimpleJson.maxDepth = m_MaxDepth;
+        }
+
+        protected override void Shutdown()
+        {
         }
 
         public override string ToJson(object obj, bool prettyPrint = false)
