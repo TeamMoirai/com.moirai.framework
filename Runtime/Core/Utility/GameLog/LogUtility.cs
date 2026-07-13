@@ -5,37 +5,6 @@
     /// </summary>
     public static partial class LogUtility
     {
-        /// <summary>
-        /// 游戏框架日志等级。
-        /// </summary>
-        public enum ELogLevel : byte
-        {
-            /// <summary>
-            /// 调试。
-            /// </summary>
-            Debug = 0,
-
-            /// <summary>
-            /// 信息。
-            /// </summary>
-            Info,
-
-            /// <summary>
-            /// 警告。
-            /// </summary>
-            Warning,
-
-            /// <summary>
-            /// 错误。
-            /// </summary>
-            Error,
-
-            /// <summary>
-            /// 严重错误。
-            /// </summary>
-            Fatal
-        }
-        
         private static LogHandler s_Handler = null;
         /// <summary>
         /// 获取/设置游戏框架日志处理器。
@@ -44,7 +13,7 @@
         {
             get
             {
-                s_Handler ??= new DefaultLogHelper();
+                s_Handler ??= new DefaultLogHandler();
                 return s_Handler;
             }
             set => s_Handler = value;

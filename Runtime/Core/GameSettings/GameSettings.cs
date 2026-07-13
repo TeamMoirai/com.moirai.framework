@@ -15,7 +15,7 @@ namespace Moirai.Atropos
         [SerializeField] private string m_EditorLanguage = Language.Unspecified.Name;
         private static IEnumerable<string> GetLanguageOptions() => Language.BuiltinLanguages.Select(lang => lang.Name);
 
-        private const string HELPER_GROUP = "Global Helpers";
+        private const string HELPER_GROUP = "Global Handler";
 
         [BoxGroup(HELPER_GROUP), DisableInPlayMode]
         [ReferenceDropdown]
@@ -31,7 +31,7 @@ namespace Moirai.Atropos
 
         [BoxGroup(HELPER_GROUP), DisableInPlayMode]
         [ReferenceDropdown]
-        [SerializeReference] private LogHandler m_LogHandler = new DefaultLogHelper();
+        [SerializeReference] private LogHandler m_LogHandler = new DefaultLogHandler();
 
         [BoxGroup(HELPER_GROUP), DisableInPlayMode]
         [ReferenceDropdown]
@@ -40,6 +40,10 @@ namespace Moirai.Atropos
         [BoxGroup(HELPER_GROUP), DisableInPlayMode]
         [ReferenceDropdown]
         [SerializeReference] private JsonHandler m_JsonHandler = new UnityJsonHandler();
+
+        [BoxGroup(HELPER_GROUP), DisableInPlayMode]
+        [ReferenceDropdown]
+        [SerializeReference] private TweenHandler m_TweenHandler = new DefaultTweenHandler();
 
         [DisableInPlayMode]
         [Range(1, 300)]
@@ -120,9 +124,10 @@ namespace Moirai.Atropos
             m_VersionHandler = new DefaultVersionHandler();
             m_SettingHandler = new DefaultSettingHandler();
             m_StringHandler = new DefaultStringHandler();
-            m_LogHandler = new DefaultLogHelper();
+            m_LogHandler = new DefaultLogHandler();
             m_ObjectHandler = new UnityObjectHandler();
             m_JsonHandler = new UnityJsonHandler();
+            m_TweenHandler = new DefaultTweenHandler();
 
             m_FrameRate = 120;
             m_GameSpeed = 1f;
@@ -146,6 +151,7 @@ namespace Moirai.Atropos
 
             JSONUtility.Handler = Instance.m_JsonHandler;
             ObjectUtility.Handler = Instance.m_ObjectHandler;
+            TweenUtility.Handler = Instance.m_TweenHandler;
 
             ConverterUtility.ScreenDpi = Screen.dpi;
             if (ConverterUtility.ScreenDpi <= 0)
