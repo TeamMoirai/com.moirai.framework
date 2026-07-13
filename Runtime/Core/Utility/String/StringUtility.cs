@@ -26,7 +26,7 @@ namespace Moirai.Atropos
     /// </remarks>
     public static partial class StringUtility
     {
-        private static StringHandler s_Handler;
+        private static StringHandler s_Handler = null;
         /// <summary>
         /// 获取/设置字符串工具实现。
         /// </summary>

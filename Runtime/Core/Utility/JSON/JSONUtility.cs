@@ -9,7 +9,7 @@ namespace Moirai.Atropos
     // ReSharper disable once InconsistentNaming
     public static partial class JSONUtility
     {
-        private static JsonHandler s_Handler;
+        private static JsonHandler s_Handler = null;
         /// <summary>
         /// 获取/设置 JSON 工具实现。
         /// </summary>
