@@ -716,7 +716,7 @@ namespace Moirai.Atropos
                 .WithDelay(startDelay)
                 .WithScheduler(GetScheduler(useUnscaledTime));
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
-            return RegisterHandle(builder.BindToMaterialColor(target, 0));
+            return RegisterHandle(builder.Bind(target, static (x, m) => { m.color = x; }));
         }
 
         public override long Alpha(SpriteRenderer target, float endValue, float duration,
