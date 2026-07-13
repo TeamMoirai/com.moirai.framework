@@ -151,7 +151,7 @@ namespace Moirai.Main
             TextAsset textAsset = Resources.Load<TextAsset>(buildInTextName + suffix);
             if (textAsset == null)
             {
-                suffix = LocalizationHelper.DefaultLanguage.Code;
+                suffix = LocalizationHelper.defaultLanguage.Code;
                 textAsset = Resources.Load<TextAsset>(buildInTextName + suffix);
             }
 

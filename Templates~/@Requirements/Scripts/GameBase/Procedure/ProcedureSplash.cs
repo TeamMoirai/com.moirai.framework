@@ -1,4 +1,5 @@
-﻿using Moirai.Atropos.Fsm;
+﻿using Moirai.Atropos.Events;
+using Moirai.Atropos.Fsm;
 using Moirai.Atropos.Procedure;
 
 namespace Moirai.Main
