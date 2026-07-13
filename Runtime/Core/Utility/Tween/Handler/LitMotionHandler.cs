@@ -19,6 +19,7 @@ namespace Moirai.Atropos
         #region 字段
 
         private readonly Dictionary<long, MotionHandle> _handleMap = new Dictionary<long, MotionHandle>();
+        private readonly Dictionary<long, object> _targetMap = new Dictionary<long, object>();
         private static readonly List<long> s_TempList = new List<long>();
 
         #endregion
@@ -30,6 +31,7 @@ namespace Moirai.Atropos
         protected override void Shutdown()
         {
             _handleMap.Clear();
+            _targetMap.Clear();
         }
 
         public override void ReleaseUnusedTween()
@@ -40,32 +42,50 @@ namespace Moirai.Atropos
                 if (!kvp.Value.IsActive())
                     s_TempList.Add(kvp.Key);
             }
-
             for (int i = 0; i < s_TempList.Count; i++)
+            {
                 _handleMap.Remove(s_TempList[i]);
-
+                _targetMap.Remove(s_TempList[i]);
+            }
             s_TempList.Clear();
         }
 
         public override bool IsTweening(object onTarget)
         {
-            if (onTarget == null) return false;
+            if (onTarget == null)
+            {
+                foreach (var kvp in _handleMap)
+                    if (kvp.Value.IsActive()) return true;
+                return false;
+            }
+
             foreach (var kvp in _handleMap)
             {
-                if (kvp.Value.IsActive()) return true;
+                if (kvp.Value.IsActive()
+                    && _targetMap.TryGetValue(kvp.Key, out var t) && ReferenceEquals(t, onTarget))
+                    return true;
             }
             return false;
         }
 
         public override int GetTweenCount(object onTarget)
         {
-            if (onTarget == null) return 0;
-            int count = 0;
+            if (onTarget == null)
+            {
+                int count = 0;
+                foreach (var kvp in _handleMap)
+                    if (kvp.Value.IsActive()) count++;
+                return count;
+            }
+
+            int filtered = 0;
             foreach (var kvp in _handleMap)
             {
-                if (kvp.Value.IsActive()) count++;
+                if (kvp.Value.IsActive()
+                    && _targetMap.TryGetValue(kvp.Key, out var t) && ReferenceEquals(t, onTarget))
+                    filtered++;
             }
-            return count;
+            return filtered;
         }
 
         public override bool IsAlive(long tweenId)
@@ -79,6 +99,7 @@ namespace Moirai.Atropos
             {
                 handle.TryCancel();
                 _handleMap.Remove(tweenId);
+                _targetMap.Remove(tweenId);
             }
         }
 
@@ -88,36 +109,91 @@ namespace Moirai.Atropos
             {
                 handle.TryComplete();
                 _handleMap.Remove(tweenId);
+                _targetMap.Remove(tweenId);
             }
         }
 
         public override int StopAll(object onTarget = null)
         {
             int stopped = 0;
-            foreach (var kvp in _handleMap)
+
+            if (onTarget == null)
             {
-                if (kvp.Value.IsActive())
+                // 无目标 → 全部停止
+                foreach (var kvp in _handleMap)
                 {
-                    kvp.Value.TryCancel();
-                    stopped++;
+                    if (kvp.Value.IsActive())
+                    {
+                        kvp.Value.TryCancel();
+                        stopped++;
+                    }
                 }
+                _handleMap.Clear();
+                _targetMap.Clear();
             }
-            _handleMap.Clear();
+            else
+            {
+                // 有目标 → 仅停止匹配项
+                s_TempList.Clear();
+                foreach (var kvp in _handleMap)
+                {
+                    if (kvp.Value.IsActive()
+                        && _targetMap.TryGetValue(kvp.Key, out var t) && ReferenceEquals(t, onTarget))
+                    {
+                        kvp.Value.TryCancel();
+                        stopped++;
+                        s_TempList.Add(kvp.Key);
+                    }
+                }
+                for (int i = 0; i < s_TempList.Count; i++)
+                {
+                    _handleMap.Remove(s_TempList[i]);
+                    _targetMap.Remove(s_TempList[i]);
+                }
+                s_TempList.Clear();
+            }
+
             return stopped;
         }
 
         public override int CompleteAll(object onTarget = null)
         {
             int completed = 0;
-            foreach (var kvp in _handleMap)
+
+            if (onTarget == null)
             {
-                if (kvp.Value.IsActive())
+                foreach (var kvp in _handleMap)
                 {
-                    kvp.Value.TryComplete();
-                    completed++;
+                    if (kvp.Value.IsActive())
+                    {
+                        kvp.Value.TryComplete();
+                        completed++;
+                    }
                 }
+                _handleMap.Clear();
+                _targetMap.Clear();
             }
-            _handleMap.Clear();
+            else
+            {
+                s_TempList.Clear();
+                foreach (var kvp in _handleMap)
+                {
+                    if (kvp.Value.IsActive()
+                        && _targetMap.TryGetValue(kvp.Key, out var t) && ReferenceEquals(t, onTarget))
+                    {
+                        kvp.Value.TryComplete();
+                        completed++;
+                        s_TempList.Add(kvp.Key);
+                    }
+                }
+                for (int i = 0; i < s_TempList.Count; i++)
+                {
+                    _handleMap.Remove(s_TempList[i]);
+                    _targetMap.Remove(s_TempList[i]);
+                }
+                s_TempList.Clear();
+            }
+
             return completed;
         }
         
@@ -125,10 +201,12 @@ namespace Moirai.Atropos
 
         #region 辅助方法
 
-        private long RegisterHandle(MotionHandle handle)
+        private long RegisterHandle(MotionHandle handle, object target = null)
         {
             var id = handle.StorageId;
             _handleMap[id] = handle;
+            if (target != null)
+                _targetMap[id] = target;
             return id;
         }
 
@@ -156,7 +234,7 @@ namespace Moirai.Atropos
                 .WithScheduler(GetScheduler(useUnscaledTime))
                 .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
-            return RegisterHandle(builder.RunWithoutBinding());
+            return RegisterHandle(builder.RunWithoutBinding(), target);
         }
 
         #endregion
@@ -175,7 +253,7 @@ namespace Moirai.Atropos
                 .WithScheduler(GetScheduler(useUnscaledTime))
                 .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
-            return RegisterHandle(builder.BindToLocalEulerAngles(target));
+            return RegisterHandle(builder.BindToLocalEulerAngles(target), target);
         }
 
         public override long LocalRotation(Transform target, Vector3 startValue, Vector3 endValue, float duration,
@@ -190,7 +268,7 @@ namespace Moirai.Atropos
                 .WithScheduler(GetScheduler(useUnscaledTime))
                 .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
-            return RegisterHandle(builder.BindToLocalEulerAngles(target));
+            return RegisterHandle(builder.BindToLocalEulerAngles(target), target);
         }
 
         #endregion
@@ -209,7 +287,7 @@ namespace Moirai.Atropos
                 .WithScheduler(GetScheduler(useUnscaledTime))
                 .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
-            return RegisterHandle(builder.Bind(target, (v, t) => t.localScale = new Vector3(v, v, v)));
+            return RegisterHandle(builder.Bind(target, (v, t) => t.localScale = new Vector3(v, v, v)), target);
         }
 
         public override long Scale(Transform target, float startValue, float endValue, float duration,
@@ -224,7 +302,7 @@ namespace Moirai.Atropos
                 .WithScheduler(GetScheduler(useUnscaledTime))
                 .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
-            return RegisterHandle(builder.Bind(target, (v, t) => t.localScale = new Vector3(v, v, v)));
+            return RegisterHandle(builder.Bind(target, (v, t) => t.localScale = new Vector3(v, v, v)), target);
         }
 
         #endregion
@@ -243,7 +321,7 @@ namespace Moirai.Atropos
                 .WithScheduler(GetScheduler(useUnscaledTime))
                 .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
-            return RegisterHandle(builder.BindToEulerAngles(target));
+            return RegisterHandle(builder.BindToEulerAngles(target), target);
         }
 
         public override long Rotation(Transform target, Vector3 startValue, Vector3 endValue, float duration,
@@ -258,7 +336,7 @@ namespace Moirai.Atropos
                 .WithScheduler(GetScheduler(useUnscaledTime))
                 .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
-            return RegisterHandle(builder.BindToEulerAngles(target));
+            return RegisterHandle(builder.BindToEulerAngles(target), target);
         }
 
         #endregion
@@ -277,7 +355,7 @@ namespace Moirai.Atropos
                 .WithScheduler(GetScheduler(useUnscaledTime))
                 .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
-            return RegisterHandle(builder.BindToPosition(target));
+            return RegisterHandle(builder.BindToPosition(target), target);
         }
 
         public override long Position(Transform target, Vector3 startValue, Vector3 endValue, float duration,
@@ -292,7 +370,7 @@ namespace Moirai.Atropos
                 .WithScheduler(GetScheduler(useUnscaledTime))
                 .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
-            return RegisterHandle(builder.BindToPosition(target));
+            return RegisterHandle(builder.BindToPosition(target), target);
         }
 
         #endregion
@@ -311,7 +389,7 @@ namespace Moirai.Atropos
                 .WithScheduler(GetScheduler(useUnscaledTime))
                 .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
-            return RegisterHandle(builder.BindToPositionX(target));
+            return RegisterHandle(builder.BindToPositionX(target), target);
         }
 
         public override long PositionX(Transform target, float startValue, float endValue, float duration,
@@ -326,7 +404,7 @@ namespace Moirai.Atropos
                 .WithScheduler(GetScheduler(useUnscaledTime))
                 .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
-            return RegisterHandle(builder.BindToPositionX(target));
+            return RegisterHandle(builder.BindToPositionX(target), target);
         }
 
         public override long PositionY(Transform target, float endValue, float duration,
@@ -341,7 +419,7 @@ namespace Moirai.Atropos
                 .WithScheduler(GetScheduler(useUnscaledTime))
                 .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
-            return RegisterHandle(builder.BindToPositionY(target));
+            return RegisterHandle(builder.BindToPositionY(target), target);
         }
 
         public override long PositionY(Transform target, float startValue, float endValue, float duration,
@@ -356,7 +434,7 @@ namespace Moirai.Atropos
                 .WithScheduler(GetScheduler(useUnscaledTime))
                 .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
-            return RegisterHandle(builder.BindToPositionY(target));
+            return RegisterHandle(builder.BindToPositionY(target), target);
         }
 
         public override long PositionZ(Transform target, float endValue, float duration,
@@ -371,7 +449,7 @@ namespace Moirai.Atropos
                 .WithScheduler(GetScheduler(useUnscaledTime))
                 .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
-            return RegisterHandle(builder.BindToPositionZ(target));
+            return RegisterHandle(builder.BindToPositionZ(target), target);
         }
 
         public override long PositionZ(Transform target, float startValue, float endValue, float duration,
@@ -386,7 +464,7 @@ namespace Moirai.Atropos
                 .WithScheduler(GetScheduler(useUnscaledTime))
                 .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
-            return RegisterHandle(builder.BindToPositionZ(target));
+            return RegisterHandle(builder.BindToPositionZ(target), target);
         }
 
         #endregion
@@ -405,7 +483,7 @@ namespace Moirai.Atropos
                 .WithScheduler(GetScheduler(useUnscaledTime))
                 .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
-            return RegisterHandle(builder.BindToLocalPosition(target));
+            return RegisterHandle(builder.BindToLocalPosition(target), target);
         }
 
         public override long LocalPosition(Transform target, Vector3 startValue, Vector3 endValue, float duration,
@@ -420,7 +498,7 @@ namespace Moirai.Atropos
                 .WithScheduler(GetScheduler(useUnscaledTime))
                 .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
-            return RegisterHandle(builder.BindToLocalPosition(target));
+            return RegisterHandle(builder.BindToLocalPosition(target), target);
         }
 
         #endregion
@@ -439,7 +517,7 @@ namespace Moirai.Atropos
                 .WithScheduler(GetScheduler(useUnscaledTime))
                 .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
-            return RegisterHandle(builder.BindToLocalPositionX(target));
+            return RegisterHandle(builder.BindToLocalPositionX(target), target);
         }
 
         public override long LocalPositionX(Transform target, float startValue, float endValue, float duration,
@@ -454,7 +532,7 @@ namespace Moirai.Atropos
                 .WithScheduler(GetScheduler(useUnscaledTime))
                 .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
-            return RegisterHandle(builder.BindToLocalPositionX(target));
+            return RegisterHandle(builder.BindToLocalPositionX(target), target);
         }
 
         public override long LocalPositionY(Transform target, float endValue, float duration,
@@ -469,7 +547,7 @@ namespace Moirai.Atropos
                 .WithScheduler(GetScheduler(useUnscaledTime))
                 .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
-            return RegisterHandle(builder.BindToLocalPositionY(target));
+            return RegisterHandle(builder.BindToLocalPositionY(target), target);
         }
 
         public override long LocalPositionY(Transform target, float startValue, float endValue, float duration,
@@ -484,7 +562,7 @@ namespace Moirai.Atropos
                 .WithScheduler(GetScheduler(useUnscaledTime))
                 .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
-            return RegisterHandle(builder.BindToLocalPositionY(target));
+            return RegisterHandle(builder.BindToLocalPositionY(target), target);
         }
 
         public override long LocalPositionZ(Transform target, float endValue, float duration,
@@ -499,7 +577,7 @@ namespace Moirai.Atropos
                 .WithScheduler(GetScheduler(useUnscaledTime))
                 .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
-            return RegisterHandle(builder.BindToLocalPositionZ(target));
+            return RegisterHandle(builder.BindToLocalPositionZ(target), target);
         }
 
         public override long LocalPositionZ(Transform target, float startValue, float endValue, float duration,
@@ -514,7 +592,7 @@ namespace Moirai.Atropos
                 .WithScheduler(GetScheduler(useUnscaledTime))
                 .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
-            return RegisterHandle(builder.BindToLocalPositionZ(target));
+            return RegisterHandle(builder.BindToLocalPositionZ(target), target);
         }
 
         #endregion
@@ -533,7 +611,7 @@ namespace Moirai.Atropos
                 .WithScheduler(GetScheduler(useUnscaledTime))
                 .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
-            return RegisterHandle(builder.BindToRotation(target));
+            return RegisterHandle(builder.BindToRotation(target), target);
         }
 
         public override long Rotation(Transform target, Quaternion startValue, Quaternion endValue, float duration,
@@ -548,7 +626,7 @@ namespace Moirai.Atropos
                 .WithScheduler(GetScheduler(useUnscaledTime))
                 .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
-            return RegisterHandle(builder.BindToRotation(target));
+            return RegisterHandle(builder.BindToRotation(target), target);
         }
 
         public override long LocalRotation(Transform target, Quaternion endValue, float duration,
@@ -563,7 +641,7 @@ namespace Moirai.Atropos
                 .WithScheduler(GetScheduler(useUnscaledTime))
                 .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
-            return RegisterHandle(builder.BindToLocalRotation(target));
+            return RegisterHandle(builder.BindToLocalRotation(target), target);
         }
 
         public override long LocalRotation(Transform target, Quaternion startValue, Quaternion endValue, float duration,
@@ -578,7 +656,7 @@ namespace Moirai.Atropos
                 .WithScheduler(GetScheduler(useUnscaledTime))
                 .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
-            return RegisterHandle(builder.BindToLocalRotation(target));
+            return RegisterHandle(builder.BindToLocalRotation(target), target);
         }
 
         #endregion
@@ -597,7 +675,7 @@ namespace Moirai.Atropos
                 .WithScheduler(GetScheduler(useUnscaledTime))
                 .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
-            return RegisterHandle(builder.BindToLocalScale(target));
+            return RegisterHandle(builder.BindToLocalScale(target), target);
         }
 
         public override long Scale(Transform target, Vector3 startValue, Vector3 endValue, float duration,
@@ -612,7 +690,7 @@ namespace Moirai.Atropos
                 .WithScheduler(GetScheduler(useUnscaledTime))
                 .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
-            return RegisterHandle(builder.BindToLocalScale(target));
+            return RegisterHandle(builder.BindToLocalScale(target), target);
         }
 
         #endregion
@@ -631,7 +709,7 @@ namespace Moirai.Atropos
                 .WithScheduler(GetScheduler(useUnscaledTime))
                 .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
-            return RegisterHandle(builder.BindToLocalScaleX(target));
+            return RegisterHandle(builder.BindToLocalScaleX(target), target);
         }
 
         public override long ScaleX(Transform target, float startValue, float endValue, float duration,
@@ -646,7 +724,7 @@ namespace Moirai.Atropos
                 .WithScheduler(GetScheduler(useUnscaledTime))
                 .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
-            return RegisterHandle(builder.BindToLocalScaleX(target));
+            return RegisterHandle(builder.BindToLocalScaleX(target), target);
         }
 
         public override long ScaleY(Transform target, float endValue, float duration,
@@ -661,7 +739,7 @@ namespace Moirai.Atropos
                 .WithScheduler(GetScheduler(useUnscaledTime))
                 .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
-            return RegisterHandle(builder.BindToLocalScaleY(target));
+            return RegisterHandle(builder.BindToLocalScaleY(target), target);
         }
 
         public override long ScaleY(Transform target, float startValue, float endValue, float duration,
@@ -676,7 +754,7 @@ namespace Moirai.Atropos
                 .WithScheduler(GetScheduler(useUnscaledTime))
                 .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
-            return RegisterHandle(builder.BindToLocalScaleY(target));
+            return RegisterHandle(builder.BindToLocalScaleY(target), target);
         }
 
         public override long ScaleZ(Transform target, float endValue, float duration,
@@ -691,7 +769,7 @@ namespace Moirai.Atropos
                 .WithScheduler(GetScheduler(useUnscaledTime))
                 .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
-            return RegisterHandle(builder.BindToLocalScaleZ(target));
+            return RegisterHandle(builder.BindToLocalScaleZ(target), target);
         }
 
         public override long ScaleZ(Transform target, float startValue, float endValue, float duration,
@@ -706,7 +784,7 @@ namespace Moirai.Atropos
                 .WithScheduler(GetScheduler(useUnscaledTime))
                 .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
-            return RegisterHandle(builder.BindToLocalScaleZ(target));
+            return RegisterHandle(builder.BindToLocalScaleZ(target), target);
         }
 
         #endregion
@@ -725,7 +803,7 @@ namespace Moirai.Atropos
                 .WithScheduler(GetScheduler(useUnscaledTime))
                 .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
-            return RegisterHandle(builder.BindToColor(target));
+            return RegisterHandle(builder.BindToColor(target), target);
         }
 
         public override long Color(SpriteRenderer target, Color startValue, Color endValue, float duration,
@@ -740,7 +818,7 @@ namespace Moirai.Atropos
                 .WithScheduler(GetScheduler(useUnscaledTime))
                 .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
-            return RegisterHandle(builder.BindToColor(target));
+            return RegisterHandle(builder.BindToColor(target), target);
         }
 
         public override long MaterialColor(Material target, Color startValue, Color endValue, float duration,
@@ -770,7 +848,7 @@ namespace Moirai.Atropos
                 .WithScheduler(GetScheduler(useUnscaledTime))
                 .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
-            return RegisterHandle(builder.BindToColorA(target));
+            return RegisterHandle(builder.BindToColorA(target), target);
         }
 
         public override long Alpha(SpriteRenderer target, float startValue, float endValue, float duration,
@@ -785,7 +863,7 @@ namespace Moirai.Atropos
                 .WithScheduler(GetScheduler(useUnscaledTime))
                 .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
-            return RegisterHandle(builder.BindToColorA(target));
+            return RegisterHandle(builder.BindToColorA(target), target);
         }
 
         #endregion
@@ -924,7 +1002,7 @@ namespace Moirai.Atropos
                 .WithScheduler(GetScheduler(useUnscaledTime))
                 .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
-            return RegisterHandle(builder.BindToAnchoredPosition(target));
+            return RegisterHandle(builder.BindToAnchoredPosition(target), target);
         }
 
         public override long UIAnchoredPosition(RectTransform target, Vector2 startValue, Vector2 endValue, float duration,
@@ -939,7 +1017,7 @@ namespace Moirai.Atropos
                 .WithScheduler(GetScheduler(useUnscaledTime))
                 .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
-            return RegisterHandle(builder.BindToAnchoredPosition(target));
+            return RegisterHandle(builder.BindToAnchoredPosition(target), target);
         }
 
         public override long UIAnchoredPositionX(RectTransform target, float endValue, float duration,
@@ -954,7 +1032,7 @@ namespace Moirai.Atropos
                 .WithScheduler(GetScheduler(useUnscaledTime))
                 .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
-            return RegisterHandle(builder.BindToAnchoredPositionX(target));
+            return RegisterHandle(builder.BindToAnchoredPositionX(target), target);
         }
 
         public override long UIAnchoredPositionX(RectTransform target, float startValue, float endValue, float duration,
@@ -969,7 +1047,7 @@ namespace Moirai.Atropos
                 .WithScheduler(GetScheduler(useUnscaledTime))
                 .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
-            return RegisterHandle(builder.BindToAnchoredPositionX(target));
+            return RegisterHandle(builder.BindToAnchoredPositionX(target), target);
         }
 
         public override long UIAnchoredPositionY(RectTransform target, float endValue, float duration,
@@ -984,7 +1062,7 @@ namespace Moirai.Atropos
                 .WithScheduler(GetScheduler(useUnscaledTime))
                 .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
-            return RegisterHandle(builder.BindToAnchoredPositionY(target));
+            return RegisterHandle(builder.BindToAnchoredPositionY(target), target);
         }
 
         public override long UIAnchoredPositionY(RectTransform target, float startValue, float endValue, float duration,
@@ -999,7 +1077,7 @@ namespace Moirai.Atropos
                 .WithScheduler(GetScheduler(useUnscaledTime))
                 .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
-            return RegisterHandle(builder.BindToAnchoredPositionY(target));
+            return RegisterHandle(builder.BindToAnchoredPositionY(target), target);
         }
 
         public override long UIAnchoredPosition3D(RectTransform target, Vector3 endValue, float duration,
@@ -1014,7 +1092,7 @@ namespace Moirai.Atropos
                 .WithScheduler(GetScheduler(useUnscaledTime))
                 .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
-            return RegisterHandle(builder.BindToAnchoredPosition3D(target));
+            return RegisterHandle(builder.BindToAnchoredPosition3D(target), target);
         }
 
         public override long UIAnchoredPosition3D(RectTransform target, Vector3 startValue, Vector3 endValue, float duration,
@@ -1029,7 +1107,7 @@ namespace Moirai.Atropos
                 .WithScheduler(GetScheduler(useUnscaledTime))
                 .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
-            return RegisterHandle(builder.BindToAnchoredPosition3D(target));
+            return RegisterHandle(builder.BindToAnchoredPosition3D(target), target);
         }
 
         public override long UISizeDelta(RectTransform target, Vector2 endValue, float duration,
@@ -1044,7 +1122,7 @@ namespace Moirai.Atropos
                 .WithScheduler(GetScheduler(useUnscaledTime))
                 .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
-            return RegisterHandle(builder.BindToSizeDelta(target));
+            return RegisterHandle(builder.BindToSizeDelta(target), target);
         }
 
         public override long UISizeDelta(RectTransform target, Vector2 startValue, Vector2 endValue, float duration,
@@ -1059,7 +1137,7 @@ namespace Moirai.Atropos
                 .WithScheduler(GetScheduler(useUnscaledTime))
                 .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
-            return RegisterHandle(builder.BindToSizeDelta(target));
+            return RegisterHandle(builder.BindToSizeDelta(target), target);
         }
 
         public override long Color(Graphic target, Color endValue, float duration,
@@ -1074,7 +1152,7 @@ namespace Moirai.Atropos
                 .WithScheduler(GetScheduler(useUnscaledTime))
                 .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
-            return RegisterHandle(builder.BindToColor(target));
+            return RegisterHandle(builder.BindToColor(target), target);
         }
 
         public override long Color(Graphic target, Color startValue, Color endValue, float duration,
@@ -1089,7 +1167,7 @@ namespace Moirai.Atropos
                 .WithScheduler(GetScheduler(useUnscaledTime))
                 .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
-            return RegisterHandle(builder.BindToColor(target));
+            return RegisterHandle(builder.BindToColor(target), target);
         }
 
         public override long Alpha(CanvasGroup target, float endValue, float duration,
@@ -1134,7 +1212,7 @@ namespace Moirai.Atropos
                 .WithScheduler(GetScheduler(useUnscaledTime))
                 .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
-            return RegisterHandle(builder.BindToColorA(target));
+            return RegisterHandle(builder.BindToColorA(target), target);
         }
 
         public override long Alpha(Graphic target, float startValue, float endValue, float duration,
@@ -1149,7 +1227,7 @@ namespace Moirai.Atropos
                 .WithScheduler(GetScheduler(useUnscaledTime))
                 .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
-            return RegisterHandle(builder.BindToColorA(target));
+            return RegisterHandle(builder.BindToColorA(target), target);
         }
 
         public override long UIFillAmount(Image target, float endValue, float duration,
@@ -1164,7 +1242,7 @@ namespace Moirai.Atropos
                 .WithScheduler(GetScheduler(useUnscaledTime))
                 .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
-            return RegisterHandle(builder.BindToFillAmount(target));
+            return RegisterHandle(builder.BindToFillAmount(target), target);
         }
 
         public override long UIFillAmount(Image target, float startValue, float endValue, float duration,
@@ -1179,7 +1257,7 @@ namespace Moirai.Atropos
                 .WithScheduler(GetScheduler(useUnscaledTime))
                 .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
-            return RegisterHandle(builder.BindToFillAmount(target));
+            return RegisterHandle(builder.BindToFillAmount(target), target);
         }
 
         #endregion
@@ -1209,7 +1287,7 @@ namespace Moirai.Atropos
                 {
                     transform.position = path[^1];
                 }
-            }));
+            }), target);
         }
 
         #endregion
@@ -1228,7 +1306,7 @@ namespace Moirai.Atropos
                 .WithScheduler(GetScheduler(useUnscaledTime))
                 .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
-            return RegisterHandle(builder.Bind(target, (v, t) => onValueChange(t, v)));
+            return RegisterHandle(builder.Bind(target, (v, t) => onValueChange(t, v)), target);
         }
 
         public override long Custom<T>(T target, int startValue, int endValue, float duration, Action<T, int> onValueChange,
@@ -1242,7 +1320,7 @@ namespace Moirai.Atropos
                     .WithScheduler(GetScheduler(useUnscaledTime))
                     .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
-            return RegisterHandle(builder.Bind(target, (v, t) => onValueChange(t, v)));
+            return RegisterHandle(builder.Bind(target, (v, t) => onValueChange(t, v)), target);
         }
 
         public override long Custom<T>(T target, long startValue, long endValue, float duration,
@@ -1257,7 +1335,7 @@ namespace Moirai.Atropos
                 .WithScheduler(GetScheduler(useUnscaledTime))
                 .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
-            return RegisterHandle(builder.Bind(target, (v, t) => onValueChange(t, v)));
+            return RegisterHandle(builder.Bind(target, (v, t) => onValueChange(t, v)), target);
         }
 
         public override long Custom<T>(T target, float startValue, float endValue, float duration,
@@ -1272,7 +1350,7 @@ namespace Moirai.Atropos
                 .WithScheduler(GetScheduler(useUnscaledTime))
                 .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
-            return RegisterHandle(builder.Bind(target, (v, t) => onValueChange(t, v)));
+            return RegisterHandle(builder.Bind(target, (v, t) => onValueChange(t, v)), target);
         }
 
         #endregion
