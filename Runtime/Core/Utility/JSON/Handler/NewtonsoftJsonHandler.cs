@@ -16,6 +16,14 @@ namespace Moirai.Atropos
         [Tooltip("序列化的最大深度")]
         [SerializeField] private int m_MaxDepth = 25;
 
+        protected override void OnInit()
+        {
+        }
+
+        protected override void Shutdown()
+        {
+        }
+
         public override string ToJson(object obj, bool prettyPrint = false)
         {
             return JsonConvert.SerializeObject(obj, new JsonSerializerSettings
