@@ -144,7 +144,8 @@ namespace Moirai.Atropos
         public override long Delay(float duration, Action onComplete = null, bool useUnscaledTime = false, bool warnIfTargetDestroyed = true)
         {
             var builder = LMotion.Create(0f, 1f, duration)
-                .WithScheduler(GetScheduler(useUnscaledTime));
+                .WithScheduler(GetScheduler(useUnscaledTime))
+                .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
             return RegisterHandle(builder.RunWithoutBinding());
         }
@@ -152,7 +153,8 @@ namespace Moirai.Atropos
         public override long Delay(object target, float duration, Action onComplete = null, bool useUnscaledTime = false, bool warnIfTargetDestroyed = true)
         {
             var builder = LMotion.Create(0f, 1f, duration)
-                .WithScheduler(GetScheduler(useUnscaledTime));
+                .WithScheduler(GetScheduler(useUnscaledTime))
+                .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
             return RegisterHandle(builder.RunWithoutBinding());
         }
@@ -170,7 +172,8 @@ namespace Moirai.Atropos
                 .WithEase(ease.ToLitMotionEase())
                 .WithLoops(cycles, cycleMode.ToLitMotionLoopType())
                 .WithDelay(startDelay)
-                .WithScheduler(GetScheduler(useUnscaledTime));
+                .WithScheduler(GetScheduler(useUnscaledTime))
+                .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
             return RegisterHandle(builder.BindToLocalEulerAngles(target));
         }
@@ -184,7 +187,8 @@ namespace Moirai.Atropos
                 .WithEase(ease.ToLitMotionEase())
                 .WithLoops(cycles, cycleMode.ToLitMotionLoopType())
                 .WithDelay(startDelay)
-                .WithScheduler(GetScheduler(useUnscaledTime));
+                .WithScheduler(GetScheduler(useUnscaledTime))
+                .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
             return RegisterHandle(builder.BindToLocalEulerAngles(target));
         }
@@ -202,7 +206,8 @@ namespace Moirai.Atropos
                 .WithEase(ease.ToLitMotionEase())
                 .WithLoops(cycles, cycleMode.ToLitMotionLoopType())
                 .WithDelay(startDelay)
-                .WithScheduler(GetScheduler(useUnscaledTime));
+                .WithScheduler(GetScheduler(useUnscaledTime))
+                .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
             return RegisterHandle(builder.Bind(target, (v, t) => t.localScale = new Vector3(v, v, v)));
         }
@@ -216,7 +221,8 @@ namespace Moirai.Atropos
                 .WithEase(ease.ToLitMotionEase())
                 .WithLoops(cycles, cycleMode.ToLitMotionLoopType())
                 .WithDelay(startDelay)
-                .WithScheduler(GetScheduler(useUnscaledTime));
+                .WithScheduler(GetScheduler(useUnscaledTime))
+                .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
             return RegisterHandle(builder.Bind(target, (v, t) => t.localScale = new Vector3(v, v, v)));
         }
@@ -234,7 +240,8 @@ namespace Moirai.Atropos
                 .WithEase(ease.ToLitMotionEase())
                 .WithLoops(cycles, cycleMode.ToLitMotionLoopType())
                 .WithDelay(startDelay)
-                .WithScheduler(GetScheduler(useUnscaledTime));
+                .WithScheduler(GetScheduler(useUnscaledTime))
+                .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
             return RegisterHandle(builder.BindToEulerAngles(target));
         }
@@ -248,7 +255,8 @@ namespace Moirai.Atropos
                 .WithEase(ease.ToLitMotionEase())
                 .WithLoops(cycles, cycleMode.ToLitMotionLoopType())
                 .WithDelay(startDelay)
-                .WithScheduler(GetScheduler(useUnscaledTime));
+                .WithScheduler(GetScheduler(useUnscaledTime))
+                .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
             return RegisterHandle(builder.BindToEulerAngles(target));
         }
@@ -266,7 +274,8 @@ namespace Moirai.Atropos
                 .WithEase(ease.ToLitMotionEase())
                 .WithLoops(cycles, cycleMode.ToLitMotionLoopType())
                 .WithDelay(startDelay)
-                .WithScheduler(GetScheduler(useUnscaledTime));
+                .WithScheduler(GetScheduler(useUnscaledTime))
+                .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
             return RegisterHandle(builder.BindToPosition(target));
         }
@@ -280,7 +289,8 @@ namespace Moirai.Atropos
                 .WithEase(ease.ToLitMotionEase())
                 .WithLoops(cycles, cycleMode.ToLitMotionLoopType())
                 .WithDelay(startDelay)
-                .WithScheduler(GetScheduler(useUnscaledTime));
+                .WithScheduler(GetScheduler(useUnscaledTime))
+                .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
             return RegisterHandle(builder.BindToPosition(target));
         }
@@ -298,7 +308,8 @@ namespace Moirai.Atropos
                 .WithEase(ease.ToLitMotionEase())
                 .WithLoops(cycles, cycleMode.ToLitMotionLoopType())
                 .WithDelay(startDelay)
-                .WithScheduler(GetScheduler(useUnscaledTime));
+                .WithScheduler(GetScheduler(useUnscaledTime))
+                .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
             return RegisterHandle(builder.BindToPositionX(target));
         }
@@ -312,7 +323,8 @@ namespace Moirai.Atropos
                 .WithEase(ease.ToLitMotionEase())
                 .WithLoops(cycles, cycleMode.ToLitMotionLoopType())
                 .WithDelay(startDelay)
-                .WithScheduler(GetScheduler(useUnscaledTime));
+                .WithScheduler(GetScheduler(useUnscaledTime))
+                .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
             return RegisterHandle(builder.BindToPositionX(target));
         }
@@ -326,7 +338,8 @@ namespace Moirai.Atropos
                 .WithEase(ease.ToLitMotionEase())
                 .WithLoops(cycles, cycleMode.ToLitMotionLoopType())
                 .WithDelay(startDelay)
-                .WithScheduler(GetScheduler(useUnscaledTime));
+                .WithScheduler(GetScheduler(useUnscaledTime))
+                .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
             return RegisterHandle(builder.BindToPositionY(target));
         }
@@ -340,7 +353,8 @@ namespace Moirai.Atropos
                 .WithEase(ease.ToLitMotionEase())
                 .WithLoops(cycles, cycleMode.ToLitMotionLoopType())
                 .WithDelay(startDelay)
-                .WithScheduler(GetScheduler(useUnscaledTime));
+                .WithScheduler(GetScheduler(useUnscaledTime))
+                .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
             return RegisterHandle(builder.BindToPositionY(target));
         }
@@ -354,7 +368,8 @@ namespace Moirai.Atropos
                 .WithEase(ease.ToLitMotionEase())
                 .WithLoops(cycles, cycleMode.ToLitMotionLoopType())
                 .WithDelay(startDelay)
-                .WithScheduler(GetScheduler(useUnscaledTime));
+                .WithScheduler(GetScheduler(useUnscaledTime))
+                .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
             return RegisterHandle(builder.BindToPositionZ(target));
         }
@@ -368,7 +383,8 @@ namespace Moirai.Atropos
                 .WithEase(ease.ToLitMotionEase())
                 .WithLoops(cycles, cycleMode.ToLitMotionLoopType())
                 .WithDelay(startDelay)
-                .WithScheduler(GetScheduler(useUnscaledTime));
+                .WithScheduler(GetScheduler(useUnscaledTime))
+                .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
             return RegisterHandle(builder.BindToPositionZ(target));
         }
@@ -386,7 +402,8 @@ namespace Moirai.Atropos
                 .WithEase(ease.ToLitMotionEase())
                 .WithLoops(cycles, cycleMode.ToLitMotionLoopType())
                 .WithDelay(startDelay)
-                .WithScheduler(GetScheduler(useUnscaledTime));
+                .WithScheduler(GetScheduler(useUnscaledTime))
+                .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
             return RegisterHandle(builder.BindToLocalPosition(target));
         }
@@ -400,7 +417,8 @@ namespace Moirai.Atropos
                 .WithEase(ease.ToLitMotionEase())
                 .WithLoops(cycles, cycleMode.ToLitMotionLoopType())
                 .WithDelay(startDelay)
-                .WithScheduler(GetScheduler(useUnscaledTime));
+                .WithScheduler(GetScheduler(useUnscaledTime))
+                .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
             return RegisterHandle(builder.BindToLocalPosition(target));
         }
@@ -418,7 +436,8 @@ namespace Moirai.Atropos
                 .WithEase(ease.ToLitMotionEase())
                 .WithLoops(cycles, cycleMode.ToLitMotionLoopType())
                 .WithDelay(startDelay)
-                .WithScheduler(GetScheduler(useUnscaledTime));
+                .WithScheduler(GetScheduler(useUnscaledTime))
+                .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
             return RegisterHandle(builder.BindToLocalPositionX(target));
         }
@@ -432,7 +451,8 @@ namespace Moirai.Atropos
                 .WithEase(ease.ToLitMotionEase())
                 .WithLoops(cycles, cycleMode.ToLitMotionLoopType())
                 .WithDelay(startDelay)
-                .WithScheduler(GetScheduler(useUnscaledTime));
+                .WithScheduler(GetScheduler(useUnscaledTime))
+                .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
             return RegisterHandle(builder.BindToLocalPositionX(target));
         }
@@ -446,7 +466,8 @@ namespace Moirai.Atropos
                 .WithEase(ease.ToLitMotionEase())
                 .WithLoops(cycles, cycleMode.ToLitMotionLoopType())
                 .WithDelay(startDelay)
-                .WithScheduler(GetScheduler(useUnscaledTime));
+                .WithScheduler(GetScheduler(useUnscaledTime))
+                .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
             return RegisterHandle(builder.BindToLocalPositionY(target));
         }
@@ -460,7 +481,8 @@ namespace Moirai.Atropos
                 .WithEase(ease.ToLitMotionEase())
                 .WithLoops(cycles, cycleMode.ToLitMotionLoopType())
                 .WithDelay(startDelay)
-                .WithScheduler(GetScheduler(useUnscaledTime));
+                .WithScheduler(GetScheduler(useUnscaledTime))
+                .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
             return RegisterHandle(builder.BindToLocalPositionY(target));
         }
@@ -474,7 +496,8 @@ namespace Moirai.Atropos
                 .WithEase(ease.ToLitMotionEase())
                 .WithLoops(cycles, cycleMode.ToLitMotionLoopType())
                 .WithDelay(startDelay)
-                .WithScheduler(GetScheduler(useUnscaledTime));
+                .WithScheduler(GetScheduler(useUnscaledTime))
+                .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
             return RegisterHandle(builder.BindToLocalPositionZ(target));
         }
@@ -488,7 +511,8 @@ namespace Moirai.Atropos
                 .WithEase(ease.ToLitMotionEase())
                 .WithLoops(cycles, cycleMode.ToLitMotionLoopType())
                 .WithDelay(startDelay)
-                .WithScheduler(GetScheduler(useUnscaledTime));
+                .WithScheduler(GetScheduler(useUnscaledTime))
+                .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
             return RegisterHandle(builder.BindToLocalPositionZ(target));
         }
@@ -506,7 +530,8 @@ namespace Moirai.Atropos
                 .WithEase(ease.ToLitMotionEase())
                 .WithLoops(cycles, cycleMode.ToLitMotionLoopType())
                 .WithDelay(startDelay)
-                .WithScheduler(GetScheduler(useUnscaledTime));
+                .WithScheduler(GetScheduler(useUnscaledTime))
+                .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
             return RegisterHandle(builder.BindToRotation(target));
         }
@@ -520,7 +545,8 @@ namespace Moirai.Atropos
                 .WithEase(ease.ToLitMotionEase())
                 .WithLoops(cycles, cycleMode.ToLitMotionLoopType())
                 .WithDelay(startDelay)
-                .WithScheduler(GetScheduler(useUnscaledTime));
+                .WithScheduler(GetScheduler(useUnscaledTime))
+                .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
             return RegisterHandle(builder.BindToRotation(target));
         }
@@ -534,7 +560,8 @@ namespace Moirai.Atropos
                 .WithEase(ease.ToLitMotionEase())
                 .WithLoops(cycles, cycleMode.ToLitMotionLoopType())
                 .WithDelay(startDelay)
-                .WithScheduler(GetScheduler(useUnscaledTime));
+                .WithScheduler(GetScheduler(useUnscaledTime))
+                .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
             return RegisterHandle(builder.BindToLocalRotation(target));
         }
@@ -548,7 +575,8 @@ namespace Moirai.Atropos
                 .WithEase(ease.ToLitMotionEase())
                 .WithLoops(cycles, cycleMode.ToLitMotionLoopType())
                 .WithDelay(startDelay)
-                .WithScheduler(GetScheduler(useUnscaledTime));
+                .WithScheduler(GetScheduler(useUnscaledTime))
+                .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
             return RegisterHandle(builder.BindToLocalRotation(target));
         }
@@ -566,7 +594,8 @@ namespace Moirai.Atropos
                 .WithEase(ease.ToLitMotionEase())
                 .WithLoops(cycles, cycleMode.ToLitMotionLoopType())
                 .WithDelay(startDelay)
-                .WithScheduler(GetScheduler(useUnscaledTime));
+                .WithScheduler(GetScheduler(useUnscaledTime))
+                .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
             return RegisterHandle(builder.BindToLocalScale(target));
         }
@@ -580,7 +609,8 @@ namespace Moirai.Atropos
                 .WithEase(ease.ToLitMotionEase())
                 .WithLoops(cycles, cycleMode.ToLitMotionLoopType())
                 .WithDelay(startDelay)
-                .WithScheduler(GetScheduler(useUnscaledTime));
+                .WithScheduler(GetScheduler(useUnscaledTime))
+                .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
             return RegisterHandle(builder.BindToLocalScale(target));
         }
@@ -598,7 +628,8 @@ namespace Moirai.Atropos
                 .WithEase(ease.ToLitMotionEase())
                 .WithLoops(cycles, cycleMode.ToLitMotionLoopType())
                 .WithDelay(startDelay)
-                .WithScheduler(GetScheduler(useUnscaledTime));
+                .WithScheduler(GetScheduler(useUnscaledTime))
+                .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
             return RegisterHandle(builder.BindToLocalScaleX(target));
         }
@@ -612,7 +643,8 @@ namespace Moirai.Atropos
                 .WithEase(ease.ToLitMotionEase())
                 .WithLoops(cycles, cycleMode.ToLitMotionLoopType())
                 .WithDelay(startDelay)
-                .WithScheduler(GetScheduler(useUnscaledTime));
+                .WithScheduler(GetScheduler(useUnscaledTime))
+                .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
             return RegisterHandle(builder.BindToLocalScaleX(target));
         }
@@ -626,7 +658,8 @@ namespace Moirai.Atropos
                 .WithEase(ease.ToLitMotionEase())
                 .WithLoops(cycles, cycleMode.ToLitMotionLoopType())
                 .WithDelay(startDelay)
-                .WithScheduler(GetScheduler(useUnscaledTime));
+                .WithScheduler(GetScheduler(useUnscaledTime))
+                .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
             return RegisterHandle(builder.BindToLocalScaleY(target));
         }
@@ -640,7 +673,8 @@ namespace Moirai.Atropos
                 .WithEase(ease.ToLitMotionEase())
                 .WithLoops(cycles, cycleMode.ToLitMotionLoopType())
                 .WithDelay(startDelay)
-                .WithScheduler(GetScheduler(useUnscaledTime));
+                .WithScheduler(GetScheduler(useUnscaledTime))
+                .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
             return RegisterHandle(builder.BindToLocalScaleY(target));
         }
@@ -654,7 +688,8 @@ namespace Moirai.Atropos
                 .WithEase(ease.ToLitMotionEase())
                 .WithLoops(cycles, cycleMode.ToLitMotionLoopType())
                 .WithDelay(startDelay)
-                .WithScheduler(GetScheduler(useUnscaledTime));
+                .WithScheduler(GetScheduler(useUnscaledTime))
+                .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
             return RegisterHandle(builder.BindToLocalScaleZ(target));
         }
@@ -668,7 +703,8 @@ namespace Moirai.Atropos
                 .WithEase(ease.ToLitMotionEase())
                 .WithLoops(cycles, cycleMode.ToLitMotionLoopType())
                 .WithDelay(startDelay)
-                .WithScheduler(GetScheduler(useUnscaledTime));
+                .WithScheduler(GetScheduler(useUnscaledTime))
+                .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
             return RegisterHandle(builder.BindToLocalScaleZ(target));
         }
@@ -686,7 +722,8 @@ namespace Moirai.Atropos
                 .WithEase(ease.ToLitMotionEase())
                 .WithLoops(cycles, cycleMode.ToLitMotionLoopType())
                 .WithDelay(startDelay)
-                .WithScheduler(GetScheduler(useUnscaledTime));
+                .WithScheduler(GetScheduler(useUnscaledTime))
+                .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
             return RegisterHandle(builder.BindToColor(target));
         }
@@ -700,7 +737,8 @@ namespace Moirai.Atropos
                 .WithEase(ease.ToLitMotionEase())
                 .WithLoops(cycles, cycleMode.ToLitMotionLoopType())
                 .WithDelay(startDelay)
-                .WithScheduler(GetScheduler(useUnscaledTime));
+                .WithScheduler(GetScheduler(useUnscaledTime))
+                .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
             return RegisterHandle(builder.BindToColor(target));
         }
@@ -714,7 +752,8 @@ namespace Moirai.Atropos
                 .WithEase(ease.ToLitMotionEase())
                 .WithLoops(cycles, cycleMode.ToLitMotionLoopType())
                 .WithDelay(startDelay)
-                .WithScheduler(GetScheduler(useUnscaledTime));
+                .WithScheduler(GetScheduler(useUnscaledTime))
+                .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
             return RegisterHandle(builder.Bind(target, static (x, m) => { m.color = x; }));
         }
@@ -728,7 +767,8 @@ namespace Moirai.Atropos
                 .WithEase(ease.ToLitMotionEase())
                 .WithLoops(cycles, cycleMode.ToLitMotionLoopType())
                 .WithDelay(startDelay)
-                .WithScheduler(GetScheduler(useUnscaledTime));
+                .WithScheduler(GetScheduler(useUnscaledTime))
+                .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
             return RegisterHandle(builder.BindToColorA(target));
         }
@@ -742,7 +782,8 @@ namespace Moirai.Atropos
                 .WithEase(ease.ToLitMotionEase())
                 .WithLoops(cycles, cycleMode.ToLitMotionLoopType())
                 .WithDelay(startDelay)
-                .WithScheduler(GetScheduler(useUnscaledTime));
+                .WithScheduler(GetScheduler(useUnscaledTime))
+                .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
             return RegisterHandle(builder.BindToColorA(target));
         }
@@ -760,7 +801,8 @@ namespace Moirai.Atropos
                 .WithEase(ease.ToLitMotionEase())
                 .WithLoops(cycles, cycleMode.ToLitMotionLoopType())
                 .WithDelay(startDelay)
-                .WithScheduler(GetScheduler(useUnscaledTime));
+                .WithScheduler(GetScheduler(useUnscaledTime))
+                .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
             return RegisterHandle(builder.Bind(target, (v, t) => t.value = v));
         }
@@ -774,7 +816,8 @@ namespace Moirai.Atropos
                 .WithEase(ease.ToLitMotionEase())
                 .WithLoops(cycles, cycleMode.ToLitMotionLoopType())
                 .WithDelay(startDelay)
-                .WithScheduler(GetScheduler(useUnscaledTime));
+                .WithScheduler(GetScheduler(useUnscaledTime))
+                .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
             return RegisterHandle(builder.Bind(target, (v, t) => t.value = v));
         }
@@ -788,7 +831,8 @@ namespace Moirai.Atropos
                 .WithEase(ease.ToLitMotionEase())
                 .WithLoops(cycles, cycleMode.ToLitMotionLoopType())
                 .WithDelay(startDelay)
-                .WithScheduler(GetScheduler(useUnscaledTime));
+                .WithScheduler(GetScheduler(useUnscaledTime))
+                .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
             return RegisterHandle(builder.Bind(target, (v, t) => t.normalizedPosition = v));
         }
@@ -802,7 +846,8 @@ namespace Moirai.Atropos
                 .WithEase(ease.ToLitMotionEase())
                 .WithLoops(cycles, cycleMode.ToLitMotionLoopType())
                 .WithDelay(startDelay)
-                .WithScheduler(GetScheduler(useUnscaledTime));
+                .WithScheduler(GetScheduler(useUnscaledTime))
+                .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
             return RegisterHandle(builder.Bind(target, (v, t) => t.normalizedPosition = v));
         }
@@ -816,7 +861,8 @@ namespace Moirai.Atropos
                 .WithEase(ease.ToLitMotionEase())
                 .WithLoops(cycles, cycleMode.ToLitMotionLoopType())
                 .WithDelay(startDelay)
-                .WithScheduler(GetScheduler(useUnscaledTime));
+                .WithScheduler(GetScheduler(useUnscaledTime))
+                .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
             return RegisterHandle(builder.Bind(target, (v, t) => t.horizontalNormalizedPosition = v));
         }
@@ -830,7 +876,8 @@ namespace Moirai.Atropos
                 .WithEase(ease.ToLitMotionEase())
                 .WithLoops(cycles, cycleMode.ToLitMotionLoopType())
                 .WithDelay(startDelay)
-                .WithScheduler(GetScheduler(useUnscaledTime));
+                .WithScheduler(GetScheduler(useUnscaledTime))
+                .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
             return RegisterHandle(builder.Bind(target, (v, t) => t.horizontalNormalizedPosition = v));
         }
@@ -844,7 +891,8 @@ namespace Moirai.Atropos
                 .WithEase(ease.ToLitMotionEase())
                 .WithLoops(cycles, cycleMode.ToLitMotionLoopType())
                 .WithDelay(startDelay)
-                .WithScheduler(GetScheduler(useUnscaledTime));
+                .WithScheduler(GetScheduler(useUnscaledTime))
+                .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
             return RegisterHandle(builder.Bind(target, (v, t) => t.verticalNormalizedPosition = v));
         }
@@ -858,7 +906,8 @@ namespace Moirai.Atropos
                 .WithEase(ease.ToLitMotionEase())
                 .WithLoops(cycles, cycleMode.ToLitMotionLoopType())
                 .WithDelay(startDelay)
-                .WithScheduler(GetScheduler(useUnscaledTime));
+                .WithScheduler(GetScheduler(useUnscaledTime))
+                .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
             return RegisterHandle(builder.Bind(target, (v, t) => t.verticalNormalizedPosition = v));
         }
@@ -872,7 +921,8 @@ namespace Moirai.Atropos
                 .WithEase(ease.ToLitMotionEase())
                 .WithLoops(cycles, cycleMode.ToLitMotionLoopType())
                 .WithDelay(startDelay)
-                .WithScheduler(GetScheduler(useUnscaledTime));
+                .WithScheduler(GetScheduler(useUnscaledTime))
+                .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
             return RegisterHandle(builder.BindToAnchoredPosition(target));
         }
@@ -886,7 +936,8 @@ namespace Moirai.Atropos
                 .WithEase(ease.ToLitMotionEase())
                 .WithLoops(cycles, cycleMode.ToLitMotionLoopType())
                 .WithDelay(startDelay)
-                .WithScheduler(GetScheduler(useUnscaledTime));
+                .WithScheduler(GetScheduler(useUnscaledTime))
+                .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
             return RegisterHandle(builder.BindToAnchoredPosition(target));
         }
@@ -900,7 +951,8 @@ namespace Moirai.Atropos
                 .WithEase(ease.ToLitMotionEase())
                 .WithLoops(cycles, cycleMode.ToLitMotionLoopType())
                 .WithDelay(startDelay)
-                .WithScheduler(GetScheduler(useUnscaledTime));
+                .WithScheduler(GetScheduler(useUnscaledTime))
+                .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
             return RegisterHandle(builder.BindToAnchoredPositionX(target));
         }
@@ -914,7 +966,8 @@ namespace Moirai.Atropos
                 .WithEase(ease.ToLitMotionEase())
                 .WithLoops(cycles, cycleMode.ToLitMotionLoopType())
                 .WithDelay(startDelay)
-                .WithScheduler(GetScheduler(useUnscaledTime));
+                .WithScheduler(GetScheduler(useUnscaledTime))
+                .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
             return RegisterHandle(builder.BindToAnchoredPositionX(target));
         }
@@ -928,7 +981,8 @@ namespace Moirai.Atropos
                 .WithEase(ease.ToLitMotionEase())
                 .WithLoops(cycles, cycleMode.ToLitMotionLoopType())
                 .WithDelay(startDelay)
-                .WithScheduler(GetScheduler(useUnscaledTime));
+                .WithScheduler(GetScheduler(useUnscaledTime))
+                .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
             return RegisterHandle(builder.BindToAnchoredPositionY(target));
         }
@@ -942,7 +996,8 @@ namespace Moirai.Atropos
                 .WithEase(ease.ToLitMotionEase())
                 .WithLoops(cycles, cycleMode.ToLitMotionLoopType())
                 .WithDelay(startDelay)
-                .WithScheduler(GetScheduler(useUnscaledTime));
+                .WithScheduler(GetScheduler(useUnscaledTime))
+                .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
             return RegisterHandle(builder.BindToAnchoredPositionY(target));
         }
@@ -956,7 +1011,8 @@ namespace Moirai.Atropos
                 .WithEase(ease.ToLitMotionEase())
                 .WithLoops(cycles, cycleMode.ToLitMotionLoopType())
                 .WithDelay(startDelay)
-                .WithScheduler(GetScheduler(useUnscaledTime));
+                .WithScheduler(GetScheduler(useUnscaledTime))
+                .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
             return RegisterHandle(builder.BindToAnchoredPosition3D(target));
         }
@@ -970,7 +1026,8 @@ namespace Moirai.Atropos
                 .WithEase(ease.ToLitMotionEase())
                 .WithLoops(cycles, cycleMode.ToLitMotionLoopType())
                 .WithDelay(startDelay)
-                .WithScheduler(GetScheduler(useUnscaledTime));
+                .WithScheduler(GetScheduler(useUnscaledTime))
+                .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
             return RegisterHandle(builder.BindToAnchoredPosition3D(target));
         }
@@ -984,7 +1041,8 @@ namespace Moirai.Atropos
                 .WithEase(ease.ToLitMotionEase())
                 .WithLoops(cycles, cycleMode.ToLitMotionLoopType())
                 .WithDelay(startDelay)
-                .WithScheduler(GetScheduler(useUnscaledTime));
+                .WithScheduler(GetScheduler(useUnscaledTime))
+                .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
             return RegisterHandle(builder.BindToSizeDelta(target));
         }
@@ -998,7 +1056,8 @@ namespace Moirai.Atropos
                 .WithEase(ease.ToLitMotionEase())
                 .WithLoops(cycles, cycleMode.ToLitMotionLoopType())
                 .WithDelay(startDelay)
-                .WithScheduler(GetScheduler(useUnscaledTime));
+                .WithScheduler(GetScheduler(useUnscaledTime))
+                .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
             return RegisterHandle(builder.BindToSizeDelta(target));
         }
@@ -1012,7 +1071,8 @@ namespace Moirai.Atropos
                 .WithEase(ease.ToLitMotionEase())
                 .WithLoops(cycles, cycleMode.ToLitMotionLoopType())
                 .WithDelay(startDelay)
-                .WithScheduler(GetScheduler(useUnscaledTime));
+                .WithScheduler(GetScheduler(useUnscaledTime))
+                .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
             return RegisterHandle(builder.BindToColor(target));
         }
@@ -1026,7 +1086,8 @@ namespace Moirai.Atropos
                 .WithEase(ease.ToLitMotionEase())
                 .WithLoops(cycles, cycleMode.ToLitMotionLoopType())
                 .WithDelay(startDelay)
-                .WithScheduler(GetScheduler(useUnscaledTime));
+                .WithScheduler(GetScheduler(useUnscaledTime))
+                .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
             return RegisterHandle(builder.BindToColor(target));
         }
@@ -1040,7 +1101,8 @@ namespace Moirai.Atropos
                 .WithEase(ease.ToLitMotionEase())
                 .WithLoops(cycles, cycleMode.ToLitMotionLoopType())
                 .WithDelay(startDelay)
-                .WithScheduler(GetScheduler(useUnscaledTime));
+                .WithScheduler(GetScheduler(useUnscaledTime))
+                .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
             return RegisterHandle(builder.Bind(target, (v, t) => t.alpha = v));
         }
@@ -1054,7 +1116,8 @@ namespace Moirai.Atropos
                 .WithEase(ease.ToLitMotionEase())
                 .WithLoops(cycles, cycleMode.ToLitMotionLoopType())
                 .WithDelay(startDelay)
-                .WithScheduler(GetScheduler(useUnscaledTime));
+                .WithScheduler(GetScheduler(useUnscaledTime))
+                .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
             return RegisterHandle(builder.Bind(target, (v, t) => t.alpha = v));
         }
@@ -1068,7 +1131,8 @@ namespace Moirai.Atropos
                 .WithEase(ease.ToLitMotionEase())
                 .WithLoops(cycles, cycleMode.ToLitMotionLoopType())
                 .WithDelay(startDelay)
-                .WithScheduler(GetScheduler(useUnscaledTime));
+                .WithScheduler(GetScheduler(useUnscaledTime))
+                .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
             return RegisterHandle(builder.BindToColorA(target));
         }
@@ -1082,7 +1146,8 @@ namespace Moirai.Atropos
                 .WithEase(ease.ToLitMotionEase())
                 .WithLoops(cycles, cycleMode.ToLitMotionLoopType())
                 .WithDelay(startDelay)
-                .WithScheduler(GetScheduler(useUnscaledTime));
+                .WithScheduler(GetScheduler(useUnscaledTime))
+                .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
             return RegisterHandle(builder.BindToColorA(target));
         }
@@ -1096,7 +1161,8 @@ namespace Moirai.Atropos
                 .WithEase(ease.ToLitMotionEase())
                 .WithLoops(cycles, cycleMode.ToLitMotionLoopType())
                 .WithDelay(startDelay)
-                .WithScheduler(GetScheduler(useUnscaledTime));
+                .WithScheduler(GetScheduler(useUnscaledTime))
+                .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
             return RegisterHandle(builder.BindToFillAmount(target));
         }
@@ -1110,7 +1176,8 @@ namespace Moirai.Atropos
                 .WithEase(ease.ToLitMotionEase())
                 .WithLoops(cycles, cycleMode.ToLitMotionLoopType())
                 .WithDelay(startDelay)
-                .WithScheduler(GetScheduler(useUnscaledTime));
+                .WithScheduler(GetScheduler(useUnscaledTime))
+                .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
             return RegisterHandle(builder.BindToFillAmount(target));
         }
@@ -1131,7 +1198,8 @@ namespace Moirai.Atropos
                 .WithEase(ease.ToLitMotionEase())
                 .WithLoops(cycles, cycleMode.ToLitMotionLoopType())
                 .WithDelay(startDelay)
-                .WithScheduler(GetScheduler(useUnscaledTime));
+                .WithScheduler(GetScheduler(useUnscaledTime))
+                .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
             return RegisterHandle(builder.Bind(target, (t, transform) =>
             {
@@ -1157,7 +1225,8 @@ namespace Moirai.Atropos
                 .WithEase(ease.ToLitMotionEase())
                 .WithLoops(cycles, cycleMode.ToLitMotionLoopType())
                 .WithDelay(startDelay)
-                .WithScheduler(GetScheduler(useUnscaledTime));
+                .WithScheduler(GetScheduler(useUnscaledTime))
+                .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
             return RegisterHandle(builder.Bind(target, (v, t) => onValueChange(t, v)));
         }
@@ -1170,7 +1239,8 @@ namespace Moirai.Atropos
                     .WithEase(ease.ToLitMotionEase())
                     .WithLoops(cycles, cycleMode.ToLitMotionLoopType())
                     .WithDelay(startDelay)
-                    .WithScheduler(GetScheduler(useUnscaledTime));
+                    .WithScheduler(GetScheduler(useUnscaledTime))
+                    .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
             return RegisterHandle(builder.Bind(target, (v, t) => onValueChange(t, v)));
         }
@@ -1184,7 +1254,8 @@ namespace Moirai.Atropos
                 .WithEase(ease.ToLitMotionEase())
                 .WithLoops(cycles, cycleMode.ToLitMotionLoopType())
                 .WithDelay(startDelay)
-                .WithScheduler(GetScheduler(useUnscaledTime));
+                .WithScheduler(GetScheduler(useUnscaledTime))
+                .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
             return RegisterHandle(builder.Bind(target, (v, t) => onValueChange(t, v)));
         }
@@ -1198,7 +1269,8 @@ namespace Moirai.Atropos
                 .WithEase(ease.ToLitMotionEase())
                 .WithLoops(cycles, cycleMode.ToLitMotionLoopType())
                 .WithDelay(startDelay)
-                .WithScheduler(GetScheduler(useUnscaledTime));
+                .WithScheduler(GetScheduler(useUnscaledTime))
+                .WithCancelOnError();
             if (onComplete != null) builder = builder.WithOnComplete(onComplete);
             return RegisterHandle(builder.Bind(target, (v, t) => onValueChange(t, v)));
         }
