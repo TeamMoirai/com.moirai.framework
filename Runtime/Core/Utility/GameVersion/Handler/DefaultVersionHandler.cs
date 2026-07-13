@@ -9,6 +9,14 @@ namespace Moirai.Atropos
     [Serializable]
     public sealed class DefaultVersionHandler : VersionHandler
     {
+        protected override void OnInit()
+        {
+        }
+
+        protected override void Shutdown()
+        {
+        }
+
         public override string GameVersion => "Ver." + Application.version;
         
         public override string InternalGameVersion => string.Empty;
