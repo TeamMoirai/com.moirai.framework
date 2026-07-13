@@ -11,19 +11,19 @@ namespace Moirai.Atropos
         /// </summary>
         internal static class TweenTask
         {
-            private const int InitialCapacity = 256;
+            private const int INITIAL_CAPACITY = 256;
 
-            private static TweenState[] _states;
-            private static int _count;
-            private static int _capacity;
-            private static readonly List<int> _pendingRemove = new(64);
-            private static readonly List<int> _pendingComplete = new(64);
+            private static TweenState[] s_States;
+            private static int s_Count;
+            private static int s_Capacity;
+            private static readonly List<int> s_PendingRemove = new(64);
+            private static readonly List<int> s_PendingComplete = new(64);
 
             static TweenTask()
             {
-                _states = new TweenState[InitialCapacity];
-                _capacity = InitialCapacity;
-                _count = 0;
+                s_States = new TweenState[INITIAL_CAPACITY];
+                s_Capacity = INITIAL_CAPACITY;
+                s_Count = 0;
             }
 
             #region ID 编码
@@ -52,30 +52,30 @@ namespace Moirai.Atropos
             internal static long Create(in TweenState state)
             {
                 int index = FindFreeSlot();
-                _states[index] = state;
-                _states[index].IsActive = true;
-                _states[index].StartTime = -1f; // 标记为未开始（等待 StartDelay）
-                _states[index].DelayTimer = state.HasDelay ? state.StartDelay : 0f;
-                return EncodeId(index, _states[index].Version);
+                s_States[index] = state;
+                s_States[index].IsActive = true;
+                s_States[index].StartTime = -1f; // 标记为未开始（等待 StartDelay）
+                s_States[index].DelayTimer = state.HasDelay ? state.StartDelay : 0f;
+                return EncodeId(index, s_States[index].Version);
             }
 
             private static int FindFreeSlot()
             {
                 // 从尾部向前找已回收的槽位
-                for (int i = 0; i < _count; i++)
+                for (int i = 0; i < s_Count; i++)
                 {
-                    if (!_states[i].IsActive)
+                    if (!s_States[i].IsActive)
                         return i;
                 }
 
                 // 没有空闲槽位，扩容
-                if (_count >= _capacity)
+                if (s_Count >= s_Capacity)
                 {
-                    _capacity *= 2;
-                    Array.Resize(ref _states, _capacity);
+                    s_Capacity *= 2;
+                    Array.Resize(ref s_States, s_Capacity);
                 }
 
-                return _count++;
+                return s_Count++;
             }
 
             #endregion
@@ -90,12 +90,12 @@ namespace Moirai.Atropos
                 float dt = Time.deltaTime;
                 float unscaledDt = Time.unscaledDeltaTime;
 
-                _pendingRemove.Clear();
-                _pendingComplete.Clear();
+                s_PendingRemove.Clear();
+                s_PendingComplete.Clear();
 
-                for (int i = 0; i < _count; i++)
+                for (int i = 0; i < s_Count; i++)
                 {
-                    ref TweenState state = ref _states[i];
+                    ref TweenState state = ref s_States[i];
                     if (!state.IsActive) continue;
 
                     // 1. 检查目标是否已销毁
@@ -188,10 +188,10 @@ namespace Moirai.Atropos
                 }
 
                 // 7. 批量清理已完成的条目（倒序删除避免索引偏移）
-                for (int i = _pendingRemove.Count - 1; i >= 0; i--)
+                for (int i = s_PendingRemove.Count - 1; i >= 0; i--)
                 {
-                    int idx = _pendingRemove[i];
-                    _states[idx].Reset();
+                    int idx = s_PendingRemove[i];
+                    s_States[idx].Reset();
                 }
             }
 
@@ -633,7 +633,7 @@ namespace Moirai.Atropos
             private static void OnTweenCompleted(ref TweenState state, int index)
             {
                 state.OnComplete?.Invoke();
-                _pendingRemove.Add(index);
+                s_PendingRemove.Add(index);
             }
 
             #endregion
@@ -643,16 +643,16 @@ namespace Moirai.Atropos
             internal static bool IsAlive(long tweenId)
             {
                 DecodeId(tweenId, out int index, out int version);
-                return index >= 0 && index < _count
-                                  && _states[index].IsActive
-                                  && _states[index].Version == version;
+                return index >= 0 && index < s_Count
+                                  && s_States[index].IsActive
+                                  && s_States[index].Version == version;
             }
 
             internal static bool IsTweening(object target)
             {
-                for (int i = 0; i < _count; i++)
+                for (int i = 0; i < s_Count; i++)
                 {
-                    ref TweenState state = ref _states[i];
+                    ref TweenState state = ref s_States[i];
                     if (state.IsActive && ReferenceEquals(state.Target, target))
                         return true;
                 }
@@ -663,9 +663,9 @@ namespace Moirai.Atropos
             internal static int GetTweenCount(object target)
             {
                 int count = 0;
-                for (int i = 0; i < _count; i++)
+                for (int i = 0; i < s_Count; i++)
                 {
-                    ref TweenState state = ref _states[i];
+                    ref TweenState state = ref s_States[i];
                     if (state.IsActive && ReferenceEquals(state.Target, target))
                         count++;
                 }
@@ -676,38 +676,38 @@ namespace Moirai.Atropos
             internal static void Stop(long tweenId)
             {
                 DecodeId(tweenId, out int index, out int version);
-                if (index >= 0 && index < _count
-                               && _states[index].IsActive
-                               && _states[index].Version == version)
+                if (index >= 0 && index < s_Count
+                               && s_States[index].IsActive
+                               && s_States[index].Version == version)
                 {
-                    _states[index].IsActive = false;
-                    _pendingRemove.Add(index);
+                    s_States[index].IsActive = false;
+                    s_PendingRemove.Add(index);
                 }
             }
 
             internal static void Complete(long tweenId)
             {
                 DecodeId(tweenId, out int index, out int version);
-                if (index >= 0 && index < _count
-                               && _states[index].IsActive
-                               && _states[index].Version == version)
+                if (index >= 0 && index < s_Count
+                               && s_States[index].IsActive
+                               && s_States[index].Version == version)
                 {
-                    ApplyValue(ref _states[index], 1f);
-                    _states[index].IsActive = false;
-                    _pendingRemove.Add(index);
+                    ApplyValue(ref s_States[index], 1f);
+                    s_States[index].IsActive = false;
+                    s_PendingRemove.Add(index);
                 }
             }
 
             internal static int StopAll(object target)
             {
                 int count = 0;
-                for (int i = 0; i < _count; i++)
+                for (int i = 0; i < s_Count; i++)
                 {
-                    ref TweenState state = ref _states[i];
+                    ref TweenState state = ref s_States[i];
                     if (state.IsActive && (target == null || ReferenceEquals(state.Target, target)))
                     {
                         state.IsActive = false;
-                        _pendingRemove.Add(i);
+                        s_PendingRemove.Add(i);
                         count++;
                     }
                 }
@@ -718,14 +718,14 @@ namespace Moirai.Atropos
             internal static int CompleteAll(object target)
             {
                 int count = 0;
-                for (int i = 0; i < _count; i++)
+                for (int i = 0; i < s_Count; i++)
                 {
-                    ref TweenState state = ref _states[i];
+                    ref TweenState state = ref s_States[i];
                     if (state.IsActive && (target == null || ReferenceEquals(state.Target, target)))
                     {
                         ApplyValue(ref state, 1f);
                         state.IsActive = false;
-                        _pendingRemove.Add(i);
+                        s_PendingRemove.Add(i);
                         count++;
                     }
                 }
@@ -735,9 +735,9 @@ namespace Moirai.Atropos
 
             internal static void ReleaseUnused()
             {
-                for (int i = 0; i < _count; i++)
+                for (int i = 0; i < s_Count; i++)
                 {
-                    ref TweenState state = ref _states[i];
+                    ref TweenState state = ref s_States[i];
                     if (!state.IsActive) continue;
 
                     // 清理已销毁目标的 tween
@@ -749,8 +749,8 @@ namespace Moirai.Atropos
                 }
 
                 // 压缩数组（移除尾部空闲槽位）
-                while (_count > 0 && !_states[_count - 1].IsActive)
-                    _count--;
+                while (s_Count > 0 && !s_States[s_Count - 1].IsActive)
+                    s_Count--;
             }
 
             #endregion
