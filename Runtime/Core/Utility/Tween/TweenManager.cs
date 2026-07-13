@@ -41,6 +41,7 @@ namespace Moirai.Atropos
 
         private void Update()
         {
+            // 定期清理已失效的 tween 缓存
             _timer -= Time.deltaTime;
             if (_timer <= 0f)
             {
