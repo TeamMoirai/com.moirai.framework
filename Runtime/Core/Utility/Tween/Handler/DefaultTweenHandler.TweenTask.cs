@@ -152,11 +152,24 @@ namespace Moirai.Atropos
                                 break;
 
                             case TweenUtility.ECycleMode.Incremental:
+                                // 先计算 delta（使用原始 Start/End 值），再更新
+                                float dX = state.EndX - state.StartX;
+                                float dY = state.EndY - state.StartY;
+                                float dZ = state.EndZ - state.StartZ;
+                                float dE = state.EndExtra - state.StartExtra;
+                                Color dC = state.EndColor - state.StartColor;
+                                // Start = 当前 End
                                 state.StartX = state.EndX;
                                 state.StartY = state.EndY;
                                 state.StartZ = state.EndZ;
                                 state.StartExtra = state.EndExtra;
                                 state.StartColor = state.EndColor;
+                                // End += delta
+                                state.EndX += dX;
+                                state.EndY += dY;
+                                state.EndZ += dZ;
+                                state.EndExtra += dE;
+                                state.EndColor += dC;
                                 state.ElapsedTime = 0f;
                                 normalizedTime = 0f;
                                 break;
