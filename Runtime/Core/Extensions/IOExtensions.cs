@@ -543,11 +543,9 @@ namespace Moirai.Atropos
                     return stream.ReadFloat();
                 case StreamObjectTypes.Int:
                     return stream.ReadInt();
-#if DAYDREAM_JSON
                 case StreamObjectTypes.JSON:
                     Type t = Type.GetType(stream.ReadStringPacket());
-                    return Json.FromJSON(stream.ReadStringPacket(encoding), t);
-#endif
+                    return JSONUtility.ToObject(t, stream.ReadStringPacket(encoding));
                 case StreamObjectTypes.Long:
                     return stream.ReadLong();
                 case StreamObjectTypes.Quaternion:
