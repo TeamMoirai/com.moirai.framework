@@ -14,6 +14,20 @@ namespace Moirai.Atropos
         /// </summary>
         public abstract int Count { get; }
 
+        internal void Internal_Init()
+        {
+            OnInit();
+        }
+
+        internal void Internal_Shutdown()
+        {
+            Shutdown();
+        }
+
+        protected abstract void OnInit();
+
+        protected abstract void Shutdown();
+
         /// <summary>
         /// 加载游戏配置。
         /// </summary>
