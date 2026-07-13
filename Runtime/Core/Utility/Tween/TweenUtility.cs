@@ -10,7 +10,6 @@ namespace Moirai.Atropos
     public static partial class TweenUtility
     {
         private static TweenHandler s_Handler = null;
-
         /// <summary>
         /// 获取/设置缓动动画处理器。
         /// </summary>
