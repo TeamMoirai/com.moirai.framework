@@ -8,7 +8,7 @@ namespace Moirai.Atropos
     /// 默认补间动画处理器。基于结构体数组 + 版本号ID实现，0 GC、高性能。
     /// </summary>
     [Serializable]
-    public sealed class DefaultTweenHandler : TweenHandler
+    public sealed partial class DefaultTweenHandler : TweenHandler
     {
         #region 生命周期
 
