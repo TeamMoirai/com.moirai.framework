@@ -8,6 +8,20 @@ namespace Moirai.Atropos
     [Serializable]
     public abstract class VersionHandler
     {
+        internal void Internal_Init()
+        {
+            OnInit();
+        }
+
+        internal void Internal_Shutdown()
+        {
+            Shutdown();
+        }
+
+        protected abstract void OnInit();
+
+        protected abstract void Shutdown();
+
         /// <summary>
         /// 获取游戏版本号。
         /// </summary>
