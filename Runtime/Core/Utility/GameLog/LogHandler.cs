@@ -8,6 +8,20 @@ namespace Moirai.Atropos
     [Serializable]
     public abstract class LogHandler
     {
+        internal void Internal_Init()
+        {
+            OnInit();
+        }
+
+        internal void Internal_Shutdown()
+        {
+            Shutdown();
+        }
+
+        protected abstract void OnInit();
+
+        protected abstract void Shutdown();
+
         /// <summary>
         /// 记录日志。
         /// </summary>

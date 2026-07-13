@@ -13,10 +13,17 @@
         {
             get
             {
-                s_Handler ??= new DefaultLogHandler();
+                if (s_Handler == null) Handler = new DefaultLogHandler();
                 return s_Handler;
             }
-            set => s_Handler = value;
+            set
+            {
+                if (s_Handler == value || value == null) return;
+
+                s_Handler?.Internal_Shutdown();
+                s_Handler = value;
+                s_Handler.Internal_Init();
+            }
         }
         
         /// <summary>
