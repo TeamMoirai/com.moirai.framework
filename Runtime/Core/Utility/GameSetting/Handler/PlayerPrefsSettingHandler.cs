@@ -12,6 +12,14 @@ namespace Moirai.Atropos
     {
         public override int Count => -1;
 
+        protected override void OnInit()
+        {
+        }
+
+        protected override void Shutdown()
+        {
+        }
+
         public override bool Load()
         {
             return true;

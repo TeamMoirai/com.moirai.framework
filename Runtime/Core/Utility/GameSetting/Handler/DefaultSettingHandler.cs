@@ -23,15 +23,8 @@ namespace Moirai.Atropos
 
         public override int Count => _settings?.Count ?? 0;
 
-        /// <summary>
-        /// 懒加载初始化。<br/>
-        /// 构造函数不允许访问 Application.persistentDataPath
-        /// </summary>
-        private void EnsureInitialized()
+        protected override void OnInit()
         {
-            if (_initialized) return;
-
-            _initialized = true;
             _filePath = PathUtility.FormatToUnityPath(Path.Combine(Application.persistentDataPath, m_SettingFileName));
             _settings = new Settings();
             _serializer = new Serializer();
@@ -39,6 +32,10 @@ namespace Moirai.Atropos
             _serializer.RegisterDeserializeCallback(0, DeserializeDefaultSettingCallback);
 
             Load();
+        }
+
+        protected override void Shutdown()
+        {
         }
 
         private bool SerializeDefaultSettingCallback(Stream stream, Settings settings)
@@ -57,8 +54,6 @@ namespace Moirai.Atropos
         {
             try
             {
-                EnsureInitialized();
-
                 if (!File.Exists(_filePath))
                 {
                     return true;
@@ -81,8 +76,6 @@ namespace Moirai.Atropos
         {
             try
             {
-                EnsureInitialized();
-
                 using (FileStream fileStream = new FileStream(_filePath, FileMode.Create, FileAccess.Write))
                 {
                     return _serializer.Serialize(fileStream, _settings);
@@ -97,103 +90,86 @@ namespace Moirai.Atropos
 
         public override string[] GetAllSettingNames()
         {
-            EnsureInitialized();
             return _settings.GetAllSettingNames();
         }
 
         public override void GetAllSettingNames(List<string> results)
         {
-            EnsureInitialized();
             _settings.GetAllSettingNames(results);
         }
 
         public override bool HasSetting(string settingName)
         {
-            EnsureInitialized();
             return _settings.HasSetting(settingName);
         }
 
         public override bool RemoveSetting(string settingName)
         {
-            EnsureInitialized();
             return _settings.RemoveSetting(settingName);
         }
 
         public override void RemoveAllSettings()
         {
-            EnsureInitialized();
             _settings.RemoveAllSettings();
         }
 
         public override bool GetBool(string settingName)
         {
-            EnsureInitialized();
             return _settings.GetBool(settingName);
         }
 
         public override bool GetBool(string settingName, bool defaultValue)
         {
-            EnsureInitialized();
             return _settings.GetBool(settingName, defaultValue);
         }
 
         public override void SetBool(string settingName, bool value)
         {
-            EnsureInitialized();
             _settings.SetBool(settingName, value);
         }
 
         public override int GetInt(string settingName)
         {
-            EnsureInitialized();
             return _settings.GetInt(settingName);
         }
 
         public override int GetInt(string settingName, int defaultValue)
         {
-            EnsureInitialized();
             return _settings.GetInt(settingName, defaultValue);
         }
 
         public override void SetInt(string settingName, int value)
         {
-            EnsureInitialized();
             _settings.SetInt(settingName, value);
         }
 
         public override float GetFloat(string settingName)
         {
-            EnsureInitialized();
             return _settings.GetFloat(settingName);
         }
 
         public override float GetFloat(string settingName, float defaultValue)
         {
-            EnsureInitialized();
             return _settings.GetFloat(settingName, defaultValue);
         }
 
         public override void SetFloat(string settingName, float value)
         {
-            EnsureInitialized();
             _settings.SetFloat(settingName, value);
         }
 
         public override string GetString(string settingName)
         {
-            EnsureInitialized();
             return _settings.GetString(settingName);
         }
 
         public override string GetString(string settingName, string defaultValue)
         {
-            EnsureInitialized();
             return _settings.GetString(settingName, defaultValue);
         }
 
         public override void SetString(string settingName, string value)
         {
-            EnsureInitialized();
             _settings.SetString(settingName, value);
         }
     }
