@@ -11,6 +11,21 @@ namespace Moirai.Atropos
     [Serializable]
     public abstract partial class StringHandler
     {
+        internal void Internal_Init()
+        {
+            OnInit();
+        }
+
+        internal void Internal_Shutdown()
+        {
+            Clear();
+            Shutdown();
+        }
+
+        protected abstract void OnInit();
+
+        protected abstract void Shutdown();
+
         /// <summary>
         /// 获取一个字符串构建器适配器
         /// </summary>

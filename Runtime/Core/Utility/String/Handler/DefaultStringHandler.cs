@@ -35,6 +35,14 @@ namespace Moirai.Atropos
 
         #region 实现方法 [IMPLEMENTATION METHODS]
 
+        protected override void OnInit()
+        {
+        }
+
+        protected override void Shutdown()
+        {
+        }
+
         /// <summary>
         /// 获取一个字符串构建器适配器（0GC）。
         /// 优先从池中获取，回退到创建新实例。
