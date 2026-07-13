@@ -24,6 +24,14 @@ namespace Moirai.Atropos
         private const ELogType FILTER_LEVEL = ELogType.Info;
         private static readonly StringBuilder s_StringBuilder = new StringBuilder(1024);
 
+        protected override void OnInit()
+        {
+        }
+
+        protected override void Shutdown()
+        {
+        }
+
         /// <summary>
         /// 打印游戏日志。
         /// </summary>
