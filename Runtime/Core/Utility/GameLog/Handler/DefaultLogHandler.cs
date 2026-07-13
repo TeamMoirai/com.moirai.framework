@@ -9,7 +9,7 @@ namespace Moirai.Atropos
     /// 默认游戏框架日志辅助。
     /// </summary>
     [Serializable]
-    public sealed class DefaultLogHelper : LogHandler
+    public sealed class DefaultLogHandler : LogHandler
     {
         private enum ELogType
         {

@@ -1,4 +1,6 @@
 using System;
+using UnityEngine;
+using UnityEngine.UI;
 
 namespace Moirai.Atropos
 {
@@ -7,835 +9,524 @@ namespace Moirai.Atropos
     /// </summary>
     public static partial class TweenUtility
     {
-        private static ITweenHelper s_TweenHelper = null;
+        private static TweenHandler s_Handler = null;
 
         /// <summary>
-        /// 设置动画处理器。
+        /// 获取/设置缓动动画处理器。
         /// </summary>
-        /// <param name="textHelper">要设置的动画处理器。</param>
-        public static void SetTweenHelper(ITweenHelper textHelper)
+        public static TweenHandler Handler
         {
-            s_TweenHelper = textHelper;
+            get
+            {
+                if (s_Handler == null) Handler = new DefaultTweenHandler();
+                return s_Handler;
+            }
+            set
+            {
+                if (s_Handler == value || value == null) return;
+
+                s_Handler?.Internal_Shutdown();
+                s_Handler = value;
+                s_Handler.Internal_Init();
+            }
         }
 
+        // ReSharper disable once IdentifierTypo
         public static bool IsTweening(object onTarget)
         {
-            if (s_TweenHelper == null)
-            {
-                throw new GameException("ITweenHelper is invalid.");
-            }
-            return s_TweenHelper.IsTweening(onTarget);
+            return Handler.IsTweening(onTarget);
         }
 
         public static int GetTweenCount(object onTarget)
         {
-            if (s_TweenHelper == null)
-            {
-                throw new GameException("ITweenHelper is invalid.");
-            }
-            return s_TweenHelper.GetTweenCount(onTarget);
+            return Handler.GetTweenCount(onTarget);
         }
 
         public static bool IsAlive(long tweenId)
         {
-            if (s_TweenHelper == null)
-            {
-                throw new GameException("ITweenHelper is invalid.");
-            }
-            return s_TweenHelper.IsAlive(tweenId);
+            return Handler.IsAlive(tweenId);
         }
 
         public static void Stop(long tweenId)
         {
-            if (s_TweenHelper == null)
-            {
-                throw new GameException("ITweenHelper is invalid.");
-            }
-            s_TweenHelper.Stop(tweenId);
+            Handler.Stop(tweenId);
         }
 
         public static void Complete(long tweenId)
         {
-            if (s_TweenHelper == null)
-            {
-                throw new GameException("ITweenHelper is invalid.");
-            }
-            s_TweenHelper.Complete(tweenId);
+            Handler.Complete(tweenId);
         }
 
         public static int StopAll(object onTarget = null)
         {
-            if (s_TweenHelper == null)
-            {
-                throw new GameException("ITweenHelper is invalid.");
-            }
-            return s_TweenHelper.StopAll(onTarget);
+            return Handler.StopAll(onTarget);
         }
 
         public static int CompleteAll(object onTarget = null)
         {
-            if (s_TweenHelper == null)
-            {
-                throw new GameException("ITweenHelper is invalid.");
-            }
-            return s_TweenHelper.CompleteAll(onTarget);
+            return Handler.CompleteAll(onTarget);
         }
-
-        public static void OnComplete(long tweenId, Action onComplete)
-        {
-            if (s_TweenHelper == null)
-            {
-                throw new GameException("ITweenHelper is invalid.");
-            }
-            s_TweenHelper.OnComplete(tweenId, onComplete);
-        }
-
+        
         public static long Delay(float duration, Action onComplete = null, bool useUnscaledTime = false, bool warnIfTargetDestroyed = true)
         {
-            if (s_TweenHelper == null)
-            {
-                throw new GameException("ITweenHelper is invalid.");
-            }
-            return s_TweenHelper.Delay(duration, onComplete, useUnscaledTime, warnIfTargetDestroyed);
+            return Handler.Delay(duration, onComplete, useUnscaledTime, warnIfTargetDestroyed);
         }
 
         public static long Delay(object target, float duration, Action onComplete = null, bool useUnscaledTime = false, bool warnIfTargetDestroyed = true)
         {
-            if (s_TweenHelper == null)
-            {
-                throw new GameException("ITweenHelper is invalid.");
-            }
-            return s_TweenHelper.Delay(target, duration, onComplete, useUnscaledTime, warnIfTargetDestroyed);
+            return Handler.Delay(target, duration, onComplete, useUnscaledTime, warnIfTargetDestroyed);
         }
 
-        public static long LocalRotation(UnityEngine.Transform target, UnityEngine.Vector3 endValue, float duration, Ease ease = Ease.Default, int cycles = 1,
-            CycleMode cycleMode = CycleMode.Restart, float startDelay = 0, float endDelay = 0, bool useUnscaledTime = false)
+        public static long LocalRotation(Transform target, Vector3 endValue, float duration, EEase ease = EEase.Default,
+            int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            if (s_TweenHelper == null)
-            {
-                throw new GameException("ITweenHelper is invalid.");
-            }
-            return s_TweenHelper.LocalRotation(target, endValue, duration, ease, cycles, cycleMode, startDelay, endDelay, useUnscaledTime);
+            return Handler.LocalRotation(target, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
-        public static long LocalRotation(UnityEngine.Transform target, UnityEngine.Vector3 startValue, UnityEngine.Vector3 endValue, float duration, Ease ease = Ease.Default,
-            int cycles = 1, CycleMode cycleMode = CycleMode.Restart, float startDelay = 0, float endDelay = 0, bool useUnscaledTime = false)
+        public static long LocalRotation(Transform target, Vector3 startValue, Vector3 endValue, float duration, EEase ease = EEase.Default,
+            int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            if (s_TweenHelper == null)
-            {
-                throw new GameException("ITweenHelper is invalid.");
-            }
-            return s_TweenHelper.LocalRotation(target, startValue, endValue, duration, ease, cycles, cycleMode, startDelay, endDelay, useUnscaledTime);
+            return Handler.LocalRotation(target, startValue, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
 
-        public static long Scale(UnityEngine.Transform target, Single endValue, float duration, Ease ease = Ease.Default, int cycles = 1, CycleMode cycleMode = CycleMode.Restart,
-            float startDelay = 0, float endDelay = 0, bool useUnscaledTime = false)
+        public static long Scale(Transform target, Single endValue, float duration, EEase ease = EEase.Default,
+            int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            if (s_TweenHelper == null)
-            {
-                throw new GameException("ITweenHelper is invalid.");
-            }
-            return s_TweenHelper.Scale(target, endValue, duration, ease, cycles, cycleMode, startDelay, endDelay, useUnscaledTime);
+            return Handler.Scale(target, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
-        public static long Scale(UnityEngine.Transform target, Single startValue, Single endValue, float duration, Ease ease = Ease.Default, int cycles = 1,
-            CycleMode cycleMode = CycleMode.Restart, float startDelay = 0, float endDelay = 0, bool useUnscaledTime = false)
+        public static long Scale(Transform target, Single startValue, Single endValue, float duration, EEase ease = EEase.Default,
+            int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            if (s_TweenHelper == null)
-            {
-                throw new GameException("ITweenHelper is invalid.");
-            }
-            return s_TweenHelper.Scale(target, startValue, endValue, duration, ease, cycles, cycleMode, startDelay, endDelay, useUnscaledTime);
+            return Handler.Scale(target, startValue, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
-        public static long Rotation(UnityEngine.Transform target, UnityEngine.Vector3 endValue, float duration, Ease ease = Ease.Default, int cycles = 1,
-            CycleMode cycleMode = CycleMode.Restart, float startDelay = 0, float endDelay = 0, bool useUnscaledTime = false)
+        public static long Rotation(Transform target, Vector3 endValue, float duration, EEase ease = EEase.Default,
+            int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            if (s_TweenHelper == null)
-            {
-                throw new GameException("ITweenHelper is invalid.");
-            }
-            return s_TweenHelper.Rotation(target, endValue, duration, ease, cycles, cycleMode, startDelay, endDelay, useUnscaledTime);
+            return Handler.Rotation(target, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
-        public static long Rotation(UnityEngine.Transform target, UnityEngine.Vector3 startValue, UnityEngine.Vector3 endValue, float duration, Ease ease = Ease.Default, int cycles = 1,
-            CycleMode cycleMode = CycleMode.Restart, float startDelay = 0, float endDelay = 0, bool useUnscaledTime = false)
+        public static long Rotation(Transform target, Vector3 startValue, Vector3 endValue, float duration, EEase ease = EEase.Default,
+            int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            if (s_TweenHelper == null)
-            {
-                throw new GameException("ITweenHelper is invalid.");
-            }
-            return s_TweenHelper.Rotation(target, startValue, endValue, duration, ease, cycles, cycleMode, startDelay, endDelay, useUnscaledTime);
+            return Handler.Rotation(target, startValue, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
 
-        public static long Position(UnityEngine.Transform target, UnityEngine.Vector3 endValue, float duration, Ease ease = Ease.Default, int cycles = 1,
-            CycleMode cycleMode = CycleMode.Restart, float startDelay = 0, float endDelay = 0, bool useUnscaledTime = false)
+        public static long Position(Transform target, Vector3 endValue, float duration, EEase ease = EEase.Default,
+            int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            if (s_TweenHelper == null)
-            {
-                throw new GameException("ITweenHelper is invalid.");
-            }
-            return s_TweenHelper.Position(target, endValue, duration, ease, cycles, cycleMode, startDelay, endDelay, useUnscaledTime);
+            return Handler.Position(target, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
-        public static long Position(UnityEngine.Transform target, UnityEngine.Vector3 startValue, UnityEngine.Vector3 endValue, float duration, Ease ease = Ease.Default, int cycles = 1,
-            CycleMode cycleMode = CycleMode.Restart, float startDelay = 0, float endDelay = 0, bool useUnscaledTime = false)
+        public static long Position(Transform target, Vector3 startValue, Vector3 endValue, float duration, EEase ease = EEase.Default,
+            int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            if (s_TweenHelper == null)
-            {
-                throw new GameException("ITweenHelper is invalid.");
-            }
-            return s_TweenHelper.Position(target, startValue, endValue, duration, ease, cycles, cycleMode, startDelay, endDelay, useUnscaledTime);
+            return Handler.Position(target, startValue, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
 
-        public static long PositionX(UnityEngine.Transform target, Single endValue, float duration, Ease ease = Ease.Default, int cycles = 1, CycleMode cycleMode = CycleMode.Restart,
-            float startDelay = 0, float endDelay = 0, bool useUnscaledTime = false)
+        public static long PositionX(Transform target, Single endValue, float duration, EEase ease = EEase.Default,
+            int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            if (s_TweenHelper == null)
-            {
-                throw new GameException("ITweenHelper is invalid.");
-            }
-            return s_TweenHelper.PositionX(target, endValue, duration, ease, cycles, cycleMode, startDelay, endDelay, useUnscaledTime);
+            return Handler.PositionX(target, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
-        public static long PositionX(UnityEngine.Transform target, Single startValue, Single endValue, float duration, Ease ease = Ease.Default, int cycles = 1,
-            CycleMode cycleMode = CycleMode.Restart, float startDelay = 0, float endDelay = 0, bool useUnscaledTime = false)
+        public static long PositionX(Transform target, Single startValue, Single endValue, float duration, EEase ease = EEase.Default,
+            int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            if (s_TweenHelper == null)
-            {
-                throw new GameException("ITweenHelper is invalid.");
-            }
-            return s_TweenHelper.PositionX(target, startValue, endValue, duration, ease, cycles, cycleMode, startDelay, endDelay, useUnscaledTime);
+            return Handler.PositionX(target, startValue, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
 
-        public static long PositionY(UnityEngine.Transform target, Single endValue, float duration, Ease ease = Ease.Default, int cycles = 1, CycleMode cycleMode = CycleMode.Restart,
-            float startDelay = 0, float endDelay = 0, bool useUnscaledTime = false)
+        public static long PositionY(Transform target, Single endValue, float duration, EEase ease = EEase.Default,
+            int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            if (s_TweenHelper == null)
-            {
-                throw new GameException("ITweenHelper is invalid.");
-            }
-            return s_TweenHelper.PositionY(target, endValue, duration, ease, cycles, cycleMode, startDelay, endDelay, useUnscaledTime);
+            return Handler.PositionY(target, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
-        public static long PositionY(UnityEngine.Transform target, Single startValue, Single endValue, float duration, Ease ease = Ease.Default, int cycles = 1,
-            CycleMode cycleMode = CycleMode.Restart, float startDelay = 0, float endDelay = 0, bool useUnscaledTime = false)
+        public static long PositionY(Transform target, Single startValue, Single endValue, float duration, EEase ease = EEase.Default,
+            int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            if (s_TweenHelper == null)
-            {
-                throw new GameException("ITweenHelper is invalid.");
-            }
-            return s_TweenHelper.PositionY(target, startValue, endValue, duration, ease, cycles, cycleMode, startDelay, endDelay, useUnscaledTime);
+            return Handler.PositionY(target, startValue, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
 
-        public static long PositionZ(UnityEngine.Transform target, Single endValue, float duration, Ease ease = Ease.Default, int cycles = 1, CycleMode cycleMode = CycleMode.Restart,
-            float startDelay = 0, float endDelay = 0, bool useUnscaledTime = false)
+        public static long PositionZ(Transform target, Single endValue, float duration, EEase ease = EEase.Default,
+            int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            if (s_TweenHelper == null)
-            {
-                throw new GameException("ITweenHelper is invalid.");
-            }
-            return s_TweenHelper.PositionZ(target, endValue, duration, ease, cycles, cycleMode, startDelay, endDelay, useUnscaledTime);
+            return Handler.PositionZ(target, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
-        public static long PositionZ(UnityEngine.Transform target, Single startValue, Single endValue, float duration, Ease ease = Ease.Default, int cycles = 1,
-            CycleMode cycleMode = CycleMode.Restart, float startDelay = 0, float endDelay = 0, bool useUnscaledTime = false)
+        public static long PositionZ(Transform target, Single startValue, Single endValue, float duration, EEase ease = EEase.Default,
+            int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            if (s_TweenHelper == null)
-            {
-                throw new GameException("ITweenHelper is invalid.");
-            }
-            return s_TweenHelper.PositionZ(target, startValue, endValue, duration, ease, cycles, cycleMode, startDelay, endDelay, useUnscaledTime);
+            return Handler.PositionZ(target, startValue, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
 
-        public static long LocalPosition(UnityEngine.Transform target, UnityEngine.Vector3 endValue, float duration, Ease ease = Ease.Default, int cycles = 1,
-            CycleMode cycleMode = CycleMode.Restart, float startDelay = 0, float endDelay = 0, bool useUnscaledTime = false)
+        public static long LocalPosition(Transform target, Vector3 endValue, float duration, EEase ease = EEase.Default,
+            int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            if (s_TweenHelper == null)
-            {
-                throw new GameException("ITweenHelper is invalid.");
-            }
-            return s_TweenHelper.LocalPosition(target, endValue, duration, ease, cycles, cycleMode, startDelay, endDelay, useUnscaledTime);
+            return Handler.LocalPosition(target, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
-        public static long LocalPosition(UnityEngine.Transform target, UnityEngine.Vector3 startValue, UnityEngine.Vector3 endValue, float duration, Ease ease = Ease.Default,
-            int cycles = 1, CycleMode cycleMode = CycleMode.Restart, float startDelay = 0, float endDelay = 0, bool useUnscaledTime = false)
+        public static long LocalPosition(Transform target, Vector3 startValue, Vector3 endValue, float duration, EEase ease = EEase.Default,
+            int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            if (s_TweenHelper == null)
-            {
-                throw new GameException("ITweenHelper is invalid.");
-            }
-            return s_TweenHelper.LocalPosition(target, startValue, endValue, duration, ease, cycles, cycleMode, startDelay, endDelay, useUnscaledTime);
+            return Handler.LocalPosition(target, startValue, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
 
-        public static long LocalPositionX(UnityEngine.Transform target, Single endValue, float duration, Ease ease = Ease.Default, int cycles = 1, CycleMode cycleMode = CycleMode.Restart,
-            float startDelay = 0, float endDelay = 0, bool useUnscaledTime = false)
+        public static long LocalPositionX(Transform target, Single endValue, float duration, EEase ease = EEase.Default,
+            int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            if (s_TweenHelper == null)
-            {
-                throw new GameException("ITweenHelper is invalid.");
-            }
-            return s_TweenHelper.LocalPositionX(target, endValue, duration, ease, cycles, cycleMode, startDelay, endDelay, useUnscaledTime);
+            return Handler.LocalPositionX(target, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
-        public static long LocalPositionX(UnityEngine.Transform target, Single startValue, Single endValue, float duration, Ease ease = Ease.Default, int cycles = 1,
-            CycleMode cycleMode = CycleMode.Restart, float startDelay = 0, float endDelay = 0, bool useUnscaledTime = false)
+        public static long LocalPositionX(Transform target, Single startValue, Single endValue, float duration, EEase ease = EEase.Default,
+            int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            if (s_TweenHelper == null)
-            {
-                throw new GameException("ITweenHelper is invalid.");
-            }
-            return s_TweenHelper.LocalPositionX(target, startValue, endValue, duration, ease, cycles, cycleMode, startDelay, endDelay, useUnscaledTime);
+            return Handler.LocalPositionX(target, startValue, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
 
-        public static long LocalPositionY(UnityEngine.Transform target, Single endValue, float duration, Ease ease = Ease.Default, int cycles = 1, CycleMode cycleMode = CycleMode.Restart,
-            float startDelay = 0, float endDelay = 0, bool useUnscaledTime = false)
+        public static long LocalPositionY(Transform target, Single endValue, float duration, EEase ease = EEase.Default,
+            int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            if (s_TweenHelper == null)
-            {
-                throw new GameException("ITweenHelper is invalid.");
-            }
-            return s_TweenHelper.LocalPositionY(target, endValue, duration, ease, cycles, cycleMode, startDelay, endDelay, useUnscaledTime);
+            return Handler.LocalPositionY(target, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
-        public static long LocalPositionY(UnityEngine.Transform target, Single startValue, Single endValue, float duration, Ease ease = Ease.Default, int cycles = 1,
-            CycleMode cycleMode = CycleMode.Restart, float startDelay = 0, float endDelay = 0, bool useUnscaledTime = false)
+        public static long LocalPositionY(Transform target, Single startValue, Single endValue, float duration, EEase ease = EEase.Default,
+            int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            if (s_TweenHelper == null)
-            {
-                throw new GameException("ITweenHelper is invalid.");
-            }
-            return s_TweenHelper.LocalPositionY(target, startValue, endValue, duration, ease, cycles, cycleMode, startDelay, endDelay, useUnscaledTime);
+            return Handler.LocalPositionY(target, startValue, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
 
-        public static long LocalPositionZ(UnityEngine.Transform target, Single endValue, float duration, Ease ease = Ease.Default, int cycles = 1, CycleMode cycleMode = CycleMode.Restart,
-            float startDelay = 0, float endDelay = 0, bool useUnscaledTime = false)
+        public static long LocalPositionZ(Transform target, Single endValue, float duration, EEase ease = EEase.Default,
+            int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            if (s_TweenHelper == null)
-            {
-                throw new GameException("ITweenHelper is invalid.");
-            }
-            return s_TweenHelper.LocalPositionZ(target, endValue, duration, ease, cycles, cycleMode, startDelay, endDelay, useUnscaledTime);
+            return Handler.LocalPositionZ(target, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
-        public static long LocalPositionZ(UnityEngine.Transform target, Single startValue, Single endValue, float duration, Ease ease = Ease.Default, int cycles = 1,
-            CycleMode cycleMode = CycleMode.Restart, float startDelay = 0, float endDelay = 0, bool useUnscaledTime = false)
+        public static long LocalPositionZ(Transform target, Single startValue, Single endValue, float duration, EEase ease = EEase.Default,
+            int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            if (s_TweenHelper == null)
-            {
-                throw new GameException("ITweenHelper is invalid.");
-            }
-            return s_TweenHelper.LocalPositionZ(target, startValue, endValue, duration, ease, cycles, cycleMode, startDelay, endDelay, useUnscaledTime);
+            return Handler.LocalPositionZ(target, startValue, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
 
-        public static long Rotation(UnityEngine.Transform target, UnityEngine.Quaternion endValue, float duration, Ease ease = Ease.Default, int cycles = 1,
-            CycleMode cycleMode = CycleMode.Restart, float startDelay = 0, float endDelay = 0, bool useUnscaledTime = false)
+        public static long Rotation(Transform target, Quaternion endValue, float duration, EEase ease = EEase.Default,
+            int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            if (s_TweenHelper == null)
-            {
-                throw new GameException("ITweenHelper is invalid.");
-            }
-            return s_TweenHelper.Rotation(target, endValue, duration, ease, cycles, cycleMode, startDelay, endDelay, useUnscaledTime);
+            return Handler.Rotation(target, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
-        public static long Rotation(UnityEngine.Transform target, UnityEngine.Quaternion startValue, UnityEngine.Quaternion endValue, float duration, Ease ease = Ease.Default,
-            int cycles = 1, CycleMode cycleMode = CycleMode.Restart, float startDelay = 0, float endDelay = 0, bool useUnscaledTime = false)
+        public static long Rotation(Transform target, Quaternion startValue, Quaternion endValue, float duration, EEase ease = EEase.Default,
+            int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            if (s_TweenHelper == null)
-            {
-                throw new GameException("ITweenHelper is invalid.");
-            }
-            return s_TweenHelper.Rotation(target, startValue, endValue, duration, ease, cycles, cycleMode, startDelay, endDelay, useUnscaledTime);
+            return Handler.Rotation(target, startValue, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
 
-        public static long LocalRotation(UnityEngine.Transform target, UnityEngine.Quaternion endValue, float duration, Ease ease = Ease.Default, int cycles = 1,
-            CycleMode cycleMode = CycleMode.Restart, float startDelay = 0, float endDelay = 0, bool useUnscaledTime = false)
+        public static long LocalRotation(Transform target, Quaternion endValue, float duration, EEase ease = EEase.Default,
+            int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            if (s_TweenHelper == null)
-            {
-                throw new GameException("ITweenHelper is invalid.");
-            }
-            return s_TweenHelper.LocalRotation(target, endValue, duration, ease, cycles, cycleMode, startDelay, endDelay, useUnscaledTime);
+            return Handler.LocalRotation(target, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
-        public static long LocalRotation(UnityEngine.Transform target, UnityEngine.Quaternion startValue, UnityEngine.Quaternion endValue, float duration, Ease ease = Ease.Default,
-            int cycles = 1, CycleMode cycleMode = CycleMode.Restart, float startDelay = 0, float endDelay = 0, bool useUnscaledTime = false)
+        public static long LocalRotation(Transform target, Quaternion startValue, Quaternion endValue, float duration, EEase ease = EEase.Default,
+            int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            if (s_TweenHelper == null)
-            {
-                throw new GameException("ITweenHelper is invalid.");
-            }
-            return s_TweenHelper.LocalRotation(target, startValue, endValue, duration, ease, cycles, cycleMode, startDelay, endDelay, useUnscaledTime);
+            return Handler.LocalRotation(target, startValue, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
 
-        public static long Scale(UnityEngine.Transform target, UnityEngine.Vector3 endValue, float duration, Ease ease = Ease.Default, int cycles = 1,
-            CycleMode cycleMode = CycleMode.Restart, float startDelay = 0, float endDelay = 0, bool useUnscaledTime = false)
+        public static long Scale(Transform target, Vector3 endValue, float duration, EEase ease = EEase.Default,
+            int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            if (s_TweenHelper == null)
-            {
-                throw new GameException("ITweenHelper is invalid.");
-            }
-            return s_TweenHelper.Scale(target, endValue, duration, ease, cycles, cycleMode, startDelay, endDelay, useUnscaledTime);
+            return Handler.Scale(target, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
-        public static long Scale(UnityEngine.Transform target, UnityEngine.Vector3 startValue, UnityEngine.Vector3 endValue, float duration, Ease ease = Ease.Default, int cycles = 1,
-            CycleMode cycleMode = CycleMode.Restart, float startDelay = 0, float endDelay = 0, bool useUnscaledTime = false)
+        public static long Scale(Transform target, Vector3 startValue, Vector3 endValue, float duration, EEase ease = EEase.Default,
+            int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            if (s_TweenHelper == null)
-            {
-                throw new GameException("ITweenHelper is invalid.");
-            }
-            return s_TweenHelper.Scale(target, startValue, endValue, duration, ease, cycles, cycleMode, startDelay, endDelay, useUnscaledTime);
+            return Handler.Scale(target, startValue, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
 
-        public static long ScaleX(UnityEngine.Transform target, Single endValue, float duration, Ease ease = Ease.Default, int cycles = 1, CycleMode cycleMode = CycleMode.Restart,
-            float startDelay = 0, float endDelay = 0, bool useUnscaledTime = false)
+        public static long ScaleX(Transform target, Single endValue, float duration, EEase ease = EEase.Default,
+            int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            if (s_TweenHelper == null)
-            {
-                throw new GameException("ITweenHelper is invalid.");
-            }
-            return s_TweenHelper.ScaleX(target, endValue, duration, ease, cycles, cycleMode, startDelay, endDelay, useUnscaledTime);
+            return Handler.ScaleX(target, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
-        public static long ScaleX(UnityEngine.Transform target, Single startValue, Single endValue, float duration, Ease ease = Ease.Default, int cycles = 1,
-            CycleMode cycleMode = CycleMode.Restart, float startDelay = 0, float endDelay = 0, bool useUnscaledTime = false)
+        public static long ScaleX(Transform target, Single startValue, Single endValue, float duration, EEase ease = EEase.Default,
+            int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            if (s_TweenHelper == null)
-            {
-                throw new GameException("ITweenHelper is invalid.");
-            }
-            return s_TweenHelper.ScaleX(target, startValue, endValue, duration, ease, cycles, cycleMode, startDelay, endDelay, useUnscaledTime);
+            return Handler.ScaleX(target, startValue, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
 
-        public static long ScaleY(UnityEngine.Transform target, Single endValue, float duration, Ease ease = Ease.Default, int cycles = 1, CycleMode cycleMode = CycleMode.Restart,
-            float startDelay = 0, float endDelay = 0, bool useUnscaledTime = false)
+        public static long ScaleY(Transform target, Single endValue, float duration, EEase ease = EEase.Default,
+            int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            if (s_TweenHelper == null)
-            {
-                throw new GameException("ITweenHelper is invalid.");
-            }
-            return s_TweenHelper.ScaleY(target, endValue, duration, ease, cycles, cycleMode, startDelay, endDelay, useUnscaledTime);
+            return Handler.ScaleY(target, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
-        public static long ScaleY(UnityEngine.Transform target, Single startValue, Single endValue, float duration, Ease ease = Ease.Default, int cycles = 1,
-            CycleMode cycleMode = CycleMode.Restart, float startDelay = 0, float endDelay = 0, bool useUnscaledTime = false)
+        public static long ScaleY(Transform target, Single startValue, Single endValue, float duration, EEase ease = EEase.Default,
+            int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            if (s_TweenHelper == null)
-            {
-                throw new GameException("ITweenHelper is invalid.");
-            }
-            return s_TweenHelper.ScaleY(target, startValue, endValue, duration, ease, cycles, cycleMode, startDelay, endDelay, useUnscaledTime);
+            return Handler.ScaleY(target, startValue, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
 
-        public static long ScaleZ(UnityEngine.Transform target, Single endValue, float duration, Ease ease = Ease.Default, int cycles = 1, CycleMode cycleMode = CycleMode.Restart,
-            float startDelay = 0, float endDelay = 0, bool useUnscaledTime = false)
+        public static long ScaleZ(Transform target, Single endValue, float duration, EEase ease = EEase.Default,
+            int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            if (s_TweenHelper == null)
-            {
-                throw new GameException("ITweenHelper is invalid.");
-            }
-            return s_TweenHelper.ScaleZ(target, endValue, duration, ease, cycles, cycleMode, startDelay, endDelay, useUnscaledTime);
+            return Handler.ScaleZ(target, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
-        public static long ScaleZ(UnityEngine.Transform target, Single startValue, Single endValue, float duration, Ease ease = Ease.Default, int cycles = 1,
-            CycleMode cycleMode = CycleMode.Restart, float startDelay = 0, float endDelay = 0, bool useUnscaledTime = false)
+        public static long ScaleZ(Transform target, Single startValue, Single endValue, float duration, EEase ease = EEase.Default,
+            int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            if (s_TweenHelper == null)
-            {
-                throw new GameException("ITweenHelper is invalid.");
-            }
-            return s_TweenHelper.ScaleZ(target, startValue, endValue, duration, ease, cycles, cycleMode, startDelay, endDelay, useUnscaledTime);
+            return Handler.ScaleZ(target, startValue, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
 
-        public static long Color(UnityEngine.SpriteRenderer target, UnityEngine.Color endValue, float duration, Ease ease = Ease.Default, int cycles = 1,
-            CycleMode cycleMode = CycleMode.Restart, float startDelay = 0, float endDelay = 0, bool useUnscaledTime = false)
+        public static long Color(SpriteRenderer target, Color endValue, float duration, EEase ease = EEase.Default,
+            int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            if (s_TweenHelper == null)
-            {
-                throw new GameException("ITweenHelper is invalid.");
-            }
-            return s_TweenHelper.Color(target, endValue, duration, ease, cycles, cycleMode, startDelay, endDelay, useUnscaledTime);
+            return Handler.Color(target, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
-        public static long Color(UnityEngine.SpriteRenderer target, UnityEngine.Color startValue, UnityEngine.Color endValue, float duration, Ease ease = Ease.Default, int cycles = 1,
-            CycleMode cycleMode = CycleMode.Restart, float startDelay = 0, float endDelay = 0, bool useUnscaledTime = false)
+        public static long Color(SpriteRenderer target, Color startValue, Color endValue, float duration, EEase ease = EEase.Default,
+            int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            if (s_TweenHelper == null)
-            {
-                throw new GameException("ITweenHelper is invalid.");
-            }
-            return s_TweenHelper.Color(target, startValue, endValue, duration, ease, cycles, cycleMode, startDelay, endDelay, useUnscaledTime);
+            return Handler.Color(target, startValue, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
-        public static long MaterialColor(UnityEngine.Material target, UnityEngine.Color startValue, UnityEngine.Color endValue, float duration, Ease ease = Ease.Default, int
-                cycles = 1,
-            CycleMode cycleMode = CycleMode.Restart, float startDelay = 0, float endDelay = 0, bool useUnscaledTime = false)
+        public static long Alpha(SpriteRenderer target, Single endValue, float duration, EEase ease = EEase.Default,
+            int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            if (s_TweenHelper == null)
-            {
-                throw new GameException("ITweenHelper is invalid.");
-            }
-            return s_TweenHelper.MaterialColor(target, startValue, endValue, duration, ease, cycles, cycleMode, startDelay, endDelay, useUnscaledTime);
+            return Handler.Alpha(target, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
-        public static long Alpha(UnityEngine.SpriteRenderer target, Single endValue, float duration, Ease ease = Ease.Default, int cycles = 1, CycleMode cycleMode = CycleMode.Restart,
-            float startDelay = 0, float endDelay = 0, bool useUnscaledTime = false)
-        {
-            if (s_TweenHelper == null)
-            {
-                throw new GameException("ITweenHelper is invalid.");
-            }
-            return s_TweenHelper.Alpha(target, endValue, duration, ease, cycles, cycleMode, startDelay, endDelay, useUnscaledTime);
-        }
 
-        public static long Alpha(UnityEngine.SpriteRenderer target, Single startValue, Single endValue, float duration, Ease ease = Ease.Default, int cycles = 1,
-            CycleMode cycleMode = CycleMode.Restart, float startDelay = 0, float endDelay = 0, bool useUnscaledTime = false)
+        public static long Alpha(SpriteRenderer target, Single startValue, Single endValue, float duration, EEase ease = EEase.Default,
+            int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            if (s_TweenHelper == null)
-            {
-                throw new GameException("ITweenHelper is invalid.");
-            }
-            return s_TweenHelper.Alpha(target, startValue, endValue, duration, ease, cycles, cycleMode, startDelay, endDelay, useUnscaledTime);
+            return Handler.Alpha(target, startValue, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
 
-        public static long UISliderValue(UnityEngine.UI.Slider target, Single endValue, float duration, Ease ease = Ease.Default, int cycles = 1, CycleMode cycleMode = CycleMode.Restart,
-            float startDelay = 0, float endDelay = 0, bool useUnscaledTime = false)
+        public static long UISliderValue(Slider target, Single endValue, float duration, EEase ease = EEase.Default,
+            int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            if (s_TweenHelper == null)
-            {
-                throw new GameException("ITweenHelper is invalid.");
-            }
-            return s_TweenHelper.UISliderValue(target, endValue, duration, ease, cycles, cycleMode, startDelay, endDelay, useUnscaledTime);
+            return Handler.UISliderValue(target, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
-        public static long UISliderValue(UnityEngine.UI.Slider target, Single startValue, Single endValue, float duration, Ease ease = Ease.Default, int cycles = 1,
-            CycleMode cycleMode = CycleMode.Restart, float startDelay = 0, float endDelay = 0, bool useUnscaledTime = false)
+        public static long UISliderValue(Slider target, Single startValue, Single endValue, float duration, EEase ease = EEase.Default,
+            int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            if (s_TweenHelper == null)
-            {
-                throw new GameException("ITweenHelper is invalid.");
-            }
-            return s_TweenHelper.UISliderValue(target, startValue, endValue, duration, ease, cycles, cycleMode, startDelay, endDelay, useUnscaledTime);
+            return Handler.UISliderValue(target, startValue, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
 
-        public static long UINormalizedPosition(UnityEngine.UI.ScrollRect target, UnityEngine.Vector2 endValue, float duration, Ease ease = Ease.Default, int cycles = 1,
-            CycleMode cycleMode = CycleMode.Restart, float startDelay = 0, float endDelay = 0, bool useUnscaledTime = false)
+        public static long UINormalizedPosition(ScrollRect target, Vector2 endValue, float duration, EEase ease = EEase.Default,
+            int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            if (s_TweenHelper == null)
-            {
-                throw new GameException("ITweenHelper is invalid.");
-            }
-            return s_TweenHelper.UINormalizedPosition(target, endValue, duration, ease, cycles, cycleMode, startDelay, endDelay, useUnscaledTime);
+            return Handler.UINormalizedPosition(target, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
-        public static long UINormalizedPosition(UnityEngine.UI.ScrollRect target, UnityEngine.Vector2 startValue, UnityEngine.Vector2 endValue, float duration, Ease ease = Ease.Default,
-            int cycles = 1, CycleMode cycleMode = CycleMode.Restart, float startDelay = 0, float endDelay = 0, bool useUnscaledTime = false)
+        public static long UINormalizedPosition(ScrollRect target, Vector2 startValue, Vector2 endValue, float duration, EEase ease = EEase.Default,
+            int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            if (s_TweenHelper == null)
-            {
-                throw new GameException("ITweenHelper is invalid.");
-            }
-            return s_TweenHelper.UINormalizedPosition(target, startValue, endValue, duration, ease, cycles, cycleMode, startDelay, endDelay, useUnscaledTime);
+            return Handler.UINormalizedPosition(target, startValue, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
 
-        public static long UIHorizontalNormalizedPosition(UnityEngine.UI.ScrollRect target, Single endValue, float duration, Ease ease = Ease.Default, int cycles = 1,
-            CycleMode cycleMode = CycleMode.Restart, float startDelay = 0, float endDelay = 0, bool useUnscaledTime = false)
+        public static long UIHorizontalNormalizedPosition(ScrollRect target, Single endValue, float duration, EEase ease = EEase.Default,
+            int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            if (s_TweenHelper == null)
-            {
-                throw new GameException("ITweenHelper is invalid.");
-            }
-            return s_TweenHelper.UIHorizontalNormalizedPosition(target, endValue, duration, ease, cycles, cycleMode, startDelay, endDelay, useUnscaledTime);
+            return Handler.UIHorizontalNormalizedPosition(target, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
-        public static long UIHorizontalNormalizedPosition(UnityEngine.UI.ScrollRect target, Single startValue, Single endValue, float duration, Ease ease = Ease.Default, int cycles = 1,
-            CycleMode cycleMode = CycleMode.Restart, float startDelay = 0, float endDelay = 0, bool useUnscaledTime = false)
+        public static long UIHorizontalNormalizedPosition(ScrollRect target, Single startValue, Single endValue, float duration, EEase ease = EEase.Default,
+            int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            if (s_TweenHelper == null)
-            {
-                throw new GameException("ITweenHelper is invalid.");
-            }
-            return s_TweenHelper.UIHorizontalNormalizedPosition(target, startValue, endValue, duration, ease, cycles, cycleMode, startDelay, endDelay, useUnscaledTime);
+            return Handler.UIHorizontalNormalizedPosition(target, startValue, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
 
-        public static long UIAnchoredPosition(UnityEngine.RectTransform target, UnityEngine.Vector2 endValue, float duration, Ease ease = Ease.Default, int cycles = 1,
-            CycleMode cycleMode = CycleMode.Restart, float startDelay = 0, float endDelay = 0, bool useUnscaledTime = false)
+        public static long UIAnchoredPosition(RectTransform target, Vector2 endValue, float duration, EEase ease = EEase.Default,
+            int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            if (s_TweenHelper == null)
-            {
-                throw new GameException("ITweenHelper is invalid.");
-            }
-            return s_TweenHelper.UIAnchoredPosition(target, endValue, duration, ease, cycles, cycleMode, startDelay, endDelay, useUnscaledTime);
+            return Handler.UIAnchoredPosition(target, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
-        public static long UIAnchoredPosition(UnityEngine.RectTransform target, UnityEngine.Vector2 startValue, UnityEngine.Vector2 endValue, float duration, Ease ease = Ease.Default,
-            int cycles = 1, CycleMode cycleMode = CycleMode.Restart, float startDelay = 0, float endDelay = 0, bool useUnscaledTime = false)
+        public static long UIAnchoredPosition(RectTransform target, Vector2 startValue, Vector2 endValue, float duration, EEase ease = EEase.Default,
+            int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            if (s_TweenHelper == null)
-            {
-                throw new GameException("ITweenHelper is invalid.");
-            }
-            return s_TweenHelper.UIAnchoredPosition(target, startValue, endValue, duration, ease, cycles, cycleMode, startDelay, endDelay, useUnscaledTime);
+            return Handler.UIAnchoredPosition(target, startValue, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
-        public static long UIAnchoredPositionX(UnityEngine.RectTransform target, Single endValue, float duration, Ease ease = Ease.Default, int cycles = 1,
-            CycleMode cycleMode = CycleMode.Restart, float startDelay = 0, float endDelay = 0, bool useUnscaledTime = false)
+        public static long UIAnchoredPositionX(RectTransform target, Single endValue, float duration, EEase ease = EEase.Default,
+            int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            if (s_TweenHelper == null)
-            {
-                throw new GameException("ITweenHelper is invalid.");
-            }
-            return s_TweenHelper.UIAnchoredPositionX(target, endValue, duration, ease, cycles, cycleMode, startDelay, endDelay, useUnscaledTime);
+            return Handler.UIAnchoredPositionX(target, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
-        public static long UIAnchoredPositionX(UnityEngine.RectTransform target, Single startValue, Single endValue, float duration, Ease ease = Ease.Default, int cycles = 1,
-            CycleMode cycleMode = CycleMode.Restart, float startDelay = 0, float endDelay = 0, bool useUnscaledTime = false)
+        public static long UIAnchoredPositionX(RectTransform target, Single startValue, Single endValue, float duration, EEase ease = EEase.Default,
+            int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            if (s_TweenHelper == null)
-            {
-                throw new GameException("ITweenHelper is invalid.");
-            }
-            return s_TweenHelper.UIAnchoredPositionX(target, startValue, endValue, duration, ease, cycles, cycleMode, startDelay, endDelay, useUnscaledTime);
+            return Handler.UIAnchoredPositionX(target, startValue, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
 
-        public static long UIAnchoredPositionY(UnityEngine.RectTransform target, Single endValue, float duration, Ease ease = Ease.Default, int cycles = 1,
-            CycleMode cycleMode = CycleMode.Restart, float startDelay = 0, float endDelay = 0, bool useUnscaledTime = false)
+        public static long UIAnchoredPositionY(RectTransform target, Single endValue, float duration, EEase ease = EEase.Default,
+            int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            if (s_TweenHelper == null)
-            {
-                throw new GameException("ITweenHelper is invalid.");
-            }
-            return s_TweenHelper.UIAnchoredPositionY(target, endValue, duration, ease, cycles, cycleMode, startDelay, endDelay, useUnscaledTime);
+            return Handler.UIAnchoredPositionY(target, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
-        public static long UIAnchoredPositionY(UnityEngine.RectTransform target, Single startValue, Single endValue, float duration, Ease ease = Ease.Default, int cycles = 1,
-            CycleMode cycleMode = CycleMode.Restart, float startDelay = 0, float endDelay = 0, bool useUnscaledTime = false)
+        public static long UIAnchoredPositionY(RectTransform target, Single startValue, Single endValue, float duration, EEase ease = EEase.Default,
+            int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            if (s_TweenHelper == null)
-            {
-                throw new GameException("ITweenHelper is invalid.");
-            }
-            return s_TweenHelper.UIAnchoredPositionY(target, startValue, endValue, duration, ease, cycles, cycleMode, startDelay, endDelay, useUnscaledTime);
+            return Handler.UIAnchoredPositionY(target, startValue, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
 
-        public static long UIVerticalNormalizedPosition(UnityEngine.UI.ScrollRect target, Single endValue, float duration, Ease ease = Ease.Default, int cycles = 1,
-            CycleMode cycleMode = CycleMode.Restart, float startDelay = 0, float endDelay = 0, bool useUnscaledTime = false)
+        public static long UIVerticalNormalizedPosition(ScrollRect target, Single endValue, float duration, EEase ease = EEase.Default,
+            int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            if (s_TweenHelper == null)
-            {
-                throw new GameException("ITweenHelper is invalid.");
-            }
-            return s_TweenHelper.UIVerticalNormalizedPosition(target, endValue, duration, ease, cycles, cycleMode, startDelay, endDelay, useUnscaledTime);
+            return Handler.UIVerticalNormalizedPosition(target, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
-        public static long UIVerticalNormalizedPosition(UnityEngine.UI.ScrollRect target, Single startValue, Single endValue, float duration, Ease ease = Ease.Default, int cycles = 1,
-            CycleMode cycleMode = CycleMode.Restart, float startDelay = 0, float endDelay = 0, bool useUnscaledTime = false)
+        public static long UIVerticalNormalizedPosition(ScrollRect target, Single startValue, Single endValue, float duration, EEase ease = EEase.Default,
+            int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            if (s_TweenHelper == null)
-            {
-                throw new GameException("ITweenHelper is invalid.");
-            }
-            return s_TweenHelper.UIVerticalNormalizedPosition(target, startValue, endValue, duration, ease, cycles, cycleMode, startDelay, endDelay, useUnscaledTime);
+            return Handler.UIVerticalNormalizedPosition(target, startValue, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
 
-        public static long UIAnchoredPosition3D(UnityEngine.RectTransform target, UnityEngine.Vector3 endValue, float duration, Ease ease = Ease.Default, int cycles = 1,
-            CycleMode cycleMode = CycleMode.Restart, float startDelay = 0, float endDelay = 0, bool useUnscaledTime = false)
+        public static long UIAnchoredPosition3D(RectTransform target, Vector3 endValue, float duration, EEase ease = EEase.Default,
+            int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            if (s_TweenHelper == null)
-            {
-                throw new GameException("ITweenHelper is invalid.");
-            }
-            return s_TweenHelper.UIAnchoredPosition3D(target, endValue, duration, ease, cycles, cycleMode, startDelay, endDelay, useUnscaledTime);
+            return Handler.UIAnchoredPosition3D(target, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
-        public static long UIAnchoredPosition3D(UnityEngine.RectTransform target, UnityEngine.Vector3 startValue, UnityEngine.Vector3 endValue, float duration, Ease ease = Ease.Default,
-            int cycles = 1, CycleMode cycleMode = CycleMode.Restart, float startDelay = 0, float endDelay = 0, bool useUnscaledTime = false)
+        public static long UIAnchoredPosition3D(RectTransform target, Vector3 startValue, Vector3 endValue, float duration, EEase ease = EEase.Default,
+            int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            if (s_TweenHelper == null)
-            {
-                throw new GameException("ITweenHelper is invalid.");
-            }
-            return s_TweenHelper.UIAnchoredPosition3D(target, startValue, endValue, duration, ease, cycles, cycleMode, startDelay, endDelay, useUnscaledTime);
+            return Handler.UIAnchoredPosition3D(target, startValue, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
 
-        public static long UISizeDelta(UnityEngine.RectTransform target, UnityEngine.Vector2 endValue, float duration, Ease ease = Ease.Default, int cycles = 1,
-            CycleMode cycleMode = CycleMode.Restart, float startDelay = 0, float endDelay = 0, bool useUnscaledTime = false)
+        public static long UISizeDelta(RectTransform target, Vector2 endValue, float duration, EEase ease = EEase.Default,
+            int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            if (s_TweenHelper == null)
-            {
-                throw new GameException("ITweenHelper is invalid.");
-            }
-            return s_TweenHelper.UISizeDelta(target, endValue, duration, ease, cycles, cycleMode, startDelay, endDelay, useUnscaledTime);
+            return Handler.UISizeDelta(target, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
-        public static long UISizeDelta(UnityEngine.RectTransform target, UnityEngine.Vector2 startValue, UnityEngine.Vector2 endValue, float duration, Ease ease = Ease.Default,
-            int cycles = 1, CycleMode cycleMode = CycleMode.Restart, float startDelay = 0, float endDelay = 0, bool useUnscaledTime = false)
+        public static long UISizeDelta(RectTransform target, Vector2 startValue, Vector2 endValue, float duration, EEase ease = EEase.Default,
+            int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            if (s_TweenHelper == null)
-            {
-                throw new GameException("ITweenHelper is invalid.");
-            }
-            return s_TweenHelper.UISizeDelta(target, startValue, endValue, duration, ease, cycles, cycleMode, startDelay, endDelay, useUnscaledTime);
+            return Handler.UISizeDelta(target, startValue, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
 
-        public static long Color(UnityEngine.UI.Graphic target, UnityEngine.Color endValue, float duration, Ease ease = Ease.Default, int cycles = 1,
-            CycleMode cycleMode = CycleMode.Restart, float startDelay = 0, float endDelay = 0, bool useUnscaledTime = false)
+        public static long Color(Graphic target, Color endValue, float duration, EEase ease = EEase.Default,
+            int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            if (s_TweenHelper == null)
-            {
-                throw new GameException("ITweenHelper is invalid.");
-            }
-            return s_TweenHelper.Color(target, endValue, duration, ease, cycles, cycleMode, startDelay, endDelay, useUnscaledTime);
+            return Handler.Color(target, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
-        public static long Color(UnityEngine.UI.Graphic target, UnityEngine.Color startValue, UnityEngine.Color endValue, float duration, Ease ease = Ease.Default, int cycles = 1,
-            CycleMode cycleMode = CycleMode.Restart, float startDelay = 0, float endDelay = 0, bool useUnscaledTime = false)
+        public static long Color(Graphic target, Color startValue, Color endValue, float duration, EEase ease = EEase.Default,
+            int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            if (s_TweenHelper == null)
-            {
-                throw new GameException("ITweenHelper is invalid.");
-            }
-            return s_TweenHelper.Color(target, startValue, endValue, duration, ease, cycles, cycleMode, startDelay, endDelay, useUnscaledTime);
+            return Handler.Color(target, startValue, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
 
-        public static long Alpha(UnityEngine.CanvasGroup target, Single endValue, float duration, Ease ease = Ease.Default, int cycles = 1, CycleMode cycleMode = CycleMode.Restart,
-            float startDelay = 0, float endDelay = 0, bool useUnscaledTime = false)
+        public static long Alpha(CanvasGroup target, Single endValue, float duration, EEase ease = EEase.Default,
+            int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            if (s_TweenHelper == null)
-            {
-                throw new GameException("ITweenHelper is invalid.");
-            }
-            return s_TweenHelper.Alpha(target, endValue, duration, ease, cycles, cycleMode, startDelay, endDelay, useUnscaledTime);
+            return Handler.Alpha(target, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
-        public static long Alpha(UnityEngine.CanvasGroup target, Single startValue, Single endValue, float duration, Ease ease = Ease.Default, int cycles = 1,
-            CycleMode cycleMode = CycleMode.Restart, float startDelay = 0, float endDelay = 0, bool useUnscaledTime = false)
+        public static long Alpha(CanvasGroup target, Single startValue, Single endValue, float duration, EEase ease = EEase.Default,
+            int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            if (s_TweenHelper == null)
-            {
-                throw new GameException("ITweenHelper is invalid.");
-            }
-            return s_TweenHelper.Alpha(target, startValue, endValue, duration, ease, cycles, cycleMode, startDelay, endDelay, useUnscaledTime);
+            return Handler.Alpha(target, startValue, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
 
-        public static long Alpha(UnityEngine.UI.Graphic target, Single endValue, float duration, Ease ease = Ease.Default, int cycles = 1, CycleMode cycleMode = CycleMode.Restart,
-            float startDelay = 0, float endDelay = 0, bool useUnscaledTime = false)
+        public static long Alpha(Graphic target, Single endValue, float duration, EEase ease = EEase.Default,
+            int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            if (s_TweenHelper == null)
-            {
-                throw new GameException("ITweenHelper is invalid.");
-            }
-            return s_TweenHelper.Alpha(target, endValue, duration, ease, cycles, cycleMode, startDelay, endDelay, useUnscaledTime);
+            return Handler.Alpha(target, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
-        public static long Alpha(UnityEngine.UI.Graphic target, Single startValue, Single endValue, float duration, Ease ease = Ease.Default, int cycles = 1,
-            CycleMode cycleMode = CycleMode.Restart, float startDelay = 0, float endDelay = 0, bool useUnscaledTime = false)
+        public static long Alpha(Graphic target, Single startValue, Single endValue, float duration, EEase ease = EEase.Default,
+            int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            if (s_TweenHelper == null)
-            {
-                throw new GameException("ITweenHelper is invalid.");
-            }
-            return s_TweenHelper.Alpha(target, startValue, endValue, duration, ease, cycles, cycleMode, startDelay, endDelay, useUnscaledTime);
+            return Handler.Alpha(target, startValue, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
+
+        public static long UIFillAmount(Image target, Single endValue, float duration, EEase ease = EEase.Default,
+            int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
+        {
+            return Handler.UIFillAmount(target, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
+        }
 
-        public static long UIFillAmount(UnityEngine.UI.Image target, Single endValue, float duration, Ease ease = Ease.Default, int cycles = 1, CycleMode cycleMode = CycleMode.Restart,
-            float startDelay = 0, float endDelay = 0, bool useUnscaledTime = false)
+        public static long UIFillAmount(Image target, Single startValue, Single endValue, float duration, EEase ease = EEase.Default,
+            int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            if (s_TweenHelper == null)
-            {
-                throw new GameException("ITweenHelper is invalid.");
-            }
-            return s_TweenHelper.UIFillAmount(target, endValue, duration, ease, cycles, cycleMode, startDelay, endDelay, useUnscaledTime);
+            return Handler.UIFillAmount(target, startValue, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
-        public static long UIFillAmount(UnityEngine.UI.Image target, Single startValue, Single endValue, float duration, Ease ease = Ease.Default, int cycles = 1,
-            CycleMode cycleMode = CycleMode.Restart, float startDelay = 0, float endDelay = 0, bool useUnscaledTime = false)
+        public static long MaterialColor(Material target, Color startValue, Color endValue, float duration, EEase ease = EEase.Default,
+            int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            if (s_TweenHelper == null)
-            {
-                throw new GameException("ITweenHelper is invalid.");
-            }
-            return s_TweenHelper.UIFillAmount(target, startValue, endValue, duration, ease, cycles, cycleMode, startDelay, endDelay, useUnscaledTime);
+            return Handler.MaterialColor(target, startValue, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
-        public static long MoveBezierPath(UnityEngine.Transform target, UnityEngine.Vector3[] path, float duration, Ease ease = Ease.Default, int cycles = 1,
-            CycleMode cycleMode = CycleMode.Restart, float startDelay = 0, float endDelay = 0, bool useUnscaledTime = false)
+        public static long MoveBezierPath(Transform target, Vector3[] path, float duration, EEase ease = EEase.Default,
+            int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            if (s_TweenHelper == null)
-            {
-                throw new GameException("ITweenHelper is invalid.");
-            }
-            return s_TweenHelper.MoveBezierPath(target, path, duration, ease, cycles, cycleMode, startDelay, endDelay, useUnscaledTime);
+            return Handler.MoveBezierPath(target, path, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
-        public static long Custom<T>(T target, UnityEngine.Vector3 startValue, UnityEngine.Vector3 endValue, float duration, Action<T, UnityEngine.Vector3> onValueChange,
-            Ease ease = Ease.Default, int cycles = 1, CycleMode cycleMode = CycleMode.Restart, float startDelay = 0, float endDelay = 0, bool useUnscaledTime = false)
+        public static long Custom<T>(T target, Vector3 startValue, Vector3 endValue, float duration, Action<T, Vector3> onValueChange, EEase ease = EEase.Default,
+            int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
             where T : class
         {
-            if (s_TweenHelper == null)
-            {
-                throw new GameException("ITweenHelper is invalid.");
-            }
-            return s_TweenHelper.Custom(target, startValue, endValue, duration, onValueChange, ease, cycles, cycleMode, startDelay, endDelay, useUnscaledTime);
+            return Handler.Custom(target, startValue, endValue, duration, onValueChange, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
-        public static long Custom<T>(T target, long startValue, long endValue, float duration, Action<T, long> onValueChange,
-            Ease ease = Ease.Default, int cycles = 1, CycleMode cycleMode = CycleMode.Restart, float startDelay = 0, float endDelay = 0, bool useUnscaledTime = false)
+        public static long Custom<T>(T target, long startValue, long endValue, float duration, Action<T, long> onValueChange, EEase ease = EEase.Default,
+            int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
             where T : class
         {
-            if (s_TweenHelper == null)
-            {
-                throw new GameException("ITweenHelper is invalid.");
-            }
-            return s_TweenHelper.Custom(target, startValue, endValue, duration, onValueChange, ease, cycles, cycleMode, startDelay, endDelay, useUnscaledTime);
+            return Handler.Custom(target, startValue, endValue, duration, onValueChange, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
-        public static long Custom<T>(T target, float startValue, float endValue, float duration, Action<T, float> onValueChange,
-            Ease ease = Ease.Default, int cycles = 1, CycleMode cycleMode = CycleMode.Restart, float startDelay = 0, float endDelay = 0, bool useUnscaledTime = false)
+        public static long Custom<T>(T target, int startValue, int endValue, float duration, Action<T, int> onValueChange, EEase ease = EEase.Default,
+            int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
             where T : class
         {
-            if (s_TweenHelper == null)
-            {
-                throw new GameException("ITweenHelper is invalid.");
-            }
-            return s_TweenHelper.Custom(target, startValue, endValue, duration, onValueChange, ease, cycles, cycleMode, startDelay, endDelay, useUnscaledTime);
+            return Handler.Custom(target, startValue, endValue, duration, onValueChange, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
-    }
-    
-    public static class TweenExtensions
-    {
-        public static long OnComplete(this long tweenId, Action onComplete)
+
+        public static long Custom<T>(T target, float startValue, float endValue, float duration, Action<T, float> onValueChange, EEase ease = EEase.Default,
+            int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
+            where T : class
         {
-            TweenUtility.OnComplete(tweenId, onComplete);
-            return tweenId;
+            return Handler.Custom(target, startValue, endValue, duration, onValueChange, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
     }
 }
