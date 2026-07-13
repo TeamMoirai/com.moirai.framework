@@ -21,6 +21,14 @@ namespace Moirai.Atropos
 
         #region 实现方法 [IMPLEMENTATION METHODS]
 
+        protected override void OnInit()
+        {
+        }
+
+        protected override void Shutdown()
+        {
+        }
+
         /// <summary>
         /// 获取一个 ZString 字符串构建器适配器（0GC）
         /// </summary>
