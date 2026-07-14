@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using UnityEngine;
 using UnityEngine.SceneManagement;
 
 namespace Moirai.Atropos
@@ -9,7 +11,32 @@ namespace Moirai.Atropos
     /// <remarks>使用此系统可提供比 FindObject 方法更快的结果，并且非常适合需要由多个游戏对象引用的非单例组件。</remarks>
     public static class ToolRegistry
     {
-        private static readonly List<ToolRegistryEntry> s_Entries = new List<ToolRegistryEntry>();
+        private struct RegistryEntry
+        {
+
+            #region 变量 [VARIABLES]
+
+            public string Key { get; }
+
+            public object Object { get; }
+
+            public bool Persist { get; }
+
+            public UnityEngine.SceneManagement.Scene Scene { get; }
+
+            #endregion
+
+            public RegistryEntry(string key, object obj, bool persist, UnityEngine.SceneManagement.Scene scene)
+            {
+                Key = key;
+                Object = obj;
+                Persist = persist;
+                Scene = scene;
+            }
+
+        }
+
+        private static readonly List<RegistryEntry> s_Entries = new List<RegistryEntry>();
         private static bool s_Subscribed;
 
 #if UNITY_EDITOR
@@ -19,7 +46,17 @@ namespace Moirai.Atropos
             s_Entries.Clear();
         }
 #endif
-        
+
+        static ToolRegistry()
+        {
+            if (Application.isPlaying)
+            {
+                SceneManager.sceneLoaded += ClearNonPersist;
+            }
+
+            Clear();
+        }
+
         /// <summary>
         /// 清除所有已注册的组件
         /// </summary>
@@ -35,19 +72,37 @@ namespace Moirai.Atropos
         /// 获取已注册的组件
         /// </summary>
         /// <typeparam name="T"></typeparam>
-        /// <returns></returns>        
+        /// <returns></returns>
         public static T GetComponent<T>()
         {
-            EnsureSceneAndList();
-
             lock (s_Entries)
             {
-                ToolRegistryEntry[] search = s_Entries.ToArray();
-                for (int i = 0; i < search.Length; i++)
+                for (int i = 0; i < s_Entries.Count; i++)
                 {
-                    if (search[i] != null && search[i].@object != null && search[i].@object is T t)
+                    if (s_Entries[i].Object != null && s_Entries[i].Object is T t)
                     {
                         return t;
+                    }
+                }
+            }
+
+            return default;
+        }
+
+        /// <summary>
+        /// 获取已注册的组件
+        /// </summary>
+        /// <param name="t"></param>
+        /// <returns></returns>
+        public static object GetComponent(Type t)
+        {
+            lock (s_Entries)
+            {
+                for (int i = 0; i < s_Entries.Count; i++)
+                {
+                    if (s_Entries[i].Object != null && t.IsInstanceOfType(s_Entries[i].Object))
+                    {
+                        return s_Entries[i].Object;
                     }
                 }
             }
@@ -59,22 +114,31 @@ namespace Moirai.Atropos
         /// 使用键获取已注册的组件
         /// </summary>
         /// <param name="key">要查找的键</param>
+        /// <param name="entityFallback"></param>
         /// <typeparam name="T"></typeparam>
-        /// <returns></returns>        
-        public static T GetComponent<T>(string key)
+        /// <returns></returns>
+        public static T GetComponent<T>(string key, bool entityFallback = false)
         {
             if (string.IsNullOrEmpty(key)) return GetComponent<T>();
 
-            EnsureSceneAndList();
-
             lock (s_Entries)
             {
-                ToolRegistryEntry[] search = s_Entries.ToArray();
-                for (int i = 0; i < search.Length; i++)
+                for (int i = 0; i < s_Entries.Count; i++)
                 {
-                    if (search[i].@object is T t && search[i].key == key)
+                    if (s_Entries[i].Key == key && s_Entries[i].Object is T t)
                     {
                         return t;
+                    }
+                }
+
+                if (!entityFallback) return default;
+
+                for (int i = 0; i < s_Entries.Count; i++)
+                {
+                    if (s_Entries[i].Key == key && s_Entries[i].Object is GameObject go)
+                    {
+                        T fallback = go.GetComponentInChildren<T>();
+                        if (fallback != null) return fallback;
                     }
                 }
             }
@@ -89,15 +153,12 @@ namespace Moirai.Atropos
         /// <returns></returns>
         public static List<T> GetComponents<T>()
         {
-            EnsureSceneAndList();
-
             List<T> results = new List<T>();
             lock (s_Entries)
             {
-                ToolRegistryEntry[] search = s_Entries.ToArray();
-                for (int i = 0; i < search.Length; i++)
+                for (int i = 0; i < s_Entries.Count; i++)
                 {
-                    if (search[i].@object is T t)
+                    if (s_Entries[i].Object is T t)
                     {
                         results.Add(t);
                     }
@@ -105,6 +166,24 @@ namespace Moirai.Atropos
             }
 
             return results;
+        }
+
+        /// <summary>
+        /// 获取已注册组件的列表（0GC）
+        /// </summary>
+        /// <param name="results"></param>
+        /// <typeparam name="T"></typeparam>
+        public static void GetComponents<T>(List<T> results)
+        {
+            results.Clear();
+            lock (s_Entries)
+            {
+                for (int i = 0; i < s_Entries.Count; i++)
+                {
+                    if (s_Entries[i].Object is T t)
+                        results.Add(t);
+                }
+            }
         }
 
         /// <summary>
@@ -125,21 +204,21 @@ namespace Moirai.Atropos
         /// <param name="persistBetweenScenes">在场景之间保持组件注册</param>
         public static void RegisterComponent(object component, string key, bool persistBetweenScenes = false)
         {
-            EnsureSceneAndList();
+            if (component == null) return;
 
             lock (s_Entries)
             {
-                foreach (ToolRegistryEntry entry in s_Entries)
+                foreach (RegistryEntry entry in s_Entries)
                 {
-                    if (entry.@object == component && entry.key == key)
+                    if (entry.Object == component && entry.Key == key)
                     {
                         Log.Fatal($"Exists! [{key}]: {component.GetType().Name}");
                         return;
                     }
                 }
-                
+
                 // Log.Info($"Register[{key}]: {component.GetType().Name}");
-                s_Entries.Add(new ToolRegistryEntry { @object = component, key = key, persist = persistBetweenScenes, scene = SceneManager.GetActiveScene() });
+                s_Entries.Add(new RegistryEntry(key, component, persistBetweenScenes, SceneManager.GetActiveScene()));
             }
         }
 
@@ -149,19 +228,17 @@ namespace Moirai.Atropos
         /// <param name="component">要删除的组件</param>
         public static void RemoveComponent(object component)
         {
-            EnsureSceneAndList();
-
             lock (s_Entries)
             {
-                foreach (ToolRegistryEntry entry in s_Entries)
-                {
-                    if (entry.@object == component)
-                    {
-                        s_Entries.Remove(entry);
-                        // Log.Info($"Remove[{entry.key}]: {component.GetType().Name}");
-                        return;
-                    }
-                }
+                s_Entries.RemoveAll(entry => entry.Object == component);
+            }
+        }
+
+        public static void RemoveComponent(object component, string key)
+        {
+            lock (s_Entries)
+            {
+                s_Entries.RemoveAll(entry => entry.Object == component && entry.Key == key);
             }
         }
 
@@ -173,19 +250,7 @@ namespace Moirai.Atropos
         {
             lock (s_Entries)
             {
-                List<ToolRegistryEntry> removeList = new List<ToolRegistryEntry>();
-                foreach (ToolRegistryEntry entry in s_Entries)
-                {
-                    if (entry.key == key)
-                    {
-                        removeList.Add(entry);
-                    }
-                }
-
-                foreach (ToolRegistryEntry entry in removeList)
-                {
-                    s_Entries.Remove(entry);
-                }
+                s_Entries.RemoveAll(entry => entry.Key == key);
             }
         }
 
@@ -194,10 +259,10 @@ namespace Moirai.Atropos
             if (mode == LoadSceneMode.Additive) return;
 
             UnityEngine.SceneManagement.Scene currentScene = SceneManager.GetActiveScene();
-            List<ToolRegistryEntry> persistedEntries = new List<ToolRegistryEntry>();
-            foreach (ToolRegistryEntry entry in s_Entries)
+            List<RegistryEntry> persistedEntries = new List<RegistryEntry>();
+            foreach (RegistryEntry entry in s_Entries)
             {
-                if (entry.persist || entry.scene == currentScene)
+                if (entry.Persist || entry.Scene == currentScene)
                 {
                     persistedEntries.Add(entry);
                 }
@@ -206,15 +271,6 @@ namespace Moirai.Atropos
             s_Entries.Clear();
             s_Entries.AddRange(persistedEntries);
         }
-        
-        private static void EnsureSceneAndList()
-        {
-            if (!s_Subscribed)
-            {
-                Clear();
-                s_Subscribed = true;
-                SceneManager.sceneLoaded += ClearNonPersist;
-            }
-        }
+
     }
 }
