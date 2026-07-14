@@ -4,7 +4,6 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using Object = UnityEngine.Object;
-using System.Collections.Generic;
 
 namespace Moirai.Atropos
 {
@@ -718,35 +717,6 @@ namespace Moirai.Atropos
         #region GameObject
 
         /// <summary>
-        /// 清除单个实例，默认延迟为0，仅在场景中删除对应对象
-        /// </summary>
-        public static void DestroyObject(Object obj, float delay = 0)
-        {
-            Object.Destroy(obj, delay);
-        }
-
-        /// <summary>
-        /// 立刻清理实例对象，会在内存中清理实例，Editor适用
-        /// </summary>
-        public static void DestroyObjectImmediate(Object obj)
-        {
-            Object.DestroyImmediate(obj);
-        }
-
-        /// <summary>
-        /// 清除一组实例
-        /// </summary>
-        /// <typeparam name="T">实例类型</typeparam>
-        /// <param name="objs">对象实例集合</param>
-        public static void DestroyObjects<T>(IEnumerable<T> objs) where T : Object
-        {
-            foreach (var obj in objs)
-            {
-                Object.Destroy(obj);
-            }
-        }
-
-        /// <summary>
         /// 通过类型查找任意活动的对象(实例)
         /// </summary>
         /// <typeparam name="T"></typeparam>
@@ -836,30 +806,22 @@ namespace Moirai.Atropos
         #region Other
 
         /// <summary>
-        /// 场景是否被加载；
+        /// 获取对象的 EntityId。
         /// </summary>
-        /// <param name="sceneName">场景名</param>
-        /// <returns>是否被加载</returns>
-        public static bool IsSceneLoaded(string sceneName)
+        /// <param name="target"></param>
+        /// <returns></returns>
+        public static int GetObjectEntityId(Object target)
         {
-            var scene = SceneManager.GetSceneByName(sceneName);
-            if (scene != null)
+            if (target == null)
             {
-                return scene.isLoaded;
+                return 0;
             }
 
-            return false;
-        }
-
-        /// <summary>
-        /// 判断是否是路径；
-        /// 需要注意根目录下的文件可能不带/或\符号！
-        /// </summary>
-        /// <param name="path">路径str</param>
-        /// <returns>是否是路径</returns>
-        public static bool IsPath(string path)
-        {
-            return path.Contains("\\") || path.Contains("/");
+#if UNITY_6000_4_OR_NEWER
+            return target.GetEntityId();
+#else
+            return target.GetInstanceID();
+#endif
         }
 
         #endregion

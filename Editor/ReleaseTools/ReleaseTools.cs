@@ -81,55 +81,56 @@ namespace Moirai.Atropos.Editor
 
         #region MenuItem 入口（兼容原有菜单）
 
-       [MenuItem("Tools/Build/一键打包AssetBundle _F8", false, 200)]
-       // ReSharper disable once InconsistentNaming
-       public static void BuildCurrentPlatformAB()
-       {
-           var config = BuildConfig.CreateDefault();
-           config.OutputRoot = "./Bundles/";
-           config.BuildHotFixDll = true;
-           BuildWithConfig(config, buildPlayer: false);
-       }
+        [MenuItem("Tools/Build/一键打包AssetBundle _F8", false, 200)]
+        // ReSharper disable once InconsistentNaming
+        public static void BuildCurrentPlatformAB()
+        {
+            var config = BuildConfig.CreateDefault();
+            config.OutputRoot = "./Bundles/";
+            config.BuildHotFixDll = true;
+            BuildWithConfig(config, buildPlayer: false);
+        }
 
-       [MenuItem("Tools/Build/一键打包Window", false, 100)]
-       public static void AutomationBuild()
-       {
-           var config = BuildConfig.CreateDefault();
-           config.BuildTarget = BuildTarget.StandaloneWindows64;
-           config.OutputRoot = Application.dataPath + "/../Builds/Windows";
-           config.BuildPlayer = true;
-           config.PlayerPlatform = BuildTarget.StandaloneWindows64;
-           config.PlayerOutputPath = $"{Application.dataPath}/../Build/Windows/Release_Windows.exe";
-           BuildWithConfig(config, buildPlayer: true);
-       }
+        [MenuItem("Tools/Build/一键打包Window", false, 100)]
+        public static void AutomationBuild()
+        {
+            var config = BuildConfig.CreateDefault();
+            config.BuildTarget = BuildTarget.StandaloneWindows64;
+            config.OutputRoot = Application.dataPath + "/../Builds/Windows";
+            config.BuildPlayer = true;
+            config.PlayerPlatform = BuildTarget.StandaloneWindows64;
+            config.PlayerOutputPath = $"{Application.dataPath}/../Build/Windows/Release_Windows.exe";
+            BuildWithConfig(config, buildPlayer: true);
+        }
 
-       [MenuItem("Tools/Build/一键打包Android", false, 100)]
-       public static void AutomationBuildAndroid()
-       {
-           var config = BuildConfig.CreateDefault();
-           config.BuildTarget = BuildTarget.Android;
-           config.OutputRoot = Application.dataPath + "/../Bundles";
-           config.BuildPlayer = true;
-           config.PlayerPlatform = BuildTarget.Android;
-           config.PlayerOutputPath = $"{Application.dataPath}/../Build/Android/{BuildConfig.GetDefaultPackageVersion()}Android.apk";
-           BuildWithConfig(config, buildPlayer: true);
-       }
+        [MenuItem("Tools/Build/一键打包Android", false, 100)]
+        public static void AutomationBuildAndroid()
+        {
+            var config = BuildConfig.CreateDefault();
+            config.BuildTarget = BuildTarget.Android;
+            config.OutputRoot = Application.dataPath + "/../Bundles";
+            config.BuildPlayer = true;
+            config.PlayerPlatform = BuildTarget.Android;
+            config.PlayerOutputPath =
+                $"{Application.dataPath}/../Build/Android/{BuildConfig.GetDefaultPackageVersion()}Android.apk";
+            BuildWithConfig(config, buildPlayer: true);
+        }
 
-       [MenuItem("Tools/Build/一键打包IOS", false, 100)]
-       public static void AutomationBuildIOS()
-       {
-           var config = BuildConfig.CreateDefault();
-           config.BuildTarget = BuildTarget.iOS;
-           config.OutputRoot = Application.dataPath + "/../Bundles";
-           config.BuildPlayer = true;
-           config.PlayerPlatform = BuildTarget.iOS;
-           config.PlayerOutputPath = $"{Application.dataPath}/../Build/IOS/XCode_Project";
-           BuildWithConfig(config, buildPlayer: true);
-       }
+        [MenuItem("Tools/Build/一键打包IOS", false, 100)]
+        public static void AutomationBuildIOS()
+        {
+            var config = BuildConfig.CreateDefault();
+            config.BuildTarget = BuildTarget.iOS;
+            config.OutputRoot = Application.dataPath + "/../Bundles";
+            config.BuildPlayer = true;
+            config.PlayerPlatform = BuildTarget.iOS;
+            config.PlayerOutputPath = $"{Application.dataPath}/../Build/IOS/XCode_Project";
+            BuildWithConfig(config, buildPlayer: true);
+        }
 
-       #endregion
+        #endregion
 
-       #region 参数化构建入口
+        #region 参数化构建入口
 
         /// <summary>
         /// 通过 BuildConfig 执行完整构建流程
@@ -139,10 +140,10 @@ namespace Moirai.Atropos.Editor
             // 1. [可选] 编译热更DLL
             if (config.BuildHotFixDll)
             {
-    #if HYBRIDCLR_INSTALLED
+#if HYBRIDCLR_INSTALLED
                 Debug.Log("[BuildWithConfig] 编译热更DLL...");
                 BuildDLLCommand.BuildAndCopyDlls();
-    #endif
+#endif
             }
 
             // 2. 刷新资源
@@ -291,6 +292,7 @@ namespace Moirai.Atropos.Editor
         #endregion
 
         #region 最小包后处理
+
         /// <summary>
         /// 读取文件的文本数据
         /// </summary>
@@ -300,6 +302,7 @@ namespace Moirai.Atropos.Editor
             {
                 return null;
             }
+
             return File.ReadAllText(filePath, System.Text.Encoding.UTF8);
         }
 
@@ -307,7 +310,8 @@ namespace Moirai.Atropos.Editor
         /// 最小包模式：删除 StreamingAssets 中不带保留 tag 的 .bundle 文件
         /// 使用构建输出的 BuildReport（JSON）获取 bundle 的 tag 信息
         /// </summary>
-        public static void ProcessMinimalPackage(string packageVersion, string retainTags, string outputPackageDirectory)
+        public static void ProcessMinimalPackage(string packageVersion, string retainTags,
+            string outputPackageDirectory)
         {
             string streamingRoot = AssetBundleBuilderHelper.GetStreamingAssetsRoot();
             string packageName = "DefaultPackage";
@@ -348,6 +352,7 @@ namespace Moirai.Atropos.Editor
                         retainFileNames.Add(bundleInfo.FileName);
                     }
                 }
+
                 Debug.Log($"[最小包] 保留 Tag: [{string.Join(", ", retainTagArray)}]，匹配 {retainFileNames.Count} 个 bundle");
             }
 
@@ -394,6 +399,7 @@ namespace Moirai.Atropos.Editor
                         return true;
                 }
             }
+
             return false;
         }
 
