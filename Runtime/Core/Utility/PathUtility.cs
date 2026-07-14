@@ -172,5 +172,16 @@ namespace Moirai.Atropos
         {
             return !string.IsNullOrEmpty(uri) && (uri.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || uri.StartsWith("https://", StringComparison.OrdinalIgnoreCase));
         }
+
+        /// <summary>
+        /// 判断是否是路径；
+        /// 需要注意根目录下的文件可能不带/或\符号！
+        /// </summary>
+        /// <param name="path">路径str</param>
+        /// <returns>是否是路径</returns>
+        public static bool IsPath(string path)
+        {
+            return path.Contains("\\") || path.Contains("/");
+        }
     }
 }

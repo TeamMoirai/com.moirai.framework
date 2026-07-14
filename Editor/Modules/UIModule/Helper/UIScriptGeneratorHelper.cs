@@ -204,11 +204,8 @@ namespace Moirai.Atropos.UI.Editor
 
         private static void InitializeGenerationContext(GameObject targetObject)
         {
-#if UNITY_6000_4_OR_NEWER
-            EditorPrefs.SetInt(GENERATE_INSTANCE_ID_KEY, targetObject.GetEntityId());
-#else
-            EditorPrefs.SetInt(GENERATE_INSTANCE_ID_KEY, targetObject.GetInstanceID());
-#endif
+            EditorPrefs.SetInt(GENERATE_INSTANCE_ID_KEY, UnityUtility.GetObjectEntityId(targetObject));
+
             var assetPath = UIGenerateQuick.GetPrefabAssetPath(targetObject);
             if (!string.IsNullOrEmpty(assetPath))
             {

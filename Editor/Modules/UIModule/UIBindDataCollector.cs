@@ -115,11 +115,7 @@ namespace Moirai.Atropos.UI.Editor
                 return;
             }
 
-#if UNITY_6000_4_OR_NEWER
-            string keyId = root.GetEntityId().ToString();
-#else
-            string keyId = root.GetInstanceID().ToString();
-#endif
+            string keyId = UnityUtility.GetObjectEntityId(root).ToString();
 
             var groupKey = $"{keyId}::{groupName}";
             if (!s_ArrayComponents.Add(groupKey))
