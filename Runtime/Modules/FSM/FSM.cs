@@ -1,28 +1,28 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace Moirai.Atropos.Fsm
+namespace Moirai.Atropos.FSM
 {
     /// <summary>
     /// 有限状态机。
     /// </summary>
     /// <typeparam name="T">有限状态机持有者类型。</typeparam>
-    internal sealed class Fsm<T> : FsmBase, IMemory, IFsm<T> where T : class
+    internal sealed class FSM<T> : FSMBase, IMemory, IFSM<T> where T : class
     {
         private T _owner;
-        private readonly Dictionary<Type, FsmState<T>> _states;
+        private readonly Dictionary<Type, FSMState<T>> _states;
         private Dictionary<string, object> _dataMap;
-        private FsmState<T> _currentState;
+        private FSMState<T> _currentState;
         private float _currentStateTime;
         private bool _isDestroyed;
 
         /// <summary>
         /// 初始化有限状态机的新实例。
         /// </summary>
-        public Fsm()
+        public FSM()
         {
             _owner = null;
-            _states = new Dictionary<Type, FsmState<T>>();
+            _states = new Dictionary<Type, FSMState<T>>();
             _dataMap = null;
             _currentState = null;
             _currentStateTime = 0f;
@@ -57,7 +57,7 @@ namespace Moirai.Atropos.Fsm
         /// <summary>
         /// 获取当前有限状态机状态。
         /// </summary>
-        public FsmState<T> CurrentState => _currentState;
+        public FSMState<T> CurrentState => _currentState;
 
         /// <summary>
         /// 获取当前有限状态机状态名称。
@@ -76,7 +76,7 @@ namespace Moirai.Atropos.Fsm
         /// <param name="owner">有限状态机持有者。</param>
         /// <param name="states">有限状态机状态集合。</param>
         /// <returns>创建的有限状态机。</returns>
-        public static Fsm<T> Create(string name, T owner, params FsmState<T>[] states)
+        public static FSM<T> Create(string name, T owner, params FSMState<T>[] states)
         {
             if (owner == null)
             {
@@ -88,11 +88,11 @@ namespace Moirai.Atropos.Fsm
                 throw new GameException("FSM states is invalid.");
             }
 
-            Fsm<T> fsm = MemoryPool.Acquire<Fsm<T>>();
+            FSM<T> fsm = MemoryPool.Acquire<FSM<T>>();
             fsm.Name = name;
             fsm._owner = owner;
             fsm._isDestroyed = false;
-            foreach (FsmState<T> state in states)
+            foreach (FSMState<T> state in states)
             {
                 if (state == null)
                 {
@@ -119,7 +119,7 @@ namespace Moirai.Atropos.Fsm
         /// <param name="owner">有限状态机持有者。</param>
         /// <param name="states">有限状态机状态集合。</param>
         /// <returns>创建的有限状态机。</returns>
-        public static Fsm<T> Create(string name, T owner, List<FsmState<T>> states)
+        public static FSM<T> Create(string name, T owner, List<FSMState<T>> states)
         {
             if (owner == null)
             {
@@ -131,11 +131,11 @@ namespace Moirai.Atropos.Fsm
                 throw new GameException("FSM states is invalid.");
             }
 
-            Fsm<T> fsm = MemoryPool.Acquire<Fsm<T>>();
+            FSM<T> fsm = MemoryPool.Acquire<FSM<T>>();
             fsm.Name = name;
             fsm._owner = owner;
             fsm._isDestroyed = false;
-            foreach (FsmState<T> state in states)
+            foreach (FSMState<T> state in states)
             {
                 if (state == null)
                 {
@@ -165,7 +165,7 @@ namespace Moirai.Atropos.Fsm
                 _currentState.OnExit(this, true);
             }
 
-            foreach (KeyValuePair<Type, FsmState<T>> state in _states)
+            foreach (KeyValuePair<Type, FSMState<T>> state in _states)
             {
                 state.Value.OnDestroy(this);
             }
@@ -183,14 +183,14 @@ namespace Moirai.Atropos.Fsm
         /// 开始有限状态机。
         /// </summary>
         /// <typeparam name="TState">要开始的有限状态机状态类型。</typeparam>
-        public void Start<TState>() where TState : FsmState<T>
+        public void Start<TState>() where TState : FSMState<T>
         {
             if (IsRunning)
             {
                 throw new GameException("FSM is running, can not start again.");
             }
 
-            FsmState<T> state = GetState<TState>();
+            FSMState<T> state = GetState<TState>();
             if (state == null)
             {
                 throw new GameException(StringUtility.Format("FSM '{0}' can not start state '{1}' which is not exist.", new TypeNamePair(typeof(T), Name), typeof(TState).FullName));
@@ -217,12 +217,12 @@ namespace Moirai.Atropos.Fsm
                 throw new GameException("State type is invalid.");
             }
 
-            if (!typeof(FsmState<T>).IsAssignableFrom(stateType))
+            if (!typeof(FSMState<T>).IsAssignableFrom(stateType))
             {
                 throw new GameException(StringUtility.Format("State type '{0}' is invalid.", stateType.FullName));
             }
 
-            FsmState<T> state = GetState(stateType);
+            FSMState<T> state = GetState(stateType);
             if (state == null)
             {
                 throw new GameException(StringUtility.Format("FSM '{0}' can not start state '{1}' which is not exist.", new TypeNamePair(typeof(T), Name), stateType.FullName));
@@ -238,7 +238,7 @@ namespace Moirai.Atropos.Fsm
         /// </summary>
         /// <typeparam name="TState">要检查的有限状态机状态类型。</typeparam>
         /// <returns>是否存在有限状态机状态。</returns>
-        public bool HasState<TState>() where TState : FsmState<T>
+        public bool HasState<TState>() where TState : FSMState<T>
         {
             return _states.ContainsKey(typeof(TState));
         }
@@ -255,7 +255,7 @@ namespace Moirai.Atropos.Fsm
                 throw new GameException("State type is invalid.");
             }
 
-            if (!typeof(FsmState<T>).IsAssignableFrom(stateType))
+            if (!typeof(FSMState<T>).IsAssignableFrom(stateType))
             {
                 throw new GameException(StringUtility.Format("State type '{0}' is invalid.", stateType.FullName));
             }
@@ -268,9 +268,9 @@ namespace Moirai.Atropos.Fsm
         /// </summary>
         /// <typeparam name="TState">要获取的有限状态机状态类型。</typeparam>
         /// <returns>要获取的有限状态机状态。</returns>
-        public TState GetState<TState>() where TState : FsmState<T>
+        public TState GetState<TState>() where TState : FSMState<T>
         {
-            if (_states.TryGetValue(typeof(TState), out FsmState<T> state))
+            if (_states.TryGetValue(typeof(TState), out FSMState<T> state))
             {
                 return (TState)state;
             }
@@ -283,19 +283,19 @@ namespace Moirai.Atropos.Fsm
         /// </summary>
         /// <param name="stateType">要获取的有限状态机状态类型。</param>
         /// <returns>要获取的有限状态机状态。</returns>
-        public FsmState<T> GetState(Type stateType)
+        public FSMState<T> GetState(Type stateType)
         {
             if (stateType == null)
             {
                 throw new GameException("State type is invalid.");
             }
 
-            if (!typeof(FsmState<T>).IsAssignableFrom(stateType))
+            if (!typeof(FSMState<T>).IsAssignableFrom(stateType))
             {
                 throw new GameException(StringUtility.Format("State type '{0}' is invalid.", stateType.FullName));
             }
 
-            FsmState<T> state = null;
+            FSMState<T> state = null;
             if (_states.TryGetValue(stateType, out state))
             {
                 return state;
@@ -308,11 +308,11 @@ namespace Moirai.Atropos.Fsm
         /// 获取有限状态机的所有状态。
         /// </summary>
         /// <returns>有限状态机的所有状态。</returns>
-        public FsmState<T>[] GetAllStates()
+        public FSMState<T>[] GetAllStates()
         {
             int index = 0;
-            FsmState<T>[] results = new FsmState<T>[_states.Count];
-            foreach (KeyValuePair<Type, FsmState<T>> state in _states)
+            FSMState<T>[] results = new FSMState<T>[_states.Count];
+            foreach (KeyValuePair<Type, FSMState<T>> state in _states)
             {
                 results[index++] = state.Value;
             }
@@ -324,7 +324,7 @@ namespace Moirai.Atropos.Fsm
         /// 获取有限状态机的所有状态。
         /// </summary>
         /// <param name="results">有限状态机的所有状态。</param>
-        public void GetAllStates(List<FsmState<T>> results)
+        public void GetAllStates(List<FSMState<T>> results)
         {
             if (results == null)
             {
@@ -332,7 +332,7 @@ namespace Moirai.Atropos.Fsm
             }
 
             results.Clear();
-            foreach (KeyValuePair<Type, FsmState<T>> state in _states)
+            foreach (KeyValuePair<Type, FSMState<T>> state in _states)
             {
                 results.Add(state.Value);
             }
@@ -473,7 +473,7 @@ namespace Moirai.Atropos.Fsm
         /// 切换当前有限状态机状态。
         /// </summary>
         /// <typeparam name="TState">要切换到的有限状态机状态类型。</typeparam>
-        public void ChangeState<TState>() where TState : FsmState<T>
+        public void ChangeState<TState>() where TState : FSMState<T>
         {
             ChangeState(typeof(TState));
         }
@@ -489,7 +489,7 @@ namespace Moirai.Atropos.Fsm
                 throw new GameException("Current state is invalid.");
             }
 
-            FsmState<T> state = GetState(stateType);
+            FSMState<T> state = GetState(stateType);
             if (state == null)
             {
                 throw new GameException(StringUtility.Format("FSM '{0}' can not change state to '{1}' which is not exist.", new TypeNamePair(typeof(T), Name), stateType.FullName));

@@ -1,7 +1,7 @@
 using System;
 using System.Linq;
 using Cysharp.Threading.Tasks;
-using Moirai.Atropos.Fsm;
+using Moirai.Atropos.FSM;
 using UnityEngine;
 
 namespace Moirai.Atropos.Procedure
@@ -94,7 +94,7 @@ namespace Moirai.Atropos.Procedure
                 return;
             }
 
-            Instance._procedureModule.Initialize(ModuleSystem.GetModule<IFsmModule>(), procedures);
+            Instance._procedureModule.Initialize(ModuleSystem.GetModule<IFSMModule>(), procedures);
 
             await UniTask.Yield();
 

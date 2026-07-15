@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using Cysharp.Threading.Tasks;
 using Moirai.Atropos;
-using Moirai.Atropos.Fsm;
+using Moirai.Atropos.FSM;
 using Moirai.Atropos.Procedure;
 using Moirai.Atropos.Resource;
 using UnityEngine;
@@ -18,7 +18,7 @@ namespace Moirai.Main
     {
         public override bool UseNativeDialog => true;
 
-        private IFsm<IProcedureModule> _procedureOwner;
+        private IFSM<IProcedureModule> _procedureOwner;
 
         // 预加载开关
         private readonly bool _preloadSwitch = true;
@@ -33,14 +33,14 @@ namespace Moirai.Main
         /// </summary>
         private LoadAssetCallbacks _preLoadAssetCallbacks;
         
-        protected override void OnInit(IFsm<IProcedureModule> procedureOwner)
+        protected override void OnInit(IFSM<IProcedureModule> procedureOwner)
         {
             base.OnInit(procedureOwner);
             _procedureOwner = procedureOwner;
             _preLoadAssetCallbacks = new LoadAssetCallbacks(OnPreLoadAssetSuccess, OnPreLoadAssetFailure);
         }
         
-        protected override void OnEnter(IFsm<IProcedureModule> procedureOwner)
+        protected override void OnEnter(IFSM<IProcedureModule> procedureOwner)
         {
             base.OnEnter(procedureOwner);
 
@@ -52,7 +52,7 @@ namespace Moirai.Main
             PreloadResources();
         }
 
-        protected override void OnUpdate(IFsm<IProcedureModule> procedureOwner, float elapseSeconds, float realElapseSeconds)
+        protected override void OnUpdate(IFSM<IProcedureModule> procedureOwner, float elapseSeconds, float realElapseSeconds)
         {
             base.OnUpdate(procedureOwner, elapseSeconds, realElapseSeconds);
 

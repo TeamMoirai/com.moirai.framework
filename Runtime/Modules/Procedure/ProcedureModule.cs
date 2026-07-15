@@ -1,5 +1,5 @@
 ﻿using System;
-using Moirai.Atropos.Fsm;
+using Moirai.Atropos.FSM;
 
 namespace Moirai.Atropos.Procedure
 {
@@ -8,8 +8,8 @@ namespace Moirai.Atropos.Procedure
     /// </summary>
     public sealed class ProcedureModule : Module, IProcedureModule
     {
-        private IFsmModule _fsmModule;
-        private IFsm<IProcedureModule> _procedureFsm;
+        private IFSMModule _fsmModule;
+        private IFSM<IProcedureModule> _procedureFsm;
 
         public override int Priority => -2;
         
@@ -51,7 +51,7 @@ namespace Moirai.Atropos.Procedure
             {
                 if (_procedureFsm != null)
                 {
-                    _fsmModule.DestroyFsm(_procedureFsm);
+                    _fsmModule.DestroyFSM(_procedureFsm);
                     _procedureFsm = null;
                 }
 
@@ -59,7 +59,7 @@ namespace Moirai.Atropos.Procedure
             }
         }
         
-        public void Initialize(IFsmModule fsmModule, params ProcedureBase[] procedures)
+        public void Initialize(IFSMModule fsmModule, params ProcedureBase[] procedures)
         {
             if (fsmModule == null)
             {
@@ -67,7 +67,7 @@ namespace Moirai.Atropos.Procedure
             }
 
             _fsmModule = fsmModule;
-            _procedureFsm = _fsmModule.CreateFsm(this, procedures);
+            _procedureFsm = _fsmModule.CreateFSM(this, procedures);
         }
         
         public void StartProcedure<T>() where T : ProcedureBase
@@ -157,7 +157,7 @@ namespace Moirai.Atropos.Procedure
                 throw new GameException("RestartProcedure Failed procedures is invalid.");
             }
 
-            if (!_fsmModule.DestroyFsm<IProcedureModule>())
+            if (!_fsmModule.DestroyFSM<IProcedureModule>())
             {
                 return false;
             }

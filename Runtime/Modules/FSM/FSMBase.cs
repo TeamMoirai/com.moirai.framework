@@ -1,18 +1,18 @@
 ﻿using System;
 
-namespace Moirai.Atropos.Fsm
+namespace Moirai.Atropos.FSM
 {
     /// <summary>
     /// 有限状态机基类。
     /// </summary>
-    public abstract class FsmBase
+    public abstract class FSMBase
     {
         private string _name;
 
         /// <summary>
         /// 初始化有限状态机基类的新实例。
         /// </summary>
-        public FsmBase()
+        public FSMBase()
         {
             _name = string.Empty;
         }

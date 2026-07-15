@@ -1,7 +1,7 @@
 ﻿using Moirai.Atropos.Audio;
 using Moirai.Atropos.Debugger;
 using Moirai.Atropos.Events;
-using Moirai.Atropos.Fsm;
+using Moirai.Atropos.FSM;
 using Moirai.Atropos.Input;
 using Moirai.Atropos.Localization;
 using Moirai.Atropos.ObjectPool;
@@ -33,11 +33,11 @@ namespace Moirai.Atropos
         /// </summary>
         public static IDebuggerModule Debugger => s_IsShutdown ? null : s_Debugger ??= Get<IDebuggerModule>();
 
-        private static IFsmModule s_Fsm;
+        private static IFSMModule s_FSM;
         /// <summary>
         /// 获取有限状态机模块。
         /// </summary>
-        public static IFsmModule Fsm => s_IsShutdown ? null : s_Fsm ??= Get<IFsmModule>();
+        public static IFSMModule FSM => s_IsShutdown ? null : s_FSM ??= Get<IFSMModule>();
 
         private static IProcedureModule s_Procedure;
         /// <summary>
@@ -130,7 +130,7 @@ namespace Moirai.Atropos
             ModuleSystem.GetModule<IUpdateDriver>();
             ModuleSystem.GetModule<IResourceModule>();
             ModuleSystem.GetModule<IDebuggerModule>();
-            ModuleSystem.GetModule<IFsmModule>();
+            ModuleSystem.GetModule<IFSMModule>();
             ModuleSystem.GetModule<IAudioModule>();
 
             ProcedureSettings.StartProcedure().Forget();
@@ -200,7 +200,7 @@ namespace Moirai.Atropos
             s_IsShutdown = true;
 
             s_Debugger = null;
-            s_Fsm = null;
+            s_FSM = null;
             s_Procedure = null;
             s_ObjectPool = null;
             s_Resource = null;
