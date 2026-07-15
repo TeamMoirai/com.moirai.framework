@@ -1,5 +1,5 @@
 ﻿using System;
-using Moirai.Atropos.Fsm;
+using Moirai.Atropos.FSM;
 
 namespace Moirai.Atropos.Procedure
 {
@@ -29,7 +29,7 @@ namespace Moirai.Atropos.Procedure
         /// </summary>
         /// <param name="fsmModule">有限状态机管理器。</param>
         /// <param name="procedures">流程管理器包含的流程。</param>
-        void Initialize(IFsmModule fsmModule, params ProcedureBase[] procedures);
+        void Initialize(IFSMModule fsmModule, params ProcedureBase[] procedures);
 
         /// <summary>
         /// 开始流程。

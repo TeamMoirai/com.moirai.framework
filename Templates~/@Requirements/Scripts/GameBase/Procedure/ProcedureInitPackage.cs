@@ -1,7 +1,7 @@
 ﻿using System;
 using Cysharp.Threading.Tasks;
 using Moirai.Atropos;
-using Moirai.Atropos.Fsm;
+using Moirai.Atropos.FSM;
 using Moirai.Atropos.Procedure;
 using UnityEngine;
 using YooAsset;
@@ -16,9 +16,9 @@ namespace Moirai.Main
     {
         public override bool UseNativeDialog { get; }
 
-        private IFsm<IProcedureModule> _procedureOwner;
+        private IFSM<IProcedureModule> _procedureOwner;
 
-        protected override void OnEnter(IFsm<IProcedureModule> procedureOwner)
+        protected override void OnEnter(IFSM<IProcedureModule> procedureOwner)
         {
             base.OnEnter(procedureOwner);
             
@@ -28,7 +28,7 @@ namespace Moirai.Main
             InitPackage(procedureOwner).Forget();
         }
 
-        private async UniTaskVoid InitPackage(IFsm<IProcedureModule> procedureOwner)
+        private async UniTaskVoid InitPackage(IFSM<IProcedureModule> procedureOwner)
         {
             try
             {
@@ -90,7 +90,7 @@ namespace Moirai.Main
             }
         }
         
-        private void OnInitPackageFailed(IFsm<IProcedureModule> procedureOwner, string message)
+        private void OnInitPackageFailed(IFSM<IProcedureModule> procedureOwner, string message)
         {
             // 打开启动UI。
             LauncherMgr.ShowUI<LoadUpdateUI>();
@@ -109,7 +109,7 @@ namespace Moirai.Main
                 () => { Retry(procedureOwner); }, Application.Quit);
         }
 
-        private void Retry(IFsm<IProcedureModule> procedureOwner)
+        private void Retry(IFSM<IProcedureModule> procedureOwner)
         {
             // 重新初始化资源中。
             LauncherMgr.ShowUI<LoadUpdateUI>(LoadText.Instance.Label_Load_RetryInit);

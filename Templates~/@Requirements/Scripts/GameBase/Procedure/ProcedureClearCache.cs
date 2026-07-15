@@ -1,5 +1,5 @@
 ﻿using Moirai.Atropos;
-using Moirai.Atropos.Fsm;
+using Moirai.Atropos.FSM;
 using Moirai.Atropos.Procedure;
 
 namespace Moirai.Main
@@ -12,9 +12,9 @@ namespace Moirai.Main
     {
         public override bool UseNativeDialog { get; }
 
-        private IFsm<IProcedureModule> _procedureOwner;
+        private IFSM<IProcedureModule> _procedureOwner;
         
-        protected override void OnEnter(IFsm<IProcedureModule> procedureOwner)
+        protected override void OnEnter(IFSM<IProcedureModule> procedureOwner)
         {
             _procedureOwner = procedureOwner;
             Log.Info("Clean up unused cache files...");

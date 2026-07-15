@@ -1,7 +1,7 @@
 ﻿using System;
 using Cysharp.Threading.Tasks;
 using Moirai.Atropos;
-using Moirai.Atropos.Fsm;
+using Moirai.Atropos.FSM;
 using Moirai.Atropos.Procedure;
 using UnityEngine;
 using YooAsset;
@@ -20,7 +20,7 @@ namespace Moirai.Main
         
         public override bool UseNativeDialog { get; }
 
-        private IFsm<IProcedureModule> _procedureOwner;
+        private IFSM<IProcedureModule> _procedureOwner;
 
         private ResourceDownloaderOperation _downloader;
 
@@ -28,7 +28,7 @@ namespace Moirai.Main
 
         private string _totalSizeMb;
 
-        protected override void OnEnter(IFsm<IProcedureModule> procedureOwner)
+        protected override void OnEnter(IFSM<IProcedureModule> procedureOwner)
         {
             _procedureOwner = procedureOwner;
             

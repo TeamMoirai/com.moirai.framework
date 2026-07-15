@@ -1,6 +1,6 @@
 ﻿using System.Collections;
 using Moirai.Atropos;
-using Moirai.Atropos.Fsm;
+using Moirai.Atropos.FSM;
 using Moirai.Atropos.Procedure;
 using UnityEngine;
 using YooAsset;
@@ -17,9 +17,9 @@ namespace Moirai.Main
 
         public override bool UseNativeDialog => true;
         
-        private IFsm<IProcedureModule> _procedureOwner;
+        private IFSM<IProcedureModule> _procedureOwner;
 
-        protected override void OnEnter(IFsm<IProcedureModule> procedureOwner)
+        protected override void OnEnter(IFSM<IProcedureModule> procedureOwner)
         {
             base.OnEnter(procedureOwner);
 
@@ -32,7 +32,7 @@ namespace Moirai.Main
             UnityUtility.StartCoroutine(InitResources(procedureOwner));
         }
 
-        protected override void OnUpdate(IFsm<IProcedureModule> procedureOwner, float elapseSeconds, float realElapseSeconds)
+        protected override void OnUpdate(IFSM<IProcedureModule> procedureOwner, float elapseSeconds, float realElapseSeconds)
         {
             base.OnUpdate(procedureOwner, elapseSeconds, realElapseSeconds);
 
@@ -63,7 +63,7 @@ namespace Moirai.Main
             ChangeToPreloadState(procedureOwner);
         }
         
-        private void ChangeToCreateDownloaderState(IFsm<IProcedureModule> procedureOwner)
+        private void ChangeToCreateDownloaderState(IFSM<IProcedureModule> procedureOwner)
         {
             ChangeState<ProcedureCreateDownloader>(procedureOwner);
         }
@@ -72,7 +72,7 @@ namespace Moirai.Main
         /// 初始化资源流程。
         /// </summary>
         /// <remarks>YooAsset 需要保持编辑器、单机、联机模式流程一致。</remarks>
-        private IEnumerator InitResources(IFsm<IProcedureModule> procedureOwner)
+        private IEnumerator InitResources(IFSM<IProcedureModule> procedureOwner)
         {
             // 更新资源清单
             Log.Info("Update the manifest file...");
@@ -106,12 +106,12 @@ namespace Moirai.Main
             _initResourcesComplete = true;
         }
 
-        private void ChangeToPreloadState(IFsm<IProcedureModule> procedureOwner)
+        private void ChangeToPreloadState(IFSM<IProcedureModule> procedureOwner)
         {
             ChangeState<ProcedurePreload>(procedureOwner);
         }
 
-        private void OnInitResourcesError(IFsm<IProcedureModule> procedureOwner, string message)
+        private void OnInitResourcesError(IFSM<IProcedureModule> procedureOwner, string message)
         {
             // 检查设备网络连接状态。
             if (_resourceModule.PlayMode == EPlayMode.HostPlayMode)

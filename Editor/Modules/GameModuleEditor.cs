@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
-using Moirai.Atropos.Fsm;
+using Moirai.Atropos.FSM;
 using Moirai.Atropos.ObjectPool;
 using UnityEditor;
 using UnityEngine;
@@ -69,7 +69,7 @@ namespace Moirai.Atropos.Editor
                                 DrawSettingState();
                                 break;
                             case StateTab.FSM:
-                                DrawFsmState();
+                                DrawFSMState();
                                 break;
                             case StateTab.ObjectPool:
                                 DrawObjectPoolState();
@@ -107,13 +107,13 @@ namespace Moirai.Atropos.Editor
             }
         }
 
-        private void DrawFsmState()
+        private void DrawFSMState()
         {
-            var fsmModule = GameModule.Fsm;
+            var fsmModule = GameModule.FSM;
             EditorGUILayout.LabelField("FSM Count", fsmModule.Count.ToString());
 
-            FsmBase[] fsms = fsmModule.GetAllFsms();
-            foreach (FsmBase fsm in fsms)
+            FSMBase[] fsms = fsmModule.GetAllFSMs();
+            foreach (FSMBase fsm in fsms)
             {
                 EditorGUILayout.LabelField(fsm.Name,
                     fsm.IsRunning ? StringUtility.Format("{0}, {1:F1} s", fsm.CurrentStateName, fsm.CurrentStateTime) : (fsm.IsDestroyed ? "Destroyed" : "Not Running"));

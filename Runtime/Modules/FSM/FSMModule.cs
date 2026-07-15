@@ -1,15 +1,15 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace Moirai.Atropos.Fsm
+namespace Moirai.Atropos.FSM
 {
     /// <summary>
     /// 有限状态机模块。
     /// </summary>
-    public sealed class FsmModule : Module, IFsmModule, IUpdateModule
+    public sealed class FSMModule : Module, IFSMModule, IUpdateModule
     {
-        private Dictionary<TypeNamePair, FsmBase> _fsmMap;
-        private List<FsmBase> _tempFsmList;
+        private Dictionary<TypeNamePair, FSMBase> _fsmMap;
+        private List<FSMBase> _tempFSMList;
 
         public override int Priority => 1;
 
@@ -17,35 +17,35 @@ namespace Moirai.Atropos.Fsm
 
         public override void OnInit()
         {
-            _fsmMap = new Dictionary<TypeNamePair, FsmBase>();
-            _tempFsmList = new List<FsmBase>();
+            _fsmMap = new Dictionary<TypeNamePair, FSMBase>();
+            _tempFSMList = new List<FSMBase>();
         }
         
         public override void Shutdown()
         {
-            foreach (KeyValuePair<TypeNamePair, FsmBase> fsm in _fsmMap)
+            foreach (KeyValuePair<TypeNamePair, FSMBase> fsm in _fsmMap)
             {
                 fsm.Value.Shutdown();
             }
 
             _fsmMap.Clear();
-            _tempFsmList.Clear();
+            _tempFSMList.Clear();
         }
         
         public void Update(float elapseSeconds, float realElapseSeconds)
         {
-            _tempFsmList.Clear();
+            _tempFSMList.Clear();
             if (_fsmMap.Count <= 0)
             {
                 return;
             }
 
-            foreach (KeyValuePair<TypeNamePair, FsmBase> fsm in _fsmMap)
+            foreach (KeyValuePair<TypeNamePair, FSMBase> fsm in _fsmMap)
             {
-                _tempFsmList.Add(fsm.Value);
+                _tempFSMList.Add(fsm.Value);
             }
 
-            foreach (FsmBase fsm in _tempFsmList)
+            foreach (FSMBase fsm in _tempFSMList)
             {
                 if (fsm.IsDestroyed)
                 {
@@ -56,71 +56,71 @@ namespace Moirai.Atropos.Fsm
             }
         }
         
-        public bool HasFsm<T>() where T : class
+        public bool HasFSM<T>() where T : class
         {
-            return InternalHasFsm(new TypeNamePair(typeof(T)));
+            return InternalHasFSM(new TypeNamePair(typeof(T)));
         }
         
-        public bool HasFsm(Type ownerType)
-        {
-            if (ownerType == null)
-            {
-                throw new GameException("Owner type is invalid.");
-            }
-
-            return InternalHasFsm(new TypeNamePair(ownerType));
-        }
-        
-        public bool HasFsm<T>(string name) where T : class
-        {
-            return InternalHasFsm(new TypeNamePair(typeof(T), name));
-        }
-        
-        public bool HasFsm(Type ownerType, string name)
+        public bool HasFSM(Type ownerType)
         {
             if (ownerType == null)
             {
                 throw new GameException("Owner type is invalid.");
             }
 
-            return InternalHasFsm(new TypeNamePair(ownerType, name));
+            return InternalHasFSM(new TypeNamePair(ownerType));
         }
         
-        public IFsm<T> GetFsm<T>() where T : class
+        public bool HasFSM<T>(string name) where T : class
         {
-            return (IFsm<T>)InternalGetFsm(new TypeNamePair(typeof(T)));
+            return InternalHasFSM(new TypeNamePair(typeof(T), name));
         }
         
-        public FsmBase GetFsm(Type ownerType)
-        {
-            if (ownerType == null)
-            {
-                throw new GameException("Owner type is invalid.");
-            }
-
-            return InternalGetFsm(new TypeNamePair(ownerType));
-        }
-        
-        public IFsm<T> GetFsm<T>(string name) where T : class
-        {
-            return (IFsm<T>)InternalGetFsm(new TypeNamePair(typeof(T), name));
-        }
-        
-        public FsmBase GetFsm(Type ownerType, string name)
+        public bool HasFSM(Type ownerType, string name)
         {
             if (ownerType == null)
             {
                 throw new GameException("Owner type is invalid.");
             }
 
-            return InternalGetFsm(new TypeNamePair(ownerType, name));
+            return InternalHasFSM(new TypeNamePair(ownerType, name));
         }
         
-        public FsmBase[] GetAllFsms()
+        public IFSM<T> GetFSM<T>() where T : class
+        {
+            return (IFSM<T>)InternalGetFSM(new TypeNamePair(typeof(T)));
+        }
+        
+        public FSMBase GetFSM(Type ownerType)
+        {
+            if (ownerType == null)
+            {
+                throw new GameException("Owner type is invalid.");
+            }
+
+            return InternalGetFSM(new TypeNamePair(ownerType));
+        }
+        
+        public IFSM<T> GetFSM<T>(string name) where T : class
+        {
+            return (IFSM<T>)InternalGetFSM(new TypeNamePair(typeof(T), name));
+        }
+        
+        public FSMBase GetFSM(Type ownerType, string name)
+        {
+            if (ownerType == null)
+            {
+                throw new GameException("Owner type is invalid.");
+            }
+
+            return InternalGetFSM(new TypeNamePair(ownerType, name));
+        }
+        
+        public FSMBase[] GetAllFSMs()
         {
             int index = 0;
-            FsmBase[] results = new FsmBase[_fsmMap.Count];
-            foreach (KeyValuePair<TypeNamePair, FsmBase> fsm in _fsmMap)
+            FSMBase[] results = new FSMBase[_fsmMap.Count];
+            foreach (KeyValuePair<TypeNamePair, FSMBase> fsm in _fsmMap)
             {
                 results[index++] = fsm.Value;
             }
@@ -128,7 +128,7 @@ namespace Moirai.Atropos.Fsm
             return results;
         }
         
-        public void GetAllFsms(List<FsmBase> results)
+        public void GetAllFSMs(List<FSMBase> results)
         {
             if (results == null)
             {
@@ -136,106 +136,106 @@ namespace Moirai.Atropos.Fsm
             }
 
             results.Clear();
-            foreach (KeyValuePair<TypeNamePair, FsmBase> fsm in _fsmMap)
+            foreach (KeyValuePair<TypeNamePair, FSMBase> fsm in _fsmMap)
             {
                 results.Add(fsm.Value);
             }
         }
         
-        public IFsm<T> CreateFsm<T>(T owner, params FsmState<T>[] states) where T : class
+        public IFSM<T> CreateFSM<T>(T owner, params FSMState<T>[] states) where T : class
         {
-            return CreateFsm(string.Empty, owner, states);
+            return CreateFSM(string.Empty, owner, states);
         }
         
-        public IFsm<T> CreateFsm<T>(string name, T owner, params FsmState<T>[] states) where T : class
+        public IFSM<T> CreateFSM<T>(string name, T owner, params FSMState<T>[] states) where T : class
         {
             TypeNamePair typeNamePair = new TypeNamePair(typeof(T), name);
-            if (HasFsm<T>(name))
+            if (HasFSM<T>(name))
             {
                 throw new GameException(StringUtility.Format("Already exist FSM '{0}'.", typeNamePair));
             }
 
-            Fsm<T> fsm = Fsm<T>.Create(name, owner, states);
+            FSM<T> fsm = FSM<T>.Create(name, owner, states);
             _fsmMap.Add(typeNamePair, fsm);
             return fsm;
         }
         
-        public IFsm<T> CreateFsm<T>(T owner, List<FsmState<T>> states) where T : class
+        public IFSM<T> CreateFSM<T>(T owner, List<FSMState<T>> states) where T : class
         {
-            return CreateFsm(string.Empty, owner, states);
+            return CreateFSM(string.Empty, owner, states);
         }
         
-        public IFsm<T> CreateFsm<T>(string name, T owner, List<FsmState<T>> states) where T : class
+        public IFSM<T> CreateFSM<T>(string name, T owner, List<FSMState<T>> states) where T : class
         {
             TypeNamePair typeNamePair = new TypeNamePair(typeof(T), name);
-            if (HasFsm<T>(name))
+            if (HasFSM<T>(name))
             {
                 throw new GameException(StringUtility.Format("Already exist FSM '{0}'.", typeNamePair));
             }
 
-            Fsm<T> fsm = Fsm<T>.Create(name, owner, states);
+            FSM<T> fsm = FSM<T>.Create(name, owner, states);
             _fsmMap.Add(typeNamePair, fsm);
             return fsm;
         }
         
-        public bool DestroyFsm<T>() where T : class
+        public bool DestroyFSM<T>() where T : class
         {
-            return InternalDestroyFsm(new TypeNamePair(typeof(T)));
+            return InternalDestroyFSM(new TypeNamePair(typeof(T)));
         }
         
-        public bool DestroyFsm(Type ownerType)
+        public bool DestroyFSM(Type ownerType)
         {
             if (ownerType == null)
             {
                 throw new GameException("Owner type is invalid.");
             }
 
-            return InternalDestroyFsm(new TypeNamePair(ownerType));
+            return InternalDestroyFSM(new TypeNamePair(ownerType));
         }
         
-        public bool DestroyFsm<T>(string name) where T : class
+        public bool DestroyFSM<T>(string name) where T : class
         {
-            return InternalDestroyFsm(new TypeNamePair(typeof(T), name));
+            return InternalDestroyFSM(new TypeNamePair(typeof(T), name));
         }
         
-        public bool DestroyFsm(Type ownerType, string name)
+        public bool DestroyFSM(Type ownerType, string name)
         {
             if (ownerType == null)
             {
                 throw new GameException("Owner type is invalid.");
             }
 
-            return InternalDestroyFsm(new TypeNamePair(ownerType, name));
+            return InternalDestroyFSM(new TypeNamePair(ownerType, name));
         }
         
-        public bool DestroyFsm<T>(IFsm<T> fsm) where T : class
+        public bool DestroyFSM<T>(IFSM<T> fsm) where T : class
         {
             if (fsm == null)
             {
                 throw new GameException("FSM is invalid.");
             }
 
-            return InternalDestroyFsm(new TypeNamePair(typeof(T), fsm.Name));
+            return InternalDestroyFSM(new TypeNamePair(typeof(T), fsm.Name));
         }
         
-        public bool DestroyFsm(FsmBase fsm)
+        public bool DestroyFSM(FSMBase fsm)
         {
             if (fsm == null)
             {
                 throw new GameException("FSM is invalid.");
             }
 
-            return InternalDestroyFsm(new TypeNamePair(fsm.OwnerType, fsm.Name));
+            return InternalDestroyFSM(new TypeNamePair(fsm.OwnerType, fsm.Name));
         }
         
-        private bool InternalHasFsm(TypeNamePair typeNamePair)
+        private bool InternalHasFSM(TypeNamePair typeNamePair)
         {
             return _fsmMap.ContainsKey(typeNamePair);
         }
         
-        private FsmBase InternalGetFsm(TypeNamePair typeNamePair)
+        private FSMBase InternalGetFSM(TypeNamePair typeNamePair)
         {
-            FsmBase fsm = null;
+            FSMBase fsm = null;
             if (_fsmMap.TryGetValue(typeNamePair, out fsm))
             {
                 return fsm;
@@ -244,9 +244,9 @@ namespace Moirai.Atropos.Fsm
             return null;
         }
         
-        private bool InternalDestroyFsm(TypeNamePair typeNamePair)
+        private bool InternalDestroyFSM(TypeNamePair typeNamePair)
         {
-            FsmBase fsm = null;
+            FSMBase fsm = null;
             if (_fsmMap.TryGetValue(typeNamePair, out fsm))
             {
                 fsm.Shutdown();
