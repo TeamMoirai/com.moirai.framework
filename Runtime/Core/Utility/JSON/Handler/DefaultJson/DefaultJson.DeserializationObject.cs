@@ -8,35 +8,31 @@ using UnityEngine.Serialization;
 
 namespace Moirai.Atropos
 {
-    public static partial class SimpleJson
+    public static partial class DefaultJson
     {
         internal class JsonDeserializationObject : MemoryObject
         {
             #region 变量 [VARIABLES]
 
-            private string fullJson;
+            private string _fullJson;
 
             #endregion
 
             #region 构造函数 [CONSTRUCTOR]
 
-            public JsonDeserializationObject()
-            {
-            }
-
             public override void InitFromPool()
             {
-                fullJson = null;
+                _fullJson = null;
             }
 
             public void InitFromPool(string json)
             {
-                fullJson = json;
+                _fullJson = json;
             }
 
             public void InitFromPool(object objectToUpdate, string json)
             {
-                fullJson = json;
+                _fullJson = json;
                 Deserialize(ref objectToUpdate, objectToUpdate.GetType());
             }
 
@@ -46,7 +42,7 @@ namespace Moirai.Atropos
 
             public override void Clear()
             {
-                fullJson = null;
+                _fullJson = null;
             }
 
             #endregion
@@ -62,17 +58,12 @@ namespace Moirai.Atropos
             {
                 if (objectType == null) return null;
 
-                if (objectType.Name == "Type")
-                {
-                    System.Diagnostics.Debug.WriteLine("HERE");
-                }
-
                 object instance = Activator.CreateInstance(objectType);
                 if (!objectType.Name.StartsWith("Nullable"))
                 {
                     if (instance is null || instance.ToString() == "null")
                     {
-                        throw new Exception("Cannot deserialize JSON to new instances of '" + objectType.Name + "'");
+                        throw new GameException("Cannot deserialize JSON to new instances of '" + objectType.Name + "'");
                     }
                 }
 
@@ -114,7 +105,7 @@ namespace Moirai.Atropos
                 IDictionary instance = (IDictionary)Activator.CreateInstance(type);
                 if (instance is null || instance.ToString() == "null")
                 {
-                    throw new Exception("Cannot deserialize JSON to new instances of '" + type.Name + "'");
+                    throw new GameException("Cannot deserialize JSON to new instances of '" + type.Name + "'");
                 }
 
 
@@ -139,7 +130,7 @@ namespace Moirai.Atropos
                 IList instance = (IList)Activator.CreateInstance(type);
                 if (instance is null || instance.ToString() == "null")
                 {
-                    throw new Exception("Cannot deserialize JSON to new instances of '" + type.Name + "'");
+                    throw new GameException("Cannot deserialize JSON to new instances of '" + type.Name + "'");
                 }
 
                 Type itemType = type.GenericTypeArguments[0];
@@ -175,7 +166,7 @@ namespace Moirai.Atropos
 
                 if (json[startIndex] != '{' && json[startIndex] != '[')
                 {
-                    throw new Exception($"Invalid object: {json[startIndex]} \n {json}");
+                    throw new GameException($"Invalid object: {json[startIndex]} \n {json}");
                 }
 
                 // 分配对象值
@@ -220,8 +211,7 @@ namespace Moirai.Atropos
                                 }
                                 else
                                 {
-                                    throw new Exception("Object does not have a field or property named '" + literal +
-                                                        "'");
+                                    throw new GameException(StringUtility.Format("Object does not have a field or property named '{0}'", literal));
                                 }
                             }
 
@@ -234,13 +224,13 @@ namespace Moirai.Atropos
                             startIndex++;
                             break;
                         default:
-                            throw new Exception("Unexpected character '" + json[startIndex] + "' at " + startIndex);
+                            throw new GameException(StringUtility.Format("Unexpected character '{0}' at {1}", json[startIndex], startIndex));
                     }
                 }
 
                 if (!objectClosed)
                 {
-                    throw new Exception("Unexpected end of file");
+                    throw new GameException("Unexpected end of file");
                 }
             }
 
@@ -248,31 +238,30 @@ namespace Moirai.Atropos
             {
                 if (IsTypeSimple(objectType) || objectType.IsEnum)
                 {
-                    BuildObject(fullJson, ref instance, objectType, 0);
+                    BuildObject(_fullJson, ref instance, objectType, 0);
                 }
                 else
                 {
                     if (objectType.IsGenericType && objectType.GetGenericTypeDefinition() == typeof(List<>))
                     {
-                        instance = BuildList(fullJson, objectType);
+                        instance = BuildList(_fullJson, objectType);
                     }
                     else if (objectType.IsGenericType && objectType.GetGenericTypeDefinition() == typeof(Dictionary<,>))
                     {
-                        instance = BuildDictionary(fullJson, objectType);
+                        instance = BuildDictionary(_fullJson, objectType);
                     }
                     else if (objectType.IsArray)
                     {
-                        instance = BuildArray(fullJson, objectType);
+                        instance = BuildArray(_fullJson, objectType);
                     }
                     else
                     {
-                        BuildObject(fullJson, ref instance, objectType, 0);
+                        BuildObject(_fullJson, ref instance, objectType, 0);
                     }
                 }
 
                 // 反序列化后
-                MethodInfo[] methods =
-                    objectType.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                MethodInfo[] methods = objectType.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
                 foreach (MethodInfo info in methods)
                 {
                     if (info.GetCustomAttribute<JsonAfterDeserializationAttribute>() != null)
@@ -316,7 +305,7 @@ namespace Moirai.Atropos
 
                 if (requireClose)
                 {
-                    throw new Exception("Could not find end of field");
+                    throw new GameException("Could not find end of field");
                 }
 
                 return json.Length;
@@ -362,8 +351,7 @@ namespace Moirai.Atropos
                     return result;
                 }
 
-                PropertyInfo[] pi =
-                    type.GetProperties(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                PropertyInfo[] pi = type.GetProperties(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
                 bool forceExclude;
                 foreach (PropertyInfo property in pi)
                 {
@@ -388,9 +376,7 @@ namespace Moirai.Atropos
                                     result.Add(property);
                                 }
                             }
-                            catch
-                            {
-                            }
+                            catch { }
                         }
                     }
                 }
@@ -402,10 +388,8 @@ namespace Moirai.Atropos
             {
                 foreach (FieldInfo info in fields)
                 {
-                    JsonSerializeAsAttribute serializeAs =
-                        (JsonSerializeAsAttribute)info.GetCustomAttribute(typeof(JsonSerializeAsAttribute));
-                    FormerlySerializedAsAttribute formerSerialize =
-                        (FormerlySerializedAsAttribute)info.GetCustomAttribute(typeof(FormerlySerializedAsAttribute));
+                    JsonSerializeAsAttribute serializeAs = (JsonSerializeAsAttribute)info.GetCustomAttribute(typeof(JsonSerializeAsAttribute));
+                    FormerlySerializedAsAttribute formerSerialize = (FormerlySerializedAsAttribute)info.GetCustomAttribute(typeof(FormerlySerializedAsAttribute));
                     if (serializeAs != null && serializeAs.SerializeName == name)
                     {
                         return info;
@@ -427,8 +411,7 @@ namespace Moirai.Atropos
             {
                 foreach (PropertyInfo info in properties)
                 {
-                    JsonSerializeAsAttribute serializeAs =
-                        (JsonSerializeAsAttribute)info.GetCustomAttribute(typeof(JsonSerializeAsAttribute));
+                    JsonSerializeAsAttribute serializeAs = (JsonSerializeAsAttribute)info.GetCustomAttribute(typeof(JsonSerializeAsAttribute));
                     if (serializeAs != null && serializeAs.SerializeName == name)
                     {
                         return info;
@@ -565,7 +548,7 @@ namespace Moirai.Atropos
                     case "-1":
                         return true;
                     default:
-                        throw new Exception("Invalid value for boolean object: " + result);
+                        throw new GameException(StringUtility.Format("Invalid value for boolean object: {0}", result));
                 }
             }
 
@@ -640,7 +623,7 @@ namespace Moirai.Atropos
 
                 if (json[startIndex++] != '{')
                 {
-                    throw new Exception("Missing '{'");
+                    throw new GameException("Missing '{'");
                 }
 
                 ReadWhitespace(json, ref startIndex);
@@ -659,7 +642,7 @@ namespace Moirai.Atropos
                         valueAssigned = true;
                         break;
                     default:
-                        throw new Exception("Invalid key name '" + v1 + "'");
+                        throw new GameException(StringUtility.Format("Invalid key name '{0}'", v1));
                 }
 
                 ReadWhitespace(json, ref startIndex);
@@ -670,7 +653,7 @@ namespace Moirai.Atropos
                     case "key":
                         if (keyAssigned)
                         {
-                            throw new Exception("Duplicate key found");
+                            throw new GameException("Duplicate key found");
                         }
 
                         ReadSeparatorAndWhitespace(json, ref startIndex);
@@ -680,7 +663,7 @@ namespace Moirai.Atropos
                     case "value":
                         if (valueAssigned)
                         {
-                            throw new Exception("Duplicate value found");
+                            throw new GameException("Duplicate value found");
                         }
 
                         ReadSeparatorAndWhitespace(json, ref startIndex);
@@ -688,20 +671,20 @@ namespace Moirai.Atropos
                         valueAssigned = true;
                         break;
                     default:
-                        throw new Exception("Invalid key name '" + v1 + "'");
+                        throw new GameException(StringUtility.Format("Invalid key name '{0}'", v1));
                 }
 
                 ReadWhitespace(json, ref startIndex);
 
                 if (json[startIndex++] != '}')
                 {
-                    throw new Exception("Missing '}'");
+                    throw new GameException("Missing '}'");
                 }
 
                 if (json[startIndex] == ',') startIndex++;
 
-                if (!keyAssigned) throw new Exception("No key assigned");
-                if (!valueAssigned) throw new Exception("No value assigned");
+                if (!keyAssigned) throw new GameException("No key assigned");
+                if (!valueAssigned) throw new GameException("No value assigned");
 
                 return new Tuple<object, object>(key, value);
             }
@@ -825,12 +808,12 @@ namespace Moirai.Atropos
                                     // 到此结束
                                     if (objectCount != 0)
                                     {
-                                        throw new Exception("Missing '}'");
+                                        throw new GameException("Missing '}'");
                                     }
 
                                     if (arrayCount != 0)
                                     {
-                                        throw new Exception("Missing ']'");
+                                        throw new GameException("Missing ']'");
                                     }
 
                                     startIndex++;
@@ -862,7 +845,7 @@ namespace Moirai.Atropos
                         case '\t':
                             break;
                         default:
-                            throw new Exception("Unexpected character at " + startIndex);
+                            throw new GameException(StringUtility.Format("Unexpected character at {0}", startIndex));
                     }
 
                     startIndex++;
@@ -889,7 +872,7 @@ namespace Moirai.Atropos
                     if (value[value.Length - 1] != '"')
                     {
                         // 带有未终止引号的字符串
-                        throw new Exception("String with unterminated quotes");
+                        throw new GameException("String with unterminated quotes");
                     }
                     else
                     {
@@ -965,8 +948,7 @@ namespace Moirai.Atropos
                                 break;
                             case 'u':
                                 // 处理 Unicode 转义序列
-                                if (i + 4 < input.Length && uint.TryParse(input.Substring(i + 1, 4),
-                                        System.Globalization.NumberStyles.HexNumber, null, out uint unicodeValue))
+                                if (i + 4 < input.Length && uint.TryParse(input.Substring(i + 1, 4), System.Globalization.NumberStyles.HexNumber, null, out uint unicodeValue))
                                 {
                                     unescaped.Append((char)unicodeValue);
                                     i += 4;

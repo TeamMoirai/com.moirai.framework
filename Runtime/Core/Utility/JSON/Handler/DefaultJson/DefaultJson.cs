@@ -3,7 +3,7 @@ using System;
 
 namespace Moirai.Atropos
 {
-    public static partial class SimpleJson
+    public static partial class DefaultJson
     {
         /// <summary>
         /// 将 JSON 字符串转换为类型化对象
@@ -58,7 +58,7 @@ namespace Moirai.Atropos
         {
             JsonSerializationObject jso = MemoryPool.Acquire<JsonSerializationObject>();
             jso.InitFromPool(obj, removeNulls, readable);
-            string result = jso.value;
+            string result = jso.Value;
             MemoryPool.Release(jso);
             return result;
         }

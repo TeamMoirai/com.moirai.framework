@@ -7,7 +7,7 @@ namespace Moirai.Atropos
     /// 提供 JSON 序列化和反序列化
     /// </summary>
     [Serializable]
-    public sealed class SimpleJsonHandler : JsonHandler
+    public sealed class DefaultJsonHandler : JsonHandler
     {
         [Tooltip("序列化的最大深度")]
         [SerializeField] private int m_MaxDepth = 25;
@@ -17,7 +17,7 @@ namespace Moirai.Atropos
 
         protected override void OnInit()
         {
-            SimpleJson.maxDepth = m_MaxDepth;
+            DefaultJson.maxDepth = m_MaxDepth;
         }
 
         protected override void Shutdown()
@@ -26,22 +26,22 @@ namespace Moirai.Atropos
 
         public override string ToJson(object obj, bool prettyPrint = false)
         {
-            return SimpleJson.ToJSON(obj, m_RemoveNulls, prettyPrint);
+            return DefaultJson.ToJSON(obj, m_RemoveNulls, prettyPrint);
         }
 
         public override T ToObject<T>(string json)
         {
-            return SimpleJson.FromJSON<T>(json);
+            return DefaultJson.FromJSON<T>(json);
         }
 
         public override object ToObject(Type objectType, string json)
         {
-            return SimpleJson.FromJSON(json, objectType);
+            return DefaultJson.FromJSON(json, objectType);
         }
 
         public override void FromJsonOverwrite(string json, object objectToOverwrite)
         {
-            SimpleJson.FromJSONOverwrite(objectToOverwrite, json);
+            DefaultJson.FromJSONOverwrite(objectToOverwrite, json);
         }
     }
 }
