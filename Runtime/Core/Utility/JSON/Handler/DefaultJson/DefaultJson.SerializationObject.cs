@@ -8,7 +8,7 @@ using UnityEngine.Events;
 
 namespace Moirai.Atropos
 {
-    public static partial class SimpleJson
+    public static partial class DefaultJson
     {
         internal static int maxDepth = 25;
 
@@ -52,14 +52,14 @@ namespace Moirai.Atropos
 
             #region 变量 [VARIABLES]
 
-            private StringHandler.IStringBuilder sb;
-            private List<Tuple<string, string>> values;
+            private StringHandler.IStringBuilder _sb;
+            private List<Tuple<string, string>> _values;
 
             #endregion
 
             #region 属性 [PROPERTIES]
 
-            public string value => sb.ToStringAndDispose();
+            public string Value => _sb.ToStringAndDispose();
 
             #endregion
 
@@ -67,37 +67,36 @@ namespace Moirai.Atropos
 
             public JsonSerializationObject()
             {
-                values = new List<Tuple<string, string>>();
+                _values = new List<Tuple<string, string>>();
             }
 
             public override void InitFromPool()
             {
-                sb = null;
-                values.Clear();
+                _sb = null;
+                _values.Clear();
             }
 
             public void InitFromPool(object obj, bool removeNulls, bool readable, int indentLevel = 0)
             {
-                sb = StringUtility.CreateStringBuilder();
-                values.Clear();
+                _sb = StringUtility.CreateStringBuilder();
+                _values.Clear();
 
                 if (indentLevel >= maxDepth)
                 {
-                    Debug.LogWarning($"<color=#2E9219>[SimpleJson]</color> Max depth reached:" + obj.ToString());
+                    Log.Warning("<color=#2E9219>[DefaultJson]</color> Max depth reached:{0}", obj.ToString());
                     return;
                 }
 
                 if (obj == null)
                 {
-                    sb.Append("null");
+                    _sb.Append("null");
                     return;
                 }
 
                 Type objectType = obj.GetType();
 
                 // 预序列化
-                MethodInfo[] methods =
-                    objectType.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                MethodInfo[] methods = objectType.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
                 foreach (MethodInfo info in methods)
                 {
                     if (info.GetCustomAttribute<JsonBeforeSerializationAttribute>() != null)
@@ -108,7 +107,7 @@ namespace Moirai.Atropos
 
                 if (IsTypeSimple(objectType) || objectType.IsEnum)
                 {
-                    sb.Append(GetSimpleSerializedValue(obj));
+                    _sb.Append(GetSimpleSerializedValue(obj));
                 }
                 else
                 {
@@ -137,8 +136,8 @@ namespace Moirai.Atropos
 
             public override void Clear()
             {
-                sb = null;
-                values.Clear();
+                _sb = null;
+                _values.Clear();
             }
 
             #endregion
@@ -149,7 +148,7 @@ namespace Moirai.Atropos
             {
                 JsonSerializationObject jso = MemoryPool.Acquire<JsonSerializationObject>();
                 jso.InitFromPool(childObj, removeNulls, readable, level);
-                string result = jso.value;
+                string result = jso.Value;
                 MemoryPool.Release(jso);
                 return result;
             }
@@ -160,7 +159,7 @@ namespace Moirai.Atropos
 
                 if (list.Length == 0)
                 {
-                    sb.Append("[]");
+                    _sb.Append("[]");
                     return;
                 }
 
@@ -168,35 +167,35 @@ namespace Moirai.Atropos
                 bool isSimple = IsTypeSimple(type) || type.IsEnum;
                 if (!isSimple && readable)
                 {
-                    sb.Append("\r\n");
-                    sb.Append('\t', level);
+                    _sb.Append("\r\n");
+                    _sb.Append('\t', level);
                 }
 
-                sb.Append("[");
+                _sb.Append("[");
                 level++;
                 for (int i = 0; i < list.Length; i++)
                 {
                     if (isSimple)
                     {
-                        if (i > 0) sb.Append(", ");
-                        sb.Append(GetSimpleSerializedValue(list.GetValue(i)));
+                        if (i > 0) _sb.Append(", ");
+                        _sb.Append(GetSimpleSerializedValue(list.GetValue(i)));
                     }
                     else
                     {
-                        if (i > 0) sb.Append(readable ? ", " : ",");
+                        if (i > 0) _sb.Append(readable ? ", " : ",");
 
-                        sb.Append(SerializeChild(list.GetValue(i), removeNulls, readable, level));
+                        _sb.Append(SerializeChild(list.GetValue(i), removeNulls, readable, level));
                     }
                 }
 
                 level--;
                 if (!isSimple && readable)
                 {
-                    sb.Append("\r\n");
-                    sb.Append('\t', level);
+                    _sb.Append("\r\n");
+                    _sb.Append('\t', level);
                 }
 
-                sb.Append("]");
+                _sb.Append("]");
             }
 
             private void BuildDictionary(object obj, bool removeNulls, bool readable, int level)
@@ -204,7 +203,7 @@ namespace Moirai.Atropos
                 IDictionary dictionary = (IDictionary)obj;
                 if (dictionary.Count == 0)
                 {
-                    sb.Append("[]");
+                    _sb.Append("[]");
                     return;
                 }
 
@@ -216,11 +215,11 @@ namespace Moirai.Atropos
 
                 if (readable)
                 {
-                    sb.Append("\r\n");
-                    sb.Append('\t', level);
+                    _sb.Append("\r\n");
+                    _sb.Append('\t', level);
                 }
 
-                sb.Append("[");
+                _sb.Append("[");
                 level++;
 
                 bool isFirst = true;
@@ -232,74 +231,74 @@ namespace Moirai.Atropos
                     }
                     else
                     {
-                        sb.Append(readable ? ", " : ",");
+                        _sb.Append(readable ? ", " : ",");
                     }
 
                     if (readable)
                     {
-                        sb.Append("\r\n");
-                        sb.Append('\t', level);
+                        _sb.Append("\r\n");
+                        _sb.Append('\t', level);
                     }
 
-                    sb.Append("{");
+                    _sb.Append("{");
                     level++;
                     if (readable)
                     {
-                        sb.Append("\r\n");
-                        sb.Append('\t', level);
+                        _sb.Append("\r\n");
+                        _sb.Append('\t', level);
                     }
 
                     // Key
-                    sb.Append("\"key\":");
-                    if (readable) sb.Append(' ');
+                    _sb.Append("\"key\":");
+                    if (readable) _sb.Append(' ');
 
                     if (isKeySimple)
                     {
-                        sb.Append(GetSimpleSerializedValue(entry.Key));
+                        _sb.Append(GetSimpleSerializedValue(entry.Key));
                     }
                     else
                     {
-                        sb.Append(SerializeChild(entry.Key, removeNulls, readable, level));
+                        _sb.Append(SerializeChild(entry.Key, removeNulls, readable, level));
                     }
 
-                    sb.Append(",");
+                    _sb.Append(",");
 
                     // Entry
                     if (readable)
                     {
-                        sb.Append("\r\n");
-                        sb.Append('\t', level);
+                        _sb.Append("\r\n");
+                        _sb.Append('\t', level);
                     }
 
-                    sb.Append("\"value\":");
-                    if (readable) sb.Append(' ');
+                    _sb.Append("\"value\":");
+                    if (readable) _sb.Append(' ');
                     if (isSimple)
                     {
-                        sb.Append(GetSimpleSerializedValue(entry.Value));
+                        _sb.Append(GetSimpleSerializedValue(entry.Value));
                     }
                     else
                     {
-                        sb.Append(SerializeChild(entry.Value, removeNulls, readable, level));
+                        _sb.Append(SerializeChild(entry.Value, removeNulls, readable, level));
                     }
 
                     level--;
                     if (readable)
                     {
-                        sb.Append("\r\n");
-                        sb.Append('\t', level);
+                        _sb.Append("\r\n");
+                        _sb.Append('\t', level);
                     }
 
-                    sb.Append("}");
+                    _sb.Append("}");
                 }
 
                 level--;
                 if (readable)
                 {
-                    sb.Append("\r\n");
-                    sb.Append('\t', level);
+                    _sb.Append("\r\n");
+                    _sb.Append('\t', level);
                 }
 
-                sb.Append("]");
+                _sb.Append("]");
             }
 
             private void BuildList(object obj, bool removeNulls, bool readable, int level)
@@ -308,7 +307,7 @@ namespace Moirai.Atropos
 
                 if (list.Count == 0)
                 {
-                    sb.Append("[]");
+                    _sb.Append("[]");
                     return;
                 }
 
@@ -316,42 +315,42 @@ namespace Moirai.Atropos
                 bool isSimple = IsTypeSimple(type) || type.IsEnum;
                 if (!isSimple && readable)
                 {
-                    sb.Append("\r\n");
-                    sb.Append('\t', level);
+                    _sb.Append("\r\n");
+                    _sb.Append('\t', level);
                 }
 
-                sb.Append("[");
+                _sb.Append("[");
                 level++;
                 for (int i = 0; i < list.Count; i++)
                 {
                     if (isSimple)
                     {
-                        if (i > 0) sb.Append(", ");
-                        sb.Append(GetSimpleSerializedValue(list[i]));
+                        if (i > 0) _sb.Append(", ");
+                        _sb.Append(GetSimpleSerializedValue(list[i]));
                     }
                     else
                     {
-                        if (i > 0) sb.Append(readable ? ", " : ",");
+                        if (i > 0) _sb.Append(readable ? ", " : ",");
 
-                        sb.Append(SerializeChild(list[i], removeNulls, readable, level));
+                        _sb.Append(SerializeChild(list[i], removeNulls, readable, level));
                     }
                 }
 
                 level--;
                 if (!isSimple && readable)
                 {
-                    sb.Append("\r\n");
-                    sb.Append('\t', level);
+                    _sb.Append("\r\n");
+                    _sb.Append('\t', level);
                 }
 
-                sb.Append("]");
+                _sb.Append("]");
             }
 
             private void BuildObject(object obj, Type type, bool removeNulls, bool readable, int level)
             {
                 Type entryType;
-                sb.Clear();
-                values.Clear();
+                _sb.Clear();
+                _values.Clear();
 
                 // 处理字段
                 List<JsonTargetData> fields = GetAppropriateFields(type, obj, removeNulls);
@@ -360,13 +359,12 @@ namespace Moirai.Atropos
                     entryType = field.type;
                     if (IsTypeSimple(entryType) || entryType.IsEnum)
                     {
-                        values.Add(
-                            new Tuple<string, string>(field.serializeName, GetSimpleSerializedValue(field.value)));
+                        _values.Add(new Tuple<string, string>(field.serializeName, GetSimpleSerializedValue(field.value)));
                     }
                     else
                     {
                         string serialized = SerializeChild(field.value, removeNulls, readable, level + 1);
-                        values.Add(new Tuple<string, string>(field.serializeName, serialized));
+                        _values.Add(new Tuple<string, string>(field.serializeName, serialized));
                     }
                 }
 
@@ -377,52 +375,51 @@ namespace Moirai.Atropos
                     entryType = property.type;
                     if (IsTypeSimple(entryType) || entryType.IsEnum)
                     {
-                        values.Add(new Tuple<string, string>(property.serializeName,
-                            GetSimpleSerializedValue(property.value)));
+                        _values.Add(new Tuple<string, string>(property.serializeName, GetSimpleSerializedValue(property.value)));
                     }
                     else
                     {
                         string serialized = SerializeChild(property.value, removeNulls, readable, level + 1);
-                        values.Add(new Tuple<string, string>(property.serializeName, serialized));
+                        _values.Add(new Tuple<string, string>(property.serializeName, serialized));
                     }
                 }
 
                 // 构建字符串
                 if (readable)
                 {
-                    if (level > 0) sb.Append("\r\n");
-                    sb.Append('\t', level++);
-                    sb.Append('{');
+                    if (level > 0) _sb.Append("\r\n");
+                    _sb.Append('\t', level++);
+                    _sb.Append('{');
 
-                    for (int i = 0; i < values.Count; i++)
+                    for (int i = 0; i < _values.Count; i++)
                     {
-                        if (i > 0) sb.Append(",");
-                        sb.Append("\r\n");
-                        sb.Append('\t', level);
-                        sb.Append('"');
-                        sb.Append(values[i].Item1);
-                        sb.Append("\": ");
-                        sb.Append(values[i].Item2);
+                        if (i > 0) _sb.Append(",");
+                        _sb.Append("\r\n");
+                        _sb.Append('\t', level);
+                        _sb.Append('"');
+                        _sb.Append(_values[i].Item1);
+                        _sb.Append("\": ");
+                        _sb.Append(_values[i].Item2);
                     }
 
-                    sb.Append("\r\n");
+                    _sb.Append("\r\n");
                     level--;
-                    sb.Append('\t', level);
-                    sb.Append('}');
+                    _sb.Append('\t', level);
+                    _sb.Append('}');
                 }
                 else
                 {
-                    sb.Append('{');
-                    for (int i = 0; i < values.Count; i++)
+                    _sb.Append('{');
+                    for (int i = 0; i < _values.Count; i++)
                     {
-                        if (i > 0) sb.Append(",");
-                        sb.Append('"');
-                        sb.Append(values[i].Item1);
-                        sb.Append("\":");
-                        sb.Append(values[i].Item2);
+                        if (i > 0) _sb.Append(",");
+                        _sb.Append('"');
+                        _sb.Append(_values[i].Item1);
+                        _sb.Append("\":");
+                        _sb.Append(_values[i].Item2);
                     }
 
-                    sb.Append('}');
+                    _sb.Append('}');
                 }
             }
 
@@ -542,41 +539,34 @@ namespace Moirai.Atropos
                 if (obj == null || IsTypeForbidden(type)) return result;
                 object propertyValue;
 
-                PropertyInfo[] pi =
-                    type.GetProperties(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                PropertyInfo[] pi = type.GetProperties(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
                 bool forceExclude, forceInclude;
                 foreach (PropertyInfo property in pi)
                 {
-                    try
+                    forceExclude = property.Name[0] == '<' || IsTypeForbidden(property.PropertyType) ||
+                                   property.GetCustomAttribute<JsonDoNotSerializeAttribute>() != null ||
+                                   property.GetIndexParameters().Length > 0;
+                    forceInclude = property.GetCustomAttribute<SerializeField>() != null ||
+                                   property.GetCustomAttribute<JsonSerializeAttribute>() != null ||
+                                   property.GetCustomAttribute<JsonSerializeAsAttribute>() != null;
+
+                    if (!forceExclude)
                     {
-                        forceExclude = property.Name[0] == '<' || IsTypeForbidden(property.PropertyType) ||
-                                       property.GetCustomAttribute<JsonDoNotSerializeAttribute>() != null ||
-                                       property.GetIndexParameters().Length > 0;
-                        forceInclude = property.GetCustomAttribute<SerializeField>() != null ||
-                                       property.GetCustomAttribute<JsonSerializeAttribute>() != null ||
-                                       property.GetCustomAttribute<JsonSerializeAsAttribute>() != null;
-
-                        if (!forceExclude)
+                        if (forceInclude || (property.CanRead && property.GetSetMethod() != null))
                         {
-                            if (forceInclude || (property.CanRead && property.GetSetMethod() != null))
-                            {
-                                useName = GetUseName(property.Name,
-                                    property.GetCustomAttribute(typeof(JsonSerializeAsAttribute)));
+                            useName = GetUseName(property.Name, property.GetCustomAttribute(typeof(JsonSerializeAsAttribute)));
 
-                                propertyValue = type.GetProperty(property.Name,
-                                    BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic).GetValue(obj);
-                                if (propertyValue != null || !removeNulls)
+                            propertyValue = type.GetProperty(property.Name, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic).GetValue(obj);
+                            if (propertyValue != null || !removeNulls)
+                            {
+                                result.Add(new JsonTargetData
                                 {
-                                    result.Add(new JsonTargetData
-                                    {
-                                        serializeName = useName, type = property.PropertyType, value = propertyValue
-                                    });
-                                }
+                                    serializeName = useName,
+                                    type = property.PropertyType,
+                                    value = propertyValue
+                                });
                             }
                         }
-                    }
-                    catch
-                    {
                     }
                 }
 

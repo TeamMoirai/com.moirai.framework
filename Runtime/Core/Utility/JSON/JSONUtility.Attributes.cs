@@ -41,7 +41,7 @@ namespace Moirai.Atropos
     /// <summary>
     /// 将属性标记为要使用其他名称序列化的字段
     /// </summary>
-    [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
+    [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property | AttributeTargets.Method)]
     public class JsonSerializeAsAttribute : JsonPropertyAttribute
     {
         public JsonSerializeAsAttribute(string serializeName) :

@@ -5,7 +5,7 @@ using NUnit.Framework;
 
 namespace Utility
 {
-    public class SimpleJsonTest
+    public class DefaultJsonTest
     {
         #region 辅助类型 [HELPER TYPES]
 
@@ -96,8 +96,8 @@ namespace Utility
         public void Bool_True_RoundTrip()
         {
             var obj = new SimpleClass { name = "a", age = 1, active = true };
-            string json = SimpleJson.ToJSON(obj);
-            var result = SimpleJson.FromJSON<SimpleClass>(json);
+            string json = DefaultJson.ToJSON(obj);
+            var result = DefaultJson.FromJSON<SimpleClass>(json);
             Assert.AreEqual(true, result.active);
         }
 
@@ -105,8 +105,8 @@ namespace Utility
         public void Bool_False_RoundTrip()
         {
             var obj = new SimpleClass { name = "a", age = 1, active = false };
-            string json = SimpleJson.ToJSON(obj);
-            var result = SimpleJson.FromJSON<SimpleClass>(json);
+            string json = DefaultJson.ToJSON(obj);
+            var result = DefaultJson.FromJSON<SimpleClass>(json);
             Assert.AreEqual(false, result.active);
         }
 
@@ -114,8 +114,8 @@ namespace Utility
         public void Int_RoundTrip()
         {
             var obj = new SimpleClass { name = "a", age = 42, active = true };
-            string json = SimpleJson.ToJSON(obj);
-            var result = SimpleJson.FromJSON<SimpleClass>(json);
+            string json = DefaultJson.ToJSON(obj);
+            var result = DefaultJson.FromJSON<SimpleClass>(json);
             Assert.AreEqual(42, result.age);
         }
 
@@ -123,8 +123,8 @@ namespace Utility
         public void Int_Negative_RoundTrip()
         {
             var obj = new SimpleClass { name = "a", age = -100, active = true };
-            string json = SimpleJson.ToJSON(obj);
-            var result = SimpleJson.FromJSON<SimpleClass>(json);
+            string json = DefaultJson.ToJSON(obj);
+            var result = DefaultJson.FromJSON<SimpleClass>(json);
             Assert.AreEqual(-100, result.age);
         }
 
@@ -132,8 +132,8 @@ namespace Utility
         public void Int_Zero_RoundTrip()
         {
             var obj = new SimpleClass { name = "a", age = 0, active = true };
-            string json = SimpleJson.ToJSON(obj);
-            var result = SimpleJson.FromJSON<SimpleClass>(json);
+            string json = DefaultJson.ToJSON(obj);
+            var result = DefaultJson.FromJSON<SimpleClass>(json);
             Assert.AreEqual(0, result.age);
         }
 
@@ -141,8 +141,8 @@ namespace Utility
         public void String_RoundTrip()
         {
             var obj = new SimpleClass { name = "hello world", age = 1, active = true };
-            string json = SimpleJson.ToJSON(obj);
-            var result = SimpleJson.FromJSON<SimpleClass>(json);
+            string json = DefaultJson.ToJSON(obj);
+            var result = DefaultJson.FromJSON<SimpleClass>(json);
             Assert.AreEqual("hello world", result.name);
         }
 
@@ -150,8 +150,8 @@ namespace Utility
         public void String_Empty_RoundTrip()
         {
             var obj = new SimpleClass { name = "", age = 1, active = true };
-            string json = SimpleJson.ToJSON(obj);
-            var result = SimpleJson.FromJSON<SimpleClass>(json);
+            string json = DefaultJson.ToJSON(obj);
+            var result = DefaultJson.FromJSON<SimpleClass>(json);
             Assert.AreEqual("", result.name);
         }
 
@@ -159,8 +159,8 @@ namespace Utility
         public void String_WithSpecialChars_RoundTrip()
         {
             var obj = new SimpleClass { name = "a\"b\\c\nd\te", age = 1, active = true };
-            string json = SimpleJson.ToJSON(obj);
-            var result = SimpleJson.FromJSON<SimpleClass>(json);
+            string json = DefaultJson.ToJSON(obj);
+            var result = DefaultJson.FromJSON<SimpleClass>(json);
             Assert.AreEqual("a\"b\\c\nd\te", result.name);
         }
 
@@ -168,8 +168,8 @@ namespace Utility
         public void String_Unicode_RoundTrip()
         {
             var obj = new SimpleClass { name = "你好世界🌍", age = 1, active = true };
-            string json = SimpleJson.ToJSON(obj);
-            var result = SimpleJson.FromJSON<SimpleClass>(json);
+            string json = DefaultJson.ToJSON(obj);
+            var result = DefaultJson.FromJSON<SimpleClass>(json);
             Assert.AreEqual("你好世界🌍", result.name);
         }
 
@@ -198,8 +198,8 @@ namespace Utility
                 stringVal = "test"
             };
 
-            string json = SimpleJson.ToJSON(obj);
-            var result = SimpleJson.FromJSON<AllPrimitivesClass>(json);
+            string json = DefaultJson.ToJSON(obj);
+            var result = DefaultJson.FromJSON<AllPrimitivesClass>(json);
 
             Assert.AreEqual(true, result.boolVal);
             Assert.AreEqual(255, result.byteVal);
@@ -221,8 +221,8 @@ namespace Utility
         public void Float_RoundTrip()
         {
             var obj = new AllPrimitivesClass { floatVal = 1.5f };
-            string json = SimpleJson.ToJSON(obj);
-            var result = SimpleJson.FromJSON<AllPrimitivesClass>(json);
+            string json = DefaultJson.ToJSON(obj);
+            var result = DefaultJson.FromJSON<AllPrimitivesClass>(json);
             Assert.AreEqual(1.5f, result.floatVal, 0.001f);
         }
 
@@ -230,8 +230,8 @@ namespace Utility
         public void Double_RoundTrip()
         {
             var obj = new AllPrimitivesClass { doubleVal = 123.456789 };
-            string json = SimpleJson.ToJSON(obj);
-            var result = SimpleJson.FromJSON<AllPrimitivesClass>(json);
+            string json = DefaultJson.ToJSON(obj);
+            var result = DefaultJson.FromJSON<AllPrimitivesClass>(json);
             Assert.AreEqual(123.456789, result.doubleVal, 0.000001);
         }
 
@@ -239,8 +239,8 @@ namespace Utility
         public void Decimal_RoundTrip()
         {
             var obj = new AllPrimitivesClass { decimalVal = 99.99m };
-            string json = SimpleJson.ToJSON(obj);
-            var result = SimpleJson.FromJSON<AllPrimitivesClass>(json);
+            string json = DefaultJson.ToJSON(obj);
+            var result = DefaultJson.FromJSON<AllPrimitivesClass>(json);
             Assert.AreEqual(99.99m, result.decimalVal);
         }
 
@@ -248,8 +248,8 @@ namespace Utility
         public void Long_MaxValue_RoundTrip()
         {
             var obj = new AllPrimitivesClass { longVal = long.MaxValue };
-            string json = SimpleJson.ToJSON(obj);
-            var result = SimpleJson.FromJSON<AllPrimitivesClass>(json);
+            string json = DefaultJson.ToJSON(obj);
+            var result = DefaultJson.FromJSON<AllPrimitivesClass>(json);
             Assert.AreEqual(long.MaxValue, result.longVal);
         }
 
@@ -257,8 +257,8 @@ namespace Utility
         public void Long_MinValue_RoundTrip()
         {
             var obj = new AllPrimitivesClass { longVal = long.MinValue };
-            string json = SimpleJson.ToJSON(obj);
-            var result = SimpleJson.FromJSON<AllPrimitivesClass>(json);
+            string json = DefaultJson.ToJSON(obj);
+            var result = DefaultJson.FromJSON<AllPrimitivesClass>(json);
             Assert.AreEqual(long.MinValue, result.longVal);
         }
 
@@ -270,8 +270,8 @@ namespace Utility
         public void Enum_RoundTrip()
         {
             var obj = new EnumClass { enumVal = TestEnum.Second, enumVal2 = TestEnum.None };
-            string json = SimpleJson.ToJSON(obj);
-            var result = SimpleJson.FromJSON<EnumClass>(json);
+            string json = DefaultJson.ToJSON(obj);
+            var result = DefaultJson.FromJSON<EnumClass>(json);
             Assert.AreEqual(TestEnum.Second, result.enumVal);
             Assert.AreEqual(TestEnum.None, result.enumVal2);
         }
@@ -280,8 +280,8 @@ namespace Utility
         public void Enum_FirstValue_RoundTrip()
         {
             var obj = new EnumClass { enumVal = TestEnum.First };
-            string json = SimpleJson.ToJSON(obj);
-            var result = SimpleJson.FromJSON<EnumClass>(json);
+            string json = DefaultJson.ToJSON(obj);
+            var result = DefaultJson.FromJSON<EnumClass>(json);
             Assert.AreEqual(TestEnum.First, result.enumVal);
         }
 
@@ -293,8 +293,8 @@ namespace Utility
         public void List_Int_RoundTrip()
         {
             var obj = new CollectionClass { intList = new List<int> { 1, 2, 3, 4, 5 } };
-            string json = SimpleJson.ToJSON(obj);
-            var result = SimpleJson.FromJSON<CollectionClass>(json);
+            string json = DefaultJson.ToJSON(obj);
+            var result = DefaultJson.FromJSON<CollectionClass>(json);
             Assert.IsNotNull(result.intList);
             Assert.AreEqual(5, result.intList.Count);
             CollectionAssert.AreEqual(new[] { 1, 2, 3, 4, 5 }, result.intList);
@@ -304,8 +304,8 @@ namespace Utility
         public void List_String_RoundTrip()
         {
             var obj = new CollectionClass { stringList = new List<string> { "a", "b", "c" } };
-            string json = SimpleJson.ToJSON(obj);
-            var result = SimpleJson.FromJSON<CollectionClass>(json);
+            string json = DefaultJson.ToJSON(obj);
+            var result = DefaultJson.FromJSON<CollectionClass>(json);
             Assert.IsNotNull(result.stringList);
             Assert.AreEqual(3, result.stringList.Count);
             CollectionAssert.AreEqual(new[] { "a", "b", "c" }, result.stringList);
@@ -315,8 +315,8 @@ namespace Utility
         public void List_Empty_RoundTrip()
         {
             var obj = new CollectionClass { intList = new List<int>() };
-            string json = SimpleJson.ToJSON(obj);
-            var result = SimpleJson.FromJSON<CollectionClass>(json);
+            string json = DefaultJson.ToJSON(obj);
+            var result = DefaultJson.FromJSON<CollectionClass>(json);
             Assert.IsNotNull(result.intList);
             Assert.AreEqual(0, result.intList.Count);
         }
@@ -325,8 +325,8 @@ namespace Utility
         public void Array_Int_RoundTrip()
         {
             var obj = new CollectionClass { intArray = new int[] { 10, 20, 30 } };
-            string json = SimpleJson.ToJSON(obj);
-            var result = SimpleJson.FromJSON<CollectionClass>(json);
+            string json = DefaultJson.ToJSON(obj);
+            var result = DefaultJson.FromJSON<CollectionClass>(json);
             Assert.IsNotNull(result.intArray);
             Assert.AreEqual(3, result.intArray.Length);
             CollectionAssert.AreEqual(new[] { 10, 20, 30 }, result.intArray);
@@ -336,8 +336,8 @@ namespace Utility
         public void Array_String_RoundTrip()
         {
             var obj = new CollectionClass { stringArray = new string[] { "x", "y", "z" } };
-            string json = SimpleJson.ToJSON(obj);
-            var result = SimpleJson.FromJSON<CollectionClass>(json);
+            string json = DefaultJson.ToJSON(obj);
+            var result = DefaultJson.FromJSON<CollectionClass>(json);
             Assert.IsNotNull(result.stringArray);
             Assert.AreEqual(3, result.stringArray.Length);
             CollectionAssert.AreEqual(new[] { "x", "y", "z" }, result.stringArray);
@@ -347,8 +347,8 @@ namespace Utility
         public void Array_Empty_RoundTrip()
         {
             var obj = new CollectionClass { intArray = new int[0] };
-            string json = SimpleJson.ToJSON(obj);
-            var result = SimpleJson.FromJSON<CollectionClass>(json);
+            string json = DefaultJson.ToJSON(obj);
+            var result = DefaultJson.FromJSON<CollectionClass>(json);
             Assert.IsNotNull(result.intArray);
             Assert.AreEqual(0, result.intArray.Length);
         }
@@ -360,8 +360,8 @@ namespace Utility
             {
                 dictSI = new Dictionary<string, int> { { "a", 1 }, { "b", 2 }, { "c", 3 } }
             };
-            string json = SimpleJson.ToJSON(obj);
-            var result = SimpleJson.FromJSON<CollectionClass>(json);
+            string json = DefaultJson.ToJSON(obj);
+            var result = DefaultJson.FromJSON<CollectionClass>(json);
             Assert.IsNotNull(result.dictSI);
             Assert.AreEqual(3, result.dictSI.Count);
             Assert.AreEqual(1, result.dictSI["a"]);
@@ -376,8 +376,8 @@ namespace Utility
             {
                 dictIS = new Dictionary<int, string> { { 1, "one" }, { 2, "two" } }
             };
-            string json = SimpleJson.ToJSON(obj);
-            var result = SimpleJson.FromJSON<CollectionClass>(json);
+            string json = DefaultJson.ToJSON(obj);
+            var result = DefaultJson.FromJSON<CollectionClass>(json);
             Assert.IsNotNull(result.dictIS);
             Assert.AreEqual(2, result.dictIS.Count);
             Assert.AreEqual("one", result.dictIS[1]);
@@ -395,8 +395,8 @@ namespace Utility
                     { "second", new SimpleClass { name = "Bob", age = 25, active = false } }
                 }
             };
-            string json = SimpleJson.ToJSON(obj);
-            var result = SimpleJson.FromJSON<CollectionClass>(json);
+            string json = DefaultJson.ToJSON(obj);
+            var result = DefaultJson.FromJSON<CollectionClass>(json);
             Assert.IsNotNull(result.dictSObj);
             Assert.AreEqual(2, result.dictSObj.Count);
             Assert.AreEqual("Alice", result.dictSObj["first"].name);
@@ -409,8 +409,8 @@ namespace Utility
         public void Dictionary_Empty_RoundTrip()
         {
             var obj = new CollectionClass { dictSI = new Dictionary<string, int>() };
-            string json = SimpleJson.ToJSON(obj);
-            var result = SimpleJson.FromJSON<CollectionClass>(json);
+            string json = DefaultJson.ToJSON(obj);
+            var result = DefaultJson.FromJSON<CollectionClass>(json);
             Assert.IsNotNull(result.dictSI);
             Assert.AreEqual(0, result.dictSI.Count);
         }
@@ -427,8 +427,8 @@ namespace Utility
                 label = "parent",
                 child = new SimpleClass { name = "child", age = 10, active = false }
             };
-            string json = SimpleJson.ToJSON(obj);
-            var result = SimpleJson.FromJSON<NestedClass>(json);
+            string json = DefaultJson.ToJSON(obj);
+            var result = DefaultJson.FromJSON<NestedClass>(json);
             Assert.AreEqual("parent", result.label);
             Assert.IsNotNull(result.child);
             Assert.AreEqual("child", result.child.name);
@@ -444,8 +444,8 @@ namespace Utility
                 new SimpleClass { name = "a", age = 1, active = true },
                 new SimpleClass { name = "b", age = 2, active = false }
             };
-            string json = SimpleJson.ToJSON(list);
-            var result = SimpleJson.FromJSON<List<SimpleClass>>(json);
+            string json = DefaultJson.ToJSON(list);
+            var result = DefaultJson.FromJSON<List<SimpleClass>>(json);
             Assert.IsNotNull(result);
             Assert.AreEqual(2, result.Count);
             Assert.AreEqual("a", result[0].name);
@@ -460,8 +460,8 @@ namespace Utility
                 new SimpleClass { name = "x", age = 10, active = true },
                 new SimpleClass { name = "y", age = 20, active = false }
             };
-            string json = SimpleJson.ToJSON(arr);
-            var result = SimpleJson.FromJSON<SimpleClass[]>(json);
+            string json = DefaultJson.ToJSON(arr);
+            var result = DefaultJson.FromJSON<SimpleClass[]>(json);
             Assert.IsNotNull(result);
             Assert.AreEqual(2, result.Length);
             Assert.AreEqual("x", result[0].name);
@@ -476,7 +476,7 @@ namespace Utility
         public void Null_String_RemovedWhenRemoveNulls()
         {
             var obj = new SimpleClass { name = null, age = 5, active = true };
-            string json = SimpleJson.ToJSON(obj, removeNulls: true);
+            string json = DefaultJson.ToJSON(obj, removeNulls: true);
             Assert.IsFalse(json.Contains("name"));
             Assert.IsTrue(json.Contains("5"));
         }
@@ -485,7 +485,7 @@ namespace Utility
         public void Null_String_IncludedWhenNotRemoveNulls()
         {
             var obj = new SimpleClass { name = null, age = 5, active = true };
-            string json = SimpleJson.ToJSON(obj, removeNulls: false);
+            string json = DefaultJson.ToJSON(obj, removeNulls: false);
             Assert.IsTrue(json.Contains("name"));
             Assert.IsTrue(json.Contains("null"));
         }
@@ -494,8 +494,8 @@ namespace Utility
         public void Null_Object_RoundTrip()
         {
             var obj = new NestedClass { label = "test", child = null };
-            string json = SimpleJson.ToJSON(obj, removeNulls: false);
-            var result = SimpleJson.FromJSON<NestedClass>(json);
+            string json = DefaultJson.ToJSON(obj, removeNulls: false);
+            var result = DefaultJson.FromJSON<NestedClass>(json);
             Assert.AreEqual("test", result.label);
         }
 
@@ -507,7 +507,7 @@ namespace Utility
         public void Overwrite_SingleField()
         {
             var obj = new SimpleClass { name = "old", age = 1, active = false };
-            SimpleJson.FromJSONOverwrite(obj, "{\"name\":\"new\"}");
+            DefaultJson.FromJSONOverwrite(obj, "{\"name\":\"new\"}");
             Assert.AreEqual("new", obj.name);
             Assert.AreEqual(1, obj.age);
             Assert.AreEqual(false, obj.active);
@@ -517,7 +517,7 @@ namespace Utility
         public void Overwrite_AllFields()
         {
             var obj = new SimpleClass { name = "old", age = 1, active = false };
-            SimpleJson.FromJSONOverwrite(obj, "{\"name\":\"new\",\"age\":99,\"active\":true}");
+            DefaultJson.FromJSONOverwrite(obj, "{\"name\":\"new\",\"age\":99,\"active\":true}");
             Assert.AreEqual("new", obj.name);
             Assert.AreEqual(99, obj.age);
             Assert.AreEqual(true, obj.active);
@@ -527,7 +527,7 @@ namespace Utility
         public void Overwrite_PartialFields()
         {
             var obj = new SimpleClass { name = "old", age = 1, active = false };
-            SimpleJson.FromJSONOverwrite(obj, "{\"age\":42}");
+            DefaultJson.FromJSONOverwrite(obj, "{\"age\":42}");
             Assert.AreEqual("old", obj.name);
             Assert.AreEqual(42, obj.age);
             Assert.AreEqual(false, obj.active);
@@ -541,7 +541,7 @@ namespace Utility
         public void ToJSON_Readable_ContainsWhitespace()
         {
             var obj = new SimpleClass { name = "test", age = 5, active = true };
-            string json = SimpleJson.ToJSON(obj, readable: true);
+            string json = DefaultJson.ToJSON(obj, readable: true);
             Assert.IsTrue(json.Contains("\r\n"));
             Assert.IsTrue(json.Contains("\t"));
         }
@@ -550,7 +550,7 @@ namespace Utility
         public void ToJSON_Compact_NoWhitespace()
         {
             var obj = new SimpleClass { name = "test", age = 5, active = true };
-            string json = SimpleJson.ToJSON(obj, readable: false);
+            string json = DefaultJson.ToJSON(obj, readable: false);
             Assert.IsFalse(json.Contains("\r\n"));
             Assert.IsFalse(json.Contains("\t"));
         }
@@ -563,10 +563,10 @@ namespace Utility
         public void Pool_Reuses_DeserializationObject()
         {
             var obj = new SimpleClass { name = "a", age = 1, active = true };
-            string json = SimpleJson.ToJSON(obj);
+            string json = DefaultJson.ToJSON(obj);
 
-            var r1 = SimpleJson.FromJSON<SimpleClass>(json);
-            var r2 = SimpleJson.FromJSON<SimpleClass>(json);
+            var r1 = DefaultJson.FromJSON<SimpleClass>(json);
+            var r2 = DefaultJson.FromJSON<SimpleClass>(json);
 
             Assert.AreEqual("a", r1.name);
             Assert.AreEqual("a", r2.name);
@@ -578,8 +578,8 @@ namespace Utility
             var obj1 = new SimpleClass { name = "a", age = 1, active = true };
             var obj2 = new SimpleClass { name = "b", age = 2, active = false };
 
-            string json1 = SimpleJson.ToJSON(obj1);
-            string json2 = SimpleJson.ToJSON(obj2);
+            string json1 = DefaultJson.ToJSON(obj1);
+            string json2 = DefaultJson.ToJSON(obj2);
 
             Assert.IsTrue(json1.Contains("a"));
             Assert.IsTrue(json2.Contains("b"));
@@ -600,13 +600,13 @@ namespace Utility
                 intList = new List<int> { 1, 2, 3 }
             };
 
-            string json1 = SimpleJson.ToJSON(simple);
-            string json2 = SimpleJson.ToJSON(nested);
-            string json3 = SimpleJson.ToJSON(collection);
+            string json1 = DefaultJson.ToJSON(simple);
+            string json2 = DefaultJson.ToJSON(nested);
+            string json3 = DefaultJson.ToJSON(collection);
 
-            var r1 = SimpleJson.FromJSON<SimpleClass>(json1);
-            var r2 = SimpleJson.FromJSON<NestedClass>(json2);
-            var r3 = SimpleJson.FromJSON<CollectionClass>(json3);
+            var r1 = DefaultJson.FromJSON<SimpleClass>(json1);
+            var r2 = DefaultJson.FromJSON<NestedClass>(json2);
+            var r3 = DefaultJson.FromJSON<CollectionClass>(json3);
 
             Assert.AreEqual("simple", r1.name);
             Assert.AreEqual("nested", r2.label);
@@ -621,8 +621,8 @@ namespace Utility
         public void FromJSON_NonGeneric_Type()
         {
             var obj = new SimpleClass { name = "test", age = 42, active = true };
-            string json = SimpleJson.ToJSON(obj);
-            object result = SimpleJson.FromJSON(json, typeof(SimpleClass));
+            string json = DefaultJson.ToJSON(obj);
+            object result = DefaultJson.FromJSON(json, typeof(SimpleClass));
             Assert.IsNotNull(result);
             Assert.IsInstanceOf<SimpleClass>(result);
             Assert.AreEqual("test", ((SimpleClass)result).name);
