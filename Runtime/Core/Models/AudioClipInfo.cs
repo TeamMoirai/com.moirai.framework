@@ -7,7 +7,7 @@ namespace Moirai.Atropos
     /// 提供音频剪辑的 JSON 兼容引用
     /// </summary>
     [Serializable]
-    public class AudioClipInfo : IMatchComparable<AudioClipInfo>
+    public class AudioClipInfo
     {
         [Tooltip("资源路径")]
         [SerializeField] private string m_Path;
@@ -28,13 +28,6 @@ namespace Moirai.Atropos
             result.m_Guid = m_Guid;
 
             return result;
-        }
-        
-        public bool Matches(AudioClipInfo other)
-        {
-            return m_Path == other?.m_Path
-                   && m_Guid == other?.m_Guid
-                ;
         }
     }
 }
