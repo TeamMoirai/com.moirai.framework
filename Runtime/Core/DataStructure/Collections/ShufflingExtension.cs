@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Threading;
 
 namespace Moirai.Atropos.Collections
@@ -15,14 +16,14 @@ namespace Moirai.Atropos.Collections
 
         private static Random Rng
         {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
                 if (s_Rng == null)
                 {
-                    // 种子组合：时间戳 + 线程ID + Guid 哈希（进一步提高随机性）
-                    int seed = Environment.TickCount
-                               ^ Thread.CurrentThread.ManagedThreadId
-                               ^ Guid.NewGuid().GetHashCode();
+                    // 种子组合：Guid 哈希 + 线程ID（进一步提高随机性）
+                    int seed = Guid.NewGuid().GetHashCode()
+                               ^ Thread.CurrentThread.ManagedThreadId;
                     s_Rng = new Random(seed);
                 }
                 return s_Rng;
@@ -38,10 +39,15 @@ namespace Moirai.Atropos.Collections
         public static void Shuffle<T>(this IList<T> list)
         {
             if (list == null) throw new ArgumentNullException(nameof(list));
+
             for (int i = list.Count - 1; i > 0; i--)
             {
                 int j = Rng.Next(i + 1);
-                (list[i], list[j]) = (list[j], list[i]);
+
+                // 手动交换，避免 tuple 解构开销（Mono 旧版本 Unity 2021- 不保证优化）
+                T temp = list[i];
+                list[i] = list[j];
+                list[j] = temp;
             }
         }
 
@@ -55,6 +61,7 @@ namespace Moirai.Atropos.Collections
         public static List<T> Shuffled<T>(this IReadOnlyList<T> list)
         {
             if (list == null) throw new ArgumentNullException(nameof(list));
+
             var copy = new List<T>(list);
             copy.Shuffle();
             return copy;
@@ -68,55 +75,113 @@ namespace Moirai.Atropos.Collections
         /// <returns>随机元素</returns>
         /// <exception cref="ArgumentNullException">list 为 null</exception>
         /// <exception cref="InvalidOperationException">列表为空</exception>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static T RandomElement<T>(this IReadOnlyList<T> list)
         {
             if (list == null) throw new ArgumentNullException(nameof(list));
             if (list.Count == 0) throw new InvalidOperationException("Cannot get random element from empty list.");
+
             return list[Rng.Next(list.Count)];
         }
 
         /// <summary>
-        /// 随机选取指定数量的元素（无放回采样），返回新列表。
-        /// 若 <paramref name="count"/> 大于等于列表长度，则返回所有元素的随机顺序（即洗牌后的完整列表）。
-        /// 若 <paramref name="count"/> 为 0，返回空列表。
+        /// 无放回采样 <paramref name="count"/> 个元素，返回新列表。
+        /// <para>count ≥ 列表长度时，返回完整洗牌副本。</para>
+        /// <para>根据 count 与 n 的比例自适应选择最优算法路径。</para>
         /// </summary>
-        /// <remarks>
-        /// 该方法分配 O(n) 的临时索引数组（n 为列表长度），当 n 极大且 count 极小时，可考虑使用其他专用采样算法，
-        /// 但对于绝大多数应用场景，此实现的简洁性和性能已足够优秀。
-        /// </remarks>
-        /// <typeparam name="T">元素类型</typeparam>
-        /// <param name="list">列表，不能为 null</param>
-        /// <param name="count">需要选取的元素数量</param>
-        /// <returns>包含随机选取元素的列表</returns>
-        /// <exception cref="ArgumentNullException">list 为 null</exception>
-        /// <exception cref="ArgumentOutOfRangeException">count 为负数</exception>
         public static List<T> RandomElements<T>(this IReadOnlyList<T> list, int count)
         {
             if (list == null) throw new ArgumentNullException(nameof(list));
-            if (count < 0) throw new ArgumentOutOfRangeException(nameof(count));
+            if (count < 0) throw new ArgumentOutOfRangeException(nameof(count), "count must be non-negative.");
 
             int n = list.Count;
-            if (count == 0) return new List<T>();
 
-            // 若请求数量 >= 总数，直接返回完整洗牌副本（避免索引数组的额外开销）
+            // --- 快速路径 ---
+            if (count == 0 || n == 0) return new List<T>();
+            if (count == 1)
+            {
+                var single = new List<T>(1) { list[Rng.Next(n)] };
+                return single;
+            }
             if (count >= n)
             {
-                var copy = new List<T>(list);
-                copy.Shuffle();
-                return copy;
+                var full = new List<T>(list);
+                full.Shuffle();
+                return full;
             }
 
-            // 部分洗牌：使用索引数组，只对前 count 个位置进行随机交换
+            // --- 自适应路径选择 ---
+            //
+            // 策略 A（HashSet 拒绝采样）:
+            //   适合 count << n 的场景。
+            //   内存 O(count)，时间期望 O(count)，无需分配 O(n) 数组。
+            //   注意：Mono 的 HashSet 遍历顺序 ≠ 插入顺序，
+            //         因此必须按插入顺序写入 result，不能遍历 HashSet。
+            //
+            // 策略 B（部分 Fisher-Yates）:
+            //   适合 count 接近 n 的场景。
+            //   内存 O(n)，时间 O(count)，但需预分配索引数组。
+            //
+            // 分界线取 n / 3，经实验在两者之间取得较好平衡。
+
+            return count < n / 3
+                ? SampleByRejection(list, n, count)
+                : SampleByPartialShuffle(list, n, count);
+        }
+
+        /// <summary>
+        /// HashSet 拒绝采样：平均 O(count) 时间，O(count) 空间。
+        /// 利用 HashSet.Add 的返回值判断碰撞，do-while 在 count≪n 时几乎只执行一次。
+        /// </summary>
+        /// <remarks>内部实现 — 拒绝采样（小 count 适用）</remarks>
+        private static List<T> SampleByRejection<T>(IReadOnlyList<T> list, int n, int count)
+        {
+            var rng = Rng;
+
+            var selected = new HashSet<int>();
+            var result = new List<T>(count);
+
+            for (int i = 0; i < count; i++)
+            {
+                int idx;
+                // HashSet.Add 返回 false 表示已存在 → 重新采样
+                // 当 count ≪ n 时碰撞概率 ≈ count/n → 趋近于 0
+                do
+                {
+                    idx = rng.Next(n);
+                } while (!selected.Add(idx));
+
+                result.Add(list[idx]);
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// 部分 Fisher-Yates：只对前 count 个位置做随机交换。
+        /// 时间 O(count)，空间 O(n)（索引数组）。
+        /// </summary>
+        /// <remarks>内部实现 — 部分 Fisher-Yates（大 count 适用）</remarks>
+        private static List<T> SampleByPartialShuffle<T>(IReadOnlyList<T> list, int n, int count)
+        {
+            var rng = Rng;
             var indices = new int[n];
+
             for (int i = 0; i < n; i++) indices[i] = i;
 
             var result = new List<T>(count);
             for (int i = 0; i < count; i++)
             {
-                int j = Rng.Next(i, n);
-                (indices[i], indices[j]) = (indices[j], indices[i]);
+                int j = rng.Next(i, n);
+
+                // 手动交换，避免 tuple 解构开销（Mono 旧版本 Unity 2021- 不保证优化）
+                int tmp = indices[i];
+                indices[i] = indices[j];
+                indices[j] = tmp;
+
                 result.Add(list[indices[i]]);
             }
+
             return result;
         }
     }
