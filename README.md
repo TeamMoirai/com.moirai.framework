@@ -26,6 +26,7 @@ Moirai Framework
 - 🔥 **高性能** - 基于 UniTask 的异步系统，零 GC 事件分发，严格的内存管理
 - 🧩 **高内聚低耦合** - 模块化设计，可轻松移除或替换不需要的模块
 - 🔄 **热更新支持** - 集成 HybridCLR，全平台热更新流程已跑通
+- 🔐 **代码混淆** - 集成 Obfuz，支持代码混淆加固，保护核心逻辑
 - 📦 **资源管理** - 集成 YooAsset，支持 LRU、ARC 缓存策略，自动资源释放
 - 📊 **配置表系统** - 集成 Luban，支持懒加载、异步加载、同步加载
 - 🎨 **UI 框架** - 商业化 UI 开发流程，支持代码自动生成
@@ -63,13 +64,21 @@ Moirai Framework
   - [Save — 存档系统](#save--%E5%AD%98%E6%A1%A3%E7%B3%BB%E7%BB%9F)
   - [Scheduler — 调度器](#scheduler--%E8%B0%83%E5%BA%A6%E5%99%A8)
 - [🧰 核心工具](#-%E6%A0%B8%E5%BF%83%E5%B7%A5%E5%85%B7)
+  - [Attributes — 自定义属性](#attributes--%E8%87%AA%E5%AE%9A%E4%B9%89%E5%B1%9E%E6%80%A7)
   - [ObjectPool — 对象池](#objectpool--%E5%AF%B9%E8%B1%A1%E6%B1%A0)
   - [MemoryPool — 内存池](#memorypool--%E5%86%85%E5%AD%98%E6%B1%A0)
   - [Singleton — 单例系统](#singleton--%E5%8D%95%E4%BE%8B%E7%B3%BB%E7%BB%9F)
   - [GameConfig — 配表管理](#gameconfig--%E9%85%8D%E8%A1%A8%E7%AE%A1%E7%90%86)
   - [GameLog — 日志系统](#gamelog--%E6%97%A5%E5%BF%97%E7%B3%BB%E7%BB%9F)
+  - [GameTime — 游戏时间](#gametime--%E6%B8%B8%E6%88%8F%E6%97%B6%E9%97%B4)
+  - [GameProfiler — 性能分析](#gameprofiler--%E6%80%A7%E8%83%BD%E5%88%86%E6%9E%90)
   - [GameSettings — 游戏设置](#gamesettings--%E6%B8%B8%E6%88%8F%E8%AE%BE%E7%BD%AE)
+  - [GameException — 异常系统](#gameexception--%E5%BC%82%E5%B8%B8%E7%B3%BB%E7%BB%9F)
+  - [ToolRegistry — 组件注册表](#toolregistry--%E7%BB%84%E4%BB%B6%E6%B3%A8%E5%86%8C%E8%A1%A8)
+  - [Obfuz — 代码混淆](#obfuz--%E4%BB%A3%E7%A0%81%E6%B7%B7%E6%B7%86)
   - [DataStructure — 数据结构](#datastructure--%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84)
+  - [Extensions/R3 — 响应式扩展](#extensionsr3--%E5%93%8D%E5%BA%94%E5%BC%8F%E6%89%A9%E5%B1%95)
+  - [Utility — 工具集](#utility--%E5%B7%A5%E5%85%B7%E9%9B%86)
 - [🛠️ 编辑器工具](#-%E7%BC%96%E8%BE%91%E5%99%A8%E5%B7%A5%E5%85%B7)
 - [📁 推荐项目结构](#-%E6%8E%A8%E8%8D%90%E9%A1%B9%E7%9B%AE%E7%BB%93%E6%9E%84)
 - [🤝 贡献与支持](#-%E8%B4%A1%E7%8C%AE%E4%B8%8E%E6%94%AF%E6%8C%81)
@@ -85,6 +94,8 @@ Moirai Framework
 - **Unity 版本**: 2022.3.x（推荐）或更高
 
 - **开发环境**: .NET 4.x
+
+- **依赖插件**：[Odin Inspector and Serializer](https://assetstore.unity.com/packages/tools/utilities/odin-inspector-and-serializer-89041)
 
 - **支持平台**: Windows、OSX、Android、iOS、WebGL
 
@@ -192,32 +203,38 @@ Moirai Framework
 com.moirai.framework/
 ├── Runtime/              # 核心框架程序集 (Moirai.Atropos)
 │   ├── Core/             # 基础工具与数据结构
+│   │   ├── Attributes/   #   自定义属性（~20个 + Odin 扩展）
+│   │   ├── Constant/     #   常量定义（RuntimeId 等）
+│   │   ├── DataStructure/#   数据结构（IOC容器、优先队列、稀疏数组等）
 │   │   ├── Events/       #   事件系统（池化、冒泡传播）
+│   │   ├── Extensions/   #   扩展方法（R3 响应式、UGUI 等）
+│   │   ├── GameException/#   游戏异常系统
+│   │   ├── GameProfiler/ #   性能分析器
+│   │   ├── GameSettings/ #   框架设置与画面设置
+│   │   ├── GameTime/     #   游戏时间
+│   │   ├── MemoryPool/   #   内存池
+│   │   ├── Models/       #   数据模型
+│   │   ├── Obfuz/        #   代码混淆初始化
+│   │   ├── Pool/         #   对象池（通用/UniTask/GameObject）
 │   │   ├── Schedulers/   #   零分配调度器（定时器/帧计数器）
 │   │   ├── Singleton/    #   单例系统（纯 C# / MonoBehaviour）
-│   │   ├── MemoryPool/   #   内存池
-│   │   ├── Pool/         #   对象池（通用/UniTask/GameObject）
-│   │   ├── Tween/        #   缓动系统
 │   │   ├── Tasks/        #   任务/序列系统
-│   │   ├── GameLog/      #   日志系统
-│   │   ├── GameSettings/ #   画面设置
-│   │   ├── DataStructure/#   IOC容器、优先队列、稀疏数组等
-│   │   └── Extension/    #   通用扩展方法
+│   │   └── Utility/      #   工具集（日志、加密、HTTP、反射、缓动等）
 │   └── Modules/          #   功能模块
-│       ├── ResourceModule/    # YooAsset 资源管理
-│       ├── ConfigTableModule/ # 配置表管理
-│       ├── UIModule/          # UI 框架（窗口/控件/层）
-│       ├── AudioModule/       # 音频系统（分类/代理/淡入淡出）
-│       ├── LocalizationModule/# 本地化（文本/图片/音频/Google翻译）
-│       ├── FsmModule/         # 有限状态机
-│       ├── ProcedureModule/   # 流程管理
-│       ├── InputModule/       # 输入系统（键鼠/手柄/移动端）
-│       ├── SaveModule/        # 存档系统（JSON/二进制/加密）
-│       ├── ObjectPoolModule/  # 对象池模块
-│       ├── SceneModule/       # 场景管理
-│       ├── TimerModule/       # 计时器
-│       ├── DebuggerModule/    # 运行时调试器
-│       └── UpdateDriver/      # 更新循环驱动
+│       ├── Audio/        #   音频系统（分类/代理/淡入淡出）
+│       ├── ConfigTable/  #   配置表管理
+│       ├── Debugger/     #   运行时调试器
+│       ├── FSM/          #   有限状态机
+│       ├── Input/        #   输入系统（键鼠/手柄/移动端）
+│       ├── Localization/ #   本地化（文本/图片/音频/Google翻译）
+│       ├── ObjectPool/   #   对象池模块
+│       ├── Procedure/    #   流程管理
+│       ├── Resource/     #   YooAsset 资源管理
+│       ├── Save/         #   存档系统（JSON/二进制/加密）
+│       ├── Scene/        #   场景管理
+│       ├── Timer/        #   计时器
+│       ├── UI/           #   UI 框架（窗口/控件/层）
+│       └── UpdateDriver/ #   更新循环驱动
 ├── Editor/               # 编辑器工具集
 ├── Plugins/              # 第三方库
 ├── Samples~/             # 示例
@@ -463,6 +480,26 @@ handle.Cancel();
 
 ## 🧰 核心工具
 
+### Attributes — 自定义属性
+
+~20 个自定义属性绘制器 + Odin Inspector 扩展，提升编辑器使用体验。
+
+| 属性 | 说明 |
+|------|------|
+| `BooleanButton` | 布尔值按钮绘制 |
+| `BreakVector2/3` | 向量拆分绘制 |
+| `ConditionAttribute` | 条件显示控制 |
+| `DisableAttribute` | 禁用字段绘制 |
+| `EnumConditionAttribute` | 枚举条件控制 |
+| `ExpandAttribute` | 可展开属性 |
+| `InspectorButton` | Inspector 按钮 |
+| `InspectorButtonBar` | 按钮栏 |
+| `LayerAttribute` | Layer 选择器 |
+| `TagAttribute` | Tag 选择器 |
+| `ResourcePathAttribute` | 资源路径选择器 |
+| `ReferenceDropdownAttribute` | 引用下拉选择 |
+| `OdinExtends/*` | Odin 扩展（条件分组、帮助信息、内联按钮等） |
+
 ### ObjectPool — 对象池
 
 ```csharp
@@ -486,6 +523,8 @@ GameObjectPoolManager.Release(go);
 |------|------|
 | `Singleton<T>` | 纯 C# 单例，双重检查锁 |
 | `SingletonMono<T>` | MonoBehaviour 单例，支持持久化/替换策略 |
+| `SingletonRegister<T>` | 注册式单例，支持按类型查找 |
+| `ReferencedScriptableObject` | ScriptableObject 引用基类 |
 
 `SingletonSystem` 集中管理所有单例生命周期，挂接 UpdateDriver 驱动 IUpdate/IFixedUpdate/ILateUpdate。
 
@@ -510,9 +549,64 @@ Log.Error("严重错误!");
 - 条件编译：`LOG_DEBUG_ENABLE`、`LOG_ALL`、`LOG_INFO_ENABLE` 等
 - 可插拔 `ILogHelper` 实现自定义日志输出
 
+### GameTime — 游戏时间
+
+轻量级时间访问器，每帧采样一次，避免频繁调用 `Time.deltaTime`。
+
+```csharp
+float dt = GameTime.deltaTime;       // 帧间隔
+float time = GameTime.time;          // 当前时间
+float unscaledDt = GameTime.unscaledDeltaTime; // 无缩放帧间隔
+```
+
+### GameProfiler — 性能分析
+
+条件编译的性能采样工具，仅在 `PROFILER_ENABLE` 宏开启时生效。
+
+```csharp
+GameProfiler.BeginSample("MyOperation");
+// ... 需要分析的代码
+GameProfiler.EndSample();
+```
+
+- 支持分级采样（`SetProfileLevel`），控制采样深度
+- 零开销：宏关闭时完全移除
+
 ### GameSettings — 游戏设置
 
 画面设置管理：分辨率、全屏、VSync、窗口模式等。
+同时包含框架设置（`FrameworkSettings`）和更新设置（`UpdateSettings`）。
+
+### GameException — 异常系统
+
+自定义游戏异常类型，支持错误码和上下文信息。
+
+### ToolRegistry — 组件注册表
+
+高性能组件注册/查找系统，替代 `FindObject` 实现 O(1) 级别查找。
+
+```csharp
+// 注册
+ToolRegistry.RegisterComponent(myService, "GameService");
+
+// 查找
+var service = ToolRegistry.GetComponent<IMyService>("GameService");
+
+// 按类型查找
+var player = ToolRegistry.GetComponent<PlayerController>();
+```
+
+- 支持场景感知：场景卸载时自动清理非持久注册
+- 零 GC 批量查询：`GetComponents<T>(List<T>)`
+- 线程安全设计
+
+### Obfuz — 代码混淆
+
+集成 [Obfuz](https://github.com/nicenightcc/Obfuz) 代码混淆框架，在程序集加载后自动初始化加密虚拟机。
+
+- 条件编译：需同时开启 `OBFUZ_INSTALLED` 和 `ENABLE_OBFUZ` 宏
+- 支持静态密钥加密（`StaticEncryptionScope`）
+- 自动加载密钥资源（`Resources/Obfuz/defaultStaticSecretKey`）
 
 ### DataStructure — 数据结构
 
@@ -527,6 +621,54 @@ Log.Error("严重错误!");
 | `GameDictionary<K,V>` | 游戏字典（带遍历支持） |
 | `GameLinkedList<T>` | 游戏链表 |
 | `GameMultiDictionary<K,V>` | 多值字典 |
+| `TypeNamePair` | 类型名对（用于按类型注册） |
+| `ArrayUtils` | 数组工具方法 |
+| `GameSerializer` | 游戏序列化工具 |
+
+### Extensions/R3 — 响应式扩展
+
+基于 R3（Reactive Extensions）的响应式编程支持，集成 UGUI 绑定。
+
+```csharp
+// Observable 扩展
+myButton.OnClickAsObservable()
+    .Subscribe(_ => Debug.Log("Button clicked"));
+
+// ReactiveProperty ↔ UGUI 双向绑定
+var hp = new ReactiveProperty<int>(100);
+hp.BindTo(hpSlider);  // Slider 自动同步
+```
+
+### Utility — 工具集
+
+| 工具 | 说明 |
+|------|------|
+| `AlgorithmUtility` | 算法工具 |
+| `AssemblyUtility` | 程序集工具 |
+| `ColorsUtility` | 颜色工具 |
+| `CommandLineUtility` | 命令行解析 |
+| `ConverterUtility` | 类型转换 |
+| `CoroutineUtility` | 协程工具 |
+| `DebugDrawHelper` | 调试绘制 |
+| `DiagnosticsUtility` | 诊断工具 |
+| `EncryptionUtility` | 加密工具 |
+| `FileUtility` | 文件操作 |
+| `HttpUtility` | HTTP 请求（支持 UniTask） |
+| `MainThreadDispatcher` | 主线程调度 |
+| `MarshalUtility` | 非托管内存操作 |
+| `MaterialUtility` | 材质工具 |
+| `MathsUtility` | 数学工具（含 Unity.Mathematics 集成） |
+| `NetUtility` | 网络工具 |
+| `PathUtility` | 路径工具 |
+| `ProgramUtility` | 程序工具 |
+| `ReflectionUtility` | 反射工具（含序列化字段遍历） |
+| `TimeUtility` | 时间工具 |
+| `ToolRegistry` | 组件注册表 |
+| `Tween/*` | 缓动系统（含贝塞尔路径） |
+| `UniTaskUtils` | UniTask 工具 |
+| `UnityUtility` | Unity 通用工具 |
+| `XmlUtility` | XML 工具 |
+| `ZipWrapper` | 压缩解压封装 |
 
 ---
 
@@ -536,18 +678,23 @@ Log.Error("严重错误!");
 |------|------|
 | Atlas Maker | Sprite Atlas 创建 |
 | Custom Attributes | ~20 个自定义属性绘制器 + Odin 扩展 |
-| Define Symbols | Debug/Log/Profiler 宏定义管理 |
+| Define Symbols | Debug/Log/Profiler/Obfuz 宏定义管理 |
+| Design Tool | 综合概率计算器 |
+| Editor Design | 编辑器图标资源、GUIStyle 查看器 |
 | Event Debugger | 可视化事件派发调试窗口 |
 | Game Settings | 音频组、流程设置、更新设置编辑器 |
 | HybridCLR | 热更新 DLL 构建命令 |
+| Inspector | Asset/Core 组件自定义 Inspector |
 | Luban Tools | Luban 配置表生成 |
 | Maintenance | 清理空文件夹、查找丢失脚本、分组选择、锁定 Inspector |
 | Reference Finder | 资源依赖/引用树视图 |
 | Release Tools | 构建流水线窗口、构建配置 |
 | Scheduler Debugger | 可视化调度器/计时器调试器 |
 | Tasks Editor | 任务运行器编辑器 |
+| Tween | 缓动属性绘制器 |
 | UI Module | UI 绑定代码自动生成、组件 Inspector |
 | Input Module | 输入动作配置编辑器、按键图标集合编辑器 |
+| Utility | 命令行读取、日志重定向、EditorScriptableSingleton、Shell 调用等 |
 | YooAsset | 构建缓存清理、内置目录、自定义构建管线、Shader 变体收集 |
 
 ---

@@ -8,6 +8,7 @@ Moirai Framework
 [![Last Commit](https://img.shields.io/github/last-commit/TeamMoirai/com.moirai.framework)](https://github.com/TeamMoirai/com.moirai.framework)
 [![Top Language](https://img.shields.io/github/languages/top/TeamMoirai/com.moirai.framework)](https://github.com/TeamMoirai/com.moirai.framework)
 [![README](https://img.shields.io/badge/README-中文-FFA500)](https://github.com/TeamMoirai/com.moirai.framework/blob/main/README.md)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/TeamMoirai/com.moirai.framework)
 
 ## Introduction
 
@@ -19,6 +20,7 @@ Moirai Framework
 - **High Performance** - UniTask-based async system, zero-GC event dispatch, strict memory management
 - **High Cohesion, Low Coupling** - Modular design, easily remove or replace modules you don't need
 - **Hot Update Support** - Integrated HybridCLR, full-platform hot update workflow ready
+- **Code Obfuscation** - Integrated Obfuz for code obfuscation and hardening
 - **Asset Management** - Integrated YooAsset, supports LRU and ARC cache strategies, automatic asset release
 - **Config Table System** - Integrated Luban, supports lazy loading, async loading, and sync loading
 - **UI Framework** - Production-grade UI development workflow, supports code auto-generation
@@ -56,13 +58,21 @@ Moirai Framework
   - [Save — Save System](#save--save-system)
   - [Scheduler — Scheduler](#scheduler--scheduler)
 - [Core Utilities](#core-utilities)
+  - [Attributes — Custom Attributes](#attributes--custom-attributes)
   - [ObjectPool — Object Pool](#objectpool--object-pool)
   - [MemoryPool — Memory Pool](#memorypool--memory-pool)
   - [Singleton — Singleton System](#singleton--singleton-system)
   - [GameConfig — Config Management](#gameconfig--config-management)
   - [GameLog — Logging System](#gamelog--logging-system)
+  - [GameTime — Game Time](#gametime--game-time)
+  - [GameProfiler — Profiler](#gameprofiler--profiler)
   - [GameSettings — Game Settings](#gamesettings--game-settings)
+  - [GameException — Exception System](#gameexception--exception-system)
+  - [ToolRegistry — Component Registry](#toolregistry--component-registry)
+  - [Obfuz — Code Obfuscation](#obfuz--code-obfuscation)
   - [DataStructure — Data Structures](#datastructure--data-structures)
+  - [Extensions/R3 — Reactive Extensions](#extensionsr3--reactive-extensions)
+  - [Utility — Utilities](#utility--utilities)
 - [Editor Tools](#editor-tools)
 - [Contributing & Support](#contributing--support)
   - [Ecosystem Dependencies](#ecosystem-dependencies)
@@ -76,6 +86,7 @@ Moirai Framework
 
 - **Unity Version**: 2022.3.x (recommended) or higher
 - **Development Environment**: .NET 4.x
+- **Dependencies**：[Odin Inspector and Serializer](https://assetstore.unity.com/packages/tools/utilities/odin-inspector-and-serializer-89041)
 - **Supported Platforms**: Windows, OSX, Android, iOS, WebGL
 
 ### Getting Started
@@ -175,38 +186,43 @@ Add `Scenes/main.unity` to the build:
 com.moirai.framework/
 ├── Runtime/              # Core Framework Assembly (Moirai.Atropos)
 │   ├── Core/             # Base utilities and data structures
+│   │   ├── Attributes/   #   Custom attributes (~20 + Odin extensions)
+│   │   ├── Constant/     #   Constants (RuntimeId, etc.)
+│   │   ├── DataStructure/#   Data structures (IoC container, priority queue, sparse array, etc.)
 │   │   ├── Events/       #   Event system (pooled, bubbling propagation)
+│   │   ├── Extensions/   #   Extension methods (R3 reactive, UGUI, etc.)
+│   │   ├── GameException/#   Game exception system
+│   │   ├── GameProfiler/ #   Performance profiler
+│   │   ├── GameSettings/ #   Framework and graphics settings
+│   │   ├── GameTime/     #   Game time
+│   │   ├── MemoryPool/   #   Memory pool
+│   │   ├── Models/       #   Data models
+│   │   ├── Obfuz/        #   Code obfuscation initialization
+│   │   ├── Pool/         #   Object pool (generic/UniTask/GameObject)
 │   │   ├── Schedulers/   #   Zero-allocation scheduler (timer/frame counter)
 │   │   ├── Singleton/    #   Singleton system (pure C# / MonoBehaviour)
-│   │   ├── MemoryPool/   #   Memory pool
-│   │   ├── Pool/         #   Object pool (generic/UniTask/GameObject)
-│   │   ├── Tween/        #   Easing system
 │   │   ├── Tasks/        #   Task/sequence system
-│   │   ├── GameLog/      #   Logging system
-│   │   ├── GameSettings/ #   Graphics settings
-│   │   ├── DataStructure/#   IoC container, priority queue, sparse array, etc.
-│   │   └── Extension/    #   Common extension methods
+│   │   └── Utility/      #   Utilities (logging, encryption, HTTP, reflection, tween, etc.)
 │   └── Modules/          #   Functional modules
-│       ├── ResourceModule/    # YooAsset asset management
-│       ├── ConfigTableModule/ # Config table management
-│       ├── UIModule/          # UI framework (windows/widgets/layers)
-│       ├── AudioModule/       # Audio system (categories/agents/fade)
-│       ├── LocalizationModule/# Localization (text/image/audio/Google Translate)
-│       ├── FsmModule/         # Finite State Machine
-│       ├── ProcedureModule/   # Procedure management
-│       ├── InputModule/       # Input system (keyboard/mouse/gamepad/mobile)
-│       ├── SaveModule/        # Save system (JSON/binary/encrypted)
-│       ├── ObjectPoolModule/  # Object pool module
-│       ├── SceneModule/       # Scene management
-│       ├── TimerModule/       # Timer
-│       ├── DebuggerModule/    # Runtime debugger
-│       └── UpdateDriver/      # Update loop driver
-├── Main/                 # Launcher UI and Procedure definitions
+│       ├── Audio/        #   Audio system (categories/agents/fade)
+│       ├── ConfigTable/  #   Config table management
+│       ├── Debugger/     #   Runtime debugger
+│       ├── FSM/          #   Finite State Machine
+│       ├── Input/        #   Input system (keyboard/mouse/gamepad/mobile)
+│       ├── Localization/ #   Localization (text/image/audio/Google Translate)
+│       ├── ObjectPool/   #   Object pool module
+│       ├── Procedure/    #   Procedure management
+│       ├── Resource/     #   YooAsset asset management
+│       ├── Save/         #   Save system (JSON/binary/encrypted)
+│       ├── Scene/        #   Scene management
+│       ├── Timer/        #   Timer
+│       ├── UI/           #   UI framework (windows/widgets/layers)
+│       └── UpdateDriver/ #   Update loop driver
 ├── Editor/               # Editor toolset
-├── Plugins/              # Third-party libraries (SharpZipLib, SimpleJSON, LubanLib)
-├── Samples~/             # InputSystem button prompt examples
-├── Templates~/           # Hot update entry templates
-└── Tests/                # Unit tests (13 test files)
+├── Plugins/              # Third-party libraries
+├── Samples~/             # Examples
+├── Templates~/           # Project initial templates
+└── Tests/                # Unit tests
 ```
 
 ### Module System
@@ -447,6 +463,26 @@ handle.Cancel();
 
 ## Core Utilities
 
+### Attributes — Custom Attributes
+
+~20 custom property drawers + Odin Inspector extensions for enhanced editor UX.
+
+| Attribute | Description |
+|-----------|-------------|
+| `BooleanButton` | Boolean button drawing |
+| `BreakVector2/3` | Vector split drawing |
+| `ConditionAttribute` | Conditional display control |
+| `DisableAttribute` | Disabled field drawing |
+| `EnumConditionAttribute` | Enum condition control |
+| `ExpandAttribute` | Expandable property |
+| `InspectorButton` | Inspector button |
+| `InspectorButtonBar` | Button bar |
+| `LayerAttribute` | Layer selector |
+| `TagAttribute` | Tag selector |
+| `ResourcePathAttribute` | Resource path selector |
+| `ReferenceDropdownAttribute` | Reference dropdown |
+| `OdinExtends/*` | Odin extensions (condition groups, help info, inline buttons, etc.) |
+
 ### ObjectPool — Object Pool
 
 ```csharp
@@ -470,6 +506,8 @@ Generic memory pool with collection management, reduces GC pressure.
 |------|-------------|
 | `Singleton<T>` | Pure C# singleton, double-checked locking |
 | `SingletonMono<T>` | MonoBehaviour singleton, supports persistence/replacement strategies |
+| `SingletonRegister<T>` | Register-based singleton, supports lookup by type |
+| `ReferencedScriptableObject` | ScriptableObject reference base class |
 
 `SingletonSystem` centrally manages all singleton lifecycles, attached to UpdateDriver to drive IUpdate/IFixedUpdate/ILateUpdate.
 
@@ -494,9 +532,64 @@ Log.Error("Critical error!");
 - Conditional compilation: `LOG_DEBUG_ENABLE`, `LOG_ALL`, `LOG_INFO_ENABLE`, etc.
 - Pluggable `ILogHelper` for custom log output
 
+### GameTime — Game Time
+
+Lightweight time accessor, sampled once per frame to avoid frequent `Time.deltaTime` calls.
+
+```csharp
+float dt = GameTime.deltaTime;       // Frame interval
+float time = GameTime.time;          // Current time
+float unscaledDt = GameTime.unscaledDeltaTime; // Unscaled frame interval
+```
+
+### GameProfiler — Profiler
+
+Conditional compilation performance sampling tool, active only when `PROFILER_ENABLE` macro is enabled.
+
+```csharp
+GameProfiler.BeginSample("MyOperation");
+// ... code to profile
+GameProfiler.EndSample();
+```
+
+- Supports level-based sampling (`SetProfileLevel`) to control sampling depth
+- Zero overhead: completely removed when macro is off
+
 ### GameSettings — Game Settings
 
 Graphics settings management: resolution, fullscreen, VSync, window mode, etc.
+Also includes framework settings (`FrameworkSettings`) and update settings (`UpdateSettings`).
+
+### GameException — Exception System
+
+Custom game exception type with error code and context information.
+
+### ToolRegistry — Component Registry
+
+High-performance component registration/lookup system, replacing `FindObject` with O(1)-level lookups.
+
+```csharp
+// Register
+ToolRegistry.RegisterComponent(myService, "GameService");
+
+// Lookup
+var service = ToolRegistry.GetComponent<IMyService>("GameService");
+
+// Type-based lookup
+var player = ToolRegistry.GetComponent<PlayerController>();
+```
+
+- Scene-aware: auto-cleans non-persistent registrations on scene unload
+- Zero-GC batch queries: `GetComponents<T>(List<T>)`
+- Thread-safe design
+
+### Obfuz — Code Obfuscation
+
+Integrated with the [Obfuz](https://github.com/nicenightcc/Obfuz) code obfuscation framework, auto-initializes encryption virtual machine after assembly load.
+
+- Conditional compilation: requires both `OBFUZ_INSTALLED` and `ENABLE_OBFUZ` macros
+- Supports static key encryption (`StaticEncryptionScope`)
+- Auto-loads key resource (`Resources/Obfuz/defaultStaticSecretKey`)
 
 ### DataStructure — Data Structures
 
@@ -511,6 +604,54 @@ Graphics settings management: resolution, fullscreen, VSync, window mode, etc.
 | `GameDictionary<K,V>` | Game dictionary (with traversal support) |
 | `GameLinkedList<T>` | Game linked list |
 | `GameMultiDictionary<K,V>` | Multi-value dictionary |
+| `TypeNamePair` | Type-name pair (for type-based registration) |
+| `ArrayUtils` | Array utility methods |
+| `GameSerializer` | Game serialization utilities |
+
+### Extensions/R3 — Reactive Extensions
+
+Reactive programming support based on R3 (Reactive Extensions), with UGUI bindings.
+
+```csharp
+// Observable extensions
+myButton.OnClickAsObservable()
+    .Subscribe(_ => Debug.Log("Button clicked"));
+
+// ReactiveProperty ↔ UGUI two-way binding
+var hp = new ReactiveProperty<int>(100);
+hp.BindTo(hpSlider);  // Slider auto-syncs
+```
+
+### Utility — Utilities
+
+| Utility | Description |
+|---------|-------------|
+| `AlgorithmUtility` | Algorithm utilities |
+| `AssemblyUtility` | Assembly utilities |
+| `ColorsUtility` | Color utilities |
+| `CommandLineUtility` | Command-line parsing |
+| `ConverterUtility` | Type conversion |
+| `CoroutineUtility` | Coroutine utilities |
+| `DebugDrawHelper` | Debug drawing |
+| `DiagnosticsUtility` | Diagnostics utilities |
+| `EncryptionUtility` | Encryption utilities |
+| `FileUtility` | File operations |
+| `HttpUtility` | HTTP requests (with UniTask support) |
+| `MainThreadDispatcher` | Main thread dispatching |
+| `MarshalUtility` | Unmanaged memory operations |
+| `MaterialUtility` | Material utilities |
+| `MathsUtility` | Math utilities (with Unity.Mathematics integration) |
+| `NetUtility` | Network utilities |
+| `PathUtility` | Path utilities |
+| `ProgramUtility` | Program utilities |
+| `ReflectionUtility` | Reflection utilities (with serialized field traversal) |
+| `TimeUtility` | Time utilities |
+| `ToolRegistry` | Component registry |
+| `Tween/*` | Easing system (with Bezier paths) |
+| `UniTaskUtils` | UniTask utilities |
+| `UnityUtility` | Unity common utilities |
+| `XmlUtility` | XML utilities |
+| `ZipWrapper` | Compression/decompression wrapper |
 
 ---
 
@@ -520,18 +661,23 @@ Graphics settings management: resolution, fullscreen, VSync, window mode, etc.
 |------|---------|
 | Atlas Maker | Sprite Atlas creation |
 | Custom Attributes | ~20 custom property drawers + Odin extensions |
-| Define Symbols | Debug/Log/Profiler macro definition management |
+| Define Symbols | Debug/Log/Profiler/Obfuz macro definition management |
+| Design Tool | Comprehensive probability calculator |
+| Editor Design | Editor icon resources, GUIStyle viewer |
 | Event Debugger | Visual event dispatch debug window |
 | Game Settings | Audio group, procedure settings, update settings editor |
 | HybridCLR | Hot update DLL build commands |
+| Inspector | Asset/Core component custom inspectors |
 | Luban Tools | Luban config table generation |
 | Maintenance | Clean empty folders, find missing scripts, group selection, lock Inspector |
 | Reference Finder | Asset dependency/reference tree view |
 | Release Tools | Build pipeline window, build configuration |
 | Scheduler Debugger | Visual scheduler/timer debugger |
 | Tasks Editor | Task runner editor |
+| Tween | Easing property drawer |
 | UI Module | UI binding code auto-generation, component Inspector |
 | Input Module | Input action config editor, button icon collection editor |
+| Utility | Command-line reader, log redirection, EditorScriptableSingleton, Shell helper, etc. |
 | YooAsset | Build cache cleanup, built-in directory, custom build pipeline, Shader variant collection |
 
 ---
