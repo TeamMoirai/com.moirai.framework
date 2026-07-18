@@ -20,7 +20,9 @@ namespace Moirai.Atropos.Attributes.Editor
         {
             base.OnEnable();
 
-            var attr = serializedObject.targetObject.GetType().GetCustomAttribute<ConstantRepaintAttribute>();
+            if (target == null) return;
+
+            var attr = target.GetType().GetCustomAttribute<ConstantRepaintAttribute>();
             if (attr != null)
             {
                 _requireRepaint = true;
