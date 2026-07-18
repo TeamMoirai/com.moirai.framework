@@ -5,8 +5,9 @@ using Moirai.Atropos.Resource;
 namespace Moirai.Main
 {
     /// <summary>
-    /// 进入 <see cref="Moirai.Clotho.GameMain"/> 前的流程基类
+    /// 进入游戏主流程前的流程基类
     /// </summary>
+    [ProcedureLauncher]
     public abstract class ProcedurePremainBase : ProcedureBase
     {
         /// <summary>

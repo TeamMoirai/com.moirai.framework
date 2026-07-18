@@ -106,7 +106,10 @@ namespace Moirai.Atropos.Procedure
         protected internal override void Reset()
         {
             // 设置默认值
-            var procedureTypeNames = AssemblyUtility.GetRuntimeTypeNames(typeof(ProcedureBase)).ToArray();
+            var procedureTypeNames = AssemblyUtility.GetRuntimeTypes(typeof(ProcedureBase))
+                .Where(t => Attribute.IsDefined(t, typeof(ProcedureLauncherAttribute)))
+                .Select(t => t.FullName)
+                .ToArray();
             m_AvailableProcedureTypeNames = procedureTypeNames;
             m_EntranceProcedureTypeName = procedureTypeNames.Single(x => x.Contains("ProcedureLaunch"));
         }
