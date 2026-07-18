@@ -36,16 +36,140 @@ namespace Moirai.Atropos.Editor
 
         #region Constants
 
-        private const float SIDEBAR_WIDTH = 244f;
-        private const float ENTRY_HEIGHT = 40f;
+        private const float SIDEBAR_WIDTH = 252f;
+        private const float ENTRY_HEIGHT = 44f;
+        private const float ACCENT_WIDTH = 3f;
 
-        private static readonly Color s_ExistsColor = new(0.24f, 0.82f, 0.34f);
-        private static readonly Color s_MissingColor = new(0.96f, 0.56f, 0.14f);
-        private static readonly Color s_HoverBg = new(1f, 1f, 1f, 0.04f);
-        private static readonly Color s_SelectedBg = new(0.17f, 0.33f, 0.56f);
-        private static readonly Color s_SidebarBg = new(0.196f, 0.196f, 0.196f);
-        private static readonly Color s_Divider = new(0.12f, 0.12f, 0.12f);
-        private static readonly Color s_MutedText = new(0.45f, 0.45f, 0.45f);
+        #endregion
+
+        #region Cached Styles
+
+        /// <summary>
+        /// 所有 GUIStyle 仅创建一次，后续每帧复用，避免 new GUIStyle 带来的 GC 开销。
+        /// </summary>
+        private static class Styles
+        {
+            // ── Colors ──
+            public static readonly Color Accent      = new(0.36f, 0.68f, 1.00f);
+            public static readonly Color ExistsDot   = new(0.30f, 0.80f, 0.42f);
+            public static readonly Color MissingDot  = new(0.95f, 0.58f, 0.18f);
+            public static readonly Color SelectedBg  = new(0.24f, 0.38f, 0.58f, 0.30f);
+            public static readonly Color HoverBg     = new(1f, 1f, 1f, 0.04f);
+            public static readonly Color Divider     = new(0.11f, 0.11f, 0.11f);
+            public static readonly Color MutedText   = new(0.48f, 0.48f, 0.48f);
+            public static readonly Color HeaderBgCol = new(0.158f, 0.158f, 0.158f);
+            public static readonly Color MetaText    = new(0.55f, 0.55f, 0.55f);
+
+            // ── GUIStyle fields ──
+            public static GUIStyle EntryTitle;
+            public static GUIStyle EntryTitleSel;
+            public static GUIStyle EntrySub;
+            public static GUIStyle ContentTitle;
+            public static GUIStyle ContentDesc;
+            public static GUIStyle ContentMeta;
+            public static GUIStyle EmptyHint;
+            public static GUIStyle CountLabel;
+            public static GUIStyle HeaderBg;
+
+            // ── Textures ──
+            private static Texture2D s_HeaderBgTex;
+
+            private static bool s_Initialized;
+
+            /// <summary>
+            /// 外部可通过此属性判断 Styles 是否已就绪，避免在域重载早期阶段绘制 GUI。
+            /// </summary>
+            public static bool IsReady => s_Initialized;
+
+            public static void Init()
+            {
+                if (s_Initialized) return;
+
+                // 域重载后 EditorStyles 可能尚未初始化，此时 boldLabel 等属性返回 null
+                // 直接返回，等下一帧 OnGUI 重试
+                if (EditorStyles.boldLabel == null) return;
+
+                s_Initialized = true;
+
+                s_HeaderBgTex = MakeTex(HeaderBgCol);
+
+                HeaderBg = new GUIStyle
+                {
+                    normal = { background = s_HeaderBgTex },
+                    padding = new RectOffset(20, 20, 14, 10)
+                };
+
+                EntryTitle = new GUIStyle(EditorStyles.boldLabel)
+                {
+                    fontSize = 12,
+                    normal = { textColor = new Color(0.88f, 0.88f, 0.88f) },
+                    clipping = TextClipping.Overflow
+                };
+
+                EntryTitleSel = new GUIStyle(EntryTitle)
+                {
+                    normal = { textColor = Color.white }
+                };
+
+                EntrySub = new GUIStyle(EditorStyles.miniLabel)
+                {
+                    normal = { textColor = MutedText }
+                };
+
+                ContentTitle = new GUIStyle(EditorStyles.boldLabel)
+                {
+                    fontSize = 17,
+                    normal = { textColor = new Color(0.95f, 0.95f, 0.95f) }
+                };
+
+                ContentDesc = new GUIStyle(EditorStyles.wordWrappedLabel)
+                {
+                    normal = { textColor = new Color(0.60f, 0.60f, 0.60f) },
+                    fontSize = 12
+                };
+
+                ContentMeta = new GUIStyle(EditorStyles.miniLabel)
+                {
+                    normal = { textColor = MetaText },
+                    wordWrap = true
+                };
+
+                EmptyHint = new GUIStyle(EditorStyles.centeredGreyMiniLabel)
+                {
+                    fontSize = 12,
+                    alignment = TextAnchor.MiddleCenter,
+                    richText = true,
+                    wordWrap = true
+                };
+
+                CountLabel = new GUIStyle(EditorStyles.miniLabel)
+                {
+                    normal = { textColor = MetaText },
+                    alignment = TextAnchor.MiddleRight
+                };
+            }
+
+            private static Texture2D MakeTex(Color color)
+            {
+                var tex = new Texture2D(1, 1, TextureFormat.RGBA32, false)
+                {
+                    hideFlags = HideFlags.HideAndDontSave
+                };
+                tex.SetPixel(0, 0, color);
+                tex.Apply();
+                return tex;
+            }
+
+            public static void Cleanup()
+            {
+                if (s_HeaderBgTex != null)
+                {
+                    DestroyImmediate(s_HeaderBgTex);
+                    s_HeaderBgTex = null;
+                }
+                s_Initialized = false;
+            }
+        }
 
         #endregion
 
@@ -56,8 +180,19 @@ namespace Moirai.Atropos.Editor
         private string _search = "";
         private Vector2 _sidebarScroll;
         private Vector2 _contentScroll;
-        private UnityEditor.Editor _cachedEditor;
+
+        /// <summary>
+        /// 核心优化：按条目索引缓存 Editor 实例。
+        /// Editor.CreateEditor 涉及反射和序列化，开销大。
+        /// 缓存后切换页签变为 O(1) 查表，而非每次重建。
+        /// </summary>
+        private readonly Dictionary<int, UnityEditor.Editor> _editorCache = new();
+
         private readonly List<int> _filtered = new();
+        private int _loadedCount;
+
+        // 复用 GUIContent 避免每帧分配
+        private static readonly GUIContent s_Temp = new();
 
         #endregion
 
@@ -81,12 +216,16 @@ namespace Moirai.Atropos.Editor
 
         private void OnEnable()
         {
+            // 不要在这里调用 Styles.Init()
+            // 域重载后 EditorStyles 尚未就绪，此时访问会抛出 NRE
+            // GUI 样式的初始化延迟到第一帧 OnGUI 中完成
             Discover();
         }
 
         private void OnDisable()
         {
-            DestroyEditor();
+            ClearEditorCache();
+            Styles.Cleanup();
         }
 
         private void OnProjectChange()
@@ -113,7 +252,7 @@ namespace Moirai.Atropos.Editor
                     if (_entries[i].type == so.GetType())
                     {
                         _selectedIndex = i;
-                        RecreateEditor();
+                        _contentScroll = Vector2.zero;
                         _sidebarScroll = CalculateScrollToEntry(i);
                         Repaint();
                         return;
@@ -131,7 +270,7 @@ namespace Moirai.Atropos.Editor
         /// </summary>
         private void Discover()
         {
-            DestroyEditor();
+            ClearEditorCache();
             _entries = new List<SettingEntry>();
             _selectedIndex = -1;
             _search = "";
@@ -163,6 +302,7 @@ namespace Moirai.Atropos.Editor
                 return cmp != 0 ? cmp : string.Compare(a.title, b.title, StringComparison.Ordinal);
             });
 
+            UpdateCounts();
             ApplyFilter();
             if (_entries.Count > 0)
                 _selectedIndex = _filtered.Count > 0 ? _filtered[0] : -1;
@@ -199,12 +339,21 @@ namespace Moirai.Atropos.Editor
         private void RefreshInstances()
         {
             if (_entries == null) return;
+            bool changed = false;
             for (int i = 0; i < _entries.Count; i++)
             {
                 var e = _entries[i];
                 if (e.instance == null)
+                {
                     e.instance = TryLoadAsset(e.AssetPath, e.type);
+                    if (e.instance != null)
+                    {
+                        changed = true;
+                        InvalidateEditor(i);
+                    }
+                }
             }
+            if (changed) UpdateCounts();
         }
 
         /// <summary>
@@ -213,6 +362,11 @@ namespace Moirai.Atropos.Editor
         private static FrameworkSettings TryLoadAsset(string assetPath, Type type)
         {
             return AssetDatabase.LoadAssetAtPath(assetPath, type) as FrameworkSettings;
+        }
+
+        private void UpdateCounts()
+        {
+            _loadedCount = _entries?.Count(e => e.Exists) ?? 0;
         }
 
         #endregion
@@ -250,23 +404,47 @@ namespace Moirai.Atropos.Editor
         {
             if (_selectedIndex == absoluteIndex) return;
             _selectedIndex = absoluteIndex;
-            RecreateEditor();
+            _contentScroll = Vector2.zero;
         }
 
-        private void RecreateEditor()
+        /// <summary>
+        /// 获取或创建指定条目的缓存 Editor。切换页签时直接命中缓存，无需重建。
+        /// 仅在首次访问或缓存失效（如域重载、资产重建）时调用 CreateEditor。
+        /// </summary>
+        private UnityEditor.Editor GetCachedEditor(int absoluteIndex)
         {
-            DestroyEditor();
-            if (_selectedIndex >= 0 && _selectedIndex < _entries.Count && _entries[_selectedIndex].Exists)
-                _cachedEditor = UnityEditor.Editor.CreateEditor(_entries[_selectedIndex].instance);
-        }
+            if (absoluteIndex < 0 || absoluteIndex >= _entries.Count)
+                return null;
 
-        private void DestroyEditor()
-        {
-            if (_cachedEditor != null)
+            if (_editorCache.TryGetValue(absoluteIndex, out var cached))
             {
-                DestroyImmediate(_cachedEditor);
-                _cachedEditor = null;
+                if (cached != null && cached.target != null)
+                    return cached;
+                _editorCache.Remove(absoluteIndex);
             }
+
+            var entry = _entries[absoluteIndex];
+            if (!entry.Exists) return null;
+
+            var editor = UnityEditor.Editor.CreateEditor(entry.instance);
+            _editorCache[absoluteIndex] = editor;
+            return editor;
+        }
+
+        private void InvalidateEditor(int absoluteIndex)
+        {
+            if (_editorCache.TryGetValue(absoluteIndex, out var editor))
+            {
+                if (editor != null) DestroyImmediate(editor);
+                _editorCache.Remove(absoluteIndex);
+            }
+        }
+
+        private void ClearEditorCache()
+        {
+            foreach (var kvp in _editorCache)
+                if (kvp.Value != null) DestroyImmediate(kvp.Value);
+            _editorCache.Clear();
         }
 
         /// <summary>
@@ -286,6 +464,16 @@ namespace Moirai.Atropos.Editor
 
         private void OnGUI()
         {
+            Styles.Init();
+
+            // 样式未就绪时直接跳过本帧绘制，等 EditorStyles 初始化完毕
+            // 这同时避免了 Layout/Repaint 控件数不匹配导致的 ArgumentException
+            if (!Styles.IsReady)
+            {
+                Repaint(); // 请求下一帧重绘
+                return;
+            }
+
             DrawToolbar();
 
             using (new EditorGUILayout.HorizontalScope(GUILayout.ExpandHeight(true)))
@@ -320,10 +508,10 @@ namespace Moirai.Atropos.Editor
                 GUILayout.FlexibleSpace();
 
                 int total = _entries?.Count ?? 0;
-                int loaded = _entries?.Count(e => e.Exists) ?? 0;
-                GUILayout.Label($"{loaded}/{total}", EditorStyles.miniLabel, GUILayout.Width(40));
+                s_Temp.text = $"{_loadedCount}/{total}";
+                GUILayout.Label(s_Temp, Styles.CountLabel, GUILayout.Width(44));
 
-                if (GUILayout.Button("Refresh", EditorStyles.toolbarButton, GUILayout.Width(58)))
+                if (GUILayout.Button("Refresh", EditorStyles.toolbarButton, GUILayout.Width(60)))
                     Discover();
             }
         }
@@ -344,15 +532,13 @@ namespace Moirai.Atropos.Editor
                 if (_entries == null || _entries.Count == 0)
                 {
                     GUILayout.FlexibleSpace();
-                    EditorGUILayout.LabelField("No FrameworkSettings types found.",
-                        new GUIStyle(EditorStyles.centeredGreyMiniLabel) { fontSize = 11 });
+                    EditorGUILayout.LabelField("No FrameworkSettings types found.", Styles.EmptyHint);
                     GUILayout.FlexibleSpace();
                 }
                 else if (_filtered.Count == 0)
                 {
                     GUILayout.FlexibleSpace();
-                    EditorGUILayout.LabelField("No matching results.",
-                        new GUIStyle(EditorStyles.centeredGreyMiniLabel) { fontSize = 11 });
+                    EditorGUILayout.LabelField("No matching results.", Styles.EmptyHint);
                     GUILayout.FlexibleSpace();
                 }
                 else
@@ -362,7 +548,6 @@ namespace Moirai.Atropos.Editor
                         int idx = _filtered[i];
                         DrawSidebarEntry(_entries[idx], idx);
                     }
-
                     GUILayout.FlexibleSpace();
                 }
 
@@ -378,38 +563,42 @@ namespace Moirai.Atropos.Editor
             bool isHover = rect.Contains(Event.current.mousePosition);
 
             if (isSelected)
-                EditorGUI.DrawRect(rect, s_SelectedBg);
-            else if (isHover)
-                EditorGUI.DrawRect(rect, s_HoverBg);
-
-            float dotSize = 7f;
-            var dotRect = new Rect(
-                rect.x + 12,
-                rect.y + (ENTRY_HEIGHT - dotSize) * 0.5f,
-                dotSize, dotSize);
-
-            EditorGUI.DrawRect(dotRect, entry.Exists ? s_ExistsColor : s_MissingColor);
-
-            float textX = rect.x + 26;
-            float textW = rect.width - 36;
-            Color titleColor = isSelected ? Color.white : new Color(0.88f, 0.88f, 0.88f);
-
-            var titleRect = new Rect(textX, rect.y + 4, textW, 18);
-            GUI.Label(titleRect, entry.title,
-                new GUIStyle(EditorStyles.boldLabel)
-                {
-                    normal = { textColor = titleColor },
-                    fontSize = 12,
-                    clipping = TextClipping.Overflow
-                });
-
-            if (!string.Equals(entry.title, entry.type.Name, StringComparison.Ordinal))
             {
-                var subRect = new Rect(textX, rect.y + 22, textW, 14);
-                GUI.Label(subRect, entry.type.Name,
-                    new GUIStyle(EditorStyles.miniLabel) { normal = { textColor = s_MutedText } });
+                EditorGUI.DrawRect(rect, Styles.SelectedBg);
+                // 左侧选中指示条
+                EditorGUI.DrawRect(
+                    new Rect(rect.x, rect.y, ACCENT_WIDTH, rect.height),
+                    Styles.Accent);
+            }
+            else if (isHover)
+            {
+                EditorGUI.DrawRect(rect, Styles.HoverBg);
             }
 
+            // 状态圆点
+            float dotSize = 8f;
+            var dotRect = new Rect(
+                rect.x + 14,
+                rect.y + (ENTRY_HEIGHT - dotSize) * 0.5f,
+                dotSize, dotSize);
+            EditorGUI.DrawRect(dotRect, entry.Exists ? Styles.ExistsDot : Styles.MissingDot);
+
+            // 标题
+            float textX = rect.x + 28;
+            float textW = rect.width - 40;
+
+            s_Temp.text = entry.title;
+            var titleStyle = isSelected ? Styles.EntryTitleSel : Styles.EntryTitle;
+            GUI.Label(new Rect(textX, rect.y + 4, textW, 18), s_Temp, titleStyle);
+
+            // 副标题（类型名，仅当与标题不同时显示）
+            if (!string.Equals(entry.title, entry.type.Name, StringComparison.Ordinal))
+            {
+                s_Temp.text = entry.type.Name;
+                GUI.Label(new Rect(textX, rect.y + 23, textW, 14), s_Temp, Styles.EntrySub);
+            }
+
+            // 点击处理
             if (Event.current.type == EventType.MouseDown && rect.Contains(Event.current.mousePosition))
             {
                 if (Event.current.button == 0)
@@ -434,7 +623,7 @@ namespace Moirai.Atropos.Editor
         private void DrawVerticalDivider()
         {
             var r = GUILayoutUtility.GetRect(1, 1, GUILayout.Width(1), GUILayout.ExpandHeight(true));
-            EditorGUI.DrawRect(r, s_Divider);
+            EditorGUI.DrawRect(r, Styles.Divider);
         }
 
         private void DrawContentArea()
@@ -442,8 +631,7 @@ namespace Moirai.Atropos.Editor
             if (_selectedIndex < 0 || _selectedIndex >= (_entries?.Count ?? 0))
             {
                 GUILayout.FlexibleSpace();
-                GUILayout.Label("Select a setting from the sidebar",
-                    new GUIStyle(EditorStyles.centeredGreyMiniLabel) { fontSize = 13 });
+                EditorGUILayout.LabelField("Select a setting from the sidebar.", Styles.EmptyHint);
                 GUILayout.FlexibleSpace();
                 return;
             }
@@ -454,17 +642,18 @@ namespace Moirai.Atropos.Editor
             {
                 entry.instance = TryLoadAsset(entry.AssetPath, entry.type);
                 if (entry.instance != null)
-                    RecreateEditor();
+                    InvalidateEditor(_selectedIndex);
             }
 
             using (new EditorGUILayout.VerticalScope(GUILayout.ExpandHeight(true), GUILayout.ExpandWidth(true)))
             {
                 DrawContentHeader(entry);
 
-                EditorGUILayout.Space(4);
-                var divRect = GUILayoutUtility.GetRect(0, 1, GUILayout.ExpandWidth(true));
-                EditorGUI.DrawRect(divRect, s_Divider);
                 EditorGUILayout.Space(2);
+                EditorGUI.DrawRect(
+                    GUILayoutUtility.GetRect(0, 1, GUILayout.ExpandWidth(true)),
+                    Styles.Divider);
+                EditorGUILayout.Space(4);
 
                 DrawContentBody(entry);
             }
@@ -472,86 +661,57 @@ namespace Moirai.Atropos.Editor
 
         private void DrawContentHeader(SettingEntry entry)
         {
-            EditorGUILayout.Space(10);
-
-            using (new EditorGUILayout.HorizontalScope())
+            using (new EditorGUILayout.VerticalScope(Styles.HeaderBg))
             {
-                GUILayout.Space(16);
+                s_Temp.text = entry.title;
+                GUILayout.Label(s_Temp, Styles.ContentTitle);
 
-                using (new EditorGUILayout.VerticalScope())
+                if (!string.IsNullOrEmpty(entry.description))
                 {
-                    using (new EditorGUILayout.HorizontalScope())
-                    {
-                        GUILayout.Label(entry.title,
-                            new GUIStyle(EditorStyles.boldLabel)
-                            {
-                                fontSize = 16,
-                                normal = { textColor = Color.white }
-                            });
-
-                        GUILayout.Space(10);
-                    }
-
-                    if (!string.IsNullOrEmpty(entry.description))
-                    {
-                        GUILayout.Label(entry.description,
-                            new GUIStyle(EditorStyles.wordWrappedLabel)
-                            {
-                                normal = { textColor = new Color(0.62f, 0.62f, 0.62f) },
-                                richText = true
-                            });
-                    }
-
-                    GUILayout.Label($"{entry.type.FullName}  ·  {entry.AssetPath}",
-                        new GUIStyle(EditorStyles.miniLabel)
-                        {
-                            normal = { textColor = s_MutedText },
-                            wordWrap = true
-                        });
-
-                    GUILayout.Space(6);
-
-                    using (new EditorGUILayout.HorizontalScope())
-                    {
-                        // 配置不存在时显示 Create；已存在时显示 Ping（调用 Instance 返回缓存）+ Reset
-                        if (!entry.Exists)
-                        {
-                            if (GUILayout.Button("Create", GUILayout.Width(65)))
-                                CreateOrPingAsset(entry);
-                        }
-                        else
-                        {
-                            if (GUILayout.Button("Ping", GUILayout.Width(52)))
-                                CreateOrPingAsset(entry);
-                            if (GUILayout.Button("Reset", GUILayout.Width(56)))
-                                ResetSetting(entry);
-                        }
-
-                        if (GUILayout.Button("Open Folder", GUILayout.Width(92)))
-                            OpenSaveFolder(entry);
-                    }
+                    s_Temp.text = entry.description;
+                    GUILayout.Label(s_Temp, Styles.ContentDesc);
                 }
 
-                GUILayout.Space(16);
+                s_Temp.text = $"{entry.type.FullName}  ·  {entry.AssetPath}";
+                GUILayout.Label(s_Temp, Styles.ContentMeta);
+
+                EditorGUILayout.Space(6);
+
+                using (new EditorGUILayout.HorizontalScope())
+                {
+                    if (!entry.Exists)
+                    {
+                        if (GUILayout.Button("Create", GUILayout.Width(68), GUILayout.Height(24)))
+                            CreateOrPingAsset(entry);
+                    }
+                    else
+                    {
+                        if (GUILayout.Button("Ping", GUILayout.Width(54), GUILayout.Height(24)))
+                            CreateOrPingAsset(entry);
+                        if (GUILayout.Button("Reset", GUILayout.Width(58), GUILayout.Height(24)))
+                            ResetSetting(entry);
+                    }
+
+                    if (GUILayout.Button("Open Folder", GUILayout.Width(92), GUILayout.Height(24)))
+                        OpenSaveFolder(entry);
+                }
             }
         }
 
         /// <summary>
         /// 内容区主体：已存在时显示 Inspector，不存在时显示创建提示。
+        /// 使用缓存的 Editor，切换页签时无需重建。
         /// </summary>
         private void DrawContentBody(SettingEntry entry)
         {
             if (entry.Exists)
             {
-                if (_cachedEditor == null || _cachedEditor.target != entry.instance)
-                    RecreateEditor();
-
-                if (_cachedEditor != null)
+                var editor = GetCachedEditor(_selectedIndex);
+                if (editor != null)
                 {
                     _contentScroll = EditorGUILayout.BeginScrollView(_contentScroll);
                     EditorGUI.BeginChangeCheck();
-                    _cachedEditor.OnInspectorGUI();
-                    // Inspector 修改后标记 dirty，确保变更可被保存
+                    editor.OnInspectorGUI();
                     if (EditorGUI.EndChangeCheck())
                         EditorUtility.SetDirty(entry.instance);
                     EditorGUILayout.EndScrollView();
@@ -559,8 +719,7 @@ namespace Moirai.Atropos.Editor
                 else
                 {
                     GUILayout.FlexibleSpace();
-                    EditorGUILayout.LabelField("Failed to create editor for this asset.",
-                        new GUIStyle(EditorStyles.centeredGreyMiniLabel) { fontSize = 11 });
+                    EditorGUILayout.LabelField("Failed to create editor for this asset.", Styles.EmptyHint);
                     GUILayout.FlexibleSpace();
                 }
             }
@@ -568,13 +727,8 @@ namespace Moirai.Atropos.Editor
             {
                 GUILayout.FlexibleSpace();
                 EditorGUILayout.LabelField(
-                    "Setting asset not found.\nClick 'Create' above to generate one.",
-                    new GUIStyle(EditorStyles.centeredGreyMiniLabel)
-                    {
-                        fontSize = 12,
-                        alignment = TextAnchor.MiddleCenter,
-                        richText = true
-                    });
+                    "Setting asset not found.\nClick <b>Create</b> above to generate one.",
+                    Styles.EmptyHint);
                 GUILayout.FlexibleSpace();
             }
         }
@@ -603,7 +757,11 @@ namespace Moirai.Atropos.Editor
             }
 
             entry.instance = instance;
-            RecreateEditor();
+
+            int index = _entries.IndexOf(entry);
+            if (index >= 0) InvalidateEditor(index);
+
+            UpdateCounts();
             EditorGUIUtility.PingObject(instance);
             Repaint();
         }
@@ -625,7 +783,9 @@ namespace Moirai.Atropos.Editor
             entry.instance.ResetToDefaults();
             EditorUtility.SetDirty(entry.instance);
             AssetDatabase.SaveAssets();
-            RecreateEditor();
+
+            int index = _entries.IndexOf(entry);
+            if (index >= 0) InvalidateEditor(index);
         }
 
         /// <summary>
