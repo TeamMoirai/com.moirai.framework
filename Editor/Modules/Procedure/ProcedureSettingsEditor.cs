@@ -107,10 +107,7 @@ namespace Moirai.Atropos.Procedure.Editor
 
         private void RefreshTypeNames()
         {
-            _procedureTypeNames = AssemblyUtility.GetRuntimeTypes(typeof(ProcedureBase))
-                .Where(t => Attribute.IsDefined(t, typeof(ProcedureLauncherAttribute)))
-                .Select(t => t.FullName)
-                .ToArray();
+            _procedureTypeNames = ProcedureSettings.GetProcedureTypeNames();
             ReadAvailableProcedureTypeNames();
             int oldCount = _currentAvailableProcedureTypeNames.Count;
             _currentAvailableProcedureTypeNames = _currentAvailableProcedureTypeNames.Where(x => _procedureTypeNames.Contains(x)).ToList();
