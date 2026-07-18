@@ -710,10 +710,23 @@ namespace Moirai.Atropos.Editor
                 if (editor != null)
                 {
                     _contentScroll = EditorGUILayout.BeginScrollView(_contentScroll);
-                    EditorGUI.BeginChangeCheck();
-                    editor.OnInspectorGUI();
-                    if (EditorGUI.EndChangeCheck())
-                        EditorUtility.SetDirty(entry.instance);
+
+                    // 左右对称内边距
+                    using (new EditorGUILayout.HorizontalScope())
+                    {
+                        GUILayout.Space(6); // 左侧留白，与右侧自然间距对称
+
+                        using (new EditorGUILayout.VerticalScope(GUILayout.ExpandWidth(true)))
+                        {
+                            EditorGUI.BeginChangeCheck();
+                            editor.OnInspectorGUI();
+                            if (EditorGUI.EndChangeCheck())
+                                EditorUtility.SetDirty(entry.instance);
+                        }
+
+                        GUILayout.Space(3); // 右侧微调，避免贴边
+                    }
+
                     EditorGUILayout.EndScrollView();
                 }
                 else

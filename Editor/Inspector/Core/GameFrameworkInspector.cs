@@ -1,4 +1,5 @@
 using UnityEditor;
+using UnityEngine;
 
 namespace Moirai.Atropos.Editor
 {
@@ -14,6 +15,10 @@ namespace Moirai.Atropos.Editor
         /// </summary>
         public override void OnInspectorGUI()
         {
+            GUI.enabled = false;
+            EditorGUILayout.PropertyField(serializedObject.FindProperty("m_Script"));
+            GUI.enabled = true;
+
             if (_isCompiling && !EditorApplication.isCompiling)
             {
                 _isCompiling = false;
