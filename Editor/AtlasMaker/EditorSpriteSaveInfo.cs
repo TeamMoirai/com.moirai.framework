@@ -163,9 +163,9 @@ namespace Moirai.Atropos.Editor
         private static void ClearAllAtlas()
         {
             string[] atlasV2Files =
-                Directory.GetFiles(Config.outputAtlasDir, "*.spriteatlasv2", SearchOption.AllDirectories);
+                Directory.GetFiles(Config.m_OutputAtlasDir, "*.spriteatlasv2", SearchOption.AllDirectories);
             string[] atlasFiles =
-                Directory.GetFiles(Config.outputAtlasDir, "*.spriteatlas", SearchOption.AllDirectories);
+                Directory.GetFiles(Config.m_OutputAtlasDir, "*.spriteatlas", SearchOption.AllDirectories);
 
             foreach (string filePath in atlasFiles)
             {
@@ -194,8 +194,8 @@ namespace Moirai.Atropos.Editor
             var currentPath = Path.GetDirectoryName(assetPath)?.Replace("\\", "/");
 
             if(string.IsNullOrEmpty(currentPath)) return;
-            var tempRootDirArr = new List<string>(Config.sourceAtlasRootDir);
-            tempRootDirArr.AddRange(Config.rootChildAtlasDir);
+            var tempRootDirArr = new List<string>(Config.m_SourceAtlasRootDir);
+            tempRootDirArr.AddRange(Config.m_RootChildAtlasDir);
             foreach (var rootPath in tempRootDirArr)
             {
                 var tempPath = rootPath.Replace("\\", "/").TrimEnd('/');
@@ -279,10 +279,10 @@ namespace Moirai.Atropos.Editor
 
         private static void GenerateAtlas(string atlasName, bool createNew = false)
         {
-            var outputPath = $"{Config.outputAtlasDir}/{atlasName}.spriteatlas";
+            var outputPath = $"{Config.m_OutputAtlasDir}/{atlasName}.spriteatlas";
             var outputPathV2 = outputPath.Replace(".spriteatlas", ".spriteatlasv2");
             string deletePath = outputPath;
-            if (Config.enableV2)
+            if (Config.m_EnableV2)
             {
                 DeleteAtlas(outputPath);
                 deletePath = outputPathV2;
@@ -312,7 +312,7 @@ namespace Moirai.Atropos.Editor
         {
             SpriteAtlasAsset spriteAtlasAsset = null;
             SpriteAtlas atlas = null;
-            if (Config.enableV2)
+            if (Config.m_EnableV2)
             {
                 outputPath = outputPath.Replace(".spriteatlas", ".spriteatlasv2");
 
@@ -337,7 +337,7 @@ namespace Moirai.Atropos.Editor
                 }
             }
 
-            if (Config.enableV2)
+            if (Config.m_EnableV2)
             {
                 spriteAtlasAsset?.Add(sprites.ToArray());
                 SpriteAtlasAsset.Save(spriteAtlasAsset, outputPath);
@@ -393,7 +393,7 @@ namespace Moirai.Atropos.Editor
             {
                 _atlasPathMap[atlasName] = outputPath;
             }
-            if (Config.enableLogging)
+            if (Config.m_EnableLogging)
             {
                 Debug.Log($"<b>[Generate Atlas]</b>: {atlasName} ({sprites.Count} sprites)");
             }
@@ -434,20 +434,20 @@ namespace Moirai.Atropos.Editor
                 ;
                 settings.overridden = true;
                 settings.format = format;
-                settings.compressionQuality = Config.compressionQuality;
+                settings.compressionQuality = Config.m_CompressionQuality;
                 atlasImporter.SetPlatformSettings(settings);
             }
 
-            SetPlatform("Android", Config.androidFormat);
-            SetPlatform("iPhone", Config.iosFormat);
-            SetPlatform("WebGL", Config.webglFormat);
+            SetPlatform("Android", Config.m_AndroidFormat);
+            SetPlatform("iPhone", Config.m_IOSFormat);
+            SetPlatform("WebGL", Config.m_WEBGLFormat);
 
             var packingSettings = new SpriteAtlasPackingSettings
             {
-                padding = Config.padding,
-                enableRotation = Config.enableRotation,
-                blockOffset = Config.blockOffset,
-                enableTightPacking = Config.tightPacking,
+                padding = Config.m_Padding,
+                enableRotation = Config.m_EnableRotation,
+                blockOffset = Config.m_BlockOffset,
+                enableTightPacking = Config.m_TightPacking,
                 enableAlphaDilation = true
             };
             atlasImporter.packingSettings = packingSettings;
@@ -462,20 +462,20 @@ namespace Moirai.Atropos.Editor
                 ;
                 settings.overridden = true;
                 settings.format = format;
-                settings.compressionQuality = Config.compressionQuality;
+                settings.compressionQuality = Config.m_CompressionQuality;
                 spriteAtlasAsset.SetPlatformSettings(settings);
             }
 
-            SetPlatform("Android", Config.androidFormat);
-            SetPlatform("iPhone", Config.iosFormat);
-            SetPlatform("WebGL", Config.webglFormat);
+            SetPlatform("Android", Config.m_AndroidFormat);
+            SetPlatform("iPhone", Config.m_IOSFormat);
+            SetPlatform("WebGL", Config.m_WEBGLFormat);
 
             var packingSettings = new SpriteAtlasPackingSettings
             {
-                padding = Config.padding,
-                enableRotation = Config.enableRotation,
-                blockOffset = Config.blockOffset,
-                enableTightPacking = Config.tightPacking,
+                padding = Config.m_Padding,
+                enableRotation = Config.m_EnableRotation,
+                blockOffset = Config.m_BlockOffset,
+                enableTightPacking = Config.m_TightPacking,
                 enableAlphaDilation = true
             };
             spriteAtlasAsset.SetPackingSettings(packingSettings);
@@ -490,28 +490,28 @@ namespace Moirai.Atropos.Editor
                 var settings = atlas.GetPlatformSettings(platform);
                 settings.overridden = true;
                 settings.format = format;
-                settings.compressionQuality = Config.compressionQuality;
+                settings.compressionQuality = Config.m_CompressionQuality;
                 atlas.SetPlatformSettings(settings);
             }
 
-            SetPlatform("Android", Config.androidFormat);
-            SetPlatform("iPhone", Config.iosFormat);
-            SetPlatform("WebGL", Config.webglFormat);
+            SetPlatform("Android", Config.m_AndroidFormat);
+            SetPlatform("iPhone", Config.m_IOSFormat);
+            SetPlatform("WebGL", Config.m_WEBGLFormat);
 
             var packingSettings = new SpriteAtlasPackingSettings
             {
-                padding = Config.padding,
-                enableRotation = Config.enableRotation,
-                blockOffset = Config.blockOffset,
-                enableTightPacking = Config.tightPacking,
+                padding = Config.m_Padding,
+                enableRotation = Config.m_EnableRotation,
+                blockOffset = Config.m_BlockOffset,
+                enableTightPacking = Config.m_TightPacking,
             };
             atlas.SetPackingSettings(packingSettings);
         }
 
         private static string GetAtlasName(string assetPath)
         {
-            var tempRootDirArr = new List<string>(Config.sourceAtlasRootDir);
-            tempRootDirArr.AddRange(Config.rootChildAtlasDir);
+            var tempRootDirArr = new List<string>(Config.m_SourceAtlasRootDir);
+            tempRootDirArr.AddRange(Config.m_RootChildAtlasDir);
             foreach (var rootPath in tempRootDirArr)
             {
                 var tempPath = rootPath.Replace("\\", "/").TrimEnd('/');
@@ -542,8 +542,8 @@ namespace Moirai.Atropos.Editor
 
         private static bool IsExcluded(string path)
         {
-            return CheckIsExcludeFolder(path)//spritePath.StartsWith(Config.excludeFolder)
-                   || Config.excludeKeywords.Any(key => path.IndexOf(key, StringComparison.OrdinalIgnoreCase) >= 0);
+            return CheckIsExcludeFolder(path)//spritePath.StartsWith(Config.m_ExcludeFolder)
+                   || Config.m_ExcludeKeywords.Any(key => path.IndexOf(key, StringComparison.OrdinalIgnoreCase) >= 0);
         }
 
         private static bool IsImageFile(string path)
@@ -576,7 +576,7 @@ namespace Moirai.Atropos.Editor
 
         private static bool ShouldUpdateAtlas(string atlasName)
         {
-            // var outputPath = $"{Config.outputAtlasDir}/{atlasName}.spriteatlas";
+            // var outputPath = $"{Config.m_OutputAtlasDir}/{atlasName}.spriteatlas";
             return true;
         }
 
@@ -612,25 +612,25 @@ namespace Moirai.Atropos.Editor
             if (File.Exists(path))
             {
                 AssetDatabase.DeleteAsset(path);
-                if (Config.enableLogging)
+                if (Config.m_EnableLogging)
                     Debug.Log($"Deleted empty atlas: {Path.GetFileName(path)}");
             }
         }
 
         private static void EnsureOutputDirectory()
         {
-            if (!Directory.Exists(Config.outputAtlasDir))
+            if (!Directory.Exists(Config.m_OutputAtlasDir))
             {
-                Directory.CreateDirectory(Config.outputAtlasDir);
+                Directory.CreateDirectory(Config.m_OutputAtlasDir);
             }
         }
 
         private static void ScanExistingSprites(bool isCreateNew = true)
         {
             List<string> sprites = new List<string>();
-            var guids = AssetDatabase.FindAssets("t:sprite", Config.sourceAtlasRootDir);
+            var guids = AssetDatabase.FindAssets("t:sprite", Config.m_SourceAtlasRootDir);
             sprites.AddRange(guids);
-            guids = AssetDatabase.FindAssets("t:sprite", Config.rootChildAtlasDir);
+            guids = AssetDatabase.FindAssets("t:sprite", Config.m_RootChildAtlasDir);
             sprites.AddRange(guids);
             foreach (var guid in sprites)
             {
@@ -645,7 +645,7 @@ namespace Moirai.Atropos.Editor
 
         private static string GetAtlasNameForDirectory(string directoryPath)
         {
-            foreach (var rootPath in Config.sourceAtlasRootDir)
+            foreach (var rootPath in Config.m_SourceAtlasRootDir)
             {
                 var tempPath = rootPath.Replace("\\", "/").TrimEnd('/');
                 if (!directoryPath.StartsWith(tempPath + "/"))
@@ -662,7 +662,7 @@ namespace Moirai.Atropos.Editor
 
         private static string GetSingleAtlasName(string spritePath)
         {
-            foreach (var rootPath in Config.sourceAtlasRootDir)
+            foreach (var rootPath in Config.m_SourceAtlasRootDir)
             {
                 var tempPath = rootPath.Replace("\\", "/").TrimEnd('/');
                 if (!spritePath.StartsWith(tempPath + "/"))
@@ -689,20 +689,20 @@ namespace Moirai.Atropos.Editor
         private static bool CheckIsNeedGenerateSingleAtlas(string spritePath)
         {
             // 检查是否是需要排除的路径
-            return !CheckIsExcludeFolder(spritePath)//spritePath.StartsWith(Config.excludeFolder)
-                   && Config.singleAtlasDir.Any(key => spritePath.IndexOf(key, StringComparison.OrdinalIgnoreCase) >= 0);
+            return !CheckIsExcludeFolder(spritePath)//spritePath.StartsWith(Config.m_ExcludeFolder)
+                   && Config.m_SingleAtlasDir.Any(key => spritePath.IndexOf(key, StringComparison.OrdinalIgnoreCase) >= 0);
         }
 
         private static bool CheckIsNeedGenerateRootChildDirAtlas(string spritePath)
         {
             // 检查是否是需要排除的路径
-            return !CheckIsExcludeFolder(spritePath)//spritePath.StartsWith(Config.excludeFolder)
-                   && Config.rootChildAtlasDir.Any(key => spritePath.IndexOf(key, StringComparison.OrdinalIgnoreCase) >= 0);
+            return !CheckIsExcludeFolder(spritePath)//spritePath.StartsWith(Config.m_ExcludeFolder)
+                   && Config.m_RootChildAtlasDir.Any(key => spritePath.IndexOf(key, StringComparison.OrdinalIgnoreCase) >= 0);
         }
 
         private static string GetRootChildDirAtlasName(string spritePath)
         {
-            foreach (var rootPath in Config.rootChildAtlasDir)
+            foreach (var rootPath in Config.m_RootChildAtlasDir)
             {
                 var tempPath = rootPath.Replace("\\", "/").TrimEnd('/');
                 if (spritePath.StartsWith(tempPath))
@@ -724,7 +724,7 @@ namespace Moirai.Atropos.Editor
 
         private static bool CheckIsExcludeFolder(string assetPath)
         {
-            foreach (var rootPath in AtlasConfiguration.Instance.excludeFolder)
+            foreach (var rootPath in AtlasConfiguration.Instance.m_ExcludeFolder)
             {
                 var tempPath = rootPath.Replace("\\", "/").TrimEnd('/');
                 if (assetPath.StartsWith(tempPath + "/"))
