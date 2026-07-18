@@ -224,7 +224,7 @@ namespace Moirai.Atropos.Editor
             config.m_IOSFormat = (TextureImporterFormat)EditorGUILayout.EnumPopup(iosContent, config.m_IOSFormat);
             var webGLContent =
                 new GUIContent(" WebGL 格式", EditorGUIUtility.IconContent("BuildSettings.WebGL.Small").image);
-            config.m_WEBGLFormat = (TextureImporterFormat)EditorGUILayout.EnumPopup(webGLContent, config.m_WEBGLFormat);
+            config.m_WebGLFormat = (TextureImporterFormat)EditorGUILayout.EnumPopup(webGLContent, config.m_WebGLFormat);
             var compressionContent = new GUIContent(" 压缩质量", EditorGUIUtility.IconContent("MeshRenderer Icon").image);
             config.m_CompressionQuality =
                 EditorGUILayout.IntSlider(compressionContent, config.m_CompressionQuality, 0, 100);

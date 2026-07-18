@@ -24,8 +24,7 @@ namespace Moirai.Atropos.Editor
         [SerializeField] internal TextureImporterFormat m_AndroidFormat = TextureImporterFormat.ASTC_6x6;
 
         [SerializeField] internal TextureImporterFormat m_IOSFormat = TextureImporterFormat.ASTC_5x5;
-        // ReSharper disable once InconsistentNaming
-        [SerializeField] internal TextureImporterFormat m_WEBGLFormat = TextureImporterFormat.ASTC_6x6;
+        [SerializeField] internal TextureImporterFormat m_WebGLFormat = TextureImporterFormat.ASTC_6x6;
 
         [Header("PackingSetting")]
         [SerializeField] internal int m_Padding = 2;
