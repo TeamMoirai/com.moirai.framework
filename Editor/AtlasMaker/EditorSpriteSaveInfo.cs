@@ -440,7 +440,7 @@ namespace Moirai.Atropos.Editor
 
             SetPlatform("Android", Config.m_AndroidFormat);
             SetPlatform("iPhone", Config.m_IOSFormat);
-            SetPlatform("WebGL", Config.m_WEBGLFormat);
+            SetPlatform("WebGL", Config.m_WebGLFormat);
 
             var packingSettings = new SpriteAtlasPackingSettings
             {
@@ -496,7 +496,7 @@ namespace Moirai.Atropos.Editor
 
             SetPlatform("Android", Config.m_AndroidFormat);
             SetPlatform("iPhone", Config.m_IOSFormat);
-            SetPlatform("WebGL", Config.m_WEBGLFormat);
+            SetPlatform("WebGL", Config.m_WebGLFormat);
 
             var packingSettings = new SpriteAtlasPackingSettings
             {
