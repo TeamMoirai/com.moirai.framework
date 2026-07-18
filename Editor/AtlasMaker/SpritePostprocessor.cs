@@ -9,25 +9,25 @@ namespace Moirai.Atropos.Editor
 {
     public class SpritePostprocessor : AssetPostprocessor
     {
-        private static List<string> m_resourcesToDelete = new List<string>();
+        private static List<string> s_ResourcesToDelete = new List<string>();
 
         // 文件名缓存：key=小写文件名(不含扩展名), value=完整路径列表
-        private static Dictionary<string, HashSet<string>> s_fileNameCache;
-        private static bool s_cacheInitialized = false;
+        private static Dictionary<string, HashSet<string>> s_FileNameCache;
+        private static bool s_CacheInitialized = false;
 
         /// <summary>
         /// 初始化文件名缓存
         /// </summary>
         private static void EnsureCacheInitialized()
         {
-            if (s_cacheInitialized && s_fileNameCache != null) return;
+            if (s_CacheInitialized && s_FileNameCache != null) return;
 
-            s_fileNameCache = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
+            s_FileNameCache = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
             var config = AtlasConfiguration.Instance;
 
-            var tempRootDirArr = new List<string>(config.sourceAtlasRootDir);
-            tempRootDirArr.AddRange(config.rootChildAtlasDir);
-            tempRootDirArr.AddRange(config.singleAtlasDir);
+            var tempRootDirArr = new List<string>(config.m_SourceAtlasRootDir);
+            tempRootDirArr.AddRange(config.m_RootChildAtlasDir);
+            tempRootDirArr.AddRange(config.m_SingleAtlasDir);
 
             foreach (var rootDir in tempRootDirArr)
             {
@@ -41,16 +41,16 @@ namespace Moirai.Atropos.Editor
                     var fileName = Path.GetFileNameWithoutExtension(file).ToLowerInvariant();
                     var normalizedPath = Path.GetFullPath(file).Replace("\\", "/");
 
-                    if (!s_fileNameCache.TryGetValue(fileName, out var pathSet))
+                    if (!s_FileNameCache.TryGetValue(fileName, out var pathSet))
                     {
                         pathSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                        s_fileNameCache[fileName] = pathSet;
+                        s_FileNameCache[fileName] = pathSet;
                     }
                     pathSet.Add(normalizedPath);
                 }
             }
 
-            s_cacheInitialized = true;
+            s_CacheInitialized = true;
         }
 
         /// <summary>
@@ -58,9 +58,9 @@ namespace Moirai.Atropos.Editor
         /// </summary>
         public static void ResetCache()
         {
-            s_cacheInitialized = false;
-            s_fileNameCache?.Clear();
-            s_fileNameCache = null;
+            s_CacheInitialized = false;
+            s_FileNameCache?.Clear();
+            s_FileNameCache = null;
         }
 
         /// <summary>
@@ -68,17 +68,17 @@ namespace Moirai.Atropos.Editor
         /// </summary>
         private static void RemoveFromCache(string assetPath)
         {
-            if (s_fileNameCache == null) return;
+            if (s_FileNameCache == null) return;
 
             var fileName = Path.GetFileNameWithoutExtension(assetPath).ToLowerInvariant();
             var normalizedPath = Path.GetFullPath(assetPath).Replace("\\", "/");
 
-            if (s_fileNameCache.TryGetValue(fileName, out var pathSet))
+            if (s_FileNameCache.TryGetValue(fileName, out var pathSet))
             {
                 pathSet.Remove(normalizedPath);
                 if (pathSet.Count == 0)
                 {
-                    s_fileNameCache.Remove(fileName);
+                    s_FileNameCache.Remove(fileName);
                 }
             }
         }
@@ -88,15 +88,15 @@ namespace Moirai.Atropos.Editor
         /// </summary>
         private static void AddToCache(string assetPath)
         {
-            if (s_fileNameCache == null) return;
+            if (s_FileNameCache == null) return;
 
             var fileName = Path.GetFileNameWithoutExtension(assetPath).ToLowerInvariant();
             var normalizedPath = Path.GetFullPath(assetPath).Replace("\\", "/");
 
-            if (!s_fileNameCache.TryGetValue(fileName, out var pathSet))
+            if (!s_FileNameCache.TryGetValue(fileName, out var pathSet))
             {
                 pathSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                s_fileNameCache[fileName] = pathSet;
+                s_FileNameCache[fileName] = pathSet;
             }
             pathSet.Add(normalizedPath);
         }
@@ -107,10 +107,10 @@ namespace Moirai.Atropos.Editor
             string[] movedAssets,
             string[] movedFromAssetPaths)
         {
-            m_resourcesToDelete.Clear();
+            s_ResourcesToDelete.Clear();
             var config = AtlasConfiguration.Instance;
 
-            if (!config.autoGenerate) return;
+            if (!config.m_AutoGenerate) return;
 
             // 计算需要处理的资源总数（用于进度显示）
             int totalAssets = (importedAssets?.Length ?? 0) + (deletedAssets?.Length ?? 0) + (movedAssets?.Length ?? 0);
@@ -141,14 +141,14 @@ namespace Moirai.Atropos.Editor
                     EditorUtility.ClearProgressBar();
                 }
 
-                bool isDelete = m_resourcesToDelete.Count > 0;
-                foreach (var res in m_resourcesToDelete)
+                bool isDelete = s_ResourcesToDelete.Count > 0;
+                foreach (var res in s_ResourcesToDelete)
                 {
                     AssetDatabase.DeleteAsset(res);
                 }
                 if (isDelete)
                 {
-                    Debug.LogError($"<color=red>针对 {config.sourceAtlasRootDir} 路径下资源</color>\n<color=red>移除了空格和同名资源，请检查重新合入相关资源</color>");
+                    Debug.LogError($"<color=red>针对 {config.m_SourceAtlasRootDir} 路径下资源</color>\n<color=red>移除了空格和同名资源，请检查重新合入相关资源</color>");
                     AssetDatabase.Refresh();
                 }
             }
@@ -212,18 +212,24 @@ namespace Moirai.Atropos.Editor
                 isChange = true;
             }
 
-            if (AtlasConfiguration.Instance.checkMipmaps)
+            if (AtlasConfiguration.Instance.m_CheckMipmaps)
             {
-                if (AtlasConfiguration.Instance.enableMipmaps && !importer.mipmapEnabled)
+                if (AtlasConfiguration.Instance.m_EnableMipmaps && !importer.mipmapEnabled)
                 {
                     importer.mipmapEnabled = true;
                     isChange = true;
                 }
-                else if (!AtlasConfiguration.Instance.enableMipmaps && importer.mipmapEnabled)
+                else if (!AtlasConfiguration.Instance.m_EnableMipmaps && importer.mipmapEnabled)
                 {
                     importer.mipmapEnabled = false;
                     isChange = true;
                 }
+            }
+
+            if (importer.textureCompression != AtlasConfiguration.Instance.m_TextureCompression)
+            {
+                importer.textureCompression = AtlasConfiguration.Instance.m_TextureCompression;
+                isChange = true;
             }
 
             if (isChange)
@@ -240,7 +246,7 @@ namespace Moirai.Atropos.Editor
 
             if (fileName.Contains(" "))
             {
-                m_resourcesToDelete.Add(assetPath);
+                s_ResourcesToDelete.Add(assetPath);
                 Debug.LogError($"<color=red>发现资源名存在空格: {assetPath}</color>");
                 return true;
             }
@@ -256,7 +262,7 @@ namespace Moirai.Atropos.Editor
             var normalizedCurrentPath = Path.GetFullPath(assetPath).Replace("\\", "/");
 
             // 使用缓存快速查找同名文件
-            if (s_fileNameCache.TryGetValue(currentFileName, out var existingPaths))
+            if (s_FileNameCache.TryGetValue(currentFileName, out var existingPaths))
             {
                 // 收集需要移除的过期路径
                 List<string> pathsToRemove = null;
@@ -272,7 +278,7 @@ namespace Moirai.Atropos.Editor
                     // 确保文件确实存在（防止缓存过期）
                     if (File.Exists(existingPath))
                     {
-                        m_resourcesToDelete.Add(assetPath);
+                        s_ResourcesToDelete.Add(assetPath);
                         Debug.LogError($"<color=red>发现同名资源冲突: 合入资源: {assetPath} 存在资源: {existingPath}</color>");
                         return true;
                     }
@@ -343,7 +349,7 @@ namespace Moirai.Atropos.Editor
 
             if (!IsValidImageFile(assetPath)) return false;
 
-            foreach (var keyword in config.excludeKeywords)
+            foreach (var keyword in config.m_ExcludeKeywords)
             {
                 if (assetPath.IndexOf(keyword, StringComparison.OrdinalIgnoreCase) >= 0)
                     return false;
@@ -354,8 +360,8 @@ namespace Moirai.Atropos.Editor
 
         private static bool CheckIsShowProcessPath(string assetPath)
         {
-            var tempRootDirArr = new List<string>(AtlasConfiguration.Instance.sourceAtlasRootDir);
-            tempRootDirArr.AddRange(AtlasConfiguration.Instance.rootChildAtlasDir);
+            var tempRootDirArr = new List<string>(AtlasConfiguration.Instance.m_SourceAtlasRootDir);
+            tempRootDirArr.AddRange(AtlasConfiguration.Instance.m_RootChildAtlasDir);
             foreach (var rootPath in tempRootDirArr)
             {
                 var tempPath = rootPath.Replace("\\", "/").TrimEnd('/');
@@ -370,7 +376,7 @@ namespace Moirai.Atropos.Editor
 
         private static bool CheckIsExcludeFolder(string assetPath)
         {
-            foreach (var rootPath in AtlasConfiguration.Instance.excludeFolder)
+            foreach (var rootPath in AtlasConfiguration.Instance.m_ExcludeFolder)
             {
                 var tempPath = rootPath.Replace("\\", "/").TrimEnd('/');
                 if (assetPath.StartsWith(tempPath + "/"))
@@ -395,7 +401,7 @@ namespace Moirai.Atropos.Editor
 
         private static void LogProcessed(string operation, string path)
         {
-            if (AtlasConfiguration.Instance.enableLogging)
+            if (AtlasConfiguration.Instance.m_EnableLogging)
             {
                 Debug.Log($"{operation} {Path.GetFileName(path)}\nPath: {path}");
             }
