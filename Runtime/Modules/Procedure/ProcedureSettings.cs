@@ -8,10 +8,12 @@ namespace Moirai.Atropos.Procedure
 {
     // ReSharper disable once InconsistentNaming
     [FrameworkSetting("流程设置", "游戏流程状态机配置", -490)]
-    public sealed class ProcedureSettings : FrameworkSettings<ProcedureSettings>
+    public sealed partial class ProcedureSettings : FrameworkSettings<ProcedureSettings>
     {
+        [HideInInspector]
         [SerializeField] private string[] m_AvailableProcedureTypeNames = null;
         
+        [HideInInspector]
         [SerializeField] private string m_EntranceProcedureTypeName = null;
 
         private IProcedureModule _procedureModule = null;
@@ -103,15 +105,22 @@ namespace Moirai.Atropos.Procedure
 
 #if UNITY_EDITOR
 
+        /// <summary>
+        /// 编辑器侧订阅：设置被重置时刷新 Inspector 缓存状态。
+        /// </summary>
+        internal event Action SettingsReset;
+
         protected internal override void Reset()
         {
             // 设置默认值
             var procedureTypeNames = GetProcedureTypeNames();
             m_AvailableProcedureTypeNames = procedureTypeNames;
             m_EntranceProcedureTypeName = procedureTypeNames.Single(x => x.Contains("ProcedureLaunch"));
+
+            SettingsReset?.Invoke();
         }
 
-        internal static string[] GetProcedureTypeNames()
+        private static string[] GetProcedureTypeNames()
         {
             return AssemblyUtility.GetRuntimeTypes(typeof(ProcedureBase))
                 .Where(t => Attribute.IsDefined(t, typeof(ProcedureLauncherAttribute)))
