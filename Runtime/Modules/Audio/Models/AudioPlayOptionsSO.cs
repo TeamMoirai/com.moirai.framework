@@ -20,7 +20,7 @@ namespace Moirai.Atropos.Audio
 
 		// 指定音频
 		[Header("音频 [Audio]")]
-		[InspectorGroup(AUDIO_CLIP_GROUP, 130)]
+		[InspectorGroup(AUDIO_CLIP_GROUP, ColorsUtility.EColor.Teal)]
 		[Tooltip("要播放的音频")]
 		[SerializeField] private AudioClip m_Audio;
 		public AudioClip Audio => m_Audio;
@@ -57,7 +57,7 @@ namespace Moirai.Atropos.Audio
 
 		// 音量
 		[Header("音量 [Volume]")]
-		[InspectorGroup(AUDIO_PROPERTIES_GROUP, 15)]
+		[InspectorGroup(AUDIO_PROPERTIES_GROUP, ColorsUtility.EColor.Chocolate)]
 		[Tooltip("播放音频的最小音量")]
 		[Range(0f, 2f)]
 		[SerializeField] private float m_MinVolume = 1f;
