@@ -55,7 +55,7 @@ namespace Moirai.Atropos.Audio
         IAudioModule _target;
 
         private TrackStruct[] _tracks;
-        private readonly Color[] _colorBases = new []{ ColorsUtility.ReunoYellow, ColorsUtility.Coral, ColorsUtility.SteelBlue, ColorsUtility.Aquamarine, ColorsUtility.Burlywood };
+        private readonly Color[] _colorBases = new []{ ColorsUtility.YellowAmber, ColorsUtility.Coral, ColorsUtility.SteelBlue, ColorsUtility.Aquamarine, ColorsUtility.Burlywood };
 
         private readonly Color _baseColor = new Color32(150, 150, 150, 255);
         private readonly ColorExtensions.ColoringMode _coloringMode = ColorExtensions.ColoringMode.Add;
