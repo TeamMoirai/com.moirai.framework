@@ -48,7 +48,7 @@ namespace Moirai.Atropos
             ScriptableObject curveAsset = ScriptableObject.CreateInstance(_scriptableObjectType);
             
             // 对于每种类型的曲线，都会创建一个动画曲线
-            foreach (EEaseType curve in Enum.GetValues(typeof(EEaseType)))
+            foreach (TweenUtility.EEase curve in Enum.GetValues(typeof(TweenUtility.EEase)))
             {
                 CreateAnimationCurve(curveAsset, curve, Resolution, GenerateAntiCurves);
             }
@@ -68,7 +68,7 @@ namespace Moirai.Atropos
         /// <param name="curveType"></param>
         /// <param name="curveResolution"></param>
         /// <param name="anti"></param>
-        protected virtual void CreateAnimationCurve(ScriptableObject asset, EEaseType curveType, int curveResolution, bool anti)
+        protected virtual void CreateAnimationCurve(ScriptableObject asset, TweenUtility.EEase curveType, int curveResolution, bool anti)
         {
             // 生成动画曲线
             AnimationCurve animationCurve = new AnimationCurve();

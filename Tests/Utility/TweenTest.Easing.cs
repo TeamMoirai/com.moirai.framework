@@ -1,13 +1,13 @@
 ﻿using UnityEngine;
 
-namespace Moirai.Atropos
+namespace Utility
 {
     /// <summary>
     /// 这里的公式基于罗伯特·彭纳（Robert Penner）的缓动方程
     /// http://robertpenner.com/easing/
     /// </summary>
     /// <remarks>未优化版本，仅作实现参考</remarks>
-    public static class Easing
+    public partial class TweenEaseTest
     {
         // Linear       ---------------------------------------------------------------------------------------------------------------------------
 

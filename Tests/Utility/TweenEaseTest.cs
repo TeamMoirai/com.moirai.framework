@@ -5,12 +5,12 @@ using UnityEngine.TestTools;
 
 namespace Utility
 {
-    public class TweenTest
+    public partial class TweenEaseTest
     {
         [UnityTest]
         public IEnumerator Test_AnimationCurve()
         {
-            var curve = new Tween(new AnimationCurve(new Keyframe(0, 0), new Keyframe(0.3f, 1.5f), new Keyframe(1, 0)));
+            var curve = new TweenEase(new AnimationCurve(new Keyframe(0, 0), new Keyframe(0.3f, 1.5f), new Keyframe(1, 0)));
             float duration = 0.1f;
             
             for (int i = 0; i < 100; i++)
@@ -32,7 +32,7 @@ namespace Utility
         [UnityTest]
         public IEnumerator Test_Ease()
         {
-            var curve = new Tween();
+            var curve = new TweenEase();
             float duration = 0.1f;
             
             for (int i = 0; i < 100; i++)
@@ -61,9 +61,9 @@ namespace Utility
             {
                 float percent = Mathf.Clamp01(journey / duration);
 
-                Debug.Log($"InQuadratic[{percent}]： {EaseUtility.InQuadratic(percent) - Easing.In_Quadratic(percent)}");
-                Debug.Log($"OutQuadratic[{percent}]： {EaseUtility.OutQuadratic(percent) - Easing.Out_Quadratic(percent)}");
-                Debug.Log($"InOutQuadratic[{percent}]： {EaseUtility.InOutQuadratic(percent) - Easing.InOut_Quadratic(percent)}");
+                Debug.Log($"InQuadratic[{percent}]： {EaseUtility.InQuadratic(percent) - In_Quadratic(percent)}");
+                Debug.Log($"OutQuadratic[{percent}]： {EaseUtility.OutQuadratic(percent) - Out_Quadratic(percent)}");
+                Debug.Log($"InOutQuadratic[{percent}]： {EaseUtility.InOutQuadratic(percent) - InOut_Quadratic(percent)}");
                     
                 journey += Time.deltaTime;
                 yield return null;
@@ -80,9 +80,9 @@ namespace Utility
             {
                 float percent = Mathf.Clamp01(journey / duration);
 
-                Debug.Log($"InCubic[{percent}]： {EaseUtility.InCubic(percent) - Easing.In_Cubic(percent)}");
-                Debug.Log($"OutCubic[{percent}]： {EaseUtility.OutCubic(percent) - Easing.Out_Cubic(percent)}");
-                Debug.Log($"InOutCubic[{percent}]： {EaseUtility.InOutCubic(percent) - Easing.InOut_Cubic(percent)}");
+                Debug.Log($"InCubic[{percent}]： {EaseUtility.InCubic(percent) - In_Cubic(percent)}");
+                Debug.Log($"OutCubic[{percent}]： {EaseUtility.OutCubic(percent) - Out_Cubic(percent)}");
+                Debug.Log($"InOutCubic[{percent}]： {EaseUtility.InOutCubic(percent) - InOut_Cubic(percent)}");
                     
                 journey += Time.deltaTime;
                 yield return null;
@@ -99,9 +99,9 @@ namespace Utility
             {
                 float percent = Mathf.Clamp01(journey / duration);
 
-                Debug.Log($"InQuartic[{percent}]： {EaseUtility.InQuartic(percent) - Easing.In_Quartic(percent)}");
-                Debug.Log($"OutQuartic[{percent}]： {EaseUtility.OutQuartic(percent) - Easing.Out_Quartic(percent)}");
-                Debug.Log($"InOutQuartic[{percent}]： {EaseUtility.InOutQuartic(percent) - Easing.InOut_Quartic(percent)}");
+                Debug.Log($"InQuartic[{percent}]： {EaseUtility.InQuartic(percent) - In_Quartic(percent)}");
+                Debug.Log($"OutQuartic[{percent}]： {EaseUtility.OutQuartic(percent) - Out_Quartic(percent)}");
+                Debug.Log($"InOutQuartic[{percent}]： {EaseUtility.InOutQuartic(percent) - InOut_Quartic(percent)}");
                     
                 journey += Time.deltaTime;
                 yield return null;
@@ -119,9 +119,9 @@ namespace Utility
             {
                 float percent = Mathf.Clamp01(journey / duration);
 
-                Debug.Log($"InQuintic[{percent}]： {EaseUtility.InQuintic(percent) - Easing.In_Quintic(percent)}");
-                Debug.Log($"OutQuintic[{percent}]： {EaseUtility.OutQuintic(percent) - Easing.Out_Quintic(percent)}");
-                Debug.Log($"InOutQuintic[{percent}]： {EaseUtility.InQuintic(percent) - Easing.InOut_Quintic(percent)}");
+                Debug.Log($"InQuintic[{percent}]： {EaseUtility.InQuintic(percent) - In_Quintic(percent)}");
+                Debug.Log($"OutQuintic[{percent}]： {EaseUtility.OutQuintic(percent) - Out_Quintic(percent)}");
+                Debug.Log($"InOutQuintic[{percent}]： {EaseUtility.InQuintic(percent) - InOut_Quintic(percent)}");
                     
                 journey += Time.deltaTime;
                 yield return null;
@@ -138,9 +138,9 @@ namespace Utility
             {
                 float percent = Mathf.Clamp01(journey / duration);
 
-                Debug.Log($"InSinusoidal[{percent}]： {EaseUtility.InSinusoidal(percent) - Easing.In_Sinusoidal(percent)}");
-                Debug.Log($"OutSinusoidal[{percent}]： {EaseUtility.OutSinusoidal(percent) - Easing.Out_Sinusoidal(percent)}");
-                Debug.Log($"InOutSinusoidal[{percent}]： {EaseUtility.InOutSinusoidal(percent) - Easing.InOut_Sinusoidal(percent)}");
+                Debug.Log($"InSinusoidal[{percent}]： {EaseUtility.InSinusoidal(percent) - In_Sinusoidal(percent)}");
+                Debug.Log($"OutSinusoidal[{percent}]： {EaseUtility.OutSinusoidal(percent) - Out_Sinusoidal(percent)}");
+                Debug.Log($"InOutSinusoidal[{percent}]： {EaseUtility.InOutSinusoidal(percent) - InOut_Sinusoidal(percent)}");
                     
                 journey += Time.deltaTime;
                 yield return null;
@@ -157,9 +157,9 @@ namespace Utility
             {
                 float percent = Mathf.Clamp01(journey / duration);
 
-                Debug.Log($"InBounce[{percent}]： {EaseUtility.InBounce(percent) - Easing.In_Bounce(percent)}");
-                Debug.Log($"OutBounce[{percent}]： {EaseUtility.OutBounce(percent) - Easing.Out_Bounce(percent)}");
-                Debug.Log($"InOutBounce[{percent}]： {EaseUtility.InOutBounce(percent) - Easing.InOut_Bounce(percent)}");
+                Debug.Log($"InBounce[{percent}]： {EaseUtility.InBounce(percent) - In_Bounce(percent)}");
+                Debug.Log($"OutBounce[{percent}]： {EaseUtility.OutBounce(percent) - Out_Bounce(percent)}");
+                Debug.Log($"InOutBounce[{percent}]： {EaseUtility.InOutBounce(percent) - InOut_Bounce(percent)}");
                     
                 journey += Time.deltaTime;
                 yield return null;
@@ -176,9 +176,9 @@ namespace Utility
             {
                 float percent = Mathf.Clamp01(journey / duration);
 
-                Debug.Log($"InBack[{percent}]： {EaseUtility.InBack(percent) - Easing.In_Overhead(percent)}");
-                Debug.Log($"OutBack[{percent}]： {EaseUtility.OutBack(percent) - Easing.Out_Overhead(percent)}");
-                Debug.Log($"InOutBack[{percent}]： {EaseUtility.InOutBack(percent) - Easing.InOut_Overhead(percent)}");
+                Debug.Log($"InBack[{percent}]： {EaseUtility.InBack(percent) - In_Overhead(percent)}");
+                Debug.Log($"OutBack[{percent}]： {EaseUtility.OutBack(percent) - Out_Overhead(percent)}");
+                Debug.Log($"InOutBack[{percent}]： {EaseUtility.InOutBack(percent) - InOut_Overhead(percent)}");
                     
                 journey += Time.deltaTime;
                 yield return null;
@@ -195,9 +195,9 @@ namespace Utility
             {
                 float percent = Mathf.Clamp01(journey / duration);
 
-                Debug.Log($"InExponential[{percent}]： {EaseUtility.InExponential(percent) - Easing.In_Exponential(percent)}");
-                Debug.Log($"OutExponential[{percent}]： {EaseUtility.OutExponential(percent) - Easing.Out_Exponential(percent)}");
-                Debug.Log($"InOutExponential[{percent}]： {EaseUtility.InOutExponential(percent) - Easing.InOut_Exponential(percent)}");
+                Debug.Log($"InExponential[{percent}]： {EaseUtility.InExponential(percent) - In_Exponential(percent)}");
+                Debug.Log($"OutExponential[{percent}]： {EaseUtility.OutExponential(percent) - Out_Exponential(percent)}");
+                Debug.Log($"InOutExponential[{percent}]： {EaseUtility.InOutExponential(percent) - InOut_Exponential(percent)}");
                     
                 journey += Time.deltaTime;
                 yield return null;
@@ -214,9 +214,9 @@ namespace Utility
             {
                 float percent = Mathf.Clamp01(journey / duration);
 
-                Debug.Log($"InElastic [{percent}]： {EaseUtility.InElastic(percent) - Easing.In_Elastic(percent)}");
-                Debug.Log($"OutElastic [{percent}]： {EaseUtility.OutElastic(percent) - Easing.Out_Elastic(percent)}");
-                Debug.Log($"InOutElastic [{percent}]： {EaseUtility.InOutElastic(percent) - Easing.InOut_Elastic(percent)}");
+                Debug.Log($"InElastic [{percent}]： {EaseUtility.InElastic(percent) - In_Elastic(percent)}");
+                Debug.Log($"OutElastic [{percent}]： {EaseUtility.OutElastic(percent) - Out_Elastic(percent)}");
+                Debug.Log($"InOutElastic [{percent}]： {EaseUtility.InOutElastic(percent) - InOut_Elastic(percent)}");
                     
                 journey += Time.deltaTime;
                 yield return null;
@@ -233,9 +233,9 @@ namespace Utility
             {
                 float percent = Mathf.Clamp01(journey / duration);
 
-                Debug.Log($"InCircular [{percent}]： {EaseUtility.InCircular(percent) - Easing.In_Circular(percent)}");
-                Debug.Log($"OutCircular [{percent}]： {EaseUtility.OutCircular(percent) - Easing.Out_Circular(percent)}");
-                Debug.Log($"InOutCircular [{percent}]： {EaseUtility.InOutCircular(percent) - Easing.InOut_Circular(percent)}");
+                Debug.Log($"InCircular [{percent}]： {EaseUtility.InCircular(percent) - In_Circular(percent)}");
+                Debug.Log($"OutCircular [{percent}]： {EaseUtility.OutCircular(percent) - Out_Circular(percent)}");
+                Debug.Log($"InOutCircular [{percent}]： {EaseUtility.InOutCircular(percent) - InOut_Circular(percent)}");
                     
                 journey += Time.deltaTime;
                 yield return null;
