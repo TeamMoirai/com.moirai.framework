@@ -32,22 +32,22 @@ namespace Moirai.Atropos.Audio
         /// <summary>
         /// 淡出这个音频的补间动画曲线
         /// </summary>
-        public Tween FadeTween { get; private set; }
+        public TweenEase FadeTweenEase { get; private set; }
         
-        private static AudioFadeEvent GetPooled(AudioFadeEventMode mode, int soundID, float fadeDuration, float finalVolume, Tween fadeTween)
+        private static AudioFadeEvent GetPooled(AudioFadeEventMode mode, int soundID, float fadeDuration, float finalVolume, TweenEase fadeTweenEase)
         {
             var evt = GetPooled();
             evt.Mode = mode;
             evt.SoundID = soundID;
             evt.FadeDuration = fadeDuration;
             evt.FinalVolume = finalVolume;
-            evt.FadeTween = fadeTween;
+            evt.FadeTweenEase = fadeTweenEase;
             return evt;
         }
 
-        public static void Trigger(AudioFadeEventMode mode, int soundID, float fadeDuration, float finalVolume, Tween fadeTween)
+        public static void Trigger(AudioFadeEventMode mode, int soundID, float fadeDuration, float finalVolume, TweenEase fadeTweenEase)
         {
-            using var evt = GetPooled(mode, soundID, fadeDuration, finalVolume, fadeTween);
+            using var evt = GetPooled(mode, soundID, fadeDuration, finalVolume, fadeTweenEase);
             EventManager.SendEvent(evt);
         }
     }

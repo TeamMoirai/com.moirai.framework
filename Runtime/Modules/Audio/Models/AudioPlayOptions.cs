@@ -2,6 +2,7 @@
 using Sirenix.OdinInspector;
 using UnityEngine;
 using UnityEngine.Audio;
+using UnityEngine.Serialization;
 
 namespace Moirai.Atropos.Audio
 {
@@ -85,10 +86,11 @@ namespace Moirai.Atropos.Audio
         [ShowIf(nameof(m_FadeInOnPlay))]
         [SerializeField] private float m_FadeInDuration;
         public float FadeInDuration { get => m_FadeInDuration; internal set => m_FadeInDuration = value; }
+        [FormerlySerializedAs("m_FadeInTween")]
         [Tooltip("音频淡入的补间动画")]
         [ShowIf(nameof(m_FadeInOnPlay))]
-        [SerializeField] private Tween m_FadeInTween;
-        public Tween FadeInTween { get => m_FadeInTween; internal set => m_FadeInTween = value; }
+        [SerializeField] private TweenEase m_FadeInTweenEase;
+        public TweenEase FadeInTweenEase { get => m_FadeInTweenEase; internal set => m_FadeInTweenEase = value; }
 
         // 独奏
         [Header("独奏 [Solo]")]
@@ -236,7 +238,7 @@ namespace Moirai.Atropos.Audio
             m_FadeInOnPlay = false,
             m_FadeInInitialVolume = 0f,
             m_FadeInDuration = 1f,
-            m_FadeInTween = new Tween(EEaseType.InOutQuart),
+            m_FadeInTweenEase = new TweenEase(TweenUtility.EEase.InOutQuart),
 
             m_SoloSingleTrack = false,
             m_SoloAllTracks = false,

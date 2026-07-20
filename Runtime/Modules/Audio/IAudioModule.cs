@@ -131,7 +131,7 @@ namespace Moirai.Atropos.Audio
         /// <param name="fade">播放音频时是否淡入</param>
         /// <param name="fadeInitialVolume">音频淡入之前的初始音量</param>
         /// <param name="fadeDuration">音频淡入的持续时间（以秒为单位）</param>
-        /// <param name="fadeTween">音频淡入的补间动画</param>
+        /// <param name="fadeTweenEase">音频淡入的补间动画</param>
         /// <param name="persistent">音频是否应该在场景转换中持续存在</param>
         /// <param name="recycleAudioSource">如果不想从音频系统的音频池中选择，则使用此处的 AudioSource</param>
         /// <param name="audioGroup">如果不想在任意预设音轨上播放，则在此音频组上播放音频</param>
@@ -166,7 +166,7 @@ namespace Moirai.Atropos.Audio
         /// <param name="initialDelay"></param>
         public AudioAgent Play(AudioClip clip, AudioTrack track, Vector3 location,
             bool loop = false, float volume = 1.0f, int id = 0,
-            bool fade = false, float fadeInitialVolume = 0f, float fadeDuration = 1f, Tween fadeTween = null,
+            bool fade = false, float fadeInitialVolume = 0f, float fadeDuration = 1f, TweenEase fadeTweenEase = default,
             bool persistent = false,
             AudioSource recycleAudioSource = null, AudioMixerGroup audioGroup = null,
             float pitch = 1f, float panStereo = 0f, float spatialBlend = 0.0f,  
@@ -205,7 +205,7 @@ namespace Moirai.Atropos.Audio
         /// <param name="fade">播放音频时是否淡入</param>
         /// <param name="fadeInitialVolume">音频淡入之前的初始音量</param>
         /// <param name="fadeDuration">音频淡入的持续时间（以秒为单位）</param>
-        /// <param name="fadeTween">音频淡入的补间动画</param>
+        /// <param name="fadeTweenEase">音频淡入的补间动画</param>
         /// <param name="persistent">音频是否应该在场景转换中持续存在</param>
         /// <param name="recycleAudioSource">如果不想从音频系统的音频池中选择，则使用此处的 AudioSource</param>
         /// <param name="audioGroup">如果不想在任意预设音轨上播放，则在此音频组上播放音频</param>
@@ -240,7 +240,7 @@ namespace Moirai.Atropos.Audio
         /// <param name="initialDelay"></param>
         public AudioAgent Play(string path, AudioTrack track, Vector3 location, bool bAsync = false, bool bInPool = false,
             bool loop = false, float volume = 1.0f, int id = 0,
-            bool fade = false, float fadeInitialVolume = 0f, float fadeDuration = 1f, Tween fadeTween = null,
+            bool fade = false, float fadeInitialVolume = 0f, float fadeDuration = 1f, TweenEase fadeTweenEase = default,
             bool persistent = false,
             AudioSource recycleAudioSource = null, AudioMixerGroup audioGroup = null,
             float pitch = 1f, float panStereo = 0f, float spatialBlend = 0.0f,  
@@ -372,8 +372,8 @@ namespace Moirai.Atropos.Audio
         /// <param name="duration"></param>
         /// <param name="initialVolume"></param>
         /// <param name="finalVolume"></param>
-        /// <param name="tween"></param>
-        public void FadeMasterTrack(float duration, float initialVolume = 0f, float finalVolume = 1f, Tween tween = null);
+        /// <param name="tweenEase"></param>
+        public void FadeMasterTrack(float duration, float initialVolume = 0f, float finalVolume = 1f, TweenEase tweenEase = default);
 
         /// <summary>
         /// 停止 Master 音轨上所有当前的淡化（Fade）
@@ -387,8 +387,8 @@ namespace Moirai.Atropos.Audio
         /// <param name="duration"></param>
         /// <param name="initialVolume"></param>
         /// <param name="finalVolume"></param>
-        /// <param name="tween"></param>
-        public void FadeTrack(AudioTrack track, float duration, float initialVolume = 0f, float finalVolume = 1f, Tween tween = null);
+        /// <param name="tweenEase"></param>
+        public void FadeTrack(AudioTrack track, float duration, float initialVolume = 0f, float finalVolume = 1f, TweenEase tweenEase = default);
 
         /// <summary>
         /// 停止指定音轨上所有当前的淡化（Fade）
@@ -403,8 +403,8 @@ namespace Moirai.Atropos.Audio
         /// <param name="duration"></param>
         /// <param name="initialVolume"></param>
         /// <param name="finalVolume"></param>
-        /// <param name="tween"></param>
-        public void FadeAudio(AudioSource source, float duration, float initialVolume, float finalVolume, Tween tween);
+        /// <param name="tweenEase"></param>
+        public void FadeAudio(AudioSource source, float duration, float initialVolume, float finalVolume, TweenEase tweenEase);
 
         /// <summary>
         /// 停止指定音频源上所有当前的淡化（Fade）
