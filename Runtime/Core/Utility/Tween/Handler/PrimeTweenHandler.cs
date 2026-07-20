@@ -21,7 +21,7 @@ namespace Moirai.Atropos
         [SerializeField] private bool m_WarnEndValueEqualsCurrent;
 
         // 缓存Tween的字典，键为Tween的ID，值为Tween对象
-        private static readonly Dictionary<long, PrimeTween.Tween> s_CacheTweenDic = new Dictionary<long, PrimeTween.Tween>();
+        private static readonly Dictionary<long, Tween> s_CacheTweenDic = new Dictionary<long, Tween>();
 
         // 临时列表，用于存储需要释放的Tween的ID
         private static readonly List<long> s_TempList = new List<long>();
@@ -34,7 +34,7 @@ namespace Moirai.Atropos
         /// 缓存Tween对象。
         /// </summary>
         /// <param name="tween">需要缓存的Tween对象。</param>
-        private void CacheTween(PrimeTween.Tween tween)
+        private void CacheTween(Tween tween)
         {
             if (tween.Id <= 0)
             {
@@ -49,7 +49,7 @@ namespace Moirai.Atropos
         /// </summary>
         /// <param name="tweenId">Tween的ID。</param>
         /// <returns>对应的Tween对象，如果不存在则返回null。</returns>
-        public static PrimeTween.Tween GetTween(long tweenId)
+        public static Tween GetTween(long tweenId)
         {
             return s_CacheTweenDic.GetValueOrDefault(tweenId);
         }
@@ -109,7 +109,7 @@ namespace Moirai.Atropos
 
         public override int GetTweenCount(object onTarget)
         {
-            return PrimeTween.Tween.GetTweensCount(onTarget);
+            return Tween.GetTweensCount(onTarget);
         }
 
         public override bool IsAlive(long tweenId)
@@ -140,12 +140,12 @@ namespace Moirai.Atropos
 
         public override int StopAll(object onTarget = null)
         {
-            return PrimeTween.Tween.StopAll(onTarget);
+            return Tween.StopAll(onTarget);
         }
 
         public override int CompleteAll(object onTarget = null)
         {
-            return PrimeTween.Tween.CompleteAll(onTarget);
+            return Tween.CompleteAll(onTarget);
         }
         
         #endregion
@@ -154,14 +154,14 @@ namespace Moirai.Atropos
 
         public override long Delay(float duration, Action onComplete = null, bool useUnscaledTime = false, bool warnIfTargetDestroyed = true)
         {
-            PrimeTween.Tween tween = PrimeTween.Tween.Delay(duration, onComplete, useUnscaledTime, warnIfTargetDestroyed);
+            Tween tween = Tween.Delay(duration, onComplete, useUnscaledTime, warnIfTargetDestroyed);
             CacheTween(tween);
             return tween.Id;
         }
 
         public override long Delay(object target, float duration, Action onComplete = null, bool useUnscaledTime = false, bool warnIfTargetDestroyed = true)
         {
-            PrimeTween.Tween tween = PrimeTween.Tween.Delay(target, duration, onComplete, useUnscaledTime, warnIfTargetDestroyed);
+            Tween tween = Tween.Delay(target, duration, onComplete, useUnscaledTime, warnIfTargetDestroyed);
             CacheTween(tween);
             return tween.Id;
         }
@@ -170,18 +170,18 @@ namespace Moirai.Atropos
 
         #region Transform 补间 — LocalRotation (Vector3)
 
-        public override long LocalRotation(Transform target, Vector3 endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long LocalRotation(Transform target, Vector3 endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            PrimeTween.Tween tween = PrimeTween.Tween.LocalRotation(target, endValue, duration, GetEase(ease), cycles, GetCycleMode(cycleMode), startDelay, 0, useUnscaledTime);
+            Tween tween = Tween.LocalRotation(target, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
             CacheTween(tween);
             return tween.Id;
         }
 
-        public override long LocalRotation(Transform target, Vector3 startValue, Vector3 endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long LocalRotation(Transform target, Vector3 startValue, Vector3 endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            PrimeTween.Tween tween = PrimeTween.Tween.LocalRotation(target, startValue, endValue, duration, GetEase(ease), cycles, GetCycleMode(cycleMode), startDelay, 0, useUnscaledTime);
+            Tween tween = Tween.LocalRotation(target, startValue, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
             CacheTween(tween);
             return tween.Id;
         }
@@ -190,18 +190,18 @@ namespace Moirai.Atropos
 
         #region Transform 补间 — Scale (float)
 
-        public override long Scale(Transform target, float endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long Scale(Transform target, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            PrimeTween.Tween tween = PrimeTween.Tween.Scale(target, endValue, duration, GetEase(ease), cycles, GetCycleMode(cycleMode), startDelay, 0, useUnscaledTime);
+            Tween tween = Tween.Scale(target, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
             CacheTween(tween);
             return tween.Id;
         }
 
-        public override long Scale(Transform target, float startValue, float endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long Scale(Transform target, float startValue, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            PrimeTween.Tween tween = PrimeTween.Tween.Scale(target, startValue, endValue, duration, GetEase(ease), cycles, GetCycleMode(cycleMode), startDelay, 0, useUnscaledTime);
+            Tween tween = Tween.Scale(target, startValue, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
             CacheTween(tween);
             return tween.Id;
         }
@@ -210,18 +210,18 @@ namespace Moirai.Atropos
 
         #region Transform 补间 — Rotation (Vector3)
 
-        public override long Rotation(Transform target, Vector3 endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long Rotation(Transform target, Vector3 endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            PrimeTween.Tween tween = PrimeTween.Tween.Rotation(target, endValue, duration, GetEase(ease), cycles, GetCycleMode(cycleMode), startDelay, 0, useUnscaledTime);
+            Tween tween = Tween.Rotation(target, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
             CacheTween(tween);
             return tween.Id;
         }
 
-        public override long Rotation(Transform target, Vector3 startValue, Vector3 endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long Rotation(Transform target, Vector3 startValue, Vector3 endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            PrimeTween.Tween tween = PrimeTween.Tween.Rotation(target, startValue, endValue, duration, GetEase(ease), cycles, GetCycleMode(cycleMode), startDelay, 0, useUnscaledTime);
+            Tween tween = Tween.Rotation(target, startValue, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
             CacheTween(tween);
             return tween.Id;
         }
@@ -230,18 +230,18 @@ namespace Moirai.Atropos
 
         #region Transform 补间 — Position
 
-        public override long Position(Transform target, Vector3 endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long Position(Transform target, Vector3 endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            PrimeTween.Tween tween = PrimeTween.Tween.Position(target, endValue, duration, GetEase(ease), cycles, GetCycleMode(cycleMode), startDelay, 0, useUnscaledTime);
+            Tween tween = Tween.Position(target, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
             CacheTween(tween);
             return tween.Id;
         }
 
-        public override long Position(Transform target, Vector3 startValue, Vector3 endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long Position(Transform target, Vector3 startValue, Vector3 endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            PrimeTween.Tween tween = PrimeTween.Tween.Position(target, startValue, endValue, duration, GetEase(ease), cycles, GetCycleMode(cycleMode), startDelay, 0, useUnscaledTime);
+            Tween tween = Tween.Position(target, startValue, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
             CacheTween(tween);
             return tween.Id;
         }
@@ -250,50 +250,50 @@ namespace Moirai.Atropos
 
         #region Transform 补间 — PositionX / Y / Z
 
-        public override long PositionX(Transform target, float endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long PositionX(Transform target, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            PrimeTween.Tween tween = PrimeTween.Tween.PositionX(target, endValue, duration, GetEase(ease), cycles, GetCycleMode(cycleMode), startDelay, 0, useUnscaledTime);
+            Tween tween = Tween.PositionX(target, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
             CacheTween(tween);
             return tween.Id;
         }
 
-        public override long PositionX(Transform target, float startValue, float endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long PositionX(Transform target, float startValue, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            PrimeTween.Tween tween = PrimeTween.Tween.PositionX(target, startValue, endValue, duration, GetEase(ease), cycles, GetCycleMode(cycleMode), startDelay, 0, useUnscaledTime);
+            Tween tween = Tween.PositionX(target, startValue, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
             CacheTween(tween);
             return tween.Id;
         }
 
-        public override long PositionY(Transform target, float endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long PositionY(Transform target, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            PrimeTween.Tween tween = PrimeTween.Tween.PositionY(target, endValue, duration, GetEase(ease), cycles, GetCycleMode(cycleMode), startDelay, 0, useUnscaledTime);
+            Tween tween = Tween.PositionY(target, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
             CacheTween(tween);
             return tween.Id;
         }
 
-        public override long PositionY(Transform target, float startValue, float endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long PositionY(Transform target, float startValue, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            PrimeTween.Tween tween = PrimeTween.Tween.PositionY(target, startValue, endValue, duration, GetEase(ease), cycles, GetCycleMode(cycleMode), startDelay, 0, useUnscaledTime);
+            Tween tween = Tween.PositionY(target, startValue, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
             CacheTween(tween);
             return tween.Id;
         }
 
-        public override long PositionZ(Transform target, float endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long PositionZ(Transform target, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            PrimeTween.Tween tween = PrimeTween.Tween.PositionZ(target, endValue, duration, GetEase(ease), cycles, GetCycleMode(cycleMode), startDelay, 0, useUnscaledTime);
+            Tween tween = Tween.PositionZ(target, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
             CacheTween(tween);
             return tween.Id;
         }
 
-        public override long PositionZ(Transform target, float startValue, float endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long PositionZ(Transform target, float startValue, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            PrimeTween.Tween tween = PrimeTween.Tween.PositionZ(target, startValue, endValue, duration, GetEase(ease), cycles, GetCycleMode(cycleMode), startDelay, 0, useUnscaledTime);
+            Tween tween = Tween.PositionZ(target, startValue, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
             CacheTween(tween);
             return tween.Id;
         }
@@ -302,18 +302,18 @@ namespace Moirai.Atropos
 
         #region Transform 补间 — LocalPosition
 
-        public override long LocalPosition(Transform target, Vector3 endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long LocalPosition(Transform target, Vector3 endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            PrimeTween.Tween tween = PrimeTween.Tween.LocalPosition(target, endValue, duration, GetEase(ease), cycles, GetCycleMode(cycleMode), startDelay, 0, useUnscaledTime);
+            Tween tween = Tween.LocalPosition(target, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
             CacheTween(tween);
             return tween.Id;
         }
 
-        public override long LocalPosition(Transform target, Vector3 startValue, Vector3 endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long LocalPosition(Transform target, Vector3 startValue, Vector3 endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            PrimeTween.Tween tween = PrimeTween.Tween.LocalPosition(target, startValue, endValue, duration, GetEase(ease), cycles, GetCycleMode(cycleMode), startDelay, 0, useUnscaledTime);
+            Tween tween = Tween.LocalPosition(target, startValue, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
             CacheTween(tween);
             return tween.Id;
         }
@@ -322,50 +322,50 @@ namespace Moirai.Atropos
 
         #region Transform 补间 — LocalPositionX / Y / Z
 
-        public override long LocalPositionX(Transform target, float endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long LocalPositionX(Transform target, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            PrimeTween.Tween tween = PrimeTween.Tween.LocalPositionX(target, endValue, duration, GetEase(ease), cycles, GetCycleMode(cycleMode), startDelay, 0, useUnscaledTime);
+            Tween tween = Tween.LocalPositionX(target, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
             CacheTween(tween);
             return tween.Id;
         }
 
-        public override long LocalPositionX(Transform target, float startValue, float endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long LocalPositionX(Transform target, float startValue, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            PrimeTween.Tween tween = PrimeTween.Tween.LocalPositionX(target, startValue, endValue, duration, GetEase(ease), cycles, GetCycleMode(cycleMode), startDelay, 0, useUnscaledTime);
+            Tween tween = Tween.LocalPositionX(target, startValue, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
             CacheTween(tween);
             return tween.Id;
         }
 
-        public override long LocalPositionY(Transform target, float endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long LocalPositionY(Transform target, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            PrimeTween.Tween tween = PrimeTween.Tween.LocalPositionY(target, endValue, duration, GetEase(ease), cycles, GetCycleMode(cycleMode), startDelay, 0, useUnscaledTime);
+            Tween tween = Tween.LocalPositionY(target, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
             CacheTween(tween);
             return tween.Id;
         }
 
-        public override long LocalPositionY(Transform target, float startValue, float endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long LocalPositionY(Transform target, float startValue, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            PrimeTween.Tween tween = PrimeTween.Tween.LocalPositionY(target, startValue, endValue, duration, GetEase(ease), cycles, GetCycleMode(cycleMode), startDelay, 0, useUnscaledTime);
+            Tween tween = Tween.LocalPositionY(target, startValue, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
             CacheTween(tween);
             return tween.Id;
         }
 
-        public override long LocalPositionZ(Transform target, float endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long LocalPositionZ(Transform target, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            PrimeTween.Tween tween = PrimeTween.Tween.LocalPositionZ(target, endValue, duration, GetEase(ease), cycles, GetCycleMode(cycleMode), startDelay, 0, useUnscaledTime);
+            Tween tween = Tween.LocalPositionZ(target, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
             CacheTween(tween);
             return tween.Id;
         }
 
-        public override long LocalPositionZ(Transform target, float startValue, float endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long LocalPositionZ(Transform target, float startValue, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            PrimeTween.Tween tween = PrimeTween.Tween.LocalPositionZ(target, startValue, endValue, duration, GetEase(ease), cycles, GetCycleMode(cycleMode), startDelay, 0, useUnscaledTime);
+            Tween tween = Tween.LocalPositionZ(target, startValue, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
             CacheTween(tween);
             return tween.Id;
         }
@@ -374,18 +374,18 @@ namespace Moirai.Atropos
 
         #region Transform 补间 — Rotation (Quaternion)
 
-        public override long Rotation(Transform target, Quaternion endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long Rotation(Transform target, Quaternion endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            PrimeTween.Tween tween = PrimeTween.Tween.Rotation(target, endValue, duration, GetEase(ease), cycles, GetCycleMode(cycleMode), startDelay, 0, useUnscaledTime);
+            Tween tween = Tween.Rotation(target, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
             CacheTween(tween);
             return tween.Id;
         }
 
-        public override long Rotation(Transform target, Quaternion startValue, Quaternion endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long Rotation(Transform target, Quaternion startValue, Quaternion endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            PrimeTween.Tween tween = PrimeTween.Tween.Rotation(target, startValue, endValue, duration, GetEase(ease), cycles, GetCycleMode(cycleMode), startDelay, 0, useUnscaledTime);
+            Tween tween = Tween.Rotation(target, startValue, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
             CacheTween(tween);
             return tween.Id;
         }
@@ -394,18 +394,18 @@ namespace Moirai.Atropos
 
         #region Transform 补间 — LocalRotation (Quaternion)
 
-        public override long LocalRotation(Transform target, Quaternion endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long LocalRotation(Transform target, Quaternion endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            PrimeTween.Tween tween = PrimeTween.Tween.LocalRotation(target, endValue, duration, GetEase(ease), cycles, GetCycleMode(cycleMode), startDelay, 0, useUnscaledTime);
+            Tween tween = Tween.LocalRotation(target, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
             CacheTween(tween);
             return tween.Id;
         }
 
-        public override long LocalRotation(Transform target, Quaternion startValue, Quaternion endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long LocalRotation(Transform target, Quaternion startValue, Quaternion endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            PrimeTween.Tween tween = PrimeTween.Tween.LocalRotation(target, startValue, endValue, duration, GetEase(ease), cycles, GetCycleMode(cycleMode), startDelay, 0, useUnscaledTime);
+            Tween tween = Tween.LocalRotation(target, startValue, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
             CacheTween(tween);
             return tween.Id;
         }
@@ -414,18 +414,18 @@ namespace Moirai.Atropos
 
         #region Transform 补间 — Scale (Vector3)
 
-        public override long Scale(Transform target, Vector3 endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long Scale(Transform target, Vector3 endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            PrimeTween.Tween tween = PrimeTween.Tween.Scale(target, endValue, duration, GetEase(ease), cycles, GetCycleMode(cycleMode), startDelay, 0, useUnscaledTime);
+            Tween tween = Tween.Scale(target, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
             CacheTween(tween);
             return tween.Id;
         }
 
-        public override long Scale(Transform target, Vector3 startValue, Vector3 endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long Scale(Transform target, Vector3 startValue, Vector3 endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            PrimeTween.Tween tween = PrimeTween.Tween.Scale(target, startValue, endValue, duration, GetEase(ease), cycles, GetCycleMode(cycleMode), startDelay, 0, useUnscaledTime);
+            Tween tween = Tween.Scale(target, startValue, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
             CacheTween(tween);
             return tween.Id;
         }
@@ -434,50 +434,50 @@ namespace Moirai.Atropos
 
         #region Transform 补间 — ScaleX / Y / Z
 
-        public override long ScaleX(Transform target, float endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long ScaleX(Transform target, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            PrimeTween.Tween tween = PrimeTween.Tween.ScaleX(target, endValue, duration, GetEase(ease), cycles, GetCycleMode(cycleMode), startDelay, 0, useUnscaledTime);
+            Tween tween = Tween.ScaleX(target, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
             CacheTween(tween);
             return tween.Id;
         }
 
-        public override long ScaleX(Transform target, float startValue, float endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long ScaleX(Transform target, float startValue, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            PrimeTween.Tween tween = PrimeTween.Tween.ScaleX(target, startValue, endValue, duration, GetEase(ease), cycles, GetCycleMode(cycleMode), startDelay, 0, useUnscaledTime);
+            Tween tween = Tween.ScaleX(target, startValue, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
             CacheTween(tween);
             return tween.Id;
         }
 
-        public override long ScaleY(Transform target, float endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long ScaleY(Transform target, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            PrimeTween.Tween tween = PrimeTween.Tween.ScaleY(target, endValue, duration, GetEase(ease), cycles, GetCycleMode(cycleMode), startDelay, 0, useUnscaledTime);
+            Tween tween = Tween.ScaleY(target, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
             CacheTween(tween);
             return tween.Id;
         }
 
-        public override long ScaleY(Transform target, float startValue, float endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long ScaleY(Transform target, float startValue, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            PrimeTween.Tween tween = PrimeTween.Tween.ScaleY(target, startValue, endValue, duration, GetEase(ease), cycles, GetCycleMode(cycleMode), startDelay, 0, useUnscaledTime);
+            Tween tween = Tween.ScaleY(target, startValue, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
             CacheTween(tween);
             return tween.Id;
         }
 
-        public override long ScaleZ(Transform target, float endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long ScaleZ(Transform target, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            PrimeTween.Tween tween = PrimeTween.Tween.ScaleZ(target, endValue, duration, GetEase(ease), cycles, GetCycleMode(cycleMode), startDelay, 0, useUnscaledTime);
+            Tween tween = Tween.ScaleZ(target, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
             CacheTween(tween);
             return tween.Id;
         }
 
-        public override long ScaleZ(Transform target, float startValue, float endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long ScaleZ(Transform target, float startValue, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            PrimeTween.Tween tween = PrimeTween.Tween.ScaleZ(target, startValue, endValue, duration, GetEase(ease), cycles, GetCycleMode(cycleMode), startDelay, 0, useUnscaledTime);
+            Tween tween = Tween.ScaleZ(target, startValue, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
             CacheTween(tween);
             return tween.Id;
         }
@@ -486,34 +486,34 @@ namespace Moirai.Atropos
 
         #region SpriteRenderer / Material 补间
 
-        public override long Color(SpriteRenderer target, Color endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long Color(SpriteRenderer target, Color endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            PrimeTween.Tween tween = PrimeTween.Tween.Color(target, endValue, duration, GetEase(ease), cycles, GetCycleMode(cycleMode), startDelay, 0, useUnscaledTime);
+            Tween tween = Tween.Color(target, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
             CacheTween(tween);
             return tween.Id;
         }
 
-        public override long Color(SpriteRenderer target, Color startValue, Color endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long Color(SpriteRenderer target, Color startValue, Color endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            PrimeTween.Tween tween = PrimeTween.Tween.Color(target, startValue, endValue, duration, GetEase(ease), cycles, GetCycleMode(cycleMode), startDelay, 0, useUnscaledTime);
+            Tween tween = Tween.Color(target, startValue, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
             CacheTween(tween);
             return tween.Id;
         }
 
-        public override long Alpha(SpriteRenderer target, float endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long Alpha(SpriteRenderer target, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            PrimeTween.Tween tween = PrimeTween.Tween.Alpha(target, endValue, duration, GetEase(ease), cycles, GetCycleMode(cycleMode), startDelay, 0, useUnscaledTime);
+            Tween tween = Tween.Alpha(target, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
             CacheTween(tween);
             return tween.Id;
         }
 
-        public override long Alpha(SpriteRenderer target, float startValue, float endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long Alpha(SpriteRenderer target, float startValue, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            PrimeTween.Tween tween = PrimeTween.Tween.Alpha(target, startValue, endValue, duration, GetEase(ease), cycles, GetCycleMode(cycleMode), startDelay, 0, useUnscaledTime);
+            Tween tween = Tween.Alpha(target, startValue, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
             CacheTween(tween);
             return tween.Id;
         }
@@ -522,219 +522,219 @@ namespace Moirai.Atropos
 
         #region UI 补间
 
-        public override long UISliderValue(Slider target, float endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long UISliderValue(Slider target, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            PrimeTween.Tween tween = PrimeTween.Tween.UISliderValue(target, endValue, duration, GetEase(ease), cycles, GetCycleMode(cycleMode), startDelay, 0, useUnscaledTime);
+            Tween tween = Tween.UISliderValue(target, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
             CacheTween(tween);
             return tween.Id;
         }
 
-        public override long UISliderValue(Slider target, float startValue, float endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long UISliderValue(Slider target, float startValue, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            PrimeTween.Tween tween = PrimeTween.Tween.UISliderValue(target, startValue, endValue, duration, GetEase(ease), cycles, GetCycleMode(cycleMode), startDelay, 0, useUnscaledTime);
+            Tween tween = Tween.UISliderValue(target, startValue, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
             CacheTween(tween);
             return tween.Id;
         }
 
-        public override long UINormalizedPosition(ScrollRect target, Vector2 endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long UINormalizedPosition(ScrollRect target, Vector2 endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            PrimeTween.Tween tween = PrimeTween.Tween.UINormalizedPosition(target, endValue, duration, GetEase(ease), cycles, GetCycleMode(cycleMode), startDelay, 0, useUnscaledTime);
+            Tween tween = Tween.UINormalizedPosition(target, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
             CacheTween(tween);
             return tween.Id;
         }
 
-        public override long UINormalizedPosition(ScrollRect target, Vector2 startValue, Vector2 endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long UINormalizedPosition(ScrollRect target, Vector2 startValue, Vector2 endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            PrimeTween.Tween tween = PrimeTween.Tween.UINormalizedPosition(target, startValue, endValue, duration, GetEase(ease), cycles, GetCycleMode(cycleMode), startDelay, 0, useUnscaledTime);
+            Tween tween = Tween.UINormalizedPosition(target, startValue, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
             CacheTween(tween);
             return tween.Id;
         }
 
-        public override long UIHorizontalNormalizedPosition(ScrollRect target, float endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long UIHorizontalNormalizedPosition(ScrollRect target, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            PrimeTween.Tween tween = PrimeTween.Tween.UIHorizontalNormalizedPosition(target, endValue, duration, GetEase(ease), cycles, GetCycleMode(cycleMode), startDelay, 0, useUnscaledTime);
+            Tween tween = Tween.UIHorizontalNormalizedPosition(target, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
             CacheTween(tween);
             return tween.Id;
         }
 
-        public override long UIHorizontalNormalizedPosition(ScrollRect target, float startValue, float endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long UIHorizontalNormalizedPosition(ScrollRect target, float startValue, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            PrimeTween.Tween tween = PrimeTween.Tween.UIHorizontalNormalizedPosition(target, startValue, endValue, duration, GetEase(ease), cycles, GetCycleMode(cycleMode), startDelay, 0,
+            Tween tween = Tween.UIHorizontalNormalizedPosition(target, startValue, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0,
                 useUnscaledTime);
             CacheTween(tween);
             return tween.Id;
         }
 
-        public override long UIAnchoredPosition(RectTransform target, Vector2 endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long UIAnchoredPosition(RectTransform target, Vector2 endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            PrimeTween.Tween tween = PrimeTween.Tween.UIAnchoredPosition(target, endValue, duration, GetEase(ease), cycles, GetCycleMode(cycleMode), startDelay, 0, useUnscaledTime);
+            Tween tween = Tween.UIAnchoredPosition(target, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
             CacheTween(tween);
             return tween.Id;
         }
 
-        public override long UIAnchoredPosition(RectTransform target, Vector2 startValue, Vector2 endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long UIAnchoredPosition(RectTransform target, Vector2 startValue, Vector2 endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            PrimeTween.Tween tween = PrimeTween.Tween.UIAnchoredPosition(target, startValue, endValue, duration, GetEase(ease), cycles, GetCycleMode(cycleMode), startDelay, 0, useUnscaledTime);
+            Tween tween = Tween.UIAnchoredPosition(target, startValue, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
             CacheTween(tween);
             return tween.Id;
         }
 
-        public override long UIAnchoredPositionX(RectTransform target, float endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long UIAnchoredPositionX(RectTransform target, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            PrimeTween.Tween tween = PrimeTween.Tween.UIAnchoredPositionX(target, endValue, duration, GetEase(ease), cycles, GetCycleMode(cycleMode), startDelay, 0, useUnscaledTime);
+            Tween tween = Tween.UIAnchoredPositionX(target, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
             CacheTween(tween);
             return tween.Id;
         }
 
-        public override long UIAnchoredPositionX(RectTransform target, float startValue, float endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long UIAnchoredPositionX(RectTransform target, float startValue, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            PrimeTween.Tween tween = PrimeTween.Tween.UIAnchoredPositionX(target, startValue, endValue, duration, GetEase(ease), cycles, GetCycleMode(cycleMode), startDelay, 0, useUnscaledTime);
+            Tween tween = Tween.UIAnchoredPositionX(target, startValue, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
             CacheTween(tween);
             return tween.Id;
         }
 
-        public override long UIAnchoredPositionY(RectTransform target, float endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long UIAnchoredPositionY(RectTransform target, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            PrimeTween.Tween tween = PrimeTween.Tween.UIAnchoredPositionY(target, endValue, duration, GetEase(ease), cycles, GetCycleMode(cycleMode), startDelay, 0, useUnscaledTime);
+            Tween tween = Tween.UIAnchoredPositionY(target, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
             CacheTween(tween);
             return tween.Id;
         }
 
-        public override long UIAnchoredPositionY(RectTransform target, float startValue, float endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long UIAnchoredPositionY(RectTransform target, float startValue, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            PrimeTween.Tween tween = PrimeTween.Tween.UIAnchoredPositionY(target, startValue, endValue, duration, GetEase(ease), cycles, GetCycleMode(cycleMode), startDelay, 0, useUnscaledTime);
+            Tween tween = Tween.UIAnchoredPositionY(target, startValue, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
             CacheTween(tween);
             return tween.Id;
         }
 
-        public override long UIVerticalNormalizedPosition(ScrollRect target, float endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long UIVerticalNormalizedPosition(ScrollRect target, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            PrimeTween.Tween tween = PrimeTween.Tween.UIVerticalNormalizedPosition(target, endValue, duration, GetEase(ease), cycles, GetCycleMode(cycleMode), startDelay, 0, useUnscaledTime);
+            Tween tween = Tween.UIVerticalNormalizedPosition(target, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
             CacheTween(tween);
             return tween.Id;
         }
 
-        public override long UIVerticalNormalizedPosition(ScrollRect target, float startValue, float endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long UIVerticalNormalizedPosition(ScrollRect target, float startValue, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            PrimeTween.Tween tween = PrimeTween.Tween.UIVerticalNormalizedPosition(target, startValue, endValue, duration, GetEase(ease), cycles, GetCycleMode(cycleMode), startDelay, 0, useUnscaledTime);
+            Tween tween = Tween.UIVerticalNormalizedPosition(target, startValue, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
             CacheTween(tween);
             return tween.Id;
         }
 
-        public override long UIAnchoredPosition3D(RectTransform target, Vector3 endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long UIAnchoredPosition3D(RectTransform target, Vector3 endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            PrimeTween.Tween tween = PrimeTween.Tween.UIAnchoredPosition3D(target, endValue, duration, GetEase(ease), cycles, GetCycleMode(cycleMode), startDelay, 0, useUnscaledTime);
+            Tween tween = Tween.UIAnchoredPosition3D(target, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
             CacheTween(tween);
             return tween.Id;
         }
 
-        public override long UIAnchoredPosition3D(RectTransform target, Vector3 startValue, Vector3 endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long UIAnchoredPosition3D(RectTransform target, Vector3 startValue, Vector3 endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            PrimeTween.Tween tween = PrimeTween.Tween.UIAnchoredPosition3D(target, startValue, endValue, duration, GetEase(ease), cycles, GetCycleMode(cycleMode), startDelay, 0, useUnscaledTime);
+            Tween tween = Tween.UIAnchoredPosition3D(target, startValue, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
             CacheTween(tween);
             return tween.Id;
         }
 
-        public override long UISizeDelta(RectTransform target, Vector2 endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long UISizeDelta(RectTransform target, Vector2 endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            PrimeTween.Tween tween = PrimeTween.Tween.UISizeDelta(target, endValue, duration, GetEase(ease), cycles, GetCycleMode(cycleMode), startDelay, 0, useUnscaledTime);
+            Tween tween = Tween.UISizeDelta(target, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
             CacheTween(tween);
             return tween.Id;
         }
 
-        public override long UISizeDelta(RectTransform target, Vector2 startValue, Vector2 endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long UISizeDelta(RectTransform target, Vector2 startValue, Vector2 endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            PrimeTween.Tween tween = PrimeTween.Tween.UISizeDelta(target, startValue, endValue, duration, GetEase(ease), cycles, GetCycleMode(cycleMode), startDelay, 0, useUnscaledTime);
+            Tween tween = Tween.UISizeDelta(target, startValue, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
             CacheTween(tween);
             return tween.Id;
         }
 
-        public override long Color(Graphic target, Color endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long Color(Graphic target, Color endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            PrimeTween.Tween tween = PrimeTween.Tween.Color(target, endValue, duration, GetEase(ease), cycles, GetCycleMode(cycleMode), startDelay, 0, useUnscaledTime);
+            Tween tween = Tween.Color(target, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
             CacheTween(tween);
             return tween.Id;
         }
 
-        public override long Color(Graphic target, Color startValue, Color endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long Color(Graphic target, Color startValue, Color endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            PrimeTween.Tween tween = PrimeTween.Tween.Color(target, startValue, endValue, duration, GetEase(ease), cycles, GetCycleMode(cycleMode), startDelay, 0, useUnscaledTime);
+            Tween tween = Tween.Color(target, startValue, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
             CacheTween(tween);
             return tween.Id;
         }
 
-        public override long MaterialColor(Material target, Color startValue, Color endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long MaterialColor(Material target, Color startValue, Color endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            PrimeTween.Tween tween = PrimeTween.Tween.MaterialColor(target, startValue, endValue, duration, GetEase(ease), cycles, GetCycleMode(cycleMode), startDelay, 0, useUnscaledTime);
+            Tween tween = Tween.MaterialColor(target, startValue, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
             CacheTween(tween);
             return tween.Id;
         }
 
-        public override long Alpha(CanvasGroup target, float endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long Alpha(CanvasGroup target, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            PrimeTween.Tween tween = PrimeTween.Tween.Alpha(target, endValue, duration, GetEase(ease), cycles, GetCycleMode(cycleMode), startDelay, 0, useUnscaledTime);
+            Tween tween = Tween.Alpha(target, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
             CacheTween(tween);
             return tween.Id;
         }
 
-        public override long Alpha(CanvasGroup target, float startValue, float endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long Alpha(CanvasGroup target, float startValue, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            PrimeTween.Tween tween = PrimeTween.Tween.Alpha(target, startValue, endValue, duration, GetEase(ease), cycles, GetCycleMode(cycleMode), startDelay, 0, useUnscaledTime);
+            Tween tween = Tween.Alpha(target, startValue, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
             CacheTween(tween);
             return tween.Id;
         }
 
-        public override long Alpha(Graphic target, float endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long Alpha(Graphic target, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            PrimeTween.Tween tween = PrimeTween.Tween.Alpha(target, endValue, duration, GetEase(ease), cycles, GetCycleMode(cycleMode), startDelay, 0, useUnscaledTime);
+            Tween tween = Tween.Alpha(target, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
             CacheTween(tween);
             return tween.Id;
         }
 
-        public override long Alpha(Graphic target, float startValue, float endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long Alpha(Graphic target, float startValue, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            PrimeTween.Tween tween = PrimeTween.Tween.Alpha(target, startValue, endValue, duration, GetEase(ease), cycles, GetCycleMode(cycleMode), startDelay, 0, useUnscaledTime);
+            Tween tween = Tween.Alpha(target, startValue, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
             CacheTween(tween);
             return tween.Id;
         }
 
-        public override long UIFillAmount(Image target, float endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long UIFillAmount(Image target, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            PrimeTween.Tween tween = PrimeTween.Tween.UIFillAmount(target, endValue, duration, GetEase(ease), cycles, GetCycleMode(cycleMode), startDelay, 0, useUnscaledTime);
+            Tween tween = Tween.UIFillAmount(target, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
             CacheTween(tween);
             return tween.Id;
         }
 
-        public override long UIFillAmount(Image target, float startValue, float endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long UIFillAmount(Image target, float startValue, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            PrimeTween.Tween tween = PrimeTween.Tween.UIFillAmount(target, startValue, endValue, duration, GetEase(ease), cycles, GetCycleMode(cycleMode), startDelay, 0, useUnscaledTime);
+            Tween tween = Tween.UIFillAmount(target, startValue, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
             CacheTween(tween);
             return tween.Id;
         }
@@ -743,7 +743,7 @@ namespace Moirai.Atropos
 
         #region Bezier Path
 
-        public override long MoveBezierPath(Transform target, Vector3[] path, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long MoveBezierPath(Transform target, Vector3[] path, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             if (target == null)
@@ -756,7 +756,7 @@ namespace Moirai.Atropos
                 throw new ArgumentException("Path must have at least 2 points.");
             }
 
-            PrimeTween.Tween tween = PrimeTween.Tween.Custom<Transform>(target, 0f, 1f, duration, (transform, t) =>
+            Tween tween = Tween.Custom<Transform>(target, 0f, 1f, duration, (transform, t) =>
                 {
                     // 计算贝塞尔曲线上的点
                     Vector3 position = CalculateBezierPoint(t, path);
@@ -766,7 +766,7 @@ namespace Moirai.Atropos
                     {
                         transform.position = path[^1];
                     }
-                }, GetEase(ease), cycles, GetCycleMode(cycleMode), startDelay, 0, useUnscaledTime);
+                }, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
             CacheTween(tween);
             return tween.Id;
         }
@@ -775,43 +775,43 @@ namespace Moirai.Atropos
 
         #region Custom
 
-        public override long Custom<T>(T target, Vector3 startValue, Vector3 endValue, float duration, Action<T, Vector3> onValueChange, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long Custom<T>(T target, Vector3 startValue, Vector3 endValue, float duration, Action<T, Vector3> onValueChange, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
             where T : class
         {
-            PrimeTween.Tween tween = PrimeTween.Tween.Custom<T>(target, startValue, endValue, duration, onValueChange, GetEase(ease), cycles, GetCycleMode(cycleMode), startDelay, 0,
+            Tween tween = Tween.Custom<T>(target, startValue, endValue, duration, onValueChange, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0,
                 useUnscaledTime);
             CacheTween(tween);
             return tween.Id;
         }
 
-        public override long Custom<T>(T target, int startValue, int endValue, float duration, Action<T, int> onValueChange, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long Custom<T>(T target, int startValue, int endValue, float duration, Action<T, int> onValueChange, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
             where T : class
         {
-            PrimeTween.Tween tween = PrimeTween.Tween.Custom<T>(target, startValue, endValue, duration, (arg1, f) => { onValueChange?.Invoke(arg1, (int)f); }, GetEase(ease), cycles,
-                GetCycleMode(cycleMode), startDelay, 0,
+            Tween tween = Tween.Custom<T>(target, startValue, endValue, duration, (arg1, f) => { onValueChange?.Invoke(arg1, (int)f); }, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles,
+                cycleMode.ToPrimeTweenCycleMode(), startDelay, 0,
                 useUnscaledTime);
             CacheTween(tween);
             return tween.Id;
         }
 
-        public override long Custom<T>(T target, long startValue, long endValue, float duration, Action<T, long> onValueChange, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long Custom<T>(T target, long startValue, long endValue, float duration, Action<T, long> onValueChange, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
             where T : class
         {
-            PrimeTween.Tween tween = PrimeTween.Tween.Custom<T>(target, startValue, endValue, duration, (arg1, f) => { onValueChange?.Invoke(arg1, (long)f); }, GetEase(ease), cycles,
-                GetCycleMode(cycleMode), startDelay, 0,
+            Tween tween = Tween.Custom<T>(target, startValue, endValue, duration, (arg1, f) => { onValueChange?.Invoke(arg1, (long)f); }, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles,
+                cycleMode.ToPrimeTweenCycleMode(), startDelay, 0,
                 useUnscaledTime);
             CacheTween(tween);
             return tween.Id;
         }
 
-        public override long Custom<T>(T target, float startValue, float endValue, float duration, Action<T, float> onValueChange, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long Custom<T>(T target, float startValue, float endValue, float duration, Action<T, float> onValueChange, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
             where T : class
         {
-            PrimeTween.Tween tween = PrimeTween.Tween.Custom<T>(target, startValue, endValue, duration, onValueChange, GetEase(ease), cycles, GetCycleMode(cycleMode), startDelay, 0,
+            Tween tween = Tween.Custom<T>(target, startValue, endValue, duration, onValueChange, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0,
                 useUnscaledTime);
             CacheTween(tween);
             return tween.Id;

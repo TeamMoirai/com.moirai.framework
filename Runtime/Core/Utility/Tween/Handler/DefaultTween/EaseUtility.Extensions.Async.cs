@@ -7,8 +7,7 @@ namespace Moirai.Atropos
     {
         // ASYNC MOVE METHODS ---------------------------------------------------------------------------------------------------------
 		
-		public static async UniTask MoveTransformAsync(Transform targetTransform, Vector3 origin, Vector3 destination, 
-			float delayDuration, float duration, EEaseType curve, bool ignoreTimescale = false)
+		public static async UniTask MoveTransformAsync(Transform targetTransform, Vector3 origin, Vector3 destination, float delayDuration, float duration, TweenUtility.EEase curve, bool ignoreTimescale = false)
 		{
 		    if (delayDuration > 0f)
 		    {
@@ -26,8 +25,7 @@ namespace Moirai.Atropos
 		    targetTransform.position = destination;
 		}
 
-		public static async UniTask MoveRectTransformAsync(RectTransform targetTransform, Vector3 origin, Vector3 destination, 
-		    float delayDuration, float duration, EEaseType curve, bool ignoreTimescale = false)
+		public static async UniTask MoveRectTransformAsync(RectTransform targetTransform, Vector3 origin, Vector3 destination, float delayDuration, float duration, TweenUtility.EEase curve, bool ignoreTimescale = false)
 		{
 		    if (delayDuration > 0f)
 		    {
@@ -45,8 +43,7 @@ namespace Moirai.Atropos
 		    targetTransform.localPosition = destination;
 		}
 
-		public static async UniTask MoveTransformAsync(Transform targetTransform, Transform origin, Transform destination, float delayDuration, float duration,
-			EEaseType curve, bool updatePosition = true, bool updateRotation = true, bool ignoreTimescale = false)
+		public static async UniTask MoveTransformAsync(Transform targetTransform, Transform origin, Transform destination, float delayDuration, float duration, TweenUtility.EEase curve, bool updatePosition = true, bool updateRotation = true, bool ignoreTimescale = false)
 	    {
 	        if (delayDuration > 0f)
 	        {
@@ -72,8 +69,7 @@ namespace Moirai.Atropos
 	        if (updateRotation) { targetTransform.localEulerAngles = destination.localEulerAngles; }
 	    }
 		
-	    public static async UniTask RotateTransformAroundAsync(Transform targetTransform, Transform center, Transform destination, float angle, float delayDuration, float duration, 
-	        EEaseType curve, bool ignoreTimescale = false)
+	    public static async UniTask RotateTransformAroundAsync(Transform targetTransform, Transform center, Transform destination, float angle, float delayDuration, float duration, TweenUtility.EEase curve, bool ignoreTimescale = false)
 	    {
 	        if (delayDuration > 0f)
 	        {
@@ -100,7 +96,7 @@ namespace Moirai.Atropos
 	    
 	    // ASYNC UI METHODS ---------------------------------------------------------------------------------------------------------
 	    
-	    public static async UniTask CrossFadeAlpha(CanvasGroup canvasGroup, float origin, float destination, float duration, EEaseType curve, bool ignoreTimescale = false)
+	    public static async UniTask CrossFadeAlpha(CanvasGroup canvasGroup, float origin, float destination, float duration, TweenUtility.EEase curve, bool ignoreTimescale = false)
 	    {
 		    float timeLeft = duration;
 		    while (timeLeft > 0f)

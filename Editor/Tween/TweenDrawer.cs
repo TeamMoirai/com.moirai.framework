@@ -7,7 +7,7 @@ using UnityEngine.UIElements;
 
 namespace Moirai.Atropos.Editor
 {
-    [CustomPropertyDrawer(typeof(Tween))]
+    [CustomPropertyDrawer(typeof(TweenEase))]
     public class TweenDrawer : PropertyDrawer
     {
         #region IMGUI
@@ -31,11 +31,11 @@ namespace Moirai.Atropos.Editor
 
             var type = property.FindPropertyRelative("m_TweenType");
             EditorGUI.PropertyField(definitionTypeRect, type, GUIContent.none);
-            if (type.enumValueIndex == (int)TweenTypes.Tween)
+            if (type.enumValueIndex == (int)TweenEase.ETweenType.Ease)
             {
                 EditorGUI.PropertyField(curveRect, property.FindPropertyRelative("m_EaseType"), GUIContent.none);
             }
-            if (type.enumValueIndex == (int)TweenTypes.AnimationCurve)
+            if (type.enumValueIndex == (int)TweenEase.ETweenType.AnimationCurve)
             {
                 EditorGUI.PropertyField(curveRect, property.FindPropertyRelative("m_AnimationCurve"), GUIContent.none);
             }

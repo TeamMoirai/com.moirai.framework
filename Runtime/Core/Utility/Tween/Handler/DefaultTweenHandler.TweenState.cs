@@ -88,11 +88,12 @@ namespace Moirai.Atropos
             public float StartTime;
             public float DelayTimer;
 
+            public TweenEase Ease;
+
             // === 循环 ===
             public int Cycles;
             public int CurrentCycle;
             public TweenUtility.ECycleMode CycleMode;
-            public TweenUtility.EEase Ease;
 
             // === 标志 ===
             public bool IsActive;
@@ -143,7 +144,7 @@ namespace Moirai.Atropos
                 Cycles = 0;
                 CurrentCycle = 0;
                 CycleMode = TweenUtility.ECycleMode.Restart;
-                Ease = TweenUtility.EEase.Default;
+                Ease = TweenUtility.EEase.Linear;
                 IsActive = false;
                 IsPaused = false;
                 UseUnscaledTime = false;

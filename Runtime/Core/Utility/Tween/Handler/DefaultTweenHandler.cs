@@ -100,7 +100,7 @@ namespace Moirai.Atropos
 
         #region Transform 补间 — Position
 
-        public override long Position(Transform target, Vector3 endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long Position(Transform target, Vector3 endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0,
             bool useUnscaledTime = false, Action onComplete = null)
         {
@@ -108,7 +108,7 @@ namespace Moirai.Atropos
         }
 
         public override long Position(Transform target, Vector3 startValue, Vector3 endValue, float duration,
-            TweenUtility.EEase ease = TweenUtility.EEase.Default, int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart,
+            TweenEase ease = default, int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart,
             float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             var state = new TweenState
@@ -135,7 +135,7 @@ namespace Moirai.Atropos
 
         #region Transform 补间 — PositionX / Y / Z
 
-        public override long PositionX(Transform target, float endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long PositionX(Transform target, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0,
             bool useUnscaledTime = false, Action onComplete = null)
         {
@@ -143,7 +143,7 @@ namespace Moirai.Atropos
         }
 
         public override long PositionX(Transform target, float startValue, float endValue, float duration,
-            TweenUtility.EEase ease = TweenUtility.EEase.Default, int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart,
+            TweenEase ease = default, int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart,
             float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             var state = new TweenState
@@ -166,7 +166,7 @@ namespace Moirai.Atropos
             return TweenTask.Create(in state);
         }
 
-        public override long PositionY(Transform target, float endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long PositionY(Transform target, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0,
             bool useUnscaledTime = false, Action onComplete = null)
         {
@@ -174,7 +174,7 @@ namespace Moirai.Atropos
         }
 
         public override long PositionY(Transform target, float startValue, float endValue, float duration,
-            TweenUtility.EEase ease = TweenUtility.EEase.Default, int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart,
+            TweenEase ease = default, int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart,
             float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             var state = new TweenState
@@ -197,7 +197,7 @@ namespace Moirai.Atropos
             return TweenTask.Create(in state);
         }
 
-        public override long PositionZ(Transform target, float endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long PositionZ(Transform target, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0,
             bool useUnscaledTime = false, Action onComplete = null)
         {
@@ -205,7 +205,7 @@ namespace Moirai.Atropos
         }
 
         public override long PositionZ(Transform target, float startValue, float endValue, float duration,
-            TweenUtility.EEase ease = TweenUtility.EEase.Default, int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart,
+            TweenEase ease = default, int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart,
             float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             var state = new TweenState
@@ -232,7 +232,7 @@ namespace Moirai.Atropos
 
         #region Transform 补间 — LocalPosition
 
-        public override long LocalPosition(Transform target, Vector3 endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long LocalPosition(Transform target, Vector3 endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0,
             bool useUnscaledTime = false, Action onComplete = null)
         {
@@ -240,7 +240,7 @@ namespace Moirai.Atropos
         }
 
         public override long LocalPosition(Transform target, Vector3 startValue, Vector3 endValue, float duration,
-            TweenUtility.EEase ease = TweenUtility.EEase.Default, int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart,
+            TweenEase ease = default, int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart,
             float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             var state = new TweenState
@@ -267,7 +267,7 @@ namespace Moirai.Atropos
 
         #region Transform 补间 — LocalPositionX / Y / Z
 
-        public override long LocalPositionX(Transform target, float endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long LocalPositionX(Transform target, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0,
             bool useUnscaledTime = false, Action onComplete = null)
         {
@@ -275,7 +275,7 @@ namespace Moirai.Atropos
         }
 
         public override long LocalPositionX(Transform target, float startValue, float endValue, float duration,
-            TweenUtility.EEase ease = TweenUtility.EEase.Default, int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart,
+            TweenEase ease = default, int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart,
             float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             var state = new TweenState
@@ -298,7 +298,7 @@ namespace Moirai.Atropos
             return TweenTask.Create(in state);
         }
 
-        public override long LocalPositionY(Transform target, float endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long LocalPositionY(Transform target, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0,
             bool useUnscaledTime = false, Action onComplete = null)
         {
@@ -306,7 +306,7 @@ namespace Moirai.Atropos
         }
 
         public override long LocalPositionY(Transform target, float startValue, float endValue, float duration,
-            TweenUtility.EEase ease = TweenUtility.EEase.Default, int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart,
+            TweenEase ease = default, int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart,
             float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             var state = new TweenState
@@ -329,7 +329,7 @@ namespace Moirai.Atropos
             return TweenTask.Create(in state);
         }
 
-        public override long LocalPositionZ(Transform target, float endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long LocalPositionZ(Transform target, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0,
             bool useUnscaledTime = false, Action onComplete = null)
         {
@@ -337,7 +337,7 @@ namespace Moirai.Atropos
         }
 
         public override long LocalPositionZ(Transform target, float startValue, float endValue, float duration,
-            TweenUtility.EEase ease = TweenUtility.EEase.Default, int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart,
+            TweenEase ease = default, int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart,
             float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             var state = new TweenState
@@ -364,7 +364,7 @@ namespace Moirai.Atropos
 
         #region Transform 补间 — Rotation (Vector3)
 
-        public override long Rotation(Transform target, Vector3 endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long Rotation(Transform target, Vector3 endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0,
             bool useUnscaledTime = false, Action onComplete = null)
         {
@@ -372,7 +372,7 @@ namespace Moirai.Atropos
         }
 
         public override long Rotation(Transform target, Vector3 startValue, Vector3 endValue, float duration,
-            TweenUtility.EEase ease = TweenUtility.EEase.Default, int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart,
+            TweenEase ease = default, int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart,
             float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             var state = new TweenState
@@ -399,7 +399,7 @@ namespace Moirai.Atropos
 
         #region Transform 补间 — LocalRotation (Vector3)
 
-        public override long LocalRotation(Transform target, Vector3 endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long LocalRotation(Transform target, Vector3 endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0,
             bool useUnscaledTime = false, Action onComplete = null)
         {
@@ -407,7 +407,7 @@ namespace Moirai.Atropos
         }
 
         public override long LocalRotation(Transform target, Vector3 startValue, Vector3 endValue, float duration,
-            TweenUtility.EEase ease = TweenUtility.EEase.Default, int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart,
+            TweenEase ease = default, int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart,
             float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             var state = new TweenState
@@ -434,7 +434,7 @@ namespace Moirai.Atropos
 
         #region Transform 补间 — Rotation (Quaternion)
 
-        public override long Rotation(Transform target, Quaternion endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long Rotation(Transform target, Quaternion endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0,
             bool useUnscaledTime = false, Action onComplete = null)
         {
@@ -442,7 +442,7 @@ namespace Moirai.Atropos
         }
 
         public override long Rotation(Transform target, Quaternion startValue, Quaternion endValue, float duration,
-            TweenUtility.EEase ease = TweenUtility.EEase.Default, int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart,
+            TweenEase ease = default, int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart,
             float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             var state = new TweenState
@@ -469,7 +469,7 @@ namespace Moirai.Atropos
 
         #region Transform 补间 — LocalRotation (Quaternion)
 
-        public override long LocalRotation(Transform target, Quaternion endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long LocalRotation(Transform target, Quaternion endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0,
             bool useUnscaledTime = false, Action onComplete = null)
         {
@@ -477,7 +477,7 @@ namespace Moirai.Atropos
         }
 
         public override long LocalRotation(Transform target, Quaternion startValue, Quaternion endValue, float duration,
-            TweenUtility.EEase ease = TweenUtility.EEase.Default, int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart,
+            TweenEase ease = default, int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart,
             float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             var state = new TweenState
@@ -504,14 +504,14 @@ namespace Moirai.Atropos
 
         #region Transform 补间 — Scale (float)
 
-        public override long Scale(Transform target, float endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default, int cycles = 1,
+        public override long Scale(Transform target, float endValue, float duration, TweenEase ease = default, int cycles = 1,
             TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false,
             Action onComplete = null)
         {
             return Scale(target, target.localScale.x, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
-        public override long Scale(Transform target, float startValue, float endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long Scale(Transform target, float startValue, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0,
             bool useUnscaledTime = false, Action onComplete = null)
         {
@@ -539,7 +539,7 @@ namespace Moirai.Atropos
 
         #region Transform 补间 — Scale (Vector3)
 
-        public override long Scale(Transform target, Vector3 endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default, int cycles = 1,
+        public override long Scale(Transform target, Vector3 endValue, float duration, TweenEase ease = default, int cycles = 1,
             TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false,
             Action onComplete = null)
         {
@@ -547,7 +547,7 @@ namespace Moirai.Atropos
         }
 
         public override long Scale(Transform target, Vector3 startValue, Vector3 endValue, float duration,
-            TweenUtility.EEase ease = TweenUtility.EEase.Default, int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart,
+            TweenEase ease = default, int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart,
             float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             var state = new TweenState
@@ -574,14 +574,14 @@ namespace Moirai.Atropos
 
         #region Transform 补间 — ScaleX / Y / Z
 
-        public override long ScaleX(Transform target, float endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default, int cycles = 1,
+        public override long ScaleX(Transform target, float endValue, float duration, TweenEase ease = default, int cycles = 1,
             TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false,
             Action onComplete = null)
         {
             return ScaleX(target, target.localScale.x, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
-        public override long ScaleX(Transform target, float startValue, float endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long ScaleX(Transform target, float startValue, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0,
             bool useUnscaledTime = false, Action onComplete = null)
         {
@@ -605,14 +605,14 @@ namespace Moirai.Atropos
             return TweenTask.Create(in state);
         }
 
-        public override long ScaleY(Transform target, float endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default, int cycles = 1,
+        public override long ScaleY(Transform target, float endValue, float duration, TweenEase ease = default, int cycles = 1,
             TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false,
             Action onComplete = null)
         {
             return ScaleY(target, target.localScale.y, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
-        public override long ScaleY(Transform target, float startValue, float endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long ScaleY(Transform target, float startValue, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0,
             bool useUnscaledTime = false, Action onComplete = null)
         {
@@ -636,14 +636,14 @@ namespace Moirai.Atropos
             return TweenTask.Create(in state);
         }
 
-        public override long ScaleZ(Transform target, float endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default, int cycles = 1,
+        public override long ScaleZ(Transform target, float endValue, float duration, TweenEase ease = default, int cycles = 1,
             TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false,
             Action onComplete = null)
         {
             return ScaleZ(target, target.localScale.z, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
-        public override long ScaleZ(Transform target, float startValue, float endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long ScaleZ(Transform target, float startValue, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0,
             bool useUnscaledTime = false, Action onComplete = null)
         {
@@ -671,7 +671,7 @@ namespace Moirai.Atropos
 
         #region SpriteRenderer / Material 补间
 
-        public override long Color(SpriteRenderer target, Color endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long Color(SpriteRenderer target, Color endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0,
             bool useUnscaledTime = false, Action onComplete = null)
         {
@@ -679,7 +679,7 @@ namespace Moirai.Atropos
         }
 
         public override long Color(SpriteRenderer target, Color startValue, Color endValue, float duration,
-            TweenUtility.EEase ease = TweenUtility.EEase.Default, int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart,
+            TweenEase ease = default, int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart,
             float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             var state = new TweenState
@@ -702,7 +702,7 @@ namespace Moirai.Atropos
             return TweenTask.Create(in state);
         }
 
-        public override long Alpha(SpriteRenderer target, float endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long Alpha(SpriteRenderer target, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0,
             bool useUnscaledTime = false, Action onComplete = null)
         {
@@ -710,7 +710,7 @@ namespace Moirai.Atropos
         }
 
         public override long Alpha(SpriteRenderer target, float startValue, float endValue, float duration,
-            TweenUtility.EEase ease = TweenUtility.EEase.Default, int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart,
+            TweenEase ease = default, int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart,
             float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             var state = new TweenState
@@ -734,7 +734,7 @@ namespace Moirai.Atropos
         }
 
         public override long MaterialColor(Material target, Color startValue, Color endValue, float duration,
-            TweenUtility.EEase ease = TweenUtility.EEase.Default, int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart,
+            TweenEase ease = default, int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart,
             float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             var state = new TweenState
@@ -761,7 +761,7 @@ namespace Moirai.Atropos
 
         #region UI 补间
 
-        public override long UISliderValue(Slider target, float endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long UISliderValue(Slider target, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0,
             bool useUnscaledTime = false, Action onComplete = null)
         {
@@ -769,7 +769,7 @@ namespace Moirai.Atropos
         }
 
         public override long UISliderValue(Slider target, float startValue, float endValue, float duration,
-            TweenUtility.EEase ease = TweenUtility.EEase.Default, int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart,
+            TweenEase ease = default, int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart,
             float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             var state = new TweenState
@@ -792,7 +792,7 @@ namespace Moirai.Atropos
             return TweenTask.Create(in state);
         }
 
-        public override long UINormalizedPosition(ScrollRect target, Vector2 endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long UINormalizedPosition(ScrollRect target, Vector2 endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0,
             bool useUnscaledTime = false, Action onComplete = null)
         {
@@ -800,7 +800,7 @@ namespace Moirai.Atropos
         }
 
         public override long UINormalizedPosition(ScrollRect target, Vector2 startValue, Vector2 endValue, float duration,
-            TweenUtility.EEase ease = TweenUtility.EEase.Default, int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart,
+            TweenEase ease = default, int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart,
             float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             var state = new TweenState
@@ -824,14 +824,14 @@ namespace Moirai.Atropos
         }
 
         public override long UIHorizontalNormalizedPosition(ScrollRect target, float endValue, float duration,
-            TweenUtility.EEase ease = TweenUtility.EEase.Default, int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart,
+            TweenEase ease = default, int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart,
             float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             return UIHorizontalNormalizedPosition(target, target.horizontalNormalizedPosition, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
         public override long UIHorizontalNormalizedPosition(ScrollRect target, float startValue, float endValue, float duration,
-            TweenUtility.EEase ease = TweenUtility.EEase.Default, int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart,
+            TweenEase ease = default, int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart,
             float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             var state = new TweenState
@@ -854,7 +854,7 @@ namespace Moirai.Atropos
             return TweenTask.Create(in state);
         }
 
-        public override long UIAnchoredPosition(RectTransform target, Vector2 endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long UIAnchoredPosition(RectTransform target, Vector2 endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0,
             bool useUnscaledTime = false, Action onComplete = null)
         {
@@ -862,7 +862,7 @@ namespace Moirai.Atropos
         }
 
         public override long UIAnchoredPosition(RectTransform target, Vector2 startValue, Vector2 endValue, float duration,
-            TweenUtility.EEase ease = TweenUtility.EEase.Default, int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart,
+            TweenEase ease = default, int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart,
             float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             var state = new TweenState
@@ -885,7 +885,7 @@ namespace Moirai.Atropos
             return TweenTask.Create(in state);
         }
 
-        public override long UIAnchoredPositionX(RectTransform target, float endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long UIAnchoredPositionX(RectTransform target, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0,
             bool useUnscaledTime = false, Action onComplete = null)
         {
@@ -893,7 +893,7 @@ namespace Moirai.Atropos
         }
 
         public override long UIAnchoredPositionX(RectTransform target, float startValue, float endValue, float duration,
-            TweenUtility.EEase ease = TweenUtility.EEase.Default, int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart,
+            TweenEase ease = default, int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart,
             float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             var state = new TweenState
@@ -916,7 +916,7 @@ namespace Moirai.Atropos
             return TweenTask.Create(in state);
         }
 
-        public override long UIAnchoredPositionY(RectTransform target, float endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long UIAnchoredPositionY(RectTransform target, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0,
             bool useUnscaledTime = false, Action onComplete = null)
         {
@@ -924,7 +924,7 @@ namespace Moirai.Atropos
         }
 
         public override long UIAnchoredPositionY(RectTransform target, float startValue, float endValue, float duration,
-            TweenUtility.EEase ease = TweenUtility.EEase.Default, int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart,
+            TweenEase ease = default, int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart,
             float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             var state = new TweenState
@@ -948,14 +948,14 @@ namespace Moirai.Atropos
         }
 
         public override long UIVerticalNormalizedPosition(ScrollRect target, float endValue, float duration,
-            TweenUtility.EEase ease = TweenUtility.EEase.Default, int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart,
+            TweenEase ease = default, int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart,
             float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             return UIVerticalNormalizedPosition(target, target.verticalNormalizedPosition, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
         public override long UIVerticalNormalizedPosition(ScrollRect target, float startValue, float endValue, float duration,
-            TweenUtility.EEase ease = TweenUtility.EEase.Default, int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart,
+            TweenEase ease = default, int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart,
             float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             var state = new TweenState
@@ -979,14 +979,14 @@ namespace Moirai.Atropos
         }
 
         public override long UIAnchoredPosition3D(RectTransform target, Vector3 endValue, float duration,
-            TweenUtility.EEase ease = TweenUtility.EEase.Default, int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart,
+            TweenEase ease = default, int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart,
             float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             return UIAnchoredPosition3D(target, target.anchoredPosition3D, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
         public override long UIAnchoredPosition3D(RectTransform target, Vector3 startValue, Vector3 endValue, float duration,
-            TweenUtility.EEase ease = TweenUtility.EEase.Default, int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart,
+            TweenEase ease = default, int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart,
             float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             var state = new TweenState
@@ -1009,7 +1009,7 @@ namespace Moirai.Atropos
             return TweenTask.Create(in state);
         }
 
-        public override long UISizeDelta(RectTransform target, Vector2 endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long UISizeDelta(RectTransform target, Vector2 endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0,
             bool useUnscaledTime = false, Action onComplete = null)
         {
@@ -1017,7 +1017,7 @@ namespace Moirai.Atropos
         }
 
         public override long UISizeDelta(RectTransform target, Vector2 startValue, Vector2 endValue, float duration,
-            TweenUtility.EEase ease = TweenUtility.EEase.Default, int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart,
+            TweenEase ease = default, int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart,
             float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             var state = new TweenState
@@ -1040,14 +1040,14 @@ namespace Moirai.Atropos
             return TweenTask.Create(in state);
         }
 
-        public override long Color(Graphic target, Color endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default, int cycles = 1,
+        public override long Color(Graphic target, Color endValue, float duration, TweenEase ease = default, int cycles = 1,
             TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false,
             Action onComplete = null)
         {
             return Color(target, target.color, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
-        public override long Color(Graphic target, Color startValue, Color endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long Color(Graphic target, Color startValue, Color endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0,
             bool useUnscaledTime = false, Action onComplete = null)
         {
@@ -1071,7 +1071,7 @@ namespace Moirai.Atropos
             return TweenTask.Create(in state);
         }
 
-        public override long Alpha(CanvasGroup target, float endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default, int cycles = 1,
+        public override long Alpha(CanvasGroup target, float endValue, float duration, TweenEase ease = default, int cycles = 1,
             TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false,
             Action onComplete = null)
         {
@@ -1079,7 +1079,7 @@ namespace Moirai.Atropos
         }
 
         public override long Alpha(CanvasGroup target, float startValue, float endValue, float duration,
-            TweenUtility.EEase ease = TweenUtility.EEase.Default, int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart,
+            TweenEase ease = default, int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart,
             float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             var state = new TweenState
@@ -1102,7 +1102,7 @@ namespace Moirai.Atropos
             return TweenTask.Create(in state);
         }
 
-        public override long Alpha(Graphic target, float endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default, int cycles = 1,
+        public override long Alpha(Graphic target, float endValue, float duration, TweenEase ease = default, int cycles = 1,
             TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false,
             Action onComplete = null)
         {
@@ -1110,7 +1110,7 @@ namespace Moirai.Atropos
         }
 
         public override long Alpha(Graphic target, float startValue, float endValue, float duration,
-            TweenUtility.EEase ease = TweenUtility.EEase.Default, int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart,
+            TweenEase ease = default, int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart,
             float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             var state = new TweenState
@@ -1133,7 +1133,7 @@ namespace Moirai.Atropos
             return TweenTask.Create(in state);
         }
 
-        public override long UIFillAmount(Image target, float endValue, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default, int cycles = 1,
+        public override long UIFillAmount(Image target, float endValue, float duration, TweenEase ease = default, int cycles = 1,
             TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false,
             Action onComplete = null)
         {
@@ -1141,7 +1141,7 @@ namespace Moirai.Atropos
         }
 
         public override long UIFillAmount(Image target, float startValue, float endValue, float duration,
-            TweenUtility.EEase ease = TweenUtility.EEase.Default, int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart,
+            TweenEase ease = default, int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart,
             float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             var state = new TweenState
@@ -1168,7 +1168,7 @@ namespace Moirai.Atropos
 
         #region Bezier Path
 
-        public override long MoveBezierPath(Transform target, Vector3[] path, float duration, TweenUtility.EEase ease = TweenUtility.EEase.Default,
+        public override long MoveBezierPath(Transform target, Vector3[] path, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0,
             bool useUnscaledTime = false, Action onComplete = null)
         {
@@ -1196,7 +1196,7 @@ namespace Moirai.Atropos
         #region Custom
 
         public override long Custom<T>(T target, Vector3 startValue, Vector3 endValue, float duration, Action<T, Vector3> onValueChange,
-            TweenUtility.EEase ease = TweenUtility.EEase.Default, int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart,
+            TweenEase ease = default, int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart,
             float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             // 捕获引用类型回调，不装箱 T（T 已约束为 class）
@@ -1223,7 +1223,7 @@ namespace Moirai.Atropos
         }
 
         public override long Custom<T>(T target, int startValue, int endValue, float duration, Action<T, int> onValueChange,
-            TweenUtility.EEase ease = TweenUtility.EEase.Default, int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart,
+            TweenEase ease = default, int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart,
             float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             Action<float> onUpdate = (v) => onValueChange(target, Mathf.RoundToInt(v));
@@ -1249,7 +1249,7 @@ namespace Moirai.Atropos
         }
 
         public override long Custom<T>(T target, long startValue, long endValue, float duration, Action<T, long> onValueChange,
-            TweenUtility.EEase ease = TweenUtility.EEase.Default, int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart,
+            TweenEase ease = default, int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart,
             float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             Action<float> onUpdate = (v) => onValueChange(target, (long)v);
@@ -1275,7 +1275,7 @@ namespace Moirai.Atropos
         }
 
         public override long Custom<T>(T target, float startValue, float endValue, float duration, Action<T, float> onValueChange,
-            TweenUtility.EEase ease = TweenUtility.EEase.Default, int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart,
+            TweenEase ease = default, int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart,
             float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             Action<float> onUpdate = (v) => onValueChange(target, v);

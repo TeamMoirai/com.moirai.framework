@@ -206,8 +206,7 @@ namespace Moirai.Atropos
 
             private static void ApplyValue(ref TweenState state, float normalizedTime)
             {
-                EEaseType easeType = MapEase(state.Ease);
-                float t = EaseUtility.Evaluate(normalizedTime, easeType);
+                float t = state.Ease.Evaluate(normalizedTime);
 
                 switch (state.OperationType)
                 {
@@ -751,50 +750,6 @@ namespace Moirai.Atropos
                 // 压缩数组（移除尾部空闲槽位）
                 while (s_Count > 0 && !s_States[s_Count - 1].IsActive)
                     s_Count--;
-            }
-
-            #endregion
-
-            #region 缓动映射
-
-            internal static EEaseType MapEase(TweenUtility.EEase ease)
-            {
-                return ease switch
-                {
-                    TweenUtility.EEase.Default => EEaseType.InCubic,
-                    TweenUtility.EEase.Linear => EEaseType.Linear,
-                    TweenUtility.EEase.InSine => EEaseType.InSine,
-                    TweenUtility.EEase.OutSine => EEaseType.OutSine,
-                    TweenUtility.EEase.InOutSine => EEaseType.InOutSine,
-                    TweenUtility.EEase.InQuad => EEaseType.InQuad,
-                    TweenUtility.EEase.OutQuad => EEaseType.OutQuad,
-                    TweenUtility.EEase.InOutQuad => EEaseType.InOutQuad,
-                    TweenUtility.EEase.InCubic => EEaseType.InCubic,
-                    TweenUtility.EEase.OutCubic => EEaseType.OutCubic,
-                    TweenUtility.EEase.InOutCubic => EEaseType.InOutCubic,
-                    TweenUtility.EEase.InQuart => EEaseType.InQuart,
-                    TweenUtility.EEase.OutQuart => EEaseType.OutQuart,
-                    TweenUtility.EEase.InOutQuart => EEaseType.InOutQuart,
-                    TweenUtility.EEase.InQuint => EEaseType.InQuint,
-                    TweenUtility.EEase.OutQuint => EEaseType.OutQuint,
-                    TweenUtility.EEase.InOutQuint => EEaseType.InOutQuint,
-                    TweenUtility.EEase.InExpo => EEaseType.InExpo,
-                    TweenUtility.EEase.OutExpo => EEaseType.OutExpo,
-                    TweenUtility.EEase.InOutExpo => EEaseType.InOutExpo,
-                    TweenUtility.EEase.InCirc => EEaseType.InCirc,
-                    TweenUtility.EEase.OutCirc => EEaseType.OutCirc,
-                    TweenUtility.EEase.InOutCirc => EEaseType.InOutCirc,
-                    TweenUtility.EEase.InElastic => EEaseType.InElastic,
-                    TweenUtility.EEase.OutElastic => EEaseType.OutElastic,
-                    TweenUtility.EEase.InOutElastic => EEaseType.InOutElastic,
-                    TweenUtility.EEase.InBack => EEaseType.InBack,
-                    TweenUtility.EEase.OutBack => EEaseType.OutBack,
-                    TweenUtility.EEase.InOutBack => EEaseType.InOutBack,
-                    TweenUtility.EEase.InBounce => EEaseType.InBounce,
-                    TweenUtility.EEase.OutBounce => EEaseType.OutBounce,
-                    TweenUtility.EEase.InOutBounce => EEaseType.InOutBounce,
-                    _ => EEaseType.InCubic,
-                };
             }
 
             #endregion

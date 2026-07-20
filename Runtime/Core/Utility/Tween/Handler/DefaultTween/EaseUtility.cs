@@ -1,4 +1,5 @@
 ﻿using Unity.Burst;
+using Unity.Mathematics;
 using static Unity.Mathematics.math;
 
 namespace Moirai.Atropos
@@ -22,70 +23,71 @@ namespace Moirai.Atropos
         /// <param name="curve"></param>
         /// <returns></returns>
         [BurstCompile]
-        public static float Tween(float currentTime, float initialTime, float endTime, float startValue, float endValue, EEaseType curve)
+        public static float Tween(float currentTime, float initialTime, float endTime, float startValue, float endValue, TweenUtility.EEase curve)
         {
             currentTime = MathsUtility.Remap(currentTime, initialTime, endTime, 0f, 1f);
-            currentTime = Evaluate(currentTime, curve);
+            currentTime = Evaluate(curve, currentTime);
             return startValue + currentTime * (endValue - startValue);
         }
         
         [BurstCompile]
-        public static long Tween(float currentTime, float initialTime, float endTime, long startValue, long endValue, EEaseType curve)
+        public static long Tween(float currentTime, float initialTime, float endTime, long startValue, long endValue, TweenUtility.EEase curve)
         {
 	        currentTime = MathsUtility.Remap(currentTime, initialTime, endTime, 0f, 1f);
-	        currentTime = Evaluate(currentTime, curve);
+	        currentTime = Evaluate(curve, currentTime);
 	        return startValue + (long)(currentTime * (endValue - startValue));
         }
         
         [BurstCompile]
-        public static float Evaluate(float t, EEaseType ease)
+        public static float Evaluate(TweenUtility.EEase ease, float t)
         {
+	        t = clamp(t, 0, 1);
 	        return ease switch
 	        {
-		        EEaseType.Linear => Linear(t),
+		        TweenUtility.EEase.Linear => Linear(t),
 		        
-		        EEaseType.InQuad => InQuadratic(t),
-		        EEaseType.OutQuad => OutQuadratic(t),
-		        EEaseType.InOutQuad => InOutQuadratic(t),
+		        TweenUtility.EEase.InQuad => InQuadratic(t),
+		        TweenUtility.EEase.OutQuad => OutQuadratic(t),
+		        TweenUtility.EEase.InOutQuad => InOutQuadratic(t),
 		        
-		        EEaseType.InCubic => InCubic(t),
-		        EEaseType.OutCubic => OutCubic(t),
-		        EEaseType.InOutCubic => InOutCubic(t),
+		        TweenUtility.EEase.InCubic => InCubic(t),
+		        TweenUtility.EEase.OutCubic => OutCubic(t),
+		        TweenUtility.EEase.InOutCubic => InOutCubic(t),
 		        
-		        EEaseType.InQuart => InQuartic(t),
-		        EEaseType.OutQuart => OutQuartic(t),
-		        EEaseType.InOutQuart => InOutQuartic(t),
+		        TweenUtility.EEase.InQuart => InQuartic(t),
+		        TweenUtility.EEase.OutQuart => OutQuartic(t),
+		        TweenUtility.EEase.InOutQuart => InOutQuartic(t),
 		        
-		        EEaseType.InQuint => InQuintic(t),
-		        EEaseType.OutQuint => OutQuintic(t),
-		        EEaseType.InOutQuint => InOutQuintic(t),
+		        TweenUtility.EEase.InQuint => InQuintic(t),
+		        TweenUtility.EEase.OutQuint => OutQuintic(t),
+		        TweenUtility.EEase.InOutQuint => InOutQuintic(t),
 		        
-		        EEaseType.InSine => InSinusoidal(t),
-		        EEaseType.OutSine => OutSinusoidal(t),
-		        EEaseType.InOutSine => InOutSinusoidal(t),
+		        TweenUtility.EEase.InSine => InSinusoidal(t),
+		        TweenUtility.EEase.OutSine => OutSinusoidal(t),
+		        TweenUtility.EEase.InOutSine => InOutSinusoidal(t),
 		        
-		        EEaseType.InBounce => InBounce(t),
-		        EEaseType.OutBounce => OutBounce(t),
-		        EEaseType.InOutBounce => InOutBounce(t),
+		        TweenUtility.EEase.InBounce => InBounce(t),
+		        TweenUtility.EEase.OutBounce => OutBounce(t),
+		        TweenUtility.EEase.InOutBounce => InOutBounce(t),
 		        
-		        EEaseType.InBack => InBack(t),
-		        EEaseType.OutBack => OutBack(t),
-		        EEaseType.InOutBack => InOutBack(t),
+		        TweenUtility.EEase.InBack => InBack(t),
+		        TweenUtility.EEase.OutBack => OutBack(t),
+		        TweenUtility.EEase.InOutBack => InOutBack(t),
 		        
-		        EEaseType.InExpo => InExponential(t),
-		        EEaseType.OutExpo => OutExponential(t),
-		        EEaseType.InOutExpo => InOutExponential(t),
+		        TweenUtility.EEase.InExpo => InExponential(t),
+		        TweenUtility.EEase.OutExpo => OutExponential(t),
+		        TweenUtility.EEase.InOutExpo => InOutExponential(t),
 		        
-		        EEaseType.InElastic => InElastic(t),
-		        EEaseType.OutElastic => OutElastic(t),
-		        EEaseType.InOutElastic => InOutElastic(t),
+		        TweenUtility.EEase.InElastic => InElastic(t),
+		        TweenUtility.EEase.OutElastic => OutElastic(t),
+		        TweenUtility.EEase.InOutElastic => InOutElastic(t),
 		        
-		        EEaseType.InCirc => InCircular(t),
-		        EEaseType.OutCirc => OutCircular(t),
-		        EEaseType.InOutCirc => InOutCircular(t),
+		        TweenUtility.EEase.InCirc => InCircular(t),
+		        TweenUtility.EEase.OutCirc => OutCircular(t),
+		        TweenUtility.EEase.InOutCirc => InOutCircular(t),
 		        
-		        EEaseType.AntiLinear => AntiLinear(t),
-		        EEaseType.AlmostIdentity => AlmostIdentity(t),
+		        // TweenUtility.EEase.AntiLinear => AntiLinear(t),
+		        // TweenUtility.EEase.AlmostIdentity => AlmostIdentity(t),
 		        
 		        _ => t,
 	        };
