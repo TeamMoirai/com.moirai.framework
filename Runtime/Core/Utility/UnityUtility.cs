@@ -12,7 +12,7 @@ namespace Moirai.Atropos
     /// </summary>
     public static partial class UnityUtility
     {
-        private static IUpdateDriver _updateDriver;
+        private static IUpdateDriver s_UpdateDriver;
 
         #region 控制协程Coroutine
 
@@ -99,7 +99,7 @@ namespace Moirai.Atropos
             }
 
             _MakeEntity();
-            return _updateDriver.StartCoroutine(methodName);
+            return s_UpdateDriver.StartCoroutine(methodName);
         }
 
         public static Coroutine StartCoroutine(IEnumerator routine)
@@ -110,7 +110,7 @@ namespace Moirai.Atropos
             }
 
             _MakeEntity();
-            return _updateDriver.StartCoroutine(routine);
+            return s_UpdateDriver.StartCoroutine(routine);
         }
 
         public static Coroutine StartCoroutine(string methodName, [DefaultValue("null")] object value)
@@ -121,7 +121,7 @@ namespace Moirai.Atropos
             }
 
             _MakeEntity();
-            return _updateDriver.StartCoroutine(methodName, value);
+            return s_UpdateDriver.StartCoroutine(methodName, value);
         }
 
         public static void StopCoroutine(string methodName)
@@ -132,7 +132,7 @@ namespace Moirai.Atropos
             }
 
             _MakeEntity();
-            _updateDriver.StopCoroutine(methodName);
+            s_UpdateDriver.StopCoroutine(methodName);
         }
 
         public static void StopCoroutine(IEnumerator routine)
@@ -143,7 +143,7 @@ namespace Moirai.Atropos
             }
 
             _MakeEntity();
-            _updateDriver.StopCoroutine(routine);
+            s_UpdateDriver.StopCoroutine(routine);
         }
 
         public static void StopCoroutine(Coroutine routine)
@@ -154,14 +154,14 @@ namespace Moirai.Atropos
             }
 
             _MakeEntity();
-            _updateDriver.StopCoroutine(routine);
+            s_UpdateDriver.StopCoroutine(routine);
             routine = null;
         }
 
         public static void StopAllCoroutines()
         {
             _MakeEntity();
-            _updateDriver.StopAllCoroutines();
+            s_UpdateDriver.StopAllCoroutines();
         }
 
         #endregion
@@ -181,7 +181,7 @@ namespace Moirai.Atropos
         private static async UniTaskVoid AddUpdateListenerImp(Action fun)
         {
             await UniTask.Yield( /*PlayerLoopTiming.LastPreUpdate*/);
-            _updateDriver.AddUpdateListener(fun);
+            s_UpdateDriver.AddUpdateListener(fun);
         }
 
         /// <summary>
@@ -197,7 +197,7 @@ namespace Moirai.Atropos
         private static async UniTaskVoid AddFixedUpdateListenerImp(Action fun)
         {
             await UniTask.Yield(PlayerLoopTiming.LastEarlyUpdate);
-            _updateDriver.AddFixedUpdateListener(fun);
+            s_UpdateDriver.AddFixedUpdateListener(fun);
         }
 
         /// <summary>
@@ -213,7 +213,7 @@ namespace Moirai.Atropos
         private static async UniTaskVoid AddLateUpdateListenerImp(Action fun)
         {
             await UniTask.Yield( /*PlayerLoopTiming.LastPreLateUpdate*/);
-            _updateDriver.AddLateUpdateListener(fun);
+            s_UpdateDriver.AddLateUpdateListener(fun);
         }
 
         /// <summary>
@@ -223,7 +223,7 @@ namespace Moirai.Atropos
         public static void RemoveUpdateListener(Action fun)
         {
             _MakeEntity();
-            _updateDriver.RemoveUpdateListener(fun);
+            s_UpdateDriver.RemoveUpdateListener(fun);
         }
 
         /// <summary>
@@ -233,7 +233,7 @@ namespace Moirai.Atropos
         public static void RemoveFixedUpdateListener(Action fun)
         {
             _MakeEntity();
-            _updateDriver.RemoveFixedUpdateListener(fun);
+            s_UpdateDriver.RemoveFixedUpdateListener(fun);
         }
 
         /// <summary>
@@ -243,7 +243,7 @@ namespace Moirai.Atropos
         public static void RemoveLateUpdateListener(Action fun)
         {
             _MakeEntity();
-            _updateDriver.RemoveLateUpdateListener(fun);
+            s_UpdateDriver.RemoveLateUpdateListener(fun);
         }
 
         #endregion
@@ -257,7 +257,7 @@ namespace Moirai.Atropos
         public static void AddDestroyListener(Action fun)
         {
             _MakeEntity();
-            _updateDriver.AddDestroyListener(fun);
+            s_UpdateDriver.AddDestroyListener(fun);
         }
 
         /// <summary>
@@ -267,7 +267,7 @@ namespace Moirai.Atropos
         public static void RemoveDestroyListener(Action fun)
         {
             _MakeEntity();
-            _updateDriver.RemoveDestroyListener(fun);
+            s_UpdateDriver.RemoveDestroyListener(fun);
         }
 
         /// <summary>
@@ -277,7 +277,7 @@ namespace Moirai.Atropos
         public static void AddOnDrawGizmosListener(Action fun)
         {
             _MakeEntity();
-            _updateDriver.AddOnDrawGizmosListener(fun);
+            s_UpdateDriver.AddOnDrawGizmosListener(fun);
         }
 
         /// <summary>
@@ -287,7 +287,7 @@ namespace Moirai.Atropos
         public static void RemoveOnDrawGizmosListener(Action fun)
         {
             _MakeEntity();
-            _updateDriver.RemoveOnDrawGizmosListener(fun);
+            s_UpdateDriver.RemoveOnDrawGizmosListener(fun);
         }
 
         /// <summary>
@@ -297,7 +297,7 @@ namespace Moirai.Atropos
         public static void AddOnApplicationPauseListener(Action<bool> fun)
         {
             _MakeEntity();
-            _updateDriver.AddOnApplicationPauseListener(fun);
+            s_UpdateDriver.AddOnApplicationPauseListener(fun);
         }
 
         /// <summary>
@@ -307,19 +307,19 @@ namespace Moirai.Atropos
         public static void RemoveOnApplicationPauseListener(Action<bool> fun)
         {
             _MakeEntity();
-            _updateDriver.RemoveOnApplicationPauseListener(fun);
+            s_UpdateDriver.RemoveOnApplicationPauseListener(fun);
         }
 
         #endregion
 
         private static void _MakeEntity()
         {
-            if (_updateDriver != null)
+            if (s_UpdateDriver != null)
             {
                 return;
             }
 
-            _updateDriver = ModuleSystem.GetModule<IUpdateDriver>();
+            s_UpdateDriver = ModuleSystem.GetModule<IUpdateDriver>();
         }
     }
 
