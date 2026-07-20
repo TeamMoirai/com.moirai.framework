@@ -1,5 +1,6 @@
 ﻿using Sirenix.OdinInspector;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace Moirai.Atropos.Audio
 {
@@ -35,8 +36,9 @@ namespace Moirai.Atropos.Audio
 		[SerializeField] private float m_FadeInitialVolume = 0f;
 		[ShowIf(nameof(m_Fade))]
 		[SerializeField] private float m_FadeDuration = 1f;
+		[FormerlySerializedAs("m_FadeTween")]
 		[ShowIf(nameof(m_Fade))]
-		[SerializeField] private Tween m_FadeTween = new Tween(EEaseType.InOutQuart);
+		[SerializeField] private TweenEase m_FadeTweenEase = new TweenEase(TweenUtility.EEase.InOutQuart);
 
 		[Header("独奏 [Solo]")]
 		[SerializeField] private bool m_SoloSingleTrack = false;
@@ -81,7 +83,7 @@ namespace Moirai.Atropos.Audio
 			options.FadeInOnPlay = m_Fade;
 			options.FadeInInitialVolume = m_FadeInitialVolume;
 			options.FadeInDuration = m_FadeDuration;
-			options.FadeInTween = m_FadeTween;
+			options.FadeInTweenEase = m_FadeTweenEase;
 			options.SoloSingleTrack = m_SoloSingleTrack;
 			options.SoloAllTracks = m_SoloAllTracks;
 			options.AutoUnSoloOnEnd = m_AutoUnSoloOnEnd;

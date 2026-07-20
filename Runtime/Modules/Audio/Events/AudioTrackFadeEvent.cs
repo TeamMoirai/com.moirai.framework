@@ -36,11 +36,11 @@ namespace Moirai.Atropos.Audio
         /// <summary>
         /// 淡出时使用的补间动画曲线
         /// </summary>
-        public Tween FadeTween { get; private set; }
+        public TweenEase FadeTweenEase { get; private set; }
    
         // ---------- Handle Common Track ----------
 
-        private static AudioTrackFadeEvent GetPooled(AudioTrackFadeEventMode mode, AudioTrack track, float fadeDuration, float finalVolume, Tween fadeTween)
+        private static AudioTrackFadeEvent GetPooled(AudioTrackFadeEventMode mode, AudioTrack track, float fadeDuration, float finalVolume, TweenEase fadeTweenEase)
         {
             var evt = GetPooled();
             evt.Mode = mode;
@@ -48,32 +48,32 @@ namespace Moirai.Atropos.Audio
             evt.IsMaster = false;
             evt.FadeDuration = fadeDuration;
             evt.FinalVolume = finalVolume;
-            evt.FadeTween = fadeTween;
+            evt.FadeTweenEase = fadeTweenEase;
             return evt;
         }
 
-        public static void Trigger(AudioTrackFadeEventMode mode, AudioTrack track, float fadeDuration, float finalVolume, Tween fadeTween)
+        public static void Trigger(AudioTrackFadeEventMode mode, AudioTrack track, float fadeDuration, float finalVolume, TweenEase fadeTweenEase)
         {
-            using var evt = GetPooled(mode, track, fadeDuration, finalVolume, fadeTween);
+            using var evt = GetPooled(mode, track, fadeDuration, finalVolume, fadeTweenEase);
             EventManager.SendEvent(evt);
         }
         
         // ---------- Handle Master Track ----------
 
-        private static AudioTrackFadeEvent GetPooled(AudioTrackFadeEventMode mode, float fadeDuration, float finalVolume, Tween fadeTween)
+        private static AudioTrackFadeEvent GetPooled(AudioTrackFadeEventMode mode, float fadeDuration, float finalVolume, TweenEase fadeTweenEase)
         {
             var evt = GetPooled();
             evt.Mode = mode;
             evt.IsMaster = true;
             evt.FadeDuration = fadeDuration;
             evt.FinalVolume = finalVolume;
-            evt.FadeTween = fadeTween;
+            evt.FadeTweenEase = fadeTweenEase;
             return evt;
         }
 
-        public static void TriggerMaster(AudioTrackFadeEventMode mode, float fadeDuration, float finalVolume, Tween fadeTween)
+        public static void TriggerMaster(AudioTrackFadeEventMode mode, float fadeDuration, float finalVolume, TweenEase fadeTweenEase)
         {
-            using var evt = GetPooled(mode, fadeDuration, finalVolume, fadeTween);
+            using var evt = GetPooled(mode, fadeDuration, finalVolume, fadeTweenEase);
             EventManager.SendEvent(evt);
         }
     }

@@ -1,10 +1,6 @@
-﻿using System;
-using System.Collections;
+using System;
 using System.Collections.Generic;
 using System.Linq;
-#if UNITY_EDITOR
-using System.Reflection;
-#endif
 using Moirai.Atropos.Events;
 using Moirai.Atropos.Resource;
 using Moirai.Atropos.Schedulers;
@@ -12,6 +8,9 @@ using UnityEngine;
 using UnityEngine.Audio;
 using UnityEngine.SceneManagement;
 using YooAsset;
+#if UNITY_EDITOR
+using System.Reflection;
+#endif
 
 namespace Moirai.Atropos.Audio
 {
@@ -25,16 +24,15 @@ namespace Moirai.Atropos.Audio
         private AudioGroupConfig[] _audioGroupConfigs;
         private bool _bUnityAudioDisabled;
         private IResourceModule _resourceModule;
-        
-        // todo 引入 Tween 干掉这些内置自定义过渡协程
-        // 音效渐入协程
-        private readonly Dictionary<AudioSource, Coroutine> _fadeInSoundCoroutines = new Dictionary<AudioSource, Coroutine>();
-        // 音效渐出协程
-        private readonly Dictionary<AudioSource, Coroutine> _fadeOutSoundCoroutines = new Dictionary<AudioSource, Coroutine>();
-        // Master 音轨过渡协程
-        private Coroutine _masterTrackCoroutine;
-        // 音轨过渡协程
-        private readonly Dictionary<AudioTrack, Coroutine> _fadeTrackCoroutines = new Dictionary<AudioTrack, Coroutine>();
+
+        // Master 音轨过渡 Tween ID
+        private long _masterFadeTweenId;
+        // 音轨过渡 Tween ID
+        private readonly Dictionary<AudioTrack, long> _trackFadeTweenIds = new Dictionary<AudioTrack, long>();
+        // 音效渐入 Tween ID
+        private readonly Dictionary<AudioSource, long> _audioFadeInTweenIds = new Dictionary<AudioSource, long>();
+        // 音效渐出 Tween ID
+        private readonly Dictionary<AudioSource, long> _audioFadeOutTweenIds = new Dictionary<AudioSource, long>();
         // 音轨暂停状态
         private readonly Dictionary<AudioTrack, bool> _pausedTracks = new Dictionary<AudioTrack, bool>();
 
@@ -293,6 +291,7 @@ namespace Moirai.Atropos.Audio
         {
             if (!Application.isPlaying) return;
 
+            TweenUtility.StopAll(this);
             StopAll(fadeoutDuration: 0f);
             CleanAudioPool();
             
@@ -354,7 +353,7 @@ namespace Moirai.Atropos.Audio
         public AudioAgent Play(AudioClip clip, AudioTrack track, Vector3 location,
             bool loop = false,
             float volume = 1, int id = 0, bool fade = false, float fadeInitialVolume = 0, float fadeDuration = 1,
-            Tween fadeTween = null, bool persistent = false, AudioSource recycleAudioSource = null,
+            TweenEase fadeTweenEase = default, bool persistent = false, AudioSource recycleAudioSource = null,
             AudioMixerGroup audioGroup = null, float pitch = 1, float panStereo = 0, float spatialBlend = 0,
             bool soloSingleTrack = false, bool soloAllTracks = false, bool autoUnSoloOnEnd = false,
             bool bypassEffects = false,
@@ -387,7 +386,7 @@ namespace Moirai.Atropos.Audio
                 FadeInOnPlay = fade,
                 FadeInInitialVolume = fadeInitialVolume,
                 FadeInDuration = fadeDuration,
-                FadeInTween = fadeTween,
+                FadeInTweenEase = fadeTweenEase,
                 
                 Persistent = persistent,
                 RecycleAudioSource = recycleAudioSource,
@@ -456,7 +455,7 @@ namespace Moirai.Atropos.Audio
 
         public AudioAgent Play(string path, AudioTrack track, Vector3 location, bool bAsync = false, bool bInPool = false,
             bool loop = false, float volume = 1.0f, int id = 0,
-            bool fade = false, float fadeInitialVolume = 0f, float fadeDuration = 1f, Tween fadeTween = null,
+            bool fade = false, float fadeInitialVolume = 0f, float fadeDuration = 1f, TweenEase fadeTweenEase = default,
             bool persistent = false,
             AudioSource recycleAudioSource = null, AudioMixerGroup audioGroup = null,
             float pitch = 1f, float panStereo = 0f, float spatialBlend = 0.0f,
@@ -489,7 +488,7 @@ namespace Moirai.Atropos.Audio
                 FadeInOnPlay = fade,
                 FadeInInitialVolume = fadeInitialVolume,
                 FadeInDuration = fadeDuration,
-                FadeInTween = fadeTween,
+                FadeInTweenEase = fadeTweenEase,
                 
                 Persistent = persistent,
                 RecycleAudioSource = recycleAudioSource,
@@ -702,164 +701,81 @@ namespace Moirai.Atropos.Audio
         #endregion 所有音频控制 [ALL AUDIO CONTROLS]
 
         #region 过渡 [FADES]
-        
-        public void FadeMasterTrack(float duration, float initialVolume = 0f, float finalVolume = 1f, Tween tween = null)
+
+        public void FadeMasterTrack(float duration, float initialVolume = 0f, float finalVolume = 1f, TweenEase tweenEase = default)
         {
-            _masterTrackCoroutine = UnityUtility.StartCoroutine(FadeMasterTrackCoroutine(duration, initialVolume, finalVolume, tween));
+            if (duration <= 0f) { MasterVolume = finalVolume; return; }
+
+            TweenUtility.Stop(_masterFadeTweenId);
+            _masterFadeTweenId = TweenUtility.Custom(this, initialVolume, finalVolume, duration,
+                (_, v) => MasterVolume = v, tweenEase, useUnscaledTime: true);
         }
-        
-        /// <summary>
-        /// 随着时间的流逝，整个音轨会逐渐淡出
-        /// </summary>
-        /// <param name="duration"></param>
-        /// <param name="initialVolume"></param>
-        /// <param name="finalVolume"></param>
-        /// <param name="tween"></param>
-        /// <returns></returns>        
-        private IEnumerator FadeMasterTrackCoroutine(float duration, float initialVolume, float finalVolume, Tween tween)
-        {
-            float startedAt = GameTime.unscaledTime;
-            if (tween == null)
-            {
-                tween = new Tween(EEaseType.InOutQuart);
-            }
-            while (GameTime.unscaledTime - startedAt <= duration)
-            {
-                float elapsedTime = GameTime.unscaledTime - startedAt;
-                float newVolume = EaseUtility.Tween(elapsedTime, 0f, duration, initialVolume, finalVolume, tween);
-                MasterVolume = newVolume;
-                yield return null;
-            }
-            MasterVolume = finalVolume;
-        }
-        
+
         public void StopFadeMasterTrack()
         {
-            if (_masterTrackCoroutine != null)
-            {
-                UnityUtility.StopCoroutine(_masterTrackCoroutine);
-                _masterTrackCoroutine = null;
-            }
+            TweenUtility.Stop(_masterFadeTweenId);
         }
-        
-        public void FadeTrack(AudioTrack track, float duration, float initialVolume = 0f, float finalVolume = 1f, Tween tween = null)
+
+        public void FadeTrack(AudioTrack track, float duration, float initialVolume = 0f, float finalVolume = 1f, TweenEase tweenEase = default)
         {
-            Coroutine coroutine = UnityUtility.StartCoroutine(FadeTrackCoroutine(track, duration, initialVolume, finalVolume, tween));
-            _fadeTrackCoroutines[track] = coroutine;
+            if (duration <= 0f) { SetTrackVolume(track, finalVolume); return; }
+
+            StopFadeTrack(track);
+            _trackFadeTweenIds[track] = TweenUtility.Custom(this, initialVolume, finalVolume, duration,
+                (_, v) => SetTrackVolume(track, v), tweenEase, useUnscaledTime: true);
         }
-        
-        /// <summary>
-        /// 随着时间的流逝，整个音轨会逐渐淡出
-        /// </summary>
-        /// <param name="track"></param>
-        /// <param name="duration"></param>
-        /// <param name="initialVolume"></param>
-        /// <param name="finalVolume"></param>
-        /// <param name="tween"></param>
-        /// <returns></returns>        
-        private IEnumerator FadeTrackCoroutine(AudioTrack track, float duration, float initialVolume, float finalVolume, Tween tween)
-        {
-            float startedAt = GameTime.unscaledTime;
-            if (tween == null)
-            {
-                tween = new Tween(EEaseType.InOutQuart);
-            }
-            while (GameTime.unscaledTime - startedAt <= duration)
-            {
-                float elapsedTime = GameTime.unscaledTime - startedAt;
-                float newVolume = EaseUtility.Tween(elapsedTime, 0f, duration, initialVolume, finalVolume, tween);
-                SetTrackVolume(track, newVolume);
-                yield return null;
-            }
-            SetTrackVolume(track, finalVolume);            
-        }
-        
+
         public void StopFadeTrack(AudioTrack track)
         {
-            if (_fadeTrackCoroutines.TryGetValue(track, out var outCoroutine))
+            if (_trackFadeTweenIds.TryGetValue(track, out long id))
             {
-                UnityUtility.StopCoroutine(outCoroutine);
-                _fadeTrackCoroutines.Remove(track);
+                TweenUtility.Stop(id);
+                _trackFadeTweenIds.Remove(track);
             }
         }
-        
-        public void FadeAudio(AudioSource source, float duration, float initialVolume, float finalVolume, Tween tween)
+
+        public void FadeAudio(AudioSource source, float duration, float initialVolume, float finalVolume, TweenEase tweenEase)
         {
-            Coroutine coroutine = UnityUtility.StartCoroutine(FadeAudioCoroutine(source, duration, initialVolume, finalVolume, tween));
+            if (duration <= 0f) { source.volume = finalVolume; return; }
+
+            StopFadeAudio(source);
+            long tweenId = TweenUtility.Custom(this, initialVolume, finalVolume, duration,
+                (_, v) => { if (source != null) source.volume = v; }, tweenEase, useUnscaledTime: true);
+
             if (initialVolume < finalVolume)
             {
-                _fadeInSoundCoroutines[source] = coroutine;	
+                _audioFadeInTweenIds[source] = tweenId;
             }
             else
             {
-                _fadeOutSoundCoroutines[source] = coroutine;
+                _audioFadeOutTweenIds[source] = tweenId;
             }
         }
-        
-        /// <summary>
-        /// 随着时间的流逝，过渡音频源的音量
-        /// </summary>
-        /// <param name="source"></param>
-        /// <param name="duration"></param>
-        /// <param name="initialVolume"></param>
-        /// <param name="finalVolume"></param>
-        /// <param name="tween"></param>
-        /// <returns></returns>
-        private IEnumerator FadeAudioCoroutine(AudioSource source, float duration, float initialVolume, float finalVolume, Tween tween)
-        {
-            float startedAt = GameTime.unscaledTime;
-            if (tween == null)
-            {
-                tween = new Tween(EEaseType.InOutQuart);
-            }
-            while (GameTime.unscaledTime - startedAt <= duration)
-            {
-                float elapsedTime = GameTime.unscaledTime - startedAt;
-                float newVolume = EaseUtility.Tween(elapsedTime, 0f, duration, initialVolume, finalVolume, tween);
-                source.volume = newVolume;
-                yield return null;
-            }
-            source.volume = finalVolume;
-            
-            if (initialVolume < finalVolume)
-            {
-                _fadeInSoundCoroutines[source] = null;	
-            }
-            else
-            {
-                _fadeOutSoundCoroutines[source] = null;
-            }
-        }
-        
+
         public void StopFadeAudio(AudioSource source)
         {
-            if ((source != null) && (_fadeInSoundCoroutines.TryGetValue(source, out var outCoroutine)))
+            if (source == null) return;
+
+            if (_audioFadeInTweenIds.TryGetValue(source, out long inId))
             {
-                if (outCoroutine != null)
-                {
-                    UnityUtility.StopCoroutine(outCoroutine);
-                    _fadeInSoundCoroutines.Remove(source);	
-                }
+                TweenUtility.Stop(inId);
+                _audioFadeInTweenIds.Remove(source);
             }
-            if ((source != null) && (_fadeOutSoundCoroutines.TryGetValue(source, out outCoroutine)))
+            if (_audioFadeOutTweenIds.TryGetValue(source, out long outId))
             {
-                if (outCoroutine != null)
-                {
-                    UnityUtility.StopCoroutine(outCoroutine);
-                    _fadeOutSoundCoroutines.Remove(source);
-                }
+                TweenUtility.Stop(outId);
+                _audioFadeOutTweenIds.Remove(source);
             }
         }
-        
-		public bool SoundIsFadingOut(AudioSource source)
-		{
-			if (_fadeOutSoundCoroutines.TryGetValue(source, out _))
-			{
-				return (_fadeOutSoundCoroutines[source] != null);	
-			}
 
-			return false;
-		}
+        public bool SoundIsFadingOut(AudioSource source)
+        {
+            if (_audioFadeOutTweenIds.TryGetValue(source, out long id))
+            {
+                return TweenUtility.IsAlive(id);
+            }
+            return false;
+        }
 
         #endregion 过渡 [FADES]
 
@@ -1035,7 +951,7 @@ namespace Moirai.Atropos.Audio
                 switch (evt.Mode)
                 {
                     case AudioTrackFadeEventMode.PlayFade:
-                        FadeMasterTrack(evt.FadeDuration, GetTrackVolume(evt.Track), evt.FinalVolume, evt.FadeTween);
+                        FadeMasterTrack(evt.FadeDuration, GetTrackVolume(evt.Track), evt.FinalVolume, evt.FadeTweenEase);
                         break;
                     case AudioTrackFadeEventMode.StopFade:
                         StopFadeMasterTrack();
@@ -1047,7 +963,7 @@ namespace Moirai.Atropos.Audio
                 switch (evt.Mode)
                 {
                     case AudioTrackFadeEventMode.PlayFade:
-                        FadeTrack(evt.Track, evt.FadeDuration, GetTrackVolume(evt.Track), evt.FinalVolume, evt.FadeTween);
+                        FadeTrack(evt.Track, evt.FadeDuration, GetTrackVolume(evt.Track), evt.FinalVolume, evt.FadeTweenEase);
                         break;
                     case AudioTrackFadeEventMode.StopFade:
                         StopFadeTrack(evt.Track);
@@ -1072,7 +988,7 @@ namespace Moirai.Atropos.Audio
                         // 避免各种音量过渡冲突
                         agent.CancelFadeIn();
                         StopFadeAudio(agent.AudioResource);
-                        FadeAudio(agent.AudioResource, evt.FadeDuration, agent.AudioResource.volume, evt.FinalVolume, evt.FadeTween);
+                        FadeAudio(agent.AudioResource, evt.FadeDuration, agent.AudioResource.volume, evt.FinalVolume, evt.FadeTweenEase);
                         break;
                     case AudioFadeEventMode.StopFade:
                         StopFadeAudio(agent.AudioResource);

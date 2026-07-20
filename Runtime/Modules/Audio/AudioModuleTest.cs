@@ -4,6 +4,7 @@ using Moirai.Atropos.Attributes;
 using Sirenix.OdinInspector;
 using Moirai.Atropos.Audio;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace Moirai.Test
 {
@@ -25,8 +26,8 @@ namespace Moirai.Test
         public float fadeDuration;
         [ShowIf(nameof(fadeIn))]
         public  float fadeInitialVolume = 0f;
-        [ShowIf(nameof(fadeIn))]
-        public Tween tween;
+        [FormerlySerializedAs("tween")] [ShowIf(nameof(fadeIn))]
+        public TweenEase tweenEase;
     
         [ToggleLeft, OnValueChanged(nameof(OnSoloSingleTrackChanged))]
         public bool soloSingleTrack;
@@ -77,7 +78,7 @@ namespace Moirai.Test
             
             GameModule.Audio.Play(audioPath, track, transform.position,
                 id: audioID,
-                fade: fadeIn, fadeInitialVolume:fadeInitialVolume, fadeDuration: fadeDuration, fadeTween: tween,
+                fade: fadeIn, fadeInitialVolume:fadeInitialVolume, fadeDuration: fadeDuration, fadeTweenEase: tweenEase,
                 attachToTransform: followTarget ? transform : null,
                 soloSingleTrack:soloSingleTrack, soloAllTracks:soloAllTracks, autoUnSoloOnEnd:autoUnSoloOnEnd);
         }
@@ -133,7 +134,7 @@ namespace Moirai.Test
             
             GameModule.Audio.Play(audioClip, track, transform.position,
                 id: audioID,
-                fade: fadeIn, fadeInitialVolume:fadeInitialVolume, fadeDuration: fadeDuration, fadeTween: tween,
+                fade: fadeIn, fadeInitialVolume:fadeInitialVolume, fadeDuration: fadeDuration, fadeTweenEase: tweenEase,
                 attachToTransform: followTarget ? transform : null,
                 soloSingleTrack:soloSingleTrack, soloAllTracks:soloAllTracks, autoUnSoloOnEnd:autoUnSoloOnEnd);
         }
@@ -175,7 +176,7 @@ namespace Moirai.Test
         private void ToggleFadeAudio()
         {
             finalVolume = finalVolume == 0f ? 1f : 0f;
-            AudioFadeEvent.Trigger(AudioFadeEventMode.PlayFade, audioID, 5, finalVolume, new Tween(EEaseType.InCubic));
+            AudioFadeEvent.Trigger(AudioFadeEventMode.PlayFade, audioID, 5, finalVolume, new TweenEase(TweenUtility.EEase.InCubic));
         }
     }
 }

@@ -1,4 +1,4 @@
-﻿using Moirai.Atropos.Resource;
+using Moirai.Atropos.Resource;
 using Moirai.Atropos.Schedulers;
 using UnityEngine;
 using UnityEngine.Audio;
@@ -24,8 +24,8 @@ namespace Moirai.Atropos.Audio
         
         // 音频淡入开始时间
         private float _fadeInAt;
-        // 音频淡出计时器
-        private float _fadeOutTimer;
+        // 音频淡出开始时间
+        private float _fadeOutStartTime;
         // 音频淡出默认持续时间
         public const float FADEOUT_DEFAULT_DURATION = 0.2f;
         // 音频淡出持续时间
@@ -217,7 +217,7 @@ namespace Moirai.Atropos.Audio
                     float endTime = _fadeInAt + _audioPlayOptions.FadeInDuration;
                     if (GameTime.unscaledTime <= endTime)
                     {
-                        AudioResource.volume = EaseUtility.Tween(GameTime.unscaledTime, _fadeInAt, endTime, _audioPlayOptions.FadeInInitialVolume, _audioPlayOptions.Volume, _audioPlayOptions.FadeInTween);
+                        AudioResource.volume = EaseUtility.Tween(GameTime.unscaledTime, _fadeInAt, endTime, _audioPlayOptions.FadeInInitialVolume, _audioPlayOptions.Volume, _audioPlayOptions.FadeInTweenEase);
                     }
                     else
                     {
@@ -236,12 +236,8 @@ namespace Moirai.Atropos.Audio
             }
             else if (_audioAgentRuntimeState == AudioAgentRuntimeState.FadingOut)
             {
-                if (_fadeOutTimer > 0f)
-                {
-                    _fadeOutTimer -= elapseSeconds;
-                    AudioResource.volume = _audioPlayOptions.Volume * _fadeOutTimer / _fadeOutDuration;
-                }
-                else
+                float elapsed = GameTime.unscaledTime - _fadeOutStartTime;
+                if (elapsed >= _fadeOutDuration)
                 {
                     Stop();
                     if (_pendingLoad != null)
@@ -252,6 +248,10 @@ namespace Moirai.Atropos.Audio
                         _pendingLoad = null;
                         Load(path, _audioPlayOptions, bAsync, bInPool);
                     }
+                }
+                else
+                {
+                    AudioResource.volume = _audioPlayOptions.Volume * (1f - elapsed / _fadeOutDuration);
                 }
             }
         }
@@ -471,7 +471,7 @@ namespace Moirai.Atropos.Audio
         {
             if (fadeoutDuration > 0f)
             {
-                _fadeOutTimer = fadeoutDuration;
+                _fadeOutStartTime = GameTime.unscaledTime;
                 _fadeOutDuration = fadeoutDuration;
                 _audioAgentRuntimeState = AudioAgentRuntimeState.FadingOut;
             }
