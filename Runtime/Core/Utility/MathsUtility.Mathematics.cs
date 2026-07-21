@@ -14,7 +14,7 @@ namespace Moirai.Atropos
     public static partial class MathsUtility
     {
         /// <summary>
-        /// <see cref="Matrix4x4.MultiplyVector"/> for <see cref="float4x4"/>
+        /// <see cref="Matrix4x4.MultiplyVector(in Vector3)"/> for <see cref="float4x4"/>
         /// </summary>
         /// <param name="worldMatrix"></param>
         /// <param name="point"></param>
@@ -27,7 +27,7 @@ namespace Moirai.Atropos
         
         // ReSharper disable once InconsistentNaming
         /// <summary>
-        /// <see cref="Matrix4x4.MultiplyPoint3x4"/> for <see cref="float4x4"/>
+        /// <see cref="Matrix4x4.MultiplyPoint3x4(in Vector3)"/> for <see cref="float4x4"/>
         /// </summary>
         /// <param name="worldMatrix"></param>
         /// <param name="point"></param>

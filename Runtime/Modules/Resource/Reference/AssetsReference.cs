@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using Object = UnityEngine.Object;
@@ -35,23 +35,23 @@ namespace Moirai.Atropos.Resource
 
         [SerializeField] private List<AssetsRefInfo> m_RefAssetInfoList;
 
-        private static IResourceModule _resourceModule;
+        private static IResourceModule s_ResourceModule;
 
-        private static Dictionary<GameObject, AssetsReference> _originalRefs = new Dictionary<GameObject, AssetsReference>();
+        private static Dictionary<GameObject, AssetsReference> s_OriginalRefs = new Dictionary<GameObject, AssetsReference>();
 
 
         private void CheckInit()
         {
-            if (_resourceModule != null)
+            if (s_ResourceModule != null)
             {
                 return;
             }
             else
             {
-                _resourceModule = ModuleSystem.GetModule<IResourceModule>();
+                s_ResourceModule = ModuleSystem.GetModule<IResourceModule>();
             }
 
-            if (_resourceModule == null)
+            if (s_ResourceModule == null)
             {
                 throw new GameException($"ResourceModule is null.");
             }
@@ -61,7 +61,7 @@ namespace Moirai.Atropos.Resource
         {
             if (m_SourceGameObject != null)
             {
-                _resourceModule.UnloadAsset(m_SourceGameObject);
+                s_ResourceModule.UnloadAsset(m_SourceGameObject);
             }
             else
             {
@@ -81,7 +81,7 @@ namespace Moirai.Atropos.Resource
 
         private bool IsOriginalInstance()
         {
-            return _originalRefs.TryGetValue(gameObject, out var originalComponent) &&
+            return s_OriginalRefs.TryGetValue(gameObject, out var originalComponent) &&
                    originalComponent == this;
         }
 
@@ -93,9 +93,9 @@ namespace Moirai.Atropos.Resource
 
         private void OnDestroy()
         {
-            if (_originalRefs.TryGetValue(gameObject, out var reference) && reference == this)
+            if (s_OriginalRefs.TryGetValue(gameObject, out var reference) && reference == this)
             {
-                _originalRefs.Remove(gameObject);
+                s_OriginalRefs.Remove(gameObject);
             }
             CheckInit();
             if (m_SourceGameObject != null)
@@ -112,7 +112,7 @@ namespace Moirai.Atropos.Resource
             {
                 foreach (var refInfo in m_RefAssetInfoList)
                 {
-                    _resourceModule.UnloadAsset(refInfo.refAsset);
+                    s_ResourceModule.UnloadAsset(refInfo.refAsset);
                 }
 
                 m_RefAssetInfoList.Clear();
@@ -131,10 +131,10 @@ namespace Moirai.Atropos.Resource
                 throw new GameException($"Source gameObject is in scene.");
             }
 
-            _resourceModule = resourceModule;
+            s_ResourceModule = resourceModule;
             m_SourceGameObject = source;
 
-            _originalRefs[gameObject] = this;
+            s_OriginalRefs[gameObject] = this;
 
             return this;
         }
@@ -146,7 +146,7 @@ namespace Moirai.Atropos.Resource
                 throw new GameException($"Source gameObject is null.");
             }
 
-            _resourceModule = resourceModule;
+            s_ResourceModule = resourceModule;
             if (m_RefAssetInfoList == null)
             {
                 m_RefAssetInfoList = new List<AssetsRefInfo>();

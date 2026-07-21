@@ -10,7 +10,7 @@ namespace Moirai.Atropos.Schedulers
     /// <!-- 参考自 https://github.com/akbiggs/UnityTimer -->
     internal class Timer : IScheduled
     {
-        private static readonly _ObjectPool<Timer> Pool = new _ObjectPool<Timer>(() => new Timer());
+        private static readonly _ObjectPool<Timer> s_Pool = new _ObjectPool<Timer>(() => new Timer());
         
         #region Public Properties/Fields
         public SchedulerHandle Handle { get; private set; }
@@ -66,7 +66,7 @@ namespace Moirai.Atropos.Schedulers
         internal static Timer Register(float duration, SchedulerUnsafeBinding onComplete, SchedulerUnsafeBinding<float> onUpdate,
            TickFrame tickFrame = TickFrame.Update, bool isLooped = false, bool useRealTime = false)
         {
-            Timer timer = Pool.Get();
+            Timer timer = s_Pool.Get();
             timer.Init(SchedulerRunner.Get().NewHandle(), duration, ref onComplete, ref onUpdate, isLooped, useRealTime);
             SchedulerRunner.Get().Register(timer, tickFrame, onComplete.IsValid() ? onComplete.GetDelegate() : onUpdate.GetDelegate());
             return timer;
@@ -88,7 +88,7 @@ namespace Moirai.Atropos.Schedulers
             SchedulerRunner.Get().Unregister(this, _onComplete.IsValid() ? _onComplete.GetDelegate() : _onUpdate.GetDelegate());
             _onUpdate = default;
             _onComplete = default;
-            Pool.Release(this);
+            s_Pool.Release(this);
         }
         /// <summary>
         /// Pause a running timer. A paused timer can be resumed from the same point it was paused.

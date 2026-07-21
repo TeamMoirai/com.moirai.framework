@@ -34,7 +34,7 @@ namespace Moirai.Atropos.R3
             }
         }
 
-        private static readonly ConcurrentDictionary<Type, IReactivePropertyHandler> Handlers = new();
+        private static readonly ConcurrentDictionary<Type, IReactivePropertyHandler> s_Handlers = new();
 
         public override bool CanConvert(Type objectType)
         {
@@ -71,7 +71,7 @@ namespace Moirai.Atropos.R3
 
         private static IReactivePropertyHandler GetOrCreateHandler(Type objectType)
         {
-            if (Handlers.TryGetValue(objectType, out var handler))
+            if (s_Handlers.TryGetValue(objectType, out var handler))
             {
                 return handler;
             }
@@ -79,7 +79,7 @@ namespace Moirai.Atropos.R3
             var valueType = objectType.GetGenericArguments()[0];
             var handlerType = typeof(ReactivePropertyHandler<>).MakeGenericType(valueType);
             handler = (IReactivePropertyHandler)Activator.CreateInstance(handlerType);
-            Handlers.TryAdd(objectType, handler);
+            s_Handlers.TryAdd(objectType, handler);
             return handler;
         }
     }

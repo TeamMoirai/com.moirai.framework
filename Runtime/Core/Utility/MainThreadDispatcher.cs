@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Collections.Generic;
 using System;
 using System.Threading;
@@ -40,7 +40,7 @@ namespace Moirai.Atropos
                     }
                     catch (Exception ex)
                     {
-                        Log.Error($"MainThreadDispatcher action execution failed: {ex}");
+                        Log.Error(StringUtility.Format("MainThreadDispatcher action execution failed: {0}", ex));
                     }
                 }
             }

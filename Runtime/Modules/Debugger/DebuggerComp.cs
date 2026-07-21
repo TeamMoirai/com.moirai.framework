@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace Moirai.Atropos.Debugger
@@ -78,6 +79,8 @@ namespace Moirai.Atropos.Debugger
         private OperationsWindow _operationsWindow = new OperationsWindow();
 
         private FpsCounter _fpsCounter = null;
+        private readonly List<string> _toolbarNames = new List<string>();
+        private string[] _toolbarNameArray = Array.Empty<string>();
 
         /// <summary>
         /// 获取或设置调试器窗口是否激活。
@@ -346,19 +349,29 @@ namespace Moirai.Atropos.Debugger
                 return;
             }
 
-            List<string> names = new List<string>();
+            _toolbarNames.Clear();
             string[] debuggerWindowNames = debuggerWindowGroup.GetDebuggerWindowNames();
             for (int i = 0; i < debuggerWindowNames.Length; i++)
             {
-                names.Add(StringUtility.Format("<b>{0}</b>", debuggerWindowNames[i]));
+                _toolbarNames.Add(StringUtility.Format("<b>{0}</b>", debuggerWindowNames[i]));
             }
 
             if (debuggerWindowGroup == _debuggerModule.DebuggerWindowRoot)
             {
-                names.Add("<b>Close</b>");
+                _toolbarNames.Add("<b>Close</b>");
             }
 
-            int toolbarIndex = GUILayout.Toolbar(debuggerWindowGroup.SelectedIndex, names.ToArray(), GUILayout.Height(30f), GUILayout.MaxWidth(Screen.width));
+            if (_toolbarNameArray.Length != _toolbarNames.Count)
+            {
+                _toolbarNameArray = new string[_toolbarNames.Count];
+            }
+
+            for (int i = 0; i < _toolbarNames.Count; i++)
+            {
+                _toolbarNameArray[i] = _toolbarNames[i];
+            }
+
+            int toolbarIndex = GUILayout.Toolbar(debuggerWindowGroup.SelectedIndex, _toolbarNameArray, GUILayout.Height(30f), GUILayout.MaxWidth(Screen.width));
             if (toolbarIndex >= debuggerWindowGroup.DebuggerWindowCount)
             {
                 ShowFullWindow = false;

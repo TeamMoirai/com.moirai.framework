@@ -85,7 +85,7 @@ namespace Moirai.Atropos
                 memory.Clear();
                 lock (_memories)
                 {
-                    if (_enableStrictCheck && _memories.Contains(memory))
+                    if (s_EnableStrictCheck && _memories.Contains(memory))
                     {
                         throw new Exception("The memory has been released.");
                     }

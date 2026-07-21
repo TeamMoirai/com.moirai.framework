@@ -10,13 +10,13 @@ namespace Moirai.Atropos.UI
         private Stack<string> _errorTextString = new Stack<string>();
         
         #region 脚本工具生成的代码
-        private Text m_textError;
-        private Button m_btnClose;
+        private Text _textError;
+        private Button _btnClose;
         protected override void ScriptGenerator()
         {
-            m_textError = FindChildComponent<Text>("m_textError");
-            m_btnClose = FindChildComponent<Button>("m_btnClose");
-            m_btnClose.onClick.AddListener(OnClickCloseBtn);
+            _textError = FindChildComponent<Text>("m_textError");
+            _btnClose = FindChildComponent<Button>("m_btnClose");
+            _btnClose.onClick.AddListener(OnClickCloseBtn);
         }
         #endregion
 
@@ -30,7 +30,7 @@ namespace Moirai.Atropos.UI
          protected override void OnRefresh()
          {
              _errorTextString.Push(UserData?.ToString());
-             m_textError.text = UserData?.ToString();
+             _textError.text = UserData?.ToString();
          }
 
          private async UniTaskVoid PopErrorLog()
@@ -43,7 +43,7 @@ namespace Moirai.Atropos.UI
              }
 
              string error = _errorTextString.Pop();
-             m_textError.text = error;
+             _textError.text = error;
          }
     }
 }

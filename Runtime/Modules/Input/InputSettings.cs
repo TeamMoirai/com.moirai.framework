@@ -14,7 +14,7 @@ namespace Moirai.Atropos.Input
         [HelperDropdown(typeof(IInputHandler), "Input Handler")]
         [SerializeField] private string m_InputHandlerTypeName;
 
-        private static IInputHandler _inputHandler = null;
+        private static IInputHandler s_InputHandler = null;
         /// <summary>
         /// 获取/设置当前的输入处理器组件。
         /// </summary>
@@ -22,18 +22,18 @@ namespace Moirai.Atropos.Input
         {
             get
             {
-                if (_inputHandler != null) return _inputHandler;
+                if (s_InputHandler != null) return s_InputHandler;
 
                 // 初始化
-                _inputHandler = ResolveTypeOption<IInputHandler>(Instance.m_InputHandlerTypeName);
-                _inputHandler.OnInit();
+                s_InputHandler = ResolveTypeOption<IInputHandler>(Instance.m_InputHandlerTypeName);
+                s_InputHandler.OnInit();
 
-                return _inputHandler;
+                return s_InputHandler;
             }
             set
             {
-                _inputHandler = value;
-                _inputHandler?.OnInit();
+                s_InputHandler = value;
+                s_InputHandler?.OnInit();
             }
         }
 

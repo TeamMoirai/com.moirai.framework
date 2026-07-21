@@ -1,4 +1,4 @@
-﻿using Moirai.Atropos.ObjectPool;
+using Moirai.Atropos.ObjectPool;
 using YooAsset;
 
 namespace Moirai.Atropos.Resource
@@ -11,13 +11,13 @@ namespace Moirai.Atropos.Resource
         /// </summary>
         private sealed class AssetObject : ObjectBase
         {
-            private AssetHandle m_AssetHandle;
+            private AssetHandle _assetHandle;
             private ResourceModule _resourceModule;
 
 
             public AssetObject()
             {
-                m_AssetHandle = null;
+                _assetHandle = null;
             }
 
             public static AssetObject Create(string name, object target, object assetHandle, ResourceModule resourceModule)
@@ -34,7 +34,7 @@ namespace Moirai.Atropos.Resource
 
                 AssetObject assetObject = MemoryPool.Acquire<AssetObject>();
                 assetObject.Initialize(name, target);
-                assetObject.m_AssetHandle = (AssetHandle)assetHandle;
+                assetObject._assetHandle = (AssetHandle)assetHandle;
                 assetObject._resourceModule = resourceModule;
                 return assetObject;
             }
@@ -42,7 +42,7 @@ namespace Moirai.Atropos.Resource
             public override void Clear()
             {
                 base.Clear();
-                m_AssetHandle = null;
+                _assetHandle = null;
             }
 
             protected internal override void OnDespawn()
@@ -54,12 +54,12 @@ namespace Moirai.Atropos.Resource
             {
                 if (!isShutdown)
                 {
-                    AssetHandle handle = m_AssetHandle;
+                    AssetHandle handle = _assetHandle;
                     if (handle is { IsValid: true })
                     {
                         handle.Dispose();
                     }
-                    m_AssetHandle = null;
+                    _assetHandle = null;
                 }
             }
         }

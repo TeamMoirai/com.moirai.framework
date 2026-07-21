@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngineInternal;
@@ -10,7 +10,7 @@ namespace Moirai.Atropos
     {
         #region GetComponentNoAlloc
 
-        private static List<Component> m_ComponentCache = new List<Component>();
+        private static List<Component> s_ComponentCache = new List<Component>();
 
         /// <summary>
         /// （0GC)获取组件
@@ -21,9 +21,9 @@ namespace Moirai.Atropos
         /// <remarks>不分配无用内存</remarks>
         public static Component GetComponentNoAlloc(this GameObject @this, Type componentType)
         {
-            @this.GetComponents(componentType, m_ComponentCache);
-            Component component = m_ComponentCache.Count > 0 ? m_ComponentCache[0] : null;
-            m_ComponentCache.Clear();
+            @this.GetComponents(componentType, s_ComponentCache);
+            Component component = s_ComponentCache.Count > 0 ? s_ComponentCache[0] : null;
+            s_ComponentCache.Clear();
             return component;
         }
         
@@ -36,9 +36,9 @@ namespace Moirai.Atropos
         /// <remarks>不分配无用内存</remarks>
         public static T GetComponentNoAlloc<T>(this GameObject @this) where T : Component
         {
-            @this.GetComponents(typeof(T), m_ComponentCache);
-            Component component = m_ComponentCache.Count > 0 ? m_ComponentCache[0] : null;
-            m_ComponentCache.Clear();
+            @this.GetComponents(typeof(T), s_ComponentCache);
+            Component component = s_ComponentCache.Count > 0 ? s_ComponentCache[0] : null;
+            s_ComponentCache.Clear();
             return component as T;
         }
         

@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 
 namespace Moirai.Atropos
 {
@@ -12,17 +12,17 @@ namespace Moirai.Atropos
         /// <summary>
         /// Key->字符串 | Value->RuntimeIdTable)
         /// </summary>
-        private static readonly Dictionary<string, int> _string2RuntimeMap = new Dictionary<string, int>();
-        
+        private static readonly Dictionary<string, int> s_String2RuntimeMap = new Dictionary<string, int>();
+
         /// <summary>
         /// Key->RuntimeId    | Value->字符串 (Table)
         /// </summary>
-        private static readonly Dictionary<int, string> _runtimeToStringMap = new Dictionary<int, string>();
-        
+        private static readonly Dictionary<int, string> s_RuntimeToStringMap = new Dictionary<int, string>();
+
         /// <summary>
         /// 当前运行时 Id。
         /// </summary>
-        private static int _currentRuntimeId = 0;
+        private static int s_CurrentRuntimeId = 0;
 
         /// <summary>
         /// 字符串转 RuntimeId。
@@ -31,14 +31,14 @@ namespace Moirai.Atropos
         /// <returns>RuntimeId。</returns>
         public static int ToRuntimeId(string value)
         {
-            if (_string2RuntimeMap.TryGetValue(value, out var runtimeId))
+            if (s_String2RuntimeMap.TryGetValue(value, out var runtimeId))
             {
                 return runtimeId;
             }
 
-            runtimeId = ++_currentRuntimeId;
-            _string2RuntimeMap[value] = runtimeId;
-            _runtimeToStringMap[runtimeId] = value;
+            runtimeId = ++s_CurrentRuntimeId;
+            s_String2RuntimeMap[value] = runtimeId;
+            s_RuntimeToStringMap[runtimeId] = value;
 
             return runtimeId;
         }
@@ -50,7 +50,7 @@ namespace Moirai.Atropos
         /// <returns>字符串。</returns>
         public static string ToString(int runtimeId)
         {
-            return _runtimeToStringMap.TryGetValue(runtimeId, out var value) ? value : string.Empty;
+            return s_RuntimeToStringMap.TryGetValue(runtimeId, out var value) ? value : string.Empty;
         }
     }
 }

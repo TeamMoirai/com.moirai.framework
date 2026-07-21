@@ -89,7 +89,7 @@ namespace Moirai.Atropos.Events
         }
 
         private readonly List<IEventDispatchingStrategy> m_DispatchingStrategies;
-        private static readonly _ObjectPool<Queue<EventRecord>> k_EventQueuePool = new _ObjectPool<Queue<EventRecord>>(() => new Queue<EventRecord>());
+        private static readonly _ObjectPool<Queue<EventRecord>> s_EventQueuePool = new _ObjectPool<Queue<EventRecord>>(() => new Queue<EventRecord>());
         private Queue<EventRecord> m_Queue;
         private uint m_GateCount;
         private readonly DebuggerEventDispatchingStrategy m_DebuggerEventDispatchingStrategy;
@@ -109,15 +109,15 @@ namespace Moirai.Atropos.Events
             m_DispatchingStrategies.Add(m_DebuggerEventDispatchingStrategy);
 #endif
             m_DispatchingStrategies.AddRange(strategies);
-            m_Queue = k_EventQueuePool.Get();
+            m_Queue = s_EventQueuePool.Get();
         }
-        private static readonly IEventDispatchingStrategy[] defaultStrategies =
+        private static readonly IEventDispatchingStrategy[] s_DefaultStrategies =
         {
             new DefaultDispatchingStrategy()
         };
         public static EventDispatcher CreateDefault()
         {
-            return new EventDispatcher(defaultStrategies);
+            return new EventDispatcher(s_DefaultStrategies);
         }
         private readonly bool m_Immediate = false;
         private bool DispatchImmediately
@@ -161,7 +161,7 @@ namespace Moirai.Atropos.Events
 
             m_DispatchContexts.Push(new DispatchContext() { m_GateCount = m_GateCount, m_Queue = m_Queue });
             m_GateCount = 0;
-            m_Queue = k_EventQueuePool.Get();
+            m_Queue = s_EventQueuePool.Get();
         }
 
         public void PopDispatcherContext()
@@ -169,7 +169,7 @@ namespace Moirai.Atropos.Events
             Debug.Assert(m_GateCount == 0, "All gates should have been opened before popping dispatch context.");
             Debug.Assert(m_Queue.Count == 0, "Queue should be empty when popping dispatch context.");
 
-            k_EventQueuePool.Release(m_Queue);
+            s_EventQueuePool.Release(m_Queue);
 
             m_GateCount = m_DispatchContexts.Peek().m_GateCount;
             m_Queue = m_DispatchContexts.Peek().m_Queue;
@@ -207,7 +207,7 @@ namespace Moirai.Atropos.Events
             // 多亏了门机制，放入新队列中的事件将在当前队列中的其余事件之前被处理（但在完成生成它们的事件的处理之后）。
 
             Queue<EventRecord> queueToProcess = m_Queue;
-            m_Queue = k_EventQueuePool.Get();
+            m_Queue = s_EventQueuePool.Get();
 
             try
             {
@@ -231,7 +231,7 @@ namespace Moirai.Atropos.Events
             finally
             {
                 ProcessingEvents = false;
-                k_EventQueuePool.Release(queueToProcess);
+                s_EventQueuePool.Release(queueToProcess);
             }
         }
         private void ProcessEvent(EventBase evt, IEventCoordinator coordinator)

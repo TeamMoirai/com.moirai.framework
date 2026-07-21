@@ -17,8 +17,7 @@ namespace Moirai.Atropos.Pool
         , IDisposableUnregister
 #endif
     {
-        private static readonly _ObjectPool<PooledGameObject> Pool =
-            new _ObjectPool<PooledGameObject>(() => new PooledGameObject());
+        private static readonly _ObjectPool<PooledGameObject> s_Pool = new _ObjectPool<PooledGameObject>(() => new PooledGameObject());
         
         public GameObject GameObject { get; protected set; }
         
@@ -42,7 +41,7 @@ namespace Moirai.Atropos.Pool
         
         public static void SetMaxSize(int size)
         {
-            Pool.MaxSize = size;
+            s_Pool.MaxSize = size;
         }
         
         /// <summary>
@@ -53,7 +52,7 @@ namespace Moirai.Atropos.Pool
         /// <returns></returns>
         public static PooledGameObject Get(string address, Transform parent = null)
         {
-            var pooledObject = Pool.Get();
+            var pooledObject = s_Pool.Get();
             pooledObject.PoolKey = new PoolKey(address);
             pooledObject.GameObject = GameObjectPoolManager.Get(pooledObject.PoolKey, out _, parent, createEmptyIfNotExist: true);
             pooledObject.Init();
@@ -102,7 +101,7 @@ namespace Moirai.Atropos.Pool
             ReleaseDisposables();
             if (GameObjectPoolManager.HasInstance) GameObjectPoolManager.Release(GameObject, PoolKey);
             IsDisposed = true;
-            Pool.Release(this);
+            s_Pool.Release(this);
         }
         
         protected void InitDisposables()

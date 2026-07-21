@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -220,7 +220,7 @@ namespace Moirai.Atropos
             return true;
         }
 
-        private static readonly HashSet<Type> SerializableNumericTypes = new HashSet<Type>()
+        private static readonly HashSet<Type> s_SerializableNumericTypes = new HashSet<Type>()
         {
             typeof(byte), typeof(sbyte),
             typeof(int), typeof(uint),
@@ -233,10 +233,10 @@ namespace Moirai.Atropos
 
         public static bool IsSerializableNumericTypes(Type type)
         {
-            return SerializableNumericTypes.Contains(type);
+            return s_SerializableNumericTypes.Contains(type);
         }
         
-        private static readonly HashSet<Type> UnityBuiltinTypes = new HashSet<Type>()
+        private static readonly HashSet<Type> s_UnityBuiltinTypes = new HashSet<Type>()
         {
             typeof(AnimationCurve), 
             typeof(Bounds), typeof(BoundsInt), 
@@ -252,7 +252,7 @@ namespace Moirai.Atropos
 
         public static bool IsUnityBuiltinTypes(Type type)
         {
-            return UnityBuiltinTypes.Contains(type);
+            return s_UnityBuiltinTypes.Contains(type);
         }
         
         public static object CreateDefaultValue(Type type)
