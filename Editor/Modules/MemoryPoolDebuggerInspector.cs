@@ -7,15 +7,13 @@ using UnityEngine;
 
 namespace Moirai.Atropos.Editor.Inspector
 {
-    [CustomEditor(typeof(MemoryPoolSetting))]
-    internal sealed class MemoryPoolModuleInspector : GameFrameworkInspector
+    [CustomEditor(typeof(MemoryPoolDebugger))]
+    internal sealed class MemoryPoolDebuggerInspector : GameFrameworkInspector
     {
-        private readonly Dictionary<string, List<MemoryPoolInfo>> m_MemoryPoolInfos = new Dictionary<string, List<MemoryPoolInfo>>(StringComparer.Ordinal);
-        private readonly HashSet<string> m_OpenedItems = new HashSet<string>();
+        private readonly Dictionary<string, List<MemoryPoolInfo>> _memoryPoolInfos = new Dictionary<string, List<MemoryPoolInfo>>(StringComparer.Ordinal);
+        private readonly HashSet<string> _openedItems = new HashSet<string>();
 
-        private SerializedProperty m_EnableStrictCheck = null;
-
-        private bool m_ShowFullClassName = false;
+        private bool _showFullClassName = false;
 
         public override void OnInspectorGUI()
         {
@@ -23,46 +21,40 @@ namespace Moirai.Atropos.Editor.Inspector
 
             serializedObject.Update();
 
-            MemoryPoolSetting t = (MemoryPoolSetting)target;
+            MemoryPoolDebugger t = (MemoryPoolDebugger)target;
 
             if (EditorApplication.isPlaying && IsPrefabInHierarchy(t.gameObject))
             {
-                bool enableStrictCheck = EditorGUILayout.Toggle("Enable Strict Check", t.EnableStrictCheck);
-                if (enableStrictCheck != t.EnableStrictCheck)
-                {
-                    t.EnableStrictCheck = enableStrictCheck;
-                }
-
                 EditorGUILayout.LabelField("Memory Pool Count", MemoryPool.Count.ToString());
-                m_ShowFullClassName = EditorGUILayout.Toggle("Show Full Class Name", m_ShowFullClassName);
-                m_MemoryPoolInfos.Clear();
+                _showFullClassName = EditorGUILayout.Toggle("Show Full Class Name", _showFullClassName);
+                _memoryPoolInfos.Clear();
                 MemoryPoolInfo[] memoryPoolInfos = MemoryPool.GetAllMemoryPoolInfos();
                 foreach (MemoryPoolInfo memoryPoolInfo in memoryPoolInfos)
                 {
                     string assemblyName = memoryPoolInfo.Type.Assembly.GetName().Name;
                     List<MemoryPoolInfo> results = null;
-                    if (!m_MemoryPoolInfos.TryGetValue(assemblyName, out results))
+                    if (!_memoryPoolInfos.TryGetValue(assemblyName, out results))
                     {
                         results = new List<MemoryPoolInfo>();
-                        m_MemoryPoolInfos.Add(assemblyName, results);
+                        _memoryPoolInfos.Add(assemblyName, results);
                     }
 
                     results.Add(memoryPoolInfo);
                 }
 
-                foreach (KeyValuePair<string, List<MemoryPoolInfo>> assemblyMemoryPoolInfo in m_MemoryPoolInfos)
+                foreach (KeyValuePair<string, List<MemoryPoolInfo>> assemblyMemoryPoolInfo in _memoryPoolInfos)
                 {
-                    bool lastState = m_OpenedItems.Contains(assemblyMemoryPoolInfo.Key);
+                    bool lastState = _openedItems.Contains(assemblyMemoryPoolInfo.Key);
                     bool currentState = EditorGUILayout.Foldout(lastState, assemblyMemoryPoolInfo.Key);
                     if (currentState != lastState)
                     {
                         if (currentState)
                         {
-                            m_OpenedItems.Add(assemblyMemoryPoolInfo.Key);
+                            _openedItems.Add(assemblyMemoryPoolInfo.Key);
                         }
                         else
                         {
-                            m_OpenedItems.Remove(assemblyMemoryPoolInfo.Key);
+                            _openedItems.Remove(assemblyMemoryPoolInfo.Key);
                         }
                     }
 
@@ -70,7 +62,7 @@ namespace Moirai.Atropos.Editor.Inspector
                     {
                         EditorGUILayout.BeginVertical("box");
                         {
-                            EditorGUILayout.LabelField(m_ShowFullClassName ? "Full Class Name" : "Class Name", "Unused\tUsing\tAcquire\tRelease\tAdd\tRemove");
+                            EditorGUILayout.LabelField(_showFullClassName ? "Full Class Name" : "Class Name", "Unused\tUsing\tAcquire\tRelease\tAdd\tRemove");
                             assemblyMemoryPoolInfo.Value.Sort(Comparison);
                             foreach (MemoryPoolInfo memoryPoolInfo in assemblyMemoryPoolInfo.Value)
                             {
@@ -108,29 +100,20 @@ namespace Moirai.Atropos.Editor.Inspector
                     }
                 }
             }
-            else
-            {
-                EditorGUILayout.PropertyField(m_EnableStrictCheck);
-            }
 
             serializedObject.ApplyModifiedProperties();
 
             Repaint();
         }
 
-        private void OnEnable()
-        {
-            m_EnableStrictCheck = serializedObject.FindProperty("m_EnableStrictCheck");
-        }
-
         private void DrawMemoryPoolInfo(MemoryPoolInfo memoryPoolInfo)
         {
-            EditorGUILayout.LabelField(m_ShowFullClassName ? memoryPoolInfo.Type.FullName : memoryPoolInfo.Type.Name, StringUtility.Format("{0}\t{1}\t{2}\t{3}\t{4}\t{5}", memoryPoolInfo.UnusedMemoryCount.ToString(), memoryPoolInfo.UsingMemoryCount.ToString(), memoryPoolInfo.AcquireMemoryCount.ToString(), memoryPoolInfo.ReleaseMemoryCount.ToString(), memoryPoolInfo.AddMemoryCount.ToString(), memoryPoolInfo.RemoveMemoryCount.ToString()));
+            EditorGUILayout.LabelField(_showFullClassName ? memoryPoolInfo.Type.FullName : memoryPoolInfo.Type.Name, StringUtility.Format("{0}\t{1}\t{2}\t{3}\t{4}\t{5}", memoryPoolInfo.UnusedMemoryCount.ToString(), memoryPoolInfo.UsingMemoryCount.ToString(), memoryPoolInfo.AcquireMemoryCount.ToString(), memoryPoolInfo.ReleaseMemoryCount.ToString(), memoryPoolInfo.AddMemoryCount.ToString(), memoryPoolInfo.RemoveMemoryCount.ToString()));
         }
 
         private int Comparison(MemoryPoolInfo a, MemoryPoolInfo b)
         {
-            if (m_ShowFullClassName)
+            if (_showFullClassName)
             {
                 return a.Type.FullName.CompareTo(b.Type.FullName);
             }
