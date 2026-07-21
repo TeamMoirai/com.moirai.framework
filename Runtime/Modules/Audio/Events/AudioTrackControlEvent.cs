@@ -7,9 +7,9 @@ namespace Moirai.Atropos.Audio
     /// </summary>
     /// <example>
     /// 暂停整个 UI 音轨
-    /// AudioTrackEvent.Trigger(AudioTrackEventType.PauseTrack, AudioTrack.UI);
+    /// AudioTrackControlEvent.Trigger(AudioTrackControlEvent.EAudioTrackEventType.PauseTrack, AudioTrack.UI);
     /// </example>>
-    public class AudioTrackEvent : EventBase<AudioTrackEvent>, IAudioModuleEvent
+    public class AudioTrackControlEvent : EventBase<AudioTrackControlEvent>, IAudioModuleEvent
     {
         public enum EAudioTrackEventType
         {
@@ -40,7 +40,7 @@ namespace Moirai.Atropos.Audio
         
         // ---------- Handle Common Track ----------
 
-        private static AudioTrackEvent GetPooled(EAudioTrackEventType trackEventType, AudioTrack track, float volume)
+        private static AudioTrackControlEvent GetPooled(EAudioTrackEventType trackEventType, AudioTrack track, float volume)
         {
             var evt = GetPooled();
             evt.TrackEventType = trackEventType;
@@ -64,7 +64,7 @@ namespace Moirai.Atropos.Audio
         
         // ---------- Handle Master Track ----------
         
-        private static AudioTrackEvent GetPooled(EAudioTrackEventType trackEventType, float volume)
+        private static AudioTrackControlEvent GetPooled(EAudioTrackEventType trackEventType, float volume)
         {
             var evt = GetPooled();
             evt.TrackEventType = trackEventType;

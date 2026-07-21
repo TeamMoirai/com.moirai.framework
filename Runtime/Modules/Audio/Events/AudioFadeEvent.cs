@@ -7,7 +7,7 @@ namespace Moirai.Atropos.Audio
     /// </summary>    
     /// <example>
     /// 将在 2 秒内以弹性曲线将 ID 为 33 的音频过渡为 0.3 的音量
-    /// AudioFadeEvent.Trigger(33, 2f, 0.3f, new TweenType(Tween.TweenCurve.EaseInElastic));
+    /// AudioFadeEvent.PlayFade(33, 2f, 0.3f, new TweenType(Tween.TweenCurve.EaseInElastic));
     /// </example>>
     public class AudioFadeEvent : EventBase<AudioFadeEvent>, IAudioModuleEvent
     {

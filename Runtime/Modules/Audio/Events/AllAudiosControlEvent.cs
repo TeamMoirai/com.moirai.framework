@@ -7,7 +7,7 @@ namespace Moirai.Atropos.Audio
     /// 
     /// <example>
     /// 立即停止所有音频播放
-    /// <code>AllAudiosControlEvent.Trigger(AllAudiosControlEventType.Stop);</code>
+    /// <code>AllAudiosControlEvent.Trigger(AllAudiosControlEvent.EAllAudiosControlEventType.Stop);</code>
     /// </example>>
     /// </summary>
     public class AllAudiosControlEvent : EventBase<AllAudiosControlEvent>, IAudioModuleEvent

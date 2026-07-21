@@ -7,7 +7,7 @@ namespace Moirai.Atropos.Audio
     /// </summary>
     /// <example>
     /// 将在 2 秒内将 Music 音轨的音量过渡至 0.5，使用三次补间中的插值
-    /// AudioTrackFadeEvent.Trigger(AudioTrack.Music, 2f, 0.5f, new TweenType(Tween.TweenCurve.EaseInCubic));
+    /// AudioTrackFadeEvent.PlayFade(AudioTrack.Music, 2f, 0.5f, new TweenType(Tween.TweenCurve.EaseInCubic));
     /// </example>>
     public class AudioTrackFadeEvent : EventBase<AudioTrackFadeEvent>, IAudioModuleEvent
     {

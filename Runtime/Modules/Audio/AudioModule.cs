@@ -21,7 +21,7 @@ namespace Moirai.Atropos.Audio
     public sealed class AudioModule : Module, IAudioModule, IUpdateModule
     {
         private AudioGroupConfig[] _audioGroupConfigs;
-        private bool _bUnityAudioDisabled;
+        private bool _unityAudioDisabled;
         private IResourceModule _resourceModule;
 
         // Master 音轨过渡 Tween ID
@@ -81,7 +81,7 @@ namespace Moirai.Atropos.Audio
         {
             get
             {
-                if (_bUnityAudioDisabled)
+                if (_unityAudioDisabled)
                 {
                     return 0f;
                 }
@@ -90,7 +90,7 @@ namespace Moirai.Atropos.Audio
             }
             set
             {
-                if (_bUnityAudioDisabled || Mathf.Approximately(_volume, value))
+                if (_unityAudioDisabled || Mathf.Approximately(_volume, value))
                 {
                     return;
                 }
@@ -105,7 +105,7 @@ namespace Moirai.Atropos.Audio
         {
             get
             {
-                if (_bUnityAudioDisabled)
+                if (_unityAudioDisabled)
                 {
                     return false;
                 }
@@ -114,7 +114,7 @@ namespace Moirai.Atropos.Audio
             }
             set
             {
-                if (_bUnityAudioDisabled || _isMuted == value)
+                if (_unityAudioDisabled || _isMuted == value)
                 {
                     return;
                 }
@@ -158,26 +158,26 @@ namespace Moirai.Atropos.Audio
         
         public float GetTrackVolume(AudioTrack track)
         {
-            if (_bUnityAudioDisabled) return 0f;
+            if (_unityAudioDisabled) return 0f;
             return _configCache.TryGetValue(track, out var config) ? config.Volume : 1f;
         }
         
         public void SetTrackVolume(AudioTrack track, float volume)
         {
-            if (_bUnityAudioDisabled) return;
+            if (_unityAudioDisabled) return;
             if (_configCache.TryGetValue(track, out var config))
                 config.Volume = volume;
         }
         
         public bool GetTrackMute(AudioTrack track)
         {
-            if (_bUnityAudioDisabled) return false;
+            if (_unityAudioDisabled) return false;
             return _configCache.TryGetValue(track, out var config) && config.Mute;
         }
         
         public void SetTrackMute(AudioTrack track, bool mute)
         {
-            if (_bUnityAudioDisabled) return;
+            if (_unityAudioDisabled) return;
             if (_configCache.TryGetValue(track, out var config))
                 config.Mute = mute;
         }
@@ -197,7 +197,7 @@ namespace Moirai.Atropos.Audio
             // Register Events
             EventManager.RegisterCallback<AudioPlayEvent>(OnAudioPlayEvent);
             EventManager.RegisterCallback<AudioModuleEvent>(OnAudioModuleEvent);
-            EventManager.RegisterCallback<AudioTrackEvent>(OnAudioTrackEvent);
+            EventManager.RegisterCallback<AudioTrackControlEvent>(OnAudioTrackEvent);
             EventManager.RegisterCallback<AudioControlEvent>(OnAudioControlEvent);
             EventManager.RegisterCallback<AudioTrackFadeEvent>(OnAudioTrackFadeEvent);
             EventManager.RegisterCallback<AudioFadeEvent>(OnAudioFadeEvent);
@@ -235,8 +235,8 @@ namespace Moirai.Atropos.Audio
             {
                 TypeInfo typeInfo = typeof(UnityEngine.AudioSettings).GetTypeInfo();
                 PropertyInfo propertyInfo = typeInfo.GetDeclaredProperty("unityAudioDisabled");
-                _bUnityAudioDisabled = (bool)propertyInfo.GetValue(null);
-                if (_bUnityAudioDisabled)
+                _unityAudioDisabled = (bool)propertyInfo.GetValue(null);
+                if (_unityAudioDisabled)
                 {
                     return;
                 }
@@ -333,7 +333,7 @@ namespace Moirai.Atropos.Audio
             // Unregister Events
             EventManager.UnregisterCallback<AudioPlayEvent>(OnAudioPlayEvent);
             EventManager.UnregisterCallback<AudioModuleEvent>(OnAudioModuleEvent);
-            EventManager.UnregisterCallback<AudioTrackEvent>(OnAudioTrackEvent);
+            EventManager.UnregisterCallback<AudioTrackControlEvent>(OnAudioTrackEvent);
             EventManager.UnregisterCallback<AudioControlEvent>(OnAudioControlEvent);
             EventManager.UnregisterCallback<AudioTrackFadeEvent>(OnAudioTrackFadeEvent);
             EventManager.UnregisterCallback<AudioFadeEvent>(OnAudioFadeEvent);
@@ -344,7 +344,7 @@ namespace Moirai.Atropos.Audio
         
         public void Restart()
         {
-            if (_bUnityAudioDisabled) return;
+            if (_unityAudioDisabled) return;
 
             CleanAudioPool();
 
@@ -368,7 +368,7 @@ namespace Moirai.Atropos.Audio
         /// </summary>
         public ulong Play(AudioClip clip, AudioPlayOptions options)
         {
-            if (_bUnityAudioDisabled) return 0;
+            if (_unityAudioDisabled) return 0;
 
             AudioCategory category = FindCategory(options.AudioTrack);
             if (category == null)
@@ -483,7 +483,7 @@ namespace Moirai.Atropos.Audio
         /// </summary>
         public ulong Play(string path, AudioPlayOptions options, bool bAsync = false, bool bInPool = false)
         {
-            if (_bUnityAudioDisabled) return 0UL;
+            if (_unityAudioDisabled) return 0UL;
             
             AudioCategory category = FindCategory(options.AudioTrack);
             if (category == null)
@@ -597,21 +597,21 @@ namespace Moirai.Atropos.Audio
          
         public void Pause(ulong handle)
         {
-            if (_bUnityAudioDisabled) return;
+            if (_unityAudioDisabled) return;
             if (_agentById.TryGetValue(handle, out var agent) && agent.IsPlaying)
                 agent.Pause();
         }
 
         public void UnPause(ulong handle)
         {
-            if (_bUnityAudioDisabled) return;
+            if (_unityAudioDisabled) return;
             if (_agentById.TryGetValue(handle, out var agent) && agent.IsPaused)
                 agent.UnPause();
         }
         
         public void Stop(ulong handle, float fadeoutDuration = 0f)
         {
-            if (_bUnityAudioDisabled) return;
+            if (_unityAudioDisabled) return;
             if (_agentById.TryGetValue(handle, out var agent) && (agent.IsPlaying || agent.IsPaused))
                 agent.Stop(fadeoutDuration);
         }
@@ -774,7 +774,7 @@ namespace Moirai.Atropos.Audio
 
         public void Pause(AudioTrack track)
         {
-            if (_bUnityAudioDisabled) return;
+            if (_unityAudioDisabled) return;
 
             _pausedTracks[track] = true;
             AudioCategory category = FindCategory(track);
@@ -783,7 +783,7 @@ namespace Moirai.Atropos.Audio
         
         public void UnPause(AudioTrack track)
         {
-            if (_bUnityAudioDisabled) return;
+            if (_unityAudioDisabled) return;
 
             _pausedTracks[track] = false;
             AudioCategory category = FindCategory(track);
@@ -802,7 +802,7 @@ namespace Moirai.Atropos.Audio
 
         public void Stop(AudioTrack track, float fadeoutDuration = 0f)
         {
-            if (_bUnityAudioDisabled) return;
+            if (_unityAudioDisabled) return;
 
             AudioCategory category = FindCategory(track);
             category?.StopAll();
@@ -814,7 +814,7 @@ namespace Moirai.Atropos.Audio
 
         public void PauseAll()
         {
-            if (_bUnityAudioDisabled) return;
+            if (_unityAudioDisabled) return;
 
             for (int i = 0; i < AudioCategories.Length; i++)
             {
@@ -824,7 +824,7 @@ namespace Moirai.Atropos.Audio
 
         public void UnPauseAll()
         {
-            if (_bUnityAudioDisabled) return;
+            if (_unityAudioDisabled) return;
 
             for (int i = 0; i < AudioCategories.Length; i++)
             {
@@ -834,7 +834,7 @@ namespace Moirai.Atropos.Audio
 
         public void StopAll(float fadeoutDuration = 0f)
         {
-            if (_bUnityAudioDisabled) return;
+            if (_unityAudioDisabled) return;
 
             for (int i = 0; i < AudioCategories.Length; i++)
             {
@@ -844,7 +844,7 @@ namespace Moirai.Atropos.Audio
 
         public void StopAllButPersistent(float fadeoutDuration = 0f)
         {
-            if (_bUnityAudioDisabled) return;
+            if (_unityAudioDisabled) return;
             
             for (int i = 0; i < AudioCategories.Length; i++)
             {
@@ -854,7 +854,7 @@ namespace Moirai.Atropos.Audio
         
         public void StopAllLooping(float fadeoutDuration = 0f)
         {
-            if (_bUnityAudioDisabled) return;
+            if (_unityAudioDisabled) return;
             
             for (int i = 0; i < AudioCategories.Length; i++)
             {
@@ -968,7 +968,7 @@ namespace Moirai.Atropos.Audio
 
         public void PutInAudioPool(List<string> list)
         {
-            if (_bUnityAudioDisabled) return;
+            if (_unityAudioDisabled) return;
 
             for (int i = 0; i < list.Count; i++)
             {
@@ -983,7 +983,7 @@ namespace Moirai.Atropos.Audio
 
         public void RemoveClipFromPool(List<string> list)
         {
-            if (_bUnityAudioDisabled) return;
+            if (_unityAudioDisabled) return;
 
             for (int i = 0; i < list.Count; i++)
             {
@@ -998,7 +998,7 @@ namespace Moirai.Atropos.Audio
 
         public void CleanAudioPool()
         {
-            if (_bUnityAudioDisabled) return;
+            if (_unityAudioDisabled) return;
 
             var enumerator = _assetHandlePool.GetEnumerator();
             while (enumerator.MoveNext())
@@ -1078,28 +1078,28 @@ namespace Moirai.Atropos.Audio
         /// 音轨事件
         /// </summary>
         /// <param name="evt"></param>
-        private void OnAudioTrackEvent(AudioTrackEvent evt)
+        private void OnAudioTrackEvent(AudioTrackControlEvent evt)
         {
             if (evt.IsMaster)
             {
                 switch (evt.TrackEventType)
                 {
-                    case AudioTrackEvent.EAudioTrackEventType.MuteTrack:
+                    case AudioTrackControlEvent.EAudioTrackEventType.MuteTrack:
                         MasterMute = true;
                         break;
-                    case AudioTrackEvent.EAudioTrackEventType.UnmuteTrack:
+                    case AudioTrackControlEvent.EAudioTrackEventType.UnmuteTrack:
                         MasterMute = false;
                         break;
-                    case AudioTrackEvent.EAudioTrackEventType.SetTrackVolume:
+                    case AudioTrackControlEvent.EAudioTrackEventType.SetTrackVolume:
                         MasterVolume = evt.Volume;
                         break;
-                    case AudioTrackEvent.EAudioTrackEventType.PauseTrack:
+                    case AudioTrackControlEvent.EAudioTrackEventType.PauseTrack:
                         PauseAll();
                         break;
-                    case AudioTrackEvent.EAudioTrackEventType.UnPauseTrack:
+                    case AudioTrackControlEvent.EAudioTrackEventType.UnPauseTrack:
                         UnPauseAll();
                         break;
-                    case AudioTrackEvent.EAudioTrackEventType.StopTrack:
+                    case AudioTrackControlEvent.EAudioTrackEventType.StopTrack:
                         StopAll();
                         break;
                 }
@@ -1108,22 +1108,22 @@ namespace Moirai.Atropos.Audio
             {
                 switch (evt.TrackEventType)
                 {
-                    case AudioTrackEvent.EAudioTrackEventType.MuteTrack:
+                    case AudioTrackControlEvent.EAudioTrackEventType.MuteTrack:
                         SetTrackMute(evt.Track, true);
                         break;
-                    case AudioTrackEvent.EAudioTrackEventType.UnmuteTrack:
+                    case AudioTrackControlEvent.EAudioTrackEventType.UnmuteTrack:
                         SetTrackMute(evt.Track, false);
                         break;
-                    case AudioTrackEvent.EAudioTrackEventType.SetTrackVolume:
+                    case AudioTrackControlEvent.EAudioTrackEventType.SetTrackVolume:
                         SetTrackVolume(evt.Track, evt.Volume);
                         break;
-                    case AudioTrackEvent.EAudioTrackEventType.PauseTrack:
+                    case AudioTrackControlEvent.EAudioTrackEventType.PauseTrack:
                         Pause(evt.Track);
                         break;
-                    case AudioTrackEvent.EAudioTrackEventType.UnPauseTrack:
+                    case AudioTrackControlEvent.EAudioTrackEventType.UnPauseTrack:
                         UnPause(evt.Track);
                         break;
-                    case AudioTrackEvent.EAudioTrackEventType.StopTrack:
+                    case AudioTrackControlEvent.EAudioTrackEventType.StopTrack:
                         Stop(evt.Track);
                         break;
                 }

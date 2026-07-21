@@ -442,19 +442,19 @@ namespace Moirai.Atropos.Audio
             UpdateComponentsValue();
         }
         
-        private void OnAudioTrackEvent(AudioTrackEvent evt)
+        private void OnAudioTrackEvent(AudioTrackControlEvent evt)
         {
             if (evt.IsMaster)
             {
                 switch (evt.TrackEventType)
                 {
-                    case AudioTrackEvent.EAudioTrackEventType.MuteTrack:
+                    case AudioTrackControlEvent.EAudioTrackEventType.MuteTrack:
                         ToggleMasterMute(false);
                         break;
-                    case AudioTrackEvent.EAudioTrackEventType.UnmuteTrack:
+                    case AudioTrackControlEvent.EAudioTrackEventType.UnmuteTrack:
                         ToggleMasterMute(true);
                         break;
-                    case AudioTrackEvent.EAudioTrackEventType.SetTrackVolume:
+                    case AudioTrackControlEvent.EAudioTrackEventType.SetTrackVolume:
                         SetMasterVolume(evt.Volume);
                         break;
                 }
@@ -463,13 +463,13 @@ namespace Moirai.Atropos.Audio
             {
                 switch (evt.TrackEventType)
                 {
-                    case AudioTrackEvent.EAudioTrackEventType.MuteTrack:
+                    case AudioTrackControlEvent.EAudioTrackEventType.MuteTrack:
                         ToggleTrackMute(evt.Track, false);
                         break;
-                    case AudioTrackEvent.EAudioTrackEventType.UnmuteTrack:
+                    case AudioTrackControlEvent.EAudioTrackEventType.UnmuteTrack:
                         ToggleTrackMute(evt.Track, true);
                         break;
-                    case AudioTrackEvent.EAudioTrackEventType.SetTrackVolume:
+                    case AudioTrackControlEvent.EAudioTrackEventType.SetTrackVolume:
                         SetTrackVolume(evt.Track, evt.Volume);
                         break;
                 }
