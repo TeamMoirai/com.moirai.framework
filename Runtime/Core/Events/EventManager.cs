@@ -96,9 +96,9 @@ namespace Moirai.Atropos.Events
             }
         }
         
-        private static EventManager _instance;
-        
-        public static EventManager Instance => _instance != null ? _instance : GetInstance();
+        private static EventManager s_Instance;
+
+        public static EventManager Instance => s_Instance != null ? s_Instance : GetInstance();
         
         private CallbackEventHandler _eventHandler;
         
@@ -111,13 +111,13 @@ namespace Moirai.Atropos.Events
 #if UNITY_EDITOR
             if (!Application.isPlaying) return null;
 #endif
-            if (_instance == null)
+            if (s_Instance == null)
             {
                 GameObject managerObject = new GameObject { name = $"[{nameof(EventManager)}]" };
-                _instance = managerObject.AddComponent<EventManager>();
-                DontDestroyOnLoad(_instance);
+                s_Instance = managerObject.AddComponent<EventManager>();
+                DontDestroyOnLoad(s_Instance);
             }
-            return _instance;
+            return s_Instance;
         }
         
         protected override void Awake()
@@ -143,7 +143,7 @@ namespace Moirai.Atropos.Events
         /// <param name="useTrickleDown">将此参数设置为 <c>true</c> 以从 TrickleDown 阶段删除回调。将此参数设置为 <c>false</c> 以从 BubbleUp 阶段删除回调。</param>
         public static void UnregisterCallback<TEventType>(EventCallback<TEventType> callback, TrickleDown useTrickleDown = TrickleDown.NoTrickleDown) where TEventType : EventBase<TEventType>, new()
         {
-            if (!_instance) return;
+            if (!s_Instance) return;
             EventHandler.UnregisterCallback(callback, useTrickleDown);
         }
         
@@ -155,7 +155,7 @@ namespace Moirai.Atropos.Events
         /// <param name="monoDispatchType"></param>
         public static void SendEvent(EventBase eventBase, DispatchMode dispatchMode = DispatchMode.Default, MonoDispatchType monoDispatchType = MonoDispatchType.Update)
         {
-            if (!_instance) return;
+            if (!s_Instance) return;
             ((_CallbackEventHandler)EventHandler).SendMonoEvent(eventBase, dispatchMode, monoDispatchType);
         }
 

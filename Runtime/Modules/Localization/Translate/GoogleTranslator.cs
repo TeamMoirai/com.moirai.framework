@@ -10,10 +10,10 @@ namespace Moirai.Atropos.Localization
 {
     public class GoogleTranslator
     {
-        private const string RequestUrlV2 = "https://translation.googleapis.com/language/translate/v2?key={0}";
-        private const string RequestKeyInputText = "q";
-        private const string RequestKeySourceLanguage = "source";
-        private const string RequestKeyTargetLanguage = "target";
+        private const string REQUEST_URL_V2 = "https://translation.googleapis.com/language/translate/v2?key={0}";
+        private const string REQUEST_KEY_INPUT_TEXT = "q";
+        private const string REQUEST_KEY_SOURCE_LANGUAGE = "source";
+        private const string REQUEST_KEY_TARGET_LANGUAGE = "target";
 
         /// <summary>
         /// Gets or sets the google cloud API key.
@@ -87,11 +87,11 @@ namespace Moirai.Atropos.Localization
             }
 
             var form = new WWWForm();
-            form.AddField(RequestKeyInputText, request.Text);
-            form.AddField(RequestKeySourceLanguage, request.Source.Code);
-            form.AddField(RequestKeyTargetLanguage, request.Target.Code);
+            form.AddField(REQUEST_KEY_INPUT_TEXT, request.Text);
+            form.AddField(REQUEST_KEY_SOURCE_LANGUAGE, request.Source.Code);
+            form.AddField(REQUEST_KEY_TARGET_LANGUAGE, request.Target.Code);
 
-            var url = string.Format(RequestUrlV2, AuthenticationFile.text);
+            var url = string.Format(REQUEST_URL_V2, AuthenticationFile.text);
             return UnityWebRequest.Post(url, form);
         }
 

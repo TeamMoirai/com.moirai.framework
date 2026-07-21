@@ -1,17 +1,17 @@
-﻿using UnityEngine;
+using UnityEngine;
 using UnityEngine.UI;
 
 namespace Moirai.Atropos.Resource
 {
     public static class AssetsSetHelper
     {
-        private static IResourceModule _resourceManager;
+        private static IResourceModule s_ResourceManager;
 
         private static void CheckResourceManager()
         {
-            if (_resourceManager == null)
+            if (s_ResourceManager == null)
             {
-                _resourceManager = ModuleSystem.GetModule<IResourceModule>();
+                s_ResourceManager = ModuleSystem.GetModule<IResourceModule>();
             }
         }
 
@@ -28,17 +28,17 @@ namespace Moirai.Atropos.Resource
 
             if (!isAsync)
             {
-                Material material = _resourceManager.LoadAsset<Material>(location, packageName:packageName);
+                Material material = s_ResourceManager.LoadAsset<Material>(location, packageName:packageName);
                 image.material = material;
                 AssetsReference.Ref(material, image.gameObject);
             }
             else
             {
-                _resourceManager.LoadAsset<Material>(location, material =>
+                s_ResourceManager.LoadAsset<Material>(location, material =>
                 {
                     if (image == null || image.gameObject == null)
                     {
-                        _resourceManager.UnloadAsset(material);
+                        s_ResourceManager.UnloadAsset(material);
                         material = null;
                         return;
                     }
@@ -60,17 +60,17 @@ namespace Moirai.Atropos.Resource
 
             if (!isAsync)
             {
-                Material material = _resourceManager.LoadAsset<Material>(location, packageName);
+                Material material = s_ResourceManager.LoadAsset<Material>(location, packageName);
                 spriteRenderer.material = material;
                 AssetsReference.Ref(material, spriteRenderer.gameObject);
             }
             else
             {
-                _resourceManager.LoadAsset<Material>(location, material =>
+                s_ResourceManager.LoadAsset<Material>(location, material =>
                 {
                     if (spriteRenderer == null || spriteRenderer.gameObject == null)
                     {
-                        _resourceManager.UnloadAsset(material);
+                        s_ResourceManager.UnloadAsset(material);
                         material = null;
                         return;
                     }
@@ -92,17 +92,17 @@ namespace Moirai.Atropos.Resource
 
             if (!isAsync)
             {
-                Material material = _resourceManager.LoadAsset<Material>(location, packageName);
+                Material material = s_ResourceManager.LoadAsset<Material>(location, packageName);
                 meshRenderer.material = needInstance ? Object.Instantiate(material) : material;
                 AssetsReference.Ref(material, meshRenderer.gameObject);
             }
             else
             {
-                _resourceManager.LoadAsset<Material>(location, material =>
+                s_ResourceManager.LoadAsset<Material>(location, material =>
                 {
                     if (meshRenderer == null || meshRenderer.gameObject == null)
                     {
-                        _resourceManager.UnloadAsset(material);
+                        s_ResourceManager.UnloadAsset(material);
                         material = null;
                         return;
                     }
@@ -124,17 +124,17 @@ namespace Moirai.Atropos.Resource
 
             if (!isAsync)
             {
-                Material material = _resourceManager.LoadAsset<Material>(location, packageName);
+                Material material = s_ResourceManager.LoadAsset<Material>(location, packageName);
                 meshRenderer.sharedMaterial = material;
                 AssetsReference.Ref(material, meshRenderer.gameObject);
             }
             else
             {
-                _resourceManager.LoadAsset<Material>(location, material =>
+                s_ResourceManager.LoadAsset<Material>(location, material =>
                 {
                     if (meshRenderer == null || meshRenderer.gameObject == null)
                     {
-                        _resourceManager.UnloadAsset(material);
+                        s_ResourceManager.UnloadAsset(material);
                         material = null;
                         return;
                     }

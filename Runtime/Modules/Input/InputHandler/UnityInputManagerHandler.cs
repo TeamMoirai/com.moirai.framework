@@ -1,4 +1,4 @@
-﻿#if ENABLE_LEGACY_INPUT_MANAGER
+#if ENABLE_LEGACY_INPUT_MANAGER
 using UnityEngine;
 using System.Collections.Generic;
 
@@ -12,83 +12,86 @@ namespace Moirai.Atropos.Input
     {
         private struct Vector2Action
         {
-            public string x;
-            public string y;
+            public string X;
+            public string Y;
 
             public Vector2Action(string x, string y)
             {
-                this.x = x;
-                this.y = y;
+                X = x;
+                Y = y;
             }
         }
 
         private readonly Dictionary<string, Vector2Action> _vector2Actions = new Dictionary<string, Vector2Action>();
+        private readonly HashSet<string> _validAxes = new HashSet<string>();
+        private bool _axesCached;
+
+        private void EnsureAxesCached()
+        {
+            if (_axesCached) return;
+            _axesCached = true;
+
+            var axes = UnityEngine.Input.GetJoystickNames();
+            for (int i = 0; i < axes.Length; i++)
+            {
+                if (!string.IsNullOrEmpty(axes[i]))
+                {
+                    _validAxes.Add(axes[i]);
+                }
+            }
+        }
+
+        private bool IsValidAxis(string axisName)
+        {
+            return _validAxes.Contains(axisName);
+        }
 
         public bool GetButtonDown(string actionName, string actionGroup)
         {
-            bool output = false;
-            try
-            {
-                output = UnityEngine.Input.GetButtonDown(actionName);
-            }
-            catch (System.Exception)
+            if (!IsValidAxis(actionName))
             {
                 PrintInputWarning(actionName);
+                return false;
             }
 
-            return output;
+            return UnityEngine.Input.GetButtonDown(actionName);
         }
 
         public bool GetButtonUp(string actionName, string actionGroup)
         {
-            bool output = false;
-            try
-            {
-                output = UnityEngine.Input.GetButtonUp(actionName);
-            }
-            catch (System.Exception)
+            if (!IsValidAxis(actionName))
             {
                 PrintInputWarning(actionName);
+                return false;
             }
 
-            return output;
+            return UnityEngine.Input.GetButtonUp(actionName);
         }
         
         public bool GetBool(string actionName, string actionGroup = "")
         {
-            bool output = false;
-            try
-            {
-                output = UnityEngine.Input.GetButton(actionName);
-            }
-            catch (System.Exception)
+            if (!IsValidAxis(actionName))
             {
                 PrintInputWarning(actionName);
+                return false;
             }
 
-            return output;
+            return UnityEngine.Input.GetButton(actionName);
         }
 
         public float GetFloat(string actionName, string actionGroup = "")
         {
-            float output = 0f;
-            try
-            {
-                output = UnityEngine.Input.GetAxisRaw(actionName);
-            }
-            catch (System.Exception)
+            if (!IsValidAxis(actionName))
             {
                 PrintInputWarning(actionName);
+                return 0f;
             }
 
-            return output;
+            return UnityEngine.Input.GetAxisRaw(actionName);
         }
 
         public Vector2 GetVector2(string actionName, string actionGroup = "")
         {
-            // 不被 Unity 的输入管理器正式支持。
-            // 例如：“Movement（移动）”会拆分为“Movement X（移动 X 轴）”和“Movement Y（移动 Y 轴）” 
-
             bool found = _vector2Actions.TryGetValue(actionName, out Vector2Action vector2Action);
 
             if (!found)
@@ -101,17 +104,15 @@ namespace Moirai.Atropos.Input
                 _vector2Actions.Add(actionName, vector2Action);
             }
 
-            Vector2 output = Vector2.zero;
-            try
+            float x = IsValidAxis(vector2Action.X) ? UnityEngine.Input.GetAxisRaw(vector2Action.X) : 0f;
+            float y = IsValidAxis(vector2Action.Y) ? UnityEngine.Input.GetAxisRaw(vector2Action.Y) : 0f;
+
+            if (!IsValidAxis(vector2Action.X) || !IsValidAxis(vector2Action.Y))
             {
-                output = new Vector2(UnityEngine.Input.GetAxisRaw(vector2Action.x), UnityEngine.Input.GetAxisRaw(vector2Action.y));
-            }
-            catch (System.Exception)
-            {
-                PrintInputWarning(vector2Action.x, vector2Action.y);
+                PrintInputWarning(vector2Action.X, vector2Action.Y);
             }
 
-            return output;
+            return new Vector2(x, y);
         }
 
         public bool GetMouseButtonPressed(EMouseButton button)
@@ -165,6 +166,7 @@ namespace Moirai.Atropos.Input
 
         public void OnInit()
         {
+            EnsureAxesCached();
         }
 
         public void ResetAllInputStates()
@@ -174,12 +176,12 @@ namespace Moirai.Atropos.Input
 
         private void PrintInputWarning(string actionName)
         {
-            Debug.LogWarning($"[{actionName}] action not found! Please make sure this action is included in your input settings (axis).");
+            Debug.LogWarning(StringUtility.Format("[{0}] action not found! Please make sure this action is included in your input settings (axis).", actionName));
         }
 
         private void PrintInputWarning(string actionXName, string actionYName)
         {
-            Debug.LogWarning($"[{actionXName}] and/or [{actionYName}] actions not found! Please make sure both of these actions are included in your input settings (axis).");
+            Debug.LogWarning(StringUtility.Format("[{0}] and/or [{1}] actions not found! Please make sure both of these actions are included in your input settings (axis).", actionXName, actionYName));
         }
     }
 }

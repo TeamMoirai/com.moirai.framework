@@ -8,11 +8,11 @@ namespace Moirai.Atropos
 {
     public class UniParallel : List<UniTask>, IDisposable
     {
-        private static readonly ObjectPool<UniParallel> pool =
+        private static readonly ObjectPool<UniParallel> s_Pool =
             new ObjectPool<UniParallel>(() => new UniParallel(), null, (e) => e.Clear());
         public static UniParallel Get()
         {
-            return pool.Get();
+            return s_Pool.Get();
         }
         public static UniParallel Create(UniTask task1, UniTask task2)
         {
@@ -46,7 +46,7 @@ namespace Moirai.Atropos
         }
         public void Dispose()
         {
-            pool.Release(this);
+            s_Pool.Release(this);
         }
         public UniTask.Awaiter GetAwaiter()
         {
@@ -59,11 +59,11 @@ namespace Moirai.Atropos
     }
     public class UniParallel<T> : List<UniTask<T>>, IDisposable
     {
-        private static readonly ObjectPool<UniParallel<T>> pool =
+        private static readonly ObjectPool<UniParallel<T>> s_Pool =
             new ObjectPool<UniParallel<T>>(() => new UniParallel<T>(), null, (e) => e.Clear());
         public static UniParallel<T> Get()
         {
-            return pool.Get();
+            return s_Pool.Get();
         }
         public static UniParallel<T> Create(UniTask<T> task1, UniTask<T> task2)
         {
@@ -97,7 +97,7 @@ namespace Moirai.Atropos
         }
         public void Dispose()
         {
-            pool.Release(this);
+            s_Pool.Release(this);
         }
         public UniTask<T[]>.Awaiter GetAwaiter()
         {
@@ -110,11 +110,11 @@ namespace Moirai.Atropos
     }
     public class UniSequence : List<UniTask>, IDisposable
     {
-        private static readonly ObjectPool<UniSequence> pool =
+        private static readonly ObjectPool<UniSequence> s_Pool =
             new ObjectPool<UniSequence>(() => new UniSequence(), null, (e) => e.Clear());
         public static UniSequence Get()
         {
-            return pool.Get();
+            return s_Pool.Get();
         }
         public static UniSequence Create(UniTask task1, UniTask task2)
         {
@@ -148,7 +148,7 @@ namespace Moirai.Atropos
         }
         public void Dispose()
         {
-            pool.Release(this);
+            s_Pool.Release(this);
         }
         public UniTask.Awaiter GetAwaiter()
         {
@@ -168,17 +168,20 @@ namespace Moirai.Atropos
     }
     public class SequenceTask<T> : List<UniTask<T>>, IDisposable
     {
-        private static readonly ObjectPool<SequenceTask<T>> pool = new ObjectPool<SequenceTask<T>>(() => new SequenceTask<T>(), null,
+        private static readonly ObjectPool<SequenceTask<T>> s_Pool = new ObjectPool<SequenceTask<T>>(() => new SequenceTask<T>(), null,
             (e) =>
             {
                 e.Clear();
-                e.results = null;
+                e._results = null;
             });
-        private T[] results;
+
+        private T[] _results;
+
         public static SequenceTask<T> Get()
         {
-            return pool.Get();
+            return s_Pool.Get();
         }
+
         public static SequenceTask<T> Create(UniTask<T> task1, UniTask<T> task2)
         {
             var task = Get();
@@ -186,6 +189,7 @@ namespace Moirai.Atropos
             task.Add(task2);
             return task;
         }
+
         public static SequenceTask<T> Create(UniTask<T> task1, UniTask<T> task2, UniTask<T> task3)
         {
             var task = Get();
@@ -194,6 +198,7 @@ namespace Moirai.Atropos
             task.Add(task3);
             return task;
         }
+
         public static SequenceTask<T> Create(UniTask<T> task1, UniTask<T> task2, UniTask<T> task3, UniTask<T> task4)
         {
             var task = Get();
@@ -203,36 +208,42 @@ namespace Moirai.Atropos
             task.Add(task4);
             return task;
         }
+
         public static SequenceTask<T> Create(IEnumerable<UniTask<T>> uniTasks)
         {
             var task = Get();
             task.AddRange(uniTasks);
             return task;
         }
+
         public static SequenceTask<T> GetNonAlloc(T[] results)
         {
-            var task = pool.Get();
-            task.results = results;
+            var task = s_Pool.Get();
+            task._results = results;
             return task;
         }
+
         public void Dispose()
         {
-            pool.Release(this);
+            s_Pool.Release(this);
         }
+
         public UniTask<T[]>.Awaiter GetAwaiter()
         {
             return AwaitAsSequence().GetAwaiter();
         }
+
         private async UniTask<T[]> AwaitAsSequence()
         {
-            results ??= new T[Count];
-            Assert.IsTrue(results.Length >= Count);
+            _results ??= new T[Count];
+            Assert.IsTrue(_results.Length >= Count);
             for (int i = 0; i < Count; ++i)
             {
-                results[i] = await this[i];
+                _results[i] = await this[i];
             };
-            return results;
+            return _results;
         }
+
         public void Forget()
         {
             AwaitAsSequence().Forget();

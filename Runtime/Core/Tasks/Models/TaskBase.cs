@@ -244,13 +244,13 @@ namespace Moirai.Atropos.Tasks
         
         private bool _pooled;
         
-        private static readonly _ObjectPool<T> Pool = new _ObjectPool<T>(() => new T());
-        
-        private static readonly string DefaultName;
+        private static readonly _ObjectPool<T> s_Pool = new _ObjectPool<T>(() => new T());
+
+        private static readonly string s_DefaultName;
         
         static PooledTaskBase()
         {
-            DefaultName = typeof(T).Name;
+            s_DefaultName = typeof(T).Name;
         }
         
         protected PooledTaskBase() : base()
@@ -272,14 +272,14 @@ namespace Moirai.Atropos.Tasks
             if (evt._pooled)
             {
                 evt.Reset();
-                Pool.Release(evt);
+                s_Pool.Release(evt);
                 evt._pooled = false;
             }
         }
         
         public static T GetPooled()
         {
-            T t = Pool.Get();
+            T t = s_Pool.Get();
             t.Init();
             t._pooled = true;
             return t;
@@ -302,7 +302,7 @@ namespace Moirai.Atropos.Tasks
         
         public override string GetTaskID()
         {
-            return DefaultName;
+            return s_DefaultName;
         }
     }
 }

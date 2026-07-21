@@ -5,7 +5,7 @@ namespace Moirai.Atropos.Schedulers
 {
     internal class FrameCounter : IScheduled
     {
-        private static readonly _ObjectPool<FrameCounter> Pool = new _ObjectPool<FrameCounter>(() => new FrameCounter());
+        private static readonly _ObjectPool<FrameCounter> s_Pool = new _ObjectPool<FrameCounter>(() => new FrameCounter());
       
         #region Public Properties/Fields
         public SchedulerHandle Handle { get; private set; }
@@ -54,7 +54,7 @@ namespace Moirai.Atropos.Schedulers
         internal static FrameCounter Register(int frame, SchedulerUnsafeBinding onComplete, SchedulerUnsafeBinding<int> onUpdate,
          TickFrame tickFrame = TickFrame.Update, bool isLooped = false)
         {
-            FrameCounter timer = Pool.Get();
+            FrameCounter timer = s_Pool.Get();
             timer.Init(SchedulerRunner.Get().NewHandle(), frame, ref onComplete, ref onUpdate, isLooped);
             SchedulerRunner.Get().Register(timer, tickFrame, onComplete.IsValid() ? onComplete.GetDelegate() : onUpdate.GetDelegate());
             return timer;
@@ -78,7 +78,7 @@ namespace Moirai.Atropos.Schedulers
             SchedulerRunner.Get().Unregister(this, _onComplete.IsValid() ? _onComplete.GetDelegate() : _onUpdate.GetDelegate());
             _onUpdate = default;
             _onComplete = default;
-            Pool.Release(this);
+            s_Pool.Release(this);
         }
         
         /// <summary>

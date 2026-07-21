@@ -6,7 +6,7 @@ namespace Moirai.Atropos.Events
 {
     internal class PropagationPaths
     {
-        private static readonly _ObjectPool<PropagationPaths> Pool = new _ObjectPool<PropagationPaths>(() => new PropagationPaths());
+        private static readonly _ObjectPool<PropagationPaths> s_Pool = new _ObjectPool<PropagationPaths>(() => new PropagationPaths());
 
         [Flags]
         public enum Type
@@ -42,7 +42,7 @@ namespace Moirai.Atropos.Events
 
         internal static PropagationPaths Copy(PropagationPaths paths)
         {
-            PropagationPaths copyPaths = Pool.Get();
+            PropagationPaths copyPaths = s_Pool.Get();
             copyPaths.TrickleDownPath.AddRange(paths.TrickleDownPath);
             copyPaths.TargetElements.AddRange(paths.TargetElements);
             copyPaths.BubbleUpPath.AddRange(paths.BubbleUpPath);
@@ -52,7 +52,7 @@ namespace Moirai.Atropos.Events
 
         public static PropagationPaths Build(CallbackEventHandler elem, EventBase evt)
         {
-            PropagationPaths paths = Pool.Get();
+            PropagationPaths paths = s_Pool.Get();
             // Go through the entire hierarchy.
             for (var ve = elem.Parent; ve != null; ve = ve.Parent)
             {
@@ -83,7 +83,7 @@ namespace Moirai.Atropos.Events
             TargetElements.Clear();
             TrickleDownPath.Clear();
 
-            Pool.Release(this);
+            s_Pool.Release(this);
         }
     }
 }

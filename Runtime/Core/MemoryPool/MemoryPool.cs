@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace Moirai.Atropos
@@ -8,23 +8,23 @@ namespace Moirai.Atropos
     /// </summary>
     public static partial class MemoryPool
     {
-        private static readonly Dictionary<Type, MemoryCollection> _memoryCollections = new Dictionary<Type, MemoryCollection>();
-        private static bool _enableStrictCheck = false;
+        private static readonly Dictionary<Type, MemoryCollection> s_MemoryCollections = new Dictionary<Type, MemoryCollection>();
+        private static bool s_EnableStrictCheck = false;
 
         /// <summary>
         /// 获取或设置是否开启强制检查。
         /// </summary>
         public static bool EnableStrictCheck
         {
-            get => _enableStrictCheck;
-            set => _enableStrictCheck = value;
+            get => s_EnableStrictCheck;
+            set => s_EnableStrictCheck = value;
         }
 
         /// <summary>
         /// 获取内存池的数量。
         /// </summary>
         // ReSharper disable once InconsistentlySynchronizedField
-        public static int Count => _memoryCollections.Count;
+        public static int Count => s_MemoryCollections.Count;
 
         /// <summary>
         /// 获取所有内存池的信息。
@@ -35,10 +35,10 @@ namespace Moirai.Atropos
             int index = 0;
             MemoryPoolInfo[] results = null;
 
-            lock (_memoryCollections)
+            lock (s_MemoryCollections)
             {
-                results = new MemoryPoolInfo[_memoryCollections.Count];
-                foreach (KeyValuePair<Type, MemoryCollection> memoryCollection in _memoryCollections)
+                results = new MemoryPoolInfo[s_MemoryCollections.Count];
+                foreach (KeyValuePair<Type, MemoryCollection> memoryCollection in s_MemoryCollections)
                 {
                     results[index++] = new MemoryPoolInfo(memoryCollection.Key, memoryCollection.Value.UnusedMemoryCount, memoryCollection.Value.UsingMemoryCount, memoryCollection.Value.AcquireMemoryCount, memoryCollection.Value.ReleaseMemoryCount, memoryCollection.Value.AddMemoryCount, memoryCollection.Value.RemoveMemoryCount);
                 }
@@ -52,14 +52,14 @@ namespace Moirai.Atropos
         /// </summary>
         public static void ClearAll()
         {
-            lock (_memoryCollections)
+            lock (s_MemoryCollections)
             {
-                foreach (KeyValuePair<Type, MemoryCollection> memoryCollection in _memoryCollections)
+                foreach (KeyValuePair<Type, MemoryCollection> memoryCollection in s_MemoryCollections)
                 {
                     memoryCollection.Value.RemoveAll();
                 }
 
-                _memoryCollections.Clear();
+                s_MemoryCollections.Clear();
             }
         }
 
@@ -163,7 +163,7 @@ namespace Moirai.Atropos
 
         private static void InternalCheckMemoryType(Type memoryType)
         {
-            if (!_enableStrictCheck)
+            if (!s_EnableStrictCheck)
             {
                 return;
             }
@@ -192,12 +192,12 @@ namespace Moirai.Atropos
             }
 
             MemoryCollection memoryCollection = null;
-            lock (_memoryCollections)
+            lock (s_MemoryCollections)
             {
-                if (!_memoryCollections.TryGetValue(memoryType, out memoryCollection))
+                if (!s_MemoryCollections.TryGetValue(memoryType, out memoryCollection))
                 {
                     memoryCollection = new MemoryCollection(memoryType);
-                    _memoryCollections.Add(memoryType, memoryCollection);
+                    s_MemoryCollections.Add(memoryType, memoryCollection);
                 }
             }
 

@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 
 namespace Moirai.Atropos
 {
@@ -27,27 +27,27 @@ namespace Moirai.Atropos
     /// </example>
     public static class SingletonRegisterMono<T> where T : MonoBehaviour
     {
-        private static T m_Instance;
-        private static readonly object m_Locker = new object();
+        private static T s_Instance;
+        private static readonly object s_Locker = new object();
 
         public static T Instance
         {
             get
             {
-                if (m_Instance == null)
+                if (s_Instance == null)
                 {
-                    lock (m_Locker)
+                    lock (s_Locker)
                     {
-                        if (m_Instance == null)
+                        if (s_Instance == null)
                         {
                             GameObject obj = new GameObject(typeof(T).Name + "_AutoCreated");
                             // obj.hideFlags = HideFlags.HideAndDontSave;
-                            m_Instance = obj.AddComponent<T>();
+                            s_Instance = obj.AddComponent<T>();
                         }
                     }
                 }
 
-                return m_Instance;
+                return s_Instance;
             }
         }
     }

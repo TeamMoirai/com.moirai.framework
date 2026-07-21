@@ -1,4 +1,4 @@
-﻿#if MESSAGEPACK_INSTALLED
+#if MESSAGEPACK_INSTALLED
 using System.Text;
 using MessagePack;
 using MessagePack.Formatters;
@@ -20,7 +20,7 @@ namespace Moirai.Atropos
         /// <returns>序列化后的对象</returns>
         public static byte[] Serialize<T>(T obj)
         {
-            return MessagePackSerializer.Serialize(obj, _options);
+            return MessagePackSerializer.Serialize(obj, s_Options);
         }
         
         /// <summary>
@@ -31,7 +31,7 @@ namespace Moirai.Atropos
         /// <returns>反序列化后的对象</returns>
         public static T Deserialize<T>(byte[] bytes)
         {
-            return MessagePackSerializer.Deserialize<T>(bytes, _options);
+            return MessagePackSerializer.Deserialize<T>(bytes, s_Options);
         }
 
         /// <summary>
@@ -44,7 +44,7 @@ namespace Moirai.Atropos
         /// <remarks>调试用</remarks>
         public static string ToJson<T>(T obj, bool prettyPrint = false)
         {
-            string json = MessagePackSerializer.SerializeToJson<T>(obj, _options);
+            string json = MessagePackSerializer.SerializeToJson<T>(obj, s_Options);
             if (!prettyPrint)
             {
                 return json;
@@ -62,7 +62,7 @@ namespace Moirai.Atropos
         /// <remarks>调试用</remarks>
         public static string BytesToJson(byte[] jsonBytes, bool prettyPrint = false)
         {
-            string json = MessagePackSerializer.ConvertToJson(jsonBytes, _options);
+            string json = MessagePackSerializer.ConvertToJson(jsonBytes, s_Options);
             
             if (!prettyPrint)
             {
@@ -90,7 +90,7 @@ namespace Moirai.Atropos
         /// <returns>转换后的bytes</returns>
         public static byte[] JsonToBytes(string json)
         {
-            return MessagePackSerializer.ConvertFromJson(json, _options);
+            return MessagePackSerializer.ConvertFromJson(json, s_Options);
         }
         
         /// <summary>
@@ -190,7 +190,7 @@ namespace Moirai.Atropos
             }
         }
 
-        private static MessagePackSerializerOptions _options;
+        private static MessagePackSerializerOptions s_Options;
         /// <summary>
         /// 初始化 MessagePack 序列化器，可以自定义添加多个解析器。
         /// </summary>
@@ -200,7 +200,7 @@ namespace Moirai.Atropos
 #endif
         public static void Initialize()
         {
-            if (_options != null) return;
+            if (s_Options != null) return;
 
             // // 创建解析器列表
             // var resolver = CompositeResolver.Create(
@@ -221,8 +221,8 @@ namespace Moirai.Atropos
             //     });
 
             // 注册并将组合解析器设置为默认解析器
-            // _options = MessagePackSerializerOptions.Standard.WithResolver(resolver);
-            _options = MessagePackSerializerOptions.Standard.WithResolver(UnityResolver.InstanceWithStandardResolver);
+            // s_Options = MessagePackSerializerOptions.Standard.WithResolver(resolver);
+            s_Options = MessagePackSerializerOptions.Standard.WithResolver(UnityResolver.InstanceWithStandardResolver);
         }
     }
 }

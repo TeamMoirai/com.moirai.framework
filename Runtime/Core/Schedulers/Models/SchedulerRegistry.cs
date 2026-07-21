@@ -20,9 +20,9 @@ namespace Moirai.Atropos.Schedulers
         
         private const string MethodPtr = nameof(MethodPtr);
         
-        private static readonly ProfilerMarker RegisterListenerProfilerMarker = new ProfilerMarker("SchedulerRegistry.RegisterListener");
-        
-        private static readonly ProfilerMarker UnregisterListenerProfilerMarker = new ProfilerMarker("SchedulerRegistry.UnregisterListener");
+        private static readonly ProfilerMarker s_RegisterListenerProfilerMarker = new ProfilerMarker("SchedulerRegistry.RegisterListener");
+
+        private static readonly ProfilerMarker s_UnregisterListenerProfilerMarker = new ProfilerMarker("SchedulerRegistry.UnregisterListener");
         
         internal static readonly Dictionary<IScheduled, ListenerRecord> s_Listeners = new Dictionary<IScheduled, ListenerRecord>();
         
@@ -33,7 +33,7 @@ namespace Moirai.Atropos.Schedulers
         
         public static void RegisterListener(IScheduled scheduled, Delegate callback)
         {
-            using (RegisterListenerProfilerMarker.Auto())
+            using (s_RegisterListenerProfilerMarker.Auto())
             {
                 int hashCode = default;
                 string itemName;
@@ -66,7 +66,7 @@ namespace Moirai.Atropos.Schedulers
         }
         public static void UnregisterListener(IScheduled scheduled, Delegate callback)
         {
-            using (UnregisterListenerProfilerMarker.Auto())
+            using (s_UnregisterListenerProfilerMarker.Auto())
             {
                 if (!s_Listeners.TryGetValue(scheduled, out ListenerRecord record))
                     return;

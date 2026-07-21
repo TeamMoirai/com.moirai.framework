@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Security.Cryptography;
 using System.Text;
@@ -246,7 +246,7 @@ namespace Moirai.Atropos
         public static byte[] Generate8BytesAESKey(string key)
         {
             if (string.IsNullOrEmpty(key))
-                return new byte[0];
+                return Array.Empty<byte>();
             var dstLen = 8;
             var srcBytes = Encoding.UTF8.GetBytes(key);
             byte[] dstBytes = new byte[dstLen];
@@ -274,7 +274,7 @@ namespace Moirai.Atropos
         public static byte[] Generate16BytesAESKey(string key)
         {
             if (string.IsNullOrEmpty(key))
-                return new byte[0];
+                return Array.Empty<byte>();
             var dstLen = 16;
             var srcBytes = Encoding.UTF8.GetBytes(key);
             byte[] dstBytes = new byte[dstLen];
@@ -302,7 +302,7 @@ namespace Moirai.Atropos
         public static byte[] Generate24BytesAESKey(string key)
         {
             if (string.IsNullOrEmpty(key))
-                return new byte[0];
+                return Array.Empty<byte>();
             var dstLen = 24;
             var srcBytes = Encoding.UTF8.GetBytes(key);
             byte[] dstBytes = new byte[dstLen];
@@ -330,7 +330,7 @@ namespace Moirai.Atropos
         public static byte[] Generate32BytesAESKey(string key)
         {
             if (string.IsNullOrEmpty(key))
-                return new byte[0];
+                return Array.Empty<byte>();
             var dstLen = 32;
             var srcBytes = Encoding.UTF8.GetBytes(key);
             byte[] dstBytes = new byte[dstLen];

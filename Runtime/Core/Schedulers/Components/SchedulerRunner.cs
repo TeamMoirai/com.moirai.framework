@@ -20,7 +20,7 @@ namespace Moirai.Atropos.Schedulers
         /// </summary>
         internal class ScheduledItem : IDisposable
         {
-            private static readonly _ObjectPool<ScheduledItem> Pool = new _ObjectPool<ScheduledItem>(() => new ScheduledItem());
+            private static readonly _ObjectPool<ScheduledItem> s_Pool = new _ObjectPool<ScheduledItem>(() => new ScheduledItem());
 #if UNITY_EDITOR
             public double Timestamp { get; private set; }
 #endif
@@ -29,11 +29,11 @@ namespace Moirai.Atropos.Schedulers
             private bool _delay;
             public TickFrame TickFrame { get; private set; }
             
-            private static readonly ProfilerMarker ProfilerMarker = new ProfilerMarker("SchedulerRunner.UpdateAll.UpdateStep.UpdateItem");
+            private static readonly ProfilerMarker s_ProfilerMarker = new ProfilerMarker("SchedulerRunner.UpdateAll.UpdateStep.UpdateItem");
          
             public static ScheduledItem GetPooled(IScheduled scheduled, TickFrame tickFrame, bool delay)
             {
-                var item = Pool.Get();
+                var item = s_Pool.Get();
                 item.Value = scheduled;
 #if UNITY_EDITOR
                 item.Timestamp = Time.timeSinceLevelLoadAsDouble;
@@ -51,7 +51,7 @@ namespace Moirai.Atropos.Schedulers
             
             public void Update(TickFrame tickFrame)
             {
-                using (ProfilerMarker.Auto())
+                using (s_ProfilerMarker.Auto())
                 {
                     if (Value.IsDone) return;
                     if (TickFrame != tickFrame) return;
@@ -83,7 +83,7 @@ namespace Moirai.Atropos.Schedulers
                 Timestamp = default;
 #endif
                 _delay = default;
-                Pool.Release(this);
+                s_Pool.Release(this);
             }
             
             public void Pause()
@@ -114,11 +114,11 @@ namespace Moirai.Atropos.Schedulers
         
         private int _lastFrame;
 
-        public static bool IsInitialized => (bool)_instance;
+        public static bool IsInitialized => (bool)s_Instance;
         
-        private static SchedulerRunner _instance;
-        
-        private static readonly ProfilerMarker UpdateStepProfilerMarker =
+        private static SchedulerRunner s_Instance;
+
+        private static readonly ProfilerMarker s_UpdateStepProfilerMarker =
             new ProfilerMarker("SchedulerRunner.UpdateAll.UpdateStep");
       
         public static SchedulerRunner Get()
@@ -130,14 +130,14 @@ namespace Moirai.Atropos.Schedulers
                 return null;
             }
 #endif
-            if (!_instance)
+            if (!s_Instance)
             {
-                _instance = new GameObject(nameof(SchedulerRunner))
+                s_Instance = new GameObject(nameof(SchedulerRunner))
                 {
                     hideFlags = HideFlags.HideInHierarchy | HideFlags.NotEditable
                 }.AddComponent<SchedulerRunner>();
             }
-            return _instance;
+            return s_Instance;
         }
         
         private void Update()
@@ -281,7 +281,7 @@ namespace Moirai.Atropos.Schedulers
             }
 
             // Update
-            using (UpdateStepProfilerMarker.Auto())
+            using (s_UpdateStepProfilerMarker.Auto())
             {
                 for (int i = _activeHandles.Count - 1; i >= 0; --i)
                 {

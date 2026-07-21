@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.Serialization.Formatters.Binary;
@@ -320,7 +320,7 @@ namespace Moirai.Atropos
         /// 标准的UTF-8是不含BOM的；
         /// 构造的UTF8Encoding，排除掉UTF8-BOM的影响；
         /// </summary>
-        private static readonly UTF8Encoding UTF8Encoding = new UTF8Encoding(false);
+        private static readonly UTF8Encoding s_UTF8Encoding = new UTF8Encoding(false);
         
         /// <summary>
         /// 不适用Text类型！；
@@ -334,7 +334,7 @@ namespace Moirai.Atropos
                 throw new IOException("ReadBinaryFile path not exist !" + fileFullPath);
             using (FileStream stream = System.IO.File.Open(fileFullPath, FileMode.Open))
             {
-                using (BinaryReader reader = new BinaryReader(stream, UTF8Encoding))
+                using (BinaryReader reader = new BinaryReader(stream, s_UTF8Encoding))
                 {
                     return reader.ReadBytes((int)stream.Length);
                 }
@@ -353,7 +353,7 @@ namespace Moirai.Atropos
             string result = string.Empty;
             using (FileStream stream = System.IO.File.Open(fileFullPath, FileMode.Open))
             {
-                using (StreamReader reader = new StreamReader(stream, UTF8Encoding))
+                using (StreamReader reader = new StreamReader(stream, s_UTF8Encoding))
                 {
                     result = reader.ReadToEnd();
                 }
@@ -392,7 +392,7 @@ namespace Moirai.Atropos
                        FileAccess.ReadWrite, FileShare.ReadWrite))
             {
                 stream.Position = stream.Length;
-                using (StreamWriter writer = new StreamWriter(stream, UTF8Encoding))
+                using (StreamWriter writer = new StreamWriter(stream, s_UTF8Encoding))
                 {
                     writer.WriteLine(context);
                     writer.Flush();
@@ -417,7 +417,7 @@ namespace Moirai.Atropos
                        FileShare.ReadWrite))
             {
                 stream.Position = stream.Length;
-                using (StreamWriter writer = new StreamWriter(stream, UTF8Encoding))
+                using (StreamWriter writer = new StreamWriter(stream, s_UTF8Encoding))
                 {
                     writer.WriteLine(context);
                     writer.Flush();
@@ -444,7 +444,7 @@ namespace Moirai.Atropos
             {
                 if (append)
                     stream.Position = stream.Length;
-                using (StreamWriter writer = new StreamWriter(stream, UTF8Encoding))
+                using (StreamWriter writer = new StreamWriter(stream, s_UTF8Encoding))
                 {
                     writer.WriteLine(context);
                     writer.Flush();
@@ -471,7 +471,7 @@ namespace Moirai.Atropos
             {
                 if (append)
                     stream.Position = stream.Length;
-                using (StreamWriter writer = new StreamWriter(stream, UTF8Encoding))
+                using (StreamWriter writer = new StreamWriter(stream, s_UTF8Encoding))
                 {
                     writer.WriteLine(context);
                     writer.Flush();
@@ -575,7 +575,7 @@ namespace Moirai.Atropos
             {
                 stream.Seek(0, SeekOrigin.Begin);
                 stream.SetLength(0);
-                using (StreamWriter writer = new StreamWriter(stream, UTF8Encoding))
+                using (StreamWriter writer = new StreamWriter(stream, s_UTF8Encoding))
                 {
                     writer.WriteLine(context);
                     writer.Flush();
@@ -599,7 +599,7 @@ namespace Moirai.Atropos
             {
                 stream.Seek(0, SeekOrigin.Begin);
                 stream.SetLength(0);
-                using (StreamWriter writer = new StreamWriter(stream, UTF8Encoding))
+                using (StreamWriter writer = new StreamWriter(stream, s_UTF8Encoding))
                 {
                     writer.WriteLine(context);
                     writer.Flush();

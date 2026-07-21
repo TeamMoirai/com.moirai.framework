@@ -377,16 +377,16 @@ namespace Moirai.Atropos.Events
     }
     internal static class GlobalCallbackRegistry
     {
-        private static bool m_IsEventDebuggerConnected = false;
+        private static bool s_IsEventDebuggerConnected = false;
         public static bool IsEventDebuggerConnected
         {
-            get { return m_IsEventDebuggerConnected; }
+            get { return s_IsEventDebuggerConnected; }
             set
             {
                 if (!value)
                     s_Listeners.Clear();
 
-                m_IsEventDebuggerConnected = value;
+                s_IsEventDebuggerConnected = value;
             }
         }
 

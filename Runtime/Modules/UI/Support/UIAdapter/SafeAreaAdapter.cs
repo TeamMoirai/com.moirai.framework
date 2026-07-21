@@ -12,11 +12,11 @@ namespace Moirai.Atropos.UI.Adapter
         public bool CalculateEveryFrame = false;
         
         private RectTransform _rect;
-        private static CanvasScaler _scaler;
+        private static CanvasScaler s_Scaler;
 
         public static void Init(CanvasScaler scaler)
         {
-            SafeAreaAdapter._scaler = scaler;
+            SafeAreaAdapter.s_Scaler = scaler;
         }
 
         private void Awake()
@@ -36,15 +36,15 @@ namespace Moirai.Atropos.UI.Adapter
 
         public override void Adapt()
         {
-            if (_scaler == null) return;
+            if (s_Scaler == null) return;
 
             var safeArea = Screen.safeArea;
-            int width = (int)(_scaler.referenceResolution.x * (1 - _scaler.matchWidthOrHeight) +
-                _scaler.referenceResolution.y * Screen.width / Screen.height * _scaler.matchWidthOrHeight);
-            int height = (int)(_scaler.referenceResolution.y * _scaler.matchWidthOrHeight -
-              _scaler.referenceResolution.x * Screen.height / Screen.width * (_scaler.matchWidthOrHeight - 1));
-            float ratio = _scaler.referenceResolution.y * _scaler.matchWidthOrHeight / Screen.height -
-                _scaler.referenceResolution.x * (_scaler.matchWidthOrHeight - 1) / Screen.width;
+            int width = (int)(s_Scaler.referenceResolution.x * (1 - s_Scaler.matchWidthOrHeight) +
+                s_Scaler.referenceResolution.y * Screen.width / Screen.height * s_Scaler.matchWidthOrHeight);
+            int height = (int)(s_Scaler.referenceResolution.y * s_Scaler.matchWidthOrHeight -
+              s_Scaler.referenceResolution.x * Screen.height / Screen.width * (s_Scaler.matchWidthOrHeight - 1));
+            float ratio = s_Scaler.referenceResolution.y * s_Scaler.matchWidthOrHeight / Screen.height -
+                s_Scaler.referenceResolution.x * (s_Scaler.matchWidthOrHeight - 1) / Screen.width;
             _rect.anchorMin = Vector2.zero;
             _rect.anchorMax = Vector2.one;
             _rect.offsetMin = new Vector2(safeArea.position.x * ratio, safeArea.position.y * ratio);

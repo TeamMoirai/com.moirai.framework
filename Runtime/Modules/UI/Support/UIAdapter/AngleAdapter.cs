@@ -14,16 +14,16 @@ namespace Moirai.Atropos.UI.Adapter
         public float BiasAngle = 0;
         [Header("圆心距离")]
         public float Distance;
-        private RectTransform selfRect;
+        private RectTransform _selfRect;
         private RectTransform SelfRect
         {
             get
             {
-                if (selfRect == null)
+                if (_selfRect == null)
                 {
-                    selfRect = GetComponent<RectTransform>();
+                    _selfRect = GetComponent<RectTransform>();
                 }
-                return selfRect;
+                return _selfRect;
             }
         }
 
@@ -40,7 +40,7 @@ namespace Moirai.Atropos.UI.Adapter
             float sumGap = BiasAngle;
             for (int i = 0; i < SelfRect.childCount; i++)
             {
-                var item = selfRect.GetChild(i) as RectTransform;
+                var item = SelfRect.GetChild(i) as RectTransform;
                 item.localRotation = Quaternion.Euler(0, 0, sumGap);
                 item.localPosition = new Vector2(Distance * Mathf.Cos((sumGap + 90) * Mathf.PI / 180f), Distance * Mathf.Sin((sumGap + 90) * Mathf.PI / 180f));
                 if (Clockwise)
