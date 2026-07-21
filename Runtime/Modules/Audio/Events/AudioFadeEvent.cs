@@ -45,22 +45,22 @@ namespace Moirai.Atropos.Audio
             return evt;
         }
 
-        public static void Trigger(EAudioFadeEventMode mode, int soundID, float fadeDuration, float finalVolume, TweenEase fadeTweenEase)
-        {
-            using var evt = GetPooled(mode, soundID, fadeDuration, finalVolume, fadeTweenEase);
-            EventManager.SendEvent(evt);
-        }
-
         /// <summary>
         /// 对指定 ID 的音频进行音量过渡。
         /// </summary>
-        public static void Fade(int soundID, float duration, float finalVolume, TweenEase ease = default)
-            => Trigger(EAudioFadeEventMode.PlayFade, soundID, duration, finalVolume, ease);
+        public static void PlayFade(int soundID, float duration, float finalVolume, TweenEase ease = default)
+        {
+            using var evt = GetPooled(EAudioFadeEventMode.PlayFade, soundID, duration, finalVolume, ease);
+            EventManager.SendEvent(evt);
+        }
 
         /// <summary>
         /// 停止指定 ID 音频的音量过渡。
         /// </summary>
         public static void StopFade(int soundID)
-            => Trigger(EAudioFadeEventMode.StopFade, soundID, 0, 0, default);
+        {
+            using var evt = GetPooled(EAudioFadeEventMode.StopFade, soundID, 0, 0, default);
+            EventManager.SendEvent(evt);
+        }
     }
 }

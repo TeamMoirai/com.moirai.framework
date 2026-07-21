@@ -197,7 +197,7 @@ namespace Moirai.Test
         private void ToggleFadeAudio()
         {
             finalVolume = finalVolume == 0f ? 1f : 0f;
-            AudioFadeEvent.Fade(audioID, 5, finalVolume, new TweenEase(TweenUtility.EEase.InCubic));
+            AudioFadeEvent.PlayFade(audioID, 5, finalVolume, new TweenEase(TweenUtility.EEase.InCubic));
         }
     }
 }
