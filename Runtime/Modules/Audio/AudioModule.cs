@@ -41,9 +41,9 @@ namespace Moirai.Atropos.Audio
         // 模块自维护 ID 生成器
         private ulong _nextAudioId = 1UL;
         // 临时列表，用于 FindAgents 系列方法（避免每次分配）
-        private readonly List<AudioAgent> _sharedAgentBuffer = new List<AudioAgent>(8);
+        private readonly List<AudioAgent> _sharedAgentBuffer = new List<AudioAgent>(4);
         // List<ulong> 对象池，避免频繁分配
-        private static readonly Stack<List<ulong>> s_HandleListPool = new Stack<List<ulong>>(8);
+        private static readonly Stack<List<ulong>> s_HandleListPool = new Stack<List<ulong>>(4);
 
         private static List<ulong> AcquireHandleList()
         {
@@ -81,7 +81,7 @@ namespace Moirai.Atropos.Audio
             public float StartVolume;
             public float EndVolume;
         }
-        private readonly List<AudioFadeState> _audioFades = new List<AudioFadeState>(8);
+        private readonly List<AudioFadeState> _audioFades = new List<AudioFadeState>(4);
         private int _audioFadeCount;
         
         #region 音轨状态 [TRACK STATUS]
