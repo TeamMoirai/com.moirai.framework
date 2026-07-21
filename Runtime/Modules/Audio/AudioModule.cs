@@ -35,11 +35,9 @@ namespace Moirai.Atropos.Audio
         // 音轨 -> AudioGroupConfig 缓存，O(1) 查找
         private readonly Dictionary<EAudioTrack, AudioGroupConfig> _configCache = new Dictionary<EAudioTrack, AudioGroupConfig>(4);
         // 模块自维护 ID -> AudioAgent 映射
-        private readonly Dictionary<ulong, AudioAgent> _agentById = new Dictionary<ulong, AudioAgent>();
+        private readonly Dictionary<ulong, AudioAgent> _handleToAgent = new Dictionary<ulong, AudioAgent>();
         // 用户定义 ID -> 模块句柄列表 映射（1 对多，支持事件系统通过用户 ID 查找所有句柄）
         private readonly Dictionary<int, List<ulong>> _userHandleMap = new Dictionary<int, List<ulong>>();
-        // 句柄 -> 用户 ID 反向映射（1 对 1，O(1) 清理）
-        private readonly Dictionary<ulong, int> _handleToUserMap = new Dictionary<ulong, int>();
         // 模块自维护 ID 生成器
         private ulong _nextAudioId = 1;
         // 临时列表，用于 FindAgents 系列方法（避免每次分配）
@@ -335,7 +333,7 @@ namespace Moirai.Atropos.Audio
             CleanAudioPool();
             _audioFades.Clear();
             _audioFadeCount = 0;
-            _agentById.Clear();
+            _handleToAgent.Clear();
 
             // 回收所有句柄列表到对象池
             foreach (var handles in _userHandleMap.Values)
@@ -343,7 +341,6 @@ namespace Moirai.Atropos.Audio
                 ReleaseHandleList(handles);
             }
             _userHandleMap.Clear();
-            _handleToUserMap.Clear();
             _sharedAgentBuffer.Clear();
             
             // Unregister Events
@@ -398,7 +395,7 @@ namespace Moirai.Atropos.Audio
             {
                 ulong handle = _nextAudioId++;
                 audioAgent.Play(clip, options);
-                _agentById[handle] = audioAgent;
+                _handleToAgent[handle] = audioAgent;
 
                 // 建立双向映射
                 if (!_userHandleMap.TryGetValue(options.ID, out var handles))
@@ -407,7 +404,6 @@ namespace Moirai.Atropos.Audio
                     _userHandleMap[options.ID] = handles;
                 }
                 handles.Add(handle);
-                _handleToUserMap[handle] = options.ID;
 
                 return handle;
             }
@@ -515,7 +511,7 @@ namespace Moirai.Atropos.Audio
             {
                 ulong handle = _nextAudioId++;
                 audioAgent.Load(path, options, bAsync, bInPool);
-                _agentById[handle] = audioAgent;
+                _handleToAgent[handle] = audioAgent;
 
                 // 建立双向映射
                 if (!_userHandleMap.TryGetValue(options.ID, out var handles))
@@ -524,7 +520,6 @@ namespace Moirai.Atropos.Audio
                     _userHandleMap[options.ID] = handles;
                 }
                 handles.Add(handle);
-                _handleToUserMap[handle] = options.ID;
 
                 return handle;
             }
@@ -618,21 +613,21 @@ namespace Moirai.Atropos.Audio
         public void Pause(ulong handle)
         {
             if (_unityAudioDisabled) return;
-            if (_agentById.TryGetValue(handle, out var agent) && agent.IsPlaying)
+            if (_handleToAgent.TryGetValue(handle, out var agent) && agent.IsPlaying)
                 agent.Pause();
         }
 
         public void UnPause(ulong handle)
         {
             if (_unityAudioDisabled) return;
-            if (_agentById.TryGetValue(handle, out var agent) && agent.IsPaused)
+            if (_handleToAgent.TryGetValue(handle, out var agent) && agent.IsPaused)
                 agent.UnPause();
         }
         
         public void Stop(ulong handle, float fadeoutDuration = 0f)
         {
             if (_unityAudioDisabled) return;
-            if (_agentById.TryGetValue(handle, out var agent) && (agent.IsPlaying || agent.IsPaused))
+            if (_handleToAgent.TryGetValue(handle, out var agent) && (agent.IsPlaying || agent.IsPaused))
                 agent.Stop(fadeoutDuration);
         }
         
@@ -752,7 +747,7 @@ namespace Moirai.Atropos.Audio
         /// </summary>
         public AudioAgent GetAgentByHandle(ulong handle)
         {
-            return _agentById.TryGetValue(handle, out var agent) ? agent : null;
+            return _handleToAgent.TryGetValue(handle, out var agent) ? agent : null;
         }
         
         /// <summary>
@@ -760,7 +755,7 @@ namespace Moirai.Atropos.Audio
         /// </summary>
         public bool IsPlaying(ulong handle)
         {
-            if (!_agentById.TryGetValue(handle, out var agent)) return false;
+            if (!_handleToAgent.TryGetValue(handle, out var agent)) return false;
             return agent.IsPlaying;
         }
         
@@ -769,7 +764,7 @@ namespace Moirai.Atropos.Audio
         /// </summary>
         public bool IsStopped(ulong handle)
         {
-            if (!_agentById.TryGetValue(handle, out var agent)) return true;
+            if (!_handleToAgent.TryGetValue(handle, out var agent)) return true;
             return agent.IsFree;
         }
         
@@ -779,9 +774,9 @@ namespace Moirai.Atropos.Audio
         public void ReleaseHandle(ulong handle)
         {
             // O(1) 反向查找清理用户 ID 映射
-            if (_handleToUserMap.TryGetValue(handle, out int userId))
+            if (_handleToAgent.TryGetValue(handle, out var agent))
             {
-                _handleToUserMap.Remove(handle);
+                int userId = agent.ID;
 
                 if (_userHandleMap.TryGetValue(userId, out var handles))
                 {
@@ -792,9 +787,9 @@ namespace Moirai.Atropos.Audio
                         ReleaseHandleList(handles);
                     }
                 }
-            }
 
-            _agentById.Remove(handle);
+                _handleToAgent.Remove(handle);
+             }
         }
 
         #endregion 获取 [FIND]
