@@ -1,6 +1,5 @@
-﻿using Moirai.Atropos.Events;
+using Moirai.Atropos.Events;
 using UnityEngine;
-using UnityEngine.Audio;
 
 namespace Moirai.Atropos.Audio
 {
@@ -11,9 +10,9 @@ namespace Moirai.Atropos.Audio
     public class AudioPlayEvent : EventBase<AudioPlayEvent>, IAudioModuleEvent
     {
         /// <summary>
-        /// 使用的音频代理
+        /// 播放返回的音频句柄（模块自维护）
         /// </summary>
-        public AudioAgent AudioAgent { get; set; }
+        public ulong AudioHandle { get; set; }
 
         /// <summary>
         /// 播放配置
@@ -44,7 +43,7 @@ namespace Moirai.Atropos.Audio
         {
             base.Init();
 
-            AudioAgent = null;
+            AudioHandle = 0;
             Clip = null;
         }
 
@@ -57,15 +56,16 @@ namespace Moirai.Atropos.Audio
         }
 
         /// <summary>
-        /// 触发音频播放事件
+        /// 触发音频播放事件，返回音频句柄
         /// </summary>
         /// <param name="clip">音频剪辑</param>
         /// <param name="options">音频播放选项设置</param>
-        public static AudioAgent Trigger(AudioClip clip, AudioPlayOptions options)
+        /// <returns>音频句柄</returns>
+        public static ulong Trigger(AudioClip clip, AudioPlayOptions options)
         {
             using var evt = GetPooled(clip, options);
             EventManager.SendEvent(evt);
-            return evt.AudioAgent;
+            return evt.AudioHandle;
         }
 
         // ---------------- 从资源路径加载 ----------------
@@ -81,17 +81,18 @@ namespace Moirai.Atropos.Audio
         }
 
         /// <summary>
-        /// 触发音频播放事件
+        /// 触发音频播放事件，返回音频句柄
         /// </summary>
         /// <param name="path">资源路径。</param>
         /// <param name="options">音频播放选项设置。</param>
         /// <param name="bAsync">是否异步加载。</param>
         /// <param name="bInPool">是否缓存已加载资源（适用于多次重复加载的资源）。</param>
-        public static AudioAgent Trigger(string path, AudioPlayOptions options, bool bAsync, bool bInPool = false)
+        /// <returns>音频句柄</returns>
+        public static ulong Trigger(string path, AudioPlayOptions options, bool bAsync, bool bInPool = false)
         {
             using var evt = GetPooled(path, options, bAsync, bInPool);
             EventManager.SendEvent(evt);
-            return evt.AudioAgent;
+            return evt.AudioHandle;
         }
     }
 }

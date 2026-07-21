@@ -2,23 +2,6 @@
 
 namespace Moirai.Atropos.Audio
 {
-    public enum AudioModuleEventType
-    {
-        /// <summary>
-        /// 写入设置
-        /// </summary>
-        /// <remarks>如果需要保存，直接调用 <see cref="SettingUtility.Save"/></remarks>
-        SetSettings,
-        /// <summary>
-        /// 加载设置
-        /// </summary>
-        LoadSettings,
-        /// <summary>
-        /// 重置设置
-        /// </summary>
-        ResetSettings,
-    }
-
     /// <summary>
     /// 此事件触发 AudioModule 设置的保存/加载/重置
     /// </summary>
@@ -28,16 +11,33 @@ namespace Moirai.Atropos.Audio
     /// </example>>
     public class AudioModuleEvent : EventBase<AudioModuleEvent>, IAudioModuleEvent
     {
-        public AudioModuleEventType EventType { get; private set; }
+        public enum EAudioModuleEventType
+        {
+            /// <summary>
+            /// 写入设置
+            /// </summary>
+            /// <remarks>如果需要保存，直接调用 <see cref="SettingUtility.Save"/></remarks>
+            SetSettings,
+            /// <summary>
+            /// 加载设置
+            /// </summary>
+            LoadSettings,
+            /// <summary>
+            /// 重置设置
+            /// </summary>
+            ResetSettings,
+        }
 
-        private static AudioModuleEvent GetPooled(AudioModuleEventType eventType)
+        public EAudioModuleEventType EventType { get; private set; }
+
+        private static AudioModuleEvent GetPooled(EAudioModuleEventType eventType)
         {
             var evt = GetPooled();
             evt.EventType = eventType;
             return evt;
         }
         
-        public static void Trigger(AudioModuleEventType eventType)
+        public static void Trigger(EAudioModuleEventType eventType)
         {
             using var evt = GetPooled(eventType);
             EventManager.SendEvent(evt);

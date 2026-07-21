@@ -109,7 +109,7 @@ namespace Moirai.Atropos.Audio
 
                 if (GUILayout.Button("Save Settings"))
                 {
-                    AudioModuleEvent.Trigger(AudioModuleEventType.SetSettings);
+                    AudioModuleEvent.Trigger(AudioModuleEvent.EAudioModuleEventType.SetSettings);
                 }
             }
 

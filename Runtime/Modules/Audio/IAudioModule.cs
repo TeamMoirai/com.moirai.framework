@@ -1,7 +1,7 @@
-﻿using System.Collections.Generic;
+using System;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Audio;
-using YooAsset;
 
 namespace Moirai.Atropos.Audio
 {
@@ -18,11 +18,6 @@ namespace Moirai.Atropos.Audio
         /// 音频混响器。
         /// </summary>
         public AudioMixer AudioMixer { get;}
-        
-        /// <summary>
-        /// 资源句柄池，用于缓存资源系统的已加载音频资源。
-        /// </summary>
-        public Dictionary<string, AssetHandle> AssetHandlePool  { get; }
 
         #endregion
         
@@ -110,13 +105,14 @@ namespace Moirai.Atropos.Audio
         #region 播放音频 [PLAY AUDIO]
 
         /// <summary>
-        /// 播放音频。
+        /// 播放音频，返回模块自维护的音频句柄（用于后续控制）。
         /// </summary>
-        /// <remarks>如果超过最大发声数，且 <see cref="AudioPlayOptions.DoNotAutoRecycleIfNotDonePlaying"/> 为<c>false</c>采用fadeout的方式复用最久播放的AudioSource。</remarks>
+        /// <remarks>如果超过最大发声数，且 <see cref="AudioPlayOptions.DoNotAutoRecycleIfNotDonePlaying"/> 为<c>false</c>采用fadeout的方式复用最久播放的AudioSource。
+        /// 返回 0UL 表示播放失败。</remarks>
         /// <param name="clip">音频剪辑</param>
         /// <param name="options">音频播放选项设置</param>
-        /// <returns></returns>
-        public AudioAgent Play(AudioClip clip, AudioPlayOptions options);
+        /// <returns>音频句柄，可用于 Pause/Stop/IsPlaying 等操作</returns>
+        public ulong Play(AudioClip clip, AudioPlayOptions options);
 
         /// <summary>
         /// 播放音频。
@@ -164,7 +160,7 @@ namespace Moirai.Atropos.Audio
         /// <param name="useReverbZoneMixCurve">使用自定义混响区域混音曲线</param>
         /// <param name="reverbZoneMixCurve">自定义混响区域混音曲线</param>
         /// <param name="initialDelay"></param>
-        public AudioAgent Play(AudioClip clip, AudioTrack track, Vector3 location,
+        public ulong Play(AudioClip clip, AudioTrack track, Vector3 location,
             bool loop = false, float volume = 1.0f, int id = 0,
             bool fade = false, float fadeInitialVolume = 0f, float fadeDuration = 1f, TweenEase fadeTweenEase = default,
             bool persistent = false,
@@ -188,7 +184,7 @@ namespace Moirai.Atropos.Audio
         /// <param name="bAsync">是否异步加载</param>
         /// <param name="bInPool">是否缓存已加载资源（适用于多次重复加载的资源）。</param>
         /// <returns></returns>
-        public AudioAgent Play(string path, AudioPlayOptions options, bool bAsync = false, bool bInPool = false);
+        public ulong Play(string path, AudioPlayOptions options, bool bAsync = false, bool bInPool = false);
 
         /// <summary>
         /// 播放音频。
@@ -238,7 +234,7 @@ namespace Moirai.Atropos.Audio
         /// <param name="useReverbZoneMixCurve">使用自定义混响区域混音曲线</param>
         /// <param name="reverbZoneMixCurve">自定义混响区域混音曲线</param>
         /// <param name="initialDelay"></param>
-        public AudioAgent Play(string path, AudioTrack track, Vector3 location, bool bAsync = false, bool bInPool = false,
+        public ulong Play(string path, AudioTrack track, Vector3 location, bool bAsync = false, bool bInPool = false,
             bool loop = false, float volume = 1.0f, int id = 0,
             bool fade = false, float fadeInitialVolume = 0f, float fadeDuration = 1f, TweenEase fadeTweenEase = default,
             bool persistent = false,
@@ -257,41 +253,62 @@ namespace Moirai.Atropos.Audio
         #region 音频控制 [AUDIO CONTROLS]
         
         /// <summary>
-        /// 暂停指定的音频源
+        /// 暂停指定句柄的音频
         /// </summary>
-        /// <param name="id"></param>
-        public void Pause(int id);
+        /// <param name="handle">音频句柄</param>
+        public void Pause(ulong handle);
 
         /// <summary>
-        /// 恢复播放指定的音频源
+        /// 恢复播放指定句柄的音频
         /// </summary>
-        /// <param name="id"></param>
-        public void UnPause(int id);
+        /// <param name="handle">音频句柄</param>
+        public void UnPause(ulong handle);
 
         /// <summary>
-        /// 停止指定的音频源
+        /// 停止指定句柄的音频
         /// </summary>
-        /// <param name="id"></param>
+        /// <param name="handle">音频句柄</param>
         /// <param name="fadeoutDuration">音频淡出持续时间。</param>
-        public void Stop(int id, float fadeoutDuration = 0f);
+        public void Stop(ulong handle, float fadeoutDuration = 0f);
+        
+        /// <summary>
+        /// 检查指定句柄的音频是否正在播放。
+        /// </summary>
+        /// <param name="handle">音频句柄</param>
+        /// <returns>是否正在播放</returns>
+        public bool IsPlaying(ulong handle);
+        
+        /// <summary>
+        /// 检查指定句柄的音频是否已停止。
+        /// </summary>
+        /// <param name="handle">音频句柄</param>
+        /// <returns>是否已停止</returns>
+        public bool IsStopped(ulong handle);
+
+        /// <summary>
+        /// 通过句柄获取 AudioAgent（用于访问 AudioResource 等内部属性）。
+        /// </summary>
+        /// <param name="handle">音频句柄</param>
+        /// <returns>AudioAgent，如果句柄无效则返回 null</returns>
+        public AudioAgent GetAgentByHandle(ulong handle);
         
         #endregion 音频控制 [AUDIO CONTROLS]
         
         #region 获取 [FIND]
 
         /// <summary>
-        /// 返回播放过指定 ID 的音频代理
+        /// 返回播放过指定 ID 的音频代理（零分配：使用共享缓冲区，调用方需在下次调用前消费结果）。
         /// </summary>
-        /// <param name="id"></param>
-        /// <returns></returns>
-        public AudioAgent[] FindAgentsByID(int id);
+        /// <param name="id">音频 ID。</param>
+        /// <returns>匹配的音频代理列表。</returns>
+        public IReadOnlyList<AudioAgent> FindAgentsByID(int id);
         
         /// <summary>
-        /// 返回播放过指定 clip 的音频代理
+        /// 返回播放过指定 clip 的音频代理（零分配：使用共享缓冲区，调用方需在下次调用前消费结果）。
         /// </summary>
-        /// <param name="clip"></param>
-        /// <returns></returns>
-        public AudioAgent[] FindAgentsByClip(AudioClip clip);
+        /// <param name="clip">音频剪辑。</param>
+        /// <returns>匹配的音频代理列表。</returns>
+        public IReadOnlyList<AudioAgent> FindAgentsByClip(AudioClip clip);
 
         /// <summary>
         /// 返回当前正在播放的指定 clip 数量
@@ -397,27 +414,27 @@ namespace Moirai.Atropos.Audio
         public void StopFadeTrack(AudioTrack track);
         
         /// <summary>
-        /// 在指定的持续时间内，将目标声音过渡到指定音量
+        /// 对指定句柄的音频进行音量过渡。
         /// </summary>
-        /// <param name="source"></param>
-        /// <param name="duration"></param>
-        /// <param name="initialVolume"></param>
-        /// <param name="finalVolume"></param>
-        /// <param name="tweenEase"></param>
-        public void FadeAudio(AudioSource source, float duration, float initialVolume, float finalVolume, TweenEase tweenEase);
+        /// <param name="handle">音频句柄</param>
+        /// <param name="duration">过渡持续时间</param>
+        /// <param name="initialVolume">初始音量</param>
+        /// <param name="finalVolume">最终音量</param>
+        /// <param name="tweenEase">缓动类型</param>
+        public void FadeAudio(ulong handle, float duration, float initialVolume, float finalVolume, TweenEase tweenEase);
 
         /// <summary>
-        /// 停止指定音频源上所有当前的淡化（Fade）
+        /// 停止指定句柄音频上所有当前的淡化（Fade）
         /// </summary>
-        /// <param name="source"></param>
-        public void StopFadeAudio(AudioSource source);
+        /// <param name="handle">音频句柄</param>
+        public void StopFadeAudio(ulong handle);
         
         /// <summary>
-        /// 如果指定的源已经在过渡中，则返回 <c>true</c>，否则返回 <c>false</c>
+        /// 检查指定句柄的音频是否正在过渡中
         /// </summary>
-        /// <param name="source"></param>
-        /// <returns></returns>
-        public bool SoundIsFadingOut(AudioSource source);
+        /// <param name="handle">音频句柄</param>
+        /// <returns>是否正在过渡</returns>
+        public bool SoundIsFadingOut(ulong handle);
         
         #endregion 过渡 [FADES]
         

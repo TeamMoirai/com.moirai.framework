@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Sirenix.OdinInspector;
 using UnityEngine;
 using UnityEngine.Audio;
@@ -129,10 +129,10 @@ namespace Moirai.Atropos.Audio
         public bool BypassEffects { get => m_BypassEffects; set => m_BypassEffects = value;}
         [Tooltip("在 AudioListener 上设置全局效果时，不会将其应用于 AudioSource 生成的音频信号。如果 AudioSource 正在播放到混音器组，则不适用")]
         [SerializeField] private bool m_BypassListenerEffects;
-         public bool BypassListenerEffects { get => m_BypassListenerEffects; set => m_BypassListenerEffects = value;}
+        public bool BypassListenerEffects { get => m_BypassListenerEffects; set => m_BypassListenerEffects = value;}
         [Tooltip("不将来自 AudioSource 的信号发送到与混响区域关联的全局混响中")]
         [SerializeField] private bool m_BypassReverbZones;
-         public bool BypassReverbZones { get => m_BypassReverbZones; set => m_BypassReverbZones = value;}
+        public bool BypassReverbZones { get => m_BypassReverbZones; set => m_BypassReverbZones = value;}
         [Tooltip("当播放的 AudioSource 数量多于可用硬件声道数时，Unity 将对 AudioSource 进行虚拟化处理。先对优先级（和可听度）最低的 AudioSource 进行虚拟化处理。优先级为 0 到 255 之间的整数。0 = 最高优先级，255 = 最低优先级。")]
         [Range(0, 256)]
         [SerializeField] private int m_Priority;
@@ -272,5 +272,65 @@ namespace Moirai.Atropos.Audio
             m_UseSpreadCurve = false,
             m_SpreadCurve = null
         };
+
+        /// <summary>
+        /// 创建一个用于播放指定音轨的 AudioPlayOptions。
+        /// </summary>
+        /// <param name="track">目标音轨。</param>
+        /// <returns>配置好的 AudioPlayOptions。</returns>
+        public static AudioPlayOptions Create(AudioTrack track = AudioTrack.Sfx)
+        {
+            return new AudioPlayOptions
+            {
+                m_Initialized = true,
+                m_AudioTrack = track,
+                m_Volume = 1f,
+                m_Pitch = 1f,
+                m_DoNotAutoRecycleIfNotDonePlaying = true,
+            };
+        }
+
+        /// <summary>
+        /// 创建一个循环播放指定音轨的 AudioPlayOptions。
+        /// </summary>
+        /// <param name="track">目标音轨。</param>
+        /// <returns>配置好的 AudioPlayOptions。</returns>
+        public static AudioPlayOptions CreateLooping(AudioTrack track = AudioTrack.Music)
+        {
+            return new AudioPlayOptions
+            {
+                m_Initialized = true,
+                m_AudioTrack = track,
+                m_Volume = 1f,
+                m_Pitch = 1f,
+                m_Loop = true,
+                m_Persistent = true,
+                m_DoNotAutoRecycleIfNotDonePlaying = true,
+            };
+        }
+
+        /// <summary>
+        /// 创建一个带淡入效果的 AudioPlayOptions。
+        /// </summary>
+        /// <param name="track">目标音轨。</param>
+        /// <param name="duration">淡入持续时间。</param>
+        /// <param name="initialVolume">初始音量。</param>
+        /// <param name="finalVolume">最终音量。</param>
+        /// <returns>配置好的 AudioPlayOptions。</returns>
+        public static AudioPlayOptions CreateWithFade(AudioTrack track, float duration, float initialVolume = 0f, float finalVolume = 1f)
+        {
+            return new AudioPlayOptions
+            {
+                m_Initialized = true,
+                m_AudioTrack = track,
+                m_Volume = finalVolume,
+                m_Pitch = 1f,
+                m_FadeInOnPlay = true,
+                m_FadeInDuration = duration,
+                m_FadeInInitialVolume = initialVolume,
+                m_FadeInTweenEase = new TweenEase(TweenUtility.EEase.InOutQuart),
+                m_DoNotAutoRecycleIfNotDonePlaying = true,
+            };
+        }
     }
 }
