@@ -36,9 +36,9 @@ namespace Moirai.Atropos.Audio
         private readonly Dictionary<AudioTrack, AudioGroupConfig> _configCache = new Dictionary<AudioTrack, AudioGroupConfig>(4);
         // 模块自维护 ID -> AudioAgent 映射
         private readonly Dictionary<ulong, AudioAgent> _agentById = new Dictionary<ulong, AudioAgent>();
-        // 用户定义 ID -> 模块句柄 映射（支持事件系统通过用户 ID 查找句柄）
-        private readonly Dictionary<int, ulong> _userHandleMap = new Dictionary<int, ulong>();
-        // 句柄 -> 用户 ID 反向映射（O(1) 清理）
+        // 用户定义 ID -> 模块句柄列表 映射（1 对多，支持事件系统通过用户 ID 查找所有句柄）
+        private readonly Dictionary<int, List<ulong>> _userHandleMap = new Dictionary<int, List<ulong>>();
+        // 句柄 -> 用户 ID 反向映射（1 对 1，O(1) 清理）
         private readonly Dictionary<ulong, int> _handleToUserMap = new Dictionary<ulong, int>();
         // 模块自维护 ID 生成器
         private ulong _nextAudioId = 1;
@@ -382,12 +382,16 @@ namespace Moirai.Atropos.Audio
                 ulong handle = _nextAudioId++;
                 audioAgent.Play(clip, options);
                 _agentById[handle] = audioAgent;
-                // 如果用户指定了 ID，建立双向映射
-                if (options.ID != 0)
+
+                // 建立双向映射
+                if (!_userHandleMap.TryGetValue(options.ID, out var handles))
                 {
-                    _userHandleMap[options.ID] = handle;
-                    _handleToUserMap[handle] = options.ID;
+                    handles = new List<ulong>(2);
+                    _userHandleMap[options.ID] = handles;
                 }
+                handles.Add(handle);
+                _handleToUserMap[handle] = options.ID;
+
                 return handle;
             }
             
@@ -497,12 +501,16 @@ namespace Moirai.Atropos.Audio
                 ulong handle = _nextAudioId++;
                 audioAgent.Load(path, options, bAsync, bInPool);
                 _agentById[handle] = audioAgent;
-                // 如果用户指定了 ID，建立双向映射
-                if (options.ID != 0)
+
+                // 建立双向映射
+                if (!_userHandleMap.TryGetValue(options.ID, out var handles))
                 {
-                    _userHandleMap[options.ID] = handle;
-                    _handleToUserMap[handle] = options.ID;
+                    handles = new List<ulong>(2);
+                    _userHandleMap[options.ID] = handles;
                 }
+                handles.Add(handle);
+                _handleToUserMap[handle] = options.ID;
+
                 return handle;
             }
             
@@ -761,8 +769,16 @@ namespace Moirai.Atropos.Audio
             // O(1) 反向查找清理用户 ID 映射
             if (_handleToUserMap.TryGetValue(handle, out int userId))
             {
-                _userHandleMap.Remove(userId);
                 _handleToUserMap.Remove(handle);
+                
+                if (_userHandleMap.TryGetValue(userId, out var handles))
+                {
+                    handles.Remove(handle);
+                    if (handles.Count == 0)
+                    {
+                        _userHandleMap.Remove(userId);
+                    }
+                }
             }
             
             _agentById.Remove(handle);
@@ -1131,24 +1147,32 @@ namespace Moirai.Atropos.Audio
         }
         
         /// <summary>
-        /// 音频控制事件（通过用户 ID O(1) 查找句柄后操作）
+        /// 音频控制事件（通过用户 ID 查找所有句柄后操作）
         /// </summary>
         /// <param name="evt"></param>
         private void OnAudioControlEvent(AudioControlEvent evt)
         {
-            if (!_userHandleMap.TryGetValue(evt.AudioID, out ulong handle)) return;
+            Debug.Log($"{evt.EventType}: {evt.AudioID}");
+            if (!_userHandleMap.TryGetValue(evt.AudioID, out var handles)) return;
             
-            switch (evt.EventType)
+            // 复制列表避免迭代时修改
+            int count = handles.Count;
+            Debug.Log($"{evt.EventType}: count {count}");
+            for (int i = 0; i < count; i++)
             {
-                case AudioControlEvent.EAudioControlEventType.Pause:
-                    Pause(handle);
-                    break;
-                case AudioControlEvent.EAudioControlEventType.UnPause:
-                    UnPause(handle);
-                    break;
-                case AudioControlEvent.EAudioControlEventType.Stop:
-                    Stop(handle);
-                    break;
+                ulong handle = handles[i];
+                switch (evt.EventType)
+                {
+                    case AudioControlEvent.EAudioControlEventType.Pause:
+                        Pause(handle);
+                        break;
+                    case AudioControlEvent.EAudioControlEventType.UnPause:
+                        UnPause(handle);
+                        break;
+                    case AudioControlEvent.EAudioControlEventType.Stop:
+                        Stop(handle);
+                        break;
+                }
             }
         }
         
@@ -1185,26 +1209,32 @@ namespace Moirai.Atropos.Audio
         }
         
         /// <summary>
-        /// 音频过渡事件（通过用户 ID 查找句柄后操作）
+        /// 音频过渡事件（通过用户 ID 查找所有句柄后操作）
         /// </summary>
         /// <param name="evt"></param>
         private void OnAudioFadeEvent(AudioFadeEvent evt)
         {
-            // 通过用户 ID O(1) 查找对应的句柄
-            if (!_userHandleMap.TryGetValue(evt.SoundID, out ulong handle)) return;
+            // 通过用户 ID 查找对应的所有句柄
+            if (!_userHandleMap.TryGetValue(evt.SoundID, out var handles)) return;
             
-            var agent = GetAgentByHandle(handle);
-            if (agent == null) return;
-            
-            switch (evt.Mode)
+            // 复制列表避免迭代时修改
+            int count = handles.Count;
+            for (int i = 0; i < count; i++)
             {
-                case AudioFadeEvent.EAudioFadeEventMode.PlayFade:
-                    agent.CancelFadeIn();
-                    FadeAudio(handle, evt.FadeDuration, agent.AudioResource.volume, evt.FinalVolume, evt.FadeTweenEase);
-                    break;
-                case AudioFadeEvent.EAudioFadeEventMode.StopFade:
-                    StopFadeAudio(handle);
-                    break;
+                ulong handle = handles[i];
+                var agent = GetAgentByHandle(handle);
+                if (agent == null) continue;
+                
+                switch (evt.Mode)
+                {
+                    case AudioFadeEvent.EAudioFadeEventMode.PlayFade:
+                        agent.CancelFadeIn();
+                        FadeAudio(handle, evt.FadeDuration, agent.AudioResource.volume, evt.FinalVolume, evt.FadeTweenEase);
+                        break;
+                    case AudioFadeEvent.EAudioFadeEventMode.StopFade:
+                        StopFadeAudio(handle);
+                        break;
+                }
             }
         }
         
