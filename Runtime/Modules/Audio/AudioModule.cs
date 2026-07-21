@@ -27,13 +27,13 @@ namespace Moirai.Atropos.Audio
         // Master 音轨过渡 Tween ID
         private long _masterFadeTweenId;
         // 音轨过渡 Tween ID
-        private readonly Dictionary<AudioTrack, long> _trackFadeTweenIds = new Dictionary<AudioTrack, long>();
+        private readonly Dictionary<EAudioTrack, long> _trackFadeTweenIds = new Dictionary<EAudioTrack, long>();
         // 音轨暂停状态
-        private readonly Dictionary<AudioTrack, bool> _pausedTracks = new Dictionary<AudioTrack, bool>();
+        private readonly Dictionary<EAudioTrack, bool> _pausedTracks = new Dictionary<EAudioTrack, bool>();
         // 音轨 -> Category 缓存，O(1) 查找
-        private readonly Dictionary<AudioTrack, AudioCategory> _categoryCache = new Dictionary<AudioTrack, AudioCategory>(4);
+        private readonly Dictionary<EAudioTrack, AudioCategory> _categoryCache = new Dictionary<EAudioTrack, AudioCategory>(4);
         // 音轨 -> AudioGroupConfig 缓存，O(1) 查找
-        private readonly Dictionary<AudioTrack, AudioGroupConfig> _configCache = new Dictionary<AudioTrack, AudioGroupConfig>(4);
+        private readonly Dictionary<EAudioTrack, AudioGroupConfig> _configCache = new Dictionary<EAudioTrack, AudioGroupConfig>(4);
         // 模块自维护 ID -> AudioAgent 映射
         private readonly Dictionary<ulong, AudioAgent> _agentById = new Dictionary<ulong, AudioAgent>();
         // 用户定义 ID -> 模块句柄列表 映射（1 对多，支持事件系统通过用户 ID 查找所有句柄）
@@ -156,26 +156,26 @@ namespace Moirai.Atropos.Audio
             AudioListener.volume = _isMuted ? 0f : Mathf.Clamp(_volume, 0f, 1f);
         }
         
-        public float GetTrackVolume(AudioTrack track)
+        public float GetTrackVolume(EAudioTrack track)
         {
             if (_unityAudioDisabled) return 0f;
             return _configCache.TryGetValue(track, out var config) ? config.Volume : 1f;
         }
         
-        public void SetTrackVolume(AudioTrack track, float volume)
+        public void SetTrackVolume(EAudioTrack track, float volume)
         {
             if (_unityAudioDisabled) return;
             if (_configCache.TryGetValue(track, out var config))
                 config.Volume = volume;
         }
         
-        public bool GetTrackMute(AudioTrack track)
+        public bool GetTrackMute(EAudioTrack track)
         {
             if (_unityAudioDisabled) return false;
             return _configCache.TryGetValue(track, out var config) && config.Mute;
         }
         
-        public void SetTrackMute(AudioTrack track, bool mute)
+        public void SetTrackMute(EAudioTrack track, bool mute)
         {
             if (_unityAudioDisabled) return;
             if (_configCache.TryGetValue(track, out var config))
@@ -398,8 +398,7 @@ namespace Moirai.Atropos.Audio
             return 0;
         }
 
-        [Obsolete("使用 AudioPlayEvent.Trigger() 或 Play(AudioClip, AudioPlayOptions) 代替")]
-        public ulong Play(AudioClip clip, AudioTrack track, Vector3 location,
+        public ulong Play(AudioClip clip, EAudioTrack track, Vector3 location,
             bool loop = false,
             float volume = 1, int id = 0, bool fade = false, float fadeInitialVolume = 0, float fadeDuration = 1,
             TweenEase fadeTweenEase = default, bool persistent = false, AudioSource recycleAudioSource = null,
@@ -421,8 +420,6 @@ namespace Moirai.Atropos.Audio
         {
             var option = new AudioPlayOptions
             {
-                Initialized = true,
-                            
                 AudioTrack = track,
                 AudioGroup = audioGroup,
                 
@@ -517,8 +514,7 @@ namespace Moirai.Atropos.Audio
             return 0UL;
         }
 
-        [Obsolete("使用 AudioPlayEvent.Trigger() 或 Play(string, AudioPlayOptions) 代替")]
-        public ulong Play(string path, AudioTrack track, Vector3 location, bool bAsync = false, bool bInPool = false,
+        public ulong Play(string path, EAudioTrack track, Vector3 location, bool bAsync = false, bool bInPool = false,
             bool loop = false, float volume = 1.0f, int id = 0,
             bool fade = false, float fadeInitialVolume = 0f, float fadeDuration = 1f, TweenEase fadeTweenEase = default,
             bool persistent = false,
@@ -539,8 +535,6 @@ namespace Moirai.Atropos.Audio
         {
             var option = new AudioPlayOptions
             {
-                Initialized = true,
-                
                 AudioTrack = track,
                 AudioGroup = audioGroup,
                 
@@ -631,7 +625,7 @@ namespace Moirai.Atropos.Audio
         /// <summary>
         /// 查找指定音轨的 AudioCategory。
         /// </summary>
-        private AudioCategory FindCategory(AudioTrack track)
+        private AudioCategory FindCategory(EAudioTrack track)
         {
             return _categoryCache.TryGetValue(track, out var category) ? category : null;
         }
@@ -788,7 +782,7 @@ namespace Moirai.Atropos.Audio
 
         #region 音轨控制 [TRACK CONTROLS]
 
-        public void Pause(AudioTrack track)
+        public void Pause(EAudioTrack track)
         {
             if (_unityAudioDisabled) return;
 
@@ -797,7 +791,7 @@ namespace Moirai.Atropos.Audio
             category?.PauseAll();
         }
         
-        public void UnPause(AudioTrack track)
+        public void UnPause(EAudioTrack track)
         {
             if (_unityAudioDisabled) return;
 
@@ -806,7 +800,7 @@ namespace Moirai.Atropos.Audio
             category?.UnPauseAll();
         }
 
-        public bool IsPaused(AudioTrack track)
+        public bool IsPaused(EAudioTrack track)
         {
             if (_pausedTracks.TryGetValue(track, out bool muted))
             {
@@ -816,7 +810,7 @@ namespace Moirai.Atropos.Audio
             return false;
         }
 
-        public void Stop(AudioTrack track, float fadeoutDuration = 0f)
+        public void Stop(EAudioTrack track, float fadeoutDuration = 0f)
         {
             if (_unityAudioDisabled) return;
 
@@ -892,10 +886,10 @@ namespace Moirai.Atropos.Audio
         // 每个音轨一个静态回调，避免闭包捕获 track
         private static readonly Action<AudioModule, float>[] s_TrackFadeCallbacks = new Action<AudioModule, float>[]
         {
-            (m, v) => m.SetTrackVolume(AudioTrack.Sfx, v),
-            (m, v) => m.SetTrackVolume(AudioTrack.UI, v),
-            (m, v) => m.SetTrackVolume(AudioTrack.Music, v),
-            (m, v) => m.SetTrackVolume(AudioTrack.Voice, v),
+            (m, v) => m.SetTrackVolume(EAudioTrack.Sfx, v),
+            (m, v) => m.SetTrackVolume(EAudioTrack.UI, v),
+            (m, v) => m.SetTrackVolume(EAudioTrack.Music, v),
+            (m, v) => m.SetTrackVolume(EAudioTrack.Voice, v),
         };
 
         public void FadeMasterTrack(float duration, float initialVolume = 0f, float finalVolume = 1f, TweenEase tweenEase = default)
@@ -912,7 +906,7 @@ namespace Moirai.Atropos.Audio
             TweenUtility.Stop(_masterFadeTweenId);
         }
 
-        public void FadeTrack(AudioTrack track, float duration, float initialVolume = 0f, float finalVolume = 1f, TweenEase tweenEase = default)
+        public void FadeTrack(EAudioTrack track, float duration, float initialVolume = 0f, float finalVolume = 1f, TweenEase tweenEase = default)
         {
             if (duration <= 0f) { SetTrackVolume(track, finalVolume); return; }
 
@@ -921,7 +915,7 @@ namespace Moirai.Atropos.Audio
                 s_TrackFadeCallbacks[(int)track], tweenEase, useUnscaledTime: true);
         }
 
-        public void StopFadeTrack(AudioTrack track)
+        public void StopFadeTrack(EAudioTrack track)
         {
             if (_trackFadeTweenIds.TryGetValue(track, out long id))
             {

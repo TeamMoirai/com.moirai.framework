@@ -34,7 +34,7 @@ namespace Moirai.Atropos.Audio
                     m_AudioGroupConfigs[i] = new AudioGroupConfig();
                     m_AudioGroupConfigs[i].AudioMixerGroup = audioMixerGroups[i];
 
-                    Enum.TryParse<AudioTrack>(audioMixerGroups[i].name, out var audioTrack);
+                    Enum.TryParse<EAudioTrack>(audioMixerGroups[i].name, out var audioTrack);
                     m_AudioGroupConfigs[i].AudioTrack = audioTrack;
                 }
             }

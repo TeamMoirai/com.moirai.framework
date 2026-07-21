@@ -43,7 +43,7 @@ namespace Moirai.Atropos.Audio
         /// <summary>
         /// 对应的音轨。
         /// </summary>
-        public AudioTrack AudioTrack => _audioGroupConfig.AudioTrack;
+        public EAudioTrack AudioTrack => _audioGroupConfig.AudioTrack;
         
         /// <summary>
         /// 下属所有的音频代理。

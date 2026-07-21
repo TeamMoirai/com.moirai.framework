@@ -28,7 +28,7 @@ namespace Moirai.Atropos.Audio
         /// <summary>
         /// 要操作的音轨
         /// </summary>
-        public AudioTrack Track { get; private set; }
+        public EAudioTrack Track { get; private set; }
         /// <summary>
         /// 是否是主音轨（总音量）
         /// </summary>
@@ -40,7 +40,7 @@ namespace Moirai.Atropos.Audio
         
         // ---------- Handle Common Track ----------
 
-        private static AudioTrackControlEvent GetPooled(EAudioTrackEventType trackEventType, AudioTrack track, float volume)
+        private static AudioTrackControlEvent GetPooled(EAudioTrackEventType trackEventType, EAudioTrack track, float volume)
         {
             var evt = GetPooled();
             evt.TrackEventType = trackEventType;
@@ -56,7 +56,7 @@ namespace Moirai.Atropos.Audio
         /// <param name="trackEventType">操作音轨类型</param>
         /// <param name="track">要操作的音轨</param>
         /// <param name="volume">如果在 SetTrackVolume 模式下，将音频设置为的音量</param>
-        public static void Trigger(EAudioTrackEventType trackEventType, AudioTrack track = AudioTrack.Sfx, float volume = 1f)
+        public static void Trigger(EAudioTrackEventType trackEventType, EAudioTrack track = EAudioTrack.Sfx, float volume = 1f)
         {
             using var evt = GetPooled(trackEventType, track, volume);
             EventManager.SendEvent(evt);

@@ -43,7 +43,7 @@ namespace Moirai.Atropos.Audio
         // 自动取消 Solo 的句柄
         private SchedulerHandle _autoUnSoloOnEnd;
         // 自动取消 Solo 的目标音轨
-        private AudioTrack _autoUnSoloTrack;
+        private EAudioTrack _autoUnSoloTrack;
         // 自动取消 Solo 是否影响所有音轨
         private bool _autoUnSoloIsAllTracks;
         
@@ -186,7 +186,7 @@ namespace Moirai.Atropos.Audio
                 _autoUnSoloOnEnd = default;
             }
             
-            _autoUnSoloTrack = AudioTrack.Sfx;
+            _autoUnSoloTrack = EAudioTrack.Sfx;
             _autoUnSoloIsAllTracks = false;
             _audioPlayOptions = default;
             _audioAgentRuntimeState = AudioAgentRuntimeState.None;
@@ -397,7 +397,7 @@ namespace Moirai.Atropos.Audio
                 // 处理独奏
                 _playDuration = (_audioPlayOptions.PlaybackDuration == 0 && AudioResource.clip != null ? AudioResource.clip.length : _audioPlayOptions.PlaybackDuration) - _audioPlayOptions.PlaybackTime;
                 _autoUnSoloOnEnd = default;
-                _autoUnSoloTrack = AudioTrack.Sfx;
+                _autoUnSoloTrack = EAudioTrack.Sfx;
                 _autoUnSoloIsAllTracks = false;
                 if (_audioPlayOptions.SoloSingleTrack)
                 {
@@ -586,7 +586,7 @@ namespace Moirai.Atropos.Audio
         /// </summary>
         /// <param name="track"></param>
         /// <param name="mute"></param>
-        private void MuteAudiosOnTrack(AudioTrack track, bool mute)
+        private void MuteAudiosOnTrack(EAudioTrack track, bool mute)
         {
             foreach (var category in GameModule.Audio.AudioCategories)
             {

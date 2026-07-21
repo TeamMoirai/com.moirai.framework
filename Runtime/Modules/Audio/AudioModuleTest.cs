@@ -14,7 +14,7 @@ namespace Moirai.Test
 
         public AudioClip audioClip;
 
-        public AudioTrack track = AudioTrack.Sfx;
+        public EAudioTrack track = EAudioTrack.Sfx;
     
         [InlineButton(nameof(GenerateID), "生成")]
         public int audioID;

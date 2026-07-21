@@ -18,7 +18,7 @@ namespace Moirai.Atropos.Audio
     {
         struct TrackStruct
         {
-            public AudioTrack track;
+            public EAudioTrack track;
             public bool isMaster;
             public float volume;
             public Color colorMute;
@@ -27,7 +27,7 @@ namespace Moirai.Atropos.Audio
             public Color colorUnPause;
             public Color colorStop;
 
-            public TrackStruct(AudioTrack track, float volume, Color colorMute, Color colorUnmute, Color colorPause, Color colorUnPause, Color colorStop)
+            public TrackStruct(EAudioTrack track, float volume, Color colorMute, Color colorUnmute, Color colorPause, Color colorUnPause, Color colorStop)
             {
                 this.track = track;
                 isMaster = false;
