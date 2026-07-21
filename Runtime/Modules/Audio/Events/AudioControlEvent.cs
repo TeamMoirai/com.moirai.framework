@@ -8,7 +8,7 @@ namespace Moirai.Atropos.Audio
     /// </summary>    
     /// <example>
     /// 使 ID 为 33 的音频停止播放
-    /// AudioControlEvent.Trigger(AudioControlEventType.Stop, 33);
+    /// AudioControlEvent.Trigger(AudioControlEvent.EAudioControlEventType.Stop, 33);
     /// </example>>
     public class AudioControlEvent : EventBase<AudioControlEvent>, IAudioModuleEvent
     {

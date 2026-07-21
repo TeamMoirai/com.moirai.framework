@@ -7,7 +7,7 @@ namespace Moirai.Atropos.Audio
     /// </summary>
     /// <example>
     /// 通过事件触发保存音量设置
-    /// <code>AudioModuleEvent.Trigger(AudioModuleEventType.SaveSettings);</code>
+    /// <code>AudioModuleEvent.Trigger(AudioModuleEvent.EAudioModuleEventType.SaveSettings);</code>
     /// </example>>
     public class AudioModuleEvent : EventBase<AudioModuleEvent>, IAudioModuleEvent
     {
