@@ -13,27 +13,27 @@ namespace Moirai.Atropos.Audio
         /// 实例化根节点。
         /// </summary>
         public Transform InstanceRoot { get;}
-        
+
         /// <summary>
         /// 音频混响器。
         /// </summary>
         public AudioMixer AudioMixer { get;}
 
         #endregion
-        
+
         #region 音轨状态 [TRACK STATUS]
-        
+
         /// <summary>
         /// 所有音轨。
         /// </summary>
         public AudioCategory[] AudioCategories { get; }
-        
+
         /// <summary>
         /// 主音轨（总音量）音量。
         /// </summary>
         /// <remarks>0-1</remarks>
         public float MasterVolume { get; set; }
-        
+
         /// <summary>
         /// 主音轨（总音量）静音。
         /// </summary>
@@ -43,17 +43,17 @@ namespace Moirai.Atropos.Audio
         /// 写入主音轨（总音量）配置。
         /// </summary>
         public void SetMasterSettings();
-        
+
         /// <summary>
         /// 加载主音轨（总音量）配置。
         /// </summary>
         public void LoadMasterSettings();
-        
+
         /// <summary>
         /// 移除主音轨（总音量）设置。
         /// </summary>
         public void RemoveMasterSetting();
-        
+
         /// <summary>
         /// 获取指定音轨的音量。
         /// </summary>
@@ -81,7 +81,7 @@ namespace Moirai.Atropos.Audio
         /// <param name="track"></param>
         /// <param name="mute"></param>
         public void SetTrackMute(EAudioTrack track, bool mute);
-        
+
         #endregion 音轨状态 [TRACK STATUS]
 
         #region 模块方法 [MODULE METHOD]
@@ -101,7 +101,7 @@ namespace Moirai.Atropos.Audio
         public void Restart();
 
         #endregion 模块方法 [MODULE METHOD]
-        
+
         #region 播放音频 [PLAY AUDIO]
 
         /// <summary>
@@ -249,9 +249,9 @@ namespace Moirai.Atropos.Audio
             float initialDelay = 0f);
 
         #endregion 播放音频 [PLAY AUDIO]
-        
+
         #region 音频控制 [AUDIO CONTROLS]
-        
+
         /// <summary>
         /// 暂停指定句柄的音频
         /// </summary>
@@ -270,14 +270,14 @@ namespace Moirai.Atropos.Audio
         /// <param name="handle">音频句柄</param>
         /// <param name="fadeoutDuration">音频淡出持续时间。</param>
         public void Stop(ulong handle, float fadeoutDuration = 0f);
-        
+
         /// <summary>
         /// 检查指定句柄的音频是否正在播放。
         /// </summary>
         /// <param name="handle">音频句柄</param>
         /// <returns>是否正在播放</returns>
         public bool IsPlaying(ulong handle);
-        
+
         /// <summary>
         /// 检查指定句柄的音频是否已停止。
         /// </summary>
@@ -291,9 +291,9 @@ namespace Moirai.Atropos.Audio
         /// <param name="handle">音频句柄</param>
         /// <returns>AudioAgent，如果句柄无效则返回 null</returns>
         public AudioAgent GetAgentByHandle(ulong handle);
-        
+
         #endregion 音频控制 [AUDIO CONTROLS]
-        
+
         #region 获取 [FIND]
 
         /// <summary>
@@ -302,7 +302,7 @@ namespace Moirai.Atropos.Audio
         /// <param name="id">音频 ID。</param>
         /// <returns>匹配的音频代理列表。</returns>
         public IReadOnlyList<AudioAgent> FindAgentsByID(int id);
-        
+
         /// <summary>
         /// 返回播放过指定 clip 的音频代理（零分配：使用共享缓冲区，调用方需在下次调用前消费结果）。
         /// </summary>
@@ -316,7 +316,7 @@ namespace Moirai.Atropos.Audio
         /// <param name="clip"></param>
         /// <returns></returns>
         public int CurrentlyPlayingCount(AudioClip clip);
-        
+
         #endregion 获取 [FIND]
 
         #region 音轨控制 [TRACK CONTROLS]
@@ -326,7 +326,7 @@ namespace Moirai.Atropos.Audio
         /// </summary>
         /// <param name="track">音频类型。</param>
         public void Pause(EAudioTrack track);
-        
+
         /// <summary>
         /// 恢复某类音频的播放。
         /// </summary>
@@ -346,33 +346,33 @@ namespace Moirai.Atropos.Audio
         /// <param name="track">音频类型。</param>
         /// <param name="fadeoutDuration">音频淡出持续时间。</param>
         public void Stop(EAudioTrack track, float fadeoutDuration = 0f);
-       
+
         #endregion 音轨控制 [TRACK CONTROLS]
 
         #region 所有音频控制 [ALL AUDIO CONTROLS]
-        
+
         /// <summary>
         /// 暂停所有音频。
         /// </summary>
         public void PauseAll();
-        
+
         /// <summary>
         /// 恢复所有音频。
         /// </summary>
         public void UnPauseAll();
-        
+
         /// <summary>
         /// 停止所有音频。
         /// </summary>
         /// <param name="fadeoutDuration">音频淡出持续时间。</param>
         public void StopAll(float fadeoutDuration = 0f);
-        
+
         /// <summary>
         /// 停止除持久性音频之外的所有音频。
         /// </summary>
         /// <param name="fadeoutDuration">音频淡出持续时间。</param>
         public void StopAllButPersistent(float fadeoutDuration = 0f);
-        
+
         /// <summary>
         /// 停止所有循环音频。
         /// </summary>
@@ -380,7 +380,7 @@ namespace Moirai.Atropos.Audio
         public void StopAllLooping(float fadeoutDuration = 0f);
 
         #endregion 所有音频控制 [ALL AUDIO CONTROLS]
-        
+
         #region 过渡 [FADES]
 
         /// <summary>
@@ -410,9 +410,9 @@ namespace Moirai.Atropos.Audio
         /// <summary>
         /// 停止指定音轨上所有当前的淡化（Fade）
         /// </summary>
-        /// <param name="track"></param>        
+        /// <param name="track"></param>
         public void StopFadeTrack(EAudioTrack track);
-        
+
         /// <summary>
         /// 对指定句柄的音频进行音量过渡。
         /// </summary>
@@ -428,16 +428,16 @@ namespace Moirai.Atropos.Audio
         /// </summary>
         /// <param name="handle">音频句柄</param>
         public void StopFadeAudio(ulong handle);
-        
+
         /// <summary>
         /// 检查指定句柄的音频是否正在过渡中
         /// </summary>
         /// <param name="handle">音频句柄</param>
         /// <returns>是否正在过渡</returns>
         public bool SoundIsFadingOut(ulong handle);
-        
+
         #endregion 过渡 [FADES]
-        
+
         #region 资源池 [ASSET POOL]
 
         /// <summary>
@@ -456,7 +456,7 @@ namespace Moirai.Atropos.Audio
         /// 清空 <c>AudioClip</c> 的对象池。
         /// </summary>
         public void CleanAudioPool();
-        
+
         #endregion 资源池 [ASSET POOL]
 
     }

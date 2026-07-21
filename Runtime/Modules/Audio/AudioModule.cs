@@ -44,6 +44,19 @@ namespace Moirai.Atropos.Audio
         private ulong _nextAudioId = 1;
         // 临时列表，用于 FindAgents 系列方法（避免每次分配）
         private readonly List<AudioAgent> _sharedAgentBuffer = new List<AudioAgent>(8);
+        // List<ulong> 对象池，避免频繁分配
+        private static readonly Stack<List<ulong>> s_HandleListPool = new Stack<List<ulong>>(8);
+
+        private static List<ulong> AcquireHandleList()
+        {
+            return s_HandleListPool.Count > 0 ? s_HandleListPool.Pop() : new List<ulong>(2);
+        }
+
+        private static void ReleaseHandleList(List<ulong> list)
+        {
+            list.Clear();
+            s_HandleListPool.Push(list);
+        }
 
         private AudioMixer _audioMixer;
         public AudioMixer AudioMixer => _audioMixer;
@@ -71,6 +84,7 @@ namespace Moirai.Atropos.Audio
             public float EndVolume;
         }
         private readonly List<AudioFadeState> _audioFades = new List<AudioFadeState>(8);
+        private int _audioFadeCount;
         
         #region 音轨状态 [TRACK STATUS]
         
@@ -284,14 +298,13 @@ namespace Moirai.Atropos.Audio
         private void UpdateAudioFades()
         {
             float currentTime = GameTime.unscaledTime;
-            int count = _audioFades.Count;
             int writeIndex = 0;
-            
-            for (int i = 0; i < count; i++)
+
+            for (int i = 0; i < _audioFadeCount; i++)
             {
                 var fade = _audioFades[i];
                 float elapsed = currentTime - fade.StartTime;
-                
+
                 if (elapsed >= fade.Duration)
                 {
                     // 过渡完成，设置最终音量
@@ -309,12 +322,8 @@ namespace Moirai.Atropos.Audio
                     _audioFades[writeIndex++] = fade;
                 }
             }
-            
-            // 移除已完成的项
-            if (writeIndex < count)
-            {
-                _audioFades.RemoveRange(writeIndex, count - writeIndex);
-            }
+
+            _audioFadeCount = writeIndex;
         }
         
         public override void Shutdown()
@@ -325,7 +334,14 @@ namespace Moirai.Atropos.Audio
             StopAll(fadeoutDuration: 0f);
             CleanAudioPool();
             _audioFades.Clear();
+            _audioFadeCount = 0;
             _agentById.Clear();
+
+            // 回收所有句柄列表到对象池
+            foreach (var handles in _userHandleMap.Values)
+            {
+                ReleaseHandleList(handles);
+            }
             _userHandleMap.Clear();
             _handleToUserMap.Clear();
             _sharedAgentBuffer.Clear();
@@ -376,6 +392,7 @@ namespace Moirai.Atropos.Audio
                 Log.Error($"{options.AudioTrack} is not found in AudioCategories.");
                 return 0;
             }
+            
             AudioAgent audioAgent = category.GetAvailableAgent(options.DoNotAutoRecycleIfNotDonePlaying);
             if (audioAgent != null)
             {
@@ -386,7 +403,7 @@ namespace Moirai.Atropos.Audio
                 // 建立双向映射
                 if (!_userHandleMap.TryGetValue(options.ID, out var handles))
                 {
-                    handles = new List<ulong>(2);
+                    handles = AcquireHandleList();
                     _userHandleMap[options.ID] = handles;
                 }
                 handles.Add(handle);
@@ -394,7 +411,7 @@ namespace Moirai.Atropos.Audio
 
                 return handle;
             }
-            
+
             return 0;
         }
 
@@ -485,13 +502,14 @@ namespace Moirai.Atropos.Audio
         public ulong Play(string path, AudioPlayOptions options, bool bAsync = false, bool bInPool = false)
         {
             if (_unityAudioDisabled) return 0UL;
-            
+
             AudioCategory category = FindCategory(options.AudioTrack);
             if (category == null)
             {
                 Log.Error($"{options.AudioTrack} is not found in AudioCategories.");
                 return 0UL;
             }
+
             AudioAgent audioAgent = category.GetAvailableAgent(options.DoNotAutoRecycleIfNotDonePlaying);
             if (audioAgent != null)
             {
@@ -502,7 +520,7 @@ namespace Moirai.Atropos.Audio
                 // 建立双向映射
                 if (!_userHandleMap.TryGetValue(options.ID, out var handles))
                 {
-                    handles = new List<ulong>(2);
+                    handles = AcquireHandleList();
                     _userHandleMap[options.ID] = handles;
                 }
                 handles.Add(handle);
@@ -764,17 +782,18 @@ namespace Moirai.Atropos.Audio
             if (_handleToUserMap.TryGetValue(handle, out int userId))
             {
                 _handleToUserMap.Remove(handle);
-                
+
                 if (_userHandleMap.TryGetValue(userId, out var handles))
                 {
                     handles.Remove(handle);
                     if (handles.Count == 0)
                     {
                         _userHandleMap.Remove(userId);
+                        ReleaseHandleList(handles);
                     }
                 }
             }
-            
+
             _agentById.Remove(handle);
         }
 
@@ -939,32 +958,44 @@ namespace Moirai.Atropos.Audio
             }
 
             StopFadeAudio(handle);
-            _audioFades.Add(new AudioFadeState
+
+            // 扩容检查
+            if (_audioFadeCount >= _audioFades.Count)
+            {
+                _audioFades.Add(new AudioFadeState());
+            }
+
+            _audioFades[_audioFadeCount++] = new AudioFadeState
             {
                 Handle = handle,
                 StartTime = GameTime.unscaledTime,
                 Duration = duration,
                 StartVolume = initialVolume,
                 EndVolume = finalVolume,
-            });
+            };
         }
 
         public void StopFadeAudio(ulong handle)
         {
             if (handle == 0) return;
 
-            for (int i = _audioFades.Count - 1; i >= 0; i--)
+            for (int i = _audioFadeCount - 1; i >= 0; i--)
             {
                 if (_audioFades[i].Handle == handle)
                 {
-                    _audioFades.RemoveAt(i);
+                    // Swap-and-pop: O(1) 移除
+                    _audioFadeCount--;
+                    if (i < _audioFadeCount)
+                    {
+                        _audioFades[i] = _audioFades[_audioFadeCount];
+                    }
                 }
             }
         }
 
         public bool SoundIsFadingOut(ulong handle)
         {
-            for (int i = 0; i < _audioFades.Count; i++)
+            for (int i = 0; i < _audioFadeCount; i++)
             {
                 if (_audioFades[i].Handle == handle)
                     return true;
@@ -1146,12 +1177,11 @@ namespace Moirai.Atropos.Audio
         /// <param name="evt"></param>
         private void OnAudioControlEvent(AudioControlEvent evt)
         {
-            Debug.Log($"{evt.EventType}: {evt.AudioID}");
             if (!_userHandleMap.TryGetValue(evt.AudioID, out var handles)) return;
             
             // 复制列表避免迭代时修改
             int count = handles.Count;
-            Debug.Log($"{evt.EventType}: count {count}");
+            // Debug.Log($"{evt.EventType} Audio: {evt.AudioID} x{count}");
             for (int i = 0; i < count; i++)
             {
                 ulong handle = handles[i];
