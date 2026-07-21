@@ -832,7 +832,7 @@ namespace Moirai.Atropos.Audio
             if (_unityAudioDisabled) return;
 
             AudioCategory category = FindCategory(track);
-            category?.StopAll();
+            category?.StopAll(fadeoutDuration);
         }
         
         #endregion 音轨控制 [TRACK CONTROLS]
@@ -865,7 +865,7 @@ namespace Moirai.Atropos.Audio
 
             for (int i = 0; i < AudioCategories.Length; i++)
             {
-                AudioCategories[i]?.StopAll();
+                AudioCategories[i]?.StopAll(fadeoutDuration);
             }
         }
 
@@ -875,7 +875,7 @@ namespace Moirai.Atropos.Audio
             
             for (int i = 0; i < AudioCategories.Length; i++)
             {
-                AudioCategories[i]?.StopAllButPersistent();
+                AudioCategories[i]?.StopAllButPersistent(fadeoutDuration);
             }
         }
         
@@ -1175,7 +1175,7 @@ namespace Moirai.Atropos.Audio
             // 缓存 count：Stop 可能触发 ReleaseHandle 从 handles 中移除元素，
             // 但索引访问 handles[i] 仍安全，因为 count 只增不减。
             int count = handles.Count;
-            // Debug.Log($"{evt.EventType} Audio: {evt.AudioID} x{count}");
+            Log.Debug("[AudioModule] {0} Audio: {1} x{2}", evt.EventType, evt.AudioID, count);
             for (int i = 0; i < count; i++)
             {
                 ulong handle = handles[i];
