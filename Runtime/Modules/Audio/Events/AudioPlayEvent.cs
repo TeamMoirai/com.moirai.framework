@@ -64,7 +64,7 @@ namespace Moirai.Atropos.Audio
         public static ulong Trigger(AudioClip clip, AudioPlayOptions options)
         {
             using var evt = GetPooled(clip, options);
-            EventManager.SendEvent(evt);
+            EventManager.SendEvent(evt, DispatchMode.Immediate);
             return evt.AudioHandle;
         }
 
@@ -91,7 +91,7 @@ namespace Moirai.Atropos.Audio
         public static ulong Trigger(string path, AudioPlayOptions options, bool bAsync, bool bInPool = false)
         {
             using var evt = GetPooled(path, options, bAsync, bInPool);
-            EventManager.SendEvent(evt);
+            EventManager.SendEvent(evt, DispatchMode.Immediate);
             return evt.AudioHandle;
         }
     }
