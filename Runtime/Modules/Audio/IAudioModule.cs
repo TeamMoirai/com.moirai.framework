@@ -59,28 +59,28 @@ namespace Moirai.Atropos.Audio
         /// </summary>
         /// <param name="track"></param>
         /// <returns></returns>
-        public float GetTrackVolume(AudioTrack track);
+        public float GetTrackVolume(EAudioTrack track);
 
         /// <summary>
         /// 设置指定音轨的音量。
         /// </summary>
         /// <param name="track"></param>
         /// <param name="volume"></param>
-        public void SetTrackVolume(AudioTrack track, float volume);
+        public void SetTrackVolume(EAudioTrack track, float volume);
 
         /// <summary>
         /// 获取指定音轨的静音状态。
         /// </summary>
         /// <param name="track"></param>
         /// <returns></returns>
-        public bool GetTrackMute(AudioTrack track);
+        public bool GetTrackMute(EAudioTrack track);
 
         /// <summary>
         /// 设置指定音轨的静音状态。
         /// </summary>
         /// <param name="track"></param>
         /// <param name="mute"></param>
-        public void SetTrackMute(AudioTrack track, bool mute);
+        public void SetTrackMute(EAudioTrack track, bool mute);
         
         #endregion 音轨状态 [TRACK STATUS]
 
@@ -160,7 +160,7 @@ namespace Moirai.Atropos.Audio
         /// <param name="useReverbZoneMixCurve">使用自定义混响区域混音曲线</param>
         /// <param name="reverbZoneMixCurve">自定义混响区域混音曲线</param>
         /// <param name="initialDelay"></param>
-        public ulong Play(AudioClip clip, AudioTrack track, Vector3 location,
+        public ulong Play(AudioClip clip, EAudioTrack track, Vector3 location,
             bool loop = false, float volume = 1.0f, int id = 0,
             bool fade = false, float fadeInitialVolume = 0f, float fadeDuration = 1f, TweenEase fadeTweenEase = default,
             bool persistent = false,
@@ -234,7 +234,7 @@ namespace Moirai.Atropos.Audio
         /// <param name="useReverbZoneMixCurve">使用自定义混响区域混音曲线</param>
         /// <param name="reverbZoneMixCurve">自定义混响区域混音曲线</param>
         /// <param name="initialDelay"></param>
-        public ulong Play(string path, AudioTrack track, Vector3 location, bool bAsync = false, bool bInPool = false,
+        public ulong Play(string path, EAudioTrack track, Vector3 location, bool bAsync = false, bool bInPool = false,
             bool loop = false, float volume = 1.0f, int id = 0,
             bool fade = false, float fadeInitialVolume = 0f, float fadeDuration = 1f, TweenEase fadeTweenEase = default,
             bool persistent = false,
@@ -325,27 +325,27 @@ namespace Moirai.Atropos.Audio
         /// 暂停某类音频的播放。
         /// </summary>
         /// <param name="track">音频类型。</param>
-        public void Pause(AudioTrack track);
+        public void Pause(EAudioTrack track);
         
         /// <summary>
         /// 恢复某类音频的播放。
         /// </summary>
         /// <param name="track">音频类型。</param>
-        public void UnPause(AudioTrack track);
+        public void UnPause(EAudioTrack track);
 
         /// <summary>
         /// 如果指定音轨当前处于暂停状态则返回 <c>true</c>，否则返回 <c>false</c>
         /// </summary>
         /// <param name="track"></param>
         /// <returns></returns>
-        public bool IsPaused(AudioTrack track);
+        public bool IsPaused(EAudioTrack track);
 
         /// <summary>
         /// 停止某类音频的播放。
         /// </summary>
         /// <param name="track">音频类型。</param>
         /// <param name="fadeoutDuration">音频淡出持续时间。</param>
-        public void Stop(AudioTrack track, float fadeoutDuration = 0f);
+        public void Stop(EAudioTrack track, float fadeoutDuration = 0f);
        
         #endregion 音轨控制 [TRACK CONTROLS]
 
@@ -405,13 +405,13 @@ namespace Moirai.Atropos.Audio
         /// <param name="initialVolume"></param>
         /// <param name="finalVolume"></param>
         /// <param name="tweenEase"></param>
-        public void FadeTrack(AudioTrack track, float duration, float initialVolume = 0f, float finalVolume = 1f, TweenEase tweenEase = default);
+        public void FadeTrack(EAudioTrack track, float duration, float initialVolume = 0f, float finalVolume = 1f, TweenEase tweenEase = default);
 
         /// <summary>
         /// 停止指定音轨上所有当前的淡化（Fade）
         /// </summary>
         /// <param name="track"></param>        
-        public void StopFadeTrack(AudioTrack track);
+        public void StopFadeTrack(EAudioTrack track);
         
         /// <summary>
         /// 对指定句柄的音频进行音量过渡。

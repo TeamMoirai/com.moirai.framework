@@ -20,7 +20,7 @@ namespace Moirai.Atropos.Audio
         /// <summary>
         /// 操作的音轨
         /// </summary>
-        public AudioTrack Track { get; private set; }
+        public EAudioTrack Track { get; private set; }
         /// <summary>
         /// 是否是主音轨（总音量）
         /// </summary>
@@ -40,7 +40,7 @@ namespace Moirai.Atropos.Audio
    
         // ---------- Handle Common Track ----------
 
-        private static AudioTrackFadeEvent GetPooled(EAudioTrackFadeEventMode mode, AudioTrack track, float fadeDuration, float finalVolume, TweenEase fadeTweenEase)
+        private static AudioTrackFadeEvent GetPooled(EAudioTrackFadeEventMode mode, EAudioTrack track, float fadeDuration, float finalVolume, TweenEase fadeTweenEase)
         {
             var evt = GetPooled();
             evt.Mode = mode;
@@ -55,7 +55,7 @@ namespace Moirai.Atropos.Audio
         /// <summary>
         /// 对指定音轨进行音量过渡。
         /// </summary>
-        public static void PlayFade(AudioTrack track, float duration, float finalVolume, TweenEase ease = default)
+        public static void PlayFade(EAudioTrack track, float duration, float finalVolume, TweenEase ease = default)
         {
             using var evt = GetPooled(EAudioTrackFadeEventMode.PlayFade, track, duration, finalVolume, ease);
             EventManager.SendEvent(evt);
@@ -64,7 +64,7 @@ namespace Moirai.Atropos.Audio
         /// <summary>
         /// 停止指定音轨的音量过渡。
         /// </summary>
-        public static void StopFade(AudioTrack track)
+        public static void StopFade(EAudioTrack track)
         {
             using var evt = GetPooled(EAudioTrackFadeEventMode.StopFade, track, 0, 0, default);
             EventManager.SendEvent(evt);

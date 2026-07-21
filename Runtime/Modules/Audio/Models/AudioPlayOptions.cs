@@ -12,10 +12,6 @@ namespace Moirai.Atropos.Audio
     [Serializable]
     public struct AudioPlayOptions
     {
-        [HideInInspector]
-        [SerializeField] private bool m_Initialized;
-        public bool Initialized { get => m_Initialized; internal set => m_Initialized = value; }
-
         [Tooltip("音频的 ID，用于之后再次找到该音频，eg：sound control")]
         [SerializeField] private int m_ID;
         public int ID { get => m_ID; internal set => m_ID = value; }
@@ -23,8 +19,8 @@ namespace Moirai.Atropos.Audio
         // 音轨
         [Header("音轨 [Track]")]
         [Tooltip("播放音频的音轨")]
-        [SerializeField] private AudioTrack m_AudioTrack;
-        public AudioTrack AudioTrack { get => m_AudioTrack; set => m_AudioTrack = value; }
+        [SerializeField] private EAudioTrack m_AudioTrack;
+        public EAudioTrack AudioTrack { get => m_AudioTrack; set => m_AudioTrack = value; }
 
         [Tooltip("如果不想在任意预设音轨上播放，则在此音频组上播放音频")]
         [SerializeField] private AudioMixerGroup m_AudioGroup;
@@ -217,10 +213,8 @@ namespace Moirai.Atropos.Audio
         /// </summary>
         public static AudioPlayOptions Default => new AudioPlayOptions()
         {
-            m_Initialized = true,
-
             m_ID = 0,
-            m_AudioTrack = AudioTrack.Sfx,
+            m_AudioTrack = EAudioTrack.Sfx,
             m_AudioGroup = null,
             m_RecycleAudioSource = null,
 
@@ -278,11 +272,10 @@ namespace Moirai.Atropos.Audio
         /// </summary>
         /// <param name="track">目标音轨。</param>
         /// <returns>配置好的 AudioPlayOptions。</returns>
-        public static AudioPlayOptions Create(AudioTrack track = AudioTrack.Sfx)
+        public static AudioPlayOptions Create(EAudioTrack track = EAudioTrack.Sfx)
         {
             return new AudioPlayOptions
             {
-                m_Initialized = true,
                 m_AudioTrack = track,
                 m_Volume = 1f,
                 m_Pitch = 1f,
@@ -295,11 +288,10 @@ namespace Moirai.Atropos.Audio
         /// </summary>
         /// <param name="track">目标音轨。</param>
         /// <returns>配置好的 AudioPlayOptions。</returns>
-        public static AudioPlayOptions CreateLooping(AudioTrack track = AudioTrack.Music)
+        public static AudioPlayOptions CreateLooping(EAudioTrack track = EAudioTrack.Music)
         {
             return new AudioPlayOptions
             {
-                m_Initialized = true,
                 m_AudioTrack = track,
                 m_Volume = 1f,
                 m_Pitch = 1f,
@@ -317,11 +309,10 @@ namespace Moirai.Atropos.Audio
         /// <param name="initialVolume">初始音量。</param>
         /// <param name="finalVolume">最终音量。</param>
         /// <returns>配置好的 AudioPlayOptions。</returns>
-        public static AudioPlayOptions CreateWithFade(AudioTrack track, float duration, float initialVolume = 0f, float finalVolume = 1f)
+        public static AudioPlayOptions CreateWithFade(EAudioTrack track, float duration, float initialVolume = 0f, float finalVolume = 1f)
         {
             return new AudioPlayOptions
             {
-                m_Initialized = true,
                 m_AudioTrack = track,
                 m_Volume = finalVolume,
                 m_Pitch = 1f,

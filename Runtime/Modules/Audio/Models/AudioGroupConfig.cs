@@ -11,7 +11,7 @@ namespace Moirai.Atropos.Audio
     public sealed class AudioGroupConfig
     {
         [Tooltip("音频类型")]
-        [SerializeField] private AudioTrack m_AudioTrack;
+        [SerializeField] private EAudioTrack m_AudioTrack;
         
         [Tooltip("所属音轨")]
         [SerializeField] private AudioMixerGroup m_AudioMixerGroup;
@@ -40,7 +40,7 @@ namespace Moirai.Atropos.Audio
         /// <summary>
         /// 音频类型
         /// </summary>
-        public AudioTrack AudioTrack
+        public EAudioTrack AudioTrack
         {
             get => m_AudioTrack;
             internal set => m_AudioTrack = value;

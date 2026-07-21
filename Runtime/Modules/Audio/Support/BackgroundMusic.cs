@@ -79,7 +79,7 @@ namespace Moirai.Atropos.Audio
 			options.Pitch = m_Pitch;
 			options.Loop = m_Loop;
 			options.Persistent = m_Persistent;
-			options.AudioTrack = AudioTrack.Music;
+			options.AudioTrack = EAudioTrack.Music;
 			options.FadeInOnPlay = m_Fade;
 			options.FadeInInitialVolume = m_FadeInitialVolume;
 			options.FadeInDuration = m_FadeDuration;

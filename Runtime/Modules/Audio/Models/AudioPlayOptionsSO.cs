@@ -99,8 +99,8 @@ namespace Moirai.Atropos.Audio
 		[Header("音频模块选项 [Audio Module Options]")]
 		[InspectorGroup(AUDIO_PROPERTIES_GROUP)]
 		[Tooltip("播放音频的音轨。选择与音频性质相匹配的")]
-		[SerializeField] private AudioTrack m_AudioTrack = AudioTrack.Sfx;
-		public AudioTrack AudioTrack => m_AudioTrack;
+		[SerializeField] private EAudioTrack m_AudioTrack = EAudioTrack.Sfx;
+		public EAudioTrack AudioTrack => m_AudioTrack;
 		[InspectorGroup(AUDIO_PROPERTIES_GROUP)]
 		[Tooltip("音频的 ID，用于之后再次找到该音频，eg：sound control")]
 		[SerializeField] private int m_ID = 0;
