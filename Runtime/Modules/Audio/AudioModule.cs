@@ -26,20 +26,20 @@ namespace Moirai.Atropos.Audio
 
         // Master 音轨过渡 Tween ID
         private long _masterFadeTweenId;
-        // 音轨过渡 Tween ID
-        private readonly Dictionary<EAudioTrack, long> _trackFadeTweenIds = new Dictionary<EAudioTrack, long>();
-        // 音轨暂停状态
-        private readonly Dictionary<EAudioTrack, bool> _pausedTracks = new Dictionary<EAudioTrack, bool>();
-        // 音轨 -> Category 缓存，O(1) 查找
-        private readonly Dictionary<EAudioTrack, AudioCategory> _categoryCache = new Dictionary<EAudioTrack, AudioCategory>(4);
-        // 音轨 -> AudioGroupConfig 缓存，O(1) 查找
-        private readonly Dictionary<EAudioTrack, AudioGroupConfig> _configCache = new Dictionary<EAudioTrack, AudioGroupConfig>(4);
+        // 音轨过渡 Tween ID（数组索引 = (int)EAudioTrack）
+        private long[] _trackFadeTweenIds;
+        // 音轨暂停状态（数组索引 = (int)EAudioTrack）
+        private bool[] _pausedTracks;
+        // 音轨 -> Category 缓存，O(1) 数组直接访问
+        private AudioCategory[] _categoryCache;
+        // 音轨 -> AudioGroupConfig 缓存，O(1) 数组直接访问
+        private AudioGroupConfig[] _configCache;
         // 模块自维护 ID -> AudioAgent 映射
         private readonly Dictionary<ulong, AudioAgent> _handleToAgent = new Dictionary<ulong, AudioAgent>();
         // 用户定义 ID -> 模块句柄列表 映射（1 对多，支持事件系统通过用户 ID 查找所有句柄）
         private readonly Dictionary<int, List<ulong>> _userHandleMap = new Dictionary<int, List<ulong>>();
         // 模块自维护 ID 生成器
-        private ulong _nextAudioId = 1;
+        private ulong _nextAudioId = 1UL;
         // 临时列表，用于 FindAgents 系列方法（避免每次分配）
         private readonly List<AudioAgent> _sharedAgentBuffer = new List<AudioAgent>(8);
         // List<ulong> 对象池，避免频繁分配
@@ -171,27 +171,31 @@ namespace Moirai.Atropos.Audio
         public float GetTrackVolume(EAudioTrack track)
         {
             if (_unityAudioDisabled) return 0f;
-            return _configCache.TryGetValue(track, out var config) ? config.Volume : 1f;
+            int index = (int)track;
+            return index >= 0 && index < _configCache.Length ? _configCache[index].Volume : 1f;
         }
         
         public void SetTrackVolume(EAudioTrack track, float volume)
         {
             if (_unityAudioDisabled) return;
-            if (_configCache.TryGetValue(track, out var config))
-                config.Volume = volume;
+            int index = (int)track;
+            if (index >= 0 && index < _configCache.Length)
+                _configCache[index].Volume = volume;
         }
         
         public bool GetTrackMute(EAudioTrack track)
         {
             if (_unityAudioDisabled) return false;
-            return _configCache.TryGetValue(track, out var config) && config.Mute;
+            int index = (int)track;
+            return index >= 0 && index < _configCache.Length && _configCache[index].Mute;
         }
         
         public void SetTrackMute(EAudioTrack track, bool mute)
         {
             if (_unityAudioDisabled) return;
-            if (_configCache.TryGetValue(track, out var config))
-                config.Mute = mute;
+            int index = (int)track;
+            if (index >= 0 && index < _configCache.Length)
+                _configCache[index].Mute = mute;
         }
         
         #endregion 音轨状态 [TRACK STATUS
@@ -270,15 +274,18 @@ namespace Moirai.Atropos.Audio
             {
                 _audioGroupConfigs = AudioSettings.AudioGroupConfigs;
             }
-            
-            AudioCategories = new AudioCategory[_audioGroupConfigs.Length];
-            _categoryCache.Clear();
-            _configCache.Clear();
-            for (int i = 0; i < _audioGroupConfigs.Length; i++)
+
+            int trackCount = _audioGroupConfigs.Length;
+            _trackFadeTweenIds = new long[trackCount];
+            _pausedTracks = new bool[trackCount];
+            AudioCategories = new AudioCategory[trackCount];
+            _categoryCache = new AudioCategory[trackCount];
+            _configCache = new AudioGroupConfig[trackCount];
+            for (int i = 0; i < trackCount; i++)
             {
                 AudioCategories[i] = new AudioCategory(_audioGroupConfigs[i]);
-                _categoryCache[_audioGroupConfigs[i].AudioTrack] = AudioCategories[i];
-                _configCache[_audioGroupConfigs[i].AudioTrack] = _audioGroupConfigs[i];
+                _categoryCache[(int)_audioGroupConfigs[i].AudioTrack] = AudioCategories[i];
+                _configCache[(int)_audioGroupConfigs[i].AudioTrack] = _audioGroupConfigs[i];
             }
         }
         
@@ -381,13 +388,13 @@ namespace Moirai.Atropos.Audio
         /// </summary>
         public ulong Play(AudioClip clip, AudioPlayOptions options)
         {
-            if (_unityAudioDisabled) return 0;
+            if (_unityAudioDisabled) return 0UL;
 
             AudioCategory category = FindCategory(options.AudioTrack);
             if (category == null)
             {
                 Log.Error($"{options.AudioTrack} is not found in AudioCategories.");
-                return 0;
+                return 0UL;
             }
             
             AudioAgent audioAgent = category.GetAvailableAgent(options.DoNotAutoRecycleIfNotDonePlaying);
@@ -408,7 +415,7 @@ namespace Moirai.Atropos.Audio
                 return handle;
             }
 
-            return 0;
+            return 0UL;
         }
 
         public ulong Play(AudioClip clip, EAudioTrack track, Vector3 location,
@@ -640,7 +647,8 @@ namespace Moirai.Atropos.Audio
         /// </summary>
         private AudioCategory FindCategory(EAudioTrack track)
         {
-            return _categoryCache.TryGetValue(track, out var category) ? category : null;
+            int index = (int)track;
+            return index >= 0 && index < _categoryCache.Length ? _categoryCache[index] : null;
         }
         
         /// <summary>
@@ -789,7 +797,7 @@ namespace Moirai.Atropos.Audio
                 }
 
                 _handleToAgent.Remove(handle);
-             }
+            }
         }
 
         #endregion 获取 [FIND]
@@ -800,7 +808,7 @@ namespace Moirai.Atropos.Audio
         {
             if (_unityAudioDisabled) return;
 
-            _pausedTracks[track] = true;
+            _pausedTracks[(int)track] = true;
             AudioCategory category = FindCategory(track);
             category?.PauseAll();
         }
@@ -809,19 +817,14 @@ namespace Moirai.Atropos.Audio
         {
             if (_unityAudioDisabled) return;
 
-            _pausedTracks[track] = false;
+            _pausedTracks[(int)track] = false;
             AudioCategory category = FindCategory(track);
             category?.UnPauseAll();
         }
 
         public bool IsPaused(EAudioTrack track)
         {
-            if (_pausedTracks.TryGetValue(track, out bool muted))
-            {
-                return muted;
-            }
-
-            return false;
+            return _pausedTracks[(int)track];
         }
 
         public void Stop(EAudioTrack track, float fadeoutDuration = 0f)
@@ -925,16 +928,17 @@ namespace Moirai.Atropos.Audio
             if (duration <= 0f) { SetTrackVolume(track, finalVolume); return; }
 
             StopFadeTrack(track);
-            _trackFadeTweenIds[track] = TweenUtility.Custom(this, initialVolume, finalVolume, duration,
+            _trackFadeTweenIds[(int)track] = TweenUtility.Custom(this, initialVolume, finalVolume, duration,
                 s_TrackFadeCallbacks[(int)track], tweenEase, useUnscaledTime: true);
         }
 
         public void StopFadeTrack(EAudioTrack track)
         {
-            if (_trackFadeTweenIds.TryGetValue(track, out long id))
+            int index = (int)track;
+            if (_trackFadeTweenIds[index] != 0)
             {
-                TweenUtility.Stop(id);
-                _trackFadeTweenIds.Remove(track);
+                TweenUtility.Stop(_trackFadeTweenIds[index]);
+                _trackFadeTweenIds[index] = 0;
             }
         }
 
@@ -954,11 +958,8 @@ namespace Moirai.Atropos.Audio
 
             StopFadeAudio(handle);
 
-            // 扩容检查
             if (_audioFadeCount >= _audioFades.Count)
-            {
-                _audioFades.Add(new AudioFadeState());
-            }
+                _audioFades.Add(default);
 
             _audioFades[_audioFadeCount++] = new AudioFadeState
             {
@@ -1010,10 +1011,7 @@ namespace Moirai.Atropos.Audio
             {
                 string path = list[i];
                 if (!_assetHandlePool.ContainsKey(path))
-                {
-                    AssetHandle assetData = _resourceModule.LoadAssetAsyncHandle<AudioClip>(path);
-                    _assetHandlePool.Add(path, assetData);
-                }
+                    _assetHandlePool[path] = _resourceModule.LoadAssetAsyncHandle<AudioClip>(path);
             }
         }
 
@@ -1174,7 +1172,8 @@ namespace Moirai.Atropos.Audio
         {
             if (!_userHandleMap.TryGetValue(evt.AudioID, out var handles)) return;
             
-            // 复制列表避免迭代时修改
+            // 缓存 count：Stop 可能触发 ReleaseHandle 从 handles 中移除元素，
+            // 但索引访问 handles[i] 仍安全，因为 count 只增不减。
             int count = handles.Count;
             // Debug.Log($"{evt.EventType} Audio: {evt.AudioID} x{count}");
             for (int i = 0; i < count; i++)
@@ -1236,7 +1235,7 @@ namespace Moirai.Atropos.Audio
             // 通过用户 ID 查找对应的所有句柄
             if (!_userHandleMap.TryGetValue(evt.SoundID, out var handles)) return;
             
-            // 复制列表避免迭代时修改
+            // 缓存 count：StopFadeAudio 不修改 handles，安全迭代。
             int count = handles.Count;
             for (int i = 0; i < count; i++)
             {
