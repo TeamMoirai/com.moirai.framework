@@ -11,7 +11,7 @@ namespace Moirai.Atropos
     /// 所有缓动参数类型为 <see cref="TweenEase"/>，支持隐式转换：
     /// <code>
     /// TweenUtility.Position(t, end, 0.3f); // 默认 Linear
-    /// TweenUtility.Position(t, end, 0.3f, EEase.OutQuad); // 枚举缓动
+    /// TweenUtility.Position(t, end, 0.3f, TweenUtility.EEase.OutQuad); // 枚举缓动
     /// TweenUtility.Position(t, end, 0.3f, myAnimationCurve); // 曲线缓动
     /// </code>
     /// </para>

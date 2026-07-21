@@ -1,4 +1,4 @@
-﻿using YooAsset;
+using YooAsset;
 
 namespace Moirai.Atropos.Audio
 {
@@ -38,10 +38,9 @@ namespace Moirai.Atropos.Audio
         /// <returns>音频数据。</returns>
         internal static AudioAssetData Alloc(AssetHandle assetHandle, bool inPool)
         {
-            AudioAssetData ret = MemoryPool.Acquire<AudioAssetData>();
+            AudioAssetData ret = MemoryPool.Alloc<AudioAssetData>();
             ret.AssetOperationHandle = assetHandle;
             ret.InPool = inPool;
-            ret.InitFromPool();
             return ret;
         }
 
@@ -53,8 +52,7 @@ namespace Moirai.Atropos.Audio
         {
             if (audioAssetData != null)
             {
-                MemoryPool.Release(audioAssetData);
-                audioAssetData.RecycleToPool();
+                MemoryPool.Dealloc(audioAssetData);
             }
         }
     }

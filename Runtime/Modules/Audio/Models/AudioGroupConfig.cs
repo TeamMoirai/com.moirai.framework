@@ -146,7 +146,7 @@ namespace Moirai.Atropos.Audio
         private void ApplyTrackVolume()
         {
             float volume = Mathf.Clamp(_isMuted ? 0f : _volume, MINIMAL_VOLUME, MAXIMAL_VOLUME);
-            m_AudioMixerGroup.audioMixer.SetFloat($"{m_AudioMixerGroup.name}Volume", NormalizedToMixerVolume(volume));
+            m_AudioMixerGroup.audioMixer.SetFloat(StringUtility.Format("{0}Volume", m_AudioMixerGroup.name), NormalizedToMixerVolume(volume));
         }
         
         /// <summary>

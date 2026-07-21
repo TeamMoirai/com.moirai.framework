@@ -4,7 +4,6 @@ using Moirai.Atropos.Attributes;
 using Sirenix.OdinInspector;
 using Moirai.Atropos.Audio;
 using UnityEngine;
-using UnityEngine.Serialization;
 
 namespace Moirai.Test
 {
@@ -26,7 +25,7 @@ namespace Moirai.Test
         public float fadeDuration;
         [ShowIf(nameof(fadeIn))]
         public  float fadeInitialVolume = 0f;
-        [FormerlySerializedAs("tween")] [ShowIf(nameof(fadeIn))]
+        [ShowIf(nameof(fadeIn))]
         public TweenEase tweenEase;
     
         [ToggleLeft, OnValueChanged(nameof(OnSoloSingleTrackChanged))]
@@ -49,6 +48,9 @@ namespace Moirai.Test
         
         [OnValueChanged(nameof(SetVolume))]
         [Range(0, 1)] public float volume = 1f;
+        
+        // 模块自维护的音频句柄
+        [ReadOnly] public ulong audioHandle;
         
         private IEnumerator Start()
         {
@@ -76,11 +78,19 @@ namespace Moirai.Test
                 Debug.LogError("先设置 audioPath 再播放！");
             }
             
-            GameModule.Audio.Play(audioPath, track, transform.position,
-                id: audioID,
-                fade: fadeIn, fadeInitialVolume:fadeInitialVolume, fadeDuration: fadeDuration, fadeTweenEase: tweenEase,
-                attachToTransform: followTarget ? transform : null,
-                soloSingleTrack:soloSingleTrack, soloAllTracks:soloAllTracks, autoUnSoloOnEnd:autoUnSoloOnEnd);
+            var options = AudioPlayOptions.Create(track);
+            options.ID = audioID;
+            options.FadeInOnPlay = fadeIn;
+            options.FadeInInitialVolume = fadeInitialVolume;
+            options.FadeInDuration = fadeDuration;
+            options.FadeInTweenEase = tweenEase;
+            options.AttachToTransform = followTarget ? transform : null;
+            options.SoloSingleTrack = soloSingleTrack;
+            options.SoloAllTracks = soloAllTracks;
+            options.AutoUnSoloOnEnd = autoUnSoloOnEnd;
+            options.Location = transform.position;
+            
+            audioHandle = AudioPlayEvent.Trigger(audioPath, options, true);
         }
 
         [Button]
@@ -88,12 +98,13 @@ namespace Moirai.Test
         {
             if (!Application.isPlaying) return;
 
-            if (string.IsNullOrEmpty(audioPath))
+            if (audioHandle == 0)
             {
-                Debug.LogError("先设置 audioPath 再暂停！");
+                Debug.LogError("先播放音频再暂停！");
+                return;
             }
             
-            GameModule.Audio.Pause(audioID);
+            GameModule.Audio.Pause(audioHandle);
         }
 
         [Button]
@@ -101,12 +112,13 @@ namespace Moirai.Test
         {
             if (!Application.isPlaying) return;
 
-            if (string.IsNullOrEmpty(audioPath))
+            if (audioHandle == 0)
             {
-                Debug.LogError("先设置 audioPath 再恢复！");
+                Debug.LogError("先播放音频再恢复！");
+                return;
             }
             
-            GameModule.Audio.UnPause(audioID);
+            GameModule.Audio.UnPause(audioHandle);
         }
 
         [Button]
@@ -114,12 +126,13 @@ namespace Moirai.Test
         {
             if (!Application.isPlaying) return;
             
-            if (string.IsNullOrEmpty(audioPath))
+            if (audioHandle == 0)
             {
-                Debug.LogError("先设置 audioPath 再停止！");
+                Debug.LogError("先播放音频再停止！");
+                return;
             }
 
-            GameModule.Audio.Stop(audioID, 0f);
+            GameModule.Audio.Stop(audioHandle, 0f);
         }
 
         [Button]
@@ -132,11 +145,19 @@ namespace Moirai.Test
                 Debug.LogError("先设置 audioClip 再播放！");
             }
             
-            GameModule.Audio.Play(audioClip, track, transform.position,
-                id: audioID,
-                fade: fadeIn, fadeInitialVolume:fadeInitialVolume, fadeDuration: fadeDuration, fadeTweenEase: tweenEase,
-                attachToTransform: followTarget ? transform : null,
-                soloSingleTrack:soloSingleTrack, soloAllTracks:soloAllTracks, autoUnSoloOnEnd:autoUnSoloOnEnd);
+            var options = AudioPlayOptions.Create(track);
+            options.ID = audioID;
+            options.FadeInOnPlay = fadeIn;
+            options.FadeInInitialVolume = fadeInitialVolume;
+            options.FadeInDuration = fadeDuration;
+            options.FadeInTweenEase = tweenEase;
+            options.AttachToTransform = followTarget ? transform : null;
+            options.SoloSingleTrack = soloSingleTrack;
+            options.SoloAllTracks = soloAllTracks;
+            options.AutoUnSoloOnEnd = autoUnSoloOnEnd;
+            options.Location = transform.position;
+            
+            audioHandle = AudioPlayEvent.Trigger(audioClip, options);
         }
     
         private void SetVolume()
@@ -176,7 +197,7 @@ namespace Moirai.Test
         private void ToggleFadeAudio()
         {
             finalVolume = finalVolume == 0f ? 1f : 0f;
-            AudioFadeEvent.Trigger(AudioFadeEventMode.PlayFade, audioID, 5, finalVolume, new TweenEase(TweenUtility.EEase.InCubic));
+            AudioFadeEvent.Fade(audioID, 5, finalVolume, new TweenEase(TweenUtility.EEase.InCubic));
         }
     }
 }

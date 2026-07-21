@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Moirai.Atropos.Attributes;
 using Sirenix.OdinInspector;
 using UnityEngine;
@@ -271,7 +271,7 @@ namespace Moirai.Atropos.Audio
 		[NonSerialized] private float _lastPlayTimestamp = -float.MaxValue;
 		[NonSerialized] private int _currentIndex = 0;
 		[NonSerialized] private ShuffleBag<int> _randomUniqueShuffleBag;
-		[NonSerialized] private AudioAgent _playedAudioAgent;
+		[NonSerialized] private ulong _lastPlayHandle;
 		[NonSerialized] private AudioClip _sfx;
 
 		public void Play(Vector3 location)
@@ -282,9 +282,7 @@ namespace Moirai.Atropos.Audio
 			{
 				if (m_DoNotPlayIfClipAlreadyPlaying)
 				{
-					if (_playedAudioAgent != null
-					    && _playedAudioAgent.AudioResource.clip == _sfx
-					    && _playedAudioAgent.IsPlaying)
+					if (_lastPlayHandle != 0 && GameModule.Audio != null && GameModule.Audio.IsPlaying(_lastPlayHandle))
 					{
 						return;
 					}
@@ -359,7 +357,7 @@ namespace Moirai.Atropos.Audio
 				SpreadCurve = m_SpreadCurve,
 			};
 
-			_playedAudioAgent = AudioPlayEvent.Trigger(_sfx, options);
+			_lastPlayHandle = AudioPlayEvent.Trigger(_sfx, options);
 			_lastPlayTimestamp = Time.unscaledTime;
 		}
 

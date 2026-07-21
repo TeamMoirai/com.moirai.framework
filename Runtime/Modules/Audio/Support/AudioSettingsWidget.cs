@@ -86,19 +86,19 @@ namespace Moirai.Atropos.Audio
         [Button]
         private void SaveAudioSettings()
         {
-            AudioModuleEvent.Trigger(AudioModuleEventType.SetSettings);
+            AudioModuleEvent.Trigger(AudioModuleEvent.EAudioModuleEventType.SetSettings);
         }
 
         [Button]
         private void LoadAudioSettings()
         {
-            AudioModuleEvent.Trigger(AudioModuleEventType.LoadSettings);
+            AudioModuleEvent.Trigger(AudioModuleEvent.EAudioModuleEventType.LoadSettings);
         }
 
         [Button]
         private void ResetAudioSettings()
         {
-            AudioModuleEvent.Trigger(AudioModuleEventType.ResetSettings);
+            AudioModuleEvent.Trigger(AudioModuleEvent.EAudioModuleEventType.ResetSettings);
         }
 
         #endregion
@@ -448,13 +448,13 @@ namespace Moirai.Atropos.Audio
             {
                 switch (evt.TrackEventType)
                 {
-                    case AudioTrackEventType.MuteTrack:
+                    case AudioTrackEvent.EAudioTrackEventType.MuteTrack:
                         ToggleMasterMute(false);
                         break;
-                    case AudioTrackEventType.UnmuteTrack:
+                    case AudioTrackEvent.EAudioTrackEventType.UnmuteTrack:
                         ToggleMasterMute(true);
                         break;
-                    case AudioTrackEventType.SetTrackVolume:
+                    case AudioTrackEvent.EAudioTrackEventType.SetTrackVolume:
                         SetMasterVolume(evt.Volume);
                         break;
                 }
@@ -463,13 +463,13 @@ namespace Moirai.Atropos.Audio
             {
                 switch (evt.TrackEventType)
                 {
-                    case AudioTrackEventType.MuteTrack:
+                    case AudioTrackEvent.EAudioTrackEventType.MuteTrack:
                         ToggleTrackMute(evt.Track, false);
                         break;
-                    case AudioTrackEventType.UnmuteTrack:
+                    case AudioTrackEvent.EAudioTrackEventType.UnmuteTrack:
                         ToggleTrackMute(evt.Track, true);
                         break;
-                    case AudioTrackEventType.SetTrackVolume:
+                    case AudioTrackEvent.EAudioTrackEventType.SetTrackVolume:
                         SetTrackVolume(evt.Track, evt.Volume);
                         break;
                 }

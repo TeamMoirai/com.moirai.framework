@@ -2,16 +2,6 @@
 
 namespace Moirai.Atropos.Audio
 {
-    public enum AudioTrackEventType
-    {
-        MuteTrack,
-        UnmuteTrack,
-        SetTrackVolume,
-        PauseTrack,
-        UnPauseTrack,
-        StopTrack,
-    }
-    
     /// <summary>
     /// 静音、取消静音、播放、暂停、停止或设置所选音轨的音量
     /// </summary>
@@ -21,10 +11,20 @@ namespace Moirai.Atropos.Audio
     /// </example>>
     public class AudioTrackEvent : EventBase<AudioTrackEvent>, IAudioModuleEvent
     {
+        public enum EAudioTrackEventType
+        {
+            MuteTrack,
+            UnmuteTrack,
+            SetTrackVolume,
+            PauseTrack,
+            UnPauseTrack,
+            StopTrack,
+        }
+
         /// <summary>
         /// 操作音轨类型
         /// </summary>
-        public AudioTrackEventType TrackEventType { get; private set; }
+        public EAudioTrackEventType TrackEventType { get; private set; }
         /// <summary>
         /// 要操作的音轨
         /// </summary>
@@ -40,7 +40,7 @@ namespace Moirai.Atropos.Audio
         
         // ---------- Handle Common Track ----------
 
-        private static AudioTrackEvent GetPooled(AudioTrackEventType trackEventType, AudioTrack track, float volume)
+        private static AudioTrackEvent GetPooled(EAudioTrackEventType trackEventType, AudioTrack track, float volume)
         {
             var evt = GetPooled();
             evt.TrackEventType = trackEventType;
@@ -56,7 +56,7 @@ namespace Moirai.Atropos.Audio
         /// <param name="trackEventType">操作音轨类型</param>
         /// <param name="track">要操作的音轨</param>
         /// <param name="volume">如果在 SetTrackVolume 模式下，将音频设置为的音量</param>
-        public static void Trigger(AudioTrackEventType trackEventType, AudioTrack track = AudioTrack.Sfx, float volume = 1f)
+        public static void Trigger(EAudioTrackEventType trackEventType, AudioTrack track = AudioTrack.Sfx, float volume = 1f)
         {
             using var evt = GetPooled(trackEventType, track, volume);
             EventManager.SendEvent(evt);
@@ -64,7 +64,7 @@ namespace Moirai.Atropos.Audio
         
         // ---------- Handle Master Track ----------
         
-        private static AudioTrackEvent GetPooled(AudioTrackEventType trackEventType, float volume)
+        private static AudioTrackEvent GetPooled(EAudioTrackEventType trackEventType, float volume)
         {
             var evt = GetPooled();
             evt.TrackEventType = trackEventType;
@@ -78,7 +78,7 @@ namespace Moirai.Atropos.Audio
         /// </summary>
         /// <param name="trackEventType">操作音轨类型</param>
         /// <param name="volume">如果在 SetTrackVolume 模式下，将音频设置为的音量</param>
-        public static void TriggerMaster(AudioTrackEventType trackEventType, float volume = 1f)
+        public static void TriggerMaster(EAudioTrackEventType trackEventType, float volume = 1f)
         {
             using var evt = GetPooled(trackEventType, volume);
             EventManager.SendEvent(evt);

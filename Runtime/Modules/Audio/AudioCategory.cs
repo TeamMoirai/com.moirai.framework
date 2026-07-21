@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using UnityEngine;
 using UnityEngine.Audio;
 
@@ -31,7 +30,7 @@ namespace Moirai.Atropos.Audio
             InstanceRoot.SetParent(GameModule.Audio.InstanceRoot);
             for (int index = 0; index < _maxChannel; index++)
             {
-                AudioAgent audioAgent = new AudioAgent();
+                AudioAgent audioAgent = MemoryPool.Acquire<AudioAgent>();
                 audioAgent.Init(this, index);
                 AudioAgents.Add(audioAgent);
             }
@@ -76,9 +75,9 @@ namespace Moirai.Atropos.Audio
         /// <param name="elapseSeconds">逻辑流逝时间（以秒为单位）。</param>
         public void Update(float elapseSeconds)
         {
-            foreach (var agent in AudioAgents)
+            for (int i = 0; i < AudioAgents.Count; i++)
             {
-                agent?.Update(elapseSeconds);
+                AudioAgents[i]?.Update(elapseSeconds);
             }
         }
         
@@ -111,15 +110,22 @@ namespace Moirai.Atropos.Audio
 
             for (int i = 0; i < AudioAgents.Count; i++)
             {
-                if (AudioAgents[i].IsFree)
+                var agent = AudioAgents[i];
+                if (agent == null)
                 {
                     freeChannel = i;
                     break;
                 }
                 
-                else if (!doNotAutoRecycleIfNotDonePlaying && AudioAgents[i].Duration > duration)
+                if (agent.IsFree)
                 {
-                    duration = AudioAgents[i].Duration;
+                    freeChannel = i;
+                    break;
+                }
+                
+                if (!doNotAutoRecycleIfNotDonePlaying && agent.Duration > duration)
+                {
+                    duration = agent.Duration;
                     freeChannel = i;
                 }
             }
@@ -135,7 +141,7 @@ namespace Moirai.Atropos.Audio
             {
                 if (AudioAgents[freeChannel] == null)
                 {
-                    AudioAgent audioAgent = new AudioAgent();
+                    AudioAgent audioAgent = MemoryPool.Acquire<AudioAgent>();
                     audioAgent.Init(this, freeChannel);
                     
                     AudioAgents[freeChannel] = audioAgent;
@@ -174,9 +180,9 @@ namespace Moirai.Atropos.Audio
         /// </summary>
         public void PauseAll()
         {
-            foreach (var agent in AudioAgents)
+            for (int i = 0; i < AudioAgents.Count; i++)
             {
-                agent?.Pause();
+                AudioAgents[i]?.Pause();
             }
         }
 
@@ -185,9 +191,9 @@ namespace Moirai.Atropos.Audio
         /// </summary>
         public void UnPauseAll()
         {
-            foreach (var agent in AudioAgents)
+            for (int i = 0; i < AudioAgents.Count; i++)
             {
-                agent?.UnPause();
+                AudioAgents[i]?.UnPause();
             }
         }
         
@@ -197,9 +203,9 @@ namespace Moirai.Atropos.Audio
         /// <param name="fadeoutDuration">音频淡出持续时间。</param>
         public void StopAll(float fadeoutDuration = 0f)
         {
-            foreach (var agent in AudioAgents)
+            for (int i = 0; i < AudioAgents.Count; i++)
             {
-                agent?.Stop(fadeoutDuration);
+                AudioAgents[i]?.Stop(fadeoutDuration);
             }
         }
         
@@ -209,10 +215,13 @@ namespace Moirai.Atropos.Audio
         /// <param name="fadeoutDuration">音频淡出持续时间。</param>
         public void StopAllButPersistent(float fadeoutDuration = 0f)
         {
-            foreach (var agent in AudioAgents
-                         .Where(agent => agent is { IsPersistent: false }))
+            for (int i = 0; i < AudioAgents.Count; i++)
             {
-                agent.Stop(fadeoutDuration);
+                var agent = AudioAgents[i];
+                if (agent != null && !agent.IsPersistent)
+                {
+                    agent.Stop(fadeoutDuration);
+                }
             }
         }
         
@@ -222,10 +231,29 @@ namespace Moirai.Atropos.Audio
         /// <param name="fadeoutDuration">音频淡出持续时间。</param>
         public void StopAllLooping(float fadeoutDuration = 0f)
         {
-            foreach (var agent in AudioAgents
-                         .Where(agent => agent is { IsPlaying: true, IsLoop: true }))
+            for (int i = 0; i < AudioAgents.Count; i++)
             {
-                agent.Stop(fadeoutDuration);
+                var agent = AudioAgents[i];
+                if (agent != null && agent.IsPlaying && agent.IsLoop)
+                {
+                    agent.Stop(fadeoutDuration);
+                }
+            }
+        }
+        
+        /// <summary>
+        /// 销毁所有音频代理并回收到内存池。
+        /// </summary>
+        public void DestroyAll()
+        {
+            for (int i = 0; i < AudioAgents.Count; i++)
+            {
+                var agent = AudioAgents[i];
+                if (agent != null)
+                {
+                    MemoryPool.Release(agent);
+                    AudioAgents[i] = null;
+                }
             }
         }
         

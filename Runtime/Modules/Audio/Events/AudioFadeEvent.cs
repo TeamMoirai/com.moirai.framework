@@ -1,9 +1,7 @@
-﻿using Moirai.Atropos.Events;
+using Moirai.Atropos.Events;
 
 namespace Moirai.Atropos.Audio
 {
-    public enum AudioFadeEventMode { PlayFade, StopFade }
-
     /// <summary>
     /// 这个事件会淡出指定音频
     /// </summary>    
@@ -13,10 +11,12 @@ namespace Moirai.Atropos.Audio
     /// </example>>
     public class AudioFadeEvent : EventBase<AudioFadeEvent>, IAudioModuleEvent
     {
+        public enum EAudioFadeEventMode { PlayFade, StopFade }
+
         /// <summary>
         /// 开始淡化（Fade），还是停止现有的淡化（Fade）
         /// </summary>
-        public AudioFadeEventMode Mode { get; private set; }
+        public EAudioFadeEventMode Mode { get; private set; }
         /// <summary>
         /// 要淡出的音频的 ID
         /// </summary>
@@ -34,7 +34,7 @@ namespace Moirai.Atropos.Audio
         /// </summary>
         public TweenEase FadeTweenEase { get; private set; }
         
-        private static AudioFadeEvent GetPooled(AudioFadeEventMode mode, int soundID, float fadeDuration, float finalVolume, TweenEase fadeTweenEase)
+        private static AudioFadeEvent GetPooled(EAudioFadeEventMode mode, int soundID, float fadeDuration, float finalVolume, TweenEase fadeTweenEase)
         {
             var evt = GetPooled();
             evt.Mode = mode;
@@ -45,10 +45,22 @@ namespace Moirai.Atropos.Audio
             return evt;
         }
 
-        public static void Trigger(AudioFadeEventMode mode, int soundID, float fadeDuration, float finalVolume, TweenEase fadeTweenEase)
+        public static void Trigger(EAudioFadeEventMode mode, int soundID, float fadeDuration, float finalVolume, TweenEase fadeTweenEase)
         {
             using var evt = GetPooled(mode, soundID, fadeDuration, finalVolume, fadeTweenEase);
             EventManager.SendEvent(evt);
         }
+
+        /// <summary>
+        /// 对指定 ID 的音频进行音量过渡。
+        /// </summary>
+        public static void Fade(int soundID, float duration, float finalVolume, TweenEase ease = default)
+            => Trigger(EAudioFadeEventMode.PlayFade, soundID, duration, finalVolume, ease);
+
+        /// <summary>
+        /// 停止指定 ID 音频的音量过渡。
+        /// </summary>
+        public static void StopFade(int soundID)
+            => Trigger(EAudioFadeEventMode.StopFade, soundID, 0, 0, default);
     }
 }
