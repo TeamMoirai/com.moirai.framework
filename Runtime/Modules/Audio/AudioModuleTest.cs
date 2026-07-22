@@ -65,7 +65,7 @@ namespace Moirai.Test
         
         private void GenerateID()
         {
-            audioID = audioClip == null ? audioPath.GetHashCode() : audioClip.GetInstanceID();
+            audioID = audioClip == null ? audioPath.GetHashCode() : UnityUtility.GetObjectEntityId(audioClip);
         }
     
         [Button]

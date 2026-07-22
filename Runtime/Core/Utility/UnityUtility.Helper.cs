@@ -812,13 +812,10 @@ namespace Moirai.Atropos
         /// <returns></returns>
         public static int GetObjectEntityId(Object target)
         {
-            if (target == null)
-            {
-                return 0;
-            }
+            if (target == null) return 0;
 
 #if UNITY_6000_4_OR_NEWER
-            return target.GetEntityId();
+            return target.GetEntityId().GetHashCode();
 #else
             return target.GetInstanceID();
 #endif
