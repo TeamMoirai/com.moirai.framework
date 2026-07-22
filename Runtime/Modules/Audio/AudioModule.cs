@@ -60,18 +60,31 @@ namespace Moirai.Atropos.Audio
         public AudioMixer AudioMixer => _audioMixer;
 
         private Transform _instanceRoot;
-        /// <summary>
-        /// 实例化根节点。
-        /// </summary>
-        public Transform InstanceRoot
-        {
-            get => _instanceRoot;
-            set => _instanceRoot = value;
-        }
+        /// <summary>实例化根节点。</summary>
+        public Transform InstanceRoot { get => _instanceRoot; set => _instanceRoot = value; }
         
         // 资源句柄池，用于缓存资源系统的已加载音频资源。
         private readonly Dictionary<string, AssetHandle> _assetHandlePool = new Dictionary<string, AssetHandle>();
-        
+
+        private Action<AudioModule, float>[] _trackFadeCallbacks;
+        /// <summary>每个音轨一个回调，按 (int)EAudioTrack 索引，惰性初始化</summary>
+        private Action<AudioModule, float>[] TrackFadeCallbacks
+        {
+            get
+            {
+                if (_trackFadeCallbacks != null) return _trackFadeCallbacks;
+
+                var values = (EAudioTrack[])Enum.GetValues(typeof(EAudioTrack));
+                _trackFadeCallbacks = new Action<AudioModule, float>[values.Length];
+                for (int i = 0; i < values.Length; i++)
+                {
+                    EAudioTrack track = values[i];
+                    _trackFadeCallbacks[i] = (m, v) => m.SetTrackVolume(track, v);
+                }
+                return _trackFadeCallbacks;
+            }
+        }
+
         // ===== FadeAudio 手动过渡 — 零 GC =====
         private struct AudioFadeState
         {
@@ -259,7 +272,7 @@ namespace Moirai.Atropos.Audio
             }
             catch (Exception e)
             {
-                Log.Error($"[AudioModule] Failed to check AudioSettings.unityAudioDisabled via reflection: {e}");
+                Log.Error("[AudioModule] Failed to check AudioSettings.unityAudioDisabled via reflection: {0}", e);
             }
 #endif
             
@@ -900,15 +913,6 @@ namespace Moirai.Atropos.Audio
             module.MasterVolume = value;
         }
 
-        // 每个音轨一个静态回调，避免闭包捕获 track
-        private static readonly Action<AudioModule, float>[] s_TrackFadeCallbacks = new Action<AudioModule, float>[]
-        {
-            (m, v) => m.SetTrackVolume(EAudioTrack.Sfx, v),
-            (m, v) => m.SetTrackVolume(EAudioTrack.UI, v),
-            (m, v) => m.SetTrackVolume(EAudioTrack.Music, v),
-            (m, v) => m.SetTrackVolume(EAudioTrack.Voice, v),
-        };
-
         public void FadeMasterTrack(float duration, float initialVolume = 0f, float finalVolume = 1f, TweenEase tweenEase = default)
         {
             if (duration <= 0f) { MasterVolume = finalVolume; return; }
@@ -929,7 +933,7 @@ namespace Moirai.Atropos.Audio
 
             StopFadeTrack(track);
             _trackFadeTweenIds[(int)track] = TweenUtility.Custom(this, initialVolume, finalVolume, duration,
-                s_TrackFadeCallbacks[(int)track], tweenEase, useUnscaledTime: true);
+                TrackFadeCallbacks[(int)track], tweenEase, useUnscaledTime: true);
         }
 
         public void StopFadeTrack(EAudioTrack track)
