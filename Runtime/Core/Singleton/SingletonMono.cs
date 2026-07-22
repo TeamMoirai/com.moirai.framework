@@ -157,7 +157,8 @@ namespace Moirai.Atropos
 	        s_Instance = null;
 	        Shutdown();
 
-	        s_ShuttingDown = false;
+	        // 如果是应用退出（编辑器停止或程序关闭），保持 true，彻底阻止重新创建。
+	        if (Application.isPlaying) s_ShuttingDown = false;
         }
         
         /// <summary>
