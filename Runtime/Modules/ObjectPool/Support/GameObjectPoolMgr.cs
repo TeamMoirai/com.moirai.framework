@@ -92,7 +92,7 @@ namespace Moirai.Atropos.ObjectPool
                 return null;
             }
 
-            string key = $"{target.name}_{target.GetInstanceID()}";
+            string key = $"{target.name}_{UnityUtility.GetObjectEntityId(target)}";
             IObjectPool<PoolObject> pool = null;
             PoolObject ret = null;
             if (_poolDic.TryGetValue(key, out var poolData))

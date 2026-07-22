@@ -55,7 +55,7 @@ namespace Moirai.Atropos.Pool
         public static PoolKey GetPooledKey(GameObject prefab, string prefix = "")
         {
             // 附加实例 ID，因为预制体可能是相同的名称
-            return new PoolKey(string.IsNullOrEmpty(prefix) ? PREFIX : prefix, prefab.name, prefab.GetInstanceID());
+            return new PoolKey(string.IsNullOrEmpty(prefix) ? PREFIX : prefix, prefab.name, UnityUtility.GetObjectEntityId(prefab));
         }
         
         /// <summary>

@@ -641,7 +641,7 @@ namespace Moirai.Atropos.Events
                 if (withHashCode)
                 {
                     //Prefer to use instanceID at runtime
-                    objectName += " (" + behaviour.GetInstanceID().ToString("x8") + ")";
+                    objectName += " (" + UnityUtility.GetObjectEntityId(behaviour).ToString("x8") + ")";
                 }
             }
             // EventHandler attached to a MonoBehaviour
@@ -651,7 +651,7 @@ namespace Moirai.Atropos.Events
                 if (withHashCode)
                 {
                     //Prefer to use instanceID at runtime
-                    objectName += " (" + bs.Behaviour.GetInstanceID().ToString("x8") + ")";
+                    objectName += " (" + UnityUtility.GetObjectEntityId(bs.Behaviour).ToString("x8") + ")";
                 }
             }
 
