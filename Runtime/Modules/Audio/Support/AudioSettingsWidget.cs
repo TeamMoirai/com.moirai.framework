@@ -1,4 +1,5 @@
-﻿using Moirai.Atropos.Schedulers;
+using System;
+using Moirai.Atropos.Schedulers;
 using Sirenix.OdinInspector;
 using TMPro;
 using UnityEngine;
@@ -7,10 +8,27 @@ using UnityEngine.UI;
 namespace Moirai.Atropos.Audio
 {
     /// <summary>
-    /// 音量设置绑定
+    /// 音量设置绑定，按 <see cref="EAudioTrack"/> 动态适配。
     /// </summary>
     public class AudioSettingsWidget : MonoBehaviour
     {
+        [Serializable]
+        private struct TrackWidgets
+        {
+            [Tooltip("目标音轨")]
+            [SerializeField] private EAudioTrack m_TargetTrack;
+            public EAudioTrack TargetTrack => m_TargetTrack;
+            [Tooltip("音量滑条")]
+            [SerializeField] private Slider m_Slider;
+            public Slider Slider => m_Slider;
+            [Tooltip("音量数值文本")]
+            [SerializeField] private TMP_Text m_SliderValue;
+            public TMP_Text SliderValue => m_SliderValue;
+            [Tooltip("静音按钮")]
+            [SerializeField] private Toggle m_MuteToggle;
+            public Toggle MuteToggle => m_MuteToggle;
+        }
+
         [Tooltip("切换组件的 On 代表静音，反之 Off 代表静音")]
         [SerializeField] private bool m_ToggleOnIsMute = true;
 
@@ -19,66 +37,52 @@ namespace Moirai.Atropos.Audio
         [SerializeField] private TMP_Text m_MasterSliderValue;
         [Tooltip("静音按钮")]
         [SerializeField] private Toggle m_MasterMuteToggle;
+
+        [Header("各音轨 UI（通过 m_TargetTrack 映射，顺序随意）")]
+        [SerializeField] private TrackWidgets[] m_TrackWidgets;
+
+        private const float MULTIPLE = 100f;
+        private static readonly EAudioTrack[] s_TrackValues = (EAudioTrack[])Enum.GetValues(typeof(EAudioTrack));
+
+        private float[] _trackVolumes;
+        private bool[] _trackMutes;
         private float _masterVolume;
         private bool _masterMute;
 
-        [Header("音乐音量")]
-        [SerializeField] private Slider m_MusicSlider;
-        [SerializeField] private TMP_Text m_MusicSliderValue;
-        [Tooltip("静音按钮")]
-        [SerializeField] private Toggle m_MusicMuteToggle;
-        private float _musicVolume;
-        private bool _musicMute;
+        /// <summary>音量设置有修改时触发的事件</summary>
+        /// <returns><see cref="bool"/> hasChanged</returns>
+        public Action<bool> onSettingChanged;
 
-        [Header("音效音量")]
-        [SerializeField] private Slider m_SfxSlider;
-        [SerializeField] private TMP_Text m_SfxSliderValue;
-        [Tooltip("静音按钮")]
-        [SerializeField] private Toggle m_SfxMuteToggle;
-        private float _sfxVolume;
-        private bool _sfxMute;
-
-        [Header("UI音量")]
-        [SerializeField] private Slider m_UISlider;
-        [SerializeField] private TMP_Text m_UISliderValue;
-        [Tooltip("静音按钮")]
-        [SerializeField] private Toggle m_UIMuteToggle;
-        private float _uiVolume;
-        private bool _uiMute;
-
-        [Header("人声音量")]
-        [SerializeField] private Slider m_VoiceSlider;
-        [SerializeField] private TMP_Text m_VoiceSliderValue;
-        [Tooltip("静音按钮")]
-        [SerializeField] private Toggle m_VoiceMuteToggle;
-        private float _voiceVolume;
-        private bool _voiceMute;
-
-        private const float MULTIPLE = 100f;
-
-        public delegate void OnSettingChangeDelegate(bool hasChanged);
-        /// <summary>
-        /// 音量设置有修改时触发的事件
-        /// </summary>
-        public OnSettingChangeDelegate onSettingChanged;
-
-        private void SettingChange()
+        private TrackWidgets[] _trackLookup;
+        /// <summary>运行时查找表，按 (int)EAudioTrack 索引 </summary>
+        private TrackWidgets[] TrackLookup
         {
-            if (GameModule.Audio == null) return;
+            get
+            {
+                if (_trackLookup != null) return _trackLookup;
 
-            bool hasChanged = false;
-            hasChanged |= _masterVolume != GameModule.Audio.MasterVolume;
-            hasChanged |= _masterMute != GameModule.Audio.MasterMute;
-            hasChanged |= _musicVolume != GameModule.Audio.GetTrackVolume(EAudioTrack.Music);
-            hasChanged |= _musicMute != GameModule.Audio.GetTrackMute(EAudioTrack.Music);
-            hasChanged |= _sfxVolume != GameModule.Audio.GetTrackVolume(EAudioTrack.Sfx);
-            hasChanged |= _sfxMute != GameModule.Audio.GetTrackMute(EAudioTrack.Sfx);
-            hasChanged |= _uiVolume != GameModule.Audio.GetTrackVolume(EAudioTrack.UI);
-            hasChanged |= _uiMute != GameModule.Audio.GetTrackMute(EAudioTrack.UI);
-            hasChanged |= _voiceVolume != GameModule.Audio.GetTrackVolume(EAudioTrack.Voice);
-            hasChanged |= _voiceMute != GameModule.Audio.GetTrackMute(EAudioTrack.Voice);
+                _trackLookup = new TrackWidgets[s_TrackValues.Length];
+                if (m_TrackWidgets != null)
+                {
+                    for (int i = 0; i < m_TrackWidgets.Length; i++)
+                    {
+                        int idx = (int)m_TrackWidgets[i].TargetTrack;
+                        if (idx >= 0 && idx < _trackLookup.Length)
+                            _trackLookup[idx] = m_TrackWidgets[i];
+                    }
+                }
 
-            onSettingChanged?.Invoke(hasChanged);
+                return _trackLookup;
+            }
+        }
+
+        private void EnsureTrackState()
+        {
+            int count = TrackLookup.Length;
+            if (_trackVolumes == null || _trackVolumes.Length != count)
+                _trackVolumes = new float[count];
+            if (_trackMutes == null || _trackMutes.Length != count)
+                _trackMutes = new bool[count];
         }
 
         #region 测试方法 [TEST METHODS]
@@ -110,62 +114,40 @@ namespace Moirai.Atropos.Audio
             if (m_MasterSlider != null)
             {
                 m_MasterSlider.wholeNumbers = true;
-                m_MasterSlider.onValueChanged.AddListener(SetMasterVolume);
+                m_MasterSlider.onValueChanged.AddListener(OnMasterVolumeChanged);
             }
-            m_MasterMuteToggle?.onValueChanged.AddListener(ToggleMasterMute);
+            m_MasterMuteToggle?.onValueChanged.AddListener(OnMasterMuteChanged);
 
-            if (m_MusicSlider != null)
+            var tracks = TrackLookup;
+            for (int i = 0; i < tracks.Length; i++)
             {
-                m_MusicSlider.wholeNumbers = true;
-                m_MusicSlider.onValueChanged.AddListener(SetMusicVolume);
+                var t = tracks[i];
+                if (t.Slider != null)
+                {
+                    t.Slider.wholeNumbers = true;
+                    int trackIndex = (int)t.TargetTrack;
+                    t.Slider.onValueChanged.AddListener(v => OnTrackVolumeChanged(trackIndex, v));
+                }
+                if (t.MuteToggle != null)
+                {
+                    int trackIndex = (int)t.TargetTrack;
+                    t.MuteToggle.onValueChanged.AddListener(s => OnTrackMuteChanged(trackIndex, s));
+                }
             }
-            m_MusicMuteToggle?.onValueChanged.AddListener(ToggleMusicMute);
-
-            if (m_SfxSlider != null)
-            {
-                m_SfxSlider.wholeNumbers = true;
-                m_SfxSlider.onValueChanged.AddListener(SetSfxVolume);
-            }
-            m_SfxMuteToggle?.onValueChanged.AddListener(ToggleSfxMute);
-
-            if (m_UISlider != null)
-            {
-                m_UISlider.wholeNumbers = true;
-                m_UISlider.onValueChanged.AddListener(SetUIVolume);
-            }
-            m_UIMuteToggle?.onValueChanged.AddListener(ToggleUIMute);
-
-            if (m_VoiceSlider != null)
-            {
-                m_VoiceSlider.wholeNumbers = true;
-                m_VoiceSlider.onValueChanged.AddListener(SetVoiceVolume);
-            }
-            m_VoiceMuteToggle?.onValueChanged.AddListener(ToggleVoiceMute);
 
             // EventManager.RegisterCallback<AudioModuleEvent>(OnAudioModuleEvent);
-            // EventManager.RegisterCallback<AudioTrackEvent>(OnAudioTrackEvent);
+            // EventManager.RegisterCallback<AudioTrackControlEvent>(OnAudioTrackEvent);
             // EventManager.RegisterCallback<AudioTrackFadeEvent>(OnAudioTrackFadeEvent);
         }
 
         private void OnDestroy()
         {
-            m_MasterSlider?.onValueChanged.RemoveListener(SetMasterVolume);
-            m_MasterMuteToggle?.onValueChanged.RemoveListener(ToggleMasterMute);
-
-            m_MusicSlider?.onValueChanged.RemoveListener(SetMusicVolume);
-            m_MusicMuteToggle?.onValueChanged.RemoveListener(ToggleMusicMute);
-
-            m_SfxSlider?.onValueChanged.RemoveListener(SetSfxVolume);
-            m_SfxMuteToggle?.onValueChanged.RemoveListener(ToggleSfxMute);
-
-            m_UISlider?.onValueChanged.RemoveListener(SetUIVolume);
-            m_UIMuteToggle?.onValueChanged.RemoveListener(ToggleUIMute);
-
-            m_VoiceSlider?.onValueChanged.RemoveListener(SetVoiceVolume);
-            m_VoiceMuteToggle?.onValueChanged.RemoveListener(ToggleVoiceMute);
+            m_MasterSlider?.onValueChanged.RemoveListener(OnMasterVolumeChanged);
+            m_MasterMuteToggle?.onValueChanged.RemoveListener(OnMasterMuteChanged);
+            // 音轨 lambda 带捕获无法精确移除，OnDestroy 时对象即将销毁，无需清理
 
             // EventManager.UnregisterCallback<AudioModuleEvent>(OnAudioModuleEvent);
-            // EventManager.UnregisterCallback<AudioTrackEvent>(OnAudioTrackEvent);
+            // EventManager.UnregisterCallback<AudioTrackControlEvent>(OnAudioTrackEvent);
             // EventManager.UnregisterCallback<AudioTrackFadeEvent>(OnAudioTrackFadeEvent);
         }
 
@@ -183,28 +165,14 @@ namespace Moirai.Atropos.Audio
                 m_MasterSlider.maxValue = MULTIPLE;
             }
 
-            if (m_MusicSlider != null)
+            var tracks = TrackLookup;
+            for (int i = 0; i < tracks.Length; i++)
             {
-                m_MusicSlider.minValue = 0f;
-                m_MusicSlider.maxValue = MULTIPLE;
-            }
-
-            if (m_SfxSlider != null)
-            {
-                m_SfxSlider.minValue = 0f;
-                m_SfxSlider.maxValue = MULTIPLE;
-            }
-
-            if (m_UISlider != null)
-            {
-                m_UISlider.minValue = 0f;
-                m_UISlider.maxValue = MULTIPLE;
-            }
-
-            if (m_VoiceSlider != null)
-            {
-                m_VoiceSlider.minValue = 0f;
-                m_VoiceSlider.maxValue = MULTIPLE;
+                if (tracks[i].Slider != null)
+                {
+                    tracks[i].Slider.minValue = 0f;
+                    tracks[i].Slider.maxValue = MULTIPLE;
+                }
             }
 
             // 获取初始值
@@ -218,142 +186,98 @@ namespace Moirai.Atropos.Audio
 
         #region 私有方法 [PRIVATE METHODS]
 
-        /// <summary>
-        /// 重置初始值
-        /// </summary>
         private void InitSet()
         {
-            // 获取初始值
+            EnsureTrackState();
+
             _masterVolume = GameModule.Audio.MasterVolume;
             _masterMute = GameModule.Audio.MasterMute;
-            _musicVolume = GameModule.Audio.GetTrackVolume(EAudioTrack.Music);
-            _musicMute = GameModule.Audio.GetTrackMute(EAudioTrack.Music);
-            _sfxVolume = GameModule.Audio.GetTrackVolume(EAudioTrack.Sfx);
-            _sfxMute = GameModule.Audio.GetTrackMute(EAudioTrack.Sfx);
-            _uiVolume = GameModule.Audio.GetTrackVolume(EAudioTrack.UI);
-            _uiMute = GameModule.Audio.GetTrackMute(EAudioTrack.UI);
-            _voiceVolume = GameModule.Audio.GetTrackVolume(EAudioTrack.Voice);
-            _voiceMute = GameModule.Audio.GetTrackMute(EAudioTrack.Voice);
+
+            var values = s_TrackValues;
+            for (int i = 0; i < values.Length; i++)
+            {
+                _trackVolumes[i] = GameModule.Audio.GetTrackVolume(values[i]);
+                _trackMutes[i] = GameModule.Audio.GetTrackMute(values[i]);
+            }
         }
 
-        /// <summary>
-        /// Write，设置主音量
-        /// </summary>
-        /// <param name="newVolume"></param>
-        private void SetMasterVolume(float newVolume)
+        // ===== 主音量 =====
+
+        private void OnMasterVolumeChanged(float newVolume)
         {
             if (m_MasterSliderValue != null)
-            {
                 m_MasterSliderValue.text = newVolume.ToString("f0");
-            }
 
-            if (GameModule.Audio != null) GameModule.Audio.MasterVolume = MathsUtility.Remap(newVolume, 0f, MULTIPLE, 0f, 1f);
-            SettingChange();
+            if (GameModule.Audio != null)
+                GameModule.Audio.MasterVolume = MathsUtility.Remap(newVolume, 0f, MULTIPLE, 0f, 1f);
+            HandleSettingChange();
         }
 
-        /// <summary>
-        /// Write，设置主音量静音
-        /// </summary>
-        /// <param name="state"></param>
-        private void ToggleMasterMute(bool state)
+        private void OnMasterMuteChanged(bool state)
         {
             bool isMute = m_ToggleOnIsMute ? state : !state;
 
             if (m_MasterSlider != null)
-            {
                 m_MasterSlider.interactable = !isMute;
-            }
 
-            if (GameModule.Audio != null) GameModule.Audio.MasterMute = isMute;
-            // Debug.Log($"MasterMute {isMute}({_masterMute})");
-            SettingChange();
+            if (GameModule.Audio != null)
+                GameModule.Audio.MasterMute = isMute;
+            HandleSettingChange();
         }
 
-        private void SetSfxVolume(float newVolume) => SetTrackVolume(EAudioTrack.Sfx, newVolume);
-        private void ToggleSfxMute(bool state) => ToggleTrackMute(EAudioTrack.Sfx, state);
+        // ===== 音轨音量 / 静音 =====
 
-        private void SetMusicVolume(float newVolume) => SetTrackVolume(EAudioTrack.Music, newVolume);
-        private void ToggleMusicMute(bool state) => ToggleTrackMute(EAudioTrack.Music, state);
+        private void OnTrackVolumeChanged(int index, float newVolume)
+        {
+            if (index < 0 || index >= TrackLookup.Length) return;
 
-        private void SetUIVolume(float newVolume) => SetTrackVolume(EAudioTrack.UI, newVolume);
-        private void ToggleUIMute(bool state) => ToggleTrackMute(EAudioTrack.UI, state);
+            var widget = TrackLookup[index];
+            if (widget.SliderValue != null)
+                widget.SliderValue.text = newVolume.ToString("f0");
 
-        private void SetVoiceVolume(float newVolume) => SetTrackVolume(EAudioTrack.Voice, newVolume);
-        private void ToggleVoiceMute(bool state) => ToggleTrackMute(EAudioTrack.Voice, state);
+            EAudioTrack track = (EAudioTrack)index;
+            GameModule.Audio?.SetTrackVolume(track, MathsUtility.Remap(newVolume, 0f, MULTIPLE, 0f, 1f));
+            HandleSettingChange(track);
+        }
+
+        private void OnTrackMuteChanged(int index, bool state)
+        {
+            if (index < 0 || index >= TrackLookup.Length) return;
+
+            bool isMute = m_ToggleOnIsMute ? state : !state;
+            var widget = TrackLookup[index];
+
+            if (widget.Slider != null)
+                widget.Slider.interactable = !isMute;
+
+            EAudioTrack track = (EAudioTrack)index;
+            GameModule.Audio?.SetTrackMute(track, isMute);
+            HandleSettingChange(track);
+        }
 
         /// <summary>
-        /// Write，设置音轨的音量
+        /// 检测快照与 AudioModule 当前状态是否一致。
         /// </summary>
-        /// <param name="track"></param>
-        /// <param name="newVolume"></param>
-        private void SetTrackVolume(EAudioTrack track, float newVolume)
+        /// <param name="changedTrack">用户刚操作的音轨，仅检测该音轨；null 表示检测 master。</param>
+        private void HandleSettingChange(EAudioTrack? changedTrack = null)
         {
-            switch (track)
+            if (GameModule.Audio == null) return;
+
+            bool hasChanged;
+            if (changedTrack.HasValue)
             {
-                case EAudioTrack.Sfx:
-                    if (m_SfxSliderValue != null)
-                    {
-                        m_SfxSliderValue.text = newVolume.ToString("f0");
-                    }
-                    break;
-                case EAudioTrack.UI:
-                    if (m_UISliderValue != null)
-                    {
-                        m_UISliderValue.text = newVolume.ToString("f0");
-                    }
-                    break;
-                case EAudioTrack.Music:
-                    if (m_MusicSliderValue != null)
-                    {
-                        m_MusicSliderValue.text = newVolume.ToString("f0");
-                    }
-                    break;
-                case EAudioTrack.Voice:
-                    if (m_VoiceSliderValue != null)
-                    {
-                        m_VoiceSliderValue.text = newVolume.ToString("f0");
-                    }
-                    break;
+                int i = (int)changedTrack.Value;
+                EnsureTrackState();
+                hasChanged = _trackVolumes[i] != GameModule.Audio.GetTrackVolume(changedTrack.Value)
+                          || _trackMutes[i] != GameModule.Audio.GetTrackMute(changedTrack.Value);
+            }
+            else
+            {
+                hasChanged = _masterVolume != GameModule.Audio.MasterVolume
+                          || _masterMute != GameModule.Audio.MasterMute;
             }
 
-            if (GameModule.Audio != null) GameModule.Audio.SetTrackVolume(track, MathsUtility.Remap(newVolume, 0f, MULTIPLE, 0f, 1f));
-            SettingChange();
-        }
-
-        private void ToggleTrackMute(EAudioTrack track, bool state)
-        {
-            bool isMute = m_ToggleOnIsMute ? state : !state;
-
-            switch (track)
-            {
-                case EAudioTrack.Sfx:
-                    if (m_SfxSlider != null)
-                    {
-                        m_SfxSlider.interactable = !isMute;
-                    }
-                    break;
-                case EAudioTrack.UI:
-                    if (m_UISlider != null)
-                    {
-                        m_UISlider.interactable = !isMute;
-                    }
-                    break;
-                case EAudioTrack.Music:
-                    if (m_MusicSlider != null)
-                    {
-                        m_MusicSlider.interactable = !isMute;
-                    }
-                    break;
-                case EAudioTrack.Voice:
-                    if (m_VoiceSlider != null)
-                    {
-                        m_VoiceSlider.interactable = !isMute;
-                    }
-                    break;
-            }
-
-            if (GameModule.Audio != null) GameModule.Audio.SetTrackMute(track, isMute);
-            SettingChange();
+            onSettingChanged?.Invoke(hasChanged);
         }
 
         /// <summary>
@@ -361,79 +285,40 @@ namespace Moirai.Atropos.Audio
         /// </summary>
         private void UpdateComponentsValue()
         {
+            EnsureTrackState();
+
+            // 主音量
             bool masterMute = (GameModule.Audio != null) && GameModule.Audio.MasterMute;
             if (m_MasterSlider != null)
             {
-                m_MasterSlider.value = (GameModule.Audio != null) ? MathsUtility.Remap(GameModule.Audio.MasterVolume, 0f, 1f, 0f, MULTIPLE) : 1f;
+                m_MasterSlider.value = (GameModule.Audio != null)
+                    ? MathsUtility.Remap(GameModule.Audio.MasterVolume, 0f, 1f, 0f, MULTIPLE)
+                    : 1f;
                 m_MasterSlider.interactable = !masterMute;
             }
             if (m_MasterSliderValue != null)
-            {
                 m_MasterSliderValue.text = m_MasterSlider.value.ToString("f0");
-            }
             if (m_MasterMuteToggle != null)
-            {
                 m_MasterMuteToggle.isOn = m_ToggleOnIsMute ? masterMute : !masterMute;
-            }
 
-            bool musicMute = (GameModule.Audio != null) && GameModule.Audio.GetTrackMute(EAudioTrack.Music);
-            if (m_MusicSlider != null)
+            // 各音轨
+            var tracks = TrackLookup;
+            var values = s_TrackValues;
+            for (int i = 0; i < values.Length; i++)
             {
-                m_MusicSlider.value = (GameModule.Audio != null) ? MathsUtility.Remap(GameModule.Audio.GetTrackVolume(EAudioTrack.Music), 0f, 1f, 0f, MULTIPLE) : 1f;
-                m_MusicSlider.interactable = !musicMute;
-            }
-            if (m_MusicSliderValue != null)
-            {
-                m_MusicSliderValue.text = m_MusicSlider.value.ToString("f0");
-            }
-            if (m_MusicMuteToggle != null)
-            {
-                m_MusicMuteToggle.isOn = m_ToggleOnIsMute ? musicMute : !musicMute;
-            }
-
-            bool sfxMute = (GameModule.Audio != null) && GameModule.Audio.GetTrackMute(EAudioTrack.Sfx);
-            if (m_SfxSlider != null)
-            {
-                m_SfxSlider.value = (GameModule.Audio != null) ? MathsUtility.Remap(GameModule.Audio.GetTrackVolume(EAudioTrack.Sfx), 0f, 1f, 0f, MULTIPLE) : 1f;
-                m_SfxSlider.interactable = !sfxMute;
-            }
-            if (m_SfxSliderValue != null)
-            {
-                m_SfxSliderValue.text = m_SfxSlider.value.ToString("f0");
-            }
-            if (m_SfxMuteToggle != null)
-            {
-                m_SfxMuteToggle.isOn = m_ToggleOnIsMute ? sfxMute : !sfxMute;
-            }
-
-            bool uiMute = (GameModule.Audio != null) && GameModule.Audio.GetTrackMute(EAudioTrack.UI);
-            if (m_UISlider != null)
-            {
-                m_UISlider.value = (GameModule.Audio != null) ? MathsUtility.Remap(GameModule.Audio.GetTrackVolume(EAudioTrack.UI), 0f, 1f, 0f, MULTIPLE) : 1f;
-                m_UISlider.interactable = !uiMute;
-            }
-            if (m_UISliderValue != null)
-            {
-                m_UISliderValue.text = m_UISlider.value.ToString("f0");
-            }
-            if (m_UIMuteToggle != null)
-            {
-                m_UIMuteToggle.isOn = m_ToggleOnIsMute ? uiMute : !uiMute;
-            }
-
-            bool voiceMute = (GameModule.Audio != null) && GameModule.Audio.GetTrackMute(EAudioTrack.Voice);
-            if (m_VoiceSlider != null)
-            {
-                m_VoiceSlider.value = (GameModule.Audio != null) ? MathsUtility.Remap(GameModule.Audio.GetTrackVolume(EAudioTrack.Voice), 0f, 1f, 0f, MULTIPLE) : 1f;
-                m_VoiceSlider.interactable = !voiceMute;
-            }
-            if (m_VoiceSliderValue != null)
-            {
-                m_VoiceSliderValue.text = m_VoiceSlider.value.ToString("f0");
-            }
-            if (m_VoiceMuteToggle != null)
-            {
-                m_VoiceMuteToggle.isOn = m_ToggleOnIsMute ? voiceMute : !voiceMute;
+                var widget = tracks[i];
+                bool mute = (GameModule.Audio != null) && GameModule.Audio.GetTrackMute(values[i]);
+                if (widget.Slider != null)
+                {
+                    widget.Slider.value = (GameModule.Audio != null)
+                        ? MathsUtility.Remap(GameModule.Audio.GetTrackVolume(values[i]), 0f, 1f, 0f, MULTIPLE)
+                        : 1f;
+                    widget.Slider.interactable = !mute;
+                }
+                if (widget.SliderValue != null)
+                    widget.SliderValue.text = widget.Slider.value.ToString("f0");
+                if (widget.MuteToggle != null)
+                    widget.MuteToggle.isOn = m_ToggleOnIsMute ? mute : !mute;
             }
         }
 
@@ -441,7 +326,7 @@ namespace Moirai.Atropos.Audio
         {
             UpdateComponentsValue();
         }
-        
+
         private void OnAudioTrackEvent(AudioTrackControlEvent evt)
         {
             if (evt.IsMaster)
@@ -449,28 +334,29 @@ namespace Moirai.Atropos.Audio
                 switch (evt.TrackEventType)
                 {
                     case AudioTrackControlEvent.EAudioTrackEventType.MuteTrack:
-                        ToggleMasterMute(false);
+                        OnMasterMuteChanged(false);
                         break;
                     case AudioTrackControlEvent.EAudioTrackEventType.UnmuteTrack:
-                        ToggleMasterMute(true);
+                        OnMasterMuteChanged(true);
                         break;
                     case AudioTrackControlEvent.EAudioTrackEventType.SetTrackVolume:
-                        SetMasterVolume(evt.Volume);
+                        OnMasterVolumeChanged(evt.Volume);
                         break;
                 }
             }
             else
             {
+                int index = (int)evt.Track;
                 switch (evt.TrackEventType)
                 {
                     case AudioTrackControlEvent.EAudioTrackEventType.MuteTrack:
-                        ToggleTrackMute(evt.Track, false);
+                        OnTrackMuteChanged(index, false);
                         break;
                     case AudioTrackControlEvent.EAudioTrackEventType.UnmuteTrack:
-                        ToggleTrackMute(evt.Track, true);
+                        OnTrackMuteChanged(index, true);
                         break;
                     case AudioTrackControlEvent.EAudioTrackEventType.SetTrackVolume:
-                        SetTrackVolume(evt.Track, evt.Volume);
+                        OnTrackVolumeChanged(index, evt.Volume);
                         break;
                 }
             }
@@ -483,6 +369,5 @@ namespace Moirai.Atropos.Audio
         }
 
         #endregion
-
     }
 }
