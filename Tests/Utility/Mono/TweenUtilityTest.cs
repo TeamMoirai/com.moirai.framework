@@ -41,6 +41,10 @@ namespace Utility
             _running = true;
             Debug.Log("=== TweenUtility 全功能测试开始 ===");
 
+            // 预热避免计时误差
+            _ = TweenUtility.Handler;
+            yield return CoroutineUtility.WaitForFrames(1);
+
             yield return Test_Delay();
             yield return Test_Position();
             yield return Test_PositionXYZ();
