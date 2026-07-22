@@ -189,11 +189,11 @@ namespace Moirai.Atropos.Audio
         /// <summary>
         /// 恢复当前音轨下的所有音频
         /// </summary>
-        public void UnPauseAll()
+        public void UnpauseAll()
         {
             for (int i = 0; i < AudioAgents.Count; i++)
             {
-                AudioAgents[i]?.UnPause();
+                AudioAgents[i]?.Unpause();
             }
         }
         

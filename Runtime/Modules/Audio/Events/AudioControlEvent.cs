@@ -15,7 +15,7 @@ namespace Moirai.Atropos.Audio
         public enum EAudioControlEventType
         {
             Pause,
-            UnPause,
+            Unpause,
             Stop,
         }
 
@@ -45,16 +45,19 @@ namespace Moirai.Atropos.Audio
         /// <summary>
         /// 暂停指定 ID 的音频。
         /// </summary>
-        public static void Pause(int soundID) => Trigger(EAudioControlEventType.Pause, soundID);
+        public static void Pause(int soundID)
+            => Trigger(EAudioControlEventType.Pause, soundID);
 
         /// <summary>
         /// 恢复指定 ID 的音频。
         /// </summary>
-        public static void UnPause(int soundID) => Trigger(EAudioControlEventType.UnPause, soundID);
+        public static void Unpause(int soundID)
+            => Trigger(EAudioControlEventType.Unpause, soundID);
 
         /// <summary>
         /// 停止指定 ID 的音频。
         /// </summary>
-        public static void Stop(int soundID) => Trigger(EAudioControlEventType.Stop, soundID);
+        public static void Stop(int soundID)
+            => Trigger(EAudioControlEventType.Stop, soundID);
     }
 }

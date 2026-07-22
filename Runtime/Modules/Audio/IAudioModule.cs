@@ -262,7 +262,7 @@ namespace Moirai.Atropos.Audio
         /// 恢复播放指定句柄的音频
         /// </summary>
         /// <param name="handle">音频句柄</param>
-        public void UnPause(ulong handle);
+        public void Unpause(ulong handle);
 
         /// <summary>
         /// 停止指定句柄的音频
@@ -331,7 +331,7 @@ namespace Moirai.Atropos.Audio
         /// 恢复某类音频的播放。
         /// </summary>
         /// <param name="track">音频类型。</param>
-        public void UnPause(EAudioTrack track);
+        public void Unpause(EAudioTrack track);
 
         /// <summary>
         /// 如果指定音轨当前处于暂停状态则返回 <c>true</c>，否则返回 <c>false</c>
@@ -359,7 +359,7 @@ namespace Moirai.Atropos.Audio
         /// <summary>
         /// 恢复所有音频。
         /// </summary>
-        public void UnPauseAll();
+        public void UnpauseAll();
 
         /// <summary>
         /// 停止所有音频。

@@ -24,10 +24,10 @@ namespace Moirai.Atropos.Audio
             public Color colorMute;
             public Color colorUnmute;
             public Color colorPause;
-            public Color colorUnPause;
+            public Color colorUnpause;
             public Color colorStop;
 
-            public TrackStruct(EAudioTrack track, float volume, Color colorMute, Color colorUnmute, Color colorPause, Color colorUnPause, Color colorStop)
+            public TrackStruct(EAudioTrack track, float volume, Color colorMute, Color colorUnmute, Color colorPause, Color colorUnpause, Color colorStop)
             {
                 this.track = track;
                 isMaster = false;
@@ -35,11 +35,11 @@ namespace Moirai.Atropos.Audio
                 this.colorMute = colorMute;
                 this.colorUnmute = colorUnmute;
                 this.colorPause = colorPause;
-                this.colorUnPause = colorUnPause;
+                this.colorUnpause = colorUnpause;
                 this.colorStop = colorStop;
             }
 
-            public TrackStruct(float volume, Color colorMute, Color colorUnmute, Color colorPause, Color colorUnPause, Color colorStop)
+            public TrackStruct(float volume, Color colorMute, Color colorUnmute, Color colorPause, Color colorUnpause, Color colorStop)
             {
                 track = default;
                 isMaster = true;
@@ -47,7 +47,7 @@ namespace Moirai.Atropos.Audio
                 this.colorMute = colorMute;
                 this.colorUnmute = colorUnmute;
                 this.colorPause = colorPause;
-                this.colorUnPause = colorUnPause;
+                this.colorUnpause = colorUnpause;
                 this.colorStop = colorStop;
             }
         }
@@ -109,7 +109,7 @@ namespace Moirai.Atropos.Audio
 
                 if (GUILayout.Button("Save Settings"))
                 {
-                    AudioModuleEvent.Trigger(AudioModuleEvent.EAudioModuleEventType.SetSettings);
+                    AudioModuleEvent.SetSettings();
                 }
             }
 
@@ -161,7 +161,7 @@ namespace Moirai.Atropos.Audio
                     UnityEditor.EditorGUI.EndDisabledGroup();
 
                     DrawColoredButton("Pause", trackStruct.colorPause, () => _target.PauseAll(), UnityEditor.EditorStyles.miniButtonMid);
-                    DrawColoredButton("UnPause", trackStruct.colorUnPause, () => _target.UnPauseAll(), UnityEditor.EditorStyles.miniButtonMid);
+                    DrawColoredButton("UnPause", trackStruct.colorUnpause, () => _target.UnpauseAll(), UnityEditor.EditorStyles.miniButtonMid);
                     DrawColoredButton("Stop", trackStruct.colorStop, () => _target.StopAll(), UnityEditor.EditorStyles.miniButtonMid);
                 }
                 else
@@ -179,7 +179,7 @@ namespace Moirai.Atropos.Audio
                     UnityEditor.EditorGUI.EndDisabledGroup();
 
                     DrawColoredButton("Pause", trackStruct.colorPause, () => _target.Pause(trackStruct.track), UnityEditor.EditorStyles.miniButtonMid);
-                    DrawColoredButton("UnPause", trackStruct.colorUnPause, () => _target.UnPause(trackStruct.track), UnityEditor.EditorStyles.miniButtonMid);
+                    DrawColoredButton("UnPause", trackStruct.colorUnpause, () => _target.Unpause(trackStruct.track), UnityEditor.EditorStyles.miniButtonMid);
                     DrawColoredButton("Stop", trackStruct.colorStop, () => _target.Stop(trackStruct.track), UnityEditor.EditorStyles.miniButtonMid);
                 }
             }

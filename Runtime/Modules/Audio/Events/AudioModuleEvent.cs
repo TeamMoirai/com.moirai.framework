@@ -11,7 +11,7 @@ namespace Moirai.Atropos.Audio
     /// </example>>
     public class AudioModuleEvent : EventBase<AudioModuleEvent>, IAudioModuleEvent
     {
-        public enum EAudioModuleEventType
+        public enum EMode
         {
             /// <summary>
             /// 写入设置
@@ -28,19 +28,40 @@ namespace Moirai.Atropos.Audio
             ResetSettings,
         }
 
-        public EAudioModuleEventType EventType { get; private set; }
+        /// <summary>交互的模式</summary>
+        public EMode Mode { get; private set; }
 
-        private static AudioModuleEvent GetPooled(EAudioModuleEventType eventType)
+        private static AudioModuleEvent GetPooled(EMode eventType)
         {
             var evt = GetPooled();
-            evt.EventType = eventType;
+            evt.Mode = eventType;
             return evt;
         }
         
-        public static void Trigger(EAudioModuleEventType eventType)
+        public static void Trigger(EMode eventType)
         {
             using var evt = GetPooled(eventType);
             EventManager.SendEvent(evt);
         }
+
+        /// <summary>
+        /// 写入设置
+        /// </summary>
+        /// <remarks>如果需要保存，直接调用 <see cref="SettingUtility.Save"/></remarks>
+        public static void SetSettings()
+            => Trigger(EMode.SetSettings);
+
+        /// <summary>
+        /// 加载设置
+        /// </summary>
+        public static void LoadSettings()
+            => Trigger(EMode.LoadSettings);
+
+        /// <summary>
+        /// 重置设置
+        /// </summary>
+        public static void ResetSettings()
+            => Trigger(EMode.ResetSettings);
+
     }
 }

@@ -108,7 +108,7 @@ namespace Moirai.Test
         }
 
         [Button]
-        private void UnPauseAudioByPath()
+        private void UnpauseAudioByPath()
         {
             if (!Application.isPlaying) return;
 
@@ -118,7 +118,7 @@ namespace Moirai.Test
                 return;
             }
             
-            GameModule.Audio.UnPause(audioHandle);
+            GameModule.Audio.Unpause(audioHandle);
         }
 
         [Button]

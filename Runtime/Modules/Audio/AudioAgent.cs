@@ -559,7 +559,7 @@ namespace Moirai.Atropos.Audio
         /// <summary>
         /// 取消暂停音频代理辅助器。
         /// </summary>
-        public void UnPause()
+        public void Unpause()
         {
             if (_audioAgentRuntimeState != AudioAgentRuntimeState.Pausing) return;
             
