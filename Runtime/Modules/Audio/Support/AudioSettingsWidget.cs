@@ -90,19 +90,19 @@ namespace Moirai.Atropos.Audio
         [Button]
         private void SaveAudioSettings()
         {
-            AudioModuleEvent.Trigger(AudioModuleEvent.EAudioModuleEventType.SetSettings);
+            AudioModuleEvent.SetSettings();
         }
 
         [Button]
         private void LoadAudioSettings()
         {
-            AudioModuleEvent.Trigger(AudioModuleEvent.EAudioModuleEventType.LoadSettings);
+            AudioModuleEvent.LoadSettings();
         }
 
         [Button]
         private void ResetAudioSettings()
         {
-            AudioModuleEvent.Trigger(AudioModuleEvent.EAudioModuleEventType.ResetSettings);
+            AudioModuleEvent.ResetSettings();
         }
 
         #endregion
@@ -331,15 +331,15 @@ namespace Moirai.Atropos.Audio
         {
             if (evt.IsMaster)
             {
-                switch (evt.TrackEventType)
+                switch (evt.ControlMode)
                 {
-                    case AudioTrackControlEvent.EAudioTrackEventType.MuteTrack:
+                    case AudioTrackControlEvent.EControlMode.Mute:
                         OnMasterMuteChanged(false);
                         break;
-                    case AudioTrackControlEvent.EAudioTrackEventType.UnmuteTrack:
+                    case AudioTrackControlEvent.EControlMode.Unmute:
                         OnMasterMuteChanged(true);
                         break;
-                    case AudioTrackControlEvent.EAudioTrackEventType.SetTrackVolume:
+                    case AudioTrackControlEvent.EControlMode.SetVolume:
                         OnMasterVolumeChanged(evt.Volume);
                         break;
                 }
@@ -347,15 +347,15 @@ namespace Moirai.Atropos.Audio
             else
             {
                 int index = (int)evt.Track;
-                switch (evt.TrackEventType)
+                switch (evt.ControlMode)
                 {
-                    case AudioTrackControlEvent.EAudioTrackEventType.MuteTrack:
+                    case AudioTrackControlEvent.EControlMode.Mute:
                         OnTrackMuteChanged(index, false);
                         break;
-                    case AudioTrackControlEvent.EAudioTrackEventType.UnmuteTrack:
+                    case AudioTrackControlEvent.EControlMode.Unmute:
                         OnTrackMuteChanged(index, true);
                         break;
-                    case AudioTrackControlEvent.EAudioTrackEventType.SetTrackVolume:
+                    case AudioTrackControlEvent.EControlMode.SetVolume:
                         OnTrackVolumeChanged(index, evt.Volume);
                         break;
                 }

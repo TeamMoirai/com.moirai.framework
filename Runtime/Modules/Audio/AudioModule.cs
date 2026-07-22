@@ -240,7 +240,7 @@ namespace Moirai.Atropos.Audio
 
         private static void OnSettingsLoadDelay()
         {
-            AudioModuleEvent.Trigger(AudioModuleEvent.EAudioModuleEventType.LoadSettings);
+            AudioModuleEvent.LoadSettings();
         }
         
         public void Initialize(Transform instanceRoot = null, AudioMixer audioMixer = null, AudioGroupConfig[] audioGroupConfigs = null)
@@ -637,11 +637,11 @@ namespace Moirai.Atropos.Audio
                 agent.Pause();
         }
 
-        public void UnPause(ulong handle)
+        public void Unpause(ulong handle)
         {
             if (_unityAudioDisabled) return;
             if (_handleToAgent.TryGetValue(handle, out var agent) && agent.IsPaused)
-                agent.UnPause();
+                agent.Unpause();
         }
         
         public void Stop(ulong handle, float fadeoutDuration = 0f)
@@ -826,13 +826,13 @@ namespace Moirai.Atropos.Audio
             category?.PauseAll();
         }
         
-        public void UnPause(EAudioTrack track)
+        public void Unpause(EAudioTrack track)
         {
             if (_unityAudioDisabled) return;
 
             _pausedTracks[(int)track] = false;
             AudioCategory category = FindCategory(track);
-            category?.UnPauseAll();
+            category?.UnpauseAll();
         }
 
         public bool IsPaused(EAudioTrack track)
@@ -862,13 +862,13 @@ namespace Moirai.Atropos.Audio
             }
         }
 
-        public void UnPauseAll()
+        public void UnpauseAll()
         {
             if (_unityAudioDisabled) return;
 
             for (int i = 0; i < AudioCategories.Length; i++)
             {
-                AudioCategories[i]?.UnPauseAll();
+                AudioCategories[i]?.UnpauseAll();
             }
         }
 
@@ -1095,17 +1095,17 @@ namespace Moirai.Atropos.Audio
         /// <param name="evt"></param>
         private void OnAudioModuleEvent(AudioModuleEvent evt)
         {
-            switch (evt.EventType)
+            switch (evt.Mode)
             {
-                case AudioModuleEvent.EAudioModuleEventType.SetSettings:
+                case AudioModuleEvent.EMode.SetSettings:
                     SetMasterSettings();
                     for (int i = 0; i < AudioCategories.Length; i++) { AudioCategories[i]?.SetSettings(); }
                     break;
-                case AudioModuleEvent.EAudioModuleEventType.LoadSettings:
+                case AudioModuleEvent.EMode.LoadSettings:
                     LoadMasterSettings();
                     for (int i = 0; i < AudioCategories.Length; i++) { AudioCategories[i]?.LoadSettings(); }
                     break;
-                case AudioModuleEvent.EAudioModuleEventType.ResetSettings:
+                case AudioModuleEvent.EMode.ResetSettings:
                     RemoveMasterSetting();
                     for (int i = 0; i < AudioCategories.Length; i++) { AudioCategories[i]?.RemoveSetting(); }
                     break;
@@ -1120,48 +1120,48 @@ namespace Moirai.Atropos.Audio
         {
             if (evt.IsMaster)
             {
-                switch (evt.TrackEventType)
+                switch (evt.ControlMode)
                 {
-                    case AudioTrackControlEvent.EAudioTrackEventType.MuteTrack:
+                    case AudioTrackControlEvent.EControlMode.Mute:
                         MasterMute = true;
                         break;
-                    case AudioTrackControlEvent.EAudioTrackEventType.UnmuteTrack:
+                    case AudioTrackControlEvent.EControlMode.Unmute:
                         MasterMute = false;
                         break;
-                    case AudioTrackControlEvent.EAudioTrackEventType.SetTrackVolume:
+                    case AudioTrackControlEvent.EControlMode.SetVolume:
                         MasterVolume = evt.Volume;
                         break;
-                    case AudioTrackControlEvent.EAudioTrackEventType.PauseTrack:
+                    case AudioTrackControlEvent.EControlMode.Pause:
                         PauseAll();
                         break;
-                    case AudioTrackControlEvent.EAudioTrackEventType.UnPauseTrack:
-                        UnPauseAll();
+                    case AudioTrackControlEvent.EControlMode.Unpause:
+                        UnpauseAll();
                         break;
-                    case AudioTrackControlEvent.EAudioTrackEventType.StopTrack:
+                    case AudioTrackControlEvent.EControlMode.Stop:
                         StopAll();
                         break;
                 }
             }
             else
             {
-                switch (evt.TrackEventType)
+                switch (evt.ControlMode)
                 {
-                    case AudioTrackControlEvent.EAudioTrackEventType.MuteTrack:
+                    case AudioTrackControlEvent.EControlMode.Mute:
                         SetTrackMute(evt.Track, true);
                         break;
-                    case AudioTrackControlEvent.EAudioTrackEventType.UnmuteTrack:
+                    case AudioTrackControlEvent.EControlMode.Unmute:
                         SetTrackMute(evt.Track, false);
                         break;
-                    case AudioTrackControlEvent.EAudioTrackEventType.SetTrackVolume:
+                    case AudioTrackControlEvent.EControlMode.SetVolume:
                         SetTrackVolume(evt.Track, evt.Volume);
                         break;
-                    case AudioTrackControlEvent.EAudioTrackEventType.PauseTrack:
+                    case AudioTrackControlEvent.EControlMode.Pause:
                         Pause(evt.Track);
                         break;
-                    case AudioTrackControlEvent.EAudioTrackEventType.UnPauseTrack:
-                        UnPause(evt.Track);
+                    case AudioTrackControlEvent.EControlMode.Unpause:
+                        Unpause(evt.Track);
                         break;
-                    case AudioTrackControlEvent.EAudioTrackEventType.StopTrack:
+                    case AudioTrackControlEvent.EControlMode.Stop:
                         Stop(evt.Track);
                         break;
                 }
@@ -1188,8 +1188,8 @@ namespace Moirai.Atropos.Audio
                     case AudioControlEvent.EAudioControlEventType.Pause:
                         Pause(handle);
                         break;
-                    case AudioControlEvent.EAudioControlEventType.UnPause:
-                        UnPause(handle);
+                    case AudioControlEvent.EAudioControlEventType.Unpause:
+                        Unpause(handle);
                         break;
                     case AudioControlEvent.EAudioControlEventType.Stop:
                         Stop(handle);
@@ -1208,10 +1208,10 @@ namespace Moirai.Atropos.Audio
             {
                 switch (evt.Mode)
                 {
-                    case AudioTrackFadeEvent.EAudioTrackFadeEventMode.PlayFade:
+                    case AudioTrackFadeEvent.EMode.PlayFade:
                         FadeMasterTrack(evt.FadeDuration, GetTrackVolume(evt.Track), evt.FinalVolume, evt.FadeTweenEase);
                         break;
-                    case AudioTrackFadeEvent.EAudioTrackFadeEventMode.StopFade:
+                    case AudioTrackFadeEvent.EMode.StopFade:
                         StopFadeMasterTrack();
                         break;
                 }
@@ -1220,10 +1220,10 @@ namespace Moirai.Atropos.Audio
             {
                 switch (evt.Mode)
                 {
-                    case AudioTrackFadeEvent.EAudioTrackFadeEventMode.PlayFade:
+                    case AudioTrackFadeEvent.EMode.PlayFade:
                         FadeTrack(evt.Track, evt.FadeDuration, GetTrackVolume(evt.Track), evt.FinalVolume, evt.FadeTweenEase);
                         break;
-                    case AudioTrackFadeEvent.EAudioTrackFadeEventMode.StopFade:
+                    case AudioTrackFadeEvent.EMode.StopFade:
                         StopFadeTrack(evt.Track);
                         break;
                 }
@@ -1266,21 +1266,21 @@ namespace Moirai.Atropos.Audio
         /// <param name="evt"></param>
         private void OnAllAudiosControlEvent(AllAudiosControlEvent evt)
         {
-            switch (evt.EventType)
+            switch (evt.ControlMode)
             {
-                case AllAudiosControlEvent.EAllAudiosControlEventType.Pause:
+                case AllAudiosControlEvent.EControlMode.Pause:
                     PauseAll();
                     break;
-                case AllAudiosControlEvent.EAllAudiosControlEventType.Play:
-                    UnPauseAll();
+                case AllAudiosControlEvent.EControlMode.Play:
+                    UnpauseAll();
                     break;
-                case AllAudiosControlEvent.EAllAudiosControlEventType.Stop:
+                case AllAudiosControlEvent.EControlMode.Stop:
                     StopAll(fadeoutDuration:AudioAgent.FADEOUT_DEFAULT_DURATION);
                     break;
-                case AllAudiosControlEvent.EAllAudiosControlEventType.StopAllButPersistent:
+                case AllAudiosControlEvent.EControlMode.StopAllButPersistent:
                     StopAllButPersistent(fadeoutDuration:AudioAgent.FADEOUT_DEFAULT_DURATION);
                     break;
-                case AllAudiosControlEvent.EAllAudiosControlEventType.StopAllLooping:
+                case AllAudiosControlEvent.EControlMode.StopAllLooping:
                     StopAllLooping(fadeoutDuration:AudioAgent.FADEOUT_DEFAULT_DURATION);
                     break;
             }

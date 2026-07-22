@@ -11,12 +11,12 @@ namespace Moirai.Atropos.Audio
     /// </example>>
     public class AudioTrackFadeEvent : EventBase<AudioTrackFadeEvent>, IAudioModuleEvent
     {
-        public enum EAudioTrackFadeEventMode { PlayFade, StopFade }
+        public enum EMode { PlayFade, StopFade }
 
         /// <summary>
         /// 开始淡化（Fade），还是停止现有的淡化（Fade）
         /// </summary>
-        public EAudioTrackFadeEventMode Mode { get; private set; }
+        public EMode Mode { get; private set; }
         /// <summary>
         /// 操作的音轨
         /// </summary>
@@ -40,7 +40,7 @@ namespace Moirai.Atropos.Audio
    
         // ---------- Handle Common Track ----------
 
-        private static AudioTrackFadeEvent GetPooled(EAudioTrackFadeEventMode mode, EAudioTrack track, float fadeDuration, float finalVolume, TweenEase fadeTweenEase)
+        private static AudioTrackFadeEvent GetPooled(EMode mode, EAudioTrack track, float fadeDuration, float finalVolume, TweenEase fadeTweenEase)
         {
             var evt = GetPooled();
             evt.Mode = mode;
@@ -57,7 +57,7 @@ namespace Moirai.Atropos.Audio
         /// </summary>
         public static void PlayFade(EAudioTrack track, float duration, float finalVolume, TweenEase ease = default)
         {
-            using var evt = GetPooled(EAudioTrackFadeEventMode.PlayFade, track, duration, finalVolume, ease);
+            using var evt = GetPooled(EMode.PlayFade, track, duration, finalVolume, ease);
             EventManager.SendEvent(evt);
         }
 
@@ -66,13 +66,13 @@ namespace Moirai.Atropos.Audio
         /// </summary>
         public static void StopFade(EAudioTrack track)
         {
-            using var evt = GetPooled(EAudioTrackFadeEventMode.StopFade, track, 0, 0, default);
+            using var evt = GetPooled(EMode.StopFade, track, 0, 0, default);
             EventManager.SendEvent(evt);
         }
 
         // ---------- Handle Master Track ----------
 
-        private static AudioTrackFadeEvent GetPooled(EAudioTrackFadeEventMode mode, float fadeDuration, float finalVolume, TweenEase fadeTweenEase)
+        private static AudioTrackFadeEvent GetPooled(EMode mode, float fadeDuration, float finalVolume, TweenEase fadeTweenEase)
         {
             var evt = GetPooled();
             evt.Mode = mode;
@@ -88,7 +88,7 @@ namespace Moirai.Atropos.Audio
         /// </summary>
         public static void PlayMasterFade(float duration, float finalVolume, TweenEase ease = default)
         {
-            using var evt = GetPooled(EAudioTrackFadeEventMode.PlayFade, duration, finalVolume, ease);
+            using var evt = GetPooled(EMode.PlayFade, duration, finalVolume, ease);
             EventManager.SendEvent(evt);
         }
 
@@ -97,7 +97,7 @@ namespace Moirai.Atropos.Audio
         /// </summary>
         public static void StopMasterFade()
         {
-            using var evt = GetPooled(EAudioTrackFadeEventMode.StopFade, 0, 0, default);
+            using var evt = GetPooled(EMode.StopFade, 0, 0, default);
             EventManager.SendEvent(evt);
         }
     }
