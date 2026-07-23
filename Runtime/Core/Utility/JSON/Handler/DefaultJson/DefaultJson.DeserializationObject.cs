@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Reflection;
 using UnityEngine;
 using UnityEngine.Serialization;
@@ -388,17 +389,22 @@ namespace Moirai.Atropos
             {
                 foreach (FieldInfo info in fields)
                 {
-                    JsonSerializeAsAttribute serializeAs = (JsonSerializeAsAttribute)info.GetCustomAttribute(typeof(JsonSerializeAsAttribute));
-                    FormerlySerializedAsAttribute formerSerialize = (FormerlySerializedAsAttribute)info.GetCustomAttribute(typeof(FormerlySerializedAsAttribute));
+                    var serializeAs = (JsonSerializeAsAttribute)info.GetCustomAttribute(typeof(JsonSerializeAsAttribute));
                     if (serializeAs != null && serializeAs.SerializeName == name)
                     {
                         return info;
                     }
-                    else if (formerSerialize != null && formerSerialize.oldName == name)
+
+                    var formerSerialize = (IEnumerable<FormerlySerializedAsAttribute>)info.GetCustomAttributes(typeof(FormerlySerializedAsAttribute));
+                    foreach (var rename in formerSerialize)
                     {
-                        return info;
+                        if (rename != null && rename.oldName == name)
+                        {
+                            return info;
+                        }
                     }
-                    else if (info.Name == name)
+
+                    if (info.Name == name)
                     {
                         return info;
                     }
@@ -411,12 +417,13 @@ namespace Moirai.Atropos
             {
                 foreach (PropertyInfo info in properties)
                 {
-                    JsonSerializeAsAttribute serializeAs = (JsonSerializeAsAttribute)info.GetCustomAttribute(typeof(JsonSerializeAsAttribute));
+                    var serializeAs = (JsonSerializeAsAttribute)info.GetCustomAttribute(typeof(JsonSerializeAsAttribute));
                     if (serializeAs != null && serializeAs.SerializeName == name)
                     {
                         return info;
                     }
-                    else if (info.Name == name)
+
+                    if (info.Name == name)
                     {
                         return info;
                     }
