@@ -4,7 +4,7 @@ using Moirai.Atropos.ConfigTable;
 
 namespace GameLogic
 {
-    public sealed partial class HotfixEntry
+    public static partial class HotfixEntry
     {
         private static partial void StartGameLogic()
         {

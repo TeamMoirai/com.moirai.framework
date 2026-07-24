@@ -28,7 +28,7 @@ namespace GameLogic
 #if OBFUZ_INSTALLED && ENABLE_OBFUZ
     [ObfuzIgnore(ObfuzScope.TypeName | ObfuzScope.MethodName)]
 #endif
-    public sealed partial class HotfixEntry
+    public static partial class HotfixEntry
     {
         private static List<Assembly> s_HotfixAssembly;
         
