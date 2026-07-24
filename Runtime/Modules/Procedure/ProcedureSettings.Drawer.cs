@@ -43,6 +43,9 @@ namespace Moirai.Atropos.Procedure
                 RefreshTypeNames();
             }
 
+            EditorGUILayout.HelpBox("只有使用 [ProcedureLauncher] 标识的流程或其子类才会被识别。", MessageType.Info);
+            EditorGUILayout.Space(12f);
+
             // ① 入口校验 / 运行时状态
             if (string.IsNullOrEmpty(m_EntranceProcedureTypeName))
             {
