@@ -64,7 +64,7 @@ namespace Moirai.Atropos.Audio
         public Transform InstanceRoot { get => _instanceRoot; set => _instanceRoot = value; }
         
         // 资源句柄池，用于缓存资源系统的已加载音频资源。
-        private readonly Dictionary<string, AssetHandle> _assetHandlePool = new Dictionary<string, AssetHandle>();
+        public Dictionary<string, AssetHandle> AssetHandlePool { get; private set; } = new Dictionary<string, AssetHandle>();
 
         private Action<AudioModule, float>[] _trackFadeCallbacks;
         /// <summary>每个音轨一个回调，按 (int)EAudioTrack 索引，惰性初始化</summary>
@@ -381,12 +381,14 @@ namespace Moirai.Atropos.Audio
 
             CleanAudioPool();
 
-            for (int i = 0; i < AudioCategories.Length; i++)
+            foreach (var category in AudioCategories)
             {
-                var category = AudioCategories[i];
                 if (category == null) continue;
-                
-                category.DestroyAll();
+
+                foreach (var audioAgent in category.AudioAgents)
+                {
+                    audioAgent?.Destroy();
+                }
             }
             
             Initialize(audioGroupConfigs:_audioGroupConfigs);
@@ -1014,8 +1016,11 @@ namespace Moirai.Atropos.Audio
             for (int i = 0; i < list.Count; i++)
             {
                 string path = list[i];
-                if (!_assetHandlePool.ContainsKey(path))
-                    _assetHandlePool[path] = _resourceModule.LoadAssetAsyncHandle<AudioClip>(path);
+                if (AssetHandlePool != null && !AssetHandlePool.ContainsKey(path))
+                {
+                    AssetHandle assetData = _resourceModule.LoadAssetAsyncHandle<AudioClip>(path);
+                    AssetHandlePool?.Add(path, assetData);
+                }
             }
         }
 
@@ -1026,10 +1031,10 @@ namespace Moirai.Atropos.Audio
             for (int i = 0; i < list.Count; i++)
             {
                 string path = list[i];
-                if (_assetHandlePool.TryGetValue(path, out var handle))
+                if (AssetHandlePool.TryGetValue(path, out var handle))
                 {
                     handle.Dispose();
-                    _assetHandlePool.Remove(path);
+                    AssetHandlePool.Remove(path);
                 }
             }
         }
@@ -1038,37 +1043,14 @@ namespace Moirai.Atropos.Audio
         {
             if (_unityAudioDisabled) return;
 
-            var enumerator = _assetHandlePool.GetEnumerator();
-            while (enumerator.MoveNext())
+            foreach (var dic in AssetHandlePool)
             {
-                enumerator.Current.Value.Dispose();
+                dic.Value.Dispose();
             }
-            enumerator.Dispose();
 
-            _assetHandlePool.Clear();
+            AssetHandlePool.Clear();
         }
-        
-        /// <summary>
-        /// 获取缓存的音频资源句柄。
-        /// </summary>
-        /// <param name="path">资源路径。</param>
-        /// <param name="handle">输出的资源句柄。</param>
-        /// <returns>是否找到。</returns>
-        internal bool TryGetCachedAsset(string path, out AssetHandle handle)
-        {
-            return _assetHandlePool.TryGetValue(path, out handle);
-        }
-        
-        /// <summary>
-        /// 添加缓存的音频资源句柄。
-        /// </summary>
-        /// <param name="path">资源路径。</param>
-        /// <param name="handle">资源句柄。</param>
-        internal void AddCachedAsset(string path, AssetHandle handle)
-        {
-            _assetHandlePool.TryAdd(path, handle);
-        }
-        
+
         #endregion 资源池 [ASSET POOL]
         
         #region 事件 [EVENTS]

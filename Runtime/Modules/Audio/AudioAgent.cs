@@ -9,10 +9,9 @@ namespace Moirai.Atropos.Audio
     /// <summary>
     /// 音频代理辅助器。
     /// </summary>
-    public class AudioAgent : IMemory
+    public class AudioAgent
     {
         private IAudioModule _audioModule;
-        private AudioModule _audioModuleConcrete;
         private IResourceModule _resourceModule;
         private AudioAssetData _audioAssetData;
 
@@ -20,14 +19,8 @@ namespace Moirai.Atropos.Audio
         private Transform _transform;
         // 是否缓存已加载资源（适用于多次重复加载的资源）。
         private bool _inPool;
-        // 音频代理加载请求路径。
-        private string _pendingPath;
-        // 音频代理加载请求是否异步。
-        private bool _pendingAsync;
-        // 音频代理加载请求是否池化。
-        private bool _pendingInPool;
-        // 是否有待处理的加载请求。
-        private bool _hasPendingLoad;
+        // 音频代理加载请求。
+        private LoadRequest _pendingLoad;
         
         // 音频淡入开始时间
         private float _fadeInAt;
@@ -42,10 +35,6 @@ namespace Moirai.Atropos.Audio
         private float _playDuration;
         // 自动取消 Solo 的句柄
         private SchedulerHandle _autoUnSoloOnEnd;
-        // 自动取消 Solo 的目标音轨
-        private EAudioTrack _autoUnSoloTrack;
-        // 自动取消 Solo 是否影响所有音轨
-        private bool _autoUnSoloIsAllTracks;
         
         // 音频播放配置
         private AudioPlayOptions _audioPlayOptions;
@@ -53,13 +42,30 @@ namespace Moirai.Atropos.Audio
         private AudioSource _audioSource;
         // 预设的混音组
         private AudioMixerGroup _audioMixerGroup;
-        // 所属音轨类别
-        private AudioCategory _audioCategory;
-        // 代理所属音轨类别的索引
-        private int _audioCategoryIndex;
         
         // 音频代理辅助器运行时状态。
-        private AudioAgentRuntimeState _audioAgentRuntimeState = AudioAgentRuntimeState.None;
+        private EAudioAgentRuntimeState _audioAgentRuntimeState = EAudioAgentRuntimeState.None;
+
+        /// <summary>
+        /// 音频代理加载请求。
+        /// </summary>
+        class LoadRequest
+        {
+            /// <summary>
+            /// 音频代理辅助器加载路径。
+            /// </summary>
+            public string path;
+            
+            /// <summary>
+            /// 是否异步。
+            /// </summary>
+            public bool bAsync;
+            
+            /// <summary>
+            /// 是否池化。
+            /// </summary>
+            public bool bInPool;
+        }
 
         #region 公共属性 [PUBLIC PROPRETIES]
         
@@ -76,7 +82,7 @@ namespace Moirai.Atropos.Audio
         /// <summary>
         /// 音频代理辅助器当前是否空闲。
         /// </summary>
-        public bool IsFree => _audioAgentRuntimeState == AudioAgentRuntimeState.None || _audioAgentRuntimeState == AudioAgentRuntimeState.End;
+        public bool IsFree => _audioAgentRuntimeState == EAudioAgentRuntimeState.None || _audioAgentRuntimeState == EAudioAgentRuntimeState.End;
 
         /// <summary>
         /// 音频代理辅助器播放秒数。
@@ -122,7 +128,7 @@ namespace Moirai.Atropos.Audio
         /// <summary>
         /// 音频代理辅助器是否正在暂停。
         /// </summary>
-        internal bool IsPaused => AudioResource != null && _audioAgentRuntimeState == AudioAgentRuntimeState.Pausing;
+        internal bool IsPaused => AudioResource != null && _audioAgentRuntimeState == EAudioAgentRuntimeState.Pausing;
         
         /// <summary>
         /// 音频代理辅助器是否循环。
@@ -141,83 +147,6 @@ namespace Moirai.Atropos.Audio
 
         #endregion
         
-        #region 内存池 [MEMORY POOL]
-
-        /// <summary>
-        /// 清理内存对象回收入池。
-        /// </summary>
-        public void Clear()
-        {
-            _audioModule = null;
-            _audioModuleConcrete = null;
-            _resourceModule = null;
-            _audioCategory = null;
-            _audioCategoryIndex = 0;
-            
-            if (_audioAssetData != null)
-            {
-                AudioAssetData.DeAlloc(_audioAssetData);
-                _audioAssetData = null;
-            }
-            
-            if (_transform != null)
-            {
-                Object.Destroy(_transform.gameObject);
-                _transform = null;
-            }
-            
-            _audioSource = null;
-            _audioMixerGroup = null;
-            _inPool = false;
-            _hasPendingLoad = false;
-            _pendingPath = null;
-            _pendingAsync = false;
-            _pendingInPool = false;
-            
-            _fadeInAt = 0f;
-            _fadeOutStartTime = 0f;
-            _fadeOutDuration = 0f;
-            _playDuration = 0f;
-            Duration = 0f;
-            
-            if (_autoUnSoloOnEnd != default)
-            {
-                _autoUnSoloOnEnd.Cancel();
-                _autoUnSoloOnEnd = default;
-            }
-            
-            _autoUnSoloTrack = EAudioTrack.Sfx;
-            _autoUnSoloIsAllTracks = false;
-            _audioPlayOptions = default;
-            _audioAgentRuntimeState = AudioAgentRuntimeState.None;
-        }
-
-        // ===== 零 GC 回调 — 使用 unsafe 函数指针 =====
-        private static void AutoUnSolo_Imp(object instance)
-        {
-            var agent = (AudioAgent)instance;
-            if (agent._autoUnSoloIsAllTracks)
-                agent.MuteAllAudios(false);
-            else
-                agent.MuteAudiosOnTrack(agent._autoUnSoloTrack, false);
-        }
-
-        /// <summary>
-        /// 从内存池中初始化。
-        /// </summary>
-        public void InitFromPool()
-        {
-        }
-
-        /// <summary>
-        /// 回收到内存池。
-        /// </summary>
-        public void RecycleToPool()
-        {
-        }
-
-        #endregion
-
         #region 模块方法 [MODULE METHOD]
 
         /// <summary>
@@ -228,26 +157,47 @@ namespace Moirai.Atropos.Audio
         public void Init(AudioCategory audioCategory, int index = 0)
         {
             _audioModule = ModuleSystem.GetModule<IAudioModule>();
-            _audioModuleConcrete = _audioModule as AudioModule;
             _resourceModule = ModuleSystem.GetModule<IResourceModule>();
-            _audioCategory = audioCategory;
-            _audioCategoryIndex = index;
-            
             GameObject host = new GameObject(StringUtility.Format("{0} - {1}", audioCategory.AudioMixerGroup.name, index));
             host.transform.SetParent(audioCategory.InstanceRoot);
             host.transform.localPosition = Vector3.zero;
             _transform = host.transform;
             _audioSource = host.AddComponent<AudioSource>();
             _audioSource.playOnAwake = false;
-            _audioMixerGroup = audioCategory.AudioMixerGroup;
+            if (audioCategory.AudioMixerGroup == null)
+            {
+                // 如果不指定通用，则使用预配置音频组，命名方式如下：
+                // Master
+                //  - Voice
+                //      - Voice - 0
+                //      - Voice - 1
+                //  - Sfx
+                //      - Sfx - 0
+                AudioMixerGroup[] audioMixerGroups =
+                    audioCategory.AudioMixer.FindMatchingGroups(StringUtility.Format("Master/{0}/{1}", audioCategory.AudioMixerGroup.name,
+                        $"{audioCategory.AudioMixerGroup.name} - {index}"));
+                _audioMixerGroup = audioMixerGroups.Length > 0 ? audioMixerGroups[0] : audioCategory.AudioMixerGroup;
+            }
+            else
+            {
+                _audioMixerGroup = audioCategory.AudioMixerGroup;
+            }
         }
         
         /// <summary>
-        /// 销毁音频代理辅助器并重置所有状态。
+        /// 销毁音频代理辅助器。
         /// </summary>
         public void Destroy()
         {
-            Clear();
+            if (_transform != null)
+            {
+                Object.Destroy(_transform.gameObject);
+            }
+
+            if (_audioAssetData != null)
+            {
+                AudioAssetData.DeAlloc(_audioAssetData);
+            }
         }
         
         /// <summary>
@@ -256,13 +206,13 @@ namespace Moirai.Atropos.Audio
         /// <param name="elapseSeconds">逻辑流逝时间（以秒为单位）。</param>
         public void Update(float elapseSeconds)
         {
-            if (_audioAgentRuntimeState == AudioAgentRuntimeState.Playing || _audioAgentRuntimeState == AudioAgentRuntimeState.FadingIn)
+            if (_audioAgentRuntimeState == EAudioAgentRuntimeState.Playing || _audioAgentRuntimeState == EAudioAgentRuntimeState.FadingIn)
             {
                 if (!_audioPlayOptions.Loop && Duration >= _playDuration)
                 {
                     Stop(FADEOUT_DEFAULT_DURATION);
                 }
-                else if (_audioAgentRuntimeState == AudioAgentRuntimeState.FadingIn) // 淡入音频
+                else if (_audioAgentRuntimeState == EAudioAgentRuntimeState.FadingIn) // 淡入音频
                 {
                     float endTime = _fadeInAt + _audioPlayOptions.FadeInDuration;
                     if (GameTime.unscaledTime <= endTime)
@@ -272,7 +222,7 @@ namespace Moirai.Atropos.Audio
                     else
                     {
                         AudioResource.volume =_audioPlayOptions.Volume;
-                        _audioAgentRuntimeState = AudioAgentRuntimeState.Playing;
+                        _audioAgentRuntimeState = EAudioAgentRuntimeState.Playing;
                     }
                 }
                 
@@ -284,19 +234,18 @@ namespace Moirai.Atropos.Audio
                 
                 Duration += elapseSeconds;
             }
-            else if (_audioAgentRuntimeState == AudioAgentRuntimeState.FadingOut)
+            else if (_audioAgentRuntimeState == EAudioAgentRuntimeState.FadingOut)
             {
                 float elapsed = GameTime.unscaledTime - _fadeOutStartTime;
                 if (elapsed >= _fadeOutDuration)
                 {
                     Stop();
-                    if (_hasPendingLoad)
+                    if (_pendingLoad != null)
                     {
-                        string path = _pendingPath;
-                        bool bAsync = _pendingAsync;
-                        bool bInPool = _pendingInPool;
-                        _hasPendingLoad = false;
-                        _pendingPath = null;
+                        string path = _pendingLoad.path;
+                        bool bAsync = _pendingLoad.bAsync;
+                        bool bInPool = _pendingLoad.bInPool;
+                        _pendingLoad = null;
                         Load(path, _audioPlayOptions, bAsync, bInPool);
                     }
                 }
@@ -329,7 +278,7 @@ namespace Moirai.Atropos.Audio
         /// </summary>
         /// <param name="clip"></param>
         /// <remarks>注意 bug https://github.com/tuyoogame/YooAsset/issues/225#event-11355675066</remarks>
-        private unsafe void HandleAudioPlay(AudioClip clip)
+        private void HandleAudioPlay(AudioClip clip)
         {
             if (clip != null)
             {
@@ -390,24 +339,20 @@ namespace Moirai.Atropos.Audio
                     AudioResource.Play();
                 }
 
-                _audioAgentRuntimeState = _audioPlayOptions.FadeInOnPlay ? AudioAgentRuntimeState.FadingIn : AudioAgentRuntimeState.Playing;
+                _audioAgentRuntimeState = _audioPlayOptions.FadeInOnPlay ? EAudioAgentRuntimeState.FadingIn : EAudioAgentRuntimeState.Playing;
                 Duration = 0;
                 // Debug.Log($"{clip.name}: {AudioResource.volume}");
                 
                 // 处理独奏
                 _playDuration = (_audioPlayOptions.PlaybackDuration == 0 && AudioResource.clip != null ? AudioResource.clip.length : _audioPlayOptions.PlaybackDuration) - _audioPlayOptions.PlaybackTime;
                 _autoUnSoloOnEnd = default;
-                _autoUnSoloTrack = EAudioTrack.Sfx;
-                _autoUnSoloIsAllTracks = false;
                 if (_audioPlayOptions.SoloSingleTrack)
                 {
                     MuteAudiosOnTrack(_audioPlayOptions.AudioTrack, true);
                     AudioResource.mute = false;
                     if (_audioPlayOptions.AutoUnSoloOnEnd)
                     {
-                        _autoUnSoloTrack = _audioPlayOptions.AudioTrack;
-                        _autoUnSoloIsAllTracks = false;
-                        _autoUnSoloOnEnd = Scheduler.DelayUnsafe(_playDuration, new SchedulerUnsafeBinding(this, &AutoUnSolo_Imp));
+                        _autoUnSoloOnEnd = Scheduler.Delay(_playDuration, () => MuteAudiosOnTrack(_audioPlayOptions.AudioTrack, false));
                     }
                 }
                 else if (_audioPlayOptions.SoloAllTracks)
@@ -416,14 +361,13 @@ namespace Moirai.Atropos.Audio
                     AudioResource.mute = false;
                     if (_audioPlayOptions.AutoUnSoloOnEnd)
                     {
-                        _autoUnSoloIsAllTracks = true;
-                        _autoUnSoloOnEnd = Scheduler.DelayUnsafe(_playDuration, new SchedulerUnsafeBinding(this, &AutoUnSolo_Imp));
+                        _autoUnSoloOnEnd = Scheduler.Delay(_playDuration, () => MuteAllAudios(false));
                     }
                 }
             }
             else
             {
-                _audioAgentRuntimeState = AudioAgentRuntimeState.End;
+                _audioAgentRuntimeState = EAudioAgentRuntimeState.End;
             }
         }
 
@@ -439,11 +383,11 @@ namespace Moirai.Atropos.Audio
             _audioPlayOptions = options;
             _inPool = bInPool;
             
-            if (_audioAgentRuntimeState == AudioAgentRuntimeState.None || _audioAgentRuntimeState == AudioAgentRuntimeState.End)
+            if (_audioAgentRuntimeState == EAudioAgentRuntimeState.None || _audioAgentRuntimeState == EAudioAgentRuntimeState.End)
             {
                 if (!string.IsNullOrEmpty(path))
                 {
-                    if (bInPool && _audioModuleConcrete != null && _audioModuleConcrete.TryGetCachedAsset(path, out var operationHandle))
+                    if (bInPool && _audioModule.AssetHandlePool.TryGetValue(path, out var operationHandle))
                     {
                         OnAssetLoadComplete(operationHandle);
                         return;
@@ -451,7 +395,7 @@ namespace Moirai.Atropos.Audio
 
                     if (bAsync)
                     {
-                        _audioAgentRuntimeState = AudioAgentRuntimeState.Loading;
+                        _audioAgentRuntimeState = EAudioAgentRuntimeState.Loading;
                         AssetHandle handle = _resourceModule.LoadAssetAsyncHandle<AudioClip>(path);
                         handle.Completed += OnAssetLoadComplete;
                     }
@@ -464,12 +408,9 @@ namespace Moirai.Atropos.Audio
             }
             else
             {
-                _pendingPath = path;
-                _pendingAsync = bAsync;
-                _pendingInPool = bInPool;
-                _hasPendingLoad = true;
+                _pendingLoad = new LoadRequest { path = path, bAsync = bAsync, bInPool = bInPool };
 
-                if (_audioAgentRuntimeState == AudioAgentRuntimeState.Playing || _audioAgentRuntimeState == AudioAgentRuntimeState.FadingIn)
+                if (_audioAgentRuntimeState == EAudioAgentRuntimeState.Playing || _audioAgentRuntimeState == EAudioAgentRuntimeState.FadingIn)
                 {
                     Stop(fadeoutDuration:FADEOUT_DEFAULT_DURATION);
                 }
@@ -486,23 +427,22 @@ namespace Moirai.Atropos.Audio
             {
                 if (_inPool)
                 {
-                    _audioModuleConcrete.AddCachedAsset(handle.GetAssetInfo().Address, handle);
+                    _audioModule.AssetHandlePool.TryAdd(handle.GetAssetInfo().Address, handle);
                 }
             }
 
-            if (_hasPendingLoad)
+            if (_pendingLoad != null)
             {
                 if (!_inPool && handle != null)
                 {
                     handle.Dispose();
                 }
 
-                _audioAgentRuntimeState = AudioAgentRuntimeState.End;
-                string path = _pendingPath;
-                bool bAsync = _pendingAsync;
-                bool bInPool = _pendingInPool;
-                _hasPendingLoad = false;
-                _pendingPath = null;
+                _audioAgentRuntimeState = EAudioAgentRuntimeState.End;
+                string path = _pendingLoad.path;
+                bool bAsync = _pendingLoad.bAsync;
+                bool bInPool = _pendingLoad.bInPool;
+                _pendingLoad = null;
                 Load(path, _audioPlayOptions, bAsync, bInPool);
             }
             else if (handle != null)
@@ -519,7 +459,7 @@ namespace Moirai.Atropos.Audio
             }
             else
             {
-                _audioAgentRuntimeState = AudioAgentRuntimeState.End;
+                _audioAgentRuntimeState = EAudioAgentRuntimeState.End;
             }
         }
 
@@ -529,16 +469,16 @@ namespace Moirai.Atropos.Audio
         /// <param name="fadeoutDuration">音频淡出持续时间。</param>
         public void Stop(float fadeoutDuration = 0f)
         {
-            if (fadeoutDuration > 0f)
+            if (fadeoutDuration > 0f && IsPlaying)
             {
                 _fadeOutStartTime = GameTime.unscaledTime;
                 _fadeOutDuration = fadeoutDuration;
-                _audioAgentRuntimeState = AudioAgentRuntimeState.FadingOut;
+                _audioAgentRuntimeState = EAudioAgentRuntimeState.FadingOut;
             }
             else
             {
                 AudioResource.Stop();
-                _audioAgentRuntimeState = AudioAgentRuntimeState.End;
+                _audioAgentRuntimeState = EAudioAgentRuntimeState.End;
                 
                 // 取消 autoUnSoloOnEnd 的任务 
                 if (_autoUnSoloOnEnd != default) { _autoUnSoloOnEnd.Cancel(); }
@@ -552,7 +492,7 @@ namespace Moirai.Atropos.Audio
         {
             if (!IsPlaying) return;
             
-            _audioAgentRuntimeState = AudioAgentRuntimeState.Pausing;
+            _audioAgentRuntimeState = EAudioAgentRuntimeState.Pausing;
             AudioResource.Pause();
         }
 
@@ -561,9 +501,9 @@ namespace Moirai.Atropos.Audio
         /// </summary>
         public void Unpause()
         {
-            if (_audioAgentRuntimeState != AudioAgentRuntimeState.Pausing) return;
+            if (_audioAgentRuntimeState != EAudioAgentRuntimeState.Pausing) return;
             
-            _audioAgentRuntimeState = AudioAgentRuntimeState.Playing;
+            _audioAgentRuntimeState = EAudioAgentRuntimeState.Playing;
             AudioResource.UnPause();
         }
         
@@ -572,9 +512,9 @@ namespace Moirai.Atropos.Audio
         /// </summary>
         public void CancelFadeIn()
         {
-            if (_audioAgentRuntimeState != AudioAgentRuntimeState.FadingIn) return;
+            if (_audioAgentRuntimeState != EAudioAgentRuntimeState.FadingIn) return;
 
-            _audioAgentRuntimeState = AudioAgentRuntimeState.Playing;
+            _audioAgentRuntimeState = EAudioAgentRuntimeState.Playing;
         }
         
         #endregion 音频控制 [AUDIO CONTROLS]
