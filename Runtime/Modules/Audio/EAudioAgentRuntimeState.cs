@@ -3,7 +3,7 @@
     /// <summary>
     /// 音频代理辅助器运行时状态枚举。
     /// </summary>
-    public enum AudioAgentRuntimeState
+    public enum EAudioAgentRuntimeState
     {
         /// <summary>
         /// 无状态

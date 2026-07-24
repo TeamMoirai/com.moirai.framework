@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Audio;
+using YooAsset;
 
 namespace Moirai.Atropos.Audio
 {
@@ -18,6 +19,11 @@ namespace Moirai.Atropos.Audio
         /// 音频混响器。
         /// </summary>
         public AudioMixer AudioMixer { get;}
+
+        /// <summary>
+        /// 资源句柄池，用于缓存资源系统的已加载音频资源。
+        /// </summary>
+        public Dictionary<string, AssetHandle> AssetHandlePool  { get; }
 
         #endregion
 

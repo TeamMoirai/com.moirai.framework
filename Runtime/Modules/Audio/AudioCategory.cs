@@ -30,7 +30,7 @@ namespace Moirai.Atropos.Audio
             InstanceRoot.SetParent(GameModule.Audio.InstanceRoot);
             for (int index = 0; index < _maxChannel; index++)
             {
-                AudioAgent audioAgent = MemoryPool.Acquire<AudioAgent>();
+                AudioAgent audioAgent = new AudioAgent();
                 audioAgent.Init(this, index);
                 AudioAgents.Add(audioAgent);
             }
@@ -141,7 +141,7 @@ namespace Moirai.Atropos.Audio
             {
                 if (AudioAgents[freeChannel] == null)
                 {
-                    AudioAgent audioAgent = MemoryPool.Acquire<AudioAgent>();
+                    AudioAgent audioAgent = new AudioAgent();
                     audioAgent.Init(this, freeChannel);
                     
                     AudioAgents[freeChannel] = audioAgent;
@@ -240,23 +240,7 @@ namespace Moirai.Atropos.Audio
                 }
             }
         }
-        
-        /// <summary>
-        /// 销毁所有音频代理并回收到内存池。
-        /// </summary>
-        public void DestroyAll()
-        {
-            for (int i = 0; i < AudioAgents.Count; i++)
-            {
-                var agent = AudioAgents[i];
-                if (agent != null)
-                {
-                    MemoryPool.Release(agent);
-                    AudioAgents[i] = null;
-                }
-            }
-        }
-        
+
         #endregion 音频控制 [AUDIO CONTROLS]
         
     }
