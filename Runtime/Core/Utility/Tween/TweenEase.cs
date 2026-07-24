@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using UnityEngine;
 
 namespace Moirai.Atropos
@@ -30,13 +30,16 @@ namespace Moirai.Atropos
             AnimationCurve
         }
 
+        [JsonSerializeAs("tweenType")]
         [SerializeField] private ETweenType m_TweenType;
         public ETweenType TweenType => m_TweenType;
 
+        [JsonSerializeAs("easeType")]
         [SerializeField] private TweenUtility.EEase m_EaseType;
         public TweenUtility.EEase EaseType => m_EaseType;
 
-        [SerializeField, JsonDoNotSerialize] private AnimationCurve m_AnimationCurve;
+        [JsonDoNotSerialize]
+        [SerializeField] private AnimationCurve m_AnimationCurve;
         public AnimationCurve AnimationCurve => m_AnimationCurve;
         [JsonSerializeAs("animationKeys")]
         [JsonSerialize] private Keyframe[] _animationKeys; // JSON仅序列化关键帧
@@ -187,6 +190,8 @@ namespace Moirai.Atropos
         [JsonBeforeSerialization]
         public void OnBeforeSerialize()
         {
+            if (m_AnimationCurve == null) return;
+
             _animationKeys = m_AnimationCurve.keys;
             _preWrapMode = m_AnimationCurve.preWrapMode;
             _postWrapMode = m_AnimationCurve.postWrapMode;
@@ -195,6 +200,8 @@ namespace Moirai.Atropos
         [JsonAfterDeserialization]
         public void OnAfterDeserialize()
         {
+            if (m_AnimationCurve == null) m_AnimationCurve = new AnimationCurve();
+
             m_AnimationCurve.keys = _animationKeys;
             m_AnimationCurve.preWrapMode = _preWrapMode;
             m_AnimationCurve.postWrapMode = _postWrapMode;
