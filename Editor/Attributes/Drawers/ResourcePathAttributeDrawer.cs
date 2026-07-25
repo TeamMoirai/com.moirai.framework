@@ -47,12 +47,21 @@ namespace Moirai.Atropos.Attributes.Editor.Drawers
                 if (changed.changed)
                 {
                     string result = GetNewValue(fieldResult, eStr);
-                    // Debug.Log($"field change {fieldResult} -> {result}, null={result==null}");
                     property.stringValue = result;
-                    // has issue on null, need to use reflection
-                    // nah... not work... still get an empty string if it's null
-                    (_, object parent) = SerializedUtils.GetAttributesAndDirectParent<ResourcePathAttribute>(property);
-                    ReflectUtils.SetValue(property.propertyPath, property.serializedObject.targetObject, fieldInfo, parent, result);
+                    // fieldInfo can be null when Odin Inspector wraps the drawer
+                    MemberInfo memberInfo = fieldInfo;
+                    object parent;
+                    if (memberInfo == null)
+                    {
+                        (SerializedUtils.FieldOrProp fieldOrProp, object obj) = SerializedUtils.GetFieldInfoAndDirectParent(property);
+                        memberInfo = fieldOrProp.IsField ? (MemberInfo)fieldOrProp.FieldInfo : fieldOrProp.PropertyInfo;
+                        parent = obj;
+                    }
+                    else
+                    {
+                        (_, parent) = SerializedUtils.GetAttributesAndDirectParent<ResourcePathAttribute>(property);
+                    }
+                    ReflectUtils.SetValue(property.propertyPath, property.serializedObject.targetObject, memberInfo, parent, result);
                     property.serializedObject.ApplyModifiedProperties();
                     // Debug.Log($"set value to {result}");
                 }
