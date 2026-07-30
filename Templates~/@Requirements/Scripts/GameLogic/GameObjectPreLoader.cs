@@ -11,7 +11,7 @@ namespace GameLogic
     /// 预加载游戏对象
     /// </summary>
     /// <remarks>比如一些持久化对象</remarks>
-    [DefaultExecutionOrder(-100)]
+    [DefaultExecutionOrder(-10000)]
     public sealed class GameObjectPreLoader : MonoBehaviour
     {
         [InfoBox("等内置流程跑完后，再加载必要的游戏对象")]
@@ -61,6 +61,8 @@ namespace GameLogic
                 var obj = Instantiate(go);
                 obj.name = go.name;
             }
+
+            Destroy(gameObject);
         }
     }
 }
