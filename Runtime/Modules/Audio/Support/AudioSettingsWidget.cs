@@ -51,7 +51,7 @@ namespace Moirai.Atropos.Audio
 
         /// <summary>音量设置有修改时触发的事件</summary>
         /// <returns><see cref="bool"/> hasChanged</returns>
-        public Action<bool> onSettingChanged;
+        public event Action<bool> onSettingChanged;
 
         private TrackWidgets[] _trackLookup;
         /// <summary>运行时查找表，按 (int)EAudioTrack 索引 </summary>
