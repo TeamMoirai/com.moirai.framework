@@ -78,6 +78,11 @@ namespace Moirai.Atropos
             IStringBuilder Append(ReadOnlySpan<char> value);
 
             /// <summary>
+            /// 追加字符串。
+            /// </summary>
+            IStringBuilder Append(string value, int startIndex, int count);
+            
+            /// <summary>
             /// 追加换行。
             /// </summary>
             IStringBuilder AppendLine();
