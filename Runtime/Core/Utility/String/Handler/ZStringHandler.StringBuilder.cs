@@ -26,9 +26,20 @@ namespace Moirai.Atropos
 
         public int Length => builder.Length;
 
+        public char this[int index]
+        {
+            get => builder.AsSpan()[index];
+            set => builder.ReplaceAt(value, index);
+        }
+
         public override string ToString()
         {
             return builder.ToString();
+        }
+
+        public string ToString(int startIndex, int length)
+        {
+            return builder.AsSpan().Slice(startIndex, length).ToString();
         }
 
         public string ToStringAndDispose()
@@ -42,6 +53,11 @@ namespace Moirai.Atropos
         {
             builder.Clear();
             return this;
+        }
+
+        public void CopyTo(int sourceIndex, char[] destination, int destinationIndex, int count)
+        {
+            builder.AsSpan().Slice(sourceIndex, count).CopyTo(destination.AsSpan(destinationIndex));
         }
 
         #region Append
@@ -113,6 +129,66 @@ namespace Moirai.Atropos
         }
 
         public StringHandler.IStringBuilder AppendLine(string value)
+        {
+            builder.AppendLine(value);
+            return this;
+        }
+
+        public StringHandler.IStringBuilder Append(char[] value)
+        {
+            if (value != null) builder.Append(value);
+            return this;
+        }
+
+        public StringHandler.IStringBuilder Append(char[] value, int startIndex, int charCount)
+        {
+            builder.Append(value, startIndex, charCount);
+            return this;
+        }
+
+        public StringHandler.IStringBuilder Append(object value)
+        {
+            if (value != null) builder.Append(value.ToString());
+            return this;
+        }
+
+        public StringHandler.IStringBuilder Append(uint value)
+        {
+            builder.Append(value);
+            return this;
+        }
+
+        public StringHandler.IStringBuilder Append(ulong value)
+        {
+            builder.Append(value);
+            return this;
+        }
+
+        public StringHandler.IStringBuilder Append(byte value)
+        {
+            builder.Append(value);
+            return this;
+        }
+
+        public StringHandler.IStringBuilder Append(short value)
+        {
+            builder.Append(value);
+            return this;
+        }
+
+        public StringHandler.IStringBuilder Append(decimal value)
+        {
+            builder.Append(value);
+            return this;
+        }
+
+        public StringHandler.IStringBuilder AppendLine(char value)
+        {
+            builder.AppendLine(value);
+            return this;
+        }
+
+        public StringHandler.IStringBuilder AppendLine(ReadOnlySpan<char> value)
         {
             builder.AppendLine(value);
             return this;
@@ -331,6 +407,66 @@ namespace Moirai.Atropos
         {
             if (values == null || values.Length == 0) return string.Empty;
             return ZString.Join(separator, values);
+        }
+
+        #endregion
+
+        #region Insert
+
+        public StringHandler.IStringBuilder Insert(int index, string value)
+        {
+            builder.Insert(index, value);
+            return this;
+        }
+
+        public StringHandler.IStringBuilder Insert(int index, char value)
+        {
+            builder.Insert(index, value.ToString());
+            return this;
+        }
+
+        public StringHandler.IStringBuilder Insert(int index, string value, int count)
+        {
+            builder.Insert(index, value, count);
+            return this;
+        }
+
+        #endregion
+
+        #region Remove
+
+        public StringHandler.IStringBuilder Remove(int startIndex, int length)
+        {
+            builder.Remove(startIndex, length);
+            return this;
+        }
+
+        #endregion
+
+        #region Replace
+
+        public StringHandler.IStringBuilder Replace(char oldChar, char newChar)
+        {
+            builder.Replace(oldChar, newChar);
+            return this;
+        }
+
+        public StringHandler.IStringBuilder Replace(char oldChar, char newChar, int startIndex, int count)
+        {
+            builder.Replace(oldChar, newChar, startIndex, count);
+            return this;
+        }
+
+        public StringHandler.IStringBuilder Replace(string oldValue, string newValue)
+        {
+            builder.Replace(oldValue, newValue);
+            return this;
+        }
+
+        public StringHandler.IStringBuilder Replace(string oldValue, string newValue, int startIndex, int count)
+        {
+            builder.Replace(oldValue, newValue, startIndex, count);
+            return this;
         }
 
         #endregion
