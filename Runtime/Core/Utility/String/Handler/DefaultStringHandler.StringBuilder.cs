@@ -97,6 +97,12 @@ namespace Moirai.Atropos
             return this;
         }
 
+        public StringHandler.IStringBuilder Append(string value, int startIndex, int count)
+        {
+            builder.Append(value, startIndex, count);
+            return this;
+        }
+
         public StringHandler.IStringBuilder AppendLine()
         {
             builder.AppendLine();
