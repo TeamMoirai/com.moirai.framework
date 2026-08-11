@@ -90,11 +90,14 @@ namespace Moirai.Atropos.Resource
         {
             _spriteRenderer = null;
             _image = null;
+            TargetObject = null;
             Location = null;
             _sprite = null;
             _setType = SetType.None;
             _setNativeSize = false;
-            TargetObject = null;
+            _imageCallback = null;
+            _spriteCallback = null;
+            _cancellationToken = default;
         }
 
         public static SetSpriteObject Create(Image image, string location, bool setNativeSize = false, Action<Image> callback = null, CancellationToken cancellationToken = default)
