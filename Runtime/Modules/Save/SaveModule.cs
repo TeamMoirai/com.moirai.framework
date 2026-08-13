@@ -37,8 +37,14 @@ namespace Moirai.Atropos.Save
 
             // 将对象序列化并写入磁盘上的文件中
             FileStream saveFile = File.Create(tempFilePath);
-            await _saveHandler.Save(saveObject, saveFile);
-            saveFile.Close();
+            try
+            {
+                await _saveHandler.Save(saveObject, saveFile);
+            }
+            finally
+            {
+                saveFile.Close();
+            }
 
             // 释放临时文件——用try-final确保清理
             try
@@ -76,8 +82,15 @@ namespace Moirai.Atropos.Save
             }
 
             FileStream saveFile = File.Open(saveFileName, FileMode.Open, FileAccess.Read, FileShare.Read);
-            T returnObject = await _saveHandler.Load<T>(saveFile);
-            saveFile.Close();
+            T returnObject;
+            try
+            {
+                returnObject = await _saveHandler.Load<T>(saveFile);
+            }
+            finally
+            {
+                saveFile.Close();
+            }
 
             return returnObject;
         }
