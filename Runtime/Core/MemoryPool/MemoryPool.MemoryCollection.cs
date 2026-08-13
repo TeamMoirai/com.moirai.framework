@@ -50,33 +50,37 @@ namespace Moirai.Atropos
                     throw new Exception("Type is invalid.");
                 }
 
-                _usingMemoryCount++;
-                _acquireMemoryCount++;
                 lock (_memories)
                 {
+                    _usingMemoryCount++;
+                    _acquireMemoryCount++;
+
                     if (_memories.Count > 0)
                     {
                         return (T)_memories.Dequeue();
                     }
+
+                    _addMemoryCount++;
                 }
 
-                _addMemoryCount++;
                 return new T();
             }
 
             public IMemory Acquire()
             {
-                _usingMemoryCount++;
-                _acquireMemoryCount++;
                 lock (_memories)
                 {
+                    _usingMemoryCount++;
+                    _acquireMemoryCount++;
+
                     if (_memories.Count > 0)
                     {
                         return _memories.Dequeue();
                     }
+
+                    _addMemoryCount++;
                 }
 
-                _addMemoryCount++;
                 return (IMemory)Activator.CreateInstance(_memoryType);
             }
 
@@ -91,10 +95,9 @@ namespace Moirai.Atropos
                     }
 
                     _memories.Enqueue(memory);
+                    _releaseMemoryCount++;
+                    _usingMemoryCount--;
                 }
-
-                _releaseMemoryCount++;
-                _usingMemoryCount--;
             }
 
             public void Add<T>(int count) where T : class, IMemory, new()
