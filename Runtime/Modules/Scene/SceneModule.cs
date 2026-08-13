@@ -347,8 +347,8 @@ namespace Moirai.Atropos.Scene
                     return;
                 }
 
-                subScene.UnloadAsync();
-                subScene.UnloadAsync().Completed += @base =>
+                var unloadOperation = subScene.UnloadAsync();
+                unloadOperation.Completed += @base =>
                 {
                     _subScenes.Remove(location);
                     _handlingScene.Remove(location);
