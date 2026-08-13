@@ -384,6 +384,7 @@ namespace Moirai.Atropos.Resource
         public void UnloadUnusedAssets()
         {
             _assetPool.ReleaseAllUnused();
+            _assetInfoMap.Clear();
             foreach (var package in PackageMap.Values)
             {
                 if (package is { InitializeStatus: EOperationStatus.Succeed })
@@ -920,6 +921,8 @@ namespace Moirai.Atropos.Resource
                 throw new GameException("Load asset callbacks is invalid.");
             }
 
+            try
+            {
             if (!CheckLocationValid(location, packageName))
             {
                 string errorMessage = StringUtility.Format("Could not found location [{0}].", location);
@@ -999,6 +1002,13 @@ namespace Moirai.Atropos.Resource
                     loadAssetCallbacks.LoadAssetSuccessCallback(location, handle.AssetObject, duration, userData);
                 }
             }
+            }
+            catch (Exception ex)
+            {
+                _assetLoadingList.Remove(GetCacheKey(location, packageName));
+                Log.Error("LoadAssetAsync failed: {0}, error: {1}", location, ex);
+                loadAssetCallbacks.LoadAssetFailureCallback?.Invoke(location, LoadResourceStatus.AssetError, ex.Message, userData);
+            }
         }
 
         /// <summary>
@@ -1021,6 +1031,8 @@ namespace Moirai.Atropos.Resource
                 throw new GameException("Load asset callbacks is invalid.");
             }
 
+            try
+            {
             if (!CheckLocationValid(location, packageName))
             {
                 string errorMessage = StringUtility.Format("Could not found location [{0}].", location);
@@ -1099,6 +1111,13 @@ namespace Moirai.Atropos.Resource
 
                     loadAssetCallbacks.LoadAssetSuccessCallback(location, handle.AssetObject, duration, userData);
                 }
+            }
+            }
+            catch (Exception ex)
+            {
+                _assetLoadingList.Remove(GetCacheKey(location, packageName));
+                Log.Error("LoadAssetAsync failed: {0}, error: {1}", location, ex);
+                loadAssetCallbacks.LoadAssetFailureCallback?.Invoke(location, LoadResourceStatus.AssetError, ex.Message, userData);
             }
         }
 
