@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using Moirai.Atropos.UpdateDriver;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -95,38 +94,28 @@ namespace Moirai.Atropos
 
         private static void BuildLifeCycle(object singleton)
         {
-            Type iUpdate = typeof(IUpdate);
-            bool needUpdate = iUpdate.IsInstanceOfType(singleton);
-            if (needUpdate && singleton is IUpdate update)
+            if (singleton is IUpdate update)
             {
                 s_Updates.Add(update);
             }
 
-            Type iFixedUpdate = typeof(IFixedUpdate);
-            bool needFixedUpdate = iFixedUpdate.IsInstanceOfType(singleton);
-            if (needFixedUpdate && singleton is IFixedUpdate fixedUpdate)
+            if (singleton is IFixedUpdate fixedUpdate)
             {
                 s_FixedUpdates.Add(fixedUpdate);
             }
 
-            Type iLateUpdate = typeof(ILateUpdate);
-            bool needLateUpdate = iLateUpdate.IsInstanceOfType(singleton);
-            if (needLateUpdate && singleton is ILateUpdate lateUpdate)
+            if (singleton is ILateUpdate lateUpdate)
             {
                 s_LateUpdates.Add(lateUpdate);
             }
 
 #if UNITY_EDITOR
-            Type iDrawGizmos = typeof(IDrawGizmos);
-            bool needDrawGizmos = iDrawGizmos.IsInstanceOfType(singleton);
-            if (needDrawGizmos && singleton is IDrawGizmos drawGizmos)
+            if (singleton is IDrawGizmos drawGizmos)
             {
                 s_DrawGizmos.Add(drawGizmos);
             }
 
-            Type iDrawGizmosSelected = typeof(IDrawGizmosSelected);
-            bool needDrawGizmosSelected = iDrawGizmosSelected.IsInstanceOfType(singleton);
-            if (needDrawGizmosSelected && singleton is IDrawGizmosSelected drawGizmosSelected)
+            if (singleton is IDrawGizmosSelected drawGizmosSelected)
             {
                 s_DrawGizmosSelecteds.Add(drawGizmosSelected);
             }
@@ -155,55 +144,30 @@ namespace Moirai.Atropos
 
         private static void ReleaseLifeCycle(object singleton)
         {
-            Type iUpdate = typeof(IUpdate);
-            bool needUpdate = iUpdate.IsInstanceOfType(singleton);
-            if (needUpdate && singleton is IUpdate update)
+            if (singleton is IUpdate update)
             {
-                if (s_Updates.Contains(update))
-                {
-                    s_Updates.Remove(update);
-                }
+                s_Updates.Remove(update);
             }
 
-            Type iFixedUpdate = typeof(IFixedUpdate);
-            bool needFixedUpdate = iFixedUpdate.IsInstanceOfType(singleton);
-            if (needFixedUpdate && singleton is IFixedUpdate fixedUpdate)
+            if (singleton is IFixedUpdate fixedUpdate)
             {
-                if (s_FixedUpdates.Contains(fixedUpdate))
-                {
-                    s_FixedUpdates.Remove(fixedUpdate);
-                }
+                s_FixedUpdates.Remove(fixedUpdate);
             }
 
-            Type iLateUpdate = typeof(ILateUpdate);
-            bool needLateUpdate = iLateUpdate.IsInstanceOfType(singleton);
-            if (needLateUpdate && singleton is ILateUpdate lateUpdate)
+            if (singleton is ILateUpdate lateUpdate)
             {
-                if (s_LateUpdates.Contains(lateUpdate))
-                {
-                    s_LateUpdates.Remove(lateUpdate);
-                }
+                s_LateUpdates.Remove(lateUpdate);
             }
 
 #if UNITY_EDITOR
-            Type iDrawGizmos = typeof(IDrawGizmos);
-            bool needDrawGizmos = iDrawGizmos.IsInstanceOfType(singleton);
-            if (needDrawGizmos && singleton is IDrawGizmos drawGizmos)
+            if (singleton is IDrawGizmos drawGizmos)
             {
-                if (s_DrawGizmos.Contains(drawGizmos))
-                {
-                    s_DrawGizmos.Remove(drawGizmos);
-                }
+                s_DrawGizmos.Remove(drawGizmos);
             }
 
-            Type iDrawGizmosSelected = typeof(IDrawGizmosSelected);
-            bool needDrawGizmosSelected = iDrawGizmosSelected.IsInstanceOfType(singleton);
-            if (needDrawGizmosSelected && singleton is IDrawGizmosSelected drawGizmosSelected)
+            if (singleton is IDrawGizmosSelected drawGizmosSelected)
             {
-                if (s_DrawGizmosSelecteds.Contains(drawGizmosSelected))
-                {
-                    s_DrawGizmosSelecteds.Remove(drawGizmosSelected);
-                }
+                s_DrawGizmosSelecteds.Remove(drawGizmosSelected);
             }
 #endif
         }
@@ -283,7 +247,7 @@ namespace Moirai.Atropos
         {
             for (int i = 0; i < s_Singletons.Count; ++i)
             {
-                if (s_Singletons[i].ToString() == key)
+                if (s_Singletons[i].GetType().Name == key)
                 {
                     return s_Singletons[i];
                 }
