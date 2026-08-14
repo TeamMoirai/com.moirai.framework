@@ -535,5 +535,27 @@ namespace Moirai.Atropos
         {
             return Handler.Custom(target, startValue, endValue, duration, onValueChange, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
+
+        /// <summary>
+        /// 零分配 Custom：回调直接持有 object 目标。
+        /// 调用侧使用 static lambda / 方法组（不捕获局部变量）时无闭包分配，适合高频调用。
+        /// <code>
+        /// TweenUtility.Custom(hud, 0f, 1f, 0.3f, static (t, v) => ((HudView)t).Fill(v));
+        /// </code>
+        /// </summary>
+        public static long Custom(object target, float startValue, float endValue, float duration, Action<object, float> onValueChange, TweenEase ease = default,
+            int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
+        {
+            return Handler.Custom(target, startValue, endValue, duration, onValueChange, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
+        }
+
+        /// <summary>
+        /// 零分配 Custom（Vector3）：回调直接持有 object 目标，无闭包分配。
+        /// </summary>
+        public static long Custom(object target, Vector3 startValue, Vector3 endValue, float duration, Action<object, Vector3> onValueChange, TweenEase ease = default,
+            int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
+        {
+            return Handler.Custom(target, startValue, endValue, duration, onValueChange, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
+        }
     }
 }

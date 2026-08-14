@@ -14,14 +14,15 @@ namespace Moirai.Atropos
             private const int INITIAL_CAPACITY = 256;
 
             private static TweenState[] s_States;
+            private static bool[] s_InFree;
+            private static readonly Stack<int> s_FreeIndices = new(64);
             private static int s_Count;
             private static int s_Capacity;
-            private static readonly List<int> s_PendingRemove = new(64);
-            private static readonly List<int> s_PendingComplete = new(64);
 
             static TweenTask()
             {
                 s_States = new TweenState[INITIAL_CAPACITY];
+                s_InFree = new bool[INITIAL_CAPACITY];
                 s_Capacity = INITIAL_CAPACITY;
                 s_Count = 0;
             }
@@ -52,19 +53,33 @@ namespace Moirai.Atropos
             internal static long Create(in TweenState state)
             {
                 int index = FindFreeSlot();
+                // 版本号在复用时递增（唯一递增点）：新 tween 的版本与所有历史 ID 不同，
+                // 且从 1 起步保证 tweenId 永不为 0（0 保留为"无 tween"哨兵值）。
+                // 修复原先整 struct 覆盖导致 Version 归零、旧 ID 别名到新 tween 的缺陷
+                int version = s_States[index].Version + 1;
                 s_States[index] = state;
+                s_States[index].Version = version;
                 s_States[index].IsActive = true;
                 s_States[index].StartTime = -1f; // 标记为未开始（等待 StartDelay）
                 s_States[index].DelayTimer = state.HasDelay ? state.StartDelay : 0f;
-                return EncodeId(index, s_States[index].Version);
+                return EncodeId(index, version);
             }
 
             private static int FindFreeSlot()
             {
-                // 从尾部向前找已回收的槽位
+                // 优先：空闲索引栈（O(1)，避免大量活跃 tween 时的线性扫描）
+                while (s_FreeIndices.Count > 0)
+                {
+                    int idx = s_FreeIndices.Pop();
+                    s_InFree[idx] = false;
+                    if (!s_States[idx].IsActive)
+                        return idx;
+                }
+
+                // 兜底：线性扫描（覆盖从未使用过、尚未入栈的槽位；跳过已在空闲栈中的槽位避免双归属）
                 for (int i = 0; i < s_Count; i++)
                 {
-                    if (!s_States[i].IsActive)
+                    if (!s_States[i].IsActive && !s_InFree[i])
                         return i;
                 }
 
@@ -73,9 +88,23 @@ namespace Moirai.Atropos
                 {
                     s_Capacity *= 2;
                     Array.Resize(ref s_States, s_Capacity);
+                    Array.Resize(ref s_InFree, s_Capacity);
                 }
 
                 return s_Count++;
+            }
+
+            /// <summary>
+            /// 回收槽位：重置状态并压入空闲索引栈。
+            /// s_InFree 标记防止同一槽位被重复入栈（如 Stop 后回调中再次 Complete 同一 tween）。
+            /// </summary>
+            private static void Recycle(int index)
+            {
+                s_States[index].Reset();
+                if (s_InFree[index]) return;
+
+                s_InFree[index] = true;
+                s_FreeIndices.Push(index);
             }
 
             #endregion
@@ -89,9 +118,6 @@ namespace Moirai.Atropos
             {
                 float dt = Time.deltaTime;
                 float unscaledDt = Time.unscaledDeltaTime;
-
-                s_PendingRemove.Clear();
-                s_PendingComplete.Clear();
 
                 for (int i = 0; i < s_Count; i++)
                 {
@@ -185,13 +211,6 @@ namespace Moirai.Atropos
 
                     // 6. 应用缓动并写入目标
                     ApplyValue(ref state, normalizedTime);
-                }
-
-                // 7. 批量清理已完成的条目（倒序删除避免索引偏移）
-                for (int i = s_PendingRemove.Count - 1; i >= 0; i--)
-                {
-                    int idx = s_PendingRemove[i];
-                    s_States[idx].Reset();
                 }
             }
 
@@ -603,7 +622,9 @@ namespace Moirai.Atropos
                     case TweenOperationType.CustomFloat:
                     {
                         float val = state.StartX + t * (state.EndX - state.StartX);
-                        state.OnUpdateFloat?.Invoke(val);
+                        var objectCallback = state.OnUpdateObjectFloat;
+                        if (objectCallback != null) objectCallback(state.Target, val);
+                        else state.OnUpdateFloat?.Invoke(val);
                         break;
                     }
                     case TweenOperationType.CustomInt:
@@ -623,7 +644,9 @@ namespace Moirai.Atropos
                         float x = state.StartX + t * (state.EndX - state.StartX);
                         float y = state.StartY + t * (state.EndY - state.StartY);
                         float z = state.StartZ + t * (state.EndZ - state.StartZ);
-                        state.OnUpdateXYZ?.Invoke(x, y, z);
+                        var objectCallback = state.OnUpdateObjectVector3;
+                        if (objectCallback != null) objectCallback(state.Target, new Vector3(x, y, z));
+                        else state.OnUpdateXYZ?.Invoke(x, y, z);
                         break;
                     }
                 }
@@ -632,7 +655,9 @@ namespace Moirai.Atropos
             private static void OnTweenCompleted(ref TweenState state, int index)
             {
                 state.OnComplete?.Invoke();
-                s_PendingRemove.Add(index);
+                // 立即回收：Reset 只清字段不改数组结构，迭代中调用安全；
+                // 修复原先延迟回收与"Stop 后立即复用同槽位"竞争导致新 tween 被误杀的问题
+                Recycle(index);
             }
 
             #endregion
@@ -679,8 +704,7 @@ namespace Moirai.Atropos
                                && s_States[index].IsActive
                                && s_States[index].Version == version)
                 {
-                    s_States[index].IsActive = false;
-                    s_PendingRemove.Add(index);
+                    Recycle(index);
                 }
             }
 
@@ -692,8 +716,7 @@ namespace Moirai.Atropos
                                && s_States[index].Version == version)
                 {
                     ApplyValue(ref s_States[index], 1f);
-                    s_States[index].IsActive = false;
-                    s_PendingRemove.Add(index);
+                    Recycle(index);
                 }
             }
 
@@ -705,8 +728,7 @@ namespace Moirai.Atropos
                     ref TweenState state = ref s_States[i];
                     if (state.IsActive && (target == null || ReferenceEquals(state.Target, target)))
                     {
-                        state.IsActive = false;
-                        s_PendingRemove.Add(i);
+                        Recycle(i);
                         count++;
                     }
                 }
@@ -723,8 +745,7 @@ namespace Moirai.Atropos
                     if (state.IsActive && (target == null || ReferenceEquals(state.Target, target)))
                     {
                         ApplyValue(ref state, 1f);
-                        state.IsActive = false;
-                        s_PendingRemove.Add(i);
+                        Recycle(i);
                         count++;
                     }
                 }
@@ -742,14 +763,12 @@ namespace Moirai.Atropos
                     // 清理已销毁目标的 tween
                     if (state.UnityObject != null && state.UnityObject == null)
                     {
-                        state.IsActive = false;
-                        state.Reset();
+                        Recycle(i);
                     }
                 }
 
-                // 压缩数组（移除尾部空闲槽位）
-                while (s_Count > 0 && !s_States[s_Count - 1].IsActive)
-                    s_Count--;
+                // 注：尾部压缩已移除——空闲槽位现由 s_FreeIndices 管理，
+                // 压缩 s_Count 会使栈中 >= s_Count 的索引失效，导致 tween 不可见。
             }
 
             #endregion
@@ -757,33 +776,31 @@ namespace Moirai.Atropos
             #region Bezier
 
             /// <summary>
-            /// N 阶贝塞尔曲线计算（复用 TweenHandler.CalculateBezierPoint 逻辑）。
+            /// De Casteljau 算法计算 N 阶贝塞尔曲线。
+            /// 无 Pow / 二项式系数计算，复用静态缓冲（按需扩容），0 GC。
             /// </summary>
+            private static Vector3[] s_BezierScratch;
+
             private static Vector3 CalculateBezierPoint(float t, Vector3[] points)
             {
                 int n = points.Length - 1;
-                Vector3 point = Vector3.zero;
-                for (int i = 0; i <= n; i++)
+                if (n < 0) return Vector3.zero;
+                if (n == 0) return points[0];
+
+                if (s_BezierScratch == null || s_BezierScratch.Length < points.Length)
+                    s_BezierScratch = new Vector3[Mathf.NextPowerOfTwo(points.Length)];
+
+                Array.Copy(points, s_BezierScratch, points.Length);
+                float u = 1f - t;
+                for (int k = n; k >= 1; k--)
                 {
-                    float coefficient = BinomialCoefficient(n, i) * Mathf.Pow(1 - t, n - i) * Mathf.Pow(t, i);
-                    point += coefficient * points[i];
+                    for (int i = 0; i < k; i++)
+                    {
+                        s_BezierScratch[i] = u * s_BezierScratch[i] + t * s_BezierScratch[i + 1];
+                    }
                 }
 
-                return point;
-            }
-
-            private static int BinomialCoefficient(int n, int k)
-            {
-                if (k < 0 || k > n) return 0;
-                if (k == 0 || k == n) return 1;
-                int result = 1;
-                for (int i = 0; i < k; i++)
-                {
-                    result *= (n - i);
-                    result /= (i + 1);
-                }
-
-                return result;
+                return s_BezierScratch[0];
             }
 
             #endregion

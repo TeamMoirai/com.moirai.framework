@@ -127,15 +127,18 @@ namespace Moirai.Atropos
             public Action<Color> OnUpdateColor;
             public Action OnUpdateNoValue;
 
+            // === 回调（0GC object 路径：直接持有 object 目标，static lambda / 方法组时无闭包分配） ===
+            public Action<object, float> OnUpdateObjectFloat;
+            public Action<object, Vector3> OnUpdateObjectVector3;
+
             // === 类型 ===
             public TweenOperationType OperationType;
 
             /// <summary>
-            /// 重置为默认值（回收时调用）。
+            /// 重置为默认值（回收时调用）。版本号由 TweenTask.Create 统一递增，此处不动。
             /// </summary>
             public void Reset()
             {
-                Version++;
                 ElapsedTime = 0f;
                 Duration = 0f;
                 StartDelay = 0f;
@@ -163,6 +166,8 @@ namespace Moirai.Atropos
                 OnUpdateXYZ = null;
                 OnUpdateColor = null;
                 OnUpdateNoValue = null;
+                OnUpdateObjectFloat = null;
+                OnUpdateObjectVector3 = null;
                 OperationType = TweenOperationType.None;
             }
         }

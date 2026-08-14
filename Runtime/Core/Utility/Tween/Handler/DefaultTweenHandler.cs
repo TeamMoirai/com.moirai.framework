@@ -1300,6 +1300,67 @@ namespace Moirai.Atropos
             return TweenTask.Create(in state);
         }
 
+        #region Custom（0GC object 回调）
+
+        /// <summary>
+        /// 零分配 Custom：回调直接持有 object 目标，回调与目标分别存入 TweenState，无闭包捕获。
+        /// 调用侧使用 static lambda 或方法组时不产生任何堆分配，适合每帧创建的高频补间。
+        /// </summary>
+        public override long Custom(object target, float startValue, float endValue, float duration, Action<object, float> onValueChange,
+            TweenEase ease = default, int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart,
+            float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
+        {
+            var state = new TweenState
+            {
+                Target = target,
+                UnityObject = target as UnityEngine.Object,
+                Duration = duration,
+                StartX = startValue,
+                EndX = endValue,
+                OperationType = TweenOperationType.CustomFloat,
+                OnUpdateObjectFloat = onValueChange,
+                OnComplete = onComplete,
+                UseUnscaledTime = useUnscaledTime,
+                HasDelay = startDelay > 0f,
+                StartDelay = startDelay,
+                Ease = ease,
+                Cycles = cycles,
+                CurrentCycle = 0,
+                CycleMode = cycleMode,
+            };
+            return TweenTask.Create(in state);
+        }
+
+        /// <summary>
+        /// 零分配 Custom（Vector3）：回调直接持有 object 目标，无闭包捕获。
+        /// </summary>
+        public override long Custom(object target, Vector3 startValue, Vector3 endValue, float duration, Action<object, Vector3> onValueChange,
+            TweenEase ease = default, int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart,
+            float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
+        {
+            var state = new TweenState
+            {
+                Target = target,
+                UnityObject = target as UnityEngine.Object,
+                Duration = duration,
+                StartX = startValue.x, StartY = startValue.y, StartZ = startValue.z,
+                EndX = endValue.x, EndY = endValue.y, EndZ = endValue.z,
+                OperationType = TweenOperationType.CustomVector3,
+                OnUpdateObjectVector3 = onValueChange,
+                OnComplete = onComplete,
+                UseUnscaledTime = useUnscaledTime,
+                HasDelay = startDelay > 0f,
+                StartDelay = startDelay,
+                Ease = ease,
+                Cycles = cycles,
+                CurrentCycle = 0,
+                CycleMode = cycleMode,
+            };
+            return TweenTask.Create(in state);
+        }
+
+        #endregion
+
         #endregion
     }
 }

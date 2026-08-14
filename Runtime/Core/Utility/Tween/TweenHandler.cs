@@ -377,6 +377,27 @@ namespace Moirai.Atropos
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
             where T : class;
 
+        /// <summary>
+        /// 零分配 Custom 重载：回调直接持有 object 目标，避免泛型闭包分配。
+        /// 调用侧使用 static lambda / 方法组时无任何堆分配。
+        /// 默认实现回退到泛型版本；DefaultTweenHandler 覆写为直存回调（0 GC）。
+        /// </summary>
+        public virtual long Custom(object target, float startValue, float endValue, float duration, Action<object, float> onValueChange, TweenEase ease = default,
+            int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
+        {
+            // 显式泛型实参，避免重载解析回环到本方法
+            return Custom<object>(target, startValue, endValue, duration, onValueChange, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
+        }
+
+        /// <summary>
+        /// 零分配 Custom（Vector3）重载：回调直接持有 object 目标，避免泛型闭包分配。
+        /// </summary>
+        public virtual long Custom(object target, Vector3 startValue, Vector3 endValue, float duration, Action<object, Vector3> onValueChange, TweenEase ease = default,
+            int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
+        {
+            return Custom<object>(target, startValue, endValue, duration, onValueChange, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
+        }
+
         #endregion
     }
 }
