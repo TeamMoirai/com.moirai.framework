@@ -2,7 +2,7 @@ using System;
 using Moirai.Atropos;
 using NUnit.Framework;
 
-namespace Tests
+namespace GameTool
 {
     public class MemoryPoolTest
     {
