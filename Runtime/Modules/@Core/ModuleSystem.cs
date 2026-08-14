@@ -28,11 +28,17 @@ namespace Moirai.Atropos
         /// <summary>
         /// 断言当前处于主线程（仅编辑器与开发构建生效，发布版零开销）。
         /// </summary>
+        /// <remarks>
+        /// ModuleSystem 主线程亲和。后台线程/异步回调需调用时，
+        /// 请显式通过 <see cref="MainThreadDispatcher"/> 的 Dispatch/DispatchAsync 切回主线程，
+        /// 而非由框架内部静默调度（会破坏返回值语义与读己之写顺序）。
+        /// </remarks>
         private static void EnsureMainThread()
         {
             Assert.IsTrue(
                 s_MainThreadId == 0 || System.Threading.Thread.CurrentThread.ManagedThreadId == s_MainThreadId,
-                "ModuleSystem must only be used from the main thread.");
+                "ModuleSystem must only be used from the main thread. " +
+                "From a background thread/callback, wrap the call with MainThreadDispatcher.Dispatch/DispatchAsync.");
         }
 
         // 每个接口类型可注册在不同 Scope 中，查找时按 Gameplay > Scene > App 优先返回
