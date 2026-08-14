@@ -50,8 +50,6 @@ namespace GameLogic
             // 初始化多语言配置
             GameModule.Localization.InitLanguageSettings();
 
-            MainThreadDispatcher.Instance.Dispatch(() => { Log.Info("Init UnityMainThreadDispatcher"); });
-
             // 事件通知
             HotfixEntryEvent.Trigger();
 
