@@ -166,7 +166,7 @@ namespace Moirai.Atropos
         /// </summary>
         protected virtual void Shutdown() { }
         
-        protected void OnApplicationQuit()
+        protected virtual void OnApplicationQuit()
         {
 	        s_ShuttingDown = true;
         }
