@@ -74,13 +74,13 @@ namespace Moirai.Atropos
             Type helperType = AssemblyUtility.GetType(typeName);
             if (helperType == null)
             {
-                throw new GameException(StringUtility.Format("Can not find helper type '{0}'.", typeName));
+                throw new GameException(StringUtility.Format("Can not find type '{0}'.", typeName));
             }
 
             T instance = (T)Activator.CreateInstance(helperType);
             if (instance == null)
             {
-                throw new GameException(StringUtility.Format("Can not create helper instance '{0}'.", typeName));
+                throw new GameException(StringUtility.Format("Can not create instance '{0}'.", typeName));
             }
 
             return instance;

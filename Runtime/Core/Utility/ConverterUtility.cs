@@ -21,11 +21,7 @@ namespace Moirai.Atropos
         /// <summary>
         /// 获取或设置屏幕每英寸点数。
         /// </summary>
-        public static float ScreenDpi
-        {
-            get;
-            set;
-        }
+        public static float ScreenDpi { get; set; }
 
         /// <summary>
         /// 将像素转换为厘米。

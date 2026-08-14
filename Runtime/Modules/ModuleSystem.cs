@@ -135,6 +135,7 @@ namespace Moirai.Atropos
                 return module as T;
             }
 
+            // 如果要获取的游戏框架模块不存在，则自动创建该游戏框架模块。
             string moduleName = StringUtility.Format("{0}.{1}, {2}", interfaceType.Namespace, interfaceType.Name.Substring(1), interfaceType.Assembly.GetName().Name);
             Type moduleType = Type.GetType(moduleName);
             if (moduleType == null)
@@ -142,36 +143,15 @@ namespace Moirai.Atropos
                 throw new GameException(StringUtility.Format("Can not find Game Framework module type '{0}'.", moduleName));
             }
 
-            return GetModule(moduleType) as T;
-        }
-
-        /// <summary>
-        /// 获取游戏框架模块。
-        /// </summary>
-        /// <param name="moduleType">要获取的游戏框架模块类型。</param>
-        /// <returns>要获取的游戏框架模块。</returns>
-        /// <remarks>如果要获取的游戏框架模块不存在，则自动创建该游戏框架模块。</remarks>
-        private static Module GetModule(Type moduleType)
-        {
-            return s_ModuleMaps.TryGetValue(moduleType, out Module module) ? module : CreateModule(moduleType);
-        }
-
-        /// <summary>
-        /// 创建游戏框架模块。
-        /// </summary>
-        /// <param name="moduleType">要创建的游戏框架模块类型。</param>
-        /// <returns>要创建的游戏框架模块。</returns>
-        private static Module CreateModule(Type moduleType)
-        {
-            Module module = (Module)Activator.CreateInstance(moduleType);
+            module = (Module)Activator.CreateInstance(moduleType);
             if (module == null)
             {
                 throw new GameException(StringUtility.Format("Can not create module '{0}'.", moduleType.FullName));
             }
 
-            RegisterModule(moduleType, module);
+            RegisterModule(interfaceType, module);
 
-            return module;
+            return module as T;
         }
 
         /// <summary>
@@ -183,9 +163,16 @@ namespace Moirai.Atropos
         public static T RegisterModule<T>(Module module) where T : class
         {
             Type interfaceType = typeof(T);
+
             if (!interfaceType.IsInterface)
             {
                 throw new GameException(StringUtility.Format("You must get module by interface, but '{0}' is not.", interfaceType.FullName));
+            }
+
+            if (s_ModuleMaps.TryGetValue(interfaceType, out var mapModule))
+            {
+                Log.Warning("{0} has already been registered.", interfaceType.FullName);
+                return mapModule as T;
             }
 
             RegisterModule(interfaceType, module);

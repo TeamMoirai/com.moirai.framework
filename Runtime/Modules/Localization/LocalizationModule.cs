@@ -57,9 +57,9 @@ namespace Moirai.Atropos.Localization
             {
 #if UNITY_EDITOR
                 // 如果处于编辑器模拟模式下，使用编辑器设置的语言
-                if (GameSettings.EditorLanguage != Language.Unspecified.Name)
+                if (AppSettings.EditorLanguage != Language.Unspecified.Name)
                 {
-                    language = GameSettings.EditorLanguage;
+                    language = AppSettings.EditorLanguage;
                     settingSource = "EditorSetting";
                 }
                 else

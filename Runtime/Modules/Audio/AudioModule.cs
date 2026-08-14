@@ -296,7 +296,7 @@ namespace Moirai.Atropos.Audio
             _configCache = new AudioGroupConfig[trackCount];
             for (int i = 0; i < trackCount; i++)
             {
-                AudioCategories[i] = new AudioCategory(_audioGroupConfigs[i]);
+                AudioCategories[i] = new AudioCategory(this, _audioGroupConfigs[i]);
                 _categoryCache[(int)_audioGroupConfigs[i].AudioTrack] = AudioCategories[i];
                 _configCache[(int)_audioGroupConfigs[i].AudioTrack] = _audioGroupConfigs[i];
             }

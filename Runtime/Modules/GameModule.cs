@@ -126,16 +126,9 @@ namespace Moirai.Atropos
             s_IsShutdown = false;
             
             gameObject.name = $"[{nameof(GameModule)}]";
-
-            ModuleSystem.GetModule<IUpdateDriverModule>();
-            ModuleSystem.GetModule<IResourceModule>();
-            ModuleSystem.GetModule<IDebuggerModule>();
-            ModuleSystem.GetModule<IFSMModule>();
-            ModuleSystem.GetModule<IAudioModule>();
+            DontDestroyOnLoad(gameObject);
 
             ProcedureSettings.StartProcedure().Forget();
-
-            DontDestroyOnLoad(gameObject);
 
             Application.lowMemory += OnLowMemory;
             GameTime.StartFrame();

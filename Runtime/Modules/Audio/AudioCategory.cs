@@ -19,15 +19,16 @@ namespace Moirai.Atropos.Audio
         /// <summary>
         /// 音频轨道构造函数。
         /// </summary>
+        /// <param name="audioModule">音频模块</param>
         /// <param name="audioGroupConfig">音频轨道组配置。</param>
-        public AudioCategory(AudioGroupConfig audioGroupConfig)
+        public AudioCategory(IAudioModule audioModule, AudioGroupConfig audioGroupConfig)
         {
             _audioGroupConfig = audioGroupConfig;
             _maxChannel = audioGroupConfig.MaxChannel;
             
             AudioAgents = new List<AudioAgent>(_maxChannel);
             InstanceRoot = new GameObject(StringUtility.Format("Audio Category - {0}", audioGroupConfig.AudioMixerGroup.name)).transform;
-            InstanceRoot.SetParent(GameModule.Audio.InstanceRoot);
+            InstanceRoot.SetParent(audioModule.InstanceRoot);
             for (int index = 0; index < _maxChannel; index++)
             {
                 AudioAgent audioAgent = new AudioAgent();
