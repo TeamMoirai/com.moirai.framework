@@ -746,7 +746,9 @@ namespace Moirai.Atropos
         public static T[] FindObjectsByType<T>(bool includeInactive = false) where T : Object
         {
             return
-#if UNITY_2023_1_OR_NEWER
+#if UNITY_6000_4_OR_NEWER
+                Object.FindObjectsByType<T>(includeInactive ? FindObjectsInactive.Include : FindObjectsInactive.Exclude)
+#elif UNITY_2023_1_OR_NEWER
                 Object.FindObjectsByType<T>(includeInactive ? FindObjectsInactive.Include : FindObjectsInactive.Exclude, FindObjectsSortMode.None)
 #else
 				Object.FindObjectsOfType<T>(includeInactive)
