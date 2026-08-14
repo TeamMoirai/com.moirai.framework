@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.Assertions;
 
 namespace Moirai.Atropos
 {
@@ -10,6 +12,28 @@ namespace Moirai.Atropos
     {
         private const int DESIGN_MODULE_COUNT = 16;
         private const int MISSING_INDEX = -1;
+
+        // 主线程守卫：编辑器加载 / 运行时子系统注册阶段捕获（均在主线程触发）
+        private static int s_MainThreadId;
+
+#if UNITY_EDITOR
+        [UnityEditor.InitializeOnLoadMethod]
+#endif
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void CaptureMainThreadId()
+        {
+            s_MainThreadId = System.Threading.Thread.CurrentThread.ManagedThreadId;
+        }
+
+        /// <summary>
+        /// 断言当前处于主线程（仅编辑器与开发构建生效，发布版零开销）。
+        /// </summary>
+        private static void EnsureMainThread()
+        {
+            Assert.IsTrue(
+                s_MainThreadId == 0 || System.Threading.Thread.CurrentThread.ManagedThreadId == s_MainThreadId,
+                "ModuleSystem must only be used from the main thread.");
+        }
 
         // 每个接口类型可注册在不同 Scope 中，查找时按 Gameplay > Scene > App 优先返回
         private static readonly Dictionary<RuntimeTypeHandle, ScopeBindings> s_ModuleMaps
@@ -28,18 +52,19 @@ namespace Moirai.Atropos
         private static readonly Dictionary<Module, ModuleEntry> s_Entries
             = new Dictionary<Module, ModuleEntry>(DESIGN_MODULE_COUNT, ReferenceComparer<Module>.Instance);
 
-        // 迭代安全 — PendingChanges
-        internal static readonly List<PendingChange> pendingChanges = new List<PendingChange>();
-        internal static bool isIterating;
+        // 迭代安全 — PendingChanges（注册与注销在迭代期间均延迟应用）
+        internal static readonly List<PendingChange> s_PendingChanges = new List<PendingChange>();
+        internal static bool s_IsIterating;
 
         /// <summary>
         /// 所有游戏框架模块轮询。
         /// </summary>
         /// <param name="elapseSeconds">逻辑流逝时间，以秒为单位。</param>
         /// <param name="realElapseSeconds">真实流逝时间，以秒为单位。</param>
+        /// <remarks>由 <see cref="GameModule"/>（MonoBehaviour 生命周期）驱动，Unity 契约保证主线程调用，无需守护。</remarks>
         public static void Update(float elapseSeconds, float realElapseSeconds)
         {
-            isIterating = true;
+            s_IsIterating = true;
             try
             {
                 int count = s_UpdateModules.Count;
@@ -50,7 +75,7 @@ namespace Moirai.Atropos
             }
             finally
             {
-                isIterating = false;
+                s_IsIterating = false;
                 FlushPendingChanges();
             }
         }
@@ -60,9 +85,10 @@ namespace Moirai.Atropos
         /// </summary>
         /// <param name="elapseSeconds">逻辑流逝时间（以秒为单位）。</param>
         /// <param name="realElapseSeconds">真实流逝时间（以秒为单位）。</param>
+        /// <remarks>由 <see cref="GameModule"/>（MonoBehaviour 生命周期）驱动，Unity 契约保证主线程调用，无需守护。</remarks>
         public static void FixedUpdate(float elapseSeconds, float realElapseSeconds)
         {
-            isIterating = true;
+            s_IsIterating = true;
             try
             {
                 int count = s_FixedUpdateModules.Count;
@@ -73,7 +99,7 @@ namespace Moirai.Atropos
             }
             finally
             {
-                isIterating = false;
+                s_IsIterating = false;
                 FlushPendingChanges();
             }
         }
@@ -83,9 +109,10 @@ namespace Moirai.Atropos
         /// </summary>
         /// <param name="elapseSeconds">逻辑流逝时间（以秒为单位）。</param>
         /// <param name="realElapseSeconds">真实流逝时间（以秒为单位）。</param>
+        /// <remarks>由 <see cref="GameModule"/>（MonoBehaviour 生命周期）驱动，Unity 契约保证主线程调用，无需守护。</remarks>
         public static void LateUpdate(float elapseSeconds, float realElapseSeconds)
         {
-            isIterating = true;
+            s_IsIterating = true;
             try
             {
                 int count = s_LateUpdateModules.Count;
@@ -96,7 +123,7 @@ namespace Moirai.Atropos
             }
             finally
             {
-                isIterating = false;
+                s_IsIterating = false;
                 FlushPendingChanges();
             }
         }
@@ -106,7 +133,7 @@ namespace Moirai.Atropos
         /// </summary>
         public static void DrawGizmos()
         {
-            isIterating = true;
+            s_IsIterating = true;
             try
             {
                 int count = s_GizmoModules.Count;
@@ -117,7 +144,7 @@ namespace Moirai.Atropos
             }
             finally
             {
-                isIterating = false;
+                s_IsIterating = false;
                 FlushPendingChanges();
             }
         }
@@ -127,6 +154,7 @@ namespace Moirai.Atropos
         /// </summary>
         public static void Shutdown()
         {
+            EnsureMainThread();
             ShutdownScope(ModuleScope.Gameplay);
             ShutdownScope(ModuleScope.Scene);
             ShutdownScope(ModuleScope.App);
@@ -137,17 +165,100 @@ namespace Moirai.Atropos
         /// 关闭指定作用域的所有模块。
         /// </summary>
         /// <param name="scope">要关闭的作用域。</param>
+        /// <remarks>迭代期间调用时移除操作延迟到本轮迭代结束后应用。</remarks>
         public static void ShutdownScope(ModuleScope scope)
         {
+            EnsureMainThread();
+
             for (int i = s_Modules.Count - 1; i >= 0; i--)
             {
                 var module = s_Modules[i];
                 if (!s_Entries.TryGetValue(module, out var entry)) continue;
                 if (entry.Scope != scope) continue;
 
-                module.Shutdown();
-                RemoveModuleInternal(module, entry);
+                if (s_IsIterating)
+                {
+                    // 迭代期间不直接移除，延迟应用（PendingRemove 防止重复入队）
+                    if (entry.PendingRemove) continue;
+                    entry.PendingRemove = true;
+                    s_Entries[module] = entry;
+                    s_PendingChanges.Add(PendingChange.Unregister(module));
+                    continue;
+                }
+
+                ShutdownModule(module);
             }
+        }
+
+        /// <summary>
+        /// 注销模块。按接口类型查找当前最高优先作用域（Gameplay &gt; Scene &gt; App）中的绑定。
+        /// </summary>
+        /// <typeparam name="T">模块接口类型。</typeparam>
+        /// <returns>是否找到并成功注销。</returns>
+        public static bool UnregisterModule<T>() where T : class
+        {
+            EnsureMainThread();
+
+            Type interfaceType = typeof(T);
+            if (!interfaceType.IsInterface)
+            {
+                throw new GameException(StringUtility.Format("You must unregister module by interface, but '{0}' is not.", interfaceType.FullName));
+            }
+
+            if (!s_ModuleMaps.TryGetValue(interfaceType.TypeHandle, out var bindings)) return false;
+            var module = bindings.GetBest();
+            if (module == null) return false;
+
+            return UnregisterModuleInternal(module);
+        }
+
+        /// <summary>
+        /// 注销指定模块实例。
+        /// </summary>
+        /// <param name="module">要注销的模块。</param>
+        /// <returns>是否找到并成功注销。</returns>
+        public static bool UnregisterModule(Module module)
+        {
+            if (module == null) return false;
+            EnsureMainThread();
+            return UnregisterModuleInternal(module);
+        }
+
+        private static bool UnregisterModuleInternal(Module module)
+        {
+            if (!s_Entries.TryGetValue(module, out var entry)) return false;
+
+            if (s_IsIterating)
+            {
+                if (entry.PendingRemove) return true;
+                entry.PendingRemove = true;
+                s_Entries[module] = entry;
+                s_PendingChanges.Add(PendingChange.Unregister(module));
+                return true;
+            }
+
+            ShutdownModule(module);
+            return true;
+        }
+
+        /// <summary>
+        /// 关闭单个模块并从系统中移除。单个模块关闭异常不中断其余模块的清理。
+        /// </summary>
+        private static void ShutdownModule(Module module)
+        {
+            if (!s_Entries.TryGetValue(module, out var entry)) return;
+
+            try
+            {
+                module.Shutdown();
+            }
+            catch (Exception exception)
+            {
+                Log.Error(exception.ToString());
+            }
+
+            entry.PendingRemove = false;
+            RemoveModuleInternal(module, entry);
         }
 
         /// <summary>
@@ -155,9 +266,20 @@ namespace Moirai.Atropos
         /// </summary>
         /// <typeparam name="T">要获取的游戏框架模块类型。</typeparam>
         /// <returns>要获取的游戏框架模块。</returns>
-        /// <remarks>如果要获取的游戏框架模块不存在，则自动创建该游戏框架模块。</remarks>
+        /// <remarks>
+        /// 如果要获取的游戏框架模块不存在，则自动创建该游戏框架模块。
+        /// <para>查找顺序：Gameplay &gt; Scene &gt; App（跨作用域遮蔽）。</para>
+        /// <para>
+        /// 反射回退约定：未注册时按 <c>IXxxModule → 命名空间.XxxModule（同程序集）</c> 自动创建。
+        /// 内置模块在 <c>AppSettings.Initiation()</c>（AfterAssembliesLoaded 阶段）由配置注册，
+        /// 早于任何游戏代码调用本方法，因此配置实现优先；仅在接口从未被注册时才会触发反射回退。
+        /// 自定义模块若不遵循此命名约定，必须先显式 <see cref="RegisterModule{T}"/>。
+        /// </para>
+        /// </remarks>
         public static T GetModule<T>() where T : class
         {
+            EnsureMainThread();
+
             Type interfaceType = typeof(T);
             if (!interfaceType.IsInterface)
             {
@@ -197,11 +319,19 @@ namespace Moirai.Atropos
         /// <exception cref="GameException">框架异常。</exception>
         public static T RegisterModule<T>(Module module) where T : class
         {
+            EnsureMainThread();
+
             Type interfaceType = typeof(T);
 
             if (!interfaceType.IsInterface)
             {
                 throw new GameException(StringUtility.Format("You must get module by interface, but '{0}' is not.", interfaceType.FullName));
+            }
+
+            // 快速失败：模块必须实现所注册的接口，否则 GetModule<T> 返回 as T = null 会在远处炸出
+            if (!interfaceType.IsInstanceOfType(module))
+            {
+                throw new GameException(StringUtility.Format("Module '{0}' does not implement interface '{1}'.", module.GetType().FullName, interfaceType.FullName));
             }
 
             var handle = interfaceType.TypeHandle;
@@ -216,9 +346,9 @@ namespace Moirai.Atropos
                 }
             }
 
-            if (isIterating)
+            if (s_IsIterating)
             {
-                pendingChanges.Add(PendingChange.Register(module, interfaceType, module.Scope));
+                s_PendingChanges.Add(PendingChange.Register(module, interfaceType, module.Scope));
                 return module as T;
             }
 
@@ -372,11 +502,11 @@ namespace Moirai.Atropos
 
         private static void FlushPendingChanges()
         {
-            if (pendingChanges.Count == 0) return;
+            if (s_PendingChanges.Count == 0) return;
 
-            for (int i = 0; i < pendingChanges.Count; i++)
+            for (int i = 0; i < s_PendingChanges.Count; i++)
             {
-                var change = pendingChanges[i];
+                var change = s_PendingChanges[i];
                 if (change.IsRegister)
                 {
                     if (!s_ModuleMaps.TryGetValue(change.InterfaceType.TypeHandle, out var b) || b.Get(change.Scope) == null)
@@ -384,9 +514,14 @@ namespace Moirai.Atropos
                         RegisterModuleInternal(change.InterfaceType, change.Module, change.Scope);
                     }
                 }
+                else
+                {
+                    // 注销：ShutdownModule 内部自带 PendingRemove/entry 存在性检查
+                    ShutdownModule(change.Module);
+                }
             }
 
-            pendingChanges.Clear();
+            s_PendingChanges.Clear();
         }
 
         private static void ClearAll()
@@ -398,7 +533,7 @@ namespace Moirai.Atropos
             s_LateUpdateModules.Clear();
             s_GizmoModules.Clear();
             s_Entries.Clear();
-            pendingChanges.Clear();
+            s_PendingChanges.Clear();
 
             MemoryPool.ClearAll();
             MarshalUtility.FreeCachedHGlobal();

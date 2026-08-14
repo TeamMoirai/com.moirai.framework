@@ -71,8 +71,8 @@ namespace Moirai.Atropos.Editor
             if (_showPendingChanges)
             {
                 EditorGUI.indentLevel++;
-                EditorGUILayout.LabelField("Is Iterating", ModuleSystem.isIterating ? "Yes" : "No");
-                EditorGUILayout.LabelField("Pending Changes", ModuleSystem.pendingChanges.Count.ToString());
+                EditorGUILayout.LabelField("Is Iterating", ModuleSystem.s_IsIterating ? "Yes" : "No");
+                EditorGUILayout.LabelField("Pending Changes", ModuleSystem.s_PendingChanges.Count.ToString());
                 EditorGUI.indentLevel--;
             }
 
