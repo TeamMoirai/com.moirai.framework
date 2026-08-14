@@ -300,43 +300,43 @@ namespace Moirai.Atropos.UpdateDriver
 
         private class MainBehaviour : MonoBehaviour
         {
-            private event Action UpdateEvent;
-            private event Action FixedUpdateEvent;
-            private event Action LateUpdateEvent;
-            private event Action DestroyEvent;
+            private event Action OnUpdateEvent;
+            private event Action OnFixedUpdateEvent;
+            private event Action OnLateUpdateEvent;
+            private event Action OnDestroyEvent;
             private event Action OnDrawGizmosEvent;
             private event Action OnDrawGizmosSelectedEvent;
             private event Action<bool> OnApplicationPauseEvent;
 
             void Update()
             {
-                if (UpdateEvent != null)
+                if (OnUpdateEvent != null)
                 {
-                    UpdateEvent();
+                    OnUpdateEvent();
                 }
             }
 
             void FixedUpdate()
             {
-                if (FixedUpdateEvent != null)
+                if (OnFixedUpdateEvent != null)
                 {
-                    FixedUpdateEvent();
+                    OnFixedUpdateEvent();
                 }
             }
 
             void LateUpdate()
             {
-                if (LateUpdateEvent != null)
+                if (OnLateUpdateEvent != null)
                 {
-                    LateUpdateEvent();
+                    OnLateUpdateEvent();
                 }
             }
 
             private void OnDestroy()
             {
-                if (DestroyEvent != null)
+                if (OnDestroyEvent != null)
                 {
-                    DestroyEvent();
+                    OnDestroyEvent();
                 }
             }
 
@@ -368,42 +368,42 @@ namespace Moirai.Atropos.UpdateDriver
 
             public void AddLateUpdateListener(Action action)
             {
-                LateUpdateEvent += action;
+                OnLateUpdateEvent += action;
             }
 
             public void RemoveLateUpdateListener(Action action)
             {
-                LateUpdateEvent -= action;
+                OnLateUpdateEvent -= action;
             }
 
             public void AddFixedUpdateListener(Action action)
             {
-                FixedUpdateEvent += action;
+                OnFixedUpdateEvent += action;
             }
 
             public void RemoveFixedUpdateListener(Action action)
             {
-                FixedUpdateEvent -= action;
+                OnFixedUpdateEvent -= action;
             }
 
             public void AddUpdateListener(Action action)
             {
-                UpdateEvent += action;
+                OnUpdateEvent += action;
             }
 
             public void RemoveUpdateListener(Action action)
             {
-                UpdateEvent -= action;
+                OnUpdateEvent -= action;
             }
 
             public void AddDestroyListener(Action action)
             {
-                DestroyEvent += action;
+                OnDestroyEvent += action;
             }
 
             public void RemoveDestroyListener(Action action)
             {
-                DestroyEvent -= action;
+                OnDestroyEvent -= action;
             }
 
             [Conditional("UNITY_EDITOR")]
@@ -442,12 +442,12 @@ namespace Moirai.Atropos.UpdateDriver
 
             public void Release()
             {
-                UpdateEvent = null;
-                FixedUpdateEvent = null;
-                LateUpdateEvent = null;
+                OnUpdateEvent = null;
+                OnFixedUpdateEvent = null;
+                OnLateUpdateEvent = null;
                 OnDrawGizmosEvent = null;
                 OnDrawGizmosSelectedEvent = null;
-                DestroyEvent = null;
+                OnDestroyEvent = null;
                 OnApplicationPauseEvent = null;
             }
         }
