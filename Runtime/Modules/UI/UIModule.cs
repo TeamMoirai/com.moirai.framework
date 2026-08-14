@@ -11,7 +11,7 @@ namespace Moirai.Atropos.UI
     /// <summary>
     /// UI模块。
     /// </summary>
-    public sealed partial class UIModule : Singleton<UIModule>, IUpdate
+    public sealed partial class UIModule : Module, IUIModule, IUpdateModule
     {
         // 核心字段
         private static Transform s_InstanceRoot = null; // UI根节点变换组件
@@ -20,6 +20,7 @@ namespace Moirai.Atropos.UI
         private readonly List<UIWindow> _uiStack = new List<UIWindow>(128); // 窗口堆栈
         private readonly Dictionary<string, UIWindow> _cache = new Dictionary<string, UIWindow>(128);
         private ErrorLogger _errorLogger; // 错误日志记录器
+        private bool _initialized;
 
         public const int LAYER_DEEP = 2000;
         public const int WINDOW_DEEP = 100;
@@ -28,57 +29,64 @@ namespace Moirai.Atropos.UI
 
         // 资源加载接口
         public static IUIResourceLoader Resource;
-        
+
         /// <summary>
         /// UI根节点。
         /// </summary>
         public static Transform UIRoot => s_InstanceRoot;
 
         /// <summary>
-        /// UI根节点。
+        /// UI专用摄像机。
         /// </summary>
         public Camera UICamera => _uiCamera;
 
         /// <summary>
-        /// 是否有模态遮挡
+        /// 当前模态遮挡窗口。
         /// </summary>
         public UIWindow CurrentModal => _uiStack.LastOrDefault(IsModal);
-        
-        internal bool IsModal(UIWindow window) => window.WindowLayer == (int)UILayer.UI ||
-                                                  window.WindowLayer == (int)UILayer.Popup ||
-                                                  window.WindowLayer == (int)UILayer.System;
 
         /// <summary>
-        /// 模块初始化（自动调用）。
-        /// 1. 查找场景中的UIRoot
-        /// 2. 初始化资源加载器
-        /// 3. 配置错误日志系统
+        /// 判断窗口是否为模态窗口。
         /// </summary>
-        protected override void OnInit()
-        {
-            var uiRoot = GameObject.Find("UIRoot");
-            if (uiRoot != null)
-            {
-                var canvas = uiRoot.GetComponentInChildren<Canvas>();
-                if (canvas == null)
-                {
-                    Log.Fatal("Can't find any Canvas under UIRoot! Please add a Canvas first.");
-                    return;
-                }
+        public bool IsModal(UIWindow window) => window.WindowLayer == (int)UILayer.UI ||
+                                                window.WindowLayer == (int)UILayer.Popup ||
+                                                window.WindowLayer == (int)UILayer.System;
 
-                s_InstanceRoot = canvas.transform;
-                _uiCamera = canvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : canvas.worldCamera;
-            }
-            else
+        #region 实现方法 [IMPLEMENTATION METHODS]
+
+        /// <summary>
+        /// 模块初始化（由 ModuleSystem 在注册时调用）。
+        /// </summary>
+        public override void OnInit()
+        {
+            // 此阶段（AfterAssembliesLoaded）场景尚未加载，初始化延迟到首个 Update tick。
+            MainThreadDispatcher.Instance.Enqueue(TryInitializeUIRoot);
+        }
+
+        private void TryInitializeUIRoot()
+        {
+            if (_initialized) return;
+
+            var uiRoot = GameObject.Find("UIRoot");
+            if (uiRoot == null)
             {
                 Log.Fatal("UIRoot not found!");
                 return;
             }
-            
+
+            var canvas = uiRoot.GetComponentInChildren<Canvas>();
+            if (canvas == null)
+            {
+                Log.Fatal("Can't find any Canvas under UIRoot! Please add a Canvas first.");
+                return;
+            }
+
             Resource = new UIResourceLoader();
 
-            UnityEngine.Object.DontDestroyOnLoad(s_InstanceRoot.parent != null ? s_InstanceRoot.parent : s_InstanceRoot);
+            s_InstanceRoot = canvas.transform;
+            _uiCamera = canvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : canvas.worldCamera;
 
+            UnityEngine.Object.DontDestroyOnLoad(s_InstanceRoot.parent != null ? s_InstanceRoot.parent : s_InstanceRoot);
             s_InstanceRoot.gameObject.layer = LayerMask.NameToLayer("UI");
 
             if (DebuggerComp.Instance != null)
@@ -106,15 +114,17 @@ namespace Moirai.Atropos.UI
                     _errorLogger = new ErrorLogger(this);
                 }
             }
+
+            _initialized = true;
         }
-        
+
         /// <summary>
-        /// 模块释放（自动调用）。
+        /// 模块释放（由 ModuleSystem 在关闭时调用）。
         /// 1. 清理错误日志系统
         /// 2. 关闭所有窗口
         /// 3. 销毁UI根节点
         /// </summary>
-        protected override void Shutdown()
+        public override void Shutdown()
         {
             if (_errorLogger != null)
             {
@@ -126,7 +136,27 @@ namespace Moirai.Atropos.UI
             {
                 UnityEngine.Object.Destroy(s_InstanceRoot.parent.gameObject);
             }
+            _initialized = false;
         }
+
+        public void Update(float elapseSeconds, float realElapseSeconds)
+        {
+            if (_uiStack == null) return;
+
+            int count = _uiStack.Count;
+            for (int i = 0; i < _uiStack.Count; i++)
+            {
+                if (_uiStack.Count != count)
+                {
+                    break;
+                }
+
+                var window = _uiStack[i];
+                window.InternalUpdate();
+            }
+        }
+
+        #endregion
 
         #region 设置安全区域
 
@@ -253,7 +283,7 @@ namespace Moirai.Atropos.UI
         /// <typeparam name="T">界面类型。</typeparam>
         /// <param name="windowName">窗口名称</param>
         /// <returns>是否存在。</returns>
-        public bool HasWindow<T>(string windowName = null)
+        public bool HasWindow<T>(string windowName = null) where T : UIWindow
         {
             return HasWindow(typeof(T), windowName);
         }
@@ -856,26 +886,6 @@ namespace Moirai.Atropos.UI
             // 从堆栈里移除
             _uiStack.Remove(window);
             UIModuleEvent.Closed(window);
-        }
-        
-        public void OnUpdate()
-        {
-            if (_uiStack == null)
-            {
-                return;
-            }
-
-            int count = _uiStack.Count;
-            for (int i = 0; i < _uiStack.Count; i++)
-            {
-                if (_uiStack.Count != count)
-                {
-                    break;
-                }
-
-                var window = _uiStack[i];
-                window.InternalUpdate();
-            }
         }
     }
 }

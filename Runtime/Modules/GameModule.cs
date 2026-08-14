@@ -13,6 +13,7 @@ using Moirai.Atropos.Timer;
 using Moirai.Atropos.UI;
 using Moirai.Atropos.UpdateDriver;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace Moirai.Atropos
 {
@@ -63,11 +64,11 @@ namespace Moirai.Atropos
         /// </summary>
         public static IAudioModule Audio => s_IsShutdown ? null : s_Audio ??= Get<IAudioModule>();
 
-        private static UIModule s_UI;
+        private static IUIModule s_UI;
         /// <summary>
         /// 获取UI模块。
         /// </summary>
-        public static UIModule UI => s_IsShutdown ? null : s_UI ??= UIModule.Instance;
+        public static IUIModule UI => s_IsShutdown ? null : s_UI ??= Get<IUIModule>();
 
         private static ILocalizationModule s_Localization;
         /// <summary>
@@ -128,6 +129,8 @@ namespace Moirai.Atropos
             gameObject.name = $"[{nameof(GameModule)}]";
             DontDestroyOnLoad(gameObject);
 
+            SceneManager.sceneUnloaded += OnSceneUnloaded;
+
             ProcedureSettings.StartProcedure().Forget();
 
             Application.lowMemory += OnLowMemory;
@@ -136,6 +139,7 @@ namespace Moirai.Atropos
 
         private void OnDestroy()
         {
+            SceneManager.sceneUnloaded -= OnSceneUnloaded;
 #if !UNITY_EDITOR
             ModuleSystem.Shutdown();
 #endif
@@ -185,6 +189,17 @@ namespace Moirai.Atropos
             StopAllCoroutines();
         }
 
+        private void OnDrawGizmos()
+        {
+            ModuleSystem.DrawGizmos();
+        }
+
+        private void OnSceneUnloaded(UnityEngine.SceneManagement.Scene scene)
+        {
+            ModuleSystem.ShutdownScope(ModuleScope.Scene);
+            ModuleSystem.ShutdownScope(ModuleScope.Gameplay);
+        }
+
         #endregion
 
         public static void Shutdown()
@@ -228,6 +243,8 @@ namespace Moirai.Atropos
         {
             if (state ==  UnityEditor.PlayModeStateChange.ExitingPlayMode)
             {
+                // 编辑器退出 Play 时清理模块系统：不依赖域重载（兼容 Enter Play Mode Options 跳过域重载的场景）
+                ModuleSystem.Shutdown();
                 Shutdown();
             }
         }

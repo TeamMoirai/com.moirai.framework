@@ -12,6 +12,7 @@ using Moirai.Atropos.Resource;
 using Moirai.Atropos.Save;
 using Moirai.Atropos.Scene;
 using Moirai.Atropos.Timer;
+using Moirai.Atropos.UI;
 using Moirai.Atropos.UpdateDriver;
 using Sirenix.OdinInspector;
 using UnityEngine;
@@ -78,6 +79,9 @@ namespace Moirai.Atropos
 
         [BoxGroup(MODULE_GROUP), HelperDropdown(typeof(ISaveModule), "Save Module")]
         [SerializeField] private string m_SaveModuleTypeName;
+
+        [BoxGroup(MODULE_GROUP), HelperDropdown(typeof(IUIModule), "UI Module")]
+        [SerializeField] private string m_UIModuleTypeName;
 
         /// <!-- Handler -->
         private const string HELPER_GROUP = "框架工具 [Global Handler]";
@@ -188,6 +192,7 @@ namespace Moirai.Atropos
             m_TimerModuleTypeName = typeof(TimerModule).FullName;
             m_InputModuleTypeName = typeof(InputModule).FullName;
             m_SaveModuleTypeName = typeof(SaveModule).FullName;
+            m_UIModuleTypeName = typeof(UIModule).FullName;
 
             m_VersionHandler = new DefaultVersionHandler();
             m_SettingHandler = new DefaultSettingHandler();
@@ -234,6 +239,7 @@ namespace Moirai.Atropos
             ModuleSystem.RegisterModule<ITimerModule>(ResolveTypeOption<Module>(Instance.m_TimerModuleTypeName));
             ModuleSystem.RegisterModule<IInputModule>(ResolveTypeOption<Module>(Instance.m_InputModuleTypeName));
             ModuleSystem.RegisterModule<ISaveModule>(ResolveTypeOption<Module>(Instance.m_SaveModuleTypeName));
+            ModuleSystem.RegisterModule<IUIModule>(ResolveTypeOption<Module>(Instance.m_UIModuleTypeName));
 
             // 使用模块功能的工具
             TweenUtility.Handler = Instance.m_TweenHandler;
