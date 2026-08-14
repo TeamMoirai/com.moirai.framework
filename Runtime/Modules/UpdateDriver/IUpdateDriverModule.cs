@@ -5,7 +5,7 @@ using UnityEngine.Internal;
 
 namespace Moirai.Atropos.UpdateDriver
 {
-    public interface IUpdateDriver
+    public interface IUpdateDriverModule
     {
         #region 控制协程Coroutine
 
