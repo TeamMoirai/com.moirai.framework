@@ -55,6 +55,7 @@ namespace Moirai.Atropos
             if (s_AdapterPool.Count > 0)
             {
                 var adapter = s_AdapterPool.Pop();
+                adapter.inPool = false;
                 adapter.builder = AcquireBuilder(capacity);
                 return adapter;
             }
@@ -99,31 +100,39 @@ namespace Moirai.Atropos
         #region 私有方法 [PRIVATE METHODS]
 
         /// <summary>
-        /// 释放适配器到池中（0GC）
+        /// 释放适配器到池中（0GC）。委托给 <see cref="DefaultStringBuilder.Dispose"/>，
+        /// 保证 GetString / Format / ToStringAndDispose 所有路径统一走池回收。
         /// </summary>
         /// <param name="adapter">要释放的适配器</param>
         private void Release(IStringBuilder adapter)
         {
-            if (adapter == null) return;
+            (adapter as DefaultStringBuilder)?.Dispose();
+        }
 
-            // 释放内部 StringBuilder
-            if (adapter is DefaultStringBuilder sbAdapter)
+        /// <summary>
+        /// 将适配器及其内部 StringBuilder 归还池中（0GC）。
+        /// 由 <see cref="DefaultStringBuilder.Dispose"/> 回调，
+        /// 修复原先 Format/ToStringAndDispose 路径 Dispose 后直接丢弃导致的池泄漏。
+        /// </summary>
+        internal static void Return(DefaultStringBuilder adapter)
+        {
+            if (adapter == null || adapter.inPool) return;
+
+            ReleaseBuilder(adapter.builder);
+            adapter.builder = null;
+            adapter.inPool = true;
+
+            // 将适配器存入池中（0GC）
+            if (s_AdapterPool.Count < MAX_ADAPTER_POOL_SIZE)
             {
-                ReleaseBuilder(sbAdapter.builder);
-                sbAdapter.builder = null;
-
-                // 将适配器存入池中（0GC）
-                if (s_AdapterPool.Count < MAX_ADAPTER_POOL_SIZE)
-                {
-                    s_AdapterPool.Push(sbAdapter);
-                }
+                s_AdapterPool.Push(adapter);
             }
         }
 
         /// <summary>
         /// 获取一个 StringBuilder（内部方法）
         /// </summary>
-        private StringBuilder AcquireBuilder(int capacity = 256)
+        private static StringBuilder AcquireBuilder(int capacity = 256)
         {
             // 优先: ThreadStatic 缓存（零分配，单线程最快）
             StringBuilder cached = s_CacheStringBuilder;
@@ -151,7 +160,7 @@ namespace Moirai.Atropos
         /// <summary>
         /// 释放 StringBuilder（内部方法）
         /// </summary>
-        private void ReleaseBuilder(StringBuilder stringBuilder)
+        private static void ReleaseBuilder(StringBuilder stringBuilder)
         {
             if (stringBuilder == null) return;
 

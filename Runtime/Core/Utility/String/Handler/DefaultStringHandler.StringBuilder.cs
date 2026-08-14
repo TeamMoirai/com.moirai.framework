@@ -10,6 +10,7 @@ namespace Moirai.Atropos
     public sealed class DefaultStringBuilder : StringHandler.IStringBuilder
     {
         internal StringBuilder builder;
+        internal bool inPool;
 
         public DefaultStringBuilder(StringBuilder builder)
         {
@@ -532,8 +533,8 @@ namespace Moirai.Atropos
 
         public void Dispose()
         {
-            builder?.Clear();
-            builder = null;
+            if (inPool) return; // 防止重复归还
+            DefaultStringHandler.Return(this);
         }
     }
 }
