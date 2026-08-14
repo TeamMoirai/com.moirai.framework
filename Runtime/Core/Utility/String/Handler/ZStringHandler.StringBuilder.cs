@@ -12,6 +12,7 @@ namespace Moirai.Atropos
     {
         internal Utf16ValueStringBuilder builder;
         internal bool disposed;
+        internal bool inPool;
 
         public ZStringBuilder(Utf16ValueStringBuilder builder)
         {
@@ -473,11 +474,8 @@ namespace Moirai.Atropos
 
         public void Dispose()
         {
-            if (!disposed)
-            {
-                builder.Dispose();
-                disposed = true;
-            }
+            if (inPool) return; // 防止重复归还
+            ZStringHandler.Return(this);
         }
     }
 }

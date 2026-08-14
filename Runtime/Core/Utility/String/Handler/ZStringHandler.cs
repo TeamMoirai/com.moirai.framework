@@ -40,6 +40,7 @@ namespace Moirai.Atropos
             if (s_AdapterPool.Count > 0)
             {
                 var adapter = s_AdapterPool.Pop();
+                adapter.inPool = false;
                 adapter.builder = ZString.CreateStringBuilder();
                 adapter.disposed = false;
                 return adapter;
@@ -83,27 +84,37 @@ namespace Moirai.Atropos
         #region 私有方法 [PRIVATE METHODS]
 
         /// <summary>
-        /// 释放适配器到池中（0GC）
+        /// 释放适配器到池中（0GC）。委托给 <see cref="ZStringBuilder.Dispose"/>，
+        /// 保证 GetString / Format / ToStringAndDispose 所有路径统一走池回收。
         /// </summary>
         /// <param name="adapter">要释放的适配器</param>
         private void Release(IStringBuilder adapter)
         {
-            if (adapter == null) return;
+            (adapter as ZStringBuilder)?.Dispose();
+        }
 
-            if (adapter is ZStringBuilder zsbAdapter)
+        /// <summary>
+        /// 将适配器归还池中（0GC）。
+        /// 由 <see cref="ZStringBuilder.Dispose"/> 回调，
+        /// 修复原先 Dispose 后适配器对象直接丢弃导致的池泄漏。
+        /// </summary>
+        internal static void Return(ZStringBuilder adapter)
+        {
+            if (adapter == null || adapter.inPool) return;
+
+            // 释放内部 ZString builder
+            if (!adapter.disposed)
             {
-                // 释放内部 ZString builder
-                if (!zsbAdapter.disposed)
-                {
-                    zsbAdapter.builder.Dispose();
-                    zsbAdapter.disposed = true;
-                }
+                adapter.builder.Dispose();
+                adapter.disposed = true;
+            }
 
-                // 将适配器存入池中（0GC）
-                if (s_AdapterPool.Count < MAX_ADAPTER_POOL_SIZE)
-                {
-                    s_AdapterPool.Push(zsbAdapter);
-                }
+            adapter.inPool = true;
+
+            // 将适配器存入池中（0GC）
+            if (s_AdapterPool.Count < MAX_ADAPTER_POOL_SIZE)
+            {
+                s_AdapterPool.Push(adapter);
             }
         }
 
