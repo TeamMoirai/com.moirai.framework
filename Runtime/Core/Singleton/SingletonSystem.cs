@@ -61,7 +61,7 @@ namespace Moirai.Atropos
     /// </summary>
     public static class SingletonSystem
     {
-        private static IUpdateDriver s_UpdateDriver;
+        private static IUpdateDriverModule s_UpdateDriver;
         private static readonly List<ISingleton> s_Singletons = new List<ISingleton>();
         private static readonly List<IUpdate> s_Updates = new List<IUpdate>();
         private static readonly List<IFixedUpdate> s_FixedUpdates = new List<IFixedUpdate>();
@@ -266,7 +266,7 @@ namespace Moirai.Atropos
 
             s_IsInit = true;
 
-            s_UpdateDriver ??= ModuleSystem.GetModule<IUpdateDriver>();
+            s_UpdateDriver ??= ModuleSystem.GetModule<IUpdateDriverModule>();
             s_UpdateDriver.AddUpdateListener(OnUpdate);
             s_UpdateDriver.AddFixedUpdateListener(OnFixedUpdate);
             s_UpdateDriver.AddLateUpdateListener(OnLateUpdate);
@@ -282,7 +282,7 @@ namespace Moirai.Atropos
 
             s_IsInit = false;
 
-            s_UpdateDriver ??= ModuleSystem.GetModule<IUpdateDriver>();
+            s_UpdateDriver ??= ModuleSystem.GetModule<IUpdateDriverModule>();
             s_UpdateDriver.RemoveUpdateListener(OnUpdate);
             s_UpdateDriver.RemoveFixedUpdateListener(OnFixedUpdate);
             s_UpdateDriver.RemoveLateUpdateListener(OnLateUpdate);
