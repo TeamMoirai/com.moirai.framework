@@ -108,7 +108,7 @@ namespace Moirai.Atropos
 
         [BoxGroup(HELPER_GROUP), DisableInPlayMode]
         [ReferenceDropdown]
-        [SerializeReference] private JsonHandler m_JsonHandler = new UnityJsonHandler();
+        [SerializeReference] private JsonHandler m_JsonHandler = new DefaultJsonHandler();
 
         [BoxGroup(HELPER_GROUP), DisableInPlayMode]
         [ReferenceDropdown]
@@ -199,7 +199,7 @@ namespace Moirai.Atropos
             m_StringHandler = new DefaultStringHandler();
             m_LogHandler = new DefaultLogHandler();
             m_ObjectHandler = new UnityObjectHandler();
-            m_JsonHandler = new UnityJsonHandler();
+            m_JsonHandler = new DefaultJsonHandler();
             m_TweenHandler = new DefaultTweenHandler();
         }
 
@@ -223,7 +223,7 @@ namespace Moirai.Atropos
             VersionUtility.Handler = Instance.m_VersionHandler;
             LogUtility.Handler = Instance.m_LogHandler;
             SettingUtility.Handler = Instance.m_SettingHandler;
-            JSONUtility.Handler = Instance.m_JsonHandler;
+            JsonUtility.Handler = Instance.m_JsonHandler;
             ObjectUtility.Handler = Instance.m_ObjectHandler;
 
             // 将模块实现类型注册到 ModuleSystem

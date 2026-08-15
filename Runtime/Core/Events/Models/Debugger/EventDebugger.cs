@@ -346,7 +346,7 @@ namespace Moirai.Atropos.Events
                 return;
 
             var recordSave = new EventDebuggerRecordList() { eventList = eventList };
-            var json = JSONUtility.ToJson(recordSave);
+            var json = JsonUtility.ToJson(recordSave);
             File.WriteAllText(path, json);
             Debug.Log($"Saved under: {path}");
         }

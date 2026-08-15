@@ -9,20 +9,16 @@ namespace Moirai.Atropos.Save
     {
         protected override void SerializeToStream(object objectToSave, MemoryStream stream)
         {
-            string json = JSONUtility.ToJson(objectToSave);
-            using (StreamWriter streamWriter = new StreamWriter(stream, System.Text.Encoding.UTF8, 1024, leaveOpen: true))
-            {
-                streamWriter.Write(json);
-                streamWriter.Flush();
-            }
+            // 字节通路：直接产出 UTF8 JSON 字节，跳过 string 中间态与 StreamWriter 编码层
+            byte[] json = JsonUtility.ToJsonBytes(objectToSave);
+            stream.Write(json, 0, json.Length);
         }
 
         protected override T DeserializeFromStream<T>(MemoryStream stream)
         {
-            using (StreamReader streamReader = new StreamReader(stream, System.Text.Encoding.UTF8, true, 1024, leaveOpen: true))
-            {
-                return JSONUtility.ToObject<T>(streamReader.ReadToEnd());
-            }
+            // 已解密明文整体读为字节后直接解析（零 string 中间态）
+            byte[] buffer = stream.ToArray();
+            return JsonUtility.ToObject<T>(buffer);
         }
     }
 }

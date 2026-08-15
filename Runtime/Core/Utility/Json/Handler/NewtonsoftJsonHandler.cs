@@ -16,6 +16,10 @@ namespace Moirai.Atropos
         [Tooltip("序列化的最大深度")]
         [SerializeField] private int m_MaxDepth = 25;
 
+        // 缓存的序列化设置（每次 ToJson 新建 Settings + ContractResolver 会产生显著 GC）
+        private static JsonSerializerSettings s_CompactSettings;
+        private static JsonSerializerSettings s_PrettySettings;
+
         protected override void OnInit()
         {
         }
@@ -24,17 +28,32 @@ namespace Moirai.Atropos
         {
         }
 
-        public override string ToJson(object obj, bool prettyPrint = false)
+        private static JsonSerializerSettings GetSettings(bool prettyPrint, int maxDepth)
         {
-            return JsonConvert.SerializeObject(obj, new JsonSerializerSettings
+            if (prettyPrint)
+            {
+                return s_PrettySettings ??= CreateSettings(Formatting.Indented, maxDepth);
+            }
+
+            return s_CompactSettings ??= CreateSettings(Formatting.None, maxDepth);
+        }
+
+        private static JsonSerializerSettings CreateSettings(Formatting formatting, int maxDepth)
+        {
+            return new JsonSerializerSettings
             {
                 ReferenceLoopHandling = ReferenceLoopHandling.Ignore,
                 ContractResolver = new CustomContractResolver(),
                 NullValueHandling = NullValueHandling.Ignore,
                 DefaultValueHandling = DefaultValueHandling.Ignore,
-                Formatting = prettyPrint ? Formatting.Indented : Formatting.None,
-                MaxDepth = m_MaxDepth,
-            });
+                Formatting = formatting,
+                MaxDepth = maxDepth,
+            };
+        }
+
+        public override string ToJson(object obj, bool prettyPrint = false)
+        {
+            return JsonConvert.SerializeObject(obj, GetSettings(prettyPrint, m_MaxDepth));
         }
         
         public override T ToObject<T>(string json)
@@ -63,7 +82,7 @@ namespace Moirai.Atropos
             JsonProperty property = base.CreateProperty(member, memberSerialization);
             
             // 检查属性类型是否属于不支持序列化的命名空间
-            if (JSONUtility.TypeIsForbidden(property.PropertyType))
+            if (JsonUtility.TypeIsForbidden(property.PropertyType))
             {
                 property.Ignored = true;
                 // Debug.Log($"Excluding property {property.PropertyName} because it belongs to UnityEngine namespace.");
