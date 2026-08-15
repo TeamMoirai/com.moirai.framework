@@ -377,8 +377,17 @@ namespace Moirai.Atropos
                         }
                         else
                         {
-                            i += DecodeUtf8Rune(input.Slice(i), out uint rune);
-                            AppendRuneAsUtf16(sb, rune);
+                            // ASCII 快路径：直接追加字符，跳过 DecodeUtf8Rune 的 span 切片与函数调用开销
+                            if (c < 0x80)
+                            {
+                                sb.Append((char)c);
+                                i++;
+                            }
+                            else
+                            {
+                                i += DecodeUtf8Rune(input.Slice(i), out uint rune);
+                                AppendRuneAsUtf16(sb, rune);
+                            }
                         }
                     }
 
@@ -993,7 +1002,7 @@ namespace Moirai.Atropos
                             SkipWhitespace();
                             Expect((byte)':');
 
-                            if (member == "key")
+                            if (member == TypeConverter.KeyMember)
                             {
                                 if (keyAssigned) Throw("Duplicate key found.");
                                 _depth++;
@@ -1001,7 +1010,7 @@ namespace Moirai.Atropos
                                 _depth--;
                                 keyAssigned = true;
                             }
-                            else if (member == "value")
+                            else if (member == TypeConverter.ValueMember)
                             {
                                 if (valueAssigned) Throw("Duplicate value found.");
                                 _depth++;
@@ -1062,86 +1071,17 @@ namespace Moirai.Atropos
             #region 类型转换 [CONVERSIONS]
 
             /// <summary>字符串 → 目标类型（string/char/bool/枚举/数值/Guid/DateTime/TimeSpan/DateTimeOffset）。</summary>
+            /// <summary>字符串 → 目标类型。非数值类型委托 <see cref="TypeConverter"/>；数值类型走字节 span 解析。</summary>
             private object ConvertFromString(string s, Type type)
             {
-                if (type == typeof(string) || type == typeof(object)) return s;
-                if (type == typeof(char)) return s.Length > 0 && s != "null" ? (object)s[0] : '\0';
-                if (type == typeof(bool)) return ParseBooleanString(s);
-
-                if (type.IsEnum)
-                {
-                    if (Enum.TryParse(type, s, false, out object enumValue)) return enumValue;
-                    Throw(StringUtility.Format("'{0}' is not a valid name or value for enum '{1}'.", s, type.Name));
-                }
-
-                if (type == typeof(Guid))
-                {
-                    if (Guid.TryParse(s, out Guid guid)) return guid;
-                    Throw(StringUtility.Format("'{0}' is not a valid Guid.", s));
-                }
-
-                if (type == typeof(DateTime))
-                {
-                    if (DateTime.TryParse(s, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out DateTime dt)) return dt;
-                    Throw(StringUtility.Format("'{0}' is not a valid DateTime.", s));
-                }
-
-                if (type == typeof(DateTimeOffset))
-                {
-                    if (DateTimeOffset.TryParse(s, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out DateTimeOffset dto)) return dto;
-                    Throw(StringUtility.Format("'{0}' is not a valid DateTimeOffset.", s));
-                }
-
-                if (type == typeof(TimeSpan))
-                {
-                    if (TimeSpan.TryParse(s, CultureInfo.InvariantCulture, out TimeSpan ts)) return ts;
-                    Throw(StringUtility.Format("'{0}' is not a valid TimeSpan.", s));
-                }
-
-                // 历史带引号数值
-                return ParseNumberSpanBytes(type, Encoding.UTF8.GetBytes(s));
-            }
-
-            private bool ParseBooleanString(string s)
-            {
-                switch (s)
-                {
-                    case "true":
-                    case "TRUE":
-                    case "True":
-                    case "1":
-                    case "-1":
-                        return true;
-                    case "false":
-                    case "FALSE":
-                    case "False":
-                    case "0":
-                        return false;
-                    default:
-                        Throw(StringUtility.Format("Invalid value for boolean: '{0}'.", s));
-                        return false;
-                }
+                object result = TypeConverter.ConvertFromString(s, type);
+                return result ?? ParseNumberSpanBytes(type, Encoding.UTF8.GetBytes(s));
             }
 
             private object ConvertDictionaryKey(string s, Type keyType)
             {
-                if (keyType == typeof(string)) return s;
-                if (keyType == typeof(char)) return s.Length > 0 ? (object)s[0] : '\0';
-                if (keyType == typeof(bool)) return ParseBooleanString(s);
-
-                if (keyType.IsEnum)
-                {
-                    if (Enum.TryParse(keyType, s, false, out object v)) return v;
-                    Throw(StringUtility.Format("'{0}' is not a valid dictionary key for enum '{1}'.", s, keyType.Name));
-                }
-
-                if (keyType == typeof(Guid))
-                {
-                    if (Guid.TryParse(s, out Guid guid)) return guid;
-                    Throw(StringUtility.Format("'{0}' is not a valid Guid dictionary key.", s));
-                }
-
-                return ParseNumberSpanBytes(keyType, Encoding.UTF8.GetBytes(s));
+                object result = TypeConverter.ConvertDictionaryKey(s, keyType);
+                return result ?? ParseNumberSpanBytes(keyType, Encoding.UTF8.GetBytes(s));
             }
 
             #endregion
@@ -1575,7 +1515,10 @@ namespace Moirai.Atropos
                     if (_json[_pos + i] != (byte)literal[i]) return false;
                 }
 
-                _pos += literal.Length;
+                // 词边界：后续字符必须是分隔符或 EOF
+                int next = _pos + literal.Length;
+                if (next < _json.Length && !IsDelimiter(_json[next])) return false;
+                _pos = next;
                 return true;
             }
 
@@ -1646,6 +1589,7 @@ namespace Moirai.Atropos
 
             #region 错误 [ERRORS]
 
+            [System.Diagnostics.CodeAnalysis.DoesNotReturn]
             private void Throw(string message)
             {
                 int line = 1, col = 1;

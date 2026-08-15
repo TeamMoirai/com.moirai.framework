@@ -29,92 +29,27 @@ namespace Moirai.Atropos
             [ThreadStatic]
             private static byte[] t_Scratch;
 
-            [ThreadStatic]
-            private static List<object> t_RefStack;
-
-            /// <summary>深度告警已发出标志（每次 Serialize 重置，避免刷屏）。</summary>
-            [ThreadStatic]
-            private static bool t_DepthWarned;
-
-            /// <summary>
-            /// 该引用是否正在序列化中（构成引用环）。null/值类型/字符串不参与跟踪（无环可能）。
-            /// 调用方（成员/元素发射处）应跳过该成员/元素。
-            /// </summary>
-            private static bool IsSerializingReference(object value)
-            {
-                if (value == null) return false;
-                Type t = value.GetType();
-                if (t.IsValueType || t == typeof(string)) return false;
-
-                var stack = t_RefStack;
-                if (stack == null) return false;
-
-                for (int i = 0; i < stack.Count; i++)
-                {
-                    if (ReferenceEquals(stack[i], value)) return true;
-                }
-
-                return false;
-            }
-
-            /// <summary>容器（对象/数组/列表/字典）入口压栈。调用方已通过 IsSerializingReference 检查，此处置信非环。</summary>
-            private static void PushReference(object container)
-            {
-                (t_RefStack ??= new List<object>(maxDepth + 2)).Add(container);
-            }
-
-            /// <summary>容器出口弹栈（正常路径配对；异常路径由 Serialize 的 finally 清栈兜底）。</summary>
-            private static void PopReference()
-            {
-                var stack = t_RefStack;
-                if (stack != null && stack.Count > 0) stack.RemoveAt(stack.Count - 1);
-            }
-
-            /// <summary>是否为标量值（写入无递归风险，深度守卫不适用）。</summary>
-            private static bool IsScalarValue(object value)
-            {
-                if (value == null || value is string) return true;
-                Type t = value.GetType();
-                return t.IsPrimitive || t.IsEnum ||
-                       t == typeof(decimal) || t == typeof(DateTime) || t == typeof(DateTimeOffset) ||
-                       t == typeof(TimeSpan) || t == typeof(Guid);
-            }
-
-            /// <summary>子级复合值是否会被深度守卫截断。命中时调用方跳过整个成员/元素，仅告警一次。</summary>
-            private static bool WouldExceedDepth(object childValue, int parentDepth)
-            {
-                if (parentDepth + 1 < maxDepth || IsScalarValue(childValue)) return false;
-
-                if (!t_DepthWarned)
-                {
-                    t_DepthWarned = true;
-                    Log.Warning(StringUtility.Format(
-                        "[DefaultJson] Serialization depth exceeded the limit of {0}. Members beyond the limit are skipped (reference loop via value-type boxing or nesting too deep).", maxDepth));
-                }
-
-                return true;
-            }
+            // 引用环/深度守卫由共享 LoopGuard 处理（P0 消除重复）
 
             #endregion
 
             #region 入口 [ENTRY]
 
             /// <summary>序列化对象为 UTF8 JSON 字节（紧凑格式）。</summary>
-            public static byte[] Serialize(object obj, bool removeNulls)
+            public static byte[] Serialize(object obj, bool removeNulls, int depthLimit)
             {
-                t_RefStack?.Clear(); // 跨调用残留清理（异常路径可能未配对弹出）
-                t_DepthWarned = false;
+                LoopGuard.Begin();
 
                 byte[] buf = t_Scratch ??= new byte[INITIAL_CAPACITY];
                 int pos = 0;
                 try
                 {
-                    WriteValue(ref buf, ref pos, obj, removeNulls, 0);
+                    WriteValue(ref buf, ref pos, obj, removeNulls, 0, depthLimit);
                 }
                 finally
                 {
-                    t_Scratch = buf; // 保留（含扩容后）缓冲供本线程复用
-                    t_RefStack?.Clear();
+                    t_Scratch = buf;
+                    LoopGuard.End();
                 }
 
                 byte[] result = new byte[pos];
@@ -126,11 +61,11 @@ namespace Moirai.Atropos
 
             #region 值分派 [VALUE DISPATCH]
 
-            private static void WriteValue(ref byte[] buf, ref int pos, object value, bool removeNulls, int depth)
+            private static void WriteValue(ref byte[] buf, ref int pos, object value, bool removeNulls, int depth, int depthLimit)
             {
                 // 安全网：成员/元素处已按 WouldExceedDepth 软截断，此处仅兜底未守卫路径（写 null 保证输出合法）。
                 // 标量无递归风险，任何深度都照常写值（边界对象的字符串/数值字段不得丢失）。
-                if (depth >= maxDepth && !IsScalarValue(value))
+                if (depth >= depthLimit && !LoopGuard.IsScalarValue(value))
                 {
                     AppendAscii(ref buf, ref pos, "null");
                     return;
@@ -160,6 +95,10 @@ namespace Moirai.Atropos
                     return;
                 }
 
+                // 常见 Unity 结构体直写快路径（绕过反射 FieldInfo.SetValue 装箱）。
+                // 必须在容器/反射分发之前——Vector3 等既非基元也非 BCL 值类型，放 WriteSimpleValue 内永远不可达。
+                if (TryWriteUnityStruct(ref buf, ref pos, value)) return;
+
                 // 预序列化回调（元数据走缓存；仅复合类型可达此处）
                 foreach (MethodInfo info in ReflectionCache.Get(type).BeforeSerializeMethods)
                 {
@@ -168,23 +107,23 @@ namespace Moirai.Atropos
 
                 if (type.IsArray)
                 {
-                    WriteArray(ref buf, ref pos, (Array)value, removeNulls, depth);
+                    WriteArray(ref buf, ref pos, (Array)value, removeNulls, depth, depthLimit);
                     return;
                 }
 
                 if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Dictionary<,>))
                 {
-                    WriteDictionary(ref buf, ref pos, (IDictionary)value, type, removeNulls, depth);
+                    WriteDictionary(ref buf, ref pos, (IDictionary)value, type, removeNulls, depth, depthLimit);
                     return;
                 }
 
                 if (value is IList list)
                 {
-                    WriteList(ref buf, ref pos, list, removeNulls, depth);
+                    WriteList(ref buf, ref pos, list, removeNulls, depth, depthLimit);
                     return;
                 }
 
-                WriteObject(ref buf, ref pos, value, type, removeNulls, depth);
+                WriteObject(ref buf, ref pos, value, type, removeNulls, depth, depthLimit);
             }
 
             /// <summary>写入简单值。返回 false 表示非简单值，交由容器/对象路径处理。</summary>
@@ -254,9 +193,75 @@ namespace Moirai.Atropos
                             return true;
                         }
 
+                        // 常见 Unity 结构体直写快路径（P4：绕过反射 FieldInfo.SetValue）
+                        if (TryWriteUnityStruct(ref buf, ref pos, value)) return true;
+
                         return false;
                 }
             }
+
+            #region Unity 结构体直写快路径 [UNITY STRUCT FAST PATH]
+
+            /// <summary>尝试直写常见 Unity 结构体（绕过反射）。返回 true 表示已处理。</summary>
+            private static bool TryWriteUnityStruct(ref byte[] buf, ref int pos, object value)
+            {
+                switch (value)
+                {
+                    case Vector2 v2:
+                        AppendAscii(ref buf, ref pos, "{\"x\":");
+                        WriteFloat(ref buf, ref pos, v2.x);
+                        AppendAscii(ref buf, ref pos, ",\"y\":");
+                        WriteFloat(ref buf, ref pos, v2.y);
+                        Append(ref buf, ref pos, (byte)'}');
+                        return true;
+                    case Vector3 v3:
+                        AppendAscii(ref buf, ref pos, "{\"x\":");
+                        WriteFloat(ref buf, ref pos, v3.x);
+                        AppendAscii(ref buf, ref pos, ",\"y\":");
+                        WriteFloat(ref buf, ref pos, v3.y);
+                        AppendAscii(ref buf, ref pos, ",\"z\":");
+                        WriteFloat(ref buf, ref pos, v3.z);
+                        Append(ref buf, ref pos, (byte)'}');
+                        return true;
+                    case Vector4 v4:
+                        AppendAscii(ref buf, ref pos, "{\"x\":");
+                        WriteFloat(ref buf, ref pos, v4.x);
+                        AppendAscii(ref buf, ref pos, ",\"y\":");
+                        WriteFloat(ref buf, ref pos, v4.y);
+                        AppendAscii(ref buf, ref pos, ",\"z\":");
+                        WriteFloat(ref buf, ref pos, v4.z);
+                        AppendAscii(ref buf, ref pos, ",\"w\":");
+                        WriteFloat(ref buf, ref pos, v4.w);
+                        Append(ref buf, ref pos, (byte)'}');
+                        return true;
+                    case Color col:
+                        AppendAscii(ref buf, ref pos, "{\"r\":");
+                        WriteFloat(ref buf, ref pos, col.r);
+                        AppendAscii(ref buf, ref pos, ",\"g\":");
+                        WriteFloat(ref buf, ref pos, col.g);
+                        AppendAscii(ref buf, ref pos, ",\"b\":");
+                        WriteFloat(ref buf, ref pos, col.b);
+                        AppendAscii(ref buf, ref pos, ",\"a\":");
+                        WriteFloat(ref buf, ref pos, col.a);
+                        Append(ref buf, ref pos, (byte)'}');
+                        return true;
+                    case Quaternion q:
+                        AppendAscii(ref buf, ref pos, "{\"x\":");
+                        WriteFloat(ref buf, ref pos, q.x);
+                        AppendAscii(ref buf, ref pos, ",\"y\":");
+                        WriteFloat(ref buf, ref pos, q.y);
+                        AppendAscii(ref buf, ref pos, ",\"z\":");
+                        WriteFloat(ref buf, ref pos, q.z);
+                        AppendAscii(ref buf, ref pos, ",\"w\":");
+                        WriteFloat(ref buf, ref pos, q.w);
+                        Append(ref buf, ref pos, (byte)'}');
+                        return true;
+                    default:
+                        return false;
+                }
+            }
+
+            #endregion
 
             private static void WriteFloat(ref byte[] buf, ref int pos, float f)
             {
@@ -331,7 +336,7 @@ namespace Moirai.Atropos
 
             #region 容器 [CONTAINERS]
 
-            private static void WriteArray(ref byte[] buf, ref int pos, Array array, bool removeNulls, int depth)
+            private static void WriteArray(ref byte[] buf, ref int pos, Array array, bool removeNulls, int depth, int depthLimit)
             {
                 if (array.Length == 0)
                 {
@@ -477,22 +482,22 @@ namespace Moirai.Atropos
                 }
 
                 Append(ref buf, ref pos, (byte)'[');
-                PushReference(array);
+                LoopGuard.PushReference(array);
                 for (int i = 0; i < array.Length; i++)
                 {
                     object element = array.GetValue(i);
-                    if (IsSerializingReference(element)) continue; // 引用环：跳过元素
-                    if (WouldExceedDepth(element, depth)) continue; // 深度超限：软截断
+                    if (LoopGuard.IsSerializingReference(element)) continue; // 引用环：跳过元素
+                    if (LoopGuard.WouldExceedDepth(element, depth)) continue; // 深度超限：软截断
 
                     if (i > 0) Append(ref buf, ref pos, (byte)',');
-                    WriteValue(ref buf, ref pos, element, removeNulls, depth + 1);
+                    WriteValue(ref buf, ref pos, element, removeNulls, depth + 1, depthLimit);
                 }
 
-                PopReference();
+                LoopGuard.PopReference();
                 Append(ref buf, ref pos, (byte)']');
             }
 
-            private static void WriteList(ref byte[] buf, ref int pos, IList list, bool removeNulls, int depth)
+            private static void WriteList(ref byte[] buf, ref int pos, IList list, bool removeNulls, int depth, int depthLimit)
             {
                 if (list.Count == 0)
                 {
@@ -566,22 +571,22 @@ namespace Moirai.Atropos
                 }
 
                 Append(ref buf, ref pos, (byte)'[');
-                PushReference(list);
+                LoopGuard.PushReference(list);
                 for (int i = 0; i < list.Count; i++)
                 {
                     object element = list[i];
-                    if (IsSerializingReference(element)) continue; // 引用环：跳过元素
-                    if (WouldExceedDepth(element, depth)) continue; // 深度超限：软截断
+                    if (LoopGuard.IsSerializingReference(element)) continue; // 引用环：跳过元素
+                    if (LoopGuard.WouldExceedDepth(element, depth)) continue; // 深度超限：软截断
 
                     if (i > 0) Append(ref buf, ref pos, (byte)',');
-                    WriteValue(ref buf, ref pos, element, removeNulls, depth + 1);
+                    WriteValue(ref buf, ref pos, element, removeNulls, depth + 1, depthLimit);
                 }
 
-                PopReference();
+                LoopGuard.PopReference();
                 Append(ref buf, ref pos, (byte)']');
             }
 
-            private static void WriteDictionary(ref byte[] buf, ref int pos, IDictionary dictionary, Type dictType, bool removeNulls, int depth)
+            private static void WriteDictionary(ref byte[] buf, ref int pos, IDictionary dictionary, Type dictType, bool removeNulls, int depth, int depthLimit)
             {
                 if (dictionary.Count == 0)
                 {
@@ -590,30 +595,30 @@ namespace Moirai.Atropos
                 }
 
                 Type keyType = dictType.GetGenericArguments()[0];
-                if (!Writer.IsStandardDictionaryKey(keyType))
+                if (!JsonTypeUtil.IsStandardDictionaryKey(keyType))
                 {
-                    WriteDictionaryLegacy(ref buf, ref pos, dictionary, removeNulls, depth);
+                    WriteDictionaryLegacy(ref buf, ref pos, dictionary, removeNulls, depth, depthLimit);
                     return;
                 }
 
                 Append(ref buf, ref pos, (byte)'{');
-                PushReference(dictionary);
+                LoopGuard.PushReference(dictionary);
                 bool isFirst = true;
                 foreach (DictionaryEntry entry in dictionary)
                 {
                     // 引用环（值指向字典自身或其祖先）：跳过该键值对
-                    if (IsSerializingReference(entry.Value)) continue;
-                    if (WouldExceedDepth(entry.Value, depth)) continue; // 深度超限：软截断
+                    if (LoopGuard.IsSerializingReference(entry.Value)) continue;
+                    if (LoopGuard.WouldExceedDepth(entry.Value, depth)) continue; // 深度超限：软截断
 
                     if (isFirst) isFirst = false;
                     else Append(ref buf, ref pos, (byte)',');
 
                     WriteDictionaryKey(ref buf, ref pos, entry.Key, keyType);
                     Append(ref buf, ref pos, (byte)':');
-                    WriteValue(ref buf, ref pos, entry.Value, removeNulls, depth + 1);
+                    WriteValue(ref buf, ref pos, entry.Value, removeNulls, depth + 1, depthLimit);
                 }
 
-                PopReference();
+                LoopGuard.PopReference();
                 Append(ref buf, ref pos, (byte)'}');
             }
 
@@ -633,22 +638,27 @@ namespace Moirai.Atropos
                 }
             }
 
-            private static void WriteDictionaryLegacy(ref byte[] buf, ref int pos, IDictionary dictionary, bool removeNulls, int depth)
+            private static void WriteDictionaryLegacy(ref byte[] buf, ref int pos, IDictionary dictionary, bool removeNulls, int depth, int depthLimit)
             {
                 Append(ref buf, ref pos, (byte)'[');
+                LoopGuard.PushReference(dictionary);
                 bool isFirst = true;
                 foreach (DictionaryEntry entry in dictionary)
                 {
+                    if (LoopGuard.IsSerializingReference(entry.Value)) continue;
+                    if (LoopGuard.WouldExceedDepth(entry.Value, depth)) continue;
+
                     if (isFirst) isFirst = false;
                     else Append(ref buf, ref pos, (byte)',');
 
-                    AppendAscii(ref buf, ref pos, "{\"key\":");
-                    WriteValue(ref buf, ref pos, entry.Key, removeNulls, depth + 1);
-                    AppendAscii(ref buf, ref pos, ",\"value\":");
-                    WriteValue(ref buf, ref pos, entry.Value, removeNulls, depth + 1);
+                    AppendAscii(ref buf, ref pos, "{\"" + TypeConverter.KeyMember + "\":");
+                    WriteValue(ref buf, ref pos, entry.Key, removeNulls, depth + 1, depthLimit);
+                    AppendAscii(ref buf, ref pos, ",\"" + TypeConverter.ValueMember + "\":");
+                    WriteValue(ref buf, ref pos, entry.Value, removeNulls, depth + 1, depthLimit);
                     Append(ref buf, ref pos, (byte)'}');
                 }
 
+                LoopGuard.PopReference();
                 Append(ref buf, ref pos, (byte)']');
             }
 
@@ -656,7 +666,7 @@ namespace Moirai.Atropos
 
             #region 对象 [OBJECTS]
 
-            private static void WriteObject(ref byte[] buf, ref int pos, object obj, Type type, bool removeNulls, int depth)
+            private static void WriteObject(ref byte[] buf, ref int pos, object obj, Type type, bool removeNulls, int depth, int depthLimit)
             {
                 var meta = ReflectionCache.Get(type);
                 var fields = meta.SerializeFields;
@@ -669,7 +679,7 @@ namespace Moirai.Atropos
                 }
 
                 // 容器入口压栈（值类型对象无环可能，不入栈）；使自引用根对象可被成员检查识别
-                if (!type.IsValueType) PushReference(obj);
+                if (!type.IsValueType) LoopGuard.PushReference(obj);
 
                 Append(ref buf, ref pos, (byte)'{');
 
@@ -681,15 +691,15 @@ namespace Moirai.Atropos
                     if (value == null && removeNulls) continue;
 
                     // 引用环：跳过整个成员（名称+值），对齐 Newtonsoft ReferenceLoopHandling.Ignore
-                    if (IsSerializingReference(value)) continue;
-                    if (WouldExceedDepth(value, depth)) continue; // 深度超限：软截断
+                    if (LoopGuard.IsSerializingReference(value)) continue;
+                    if (LoopGuard.WouldExceedDepth(value, depth)) continue; // 深度超限：软截断
 
                     if (isFirst) isFirst = false;
                     else Append(ref buf, ref pos, (byte)',');
 
                     WriteEscapedString(ref buf, ref pos, fields[i].Name);
                     Append(ref buf, ref pos, (byte)':');
-                    WriteValue(ref buf, ref pos, value, removeNulls, depth + 1);
+                    WriteValue(ref buf, ref pos, value, removeNulls, depth + 1, depthLimit);
                 }
 
                 for (int i = 0; i < properties.Length; i++)
@@ -708,19 +718,19 @@ namespace Moirai.Atropos
                     if (value == null && removeNulls) continue;
 
                     // 引用环：跳过整个成员（名称+值）
-                    if (IsSerializingReference(value)) continue;
-                    if (WouldExceedDepth(value, depth)) continue; // 深度超限：软截断
+                    if (LoopGuard.IsSerializingReference(value)) continue;
+                    if (LoopGuard.WouldExceedDepth(value, depth)) continue; // 深度超限：软截断
 
                     if (isFirst) isFirst = false;
                     else Append(ref buf, ref pos, (byte)',');
 
                     WriteEscapedString(ref buf, ref pos, properties[i].Name);
                     Append(ref buf, ref pos, (byte)':');
-                    WriteValue(ref buf, ref pos, value, removeNulls, depth + 1);
+                    WriteValue(ref buf, ref pos, value, removeNulls, depth + 1, depthLimit);
                 }
 
                 Append(ref buf, ref pos, (byte)'}');
-                if (!type.IsValueType) PopReference();
+                if (!type.IsValueType) LoopGuard.PopReference();
             }
 
             #endregion
