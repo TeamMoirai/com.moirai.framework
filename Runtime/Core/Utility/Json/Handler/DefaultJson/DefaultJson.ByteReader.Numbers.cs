@@ -136,7 +136,7 @@ namespace Moirai.Atropos
                         {
                             return Convert.ChangeType(integral, type, CultureInfo.InvariantCulture);
                         }
-                        catch (Exception)
+                        catch (Exception e) when (e is InvalidCastException || e is OverflowException || e is FormatException)
                         {
                             Throw(StringUtility.Format("'{0}' is out of range for '{1}'.", EncodeSpan(s), type.Name));
                         }

@@ -502,6 +502,14 @@ namespace Moirai.Atropos
                 Type itemType = type.GenericTypeArguments[0];
 
                 list.Clear(); // 覆盖语义：清空后按 JSON 重建
+
+                // 字符串列表快路径（高频场景，免除逐元素 ParseValue 分派）
+                if (list is List<string> stringList)
+                {
+                    ParseStringTypedList(stringList);
+                    return;
+                }
+
                 Expect('[');
 
                 SkipWhitespace();
@@ -517,6 +525,41 @@ namespace Moirai.Atropos
                     object value = ParseValue(itemType);
                     _depth--;
                     list.Add(value);
+
+                    SkipWhitespace();
+                    char c = Peek();
+                    if (c == ',')
+                    {
+                        _pos++;
+                        continue;
+                    }
+
+                    if (c == ']')
+                    {
+                        _pos++;
+                        return;
+                    }
+
+                    Throw(StringUtility.Format("Expected ',' or ']' but found '{0}'.", c));
+                }
+            }
+
+            /// <summary>字符串列表快路径（高频场景，免除逐元素 ParseValue 分派；含 null 字面量）。</summary>
+            private void ParseStringTypedList(List<string> list)
+            {
+                Expect('[');
+
+                SkipWhitespace();
+                if (Peek() == ']')
+                {
+                    _pos++;
+                    return;
+                }
+
+                while (true)
+                {
+                    SkipWhitespace();
+                    list.Add(Peek() == 'n' && MatchLiteral("null") ? null : ReadStringValue());
 
                     SkipWhitespace();
                     char c = Peek();
@@ -595,7 +638,7 @@ namespace Moirai.Atropos
                             {
                                 value = Convert.ChangeType(value, elementType, CultureInfo.InvariantCulture);
                             }
-                            catch (Exception)
+                            catch (Exception e) when (e is InvalidCastException || e is OverflowException || e is FormatException)
                             {
                                 Throw(StringUtility.Format("Cannot convert '{0}' to element type '{1}'.", value, elementType.Name));
                             }
@@ -941,7 +984,7 @@ namespace Moirai.Atropos
                         {
                             return Convert.ChangeType(integral, type, CultureInfo.InvariantCulture);
                         }
-                        catch (Exception)
+                        catch (Exception e) when (e is InvalidCastException || e is OverflowException || e is FormatException)
                         {
                             Throw(StringUtility.Format("'{0}' is out of range for '{1}'.", s.ToString(), type.Name));
                         }
