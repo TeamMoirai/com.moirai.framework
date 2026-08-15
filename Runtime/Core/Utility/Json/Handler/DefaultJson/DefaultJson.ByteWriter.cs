@@ -488,7 +488,7 @@ namespace Moirai.Atropos
                 {
                     object element = array.GetValue(i);
                     if (LoopGuard.IsSerializingReference(element)) continue; // 引用环：跳过元素
-                    if (LoopGuard.WouldExceedDepth(element, depth)) continue; // 深度超限：软截断
+                    if (LoopGuard.WouldExceedDepth(element, depth, depthLimit)) continue; // 深度超限：软截断
 
                     if (i > 0) Append(ref buf, ref pos, (byte)',');
                     WriteValue(ref buf, ref pos, element, removeNulls, depth + 1, depthLimit);
@@ -577,7 +577,7 @@ namespace Moirai.Atropos
                 {
                     object element = list[i];
                     if (LoopGuard.IsSerializingReference(element)) continue; // 引用环：跳过元素
-                    if (LoopGuard.WouldExceedDepth(element, depth)) continue; // 深度超限：软截断
+                    if (LoopGuard.WouldExceedDepth(element, depth, depthLimit)) continue; // 深度超限：软截断
 
                     if (i > 0) Append(ref buf, ref pos, (byte)',');
                     WriteValue(ref buf, ref pos, element, removeNulls, depth + 1, depthLimit);
@@ -609,7 +609,7 @@ namespace Moirai.Atropos
                 {
                     // 引用环（值指向字典自身或其祖先）：跳过该键值对
                     if (LoopGuard.IsSerializingReference(entry.Value)) continue;
-                    if (LoopGuard.WouldExceedDepth(entry.Value, depth)) continue; // 深度超限：软截断
+                    if (LoopGuard.WouldExceedDepth(entry.Value, depth, depthLimit)) continue; // 深度超限：软截断
 
                     if (isFirst) isFirst = false;
                     else Append(ref buf, ref pos, (byte)',');
@@ -647,7 +647,7 @@ namespace Moirai.Atropos
                 foreach (DictionaryEntry entry in dictionary)
                 {
                     if (LoopGuard.IsSerializingReference(entry.Value)) continue;
-                    if (LoopGuard.WouldExceedDepth(entry.Value, depth)) continue;
+                    if (LoopGuard.WouldExceedDepth(entry.Value, depth, depthLimit)) continue;
 
                     if (isFirst) isFirst = false;
                     else Append(ref buf, ref pos, (byte)',');
@@ -692,7 +692,7 @@ namespace Moirai.Atropos
 
                     // 引用环：跳过整个成员（名称+值），对齐 Newtonsoft ReferenceLoopHandling.Ignore
                     if (LoopGuard.IsSerializingReference(value)) continue;
-                    if (LoopGuard.WouldExceedDepth(value, depth)) continue; // 深度超限：软截断
+                    if (LoopGuard.WouldExceedDepth(value, depth, depthLimit)) continue; // 深度超限：软截断
 
                     if (isFirst) isFirst = false;
                     else Append(ref buf, ref pos, (byte)',');
@@ -719,7 +719,7 @@ namespace Moirai.Atropos
 
                     // 引用环：跳过整个成员（名称+值）
                     if (LoopGuard.IsSerializingReference(value)) continue;
-                    if (LoopGuard.WouldExceedDepth(value, depth)) continue; // 深度超限：软截断
+                    if (LoopGuard.WouldExceedDepth(value, depth, depthLimit)) continue; // 深度超限：软截断
 
                     if (isFirst) isFirst = false;
                     else Append(ref buf, ref pos, (byte)',');

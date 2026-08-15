@@ -90,15 +90,16 @@ namespace Moirai.Atropos
             /// <summary>
             /// 子级复合值是否会被深度守卫截断。
             /// 命中时调用方应跳过整个成员/元素，保持输出合法；仅告警一次。
+            /// depthLimit 由调用方按次传入（与 Writer 的安全网同源，不读静态 maxDepth——多 handler 实例各自配置时保持一致语义）。
             /// </summary>
-            public static bool WouldExceedDepth(object childValue, int parentDepth)
+            public static bool WouldExceedDepth(object childValue, int parentDepth, int depthLimit)
             {
-                if (parentDepth + 1 < maxDepth || IsScalarValue(childValue)) return false;
+                if (parentDepth + 1 < depthLimit || IsScalarValue(childValue)) return false;
 
                 if (!DepthWarned)
                 {
                     DepthWarned = true;
-                    Log.Warning("[DefaultJson] Serialization depth exceeded the limit of {0}. Members beyond the limit are skipped.", maxDepth);
+                    Log.Warning("[DefaultJson] Serialization depth exceeded the limit of {0}. Members beyond the limit are skipped.", depthLimit);
                 }
 
                 return true;
