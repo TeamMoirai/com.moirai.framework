@@ -50,8 +50,9 @@ namespace Moirai.Atropos
         /// <summary>积压告警阈值：待执行任务数持续超过此值时输出警告。</summary>
         public const int BACKLOG_WARN_THRESHOLD = 1024;
 
-        /// <summary>积压告警解除阈值（低于此值时复位告警，滞回避免抖动）。</summary>
-        private const int BACKLOG_CLEAR_THRESHOLD = 256;
+        /// <summary>积压告警解除阈值（低于此值时复位告警，滞回避免抖动）。
+        /// 取触发阈值的 50%（惯例滞回比）：过高会悬挂告警（恢复后错失后续尖峰），过低会在 512-1024 波动区间反复触发。</summary>
+        private const int BACKLOG_CLEAR_THRESHOLD = 512;
 
         /// <summary>积压采样掩码：每 256 次入队采样一次队列深度（ConcurrentQueue.Count 非零成本，避免高频路径每次读取）。
         /// 计数器 int 溢出不影响采样节奏：补码自增保持低 8 位连续跨越符号边界，采样周期严格保持 256。</summary>
@@ -255,6 +256,8 @@ namespace Moirai.Atropos
         {
             if (Volatile.Read(ref s_RejectNewWork))
             {
+                if (s_PendingQueue.IsEmpty) return; // 停机常态：队列早已排空，免进排水循环
+
                 // 停机后排水：清理 BeginShutdown 的 drain 与并发 Post 之间竞态窗口内入队的滞留者
                 int stragglers = 0;
                 while (s_PendingQueue.TryDequeue(out _)) stragglers++;
@@ -601,7 +604,7 @@ namespace Moirai.Atropos
         private static bool TryBeginAwaiter(AwaiterHandle handle, CancellationToken cancellationToken,
             out CancellationTokenRegistration registration)
         {
-            registration = default;
+            registration = default; // default 注册项的 Dispose() 是文档化 no-op，调用方失败路径无需条件判断
 
             if (Volatile.Read(ref s_RejectNewWork)) return false; // 停机竞态预检
 
