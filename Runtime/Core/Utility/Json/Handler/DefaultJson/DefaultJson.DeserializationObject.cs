@@ -22,7 +22,6 @@ namespace Moirai.Atropos
         internal sealed class Reader
         {
             #region 变量 [VARIABLES]
-
             private readonly string _json;
             private readonly int _maxDepth;
             private int _pos;
@@ -34,14 +33,12 @@ namespace Moirai.Atropos
             {
                 if (_depthWarned) return;
                 _depthWarned = true;
-                Log.Warning(StringUtility.Format(
-                    "[DefaultJson] Deserialization depth exceeded the limit of {0}. Values beyond the limit are skipped and defaulted.", _maxDepth));
+                Log.Warning("[DefaultJson] Deserialization depth exceeded the limit of {0}. Values beyond the limit are skipped and defaulted.", _maxDepth);
             }
 
             #endregion
 
             #region 构造函数 [CONSTRUCTOR]
-
             public Reader(string json, int maxDepth)
             {
                 _json = json;
@@ -51,7 +48,6 @@ namespace Moirai.Atropos
             #endregion
 
             #region 公共入口 [PUBLIC ENTRY]
-
             /// <summary>解析根值。existing 非空时向其覆盖（FromJSONOverwrite 语义：集合清空复用）。</summary>
             public object Parse(Type targetType, object existing)
             {
@@ -117,7 +113,6 @@ namespace Moirai.Atropos
             #endregion
 
             #region 值分派 [VALUE DISPATCH]
-
             private object ParseValue(Type type)
             {
                 SkipWhitespace();
@@ -271,7 +266,6 @@ namespace Moirai.Atropos
             #endregion
 
             #region 字符串/键 [STRINGS/KEYS]
-
             /// <summary>读取带引号字符串的原始 span（不含引号），跳过转义对。</summary>
             private ReadOnlySpan<char> ReadStringSpan(out bool hasEscape)
             {
@@ -375,7 +369,6 @@ namespace Moirai.Atropos
             #endregion
 
             #region 对象 [OBJECTS]
-
             private object ParseObject(Type type, object instance)
             {
                 if (instance == null)
@@ -504,7 +497,6 @@ namespace Moirai.Atropos
             #endregion
 
             #region 集合 [COLLECTIONS]
-
             private void ParseList(Type type, IList list)
             {
                 Type itemType = type.GenericTypeArguments[0];
@@ -547,6 +539,39 @@ namespace Moirai.Atropos
             private object ParseArray(Type type)
             {
                 Type elementType = type.GetElementType();
+
+                // 类型化零装箱快速路径（string 数组 + 值类型基元数组）——镜像 ByteReader.ParseArray
+                if (elementType == typeof(string))
+                {
+                    return ParseStringArrayFast();
+                }
+
+                // 枚举数组：必须置于 TypeCode switch 之前——Type.GetTypeCode(enumType) 返回底层类型码
+                // （如 Int32），会被误路由进 int 快路径返回 int[]（元素类型错误）。走下方通用回退。
+                if (elementType.IsEnum)
+                {
+                    // 通用回退：ParseValue 处理名称+数值枚举，ChangeType 循环兜底
+                }
+                else
+                {
+                    switch (Type.GetTypeCode(elementType))
+                    {
+                        case TypeCode.Boolean: return ParsePrimitiveArray<bool>(r => r.ReadBooleanFast());
+                        case TypeCode.SByte: return ParsePrimitiveArray<sbyte>(r => r.ReadIntegralSByteFast());
+                        case TypeCode.Byte: return ParsePrimitiveArray<byte>(r => r.ReadIntegralByteFast());
+                        case TypeCode.Int16: return ParsePrimitiveArray<short>(r => r.ReadIntegralInt16Fast());
+                        case TypeCode.UInt16: return ParsePrimitiveArray<ushort>(r => r.ReadIntegralUInt16Fast());
+                        case TypeCode.Int32: return ParsePrimitiveArray<int>(r => r.ReadIntegralInt32Fast());
+                        case TypeCode.UInt32: return ParsePrimitiveArray<uint>(r => r.ReadIntegralUInt32Fast());
+                        case TypeCode.Int64: return ParsePrimitiveArray<long>(r => r.ReadInt64Fast());
+                        case TypeCode.UInt64: return ParsePrimitiveArray<ulong>(r => r.ReadUInt64Fast());
+                        case TypeCode.Single: return ParsePrimitiveArray<float>(r => r.ReadSingleFast());
+                        case TypeCode.Double: return ParsePrimitiveArray<double>(r => r.ReadDoubleFast());
+                        case TypeCode.Decimal: return ParsePrimitiveArray<decimal>(r => r.ReadDecimalFast());
+                    }
+                }
+
+                // 回退路径（枚举/char/对象元素）
                 var elements = new List<object>();
 
                 Expect('[');
@@ -603,6 +628,81 @@ namespace Moirai.Atropos
                 }
 
                 return result;
+            }
+
+            /// <summary>基元数组零装箱解析骨架（经类型化 token 读取委托，消除 List&lt;object&gt; 装箱）。</summary>
+            private T[] ParsePrimitiveArray<T>(Func<Reader, T> read) where T : struct
+            {
+                Expect('[');
+
+                SkipWhitespace();
+                var tmp = new List<T>(16);
+                if (Peek() == ']')
+                {
+                    _pos++;
+                }
+                else
+                {
+                    while (true)
+                    {
+                        tmp.Add(read(this));
+
+                        SkipWhitespace();
+                        char c = Peek();
+                        if (c == ',')
+                        {
+                            _pos++;
+                            continue;
+                        }
+
+                        if (c == ']')
+                        {
+                            _pos++;
+                            break;
+                        }
+
+                        Throw(StringUtility.Format("Expected ',' or ']' but found '{0}'.", c));
+                    }
+                }
+
+                return tmp.ToArray();
+            }
+
+            private string[] ParseStringArrayFast()
+            {
+                Expect('[');
+
+                SkipWhitespace();
+                var tmp = new List<string>(16);
+                if (Peek() == ']')
+                {
+                    _pos++;
+                }
+                else
+                {
+                    while (true)
+                    {
+                        tmp.Add((string)ParseValue(typeof(string)));
+
+                        SkipWhitespace();
+                        char c = Peek();
+                        if (c == ',')
+                        {
+                            _pos++;
+                            continue;
+                        }
+
+                        if (c == ']')
+                        {
+                            _pos++;
+                            break;
+                        }
+
+                        Throw(StringUtility.Format("Expected ',' or ']' but found '{0}'.", c));
+                    }
+                }
+
+                return tmp.ToArray();
             }
 
             /// <summary>标准对象格式字典：{"key":value,...}。</summary>
@@ -770,24 +870,24 @@ namespace Moirai.Atropos
             #endregion
 
             #region 类型转换 [CONVERSIONS]
-
             /// <summary>字符串 → 目标类型。非数值类型委托 <see cref="TypeConverter"/>；数值类型走 span 解析。</summary>
             private object ConvertFromString(string s, Type type)
             {
-                object result = TypeConverter.ConvertFromString(s, type);
-                return result ?? ParseNumberSpan(type, s.AsSpan());
+                return TypeConverter.TryConvertFromString(s, type, out object result)
+                    ? result
+                    : ParseNumberSpan(type, s.AsSpan());
             }
 
             private object ConvertDictionaryKey(string s, Type keyType)
             {
-                object result = TypeConverter.ConvertDictionaryKey(s, keyType);
-                return result ?? ParseNumberSpan(keyType, s.AsSpan());
+                return TypeConverter.TryConvertDictionaryKey(s, keyType, out object result)
+                    ? result
+                    : ParseNumberSpan(keyType, s.AsSpan());
             }
 
             #endregion
 
             #region 数值 [NUMBERS]
-
             private object ParseNumber(Type type)
             {
                 int start = _pos;
@@ -909,7 +1009,6 @@ namespace Moirai.Atropos
             #endregion
 
             #region 词法工具 [LEXER UTILITIES]
-
             private void SkipWhitespace()
             {
                 while (_pos < _json.Length)
@@ -971,6 +1070,118 @@ namespace Moirai.Atropos
                 return c == ',' || c == '}' || c == ']' || c == ' ' || c == '\t' || c == '\r' || c == '\n';
             }
 
+            // ===== 类型化 token 读取（供基元数组零装箱路径，镜像 ByteReader 的同名方法） =====
+
+            private bool ReadBooleanFast()
+            {
+                SkipWhitespace();
+                if (MatchLiteral("true")) return true;
+                if (MatchLiteral("false")) return false;
+
+                Throw("Invalid boolean literal in array.");
+                return false;
+            }
+
+            private sbyte ReadIntegralSByteFast()
+            {
+                long v = ReadInt64Fast();
+                if (v < sbyte.MinValue || v > sbyte.MaxValue) ThrowNumericRange("sbyte");
+                return (sbyte)v;
+            }
+
+            private byte ReadIntegralByteFast()
+            {
+                ulong v = ReadUInt64Fast();
+                if (v > byte.MaxValue) ThrowNumericRange("byte");
+                return (byte)v;
+            }
+
+            private short ReadIntegralInt16Fast()
+            {
+                long v = ReadInt64Fast();
+                if (v < short.MinValue || v > short.MaxValue) ThrowNumericRange("short");
+                return (short)v;
+            }
+
+            private ushort ReadIntegralUInt16Fast()
+            {
+                ulong v = ReadUInt64Fast();
+                if (v > ushort.MaxValue) ThrowNumericRange("ushort");
+                return (ushort)v;
+            }
+
+            private int ReadIntegralInt32Fast()
+            {
+                long v = ReadInt64Fast();
+                if (v < int.MinValue || v > int.MaxValue) ThrowNumericRange("int");
+                return (int)v;
+            }
+
+            private uint ReadIntegralUInt32Fast()
+            {
+                ulong v = ReadUInt64Fast();
+                if (v > uint.MaxValue) ThrowNumericRange("uint");
+                return (uint)v;
+            }
+
+            /// <summary>long token：直取；科学计数法/溢出回退 double 且必须整值（兼容 "1e2" 类输入）。</summary>
+            private long ReadInt64Fast()
+            {
+                ReadOnlySpan<char> s = ScanNumberTokenFast();
+                return (long)ParseNumberSpan(typeof(long), s);
+            }
+
+            private ulong ReadUInt64Fast()
+            {
+                ReadOnlySpan<char> s = ScanNumberTokenFast();
+                return (ulong)ParseNumberSpan(typeof(ulong), s);
+            }
+
+            private float ReadSingleFast()
+            {
+                ReadOnlySpan<char> s = ScanNumberTokenFast();
+                return (float)ParseNumberSpan(typeof(float), s);
+            }
+
+            private double ReadDoubleFast()
+            {
+                ReadOnlySpan<char> s = ScanNumberTokenFast();
+                return (double)ParseNumberSpan(typeof(double), s);
+            }
+
+            private decimal ReadDecimalFast()
+            {
+                ReadOnlySpan<char> s = ScanNumberTokenFast();
+                return (decimal)ParseNumberSpan(typeof(decimal), s);
+            }
+
+            /// <summary>扫描数值 token span（不物化字符串）。</summary>
+            private ReadOnlySpan<char> ScanNumberTokenFast()
+            {
+                SkipWhitespace();
+
+                int start = _pos;
+                while (_pos < _json.Length)
+                {
+                    char c = _json[_pos];
+                    if ((c >= '0' && c <= '9') || c == '-' || c == '+' || c == '.' || c == 'e' || c == 'E')
+                    {
+                        _pos++;
+                    }
+                    else
+                    {
+                        break;
+                    }
+                }
+
+                return _json.AsSpan(start, _pos - start);
+            }
+
+            private void ThrowNumericRange(string typeName)
+            {
+                Throw(StringUtility.Format("Numeric value is out of range for '{0}'.", typeName));
+            }
+
             /// <summary>跳过任意未知值（字面量/字符串/对象/数组），用于未知字段的前向兼容。</summary>
             private void SkipValue()
             {
@@ -1024,7 +1235,6 @@ namespace Moirai.Atropos
             #endregion
 
             #region 错误 [ERRORS]
-
             /// <summary>带偏移/行列/上下文片段的错误（仅抛错时计算，热路径零开销）。</summary>
             [System.Diagnostics.CodeAnalysis.DoesNotReturn]
             private void Throw(string message)

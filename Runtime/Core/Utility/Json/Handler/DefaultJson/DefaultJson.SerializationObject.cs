@@ -26,7 +26,6 @@ namespace Moirai.Atropos
         internal static class Writer
         {
             #region 入口 [ENTRY]
-
             /// <summary>序列化对象为 JSON 字符串。</summary>
             public static string Serialize(object obj, bool removeNulls, bool readable, int depthLimit)
             {
@@ -52,7 +51,6 @@ namespace Moirai.Atropos
             #endregion
 
             #region 值分派 [VALUE DISPATCH]
-
             private static void WriteValue(StringHandler.IStringBuilder sb, object value, bool removeNulls, bool readable, int depth, int depthLimit)
             {
                 // 安全网：成员/元素处已按 LoopGuard.WouldExceedDepth 软截断，此处仅兜底未守卫路径。
@@ -195,7 +193,6 @@ namespace Moirai.Atropos
             }
 
             #region Unity 结构体直写快路径 [UNITY STRUCT FAST PATH]
-
             /// <summary>尝试直写常见 Unity 结构体（绕过反射）。返回 true 表示已处理。</summary>
             private static bool TryWriteUnityStruct(StringHandler.IStringBuilder sb, object value)
             {
@@ -338,7 +335,6 @@ namespace Moirai.Atropos
             #endregion
 
             #region 容器 [CONTAINERS]
-
             private static void WriteArray(StringHandler.IStringBuilder sb, Array array, bool removeNulls, bool readable, int depth, int depthLimit)
             {
                 if (array.Length == 0)
@@ -548,7 +544,6 @@ namespace Moirai.Atropos
             #endregion
 
             #region 对象 [OBJECTS]
-
             private static void WriteObject(StringHandler.IStringBuilder sb, object obj, Type type, ReflectionCache.TypeMeta meta, bool removeNulls, bool readable, int depth, int depthLimit)
             {
                 var fields = meta.SerializeFields;
@@ -627,7 +622,6 @@ namespace Moirai.Atropos
             #endregion
 
             #region 字符串转义 [ESCAPING]
-
             /// <summary>写入带引号的转义字符串。无转义字符的常见路径整串单次追加。</summary>
             private static void WriteEscapedString(StringHandler.IStringBuilder sb, string s)
             {

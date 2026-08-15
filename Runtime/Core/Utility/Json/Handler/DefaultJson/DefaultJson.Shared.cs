@@ -98,8 +98,7 @@ namespace Moirai.Atropos
                 if (!DepthWarned)
                 {
                     DepthWarned = true;
-                    Log.Warning(StringUtility.Format(
-                        "[DefaultJson] Serialization depth exceeded the limit of {0}. Members beyond the limit are skipped.", maxDepth));
+                    Log.Warning("[DefaultJson] Serialization depth exceeded the limit of {0}. Members beyond the limit are skipped.", maxDepth);
                 }
 
                 return true;
@@ -140,46 +139,50 @@ namespace Moirai.Atropos
             /// <summary>legacy 字典格式的成员名常量。</summary>
             public const string ValueMember = "value";
 
-            /// <summary>字符串 → 目标类型（string/char/bool/枚举/数值/Guid/DateTime/TimeSpan/DateTimeOffset）。</summary>
-            /// <remarks>当目标类型不匹配时抛 <see cref="GameException"/>（标注 <c>[DoesNotReturn]</c>）。</remarks>
-            public static object ConvertFromString(string s, Type type)
+            /// <summary>
+            /// 尝试将字符串转换为非数值目标类型（string/char/bool/枚举/Guid/DateTime/TimeSpan/DateTimeOffset）。
+            /// 返回 false 表示目标类型为数值——调用方需走各自的 span 数值解析路径（char/byte span 差异不适合共享）。
+            /// 不匹配的值会抛 <see cref="GameException"/>（不是返回 false）。
+            /// </summary>
+            public static bool TryConvertFromString(string s, Type type, out object result)
             {
-                if (type == typeof(string) || type == typeof(object)) return s;
-                if (type == typeof(char)) return s.Length > 0 && s != "null" ? (object)s[0] : '\0';
-                if (type == typeof(bool)) return ParseBooleanString(s);
+                if (type == typeof(string) || type == typeof(object)) { result = s; return true; }
+                if (type == typeof(char)) { result = s.Length > 0 && s != "null" ? (object)s[0] : '\0'; return true; }
+                if (type == typeof(bool)) { result = ParseBooleanString(s); return true; }
 
                 if (type.IsEnum)
                 {
-                    if (Enum.TryParse(type, s, false, out object enumValue)) return enumValue;
+                    if (Enum.TryParse(type, s, false, out object enumValue)) { result = enumValue; return true; }
                     Throw(StringUtility.Format("'{0}' is not a valid name or value for enum '{1}'.", s, type.Name));
                 }
 
                 if (type == typeof(Guid))
                 {
-                    if (Guid.TryParse(s, out Guid guid)) return guid;
+                    if (Guid.TryParse(s, out Guid guid)) { result = guid; return true; }
                     Throw(StringUtility.Format("'{0}' is not a valid Guid.", s));
                 }
 
                 if (type == typeof(DateTime))
                 {
-                    if (DateTime.TryParse(s, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out DateTime dt)) return dt;
+                    if (DateTime.TryParse(s, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out DateTime dt)) { result = dt; return true; }
                     Throw(StringUtility.Format("'{0}' is not a valid DateTime.", s));
                 }
 
                 if (type == typeof(DateTimeOffset))
                 {
-                    if (DateTimeOffset.TryParse(s, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out DateTimeOffset dto)) return dto;
+                    if (DateTimeOffset.TryParse(s, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out DateTimeOffset dto)) { result = dto; return true; }
                     Throw(StringUtility.Format("'{0}' is not a valid DateTimeOffset.", s));
                 }
 
                 if (type == typeof(TimeSpan))
                 {
-                    if (TimeSpan.TryParse(s, CultureInfo.InvariantCulture, out TimeSpan ts)) return ts;
+                    if (TimeSpan.TryParse(s, CultureInfo.InvariantCulture, out TimeSpan ts)) { result = ts; return true; }
                     Throw(StringUtility.Format("'{0}' is not a valid TimeSpan.", s));
                 }
 
-                // 调用方负责数值 span 解析（char/byte span 差异不适合共享）
-                return null; // 到达此处的唯一可能是数值类型——调用方检测 null 后走各自 span 解析
+                // 数值类型：交由调用方的 span 解析（char/byte span 差异不适合共享）
+                result = null;
+                return false;
             }
 
             public static bool ParseBooleanString(string s)
@@ -203,26 +206,32 @@ namespace Moirai.Atropos
                 }
             }
 
-            public static object ConvertDictionaryKey(string s, Type keyType)
+            /// <summary>
+            /// 尝试将字符串转换为非数值字典 key 类型（string/char/bool/枚举/Guid）。
+            /// 返回 false 表示 key 为数值类型——调用方需走各自的 span 数值解析。
+            /// 不匹配的值会抛 <see cref="GameException"/>。
+            /// </summary>
+            public static bool TryConvertDictionaryKey(string s, Type keyType, out object result)
             {
-                if (keyType == typeof(string)) return s;
-                if (keyType == typeof(char)) return s.Length > 0 ? (object)s[0] : '\0';
-                if (keyType == typeof(bool)) return ParseBooleanString(s);
+                if (keyType == typeof(string)) { result = s; return true; }
+                if (keyType == typeof(char)) { result = s.Length > 0 ? (object)s[0] : '\0'; return true; }
+                if (keyType == typeof(bool)) { result = ParseBooleanString(s); return true; }
 
                 if (keyType.IsEnum)
                 {
-                    if (Enum.TryParse(keyType, s, false, out object v)) return v;
+                    if (Enum.TryParse(keyType, s, false, out object v)) { result = v; return true; }
                     Throw(StringUtility.Format("'{0}' is not a valid dictionary key for enum '{1}'.", s, keyType.Name));
                 }
 
                 if (keyType == typeof(Guid))
                 {
-                    if (Guid.TryParse(s, out Guid guid)) return guid;
+                    if (Guid.TryParse(s, out Guid guid)) { result = guid; return true; }
                     Throw(StringUtility.Format("'{0}' is not a valid Guid dictionary key.", s));
                 }
 
                 // 数值 key：调用方负责 span 解析
-                return null;
+                result = null;
+                return false;
             }
 
             /// <summary>共享 Throw（标注 [DoesNotReturn]，消除调用方不可达警告）。</summary>

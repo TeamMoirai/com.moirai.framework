@@ -27,7 +27,6 @@ namespace Moirai.Atropos
         internal static int maxDepth = 64;
 
         #region 公共 API [PUBLIC API]
-
         /// <summary>
         /// 将 JSON 字符串转换为类型化对象
         /// </summary>
@@ -219,7 +218,7 @@ namespace Moirai.Atropos
                 return table;
             }
 
-            #region 字段
+            #region 字段 [FIELDS]
 
             private static void BuildSerializeFields(Type type, TypeMeta meta)
             {
@@ -299,7 +298,7 @@ namespace Moirai.Atropos
 
             #endregion
 
-            #region 属性
+            #region 属性 [PROPERTIES]
 
             private static void BuildSerializeProperties(Type type, TypeMeta meta)
             {
@@ -372,7 +371,7 @@ namespace Moirai.Atropos
 
             #endregion
 
-            #region 回调
+            #region 回调 [CALLBACKS]
 
             private static void BuildCallbacks(Type type, TypeMeta meta)
             {

@@ -1038,6 +1038,55 @@ namespace Utility
             Assert.AreEqual(1, dict["a"]);
         }
 
+        // ===== string 路径类型化数组快路径（B1 回归：消除 List<object> 装箱） =====
+
+        [Test]
+        public void StringPath_TypedArrays_FastPaths_RoundTrip()
+        {
+            // int[]
+            var intArr = new[] { int.MinValue, -1, 0, 1, int.MaxValue };
+            string json = DefaultJson.ToJson(intArr);
+            CollectionAssert.AreEqual(intArr, DefaultJson.FromJson<int[]>(json));
+
+            // float[]（含精度敏感值）
+            var floatArr = new[] { 0.1f, -3.25f, float.MaxValue };
+            CollectionAssert.AreEqual(floatArr, DefaultJson.FromJson<float[]>(DefaultJson.ToJson(floatArr)));
+
+            // long[]/double[]/bool[]
+            CollectionAssert.AreEqual(new long[] { long.MinValue, long.MaxValue }, DefaultJson.FromJson<long[]>(DefaultJson.ToJson(new long[] { long.MinValue, long.MaxValue })));
+            CollectionAssert.AreEqual(new double[] { 0.1d, 1e300d }, DefaultJson.FromJson<double[]>(DefaultJson.ToJson(new double[] { 0.1d, 1e300d })));
+            CollectionAssert.AreEqual(new bool[] { true, false }, DefaultJson.FromJson<bool[]>(DefaultJson.ToJson(new bool[] { true, false })));
+
+            // string[]（含 null/空/CJK）
+            var strArr = new[] { "a", "你好", null, "" };
+            CollectionAssert.AreEqual(strArr, DefaultJson.FromJson<string[]>(DefaultJson.ToJson(strArr, removeNulls: false)));
+
+            // 科学计数法输入
+            CollectionAssert.AreEqual(new[] { 100, 20 }, DefaultJson.FromJson<int[]>("[1e2,2e1]"));
+
+            // 截断仍抛错
+            Assert.Throws<Moirai.Atropos.GameException>(() => DefaultJson.FromJson<int[]>("[1,2"));
+        }
+
+        // ===== 枚举数组快路径（B2 回归） =====
+
+        [Test]
+        public void EnumArray_BytePath_FastPath_RoundTrip()
+        {
+            var arr = new[] { TestEnum.None, TestEnum.First, TestEnum.Second };
+            byte[] bytes = DefaultJson.ToJsonBytes(arr);
+            var back = DefaultJson.FromJson<TestEnum[]>(bytes);
+            CollectionAssert.AreEqual(arr, back);
+        }
+
+        [Test]
+        public void EnumArray_NumericInput_BytePath_Parses()
+        {
+            // 数值形式的枚举数组（数值枚举解析端支持）
+            byte[] bytes = System.Text.Encoding.UTF8.GetBytes("[0,2,1]");
+            CollectionAssert.AreEqual(new[] { TestEnum.None, TestEnum.Second, TestEnum.First }, DefaultJson.FromJson<TestEnum[]>(bytes));
+        }
+
         [Test]
         public void Error_Contains_Position()
         {
