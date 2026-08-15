@@ -831,7 +831,7 @@ namespace Moirai.Atropos.Installer.Editor
 
         private static void SaveInstallState(ProjectInstallState state)
         {
-            string json = JsonUtility.ToJson(new InstallStateData
+            string json = UnityEngine.JsonUtility.ToJson(new InstallStateData
             {
                 installerState = state.ToString(),
                 template = ToTemplateText(state),
@@ -849,7 +849,7 @@ namespace Moirai.Atropos.Installer.Editor
             {
                 try
                 {
-                    InstallStateData data = JsonUtility.FromJson<InstallStateData>(File.ReadAllText(INSTALL_STATE_PATH));
+                    InstallStateData data = UnityEngine.JsonUtility.FromJson<InstallStateData>(File.ReadAllText(INSTALL_STATE_PATH));
                     if (TryParseState(data.installerState, out ProjectInstallState fileState))
                     {
                         ProjectInstallState validatedState = ValidatePersistedInstallState(fileState);
@@ -1010,7 +1010,7 @@ namespace Moirai.Atropos.Installer.Editor
 
             try
             {
-                ManifestData manifestData = JsonUtility.FromJson<ManifestData>(File.ReadAllText(MANIFEST_PATH));
+                ManifestData manifestData = UnityEngine.JsonUtility.FromJson<ManifestData>(File.ReadAllText(MANIFEST_PATH));
                 if (manifestData?.scopedRegistries == null)
                 {
                     return false;
