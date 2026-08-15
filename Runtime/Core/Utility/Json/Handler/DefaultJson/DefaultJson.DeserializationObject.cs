@@ -79,7 +79,22 @@ namespace Moirai.Atropos
                     if (existing is IDictionary existingDict &&
                         targetType.IsGenericType && targetType.GetGenericTypeDefinition() == typeof(Dictionary<,>))
                     {
-                        ParseDictionary(targetType, existingDict);
+                        // 按实际 token 分发：标准对象格式 or legacy 条目数组格式（历史存档兼容）
+                        SkipWhitespace();
+                        char dictToken = Peek();
+                        if (dictToken == '{')
+                        {
+                            ParseDictionary(targetType, existingDict);
+                        }
+                        else if (dictToken == '[')
+                        {
+                            ParseDictionaryLegacy(targetType, existingDict);
+                        }
+                        else
+                        {
+                            Throw(StringUtility.Format("Expected '{{' or '[' for dictionary but found '{0}'.", dictToken));
+                        }
+
                         return existing;
                     }
 
@@ -647,11 +662,13 @@ namespace Moirai.Atropos
             }
 
             /// <summary>legacy 条目数组格式字典：[{"key":..,"value":..},...]（兼容历史存档）。</summary>
-            private object ParseDictionaryLegacy(Type type)
+            private object ParseDictionaryLegacy(Type type, IDictionary existing = null)
             {
-                IDictionary dict = (IDictionary)Activator.CreateInstance(type);
+                IDictionary dict = existing ?? (IDictionary)Activator.CreateInstance(type);
                 Type keyType = type.GenericTypeArguments[0];
                 Type valueType = type.GenericTypeArguments[1];
+
+                if (existing != null) dict.Clear(); // 覆盖语义：清空后按 JSON 重建
 
                 Expect('[');
 

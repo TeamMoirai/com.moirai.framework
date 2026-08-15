@@ -962,6 +962,82 @@ namespace Utility
             Assert.AreEqual(2.25d, obj.doubleVal);
         }
 
+        // ===== 整数溢出防护（先乘后查回绕漏洞回归） =====
+
+        [Test]
+        public void IntegerOverflow_ULongMaxPlusOne_Rejected()
+        {
+            // 18446744073709551616 = ulong.MaxValue + 1：无符号回绕会变成 0——必须报错而非静默接受
+            Assert.Throws<Moirai.Atropos.GameException>(() =>
+                DefaultJson.FromJson<ulong>("18446744073709551616"));
+            Assert.Throws<Moirai.Atropos.GameException>(() =>
+                DefaultJson.FromJson<ulong>(System.Text.Encoding.UTF8.GetBytes("18446744073709551616")));
+        }
+
+        [Test]
+        public void IntegerOverflow_TwentyDigits_Rejected()
+        {
+            // 99999999999999999999（20 位）：远超 ulong，回绕后可能落回范围内——必须报错
+            Assert.Throws<Moirai.Atropos.GameException>(() =>
+                DefaultJson.FromJson<long>("99999999999999999999"));
+            Assert.Throws<Moirai.Atropos.GameException>(() =>
+                DefaultJson.FromJson<long>(System.Text.Encoding.UTF8.GetBytes("99999999999999999999")));
+        }
+
+        [Test]
+        public void IntegerOverflow_LongBoundary_ExactValuesAccepted()
+        {
+            // 边界值本身必须精确通过（修复不得误伤）
+            Assert.AreEqual(long.MaxValue, DefaultJson.FromJson<long>("9223372036854775807"));
+            Assert.AreEqual(long.MinValue, DefaultJson.FromJson<long>("-9223372036854775808"));
+            Assert.AreEqual(ulong.MaxValue, DefaultJson.FromJson<ulong>("18446744073709551615"));
+
+            Assert.AreEqual(long.MaxValue, DefaultJson.FromJson<long>(System.Text.Encoding.UTF8.GetBytes("9223372036854775807")));
+            Assert.AreEqual(long.MinValue, DefaultJson.FromJson<long>(System.Text.Encoding.UTF8.GetBytes("-9223372036854775808")));
+            Assert.AreEqual(ulong.MaxValue, DefaultJson.FromJson<ulong>(System.Text.Encoding.UTF8.GetBytes("18446744073709551615")));
+
+            // 边界 +1 必须拒绝
+            Assert.Throws<Moirai.Atropos.GameException>(() =>
+                DefaultJson.FromJson<long>("9223372036854775808"));
+            Assert.Throws<Moirai.Atropos.GameException>(() =>
+                DefaultJson.FromJson<long>(System.Text.Encoding.UTF8.GetBytes("9223372036854775808")));
+        }
+
+        // ===== FromJsonOverwrite 对 legacy 字典格式的支持 =====
+
+        [Test]
+        public void Overwrite_Dictionary_LegacyArrayFormat()
+        {
+            // 历史存档为 legacy 条目数组格式：覆盖模式必须按 token 分发而非假定 '{'
+            var dict = new Dictionary<string, int> { { "stale", -1 } };
+            DefaultJson.FromJsonOverwrite(dict, "[{\"key\":\"a\",\"value\":1},{\"key\":\"b\",\"value\":2}]");
+            Assert.AreEqual(2, dict.Count, "覆盖后旧键应被清空");
+            Assert.AreEqual(1, dict["a"]);
+            Assert.AreEqual(2, dict["b"]);
+        }
+
+        [Test]
+        public void Overwrite_Dictionary_StandardFormat_StillWorks()
+        {
+            var dict = new Dictionary<string, int> { { "stale", -1 } };
+            DefaultJson.FromJsonOverwrite(dict, "{\"a\":1,\"b\":2}");
+            Assert.AreEqual(2, dict.Count);
+            Assert.AreEqual(1, dict["a"]);
+            Assert.AreEqual(2, dict["b"]);
+        }
+
+        [Test]
+        public void Overwrite_Dictionary_LegacyFormat_BytePath()
+        {
+            var dict = new Dictionary<string, int> { { "stale", -1 } };
+            byte[] bytes = System.Text.Encoding.UTF8.GetBytes("[{\"key\":\"a\",\"value\":1}]");
+            // 字节覆盖路径（经 ByteReader.Parse 入口，InternalsVisibleTo 可见）
+            var reader = new Moirai.Atropos.DefaultJson.ByteReader(bytes, 64);
+            reader.Parse(typeof(Dictionary<string, int>), dict);
+            Assert.AreEqual(1, dict.Count);
+            Assert.AreEqual(1, dict["a"]);
+        }
+
         [Test]
         public void Error_Contains_Position()
         {
