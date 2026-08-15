@@ -110,7 +110,22 @@ namespace Moirai.Atropos
                     if (existing is IDictionary existingDict &&
                         targetType.IsGenericType && targetType.GetGenericTypeDefinition() == typeof(Dictionary<,>))
                     {
-                        ParseDictionary(targetType, existingDict);
+                        // 按实际 token 分发：标准对象格式 or legacy 条目数组格式（历史存档兼容）
+                        SkipWhitespace();
+                        byte dictToken = Peek();
+                        if (dictToken == (byte)'{')
+                        {
+                            ParseDictionary(targetType, existingDict);
+                        }
+                        else if (dictToken == (byte)'[')
+                        {
+                            ParseDictionaryLegacy(targetType, existingDict);
+                        }
+                        else
+                        {
+                            Throw(StringUtility.Format("Expected '{{' or '[' for dictionary but found '{0}'.", (char)dictToken));
+                        }
+
                         return existing;
                     }
 
@@ -963,11 +978,13 @@ namespace Moirai.Atropos
                 }
             }
 
-            private object ParseDictionaryLegacy(Type type)
+            private object ParseDictionaryLegacy(Type type, IDictionary existing = null)
             {
-                IDictionary dict = (IDictionary)Activator.CreateInstance(type);
+                IDictionary dict = existing ?? (IDictionary)Activator.CreateInstance(type);
                 Type keyType = type.GenericTypeArguments[0];
                 Type valueType = type.GenericTypeArguments[1];
+
+                if (existing != null) dict.Clear(); // 覆盖语义：清空后按 JSON 重建
 
                 Expect((byte)'[');
 
@@ -1075,13 +1092,40 @@ namespace Moirai.Atropos
             private object ConvertFromString(string s, Type type)
             {
                 object result = TypeConverter.ConvertFromString(s, type);
-                return result ?? ParseNumberSpanBytes(type, Encoding.UTF8.GetBytes(s));
+                return result ?? ParseQuotedNumberBytes(type, s);
             }
 
             private object ConvertDictionaryKey(string s, Type keyType)
             {
                 object result = TypeConverter.ConvertDictionaryKey(s, keyType);
-                return result ?? ParseNumberSpanBytes(keyType, Encoding.UTF8.GetBytes(s));
+                return result ?? ParseQuotedNumberBytes(keyType, s);
+            }
+
+            /// <summary>
+            /// 带引号数值（历史格式）：string → 字节 span 解析。
+            /// 数值串必为 ASCII：≤64 字符经栈缓冲拷贝零堆分配（避免 Encoding.UTF8.GetBytes）；超长/非 ASCII 回退。
+            /// </summary>
+            private object ParseQuotedNumberBytes(Type type, string s)
+            {
+                if (s.Length > 0 && s.Length <= NUMBER_CHAR_BUFFER)
+                {
+                    Span<byte> buffer = stackalloc byte[NUMBER_CHAR_BUFFER];
+                    int i = 0;
+                    while (i < s.Length)
+                    {
+                        char ch = s[i];
+                        if (ch > 0x7F) break; // 数值 token 必为 ASCII
+                        buffer[i] = (byte)ch;
+                        i++;
+                    }
+
+                    if (i == s.Length)
+                    {
+                        return ParseNumberSpanBytes(type, buffer.Slice(0, s.Length));
+                    }
+                }
+
+                return ParseNumberSpanBytes(type, Encoding.UTF8.GetBytes(s));
             }
 
             #endregion
@@ -1254,17 +1298,27 @@ namespace Moirai.Atropos
 
                 if (i >= s.Length) return false;
 
+                // long 范围上限（负数侧允许到 9223372036854775808 = long.MinValue 绝对值）
+                ulong limit = negative ? 9223372036854775808UL : 9223372036854775807UL;
+
                 ulong acc = 0;
                 while (i < s.Length)
                 {
                     byte c = s[i];
                     if (c < (byte)'0' || c > (byte)'9') return false;
-                    acc = acc * 10 + (uint)(c - '0');
-                    if (acc > 9223372036854775807UL + (negative ? 1UL : 0UL)) return false; // 溢出
+
+                    ulong digit = (uint)(c - '0');
+                    // 溢出预判必须在乘法之前：先乘后查会因无符号回绕绕过检查（如 20 位数字回绕后落回范围内）
+                    if (acc > (ulong.MaxValue - digit) / 10) return false;
+
+                    acc = acc * 10 + digit;
+                    if (acc > limit) return false;
                     i++;
                 }
 
-                value = negative ? -(long)acc : (long)acc;
+                // 负数侧 acc 可达 9223372036854775808UL（long.MinValue 绝对值）——超出 long.MaxValue，
+                // 转换需显式 unchecked（0 - acc 回绕即为 long.MinValue，与取负语义一致）
+                value = negative ? unchecked((long)(0 - acc)) : (long)acc;
                 return true;
             }
 
