@@ -1,8 +1,10 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using Cysharp.Threading.Tasks;
 using Moirai.Atropos;
 using NUnit.Framework;
 using UnityEngine;
@@ -114,7 +116,7 @@ namespace Utility
         {
             // throw lambda 无法推断返回类型，需显式目标类型以消除重载歧义
             Func<int> thrower = () => throw new DivideByZeroException();
-            var task = MainThreadDispatcher.PostAsync(thrower);
+            UniTask<int> task = MainThreadDispatcher.PostAsync(thrower);
 
             MainThreadDispatcher.Pump();
 
@@ -136,32 +138,32 @@ namespace Utility
         [Test]
         public void PostAsync_ReturnsResultFromMainQueueExecution()
         {
-            var task = MainThreadDispatcher.PostAsync(() => 41 + 1);
+            UniTask<int> task = MainThreadDispatcher.PostAsync(() => 41 + 1);
 
-            Assert.IsFalse(task.IsCompleted, "Pump 前不应完成");
+            Assert.AreEqual(UniTaskStatus.Pending, task.Status, "Pump 前不应完成");
             MainThreadDispatcher.Pump();
 
-            Assert.IsTrue(task.IsCompleted);
-            Assert.AreEqual(42, task.Result);
+            Assert.AreEqual(UniTaskStatus.Succeeded, task.Status);
+            Assert.AreEqual(42, task.GetAwaiter().GetResult());
         }
 
         [Test]
         public void SendAsync_OnMainThread_CompletesSynchronously()
         {
-            var task = MainThreadDispatcher.SendAsync(() => "ok");
+            UniTask<string> task = MainThreadDispatcher.SendAsync(() => "ok");
 
-            Assert.IsTrue(task.IsCompleted, "主线程快速路径应同步完成");
-            Assert.AreEqual("ok", task.Result);
+            Assert.AreEqual(UniTaskStatus.Succeeded, task.Status, "主线程快速路径应同步完成");
+            Assert.AreEqual("ok", task.GetAwaiter().GetResult());
             Assert.AreEqual(0, MainThreadDispatcher.PendingCount, "不应入队");
         }
 
         [Test]
         public void SendAsync_ExceptionOnMainThread_PropagatesThroughTask()
         {
-            var task = MainThreadDispatcher.SendAsync(() => throw new ArithmeticException());
+            UniTask task = MainThreadDispatcher.SendAsync(() => throw new ArithmeticException());
 
-            Assert.IsTrue(task.IsFaulted);
-            Assert.IsInstanceOf<ArithmeticException>(task.Exception.GetBaseException());
+            Assert.AreEqual(UniTaskStatus.Faulted, task.Status);
+            Assert.ThrowsAsync<ArithmeticException>(async () => await task);
         }
 
         [Test]
@@ -170,14 +172,14 @@ namespace Utility
             var gate = new TaskCompletionSource<bool>();
             bool resumedOnMain = false;
 
-            var task = MainThreadDispatcher.PostAsync(async () =>
+            UniTask task = MainThreadDispatcher.PostAsync(async () =>
             {
                 await gate.Task;
                 resumedOnMain = MainThreadDispatcher.IsMainThread;
             });
 
             MainThreadDispatcher.Pump(); // 启动异步函数，阻塞在 gate
-            Assert.IsFalse(task.IsCompleted, "gate 未放行前任务不应完成");
+            Assert.AreEqual(UniTaskStatus.Pending, task.Status, "gate 未放行前任务不应完成");
 
             gate.TrySetResult(true); // 主线程触发续体
             await task;
@@ -282,6 +284,28 @@ namespace Utility
         }
 
         [Test]
+        public void Send_CoroutineDuringShutdownWindow_DropsWithWarningInsteadOfNRE()
+        {
+            LogAssert.Expect(LogType.Warning, new Regex("coroutine dropped"));
+
+            // 反射置位基类退出标记，模拟应用退出窗口（s_ShuttingDown=true → Instance getter 返回 null）
+            var field = typeof(SingletonMono<MainThreadDispatcher>).GetField("s_ShuttingDown",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+            Assert.NotNull(field, "基类应声明 s_ShuttingDown 静态字段");
+            field.SetValue(null, true);
+
+            int started = 0;
+            IEnumerator DummyRoutine()
+            {
+                started++;
+                yield break;
+            }
+
+            Assert.DoesNotThrow(() => MainThreadDispatcher.Send(DummyRoutine()), "退出窗口的协程 Send 应丢弃并告警，而非 NRE");
+            Assert.AreEqual(0, started, "协程不应被启动");
+        }
+
+        [Test]
         public void ResetStatics_ClearsStaleQueue()
         {
             int executed = 0;
@@ -301,30 +325,30 @@ namespace Utility
         [Test]
         public void PostAsync_Completion_RemovesFromAwaiterRegistry()
         {
-            var task = MainThreadDispatcher.PostAsync(() => 1);
+            UniTask<int> task = MainThreadDispatcher.PostAsync(() => 1);
 
             Assert.AreEqual(1, MainThreadDispatcher.PendingAwaiterCount, "挂起期间应在停机注册表中");
 
             MainThreadDispatcher.Pump();
 
-            Assert.IsTrue(task.IsCompleted);
+            Assert.AreEqual(UniTaskStatus.Succeeded, task.Status);
             Assert.AreEqual(0, MainThreadDispatcher.PendingAwaiterCount, "完成后应移出停机注册表");
         }
 
         [Test]
         public void PostAsync_PendingAtBeginShutdown_TransitionsToCanceled()
         {
-            var task = MainThreadDispatcher.PostAsync(() => 1); // 已入队，未 Pump
+            UniTask<int> task = MainThreadDispatcher.PostAsync(() => 1); // 已入队，未 Pump
 
-            Assert.IsFalse(task.IsCompleted);
+            Assert.AreEqual(UniTaskStatus.Pending, task.Status);
             Assert.AreEqual(1, MainThreadDispatcher.PendingAwaiterCount);
 
             MainThreadDispatcher.BeginShutdown();
 
-            Assert.IsTrue(task.IsCompleted, "停机必须终结挂起的可等待任务，而非永久挂起");
-            Assert.IsTrue(task.IsCanceled);
+            Assert.AreEqual(UniTaskStatus.Canceled, task.Status, "停机必须终结挂起的可等待任务，而非永久挂起");
             Assert.AreEqual(0, MainThreadDispatcher.PendingAwaiterCount, "停机后注册表应清空");
-            Assert.ThrowsAsync<TaskCanceledException>(async () => await task);
+            // 经 async lambda 断言会被 Task 基础设施包装为 TaskCanceledException 子类，此处用同步 GetResult 暴露原始异常类型
+            Assert.Throws<OperationCanceledException>(() => task.GetAwaiter().GetResult());
         }
 
         [Test]
@@ -332,9 +356,9 @@ namespace Utility
         {
             MainThreadDispatcher.BeginShutdown();
 
-            var task = MainThreadDispatcher.PostAsync(() => 1);
+            UniTask<int> task = MainThreadDispatcher.PostAsync(() => 1);
 
-            Assert.IsTrue(task.IsCanceled, "停机后的 PostAsync 应立即取消而非入队挂起");
+            Assert.AreEqual(UniTaskStatus.Canceled, task.Status, "停机后的 PostAsync 应立即取消而非入队挂起");
             Assert.AreEqual(0, MainThreadDispatcher.PendingCount, "停机后不应入队");
         }
 
@@ -345,11 +369,11 @@ namespace Utility
             cts.Cancel();
 
             int executed = 0;
-            var task = MainThreadDispatcher.PostAsync(() => executed++, cts.Token);
+            UniTask<int> task = MainThreadDispatcher.PostAsync(() => executed++, cts.Token);
 
             MainThreadDispatcher.Pump();
 
-            Assert.IsTrue(task.IsCanceled);
+            Assert.AreEqual(UniTaskStatus.Canceled, task.Status);
             Assert.AreEqual(0, executed, "已取消的任务在执行前应被跳过");
             Assert.AreEqual(0, MainThreadDispatcher.PendingAwaiterCount);
         }
@@ -360,13 +384,13 @@ namespace Utility
             using var cts = new CancellationTokenSource();
 
             int executed = 0;
-            var task = MainThreadDispatcher.PostAsync(() => executed++, cts.Token);
+            UniTask<int> task = MainThreadDispatcher.PostAsync(() => executed++, cts.Token);
 
             cts.Cancel(); // 仍在队列中时取消
 
             MainThreadDispatcher.Pump();
 
-            Assert.IsTrue(task.IsCanceled);
+            Assert.AreEqual(UniTaskStatus.Canceled, task.Status);
             Assert.AreEqual(0, executed, "队列中被取消的任务不应执行");
             Assert.AreEqual(0, MainThreadDispatcher.PendingAwaiterCount, "取消后应移出注册表");
         }
@@ -378,9 +402,9 @@ namespace Utility
             cts.Cancel();
 
             int executed = 0;
-            var task = MainThreadDispatcher.SendAsync(() => executed++, cts.Token);
+            UniTask<int> task = MainThreadDispatcher.SendAsync(() => executed++, cts.Token);
 
-            Assert.IsTrue(task.IsCanceled);
+            Assert.AreEqual(UniTaskStatus.Canceled, task.Status);
             Assert.AreEqual(0, executed);
             Assert.AreEqual(0, MainThreadDispatcher.PendingCount, "主线程快速路径不应入队");
         }
@@ -391,10 +415,10 @@ namespace Utility
             using var cts = new CancellationTokenSource();
 
             Action thrower = () => throw new OperationCanceledException(cts.Token);
-            var task = MainThreadDispatcher.SendAsync(thrower);
+            UniTask task = MainThreadDispatcher.SendAsync(thrower);
 
-            Assert.IsTrue(task.IsCanceled, "主线程快速路径的 OCE 应映射为取消，与 PostAsync 语义一致");
-            Assert.IsFalse(task.IsFaulted);
+            Assert.AreEqual(UniTaskStatus.Canceled, task.Status, "主线程快速路径的 OCE 应映射为取消，与 PostAsync 语义一致");
+            Assert.AreNotEqual(UniTaskStatus.Faulted, task.Status);
         }
 
         [Test]
@@ -403,23 +427,23 @@ namespace Utility
             using var cts = new CancellationTokenSource();
 
             Action thrower = () => throw new OperationCanceledException(cts.Token);
-            var task = MainThreadDispatcher.PostAsync(thrower);
+            UniTask task = MainThreadDispatcher.PostAsync(thrower);
 
             MainThreadDispatcher.Pump();
 
-            Assert.IsTrue(task.IsCanceled, "排队路径的 OCE 应映射为取消");
-            Assert.IsFalse(task.IsFaulted);
+            Assert.AreEqual(UniTaskStatus.Canceled, task.Status, "排队路径的 OCE 应映射为取消");
+            Assert.AreNotEqual(UniTaskStatus.Faulted, task.Status);
         }
 
         [Test]
         public void ResetStatics_CancelsPendingAwaiters()
         {
-            var task = MainThreadDispatcher.PostAsync(() => 1);
+            UniTask<int> task = MainThreadDispatcher.PostAsync(() => 1);
             Assert.AreEqual(1, MainThreadDispatcher.PendingAwaiterCount);
 
             MainThreadDispatcher.ResetStatics();
 
-            Assert.IsTrue(task.IsCanceled, "Reset 必须取消挂起的可等待任务（异常退出恢复场景，BeginShutdown 可能未执行）");
+            Assert.AreEqual(UniTaskStatus.Canceled, task.Status, "Reset 必须取消挂起的可等待任务（异常退出恢复场景，BeginShutdown 可能未执行）");
             Assert.AreEqual(0, MainThreadDispatcher.PendingAwaiterCount);
         }
 
@@ -428,7 +452,7 @@ namespace Utility
         {
             using var cts = new CancellationTokenSource();
 
-            var task = MainThreadDispatcher.PostAsync(() => 1, cts.Token);
+            UniTask<int> task = MainThreadDispatcher.PostAsync(() => 1, cts.Token);
             MainThreadDispatcher.BeginShutdown();
 
             try
@@ -445,31 +469,28 @@ namespace Utility
         [Test]
         public void PostAsync_AsyncFunc_SyncThrow_FaultsTask_NeverStaysPending()
         {
-            // 审查方场景：func() 在首个 await 前同步抛出。
             // async 方法体内的用户 try/catch 覆盖同步前缀（状态机首个 MoveNext 同步执行 try 块），
-            // 异常经 catch 写入 TCS —— async void 的 SyncContext 逃逸仅发生在未被任何用户 catch 捕获时。
-            Func<Task> syncThrower = () => throw new InvalidOperationException("sync boom");
-            var task = MainThreadDispatcher.PostAsync(syncThrower);
+            // 异常经 catch 写入完成源 —— async void 的 SyncContext 逃逸仅发生在未被任何用户 catch 捕获时。
+            Func<UniTask> syncThrower = () => throw new InvalidOperationException("sync boom");
+            UniTask task = MainThreadDispatcher.PostAsync(syncThrower);
 
             MainThreadDispatcher.Pump();
 
-            Assert.IsTrue(task.IsCompleted, "同步抛出的异常必须写入 TCS，任务不得永久 Pending");
-            Assert.IsTrue(task.IsFaulted);
-            Assert.IsInstanceOf<InvalidOperationException>(task.Exception.GetBaseException());
+            Assert.AreEqual(UniTaskStatus.Faulted, task.Status, "同步抛出的异常必须写入完成源，任务不得永久 Pending");
+            Assert.ThrowsAsync<InvalidOperationException>(async () => await task);
             Assert.AreEqual(0, MainThreadDispatcher.PendingAwaiterCount, "finally 应清理注册表");
         }
 
         [Test]
         public void PostAsync_GenericAsyncFunc_SyncThrow_FaultsTask_NeverStaysPending()
         {
-            Func<Task<int>> syncThrower = () => throw new InvalidOperationException("sync boom");
-            var task = MainThreadDispatcher.PostAsync(syncThrower);
+            Func<UniTask<int>> syncThrower = () => throw new InvalidOperationException("sync boom");
+            UniTask<int> task = MainThreadDispatcher.PostAsync(syncThrower);
 
             MainThreadDispatcher.Pump();
 
-            Assert.IsTrue(task.IsCompleted, "同步抛出的异常必须写入 TCS，任务不得永久 Pending");
-            Assert.IsTrue(task.IsFaulted);
-            Assert.IsInstanceOf<InvalidOperationException>(task.Exception.GetBaseException());
+            Assert.AreEqual(UniTaskStatus.Faulted, task.Status, "同步抛出的异常必须写入完成源，任务不得永久 Pending");
+            Assert.ThrowsAsync<InvalidOperationException>(async () => await task);
             Assert.AreEqual(0, MainThreadDispatcher.PendingAwaiterCount, "finally 应清理注册表");
         }
 

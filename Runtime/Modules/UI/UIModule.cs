@@ -60,7 +60,7 @@ namespace Moirai.Atropos.UI
         public override void OnInit()
         {
             // 此阶段（AfterAssembliesLoaded）场景尚未加载，初始化延迟到首个 Update tick。
-            MainThreadDispatcher.Instance.Enqueue(TryInitializeUIRoot);
+            MainThreadDispatcher.Post(TryInitializeUIRoot);
         }
 
         private void TryInitializeUIRoot()
