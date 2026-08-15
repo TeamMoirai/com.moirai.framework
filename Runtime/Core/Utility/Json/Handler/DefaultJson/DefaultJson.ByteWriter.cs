@@ -23,11 +23,14 @@ namespace Moirai.Atropos
         internal static class ByteWriter
         {
             #region 变量 [VARIABLES]
+
             private const int INITIAL_CAPACITY = 256;
+
+            /// <summary>线程缓冲保留上限：超限的扩容缓冲不归还池（防长线程常驻大 buffer），下次调用重新生长。</summary>
+            private const int MAX_RETAINED_SCRATCH = 1 << 20; // 1MB
 
             [ThreadStatic]
             private static byte[] t_Scratch;
-
             // 引用环/深度守卫由共享 LoopGuard 处理（P0 消除重复）
 
             #endregion
@@ -46,7 +49,9 @@ namespace Moirai.Atropos
                 }
                 finally
                 {
-                    t_Scratch = buf;
+                    // 超过保留上限的缓冲不归还（×2 扩容只增不减，长线程持有大 buffer 无法释放）；
+                    // 下次调用重新从初始容量生长，偶发大负载不造成常驻内存
+                    t_Scratch = buf.Length <= MAX_RETAINED_SCRATCH ? buf : null;
                     LoopGuard.End();
                 }
 

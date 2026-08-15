@@ -1087,6 +1087,117 @@ namespace Utility
             CollectionAssert.AreEqual(new[] { TestEnum.None, TestEnum.Second, TestEnum.First }, DefaultJson.FromJson<TestEnum[]>(bytes));
         }
 
+        // ===== 枚举数组空白字符边缘用例（复审 #1：验证 ParseEnumArray 循环顶部 SkipWhitespace） =====
+
+        [Test]
+        public void EnumArray_LeadingTrailingWhitespace_Numeric_Parses()
+        {
+            // 元素前后含空格/制表/换行的数值枚举数组
+            byte[] bytes = System.Text.Encoding.UTF8.GetBytes("[ 1 ,\r\n\t2 , 0 ]");
+            CollectionAssert.AreEqual(new[] { TestEnum.First, TestEnum.Second, TestEnum.None }, DefaultJson.FromJson<TestEnum[]>(bytes));
+        }
+
+        [Test]
+        public void EnumArray_WhitespaceAroundNameStrings_Parses()
+        {
+            // 元素前后含空白的名称字符串枚举数组
+            byte[] bytes = System.Text.Encoding.UTF8.GetBytes("[ \"First\" , \"None\" ]");
+            CollectionAssert.AreEqual(new[] { TestEnum.First, TestEnum.None }, DefaultJson.FromJson<TestEnum[]>(bytes));
+        }
+
+        [Test]
+        public void EnumArray_ArrayLeadingWhitespace_BeforeBracket_Parses()
+        {
+            // '[' 之前的空白（Expect 内部 SkipWhitespace 已处理——回归确认）
+            byte[] bytes = System.Text.Encoding.UTF8.GetBytes("  [ 2 ]\r\n");
+            CollectionAssert.AreEqual(new[] { TestEnum.Second }, DefaultJson.FromJson<TestEnum[]>(bytes));
+        }
+
+        // ===== 枚举字符串路径双重包装回归（复审：ParseValue 已返回枚举实例，不得再 Enum.ToObject） =====
+
+        [System.Flags]
+        private enum FlagsEnum { None = 0, Read = 1, Write = 2, Execute = 4 }
+
+        [Test]
+        public void EnumArray_NameStringPath_NoDoubleWrap()
+        {
+            // 名称字符串（含 Flags 组合值）：字符串路径返回的已是正确枚举实例
+            byte[] bytes = System.Text.Encoding.UTF8.GetBytes("[\"Read\",\"Write\",\"Read, Write\"]");
+            var back = DefaultJson.FromJson<FlagsEnum[]>(bytes);
+            Assert.AreEqual(FlagsEnum.Read, back[0]);
+            Assert.AreEqual(FlagsEnum.Write, back[1]);
+            Assert.AreEqual(FlagsEnum.Read | FlagsEnum.Write, back[2]);
+        }
+
+        // ===== 空输入精确报错 =====
+
+        [Test]
+        public void EmptyInput_ThrowsPreciseError()
+        {
+            var ex1 = Assert.Throws<Moirai.Atropos.GameException>(() => DefaultJson.FromJson<SimpleClass>(""));
+            StringAssert.Contains("empty", ex1.Message);
+
+            var ex2 = Assert.Throws<Moirai.Atropos.GameException>(() => DefaultJson.FromJson<SimpleClass>(new byte[0]));
+            StringAssert.Contains("empty", ex2.Message);
+
+            var ex3 = Assert.Throws<Moirai.Atropos.GameException>(() => DefaultJson.FromJson<SimpleClass>(new byte[] { 0xEF, 0xBB, 0xBF }));
+            StringAssert.Contains("empty", ex3.Message);
+        }
+
+        // ===== List<string> 快路径回归 =====
+
+        [Test]
+        public void StringList_FastPath_RoundTrip()
+        {
+            var list = new List<string> { "a", "你好🌍", null, "" };
+            string json = DefaultJson.ToJson(list, removeNulls: false);
+            var back = DefaultJson.FromJson<List<string>>(json);
+            CollectionAssert.AreEqual(list, back);
+
+            byte[] bytes = DefaultJson.ToJsonBytes(list, removeNulls: false);
+            var back2 = DefaultJson.FromJson<List<string>>(bytes);
+            CollectionAssert.AreEqual(list, back2);
+
+            // 含空白 + 截断仍抛错
+            var back3 = DefaultJson.FromJson<List<string>>("[ \"x\" , \"y\" ]");
+            CollectionAssert.AreEqual(new[] { "x", "y" }, back3);
+            Assert.Throws<Moirai.Atropos.GameException>(() => DefaultJson.FromJson<List<string>>("[\"x\","));
+        }
+
+        // ===== 回调顺序：基类先行（复审：派生类回调可能依赖基类状态就绪） =====
+
+        [System.Serializable]
+        private class CallbackBase
+        {
+            public int baseRanAt = -1;
+            public int derivedRanAt = -1;
+            [Moirai.Atropos.JsonAfterDeserialization]
+            private void OnBaseDeserialized() => Record("base");
+            protected virtual void Record(string who) { }
+        }
+
+        [System.Serializable]
+        private class CallbackDerived : CallbackBase
+        {
+            private int _counter;
+            [Moirai.Atropos.JsonAfterDeserialization]
+            private void OnDerivedDeserialized() => Record("derived");
+            protected override void Record(string who)
+            {
+                _counter++;
+                if (who == "base") baseRanAt = _counter;
+                else derivedRanAt = _counter;
+            }
+        }
+
+        [Test]
+        public void AfterDeserializeCallbacks_BaseRunsBeforeDerived()
+        {
+            var obj = DefaultJson.FromJson<CallbackDerived>("{}");
+            Assert.AreEqual(1, obj.baseRanAt, "基类回调应第 1 个执行");
+            Assert.AreEqual(2, obj.derivedRanAt, "派生类回调应第 2 个执行");
+        }
+
         [Test]
         public void Error_Contains_Position()
         {

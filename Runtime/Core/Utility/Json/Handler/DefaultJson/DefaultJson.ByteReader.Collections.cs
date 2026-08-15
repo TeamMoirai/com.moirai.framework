@@ -82,6 +82,9 @@ namespace Moirai.Atropos
                     case List<decimal> l:
                         ParseTypedList(l, TypedRead<decimal>.Read);
                         return;
+                    case List<string> l:
+                        ParseStringTypedList(l);
+                        return;
                 }
 
                 Expect((byte)'[');
@@ -133,6 +136,41 @@ namespace Moirai.Atropos
                 while (true)
                 {
                     list.Add(read(this));
+
+                    SkipWhitespace();
+                    byte c = Peek();
+                    if (c == (byte)',')
+                    {
+                        _pos++;
+                        continue;
+                    }
+
+                    if (c == (byte)']')
+                    {
+                        _pos++;
+                        return;
+                    }
+
+                    Throw(StringUtility.Format("Expected ',' or ']' but found '{0}'.", (char)c));
+                }
+            }
+
+            /// <summary>字符串列表快路径（字符串列表为高频场景，免除逐元素 ParseValue 分派；含 null 字面量）。</summary>
+            private void ParseStringTypedList(List<string> list)
+            {
+                Expect((byte)'[');
+
+                SkipWhitespace();
+                if (Peek() == (byte)']')
+                {
+                    _pos++;
+                    return;
+                }
+
+                while (true)
+                {
+                    SkipWhitespace();
+                    list.Add(Peek() == (byte)'n' && MatchLiteral("null") ? null : ReadStringMaterialized());
 
                     SkipWhitespace();
                     byte c = Peek();
@@ -210,7 +248,7 @@ namespace Moirai.Atropos
                             {
                                 value = Convert.ChangeType(value, elementType, CultureInfo.InvariantCulture);
                             }
-                            catch (Exception)
+                            catch (Exception e) when (e is InvalidCastException || e is OverflowException || e is FormatException)
                             {
                                 Throw(StringUtility.Format("Cannot convert '{0}' to element type '{1}'.", value, elementType.Name));
                             }
@@ -302,12 +340,13 @@ namespace Moirai.Atropos
                 {
                     while (true)
                     {
-                        // 名称形式的枚举元素（字符串）走通用 ParseValue；数值形式按底层类型快读
+                        // 名称形式的枚举元素（字符串）走通用 ParseValue（返回值已是枚举实例，直接使用）；
+                        // 数值形式按底层类型快读后经 Enum.ToObject 装箱
                         SkipWhitespace();
                         object raw = Peek() == (byte)'"'
                             ? ParseValue(elementType)
                             : ParseNumberSpanBytes(underlying, ScanNumberToken());
-                        tmp.Add(raw is IConvertible ? Enum.ToObject(elementType, raw) : raw);
+                        tmp.Add(elementType.IsInstanceOfType(raw) ? raw : Enum.ToObject(elementType, raw));
 
                         SkipWhitespace();
                         byte c = Peek();

@@ -121,6 +121,11 @@ namespace Moirai.Atropos
                 throw new GameException("Json string is invalid (null).");
             }
 
+            if (json.Length == 0)
+            {
+                throw new GameException("Json string is empty.");
+            }
+
             var reader = new Reader(json, maxDepth);
             return reader.Parse(type, existing);
         }
@@ -135,6 +140,12 @@ namespace Moirai.Atropos
             if (json == null)
             {
                 throw new GameException("Json bytes are invalid (null).");
+            }
+
+            // 长度 0 或仅 BOM 头视为空输入（BOM 3 字节由 Reader 跳过）
+            if (json.Length == 0 || (json.Length == 3 && json[0] == 0xEF && json[1] == 0xBB && json[2] == 0xBF))
+            {
+                throw new GameException("Json bytes are empty.");
             }
 
             var reader = new ByteReader(json, maxDepth);
@@ -382,8 +393,16 @@ namespace Moirai.Atropos
                 meta.AfterDeserializeMethods = after.ToArray();
             }
 
+            /// <summary>
+            /// 按继承链收集回调（基类在前、派生类在后）。
+            /// 反序列化回调按此顺序执行——与 C# 构造顺序 / Newtonsoft OnDeserialized 惯例一致，
+            /// 保证基类的初始化回调先于派生类运行（派生类回调可能依赖基类状态就绪）。
+            /// </summary>
             private static void CollectCallbacks(Type type, List<MethodInfo> before, List<MethodInfo> after)
             {
+                if (type.BaseType != null && type.BaseType != typeof(object))
+                    CollectCallbacks(type.BaseType, before, after);
+
                 MethodInfo[] methods = type.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly);
                 foreach (MethodInfo method in methods)
                 {
@@ -392,9 +411,6 @@ namespace Moirai.Atropos
                     if (method.GetCustomAttribute<JsonAfterDeserializationAttribute>() != null)
                         after.Add(method);
                 }
-
-                if (type.BaseType != null && type.BaseType != typeof(object))
-                    CollectCallbacks(type.BaseType, before, after);
             }
 
             #endregion
