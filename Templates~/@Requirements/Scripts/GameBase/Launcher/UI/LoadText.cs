@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Moirai.Atropos;
 using Moirai.Atropos.Localization;
 using UnityEngine;
@@ -164,7 +164,8 @@ namespace Moirai.Main
             Log.Info($"LoadText: {buildInTextName}{suffix}");
             try
             {
-                TextMode loadConfig = JSONUtility.ToObject<TextMode>(textAsset.text);
+                // 字节通路：TextAsset.bytes 直接解析，跳过 .text 的整串 UTF8 解码
+                TextMode loadConfig = JSONUtility.ToObject<TextMode>(textAsset.bytes);
                 if (loadConfig == null) return;
                 
                 // 利用反射赋值

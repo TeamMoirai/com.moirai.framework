@@ -13,14 +13,15 @@ namespace Moirai.Atropos.Save
         /// <param name="saveFile"></param>
         public Task Save(object objectToSave, FileStream saveFile)
         {
-            string json = JSONUtility.ToJson(objectToSave
 #if UNITY_EDITOR
-            , true
+            // 编辑器保留可读格式便于人工检查存档；真机走紧凑字节通路
+            string json = JsonUtility.ToJson(objectToSave, true);
+            byte[] bytes = Encoding.UTF8.GetBytes(json);
+#else
+            // 字节通路：直接产出 UTF8 JSON 字节写入文件，跳过 string 中间态与 StreamWriter 编码层
+            byte[] bytes = JsonUtility.ToJsonBytes(objectToSave);
 #endif
-            );
-            StreamWriter streamWriter = new StreamWriter(saveFile);
-            streamWriter.Write(json);
-            streamWriter.Close();
+            saveFile.Write(bytes, 0, bytes.Length);
             saveFile.Close();
 
             return Task.CompletedTask;
@@ -33,13 +34,39 @@ namespace Moirai.Atropos.Save
         /// <returns></returns>
         public Task<T> Load<T>(FileStream saveFile)
         {
-            StreamReader streamReader = new StreamReader(saveFile, Encoding.UTF8);
-            string json = streamReader.ReadToEnd();
-            T savedObject = JSONUtility.ToObject<T>(json);
-            streamReader.Close();
+            // 整体读为字节后直接解析（零 string 中间态；解析端已兼容 BOM 与编辑器可读格式）
+            byte[] buffer = ReadAllBytes(saveFile);
+            T savedObject = JsonUtility.ToObject<T>(buffer);
             saveFile.Close();
 
             return Task.FromResult(savedObject);
+        }
+
+        private static byte[] ReadAllBytes(FileStream stream)
+        {
+            long length = stream.Length;
+            if (length > int.MaxValue)
+            {
+                throw new IOException("Save file is too large: " + length);
+            }
+
+            var buffer = new byte[(int)length];
+            int read = 0;
+            while (read < buffer.Length)
+            {
+                int chunk = stream.Read(buffer, read, buffer.Length - read);
+                if (chunk <= 0) break;
+                read += chunk;
+            }
+
+            return read == buffer.Length ? buffer : TrimTrailingUnread(buffer, read);
+        }
+
+        private static byte[] TrimTrailingUnread(byte[] buffer, int read)
+        {
+            var exact = new byte[read];
+            System.Array.Copy(buffer, exact, read);
+            return exact;
         }
     }
 }
