@@ -1,0 +1,236 @@
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+
+namespace Moirai.Atropos
+{
+    public static partial class DefaultJson
+    {
+        /// <summary>
+        /// 引用环与深度守卫（Writer / ByteWriter 共享）。
+        /// </summary>
+        /// <remarks>
+        /// <para><b>设计</b>：ThreadStatic 引用栈 + 容器入口压栈/出口弹栈 + 成员处只查不压。
+        /// 值类型/字符串/null 不参与跟踪（无环可能）。</para>
+        /// <para><b>引用环</b>：对齐 <see cref="NewtonsoftJsonHandler"/> 既定的 ReferenceLoopHandling.Ignore 语义
+        /// ——跳过构成环的成员/元素（不抛错、不无限递归）。</para>
+        /// <para><b>深度守卫</b>：超限成员软截断（跳过+警告，不抛错）；标量豁免（无递归风险，任何深度照常写值）。</para>
+        /// </remarks>
+        internal static class LoopGuard
+        {
+            /// <summary>序列化中的引用类型对象栈（线程本地复用）。</summary>
+            [ThreadStatic]
+            public static List<object> RefStack;
+
+            /// <summary>深度告警已发出标志（每次 Serialize 重置，避免刷屏）。</summary>
+            [ThreadStatic]
+            public static bool DepthWarned;
+
+            /// <summary>开始一次序列化（清栈 + 重置告警）。</summary>
+            public static void Begin()
+            {
+                RefStack?.Clear();
+                DepthWarned = false;
+            }
+
+            /// <summary>结束一次序列化（清栈兜底，异常路径未配对弹出也能恢复）。</summary>
+            public static void End()
+            {
+                RefStack?.Clear();
+            }
+
+            /// <summary>
+            /// 该引用是否正在序列化中（构成引用环）。
+            /// null/值类型/字符串不参与跟踪（无环可能）。调用方应跳过该成员/元素。
+            /// </summary>
+            public static bool IsSerializingReference(object value)
+            {
+                if (value == null) return false;
+                Type t = value.GetType();
+                if (t.IsValueType || t == typeof(string)) return false;
+
+                var stack = RefStack;
+                if (stack == null) return false;
+
+                for (int i = 0; i < stack.Count; i++)
+                {
+                    if (ReferenceEquals(stack[i], value)) return true;
+                }
+
+                return false;
+            }
+
+            /// <summary>容器入口压栈（对象/数组/列表/字典；值类型不入栈）。</summary>
+            public static void PushReference(object container)
+            {
+                if (container == null) return;
+                Type t = container.GetType();
+                if (t.IsValueType) return;
+
+                (RefStack ??= new List<object>(maxDepth + 2)).Add(container);
+            }
+
+            /// <summary>容器出口弹栈。</summary>
+            public static void PopReference()
+            {
+                var stack = RefStack;
+                if (stack != null && stack.Count > 0) stack.RemoveAt(stack.Count - 1);
+            }
+
+            /// <summary>是否为标量值（写入无递归风险，深度守卫不适用）。</summary>
+            public static bool IsScalarValue(object value)
+            {
+                if (value == null || value is string) return true;
+                Type t = value.GetType();
+                return t.IsPrimitive || t.IsEnum ||
+                       t == typeof(decimal) || t == typeof(DateTime) || t == typeof(DateTimeOffset) ||
+                       t == typeof(TimeSpan) || t == typeof(Guid);
+            }
+
+            /// <summary>
+            /// 子级复合值是否会被深度守卫截断。
+            /// 命中时调用方应跳过整个成员/元素，保持输出合法；仅告警一次。
+            /// </summary>
+            public static bool WouldExceedDepth(object childValue, int parentDepth)
+            {
+                if (parentDepth + 1 < maxDepth || IsScalarValue(childValue)) return false;
+
+                if (!DepthWarned)
+                {
+                    DepthWarned = true;
+                    Log.Warning(StringUtility.Format(
+                        "[DefaultJson] Serialization depth exceeded the limit of {0}. Members beyond the limit are skipped.", maxDepth));
+                }
+
+                return true;
+            }
+        }
+
+        /// <summary>
+        /// 共享类型工具（Writer / ByteWriter 共享）。
+        /// </summary>
+        internal static class JsonTypeUtil
+        {
+            /// <summary>能否作为标准 JSON 对象 key 输出（字符串化后可无损还原）。</summary>
+            public static bool IsStandardDictionaryKey(Type keyType)
+            {
+                return keyType == typeof(string) ||
+                       keyType == typeof(char) ||
+                       keyType == typeof(bool) ||
+                       keyType.IsEnum ||
+                       keyType == typeof(byte) || keyType == typeof(sbyte) ||
+                       keyType == typeof(short) || keyType == typeof(ushort) ||
+                       keyType == typeof(int) || keyType == typeof(uint) ||
+                       keyType == typeof(long) || keyType == typeof(ulong) ||
+                       keyType == typeof(float) || keyType == typeof(double) || keyType == typeof(decimal) ||
+                       keyType == typeof(Guid) || keyType == typeof(DateTime) || keyType == typeof(DateTimeOffset) ||
+                       keyType == typeof(TimeSpan);
+            }
+        }
+
+        /// <summary>
+        /// 共享类型转换（Reader / ByteReader 共享）。
+        /// 所有方法接收 string 参数——字节路径的 Reader 在物化字符串后调用。
+        /// </summary>
+        internal static class TypeConverter
+        {
+            /// <summary>legacy 字典格式的成员名常量。</summary>
+            public const string KeyMember = "key";
+
+            /// <summary>legacy 字典格式的成员名常量。</summary>
+            public const string ValueMember = "value";
+
+            /// <summary>字符串 → 目标类型（string/char/bool/枚举/数值/Guid/DateTime/TimeSpan/DateTimeOffset）。</summary>
+            /// <remarks>当目标类型不匹配时抛 <see cref="GameException"/>（标注 <c>[DoesNotReturn]</c>）。</remarks>
+            public static object ConvertFromString(string s, Type type)
+            {
+                if (type == typeof(string) || type == typeof(object)) return s;
+                if (type == typeof(char)) return s.Length > 0 && s != "null" ? (object)s[0] : '\0';
+                if (type == typeof(bool)) return ParseBooleanString(s);
+
+                if (type.IsEnum)
+                {
+                    if (Enum.TryParse(type, s, false, out object enumValue)) return enumValue;
+                    Throw(StringUtility.Format("'{0}' is not a valid name or value for enum '{1}'.", s, type.Name));
+                }
+
+                if (type == typeof(Guid))
+                {
+                    if (Guid.TryParse(s, out Guid guid)) return guid;
+                    Throw(StringUtility.Format("'{0}' is not a valid Guid.", s));
+                }
+
+                if (type == typeof(DateTime))
+                {
+                    if (DateTime.TryParse(s, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out DateTime dt)) return dt;
+                    Throw(StringUtility.Format("'{0}' is not a valid DateTime.", s));
+                }
+
+                if (type == typeof(DateTimeOffset))
+                {
+                    if (DateTimeOffset.TryParse(s, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out DateTimeOffset dto)) return dto;
+                    Throw(StringUtility.Format("'{0}' is not a valid DateTimeOffset.", s));
+                }
+
+                if (type == typeof(TimeSpan))
+                {
+                    if (TimeSpan.TryParse(s, CultureInfo.InvariantCulture, out TimeSpan ts)) return ts;
+                    Throw(StringUtility.Format("'{0}' is not a valid TimeSpan.", s));
+                }
+
+                // 调用方负责数值 span 解析（char/byte span 差异不适合共享）
+                return null; // 到达此处的唯一可能是数值类型——调用方检测 null 后走各自 span 解析
+            }
+
+            public static bool ParseBooleanString(string s)
+            {
+                switch (s)
+                {
+                    case "true":
+                    case "TRUE":
+                    case "True":
+                    case "1":
+                    case "-1":
+                        return true;
+                    case "false":
+                    case "FALSE":
+                    case "False":
+                    case "0":
+                        return false;
+                    default:
+                        Throw(StringUtility.Format("Invalid value for boolean: '{0}'.", s));
+                        return false;
+                }
+            }
+
+            public static object ConvertDictionaryKey(string s, Type keyType)
+            {
+                if (keyType == typeof(string)) return s;
+                if (keyType == typeof(char)) return s.Length > 0 ? (object)s[0] : '\0';
+                if (keyType == typeof(bool)) return ParseBooleanString(s);
+
+                if (keyType.IsEnum)
+                {
+                    if (Enum.TryParse(keyType, s, false, out object v)) return v;
+                    Throw(StringUtility.Format("'{0}' is not a valid dictionary key for enum '{1}'.", s, keyType.Name));
+                }
+
+                if (keyType == typeof(Guid))
+                {
+                    if (Guid.TryParse(s, out Guid guid)) return guid;
+                    Throw(StringUtility.Format("'{0}' is not a valid Guid dictionary key.", s));
+                }
+
+                // 数值 key：调用方负责 span 解析
+                return null;
+            }
+
+            /// <summary>共享 Throw（标注 [DoesNotReturn]，消除调用方不可达警告）。</summary>
+            [System.Diagnostics.CodeAnalysis.DoesNotReturn]
+            private static void Throw(string message)
+            {
+                throw new GameException(message);
+            }
+        }
+    }
+}

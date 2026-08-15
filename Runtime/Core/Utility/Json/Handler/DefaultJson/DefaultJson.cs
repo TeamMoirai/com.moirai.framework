@@ -29,7 +29,7 @@ namespace Moirai.Atropos
         #region 公共 API [PUBLIC API]
 
         /// <summary>
-        /// 将 Json 字符串转换为类型化对象
+        /// 将 JSON 字符串转换为类型化对象
         /// </summary>
         /// <param name="json">要转换的字符串</param>
         /// <typeparam name="T"></typeparam>
@@ -40,7 +40,7 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 将 Json 字符串转换为类型化对象
+        /// 将 JSON 字符串转换为类型化对象
         /// </summary>
         /// <param name="json">要转换的字符串</param>
         /// <param name="type">要转换为的类型</param>
@@ -51,10 +51,10 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 用 Json 字符串中的值覆盖对象数据
+        /// 用 JSON 字符串中的值覆盖对象数据
         /// </summary>
         /// <param name="obj">要更新的对象</param>
-        /// <param name="json">要使用的 Json</param>
+        /// <param name="json">要使用的 JSON</param>
         public static void FromJsonOverwrite(object obj, string json)
         {
             if (obj == null)
@@ -66,7 +66,7 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 序列化为 Json 的简单方法。将对象转换为 Json 字符串
+        /// 序列化为 JSON 的简单方法。将对象转换为 JSON 字符串
         /// </summary>
         /// <param name="obj">要转换的对象</param>
         /// <param name="removeNulls">删除空值</param>
@@ -74,22 +74,22 @@ namespace Moirai.Atropos
         /// <returns></returns>
         public static string ToJson(object obj, bool removeNulls = true, bool readable = false)
         {
-            return Writer.Serialize(obj, removeNulls, readable);
+            return Writer.Serialize(obj, removeNulls, readable, maxDepth);
         }
 
         /// <summary>
-        /// 序列化为 UTF8 Json 字节（紧凑格式，与 <see cref="ToJson"/> 输出 UTF8 编码逐字节等价）。
+        /// 序列化为 UTF8 JSON 字节（紧凑格式，与 <see cref="ToJson"/> 输出 UTF8 编码逐字节等价）。
         /// </summary>
         /// <param name="obj">要转换的对象</param>
         /// <param name="removeNulls">删除空值</param>
-        /// <returns>UTF8 Json 字节（调用方持有所有权）</returns>
+        /// <returns>UTF8 JSON 字节（调用方持有所有权）</returns>
         public static byte[] ToJsonBytes(object obj, bool removeNulls = true)
         {
-            return ByteWriter.Serialize(obj, removeNulls);
+            return ByteWriter.Serialize(obj, removeNulls, maxDepth);
         }
 
         /// <summary>
-        /// 将 UTF8 Json 字节转换为类型化对象（与 <see cref="FromJson{T}(string)"/> 接受相同的输入集合）
+        /// 将 UTF8 JSON 字节转换为类型化对象（与 <see cref="FromJson{T}(string)"/> 接受相同的输入集合）
         /// </summary>
         /// <param name="json">要转换的 UTF8 字节</param>
         /// <typeparam name="T"></typeparam>
@@ -100,7 +100,7 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 将 UTF8 Json 字节转换为类型化对象（与 <see cref="FromJson(string, Type)"/> 接受相同的输入集合）
+        /// 将 UTF8 JSON 字节转换为类型化对象（与 <see cref="FromJson(string, Type)"/> 接受相同的输入集合）
         /// </summary>
         /// <param name="json">要转换的 UTF8 字节</param>
         /// <param name="type">要转换为的类型</param>
