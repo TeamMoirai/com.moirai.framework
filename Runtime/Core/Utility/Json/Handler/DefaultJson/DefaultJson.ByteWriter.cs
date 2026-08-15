@@ -23,7 +23,6 @@ namespace Moirai.Atropos
         internal static class ByteWriter
         {
             #region 变量 [VARIABLES]
-
             private const int INITIAL_CAPACITY = 256;
 
             [ThreadStatic]
@@ -34,7 +33,6 @@ namespace Moirai.Atropos
             #endregion
 
             #region 入口 [ENTRY]
-
             /// <summary>序列化对象为 UTF8 JSON 字节（紧凑格式）。</summary>
             public static byte[] Serialize(object obj, bool removeNulls, int depthLimit)
             {
@@ -60,7 +58,6 @@ namespace Moirai.Atropos
             #endregion
 
             #region 值分派 [VALUE DISPATCH]
-
             private static void WriteValue(ref byte[] buf, ref int pos, object value, bool removeNulls, int depth, int depthLimit)
             {
                 // 安全网：成员/元素处已按 WouldExceedDepth 软截断，此处仅兜底未守卫路径（写 null 保证输出合法）。
@@ -126,82 +123,79 @@ namespace Moirai.Atropos
                 WriteObject(ref buf, ref pos, value, type, removeNulls, depth, depthLimit);
             }
 
-            /// <summary>写入简单值。返回 false 表示非简单值，交由容器/对象路径处理。</summary>
-            private static bool WriteSimpleValue(ref byte[] buf, ref int pos, object value)
+            /// <summary>写入简单值（基元/字符串/枚举）。与 string 版 Writer 的 void 语义对齐：不可处理类型抛错。</summary>
+            private static void WriteSimpleValue(ref byte[] buf, ref int pos, object value)
             {
                 switch (value)
                 {
                     case bool b:
                         AppendAscii(ref buf, ref pos, b ? "true" : "false");
-                        return true;
+                        return;
                     case char c:
                         WriteEscapedChar(ref buf, ref pos, c);
-                        return true;
+                        return;
                     case string s:
                         WriteEscapedString(ref buf, ref pos, s);
-                        return true;
+                        return;
                     case float f:
                         WriteFloat(ref buf, ref pos, f);
-                        return true;
+                        return;
                     case double d:
                         WriteDouble(ref buf, ref pos, d);
-                        return true;
+                        return;
                     case decimal m:
                         AppendAscii(ref buf, ref pos, m.ToString(CultureInfo.InvariantCulture));
-                        return true;
+                        return;
                     case int i:
                         WriteInt64(ref buf, ref pos, i);
-                        return true;
+                        return;
                     case long l:
                         WriteInt64(ref buf, ref pos, l);
-                        return true;
+                        return;
                     case uint ui:
                         WriteUInt64(ref buf, ref pos, ui);
-                        return true;
+                        return;
                     case ulong ul:
                         WriteUInt64(ref buf, ref pos, ul);
-                        return true;
+                        return;
                     case byte by:
                         WriteUInt64(ref buf, ref pos, by);
-                        return true;
+                        return;
                     case sbyte sbv:
                         WriteInt64(ref buf, ref pos, sbv);
-                        return true;
+                        return;
                     case short sh:
                         WriteInt64(ref buf, ref pos, sh);
-                        return true;
+                        return;
                     case ushort ush:
                         WriteUInt64(ref buf, ref pos, ush);
-                        return true;
+                        return;
                     case DateTime dt:
                         WriteEscapedString(ref buf, ref pos, dt.ToString("o", CultureInfo.InvariantCulture));
-                        return true;
+                        return;
                     case DateTimeOffset dto:
                         WriteEscapedString(ref buf, ref pos, dto.ToString("o", CultureInfo.InvariantCulture));
-                        return true;
+                        return;
                     case TimeSpan ts:
                         WriteEscapedString(ref buf, ref pos, ts.ToString("c", CultureInfo.InvariantCulture));
-                        return true;
+                        return;
                     case Guid g:
                         WriteEscapedString(ref buf, ref pos, g.ToString("D"));
-                        return true;
+                        return;
                     default:
                         Type type = value.GetType();
                         if (type.IsEnum)
                         {
                             WriteEscapedString(ref buf, ref pos, value.ToString());
-                            return true;
+                            return;
                         }
 
-                        // 常见 Unity 结构体直写快路径（P4：绕过反射 FieldInfo.SetValue）
-                        if (TryWriteUnityStruct(ref buf, ref pos, value)) return true;
-
-                        return false;
+                        throw new GameException(StringUtility.Format(
+                            "Type '{0}' is not a simple value and cannot be written by WriteSimpleValue.", type.FullName));
                 }
             }
 
             #region Unity 结构体直写快路径 [UNITY STRUCT FAST PATH]
-
             /// <summary>尝试直写常见 Unity 结构体（绕过反射）。返回 true 表示已处理。</summary>
             private static bool TryWriteUnityStruct(ref byte[] buf, ref int pos, object value)
             {
@@ -335,7 +329,6 @@ namespace Moirai.Atropos
             #endregion
 
             #region 容器 [CONTAINERS]
-
             private static void WriteArray(ref byte[] buf, ref int pos, Array array, bool removeNulls, int depth, int depthLimit)
             {
                 if (array.Length == 0)
@@ -344,7 +337,10 @@ namespace Moirai.Atropos
                     return;
                 }
 
-                // 类型化基元数组快速路径：具体类型模式匹配（AOT 安全），消除逐元素 Array.GetValue 装箱与值分派
+                // 类型化基元数组快速路径：具体类型模式匹配（AOT 安全），消除逐元素 Array.GetValue 装箱与值分派。
+                // 注意：此处为显式内联循环而非委托骨架（string 版 Writer 的 WritePrimitiveArray 模式）——
+                // ref byte[]/ref int 参数无法被 lambda 捕获（CS1628），委托仅适用于无 ref 参数的 string 路径。
+                // 两版骨架语义等价，修改分隔符/守卫行为时必须双侧同步。
                 switch (array)
                 {
                     case int[] a:
@@ -665,7 +661,6 @@ namespace Moirai.Atropos
             #endregion
 
             #region 对象 [OBJECTS]
-
             private static void WriteObject(ref byte[] buf, ref int pos, object obj, Type type, bool removeNulls, int depth, int depthLimit)
             {
                 var meta = ReflectionCache.Get(type);
@@ -736,7 +731,6 @@ namespace Moirai.Atropos
             #endregion
 
             #region 字符串转义与 UTF8 编码 [ESCAPING/UTF8]
-
             /// <summary>写入带引号的转义字符串（逐字符转义 + 手动 UTF8 编码，含代理对）。一次性预留缓冲，循环内零边界检查调用。</summary>
             private static void WriteEscapedString(ref byte[] buf, ref int pos, string s)
             {
@@ -914,7 +908,6 @@ namespace Moirai.Atropos
             #endregion
 
             #region 缓冲工具 [BUFFER UTILITIES]
-
             private static void Ensure(ref byte[] buf, int pos, int count)
             {
                 int required = pos + count;
