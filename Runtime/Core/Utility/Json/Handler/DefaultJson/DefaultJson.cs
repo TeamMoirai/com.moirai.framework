@@ -327,7 +327,7 @@ namespace Moirai.Atropos
                                         property.GetCustomAttribute<JsonSerializeAttribute>() != null ||
                                         property.GetCustomAttribute<JsonSerializeAsAttribute>() != null;
 
-                    // 契约（对齐原 DaydreamEngine 实现）：默认仅序列化"可读+可写"的属性——
+                    // 默认仅序列化"可读+可写"的属性——
                     // ① 往返对称：凡是能写出的都能读回（存档安全）；
                     // ② 从构造上排除计算属性（Vector3.normalized 等 get-only 属性每次求值返回
                     //    新装箱副本，会形成引用栈无法识别的无限链）。需要输出计算值时显式标注 [JsonSerialize]。

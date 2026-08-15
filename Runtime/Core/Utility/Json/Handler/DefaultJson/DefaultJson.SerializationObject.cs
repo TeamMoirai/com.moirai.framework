@@ -387,7 +387,7 @@ namespace Moirai.Atropos
                 {
                     object element = array.GetValue(i);
                     if (LoopGuard.IsSerializingReference(element)) continue;
-                    if (LoopGuard.WouldExceedDepth(element, depth)) continue;
+                    if (LoopGuard.WouldExceedDepth(element, depth, depthLimit)) continue;
 
                     if (i > 0) sb.Append(readable ? ", " : ",");
                     WriteValue(sb, element, removeNulls, readable, depth + 1, depthLimit);
@@ -444,7 +444,7 @@ namespace Moirai.Atropos
                 {
                     object element = list[i];
                     if (LoopGuard.IsSerializingReference(element)) continue;
-                    if (LoopGuard.WouldExceedDepth(element, depth)) continue;
+                    if (LoopGuard.WouldExceedDepth(element, depth, depthLimit)) continue;
 
                     if (i > 0) sb.Append(readable ? ", " : ",");
                     WriteValue(sb, element, removeNulls, readable, depth + 1, depthLimit);
@@ -479,7 +479,7 @@ namespace Moirai.Atropos
                 foreach (DictionaryEntry entry in dictionary)
                 {
                     if (LoopGuard.IsSerializingReference(entry.Value)) continue;
-                    if (LoopGuard.WouldExceedDepth(entry.Value, depth)) continue;
+                    if (LoopGuard.WouldExceedDepth(entry.Value, depth, depthLimit)) continue;
 
                     if (isFirst) isFirst = false;
                     else sb.Append(',');
@@ -521,7 +521,7 @@ namespace Moirai.Atropos
                 foreach (DictionaryEntry entry in dictionary)
                 {
                     if (LoopGuard.IsSerializingReference(entry.Value)) continue;
-                    if (LoopGuard.WouldExceedDepth(entry.Value, depth)) continue;
+                    if (LoopGuard.WouldExceedDepth(entry.Value, depth, depthLimit)) continue;
 
                     if (isFirst) isFirst = false;
                     else sb.Append(',');
@@ -572,7 +572,7 @@ namespace Moirai.Atropos
                     if (value == null && removeNulls) continue;
 
                     if (LoopGuard.IsSerializingReference(value)) continue;
-                    if (LoopGuard.WouldExceedDepth(value, depth)) continue;
+                    if (LoopGuard.WouldExceedDepth(value, depth, depthLimit)) continue;
 
                     if (isFirst) isFirst = false;
                     else sb.Append(',');
@@ -601,7 +601,7 @@ namespace Moirai.Atropos
                     if (value == null && removeNulls) continue;
 
                     if (LoopGuard.IsSerializingReference(value)) continue;
-                    if (LoopGuard.WouldExceedDepth(value, depth)) continue;
+                    if (LoopGuard.WouldExceedDepth(value, depth, depthLimit)) continue;
 
                     if (isFirst) isFirst = false;
                     else sb.Append(',');
