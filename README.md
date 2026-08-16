@@ -52,23 +52,13 @@ Moirai Framework
 - [🏗️ 架构](#-%E6%9E%B6%E6%9E%84)
   - [模块系统](#%E6%A8%A1%E5%9D%97%E7%B3%BB%E7%BB%9F)
   - [启动流程](#%E5%90%AF%E5%8A%A8%E6%B5%81%E7%A8%8B)
-- [📦 核心模块](#-%E6%A0%B8%E5%BF%83%E6%A8%A1%E5%9D%97)
-  - [Resource — 资源管理](#resource--%E8%B5%84%E6%BA%90%E7%AE%A1%E7%90%86)
-  - [UI — 界面框架](#ui--%E7%95%8C%E9%9D%A2%E6%A1%86%E6%9E%B6)
-  - [Audio — 音频系统](#audio--%E9%9F%B3%E9%A2%91%E7%B3%BB%E7%BB%9F)
-  - [Localization — 本地化](#localization--%E6%9C%AC%E5%9C%B0%E5%8C%96)
-  - [Events — 事件系统](#events--%E4%BA%8B%E4%BB%B6%E7%B3%BB%E7%BB%9F)
-  - [FSM — 有限状态机](#fsm--%E6%9C%89%E9%99%90%E7%8A%B6%E6%80%81%E6%9C%BA)
-  - [Procedure — 流程管理](#procedure--%E6%B5%81%E7%A8%8B%E7%AE%A1%E7%90%86)
-  - [Input — 输入系统](#input--%E8%BE%93%E5%85%A5%E7%B3%BB%E7%BB%9F)
-  - [Save — 存档系统](#save--%E5%AD%98%E6%A1%A3%E7%B3%BB%E7%BB%9F)
-  - [Scheduler — 调度器](#scheduler--%E8%B0%83%E5%BA%A6%E5%99%A8)
+- [📦 功能模块](#-%E5%8A%9F%E8%83%BD%E6%A8%A1%E5%9D%97)
 - [🧰 核心工具](#-%E6%A0%B8%E5%BF%83%E5%B7%A5%E5%85%B7)
   - [Attributes — 自定义属性](#attributes--%E8%87%AA%E5%AE%9A%E4%B9%89%E5%B1%9E%E6%80%A7)
-  - [ObjectPool — 对象池](#objectpool--%E5%AF%B9%E8%B1%A1%E6%B1%A0)
+  - [Events — 事件系统](#events--%E4%BA%8B%E4%BB%B6%E7%B3%BB%E7%BB%9F)
+  - [Scheduler — 调度器](#scheduler--%E8%B0%83%E5%BA%A6%E5%99%A8)
   - [MemoryPool — 内存池](#memorypool--%E5%86%85%E5%AD%98%E6%B1%A0)
   - [Singleton — 单例系统](#singleton--%E5%8D%95%E4%BE%8B%E7%B3%BB%E7%BB%9F)
-  - [GameConfig — 配表管理](#gameconfig--%E9%85%8D%E8%A1%A8%E7%AE%A1%E7%90%86)
   - [GameLog — 日志系统](#gamelog--%E6%97%A5%E5%BF%97%E7%B3%BB%E7%BB%9F)
   - [GameTime — 游戏时间](#gametime--%E6%B8%B8%E6%88%8F%E6%97%B6%E9%97%B4)
   - [GameProfiler — 性能分析](#gameprofiler--%E6%80%A7%E8%83%BD%E5%88%86%E6%9E%90)
@@ -84,8 +74,7 @@ Moirai Framework
 - [🤝 贡献与支持](#-%E8%B4%A1%E7%8C%AE%E4%B8%8E%E6%94%AF%E6%8C%81)
   - [🌟 生态依赖](#-%E7%94%9F%E6%80%81%E4%BE%9D%E8%B5%96)
   - [👥 贡献者](#-%E8%B4%A1%E7%8C%AE%E8%80%85)
-
-<!-- END doctoc generated TOC please keep comment here to allow auto update -->
+  <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
 ## 🚀 快速开始
 
@@ -215,12 +204,13 @@ com.moirai.framework/
 │   │   ├── MemoryPool/   #   内存池
 │   │   ├── Models/       #   数据模型
 │   │   ├── Obfuz/        #   代码混淆初始化
-│   │   ├── Pool/         #   对象池（通用/UniTask/GameObject）
+│   │   ├── Pool/         #   对象池（内部池/UniTask/GameObject）
 │   │   ├── Schedulers/   #   零分配调度器（定时器/帧计数器）
 │   │   ├── Singleton/    #   单例系统（纯 C# / MonoBehaviour）
 │   │   ├── Tasks/        #   任务/序列系统
 │   │   └── Utility/      #   工具集（日志、加密、HTTP、反射、缓动等）
 │   └── Modules/          #   功能模块
+│       ├── @Core/        #   模块系统基座（Module / ModuleSystem / GameModule）
 │       ├── Audio/        #   音频系统（分类/代理/淡入淡出）
 │       ├── ConfigTable/  #   配置表管理
 │       ├── Debugger/     #   运行时调试器
@@ -239,6 +229,7 @@ com.moirai.framework/
 ├── Plugins/              # 第三方库
 ├── Samples~/             # 示例
 ├── Templates~/           # 项目初始模板
+├── Documentation~/zh/    # 模块文档（每个模块一份 README）
 └── Tests/                # 单元测试
 ```
 
@@ -251,14 +242,17 @@ com.moirai.framework/
 var resource = GameModule.Resource;
 var ui = GameModule.UI;
 var audio = GameModule.Audio;
-var localization = GameModule.Localization;
+var timer = GameModule.Timer;
+var fsm = GameModule.FSM;
 ```
 
 **模块生命周期：**
 - `OnInit()` — 模块初始化
 - `Shutdown()` — 模块销毁
 - 支持 `IUpdateModule`、`IFixedUpdateModule`、`ILateUpdateModule` 接口注册到驱动循环
-- 通过 `Priority` 属性控制更新顺序
+- 通过 `Priority` 属性控制轮询顺序，通过 `Scope`（App / Scene / Gameplay）控制生命周期范围，场景卸载时自动清理场景与玩法级模块
+
+> 📖 详细用法（自定义模块、作用域遮蔽、跨模块依赖）见 **[Core 模块系统文档](Documentation~/zh/Core.md)**
 
 ### 启动流程
 
@@ -267,214 +261,36 @@ var localization = GameModule.Localization;
 ```
 ProcedureLaunch → ProcedureSplash → ProcedureInitPackage → ProcedureInitResources
 → ProcedureCreateDownloader → ProcedureDownloadFile → ProcedureDownloadOver
-→ ProcedureClearCache → ProcedureLoadAssembly → ProcedurePreload → ProcedurePrepare4Main
+→ ProcedureClearCache → ProcedureLoadAssembly → ProcedurePreload → ProcedurePrepare4Entrance
 ```
 
 每个阶段均为独立的 `ProcedureBase` 状态，可通过 `ProcedureSettings`（ScriptableObject）自定义。
 
+> 📖 详见 **[Procedure 模块文档](Documentation~/zh/Procedure.md)**
+
 ---
 
-## 📦 核心模块
+## 📦 功能模块
 
-### Resource — 资源管理
+每个模块均有独立文档（位于 `Documentation~/zh/`），包含核心特性、核心类型、快速上手与进阶用法：
 
-封装 YooAsset，提供同步/异步加载 API。
-
-| 特性 | 说明 |
-|------|------|
-| 播放模式 | EditorSimulate、Offline、Host、Web |
-| 引用计数 | `AssetObject` 池自动管理 |
-| 加载取消 | 支持 `CancellationToken` |
-| 资源加密 | FileOffset、FileStream |
-| 精灵加载 | `ResourceExtComponent` 支持子精灵 |
-
-```csharp
-// 异步加载
-var handle = GameModule.Resource.LoadAssetAsync<GameObject>("Assets/Prefabs/Hero.prefab");
-await handle.ToUniTask();
-var prefab = handle.AssetObject;
-
-// 同步加载
-var sprite = GameModule.Resource.LoadAsset<Sprite>("Assets/UI/icon.png");
-```
-
-### UI — 界面框架
-
-商业化 UI 开发流程，栈式窗口管理。
-
-| 层级 | 用途 |
-|------|------|
-| Background | 背景层 |
-| UI | 主界面 |
-| Popup | 弹窗层 |
-| System | 系统层 |
-| Top | 置顶层 |
-
-```csharp
-// 打开窗口
-GameModule.UI.ShowWindow<MainWindow>();
-
-// 关闭窗口
-GameModule.UI.CloseWindow<MainWindow>();
-
-// Widget 子控件
-public class MainWindow : UIWindow
-{
-    protected override void OnCreate() { /* 初始化 */ }
-    protected override void OnRefresh(object userData) { /* 刷新数据 */ }
-    protected override void OnClose() { /* 关闭清理 */ }
-}
-```
-
-**编辑器支持：** `ScriptAutoGenerator` 自动生成 UI 绑定代码。
-
-### Audio — 音频系统
-
-分类管理、代理播放、事件驱动。
-
-```csharp
-// 播放音效
-GameModule.Audio.Play("BGM_Main", AudioGroup.BGM);
-
-// 淡入淡出
-GameModule.Audio.FadeIn("BGM_Battle", 2.0f);
-GameModule.Audio.FadeOut("BGM_Main", 1.5f);
-```
-
-- **AudioCategory** — 每个 AudioGroupConfig 对应一个分类
-- **AudioAgent** — 代理播放，自动管理 AudioSource 生命周期
-- **AudioMixer** — 集成 Unity AudioMixer
-- **事件驱动** — `AudioPlayEvent`、`AudioControlEvent`、`AudioTrackEvent`、`AudioFadeEvent`
-
-### Localization — 本地化
-
-支持多种内容类型自动注入。
-
-| 类型 | Localizer |
-|------|-----------|
-| UGUI Text | `LocalizerText` |
-| TextMeshPro | `LocalizerTMPText` |
-| SpriteRenderer | `LocalizerSprite` |
-| RawImage / Texture | `LocalizerRawImage` |
-| AudioSource | `LocalizerAudio` |
-| Timeline | `LocalizerTimeline` |
-
-- 基于 Luban 配置表加载本地化字符串
-- 支持 Google 翻译集成（`GoogleTranslator`）
-- 语言检测：命令行 → 编辑器设置 → 保存设置 → 系统语言
-
-### Events — 事件系统
-
-移植自 Unity UIElements 的池化冒泡事件系统。
-
-```csharp
-// 注册事件
-EventManager.RegisterCallback<GameStartEvent>(OnGameStart);
-
-// 发送事件（支持冒泡/捕获传播）
-EventManager.SendEvent(new GameStartEvent());
-
-// 取消注册
-EventManager.UnregisterCallback<GameStartEvent>(OnGameStart);
-```
-
-- **零 GC 分配** — 每种事件类型独立对象池
-- **传播机制** — TrickleDown（捕获）→ BubbleUp（冒泡）
-- **传播控制** — `StopPropagation()`、`StopImmediatePropagation()`、`PreventDefault()`
-- **编辑器调试** — 可视化事件派发调试窗口
-
-### FSM — 有限状态机
-
-```csharp
-var fsm = GameModule.Fsm.CreateFsm("GameFlow", state1, state2, state3);
-fsm.Start<State1>();
-
-// 状态切换
-fsm.ChangeState<State2>();
-
-// 状态接口
-public class State1 : FsmState
-{
-    protected override void OnInit(IFsm fsm) { }
-    protected override void OnEnter(IFsm fsm) { }
-    protected override void OnUpdate(IFsm fsm, float elapseSeconds) { }
-    protected override void OnLeave(IFsm fsm, bool isShutdown) { }
-    protected override void OnDestroy(IFsm fsm) { }
-}
-```
-
-### Procedure — 流程管理
-
-基于 FSM 的游戏流程管理，每个阶段为独立状态。
-
-```csharp
-public class ProcedurePreload : ProcedureBase
-{
-    protected override void OnEnter(IFsm<IProcedureModule> fsm)
-    {
-        // 预加载资源、初始化游戏数据
-    }
-
-    protected override void OnUpdate(IFsm<IProcedureModule> fsm, float elapseSeconds)
-    {
-        // 检查加载完成，切换到下一阶段
-    }
-}
-```
-
-### Input — 输入系统
-
-抽象输入层，支持多平台。
-
-| Handler | 说明 |
-|---------|------|
-| `UnityInputSystemHandler` | 新版 Input System |
-| `UnityInputManagerHandler` | 旧版 Input Manager |
-| `UIMobileInputHandler` | 移动端 UI 触控 |
-
-- UI 模态检测 — 弹窗打开时自动屏蔽玩家输入
-- 按键提示系统 — 支持 PS4/PS5/Xbox/Switch/SteamDeck/键鼠图标
-
-### Save — 存档系统
-
-可插拔的存档策略。
-
-```csharp
-// 保存
-GameModule.Save.Save("player_data", playerData);
-
-// 加载
-var data = GameModule.Save.Load<PlayerData>("player_data");
-```
-
-| Handler | 说明 |
-|---------|------|
-| `JsonSaveHandler` | JSON 格式 |
-| `BinarySaveHandler` | 二进制格式 |
-| `JsonEncryptedSaveHandler` | JSON 加密 |
-| `BinaryEncryptedSaveHandler` | 二进制加密 |
-
-- **原子保存** — 先写 `.tmp` 再重命名，防止数据损坏
-
-### Scheduler — 调度器
-
-零分配的定时器/帧调度系统。
-
-```csharp
-// 延迟执行
-Scheduler.Delay(2.0f, () => Debug.Log("2秒后执行"));
-
-// 等待帧
-Scheduler.WaitFrame(3, () => Debug.Log("3帧后执行"));
-
-// 取消调度
-var handle = Scheduler.Delay(5.0f, () => { });
-handle.Cancel();
-```
-
-- 支持 Update / FixedUpdate / LateUpdate 帧
-- 支持循环、忽略 TimeScale
-- `SchedulerUnsafeBinding` — unsafe 结构体实现零分配函数指针派发
+| 模块 | 说明 | 模块文档 |
+|------|------|----------|
+| **Core** | 模块系统基座：模块注册/生命周期/作用域，`GameModule` 静态访问器 | [Core.md](Documentation~/zh/Core.md) |
+| **Resource** | 基于 YooAsset 的资源管理：同步/异步加载、引用计数、加密、子精灵 | [Resource.md](Documentation~/zh/Resource.md) |
+| **UI** | 商业化 UI 框架：栈式窗口、五层层级、Widget 子控件、绑定代码生成 | [UI.md](Documentation~/zh/UI.md) |
+| **Audio** | 音频系统：分类管理、AudioAgent 代理播放、混音器、淡入淡出、事件驱动 | [Audio.md](Documentation~/zh/Audio.md) |
+| **Localization** | 本地化：文本/图片/音频/Timeline 多类型注入、Google 翻译集成 | [Localization.md](Documentation~/zh/Localization.md) |
+| **ConfigTable** | Luban 配置表集成：表加载与懒加载访问、转表工具链 | [ConfigTable.md](Documentation~/zh/ConfigTable.md) |
+| **FSM** | 有限状态机：泛型状态、完整生命周期钩子、状态内切换 | [FSM.md](Documentation~/zh/FSM.md) |
+| **Procedure** | 基于 FSM 的游戏流程管理：启动链、可配置流程 | [Procedure.md](Documentation~/zh/Procedure.md) |
+| **Input** | 多平台输入抽象：Input System / 旧版输入 / 移动端 UI 触控、按键提示 | [Input.md](Documentation~/zh/Input.md) |
+| **Save** | 可插拔存档系统：JSON / 二进制 / 加密 Handler、原子写入 | [Save.md](Documentation~/zh/Save.md) |
+| **Scene** | 场景管理：基于 YooAsset SceneHandle 的异步加载/激活/卸载 | [Scene.md](Documentation~/zh/Scene.md) |
+| **Timer** | 四级时间轮计时器：版本化句柄、预热、统计信息 | [Timer.md](Documentation~/zh/Timer.md) |
+| **ObjectPool** | 模块级对象池：单次/多次 Spawn 池、GameObject 池 | [ObjectPool.md](Documentation~/zh/ObjectPool.md) |
+| **Debugger** | 运行时调试器：可注册调试窗口、日志回放 | [Debugger.md](Documentation~/zh/Debugger.md) |
+| **UpdateDriver** | 更新循环驱动：三类帧更新注入、协程托管、Unity 事件注入 | [UpdateDriver.md](Documentation~/zh/UpdateDriver.md) |
 
 ---
 
@@ -500,18 +316,45 @@ handle.Cancel();
 | `ReferenceDropdownAttribute` | 引用下拉选择 |
 | `OdinExtends/*` | Odin 扩展（条件分组、帮助信息、内联按钮等） |
 
-### ObjectPool — 对象池
+### Events — 事件系统
+
+移植自 Unity UIElements 的池化冒泡事件系统。
 
 ```csharp
-// 通用对象池
-var pool = new ObjectPool<MyClass>(() => new MyClass(), 32);
-var obj = pool.Get();
-pool.Release(obj);
+// 注册事件
+EventManager.RegisterCallback<GameStartEvent>(OnGameStart);
 
-// GameObject 池
-var go = GameObjectPoolManager.Get("Particle");
-GameObjectPoolManager.Release(go);
+// 发送事件（支持冒泡/捕获传播）
+EventManager.SendEvent(new GameStartEvent());
+
+// 取消注册
+EventManager.UnregisterCallback<GameStartEvent>(OnGameStart);
 ```
+
+- **零 GC 分配** — 每种事件类型独立对象池
+- **传播机制** — TrickleDown（捕获）→ BubbleUp（冒泡）
+- **传播控制** — `StopPropagation()`、`StopImmediatePropagation()`、`PreventDefault()`
+- **编辑器调试** — 可视化事件派发调试窗口
+
+### Scheduler — 调度器
+
+零分配的定时器/帧调度系统（`Runtime/Core/Schedulers`，与 [Timer 模块](Documentation~/zh/Timer.md)相互独立）。
+
+```csharp
+// 延迟执行
+SchedulerHandle handle = Scheduler.Delay(2.0f, () => Debug.Log("2秒后执行"));
+
+// 等待帧
+Scheduler.WaitFrame(3, () => Debug.Log("3帧后执行"));
+
+// 取消调度
+handle.Cancel();
+```
+
+- 支持 Update / FixedUpdate / LateUpdate 帧（`TickFrame`）
+- 支持循环、忽略 TimeScale
+- `SchedulerUnsafeBinding` — unsafe 结构体实现零分配函数指针派发
+- `handle.WaitAsync(cancellationToken)` — 与 UniTask 集成
 
 ### MemoryPool — 内存池
 
@@ -527,16 +370,6 @@ GameObjectPoolManager.Release(go);
 | `ReferencedScriptableObject` | ScriptableObject 引用基类 |
 
 `SingletonSystem` 集中管理所有单例生命周期，挂接 UpdateDriver 驱动 IUpdate/IFixedUpdate/ILateUpdate。
-
-### GameConfig — 配表管理
-
-集成 Luban 配置表系统。
-
-```csharp
-ConfigMgr.LoadTables();           // 同步加载
-await ConfigMgr.LoadTablesAsync(); // 异步加载
-var cfg = ConfigMgr.Tables.TbItem.Get(itemId); // 懒加载访问
-```
 
 ### GameLog — 日志系统
 
@@ -654,17 +487,20 @@ hp.BindTo(hpSlider);  // Slider 自动同步
 | `EncryptionUtility` | 加密工具 |
 | `FileUtility` | 文件操作 |
 | `HttpUtility` | HTTP 请求（支持 UniTask） |
+| `JsonUtility` | JSON 序列化/反序列化，可插拔 Handler，[文档](Documentation~/zh/JsonUtility.md) |
 | `MainThreadDispatcher` | 主线程调度 |
 | `MarshalUtility` | 非托管内存操作 |
 | `MaterialUtility` | 材质工具 |
 | `MathsUtility` | 数学工具（含 Unity.Mathematics 集成） |
 | `NetUtility` | 网络工具 |
+| `ObjectUtility` | 对象实例化/销毁，支持联网感知，[文档](Documentation~/zh/ObjectUtility.md) |
 | `PathUtility` | 路径工具 |
 | `ProgramUtility` | 程序工具 |
 | `ReflectionUtility` | 反射工具（含序列化字段遍历） |
+| `StringUtility` | 字符串格式化与构建，三种使用模式，[文档](Documentation~/zh/StringUtility.md) |
 | `TimeUtility` | 时间工具 |
 | `ToolRegistry` | 组件注册表 |
-| `Tween/*` | 缓动系统（含贝塞尔路径） |
+| `TweenUtility` | 缓动系统（含贝塞尔路径），可插拔引擎，[文档](Documentation~/zh/TweenUtility.md) |
 | `UniTaskUtils` | UniTask 工具 |
 | `UnityUtility` | Unity 通用工具 |
 | `XmlUtility` | XML 工具 |
@@ -685,14 +521,15 @@ hp.BindTo(hpSlider);  // Slider 自动同步
 | Game Settings | 音频组、流程设置、更新设置编辑器 |
 | HybridCLR | 热更新 DLL 构建命令 |
 | Inspector | Asset/Core 组件自定义 Inspector |
-| Luban Tools | Luban 配置表生成 |
+| Luban Tools | Luban 配置表生成（`Tools/Settings/ConfigTableSettings`） |
 | Maintenance | 清理空文件夹、查找丢失脚本、分组选择、锁定 Inspector |
+| Module System | 模块系统可视化窗口（`Tools/Moirai/Module System`） |
 | Reference Finder | 资源依赖/引用树视图 |
 | Release Tools | 构建流水线窗口、构建配置 |
 | Scheduler Debugger | 可视化调度器/计时器调试器 |
 | Tasks Editor | 任务运行器编辑器 |
 | Tween | 缓动属性绘制器 |
-| UI Module | UI 绑定代码自动生成、组件 Inspector |
+| UI Module | UI 绑定代码自动生成（`GameObject/ScriptGenerator/生成绑定代码`）、组件 Inspector |
 | Input Module | 输入动作配置编辑器、按键图标集合编辑器 |
 | Utility | 命令行读取、日志重定向、EditorScriptableSingleton、Shell 调用等 |
 | YooAsset | 构建缓存清理、内置目录、自定义构建管线、Shader 变体收集 |
@@ -720,7 +557,7 @@ hp.BindTo(hpSlider);  // Slider 自动同步
   │       │   ├── GameBase/          # 主程序程序集（启动器与流程）
   │       │   ├── GameLib/           # 第三方库程序集 [Dll]
   │       │   ├── GameLogic/         # 游戏业务逻辑程序集 [Dll]
-  │       │       ├── HotfixEntry.cs # 热更主入口
+  │       │   ├── HotfixEntry.cs     # 热更主入口
   │       │   └── GameProto/         # 游戏配置协议程序集 [Dll]
   │       └── YooAsset/              # YooAsset 配置
   └── Config/                        # 配置表工程
