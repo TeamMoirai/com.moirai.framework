@@ -1,0 +1,91 @@
+# Scene Module
+
+> Main/sub-scene management module based on YooAsset scene handles, providing async loading, suspend activation, progress callbacks, and sub-scene unloading.
+
+The scene module (`Moirai.Atropos.Scene`) wraps YooAsset's `SceneHandle`, distinguishing between main scenes (`LoadSceneMode.Single`, only one at a time) and sub-scenes (`LoadSceneMode.Additive`, multiple can be stacked). It supports a smooth transition mode where loading can be suspended at 90% progress and then activated uniformly when ready, with optional garbage collection after the main scene finishes loading. Accessible via the `GameModule.Scene` static accessor.
+
+## Core Features
+
+- Dual-track main scene / sub-scene management: Single mode replaces the main scene, Additive mode registers sub-scenes in a dictionary
+- Suspend loading: When `suspendLoad` is enabled, the scene does not auto-activate after loading; call `UnSuspend` to manually activate. Suitable for unified timing control of load completion
+- Progress callback: `progressCallBack` reports `SceneHandle.Progress` (0 to 1) every frame
+- Re-entry protection: Duplicate requests for the same scene during loading/unloading are rejected and logged
+- Garbage collection: After the main scene finishes loading, `ForceUnloadUnusedAssets` is executed according to the `gcCollect` parameter
+- Multi-package support: The callback-based `LoadScene` can specify a `packageName` to load from a specific YooAsset package
+
+## Core Types
+
+| Class/Interface | Description |
+|---------|------|
+| `Moirai.Atropos.Scene.ISceneModule` | Scene module interface, returned by `GameModule.Scene` |
+| `Moirai.Atropos.Scene.SceneModule` | Scene module implementation, internally holds `YooAsset.SceneHandle` to manage main/sub scenes |
+
+## Quick Start
+
+```csharp
+// Async load main scene (await usage)
+UnityEngine.SceneManagement.Scene scene =
+    await GameModule.Scene.LoadSceneAsync("GameMain", LoadSceneMode.Single);
+
+// Async load sub-scene with progress tracking
+await GameModule.Scene.LoadSceneAsync(
+    "BattleMap", LoadSceneMode.Additive,
+    progressCallBack: p => loadingBar.value = p);
+
+// Callback-based loading (can specify package name)
+GameModule.Scene.LoadScene(
+    "GameMain", packageName: "main-package",
+    sceneMode: LoadSceneMode.Single,
+    callBack: s => { /* Load complete, s is the Scene */ },
+    progressCallBack: p => Debug.Log($"Progress: {p}"));
+
+// Unload sub-scene
+bool ok = await GameModule.Scene.UnloadAsync("BattleMap");
+GameModule.Scene.Unload("BattleMap", callBack: () => Debug.Log("Unloaded"));
+
+// Query
+string main = GameModule.Scene.CurrentMainSceneName;
+bool loaded = GameModule.Scene.IsContainScene("BattleMap");
+bool isMain = GameModule.Scene.IsMainScene("GameMain");
+```
+
+## Advanced Usage
+
+### Suspend Loading and Unified Activation
+
+When `suspendLoad = true`, the scene remains suspended after loading completes. This is commonly used in transition black screen / loading scenes where you wait for all resources and logic to be ready before switching over in one go:
+
+```csharp
+// Initiate suspend loading (works the same for sub-scenes)
+GameModule.Scene.LoadSceneAsync("GameMain", suspendLoad: true);
+
+// Activate the scene once everything is ready
+bool activated = GameModule.Scene.ActivateScene("GameMain");   // Activate as the current active scene
+bool resumed = GameModule.Scene.UnSuspend("GameMain");         // Only unsuspend
+```
+
+### Multiple Sub-Scene Stacking
+
+Multiple Additive sub-scenes can be loaded simultaneously (keyed by `location`), suitable for large world chunks, independent gameplay rooms, etc.:
+
+```csharp
+await GameModule.Scene.LoadSceneAsync("ChunkA", LoadSceneMode.Additive);
+await GameModule.Scene.LoadSceneAsync("ChunkB", LoadSceneMode.Additive);
+
+// All sub-scenes are automatically unloaded on module shutdown
+```
+
+### Loading Priority
+
+The `priority` parameter is passed through to YooAsset to adjust the loading priority of a scene when multiple loading requests are concurrent (default is 100).
+
+## Notes
+
+- Scene assets must be included in YooAsset collection and built; in the editor, first select a simulation mode via `YooAsset/Editor PlayMode`
+- Duplicate loading of a scene address that is already being loaded will be rejected (Log.Error); duplicate loading of an existing sub-scene will throw a `GameException`
+- `Unload` / `UnloadAsync` only apply to Additive sub-scenes; the main scene is replaced by loading a new Single scene — do not call unload on the main scene
+- After the main scene finishes loading, `ForceUnloadUnusedAssets(gcCollect)` is triggered by default; pay attention to any temporary asset references during loading (set `gcCollect` to false to disable)
+- `progressCallBack` is called every frame until the handle completes or becomes invalid; do not perform expensive operations inside the callback
+
+---
+[« Back to Main README](../README_EN.md) · [UI](UI.md) · [Input](Input.md)
