@@ -36,7 +36,7 @@ Moirai Framework
 
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
-## Table of Contents
+## 📚 Table of Contents
 
 - [Quick Start](#quick-start)
   - [Requirements](#requirements)
@@ -74,7 +74,8 @@ Moirai Framework
 - [Contributing & Support](#contributing--support)
   - [Ecosystem Dependencies](#ecosystem-dependencies)
   - [Contributors](#contributors)
-  <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
 ## Quick Start
 
