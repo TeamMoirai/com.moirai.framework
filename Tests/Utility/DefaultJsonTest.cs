@@ -1031,9 +1031,9 @@ namespace Utility
         {
             var dict = new Dictionary<string, int> { { "stale", -1 } };
             byte[] bytes = System.Text.Encoding.UTF8.GetBytes("[{\"key\":\"a\",\"value\":1}]");
-            // 字节覆盖路径（经 ByteReader.Parse 入口，InternalsVisibleTo 可见）
-            var reader = new Moirai.Atropos.DefaultJson.ByteReader(bytes, 64);
-            reader.Parse(typeof(Dictionary<string, int>), dict);
+            // 字节覆盖路径（经统一 JsonReader<ByteLexer> 入口，InternalsVisibleTo 可见）
+            var lexer = new Moirai.Atropos.DefaultJson.ByteLexer(bytes, 64);
+            Moirai.Atropos.DefaultJson.JsonReader<Moirai.Atropos.DefaultJson.ByteLexer>.Parse(lexer, typeof(Dictionary<string, int>), dict);
             Assert.AreEqual(1, dict.Count);
             Assert.AreEqual(1, dict["a"]);
         }
