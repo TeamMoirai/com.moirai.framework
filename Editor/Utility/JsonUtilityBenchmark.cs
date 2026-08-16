@@ -19,7 +19,7 @@ namespace Moirai.Atropos.Editor
     /// <see cref="Moirai.Atropos.JsonHandler"/> 实现，经 <see cref="Moirai.Atropos.FrameworkSettings.ResolveTypeOption"/>
     /// 实例化（与 AppSettings 配置流同链路）——新增 handler 实现无需修改本基准；</para>
     /// <para>③ IBufferJsonHandler 能力矩阵。全部数据程序化构建（零外部文件依赖），结束后恢复门面并清理临时状态。</para>
-    /// 菜单：Tools/Moirai/JSON Benchmark。逐场景自适迭代（每测量段约 150ms），场景间让出主线程保持编辑器响应。
+    /// 菜单：Window/Moirai/JSON Benchmark。逐场景自适迭代（每测量段约 150ms），场景间让出主线程保持编辑器响应。
     /// </summary>
     public static class JsonUtilityBenchmark
     {
@@ -29,7 +29,7 @@ namespace Moirai.Atropos.Editor
 
         #region 入口 [ENTRY]
 
-        [MenuItem("Tools/Moirai/JSON Benchmark")]
+        [MenuItem("Window/Moirai/JSON Benchmark")]
         public static void RunFromMenu() => _ = RunAsync();
 
         #endregion
@@ -619,7 +619,7 @@ namespace Moirai.Atropos.Editor
         {
             if (_rows == null)
             {
-                EditorGUILayout.HelpBox("无结果。请先运行 Tools/Moirai/JSON Benchmark。", MessageType.Info);
+                EditorGUILayout.HelpBox("无结果。请先运行 Window/Moirai/JSON Benchmark。", MessageType.Info);
                 return;
             }
 

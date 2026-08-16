@@ -73,7 +73,23 @@ namespace Moirai.Atropos
         /// <returns></returns>
         public static string ToJson(object obj, bool removeNulls = true, bool readable = false)
         {
-            return Writer.Serialize(obj, removeNulls, readable, maxDepth);
+            LoopGuard.Begin();
+            StringHandler.IStringBuilder sb = StringUtility.CreateStringBuilder();
+            try
+            {
+                var sink = new CharSink(sb);
+                JsonWriter<CharSink>.WriteAll(ref sink, obj, removeNulls, readable, maxDepth);
+                return sb.ToStringAndDispose();
+            }
+            catch
+            {
+                sb.Dispose(); // 异常路径也要归还池，避免池化 builder 泄漏
+                throw;
+            }
+            finally
+            {
+                LoopGuard.End();
+            }
         }
 
         /// <summary>
@@ -84,7 +100,22 @@ namespace Moirai.Atropos
         /// <returns>UTF8 JSON 字节（调用方持有所有权）</returns>
         public static byte[] ToJsonBytes(object obj, bool removeNulls = true)
         {
-            return ByteWriter.Serialize(obj, removeNulls, maxDepth);
+            LoopGuard.Begin();
+            byte[] scratch = ByteScratch.Rent();
+            var sink = new Utf8Sink(scratch);
+            try
+            {
+                JsonWriter<Utf8Sink>.WriteAll(ref sink, obj, removeNulls, false, maxDepth);
+            }
+            finally
+            {
+                ByteScratch.Return(sink.Buffer);
+                LoopGuard.End();
+            }
+
+            byte[] result = new byte[sink.Position];
+            Array.Copy(sink.Buffer, result, sink.Position);
+            return result;
         }
 
         /// <summary>
@@ -126,8 +157,8 @@ namespace Moirai.Atropos
                 throw new GameException("Json string is empty.");
             }
 
-            var reader = new Reader(json, maxDepth);
-            return reader.Parse(type, existing);
+            var lexer = new CharLexer(json, maxDepth);
+            return JsonReader<CharLexer>.Parse(lexer, type, existing);
         }
 
         private static object ParseBytes(byte[] json, Type type, object existing)
@@ -148,8 +179,8 @@ namespace Moirai.Atropos
                 throw new GameException("Json bytes are empty.");
             }
 
-            var reader = new ByteReader(json, maxDepth);
-            return reader.Parse(type, existing);
+            var lexer = new ByteLexer(json, maxDepth);
+            return JsonReader<ByteLexer>.Parse(lexer, type, existing);
         }
 
         #endregion
