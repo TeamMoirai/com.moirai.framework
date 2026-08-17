@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Diagnostics;
 using System.Text;
+using UnityEngine;
 using Debug = UnityEngine.Debug;
 
 namespace Moirai.Atropos
@@ -38,6 +39,7 @@ namespace Moirai.Atropos
         /// <param name="logLevel">游戏框架日志等级。</param>
         /// <param name="message">日志信息。</param>
         /// <exception cref="GameException">游戏框架异常类。</exception>
+        [HideInCallstack]
         public override void Log(LogUtility.ELogLevel logLevel, object message)
         {
             switch (logLevel)
@@ -64,6 +66,36 @@ namespace Moirai.Atropos
 
                 default:
                     throw new GameException(message.ToString());
+            }
+        }
+
+        [HideInCallstack]
+        private static void LogImp(ELogLevel type, string logString)
+        {
+            if (type < FILTER_LEVEL)
+            {
+                return;
+            }
+
+            string logStr = GetFormatString(type, logString, true).ToString();
+
+            switch (type)
+            {
+                case ELogLevel.Info:
+                case ELogLevel.Debug:
+                    Debug.Log(logStr);
+                    break;
+                case ELogLevel.Warning:
+                    Debug.LogWarning(logStr);
+                    break;
+                case ELogLevel.Assert:
+                    Debug.LogAssertion(logStr);
+                    break;
+                case ELogLevel.Error:
+                    Debug.LogError(logStr);
+                    break;
+                case ELogLevel.Exception:
+                    throw new Exception(logStr);
             }
         }
 
@@ -104,22 +136,6 @@ namespace Moirai.Atropos
 
             return s_StringBuilder;
         }
-
-        /// <summary>
-        /// 获取日志正文颜色。
-        /// </summary>
-        /// <param name="logLevel">日志级别。</param>
-        /// <returns>颜色字符串。</returns>
-        private static string GetBodyColor(ELogLevel logLevel)
-            => logLevel switch
-            {
-                ELogLevel.Debug => "#00FF18",
-                ELogLevel.Assert => "green",
-                ELogLevel.Warning => "yellow",
-                ELogLevel.Error => "red",
-                ELogLevel.Exception => "red",
-                _ => "#CFCFCF"
-            };
 
         /// <summary>
         /// 对多行日志逐行包裹颜色标签。
@@ -170,50 +186,20 @@ namespace Moirai.Atropos
             return sb.ToString();
         }
 
-        private static void LogImp(ELogLevel type, string logString)
-        {
-            if (type < FILTER_LEVEL)
+        /// <summary>
+        /// 获取日志正文颜色。
+        /// </summary>
+        /// <param name="logLevel">日志级别。</param>
+        /// <returns>颜色字符串。</returns>
+        private static string GetBodyColor(ELogLevel logLevel)
+            => logLevel switch
             {
-                return;
-            }
-
-            StringBuilder infoBuilder = GetFormatString(type, logString, true);
-            string logStr = infoBuilder.ToString();
-            
-            // 获取C#堆栈,Warning以上级别日志才获取堆栈
-            if (type == ELogLevel.Error || type == ELogLevel.Warning || type == ELogLevel.Exception)
-            {
-                StackFrame[] stackFrames = new StackTrace().GetFrames();
-                // ReSharper disable once PossibleNullReferenceException
-                for (int i = 0; i < stackFrames.Length; i++)
-                {
-                    StackFrame frame = stackFrames[i];
-                    // ReSharper disable once PossibleNullReferenceException
-                    string declaringTypeName = frame.GetMethod().DeclaringType.FullName;
-                    string methodName = stackFrames[i].GetMethod().Name;
-
-                    infoBuilder.AppendFormat("[{0}::{1}\n", declaringTypeName, methodName);
-                }
-            }
-            
-            switch (type)
-            {
-                case ELogLevel.Info:
-                case ELogLevel.Debug:
-                    Debug.Log(logStr);
-                    break;
-                case ELogLevel.Warning:
-                    Debug.LogWarning(logStr);
-                    break;
-                case ELogLevel.Assert:
-                    Debug.LogAssertion(logStr);
-                    break;
-                case ELogLevel.Error:
-                    Debug.LogError(logStr);
-                    break;
-                case ELogLevel.Exception:
-                    throw new Exception(logStr);
-            }
-        }
+                ELogLevel.Debug => "#00FF18",
+                ELogLevel.Assert => "green",
+                ELogLevel.Warning => "yellow",
+                ELogLevel.Error => "red",
+                ELogLevel.Exception => "red",
+                _ => "#CFCFCF"
+            };
     }
 }
