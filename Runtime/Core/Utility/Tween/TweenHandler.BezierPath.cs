@@ -4,7 +4,7 @@ namespace Moirai.Atropos
 {
     public partial class TweenHandler
     {
-        #region BezierPathHelper
+        #region 贝塞尔助手 [BEZIER HELPER]
 
         /// <summary>
         /// N 阶贝塞尔曲线的计算。

@@ -6,7 +6,7 @@ namespace Moirai.Atropos.Editor
 {
     public sealed class ModuleSystemWindow : EditorWindow
     {
-        [MenuItem("Tools/Moirai/Module System", false, 100)]
+        [MenuItem("Window/Moirai/Module System", false, 100)]
         private static void Open()
         {
             GetWindow<ModuleSystemWindow>(false, "Module System", true);
