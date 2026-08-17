@@ -1,4 +1,4 @@
-﻿using Sirenix.OdinInspector;
+using Sirenix.OdinInspector;
 using UnityEngine;
 
 namespace Moirai.Atropos
@@ -83,12 +83,14 @@ namespace Moirai.Atropos
 
                         if (s_Instance == null)
                         {
-	                        Log.Fatal($"SingletonBehaviour<{thisType}> creation failed | IsMainThread:{MainThreadDispatcher.IsMainThread}");
+	                        // 仅记录不抛出：显式跳过 Retain，避免空实例引发 NRE
+                            Log.Fatal($"SingletonBehaviour<{thisType}> creation failed | IsMainThread:{MainThreadDispatcher.IsMainThread}");
+                            return null;
                         }
 
                         if (Application.isPlaying)
                         {
-	                        SingletonSystem.Retain(s_Instance.gameObject, instName, s_Instance);
+                            SingletonSystem.Retain(s_Instance.gameObject, instName, s_Instance);
                         }
                     }
                 }
