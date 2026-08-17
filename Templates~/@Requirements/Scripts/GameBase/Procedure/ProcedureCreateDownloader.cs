@@ -5,6 +5,7 @@ using Moirai.Atropos.FSM;
 using Moirai.Atropos.Procedure;
 using UnityEngine;
 using YooAsset;
+using JsonUtility = Moirai.Atropos.JsonUtility;
 
 namespace Moirai.Main
 {
@@ -117,7 +118,7 @@ namespace Moirai.Main
 
             try
             {
-                UpdateData updateData = JSONUtility.ToObject<UpdateData>(updateDataStr);
+                UpdateData updateData = JsonUtility.ToObject<UpdateData>(updateDataStr);
                 ShowUpdateType(updateData);
             }
             catch (Exception e)

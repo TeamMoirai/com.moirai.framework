@@ -5,7 +5,7 @@ using Moirai.Atropos.Resource;
 namespace Moirai.Main
 {
     /// <summary>
-    /// 进入游戏主流程前的流程基类
+    /// 进入游戏流程前的流程基类
     /// </summary>
     [ProcedureLauncher]
     public abstract class ProcedurePremainBase : ProcedureBase
