@@ -6,8 +6,10 @@ namespace Moirai.Atropos
     /// <summary>
     /// 统一缓动参数。通过隐式转换可直接从 <see cref="TweenUtility.EEase"/> 或
     /// <see cref="AnimationCurve"/> 赋值，调用侧无需关心底层差异。
+    /// <para>枚举模式零堆分配（不持有曲线）；曲线仅在 AnimationCurve 模式下持有，
+    /// 曲线缺失时 <see cref="Evaluate"/> 回退 Linear。</para>
     /// <code>
-    /// // 以下三种写法均可：
+    /// // 以下三种写法均可（前两种零分配）：
     /// TweenUtility.Position(t, end, 0.3f); // 默认 Linear
     /// TweenUtility.Position(t, end, 0.3f, TweenUtility.EEase.OutQuad); // 枚举
     /// TweenUtility.Position(t, end, 0.3f, myAnimationCurve); // 曲线
@@ -59,11 +61,15 @@ namespace Moirai.Atropos
 
         #region 构造函数 [CONSTRUCTOR]
 
+        /// <summary>
+        /// 枚举模式构造：零堆分配——Ease 模式不持有 AnimationCurve，
+        /// <see cref="Evaluate"/> 在曲线缺失时回退 <see cref="TweenUtility.EEase.Linear"/>。
+        /// </summary>
         public TweenEase(TweenUtility.EEase ease = TweenUtility.EEase.Linear)
         {
             m_TweenType = ETweenType.Ease;
             m_EaseType = ease;
-            m_AnimationCurve = new AnimationCurve(new Keyframe(0.0f, 0.0f), new Keyframe(1.0f, 1.0f));
+            m_AnimationCurve = null;
             _animationKeys = null;
             _preWrapMode = default;
             _postWrapMode = default;
@@ -137,7 +143,7 @@ namespace Moirai.Atropos
 
         #endregion
 
-        #region 隐式转换
+        #region 隐式转换 [CONVERSIONS]
 
         /// <summary>
         /// 从 <see cref="TweenUtility.EEase"/> 隐式构造。
@@ -153,7 +159,7 @@ namespace Moirai.Atropos
 
         #endregion
 
-        #region 相等性（轻量：不逐帧比较 Keyframe）
+        #region 相等性 [EQUALITY]
 
         public bool Equals(TweenEase other)
         {
@@ -200,6 +206,10 @@ namespace Moirai.Atropos
         [JsonAfterDeserialization]
         public void OnAfterDeserialize()
         {
+            // 无关键帧（Ease 模式 / 无曲线数据）时不分配曲线，保持零分配契约
+            if (_animationKeys == null || _animationKeys.Length == 0)
+                return;
+
             if (m_AnimationCurve == null) m_AnimationCurve = new AnimationCurve();
 
             m_AnimationCurve.keys = _animationKeys;

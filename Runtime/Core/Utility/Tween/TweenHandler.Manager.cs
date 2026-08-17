@@ -16,6 +16,17 @@ namespace Moirai.Atropos
 
             private static TweenManager s_Instance;
 
+            /// <summary>
+            /// 关闭域重载时进入 Play 的静态清理：清空注册表与实例，
+            /// 防止陈旧 handler 引用与重复定时器。
+            /// </summary>
+            [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+            private static void ResetStatics()
+            {
+                s_Handlers.Clear();
+                s_Instance = null;
+            }
+
             public static void EnsureInstance()
             {
                 if (s_Instance == null)

@@ -74,101 +74,103 @@ namespace Moirai.Atropos
 
         /// <summary>
         /// Tween 核心数据结构。值类型，存储在连续数组中，无堆分配。
+        /// <para>
+        /// 注意：版本号不在本结构内——它存放在 <see cref="TweenTask"/> 的独立
+        /// <c>s_Versions</c> 数组中，与状态内容完全解耦，
+        /// 因此 <see cref="Reset"/> 可安全使用 <c>this = default</c> 整体覆盖，
+        /// 不会破坏 tweenId 的代际唯一性。
+        /// </para>
         /// </summary>
         internal struct TweenState
         {
-            // === 版本控制 ===
-            /// <summary>版本号，每次回收递增，用于 safe-reference 验证。</summary>
-            public int Version;
+            #region 时间 [TIMING]
 
-            // === 时间 ===
             public float ElapsedTime;
             public float Duration;
             public float StartDelay;
-            public float StartTime;
             public float DelayTimer;
 
             public TweenEase Ease;
 
-            // === 循环 ===
+            #endregion
+
+            #region 循环 [CYCLING]
+
             public int Cycles;
             public int CurrentCycle;
             public TweenUtility.ECycleMode CycleMode;
 
-            // === 标志 ===
+            /// <summary>Rewind 模式：当前周期是否为倒放周期（ease 作用于 1-t，等价于原轨迹时间反演）。</summary>
+            public bool IsReversed;
+
+            #endregion
+
+            #region 标志 [FLAGS]
+
             public bool IsActive;
+
+            /// <summary>暂停标志：Update 循环冻结时间推进（含起始延迟倒计时）。由 Pause/Resume API 维护。</summary>
             public bool IsPaused;
+
             public bool UseUnscaledTime;
             public bool HasDelay;
 
-            // === 目标引用（reference type — 不装箱） ===
+            /// <summary>目标先于补间销毁时是否记录告警（Delay API 的 warnIfTargetDestroyed）。</summary>
+            public bool WarnIfTargetDestroyed;
+
+            #endregion
+
+            #region 目标 [TARGET]
+
+            /// <summary>目标引用（reference type — 不装箱）。</summary>
             public object Target;
+
+            /// <summary>UnityEngine.Object 视图：非 Unity 目标为 null，用于销毁检测。</summary>
             public UnityEngine.Object UnityObject;
 
-            // === 值存储（Vector3 xyz + 通用 float） ===
+            #endregion
+
+            #region 值 [VALUES]
+
             public float StartX, StartY, StartZ;
             public float EndX, EndY, EndZ;
 
-            // === 额外标量（Color alpha / float tween / Uniform scale） ===
+            /// <summary>额外标量（Color alpha / float tween / Uniform scale）。</summary>
             public float StartExtra;
             public float EndExtra;
 
-            // === 颜色 ===
             public Color StartColor;
             public Color EndColor;
 
-            // === 路径点（仅 BezierPath 使用，其余为 null） ===
+            /// <summary>路径点（仅 BezierPath 使用，其余为 null）。</summary>
             public Vector3[] PathPoints;
 
-            // === 回调 ===
+            #endregion
+
+            #region 回调 [CALLBACKS]
+
             public Action OnComplete;
             public Action<float> OnUpdateFloat;
             public Action<float, float, float> OnUpdateXYZ;
-            public Action<Color> OnUpdateColor;
-            public Action OnUpdateNoValue;
 
-            // === 回调（0GC object 路径：直接持有 object 目标，static lambda / 方法组时无闭包分配） ===
+            // 0GC object 路径：直接持有 object 目标，static lambda / 方法组时无闭包分配
             public Action<object, float> OnUpdateObjectFloat;
             public Action<object, Vector3> OnUpdateObjectVector3;
 
-            // === 类型 ===
+            #endregion
+
+            #region 类型 [TYPE]
+
             public TweenOperationType OperationType;
 
+            #endregion
+
             /// <summary>
-            /// 重置为默认值（回收时调用）。版本号由 TweenTask.Create 统一递增，此处不动。
+            /// 重置为默认值（回收时调用）。整体覆盖安全：版本号在外部数组，不受影响。
             /// </summary>
             public void Reset()
             {
-                ElapsedTime = 0f;
-                Duration = 0f;
-                StartDelay = 0f;
-                StartTime = 0f;
-                DelayTimer = 0f;
-                Cycles = 0;
-                CurrentCycle = 0;
-                CycleMode = TweenUtility.ECycleMode.Restart;
-                Ease = TweenUtility.EEase.Linear;
-                IsActive = false;
-                IsPaused = false;
-                UseUnscaledTime = false;
-                HasDelay = false;
-                Target = null;
-                UnityObject = null;
-                StartX = StartY = StartZ = 0f;
-                EndX = EndY = EndZ = 0f;
-                StartExtra = 0f;
-                EndExtra = 0f;
-                StartColor = default;
-                EndColor = default;
-                PathPoints = null;
-                OnComplete = null;
-                OnUpdateFloat = null;
-                OnUpdateXYZ = null;
-                OnUpdateColor = null;
-                OnUpdateNoValue = null;
-                OnUpdateObjectFloat = null;
-                OnUpdateObjectVector3 = null;
-                OperationType = TweenOperationType.None;
+                this = default;
             }
         }
     }

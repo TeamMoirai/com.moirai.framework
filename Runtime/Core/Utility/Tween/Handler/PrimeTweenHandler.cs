@@ -1,6 +1,8 @@
 #if PRIMETWEEN_INSTALLED
 using System;
 using System.Collections.Generic;
+using System.Threading;
+using Cysharp.Threading.Tasks;
 using PrimeTween;
 using UnityEngine;
 using UnityEngine.UI;
@@ -13,7 +15,7 @@ namespace Moirai.Atropos
     [Serializable]
     public sealed partial class PrimeTweenHandler : TweenHandler
     {
-        #region 字段
+        #region 字段 [FIELDS]
 
         [Tooltip("Tween的最大容量")]
         [SerializeField] private int m_TweenCapacity = 128;
@@ -28,7 +30,7 @@ namespace Moirai.Atropos
 
         #endregion
 
-        #region 辅助方法
+        #region 辅助方法 [HELPERS]
 
         /// <summary>
         /// 缓存Tween对象。
@@ -56,7 +58,7 @@ namespace Moirai.Atropos
 
         #endregion
 
-        #region 基础方法
+        #region 基础方法 [CORE METHODS]
 
         /// <summary>
         /// 初始化Tween配置
@@ -147,10 +149,48 @@ namespace Moirai.Atropos
         {
             return Tween.CompleteAll(onTarget);
         }
-        
+
         #endregion
 
-        #region Delay
+        #region 暂停与等待 [PAUSE & AWAIT]
+
+        /// <summary>
+        /// 暂停指定 tween（PrimeTween 原生 isPaused）。
+        /// </summary>
+        public override void Pause(long tweenId)
+        {
+            if (s_CacheTweenDic.TryGetValue(tweenId, out var tween) && tween.isAlive)
+                tween.isPaused = true;
+        }
+
+        /// <summary>
+        /// 恢复指定 tween。
+        /// </summary>
+        public override void Resume(long tweenId)
+        {
+            if (s_CacheTweenDic.TryGetValue(tweenId, out var tween) && tween.isAlive)
+                tween.isPaused = false;
+        }
+
+        /// <summary>
+        /// 等待 tween 结束（UniTask，逐帧轮询版）。
+        /// <para>任何结束原因（自然完成/Complete/Stop/目标销毁）→ 正常返回，不区分死因；
+        /// 仅外部 CancellationToken 取消 → OperationCanceledException（放弃等待，tween 不受影响）。</para>
+        /// <para>等待判定为逐帧轮询，完成通知最多晚一帧。</para>
+        /// </summary>
+        public override async UniTask WaitAsync(long tweenId, CancellationToken cancellationToken = default)
+        {
+            var tween = GetTween(tweenId);
+            if (tween.Id == 0 || !tween.isAlive)
+                return; // 死 id → 立即完成
+
+            while (tween.isAlive)
+                await UniTask.Yield(cancellationToken); // 外部取消 → OCE（tween 不受影响）
+        }
+
+        #endregion
+
+        #region 延迟 [DELAY]
 
         public override long Delay(float duration, Action onComplete = null, bool useUnscaledTime = false, bool warnIfTargetDestroyed = true)
         {
@@ -168,7 +208,7 @@ namespace Moirai.Atropos
 
         #endregion
 
-        #region Transform 补间 — LocalRotation (Vector3)
+        #region Transform 补间 — LocalRotation (Vector3) [TRANSFORM — LOCAL ROTATION V3]
 
         public override long LocalRotation(Transform target, Vector3 endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
@@ -188,7 +228,7 @@ namespace Moirai.Atropos
 
         #endregion
 
-        #region Transform 补间 — Scale (float)
+        #region Transform 补间 — Scale (float) [TRANSFORM — SCALE FLOAT]
 
         public override long Scale(Transform target, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
@@ -208,7 +248,7 @@ namespace Moirai.Atropos
 
         #endregion
 
-        #region Transform 补间 — Rotation (Vector3)
+        #region Transform 补间 — Rotation (Vector3) [TRANSFORM — ROTATION V3]
 
         public override long Rotation(Transform target, Vector3 endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
@@ -228,7 +268,7 @@ namespace Moirai.Atropos
 
         #endregion
 
-        #region Transform 补间 — Position
+        #region Transform 补间 — Position [TRANSFORM — POSITION]
 
         public override long Position(Transform target, Vector3 endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
@@ -248,7 +288,7 @@ namespace Moirai.Atropos
 
         #endregion
 
-        #region Transform 补间 — PositionX / Y / Z
+        #region Transform 补间 — Position [TRANSFORM — POSITION]X / Y / Z [TRANSFORM — POSITION AXIS]
 
         public override long PositionX(Transform target, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
@@ -300,7 +340,7 @@ namespace Moirai.Atropos
 
         #endregion
 
-        #region Transform 补间 — LocalPosition
+        #region Transform 补间 — LocalPosition [TRANSFORM — LOCAL POSITION]
 
         public override long LocalPosition(Transform target, Vector3 endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
@@ -320,7 +360,7 @@ namespace Moirai.Atropos
 
         #endregion
 
-        #region Transform 补间 — LocalPositionX / Y / Z
+        #region Transform 补间 — LocalPosition [TRANSFORM — LOCAL POSITION]X / Y / Z [TRANSFORM — LOCAL POSITION AXIS]
 
         public override long LocalPositionX(Transform target, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
@@ -372,7 +412,7 @@ namespace Moirai.Atropos
 
         #endregion
 
-        #region Transform 补间 — Rotation (Quaternion)
+        #region Transform 补间 — Rotation (Quaternion) [TRANSFORM — ROTATION QUAT]
 
         public override long Rotation(Transform target, Quaternion endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
@@ -392,7 +432,7 @@ namespace Moirai.Atropos
 
         #endregion
 
-        #region Transform 补间 — LocalRotation (Quaternion)
+        #region Transform 补间 — LocalRotation (Quaternion) [TRANSFORM — LOCAL ROTATION QUAT]
 
         public override long LocalRotation(Transform target, Quaternion endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
@@ -412,7 +452,7 @@ namespace Moirai.Atropos
 
         #endregion
 
-        #region Transform 补间 — Scale (Vector3)
+        #region Transform 补间 — Scale (Vector3) [TRANSFORM — SCALE V3]
 
         public override long Scale(Transform target, Vector3 endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
@@ -432,7 +472,7 @@ namespace Moirai.Atropos
 
         #endregion
 
-        #region Transform 补间 — ScaleX / Y / Z
+        #region Transform 补间 — ScaleX / Y / Z [TRANSFORM — SCALE AXIS]
 
         public override long ScaleX(Transform target, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
@@ -484,7 +524,7 @@ namespace Moirai.Atropos
 
         #endregion
 
-        #region SpriteRenderer / Material 补间
+        #region SpriteRenderer / Material 补间 [SPRITE & MATERIAL]
 
         public override long Color(SpriteRenderer target, Color endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
@@ -520,7 +560,7 @@ namespace Moirai.Atropos
 
         #endregion
 
-        #region UI 补间
+        #region UI 补间 [UI]
 
         public override long UISliderValue(Slider target, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
@@ -741,7 +781,7 @@ namespace Moirai.Atropos
 
         #endregion
 
-        #region Bezier Path
+        #region 贝塞尔路径 [BEZIER PATH]
 
         public override long MoveBezierPath(Transform target, Vector3[] path, float duration, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
@@ -773,7 +813,7 @@ namespace Moirai.Atropos
 
         #endregion
 
-        #region Custom
+        #region 自定义补间 [CUSTOM]
 
         public override long Custom<T>(T target, Vector3 startValue, Vector3 endValue, float duration, Action<T, Vector3> onValueChange, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)

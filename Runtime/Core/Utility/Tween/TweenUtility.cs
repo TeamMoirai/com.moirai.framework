@@ -1,4 +1,6 @@
 using System;
+using System.Threading;
+using Cysharp.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -18,8 +20,20 @@ namespace Moirai.Atropos
     public static partial class TweenUtility
     {
         private static TweenHandler s_Handler = null;
+
         /// <summary>
-        /// 获取/设置缓动动画处理器。
+        /// 关闭域重载时进入 Play 的静态清理：置空 handler，
+        /// 下一次访问将重新初始化并重新注册帧监听
+        /// （旧监听随 UpdateDriver 的 DontDestroyOnLoad 对象在退出 Play 时销毁，不会重复）。
+        /// </summary>
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        internal static void ResetStatics()
+        {
+            s_Handler = null;
+        }
+
+        /// <summary>
+        /// 获取/设置缓动动画处理器。禁止赋 null（fail-fast）。
         /// </summary>
         public static TweenHandler Handler
         {
@@ -30,7 +44,9 @@ namespace Moirai.Atropos
             }
             set
             {
-                if (s_Handler == value || value == null) return;
+                if (s_Handler == value) return;
+                if (value == null)
+                    throw new GameException("TweenUtility.Handler cannot be null.");
 
                 s_Handler?.Internal_Shutdown();
                 s_Handler = value;
@@ -73,7 +89,33 @@ namespace Moirai.Atropos
         {
             return Handler.CompleteAll(onTarget);
         }
-        
+
+        /// <summary>
+        /// 暂停指定 tween（冻结时间推进，含延迟倒计时）。
+        /// </summary>
+        public static void Pause(long tweenId)
+        {
+            Handler.Pause(tweenId);
+        }
+
+        /// <summary>
+        /// 恢复指定 tween。
+        /// </summary>
+        public static void Resume(long tweenId)
+        {
+            Handler.Resume(tweenId);
+        }
+
+        /// <summary>
+        /// 等待 tween 结束（UniTask）。
+        /// <para>任何结束原因（自然完成/Complete/Stop/目标销毁/清理）→ 正常返回，不区分死因；
+        /// 仅外部 CancellationToken 取消 → OperationCanceledException（放弃等待，tween 不被停止）。</para>
+        /// </summary>
+        public static UniTask WaitAsync(long tweenId, CancellationToken cancellationToken = default)
+        {
+            return Handler.WaitAsync(tweenId, cancellationToken);
+        }
+
         public static long Delay(float duration, Action onComplete = null, bool useUnscaledTime = false, bool warnIfTargetDestroyed = true)
         {
             return Handler.Delay(duration, onComplete, useUnscaledTime, warnIfTargetDestroyed);
@@ -97,13 +139,13 @@ namespace Moirai.Atropos
         }
 
 
-        public static long Scale(Transform target, Single endValue, float duration, TweenEase ease = default,
+        public static long Scale(Transform target, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             return Handler.Scale(target, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
-        public static long Scale(Transform target, Single startValue, Single endValue, float duration, TweenEase ease = default,
+        public static long Scale(Transform target, float startValue, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             return Handler.Scale(target, startValue, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
@@ -135,39 +177,39 @@ namespace Moirai.Atropos
         }
 
 
-        public static long PositionX(Transform target, Single endValue, float duration, TweenEase ease = default,
+        public static long PositionX(Transform target, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             return Handler.PositionX(target, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
-        public static long PositionX(Transform target, Single startValue, Single endValue, float duration, TweenEase ease = default,
+        public static long PositionX(Transform target, float startValue, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             return Handler.PositionX(target, startValue, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
 
-        public static long PositionY(Transform target, Single endValue, float duration, TweenEase ease = default,
+        public static long PositionY(Transform target, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             return Handler.PositionY(target, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
-        public static long PositionY(Transform target, Single startValue, Single endValue, float duration, TweenEase ease = default,
+        public static long PositionY(Transform target, float startValue, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             return Handler.PositionY(target, startValue, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
 
-        public static long PositionZ(Transform target, Single endValue, float duration, TweenEase ease = default,
+        public static long PositionZ(Transform target, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             return Handler.PositionZ(target, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
-        public static long PositionZ(Transform target, Single startValue, Single endValue, float duration, TweenEase ease = default,
+        public static long PositionZ(Transform target, float startValue, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             return Handler.PositionZ(target, startValue, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
@@ -187,39 +229,39 @@ namespace Moirai.Atropos
         }
 
 
-        public static long LocalPositionX(Transform target, Single endValue, float duration, TweenEase ease = default,
+        public static long LocalPositionX(Transform target, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             return Handler.LocalPositionX(target, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
-        public static long LocalPositionX(Transform target, Single startValue, Single endValue, float duration, TweenEase ease = default,
+        public static long LocalPositionX(Transform target, float startValue, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             return Handler.LocalPositionX(target, startValue, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
 
-        public static long LocalPositionY(Transform target, Single endValue, float duration, TweenEase ease = default,
+        public static long LocalPositionY(Transform target, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             return Handler.LocalPositionY(target, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
-        public static long LocalPositionY(Transform target, Single startValue, Single endValue, float duration, TweenEase ease = default,
+        public static long LocalPositionY(Transform target, float startValue, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             return Handler.LocalPositionY(target, startValue, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
 
-        public static long LocalPositionZ(Transform target, Single endValue, float duration, TweenEase ease = default,
+        public static long LocalPositionZ(Transform target, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             return Handler.LocalPositionZ(target, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
-        public static long LocalPositionZ(Transform target, Single startValue, Single endValue, float duration, TweenEase ease = default,
+        public static long LocalPositionZ(Transform target, float startValue, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             return Handler.LocalPositionZ(target, startValue, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
@@ -265,39 +307,39 @@ namespace Moirai.Atropos
         }
 
 
-        public static long ScaleX(Transform target, Single endValue, float duration, TweenEase ease = default,
+        public static long ScaleX(Transform target, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             return Handler.ScaleX(target, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
-        public static long ScaleX(Transform target, Single startValue, Single endValue, float duration, TweenEase ease = default,
+        public static long ScaleX(Transform target, float startValue, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             return Handler.ScaleX(target, startValue, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
 
-        public static long ScaleY(Transform target, Single endValue, float duration, TweenEase ease = default,
+        public static long ScaleY(Transform target, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             return Handler.ScaleY(target, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
-        public static long ScaleY(Transform target, Single startValue, Single endValue, float duration, TweenEase ease = default,
+        public static long ScaleY(Transform target, float startValue, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             return Handler.ScaleY(target, startValue, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
 
-        public static long ScaleZ(Transform target, Single endValue, float duration, TweenEase ease = default,
+        public static long ScaleZ(Transform target, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             return Handler.ScaleZ(target, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
-        public static long ScaleZ(Transform target, Single startValue, Single endValue, float duration, TweenEase ease = default,
+        public static long ScaleZ(Transform target, float startValue, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             return Handler.ScaleZ(target, startValue, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
@@ -316,26 +358,26 @@ namespace Moirai.Atropos
             return Handler.Color(target, startValue, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
-        public static long Alpha(SpriteRenderer target, Single endValue, float duration, TweenEase ease = default,
+        public static long Alpha(SpriteRenderer target, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             return Handler.Alpha(target, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
-        public static long Alpha(SpriteRenderer target, Single startValue, Single endValue, float duration, TweenEase ease = default,
+        public static long Alpha(SpriteRenderer target, float startValue, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             return Handler.Alpha(target, startValue, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
 
-        public static long UISliderValue(Slider target, Single endValue, float duration, TweenEase ease = default,
+        public static long UISliderValue(Slider target, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             return Handler.UISliderValue(target, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
-        public static long UISliderValue(Slider target, Single startValue, Single endValue, float duration, TweenEase ease = default,
+        public static long UISliderValue(Slider target, float startValue, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             return Handler.UISliderValue(target, startValue, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
@@ -355,13 +397,13 @@ namespace Moirai.Atropos
         }
 
 
-        public static long UIHorizontalNormalizedPosition(ScrollRect target, Single endValue, float duration, TweenEase ease = default,
+        public static long UIHorizontalNormalizedPosition(ScrollRect target, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             return Handler.UIHorizontalNormalizedPosition(target, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
-        public static long UIHorizontalNormalizedPosition(ScrollRect target, Single startValue, Single endValue, float duration, TweenEase ease = default,
+        public static long UIHorizontalNormalizedPosition(ScrollRect target, float startValue, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             return Handler.UIHorizontalNormalizedPosition(target, startValue, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
@@ -380,39 +422,39 @@ namespace Moirai.Atropos
             return Handler.UIAnchoredPosition(target, startValue, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
-        public static long UIAnchoredPositionX(RectTransform target, Single endValue, float duration, TweenEase ease = default,
+        public static long UIAnchoredPositionX(RectTransform target, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             return Handler.UIAnchoredPositionX(target, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
-        public static long UIAnchoredPositionX(RectTransform target, Single startValue, Single endValue, float duration, TweenEase ease = default,
+        public static long UIAnchoredPositionX(RectTransform target, float startValue, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             return Handler.UIAnchoredPositionX(target, startValue, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
 
-        public static long UIAnchoredPositionY(RectTransform target, Single endValue, float duration, TweenEase ease = default,
+        public static long UIAnchoredPositionY(RectTransform target, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             return Handler.UIAnchoredPositionY(target, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
-        public static long UIAnchoredPositionY(RectTransform target, Single startValue, Single endValue, float duration, TweenEase ease = default,
+        public static long UIAnchoredPositionY(RectTransform target, float startValue, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             return Handler.UIAnchoredPositionY(target, startValue, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
 
-        public static long UIVerticalNormalizedPosition(ScrollRect target, Single endValue, float duration, TweenEase ease = default,
+        public static long UIVerticalNormalizedPosition(ScrollRect target, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             return Handler.UIVerticalNormalizedPosition(target, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
-        public static long UIVerticalNormalizedPosition(ScrollRect target, Single startValue, Single endValue, float duration, TweenEase ease = default,
+        public static long UIVerticalNormalizedPosition(ScrollRect target, float startValue, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             return Handler.UIVerticalNormalizedPosition(target, startValue, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
@@ -458,39 +500,39 @@ namespace Moirai.Atropos
         }
 
 
-        public static long Alpha(CanvasGroup target, Single endValue, float duration, TweenEase ease = default,
+        public static long Alpha(CanvasGroup target, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             return Handler.Alpha(target, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
-        public static long Alpha(CanvasGroup target, Single startValue, Single endValue, float duration, TweenEase ease = default,
+        public static long Alpha(CanvasGroup target, float startValue, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             return Handler.Alpha(target, startValue, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
 
-        public static long Alpha(Graphic target, Single endValue, float duration, TweenEase ease = default,
+        public static long Alpha(Graphic target, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             return Handler.Alpha(target, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
-        public static long Alpha(Graphic target, Single startValue, Single endValue, float duration, TweenEase ease = default,
+        public static long Alpha(Graphic target, float startValue, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             return Handler.Alpha(target, startValue, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
 
-        public static long UIFillAmount(Image target, Single endValue, float duration, TweenEase ease = default,
+        public static long UIFillAmount(Image target, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             return Handler.UIFillAmount(target, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
 
-        public static long UIFillAmount(Image target, Single startValue, Single endValue, float duration, TweenEase ease = default,
+        public static long UIFillAmount(Image target, float startValue, float endValue, float duration, TweenEase ease = default,
             int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             return Handler.UIFillAmount(target, startValue, endValue, duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
