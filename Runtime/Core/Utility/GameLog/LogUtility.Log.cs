@@ -1,5 +1,6 @@
 ﻿using System.Diagnostics;
 using JetBrains.Annotations;
+using UnityEngine;
 
 namespace Moirai.Atropos
 {
@@ -17,6 +18,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_DEBUG_ENABLE")]
         [Conditional("LOG_DEBUG_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Debug(object message)
         {
             LogUtility.Debug(message);
@@ -31,6 +33,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_DEBUG_ENABLE")]
         [Conditional("LOG_DEBUG_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Debug(string message)
         {
             LogUtility.Debug(message);
@@ -47,6 +50,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_DEBUG_ENABLE")]
         [Conditional("LOG_DEBUG_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Debug<T>(string format, T arg)
         {
             LogUtility.Debug(format, arg);
@@ -65,6 +69,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_DEBUG_ENABLE")]
         [Conditional("LOG_DEBUG_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Debug<T1, T2>(string format, T1 arg1, T2 arg2)
         {
             LogUtility.Debug(format, arg1, arg2);
@@ -85,6 +90,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_DEBUG_ENABLE")]
         [Conditional("LOG_DEBUG_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Debug<T1, T2, T3>(string format, T1 arg1, T2 arg2, T3 arg3)
         {
             LogUtility.Debug(format, arg1, arg2, arg3);
@@ -107,6 +113,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_DEBUG_ENABLE")]
         [Conditional("LOG_DEBUG_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Debug<T1, T2, T3, T4>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4)
         {
             LogUtility.Debug(format, arg1, arg2, arg3, arg4);
@@ -131,6 +138,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_DEBUG_ENABLE")]
         [Conditional("LOG_DEBUG_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Debug<T1, T2, T3, T4, T5>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5)
         {
             LogUtility.Debug(format, arg1, arg2, arg3, arg4, arg5);
@@ -157,6 +165,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_DEBUG_ENABLE")]
         [Conditional("LOG_DEBUG_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Debug<T1, T2, T3, T4, T5, T6>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6)
         {
             LogUtility.Debug(format, arg1, arg2, arg3, arg4, arg5, arg6);
@@ -185,6 +194,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_DEBUG_ENABLE")]
         [Conditional("LOG_DEBUG_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Debug<T1, T2, T3, T4, T5, T6, T7>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7)
         {
             LogUtility.Debug(format, arg1, arg2, arg3, arg4, arg5, arg6, arg7);
@@ -215,6 +225,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_DEBUG_ENABLE")]
         [Conditional("LOG_DEBUG_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Debug<T1, T2, T3, T4, T5, T6, T7, T8>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8)
         {
             LogUtility.Debug(format, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
@@ -247,6 +258,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_DEBUG_ENABLE")]
         [Conditional("LOG_DEBUG_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Debug<T1, T2, T3, T4, T5, T6, T7, T8, T9>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9)
         {
             LogUtility.Debug(format, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9);
@@ -281,6 +293,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_DEBUG_ENABLE")]
         [Conditional("LOG_DEBUG_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Debug<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, T10 arg10)
         {
             LogUtility.Debug(format, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10);
@@ -317,6 +330,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_DEBUG_ENABLE")]
         [Conditional("LOG_DEBUG_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Debug<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9,
             T10 arg10, T11 arg11)
         {
@@ -356,6 +370,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_DEBUG_ENABLE")]
         [Conditional("LOG_DEBUG_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Debug<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9,
             T10 arg10, T11 arg11, T12 arg12)
         {
@@ -397,6 +412,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_DEBUG_ENABLE")]
         [Conditional("LOG_DEBUG_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Debug<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8,
             T9 arg9, T10 arg10, T11 arg11, T12 arg12, T13 arg13)
         {
@@ -440,6 +456,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_DEBUG_ENABLE")]
         [Conditional("LOG_DEBUG_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Debug<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8,
             T9 arg9, T10 arg10, T11 arg11, T12 arg12, T13 arg13, T14 arg14)
         {
@@ -485,6 +502,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_DEBUG_ENABLE")]
         [Conditional("LOG_DEBUG_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Debug<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7,
             T8 arg8, T9 arg9, T10 arg10, T11 arg11, T12 arg12, T13 arg13, T14 arg14, T15 arg15)
         {
@@ -532,6 +550,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_DEBUG_ENABLE")]
         [Conditional("LOG_DEBUG_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Debug<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6,
             T7 arg7, T8 arg8, T9 arg9, T10 arg10, T11 arg11, T12 arg12, T13 arg13, T14 arg14, T15 arg15, T16 arg16)
         {
@@ -548,6 +567,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_DEBUG_AND_ABOVE")]
         [Conditional("LOG_INFO_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Info(object message)
         {
             LogUtility.Info(message);
@@ -563,6 +583,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_DEBUG_AND_ABOVE")]
         [Conditional("LOG_INFO_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Info(string message)
         {
             LogUtility.Info(message);
@@ -580,6 +601,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_DEBUG_AND_ABOVE")]
         [Conditional("LOG_INFO_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Info<T>(string format, T arg)
         {
             LogUtility.Info(format, arg);
@@ -599,6 +621,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_DEBUG_AND_ABOVE")]
         [Conditional("LOG_INFO_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Info<T1, T2>(string format, T1 arg1, T2 arg2)
         {
             LogUtility.Info(format, arg1, arg2);
@@ -620,6 +643,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_DEBUG_AND_ABOVE")]
         [Conditional("LOG_INFO_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Info<T1, T2, T3>(string format, T1 arg1, T2 arg2, T3 arg3)
         {
             LogUtility.Info(format, arg1, arg2, arg3);
@@ -643,6 +667,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_DEBUG_AND_ABOVE")]
         [Conditional("LOG_INFO_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Info<T1, T2, T3, T4>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4)
         {
             LogUtility.Info(format, arg1, arg2, arg3, arg4);
@@ -668,6 +693,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_DEBUG_AND_ABOVE")]
         [Conditional("LOG_INFO_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Info<T1, T2, T3, T4, T5>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5)
         {
             LogUtility.Info(format, arg1, arg2, arg3, arg4, arg5);
@@ -695,6 +721,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_DEBUG_AND_ABOVE")]
         [Conditional("LOG_INFO_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Info<T1, T2, T3, T4, T5, T6>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6)
         {
             LogUtility.Info(format, arg1, arg2, arg3, arg4, arg5, arg6);
@@ -724,6 +751,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_DEBUG_AND_ABOVE")]
         [Conditional("LOG_INFO_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Info<T1, T2, T3, T4, T5, T6, T7>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7)
         {
             LogUtility.Info(format, arg1, arg2, arg3, arg4, arg5, arg6, arg7);
@@ -755,6 +783,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_DEBUG_AND_ABOVE")]
         [Conditional("LOG_INFO_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Info<T1, T2, T3, T4, T5, T6, T7, T8>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8)
         {
             LogUtility.Info(format, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
@@ -788,6 +817,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_DEBUG_AND_ABOVE")]
         [Conditional("LOG_INFO_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Info<T1, T2, T3, T4, T5, T6, T7, T8, T9>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9)
         {
             LogUtility.Info(format, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9);
@@ -823,6 +853,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_DEBUG_AND_ABOVE")]
         [Conditional("LOG_INFO_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Info<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, T10 arg10)
         {
             LogUtility.Info(format, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10);
@@ -860,6 +891,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_DEBUG_AND_ABOVE")]
         [Conditional("LOG_INFO_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Info<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9,
             T10 arg10, T11 arg11)
         {
@@ -900,6 +932,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_DEBUG_AND_ABOVE")]
         [Conditional("LOG_INFO_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Info<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9,
             T10 arg10, T11 arg11, T12 arg12)
         {
@@ -942,6 +975,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_DEBUG_AND_ABOVE")]
         [Conditional("LOG_INFO_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Info<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8,
             T9 arg9, T10 arg10, T11 arg11, T12 arg12, T13 arg13)
         {
@@ -986,6 +1020,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_DEBUG_AND_ABOVE")]
         [Conditional("LOG_INFO_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Info<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8,
             T9 arg9, T10 arg10, T11 arg11, T12 arg12, T13 arg13, T14 arg14)
         {
@@ -1032,6 +1067,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_DEBUG_AND_ABOVE")]
         [Conditional("LOG_INFO_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Info<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7,
             T8 arg8, T9 arg9, T10 arg10, T11 arg11, T12 arg12, T13 arg13, T14 arg14, T15 arg15)
         {
@@ -1080,6 +1116,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_DEBUG_AND_ABOVE")]
         [Conditional("LOG_INFO_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Info<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7,
             T8 arg8, T9 arg9, T10 arg10, T11 arg11, T12 arg12, T13 arg13, T14 arg14, T15 arg15, T16 arg16)
         {
@@ -1097,6 +1134,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_INFO_AND_ABOVE")]
         [Conditional("LOG_WARNING_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Warning(object message)
         {
             LogUtility.Warning(message);
@@ -1113,6 +1151,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_INFO_AND_ABOVE")]
         [Conditional("LOG_WARNING_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Warning(string message)
         {
             LogUtility.Warning(message);
@@ -1131,6 +1170,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_INFO_AND_ABOVE")]
         [Conditional("LOG_WARNING_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Warning<T>(string format, T arg)
         {
             LogUtility.Warning(format, arg);
@@ -1151,6 +1191,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_INFO_AND_ABOVE")]
         [Conditional("LOG_WARNING_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Warning<T1, T2>(string format, T1 arg1, T2 arg2)
         {
             LogUtility.Warning(format, arg1, arg2);
@@ -1173,6 +1214,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_INFO_AND_ABOVE")]
         [Conditional("LOG_WARNING_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Warning<T1, T2, T3>(string format, T1 arg1, T2 arg2, T3 arg3)
         {
             LogUtility.Warning(format, arg1, arg2, arg3);
@@ -1197,6 +1239,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_INFO_AND_ABOVE")]
         [Conditional("LOG_WARNING_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Warning<T1, T2, T3, T4>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4)
         {
             LogUtility.Warning(format, arg1, arg2, arg3, arg4);
@@ -1223,6 +1266,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_INFO_AND_ABOVE")]
         [Conditional("LOG_WARNING_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Warning<T1, T2, T3, T4, T5>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5)
         {
             LogUtility.Warning(format, arg1, arg2, arg3, arg4, arg5);
@@ -1251,6 +1295,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_INFO_AND_ABOVE")]
         [Conditional("LOG_WARNING_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Warning<T1, T2, T3, T4, T5, T6>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6)
         {
             LogUtility.Warning(format, arg1, arg2, arg3, arg4, arg5, arg6);
@@ -1281,6 +1326,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_INFO_AND_ABOVE")]
         [Conditional("LOG_WARNING_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Warning<T1, T2, T3, T4, T5, T6, T7>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7)
         {
             LogUtility.Warning(format, arg1, arg2, arg3, arg4, arg5, arg6, arg7);
@@ -1313,6 +1359,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_INFO_AND_ABOVE")]
         [Conditional("LOG_WARNING_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Warning<T1, T2, T3, T4, T5, T6, T7, T8>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8)
         {
             LogUtility.Warning(format, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
@@ -1347,6 +1394,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_INFO_AND_ABOVE")]
         [Conditional("LOG_WARNING_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Warning<T1, T2, T3, T4, T5, T6, T7, T8, T9>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9)
         {
             LogUtility.Warning(format, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9);
@@ -1383,6 +1431,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_INFO_AND_ABOVE")]
         [Conditional("LOG_WARNING_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Warning<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9,
             T10 arg10)
         {
@@ -1422,6 +1471,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_INFO_AND_ABOVE")]
         [Conditional("LOG_WARNING_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Warning<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9,
             T10 arg10, T11 arg11)
         {
@@ -1463,6 +1513,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_INFO_AND_ABOVE")]
         [Conditional("LOG_WARNING_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Warning<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8,
             T9 arg9, T10 arg10, T11 arg11, T12 arg12)
         {
@@ -1506,6 +1557,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_INFO_AND_ABOVE")]
         [Conditional("LOG_WARNING_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Warning<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8,
             T9 arg9, T10 arg10, T11 arg11, T12 arg12, T13 arg13)
         {
@@ -1551,6 +1603,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_INFO_AND_ABOVE")]
         [Conditional("LOG_WARNING_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Warning<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7,
             T8 arg8, T9 arg9, T10 arg10, T11 arg11, T12 arg12, T13 arg13, T14 arg14)
         {
@@ -1598,6 +1651,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_INFO_AND_ABOVE")]
         [Conditional("LOG_WARNING_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Warning<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7,
             T8 arg8, T9 arg9, T10 arg10, T11 arg11, T12 arg12, T13 arg13, T14 arg14, T15 arg15)
         {
@@ -1647,6 +1701,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_INFO_AND_ABOVE")]
         [Conditional("LOG_WARNING_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Warning<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6,
             T7 arg7, T8 arg8, T9 arg9, T10 arg10, T11 arg11, T12 arg12, T13 arg13, T14 arg14, T15 arg15, T16 arg16)
         {
@@ -1665,6 +1720,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_WARNING_AND_ABOVE")]
         [Conditional("LOG_ERROR_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Error(object message)
         {
             LogUtility.Error(message);
@@ -1682,6 +1738,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_WARNING_AND_ABOVE")]
         [Conditional("LOG_ERROR_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Error(string message)
         {
             LogUtility.Error(message);
@@ -1701,6 +1758,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_WARNING_AND_ABOVE")]
         [Conditional("LOG_ERROR_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Error<T>(string format, T arg)
         {
             LogUtility.Error(format, arg);
@@ -1722,6 +1780,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_WARNING_AND_ABOVE")]
         [Conditional("LOG_ERROR_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Error<T1, T2>(string format, T1 arg1, T2 arg2)
         {
             LogUtility.Error(format, arg1, arg2);
@@ -1745,6 +1804,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_WARNING_AND_ABOVE")]
         [Conditional("LOG_ERROR_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Error<T1, T2, T3>(string format, T1 arg1, T2 arg2, T3 arg3)
         {
             LogUtility.Error(format, arg1, arg2, arg3);
@@ -1770,6 +1830,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_WARNING_AND_ABOVE")]
         [Conditional("LOG_ERROR_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Error<T1, T2, T3, T4>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4)
         {
             LogUtility.Error(format, arg1, arg2, arg3, arg4);
@@ -1797,6 +1858,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_WARNING_AND_ABOVE")]
         [Conditional("LOG_ERROR_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Error<T1, T2, T3, T4, T5>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5)
         {
             LogUtility.Error(format, arg1, arg2, arg3, arg4, arg5);
@@ -1826,6 +1888,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_WARNING_AND_ABOVE")]
         [Conditional("LOG_ERROR_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Error<T1, T2, T3, T4, T5, T6>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6)
         {
             LogUtility.Error(format, arg1, arg2, arg3, arg4, arg5, arg6);
@@ -1857,6 +1920,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_WARNING_AND_ABOVE")]
         [Conditional("LOG_ERROR_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Error<T1, T2, T3, T4, T5, T6, T7>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7)
         {
             LogUtility.Error(format, arg1, arg2, arg3, arg4, arg5, arg6, arg7);
@@ -1890,6 +1954,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_WARNING_AND_ABOVE")]
         [Conditional("LOG_ERROR_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Error<T1, T2, T3, T4, T5, T6, T7, T8>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8)
         {
             LogUtility.Error(format, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
@@ -1925,6 +1990,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_WARNING_AND_ABOVE")]
         [Conditional("LOG_ERROR_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Error<T1, T2, T3, T4, T5, T6, T7, T8, T9>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9)
         {
             LogUtility.Error(format, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9);
@@ -1962,6 +2028,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_WARNING_AND_ABOVE")]
         [Conditional("LOG_ERROR_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Error<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, T10 arg10)
         {
             LogUtility.Error(format, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10);
@@ -2001,6 +2068,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_WARNING_AND_ABOVE")]
         [Conditional("LOG_ERROR_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Error<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9,
             T10 arg10, T11 arg11)
         {
@@ -2043,6 +2111,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_WARNING_AND_ABOVE")]
         [Conditional("LOG_ERROR_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Error<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9,
             T10 arg10, T11 arg11, T12 arg12)
         {
@@ -2087,6 +2156,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_WARNING_AND_ABOVE")]
         [Conditional("LOG_ERROR_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Error<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8,
             T9 arg9, T10 arg10, T11 arg11, T12 arg12, T13 arg13)
         {
@@ -2133,6 +2203,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_WARNING_AND_ABOVE")]
         [Conditional("LOG_ERROR_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Error<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8,
             T9 arg9, T10 arg10, T11 arg11, T12 arg12, T13 arg13, T14 arg14)
         {
@@ -2181,6 +2252,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_WARNING_AND_ABOVE")]
         [Conditional("LOG_ERROR_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Error<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7,
             T8 arg8, T9 arg9, T10 arg10, T11 arg11, T12 arg12, T13 arg13, T14 arg14, T15 arg15)
         {
@@ -2231,6 +2303,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_WARNING_AND_ABOVE")]
         [Conditional("LOG_ERROR_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Error<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6,
             T7 arg7, T8 arg8, T9 arg9, T10 arg10, T11 arg11, T12 arg12, T13 arg13, T14 arg14, T15 arg15, T16 arg16)
         {
@@ -2250,6 +2323,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_ERROR_AND_ABOVE")]
         [Conditional("LOG_FATAL_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Fatal(object message)
         {
             LogUtility.Fatal(message);
@@ -2268,6 +2342,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_ERROR_AND_ABOVE")]
         [Conditional("LOG_FATAL_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Fatal(string message)
         {
             LogUtility.Fatal(message);
@@ -2288,6 +2363,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_ERROR_AND_ABOVE")]
         [Conditional("LOG_FATAL_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Fatal<T>(string format, T arg)
         {
             LogUtility.Fatal(format, arg);
@@ -2310,6 +2386,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_ERROR_AND_ABOVE")]
         [Conditional("LOG_FATAL_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Fatal<T1, T2>(string format, T1 arg1, T2 arg2)
         {
             LogUtility.Fatal(format, arg1, arg2);
@@ -2334,6 +2411,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_ERROR_AND_ABOVE")]
         [Conditional("LOG_FATAL_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Fatal<T1, T2, T3>(string format, T1 arg1, T2 arg2, T3 arg3)
         {
             LogUtility.Fatal(format, arg1, arg2, arg3);
@@ -2360,6 +2438,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_ERROR_AND_ABOVE")]
         [Conditional("LOG_FATAL_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Fatal<T1, T2, T3, T4>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4)
         {
             LogUtility.Fatal(format, arg1, arg2, arg3, arg4);
@@ -2388,6 +2467,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_ERROR_AND_ABOVE")]
         [Conditional("LOG_FATAL_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Fatal<T1, T2, T3, T4, T5>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5)
         {
             LogUtility.Fatal(format, arg1, arg2, arg3, arg4, arg5);
@@ -2418,6 +2498,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_ERROR_AND_ABOVE")]
         [Conditional("LOG_FATAL_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Fatal<T1, T2, T3, T4, T5, T6>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6)
         {
             LogUtility.Fatal(format, arg1, arg2, arg3, arg4, arg5, arg6);
@@ -2450,6 +2531,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_ERROR_AND_ABOVE")]
         [Conditional("LOG_FATAL_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Fatal<T1, T2, T3, T4, T5, T6, T7>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7)
         {
             LogUtility.Fatal(format, arg1, arg2, arg3, arg4, arg5, arg6, arg7);
@@ -2484,6 +2566,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_ERROR_AND_ABOVE")]
         [Conditional("LOG_FATAL_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Fatal<T1, T2, T3, T4, T5, T6, T7, T8>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8)
         {
             LogUtility.Fatal(format, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
@@ -2520,6 +2603,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_ERROR_AND_ABOVE")]
         [Conditional("LOG_FATAL_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Fatal<T1, T2, T3, T4, T5, T6, T7, T8, T9>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9)
         {
             LogUtility.Fatal(format, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9);
@@ -2558,6 +2642,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_ERROR_AND_ABOVE")]
         [Conditional("LOG_FATAL_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Fatal<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, T10 arg10)
         {
             LogUtility.Fatal(format, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10);
@@ -2598,6 +2683,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_ERROR_AND_ABOVE")]
         [Conditional("LOG_FATAL_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Fatal<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9,
             T10 arg10, T11 arg11)
         {
@@ -2641,6 +2727,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_ERROR_AND_ABOVE")]
         [Conditional("LOG_FATAL_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Fatal<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9,
             T10 arg10, T11 arg11, T12 arg12)
         {
@@ -2686,6 +2773,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_ERROR_AND_ABOVE")]
         [Conditional("LOG_FATAL_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Fatal<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8,
             T9 arg9, T10 arg10, T11 arg11, T12 arg12, T13 arg13)
         {
@@ -2733,6 +2821,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_ERROR_AND_ABOVE")]
         [Conditional("LOG_FATAL_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Fatal<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8,
             T9 arg9, T10 arg10, T11 arg11, T12 arg12, T13 arg13, T14 arg14)
         {
@@ -2782,6 +2871,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_ERROR_AND_ABOVE")]
         [Conditional("LOG_FATAL_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Fatal<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7,
             T8 arg8, T9 arg9, T10 arg10, T11 arg11, T12 arg12, T13 arg13, T14 arg14, T15 arg15)
         {
@@ -2833,6 +2923,7 @@ namespace Moirai.Atropos
         [Conditional("LOG_ERROR_AND_ABOVE")]
         [Conditional("LOG_FATAL_AND_ABOVE")]
         [StringFormatMethod("format")]
+        [HideInCallstack]
         public static void Fatal<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6,
             T7 arg7, T8 arg8, T9 arg9, T10 arg10, T11 arg11, T12 arg12, T13 arg13, T14 arg14, T15 arg15, T16 arg16)
         {
@@ -2844,6 +2935,7 @@ namespace Moirai.Atropos
         /// </summary>
         /// <param name="condition">条件。</param>
         [Conditional("LOG_ALL")]
+        [HideInCallstack]
         public static void Assert(bool condition)
         {
             if (!condition)
@@ -2859,6 +2951,7 @@ namespace Moirai.Atropos
         /// <param name="condition">条件。</param>
         /// <param name="retStr">断言输出字符串。</param>
         [Conditional("LOG_ALL")]
+        [HideInCallstack]
         public static void Assert(bool condition, string retStr)
         {
             if (!condition)
@@ -2868,6 +2961,7 @@ namespace Moirai.Atropos
             }
         }
         
+        [HideInCallstack]
         public static void Fatal(System.Exception exception)
         {
             Fatal(exception.ToString());
