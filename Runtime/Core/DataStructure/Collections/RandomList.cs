@@ -14,6 +14,9 @@ namespace Moirai.Atropos.Collections
         
         private T _lastSelected;
         
+        // 值类型装箱后与 null 比较恒为 true，无法用 _lastSelected != null 判定"尚未选择"，必须用显式标志
+        private bool _hasLastSelected;
+        
         public int Count => _items.Count;
         
         public T this[int index] => _items[index];
@@ -42,12 +45,12 @@ namespace Moirai.Atropos.Collections
         {
             while (true)
             {
-                double totalWeight = _weights.Sum() - (_lastSelected != null ? _weights[_items.IndexOf(_lastSelected)] : 0);
+                double totalWeight = _weights.Sum() - (_hasLastSelected ? _weights[_items.IndexOf(_lastSelected)] : 0);
                 double randomNumber = _random.NextDouble() * totalWeight;
                 double cumulativeWeight = 0;
                 for (int i = 0; i < _items.Count; i++)
                 {
-                    if (_items[i].Equals(_lastSelected))
+                    if (_hasLastSelected && _items[i].Equals(_lastSelected))
                     {
                         // 跳过最后的选定项目
                         continue;
@@ -60,12 +63,15 @@ namespace Moirai.Atropos.Collections
                         // 减少所选项目的权重以供将来选择
                         _weights[i] *= decayFactor;
                         // 更新最后选择的项目
-                        return _lastSelected = selected;
+                        _lastSelected = selected;
+                        _hasLastSelected = true;
+                        return selected;
                     }
                 }
 
                 // 如果所有项都是最后选定的项，则将 lastSelected 重置为默认值
                 _lastSelected = default;
+                _hasLastSelected = false;
                 // 再次执行选择
             }
         }
