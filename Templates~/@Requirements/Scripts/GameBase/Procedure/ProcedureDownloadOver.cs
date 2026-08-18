@@ -1,4 +1,4 @@
-﻿using Moirai.Atropos;
+using Moirai.Atropos;
 using Moirai.Atropos.FSM;
 using Moirai.Atropos.Procedure;
 
@@ -16,7 +16,7 @@ namespace Moirai.Main
 
         protected override void OnEnter(IFSM<IProcedureModule> procedureOwner)
         {
-            Log.Info("DownLoad_Complete");
+            LogUtility.Info("DownLoad_Complete");
             
             LauncherMgr.ShowUI<LoadUpdateUI>(LoadText.Instance.Label_Download_Complete);
             

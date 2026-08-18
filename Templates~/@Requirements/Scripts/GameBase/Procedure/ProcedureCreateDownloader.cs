@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Cysharp.Threading.Tasks;
 using Moirai.Atropos;
 using Moirai.Atropos.FSM;
@@ -33,7 +33,7 @@ namespace Moirai.Main
         {
             _procedureOwner = procedureOwner;
             
-            Log.Info("Create a patch downloader...");
+            LogUtility.Info("Create a patch downloader...");
             
             LauncherMgr.ShowUI<LoadUpdateUI>(LoadText.Instance.Label_CreateDownloader);
             
@@ -48,13 +48,13 @@ namespace Moirai.Main
 
             if (_downloader.TotalDownloadCount == 0)
             {
-                Log.Info("Not found any download files !");
+                LogUtility.Info("Not found any download files !");
                 ChangeState<ProcedureDownloadOver>(_procedureOwner);
             }
             else
             {
                 // 一共发现 n 个文件需要下载
-                Log.Info($"Found total {_downloader.TotalDownloadCount} files that need download ！");
+                LogUtility.Info($"Found total {_downloader.TotalDownloadCount} files that need download ！");
 
                 // 发现新更新文件后，挂起流程系统
                 // 注意：开发者需要在下载前检测磁盘空间不足
@@ -88,7 +88,7 @@ namespace Moirai.Main
         /// </summary>
         private async UniTaskVoid RequestUpdateData()
         {
-            Log.Warning("On RequestVersion");
+            LogUtility.Warning("On RequestVersion");
             _curTryCount++;
 
             if (_curTryCount > MAX_TRY_COUNT)
@@ -107,12 +107,12 @@ namespace Moirai.Main
             LauncherMgr.ShowUI<LoadUpdateUI>(string.Format(LoadText.Instance.Label_Load_Checking, _curTryCount));
             if (string.IsNullOrEmpty(checkVersionUrl))
             {
-                Log.Error("LoadMgr.RequestVersion, remote url is empty or null");
+                LogUtility.Error("LoadMgr.RequestVersion, remote url is empty or null");
                 LauncherMgr.ShowMessageBox(LoadText.Instance.Label_RemoteUrlIsNull,
                     Application.Quit);
                 return;
             }
-            Log.Info("RequestUpdateData, proxy:" + checkVersionUrl);
+            LogUtility.Info("RequestUpdateData, proxy:" + checkVersionUrl);
 
             var updateDataStr = await HttpUtility.Get(checkVersionUrl);
 
@@ -123,7 +123,7 @@ namespace Moirai.Main
             }
             catch (Exception e)
             {
-                Log.Fatal(e);
+                LogUtility.Fatal(e);
                 throw;
             }
         }
@@ -142,7 +142,7 @@ namespace Moirai.Main
                     () =>
                     {
                         // 自定义下载APK
-                        Log.Info("Customize the download APK");
+                        LogUtility.Info("Customize the download APK");
                         Application.Quit();
                     });
             }
@@ -191,7 +191,7 @@ namespace Moirai.Main
                 }
                 else
                 {
-                    Log.Error("LoadMgr._CheckUpdate, style is error,code:" + data.UpdateStyle);
+                    LogUtility.Error("LoadMgr._CheckUpdate, style is error,code:" + data.UpdateStyle);
                 }
             }
         }

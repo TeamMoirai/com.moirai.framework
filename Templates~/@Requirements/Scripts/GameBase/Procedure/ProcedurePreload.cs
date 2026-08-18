@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using Cysharp.Threading.Tasks;
 using Moirai.Atropos;
@@ -117,13 +117,13 @@ namespace Moirai.Main
 
         private void OnPreLoadAssetFailure(string assetName, LoadResourceStatus status, string errorMessage, object userdata)
         {
-            Log.Warning("Can not preload asset from '{0}' with error message '{1}'.", assetName, errorMessage);
+            LogUtility.Warning("Can not preload asset from '{0}' with error message '{1}'.", assetName, errorMessage);
             _loadedFlag[assetName] = true;
         }
 
         private void OnPreLoadAssetSuccess(string assetName, object asset, float duration, object userdata)
         {
-            Log.Debug("Success preload asset from '{0}' duration '{1}'.", assetName, duration);
+            LogUtility.Debug("Success preload asset from '{0}' duration '{1}'.", assetName, duration);
             _loadedFlag[assetName] = true;
         }
 

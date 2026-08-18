@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using Moirai.Atropos;
 using Moirai.Atropos.FSM;
 using Moirai.Atropos.Procedure;
@@ -45,7 +45,7 @@ namespace Moirai.Main
             if (_resourceModule.PlayMode == EPlayMode.HostPlayMode || _resourceModule.PlayMode == EPlayMode.WebPlayMode)
             {
                 // 线上最新版本operation.PackageVersion
-                Log.Debug($"Updated package Version : from {_resourceModule.GetPackageVersion()} to {_resourceModule.PackageVersion}");
+                LogUtility.Debug($"Updated package Version : from {_resourceModule.GetPackageVersion()} to {_resourceModule.PackageVersion}");
                 // 注意：保存资源版本号作为下次默认启动的版本!
                 // 如果当前是WebGL或者是边玩边下载直接进入预加载阶段。
                 if (_resourceModule.PlayMode == EPlayMode.WebPlayMode ||
@@ -75,7 +75,7 @@ namespace Moirai.Main
         private IEnumerator InitResources(IFSM<IProcedureModule> procedureOwner)
         {
             // 更新资源清单
-            Log.Info("Update the manifest file...");
+            LogUtility.Info("Update the manifest file...");
             LauncherMgr.ShowUI<LoadUpdateUI>(LoadText.Instance.Label_UpdateManifest);
 
             // 1. 获取资源清单的版本信息
@@ -92,7 +92,7 @@ namespace Moirai.Main
 
             SettingUtility.SetString(Constant.GAME_VERSION, _resourceModule.PackageVersion);
 
-            Log.Info($"Init resource package version : {packageVersion}");
+            LogUtility.Info($"Init resource package version : {packageVersion}");
 
             // 2. 传入的版本信息更新资源清单
             var operation2 = _resourceModule.UpdatePackageManifestAsync(packageVersion);
@@ -122,14 +122,14 @@ namespace Moirai.Main
                 }
                 else
                 {
-                    Log.Error(message);
+                    LogUtility.Error(message);
                     LauncherMgr.ShowMessageBox($"获取远程版本失败！点击确认重试\n <color=#FF0000>{message}</color>",
                         () => { UnityUtility.StartCoroutine(InitResources(procedureOwner)); }, Application.Quit);
                     return;
                 }
             }
 
-            Log.Error(message);
+            LogUtility.Error(message);
             LauncherMgr.ShowMessageBox($"初始化资源失败！点击确认重试 \n <color=#FF0000>{message}</color>",
                 () => { UnityUtility.StartCoroutine(InitResources(procedureOwner)); }, Application.Quit);
         }

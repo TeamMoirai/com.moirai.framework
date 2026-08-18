@@ -1,4 +1,4 @@
-﻿using Moirai.Atropos;
+using Moirai.Atropos;
 using Moirai.Atropos.FSM;
 using Moirai.Atropos.Procedure;
 
@@ -17,7 +17,7 @@ namespace Moirai.Main
         protected override void OnEnter(IFSM<IProcedureModule> procedureOwner)
         {
             _procedureOwner = procedureOwner;
-            Log.Info("Clean up unused cache files...");
+            LogUtility.Info("Clean up unused cache files...");
             
             LauncherMgr.ShowUI<LoadUpdateUI>(LoadText.Instance.Label_ClearCache);
 
