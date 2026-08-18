@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace Moirai.Atropos.UI
@@ -246,7 +246,7 @@ namespace Moirai.Atropos.UI
             transform = go.GetComponent<Transform>();
             rectTransform = transform as RectTransform;
             gameObject = go;
-            Log.Assert(rectTransform != null, $"{go.name} ui base element need to be RectTransform");
+            LogUtility.Assert(rectTransform != null, $"{go.name} ui base element need to be RectTransform");
             return true;
         }
 

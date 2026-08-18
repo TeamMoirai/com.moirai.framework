@@ -65,7 +65,7 @@ namespace Moirai.Atropos.Resource
             }
             else
             {
-                Log.Warning($"SourceGameObject is not invalid.");
+                LogUtility.Warning($"SourceGameObject is not invalid.");
             }
         }
 

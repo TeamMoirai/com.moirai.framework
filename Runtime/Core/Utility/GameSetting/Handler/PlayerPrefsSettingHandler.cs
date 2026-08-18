@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -33,7 +33,7 @@ namespace Moirai.Atropos
 
         public override string[] GetAllSettingNames()
         {
-            Log.Warning("GetAllSettingNames is not supported.");
+            LogUtility.Warning("GetAllSettingNames is not supported.");
             return null;
         }
 
@@ -45,7 +45,7 @@ namespace Moirai.Atropos
             }
 
             results.Clear();
-            Log.Warning("GetAllSettingNames is not supported.");
+            LogUtility.Warning("GetAllSettingNames is not supported.");
         }
 
         public override bool HasSetting(string settingName)

@@ -59,7 +59,7 @@ namespace Moirai.Atropos
             bool vSync = SettingUtility.GetBool(Constant.Setting.GRAPHICS_VSYNC, VSyncEnabled);
             SetVSync(vSync);
 
-            Log.Info("[GraphicsSettings] <color=orange>" +
+            LogUtility.Info("[GraphicsSettings] <color=orange>" +
                  $"Resolution:{Instance._lastKnownResolution} " +
                  $"FullScreen:{Instance._lastKnownFullScreen} " +
                  $"FullScreenMode:{Instance._lastKnownWindowMode} " +

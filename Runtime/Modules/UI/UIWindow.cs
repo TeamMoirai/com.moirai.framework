@@ -180,7 +180,7 @@ namespace Moirai.Atropos.UI
                         _OnSortDepth();
                     }
 
-                    // Log.Info("[UI] Set '{0}' Visible {1}", WindowName, value);
+                    // LogUtility.Info("[UI] Set '{0}' Visible {1}", WindowName, value);
 
                     // 虚函数
                     if (_isCreate)
@@ -203,7 +203,7 @@ namespace Moirai.Atropos.UI
             {
                 if (_interactable == value) return;
 
-                // Log.Info("{0}'s Interactable: {1}", WindowName, value);
+                // LogUtility.Info("{0}'s Interactable: {1}", WindowName, value);
                 if (_raycaster != null)
                 {
                     _raycaster.enabled = value;
@@ -352,14 +352,14 @@ namespace Moirai.Atropos.UI
             }
 
             InternalRefresh(true);
-            // Log.Info("[UI] Open {0}", WindowName);
+            // LogUtility.Info("[UI] Open {0}", WindowName);
         }
 
         internal void InternalRefresh(bool open)
         {
             SetInteractWaiter(open).Forget();
 
-            // Log.Info("[UI] Refresh {0}", WindowName);
+            // LogUtility.Info("[UI] Refresh {0}", WindowName);
             OnRefresh();
         }
 

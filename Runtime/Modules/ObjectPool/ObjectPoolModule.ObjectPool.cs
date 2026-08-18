@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace Moirai.Atropos.ObjectPool
@@ -153,7 +153,7 @@ namespace Moirai.Atropos.ObjectPool
                 }
 
                 Object<T> internalObject = Object<T>.Create(obj, spawned);
-                // Log.Info($"[ObjectPool] Register: {internalObject.Name}");
+                // LogUtility.Info($"[ObjectPool] Register: {internalObject.Name}");
                 _objects.Add(obj.Name, internalObject);
                 _objectMap.Add(obj.Target, internalObject);
 

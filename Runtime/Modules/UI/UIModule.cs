@@ -70,14 +70,14 @@ namespace Moirai.Atropos.UI
             var uiRoot = GameObject.Find("UIRoot");
             if (uiRoot == null)
             {
-                Log.Fatal("UIRoot not found!");
+                LogUtility.Fatal("UIRoot not found!");
                 return;
             }
 
             var canvas = uiRoot.GetComponentInChildren<Canvas>();
             if (canvas == null)
             {
-                Log.Fatal("Can't find any Canvas under UIRoot! Please add a Canvas first.");
+                LogUtility.Fatal("Can't find any Canvas under UIRoot! Please add a Canvas first.");
                 return;
             }
 
@@ -169,7 +169,7 @@ namespace Moirai.Atropos.UI
             CanvasScaler scaler = UIRoot.GetComponentInParent<CanvasScaler>();
             if (scaler == null)
             {
-                Log.Error($"Not found {nameof(CanvasScaler)} !");
+                LogUtility.Error($"Not found {nameof(CanvasScaler)} !");
                 return;
             }
 

@@ -162,7 +162,7 @@ namespace Moirai.Atropos.Debugger
             _debuggerModule = ModuleSystem.GetModule<IDebuggerModule>();
             if (_debuggerModule == null)
             {
-                Log.Fatal("Debugger manager is invalid.");
+                LogUtility.Fatal("Debugger manager is invalid.");
                 return;
             }
 

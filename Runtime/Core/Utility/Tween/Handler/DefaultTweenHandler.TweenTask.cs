@@ -207,7 +207,7 @@ namespace Moirai.Atropos
                     if (!ReferenceEquals(unityObject, null) && unityObject == null)
                     {
                         if (state.WarnIfTargetDestroyed)
-                            Log.Warning("Tween target destroyed before completion, tween killed. Operation: {0}", state.OperationType);
+                            LogUtility.Warning("Tween target destroyed before completion, tween killed. Operation: {0}", state.OperationType);
                         Recycle(i);
                         continue;
                     }
@@ -766,7 +766,7 @@ namespace Moirai.Atropos
                 }
                 catch (Exception e)
                 {
-                    Log.Error("Tween callback threw an exception: {0}", e);
+                    LogUtility.Error("Tween callback threw an exception: {0}", e);
                 }
             }
 

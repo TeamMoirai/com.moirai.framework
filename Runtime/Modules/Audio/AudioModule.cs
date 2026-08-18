@@ -272,7 +272,7 @@ namespace Moirai.Atropos.Audio
             }
             catch (Exception e)
             {
-                Log.Error("[AudioModule] Failed to check AudioSettings.unityAudioDisabled via reflection: {0}", e);
+                LogUtility.Error("[AudioModule] Failed to check AudioSettings.unityAudioDisabled via reflection: {0}", e);
             }
 #endif
             
@@ -408,7 +408,7 @@ namespace Moirai.Atropos.Audio
             AudioCategory category = FindCategory(options.AudioTrack);
             if (category == null)
             {
-                Log.Error($"{options.AudioTrack} is not found in AudioCategories.");
+                LogUtility.Error($"{options.AudioTrack} is not found in AudioCategories.");
                 return 0UL;
             }
             
@@ -524,7 +524,7 @@ namespace Moirai.Atropos.Audio
             AudioCategory category = FindCategory(options.AudioTrack);
             if (category == null)
             {
-                Log.Error($"{options.AudioTrack} is not found in AudioCategories.");
+                LogUtility.Error($"{options.AudioTrack} is not found in AudioCategories.");
                 return 0UL;
             }
 
@@ -1161,7 +1161,7 @@ namespace Moirai.Atropos.Audio
             // 缓存 count：Stop 可能触发 ReleaseHandle 从 handles 中移除元素，
             // 但索引访问 handles[i] 仍安全，因为 count 只增不减。
             int count = handles.Count;
-            Log.Debug("[AudioModule] {0} Audio: {1} x{2}", evt.EventType, evt.AudioID, count);
+            LogUtility.Debug("[AudioModule] {0} Audio: {1} x{2}", evt.EventType, evt.AudioID, count);
             for (int i = 0; i < count; i++)
             {
                 ulong handle = handles[i];

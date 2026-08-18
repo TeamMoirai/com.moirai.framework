@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using Moirai.Atropos.UpdateDriver;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -126,7 +126,7 @@ namespace Moirai.Atropos
         {
             if (s_GameObjects != null && s_GameObjects.ContainsKey(key))
             {
-                Log.Info($"Release：{key}");
+                LogUtility.Info($"Release：{key}");
                 s_GameObjects.Remove(key);
                 Object.Destroy(go);
                 ReleaseLifeCycle(singleton);

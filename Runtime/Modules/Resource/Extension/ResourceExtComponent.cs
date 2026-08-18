@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using Cysharp.Threading.Tasks;
@@ -172,7 +172,7 @@ namespace Moirai.Atropos.Resource
                 {
                     if (_timeoutController.IsTimeout())
                     {
-                        Log.Error($"LoadAssetAsync Waiting {assetObjectKey} timeout. reason:{ex.Message}");
+                        LogUtility.Error($"LoadAssetAsync Waiting {assetObjectKey} timeout. reason:{ex.Message}");
                     }
                     else
                     {

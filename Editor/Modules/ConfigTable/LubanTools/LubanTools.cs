@@ -1,4 +1,4 @@
-﻿using Moirai.Atropos.Editor;
+using Moirai.Atropos.Editor;
 using System.IO;
 using UnityEditor;
 using UnityEngine;
@@ -18,7 +18,7 @@ namespace Moirai.Atropos.ConfigTable.Editor
 #elif UNITY_EDITOR_WIN
             path += ".bat";
 #endif
-            Log.Info("执行转表：{0}", path);
+            LogUtility.Info("执行转表：{0}", path);
             Application.OpenURL(path);
             // ShellHelper.RunByPath(path);
         }

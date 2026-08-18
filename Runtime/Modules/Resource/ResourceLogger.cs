@@ -1,25 +1,25 @@
-﻿namespace Moirai.Atropos.Resource
+namespace Moirai.Atropos.Resource
 {
     internal class ResourceLogger : YooAsset.ILogger
     {
         public void Log(string message)
         {
-            Atropos.Log.Info(message);
+            Atropos.LogUtility.Info(message);
         }
 
         public void Warning(string message)
         {
-            Atropos.Log.Warning(message);
+            Atropos.LogUtility.Warning(message);
         }
 
         public void Error(string message)
         {
-            Atropos.Log.Error(message);
+            Atropos.LogUtility.Error(message);
         }
 
         public void Exception(System.Exception exception)
         {
-            Atropos.Log.Fatal(exception.Message);
+            Atropos.LogUtility.Fatal(exception.Message);
         }
     }
 }

@@ -143,7 +143,7 @@ namespace Moirai.Atropos
                 // 如果未找到任何解决方案，则不进行过滤。
                 if (_resolutionValues.Count == 0)
                 {
-                    Log.Warning("Resolution aspect ratio limiting resulted in an empty list. Disabling filtering (all resolutions will be listed).");
+                    LogUtility.Warning("Resolution aspect ratio limiting resulted in an empty list. Disabling filtering (all resolutions will be listed).");
                     FilterResolutionsAndAddToValues(resolutions, limitAspectRatios: false);
                 }
 
@@ -367,7 +367,7 @@ namespace Moirai.Atropos
             var resolutions = Instance.GetUniqueResolutions();
             if (optionLabels == null || optionLabels.Count != resolutions.Count)
             {
-                Log.Error("Invalid new labels. Need to be " + resolutions.Count + ".");
+                LogUtility.Error("Invalid new labels. Need to be " + resolutions.Count + ".");
                 return;
             }
 
@@ -479,7 +479,7 @@ namespace Moirai.Atropos
 #if UNITY_ANDROID || UNITY_IOS || UNITY_SWITCH
             if (!AllowResolutionChangeOnMobile)
             {
-                Log.Warning("Allow resolution change on mobile is disabled. It is not advisable to change the resolution on mobile. It may have unexpected sideeffects and there usually is just one anyways. If you are on URP then use the renderScale instead.");
+                LogUtility.Warning("Allow resolution change on mobile is disabled. It is not advisable to change the resolution on mobile. It may have unexpected sideeffects and there usually is just one anyways. If you are on URP then use the renderScale instead.");
                 return;
             }
 #endif

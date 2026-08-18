@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace Moirai.Atropos.ObjectPool
@@ -25,7 +25,7 @@ namespace Moirai.Atropos.ObjectPool
             _objectPools = new Dictionary<TypeNamePair, ObjectPoolBase>();
             _cachedAllObjectPools = new List<ObjectPoolBase>();
             _objectPoolComparer = ObjectPoolComparer;
-            Log.Info("Object pool system onInit.");
+            LogUtility.Info("Object pool system onInit.");
         }
         
         public override void Shutdown()
@@ -640,7 +640,7 @@ namespace Moirai.Atropos.ObjectPool
         
         public void Release()
         {
-            Log.Info("Object pool release...");
+            LogUtility.Info("Object pool release...");
             GetAllObjectPools(true, _cachedAllObjectPools);
             foreach (ObjectPoolBase objectPool in _cachedAllObjectPools)
             {
@@ -650,7 +650,7 @@ namespace Moirai.Atropos.ObjectPool
 
         public void ReleaseAllUnused()
         {
-            Log.Info("Object pool release all unused...");
+            LogUtility.Info("Object pool release all unused...");
             GetAllObjectPools(true, _cachedAllObjectPools);
             foreach (ObjectPoolBase objectPool in _cachedAllObjectPools)
             {

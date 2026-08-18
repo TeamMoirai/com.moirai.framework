@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 
 namespace Moirai.Atropos.Debugger
 {
@@ -16,7 +16,7 @@ namespace Moirai.Atropos.Debugger
             {
                 if (updateInterval <= 0f)
                 {
-                    Log.Error("Update interval is invalid.");
+                    LogUtility.Error("Update interval is invalid.");
                     return;
                 }
 
@@ -31,7 +31,7 @@ namespace Moirai.Atropos.Debugger
                 {
                     if (value <= 0f)
                     {
-                        Log.Error("Update interval is invalid.");
+                        LogUtility.Error("Update interval is invalid.");
                         return;
                     }
 

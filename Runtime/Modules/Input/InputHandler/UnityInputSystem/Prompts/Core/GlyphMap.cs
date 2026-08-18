@@ -185,7 +185,7 @@ namespace Moirai.Atropos.Input.Prompts
                     .Distinct() // 去重
                     .ToArray();
 
-                // Log.Info($"{name}: {string.Join(", ", _deviceNames)}");
+                // LogUtility.Info($"{name}: {string.Join(", ", _deviceNames)}");
 
                 return _deviceNames;
             }

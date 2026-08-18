@@ -67,7 +67,7 @@ namespace Moirai.Atropos
             }
             catch (Exception exception)
             {
-                Log.Warning("Load settings failure with exception '{0}'.", exception);
+                LogUtility.Warning("Load settings failure with exception '{0}'.", exception);
                 return false;
             }
         }
@@ -83,7 +83,7 @@ namespace Moirai.Atropos
             }
             catch (Exception exception)
             {
-                Log.Warning("Save settings failure with exception '{0}'.", exception);
+                LogUtility.Warning("Save settings failure with exception '{0}'.", exception);
                 return false;
             }
         }

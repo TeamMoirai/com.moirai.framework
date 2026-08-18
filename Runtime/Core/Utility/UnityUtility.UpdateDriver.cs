@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using Cysharp.Threading.Tasks;
 using Moirai.Atropos.UpdateDriver;
@@ -20,7 +20,7 @@ namespace Moirai.Atropos
         {
             if (bindBehaviour == null)
             {
-                Log.Error("StartCoroutine {0} failed, bindBehaviour is null", name);
+                LogUtility.Error("StartCoroutine {0} failed, bindBehaviour is null", name);
                 return null;
             }
 
@@ -32,7 +32,7 @@ namespace Moirai.Atropos
         {
             if (bindGo == null)
             {
-                Log.Error("StartCoroutine {0} failed, BindGo is null", name);
+                LogUtility.Error("StartCoroutine {0} failed, BindGo is null", name);
                 return null;
             }
 

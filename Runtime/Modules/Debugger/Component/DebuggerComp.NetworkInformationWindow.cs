@@ -1,4 +1,4 @@
-﻿// using UnityEngine;
+// using UnityEngine;
 //
 // namespace Moirai.Atropos.ModuleDebugger
 // {
@@ -13,7 +13,7 @@
 //                 _networkComponent = GameEntry.GetComponent<NetworkComponent>();
 //                 if (_networkComponent == null)
 //                 {
-//                     Log.Fatal("Network component is invalid.");
+//                     LogUtility.Fatal("Network component is invalid.");
 //                     return;
 //                 }
 //             }

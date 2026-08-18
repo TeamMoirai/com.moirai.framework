@@ -1,4 +1,4 @@
-﻿#if ENABLE_INPUT_SYSTEM
+#if ENABLE_INPUT_SYSTEM
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -101,24 +101,24 @@ namespace Moirai.Atropos.Input.Prompts
         /// </summary>
         private static void Initialize()
         {
-            Log.Info("Initialising InputDevicePromptSystem");
+            LogUtility.Info("Initialising InputDevicePromptSystem");
             s_Settings = InputSystemDevicePromptSettings.Instance;
             
             if (s_Settings == null)
             {
-                Log.Warning("InputSystemDevicePromptSettings missing");
+                LogUtility.Warning("InputSystemDevicePromptSettings missing");
                 return;
             }
             
             if (s_Settings.GlyphCollection == null)
             {
-                Log.Warning("Glyph Collection missing");
+                LogUtility.Warning("Glyph Collection missing");
                 return;
             }
 
             if (!s_Settings.PromptSpriteFormatter.Contains(InputSystemDevicePromptSettings.PROMPT_SPRITE_FORMATTER_SPRITE_PLACEHOLDER))
             {
-                Log.Error($"{nameof(InputSystemDevicePromptSettings.PromptSpriteFormatter)} must include {InputSystemDevicePromptSettings.PROMPT_SPRITE_FORMATTER_SPRITE_PLACEHOLDER} or no sprites will be shown.");
+                LogUtility.Error($"{nameof(InputSystemDevicePromptSettings.PromptSpriteFormatter)} must include {InputSystemDevicePromptSettings.PROMPT_SPRITE_FORMATTER_SPRITE_PLACEHOLDER} or no sprites will be shown.");
             }
             
             // 监听任意设备上按下的按钮，以便动态切换设备提示（来自 InputSystem.cs 中的描述）
@@ -216,7 +216,7 @@ namespace Moirai.Atropos.Input.Prompts
             }
             
             string modifier = GetModifier(ref inputTag);
-            // Log.Info($"inputTag:{inputTag} modifier:{modifier}");
+            // LogUtility.Info($"inputTag:{inputTag} modifier:{modifier}");
 
             var lowerCaseTag = inputTag.ToLower();
 
@@ -263,7 +263,7 @@ namespace Moirai.Atropos.Input.Prompts
 
                 if (!s_DeviceDataBindingMap.ContainsKey(activeDeviceName))
                 {
-                    Log.Error($"MISSING_DEVICE_ENTRIES '{activeDeviceName}'");
+                    LogUtility.Error($"MISSING_DEVICE_ENTRIES '{activeDeviceName}'");
                     return null;
                 }
 
@@ -313,7 +313,7 @@ namespace Moirai.Atropos.Input.Prompts
             }
             
             string modifier = GetModifier(ref inputTag);
-            // Log.Info($"inputTag:{inputTag} modifier:{modifier}");
+            // LogUtility.Info($"inputTag:{inputTag} modifier:{modifier}");
             
             var lowerCaseTag = inputTag.ToLower();
             
@@ -384,7 +384,7 @@ namespace Moirai.Atropos.Input.Prompts
             var validEntries = new List<ActionGlyph>();
             foreach (var actionBinding in s_ActionBindingMap[lowerCaseTag])
             {
-                // Log.Info($"Checking binding '{actionBinding.BindingPath}' on device {validDevice.name}");
+                // LogUtility.Info($"Checking binding '{actionBinding.BindingPath}' on device {validDevice.name}");
                 ActionGlyph matchingPrompt = null;
                 
                 bool findComposite = false;
@@ -466,7 +466,7 @@ namespace Moirai.Atropos.Input.Prompts
                 
                 if (matchingPrompt != null)
                 {
-                    // Log.Info($"Found matching prompt <b>{matchingPrompt.ActionBindingPath}</b> for <b>{inputTag}</b>");
+                    // LogUtility.Info($"Found matching prompt <b>{matchingPrompt.ActionBindingPath}</b> for <b>{inputTag}</b>");
                     validEntries.Add(matchingPrompt);
                     
                     if (findComposite) break;
@@ -505,7 +505,7 @@ namespace Moirai.Atropos.Input.Prompts
         /// <remarks>必须按照正反、上下左右这样的顺序排列组合按键，确保可以正确解析。</remarks>
         private static void GetModifiedActionName(ref string actionName, string modifier)
         {
-            // Log.Info($"composite action name: {actionName}");
+            // LogUtility.Info($"composite action name: {actionName}");
             var child = actionName.Split('+');
             switch (modifier)
             {
@@ -576,7 +576,7 @@ namespace Moirai.Atropos.Input.Prompts
                         var bindingPath = $"{actionMap.name}/{binding.action}";
                         bindingPathLower = bindingPath.ToLower();
                         
-                        // Log.Info($"Binding <b>{bindingPathLower}</b> to path <b>{binding.path}</b>");
+                        // LogUtility.Info($"Binding <b>{bindingPathLower}</b> to path <b>{binding.path}</b>");
                         var entry = new ActionBindingMapEntry
                         {
                             BindingPath = binding.effectivePath,
@@ -639,7 +639,7 @@ namespace Moirai.Atropos.Input.Prompts
                         
                         if (!isAdd || string.IsNullOrEmpty(compositeName)) continue;
                         
-                        // Log.Info($"Binding <b>{bindingPathLower}</b> to composite <b>{compositeName}</b>");
+                        // LogUtility.Info($"Binding <b>{bindingPathLower}</b> to composite <b>{compositeName}</b>");
                         var entry = new ActionBindingMapEntry
                         {
                             BindingPath = compositeBindingPath,
@@ -670,7 +670,7 @@ namespace Moirai.Atropos.Input.Prompts
                 {
                     if (s_DeviceDataBindingMap.ContainsKey(deviceName))
                     {
-                        Log.Warning($"Duplicate device name found in InputSystemDevicePromptSettings: {deviceName}. Check your config");
+                        LogUtility.Warning($"Duplicate device name found in InputSystemDevicePromptSettings: {deviceName}. Check your config");
                     }
                     else
                     {

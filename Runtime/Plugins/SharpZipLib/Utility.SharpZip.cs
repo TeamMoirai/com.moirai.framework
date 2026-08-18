@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.IO;
 using System.Threading.Tasks;
@@ -39,12 +39,12 @@ namespace Moirai.Atropos
 
                 public void OnPostZip(ZipEntry entry)
                 {
-                    // Log.Info("OnPostZip : " + _entry.Name);
+                    // LogUtility.Info("OnPostZip : " + _entry.Name);
                 }
 
                 public void OnFinished(string result)
                 {
-                    Log.Info("Zip Finished : " + result);
+                    LogUtility.Info("Zip Finished : " + result);
                 }
             }
             
@@ -58,7 +58,7 @@ namespace Moirai.Atropos
 
                 if (!System.IO.File.Exists(sourceFile))
                 {
-                    Log.Error("要解压的文件不存在：" + sourceFile);
+                    LogUtility.Error("要解压的文件不存在：" + sourceFile);
                     return result;
                 }
 
@@ -136,10 +136,10 @@ namespace Moirai.Atropos
                 catch (System.Exception ex)
                 {
                     GC.Collect();
-                    Log.Error("文件解压发生错误：" + ex);
+                    LogUtility.Error("文件解压发生错误：" + ex);
                     return result;
                 }
-                Log.Info("Zip解压完成：" + sourceFile);
+                LogUtility.Info("Zip解压完成：" + sourceFile);
                 GC.Collect();
                 return result;
             }
@@ -149,7 +149,7 @@ namespace Moirai.Atropos
             {
                 if (!System.IO.File.Exists(sourceFile))
                 {
-                    Log.Error("要解压的文件不存在：" + sourceFile);
+                    LogUtility.Error("要解压的文件不存在：" + sourceFile);
                     yield break;
                 }
 
@@ -215,7 +215,7 @@ namespace Moirai.Atropos
                                     }
                                     catch (System.Exception ex)
                                     {
-                                        Log.Error("文件解压发生错误：" + ex);
+                                        LogUtility.Error("文件解压发生错误：" + ex);
                                     }
                                     // 解压一个等待一帧，注意耗时
                                     yield return null;
@@ -228,7 +228,7 @@ namespace Moirai.Atropos
 
                     zipStream.Close();
                 }
-                Log.Info("Zip解压完成：" + sourceFile);
+                LogUtility.Info("Zip解压完成：" + sourceFile);
                 GC.Collect();
             }
             
@@ -318,7 +318,7 @@ namespace Moirai.Atropos
                 }
                 catch (Exception e)
                 {
-                    Log.Error("压缩文件夹失败：" + e);
+                    LogUtility.Error("压缩文件夹失败：" + e);
                     return false;
                 }
                 finally
@@ -363,7 +363,7 @@ namespace Moirai.Atropos
                 }
                 catch (Exception e)
                 {
-                    Log.Error("压缩文件夹失败：" + e);
+                    LogUtility.Error("压缩文件夹失败：" + e);
                     return false;
                 }
 

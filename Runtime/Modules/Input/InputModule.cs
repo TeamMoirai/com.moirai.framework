@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Moirai.Atropos.Events;
 using Moirai.Atropos.UI;
 using UnityEngine;
@@ -54,7 +54,7 @@ namespace Moirai.Atropos.Input
                 {
                     _inputStateFlags &= ~InputStateFlags.LockPlayerController;
                 }
-                // Log.Info($"[Input] {(value ? "Lock" : "Unlock")} Input[Player]");
+                // LogUtility.Info($"[Input] {(value ? "Lock" : "Unlock")} Input[Player]");
             }
         }
         
@@ -73,7 +73,7 @@ namespace Moirai.Atropos.Input
                 {
                     _inputStateFlags &= ~InputStateFlags.PreventInteractionUI;
                 }
-                // Log.Info($"[Input] {(value ? "Lock" : "Unlock")} Input[UI]");
+                // LogUtility.Info($"[Input] {(value ? "Lock" : "Unlock")} Input[UI]");
             }
         }
         

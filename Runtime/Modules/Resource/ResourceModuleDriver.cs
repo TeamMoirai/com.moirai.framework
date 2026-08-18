@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using UnityEngine;
 using YooAsset;
 
@@ -231,13 +231,13 @@ namespace Moirai.Atropos.Resource
             _resourceModule = ModuleSystem.GetModule<IResourceModule>();
             if (_resourceModule == null)
             {
-                Log.Fatal("Resource module is invalid.");
+                LogUtility.Fatal("Resource module is invalid.");
                 return;
             }
 
             if (PlayMode == EPlayMode.EditorSimulateMode)
             {
-                Log.Info("During this run, ResourceModule will use editor resource files, which you should validate first.");
+                LogUtility.Info("During this run, ResourceModule will use editor resource files, which you should validate first.");
 #if !UNITY_EDITOR
                 PlayMode = EPlayMode.OfflinePlayMode;
 #endif
@@ -260,7 +260,7 @@ namespace Moirai.Atropos.Resource
             _resourceModule.AssetExpireTime = m_AssetExpireTime;
             _resourceModule.AssetPriority = m_AssetPriority;
             _resourceModule.SetForceUnloadUnusedAssetsAction(ForceUnloadUnusedAssets);
-            Log.Info($"ResourceModule Run Mode：{PlayMode}");
+            LogUtility.Info($"ResourceModule Run Mode：{PlayMode}");
         }
 
         #region 释放资源
@@ -285,7 +285,7 @@ namespace Moirai.Atropos.Resource
             if (_asyncOperation == null && (_forceUnloadUnusedAssets || _lastUnloadUnusedAssetsOperationElapseSeconds >= m_MaxUnloadUnusedAssetsInterval ||
                                             _preorderUnloadUnusedAssets && _lastUnloadUnusedAssetsOperationElapseSeconds >= m_MinUnloadUnusedAssetsInterval))
             {
-                Log.Info("Unload unused assets...");
+                LogUtility.Info("Unload unused assets...");
                 _forceUnloadUnusedAssets = false;
                 _preorderUnloadUnusedAssets = false;
                 _lastUnloadUnusedAssetsOperationElapseSeconds = 0f;
@@ -301,7 +301,7 @@ namespace Moirai.Atropos.Resource
                 _asyncOperation = null;
                 if (_performGCCollect)
                 {
-                    Log.Info("GC.Collect...");
+                    LogUtility.Info("GC.Collect...");
                     _performGCCollect = false;
                     GC.Collect();
                 }

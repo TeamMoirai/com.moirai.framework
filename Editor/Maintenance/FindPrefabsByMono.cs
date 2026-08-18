@@ -1,4 +1,4 @@
-﻿#if UNITY_EDITOR
+#if UNITY_EDITOR
 
 using UnityEngine;
 using UnityEditor;
@@ -179,7 +179,7 @@ namespace Moirai.Atropos.Editor
                     }
                     catch
                     {
-                        Log.Info("预制体出现错误 " + prefab);
+                        LogUtility.Info("预制体出现错误 " + prefab);
                     }
                 }
             }

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using UnityEngine;
 
 namespace Moirai.Atropos.Debugger
@@ -21,7 +21,7 @@ namespace Moirai.Atropos.Debugger
                 _debugger = DebuggerComp.Instance;
                 if (_debugger == null)
                 {
-                    Log.Fatal("Debugger component is invalid.");
+                    LogUtility.Fatal("Debugger component is invalid.");
                     return;
                 }
 

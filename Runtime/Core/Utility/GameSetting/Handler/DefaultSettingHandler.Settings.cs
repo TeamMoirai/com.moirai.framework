@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
@@ -97,7 +97,7 @@ namespace Moirai.Atropos
             {
                 if (!_settings.TryGetValue(settingName, out string value))
                 {
-                    Log.Warning("Setting '{0}' is not exist.", settingName);
+                    LogUtility.Warning("Setting '{0}' is not exist.", settingName);
                     return false;
                 }
 
@@ -139,7 +139,7 @@ namespace Moirai.Atropos
             {
                 if (!_settings.TryGetValue(settingName, out string value))
                 {
-                    Log.Warning("Setting '{0}' is not exist.", settingName);
+                    LogUtility.Warning("Setting '{0}' is not exist.", settingName);
                     return 0;
                 }
 
@@ -181,7 +181,7 @@ namespace Moirai.Atropos
             {
                 if (!_settings.TryGetValue(settingName, out string value))
                 {
-                    Log.Warning("Setting '{0}' is not exist.", settingName);
+                    LogUtility.Warning("Setting '{0}' is not exist.", settingName);
                     return 0f;
                 }
 
@@ -223,7 +223,7 @@ namespace Moirai.Atropos
             {
                 if (!_settings.TryGetValue(settingName, out string value))
                 {
-                    Log.Warning("Setting '{0}' is not exist.", settingName);
+                    LogUtility.Warning("Setting '{0}' is not exist.", settingName);
                     return null;
                 }
 

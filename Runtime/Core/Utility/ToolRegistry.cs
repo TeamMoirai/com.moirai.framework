@@ -237,12 +237,12 @@ namespace Moirai.Atropos
                     if (ReferenceEquals(s_Entries[i].Object, component)
                         && s_Entries[i].Key == key)
                     {
-                        Log.Warning($"Already registered! [{key ?? "null"}]: {component.GetType().Name}");
+                        LogUtility.Warning($"Already registered! [{key ?? "null"}]: {component.GetType().Name}");
                         return;
                     }
                 }
 
-                // Log.Info($"Register[{key}]: {component.GetType().Name}");
+                // LogUtility.Info($"Register[{key}]: {component.GetType().Name}");
                 s_Entries.Add(new RegistryEntry(key, component, persistBetweenScenes, SceneManager.GetActiveScene()));
             }
         }

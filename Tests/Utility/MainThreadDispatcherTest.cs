@@ -101,7 +101,7 @@ namespace Utility
             MainThreadDispatcher.Post(() => throw new InvalidOperationException("boom"));
             MainThreadDispatcher.Post(() => afterCount++);
 
-            // Log.Error 在编辑器中可能耗尽单帧预算，按消费方帧循环语义排空
+            // LogUtility.Error 在编辑器中可能耗尽单帧预算，按消费方帧循环语义排空
             for (int guard = 0; guard < 10 && MainThreadDispatcher.PendingCount > 0; guard++)
             {
                 MainThreadDispatcher.Pump();

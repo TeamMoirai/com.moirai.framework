@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Moirai.Atropos.Audio;
@@ -44,43 +44,56 @@ namespace Moirai.Atropos
         /// <!-- Modules -->
         private const string MODULE_GROUP = "游戏模块 [Game Modules]";
 
-        [BoxGroup(MODULE_GROUP), HelperDropdown(typeof(IUpdateDriverModule), "Update Driver")]
+        [BoxGroup(MODULE_GROUP), DisableInPlayMode]
+        [HelperDropdown(typeof(IUpdateDriverModule), "Update Driver")]
         [SerializeField] private string m_UpdateDriverTypeName;
 
-        [BoxGroup(MODULE_GROUP), HelperDropdown(typeof(IResourceModule), "Resource Module")]
+        [BoxGroup(MODULE_GROUP), DisableInPlayMode]
+        [HelperDropdown(typeof(IResourceModule), "Resource Module")]
         [SerializeField] private string m_ResourceModuleTypeName;
 
-        [BoxGroup(MODULE_GROUP), HelperDropdown(typeof(IDebuggerModule), "Debugger Module")]
+        [BoxGroup(MODULE_GROUP), DisableInPlayMode]
+        [HelperDropdown(typeof(IDebuggerModule), "Debugger Module")]
         [SerializeField] private string m_DebuggerModuleTypeName;
 
-        [BoxGroup(MODULE_GROUP), HelperDropdown(typeof(IFSMModule), "FSM Module")]
+        [BoxGroup(MODULE_GROUP), DisableInPlayMode]
+        [HelperDropdown(typeof(IFSMModule), "FSM Module")]
         [SerializeField] private string m_FSMModuleTypeName;
 
-        [BoxGroup(MODULE_GROUP), HelperDropdown(typeof(IAudioModule), "Audio Module")]
+        [BoxGroup(MODULE_GROUP), DisableInPlayMode]
+        [HelperDropdown(typeof(IAudioModule), "Audio Module")]
         [SerializeField] private string m_AudioModuleTypeName;
 
-        [BoxGroup(MODULE_GROUP), HelperDropdown(typeof(IObjectPoolModule), "ObjectPool Module")]
+        [BoxGroup(MODULE_GROUP), DisableInPlayMode]
+        [HelperDropdown(typeof(IObjectPoolModule), "ObjectPool Module")]
         [SerializeField] private string m_ObjectPoolModuleTypeName;
 
-        [BoxGroup(MODULE_GROUP), HelperDropdown(typeof(IProcedureModule), "Procedure Module")]
+        [BoxGroup(MODULE_GROUP), DisableInPlayMode]
+        [HelperDropdown(typeof(IProcedureModule), "Procedure Module")]
         [SerializeField] private string m_ProcedureModuleTypeName;
 
-        [BoxGroup(MODULE_GROUP), HelperDropdown(typeof(ILocalizationModule), "Localization Module")]
+        [BoxGroup(MODULE_GROUP), DisableInPlayMode]
+        [HelperDropdown(typeof(ILocalizationModule), "Localization Module")]
         [SerializeField] private string m_LocalizationModuleTypeName;
 
-        [BoxGroup(MODULE_GROUP), HelperDropdown(typeof(ISceneModule), "Scene Module")]
+        [BoxGroup(MODULE_GROUP), DisableInPlayMode]
+        [HelperDropdown(typeof(ISceneModule), "Scene Module")]
         [SerializeField] private string m_SceneModuleTypeName;
 
-        [BoxGroup(MODULE_GROUP), HelperDropdown(typeof(ITimerModule), "Timer Module")]
+        [BoxGroup(MODULE_GROUP), DisableInPlayMode]
+        [HelperDropdown(typeof(ITimerModule), "Timer Module")]
         [SerializeField] private string m_TimerModuleTypeName;
 
-        [BoxGroup(MODULE_GROUP), HelperDropdown(typeof(IInputModule), "Input Module")]
+        [BoxGroup(MODULE_GROUP), DisableInPlayMode]
+        [HelperDropdown(typeof(IInputModule), "Input Module")]
         [SerializeField] private string m_InputModuleTypeName;
 
-        [BoxGroup(MODULE_GROUP), HelperDropdown(typeof(ISaveModule), "Save Module")]
+        [BoxGroup(MODULE_GROUP), DisableInPlayMode]
+        [HelperDropdown(typeof(ISaveModule), "Save Module")]
         [SerializeField] private string m_SaveModuleTypeName;
 
-        [BoxGroup(MODULE_GROUP), HelperDropdown(typeof(IUIModule), "UI Module")]
+        [BoxGroup(MODULE_GROUP), DisableInPlayMode]
+        [HelperDropdown(typeof(IUIModule), "UI Module")]
         [SerializeField] private string m_UIModuleTypeName;
 
         /// <!-- Handler -->
@@ -244,8 +257,8 @@ namespace Moirai.Atropos
             // 使用模块功能的工具
             TweenUtility.Handler = Instance.m_TweenHandler;
 
-            Log.Info("Game Version: {0} ({1})", VersionUtility.GameVersion, VersionUtility.InternalGameVersion);
-            Log.Info("Unity Version: {0}", Application.unityVersion);
+            LogUtility.Info("Game Version: {0} ({1})", VersionUtility.GameVersion, VersionUtility.InternalGameVersion);
+            LogUtility.Info("Unity Version: {0}", Application.unityVersion);
         }
 
         /// <summary>

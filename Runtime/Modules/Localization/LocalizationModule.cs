@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Moirai.Atropos.ConfigTable;
@@ -97,11 +97,11 @@ namespace Moirai.Atropos.Localization
             
             if (LanguageList.Count != 0 && LocalizedStrings != null)
             {
-                Log.Info("Load Localized Text Success!");
+                LogUtility.Info("Load Localized Text Success!");
             }
             else
             {
-                Log.Error("Failed to load localized text, generate config first!");
+                LogUtility.Error("Failed to load localized text, generate config first!");
             }
         }
 
@@ -109,7 +109,7 @@ namespace Moirai.Atropos.Localization
         {
             if (LanguageList.Count == 0)
             {
-                Log.Error("No language available!");
+                LogUtility.Error("No language available!");
                 return;
             }
 
@@ -122,7 +122,7 @@ namespace Moirai.Atropos.Localization
             _localizers.ForEach(_ => _.Localize());
 
             SettingUtility.SetString(Constant.Setting.LANGUAGE, _currentLanguage.Code);
-            Log.Info($"Change the language: {_currentLanguage}{(logSource ? $"(by {_settingSource})" : "")}");
+            LogUtility.Info($"Change the language: {_currentLanguage}{(logSource ? $"(by {_settingSource})" : "")}");
         }
 
         public void ChangeLanguage(string language) => ChangeLanguage(LocalizationHelper.ToLanguage(language, true));
@@ -152,7 +152,7 @@ namespace Moirai.Atropos.Localization
             // 检查语言列表是否为空
             if (LanguageList == null || !LanguageList.Any())
             {
-                Log.Error("Language list is empty or null");
+                LogUtility.Error("Language list is empty or null");
                 throw new InvalidOperationException("Language list is empty or null");
             }
 
@@ -162,7 +162,7 @@ namespace Moirai.Atropos.Localization
             // 处理语言不存在的情况
             if (i == -1)
             {
-                Log.Error($"Language {language} is not available");
+                LogUtility.Error($"Language {language} is not available");
                 throw new KeyNotFoundException($"Language {language} is not available");
             }
             

@@ -35,7 +35,7 @@ namespace Moirai.Atropos.Save
                 }
                 catch (CryptographicException ce)
                 {
-                    Log.Error("[SaveHandler] Decryption failed: " + ce);
+                    LogUtility.Error("[SaveHandler] Decryption failed: " + ce);
                     return Task.FromResult<T>(default);
                 }
                 memoryStream.Position = 0;

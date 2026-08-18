@@ -63,7 +63,7 @@ namespace Moirai.Atropos.Procedure
 
             if (Instance._procedureModule == null)
             {
-                Log.Fatal("Procedure manager is invalid.");
+                LogUtility.Fatal("Procedure manager is invalid.");
                 return;
             }
 
@@ -73,14 +73,14 @@ namespace Moirai.Atropos.Procedure
                 Type procedureType = AssemblyUtility.GetType(Instance.m_AvailableProcedureTypeNames[i]);
                 if (procedureType == null)
                 {
-                    Log.Error("Can not find procedure type '{0}'.", Instance.m_AvailableProcedureTypeNames[i]);
+                    LogUtility.Error("Can not find procedure type '{0}'.", Instance.m_AvailableProcedureTypeNames[i]);
                     return;
                 }
 
                 procedures[i] = (ProcedureBase)Activator.CreateInstance(procedureType);
                 if (procedures[i] == null)
                 {
-                    Log.Error("Can not create procedure instance '{0}'.", Instance.m_AvailableProcedureTypeNames[i]);
+                    LogUtility.Error("Can not create procedure instance '{0}'.", Instance.m_AvailableProcedureTypeNames[i]);
                     return;
                 }
 
@@ -92,7 +92,7 @@ namespace Moirai.Atropos.Procedure
 
             if (Instance._entranceProcedure == null)
             {
-                Log.Error("Entrance procedure is invalid.");
+                LogUtility.Error("Entrance procedure is invalid.");
                 return;
             }
 
