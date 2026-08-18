@@ -2,7 +2,7 @@
 
 > Abstract input layer: uses a unified polling API to bridge the differences between Unity's new and old input systems and mobile UI touch input, with a built-in key prompt (Prompts) system.
 
-The input module (`Moirai.Atropos.Input`) abstracts three input backends through `IInputHandler`. Business code only needs to work with `GameModule.Input`'s action-name-based API; switching backends requires no changes to the caller. The module also listens to UI modal events and application focus events, automatically blocking/restoring input, and provides cross-device key icon prompt components based on the Input System.
+The input module (`Moirai.Atropos.Input`) abstracts three input backends through `InputHandler`. Business code only needs to work with `GameModule.Input`'s action-name-based API; switching backends requires no changes to the caller. The module also listens to UI modal events and application focus events, automatically blocking/restoring input, and provides cross-device key icon prompt components based on the Input System.
 
 ## Core Features
 
@@ -20,11 +20,11 @@ The input module (`Moirai.Atropos.Input`) abstracts three input backends through
 |---------|------|
 | `Moirai.Atropos.Input.IInputModule` | Input module interface, returned by `GameModule.Input` |
 | `Moirai.Atropos.Input.InputModule` | Input module implementation, aggregates Handler and state toggles |
-| `Moirai.Atropos.Input.IInputHandler` | Input handler abstract interface, defines all input query methods |
+| `Moirai.Atropos.Input.InputHandler` | Input handler abstract base class (`[Serializable]`), defines all input query methods. Configured via `[SerializeReference]` in Input Settings |
 | `Moirai.Atropos.Input.UnityInputSystemHandler` | Handler based on Unity Input System (macro `ENABLE_INPUT_SYSTEM`) |
 | `Moirai.Atropos.Input.UnityInputManagerHandler` | Handler based on legacy Input Manager (macro `ENABLE_LEGACY_INPUT_MANAGER`) |
 | `Moirai.Atropos.Input.UIMobileInputHandler` | Mobile handler, reads state from `InputButton` / `InputAxes` components in the scene |
-| `Moirai.Atropos.Input.InputSettings` | Framework settings ("Input Settings"), configures input handler type with lazy initialization |
+| `Moirai.Atropos.Input.InputSettings` | Framework settings ("Input Settings"), configures input handler via `[SerializeReference]` with lazy initialization |
 | `Moirai.Atropos.Input.InputActionsConfiguration` | Input action configuration asset, registers bool/float/Vector2 action names by group, used for code generation |
 | `Moirai.Atropos.Input.EMouseButton` | Mouse button enum: `Left = 0`, `Right = 1`, `Middle = 2` |
 | `Moirai.Atropos.Input.BoolAction` / `FloatAction` / `Vector2Action` | Serializable action value structs, with pressed/released state and direction detection |
@@ -135,7 +135,7 @@ When a GameObject with this component is enabled, it locks `LockPlayerController
 
 ## Notes
 
-- The processor type is configured in the framework settings ("Input Settings") and loaded lazily via `InputSettings.InputHandler`; switching processors requires a restart to take effect
+- The processor type is configured in the framework settings ("Input Settings") via `[SerializeReference]` and loaded lazily via `InputSettings.InputHandler`; switching processors requires a restart to take effect
 - `UnityInputSystemHandler` / `UnityInputManagerHandler` are controlled by the `ENABLE_INPUT_SYSTEM` / `ENABLE_LEGACY_INPUT_MANAGER` macros respectively
 - When a UI modal window is present, `LockPlayerController` is always true (driven by `UIModuleEvent`); this is expected behavior
 - `GetButtonDown` / `GetButtonUp` in `UIMobileInputHandler` are not yet implemented (throw `NotImplementedException`); only persistent bool state queries are available

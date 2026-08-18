@@ -9,40 +9,47 @@ namespace Moirai.Atropos.Input
     {
         [InfoBox("输入管理器：Unity 的旧版输入管理器\n" +
                  "UI 移动端：它使用场景中的特定 UI 元素（InputButton 和 InputAxes 组件）作为输入。\n\n" +
-                 "请确保这些元素的“动作名称”与想要触发的角色动作相匹配。", InfoMessageType.None)]
+                 "请确保这些元素的「动作名称」与想要触发的角色动作相匹配。", InfoMessageType.None)]
 
-        [HelperDropdown(typeof(IInputHandler), "Input Handler")]
-        [SerializeField] private string m_InputHandlerTypeName;
+        [HelperDropdown]
+        [SerializeReference] private InputHandler m_InputHandler = CreateDefaultHandler();
 
-        private static IInputHandler s_InputHandler = null;
+        private static InputHandler s_InputHandler = null;
         /// <summary>
         /// 获取/设置当前的输入处理器组件。
         /// </summary>
-        public static IInputHandler InputHandler
+        public static InputHandler InputHandler
         {
             get
             {
                 if (s_InputHandler != null) return s_InputHandler;
 
-                // 初始化
-                s_InputHandler = ResolveTypeOption<IInputHandler>(Instance.m_InputHandlerTypeName);
-                s_InputHandler.OnInit();
+                s_InputHandler = Instance.m_InputHandler;
+                s_InputHandler.Internal_Init();
 
                 return s_InputHandler;
             }
             set
             {
+                s_InputHandler?.Internal_Shutdown();
                 s_InputHandler = value;
-                s_InputHandler?.OnInit();
+                s_InputHandler?.Internal_Init();
             }
         }
 
         protected internal override void Reset()
         {
+            m_InputHandler = CreateDefaultHandler();
+        }
+
+        private static InputHandler CreateDefaultHandler()
+        {
 #if ENABLE_INPUT_SYSTEM
-            m_InputHandlerTypeName = typeof(UnityInputSystemHandler).FullName;
+            return new UnityInputSystemHandler();
 #elif ENABLE_LEGACY_INPUT_MANAGER
-            m_InputHandlerTypeName = typeof(UnityInputManagerHandler).FullName;
+            return new UnityInputManagerHandler();
+#else
+            return null;
 #endif
         }
     }

@@ -20,7 +20,7 @@ namespace Moirai.Atropos.Input
         
         private InputStateFlags _inputStateFlags;
         
-        private IInputHandler _inputHandler;
+        private InputHandler _inputHandler;
 
         private bool _hasUIModal;
 
