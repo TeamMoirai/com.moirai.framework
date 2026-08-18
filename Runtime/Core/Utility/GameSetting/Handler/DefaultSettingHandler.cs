@@ -19,7 +19,6 @@ namespace Moirai.Atropos
         private Settings _settings;
         // 游戏配置序列化器
         private Serializer _serializer;
-        private bool _initialized;
 
         public override int Count => _settings?.Count ?? 0;
 

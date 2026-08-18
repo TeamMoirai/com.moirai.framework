@@ -243,6 +243,13 @@ namespace Moirai.Atropos.Editor
         private Vector2 _contentScroll;
 
         /// <summary>
+        /// OdinEditor.OnInspectorGUI() 在 Layout 事件中不通过 GUILayout 分配 rect，
+        /// 导致 ScrollView 无法获知真实内容高度。缓存上一帧 Repaint 测得的高度，
+        /// 在 Layout 事件中用 GUILayout.Space 占位，使 ScrollView 滚动范围正确。
+        /// </summary>
+        private float _cachedContentHeight;
+
+        /// <summary>
         /// 核心优化：按条目索引缓存 Editor 实例。
         /// Editor.CreateEditor 涉及反射和序列化，开销大。
         /// 缓存后切换页签变为 O(1) 查表，而非每次重建。
@@ -538,6 +545,7 @@ namespace Moirai.Atropos.Editor
             if (_selectedIndex == absoluteIndex) return;
             _selectedIndex = absoluteIndex;
             _contentScroll = Vector2.zero;
+            _cachedContentHeight = 0;
         }
 
         /// <summary>
@@ -874,6 +882,19 @@ namespace Moirai.Atropos.Editor
                             EditorGUI.BeginChangeCheck();
                             editor.OnInspectorGUI();
                             if (EditorGUI.EndChangeCheck()) EditorUtility.SetDirty(entry.instance);
+
+                            // OdinEditor.OnInspectorGUI 在 Layout 事件不分配 GUILayout rect，
+                            // ScrollView 因此无法获知内容高度。在 Repaint 事件测量实际高度并缓存，
+                            // 下一帧 Layout 事件用 GUILayout.Space 占位，使滚动范围正确。
+                            if (Event.current.type == EventType.Repaint)
+                            {
+                                var lastRect = GUILayoutUtility.GetLastRect();
+                                _cachedContentHeight = lastRect.yMax;
+                            }
+                            else
+                            {
+                                GUILayout.Space(_cachedContentHeight);
+                            }
                         }
 
                         GUILayout.Space(3); // 右侧微调，避免贴边

@@ -307,7 +307,7 @@ Each module has its own documentation (located in `Documentation~/en/`), coverin
 | `LayerAttribute` | Layer selector |
 | `TagAttribute` | Tag selector |
 | `ResourcePathAttribute` | Resource path selector |
-| `ReferenceDropdownAttribute` | Reference dropdown |
+| `HelperDropdownAttribute` | Reference/type dropdown (supports [SerializeReference] fields and string type-name fields) |
 | `OdinExtends/*` | Odin extensions (condition groups, help info, inline buttons, etc.) |
 
 ### Events — Event System

@@ -100,31 +100,31 @@ namespace Moirai.Atropos
         private const string HELPER_GROUP = "框架工具 [Global Handler]";
 
         [BoxGroup(HELPER_GROUP), DisableInPlayMode]
-        [ReferenceDropdown]
+        [HelperDropdown]
         [SerializeReference] private VersionHandler m_VersionHandler = new DefaultVersionHandler();
 
         [BoxGroup(HELPER_GROUP), DisableInPlayMode]
-        [ReferenceDropdown]
+        [HelperDropdown]
         [SerializeReference] private SettingHandler m_SettingHandler = new DefaultSettingHandler();
 
         [BoxGroup(HELPER_GROUP), DisableInPlayMode]
-        [ReferenceDropdown]
+        [HelperDropdown]
         [SerializeReference] private StringHandler m_StringHandler = new DefaultStringHandler();
 
         [BoxGroup(HELPER_GROUP), DisableInPlayMode]
-        [ReferenceDropdown]
+        [HelperDropdown]
         [SerializeReference] private LogHandler m_LogHandler = new DefaultLogHandler();
 
         [BoxGroup(HELPER_GROUP), DisableInPlayMode]
-        [ReferenceDropdown]
+        [HelperDropdown]
         [SerializeReference] private ObjectHandler m_ObjectHandler = new UnityObjectHandler();
 
         [BoxGroup(HELPER_GROUP), DisableInPlayMode]
-        [ReferenceDropdown]
+        [HelperDropdown]
         [SerializeReference] private JsonHandler m_JsonHandler = new DefaultJsonHandler();
 
         [BoxGroup(HELPER_GROUP), DisableInPlayMode]
-        [ReferenceDropdown]
+        [HelperDropdown]
         [SerializeReference] private TweenHandler m_TweenHandler = new DefaultTweenHandler();
 
         private static float s_GameSpeedBeforePause = 1f;

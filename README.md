@@ -314,7 +314,7 @@ ProcedureLaunch → ProcedureSplash → ProcedureInitPackage → ProcedureInitRe
 | `LayerAttribute` | Layer 选择器 |
 | `TagAttribute` | Tag 选择器 |
 | `ResourcePathAttribute` | 资源路径选择器 |
-| `ReferenceDropdownAttribute` | 引用下拉选择 |
+| `HelperDropdownAttribute` | 引用/类型下拉选择（支持 [SerializeReference] 字段和 string 类型名字段） |
 | `OdinExtends/*` | Odin 扩展（条件分组、帮助信息、内联按钮等） |
 
 ### Events — 事件系统

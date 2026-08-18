@@ -8,13 +8,21 @@ namespace Moirai.Atropos
     [Serializable]
     public abstract class JsonHandler
     {
+        private bool _initialized;
+
         internal void Internal_Init()
         {
+            if (_initialized) return;
+            _initialized = true;
+
             OnInit();
         }
 
         internal void Internal_Shutdown()
         {
+            if (!_initialized) return;
+            _initialized = false;
+
             Shutdown();
         }
 

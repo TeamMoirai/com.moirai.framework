@@ -184,7 +184,7 @@ namespace Utility
         public void MessageLogged_FiresAfterLog()
         {
             var events = new List<(LogUtility.ELogLevel, string, Exception)>();
-            LogUtility.MessageLogged += (level, msg, ex) => events.Add((level, msg, ex));
+            LogUtility.OnMessageLogged += (level, msg, ex) => events.Add((level, msg, ex));
 
             LogUtility.Info("hello");
             LogUtility.Error("oops");
@@ -200,7 +200,7 @@ namespace Utility
         public void MessageLogged_NotFiredWhenFiltered()
         {
             var events = new List<(LogUtility.ELogLevel, string, Exception)>();
-            LogUtility.MessageLogged += (level, msg, ex) => events.Add((level, msg, ex));
+            LogUtility.OnMessageLogged += (level, msg, ex) => events.Add((level, msg, ex));
 
             m_Handler.MinimumLevel = LogUtility.ELogLevel.Warning;
             LogUtility.Debug("filtered");
@@ -214,7 +214,7 @@ namespace Utility
         public void MessageLogged_ExceptionOverload_FiresWithException()
         {
             var events = new List<(LogUtility.ELogLevel, string, Exception)>();
-            LogUtility.MessageLogged += (level, msg, ex) => events.Add((level, msg, ex));
+            LogUtility.OnMessageLogged += (level, msg, ex) => events.Add((level, msg, ex));
 
             var ex = new InvalidOperationException("err");
             LogUtility.Error(ex);
