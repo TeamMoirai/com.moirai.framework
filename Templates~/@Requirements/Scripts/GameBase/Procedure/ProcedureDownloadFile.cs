@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Cysharp.Threading.Tasks;
 using Moirai.Atropos;
 using Moirai.Atropos.FSM;
@@ -41,7 +41,7 @@ namespace Moirai.Main
         {
             _procedureOwner = procedureOwner;
 
-            Log.Info("Start downloading the update file!");
+            LogUtility.Info("Start downloading the update file!");
             LauncherMgr.ShowUI<LoadUpdateUI>(LoadText.Instance.Label_Download_Start);
 
             BeginDownload().Forget();
@@ -84,7 +84,7 @@ namespace Moirai.Main
             LauncherMgr.RefreshProgress(_resourceModule.Downloader.Progress);
             LauncherMgr.ShowUI<LoadUpdateUI>($"{line1}\n{line2}\n{line3}");
 
-            Log.Info($"{line1} {line2} {line3}");
+            LogUtility.Info($"{line1} {line2} {line3}");
         }
 
         private string GetRemainingTime(long totalBytes, long currentBytes, float speed)
