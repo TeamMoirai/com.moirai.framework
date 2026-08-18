@@ -84,7 +84,7 @@ namespace Moirai.Atropos
         /// <para>注意：仅在日志通过 <see cref="LogHandler.IsEnabled"/> 前置过滤后才会触发；
         /// 被等级过滤的日志不会触发此事件。</para>
         /// </summary>
-        public static event Action<ELogLevel, string, Exception> MessageLogged;
+        public static event Action<ELogLevel, string, Exception> OnMessageLogged;
 
         /// <summary>
         /// 触发日志事件回调。由 T4 生成的方法在记录日志后调用。
@@ -94,7 +94,7 @@ namespace Moirai.Atropos
         /// <param name="exception">关联异常，无异常时为 null。</param>
         internal static void RaiseMessageLogged(ELogLevel logLevel, string message, Exception exception)
         {
-            MessageLogged?.Invoke(logLevel, message, exception);
+            OnMessageLogged?.Invoke(logLevel, message, exception);
         }
 
         #endregion
@@ -175,7 +175,7 @@ namespace Moirai.Atropos
         /// </summary>
         public static void ResetStatics()
         {
-            MessageLogged = null;
+            OnMessageLogged = null;
         }
 
         #endregion

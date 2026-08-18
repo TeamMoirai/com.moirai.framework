@@ -9,6 +9,8 @@ namespace Moirai.Atropos
     [Serializable]
     public abstract class SettingHandler
     {
+        private bool _initialized;
+
         /// <summary>
         /// 获取游戏配置项数量。
         /// </summary>
@@ -16,11 +18,17 @@ namespace Moirai.Atropos
 
         internal void Internal_Init()
         {
+            if (_initialized) return;
+            _initialized = true;
+
             OnInit();
         }
 
         internal void Internal_Shutdown()
         {
+            if (!_initialized) return;
+            _initialized = false;
+
             Shutdown();
         }
 

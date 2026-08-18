@@ -23,12 +23,9 @@ namespace Moirai.Atropos
         /// </summary>
         internal void Internal_Init()
         {
-            if (_initialized)
-            {
-                return;
-            }
-
+            if (_initialized) return;
             _initialized = true;
+
             OnInit();
         }
 
@@ -37,12 +34,9 @@ namespace Moirai.Atropos
         /// </summary>
         internal void Internal_Shutdown()
         {
-            if (!_initialized)
-            {
-                return;
-            }
-
+            if (!_initialized) return;
             _initialized = false;
+
             OnShutdown();
         }
 
