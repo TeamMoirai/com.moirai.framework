@@ -1,4 +1,4 @@
-﻿#if (TEXT_MESH_PRO_INSTALLED || UNITY_UGUI2_INSTALLED)
+#if (TEXT_MESH_PRO_INSTALLED || UNITY_UGUI2_INSTALLED)
 using TMPro;
 #endif
 using UnityEngine;
@@ -57,7 +57,7 @@ namespace Moirai.Atropos.Localization
 
 			if (!GameModule.Localization.Has(textId))
 			{
-				if (Application.isPlaying) Log.Error($"Text ID: {textId} 不可用。");
+				if (Application.isPlaying) LogUtility.Error($"Text ID: {textId} 不可用。");
 				return false;
 			}
 

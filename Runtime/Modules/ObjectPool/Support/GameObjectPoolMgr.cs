@@ -88,7 +88,7 @@ namespace Moirai.Atropos.ObjectPool
         {
             if (target == null)
             {
-                Log.Error("target GameObject is null");
+                LogUtility.Error("target GameObject is null");
                 return null;
             }
 

@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 
 namespace Moirai.Atropos
 {
@@ -47,7 +47,7 @@ namespace Moirai.Atropos
                 MemoryPool.EnableStrictCheck = value;
                 if (value)
                 {
-                    Log.Info("Strict checking is enabled for the Memory Pool. It will drastically affect the performance.");
+                    LogUtility.Info("Strict checking is enabled for the Memory Pool. It will drastically affect the performance.");
                 }
             }
         }

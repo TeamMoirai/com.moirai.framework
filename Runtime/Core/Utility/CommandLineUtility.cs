@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 
 namespace Moirai.Atropos
 {
@@ -51,7 +51,7 @@ namespace Moirai.Atropos
 
                 if (!s_HasLog)
                 {
-                    Log.Info($"CommandLineArgs : {string.Join(" | ", s_Arguments)}");
+                    LogUtility.Info($"CommandLineArgs : {string.Join(" | ", s_Arguments)}");
                     s_HasLog = true;
                 }
 

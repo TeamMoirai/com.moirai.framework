@@ -99,7 +99,7 @@ namespace Moirai.Atropos.Resource
                     if (!_assetLoadingList.Add(location))
                     {
                         // 已经在加载中，等待回调处理。
-                        Log.Warning("资源仍在加载中，跳过重复请求 '{0}'", location);
+                        LogUtility.Warning("资源仍在加载中，跳过重复请求 '{0}'", location);
                         return;
                     }
 
@@ -108,7 +108,7 @@ namespace Moirai.Atropos.Resource
                     loadedResource = await s_ResourceModule.LoadAssetAsync<T>(location, linkedTokenSource.Token);
                     if (loadedResource == null)
                     {
-                        Log.Error("加载资源失败，资源为空: '{0}'", location);
+                        LogUtility.Error("加载资源失败，资源为空: '{0}'", location);
                         return;
                     }
 
@@ -130,7 +130,7 @@ namespace Moirai.Atropos.Resource
             }
             catch (Exception ex)
             {
-                Log.Error($"Failed to load asset '{location}': {ex}");
+                LogUtility.Error($"Failed to load asset '{location}': {ex}");
             }
             finally
             {

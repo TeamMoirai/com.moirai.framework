@@ -70,7 +70,7 @@ namespace Moirai.Atropos
             PrimeTweenConfig.ManualInitialize();
             PrimeTweenConfig.warnEndValueEqualsCurrent = m_WarnEndValueEqualsCurrent;
 #endif
-            Log.Info("Init PrimeTweenConfig.");
+            LogUtility.Info("Init PrimeTweenConfig.");
         }
 
         protected override void Shutdown()

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Assertions;
@@ -260,7 +260,7 @@ namespace Moirai.Atropos
             }
             catch (Exception exception)
             {
-                Log.Error(exception.ToString());
+                LogUtility.Error(exception.ToString());
             }
 
             entry.PendingRemove = false;
@@ -347,7 +347,7 @@ namespace Moirai.Atropos
                 var occupied = existing.Get(module.Scope);
                 if (occupied != null)
                 {
-                    Log.Warning("{0} has already been registered in {1} scope.", interfaceType.FullName, module.Scope);
+                    LogUtility.Warning("{0} has already been registered in {1} scope.", interfaceType.FullName, module.Scope);
                     return occupied as T;
                 }
             }

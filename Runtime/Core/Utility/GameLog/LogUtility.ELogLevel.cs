@@ -30,6 +30,7 @@
             /// <summary>
             /// 严重错误。
             /// </summary>
+            /// <remarks>仅记录，不抛异常中断流程。</remarks>
             Fatal
         }
     }

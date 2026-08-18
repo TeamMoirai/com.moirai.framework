@@ -155,7 +155,7 @@ namespace Moirai.Atropos.Audio
         {
             if (GameModule.Audio == null)
             {
-                Log.Error($"{nameof(AudioModule)} is null");
+                LogUtility.Error($"{nameof(AudioModule)} is null");
                 return;
             }
 

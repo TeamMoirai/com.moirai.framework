@@ -1,4 +1,4 @@
-﻿using Moirai.Atropos.ObjectPool;
+using Moirai.Atropos.ObjectPool;
 using UnityEngine;
 
 namespace Moirai.Atropos.Debugger
@@ -14,7 +14,7 @@ namespace Moirai.Atropos.Debugger
                 _objectPoolModule = ModuleSystem.GetModule<IObjectPoolModule>();
                 if (_objectPoolModule == null)
                 {
-                    Log.Fatal("Object pool component is invalid.");
+                    LogUtility.Fatal("Object pool component is invalid.");
                     return;
                 }
             }

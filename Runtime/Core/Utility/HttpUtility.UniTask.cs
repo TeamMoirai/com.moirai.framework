@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
@@ -93,7 +93,7 @@ namespace Moirai.Atropos
                 var (isCanceled, _) = await unityWebRequest.SendWebRequest().WithCancellation(cts.Token).SuppressCancellationThrow();
                 if (isCanceled)
                 {
-                    Log.Warning($"HttpPost {unityWebRequest.url} be canceled!");
+                    LogUtility.Warning($"HttpPost {unityWebRequest.url} be canceled!");
                     unityWebRequest.Dispose();
                     return string.Empty;
                 }
@@ -102,11 +102,11 @@ namespace Moirai.Atropos
             {
                 if (ex.CancellationToken == cts.Token)
                 {
-                    Log.Warning("HttpPost Timeout");
+                    LogUtility.Warning("HttpPost Timeout");
                 }
                 else
                 {
-                    Log.Warning($"HttpPost {unityWebRequest.url} canceled: {ex.Message}");
+                    LogUtility.Warning($"HttpPost {unityWebRequest.url} canceled: {ex.Message}");
                 }
                 unityWebRequest.Dispose();
                 return string.Empty;

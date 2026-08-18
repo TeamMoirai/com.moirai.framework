@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 
@@ -112,7 +112,7 @@ namespace Moirai.Atropos
             {
                 if (!f.FullName.EndsWith(".meta"))
                 {
-                    Log.Info(f.Name);
+                    LogUtility.Info(f.Name);
                     FileList.Add(f.Name);
                 }
             }
@@ -174,7 +174,7 @@ namespace Moirai.Atropos
             }
             catch (System.Exception ex)
             {
-                Log.Error(
+                LogUtility.Error(
                     string.Format("SafeWriteAllBytes failed! path = {0} with err = {1}", outFile, ex.Message));
                 return false;
             }
@@ -200,7 +200,7 @@ namespace Moirai.Atropos
             }
             catch (System.Exception ex)
             {
-                Log.Error(
+                LogUtility.Error(
                     string.Format("SafeWriteAllLines failed! path = {0} with err = {1}", outFile, ex.Message));
                 return false;
             }
@@ -226,7 +226,7 @@ namespace Moirai.Atropos
             }
             catch (System.Exception ex)
             {
-                Log.Error(string.Format("SafeWriteAllText failed! path = {0} with err = {1}", outFile,
+                LogUtility.Error(string.Format("SafeWriteAllText failed! path = {0} with err = {1}", outFile,
                     ex.Message));
                 return false;
             }
@@ -251,7 +251,7 @@ namespace Moirai.Atropos
             }
             catch (System.Exception ex)
             {
-                Log.Error(string.Format("SafeReadAllBytes failed! path = {0} with err = {1}", inFile, ex.Message));
+                LogUtility.Error(string.Format("SafeReadAllBytes failed! path = {0} with err = {1}", inFile, ex.Message));
                 return null;
             }
         }
@@ -275,7 +275,7 @@ namespace Moirai.Atropos
             }
             catch (System.Exception ex)
             {
-                Log.Error(string.Format("SafeReadAllLines failed! path = {0} with err = {1}", inFile, ex.Message));
+                LogUtility.Error(string.Format("SafeReadAllLines failed! path = {0} with err = {1}", inFile, ex.Message));
                 return null;
             }
         }
@@ -299,7 +299,7 @@ namespace Moirai.Atropos
             }
             catch (System.Exception ex)
             {
-                Log.Error(string.Format("SafeReadAllText failed! path = {0} with err = {1}", inFile, ex.Message));
+                LogUtility.Error(string.Format("SafeReadAllText failed! path = {0} with err = {1}", inFile, ex.Message));
                 return null;
             }
         }
@@ -367,7 +367,7 @@ namespace Moirai.Atropos
             }
             catch (System.Exception ex)
             {
-                Log.Error(string.Format("SafeClearDir failed! path = {0} with err = {1}", folderPath, ex.Message));
+                LogUtility.Error(string.Format("SafeClearDir failed! path = {0} with err = {1}", folderPath, ex.Message));
                 return false;
             }
         }
@@ -390,7 +390,7 @@ namespace Moirai.Atropos
             }
             catch (System.Exception ex)
             {
-                Log.Error(string.Format("SafeDeleteDir failed! path = {0} with err: {1}", folderPath, ex.Message));
+                LogUtility.Error(string.Format("SafeDeleteDir failed! path = {0} with err: {1}", folderPath, ex.Message));
                 return false;
             }
         }
@@ -415,7 +415,7 @@ namespace Moirai.Atropos
             }
             catch (System.Exception ex)
             {
-                Log.Error(string.Format("SafeDeleteFile failed! path = {0} with err: {1}", filePath, ex.Message));
+                LogUtility.Error(string.Format("SafeDeleteFile failed! path = {0} with err: {1}", filePath, ex.Message));
                 return false;
             }
         }
@@ -441,7 +441,7 @@ namespace Moirai.Atropos
             }
             catch (System.Exception ex)
             {
-                Log.Error(string.Format("SafeRenameFile failed! path = {0} with err: {1}", sourceFileName,
+                LogUtility.Error(string.Format("SafeRenameFile failed! path = {0} with err: {1}", sourceFileName,
                     ex.Message));
                 return false;
             }
@@ -468,7 +468,7 @@ namespace Moirai.Atropos
             }
             catch (System.Exception ex)
             {
-                Log.Error(string.Format("SafeCopyFile failed! formFile = {0}, toFile = {1}, with err = {2}",
+                LogUtility.Error(string.Format("SafeCopyFile failed! formFile = {0}, toFile = {1}, with err = {2}",
                     fromFile, toFile, ex.Message));
                 return false;
             }
@@ -525,7 +525,7 @@ namespace Moirai.Atropos
             }
             catch (System.Exception ex)
             {
-                Log.Error(string.Format("SafeCopyDirectory failed! sourceDirName = {0}, destDirName = {1}, with err = {2}",
+                LogUtility.Error(string.Format("SafeCopyDirectory failed! sourceDirName = {0}, destDirName = {1}, with err = {2}",
                     sourceDirName, destDirName, ex.Message));
                 return false;
             }

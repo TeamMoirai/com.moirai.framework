@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Text;
 #if UNITY_EDITOR
@@ -34,7 +34,7 @@ namespace Moirai.Atropos
                     }
                     else
                     {
-                        Log.Error("文件夹不存在 Path=" + dir);
+                        LogUtility.Error("文件夹不存在 Path=" + dir);
                         return false;
                     }
                 }
@@ -70,7 +70,7 @@ namespace Moirai.Atropos
 #if UNITY_EDITOR
                         EditorUtility.DisplayDialog("Tips", "文件夹不存在", "CANCEL");
 #endif
-                        Log.Error("文件夹不存在 Path=" + dir);
+                        LogUtility.Error("文件夹不存在 Path=" + dir);
                         return false;
                     }
                 }
@@ -110,7 +110,7 @@ namespace Moirai.Atropos
             }
             catch (Exception ex)
             {
-                Log.Error($"Failed to compute MD5 for file '{pathName}': {ex}");
+                LogUtility.Error($"Failed to compute MD5 for file '{pathName}': {ex}");
                 return "";
             }
         }

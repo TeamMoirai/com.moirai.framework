@@ -221,7 +221,7 @@ namespace Moirai.Atropos
 
             if (dropped > 0)
             {
-                Log.Warning("MainThreadDispatcher shutdown: {0} pending action(s) dropped.", dropped);
+                LogUtility.Warning("MainThreadDispatcher shutdown: {0} pending action(s) dropped.", dropped);
             }
         }
 
@@ -265,7 +265,7 @@ namespace Moirai.Atropos
                 if (stragglers > 0)
                 {
                     // 与 BeginShutdown 的 dropped 日志同前缀同动词，运维检索时可归为同一停机事件族
-                    Log.Warning("MainThreadDispatcher shutdown: {0} straggler action(s) dropped (enqueued after drain).", stragglers);
+                    LogUtility.Warning("MainThreadDispatcher shutdown: {0} straggler action(s) dropped (enqueued after drain).", stragglers);
                 }
                 return;
             }
@@ -306,7 +306,7 @@ namespace Moirai.Atropos
             }
             catch (Exception ex)
             {
-                Log.Error("MainThreadDispatcher action execution failed: {0}", ex);
+                LogUtility.Fatal(ex);
             }
         }
 
@@ -335,7 +335,7 @@ namespace Moirai.Atropos
         {
             if (!TryPost(action))
             {
-                Log.Warning("MainThreadDispatcher.Post rejected: dispatcher has shut down.");
+                LogUtility.Warning("MainThreadDispatcher.Post rejected: dispatcher has shut down.");
             }
         }
 
@@ -357,7 +357,7 @@ namespace Moirai.Atropos
                 s_PendingQueue.Count > BACKLOG_WARN_THRESHOLD)
             {
                 Volatile.Write(ref s_BacklogWarned, true);
-                Log.Warning("MainThreadDispatcher backlog exceeds {0}: producers are outpacing the main-thread pump.",
+                LogUtility.Warning("MainThreadDispatcher backlog exceeds {0}: producers are outpacing the main-thread pump.",
                     BACKLOG_WARN_THRESHOLD);
             }
 
@@ -660,7 +660,7 @@ namespace Moirai.Atropos
             var inst = Instance; // 单次取用，避免检查与使用之间的竞态
             if (inst == null)
             {
-                Log.Warning("MainThreadDispatcher.Send(IEnumerator): instance unavailable during shutdown, coroutine dropped.");
+                LogUtility.Warning("MainThreadDispatcher.Send(IEnumerator): instance unavailable during shutdown, coroutine dropped.");
                 return;
             }
 

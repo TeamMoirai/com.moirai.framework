@@ -20,7 +20,7 @@ namespace Moirai.Atropos
 		{
 			s_Instances.Reference(Typed);
 			OnReferenced();
-			// Log.Info(ReferenceHolder<T>.Any != null);
+			// LogUtility.Info(ReferenceHolder<T>.Any != null);
 		}
 
 		protected virtual void OnDisposed() {}
@@ -28,7 +28,7 @@ namespace Moirai.Atropos
 		{
 			s_Instances.Dispose();
 			OnDisposed();
-			// Log.Info(ReferenceHolder<T>.Any != null);
+			// LogUtility.Info(ReferenceHolder<T>.Any != null);
 		}
 	}
 

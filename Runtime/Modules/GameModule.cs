@@ -1,4 +1,4 @@
-﻿using Moirai.Atropos.Audio;
+using Moirai.Atropos.Audio;
 using Moirai.Atropos.Debugger;
 using Moirai.Atropos.Events;
 using Moirai.Atropos.FSM;
@@ -111,7 +111,7 @@ namespace Moirai.Atropos
         {
             T module = ModuleSystem.GetModule<T>();
 
-            Log.Assert(condition: module != null, $"{typeof(T)} is null");
+            LogUtility.Assert(condition: module != null, $"{typeof(T)} is null");
 
             return module;
         }
@@ -123,7 +123,7 @@ namespace Moirai.Atropos
         /// </summary>
         private void Awake()
         {
-            Log.Info("GameModule Active");
+            LogUtility.Info("GameModule Active");
             s_IsShutdown = false;
             
             gameObject.name = $"[{nameof(GameModule)}]";
@@ -204,7 +204,7 @@ namespace Moirai.Atropos
 
         public static void Shutdown()
         {
-            Log.Info("GameModule Shutdown");
+            LogUtility.Info("GameModule Shutdown");
             s_IsShutdown = true;
 
             s_Debugger = null;
@@ -223,7 +223,7 @@ namespace Moirai.Atropos
 
         private void OnLowMemory()
         {
-            Log.Warning("Low memory reported...");
+            LogUtility.Warning("Low memory reported...");
 
             IObjectPoolModule objectPoolModule = ModuleSystem.GetModule<IObjectPoolModule>();
             if (objectPoolModule != null)

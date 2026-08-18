@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
@@ -17,7 +17,7 @@ namespace Moirai.Atropos.ConfigTable
         {
             if (ConfigTableModule != null) return ConfigTableModule.GetAllLocalizedStrings();
             
-            Log.Error("Generate Config first!");
+            LogUtility.Error("Generate Config first!");
             return null;
         }
 

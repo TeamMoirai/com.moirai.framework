@@ -141,7 +141,7 @@ namespace Moirai.Atropos
             if (!dir.Exists)
             {
                 dir.Create();
-                Log.Info("Path:" + path + "Folder is created ");
+                LogUtility.Info("Path:" + path + "Folder is created ");
             }
         }
         

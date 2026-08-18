@@ -1,145 +1,96 @@
-﻿using System;
-using System.Diagnostics;
-using System.Text;
+using System;
 using UnityEngine;
 using Debug = UnityEngine.Debug;
 
 namespace Moirai.Atropos
 {
     /// <summary>
-    /// 默认游戏框架日志辅助。
+    /// 默认游戏框架日志辅助器，基于 <see cref="UnityEngine.Debug"/> 输出到 Unity 控制台。
+    /// <para>日志仅记录、不抛异常：Fatal 等级以错误形式输出，流程是否中断由调用方自行决定。</para>
     /// </summary>
     [Serializable]
     public sealed class DefaultLogHandler : LogHandler
     {
-        private enum ELogLevel
+        [SerializeField] private LogUtility.ELogLevel m_MinimumLevel = LogUtility.ELogLevel.Debug;
+
+        /// <summary>
+        /// 获取或设置最小日志等级，低于该等级的日志将被丢弃。
+        /// </summary>
+        public LogUtility.ELogLevel MinimumLevel
         {
-            Info,
-            Debug,
-            Assert,
-            Warning,
-            Error,
-            Exception,
+            get => m_MinimumLevel;
+            set => m_MinimumLevel = value;
         }
 
-        private const ELogLevel FILTER_LEVEL = ELogLevel.Info;
-        private static readonly StringBuilder s_StringBuilder = new StringBuilder(1024);
-
-        protected override void OnInit()
+        /// <inheritdoc/>
+        public override bool IsEnabled(LogUtility.ELogLevel logLevel)
         {
-        }
-
-        protected override void Shutdown()
-        {
+            return logLevel >= m_MinimumLevel;
         }
 
         /// <summary>
-        /// 打印游戏日志。
+        /// 打印游戏日志，异常对象由 Unity Console 的 Exception 通道输出。
         /// </summary>
         /// <param name="logLevel">游戏框架日志等级。</param>
-        /// <param name="message">日志信息。</param>
-        /// <exception cref="GameException">游戏框架异常类。</exception>
+        /// <param name="message">已格式化的日志内容。</param>
+        /// <param name="exception">关联异常。</param>
         [HideInCallstack]
-        public override void Log(LogUtility.ELogLevel logLevel, object message)
+        public override void Log(LogUtility.ELogLevel logLevel, string message, Exception exception)
         {
-            switch (logLevel)
-            {
-                case LogUtility.ELogLevel.Debug:
-                    LogImp(ELogLevel.Debug, StringUtility.Format("<color=#888888>{0}</color>", message));
-                    break;
-
-                case LogUtility.ELogLevel.Info:
-                    LogImp(ELogLevel.Info, message.ToString());
-                    break;
-
-                case LogUtility.ELogLevel.Warning:
-                    LogImp(ELogLevel.Warning, message.ToString());
-                    break;
-
-                case LogUtility.ELogLevel.Error:
-                    LogImp(ELogLevel.Error, message.ToString());
-                    break;
-
-                case LogUtility.ELogLevel.Fatal:
-                    LogImp(ELogLevel.Exception, message.ToString());
-                    break;
-
-                default:
-                    throw new GameException(message.ToString());
-            }
-        }
-
-        [HideInCallstack]
-        private static void LogImp(ELogLevel type, string logString)
-        {
-            if (type < FILTER_LEVEL)
+            if (!IsEnabled(logLevel))
             {
                 return;
             }
 
-            string logStr = GetFormatString(type, logString, true).ToString();
+            message ??= string.Empty;
 
-            switch (type)
+            switch (logLevel)
             {
-                case ELogLevel.Info:
-                case ELogLevel.Debug:
-                    Debug.Log(logStr);
+                case LogUtility.ELogLevel.Debug:
+                    Debug.Log(GetFormatString("DEBUG", message, "#CFCFCF", "#00FF18", wrapBody: true));
                     break;
-                case ELogLevel.Warning:
-                    Debug.LogWarning(logStr);
+
+                case LogUtility.ELogLevel.Info:
+                    Debug.Log(GetFormatString("INFO", message, "#CFCFCF", null, wrapBody: false));
                     break;
-                case ELogLevel.Assert:
-                    Debug.LogAssertion(logStr);
+
+                case LogUtility.ELogLevel.Warning:
+                    Debug.LogWarning(GetFormatString("WARNING", message, "#FF9400", "yellow", wrapBody: true));
                     break;
-                case ELogLevel.Error:
-                    Debug.LogError(logStr);
+
+                case LogUtility.ELogLevel.Error:
+                    Debug.LogError(GetFormatString("ERROR", message, "red", "red", wrapBody: true));
                     break;
-                case ELogLevel.Exception:
-                    throw new Exception(logStr);
+
+                case LogUtility.ELogLevel.Fatal:
+                    Debug.LogError(GetFormatString("FATAL", message, "red", "red", wrapBody: true));
+                    break;
+
+                default:
+                    // 静默降级：未知等级按 Fatal 处理
+                    Debug.LogError(GetFormatString("FATAL", message, "red", "red", wrapBody: true));
+                    break;
             }
         }
 
         /// <summary>
-        /// 获取日志格式。
+        /// 获取带级别前缀着色的日志格式。
         /// </summary>
-        /// <param name="logLevel">日志级别。</param>
-        /// <param name="logString">日志字符。</param>
-        /// <param name="bColor">是否使用颜色。</param>
-        /// <returns>StringBuilder。</returns>
-        private static StringBuilder GetFormatString(ELogLevel logLevel, string logString, bool bColor)
+        /// <param name="tag">级别标签。</param>
+        /// <param name="message">日志正文。</param>
+        /// <param name="tagColor">标签颜色。</param>
+        /// <param name="bodyColor">正文颜色，null 时不着色。</param>
+        /// <param name="wrapBody">是否对正文逐行包裹颜色标签。</param>
+        /// <returns>格式化后的日志文本。</returns>
+        private static string GetFormatString(string tag, string message, string tagColor, string bodyColor, bool wrapBody)
         {
-            s_StringBuilder.Clear();
-
-            // 多行日志需要逐行包裹颜色标签,否则Unity Console中后续行不会应用颜色(显示为秘文)
-            string body = bColor ? ColorizePerLine(logString, GetBodyColor(logLevel)) : logString;
-            switch (logLevel)
-            {
-                case ELogLevel.Debug:
-                    s_StringBuilder.AppendFormat("<color=#CFCFCF><b>[Debug] ► </b></color> - {0}", body);
-                    break;
-                case ELogLevel.Info:
-                    s_StringBuilder.AppendFormat("<color=#CFCFCF><b>[INFO] ► </b></color> - {0}", body);
-                    break;
-                case ELogLevel.Assert:
-                    s_StringBuilder.AppendFormat("<color=#FF00BD><b>[ASSERT] ► </b></color> - {0}", body);
-                    break;
-                case ELogLevel.Warning:
-                    s_StringBuilder.AppendFormat("<color=#FF9400><b>[WARNING] ► </b></color> - {0}", body);
-                    break;
-                case ELogLevel.Error:
-                    s_StringBuilder.AppendFormat("<color=red><b>[ERROR] ► </b></color>- {0}", body);
-                    break;
-                case ELogLevel.Exception:
-                    s_StringBuilder.AppendFormat("<color=red><b>[EXCEPTION] ► </b></color> - {0}", body);
-                    break;
-            }
-
-            return s_StringBuilder;
+            string body = wrapBody && bodyColor != null ? ColorizePerLine(message, bodyColor) : message;
+            return StringUtility.Format("<color={0}><b>[{1}] ► </b></color> - {2}", tagColor, tag, body);
         }
 
         /// <summary>
         /// 对多行日志逐行包裹颜色标签。
-        /// 单次整体包裹 <color></color> 时,Unity Console 只会为第一行着色,后续行不应用颜色,表现为秘文;
+        /// 单次整体包裹 <color></color> 时,Unity Console 只会为第一行着色,后续行不应用颜色,表现为乱码;
         /// 逐行包裹可让每一行都正确着色。同时兼容 \r\n 换行符。
         /// </summary>
         /// <param name="logStr">原始日志文本。</param>
@@ -157,49 +108,33 @@ namespace Moirai.Atropos
                 return StringUtility.Format("<color={0}>{1}</color>", color, logStr);
             }
 
-            var sb = new StringBuilder(logStr.Length + 32);
-            int start = 0;
-
-            for (int i = 0; i < logStr.Length; i++)
+            return StringUtility.GetString(sb =>
             {
-                if (logStr[i] != '\n')
+                int start = 0;
+
+                for (int i = 0; i < logStr.Length; i++)
                 {
-                    continue;
+                    if (logStr[i] != '\n')
+                    {
+                        continue;
+                    }
+
+                    // 兼容 \r\n:把回车符留在颜色标签之外,避免乱码
+                    int lineEnd = i > start && logStr[i - 1] == '\r' ? i - 1 : i;
+                    sb.Append("<color=").Append(color).Append('>')
+                        .Append(logStr, start, lineEnd - start)
+                        .Append("</color>")
+                        .Append(logStr, lineEnd, i - lineEnd + 1);
+                    start = i + 1;
                 }
 
-                // 兼容 \r\n:把回车符留在颜色标签之外,避免秘文
-                int lineEnd = i > start && logStr[i - 1] == '\r' ? i - 1 : i;
-                sb.Append("<color=").Append(color).Append('>')
-                    .Append(logStr, start, lineEnd - start)
-                    .Append("</color>")
-                    .Append(logStr, lineEnd, i - lineEnd + 1);
-                start = i + 1;
-            }
-
-            if (start < logStr.Length)
-            {
-                sb.Append("<color=").Append(color).Append('>')
-                    .Append(logStr, start, logStr.Length - start)
-                    .Append("</color>");
-            }
-
-            return sb.ToString();
+                if (start < logStr.Length)
+                {
+                    sb.Append("<color=").Append(color).Append('>')
+                        .Append(logStr, start, logStr.Length - start)
+                        .Append("</color>");
+                }
+            });
         }
-
-        /// <summary>
-        /// 获取日志正文颜色。
-        /// </summary>
-        /// <param name="logLevel">日志级别。</param>
-        /// <returns>颜色字符串。</returns>
-        private static string GetBodyColor(ELogLevel logLevel)
-            => logLevel switch
-            {
-                ELogLevel.Debug => "#00FF18",
-                ELogLevel.Assert => "green",
-                ELogLevel.Warning => "yellow",
-                ELogLevel.Error => "red",
-                ELogLevel.Exception => "red",
-                _ => "#CFCFCF"
-            };
     }
 }

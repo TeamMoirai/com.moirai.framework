@@ -1,4 +1,4 @@
-﻿using UnityEditor;
+using UnityEditor;
 using UnityEngine;
 
 namespace Moirai.Atropos.Editor
@@ -31,7 +31,7 @@ namespace Moirai.Atropos.Editor
                     }
                 }
             }
-            Log.Info("[CleanupMissingScripts] 从 " + gameobjectsAffectedCounter + " 移除了 " + removedComponentsCounter + " 个缺失的脚本。");
+            LogUtility.Info("[CleanupMissingScripts] 从 " + gameobjectsAffectedCounter + " 移除了 " + removedComponentsCounter + " 个缺失的脚本。");
         }
     }
 }

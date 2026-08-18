@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Audio;
@@ -152,7 +152,7 @@ namespace Moirai.Atropos.Audio
             }
             else
             {
-                Log.Error($"Here is no channel to play audio {AudioMixerGroup.name}");
+                LogUtility.Error($"Here is no channel to play audio {AudioMixerGroup.name}");
                 return null;
             }
         }

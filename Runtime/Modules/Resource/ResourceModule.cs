@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Threading;
@@ -115,7 +115,7 @@ namespace Moirai.Atropos.Resource
 #if UNITY_EDITOR
             // 编辑器模式使用。
             EPlayMode playMode = (EPlayMode)UnityEditor.EditorPrefs.GetInt(ResourceModuleDriver.EDITOR_PLAY_MODE_KEY);
-            Log.Warning($"Editor Module Used :{playMode}");
+            LogUtility.Warning($"Editor Module Used :{playMode}");
 #else
             // 运行时使用。
             EPlayMode playMode = (EPlayMode)PlayMode;
@@ -125,7 +125,7 @@ namespace Moirai.Atropos.Resource
             {
                 if (resourcePackage.InitializeStatus is EOperationStatus.Processing or EOperationStatus.Succeed)
                 {
-                    Log.Error($"ResourceSystem has already init package : {packageName}");
+                    LogUtility.Error($"ResourceSystem has already init package : {packageName}");
                     return null;
                 }
                 else
@@ -188,12 +188,12 @@ namespace Moirai.Atropos.Resource
                 string fallbackHostServer = FallbackHostServerURL;
                 IRemoteServices remoteServices = new RemoteServices(defaultHostServer, fallbackHostServer);
 #if UNITY_WEBGL && WEIXINMINIGAME && !UNITY_EDITOR
-                Log.Info("=======================WEIXINMINIGAME=======================");
+                LogUtility.Info("=======================WEIXINMINIGAME=======================");
                 // 注意：如果有子目录，请修改此处！
                 string packageRoot = $"{WeChatWASM.WX.env.USER_DATA_PATH}/__GAME_FILE_CACHE";
                 createParameters.WebServerFileSystemParameters = WechatFileSystemCreater.CreateFileSystemParameters(packageRoot, remoteServices, webDecryptionServices);
 #else
-                Log.Info("=======================UNITY_WEBGL=======================");
+                LogUtility.Info("=======================UNITY_WEBGL=======================");
                 if (LoadResWayWebGL == ELoadResWayWebGL.Remote)
                 {
                     createParameters.WebRemoteFileSystemParameters = FileSystemParameters.CreateDefaultWebRemoteFileSystemParameters(remoteServices, webDecryptionServices);
@@ -206,7 +206,7 @@ namespace Moirai.Atropos.Resource
 
             await initializationOperation.ToUniTask();
 
-            Log.Info($"Init resource package version : {initializationOperation?.Status}");
+            LogUtility.Info($"Init resource package version : {initializationOperation?.Status}");
 
             if (needInitMainFest)
             {
@@ -220,12 +220,12 @@ namespace Moirai.Atropos.Resource
                     await updatePackageManifestAsync;
                     if (updatePackageManifestAsync.Status == EOperationStatus.Failed)
                     {
-                        Log.Fatal($"Update package manifest failed : {updatePackageManifestAsync.Status}");
+                        LogUtility.Fatal($"Update package manifest failed : {updatePackageManifestAsync.Status}");
                     }
                 }
                 else
                 {
-                    Log.Fatal($"Request package version failed : {requestPackageVersionOperation.Status}");
+                    LogUtility.Fatal($"Request package version failed : {requestPackageVersionOperation.Status}");
                 }
             }
 
@@ -363,7 +363,7 @@ namespace Moirai.Atropos.Resource
 
         public void OnLowMemory()
         {
-            Log.Warning("Low memory reported...");
+            LogUtility.Warning("Low memory reported...");
             _forceUnloadUnusedAssetsAction?.Invoke(true);
         }
 
@@ -400,7 +400,7 @@ namespace Moirai.Atropos.Resource
         public void ForceUnloadAllAssets()
         {
 #if UNITY_WEBGL
-            Log.Warning($"WebGL not support invoke {nameof(ForceUnloadAllAssets)}");
+            LogUtility.Warning($"WebGL not support invoke {nameof(ForceUnloadAllAssets)}");
 			return;
 #else
 
@@ -676,7 +676,7 @@ namespace Moirai.Atropos.Resource
 
             if (!CheckLocationValid(location, packageName))
             {
-                Log.Error($"Could not found location [{location}].");
+                LogUtility.Error($"Could not found location [{location}].");
                 return null;
             }
 
@@ -706,7 +706,7 @@ namespace Moirai.Atropos.Resource
 
             if (!CheckLocationValid(location, packageName))
             {
-                Log.Error($"Could not found location [{location}].");
+                LogUtility.Error($"Could not found location [{location}].");
                 return null;
             }
 
@@ -745,7 +745,7 @@ namespace Moirai.Atropos.Resource
         {
             if (string.IsNullOrEmpty(location))
             {
-                Log.Error("Asset name is invalid.");
+                LogUtility.Error("Asset name is invalid.");
                 return;
             }
 
@@ -756,7 +756,7 @@ namespace Moirai.Atropos.Resource
 
             if (!CheckLocationValid(location, packageName))
             {
-                Log.Error($"Could not found location [{location}].");
+                LogUtility.Error($"Could not found location [{location}].");
                 callback?.Invoke(null);
                 return;
             }
@@ -809,7 +809,7 @@ namespace Moirai.Atropos.Resource
 
             if (!CheckLocationValid(location, packageName))
             {
-                Log.Error($"Could not found location [{location}].");
+                LogUtility.Error($"Could not found location [{location}].");
                 return null;
             }
 
@@ -853,7 +853,7 @@ namespace Moirai.Atropos.Resource
 
             if (!CheckLocationValid(location, packageName))
             {
-                Log.Error($"Could not found location [{location}].");
+                LogUtility.Error($"Could not found location [{location}].");
                 return null;
             }
 
@@ -926,7 +926,7 @@ namespace Moirai.Atropos.Resource
             if (!CheckLocationValid(location, packageName))
             {
                 string errorMessage = StringUtility.Format("Could not found location [{0}].", location);
-                Log.Error(errorMessage);
+                LogUtility.Error(errorMessage);
                 if (loadAssetCallbacks.LoadAssetFailureCallback != null)
                 {
                     loadAssetCallbacks.LoadAssetFailureCallback(location, LoadResourceStatus.NotExist, errorMessage, userData);
@@ -1006,7 +1006,7 @@ namespace Moirai.Atropos.Resource
             catch (Exception ex)
             {
                 _assetLoadingList.Remove(GetCacheKey(location, packageName));
-                Log.Error("LoadAssetAsync failed: {0}, error: {1}", location, ex);
+                LogUtility.Error("LoadAssetAsync failed: {0}, error: {1}", location, ex);
                 loadAssetCallbacks.LoadAssetFailureCallback?.Invoke(location, LoadResourceStatus.AssetError, ex.Message, userData);
             }
         }
@@ -1036,7 +1036,7 @@ namespace Moirai.Atropos.Resource
             if (!CheckLocationValid(location, packageName))
             {
                 string errorMessage = StringUtility.Format("Could not found location [{0}].", location);
-                Log.Error(errorMessage);
+                LogUtility.Error(errorMessage);
                 if (loadAssetCallbacks.LoadAssetFailureCallback != null)
                 {
                     loadAssetCallbacks.LoadAssetFailureCallback(location, LoadResourceStatus.NotExist, errorMessage, userData);
@@ -1116,7 +1116,7 @@ namespace Moirai.Atropos.Resource
             catch (Exception ex)
             {
                 _assetLoadingList.Remove(GetCacheKey(location, packageName));
-                Log.Error("LoadAssetAsync failed: {0}, error: {1}", location, ex);
+                LogUtility.Error("LoadAssetAsync failed: {0}, error: {1}", location, ex);
                 loadAssetCallbacks.LoadAssetFailureCallback?.Invoke(location, LoadResourceStatus.AssetError, ex.Message, userData);
             }
         }
@@ -1207,7 +1207,7 @@ namespace Moirai.Atropos.Resource
                 {
                     if (_timeoutController.IsTimeout())
                     {
-                        Log.Error($"LoadAssetAsync Waiting {assetObjectKey} timeout. reason:{ex.Message}");
+                        LogUtility.Error($"LoadAssetAsync Waiting {assetObjectKey} timeout. reason:{ex.Message}");
                     }
                     else
                     {

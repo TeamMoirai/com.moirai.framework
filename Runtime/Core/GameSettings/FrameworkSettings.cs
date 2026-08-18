@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Reflection;
 using UnityEngine;
 
@@ -120,7 +120,7 @@ namespace Moirai.Atropos
 #if UNITY_EDITOR
                     s_Instance = LoadSettingSO<T>(filePath, t => t.ResetToDefaults());
 #else
-                    Log.Error($"Could not find {type.Name} at path '{filePath}'!");
+                    LogUtility.Error($"Could not find {type.Name} at path '{filePath}'!");
 #endif
                 }
                 return s_Instance;

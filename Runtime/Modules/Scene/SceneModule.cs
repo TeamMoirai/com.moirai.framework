@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using Cysharp.Threading.Tasks;
 using Moirai.Atropos.Resource;
@@ -52,7 +52,7 @@ namespace Moirai.Atropos.Scene
         {
             if (!_handlingScene.Add(location))
             {
-                Log.Error("Could not load scene while loading. Scene: {0}", location);
+                LogUtility.Error("Could not load scene while loading. Scene: {0}", location);
                 return default;
             }
 
@@ -126,7 +126,7 @@ namespace Moirai.Atropos.Scene
         {
             if (!_handlingScene.Add(location))
             {
-                Log.Error("Could not load scene while loading. Scene: {0}", location);
+                LogUtility.Error("Could not load scene while loading. Scene: {0}", location);
                 return;
             }
             
@@ -231,7 +231,7 @@ namespace Moirai.Atropos.Scene
                 return subScene.ActivateScene();
             }
 
-            Log.Warning("IsMainScene invalid location:{0}", location);
+            LogUtility.Warning("IsMainScene invalid location:{0}", location);
             return false;
         }
 
@@ -253,7 +253,7 @@ namespace Moirai.Atropos.Scene
                 return subScene.UnSuspend();
             }
 
-            Log.Warning("IsMainScene invalid location:{0}", location);
+            LogUtility.Warning("IsMainScene invalid location:{0}", location);
             return false;
         }
 
@@ -283,7 +283,7 @@ namespace Moirai.Atropos.Scene
                 return true;
             }
 
-            Log.Warning("IsMainScene invalid location:{0}", location);
+            LogUtility.Warning("IsMainScene invalid location:{0}", location);
             return false;
         }
         
@@ -294,13 +294,13 @@ namespace Moirai.Atropos.Scene
             {
                 if (subScene.SceneObject == default)
                 {
-                    Log.Error("Could not unload Scene while not loaded. Scene: {0}", location);
+                    LogUtility.Error("Could not unload Scene while not loaded. Scene: {0}", location);
                     return false;
                 }
 
                 if (!_handlingScene.Add(location))
                 {
-                    Log.Warning("Could not unload Scene while loading. Scene: {0}", location);
+                    LogUtility.Warning("Could not unload Scene while loading. Scene: {0}", location);
                     return false;
                 }
 
@@ -326,7 +326,7 @@ namespace Moirai.Atropos.Scene
                 return true;
             }
 
-            Log.Warning("UnloadAsync invalid location:{0}", location);
+            LogUtility.Warning("UnloadAsync invalid location:{0}", location);
             return false;
         }
         
@@ -337,13 +337,13 @@ namespace Moirai.Atropos.Scene
             {
                 if (subScene.SceneObject == default)
                 {
-                    Log.Error("Could not unload Scene while not loaded. Scene: {0}", location);
+                    LogUtility.Error("Could not unload Scene while not loaded. Scene: {0}", location);
                     return;
                 }
                 
                 if (!_handlingScene.Add(location))
                 {
-                    Log.Warning("Could not unload Scene while loading. Scene: {0}", location);
+                    LogUtility.Warning("Could not unload Scene while loading. Scene: {0}", location);
                     return;
                 }
 
@@ -363,7 +363,7 @@ namespace Moirai.Atropos.Scene
                 return;
             }
 
-            Log.Warning("UnloadAsync invalid location:{0}", location);
+            LogUtility.Warning("UnloadAsync invalid location:{0}", location);
         }
         
         public bool IsContainScene(string location)

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -315,7 +315,7 @@ namespace Moirai.Atropos.Debugger
             {
                 if (results == null)
                 {
-                    Log.Error("Results is invalid.");
+                    LogUtility.Error("Results is invalid.");
                     return;
                 }
 
@@ -330,13 +330,13 @@ namespace Moirai.Atropos.Debugger
             {
                 if (results == null)
                 {
-                    Log.Error("Results is invalid.");
+                    LogUtility.Error("Results is invalid.");
                     return;
                 }
 
                 if (count <= 0)
                 {
-                    Log.Error("Count is invalid.");
+                    LogUtility.Error("Count is invalid.");
                     return;
                 }
 

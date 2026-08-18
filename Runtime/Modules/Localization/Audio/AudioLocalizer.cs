@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 
 namespace Moirai.Atropos.Localization
 {
@@ -41,7 +41,7 @@ namespace Moirai.Atropos.Localization
 #endif
 			if (!GameModule.Localization.Has(textId))
 			{
-				if (Application.isPlaying) Log.Error($"Text ID: {textId} 不可用。");
+				if (Application.isPlaying) LogUtility.Error($"Text ID: {textId} 不可用。");
 				return false;
 			}
 			this.localizedTextID = textId;

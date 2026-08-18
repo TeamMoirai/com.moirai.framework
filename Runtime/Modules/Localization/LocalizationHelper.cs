@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -53,7 +53,7 @@ namespace Moirai.Atropos.Localization
 
             if (GameModule.Localization == null)
             {
-                if (!s_HasLoggedWarning) Log.Warning($"{nameof(LocalizationModule)} not initialized!");
+                if (!s_HasLoggedWarning) LogUtility.Warning($"{nameof(LocalizationModule)} not initialized!");
                 s_HasLoggedWarning = true;
                 return format;
             }
@@ -69,17 +69,17 @@ namespace Moirai.Atropos.Localization
                 {
                     if (!GameModule.Localization.Has(textId))
                     {
-                        if (Application.isPlaying) Log.Warning($"Text ID: {textId}({match.Groups[1].Value}) not available.");
+                        if (Application.isPlaying) LogUtility.Warning($"Text ID: {textId}({match.Groups[1].Value}) not available.");
                         continue;
                     }
 
                     string replacement = GameModule.Localization.GetTextFromId(textId);
-                    // Log.Info($"Resolving localization for ID: {textId}({replacement})");
+                    // LogUtility.Info($"Resolving localization for ID: {textId}({replacement})");
                     format = format.Replace(match.Value, replacement);
                 }
                 catch (Exception ex)
                 {
-                    Log.Error($"Failed to resolve localization for ID: {textId}. Error: {ex}");
+                    LogUtility.Error($"Failed to resolve localization for ID: {textId}. Error: {ex}");
                 }
             }
 
@@ -106,7 +106,7 @@ namespace Moirai.Atropos.Localization
 
             if (GameModule.Localization == null)
             {
-                Log.Error($"{nameof(LocalizationModule)} not initialized!");
+                LogUtility.Error($"{nameof(LocalizationModule)} not initialized!");
                 return format;
             }
 
@@ -120,7 +120,7 @@ namespace Moirai.Atropos.Localization
 
                 if (!GameModule.Localization.Has(textId))
                 {
-                    if (Application.isPlaying) Log.Warning($"Text ID: {textId} not available.");
+                    if (Application.isPlaying) LogUtility.Warning($"Text ID: {textId} not available.");
                     continue;
                 }
 
@@ -148,7 +148,7 @@ namespace Moirai.Atropos.Localization
 
             if (GameModule.Localization == null)
             {
-                Log.Error("LocalizationModule not initialized!");
+                LogUtility.Error("LocalizationModule not initialized!");
                 return format;
             }
 
@@ -165,7 +165,7 @@ namespace Moirai.Atropos.Localization
 
                     if (!GameModule.Localization.Has(textId))
                     {
-                        if (Application.isPlaying) Log.Warning($"Text ID: {textId} not available.");
+                        if (Application.isPlaying) LogUtility.Warning($"Text ID: {textId} not available.");
                         break;
                     }
 
@@ -204,7 +204,7 @@ namespace Moirai.Atropos.Localization
             
             if (language != Language.Unspecified && s_LoadedLanguage.Add(language))
             {
-                Log.Info($"Registered language[{s_LoadedLanguage.Count}]: {language}");
+                LogUtility.Info($"Registered language[{s_LoadedLanguage.Count}]: {language}");
             }
         }
 

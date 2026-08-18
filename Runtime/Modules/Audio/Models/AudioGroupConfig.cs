@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using UnityEngine;
 using UnityEngine.Audio;
 
@@ -71,7 +71,7 @@ namespace Moirai.Atropos.Audio
                 
                 _isMuted = value;
                 ApplyTrackVolume();
-                // Log.Info($"{m_AudioTrack} Mute:{_isMuted}");
+                // LogUtility.Info($"{m_AudioTrack} Mute:{_isMuted}");
             }
         }
         
@@ -92,7 +92,7 @@ namespace Moirai.Atropos.Audio
                 
                 _volume = value;
                 ApplyTrackVolume();
-                // Log.Info($"{m_AudioTrack} Volume:{_volume}");
+                // LogUtility.Info($"{m_AudioTrack} Volume:{_volume}");
             }
         }
         
@@ -124,7 +124,7 @@ namespace Moirai.Atropos.Audio
             _volume = SettingUtility.GetFloat(SettingConstantVolume, m_DefaultVolume);
             
             ApplyTrackVolume();
-            // Log.Info($"[LoadSettings] <color=orange>{m_AudioTrack.ToString()}(volume:{_volume} mute:{_isMuted})</color>");
+            // LogUtility.Info($"[LoadSettings] <color=orange>{m_AudioTrack.ToString()}(volume:{_volume} mute:{_isMuted})</color>");
         }
         
         /// <summary>

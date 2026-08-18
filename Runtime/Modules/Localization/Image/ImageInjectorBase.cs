@@ -62,12 +62,12 @@ namespace Moirai.Atropos.Localization
 
             if (!IsExpectedType(result) && !IsConvertibleType(result))
             {
-                Log.Error($"本地化图片类型错误，{textIDValue}");
+                LogUtility.Error($"本地化图片类型错误，{textIDValue}");
             }
 
             if (TryConvertAndApply(result))
             {
-                Log.Warning($"本地化图片类型错误，已自动转换：{result}");
+                LogUtility.Warning($"本地化图片类型错误，已自动转换：{result}");
                 return;
             }
 

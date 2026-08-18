@@ -1,4 +1,4 @@
-﻿#if ENABLE_INPUT_SYSTEM
+#if ENABLE_INPUT_SYSTEM
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -122,7 +122,7 @@ namespace Moirai.Atropos.Input
 
             if (InputSystem.actions == null)
             {
-                Log.Error("Please set Input Actions in 'Project Settings -> Input System Package'");
+                LogUtility.Error("Please set Input Actions in 'Project Settings -> Input System Package'");
                 return;
             }
 

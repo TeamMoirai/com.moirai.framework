@@ -99,7 +99,7 @@ namespace Moirai.Atropos
                 if (!DepthWarned)
                 {
                     DepthWarned = true;
-                    Log.Warning("[DefaultJson] Serialization depth exceeded the limit of {0}. Members beyond the limit are skipped.", depthLimit);
+                    LogUtility.Warning("[DefaultJson] Serialization depth exceeded the limit of {0}. Members beyond the limit are skipped.", depthLimit);
                 }
 
                 return true;

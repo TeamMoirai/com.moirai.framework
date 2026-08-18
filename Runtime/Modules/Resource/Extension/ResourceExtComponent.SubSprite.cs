@@ -21,7 +21,7 @@ namespace Moirai.Atropos.Resource
 
             if (image == null)
             {
-                Log.Warning($"SetSubAssets Image is null");
+                LogUtility.Warning($"SetSubAssets Image is null");
                 return;
             }
 
@@ -39,7 +39,7 @@ namespace Moirai.Atropos.Resource
 
             if (spriteRenderer == null)
             {
-                Log.Warning($"SetSubAssets Image is null");
+                LogUtility.Warning($"SetSubAssets Image is null");
                 return;
             }
 
