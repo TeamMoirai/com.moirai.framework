@@ -1,4 +1,5 @@
 #if ENABLE_LEGACY_INPUT_MANAGER
+using System;
 using UnityEngine;
 using System.Collections.Generic;
 
@@ -8,7 +9,8 @@ namespace Moirai.Atropos.Input
     /// 按照 Unity 的输入管理器规范来实现输入检测功能。
     /// </summary>
     /// <remarks>此方案用于桌面游戏。</remarks>
-    public sealed class UnityInputManagerHandler : IInputHandler
+    [Serializable]
+    public sealed class UnityInputManagerHandler : InputHandler
     {
         private struct Vector2Action
         {
@@ -46,7 +48,7 @@ namespace Moirai.Atropos.Input
             return _validAxes.Contains(axisName);
         }
 
-        public bool GetButtonDown(string actionName, string actionGroup)
+        public override bool GetButtonDown(string actionName, string actionGroup)
         {
             if (!IsValidAxis(actionName))
             {
@@ -57,7 +59,7 @@ namespace Moirai.Atropos.Input
             return UnityEngine.Input.GetButtonDown(actionName);
         }
 
-        public bool GetButtonUp(string actionName, string actionGroup)
+        public override bool GetButtonUp(string actionName, string actionGroup)
         {
             if (!IsValidAxis(actionName))
             {
@@ -68,7 +70,7 @@ namespace Moirai.Atropos.Input
             return UnityEngine.Input.GetButtonUp(actionName);
         }
         
-        public bool GetBool(string actionName, string actionGroup = "")
+        public override bool GetBool(string actionName, string actionGroup = "")
         {
             if (!IsValidAxis(actionName))
             {
@@ -79,7 +81,7 @@ namespace Moirai.Atropos.Input
             return UnityEngine.Input.GetButton(actionName);
         }
 
-        public float GetFloat(string actionName, string actionGroup = "")
+        public override float GetFloat(string actionName, string actionGroup = "")
         {
             if (!IsValidAxis(actionName))
             {
@@ -90,7 +92,7 @@ namespace Moirai.Atropos.Input
             return UnityEngine.Input.GetAxisRaw(actionName);
         }
 
-        public Vector2 GetVector2(string actionName, string actionGroup = "")
+        public override Vector2 GetVector2(string actionName, string actionGroup = "")
         {
             bool found = _vector2Actions.TryGetValue(actionName, out Vector2Action vector2Action);
 
@@ -115,7 +117,7 @@ namespace Moirai.Atropos.Input
             return new Vector2(x, y);
         }
 
-        public bool GetMouseButtonPressed(EMouseButton button)
+        public override bool GetMouseButtonPressed(EMouseButton button)
         {
             switch (button)
             {
@@ -128,7 +130,7 @@ namespace Moirai.Atropos.Input
             }
         }
 
-        public bool GetMouseButtonDown(EMouseButton button)
+        public override bool GetMouseButtonDown(EMouseButton button)
         {
             switch (button)
             {
@@ -141,7 +143,7 @@ namespace Moirai.Atropos.Input
             }
         }
         
-        public bool GetMouseButtonUp(EMouseButton button)
+        public override bool GetMouseButtonUp(EMouseButton button)
         {
             switch (button)
             {
@@ -154,22 +156,22 @@ namespace Moirai.Atropos.Input
             }
         }
 
-        public Vector2 GetMousePosition()
+        public override Vector2 GetMousePosition()
         {
             return UnityEngine.Input.mousePosition;
         }
 
-        public Vector2 GetScrollDelta()
+        public override Vector2 GetScrollDelta()
         {
             return UnityEngine.Input.mouseScrollDelta;
         }
 
-        public void OnInit()
+        protected override void OnInit()
         {
             EnsureAxesCached();
         }
 
-        public void ResetAllInputStates()
+        public override void ResetAllInputStates()
         {
             UnityEngine.Input.ResetInputAxes();
         }

@@ -1,4 +1,5 @@
 #if ENABLE_INPUT_SYSTEM
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -9,12 +10,13 @@ namespace Moirai.Atropos.Input
     /// 基于 Unity Input System 实现的输入处理器
     /// </summary>
     /// <remarks>在编辑器的 Edit > Project Settings > Input System Package 的中设置</remarks>
-    public sealed class UnityInputSystemHandler : IInputHandler
+    [Serializable]
+    public sealed class UnityInputSystemHandler : InputHandler
     {
         // 缓存 InputAction 引用提升性能
         private readonly Dictionary<string, InputAction> _inputActionsDictionary = new Dictionary<string, InputAction>();
 
-        public bool GetButtonDown(string actionName, string actionGroup)
+        public override bool GetButtonDown(string actionName, string actionGroup)
         {
             bool output = false;
             
@@ -24,7 +26,7 @@ namespace Moirai.Atropos.Input
             return output;
         }
 
-        public bool GetButtonUp(string actionName, string actionGroup)
+        public override bool GetButtonUp(string actionName, string actionGroup)
         {
             bool output = false;
             
@@ -34,7 +36,7 @@ namespace Moirai.Atropos.Input
             return output;
         }
         
-        public bool GetBool(string actionName, string actionGroup = "")
+        public override bool GetBool(string actionName, string actionGroup = "")
         {
             bool output = false;
             
@@ -44,7 +46,7 @@ namespace Moirai.Atropos.Input
             return output;
         }
 
-        public float GetFloat(string actionName, string actionGroup = "")
+        public override float GetFloat(string actionName, string actionGroup = "")
         {
             float output = 0f;
             
@@ -54,7 +56,7 @@ namespace Moirai.Atropos.Input
             return output;
         }
 
-        public Vector2 GetVector2(string actionName, string actionGroup = "")
+        public override Vector2 GetVector2(string actionName, string actionGroup = "")
         {
             Vector2 output = Vector2.zero;
             
@@ -64,7 +66,7 @@ namespace Moirai.Atropos.Input
             return output;
         }
 
-        public bool GetMouseButtonDown(EMouseButton button)
+        public override bool GetMouseButtonDown(EMouseButton button)
         {
             switch (button)
             {
@@ -77,7 +79,7 @@ namespace Moirai.Atropos.Input
             }
         }
 
-        public bool GetMouseButtonUp(EMouseButton button)
+        public override bool GetMouseButtonUp(EMouseButton button)
         {
             switch (button)
             {
@@ -90,7 +92,7 @@ namespace Moirai.Atropos.Input
             }
         }
 
-        public bool GetMouseButtonPressed(EMouseButton button)
+        public override bool GetMouseButtonPressed(EMouseButton button)
         {
             switch (button)
             {
@@ -103,20 +105,20 @@ namespace Moirai.Atropos.Input
             }
         }
 
-        public Vector2 GetMousePosition()
+        public override Vector2 GetMousePosition()
         {
             return Mouse.current.position.ReadValue();
         }
 
         private static readonly Vector2 s_ScalingFactor = new Vector2(0.00833f, 0.00833f); // 1/120
-        public Vector2 GetScrollDelta()
+        public override Vector2 GetScrollDelta()
         {
             // 新输入系统的 scroll 返回的是 tick（刻度），每滚一格通常是 120
             // 除以 120 是为了与旧系统值范围相似
             return Vector2.Scale(Mouse.current.scroll.ReadValue(), s_ScalingFactor);
         }
 
-        public void OnInit()
+        protected override void OnInit()
         {
             _inputActionsDictionary.Clear();
 
@@ -137,7 +139,7 @@ namespace Moirai.Atropos.Input
             }
         }
 
-        public void ResetAllInputStates()
+        public override void ResetAllInputStates()
         {
             InputSystem.FlushDisconnectedDevices();
             foreach (var device in InputSystem.devices)

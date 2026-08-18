@@ -2,7 +2,7 @@
 
 > 抽象输入层：以统一的轮询 API 屏蔽 Unity 新旧输入系统与移动端 UI 触控的差异，并内置按键提示（Prompts）系统。
 
-输入模块（`Moirai.Atropos.Input`）通过 `IInputHandler` 抽象三种输入后端，业务代码只需面向 `GameModule.Input` 的动作名（Action）API 编程，切换后端无需改动调用方。模块还监听 UI 模态事件与应用焦点事件，自动屏蔽/恢复输入，并基于 Input System 提供跨设备的按键图标提示组件。
+输入模块（`Moirai.Atropos.Input`）通过 `InputHandler` 抽象三种输入后端，业务代码只需面向 `GameModule.Input` 的动作名（Action）API 编程，切换后端无需改动调用方。模块还监听 UI 模态事件与应用焦点事件，自动屏蔽/恢复输入，并基于 Input System 提供跨设备的按键图标提示组件。
 
 ## 核心特性
 
@@ -20,11 +20,11 @@
 |---------|------|
 | `Moirai.Atropos.Input.IInputModule` | 输入模块接口，`GameModule.Input` 返回此类型 |
 | `Moirai.Atropos.Input.InputModule` | 输入模块实现，聚合 Handler 与状态开关 |
-| `Moirai.Atropos.Input.IInputHandler` | 输入处理器抽象接口，定义全部输入查询方法 |
+| `Moirai.Atropos.Input.InputHandler` | 输入处理器抽象基类（`[Serializable]`），定义全部输入查询方法。通过 `[SerializeReference]` 在输入设置中配置 |
 | `Moirai.Atropos.Input.UnityInputSystemHandler` | 基于 Unity Input System 的处理器（宏 `ENABLE_INPUT_SYSTEM`） |
 | `Moirai.Atropos.Input.UnityInputManagerHandler` | 基于旧版 Input Manager 的处理器（宏 `ENABLE_LEGACY_INPUT_MANAGER`） |
 | `Moirai.Atropos.Input.UIMobileInputHandler` | 移动端处理器，读取场景中 `InputButton` / `InputAxes` 组件状态 |
-| `Moirai.Atropos.Input.InputSettings` | 框架设置（"输入设置"），配置输入处理器类型并懒加载初始化 |
+| `Moirai.Atropos.Input.InputSettings` | 框架设置（"输入设置"），通过 `[SerializeReference]` 配置输入处理器并懒加载初始化 |
 | `Moirai.Atropos.Input.InputActionsConfiguration` | 输入动作配置资产，按分组登记 bool/float/Vector2 动作名，用于生成代码 |
 | `Moirai.Atropos.Input.EMouseButton` | 鼠标键枚举：`Left = 0`、`Right = 1`、`Middle = 2` |
 | `Moirai.Atropos.Input.BoolAction` / `FloatAction` / `Vector2Action` | 可序列化动作值结构体，含按下/抬起状态与方向判断 |
@@ -135,7 +135,7 @@ Sprite device = InputDevicePromptSystem.GetDeviceSprite(spriteName);
 
 ## 注意事项
 
-- 处理器类型在框架设置"输入设置"中配置，运行时通过 `InputSettings.InputHandler` 懒加载；切换处理器需重启生效
+- 处理器类型在框架设置"输入设置"中通过 `[SerializeReference]` 配置，运行时通过 `InputSettings.InputHandler` 懒加载；切换处理器需重启生效
 - `UnityInputSystemHandler` / `UnityInputManagerHandler` 分别受 `ENABLE_INPUT_SYSTEM` / `ENABLE_LEGACY_INPUT_MANAGER` 宏控制编译
 - 存在 UI 模态窗口时 `LockPlayerController` 恒为 true（由 `UIModuleEvent` 驱动），属预期行为
 - `UIMobileInputHandler` 的 `GetButtonDown` / `GetButtonUp` 尚未实现（抛出 `NotImplementedException`），仅使用 bool 持续态查询

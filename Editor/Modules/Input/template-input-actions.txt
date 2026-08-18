@@ -109,7 +109,7 @@ namespace @namespace@
         /// <summary>
         /// 根据当前的输入处理器（针对玩家）更新所有动作的值。
         /// </summary>
-        public void SetValues(IInputHandler inputHandler)
+        public void SetValues(InputHandler inputHandler)
         {
             if (inputHandler == null) return;
             
