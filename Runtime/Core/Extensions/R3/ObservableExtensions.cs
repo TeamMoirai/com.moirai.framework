@@ -8,7 +8,7 @@ namespace Moirai.Atropos.R3
 {
     public static class ObservableExtensions
     {
-        #region CallbackEventHandler
+        #region 回调事件处理器 [CallbackEventHandler]
         
         /// <summary>
         /// 为 <see cref="CallbackEventHandler"/> 创建 <see cref="Observable{TEventType}"/>

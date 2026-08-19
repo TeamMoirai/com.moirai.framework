@@ -34,7 +34,7 @@ namespace Moirai.Atropos.ObjectPool
             return poolableObject;
         }
 
-        #region Implements ObjectBase
+        #region 实现ObjectBase [Implements ObjectBase]
 
         protected internal override void OnSpawn()
         {

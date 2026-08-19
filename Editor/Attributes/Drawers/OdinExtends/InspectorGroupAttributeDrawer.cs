@@ -1,4 +1,4 @@
-﻿using Sirenix.OdinInspector.Editor.ValueResolvers;
+using Sirenix.OdinInspector.Editor.ValueResolvers;
 using Sirenix.Utilities.Editor;
 using UnityEditor;
 using UnityEngine;
@@ -15,7 +15,7 @@ namespace Sirenix.OdinInspector.Editor.Drawers
 
         protected override void Initialize()
         {
-            #region 原方法
+            #region 原方法 [ORIGINAL METHOD]
 
             this.titleGetter = ValueResolver.GetForString(this.Property, this.Attribute.GroupName);
             if (!this.Attribute.HasDefinedExpanded)
@@ -38,7 +38,7 @@ namespace Sirenix.OdinInspector.Editor.Drawers
 
             GUIHelper.PopColor(); // 弹出颜色，避免绘制内容区域颜色过深
 
-            #region 原方法
+            #region 原方法 [ORIGINAL METHOD]
 
             this.Property.State.Expanded = SirenixEditorGUI.Foldout(this.Property.State.Expanded, GUIHelper.TempContent(this.titleGetter.HasError ? property.Label.text : this.titleGetter.GetValue()));
             SirenixEditorGUI.EndBoxHeader();

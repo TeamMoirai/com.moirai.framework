@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -273,7 +273,7 @@ namespace Moirai.Atropos.Editor
            
             EditorGUI.BeginProperty(position, new GUIContent($"{typeof(T).Name} Info"), property);
   
-            #region 检查资源是否已移动
+            #region 检查资源是否已移动 [CHECK ASSET MOVED]
             
             string guid = property.FindPropertyRelative(guidProperty).stringValue;
             string path = property.FindPropertyRelative(pathProperty).stringValue;
@@ -357,7 +357,7 @@ namespace Moirai.Atropos.Editor
             where T : Object
         {
            
-            #region 检查资源是否已移动
+            #region 检查资源是否已移动 [CHECK ASSET MOVED]
             
             string path = property.FindPropertyRelative(pathProperty).stringValue;
             string guid = property.FindPropertyRelative(guidProperty).stringValue;
@@ -432,7 +432,7 @@ namespace Moirai.Atropos.Editor
             where T : Object
         {
 
-            #region 检查资源是否已移动
+            #region 检查资源是否已移动 [CHECK ASSET MOVED]
 
             string path = pathProperty.stringValue;
             string guid = guidProperty.stringValue;

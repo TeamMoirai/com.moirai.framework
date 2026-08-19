@@ -57,7 +57,7 @@ namespace Moirai.Atropos
             }
             catch (Exception e)
             {
-                Debug.LogError("[ZipWrapper]: " + e);
+                LogUtility.Error("[ZipWrapper]: " + e);
 
                 return false;
             }
@@ -118,7 +118,7 @@ namespace Moirai.Atropos
                 }
                 catch (Exception e)
                 {
-                    Debug.LogError("[ZipWrapper]: " + e);
+                    LogUtility.Error("[ZipWrapper]: " + e);
                     return false;
                 }
             }
@@ -148,7 +148,7 @@ namespace Moirai.Atropos
             }
             catch (Exception e)
             {
-                Debug.LogError("[ZipWrapper]: " + e);
+                LogUtility.Error("[ZipWrapper]: " + e);
                 return false;
             }
             finally
@@ -190,7 +190,7 @@ namespace Moirai.Atropos
             }
             catch (Exception e)
             {
-                Debug.LogError("[ZipWrapper]: " + e);
+                LogUtility.Error("[ZipWrapper]: " + e);
                 return false;
             }
 

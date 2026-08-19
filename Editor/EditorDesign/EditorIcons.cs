@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using UnityEditor;
 using System.Collections.Generic;
 using System.Linq;
@@ -351,7 +351,7 @@ namespace Moirai.Atropos.Editor
         // https://gist.github.com/MattRix/c1f7840ae2419d8eb2ec0695448d4321
         // https://unitylist.com/p/5c3/Unity-editor-icons
 
-        #region ICONS
+        #region 图标 [ICONS]
 
         public static string[] ico_list =
         {

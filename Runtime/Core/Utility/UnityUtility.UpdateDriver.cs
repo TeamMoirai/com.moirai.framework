@@ -14,7 +14,7 @@ namespace Moirai.Atropos
     {
         private static IUpdateDriverModule s_UpdateDriver;
 
-        #region 控制协程Coroutine
+        #region 控制协程 [COROUTINE CONTROL]
 
         public static GameCoroutine StartCoroutine(string name, IEnumerator routine, MonoBehaviour bindBehaviour)
         {
@@ -166,7 +166,7 @@ namespace Moirai.Atropos
 
         #endregion
 
-        #region 注入UnityUpdate/FixedUpdate/LateUpdate
+        #region 注入 Unity Update [INJECT UNITY UPDATE]
 
         /// <summary>
         /// 为给外部提供的 添加帧更新事件。
@@ -248,7 +248,7 @@ namespace Moirai.Atropos
 
         #endregion
 
-        #region Unity Events 注入
+        #region Unity 事件注入 [UNITY EVENTS INJECT]
 
         /// <summary>
         /// 为给外部提供的Destroy注册事件。

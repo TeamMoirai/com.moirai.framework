@@ -45,7 +45,7 @@ namespace Moirai.Atropos.Editor
         [LabelText("输入偏移值")]
         public float addValue = 0.1f;
 
-        #region 求期望
+        #region 求期望 [EXPECTATION]
 
         private const string EXPECTATION_GROUP = "求期望";
 
@@ -80,7 +80,7 @@ namespace Moirai.Atropos.Editor
 
         #endregion
 
-        #region 求次数
+        #region 求次数 [COUNT]
 
         private const string COUNT_GROUP = "求次数";
 

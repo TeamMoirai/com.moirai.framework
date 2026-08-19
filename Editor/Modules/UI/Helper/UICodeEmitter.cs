@@ -135,7 +135,7 @@ namespace Moirai.Atropos.UI.Editor
             controllerContent.AppendLine($"\t\t\t{BINDER_VARIABLE_NAME} = gameObject.GetComponent<{className}Binder>();");
             controllerContent.AppendLine($"\t\t\tif ({BINDER_VARIABLE_NAME} == null)");
             controllerContent.AppendLine("\t\t\t{");
-            controllerContent.AppendLine($"\t\t\t\tLog.Error($\"根物体: {{gameObject.name}} 缺少组件 {className}Binder, 请检查！！！\");");
+            controllerContent.AppendLine($"\t\t\t\tLogUtility.Error($\"根物体: {{gameObject.name}} 缺少组件 {className}Binder, 请检查！！！\");");
             controllerContent.AppendLine("\t\t\t\treturn;");
             controllerContent.AppendLine("\t\t\t}");
 

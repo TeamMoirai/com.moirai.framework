@@ -13,7 +13,7 @@ namespace Moirai.Atropos.Input
 
         private bool _boolValue;
 
-        #region IBoolAction
+        #region 布尔动作接口 [IBoolAction]
 
         public string ActionName => m_ActionName;
 

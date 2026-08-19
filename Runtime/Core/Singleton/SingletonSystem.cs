@@ -256,7 +256,7 @@ namespace Moirai.Atropos
             return null;
         }
 
-        #region 生命周期
+        #region 生命周期 [LIFECYCLE]
 
         private static bool s_IsInit = false;
 

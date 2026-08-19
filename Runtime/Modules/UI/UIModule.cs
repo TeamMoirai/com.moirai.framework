@@ -158,7 +158,7 @@ namespace Moirai.Atropos.UI
 
         #endregion
 
-        #region 设置安全区域
+        #region 设置安全区域 [SET SAFE AREA]
 
         /// <summary>
         /// 设置屏幕安全区域（异形屏支持）。
@@ -425,35 +425,35 @@ namespace Moirai.Atropos.UI
             {
                 return window;
             }
+
+            if (!string.IsNullOrEmpty(windowName) && _cache.TryGetValue(windowName, out window))
+            {
+                window.gameObject.SetActive(true);
+                _cache.Remove(windowName);
+                Push(window); // 首次压入
+                window.TryInvoke(OnWindowPrepare, userData);
+            }
             else
             {
-                if (!string.IsNullOrEmpty(windowName) && _cache.TryGetValue(windowName, out window))
-                {
-                    window.gameObject.SetActive(true);
-                    _cache.Remove(windowName);
-                    Push(window); // 首次压入
-                    window.TryInvoke(OnWindowPrepare, userData);
-                }
-                else
-                {
-                    window = CreateInstance(type, windowName, assetName, fromResources);
-                    Push(window); // 首次压入
-                    window.InternalLoad(window.AssetName, OnWindowPrepare, isAsync, userData).Forget();
-                }
-                
-                float time = 0f;
-                while (!window.IsLoadDone)
-                {
-                    time += UnityEngine.Time.unscaledDeltaTime;
-                    if (time > 60f)
-                    {
-                        break;
-                    }
-                    await UniTask.Yield();
-                }
-                
-                return window;
+                window = CreateInstance(type, windowName, assetName, fromResources);
+                Push(window); // 首次压入
+                window.InternalLoad(window.AssetName, OnWindowPrepare, isAsync, userData).Forget();
             }
+
+            // 使用 WaitUntil 替代手动轮询，避免每帧 unscaledDeltaTime 累加；CTS 提供 60s 超时保护
+            using (var cts = new System.Threading.CancellationTokenSource(System.TimeSpan.FromSeconds(60)))
+            {
+                try
+                {
+                    await UniTask.WaitUntil(() => window.IsLoadDone, cancellationToken: cts.Token);
+                }
+                catch (System.OperationCanceledException)
+                {
+                    LogUtility.Warning("ShowUIAsyncAwait timed out waiting for window load: {0}", windowName);
+                }
+            }
+
+            return window;
         }
 
         /// <summary>
@@ -473,7 +473,7 @@ namespace Moirai.Atropos.UI
 
             if (window.CacheInstance)
             {
-                _cache.Add(windowName, window);
+                _cache[windowName] = window;
                 window.InternalClose();
             }
             else
@@ -530,7 +530,7 @@ namespace Moirai.Atropos.UI
                 UIWindow window = _uiStack[i];
                 if (!isShutDown && window.CacheInstance)
                 {
-                    _cache.Add(window.WindowName, window);
+                    _cache[window.WindowName] = window;
                     window.InternalClose();
                 }
                 else
@@ -543,75 +543,46 @@ namespace Moirai.Atropos.UI
         }
 
         /// <summary>
-        /// 关闭所有窗口除了。
+        /// 关闭所有窗口除了指定窗口。
         /// </summary>
         public void CloseAllWithOut(UIWindow withOut)
         {
-            for (int i = _uiStack.Count - 1; i >= 0; i--)
-            {
-                UIWindow window = _uiStack[i];
-                if (window == withOut)
-                {
-                    continue;
-                }
-
-                if (window.CacheInstance)
-                {
-                    _cache.Add(window.WindowName, window);
-                    window.InternalClose();
-                }
-                else
-                {
-                    window.InternalDestroy();
-                }
-                _uiStack.RemoveAt(i);
-            }
-            if (_uiStack.Count > 0) _uiStack.Last().InternalRefresh(false);
+            CloseAllWithOutInternal(window => window == withOut);
         }
 
         /// <summary>
-        /// 关闭所有窗口除了。
+        /// 关闭所有窗口除了指定类型的窗口。
         /// </summary>
         public void CloseAllWithOut<T>() where T : UIWindow
         {
-            for (int i = _uiStack.Count - 1; i >= 0; i--)
-            {
-                UIWindow window = _uiStack[i];
-                if (window.GetType() == typeof(T))
-                {
-                    continue;
-                }
-
-                if (window.CacheInstance)
-                {
-                    _cache.Add(window.WindowName, window);
-                    window.InternalClose();
-                }
-                else
-                {
-                    window.InternalDestroy();
-                }
-                _uiStack.RemoveAt(i);
-            }
-            if (_uiStack.Count > 0) _uiStack.Last().InternalRefresh(false);
+            CloseAllWithOutInternal(window => window.GetType() == typeof(T));
         }
 
         /// <summary>
-        /// 关闭所有窗口除了。
+        /// 关闭所有窗口除了指定层级的窗口。
         /// </summary>
         public void CloseAllWithOut(UILayer withOut)
+        {
+            CloseAllWithOutInternal(window => window.WindowLayer == (int)withOut);
+        }
+
+        /// <summary>
+        /// 关闭所有不匹配跳过条件的窗口（内部统一实现）。
+        /// </summary>
+        /// <param name="shouldSkip">返回 true 时跳过该窗口（保留不关闭）。</param>
+        private void CloseAllWithOutInternal(System.Func<UIWindow, bool> shouldSkip)
         {
             for (int i = _uiStack.Count - 1; i >= 0; i--)
             {
                 UIWindow window = _uiStack[i];
-                if (window.WindowLayer == (int)withOut)
+                if (shouldSkip(window))
                 {
                     continue;
                 }
 
                 if (window.CacheInstance)
                 {
-                    _cache.Add(window.WindowName, window);
+                    _cache[window.WindowName] = window;
                     window.InternalClose();
                 }
                 else
@@ -722,15 +693,17 @@ namespace Moirai.Atropos.UI
                 return ret;
             }
 
-            float time = 0f;
-            while (!ret.IsLoadDone)
+            // 使用 WaitUntil 替代手动轮询；CTS 提供 60s 超时保护
+            using (var cts = new System.Threading.CancellationTokenSource(System.TimeSpan.FromSeconds(60)))
             {
-                time += UnityEngine.Time.unscaledDeltaTime;
-                if (time > 60f)
+                try
                 {
-                    break;
+                    await UniTask.WaitUntil(() => ret.IsLoadDone, cancellationToken: cts.Token);
                 }
-                await UniTask.Yield();
+                catch (System.OperationCanceledException)
+                {
+                    LogUtility.Warning("GetUIAsyncAwait timed out waiting for window load: {0}", typeof(T).FullName);
+                }
             }
             return ret;
         }
@@ -760,15 +733,16 @@ namespace Moirai.Atropos.UI
 
             async UniTaskVoid GetUIAsyncImp(Action<T> ctx)
             {
-                float time = 0f;
-                while (!ret.IsLoadDone)
+                using (var cts = new System.Threading.CancellationTokenSource(System.TimeSpan.FromSeconds(60)))
                 {
-                    time += UnityEngine.Time.unscaledDeltaTime;
-                    if (time > 60f)
+                    try
                     {
-                        break;
+                        await UniTask.WaitUntil(() => ret.IsLoadDone, cancellationToken: cts.Token);
                     }
-                    await UniTask.Yield();
+                    catch (System.OperationCanceledException)
+                    {
+                        LogUtility.Warning("GetUIAsync timed out waiting for window load: {0}", typeof(T).FullName);
+                    }
                 }
                 ctx?.Invoke(ret);
             }

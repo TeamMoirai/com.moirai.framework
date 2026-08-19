@@ -6,6 +6,9 @@ using YooAsset;
 
 namespace Moirai.Atropos.Audio
 {
+    /// <summary>
+    /// 音频模块接口。提供 2D/3D 音效播放、音轨音量控制、淡入淡出与暂停等能力。
+    /// </summary>
     public interface IAudioModule
     {
         #region 属性 [PROPERTIES]

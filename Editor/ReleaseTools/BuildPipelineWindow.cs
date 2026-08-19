@@ -116,7 +116,7 @@ namespace Moirai.Atropos.Editor
             EditorGUILayout.EndScrollView();
         }
 
-        #region Header
+        #region 头部 [HEADER]
 
         private void DrawHeader()
         {
@@ -159,7 +159,7 @@ namespace Moirai.Atropos.Editor
 
         #endregion
 
-        #region 基础设置
+        #region 基础设置 [BASIC SETTINGS]
 
         private void DrawBasicSettings()
         {
@@ -227,7 +227,7 @@ namespace Moirai.Atropos.Editor
 
         #endregion
 
-        #region 最小包设置
+        #region 最小包设置 [MIN PACKAGE SETTINGS]
 
         private void DrawMinimalPackageSettings()
         {
@@ -270,7 +270,7 @@ namespace Moirai.Atropos.Editor
 
         #endregion
 
-        #region 高级设置
+        #region 高级设置 [ADVANCED SETTINGS]
 
         private void DrawAdvancedSettings()
         {
@@ -313,7 +313,7 @@ namespace Moirai.Atropos.Editor
 
         #endregion
 
-        #region 热更DLL设置
+        #region 热更 DLL 设置 [HOTFIX DLL SETTINGS]
 
         private void DrawDllSettings()
         {
@@ -336,7 +336,7 @@ namespace Moirai.Atropos.Editor
 
         #endregion
 
-        #region 打包Player设置
+        #region 打包 Player 设置 [PLAYER BUILD SETTINGS]
 
         private void DrawPlayerSettings()
         {
@@ -381,7 +381,7 @@ namespace Moirai.Atropos.Editor
 
         #endregion
 
-        #region 操作按钮
+        #region 操作按钮 [ACTION BUTTONS]
 
         private void DrawActionButtons()
         {
@@ -431,7 +431,7 @@ namespace Moirai.Atropos.Editor
 
         #endregion
 
-        #region 构建日志
+        #region 构建日志 [BUILD LOG]
 
         private void DrawBuildLog()
         {
@@ -464,7 +464,7 @@ namespace Moirai.Atropos.Editor
 
         #endregion
 
-        #region 构建执行
+        #region 构建执行 [BUILD EXECUTION]
 
         private void ExecuteBuild(bool buildPlayer)
         {
@@ -567,7 +567,7 @@ namespace Moirai.Atropos.Editor
 
         #endregion
 
-        #region 持久化
+        #region 持久化 [PERSISTENCE]
 
         private void LoadSettings()
         {
@@ -649,7 +649,7 @@ namespace Moirai.Atropos.Editor
 
         #endregion
 
-        #region 工具方法
+        #region 工具方法 [UTILITY METHODS]
 
         private static string PathGetRelative(string relativeTo, string path)
         {

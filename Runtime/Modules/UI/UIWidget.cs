@@ -142,7 +142,7 @@ namespace Moirai.Atropos.UI
             return needUpdate;
         }
 
-        #region Create
+        #region 创建 [CREATE]
 
         /// <summary>
         /// 创建窗口内嵌的界面。
@@ -276,7 +276,7 @@ namespace Moirai.Atropos.UI
 
         #endregion
 
-        #region Destroy
+        #region 销毁 [DESTROY]
 
         /// <summary>
         /// 组件被销毁调用。

@@ -20,7 +20,7 @@ Save 模块（`SaveModule`）将存档的序列化格式与文件读写流程解
 |---------|------|
 | `ISaveModule` | 存档模块接口：`Save` / `Load` / `DeleteSave` / `DeleteSaveFolder` / `DeleteAllSaveFiles` / `FileExists` / `DetermineSavePath`；经 `GameModule.Save` 访问 |
 | `SaveModule` | 模块实现（`Module, ISaveModule`），`OnInit` 时从 `SaveSettings` 读取 Handler 并注入加密密钥 |
-| `ISaveHandler` | 序列化处理器接口：`Task Save(object objectToSave, FileStream saveFile)` 与 `Task<T> Load<T>(FileStream saveFile)` |
+| `ISaveHandler` | 序列化处理器接口：`UniTask Save(object objectToSave, FileStream saveFile)` 与 `UniTask<T> Load<T>(FileStream saveFile)` |
 | `JsonSaveHandler` | JSON 格式处理器，编辑器下 prettyPrint、真机紧凑字节 |
 | `JsonEncryptedSaveHandler` | JSON 序列化 + AES 加密（继承 `EncryptedSaveHandlerBase`） |
 | `BinarySaveHandler` | 二进制格式（`BinaryFormatter`），已标记 `[System.Obsolete]`，存在反序列化 RCE 风险，不建议使用 |
@@ -33,7 +33,7 @@ Save 模块（`SaveModule`）将存档的序列化格式与文件读写流程解
 ## 快速上手
 
 ```csharp
-using System.Threading.Tasks;
+using Cysharp.Threading.Tasks;
 using Moirai.Atropos;
 using UnityEngine;
 
@@ -81,26 +81,26 @@ string path = GameModule.Save.DetermineSavePath();    // persistentDataPath/Data
 
 ```csharp
 using System.IO;
-using System.Threading.Tasks;
+using Cysharp.Threading.Tasks;
 using Moirai.Atropos;
 using Moirai.Atropos.Save;
 
 public class MessagePackSaveHandler : ISaveHandler
 {
-    public Task Save(object objectToSave, FileStream saveFile)
+    public UniTask Save(object objectToSave, FileStream saveFile)
     {
         byte[] bytes = MessagePackUtility.Serialize(objectToSave);
         saveFile.Write(bytes, 0, bytes.Length);
         saveFile.Close();
-        return Task.CompletedTask;
+        return UniTask.CompletedTask;
     }
 
-    public Task<T> Load<T>(FileStream saveFile)
+    public UniTask<T> Load<T>(FileStream saveFile)
     {
         using var ms = new MemoryStream();
         saveFile.CopyTo(ms);
         saveFile.Close();
-        return Task.FromResult(MessagePackUtility.Deserialize<T>(ms.ToArray()));
+        return UniTask.FromResult(MessagePackUtility.Deserialize<T>(ms.ToArray()));
     }
 }
 

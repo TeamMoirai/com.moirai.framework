@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.Serialization;
@@ -80,7 +80,7 @@ namespace Moirai.Atropos.Collections
 			}
 		}
 
-		#region IDictionary<TKey, TValue>
+		#region IDictionary 字典接口 [IDICT GENERIC]
 		
 		public ICollection<TKey> Keys {	get { return ((IDictionary<TKey, TValue>)m_dict).Keys; } }
 		public ICollection<TValue> Values { get { return ((IDictionary<TKey, TValue>)m_dict).Values; } }
@@ -150,7 +150,7 @@ namespace Moirai.Atropos.Collections
 
 		#endregion
 
-		#region IDictionary
+		#region IDictionary 字典接口 [IDICT]
 
 		public bool IsFixedSize { get { return ((IDictionary)m_dict).IsFixedSize; } }
 		ICollection IDictionary.Keys { get { return ((IDictionary)m_dict).Keys; } }
@@ -191,7 +191,7 @@ namespace Moirai.Atropos.Collections
 
 		#endregion
 
-		#region IDeserializationCallback
+		#region 反序列化回调 [IDESERIALIZATION]
 
 		public void OnDeserialization(object sender)
 		{
@@ -200,7 +200,7 @@ namespace Moirai.Atropos.Collections
 
 		#endregion
 
-		#region ISerializable
+		#region 序列化接口 [ISERIALIZABLE]
 
 		protected SerializableDictionaryBase(SerializationInfo info, StreamingContext context) 
 		{

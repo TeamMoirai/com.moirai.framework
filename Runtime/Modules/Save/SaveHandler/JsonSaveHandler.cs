@@ -1,6 +1,6 @@
 using System.IO;
 using System.Text;
-using System.Threading.Tasks;
+using Cysharp.Threading.Tasks;
 
 namespace Moirai.Atropos.Save
 {
@@ -11,7 +11,7 @@ namespace Moirai.Atropos.Save
         /// </summary>
         /// <param name="objectToSave"></param>
         /// <param name="saveFile"></param>
-        public Task Save(object objectToSave, FileStream saveFile)
+        public UniTask Save(object objectToSave, FileStream saveFile)
         {
 #if UNITY_EDITOR
             // 编辑器保留可读格式便于人工检查存档；真机走紧凑字节通路
@@ -24,7 +24,7 @@ namespace Moirai.Atropos.Save
             saveFile.Write(bytes, 0, bytes.Length);
             saveFile.Close();
 
-            return Task.CompletedTask;
+            return UniTask.CompletedTask;
         }
 
         /// <summary>
@@ -32,14 +32,14 @@ namespace Moirai.Atropos.Save
         /// </summary>
         /// <param name="saveFile"></param>
         /// <returns></returns>
-        public Task<T> Load<T>(FileStream saveFile)
+        public UniTask<T> Load<T>(FileStream saveFile)
         {
             // 整体读为字节后直接解析（零 string 中间态；解析端已兼容 BOM 与编辑器可读格式）
             byte[] buffer = ReadAllBytes(saveFile);
             T savedObject = JsonUtility.ToObject<T>(buffer);
             saveFile.Close();
 
-            return Task.FromResult(savedObject);
+            return UniTask.FromResult(savedObject);
         }
 
         private static byte[] ReadAllBytes(FileStream stream)

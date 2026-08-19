@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -32,7 +32,7 @@ namespace Moirai.Atropos.Editor
     /// </example>
     public static class ReleaseTools
     {
-        #region CLI 入口
+        #region CLI 入口 [CLI ENTRY]
 
         public static void BuildDll()
         {
@@ -79,7 +79,7 @@ namespace Moirai.Atropos.Editor
 
         #endregion
 
-        #region MenuItem 入口（兼容原有菜单）
+        #region 菜单入口 [MENU ITEM ENTRY]
 
         [MenuItem("Tools/Build/一键打包AssetBundle _F8", false, 200)]
         // ReSharper disable once InconsistentNaming
@@ -130,7 +130,7 @@ namespace Moirai.Atropos.Editor
 
         #endregion
 
-        #region 参数化构建入口
+        #region 参数化构建入口 [PARAM BUILD ENTRY]
 
         /// <summary>
         /// 通过 BuildConfig 执行完整构建流程
@@ -181,7 +181,7 @@ namespace Moirai.Atropos.Editor
 
         #endregion
 
-        #region AssetBundle 构建
+        #region AssetBundle 构建 [AB BUILD]
 
         private static YooAsset.Editor.BuildResult BuildInternalWithConfig(BuildConfig config)
         {
@@ -291,7 +291,7 @@ namespace Moirai.Atropos.Editor
 
         #endregion
 
-        #region 最小包后处理
+        #region 最小包后处理 [MIN PACKAGE POSTPROCESS]
 
         /// <summary>
         /// 读取文件的文本数据
@@ -429,7 +429,7 @@ namespace Moirai.Atropos.Editor
 
         #endregion
 
-        #region Player 构建
+        #region Player 构建 [PLAYER BUILD]
 
         public static void BuildImp(BuildTargetGroup buildTargetGroup, BuildTarget buildTarget, string locationPathName)
         {
@@ -458,7 +458,7 @@ namespace Moirai.Atropos.Editor
 
         #endregion
 
-        #region 工具方法
+        #region 工具方法 [UTILITY METHODS]
 
         private static BuildTarget GetBuildTarget(string platform)
         {

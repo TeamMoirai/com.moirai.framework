@@ -1,5 +1,6 @@
 using System.IO;
 using UnityEditor;
+using UnityEngine;
 
 namespace Moirai.Atropos.Editor
 {
@@ -21,7 +22,7 @@ namespace Moirai.Atropos.Editor
 
             if (string.IsNullOrEmpty(relativePath))
             {
-                LogUtility.Error("Package root path is empty. Check the GUID of {0}.", ASMDEF_NAME);
+                Debug.LogError($"Package root path is empty. Check the GUID of {ASMDEF_NAME}.");
                 return string.Empty;
             }
 

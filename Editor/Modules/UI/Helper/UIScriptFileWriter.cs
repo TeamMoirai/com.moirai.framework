@@ -29,7 +29,7 @@ namespace Moirai.Atropos.UI.Editor
 
             Directory.CreateDirectory(scriptFolderPath);
 
-            #region 自动生成脚本
+            #region 自动生成脚本 [AUTO GEN SCRIPT]
 
             scriptContent = scriptContent.TrimStart(Environment.NewLine.ToCharArray()).TrimEnd(Environment.NewLine.ToCharArray());
 
@@ -43,12 +43,16 @@ namespace Moirai.Atropos.UI.Editor
 
             #endregion
 
-            #region 窗口实现类模板
+            #region 窗口实现类模板 [WINDOW IMPL TEMPLATE]
 
             windowScriptContent = windowScriptContent.TrimEnd(Environment.NewLine.ToCharArray());
 
             var windowFilePath = Path.Combine(scriptFolderPath, $"{className}.cs");
-            File.WriteAllText(windowFilePath, windowScriptContent, Encoding.UTF8);
+
+            if (!File.Exists(windowFilePath) || !IsContentUnchanged(windowFilePath, windowScriptContent))
+            {
+                File.WriteAllText(windowFilePath, windowScriptContent, Encoding.UTF8);
+            }
 
             #endregion
 
@@ -57,8 +61,8 @@ namespace Moirai.Atropos.UI.Editor
 
         private static bool IsContentUnchanged(string filePath, string newContent)
         {
-            var oldText = File.ReadAllText(filePath, Encoding.UTF8);
-            return oldText.Equals(newContent, StringComparison.Ordinal);
+            var existingContent = File.ReadAllText(filePath, Encoding.UTF8);
+            return string.Equals(existingContent, newContent);
         }
     }
 }

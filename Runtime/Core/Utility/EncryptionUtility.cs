@@ -141,7 +141,7 @@ namespace Moirai.Atropos
         
         static StringBuilder stringBuilderCache = new StringBuilder(1024);
         
-        #region MD5
+        #region MD5 [MD5]
         
         /// <summary>
         /// Generate MD5
@@ -235,7 +235,7 @@ namespace Moirai.Atropos
 
         #endregion
         
-        #region AESKey
+        #region AES密钥 [AES KEY]
         
         /// <summary>
         /// 生成8位密钥；
@@ -352,7 +352,7 @@ namespace Moirai.Atropos
         
         #endregion
 
-        #region HMACSHA
+        #region HMAC-SHA [HMACSHA]
 
         /// <summary>
         /// 加密算法HMACSHA1 base64
@@ -471,7 +471,7 @@ namespace Moirai.Atropos
         
         #endregion
 
-        #region AES
+        #region AES [AES]
 
         /// <summary>
         /// AES对称加密byte类型内容

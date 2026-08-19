@@ -1,4 +1,4 @@
-﻿using UnityEditor;
+using UnityEditor;
 
 namespace Moirai.Atropos.Editor
 {
@@ -75,7 +75,7 @@ namespace Moirai.Atropos.Editor
             return !ScriptingDefineSymbols.HasScriptingDefineSymbol(LOG_ALL_SYMBOL);
         }
         
-        #region Debug Logs
+        #region 调试日志 [DEBUG LOGS]
 
 #if LOG_DEBUG_ENABLE
         /// <summary>
@@ -115,7 +115,7 @@ namespace Moirai.Atropos.Editor
         
         #endregion
         
-        #region Debug And Above Logs
+        #region 调试及以上日志 [DEBUG AND ABOVE]
 
 #if LOG_DEBUG_AND_ABOVE
         /// <summary>
@@ -153,7 +153,7 @@ namespace Moirai.Atropos.Editor
         
         #endregion
 
-        #region Info Logs
+        #region 信息日志 [INFO LOGS]
 
 #if LOG_INFO_ENABLE
         /// <summary>
@@ -195,7 +195,7 @@ namespace Moirai.Atropos.Editor
         
         #endregion
         
-        #region Info And Above Logs
+        #region 信息及以上日志 [INFO AND ABOVE]
 
 #if LOG_INFO_AND_ABOVE
         /// <summary>
@@ -236,7 +236,7 @@ namespace Moirai.Atropos.Editor
 
         #endregion
         
-        #region Warning Logs
+        #region 警告日志 [WARNING LOGS]
 
 #if LOG_WARNING_ENABLE
         /// <summary>
@@ -280,7 +280,7 @@ namespace Moirai.Atropos.Editor
         
         #endregion
 
-        #region Warning And Above Logs
+        #region 警告及以上日志 [WARNING AND ABOVE]
 
 #if LOG_WARNING_AND_ABOVE
         /// <summary>
@@ -322,7 +322,7 @@ namespace Moirai.Atropos.Editor
         
         #endregion
         
-        #region Error Logs
+        #region 错误日志 [ERROR LOGS]
 
 #if LOG_ERROR_ENABLE
         /// <summary>
@@ -368,7 +368,7 @@ namespace Moirai.Atropos.Editor
         
         #endregion
         
-        #region Error And Above Logs
+        #region 错误及以上日志 [ERROR AND ABOVE]
 
 #if LOG_ERROR_AND_ABOVE 
         /// <summary>
@@ -413,7 +413,7 @@ namespace Moirai.Atropos.Editor
         
         #endregion
         
-        #region Fatal Logs
+        #region 致命日志 [FATAL LOGS]
 
 #if LOG_FATAL_ENABLE
         /// <summary>
@@ -461,7 +461,7 @@ namespace Moirai.Atropos.Editor
         
         #endregion
 
-        #region Fatal And Above Logs
+        #region 致命及以上日志 [FATAL AND ABOVE]
 
 #if LOG_FATAL_AND_ABOVE
         /// <summary>

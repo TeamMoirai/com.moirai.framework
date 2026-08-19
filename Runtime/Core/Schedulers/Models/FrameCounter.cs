@@ -7,7 +7,7 @@ namespace Moirai.Atropos.Schedulers
     {
         private static readonly _ObjectPool<FrameCounter> s_Pool = new _ObjectPool<FrameCounter>(() => new FrameCounter());
       
-        #region Public Properties/Fields
+        #region 公共属性/字段 [PUBLIC PROPS/FIELDS]
         public SchedulerHandle Handle { get; private set; }
         
         /// <summary>
@@ -41,7 +41,7 @@ namespace Moirai.Atropos.Schedulers
 
         #endregion
         
-        #region Public Static Methods
+        #region 公共静态方法 [PUBLIC STATIC METHODS]
         /// <summary>
         /// 注册一个新计数器，该计数器应在经过一定帧后触发事件。
         /// </summary>
@@ -118,14 +118,14 @@ namespace Moirai.Atropos.Schedulers
 
         #endregion
         
-        #region Private Properties/Fields
+        #region 私有属性/字段 [PRIVATE PROPS/FIELDS]
         private SchedulerUnsafeBinding _onComplete;
         private SchedulerUnsafeBinding<int> _onUpdate;
         private float? _timeElapsedBeforeCancel;
         private float? _timeElapsedBeforePause;
         #endregion
         
-        #region Private Constructor
+        #region 私有构造函数 [PRIVATE CTOR]
         private void Init(SchedulerHandle handle, int frame, ref SchedulerUnsafeBinding onComplete, ref SchedulerUnsafeBinding<int> onUpdate, bool isLooped)
         {
             Handle = handle;

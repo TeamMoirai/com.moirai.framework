@@ -15,7 +15,7 @@ namespace Moirai.Atropos.Resource
             }
         }
 
-        #region SetMaterial
+        #region 设置材质 [SetMaterial]
 
         public static void SetMaterial(this Image image, string location, bool isAsync = false, string packageName = "")
         {

@@ -27,7 +27,7 @@ namespace Moirai.Atropos.Localization
 
         private static bool s_HasLoggedWarning;
 
-        #region Version 3
+        #region 版本 3 [VERSION 3]
 
         // 预编译正则表达式
         // 使用正则表达式匹配 {l10n:...} 或 {i18n:...} 或 {g11n:...}
@@ -88,7 +88,7 @@ namespace Moirai.Atropos.Localization
 
         #endregion
 
-        #region Version 2
+        #region 版本 2 [VERSION 2]
 
         private static readonly Regex s_L10NRegex = new Regex(@"\{l10n:(.*?)\}", RegexOptions.IgnoreCase);
         /// <summary>
@@ -133,7 +133,7 @@ namespace Moirai.Atropos.Localization
 
         #endregion
 
-        #region Version 1
+        #region 版本 1 [VERSION 1]
 
         /// <summary>
         /// 将字符串中的 {l10n:ID} 替换为本地化文本

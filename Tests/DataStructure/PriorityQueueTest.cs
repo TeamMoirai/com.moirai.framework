@@ -12,7 +12,7 @@ namespace DataStructure
         {
             var pq = new PriorityQueue<int>();
             pq.Enqueue(5);
-            Assert.AreEqual(1, pq.Count());
+            Assert.AreEqual(1, pq.Count);
         }
 
         [Test]
@@ -68,7 +68,7 @@ namespace DataStructure
             pq.Enqueue(6);
 
             Assert.AreEqual(2, pq.Peek());
-            Assert.AreEqual(3, pq.Count());
+            Assert.AreEqual(3, pq.Count);
         }
 
         [Test]
@@ -79,14 +79,14 @@ namespace DataStructure
             pq.Enqueue(2);
             pq.Clear();
 
-            Assert.AreEqual(0, pq.Count());
+            Assert.AreEqual(0, pq.Count);
         }
 
         [Test]
         public void Count_EmptyQueue_ReturnsZero()
         {
             var pq = new PriorityQueue<int>();
-            Assert.AreEqual(0, pq.Count());
+            Assert.AreEqual(0, pq.Count);
         }
 
         [Test]
@@ -132,7 +132,7 @@ namespace DataStructure
             pq.Enqueue(5);
             pq.Enqueue(5);
 
-            Assert.AreEqual(3, pq.Count());
+            Assert.AreEqual(3, pq.Count);
             Assert.AreEqual(5, pq.Dequeue());
             Assert.AreEqual(5, pq.Dequeue());
             Assert.AreEqual(5, pq.Dequeue());
@@ -165,7 +165,7 @@ namespace DataStructure
             Assert.IsTrue(pq.IsConsistent());
 
             int prev = int.MinValue;
-            while (pq.Count() > 0)
+            while (pq.Count > 0)
             {
                 int current = pq.Dequeue();
                 Assert.GreaterOrEqual(current, prev);

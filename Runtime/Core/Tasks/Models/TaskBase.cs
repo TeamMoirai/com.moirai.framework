@@ -290,7 +290,7 @@ namespace Moirai.Atropos.Tasks
             base.Init();
             if (_refCount != 0)
             {
-                Debug.LogWarning($"Task improperly released, reference count {_refCount}.");
+                LogUtility.Warning($"Task improperly released, reference count {_refCount}.");
                 _refCount = 0;
             }
         }

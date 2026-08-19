@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 
 namespace Moirai.Atropos
 {
@@ -9,7 +9,7 @@ namespace Moirai.Atropos
     public class ConstantRepaintAttribute : Attribute
     {
 
-        #region Fields
+        #region 字段 [FIELDS]
 
         /// <summary>
         /// 只需要在运行时不断重新喷漆
@@ -18,7 +18,7 @@ namespace Moirai.Atropos
 
         #endregion
 
-        #region Constructors
+        #region 构造函数 [CONSTRUCTORS]
 
         public ConstantRepaintAttribute()
         {

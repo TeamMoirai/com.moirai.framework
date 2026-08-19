@@ -1,5 +1,5 @@
 using System.IO;
-using System.Threading.Tasks;
+using Cysharp.Threading.Tasks;
 using UnityEngine;
 
 namespace Moirai.Atropos.Save
@@ -21,7 +21,7 @@ namespace Moirai.Atropos.Save
             _saveHandler = null;
         }
 
-        public async Task Save(object saveObject, string fileName, string folderName = ISaveModule.DEFAULT_FOLDER_NAME)
+        public async UniTask Save(object saveObject, string fileName, string folderName = ISaveModule.DEFAULT_FOLDER_NAME)
         {
             string savePath = DetermineSavePath(folderName);
             string saveFileName = DetermineSaveFileName(fileName);
@@ -36,14 +36,9 @@ namespace Moirai.Atropos.Save
             string tempFilePath = saveFilePath + ".tmp";
 
             // 将对象序列化并写入磁盘上的文件中
-            FileStream saveFile = File.Create(tempFilePath);
-            try
+            using (FileStream saveFile = File.Create(tempFilePath))
             {
                 await _saveHandler.Save(saveObject, saveFile);
-            }
-            finally
-            {
-                saveFile.Close();
             }
 
             // 释放临时文件——用try-final确保清理
@@ -70,7 +65,7 @@ namespace Moirai.Atropos.Save
             }
         }
 
-        public async Task<T> Load<T>(string fileName, string folderName = ISaveModule.DEFAULT_FOLDER_NAME)
+        public async UniTask<T> Load<T>(string fileName, string folderName = ISaveModule.DEFAULT_FOLDER_NAME)
         {
             string savePath = DetermineSavePath(folderName);
             string saveFileName = savePath + DetermineSaveFileName(fileName);
@@ -81,18 +76,10 @@ namespace Moirai.Atropos.Save
                 return default;
             }
 
-            FileStream saveFile = File.Open(saveFileName, FileMode.Open, FileAccess.Read, FileShare.Read);
-            T returnObject;
-            try
+            using (FileStream saveFile = File.Open(saveFileName, FileMode.Open, FileAccess.Read, FileShare.Read))
             {
-                returnObject = await _saveHandler.Load<T>(saveFile);
+                return await _saveHandler.Load<T>(saveFile);
             }
-            finally
-            {
-                saveFile.Close();
-            }
-
-            return returnObject;
         }
 
         public void DeleteSave(string fileName, string folderName = ISaveModule.DEFAULT_FOLDER_NAME)
@@ -117,14 +104,9 @@ namespace Moirai.Atropos.Save
         public void DeleteAllSaveFiles()
         {
             string savePath = DetermineSavePath("");
+            savePath = Path.GetDirectoryName(savePath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
 
-            savePath = savePath.Substring(0, savePath.Length - 1);
-            if (savePath.EndsWith("/"))
-            {
-                savePath = savePath.Substring(0, savePath.Length - 1);
-            }
-
-            if (Directory.Exists(savePath))
+            if (savePath != null && Directory.Exists(savePath))
             {
                 DeleteDirectory(savePath);
             }

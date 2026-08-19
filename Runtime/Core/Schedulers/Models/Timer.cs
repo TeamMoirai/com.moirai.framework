@@ -12,7 +12,7 @@ namespace Moirai.Atropos.Schedulers
     {
         private static readonly _ObjectPool<Timer> s_Pool = new _ObjectPool<Timer>(() => new Timer());
         
-        #region Public Properties/Fields
+        #region 公共属性/字段 [PUBLIC PROPS/FIELDS]
         public SchedulerHandle Handle { get; private set; }
         
         /// <summary>
@@ -50,7 +50,7 @@ namespace Moirai.Atropos.Schedulers
 
         #endregion
         
-        #region Public Static Methods
+        #region 公共静态方法 [PUBLIC STATIC METHODS]
         /// <summary>
         /// 注册一个新的计时器，该计时器应在经过一定时间后触发事件。
         ///
@@ -169,7 +169,7 @@ namespace Moirai.Atropos.Schedulers
 
         #endregion
         
-        #region Private Properties/Fields
+        #region 私有属性/字段 [PRIVATE PROPS/FIELDS]
         private SchedulerUnsafeBinding _onComplete;
         private SchedulerUnsafeBinding<float> _onUpdate;
         private float _startTime;
@@ -184,7 +184,7 @@ namespace Moirai.Atropos.Schedulers
 
         #endregion
         
-        #region Private Constructor (use static Register method to create new timer)
+        #region 私有构造函数（使用静态 Register 方法创建） [PRIVATE CTOR]
 
         private void Init(SchedulerHandle handle, float duration, ref SchedulerUnsafeBinding onComplete, ref SchedulerUnsafeBinding<float> onUpdate,
             bool isLooped, bool usesRealTime)

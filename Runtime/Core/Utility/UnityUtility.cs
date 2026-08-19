@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using UnityEngine;
 using UnityEngine.UI;
@@ -11,7 +11,7 @@ namespace Moirai.Atropos
     /// </summary>
     public static partial class UnityUtility
     {
-        #region Application
+        #region 应用程序 [APPLICATION]
 
         /// <summary>
         /// 退出。editor停止播放，runtime则退出游戏
@@ -27,7 +27,7 @@ namespace Moirai.Atropos
 
         #endregion
 
-        #region UnityComponent
+        #region Unity 组件 [UNITY COMPONENT]
 
         /// <summary>
         /// 对unity对象进行升序排序
@@ -69,7 +69,7 @@ namespace Moirai.Atropos
 
         #endregion
 
-        #region Graphics
+        #region 图形 [GRAPHICS]
 
         /// <summary>
         /// 通过相机截取屏幕并转换为Texture2D
@@ -285,7 +285,7 @@ namespace Moirai.Atropos
 
         #endregion
         
-        #region Gizmos
+        #region Gizmos 绘制 [GIZMOS]
 
         public static void DrawCircleXY(Vector3 position, float radius, int segments, Color color)
         {
@@ -498,7 +498,7 @@ namespace Moirai.Atropos
 
         #endregion
 
-        #region Math
+        #region 数学 [MATH]
 
         /// <summary>
         ///  检测点是否在XY平面的椭圆内
@@ -701,7 +701,7 @@ namespace Moirai.Atropos
 
         #endregion
 
-        #region GameObject
+        #region 游戏对象 [GAME OBJECT]
 
         /// <summary>
         /// 通过类型查找任意活动的对象(实例)
@@ -792,7 +792,7 @@ namespace Moirai.Atropos
 
         #endregion
 
-        #region Other
+        #region 其他 [OTHER]
 
         /// <summary>
         /// 获取对象的 EntityId。
