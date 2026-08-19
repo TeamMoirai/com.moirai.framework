@@ -145,4 +145,4 @@ AssetHandle handle = GameModule.Resource.LoadAssetAsyncHandle<GameObject>("path"
 - 低内存时系统回调 `GameModule.OnLowMemory` 会触发 `ForceUnloadUnusedAssets(true)`，随后执行 `Resources.UnloadUnusedAssets` 与 `GC.Collect`。
 
 ---
-[« 返回主 README](../README.md) · [Procedure](Procedure.md) · [Save](Save.md)
+[« 返回主 README](../../README.md) · [Procedure](Procedure.md) · [Save](Save.md)

@@ -118,4 +118,4 @@ SaveSettings.SaveHandler = new MessagePackSaveHandler();
 - Atomic replacement depends on `File.Delete` + `File.Move`; on certain platforms (e.g., WebGL virtual file system), behavior is limited by the underlying implementation. It is recommended to verify on the target device.
 
 ---
-[« Back to Main README](../README_EN.md) · [Resource](Resource.md) · [Procedure](Procedure.md)
+[« Back to Main README](../../README_EN.md) · [Resource](Resource.md) · [Procedure](Procedure.md)

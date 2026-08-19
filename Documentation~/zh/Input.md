@@ -142,4 +142,4 @@ Sprite device = InputDevicePromptSystem.GetDeviceSprite(spriteName);
 - 输入查询应每帧轮询调用，模块本身不做事件推送
 
 ---
-[« 返回主 README](../README.md) · [UI](UI.md) · [Scene](Scene.md)
+[« 返回主 README](../../README.md) · [UI](UI.md) · [Scene](Scene.md)

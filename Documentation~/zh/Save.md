@@ -118,4 +118,4 @@ SaveSettings.SaveHandler = new MessagePackSaveHandler();
 - 原子替换依赖 `File.Delete` + `File.Move`，在个别平台（如 WebGL 虚拟文件系统）上行为受底层实现限制，建议真机验证。
 
 ---
-[« 返回主 README](../README.md) · [Resource](Resource.md) · [Procedure](Procedure.md)
+[« 返回主 README](../../README.md) · [Resource](Resource.md) · [Procedure](Procedure.md)

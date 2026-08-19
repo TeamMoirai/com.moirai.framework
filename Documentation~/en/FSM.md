@@ -112,4 +112,4 @@ float staying = fsm.CurrentStateTime; // Logical seconds the current state has b
 - When the framework shuts down, `FSMModule.Shutdown` will close all state machines in sequence, triggering `OnExit(fsm, true)` and `OnDestroy(fsm)` on each state
 
 ---
-[« Back to Main README](../README_EN.md)
+[« Back to Main README](../../README_EN.md)

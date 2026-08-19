@@ -79,4 +79,4 @@ string location = ConfigMgr.Instance.GetUIWindowLocation("MainWindow");
 - When the config root directory is located within Assets, a `~` suffix is automatically added (e.g., `Assets/Config~`); Unity will not import this directory, but the export script can still access it normally
 
 ---
-[« Back to Main README](../README_EN.md) · [Localization](Localization.md)
+[« Back to Main README](../../README_EN.md) · [Localization](Localization.md)

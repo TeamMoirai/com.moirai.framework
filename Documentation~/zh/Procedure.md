@@ -126,4 +126,4 @@ bool ok = GameModule.Procedure.RestartProcedure(
 - `ProcedureBase.OnUpdate` 含两个时间参数（`elapseSeconds` / `realElapseSeconds`），重写时注意保持签名一致。
 
 ---
-[« 返回主 README](../README.md) · [FSM](FSM.md) · [Resource](Resource.md)
+[« 返回主 README](../../README.md) · [FSM](FSM.md) · [Resource](Resource.md)

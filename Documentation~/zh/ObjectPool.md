@@ -143,4 +143,4 @@ foreach (ObjectInfo info in infos)
 - 收到系统低内存回调时框架会自动 `ReleaseAllUnused()`，无需手动响应
 
 ---
-[« 返回主 README](../README.md)
+[« 返回主 README](../../README.md)
