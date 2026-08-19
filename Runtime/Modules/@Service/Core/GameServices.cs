@@ -13,6 +13,7 @@ namespace Moirai.Atropos
         private static int s_MainThreadId;
         private static readonly ServiceScope[] s_ScopeContainers = new ServiceScope[ScopeSlotCount];
         private static readonly Dictionary<RuntimeTypeHandle, ScopeBindings> s_ServiceMaps = new Dictionary<RuntimeTypeHandle, ScopeBindings>();
+        private static readonly List<IAsyncInitService> s_AsyncInitBuffer = new List<IAsyncInitService>();
         // ServiceScope calls static methods directly on GameServices
 
         public static event Action<IService, Type, EServiceScopeKind> ServiceRegistered;
@@ -222,6 +223,25 @@ namespace Moirai.Atropos
             return scope.Register<T>(service);
         }
 
+        /// <summary>
+        /// 按运行时接口类型注册服务（用于编译期无法确定合约类型的场景，如 ServiceMono.RegisterAs）。
+        /// </summary>
+        public static IService RegisterService(IService service, Type interfaceType)
+        {
+            EnsureMainThread();
+            if (interfaceType == null)
+                throw new GameException("Interface type must not be null.");
+
+            if (!interfaceType.IsInterface)
+                throw new GameException(StringUtility.Format("You must register service by interface, but '{0}' is not.", interfaceType.FullName));
+
+            if (!interfaceType.IsInstanceOfType(service))
+                throw new GameException(StringUtility.Format("Service '{0}' does not implement interface '{1}'.", service.GetType().FullName, interfaceType.FullName));
+
+            var scope = EnsureScope(service.Scope);
+            return scope.Register(service, interfaceType);
+        }
+
         public static void RegisterService<TPrimary, TSecondary>(IService service)
             where TPrimary : class
             where TSecondary : class
@@ -255,33 +275,26 @@ namespace Moirai.Atropos
         {
             EnsureMainThread();
 
-            // Fast path: if no IAsyncInitService exists, return CompletedTask (zero alloc, no async state machine)
-            bool hasAsync = false;
-            var visited = new HashSet<IService>(ReferenceComparer<IService>.Instance);
-            foreach (var kvp in s_ServiceMaps)
-            {
-                var b = kvp.Value;
-                if (b.App != null && visited.Add(b.App) && b.App is IAsyncInitService) { hasAsync = true; break; }
-                if (b.Scene != null && visited.Add(b.Scene) && b.Scene is IAsyncInitService) { hasAsync = true; break; }
-                if (b.Gameplay != null && visited.Add(b.Gameplay) && b.Gameplay is IAsyncInitService) { hasAsync = true; break; }
-            }
+            // 按作用域顺序（App → Scene → Gameplay）及各作用域内的注册顺序（优先级降序）收集，
+            // 保证异步初始化顺序确定，不依赖字典遍历序
+            s_AsyncInitBuffer.Clear();
+            for (int i = 0; i < ScopeSlotCount; i++)
+                s_ScopeContainers[i]?.CollectAsyncInitServices(s_AsyncInitBuffer);
 
-            return hasAsync ? InitializeAsyncCore() : UniTask.CompletedTask;
+            // Fast path: if no IAsyncInitService exists, return CompletedTask (zero alloc, no async state machine)
+            if (s_AsyncInitBuffer.Count == 0) return UniTask.CompletedTask;
+
+            return InitializeAsyncCore();
         }
 
         private static async UniTask InitializeAsyncCore()
         {
-            var visited = new HashSet<IService>(ReferenceComparer<IService>.Instance);
-            foreach (var kvp in s_ServiceMaps)
-            {
-                var b = kvp.Value;
-                if (b.App != null && visited.Add(b.App) && b.App is IAsyncInitService asyncApp)
-                    await asyncApp.OnInitAsync();
-                if (b.Scene != null && visited.Add(b.Scene) && b.Scene is IAsyncInitService asyncScene)
-                    await asyncScene.OnInitAsync();
-                if (b.Gameplay != null && visited.Add(b.Gameplay) && b.Gameplay is IAsyncInitService asyncGameplay)
-                    await asyncGameplay.OnInitAsync();
-            }
+            // 快照后执行：OnInitAsync 内可能注册/注销服务，修改收集缓冲
+            var services = s_AsyncInitBuffer.ToArray();
+            s_AsyncInitBuffer.Clear();
+
+            for (int i = 0; i < services.Length; i++)
+                await services[i].OnInitAsync();
         }
 
         private static void ClearAll()
@@ -292,6 +305,7 @@ namespace Moirai.Atropos
                 s_ScopeContainers[i] = null;
             }
             s_ServiceMaps.Clear();
+            s_AsyncInitBuffer.Clear();
             ServiceRegistered = null;
             ServiceUnregistered = null;
             MemoryPool.ClearAll();
