@@ -3,13 +3,13 @@ using Moirai.Atropos.Events;
 namespace Moirai.Atropos.Audio
 {
     /// <summary>
-    /// 此事件将命令 <see cref="AudioModule"/> 将整个音轨的音频音量过渡到指定的 FinalVolume
+    /// 此事件将命令 <see cref="AudioService"/> 将整个音轨的音频音量过渡到指定的 FinalVolume
     /// </summary>
     /// <example>
     /// 将在 2 秒内将 Music 音轨的音量过渡至 0.5，使用三次补间中的插值
     /// AudioTrackFadeEvent.PlayFade(AudioTrack.Music, 2f, 0.5f, new TweenType(Tween.TweenCurve.EaseInCubic));
     /// </example>>
-    public class AudioTrackFadeEvent : EventBase<AudioTrackFadeEvent>, IAudioModuleEvent
+    public class AudioTrackFadeEvent : EventBase<AudioTrackFadeEvent>, IAudioServiceEvent
     {
         public enum EMode { PlayFade, StopFade }
 

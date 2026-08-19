@@ -1,6 +1,6 @@
 // using UnityEngine;
 //
-// namespace Moirai.Atropos.ModuleDebugger
+// namespace Moirai.Atropos.ServiceDebugger
 // {
 //     public sealed partial class Debugger
 //     {

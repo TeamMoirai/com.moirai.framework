@@ -1,10 +1,10 @@
-# Timer Module
+# Timer Service
 
-> High-performance timer module based on a four-level timing wheel, no full scan, suitable for large-scale timed scenarios such as skill cooldowns, heartbeat packets, and delayed tasks.
+> High-performance timer service based on a four-level timing wheel, no full scan, suitable for large-scale timed scenarios such as skill cooldowns, heartbeat packets, and delayed tasks.
 
-The `Timer` module provides the ability to add, pause, resume, restart, and remove timers. The implementation class `TimerModule` uses a four-level timing wheel algorithm (256 slots per level, 1 ms precision, advancing at most 64 ticks per frame), combined with paged slot reuse and versioned handles, maintaining zero GC and O(1) operation cost even with hundreds of thousands of timers. The module maintains two independent timing wheels: scaled (affected by `Time.timeScale`) and unscaled. Access via `GameModule.Timer`.
+The `Timer` service provides the ability to add, pause, resume, restart, and remove timers. The implementation class `TimerService` uses a four-level timing wheel algorithm (256 slots per level, 1 ms precision, advancing at most 64 ticks per frame), combined with paged slot reuse and versioned handles, maintaining zero GC and O(1) operation cost even with hundreds of thousands of timers. The service maintains two independent timing wheels: scaled (affected by `Time.timeScale`) and unscaled. Access via `GameApp.Timer`.
 
-Note: This module is a separate facility from the Scheduler (`Scheduler.Delay`, `Scheduler.WaitFrame`, etc.) under `Runtime/Core/Schedulers`. The Scheduler is a zero-allocation general-purpose scheduler, while the Timer module is a timing wheel implementation designed for massive timed tasks. Choose based on your needs.
+Note: This service is a separate facility from the Scheduler (`Scheduler.Delay`, `Scheduler.WaitFrame`, etc.) under `Runtime/Core/Schedulers`. The Scheduler is a zero-allocation general-purpose scheduler, while the Timer service is a timing wheel implementation designed for massive timed tasks. Choose based on your needs.
 
 ## Core Features
 
@@ -22,8 +22,8 @@ Namespace: `Moirai.Atropos.Timer`
 
 | Class/Interface | Description |
 |---------|------|
-| `ITimerModule` | Public module interface: `AddTimer` three overloads, `Stop` / `Resume` / `Restart` / `RemoveTimer`, `Prewarm`, `GetStatistics`, `GetAllTimers` |
-| `TimerModule` | `internal sealed` implementation class, inherits `Module` and implements `IUpdateModule`, driven by the module system every frame |
+| `ITimerService` | Public service interface: `AddTimer` three overloads, `Stop` / `Resume` / `Restart` / `RemoveTimer`, `Prewarm`, `GetStatistics`, `GetAllTimers` |
+| `TimerService` | `internal sealed` implementation class, inherits `Service` and implements `IUpdateService`, driven by the service system every frame |
 | `TimerHandler` | Delegate `void TimerHandler(object[] args)`, traditional object[] parameter callback |
 | `TimerDebugInfo` | Debug info struct: `timerHandle`, `leftTime`, `duration`, `age`, `flags` |
 | `TimerDebugFlags` | Debug flag constants: `RUNNING`, `LOOP`, `UNSCALED` |
@@ -31,8 +31,8 @@ Namespace: `Moirai.Atropos.Timer`
 ## Quick Start
 
 ```csharp
-// Access the module
-ITimerModule timer = GameModule.Timer;
+// Access the service
+ITimerService timer = GameApp.Timer;
 
 // 1. Delayed execution (no-parameter Action)
 ulong id1 = timer.AddTimer(() => Debug.Log("Executed after 3 seconds"), 3f);
@@ -92,14 +92,14 @@ for (int i = 0; i < count; i++)
 - Data is stored in pages of 256 slots across multiple parallel arrays (`TimerPage`), avoiding LOH pressure from large arrays
 - Each frame's `Update` advances both timing wheels independently, with a budget of at most 64 ticks per wheel per frame to prevent snowballing after long hitches
 - High-level bucket expiration cascades down to lower levels; lookup is purely slot index arithmetic
-- Module `Shutdown` clears all timers and wheel structures
+- Service `Shutdown` clears all timers and wheel structures
 
 ## Notes
 
 - `AddTimer` returns `0UL` on failure (null callback or slot exhaustion); valid handles are never 0.
 - Slot reuse includes versioning: calling `Stop` / `RemoveTimer` etc. on an invalid handle is a safe no-op.
 - `RemoveTimer` is equivalent to a one-time natural expiration; both recycle the slot. Loop timers must be manually removed, otherwise they continue to trigger.
-- Callbacks execute synchronously on the main thread (in the module's `Update`); do not perform blocking operations inside callbacks.
+- Callbacks execute synchronously on the main thread (in the service's `Update`); do not perform blocking operations inside callbacks.
 - Time scaling only affects timers with `isUnscaled: false`; choose the appropriate callback form when modifying `Time.timeScale`.
 
 ---

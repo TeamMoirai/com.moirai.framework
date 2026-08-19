@@ -1,8 +1,8 @@
-# UpdateDriver Module
+# UpdateDriver Service
 
 > Provides Unity lifecycle proxy for non-MonoBehaviour code: coroutine hosting, frame update injection, and Unity event injection.
 
-`UpdateDriver` solves the problem of plain C# classes not being able to access Unity engine callbacks. All modules in the framework are plain C# classes (see [Core Module System](Core.md)). When business classes need coroutines, `Update` polling, or engine callbacks such as `OnApplicationPause`, this module allows registering callbacks onto a persistent hidden host `MainBehaviour`. The module implementation class `UpdateDriverModule` lazily creates a `DontDestroyOnLoad` game object named `[UpdateDriver]` on first use, and all engine callbacks are forwarded as aggregated events.
+`UpdateDriver` solves the problem of plain C# classes not being able to access Unity engine callbacks. All services in the framework are plain C# classes (see [Core Service System](Core.md)). When business classes need coroutines, `Update` polling, or engine callbacks such as `OnApplicationPause`, this service allows registering callbacks onto a persistent hidden host `MainBehaviour`. The service implementation class `UpdateDriverService` lazily creates a `DontDestroyOnLoad` game object named `[UpdateDriver]` on first use, and all engine callbacks are forwarded as aggregated events.
 
 ## Core Features
 
@@ -10,7 +10,7 @@
 - Frame update injection: registration and removal of `Update` / `FixedUpdate` / `LateUpdate` frame callbacks
 - Unity event injection: `OnDestroy`, `OnDrawGizmos`, `OnDrawGizmosSelected`, `OnApplicationPause`
 - Lazy host creation: the `[UpdateDriver]` persistent object is created only on the first API call, zero upfront cost
-- Clean shutdown: clears all events and destroys the host object when the module shuts down
+- Clean shutdown: clears all events and destroys the host object when the service shuts down
 
 ## Core Types
 
@@ -18,16 +18,16 @@ Namespace: `Moirai.Atropos.UpdateDriver`
 
 | Class/Interface | Description |
 |---------|------|
-| `IUpdateDriverModule` | Public module interface: coroutine control, frame update listening, Unity event listening registration and removal |
-| `UpdateDriverModule` | `internal` implementation class, inherits `Module`, manages the `[UpdateDriver]` host and internal `MainBehaviour` |
+| `IUpdateDriverService` | Public service interface: coroutine control, frame update listening, Unity event listening registration and removal |
+| `UpdateDriverService` | `internal` implementation class, inherits `Service`, manages the `[UpdateDriver]` host and internal `MainBehaviour` |
 
-The host `MainBehaviour` (a private nested class of `UpdateDriverModule`) is the actual MonoBehaviour attached to the host, aggregating Unity callbacks via C# events; Gizmo-related callbacks are decorated with `[Conditional("UNITY_EDITOR")]` and only compile in the editor.
+The host `MainBehaviour` (a private nested class of `UpdateDriverService`) is the actual MonoBehaviour attached to the host, aggregating Unity callbacks via C# events; Gizmo-related callbacks are decorated with `[Conditional("UNITY_EDITOR")]` and only compile in the editor.
 
 ## Quick Start
 
 ```csharp
-// Get the module (GameModule does not provide a static accessor; retrieve by interface)
-IUpdateDriverModule driver = ModuleSystem.GetModule<IUpdateDriverModule>();
+// Get the service (GameApp does not provide a static accessor; retrieve by interface)
+IUpdateDriverService driver = ServiceSystem.GetService<IUpdateDriverService>();
 
 // Coroutine: driven by the framework host, no own MonoBehaviour needed
 Coroutine co = driver.StartCoroutine(SomeRoutine());
@@ -60,13 +60,13 @@ void OnApplicationPause(bool pauseStatus) { }
 driver.AddOnDrawGizmosListener(DrawGizmos);
 driver.AddOnDrawGizmosSelectedListener(DrawSelectedGizmos);
 
-// Host destruction callback (not triggered when module Shutdown destroys the host; mainly for scenarios where the host is destroyed externally)
+// Host destruction callback (not triggered when service Shutdown destroys the host; mainly for scenarios where the host is destroyed externally)
 driver.AddDestroyListener(OnHostDestroy);
 ```
 
 ### Internal Framework Usage
 
-`UpdateDriver` is a low-level dependency for several framework infrastructures: the singleton system `SingletonSystem` uses it to drive `IUpdate`/`IFixedUpdate`/`ILateUpdate` singleton polling, and coroutine utilities in `UnityUtility` also execute through it. The module implementation type is registered during the `AppSettings.Initiation()` stage and supports implementation replacement in the Inspector.
+`UpdateDriver` is a low-level dependency for several framework infrastructures: the singleton system `SingletonSystem` uses it to drive `IUpdate`/`IFixedUpdate`/`ILateUpdate` singleton polling, and coroutine utilities in `UnityUtility` also execute through it. The service implementation type is registered during the `AppSettings.Initiation()` stage and supports implementation replacement in the Inspector.
 
 ### Registration Timing Notes
 
@@ -74,7 +74,7 @@ driver.AddDestroyListener(OnHostDestroy);
 
 ## Notes
 
-- Listeners hold strong references; always pair `Add`/`Remove` calls, otherwise the target object cannot be garbage collected. The module `Shutdown` clears all listeners uniformly.
+- Listeners hold strong references; always pair `Add`/`Remove` calls, otherwise the target object cannot be garbage collected. The service `Shutdown` clears all listeners uniformly.
 - Gizmos and GizmosSelected APIs only work in the editor; the calls are compiled out in release builds.
 - `StartCoroutine` returns `null` when passed an empty method name or empty iterator, without throwing an exception.
 - The host object is `DontDestroyOnLoad` and survives across scenes; do not manually destroy the `[UpdateDriver]` object externally, otherwise all coroutines and listeners will become invalid.

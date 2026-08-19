@@ -1,6 +1,6 @@
 # 创建新 UI
 
-在 Moirai Framework 的 UIModule 中创建新的 UI 界面。
+在 Moirai Framework 的 UIService 中创建新的 UI 界面。
 
 ## 参数
 - $UI_NAME: UI 名称（如：MainMenu、SettingsPanel、BattleHUD）
@@ -11,7 +11,7 @@
 
 2. **创建 UI 目录结构**：
    ```
-   Assets/MoiraiFramework/Runtime/Modules/UIModule/
+   Assets/MoiraiFramework/Runtime/Services/UIService/
    ├── Forms/
    │   └── {UI_NAME}Form.cs      # UI 表单类
    └── Components/                # UI 组件（如需要）
@@ -29,9 +29,9 @@
 
 4. **UI 表单模板**：
    ```csharp
-   using Moirai.Runtime.Modules.UIModule;
+   using Moirai.Runtime.Services.UIService;
 
-   namespace Moirai.Runtime.Modules.UIModule.Forms
+   namespace Moirai.Runtime.Services.UIService.Forms
    {
        [UIForm]
        public class {UI_NAME}Form : UIFormLogic

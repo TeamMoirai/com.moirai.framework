@@ -57,8 +57,8 @@ namespace Moirai.Atropos.Localization
 
         private async UniTaskVoid ApplyFromResource()
         {
-            string textIDValue = GameModule.Localization.GetTextFromId(_localizedTextID);
-            var result = await GameModule.Resource.LoadAssetAsync<Object>(textIDValue);
+            string textIDValue = GameApp.Localization.GetTextFromId(_localizedTextID);
+            var result = await GameApp.Resource.LoadAssetAsync<Object>(textIDValue);
 
             if (!IsExpectedType(result) && !IsConvertibleType(result))
             {

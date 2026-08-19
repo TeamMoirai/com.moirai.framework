@@ -1,8 +1,8 @@
-# Save Module
+# Save Service
 
 > A pluggable Handler-based local save system supporting JSON/binary formats and AES encryption, with atomic file replacement on write.
 
-The Save module (`SaveModule`) decouples the serialization format from the file read/write process: `SaveModule` is responsible for path assembly, directory creation, atomic writes, and deletion/cleanup, while the specific format is determined by `ISaveHandler` implementations (`JsonSaveHandler`, encrypted version, and binary version), which can be switched in the `SaveSettings` panel. Saves are written to `Application.persistentDataPath/Data/{folderName}/`, with filenames automatically appended with the configured extension (default `.sav`). Access via `GameModule.Save` (`ISaveModule`).
+The Save service (`SaveService`) decouples the serialization format from the file read/write process: `SaveService` is responsible for path assembly, directory creation, atomic writes, and deletion/cleanup, while the specific format is determined by `ISaveHandler` implementations (`JsonSaveHandler`, encrypted version, and binary version), which can be switched in the `SaveSettings` panel. Saves are written to `Application.persistentDataPath/Data/{folderName}/`, with filenames automatically appended with the configured extension (default `.sav`). Access via `GameApp.Save` (`ISaveService`).
 
 ## Core Features
 
@@ -18,8 +18,8 @@ Namespace: `Moirai.Atropos.Save`
 
 | Class/Interface | Description |
 |---------|------|
-| `ISaveModule` | Save module interface: `Save` / `Load` / `DeleteSave` / `DeleteSaveFolder` / `DeleteAllSaveFiles` / `FileExists` / `DetermineSavePath`; accessed via `GameModule.Save` |
-| `SaveModule` | Module implementation (`Module, ISaveModule`), reads the Handler from `SaveSettings` on `OnInit` and injects the encryption key |
+| `ISaveService` | Save service interface: `Save` / `Load` / `DeleteSave` / `DeleteSaveFolder` / `DeleteAllSaveFiles` / `FileExists` / `DetermineSavePath`; accessed via `GameApp.Save` |
+| `SaveService` | Service implementation (`Service, ISaveService`), reads the Handler from `SaveSettings` on `OnInit` and injects the encryption key |
 | `ISaveHandler` | Serialization handler interface: `UniTask Save(object objectToSave, FileStream saveFile)` and `UniTask<T> Load<T>(FileStream saveFile)` |
 | `JsonSaveHandler` | JSON format handler, prettyPrint in editor, compact bytes on device |
 | `JsonEncryptedSaveHandler` | JSON serialization + AES encryption (inherits `EncryptedSaveHandlerBase`) |
@@ -45,24 +45,24 @@ public class PlayerData
 }
 
 // Save: writes to persistentDataPath/Data/Save/player_data.sav
-await GameModule.Save.Save(new PlayerData { Level = 10, Coin = 999 }, "player_data");
+await GameApp.Save.Save(new PlayerData { Level = 10, Coin = 999 }, "player_data");
 
 // Load: returns default when file does not exist or decryption fails
-if (GameModule.Save.FileExists("player_data"))
+if (GameApp.Save.FileExists("player_data"))
 {
-    PlayerData data = await GameModule.Save.Load<PlayerData>("player_data");
+    PlayerData data = await GameApp.Save.Load<PlayerData>("player_data");
 }
 
 // Save to a subfolder (persistentDataPath/Data/Settings/)
-await GameModule.Save.Save(settingsObject, "audio", "Settings");
+await GameApp.Save.Save(settingsObject, "audio", "Settings");
 
 // Deletion
-GameModule.Save.DeleteSave("player_data");            // delete a single save
-GameModule.Save.DeleteSaveFolder("Settings");         // delete an entire save folder
-GameModule.Save.DeleteAllSaveFiles();                 // delete all saves under Data/
+GameApp.Save.DeleteSave("player_data");            // delete a single save
+GameApp.Save.DeleteSaveFolder("Settings");         // delete an entire save folder
+GameApp.Save.DeleteAllSaveFiles();                 // delete all saves under Data/
 
 // Query the actual save path
-string path = GameModule.Save.DetermineSavePath();    // persistentDataPath/Data/Save/
+string path = GameApp.Save.DetermineSavePath();    // persistentDataPath/Data/Save/
 ```
 
 ## Configuration and Extensions
@@ -77,7 +77,7 @@ string path = GameModule.Save.DetermineSavePath();    // persistentDataPath/Data
 
 ### Custom Handler
 
-Implement `ISaveHandler` and inject it before module initialization (e.g., at the very start of the launch process):
+Implement `ISaveHandler` and inject it before service initialization (e.g., at the very start of the launch process):
 
 ```csharp
 using System.IO;
@@ -104,14 +104,14 @@ public class MessagePackSaveHandler : ISaveHandler
     }
 }
 
-// Inject (must be done before SaveModule.OnInit, otherwise the panel configuration is used)
+// Inject (must be done before SaveService.OnInit, otherwise the panel configuration is used)
 SaveSettings.SaveHandler = new MessagePackSaveHandler();
 ```
 
 ## Notes
 
 - The `Save` parameter order is "object first, filename second": `Save(object saveObject, string fileName, string folderName = "Save")`.
-- The Handler is read and cached during `SaveModule.OnInit`; modifying `SaveSettings.SaveHandler` at runtime does not affect an already initialized module.
+- The Handler is read and cached during `SaveService.OnInit`; modifying `SaveSettings.SaveHandler` at runtime does not affect an already initialized service.
 - The `Key` for encrypted handlers comes from `SaveSettings.EncryptionKey`; the `Salt` still uses the `SaveEncryptor` default. Changing the key will make old saves undecryptable (`Load` returns `default`).
 - The binary handler is based on `BinaryFormatter` (deprecated and carries deserialization attack risk, removed in .NET 9+). New projects should use `JsonSaveHandler` or `JsonEncryptedSaveHandler`.
 - The JSON handler relies on the framework's built-in `JsonUtility` (`Moirai.Atropos`'s `Core/Utility/Json`), not `UnityEngine.JsonUtility`, and can directly serialize `byte[]`, dictionaries, and other types.

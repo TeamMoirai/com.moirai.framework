@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 #if ENABLE_INPUT_SYSTEM && !ENABLE_LEGACY_INPUT_MANAGER
 using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.Composites;
@@ -45,7 +45,7 @@ namespace Moirai.Atropos.Debugger
                     // DrawItem("Composition Cursor Position", Keyboard.current?.compositionCursorPosition.ToString() ?? "(0,0)");
                     // DrawItem("Composition String", Keyboard.current?.compositionString ?? "");
 #else
-                    DrawItem("UnityEngine.Input 已禁用，基于输入模块的信息统计未实现", "");
+                    DrawItem("UnityEngine.Input 已禁用，基于输入服务的信息统计未实现", "");
 #endif
                 }
                 GUILayout.EndVertical();

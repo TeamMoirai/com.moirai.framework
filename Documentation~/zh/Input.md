@@ -1,8 +1,8 @@
-# Input 模块
+# Input 服务
 
 > 抽象输入层：以统一的轮询 API 屏蔽 Unity 新旧输入系统与移动端 UI 触控的差异，并内置按键提示（Prompts）系统。
 
-输入模块（`Moirai.Atropos.Input`）通过 `InputHandler` 抽象三种输入后端，业务代码只需面向 `GameModule.Input` 的动作名（Action）API 编程，切换后端无需改动调用方。模块还监听 UI 模态事件与应用焦点事件，自动屏蔽/恢复输入，并基于 Input System 提供跨设备的按键图标提示组件。
+输入服务（`Moirai.Atropos.Input`）通过 `InputHandler` 抽象三种输入后端，业务代码只需面向 `GameApp.Input` 的动作名（Action）API 编程，切换后端无需改动调用方。服务还监听 UI 模态事件与应用焦点事件，自动屏蔽/恢复输入，并基于 Input System 提供跨设备的按键图标提示组件。
 
 ## 核心特性
 
@@ -10,7 +10,7 @@
 - 统一动作轮询 API：`GetButtonDown` / `GetButtonUp` / `GetButtonPressed` / `GetBool` / `GetFloat` / `GetVector2`，支持动作分组（`actionGroup`）
 - 鼠标专用查询：按键三态、位置、滚轮（新旧系统滚轮值已归一化对齐）
 - 输入状态开关：`Enabled`（全局）、`LockPlayerController`（锁角色控制）、`PreventInteractionUI`（锁 UI 交互），切换时自动重置残留输入状态
-- UI 模态联动：监听 `UIModuleEvent`，存在模态窗口时自动锁定玩家控制
+- UI 模态联动：监听 `UIServiceEvent`，存在模态窗口时自动锁定玩家控制
 - 应用焦点联动：失焦自动禁用输入，聚焦自动恢复
 - 按键提示系统（Prompts）：按键图标随当前活动输入设备自动切换，支持图文混排
 
@@ -18,8 +18,8 @@
 
 | 类/接口 | 说明 |
 |---------|------|
-| `Moirai.Atropos.Input.IInputModule` | 输入模块接口，`GameModule.Input` 返回此类型 |
-| `Moirai.Atropos.Input.InputModule` | 输入模块实现，聚合 Handler 与状态开关 |
+| `Moirai.Atropos.Input.IInputService` | 输入服务接口，`GameApp.Input` 返回此类型 |
+| `Moirai.Atropos.Input.InputService` | 输入服务实现，聚合 Handler 与状态开关 |
 | `Moirai.Atropos.Input.InputHandler` | 输入处理器抽象基类（`[Serializable]`），定义全部输入查询方法。通过 `[SerializeReference]` 在输入设置中配置 |
 | `Moirai.Atropos.Input.UnityInputSystemHandler` | 基于 Unity Input System 的处理器（宏 `ENABLE_INPUT_SYSTEM`） |
 | `Moirai.Atropos.Input.UnityInputManagerHandler` | 基于旧版 Input Manager 的处理器（宏 `ENABLE_LEGACY_INPUT_MANAGER`） |
@@ -41,29 +41,29 @@
 
 ```csharp
 // Input System 后端：分组名/动作名 对应 Action Map/Action
-if (GameModule.Input.GetButtonDown("Jump", "Player"))
+if (GameApp.Input.GetButtonDown("Jump", "Player"))
 {
     // 本帧按下跳跃键
 }
 
-float moveX = GameModule.Input.GetFloat("Move", "Player");
-Vector2 move = GameModule.Input.GetVector2("Move", "Player");
+float moveX = GameApp.Input.GetFloat("Move", "Player");
+Vector2 move = GameApp.Input.GetVector2("Move", "Player");
 
 // actionGroup 传空时 actionName 视为完整路径（"Player/Jump"）
-bool submit = GameModule.Input.GetButtonPressed("UI/Submit");
+bool submit = GameApp.Input.GetButtonPressed("UI/Submit");
 
 // 鼠标
-if (GameModule.Input.GetMouseButtonDown(EMouseButton.Right)) { }
-Vector2 pos = GameModule.Input.GetMousePosition();
-Vector2 scroll = GameModule.Input.GetScrollDelta();
+if (GameApp.Input.GetMouseButtonDown(EMouseButton.Right)) { }
+Vector2 pos = GameApp.Input.GetMousePosition();
+Vector2 scroll = GameApp.Input.GetScrollDelta();
 ```
 
 锁定/恢复输入：
 
 ```csharp
-GameModule.Input.LockPlayerController = true;    // 模态弹窗期间锁角色移动
-GameModule.Input.PreventInteractionUI = true;    // 过场动画期间禁用 UI 交互
-GameModule.Input.Enabled = false;                // 全局禁用（重置所有输入状态）
+GameApp.Input.LockPlayerController = true;    // 模态弹窗期间锁角色移动
+GameApp.Input.PreventInteractionUI = true;    // 过场动画期间禁用 UI 交互
+GameApp.Input.Enabled = false;                // 全局禁用（重置所有输入状态）
 ```
 
 ## 进阶用法
@@ -94,7 +94,7 @@ private BoolAction _jump = new BoolAction();
 
 void Update()
 {
-    _jump.Value = GameModule.Input.GetBool("Jump", "Player");
+    _jump.Value = GameApp.Input.GetBool("Jump", "Player");
     _jump.Update(Time.deltaTime);
 
     if (_jump.IsDown) { }             // 本帧按下（等价 Started）
@@ -137,9 +137,9 @@ Sprite device = InputDevicePromptSystem.GetDeviceSprite(spriteName);
 
 - 处理器类型在框架设置"输入设置"中通过 `[SerializeReference]` 配置，运行时通过 `InputSettings.InputHandler` 懒加载；切换处理器需重启生效
 - `UnityInputSystemHandler` / `UnityInputManagerHandler` 分别受 `ENABLE_INPUT_SYSTEM` / `ENABLE_LEGACY_INPUT_MANAGER` 宏控制编译
-- 存在 UI 模态窗口时 `LockPlayerController` 恒为 true（由 `UIModuleEvent` 驱动），属预期行为
+- 存在 UI 模态窗口时 `LockPlayerController` 恒为 true（由 `UIServiceEvent` 驱动），属预期行为
 - `UIMobileInputHandler` 的 `GetButtonDown` / `GetButtonUp` 尚未实现（抛出 `NotImplementedException`），仅使用 bool 持续态查询
-- 输入查询应每帧轮询调用，模块本身不做事件推送
+- 输入查询应每帧轮询调用，服务本身不做事件推送
 
 ---
 [« 返回主 README](../../README.md) · [UI](UI.md) · [Scene](Scene.md)

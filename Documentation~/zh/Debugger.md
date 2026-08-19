@@ -1,8 +1,8 @@
-# Debugger 模块
+# Debugger 服务
 
 > 运行时调试器：基于 IMGUI 的游戏内调试面板，提供控制台、运行环境信息、内存与对象池剖析等窗口。
 
-Debugger 模块由纯 C# 的 `DebuggerModule`（经 `GameModule.Debugger` 访问）负责窗口树的注册与轮询，由场景组件 `DebuggerComp` 负责绘制。运行时以左上角漂浮框形式出现，点按后展开完整窗口；窗口布局（位置、大小、缩放）通过 `SettingUtility` 持久化。全部窗口基于 `IDebuggerWindow` 接口实现，业务可注册自己的调试窗口。本模块为纯运行时 IMGUI 实现，无编辑器专属代码（Editor 目录下的 Events / Scheduler 调试窗口属于其他模块）。
+Debugger 服务由纯 C# 的 `DebuggerService`（经 `GameApp.Debugger` 访问）负责窗口树的注册与轮询，由场景组件 `DebuggerComp` 负责绘制。运行时以左上角漂浮框形式出现，点按后展开完整窗口；窗口布局（位置、大小、缩放）通过 `SettingUtility` 持久化。全部窗口基于 `IDebuggerWindow` 接口实现，业务可注册自己的调试窗口。本服务为纯运行时 IMGUI 实现，无编辑器专属代码（Editor 目录下的 Events / Scheduler 调试窗口属于其他服务）。
 
 ## 核心特性
 
@@ -20,8 +20,8 @@ Debugger 模块由纯 C# 的 `DebuggerModule`（经 `GameModule.Debugger` 访问
 
 | 类/接口 | 说明 |
 |---------|------|
-| `IDebuggerModule` | 调试器管理器接口：`ActiveWindow`、`DebuggerWindowRoot`、`RegisterDebuggerWindow` / `UnregisterDebuggerWindow` / `GetDebuggerWindow` / `SelectDebuggerWindow` |
-| `DebuggerModule` | 默认实现（`internal sealed`），`Priority = -1`，实现 `IUpdateModule`，仅当窗口激活时轮询窗口树 |
+| `IDebuggerService` | 调试器管理器接口：`ActiveWindow`、`DebuggerWindowRoot`、`RegisterDebuggerWindow` / `UnregisterDebuggerWindow` / `GetDebuggerWindow` / `SelectDebuggerWindow` |
+| `DebuggerService` | 默认实现（`internal sealed`），`Priority = -1`，实现 `IUpdateService`，仅当窗口激活时轮询窗口树 |
 | `IDebuggerWindow` | 调试器窗口接口：`Initialize(params object[] args)` / `Shutdown()` / `OnEnter()` / `OnLeave()` / `OnUpdate(float, float)` / `OnDraw()` |
 | `IDebuggerWindowGroup` | 窗口组接口（继承 `IDebuggerWindow`）：`DebuggerWindowCount` / `SelectedIndex` / `SelectedWindow` / `GetDebuggerWindowNames()` / `RegisterDebuggerWindow(string, IDebuggerWindow)` |
 | `DebuggerComp` | 调试器组件（`public sealed partial`，MonoBehaviour），挂接场景后绘制全部面板，单例 `DebuggerComp.Instance` |
@@ -40,8 +40,8 @@ Debugger 模块由纯 C# 的 `DebuggerModule`（经 `GameModule.Debugger` 访问
 ```csharp
 using Moirai.Atropos;
 
-GameModule.Debugger.ActiveWindow = true;        // 打开/关闭调试器窗口
-bool active = GameModule.Debugger.ActiveWindow;
+GameApp.Debugger.ActiveWindow = true;        // 打开/关闭调试器窗口
+bool active = GameApp.Debugger.ActiveWindow;
 
 // DebuggerComp 上的等价与扩展控制
 DebuggerComp.Instance.ActiveWindow = true;      // 同时启停组件
@@ -49,8 +49,8 @@ DebuggerComp.Instance.ShowFullWindow = true;    // 完整窗口 <-> 漂浮框
 DebuggerComp.Instance.ResetLayout();            // 还原默认布局（位置/大小/缩放）
 
 // 选中某个窗口（路径来自注册时的字符串）
-GameModule.Debugger.SelectDebuggerWindow("Profiler/Memory/Texture");
-IDebuggerWindow window = GameModule.Debugger.GetDebuggerWindow("Console");
+GameApp.Debugger.SelectDebuggerWindow("Profiler/Memory/Texture");
+IDebuggerWindow window = GameApp.Debugger.GetDebuggerWindow("Console");
 ```
 
 注册自定义调试窗口：
@@ -73,9 +73,9 @@ public class MyWindow : IDebuggerWindow
     }
 }
 
-// 经 DebuggerComp 或模块接口注册，路径以 "/" 分层，自动归入窗口组
+// 经 DebuggerComp 或服务接口注册，路径以 "/" 分层，自动归入窗口组
 DebuggerComp.Instance.RegisterDebuggerWindow("Other/My", new MyWindow());
-// 也可以直接使用模块接口：GameModule.Debugger.RegisterDebuggerWindow("Other/My", new MyWindow());
+// 也可以直接使用服务接口：GameApp.Debugger.RegisterDebuggerWindow("Other/My", new MyWindow());
 ```
 
 获取运行期间记录的日志：
@@ -107,7 +107,7 @@ foreach (DebuggerComp.LogNode node in logs)
 - 布局相关属性：`IconRect`（漂浮框区域）、`WindowRect`（窗口区域）、`WindowScale`（缩放，默认 1.5）；修改后由 `Constant.Debug` 中的设置键持久化
 - 控制台筛选状态（信息/警告/错误/致命、锁定滚动）同样持久化，键见 `Constant.Debug.INFO_FILTER` 等
 - 扩展信息窗口时可继承 `Component` 目录下的 `ScrollableDebuggerWindowBase` 获得滚动绘制能力，再注册到 `"Information/..."` 路径下
-- `DebuggerModule.Update` 仅在 `ActiveWindow == true` 时调用窗口树 `OnUpdate`，关闭状态下无轮询开销
+- `DebuggerService.Update` 仅在 `ActiveWindow == true` 时调用窗口树 `OnUpdate`，关闭状态下无轮询开销
 
 ## 注意事项
 

@@ -166,7 +166,7 @@ namespace Moirai.Atropos.UI
         /// <returns></returns>
         public bool CreateByPath(string resPath, UIBase parentUI, Transform parentTrans = null, bool visible = true)
         {
-            GameObject goInst = GameModule.Resource.LoadGameObject(resPath, parent: parentTrans);
+            GameObject goInst = GameApp.Resource.LoadGameObject(resPath, parent: parentTrans);
             if (goInst == null)
             {
                 return false;
@@ -269,7 +269,7 @@ namespace Moirai.Atropos.UI
                 for (var index = 0; index < listCanvas.Length; index++)
                 {
                     var childCanvas = listCanvas[index];
-                    childCanvas.sortingOrder = parentCanvas.sortingOrder + childCanvas.sortingOrder % UIModule.WINDOW_DEEP;
+                    childCanvas.sortingOrder = parentCanvas.sortingOrder + childCanvas.sortingOrder % UIService.WINDOW_DEEP;
                 }
             }
         }

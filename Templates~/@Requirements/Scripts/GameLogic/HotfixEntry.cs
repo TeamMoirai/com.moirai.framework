@@ -44,11 +44,11 @@ namespace GameLogic
 
             UnityUtility.AddDestroyListener(Release);
 
-            // 保证 UIModule 正常初始化
-            GameModule.UI.CloseAll();
+            // 保证 UIService 正常初始化
+            GameApp.UI.CloseAll();
 
             // 初始化多语言配置
-            GameModule.Localization.InitLanguageSettings();
+            GameApp.Localization.InitLanguageSettings();
 
             // 事件通知
             HotfixEntryEvent.Trigger();

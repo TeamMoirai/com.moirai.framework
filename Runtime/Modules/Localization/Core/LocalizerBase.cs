@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 
 namespace Moirai.Atropos.Localization
 {
@@ -8,7 +8,7 @@ namespace Moirai.Atropos.Localization
 
 		protected virtual void Awake()
 		{
-			GameModule.Localization?.AddLocalizer(this);
+			GameApp.Localization?.AddLocalizer(this);
 			Prepare();
 		}
 
@@ -19,7 +19,7 @@ namespace Moirai.Atropos.Localization
 
 		protected virtual void OnDestroy()
 		{
-			GameModule.Localization?.RemoveLocalizer(this);
+			GameApp.Localization?.RemoveLocalizer(this);
 		}
 
 		/// <summary>

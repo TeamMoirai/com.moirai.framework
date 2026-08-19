@@ -1,7 +1,7 @@
-﻿namespace Moirai.Atropos.Resource
+namespace Moirai.Atropos.Resource
 {
     /// <summary>
-    /// 资源模块的加密类型枚举。
+    /// 资源服务的加密类型枚举。
     /// <remarks>用于定义资源加载时的不同加密方式。</remarks>
     /// </summary>
     public enum EncryptionType

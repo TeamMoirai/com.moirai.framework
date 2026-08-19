@@ -151,7 +151,7 @@ namespace Moirai.Atropos.UI
             {
                 if (_canvas != null)
                 {
-                    return _canvas.gameObject.layer == UIModule.WINDOW_SHOW_LAYER;
+                    return _canvas.gameObject.layer == UIService.WINDOW_SHOW_LAYER;
                 }
                 else
                 {
@@ -163,7 +163,7 @@ namespace Moirai.Atropos.UI
             {
                 if (_canvas != null)
                 {
-                    int setLayer = value ? UIModule.WINDOW_SHOW_LAYER : UIModule.WINDOW_HIDE_LAYER;
+                    int setLayer = value ? UIService.WINDOW_SHOW_LAYER : UIService.WINDOW_HIDE_LAYER;
 
                     if (_canvas.gameObject.layer == setLayer) return;
 
@@ -320,18 +320,18 @@ namespace Moirai.Atropos.UI
             {
                 if (isAsync)
                 {
-                    var uiInstance = await GameModule.Resource.LoadGameObjectAsync(location, parent: UIModule.UIRoot);
+                    var uiInstance = await GameApp.Resource.LoadGameObjectAsync(location, parent: UIService.UIRoot);
                     Handle_Completed(uiInstance);
                 }
                 else
                 {
-                    var uiInstance = GameModule.Resource.LoadGameObject(location, parent: UIModule.UIRoot);
+                    var uiInstance = GameApp.Resource.LoadGameObject(location, parent: UIService.UIRoot);
                     Handle_Completed(uiInstance);
                 }
             }
             else
             {
-                GameObject panel = Object.Instantiate(Resources.Load<GameObject>(location), UIModule.UIRoot);
+                GameObject panel = Object.Instantiate(Resources.Load<GameObject>(location), UIService.UIRoot);
                 Handle_Completed(panel);
             }
         }
@@ -554,18 +554,18 @@ namespace Moirai.Atropos.UI
         private void LockInteraction()
         {
             Interactable = false;
-            if (GameModule.UI != null && GameModule.UI.IsModal(this))
+            if (GameApp.UI != null && GameApp.UI.IsModal(this))
             {
-                if (GameModule.Input != null) GameModule.Input.PreventInteractionUI = true;
+                if (GameApp.Input != null) GameApp.Input.PreventInteractionUI = true;
             }
         }
 
         private void UnlockInteraction()
         {
             Interactable = true;
-            if (GameModule.UI != null && GameModule.UI.IsModal(this))
+            if (GameApp.UI != null && GameApp.UI.IsModal(this))
             {
-                if (GameModule.Input != null) GameModule.Input.PreventInteractionUI = false;
+                if (GameApp.Input != null) GameApp.Input.PreventInteractionUI = false;
             }
         }
 
@@ -606,7 +606,7 @@ namespace Moirai.Atropos.UI
 
         private async UniTaskVoid SetInteractWaiter(bool open)
         {
-            if (GameModule.UI.GetTopWindow() != this) return;
+            if (GameApp.UI.GetTopWindow() != this) return;
 
             CancelCts();
             _cts = new CancellationTokenSource();
@@ -629,12 +629,12 @@ namespace Moirai.Atropos.UI
 
         protected virtual void Hide()
         {
-            GameModule.UI.HideUI(GetType(), WindowName);
+            GameApp.UI.HideUI(GetType(), WindowName);
         }
 
         protected virtual void Close()
         {
-            GameModule.UI.CloseUI(GetType(), WindowName);
+            GameApp.UI.CloseUI(GetType(), WindowName);
         }
 
         internal void CancelHideToCloseTimer()
@@ -642,7 +642,7 @@ namespace Moirai.Atropos.UI
             IsHide = false;
             if (HideTimerId != 0UL)
             {
-                GameModule.Timer.RemoveTimer(HideTimerId);
+                GameApp.Timer.RemoveTimer(HideTimerId);
                 HideTimerId = 0UL;
             }
         }

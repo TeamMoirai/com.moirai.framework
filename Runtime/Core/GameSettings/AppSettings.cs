@@ -41,60 +41,60 @@ namespace Moirai.Atropos
         [DisableInPlayMode]
         [SerializeField] private bool m_NeverSleep;
 
-        /// <!-- Modules -->
-        private const string MODULE_GROUP = "游戏模块 [Game Modules]";
+        /// <!-- Services -->
+        private const string SERVICE_GROUP = "游戏服务 [Game Services]";
 
-        [BoxGroup(MODULE_GROUP), DisableInPlayMode]
-        [HelperDropdown(typeof(IUpdateDriverModule), "Update Driver")]
+        [BoxGroup(SERVICE_GROUP), DisableInPlayMode]
+        [HelperDropdown(typeof(IUpdateDriverService), "Update Driver")]
         [SerializeField] private string m_UpdateDriverTypeName;
 
-        [BoxGroup(MODULE_GROUP), DisableInPlayMode]
-        [HelperDropdown(typeof(IResourceModule), "Resource Module")]
-        [SerializeField] private string m_ResourceModuleTypeName;
+        [BoxGroup(SERVICE_GROUP), DisableInPlayMode]
+        [HelperDropdown(typeof(IResourceService), "Resource Service")]
+        [SerializeField] private string m_ResourceServiceTypeName;
 
-        [BoxGroup(MODULE_GROUP), DisableInPlayMode]
-        [HelperDropdown(typeof(IDebuggerModule), "Debugger Module")]
-        [SerializeField] private string m_DebuggerModuleTypeName;
+        [BoxGroup(SERVICE_GROUP), DisableInPlayMode]
+        [HelperDropdown(typeof(IDebuggerService), "Debugger Service")]
+        [SerializeField] private string m_DebuggerServiceTypeName;
 
-        [BoxGroup(MODULE_GROUP), DisableInPlayMode]
-        [HelperDropdown(typeof(IFSMModule), "FSM Module")]
-        [SerializeField] private string m_FSMModuleTypeName;
+        [BoxGroup(SERVICE_GROUP), DisableInPlayMode]
+        [HelperDropdown(typeof(IFSMService), "FSM Service")]
+        [SerializeField] private string m_FSMServiceTypeName;
 
-        [BoxGroup(MODULE_GROUP), DisableInPlayMode]
-        [HelperDropdown(typeof(IAudioModule), "Audio Module")]
-        [SerializeField] private string m_AudioModuleTypeName;
+        [BoxGroup(SERVICE_GROUP), DisableInPlayMode]
+        [HelperDropdown(typeof(IAudioService), "Audio Service")]
+        [SerializeField] private string m_AudioServiceTypeName;
 
-        [BoxGroup(MODULE_GROUP), DisableInPlayMode]
-        [HelperDropdown(typeof(IObjectPoolModule), "ObjectPool Module")]
-        [SerializeField] private string m_ObjectPoolModuleTypeName;
+        [BoxGroup(SERVICE_GROUP), DisableInPlayMode]
+        [HelperDropdown(typeof(IObjectPoolService), "ObjectPool Service")]
+        [SerializeField] private string m_ObjectPoolServiceTypeName;
 
-        [BoxGroup(MODULE_GROUP), DisableInPlayMode]
-        [HelperDropdown(typeof(IProcedureModule), "Procedure Module")]
-        [SerializeField] private string m_ProcedureModuleTypeName;
+        [BoxGroup(SERVICE_GROUP), DisableInPlayMode]
+        [HelperDropdown(typeof(IProcedureService), "Procedure Service")]
+        [SerializeField] private string m_ProcedureServiceTypeName;
 
-        [BoxGroup(MODULE_GROUP), DisableInPlayMode]
-        [HelperDropdown(typeof(ILocalizationModule), "Localization Module")]
-        [SerializeField] private string m_LocalizationModuleTypeName;
+        [BoxGroup(SERVICE_GROUP), DisableInPlayMode]
+        [HelperDropdown(typeof(ILocalizationService), "Localization Service")]
+        [SerializeField] private string m_LocalizationServiceTypeName;
 
-        [BoxGroup(MODULE_GROUP), DisableInPlayMode]
-        [HelperDropdown(typeof(ISceneModule), "Scene Module")]
-        [SerializeField] private string m_SceneModuleTypeName;
+        [BoxGroup(SERVICE_GROUP), DisableInPlayMode]
+        [HelperDropdown(typeof(ISceneService), "Scene Service")]
+        [SerializeField] private string m_SceneServiceTypeName;
 
-        [BoxGroup(MODULE_GROUP), DisableInPlayMode]
-        [HelperDropdown(typeof(ITimerModule), "Timer Module")]
-        [SerializeField] private string m_TimerModuleTypeName;
+        [BoxGroup(SERVICE_GROUP), DisableInPlayMode]
+        [HelperDropdown(typeof(ITimerService), "Timer Service")]
+        [SerializeField] private string m_TimerServiceTypeName;
 
-        [BoxGroup(MODULE_GROUP), DisableInPlayMode]
-        [HelperDropdown(typeof(IInputModule), "Input Module")]
-        [SerializeField] private string m_InputModuleTypeName;
+        [BoxGroup(SERVICE_GROUP), DisableInPlayMode]
+        [HelperDropdown(typeof(IInputService), "Input Service")]
+        [SerializeField] private string m_InputServiceTypeName;
 
-        [BoxGroup(MODULE_GROUP), DisableInPlayMode]
-        [HelperDropdown(typeof(ISaveModule), "Save Module")]
-        [SerializeField] private string m_SaveModuleTypeName;
+        [BoxGroup(SERVICE_GROUP), DisableInPlayMode]
+        [HelperDropdown(typeof(ISaveService), "Save Service")]
+        [SerializeField] private string m_SaveServiceTypeName;
 
-        [BoxGroup(MODULE_GROUP), DisableInPlayMode]
-        [HelperDropdown(typeof(IUIModule), "UI Module")]
-        [SerializeField] private string m_UIModuleTypeName;
+        [BoxGroup(SERVICE_GROUP), DisableInPlayMode]
+        [HelperDropdown(typeof(IUIService), "UI Service")]
+        [SerializeField] private string m_UIServiceTypeName;
 
         /// <!-- Handler -->
         private const string HELPER_GROUP = "框架工具 [Global Handler]";
@@ -141,7 +141,7 @@ namespace Moirai.Atropos
                 if (Instance.m_EditorLanguage == value) return;
 
                 Instance.m_EditorLanguage = value;
-                GameModule.Localization?.ChangeLanguage(value);
+                GameApp.Localization?.ChangeLanguage(value);
             }
         }
 
@@ -193,19 +193,19 @@ namespace Moirai.Atropos
             m_RunInBackground = true;
             m_NeverSleep = true;
 
-            m_UpdateDriverTypeName = typeof(UpdateDriverModule).FullName;
-            m_ResourceModuleTypeName = typeof(ResourceModule).FullName;
-            m_DebuggerModuleTypeName = typeof(DebuggerModule).FullName;
-            m_FSMModuleTypeName = typeof(FSMModule).FullName;
-            m_AudioModuleTypeName = typeof(AudioModule).FullName;
-            m_ObjectPoolModuleTypeName = typeof(ObjectPoolModule).FullName;
-            m_ProcedureModuleTypeName = typeof(ProcedureModule).FullName;
-            m_LocalizationModuleTypeName = typeof(LocalizationModule).FullName;
-            m_SceneModuleTypeName = typeof(SceneModule).FullName;
-            m_TimerModuleTypeName = typeof(TimerModule).FullName;
-            m_InputModuleTypeName = typeof(InputModule).FullName;
-            m_SaveModuleTypeName = typeof(SaveModule).FullName;
-            m_UIModuleTypeName = typeof(UIModule).FullName;
+            m_UpdateDriverTypeName = typeof(UpdateDriverService).FullName;
+            m_ResourceServiceTypeName = typeof(ResourceService).FullName;
+            m_DebuggerServiceTypeName = typeof(DebuggerService).FullName;
+            m_FSMServiceTypeName = typeof(FSMService).FullName;
+            m_AudioServiceTypeName = typeof(AudioService).FullName;
+            m_ObjectPoolServiceTypeName = typeof(ObjectPoolService).FullName;
+            m_ProcedureServiceTypeName = typeof(ProcedureService).FullName;
+            m_LocalizationServiceTypeName = typeof(LocalizationService).FullName;
+            m_SceneServiceTypeName = typeof(SceneService).FullName;
+            m_TimerServiceTypeName = typeof(TimerService).FullName;
+            m_InputServiceTypeName = typeof(InputService).FullName;
+            m_SaveServiceTypeName = typeof(SaveService).FullName;
+            m_UIServiceTypeName = typeof(UIService).FullName;
 
             m_VersionHandler = new DefaultVersionHandler();
             m_SettingHandler = new DefaultSettingHandler();
@@ -240,22 +240,22 @@ namespace Moirai.Atropos
             JsonUtility.Handler = Instance.m_JsonHandler;
             ObjectUtility.Handler = Instance.m_ObjectHandler;
 
-            // 将模块实现类型注册到 ModuleSystem
-            ModuleSystem.RegisterModule<IUpdateDriverModule>(ResolveTypeOption<Module>(Instance.m_UpdateDriverTypeName));
-            ModuleSystem.RegisterModule<IResourceModule>(ResolveTypeOption<Module>(Instance.m_ResourceModuleTypeName));
-            ModuleSystem.RegisterModule<IDebuggerModule>(ResolveTypeOption<Module>(Instance.m_DebuggerModuleTypeName));
-            ModuleSystem.RegisterModule<IFSMModule>(ResolveTypeOption<Module>(Instance.m_FSMModuleTypeName));
-            ModuleSystem.RegisterModule<IAudioModule>(ResolveTypeOption<Module>(Instance.m_AudioModuleTypeName));
-            ModuleSystem.RegisterModule<IObjectPoolModule>(ResolveTypeOption<Module>(Instance.m_ObjectPoolModuleTypeName));
-            ModuleSystem.RegisterModule<IProcedureModule>(ResolveTypeOption<Module>(Instance.m_ProcedureModuleTypeName));
-            ModuleSystem.RegisterModule<ILocalizationModule>(ResolveTypeOption<Module>(Instance.m_LocalizationModuleTypeName));
-            ModuleSystem.RegisterModule<ISceneModule>(ResolveTypeOption<Module>(Instance.m_SceneModuleTypeName));
-            ModuleSystem.RegisterModule<ITimerModule>(ResolveTypeOption<Module>(Instance.m_TimerModuleTypeName));
-            ModuleSystem.RegisterModule<IInputModule>(ResolveTypeOption<Module>(Instance.m_InputModuleTypeName));
-            ModuleSystem.RegisterModule<ISaveModule>(ResolveTypeOption<Module>(Instance.m_SaveModuleTypeName));
-            ModuleSystem.RegisterModule<IUIModule>(ResolveTypeOption<Module>(Instance.m_UIModuleTypeName));
+            // 将服务实现类型注册到 ServiceSystem
+            ServiceSystem.RegisterService<IUpdateDriverService>(ResolveTypeOption<Service>(Instance.m_UpdateDriverTypeName));
+            ServiceSystem.RegisterService<IResourceService>(ResolveTypeOption<Service>(Instance.m_ResourceServiceTypeName));
+            ServiceSystem.RegisterService<IDebuggerService>(ResolveTypeOption<Service>(Instance.m_DebuggerServiceTypeName));
+            ServiceSystem.RegisterService<IFSMService>(ResolveTypeOption<Service>(Instance.m_FSMServiceTypeName));
+            ServiceSystem.RegisterService<IAudioService>(ResolveTypeOption<Service>(Instance.m_AudioServiceTypeName));
+            ServiceSystem.RegisterService<IObjectPoolService>(ResolveTypeOption<Service>(Instance.m_ObjectPoolServiceTypeName));
+            ServiceSystem.RegisterService<IProcedureService>(ResolveTypeOption<Service>(Instance.m_ProcedureServiceTypeName));
+            ServiceSystem.RegisterService<ILocalizationService>(ResolveTypeOption<Service>(Instance.m_LocalizationServiceTypeName));
+            ServiceSystem.RegisterService<ISceneService>(ResolveTypeOption<Service>(Instance.m_SceneServiceTypeName));
+            ServiceSystem.RegisterService<ITimerService>(ResolveTypeOption<Service>(Instance.m_TimerServiceTypeName));
+            ServiceSystem.RegisterService<IInputService>(ResolveTypeOption<Service>(Instance.m_InputServiceTypeName));
+            ServiceSystem.RegisterService<ISaveService>(ResolveTypeOption<Service>(Instance.m_SaveServiceTypeName));
+            ServiceSystem.RegisterService<IUIService>(ResolveTypeOption<Service>(Instance.m_UIServiceTypeName));
 
-            // 使用模块功能的工具
+            // 使用服务功能的工具
             TweenUtility.Handler = Instance.m_TweenHandler;
 
             LogUtility.Info("Game Version: {0} ({1})", VersionUtility.GameVersion, VersionUtility.InternalGameVersion);

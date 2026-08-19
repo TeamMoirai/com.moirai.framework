@@ -1,4 +1,4 @@
-﻿using Cysharp.Threading.Tasks;
+using Cysharp.Threading.Tasks;
 using UnityEngine;
 
 namespace Moirai.Atropos.Localization
@@ -30,8 +30,8 @@ namespace Moirai.Atropos.Localization
 
 		private async UniTaskVoid ApplyFromResource()
 		{
-			string textIDValue = GameModule.Localization.GetTextFromId(_localizedTextID);
-			var result = await GameModule.Resource.LoadAssetAsync<AudioClip>(textIDValue);
+			string textIDValue = GameApp.Localization.GetTextFromId(_localizedTextID);
+			var result = await GameApp.Resource.LoadAssetAsync<AudioClip>(textIDValue);
 			
 			Play(result);
 		}

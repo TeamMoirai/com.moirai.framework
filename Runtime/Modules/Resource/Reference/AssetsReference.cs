@@ -35,25 +35,25 @@ namespace Moirai.Atropos.Resource
 
         [SerializeField] private List<AssetsRefInfo> m_RefAssetInfoList;
 
-        private static IResourceModule s_ResourceModule;
+        private static IResourceService s_ResourceService;
 
         private static Dictionary<GameObject, AssetsReference> s_OriginalRefs = new Dictionary<GameObject, AssetsReference>();
 
 
         private void CheckInit()
         {
-            if (s_ResourceModule != null)
+            if (s_ResourceService != null)
             {
                 return;
             }
             else
             {
-                s_ResourceModule = ModuleSystem.GetModule<IResourceModule>();
+                s_ResourceService = ServiceSystem.GetService<IResourceService>();
             }
 
-            if (s_ResourceModule == null)
+            if (s_ResourceService == null)
             {
-                throw new GameException($"ResourceModule is null.");
+                throw new GameException($"ResourceService is null.");
             }
         }
 
@@ -61,7 +61,7 @@ namespace Moirai.Atropos.Resource
         {
             if (m_SourceGameObject != null)
             {
-                s_ResourceModule.UnloadAsset(m_SourceGameObject);
+                s_ResourceService.UnloadAsset(m_SourceGameObject);
             }
             else
             {
@@ -112,14 +112,14 @@ namespace Moirai.Atropos.Resource
             {
                 foreach (var refInfo in m_RefAssetInfoList)
                 {
-                    s_ResourceModule.UnloadAsset(refInfo.refAsset);
+                    s_ResourceService.UnloadAsset(refInfo.refAsset);
                 }
 
                 m_RefAssetInfoList.Clear();
             }
         }
 
-        public AssetsReference Ref(GameObject source, IResourceModule resourceModule = null)
+        public AssetsReference Ref(GameObject source, IResourceService resourceService = null)
         {
             if (source == null)
             {
@@ -131,7 +131,7 @@ namespace Moirai.Atropos.Resource
                 throw new GameException($"Source gameObject is in scene.");
             }
 
-            s_ResourceModule = resourceModule;
+            s_ResourceService = resourceService;
             m_SourceGameObject = source;
 
             s_OriginalRefs[gameObject] = this;
@@ -139,14 +139,14 @@ namespace Moirai.Atropos.Resource
             return this;
         }
 
-        public AssetsReference Ref<T>(T source, IResourceModule resourceModule = null) where T : Object
+        public AssetsReference Ref<T>(T source, IResourceService resourceService = null) where T : Object
         {
             if (source == null)
             {
                 throw new GameException($"Source gameObject is null.");
             }
 
-            s_ResourceModule = resourceModule;
+            s_ResourceService = resourceService;
             if (m_RefAssetInfoList == null)
             {
                 m_RefAssetInfoList = new List<AssetsRefInfo>();
@@ -156,7 +156,7 @@ namespace Moirai.Atropos.Resource
             return this;
         }
 
-        internal static AssetsReference Instantiate(GameObject source, Transform parent = null, IResourceModule resourceModule = null)
+        internal static AssetsReference Instantiate(GameObject source, Transform parent = null, IResourceService resourceService = null)
         {
             if (source == null)
             {
@@ -169,10 +169,10 @@ namespace Moirai.Atropos.Resource
             }
 
             GameObject instance = Object.Instantiate(source, parent);
-            return instance.AddComponent<AssetsReference>().Ref(source, resourceModule);
+            return instance.AddComponent<AssetsReference>().Ref(source, resourceService);
         }
 
-        public static AssetsReference Ref(GameObject source, GameObject instance, IResourceModule resourceModule = null)
+        public static AssetsReference Ref(GameObject source, GameObject instance, IResourceService resourceService = null)
         {
             if (source == null)
             {
@@ -185,10 +185,10 @@ namespace Moirai.Atropos.Resource
             }
 
             var comp = instance.GetComponent<AssetsReference>();
-            return comp ? comp.Ref(source, resourceModule) : instance.AddComponent<AssetsReference>().Ref(source, resourceModule);
+            return comp ? comp.Ref(source, resourceService) : instance.AddComponent<AssetsReference>().Ref(source, resourceService);
         }
 
-        public static AssetsReference Ref<T>(T source, GameObject instance, IResourceModule resourceModule = null) where T : Object
+        public static AssetsReference Ref<T>(T source, GameObject instance, IResourceService resourceService = null) where T : Object
         {
             if (source == null)
             {
@@ -196,7 +196,7 @@ namespace Moirai.Atropos.Resource
             }
 
             var comp = instance.GetComponent<AssetsReference>();
-            return comp ? comp.Ref(source, resourceModule) : instance.AddComponent<AssetsReference>().Ref(source, resourceModule);
+            return comp ? comp.Ref(source, resourceService) : instance.AddComponent<AssetsReference>().Ref(source, resourceService);
         }
     }
 }

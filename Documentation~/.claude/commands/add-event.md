@@ -4,7 +4,7 @@
 
 ## 参数
 - $EVENT_NAME: 事件名称（如：PlayerDeath、ScoreChanged）
-- $MODULE: 所属模块（可选）
+- $SERVICE: 所属服务（可选）
 
 ## 任务
 
@@ -57,8 +57,8 @@ public static class {EVENT_NAME}Event
 
 ### 4. 注册事件
 ```csharp
-// 在模块中注册事件
-public class SomeModule : Module
+// 在服务中注册事件
+public class SomeService : Service
 {
     protected override void OnInit()
     {
@@ -134,7 +134,7 @@ EventSystem.Instance.Publish(new {EVENT_NAME}Event(/* 数据 */));
 
 ### 事件信息
 - **事件名称**：{event_name}
-- **所属模块**：{module}
+- **所属服务**：{service}
 - **触发条件**：{trigger_condition}
 
 ### 实现代码
