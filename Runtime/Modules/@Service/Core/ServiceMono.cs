@@ -24,13 +24,23 @@ namespace Moirai.Atropos
     {
         public override EServiceScopeKind Scope => ScopeKindCache<TScope>.Scope;
 
+        /// <summary>
+        /// 注册合约接口类型。子类应覆写并返回业务接口（如 typeof(IMyService)），
+        /// 默认值 <see cref="System.Object.GetType()"/> 表示未指定，将退回注册为 <see cref="IService"/> 合约
+        /// （多个实例会争抢该合约，仅第一个生效）。
+        /// </summary>
         protected virtual System.Type RegisterAs => GetType();
 
         protected virtual void Awake()
         {
             if (Scope == EServiceScopeKind.App)
                 DontDestroyOnLoad(gameObject);
-            GameServices.RegisterService<IService>(this);
+
+            var contract = RegisterAs;
+            if (contract != null && contract.IsInterface && contract != typeof(IService))
+                GameServices.RegisterService(this, contract);
+            else
+                GameServices.RegisterService(this, typeof(IService));
         }
 
         protected virtual void OnDestroy()
