@@ -8,7 +8,7 @@ using Object = UnityEngine.Object;
 
 namespace Moirai.Atropos.UpdateDriver
 {
-    internal class UpdateDriverService : Service, IUpdateDriverService
+    internal class UpdateDriverService : ServiceBase, IUpdateDriverService
     {
         private GameObject _entity;
         private MainBehaviour _behaviour;

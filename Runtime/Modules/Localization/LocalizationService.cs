@@ -12,7 +12,7 @@ namespace Moirai.Atropos.Localization
     /// todo 配置表导出分表，不需要一次加载所有多语言
     /// </summary>
     // ReSharper disable once ClassNeverInstantiated.Global
-    public sealed class LocalizationService : Service, ILocalizationService
+    public sealed class LocalizationService : ServiceBase, ILocalizationService
     {
         // 本地化器列表
         private readonly List<LocalizerBase> _localizers = new List<LocalizerBase>();

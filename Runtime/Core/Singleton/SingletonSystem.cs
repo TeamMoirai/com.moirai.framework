@@ -266,7 +266,7 @@ namespace Moirai.Atropos
 
             s_IsInit = true;
 
-            s_UpdateDriver ??= ServiceSystem.GetService<IUpdateDriverService>();
+            s_UpdateDriver ??= GameServices.GetService<IUpdateDriverService>();
             s_UpdateDriver.AddUpdateListener(OnUpdate);
             s_UpdateDriver.AddFixedUpdateListener(OnFixedUpdate);
             s_UpdateDriver.AddLateUpdateListener(OnLateUpdate);
@@ -282,7 +282,7 @@ namespace Moirai.Atropos
 
             s_IsInit = false;
 
-            s_UpdateDriver ??= ServiceSystem.GetService<IUpdateDriverService>();
+            s_UpdateDriver ??= GameServices.GetService<IUpdateDriverService>();
             s_UpdateDriver.RemoveUpdateListener(OnUpdate);
             s_UpdateDriver.RemoveFixedUpdateListener(OnFixedUpdate);
             s_UpdateDriver.RemoveLateUpdateListener(OnLateUpdate);

@@ -18,7 +18,7 @@ namespace Moirai.Atropos.Audio
     /// </summary>
     /// <remarks>场景3D音效挂到场景物件、技能3D音效挂到技能特效上，并在 <see cref="AudioSource"/> 的Output上设置对应分类的 <see cref="AudioMixerGroup"/></remarks>
     // ReSharper disable once ClassNeverInstantiated.Global
-    public sealed class AudioService : Service, IAudioService, IServiceTickable
+    public sealed class AudioService : ServiceBase, IAudioService, IServiceTickable
     {
         private AudioGroupConfig[] _audioGroupConfigs;
         private bool _unityAudioDisabled;
@@ -219,7 +219,7 @@ namespace Moirai.Atropos.Audio
         {
             if (!Application.isPlaying) return;
             
-            _resourceService = ServiceSystem.GetService<IResourceService>();
+            _resourceService = GameServices.GetService<IResourceService>();
             
             Initialize();
             

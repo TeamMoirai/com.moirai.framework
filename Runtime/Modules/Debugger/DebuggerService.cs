@@ -3,7 +3,7 @@ namespace Moirai.Atropos.Debugger
     /// <summary>
     /// 调试器管理器。
     /// </summary>
-    internal sealed partial class DebuggerService : Service, IDebuggerService, IServiceTickable
+    internal sealed partial class DebuggerService : ServiceBase, IDebuggerService, IServiceTickable
     {
         private DebuggerWindowGroup _debuggerWindowRoot;
         private bool _activeWindow;

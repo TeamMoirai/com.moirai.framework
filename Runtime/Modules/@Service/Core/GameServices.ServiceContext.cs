@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace Moirai.Atropos
 {
-    public static partial class ServiceSystem
+    public static partial class GameServices
     {
         internal readonly struct ServiceContext
         {
@@ -42,11 +42,11 @@ namespace Moirai.Atropos
                 return false;
             }
 
-            internal T RequireApp<T>() where T : class => RequireScope<T>(ServiceScopeKind.App);
-            internal T RequireScene<T>() where T : class => RequireScope<T>(ServiceScopeKind.Scene);
-            internal T RequireGameplay<T>() where T : class => RequireScope<T>(ServiceScopeKind.Gameplay);
+            internal T RequireApp<T>() where T : class => RequireScope<T>(EServiceScopeKind.App);
+            internal T RequireScene<T>() where T : class => RequireScope<T>(EServiceScopeKind.Scene);
+            internal T RequireGameplay<T>() where T : class => RequireScope<T>(EServiceScopeKind.Gameplay);
 
-            private T RequireScope<T>(ServiceScopeKind scope) where T : class
+            private T RequireScope<T>(EServiceScopeKind scope) where T : class
             {
                 if (_services.TryGetValue(typeof(T).TypeHandle, out var bindings))
                 {

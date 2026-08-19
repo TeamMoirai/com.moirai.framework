@@ -2,12 +2,12 @@ using UnityEngine;
 
 namespace Moirai.Atropos
 {
-    public abstract class MonoServiceBehaviourBase : MonoBehaviour, IService
+    public abstract class ServiceMonoBase : MonoBehaviour, IService
     {
-        private ServiceSystem.ServiceContext _context;
+        private GameServices.ServiceContext _context;
 
         public virtual int Priority => 0;
-        public abstract ServiceScopeKind Scope { get; }
+        public abstract EServiceScopeKind Scope { get; }
         public abstract void OnInit();
         public abstract void Shutdown();
 
@@ -17,25 +17,25 @@ namespace Moirai.Atropos
         protected T RequireScene<T>() where T : class => _context.RequireScene<T>();
         protected T RequireGameplay<T>() where T : class => _context.RequireGameplay<T>();
 
-        internal void SetContext(ServiceSystem.ServiceContext context) => _context = context;
+        internal void SetContext(GameServices.ServiceContext context) => _context = context;
     }
 
-    public abstract class MonoServiceBehaviour<TScope> : MonoServiceBehaviourBase where TScope : IScope
+    public abstract class ServiceMono<TScope> : ServiceMonoBase where TScope : IScope
     {
-        public override ServiceScopeKind Scope => ScopeKindCache<TScope>.Scope;
+        public override EServiceScopeKind Scope => ScopeKindCache<TScope>.Scope;
 
         protected virtual System.Type RegisterAs => GetType();
 
         protected virtual void Awake()
         {
-            if (Scope == ServiceScopeKind.App)
+            if (Scope == EServiceScopeKind.App)
                 DontDestroyOnLoad(gameObject);
-            ServiceSystem.RegisterService<IService>(this);
+            GameServices.RegisterService<IService>(this);
         }
 
         protected virtual void OnDestroy()
         {
-            ServiceSystem.UnregisterService(this);
+            GameServices.UnregisterService(this);
         }
     }
 }

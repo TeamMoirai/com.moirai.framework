@@ -11,7 +11,7 @@ namespace Moirai.Atropos.Resource
         {
             if (s_ResourceManager == null)
             {
-                s_ResourceManager = ServiceSystem.GetService<IResourceService>();
+                s_ResourceManager = GameServices.GetService<IResourceService>();
             }
         }
 

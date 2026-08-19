@@ -8,7 +8,7 @@ namespace Moirai.Atropos.Input
     /// <summary>
     /// 输入服务。
     /// </summary>
-    public sealed class InputService : Service, IInputService
+    public sealed class InputService : ServiceBase, IInputService
     {
         [Flags]
         private enum InputStateFlags
@@ -83,13 +83,13 @@ namespace Moirai.Atropos.Input
         public override void OnInit()
         {
             _inputHandler = InputSettings.InputHandler;
-            EventManager.RegisterCallback<MessageEvent>(ResetInput);
+            EventManager.RegisterCallback<GameAppMessageEvent>(ResetInput);
             EventManager.RegisterCallback<UIServiceEvent>(RefreshUIModal);
         }
         
         public override void Shutdown()
         {
-            EventManager.UnregisterCallback<MessageEvent>(ResetInput);
+            EventManager.UnregisterCallback<GameAppMessageEvent>(ResetInput);
             EventManager.UnregisterCallback<UIServiceEvent>(RefreshUIModal);
         }
         
@@ -110,7 +110,7 @@ namespace Moirai.Atropos.Input
 
         #region 事件 [EVENTS]
 
-        private void ResetInput(MessageEvent evt)
+        private void ResetInput(GameAppMessageEvent evt)
         {
             switch (evt.EventType)
             {

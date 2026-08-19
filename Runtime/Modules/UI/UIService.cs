@@ -11,7 +11,7 @@ namespace Moirai.Atropos.UI
     /// <summary>
     /// UI服务。
     /// </summary>
-    public sealed partial class UIService : Service, IUIService, IServiceTickable
+    public sealed partial class UIService : ServiceBase, IUIService, IServiceTickable
     {
         // 核心字段
         private static Transform s_InstanceRoot = null; // UI根节点变换组件
@@ -55,7 +55,7 @@ namespace Moirai.Atropos.UI
         #region 实现方法 [IMPLEMENTATION METHODS]
 
         /// <summary>
-        /// 服务初始化（由 ServiceSystem 在注册时调用）。
+        /// 服务初始化（由 GameServices 在注册时调用）。
         /// </summary>
         public override void OnInit()
         {
@@ -119,7 +119,7 @@ namespace Moirai.Atropos.UI
         }
 
         /// <summary>
-        /// 服务释放（由 ServiceSystem 在关闭时调用）。
+        /// 服务释放（由 GameServices 在关闭时调用）。
         /// 1. 清理错误日志系统
         /// 2. 关闭所有窗口
         /// 3. 销毁UI根节点

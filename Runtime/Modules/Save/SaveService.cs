@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace Moirai.Atropos.Save
 {
-    public class SaveService : Service, ISaveService
+    public class SaveService : ServiceBase, ISaveService
     {
         private ISaveHandler _saveHandler;
 

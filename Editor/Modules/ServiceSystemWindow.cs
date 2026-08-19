@@ -37,7 +37,7 @@ namespace Moirai.Atropos.Editor
 
         private void DrawSummary()
         {
-            var infos = ServiceSystem.GetDiagnosticInfo();
+            var infos = GameServices.GetDiagnosticInfo();
 
             EditorGUILayout.BeginVertical("box");
             EditorGUILayout.LabelField("Service System", EditorStyles.boldLabel);
@@ -49,7 +49,7 @@ namespace Moirai.Atropos.Editor
             for (int i = 0; i < infos.Count; i++)
             {
                 var info = infos[i];
-                if (info.Scope == ServiceScope.App) appCount++;
+                if (info.Scope == EServiceScopeKind.App) appCount++;
                 else sceneCount++;
                 if (info.HasUpdate) updateCount++;
                 if (info.HasFixedUpdate) fixedUpdateCount++;
@@ -71,8 +71,8 @@ namespace Moirai.Atropos.Editor
             if (_showPendingChanges)
             {
                 EditorGUI.indentLevel++;
-                EditorGUILayout.LabelField("Is Iterating", ServiceSystem.s_IsIterating ? "Yes" : "No");
-                EditorGUILayout.LabelField("Pending Changes", ServiceSystem.s_PendingChanges.Count.ToString());
+                EditorGUILayout.LabelField("Is Iterating", GameServices.IsIterating ? "Yes" : "No");
+                EditorGUILayout.LabelField("Pending Changes", GameServices.PendingChangesCount.ToString());
                 EditorGUI.indentLevel--;
             }
 
@@ -81,7 +81,7 @@ namespace Moirai.Atropos.Editor
 
         private void DrawServiceList()
         {
-            var infos = ServiceSystem.GetDiagnosticInfo();
+            var infos = GameServices.GetDiagnosticInfo();
 
             EditorGUILayout.BeginVertical();
             {
@@ -103,7 +103,7 @@ namespace Moirai.Atropos.Editor
             EditorGUILayout.EndVertical();
         }
 
-        private static void DrawServiceRow(int index, ServiceSystem.DiagnosticInfo info)
+        private static void DrawServiceRow(int index, GameServices.DiagnosticInfo info)
         {
             EditorGUILayout.BeginHorizontal(index % 2 == 0 ? "box" : "HelpBox");
             {
@@ -111,7 +111,7 @@ namespace Moirai.Atropos.Editor
                 EditorGUILayout.LabelField(info.InterfaceType ?? "<unknown>", GUILayout.Width(260));
                 EditorGUILayout.LabelField(info.ImplementationType ?? "<unknown>", GUILayout.Width(260));
 
-                var scopeStyle = info.Scope == ServiceScope.Scene
+                var scopeStyle = info.Scope == EServiceScopeKind.Scene
                     ? new GUIStyle(EditorStyles.label) { normal = { textColor = new Color(1f, 0.6f, 0.2f) } }
                     : EditorStyles.label;
                 EditorGUILayout.LabelField(info.Scope.ToString(), scopeStyle, GUILayout.Width(60));

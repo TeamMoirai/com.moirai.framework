@@ -156,8 +156,8 @@ namespace Moirai.Atropos.Audio
         /// <param name="index">音频代理辅助器编号。</param>
         public void Init(AudioCategory audioCategory, int index = 0)
         {
-            _audioService = ServiceSystem.GetService<IAudioService>();
-            _resourceService = ServiceSystem.GetService<IResourceService>();
+            _audioService = GameServices.GetService<IAudioService>();
+            _resourceService = GameServices.GetService<IResourceService>();
             GameObject host = new GameObject(StringUtility.Format("{0} - {1}", audioCategory.AudioMixerGroup.name, index));
             host.transform.SetParent(audioCategory.InstanceRoot);
             host.transform.localPosition = Vector3.zero;
