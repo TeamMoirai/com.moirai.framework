@@ -14,7 +14,7 @@ namespace Moirai.Atropos.Debugger
                 GUILayout.Label("<b>Operations</b>");
                 GUILayout.BeginVertical("box");
                 {
-                    IObjectPoolService objectPoolService = ServiceSystem.GetService<IObjectPoolService>();
+                    IObjectPoolService objectPoolService = GameServices.GetService<IObjectPoolService>();
                     if (objectPoolService != null)
                     {
                         if (GUILayout.Button("Object Pool Release", GUILayout.Height(30f)))
@@ -28,7 +28,7 @@ namespace Moirai.Atropos.Debugger
                         }
                     }
 
-                    IResourceService resourceService = ServiceSystem.GetService<IResourceService>();
+                    IResourceService resourceService = GameServices.GetService<IResourceService>();
                     if (resourceService != null)
                     {
                         if (GUILayout.Button("Unload Unused Assets", GUILayout.Height(30f)))
@@ -43,16 +43,16 @@ namespace Moirai.Atropos.Debugger
                         
                         if (GUILayout.Button("Shutdown Game Framework (None)", GUILayout.Height(30f)))
                         {
-                            ServiceSystem.Shutdown();
+                            GameServices.Shutdown();
                         }
                         if (GUILayout.Button("Shutdown Game Framework (Restart)", GUILayout.Height(30f)))
                         {
-                            ServiceSystem.Shutdown();
+                            GameServices.Shutdown();
                             SceneManager.LoadScene(0);
                         }
                         if (GUILayout.Button("Shutdown Game Framework (Quit)", GUILayout.Height(30f)))
                         {
-                            ServiceSystem.Shutdown();
+                            GameServices.Shutdown();
                             Application.Quit();
 #if UNITY_EDITOR
                             UnityEditor.EditorApplication.isPlaying = false;

@@ -6,7 +6,7 @@ namespace Moirai.Atropos.FSM
     /// <summary>
     /// 有限状态机服务。
     /// </summary>
-    public sealed class FSMService : Service, IFSMService, IServiceTickable
+    public sealed class FSMService : ServiceBase, IFSMService, IServiceTickable
     {
         private Dictionary<TypeNamePair, FSMBase> _fsmMap;
         private List<FSMBase> _tempFSMList;

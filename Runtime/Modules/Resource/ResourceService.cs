@@ -16,7 +16,7 @@ namespace Moirai.Atropos.Resource
     /// 资源管理器。
     /// </summary>
     // ReSharper disable once ClassNeverInstantiated.Global
-    internal sealed partial class ResourceService : Service, IResourceService
+    internal sealed partial class ResourceService : ServiceBase, IResourceService
     {
         public string DefaultPackageName { get; set; } = "DefaultPackage";
 
@@ -106,7 +106,7 @@ namespace Moirai.Atropos.Resource
             }
             DefaultPackage = defaultPackage;
 
-            IObjectPoolService objectPoolManager = ServiceSystem.GetService<IObjectPoolService>();
+            IObjectPoolService objectPoolManager = GameServices.GetService<IObjectPoolService>();
             SetObjectPoolService(objectPoolManager);
         }
 

@@ -16,7 +16,7 @@ namespace Moirai.Main
         /// </summary>
         public abstract bool UseNativeDialog { get; }
         
-        protected readonly IResourceService _resourceService = ServiceSystem.GetService<IResourceService>();
+        protected readonly IResourceService _resourceService = GameServices.GetService<IResourceService>();
 
     }
 }

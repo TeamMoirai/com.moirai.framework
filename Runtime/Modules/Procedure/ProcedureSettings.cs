@@ -58,7 +58,7 @@ namespace Moirai.Atropos.Procedure
         {
             if (Instance._procedureService == null)
             {
-                Instance._procedureService = ServiceSystem.GetService<IProcedureService>();
+                Instance._procedureService = GameServices.GetService<IProcedureService>();
             }
 
             if (Instance._procedureService == null)
@@ -96,7 +96,7 @@ namespace Moirai.Atropos.Procedure
                 return;
             }
 
-            Instance._procedureService.Initialize(ServiceSystem.GetService<IFSMService>(), procedures);
+            Instance._procedureService.Initialize(GameServices.GetService<IFSMService>(), procedures);
 
             await UniTask.Yield();
 

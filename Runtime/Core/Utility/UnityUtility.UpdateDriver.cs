@@ -319,7 +319,7 @@ namespace Moirai.Atropos
                 return;
             }
 
-            s_UpdateDriver = ServiceSystem.GetService<IUpdateDriverService>();
+            s_UpdateDriver = GameServices.GetService<IUpdateDriverService>();
         }
     }
 

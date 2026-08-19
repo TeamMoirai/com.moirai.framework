@@ -6,7 +6,7 @@ namespace Moirai.Atropos.Procedure
     /// <summary>
     /// 流程管理服务。
     /// </summary>
-    public sealed class ProcedureService : Service, IProcedureService
+    public sealed class ProcedureService : ServiceBase, IProcedureService
     {
         private IFSMService _fsmService;
         private IFSM<IProcedureService> _procedureFsm;

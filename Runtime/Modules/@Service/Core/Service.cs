@@ -5,7 +5,7 @@ namespace Moirai.Atropos
     public interface IService
     {
         int Priority { get; }
-        ServiceScopeKind Scope { get; }
+        EServiceScopeKind Scope { get; }
         void OnInit();
         void Shutdown();
     }
@@ -37,10 +37,10 @@ namespace Moirai.Atropos
 
     public abstract class ServiceBase : IService
     {
-        private ServiceSystem.ServiceContext _context;
+        private GameServices.ServiceContext _context;
 
         public virtual int Priority => 0;
-        public virtual ServiceScopeKind Scope => ServiceScopeKind.App;
+        public virtual EServiceScopeKind Scope => EServiceScopeKind.App;
         public abstract void OnInit();
         public abstract void Shutdown();
 
@@ -50,6 +50,6 @@ namespace Moirai.Atropos
         protected T RequireScene<T>() where T : class => _context.RequireScene<T>();
         protected T RequireGameplay<T>() where T : class => _context.RequireGameplay<T>();
 
-        internal void SetContext(ServiceSystem.ServiceContext context) => _context = context;
+        internal void SetContext(GameServices.ServiceContext context) => _context = context;
     }
 }

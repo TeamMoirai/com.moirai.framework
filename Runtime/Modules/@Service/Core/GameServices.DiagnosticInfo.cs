@@ -3,13 +3,13 @@ using System.Collections.Generic;
 
 namespace Moirai.Atropos
 {
-    public static partial class ServiceSystem
+    public static partial class GameServices
     {
         internal struct DiagnosticInfo
         {
             public string InterfaceType;
             public string ImplementationType;
-            public ServiceScopeKind Scope;
+            public EServiceScopeKind Scope;
             public int Priority;
             public bool HasUpdate;
             public bool HasFixedUpdate;
@@ -23,14 +23,14 @@ namespace Moirai.Atropos
             foreach (var kvp in s_ServiceMaps)
             {
                 var bindings = kvp.Value;
-                if (bindings.App != null) result.Add(BuildDiagInfo(kvp.Key, bindings.App, ServiceScopeKind.App));
-                if (bindings.Scene != null) result.Add(BuildDiagInfo(kvp.Key, bindings.Scene, ServiceScopeKind.Scene));
-                if (bindings.Gameplay != null) result.Add(BuildDiagInfo(kvp.Key, bindings.Gameplay, ServiceScopeKind.Gameplay));
+                if (bindings.App != null) result.Add(BuildDiagInfo(kvp.Key, bindings.App, EServiceScopeKind.App));
+                if (bindings.Scene != null) result.Add(BuildDiagInfo(kvp.Key, bindings.Scene, EServiceScopeKind.Scene));
+                if (bindings.Gameplay != null) result.Add(BuildDiagInfo(kvp.Key, bindings.Gameplay, EServiceScopeKind.Gameplay));
             }
             return result;
         }
 
-        private static DiagnosticInfo BuildDiagInfo(RuntimeTypeHandle handle, IService service, ServiceScopeKind scope)
+        private static DiagnosticInfo BuildDiagInfo(RuntimeTypeHandle handle, IService service, EServiceScopeKind scope)
         {
             var type = Type.GetTypeFromHandle(handle);
             return new DiagnosticInfo

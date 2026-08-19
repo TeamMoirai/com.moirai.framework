@@ -240,20 +240,20 @@ namespace Moirai.Atropos
             JsonUtility.Handler = Instance.m_JsonHandler;
             ObjectUtility.Handler = Instance.m_ObjectHandler;
 
-            // 将服务实现类型注册到 ServiceSystem
-            ServiceSystem.RegisterService<IUpdateDriverService>(ResolveTypeOption<Service>(Instance.m_UpdateDriverTypeName));
-            ServiceSystem.RegisterService<IResourceService>(ResolveTypeOption<Service>(Instance.m_ResourceServiceTypeName));
-            ServiceSystem.RegisterService<IDebuggerService>(ResolveTypeOption<Service>(Instance.m_DebuggerServiceTypeName));
-            ServiceSystem.RegisterService<IFSMService>(ResolveTypeOption<Service>(Instance.m_FSMServiceTypeName));
-            ServiceSystem.RegisterService<IAudioService>(ResolveTypeOption<Service>(Instance.m_AudioServiceTypeName));
-            ServiceSystem.RegisterService<IObjectPoolService>(ResolveTypeOption<Service>(Instance.m_ObjectPoolServiceTypeName));
-            ServiceSystem.RegisterService<IProcedureService>(ResolveTypeOption<Service>(Instance.m_ProcedureServiceTypeName));
-            ServiceSystem.RegisterService<ILocalizationService>(ResolveTypeOption<Service>(Instance.m_LocalizationServiceTypeName));
-            ServiceSystem.RegisterService<ISceneService>(ResolveTypeOption<Service>(Instance.m_SceneServiceTypeName));
-            ServiceSystem.RegisterService<ITimerService>(ResolveTypeOption<Service>(Instance.m_TimerServiceTypeName));
-            ServiceSystem.RegisterService<IInputService>(ResolveTypeOption<Service>(Instance.m_InputServiceTypeName));
-            ServiceSystem.RegisterService<ISaveService>(ResolveTypeOption<Service>(Instance.m_SaveServiceTypeName));
-            ServiceSystem.RegisterService<IUIService>(ResolveTypeOption<Service>(Instance.m_UIServiceTypeName));
+            // 将服务实现类型注册到 GameServices
+            GameServices.RegisterService<IUpdateDriverService>(ResolveTypeOption<ServiceBase>(Instance.m_UpdateDriverTypeName));
+            GameServices.RegisterService<IResourceService>(ResolveTypeOption<ServiceBase>(Instance.m_ResourceServiceTypeName));
+            GameServices.RegisterService<IDebuggerService>(ResolveTypeOption<ServiceBase>(Instance.m_DebuggerServiceTypeName));
+            GameServices.RegisterService<IFSMService>(ResolveTypeOption<ServiceBase>(Instance.m_FSMServiceTypeName));
+            GameServices.RegisterService<IAudioService>(ResolveTypeOption<ServiceBase>(Instance.m_AudioServiceTypeName));
+            GameServices.RegisterService<IObjectPoolService>(ResolveTypeOption<ServiceBase>(Instance.m_ObjectPoolServiceTypeName));
+            GameServices.RegisterService<IProcedureService>(ResolveTypeOption<ServiceBase>(Instance.m_ProcedureServiceTypeName));
+            GameServices.RegisterService<ILocalizationService>(ResolveTypeOption<ServiceBase>(Instance.m_LocalizationServiceTypeName));
+            GameServices.RegisterService<ISceneService>(ResolveTypeOption<ServiceBase>(Instance.m_SceneServiceTypeName));
+            GameServices.RegisterService<ITimerService>(ResolveTypeOption<ServiceBase>(Instance.m_TimerServiceTypeName));
+            GameServices.RegisterService<IInputService>(ResolveTypeOption<ServiceBase>(Instance.m_InputServiceTypeName));
+            GameServices.RegisterService<ISaveService>(ResolveTypeOption<ServiceBase>(Instance.m_SaveServiceTypeName));
+            GameServices.RegisterService<IUIService>(ResolveTypeOption<ServiceBase>(Instance.m_UIServiceTypeName));
 
             // 使用服务功能的工具
             TweenUtility.Handler = Instance.m_TweenHandler;

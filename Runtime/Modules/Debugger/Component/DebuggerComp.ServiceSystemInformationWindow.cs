@@ -12,7 +12,7 @@ namespace Moirai.Atropos.Debugger
                 GUILayout.Label("<b>Service System</b>");
                 GUILayout.BeginVertical("box");
                 {
-                    var infos = ServiceSystem.GetDiagnosticInfo();
+                    var infos = GameServices.GetDiagnosticInfo();
 
                     int appCount = 0, sceneCount = 0, gameplayCount = 0;
                     int updateCount = 0, fixedUpdateCount = 0, lateUpdateCount = 0, gizmoCount = 0;
@@ -20,8 +20,8 @@ namespace Moirai.Atropos.Debugger
                     for (int i = 0; i < infos.Count; i++)
                     {
                         var info = infos[i];
-                        if (info.Scope == ServiceScope.App) appCount++;
-                        else if (info.Scope == ServiceScope.Scene) sceneCount++;
+                        if (info.Scope == EServiceScopeKind.App) appCount++;
+                        else if (info.Scope == EServiceScopeKind.Scene) sceneCount++;
                         else gameplayCount++;
                         if (info.HasUpdate) updateCount++;
                         if (info.HasFixedUpdate) fixedUpdateCount++;
@@ -40,8 +40,8 @@ namespace Moirai.Atropos.Debugger
 
                     GUILayout.Space(4);
 
-                    DrawItem("Is Iterating", ServiceSystem.s_IsIterating ? "Yes" : "No");
-                    DrawItem("Pending Changes", ServiceSystem.s_PendingChanges.Count.ToString());
+                    DrawItem("Is Iterating", GameServices.IsIterating ? "Yes" : "No");
+                    DrawItem("Pending Changes", GameServices.PendingChangesCount.ToString());
                 }
                 GUILayout.EndVertical();
 
@@ -50,7 +50,7 @@ namespace Moirai.Atropos.Debugger
                 GUILayout.Label("<b>Service List</b>");
                 GUILayout.BeginVertical("box");
                 {
-                    var list = ServiceSystem.GetDiagnosticInfo();
+                    var list = GameServices.GetDiagnosticInfo();
                     for (int i = 0; i < list.Count; i++)
                     {
                         var info = list[i];

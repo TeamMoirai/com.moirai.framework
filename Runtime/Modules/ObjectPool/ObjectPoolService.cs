@@ -6,7 +6,7 @@ namespace Moirai.Atropos.ObjectPool
     /// <summary>
     /// 对象池服务。
     /// </summary>
-    internal sealed partial class ObjectPoolService : Service, IObjectPoolService, IServiceTickable
+    internal sealed partial class ObjectPoolService : ServiceBase, IObjectPoolService, IServiceTickable
     {
         private const int DEFAULT_CAPACITY = int.MaxValue;
         private const float DEFAULT_EXPIRE_TIME = float.MaxValue;

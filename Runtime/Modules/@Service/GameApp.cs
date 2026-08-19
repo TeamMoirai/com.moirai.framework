@@ -109,7 +109,7 @@ namespace Moirai.Atropos
         /// <returns>游戏框架服务实例。</returns>
         private static T Get<T>() where T : class
         {
-            T service = ServiceSystem.GetService<T>();
+            T service = GameServices.GetService<T>();
 
             LogUtility.Assert(condition: service != null, $"{typeof(T)} is null");
 
@@ -139,7 +139,7 @@ namespace Moirai.Atropos
 
         private static async UniTaskVoid InitializeAsync()
         {
-            await ServiceSystem.InitializeAsync();
+            await GameServices.InitializeAsync();
             ProcedureSettings.StartProcedure().Forget();
         }
 
@@ -147,7 +147,7 @@ namespace Moirai.Atropos
         {
             SceneManager.sceneUnloaded -= OnSceneUnloaded;
 #if !UNITY_EDITOR
-            ServiceSystem.Shutdown();
+            GameServices.Shutdown();
 #endif
         }
 
@@ -168,42 +168,42 @@ namespace Moirai.Atropos
         private void Update()
         {
             GameTime.StartFrame();
-            ServiceSystem.Tick(GameTime.deltaTime, GameTime.unscaledDeltaTime);
+            GameServices.Tick(GameTime.deltaTime, GameTime.unscaledDeltaTime);
         }
 
         private void FixedUpdate()
         {
             GameTime.StartFrame();
-            ServiceSystem.FixedTick(GameTime.deltaTime, GameTime.unscaledDeltaTime);
+            GameServices.FixedTick(GameTime.deltaTime, GameTime.unscaledDeltaTime);
         }
 
         private void LateUpdate()
         {
             GameTime.StartFrame();
-            ServiceSystem.LateTick(GameTime.deltaTime, GameTime.unscaledDeltaTime);
+            GameServices.LateTick(GameTime.deltaTime, GameTime.unscaledDeltaTime);
         }
 
         private void OnApplicationFocus(bool hasFocus)
         {
-            MessageEvent.Trigger(hasFocus ? EMessageEventType.ApplicationFocus : EMessageEventType.NotApplicationFocus);
+            GameAppMessageEvent.Trigger(hasFocus ? EMessageEventType.ApplicationFocus : EMessageEventType.NotApplicationFocus);
         }
 
         private void OnApplicationQuit()
         {
-            MessageEvent.Trigger(EMessageEventType.ApplicationQuit);
+            GameAppMessageEvent.Trigger(EMessageEventType.ApplicationQuit);
             Application.lowMemory -= OnLowMemory;
             StopAllCoroutines();
         }
 
         private void OnDrawGizmos()
         {
-            ServiceSystem.DrawGizmos();
+            GameServices.DrawGizmos();
         }
 
         private void OnSceneUnloaded(UnityEngine.SceneManagement.Scene scene)
         {
-            ServiceSystem.ShutdownScope(ServiceScope.Scene);
-            ServiceSystem.ShutdownScope(ServiceScope.Gameplay);
+            GameServices.ShutdownScope(EServiceScopeKind.Scene);
+            GameServices.ShutdownScope(EServiceScopeKind.Gameplay);
         }
 
         #endregion
@@ -231,13 +231,13 @@ namespace Moirai.Atropos
         {
             LogUtility.Warning("Low memory reported...");
 
-            IObjectPoolService objectPoolService = ServiceSystem.GetService<IObjectPoolService>();
+            IObjectPoolService objectPoolService = GameServices.GetService<IObjectPoolService>();
             if (objectPoolService != null)
             {
                 objectPoolService.ReleaseAllUnused();
             }
 
-            IResourceService resourceService = ServiceSystem.GetService<IResourceService>();
+            IResourceService resourceService = GameServices.GetService<IResourceService>();
             if (resourceService != null)
             {
                 resourceService.ForceUnloadUnusedAssets(true);
@@ -250,7 +250,7 @@ namespace Moirai.Atropos
             if (state ==  UnityEditor.PlayModeStateChange.ExitingPlayMode)
             {
                 // 编辑器退出 Play 时清理服务系统：不依赖域重载（兼容 Enter Play Mode Options 跳过域重载的场景）
-                ServiceSystem.Shutdown();
+                GameServices.Shutdown();
                 Shutdown();
             }
         }

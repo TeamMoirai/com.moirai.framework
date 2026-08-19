@@ -33,12 +33,12 @@
     /// <summary>
     /// 框架事件
     /// </summary>
-    public interface IMessageEvent { }
-    public class MessageEvent : EventBase<MessageEvent>, IMessageEvent
+    public interface IGameAppEvent { }
+    public class GameAppMessageEvent : EventBase<GameAppMessageEvent>, IGameAppEvent
     {
         public EMessageEventType EventType { get; private set; }
         
-        private static MessageEvent GetPooled(EMessageEventType eventType)
+        private static GameAppMessageEvent GetPooled(EMessageEventType eventType)
         {
             var evt = GetPooled();
             evt.EventType = eventType;
@@ -47,7 +47,7 @@
         
         public static void Trigger(EMessageEventType eventType)
         {
-            // Debug.Log($"MessageEvent: {(int)eventType}");
+            // Debug.Log($"GameAppMessageEvent: {(int)eventType}");
             using var evt = GetPooled(eventType);
             EventManager.SendEvent(evt);
         }

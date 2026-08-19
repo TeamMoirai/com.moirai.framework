@@ -11,7 +11,7 @@ namespace Moirai.Atropos.Scene
     /// <summary>
     /// 场景管理服务。支持主场景切换、附加场景加载/卸载、进度回调和挂起加载。
     /// </summary>
-    public sealed class SceneService : Service, ISceneService
+    public sealed class SceneService : ServiceBase, ISceneService
     {
         private string _currentMainSceneName = string.Empty;
 
@@ -112,7 +112,7 @@ namespace Moirai.Atropos.Scene
                 MaterialUtility.WaitGetRootGameObjects(_currentMainScene).Forget();
 #endif
 
-                ServiceSystem.GetService<IResourceService>().ForceUnloadUnusedAssets(gcCollect);
+                GameServices.GetService<IResourceService>().ForceUnloadUnusedAssets(gcCollect);
 
                 _handlingScene.Remove(location);
 
@@ -188,7 +188,7 @@ namespace Moirai.Atropos.Scene
                 MaterialUtility.WaitGetRootGameObjects(_currentMainScene).Forget();
 #endif
 
-                ServiceSystem.GetService<IResourceService>().ForceUnloadUnusedAssets(gcCollect);
+                GameServices.GetService<IResourceService>().ForceUnloadUnusedAssets(gcCollect);
             }
         }
 

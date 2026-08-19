@@ -21,7 +21,7 @@ namespace Moirai.Atropos.Timer
     /// 极致性能计时器。<br/>
     /// 四级时间轮算法 · 无全量扫描 · 精准承载技能 CD / 心跳 / 延时任务
     /// </summary>
-    internal sealed class TimerService : Service, IServiceTickable, ITimerService
+    internal sealed class TimerService : ServiceBase, IServiceTickable, ITimerService
     {
         private const int PAGE_SHIFT = 8;
         private const int PAGE_SIZE = 1 << PAGE_SHIFT;

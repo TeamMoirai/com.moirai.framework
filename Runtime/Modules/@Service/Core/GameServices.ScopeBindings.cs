@@ -1,6 +1,6 @@
 namespace Moirai.Atropos
 {
-    public static partial class ServiceSystem
+    public static partial class GameServices
     {
         internal struct ScopeBindings
         {
@@ -10,13 +10,13 @@ namespace Moirai.Atropos
 
             public bool IsEmpty => App == null && Scene == null && Gameplay == null;
 
-            public IService Get(ServiceScopeKind scope)
+            public IService Get(EServiceScopeKind scope)
             {
                 switch (scope)
                 {
-                    case ServiceScopeKind.App: return App;
-                    case ServiceScopeKind.Scene: return Scene;
-                    case ServiceScopeKind.Gameplay: return Gameplay;
+                    case EServiceScopeKind.App: return App;
+                    case EServiceScopeKind.Scene: return Scene;
+                    case EServiceScopeKind.Gameplay: return Gameplay;
                     default: return null;
                 }
             }
