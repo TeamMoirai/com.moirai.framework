@@ -141,15 +141,27 @@ namespace Moirai.Atropos.Editor
                     EditorUtility.ClearProgressBar();
                 }
 
-                bool isDelete = s_ResourcesToDelete.Count > 0;
-                foreach (var res in s_ResourcesToDelete)
+                if (s_ResourcesToDelete.Count > 0)
                 {
-                    AssetDatabase.DeleteAsset(res);
-                }
-                if (isDelete)
-                {
-                    Debug.LogError($"<color=red>针对 {config.m_SourceAtlasRootDir} 路径下资源</color>\n<color=red>移除了空格和同名资源，请检查重新合入相关资源</color>");
-                    AssetDatabase.Refresh();
+                    var resourceList = string.Join("\n", s_ResourcesToDelete);
+                    bool shouldDelete = EditorUtility.DisplayDialog(
+                        "检测到资源冲突",
+                        $"发现 {s_ResourcesToDelete.Count} 个同名或含空格的资源，是否删除？\n\n{resourceList}\n\n点击「删除」将移除这些资源，点击「取消」将保留。",
+                        "删除", "取消");
+
+                    if (shouldDelete)
+                    {
+                        foreach (var res in s_ResourcesToDelete)
+                        {
+                            AssetDatabase.DeleteAsset(res);
+                        }
+                        Debug.LogError($"<color=red>针对 {config.m_SourceAtlasRootDir} 路径下资源</color>\n<color=red>移除了空格和同名资源，请检查重新合入相关资源</color>");
+                        AssetDatabase.Refresh();
+                    }
+                    else
+                    {
+                        Debug.LogWarning($"用户取消删除同名/空格资源冲突，请手动检查以下资源:\n{resourceList}");
+                    }
                 }
             }
         }

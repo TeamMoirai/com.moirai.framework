@@ -178,12 +178,12 @@ namespace Moirai.Atropos.Input
 
         private void PrintInputWarning(string actionName)
         {
-            Debug.LogWarning(StringUtility.Format("[{0}] action not found! Please make sure this action is included in your input settings (axis).", actionName));
+            LogUtility.Warning(StringUtility.Format("[{0}] action not found! Please make sure this action is included in your input settings (axis).", actionName));
         }
 
         private void PrintInputWarning(string actionXName, string actionYName)
         {
-            Debug.LogWarning(StringUtility.Format("[{0}] and/or [{1}] actions not found! Please make sure both of these actions are included in your input settings (axis).", actionXName, actionYName));
+            LogUtility.Warning(StringUtility.Format("[{0}] and/or [{1}] actions not found! Please make sure both of these actions are included in your input settings (axis).", actionXName, actionYName));
         }
     }
 }

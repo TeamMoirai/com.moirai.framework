@@ -45,7 +45,7 @@ namespace Moirai.Atropos
             /// </summary>
             void CopyTo(int sourceIndex, char[] destination, int destinationIndex, int count);
 
-            #region Append
+            #region 追加 [APPEND]
 
             /// <summary>
             /// 追加字符串。
@@ -159,7 +159,7 @@ namespace Moirai.Atropos
 
             #endregion
 
-            #region Concat
+            #region 拼接 [CONCAT]
 
             /// <summary>
             /// 连接值并返回结果。
@@ -183,7 +183,7 @@ namespace Moirai.Atropos
 
             #endregion
 
-            #region Join
+            #region 连接 [JOIN]
 
             /// <summary>
             /// 使用分隔符连接数组元素并返回结果。
@@ -197,7 +197,7 @@ namespace Moirai.Atropos
 
             #endregion
 
-            #region Insert
+            #region 插入 [INSERT]
 
             /// <summary>
             /// 在指定位置插入字符串。
@@ -216,7 +216,7 @@ namespace Moirai.Atropos
 
             #endregion
 
-            #region Remove
+            #region 移除 [REMOVE]
 
             /// <summary>
             /// 移除指定范围的字符。
@@ -225,7 +225,7 @@ namespace Moirai.Atropos
 
             #endregion
 
-            #region Replace
+            #region 替换 [REPLACE]
 
             /// <summary>
             /// 替换字符。

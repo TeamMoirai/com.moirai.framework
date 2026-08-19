@@ -1,6 +1,6 @@
 using System.IO;
 using System.Runtime.Serialization.Formatters.Binary;
-using System.Threading.Tasks;
+using Cysharp.Threading.Tasks;
 
 namespace Moirai.Atropos.Save
 {
@@ -23,12 +23,12 @@ namespace Moirai.Atropos.Save
         /// </summary>
         /// <param name="objectToSave"></param>
         /// <param name="saveFile"></param>
-        public Task Save(object objectToSave, FileStream saveFile)
+        public UniTask Save(object objectToSave, FileStream saveFile)
         {
             _formatter.Serialize(saveFile, objectToSave);
             saveFile.Close();
 
-            return Task.CompletedTask;
+            return UniTask.CompletedTask;
         }
 
         /// <summary>
@@ -36,12 +36,12 @@ namespace Moirai.Atropos.Save
         /// </summary>
         /// <param name="saveFile"></param>
         /// <returns></returns>
-        public Task<T> Load<T>(FileStream saveFile)
+        public UniTask<T> Load<T>(FileStream saveFile)
         {
             T savedObject = (T)_formatter.Deserialize(saveFile);
             saveFile.Close();
 
-            return Task.FromResult(savedObject);
+            return UniTask.FromResult(savedObject);
         }
     }
 }

@@ -329,7 +329,7 @@ namespace Moirai.Atropos.Localization
             "Unspecified", "und", false, "Unspecified");
 
 
-        #region 语言定义
+        #region 语言定义 [LANGUAGE DEFINITIONS]
         
         [SerializeField] private string m_Name;
 

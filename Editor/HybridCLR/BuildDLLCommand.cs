@@ -19,7 +19,7 @@ namespace Moirai.Atropos.Editor
         private const string HYBRIDCLR_ENABLE_SCRIPTING_DEFINE_SYMBOL = "ENABLE_HYBRIDCLR";
         private const string OBFUZ_ENABLE_SCRIPTING_DEFINE_SYMBOL = "ENABLE_OBFUZ";
 
-        #region HybridCLR/Define Symbols
+        #region HybridCLR 定义符号 [HYBRIDCLR DEFINES]
 #if HYBRIDCLR_INSTALLED
     #if ENABLE_HYBRIDCLR
         /// <summary>
@@ -59,7 +59,7 @@ namespace Moirai.Atropos.Editor
 #endif
         #endregion
 
-        #region Obfuz/Define Symbols
+        #region Obfuz 定义符号 [OBFUZ DEFINES]
 #if OBFUZ_INSTALLED
     #if ENABLE_OBFUZ
         /// <summary>

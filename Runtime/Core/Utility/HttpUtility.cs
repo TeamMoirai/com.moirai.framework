@@ -72,7 +72,7 @@ namespace Moirai.Atropos
             UnityUtility.StartCoroutine(OnUploadByPut(url, contentBytes, actionResult, ""));
         }
 
-        #region Private Coroutine Implementations
+        #region 私有协程实现 [PRIVATE COROUTINE IMPLEMENTATIONS]
 
         /// <summary>
         /// GET请求协程实现。

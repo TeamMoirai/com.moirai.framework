@@ -54,7 +54,7 @@ namespace Moirai.Atropos.Tasks
             {
                 if (instance.Tasks.Contains(task))
                 {
-                    Debug.LogWarning($"[TaskRunner] Task {task.InternalGetTaskName()} has already been registered!");
+                    LogUtility.Warning($"[TaskRunner] Task {task.InternalGetTaskName()} has already been registered!");
                     return;
                 }
                 task.Acquire();

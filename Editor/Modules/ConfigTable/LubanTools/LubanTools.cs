@@ -18,7 +18,7 @@ namespace Moirai.Atropos.ConfigTable.Editor
 #elif UNITY_EDITOR_WIN
             path += ".bat";
 #endif
-            LogUtility.Info("执行转表：{0}", path);
+            Debug.Log("执行转表：" + path);
             Application.OpenURL(path);
             // ShellHelper.RunByPath(path);
         }

@@ -61,7 +61,7 @@ namespace Moirai.Atropos.Schedulers.Editor
             SplitterGUILayout.EndVerticalSplit();
         }
 
-        #region HeadPanel
+        #region 头部面板 [HEAD PANEL]
 
         private static readonly GUIContent s_CancelAllHeadContent = EditorGUIUtility.TrTextContent("Cancel All", "Cancel all scheduled tasks");
 
@@ -88,7 +88,7 @@ namespace Moirai.Atropos.Schedulers.Editor
 
         #endregion
 
-        #region TableColumn
+        #region 表格列 [TABLE COLUMN]
 
         private Vector2 _tableScroll;
         private GUIStyle _tableListStyle;
@@ -126,7 +126,7 @@ namespace Moirai.Atropos.Schedulers.Editor
 
         #endregion
 
-        #region Details
+        #region 详情 [DETAILS]
 
         private static GUIStyle s_DetailsStyle;
         private static GUIStyle s_StackTraceButtonStyle;

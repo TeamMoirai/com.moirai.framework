@@ -10,7 +10,7 @@ namespace Moirai.Atropos.Resource
     [DisallowMultipleComponent]
     public class ResourceModuleDriver : MonoBehaviour
     {
-        #region Properties
+        #region 属性 [PROPERTIES]
 
         private const int DEFAULT_PRIORITY = 0;
 
@@ -263,7 +263,7 @@ namespace Moirai.Atropos.Resource
             LogUtility.Info($"ResourceModule Run Mode：{PlayMode}");
         }
 
-        #region 释放资源
+        #region 释放资源 [RELEASE RESOURCES]
 
         /// <summary>
         /// 强制执行释放未被使用的资源。

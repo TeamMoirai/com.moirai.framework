@@ -126,7 +126,7 @@ namespace Moirai.Atropos.Schedulers
 #if UNITY_EDITOR
             if (!Application.isPlaying)
             {
-                Debug.LogError("[Scheduler] Scheduler can not be used in Editor Mode.");
+                LogUtility.Error("[Scheduler] Scheduler can not be used in Editor Mode.");
                 return null;
             }
 #endif
@@ -178,7 +178,7 @@ namespace Moirai.Atropos.Schedulers
         {
             if (_isDestroyed)
             {
-                Debug.LogWarning("[Scheduler] Can not schedule task when scene is destroying.");
+                LogUtility.Warning("[Scheduler] Can not schedule task when scene is destroying.");
                 scheduled.Dispose();
                 return;
             }

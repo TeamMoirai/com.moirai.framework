@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
@@ -228,7 +228,7 @@ namespace Moirai.Atropos.UI
             }
         }
 
-        #region FindChildComponent
+        #region 查找子物体组件 [FIND CHILD COMPONENT]
 
         public Transform FindChild(string path)
         {
@@ -275,7 +275,7 @@ namespace Moirai.Atropos.UI
 
         #endregion
 
-        #region UIWidget
+        #region UI 组件 [UI WIDGET]
 
         /// <summary>
         /// 创建UIWidget通过父UI位置节点。

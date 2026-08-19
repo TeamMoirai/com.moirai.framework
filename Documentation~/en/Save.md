@@ -20,7 +20,7 @@ Namespace: `Moirai.Atropos.Save`
 |---------|------|
 | `ISaveModule` | Save module interface: `Save` / `Load` / `DeleteSave` / `DeleteSaveFolder` / `DeleteAllSaveFiles` / `FileExists` / `DetermineSavePath`; accessed via `GameModule.Save` |
 | `SaveModule` | Module implementation (`Module, ISaveModule`), reads the Handler from `SaveSettings` on `OnInit` and injects the encryption key |
-| `ISaveHandler` | Serialization handler interface: `Task Save(object objectToSave, FileStream saveFile)` and `Task<T> Load<T>(FileStream saveFile)` |
+| `ISaveHandler` | Serialization handler interface: `UniTask Save(object objectToSave, FileStream saveFile)` and `UniTask<T> Load<T>(FileStream saveFile)` |
 | `JsonSaveHandler` | JSON format handler, prettyPrint in editor, compact bytes on device |
 | `JsonEncryptedSaveHandler` | JSON serialization + AES encryption (inherits `EncryptedSaveHandlerBase`) |
 | `BinarySaveHandler` | Binary format (`BinaryFormatter`), marked `[System.Obsolete]`, carries deserialization RCE risk, not recommended |
@@ -33,7 +33,7 @@ Namespace: `Moirai.Atropos.Save`
 ## Quick Start
 
 ```csharp
-using System.Threading.Tasks;
+using Cysharp.Threading.Tasks;
 using Moirai.Atropos;
 using UnityEngine;
 
@@ -81,26 +81,26 @@ Implement `ISaveHandler` and inject it before module initialization (e.g., at th
 
 ```csharp
 using System.IO;
-using System.Threading.Tasks;
+using Cysharp.Threading.Tasks;
 using Moirai.Atropos;
 using Moirai.Atropos.Save;
 
 public class MessagePackSaveHandler : ISaveHandler
 {
-    public Task Save(object objectToSave, FileStream saveFile)
+    public UniTask Save(object objectToSave, FileStream saveFile)
     {
         byte[] bytes = MessagePackUtility.Serialize(objectToSave);
         saveFile.Write(bytes, 0, bytes.Length);
         saveFile.Close();
-        return Task.CompletedTask;
+        return UniTask.CompletedTask;
     }
 
-    public Task<T> Load<T>(FileStream saveFile)
+    public UniTask<T> Load<T>(FileStream saveFile)
     {
         using var ms = new MemoryStream();
         saveFile.CopyTo(ms);
         saveFile.Close();
-        return Task.FromResult(MessagePackUtility.Deserialize<T>(ms.ToArray()));
+        return UniTask.FromResult(MessagePackUtility.Deserialize<T>(ms.ToArray()));
     }
 }
 

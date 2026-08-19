@@ -43,7 +43,7 @@ namespace Moirai.Atropos.ConfigTable.Editor
         private static string GetRelativePath(string relativeTo, string path) =>
             PathUtility.FormatToSysFilePath(Path.GetRelativePath(relativeTo, path) + "/");
 
-        #region 初始化配置根目录
+        #region 初始化配置根目录 [INIT CONFIG ROOT]
 
         private const string TEMPLATES_RELATIVE_PATH = "Templates~/Config";
         private static string ResolveTemplatesConfigPath()

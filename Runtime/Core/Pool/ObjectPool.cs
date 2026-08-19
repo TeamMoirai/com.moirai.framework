@@ -69,7 +69,7 @@ namespace Moirai.Atropos.Pool
 #else
             if (_stack.Count > 0 && ReferenceEquals(_stack.Peek(), element))
 #endif
-                Debug.LogError("Internal error. Trying to destroy object that is already released to pool.");
+                LogUtility.Error("Internal error. Trying to destroy object that is already released to pool.");
 
             if (_stack.Count < MaxSize)
             {
@@ -77,7 +77,7 @@ namespace Moirai.Atropos.Pool
             }
 #if UNITY_EDITOR
             else
-                Debug.LogWarning("Internal error. Pool is already full, try to increase max size.");
+                LogUtility.Warning("Internal error. Pool is already full, try to increase max size.");
 #endif
         }
     }

@@ -31,7 +31,7 @@ namespace Moirai.Atropos.Editor
                     }
                 }
             }
-            LogUtility.Info("[CleanupMissingScripts] 从 " + gameobjectsAffectedCounter + " 移除了 " + removedComponentsCounter + " 个缺失的脚本。");
+            Debug.Log("[CleanupMissingScripts] 从 " + gameobjectsAffectedCounter + " 移除了 " + removedComponentsCounter + " 个缺失的脚本。");
         }
     }
 }

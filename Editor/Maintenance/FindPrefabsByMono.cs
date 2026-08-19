@@ -179,7 +179,7 @@ namespace Moirai.Atropos.Editor
                     }
                     catch
                     {
-                        LogUtility.Info("预制体出现错误 " + prefab);
+                        Debug.LogWarning("预制体出现错误 " + prefab);
                     }
                 }
             }

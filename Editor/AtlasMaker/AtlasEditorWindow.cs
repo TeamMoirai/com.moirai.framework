@@ -82,6 +82,7 @@ namespace Moirai.Atropos.Editor
 
                 if (EditorGUI.EndChangeCheck())
                 {
+                    SpritePostprocessor.ResetCache();
                     AtlasConfiguration.Save(true);
                     AssetDatabase.Refresh();
                 }

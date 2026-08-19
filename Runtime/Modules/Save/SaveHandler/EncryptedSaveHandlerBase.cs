@@ -1,6 +1,6 @@
 using System.IO;
 using System.Security.Cryptography;
-using System.Threading.Tasks;
+using Cysharp.Threading.Tasks;
 
 namespace Moirai.Atropos.Save
 {
@@ -11,7 +11,7 @@ namespace Moirai.Atropos.Save
     /// </summary>
     public abstract class EncryptedSaveHandlerBase : SaveEncryptor, ISaveHandler
     {
-        public Task Save(object objectToSave, FileStream saveFile)
+        public UniTask Save(object objectToSave, FileStream saveFile)
         {
             using (MemoryStream memoryStream = new MemoryStream())
             {
@@ -22,10 +22,10 @@ namespace Moirai.Atropos.Save
             saveFile.Flush();
             saveFile.Close();
 
-            return Task.CompletedTask;
+            return UniTask.CompletedTask;
         }
 
-        public Task<T> Load<T>(FileStream saveFile)
+        public UniTask<T> Load<T>(FileStream saveFile)
         {
             using (MemoryStream memoryStream = new MemoryStream())
             {
@@ -36,12 +36,12 @@ namespace Moirai.Atropos.Save
                 catch (CryptographicException ce)
                 {
                     LogUtility.Error("[SaveHandler] Decryption failed: " + ce);
-                    return Task.FromResult<T>(default);
+                    return UniTask.FromResult<T>(default);
                 }
                 memoryStream.Position = 0;
                 T savedObject = DeserializeFromStream<T>(memoryStream);
                 saveFile.Close();
-                return Task.FromResult(savedObject);
+                return UniTask.FromResult(savedObject);
             }
         }
 

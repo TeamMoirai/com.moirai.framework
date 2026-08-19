@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using UnityEngine;
 
 namespace Moirai.Atropos.Input
@@ -53,7 +53,7 @@ namespace Moirai.Atropos.Input
 
         #endregion
 
-        #region Button
+        #region 按钮 [BUTTON]
 
         /// <summary>
         /// 按钮是否被按下
@@ -81,7 +81,7 @@ namespace Moirai.Atropos.Input
 
         #endregion
 
-        #region Action Value
+        #region 动作值 [ACTION VALUE]
 
         /// <summary>
         /// 获取指定输入动作的 bool
@@ -109,7 +109,7 @@ namespace Moirai.Atropos.Input
 
         #endregion
 
-        #region Mouse
+        #region 鼠标 [MOUSE]
 
         /// <summary>
         /// 按下鼠标按键
@@ -143,7 +143,7 @@ namespace Moirai.Atropos.Input
 
         #endregion
 
-        #region Common
+        #region 通用 [COMMON]
 
         /// <summary>
         /// 清除所有输入状态

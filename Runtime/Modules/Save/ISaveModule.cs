@@ -1,7 +1,10 @@
-using System.Threading.Tasks;
+using Cysharp.Threading.Tasks;
 
 namespace Moirai.Atropos.Save
 {
+    /// <summary>
+    /// 存档模块接口。提供序列化存档的保存、加载、删除与路径管理能力，基于可插拔 Handler 架构。
+    /// </summary>
     public interface ISaveModule
     {
         /// <summary>
@@ -19,14 +22,14 @@ namespace Moirai.Atropos.Save
         /// <param name="saveObject">保存对象</param>
         /// <param name="fileName">文件名</param>
         /// <param name="folderName">文件夹名称</param>
-        public Task Save(object saveObject, string fileName, string folderName = DEFAULT_FOLDER_NAME);
+        public UniTask Save(object saveObject, string fileName, string folderName = DEFAULT_FOLDER_NAME);
 
         /// <summary>
         /// 根据文件名将指定的文件加载到指定的文件夹中
         /// </summary>
         /// <param name="fileName">文件名</param>
         /// <param name="folderName">文件夹名称</param>
-        public Task<T> Load<T>(string fileName, string folderName = DEFAULT_FOLDER_NAME);
+        public UniTask<T> Load<T>(string fileName, string folderName = DEFAULT_FOLDER_NAME);
 
         /// <summary>
         /// 从磁盘中删除保存

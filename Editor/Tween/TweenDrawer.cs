@@ -1,4 +1,4 @@
-﻿using UnityEditor;
+using UnityEditor;
 using UnityEngine;
 #if UNITY_2021_3_OR_NEWER
 using UnityEditor.UIElements;
@@ -10,7 +10,7 @@ namespace Moirai.Atropos.Editor
     [CustomPropertyDrawer(typeof(TweenEase))]
     public class TweenDrawer : PropertyDrawer
     {
-        #region IMGUI
+        #region IMGUI [IMGUI]
 
         protected const int LINE_HEIGHT = 20;
         protected const int LINE_MARGIN = 2;
@@ -45,7 +45,7 @@ namespace Moirai.Atropos.Editor
 
         #endregion
 
-        #region UI Toolkit
+        #region UI Toolkit [UI TOOLKIT]
 
 #if UNITY_2021_3_OR_NEWER
 

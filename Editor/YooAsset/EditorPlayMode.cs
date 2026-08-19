@@ -7,7 +7,7 @@ namespace YooAsset.Editor
     {
         private const int MENU_ITEM_PRIORITY = -100;
 
-        #region EditorMode
+        #region 编辑器模式 [EDITOR MODE]
 
         [MenuItem("YooAsset/Editor PlayMode/EditorMode (编辑器下的模拟模式)", false, MENU_ITEM_PRIORITY)]
         public static void EditorMode()
@@ -23,7 +23,7 @@ namespace YooAsset.Editor
 
         #endregion
 
-        #region OfflinePlayMode
+        #region 单机模式 [OFFLINE PLAY MODE]
 
         [MenuItem("YooAsset/Editor PlayMode/OfflinePlayMode (单机模式)", false, MENU_ITEM_PRIORITY + 1)]
         public static void OfflinePlayMode()
@@ -39,7 +39,7 @@ namespace YooAsset.Editor
 
         #endregion
 
-        #region HostPlayMode
+        #region 联机模式 [HOST PLAY MODE]
 
         [MenuItem("YooAsset/Editor PlayMode/HostPlayMode (联机运行模式)", false, MENU_ITEM_PRIORITY + 2)]
         public static void HostPlayMode()
@@ -55,7 +55,7 @@ namespace YooAsset.Editor
 
         #endregion
 
-        #region HostPlayMode
+        #region 联机模式 [HOST PLAY MODE]
 
         [MenuItem("YooAsset/Editor PlayMode/WebGLPlayMode (WebGL运行模式)", false, MENU_ITEM_PRIORITY + 3)]
         public static void WebPlayMode()

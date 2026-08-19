@@ -326,7 +326,7 @@ namespace Moirai.Atropos.Timer
             return count;
         }
 
-        #region Slot Management
+        #region 槽位管理 [SLOT MANAGEMENT]
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private int AcquireSlot()
@@ -575,7 +575,7 @@ namespace Moirai.Atropos.Timer
 
         #endregion
 
-        #region Execution
+        #region 执行 [EXECUTION]
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void RecoverInterruptedExecution()
@@ -662,7 +662,7 @@ namespace Moirai.Atropos.Timer
             }
             catch (Exception exception)
             {
-                Debug.LogException(exception);
+                LogUtility.Fatal(exception);
             }
             finally
             {
@@ -710,7 +710,7 @@ namespace Moirai.Atropos.Timer
 
         #endregion
 
-        #region Timing Wheel
+        #region 时间轮 [TIMING WHEEL]
 
         private void AdvanceQueue(bool isUnscaled, double currentTime)
         {
@@ -904,7 +904,7 @@ namespace Moirai.Atropos.Timer
 
         #endregion
 
-        #region Wheel Accessors
+        #region 轮访问器 [WHEEL ACCESSORS]
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private int GetQueueCount(bool isUnscaled)
@@ -1048,7 +1048,7 @@ namespace Moirai.Atropos.Timer
 
         #endregion
 
-        #region Page Data Accessors
+        #region 页数据访问器 [PAGE DATA ACCESSORS]
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private TimerPage GetPage(int slotIndex)
@@ -1296,7 +1296,7 @@ namespace Moirai.Atropos.Timer
 
         #endregion
 
-        #region Debug
+        #region 调试 [DEBUG]
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void FillDebugInfo(int slotIndex, ref TimerDebugInfo info, double scaledTime, double unscaledTime, double realtime)

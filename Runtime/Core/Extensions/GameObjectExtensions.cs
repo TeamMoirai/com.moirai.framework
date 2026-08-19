@@ -8,7 +8,7 @@ namespace Moirai.Atropos
 {
     public static class GameObjectExtensions
     {
-        #region GetComponentNoAlloc
+        #region 获取组件 [GetComponentNoAlloc]
 
         private static List<Component> s_ComponentCache = new List<Component>();
 
@@ -58,7 +58,7 @@ namespace Moirai.Atropos
 
             if (rootComponents.Length == 0)
             {
-                Debug.LogWarning($"Root component: No objects found with {typeof(T1).Name} component");
+                LogUtility.Warning($"Root component: No objects found with {typeof(T1).Name} component");
                 return null;
             }
 

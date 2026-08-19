@@ -2,6 +2,9 @@
 
 namespace Moirai.Atropos.Localization
 {
+    /// <summary>
+    /// 本地化模块接口。提供多语言切换、文本查询、语言事件订阅等能力。
+    /// </summary>
     public interface ILocalizationModule
     {
         /// <summary>
@@ -14,7 +17,12 @@ namespace Moirai.Atropos.Localization
         /// </summary>
         int CurrentLanguageIndex { get; }
 
+        /// <summary>
+        /// 语言变更回调委托。
+        /// </summary>
+        /// <param name="language">变更后的语言。</param>
         public delegate void OnLanguageChangedDelegate(Language language);
+
         /// <summary>
         /// 当语言改变时调用
         /// </summary>

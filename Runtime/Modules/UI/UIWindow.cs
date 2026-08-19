@@ -10,7 +10,7 @@ namespace Moirai.Atropos.UI
 {
     public abstract partial class UIWindow : UIBase
     {
-        #region Propreties
+        #region 属性 [PROPERTIES]
 
         private GameObject _panel;
 
@@ -245,7 +245,7 @@ namespace Moirai.Atropos.UI
             CacheInstance = cacheInstance;
         }
 
-        #region 刘海屏适配
+        #region 刘海屏适配 [NOTCH ADAPTATION]
 
         /// <summary>
         /// 移动设备屏幕适配
@@ -549,7 +549,7 @@ namespace Moirai.Atropos.UI
             _prepareCallback?.Invoke(this);
         }
 
-        #region 交互相关
+        #region 交互相关 [INTERACTION]
 
         private void LockInteraction()
         {

@@ -15,7 +15,7 @@ namespace Moirai.Atropos.Editor
     /// </summary>
     public class FrameworkSettingsWindow : EditorWindow
     {
-        #region Types
+        #region 类型 [TYPES]
 
         private sealed class SettingEntry
         {
@@ -38,7 +38,7 @@ namespace Moirai.Atropos.Editor
 
         #endregion
 
-        #region Constants
+        #region 常量 [CONSTANTS]
 
         private const float SIDEBAR_WIDTH = 252f;
         private const float ENTRY_HEIGHT = 44f;
@@ -50,7 +50,7 @@ namespace Moirai.Atropos.Editor
 
         #endregion
 
-        #region Cached Styles
+        #region 缓存样式 [CACHED STYLES]
 
         /// <summary>
         /// 所有 GUIStyle 仅创建一次，后续每帧复用，避免 new GUIStyle 带来的 GC 开销。
@@ -234,7 +234,7 @@ namespace Moirai.Atropos.Editor
 
         #endregion
 
-        #region Fields
+        #region 字段 [FIELDS]
 
         private List<SettingEntry> _entries;
         private int _selectedIndex = -1;
@@ -267,7 +267,7 @@ namespace Moirai.Atropos.Editor
 
         #endregion
 
-        #region Menu
+        #region 菜单 [MENU]
 
         /// <summary>
         /// 通过菜单 Tools > Framework Settings 打开窗口。
@@ -283,7 +283,7 @@ namespace Moirai.Atropos.Editor
 
         #endregion
 
-        #region Lifecycle
+        #region 生命周期 [LIFECYCLE]
 
 		// 不要在这里调用 Styles.Init()
 		// 域重载后 EditorStyles 尚未就绪，此时访问会抛出 NRE
@@ -317,7 +317,7 @@ namespace Moirai.Atropos.Editor
 
         #endregion
 
-        #region Discovery
+        #region 发现 [DISCOVERY]
 
         /// <summary>
         /// 完整刷新：发现所有设置类型 → 读取元数据 → 缓存反射信息 → 加载已有资产 → 排序。
@@ -417,7 +417,7 @@ namespace Moirai.Atropos.Editor
 
         #endregion
 
-        #region Field Search Text Builder
+        #region 字段搜索文本构建器 [FIELD SEARCH BUILDER]
 
         /// <summary>
         /// 扫描 entry.type 的所有序列化字段，将字段名（Nicified）、
@@ -512,7 +512,7 @@ namespace Moirai.Atropos.Editor
 
         #endregion
 
-        #region Filter
+        #region 过滤器 [FILTER]
 
         private void ApplyFilter()
         {
@@ -538,7 +538,7 @@ namespace Moirai.Atropos.Editor
 
         #endregion
 
-        #region Editor Cache
+        #region 编辑器缓存 [EDITOR CACHE]
 
         private void SelectEntry(int absoluteIndex)
         {
@@ -592,7 +592,7 @@ namespace Moirai.Atropos.Editor
 
         #endregion
 
-        #region GUI - Main
+        #region GUI 主面板 [GUI MAIN]
 
         private void OnGUI()
         {
@@ -613,7 +613,7 @@ namespace Moirai.Atropos.Editor
 
         #endregion
 
-        #region GUI - Toolbar
+        #region GUI 工具栏 [GUI TOOLBAR]
 
         private void DrawToolbar()
         {
@@ -629,7 +629,7 @@ namespace Moirai.Atropos.Editor
 
         #endregion
 
-        #region GUI - Sidebar
+        #region GUI 侧边栏 [GUI SIDEBAR]
 
         private void DrawSidebar()
         {
@@ -714,7 +714,7 @@ namespace Moirai.Atropos.Editor
 
         #endregion
 
-        #region GUI - Search
+        #region GUI 搜索 [GUI SEARCH]
 
         private void DrawSidebarSearch()
         {
@@ -796,7 +796,7 @@ namespace Moirai.Atropos.Editor
 
         #endregion
 
-        #region GUI - Content Area
+        #region GUI 内容区域 [GUI CONTENT AREA]
 
         private void DrawVerticalDivider()
         {
@@ -918,7 +918,7 @@ namespace Moirai.Atropos.Editor
 
         #endregion
 
-        #region Actions
+        #region 操作 [ACTIONS]
 
         /// <summary>
         /// 创建或 Ping 配置资产。通过反射调用 FrameworkSettings&lt;T&gt;.Instance，

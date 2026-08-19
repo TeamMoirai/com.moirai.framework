@@ -348,7 +348,7 @@ namespace Moirai.Atropos.Events
             var recordSave = new EventDebuggerRecordList() { eventList = eventList };
             var json = JsonUtility.ToJson(recordSave);
             File.WriteAllText(path, json);
-            Debug.Log($"Saved under: {path}");
+            LogUtility.Info($"Saved under: {path}");
         }
 
         public EventDebuggerRecordList LoadReplaySession(string path)
@@ -423,7 +423,7 @@ namespace Moirai.Atropos.Events
                 }
                 if (newEvent == null)
                 {
-                    Debug.Log("Skipped event (" + eventBase.EventBaseName + "): " + eventBase);
+                    LogUtility.Info("Skipped event (" + eventBase.EventBaseName + "): " + eventBase);
                     var awaitSkipped = AwaitForNextEvent(i);
                     while (awaitSkipped.MoveNext()) yield return null;
                     continue;
@@ -431,7 +431,7 @@ namespace Moirai.Atropos.Events
                 eventBase.Target.SendEvent(newEvent);
                 newEvent.Dispose();
                 refreshList?.Invoke(i, sortedEventsCount);
-                Debug.Log($"Replayed event {eventBase.EventId} ({eventBase.EventBaseName}): {newEvent}");
+                LogUtility.Info($"Replayed event {eventBase.EventId} ({eventBase.EventBaseName}): {newEvent}");
                 var await = AwaitForNextEvent(i);
                 while (await.MoveNext()) yield return null;
             }

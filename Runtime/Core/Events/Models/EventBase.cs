@@ -518,7 +518,7 @@ namespace Moirai.Atropos.Events
 
             if (m_RefCount != 0)
             {
-                Debug.LogWarning($"Event improperly released, reference count {m_RefCount}.");
+                LogUtility.Warning($"Event improperly released, reference count {m_RefCount}.");
                 m_RefCount = 0;
             }
         }

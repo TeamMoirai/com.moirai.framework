@@ -189,7 +189,7 @@ namespace Moirai.Atropos.Resource
         }
     }
 
-    #region WebDecryptionServices
+    #region Web解密服务 [WebDecryptionServices]
 
     /// <summary>
     /// 资源文件偏移加载解密类

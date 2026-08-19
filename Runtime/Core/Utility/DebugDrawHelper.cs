@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using Debug = UnityEngine.Debug;
 #if UNITY_EDITOR
 using UnityEditor;
@@ -11,7 +11,7 @@ namespace Moirai.Atropos
 	/// </summary>
 	public static class DebugDrawHelper
 	{
-        #region EnableDisableDebugs
+        #region 启用/禁用调试 [ENABLE DISABLE DEBUGS]
 
 #if UNITY_EDITOR
         private static bool s_SettingCached = false;
@@ -46,7 +46,7 @@ namespace Moirai.Atropos
 
         #endregion
 
-        #region Casts
+        #region 类型转换 [CASTS]
 
         /// <summary>
         /// 投射常规 2D 射线并绘制调试射线
@@ -186,7 +186,7 @@ namespace Moirai.Atropos
 
         #endregion
 
-        #region DebugDraw
+        #region 调试绘制 [DEBUG DRAW]
 
         /// <summary>
         /// 绘制从原点位置沿 Vector3 方向的调试箭头

@@ -93,7 +93,7 @@ namespace Moirai.Atropos.Audio
 				if (m_AudioClip != null) AudioPlayEvent.Trigger(m_AudioClip, options);
 				else
 				{
-					Debug.LogWarning("Audio Resource is null");
+					LogUtility.Warning("Audio Resource is null");
 				}
 			}
 			else

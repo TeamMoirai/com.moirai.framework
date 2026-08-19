@@ -162,7 +162,7 @@ namespace Moirai.Atropos.Input
                 else
                 {
                     _inputActionsDictionary.Add(fullActionName, null);
-                    Debug.LogWarning($"Action '{fullActionName}' not found! " +
+                    LogUtility.Warning($"Action '{fullActionName}' not found! " +
                                      "Please check Input Action Asset configuration.");
                 }
                 // Debug.Log($"GetInputAction: {fullActionName} - {action}");

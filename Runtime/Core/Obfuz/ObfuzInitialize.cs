@@ -14,10 +14,10 @@ namespace Moirai.Atropos.Obfuz
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterAssembliesLoaded)]
         private static void SetUpStaticSecretKey()
         {
-            Debug.Log("Enable Obfuz");
-            Debug.Log("SetUpStaticSecret begin");
+            LogUtility.Info("Enable Obfuz");
+            LogUtility.Info("SetUpStaticSecret begin");
             EncryptionService<DefaultStaticEncryptionScope>.Encryptor = new GeneratedEncryptionVirtualMachine(Resources.Load<TextAsset>("Obfuz/defaultStaticSecretKey").bytes);
-            Debug.Log("SetUpStaticSecret end");
+            LogUtility.Info("SetUpStaticSecret end");
         }
     }
 }

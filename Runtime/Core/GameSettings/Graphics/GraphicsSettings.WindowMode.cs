@@ -37,7 +37,7 @@ namespace Moirai.Atropos
             var values = Instance.GetWindowModeOptions();
             if (optionLabels == null || optionLabels.Count != values.Count)
             {
-                Debug.LogError("Invalid new labels. Need to be " + values.Count + ".");
+                LogUtility.Error("Invalid new labels. Need to be " + values.Count + ".");
                 return;
             }
 
