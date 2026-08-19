@@ -145,4 +145,4 @@ AssetHandle handle = GameModule.Resource.LoadAssetAsyncHandle<GameObject>("path"
 - On low memory, the system callback `GameModule.OnLowMemory` triggers `ForceUnloadUnusedAssets(true)`, followed by `Resources.UnloadUnusedAssets` and `GC.Collect`.
 
 ---
-[« Back to Main README](../README_EN.md) · [Procedure](Procedure.md) · [Save](Save.md)
+[« Back to Main README](../../README_EN.md) · [Procedure](Procedure.md) · [Save](Save.md)

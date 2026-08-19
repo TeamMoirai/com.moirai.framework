@@ -88,4 +88,4 @@ The `priority` parameter is passed through to YooAsset to adjust the loading pri
 - `progressCallBack` is called every frame until the handle completes or becomes invalid; do not perform expensive operations inside the callback
 
 ---
-[« Back to Main README](../README_EN.md) · [UI](UI.md) · [Input](Input.md)
+[« Back to Main README](../../README_EN.md) · [UI](UI.md) · [Input](Input.md)

@@ -80,4 +80,4 @@ driver.AddDestroyListener(OnHostDestroy);
 - 宿主对象为 `DontDestroyOnLoad`，跨场景存活；请勿在外部手动销毁 `[UpdateDriver]` 对象，否则协程与监听全部失效。
 
 ---
-[« 返回主 README](../README.md) · [Core](Core.md) · [Timer](Timer.md)
+[« 返回主 README](../../README.md) · [Core](Core.md) · [Timer](Timer.md)

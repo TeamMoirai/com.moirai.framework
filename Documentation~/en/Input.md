@@ -142,4 +142,4 @@ When a GameObject with this component is enabled, it locks `LockPlayerController
 - Input queries should be polled every frame; the module itself does not push events
 
 ---
-[« Back to Main README](../README_EN.md) · [UI](UI.md) · [Scene](Scene.md)
+[« Back to Main README](../../README_EN.md) · [UI](UI.md) · [Scene](Scene.md)

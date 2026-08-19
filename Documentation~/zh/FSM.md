@@ -112,4 +112,4 @@ float staying = fsm.CurrentStateTime; // 当前状态已持续的逻辑秒数
 - 框架关闭时 `FSMModule.Shutdown` 会依次关闭全部状态机，触发各状态 `OnExit(fsm, true)` 与 `OnDestroy(fsm)`
 
 ---
-[« 返回主 README](../README.md)
+[« 返回主 README](../../README.md)

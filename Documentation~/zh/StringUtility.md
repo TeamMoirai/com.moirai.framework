@@ -89,4 +89,4 @@ StringUtility.Handler = new DefaultStringHandler();
 - `Clear()` 清空所有缓存和池，通常在场景切换时调用
 
 ---
-[« 返回主 README](../README.md)
+[« 返回主 README](../../README.md)

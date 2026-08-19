@@ -118,4 +118,4 @@ foreach (DebuggerComp.LogNode node in logs)
 - 窗口绘制基于 `OnGUI`/`GUILayout`，`DebuggerComp.OnDestroy` 时会调用 `SettingUtility.Save()` 保存布局设置
 
 ---
-[« 返回主 README](../README.md)
+[« 返回主 README](../../README.md)

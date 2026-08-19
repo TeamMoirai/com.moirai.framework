@@ -118,4 +118,4 @@ foreach (DebuggerComp.LogNode node in logs)
 - Window drawing is based on `OnGUI`/`GUILayout`; `DebuggerComp.OnDestroy` calls `SettingUtility.Save()` to persist layout settings
 
 ---
-[« Back to Main README](../README_EN.md)
+[« Back to Main README](../../README_EN.md)

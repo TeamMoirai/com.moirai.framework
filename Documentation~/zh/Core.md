@@ -113,4 +113,4 @@ EventManager.RegisterCallback<MessageEvent>(OnMessageEvent);
 - 编辑器下退出 Play 模式时 `GameModule` 会自动调用 `ModuleSystem.Shutdown()`，兼容跳过域重载的 Enter Play Mode Options 设置。
 
 ---
-[« 返回主 README](../README.md) · [Timer](Timer.md) · [UpdateDriver](UpdateDriver.md)
+[« 返回主 README](../../README.md) · [Timer](Timer.md) · [UpdateDriver](UpdateDriver.md)

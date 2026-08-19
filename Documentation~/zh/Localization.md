@@ -122,4 +122,4 @@ IEnumerator routine = translator.TranslateAsync(request,
 - `ImageLocalizer` / `AudioLocalizer` 的数组是按语言索引注入的，配表新增语言后需同步补齐数组元素
 
 ---
-[« 返回主 README](../README.md) · [ConfigTable](ConfigTable.md)
+[« 返回主 README](../../README.md) · [ConfigTable](ConfigTable.md)

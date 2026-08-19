@@ -103,4 +103,4 @@ for (int i = 0; i < count; i++)
 - 时间缩放只影响 `isUnscaled: false` 的计时器；修改 `Time.timeScale` 前请按需选择回调形态。
 
 ---
-[« 返回主 README](../README.md) · [Core](Core.md) · [UpdateDriver](UpdateDriver.md)
+[« 返回主 README](../../README.md) · [Core](Core.md) · [UpdateDriver](UpdateDriver.md)

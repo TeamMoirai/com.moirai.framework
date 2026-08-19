@@ -186,39 +186,39 @@ Add `Scenes/main.unity` to the build:
 com.moirai.framework/
 ├── Runtime/              # Core Framework Assembly (Moirai.Atropos)
 │   ├── Core/             # Base utilities and data structures
-│   │   ├── Attributes/   #   Custom attributes (~20 + Odin extensions)
-│   │   ├── Constant/     #   Constants (RuntimeId, etc.)
-│   │   ├── DataStructure/#   Data structures (IoC container, priority queue, sparse array, etc.)
-│   │   ├── Events/       #   Event system (pooled, bubbling propagation)
-│   │   ├── Extensions/   #   Extension methods (R3 reactive, UGUI, etc.)
-│   │   ├── GameException/#   Game exception system
-│   │   ├── GameProfiler/ #   Performance profiler
-│   │   ├── GameSettings/ #   Framework and graphics settings
-│   │   ├── GameTime/     #   Game time
-│   │   ├── MemoryPool/   #   Memory pool
-│   │   ├── Models/       #   Data models
-│   │   ├── Obfuz/        #   Code obfuscation initialization
-│   │   ├── Pool/         #   Object pool (generic/UniTask/GameObject)
-│   │   ├── Schedulers/   #   Zero-allocation scheduler (timer/frame counter)
-│   │   ├── Singleton/    #   Singleton system (pure C# / MonoBehaviour)
-│   │   ├── Tasks/        #   Task/sequence system
-│   │   └── Utility/      #   Utilities (logging, encryption, HTTP, reflection, tween, etc.)
-│   └── Modules/          #   Functional modules
-│       ├── @Core/        #   Module system base (Module / ModuleSystem / GameModule)
-│       ├── Audio/        #   Audio system (categories/agents/fade)
-│       ├── ConfigTable/  #   Config table management
-│       ├── Debugger/     #   Runtime debugger
-│       ├── FSM/          #   Finite State Machine
-│       ├── Input/        #   Input system (keyboard/mouse/gamepad/mobile)
-│       ├── Localization/ #   Localization (text/image/audio/Google Translate)
-│       ├── ObjectPool/   #   Object pool module
-│       ├── Procedure/    #   Procedure management
-│       ├── Resource/     #   YooAsset asset management
-│       ├── Save/         #   Save system (JSON/binary/encrypted)
-│       ├── Scene/        #   Scene management
-│       ├── Timer/        #   Timer
-│       ├── UI/           #   UI framework (windows/widgets/layers)
-│       └── UpdateDriver/ #   Update loop driver
+│   │   ├── Attributes/   # Custom attributes (~20 + Odin extensions)
+│   │   ├── Constant/     # Constants (RuntimeId, etc.)
+│   │   ├── DataStructure/# Data structures (IoC container, priority queue, sparse array, etc.)
+│   │   ├── Events/       # Event system (pooled, bubbling propagation)
+│   │   ├── Extensions/   # Extension methods (R3 reactive, UGUI, etc.)
+│   │   ├── GameException/# Game exception system
+│   │   ├── GameProfiler/ # Performance profiler
+│   │   ├── GameSettings/ # Framework and graphics settings
+│   │   ├── GameTime/     # Game time
+│   │   ├── MemoryPool/   # Memory pool
+│   │   ├── Models/       # Data models
+│   │   ├── Obfuz/        # Code obfuscation initialization
+│   │   ├── Pool/         # Object pool (generic/UniTask/GameObject)
+│   │   ├── Schedulers/   # Zero-allocation scheduler (timer/frame counter)
+│   │   ├── Singleton/    # Singleton system (pure C# / MonoBehaviour)
+│   │   ├── Tasks/        # Task/sequence system
+│   │   └── Utility/      # Utilities (logging, encryption, HTTP, reflection, tween, etc.)
+│   └── Modules/          # Functional modules
+│       ├── @Core/        # Module system base (Module / ModuleSystem / GameModule)
+│       ├── Audio/        # Audio system (categories/agents/fade)
+│       ├── ConfigTable/  # Config table management
+│       ├── Debugger/     # Runtime debugger
+│       ├── FSM/          # Finite State Machine
+│       ├── Input/        # Input system (keyboard/mouse/gamepad/mobile)
+│       ├── Localization/ # Localization (text/image/audio/Google Translate)
+│       ├── ObjectPool/   # Object pool module
+│       ├── Procedure/    # Procedure management
+│       ├── Resource/     # YooAsset asset management
+│       ├── Save/         # Save system (JSON/binary/encrypted)
+│       ├── Scene/        # Scene management
+│       ├── Timer/        # Timer
+│       ├── UI/           # UI framework (windows/widgets/layers)
+│       └── UpdateDriver/ # Update loop driver
 ├── Editor/               # Editor toolset
 ├── Plugins/              # Third-party libraries
 ├── Samples~/             # Examples

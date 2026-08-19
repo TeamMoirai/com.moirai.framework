@@ -150,4 +150,4 @@ Select the root node of a UI prefab and use the menu:
 - Window updates (`OnUpdate`) are only triggered for visible windows; full-screen windows will block the visibility of windows beneath them
 
 ---
-[« Back to Main README](../README_EN.md) · [Input](Input.md) · [Scene](Scene.md)
+[« Back to Main README](../../README_EN.md) · [Input](Input.md) · [Scene](Scene.md)

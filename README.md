@@ -193,39 +193,39 @@ Moirai Framework
 com.moirai.framework/
 ├── Runtime/              # 核心框架程序集 (Moirai.Atropos)
 │   ├── Core/             # 基础工具与数据结构
-│   │   ├── Attributes/   #   自定义属性（~20个 + Odin 扩展）
-│   │   ├── Constant/     #   常量定义（RuntimeId 等）
-│   │   ├── DataStructure/#   数据结构（IOC容器、优先队列、稀疏数组等）
-│   │   ├── Events/       #   事件系统（池化、冒泡传播）
-│   │   ├── Extensions/   #   扩展方法（R3 响应式、UGUI 等）
-│   │   ├── GameException/#   游戏异常系统
-│   │   ├── GameProfiler/ #   性能分析器
-│   │   ├── GameSettings/ #   框架设置与画面设置
-│   │   ├── GameTime/     #   游戏时间
-│   │   ├── MemoryPool/   #   内存池
-│   │   ├── Models/       #   数据模型
-│   │   ├── Obfuz/        #   代码混淆初始化
-│   │   ├── Pool/         #   对象池（内部池/UniTask/GameObject）
-│   │   ├── Schedulers/   #   零分配调度器（定时器/帧计数器）
-│   │   ├── Singleton/    #   单例系统（纯 C# / MonoBehaviour）
-│   │   ├── Tasks/        #   任务/序列系统
-│   │   └── Utility/      #   工具集（日志、加密、HTTP、反射、缓动等）
-│   └── Modules/          #   功能模块
-│       ├── @Core/        #   模块系统基座（Module / ModuleSystem / GameModule）
-│       ├── Audio/        #   音频系统（分类/代理/淡入淡出）
-│       ├── ConfigTable/  #   配置表管理
-│       ├── Debugger/     #   运行时调试器
-│       ├── FSM/          #   有限状态机
-│       ├── Input/        #   输入系统（键鼠/手柄/移动端）
-│       ├── Localization/ #   本地化（文本/图片/音频/Google翻译）
-│       ├── ObjectPool/   #   对象池模块
-│       ├── Procedure/    #   流程管理
-│       ├── Resource/     #   YooAsset 资源管理
-│       ├── Save/         #   存档系统（JSON/二进制/加密）
-│       ├── Scene/        #   场景管理
-│       ├── Timer/        #   计时器
-│       ├── UI/           #   UI 框架（窗口/控件/层）
-│       └── UpdateDriver/ #   更新循环驱动
+│   │   ├── Attributes/   # 自定义属性（~20个 + Odin 扩展）
+│   │   ├── Constant/     # 常量定义（RuntimeId 等）
+│   │   ├── DataStructure/# 数据结构（IOC容器、优先队列、稀疏数组等）
+│   │   ├── Events/       # 事件系统（池化、冒泡传播）
+│   │   ├── Extensions/   # 扩展方法（R3 响应式、UGUI 等）
+│   │   ├── GameException/# 游戏异常系统
+│   │   ├── GameProfiler/ # 性能分析器
+│   │   ├── GameSettings/ # 框架设置与画面设置
+│   │   ├── GameTime/     # 游戏时间
+│   │   ├── MemoryPool/   # 内存池
+│   │   ├── Models/       # 数据模型
+│   │   ├── Obfuz/        # 代码混淆初始化
+│   │   ├── Pool/         # 对象池（内部池/UniTask/GameObject）
+│   │   ├── Schedulers/   # 零分配调度器（定时器/帧计数器）
+│   │   ├── Singleton/    # 单例系统（纯 C# / MonoBehaviour）
+│   │   ├── Tasks/        # 任务/序列系统
+│   │   └── Utility/      # 工具集（日志、加密、HTTP、反射、缓动等）
+│   └── Modules/          # 功能模块
+│       ├── @Core/        # 模块系统基座（Module / ModuleSystem / GameModule）
+│       ├── Audio/        # 音频系统（分类/代理/淡入淡出）
+│       ├── ConfigTable/  # 配置表管理
+│       ├── Debugger/     # 运行时调试器
+│       ├── FSM/          # 有限状态机
+│       ├── Input/        # 输入系统（键鼠/手柄/移动端）
+│       ├── Localization/ # 本地化（文本/图片/音频/Google翻译）
+│       ├── ObjectPool/   # 对象池模块
+│       ├── Procedure/    # 流程管理
+│       ├── Resource/     # YooAsset 资源管理
+│       ├── Save/         # 存档系统（JSON/二进制/加密）
+│       ├── Scene/        # 场景管理
+│       ├── Timer/        # 计时器
+│       ├── UI/           # UI 框架（窗口/控件/层）
+│       └── UpdateDriver/ # 更新循环驱动
 ├── Editor/               # 编辑器工具集
 ├── Plugins/              # 第三方库
 ├── Samples~/             # 示例

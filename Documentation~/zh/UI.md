@@ -150,4 +150,4 @@ protected override async UniTask OpenAnimation()
 - 窗口更新（`OnUpdate`）仅对可见窗口触发；全屏窗口会遮挡其下窗口的可见性
 
 ---
-[« 返回主 README](../README.md) · [Input](Input.md) · [Scene](Scene.md)
+[« 返回主 README](../../README.md) · [Input](Input.md) · [Scene](Scene.md)

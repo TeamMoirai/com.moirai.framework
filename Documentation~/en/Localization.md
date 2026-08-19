@@ -122,4 +122,4 @@ IEnumerator routine = translator.TranslateAsync(request,
 - The arrays of `ImageLocalizer` / `AudioLocalizer` are injected by language index; after adding a new language to the config table, array elements must be supplemented accordingly
 
 ---
-[« Back to Main README](../README_EN.md) · [ConfigTable](ConfigTable.md)
+[« Back to Main README](../../README_EN.md) · [ConfigTable](ConfigTable.md)

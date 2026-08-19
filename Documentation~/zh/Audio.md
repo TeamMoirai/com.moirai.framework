@@ -158,4 +158,4 @@ GameModule.Audio.CleanAudioPool();
 - 主音量经 `AudioListener.volume` 生效，音轨音量经 AudioMixer 参数生效，两者机制不同
 
 ---
-[« 返回主 README](../README.md)
+[« 返回主 README](../../README.md)

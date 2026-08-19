@@ -113,4 +113,4 @@ Menu `Tools/Moirai/Module System` opens the module system window, displaying reg
 - When exiting Play Mode in the editor, `GameModule` automatically calls `ModuleSystem.Shutdown()`, compatible with the Enter Play Mode Options setting that skips domain reload.
 
 ---
-[« Back to Main README](../README_EN.md) · [Timer](Timer.md) · [UpdateDriver](UpdateDriver.md)
+[« Back to Main README](../../README_EN.md) · [Timer](Timer.md) · [UpdateDriver](UpdateDriver.md)

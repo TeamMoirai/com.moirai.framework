@@ -80,4 +80,4 @@ driver.AddDestroyListener(OnHostDestroy);
 - The host object is `DontDestroyOnLoad` and survives across scenes; do not manually destroy the `[UpdateDriver]` object externally, otherwise all coroutines and listeners will become invalid.
 
 ---
-[« Back to Main README](../README_EN.md) · [Core](Core.md) · [Timer](Timer.md)
+[« Back to Main README](../../README_EN.md) · [Core](Core.md) · [Timer](Timer.md)

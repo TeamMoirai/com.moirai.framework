@@ -126,4 +126,4 @@ bool ok = GameModule.Procedure.RestartProcedure(
 - `ProcedureBase.OnUpdate` has two time parameters (`elapseSeconds` / `realElapseSeconds`). Ensure the signature is consistent when overriding.
 
 ---
-[« Back to Main README](../README_EN.md) · [FSM](FSM.md) · [Resource](Resource.md)
+[« Back to Main README](../../README_EN.md) · [FSM](FSM.md) · [Resource](Resource.md)
