@@ -20,9 +20,10 @@
             {
                 if (s_Handler == value || value == null) return;
 
-                s_Handler?.Internal_Shutdown();
+                value.Internal_Init();
+                var previous = s_Handler;
                 s_Handler = value;
-                s_Handler.Internal_Init();
+                previous?.Internal_Shutdown();
             }
         }
 

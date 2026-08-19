@@ -20,6 +20,7 @@ namespace Moirai.Atropos
     {
         [SerializeField] private float m_CheckInterval = 60f;
 
+        [NonSerialized]
         private bool _initialized;
 
         #region 生命周期 [LIFECYCLE]
@@ -30,12 +31,12 @@ namespace Moirai.Atropos
         internal void Internal_Init()
         {
             if (_initialized) return;
-            _initialized = true;
 
             TweenManager.EnsureInstance();
             TweenManager.Register(this);
             TweenManager.SetCheckInterval(m_CheckInterval);
             OnInit();
+            _initialized = true;
         }
 
         /// <summary>

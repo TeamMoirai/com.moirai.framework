@@ -48,9 +48,10 @@ namespace Moirai.Atropos
                 if (value == null)
                     throw new GameException("TweenUtility.Handler cannot be null.");
 
-                s_Handler?.Internal_Shutdown();
+                value.Internal_Init();
+                var previous = s_Handler;
                 s_Handler = value;
-                s_Handler.Internal_Init();
+                previous?.Internal_Shutdown();
             }
         }
 
