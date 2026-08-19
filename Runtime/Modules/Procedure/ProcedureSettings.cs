@@ -54,7 +54,7 @@ namespace Moirai.Atropos.Procedure
         /// <summary>
         /// 启动流程。
         /// </summary>
-        public static async UniTaskVoid StartProcedure()
+        public static async UniTask StartProcedure()
         {
             if (Instance._procedureService == null)
             {

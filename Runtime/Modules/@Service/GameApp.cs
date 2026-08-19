@@ -1,3 +1,4 @@
+using System;
 using Cysharp.Threading.Tasks;
 using Moirai.Atropos.Audio;
 using Moirai.Atropos.Debugger;
@@ -139,8 +140,15 @@ namespace Moirai.Atropos
 
         private static async UniTaskVoid InitializeAsync()
         {
-            await GameServices.InitializeAsync();
-            ProcedureSettings.StartProcedure().Forget();
+            try
+            {
+                await GameServices.InitializeAsync();
+                await ProcedureSettings.StartProcedure();
+            }
+            catch (Exception ex)
+            {
+                LogUtility.Error("GameApp initialization failed:\n{0}", ex);
+            }
         }
 
         private void OnDestroy()
