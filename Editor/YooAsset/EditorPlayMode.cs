@@ -12,13 +12,13 @@ namespace YooAsset.Editor
         [MenuItem("YooAsset/Editor PlayMode/EditorMode (编辑器下的模拟模式)", false, MENU_ITEM_PRIORITY)]
         public static void EditorMode()
         {
-            EditorPrefs.SetInt(ResourceModuleDriver.EDITOR_PLAY_MODE_KEY, (int)EPlayMode.EditorSimulateMode);
+            EditorPrefs.SetInt(ResourceServiceDriver.EDITOR_PLAY_MODE_KEY, (int)EPlayMode.EditorSimulateMode);
         }
 
         [MenuItem("YooAsset/Editor PlayMode/EditorMode (编辑器下的模拟模式)", true)]
         public static bool EditorModeValidation()
         {
-            return EditorPrefs.GetInt(ResourceModuleDriver.EDITOR_PLAY_MODE_KEY) != (int)EPlayMode.EditorSimulateMode;
+            return EditorPrefs.GetInt(ResourceServiceDriver.EDITOR_PLAY_MODE_KEY) != (int)EPlayMode.EditorSimulateMode;
         }
 
         #endregion
@@ -28,13 +28,13 @@ namespace YooAsset.Editor
         [MenuItem("YooAsset/Editor PlayMode/OfflinePlayMode (单机模式)", false, MENU_ITEM_PRIORITY + 1)]
         public static void OfflinePlayMode()
         {
-            EditorPrefs.SetInt(ResourceModuleDriver.EDITOR_PLAY_MODE_KEY, (int)EPlayMode.OfflinePlayMode);
+            EditorPrefs.SetInt(ResourceServiceDriver.EDITOR_PLAY_MODE_KEY, (int)EPlayMode.OfflinePlayMode);
         }
 
         [MenuItem("YooAsset/Editor PlayMode/OfflinePlayMode (单机模式)", true)]
         public static bool OfflinePlayModeValidation()
         {
-            return EditorPrefs.GetInt(ResourceModuleDriver.EDITOR_PLAY_MODE_KEY) != (int)EPlayMode.OfflinePlayMode;
+            return EditorPrefs.GetInt(ResourceServiceDriver.EDITOR_PLAY_MODE_KEY) != (int)EPlayMode.OfflinePlayMode;
         }
 
         #endregion
@@ -44,13 +44,13 @@ namespace YooAsset.Editor
         [MenuItem("YooAsset/Editor PlayMode/HostPlayMode (联机运行模式)", false, MENU_ITEM_PRIORITY + 2)]
         public static void HostPlayMode()
         {
-            EditorPrefs.SetInt(ResourceModuleDriver.EDITOR_PLAY_MODE_KEY, (int)EPlayMode.HostPlayMode);
+            EditorPrefs.SetInt(ResourceServiceDriver.EDITOR_PLAY_MODE_KEY, (int)EPlayMode.HostPlayMode);
         }
 
         [MenuItem("YooAsset/Editor PlayMode/HostPlayMode (联机运行模式)", true)]
         public static bool HostPlayModeValidation()
         {
-            return EditorPrefs.GetInt(ResourceModuleDriver.EDITOR_PLAY_MODE_KEY) != (int)EPlayMode.HostPlayMode;
+            return EditorPrefs.GetInt(ResourceServiceDriver.EDITOR_PLAY_MODE_KEY) != (int)EPlayMode.HostPlayMode;
         }
 
         #endregion
@@ -60,13 +60,13 @@ namespace YooAsset.Editor
         [MenuItem("YooAsset/Editor PlayMode/WebGLPlayMode (WebGL运行模式)", false, MENU_ITEM_PRIORITY + 3)]
         public static void WebPlayMode()
         {
-            EditorPrefs.SetInt(ResourceModuleDriver.EDITOR_PLAY_MODE_KEY, (int)EPlayMode.WebPlayMode);
+            EditorPrefs.SetInt(ResourceServiceDriver.EDITOR_PLAY_MODE_KEY, (int)EPlayMode.WebPlayMode);
         }
 
         [MenuItem("YooAsset/Editor PlayMode/WebGLPlayMode (WebGL运行模式)", true)]
         public static bool WebPlayModeValidation()
         {
-            return EditorPrefs.GetInt(ResourceModuleDriver.EDITOR_PLAY_MODE_KEY) != (int)EPlayMode.WebPlayMode;
+            return EditorPrefs.GetInt(ResourceServiceDriver.EDITOR_PLAY_MODE_KEY) != (int)EPlayMode.WebPlayMode;
         }
 
         #endregion

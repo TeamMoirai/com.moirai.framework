@@ -29,7 +29,7 @@ namespace Moirai.Atropos
     }
 
     /// <summary>
-    /// 内存池模块。
+    /// 内存池服务。
     /// </summary>
     [DisallowMultipleComponent]
     public sealed class MemoryPoolSetting : MonoBehaviour

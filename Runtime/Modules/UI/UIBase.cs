@@ -347,7 +347,7 @@ namespace Moirai.Atropos.UI
         /// <returns>UIWidget实例。</returns>
         public T CreateWidgetByPath<T>(Transform parentTrans, string assetLocation, bool visible = true) where T : UIWidget, new()
         {
-            GameObject goInst = UIModule.Resource.LoadGameObject(assetLocation, parent: parentTrans);
+            GameObject goInst = UIService.Resource.LoadGameObject(assetLocation, parent: parentTrans);
             return CreateWidget<T>(goInst, visible);
         }
 
@@ -361,7 +361,7 @@ namespace Moirai.Atropos.UI
         /// <returns>UIWidget实例。</returns>
         public async UniTask<T> CreateWidgetByPathAsync<T>(Transform parentTrans, string assetLocation, bool visible = true) where T : UIWidget, new()
         {
-            GameObject goInst = await UIModule.Resource.LoadGameObjectAsync(assetLocation, parentTrans, gameObject.GetCancellationTokenOnDestroy());
+            GameObject goInst = await UIService.Resource.LoadGameObjectAsync(assetLocation, parentTrans, gameObject.GetCancellationTokenOnDestroy());
             return CreateWidget<T>(goInst, visible);
         }
 

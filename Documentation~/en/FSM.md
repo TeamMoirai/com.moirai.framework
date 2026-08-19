@@ -1,8 +1,8 @@
-# FSM Module
+# FSM Service
 
-> Finite State Machine module: Centered around a generic owner, centrally creates, updates, and destroys any number of state machines.
+> Finite State Machine service: Centered around a generic owner, centrally creates, updates, and destroys any number of state machines.
 
-The FSM module provides a complete finite state machine implementation, accessible via the `GameModule.FSM` static accessor. Each state machine is bound to an owner and consists of several `FSMState<T>` states. The module uniformly drives the `Update` polling of all state machines. State machine instances themselves come from `MemoryPool`, ensuring zero GC allocation on creation and destruction. The Procedure management module is built on top of this module; see [Procedure](Procedure.md).
+The FSM service provides a complete finite state machine implementation, accessible via the `GameApp.FSM` static accessor. Each state machine is bound to an owner and consists of several `FSMState<T>` states. The service uniformly drives the `Update` polling of all state machines. State machine instances themselves come from `MemoryPool`, ensuring zero GC allocation on creation and destruction. The Procedure management service is built on top of this service; see [Procedure](Procedure.md).
 
 ## Core Features
 
@@ -19,8 +19,8 @@ Namespace: `Moirai.Atropos.FSM`
 
 | Class/Interface | Description |
 |---------|------|
-| `IFSMModule` | State machine manager interface: create/destroy/query state machines, accessed via `GameModule.FSM` |
-| `FSMModule` | Default implementation (`internal sealed`), module priority `Priority = 1`, implements `IUpdateModule` for unified polling |
+| `IFSMService` | State machine manager interface: create/destroy/query state machines, accessed via `GameApp.FSM` |
+| `FSMService` | Default implementation (`internal sealed`), service priority `Priority = 1`, implements `IUpdateService` for unified polling |
 | `IFSM<T>` | State machine interface: `Start` / `ChangeState` / `HasState` / `GetState` / `GetAllStates` / data dictionary, etc. |
 | `FSMBase` | Abstract base class for state machines: `Name` / `FullName` / `OwnerType` / `FsmStateCount` / `IsRunning` / `IsDestroyed` / `CurrentStateName` / `CurrentStateTime` |
 | `FSMState<T>` | Abstract base class for states (`public abstract`), defines all lifecycle virtual methods and `protected ChangeState` |
@@ -52,7 +52,7 @@ public class EnemyIdleState : FSMState<Enemy>
 }
 
 // 2. Create a state machine (CreateFSM has 4 overloads: params array / List, name can be omitted)
-IFSM<Enemy> fsm = GameModule.FSM.CreateFSM("enemy-1", new Enemy(),
+IFSM<Enemy> fsm = GameApp.FSM.CreateFSM("enemy-1", new Enemy(),
     new EnemyIdleState(), new EnemyPatrolState());
 
 // 3. Start (can only be started once; repeated starts throw GameException)
@@ -62,7 +62,7 @@ fsm.Start<EnemyIdleState>();
 fsm.ChangeState<EnemyPatrolState>();
 
 // 5. Destroy
-GameModule.FSM.DestroyFSM(fsm);
+GameApp.FSM.DestroyFSM(fsm);
 ```
 
 ## Advanced Usage
@@ -84,12 +84,12 @@ Named state machines and data sharing:
 
 ```csharp
 // Multiple independent state machines can be created for the same owner type
-IFSM<Enemy> fsmA = GameModule.FSM.CreateFSM("enemy-a", enemyA, new EnemyIdleState());
-IFSM<Enemy> fsmB = GameModule.FSM.CreateFSM("enemy-b", enemyB, new EnemyIdleState());
+IFSM<Enemy> fsmA = GameApp.FSM.CreateFSM("enemy-a", enemyA, new EnemyIdleState());
+IFSM<Enemy> fsmB = GameApp.FSM.CreateFSM("enemy-b", enemyB, new EnemyIdleState());
 
 // Retrieve by name later
-IFSM<Enemy> found = GameModule.FSM.GetFSM<Enemy>("enemy-a");
-bool exists = GameModule.FSM.HasFSM<Enemy>("enemy-b");
+IFSM<Enemy> found = GameApp.FSM.GetFSM<Enemy>("enemy-a");
+bool exists = GameApp.FSM.HasFSM<Enemy>("enemy-b");
 
 // Share data between states (name -> object)
 fsm.SetData("PatrolIndex", 0);
@@ -109,7 +109,7 @@ float staying = fsm.CurrentStateTime; // Logical seconds the current state has b
 - Creating the same `(ownerType, name)` twice, or calling `Start` on an already running state machine, both throw `GameException`
 - Switching to a non-existent state throws `GameException`; `ChangeState` requires the state machine to be running
 - The state collection must contain at least one state, otherwise `GameException` is thrown on creation
-- When the framework shuts down, `FSMModule.Shutdown` will close all state machines in sequence, triggering `OnExit(fsm, true)` and `OnDestroy(fsm)` on each state
+- When the framework shuts down, `FSMService.Shutdown` will close all state machines in sequence, triggering `OnExit(fsm, true)` and `OnDestroy(fsm)` on each state
 
 ---
 [« Back to Main README](../../README_EN.md)

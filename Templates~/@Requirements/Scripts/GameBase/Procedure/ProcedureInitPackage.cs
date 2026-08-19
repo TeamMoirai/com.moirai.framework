@@ -16,9 +16,9 @@ namespace Moirai.Main
     {
         public override bool UseNativeDialog { get; }
 
-        private IFSM<IProcedureModule> _procedureOwner;
+        private IFSM<IProcedureService> _procedureOwner;
 
-        protected override void OnEnter(IFSM<IProcedureModule> procedureOwner)
+        protected override void OnEnter(IFSM<IProcedureService> procedureOwner)
         {
             base.OnEnter(procedureOwner);
             
@@ -28,19 +28,19 @@ namespace Moirai.Main
             InitPackage(procedureOwner).Forget();
         }
 
-        private async UniTaskVoid InitPackage(IFSM<IProcedureModule> procedureOwner)
+        private async UniTaskVoid InitPackage(IFSM<IProcedureService> procedureOwner)
         {
             try
             {
-                var initializationOperation = await _resourceModule.InitPackage(_resourceModule.DefaultPackageName,
-                    _resourceModule.PlayMode == EPlayMode.OfflinePlayMode);
+                var initializationOperation = await _resourceService.InitPackage(_resourceService.DefaultPackageName,
+                    _resourceService.PlayMode == EPlayMode.OfflinePlayMode);
 
                 if (initializationOperation.Status == EOperationStatus.Succeed)
                 {
                     // 热更新阶段文本初始化
                     LoadText.Instance.InitConfigData();
 
-                    EPlayMode playMode = _resourceModule.PlayMode;
+                    EPlayMode playMode = _resourceService.PlayMode;
 
                     // 编辑器模式。
                     if (playMode == EPlayMode.EditorSimulateMode)
@@ -90,7 +90,7 @@ namespace Moirai.Main
             }
         }
         
-        private void OnInitPackageFailed(IFSM<IProcedureModule> procedureOwner, string message)
+        private void OnInitPackageFailed(IFSM<IProcedureService> procedureOwner, string message)
         {
             // 打开启动UI。
             LauncherMgr.ShowUI<LoadUpdateUI>();
@@ -109,7 +109,7 @@ namespace Moirai.Main
                 () => { Retry(procedureOwner); }, Application.Quit);
         }
 
-        private void Retry(IFSM<IProcedureModule> procedureOwner)
+        private void Retry(IFSM<IProcedureService> procedureOwner)
         {
             // 重新初始化资源中。
             LauncherMgr.ShowUI<LoadUpdateUI>(LoadText.Instance.Label_Load_RetryInit);

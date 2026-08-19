@@ -16,7 +16,7 @@ namespace Moirai.Atropos.Procedure
         [HideInInspector]
         [SerializeField] private string m_EntranceProcedureTypeName = null;
 
-        private IProcedureModule _procedureModule = null;
+        private IProcedureService _procedureService = null;
         private ProcedureBase _entranceProcedure = null;
         
         /// <summary>
@@ -26,12 +26,12 @@ namespace Moirai.Atropos.Procedure
         {
             get
             {
-                if (Instance._procedureModule == null)
+                if (Instance._procedureService == null)
                 {
                     return null;
                 }
 
-                return Instance._procedureModule.CurrentProcedure;
+                return Instance._procedureService.CurrentProcedure;
             }
         }
 
@@ -42,12 +42,12 @@ namespace Moirai.Atropos.Procedure
         {
             get
             {
-                if (Instance._procedureModule == null)
+                if (Instance._procedureService == null)
                 {
                     return 0f;
                 }
 
-                return Instance._procedureModule.CurrentProcedureTime;
+                return Instance._procedureService.CurrentProcedureTime;
             }
         }
 
@@ -56,12 +56,12 @@ namespace Moirai.Atropos.Procedure
         /// </summary>
         public static async UniTaskVoid StartProcedure()
         {
-            if (Instance._procedureModule == null)
+            if (Instance._procedureService == null)
             {
-                Instance._procedureModule = ModuleSystem.GetModule<IProcedureModule>();
+                Instance._procedureService = ServiceSystem.GetService<IProcedureService>();
             }
 
-            if (Instance._procedureModule == null)
+            if (Instance._procedureService == null)
             {
                 LogUtility.Fatal("Procedure manager is invalid.");
                 return;
@@ -96,11 +96,11 @@ namespace Moirai.Atropos.Procedure
                 return;
             }
 
-            Instance._procedureModule.Initialize(ModuleSystem.GetModule<IFSMModule>(), procedures);
+            Instance._procedureService.Initialize(ServiceSystem.GetService<IFSMService>(), procedures);
 
             await UniTask.Yield();
 
-            Instance._procedureModule.StartProcedure(Instance._entranceProcedure.GetType());
+            Instance._procedureService.StartProcedure(Instance._entranceProcedure.GetType());
         }
 
 #if UNITY_EDITOR

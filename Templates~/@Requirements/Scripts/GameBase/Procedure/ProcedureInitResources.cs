@@ -17,9 +17,9 @@ namespace Moirai.Main
 
         public override bool UseNativeDialog => true;
         
-        private IFSM<IProcedureModule> _procedureOwner;
+        private IFSM<IProcedureService> _procedureOwner;
 
-        protected override void OnEnter(IFSM<IProcedureModule> procedureOwner)
+        protected override void OnEnter(IFSM<IProcedureService> procedureOwner)
         {
             base.OnEnter(procedureOwner);
 
@@ -32,7 +32,7 @@ namespace Moirai.Main
             UnityUtility.StartCoroutine(InitResources(procedureOwner));
         }
 
-        protected override void OnUpdate(IFSM<IProcedureModule> procedureOwner, float elapseSeconds, float realElapseSeconds)
+        protected override void OnUpdate(IFSM<IProcedureService> procedureOwner, float elapseSeconds, float realElapseSeconds)
         {
             base.OnUpdate(procedureOwner, elapseSeconds, realElapseSeconds);
 
@@ -42,14 +42,14 @@ namespace Moirai.Main
                 return;
             }
 
-            if (_resourceModule.PlayMode == EPlayMode.HostPlayMode || _resourceModule.PlayMode == EPlayMode.WebPlayMode)
+            if (_resourceService.PlayMode == EPlayMode.HostPlayMode || _resourceService.PlayMode == EPlayMode.WebPlayMode)
             {
                 // 线上最新版本operation.PackageVersion
-                LogUtility.Debug($"Updated package Version : from {_resourceModule.GetPackageVersion()} to {_resourceModule.PackageVersion}");
+                LogUtility.Debug($"Updated package Version : from {_resourceService.GetPackageVersion()} to {_resourceService.PackageVersion}");
                 // 注意：保存资源版本号作为下次默认启动的版本!
                 // 如果当前是WebGL或者是边玩边下载直接进入预加载阶段。
-                if (_resourceModule.PlayMode == EPlayMode.WebPlayMode ||
-                    _resourceModule.UpdatableWhilePlaying)
+                if (_resourceService.PlayMode == EPlayMode.WebPlayMode ||
+                    _resourceService.UpdatableWhilePlaying)
                 {
                     // 边玩边下载还可以拓展首包支持。
                     ChangeToPreloadState(procedureOwner);
@@ -63,7 +63,7 @@ namespace Moirai.Main
             ChangeToPreloadState(procedureOwner);
         }
         
-        private void ChangeToCreateDownloaderState(IFSM<IProcedureModule> procedureOwner)
+        private void ChangeToCreateDownloaderState(IFSM<IProcedureService> procedureOwner)
         {
             ChangeState<ProcedureCreateDownloader>(procedureOwner);
         }
@@ -72,14 +72,14 @@ namespace Moirai.Main
         /// 初始化资源流程。
         /// </summary>
         /// <remarks>YooAsset 需要保持编辑器、单机、联机模式流程一致。</remarks>
-        private IEnumerator InitResources(IFSM<IProcedureModule> procedureOwner)
+        private IEnumerator InitResources(IFSM<IProcedureService> procedureOwner)
         {
             // 更新资源清单
             LogUtility.Info("Update the manifest file...");
             LauncherMgr.ShowUI<LoadUpdateUI>(LoadText.Instance.Label_UpdateManifest);
 
             // 1. 获取资源清单的版本信息
-            var operation1 = _resourceModule.RequestPackageVersionAsync();
+            var operation1 = _resourceService.RequestPackageVersionAsync();
             yield return operation1;
             if (operation1.Status != EOperationStatus.Succeed)
             {
@@ -88,14 +88,14 @@ namespace Moirai.Main
             }
 
             var packageVersion = operation1.PackageVersion;
-            _resourceModule.PackageVersion = packageVersion;
+            _resourceService.PackageVersion = packageVersion;
 
-            SettingUtility.SetString(Constant.GAME_VERSION, _resourceModule.PackageVersion);
+            SettingUtility.SetString(Constant.GAME_VERSION, _resourceService.PackageVersion);
 
             LogUtility.Info($"Init resource package version : {packageVersion}");
 
             // 2. 传入的版本信息更新资源清单
-            var operation2 = _resourceModule.UpdatePackageManifestAsync(packageVersion);
+            var operation2 = _resourceService.UpdatePackageManifestAsync(packageVersion);
             yield return operation2;
             if (operation2.Status != EOperationStatus.Succeed)
             {
@@ -106,15 +106,15 @@ namespace Moirai.Main
             _initResourcesComplete = true;
         }
 
-        private void ChangeToPreloadState(IFSM<IProcedureModule> procedureOwner)
+        private void ChangeToPreloadState(IFSM<IProcedureService> procedureOwner)
         {
             ChangeState<ProcedurePreload>(procedureOwner);
         }
 
-        private void OnInitResourcesError(IFSM<IProcedureModule> procedureOwner, string message)
+        private void OnInitResourcesError(IFSM<IProcedureService> procedureOwner, string message)
         {
             // 检查设备网络连接状态。
-            if (_resourceModule.PlayMode == EPlayMode.HostPlayMode)
+            if (_resourceService.PlayMode == EPlayMode.HostPlayMode)
             {
                 if (!IsNeedUpdate())
                 {
@@ -137,7 +137,7 @@ namespace Moirai.Main
         private bool IsNeedUpdate()
         {
             // 如果不能联网且当前游戏非强制(不更新可以进入游戏。)
-            if (UpdateSettings.UpdateStyle == EUpdateStyle.Optional && !_resourceModule.UpdatableWhilePlaying)
+            if (UpdateSettings.UpdateStyle == EUpdateStyle.Optional && !_resourceService.UpdatableWhilePlaying)
             {
                 // 获取上次成功记录的版本
                 string packageVersion = SettingUtility.GetString(Constant.GAME_VERSION, string.Empty);
@@ -150,7 +150,7 @@ namespace Moirai.Main
                     return false;
                 }
 
-                _resourceModule.PackageVersion = packageVersion;
+                _resourceService.PackageVersion = packageVersion;
 
                 if (UpdateSettings.UpdateNotice == EUpdateNotice.Notice)
                 {

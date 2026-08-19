@@ -7,7 +7,7 @@ namespace Moirai.Atropos.ConfigTable
 {
     public class ConfigMgr : Singleton<ConfigMgr>
     {
-        public IConfigTableModule ConfigTableModule { get; set; }
+        public IConfigTableService ConfigTableService { get; set; }
 
         /// <summary>
         /// 从配置表获取所有多语言文本。
@@ -15,7 +15,7 @@ namespace Moirai.Atropos.ConfigTable
         /// <returns></returns>
         public Dictionary<string, List<string>> GetAllLocalizedStrings()
         {
-            if (ConfigTableModule != null) return ConfigTableModule.GetAllLocalizedStrings();
+            if (ConfigTableService != null) return ConfigTableService.GetAllLocalizedStrings();
             
             LogUtility.Error("Generate Config first!");
             return null;
@@ -27,14 +27,14 @@ namespace Moirai.Atropos.ConfigTable
         /// <param name="id"></param>
         /// <param name="cancellationToken"></param>
         /// <returns></returns>
-        public async UniTask<Sprite> LoadSpriteByID(string id, CancellationToken cancellationToken = default) => await ConfigTableModule.LoadSpriteByID(id, cancellationToken);
+        public async UniTask<Sprite> LoadSpriteByID(string id, CancellationToken cancellationToken = default) => await ConfigTableService.LoadSpriteByID(id, cancellationToken);
 
         /// <summary>
         /// 根据 ID 从配置表获取弹窗资产的位置。
         /// </summary>
         /// <param name="id"></param>
         /// <returns></returns>
-        public string GetUIWindowLocation(string id) => ConfigTableModule.GetUIWindowLocation(id);
+        public string GetUIWindowLocation(string id) => ConfigTableService.GetUIWindowLocation(id);
     }
 }
   

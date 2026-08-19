@@ -274,7 +274,7 @@ namespace Moirai.Atropos.Editor
             buildParameters.FileNameStyle = EFileNameStyle.BundleName_HashName;
             buildParameters.BuildinFileCopyOption = EBuildinFileCopyOption.ClearAndCopyAll;
             buildParameters.BuildinFileCopyParams = string.Empty;
-            buildParameters.EncryptionServices = GetEncryptionFromResourceModuleDriver();
+            buildParameters.EncryptionServices = GetEncryptionFromResourceServiceDriver();
             buildParameters.ClearBuildCacheFiles = false;
             buildParameters.UseAssetDependencyDB = true;
 
@@ -518,9 +518,9 @@ namespace Moirai.Atropos.Editor
         }
 
         /// <summary>
-        /// 根据 ResourceModuleDriver 的 encryptionType 获取对应的加密服务（旧版兼容）
+        /// 根据 ResourceServiceDriver 的 encryptionType 获取对应的加密服务（旧版兼容）
         /// </summary>
-        private static IEncryptionServices GetEncryptionFromResourceModuleDriver()
+        private static IEncryptionServices GetEncryptionFromResourceServiceDriver()
         {
             var guids = AssetDatabase.FindAssets("t:Prefab GameEntry");
             if (guids.Length == 0)
@@ -537,15 +537,15 @@ namespace Moirai.Atropos.Editor
                 return null;
             }
 
-            var resourceModuleDriver = gameEntryPrefab.GetComponentInChildren<ResourceModuleDriver>();
-            if (resourceModuleDriver == null)
+            var resourceServiceDriver = gameEntryPrefab.GetComponentInChildren<ResourceServiceDriver>();
+            if (resourceServiceDriver == null)
             {
-                Debug.LogWarning("[BuildInternal] ResourceModuleDriver not found in GameEntry.prefab");
+                Debug.LogWarning("[BuildInternal] ResourceServiceDriver not found in GameEntry.prefab");
                 return null;
             }
 
-            var encryptionType = resourceModuleDriver.EncryptionType;
-            Debug.Log($"[BuildInternal] Use EncryptionType from ResourceModuleDriver: {encryptionType}");
+            var encryptionType = resourceServiceDriver.EncryptionType;
+            Debug.Log($"[BuildInternal] Use EncryptionType from ResourceServiceDriver: {encryptionType}");
 
             return GetEncryptionFromType(encryptionType);
         }

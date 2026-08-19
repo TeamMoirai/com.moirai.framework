@@ -1,8 +1,8 @@
-# Localization 模块
+# Localization 服务
 
-> 基于 Luban 配置表的多语言模块，支持文本、图片、音频与 Timeline 的自动注入和内联解析。
+> 基于 Luban 配置表的多语言服务，支持文本、图片、音频与 Timeline 的自动注入和内联解析。
 
-`Localization` 模块通过 `GameModule.Localization`（`ILocalizationModule`）访问，启动时从 Luban 配置表（经 [ConfigTable](ConfigTable.md) 的 `ConfigMgr`）加载全部本地化字符串并注册可用语言。语言按「命令行参数 → 编辑器设置 → 本地存档 → 系统语言」的优先级决定，切换语言时会触发 `OnLanguageChanged` 并自动重新注入所有已注册的 `LocalizerBase` 组件。除按 ID 取文本外，`LocalizationHelper.ResolveLocalizedStrings` 还支持在任意字符串中内联解析 `{l10n:ID}` / `{i18n:ID}` / `{g11n:ID}` 占位符。
+`Localization` 服务通过 `GameApp.Localization`（`ILocalizationService`）访问，启动时从 Luban 配置表（经 [ConfigTable](ConfigTable.md) 的 `ConfigMgr`）加载全部本地化字符串并注册可用语言。语言按「命令行参数 → 编辑器设置 → 本地存档 → 系统语言」的优先级决定，切换语言时会触发 `OnLanguageChanged` 并自动重新注入所有已注册的 `LocalizerBase` 组件。除按 ID 取文本外，`LocalizationHelper.ResolveLocalizedStrings` 还支持在任意字符串中内联解析 `{l10n:ID}` / `{i18n:ID}` / `{g11n:ID}` 占位符。
 
 ## 核心特性
 
@@ -21,8 +21,8 @@
 
 | 类/接口 | 说明 |
 |---------|------|
-| `ILocalizationModule` | 模块公开接口，`GameModule.Localization` 返回类型；含 `OnLanguageChanged` 事件 |
-| `LocalizationModule` | `sealed` 实现类，负责加载配表文本、语言切换与 Localizer 管理 |
+| `ILocalizationService` | 服务公开接口，`GameApp.Localization` 返回类型；含 `OnLanguageChanged` 事件 |
+| `LocalizationService` | `sealed` 实现类，负责加载配表文本、语言切换与 Localizer 管理 |
 | `Language` | 语言类（`IEquatable<Language>`）：`Name`、`Code`、`DisplayName`、`BuiltinLanguages`，支持与 `SystemLanguage` 互转 |
 | `LocalizationHelper` | 静态辅助类：`ResolveLocalizedStrings`、`RegisterLanguageMap`、`GetAllAvailableLanguages`、`ToLanguage` |
 | `LocalizerBase` | 本地化器抽象基类（MonoBehaviour）：`Prepare` 获取目标组件引用，`Localize` 执行注入 |
@@ -42,10 +42,10 @@
 ## 快速上手
 
 ```csharp
-// 访问模块
-ILocalizationModule localization = GameModule.Localization;
+// 访问服务
+ILocalizationService localization = GameApp.Localization;
 
-// 初始化语言配置（依赖 ConfigTable 与 Resource 模块，需在配表就绪后手动调用一次）
+// 初始化语言配置（依赖 ConfigTable 与 Resource 服务，需在配表就绪后手动调用一次）
 localization.InitLanguageSettings();
 
 // 按文本 ID 取本地化字符串（未翻译或 ID 不存在时原样返回 ID）
@@ -85,7 +85,7 @@ string hint = LocalizationHelper.ResolveLocalizedStrings("按 {l10n:btn_confirm}
 ### 订阅语言切换
 
 ```csharp
-GameModule.Localization.OnLanguageChanged += language =>
+GameApp.Localization.OnLanguageChanged += language =>
 {
     Debug.Log($"语言已切换: {language.DisplayName}");
     // 自行刷新非 LocalizerBase 管理的内容
@@ -115,7 +115,7 @@ IEnumerator routine = translator.TranslateAsync(request,
 ## 注意事项
 
 - 本地化数据来自 Luban 配置表：必须先在 `Tools/Settings/ConfigTableSettings` 中生成并转表，否则加载失败并提示 "Failed to load localized text, generate config first!"
-- `InitLanguageSettings` 依赖 `Resource` 模块加载配表资源，不要在 `OnInit` 阶段（资源未就绪）调用
+- `InitLanguageSettings` 依赖 `Resource` 服务加载配表资源，不要在 `OnInit` 阶段（资源未就绪）调用
 - 可用语言列表来自配表中 `LocalizedBean` 的字段注册（`LocalizationHelper.RegisterLanguageMap`），`ChangeLanguage` 传入未注册语言会抛 `KeyNotFoundException`
 - `ToLanguage(str, onlySupported)` 中 `onlySupported` 为 `true` 时，未注册语言会回落到默认语言 English（`LocalizationHelper.defaultLanguage`）
 - 编辑器非运行模式下 `TextLocalizer.ChangeID` / `ImageLocalizer.ChangeID` 直接返回 `false`（Timeline 预览待实现），`ResolveLocalizedStrings` 也会原样返回

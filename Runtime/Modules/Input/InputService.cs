@@ -1,0 +1,135 @@
+using System;
+using Moirai.Atropos.Events;
+using Moirai.Atropos.UI;
+using UnityEngine;
+
+namespace Moirai.Atropos.Input
+{
+    /// <summary>
+    /// 输入服务。
+    /// </summary>
+    public sealed class InputService : Service, IInputService
+    {
+        [Flags]
+        private enum InputStateFlags
+        {
+            None = 0,
+            LockPlayerController = 1, // 禁止角色控制器移动
+            PreventInteractionUI = 2, // 禁止交互UI
+        }
+        
+        private InputStateFlags _inputStateFlags;
+        
+        private InputHandler _inputHandler;
+
+        private bool _hasUIModal;
+
+        private bool _enabled = true;
+        public bool Enabled
+        {
+            get => _enabled;
+            set
+            {
+                if (_enabled == value) return;
+
+                _enabled = value;
+
+                if (!_enabled) _inputHandler.ResetAllInputStates();
+            }
+        }
+
+        public bool LockPlayerController
+        {
+            get => !_enabled || _inputStateFlags.HasFlag(InputStateFlags.LockPlayerController) || _hasUIModal;
+            set
+            {
+                if (_inputStateFlags.HasFlag(InputStateFlags.LockPlayerController) == value) return;
+
+                if (value)
+                {
+                    _inputStateFlags |= InputStateFlags.LockPlayerController;
+                    _inputHandler.ResetAllInputStates();
+                }
+                else
+                {
+                    _inputStateFlags &= ~InputStateFlags.LockPlayerController;
+                }
+                // LogUtility.Info($"[Input] {(value ? "Lock" : "Unlock")} Input[Player]");
+            }
+        }
+        
+        public bool PreventInteractionUI
+        {
+            get => !_enabled || _inputStateFlags.HasFlag(InputStateFlags.PreventInteractionUI);
+            set
+            {
+                if (_inputStateFlags.HasFlag(InputStateFlags.PreventInteractionUI) == value) return;
+
+                if (value)
+                {
+                    _inputStateFlags |= InputStateFlags.PreventInteractionUI;
+                    _inputHandler.ResetAllInputStates(); }
+                else
+                {
+                    _inputStateFlags &= ~InputStateFlags.PreventInteractionUI;
+                }
+                // LogUtility.Info($"[Input] {(value ? "Lock" : "Unlock")} Input[UI]");
+            }
+        }
+        
+        #region 实现方法 [IMPLEMENTATION METHODS]
+
+        // Service
+        public override void OnInit()
+        {
+            _inputHandler = InputSettings.InputHandler;
+            EventManager.RegisterCallback<MessageEvent>(ResetInput);
+            EventManager.RegisterCallback<UIServiceEvent>(RefreshUIModal);
+        }
+        
+        public override void Shutdown()
+        {
+            EventManager.UnregisterCallback<MessageEvent>(ResetInput);
+            EventManager.UnregisterCallback<UIServiceEvent>(RefreshUIModal);
+        }
+        
+        // IInputService
+        public bool GetButtonDown(string actionName, string actionGroup = "") => _inputHandler.GetButtonDown(actionName, actionGroup);
+        public bool GetButtonUp(string actionName, string actionGroup = "") => _inputHandler.GetButtonUp(actionName, actionGroup);
+        public bool GetButtonPressed(string actionName, string actionGroup = "") => _inputHandler.GetButtonPressed(actionName, actionGroup);
+        public bool GetBool(string actionName, string actionGroup = "") => _inputHandler.GetBool(actionName, actionGroup);
+        public float GetFloat(string actionName, string actionGroup = "") => _inputHandler.GetFloat(actionName, actionGroup);
+        public Vector2 GetVector2(string actionName, string actionGroup = "") => _inputHandler.GetVector2(actionName, actionGroup);
+        public bool GetMouseButtonDown(EMouseButton button) => _inputHandler.GetMouseButtonDown(button);
+        public bool GetMouseButtonUp(EMouseButton button) => _inputHandler.GetMouseButtonUp(button);
+        public bool GetMouseButtonPressed(EMouseButton button) => _inputHandler.GetMouseButtonPressed(button);
+        public Vector2 GetMousePosition() => _inputHandler.GetMousePosition();
+        public Vector2 GetScrollDelta() => _inputHandler.GetScrollDelta();
+
+        #endregion
+
+        #region 事件 [EVENTS]
+
+        private void ResetInput(MessageEvent evt)
+        {
+            switch (evt.EventType)
+            {
+                case EMessageEventType.ApplicationFocus:
+                    Enabled = true;
+                    break;
+
+                case EMessageEventType.NotApplicationFocus:
+                    Enabled = false;
+                    break;
+            }
+        }
+
+        private void RefreshUIModal(UIServiceEvent evt)
+        {
+            if (evt.Mode == UIServiceEvent.EMode.Shown || evt.Mode == UIServiceEvent.EMode.Closed)
+                _hasUIModal = GameApp.UI.CurrentModal != null;
+        }
+
+        #endregion 事件 [EVENT]
+    }
+}

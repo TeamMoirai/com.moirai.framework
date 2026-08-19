@@ -17,7 +17,7 @@ namespace Moirai.Atropos.Resource
             {
                 return;
             }
-            GameModule.Resource?.UnloadAsset(Target);
+            GameApp.Resource?.UnloadAsset(Target);
         }
     }
 }

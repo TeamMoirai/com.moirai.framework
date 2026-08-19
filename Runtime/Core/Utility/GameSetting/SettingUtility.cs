@@ -1,9 +1,9 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 
 namespace Moirai.Atropos
 {
     /// <summary>
-    /// 游戏配置模块。<br/>
+    /// 游戏配置服务。<br/>
     /// 功能特性：<br/>
     /// 支持用户隔离存储（通过用户ID自动生成复合键）
     /// </summary>

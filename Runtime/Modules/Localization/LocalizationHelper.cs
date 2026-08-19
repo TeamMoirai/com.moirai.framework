@@ -51,9 +51,9 @@ namespace Moirai.Atropos.Localization
 
             if (string.IsNullOrEmpty(format)) return format;
 
-            if (GameModule.Localization == null)
+            if (GameApp.Localization == null)
             {
-                if (!s_HasLoggedWarning) LogUtility.Warning($"{nameof(LocalizationModule)} not initialized!");
+                if (!s_HasLoggedWarning) LogUtility.Warning($"{nameof(LocalizationService)} not initialized!");
                 s_HasLoggedWarning = true;
                 return format;
             }
@@ -67,13 +67,13 @@ namespace Moirai.Atropos.Localization
 
                 try
                 {
-                    if (!GameModule.Localization.Has(textId))
+                    if (!GameApp.Localization.Has(textId))
                     {
                         if (Application.isPlaying) LogUtility.Warning($"Text ID: {textId}({match.Groups[1].Value}) not available.");
                         continue;
                     }
 
-                    string replacement = GameModule.Localization.GetTextFromId(textId);
+                    string replacement = GameApp.Localization.GetTextFromId(textId);
                     // LogUtility.Info($"Resolving localization for ID: {textId}({replacement})");
                     format = format.Replace(match.Value, replacement);
                 }
@@ -104,9 +104,9 @@ namespace Moirai.Atropos.Localization
 
             if (string.IsNullOrEmpty(format)) return format;
 
-            if (GameModule.Localization == null)
+            if (GameApp.Localization == null)
             {
-                LogUtility.Error($"{nameof(LocalizationModule)} not initialized!");
+                LogUtility.Error($"{nameof(LocalizationService)} not initialized!");
                 return format;
             }
 
@@ -118,13 +118,13 @@ namespace Moirai.Atropos.Localization
             {
                 string textId = match.Groups[1].Value; // s_L10NRegex 只有一个捕获组用于匹配文本 ID。，
 
-                if (!GameModule.Localization.Has(textId))
+                if (!GameApp.Localization.Has(textId))
                 {
                     if (Application.isPlaying) LogUtility.Warning($"Text ID: {textId} not available.");
                     continue;
                 }
 
-                string replacement = GameModule.Localization.GetTextFromId(textId);
+                string replacement = GameApp.Localization.GetTextFromId(textId);
                 format = format.Replace(match.Value, replacement);
             }
 
@@ -146,9 +146,9 @@ namespace Moirai.Atropos.Localization
         {
             if (string.IsNullOrEmpty(format)) return format;
 
-            if (GameModule.Localization == null)
+            if (GameApp.Localization == null)
             {
-                LogUtility.Error("LocalizationModule not initialized!");
+                LogUtility.Error("LocalizationService not initialized!");
                 return format;
             }
 
@@ -163,13 +163,13 @@ namespace Moirai.Atropos.Localization
                     var entry = format.Substring(i, e - i + 1);
                     string textId = entry.Substring(6, entry.Length -7);
 
-                    if (!GameModule.Localization.Has(textId))
+                    if (!GameApp.Localization.Has(textId))
                     {
                         if (Application.isPlaying) LogUtility.Warning($"Text ID: {textId} not available.");
                         break;
                     }
 
-                    format = format.Replace(entry, GameModule.Localization.GetTextFromId(textId));
+                    format = format.Replace(entry, GameApp.Localization.GetTextFromId(textId));
 
                     i = format.IndexOf("{l10n:", System.StringComparison.OrdinalIgnoreCase);
                 }

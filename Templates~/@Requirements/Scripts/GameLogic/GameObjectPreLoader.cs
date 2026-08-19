@@ -35,11 +35,11 @@ namespace GameLogic
         /// 进入游戏主流程 => 加载持久化对象
         /// </summary>
         /// <param name="evt"></param>
-        /// <remarks>依赖模块，所以必须进入 <see cref="HotfixEntry"/> 后再实例化</remarks>
+        /// <remarks>依赖服务，所以必须进入 <see cref="HotfixEntry"/> 后再实例化</remarks>
         private void OnHotfixEntryEvent(HotfixEntryEvent evt)
         {
             if (m_PreLoadPrefabs.Length == 0) return;
-            if (GameModule.Resource == null) return;
+            if (GameApp.Resource == null) return;
 
             Load().Forget();
         }
@@ -57,7 +57,7 @@ namespace GameLogic
                     continue;
                 }
 
-                var go = await GameModule.Resource.LoadAssetAsync<GameObject>(m_PreLoadPrefabs[i]);
+                var go = await GameApp.Resource.LoadAssetAsync<GameObject>(m_PreLoadPrefabs[i]);
                 var obj = Instantiate(go);
                 obj.name = go.name;
             }

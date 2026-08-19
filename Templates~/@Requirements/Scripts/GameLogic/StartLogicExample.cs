@@ -9,7 +9,7 @@ namespace GameLogic
         private static partial void StartGameLogic()
         {
             Log.Info("Starting GameLogic...");
-            GameModule.UI.ShowUIAsync<StartScreen>("StartScreen", GetWindowLocation("start"), false, "Start Screen");
+            GameApp.UI.ShowUIAsync<StartScreen>("StartScreen", GetWindowLocation("start"), false, "Start Screen");
         }
 
         /// <summary>

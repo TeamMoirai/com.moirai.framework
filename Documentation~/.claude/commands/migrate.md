@@ -48,10 +48,10 @@
 
 ## 框架迁移指南
 
-### 1. 模块系统迁移
+### 1. 服务系统迁移
 ```csharp
 // 旧代码
-public class OldModule : MonoBehaviour
+public class OldService : MonoBehaviour
 {
     void Start() { }
     void Update() { }
@@ -59,8 +59,8 @@ public class OldModule : MonoBehaviour
 }
 
 // 新代码
-[Module]
-public class NewModule : Module
+[Service]
+public class NewService : Service
 {
     protected override void OnInit() { }
     protected override void OnUpdate() { }

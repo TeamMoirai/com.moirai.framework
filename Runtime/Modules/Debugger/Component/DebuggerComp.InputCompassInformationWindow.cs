@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 
 namespace Moirai.Atropos.Debugger
 {
@@ -35,7 +35,7 @@ namespace Moirai.Atropos.Debugger
                         DrawItem("True Heading", UnityEngine.Input.compass.trueHeading.ToString());
                     }
 #else
-                    DrawItem("UnityEngine.Input 已禁用，基于输入模块的信息统计未实现", "");
+                    DrawItem("UnityEngine.Input 已禁用，基于输入服务的信息统计未实现", "");
 #endif
                 }
                 GUILayout.EndVertical();

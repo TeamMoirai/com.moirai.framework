@@ -4,13 +4,13 @@ using UnityEngine;
 namespace Moirai.Atropos.Audio
 {
     /// <summary>
-    /// 通过事件而非直接调用音频模块来播放音频。
+    /// 通过事件而非直接调用音频服务来播放音频。
     /// </summary>
-    /// <remarks>以避免音频模块未初始化或被释放造成的错误</remarks>
-    public class AudioPlayEvent : EventBase<AudioPlayEvent>, IAudioModuleEvent
+    /// <remarks>以避免音频服务未初始化或被释放造成的错误</remarks>
+    public class AudioPlayEvent : EventBase<AudioPlayEvent>, IAudioServiceEvent
     {
         /// <summary>
-        /// 播放返回的音频句柄（模块自维护）
+        /// 播放返回的音频句柄（服务自维护）
         /// </summary>
         public ulong AudioHandle { get; set; }
 

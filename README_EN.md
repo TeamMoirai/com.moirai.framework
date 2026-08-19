@@ -24,7 +24,7 @@ Moirai Framework
 
 - **Out-of-the-Box** - Get started with the entire development workflow in 5 minutes, clean code, clear structure
 - **High Performance** - UniTask-based async system, zero-GC event dispatch, strict memory management
-- **High Cohesion, Low Coupling** - Modular design, easily remove or replace modules you don't need
+- **High Cohesion, Low Coupling** - Modular design, easily remove or replace services you don't need
 - **Hot Update Support** - Integrated HybridCLR, full-platform hot update workflow ready
 - **Code Obfuscation** - Integrated Obfuz for code obfuscation and hardening, protecting core logic
 - **Asset Management** - Integrated YooAsset, supports LRU and ARC cache strategies, automatic asset release
@@ -47,12 +47,12 @@ Moirai Framework
       - [Option 3: Manual Install](#option-3-manual-install)
     - [Initial Setup](#initial-setup)
       - [Scene Building](#scene-building)
-      - [Config Table Module](#config-table-module)
+      - [Config Table Service](#config-table-service)
     - [Quick Tips](#quick-tips)
 - [Architecture](#architecture)
-  - [Module System](#module-system)
+  - [Service System](#service-system)
   - [Startup Flow](#startup-flow)
-- [Core Modules](#core-modules)
+- [Core Services](#core-services)
 - [Core Tools](#core-tools)
   - [Attributes — Custom Attributes](#attributes--custom-attributes)
   - [Events — Event System](#events--event-system)
@@ -154,7 +154,7 @@ Add `Scenes/main.unity` to the build:
 - Unity 6.0+: `File -> Build Profiles -> Scene List`
 - Unity 6.0-: `File -> Build Settings -> Scene In Build`
 
-##### Config Table Module
+##### Config Table Service
 
 - Select `Tools/Settings/ConfigTableSettings`, click `Generate Config to Target Directory`
 - When generating for the first time, before exporting, first run the **build-luban** compilation or manually import Luban to the config table root directory
@@ -203,15 +203,15 @@ com.moirai.framework/
 │   │   ├── Singleton/    # Singleton system (pure C# / MonoBehaviour)
 │   │   ├── Tasks/        # Task/sequence system
 │   │   └── Utility/      # Utilities (logging, encryption, HTTP, reflection, tween, etc.)
-│   └── Modules/          # Functional modules
-│       ├── @Core/        # Module system base (Module / ModuleSystem / GameModule)
+│   └── Services/          # Functional services
+│       ├── @Core/        # Service system base (Service / ServiceSystem / GameService)
 │       ├── Audio/        # Audio system (categories/agents/fade)
 │       ├── ConfigTable/  # Config table management
 │       ├── Debugger/     # Runtime debugger
 │       ├── FSM/          # Finite State Machine
 │       ├── Input/        # Input system (keyboard/mouse/gamepad/mobile)
 │       ├── Localization/ # Localization (text/image/audio/Google Translate)
-│       ├── ObjectPool/   # Object pool module
+│       ├── ObjectPool/   # Object pool service
 │       ├── Procedure/    # Procedure management
 │       ├── Resource/     # YooAsset asset management
 │       ├── Save/         # Save system (JSON/binary/encrypted)
@@ -223,30 +223,30 @@ com.moirai.framework/
 ├── Plugins/              # Third-party libraries
 ├── Samples~/             # Examples
 ├── Templates~/           # Project initial templates
-├── Documentation~/en/    # Module documentation (README per module)
+├── Documentation~/en/    # Service documentation (README per service)
 └── Tests/                # Unit tests
 ```
 
-### Module System
+### Service System
 
-The framework uses a **modular architecture** where all subsystems are plain C# classes (not MonoBehaviour), registered and managed via `ModuleSystem`. The entry point is `GameModule` (MonoBehaviour), which provides static accessors for all modules.
+The framework uses a **modular architecture** where all subsystems are plain C# classes (not MonoBehaviour), registered and managed via `ServiceSystem`. The entry point is `GameService` (MonoBehaviour), which provides static accessors for all services.
 
 ```csharp
-// Module access - lazy loaded, auto-created on first access
-var resource = GameModule.Resource;
-var ui = GameModule.UI;
-var audio = GameModule.Audio;
-var timer = GameModule.Timer;
-var fsm = GameModule.FSM;
+// Service access - lazy loaded, auto-created on first access
+var resource = GameService.Resource;
+var ui = GameService.UI;
+var audio = GameService.Audio;
+var timer = GameService.Timer;
+var fsm = GameService.FSM;
 ```
 
-**Module Lifecycle:**
-- `OnInit()` — Module initialization
-- `Shutdown()` — Module destruction
-- Supports `IUpdateModule`, `IFixedUpdateModule`, `ILateUpdateModule` interfaces for update loop registration
-- Update order controlled by `Priority` property; lifecycle scope controlled by `Scope` (App / Scene / Gameplay), auto-cleaning scene and gameplay modules on scene unload
+**Service Lifecycle:**
+- `OnInit()` — Service initialization
+- `Shutdown()` — Service destruction
+- Supports `IUpdateService`, `IFixedUpdateService`, `ILateUpdateService` interfaces for update loop registration
+- Update order controlled by `Priority` property; lifecycle scope controlled by `Scope` (App / Scene / Gameplay), auto-cleaning scene and gameplay services on scene unload
 
-> See **[Core Module System documentation](Documentation~/en/Core.md)** for details (custom modules, scope shadowing, cross-module dependencies)
+> See **[Core Service System documentation](Documentation~/en/Core.md)** for details (custom services, scope shadowing, cross-service dependencies)
 
 ### Startup Flow
 
@@ -260,17 +260,17 @@ ProcedureLaunch → ProcedureSplash → ProcedureInitPackage → ProcedureInitRe
 
 Each stage is an independent `ProcedureBase` state, customizable via `ProcedureSettings` (ScriptableObject).
 
-> See **[Procedure module documentation](Documentation~/en/Procedure.md)** for details
+> See **[Procedure service documentation](Documentation~/en/Procedure.md)** for details
 
 ---
 
-## Core Modules
+## Core Services
 
-Each module has its own documentation (located in `Documentation~/en/`), covering core features, core types, quick start and advanced usage:
+Each service has its own documentation (located in `Documentation~/en/`), covering core features, core types, quick start and advanced usage:
 
-| Module | Description | Documentation |
+| Service | Description | Documentation |
 |--------|-------------|---------------|
-| **Core** | Module system base: registration/lifecycle/scope, `GameModule` static accessors | [Core.md](Documentation~/en/Core.md) |
+| **Core** | Service system base: registration/lifecycle/scope, `GameService` static accessors | [Core.md](Documentation~/en/Core.md) |
 | **Resource** | YooAsset-based asset management: sync/async loading, reference counting, encryption, sub-sprites | [Resource.md](Documentation~/en/Resource.md) |
 | **UI** | Production-grade UI framework: stack windows, 5 layers, Widget sub-controls, binding code generation | [UI.md](Documentation~/en/UI.md) |
 | **Audio** | Audio system: category management, AudioAgent playback, mixer, fade, event-driven | [Audio.md](Documentation~/en/Audio.md) |
@@ -282,7 +282,7 @@ Each module has its own documentation (located in `Documentation~/en/`), coverin
 | **Save** | Pluggable save system: JSON / Binary / Encrypted handlers, atomic writes | [Save.md](Documentation~/en/Save.md) |
 | **Scene** | Scene management: async load/activate/unload based on YooAsset SceneHandle | [Scene.md](Documentation~/en/Scene.md) |
 | **Timer** | 4-level time wheel timer: versioned handles, prewarming, statistics | [Timer.md](Documentation~/en/Timer.md) |
-| **ObjectPool** | Module-level object pool: single/multi-spawn pools, GameObject pool | [ObjectPool.md](Documentation~/en/ObjectPool.md) |
+| **ObjectPool** | Service-level object pool: single/multi-spawn pools, GameObject pool | [ObjectPool.md](Documentation~/en/ObjectPool.md) |
 | **Debugger** | Runtime debugger: registerable debug windows, log replay | [Debugger.md](Documentation~/en/Debugger.md) |
 | **UpdateDriver** | Update loop driver: three frame update types, coroutine hosting, Unity event injection | [UpdateDriver.md](Documentation~/en/UpdateDriver.md) |
 
@@ -332,7 +332,7 @@ EventManager.UnregisterCallback<GameStartEvent>(OnGameStart);
 
 ### Scheduler — Scheduler
 
-Zero-allocation timer/frame scheduling system (`Runtime/Core/Schedulers`, independent from the [Timer module](Documentation~/en/Timer.md)).
+Zero-allocation timer/frame scheduling system (`Runtime/Core/Schedulers`, independent from the [Timer service](Documentation~/en/Timer.md)).
 
 ```csharp
 // Delayed execution
@@ -517,14 +517,14 @@ hp.BindTo(hpSlider);  // Slider auto-syncs
 | Inspector | Asset/Core component custom inspectors |
 | Luban Tools | Luban config table generation (`Tools/Settings/ConfigTableSettings`) |
 | Maintenance | Clean empty folders, find missing scripts, group selection, lock Inspector |
-| Module System | Module system visualization window (`Tools/Moirai/Module System`) |
+| Service System | Service system visualization window (`Tools/Moirai/Service System`) |
 | Reference Finder | Asset dependency/reference tree view |
 | Release Tools | Build pipeline window, build configuration |
 | Scheduler Debugger | Visual scheduler/timer debugger |
 | Tasks Editor | Task runner editor |
 | Tween | Easing property drawer |
-| UI Module | UI binding code auto-generation (`GameObject/ScriptGenerator/Generate Binding Code`), component Inspector |
-| Input Module | Input action config editor, button icon collection editor |
+| UI Service | UI binding code auto-generation (`GameObject/ScriptGenerator/Generate Binding Code`), component Inspector |
+| Input Service | Input action config editor, button icon collection editor |
 | Utility | Command-line reader, log redirection, EditorScriptableSingleton, Shell helper, etc. |
 | YooAsset | Build cache cleanup, built-in directory, custom build pipeline, Shader variant collection |
 

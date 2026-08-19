@@ -5,13 +5,13 @@ namespace Moirai.Atropos.Resource
 {
     public static class AssetsSetHelper
     {
-        private static IResourceModule s_ResourceManager;
+        private static IResourceService s_ResourceManager;
 
         private static void CheckResourceManager()
         {
             if (s_ResourceManager == null)
             {
-                s_ResourceManager = ModuleSystem.GetModule<IResourceModule>();
+                s_ResourceManager = ServiceSystem.GetService<IResourceService>();
             }
         }
 

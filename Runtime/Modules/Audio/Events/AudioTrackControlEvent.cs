@@ -1,4 +1,4 @@
-﻿using Moirai.Atropos.Events;
+using Moirai.Atropos.Events;
 
 namespace Moirai.Atropos.Audio
 {
@@ -9,7 +9,7 @@ namespace Moirai.Atropos.Audio
     /// 暂停整个 UI 音轨
     /// AudioTrackControlEvent.Trigger(AudioTrackControlEvent.EAudioTrackEventType.PauseTrack, AudioTrack.UI);
     /// </example>>
-    public class AudioTrackControlEvent : EventBase<AudioTrackControlEvent>, IAudioModuleEvent
+    public class AudioTrackControlEvent : EventBase<AudioTrackControlEvent>, IAudioServiceEvent
     {
         public enum EControlMode
         {

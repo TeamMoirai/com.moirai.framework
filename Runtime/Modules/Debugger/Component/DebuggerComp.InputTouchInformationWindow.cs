@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 
 namespace Moirai.Atropos.Debugger
 {
@@ -20,7 +20,7 @@ namespace Moirai.Atropos.Debugger
                     DrawItem("Touch Count", UnityEngine.Input.touchCount.ToString());
                     DrawItem("Touches", GetTouchesString(UnityEngine.Input.touches));
 #else
-                    DrawItem("UnityEngine.Input 已禁用，基于输入模块的信息统计未实现", "");
+                    DrawItem("UnityEngine.Input 已禁用，基于输入服务的信息统计未实现", "");
 #endif
                 }
                 GUILayout.EndVertical();
