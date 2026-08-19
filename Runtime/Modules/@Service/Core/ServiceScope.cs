@@ -40,6 +40,7 @@ namespace Moirai.Atropos
         private bool _fixedTickablesDirty;
         private bool _gizmoDrawablesDirty;
         private bool _isIterating;
+        private bool _disposePending;
 
         internal ServiceScope(EServiceScopeKind kind, string name)
         {
@@ -53,6 +54,18 @@ namespace Moirai.Atropos
         internal bool IsIterating => _isIterating;
         internal int PendingChangesCount => _pendingChanges.Count;
         internal int ServiceCount => _registrationOrder.Count;
+
+        /// <summary>
+        /// 按注册顺序（优先级降序）收集需要异步初始化的服务。
+        /// </summary>
+        internal void CollectAsyncInitServices(List<IAsyncInitService> buffer)
+        {
+            for (int i = 0; i < _registrationOrder.Count; i++)
+            {
+                if (_registrationOrder[i] is IAsyncInitService asyncInit)
+                    buffer.Add(asyncInit);
+            }
+        }
 
         internal bool HasContract<T>() where T : class
             => _servicesByContract.ContainsKey(typeof(T).TypeHandle);
@@ -75,25 +88,33 @@ namespace Moirai.Atropos
         }
 
         internal T Register<T>(IService service) where T : class
+            => (T)Register(service, typeof(T));
+
+        internal IService Register(IService service, Type interfaceType)
         {
-            var interfaceType = typeof(T);
             var handle = interfaceType.TypeHandle;
 
             if (_servicesByContract.ContainsKey(handle))
             {
                 var existing = _servicesByContract[handle];
                 LogUtility.Warning("{0} has already been registered in {1} scope.", interfaceType.FullName, Kind);
-                return existing as T;
+                return existing;
+            }
+
+            if (_disposePending)
+            {
+                LogUtility.Warning("Scope {0} is being disposed; registration of {1} is rejected.", Kind, interfaceType.FullName);
+                return service;
             }
 
             if (_isIterating)
             {
                 _pendingChanges.Add(PendingChange.Register(service, interfaceType, Kind));
-                return service as T;
+                return service;
             }
 
             RegisterInternal(service, interfaceType, handle);
-            return service as T;
+            return service;
         }
 
         internal void RegisterInternal(IService service, Type interfaceType, RuntimeTypeHandle handle)
@@ -125,6 +146,9 @@ namespace Moirai.Atropos
         internal bool Unregister(IService service)
         {
             if (service == null || !_entriesByService.TryGetValue(service, out var entry)) return false;
+
+            // 作用域已标记销毁：服务将随作用域统一关闭，无需单独注销
+            if (_disposePending) return true;
 
             if (_isIterating)
             {
@@ -173,7 +197,17 @@ namespace Moirai.Atropos
             {
                 int count = _tickables.Count;
                 for (int i = 0; i < count; i++)
-                    _tickables[i].Tick(elapseSeconds, realElapseSeconds);
+                {
+                    var tickable = _tickables[i];
+                    try
+                    {
+                        tickable.Tick(elapseSeconds, realElapseSeconds);
+                    }
+                    catch (Exception ex)
+                    {
+                        LogTickFailure(tickable, nameof(Tick), ex);
+                    }
+                }
             }
             finally
             {
@@ -190,7 +224,17 @@ namespace Moirai.Atropos
             {
                 int count = _fixedTickables.Count;
                 for (int i = 0; i < count; i++)
-                    _fixedTickables[i].FixedTick(elapseSeconds, realElapseSeconds);
+                {
+                    var tickable = _fixedTickables[i];
+                    try
+                    {
+                        tickable.FixedTick(elapseSeconds, realElapseSeconds);
+                    }
+                    catch (Exception ex)
+                    {
+                        LogTickFailure(tickable, nameof(FixedTick), ex);
+                    }
+                }
             }
             finally
             {
@@ -207,7 +251,17 @@ namespace Moirai.Atropos
             {
                 int count = _lateTickables.Count;
                 for (int i = 0; i < count; i++)
-                    _lateTickables[i].LateTick(elapseSeconds, realElapseSeconds);
+                {
+                    var tickable = _lateTickables[i];
+                    try
+                    {
+                        tickable.LateTick(elapseSeconds, realElapseSeconds);
+                    }
+                    catch (Exception ex)
+                    {
+                        LogTickFailure(tickable, nameof(LateTick), ex);
+                    }
+                }
             }
             finally
             {
@@ -224,7 +278,17 @@ namespace Moirai.Atropos
             {
                 int count = _gizmoDrawables.Count;
                 for (int i = 0; i < count; i++)
-                    _gizmoDrawables[i].OnDrawGizmos();
+                {
+                    var drawable = _gizmoDrawables[i];
+                    try
+                    {
+                        drawable.OnDrawGizmos();
+                    }
+                    catch (Exception ex)
+                    {
+                        LogTickFailure(drawable, "OnDrawGizmos", ex);
+                    }
+                }
             }
             finally
             {
@@ -233,8 +297,20 @@ namespace Moirai.Atropos
             }
         }
 
+        private static void LogTickFailure(object service, string methodName, Exception ex)
+        {
+            LogUtility.Error(StringUtility.Format("Service '{0}' threw in {1}:\n{2}", service.GetType().FullName, methodName, ex));
+        }
+
         private void FlushPendingChanges()
         {
+            if (_disposePending)
+            {
+                // 迭代中请求的作用域销毁：待迭代结束后执行，pending 的注册/注销一并随作用域销毁
+                DisposeInternal();
+                return;
+            }
+
             if (_pendingChanges.Count == 0) return;
             for (int i = 0; i < _pendingChanges.Count; i++)
             {
@@ -255,7 +331,22 @@ namespace Moirai.Atropos
         public void Dispose()
         {
             if (IsDisposed) return;
+
+            if (_isIterating)
+            {
+                // 迭代中销毁：若立即移除服务会缩短正在遍历的列表导致越界，延迟到本轮迭代结束执行
+                _disposePending = true;
+                return;
+            }
+
+            DisposeInternal();
+        }
+
+        private void DisposeInternal()
+        {
+            if (IsDisposed) return;
             _isIterating = false;
+            _disposePending = false;
             _pendingChanges.Clear();
 
             for (int i = _registrationOrder.Count - 1; i >= 0; i--)

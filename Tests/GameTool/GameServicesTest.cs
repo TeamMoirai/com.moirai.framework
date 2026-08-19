@@ -276,6 +276,35 @@ namespace GameTool
             }
         }
 
+        // --- 迭代安全：迭代中关闭自身作用域（P0 回归：立即 Dispose 会缩短遍历列表导致越界） ---
+
+        [Test]
+        public void ShutdownScope_DuringOwnScopeIteration_DefersDisposeAndDoesNotThrow()
+        {
+            var trigger = new ShutdownOwnScopeOnTick();
+            var other = new SceneBetaService();
+            GameServices.RegisterService<IAlphaService>(trigger);
+            GameServices.RegisterService<IBetaService>(other);
+
+            Assert.DoesNotThrow(() => GameServices.Tick(0f, 0f));
+
+            Assert.AreEqual(1, other.TickCount, "同作用域后续服务在本轮迭代中仍应被轮询（销毁延迟到迭代结束）");
+            Assert.AreEqual(1, trigger.ShutdownCount, "迭代中请求销毁的作用域应在迭代结束后关闭全部服务");
+            Assert.AreEqual(1, other.ShutdownCount, "作用域销毁应关闭其中全部服务");
+        }
+
+        private sealed class ShutdownOwnScopeOnTick : TestServiceBase, IAlphaService
+        {
+            public override EServiceScopeKind Scope => EServiceScopeKind.Scene;
+            public override int Priority => 10;
+
+            public override void Tick(float elapseSeconds, float realElapseSeconds)
+            {
+                base.Tick(elapseSeconds, realElapseSeconds);
+                GameServices.ShutdownScope(EServiceScopeKind.Scene);
+            }
+        }
+
         // --- 注销 API ---
 
         [Test]
@@ -328,6 +357,59 @@ namespace GameTool
         private sealed class ThrowingService : TestServiceBase, IAlphaService
         {
             public override void Shutdown() => throw new System.InvalidOperationException("test");
+        }
+
+        // --- Tick 异常隔离（P0 回归：单服务异常不应中断同轮其他服务） ---
+
+        [Test]
+        public void Update_ServiceThrowsInTick_OtherServicesStillTick()
+        {
+            var thrower = new ThrowingTickService();
+            var normal = new BetaService();
+            GameServices.RegisterService<IAlphaService>(thrower);
+            GameServices.RegisterService<IBetaService>(normal);
+
+            LogAssert.Expect(LogType.Error, new System.Text.RegularExpressions.Regex(".*InvalidOperationException: tick.*"));
+
+            Assert.DoesNotThrow(() => GameServices.Tick(0f, 0f));
+            Assert.AreEqual(1, normal.TickCount, "抛异常服务之后的同轮服务仍应被轮询");
+        }
+
+        private sealed class ThrowingTickService : TestServiceBase, IAlphaService
+        {
+            public override void Tick(float elapseSeconds, float realElapseSeconds)
+                => throw new System.InvalidOperationException("tick");
+        }
+
+        // --- ServiceMono 合约注册（P0 回归：RegisterAs 接口应生效且 OnInit 被调用） ---
+
+        private interface IMonoContractService { }
+
+        private sealed class TestMonoService : ServiceMono<SceneScope>, IMonoContractService
+        {
+            public int InitCount;
+
+            public override void OnInit() => InitCount++;
+            public override void Shutdown() { }
+
+            protected override System.Type RegisterAs => typeof(IMonoContractService);
+        }
+
+        [Test]
+        public void ServiceMono_WithRegisterAsInterface_RegistersUnderContractAndInitializes()
+        {
+            var go = new GameObject();
+            var mono = go.AddComponent<TestMonoService>();
+
+            try
+            {
+                Assert.AreEqual(1, mono.InitCount, "注册时应调用 OnInit");
+                Assert.AreSame(mono, GameServices.GetService<IMonoContractService>(), "应注册到 RegisterAs 指定的合约接口");
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(go);
+            }
         }
 
         [Test]
