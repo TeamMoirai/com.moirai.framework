@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using UnityEngine;
 using ZLogger.Unity;
 using ILogger = Microsoft.Extensions.Logging.ILogger;
+using Object = UnityEngine.Object;
 
 namespace Moirai.Atropos
 {
@@ -34,8 +35,6 @@ namespace Moirai.Atropos
         {
             if (_factory == null)
             {
-                // ZLogger 2.x：UnityLoggerFactory 已移除，统一走 Microsoft.Extensions.Logging 标准工厂，
-                // AddZLoggerUnityDebug 扩展（ZLogger.Unity 命名空间）将输出接管到 Unity Console。
                 _factory = LoggerFactory.Create(builder =>
                 {
                     builder.SetMinimumLevel(ToZLoggerLevel(m_MinimumLevel));
@@ -77,7 +76,7 @@ namespace Moirai.Atropos
         }
 
         /// <inheritdoc/>
-        public override void Log(LogUtility.ELogLevel logLevel, string message, Exception exception)
+        public override void Log(LogUtility.ELogLevel logLevel, string message, Exception exception, Object context = null)
         {
             var logger = _logger;
             if (logger == null || !logger.IsEnabled(ToZLoggerLevel(logLevel)))
@@ -85,9 +84,15 @@ namespace Moirai.Atropos
                 return;
             }
 
-            // 走 Microsoft.Extensions.Logging 标准 Log<TState> 通道：
-            // 预格式化文本作为状态直传，异常由 ZLogger 的 Exception 通道输出。
-            logger.Log(ToZLoggerLevel(logLevel), default, message ?? string.Empty, exception,
+            message ??= string.Empty;
+
+            // 时间戳前缀：ZLogger 的 AddZLoggerUnityDebug 不支持 PrefixFormatter，
+            // 直接在消息前拼接（与 SerilogHandler 同策略）。
+            string formatted = TimestampPrefix != null
+                ? StringUtility.GetString(sb => sb.Append(TimestampPrefix).Append(message))
+                : message;
+
+            logger.Log(ToZLoggerLevel(logLevel), default, formatted, exception,
                 static (state, _) => state);
         }
 

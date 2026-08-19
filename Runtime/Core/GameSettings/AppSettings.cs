@@ -235,6 +235,7 @@ namespace Moirai.Atropos
             StringUtility.Handler = Instance.m_StringHandler;
             VersionUtility.Handler = Instance.m_VersionHandler;
             LogUtility.Handler = Instance.m_LogHandler;
+            LogUtility.EnableGlobalInterception();
             SettingUtility.Handler = Instance.m_SettingHandler;
             JsonUtility.Handler = Instance.m_JsonHandler;
             ObjectUtility.Handler = Instance.m_ObjectHandler;

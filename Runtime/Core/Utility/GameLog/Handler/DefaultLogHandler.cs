@@ -1,6 +1,6 @@
 using System;
 using UnityEngine;
-using Debug = UnityEngine.Debug;
+using Object = UnityEngine.Object;
 
 namespace Moirai.Atropos
 {
@@ -13,6 +13,9 @@ namespace Moirai.Atropos
     {
         [SerializeField] private LogUtility.ELogLevel m_MinimumLevel = LogUtility.ELogLevel.Debug;
 
+        // 全局拦截启用时捕获的原始 Unity logHandler，Log 直接调用它绕过拦截器避免循环。
+        [NonSerialized] private ILogHandler _originalHandler;
+
         /// <summary>
         /// 获取或设置最小日志等级，低于该等级的日志将被丢弃。
         /// </summary>
@@ -20,6 +23,34 @@ namespace Moirai.Atropos
         {
             get => m_MinimumLevel;
             set => m_MinimumLevel = value;
+        }
+
+        /// <inheritdoc/>
+        protected override void OnInit()
+        {
+            // 捕获当前 Unity logHandler（在拦截器安装之前）
+            _originalHandler = UnityEngine.Debug.unityLogger.logHandler;
+        }
+
+        /// <summary>
+        /// 获取当前应使用的 Unity logHandler。
+        /// 全局拦截启用时使用捕获的原始 handler 绕过拦截器；否则使用当前 unityLogger.logHandler。
+        /// </summary>
+        private ILogHandler UnityHandler
+        {
+            get
+            {
+                // 拦截器启用时 Debug.unityLogger.logHandler 是 UnityLogInterceptor，
+                // 直接调用会形成 Log → Debug.Log → Interceptor.LogFormat → Log 循环。
+                // 使用 OnInit 时捕获的原始 handler 绕过。
+                var current = UnityEngine.Debug.unityLogger.logHandler;
+                if (current is UnityLogInterceptor interceptor)
+                {
+                    return _originalHandler ?? interceptor.OriginalHandler;
+                }
+
+                return current;
+            }
         }
 
         /// <inheritdoc/>
@@ -34,8 +65,9 @@ namespace Moirai.Atropos
         /// <param name="logLevel">游戏框架日志等级。</param>
         /// <param name="message">已格式化的日志内容。</param>
         /// <param name="exception">关联异常。</param>
+        /// <param name="context">日志关联对象（Console 点击可定位）。</param>
         [HideInCallstack]
-        public override void Log(LogUtility.ELogLevel logLevel, string message, Exception exception)
+        public override void Log(LogUtility.ELogLevel logLevel, string message, Exception exception, Object context = null)
         {
             if (!IsEnabled(logLevel))
             {
@@ -43,32 +75,35 @@ namespace Moirai.Atropos
             }
 
             message ??= string.Empty;
+            var handler = UnityHandler;
 
             switch (logLevel)
             {
                 case LogUtility.ELogLevel.Debug:
-                    Debug.Log(GetFormatString("DEBUG", message, "#CFCFCF", "#00FF18", wrapBody: true));
+                    handler.LogFormat(LogType.Log, context, "{0}", GetFormatString("DEBUG", message, "#CFCFCF", "#00FF18", wrapBody: true));
                     break;
 
                 case LogUtility.ELogLevel.Info:
-                    Debug.Log(GetFormatString("INFO", message, "#CFCFCF", null, wrapBody: false));
+                    handler.LogFormat(LogType.Log, context, "{0}", GetFormatString("INFO", message, "#CFCFCF", null, wrapBody: false));
                     break;
 
                 case LogUtility.ELogLevel.Warning:
-                    Debug.LogWarning(GetFormatString("WARNING", message, "#FF9400", "yellow", wrapBody: true));
+                    handler.LogFormat(LogType.Warning, context, "{0}", GetFormatString("WARNING", message, "#FF9400", "yellow", wrapBody: true));
                     break;
 
                 case LogUtility.ELogLevel.Error:
-                    Debug.LogError(GetFormatString("ERROR", message, "red", "red", wrapBody: true));
+                    handler.LogFormat(LogType.Error, context, "{0}", GetFormatString("ERROR", message, "red", "red", wrapBody: true));
                     break;
 
                 case LogUtility.ELogLevel.Fatal:
-                    Debug.LogError(GetFormatString("FATAL", message, "red", "red", wrapBody: true));
+                    if (exception != null)
+                        handler.LogException(exception, context);
+                    else
+                        handler.LogFormat(LogType.Error, context, "{0}", GetFormatString("FATAL", message, "red", "red", wrapBody: true));
                     break;
 
                 default:
-                    // 静默降级：未知等级按 Fatal 处理
-                    Debug.LogError(GetFormatString("FATAL", message, "red", "red", wrapBody: true));
+                    handler.LogFormat(LogType.Error, context, "{0}", GetFormatString("FATAL", message, "red", "red", wrapBody: true));
                     break;
             }
         }
@@ -82,10 +117,10 @@ namespace Moirai.Atropos
         /// <param name="bodyColor">正文颜色，null 时不着色。</param>
         /// <param name="wrapBody">是否对正文逐行包裹颜色标签。</param>
         /// <returns>格式化后的日志文本。</returns>
-        private static string GetFormatString(string tag, string message, string tagColor, string bodyColor, bool wrapBody)
+        private string GetFormatString(string tag, string message, string tagColor, string bodyColor, bool wrapBody)
         {
             string body = wrapBody && bodyColor != null ? ColorizePerLine(message, bodyColor) : message;
-            return StringUtility.Format("<color={0}><b>[{1}] ► </b></color> - {2}", tagColor, tag, body);
+            return StringUtility.Format("{3}<color={0}><b>[{1}] ► </b></color> - {2}", tagColor, tag, body, TimestampPrefix);
         }
 
         /// <summary>

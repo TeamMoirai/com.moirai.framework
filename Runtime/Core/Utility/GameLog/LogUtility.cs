@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using System.Threading;
 using UnityEngine;
+using Object = UnityEngine.Object;
 
 namespace Moirai.Atropos
 {
@@ -138,8 +139,9 @@ namespace Moirai.Atropos
         /// 打印错误级别日志，输出异常信息与堆栈。
         /// </summary>
         /// <param name="exception">日志异常。</param>
+        /// <param name="context">日志关联对象（Console 点击可定位）。</param>
         [HideInCallstack]
-        public static void Error(Exception exception)
+        public static void Error(Exception exception, Object context = null)
         {
             var handler = Handler;
             if (!handler.IsEnabled(ELogLevel.Error))
@@ -148,7 +150,7 @@ namespace Moirai.Atropos
             }
 
             var msg = exception?.ToString() ?? string.Empty;
-            handler.Log(ELogLevel.Error, msg, exception);
+            handler.Log(ELogLevel.Error, msg, exception, context);
             RaiseMessageLogged(ELogLevel.Error, msg, exception);
         }
 
@@ -156,8 +158,9 @@ namespace Moirai.Atropos
         /// 打印严重错误级别日志，输出异常信息与堆栈。
         /// </summary>
         /// <param name="exception">日志异常。</param>
+        /// <param name="context">日志关联对象（Console 点击可定位）。</param>
         [HideInCallstack]
-        public static void Fatal(Exception exception)
+        public static void Fatal(Exception exception, Object context = null)
         {
             var handler = Handler;
             if (!handler.IsEnabled(ELogLevel.Fatal))
@@ -166,7 +169,7 @@ namespace Moirai.Atropos
             }
 
             var msg = exception?.ToString() ?? string.Empty;
-            handler.Log(ELogLevel.Fatal, msg, exception);
+            handler.Log(ELogLevel.Fatal, msg, exception, context);
             RaiseMessageLogged(ELogLevel.Fatal, msg, exception);
         }
 
@@ -179,7 +182,56 @@ namespace Moirai.Atropos
         /// </summary>
         public static void ResetStatics()
         {
+            DisableGlobalInterception();
             OnMessageLogged = null;
+        }
+
+        #endregion
+
+        #region 全局拦截 [GLOBAL INTERCEPTION]
+
+        private static ILogHandler s_OriginalUnityHandler;
+        private static UnityLogInterceptor s_Interceptor;
+
+        /// <summary>
+        /// 当前全局拦截是否已启用。
+        /// </summary>
+        public static bool IsGlobalInterceptionEnabled => s_Interceptor != null;
+
+        /// <summary>
+        /// 启用全局日志拦截：替换 <c>UnityEngine.Debug.unityLogger.logHandler</c>，使所有 Unity 日志（含第三方插件）
+        /// 经过框架日志管线（级别过滤、格式化前缀、事件回调）。
+        /// <para>
+        /// 启用后，第三方插件的 <c>Debug.Log</c> 调用将被转发到当前 <see cref="Handler"/>。
+        /// </para>
+        /// </summary>
+        [HideInCallstack]
+        public static void EnableGlobalInterception()
+        {
+            if (s_Interceptor != null) return;
+
+            // 确保 Handler 已初始化
+            _ = Handler;
+
+            var current = UnityEngine.Debug.unityLogger.logHandler;
+            if (current is UnityLogInterceptor) return;
+
+            s_OriginalUnityHandler = current;
+            s_Interceptor = new UnityLogInterceptor(s_OriginalUnityHandler);
+            UnityEngine.Debug.unityLogger.logHandler = s_Interceptor;
+        }
+
+        /// <summary>
+        /// 禁用全局日志拦截，恢复原始 Unity logHandler。
+        /// </summary>
+        [HideInCallstack]
+        public static void DisableGlobalInterception()
+        {
+            if (s_Interceptor == null) return;
+
+            UnityEngine.Debug.unityLogger.logHandler = s_OriginalUnityHandler;
+            s_Interceptor = null;
+            s_OriginalUnityHandler = null;
         }
 
         #endregion

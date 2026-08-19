@@ -10,40 +10,30 @@ namespace Utility
 {
     /// <summary>
     /// LogUtility 门面与 LogHandler 抽象的单元测试。
+    /// <para>不创建 LogHandler 子类（避免 [SerializeReference] Inspector 下拉污染），
+    /// 使用 DefaultLogHandler + OnMessageLogged 事件捕获日志条目。</para>
     /// </summary>
     public class LogUtilityTest
     {
-        private sealed class TestLogHandler : LogHandler
-        {
-            public readonly List<(LogUtility.ELogLevel Level, string Message, Exception Exception)> Entries =
-                new();
-
-            public int InitCount;
-            public int ShutdownCount;
-            public LogUtility.ELogLevel MinimumLevel;
-
-            protected override void OnInit() => InitCount++;
-            protected override void OnShutdown() => ShutdownCount++;
-            public override bool IsEnabled(LogUtility.ELogLevel logLevel) => logLevel >= MinimumLevel;
-
-            public override void Log(LogUtility.ELogLevel logLevel, string message, Exception exception)
-            {
-                Entries.Add((logLevel, message, exception));
-            }
-        }
-
-        private TestLogHandler m_Handler;
+        private List<(LogUtility.ELogLevel Level, string Message, Exception Exception)> _entries;
+        private DefaultLogHandler _handler;
+        private Action<LogUtility.ELogLevel, string, Exception> _callback;
 
         [SetUp]
         public void SetUp()
         {
-            m_Handler = new TestLogHandler();
-            LogUtility.Handler = m_Handler;
+            _entries = new();
+            _handler = new DefaultLogHandler { MinimumLevel = LogUtility.ELogLevel.Debug };
+            LogUtility.Handler = _handler;
+
+            _callback = (level, msg, ex) => _entries.Add((level, msg, ex));
+            LogUtility.OnMessageLogged += _callback;
         }
 
         [TearDown]
         public void TearDown()
         {
+            LogUtility.OnMessageLogged -= _callback;
             LogUtility.ResetStatics();
             LogUtility.Handler = new DefaultLogHandler();
         }
@@ -53,6 +43,7 @@ namespace Utility
         [Test]
         public void Handler_DefaultIsCreatedLazily()
         {
+            LogUtility.ResetStatics();
             Assert.IsNotNull(LogUtility.Handler);
         }
 
@@ -63,12 +54,9 @@ namespace Utility
         }
 
         [Test]
-        public void Handler_Replace_InvokesLifecycle()
+        public void Handler_Replace_DoesNotThrow()
         {
-            var replacement = new TestLogHandler();
-            LogUtility.Handler = replacement;
-            Assert.AreEqual(1, replacement.InitCount);
-            Assert.AreEqual(1, m_Handler.ShutdownCount);
+            Assert.DoesNotThrow(() => LogUtility.Handler = new DefaultLogHandler());
         }
 
         #endregion
@@ -83,24 +71,24 @@ namespace Utility
             LogUtility.Warning("w");
             LogUtility.Error("e");
 
-            Assert.AreEqual(4, m_Handler.Entries.Count);
-            Assert.AreEqual(LogUtility.ELogLevel.Debug, m_Handler.Entries[0].Level);
-            Assert.AreEqual(LogUtility.ELogLevel.Info, m_Handler.Entries[1].Level);
-            Assert.AreEqual(LogUtility.ELogLevel.Warning, m_Handler.Entries[2].Level);
-            Assert.AreEqual(LogUtility.ELogLevel.Error, m_Handler.Entries[3].Level);
+            Assert.AreEqual(4, _entries.Count);
+            Assert.AreEqual(LogUtility.ELogLevel.Debug, _entries[0].Level);
+            Assert.AreEqual(LogUtility.ELogLevel.Info, _entries[1].Level);
+            Assert.AreEqual(LogUtility.ELogLevel.Warning, _entries[2].Level);
+            Assert.AreEqual(LogUtility.ELogLevel.Error, _entries[3].Level);
         }
 
         [Test]
         public void Log_FilteredLevel_IsSkipped()
         {
-            m_Handler.MinimumLevel = LogUtility.ELogLevel.Warning;
+            _handler.MinimumLevel = LogUtility.ELogLevel.Warning;
 
             LogUtility.Debug("d");
             LogUtility.Info("i");
             LogUtility.Warning("w");
 
-            Assert.AreEqual(1, m_Handler.Entries.Count);
-            Assert.AreEqual(LogUtility.ELogLevel.Warning, m_Handler.Entries[0].Level);
+            Assert.AreEqual(1, _entries.Count);
+            Assert.AreEqual(LogUtility.ELogLevel.Warning, _entries[0].Level);
         }
 
         [Test]
@@ -109,23 +97,23 @@ namespace Utility
             LogUtility.Info("A={0}, B={1}", 1, "b");
             LogUtility.Warning("C={0} D={1} E={2} F={3} G={4} H={5}", 1, 2, 3, 4, 5, 6);
 
-            Assert.AreEqual("A=1, B=b", m_Handler.Entries[0].Message);
-            StringAssert.StartsWith("C=1 D=2 E=3 F=4 G=5 H=6", m_Handler.Entries[1].Message);
+            Assert.AreEqual("A=1, B=b", _entries[0].Message);
+            StringAssert.StartsWith("C=1 D=2 E=3 F=4 G=5 H=6", _entries[1].Message);
         }
 
         [Test]
         public void Log_ObjectOverload_ConvertsToString()
         {
             LogUtility.Debug(42);
-            Assert.AreEqual("42", m_Handler.Entries[0].Message);
+            Assert.AreEqual("42", _entries[0].Message);
         }
 
         [Test]
         public void Log_NullMessage_BecomesEmpty()
         {
             LogUtility.Info((string)null);
-            Assert.AreEqual(1, m_Handler.Entries.Count);
-            Assert.AreEqual(string.Empty, m_Handler.Entries[0].Message);
+            Assert.AreEqual(1, _entries.Count);
+            Assert.AreEqual(string.Empty, _entries[0].Message);
         }
 
         #endregion
@@ -139,9 +127,9 @@ namespace Utility
 
             LogUtility.Error(exception);
 
-            Assert.AreEqual(LogUtility.ELogLevel.Error, m_Handler.Entries[0].Level);
-            Assert.AreSame(exception, m_Handler.Entries[0].Exception);
-            StringAssert.Contains("boom", m_Handler.Entries[0].Message);
+            Assert.AreEqual(LogUtility.ELogLevel.Error, _entries[0].Level);
+            Assert.AreSame(exception, _entries[0].Exception);
+            StringAssert.Contains("boom", _entries[0].Message);
         }
 
         [Test]
@@ -151,14 +139,13 @@ namespace Utility
 
             LogUtility.Fatal(exception);
 
-            Assert.AreEqual(LogUtility.ELogLevel.Fatal, m_Handler.Entries[0].Level);
-            Assert.AreSame(exception, m_Handler.Entries[0].Exception);
+            Assert.AreEqual(LogUtility.ELogLevel.Fatal, _entries[0].Level);
+            Assert.AreSame(exception, _entries[0].Exception);
         }
 
         [Test]
         public void DefaultLogHandler_Fatal_DoesNotThrow()
         {
-            LogUtility.Handler = new DefaultLogHandler();
             LogAssert.Expect(LogType.Error, new Regex(".*FATAL.*unrecoverable.*"));
             Assert.DoesNotThrow(() => LogUtility.Fatal("unrecoverable"));
             LogAssert.Expect(LogType.Error, new Regex(".*FATAL.*boom.*"));
@@ -169,7 +156,6 @@ namespace Utility
         public void DefaultLogHandler_MinimumLevel_FiltersEntries()
         {
             var handler = new DefaultLogHandler { MinimumLevel = LogUtility.ELogLevel.Error };
-            LogUtility.Handler = handler;
 
             Assert.IsFalse(handler.IsEnabled(LogUtility.ELogLevel.Warning));
             Assert.IsTrue(handler.IsEnabled(LogUtility.ELogLevel.Error));
@@ -183,44 +169,49 @@ namespace Utility
         [Test]
         public void MessageLogged_FiresAfterLog()
         {
-            var events = new List<(LogUtility.ELogLevel, string, Exception)>();
-            LogUtility.OnMessageLogged += (level, msg, ex) => events.Add((level, msg, ex));
-
             LogUtility.Info("hello");
             LogUtility.Error("oops");
 
-            Assert.AreEqual(2, events.Count);
-            Assert.AreEqual(LogUtility.ELogLevel.Info, events[0].Item1);
-            Assert.AreEqual("hello", events[0].Item2);
-            Assert.AreEqual(LogUtility.ELogLevel.Error, events[1].Item1);
-            Assert.AreEqual("oops", events[1].Item2);
+            Assert.AreEqual(2, _entries.Count);
+            Assert.AreEqual(LogUtility.ELogLevel.Info, _entries[0].Level);
+            Assert.AreEqual("hello", _entries[0].Message);
+            Assert.AreEqual(LogUtility.ELogLevel.Error, _entries[1].Level);
+            Assert.AreEqual("oops", _entries[1].Message);
         }
 
         [Test]
         public void MessageLogged_NotFiredWhenFiltered()
         {
-            var events = new List<(LogUtility.ELogLevel, string, Exception)>();
-            LogUtility.OnMessageLogged += (level, msg, ex) => events.Add((level, msg, ex));
-
-            m_Handler.MinimumLevel = LogUtility.ELogLevel.Warning;
+            _handler.MinimumLevel = LogUtility.ELogLevel.Warning;
             LogUtility.Debug("filtered");
             LogUtility.Warning("passes");
 
-            Assert.AreEqual(1, events.Count);
-            Assert.AreEqual(LogUtility.ELogLevel.Warning, events[0].Item1);
+            Assert.AreEqual(1, _entries.Count);
+            Assert.AreEqual(LogUtility.ELogLevel.Warning, _entries[0].Level);
         }
 
         [Test]
         public void MessageLogged_ExceptionOverload_FiresWithException()
         {
-            var events = new List<(LogUtility.ELogLevel, string, Exception)>();
-            LogUtility.OnMessageLogged += (level, msg, ex) => events.Add((level, msg, ex));
-
             var ex = new InvalidOperationException("err");
             LogUtility.Error(ex);
 
-            Assert.AreEqual(1, events.Count);
-            Assert.AreSame(ex, events[0].Item3);
+            Assert.AreEqual(1, _entries.Count);
+            Assert.AreSame(ex, _entries[0].Exception);
+        }
+
+        #endregion
+
+        #region 全局拦截 [GLOBAL INTERCEPTION]
+
+        [Test]
+        public void GlobalInterception_CanEnableAndDisable()
+        {
+            LogUtility.EnableGlobalInterception();
+            Assert.IsTrue(LogUtility.IsGlobalInterceptionEnabled);
+
+            LogUtility.DisableGlobalInterception();
+            Assert.IsFalse(LogUtility.IsGlobalInterceptionEnabled);
         }
 
         #endregion
