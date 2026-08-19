@@ -1,3 +1,4 @@
+using System;
 using Moirai.Atropos;
 using NUnit.Framework;
 
@@ -401,6 +402,197 @@ namespace Utility
             string result = adapter.Concat(1, 2, 3, 4);
             Assert.AreEqual("1234", result);
             adapter.Dispose();
+        }
+
+        #endregion
+
+        #region 静态 Concat 测试 [STATIC CONCAT TESTS]
+
+        [Test]
+        public void Static_Concat_OneArg()
+        {
+            Assert.AreEqual("Hello", StringUtility.Concat("Hello"));
+        }
+
+        [Test]
+        public void Static_Concat_TwoArgs()
+        {
+            Assert.AreEqual("Hello World", StringUtility.Concat("Hello", " World"));
+        }
+
+        [Test]
+        public void Static_Concat_ThreeArgs()
+        {
+            Assert.AreEqual("abc", StringUtility.Concat("a", "b", "c"));
+        }
+
+        [Test]
+        public void Static_Concat_FourArgs()
+        {
+            Assert.AreEqual("1234", StringUtility.Concat(1, 2, 3, 4));
+        }
+
+        [Test]
+        public void Static_Concat_MixedTypes()
+        {
+            Assert.AreEqual("HP: 100 / 200", StringUtility.Concat("HP: ", 100, " / ", 200));
+        }
+
+        [Test]
+        public void Static_Concat_NullValue()
+        {
+            Assert.AreEqual(string.Empty, StringUtility.Concat<object>(null));
+        }
+
+        #endregion
+
+        #region 静态 Join 测试 [STATIC JOIN TESTS]
+
+        [Test]
+        public void Static_Join_Array()
+        {
+            string[] items = { "apple", "banana", "cherry" };
+            Assert.AreEqual("apple, banana, cherry", StringUtility.Join(", ", items));
+        }
+
+        [Test]
+        public void Static_Join_EmptyArray()
+        {
+            Assert.AreEqual(string.Empty, StringUtility.Join(", ", new string[0]));
+        }
+
+        [Test]
+        public void Static_Join_NullArray()
+        {
+            Assert.AreEqual(string.Empty, StringUtility.Join(", ", (string[])null));
+        }
+
+        [Test]
+        public void Static_Join_IntArray()
+        {
+            int[] numbers = { 1, 2, 3, 4, 5 };
+            Assert.AreEqual("1-2-3-4-5", StringUtility.Join("-", numbers));
+        }
+
+        [Test]
+        public void Static_Join_Span()
+        {
+            ReadOnlySpan<int> span = stackalloc int[] { 1, 2, 3 };
+            Assert.AreEqual("1, 2, 3", StringUtility.Join(", ", span));
+        }
+
+        #endregion
+
+        #region 静态 Insert 测试 [STATIC INSERT TESTS]
+
+        [Test]
+        public void Static_Insert_String()
+        {
+            Assert.AreEqual("He[llo]llo", StringUtility.Insert("Hello", 2, "[llo]"));
+        }
+
+        [Test]
+        public void Static_Insert_AtStart()
+        {
+            Assert.AreEqual("Prefix-Hello", StringUtility.Insert("Hello", 0, "Prefix-"));
+        }
+
+        [Test]
+        public void Static_Insert_AtEnd()
+        {
+            Assert.AreEqual("Hello-Suffix", StringUtility.Insert("Hello", 5, "-Suffix"));
+        }
+
+        [Test]
+        public void Static_Insert_Char()
+        {
+            Assert.AreEqual("HeXllo", StringUtility.Insert("Hello", 2, 'X'));
+        }
+
+        [Test]
+        public void Static_Insert_StringWithCount()
+        {
+            Assert.AreEqual("HeXXllo", StringUtility.Insert("Hello", 2, "X", 2));
+        }
+
+        [Test]
+        public void Static_Insert_NullSource_ReturnsEmpty()
+        {
+            Assert.AreEqual(string.Empty, StringUtility.Insert(null, 0, "test"));
+        }
+
+        #endregion
+
+        #region 静态 Remove 测试 [STATIC REMOVE TESTS]
+
+        [Test]
+        public void Static_Remove_Middle()
+        {
+            Assert.AreEqual("Heo", StringUtility.Remove("Hello", 2, 2));
+        }
+
+        [Test]
+        public void Static_Remove_FromStart()
+        {
+            Assert.AreEqual("llo", StringUtility.Remove("Hello", 0, 2));
+        }
+
+        [Test]
+        public void Static_Remove_FromEnd()
+        {
+            Assert.AreEqual("Hel", StringUtility.Remove("Hello", 3, 2));
+        }
+
+        [Test]
+        public void Static_Remove_All()
+        {
+            Assert.AreEqual(string.Empty, StringUtility.Remove("Hello", 0, 5));
+        }
+
+        [Test]
+        public void Static_Remove_NullSource_ReturnsEmpty()
+        {
+            Assert.AreEqual(string.Empty, StringUtility.Remove(null, 0, 1));
+        }
+
+        #endregion
+
+        #region 静态 Replace 测试 [STATIC REPLACE TESTS]
+
+        [Test]
+        public void Static_Replace_Char()
+        {
+            Assert.AreEqual("Hexxo", StringUtility.Replace("Hello", 'l', 'x'));
+        }
+
+        [Test]
+        public void Static_Replace_Char_WithRange()
+        {
+            Assert.AreEqual("Hexlo", StringUtility.Replace("Hello", 'l', 'x', 0, 3));
+        }
+
+        [Test]
+        public void Static_Replace_String()
+        {
+            Assert.AreEqual("Hexxo", StringUtility.Replace("Hello", "ll", "xx"));
+        }
+
+        [Test]
+        public void Static_Replace_String_WithRange()
+        {
+            Assert.AreEqual("Hexlo", StringUtility.Replace("Hello", "l", "x", 0, 3));
+        }
+
+        [Test]
+        public void Static_Replace_NoMatch_ReturnsOriginal()
+        {
+            Assert.AreEqual("Hello", StringUtility.Replace("Hello", 'z', 'x'));
+        }
+
+        [Test]
+        public void Static_Replace_NullSource_ReturnsEmpty()
+        {
+            Assert.AreEqual(string.Empty, StringUtility.Replace(null, 'a', 'b'));
         }
 
         #endregion

@@ -20,7 +20,7 @@
 |---------|------|
 | `StringUtility` | 静态门面，提供 `Format` / `CreateStringBuilder` / `GetString` / `Clear` |
 | `StringHandler` | 抽象基类，定义 `CreateStringBuilder` / `GetString` / `Clear` |
-| `StringHandler.IStringBuilder` | 字符串构建器适配器接口，统一 `StringBuilder` 与 `Utf16ValueStringBuilder` 操作 |
+| `StringHandler.IStringBuilder` | 字符串构建器适配器接口（partial），统一 `StringBuilder` 与 `Utf16ValueStringBuilder` 操作；Format 重载由 T4 模板生成 |
 | `DefaultStringHandler` | 默认实现，基于 `StringBuilder` 池化 |
 | `ZStringHandler` | ZString 实现，基于 `Utf16ValueStringBuilder` 池化，零分配 |
 
@@ -64,12 +64,34 @@ sb.Clear(); // 清空后复用
 // Format —— 类似 string.Format，但走池化构建器
 StringUtility.Format("Name={0}, Level={1}, HP={2}/{3}", name, level, hp, maxHp);
 
-// Concat —— 直接连接
-sb.Concat("a", 1, true); // "a1True"
+// Concat —— 直接连接（静态快捷方法，自动管理池化构建器生命周期）
+StringUtility.Concat("a", 1, true); // "a1True"
 
-// Join —— 分隔符连接
-sb.Join(", ", new[] { "a", "b", "c" }); // "a, b, c"
+// Join —— 分隔符连接（静态快捷方法，自动管理池化构建器生命周期）
+StringUtility.Join(", ", new[] { "a", "b", "c" }); // "a, b, c"
 ```
+
+### 字符串操作（静态快捷方法）
+
+`StringUtility` 提供 `Insert`、`Remove`、`Replace` 的静态便捷方法，接收源字符串，通过池化构建器执行操作后返回结果——无需手动管理构建器生命周期。
+
+```csharp
+// Insert —— 在源字符串中插入
+StringUtility.Insert("Hello", 2, "XX");     // "HeXXllo"
+StringUtility.Insert("Hello", 0, 'P');       // "PHello"
+StringUtility.Insert("Hello", 2, "X", 3);    // "HeXXXllo"
+
+// Remove —— 从源字符串中移除指定范围
+StringUtility.Remove("Hello", 2, 2);         // "Heo"
+
+// Replace —— 在源字符串中替换
+StringUtility.Replace("Hello", 'l', 'x');            // "Hexxo"
+StringUtility.Replace("Hello", "ll", "xx");          // "Hexxo"
+StringUtility.Replace("Hello", 'l', 'x', 0, 3);       // "Hexlo"（指定范围）
+StringUtility.Replace("Hello", "l", "x", 0, 3);      // "Hexlo"（指定范围）
+```
+
+所有操作方法在 `source` 为 null 时返回 `string.Empty`。
 
 ### 切换 Handler
 

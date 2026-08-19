@@ -20,7 +20,7 @@ Namespace: `Moirai.Atropos`
 |---------|------|
 | `StringUtility` | Static facade, providing `Format` / `CreateStringBuilder` / `GetString` / `Clear` |
 | `StringHandler` | Abstract base class, defining `CreateStringBuilder` / `GetString` / `Clear` |
-| `StringHandler.IStringBuilder` | String builder adapter interface, unifying `StringBuilder` and `Utf16ValueStringBuilder` operations |
+| `StringHandler.IStringBuilder` | String builder adapter interface (partial), unifying `StringBuilder` and `Utf16ValueStringBuilder` operations; Format overloads are T4-generated |
 | `DefaultStringHandler` | Default implementation, based on pooled `StringBuilder` |
 | `ZStringHandler` | ZString implementation, based on pooled `Utf16ValueStringBuilder`, zero-allocation |
 
@@ -64,12 +64,34 @@ sb.Clear(); // Clear and reuse
 // Format -- similar to string.Format, but uses a pooled builder
 StringUtility.Format("Name={0}, Level={1}, HP={2}/{3}", name, level, hp, maxHp);
 
-// Concat -- direct concatenation
-sb.Concat("a", 1, true); // "a1True"
+// Concat -- direct concatenation (static shortcut, pooled builder auto-managed)
+StringUtility.Concat("a", 1, true); // "a1True"
 
-// Join -- concatenation with a separator
-sb.Join(", ", new[] { "a", "b", "c" }); // "a, b, c"
+// Join -- separator-based concatenation (static shortcut, pooled builder auto-managed)
+StringUtility.Join(", ", new[] { "a", "b", "c" }); // "a, b, c"
 ```
+
+### String Manipulation (Static Shortcuts)
+
+`StringUtility` provides static convenience methods for `Insert`, `Remove`, and `Replace` that take a source string, apply the operation via a pooled builder, and return the result — no manual builder lifecycle management required.
+
+```csharp
+// Insert -- insert into a source string
+StringUtility.Insert("Hello", 2, "XX");     // "HeXXllo"
+StringUtility.Insert("Hello", 0, 'P');       // "PHello"
+StringUtility.Insert("Hello", 2, "X", 3);    // "HeXXXllo"
+
+// Remove -- remove a range from a source string
+StringUtility.Remove("Hello", 2, 2);         // "Heo"
+
+// Replace -- replace in a source string
+StringUtility.Replace("Hello", 'l', 'x');            // "Hexxo"
+StringUtility.Replace("Hello", "ll", "xx");          // "Hexxo"
+StringUtility.Replace("Hello", 'l', 'x', 0, 3);       // "Hexlo" (scoped)
+StringUtility.Replace("Hello", "l", "x", 0, 3);      // "Hexlo" (scoped)
+```
+
+All manipulation methods return `string.Empty` when `source` is null.
 
 ### Switching Handler
 
