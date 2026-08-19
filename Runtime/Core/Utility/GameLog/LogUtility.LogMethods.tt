@@ -22,6 +22,7 @@ using System;
 using System.Diagnostics;
 using JetBrains.Annotations;
 using UnityEngine;
+using Object = UnityEngine.Object;
 
 namespace Moirai.Atropos
 {
@@ -35,31 +36,31 @@ namespace Moirai.Atropos
         /// <summary>打印<#= lv.Doc #>级别日志。</summary>
 <#= condAttrs #>
         [HideInCallstack]
-        public static void <#= lv.Name #>(object message)
+        public static void <#= lv.Name #>(object message, Object context = null)
         {
             var handler = Handler;
             if (!handler.IsEnabled(ELogLevel.<#= lv.Enum #>)) return;
             var msg = message?.ToString() ?? string.Empty;
-            handler.Log(ELogLevel.<#= lv.Enum #>, msg, null);
+            handler.Log(ELogLevel.<#= lv.Enum #>, msg, null, context);
             RaiseMessageLogged(ELogLevel.<#= lv.Enum #>, msg, null);
         }
 
         /// <summary>打印<#= lv.Doc #>级别日志。</summary>
 <#= condAttrs #>
         [HideInCallstack]
-        public static void <#= lv.Name #>(string message)
+        public static void <#= lv.Name #>(string message, Object context = null)
         {
             var handler = Handler;
             if (!handler.IsEnabled(ELogLevel.<#= lv.Enum #>)) return;
             var msg = message ?? string.Empty;
-            handler.Log(ELogLevel.<#= lv.Enum #>, msg, null);
+            handler.Log(ELogLevel.<#= lv.Enum #>, msg, null, context);
             RaiseMessageLogged(ELogLevel.<#= lv.Enum #>, msg, null);
         }
 
 <#      for (int n = 1; n <= 16; n++)
         {
             string tp = "<" + string.Join(", ", Enumerable.Range(1, n).Select(i => "T" + i)) + ">";
-            string fp = "string format, " + string.Join(", ", Enumerable.Range(1, n).Select(i => "T" + i + " arg" + i));
+            string fp = "string format, " + string.Join(", ", Enumerable.Range(1, n).Select(i => "T" + i + " arg" + i)) + ", Object context = null";
             string fa = "format, " + string.Join(", ", Enumerable.Range(1, n).Select(i => "arg" + i));
 #>
         /// <summary>打印<#= lv.Doc #>级别日志。</summary>
@@ -71,7 +72,7 @@ namespace Moirai.Atropos
             var handler = Handler;
             if (!handler.IsEnabled(ELogLevel.<#= lv.Enum #>)) return;
             var msg = StringUtility.Format(<#= fa #>);
-            handler.Log(ELogLevel.<#= lv.Enum #>, msg, null);
+            handler.Log(ELogLevel.<#= lv.Enum #>, msg, null, context);
             RaiseMessageLogged(ELogLevel.<#= lv.Enum #>, msg, null);
         }
 

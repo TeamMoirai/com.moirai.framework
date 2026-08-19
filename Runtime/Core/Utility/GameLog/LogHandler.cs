@@ -1,5 +1,8 @@
 using System;
 using JetBrains.Annotations;
+using Sirenix.OdinInspector;
+using UnityEngine;
+using Object = UnityEngine.Object;
 
 namespace Moirai.Atropos
 {
@@ -16,8 +19,11 @@ namespace Moirai.Atropos
     [Serializable]
     public abstract class LogHandler
     {
-        [NonSerialized]
-        private bool _initialized;
+        [SerializeField] private bool m_TimestampEnabled = true;
+        [ShowIf(nameof(m_TimestampEnabled))]
+        [SerializeField] private string m_TimestampFormat = "HH:mm:ss.fff";
+
+        [NonSerialized] private bool _initialized;
 
         /// <summary>
         /// 初始化日志处理器，重复调用幂等。
@@ -56,6 +62,36 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
+        /// 获取或设置是否在日志输出中包含时间戳。
+        /// <para>各实现通过后端自身的模板/格式化系统应用此配置：</para>
+        /// <list type="bullet">
+        /// <item><description><see cref="DefaultLogHandler"/>：在消息前缀中拼接 <c>[HH:mm:ss.fff]</c>。</description></item>
+        /// <item><description><see cref="ZLoggerHandler"/>：通过 <c>PrefixFormatter</c> 设置。</description></item>
+        /// <item><description><see cref="UnityLoggingHandler"/> / <see cref="SerilogHandler"/>：由后端 outputTemplate 的 <c>{Timestamp}</c> 占位符控制。</description></item>
+        /// </list>
+        /// </summary>
+        public bool TimestampEnabled
+        {
+            get => m_TimestampEnabled;
+            set => m_TimestampEnabled = value;
+        }
+
+        /// <summary>
+        /// 获取或设置时间戳格式字符串（默认 <c>HH:mm:ss.fff</c>）。
+        /// </summary>
+        public string TimestampFormat
+        {
+            get => m_TimestampFormat;
+            set => m_TimestampFormat = value;
+        }
+
+        /// <summary>
+        /// 获取当前时间戳前缀字符串（含尾部空格），未启用时返回 null。
+        /// </summary>
+        protected string TimestampPrefix
+            => m_TimestampEnabled ? StringUtility.Format("[{0}] ", DateTime.Now.ToString(m_TimestampFormat)) : null;
+
+        /// <summary>
         /// 获取指定日志等级是否启用。
         /// <para>门面（<see cref="LogUtility"/>）会在格式化消息之前调用此方法做前置过滤，
         /// 被过滤的日志不会产生任何字符串格式化开销。</para>
@@ -70,6 +106,7 @@ namespace Moirai.Atropos
         /// <param name="logLevel">游戏框架日志等级。</param>
         /// <param name="message">已格式化的日志内容，不为 null。</param>
         /// <param name="exception">关联异常，无异常时为 null，由各实现决定是否输出异常堆栈。</param>
-        public abstract void Log(LogUtility.ELogLevel logLevel, string message, [CanBeNull] Exception exception);
+        /// <param name="context">日志关联对象（可选，Console 点击可定位到该对象）。</param>
+        public abstract void Log(LogUtility.ELogLevel logLevel, string message, [CanBeNull] Exception exception, Object context = null);
     }
 }

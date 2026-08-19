@@ -2,6 +2,8 @@
 using System;
 using Serilog;
 using Serilog.Events;
+using UnityEngine;
+using Object = UnityEngine.Object;
 
 namespace Moirai.Atropos
 {
@@ -44,7 +46,7 @@ namespace Moirai.Atropos
         }
 
         /// <inheritdoc/>
-        public override void Log(LogUtility.ELogLevel logLevel, string message, Exception exception)
+        public override void Log(LogUtility.ELogLevel logLevel, string message, Exception exception, Object context = null)
         {
             var logger = Logger;
             var level = ToSerilogLevel(logLevel);
@@ -53,9 +55,15 @@ namespace Moirai.Atropos
                 return;
             }
 
-            // 使用固定模板 "{Message}" 传递已格式化文本，
-            // 避免消息内容中的大括号被 Serilog 解析为属性占位符。
-            logger.Write(level, exception, "{Message}", message ?? string.Empty);
+            message ??= string.Empty;
+
+            // 时间戳由 Serilog outputTemplate 的 {Timestamp} 占位符控制（在启动阶段配置 sink 时设定）；
+            // 若 outputTemplate 未包含 {Timestamp}，则 TimestampPrefix 作为消息前缀补充。
+            string formatted = TimestampPrefix != null
+                ? StringUtility.GetString(sb => sb.Append(TimestampPrefix).Append(message))
+                : message;
+
+            logger.Write(level, exception, "{Message}", formatted);
         }
 
         private static LogEventLevel ToSerilogLevel(LogUtility.ELogLevel logLevel)
