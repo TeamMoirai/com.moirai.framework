@@ -26,8 +26,8 @@ namespace Moirai.Atropos.Input
         {
             if (_initialized) return;
 
-            _initialized = true;
             OnInit();
+            _initialized = true;
         }
 
         /// <summary>

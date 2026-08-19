@@ -11,21 +11,22 @@ namespace Moirai.Atropos
     [Serializable]
     public abstract partial class StringHandler
     {
+        [NonSerialized]
         private bool _initialized;
 
         internal void Internal_Init()
         {
             if (_initialized) return;
-            _initialized = true;
 
             OnInit();
+            _initialized = true;
         }
 
         internal void Internal_Shutdown()
         {
             if (!_initialized) return;
-            _initialized = false;
 
+            _initialized = false;
             Clear();
             Shutdown();
         }

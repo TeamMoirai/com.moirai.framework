@@ -9,6 +9,7 @@ namespace Moirai.Atropos
     [Serializable]
     public abstract class SettingHandler
     {
+        [NonSerialized]
         private bool _initialized;
 
         /// <summary>
@@ -19,16 +20,16 @@ namespace Moirai.Atropos
         internal void Internal_Init()
         {
             if (_initialized) return;
-            _initialized = true;
 
             OnInit();
+            _initialized = true;
         }
 
         internal void Internal_Shutdown()
         {
             if (!_initialized) return;
-            _initialized = false;
 
+            _initialized = false;
             Shutdown();
         }
 

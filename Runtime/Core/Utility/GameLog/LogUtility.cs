@@ -52,8 +52,12 @@ namespace Moirai.Atropos
                 }
 
                 value.Internal_Init();
+
                 var previous = Interlocked.Exchange(ref s_Handler, value);
-                previous?.Internal_Shutdown();
+                if (previous != null && !ReferenceEquals(previous, value))
+                {
+                    previous.Internal_Shutdown();
+                }
             }
         }
 
