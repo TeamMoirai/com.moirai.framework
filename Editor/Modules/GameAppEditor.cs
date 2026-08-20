@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
-using Moirai.Atropos.FSM;
 using Moirai.Atropos.Localization;
 using Moirai.Atropos.ObjectPool;
 using UnityEditor;
@@ -16,7 +15,7 @@ namespace Moirai.Atropos.Editor
         private static readonly float[] s_GameSpeed = new float[] { 0f, 0.01f, 0.1f, 0.25f, 0.5f, 1f, 1.5f, 2f, 4f, 8f };
         private static readonly string[] s_GameSpeedForDisplay = new string[] { "0x", "0.01x", "0.1x", "0.25x", "0.5x", "1x", "1.5x", "2x", "4x", "8x" };
 
-        private enum StateTab { Settings, FSM, ObjectPool }
+        private enum StateTab { Settings, ObjectPool }
         private StateTab _currentTab = StateTab.Settings;
 
         public override void OnInspectorGUI()
@@ -59,7 +58,7 @@ namespace Moirai.Atropos.Editor
                     EditorGUILayout.Space(10);
                     _currentTab = (StateTab)GUILayout.Toolbar(
                         (int)_currentTab,
-                        new[] { "Settings", "FSM", "Object Pool" },
+                        new[] { "Settings", "Object Pool" },
                         GUILayout.Height(25));
 
                     EditorGUILayout.BeginVertical("box");
@@ -68,9 +67,6 @@ namespace Moirai.Atropos.Editor
                         {
                             case StateTab.Settings:
                                 DrawSettingState();
-                                break;
-                            case StateTab.FSM:
-                                DrawFSMState();
                                 break;
                             case StateTab.ObjectPool:
                                 DrawObjectPoolState();
@@ -105,19 +101,6 @@ namespace Moirai.Atropos.Editor
             if (GUILayout.Button("Remove All Settings"))
             {
                 SettingUtility.RemoveAllSettings();
-            }
-        }
-
-        private void DrawFSMState()
-        {
-            var fsmService = GameApp.Services.GetRequiredService<IFSMService>();
-            EditorGUILayout.LabelField("FSM Count", fsmService.Count.ToString());
-
-            FSMBase[] fsms = fsmService.GetAllFSMs();
-            foreach (FSMBase fsm in fsms)
-            {
-                EditorGUILayout.LabelField(fsm.Name,
-                    fsm.IsRunning ? StringUtility.Format("{0}, {1:F1} s", fsm.CurrentStateName, fsm.CurrentStateTime) : (fsm.IsDestroyed ? "Destroyed" : "Not Running"));
             }
         }
 

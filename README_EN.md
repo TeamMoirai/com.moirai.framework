@@ -208,7 +208,6 @@ com.moirai.framework/
 │       ├── Audio/        # Audio system (categories/agents/fade)
 │       ├── ConfigTable/  # Config table management
 │       ├── Debugger/     # Runtime debugger
-│       ├── FSM/          # Finite State Machine
 │       ├── Input/        # Input system (keyboard/mouse/gamepad/mobile)
 │       ├── Localization/ # Localization (text/image/audio/Google Translate)
 │       ├── ObjectPool/   # Object pool service
@@ -237,7 +236,6 @@ var resource = GameService.Resource;
 var ui = GameService.UI;
 var audio = GameService.Audio;
 var timer = GameService.Timer;
-var fsm = GameService.FSM;
 ```
 
 **Service Lifecycle:**
@@ -276,8 +274,7 @@ Each service has its own documentation (located in `Documentation~/en/`), coveri
 | **Audio** | Audio system: category management, AudioAgent playback, mixer, fade, event-driven | [Audio.md](Documentation~/en/Audio.md) |
 | **Localization** | Localization: text/image/audio/Timeline multi-type injection, Google Translate integration | [Localization.md](Documentation~/en/Localization.md) |
 | **ConfigTable** | Luban config table integration: table loading, lazy access, export toolchain | [ConfigTable.md](Documentation~/en/ConfigTable.md) |
-| **FSM** | Finite State Machine: generic states, full lifecycle hooks, in-state transitions | [FSM.md](Documentation~/en/FSM.md) |
-| **Procedure** | FSM-based game flow management: startup chain, configurable procedures | [Procedure.md](Documentation~/en/Procedure.md) |
+| **Procedure** | Game flow management: startup chain, configurable procedures, self-contained state machine | [Procedure.md](Documentation~/en/Procedure.md) |
 | **Input** | Multi-platform input abstraction: Input System / Legacy Input / Mobile UI touch, button prompts | [Input.md](Documentation~/en/Input.md) |
 | **Save** | Pluggable save system: JSON / Binary / Encrypted handlers, atomic writes | [Save.md](Documentation~/en/Save.md) |
 | **Scene** | Scene management: async load/activate/unload based on YooAsset SceneHandle | [Scene.md](Documentation~/en/Scene.md) |
