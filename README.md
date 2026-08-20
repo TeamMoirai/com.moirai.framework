@@ -215,7 +215,6 @@ com.moirai.framework/
 │       ├── Audio/        # 音频系统（分类/代理/淡入淡出）
 │       ├── ConfigTable/  # 配置表管理
 │       ├── Debugger/     # 运行时调试器
-│       ├── FSM/          # 有限状态机
 │       ├── Input/        # 输入系统（键鼠/手柄/移动端）
 │       ├── Localization/ # 本地化（文本/图片/音频/Google翻译）
 │       ├── ObjectPool/   # 对象池服务
@@ -244,7 +243,6 @@ var resource = GameService.Resource;
 var ui = GameService.UI;
 var audio = GameService.Audio;
 var timer = GameService.Timer;
-var fsm = GameService.FSM;
 ```
 
 **服务生命周期：**
@@ -283,8 +281,7 @@ ProcedureLaunch → ProcedureSplash → ProcedureInitPackage → ProcedureInitRe
 | **Audio** | 音频系统：分类管理、AudioAgent 代理播放、混音器、淡入淡出、事件驱动 | [Audio.md](Documentation~/zh/Audio.md) |
 | **Localization** | 本地化：文本/图片/音频/Timeline 多类型注入、Google 翻译集成 | [Localization.md](Documentation~/zh/Localization.md) |
 | **ConfigTable** | Luban 配置表集成：表加载与懒加载访问、转表工具链 | [ConfigTable.md](Documentation~/zh/ConfigTable.md) |
-| **FSM** | 有限状态机：泛型状态、完整生命周期钩子、状态内切换 | [FSM.md](Documentation~/zh/FSM.md) |
-| **Procedure** | 基于 FSM 的游戏流程管理：启动链、可配置流程 | [Procedure.md](Documentation~/zh/Procedure.md) |
+| **Procedure** | 游戏流程管理：启动链、可配置流程、自包含状态机 | [Procedure.md](Documentation~/zh/Procedure.md) |
 | **Input** | 多平台输入抽象：Input System / 旧版输入 / 移动端 UI 触控、按键提示 | [Input.md](Documentation~/zh/Input.md) |
 | **Save** | 可插拔存档系统：JSON / 二进制 / 加密 Handler、原子写入 | [Save.md](Documentation~/zh/Save.md) |
 | **Scene** | 场景管理：基于 YooAsset SceneHandle 的异步加载/激活/卸载 | [Scene.md](Documentation~/zh/Scene.md) |

@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using Moirai.Atropos.Audio;
 using Moirai.Atropos.Debugger;
-using Moirai.Atropos.FSM;
 using Moirai.Atropos.Input;
 using Moirai.Atropos.Localization;
 using Moirai.Atropos.ObjectPool;
@@ -40,10 +39,6 @@ namespace Moirai.Atropos
         [BoxGroup(SERVICE_GROUP), DisableInPlayMode]
         [HelperDropdown(typeof(IDebuggerService), "Debugger Service")]
         [SerializeField] private string m_DebuggerServiceTypeName;
-
-        [BoxGroup(SERVICE_GROUP), DisableInPlayMode]
-        [HelperDropdown(typeof(IFSMService), "FSM Service")]
-        [SerializeField] private string m_FSMServiceTypeName;
 
         [BoxGroup(SERVICE_GROUP), DisableInPlayMode]
         [HelperDropdown(typeof(IAudioService), "Audio Service")]
@@ -107,7 +102,6 @@ namespace Moirai.Atropos
             m_UpdateDriverTypeName = typeof(UpdateDriverService).FullName;
             m_ResourceServiceTypeName = typeof(ResourceService).FullName;
             m_DebuggerServiceTypeName = typeof(DebuggerService).FullName;
-            m_FSMServiceTypeName = typeof(FSMService).FullName;
             m_AudioServiceTypeName = typeof(AudioService).FullName;
             m_ObjectPoolServiceTypeName = typeof(ObjectPoolService).FullName;
             m_ProcedureServiceTypeName = typeof(ProcedureService).FullName;
@@ -140,7 +134,6 @@ namespace Moirai.Atropos
             RegisterServiceFromInspector(collection, typeof(IUpdateDriverService), Instance.m_UpdateDriverTypeName);
             RegisterServiceFromInspector(collection, typeof(IResourceService), Instance.m_ResourceServiceTypeName);
             RegisterServiceFromInspector(collection, typeof(IDebuggerService), Instance.m_DebuggerServiceTypeName);
-            RegisterServiceFromInspector(collection, typeof(IFSMService), Instance.m_FSMServiceTypeName);
             RegisterServiceFromInspector(collection, typeof(IAudioService), Instance.m_AudioServiceTypeName);
             RegisterServiceFromInspector(collection, typeof(IObjectPoolService), Instance.m_ObjectPoolServiceTypeName);
             RegisterServiceFromInspector(collection, typeof(IProcedureService), Instance.m_ProcedureServiceTypeName);
