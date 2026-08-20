@@ -43,6 +43,29 @@ namespace Moirai.Atropos
         /// 纯 C# 服务的依赖从构造函数参数自动推断，无需设置。
         /// </summary>
         internal Type[] ExplicitDependencies { get; set; }
+
+        /// <summary>
+        /// 额外契约类型列表。允许单个实例注册在多个接口下。
+        /// 通过 <see cref="ServiceRegistrationBuilder.As{TExtraContract}"/> 设置。
+        /// </summary>
+        internal Type[] AdditionalContracts { get; set; }
+
+        /// <summary>
+        /// 全部契约类型数组（主契约 + 额外契约）。每次访问产生新数组，构建期使用。
+        /// </summary>
+        internal Type[] AllContracts
+        {
+            get
+            {
+                if (AdditionalContracts == null || AdditionalContracts.Length == 0)
+                    return new[] { InterfaceType };
+
+                var result = new Type[1 + AdditionalContracts.Length];
+                result[0] = InterfaceType;
+                Array.Copy(AdditionalContracts, 0, result, 1, AdditionalContracts.Length);
+                return result;
+            }
+        }
     }
 
     /// <summary>
@@ -173,6 +196,21 @@ namespace Moirai.Atropos
             _descriptor.ExplicitDependencies = new Type[existing.Length + 1];
             Array.Copy(existing, _descriptor.ExplicitDependencies, existing.Length);
             _descriptor.ExplicitDependencies[existing.Length] = typeof(T);
+            return this;
+        }
+
+        /// <summary>
+        /// 将服务额外注册到指定契约接口。单个实例可在多个接口下被解析。
+        /// <para>例如 <c>collection.Register&lt;IAudioService, AudioService&gt;(scope).As&lt;IAudioLoader&gt;()</c>
+        /// 允许通过 <c>IAudioService</c> 和 <c>IAudioLoader</c> 同时解析同一实例。</para>
+        /// </summary>
+        public ServiceRegistrationBuilder As<TExtraContract>() where TExtraContract : class
+        {
+            var existing = _descriptor.AdditionalContracts ?? Array.Empty<Type>();
+            var arr = new Type[existing.Length + 1];
+            Array.Copy(existing, arr, existing.Length);
+            arr[existing.Length] = typeof(TExtraContract);
+            _descriptor.AdditionalContracts = arr;
             return this;
         }
     }
