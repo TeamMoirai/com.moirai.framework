@@ -59,39 +59,46 @@ namespace Moirai.Atropos
         /// <summary>
         /// 将服务注册到作用域。仅存储引用和更新轮询列表，不调用 OnInit。
         /// </summary>
-        internal void Register(Type interfaceType, IService service)
+        internal void Register(Type[] contractTypes, IService service)
         {
-            var handle = interfaceType.TypeHandle;
-
-            if (_servicesByContract.ContainsKey(handle))
+            // 检查所有契约是否已被注册
+            for (int i = 0; i < contractTypes.Length; i++)
             {
-                LogUtility.Warning("{0} has already been registered in {1} scope.",
-                    interfaceType.FullName, Kind);
-                return;
+                if (_servicesByContract.ContainsKey(contractTypes[i].TypeHandle))
+                {
+                    LogUtility.Warning("{0} has already been registered in {1} scope.",
+                        contractTypes[i].FullName, Kind);
+                    return;
+                }
             }
 
             if (_disposePending)
             {
                 LogUtility.Warning("Scope {0} is being disposed; registration of {1} is rejected.",
-                    Kind, interfaceType.FullName);
+                    Kind, contractTypes[0].FullName);
                 return;
             }
 
             if (_isIterating)
             {
                 // 注册仅发生在 BuildAsync（非迭代期），此分支为防御性兜底
-                _pendingChanges.Add(PendingChange.Register(service, interfaceType));
+                _pendingChanges.Add(PendingChange.Register(service, contractTypes));
                 return;
             }
 
-            RegisterInternal(service, interfaceType, handle);
+            RegisterInternal(service, contractTypes);
         }
 
-        private void RegisterInternal(IService service, Type interfaceType, RuntimeTypeHandle handle)
+        private void RegisterInternal(IService service, Type[] contractTypes)
         {
-            _servicesByContract[handle] = service;
+            var handles = new RuntimeTypeHandle[contractTypes.Length];
+            for (int i = 0; i < contractTypes.Length; i++)
+            {
+                handles[i] = contractTypes[i].TypeHandle;
+                _servicesByContract[handles[i]] = service;
+            }
 
-            var entry = new ServiceEntry { InterfaceHandle = handle };
+            var entry = new ServiceEntry { ContractHandles = handles };
 
             // _registrationOrder 记录插入序（= 依赖拓扑序），用于逆序关闭与诊断收集；
             // 轮询列表按 Priority 降序插入——Priority 只读，运行时不变。
@@ -103,7 +110,7 @@ namespace Moirai.Atropos
 
             _entriesByService[service] = entry;
 
-            GameServices.InvokeRegistering(service, interfaceType, Kind);
+            GameServices.InvokeRegistering(service, contractTypes[0], Kind);
         }
 
         #endregion
@@ -222,8 +229,8 @@ namespace Moirai.Atropos
                 var change = _pendingChanges[i];
                 if (change.IsRegister)
                 {
-                    if (!_servicesByContract.ContainsKey(change.InterfaceType.TypeHandle))
-                        RegisterInternal(change.Service, change.InterfaceType, change.InterfaceType.TypeHandle);
+                    if (!_servicesByContract.ContainsKey(change.ContractTypes[0].TypeHandle))
+                        RegisterInternal(change.Service, change.ContractTypes);
                 }
                 else
                 {
@@ -259,7 +266,8 @@ namespace Moirai.Atropos
             // 但注册表和 entries 必须逐项清理——否则作用域关闭后 Provider 仍能解析到已关闭的服务
             if (_isDisposing)
             {
-                _servicesByContract.Remove(entry.InterfaceHandle);
+                for (int i = 0; i < entry.ContractHandles.Length; i++)
+                    _servicesByContract.Remove(entry.ContractHandles[i]);
                 _entriesByService.Remove(service);
                 GameServices.InvokeUnregistered(service);
             }
@@ -271,7 +279,8 @@ namespace Moirai.Atropos
 
         private void RemoveServiceInternal(IService service, ServiceEntry entry)
         {
-            _servicesByContract.Remove(entry.InterfaceHandle);
+            for (int i = 0; i < entry.ContractHandles.Length; i++)
+                _servicesByContract.Remove(entry.ContractHandles[i]);
 
             _registrationOrder.Remove(service);
             if (service is IServiceTickable tickable) _tickables.Remove(tickable);
@@ -349,7 +358,7 @@ namespace Moirai.Atropos
                 var service = _registrationOrder[i];
                 if (service == null || !_entriesByService.TryGetValue(service, out var entry)) continue;
 
-                var type = Type.GetTypeFromHandle(entry.InterfaceHandle);
+                var type = Type.GetTypeFromHandle(entry.ContractHandles[0]);
                 buffer.Add(new GameServices.DiagnosticInfo
                 {
                     InterfaceType = type != null ? type.FullName : "<unknown>",
@@ -390,7 +399,7 @@ namespace Moirai.Atropos
         /// <summary>服务的注册元数据。class 而非 struct——字典中直接修改字段无需回写。</summary>
         internal class ServiceEntry
         {
-            public RuntimeTypeHandle InterfaceHandle;
+            public RuntimeTypeHandle[] ContractHandles;
         }
 
         /// <summary>迭代期间暂缓的注册/注销操作。</summary>
@@ -398,17 +407,17 @@ namespace Moirai.Atropos
         {
             public readonly bool IsRegister;
             public readonly IService Service;
-            public readonly Type InterfaceType;
+            public readonly Type[] ContractTypes;
 
-            private PendingChange(bool isRegister, IService service, Type interfaceType)
+            private PendingChange(bool isRegister, IService service, Type[] contractTypes)
             {
                 IsRegister = isRegister;
                 Service = service;
-                InterfaceType = interfaceType;
+                ContractTypes = contractTypes;
             }
 
-            public static PendingChange Register(IService service, Type interfaceType)
-                => new(true, service, interfaceType);
+            public static PendingChange Register(IService service, Type[] contractTypes)
+                => new(true, service, contractTypes);
 
             public static PendingChange Unregister(IService service)
                 => new(false, service, null);

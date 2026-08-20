@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Reflection;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
@@ -98,8 +97,13 @@ namespace Moirai.Atropos
                     throw;
                 }
 
+                // 多契约注册：主契约 + 额外契约共享同一实例
+                var contracts = desc.AllContracts;
                 _instances[desc.InterfaceType] = instance;
-                _scope.Register(desc.InterfaceType, instance);
+                for (int i = 1; i < contracts.Length; i++)
+                    _instances[contracts[i]] = instance;
+
+                _scope.Register(contracts, instance);
                 GameServices.SetState(instance, EServiceState.Created);
             }
 
@@ -229,7 +233,18 @@ namespace Moirai.Atropos
                     return ctors[i];
             }
 
-            return ctors.OrderByDescending(c => c.GetParameters().Length).FirstOrDefault();
+            int maxParams = -1;
+            ConstructorInfo best = null;
+            for (int i = 0; i < ctors.Length; i++)
+            {
+                int paramCount = ctors[i].GetParameters().Length;
+                if (paramCount > maxParams)
+                {
+                    maxParams = paramCount;
+                    best = ctors[i];
+                }
+            }
+            return best;
         }
 
         /// <summary>
@@ -255,11 +270,21 @@ namespace Moirai.Atropos
         /// Kahn 算法拓扑排序。依赖来源：纯 C# 服务从构造函数参数推断，MonoBehaviour 服务从 ExplicitDependencies 读取。
         /// 循环依赖抛出 <see cref="GameException"/>。
         /// </summary>
+        private static readonly List<Type> s_DepBuffer = new();
+
         private static List<ServiceDescriptor> TopologicalSort(List<ServiceDescriptor> descriptors)
         {
             var byInterface = new Dictionary<Type, ServiceDescriptor>();
             foreach (var d in descriptors)
+            {
                 byInterface[d.InterfaceType] = d;
+                // 额外契约也映射到同一描述符，使依赖方可通过额外契约类型被拓扑排序识别
+                if (d.AdditionalContracts != null)
+                {
+                    for (int i = 0; i < d.AdditionalContracts.Length; i++)
+                        byInterface[d.AdditionalContracts[i]] = d;
+                }
+            }
 
             var inDegree = new Dictionary<Type, int>();
             var adjacency = new Dictionary<Type, List<Type>>();
@@ -272,9 +297,11 @@ namespace Moirai.Atropos
 
             foreach (var desc in descriptors)
             {
-                var deps = CollectDependencies(desc);
-                foreach (var depType in deps)
+                s_DepBuffer.Clear();
+                CollectDependencies(desc, s_DepBuffer);
+                for (int i = 0; i < s_DepBuffer.Count; i++)
                 {
+                    var depType = s_DepBuffer[i];
                     // 仅关注本容器内注册的依赖（跨容器依赖由 parent 链在创建期解析）
                     if (!byInterface.ContainsKey(depType)) continue;
 
@@ -295,18 +322,27 @@ namespace Moirai.Atropos
             {
                 var type = queue.Dequeue();
                 result.Add(byInterface[type]);
-                foreach (var dependent in adjacency[type])
+                var dependents = adjacency[type];
+                for (int i = 0; i < dependents.Count; i++)
                 {
-                    inDegree[dependent]--;
-                    if (inDegree[dependent] == 0) queue.Enqueue(dependent);
+                    inDegree[dependents[i]]--;
+                    if (inDegree[dependents[i]] == 0) queue.Enqueue(dependents[i]);
                 }
             }
 
             if (result.Count != descriptors.Count)
             {
-                var remaining = descriptors
-                    .Select(d => d.InterfaceType.FullName)
-                    .Except(result.Select(d => d.InterfaceType.FullName));
+                var processed = new HashSet<Type>();
+                for (int i = 0; i < result.Count; i++)
+                    processed.Add(result[i].InterfaceType);
+
+                var remaining = new List<string>();
+                for (int i = 0; i < descriptors.Count; i++)
+                {
+                    if (!processed.Contains(descriptors[i].InterfaceType))
+                        remaining.Add(descriptors[i].InterfaceType.FullName);
+                }
+
                 throw new GameException(
                     StringUtility.Format("Circular dependency detected among: {0}",
                         string.Join(", ", remaining)));
@@ -316,27 +352,28 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 收集描述符的所有依赖类型。
+        /// 收集描述符的所有依赖类型，填充到 <paramref name="buffer"/>。
         /// </summary>
-        private static IEnumerable<Type> CollectDependencies(ServiceDescriptor desc)
+        private static void CollectDependencies(ServiceDescriptor desc, List<Type> buffer)
         {
             if (desc.ImplementationType != null && !desc.IsMonoBehaviour)
             {
                 var ctor = SelectConstructor(desc.ImplementationType);
                 if (ctor != null)
                 {
-                    foreach (var param in ctor.GetParameters())
+                    var parameters = ctor.GetParameters();
+                    for (int i = 0; i < parameters.Length; i++)
                     {
-                        if (param.ParameterType != typeof(IServiceProvider))
-                            yield return param.ParameterType;
+                        if (parameters[i].ParameterType != typeof(IServiceProvider))
+                            buffer.Add(parameters[i].ParameterType);
                     }
                 }
             }
 
             if (desc.ExplicitDependencies != null)
             {
-                foreach (var dep in desc.ExplicitDependencies)
-                    yield return dep;
+                for (int i = 0; i < desc.ExplicitDependencies.Length; i++)
+                    buffer.Add(desc.ExplicitDependencies[i]);
             }
         }
 

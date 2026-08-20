@@ -132,6 +132,22 @@ public class BattleService : ServiceBase
 }
 ```
 
+### Multi-Contract Registration
+
+A single instance can be registered under multiple interfaces via the Fluent API `.As<TExtraContract>()`. All contracts share the same instance, and topological sorting recognizes dependencies through extra contract types:
+
+```csharp
+// AudioService implements both IAudioService and IAudioLoader
+collection.Register<IAudioService, AudioService>(EServiceScopeKind.App)
+    .As<IAudioLoader>(); // Same instance resolvable via both interfaces
+
+// Any service depending on IAudioLoader is also correctly topologically sorted
+public class AssetLoader : ServiceBase
+{
+    public AssetLoader(IAudioLoader audioLoader) { ... } // Resolves to the same AudioService instance
+}
+```
+
 ### Composition Root and Built-in Service Registration
 
 Built-in services are declared in `AppSettings` (the composition root) via a `ServiceCollection`; implementation types can be replaced in the Inspector (e.g., replacing the implementation class of `ITimerService`). `GameApp.Awake` calls `AppContainer.BuildAsync()` to perform the actual build — dependency order is guaranteed by topological sorting, independent of registration order.

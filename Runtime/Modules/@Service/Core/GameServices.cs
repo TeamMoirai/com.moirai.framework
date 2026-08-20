@@ -99,6 +99,7 @@ namespace Moirai.Atropos
 
         internal static void InvokeRegistering(IService service, Type interfaceType, EServiceScopeKind scope)
         {
+            if (s_Interceptors.Count == 0) return;
             for (int i = 0; i < s_Interceptors.Count; i++)
                 s_Interceptors[i].OnServiceRegistering(service, interfaceType, scope);
         }
@@ -119,12 +120,14 @@ namespace Moirai.Atropos
 
         internal static void InvokeTick(IService service, float elapseSeconds, float realElapseSeconds)
         {
+            if (s_Interceptors.Count == 0) return;
             for (int i = 0; i < s_Interceptors.Count; i++)
                 s_Interceptors[i].OnServiceTick(service, elapseSeconds, realElapseSeconds);
         }
 
         internal static void InvokeShutdown(IService service)
         {
+            if (s_Interceptors.Count == 0) return;
             for (int i = 0; i < s_Interceptors.Count; i++)
                 s_Interceptors[i].OnServiceShutdown(service);
         }

@@ -132,6 +132,22 @@ public class BattleService : ServiceBase
 }
 ```
 
+### 多契约注册 [MULTI-CONTRACT REGISTRATION]
+
+单个实例可注册在多个接口下，通过 Fluent API `.As<TExtraContract>()` 声明额外契约。所有契约共享同一实例，拓扑排序也通过额外契约类型识别依赖：
+
+```csharp
+// AudioService 同时实现 IAudioService 和 IAudioLoader
+collection.Register<IAudioService, AudioService>(EServiceScopeKind.App)
+    .As<IAudioLoader>(); // 同一实例可通过两个接口解析
+
+// 任意依赖 IAudioLoader 的服务也能被正确拓扑排序
+public class AssetLoader : ServiceBase
+{
+    public AssetLoader(IAudioLoader audioLoader) { ... } // 解析到同一 AudioService 实例
+}
+```
+
 ### 组合根与内置服务注册
 
 内置服务在 `AppSettings`（组合根）中通过 `ServiceCollection` 声明注册，实现类型可在 Inspector 中替换（如替换 `ITimerService` 的实现类）。`GameApp.Awake` 中调用 `AppContainer.BuildAsync()` 完成实际构建——依赖顺序由拓扑排序保证，与注册顺序无关。
