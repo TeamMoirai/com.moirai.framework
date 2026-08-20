@@ -160,7 +160,7 @@ namespace Moirai.Atropos.Debugger
 
         private void Initialize()
         {
-            _debuggerService = GameServices.GetService<IDebuggerService>();
+            _debuggerService = GameServices.Provider?.GetService<IDebuggerService>();
             if (_debuggerService == null)
             {
                 LogUtility.Fatal("Debugger manager is invalid.");

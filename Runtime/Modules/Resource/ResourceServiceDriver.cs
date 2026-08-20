@@ -228,7 +228,7 @@ namespace Moirai.Atropos.Resource
 
         private void Start()
         {
-            _resourceService = GameServices.GetService<IResourceService>();
+            _resourceService = GameServices.Provider?.GetService<IResourceService>();
             if (_resourceService == null)
             {
                 LogUtility.Fatal("Resource service is invalid.");

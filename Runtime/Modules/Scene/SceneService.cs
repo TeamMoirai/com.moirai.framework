@@ -13,6 +13,16 @@ namespace Moirai.Atropos.Scene
     /// </summary>
     public sealed class SceneService : ServiceBase, ISceneService
     {
+        private readonly IResourceService _resourceService;
+
+        /// <summary>
+        /// 容器构造注入——依赖在编译期显式声明，由容器拓扑排序保证先于本服务初始化。
+        /// </summary>
+        public SceneService(IResourceService resourceService)
+        {
+            _resourceService = resourceService ?? throw new GameException("Resource service is invalid.");
+        }
+
         private string _currentMainSceneName = string.Empty;
 
         private SceneHandle _currentMainScene;
@@ -112,7 +122,7 @@ namespace Moirai.Atropos.Scene
                 MaterialUtility.WaitGetRootGameObjects(_currentMainScene).Forget();
 #endif
 
-                GameServices.GetService<IResourceService>().ForceUnloadUnusedAssets(gcCollect);
+                _resourceService.ForceUnloadUnusedAssets(gcCollect);
 
                 _handlingScene.Remove(location);
 
@@ -188,7 +198,7 @@ namespace Moirai.Atropos.Scene
                 MaterialUtility.WaitGetRootGameObjects(_currentMainScene).Forget();
 #endif
 
-                GameServices.GetService<IResourceService>().ForceUnloadUnusedAssets(gcCollect);
+                _resourceService.ForceUnloadUnusedAssets(gcCollect);
             }
         }
 

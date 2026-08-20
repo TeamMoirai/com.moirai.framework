@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using Moirai.Atropos.FSM;
+using Moirai.Atropos.Localization;
 using Moirai.Atropos.ObjectPool;
 using UnityEditor;
 using UnityEngine;
@@ -28,7 +29,7 @@ namespace Moirai.Atropos.Editor
 
             if (EditorApplication.isPlaying)
             {
-                EditorGUILayout.LabelField("Language", GameApp.Localization?.CurrentLanguage.Name);
+                EditorGUILayout.LabelField("Language", GameApp.Services?.GetService<ILocalizationService>()?.CurrentLanguage.Name);
 
                 int frameRate = EditorGUILayout.IntSlider("Frame Rate", AppSettings.FrameRate, 1, 300);
                 if (frameRate != AppSettings.FrameRate)
@@ -109,7 +110,7 @@ namespace Moirai.Atropos.Editor
 
         private void DrawFSMState()
         {
-            var fsmService = GameApp.FSM;
+            var fsmService = GameApp.Services.GetRequiredService<IFSMService>();
             EditorGUILayout.LabelField("FSM Count", fsmService.Count.ToString());
 
             FSMBase[] fsms = fsmService.GetAllFSMs();
@@ -123,7 +124,7 @@ namespace Moirai.Atropos.Editor
         private readonly HashSet<string> _mOpenedItems = new HashSet<string>();
         private void DrawObjectPoolState()
         {
-            var objectPoolService = GameApp.ObjectPool;
+            var objectPoolService = GameApp.Services.GetRequiredService<IObjectPoolService>();
             EditorGUILayout.LabelField("Object Pool Count", objectPoolService.Count.ToString());
 
             ObjectPoolBase[] objectPools = objectPoolService.GetAllObjectPools(true);

@@ -56,7 +56,8 @@ namespace Moirai.Atropos.Audio
 		[Button]
 		protected virtual void PlayBGM()
 		{
-			var agents = GameApp.Audio?.FindAgentsByID(m_ID);
+			var audioService = GameApp.Services?.GetService<IAudioService>();
+			var agents = audioService?.FindAgentsByID(m_ID);
 			if (agents == null) return;
 
 			foreach (var agent in agents)

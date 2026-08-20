@@ -13,7 +13,7 @@ namespace Moirai.Atropos.Editor
         }
 
         private Vector2 _scrollPosition;
-        private bool _showPendingChanges = true;
+        private bool _showRuntimeState = true;
 
         private void OnGUI()
         {
@@ -67,12 +67,13 @@ namespace Moirai.Atropos.Editor
 
             EditorGUILayout.Space(4);
 
-            _showPendingChanges = EditorGUILayout.Foldout(_showPendingChanges, "Runtime State");
-            if (_showPendingChanges)
+            _showRuntimeState = EditorGUILayout.Foldout(_showRuntimeState, "Runtime State");
+            if (_showRuntimeState)
             {
                 EditorGUI.indentLevel++;
-                EditorGUILayout.LabelField("Is Iterating", GameServices.IsIterating ? "Yes" : "No");
-                EditorGUILayout.LabelField("Pending Changes", GameServices.PendingChangesCount.ToString());
+                EditorGUILayout.LabelField("App Container", GameServices.AppContainer != null ? "Active" : "—");
+                EditorGUILayout.LabelField("Scene Container", GameServices.SceneContainer != null ? "Active" : "—");
+                EditorGUILayout.LabelField("Gameplay Container", GameServices.GameplayContainer != null ? "Active" : "—");
                 EditorGUI.indentLevel--;
             }
 

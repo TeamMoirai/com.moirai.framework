@@ -1,10 +1,9 @@
 using System;
-using Moirai.Atropos.FSM;
 
 namespace Moirai.Atropos.Procedure
 {
     /// <summary>
-    /// 流程管理器接口。
+    /// 流程管理器接口。<see cref="IFSMService"/> 依赖由实现类通过构造函数注入。
     /// </summary>
     public interface IProcedureService
     {
@@ -27,9 +26,8 @@ namespace Moirai.Atropos.Procedure
         /// <summary>
         /// 初始化流程管理器。
         /// </summary>
-        /// <param name="fsmService">有限状态机管理器。</param>
         /// <param name="procedures">流程管理器包含的流程。</param>
-        void Initialize(IFSMService fsmService, params ProcedureBase[] procedures);
+        void Initialize(params ProcedureBase[] procedures);
 
         /// <summary>
         /// 开始流程。

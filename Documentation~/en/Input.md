@@ -2,7 +2,7 @@
 
 > Abstract input layer: uses a unified polling API to bridge the differences between Unity's new and old input systems and mobile UI touch input, with a built-in key prompt (Prompts) system.
 
-The input service (`Moirai.Atropos.Input`) abstracts three input backends through `InputHandler`. Business code only needs to work with `GameApp.Input`'s action-name-based API; switching backends requires no changes to the caller. The service also listens to UI modal events and application focus events, automatically blocking/restoring input, and provides cross-device key icon prompt components based on the Input System.
+The input service (`Moirai.Atropos.Input`) abstracts three input backends through `InputHandler`. Business code only needs to work with `GameApp.Services.GetRequiredService<IInputService>()`'s action-name-based API; switching backends requires no changes to the caller. The service also listens to UI modal events and application focus events, automatically blocking/restoring input, and provides cross-device key icon prompt components based on the Input System.
 
 ## Core Features
 
@@ -18,7 +18,7 @@ The input service (`Moirai.Atropos.Input`) abstracts three input backends throug
 
 | Class/Interface | Description |
 |---------|------|
-| `Moirai.Atropos.Input.IInputService` | Input service interface, returned by `GameApp.Input` |
+| `Moirai.Atropos.Input.IInputService` | Input service interface, returned by `GameApp.Services.GetRequiredService<IInputService>()` |
 | `Moirai.Atropos.Input.InputService` | Input service implementation, aggregates Handler and state toggles |
 | `Moirai.Atropos.Input.InputHandler` | Input handler abstract base class (`[Serializable]`), defines all input query methods. Configured via `[SerializeReference]` in Input Settings |
 | `Moirai.Atropos.Input.UnityInputSystemHandler` | Handler based on Unity Input System (macro `ENABLE_INPUT_SYSTEM`) |
@@ -41,29 +41,29 @@ After selecting an input processor in the framework settings (Project Settings -
 
 ```csharp
 // Input System backend: groupName/actionName corresponds to Action Map/Action
-if (GameApp.Input.GetButtonDown("Jump", "Player"))
+if (GameApp.Services.GetRequiredService<IInputService>().GetButtonDown("Jump", "Player"))
 {
     // Jump key pressed this frame
 }
 
-float moveX = GameApp.Input.GetFloat("Move", "Player");
-Vector2 move = GameApp.Input.GetVector2("Move", "Player");
+float moveX = GameApp.Services.GetRequiredService<IInputService>().GetFloat("Move", "Player");
+Vector2 move = GameApp.Services.GetRequiredService<IInputService>().GetVector2("Move", "Player");
 
 // When actionGroup is empty, actionName is treated as a full path ("Player/Jump")
-bool submit = GameApp.Input.GetButtonPressed("UI/Submit");
+bool submit = GameApp.Services.GetRequiredService<IInputService>().GetButtonPressed("UI/Submit");
 
 // Mouse
-if (GameApp.Input.GetMouseButtonDown(EMouseButton.Right)) { }
-Vector2 pos = GameApp.Input.GetMousePosition();
-Vector2 scroll = GameApp.Input.GetScrollDelta();
+if (GameApp.Services.GetRequiredService<IInputService>().GetMouseButtonDown(EMouseButton.Right)) { }
+Vector2 pos = GameApp.Services.GetRequiredService<IInputService>().GetMousePosition();
+Vector2 scroll = GameApp.Services.GetRequiredService<IInputService>().GetScrollDelta();
 ```
 
 Locking/restoring input:
 
 ```csharp
-GameApp.Input.LockPlayerController = true;    // Lock character movement during modal popups
-GameApp.Input.PreventInteractionUI = true;    // Disable UI interaction during cutscenes
-GameApp.Input.Enabled = false;                // Global disable (resets all input states)
+GameApp.Services.GetRequiredService<IInputService>().LockPlayerController = true;    // Lock character movement during modal popups
+GameApp.Services.GetRequiredService<IInputService>().PreventInteractionUI = true;    // Disable UI interaction during cutscenes
+GameApp.Services.GetRequiredService<IInputService>().Enabled = false;                // Global disable (resets all input states)
 ```
 
 ## Advanced Usage
@@ -94,7 +94,7 @@ private BoolAction _jump = new BoolAction();
 
 void Update()
 {
-    _jump.Value = GameApp.Input.GetBool("Jump", "Player");
+    _jump.Value = GameApp.Services.GetRequiredService<IInputService>().GetBool("Jump", "Player");
     _jump.Update(Time.deltaTime);
 
     if (_jump.IsDown) { }             // Pressed this frame (equivalent to Started)

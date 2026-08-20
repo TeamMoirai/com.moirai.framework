@@ -2,7 +2,7 @@
 
 > A resource management system based on YooAsset, providing reference counting, multi-package loading, cancellation control, and encryption/decryption capabilities.
 
-The Resource service (`ResourceService`) provides a business-oriented wrapper around [YooAsset](https://github.com/tuyoogame/YooAsset): unified synchronous/asynchronous loading entry points, object-pool-based reference counting and automatic recycling, multi-resource-package (Package) support, and two Bundle encryption/decryption schemes (FileOffset and FileStream). Access via `GameApp.Resource` (`IResourceService`). Load results are cached in the `AssetObject` object pool, so loading the same asset repeatedly incurs zero overhead. The play mode in the editor is driven by the `ResourceServiceDriver` component and can be switched via EditorPrefs.
+The Resource service (`ResourceService`) provides a business-oriented wrapper around [YooAsset](https://github.com/tuyoogame/YooAsset): unified synchronous/asynchronous loading entry points, object-pool-based reference counting and automatic recycling, multi-resource-package (Package) support, and two Bundle encryption/decryption schemes (FileOffset and FileStream). Access via `GameApp.Services.GetRequiredService<IResourceService>()` (`IResourceService`). Load results are cached in the `AssetObject` object pool, so loading the same asset repeatedly incurs zero overhead. The play mode in the editor is driven by the `ResourceServiceDriver` component and can be switched via EditorPrefs.
 
 ## Core Features
 
@@ -20,7 +20,7 @@ Namespace: `Moirai.Atropos.Resource`
 
 | Class/Interface | Description |
 |---------|------|
-| `IResourceService` | Resource manager interface, defines all APIs for loading, unloading, and package operations; accessed via `GameApp.Resource` |
+| `IResourceService` | Resource manager interface, defines all APIs for loading, unloading, and package operations; accessed via `GameApp.Services.GetRequiredService<IResourceService>()` |
 | `ResourceService` | Internal implementation (`internal sealed partial class`, split into four partial parts: main logic / Pool / AssetObject / Services) |
 | `ResourceServiceDriver` | MonoBehaviour driver component, configures play mode, encryption type, download parameters, and resource pool parameters in the Inspector, and periodically executes `UnloadUnusedAssets` |
 | `ResourceExtComponent` | Resource extension component (internal), maintains the individual sprite object pool `AssetItemObject` and frame-by-frame recycling, used by the `SetSprite` extension series |
@@ -46,19 +46,19 @@ using Moirai.Atropos;
 using UnityEngine;
 
 // Synchronous loading
-Sprite icon = GameApp.Resource.LoadAsset<Sprite>("Assets/AssetRaw/UI/icon.png");
+Sprite icon = GameApp.Services.GetRequiredService<IResourceService>().LoadAsset<Sprite>("Assets/AssetRaw/UI/icon.png");
 
 // Asynchronous loading (UniTask, supports CancellationToken)
 var cts = new CancellationTokenSource();
-Texture2D tex = await GameApp.Resource.LoadAssetAsync<Texture2D>(
+Texture2D tex = await GameApp.Services.GetRequiredService<IResourceService>().LoadAssetAsync<Texture2D>(
     "Assets/AssetRaw/UI/atlas.png", cts.Token);
 
 // Asynchronous instantiation into the scene: reference is automatically released on Destroy, no manual UnloadAsset needed
-GameObject hero = await GameApp.Resource.LoadGameObjectAsync(
+GameObject hero = await GameApp.Services.GetRequiredService<IResourceService>().LoadGameObjectAsync(
     "Assets/AssetRaw/Prefabs/Hero.prefab", parent);
 
 // Asynchronous callback-based (success / failure / progress)
-GameApp.Resource.LoadAssetAsync(
+GameApp.Services.GetRequiredService<IResourceService>().LoadAssetAsync(
     "Assets/AssetRaw/Audio/bgm.mp3", 0,
     new LoadAssetCallbacks(
         (assetName, asset, duration, userData) => { /* success */ },
@@ -67,10 +67,10 @@ GameApp.Resource.LoadAssetAsync(
     null);
 
 // Synchronous instantiation
-GameObject go = GameApp.Resource.LoadGameObject("Assets/AssetRaw/Prefabs/Item.prefab", parent);
+GameObject go = GameApp.Services.GetRequiredService<IResourceService>().LoadGameObject("Assets/AssetRaw/Prefabs/Item.prefab", parent);
 
 // Unload manually loaded resources (LoadAsset series; recycled by the object pool when reference count reaches zero)
-GameApp.Resource.UnloadAsset(icon);
+GameApp.Services.GetRequiredService<IResourceService>().UnloadAsset(icon);
 ```
 
 ## Configuration and Extensions
@@ -92,7 +92,7 @@ Configured on the `ResourceServiceDriver` component in the scene in the editor (
 ### Hot Update Process API
 
 ```csharp
-IResourceService res = GameApp.Resource;
+IResourceService res = GameApp.Services.GetRequiredService<IResourceService>();
 
 // Initialize a specified resource package (needInitMainFest: true also requests and updates the manifest, for standalone OtherPackage scenarios)
 await res.InitPackage("DefaultPackage");
@@ -125,12 +125,12 @@ meshRenderer.SetMaterial("Assets/AssetRaw/Mat/skin.mat", needInstance: true);
 ### Asset Query and Handles
 
 ```csharp
-HasAssetResult result = GameApp.Resource.HasAsset("Assets/AssetRaw/UI/icon.png");
-bool valid = GameApp.Resource.CheckLocationValid("Assets/AssetRaw/UI/icon.png");
-AssetInfo[] infos = GameApp.Resource.GetAssetInfos("Preload");   // batch get by tag
+HasAssetResult result = GameApp.Services.GetRequiredService<IResourceService>().HasAsset("Assets/AssetRaw/UI/icon.png");
+bool valid = GameApp.Services.GetRequiredService<IResourceService>().CheckLocationValid("Assets/AssetRaw/UI/icon.png");
+AssetInfo[] infos = GameApp.Services.GetRequiredService<IResourceService>().GetAssetInfos("Preload");   // batch get by tag
 
 // When fine-grained control over handle lifecycle is needed (bypassing object pool counting)
-AssetHandle handle = GameApp.Resource.LoadAssetAsyncHandle<GameObject>("path");
+AssetHandle handle = GameApp.Services.GetRequiredService<IResourceService>().LoadAssetAsyncHandle<GameObject>("path");
 // ... use handle.AssetObject, then handle.Dispose() when done
 ```
 

@@ -2,14 +2,14 @@
 
 > FSM-based game flow management: models startup, hot update, preload, and other phases as switchable procedure states.
 
-The Procedure service (`ProcedureService`) is built on top of the [FSM](FSM.md) finite state machine: internally, it uses `IFSMService.CreateFSM` to create a state machine whose owner is `IProcedureService`. Each game phase (startup, checking for updates, downloading resources, loading assemblies, preloading, etc.) is a `ProcedureBase` state. Available procedures and the entry procedure are configured via `ProcedureSettings`. `GameApp.Awake` automatically reflects, instantiates, and starts them, requiring no manual bootstrap code. Access via `GameApp.Procedure` (`IProcedureService`).
+The Procedure service (`ProcedureService`) is built on top of the [FSM](FSM.md) finite state machine: internally, it uses `IFSMService.CreateFSM` to create a state machine whose owner is `IProcedureService`. Each game phase (startup, checking for updates, downloading resources, loading assemblies, preloading, etc.) is a `ProcedureBase` state. Available procedures and the entry procedure are configured via `ProcedureSettings`. `GameApp.Awake` automatically reflects, instantiates, and starts them, requiring no manual bootstrap code. Access via `GameApp.Services.GetRequiredService<IProcedureService>()` (`IProcedureService`).
 
 ## Core Features
 
 - Based on FSM: Procedures are states, reusing the full lifecycle of `FSMState<T>` and the `ChangeState` switching mechanism
 - Configuration-driven startup: `ProcedureSettings` records available procedure types and the entry procedure; `GameApp.Awake` automatically calls `ProcedureSettings.StartProcedure()` to instantiate and start
 - `[ProcedureLauncher]` attribute: Only `ProcedureBase` subclasses marked with this attribute are scanned and included by `ProcedureSettings` (automatically scanned on editor Reset; defaults to the procedure whose name contains `ProcedureLaunch` as the entry)
-- Dual switching entry points: Inside a procedure, use the base class method `ChangeState<T>(procedureOwner)`; externally (e.g., from the hot update layer), use `GameApp.Procedure.ChangeState<T>()`
+- Dual switching entry points: Inside a procedure, use the base class method `ChangeState<T>(procedureOwner)`; externally (e.g., from the hot update layer), use `GameApp.Services.GetRequiredService<IProcedureService>().ChangeState<T>()`
 - Supports runtime reconstruction: `RestartProcedure` destroys the old state machine, rebuilds it with a new procedure list, and starts with the first procedure
 
 ## Core Types
@@ -18,14 +18,14 @@ Namespace: `Moirai.Atropos.Procedure`
 
 | Class/Interface | Description |
 |---------|------|
-| `IProcedureService` | Procedure manager interface: `Initialize` / `StartProcedure` / `HasProcedure` / `ChangeState` / `GetProcedure` / `RestartProcedure` and `CurrentProcedure`, `CurrentProcedureTime`; accessed via `GameApp.Procedure` |
+| `IProcedureService` | Procedure manager interface: `Initialize` / `StartProcedure` / `HasProcedure` / `ChangeState` / `GetProcedure` / `RestartProcedure` and `CurrentProcedure`, `CurrentProcedureTime`; accessed via `GameApp.Services.GetRequiredService<IProcedureService>()` |
 | `ProcedureService` | Service implementation (`Service, IProcedureService`, `Priority = -2`), holds an internal `IFSM<IProcedureService>` state machine |
 | `ProcedureBase` | Procedure base class, inherits `FSMState<IProcedureService>`, provides lifecycle methods `OnInit / OnEnter / OnUpdate / OnExit / OnDestroy` |
 | `ProcedureSettings` | Framework settings (panel name "Procedure Settings"): serialized list of available procedure type names and the entry procedure type name; static `StartProcedure()` is responsible for reflecting and building the flow |
 | `ProcedureLauncherAttribute` | Class-level attribute, marks `ProcedureBase` subclasses that can be included in the procedure system |
 | `ProcedureEvents` / `IProcedureEvent` | Procedure-related event marker interface (`public interface IProcedureEvent { }`), for business-specific procedure event extensions |
 
-Dependent FSM types (namespace `Moirai.Atropos.FSM`): `FSMState<T>` (state base class and `ChangeState` switching), `IFSM<T>` / `IFSMService` (state machine and state machine manager interfaces, the latter accessed via `GameApp.FSM`).
+Dependent FSM types (namespace `Moirai.Atropos.FSM`): `FSMState<T>` (state base class and `ChangeState` switching), `IFSM<T>` / `IFSMService` (state machine and state machine manager interfaces, the latter accessed via `GameApp.Services.GetRequiredService<IFSMService>()`).
 
 ## Quick Start
 
@@ -70,15 +70,15 @@ Querying and switching from outside a procedure:
 
 ```csharp
 // Current procedure and elapsed time
-ProcedureBase current = GameApp.Procedure.CurrentProcedure;
-float seconds = GameApp.Procedure.CurrentProcedureTime;
+ProcedureBase current = GameApp.Services.GetRequiredService<IProcedureService>().CurrentProcedure;
+float seconds = GameApp.Services.GetRequiredService<IProcedureService>().CurrentProcedureTime;
 
 // Query / get a procedure instance
-bool has = GameApp.Procedure.HasProcedure<ProcedureSplash>();
-ProcedureBase proc = GameApp.Procedure.GetProcedure<ProcedureSplash>();
+bool has = GameApp.Services.GetRequiredService<IProcedureService>().HasProcedure<ProcedureSplash>();
+ProcedureBase proc = GameApp.Services.GetRequiredService<IProcedureService>().GetProcedure<ProcedureSplash>();
 
 // Force a switch from outside (e.g., jump logic in hot update code)
-GameApp.Procedure.ChangeState<ProcedurePreload>();
+GameApp.Services.GetRequiredService<IProcedureService>().ChangeState<ProcedurePreload>();
 ```
 
 ## Configuration and Extensions
@@ -111,7 +111,7 @@ ProcedureLaunch -> ProcedureSplash -> ProcedureInitPackage -> ProcedureInitResou
 
 ```csharp
 // Destroy the current state machine, rebuild with a new procedure list, and start with the first procedure (returns success status)
-bool ok = GameApp.Procedure.RestartProcedure(
+bool ok = GameApp.Services.GetRequiredService<IProcedureService>().RestartProcedure(
     new ProcedureLaunch(),
     new ProcedureInitPackage(),
     new ProcedurePreload());

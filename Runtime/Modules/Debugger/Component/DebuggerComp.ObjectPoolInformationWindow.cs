@@ -11,7 +11,7 @@ namespace Moirai.Atropos.Debugger
 
             public override void Initialize(params object[] args)
             {
-                _objectPoolService = GameServices.GetService<IObjectPoolService>();
+                _objectPoolService = GameServices.Provider?.GetService<IObjectPoolService>();
                 if (_objectPoolService == null)
                 {
                     LogUtility.Fatal("Object pool component is invalid.");

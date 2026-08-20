@@ -48,7 +48,7 @@ namespace Moirai.Atropos.Resource
             }
             else
             {
-                s_ResourceService = GameServices.GetService<IResourceService>();
+                s_ResourceService = GameServices.Provider?.GetService<IResourceService>();
             }
 
             if (s_ResourceService == null)

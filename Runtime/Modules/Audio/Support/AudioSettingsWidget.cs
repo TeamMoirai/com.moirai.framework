@@ -153,7 +153,7 @@ namespace Moirai.Atropos.Audio
 
         private void OnEnable()
         {
-            if (GameApp.Audio == null)
+            if (GameApp.Services?.GetService<IAudioService>() == null)
             {
                 LogUtility.Error($"{nameof(AudioService)} is null");
                 return;
@@ -190,14 +190,15 @@ namespace Moirai.Atropos.Audio
         {
             EnsureTrackState();
 
-            _masterVolume = GameApp.Audio.MasterVolume;
-            _masterMute = GameApp.Audio.MasterMute;
+            var audioService = GameApp.Services.GetRequiredService<IAudioService>();
+            _masterVolume = audioService.MasterVolume;
+            _masterMute = audioService.MasterMute;
 
             var values = s_TrackValues;
             for (int i = 0; i < values.Length; i++)
             {
-                _trackVolumes[i] = GameApp.Audio.GetTrackVolume(values[i]);
-                _trackMutes[i] = GameApp.Audio.GetTrackMute(values[i]);
+                _trackVolumes[i] = audioService.GetTrackVolume(values[i]);
+                _trackMutes[i] = audioService.GetTrackMute(values[i]);
             }
         }
 
@@ -208,8 +209,9 @@ namespace Moirai.Atropos.Audio
             if (m_MasterSliderValue != null)
                 m_MasterSliderValue.text = newVolume.ToString("f0");
 
-            if (GameApp.Audio != null)
-                GameApp.Audio.MasterVolume = MathsUtility.Remap(newVolume, 0f, MULTIPLE, 0f, 1f);
+            var audioService = GameApp.Services?.GetService<IAudioService>();
+            if (audioService != null)
+                audioService.MasterVolume = MathsUtility.Remap(newVolume, 0f, MULTIPLE, 0f, 1f);
             HandleSettingChange();
         }
 
@@ -220,8 +222,9 @@ namespace Moirai.Atropos.Audio
             if (m_MasterSlider != null)
                 m_MasterSlider.interactable = !isMute;
 
-            if (GameApp.Audio != null)
-                GameApp.Audio.MasterMute = isMute;
+            var audioService = GameApp.Services?.GetService<IAudioService>();
+            if (audioService != null)
+                audioService.MasterMute = isMute;
             HandleSettingChange();
         }
 
@@ -236,7 +239,8 @@ namespace Moirai.Atropos.Audio
                 widget.SliderValue.text = newVolume.ToString("f0");
 
             EAudioTrack track = (EAudioTrack)index;
-            GameApp.Audio?.SetTrackVolume(track, MathsUtility.Remap(newVolume, 0f, MULTIPLE, 0f, 1f));
+            var audioService = GameApp.Services?.GetService<IAudioService>();
+            audioService?.SetTrackVolume(track, MathsUtility.Remap(newVolume, 0f, MULTIPLE, 0f, 1f));
             HandleSettingChange(track);
         }
 
@@ -251,7 +255,8 @@ namespace Moirai.Atropos.Audio
                 widget.Slider.interactable = !isMute;
 
             EAudioTrack track = (EAudioTrack)index;
-            GameApp.Audio?.SetTrackMute(track, isMute);
+            var audioService = GameApp.Services?.GetService<IAudioService>();
+            audioService?.SetTrackMute(track, isMute);
             HandleSettingChange(track);
         }
 
@@ -261,20 +266,21 @@ namespace Moirai.Atropos.Audio
         /// <param name="changedTrack">用户刚操作的音轨，仅检测该音轨；null 表示检测 master。</param>
         private void HandleSettingChange(EAudioTrack? changedTrack = null)
         {
-            if (GameApp.Audio == null) return;
+            var audioService = GameApp.Services?.GetService<IAudioService>();
+            if (audioService == null) return;
 
             bool hasChanged;
             if (changedTrack.HasValue)
             {
                 int i = (int)changedTrack.Value;
                 EnsureTrackState();
-                hasChanged = _trackVolumes[i] != GameApp.Audio.GetTrackVolume(changedTrack.Value)
-                          || _trackMutes[i] != GameApp.Audio.GetTrackMute(changedTrack.Value);
+                hasChanged = _trackVolumes[i] != audioService.GetTrackVolume(changedTrack.Value)
+                          || _trackMutes[i] != audioService.GetTrackMute(changedTrack.Value);
             }
             else
             {
-                hasChanged = _masterVolume != GameApp.Audio.MasterVolume
-                          || _masterMute != GameApp.Audio.MasterMute;
+                hasChanged = _masterVolume != audioService.MasterVolume
+                          || _masterMute != audioService.MasterMute;
             }
 
             onSettingChanged?.Invoke(hasChanged);
@@ -287,12 +293,14 @@ namespace Moirai.Atropos.Audio
         {
             EnsureTrackState();
 
+            var audioService = GameApp.Services?.GetService<IAudioService>();
+
             // 主音量
-            bool masterMute = (GameApp.Audio != null) && GameApp.Audio.MasterMute;
+            bool masterMute = (audioService != null) && audioService.MasterMute;
             if (m_MasterSlider != null)
             {
-                m_MasterSlider.value = (GameApp.Audio != null)
-                    ? MathsUtility.Remap(GameApp.Audio.MasterVolume, 0f, 1f, 0f, MULTIPLE)
+                m_MasterSlider.value = (audioService != null)
+                    ? MathsUtility.Remap(audioService.MasterVolume, 0f, 1f, 0f, MULTIPLE)
                     : 1f;
                 m_MasterSlider.interactable = !masterMute;
             }
@@ -307,11 +315,11 @@ namespace Moirai.Atropos.Audio
             for (int i = 0; i < values.Length; i++)
             {
                 var widget = tracks[i];
-                bool mute = (GameApp.Audio != null) && GameApp.Audio.GetTrackMute(values[i]);
+                bool mute = (audioService != null) && audioService.GetTrackMute(values[i]);
                 if (widget.Slider != null)
                 {
-                    widget.Slider.value = (GameApp.Audio != null)
-                        ? MathsUtility.Remap(GameApp.Audio.GetTrackVolume(values[i]), 0f, 1f, 0f, MULTIPLE)
+                    widget.Slider.value = (audioService != null)
+                        ? MathsUtility.Remap(audioService.GetTrackVolume(values[i]), 0f, 1f, 0f, MULTIPLE)
                         : 1f;
                     widget.Slider.interactable = !mute;
                 }

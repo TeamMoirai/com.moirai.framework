@@ -25,7 +25,7 @@ namespace Moirai.Main
             base.OnUpdate(procedureOwner, elapseSeconds, realElapseSeconds);
 
             // 运行一帧即切换流程
-            if (GameApp.Procedure.HasProcedure<ProcedureSplash>())
+            if (GameApp.Services.GetRequiredService<IProcedureService>().HasProcedure<ProcedureSplash>())
             {
                 ChangeState<ProcedureSplash>(procedureOwner);
             }

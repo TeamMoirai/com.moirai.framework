@@ -64,7 +64,7 @@ namespace Moirai.Atropos.Audio
 
         private void OnEnable()
         {
-            _target = GameApp.Audio;
+            _target = GameApp.Services?.GetService<IAudioService>();
 
             // 初始化音频轨道
             if (UnityEditor.EditorApplication.isPlaying)

@@ -2,14 +2,14 @@
 
 > 基于 FSM 的游戏流程管理：把启动、热更、预加载等阶段建模为一个个可切换的流程状态。
 
-Procedure 服务（`ProcedureService`）构建在 [FSM](FSM.md) 有限状态机之上：内部通过 `IFSMService.CreateFSM` 创建一台持有者为 `IProcedureService` 的状态机，每个游戏阶段（启动、检查更新、下载资源、加载程序集、预加载等）都是一个 `ProcedureBase` 状态。可用流程与入口流程由 `ProcedureSettings` 配置，`GameApp.Awake` 时自动反射实例化并启动，无需手写引导代码。通过 `GameApp.Procedure`（`IProcedureService`）访问。
+Procedure 服务（`ProcedureService`）构建在 [FSM](FSM.md) 有限状态机之上：内部通过 `IFSMService.CreateFSM` 创建一台持有者为 `IProcedureService` 的状态机，每个游戏阶段（启动、检查更新、下载资源、加载程序集、预加载等）都是一个 `ProcedureBase` 状态。可用流程与入口流程由 `ProcedureSettings` 配置，`GameApp.Awake` 时自动反射实例化并启动，无需手写引导代码。通过 `GameApp.Services.GetRequiredService<IProcedureService>()`（`IProcedureService`）访问。
 
 ## 核心特性
 
 - 基于 FSM：流程即状态，复用 `FSMState<T>` 的完整生命周期与 `ChangeState` 切换机制
 - 配置化启动：`ProcedureSettings` 记录可用流程类型与入口流程，`GameApp.Awake` 自动调用 `ProcedureSettings.StartProcedure()` 完成实例化与启动
 - `[ProcedureLauncher]` 标记：只有标记该 Attribute 的 `ProcedureBase` 子类才会被 `ProcedureSettings` 扫描收录（编辑器 Reset 时自动扫描，默认以名称含 `ProcedureLaunch` 的流程作为入口）
-- 双套切换入口：流程内部可用基类 `ChangeState<T>(procedureOwner)`，外部（如热更层）可用 `GameApp.Procedure.ChangeState<T>()`
+- 双套切换入口：流程内部可用基类 `ChangeState<T>(procedureOwner)`，外部（如热更层）可用 `GameApp.Services.GetRequiredService<IProcedureService>().ChangeState<T>()`
 - 支持运行时重建：`RestartProcedure` 销毁旧状态机后按新流程列表重建并以第一个流程启动
 
 ## 核心类型
@@ -18,14 +18,14 @@ Procedure 服务（`ProcedureService`）构建在 [FSM](FSM.md) 有限状态机�
 
 | 类/接口 | 说明 |
 |---------|------|
-| `IProcedureService` | 流程管理器接口：`Initialize` / `StartProcedure` / `HasProcedure` / `ChangeState` / `GetProcedure` / `RestartProcedure` 及 `CurrentProcedure`、`CurrentProcedureTime`；经 `GameApp.Procedure` 访问 |
+| `IProcedureService` | 流程管理器接口：`Initialize` / `StartProcedure` / `HasProcedure` / `ChangeState` / `GetProcedure` / `RestartProcedure` 及 `CurrentProcedure`、`CurrentProcedureTime`；经 `GameApp.Services.GetRequiredService<IProcedureService>()` 访问 |
 | `ProcedureService` | 服务实现（`Service, IProcedureService`，`Priority = -2`），持有内部 `IFSM<IProcedureService>` 状态机 |
 | `ProcedureBase` | 流程基类，继承 `FSMState<IProcedureService>`，提供 `OnInit / OnEnter / OnUpdate / OnExit / OnDestroy` 生命周期 |
 | `ProcedureSettings` | 框架设置（面板名「流程设置」）：序列化可用流程类型名列表与入口流程类型名，静态 `StartProcedure()` 负责反射建流 |
 | `ProcedureLauncherAttribute` | 类标记 Attribute，标记可被流程系统收录的 `ProcedureBase` 子类 |
 | `ProcedureEvents` / `IProcedureEvent` | 流程相关事件标记接口（`public interface IProcedureEvent { }`），供业务扩展流程事件 |
 
-依赖的 FSM 类型（命名空间 `Moirai.Atropos.FSM`）：`FSMState<T>`（状态基类与 `ChangeState` 切换）、`IFSM<T>` / `IFSMService`（状态机与状态机管理器接口，后者经 `GameApp.FSM` 访问）。
+依赖的 FSM 类型（命名空间 `Moirai.Atropos.FSM`）：`FSMState<T>`（状态基类与 `ChangeState` 切换）、`IFSM<T>` / `IFSMService`（状态机与状态机管理器接口，后者经 `GameApp.Services.GetRequiredService<IFSMService>()` 访问）。
 
 ## 快速上手
 
@@ -70,15 +70,15 @@ public class ProcedureLaunch : ProcedurePremainBase
 
 ```csharp
 // 当前流程与停留时间
-ProcedureBase current = GameApp.Procedure.CurrentProcedure;
-float seconds = GameApp.Procedure.CurrentProcedureTime;
+ProcedureBase current = GameApp.Services.GetRequiredService<IProcedureService>().CurrentProcedure;
+float seconds = GameApp.Services.GetRequiredService<IProcedureService>().CurrentProcedureTime;
 
 // 查询/获取流程实例
-bool has = GameApp.Procedure.HasProcedure<ProcedureSplash>();
-ProcedureBase proc = GameApp.Procedure.GetProcedure<ProcedureSplash>();
+bool has = GameApp.Services.GetRequiredService<IProcedureService>().HasProcedure<ProcedureSplash>();
+ProcedureBase proc = GameApp.Services.GetRequiredService<IProcedureService>().GetProcedure<ProcedureSplash>();
 
 // 外部强制切换（例如热更代码中的跳转逻辑）
-GameApp.Procedure.ChangeState<ProcedurePreload>();
+GameApp.Services.GetRequiredService<IProcedureService>().ChangeState<ProcedurePreload>();
 ```
 
 ## 配置与扩展
@@ -111,7 +111,7 @@ ProcedureLaunch -> ProcedureSplash -> ProcedureInitPackage -> ProcedureInitResou
 
 ```csharp
 // 销毁当前状态机，用新流程列表重建，并以列表第一个流程启动（返回是否成功）
-bool ok = GameApp.Procedure.RestartProcedure(
+bool ok = GameApp.Services.GetRequiredService<IProcedureService>().RestartProcedure(
     new ProcedureLaunch(),
     new ProcedureInitPackage(),
     new ProcedurePreload());

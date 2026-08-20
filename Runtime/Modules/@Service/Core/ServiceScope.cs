@@ -4,21 +4,9 @@ using System.Collections.Generic;
 namespace Moirai.Atropos
 {
     /// <summary>
-    /// 服务生命周期作用域种类。
-    /// </summary>
-    public enum EServiceScopeKind : byte
-    {
-        /// <summary>应用级，生命周期最长，适合资源、音频、UI、计时器等全局服务。</summary>
-        App = 0,
-        /// <summary>场景级，主场景切换时会重置，适合当前场景状态。</summary>
-        Scene = 1,
-        /// <summary>玩法级，适合一局战斗或一个玩法实例的服务。</summary>
-        Gameplay = 2,
-    }
-
-    /// <summary>
-    /// 服务作用域容器。每个作用域独立持有自己的服务字典、tick 列表和迭代安全机制。
-    /// <para>Dispose 时逆序关闭全部服务并清理——O(1) 对外、不影响其他作用域。</para>
+    /// 服务作用域容器。管理单个作用域内服务的注册表、轮询列表和迭代安全机制。
+    /// <para>不再负责 OnInit 调用——由 <see cref="ServiceContainer"/> 在 BuildAsync 中按拓扑序统一驱动。</para>
+    /// <para>Dispose 时逆注册序关闭全部服务（逆注册序 = 逆依赖拓扑序：依赖方先关闭，被依赖方后关闭）。</para>
     /// <para><b>线程契约</b>：所有方法仅限 Unity 主线程调用。</para>
     /// </summary>
     internal sealed class ServiceScope : IDisposable
@@ -28,7 +16,8 @@ namespace Moirai.Atropos
         // --- 服务存储 ---
 
         private readonly Dictionary<RuntimeTypeHandle, IService> _servicesByContract = new();
-        private readonly Dictionary<IService, ServiceEntry> _entriesByService = new(ReferenceComparer<IService>.Instance);
+        private readonly Dictionary<IService, ServiceEntry> _entriesByService
+            = new(ReferenceComparer<IService>.Instance);
         private readonly List<IService> _registrationOrder = new();
 
         // --- 轮询列表（按 Priority 降序排列，由 InsertSorted 在注册时维护） ---
@@ -51,8 +40,6 @@ namespace Moirai.Atropos
         internal EServiceScopeKind Kind { get; }
         public string Name { get; }
         internal bool IsDisposed { get; private set; }
-        internal bool IsIterating => _isIterating;
-        internal int PendingChangesCount => _pendingChanges.Count;
         internal int ServiceCount => _registrationOrder.Count;
 
         #endregion
@@ -67,20 +54,57 @@ namespace Moirai.Atropos
 
         #endregion
 
-        #region 异步初始化收集 [ASYNC INIT COLLECTION]
+        #region 注册 [REGISTER]
 
         /// <summary>
-        /// 按注册顺序收集需要异步初始化的服务。
-        /// 注册顺序即依赖拓扑序（依赖验证强制依赖先注册），因此异步初始化按拓扑序执行：
-        /// 被依赖服务的 OnInitAsync 先于依赖方执行。
+        /// 将服务注册到作用域。仅存储引用和更新轮询列表——不调用 OnInit。
+        /// <para>OnInit 由 <see cref="ServiceContainer.BuildAsync"/> 在拓扑序中统一调用。</para>
         /// </summary>
-        internal void CollectAsyncInitServices(List<IAsyncInitService> buffer)
+        internal void Register(Type interfaceType, IService service)
         {
-            for (int i = 0; i < _registrationOrder.Count; i++)
+            var handle = interfaceType.TypeHandle;
+
+            if (_servicesByContract.ContainsKey(handle))
             {
-                if (_registrationOrder[i] is IAsyncInitService asyncInit)
-                    buffer.Add(asyncInit);
+                LogUtility.Warning("{0} has already been registered in {1} scope.",
+                    interfaceType.FullName, Kind);
+                return;
             }
+
+            if (_disposePending)
+            {
+                LogUtility.Warning("Scope {0} is being disposed; registration of {1} is rejected.",
+                    Kind, interfaceType.FullName);
+                return;
+            }
+
+            if (_isIterating)
+            {
+                // 注册仅发生在 BuildAsync（非迭代期），此分支为防御性兜底
+                _pendingChanges.Add(PendingChange.Register(service, interfaceType));
+                return;
+            }
+
+            RegisterInternal(service, interfaceType, handle);
+        }
+
+        private void RegisterInternal(IService service, Type interfaceType, RuntimeTypeHandle handle)
+        {
+            _servicesByContract[handle] = service;
+
+            var entry = new ServiceEntry { InterfaceHandle = handle };
+
+            // _registrationOrder 记录纯插入序（= 依赖拓扑序），用于诊断收集与逆序关闭；
+            // 轮询列表按 Priority 降序插入，顺序在注册时确定——Priority 只读，运行时不变。
+            _registrationOrder.Add(service);
+            if (service is IServiceTickable tickable) InsertSorted(_tickables, tickable);
+            if (service is IServiceFixedTickable fixedTickable) InsertSorted(_fixedTickables, fixedTickable);
+            if (service is IServiceLateTickable lateTickable) InsertSorted(_lateTickables, lateTickable);
+            if (service is IServiceGizmoDrawable gizmo) InsertSorted(_gizmoDrawables, gizmo);
+
+            _entriesByService[service] = entry;
+
+            GameServices.InvokeRegistering(service, interfaceType, Kind);
         }
 
         #endregion
@@ -96,156 +120,6 @@ namespace Moirai.Atropos
             }
             service = null;
             return false;
-        }
-
-        #endregion
-
-        #region 注册与注销 [REGISTER / UNREGISTER]
-
-        internal T Register<T>(IService service) where T : class
-            => (T)Register(service, typeof(T));
-
-        internal IService Register(IService service, Type interfaceType)
-        {
-            var handle = interfaceType.TypeHandle;
-
-            if (_servicesByContract.ContainsKey(handle))
-            {
-                var existing = _servicesByContract[handle];
-                LogUtility.Warning("{0} has already been registered in {1} scope.", interfaceType.FullName, Kind);
-                return existing;
-            }
-
-            if (_disposePending)
-            {
-                LogUtility.Warning("Scope {0} is being disposed; registration of {1} is rejected.", Kind, interfaceType.FullName);
-                return service;
-            }
-
-            if (_isIterating)
-            {
-                _pendingChanges.Add(PendingChange.Register(service, interfaceType));
-                return service;
-            }
-
-            RegisterInternal(service, interfaceType, handle);
-            return service;
-        }
-
-        internal void RegisterInternal(IService service, Type interfaceType, RuntimeTypeHandle handle)
-        {
-            // 依赖验证：确保依赖的服务已注册（适用于 ServiceBase 与 ServiceMonoBase）。
-            // 该约束使注册顺序成为依赖拓扑序——插入序正序即拓扑序，逆序即逆拓扑序。
-            var deps = service.Dependencies;
-            if (deps != null && deps.Length > 0)
-            {
-                for (int i = 0; i < deps.Length; i++)
-                {
-                    if (!GameServices.IsRegistered(deps[i]))
-                        throw new GameException(StringUtility.Format(
-                            "Service '{0}' depends on '{1}' which is not registered.\nDeclared dependencies: {2}\nEnsure dependencies are registered before this service.",
-                            service.GetType().FullName,
-                            deps[i].FullName,
-                            string.Join(", ", System.Linq.Enumerable.Select(deps, d => d.FullName))));
-                }
-            }
-
-            _servicesByContract[handle] = service;
-            GameServices.SetContext(service, this);
-            GameServices.AddToGlobalMap(handle, service, Kind);
-
-            var entry = new ServiceEntry { InterfaceHandle = handle };
-
-            // _registrationOrder 记录纯插入序（= 依赖拓扑序），用于异步初始化收集与逆序关闭；
-            // 轮询列表按 Priority 降序插入，顺序在注册时确定——Priority 只读，运行时不变。
-            _registrationOrder.Add(service);
-            if (service is IServiceTickable tickable) InsertSorted(_tickables, tickable);
-            if (service is IServiceFixedTickable fixedTickable) InsertSorted(_fixedTickables, fixedTickable);
-            if (service is IServiceLateTickable lateTickable) InsertSorted(_lateTickables, lateTickable);
-            if (service is IServiceGizmoDrawable gizmo) InsertSorted(_gizmoDrawables, gizmo);
-
-            _entriesByService[service] = entry;
-
-            GameServices.InvokeRegistering(service, interfaceType, Kind);
-
-            service.OnInit();
-            GameServices.SetState(service, EServiceState.Initialized);
-            GameServices.RaiseServiceRegistered(service, interfaceType, Kind);
-            GameServices.InvokeRegistered(service, interfaceType, Kind);
-        }
-
-        internal bool Unregister(IService service)
-        {
-            if (service == null || !_entriesByService.TryGetValue(service, out var entry)) return false;
-
-            // 作用域已标记销毁：服务将随作用域统一关闭，无需单独注销
-            if (_disposePending) return true;
-
-            if (_isIterating)
-            {
-            if (entry.PendingRemove) return true;
-            entry.PendingRemove = true;
-            _pendingChanges.Add(PendingChange.Unregister(service));
-            return true;
-            }
-
-            ShutdownService(service);
-            return true;
-        }
-
-        #endregion
-
-        #region 关闭与移除 [SHUTDOWN / REMOVE]
-
-        private void ShutdownService(IService service)
-        {
-            if (!_entriesByService.TryGetValue(service, out var entry)) return;
-
-            // 幂等守卫：已处于关闭中或已销毁的服务不再重复关闭
-            var state = GameServices.GetState(service);
-            if (state >= EServiceState.ShuttingDown) return;
-
-            GameServices.SetState(service, EServiceState.ShuttingDown);
-            GameServices.InvokeShutdown(service);
-
-            try { service.Shutdown(); }
-            catch (Exception ex) { LogUtility.Error(ex.ToString()); }
-
-            GameServices.SetState(service, EServiceState.Disposed);
-            entry.PendingRemove = false;
-
-            // 作用域整体销毁时跳过逐项列表移除（由 DisposeInternal 统一 Clear），
-            // 但全局映射和 entries 必须逐项清理——否则 ShutdownScope 后 GetBest 仍返回已关闭的服务
-            if (IsDisposing)
-            {
-                _servicesByContract.Remove(entry.InterfaceHandle);
-                GameServices.RemoveFromGlobalMap(entry.InterfaceHandle, service, Kind);
-                _entriesByService.Remove(service);
-                GameServices.RaiseServiceUnregistered(service);
-                GameServices.InvokeUnregistered(service);
-            }
-            else
-            {
-                RemoveServiceInternal(service, entry);
-            }
-        }
-
-        private bool IsDisposing { get; set; }
-
-        private void RemoveServiceInternal(IService service, ServiceEntry entry)
-        {
-            _servicesByContract.Remove(entry.InterfaceHandle);
-            GameServices.RemoveFromGlobalMap(entry.InterfaceHandle, service, Kind);
-
-            _registrationOrder.Remove(service);
-            if (service is IServiceTickable tickable) _tickables.Remove(tickable);
-            if (service is IServiceFixedTickable fixedTickable) _fixedTickables.Remove(fixedTickable);
-            if (service is IServiceLateTickable lateTickable) _lateTickables.Remove(lateTickable);
-            if (service is IServiceGizmoDrawable gizmo) _gizmoDrawables.Remove(gizmo);
-
-            _entriesByService.Remove(service);
-            GameServices.RaiseServiceUnregistered(service);
-            GameServices.InvokeUnregistered(service);
         }
 
         #endregion
@@ -286,16 +160,11 @@ namespace Moirai.Atropos
                 int count = _fixedTickables.Count;
                 for (int i = 0; i < count; i++)
                 {
-                    var tickable = _fixedTickables[i];
-                    try { tickable.FixedTick(elapseSeconds, realElapseSeconds); }
-                    catch (Exception ex) { LogTickFailure(tickable, nameof(FixedTick), ex); }
+                    try { _fixedTickables[i].FixedTick(elapseSeconds, realElapseSeconds); }
+                    catch (Exception ex) { LogTickFailure(_fixedTickables[i], nameof(FixedTick), ex); }
                 }
             }
-            finally
-            {
-                _isIterating = false;
-                FlushPendingChanges();
-            }
+            finally { _isIterating = false; FlushPendingChanges(); }
         }
 
         internal void LateTick(float elapseSeconds, float realElapseSeconds)
@@ -306,16 +175,11 @@ namespace Moirai.Atropos
                 int count = _lateTickables.Count;
                 for (int i = 0; i < count; i++)
                 {
-                    var tickable = _lateTickables[i];
-                    try { tickable.LateTick(elapseSeconds, realElapseSeconds); }
-                    catch (Exception ex) { LogTickFailure(tickable, nameof(LateTick), ex); }
+                    try { _lateTickables[i].LateTick(elapseSeconds, realElapseSeconds); }
+                    catch (Exception ex) { LogTickFailure(_lateTickables[i], nameof(LateTick), ex); }
                 }
             }
-            finally
-            {
-                _isIterating = false;
-                FlushPendingChanges();
-            }
+            finally { _isIterating = false; FlushPendingChanges(); }
         }
 
         internal void DrawGizmos()
@@ -326,21 +190,17 @@ namespace Moirai.Atropos
                 int count = _gizmoDrawables.Count;
                 for (int i = 0; i < count; i++)
                 {
-                    var drawable = _gizmoDrawables[i];
-                    try { drawable.OnDrawGizmos(); }
-                    catch (Exception ex) { LogTickFailure(drawable, "OnDrawGizmos", ex); }
+                    try { _gizmoDrawables[i].OnDrawGizmos(); }
+                    catch (Exception ex) { LogTickFailure(_gizmoDrawables[i], "OnDrawGizmos", ex); }
                 }
             }
-            finally
-            {
-                _isIterating = false;
-                FlushPendingChanges();
-            }
+            finally { _isIterating = false; FlushPendingChanges(); }
         }
 
         private static void LogTickFailure(object service, string methodName, Exception ex)
         {
-            LogUtility.Error("Service '{0}' threw in {1}:\n{2}", service.GetType().FullName, methodName, ex);
+            LogUtility.Error("Service '{0}' threw in {1}:\n{2}",
+                service.GetType().FullName, methodName, ex);
         }
 
         #endregion
@@ -376,6 +236,56 @@ namespace Moirai.Atropos
 
         #endregion
 
+        #region 关闭 [SHUTDOWN]
+
+        private void ShutdownService(IService service)
+        {
+            if (!_entriesByService.TryGetValue(service, out var entry)) return;
+
+            // 幂等守卫：已处于关闭中或已销毁的服务不再重复关闭
+            var state = GameServices.GetState(service);
+            if (state >= EServiceState.ShuttingDown) return;
+
+            GameServices.SetState(service, EServiceState.ShuttingDown);
+            GameServices.InvokeShutdown(service);
+
+            try { service.Shutdown(); }
+            catch (Exception ex) { LogUtility.Error(ex.ToString()); }
+
+            GameServices.SetState(service, EServiceState.Disposed);
+
+            // 作用域整体销毁时跳过逐项列表移除（由 DisposeInternal 统一 Clear），
+            // 但注册表和 entries 必须逐项清理——否则作用域关闭后 Provider 仍能解析到已关闭的服务
+            if (_isDisposing)
+            {
+                _servicesByContract.Remove(entry.InterfaceHandle);
+                _entriesByService.Remove(service);
+                GameServices.InvokeUnregistered(service);
+            }
+            else
+            {
+                RemoveServiceInternal(service, entry);
+            }
+        }
+
+        private bool _isDisposing;
+
+        private void RemoveServiceInternal(IService service, ServiceEntry entry)
+        {
+            _servicesByContract.Remove(entry.InterfaceHandle);
+
+            _registrationOrder.Remove(service);
+            if (service is IServiceTickable tickable) _tickables.Remove(tickable);
+            if (service is IServiceFixedTickable fixedTickable) _fixedTickables.Remove(fixedTickable);
+            if (service is IServiceLateTickable lateTickable) _lateTickables.Remove(lateTickable);
+            if (service is IServiceGizmoDrawable gizmo) _gizmoDrawables.Remove(gizmo);
+
+            _entriesByService.Remove(service);
+            GameServices.InvokeUnregistered(service);
+        }
+
+        #endregion
+
         #region 销毁 [DISPOSE]
 
         public void Dispose()
@@ -401,10 +311,10 @@ namespace Moirai.Atropos
 
             // 标记正在整体销毁：ShutdownService 跳过逐项列表移除，
             // 由循环结束后统一 Clear() 清空全部列表——避免逆序遍历时 List.Remove 修改被遍历列表
-            IsDisposing = true;
+            _isDisposing = true;
 
             // 逆插入序关闭 = 逆依赖拓扑序：依赖方（后注册）先关闭，被依赖方后关闭。
-            // 循环依赖在注册期即被依赖验证阻止，此处无需再做环检测。
+            // 循环依赖在 BuildAsync 拓扑排序时即被阻止，此处无需再做环检测。
             for (int i = _registrationOrder.Count - 1; i >= 0; i--)
             {
                 var service = _registrationOrder[i];
@@ -412,7 +322,7 @@ namespace Moirai.Atropos
                     ShutdownService(service);
             }
 
-            IsDisposing = false;
+            _isDisposing = false;
 
             _registrationOrder.Clear();
             _tickables.Clear();
@@ -422,6 +332,35 @@ namespace Moirai.Atropos
             _entriesByService.Clear();
             _servicesByContract.Clear();
             IsDisposed = true;
+        }
+
+        #endregion
+
+        #region 诊断 [DIAGNOSTICS]
+
+        /// <summary>按注册顺序收集此作用域内已注册服务的诊断信息。</summary>
+        internal void CollectDiagnosticInfo(List<GameServices.DiagnosticInfo> buffer)
+        {
+            if (IsDisposed) return;
+
+            for (int i = 0; i < _registrationOrder.Count; i++)
+            {
+                var service = _registrationOrder[i];
+                if (service == null || !_entriesByService.TryGetValue(service, out var entry)) continue;
+
+                var type = Type.GetTypeFromHandle(entry.InterfaceHandle);
+                buffer.Add(new GameServices.DiagnosticInfo
+                {
+                    InterfaceType = type != null ? type.FullName : "<unknown>",
+                    ImplementationType = service.GetType().FullName,
+                    Scope = Kind,
+                    Priority = service.Priority,
+                    HasUpdate = service is IServiceTickable,
+                    HasFixedUpdate = service is IServiceFixedTickable,
+                    HasLateUpdate = service is IServiceLateTickable,
+                    HasGizmo = service is IServiceGizmoDrawable,
+                });
+            }
         }
 
         #endregion
@@ -453,7 +392,6 @@ namespace Moirai.Atropos
         internal class ServiceEntry
         {
             public RuntimeTypeHandle InterfaceHandle;
-            public bool PendingRemove;
         }
 
         /// <summary>
@@ -473,10 +411,10 @@ namespace Moirai.Atropos
             }
 
             public static PendingChange Register(IService service, Type interfaceType)
-                => new PendingChange(true, service, interfaceType);
+                => new(true, service, interfaceType);
 
             public static PendingChange Unregister(IService service)
-                => new PendingChange(false, service, null);
+                => new(false, service, null);
         }
 
         #endregion

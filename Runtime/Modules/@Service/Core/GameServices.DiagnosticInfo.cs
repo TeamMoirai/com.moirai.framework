@@ -22,33 +22,16 @@ namespace Moirai.Atropos
 
         #region 诊断信息收集 [DIAGNOSTIC COLLECTION]
 
+        /// <summary>
+        /// 收集全部活跃容器（App → Scene → Gameplay）内已注册服务的诊断信息。
+        /// </summary>
         internal static List<DiagnosticInfo> GetDiagnosticInfo()
         {
             var result = new List<DiagnosticInfo>();
-            foreach (var kvp in s_ServiceMaps)
-            {
-                var bindings = kvp.Value;
-                if (bindings.App != null) result.Add(BuildDiagInfo(kvp.Key, bindings.App, EServiceScopeKind.App));
-                if (bindings.Scene != null) result.Add(BuildDiagInfo(kvp.Key, bindings.Scene, EServiceScopeKind.Scene));
-                if (bindings.Gameplay != null) result.Add(BuildDiagInfo(kvp.Key, bindings.Gameplay, EServiceScopeKind.Gameplay));
-            }
+            AppContainer?.CollectDiagnosticInfo(result);
+            SceneContainer?.CollectDiagnosticInfo(result);
+            GameplayContainer?.CollectDiagnosticInfo(result);
             return result;
-        }
-
-        private static DiagnosticInfo BuildDiagInfo(RuntimeTypeHandle handle, IService service, EServiceScopeKind scope)
-        {
-            var type = Type.GetTypeFromHandle(handle);
-            return new DiagnosticInfo
-            {
-                InterfaceType = type != null ? type.FullName : "<unknown>",
-                ImplementationType = service.GetType().FullName,
-                Scope = scope,
-                Priority = service.Priority,
-                HasUpdate = service is IServiceTickable,
-                HasFixedUpdate = service is IServiceFixedTickable,
-                HasLateUpdate = service is IServiceLateTickable,
-                HasGizmo = service is IServiceGizmoDrawable,
-            };
         }
 
         #endregion

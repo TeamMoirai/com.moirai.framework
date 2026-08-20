@@ -2,7 +2,7 @@
 
 > 基于四级时间轮的高性能计时器服务，无全量扫描，适合技能 CD、心跳包、延时任务等大规模定时场景。
 
-`Timer` 服务提供添加、暂停、恢复、重启、移除计时器的能力。实现类 `TimerService` 采用四级时间轮算法（每级 256 槽、1 毫秒精度、每帧最多推进 64 个 tick），配合分页槽位复用与版本化句柄，在十万级计时器规模下仍保持零 GC、O(1) 级操作成本。服务同时维护缩放（受 `Time.timeScale` 影响）与非缩放两条独立时间轮。通过 `GameApp.Timer` 访问。
+`Timer` 服务提供添加、暂停、恢复、重启、移除计时器的能力。实现类 `TimerService` 采用四级时间轮算法（每级 256 槽、1 毫秒精度、每帧最多推进 64 个 tick），配合分页槽位复用与版本化句柄，在十万级计时器规模下仍保持零 GC、O(1) 级操作成本。服务同时维护缩放（受 `Time.timeScale` 影响）与非缩放两条独立时间轮。通过 `GameApp.Services.GetRequiredService<ITimerService>()` 访问。
 
 注意：本服务与 `Runtime/Core/Schedulers` 下的 Scheduler 调度器（`Scheduler.Delay`、`Scheduler.WaitFrame` 等）是两套独立设施——Scheduler 是零分配的通用调度器，Timer 服务是面向海量定时任务的时间轮实现，按需选用。
 
@@ -32,7 +32,7 @@
 
 ```csharp
 // 访问服务
-ITimerService timer = GameApp.Timer;
+ITimerService timer = GameApp.Services.GetRequiredService<ITimerService>();
 
 // 1. 延时执行（无参 Action）
 ulong id1 = timer.AddTimer(() => Debug.Log("3 秒后执行"), 3f);

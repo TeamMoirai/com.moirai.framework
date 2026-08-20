@@ -50,19 +50,20 @@ namespace Moirai.Atropos.Localization
 			{
 				return false;
 				// todo 编辑器预览
-				// GameApp.Localization.LoadInEditor();
+				// GameApp.Services.GetRequiredService<ILocalizationService>().LoadInEditor();
 				// Prepare();
 			}
 #endif
 
-			if (!GameApp.Localization.Has(textId))
+			var svc = GameApp.Services.GetRequiredService<ILocalizationService>();
+			if (!svc.Has(textId))
 			{
 				if (Application.isPlaying) LogUtility.Error($"Text ID: {textId} 不可用。");
 				return false;
 			}
 
 			m_TextId = textId;
-			var text = GameApp.Localization.GetTextFromId(textId);
+			var text = svc.GetTextFromId(textId);
 			_injector.Inject(text, this);
 			return true;
 		}

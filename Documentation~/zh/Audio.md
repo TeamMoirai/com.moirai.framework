@@ -2,7 +2,7 @@
 
 > 基于 AudioMixer 音轨分组与音频代理池的音频系统，支持句柄控制、淡入淡出、独奏与事件驱动播放。
 
-`Audio` 服务将音频按用途划分为多条音轨（`EAudioTrack`），每条音轨对应一个 `AudioCategory`，内部维护一组 `AudioAgent`（封装 `AudioSource`）负责实际播放。服务通过 `GameApp.Audio`（`IAudioService`）访问，播放后返回 `ulong` 句柄用于暂停、恢复、停止等后续控制，同时也支持通过 `AudioPlayEvent` 等事件间接驱动，避免服务未初始化时的空引用。音轨与主音量的设置会通过 `SettingUtility` 持久化，并在服务初始化后自动加载。
+`Audio` 服务将音频按用途划分为多条音轨（`EAudioTrack`），每条音轨对应一个 `AudioCategory`，内部维护一组 `AudioAgent`（封装 `AudioSource`）负责实际播放。服务通过 `GameApp.Services.GetRequiredService<IAudioService>()`（`IAudioService`）访问，播放后返回 `ulong` 句柄用于暂停、恢复、停止等后续控制，同时也支持通过 `AudioPlayEvent` 等事件间接驱动，避免服务未初始化时的空引用。音轨与主音量的设置会通过 `SettingUtility` 持久化，并在服务初始化后自动加载。
 
 ## 核心特性
 
@@ -21,7 +21,7 @@
 
 | 类/接口 | 说明 |
 |---------|------|
-| `IAudioService` | 服务公开接口，`GameApp.Audio` 返回类型 |
+| `IAudioService` | 服务公开接口，`GameApp.Services.GetRequiredService<IAudioService>()` 返回类型 |
 | `AudioService` | `sealed` 实现类，继承 `Service` 并实现 `IUpdateService`，注册并响应全部音频事件 |
 | `EAudioTrack` | 音轨枚举：`Sfx`、`UI`、`Music`、`Voice`、`Ambience` |
 | `AudioCategory` | 音轨类别，持有 `AudioAgent` 列表，提供 `GetAvailableAgent`、`PauseAll`、`StopAll` 等 |
@@ -46,7 +46,7 @@
 
 ```csharp
 // 访问服务
-IAudioService audio = GameApp.Audio;
+IAudioService audio = GameApp.Services.GetRequiredService<IAudioService>();
 
 // 1. 使用 AudioClip 播放（Create 工厂预设了常用默认值）
 AudioPlayOptions options = AudioPlayOptions.Create(EAudioTrack.Sfx);
@@ -87,7 +87,7 @@ audio.FadeMasterTrack(1.5f, 1f, 0.8f);                  // 主音轨
 ulong voice = AudioPlayEvent.Trigger(clip, AudioPlayOptions.CreateLooping(EAudioTrack.Voice));
 
 // 指定用户 ID 需使用长参数重载（AudioPlayOptions.ID 的 setter 为 internal）
-GameApp.Audio.Play(clip, EAudioTrack.Voice, Vector3.zero, loop: true, id: 33);
+GameApp.Services.GetRequiredService<IAudioService>().Play(clip, EAudioTrack.Voice, Vector3.zero, loop: true, id: 33);
 
 AudioControlEvent.Pause(33);                    // 暂停所有 ID 为 33 的音频
 AudioControlEvent.Stop(33);                     // 停止
@@ -113,13 +113,13 @@ AudioServiceEvent.ResetSettings();
 `Play` 提供展开全部参数的长重载（clip 与 path 两个版本），便于一次性配置 3D 音频：
 
 ```csharp
-ulong h = GameApp.Audio.Play(clip, EAudioTrack.Sfx, position,
+ulong h = GameApp.Services.GetRequiredService<IAudioService>().Play(clip, EAudioTrack.Sfx, position,
     volume: 0.9f, spatialBlend: 1f, rolloffMode: AudioRolloffMode.Linear,
     minDistance: 2f, maxDistance: 60f, attachToTransform: enemy.transform);
 
 // 查询
-IReadOnlyList<AudioAgent> agents = GameApp.Audio.FindAgentsByID(33); // 共享缓冲区，尽快消费
-int count = GameApp.Audio.CurrentlyPlayingCount(clip);
+IReadOnlyList<AudioAgent> agents = GameApp.Services.GetRequiredService<IAudioService>().FindAgentsByID(33); // 共享缓冲区，尽快消费
+int count = GameApp.Services.GetRequiredService<IAudioService>().CurrentlyPlayingCount(clip);
 ```
 
 ### 播放选项资产
@@ -136,9 +136,9 @@ void OnShoot() => shootSfx.Play(muzzle.position);
 频繁加载的 clip 可预载到句柄池，播放时配合 `bInPool: true` 复用：
 
 ```csharp
-GameApp.Audio.PutInAudioPool(new List<string> { "Assets/.../hit.mp3" });
-GameApp.Audio.RemoveClipFromPool(new List<string> { "Assets/.../hit.mp3" });
-GameApp.Audio.CleanAudioPool();
+GameApp.Services.GetRequiredService<IAudioService>().PutInAudioPool(new List<string> { "Assets/.../hit.mp3" });
+GameApp.Services.GetRequiredService<IAudioService>().RemoveClipFromPool(new List<string> { "Assets/.../hit.mp3" });
+GameApp.Services.GetRequiredService<IAudioService>().CleanAudioPool();
 ```
 
 ## 配置说明

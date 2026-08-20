@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Cysharp.Threading.Tasks;
 using Moirai.Atropos.Debugger;
+using Moirai.Atropos.Timer;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -13,6 +14,16 @@ namespace Moirai.Atropos.UI
     /// </summary>
     public sealed partial class UIService : ServiceBase, IUIService, IServiceTickable
     {
+        private readonly ITimerService _timerService;
+
+        /// <summary>
+        /// 容器构造注入——依赖在编译期显式声明，由容器拓扑排序保证先于本服务初始化。
+        /// </summary>
+        public UIService(ITimerService timerService)
+        {
+            _timerService = timerService ?? throw new GameException("Timer service is invalid.");
+        }
+
         // 核心字段
         private static Transform s_InstanceRoot = null; // UI根节点变换组件
         private bool _enableErrorLog = true; // 是否启用错误日志
@@ -509,7 +520,7 @@ namespace Moirai.Atropos.UI
             window.CancelHideToCloseTimer();
             window.Visible = false;
             window.IsHide = true;
-            window.HideTimerId = GameApp.Timer.AddTimer(() =>
+            window.HideTimerId = _timerService.AddTimer(() =>
             {
                 CloseUI(type);
             } ,window.HideTimeToClose);

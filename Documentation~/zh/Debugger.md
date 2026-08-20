@@ -2,7 +2,7 @@
 
 > 运行时调试器：基于 IMGUI 的游戏内调试面板，提供控制台、运行环境信息、内存与对象池剖析等窗口。
 
-Debugger 服务由纯 C# 的 `DebuggerService`（经 `GameApp.Debugger` 访问）负责窗口树的注册与轮询，由场景组件 `DebuggerComp` 负责绘制。运行时以左上角漂浮框形式出现，点按后展开完整窗口；窗口布局（位置、大小、缩放）通过 `SettingUtility` 持久化。全部窗口基于 `IDebuggerWindow` 接口实现，业务可注册自己的调试窗口。本服务为纯运行时 IMGUI 实现，无编辑器专属代码（Editor 目录下的 Events / Scheduler 调试窗口属于其他服务）。
+Debugger 服务由纯 C# 的 `DebuggerService`（经 `GameApp.Services.GetRequiredService<IDebuggerService>()` 访问）负责窗口树的注册与轮询，由场景组件 `DebuggerComp` 负责绘制。运行时以左上角漂浮框形式出现，点按后展开完整窗口；窗口布局（位置、大小、缩放）通过 `SettingUtility` 持久化。全部窗口基于 `IDebuggerWindow` 接口实现，业务可注册自己的调试窗口。本服务为纯运行时 IMGUI 实现，无编辑器专属代码（Editor 目录下的 Events / Scheduler 调试窗口属于其他服务）。
 
 ## 核心特性
 
@@ -40,8 +40,8 @@ Debugger 服务由纯 C# 的 `DebuggerService`（经 `GameApp.Debugger` 访问�
 ```csharp
 using Moirai.Atropos;
 
-GameApp.Debugger.ActiveWindow = true;        // 打开/关闭调试器窗口
-bool active = GameApp.Debugger.ActiveWindow;
+GameApp.Services.GetRequiredService<IDebuggerService>().ActiveWindow = true;        // 打开/关闭调试器窗口
+bool active = GameApp.Services.GetRequiredService<IDebuggerService>().ActiveWindow;
 
 // DebuggerComp 上的等价与扩展控制
 DebuggerComp.Instance.ActiveWindow = true;      // 同时启停组件
@@ -49,8 +49,8 @@ DebuggerComp.Instance.ShowFullWindow = true;    // 完整窗口 <-> 漂浮框
 DebuggerComp.Instance.ResetLayout();            // 还原默认布局（位置/大小/缩放）
 
 // 选中某个窗口（路径来自注册时的字符串）
-GameApp.Debugger.SelectDebuggerWindow("Profiler/Memory/Texture");
-IDebuggerWindow window = GameApp.Debugger.GetDebuggerWindow("Console");
+GameApp.Services.GetRequiredService<IDebuggerService>().SelectDebuggerWindow("Profiler/Memory/Texture");
+IDebuggerWindow window = GameApp.Services.GetRequiredService<IDebuggerService>().GetDebuggerWindow("Console");
 ```
 
 注册自定义调试窗口：
@@ -75,7 +75,7 @@ public class MyWindow : IDebuggerWindow
 
 // 经 DebuggerComp 或服务接口注册，路径以 "/" 分层，自动归入窗口组
 DebuggerComp.Instance.RegisterDebuggerWindow("Other/My", new MyWindow());
-// 也可以直接使用服务接口：GameApp.Debugger.RegisterDebuggerWindow("Other/My", new MyWindow());
+// 也可以直接使用服务接口：GameApp.Services.GetRequiredService<IDebuggerService>().RegisterDebuggerWindow("Other/My", new MyWindow());
 ```
 
 获取运行期间记录的日志：

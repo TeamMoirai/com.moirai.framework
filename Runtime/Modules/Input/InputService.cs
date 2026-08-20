@@ -17,9 +17,19 @@ namespace Moirai.Atropos.Input
             LockPlayerController = 1, // 禁止角色控制器移动
             PreventInteractionUI = 2, // 禁止交互UI
         }
-        
+
+        private readonly IUIService _uiService;
+
+        /// <summary>
+        /// 容器构造注入——依赖在编译期显式声明，由容器拓扑排序保证先于本服务初始化。
+        /// </summary>
+        public InputService(IUIService uiService)
+        {
+            _uiService = uiService ?? throw new GameException("UI service is invalid.");
+        }
+
         private InputStateFlags _inputStateFlags;
-        
+
         private InputHandler _inputHandler;
 
         private bool _hasUIModal;
@@ -127,7 +137,7 @@ namespace Moirai.Atropos.Input
         private void RefreshUIModal(UIServiceEvent evt)
         {
             if (evt.Mode == UIServiceEvent.EMode.Shown || evt.Mode == UIServiceEvent.EMode.Closed)
-                _hasUIModal = GameApp.UI.CurrentModal != null;
+                _hasUIModal = _uiService.CurrentModal != null;
         }
 
         #endregion 事件 [EVENT]

@@ -278,11 +278,13 @@ namespace Moirai.Atropos.Audio
 		{
 			if (!Application.isPlaying) return;
 
+			var audioService = GameApp.Services?.GetService<IAudioService>();
+
 			if (_sfx != null)
 			{
 				if (m_DoNotPlayIfClipAlreadyPlaying)
 				{
-					if (_lastPlayHandle != 0 && GameApp.Audio != null && GameApp.Audio.IsPlaying(_lastPlayHandle))
+					if (_lastPlayHandle != 0 && audioService != null && audioService.IsPlaying(_lastPlayHandle))
 					{
 						return;
 					}
@@ -290,7 +292,7 @@ namespace Moirai.Atropos.Audio
 
 				if (m_MaximumConcurrentInstances >= 0)
 				{
-					if (GameApp.Audio != null && GameApp.Audio.CurrentlyPlayingCount(_sfx) >= m_MaximumConcurrentInstances)
+					if (audioService != null && audioService.CurrentlyPlayingCount(_sfx) >= m_MaximumConcurrentInstances)
 					{
 						return;
 					}

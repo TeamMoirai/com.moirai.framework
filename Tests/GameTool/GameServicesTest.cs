@@ -4,18 +4,23 @@ using Cysharp.Threading.Tasks;
 using Moirai.Atropos;
 using NUnit.Framework;
 using UnityEngine;
-using UnityEngine.TestTools;
+using IServiceProvider = Moirai.Atropos.IServiceProvider;
 
 namespace GameTool
 {
     [TestFixture]
     public class GameServicesTest
     {
-        // --- 测试用接口 ---
+        // --- 测试用契约（必须继承 IService 以满足注册约束） ---
 
-        private interface IAlphaService { }
-        private interface IBetaService { }
-        private interface IGammaService { }
+        private interface IAlphaService : IService { }
+        private interface IBetaService : IService { }
+        private interface IDepTargetService : IService { }
+        private interface IMonoContractService : IService { }
+
+        // --- 顺序记录（静态，SetUp 清空） ---
+
+        private static readonly List<string> s_OrderLog = new List<string>();
 
         // --- 测试用服务基类 ---
 
@@ -30,28 +35,114 @@ namespace GameTool
             public virtual void Tick(float elapseSeconds, float realElapseSeconds) => TickCount++;
         }
 
-        private sealed class AppService : TestServiceBase, IAlphaService { }
+        // --- 简单实现 ---
 
-        private sealed class SceneService : TestServiceBase, IAlphaService
-        {
-            public override EServiceScopeKind Scope => EServiceScopeKind.Scene;
-        }
-
-        private sealed class GameplayService : TestServiceBase, IAlphaService
-        {
-            public override EServiceScopeKind Scope => EServiceScopeKind.Gameplay;
-        }
-
+        private sealed class AlphaService : TestServiceBase, IAlphaService { }
         private sealed class BetaService : TestServiceBase, IBetaService { }
+        private sealed class DependeeService : TestServiceBase, IDepTargetService { }
 
-        private sealed class SceneBetaService : TestServiceBase, IBetaService
+        // --- 构造注入实现 ---
+
+        private sealed class DependentService : TestServiceBase, IAlphaService
         {
-            public override EServiceScopeKind Scope => EServiceScopeKind.Scene;
+            public IDepTargetService Dependency { get; }
+
+            public DependentService(IDepTargetService dependency)
+            {
+                Dependency = dependency;
+                s_OrderLog.Add("Dependent:ctor");
+            }
         }
+
+        private sealed class ProviderConsumerService : TestServiceBase, IAlphaService
+        {
+            public IServiceProvider Provider { get; }
+
+            public ProviderConsumerService(IServiceProvider provider)
+            {
+                Provider = provider;
+            }
+        }
+
+        // --- 循环依赖实现 ---
+
+        private sealed class CycleServiceA : TestServiceBase, IAlphaService
+        {
+            public CycleServiceA(IBetaService beta) { }
+        }
+
+        private sealed class CycleServiceB : TestServiceBase, IBetaService
+        {
+            public CycleServiceB(IAlphaService alpha) { }
+        }
+
+        // --- 优先级实现 ---
+
+        private sealed class HighPriorityService : TestServiceBase, IAlphaService
+        {
+            public override int Priority => 10;
+            public override void Tick(float elapseSeconds, float realElapseSeconds) => s_OrderLog.Add("high");
+        }
+
+        private sealed class LowPriorityService : TestServiceBase, IBetaService
+        {
+            public override int Priority => -10;
+            public override void Tick(float elapseSeconds, float realElapseSeconds) => s_OrderLog.Add("low");
+        }
+
+        // --- 异步初始化实现 ---
+
+        private sealed class DependeeAsyncService : TestServiceBase, IDepTargetService, IAsyncInitService
+        {
+            public UniTask OnInitAsync()
+            {
+                s_OrderLog.Add("Dependee:async");
+                return UniTask.CompletedTask;
+            }
+        }
+
+        private sealed class DependentAsyncService : TestServiceBase, IAlphaService, IAsyncInitService
+        {
+            private readonly IDepTargetService _dependency;
+
+            public DependentAsyncService(IDepTargetService dependency)
+            {
+                _dependency = dependency;
+                Assert.IsNotNull(dependency, "构造注入的依赖在容器构建期必须已就位");
+            }
+
+            public UniTask OnInitAsync()
+            {
+                s_OrderLog.Add("Dependent:async");
+                return UniTask.CompletedTask;
+            }
+        }
+
+        // --- MonoBehaviour 服务实现 ---
+
+        private sealed class TestMonoService : ServiceMono<SceneScope>, IMonoContractService
+        {
+            public int InitCount;
+            public int ShutdownCount;
+            public bool InjectCalled;
+            public IServiceProvider InjectedProvider;
+
+            protected internal override void Inject(IServiceProvider provider)
+            {
+                InjectCalled = true;
+                InjectedProvider = provider;
+            }
+
+            public override void OnInit() => InitCount++;
+            public override void Shutdown() => ShutdownCount++;
+        }
+
+        // --- 生命周期 ---
 
         [SetUp]
         public void SetUp()
         {
+            s_OrderLog.Clear();
             GameServices.Shutdown();
         }
 
@@ -61,803 +152,403 @@ namespace GameTool
             GameServices.Shutdown();
         }
 
-        // --- 注册与获取 ---
+        // --- 辅助 ---
+
+        private static ServiceContainer BuildApp(Action<ServiceCollection> configure)
+        {
+            var collection = new ServiceCollection();
+            configure?.Invoke(collection);
+            var container = GameServices.BuildContainer(EServiceScopeKind.App, collection);
+            container.BuildAsync().GetAwaiter().GetResult();
+            return container;
+        }
+
+        private static ServiceContainer BuildScene(
+            ServiceContainer parent, Action<ServiceCollection> configure)
+        {
+            var collection = new ServiceCollection();
+            configure?.Invoke(collection);
+            var container = GameServices.BuildContainer(EServiceScopeKind.Scene, collection, parent);
+            container.BuildAsync().GetAwaiter().GetResult();
+            return container;
+        }
+
+        // --- 构建与解析 ---
 
         [Test]
-        public void RegisterService_ThenGetService_ReturnsSameInstance()
+        public void BuildAsync_CreatesInitializesAndResolves()
         {
-            var service = new AppService();
-            var registered = GameServices.RegisterService<IAlphaService>(service);
-            var fetched = GameServices.GetService<IAlphaService>();
+            BuildApp(c => c.Register<IAlphaService, AlphaService>(EServiceScopeKind.App));
 
-            Assert.AreSame(service, registered);
-            Assert.AreSame(service, fetched);
-            Assert.AreEqual(1, service.InitCount, "OnInit 应在注册时调用一次");
+            var resolved = GameServices.Provider.GetRequiredService<IAlphaService>();
+
+            Assert.IsInstanceOf<AlphaService>(resolved);
+            var alpha = (AlphaService)resolved;
+            Assert.AreEqual(1, alpha.InitCount, "OnInit 应在构建时调用一次");
+            Assert.AreEqual(EServiceState.Initialized, alpha.State);
+            Assert.AreEqual(0, alpha.ShutdownCount);
+            Assert.AreSame(resolved, GameServices.Provider.GetService<IAlphaService>(), "重复解析应返回同一单例");
         }
 
         [Test]
-        public void RegisterService_DuplicateSameScope_ReturnsExistingInstance()
+        public void GetRequiredService_Unregistered_Throws()
         {
-            var first = new AppService();
-            var second = new AppService();
+            BuildApp(c => c.Register<IAlphaService, AlphaService>(EServiceScopeKind.App));
 
-            var result = GameServices.RegisterService<IAlphaService>(first);
-            var duplicate = GameServices.RegisterService<IAlphaService>(second);
-
-            Assert.AreSame(first, result);
-            Assert.AreSame(first, duplicate, "同作用域重复注册应返回已有实例");
-            Assert.AreEqual(0, second.InitCount, "被拒绝的实例不应被初始化");
-        }
-
-        // --- 跨作用域遮蔽 ---
-
-        [Test]
-        public void GetService_CrossScopeShadowing_GameplayBeatsSceneBeatsApp()
-        {
-            var app = new AppService();
-            var scene = new SceneService();
-            var gameplay = new GameplayService();
-            GameServices.RegisterService<IAlphaService>(app);
-            GameServices.RegisterService<IAlphaService>(scene);
-            GameServices.RegisterService<IAlphaService>(gameplay);
-
-            Assert.AreSame(gameplay, GameServices.GetService<IAlphaService>());
-
-            GameServices.ShutdownScope(EServiceScopeKind.Gameplay);
-            Assert.AreSame(scene, GameServices.GetService<IAlphaService>(), "Gameplay 注销后应回退到 Scene");
-
-            GameServices.ShutdownScope(EServiceScopeKind.Scene);
-            Assert.AreSame(app, GameServices.GetService<IAlphaService>(), "Scene 注销后应回退到 App");
+            Assert.Throws<GameException>(
+                () => GameServices.Provider.GetRequiredService<IBetaService>());
         }
 
         [Test]
-        public void RegisterService_SameInterfaceDifferentScopes_Allowed()
+        public void GetService_Unregistered_ReturnsNull_TryGetReturnsFalse()
         {
-            var app = new AppService();
-            var scene = new SceneService();
-            var gameplay = new GameplayService();
+            BuildApp(null);
 
-            GameServices.RegisterService<IAlphaService>(app);
-            GameServices.RegisterService<IAlphaService>(scene);
-            GameServices.RegisterService<IAlphaService>(gameplay);
-
-            Assert.AreEqual(1, app.InitCount);
-            Assert.AreEqual(1, scene.InitCount);
-            Assert.AreEqual(1, gameplay.InitCount, "不同作用域注册同一接口不应被拒绝");
-        }
-
-        // --- ShutdownScope 正确性（P0 回归：脏索引会错删其他服务的 tick 槽位） ---
-
-        [Test]
-        public void ShutdownScope_MixedRegistrations_RemainingServicesStillTick()
-        {
-            // 多个优先级交错的 App/Scene 服务，最大化触发 InsertSorted 移动已有元素
-            var appA = new AppService();
-            var betaApp = new BetaService();
-            var sceneA = new SceneService();
-            var betaScene = new SceneBetaService();
-
-            GameServices.RegisterService<IAlphaService>(appA);
-            GameServices.RegisterService<IBetaService>(betaApp);
-            GameServices.RegisterService<IAlphaService>(sceneA);
-            GameServices.RegisterService<IBetaService>(betaScene);
-
-            GameServices.ShutdownScope(EServiceScopeKind.Scene);
-
-            Assert.AreEqual(1, sceneA.ShutdownCount, "Scene 服务应被关闭");
-            Assert.AreEqual(1, betaScene.ShutdownCount, "Scene 服务应被关闭");
-            Assert.AreEqual(0, appA.ShutdownCount, "App 服务不应被关闭");
-            Assert.AreEqual(0, betaApp.ShutdownCount, "App 服务不应被关闭");
-
-            GameServices.Tick(0f, 0f);
-            Assert.AreEqual(1, appA.TickCount, "App 服务关闭后仍应正常轮询");
-            Assert.AreEqual(1, betaApp.TickCount, "App 服务关闭后仍应正常轮询");
-            Assert.AreEqual(0, sceneA.TickCount, "已注销的 Scene 服务不应被轮询");
+            Assert.IsNull(GameServices.Provider.GetService<IBetaService>());
+            Assert.IsFalse(GameServices.Provider.TryGetService<IBetaService>(out var service));
+            Assert.IsNull(service);
         }
 
         [Test]
-        public void ShutdownScope_RemovedService_NoLongerTicks()
+        public void FactoryRegistration_ReturnsFactoryInstance()
         {
-            var scene = new SceneService();
-            GameServices.RegisterService<IAlphaService>(scene);
+            var instance = new AlphaService();
+            BuildApp(c => c.Register<IAlphaService>(EServiceScopeKind.App, _ => instance));
 
-            GameServices.Tick(0f, 0f);
-            Assert.AreEqual(1, scene.TickCount);
-
-            GameServices.ShutdownScope(EServiceScopeKind.Scene);
-            GameServices.Tick(0f, 0f);
-
-            Assert.AreEqual(1, scene.TickCount, "注销后的服务不应再被轮询");
+            Assert.AreSame(instance, GameServices.Provider.GetRequiredService<IAlphaService>());
+            Assert.AreEqual(1, instance.InitCount, "工厂实例同样由容器驱动 OnInit");
         }
-
-        // --- 迭代安全：注册 ---
 
         [Test]
-        public void Update_RegisterDuringIteration_AppliedAfterFlush()
+        public void BuildAsync_Twice_Throws()
         {
-            var registrar = new DeferredRegistrar();
-            GameServices.RegisterService<IBetaService>(registrar);
+            var container = BuildApp(c => c.Register<IAlphaService, AlphaService>(EServiceScopeKind.App));
 
-            GameServices.Tick(0f, 0f);
-
-            Assert.AreEqual(1, registrar.TickCount);
-            Assert.IsNotNull(GameServices.GetService<IAlphaService>(), "迭代中注册的服务应在迭代结束后生效");
-            Assert.AreEqual(1, registrar.Spawned.InitCount, "延迟注册生效时应调用 OnInit");
-            // 迭代内 count 已捕获，新服务本轮不 tick；下一轮开始 tick
-            Assert.AreEqual(0, registrar.Spawned.TickCount);
-
-            GameServices.Tick(0f, 0f);
-            Assert.AreEqual(1, registrar.Spawned.TickCount, "下一轮应开始轮询新服务");
+            Assert.Throws<GameException>(
+                () => container.BuildAsync().GetAwaiter().GetResult());
         }
 
-        private sealed class DeferredRegistrar : TestServiceBase, IBetaService
-        {
-            public AppService Spawned;
-            private bool _spawned;
+        // --- 构造注入与拓扑排序 ---
 
-            public override void OnInit()
+        [Test]
+        public void ConstructorInjection_DependencyInjected()
+        {
+            BuildApp(c =>
             {
-                Spawned = new AppService();
-            }
+                c.Register<IDepTargetService, DependeeService>(EServiceScopeKind.App);
+                c.Register<IAlphaService, DependentService>(EServiceScopeKind.App);
+            });
 
-            public override void Tick(float elapseSeconds, float realElapseSeconds)
+            var dependent = (DependentService)GameServices.Provider.GetRequiredService<IAlphaService>();
+            var dependee = GameServices.Provider.GetRequiredService<IDepTargetService>();
+
+            Assert.AreSame(dependee, dependent.Dependency, "构造函数依赖应注入容器内已注册实例");
+        }
+
+        [Test]
+        public void Topology_DependeeCreatedAndInitializedFirst()
+        {
+            // 注册顺序故意颠倒：依赖方先注册，拓扑排序应保证被依赖方先创建、先初始化
+            BuildApp(c =>
             {
-                base.Tick(elapseSeconds, realElapseSeconds);
-                // 首次 tick 时在迭代内注册新服务（未注册的 GetService 会抛 GameException，不能在此探测）
-                if (!_spawned)
-                {
-                    _spawned = true;
-                    GameServices.RegisterService<IAlphaService>(Spawned);
-                }
-            }
-        }
+                c.Register<IAlphaService, DependentAsyncService>(EServiceScopeKind.App);
+                c.Register<IDepTargetService, DependeeAsyncService>(EServiceScopeKind.App);
+            });
 
-        // --- 迭代安全：注销 ---
+            Assert.AreEqual(
+                new[] { "Dependee:async", "Dependent:async" },
+                s_OrderLog.ToArray(),
+                "异步初始化按拓扑序执行：被依赖方（Dependee）先于依赖方（Dependent）");
+        }
 
         [Test]
-        public void Update_UnregisterDuringIteration_AppliedAfterFlush()
+        public void CircularDependency_Throws()
         {
-            var victim = new AppService();
-            var killer = new UnregisterOnTick(victim);
-            GameServices.RegisterService<IAlphaService>(victim);
-            GameServices.RegisterService<IBetaService>(killer);
-
-            GameServices.Tick(0f, 0f);
-
-            Assert.AreEqual(1, victim.ShutdownCount, "迭代中注销的服务应在迭代结束后关闭");
-
-            GameServices.Tick(0f, 0f);
-            Assert.AreEqual(1, victim.TickCount, "被注销的服务不应再被轮询");
-            Assert.AreEqual(2, killer.TickCount, "其余服务应继续正常轮询");
-        }
-
-        private sealed class UnregisterOnTick : TestServiceBase, IBetaService
-        {
-            private readonly ServiceBase _victim;
-
-            public UnregisterOnTick(ServiceBase victim) => _victim = victim;
-
-            public override void Tick(float elapseSeconds, float realElapseSeconds)
+            Assert.Throws<GameException>(() => BuildApp(c =>
             {
-                base.Tick(elapseSeconds, realElapseSeconds);
-                GameServices.UnregisterService(_victim);
-            }
+                c.Register<IAlphaService, CycleServiceA>(EServiceScopeKind.App);
+                c.Register<IBetaService, CycleServiceB>(EServiceScopeKind.App);
+            }));
         }
-
-        // --- 迭代安全：跨作用域 ShutdownScope ---
 
         [Test]
-        public void ShutdownScope_DuringIteration_CrossScopeImmediateShutdown()
+        public void IServiceProvider_InjectableViaConstructor()
         {
-            var scene = new SceneService();
-            var trigger = new ShutdownScopeOnTick();
-            GameServices.RegisterService<IAlphaService>(scene);
-            GameServices.RegisterService<IBetaService>(trigger);
-
-            GameServices.Tick(0f, 0f);
-
-            // App scope 先于 Scene scope 被遍历：trigger 在 App scope Tick 中调用 ShutdownScope(Scene)
-            // Scene scope 未在迭代中，Dispose 立即执行，scene 被关闭——本轮不会被 tick
-            Assert.AreEqual(1, scene.ShutdownCount, "ShutdownScope 立即关闭作用域中的服务");
-            Assert.AreEqual(0, scene.TickCount, "Scene scope 尚未 Tick 即被注销，本轮不 tick");
-
-            GameServices.Tick(0f, 0f);
-            Assert.AreEqual(0, scene.TickCount, "被注销的服务不应再被轮询");
-        }
-
-        private sealed class ShutdownScopeOnTick : TestServiceBase, IBetaService
-        {
-            public override void Tick(float elapseSeconds, float realElapseSeconds)
+            BuildApp(c =>
             {
-                base.Tick(elapseSeconds, realElapseSeconds);
-                GameServices.ShutdownScope(EServiceScopeKind.Scene);
-            }
+                c.Register<IAlphaService, ProviderConsumerService>(EServiceScopeKind.App);
+                c.Register<IBetaService, BetaService>(EServiceScopeKind.App);
+            });
+
+            var consumer = (ProviderConsumerService)GameServices.Provider.GetRequiredService<IAlphaService>();
+
+            Assert.IsNotNull(consumer.Provider);
+            Assert.IsNotNull(consumer.Provider.GetService<IBetaService>(), "注入的 Provider 应能解析同作用域服务");
         }
 
-        // --- 迭代安全：迭代中关闭自身作用域（P0 回归：立即 Dispose 会缩短遍历列表导致越界） ---
+        // --- 关闭顺序与状态 ---
 
-        [Test]
-        public void ShutdownScope_DuringOwnScopeIteration_DefersDisposeAndDoesNotThrow()
+        private abstract class ShutdownOrderService : TestServiceBase
         {
-            var trigger = new ShutdownOwnScopeOnTick();
-            var other = new SceneBetaService();
-            GameServices.RegisterService<IAlphaService>(trigger);
-            GameServices.RegisterService<IBetaService>(other);
-
-            Assert.DoesNotThrow(() => GameServices.Tick(0f, 0f));
-
-            Assert.AreEqual(1, other.TickCount, "同作用域后续服务在本轮迭代中仍应被轮询（销毁延迟到迭代结束）");
-            Assert.AreEqual(1, trigger.ShutdownCount, "迭代中请求销毁的作用域应在迭代结束后关闭全部服务");
-            Assert.AreEqual(1, other.ShutdownCount, "作用域销毁应关闭其中全部服务");
-        }
-
-        private sealed class ShutdownOwnScopeOnTick : TestServiceBase, IAlphaService
-        {
-            public override EServiceScopeKind Scope => EServiceScopeKind.Scene;
-            public override int Priority => 10;
-
-            public override void Tick(float elapseSeconds, float realElapseSeconds)
-            {
-                base.Tick(elapseSeconds, realElapseSeconds);
-                GameServices.ShutdownScope(EServiceScopeKind.Scene);
-            }
-        }
-
-        // --- 注销 API ---
-
-        [Test]
-        public void UnregisterService_ByInterface_RemovesAndShutsDown()
-        {
-            var service = new AppService();
-            GameServices.RegisterService<IAlphaService>(service);
-
-            bool result = GameServices.UnregisterService<IAlphaService>();
-
-            Assert.IsTrue(result);
-            Assert.AreEqual(1, service.ShutdownCount);
-        }
-
-        [Test]
-        public void UnregisterService_ByInstance_RemovesAndShutsDown()
-        {
-            var service = new AppService();
-            GameServices.RegisterService<IAlphaService>(service);
-
-            bool result = GameServices.UnregisterService(service);
-
-            Assert.IsTrue(result);
-            Assert.AreEqual(1, service.ShutdownCount);
-        }
-
-        [Test]
-        public void UnregisterService_NotRegistered_ReturnsFalse()
-        {
-            Assert.IsFalse(GameServices.UnregisterService(new AppService()));
-        }
-
-        // --- Shutdown 健壮性 ---
-
-        [Test]
-        public void Shutdown_ServiceThrows_DoesNotAbortOtherServices()
-        {
-            var thrower = new ThrowingService();
-            var normal = new BetaService();
-            GameServices.RegisterService<IAlphaService>(thrower);
-            GameServices.RegisterService<IBetaService>(normal);
-
-            // 框架会记录服务关闭异常（Error 日志），声明预期
-            LogAssert.Expect(LogType.Error, new System.Text.RegularExpressions.Regex(".*InvalidOperationException: test.*"));
-
-            Assert.DoesNotThrow(() => GameServices.Shutdown());
-            Assert.AreEqual(1, normal.ShutdownCount, "异常服务之后的服务仍应被关闭");
-        }
-
-        private sealed class ThrowingService : TestServiceBase, IAlphaService
-        {
-            public override void Shutdown() => throw new System.InvalidOperationException("test");
-        }
-
-        // --- Tick 异常隔离（P0 回归：单服务异常不应中断同轮其他服务） ---
-
-        [Test]
-        public void Update_ServiceThrowsInTick_OtherServicesStillTick()
-        {
-            var thrower = new ThrowingTickService();
-            var normal = new BetaService();
-            GameServices.RegisterService<IAlphaService>(thrower);
-            GameServices.RegisterService<IBetaService>(normal);
-
-            LogAssert.Expect(LogType.Error, new System.Text.RegularExpressions.Regex(".*InvalidOperationException: tick.*"));
-
-            Assert.DoesNotThrow(() => GameServices.Tick(0f, 0f));
-            Assert.AreEqual(1, normal.TickCount, "抛异常服务之后的同轮服务仍应被轮询");
-        }
-
-        private sealed class ThrowingTickService : TestServiceBase, IAlphaService
-        {
-            public override void Tick(float elapseSeconds, float realElapseSeconds)
-                => throw new System.InvalidOperationException("tick");
-        }
-
-        // --- ServiceMono 合约注册（P0 回归：RegisterAs 接口应生效且 OnInit 被调用） ---
-
-        private interface IMonoContractService { }
-
-        private sealed class TestMonoService : ServiceMono<SceneScope>, IMonoContractService
-        {
-            public int InitCount;
-
-            public override void OnInit() => InitCount++;
-            public override void Shutdown() { }
-
-            protected override System.Type RegisterAs => typeof(IMonoContractService);
-
-            /// <summary>
-            /// EditMode 下 AddComponent 不触发 Awake，暴露此方法供测试显式调用注册流程。
-            /// </summary>
-            public void TriggerRegistration() => Awake();
-        }
-
-        [Test]
-        public void ServiceMono_WithRegisterAsInterface_RegistersUnderContractAndInitializes()
-        {
-            var go = new GameObject();
-            var mono = go.AddComponent<TestMonoService>();
-
-            try
-            {
-                // EditMode 下 Awake 不会自动触发，显式调用注册流程
-                mono.TriggerRegistration();
-
-                Assert.AreEqual(1, mono.InitCount, "注册时应调用 OnInit");
-                Assert.AreSame(mono, GameServices.GetService<IMonoContractService>(), "应注册到 RegisterAs 指定的合约接口");
-            }
-            finally
-            {
-                UnityEngine.Object.DestroyImmediate(go);
-            }
-        }
-
-        [Test]
-        public void Shutdown_ClearsAllScopes_InReverseOrder()
-        {
-            var app = new AppService();
-            var scene = new SceneService();
-            var gameplay = new GameplayService();
-            GameServices.RegisterService<IAlphaService>(app);
-            GameServices.RegisterService<IAlphaService>(scene);
-            GameServices.RegisterService<IAlphaService>(gameplay);
-
-            var expected = new List<ServiceBase> { gameplay, scene, app };
-            GameServices.Shutdown();
-
-            Assert.AreEqual(1, app.ShutdownCount);
-            Assert.AreEqual(1, scene.ShutdownCount);
-            Assert.AreEqual(1, gameplay.ShutdownCount);
-            CollectionAssert.AreEquivalent(expected, new ServiceBase[] { gameplay, scene, app });
-        }
-
-        // --- 优先级排序 ---
-
-        [Test]
-        public void Update_HigherPriorityTicksFirst()
-        {
-            var order = new List<string>();
-            var low = new OrderedService("low", 0, order);
-            var high = new OrderedService("high", 10, order);
-            var mid = new OrderedService("mid", 5, order);
-
-            // 注意：同一接口同一作用域只能注册一个实例，各服务使用不同接口
-            GameServices.RegisterService<IAlphaService>(low);
-            GameServices.RegisterService<IBetaService>(high);
-            GameServices.RegisterService<IGammaService>(mid);
-
-            GameServices.Tick(0f, 0f);
-
-            CollectionAssert.AreEqual(new[] { "high", "mid", "low" }, order);
-        }
-
-        private sealed class OrderedService : ServiceBase, IServiceTickable, IAlphaService, IBetaService, IGammaService
-        {
-            private readonly string _name;
-            private readonly List<string> _order;
-
-            public OrderedService(string name, int priority, List<string> order)
-            {
-                _name = name;
-                _order = order;
-                Priority = priority;
-            }
-
-            public override int Priority { get; }
-            public override void OnInit() { }
-            public override void Shutdown() { }
-            public void Tick(float elapseSeconds, float realElapseSeconds) => _order.Add(_name);
-        }
-
-        // --- 异步初始化 [ASYNC INIT] ---
-
-        // --- 服务事件 [SERVICE EVENTS] ---
-
-        [Test]
-        public void ServiceRegistered_EventFires_AfterOnInit()
-        {
-            var registered = new List<(IService service, Type interfaceType, EServiceScopeKind scope)>();
-            GameServices.ServiceRegistered += (s, t, sc) => registered.Add((s, t, sc));
-
-            var service = new AppService();
-            GameServices.RegisterService<IAlphaService>(service);
-
-            Assert.AreEqual(1, registered.Count, "事件应触发一次");
-            Assert.AreSame(service, registered[0].service);
-            Assert.AreEqual(typeof(IAlphaService), registered[0].interfaceType);
-            Assert.AreEqual(EServiceScopeKind.App, registered[0].scope);
-            Assert.AreEqual(1, service.InitCount, "OnInit 应在事件触发前完成");
-        }
-
-        [Test]
-        public void ServiceUnregistered_EventFires_AfterShutdown()
-        {
-            var unregistered = new List<IService>();
-            GameServices.ServiceUnregistered += s => unregistered.Add(s);
-
-            var service = new AppService();
-            GameServices.RegisterService<IAlphaService>(service);
-            GameServices.UnregisterService<IAlphaService>();
-
-            Assert.AreEqual(1, unregistered.Count, "事件应触发一次");
-            Assert.AreSame(service, unregistered[0]);
-            Assert.AreEqual(1, service.ShutdownCount, "Shutdown 应在事件触发前完成");
-        }
-
-        [Test]
-        public void Shutdown_ClearsEventSubscriptions()
-        {
-            int registeredCount = 0;
-            GameServices.ServiceRegistered += (s, t, sc) => registeredCount++;
-
-            var service = new AppService();
-            GameServices.RegisterService<IAlphaService>(service);
-            Assert.AreEqual(1, registeredCount, "首次注册应触发事件");
-
-            GameServices.Shutdown(); // Clears all including events
-
-            // Shutdown 后事件订阅应被清除：重新注册不应再触发
-            int countBefore = registeredCount;
-            var service2 = new AppService();
-            GameServices.RegisterService<IAlphaService>(service2);
-            Assert.AreEqual(countBefore, registeredCount, "Shutdown 后事件订阅应被清除，不再触发");
-        }
-
-        // --- 依赖验证 [DEPENDENCY VALIDATION] ---
-
-        private interface IDepTargetService { }
-
-        private sealed class ServiceWithDependency : TestServiceBase, IAlphaService
-        {
-            public override Type[] Dependencies => new[] { typeof(IDepTargetService) };
-        }
-
-        [Test]
-        public void RegisterService_UnmetDependency_Throws()
-        {
-            var service = new ServiceWithDependency();
-
-            Assert.Throws<GameException>(() => GameServices.RegisterService<IAlphaService>(service));
-        }
-
-        [Test]
-        public void RegisterService_MetDependency_Succeeds()
-        {
-            var target = new BetaService();
-            // Register IDepTargetService using BetaService (it doesn't implement IDepTargetService,
-            // so use a dedicated impl)
-            var depTarget = new DepTargetServiceImpl();
-            GameServices.RegisterService<IDepTargetService>(depTarget);
-
-            var service = new ServiceWithDependency();
-            GameServices.RegisterService<IAlphaService>(service);
-
-            Assert.AreEqual(1, service.InitCount, "依赖满足时应正常初始化");
-        }
-
-        private sealed class DepTargetServiceImpl : TestServiceBase, IDepTargetService { }
-
-        // --- 依赖拓扑序 [DEPENDENCY TOPOLOGY] ---
-
-        private static readonly List<string> s_AsyncInitOrder = new();
-
-        private sealed class LowPriorityAsyncService : TestServiceBase, IAlphaService, IAsyncInitService
-        {
-            public override int Priority => -10;
-
-            public UniTask OnInitAsync()
-            {
-                s_AsyncInitOrder.Add("low");
-                return UniTask.CompletedTask;
-            }
-        }
-
-        private sealed class HighPriorityAsyncService : TestServiceBase, IBetaService, IAsyncInitService
-        {
-            public override int Priority => 10;
-
-            public UniTask OnInitAsync()
-            {
-                s_AsyncInitOrder.Add("high");
-                return UniTask.CompletedTask;
-            }
-        }
-
-        [Test]
-        public void InitializeAsync_FollowsRegistrationOrder_NotPriority()
-        {
-            s_AsyncInitOrder.Clear();
-            var low = new LowPriorityAsyncService();
-            var high = new HighPriorityAsyncService();
-
-            // 低优先级先注册：初始化应按注册序执行，而非优先级序
-            GameServices.RegisterService<IAlphaService>(low);
-            GameServices.RegisterService<IBetaService>(high);
-
-            // 全部 OnInitAsync 返回 CompletedTask，整链同步完成
-            GameServices.InitializeAsync().Forget();
-
-            CollectionAssert.AreEqual(new[] { "low", "high" }, s_AsyncInitOrder,
-                "异步初始化应按注册顺序执行，而非优先级顺序");
-        }
-
-        private sealed class DependeeAsyncService : TestServiceBase, IDepTargetService, IAsyncInitService
-        {
-            public UniTask OnInitAsync()
-            {
-                s_AsyncInitOrder.Add("dependee");
-                return UniTask.CompletedTask;
-            }
-        }
-
-        private sealed class DependentAsyncService : TestServiceBase, IAlphaService, IAsyncInitService
-        {
-            // 依赖方优先级远高于被依赖方——按优先级序会先初始化依赖方，违反拓扑序
-            public override int Priority => 100;
-
-            public override Type[] Dependencies => new[] { typeof(IDepTargetService) };
-
-            public UniTask OnInitAsync()
-            {
-                s_AsyncInitOrder.Add("dependent");
-                return UniTask.CompletedTask;
-            }
-        }
-
-        [Test]
-        public void InitializeAsync_DependencyTopology_DependeeInitializesFirst()
-        {
-            s_AsyncInitOrder.Clear();
-            var dependee = new DependeeAsyncService();
-            var dependent = new DependentAsyncService();
-
-            GameServices.RegisterService<IDepTargetService>(dependee);
-            GameServices.RegisterService<IAlphaService>(dependent);
-
-            GameServices.InitializeAsync().Forget();
-
-            CollectionAssert.AreEqual(new[] { "dependee", "dependent" }, s_AsyncInitOrder,
-                "异步初始化应按依赖拓扑序：被依赖方先初始化（即使依赖方优先级更高）");
-        }
-
-        private static readonly List<string> s_ShutdownOrder = new();
-
-        private class ShutdownOrderService : TestServiceBase
-        {
-            private readonly string _name;
-
-            public ShutdownOrderService(string name) => _name = name;
+            public abstract string Name { get; }
 
             public override void Shutdown()
             {
-                s_ShutdownOrder.Add(_name);
+                s_OrderLog.Add(Name + ":shutdown");
                 base.Shutdown();
             }
         }
 
-        private sealed class ShutdownOrderDependee : ShutdownOrderService, IDepTargetService
+        private sealed class ShutdownDependee : ShutdownOrderService, IDepTargetService
         {
-            public ShutdownOrderDependee() : base("dependee") { }
+            public override string Name => "dependee";
         }
 
-        private sealed class DependentShutdownService : ShutdownOrderService, IAlphaService
+        private sealed class ShutdownDependent : ShutdownOrderService, IAlphaService
         {
-            public DependentShutdownService() : base("dependent") { }
+            public IDepTargetService Dependency { get; }
 
-            public override Type[] Dependencies => new[] { typeof(IDepTargetService) };
-        }
+            public ShutdownDependent(IDepTargetService dependency)
+            {
+                Dependency = dependency;
+            }
 
-        [Test]
-        public void Shutdown_ClosesInReverseRegistrationOrder_DependentsFirst()
-        {
-            s_ShutdownOrder.Clear();
-            var dependee = new ShutdownOrderDependee();
-            var dependent = new DependentShutdownService();
-
-            // 注册序（拓扑序）：被依赖方在前，依赖方在后
-            GameServices.RegisterService<IDepTargetService>(dependee);
-            GameServices.RegisterService<IAlphaService>(dependent);
-
-            GameServices.Shutdown();
-
-            CollectionAssert.AreEqual(new[] { "dependent", "dependee" }, s_ShutdownOrder,
-                "关闭应按逆注册序（逆拓扑序）：依赖方先关闭，被依赖方后关闭");
-        }
-
-        // --- 生命周期状态 [LIFECYCLE STATE] ---
-
-        [Test]
-        public void RegisterService_SetsStateToInitialized()
-        {
-            var service = new AppService();
-            Assert.AreEqual(EServiceState.Created, service.State, "注册前应为 Created");
-
-            GameServices.RegisterService<IAlphaService>(service);
-
-            Assert.AreEqual(EServiceState.Initialized, service.State, "注册后应为 Initialized");
+            public override string Name => "dependent";
         }
 
         [Test]
-        public void ShutdownService_SetsStateToDisposed()
+        public void Shutdown_DependentsCloseFirst_ReverseTopology()
         {
-            var service = new AppService();
-            GameServices.RegisterService<IAlphaService>(service);
+            // 拓扑序：Dependee → Dependent（先注册先初始化）；关闭序应为 Dependent → Dependee
+            BuildApp(c =>
+            {
+                c.Register<IDepTargetService, ShutdownDependee>(EServiceScopeKind.App);
+                c.Register<IAlphaService, ShutdownDependent>(EServiceScopeKind.App);
+            });
 
-            GameServices.UnregisterService<IAlphaService>();
+            s_OrderLog.Clear();
+            GameServices.ShutdownContainer(EServiceScopeKind.App);
 
-            Assert.AreEqual(EServiceState.Disposed, service.State, "注销后应为 Disposed");
+            Assert.AreEqual(
+                new[] { "dependent:shutdown", "dependee:shutdown" },
+                s_OrderLog.ToArray(),
+                "关闭应按逆拓扑序执行：依赖方先关闭，被依赖方后关闭");
         }
 
         [Test]
-        public void Shutdown_ServiceStateTransitions_GameplayToApp()
+        public void Shutdown_TransitionsStateToDisposed()
         {
-            var app = new AppService();
-            var scene = new SceneService();
-            var gameplay = new GameplayService();
-            GameServices.RegisterService<IAlphaService>(app);
-            GameServices.RegisterService<IAlphaService>(scene);
-            GameServices.RegisterService<IAlphaService>(gameplay);
+            var container = BuildApp(c => c.Register<IAlphaService, AlphaService>(EServiceScopeKind.App));
+            var alpha = (AlphaService)container.ServiceProvider.GetRequiredService<IAlphaService>();
 
-            Assert.AreEqual(EServiceState.Initialized, app.State);
-            Assert.AreEqual(EServiceState.Initialized, scene.State);
-            Assert.AreEqual(EServiceState.Initialized, gameplay.State);
+            container.Dispose();
 
-            GameServices.ShutdownScope(EServiceScopeKind.Gameplay);
-
-            Assert.AreEqual(EServiceState.Disposed, gameplay.State, "Gameplay 应已销毁");
-            Assert.AreEqual(EServiceState.Initialized, scene.State, "Scene 应仍运行");
-            Assert.AreEqual(EServiceState.Initialized, app.State, "App 应仍运行");
-        }
-
-        // --- ServiceMono.OnDestroy 自动注销 [MONO ONDESTROY AUTO-UNREGISTER] ---
-
-        [Test]
-        public void ServiceMono_OnDestroy_UnregistersService()
-        {
-            var go = new GameObject();
-            var mono = go.AddComponent<TestMonoService>();
-            mono.TriggerRegistration();
-
-            Assert.IsTrue(GameServices.UnregisterService<IMonoContractService>(), "注册后应能找到服务");
-
-            // 模拟 OnDestroy：DestroyImmediate 会触发 OnDestroy → UnregisterService
-            UnityEngine.Object.DestroyImmediate(go);
-
-            Assert.AreEqual(1, mono.InitCount, "OnInit 应调用一次");
-            // DestroyImmediate 后服务应已注销
-            Assert.IsFalse(GameServices.UnregisterService<IMonoContractService>(), "OnDestroy 后服务应已注销");
-        }
-
-        // --- 双合约注册 [DUAL-CONTRACT REGISTER] ---
-
-        private interface IDualPrimaryService { }
-        private interface IDualSecondaryService { }
-
-        private sealed class DualContractService : TestServiceBase, IDualPrimaryService, IDualSecondaryService { }
-
-        [Test]
-        public void RegisterService_DualContract_BothInterfacesResolve()
-        {
-            var service = new DualContractService();
-            GameServices.RegisterService<IDualPrimaryService, IDualSecondaryService>(service);
-
-            Assert.AreSame(service, GameServices.GetService<IDualPrimaryService>(), "主合约应可获取");
-            Assert.AreSame(service, GameServices.GetService<IDualSecondaryService>(), "次合约应可获取");
-            Assert.AreEqual(2, service.InitCount, "OnInit 应调用两次（同一实例分别注册到两个合约，各触发一次）");
-        }
-
-        // --- 偏好作用域查找 [PREFERRED SCOPE LOOKUP] ---
-
-        [Test]
-        public void GetService_PreferredScope_HitsScopeFirst()
-        {
-            var app = new AppService();
-            var scene = new SceneService();
-            GameServices.RegisterService<IAlphaService>(app);
-            GameServices.RegisterService<IAlphaService>(scene);
-
-            // 指定 App scope：应直接返回 App 实例（跳过 GetBest 的 Gameplay > Scene > App 回退）
-            var result = GameServices.GetService<IAlphaService>(EServiceScopeKind.App);
-            Assert.AreSame(app, result, "偏好 App scope 应直接返回 App 实例");
-
-            // 指定 Scene scope
-            result = GameServices.GetService<IAlphaService>(EServiceScopeKind.Scene);
-            Assert.AreSame(scene, result, "偏好 Scene scope 应返回 Scene 实例");
-
-            // 指定空 Gameplay scope：偏好未命中，回退到 GetBest（Scene > App）
-            result = GameServices.GetService<IAlphaService>(EServiceScopeKind.Gameplay);
-            Assert.AreSame(scene, result, "Gameplay scope 未命中应回退到 GetBest（Scene）");
+            Assert.AreEqual(EServiceState.Disposed, alpha.State);
+            Assert.AreEqual(1, alpha.ShutdownCount);
         }
 
         [Test]
-        public void GetService_PreferredScope_NotFound_Throws()
+        public void ShutdownContainer_FreesProviderResolution()
         {
-            var app = new AppService();
-            GameServices.RegisterService<IAlphaService>(app);
+            var container = BuildApp(c => c.Register<IAlphaService, AlphaService>(EServiceScopeKind.App));
 
-            // 只有 App scope 注册，查 Scene scope（未注册）应回退到 GetBest 返回 App
-            var result = GameServices.GetService<IAlphaService>(EServiceScopeKind.Scene);
-            Assert.AreSame(app, result, "Scene scope 未命中应回退到 GetBest 返回 App");
+            GameServices.ShutdownContainer(EServiceScopeKind.App);
 
-            // 完全未注册的接口
-            Assert.Throws<GameException>(() => GameServices.GetService<IBetaService>(EServiceScopeKind.App),
-                "完全未注册的接口应抛 GameException");
+            Assert.IsNull(GameServices.Provider, "全部容器关闭后 Provider 应为 null");
+            Assert.IsNull(GameServices.AppContainer);
         }
 
-        // --- TryResolve 不抛异常查找 [TRY RESOLVE] ---
+        // --- 跨作用域链式查找 ---
 
         [Test]
-        public void TryResolve_Unregistered_ReturnsFalseWithoutThrow()
+        public void ProviderChain_GameplayBeatsSceneBeatsApp()
         {
-            bool found = GameServices.TryResolve<IBetaService>(null, out var service);
+            BuildApp(c => c.Register<IAlphaService, AlphaService>(EServiceScopeKind.App));
+            BuildScene(GameServices.AppContainer,
+                c => c.Register<IAlphaService, SceneAlphaService>(EServiceScopeKind.Scene));
+            var collection = new ServiceCollection();
+            collection.Register<IAlphaService, GammaLikeService>(EServiceScopeKind.Gameplay);
+            var gameplay = GameServices.BuildContainer(
+                EServiceScopeKind.Gameplay, collection, GameServices.SceneContainer);
+            gameplay.BuildAsync().GetAwaiter().GetResult();
 
-            Assert.IsFalse(found, "未注册的服务应返回 false");
-            Assert.IsNull(service, "未注册的服务 out 参数应为 null");
+            Assert.IsInstanceOf<GammaLikeService>(GameServices.Provider.GetRequiredService<IAlphaService>(),
+                "Gameplay 遮蔽 Scene 与 App");
+
+            GameServices.ShutdownContainer(EServiceScopeKind.Gameplay);
+            Assert.IsInstanceOf<SceneAlphaService>(GameServices.Provider.GetRequiredService<IAlphaService>(),
+                "Gameplay 关闭后回退到 Scene");
+
+            GameServices.ShutdownContainer(EServiceScopeKind.Scene);
+            Assert.IsInstanceOf<AlphaService>(GameServices.Provider.GetRequiredService<IAlphaService>(),
+                "Scene 关闭后回退到 App");
+        }
+
+        private sealed class GammaLikeService : TestServiceBase, IAlphaService { }
+
+        private sealed class SceneAlphaService : TestServiceBase, IAlphaService { }
+
+        [Test]
+        public void CrossScopeResolution_SceneServiceResolvesAppDependency()
+        {
+            var app = BuildApp(c => c.Register<IDepTargetService, DependeeService>(EServiceScopeKind.App));
+            BuildScene(app, c => c.Register<IAlphaService, DependentService>(EServiceScopeKind.Scene));
+
+            var dependent = (DependentService)GameServices.Provider.GetRequiredService<IAlphaService>();
+            var appDependee = app.ServiceProvider.GetRequiredService<IDepTargetService>();
+
+            Assert.AreSame(appDependee, dependent.Dependency,
+                "Scene 容器内的服务应能通过父链解析 App 容器中的依赖");
+        }
+
+        // --- 轮询 ---
+
+        [Test]
+        public void Tick_HigherPriorityFirst()
+        {
+            BuildApp(c =>
+            {
+                c.Register<IAlphaService, HighPriorityService>(EServiceScopeKind.App);
+                c.Register<IBetaService, LowPriorityService>(EServiceScopeKind.App);
+            });
+
+            GameServices.Tick(0.1f, 0.1f);
+
+            Assert.AreEqual(new[] { "high", "low" }, s_OrderLog.ToArray(),
+                "高优先级服务应先于低优先级服务轮询");
         }
 
         [Test]
-        public void TryResolve_Registered_ReturnsService()
+        public void Tick_DrivesAllActiveContainers()
         {
-            var service = new AppService();
-            GameServices.RegisterService<IAlphaService>(service);
+            var app = BuildApp(c => c.Register<IAlphaService, AlphaService>(EServiceScopeKind.App));
+            var scene = BuildScene(app, c => c.Register<IBetaService, BetaService>(EServiceScopeKind.Scene));
 
-            bool found = GameServices.TryResolve<IAlphaService>(null, out var resolved);
+            var appAlpha = (AlphaService)app.ServiceProvider.GetRequiredService<IAlphaService>();
+            var sceneBeta = (BetaService)scene.ServiceProvider.GetRequiredService<IBetaService>();
 
-            Assert.IsTrue(found);
-            Assert.AreSame(service, resolved);
+            GameServices.Tick(0.1f, 0.1f);
+
+            Assert.AreEqual(1, appAlpha.TickCount, "App 容器服务应被轮询");
+            Assert.AreEqual(1, sceneBeta.TickCount, "Scene 容器服务应被轮询");
+
+            GameServices.ShutdownContainer(EServiceScopeKind.Scene);
+            GameServices.Tick(0.1f, 0.1f);
+
+            Assert.AreEqual(2, appAlpha.TickCount, "App 容器服务应继续被轮询");
+            Assert.AreEqual(1, sceneBeta.TickCount, "已关闭容器的服务不应再被轮询");
         }
 
-        // --- 服务拦截器 [SERVICE INTERCEPTORS] ---
+        // --- 事件 ---
+
+        [Test]
+        public void ServiceRegisteredEvent_FiresAfterOnInit()
+        {
+            IService received = null;
+            EServiceState stateAtEvent = EServiceState.Created;
+            GameServices.onServiceRegistered += (svc, type, scope) =>
+            {
+                received = svc;
+                stateAtEvent = svc.State;
+            };
+
+            BuildApp(c => c.Register<IAlphaService, AlphaService>(EServiceScopeKind.App));
+
+            Assert.IsNotNull(received, "onServiceRegistered 事件应在构建时触发");
+            Assert.AreEqual(EServiceState.Initialized, stateAtEvent, "事件触发时服务应已完成初始化");
+        }
+
+        [Test]
+        public void ServiceUnregisteredEvent_FiresAfterShutdown()
+        {
+            var container = BuildApp(c => c.Register<IAlphaService, AlphaService>(EServiceScopeKind.App));
+            var alpha = (AlphaService)container.ServiceProvider.GetRequiredService<IAlphaService>();
+
+            IService received = null;
+            EServiceState stateAtEvent = EServiceState.Created;
+            GameServices.onServiceUnregistered += svc =>
+            {
+                received = svc;
+                stateAtEvent = svc.State;
+            };
+
+            container.Dispose();
+
+            Assert.AreSame(alpha, received, "onServiceUnregistered 事件应在关闭时触发");
+            Assert.AreEqual(EServiceState.Disposed, stateAtEvent);
+        }
+
+        // --- MonoBehaviour 服务 ---
+
+        [Test]
+        public void RegisterMono_CreatesInjectsAndInitializes()
+        {
+            GameObject created = null;
+            try
+            {
+                var scene = BuildScene(null,
+                    c => c.RegisterMono<IMonoContractService, TestMonoService>(EServiceScopeKind.Scene));
+
+                var mono = (TestMonoService)(object)scene.ServiceProvider.GetRequiredService<IMonoContractService>();
+                created = mono.gameObject;
+
+                Assert.IsTrue(mono.InjectCalled, "容器应在 OnInit 前调用 Inject");
+                Assert.IsNotNull(mono.InjectedProvider);
+                Assert.AreEqual(1, mono.InitCount);
+                Assert.AreEqual(EServiceState.Initialized, mono.State);
+
+                scene.Dispose();
+
+                Assert.AreEqual(1, mono.ShutdownCount, "容器关闭应驱动 Mono 服务 Shutdown");
+                Assert.AreEqual(EServiceState.Disposed, mono.State);
+            }
+            finally
+            {
+                if (created != null) UnityEngine.Object.DestroyImmediate(created);
+            }
+        }
+
+        // --- 诊断 [DIAGNOSTICS] ---
+
+        [Test]
+        public void GetDiagnosticInfo_ReportsRegisteredServices()
+        {
+            BuildApp(c =>
+            {
+                c.Register<IAlphaService, AlphaService>(EServiceScopeKind.App);
+                c.Register<IBetaService, BetaService>(EServiceScopeKind.App);
+            });
+
+            var infos = GameServices.GetDiagnosticInfo();
+
+            Assert.GreaterOrEqual(infos.Count, 2);
+            Assert.IsTrue(infos.Exists(i => i.InterfaceType == typeof(IAlphaService).FullName));
+            Assert.IsTrue(infos.Exists(i => i.InterfaceType == typeof(IBetaService).FullName));
+        }
+
+        // ═══════════════════════════════════════════════════════
+        // 拦截器测试 [INTERCEPTOR TESTS]
+        // ═══════════════════════════════════════════════════════
 
         private sealed class TestInterceptor : IServiceInterceptor
         {
             public int Priority { get; set; }
-
             public List<string> Events { get; } = new();
 
             public void OnServiceRegistering(IService service, Type interfaceType, EServiceScopeKind scope)
-                => Events.Add($"Registering:{interfaceType.Name}");
+                => Events.Add("Registering:" + interfaceType.Name);
 
             public void OnServiceRegistered(IService service, Type interfaceType, EServiceScopeKind scope)
-                => Events.Add($"Registered:{interfaceType.Name}");
-
-            public void OnServiceUnregistering(IService service)
-                => Events.Add($"Unregistering:{service.GetType().Name}");
+                => Events.Add("Registered:" + interfaceType.Name);
 
             public void OnServiceUnregistered(IService service)
-                => Events.Add($"Unregistered:{service.GetType().Name}");
+                => Events.Add("Unregistered:" + service.GetType().Name);
 
             public void OnServiceTick(IService service, float elapseSeconds, float realElapseSeconds)
-                => Events.Add($"Tick:{service.GetType().Name}");
+                => Events.Add("Tick:" + service.GetType().Name);
 
             public void OnServiceShutdown(IService service)
-                => Events.Add($"Shutdown:{service.GetType().Name}");
+                => Events.Add("Shutdown:" + service.GetType().Name);
         }
 
         [Test]
@@ -866,34 +557,36 @@ namespace GameTool
             var interceptor = new TestInterceptor();
             GameServices.AddInterceptor(interceptor);
 
-            var service = new AppService();
-            GameServices.RegisterService<IAlphaService>(service);
+            var container = BuildApp(c => c.Register<IAlphaService, AlphaService>(EServiceScopeKind.App));
 
-            // Registering 应在 OnInit 前触发，Registered 应在 OnInit 后触发
+            // Registering 在 RegisterInternal 中触发（OnInit 前）
+            // Registered 在 BuildAsync 的 OnInit 后触发
             Assert.AreEqual(2, interceptor.Events.Count, "应触发 Registering + Registered 两个事件");
             Assert.AreEqual("Registering:IAlphaService", interceptor.Events[0]);
             Assert.AreEqual("Registered:IAlphaService", interceptor.Events[1]);
-            Assert.AreEqual(1, service.InitCount, "OnInit 应在 Registering 后、Registered 前调用");
+
+            var alpha = (AlphaService)container.ServiceProvider.GetRequiredService<IAlphaService>();
+            Assert.AreEqual(1, alpha.InitCount, "OnInit 应在 Registering 后、Registered 前调用");
         }
 
         [Test]
-        public void Interceptor_UnregisterFlow_UnregisteringBeforeShutdown()
+        public void Interceptor_ShutdownFlow_ShutdownBeforeServiceShutdown_UnregisteredAfter()
         {
             var interceptor = new TestInterceptor();
             GameServices.AddInterceptor(interceptor);
 
-            var service = new AppService();
-            GameServices.RegisterService<IAlphaService>(service);
+            var container = BuildApp(c => c.Register<IAlphaService, AlphaService>(EServiceScopeKind.App));
             interceptor.Events.Clear();
 
-            GameServices.UnregisterService<IAlphaService>();
+            container.Dispose();
 
-            Assert.IsTrue(interceptor.Events.Contains("Shutdown:AppService"), "应触发 Shutdown");
-            Assert.IsTrue(interceptor.Events.Contains("Unregistered:AppService"), "应触发 Unregistered");
-            // Shutdown 在 Shutdown() 调用前，Unregistered 在移除后
+            // Shutdown 在 service.Shutdown() 调用前触发
+            // Unregistered 在服务从注册表移除后触发
+            Assert.IsTrue(interceptor.Events.Contains("Shutdown:AlphaService"), "应触发 Shutdown 拦截");
+            Assert.IsTrue(interceptor.Events.Contains("Unregistered:AlphaService"), "应触发 Unregistered 拦截");
             Assert.Less(
-                interceptor.Events.IndexOf("Shutdown:AppService"),
-                interceptor.Events.IndexOf("Unregistered:AppService"),
+                interceptor.Events.IndexOf("Shutdown:AlphaService"),
+                interceptor.Events.IndexOf("Unregistered:AlphaService"),
                 "Shutdown 应在 Unregistered 之前");
         }
 
@@ -903,15 +596,13 @@ namespace GameTool
             var interceptor = new TestInterceptor();
             GameServices.AddInterceptor(interceptor);
 
-            var service = new AppService();
-            GameServices.RegisterService<IAlphaService>(service);
+            BuildApp(c => c.Register<IAlphaService, AlphaService>(EServiceScopeKind.App));
             interceptor.Events.Clear();
 
             GameServices.Tick(0.1f, 0.1f);
 
             Assert.AreEqual(1, interceptor.Events.Count, "应触发一次 Tick 拦截");
-            Assert.AreEqual("Tick:AppService", interceptor.Events[0]);
-            Assert.AreEqual(1, service.TickCount, "服务 Tick 应正常执行");
+            Assert.AreEqual("Tick:AlphaService", interceptor.Events[0]);
         }
 
         [Test]
@@ -922,9 +613,8 @@ namespace GameTool
             GameServices.AddInterceptor(low);
             GameServices.AddInterceptor(high);
 
-            // 验证高优先级在列表中排在前面
-            Assert.AreSame(high, GameServices.Interceptors[0]);
-            Assert.AreSame(low, GameServices.Interceptors[1]);
+            Assert.AreSame(high, GameServices.Interceptors[0], "高优先级应排在前面");
+            Assert.AreSame(low, GameServices.Interceptors[1], "低优先级应排在后面");
         }
 
         [Test]
@@ -933,27 +623,152 @@ namespace GameTool
             var interceptor = new TestInterceptor();
             GameServices.AddInterceptor(interceptor);
 
-            var service = new AppService();
-            GameServices.RegisterService<IAlphaService>(service);
+            BuildApp(c => c.Register<IAlphaService, AlphaService>(EServiceScopeKind.App));
             Assert.IsTrue(interceptor.Events.Count > 0, "添加后应收到事件");
 
             interceptor.Events.Clear();
             GameServices.RemoveInterceptor(interceptor);
 
-            var service2 = new BetaService();
-            GameServices.RegisterService<IBetaService>(service2);
+            BuildApp(c => c.Register<IBetaService, BetaService>(EServiceScopeKind.App));
             Assert.AreEqual(0, interceptor.Events.Count, "移除后不应再收到事件");
         }
 
-        [Test]
-        public void Interceptor_Shutdown_ClearsAllInterceptors()
+        // ═══════════════════════════════════════════════════════
+        // 迭代安全测试 [ITERATION SAFETY TESTS]
+        // ═══════════════════════════════════════════════════════
+
+        private sealed class DisposeScopeOnTick : TestServiceBase, IAlphaService
         {
-            var interceptor = new TestInterceptor();
-            GameServices.AddInterceptor(interceptor);
+            private readonly EServiceScopeKind _scopeToDispose;
 
-            GameServices.Shutdown();
+            public DisposeScopeOnTick(EServiceScopeKind scopeToDispose)
+            {
+                _scopeToDispose = scopeToDispose;
+            }
 
-            Assert.AreEqual(0, GameServices.Interceptors.Count, "Shutdown 后拦截器列表应清空");
+            public override int Priority => 10;
+
+            public override void Tick(float elapseSeconds, float realElapseSeconds)
+            {
+                base.Tick(elapseSeconds, realElapseSeconds);
+                GameServices.ShutdownContainer(_scopeToDispose);
+            }
+        }
+
+        [Test]
+        public void Dispose_DuringTick_DefersAndDoesNotThrow()
+        {
+            // 同作用域内一个服务的 Tick 触发自身作用域 Dispose——应延迟到迭代结束
+            BuildApp(c => c.Register<IAlphaService>(
+                EServiceScopeKind.App,
+                _ => new DisposeScopeOnTick(EServiceScopeKind.App)).WithPriority(10));
+
+            // 不应抛异常（迭代中 Dispose 被延迟）
+            Assert.DoesNotThrow(() => GameServices.Tick(0f, 0f));
+
+            // 容器已关闭，AppContainer 为 null
+            Assert.IsNull(GameServices.AppContainer, "迭代中请求的 Dispose 应在迭代结束后执行");
+        }
+
+        private sealed class TickCountService : TestServiceBase, IBetaService
+        {
+            // 记录自身 Tick 被调用的次数
+        }
+
+        [Test]
+        public void Dispose_DuringTick_OtherServicesStillTickInSameFrame()
+        {
+            // 高优先级服务在 Tick 中触发 Dispose，低优先级服务应在本轮迭代中仍被 Tick
+            // 注册顺序：trigger (Priority=10) 先 Tick，other (Priority=0) 后 Tick
+            var collection = new ServiceCollection();
+            collection.Register<IAlphaService>(EServiceScopeKind.App, _ => new DisposeScopeOnTick(EServiceScopeKind.App))
+                       .WithPriority(10);
+            collection.Register<IBetaService, TickCountService>(EServiceScopeKind.App)
+                       .WithPriority(0);
+            var container = GameServices.BuildContainer(EServiceScopeKind.App, collection);
+            container.BuildAsync().GetAwaiter().GetResult();
+
+            var beta = (TickCountService)container.ServiceProvider.GetRequiredService<IBetaService>();
+
+            Assert.DoesNotThrow(() => GameServices.Tick(0f, 0f));
+            Assert.AreEqual(1, beta.TickCount, "同作用域后续服务在本轮迭代中仍应被轮询（销毁延迟到迭代结束）");
+            Assert.AreEqual(1, beta.ShutdownCount, "迭代结束后作用域销毁应关闭全部服务");
+        }
+
+        private sealed class CrossScopeDisposeOnTick : TestServiceBase, IAlphaService
+        {
+            public override int Priority => 10;
+
+            public override void Tick(float elapseSeconds, float realElapseSeconds)
+            {
+                base.Tick(elapseSeconds, realElapseSeconds);
+                // 在 App 作用域 Tick 中关闭 Scene 作用域——Scene 未在迭代中，Dispose 立即执行
+                GameServices.ShutdownContainer(EServiceScopeKind.Scene);
+            }
+        }
+
+        [Test]
+        public void CrossScopeDispose_DuringTick_ImmediateShutdown()
+        {
+            var app = BuildApp(c => c.Register<IAlphaService, CrossScopeDisposeOnTick>(EServiceScopeKind.App));
+            var scene = BuildScene(app, c => c.Register<IBetaService, BetaService>(EServiceScopeKind.Scene));
+
+            var sceneBeta = (BetaService)scene.ServiceProvider.GetRequiredService<IBetaService>();
+
+            // App Tick 先执行：trigger 在 App scope Tick 中关闭 Scene scope（Scene 未在迭代中 → 立即 Dispose）
+            GameServices.Tick(0f, 0f);
+
+            Assert.AreEqual(1, sceneBeta.ShutdownCount, "Scene 作用域中的服务应被立即关闭");
+            Assert.AreEqual(0, sceneBeta.TickCount, "Scene scope 未开始迭代即被关闭，服务不应被 Tick");
+
+            // Scene 容器已关闭
+            Assert.IsNull(GameServices.SceneContainer);
+        }
+
+        // ═══════════════════════════════════════════════════════
+        // 构造函数选择测试 [CONSTRUCTOR SELECTION TESTS]
+        // ═══════════════════════════════════════════════════════
+
+        private interface IMultiCtorService : IService { }
+
+        private sealed class MultiCtorService : TestServiceBase, IMultiCtorService
+        {
+            public string UsedCtor { get; private set; }
+            public IDepTargetService Dependency { get; private set; }
+
+            public MultiCtorService()
+            {
+                UsedCtor = "parameterless";
+            }
+
+            [ServiceConstructor]
+            public MultiCtorService(IDepTargetService dependency)
+            {
+                UsedCtor = "attributed";
+                Dependency = dependency;
+            }
+
+            public MultiCtorService(IDepTargetService dependency, IBetaService beta)
+            {
+                UsedCtor = "most-params";
+                Dependency = dependency;
+            }
+        }
+
+        [Test]
+        public void ServiceConstructorAttribute_PreferredOverMostParameters()
+        {
+            BuildApp(c =>
+            {
+                c.Register<IDepTargetService, DependeeService>(EServiceScopeKind.App);
+                c.Register<IBetaService, BetaService>(EServiceScopeKind.App);
+                c.Register<IMultiCtorService, MultiCtorService>(EServiceScopeKind.App);
+            });
+
+            var svc = (MultiCtorService)GameServices.Provider.GetRequiredService<IMultiCtorService>();
+
+            Assert.AreEqual("attributed", svc.UsedCtor, "[ServiceConstructor] 标记的构造函数应被优先选择");
+            Assert.IsNotNull(svc.Dependency, "标记构造函数的依赖应被注入");
         }
     }
 }

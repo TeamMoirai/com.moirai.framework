@@ -2,7 +2,7 @@
 
 > UGUI-based stack window management framework providing window lifecycle, layer depth sorting, modal blocking, Widget sub-controls, and multi-resolution adaptation.
 
-The UI service (`Moirai.Atropos.UI`) abstracts UI into pure C# `UIWindow` / `UIWidget` classes, with `UIService` managing the window stack, layer depth, and visibility. Window panels are loaded and instantiated via the resource service (YooAsset) or `Resources`. Window classes themselves do not attach MonoBehaviour. All operations — opening, closing, hiding, and querying — are accessible through the `GameApp.UI` static accessor.
+The UI service (`Moirai.Atropos.UI`) abstracts UI into pure C# `UIWindow` / `UIWidget` classes, with `UIService` managing the window stack, layer depth, and visibility. Window panels are loaded and instantiated via the resource service (YooAsset) or `Resources`. Window classes themselves do not attach MonoBehaviour. All operations — opening, closing, hiding, and querying — are accessible through the `GameApp.Services.GetRequiredService<IUIService>()` static accessor.
 
 ## Core Features
 
@@ -20,7 +20,7 @@ The UI service (`Moirai.Atropos.UI`) abstracts UI into pure C# `UIWindow` / `UIW
 
 | Class/Interface | Description |
 |---------|------|
-| `Moirai.Atropos.UI.IUIService` | UI service interface, returned by `GameApp.UI` |
+| `Moirai.Atropos.UI.IUIService` | UI service interface, returned by `GameApp.Services.GetRequiredService<IUIService>()` |
 | `Moirai.Atropos.UI.UIService` | UI service implementation, manages window stack, depth sorting, and visibility control; static properties `UIRoot`, `Resource` |
 | `Moirai.Atropos.UI.UIBase` | UI base class, defines lifecycle virtual methods and Widget creation API |
 | `Moirai.Atropos.UI.UIWindow` | Window abstract base class, inherits `UIBase`, includes Canvas depth, visibility, interactability, and open/close animations |
@@ -63,21 +63,21 @@ Opening and closing windows:
 
 ```csharp
 // Synchronous open (automatically falls back to async on WebGL)
-GameApp.UI.ShowUI<MainWindow>();
+GameApp.Services.GetRequiredService<IUIService>().ShowUI<MainWindow>();
 
 // Asynchronous open, with optional custom parameters (accessed via UserData / Params inside the window)
-GameApp.UI.ShowUIAsync<MainWindow>(userData: 1001);
+GameApp.Services.GetRequiredService<IUIService>().ShowUIAsync<MainWindow>(userData: 1001);
 
 // Asynchronous open and await completion (60-second timeout)
-UIWindow window = await GameApp.UI.ShowUIAsyncAwait<MainWindow>();
+UIWindow window = await GameApp.Services.GetRequiredService<IUIService>().ShowUIAsyncAwait<MainWindow>();
 
 // Close / Hide (auto-closes after HideTimeToClose seconds)
-GameApp.UI.CloseUI<MainWindow>();
-GameApp.UI.HideUI<MainWindow>();
+GameApp.Services.GetRequiredService<IUIService>().CloseUI<MainWindow>();
+GameApp.Services.GetRequiredService<IUIService>().HideUI<MainWindow>();
 
 // Query
-bool exist = GameApp.UI.HasWindow<MainWindow>();
-UIWindow top = GameApp.UI.GetTopWindow();
+bool exist = GameApp.Services.GetRequiredService<IUIService>().HasWindow<MainWindow>();
+UIWindow top = GameApp.Services.GetRequiredService<IUIService>().GetTopWindow();
 ```
 
 ## Advanced Usage
@@ -88,10 +88,10 @@ The window stack is sorted by insertion order at the `WindowLayer` level. `OnSor
 
 ```csharp
 // Close all windows except the System layer
-GameApp.UI.CloseAllWithOut(UILayer.System);
+GameApp.Services.GetRequiredService<IUIService>().CloseAllWithOut(UILayer.System);
 
 // Check if a UI object is blocked by a modal window
-bool blocked = GameApp.UI.IsBlockedByModal(gameObject);
+bool blocked = GameApp.Services.GetRequiredService<IUIService>().IsBlockedByModal(gameObject);
 ```
 
 ### Widget Sub-Controls
@@ -115,7 +115,7 @@ AdjustIconNum<HeroItemWidget>(_items, count, parentTrans, prefab);
 
 ### Open/Close Animation and Interaction Lock
 
-Windows have a built-in default 0.5-second open / 0.25-second close wait time, which can be overridden with custom animations. During animation, the window automatically locks interaction, and modal windows also coordinate with the input service (`GameApp.Input.PreventInteractionUI`):
+Windows have a built-in default 0.5-second open / 0.25-second close wait time, which can be overridden with custom animations. During animation, the window automatically locks interaction, and modal windows also coordinate with the input service (`GameApp.Services.GetRequiredService<IInputService>().PreventInteractionUI`):
 
 ```csharp
 protected override async UniTask OpenAnimation()

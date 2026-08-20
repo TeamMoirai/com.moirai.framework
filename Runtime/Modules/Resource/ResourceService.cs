@@ -30,6 +30,16 @@ namespace Moirai.Atropos.Resource
 
         public override int Priority => 4;
 
+        private readonly IObjectPoolService _objectPoolService;
+
+        /// <summary>
+        /// 容器构造注入——依赖在编译期显式声明，由容器拓扑排序保证先于本服务初始化。
+        /// </summary>
+        public ResourceService(IObjectPoolService objectPoolService)
+        {
+            _objectPoolService = objectPoolService ?? throw new GameException("Object pool service is invalid.");
+        }
+
         public override void OnInit() { }
 
         public override void Shutdown() { }
@@ -106,8 +116,7 @@ namespace Moirai.Atropos.Resource
             }
             DefaultPackage = defaultPackage;
 
-            IObjectPoolService objectPoolManager = GameServices.GetService<IObjectPoolService>();
-            SetObjectPoolService(objectPoolManager);
+            SetObjectPoolService(_objectPoolService);
         }
 
         public async UniTask<InitializationOperation> InitPackage(string packageName, bool needInitMainFest = false)

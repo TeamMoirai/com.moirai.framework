@@ -1,93 +1,41 @@
 using System;
 using Cysharp.Threading.Tasks;
-using Moirai.Atropos.Audio;
-using Moirai.Atropos.Debugger;
 using Moirai.Atropos.Events;
-using Moirai.Atropos.FSM;
-using Moirai.Atropos.Input;
-using Moirai.Atropos.Localization;
 using Moirai.Atropos.ObjectPool;
 using Moirai.Atropos.Procedure;
 using Moirai.Atropos.Resource;
-using Moirai.Atropos.Save;
-using Moirai.Atropos.Scene;
-using Moirai.Atropos.Timer;
-using Moirai.Atropos.UI;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
 namespace Moirai.Atropos
 {
     /// <summary>
-    /// 游戏服务。
+    /// 游戏入口。仅负责生命周期驱动——不持有服务静态属性。
+    /// <para>服务访问统一通过 <see cref="Services"/>（<see cref="IServiceProvider"/>）：
+    /// <c>GameApp.Services.GetRequiredService&lt;IAudioService&gt;()</c>。</para>
     /// </summary>
     [DisallowMultipleComponent]
     [DefaultExecutionOrder(-1000)]
     public partial class GameApp : MonoBehaviour
     {
-        #region 框架服务 [FRAMEWORK SERVICES]
-
-        // 懒加载缓存：首次访问时通过 GetService 查找一次，后续直接返回静态字段引用。
-        // s_IsShutdown 为 true 时直接返回 null，避免 Shutdown 后访问抛异常——
-        // 退出/重启场景中外部代码可能仍持有 GameApp.XX 引用，此时安全返回 null 比抛异常更合理。
+        #region 公共属性 [PUBLIC PROPERTIES]
 
         private static bool s_IsShutdown = true;
 
-        private static IDebuggerService s_Debugger;
-        /// <summary>获取调试服务。</summary>
-        public static IDebuggerService Debugger => s_IsShutdown ? null : s_Debugger ??= GameServices.GetService<IDebuggerService>(EServiceScopeKind.App);
+        /// <summary>
+        /// 最深层活跃的服务提供者（Gameplay > Scene > App）。
+        /// <para>非服务代码通过此属性访问服务；服务类应使用构造注入。</para>
+        /// <para>关闭后返回 null——退出/重启场景中外部代码可能仍持有引用，安全返回 null 比抛异常更合理。</para>
+        /// </summary>
+        public static IServiceProvider Services => s_IsShutdown ? null : GameServices.Provider;
 
-        private static IFSMService s_FSM;
-        /// <summary>获取有限状态机服务。</summary>
-        public static IFSMService FSM => s_IsShutdown ? null : s_FSM ??= GameServices.GetService<IFSMService>(EServiceScopeKind.App);
-
-        private static IProcedureService s_Procedure;
-        /// <summary>流程管理服务。</summary>
-        public static IProcedureService Procedure => s_IsShutdown ? null : s_Procedure ??= GameServices.GetService<IProcedureService>(EServiceScopeKind.App);
-
-        private static IObjectPoolService s_ObjectPool;
-        /// <summary>获取对象池服务。</summary>
-        public static IObjectPoolService ObjectPool => s_IsShutdown ? null : s_ObjectPool ??= GameServices.GetService<IObjectPoolService>(EServiceScopeKind.App);
-
-        private static IResourceService s_Resource;
-        /// <summary>获取资源服务。</summary>
-        public static IResourceService Resource => s_IsShutdown ? null : s_Resource ??= GameServices.GetService<IResourceService>(EServiceScopeKind.App);
-
-        private static IAudioService s_Audio;
-        /// <summary>获取音频服务。</summary>
-        public static IAudioService Audio => s_IsShutdown ? null : s_Audio ??= GameServices.GetService<IAudioService>(EServiceScopeKind.App);
-
-        private static IUIService s_UI;
-        /// <summary>获取UI服务。</summary>
-        public static IUIService UI => s_IsShutdown ? null : s_UI ??= GameServices.GetService<IUIService>(EServiceScopeKind.App);
-
-        private static ILocalizationService s_Localization;
-        /// <summary>获取多语言服务。</summary>
-        public static ILocalizationService Localization => s_IsShutdown ? null : s_Localization ??= GameServices.GetService<ILocalizationService>(EServiceScopeKind.App);
-
-        private static ISceneService s_Scene;
-        /// <summary>获取场景服务。</summary>
-        public static ISceneService Scene => s_IsShutdown ? null : s_Scene ??= GameServices.GetService<ISceneService>(EServiceScopeKind.App);
-
-        private static ITimerService s_Timer;
-        /// <summary>获取计时器服务。</summary>
-        public static ITimerService Timer => s_IsShutdown ? null : s_Timer ??= GameServices.GetService<ITimerService>(EServiceScopeKind.App);
-
-        private static IInputService s_Input;
-        /// <summary>获取输入服务。</summary>
-        public static IInputService Input => s_IsShutdown ? null : s_Input ??= GameServices.GetService<IInputService>(EServiceScopeKind.App);
-
-        private static ISaveService s_Save;
-        /// <summary>获取保存服务。</summary>
-        public static ISaveService Save => s_IsShutdown ? null : s_Save ??= GameServices.GetService<ISaveService>(EServiceScopeKind.App);
+        /// <summary>获取游戏是否已关闭。</summary>
+        public static bool IsShutdown => s_IsShutdown;
 
         #endregion
 
         #region 引擎方法 [UNITY METHODS]
 
-        /// <summary>
-        /// 游戏框架服务初始化。
-        /// </summary>
         private void Awake()
         {
             LogUtility.Info("GameApp Active");
@@ -101,6 +49,7 @@ namespace Moirai.Atropos
             SceneManager.sceneUnloaded += OnSceneUnloaded;
             Application.lowMemory += OnLowMemory;
 
+            // 异步构建 App 容器 + 启动流程
             InitializeAsync().Forget();
 
             GameTime.StartFrame();
@@ -110,12 +59,18 @@ namespace Moirai.Atropos
         {
             try
             {
-                await GameServices.InitializeAsync();
+                // App 容器已在 AppSettings.Initiation() 中创建（仅存储描述符）
+                // 此处执行实际构建：创建实例 → 注入 → OnInit → OnInitAsync
+                if (GameServices.AppContainer != null)
+                    await GameServices.AppContainer.BuildAsync();
+
+                // 启动游戏流程
                 await ProcedureSettings.StartProcedure();
             }
             catch (Exception ex)
             {
                 LogUtility.Error("GameApp initialization failed:\n{0}", ex);
+                // 可扩展：弹出错误 UI 或退出游戏
             }
         }
 
@@ -163,7 +118,8 @@ namespace Moirai.Atropos
 
         private void OnApplicationFocus(bool hasFocus)
         {
-            GameAppMessageEvent.Trigger(hasFocus ? EMessageEventType.ApplicationFocus : EMessageEventType.NotApplicationFocus);
+            GameAppMessageEvent.Trigger(
+                hasFocus ? EMessageEventType.ApplicationFocus : EMessageEventType.NotApplicationFocus);
         }
 
         private void OnApplicationQuit()
@@ -179,14 +135,18 @@ namespace Moirai.Atropos
 
         private void OnSceneUnloaded(UnityEngine.SceneManagement.Scene scene)
         {
-            GameServices.ShutdownScope(EServiceScopeKind.Scene);
-            GameServices.ShutdownScope(EServiceScopeKind.Gameplay);
+            // 场景卸载时销毁 Gameplay 和 Scene 容器
+            // ShutdownContainer 内部按逆拓扑序关闭服务
+            GameServices.ShutdownContainer(EServiceScopeKind.Gameplay);
+            GameServices.ShutdownContainer(EServiceScopeKind.Scene);
         }
 
         #endregion
 
+        #region 静态方法 [STATIC METHODS]
+
         /// <summary>
-        /// 关闭游戏服务系统。幂等——重复调用安全。
+        /// 关闭游戏框架。幂等——重复调用安全。
         /// 统一入口：编辑器退出 Play 模式和 OnDestroy 均通过此方法清理。
         /// </summary>
         public static void Shutdown()
@@ -196,38 +156,34 @@ namespace Moirai.Atropos
             LogUtility.Info("GameApp Shutdown");
             s_IsShutdown = true;
 
-            s_Debugger = null;
-            s_FSM = null;
-            s_Procedure = null;
-            s_ObjectPool = null;
-            s_Resource = null;
-            s_Audio = null;
-            s_UI = null;
-            s_Localization = null;
-            s_Scene = null;
-            s_Timer = null;
-            s_Input = null;
-            s_Save = null;
-
             GameServices.Shutdown();
         }
+
+        #endregion
+
+        #region 低内存 [LOW MEMORY]
 
         // Application.lowMemory 由 Unity 在主线程触发（与 Application.focus/quit 一致），无需线程守卫。
         private void OnLowMemory()
         {
             LogUtility.Warning("Low memory reported...");
 
-            if (GameServices.TryResolve<IObjectPoolService>(null, out var objectPoolService))
-                objectPoolService.ReleaseAllUnused();
+            // 通过 Provider 安全访问——避免直接引用服务实例
+            var provider = GameServices.Provider;
+            if (provider == null) return;
 
-            if (GameServices.TryResolve<IResourceService>(null, out var resourceService))
-                resourceService.ForceUnloadUnusedAssets(true);
+            if (provider.TryGetService<IObjectPoolService>(out var pool))
+                pool.ReleaseAllUnused();
+            if (provider.TryGetService<IResourceService>(out var resource))
+                resource.ForceUnloadUnusedAssets(true);
         }
+
+        #endregion
 
 #if UNITY_EDITOR
         private static void HandlePlayModeStateChanged(UnityEditor.PlayModeStateChange state)
         {
-            if (state ==  UnityEditor.PlayModeStateChange.ExitingPlayMode)
+            if (state == UnityEditor.PlayModeStateChange.ExitingPlayMode)
             {
                 // 编辑器退出 Play 时清理服务系统：不依赖域重载（兼容 Enter Play Mode Options 跳过域重载的场景）
                 Shutdown();

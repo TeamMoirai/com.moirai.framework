@@ -1,3 +1,4 @@
+using Moirai.Atropos.Input;
 using UnityEngine;
 
 namespace Moirai.Atropos.UI
@@ -8,9 +9,16 @@ namespace Moirai.Atropos.UI
         /// 交互是否被模态遮挡。是否存在模态遮挡（导致交互被阻止）
         /// </summary>
         /// <remarks>一般用于[非UI组件]但想与UI交互的前置判断</remarks>
-        public static bool IsInteractionBlockedByModal =>
-            (GameApp.Input != null && GameApp.Input.PreventInteractionUI)
-            || (GameApp.UI != null && GameApp.UI.CurrentModal != null);
+        public static bool IsInteractionBlockedByModal
+        {
+            get
+            {
+                var inputService = GameApp.Services?.GetService<IInputService>();
+                var uiService = GameApp.Services?.GetService<IUIService>();
+                return (inputService != null && inputService.PreventInteractionUI)
+                    || (uiService != null && uiService.CurrentModal != null);
+            }
+        }
 
         /// <summary>
         /// 判断指定UI对象是否可交互
@@ -21,8 +29,11 @@ namespace Moirai.Atropos.UI
         /// <remarks>一般用于[UI组件]交互触发前的判断</remarks>
         public static bool IsUIObjectInteractable(GameObject uiObject, bool ignoreModal = false)
         {
-            if (GameApp.Input == null || GameApp.Input.PreventInteractionUI) return false;
-            if (GameApp.UI == null || (!ignoreModal && GameApp.UI.IsBlockedByModal(uiObject))) return false;
+            var inputService = GameApp.Services?.GetService<IInputService>();
+            var uiService = GameApp.Services?.GetService<IUIService>();
+
+            if (inputService == null || inputService.PreventInteractionUI) return false;
+            if (uiService == null || (!ignoreModal && uiService.IsBlockedByModal(uiObject))) return false;
 
             return true;
         }
