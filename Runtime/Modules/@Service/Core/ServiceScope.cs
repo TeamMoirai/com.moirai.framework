@@ -209,8 +209,23 @@ namespace Moirai.Atropos
 
             GameServices.SetState(service, EServiceState.Disposed);
             entry.PendingRemove = false;
-            RemoveServiceInternal(service, entry);
+
+            // 作用域整体销毁时跳过逐项列表移除（由 DisposeInternal 统一 Clear），
+            // 但全局映射和 entries 必须逐项清理——否则 ShutdownScope 后 GetBest 仍返回已关闭的服务
+            if (IsDisposing)
+            {
+                _servicesByContract.Remove(entry.InterfaceHandle);
+                GameServices.RemoveFromGlobalMap(entry.InterfaceHandle, service, Kind);
+                _entriesByService.Remove(service);
+                GameServices.RaiseServiceUnregistered(service);
+            }
+            else
+            {
+                RemoveServiceInternal(service, entry);
+            }
         }
+
+        private bool IsDisposing { get; set; }
 
         private void RemoveServiceInternal(IService service, ServiceEntry entry)
         {
@@ -374,6 +389,10 @@ namespace Moirai.Atropos
             _disposePending = false;
             _pendingChanges.Clear();
 
+            // 标记正在整体销毁：ShutdownService 跳过逐项列表移除，
+            // 由循环结束后统一 Clear() 清空全部列表——避免逆序遍历时 List.Remove 修改被遍历列表
+            IsDisposing = true;
+
             // 逆插入序关闭 = 逆依赖拓扑序：依赖方（后注册）先关闭，被依赖方后关闭。
             // 循环依赖在注册期即被依赖验证阻止，此处无需再做环检测。
             for (int i = _registrationOrder.Count - 1; i >= 0; i--)
@@ -382,6 +401,8 @@ namespace Moirai.Atropos
                 if (service != null && _entriesByService.ContainsKey(service))
                     ShutdownService(service);
             }
+
+            IsDisposing = false;
 
             _registrationOrder.Clear();
             _tickables.Clear();
