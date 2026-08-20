@@ -30,24 +30,24 @@ namespace Moirai.Atropos.Editor
             {
                 EditorGUILayout.LabelField("Language", GameApp.Localization?.CurrentLanguage.Name);
 
-                int frameRate = EditorGUILayout.IntSlider("Frame Rate", AppSettings.FrameRate, 1, 300);
-                if (frameRate != AppSettings.FrameRate)
+                int frameRate = EditorGUILayout.IntSlider("Frame Rate", GameAppSettings.FrameRate, 1, 300);
+                if (frameRate != GameAppSettings.FrameRate)
                 {
-                    AppSettings.FrameRate = frameRate;
+                    GameAppSettings.FrameRate = frameRate;
                 }
 
                 EditorGUILayout.BeginVertical("box");
                 {
-                    float gameSpeed = EditorGUILayout.Slider("Game Speed", AppSettings.GameSpeed, 0f, 8f);
+                    float gameSpeed = EditorGUILayout.Slider("Game Speed", GameAppSettings.GameSpeed, 0f, 8f);
                     int selectedGameSpeed = GUILayout.SelectionGrid(GetSelectedGameSpeed(gameSpeed), s_GameSpeedForDisplay, 5);
                     if (selectedGameSpeed >= 0)
                     {
                         gameSpeed = GetGameSpeed(selectedGameSpeed);
                     }
 
-                    if (Math.Abs(gameSpeed - AppSettings.GameSpeed) > 0.01f)
+                    if (Math.Abs(gameSpeed - GameAppSettings.GameSpeed) > 0.01f)
                     {
-                        AppSettings.GameSpeed = gameSpeed;
+                        GameAppSettings.GameSpeed = gameSpeed;
                     }
                 }
                 EditorGUILayout.EndVertical();

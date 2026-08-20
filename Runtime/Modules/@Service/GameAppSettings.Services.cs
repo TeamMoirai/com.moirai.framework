@@ -19,7 +19,7 @@ using UnityEngine;
 
 namespace Moirai.Atropos
 {
-    public partial class AppSettings
+    public partial class GameAppSettings
     {
         [DisableInPlayMode, PropertyOrder(-999)]
         [ValueDropdown(nameof(GetLanguageOptions))]
@@ -121,7 +121,7 @@ namespace Moirai.Atropos
         /// <para>① <see cref="GameServices.BuildContainer"/> 创建容器并存储描述符；</para>
         /// <para>② <see cref="ServiceContainer.BuildAsync"/> 按拓扑序创建实例、构造注入、OnInit、OnInitAsync；</para>
         /// <para>③ <see cref="ProcedureSettings.StartProcedure"/> 启动流程状态机。</para>
-        /// <para>由 <see cref="AppSettings.Initiation"/> 在 <c>AfterAssembliesLoaded</c> 阶段调用。</para>
+        /// <para>由 <see cref="GameAppSettings.Initiation"/> 在 <c>AfterAssembliesLoaded</c> 阶段调用。</para>
         /// </summary>
         private static partial UniTaskVoid InitializeAppServices()
         {

@@ -17,7 +17,7 @@ namespace Moirai.Atropos.Editor
     /// <para>① 序列化器核心对比（DefaultJson string/bytes vs Newtonsoft vs Unity JsonUtility 参考）；</para>
     /// <para>② JsonHandler 中间件层：经 <see cref="Moirai.Atropos.AssemblyUtility.GetRuntimeTypes"/> 自动发现全部
     /// <see cref="Moirai.Atropos.JsonHandler"/> 实现，经 <see cref="Moirai.Atropos.FrameworkSettings.ResolveTypeOption"/>
-    /// 实例化（与 AppSettings 配置流同链路）——新增 handler 实现无需修改本基准；</para>
+    /// 实例化（与 GameAppSettings 配置流同链路）——新增 handler 实现无需修改本基准；</para>
     /// <para>③ IBufferJsonHandler 能力矩阵。全部数据程序化构建（零外部文件依赖），结束后恢复门面并清理临时状态。</para>
     /// 菜单：Window/Moirai/JSON Benchmark。逐场景自适迭代（每测量段约 150ms），场景间让出主线程保持编辑器响应。
     /// </summary>
@@ -271,7 +271,7 @@ namespace Moirai.Atropos.Editor
 
         /// <summary>
         /// 发现全部 <see cref="Moirai.Atropos.JsonHandler"/> 实现（排除抽象/测试程序集），
-        /// 经 <see cref="Moirai.Atropos.FrameworkSettings.ResolveTypeOption"/> 实例化（与 AppSettings 配置流同链路）。
+        /// 经 <see cref="Moirai.Atropos.FrameworkSettings.ResolveTypeOption"/> 实例化（与 GameAppSettings 配置流同链路）。
         /// 单个 handler 实例化失败仅记录，不中断整体。
         /// </summary>
         private static List<(string name, JsonHandler handler)> DiscoverHandlers(List<string> results)
@@ -292,7 +292,7 @@ namespace Moirai.Atropos.Editor
             {
                 try
                 {
-                    // ResolveTypeOption 走 AssemblyUtility.GetType + Activator（AppSettings 同款解析链路）
+                    // ResolveTypeOption 走 AssemblyUtility.GetType + Activator（GameAppSettings 同款解析链路）
                     var handler = FrameworkSettings.ResolveTypeOption<JsonHandler>(type.FullName);
                     discovered.Add((type.Name, handler));
                 }
