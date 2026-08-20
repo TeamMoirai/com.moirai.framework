@@ -99,10 +99,10 @@ namespace Moirai.Atropos
             // 注意：sceneUnloaded 在场景对象销毁之后触发（Unity 无"卸载前"全局事件），
             // 因此 Scene/Gameplay 服务的 Shutdown() 不得访问场景对象。
             SceneManager.sceneUnloaded += OnSceneUnloaded;
+            Application.lowMemory += OnLowMemory;
 
             InitializeAsync().Forget();
 
-            Application.lowMemory += OnLowMemory;
             GameTime.StartFrame();
         }
 
@@ -122,9 +122,8 @@ namespace Moirai.Atropos
         private void OnDestroy()
         {
             SceneManager.sceneUnloaded -= OnSceneUnloaded;
-#if !UNITY_EDITOR
-            GameServices.Shutdown();
-#endif
+            Application.lowMemory -= OnLowMemory;
+            Shutdown();
         }
 
         private void OnEnable()
@@ -143,18 +142,21 @@ namespace Moirai.Atropos
 
         private void Update()
         {
+            if (s_IsShutdown) return;
             GameTime.StartFrame();
             GameServices.Tick(GameTime.deltaTime, GameTime.unscaledDeltaTime);
         }
 
         private void FixedUpdate()
         {
+            if (s_IsShutdown) return;
             GameTime.StartFrame();
             GameServices.FixedTick(GameTime.deltaTime, GameTime.unscaledDeltaTime);
         }
 
         private void LateUpdate()
         {
+            if (s_IsShutdown) return;
             GameTime.StartFrame();
             GameServices.LateTick(GameTime.deltaTime, GameTime.unscaledDeltaTime);
         }
@@ -167,7 +169,6 @@ namespace Moirai.Atropos
         private void OnApplicationQuit()
         {
             GameAppMessageEvent.Trigger(EMessageEventType.ApplicationQuit);
-            Application.lowMemory -= OnLowMemory;
             StopAllCoroutines();
         }
 
@@ -184,8 +185,14 @@ namespace Moirai.Atropos
 
         #endregion
 
+        /// <summary>
+        /// 关闭游戏服务系统。幂等——重复调用安全。
+        /// 统一入口：编辑器退出 Play 模式和 OnDestroy 均通过此方法清理。
+        /// </summary>
         public static void Shutdown()
         {
+            if (s_IsShutdown) return;
+
             LogUtility.Info("GameApp Shutdown");
             s_IsShutdown = true;
 
@@ -201,16 +208,19 @@ namespace Moirai.Atropos
             s_Timer = null;
             s_Input = null;
             s_Save = null;
+
+            GameServices.Shutdown();
         }
 
+        // Application.lowMemory 由 Unity 在主线程触发（与 Application.focus/quit 一致），无需线程守卫。
         private void OnLowMemory()
         {
             LogUtility.Warning("Low memory reported...");
 
-            if (GameServices.TryResolve<IObjectPoolService>(EServiceScopeKind.App, out var objectPoolService))
+            if (GameServices.TryResolve<IObjectPoolService>(null, out var objectPoolService))
                 objectPoolService.ReleaseAllUnused();
 
-            if (GameServices.TryResolve<IResourceService>(EServiceScopeKind.App, out var resourceService))
+            if (GameServices.TryResolve<IResourceService>(null, out var resourceService))
                 resourceService.ForceUnloadUnusedAssets(true);
         }
 
@@ -220,7 +230,6 @@ namespace Moirai.Atropos
             if (state ==  UnityEditor.PlayModeStateChange.ExitingPlayMode)
             {
                 // 编辑器退出 Play 时清理服务系统：不依赖域重载（兼容 Enter Play Mode Options 跳过域重载的场景）
-                GameServices.Shutdown();
                 Shutdown();
             }
         }
