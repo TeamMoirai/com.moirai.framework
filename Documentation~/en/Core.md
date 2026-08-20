@@ -197,6 +197,43 @@ public class MyMonoService : ServiceMono<AppScope>, IMyService
 }
 ```
 
+### Service Interceptors (AOP)
+
+Implement `IServiceInterceptor` to inject cross-cutting concerns (logging, profiling, caching, etc.) at lifecycle points:
+
+```csharp
+public class ProfilingInterceptor : IServiceInterceptor
+{
+    public int Priority => 100; // Higher = executes first
+
+    public void OnServiceTick(IService service, float elapseSeconds, float realElapseSeconds)
+    {
+        // Profiling before each Tick
+    }
+
+    public void OnServiceShutdown(IService service)
+    {
+        // Cleanup before Shutdown
+    }
+}
+
+// Register interceptor
+GameServices.AddInterceptor(new ProfilingInterceptor());
+```
+
+Six interception points with default empty implementations — implement only what you need:
+
+| Method | Timing |
+|--------|--------|
+| `OnServiceRegistering` | Before `OnInit()` — can throw to reject registration |
+| `OnServiceRegistered` | After `OnInit()` and state transition to `Initialized` |
+| `OnServiceUnregistering` | Before `Shutdown()` |
+| `OnServiceUnregistered` | After removal from registry |
+| `OnServiceTick` | Before each `Tick()` call (Update path only) |
+| `OnServiceShutdown` | Before `Shutdown()` call |
+
+Multiple interceptors execute in `Priority` descending order. Interceptors are cleared on `GameServices.Shutdown()`.
+
 ## Notes
 
 - `GameServices` only allows calls from the main thread; for background threads or async callbacks, use `MainThreadDispatcher`'s `Post`/`Send` to switch back to the main thread.

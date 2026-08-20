@@ -166,9 +166,12 @@ namespace Moirai.Atropos
 
             _entriesByService[service] = entry;
 
+            GameServices.InvokeRegistering(service, interfaceType, Kind);
+
             service.OnInit();
             GameServices.SetState(service, EServiceState.Initialized);
             GameServices.RaiseServiceRegistered(service, interfaceType, Kind);
+            GameServices.InvokeRegistered(service, interfaceType, Kind);
         }
 
         internal bool Unregister(IService service)
@@ -180,10 +183,10 @@ namespace Moirai.Atropos
 
             if (_isIterating)
             {
-                if (entry.PendingRemove) return true;
-                entry.PendingRemove = true;
-                _pendingChanges.Add(PendingChange.Unregister(service));
-                return true;
+            if (entry.PendingRemove) return true;
+            entry.PendingRemove = true;
+            _pendingChanges.Add(PendingChange.Unregister(service));
+            return true;
             }
 
             ShutdownService(service);
@@ -203,6 +206,7 @@ namespace Moirai.Atropos
             if (state >= EServiceState.ShuttingDown) return;
 
             GameServices.SetState(service, EServiceState.ShuttingDown);
+            GameServices.InvokeShutdown(service);
 
             try { service.Shutdown(); }
             catch (Exception ex) { LogUtility.Error(ex.ToString()); }
@@ -218,6 +222,7 @@ namespace Moirai.Atropos
                 GameServices.RemoveFromGlobalMap(entry.InterfaceHandle, service, Kind);
                 _entriesByService.Remove(service);
                 GameServices.RaiseServiceUnregistered(service);
+                GameServices.InvokeUnregistered(service);
             }
             else
             {
@@ -240,6 +245,7 @@ namespace Moirai.Atropos
 
             _entriesByService.Remove(service);
             GameServices.RaiseServiceUnregistered(service);
+            GameServices.InvokeUnregistered(service);
         }
 
         #endregion
@@ -257,7 +263,11 @@ namespace Moirai.Atropos
                 for (int i = 0; i < count; i++)
                 {
                     var tickable = _tickables[i];
-                    try { tickable.Tick(elapseSeconds, realElapseSeconds); }
+                    try
+                    {
+                        GameServices.InvokeTick(tickable as IService, elapseSeconds, realElapseSeconds);
+                        tickable.Tick(elapseSeconds, realElapseSeconds);
+                    }
                     catch (Exception ex) { LogTickFailure(tickable, nameof(Tick), ex); }
                 }
             }

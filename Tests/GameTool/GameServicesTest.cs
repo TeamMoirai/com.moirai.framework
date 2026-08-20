@@ -832,5 +832,128 @@ namespace GameTool
             Assert.IsTrue(found);
             Assert.AreSame(service, resolved);
         }
+
+        // --- 服务拦截器 [SERVICE INTERCEPTORS] ---
+
+        private sealed class TestInterceptor : IServiceInterceptor
+        {
+            public int Priority { get; set; }
+
+            public List<string> Events { get; } = new();
+
+            public void OnServiceRegistering(IService service, Type interfaceType, EServiceScopeKind scope)
+                => Events.Add($"Registering:{interfaceType.Name}");
+
+            public void OnServiceRegistered(IService service, Type interfaceType, EServiceScopeKind scope)
+                => Events.Add($"Registered:{interfaceType.Name}");
+
+            public void OnServiceUnregistering(IService service)
+                => Events.Add($"Unregistering:{service.GetType().Name}");
+
+            public void OnServiceUnregistered(IService service)
+                => Events.Add($"Unregistered:{service.GetType().Name}");
+
+            public void OnServiceTick(IService service, float elapseSeconds, float realElapseSeconds)
+                => Events.Add($"Tick:{service.GetType().Name}");
+
+            public void OnServiceShutdown(IService service)
+                => Events.Add($"Shutdown:{service.GetType().Name}");
+        }
+
+        [Test]
+        public void Interceptor_RegisterFlow_RegisteringBeforeOnInit_RegisteredAfterOnInit()
+        {
+            var interceptor = new TestInterceptor();
+            GameServices.AddInterceptor(interceptor);
+
+            var service = new AppService();
+            GameServices.RegisterService<IAlphaService>(service);
+
+            // Registering 应在 OnInit 前触发，Registered 应在 OnInit 后触发
+            Assert.AreEqual(2, interceptor.Events.Count, "应触发 Registering + Registered 两个事件");
+            Assert.AreEqual("Registering:IAlphaService", interceptor.Events[0]);
+            Assert.AreEqual("Registered:IAlphaService", interceptor.Events[1]);
+            Assert.AreEqual(1, service.InitCount, "OnInit 应在 Registering 后、Registered 前调用");
+        }
+
+        [Test]
+        public void Interceptor_UnregisterFlow_UnregisteringBeforeShutdown()
+        {
+            var interceptor = new TestInterceptor();
+            GameServices.AddInterceptor(interceptor);
+
+            var service = new AppService();
+            GameServices.RegisterService<IAlphaService>(service);
+            interceptor.Events.Clear();
+
+            GameServices.UnregisterService<IAlphaService>();
+
+            Assert.IsTrue(interceptor.Events.Contains("Shutdown:AppService"), "应触发 Shutdown");
+            Assert.IsTrue(interceptor.Events.Contains("Unregistered:AppService"), "应触发 Unregistered");
+            // Shutdown 在 Shutdown() 调用前，Unregistered 在移除后
+            Assert.Less(
+                interceptor.Events.IndexOf("Shutdown:AppService"),
+                interceptor.Events.IndexOf("Unregistered:AppService"),
+                "Shutdown 应在 Unregistered 之前");
+        }
+
+        [Test]
+        public void Interceptor_Tick_TriggersBeforeEachService()
+        {
+            var interceptor = new TestInterceptor();
+            GameServices.AddInterceptor(interceptor);
+
+            var service = new AppService();
+            GameServices.RegisterService<IAlphaService>(service);
+            interceptor.Events.Clear();
+
+            GameServices.Tick(0.1f, 0.1f);
+
+            Assert.AreEqual(1, interceptor.Events.Count, "应触发一次 Tick 拦截");
+            Assert.AreEqual("Tick:AppService", interceptor.Events[0]);
+            Assert.AreEqual(1, service.TickCount, "服务 Tick 应正常执行");
+        }
+
+        [Test]
+        public void Interceptor_MultipleInterceptors_ExecuteByPriorityDescending()
+        {
+            var high = new TestInterceptor { Priority = 10 };
+            var low = new TestInterceptor { Priority = 0 };
+            GameServices.AddInterceptor(low);
+            GameServices.AddInterceptor(high);
+
+            // 验证高优先级在列表中排在前面
+            Assert.AreSame(high, GameServices.Interceptors[0]);
+            Assert.AreSame(low, GameServices.Interceptors[1]);
+        }
+
+        [Test]
+        public void Interceptor_RemoveInterceptor_StopsReceivingEvents()
+        {
+            var interceptor = new TestInterceptor();
+            GameServices.AddInterceptor(interceptor);
+
+            var service = new AppService();
+            GameServices.RegisterService<IAlphaService>(service);
+            Assert.IsTrue(interceptor.Events.Count > 0, "添加后应收到事件");
+
+            interceptor.Events.Clear();
+            GameServices.RemoveInterceptor(interceptor);
+
+            var service2 = new BetaService();
+            GameServices.RegisterService<IBetaService>(service2);
+            Assert.AreEqual(0, interceptor.Events.Count, "移除后不应再收到事件");
+        }
+
+        [Test]
+        public void Interceptor_Shutdown_ClearsAllInterceptors()
+        {
+            var interceptor = new TestInterceptor();
+            GameServices.AddInterceptor(interceptor);
+
+            GameServices.Shutdown();
+
+            Assert.AreEqual(0, GameServices.Interceptors.Count, "Shutdown 后拦截器列表应清空");
+        }
     }
 }
