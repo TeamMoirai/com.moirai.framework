@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 namespace Moirai.Atropos
@@ -22,6 +23,13 @@ namespace Moirai.Atropos
 
         /// <summary>当前生命周期状态。</summary>
         public EServiceState State { get; internal set; } = EServiceState.Created;
+
+        /// <summary>
+        /// 此服务依赖的合约接口类型列表。注册时验证依赖已就绪，未满足则抛出 <see cref="GameException"/>。
+        /// 默认为空。子类覆写以声明依赖（如 <c>typeof(IResourceService)</c>）。
+        /// 建议以 static readonly 数组返回，避免每次访问分配。
+        /// </summary>
+        public virtual Type[] Dependencies => Array.Empty<Type>();
 
         #endregion
 

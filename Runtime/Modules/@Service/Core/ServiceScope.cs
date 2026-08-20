@@ -70,7 +70,9 @@ namespace Moirai.Atropos
         #region 异步初始化收集 [ASYNC INIT COLLECTION]
 
         /// <summary>
-        /// 按注册顺序（优先级降序）收集需要异步初始化的服务。
+        /// 按注册顺序收集需要异步初始化的服务。
+        /// 注册顺序即依赖拓扑序（依赖验证强制依赖先注册），因此异步初始化按拓扑序执行：
+        /// 被依赖服务的 OnInitAsync 先于依赖方执行。
         /// </summary>
         internal void CollectAsyncInitServices(List<IAsyncInitService> buffer)
         {
@@ -132,16 +134,19 @@ namespace Moirai.Atropos
 
         internal void RegisterInternal(IService service, Type interfaceType, RuntimeTypeHandle handle)
         {
-            // 依赖验证：确保依赖的服务已注册
-            if (service is ServiceBase sb)
+            // 依赖验证：确保依赖的服务已注册（适用于 ServiceBase 与 ServiceMonoBase）。
+            // 该约束使注册顺序成为依赖拓扑序——插入序正序即拓扑序，逆序即逆拓扑序。
+            var deps = service.Dependencies;
+            if (deps != null && deps.Length > 0)
             {
-                var deps = sb.Dependencies;
                 for (int i = 0; i < deps.Length; i++)
                 {
                     if (!GameServices.IsRegistered(deps[i]))
                         throw new GameException(StringUtility.Format(
-                            "Service '{0}' depends on '{1}' which is not registered. Ensure dependency is registered first.",
-                            service.GetType().FullName, deps[i].FullName));
+                            "Service '{0}' depends on '{1}' which is not registered.\nDeclared dependencies: {2}\nEnsure dependencies are registered before this service.",
+                            service.GetType().FullName,
+                            deps[i].FullName,
+                            string.Join(", ", System.Linq.Enumerable.Select(deps, d => d.FullName))));
                 }
             }
 
@@ -151,9 +156,9 @@ namespace Moirai.Atropos
 
             var entry = new ServiceEntry { InterfaceHandle = handle };
 
-            // InsertSorted 按 Priority 降序插入，保证轮询顺序在注册时确定，
-            // 无需后续排序——Priority 是只读属性，不会在运行时变更。
-            InsertSorted(_registrationOrder, service);
+            // _registrationOrder 记录纯插入序（= 依赖拓扑序），用于异步初始化收集与逆序关闭；
+            // 轮询列表按 Priority 降序插入，顺序在注册时确定——Priority 只读，运行时不变。
+            _registrationOrder.Add(service);
             if (service is IServiceTickable tickable) InsertSorted(_tickables, tickable);
             if (service is IServiceFixedTickable fixedTickable) InsertSorted(_fixedTickables, fixedTickable);
             if (service is IServiceLateTickable lateTickable) InsertSorted(_lateTickables, lateTickable);
@@ -369,7 +374,8 @@ namespace Moirai.Atropos
             _disposePending = false;
             _pendingChanges.Clear();
 
-            // 逆序关闭：后注册的先关闭，保证依赖方先于被依赖方释放
+            // 逆插入序关闭 = 逆依赖拓扑序：依赖方（后注册）先关闭，被依赖方后关闭。
+            // 循环依赖在注册期即被依赖验证阻止，此处无需再做环检测。
             for (int i = _registrationOrder.Count - 1; i >= 0; i--)
             {
                 var service = _registrationOrder[i];
@@ -404,13 +410,6 @@ namespace Moirai.Atropos
                 if (priority > existingPriority) { insertAt = i; break; }
             }
             list.Insert(insertAt, item);
-        }
-
-        private static int CompareByPriority<T>(T a, T b)
-        {
-            int left = (a is IService ia) ? ia.Priority : 0;
-            int right = (b is IService ib) ? ib.Priority : 0;
-            return right.CompareTo(left); // 降序：高优先在前
         }
 
         #endregion

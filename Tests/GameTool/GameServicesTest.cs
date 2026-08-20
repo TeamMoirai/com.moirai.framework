@@ -537,7 +537,7 @@ namespace GameTool
 
         private sealed class ServiceWithDependency : TestServiceBase, IAlphaService
         {
-            protected internal override Type[] Dependencies => new[] { typeof(IDepTargetService) };
+            public override Type[] Dependencies => new[] { typeof(IDepTargetService) };
         }
 
         [Test]
@@ -564,6 +564,128 @@ namespace GameTool
         }
 
         private sealed class DepTargetServiceImpl : TestServiceBase, IDepTargetService { }
+
+        // --- 依赖拓扑序 [DEPENDENCY TOPOLOGY] ---
+
+        private static readonly List<string> s_AsyncInitOrder = new();
+
+        private sealed class LowPriorityAsyncService : TestServiceBase, IAlphaService, IAsyncInitService
+        {
+            public override int Priority => -10;
+
+            public UniTask OnInitAsync()
+            {
+                s_AsyncInitOrder.Add("low");
+                return UniTask.CompletedTask;
+            }
+        }
+
+        private sealed class HighPriorityAsyncService : TestServiceBase, IBetaService, IAsyncInitService
+        {
+            public override int Priority => 10;
+
+            public UniTask OnInitAsync()
+            {
+                s_AsyncInitOrder.Add("high");
+                return UniTask.CompletedTask;
+            }
+        }
+
+        [Test]
+        public void InitializeAsync_FollowsRegistrationOrder_NotPriority()
+        {
+            s_AsyncInitOrder.Clear();
+            var low = new LowPriorityAsyncService();
+            var high = new HighPriorityAsyncService();
+
+            // 低优先级先注册：初始化应按注册序执行，而非优先级序
+            GameServices.RegisterService<IAlphaService>(low);
+            GameServices.RegisterService<IBetaService>(high);
+
+            // 全部 OnInitAsync 返回 CompletedTask，整链同步完成
+            GameServices.InitializeAsync().Forget();
+
+            CollectionAssert.AreEqual(new[] { "low", "high" }, s_AsyncInitOrder,
+                "异步初始化应按注册顺序执行，而非优先级顺序");
+        }
+
+        private sealed class DependeeAsyncService : TestServiceBase, IDepTargetService, IAsyncInitService
+        {
+            public UniTask OnInitAsync()
+            {
+                s_AsyncInitOrder.Add("dependee");
+                return UniTask.CompletedTask;
+            }
+        }
+
+        private sealed class DependentAsyncService : TestServiceBase, IAlphaService, IAsyncInitService
+        {
+            // 依赖方优先级远高于被依赖方——按优先级序会先初始化依赖方，违反拓扑序
+            public override int Priority => 100;
+
+            public override Type[] Dependencies => new[] { typeof(IDepTargetService) };
+
+            public UniTask OnInitAsync()
+            {
+                s_AsyncInitOrder.Add("dependent");
+                return UniTask.CompletedTask;
+            }
+        }
+
+        [Test]
+        public void InitializeAsync_DependencyTopology_DependeeInitializesFirst()
+        {
+            s_AsyncInitOrder.Clear();
+            var dependee = new DependeeAsyncService();
+            var dependent = new DependentAsyncService();
+
+            GameServices.RegisterService<IDepTargetService>(dependee);
+            GameServices.RegisterService<IAlphaService>(dependent);
+
+            GameServices.InitializeAsync().Forget();
+
+            CollectionAssert.AreEqual(new[] { "dependee", "dependent" }, s_AsyncInitOrder,
+                "异步初始化应按依赖拓扑序：被依赖方先初始化（即使依赖方优先级更高）");
+        }
+
+        private static readonly List<string> s_ShutdownOrder = new();
+
+        private class ShutdownOrderService : TestServiceBase
+        {
+            private readonly string _name;
+
+            public ShutdownOrderService(string name) => _name = name;
+
+            public override void Shutdown()
+            {
+                s_ShutdownOrder.Add(_name);
+                base.Shutdown();
+            }
+        }
+
+        private sealed class DependentShutdownService : ShutdownOrderService, IAlphaService
+        {
+            public DependentShutdownService() : base("dependent") { }
+
+            public override Type[] Dependencies => new[] { typeof(IDepTargetService) };
+        }
+
+        [Test]
+        public void Shutdown_ClosesInReverseRegistrationOrder_DependentsFirst()
+        {
+            s_ShutdownOrder.Clear();
+            var dependee = new ShutdownOrderService("dependee");
+            var dependent = new DependentShutdownService();
+
+            // 注册序（拓扑序）：被依赖方在前，依赖方在后
+            GameServices.RegisterService<IDepTargetService>(dependee);
+            GameServices.RegisterService<IAlphaService>(dependent);
+
+            GameServices.Shutdown();
+
+            CollectionAssert.AreEqual(new[] { "dependent", "dependee" }, s_ShutdownOrder,
+                "关闭应按逆注册序（逆拓扑序）：依赖方先关闭，被依赖方后关闭");
+        }
 
         // --- 生命周期状态 [LIFECYCLE STATE] ---
 
