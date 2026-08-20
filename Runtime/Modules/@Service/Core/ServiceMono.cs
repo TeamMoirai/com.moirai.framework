@@ -86,9 +86,21 @@ namespace Moirai.Atropos
 
             var contract = RegisterAs;
             if (contract != null && contract.IsInterface && contract != typeof(IService))
+            {
                 GameServices.RegisterService(this, contract);
+            }
             else
+            {
+                // RegisterAs 未覆写或返回了非接口类型——退回注册为 IService 合约。
+                // 多个实例会争抢该合约，仅第一个生效，后续注册被静默忽略。
+                // 子类应覆写 RegisterAs 返回业务接口以避免此问题。
+                if (contract == null || contract == GetType())
+                    LogUtility.Warning("ServiceMono '{0}' did not override RegisterAs with a business interface. " +
+                        "It will be registered as IService, which may cause conflicts with other mono services. " +
+                        "Override RegisterAs to return the correct interface (e.g. typeof(IMyService)).", GetType().FullName);
+
                 GameServices.RegisterService(this, typeof(IService));
+            }
         }
 
         protected virtual void OnDestroy()
