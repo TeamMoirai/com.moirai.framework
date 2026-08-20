@@ -19,7 +19,7 @@ namespace Moirai.Atropos.Procedure
 
         // ─────────────────────── 事件 ───────────────────────
 
-        private void OnSettingsReset()
+        private void OnSettingsResetEvent()
         {
             _editorInitialized = false;
         }
@@ -32,7 +32,7 @@ namespace Moirai.Atropos.Procedure
             // 只在首次绘制时订阅一次
             if (!_resetSubscribed)
             {
-                SettingsReset += OnSettingsReset;
+                onSettingsReset += OnSettingsResetEvent;
                 _resetSubscribed = true;
             }
 

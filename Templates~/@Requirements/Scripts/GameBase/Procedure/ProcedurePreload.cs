@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using Cysharp.Threading.Tasks;
 using Moirai.Atropos;
-using Moirai.Atropos.FSM;
 using Moirai.Atropos.Procedure;
 using Moirai.Atropos.Resource;
 using UnityEngine;
@@ -18,8 +17,6 @@ namespace Moirai.Main
     {
         public override bool UseNativeDialog => true;
 
-        private IFSM<IProcedureService> _procedureOwner;
-
         // 预加载开关
         private readonly bool _preloadSwitch = true;
 
@@ -33,16 +30,15 @@ namespace Moirai.Main
         /// </summary>
         private LoadAssetCallbacks _preLoadAssetCallbacks;
         
-        protected override void OnInit(IFSM<IProcedureService> procedureOwner)
+        protected override void OnInit()
         {
-            base.OnInit(procedureOwner);
-            _procedureOwner = procedureOwner;
+            base.OnInit();
             _preLoadAssetCallbacks = new LoadAssetCallbacks(OnPreLoadAssetSuccess, OnPreLoadAssetFailure);
         }
         
-        protected override void OnEnter(IFSM<IProcedureService> procedureOwner)
+        protected override void OnEnter()
         {
-            base.OnEnter(procedureOwner);
+            base.OnEnter();
 
             _loadedFlag.Clear();
 
@@ -52,9 +48,9 @@ namespace Moirai.Main
             PreloadResources();
         }
 
-        protected override void OnUpdate(IFSM<IProcedureService> procedureOwner, float elapseSeconds, float realElapseSeconds)
+        protected override void OnUpdate(float elapseSeconds, float realElapseSeconds)
         {
-            base.OnUpdate(procedureOwner, elapseSeconds, realElapseSeconds);
+            base.OnUpdate(elapseSeconds, realElapseSeconds);
 
             LauncherMgr.RefreshProgress(_fakeProgress);
 
@@ -84,7 +80,7 @@ namespace Moirai.Main
             }
 
             LauncherMgr.ShowUI<LoadUpdateUI>(LoadText.Instance.Label_Load_Load_Complete);
-            ChangeState<ProcedureLoadAssembly>(procedureOwner);
+            ChangeState<ProcedureLoadAssembly>();
         }
 
         private void PreloadResources()
@@ -143,7 +139,7 @@ namespace Moirai.Main
 
         private void ChangeProcedureToLoadAssembly()
         {
-            ChangeState<ProcedureLoadAssembly>(_procedureOwner);
+            ChangeState<ProcedureLoadAssembly>();
         }
     }
 }

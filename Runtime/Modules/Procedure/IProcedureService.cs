@@ -3,7 +3,7 @@ using System;
 namespace Moirai.Atropos.Procedure
 {
     /// <summary>
-    /// 流程管理器接口。<see cref="IFSMService"/> 依赖由实现类通过构造函数注入。
+    /// 流程管理器接口。
     /// </summary>
     public interface IProcedureService
     {

@@ -1,5 +1,4 @@
 using Moirai.Atropos;
-using Moirai.Atropos.FSM;
 using Moirai.Atropos.Procedure;
 
 namespace Moirai.Main
@@ -14,7 +13,7 @@ namespace Moirai.Main
 
         private bool _needClearCache;
 
-        protected override void OnEnter(IFSM<IProcedureService> procedureOwner)
+        protected override void OnEnter()
         {
             LogUtility.Info("DownLoad_Complete");
             
@@ -24,15 +23,15 @@ namespace Moirai.Main
             SettingUtility.SetString(Constant.GAME_VERSION, _resourceService.PackageVersion);
         }
 
-        protected override void OnUpdate(IFSM<IProcedureService> procedureOwner, float elapseSeconds, float realElapseSeconds)
+        protected override void OnUpdate(float elapseSeconds, float realElapseSeconds)
         {
             if (_needClearCache)
             {
-                ChangeState<ProcedureClearCache>(procedureOwner);
+                ChangeState<ProcedureClearCache>();
             }
             else
             {
-                ChangeState<ProcedurePreload>(procedureOwner);
+                ChangeState<ProcedurePreload>();
             }
         }
     }

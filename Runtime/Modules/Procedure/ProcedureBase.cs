@@ -1,58 +1,62 @@
-using Moirai.Atropos.FSM;
-
 namespace Moirai.Atropos.Procedure
 {
     /// <summary>
-    /// 流程基类。
+    /// 流程基类 — 自包含的生命周期抽象，不依赖外部状态机。
     /// </summary>
-    public abstract class ProcedureBase : FSMState<IProcedureService>
+    public abstract class ProcedureBase
     {
         /// <summary>
-        /// 状态初始化时调用。
+        /// 流程服务引用，由 <see cref="ProcedureService.Initialize"/> 时注入。
         /// </summary>
-        /// <param name="procedureOwner">流程持有者。</param>
-        protected internal override void OnInit(IFSM<IProcedureService> procedureOwner)
+        internal IProcedureService Owner { get; private set; }
+
+        internal void SetOwner(IProcedureService owner) => Owner = owner;
+
+        /// <summary>
+        /// 流程初始化时调用。
+        /// </summary>
+        protected internal virtual void OnInit()
         {
-            base.OnInit(procedureOwner);
         }
 
         /// <summary>
-        /// 进入状态时调用。
+        /// 进入流程时调用。
         /// </summary>
-        /// <param name="procedureOwner">流程持有者。</param>
-        protected internal override void OnEnter(IFSM<IProcedureService> procedureOwner)
+        protected internal virtual void OnEnter()
         {
-            base.OnEnter(procedureOwner);
         }
 
         /// <summary>
-        /// 状态轮询时调用。
+        /// 流程轮询时调用。
         /// </summary>
-        /// <param name="procedureOwner">流程持有者。</param>
         /// <param name="elapseSeconds">逻辑流逝时间（以秒为单位）。</param>
         /// <param name="realElapseSeconds">真实流逝时间（以秒为单位）。</param>
-        protected internal override void OnUpdate(IFSM<IProcedureService> procedureOwner, float elapseSeconds, float realElapseSeconds)
+        protected internal virtual void OnUpdate(float elapseSeconds, float realElapseSeconds)
         {
-            base.OnUpdate(procedureOwner, elapseSeconds, realElapseSeconds);
         }
 
         /// <summary>
-        /// 离开状态时调用。
+        /// 离开流程时调用。
         /// </summary>
-        /// <param name="procedureOwner">流程持有者。</param>
-        /// <param name="isShutdown">是否是关闭状态机时触发。</param>
-        protected internal override void OnExit(IFSM<IProcedureService> procedureOwner, bool isShutdown)
+        /// <param name="isShutdown">是否是关闭流程管理器时触发。</param>
+        protected internal virtual void OnLeave(bool isShutdown)
         {
-            base.OnExit(procedureOwner, isShutdown);
         }
 
         /// <summary>
-        /// 状态销毁时调用。
+        /// 流程销毁时调用。
         /// </summary>
-        /// <param name="procedureOwner">流程持有者。</param>
-        protected internal override void OnDestroy(IFSM<IProcedureService> procedureOwner)
+        protected internal virtual void OnDestroy()
         {
-            base.OnDestroy(procedureOwner);
+        }
+
+        /// <summary>
+        /// 切换到指定流程。
+        /// </summary>
+        /// <typeparam name="T">要切换到的流程类型。</typeparam>
+        protected void ChangeState<T>() where T : ProcedureBase
+        {
+            Owner?.ChangeState<T>();
         }
     }
 }

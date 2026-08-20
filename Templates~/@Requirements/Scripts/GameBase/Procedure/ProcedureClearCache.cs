@@ -1,5 +1,4 @@
 using Moirai.Atropos;
-using Moirai.Atropos.FSM;
 using Moirai.Atropos.Procedure;
 
 namespace Moirai.Main
@@ -12,11 +11,8 @@ namespace Moirai.Main
     {
         public override bool UseNativeDialog { get; }
 
-        private IFSM<IProcedureService> _procedureOwner;
-        
-        protected override void OnEnter(IFSM<IProcedureService> procedureOwner)
+        protected override void OnEnter()
         {
-            _procedureOwner = procedureOwner;
             LogUtility.Info("Clean up unused cache files...");
             
             LauncherMgr.ShowUI<LoadUpdateUI>(LoadText.Instance.Label_ClearCache);
@@ -30,7 +26,7 @@ namespace Moirai.Main
         {
             LauncherMgr.ShowUI<LoadUpdateUI>(LoadText.Instance.Label_ClearCache_Completed);
             
-            ChangeState<ProcedureLoadAssembly>(_procedureOwner);
+            ChangeState<ProcedureLoadAssembly>();
         }
     }
 }

@@ -1,7 +1,6 @@
 using System;
 using Cysharp.Threading.Tasks;
 using Moirai.Atropos;
-using Moirai.Atropos.FSM;
 using Moirai.Atropos.Procedure;
 using UnityEngine;
 using YooAsset;
@@ -16,19 +15,15 @@ namespace Moirai.Main
     {
         public override bool UseNativeDialog { get; }
 
-        private IFSM<IProcedureService> _procedureOwner;
-
-        protected override void OnEnter(IFSM<IProcedureService> procedureOwner)
+        protected override void OnEnter()
         {
-            base.OnEnter(procedureOwner);
-            
-            _procedureOwner = procedureOwner;
+            base.OnEnter();
             
             // Fire Forget立刻触发UniTask初始化Package
-            InitPackage(procedureOwner).Forget();
+            InitPackage().Forget();
         }
 
-        private async UniTaskVoid InitPackage(IFSM<IProcedureService> procedureOwner)
+        private async UniTaskVoid InitPackage()
         {
             try
             {
@@ -46,13 +41,13 @@ namespace Moirai.Main
                     if (playMode == EPlayMode.EditorSimulateMode)
                     {
                         LogUtility.Info("Editor resource mode detected.");
-                        ChangeState<ProcedureInitResources>(procedureOwner);
+                        ChangeState<ProcedureInitResources>();
                     }
                     // 单机模式。
                     else if (playMode == EPlayMode.OfflinePlayMode)
                     {
                         LogUtility.Info("Package resource mode detected.");
-                        ChangeState<ProcedureInitResources>(procedureOwner);
+                        ChangeState<ProcedureInitResources>();
                     }
                     // 可更新模式。
                     else if (playMode == EPlayMode.HostPlayMode ||
@@ -62,7 +57,7 @@ namespace Moirai.Main
                         LauncherMgr.ShowUI<LoadUpdateUI>();
 
                         LogUtility.Info("Updatable resource mode detected.");
-                        ChangeState<ProcedureInitResources>(procedureOwner);
+                        ChangeState<ProcedureInitResources>();
                     }
                     else
                     {
@@ -81,16 +76,16 @@ namespace Moirai.Main
 
                     LauncherMgr.ShowMessageBox(
                         $"资源初始化失败！点击确认重试 \n \n <color=#FF0000>原因{initializationOperation.Error}</color>",
-                        () => { Retry(procedureOwner); }, Application.Quit);
+                        () => { Retry(); }, Application.Quit);
                 }
             }
             catch (Exception e)
             {
-                OnInitPackageFailed(procedureOwner, e.Message);
+                OnInitPackageFailed(e.Message);
             }
         }
         
-        private void OnInitPackageFailed(IFSM<IProcedureService> procedureOwner, string message)
+        private void OnInitPackageFailed(string message)
         {
             // 打开启动UI。
             LauncherMgr.ShowUI<LoadUpdateUI>();
@@ -106,15 +101,15 @@ namespace Moirai.Main
             }
 
             LauncherMgr.ShowMessageBox($"Resource initialization failed! Click Confirm to try again. \n \n <color=#FF0000>Reason: {message}</color>",
-                () => { Retry(procedureOwner); }, Application.Quit);
+                () => { Retry(); }, Application.Quit);
         }
 
-        private void Retry(IFSM<IProcedureService> procedureOwner)
+        private void Retry()
         {
             // 重新初始化资源中。
             LauncherMgr.ShowUI<LoadUpdateUI>(LoadText.Instance.Label_Load_RetryInit);
 
-            InitPackage(procedureOwner).Forget();
+            InitPackage().Forget();
         }
     }
 }

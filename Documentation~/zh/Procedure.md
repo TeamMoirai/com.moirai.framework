@@ -1,16 +1,16 @@
-# Procedure 流程服务
+# Procedure 服务
 
-> 基于 FSM 的游戏流程管理：把启动、热更、预加载等阶段建模为一个个可切换的流程状态。
+> 自包含的游戏流程管理：把启动、热更、预加载等阶段建模为一个个可切换的流程状态。
 
-Procedure 服务（`ProcedureService`）构建在 [FSM](FSM.md) 有限状态机之上：内部通过 `IFSMService.CreateFSM` 创建一台持有者为 `IProcedureService` 的状态机，每个游戏阶段（启动、检查更新、下载资源、加载程序集、预加载等）都是一个 `ProcedureBase` 状态。可用流程与入口流程由 `ProcedureSettings` 配置，`GameApp.Awake` 时自动反射实例化并启动，无需手写引导代码。通过 `GameApp.Services.GetRequiredService<IProcedureService>()`（`IProcedureService`）访问。
+Procedure 服务（`ProcedureService`）是一台自包含的状态机——内部维护状态字典与当前状态，不依赖任何外部状态机服务。每个游戏阶段（启动、检查更新、下载资源、加载程序集、预加载等）都是一个 `ProcedureBase` 状态。可用流程与入口流程由 `ProcedureSettings` 配置，`GameApp.Awake` 时自动反射实例化并启动，无需手写引导代码。通过 `GameApp.Services.GetRequiredService<IProcedureService>()`（`IProcedureService`）访问。
 
 ## 核心特性
 
-- 基于 FSM：流程即状态，复用 `FSMState<T>` 的完整生命周期与 `ChangeState` 切换机制
+- 自包含状态机：`ProcedureService` 内部维护 `Dictionary<Type, ProcedureBase>` 状态字典，自行驱动 `Tick` 轮询，不依赖外部 FSM 服务
 - 配置化启动：`ProcedureSettings` 记录可用流程类型与入口流程，`GameApp.Awake` 自动调用 `ProcedureSettings.StartProcedure()` 完成实例化与启动
 - `[ProcedureLauncher]` 标记：只有标记该 Attribute 的 `ProcedureBase` 子类才会被 `ProcedureSettings` 扫描收录（编辑器 Reset 时自动扫描，默认以名称含 `ProcedureLaunch` 的流程作为入口）
-- 双套切换入口：流程内部可用基类 `ChangeState<T>(procedureOwner)`，外部（如热更层）可用 `GameApp.Services.GetRequiredService<IProcedureService>().ChangeState<T>()`
-- 支持运行时重建：`RestartProcedure` 销毁旧状态机后按新流程列表重建并以第一个流程启动
+- 双套切换入口：流程内部可用基类 `ChangeState<T>()`（无参，通过内部 `Owner` 引用）；外部（如热更层）可用 `GameApp.Services.GetRequiredService<IProcedureService>().ChangeState<T>()`
+- 支持运行时重建：`RestartProcedure` 清理旧状态后按新流程列表重建并以第一个流程启动
 
 ## 核心类型
 
@@ -19,13 +19,11 @@ Procedure 服务（`ProcedureService`）构建在 [FSM](FSM.md) 有限状态机�
 | 类/接口 | 说明 |
 |---------|------|
 | `IProcedureService` | 流程管理器接口：`Initialize` / `StartProcedure` / `HasProcedure` / `ChangeState` / `GetProcedure` / `RestartProcedure` 及 `CurrentProcedure`、`CurrentProcedureTime`；经 `GameApp.Services.GetRequiredService<IProcedureService>()` 访问 |
-| `ProcedureService` | 服务实现（`Service, IProcedureService`，`Priority = -2`），持有内部 `IFSM<IProcedureService>` 状态机 |
-| `ProcedureBase` | 流程基类，继承 `FSMState<IProcedureService>`，提供 `OnInit / OnEnter / OnUpdate / OnExit / OnDestroy` 生命周期 |
+| `ProcedureService` | 服务实现（`ServiceBase, IProcedureService, IServiceTickable`，`Priority = -2`），内置状态字典与轮询驱动 |
+| `ProcedureBase` | 流程基类（独立抽象类），提供 `OnInit / OnEnter / OnUpdate / OnLeave / OnDestroy` 无参生命周期与 `ChangeState<T>()` 切换 |
 | `ProcedureSettings` | 框架设置（面板名「流程设置」）：序列化可用流程类型名列表与入口流程类型名，静态 `StartProcedure()` 负责反射建流 |
 | `ProcedureLauncherAttribute` | 类标记 Attribute，标记可被流程系统收录的 `ProcedureBase` 子类 |
 | `ProcedureEvents` / `IProcedureEvent` | 流程相关事件标记接口（`public interface IProcedureEvent { }`），供业务扩展流程事件 |
-
-依赖的 FSM 类型（命名空间 `Moirai.Atropos.FSM`）：`FSMState<T>`（状态基类与 `ChangeState` 切换）、`IFSM<T>` / `IFSMService`（状态机与状态机管理器接口，后者经 `GameApp.Services.GetRequiredService<IFSMService>()` 访问）。
 
 ## 快速上手
 
@@ -33,7 +31,6 @@ Procedure 服务（`ProcedureService`）构建在 [FSM](FSM.md) 有限状态机�
 
 ```csharp
 using Moirai.Atropos;
-using Moirai.Atropos.FSM;
 using Moirai.Atropos.Procedure;
 
 // 流程基类：标记 [ProcedureLauncher] 才会出现在 ProcedureSettings 的可用列表
@@ -42,7 +39,7 @@ public abstract class ProcedurePremainBase : ProcedureBase
 {
     public abstract bool UseNativeDialog { get; }
 
-    protected readonly IResourceService _resourceService = ServiceSystem.GetService<IResourceService>();
+    protected readonly IResourceService _resourceService = GameServices.Provider?.GetService<IResourceService>();
 }
 
 // 具体流程
@@ -50,18 +47,18 @@ public class ProcedureLaunch : ProcedurePremainBase
 {
     public override bool UseNativeDialog => true;
 
-    protected override void OnEnter(IFSM<IProcedureService> procedureOwner)
+    protected override void OnEnter()
     {
-        base.OnEnter(procedureOwner);
+        base.OnEnter();
         // 启动阶段初始化（模板中此处初始化热更 UI：LauncherMgr.Initialize()）
     }
 
-    protected override void OnUpdate(IFSM<IProcedureService> procedureOwner, float elapseSeconds, float realElapseSeconds)
+    protected override void OnUpdate(float elapseSeconds, float realElapseSeconds)
     {
-        base.OnUpdate(procedureOwner, elapseSeconds, realElapseSeconds);
+        base.OnUpdate(elapseSeconds, realElapseSeconds);
 
-        // 流程内部切换到下一阶段（FSMState<T> 提供的 protected 方法）
-        ChangeState<ProcedureInitPackage>(procedureOwner);
+        // 流程内部切换到下一阶段（基类提供的 protected 方法，无参）
+        ChangeState<ProcedureInitPackage>();
     }
 }
 ```
@@ -83,17 +80,17 @@ GameApp.Services.GetRequiredService<IProcedureService>().ChangeState<ProcedurePr
 
 ## 配置与扩展
 
-### 与 FSM 的关系
+### 流程生命周期
 
-`ProcedureService.Initialize(IFSMService fsmService, params ProcedureBase[] procedures)` 内部调用 `fsmService.CreateFSM(this, procedures)` 创建唯一一台流程状态机；`StartProcedure` / `HasProcedure` / `ChangeState` / `GetProcedure` 分别转调状态机的 `Start` / `HasState` / `ChangeState` / `GetState`。流程生命周期即状态生命周期：
+`ProcedureService.Initialize(params ProcedureBase[] procedures)` 对每个状态注入 `Owner` 引用并调用 `OnInit()`；`StartProcedure` / `HasProcedure` / `ChangeState` / `GetProcedure` 直接操作内部字典。流程生命周期：
 
 | 流程回调 | 签名 | 说明 |
 |----------|------|------|
-| `OnInit` | `(IFSM<IProcedureService>)` | 状态机创建后调用一次 |
-| `OnEnter` | `(IFSM<IProcedureService>)` | 进入流程时调用 |
-| `OnUpdate` | `(IFSM<IProcedureService>, float elapseSeconds, float realElapseSeconds)` | 每帧轮询（逻辑/真实流逝时间） |
-| `OnExit` | `(IFSM<IProcedureService>, bool isShutdown)` | 离开流程时调用（含状态机销毁标记） |
-| `OnDestroy` | `(IFSM<IProcedureService>)` | 状态销毁时调用 |
+| `OnInit` | `()` | `Initialize` 时对每个状态调用一次 |
+| `OnEnter` | `()` | 进入流程时调用 |
+| `OnUpdate` | `(float elapseSeconds, float realElapseSeconds)` | 每帧轮询（逻辑/真实流逝时间），由 `IServiceTickable.Tick` 驱动 |
+| `OnLeave` | `(bool isShutdown)` | 离开流程时调用（`isShutdown` 为 `true` 表示因服务关闭而离开） |
+| `OnDestroy` | `()` | 状态销毁时调用 |
 
 ### 启动链参考
 
@@ -110,7 +107,7 @@ ProcedureLaunch -> ProcedureSplash -> ProcedureInitPackage -> ProcedureInitResou
 ### 重启流程
 
 ```csharp
-// 销毁当前状态机，用新流程列表重建，并以列表第一个流程启动（返回是否成功）
+// 清理旧状态，用新流程列表重建，并以列表第一个流程启动（返回是否成功）
 bool ok = GameApp.Services.GetRequiredService<IProcedureService>().RestartProcedure(
     new ProcedureLaunch(),
     new ProcedureInitPackage(),
@@ -122,8 +119,9 @@ bool ok = GameApp.Services.GetRequiredService<IProcedureService>().RestartProced
 - 使用流程前必须先 `Initialize`，否则 `StartProcedure` / `ChangeState` 等会抛出 `GameException("You must initialize procedure first.")`；常规项目由 `ProcedureSettings.StartProcedure()` 在 `GameApp.Awake` 自动完成。
 - 入口流程在编辑器侧由 Reset 逻辑选取「名称包含 `ProcedureLaunch` 的第一个类型」，重命名入口流程类时需在 `ProcedureSettings` 面板 Reset 刷新。
 - 流程类需要无参构造（`ProcedureSettings` 通过 `Activator.CreateInstance` 反射实例化），不要在流程类中做构造器注入。
-- 流程实例由状态机持有并长期存活，不要在其中缓存短生命周期对象；需要每帧逻辑写在 `OnUpdate`，耗时异步操作建议在 `OnEnter` 启动、在 `OnUpdate` 轮询完成标记（参考模板 `_initResourcesComplete` 的写法）。
+- 流程实例由 `ProcedureService` 持有并长期存活，不要在其中缓存短生命周期对象；需要每帧逻辑写在 `OnUpdate`，耗时异步操作建议在 `OnEnter` 启动、在 `OnUpdate` 轮询完成标记（参考模板 `_initResourcesComplete` 的写法）。
 - `ProcedureBase.OnUpdate` 含两个时间参数（`elapseSeconds` / `realElapseSeconds`），重写时注意保持签名一致。
+- `ChangeState<T>()` 是无参方法——通过 `ProcedureBase` 内部持有的 `Owner`（`IProcedureService`）引用委托切换，无需在调用时传递服务实例。
 
 ---
-[« 返回主 README](../../README.md) · [FSM](FSM.md) · [Resource](Resource.md)
+[« 返回主 README](../../README.md) · [Resource](Resource.md)

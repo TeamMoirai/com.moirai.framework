@@ -1,7 +1,6 @@
 using System;
 using System.Linq;
 using Cysharp.Threading.Tasks;
-using Moirai.Atropos.FSM;
 using UnityEngine;
 
 namespace Moirai.Atropos.Procedure
@@ -108,7 +107,7 @@ namespace Moirai.Atropos.Procedure
         /// <summary>
         /// 编辑器侧订阅：设置被重置时刷新 Inspector 缓存状态。
         /// </summary>
-        internal event Action SettingsReset;
+        internal event Action onSettingsReset;
 
         protected internal override void Reset()
         {
@@ -117,7 +116,7 @@ namespace Moirai.Atropos.Procedure
             m_AvailableProcedureTypeNames = procedureTypeNames;
             m_EntranceProcedureTypeName = procedureTypeNames.Single(x => x.Contains("ProcedureLaunch"));
 
-            SettingsReset?.Invoke();
+            onSettingsReset?.Invoke();
         }
 
         private static string[] GetProcedureTypeNames()
