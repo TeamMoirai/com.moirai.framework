@@ -198,6 +198,43 @@ public class MyMonoService : ServiceMono<AppScope>, IMyService
 }
 ```
 
+### 服务拦截器 [SERVICE INTERCEPTORS (AOP)]
+
+实现 `IServiceInterceptor` 在生命周期关键点插入横切逻辑（日志、性能监控、缓存等）：
+
+```csharp
+public class ProfilingInterceptor : IServiceInterceptor
+{
+    public int Priority => 100; // 高优先先执行
+
+    public void OnServiceTick(IService service, float elapseSeconds, float realElapseSeconds)
+    {
+        // 每次 Tick 前性能采样
+    }
+
+    public void OnServiceShutdown(IService service)
+    {
+        // Shutdown 前清理
+    }
+}
+
+// 注册拦截器
+GameServices.AddInterceptor(new ProfilingInterceptor());
+```
+
+六个拦截点，默认空实现——只需覆写关注的切面：
+
+| 方法 | 时机 |
+|------|------|
+| `OnServiceRegistering` | `OnInit()` 前——可抛异常拒绝注册 |
+| `OnServiceRegistered` | `OnInit()` 后、状态切换为 `Initialized` 后 |
+| `OnServiceUnregistering` | `Shutdown()` 前 |
+| `OnServiceUnregistered` | 从注册表移除后 |
+| `OnServiceTick` | 每次 `Tick()` 调用前（仅 Update 路径） |
+| `OnServiceShutdown` | `Shutdown()` 调用前 |
+
+多个拦截器按 `Priority` 降序执行。`GameServices.Shutdown()` 时清空全部拦截器。
+
 ## 注意事项
 
 - `GameServices` 仅允许主线程调用；后台线程/异步回调请通过 `MainThreadDispatcher` 的 `Post`/`Send` 切回主线程。

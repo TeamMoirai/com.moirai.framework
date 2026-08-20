@@ -21,6 +21,7 @@ namespace Moirai.Atropos
         private static readonly ServiceScope[] s_ScopeContainers = new ServiceScope[ScopeSlotCount];
         private static readonly Dictionary<RuntimeTypeHandle, ScopeBindings> s_ServiceMaps = new();
         private static readonly List<IAsyncInitService> s_AsyncInitBuffer = new();
+        private static readonly List<IServiceInterceptor> s_Interceptors = new();
 
         #endregion
 
@@ -31,6 +32,75 @@ namespace Moirai.Atropos
 
         /// <summary>服务注销完成（Shutdown 已调用）后触发。</summary>
         public static event Action<IService> ServiceUnregistered;
+
+        #endregion
+
+        #region 拦截器 [INTERCEPTORS]
+
+        /// <summary>
+        /// 添加服务拦截器。按 <see cref="IServiceInterceptor.Priority"/> 降序插入。
+        /// </summary>
+        public static void AddInterceptor(IServiceInterceptor interceptor)
+        {
+            EnsureMainThread();
+            if (interceptor == null) return;
+
+            int priority = interceptor.Priority;
+            int insertAt = s_Interceptors.Count;
+            for (int i = 0; i < s_Interceptors.Count; i++)
+            {
+                if (priority > s_Interceptors[i].Priority) { insertAt = i; break; }
+            }
+            s_Interceptors.Insert(insertAt, interceptor);
+        }
+
+        /// <summary>移除服务拦截器。</summary>
+        public static void RemoveInterceptor(IServiceInterceptor interceptor)
+        {
+            EnsureMainThread();
+            s_Interceptors.Remove(interceptor);
+        }
+
+        /// <summary>当前已注册的拦截器（只读视图）。</summary>
+        public static IReadOnlyList<IServiceInterceptor> Interceptors => s_Interceptors;
+
+        // --- 由 ServiceScope 调用的内部拦截器分发 ---
+
+        internal static void InvokeRegistering(IService service, Type interfaceType, EServiceScopeKind scope)
+        {
+            for (int i = 0; i < s_Interceptors.Count; i++)
+                s_Interceptors[i].OnServiceRegistering(service, interfaceType, scope);
+        }
+
+        internal static void InvokeRegistered(IService service, Type interfaceType, EServiceScopeKind scope)
+        {
+            for (int i = 0; i < s_Interceptors.Count; i++)
+                s_Interceptors[i].OnServiceRegistered(service, interfaceType, scope);
+        }
+
+        internal static void InvokeUnregistering(IService service)
+        {
+            for (int i = 0; i < s_Interceptors.Count; i++)
+                s_Interceptors[i].OnServiceUnregistering(service);
+        }
+
+        internal static void InvokeUnregistered(IService service)
+        {
+            for (int i = 0; i < s_Interceptors.Count; i++)
+                s_Interceptors[i].OnServiceUnregistered(service);
+        }
+
+        internal static void InvokeTick(IService service, float elapseSeconds, float realElapseSeconds)
+        {
+            for (int i = 0; i < s_Interceptors.Count; i++)
+                s_Interceptors[i].OnServiceTick(service, elapseSeconds, realElapseSeconds);
+        }
+
+        internal static void InvokeShutdown(IService service)
+        {
+            for (int i = 0; i < s_Interceptors.Count; i++)
+                s_Interceptors[i].OnServiceShutdown(service);
+        }
 
         #endregion
 
@@ -392,6 +462,7 @@ namespace Moirai.Atropos
             }
             s_ServiceMaps.Clear();
             s_AsyncInitBuffer.Clear();
+            s_Interceptors.Clear();
             ServiceRegistered = null;
             ServiceUnregistered = null;
             MemoryPool.ClearAll();
