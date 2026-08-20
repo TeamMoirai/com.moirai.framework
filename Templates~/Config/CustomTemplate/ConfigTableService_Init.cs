@@ -59,7 +59,7 @@ namespace GameProto.Config
 		/// <returns>ByteBuf</returns>
 		private static ByteBuf LoadByteBuf(string file)
 		{
-			Log.Info($"Load bin config: {file}.");
+			LogUtility.Info($"Load bin config: {file}.");
 			TextAsset textAsset = LoadTextAsset(CONFIG_PATH + file + ".bytes");
 			byte[] bytes = textAsset.bytes;
 			return new ByteBuf(bytes);
@@ -72,7 +72,7 @@ namespace GameProto.Config
 		/// <returns></returns>
 		private static JSONNode LoadJson(string file)
 		{
-			Log.Info($"Load json config: {file}.");
+			LogUtility.Info($"Load json config: {file}.");
 			TextAsset textAsset = LoadTextAsset(CONFIG_PATH + file + ".json");
 			string json = textAsset.text;
 			return JSON.Parse(json);

@@ -56,7 +56,7 @@ namespace GameProto.Config
         /// <returns></returns>
         private void ResolveLocalization()
         {
-            Log.Info("<color=yellow>\u25bc\u25bc\u25bc\u25bc " +
+            LogUtility.Info("<color=yellow>\u25bc\u25bc\u25bc\u25bc " +
                      "Start Resolve LocalizationBean~" +
                      " \u25bc\u25bc\u25bc\u25bc</color>");
             
@@ -101,16 +101,16 @@ namespace GameProto.Config
                 }
             }
 
-            Log.Info("<color=yellow>\u25b2\u25b2\u25b2\u25b2 " +
-                     "Resolve LocalizationBean Done!" +
-                     " \u25b2\u25b2\u25b2\u25b2</color>");
+            LogUtility.Info("<color=yellow>\u25b2\u25b2\u25b2\u25b2 " +
+                            "Resolve LocalizationBean Done!" +
+                            " \u25b2\u25b2\u25b2\u25b2</color>");
 
             // string str = "";
             // foreach (var item in _allLocalizedStrings)
             // {
             //     str += $"{item.Key}[{item.Value.Count}]: {string.Join(",", item.Value)}\n";
             // }
-            // Log.Info($"AllLocalizedStrings:\n{str}");
+            // LogUtility.Info($"AllLocalizedStrings:\n{str}");
         }
 
         #endregion
@@ -123,7 +123,7 @@ namespace GameProto.Config
 
             if (!Tables.TbUIWindow.DataMap.TryGetValue(id, out var uiWindowConfig))
             {
-                Log.Warning($"UI ID[{id}] is invalid.");
+                LogUtility.Warning($"UI ID[{id}] is invalid.");
                 return string.Empty;
             }
             
@@ -143,21 +143,22 @@ namespace GameProto.Config
         {
             if (string.IsNullOrEmpty(id)) return null;
 
-            if (GameApp.Resource == null)
+            var resource = GameApp.Resource;
+            if (resource == null)
             {
-                Log.Warning("ResourceService is null.");
+                LogUtility.Warning("ResourceService is null.");
                 return null;
             }
             
             if (!Tables.TbSprite.DataMap.TryGetValue(id, out var spriteConfig))
             {
-                Log.Warning($"Sprite ID[{id}] is invalid.");
+                LogUtility.Warning($"Sprite ID[{id}] is invalid.");
                 return null;
             }
             
             if (!Tables.TbSpriteAtlas.DataMap.TryGetValue(spriteConfig.SpriteAtlasId, out var atlasConfig))
             {
-                Log.Warning($"SpriteAtlasId ID[{id}] is invalid.");
+                LogUtility.Warning($"SpriteAtlasId ID[{id}] is invalid.");
                 return null;
             }
             
@@ -165,9 +166,9 @@ namespace GameProto.Config
 
             var atlas =
 // #if UNITY_WEBGL
-//             await GameApp.Resource.LoadAssetAsync<SpriteAtlas>(atlasConfig.Location, packageName:atlasConfig.PackageName);
+//             await resource.LoadAssetAsync<SpriteAtlas>(atlasConfig.Location, packageName:atlasConfig.PackageName);
 // #else
-               GameApp.Resource.LoadAsset<SpriteAtlas>(atlasConfig.Location, packageName:atlasConfig.PackageName);
+               resource.LoadAsset<SpriteAtlas>(atlasConfig.Location, packageName:atlasConfig.PackageName);
 // #endif
             return atlas?.GetSprite(spriteConfig.SpriteName);
         }
