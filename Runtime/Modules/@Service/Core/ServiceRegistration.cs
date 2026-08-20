@@ -50,20 +50,29 @@ namespace Moirai.Atropos
         /// </summary>
         internal Type[] AdditionalContracts { get; set; }
 
+        internal Type[] _allContractsCache;
+
         /// <summary>
-        /// 全部契约类型数组（主契约 + 额外契约）。每次访问产生新数组，构建期使用。
+        /// 全部契约类型数组（主契约 + 额外契约）。首次访问后缓存，后续零分配。
         /// </summary>
         internal Type[] AllContracts
         {
             get
             {
-                if (AdditionalContracts == null || AdditionalContracts.Length == 0)
-                    return new[] { InterfaceType };
+                if (_allContractsCache != null) return _allContractsCache;
 
-                var result = new Type[1 + AdditionalContracts.Length];
-                result[0] = InterfaceType;
-                Array.Copy(AdditionalContracts, 0, result, 1, AdditionalContracts.Length);
-                return result;
+                if (AdditionalContracts == null || AdditionalContracts.Length == 0)
+                {
+                    _allContractsCache = new[] { InterfaceType };
+                }
+                else
+                {
+                    _allContractsCache = new Type[1 + AdditionalContracts.Length];
+                    _allContractsCache[0] = InterfaceType;
+                    Array.Copy(AdditionalContracts, 0, _allContractsCache, 1, AdditionalContracts.Length);
+                }
+
+                return _allContractsCache;
             }
         }
     }
@@ -211,6 +220,7 @@ namespace Moirai.Atropos
             Array.Copy(existing, arr, existing.Length);
             arr[existing.Length] = typeof(TExtraContract);
             _descriptor.AdditionalContracts = arr;
+            _descriptor._allContractsCache = null;
             return this;
         }
     }
