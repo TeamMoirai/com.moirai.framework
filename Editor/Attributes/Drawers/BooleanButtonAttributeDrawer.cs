@@ -1,4 +1,5 @@
-﻿using UnityEditor;
+﻿using Sirenix.OdinInspector.Editor;
+using UnityEditor;
 using UnityEngine;
 
 namespace Moirai.Atropos.Attributes.Editor.Drawers
@@ -23,18 +24,9 @@ namespace Moirai.Atropos.Attributes.Editor.Drawers
             disabledStyle.normal.textColor = textColor;
 
             var at = attribute as BooleanButtonAttribute;
-            bool useLabel = at.Label != null;
 
-
-            Rect fieldRect = position;
-
-            if (useLabel)
-            {
-                fieldRect.width = EditorGUIUtility.labelWidth;
-                EditorGUI.LabelField(fieldRect, at.Label);
-                fieldRect.x += fieldRect.width;
-                fieldRect.width = EditorGUIUtility.currentViewWidth - 36f - EditorGUIUtility.labelWidth;
-            }
+            GUIContent labelContent = at.Label != null ? new GUIContent(at.Label) : label;
+            Rect fieldRect = EditorGUI.PrefixLabel(position, labelContent);
 
             fieldRect.width *= 0.5f;
 
@@ -92,5 +84,99 @@ namespace Moirai.Atropos.Attributes.Editor.Drawers
 
         //    return 1.2f * (EditorGUIUtility.singleLineHeight + 2f);
         //}
+    }
+
+    /// <summary>
+    /// Odin 原生 Drawer，为 <see cref="BooleanButtonAttribute"/> 自动接管 Odin 绘制，
+    /// 直接在 Odin 布局上下文中绘制按钮组，不经过 Unity PropertyField / SerializedProperty。
+    /// <para>无需在每个字段上手动添加 <c>[DrawWithUnity]</c>。</para>
+    /// </summary>
+    [DrawerPriority(0, 10001, 0)]
+    internal sealed class BooleanButtonOdinDrawer : OdinAttributeDrawer<BooleanButtonAttribute>
+    {
+        private GUIStyle _enabledStyle;
+        private GUIStyle _disabledStyle;
+
+        protected override void Initialize()
+        {
+            _enabledStyle = new GUIStyle(EditorStyles.miniButton)
+            {
+                fontStyle = FontStyle.Bold
+            };
+
+            _disabledStyle = new GUIStyle(EditorStyles.miniButton)
+            {
+                fontStyle = FontStyle.Normal
+            };
+            var c = _disabledStyle.normal.textColor;
+            c.a = 0.4f;
+            _disabledStyle.normal.textColor = c;
+        }
+
+        protected override bool CanDrawAttributeProperty(InspectorProperty property)
+        {
+            return property.ValueEntry != null
+                && property.ValueEntry.BaseValueType == typeof(bool);
+        }
+
+        protected override void DrawPropertyLayout(GUIContent label)
+        {
+            var attr = Attribute;
+            var valueEntry = Property.ValueEntry;
+
+            GUIContent labelContent = attr.Label != null ? new GUIContent(attr.Label) : label;
+
+            Rect rect = EditorGUILayout.GetControlRect(labelContent != GUIContent.none);
+            Rect fieldRect = EditorGUI.PrefixLabel(rect, labelContent);
+            fieldRect.width *= 0.5f;
+
+            bool value = (bool)valueEntry.WeakSmartValue;
+
+            if (attr.FalseLabelFirst)
+            {
+                if (value)
+                {
+                    if (GUI.Button(fieldRect, attr.FalseLabel, _disabledStyle))
+                        value = false;
+
+                    fieldRect.x += fieldRect.width;
+
+                    GUI.Button(fieldRect, attr.TrueLabel, _enabledStyle);
+                }
+                else
+                {
+                    GUI.Button(fieldRect, attr.FalseLabel, _enabledStyle);
+
+                    fieldRect.x += fieldRect.width;
+
+                    if (GUI.Button(fieldRect, attr.TrueLabel, _disabledStyle))
+                        value = true;
+                }
+            }
+            else
+            {
+                if (value)
+                {
+                    GUI.Button(fieldRect, attr.TrueLabel, _enabledStyle);
+
+                    fieldRect.x += fieldRect.width;
+
+                    if (GUI.Button(fieldRect, attr.FalseLabel, _disabledStyle))
+                        value = false;
+                }
+                else
+                {
+                    if (GUI.Button(fieldRect, attr.TrueLabel, _disabledStyle))
+                        value = true;
+
+                    fieldRect.x += fieldRect.width;
+
+                    GUI.Button(fieldRect, attr.FalseLabel, _enabledStyle);
+                }
+            }
+
+            if (value != (bool)valueEntry.WeakSmartValue)
+                valueEntry.WeakSmartValue = value;
+        }
     }
 }
