@@ -1,8 +1,8 @@
-# Input Module
+# Input Service
 
 > Abstract input layer: uses a unified polling API to bridge the differences between Unity's new and old input systems and mobile UI touch input, with a built-in key prompt (Prompts) system.
 
-The input module (`Moirai.Atropos.Input`) abstracts three input backends through `InputHandler`. Business code only needs to work with `GameModule.Input`'s action-name-based API; switching backends requires no changes to the caller. The module also listens to UI modal events and application focus events, automatically blocking/restoring input, and provides cross-device key icon prompt components based on the Input System.
+The input service (`Moirai.Atropos.Input`) abstracts three input backends through `InputHandler`. Business code only needs to work with `GameApp.Services.GetRequiredService<IInputService>()`'s action-name-based API; switching backends requires no changes to the caller. The service also listens to UI modal events and application focus events, automatically blocking/restoring input, and provides cross-device key icon prompt components based on the Input System.
 
 ## Core Features
 
@@ -10,7 +10,7 @@ The input module (`Moirai.Atropos.Input`) abstracts three input backends through
 - Unified action polling API: `GetButtonDown` / `GetButtonUp` / `GetButtonPressed` / `GetBool` / `GetFloat` / `GetVector2`, with action group support (`actionGroup`)
 - Dedicated mouse queries: button tri-state, position, scroll wheel (scroll values normalized across new and old systems)
 - Input state toggles: `Enabled` (global), `LockPlayerController` (lock character control), `PreventInteractionUI` (lock UI interaction); residual input states are automatically reset on toggle
-- UI modal coordination: Listens to `UIModuleEvent`; automatically locks player control when a modal window is present
+- UI modal coordination: Listens to `UIServiceEvent`; automatically locks player control when a modal window is present
 - Application focus coordination: Automatically disables input on focus lost, restores on focus gained
 - Key prompt system (Prompts): Key icons automatically switch based on the current active input device, supports mixed text and sprite rendering
 
@@ -18,8 +18,8 @@ The input module (`Moirai.Atropos.Input`) abstracts three input backends through
 
 | Class/Interface | Description |
 |---------|------|
-| `Moirai.Atropos.Input.IInputModule` | Input module interface, returned by `GameModule.Input` |
-| `Moirai.Atropos.Input.InputModule` | Input module implementation, aggregates Handler and state toggles |
+| `Moirai.Atropos.Input.IInputService` | Input service interface, returned by `GameApp.Services.GetRequiredService<IInputService>()` |
+| `Moirai.Atropos.Input.InputService` | Input service implementation, aggregates Handler and state toggles |
 | `Moirai.Atropos.Input.InputHandler` | Input handler abstract base class (`[Serializable]`), defines all input query methods. Configured via `[SerializeReference]` in Input Settings |
 | `Moirai.Atropos.Input.UnityInputSystemHandler` | Handler based on Unity Input System (macro `ENABLE_INPUT_SYSTEM`) |
 | `Moirai.Atropos.Input.UnityInputManagerHandler` | Handler based on legacy Input Manager (macro `ENABLE_LEGACY_INPUT_MANAGER`) |
@@ -41,29 +41,29 @@ After selecting an input processor in the framework settings (Project Settings -
 
 ```csharp
 // Input System backend: groupName/actionName corresponds to Action Map/Action
-if (GameModule.Input.GetButtonDown("Jump", "Player"))
+if (GameApp.Services.GetRequiredService<IInputService>().GetButtonDown("Jump", "Player"))
 {
     // Jump key pressed this frame
 }
 
-float moveX = GameModule.Input.GetFloat("Move", "Player");
-Vector2 move = GameModule.Input.GetVector2("Move", "Player");
+float moveX = GameApp.Services.GetRequiredService<IInputService>().GetFloat("Move", "Player");
+Vector2 move = GameApp.Services.GetRequiredService<IInputService>().GetVector2("Move", "Player");
 
 // When actionGroup is empty, actionName is treated as a full path ("Player/Jump")
-bool submit = GameModule.Input.GetButtonPressed("UI/Submit");
+bool submit = GameApp.Services.GetRequiredService<IInputService>().GetButtonPressed("UI/Submit");
 
 // Mouse
-if (GameModule.Input.GetMouseButtonDown(EMouseButton.Right)) { }
-Vector2 pos = GameModule.Input.GetMousePosition();
-Vector2 scroll = GameModule.Input.GetScrollDelta();
+if (GameApp.Services.GetRequiredService<IInputService>().GetMouseButtonDown(EMouseButton.Right)) { }
+Vector2 pos = GameApp.Services.GetRequiredService<IInputService>().GetMousePosition();
+Vector2 scroll = GameApp.Services.GetRequiredService<IInputService>().GetScrollDelta();
 ```
 
 Locking/restoring input:
 
 ```csharp
-GameModule.Input.LockPlayerController = true;    // Lock character movement during modal popups
-GameModule.Input.PreventInteractionUI = true;    // Disable UI interaction during cutscenes
-GameModule.Input.Enabled = false;                // Global disable (resets all input states)
+GameApp.Services.GetRequiredService<IInputService>().LockPlayerController = true;    // Lock character movement during modal popups
+GameApp.Services.GetRequiredService<IInputService>().PreventInteractionUI = true;    // Disable UI interaction during cutscenes
+GameApp.Services.GetRequiredService<IInputService>().Enabled = false;                // Global disable (resets all input states)
 ```
 
 ## Advanced Usage
@@ -94,7 +94,7 @@ private BoolAction _jump = new BoolAction();
 
 void Update()
 {
-    _jump.Value = GameModule.Input.GetBool("Jump", "Player");
+    _jump.Value = GameApp.Services.GetRequiredService<IInputService>().GetBool("Jump", "Player");
     _jump.Update(Time.deltaTime);
 
     if (_jump.IsDown) { }             // Pressed this frame (equivalent to Started)
@@ -137,9 +137,9 @@ When a GameObject with this component is enabled, it locks `LockPlayerController
 
 - The processor type is configured in the framework settings ("Input Settings") via `[SerializeReference]` and loaded lazily via `InputSettings.InputHandler`; switching processors requires a restart to take effect
 - `UnityInputSystemHandler` / `UnityInputManagerHandler` are controlled by the `ENABLE_INPUT_SYSTEM` / `ENABLE_LEGACY_INPUT_MANAGER` macros respectively
-- When a UI modal window is present, `LockPlayerController` is always true (driven by `UIModuleEvent`); this is expected behavior
+- When a UI modal window is present, `LockPlayerController` is always true (driven by `UIServiceEvent`); this is expected behavior
 - `GetButtonDown` / `GetButtonUp` in `UIMobileInputHandler` are not yet implemented (throw `NotImplementedException`); only persistent bool state queries are available
-- Input queries should be polled every frame; the module itself does not push events
+- Input queries should be polled every frame; the service itself does not push events
 
 ---
 [« Back to Main README](../../README_EN.md) · [UI](UI.md) · [Scene](Scene.md)

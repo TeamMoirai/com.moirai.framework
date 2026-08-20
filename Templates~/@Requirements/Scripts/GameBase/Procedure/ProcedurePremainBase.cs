@@ -1,4 +1,4 @@
-﻿using Moirai.Atropos;
+using Moirai.Atropos;
 using Moirai.Atropos.Procedure;
 using Moirai.Atropos.Resource;
 
@@ -16,7 +16,7 @@ namespace Moirai.Main
         /// </summary>
         public abstract bool UseNativeDialog { get; }
         
-        protected readonly IResourceModule _resourceModule = ModuleSystem.GetModule<IResourceModule>();
+        protected readonly IResourceService _resourceService = GameServices.Provider?.GetService<IResourceService>();
 
     }
 }

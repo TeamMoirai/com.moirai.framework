@@ -11,8 +11,8 @@ namespace Moirai.Atropos.Audio
     /// </summary>
     public class AudioAgent
     {
-        private IAudioModule _audioModule;
-        private IResourceModule _resourceModule;
+        private IAudioService _audioService;
+        private IResourceService _resourceService;
         private AudioAssetData _audioAssetData;
 
         // 当前声源的位置
@@ -147,7 +147,7 @@ namespace Moirai.Atropos.Audio
 
         #endregion
         
-        #region 模块方法 [MODULE METHOD]
+        #region 服务方法 [SERVICE METHOD]
 
         /// <summary>
         /// 初始化音频代理辅助器。
@@ -156,8 +156,8 @@ namespace Moirai.Atropos.Audio
         /// <param name="index">音频代理辅助器编号。</param>
         public void Init(AudioCategory audioCategory, int index = 0)
         {
-            _audioModule = ModuleSystem.GetModule<IAudioModule>();
-            _resourceModule = ModuleSystem.GetModule<IResourceModule>();
+            _audioService = GameServices.Provider?.GetService<IAudioService>();
+            _resourceService = GameServices.Provider?.GetService<IResourceService>();
             GameObject host = new GameObject(StringUtility.Format("{0} - {1}", audioCategory.AudioMixerGroup.name, index));
             host.transform.SetParent(audioCategory.InstanceRoot);
             host.transform.localPosition = Vector3.zero;
@@ -256,7 +256,7 @@ namespace Moirai.Atropos.Audio
             }
         }
         
-        #endregion 模块方法 [MODULE METHOD]
+        #endregion 服务方法 [SERVICE METHOD]
 
         #region 音频控制 [AUDIO CONTROLS]
         
@@ -387,7 +387,7 @@ namespace Moirai.Atropos.Audio
             {
                 if (!string.IsNullOrEmpty(path))
                 {
-                    if (bInPool && _audioModule.AssetHandlePool.TryGetValue(path, out var operationHandle))
+                    if (bInPool && _audioService.AssetHandlePool.TryGetValue(path, out var operationHandle))
                     {
                         OnAssetLoadComplete(operationHandle);
                         return;
@@ -396,12 +396,12 @@ namespace Moirai.Atropos.Audio
                     if (bAsync)
                     {
                         _audioAgentRuntimeState = EAudioAgentRuntimeState.Loading;
-                        AssetHandle handle = _resourceModule.LoadAssetAsyncHandle<AudioClip>(path);
+                        AssetHandle handle = _resourceService.LoadAssetAsyncHandle<AudioClip>(path);
                         handle.Completed += OnAssetLoadComplete;
                     }
                     else
                     {
-                        AssetHandle handle = _resourceModule.LoadAssetSyncHandle<AudioClip>(path);
+                        AssetHandle handle = _resourceService.LoadAssetSyncHandle<AudioClip>(path);
                         OnAssetLoadComplete(handle);
                     }
                 }
@@ -427,7 +427,7 @@ namespace Moirai.Atropos.Audio
             {
                 if (_inPool)
                 {
-                    _audioModule.AssetHandlePool.TryAdd(handle.GetAssetInfo().Address, handle);
+                    _audioService.AssetHandlePool.TryAdd(handle.GetAssetInfo().Address, handle);
                 }
             }
 
@@ -528,10 +528,10 @@ namespace Moirai.Atropos.Audio
         /// <param name="mute"></param>
         private void MuteAudiosOnTrack(EAudioTrack track, bool mute)
         {
-            foreach (var category in GameModule.Audio.AudioCategories)
+            foreach (var category in _audioService.AudioCategories)
             {
                 if (category.AudioTrack != track) continue;
-                
+
                 foreach (var agent in category.AudioAgents)
                 {
                     agent.AudioResource.mute = mute;
@@ -545,7 +545,7 @@ namespace Moirai.Atropos.Audio
         /// <param name="mute"></param>
         private void MuteAllAudios(bool mute)
         {
-            foreach (var category in GameModule.Audio.AudioCategories)
+            foreach (var category in _audioService.AudioCategories)
             {
                 foreach (var agent in category.AudioAgents)
                 {

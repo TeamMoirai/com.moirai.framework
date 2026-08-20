@@ -1,16 +1,16 @@
-﻿using Moirai.Atropos.Events;
+using Moirai.Atropos.Events;
 
 namespace Moirai.Atropos.Audio
 {
     /// <summary>
-    /// 控制 AudioModule 上指定音频的事件。
+    /// 控制 AudioService 上指定音频的事件。
     /// 可以通过 ID 搜索它，（如果有）也可以直接发送音频源。
     /// </summary>    
     /// <example>
     /// 使 ID 为 33 的音频停止播放
     /// AudioControlEvent.Trigger(AudioControlEvent.EAudioControlEventType.Stop, 33);
     /// </example>>
-    public class AudioControlEvent : EventBase<AudioControlEvent>, IAudioModuleEvent
+    public class AudioControlEvent : EventBase<AudioControlEvent>, IAudioServiceEvent
     {
         public enum EAudioControlEventType
         {

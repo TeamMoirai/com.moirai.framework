@@ -7,12 +7,12 @@ namespace Moirai.Atropos.Debugger
     {
         private sealed class ObjectPoolInformationWindow : ScrollableDebuggerWindowBase
         {
-            private IObjectPoolModule _objectPoolModule = null;
+            private IObjectPoolService _objectPoolService = null;
 
             public override void Initialize(params object[] args)
             {
-                _objectPoolModule = ModuleSystem.GetModule<IObjectPoolModule>();
-                if (_objectPoolModule == null)
+                _objectPoolService = GameServices.Provider?.GetService<IObjectPoolService>();
+                if (_objectPoolService == null)
                 {
                     LogUtility.Fatal("Object pool component is invalid.");
                     return;
@@ -24,10 +24,10 @@ namespace Moirai.Atropos.Debugger
                 GUILayout.Label("<b>Object Pool Information</b>");
                 GUILayout.BeginVertical("box");
                 {
-                    DrawItem("Object Pool Count", _objectPoolModule.Count.ToString());
+                    DrawItem("Object Pool Count", _objectPoolService.Count.ToString());
                 }
                 GUILayout.EndVertical();
-                ObjectPoolBase[] objectPools = _objectPoolModule.GetAllObjectPools(true);
+                ObjectPoolBase[] objectPools = _objectPoolService.GetAllObjectPools(true);
                 for (int i = 0; i < objectPools.Length; i++)
                 {
                     DrawObjectPool(objectPools[i]);

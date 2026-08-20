@@ -1,32 +1,13 @@
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using Moirai.Atropos.Audio;
-using Moirai.Atropos.Debugger;
-using Moirai.Atropos.FSM;
-using Moirai.Atropos.Input;
 using Moirai.Atropos.Localization;
-using Moirai.Atropos.ObjectPool;
-using Moirai.Atropos.Procedure;
-using Moirai.Atropos.Resource;
-using Moirai.Atropos.Save;
-using Moirai.Atropos.Scene;
-using Moirai.Atropos.Timer;
-using Moirai.Atropos.UI;
-using Moirai.Atropos.UpdateDriver;
 using Sirenix.OdinInspector;
 using UnityEngine;
 
 namespace Moirai.Atropos
 {
     [FrameworkSetting("游戏基础配置", "自动生成组件绑定代码设置", -999)]
-    public class AppSettings : FrameworkSettings<AppSettings>
+    public partial class AppSettings : FrameworkSettings<AppSettings>
     {
-        [DisableInPlayMode]
-        [ValueDropdown(nameof(GetLanguageOptions))]
-        [SerializeField] private string m_EditorLanguage = Language.Unspecified.Name;
-        private static IEnumerable<string> GetLanguageOptions() => Language.BuiltinLanguages.Select(lang => lang.Name);
-
         [DisableInPlayMode]
         [Range(1, 300)]
         [SerializeField] private int m_FrameRate;
@@ -40,61 +21,6 @@ namespace Moirai.Atropos
 
         [DisableInPlayMode]
         [SerializeField] private bool m_NeverSleep;
-
-        /// <!-- Modules -->
-        private const string MODULE_GROUP = "游戏模块 [Game Modules]";
-
-        [BoxGroup(MODULE_GROUP), DisableInPlayMode]
-        [HelperDropdown(typeof(IUpdateDriverModule), "Update Driver")]
-        [SerializeField] private string m_UpdateDriverTypeName;
-
-        [BoxGroup(MODULE_GROUP), DisableInPlayMode]
-        [HelperDropdown(typeof(IResourceModule), "Resource Module")]
-        [SerializeField] private string m_ResourceModuleTypeName;
-
-        [BoxGroup(MODULE_GROUP), DisableInPlayMode]
-        [HelperDropdown(typeof(IDebuggerModule), "Debugger Module")]
-        [SerializeField] private string m_DebuggerModuleTypeName;
-
-        [BoxGroup(MODULE_GROUP), DisableInPlayMode]
-        [HelperDropdown(typeof(IFSMModule), "FSM Module")]
-        [SerializeField] private string m_FSMModuleTypeName;
-
-        [BoxGroup(MODULE_GROUP), DisableInPlayMode]
-        [HelperDropdown(typeof(IAudioModule), "Audio Module")]
-        [SerializeField] private string m_AudioModuleTypeName;
-
-        [BoxGroup(MODULE_GROUP), DisableInPlayMode]
-        [HelperDropdown(typeof(IObjectPoolModule), "ObjectPool Module")]
-        [SerializeField] private string m_ObjectPoolModuleTypeName;
-
-        [BoxGroup(MODULE_GROUP), DisableInPlayMode]
-        [HelperDropdown(typeof(IProcedureModule), "Procedure Module")]
-        [SerializeField] private string m_ProcedureModuleTypeName;
-
-        [BoxGroup(MODULE_GROUP), DisableInPlayMode]
-        [HelperDropdown(typeof(ILocalizationModule), "Localization Module")]
-        [SerializeField] private string m_LocalizationModuleTypeName;
-
-        [BoxGroup(MODULE_GROUP), DisableInPlayMode]
-        [HelperDropdown(typeof(ISceneModule), "Scene Module")]
-        [SerializeField] private string m_SceneModuleTypeName;
-
-        [BoxGroup(MODULE_GROUP), DisableInPlayMode]
-        [HelperDropdown(typeof(ITimerModule), "Timer Module")]
-        [SerializeField] private string m_TimerModuleTypeName;
-
-        [BoxGroup(MODULE_GROUP), DisableInPlayMode]
-        [HelperDropdown(typeof(IInputModule), "Input Module")]
-        [SerializeField] private string m_InputModuleTypeName;
-
-        [BoxGroup(MODULE_GROUP), DisableInPlayMode]
-        [HelperDropdown(typeof(ISaveModule), "Save Module")]
-        [SerializeField] private string m_SaveModuleTypeName;
-
-        [BoxGroup(MODULE_GROUP), DisableInPlayMode]
-        [HelperDropdown(typeof(IUIModule), "UI Module")]
-        [SerializeField] private string m_UIModuleTypeName;
 
         /// <!-- Handler -->
         private const string HELPER_GROUP = "框架工具 [Global Handler]";
@@ -129,23 +55,6 @@ namespace Moirai.Atropos
 
         private static float s_GameSpeedBeforePause = 1f;
         private const int DEFAULT_DPI = 96;  // default windows dpi
-
-#if UNITY_EDITOR
-
-        /// <summary>获取或设置编辑器语言（仅编辑器内有效）。</summary>
-        public static string EditorLanguage
-        {
-            get => Instance.m_EditorLanguage;
-            set
-            {
-                if (Instance.m_EditorLanguage == value) return;
-
-                Instance.m_EditorLanguage = value;
-                GameModule.Localization?.ChangeLanguage(value);
-            }
-        }
-
-#endif
 
         /// <summary>获取或设置游戏帧率。</summary>
         public static int FrameRate
@@ -193,19 +102,7 @@ namespace Moirai.Atropos
             m_RunInBackground = true;
             m_NeverSleep = true;
 
-            m_UpdateDriverTypeName = typeof(UpdateDriverModule).FullName;
-            m_ResourceModuleTypeName = typeof(ResourceModule).FullName;
-            m_DebuggerModuleTypeName = typeof(DebuggerModule).FullName;
-            m_FSMModuleTypeName = typeof(FSMModule).FullName;
-            m_AudioModuleTypeName = typeof(AudioModule).FullName;
-            m_ObjectPoolModuleTypeName = typeof(ObjectPoolModule).FullName;
-            m_ProcedureModuleTypeName = typeof(ProcedureModule).FullName;
-            m_LocalizationModuleTypeName = typeof(LocalizationModule).FullName;
-            m_SceneModuleTypeName = typeof(SceneModule).FullName;
-            m_TimerModuleTypeName = typeof(TimerModule).FullName;
-            m_InputModuleTypeName = typeof(InputModule).FullName;
-            m_SaveModuleTypeName = typeof(SaveModule).FullName;
-            m_UIModuleTypeName = typeof(UIModule).FullName;
+            ResetServices();
 
             m_VersionHandler = new DefaultVersionHandler();
             m_SettingHandler = new DefaultSettingHandler();
@@ -240,22 +137,11 @@ namespace Moirai.Atropos
             JsonUtility.Handler = Instance.m_JsonHandler;
             ObjectUtility.Handler = Instance.m_ObjectHandler;
 
-            // 将模块实现类型注册到 ModuleSystem
-            ModuleSystem.RegisterModule<IUpdateDriverModule>(ResolveTypeOption<Module>(Instance.m_UpdateDriverTypeName));
-            ModuleSystem.RegisterModule<IResourceModule>(ResolveTypeOption<Module>(Instance.m_ResourceModuleTypeName));
-            ModuleSystem.RegisterModule<IDebuggerModule>(ResolveTypeOption<Module>(Instance.m_DebuggerModuleTypeName));
-            ModuleSystem.RegisterModule<IFSMModule>(ResolveTypeOption<Module>(Instance.m_FSMModuleTypeName));
-            ModuleSystem.RegisterModule<IAudioModule>(ResolveTypeOption<Module>(Instance.m_AudioModuleTypeName));
-            ModuleSystem.RegisterModule<IObjectPoolModule>(ResolveTypeOption<Module>(Instance.m_ObjectPoolModuleTypeName));
-            ModuleSystem.RegisterModule<IProcedureModule>(ResolveTypeOption<Module>(Instance.m_ProcedureModuleTypeName));
-            ModuleSystem.RegisterModule<ILocalizationModule>(ResolveTypeOption<Module>(Instance.m_LocalizationModuleTypeName));
-            ModuleSystem.RegisterModule<ISceneModule>(ResolveTypeOption<Module>(Instance.m_SceneModuleTypeName));
-            ModuleSystem.RegisterModule<ITimerModule>(ResolveTypeOption<Module>(Instance.m_TimerModuleTypeName));
-            ModuleSystem.RegisterModule<IInputModule>(ResolveTypeOption<Module>(Instance.m_InputModuleTypeName));
-            ModuleSystem.RegisterModule<ISaveModule>(ResolveTypeOption<Module>(Instance.m_SaveModuleTypeName));
-            ModuleSystem.RegisterModule<IUIModule>(ResolveTypeOption<Module>(Instance.m_UIModuleTypeName));
+            // 组合根：创建 ServiceCollection → 注册所有 App 作用域服务 → 构建 App 容器
+            // （容器仅存储描述符，实例在 GameApp.Awake 中按拓扑序异步创建）
+            BuildAppContainer();
 
-            // 使用模块功能的工具
+            // 使用服务功能的工具
             TweenUtility.Handler = Instance.m_TweenHandler;
 
             LogUtility.Info("Game Version: {0} ({1})", VersionUtility.GameVersion, VersionUtility.InternalGameVersion);
@@ -295,5 +181,8 @@ namespace Moirai.Atropos
 
             GameSpeed = 1f;
         }
+
+        private partial void ResetServices();
+        private static partial void BuildAppContainer() ;
     }
 }

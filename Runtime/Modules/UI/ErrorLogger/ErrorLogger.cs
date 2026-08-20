@@ -1,15 +1,15 @@
-﻿using System;
+using System;
 using UnityEngine;
 
 namespace Moirai.Atropos.UI
 {
     public class ErrorLogger : IDisposable
     {
-        private readonly UIModule _uiModule;
+        private readonly UIService _uiService;
         
-        public ErrorLogger(UIModule uiModule)
+        public ErrorLogger(UIService uiService)
         {
-            _uiModule = uiModule;
+            _uiService = uiService;
             Application.logMessageReceived += LogHandler;
         }
 
@@ -28,7 +28,7 @@ namespace Moirai.Atropos.UI
                 string des = "An error is reported on the client.\n\n" +
                              $"#Context#: ---{condition} \n\n" +
                              $"#Stacktrace#: ---{stacktrace}";
-                _uiModule.ShowUIAsync<LogUI>(userData:des);
+                _uiService.ShowUIAsync<LogUI>(userData:des);
             }
         }
     }

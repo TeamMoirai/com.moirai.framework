@@ -1,8 +1,8 @@
-# Save 存档模块
+# Save 存档服务
 
 > 可插拔 Handler 的本地存档系统，支持 JSON / 二进制格式与 AES 加密，写入采用临时文件原子替换。
 
-Save 模块（`SaveModule`）将存档的序列化格式与文件读写流程解耦：`SaveModule` 负责路径拼装、目录创建、原子写入与删除清理，具体格式由 `ISaveHandler` 实现（`JsonSaveHandler`、加密版及二进制版）决定，可在 `SaveSettings` 面板中切换。存档统一写入 `Application.persistentDataPath/Data/{folderName}/`，文件名自动追加配置的扩展名（默认 `.sav`）。通过 `GameModule.Save`（`ISaveModule`）访问。
+Save 服务（`SaveService`）将存档的序列化格式与文件读写流程解耦：`SaveService` 负责路径拼装、目录创建、原子写入与删除清理，具体格式由 `ISaveHandler` 实现（`JsonSaveHandler`、加密版及二进制版）决定，可在 `SaveSettings` 面板中切换。存档统一写入 `Application.persistentDataPath/Data/{folderName}/`，文件名自动追加配置的扩展名（默认 `.sav`）。通过 `GameApp.Services.GetRequiredService<ISaveService>()`（`ISaveService`）访问。
 
 ## 核心特性
 
@@ -18,8 +18,8 @@ Save 模块（`SaveModule`）将存档的序列化格式与文件读写流程解
 
 | 类/接口 | 说明 |
 |---------|------|
-| `ISaveModule` | 存档模块接口：`Save` / `Load` / `DeleteSave` / `DeleteSaveFolder` / `DeleteAllSaveFiles` / `FileExists` / `DetermineSavePath`；经 `GameModule.Save` 访问 |
-| `SaveModule` | 模块实现（`Module, ISaveModule`），`OnInit` 时从 `SaveSettings` 读取 Handler 并注入加密密钥 |
+| `ISaveService` | 存档服务接口：`Save` / `Load` / `DeleteSave` / `DeleteSaveFolder` / `DeleteAllSaveFiles` / `FileExists` / `DetermineSavePath`；经 `GameApp.Services.GetRequiredService<ISaveService>()` 访问 |
+| `SaveService` | 服务实现（`Service, ISaveService`），`OnInit` 时从 `SaveSettings` 读取 Handler 并注入加密密钥 |
 | `ISaveHandler` | 序列化处理器接口：`UniTask Save(object objectToSave, FileStream saveFile)` 与 `UniTask<T> Load<T>(FileStream saveFile)` |
 | `JsonSaveHandler` | JSON 格式处理器，编辑器下 prettyPrint、真机紧凑字节 |
 | `JsonEncryptedSaveHandler` | JSON 序列化 + AES 加密（继承 `EncryptedSaveHandlerBase`） |
@@ -45,24 +45,24 @@ public class PlayerData
 }
 
 // 保存：写入 persistentDataPath/Data/Save/player_data.sav
-await GameModule.Save.Save(new PlayerData { Level = 10, Coin = 999 }, "player_data");
+await GameApp.Services.GetRequiredService<ISaveService>().Save(new PlayerData { Level = 10, Coin = 999 }, "player_data");
 
 // 加载：文件不存在或解密失败时返回 default
-if (GameModule.Save.FileExists("player_data"))
+if (GameApp.Services.GetRequiredService<ISaveService>().FileExists("player_data"))
 {
-    PlayerData data = await GameModule.Save.Load<PlayerData>("player_data");
+    PlayerData data = await GameApp.Services.GetRequiredService<ISaveService>().Load<PlayerData>("player_data");
 }
 
 // 分文件夹存档（persistentDataPath/Data/Settings/）
-await GameModule.Save.Save(settingsObject, "audio", "Settings");
+await GameApp.Services.GetRequiredService<ISaveService>().Save(settingsObject, "audio", "Settings");
 
 // 删除
-GameModule.Save.DeleteSave("player_data");            // 删除单个存档
-GameModule.Save.DeleteSaveFolder("Settings");         // 删除整个存档文件夹
-GameModule.Save.DeleteAllSaveFiles();                 // 删除 Data/ 下所有存档
+GameApp.Services.GetRequiredService<ISaveService>().DeleteSave("player_data");            // 删除单个存档
+GameApp.Services.GetRequiredService<ISaveService>().DeleteSaveFolder("Settings");         // 删除整个存档文件夹
+GameApp.Services.GetRequiredService<ISaveService>().DeleteAllSaveFiles();                 // 删除 Data/ 下所有存档
 
 // 查询实际存档路径
-string path = GameModule.Save.DetermineSavePath();    // persistentDataPath/Data/Save/
+string path = GameApp.Services.GetRequiredService<ISaveService>().DetermineSavePath();    // persistentDataPath/Data/Save/
 ```
 
 ## 配置与扩展
@@ -77,7 +77,7 @@ string path = GameModule.Save.DetermineSavePath();    // persistentDataPath/Data
 
 ### 自定义 Handler
 
-实现 `ISaveHandler` 并在模块初始化前（如启动流程最开始）注入即可：
+实现 `ISaveHandler` 并在服务初始化前（如启动流程最开始）注入即可：
 
 ```csharp
 using System.IO;
@@ -104,14 +104,14 @@ public class MessagePackSaveHandler : ISaveHandler
     }
 }
 
-// 注入（需在 SaveModule.OnInit 之前，否则沿用面板配置）
+// 注入（需在 SaveService.OnInit 之前，否则沿用面板配置）
 SaveSettings.SaveHandler = new MessagePackSaveHandler();
 ```
 
 ## 注意事项
 
 - `Save` 的参数顺序是「先对象、后文件名」：`Save(object saveObject, string fileName, string folderName = "Save")`。
-- Handler 在 `SaveModule.OnInit` 时读取并缓存，运行期修改 `SaveSettings.SaveHandler` 不会影响已初始化的模块。
+- Handler 在 `SaveService.OnInit` 时读取并缓存，运行期修改 `SaveSettings.SaveHandler` 不会影响已初始化的服务。
 - 加密处理器的 `Key` 来自 `SaveSettings.EncryptionKey`，`Salt` 仍为 `SaveEncryptor` 默认值；修改密钥会导致旧档无法解密（`Load` 返回 `default`）。
 - 二进制处理器基于 `BinaryFormatter`（已过时且有反序列化攻击风险，.NET 9+ 已移除），新项目请使用 `JsonSaveHandler` 或 `JsonEncryptedSaveHandler`。
 - JSON 处理器依赖框架自带 `JsonUtility`（`Moirai.Atropos` 的 `Core/Utility/Json`），而非 `UnityEngine.JsonUtility`，可直接序列化 `byte[]`、字典等类型。

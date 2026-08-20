@@ -12,7 +12,7 @@ namespace Moirai.Atropos
     /// </summary>
     public static partial class UnityUtility
     {
-        private static IUpdateDriverModule s_UpdateDriver;
+        private static IUpdateDriverService s_UpdateDriver;
 
         #region 控制协程 [COROUTINE CONTROL]
 
@@ -319,7 +319,7 @@ namespace Moirai.Atropos
                 return;
             }
 
-            s_UpdateDriver = ModuleSystem.GetModule<IUpdateDriverModule>();
+            s_UpdateDriver = GameServices.Provider?.GetService<IUpdateDriverService>();
         }
     }
 

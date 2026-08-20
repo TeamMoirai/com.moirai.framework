@@ -1,4 +1,4 @@
-﻿using Cysharp.Threading.Tasks;
+using Cysharp.Threading.Tasks;
 using Moirai.Atropos.FSM;
 using Moirai.Atropos.Procedure;
 
@@ -12,7 +12,7 @@ namespace Moirai.Main
     {
         public override bool UseNativeDialog { get; }
 
-        protected override void OnEnter(IFSM<IProcedureModule> procedureOwner)
+        protected override void OnEnter(IFSM<IProcedureService> procedureOwner)
         {
             base.OnEnter(procedureOwner);
             StartGame().Forget();

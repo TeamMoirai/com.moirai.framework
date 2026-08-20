@@ -1,8 +1,8 @@
-# FSM 模块
+# FSM 服务
 
-> 有限状态机模块：以泛型持有者为中心，集中创建、轮询与销毁任意数量的状态机。
+> 有限状态机服务：以泛型持有者为中心，集中创建、轮询与销毁任意数量的状态机。
 
-FSM 模块提供完整的有限状态机实现，通过 `GameModule.FSM` 静态访问器使用。每台状态机绑定一个持有者（owner），由若干 `FSMState<T>` 状态组成，模块统一驱动所有状态机的 `Update` 轮询。状态机实例本身来自 `MemoryPool`，创建与销毁零 GC 分配。流程管理模块 Procedure 即基于本模块构建，参见 [Procedure](Procedure.md)。
+FSM 服务提供完整的有限状态机实现，通过 `GameApp.Services.GetRequiredService<IFSMService>()` 静态访问器使用。每台状态机绑定一个持有者（owner），由若干 `FSMState<T>` 状态组成，服务统一驱动所有状态机的 `Update` 轮询。状态机实例本身来自 `MemoryPool`，创建与销毁零 GC 分配。流程管理服务 Procedure 即基于本服务构建，参见 [Procedure](Procedure.md)。
 
 ## 核心特性
 
@@ -19,8 +19,8 @@ FSM 模块提供完整的有限状态机实现，通过 `GameModule.FSM` 静态�
 
 | 类/接口 | 说明 |
 |---------|------|
-| `IFSMModule` | 状态机管理器接口：创建/销毁/查询状态机，通过 `GameModule.FSM` 访问 |
-| `FSMModule` | 默认实现（`internal sealed`），模块优先级 `Priority = 1`，实现 `IUpdateModule` 统一轮询 |
+| `IFSMService` | 状态机管理器接口：创建/销毁/查询状态机，通过 `GameApp.Services.GetRequiredService<IFSMService>()` 访问 |
+| `FSMService` | 默认实现（`internal sealed`），服务优先级 `Priority = 1`，实现 `IUpdateService` 统一轮询 |
 | `IFSM<T>` | 状态机接口：`Start` / `ChangeState` / `HasState` / `GetState` / `GetAllStates` / 数据字典等 |
 | `FSMBase` | 状态机抽象基类：`Name` / `FullName` / `OwnerType` / `FsmStateCount` / `IsRunning` / `IsDestroyed` / `CurrentStateName` / `CurrentStateTime` |
 | `FSMState<T>` | 状态抽象基类（`public abstract`），定义全部生命周期虚方法与 `protected ChangeState` |
@@ -52,7 +52,7 @@ public class EnemyIdleState : FSMState<Enemy>
 }
 
 // 2. 创建状态机（CreateFSM 有 4 个重载：params 数组 / List，可省略名称）
-IFSM<Enemy> fsm = GameModule.FSM.CreateFSM("enemy-1", new Enemy(),
+IFSM<Enemy> fsm = GameApp.Services.GetRequiredService<IFSMService>().CreateFSM("enemy-1", new Enemy(),
     new EnemyIdleState(), new EnemyPatrolState());
 
 // 3. 启动（只能启动一次，重复启动抛出 GameException）
@@ -62,7 +62,7 @@ fsm.Start<EnemyIdleState>();
 fsm.ChangeState<EnemyPatrolState>();
 
 // 5. 销毁
-GameModule.FSM.DestroyFSM(fsm);
+GameApp.Services.GetRequiredService<IFSMService>().DestroyFSM(fsm);
 ```
 
 ## 进阶用法
@@ -84,12 +84,12 @@ public class EnemyIdleState : FSMState<Enemy>
 
 ```csharp
 // 同一持有者类型可创建多台互不影响的状态机
-IFSM<Enemy> fsmA = GameModule.FSM.CreateFSM("enemy-a", enemyA, new EnemyIdleState());
-IFSM<Enemy> fsmB = GameModule.FSM.CreateFSM("enemy-b", enemyB, new EnemyIdleState());
+IFSM<Enemy> fsmA = GameApp.Services.GetRequiredService<IFSMService>().CreateFSM("enemy-a", enemyA, new EnemyIdleState());
+IFSM<Enemy> fsmB = GameApp.Services.GetRequiredService<IFSMService>().CreateFSM("enemy-b", enemyB, new EnemyIdleState());
 
 // 之后再按名称获取
-IFSM<Enemy> found = GameModule.FSM.GetFSM<Enemy>("enemy-a");
-bool exists = GameModule.FSM.HasFSM<Enemy>("enemy-b");
+IFSM<Enemy> found = GameApp.Services.GetRequiredService<IFSMService>().GetFSM<Enemy>("enemy-a");
+bool exists = GameApp.Services.GetRequiredService<IFSMService>().HasFSM<Enemy>("enemy-b");
 
 // 状态间共享数据（name -> object）
 fsm.SetData("PatrolIndex", 0);
@@ -109,7 +109,7 @@ float staying = fsm.CurrentStateTime; // 当前状态已持续的逻辑秒数
 - 同一 `(ownerType, name)` 重复创建、或 `Start` 已运行的状态机，均抛出 `GameException`
 - 切换到不存在的状态会抛出 `GameException`；`ChangeState` 要求状态机已在运行
 - 集合请传入至少一个状态，否则创建时抛出 `GameException`
-- 框架关闭时 `FSMModule.Shutdown` 会依次关闭全部状态机，触发各状态 `OnExit(fsm, true)` 与 `OnDestroy(fsm)`
+- 框架关闭时 `FSMService.Shutdown` 会依次关闭全部状态机，触发各状态 `OnExit(fsm, true)` 与 `OnDestroy(fsm)`
 
 ---
 [« 返回主 README](../../README.md)

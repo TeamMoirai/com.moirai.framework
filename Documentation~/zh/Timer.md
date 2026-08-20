@@ -1,10 +1,10 @@
-# Timer 模块
+# Timer 服务
 
-> 基于四级时间轮的高性能计时器模块，无全量扫描，适合技能 CD、心跳包、延时任务等大规模定时场景。
+> 基于四级时间轮的高性能计时器服务，无全量扫描，适合技能 CD、心跳包、延时任务等大规模定时场景。
 
-`Timer` 模块提供添加、暂停、恢复、重启、移除计时器的能力。实现类 `TimerModule` 采用四级时间轮算法（每级 256 槽、1 毫秒精度、每帧最多推进 64 个 tick），配合分页槽位复用与版本化句柄，在十万级计时器规模下仍保持零 GC、O(1) 级操作成本。模块同时维护缩放（受 `Time.timeScale` 影响）与非缩放两条独立时间轮。通过 `GameModule.Timer` 访问。
+`Timer` 服务提供添加、暂停、恢复、重启、移除计时器的能力。实现类 `TimerService` 采用四级时间轮算法（每级 256 槽、1 毫秒精度、每帧最多推进 64 个 tick），配合分页槽位复用与版本化句柄，在十万级计时器规模下仍保持零 GC、O(1) 级操作成本。服务同时维护缩放（受 `Time.timeScale` 影响）与非缩放两条独立时间轮。通过 `GameApp.Services.GetRequiredService<ITimerService>()` 访问。
 
-注意：本模块与 `Runtime/Core/Schedulers` 下的 Scheduler 调度器（`Scheduler.Delay`、`Scheduler.WaitFrame` 等）是两套独立设施——Scheduler 是零分配的通用调度器，Timer 模块是面向海量定时任务的时间轮实现，按需选用。
+注意：本服务与 `Runtime/Core/Schedulers` 下的 Scheduler 调度器（`Scheduler.Delay`、`Scheduler.WaitFrame` 等）是两套独立设施——Scheduler 是零分配的通用调度器，Timer 服务是面向海量定时任务的时间轮实现，按需选用。
 
 ## 核心特性
 
@@ -22,8 +22,8 @@
 
 | 类/接口 | 说明 |
 |---------|------|
-| `ITimerModule` | 模块公开接口：`AddTimer` 三个重载、`Stop` / `Resume` / `Restart` / `RemoveTimer`、`Prewarm`、`GetStatistics`、`GetAllTimers` |
-| `TimerModule` | `internal sealed` 实现类，继承 `Module` 并实现 `IUpdateModule`，由模块系统每帧驱动 |
+| `ITimerService` | 服务公开接口：`AddTimer` 三个重载、`Stop` / `Resume` / `Restart` / `RemoveTimer`、`Prewarm`、`GetStatistics`、`GetAllTimers` |
+| `TimerService` | `internal sealed` 实现类，继承 `Service` 并实现 `IUpdateService`，由服务系统每帧驱动 |
 | `TimerHandler` | 委托 `void TimerHandler(object[] args)`，传统 object[] 传参回调 |
 | `TimerDebugInfo` | 调试信息结构体：`timerHandle`、`leftTime`、`duration`、`age`、`flags` |
 | `TimerDebugFlags` | 调试标志位常量：`RUNNING`、`LOOP`、`UNSCALED` |
@@ -31,8 +31,8 @@
 ## 快速上手
 
 ```csharp
-// 访问模块
-ITimerModule timer = GameModule.Timer;
+// 访问服务
+ITimerService timer = GameApp.Services.GetRequiredService<ITimerService>();
 
 // 1. 延时执行（无参 Action）
 ulong id1 = timer.AddTimer(() => Debug.Log("3 秒后执行"), 3f);
@@ -92,14 +92,14 @@ for (int i = 0; i < count; i++)
 - 数据按 256 槽分页存放于多个并行数组（`TimerPage`），避免大数组 LOH 压力；
 - 每帧 `Update` 中分两条时间轮各推进，单帧每轮最多消耗 64 个 tick 预算，防止长卡顿后雪崩；
 - 高层级桶到期后逐级级联（cascade）到低层级，查找仅为槽位索引运算；
-- 模块 `Shutdown` 时清理全部计时器与轮结构。
+- 服务 `Shutdown` 时清理全部计时器与轮结构。
 
 ## 注意事项
 
 - `AddTimer` 返回 `0UL` 表示失败（回调为 null 或槽位耗尽），有效句柄不会为 0。
 - 槽位复用带版本号：对已失效句柄调用 `Stop` / `RemoveTimer` 等均为安全的空操作。
 - `RemoveTimer` 与一次性的自然到期等价，均会回收槽位；循环计时器必须手动移除，否则持续触发。
-- 回调在主线程（模块 `Update`）中同步执行，不要在回调中做耗时阻塞操作。
+- 回调在主线程（服务 `Update`）中同步执行，不要在回调中做耗时阻塞操作。
 - 时间缩放只影响 `isUnscaled: false` 的计时器；修改 `Time.timeScale` 前请按需选择回调形态。
 
 ---

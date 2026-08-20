@@ -25,7 +25,7 @@ namespace Moirai.Atropos
     public interface IUpdate
     {
         /// <summary>
-        /// 游戏框架模块轮询。
+        /// 游戏框架服务轮询。
         /// </summary>
         void OnUpdate();
     }
@@ -33,7 +33,7 @@ namespace Moirai.Atropos
     public interface IFixedUpdate
     {
         /// <summary>
-        /// 游戏框架模块轮询。
+        /// 游戏框架服务轮询。
         /// </summary>
         void OnFixedUpdate();
     }
@@ -41,7 +41,7 @@ namespace Moirai.Atropos
     public interface ILateUpdate
     {
         /// <summary>
-        /// 游戏框架模块轮询。
+        /// 游戏框架服务轮询。
         /// </summary>
         void OnLateUpdate();
     }
@@ -61,7 +61,7 @@ namespace Moirai.Atropos
     /// </summary>
     public static class SingletonSystem
     {
-        private static IUpdateDriverModule s_UpdateDriver;
+        private static IUpdateDriverService s_UpdateDriver;
         private static readonly List<ISingleton> s_Singletons = new List<ISingleton>();
         private static readonly List<IUpdate> s_Updates = new List<IUpdate>();
         private static readonly List<IFixedUpdate> s_FixedUpdates = new List<IFixedUpdate>();
@@ -266,7 +266,7 @@ namespace Moirai.Atropos
 
             s_IsInit = true;
 
-            s_UpdateDriver ??= ModuleSystem.GetModule<IUpdateDriverModule>();
+            s_UpdateDriver ??= GameServices.Provider?.GetService<IUpdateDriverService>();
             s_UpdateDriver.AddUpdateListener(OnUpdate);
             s_UpdateDriver.AddFixedUpdateListener(OnFixedUpdate);
             s_UpdateDriver.AddLateUpdateListener(OnLateUpdate);
@@ -282,7 +282,7 @@ namespace Moirai.Atropos
 
             s_IsInit = false;
 
-            s_UpdateDriver ??= ModuleSystem.GetModule<IUpdateDriverModule>();
+            s_UpdateDriver ??= GameServices.Provider?.GetService<IUpdateDriverService>();
             s_UpdateDriver.RemoveUpdateListener(OnUpdate);
             s_UpdateDriver.RemoveFixedUpdateListener(OnFixedUpdate);
             s_UpdateDriver.RemoveLateUpdateListener(OnLateUpdate);

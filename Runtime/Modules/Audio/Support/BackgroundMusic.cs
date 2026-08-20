@@ -1,4 +1,4 @@
-﻿using Sirenix.OdinInspector;
+using Sirenix.OdinInspector;
 using UnityEngine;
 using UnityEngine.Serialization;
 
@@ -46,7 +46,7 @@ namespace Moirai.Atropos.Audio
 		[SerializeField] private bool m_AutoUnSoloOnEnd = false;
 
 		/// <summary>
-		/// <see cref="AudioModule"/> 播放背景音乐。
+		/// <see cref="AudioService"/> 播放背景音乐。
 		/// </summary>
 		protected virtual void Start()
 		{
@@ -56,7 +56,8 @@ namespace Moirai.Atropos.Audio
 		[Button]
 		protected virtual void PlayBGM()
 		{
-			var agents = GameModule.Audio?.FindAgentsByID(m_ID);
+			var audioService = GameApp.Services?.GetService<IAudioService>();
+			var agents = audioService?.FindAgentsByID(m_ID);
 			if (agents == null) return;
 
 			foreach (var agent in agents)

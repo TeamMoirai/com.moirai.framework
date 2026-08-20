@@ -1,19 +1,19 @@
-# Audio 模块
+# Audio 服务
 
 > 基于 AudioMixer 音轨分组与音频代理池的音频系统，支持句柄控制、淡入淡出、独奏与事件驱动播放。
 
-`Audio` 模块将音频按用途划分为多条音轨（`EAudioTrack`），每条音轨对应一个 `AudioCategory`，内部维护一组 `AudioAgent`（封装 `AudioSource`）负责实际播放。模块通过 `GameModule.Audio`（`IAudioModule`）访问，播放后返回 `ulong` 句柄用于暂停、恢复、停止等后续控制，同时也支持通过 `AudioPlayEvent` 等事件间接驱动，避免模块未初始化时的空引用。音轨与主音量的设置会通过 `SettingUtility` 持久化，并在模块初始化后自动加载。
+`Audio` 服务将音频按用途划分为多条音轨（`EAudioTrack`），每条音轨对应一个 `AudioCategory`，内部维护一组 `AudioAgent`（封装 `AudioSource`）负责实际播放。服务通过 `GameApp.Services.GetRequiredService<IAudioService>()`（`IAudioService`）访问，播放后返回 `ulong` 句柄用于暂停、恢复、停止等后续控制，同时也支持通过 `AudioPlayEvent` 等事件间接驱动，避免服务未初始化时的空引用。音轨与主音量的设置会通过 `SettingUtility` 持久化，并在服务初始化后自动加载。
 
 ## 核心特性
 
 - 五条内置音轨 `EAudioTrack`：`Sfx`（常规音效）、`UI`、`Music`、`Voice`、`Ambience`，每轨独立音量/静音/暂停，命名需与 AudioMixer 分组一致
 - 代理池播放：每轨按 `MaxChannel` 预建 `AudioAgent`，超出上限时可按 `CanExpand` 配置扩容，或淡出复用播放时间最久的代理
-- 句柄 + 用户 ID 双重管理：`Play` 返回模块自维护句柄；播放时通过 `AudioPlayOptions.ID` 指定用户 ID，可按 ID 批量控制
+- 句柄 + 用户 ID 双重管理：`Play` 返回服务自维护句柄；播放时通过 `AudioPlayOptions.ID` 指定用户 ID，可按 ID 批量控制
 - 完整过渡能力：单条音频淡入/淡出（`FadeAudio`）、音轨过渡（`FadeTrack`）、主音轨过渡（`FadeMasterTrack`），手动过渡零 GC
 - Solo 独奏：`SoloSingleTrack` / `SoloAllTracks` 播放时静音同轨或全部音频，`AutoUnSoloOnEnd` 支持播完自动解除
 - 3D 空间音效：位置、跟随 Transform、多普勒、衰减曲线等 `AudioSource` 参数均可在 `AudioPlayOptions` 中配置
 - 持久音频：`Persistent` 选项让音频在场景切换后继续播放，其余音频在加载新场景时自动淡出停止
-- 事件驱动：`AudioPlayEvent`、`AudioControlEvent`、`AudioTrackControlEvent`、`AudioTrackFadeEvent`、`AudioFadeEvent`、`AudioModuleEvent`、`AllAudiosControlEvent`
+- 事件驱动：`AudioPlayEvent`、`AudioControlEvent`、`AudioTrackControlEvent`、`AudioTrackFadeEvent`、`AudioFadeEvent`、`AudioServiceEvent`、`AllAudiosControlEvent`
 
 ## 核心类型
 
@@ -21,8 +21,8 @@
 
 | 类/接口 | 说明 |
 |---------|------|
-| `IAudioModule` | 模块公开接口，`GameModule.Audio` 返回类型 |
-| `AudioModule` | `sealed` 实现类，继承 `Module` 并实现 `IUpdateModule`，注册并响应全部音频事件 |
+| `IAudioService` | 服务公开接口，`GameApp.Services.GetRequiredService<IAudioService>()` 返回类型 |
+| `AudioService` | `sealed` 实现类，继承 `Service` 并实现 `IUpdateService`，注册并响应全部音频事件 |
 | `EAudioTrack` | 音轨枚举：`Sfx`、`UI`、`Music`、`Voice`、`Ambience` |
 | `AudioCategory` | 音轨类别，持有 `AudioAgent` 列表，提供 `GetAvailableAgent`、`PauseAll`、`StopAll` 等 |
 | `AudioAgent` | 音频代理，封装 `AudioSource`，负责加载、播放、淡入淡出与状态机（`EAudioAgentRuntimeState`） |
@@ -37,7 +37,7 @@
 | `AudioTrackControlEvent` | 音轨控制：`MuteTrack`、`PauseTrack`、`SetTrackVolume`、`MuteMaster` 等 |
 | `AudioFadeEvent` | 按 ID 过渡：`PlayFade(soundID, duration, finalVolume, ease)`、`StopFade(soundID)` |
 | `AudioTrackFadeEvent` | 音轨过渡：`PlayFade(track, ...)`、`PlayMasterFade(duration, finalVolume, ease)` |
-| `AudioModuleEvent` | 设置事件：`SetSettings` / `LoadSettings` / `ResetSettings` |
+| `AudioServiceEvent` | 设置事件：`SetSettings` / `LoadSettings` / `ResetSettings` |
 | `AllAudiosControlEvent` | 全局控制：`Pause`、`Play`、`Stop`、`AllButPersistent`、`StopAllLooping` |
 | `BackgroundMusic` | 组件：物体实例化时自动播放背景音乐（同 ID 旧 BGM 自动切换） |
 | `AudioSettingsWidget` | 组件：将 Slider/Toggle 绑定到主音量与各音轨设置 |
@@ -45,8 +45,8 @@
 ## 快速上手
 
 ```csharp
-// 访问模块
-IAudioModule audio = GameModule.Audio;
+// 访问服务
+IAudioService audio = GameApp.Services.GetRequiredService<IAudioService>();
 
 // 1. 使用 AudioClip 播放（Create 工厂预设了常用默认值）
 AudioPlayOptions options = AudioPlayOptions.Create(EAudioTrack.Sfx);
@@ -87,7 +87,7 @@ audio.FadeMasterTrack(1.5f, 1f, 0.8f);                  // 主音轨
 ulong voice = AudioPlayEvent.Trigger(clip, AudioPlayOptions.CreateLooping(EAudioTrack.Voice));
 
 // 指定用户 ID 需使用长参数重载（AudioPlayOptions.ID 的 setter 为 internal）
-GameModule.Audio.Play(clip, EAudioTrack.Voice, Vector3.zero, loop: true, id: 33);
+GameApp.Services.GetRequiredService<IAudioService>().Play(clip, EAudioTrack.Voice, Vector3.zero, loop: true, id: 33);
 
 AudioControlEvent.Pause(33);                    // 暂停所有 ID 为 33 的音频
 AudioControlEvent.Stop(33);                     // 停止
@@ -103,9 +103,9 @@ AllAudiosControlEvent.Stop();
 AllAudiosControlEvent.AllButPersistent();       // 停止除 Persistent 外的所有音频
 
 // 设置持久化（写入 / 加载 / 重置，需保存时调用 SettingUtility.Save）
-AudioModuleEvent.SetSettings();
-AudioModuleEvent.LoadSettings();
-AudioModuleEvent.ResetSettings();
+AudioServiceEvent.SetSettings();
+AudioServiceEvent.LoadSettings();
+AudioServiceEvent.ResetSettings();
 ```
 
 ### 长参数重载与查找
@@ -113,13 +113,13 @@ AudioModuleEvent.ResetSettings();
 `Play` 提供展开全部参数的长重载（clip 与 path 两个版本），便于一次性配置 3D 音频：
 
 ```csharp
-ulong h = GameModule.Audio.Play(clip, EAudioTrack.Sfx, position,
+ulong h = GameApp.Services.GetRequiredService<IAudioService>().Play(clip, EAudioTrack.Sfx, position,
     volume: 0.9f, spatialBlend: 1f, rolloffMode: AudioRolloffMode.Linear,
     minDistance: 2f, maxDistance: 60f, attachToTransform: enemy.transform);
 
 // 查询
-IReadOnlyList<AudioAgent> agents = GameModule.Audio.FindAgentsByID(33); // 共享缓冲区，尽快消费
-int count = GameModule.Audio.CurrentlyPlayingCount(clip);
+IReadOnlyList<AudioAgent> agents = GameApp.Services.GetRequiredService<IAudioService>().FindAgentsByID(33); // 共享缓冲区，尽快消费
+int count = GameApp.Services.GetRequiredService<IAudioService>().CurrentlyPlayingCount(clip);
 ```
 
 ### 播放选项资产
@@ -136,15 +136,15 @@ void OnShoot() => shootSfx.Play(muzzle.position);
 频繁加载的 clip 可预载到句柄池，播放时配合 `bInPool: true` 复用：
 
 ```csharp
-GameModule.Audio.PutInAudioPool(new List<string> { "Assets/.../hit.mp3" });
-GameModule.Audio.RemoveClipFromPool(new List<string> { "Assets/.../hit.mp3" });
-GameModule.Audio.CleanAudioPool();
+GameApp.Services.GetRequiredService<IAudioService>().PutInAudioPool(new List<string> { "Assets/.../hit.mp3" });
+GameApp.Services.GetRequiredService<IAudioService>().RemoveClipFromPool(new List<string> { "Assets/.../hit.mp3" });
+GameApp.Services.GetRequiredService<IAudioService>().CleanAudioPool();
 ```
 
 ## 配置说明
 
 - `AudioSettings`（菜单中的「音频设置」）配置 `AudioMixer` 与各音轨的 `AudioGroupConfig`；未配置时代码会从 `Resources/AudioMixer` 兜底读取 `Master/` 下分组并按分组名匹配 `EAudioTrack`
-- AudioMixer 分组需暴露名为 `{分组名}Volume` 的音量参数（如 `MusicVolume`），模块以对数换写该参数实现音轨音量
+- AudioMixer 分组需暴露名为 `{分组名}Volume` 的音量参数（如 `MusicVolume`），服务以对数换写该参数实现音轨音量
 - `AudioGroupConfig.MixerValuesMultiplier`（默认 20）为归一化音量到分贝的转换系数
 - 也可在初始化时显式传入：`audio.Initialize(instanceRoot, audioMixer, audioGroupConfigs)`
 
@@ -153,8 +153,8 @@ GameModule.Audio.CleanAudioPool();
 - `Play` 返回 `0UL` 表示播放失败（无可用代理、音轨未配置或编辑器禁用了音频）
 - `DoNotAutoRecycleIfNotDonePlaying` 为 `false` 时（`new AudioPlayOptions` 的默认值），超过最大发声数会淡出打断播放最久的音频；`Default` 与 `Create` 系列工厂默认为 `true`
 - `FindAgentsByID` / `FindAgentsByClip` 返回内部共享缓冲区，结果须在下次调用前消费完毕
-- 加载新场景时模块会自动 `StopAllButPersistent`，需要跨场景的音频设置 `Persistent = true`
-- 编辑器下模块会在根节点挂载 `AudioDebugger` 供 Inspector 调试；编辑器禁用音频（`unityAudioDisabled`）时所有接口静默失效
+- 加载新场景时服务会自动 `StopAllButPersistent`，需要跨场景的音频设置 `Persistent = true`
+- 编辑器下服务会在根节点挂载 `AudioDebugger` 供 Inspector 调试；编辑器禁用音频（`unityAudioDisabled`）时所有接口静默失效
 - 主音量经 `AudioListener.volume` 生效，音轨音量经 AudioMixer 参数生效，两者机制不同
 
 ---

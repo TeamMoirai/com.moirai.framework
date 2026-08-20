@@ -1,16 +1,16 @@
-﻿using Moirai.Atropos.Events;
+using Moirai.Atropos.Events;
 
 namespace Moirai.Atropos.Audio
 {
     /// <summary>
-    /// 此事件将通过 AudioModule 暂停/播放/停止/释放的所有音频
+    /// 此事件将通过 AudioService 暂停/播放/停止/释放的所有音频
     /// 
     /// <example>
     /// 立即停止所有音频播放
     /// <code>AllAudiosControlEvent.Trigger(AllAudiosControlEvent.EAllAudiosControlEventType.Stop);</code>
     /// </example>>
     /// </summary>
-    public class AllAudiosControlEvent : EventBase<AllAudiosControlEvent>, IAudioModuleEvent
+    public class AllAudiosControlEvent : EventBase<AllAudiosControlEvent>, IAudioServiceEvent
     {
         public enum EControlMode
         {

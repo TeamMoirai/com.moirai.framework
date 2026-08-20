@@ -1,4 +1,4 @@
-﻿using Moirai.Atropos.ObjectPool;
+using Moirai.Atropos.ObjectPool;
 using Moirai.Atropos.Resource;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -14,45 +14,45 @@ namespace Moirai.Atropos.Debugger
                 GUILayout.Label("<b>Operations</b>");
                 GUILayout.BeginVertical("box");
                 {
-                    IObjectPoolModule objectPoolModule = ModuleSystem.GetModule<IObjectPoolModule>();
-                    if (objectPoolModule != null)
+                    IObjectPoolService objectPoolService = GameServices.Provider?.GetService<IObjectPoolService>();
+                    if (objectPoolService != null)
                     {
                         if (GUILayout.Button("Object Pool Release", GUILayout.Height(30f)))
                         {
-                            objectPoolModule.Release();
+                            objectPoolService.Release();
                         }
 
                         if (GUILayout.Button("Object Pool Release All Unused", GUILayout.Height(30f)))
                         {
-                            objectPoolModule.ReleaseAllUnused();
+                            objectPoolService.ReleaseAllUnused();
                         }
                     }
 
-                    IResourceModule resourceModule = ModuleSystem.GetModule<IResourceModule>();
-                    if (resourceModule != null)
+                    IResourceService resourceService = GameServices.Provider?.GetService<IResourceService>();
+                    if (resourceService != null)
                     {
                         if (GUILayout.Button("Unload Unused Assets", GUILayout.Height(30f)))
                         {
-                            resourceModule.ForceUnloadUnusedAssets(false);
+                            resourceService.ForceUnloadUnusedAssets(false);
                         }
 
                         if (GUILayout.Button("Unload Unused Assets and Garbage Collect", GUILayout.Height(30f)))
                         {
-                            resourceModule.ForceUnloadUnusedAssets(true);
+                            resourceService.ForceUnloadUnusedAssets(true);
                         }
                         
                         if (GUILayout.Button("Shutdown Game Framework (None)", GUILayout.Height(30f)))
                         {
-                            ModuleSystem.Shutdown();
+                            GameServices.Shutdown();
                         }
                         if (GUILayout.Button("Shutdown Game Framework (Restart)", GUILayout.Height(30f)))
                         {
-                            ModuleSystem.Shutdown();
+                            GameServices.Shutdown();
                             SceneManager.LoadScene(0);
                         }
                         if (GUILayout.Button("Shutdown Game Framework (Quit)", GUILayout.Height(30f)))
                         {
-                            ModuleSystem.Shutdown();
+                            GameServices.Shutdown();
                             Application.Quit();
 #if UNITY_EDITOR
                             UnityEditor.EditorApplication.isPlaying = false;
