@@ -1,6 +1,5 @@
 using System.Collections;
 using Moirai.Atropos;
-using Moirai.Atropos.FSM;
 using Moirai.Atropos.Procedure;
 using UnityEngine;
 using YooAsset;
@@ -16,25 +15,22 @@ namespace Moirai.Main
         private bool _initResourcesComplete = false;
 
         public override bool UseNativeDialog => true;
-        
-        private IFSM<IProcedureService> _procedureOwner;
 
-        protected override void OnEnter(IFSM<IProcedureService> procedureOwner)
+        protected override void OnEnter()
         {
-            base.OnEnter(procedureOwner);
+            base.OnEnter();
 
-            _procedureOwner = procedureOwner;
             _initResourcesComplete = false;
             
             LauncherMgr.ShowUI<LoadUpdateUI>(LoadText.Instance.Label_Load_Init);
             
             // 注意：使用单机模式并初始化资源前，需要先构建 AssetBundle 并复制到 StreamingAssets 中，否则会产生 HTTP 404 错误
-            UnityUtility.StartCoroutine(InitResources(procedureOwner));
+            UnityUtility.StartCoroutine(InitResources());
         }
 
-        protected override void OnUpdate(IFSM<IProcedureService> procedureOwner, float elapseSeconds, float realElapseSeconds)
+        protected override void OnUpdate(float elapseSeconds, float realElapseSeconds)
         {
-            base.OnUpdate(procedureOwner, elapseSeconds, realElapseSeconds);
+            base.OnUpdate(elapseSeconds, realElapseSeconds);
 
             if (!_initResourcesComplete)
             {
@@ -52,27 +48,27 @@ namespace Moirai.Main
                     _resourceService.UpdatableWhilePlaying)
                 {
                     // 边玩边下载还可以拓展首包支持。
-                    ChangeToPreloadState(procedureOwner);
+                    ChangeToPreloadState();
                     return;
                 }
 
-                ChangeToCreateDownloaderState(procedureOwner);
+                ChangeToCreateDownloaderState();
                 return;
             }
 
-            ChangeToPreloadState(procedureOwner);
+            ChangeToPreloadState();
         }
         
-        private void ChangeToCreateDownloaderState(IFSM<IProcedureService> procedureOwner)
+        private void ChangeToCreateDownloaderState()
         {
-            ChangeState<ProcedureCreateDownloader>(procedureOwner);
+            ChangeState<ProcedureCreateDownloader>();
         }
 
         /// <summary>
         /// 初始化资源流程。
         /// </summary>
         /// <remarks>YooAsset 需要保持编辑器、单机、联机模式流程一致。</remarks>
-        private IEnumerator InitResources(IFSM<IProcedureService> procedureOwner)
+        private IEnumerator InitResources()
         {
             // 更新资源清单
             LogUtility.Info("Update the manifest file...");
@@ -83,7 +79,7 @@ namespace Moirai.Main
             yield return operation1;
             if (operation1.Status != EOperationStatus.Succeed)
             {
-                OnInitResourcesError(procedureOwner, operation1.Error);
+                OnInitResourcesError(operation1.Error);
                 yield break;
             }
 
@@ -99,19 +95,19 @@ namespace Moirai.Main
             yield return operation2;
             if (operation2.Status != EOperationStatus.Succeed)
             {
-                OnInitResourcesError(procedureOwner, operation2.Error);
+                OnInitResourcesError(operation2.Error);
                 yield break;
             }
 
             _initResourcesComplete = true;
         }
 
-        private void ChangeToPreloadState(IFSM<IProcedureService> procedureOwner)
+        private void ChangeToPreloadState()
         {
-            ChangeState<ProcedurePreload>(procedureOwner);
+            ChangeState<ProcedurePreload>();
         }
 
-        private void OnInitResourcesError(IFSM<IProcedureService> procedureOwner, string message)
+        private void OnInitResourcesError(string message)
         {
             // 检查设备网络连接状态。
             if (_resourceService.PlayMode == EPlayMode.HostPlayMode)
@@ -124,14 +120,14 @@ namespace Moirai.Main
                 {
                     LogUtility.Error(message);
                     LauncherMgr.ShowMessageBox($"获取远程版本失败！点击确认重试\n <color=#FF0000>{message}</color>",
-                        () => { UnityUtility.StartCoroutine(InitResources(procedureOwner)); }, Application.Quit);
+                        () => { UnityUtility.StartCoroutine(InitResources()); }, Application.Quit);
                     return;
                 }
             }
 
             LogUtility.Error(message);
             LauncherMgr.ShowMessageBox($"初始化资源失败！点击确认重试 \n <color=#FF0000>{message}</color>",
-                () => { UnityUtility.StartCoroutine(InitResources(procedureOwner)); }, Application.Quit);
+                () => { UnityUtility.StartCoroutine(InitResources()); }, Application.Quit);
         }
 
         private bool IsNeedUpdate()
@@ -145,7 +141,7 @@ namespace Moirai.Main
                 {
                     LauncherMgr.ShowUI<LoadUpdateUI>(LoadText.Instance.Label_Net_UnReachable);
                     LauncherMgr.ShowMessageBox("没有找到本地版本记录，需要更新资源！",
-                        () => { UnityUtility.StartCoroutine(InitResources(_procedureOwner)); },
+                        () => { UnityUtility.StartCoroutine(InitResources()); },
                         Application.Quit);
                     return false;
                 }
@@ -156,12 +152,12 @@ namespace Moirai.Main
                 {
                     LauncherMgr.ShowUI<LoadUpdateUI>(LoadText.Instance.Label_Load_Notice);
                     LauncherMgr.ShowMessageBox($"更新失败，检测到可选资源更新，推荐完成更新提升游戏体验！ \\n \\n 确定再试一次，取消进入游戏",
-                        () => { UnityUtility.StartCoroutine(InitResources(_procedureOwner)); },
-                        () => { ChangeState<ProcedurePreload>(_procedureOwner); });
+                        () => { UnityUtility.StartCoroutine(InitResources()); },
+                        () => { ChangeState<ProcedurePreload>(); });
                 }
                 else
                 {
-                    ChangeState<ProcedurePreload>(_procedureOwner);
+                    ChangeState<ProcedurePreload>();
                 }
 
                 return false;

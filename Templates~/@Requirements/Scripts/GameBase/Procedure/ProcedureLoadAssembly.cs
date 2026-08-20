@@ -4,7 +4,6 @@ using System.IO;
 using System.Reflection;
 using Cysharp.Threading.Tasks;
 using Moirai.Atropos;
-using Moirai.Atropos.FSM;
 using Moirai.Atropos.Procedure;
 using UnityEngine;
 using YooAsset;
@@ -33,15 +32,13 @@ namespace Moirai.Main
 #pragma warning restore CS0414
         private Assembly _mainLogicAssembly;
         private List<Assembly> _hotfixAssemblyList;
-        private IFSM<IProcedureService> _procedureOwner;
 
         public override bool UseNativeDialog => true;
 
-        protected override void OnEnter(IFSM<IProcedureService> procedureOwner)
+        protected override void OnEnter()
         {
-            base.OnEnter(procedureOwner);
+            base.OnEnter();
             LogUtility.Debug("HybridCLR ProcedureLoadAssembly OnEnter");
-            _procedureOwner = procedureOwner;
 
             LoadAssembly().Forget();
         }
@@ -106,9 +103,9 @@ namespace Moirai.Main
             }
         }
 
-        protected override void OnUpdate(IFSM<IProcedureService> procedureOwner, float elapseSeconds, float realElapseSeconds)
+        protected override void OnUpdate(float elapseSeconds, float realElapseSeconds)
         {
-            base.OnUpdate(procedureOwner, elapseSeconds, realElapseSeconds);
+            base.OnUpdate(elapseSeconds, realElapseSeconds);
             if (!_loadAssemblyComplete)
             {
                 return;
@@ -122,7 +119,7 @@ namespace Moirai.Main
 
         private void AllAssemblyLoadComplete()
         {
-            ChangeState<ProcedurePrepare4Entrance>(_procedureOwner);
+            ChangeState<ProcedurePrepare4Entrance>();
 #if UNITY_EDITOR
             _mainLogicAssembly = GetMainLogicAssembly();
 #endif

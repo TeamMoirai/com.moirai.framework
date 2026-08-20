@@ -1,7 +1,6 @@
 using System;
 using Cysharp.Threading.Tasks;
 using Moirai.Atropos;
-using Moirai.Atropos.FSM;
 using Moirai.Atropos.Procedure;
 using YooAsset;
 
@@ -14,8 +13,6 @@ namespace Moirai.Main
     public class ProcedureDownloadFile : ProcedurePremainBase
     {
         public override bool UseNativeDialog { get; }
-
-        private IFSM<IProcedureService> _procedureOwner;
 
         private float _lastUpdateDownloadedSize;
         private float _totalSpeed;
@@ -37,10 +34,8 @@ namespace Moirai.Main
             }
         }
 
-        protected override void OnEnter(IFSM<IProcedureService> procedureOwner)
+        protected override void OnEnter()
         {
-            _procedureOwner = procedureOwner;
-
             LogUtility.Info("Start downloading the update file!");
             LauncherMgr.ShowUI<LoadUpdateUI>(LoadText.Instance.Label_Download_Start);
 
@@ -61,13 +56,13 @@ namespace Moirai.Main
             if (downloader.Status != EOperationStatus.Succeed)
                 return;
 
-            ChangeState<ProcedureDownloadOver>(_procedureOwner);
+            ChangeState<ProcedureDownloadOver>();
         }
 
         private void OnDownloadErrorCallback(DownloadErrorData downloadErrorData)
         {
             LauncherMgr.ShowMessageBox($"Failed to download file : {downloadErrorData.FileName}",
-                () => { ChangeState<ProcedureCreateDownloader>(_procedureOwner); }, UnityEngine.Application.Quit);
+                () => { ChangeState<ProcedureCreateDownloader>(); }, UnityEngine.Application.Quit);
         }
 
         private void OnDownloadProgressCallback(DownloadUpdateData downloadUpdateData)

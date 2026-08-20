@@ -1,5 +1,4 @@
 using Moirai.Atropos.Events;
-using Moirai.Atropos.FSM;
 using Moirai.Atropos.Procedure;
 
 namespace Moirai.Main
@@ -10,24 +9,21 @@ namespace Moirai.Main
     // ReSharper disable once ClassNeverInstantiated.Global
     public class ProcedureSplash : ProcedurePremainBase
     {
-        private IFSM<IProcedureService> _procedureOwner;
-        
         public override bool UseNativeDialog => true;
 
-        protected override void OnEnter(IFSM<IProcedureService> procedureOwner)
+        protected override void OnEnter()
         {
-            base.OnEnter(procedureOwner);
+            base.OnEnter();
 
             if (SplashScreenManager.HasInstance && SplashScreenManager.Instance.ShowSplashScreen)
             {
-                _procedureOwner = procedureOwner;
                 // 播放 Splash 动画
                 SplashScreenEvent.SplashStart();
                 EventManager.RegisterCallback<SplashScreenEvent>(OnSplashScreenEvent);
             }
             else
             {
-                ChangeState<ProcedureInitPackage>(procedureOwner);
+                ChangeState<ProcedureInitPackage>();
             }
         }
         
@@ -40,7 +36,7 @@ namespace Moirai.Main
             if (evt.Stage == SplashScreenEvent.SplashStage.End)
             {
                 // 闪屏结束切换至初始化资源包
-                ChangeState<ProcedureInitPackage>(_procedureOwner);
+                ChangeState<ProcedureInitPackage>();
                 EventManager.UnregisterCallback<SplashScreenEvent>(OnSplashScreenEvent);
             }
         }

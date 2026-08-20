@@ -1,7 +1,6 @@
 using System;
 using Cysharp.Threading.Tasks;
 using Moirai.Atropos;
-using Moirai.Atropos.FSM;
 using Moirai.Atropos.Procedure;
 using UnityEngine;
 using YooAsset;
@@ -21,18 +20,14 @@ namespace Moirai.Main
         
         public override bool UseNativeDialog { get; }
 
-        private IFSM<IProcedureService> _procedureOwner;
-
         private ResourceDownloaderOperation _downloader;
 
         private int _totalDownloadCount;
 
         private string _totalSizeMb;
 
-        protected override void OnEnter(IFSM<IProcedureService> procedureOwner)
+        protected override void OnEnter()
         {
-            _procedureOwner = procedureOwner;
-            
             LogUtility.Info("Create a patch downloader...");
             
             LauncherMgr.ShowUI<LoadUpdateUI>(LoadText.Instance.Label_CreateDownloader);
@@ -49,7 +44,7 @@ namespace Moirai.Main
             if (_downloader.TotalDownloadCount == 0)
             {
                 LogUtility.Info("Not found any download files !");
-                ChangeState<ProcedureDownloadOver>(_procedureOwner);
+                ChangeState<ProcedureDownloadOver>();
             }
             else
             {
@@ -79,7 +74,7 @@ namespace Moirai.Main
 
         void StartDownFile()
         {
-            ChangeState<ProcedureDownloadFile>(_procedureOwner);
+            ChangeState<ProcedureDownloadFile>();
         }
         
 
@@ -180,7 +175,7 @@ namespace Moirai.Main
                         LauncherMgr.ShowMessageBox(string.Format(LoadText.Instance.Label_Load_Notice,$"{_totalSizeMb}MB"),
                             StartDownFile, () =>
                             {
-                                ChangeState<ProcedureLoadAssembly>(_procedureOwner);
+                                ChangeState<ProcedureLoadAssembly>();
                             });
                     }
                     // 不提示
