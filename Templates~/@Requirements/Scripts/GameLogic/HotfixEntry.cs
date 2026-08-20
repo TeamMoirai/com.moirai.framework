@@ -3,6 +3,8 @@ using System.Reflection;
 using Moirai.Atropos;
 using Moirai.Atropos.Events;
 using Moirai.Atropos.Procedure;
+using Moirai.Atropos.UI;
+using Moirai.Atropos.Localization;
 #if OBFUZ_INSTALLED && ENABLE_OBFUZ
 using Obfuz;
 #endif
@@ -44,11 +46,11 @@ namespace GameLogic
 
             UnityUtility.AddDestroyListener(Release);
 
-            // 保证 UIModule 正常初始化
-            GameModule.UI.CloseAll();
+            // 保证 UIService 正常初始化
+            GameApp.Services.GetRequiredService<IUIService>().CloseAll();
 
             // 初始化多语言配置
-            GameModule.Localization.InitLanguageSettings();
+            GameApp.Services.GetRequiredService<ILocalizationService>().InitLanguageSettings();
 
             // 事件通知
             HotfixEntryEvent.Trigger();

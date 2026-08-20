@@ -9,7 +9,7 @@ using Random = UnityEngine.Random;
 namespace Moirai.Atropos.Audio
 {
 	/// <summary>
-	/// 保存 AudioModule 播放数据的可编写脚本对象
+	/// 保存 AudioService 播放数据的可编写脚本对象
 	/// </summary>
 	[Serializable]
 	[CreateAssetMenu(menuName = "Moirai Framework/Audio/Play Options SO")]
@@ -95,8 +95,8 @@ namespace Moirai.Atropos.Audio
 		[SerializeField] private Vector2 m_PlaybackDuration = new Vector2(0f, 0f);
 		public Vector2 PlaybackDuration => m_PlaybackDuration;
 
-		// 音频模块选项
-		[Header("音频模块选项 [Audio Module Options]")]
+		// 音频服务选项
+		[Header("音频服务选项 [Audio Service Options]")]
 		[InspectorGroup(AUDIO_PROPERTIES_GROUP)]
 		[Tooltip("播放音频的音轨。选择与音频性质相匹配的")]
 		[SerializeField] private EAudioTrack m_AudioTrack = EAudioTrack.Sfx;
@@ -278,11 +278,13 @@ namespace Moirai.Atropos.Audio
 		{
 			if (!Application.isPlaying) return;
 
+			var audioService = GameApp.Services?.GetService<IAudioService>();
+
 			if (_sfx != null)
 			{
 				if (m_DoNotPlayIfClipAlreadyPlaying)
 				{
-					if (_lastPlayHandle != 0 && GameModule.Audio != null && GameModule.Audio.IsPlaying(_lastPlayHandle))
+					if (_lastPlayHandle != 0 && audioService != null && audioService.IsPlaying(_lastPlayHandle))
 					{
 						return;
 					}
@@ -290,7 +292,7 @@ namespace Moirai.Atropos.Audio
 
 				if (m_MaximumConcurrentInstances >= 0)
 				{
-					if (GameModule.Audio != null && GameModule.Audio.CurrentlyPlayingCount(_sfx) >= m_MaximumConcurrentInstances)
+					if (audioService != null && audioService.CurrentlyPlayingCount(_sfx) >= m_MaximumConcurrentInstances)
 					{
 						return;
 					}

@@ -1,4 +1,5 @@
-﻿using System;
+using System;
+using Moirai.Atropos.Resource;
 using UnityEngine;
 
 namespace Moirai.Atropos
@@ -21,8 +22,8 @@ namespace Moirai.Atropos
         
         public override string InternalGameVersion => string.Empty;
 
-        public override string ResourceVersion => "ResVer." + GameModule.Resource.GetPackageVersion();
-        
-        public override string InternalResourceVersion => "InternalResVer." + GameModule.Resource.InternalResourceVersion.ToString();
+        public override string ResourceVersion => "ResVer." + GameApp.Services.GetRequiredService<IResourceService>().GetPackageVersion();
+
+        public override string InternalResourceVersion => "InternalResVer." + GameApp.Services.GetRequiredService<IResourceService>().InternalResourceVersion.ToString();
     }
 }

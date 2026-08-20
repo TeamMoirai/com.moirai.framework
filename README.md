@@ -24,7 +24,7 @@ Moirai Framework
 
 - 🚀 **开箱即用** - 5 分钟即可上手整套开发流程，代码整洁，思路清晰
 - 🔥 **高性能** - 基于 UniTask 的异步系统，零 GC 事件分发，严格的内存管理
-- 🧩 **高内聚低耦合** - 模块化设计，可轻松移除或替换不需要的模块
+- 🧩 **高内聚低耦合** - 服务化设计，可轻松移除或替换不需要的服务
 - 🔄 **热更新支持** - 集成 HybridCLR，全平台热更新流程已跑通
 - 🔐 **代码混淆** - 集成 Obfuz，支持代码混淆加固，保护核心逻辑
 - 📦 **资源管理** - 集成 YooAsset，支持 LRU、ARC 缓存策略，自动资源释放
@@ -47,12 +47,12 @@ Moirai Framework
       - [方式三：手动安装](#%E6%96%B9%E5%BC%8F%E4%B8%89%E6%89%8B%E5%8A%A8%E5%AE%89%E8%A3%85)
     - [初始设置](#%E5%88%9D%E5%A7%8B%E8%AE%BE%E7%BD%AE)
       - [场景打包](#%E5%9C%BA%E6%99%AF%E6%89%93%E5%8C%85)
-      - [配置表模块](#%E9%85%8D%E7%BD%AE%E8%A1%A8%E6%A8%A1%E5%9D%97)
+      - [配置表服务](#%E9%85%8D%E7%BD%AE%E8%A1%A8%E6%A8%A1%E5%9D%97)
     - [快捷功能](#%E5%BF%AB%E6%8D%B7%E5%8A%9F%E8%83%BD)
 - [🏗️ 架构](#-%E6%9E%B6%E6%9E%84)
-  - [模块系统](#%E6%A8%A1%E5%9D%97%E7%B3%BB%E7%BB%9F)
+  - [服务系统](#%E6%A8%A1%E5%9D%97%E7%B3%BB%E7%BB%9F)
   - [启动流程](#%E5%90%AF%E5%8A%A8%E6%B5%81%E7%A8%8B)
-- [📦 功能模块](#-%E5%8A%9F%E8%83%BD%E6%A8%A1%E5%9D%97)
+- [📦 功能服务](#-%E5%8A%9F%E8%83%BD%E6%A8%A1%E5%9D%97)
 - [🧰 核心工具](#-%E6%A0%B8%E5%BF%83%E5%B7%A5%E5%85%B7)
   - [Attributes — 自定义属性](#attributes--%E8%87%AA%E5%AE%9A%E4%B9%89%E5%B1%9E%E6%80%A7)
   - [Events — 事件系统](#events--%E4%BA%8B%E4%BB%B6%E7%B3%BB%E7%BB%9F)
@@ -162,7 +162,7 @@ Moirai Framework
 - Unity6.0+： `File -> Build Profiles -> SceneList`
 - Unity6.0-：`File -> Build Settings -> Scene In Build`
 
-##### 配置表模块
+##### 配置表服务
 
    - 选择 `Tools/Settings/ConfigTableSettings` ，点击 `生成 Config 到指定目录`。
    - 初次生成时，导出前先执行 **build-luban** 编译或者自行导入 Luban至配置表根目录。
@@ -210,15 +210,15 @@ com.moirai.framework/
 │   │   ├── Singleton/    # 单例系统（纯 C# / MonoBehaviour）
 │   │   ├── Tasks/        # 任务/序列系统
 │   │   └── Utility/      # 工具集（日志、加密、HTTP、反射、缓动等）
-│   └── Modules/          # 功能模块
-│       ├── @Core/        # 模块系统基座（Module / ModuleSystem / GameModule）
+│   └── Services/          # 功能服务
+│       ├── @Core/        # 服务系统基座（Service / ServiceSystem / GameService）
 │       ├── Audio/        # 音频系统（分类/代理/淡入淡出）
 │       ├── ConfigTable/  # 配置表管理
 │       ├── Debugger/     # 运行时调试器
 │       ├── FSM/          # 有限状态机
 │       ├── Input/        # 输入系统（键鼠/手柄/移动端）
 │       ├── Localization/ # 本地化（文本/图片/音频/Google翻译）
-│       ├── ObjectPool/   # 对象池模块
+│       ├── ObjectPool/   # 对象池服务
 │       ├── Procedure/    # 流程管理
 │       ├── Resource/     # YooAsset 资源管理
 │       ├── Save/         # 存档系统（JSON/二进制/加密）
@@ -230,30 +230,30 @@ com.moirai.framework/
 ├── Plugins/              # 第三方库
 ├── Samples~/             # 示例
 ├── Templates~/           # 项目初始模板
-├── Documentation~/zh/    # 模块文档（每个模块一份 README）
+├── Documentation~/zh/    # 服务文档（每个服务一份 README）
 └── Tests/                # 单元测试
 ```
 
-### 模块系统
+### 服务系统
 
-框架采用**模块化架构**，所有子系统均为普通 C# 类（非 MonoBehaviour），通过 `ModuleSystem` 统一注册管理。入口为 `GameModule`（MonoBehaviour），提供所有模块的静态访问器。
+框架采用**服务化架构**，所有子系统均为普通 C# 类（非 MonoBehaviour），通过 `ServiceSystem` 统一注册管理。入口为 `GameService`（MonoBehaviour），提供所有服务的静态访问器。
 
 ```csharp
-// 模块访问 — 懒加载，首次访问时自动创建
-var resource = GameModule.Resource;
-var ui = GameModule.UI;
-var audio = GameModule.Audio;
-var timer = GameModule.Timer;
-var fsm = GameModule.FSM;
+// 服务访问 — 懒加载，首次访问时自动创建
+var resource = GameService.Resource;
+var ui = GameService.UI;
+var audio = GameService.Audio;
+var timer = GameService.Timer;
+var fsm = GameService.FSM;
 ```
 
-**模块生命周期：**
-- `OnInit()` — 模块初始化
-- `Shutdown()` — 模块销毁
-- 支持 `IUpdateModule`、`IFixedUpdateModule`、`ILateUpdateModule` 接口注册到驱动循环
-- 通过 `Priority` 属性控制轮询顺序，通过 `Scope`（App / Scene / Gameplay）控制生命周期范围，场景卸载时自动清理场景与玩法级模块
+**服务生命周期：**
+- `OnInit()` — 服务初始化
+- `Shutdown()` — 服务销毁
+- 支持 `IUpdateService`、`IFixedUpdateService`、`ILateUpdateService` 接口注册到驱动循环
+- 通过 `Priority` 属性控制轮询顺序，通过 `Scope`（App / Scene / Gameplay）控制生命周期范围，场景卸载时自动清理场景与玩法级服务
 
-> 📖 详细用法（自定义模块、作用域遮蔽、跨模块依赖）见 **[Core 模块系统文档](Documentation~/zh/Core.md)**
+> 📖 详细用法（自定义服务、作用域遮蔽、跨服务依赖）见 **[Core 服务系统文档](Documentation~/zh/Core.md)**
 
 ### 启动流程
 
@@ -267,17 +267,17 @@ ProcedureLaunch → ProcedureSplash → ProcedureInitPackage → ProcedureInitRe
 
 每个阶段均为独立的 `ProcedureBase` 状态，可通过 `ProcedureSettings`（ScriptableObject）自定义。
 
-> 📖 详见 **[Procedure 模块文档](Documentation~/zh/Procedure.md)**
+> 📖 详见 **[Procedure 服务文档](Documentation~/zh/Procedure.md)**
 
 ---
 
-## 📦 功能模块
+## 📦 功能服务
 
-每个模块均有独立文档（位于 `Documentation~/zh/`），包含核心特性、核心类型、快速上手与进阶用法：
+每个服务均有独立文档（位于 `Documentation~/zh/`），包含核心特性、核心类型、快速上手与进阶用法：
 
-| 模块 | 说明 | 模块文档 |
+| 服务 | 说明 | 服务文档 |
 |------|------|----------|
-| **Core** | 模块系统基座：模块注册/生命周期/作用域，`GameModule` 静态访问器 | [Core.md](Documentation~/zh/Core.md) |
+| **Core** | 服务系统基座：服务注册/生命周期/作用域，`GameService` 静态访问器 | [Core.md](Documentation~/zh/Core.md) |
 | **Resource** | 基于 YooAsset 的资源管理：同步/异步加载、引用计数、加密、子精灵 | [Resource.md](Documentation~/zh/Resource.md) |
 | **UI** | 商业化 UI 框架：栈式窗口、五层层级、Widget 子控件、绑定代码生成 | [UI.md](Documentation~/zh/UI.md) |
 | **Audio** | 音频系统：分类管理、AudioAgent 代理播放、混音器、淡入淡出、事件驱动 | [Audio.md](Documentation~/zh/Audio.md) |
@@ -289,7 +289,7 @@ ProcedureLaunch → ProcedureSplash → ProcedureInitPackage → ProcedureInitRe
 | **Save** | 可插拔存档系统：JSON / 二进制 / 加密 Handler、原子写入 | [Save.md](Documentation~/zh/Save.md) |
 | **Scene** | 场景管理：基于 YooAsset SceneHandle 的异步加载/激活/卸载 | [Scene.md](Documentation~/zh/Scene.md) |
 | **Timer** | 四级时间轮计时器：版本化句柄、预热、统计信息 | [Timer.md](Documentation~/zh/Timer.md) |
-| **ObjectPool** | 模块级对象池：单次/多次 Spawn 池、GameObject 池 | [ObjectPool.md](Documentation~/zh/ObjectPool.md) |
+| **ObjectPool** | 服务级对象池：单次/多次 Spawn 池、GameObject 池 | [ObjectPool.md](Documentation~/zh/ObjectPool.md) |
 | **Debugger** | 运行时调试器：可注册调试窗口、日志回放 | [Debugger.md](Documentation~/zh/Debugger.md) |
 | **UpdateDriver** | 更新循环驱动：三类帧更新注入、协程托管、Unity 事件注入 | [UpdateDriver.md](Documentation~/zh/UpdateDriver.md) |
 
@@ -339,7 +339,7 @@ EventManager.UnregisterCallback<GameStartEvent>(OnGameStart);
 
 ### Scheduler — 调度器
 
-零分配的定时器/帧调度系统（`Runtime/Core/Schedulers`，与 [Timer 模块](Documentation~/zh/Timer.md)相互独立）。
+零分配的定时器/帧调度系统（`Runtime/Core/Schedulers`，与 [Timer 服务](Documentation~/zh/Timer.md)相互独立）。
 
 ```csharp
 // 延迟执行
@@ -524,14 +524,14 @@ hp.BindTo(hpSlider);  // Slider 自动同步
 | Inspector | Asset/Core 组件自定义 Inspector |
 | Luban Tools | Luban 配置表生成（`Tools/Settings/ConfigTableSettings`） |
 | Maintenance | 清理空文件夹、查找丢失脚本、分组选择、锁定 Inspector |
-| Module System | 模块系统可视化窗口（`Tools/Moirai/Module System`） |
+| Service System | 服务系统可视化窗口（`Tools/Moirai/Service System`） |
 | Reference Finder | 资源依赖/引用树视图 |
 | Release Tools | 构建流水线窗口、构建配置 |
 | Scheduler Debugger | 可视化调度器/计时器调试器 |
 | Tasks Editor | 任务运行器编辑器 |
 | Tween | 缓动属性绘制器 |
-| UI Module | UI 绑定代码自动生成（`GameObject/ScriptGenerator/生成绑定代码`）、组件 Inspector |
-| Input Module | 输入动作配置编辑器、按键图标集合编辑器 |
+| UI Service | UI 绑定代码自动生成（`GameObject/ScriptGenerator/生成绑定代码`）、组件 Inspector |
+| Input Service | 输入动作配置编辑器、按键图标集合编辑器 |
 | Utility | 命令行读取、日志重定向、EditorScriptableSingleton、Shell 调用等 |
 | YooAsset | 构建缓存清理、内置目录、自定义构建管线、Shader 变体收集 |
 

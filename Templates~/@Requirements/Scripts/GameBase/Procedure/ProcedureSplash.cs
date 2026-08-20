@@ -1,4 +1,4 @@
-﻿using Moirai.Atropos.Events;
+using Moirai.Atropos.Events;
 using Moirai.Atropos.FSM;
 using Moirai.Atropos.Procedure;
 
@@ -10,11 +10,11 @@ namespace Moirai.Main
     // ReSharper disable once ClassNeverInstantiated.Global
     public class ProcedureSplash : ProcedurePremainBase
     {
-        private IFSM<IProcedureModule> _procedureOwner;
+        private IFSM<IProcedureService> _procedureOwner;
         
         public override bool UseNativeDialog => true;
 
-        protected override void OnEnter(IFSM<IProcedureModule> procedureOwner)
+        protected override void OnEnter(IFSM<IProcedureService> procedureOwner)
         {
             base.OnEnter(procedureOwner);
 

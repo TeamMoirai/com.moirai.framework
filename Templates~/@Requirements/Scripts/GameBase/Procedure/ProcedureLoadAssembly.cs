@@ -33,11 +33,11 @@ namespace Moirai.Main
 #pragma warning restore CS0414
         private Assembly _mainLogicAssembly;
         private List<Assembly> _hotfixAssemblyList;
-        private IFSM<IProcedureModule> _procedureOwner;
+        private IFSM<IProcedureService> _procedureOwner;
 
         public override bool UseNativeDialog => true;
 
-        protected override void OnEnter(IFSM<IProcedureModule> procedureOwner)
+        protected override void OnEnter(IFSM<IProcedureService> procedureOwner)
         {
             base.OnEnter(procedureOwner);
             LogUtility.Debug("HybridCLR ProcedureLoadAssembly OnEnter");
@@ -66,7 +66,7 @@ namespace Moirai.Main
                 _loadMetadataAssemblyComplete = true;
             }
 
-            if (!UpdateSettings.Enable || _resourceModule.PlayMode == EPlayMode.EditorSimulateMode)
+            if (!UpdateSettings.Enable || _resourceService.PlayMode == EPlayMode.EditorSimulateMode)
             {
                 _mainLogicAssembly = GetMainLogicAssembly();
             }
@@ -88,7 +88,7 @@ namespace Moirai.Main
 
                         LogUtility.Debug($"LoadAsset: [ {assetLocation} ]");
                         _loadAssetCount++;
-                        var result = await _resourceModule.LoadAssetAsync<TextAsset>(assetLocation);
+                        var result = await _resourceService.LoadAssetAsync<TextAsset>(assetLocation);
                         LoadAssetSuccess(result);
                     }
 
@@ -106,7 +106,7 @@ namespace Moirai.Main
             }
         }
 
-        protected override void OnUpdate(IFSM<IProcedureModule> procedureOwner, float elapseSeconds, float realElapseSeconds)
+        protected override void OnUpdate(IFSM<IProcedureService> procedureOwner, float elapseSeconds, float realElapseSeconds)
         {
             base.OnUpdate(procedureOwner, elapseSeconds, realElapseSeconds);
             if (!_loadAssemblyComplete)
@@ -214,7 +214,7 @@ namespace Moirai.Main
             {
                 _loadAssemblyComplete = _loadAssemblyWait && 0 == _loadAssetCount;
             }
-            _resourceModule.UnloadAsset(textAsset);
+            _resourceService.UnloadAsset(textAsset);
         }
 
         /// <summary>
@@ -248,7 +248,7 @@ namespace Moirai.Main
 
                 LogUtility.Debug($"LoadMetadataAsset: [ {assetLocation} ]");
                 _loadMetadataAssetCount++;
-                _resourceModule.LoadAsset<TextAsset>(assetLocation, LoadMetadataAssetSuccess);
+                _resourceService.LoadAsset<TextAsset>(assetLocation, LoadMetadataAssetSuccess);
             }
             _loadMetadataAssemblyWait = true;
         }
@@ -291,7 +291,7 @@ namespace Moirai.Main
             {
                 _loadMetadataAssemblyComplete = _loadMetadataAssemblyWait && 0 == _loadMetadataAssetCount;
             }
-            _resourceModule.UnloadAsset(textAsset);
+            _resourceService.UnloadAsset(textAsset);
         }
     }
 }

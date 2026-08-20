@@ -172,9 +172,9 @@ namespace Moirai.Atropos.ConfigTable.Editor
             string configRoot = ConfigRootFullPath;
 
             UpdatePathExportConf(configRoot);
-            UpdateConfigTableModuleInit(configRoot);
+            UpdateConfigTableServiceInit(configRoot);
 
-            Debug.Log("已更新 path_export.conf 和 ConfigTableModule_Init.cs");
+            Debug.Log("已更新 path_export.conf 和 ConfigTableService_Init.cs");
         }
 
         private void UpdatePathExportConf(string configRoot)
@@ -196,9 +196,9 @@ namespace Moirai.Atropos.ConfigTable.Editor
             string content = File.ReadAllText(confPath);
             content = ReplaceConfValue(content, "DATA_OUTPUT_PATH_CLIENT", clientDataOutPutPath);
             content = ReplaceConfValue(content, "CODE_OUTPUT_PATH_CLIENT", clientCodeOutPutPath + "Gen\\");
-            content = ReplaceConfValue(content, "CONFIG_SCRIPT_TARGET", clientCodeOutPutPath + "ConfigTableModule.cs");
+            content = ReplaceConfValue(content, "CONFIG_SCRIPT_TARGET", clientCodeOutPutPath + "ConfigTableService.cs");
             // ReSharper disable once StringLiteralTypo
-            content = ReplaceConfValue(content, "CONFIGINIT_SCRIPT_TARGET", clientCodeOutPutPath + "ConfigTableModule_Init.cs");
+            content = ReplaceConfValue(content, "CONFIGINIT_SCRIPT_TARGET", clientCodeOutPutPath + "ConfigTableService_Init.cs");
             // ReSharper disable once StringLiteralTypo
             content = ReplaceConfValue(content, "EXTERNALTYPEUTIL_SCRIPT_TARGET", clientCodeOutPutPath + "ExternalTypeUtil.cs");
             content = ReplaceConfValue(content, "PATH_VALIDATOR_ROOT", PathValidatorRoot);
@@ -206,12 +206,12 @@ namespace Moirai.Atropos.ConfigTable.Editor
             File.WriteAllText(confPath, content);
         }
 
-        private void UpdateConfigTableModuleInit(string configRoot)
+        private void UpdateConfigTableServiceInit(string configRoot)
         {
-            string initPath = Path.Combine(configRoot, "CustomTemplate", "ConfigTableModule_Init.cs");
+            string initPath = Path.Combine(configRoot, "CustomTemplate", "ConfigTableService_Init.cs");
             if (!File.Exists(initPath))
             {
-                Debug.LogWarning($"ConfigTableModule_Init.cs 不存在: {initPath}");
+                Debug.LogWarning($"ConfigTableService_Init.cs 不存在: {initPath}");
                 return;
             }
 

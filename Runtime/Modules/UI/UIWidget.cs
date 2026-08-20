@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Moirai.Atropos.Resource;
 using UnityEngine;
 
 namespace Moirai.Atropos.UI
@@ -166,7 +167,8 @@ namespace Moirai.Atropos.UI
         /// <returns></returns>
         public bool CreateByPath(string resPath, UIBase parentUI, Transform parentTrans = null, bool visible = true)
         {
-            GameObject goInst = GameModule.Resource.LoadGameObject(resPath, parent: parentTrans);
+            var resourceService = GameApp.Services.GetRequiredService<IResourceService>();
+            GameObject goInst = resourceService.LoadGameObject(resPath, parent: parentTrans);
             if (goInst == null)
             {
                 return false;
@@ -269,7 +271,7 @@ namespace Moirai.Atropos.UI
                 for (var index = 0; index < listCanvas.Length; index++)
                 {
                     var childCanvas = listCanvas[index];
-                    childCanvas.sortingOrder = parentCanvas.sortingOrder + childCanvas.sortingOrder % UIModule.WINDOW_DEEP;
+                    childCanvas.sortingOrder = parentCanvas.sortingOrder + childCanvas.sortingOrder % UIService.WINDOW_DEEP;
                 }
             }
         }

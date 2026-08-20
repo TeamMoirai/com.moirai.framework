@@ -12,16 +12,16 @@ namespace Moirai.Main
     {
         public override bool UseNativeDialog { get; }
 
-        private IFSM<IProcedureModule> _procedureOwner;
+        private IFSM<IProcedureService> _procedureOwner;
         
-        protected override void OnEnter(IFSM<IProcedureModule> procedureOwner)
+        protected override void OnEnter(IFSM<IProcedureService> procedureOwner)
         {
             _procedureOwner = procedureOwner;
             LogUtility.Info("Clean up unused cache files...");
             
             LauncherMgr.ShowUI<LoadUpdateUI>(LoadText.Instance.Label_ClearCache);
 
-            var operation = _resourceModule.ClearCacheFilesAsync();
+            var operation = _resourceService.ClearCacheFilesAsync();
             operation.Completed += Operation_Completed;
         }
         

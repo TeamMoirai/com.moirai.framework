@@ -592,7 +592,7 @@ namespace Moirai.Atropos.Editor
             "d_RectTransform Icon", "d_StreamingController Icon", "DistanceJoint2D Icon", "EdgeCollider2D Icon",
             "d_EventSystem Icon", "d_EventTrigger Icon", "d_Physics2DRaycaster Icon", "d_PhysicsRaycaster Icon",
             "d_StandaloneInputModule Icon", "d_TouchInputModule Icon", "EventSystem Icon", "EventTrigger Icon",
-            "HoloLensInputModule Icon", "Physics2DRaycaster Icon", "PhysicsRaycaster Icon",
+            "HoloLensInputService Icon", "Physics2DRaycaster Icon", "PhysicsRaycaster Icon",
             "StandaloneInputModule Icon",
             "TouchInputModule Icon", "SpriteShapeRenderer Icon", "VisualTreeAsset Icon", "d_VisualEffect Icon",
             "d_VisualEffectAsset Icon", "VisualEffect Icon", "VisualEffectAsset Icon", "FixedJoint Icon",

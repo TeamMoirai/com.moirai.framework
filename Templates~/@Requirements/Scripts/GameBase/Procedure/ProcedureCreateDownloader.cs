@@ -21,7 +21,7 @@ namespace Moirai.Main
         
         public override bool UseNativeDialog { get; }
 
-        private IFSM<IProcedureModule> _procedureOwner;
+        private IFSM<IProcedureService> _procedureOwner;
 
         private ResourceDownloaderOperation _downloader;
 
@@ -29,7 +29,7 @@ namespace Moirai.Main
 
         private string _totalSizeMb;
 
-        protected override void OnEnter(IFSM<IProcedureModule> procedureOwner)
+        protected override void OnEnter(IFSM<IProcedureService> procedureOwner)
         {
             _procedureOwner = procedureOwner;
             
@@ -44,7 +44,7 @@ namespace Moirai.Main
         {
             await UniTask.Delay(TimeSpan.FromSeconds(0.5f));
 
-            _downloader = _resourceModule.CreateResourceDownloader();
+            _downloader = _resourceService.CreateResourceDownloader();
 
             if (_downloader.TotalDownloadCount == 0)
             {

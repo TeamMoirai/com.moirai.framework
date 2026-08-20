@@ -2,12 +2,12 @@
 
 ## 项目概述
 
-**Moirai Framework** 是一个 Unity 游戏开发框架，提供模块化、高性能的开发解决方案。
+**Moirai Framework** 是一个 Unity 游戏开发框架，提供服务化、高性能的开发解决方案。
 
 ### 核心特性
 - 🚀 开箱即用 - 5 分钟快速上手
 - 🔥 高性能 - 基于 UniTask 的异步系统，零 GC 事件分发
-- 🧩 高内聚低耦合 - 模块化设计
+- 🧩 高内聚低耦合 - 服务化设计
 - 🔄 热更新支持 - 集成 HybridCLR
 - 📦 资源管理 - 集成 YooAsset
 - 📊 配置表系统 - 集成 Luban
@@ -21,7 +21,7 @@ Game Dev Tools/
 │   ├── MoiraiFramework/          # 核心框架
 │   │   ├── Runtime/              # 运行时代码
 │   │   │   ├── Core/             # 核心系统
-│   │   │   └── Modules/          # 功能模块
+│   │   │   └── Services/          # 功能服务
 │   │   ├── Editor/               # 编辑器代码
 │   │   └── Tests/                # 测试代码
 │   ├── Plugins/                  # 第三方插件
@@ -30,21 +30,21 @@ Game Dev Tools/
 └── ProjectSettings/              # 项目配置
 ```
 
-## 核心模块
+## 核心服务
 
-### Runtime Modules
-- **AudioModule** - 音频管理
-- **DebuggerModule** - 调试工具
-- **FsmModule** - 有限状态机
-- **InputModule** - 输入系统
-- **LocalizationModule** - 本地化
-- **ObjectPoolModule** - 对象池
-- **ProcedureModule** - 流程管理
-- **ResourceModule** - 资源管理
-- **SaveModule** - 存档系统
-- **SceneModule** - 场景管理
-- **TimerModule** - 定时器
-- **UIModule** - UI 框架
+### Runtime Services
+- **AudioService** - 音频管理
+- **DebuggerService** - 调试工具
+- **FsmService** - 有限状态机
+- **InputService** - 输入系统
+- **LocalizationService** - 本地化
+- **ObjectPoolService** - 对象池
+- **ProcedureService** - 流程管理
+- **ResourceService** - 资源管理
+- **SaveService** - 存档系统
+- **SceneService** - 场景管理
+- **TimerService** - 定时器
+- **UIService** - UI 框架
 - **UpdateDriver** - 更新驱动
 
 ### Core 系统
@@ -63,11 +63,11 @@ Game Dev Tools/
 ## 编码规范
 
 ### 命名规范
-- **类名**：PascalCase（如：`GameModule`、`UIForm`）
+- **类名**：PascalCase（如：`GameApp`、`UIForm`）
 - **方法名**：PascalCase（如：`OnInit`、`OnUpdate`）
 - **变量名**：camelCase（如：`_timer`、`_isActive`）
 - **常量**：UPPER_SNAKE_CASE（如：`MAX_COUNT`）
-- **接口**：I 前缀 + PascalCase（如：`IModule`、`IEvent`）
+- **接口**：I 前缀 + PascalCase（如：`IService`、`IEvent`）
 
 ### 代码组织
 - 使用 `#region` 折叠代码块
@@ -80,7 +80,7 @@ Game Dev Tools/
 - 正确处理取消和超时
 
 ### 事件系统
-- 使用框架的事件系统进行模块间通信
+- 使用框架的事件系统进行服务间通信
 - 避免直接引用
 - 及时取消事件订阅
 
@@ -95,7 +95,7 @@ Game Dev Tools/
 
 | 命令 | 功能 |
 |------|------|
-| `/new-module` | 创建新模块 |
+| `/new-service` | 创建新服务 |
 | `/new-ui` | 创建新 UI |
 | `/review` | 代码审查 |
 | `/explain` | 解释代码 |
@@ -111,8 +111,8 @@ Game Dev Tools/
 
 ### 1. 新功能开发
 1. 确定功能需求
-2. 设计模块结构
-3. 使用 `/new-module` 创建模块
+2. 设计服务结构
+3. 使用 `/new-service` 创建服务
 4. 实现功能逻辑
 5. 使用 `/review` 审查代码
 6. 使用 `/test` 生成测试
@@ -153,8 +153,8 @@ Game Dev Tools/
 
 ## 常见问题
 
-### Q: 如何添加新模块？
-A: 使用 `/new-module` 命令，按照模板创建模块。
+### Q: 如何添加新服务？
+A: 使用 `/new-service` 命令，按照模板创建服务。
 
 ### Q: 如何进行热更新？
 A: 参考 README 中的打包运行步骤。

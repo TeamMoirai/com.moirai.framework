@@ -7,7 +7,7 @@ using UnityEngine.Serialization;
 namespace Moirai.Atropos.Audio
 {
     /// <summary>
-    /// <see cref="AudioModule"/>的播放选项
+    /// <see cref="AudioService"/>的播放选项
     /// </summary>
     [Serializable]
     public struct AudioPlayOptions

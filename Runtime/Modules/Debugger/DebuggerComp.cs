@@ -5,7 +5,7 @@ using UnityEngine;
 namespace Moirai.Atropos.Debugger
 {
     /// <summary>
-    /// 调试器模块。
+    /// 调试器服务。
     /// </summary>
     [DisallowMultipleComponent]
     public sealed partial class DebuggerComp : MonoBehaviour
@@ -30,7 +30,7 @@ namespace Moirai.Atropos.Debugger
         internal static readonly float DefaultWindowScale = 1.5f;
 
         private static TextEditor s_TextEditor = null;
-        private IDebuggerModule _debuggerModule = null;
+        private IDebuggerService _debuggerService = null;
         private readonly Rect _dragRect = new Rect(0f, 0f, float.MaxValue, 25f);
         private Rect _iconRect = DefaultIconRect;
         private Rect _windowRect = DefaultWindowRect;
@@ -77,6 +77,7 @@ namespace Moirai.Atropos.Debugger
         // private NetworkInformationWindow _networkInformationWindow = new NetworkInformationWindow();
         private SettingsWindow _settingsWindow = new SettingsWindow();
         private OperationsWindow _operationsWindow = new OperationsWindow();
+        private ServiceSystemInformationWindow _serviceSystemInformationWindow = new ServiceSystemInformationWindow();
 
         private FpsCounter _fpsCounter = null;
         private readonly List<string> _toolbarNames = new List<string>();
@@ -87,10 +88,10 @@ namespace Moirai.Atropos.Debugger
         /// </summary>
         public bool ActiveWindow
         {
-            get => _debuggerModule.ActiveWindow;
+            get => _debuggerService.ActiveWindow;
             set
             {
-                _debuggerModule.ActiveWindow = value;
+                _debuggerService.ActiveWindow = value;
                 enabled = value;
             }
         }
@@ -142,7 +143,7 @@ namespace Moirai.Atropos.Debugger
         private GameObject _eventSystem;
         
         /// <summary>
-        /// 游戏框架模块初始化。
+        /// 游戏框架服务初始化。
         /// </summary>
         private void Awake()
         {
@@ -159,8 +160,8 @@ namespace Moirai.Atropos.Debugger
 
         private void Initialize()
         {
-            _debuggerModule = ModuleSystem.GetModule<IDebuggerModule>();
-            if (_debuggerModule == null)
+            _debuggerService = GameServices.Provider?.GetService<IDebuggerService>();
+            if (_debuggerService == null)
             {
                 LogUtility.Fatal("Debugger manager is invalid.");
                 return;
@@ -211,6 +212,7 @@ namespace Moirai.Atropos.Debugger
             RegisterDebuggerWindow("Profiler/Memory/ScriptableObject", _runtimeMemoryScriptableObjectInformationWindow);
             RegisterDebuggerWindow("Profiler/Object Pool", _objectPoolInformationWindow);
             RegisterDebuggerWindow("Profiler/Reference Pool", _memoryPoolPoolInformationWindow);
+            RegisterDebuggerWindow("Profiler/Service System", _serviceSystemInformationWindow);
             // RegisterDebuggerWindow("Profiler/Network", _networkInformationWindow);
             RegisterDebuggerWindow("Other/Settings", _settingsWindow);
             RegisterDebuggerWindow("Other/Operations", _operationsWindow);
@@ -242,7 +244,7 @@ namespace Moirai.Atropos.Debugger
 
         private void OnGUI()
         {
-            if (_debuggerModule == null || !_debuggerModule.ActiveWindow)
+            if (_debuggerService == null || !_debuggerService.ActiveWindow)
             {
                 return;
             }
@@ -274,7 +276,7 @@ namespace Moirai.Atropos.Debugger
         /// <param name="args">初始化调试器窗口参数。</param>
         public void RegisterDebuggerWindow(string path, IDebuggerWindow debuggerWindow, params object[] args)
         {
-            _debuggerModule.RegisterDebuggerWindow(path, debuggerWindow, args);
+            _debuggerService.RegisterDebuggerWindow(path, debuggerWindow, args);
         }
 
         /// <summary>
@@ -284,7 +286,7 @@ namespace Moirai.Atropos.Debugger
         /// <returns>是否解除注册调试器窗口成功。</returns>
         public bool UnregisterDebuggerWindow(string path)
         {
-            return _debuggerModule.UnregisterDebuggerWindow(path);
+            return _debuggerService.UnregisterDebuggerWindow(path);
         }
 
         /// <summary>
@@ -294,7 +296,7 @@ namespace Moirai.Atropos.Debugger
         /// <returns>要获取的调试器窗口。</returns>
         public IDebuggerWindow GetDebuggerWindow(string path)
         {
-            return _debuggerModule.GetDebuggerWindow(path);
+            return _debuggerService.GetDebuggerWindow(path);
         }
 
         /// <summary>
@@ -304,7 +306,7 @@ namespace Moirai.Atropos.Debugger
         /// <returns>是否成功选中调试器窗口。</returns>
         public bool SelectDebuggerWindow(string path)
         {
-            return _debuggerModule.SelectDebuggerWindow(path);
+            return _debuggerService.SelectDebuggerWindow(path);
         }
 
         /// <summary>
@@ -339,7 +341,7 @@ namespace Moirai.Atropos.Debugger
         private void DrawWindow(int windowId)
         {
             GUI.DragWindow(_dragRect);
-            DrawDebuggerWindowGroup(_debuggerModule.DebuggerWindowRoot);
+            DrawDebuggerWindowGroup(_debuggerService.DebuggerWindowRoot);
         }
 
         private void DrawDebuggerWindowGroup(IDebuggerWindowGroup debuggerWindowGroup)
@@ -356,7 +358,7 @@ namespace Moirai.Atropos.Debugger
                 _toolbarNames.Add(StringUtility.Format("<b>{0}</b>", debuggerWindowNames[i]));
             }
 
-            if (debuggerWindowGroup == _debuggerModule.DebuggerWindowRoot)
+            if (debuggerWindowGroup == _debuggerService.DebuggerWindowRoot)
             {
                 _toolbarNames.Add("<b>Close</b>");
             }

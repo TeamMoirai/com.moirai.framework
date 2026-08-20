@@ -1,15 +1,15 @@
-# Procedure Module
+# Procedure Service
 
 > FSM-based game flow management: models startup, hot update, preload, and other phases as switchable procedure states.
 
-The Procedure module (`ProcedureModule`) is built on top of the [FSM](FSM.md) finite state machine: internally, it uses `IFSMModule.CreateFSM` to create a state machine whose owner is `IProcedureModule`. Each game phase (startup, checking for updates, downloading resources, loading assemblies, preloading, etc.) is a `ProcedureBase` state. Available procedures and the entry procedure are configured via `ProcedureSettings`. `GameModule.Awake` automatically reflects, instantiates, and starts them, requiring no manual bootstrap code. Access via `GameModule.Procedure` (`IProcedureModule`).
+The Procedure service (`ProcedureService`) is built on top of the [FSM](FSM.md) finite state machine: internally, it uses `IFSMService.CreateFSM` to create a state machine whose owner is `IProcedureService`. Each game phase (startup, checking for updates, downloading resources, loading assemblies, preloading, etc.) is a `ProcedureBase` state. Available procedures and the entry procedure are configured via `ProcedureSettings`. `GameApp.Awake` automatically reflects, instantiates, and starts them, requiring no manual bootstrap code. Access via `GameApp.Services.GetRequiredService<IProcedureService>()` (`IProcedureService`).
 
 ## Core Features
 
 - Based on FSM: Procedures are states, reusing the full lifecycle of `FSMState<T>` and the `ChangeState` switching mechanism
-- Configuration-driven startup: `ProcedureSettings` records available procedure types and the entry procedure; `GameModule.Awake` automatically calls `ProcedureSettings.StartProcedure()` to instantiate and start
+- Configuration-driven startup: `ProcedureSettings` records available procedure types and the entry procedure; `GameApp.Awake` automatically calls `ProcedureSettings.StartProcedure()` to instantiate and start
 - `[ProcedureLauncher]` attribute: Only `ProcedureBase` subclasses marked with this attribute are scanned and included by `ProcedureSettings` (automatically scanned on editor Reset; defaults to the procedure whose name contains `ProcedureLaunch` as the entry)
-- Dual switching entry points: Inside a procedure, use the base class method `ChangeState<T>(procedureOwner)`; externally (e.g., from the hot update layer), use `GameModule.Procedure.ChangeState<T>()`
+- Dual switching entry points: Inside a procedure, use the base class method `ChangeState<T>(procedureOwner)`; externally (e.g., from the hot update layer), use `GameApp.Services.GetRequiredService<IProcedureService>().ChangeState<T>()`
 - Supports runtime reconstruction: `RestartProcedure` destroys the old state machine, rebuilds it with a new procedure list, and starts with the first procedure
 
 ## Core Types
@@ -18,14 +18,14 @@ Namespace: `Moirai.Atropos.Procedure`
 
 | Class/Interface | Description |
 |---------|------|
-| `IProcedureModule` | Procedure manager interface: `Initialize` / `StartProcedure` / `HasProcedure` / `ChangeState` / `GetProcedure` / `RestartProcedure` and `CurrentProcedure`, `CurrentProcedureTime`; accessed via `GameModule.Procedure` |
-| `ProcedureModule` | Module implementation (`Module, IProcedureModule`, `Priority = -2`), holds an internal `IFSM<IProcedureModule>` state machine |
-| `ProcedureBase` | Procedure base class, inherits `FSMState<IProcedureModule>`, provides lifecycle methods `OnInit / OnEnter / OnUpdate / OnExit / OnDestroy` |
+| `IProcedureService` | Procedure manager interface: `Initialize` / `StartProcedure` / `HasProcedure` / `ChangeState` / `GetProcedure` / `RestartProcedure` and `CurrentProcedure`, `CurrentProcedureTime`; accessed via `GameApp.Services.GetRequiredService<IProcedureService>()` |
+| `ProcedureService` | Service implementation (`Service, IProcedureService`, `Priority = -2`), holds an internal `IFSM<IProcedureService>` state machine |
+| `ProcedureBase` | Procedure base class, inherits `FSMState<IProcedureService>`, provides lifecycle methods `OnInit / OnEnter / OnUpdate / OnExit / OnDestroy` |
 | `ProcedureSettings` | Framework settings (panel name "Procedure Settings"): serialized list of available procedure type names and the entry procedure type name; static `StartProcedure()` is responsible for reflecting and building the flow |
 | `ProcedureLauncherAttribute` | Class-level attribute, marks `ProcedureBase` subclasses that can be included in the procedure system |
 | `ProcedureEvents` / `IProcedureEvent` | Procedure-related event marker interface (`public interface IProcedureEvent { }`), for business-specific procedure event extensions |
 
-Dependent FSM types (namespace `Moirai.Atropos.FSM`): `FSMState<T>` (state base class and `ChangeState` switching), `IFSM<T>` / `IFSMModule` (state machine and state machine manager interfaces, the latter accessed via `GameModule.FSM`).
+Dependent FSM types (namespace `Moirai.Atropos.FSM`): `FSMState<T>` (state base class and `ChangeState` switching), `IFSM<T>` / `IFSMService` (state machine and state machine manager interfaces, the latter accessed via `GameApp.Services.GetRequiredService<IFSMService>()`).
 
 ## Quick Start
 
@@ -42,7 +42,7 @@ public abstract class ProcedurePremainBase : ProcedureBase
 {
     public abstract bool UseNativeDialog { get; }
 
-    protected readonly IResourceModule _resourceModule = ModuleSystem.GetModule<IResourceModule>();
+    protected readonly IResourceService _resourceService = ServiceSystem.GetService<IResourceService>();
 }
 
 // Concrete procedure
@@ -50,13 +50,13 @@ public class ProcedureLaunch : ProcedurePremainBase
 {
     public override bool UseNativeDialog => true;
 
-    protected override void OnEnter(IFSM<IProcedureModule> procedureOwner)
+    protected override void OnEnter(IFSM<IProcedureService> procedureOwner)
     {
         base.OnEnter(procedureOwner);
         // Startup phase initialization (in the template, this initializes the hot update UI: LauncherMgr.Initialize())
     }
 
-    protected override void OnUpdate(IFSM<IProcedureModule> procedureOwner, float elapseSeconds, float realElapseSeconds)
+    protected override void OnUpdate(IFSM<IProcedureService> procedureOwner, float elapseSeconds, float realElapseSeconds)
     {
         base.OnUpdate(procedureOwner, elapseSeconds, realElapseSeconds);
 
@@ -70,30 +70,30 @@ Querying and switching from outside a procedure:
 
 ```csharp
 // Current procedure and elapsed time
-ProcedureBase current = GameModule.Procedure.CurrentProcedure;
-float seconds = GameModule.Procedure.CurrentProcedureTime;
+ProcedureBase current = GameApp.Services.GetRequiredService<IProcedureService>().CurrentProcedure;
+float seconds = GameApp.Services.GetRequiredService<IProcedureService>().CurrentProcedureTime;
 
 // Query / get a procedure instance
-bool has = GameModule.Procedure.HasProcedure<ProcedureSplash>();
-ProcedureBase proc = GameModule.Procedure.GetProcedure<ProcedureSplash>();
+bool has = GameApp.Services.GetRequiredService<IProcedureService>().HasProcedure<ProcedureSplash>();
+ProcedureBase proc = GameApp.Services.GetRequiredService<IProcedureService>().GetProcedure<ProcedureSplash>();
 
 // Force a switch from outside (e.g., jump logic in hot update code)
-GameModule.Procedure.ChangeState<ProcedurePreload>();
+GameApp.Services.GetRequiredService<IProcedureService>().ChangeState<ProcedurePreload>();
 ```
 
 ## Configuration and Extensions
 
 ### Relationship with FSM
 
-`ProcedureModule.Initialize(IFSMModule fsmModule, params ProcedureBase[] procedures)` internally calls `fsmModule.CreateFSM(this, procedures)` to create a single procedure state machine; `StartProcedure` / `HasProcedure` / `ChangeState` / `GetProcedure` delegate to the state machine's `Start` / `HasState` / `ChangeState` / `GetState` respectively. The procedure lifecycle is the state lifecycle:
+`ProcedureService.Initialize(IFSMService fsmService, params ProcedureBase[] procedures)` internally calls `fsmService.CreateFSM(this, procedures)` to create a single procedure state machine; `StartProcedure` / `HasProcedure` / `ChangeState` / `GetProcedure` delegate to the state machine's `Start` / `HasState` / `ChangeState` / `GetState` respectively. The procedure lifecycle is the state lifecycle:
 
 | Procedure Callback | Signature | Description |
 |----------|------|------|
-| `OnInit` | `(IFSM<IProcedureModule>)` | Called once after the state machine is created |
-| `OnEnter` | `(IFSM<IProcedureModule>)` | Called when entering the procedure |
-| `OnUpdate` | `(IFSM<IProcedureModule>, float elapseSeconds, float realElapseSeconds)` | Polled every frame (logic/real elapsed time) |
-| `OnExit` | `(IFSM<IProcedureModule>, bool isShutdown)` | Called when leaving the procedure (includes state machine shutdown flag) |
-| `OnDestroy` | `(IFSM<IProcedureModule>)` | Called when the state is destroyed |
+| `OnInit` | `(IFSM<IProcedureService>)` | Called once after the state machine is created |
+| `OnEnter` | `(IFSM<IProcedureService>)` | Called when entering the procedure |
+| `OnUpdate` | `(IFSM<IProcedureService>, float elapseSeconds, float realElapseSeconds)` | Polled every frame (logic/real elapsed time) |
+| `OnExit` | `(IFSM<IProcedureService>, bool isShutdown)` | Called when leaving the procedure (includes state machine shutdown flag) |
+| `OnDestroy` | `(IFSM<IProcedureService>)` | Called when the state is destroyed |
 
 ### Startup Chain Reference
 
@@ -105,13 +105,13 @@ ProcedureLaunch -> ProcedureSplash -> ProcedureInitPackage -> ProcedureInitResou
 -> ProcedureClearCache -> ProcedureLoadAssembly -> ProcedurePreload -> ProcedurePrepare4Entrance
 ```
 
-`ProcedureInitResources` demonstrates integration with the Resource module: it calls `_resourceModule.RequestPackageVersionAsync()` to get the remote manifest version, `UpdatePackageManifestAsync(packageVersion)` to update the manifest, and then decides whether to proceed with the download flow or directly preload based on the play mode (`EPlayMode.HostPlayMode` / `WebPlayMode`, whether `UpdatableWhilePlaying` is enabled).
+`ProcedureInitResources` demonstrates integration with the Resource service: it calls `_resourceService.RequestPackageVersionAsync()` to get the remote manifest version, `UpdatePackageManifestAsync(packageVersion)` to update the manifest, and then decides whether to proceed with the download flow or directly preload based on the play mode (`EPlayMode.HostPlayMode` / `WebPlayMode`, whether `UpdatableWhilePlaying` is enabled).
 
 ### Restarting Procedures
 
 ```csharp
 // Destroy the current state machine, rebuild with a new procedure list, and start with the first procedure (returns success status)
-bool ok = GameModule.Procedure.RestartProcedure(
+bool ok = GameApp.Services.GetRequiredService<IProcedureService>().RestartProcedure(
     new ProcedureLaunch(),
     new ProcedureInitPackage(),
     new ProcedurePreload());
@@ -119,7 +119,7 @@ bool ok = GameModule.Procedure.RestartProcedure(
 
 ## Notes
 
-- `Initialize` must be called before using procedures; otherwise, `StartProcedure` / `ChangeState` etc. will throw `GameException("You must initialize procedure first.")`. In standard projects, this is done automatically by `ProcedureSettings.StartProcedure()` during `GameModule.Awake`.
+- `Initialize` must be called before using procedures; otherwise, `StartProcedure` / `ChangeState` etc. will throw `GameException("You must initialize procedure first.")`. In standard projects, this is done automatically by `ProcedureSettings.StartProcedure()` during `GameApp.Awake`.
 - The entry procedure is selected on the editor side by the Reset logic, which picks the first type whose name contains `ProcedureLaunch`. If the entry procedure class is renamed, refresh via Reset in the `ProcedureSettings` panel.
 - Procedure classes must have a parameterless constructor (`ProcedureSettings` uses `Activator.CreateInstance` for reflection-based instantiation). Do not use constructor injection in procedure classes.
 - Procedure instances are held by the state machine and live for a long time; do not cache short-lived objects in them. Place per-frame logic in `OnUpdate`, and for time-consuming asynchronous operations, start them in `OnEnter` and poll for completion in `OnUpdate` (refer to the template's `_initResourcesComplete` pattern).

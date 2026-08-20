@@ -18,7 +18,7 @@ namespace Moirai.Main
     {
         public override bool UseNativeDialog => true;
 
-        private IFSM<IProcedureModule> _procedureOwner;
+        private IFSM<IProcedureService> _procedureOwner;
 
         // 预加载开关
         private readonly bool _preloadSwitch = true;
@@ -33,14 +33,14 @@ namespace Moirai.Main
         /// </summary>
         private LoadAssetCallbacks _preLoadAssetCallbacks;
         
-        protected override void OnInit(IFSM<IProcedureModule> procedureOwner)
+        protected override void OnInit(IFSM<IProcedureService> procedureOwner)
         {
             base.OnInit(procedureOwner);
             _procedureOwner = procedureOwner;
             _preLoadAssetCallbacks = new LoadAssetCallbacks(OnPreLoadAssetSuccess, OnPreLoadAssetFailure);
         }
         
-        protected override void OnEnter(IFSM<IProcedureModule> procedureOwner)
+        protected override void OnEnter(IFSM<IProcedureService> procedureOwner)
         {
             base.OnEnter(procedureOwner);
 
@@ -52,7 +52,7 @@ namespace Moirai.Main
             PreloadResources();
         }
 
-        protected override void OnUpdate(IFSM<IProcedureModule> procedureOwner, float elapseSeconds, float realElapseSeconds)
+        protected override void OnUpdate(IFSM<IProcedureService> procedureOwner, float elapseSeconds, float realElapseSeconds)
         {
             base.OnUpdate(procedureOwner, elapseSeconds, realElapseSeconds);
 
@@ -91,13 +91,13 @@ namespace Moirai.Main
         {
             if (!_preloadSwitch) return;
 
-            AssetInfo[] assetInfos = _resourceModule.GetAssetInfos("PRELOAD");
+            AssetInfo[] assetInfos = _resourceService.GetAssetInfos("PRELOAD");
             foreach (var assetInfo in assetInfos)
             {
                 PreLoad(assetInfo.AssetPath);
             }
 #if UNITY_WEBGL
-            AssetInfo[] webAssetInfos = _resourceModule.GetAssetInfos("WEBGL_PRELOAD");
+            AssetInfo[] webAssetInfos = _resourceService.GetAssetInfos("WEBGL_PRELOAD");
             foreach (var assetInfo in webAssetInfos)
             {
                 PreLoad(assetInfo.AssetPath);
@@ -112,7 +112,7 @@ namespace Moirai.Main
         private void PreLoad(string location)
         {
             _loadedFlag.Add(location, false);
-            _resourceModule.LoadAssetAsync(location, 100, _preLoadAssetCallbacks, null);
+            _resourceService.LoadAssetAsync(location, 100, _preLoadAssetCallbacks, null);
         }
 
         private void OnPreLoadAssetFailure(string assetName, LoadResourceStatus status, string errorMessage, object userdata)

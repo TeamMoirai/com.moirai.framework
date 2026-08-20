@@ -1,10 +1,10 @@
-# ObjectPool Module
+# ObjectPool Service
 
 > Modular object pool: An object pool system with capacity, expiration, priority, locking, and auto-release strategies, built around `ObjectBase`.
 
-The ObjectPool module is accessed via `GameModule.ObjectPool` and manages any number of named object pools. Each pool holds a set of `ObjectBase`-derived objects, supporting both "single-spawn" (an object can only be checked out by one consumer at a time) and "multi-spawn" modes. It supports configurable capacity limits, object expiration seconds, auto-release intervals, and priority. The `Support` subdirectory provides ready-to-use GameObject pooling components on top of this module.
+The ObjectPool service is accessed via `GameApp.Services.GetRequiredService<IObjectPoolService>()` and manages any number of named object pools. Each pool holds a set of `ObjectBase`-derived objects, supporting both "single-spawn" (an object can only be checked out by one consumer at a time) and "multi-spawn" modes. It supports configurable capacity limits, object expiration seconds, auto-release intervals, and priority. The `Support` subdirectory provides ready-to-use GameObject pooling components on top of this service.
 
-Note the distinction from the general-purpose object pool in `Runtime/Core/Pool` (namespace `Moirai.Atropos.Pool`): the latter is a lightweight internal utility -- `_ObjectPool<T>` (internal stack-based generic pool) and `GameObjectPoolManager` (GameObject pool keyed by `PoolKey`, with `Get`/`Release`/`ReleasePool`/`ReleaseAll`), with no module lifecycle or expiration strategy. This module is a full framework module (implements `IUpdateModule`, driven by [Core](Core.md)'s `ModuleSystem`), suitable for business-layer objects that require reference counting and release strategies.
+Note the distinction from the general-purpose object pool in `Runtime/Core/Pool` (namespace `Moirai.Atropos.Pool`): the latter is a lightweight internal utility -- `_ObjectPool<T>` (internal stack-based generic pool) and `GameObjectPoolManager` (GameObject pool keyed by `PoolKey`, with `Get`/`Release`/`ReleasePool`/`ReleaseAll`), with no service lifecycle or expiration strategy. This service is a full framework service (implements `IUpdateService`, driven by [Core](Core.md)'s `ServiceSystem`), suitable for business-layer objects that require reference counting and release strategies.
 
 ## Core Features
 
@@ -13,7 +13,7 @@ Note the distinction from the general-purpose object pool in `Runtime/Core/Pool`
 - Comprehensive release strategies: Capacity (`Capacity`), expiration time (`ExpireTime`), auto-release interval (`AutoReleaseInterval`), object locking (`SetLocked`), and custom release flag (`CustomCanReleaseFlag`)
 - Custom release filtering: `Release(ReleaseObjectFilterCallback<T>)` allows selecting which objects to release on demand
 - GameObject support: The `Support` directory provides `PoolObject`, `GameObjectPoolMgr`, and `Object4PoolManager` for direct pooling of prefab instances
-- Low memory integration: `GameModule.OnLowMemory` automatically calls `ReleaseAllUnused()` to release all unused objects
+- Low memory integration: `GameApp.OnLowMemory` automatically calls `ReleaseAllUnused()` to release all unused objects
 
 ## Core Types
 
@@ -21,8 +21,8 @@ Namespace: `Moirai.Atropos.ObjectPool`
 
 | Class/Interface | Description |
 |---------|------|
-| `IObjectPoolModule` | Manager interface: create/destroy/query object pools, `Release()` / `ReleaseAllUnused()`, accessed via `GameModule.ObjectPool` |
-| `ObjectPoolModule` | Default implementation (`internal sealed`), `Priority = 6`, implements `IUpdateModule` to drive expiration and auto-release for each pool |
+| `IObjectPoolService` | Manager interface: create/destroy/query object pools, `Release()` / `ReleaseAllUnused()`, accessed via `GameApp.Services.GetRequiredService<IObjectPoolService>()` |
+| `ObjectPoolService` | Default implementation (`internal sealed`), `Priority = 6`, implements `IUpdateService` to drive expiration and auto-release for each pool |
 | `IObjectPool<T>` | Single object pool interface: `Register` / `CanSpawn` / `Spawn` / `Despawn` / `SetLocked` / `SetPriority` / `ReleaseObject` / `Release` / `ReleaseAllUnused` |
 | `ObjectPoolBase` | Abstract base class for object pools: `Name` / `FullName` / `ObjectType` / `Count` / `CanReleaseCount` / `AllowMultiSpawn` and `GetAllObjectInfos()` |
 | `ObjectBase` | Abstract base class for pooled objects (implements `IMemory`): `Initialize` overloads, `OnSpawn` / `OnDespawn` / `Release(bool isShutdown)` |
@@ -60,7 +60,7 @@ public class TextureObject : ObjectBase
 
 // Create an object pool: (name, autoReleaseInterval, capacity, expireTime, priority)
 // Default values when not specified: capacity = int.MaxValue, expireTime = float.MaxValue, priority = 0
-IObjectPool<TextureObject> pool = GameModule.ObjectPool
+IObjectPool<TextureObject> pool = GameApp.Services.GetRequiredService<IObjectPoolService>()
     .CreateSingleSpawnObjectPool<TextureObject>("textures", 60f, 16, 300f, 0);
 
 // Register a spawned object (spawned: false means it stays in the pool for later retrieval, useful for pre-warming)
@@ -75,10 +75,10 @@ if (pool.CanSpawn("hero"))
 }
 
 // Destroy the object pool
-GameModule.ObjectPool.DestroyObjectPool(pool);
+GameApp.Services.GetRequiredService<IObjectPoolService>().DestroyObjectPool(pool);
 ```
 
-GameObject pooling at the Support layer (internally builds pools on `GameModule.ObjectPool`):
+GameObject pooling at the Support layer (internally builds pools on `GameApp.Services.GetRequiredService<IObjectPoolService>()`):
 
 ```csharp
 // Instantiate from a template and pool; the same template reuses the same pool
@@ -116,15 +116,15 @@ pool.Release((List<TextureObject> candidates, int toReleaseCount, DateTime expir
 });
 
 // Global operations: release all releasable objects / unused objects across all pools
-GameModule.ObjectPool.Release();
-GameModule.ObjectPool.ReleaseAllUnused();
+GameApp.Services.GetRequiredService<IObjectPoolService>().Release();
+GameApp.Services.GetRequiredService<IObjectPoolService>().ReleaseAllUnused();
 ```
 
 Querying pools and object information:
 
 ```csharp
-bool has = GameModule.ObjectPool.HasObjectPool<TextureObject>("textures");
-IObjectPool<TextureObject> p = GameModule.ObjectPool.GetObjectPool<TextureObject>("textures");
+bool has = GameApp.Services.GetRequiredService<IObjectPoolService>().HasObjectPool<TextureObject>("textures");
+IObjectPool<TextureObject> p = GameApp.Services.GetRequiredService<IObjectPoolService>().GetObjectPool<TextureObject>("textures");
 ObjectInfo[] infos = ((ObjectPoolBase)p).GetAllObjectInfos(); // For debugger traversal, etc.
 foreach (ObjectInfo info in infos)
 {

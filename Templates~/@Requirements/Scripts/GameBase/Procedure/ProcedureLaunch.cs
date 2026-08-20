@@ -1,4 +1,4 @@
-﻿using Moirai.Atropos;
+using Moirai.Atropos;
 using Moirai.Atropos.FSM;
 using Moirai.Atropos.Procedure;
 
@@ -12,7 +12,7 @@ namespace Moirai.Main
     {
         public override bool UseNativeDialog => true;
 
-        protected override void OnEnter(IFSM<IProcedureModule> procedureOwner)
+        protected override void OnEnter(IFSM<IProcedureService> procedureOwner)
         {
             base.OnEnter(procedureOwner);
             
@@ -20,12 +20,12 @@ namespace Moirai.Main
             LauncherMgr.Initialize();
         }
 
-        protected override void OnUpdate(IFSM<IProcedureModule> procedureOwner, float elapseSeconds, float realElapseSeconds)
+        protected override void OnUpdate(IFSM<IProcedureService> procedureOwner, float elapseSeconds, float realElapseSeconds)
         {
             base.OnUpdate(procedureOwner, elapseSeconds, realElapseSeconds);
 
             // 运行一帧即切换流程
-            if (GameModule.Procedure.HasProcedure<ProcedureSplash>())
+            if (GameApp.Services.GetRequiredService<IProcedureService>().HasProcedure<ProcedureSplash>())
             {
                 ChangeState<ProcedureSplash>(procedureOwner);
             }

@@ -7,10 +7,10 @@ namespace Moirai.Atropos.Resource
 {
     internal partial class ResourceExtComponent
     {
-        private static IResourceModule s_ResourceModule;
+        private static IResourceService s_ResourceService;
 
         /// <summary>资源组件。</summary>
-        public static IResourceModule ResourceModule => s_ResourceModule;
+        public static IResourceService ResourceService => s_ResourceService;
 
         private class LoadingState : IMemory
         {
@@ -42,7 +42,7 @@ namespace Moirai.Atropos.Resource
 
         private void InitializedResources()
         {
-            s_ResourceModule = ModuleSystem.GetModule<IResourceModule>();
+            s_ResourceService = GameServices.Provider?.GetService<IResourceService>();
         }
 
         /// <summary>
@@ -105,7 +105,7 @@ namespace Moirai.Atropos.Resource
 
                     hasLoadingMarker = true;
 
-                    loadedResource = await s_ResourceModule.LoadAssetAsync<T>(location, linkedTokenSource.Token);
+                    loadedResource = await s_ResourceService.LoadAssetAsync<T>(location, linkedTokenSource.Token);
                     if (loadedResource == null)
                     {
                         LogUtility.Error("加载资源失败，资源为空: '{0}'", location);
@@ -143,7 +143,7 @@ namespace Moirai.Atropos.Resource
 
                 if (loadedResource != null && !resourceRegistered)
                 {
-                    s_ResourceModule.UnloadAsset(loadedResource);
+                    s_ResourceService.UnloadAsset(loadedResource);
                 }
 
                 if (!setAssetObjectTransferred)

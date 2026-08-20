@@ -17,27 +17,29 @@ namespace Moirai.Atropos.Input
         
         private void OnEnable()
         {
-            if (GameModule.Input == null) return;
-            
+            var svc = GameApp.Services?.GetService<IInputService>();
+            if (svc == null) return;
+
             if (m_LockPlayerController)
             {
-                _lockPlayerController = GameModule.Input.LockPlayerController;
-                GameModule.Input.LockPlayerController = true;
+                _lockPlayerController = svc.LockPlayerController;
+                svc.LockPlayerController = true;
             }
 
             if (m_PreventInteractionUI)
             {
-                _preventInteractionUI = GameModule.Input.PreventInteractionUI;
-                GameModule.Input.PreventInteractionUI = true;
+                _preventInteractionUI = svc.PreventInteractionUI;
+                svc.PreventInteractionUI = true;
             }
         }
-        
+
         private void OnDisable()
         {
-            if (GameModule.Input == null) return;
-            
-            GameModule.Input.LockPlayerController = _lockPlayerController;
-            GameModule.Input.PreventInteractionUI = _preventInteractionUI;
+            var svc = GameApp.Services?.GetService<IInputService>();
+            if (svc == null) return;
+
+            svc.LockPlayerController = _lockPlayerController;
+            svc.PreventInteractionUI = _preventInteractionUI;
         }
     }
 }

@@ -1,8 +1,8 @@
-# Scene Module
+# Scene Service
 
-> Main/sub-scene management module based on YooAsset scene handles, providing async loading, suspend activation, progress callbacks, and sub-scene unloading.
+> Main/sub-scene management service based on YooAsset scene handles, providing async loading, suspend activation, progress callbacks, and sub-scene unloading.
 
-The scene module (`Moirai.Atropos.Scene`) wraps YooAsset's `SceneHandle`, distinguishing between main scenes (`LoadSceneMode.Single`, only one at a time) and sub-scenes (`LoadSceneMode.Additive`, multiple can be stacked). It supports a smooth transition mode where loading can be suspended at 90% progress and then activated uniformly when ready, with optional garbage collection after the main scene finishes loading. Accessible via the `GameModule.Scene` static accessor.
+The scene service (`Moirai.Atropos.Scene`) wraps YooAsset's `SceneHandle`, distinguishing between main scenes (`LoadSceneMode.Single`, only one at a time) and sub-scenes (`LoadSceneMode.Additive`, multiple can be stacked). It supports a smooth transition mode where loading can be suspended at 90% progress and then activated uniformly when ready, with optional garbage collection after the main scene finishes loading. Accessible via the `GameApp.Services.GetRequiredService<ISceneService>()` static accessor.
 
 ## Core Features
 
@@ -17,36 +17,36 @@ The scene module (`Moirai.Atropos.Scene`) wraps YooAsset's `SceneHandle`, distin
 
 | Class/Interface | Description |
 |---------|------|
-| `Moirai.Atropos.Scene.ISceneModule` | Scene module interface, returned by `GameModule.Scene` |
-| `Moirai.Atropos.Scene.SceneModule` | Scene module implementation, internally holds `YooAsset.SceneHandle` to manage main/sub scenes |
+| `Moirai.Atropos.Scene.ISceneService` | Scene service interface, returned by `GameApp.Services.GetRequiredService<ISceneService>()` |
+| `Moirai.Atropos.Scene.SceneService` | Scene service implementation, internally holds `YooAsset.SceneHandle` to manage main/sub scenes |
 
 ## Quick Start
 
 ```csharp
 // Async load main scene (await usage)
 UnityEngine.SceneManagement.Scene scene =
-    await GameModule.Scene.LoadSceneAsync("GameMain", LoadSceneMode.Single);
+    await GameApp.Services.GetRequiredService<ISceneService>().LoadSceneAsync("GameMain", LoadSceneMode.Single);
 
 // Async load sub-scene with progress tracking
-await GameModule.Scene.LoadSceneAsync(
+await GameApp.Services.GetRequiredService<ISceneService>().LoadSceneAsync(
     "BattleMap", LoadSceneMode.Additive,
     progressCallBack: p => loadingBar.value = p);
 
 // Callback-based loading (can specify package name)
-GameModule.Scene.LoadScene(
+GameApp.Services.GetRequiredService<ISceneService>().LoadScene(
     "GameMain", packageName: "main-package",
     sceneMode: LoadSceneMode.Single,
     callBack: s => { /* Load complete, s is the Scene */ },
     progressCallBack: p => Debug.Log($"Progress: {p}"));
 
 // Unload sub-scene
-bool ok = await GameModule.Scene.UnloadAsync("BattleMap");
-GameModule.Scene.Unload("BattleMap", callBack: () => Debug.Log("Unloaded"));
+bool ok = await GameApp.Services.GetRequiredService<ISceneService>().UnloadAsync("BattleMap");
+GameApp.Services.GetRequiredService<ISceneService>().Unload("BattleMap", callBack: () => Debug.Log("Unloaded"));
 
 // Query
-string main = GameModule.Scene.CurrentMainSceneName;
-bool loaded = GameModule.Scene.IsContainScene("BattleMap");
-bool isMain = GameModule.Scene.IsMainScene("GameMain");
+string main = GameApp.Services.GetRequiredService<ISceneService>().CurrentMainSceneName;
+bool loaded = GameApp.Services.GetRequiredService<ISceneService>().IsContainScene("BattleMap");
+bool isMain = GameApp.Services.GetRequiredService<ISceneService>().IsMainScene("GameMain");
 ```
 
 ## Advanced Usage
@@ -57,11 +57,11 @@ When `suspendLoad = true`, the scene remains suspended after loading completes. 
 
 ```csharp
 // Initiate suspend loading (works the same for sub-scenes)
-GameModule.Scene.LoadSceneAsync("GameMain", suspendLoad: true);
+GameApp.Services.GetRequiredService<ISceneService>().LoadSceneAsync("GameMain", suspendLoad: true);
 
 // Activate the scene once everything is ready
-bool activated = GameModule.Scene.ActivateScene("GameMain");   // Activate as the current active scene
-bool resumed = GameModule.Scene.UnSuspend("GameMain");         // Only unsuspend
+bool activated = GameApp.Services.GetRequiredService<ISceneService>().ActivateScene("GameMain");   // Activate as the current active scene
+bool resumed = GameApp.Services.GetRequiredService<ISceneService>().UnSuspend("GameMain");         // Only unsuspend
 ```
 
 ### Multiple Sub-Scene Stacking
@@ -69,10 +69,10 @@ bool resumed = GameModule.Scene.UnSuspend("GameMain");         // Only unsuspend
 Multiple Additive sub-scenes can be loaded simultaneously (keyed by `location`), suitable for large world chunks, independent gameplay rooms, etc.:
 
 ```csharp
-await GameModule.Scene.LoadSceneAsync("ChunkA", LoadSceneMode.Additive);
-await GameModule.Scene.LoadSceneAsync("ChunkB", LoadSceneMode.Additive);
+await GameApp.Services.GetRequiredService<ISceneService>().LoadSceneAsync("ChunkA", LoadSceneMode.Additive);
+await GameApp.Services.GetRequiredService<ISceneService>().LoadSceneAsync("ChunkB", LoadSceneMode.Additive);
 
-// All sub-scenes are automatically unloaded on module shutdown
+// All sub-scenes are automatically unloaded on service shutdown
 ```
 
 ### Loading Priority

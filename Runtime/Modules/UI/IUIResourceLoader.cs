@@ -1,4 +1,4 @@
-﻿using System.Threading;
+using System.Threading;
 using Cysharp.Threading.Tasks;
 using Moirai.Atropos.Resource;
 using UnityEngine;
@@ -37,7 +37,7 @@ namespace Moirai.Atropos.UI
     /// </summary>
     public class UIResourceLoader : IUIResourceLoader
     {
-        private readonly IResourceModule _resourceLoaderImp = ModuleSystem.GetModule<IResourceModule>();
+        private readonly IResourceService _resourceLoaderImp = GameServices.Provider?.GetService<IResourceService>();
 
         /// <summary>
         /// 同步加载游戏物体并实例化。

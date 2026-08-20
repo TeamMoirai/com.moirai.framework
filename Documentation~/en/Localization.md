@@ -1,8 +1,8 @@
-# Localization Module
+# Localization Service
 
-> Multilingual module based on Luban configuration tables, supporting automatic injection and inline parsing of text, images, audio, and Timeline.
+> Multilingual service based on Luban configuration tables, supporting automatic injection and inline parsing of text, images, audio, and Timeline.
 
-The `Localization` module is accessed via `GameModule.Localization` (`ILocalizationModule`). On startup, it loads all localized strings from the Luban configuration table (via `ConfigMgr` from [ConfigTable](ConfigTable.md)) and registers available languages. The language is determined by priority: "command-line argument -> editor setting -> local存档 -> system language". When switching languages, it triggers `OnLanguageChanged` and automatically re-injects all registered `LocalizerBase` components. In addition to retrieving text by ID, `LocalizationHelper.ResolveLocalizedStrings` supports inline parsing of `{l10n:ID}` / `{i18n:ID}` / `{g11n:ID}` placeholders in any string.
+The `Localization` service is accessed via `GameApp.Services.GetRequiredService<ILocalizationService>()` (`ILocalizationService`). On startup, it loads all localized strings from the Luban configuration table (via `ConfigMgr` from [ConfigTable](ConfigTable.md)) and registers available languages. The language is determined by priority: "command-line argument -> editor setting -> local存档 -> system language". When switching languages, it triggers `OnLanguageChanged` and automatically re-injects all registered `LocalizerBase` components. In addition to retrieving text by ID, `LocalizationHelper.ResolveLocalizedStrings` supports inline parsing of `{l10n:ID}` / `{i18n:ID}` / `{g11n:ID}` placeholders in any string.
 
 ## Core Features
 
@@ -21,8 +21,8 @@ Namespace: `Moirai.Atropos.Localization`
 
 | Class/Interface | Description |
 |----------------|-------------|
-| `ILocalizationModule` | Module public interface, return type of `GameModule.Localization`; includes `OnLanguageChanged` event |
-| `LocalizationModule` | `sealed` implementation class, responsible for loading config table text, language switching, and Localizer management |
+| `ILocalizationService` | Service public interface, return type of `GameApp.Services.GetRequiredService<ILocalizationService>()`; includes `OnLanguageChanged` event |
+| `LocalizationService` | `sealed` implementation class, responsible for loading config table text, language switching, and Localizer management |
 | `Language` | Language class (`IEquatable<Language>`): `Name`, `Code`, `DisplayName`, `BuiltinLanguages`, supports conversion to/from `SystemLanguage` |
 | `LocalizationHelper` | Static helper class: `ResolveLocalizedStrings`, `RegisterLanguageMap`, `GetAllAvailableLanguages`, `ToLanguage` |
 | `LocalizerBase` | Abstract base class for localizers (MonoBehaviour): `Prepare` gets the target component reference, `Localize` performs injection |
@@ -42,10 +42,10 @@ Namespace: `Moirai.Atropos.Localization`
 ## Quick Start
 
 ```csharp
-// Access the module
-ILocalizationModule localization = GameModule.Localization;
+// Access the service
+ILocalizationService localization = GameApp.Services.GetRequiredService<ILocalizationService>();
 
-// Initialize language configuration (depends on ConfigTable and Resource modules, must be called manually once after config tables are ready)
+// Initialize language configuration (depends on ConfigTable and Resource services, must be called manually once after config tables are ready)
 localization.InitLanguageSettings();
 
 // Get localized string by text ID (returns the ID as-is if untranslated or ID does not exist)
@@ -85,7 +85,7 @@ string hint = LocalizationHelper.ResolveLocalizedStrings("Press {l10n:btn_confir
 ### Subscribing to Language Switching
 
 ```csharp
-GameModule.Localization.OnLanguageChanged += language =>
+GameApp.Services.GetRequiredService<ILocalizationService>().OnLanguageChanged += language =>
 {
     Debug.Log($"Language switched: {language.DisplayName}");
     // Manually refresh content not managed by LocalizerBase
@@ -115,7 +115,7 @@ IEnumerator routine = translator.TranslateAsync(request,
 ## Notes
 
 - Localization data comes from Luban configuration tables: must generate and export tables in `Tools/Settings/ConfigTableSettings` first, otherwise loading fails with "Failed to load localized text, generate config first!"
-- `InitLanguageSettings` depends on the `Resource` module to load config table assets; do not call it during the `OnInit` phase (resources are not ready)
+- `InitLanguageSettings` depends on the `Resource` service to load config table assets; do not call it during the `OnInit` phase (resources are not ready)
 - The list of available languages comes from field registration of `LocalizedBean` in the config table (`LocalizationHelper.RegisterLanguageMap`); calling `ChangeLanguage` with an unregistered language will throw `KeyNotFoundException`
 - In `ToLanguage(str, onlySupported)`, when `onlySupported` is `true`, unregistered languages fall back to the default language English (`LocalizationHelper.defaultLanguage`)
 - In the editor's non-play mode, `TextLocalizer.ChangeID` / `ImageLocalizer.ChangeID` directly return `false` (Timeline preview pending implementation), and `ResolveLocalizedStrings` also returns the input as-is

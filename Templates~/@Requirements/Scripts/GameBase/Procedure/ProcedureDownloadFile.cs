@@ -15,7 +15,7 @@ namespace Moirai.Main
     {
         public override bool UseNativeDialog { get; }
 
-        private IFSM<IProcedureModule> _procedureOwner;
+        private IFSM<IProcedureService> _procedureOwner;
 
         private float _lastUpdateDownloadedSize;
         private float _totalSpeed;
@@ -26,8 +26,8 @@ namespace Moirai.Main
             get
             {
                 float interval = Math.Max(GameTime.deltaTime, 0.01f); // 防止deltaTime过小
-                var sizeDiff = _resourceModule.Downloader.CurrentDownloadBytes - _lastUpdateDownloadedSize;
-                _lastUpdateDownloadedSize = _resourceModule.Downloader.CurrentDownloadBytes;
+                var sizeDiff = _resourceService.Downloader.CurrentDownloadBytes - _lastUpdateDownloadedSize;
+                _lastUpdateDownloadedSize = _resourceService.Downloader.CurrentDownloadBytes;
                 var speed = sizeDiff / interval;
 
                 // 使用滑动窗口计算平均速度
@@ -37,7 +37,7 @@ namespace Moirai.Main
             }
         }
 
-        protected override void OnEnter(IFSM<IProcedureModule> procedureOwner)
+        protected override void OnEnter(IFSM<IProcedureService> procedureOwner)
         {
             _procedureOwner = procedureOwner;
 
@@ -49,7 +49,7 @@ namespace Moirai.Main
 
         private async UniTaskVoid BeginDownload()
         {
-            var downloader = _resourceModule.Downloader;
+            var downloader = _resourceService.Downloader;
 
             // 注册下载回调
             downloader.DownloadErrorCallback = OnDownloadErrorCallback;
@@ -74,14 +74,14 @@ namespace Moirai.Main
         {
             string currentSizeMb = (downloadUpdateData.CurrentDownloadBytes / 1048576f).ToString("f1");
             string totalSizeMb = (downloadUpdateData.TotalDownloadBytes / 1048576f).ToString("f1");
-            float progressPercentage = _resourceModule.Downloader.Progress * 100;
+            float progressPercentage = _resourceService.Downloader.Progress * 100;
             string speed = FileUtility.GetLengthString((int)CurrentSpeed);
 
             string line1 = StringUtility.Format(LoadText.Instance.Label_Download_Detail1, downloadUpdateData.CurrentDownloadCount, downloadUpdateData.TotalDownloadCount, progressPercentage);
             string line2 = StringUtility.Format(LoadText.Instance.Label_Download_Detail2, currentSizeMb, totalSizeMb);
             string line3 = StringUtility.Format(LoadText.Instance.Label_Download_Detail3, speed, GetRemainingTime(downloadUpdateData.TotalDownloadBytes, downloadUpdateData.CurrentDownloadBytes, CurrentSpeed));
             
-            LauncherMgr.RefreshProgress(_resourceModule.Downloader.Progress);
+            LauncherMgr.RefreshProgress(_resourceService.Downloader.Progress);
             LauncherMgr.ShowUI<LoadUpdateUI>($"{line1}\n{line2}\n{line3}");
 
             LogUtility.Info($"{line1} {line2} {line3}");

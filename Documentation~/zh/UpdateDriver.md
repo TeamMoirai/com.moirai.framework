@@ -1,8 +1,8 @@
-# UpdateDriver 模块
+# UpdateDriver 服务
 
 > 为非 MonoBehaviour 代码提供 Unity 生命周期代理：协程托管、帧更新注入与 Unity 事件注入。
 
-`UpdateDriver` 解决纯 C# 类无法访问 Unity 引擎回调的问题。框架内所有模块均为普通 C# 类（见 [Core 模块系统](Core.md)），当业务类需要协程、`Update` 轮询或 `OnApplicationPause` 等引擎回调时，可通过本模块将回调注册到一个常驻的隐藏宿主 `MainBehaviour` 上。模块实现类 `UpdateDriverModule` 在首次使用时懒创建名为 `[UpdateDriver]` 的 `DontDestroyOnLoad` 游戏对象，所有引擎回调以事件形式聚合转发。
+`UpdateDriver` 解决纯 C# 类无法访问 Unity 引擎回调的问题。框架内所有服务均为普通 C# 类（见 [Core 服务系统](Core.md)），当业务类需要协程、`Update` 轮询或 `OnApplicationPause` 等引擎回调时，可通过本服务将回调注册到一个常驻的隐藏宿主 `MainBehaviour` 上。服务实现类 `UpdateDriverService` 在首次使用时懒创建名为 `[UpdateDriver]` 的 `DontDestroyOnLoad` 游戏对象，所有引擎回调以事件形式聚合转发。
 
 ## 核心特性
 
@@ -10,7 +10,7 @@
 - 帧更新注入：`Update` / `FixedUpdate` / `LateUpdate` 三类帧回调的注册与移除
 - Unity 事件注入：`OnDestroy`、`OnDrawGizmos`、`OnDrawGizmosSelected`、`OnApplicationPause`
 - 懒创建宿主：首次调用任意 API 时才创建 `[UpdateDriver]` 常驻对象，零前置开销
-- 关闭即清理：模块 `Shutdown` 时清空全部事件并销毁宿主对象
+- 关闭即清理：服务 `Shutdown` 时清空全部事件并销毁宿主对象
 
 ## 核心类型
 
@@ -18,16 +18,16 @@
 
 | 类/接口 | 说明 |
 |---------|------|
-| `IUpdateDriverModule` | 模块公开接口：协程控制、帧更新监听、Unity 事件监听的注册与移除 |
-| `UpdateDriverModule` | `internal` 实现类，继承 `Module`，管理 `[UpdateDriver]` 宿主与内部 `MainBehaviour` |
+| `IUpdateDriverService` | 服务公开接口：协程控制、帧更新监听、Unity 事件监听的注册与移除 |
+| `UpdateDriverService` | `internal` 实现类，继承 `Service`，管理 `[UpdateDriver]` 宿主与内部 `MainBehaviour` |
 
-宿主 `MainBehaviour`（`UpdateDriverModule` 的私有嵌套类）为实际挂载的 MonoBehaviour，以 C# 事件聚合各 Unity 回调；Gizmos 相关回调带 `[Conditional("UNITY_EDITOR")]`，仅在编辑器编译生效。
+宿主 `MainBehaviour`（`UpdateDriverService` 的私有嵌套类）为实际挂载的 MonoBehaviour，以 C# 事件聚合各 Unity 回调；Gizmos 相关回调带 `[Conditional("UNITY_EDITOR")]`，仅在编辑器编译生效。
 
 ## 快速上手
 
 ```csharp
-// 获取模块（GameModule 未提供静态访问器，按接口获取）
-IUpdateDriverModule driver = ModuleSystem.GetModule<IUpdateDriverModule>();
+// 获取服务（GameApp 未提供静态访问器，按接口获取）
+IUpdateDriverService driver = ServiceSystem.GetService<IUpdateDriverService>();
 
 // 协程：交由框架宿主驱动，无需自身 MonoBehaviour
 Coroutine co = driver.StartCoroutine(SomeRoutine());
@@ -60,13 +60,13 @@ void OnApplicationPause(bool pauseStatus) { }
 driver.AddOnDrawGizmosListener(DrawGizmos);
 driver.AddOnDrawGizmosSelectedListener(DrawSelectedGizmos);
 
-// 宿主销毁回调（模块 Shutdown 销毁宿主前不会触发，主要用于宿主被外部销载的场景）
+// 宿主销毁回调（服务 Shutdown 销毁宿主前不会触发，主要用于宿主被外部销载的场景）
 driver.AddDestroyListener(OnHostDestroy);
 ```
 
 ### 框架内部使用
 
-`UpdateDriver` 是框架多个基础设施的底层依赖：单例系统 `SingletonSystem` 通过它驱动 `IUpdate`/`IFixedUpdate`/`ILateUpdate` 单例轮询，`UnityUtility` 中的协程工具也经由它执行。模块实现类型在 `AppSettings.Initiation()` 阶段注册，支持在 Inspector 中替换实现。
+`UpdateDriver` 是框架多个基础设施的底层依赖：单例系统 `SingletonSystem` 通过它驱动 `IUpdate`/`IFixedUpdate`/`ILateUpdate` 单例轮询，`UnityUtility` 中的协程工具也经由它执行。服务实现类型在 `AppSettings.Initiation()` 阶段注册，支持在 Inspector 中替换实现。
 
 ### 注册时机说明
 
@@ -74,7 +74,7 @@ driver.AddDestroyListener(OnHostDestroy);
 
 ## 注意事项
 
-- 监听器持有强引用，务必成对调用 `Add`/`Remove`，否则目标对象无法被回收；模块 `Shutdown` 时会统一清空。
+- 监听器持有强引用，务必成对调用 `Add`/`Remove`，否则目标对象无法被回收；服务 `Shutdown` 时会统一清空。
 - Gizmos 与 GizmosSelected 相关 API 仅在编辑器下生效，打包后调用会被编译剔除。
 - `StartCoroutine` 传入空方法名或空迭代器时返回 `null`，不做异常处理。
 - 宿主对象为 `DontDestroyOnLoad`，跨场景存活；请勿在外部手动销毁 `[UpdateDriver]` 对象，否则协程与监听全部失效。
