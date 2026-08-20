@@ -150,7 +150,7 @@ namespace Moirai.Atropos.Input.Prompts
     /// <summary>
     /// 单个输入设备（如 PlayStation 4 Controller）的数据
     /// </summary>
-    [CreateAssetMenu(menuName = "Moirai Framework/Input/Glyph Map", order = 1)]
+    [CreateAssetMenu(menuName = "Moirai/Input/Glyph Map", order = 1)]
     public class GlyphMap : ScriptableObject
     {
         [Tooltip("此资产支持的设备类型（可以是多个，例如 mouse/keyboard）")]

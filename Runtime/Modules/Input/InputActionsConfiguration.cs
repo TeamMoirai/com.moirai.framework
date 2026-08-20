@@ -7,7 +7,7 @@ namespace Moirai.Atropos.Input
     /// 此配置便于按功能分为更小的簇，比如 Player、UI，用于剥离引用。
     /// </summary>
     /// <remarks>与 InputSystem 的 Generate class 功能类似</remarks>
-    [CreateAssetMenu(menuName = "Moirai Framework/Input/InputActions Config")]
+    [CreateAssetMenu(menuName = "Moirai/Input/InputActions Config")]
     public class InputActionsConfiguration : ScriptableObject
     {
         // Generate C# Class
