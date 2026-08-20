@@ -203,7 +203,7 @@ namespace GameTool
             public override void Tick(float elapseSeconds, float realElapseSeconds)
             {
                 base.Tick(elapseSeconds, realElapseSeconds);
-                // 首次 tick 时在迭代内注册新服务（不能在此处调用 GetService 探测：未注册会触发反射回退）
+                // 首次 tick 时在迭代内注册新服务（未注册的 GetService 会抛 GameException，不能在此探测）
                 if (!_spawned)
                 {
                     _spawned = true;
@@ -244,10 +244,10 @@ namespace GameTool
             }
         }
 
-        // --- 迭代安全：ShutdownScope ---
+        // --- 迭代安全：跨作用域 ShutdownScope ---
 
         [Test]
-        public void ShutdownScope_DuringIteration_DefersRemoval()
+        public void ShutdownScope_DuringIteration_CrossScopeImmediateShutdown()
         {
             var scene = new SceneService();
             var trigger = new ShutdownScopeOnTick();
@@ -256,12 +256,10 @@ namespace GameTool
 
             GameServices.Tick(0f, 0f);
 
-            // 容器化后：ShutdownScope 立即 Dispose 作用域容器（O(1)），不再延迟
+            // App scope 先于 Scene scope 被遍历：trigger 在 App scope Tick 中调用 ShutdownScope(Scene)
+            // Scene scope 未在迭代中，Dispose 立即执行，scene 被关闭——本轮不会被 tick
             Assert.AreEqual(1, scene.ShutdownCount, "ShutdownScope 立即关闭作用域中的服务");
-            // scene 先于 trigger 注册（同优先级按注册顺序），本轮已被 tick 一次后才被延迟移除
-            // 容器化后：App scope 先于 Scene scope 被遍历，trigger 在 App scope Tick 中调用 ShutdownScope(Scene)
-            // 此时 Scene scope 尚未 Tick，scene 被延迟注销，本轮不会 tick
-            Assert.AreEqual(0, scene.TickCount, "容器化后 Scene scope 尚未 Tick 即被注销，本轮不 tick");
+            Assert.AreEqual(0, scene.TickCount, "Scene scope 尚未 Tick 即被注销，本轮不 tick");
 
             GameServices.Tick(0f, 0f);
             Assert.AreEqual(0, scene.TickCount, "被注销的服务不应再被轮询");
@@ -663,6 +661,11 @@ namespace GameTool
             }
         }
 
+        private sealed class ShutdownOrderDependee : ShutdownOrderService, IDepTargetService
+        {
+            public ShutdownOrderDependee() : base("dependee") { }
+        }
+
         private sealed class DependentShutdownService : ShutdownOrderService, IAlphaService
         {
             public DependentShutdownService() : base("dependent") { }
@@ -674,7 +677,7 @@ namespace GameTool
         public void Shutdown_ClosesInReverseRegistrationOrder_DependentsFirst()
         {
             s_ShutdownOrder.Clear();
-            var dependee = new ShutdownOrderService("dependee");
+            var dependee = new ShutdownOrderDependee();
             var dependent = new DependentShutdownService();
 
             // 注册序（拓扑序）：被依赖方在前，依赖方在后
@@ -730,6 +733,104 @@ namespace GameTool
             Assert.AreEqual(EServiceState.Disposed, gameplay.State, "Gameplay 应已销毁");
             Assert.AreEqual(EServiceState.Initialized, scene.State, "Scene 应仍运行");
             Assert.AreEqual(EServiceState.Initialized, app.State, "App 应仍运行");
+        }
+
+        // --- ServiceMono.OnDestroy 自动注销 [MONO ONDESTROY AUTO-UNREGISTER] ---
+
+        [Test]
+        public void ServiceMono_OnDestroy_UnregistersService()
+        {
+            var go = new GameObject();
+            var mono = go.AddComponent<TestMonoService>();
+            mono.TriggerRegistration();
+
+            Assert.IsTrue(GameServices.UnregisterService<IMonoContractService>(), "注册后应能找到服务");
+
+            // 模拟 OnDestroy：DestroyImmediate 会触发 OnDestroy → UnregisterService
+            UnityEngine.Object.DestroyImmediate(go);
+
+            Assert.AreEqual(1, mono.InitCount, "OnInit 应调用一次");
+            // DestroyImmediate 后服务应已注销
+            Assert.IsFalse(GameServices.UnregisterService<IMonoContractService>(), "OnDestroy 后服务应已注销");
+        }
+
+        // --- 双合约注册 [DUAL-CONTRACT REGISTER] ---
+
+        private interface IDualPrimaryService { }
+        private interface IDualSecondaryService { }
+
+        private sealed class DualContractService : TestServiceBase, IDualPrimaryService, IDualSecondaryService { }
+
+        [Test]
+        public void RegisterService_DualContract_BothInterfacesResolve()
+        {
+            var service = new DualContractService();
+            GameServices.RegisterService<IDualPrimaryService, IDualSecondaryService>(service);
+
+            Assert.AreSame(service, GameServices.GetService<IDualPrimaryService>(), "主合约应可获取");
+            Assert.AreSame(service, GameServices.GetService<IDualSecondaryService>(), "次合约应可获取");
+            Assert.AreEqual(2, service.InitCount, "OnInit 应调用两次（同一实例分别注册到两个合约，各触发一次）");
+        }
+
+        // --- 偏好作用域查找 [PREFERRED SCOPE LOOKUP] ---
+
+        [Test]
+        public void GetService_PreferredScope_HitsScopeFirst()
+        {
+            var app = new AppService();
+            var scene = new SceneService();
+            GameServices.RegisterService<IAlphaService>(app);
+            GameServices.RegisterService<IAlphaService>(scene);
+
+            // 指定 App scope：应直接返回 App 实例（跳过 GetBest 的 Gameplay > Scene > App 回退）
+            var result = GameServices.GetService<IAlphaService>(EServiceScopeKind.App);
+            Assert.AreSame(app, result, "偏好 App scope 应直接返回 App 实例");
+
+            // 指定 Scene scope
+            result = GameServices.GetService<IAlphaService>(EServiceScopeKind.Scene);
+            Assert.AreSame(scene, result, "偏好 Scene scope 应返回 Scene 实例");
+
+            // 指定空 Gameplay scope：偏好未命中，回退到 GetBest（Scene > App）
+            result = GameServices.GetService<IAlphaService>(EServiceScopeKind.Gameplay);
+            Assert.AreSame(scene, result, "Gameplay scope 未命中应回退到 GetBest（Scene）");
+        }
+
+        [Test]
+        public void GetService_PreferredScope_NotFound_Throws()
+        {
+            var app = new AppService();
+            GameServices.RegisterService<IAlphaService>(app);
+
+            // 只有 App scope 注册，查 Scene scope（未注册）应回退到 GetBest 返回 App
+            var result = GameServices.GetService<IAlphaService>(EServiceScopeKind.Scene);
+            Assert.AreSame(app, result, "Scene scope 未命中应回退到 GetBest 返回 App");
+
+            // 完全未注册的接口
+            Assert.Throws<GameException>(() => GameServices.GetService<IBetaService>(EServiceScopeKind.App),
+                "完全未注册的接口应抛 GameException");
+        }
+
+        // --- TryResolve 不抛异常查找 [TRY RESOLVE] ---
+
+        [Test]
+        public void TryResolve_Unregistered_ReturnsFalseWithoutThrow()
+        {
+            bool found = GameServices.TryResolve<IBetaService>(null, out var service);
+
+            Assert.IsFalse(found, "未注册的服务应返回 false");
+            Assert.IsNull(service, "未注册的服务 out 参数应为 null");
+        }
+
+        [Test]
+        public void TryResolve_Registered_ReturnsService()
+        {
+            var service = new AppService();
+            GameServices.RegisterService<IAlphaService>(service);
+
+            bool found = GameServices.TryResolve<IAlphaService>(null, out var resolved);
+
+            Assert.IsTrue(found);
+            Assert.AreSame(service, resolved);
         }
     }
 }
