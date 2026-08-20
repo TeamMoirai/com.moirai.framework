@@ -11,6 +11,10 @@ namespace Moirai.Atropos.Procedure
         private IFSMService _fsmService;
         private IFSM<IProcedureService> _procedureFsm;
 
+        // Initialize/Shutdown 中使用 IFSMService（由 ProcedureSettings 注入），必须在其注册后初始化
+        private static readonly Type[] s_Dependencies = { typeof(IFSMService) };
+        public override Type[] Dependencies => s_Dependencies;
+
         public override int Priority => -2;
         
         public ProcedureBase CurrentProcedure

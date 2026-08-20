@@ -96,9 +96,9 @@ namespace Moirai.Atropos
             gameObject.name = $"[{nameof(GameApp)}]";
             DontDestroyOnLoad(gameObject);
 
-            // 使用 sceneUnloading（销毁前）而非 sceneUnloaded（销毁后）：
-            // Scene/Gameplay 服务的 Shutdown 仍可安全访问场景对象
-            SceneManager.sceneUnloading += OnSceneUnloading;
+            // 注意：sceneUnloaded 在场景对象销毁之后触发（Unity 无"卸载前"全局事件），
+            // 因此 Scene/Gameplay 服务的 Shutdown() 不得访问场景对象。
+            SceneManager.sceneUnloaded += OnSceneUnloaded;
 
             InitializeAsync().Forget();
 
@@ -121,7 +121,7 @@ namespace Moirai.Atropos
 
         private void OnDestroy()
         {
-            SceneManager.sceneUnloading -= OnSceneUnloading;
+            SceneManager.sceneUnloaded -= OnSceneUnloaded;
 #if !UNITY_EDITOR
             GameServices.Shutdown();
 #endif
@@ -176,7 +176,7 @@ namespace Moirai.Atropos
             GameServices.DrawGizmos();
         }
 
-        private void OnSceneUnloading(UnityEngine.SceneManagement.Scene scene)
+        private void OnSceneUnloaded(UnityEngine.SceneManagement.Scene scene)
         {
             GameServices.ShutdownScope(EServiceScopeKind.Scene);
             GameServices.ShutdownScope(EServiceScopeKind.Gameplay);

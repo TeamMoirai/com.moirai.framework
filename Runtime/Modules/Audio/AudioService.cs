@@ -20,6 +20,10 @@ namespace Moirai.Atropos.Audio
     // ReSharper disable once ClassNeverInstantiated.Global
     public sealed class AudioService : ServiceBase, IAudioService, IServiceTickable
     {
+        // OnInit 中获取 IResourceService，必须在其注册后初始化
+        private static readonly Type[] s_Dependencies = { typeof(IResourceService) };
+        public override Type[] Dependencies => s_Dependencies;
+
         private AudioGroupConfig[] _audioGroupConfigs;
         private bool _unityAudioDisabled;
         private IResourceService _resourceService;

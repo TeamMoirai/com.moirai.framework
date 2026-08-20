@@ -29,6 +29,13 @@ namespace Moirai.Atropos
         /// <summary>所属作用域。</summary>
         EServiceScopeKind Scope { get; }
 
+        /// <summary>
+        /// 此服务依赖的合约接口类型列表。注册时验证依赖已就绪，未满足则抛出 <see cref="GameException"/>。
+        /// 声明的依赖强制先于本服务注册，因此注册顺序即依赖拓扑序，逆序关闭即逆拓扑序。
+        /// 建议以 static readonly 数组返回，避免每次访问分配。
+        /// </summary>
+        Type[] Dependencies { get; }
+
         /// <summary>注册完成后调用（同步）。</summary>
         void OnInit();
 
@@ -88,8 +95,9 @@ namespace Moirai.Atropos
         /// <summary>
         /// 此服务依赖的合约接口类型列表。注册时验证依赖已就绪，未满足则抛出 <see cref="GameException"/>。
         /// 默认为空。子类覆写以声明依赖（如 <c>typeof(IResourceService)</c>）。
+        /// 建议以 static readonly 数组返回，避免每次访问分配。
         /// </summary>
-        protected internal virtual Type[] Dependencies => Array.Empty<Type>();
+        public virtual Type[] Dependencies => Array.Empty<Type>();
 
         #endregion
 
