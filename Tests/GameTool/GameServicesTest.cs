@@ -393,6 +393,11 @@ namespace GameTool
             public override void Shutdown() { }
 
             protected override System.Type RegisterAs => typeof(IMonoContractService);
+
+            /// <summary>
+            /// EditMode 下 AddComponent 不触发 Awake，暴露此方法供测试显式调用注册流程。
+            /// </summary>
+            public void TriggerRegistration() => Awake();
         }
 
         [Test]
@@ -403,6 +408,9 @@ namespace GameTool
 
             try
             {
+                // EditMode 下 Awake 不会自动触发，显式调用注册流程
+                mono.TriggerRegistration();
+
                 Assert.AreEqual(1, mono.InitCount, "注册时应调用 OnInit");
                 Assert.AreSame(mono, GameServices.GetService<IMonoContractService>(), "应注册到 RegisterAs 指定的合约接口");
             }
@@ -521,6 +529,85 @@ namespace GameTool
             var service2 = new AppService();
             GameServices.RegisterService<IAlphaService>(service2);
             Assert.AreEqual(countBefore, registeredCount, "Shutdown 后事件订阅应被清除，不再触发");
+        }
+
+        // --- 依赖验证 [DEPENDENCY VALIDATION] ---
+
+        private interface IDepTargetService { }
+
+        private sealed class ServiceWithDependency : TestServiceBase, IAlphaService
+        {
+            protected internal override Type[] Dependencies => new[] { typeof(IDepTargetService) };
+        }
+
+        [Test]
+        public void RegisterService_UnmetDependency_Throws()
+        {
+            var service = new ServiceWithDependency();
+
+            Assert.Throws<GameException>(() => GameServices.RegisterService<IAlphaService>(service));
+        }
+
+        [Test]
+        public void RegisterService_MetDependency_Succeeds()
+        {
+            var target = new BetaService();
+            // Register IDepTargetService using BetaService (it doesn't implement IDepTargetService,
+            // so use a dedicated impl)
+            var depTarget = new DepTargetServiceImpl();
+            GameServices.RegisterService<IDepTargetService>(depTarget);
+
+            var service = new ServiceWithDependency();
+            GameServices.RegisterService<IAlphaService>(service);
+
+            Assert.AreEqual(1, service.InitCount, "依赖满足时应正常初始化");
+        }
+
+        private sealed class DepTargetServiceImpl : TestServiceBase, IDepTargetService { }
+
+        // --- 生命周期状态 [LIFECYCLE STATE] ---
+
+        [Test]
+        public void RegisterService_SetsStateToInitialized()
+        {
+            var service = new AppService();
+            Assert.AreEqual(EServiceState.Created, service.State, "注册前应为 Created");
+
+            GameServices.RegisterService<IAlphaService>(service);
+
+            Assert.AreEqual(EServiceState.Initialized, service.State, "注册后应为 Initialized");
+        }
+
+        [Test]
+        public void ShutdownService_SetsStateToDisposed()
+        {
+            var service = new AppService();
+            GameServices.RegisterService<IAlphaService>(service);
+
+            GameServices.UnregisterService<IAlphaService>();
+
+            Assert.AreEqual(EServiceState.Disposed, service.State, "注销后应为 Disposed");
+        }
+
+        [Test]
+        public void Shutdown_ServiceStateTransitions_GameplayToApp()
+        {
+            var app = new AppService();
+            var scene = new SceneService();
+            var gameplay = new GameplayService();
+            GameServices.RegisterService<IAlphaService>(app);
+            GameServices.RegisterService<IAlphaService>(scene);
+            GameServices.RegisterService<IAlphaService>(gameplay);
+
+            Assert.AreEqual(EServiceState.Initialized, app.State);
+            Assert.AreEqual(EServiceState.Initialized, scene.State);
+            Assert.AreEqual(EServiceState.Initialized, gameplay.State);
+
+            GameServices.ShutdownScope(EServiceScopeKind.Gameplay);
+
+            Assert.AreEqual(EServiceState.Disposed, gameplay.State, "Gameplay 应已销毁");
+            Assert.AreEqual(EServiceState.Initialized, scene.State, "Scene 应仍运行");
+            Assert.AreEqual(EServiceState.Initialized, app.State, "App 应仍运行");
         }
     }
 }

@@ -5,6 +5,9 @@ namespace Moirai.Atropos
 {
     public static partial class GameServices
     {
+        /// <summary>
+        /// 服务诊断信息。供编辑器窗口和调试器组件展示已注册服务状态。
+        /// </summary>
         internal struct DiagnosticInfo
         {
             public string InterfaceType;
@@ -16,6 +19,8 @@ namespace Moirai.Atropos
             public bool HasLateUpdate;
             public bool HasGizmo;
         }
+
+        #region 诊断信息收集 [DIAGNOSTIC COLLECTION]
 
         internal static List<DiagnosticInfo> GetDiagnosticInfo()
         {
@@ -45,5 +50,7 @@ namespace Moirai.Atropos
                 HasGizmo = service is IServiceGizmoDrawable,
             };
         }
+
+        #endregion
     }
 }

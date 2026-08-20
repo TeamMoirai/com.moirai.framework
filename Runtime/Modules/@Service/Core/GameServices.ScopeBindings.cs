@@ -2,14 +2,18 @@ namespace Moirai.Atropos
 {
     public static partial class GameServices
     {
-        internal struct ScopeBindings
+        /// <summary>
+        /// 同一合约接口在三个作用域中的绑定。class 而非 struct——字典中直接修改字段无需回写。
+        /// </summary>
+        internal class ScopeBindings
         {
-            public IService App;
-            public IService Scene;
-            public IService Gameplay;
+            public IService App { get; set; }
+            public IService Scene { get; set; }
+            public IService Gameplay { get; set; }
 
             public bool IsEmpty => App == null && Scene == null && Gameplay == null;
 
+            /// <summary>获取指定作用域的绑定。</summary>
             public IService Get(EServiceScopeKind scope)
             {
                 switch (scope)
@@ -21,6 +25,10 @@ namespace Moirai.Atropos
                 }
             }
 
+            /// <summary>
+            /// 跨作用域遮蔽查找：Gameplay > Scene > App。
+            /// 用于运行时临时替换全局实现（如战斗内替换 ITimerService）。
+            /// </summary>
             public IService GetBest()
             {
                 if (Gameplay != null) return Gameplay;

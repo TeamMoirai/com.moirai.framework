@@ -19,34 +19,34 @@ namespace Moirai.Atropos
     /// <summary>
     /// 服务作用域容器。每个作用域独立持有自己的服务字典、tick 列表和迭代安全机制。
     /// <para>Dispose 时逆序关闭全部服务并清理——O(1) 对外、不影响其他作用域。</para>
+    /// <para><b>线程契约</b>：所有方法仅限 Unity 主线程调用。</para>
     /// </summary>
-    public sealed class ServiceScope : IDisposable
+    internal sealed class ServiceScope : IDisposable
     {
-        private const int MissingIndex = -1;
+        #region 字段 [FIELDS]
 
-        private readonly Dictionary<RuntimeTypeHandle, IService> _servicesByContract = new Dictionary<RuntimeTypeHandle, IService>();
-        private readonly Dictionary<IService, ServiceEntry> _entriesByService = new Dictionary<IService, ServiceEntry>(ReferenceComparer<IService>.Instance);
-        private readonly List<IService> _registrationOrder = new List<IService>();
+        // --- 服务存储 ---
 
-        private readonly List<IServiceTickable> _tickables = new List<IServiceTickable>();
-        private readonly List<IServiceFixedTickable> _fixedTickables = new List<IServiceFixedTickable>();
-        private readonly List<IServiceLateTickable> _lateTickables = new List<IServiceLateTickable>();
-        private readonly List<IServiceGizmoDrawable> _gizmoDrawables = new List<IServiceGizmoDrawable>();
+        private readonly Dictionary<RuntimeTypeHandle, IService> _servicesByContract = new();
+        private readonly Dictionary<IService, ServiceEntry> _entriesByService = new(ReferenceComparer<IService>.Instance);
+        private readonly List<IService> _registrationOrder = new();
 
-        private readonly List<PendingChange> _pendingChanges = new List<PendingChange>();
+        // --- 轮询列表（按 Priority 降序排列，由 InsertSorted 在注册时维护） ---
 
-        private bool _tickablesDirty;
-        private bool _lateTickablesDirty;
-        private bool _fixedTickablesDirty;
-        private bool _gizmoDrawablesDirty;
+        private readonly List<IServiceTickable> _tickables = new();
+        private readonly List<IServiceFixedTickable> _fixedTickables = new();
+        private readonly List<IServiceLateTickable> _lateTickables = new();
+        private readonly List<IServiceGizmoDrawable> _gizmoDrawables = new();
+
+        // --- 迭代安全缓冲 ---
+
+        private readonly List<PendingChange> _pendingChanges = new();
         private bool _isIterating;
         private bool _disposePending;
 
-        internal ServiceScope(EServiceScopeKind kind, string name)
-        {
-            Kind = kind;
-            Name = name;
-        }
+        #endregion
+
+        #region 属性 [PROPERTIES]
 
         internal EServiceScopeKind Kind { get; }
         public string Name { get; }
@@ -54,6 +54,20 @@ namespace Moirai.Atropos
         internal bool IsIterating => _isIterating;
         internal int PendingChangesCount => _pendingChanges.Count;
         internal int ServiceCount => _registrationOrder.Count;
+
+        #endregion
+
+        #region 构造 [CONSTRUCTION]
+
+        internal ServiceScope(EServiceScopeKind kind, string name)
+        {
+            Kind = kind;
+            Name = name;
+        }
+
+        #endregion
+
+        #region 异步初始化收集 [ASYNC INIT COLLECTION]
 
         /// <summary>
         /// 按注册顺序（优先级降序）收集需要异步初始化的服务。
@@ -67,8 +81,9 @@ namespace Moirai.Atropos
             }
         }
 
-        internal bool HasContract<T>() where T : class
-            => _servicesByContract.ContainsKey(typeof(T).TypeHandle);
+        #endregion
+
+        #region 查找 [LOOKUP]
 
         internal bool TryGet<T>(out T service) where T : class
         {
@@ -81,11 +96,9 @@ namespace Moirai.Atropos
             return false;
         }
 
-        internal T Require<T>() where T : class
-        {
-            if (TryGet(out T service)) return service;
-            throw new GameException(StringUtility.Format("Scope {0} does not contain service {1}.", Name, typeof(T).FullName));
-        }
+        #endregion
+
+        #region 注册与注销 [REGISTER / UNREGISTER]
 
         internal T Register<T>(IService service) where T : class
             => (T)Register(service, typeof(T));
@@ -109,7 +122,7 @@ namespace Moirai.Atropos
 
             if (_isIterating)
             {
-                _pendingChanges.Add(PendingChange.Register(service, interfaceType, Kind));
+                _pendingChanges.Add(PendingChange.Register(service, interfaceType));
                 return service;
             }
 
@@ -119,27 +132,37 @@ namespace Moirai.Atropos
 
         internal void RegisterInternal(IService service, Type interfaceType, RuntimeTypeHandle handle)
         {
-            _servicesByContract[handle] = service;
+            // 依赖验证：确保依赖的服务已注册
+            if (service is ServiceBase sb)
+            {
+                var deps = sb.Dependencies;
+                for (int i = 0; i < deps.Length; i++)
+                {
+                    if (!GameServices.IsRegistered(deps[i]))
+                        throw new GameException(StringUtility.Format(
+                            "Service '{0}' depends on '{1}' which is not registered. Ensure dependency is registered first.",
+                            service.GetType().FullName, deps[i].FullName));
+                }
+            }
 
+            _servicesByContract[handle] = service;
             GameServices.SetContext(service, this);
             GameServices.AddToGlobalMap(handle, service, Kind);
 
-            var entry = new ServiceEntry
-            {
-                InterfaceHandle = handle,
-                Scope = Kind,
-            };
+            var entry = new ServiceEntry { InterfaceHandle = handle };
 
+            // InsertSorted 按 Priority 降序插入，保证轮询顺序在注册时确定，
+            // 无需后续排序——Priority 是只读属性，不会在运行时变更。
             InsertSorted(_registrationOrder, service);
-            if (service is IServiceTickable tickable) { InsertSorted(_tickables, tickable); _tickablesDirty = true; }
-            if (service is IServiceFixedTickable fixedTickable) { InsertSorted(_fixedTickables, fixedTickable); _fixedTickablesDirty = true; }
-            if (service is IServiceLateTickable lateTickable) { InsertSorted(_lateTickables, lateTickable); _lateTickablesDirty = true; }
-            if (service is IServiceGizmoDrawable gizmo) { InsertSorted(_gizmoDrawables, gizmo); _gizmoDrawablesDirty = true; }
+            if (service is IServiceTickable tickable) InsertSorted(_tickables, tickable);
+            if (service is IServiceFixedTickable fixedTickable) InsertSorted(_fixedTickables, fixedTickable);
+            if (service is IServiceLateTickable lateTickable) InsertSorted(_lateTickables, lateTickable);
+            if (service is IServiceGizmoDrawable gizmo) InsertSorted(_gizmoDrawables, gizmo);
 
-            RebuildIndices();
             _entriesByService[service] = entry;
 
             service.OnInit();
+            GameServices.SetState(service, EServiceState.Initialized);
             GameServices.RaiseServiceRegistered(service, interfaceType, Kind);
         }
 
@@ -154,7 +177,6 @@ namespace Moirai.Atropos
             {
                 if (entry.PendingRemove) return true;
                 entry.PendingRemove = true;
-                _entriesByService[service] = entry;
                 _pendingChanges.Add(PendingChange.Unregister(service));
                 return true;
             }
@@ -163,13 +185,24 @@ namespace Moirai.Atropos
             return true;
         }
 
+        #endregion
+
+        #region 关闭与移除 [SHUTDOWN / REMOVE]
+
         private void ShutdownService(IService service)
         {
             if (!_entriesByService.TryGetValue(service, out var entry)) return;
 
+            // 幂等守卫：已处于关闭中或已销毁的服务不再重复关闭
+            var state = GameServices.GetState(service);
+            if (state >= EServiceState.ShuttingDown) return;
+
+            GameServices.SetState(service, EServiceState.ShuttingDown);
+
             try { service.Shutdown(); }
             catch (Exception ex) { LogUtility.Error(ex.ToString()); }
 
+            GameServices.SetState(service, EServiceState.Disposed);
             entry.PendingRemove = false;
             RemoveServiceInternal(service, entry);
         }
@@ -179,19 +212,24 @@ namespace Moirai.Atropos
             _servicesByContract.Remove(entry.InterfaceHandle);
             GameServices.RemoveFromGlobalMap(entry.InterfaceHandle, service, Kind);
 
-            SwapRemoveFromList(_registrationOrder, service, nameof(_registrationOrder));
-            if (service is IServiceTickable) SwapRemoveFromList(_tickables, (IServiceTickable)service, nameof(_tickables));
-            if (service is IServiceFixedTickable) SwapRemoveFromList(_fixedTickables, (IServiceFixedTickable)service, nameof(_fixedTickables));
-            if (service is IServiceLateTickable) SwapRemoveFromList(_lateTickables, (IServiceLateTickable)service, nameof(_lateTickables));
-            if (service is IServiceGizmoDrawable) SwapRemoveFromList(_gizmoDrawables, (IServiceGizmoDrawable)service, nameof(_gizmoDrawables));
+            _registrationOrder.Remove(service);
+            if (service is IServiceTickable tickable) _tickables.Remove(tickable);
+            if (service is IServiceFixedTickable fixedTickable) _fixedTickables.Remove(fixedTickable);
+            if (service is IServiceLateTickable lateTickable) _lateTickables.Remove(lateTickable);
+            if (service is IServiceGizmoDrawable gizmo) _gizmoDrawables.Remove(gizmo);
 
             _entriesByService.Remove(service);
             GameServices.RaiseServiceUnregistered(service);
         }
 
+        #endregion
+
+        #region 轮询 [TICK]
+
+        // 四个轮询方法结构相同但刻意不提取为泛型委托——避免热路径上的委托分配开销。
+
         internal void Tick(float elapseSeconds, float realElapseSeconds)
         {
-            SortIfDirty();
             _isIterating = true;
             try
             {
@@ -199,14 +237,8 @@ namespace Moirai.Atropos
                 for (int i = 0; i < count; i++)
                 {
                     var tickable = _tickables[i];
-                    try
-                    {
-                        tickable.Tick(elapseSeconds, realElapseSeconds);
-                    }
-                    catch (Exception ex)
-                    {
-                        LogTickFailure(tickable, nameof(Tick), ex);
-                    }
+                    try { tickable.Tick(elapseSeconds, realElapseSeconds); }
+                    catch (Exception ex) { LogTickFailure(tickable, nameof(Tick), ex); }
                 }
             }
             finally
@@ -218,7 +250,6 @@ namespace Moirai.Atropos
 
         internal void FixedTick(float elapseSeconds, float realElapseSeconds)
         {
-            SortIfDirty();
             _isIterating = true;
             try
             {
@@ -226,14 +257,8 @@ namespace Moirai.Atropos
                 for (int i = 0; i < count; i++)
                 {
                     var tickable = _fixedTickables[i];
-                    try
-                    {
-                        tickable.FixedTick(elapseSeconds, realElapseSeconds);
-                    }
-                    catch (Exception ex)
-                    {
-                        LogTickFailure(tickable, nameof(FixedTick), ex);
-                    }
+                    try { tickable.FixedTick(elapseSeconds, realElapseSeconds); }
+                    catch (Exception ex) { LogTickFailure(tickable, nameof(FixedTick), ex); }
                 }
             }
             finally
@@ -245,7 +270,6 @@ namespace Moirai.Atropos
 
         internal void LateTick(float elapseSeconds, float realElapseSeconds)
         {
-            SortIfDirty();
             _isIterating = true;
             try
             {
@@ -253,14 +277,8 @@ namespace Moirai.Atropos
                 for (int i = 0; i < count; i++)
                 {
                     var tickable = _lateTickables[i];
-                    try
-                    {
-                        tickable.LateTick(elapseSeconds, realElapseSeconds);
-                    }
-                    catch (Exception ex)
-                    {
-                        LogTickFailure(tickable, nameof(LateTick), ex);
-                    }
+                    try { tickable.LateTick(elapseSeconds, realElapseSeconds); }
+                    catch (Exception ex) { LogTickFailure(tickable, nameof(LateTick), ex); }
                 }
             }
             finally
@@ -272,7 +290,6 @@ namespace Moirai.Atropos
 
         internal void DrawGizmos()
         {
-            SortIfDirty();
             _isIterating = true;
             try
             {
@@ -280,14 +297,8 @@ namespace Moirai.Atropos
                 for (int i = 0; i < count; i++)
                 {
                     var drawable = _gizmoDrawables[i];
-                    try
-                    {
-                        drawable.OnDrawGizmos();
-                    }
-                    catch (Exception ex)
-                    {
-                        LogTickFailure(drawable, "OnDrawGizmos", ex);
-                    }
+                    try { drawable.OnDrawGizmos(); }
+                    catch (Exception ex) { LogTickFailure(drawable, "OnDrawGizmos", ex); }
                 }
             }
             finally
@@ -299,8 +310,12 @@ namespace Moirai.Atropos
 
         private static void LogTickFailure(object service, string methodName, Exception ex)
         {
-            LogUtility.Error(StringUtility.Format("Service '{0}' threw in {1}:\n{2}", service.GetType().FullName, methodName, ex));
+            LogUtility.Error("Service '{0}' threw in {1}:\n{2}", service.GetType().FullName, methodName, ex);
         }
+
+        #endregion
+
+        #region 迭代安全 [ITERATION SAFETY]
 
         private void FlushPendingChanges()
         {
@@ -312,6 +327,7 @@ namespace Moirai.Atropos
             }
 
             if (_pendingChanges.Count == 0) return;
+
             for (int i = 0; i < _pendingChanges.Count; i++)
             {
                 var change = _pendingChanges[i];
@@ -327,6 +343,10 @@ namespace Moirai.Atropos
             }
             _pendingChanges.Clear();
         }
+
+        #endregion
+
+        #region 销毁 [DISPOSE]
 
         public void Dispose()
         {
@@ -349,12 +369,12 @@ namespace Moirai.Atropos
             _disposePending = false;
             _pendingChanges.Clear();
 
+            // 逆序关闭：后注册的先关闭，保证依赖方先于被依赖方释放
             for (int i = _registrationOrder.Count - 1; i >= 0; i--)
             {
                 var service = _registrationOrder[i];
-                if (service == null) continue;
-                if (!_entriesByService.TryGetValue(service, out var entry)) continue;
-                ShutdownService(service);
+                if (service != null && _entriesByService.ContainsKey(service))
+                    ShutdownService(service);
             }
 
             _registrationOrder.Clear();
@@ -367,59 +387,13 @@ namespace Moirai.Atropos
             IsDisposed = true;
         }
 
-        private void SortIfDirty()
-        {
-            if (_tickablesDirty) { _tickables.Sort(CompareByPriority); RebuildTickableIndices(); _tickablesDirty = false; }
-            if (_fixedTickablesDirty) { _fixedTickables.Sort(CompareByPriority); RebuildFixedTickableIndices(); _fixedTickablesDirty = false; }
-            if (_lateTickablesDirty) { _lateTickables.Sort(CompareByPriority); RebuildLateTickableIndices(); _lateTickablesDirty = false; }
-            if (_gizmoDrawablesDirty) { _gizmoDrawables.Sort(CompareByPriority); RebuildGizmoIndices(); _gizmoDrawablesDirty = false; }
-        }
+        #endregion
 
-        private void RebuildIndices()
-        {
-            // After InsertSorted on _registrationOrder, rebuild AllIndex in entries
-            for (int i = 0; i < _registrationOrder.Count; i++)
-            {
-                if (_entriesByService.TryGetValue(_registrationOrder[i], out var e))
-                {
-                    e.AllIndex = i;
-                    _entriesByService[_registrationOrder[i]] = e;
-                }
-            }
-        }
+        #region 排序工具 [SORT UTILITIES]
 
-        private void RebuildTickableIndices()
-        {
-            for (int i = 0; i < _tickables.Count; i++)
-                if (_tickables[i] is IService s && _entriesByService.TryGetValue(s, out var e))
-                { e.UpdateIndex = i; _entriesByService[s] = e; }
-        }
-        private void RebuildFixedTickableIndices()
-        {
-            for (int i = 0; i < _fixedTickables.Count; i++)
-                if (_fixedTickables[i] is IService s && _entriesByService.TryGetValue(s, out var e))
-                { e.FixedUpdateIndex = i; _entriesByService[s] = e; }
-        }
-        private void RebuildLateTickableIndices()
-        {
-            for (int i = 0; i < _lateTickables.Count; i++)
-                if (_lateTickables[i] is IService s && _entriesByService.TryGetValue(s, out var e))
-                { e.LateUpdateIndex = i; _entriesByService[s] = e; }
-        }
-        private void RebuildGizmoIndices()
-        {
-            for (int i = 0; i < _gizmoDrawables.Count; i++)
-                if (_gizmoDrawables[i] is IService s && _entriesByService.TryGetValue(s, out var e))
-                { e.GizmoIndex = i; _entriesByService[s] = e; }
-        }
-
-        private static int CompareByPriority<T>(T a, T b)
-        {
-            int left = (a is IService ia) ? ia.Priority : 0;
-            int right = (b is IService ib) ? ib.Priority : 0;
-            return right.CompareTo(left); // descending: high priority first
-        }
-
+        /// <summary>
+        /// 按 Priority 降序插入。Priority 是只读属性，注册后不会变更，因此无需后续重排序。
+        /// </summary>
         private static void InsertSorted<T>(List<T> list, T item) where T : class
         {
             int priority = (item is IService si) ? si.Priority : 0;
@@ -432,65 +406,49 @@ namespace Moirai.Atropos
             list.Insert(insertAt, item);
         }
 
-        private void SwapRemoveFromList<T>(List<T> list, T item, string listName) where T : class
+        private static int CompareByPriority<T>(T a, T b)
         {
-            int index = list.IndexOf(item);
-            if (index < 0) return;
-            int lastIndex = list.Count - 1;
-            if (index != lastIndex)
-            {
-                T moved = list[lastIndex];
-                list[index] = moved;
-                // Update moved entry's index
-                if (moved is IService movedService && _entriesByService.TryGetValue(movedService, out var e))
-                {
-                    switch (listName)
-                    {
-                        case nameof(_registrationOrder): e.AllIndex = index; break;
-                        case nameof(_tickables): e.UpdateIndex = index; break;
-                        case nameof(_fixedTickables): e.FixedUpdateIndex = index; break;
-                        case nameof(_lateTickables): e.LateUpdateIndex = index; break;
-                        case nameof(_gizmoDrawables): e.GizmoIndex = index; break;
-                    }
-                    _entriesByService[movedService] = e;
-                }
-            }
-            list.RemoveAt(lastIndex);
+            int left = (a is IService ia) ? ia.Priority : 0;
+            int right = (b is IService ib) ? ib.Priority : 0;
+            return right.CompareTo(left); // 降序：高优先在前
         }
 
-        // --- 诊断 ---
+        #endregion
 
-        internal struct ServiceEntry
+        #region 内部数据结构 [INTERNAL STRUCTURES]
+
+        /// <summary>
+        /// 服务的注册元数据。class 而非 struct——字典中直接修改字段无需回写。
+        /// </summary>
+        internal class ServiceEntry
         {
             public RuntimeTypeHandle InterfaceHandle;
-            public EServiceScopeKind Scope;
-            public int AllIndex;
-            public int UpdateIndex;
-            public int FixedUpdateIndex;
-            public int LateUpdateIndex;
-            public int GizmoIndex;
             public bool PendingRemove;
         }
 
+        /// <summary>
+        /// 迭代期间暂缓的注册/注销操作。
+        /// </summary>
         internal struct PendingChange
         {
             public readonly bool IsRegister;
             public readonly IService Service;
             public readonly Type InterfaceType;
-            public readonly EServiceScopeKind Scope;
 
-            private PendingChange(bool isRegister, IService service, Type interfaceType, EServiceScopeKind scope)
+            private PendingChange(bool isRegister, IService service, Type interfaceType)
             {
                 IsRegister = isRegister;
                 Service = service;
                 InterfaceType = interfaceType;
-                Scope = scope;
             }
 
-            public static PendingChange Register(IService service, Type interfaceType, EServiceScopeKind scope)
-                => new PendingChange(true, service, interfaceType, scope);
+            public static PendingChange Register(IService service, Type interfaceType)
+                => new PendingChange(true, service, interfaceType);
+
             public static PendingChange Unregister(IService service)
-                => new PendingChange(false, service, null, default);
+                => new PendingChange(false, service, null);
         }
+
+        #endregion
     }
 }

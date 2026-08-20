@@ -5,6 +5,10 @@ namespace Moirai.Atropos
 {
     public static partial class GameServices
     {
+        /// <summary>
+        /// 服务级依赖解析上下文。每个服务实例持有一份，封装跨服务查找逻辑。
+        /// 引用 <see cref="GameServices.s_ServiceMaps"/>（字典引用，始终看到最新状态）。
+        /// </summary>
         internal readonly struct ServiceContext
         {
             private readonly Dictionary<RuntimeTypeHandle, ScopeBindings> _services;
@@ -16,19 +20,23 @@ namespace Moirai.Atropos
                 _preferredScope = preferredScope;
             }
 
+            #region 查找 [LOOKUP]
+
+            /// <summary>获取依赖服务（查找顺序：当前作用域 → GetBest 回退）。未找到抛 <see cref="GameException"/>。</summary>
             internal T Require<T>() where T : class
             {
                 if (TryGet(out T service)) return service;
                 throw new GameException(StringUtility.Format("Service {0} not found.", typeof(T).FullName));
             }
 
+            /// <summary>尝试获取依赖服务。</summary>
             internal bool TryGet<T>(out T service) where T : class
             {
-                // Preferred scope first
+                // 优先查当前作用域
                 if (_preferredScope != null && _preferredScope.TryGet<T>(out service))
                     return true;
 
-                // Fallback to GetBest
+                // 回退到 GetBest（Gameplay > Scene > App）
                 if (_services.TryGetValue(typeof(T).TypeHandle, out var bindings))
                 {
                     var best = bindings.GetBest();
@@ -38,9 +46,14 @@ namespace Moirai.Atropos
                         return service != null;
                     }
                 }
+
                 service = null;
                 return false;
             }
+
+            #endregion
+
+            #region 指定作用域查找 [SCOPED LOOKUP]
 
             internal T RequireApp<T>() where T : class => RequireScope<T>(EServiceScopeKind.App);
             internal T RequireScene<T>() where T : class => RequireScope<T>(EServiceScopeKind.Scene);
@@ -55,6 +68,8 @@ namespace Moirai.Atropos
                 }
                 throw new GameException(StringUtility.Format("Service {0} not found in {1} scope.", typeof(T).FullName, scope));
             }
+
+            #endregion
         }
     }
 }
