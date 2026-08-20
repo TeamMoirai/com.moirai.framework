@@ -4,40 +4,49 @@ using UnityEngine;
 
 namespace Moirai.Atropos
 {
-    /// <summary>
-    /// 服务注册描述符。记录一次服务注册的全部元信息。
-    /// </summary>
+    /// <summary>服务注册描述符。记录一次服务注册的全部元信息。</summary>
     public sealed class ServiceDescriptor
     {
-        /// <summary>服务契约接口类型。</summary>
+        /// <summary>
+        /// 服务契约接口类型。
+        /// </summary>
         public Type InterfaceType { get; set; }
 
-        /// <summary>实现类型（用于反射构造）。与 <see cref="Factory"/> 二选一。</summary>
+        /// <summary>
+        /// 实现类型。与 <see cref="Factory"/> 二选一。
+        /// </summary>
         public Type ImplementationType { get; set; }
 
-        /// <summary>工厂委托（优先于 <see cref="ImplementationType"/>）。接收 <see cref="IServiceProvider"/> 返回实例。</summary>
+        /// <summary>
+        /// 工厂委托（优先于 <see cref="ImplementationType"/>）。
+        /// </summary>
         public Func<IServiceProvider, IService> Factory { get; set; }
 
-        /// <summary>所属作用域。</summary>
+        /// <summary>
+        /// 所属作用域。
+        /// </summary>
         public EServiceScopeKind Scope { get; set; }
 
-        /// <summary>轮询优先级（降序）。</summary>
+        /// <summary>
+        /// 轮询优先级（降序）。
+        /// </summary>
         public int Priority { get; set; }
 
-        /// <summary>是否为 MonoBehaviour 服务（容器通过 AddComponent 创建）。</summary>
+        /// <summary>
+        /// 是否为 MonoBehaviour 服务（容器通过 AddComponent 创建）。
+        /// </summary>
         internal bool IsMonoBehaviour { get; set; }
 
         /// <summary>
         /// 显式声明的额外依赖类型列表。
         /// 用于 MonoBehaviour 服务（无法从构造函数推断依赖）或工厂注册的服务。
-        /// 纯 C# 服务的依赖从构造函数参数自动推断，无需设置此项。
+        /// 纯 C# 服务的依赖从构造函数参数自动推断，无需设置。
         /// </summary>
         internal Type[] ExplicitDependencies { get; set; }
     }
 
     /// <summary>
-    /// 服务注册集合。在组合根（<see cref="AppSettings"/> 或场景/玩法初始化代码）中创建，
-    /// 填充后交给 <see cref="ServiceContainer"/> 构建。
+    /// 服务注册集合。在组合根中创建，填充后交给 <see cref="ServiceContainer"/> 构建。
     /// </summary>
     public sealed class ServiceCollection
     {
@@ -66,7 +75,7 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 通过工厂注册服务（适用于需要自定义创建逻辑的场景）。
+        /// 通过工厂注册服务。
         /// </summary>
         public ServiceRegistrationBuilder Register<TInterface>(
             EServiceScopeKind scope,
@@ -135,9 +144,7 @@ namespace Moirai.Atropos
         #endregion
     }
 
-    /// <summary>
-    /// Fluent 注册构建器。支持链式配置优先级、显式依赖等。
-    /// </summary>
+    /// <summary>Fluent 注册构建器。</summary>
     public class ServiceRegistrationBuilder
     {
         private readonly ServiceDescriptor _descriptor;
@@ -147,7 +154,9 @@ namespace Moirai.Atropos
             _descriptor = descriptor;
         }
 
-        /// <summary>设置轮询优先级（降序，高优先先 Tick）。</summary>
+        /// <summary>
+        /// 设置轮询优先级（降序，高优先先 Tick）。
+        /// </summary>
         public ServiceRegistrationBuilder WithPriority(int priority)
         {
             _descriptor.Priority = priority;
@@ -156,7 +165,7 @@ namespace Moirai.Atropos
 
         /// <summary>
         /// 显式声明依赖（用于 MonoBehaviour 服务或工厂注册）。
-        /// 纯 C# 服务的依赖从构造函数自动推断，通常无需调用此方法。
+        /// 纯 C# 服务的依赖从构造函数自动推断，通常无需调用。
         /// </summary>
         public ServiceRegistrationBuilder DependsOn<T>() where T : class
         {

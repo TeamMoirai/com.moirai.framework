@@ -2,7 +2,7 @@
 
 > 服务化对象池：以 `ObjectBase` 为载体，提供容量、过期、优先级、锁定与自动释放策略的对象池体系。
 
-ObjectPool 服务通过 `GameApp.Services.GetRequiredService<IObjectPoolService>()` 访问，管理任意数量的命名对象池。每个池持有一组 `ObjectBase` 派生对象，支持"单次获取"（同一对象同时只能被取出一处）与"多次获取"两种模式，并可配置容量上限、对象过期秒数、自动释放间隔与优先级。`Support` 子目录在此之上提供了面向 `GameObject` 的开箱即用池化组件。
+ObjectPool 服务通过 `GameApp.ObjectPool` 访问，管理任意数量的命名对象池。每个池持有一组 `ObjectBase` 派生对象，支持"单次获取"（同一对象同时只能被取出一处）与"多次获取"两种模式，并可配置容量上限、对象过期秒数、自动释放间隔与优先级。`Support` 子目录在此之上提供了面向 `GameObject` 的开箱即用池化组件。
 
 注意与 `Runtime/Core/Pool`（命名空间 `Moirai.Atropos.Pool`）的通用对象池区分：后者是框架内部使用的轻量工具——`_ObjectPool<T>`（internal 栈式泛型池）与 `GameObjectPoolManager`（按 `PoolKey` 的 GameObject 池，`Get`/`Release`/`ReleasePool`/`ReleaseAll`），无服务生命周期与过期策略；本服务则是完整的框架服务（实现 `IUpdateService`，由 [Core](Core.md) 的 `ServiceSystem` 驱动轮询），适合业务层管理需要引用计数与释放策略的对象。
 
@@ -21,7 +21,7 @@ ObjectPool 服务通过 `GameApp.Services.GetRequiredService<IObjectPoolService>
 
 | 类/接口 | 说明 |
 |---------|------|
-| `IObjectPoolService` | 管理器接口：创建/销毁/查询对象池、`Release()` / `ReleaseAllUnused()`，经 `GameApp.Services.GetRequiredService<IObjectPoolService>()` 访问 |
+| `IObjectPoolService` | 管理器接口：创建/销毁/查询对象池、`Release()` / `ReleaseAllUnused()`，经 `GameApp.ObjectPool` 访问 |
 | `ObjectPoolService` | 默认实现（`internal sealed`），`Priority = 6`，实现 `IUpdateService` 驱动各池过期与自动释放 |
 | `IObjectPool<T>` | 单个对象池接口：`Register` / `CanSpawn` / `Spawn` / `Despawn` / `SetLocked` / `SetPriority` / `ReleaseObject` / `Release` / `ReleaseAllUnused` |
 | `ObjectPoolBase` | 对象池抽象基类：`Name` / `FullName` / `ObjectType` / `Count` / `CanReleaseCount` / `AllowMultiSpawn` 等属性与 `GetAllObjectInfos()` |
@@ -60,7 +60,7 @@ public class TextureObject : ObjectBase
 
 // 创建对象池：(name, autoReleaseInterval, capacity, expireTime, priority)
 // 未指定时的默认值：capacity = int.MaxValue，expireTime = float.MaxValue，priority = 0
-IObjectPool<TextureObject> pool = GameApp.Services.GetRequiredService<IObjectPoolService>()
+IObjectPool<TextureObject> pool = GameApp.ObjectPool
     .CreateSingleSpawnObjectPool<TextureObject>("textures", 60f, 16, 300f, 0);
 
 // 注册一个已生成的对象（spawned: false 表示注册后留在池中待取，可用于预热）
@@ -75,10 +75,10 @@ if (pool.CanSpawn("hero"))
 }
 
 // 销毁对象池
-GameApp.Services.GetRequiredService<IObjectPoolService>().DestroyObjectPool(pool);
+GameApp.ObjectPool.DestroyObjectPool(pool);
 ```
 
-Support 层的 GameObject 池（内部基于 `GameApp.Services.GetRequiredService<IObjectPoolService>()` 建池）：
+Support 层的 GameObject 池（内部基于 `GameApp.ObjectPool` 建池）：
 
 ```csharp
 // 按模板实例化并池化；同一模板复用同一个池
@@ -116,15 +116,15 @@ pool.Release((List<TextureObject> candidates, int toReleaseCount, DateTime expir
 });
 
 // 全局操作：释放所有池的可释放对象 / 未使用对象
-GameApp.Services.GetRequiredService<IObjectPoolService>().Release();
-GameApp.Services.GetRequiredService<IObjectPoolService>().ReleaseAllUnused();
+GameApp.ObjectPool.Release();
+GameApp.ObjectPool.ReleaseAllUnused();
 ```
 
 查询池与对象信息：
 
 ```csharp
-bool has = GameApp.Services.GetRequiredService<IObjectPoolService>().HasObjectPool<TextureObject>("textures");
-IObjectPool<TextureObject> p = GameApp.Services.GetRequiredService<IObjectPoolService>().GetObjectPool<TextureObject>("textures");
+bool has = GameApp.ObjectPool.HasObjectPool<TextureObject>("textures");
+IObjectPool<TextureObject> p = GameApp.ObjectPool.GetObjectPool<TextureObject>("textures");
 ObjectInfo[] infos = ((ObjectPoolBase)p).GetAllObjectInfos(); // 供调试器等遍历
 foreach (ObjectInfo info in infos)
 {

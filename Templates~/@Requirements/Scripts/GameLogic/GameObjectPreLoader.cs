@@ -2,9 +2,9 @@ using Cysharp.Threading.Tasks;
 using Moirai.Atropos;
 using Moirai.Atropos.Attributes;
 using Moirai.Atropos.Events;
+using Moirai.Atropos.Resource;
 using Sirenix.OdinInspector;
 using UnityEngine;
-using Moirai.Atropos.Resource;
 
 namespace GameLogic
 {
@@ -12,7 +12,7 @@ namespace GameLogic
     /// 预加载游戏对象
     /// </summary>
     /// <remarks>比如一些持久化对象</remarks>
-    [DefaultExecutionOrder(-10000)]
+    [DefaultExecutionOrder(-100)]
     public sealed class GameObjectPreLoader : MonoBehaviour
     {
         [InfoBox("等内置流程跑完后，再加载必要的游戏对象")]
@@ -40,25 +40,28 @@ namespace GameLogic
         private void OnHotfixEntryEvent(HotfixEntryEvent evt)
         {
             if (m_PreLoadPrefabs.Length == 0) return;
-            if (GameApp.Services?.GetService<IResourceService>() == null) return;
 
-            Load().Forget();
+            var resource = GameApp.Resource;
+            if (resource == null) return;
+
+            Load(resource).Forget();
         }
 
         /// <summary>
         /// 分帧加载预制体
         /// </summary>
-        private async UniTaskVoid Load()
+        /// <param name="resource"></param>
+        private async UniTaskVoid Load(IResourceService resource)
         {
             for (int i = 0; i < m_PreLoadPrefabs.Length; i++)
             {
                 if (m_PreLoadPrefabs[i] == null)
                 {
-                    Log.Warning($"[{nameof(GameObjectPreLoader)}] {i} is null");
+                    LogUtility.Warning($"[{nameof(GameObjectPreLoader)}] {i} is null");
                     continue;
                 }
 
-                var go = await GameApp.Services.GetRequiredService<IResourceService>().LoadAssetAsync<GameObject>(m_PreLoadPrefabs[i]);
+                var go = await resource.LoadAssetAsync<GameObject>(m_PreLoadPrefabs[i]);
                 var obj = Instantiate(go);
                 obj.name = go.name;
             }

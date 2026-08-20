@@ -2,7 +2,7 @@
 
 > 框架的服务化基座：以依赖注入容器管理所有子服务的构造、生命周期、轮询与作用域，并由 `GameApp`（MonoBehaviour）驱动。
 
-`@Service` 是整个框架的服务基础设施。所有功能服务（资源、UI、音频、计时器等）均为继承 `ServiceBase` 的普通 C# 类，通过构造函数声明依赖，由 `ServiceContainer` 在构建期拓扑排序、构造注入并按依赖序初始化；非服务代码通过 `GameApp.Services`（`IServiceProvider`）访问服务。服务支持 App/Scene/Gameplay 三级作用域，跨作用域按 Gameplay → Scene → App 链式查找，场景卸载时自动清理场景与玩法级服务。
+`@Service` 是整个框架的服务基础设施。所有功能服务（资源、UI、音频、计时器等）均为继承 `ServiceBase` 的普通 C# 类，通过构造函数声明依赖，由 `ServiceContainer` 在构建期拓扑排序、构造注入并按依赖序初始化；非服务代码通过 `GameApp` 缓存属性（如 `GameApp.Audio`、`GameApp.Resource`、`GameApp.UI`）访问服务，或通过 `GameApp.Services`（`IServiceProvider`）进行非标准查找。服务支持 App/Scene/Gameplay 三级作用域，跨作用域按 Gameplay → Scene → App 链式查找，场景卸载时自动清理场景与玩法级服务。
 
 ## 核心特性
 
@@ -37,15 +37,15 @@
 | `IServiceGizmoDrawable` | 编辑器 Gizmos 绘制接口 `OnDrawGizmos()` |
 | `IAsyncInitService` | 异步初始化接口，实现 `OnInitAsync()` 的服务在 `BuildAsync()` 中统一驱动 |
 | `ServiceMono<TScope>` | MonoBehaviour 服务基类，由容器通过 `AddComponent` 创建并调用 `Inject(IServiceProvider)` 注入依赖 |
-| `GameApp` | MonoBehaviour 入口（`[DefaultExecutionOrder(-1000)]`），仅驱动生命周期与轮询，服务访问通过 `GameApp.Services` |
+| `GameApp` | MonoBehaviour 入口（`[DefaultExecutionOrder(-1000)]`），仅驱动生命周期与轮询，服务访问通过 `GameApp` 缓存属性（如 `GameApp.Audio`、`GameApp.UI`） |
 | `GameAppMessageEvent` / `EMessageEventType` | 命名空间 `Moirai.Atropos.Events`，框架级池化事件（对焦/失焦/退出、SDK 回调） |
 
 ## 快速上手
 
 ```csharp
-// 1. 非服务代码通过 GameApp.Services 获取服务
-ITimerService timer = GameApp.Services.GetRequiredService<ITimerService>();
-IResourceService resource = GameApp.Services.GetService<IResourceService>(); // 未注册返回 null
+// 1. 非服务代码通过 GameApp 缓存属性获取服务
+ITimerService timer = GameApp.Timer;
+IResourceService resource = GameApp.Resource; // 未注册返回 null
 
 // 2. 定义自定义服务——依赖通过构造函数声明
 public interface IMyService { void DoSomething(); }
@@ -256,7 +256,7 @@ GameServices.AddInterceptor(new ProfilingInterceptor());
 ## 注意事项
 
 - `GameServices` 与 `IServiceProvider` 仅允许主线程调用；后台线程/异步回调请通过 `MainThreadDispatcher` 的 `Post`/`Send` 切回主线程。
-- 服务类应优先使用构造函数注入而非 `GameApp.Services`——后者面向非服务代码（MonoBehaviour、UI 脚本等）。
+- 服务类应优先使用构造函数注入而非 `GameApp` 缓存属性——后者面向非服务代码（MonoBehaviour、UI 脚本等）。
 - `GetRequiredService<T>()` 未注册时抛出 `GameException`；`GetService<T>()` 返回 null；`TryGetService<T>()` 返回 bool。
 - 重复调用 `ServiceContainer.BuildAsync()` 抛出 `GameException`；同一接口在同一作用域重复注册仅告警并保留首个实例。
 - 循环依赖在 `BuildAsync()` 拓扑排序阶段即被检测并抛出异常。

@@ -153,7 +153,7 @@ namespace Moirai.Atropos.Audio
 
         private void OnEnable()
         {
-            if (GameApp.Services?.GetService<IAudioService>() == null)
+            if (GameApp.Audio == null)
             {
                 LogUtility.Error($"{nameof(AudioService)} is null");
                 return;
@@ -190,7 +190,7 @@ namespace Moirai.Atropos.Audio
         {
             EnsureTrackState();
 
-            var audioService = GameApp.Services.GetRequiredService<IAudioService>();
+            var audioService = GameApp.Audio;
             _masterVolume = audioService.MasterVolume;
             _masterMute = audioService.MasterMute;
 
@@ -209,7 +209,7 @@ namespace Moirai.Atropos.Audio
             if (m_MasterSliderValue != null)
                 m_MasterSliderValue.text = newVolume.ToString("f0");
 
-            var audioService = GameApp.Services?.GetService<IAudioService>();
+            var audioService = GameApp.Audio;
             if (audioService != null)
                 audioService.MasterVolume = MathsUtility.Remap(newVolume, 0f, MULTIPLE, 0f, 1f);
             HandleSettingChange();
@@ -222,7 +222,7 @@ namespace Moirai.Atropos.Audio
             if (m_MasterSlider != null)
                 m_MasterSlider.interactable = !isMute;
 
-            var audioService = GameApp.Services?.GetService<IAudioService>();
+            var audioService = GameApp.Audio;
             if (audioService != null)
                 audioService.MasterMute = isMute;
             HandleSettingChange();
@@ -239,7 +239,7 @@ namespace Moirai.Atropos.Audio
                 widget.SliderValue.text = newVolume.ToString("f0");
 
             EAudioTrack track = (EAudioTrack)index;
-            var audioService = GameApp.Services?.GetService<IAudioService>();
+            var audioService = GameApp.Audio;
             audioService?.SetTrackVolume(track, MathsUtility.Remap(newVolume, 0f, MULTIPLE, 0f, 1f));
             HandleSettingChange(track);
         }
@@ -255,7 +255,7 @@ namespace Moirai.Atropos.Audio
                 widget.Slider.interactable = !isMute;
 
             EAudioTrack track = (EAudioTrack)index;
-            var audioService = GameApp.Services?.GetService<IAudioService>();
+            var audioService = GameApp.Audio;
             audioService?.SetTrackMute(track, isMute);
             HandleSettingChange(track);
         }
@@ -266,7 +266,7 @@ namespace Moirai.Atropos.Audio
         /// <param name="changedTrack">用户刚操作的音轨，仅检测该音轨；null 表示检测 master。</param>
         private void HandleSettingChange(EAudioTrack? changedTrack = null)
         {
-            var audioService = GameApp.Services?.GetService<IAudioService>();
+            var audioService = GameApp.Audio;
             if (audioService == null) return;
 
             bool hasChanged;
@@ -293,7 +293,7 @@ namespace Moirai.Atropos.Audio
         {
             EnsureTrackState();
 
-            var audioService = GameApp.Services?.GetService<IAudioService>();
+            var audioService = GameApp.Audio;
 
             // 主音量
             bool masterMute = (audioService != null) && audioService.MasterMute;

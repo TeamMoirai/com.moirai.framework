@@ -2,6 +2,7 @@ using System;
 using Moirai.Atropos;
 using Moirai.Atropos.Localization;
 using UnityEngine;
+using JsonUtility = Moirai.Atropos.JsonUtility;
 
 namespace Moirai.Main
 {
@@ -146,7 +147,7 @@ namespace Moirai.Main
             string suffix = ""; // 语言 code 后缀
             string settingSource = null;
             
-            Language settingLanguage = GameApp.Services.GetRequiredService<ILocalizationService>().GetCurrentLanguage(false, ref settingSource);
+            Language settingLanguage = GameApp.Localization.GetCurrentLanguage(false, ref settingSource);
             suffix = settingLanguage.Code;
             TextAsset textAsset = Resources.Load<TextAsset>(buildInTextName + suffix);
             if (textAsset == null)
@@ -157,15 +158,15 @@ namespace Moirai.Main
 
             if (textAsset == null)
             {
-                Log.Error($"LoadText Failed: {buildInTextName}{suffix}");
+                LogUtility.Error($"LoadText Failed: {buildInTextName}{suffix}");
                 return;
             }
 
-            Log.Info($"LoadText: {buildInTextName}{suffix}");
+            LogUtility.Info($"LoadText: {buildInTextName}{suffix}");
             try
             {
                 // 字节通路：TextAsset.bytes 直接解析，跳过 .text 的整串 UTF8 解码
-                TextMode loadConfig = JSONUtility.ToObject<TextMode>(textAsset.bytes);
+                TextMode loadConfig = JsonUtility.ToObject<TextMode>(textAsset.bytes);
                 if (loadConfig == null) return;
                 
                 // 利用反射赋值
@@ -181,13 +182,13 @@ namespace Moirai.Main
                     }
                     else
                     {
-                        Log.Error($"LoadText: Can not find field: {fieldName}, please check BuildInText.");
+                        LogUtility.Error($"LoadText: Can not find field: {fieldName}, please check BuildInText.");
                     }
                 }
             }
             catch (Exception ex)
             {
-                Log.Error($"Error parsing built-in text JSON ({buildInTextName}{suffix}): {ex}");
+                LogUtility.Error($"Error parsing built-in text JSON ({buildInTextName}{suffix}): {ex}");
             }
         }
     }

@@ -73,7 +73,7 @@ string location = ConfigMgr.Instance.GetUIWindowLocation("MainWindow");
 ## 注意事项
 
 - `ConfigTableService` 与 `ConfigTableService_Init` 均为转表生成代码，手动修改会在下次转表时被覆盖；定制逻辑应写在业务侧或修改 `CustomTemplate` 模板
-- 配置数据按 PRELOAD 预加载标签打包，运行时 `LoadTextAsset` 走同步 `GameApp.Services.GetRequiredService<IResourceService>().LoadAsset<TextAsset>`，需确保资源系统已就绪
+- 配置数据按 PRELOAD 预加载标签打包，运行时 `LoadTextAsset` 走同步 `GameApp.Resource.LoadAsset<TextAsset>`，需确保资源系统已就绪
 - 未生成 Config 时 `ConfigMgr.Instance.GetAllLocalizedStrings()` 返回 `null` 并报错 "Generate Config first!"，[Localization](Localization.md) 服务会因此加载失败
 - 修改 `m_ClientDataOutPutPath` / `m_ClientCodeOutPutPath` 后必须手动执行「更新配置路径」，否则 `path_export.conf` 仍指向旧目录
 - 配置根目录位于 Assets 内时会自动加 `~` 后缀（如 `Assets/Config~`），Unity 不会导入该目录，转表脚本仍可正常访问

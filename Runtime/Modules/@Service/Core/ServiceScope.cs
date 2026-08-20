@@ -5,8 +5,8 @@ namespace Moirai.Atropos
 {
     /// <summary>
     /// 服务作用域容器。管理单个作用域内服务的注册表、轮询列表和迭代安全机制。
-    /// <para>不再负责 OnInit 调用——由 <see cref="ServiceContainer"/> 在 BuildAsync 中按拓扑序统一驱动。</para>
-    /// <para>Dispose 时逆注册序关闭全部服务（逆注册序 = 逆依赖拓扑序：依赖方先关闭，被依赖方后关闭）。</para>
+    /// <para>OnInit 由 <see cref="ServiceContainer.BuildAsync"/> 按拓扑序统一驱动。</para>
+    /// <para>Dispose 时逆注册序关闭全部服务（= 逆依赖拓扑序：依赖方先关闭，被依赖方后关闭）。</para>
     /// <para><b>线程契约</b>：所有方法仅限 Unity 主线程调用。</para>
     /// </summary>
     internal sealed class ServiceScope : IDisposable
@@ -57,8 +57,7 @@ namespace Moirai.Atropos
         #region 注册 [REGISTER]
 
         /// <summary>
-        /// 将服务注册到作用域。仅存储引用和更新轮询列表——不调用 OnInit。
-        /// <para>OnInit 由 <see cref="ServiceContainer.BuildAsync"/> 在拓扑序中统一调用。</para>
+        /// 将服务注册到作用域。仅存储引用和更新轮询列表，不调用 OnInit。
         /// </summary>
         internal void Register(Type interfaceType, IService service)
         {
@@ -94,8 +93,8 @@ namespace Moirai.Atropos
 
             var entry = new ServiceEntry { InterfaceHandle = handle };
 
-            // _registrationOrder 记录纯插入序（= 依赖拓扑序），用于诊断收集与逆序关闭；
-            // 轮询列表按 Priority 降序插入，顺序在注册时确定——Priority 只读，运行时不变。
+            // _registrationOrder 记录插入序（= 依赖拓扑序），用于逆序关闭与诊断收集；
+            // 轮询列表按 Priority 降序插入——Priority 只读，运行时不变。
             _registrationOrder.Add(service);
             if (service is IServiceTickable tickable) InsertSorted(_tickables, tickable);
             if (service is IServiceFixedTickable fixedTickable) InsertSorted(_fixedTickables, fixedTickable);
@@ -211,7 +210,7 @@ namespace Moirai.Atropos
         {
             if (_disposePending)
             {
-                // 迭代中请求的作用域销毁：待迭代结束后执行，pending 的注册/注销一并随作用域销毁
+                // 迭代中请求的作用域销毁：待迭代结束后执行，pending 的一并随作用域销毁
                 DisposeInternal();
                 return;
             }
@@ -238,6 +237,8 @@ namespace Moirai.Atropos
 
         #region 关闭 [SHUTDOWN]
 
+        private bool _isDisposing;
+
         private void ShutdownService(IService service)
         {
             if (!_entriesByService.TryGetValue(service, out var entry)) return;
@@ -254,7 +255,7 @@ namespace Moirai.Atropos
 
             GameServices.SetState(service, EServiceState.Disposed);
 
-            // 作用域整体销毁时跳过逐项列表移除（由 DisposeInternal 统一 Clear），
+            // 整体销毁时跳过逐项列表移除（由 DisposeInternal 统一 Clear），
             // 但注册表和 entries 必须逐项清理——否则作用域关闭后 Provider 仍能解析到已关闭的服务
             if (_isDisposing)
             {
@@ -267,8 +268,6 @@ namespace Moirai.Atropos
                 RemoveServiceInternal(service, entry);
             }
         }
-
-        private bool _isDisposing;
 
         private void RemoveServiceInternal(IService service, ServiceEntry entry)
         {
@@ -294,7 +293,7 @@ namespace Moirai.Atropos
 
             if (_isIterating)
             {
-                // 迭代中销毁：若立即移除服务会缩短正在遍历的列表导致越界，延迟到本轮迭代结束执行
+                // 迭代中销毁会缩短正在遍历的列表导致越界，延迟到本轮迭代结束执行
                 _disposePending = true;
                 return;
             }
@@ -338,7 +337,9 @@ namespace Moirai.Atropos
 
         #region 诊断 [DIAGNOSTICS]
 
-        /// <summary>按注册顺序收集此作用域内已注册服务的诊断信息。</summary>
+        /// <summary>
+        /// 按注册顺序收集此作用域内已注册服务的诊断信息。
+        /// </summary>
         internal void CollectDiagnosticInfo(List<GameServices.DiagnosticInfo> buffer)
         {
             if (IsDisposed) return;
@@ -368,7 +369,7 @@ namespace Moirai.Atropos
         #region 排序工具 [SORT UTILITIES]
 
         /// <summary>
-        /// 按 Priority 降序插入。Priority 是只读属性，注册后不会变更，因此无需后续重排序。
+        /// 按 Priority 降序插入。Priority 只读，注册后不会变更，无需后续重排序。
         /// </summary>
         private static void InsertSorted<T>(List<T> list, T item) where T : class
         {
@@ -386,17 +387,13 @@ namespace Moirai.Atropos
 
         #region 内部数据结构 [INTERNAL STRUCTURES]
 
-        /// <summary>
-        /// 服务的注册元数据。class 而非 struct——字典中直接修改字段无需回写。
-        /// </summary>
+        /// <summary>服务的注册元数据。class 而非 struct——字典中直接修改字段无需回写。</summary>
         internal class ServiceEntry
         {
             public RuntimeTypeHandle InterfaceHandle;
         }
 
-        /// <summary>
-        /// 迭代期间暂缓的注册/注销操作。
-        /// </summary>
+        /// <summary>迭代期间暂缓的注册/注销操作。</summary>
         internal struct PendingChange
         {
             public readonly bool IsRegister;

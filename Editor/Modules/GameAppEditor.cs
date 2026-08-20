@@ -28,7 +28,7 @@ namespace Moirai.Atropos.Editor
 
             if (EditorApplication.isPlaying)
             {
-                EditorGUILayout.LabelField("Language", GameApp.Services?.GetService<ILocalizationService>()?.CurrentLanguage.Name);
+                EditorGUILayout.LabelField("Language", GameApp.Localization?.CurrentLanguage.Name);
 
                 int frameRate = EditorGUILayout.IntSlider("Frame Rate", AppSettings.FrameRate, 1, 300);
                 if (frameRate != AppSettings.FrameRate)
@@ -107,7 +107,7 @@ namespace Moirai.Atropos.Editor
         private readonly HashSet<string> _mOpenedItems = new HashSet<string>();
         private void DrawObjectPoolState()
         {
-            var objectPoolService = GameApp.Services.GetRequiredService<IObjectPoolService>();
+            var objectPoolService = GameApp.ObjectPool;
             EditorGUILayout.LabelField("Object Pool Count", objectPoolService.Count.ToString());
 
             ObjectPoolBase[] objectPools = objectPoolService.GetAllObjectPools(true);

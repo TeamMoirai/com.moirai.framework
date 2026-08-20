@@ -7,10 +7,6 @@ namespace Moirai.Atropos
 {
     /// <summary>
     /// 静态服务管理门面。统一管理容器生命周期、轮询驱动和拦截器。
-    /// <para><b>相比旧版的简化</b>：</para>
-    /// <para>- 移除全局服务字典 → 改为 <see cref="ScopedServiceProvider"/> 链式查找</para>
-    /// <para>- 移除跨作用域绑定表与服务级 DI 上下文 → 由构造注入替代</para>
-    /// <para>- 移除面向外部的注册/查找 API → 由 <see cref="ServiceContainer"/> 与 <see cref="IServiceProvider"/> 替代</para>
     /// <para><b>线程契约</b>：所有公共方法仅限 Unity 主线程调用。
     /// 后台线程请通过 <c>MainThreadDispatcher.Post(Action)</c> / <c>MainThreadDispatcher.Send(Action)</c> 切回。</para>
     /// </summary>
@@ -20,13 +16,19 @@ namespace Moirai.Atropos
 
         private static int s_MainThreadId;
 
-        /// <summary>App 作用域容器。</summary>
+        /// <summary>
+        /// App 作用域容器。
+        /// </summary>
         public static ServiceContainer AppContainer { get; private set; }
 
-        /// <summary>Scene 作用域容器。</summary>
+        /// <summary>
+        /// Scene 作用域容器。
+        /// </summary>
         public static ServiceContainer SceneContainer { get; private set; }
 
-        /// <summary>Gameplay 作用域容器。</summary>
+        /// <summary>
+        /// Gameplay 作用域容器。
+        /// </summary>
         public static ServiceContainer GameplayContainer { get; private set; }
 
         #endregion
@@ -46,10 +48,14 @@ namespace Moirai.Atropos
 
         #region 事件 [EVENTS]
 
-        /// <summary>服务注册完成（OnInit 已调用）后触发。</summary>
+        /// <summary>
+        /// 服务注册完成（OnInit 已调用）后触发。
+        /// </summary>
         public static event Action<IService, Type, EServiceScopeKind> onServiceRegistered;
 
-        /// <summary>服务注销完成（Shutdown 已调用）后触发。</summary>
+        /// <summary>
+        /// 服务注销完成（Shutdown 已调用）后触发。
+        /// </summary>
         public static event Action<IService> onServiceUnregistered;
 
         #endregion
@@ -58,7 +64,9 @@ namespace Moirai.Atropos
 
         private static readonly List<IServiceInterceptor> s_Interceptors = new();
 
-        /// <summary>当前已注册的拦截器（只读视图）。</summary>
+        /// <summary>
+        /// 当前已注册的拦截器（只读视图）。
+        /// </summary>
         public static IReadOnlyList<IServiceInterceptor> Interceptors => s_Interceptors;
 
         /// <summary>
@@ -78,7 +86,9 @@ namespace Moirai.Atropos
             s_Interceptors.Insert(insertAt, interceptor);
         }
 
-        /// <summary>移除服务拦截器。</summary>
+        /// <summary>
+        /// 移除服务拦截器。
+        /// </summary>
         public static void RemoveInterceptor(IServiceInterceptor interceptor)
         {
             EnsureMainThread();
@@ -169,7 +179,9 @@ namespace Moirai.Atropos
             return container;
         }
 
-        /// <summary>关闭指定作用域的容器。服务按逆拓扑序（依赖方先）关闭。</summary>
+        /// <summary>
+        /// 关闭指定作用域的容器。服务按逆拓扑序（依赖方先）关闭。
+        /// </summary>
         public static void ShutdownContainer(EServiceScopeKind scope)
         {
             EnsureMainThread();
@@ -184,7 +196,9 @@ namespace Moirai.Atropos
             }
         }
 
-        /// <summary>关闭全部容器。逆序：Gameplay → Scene → App（依赖方先于被依赖方释放）。</summary>
+        /// <summary>
+        /// 关闭全部容器。逆序：Gameplay → Scene → App（依赖方先于被依赖方释放）。
+        /// </summary>
         public static void Shutdown()
         {
             EnsureMainThread();

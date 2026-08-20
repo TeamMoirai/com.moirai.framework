@@ -2,7 +2,7 @@
 
 > 基于 YooAsset 场景句柄的主/子场景管理服务，提供异步加载、挂起激活、进度回调与子场景卸载能力。
 
-场景服务（`Moirai.Atropos.Scene`）封装 YooAsset 的 `SceneHandle`，区分主场景（`LoadSceneMode.Single`，同时只能存在一个）与子场景（`LoadSceneMode.Additive`，可叠加多个）。支持加载到 90% 时挂起、就绪后统一激活的平滑切换模式，并在主场景加载完成后可选触发资源回收。通过 `GameApp.Services.GetRequiredService<ISceneService>()` 静态访问器使用。
+场景服务（`Moirai.Atropos.Scene`）封装 YooAsset 的 `SceneHandle`，区分主场景（`LoadSceneMode.Single`，同时只能存在一个）与子场景（`LoadSceneMode.Additive`，可叠加多个）。支持加载到 90% 时挂起、就绪后统一激活的平滑切换模式，并在主场景加载完成后可选触发资源回收。通过 `GameApp.Scene` 静态访问器使用。
 
 ## 核心特性
 
@@ -17,7 +17,7 @@
 
 | 类/接口 | 说明 |
 |---------|------|
-| `Moirai.Atropos.Scene.ISceneService` | 场景服务接口，`GameApp.Services.GetRequiredService<ISceneService>()` 返回此类型 |
+| `Moirai.Atropos.Scene.ISceneService` | 场景服务接口，`GameApp.Scene` 返回此类型 |
 | `Moirai.Atropos.Scene.SceneService` | 场景服务实现，内部持有 `YooAsset.SceneHandle` 管理主/子场景 |
 
 ## 快速上手
@@ -25,28 +25,28 @@
 ```csharp
 // 异步加载主场景（await 用法）
 UnityEngine.SceneManagement.Scene scene =
-    await GameApp.Services.GetRequiredService<ISceneService>().LoadSceneAsync("GameMain", LoadSceneMode.Single);
+    await GameApp.Scene.LoadSceneAsync("GameMain", LoadSceneMode.Single);
 
 // 异步加载子场景并监听进度
-await GameApp.Services.GetRequiredService<ISceneService>().LoadSceneAsync(
+await GameApp.Scene.LoadSceneAsync(
     "BattleMap", LoadSceneMode.Additive,
     progressCallBack: p => loadingBar.value = p);
 
 // 回调式加载（可指定资源包名）
-GameApp.Services.GetRequiredService<ISceneService>().LoadScene(
+GameApp.Scene.LoadScene(
     "GameMain", packageName: "main-package",
     sceneMode: LoadSceneMode.Single,
     callBack: s => { /* 加载完成，s 为 Scene */ },
     progressCallBack: p => Debug.Log($"进度: {p}"));
 
 // 卸载子场景
-bool ok = await GameApp.Services.GetRequiredService<ISceneService>().UnloadAsync("BattleMap");
-GameApp.Services.GetRequiredService<ISceneService>().Unload("BattleMap", callBack: () => Debug.Log("已卸载"));
+bool ok = await GameApp.Scene.UnloadAsync("BattleMap");
+GameApp.Scene.Unload("BattleMap", callBack: () => Debug.Log("已卸载"));
 
 // 查询
-string main = GameApp.Services.GetRequiredService<ISceneService>().CurrentMainSceneName;
-bool loaded = GameApp.Services.GetRequiredService<ISceneService>().IsContainScene("BattleMap");
-bool isMain = GameApp.Services.GetRequiredService<ISceneService>().IsMainScene("GameMain");
+string main = GameApp.Scene.CurrentMainSceneName;
+bool loaded = GameApp.Scene.IsContainScene("BattleMap");
+bool isMain = GameApp.Scene.IsMainScene("GameMain");
 ```
 
 ## 进阶用法
@@ -57,11 +57,11 @@ bool isMain = GameApp.Services.GetRequiredService<ISceneService>().IsMainScene("
 
 ```csharp
 // 发起挂起加载（子场景同理）
-GameApp.Services.GetRequiredService<ISceneService>().LoadSceneAsync("GameMain", suspendLoad: true);
+GameApp.Scene.LoadSceneAsync("GameMain", suspendLoad: true);
 
 // 一切就绪后激活场景
-bool activated = GameApp.Services.GetRequiredService<ISceneService>().ActivateScene("GameMain");   // 激活为当前活动场景
-bool resumed = GameApp.Services.GetRequiredService<ISceneService>().UnSuspend("GameMain");         // 仅解除挂起
+bool activated = GameApp.Scene.ActivateScene("GameMain");   // 激活为当前活动场景
+bool resumed = GameApp.Scene.UnSuspend("GameMain");         // 仅解除挂起
 ```
 
 ### 多子场景叠加
@@ -69,8 +69,8 @@ bool resumed = GameApp.Services.GetRequiredService<ISceneService>().UnSuspend("G
 Additive 子场景可同时加载多个（以 `location` 为键），适合大世界分块、独立玩法房间等结构：
 
 ```csharp
-await GameApp.Services.GetRequiredService<ISceneService>().LoadSceneAsync("ChunkA", LoadSceneMode.Additive);
-await GameApp.Services.GetRequiredService<ISceneService>().LoadSceneAsync("ChunkB", LoadSceneMode.Additive);
+await GameApp.Scene.LoadSceneAsync("ChunkA", LoadSceneMode.Additive);
+await GameApp.Scene.LoadSceneAsync("ChunkB", LoadSceneMode.Additive);
 
 // 服务关闭（Shutdown）时会自动卸载全部子场景
 ```

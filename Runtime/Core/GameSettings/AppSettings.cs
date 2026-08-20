@@ -1,4 +1,5 @@
 using System;
+using Cysharp.Threading.Tasks;
 using Moirai.Atropos.Localization;
 using Sirenix.OdinInspector;
 using UnityEngine;
@@ -102,7 +103,7 @@ namespace Moirai.Atropos
             m_RunInBackground = true;
             m_NeverSleep = true;
 
-            ResetServices();
+            ResetAppServices();
 
             m_VersionHandler = new DefaultVersionHandler();
             m_SettingHandler = new DefaultSettingHandler();
@@ -137,9 +138,8 @@ namespace Moirai.Atropos
             JsonUtility.Handler = Instance.m_JsonHandler;
             ObjectUtility.Handler = Instance.m_ObjectHandler;
 
-            // 组合根：创建 ServiceCollection → 注册所有 App 作用域服务 → 构建 App 容器
-            // （容器仅存储描述符，实例在 GameApp.Awake 中按拓扑序异步创建）
-            BuildAppContainer();
+            // 组合根：App 作用域服务创建、构建与流程启动
+            InitializeAppServices().Forget();
 
             // 使用服务功能的工具
             TweenUtility.Handler = Instance.m_TweenHandler;
@@ -182,7 +182,7 @@ namespace Moirai.Atropos
             GameSpeed = 1f;
         }
 
-        private partial void ResetServices();
-        private static partial void BuildAppContainer() ;
+        private partial void ResetAppServices();
+        private static partial UniTaskVoid InitializeAppServices();
     }
 }
