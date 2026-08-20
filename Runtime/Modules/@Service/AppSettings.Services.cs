@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Cysharp.Threading.Tasks;
 using Moirai.Atropos.Audio;
 using Moirai.Atropos.Debugger;
 using Moirai.Atropos.Input;
@@ -79,7 +80,9 @@ namespace Moirai.Atropos
 
 #if UNITY_EDITOR
 
-        /// <summary>获取或设置编辑器语言（仅编辑器内有效）。</summary>
+        /// <summary>
+        /// 获取或设置编辑器语言（仅编辑器内有效）。
+        /// </summary>
         public static string EditorLanguage
         {
             get => Instance.m_EditorLanguage;
@@ -88,7 +91,7 @@ namespace Moirai.Atropos
                 if (Instance.m_EditorLanguage == value) return;
 
                 Instance.m_EditorLanguage = value;
-                GameApp.Services?.GetService<ILocalizationService>()?.ChangeLanguage(value);
+                GameApp.Localization?.ChangeLanguage(value);
             }
         }
 
@@ -97,7 +100,7 @@ namespace Moirai.Atropos
         /// <summary>
         /// 重置服务相关设置。
         /// </summary>
-        private partial void ResetServices()
+        private partial void ResetAppServices()
         {
             m_UpdateDriverTypeName = typeof(UpdateDriverService).FullName;
             m_ResourceServiceTypeName = typeof(ResourceService).FullName;
@@ -114,18 +117,28 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 构建 App 作用域容器（仅存储描述符，实例在 GameApp.Awake 中异步创建）。
+        /// 创建并构建 App 作用域服务容器，随后启动游戏流程（Composition Root）。
+        /// <para>① <see cref="GameServices.BuildContainer"/> 创建容器并存储描述符；</para>
+        /// <para>② <see cref="ServiceContainer.BuildAsync"/> 按拓扑序创建实例、构造注入、OnInit、OnInitAsync；</para>
+        /// <para>③ <see cref="ProcedureSettings.StartProcedure"/> 启动流程状态机。</para>
+        /// <para>由 <see cref="AppSettings.Initiation"/> 在 <c>AfterAssembliesLoaded</c> 阶段调用。</para>
         /// </summary>
-        private static partial void BuildAppContainer()
+        private static partial UniTaskVoid InitializeAppServices()
         {
-            GameServices.BuildContainer(EServiceScopeKind.App, BuildServiceCollection(), parent: null);
+            return InitializeCore();
+
+            async UniTaskVoid InitializeCore()
+            {
+                GameServices.BuildContainer(EServiceScopeKind.App, BuildServiceCollection(), parent: null);
+                await GameServices.AppContainer.BuildAsync();
+                await ProcedureSettings.StartProcedure();
+            }
         }
 
         #region 组合根 [COMPOSITION ROOT]
 
         /// <summary>
-        /// 创建 App 作用域服务注册集合（Composition Root 的装配声明）。
-        /// 实例创建由 <see cref="GameServices.AppContainer"/> 在 <see cref="GameApp"/> 启动时异步完成。
+        /// 创建 App 作用域服务注册集合。
         /// </summary>
         private static ServiceCollection BuildServiceCollection()
         {
@@ -150,8 +163,7 @@ namespace Moirai.Atropos
         /// <summary>
         /// 从 Inspector 类型名字符串解析并注册服务到集合。
         /// </summary>
-        private static void RegisterServiceFromInspector(
-            ServiceCollection collection, Type interfaceType, string implTypeName)
+        private static void RegisterServiceFromInspector(ServiceCollection collection, Type interfaceType, string implTypeName)
         {
             if (string.IsNullOrEmpty(implTypeName))
             {

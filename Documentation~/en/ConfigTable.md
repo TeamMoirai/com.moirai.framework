@@ -73,7 +73,7 @@ string location = ConfigMgr.Instance.GetUIWindowLocation("MainWindow");
 ## Notes
 
 - `ConfigTableService` and `ConfigTableService_Init` are both generated code from table export; manual modifications will be overwritten on the next export. Custom logic should be written on the business side or by modifying the `CustomTemplate` templates
-- Configuration data is packaged according to the PRELOAD preload tag. At runtime, `LoadTextAsset` calls `GameApp.Services.GetRequiredService<IResourceService>().LoadAsset<TextAsset>` synchronously; ensure the resource system is ready
+- Configuration data is packaged according to the PRELOAD preload tag. At runtime, `LoadTextAsset` calls `GameApp.Resource.LoadAsset<TextAsset>` synchronously; ensure the resource system is ready
 - When Config has not been generated, `ConfigMgr.Instance.GetAllLocalizedStrings()` returns `null` and reports "Generate Config first!"; the [Localization](Localization.md) service will fail to load as a result
 - After modifying `m_ClientDataOutPutPath` / `m_ClientCodeOutPutPath`, you must manually execute "Update Config Path", otherwise `path_export.conf` still points to the old directory
 - When the config root directory is located within Assets, a `~` suffix is automatically added (e.g., `Assets/Config~`); Unity will not import this directory, but the export script can still access it normally

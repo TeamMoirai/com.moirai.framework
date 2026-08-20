@@ -321,7 +321,7 @@ namespace Moirai.Atropos.UI
             _params = @params;
             if (!FromResources)
             {
-                var resourceService = GameApp.Services.GetRequiredService<IResourceService>();
+                var resourceService = GameApp.Resource;
                 if (isAsync)
                 {
                     var uiInstance = await resourceService.LoadGameObjectAsync(location, parent: UIService.UIRoot);
@@ -558,8 +558,8 @@ namespace Moirai.Atropos.UI
         private void LockInteraction()
         {
             Interactable = false;
-            var uiService = GameApp.Services?.GetService<IUIService>();
-            var inputService = GameApp.Services?.GetService<IInputService>();
+            var uiService = GameApp.UI;
+            var inputService = GameApp.Input;
             if (uiService != null && uiService.IsModal(this))
             {
                 if (inputService != null) inputService.PreventInteractionUI = true;
@@ -569,8 +569,8 @@ namespace Moirai.Atropos.UI
         private void UnlockInteraction()
         {
             Interactable = true;
-            var uiService = GameApp.Services?.GetService<IUIService>();
-            var inputService = GameApp.Services?.GetService<IInputService>();
+            var uiService = GameApp.UI;
+            var inputService = GameApp.Input;
             if (uiService != null && uiService.IsModal(this))
             {
                 if (inputService != null) inputService.PreventInteractionUI = false;
@@ -614,7 +614,7 @@ namespace Moirai.Atropos.UI
 
         private async UniTaskVoid SetInteractWaiter(bool open)
         {
-            if (GameApp.Services.GetRequiredService<IUIService>().GetTopWindow() != this) return;
+            if (GameApp.UI.GetTopWindow() != this) return;
 
             CancelCts();
             _cts = new CancellationTokenSource();
@@ -637,12 +637,12 @@ namespace Moirai.Atropos.UI
 
         protected virtual void Hide()
         {
-            GameApp.Services.GetRequiredService<IUIService>().HideUI(GetType(), WindowName);
+            GameApp.UI.HideUI(GetType(), WindowName);
         }
 
         protected virtual void Close()
         {
-            GameApp.Services.GetRequiredService<IUIService>().CloseUI(GetType(), WindowName);
+            GameApp.UI.CloseUI(GetType(), WindowName);
         }
 
         internal void CancelHideToCloseTimer()
@@ -650,7 +650,7 @@ namespace Moirai.Atropos.UI
             IsHide = false;
             if (HideTimerId != 0UL)
             {
-                GameApp.Services.GetRequiredService<ITimerService>().RemoveTimer(HideTimerId);
+                GameApp.Timer.RemoveTimer(HideTimerId);
                 HideTimerId = 0UL;
             }
         }

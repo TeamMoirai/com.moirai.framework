@@ -2,7 +2,7 @@
 
 > 基于 YooAsset 封装的资源管理系统，提供引用计数、多包加载、取消控制与加密解密能力。
 
-Resource 服务（`ResourceService`）对 [YooAsset](https://github.com/tuyoogame/YooAsset) 做了面向业务的封装：统一同步/异步加载入口、基于对象池的引用计数与自动回收、多资源包（Package）支持，以及 FileOffset / FileStream 两种 Bundle 加密解密方案。通过 `GameApp.Services.GetRequiredService<IResourceService>()`（`IResourceService`）访问，加载结果缓存在 `AssetObject` 对象池中，重复加载同一资源零开销。编辑器下的播放模式由 `ResourceServiceDriver` 组件驱动并可通过 EditorPrefs 切换。
+Resource 服务（`ResourceService`）对 [YooAsset](https://github.com/tuyoogame/YooAsset) 做了面向业务的封装：统一同步/异步加载入口、基于对象池的引用计数与自动回收、多资源包（Package）支持，以及 FileOffset / FileStream 两种 Bundle 加密解密方案。通过 `GameApp.Resource`（`IResourceService`）访问，加载结果缓存在 `AssetObject` 对象池中，重复加载同一资源零开销。编辑器下的播放模式由 `ResourceServiceDriver` 组件驱动并可通过 EditorPrefs 切换。
 
 ## 核心特性
 
@@ -20,7 +20,7 @@ Resource 服务（`ResourceService`）对 [YooAsset](https://github.com/tuyoogam
 
 | 类/接口 | 说明 |
 |---------|------|
-| `IResourceService` | 资源管理器接口，定义加载、卸载、包操作全部 API；经 `GameApp.Services.GetRequiredService<IResourceService>()` 访问 |
+| `IResourceService` | 资源管理器接口，定义加载、卸载、包操作全部 API；经 `GameApp.Resource` 访问 |
 | `ResourceService` | 内部实现（`internal sealed partial class`，按 Partial 拆分为主逻辑 / Pool / AssetObject / Services 四部分） |
 | `ResourceServiceDriver` | MonoBehaviour 驱动组件，Inspector 配置播放模式、加密类型、下载参数与资源池参数，并周期执行 `UnloadUnusedAssets` |
 | `ResourceExtComponent` | 资源扩展组件（internal），维护散图对象池 `AssetItemObject` 与分帧回收，供 `SetSprite` 系列扩展使用 |
@@ -46,19 +46,19 @@ using Moirai.Atropos;
 using UnityEngine;
 
 // 同步加载
-Sprite icon = GameApp.Services.GetRequiredService<IResourceService>().LoadAsset<Sprite>("Assets/AssetRaw/UI/icon.png");
+Sprite icon = GameApp.Resource.LoadAsset<Sprite>("Assets/AssetRaw/UI/icon.png");
 
 // 异步加载（UniTask，支持 CancellationToken 取消）
 var cts = new CancellationTokenSource();
-Texture2D tex = await GameApp.Services.GetRequiredService<IResourceService>().LoadAssetAsync<Texture2D>(
+Texture2D tex = await GameApp.Resource.LoadAssetAsync<Texture2D>(
     "Assets/AssetRaw/UI/atlas.png", cts.Token);
 
 // 异步实例化到场景：Destroy 时自动卸载引用，无需手动 UnloadAsset
-GameObject hero = await GameApp.Services.GetRequiredService<IResourceService>().LoadGameObjectAsync(
+GameObject hero = await GameApp.Resource.LoadGameObjectAsync(
     "Assets/AssetRaw/Prefabs/Hero.prefab", parent);
 
 // 异步回调式（成功 / 失败 / 进度）
-GameApp.Services.GetRequiredService<IResourceService>().LoadAssetAsync(
+GameApp.Resource.LoadAssetAsync(
     "Assets/AssetRaw/Audio/bgm.mp3", 0,
     new LoadAssetCallbacks(
         (assetName, asset, duration, userData) => { /* 成功 */ },
@@ -67,10 +67,10 @@ GameApp.Services.GetRequiredService<IResourceService>().LoadAssetAsync(
     null);
 
 // 同步实例化
-GameObject go = GameApp.Services.GetRequiredService<IResourceService>().LoadGameObject("Assets/AssetRaw/Prefabs/Item.prefab", parent);
+GameObject go = GameApp.Resource.LoadGameObject("Assets/AssetRaw/Prefabs/Item.prefab", parent);
 
 // 卸载手动加载的资源（LoadAsset 系列；引用计数归零后由对象池回收）
-GameApp.Services.GetRequiredService<IResourceService>().UnloadAsset(icon);
+GameApp.Resource.UnloadAsset(icon);
 ```
 
 ## 配置与扩展
@@ -92,7 +92,7 @@ GameApp.Services.GetRequiredService<IResourceService>().UnloadAsset(icon);
 ### 热更流程相关 API
 
 ```csharp
-IResourceService res = GameApp.Services.GetRequiredService<IResourceService>();
+IResourceService res = GameApp.Resource;
 
 // 初始化指定资源包（needInitMainFest: true 时顺带请求并更新清单，单机 OtherPackage 场景）
 await res.InitPackage("DefaultPackage");
@@ -125,12 +125,12 @@ meshRenderer.SetMaterial("Assets/AssetRaw/Mat/skin.mat", needInstance: true);
 ### 资源查询与句柄
 
 ```csharp
-HasAssetResult result = GameApp.Services.GetRequiredService<IResourceService>().HasAsset("Assets/AssetRaw/UI/icon.png");
-bool valid = GameApp.Services.GetRequiredService<IResourceService>().CheckLocationValid("Assets/AssetRaw/UI/icon.png");
-AssetInfo[] infos = GameApp.Services.GetRequiredService<IResourceService>().GetAssetInfos("Preload");   // 按标签批量获取
+HasAssetResult result = GameApp.Resource.HasAsset("Assets/AssetRaw/UI/icon.png");
+bool valid = GameApp.Resource.CheckLocationValid("Assets/AssetRaw/UI/icon.png");
+AssetInfo[] infos = GameApp.Resource.GetAssetInfos("Preload");   // 按标签批量获取
 
 // 需要精细控制句柄生命周期时（不经过对象池计数）
-AssetHandle handle = GameApp.Services.GetRequiredService<IResourceService>().LoadAssetAsyncHandle<GameObject>("path");
+AssetHandle handle = GameApp.Resource.LoadAssetAsyncHandle<GameObject>("path");
 // ... 使用 handle.AssetObject，用完 handle.Dispose()
 ```
 

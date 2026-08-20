@@ -31,8 +31,8 @@ namespace Moirai.Atropos.Localization
 
 		private async UniTaskVoid ApplyFromResource()
 		{
-			var localization = GameApp.Services.GetRequiredService<ILocalizationService>();
-			var resource = GameApp.Services.GetRequiredService<IResourceService>();
+			var localization = GameApp.Localization;
+			var resource = GameApp.Resource;
 			string textIDValue = localization.GetTextFromId(_localizedTextID);
 			var result = await resource.LoadAssetAsync<AudioClip>(textIDValue);
 

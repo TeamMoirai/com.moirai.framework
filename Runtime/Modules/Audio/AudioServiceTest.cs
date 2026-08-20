@@ -56,7 +56,7 @@ namespace Moirai.Test
         {
             yield return null;
 
-            var audioService = GameApp.Services.GetRequiredService<IAudioService>();
+            var audioService = GameApp.Audio;
             volume = audioService.GetTrackVolume(track);
             mute = audioService.GetTrackMute(track);
 
@@ -105,7 +105,7 @@ namespace Moirai.Test
                 return;
             }
             
-            GameApp.Services.GetRequiredService<IAudioService>().Pause(audioHandle);
+            GameApp.Audio.Pause(audioHandle);
         }
 
         [Button]
@@ -119,7 +119,7 @@ namespace Moirai.Test
                 return;
             }
             
-            GameApp.Services.GetRequiredService<IAudioService>().Unpause(audioHandle);
+            GameApp.Audio.Unpause(audioHandle);
         }
 
         [Button]
@@ -133,7 +133,7 @@ namespace Moirai.Test
                 return;
             }
 
-            GameApp.Services.GetRequiredService<IAudioService>().Stop(audioHandle, 0f);
+            GameApp.Audio.Stop(audioHandle, 0f);
         }
 
         [Button]
@@ -165,7 +165,7 @@ namespace Moirai.Test
         {
             if (!Application.isPlaying) return;
 
-            GameApp.Services.GetRequiredService<IAudioService>().SetTrackVolume(track, volume);
+            GameApp.Audio.SetTrackVolume(track, volume);
         }
 
         [Button]
@@ -173,7 +173,7 @@ namespace Moirai.Test
         {
             if (!Application.isPlaying) return;
 
-            var audioService = GameApp.Services.GetRequiredService<IAudioService>();
+            var audioService = GameApp.Audio;
             audioService.SetTrackMute(track, !audioService.GetTrackMute(track));
             mute = audioService.GetTrackMute(track);
         }
@@ -182,7 +182,7 @@ namespace Moirai.Test
         {
             if (!Application.isPlaying) return;
 
-            GameApp.Services.GetRequiredService<IAudioService>().MasterVolume = masterVolume;
+            GameApp.Audio.MasterVolume = masterVolume;
         }
 
         [Button]
@@ -190,7 +190,7 @@ namespace Moirai.Test
         {
             if (!Application.isPlaying) return;
 
-            var audioService = GameApp.Services.GetRequiredService<IAudioService>();
+            var audioService = GameApp.Audio;
             audioService.MasterMute = !audioService.MasterMute;
             masterMute = audioService.MasterMute;
         }

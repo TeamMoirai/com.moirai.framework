@@ -2,14 +2,14 @@
 
 > 自包含的游戏流程管理：把启动、热更、预加载等阶段建模为一个个可切换的流程状态。
 
-Procedure 服务（`ProcedureService`）是一台自包含的状态机——内部维护状态字典与当前状态，不依赖任何外部状态机服务。每个游戏阶段（启动、检查更新、下载资源、加载程序集、预加载等）都是一个 `ProcedureBase` 状态。可用流程与入口流程由 `ProcedureSettings` 配置，`GameApp.Awake` 时自动反射实例化并启动，无需手写引导代码。通过 `GameApp.Services.GetRequiredService<IProcedureService>()`（`IProcedureService`）访问。
+Procedure 服务（`ProcedureService`）是一台自包含的状态机——内部维护状态字典与当前状态，不依赖任何外部状态机服务。每个游戏阶段（启动、检查更新、下载资源、加载程序集、预加载等）都是一个 `ProcedureBase` 状态。可用流程与入口流程由 `ProcedureSettings` 配置，`GameApp.Awake` 时自动反射实例化并启动，无需手写引导代码。通过 `GameApp.Procedure`（`IProcedureService`）访问。
 
 ## 核心特性
 
 - 自包含状态机：`ProcedureService` 内部维护 `Dictionary<Type, ProcedureBase>` 状态字典，自行驱动 `Tick` 轮询，不依赖外部 FSM 服务
 - 配置化启动：`ProcedureSettings` 记录可用流程类型与入口流程，`GameApp.Awake` 自动调用 `ProcedureSettings.StartProcedure()` 完成实例化与启动
 - `[ProcedureLauncher]` 标记：只有标记该 Attribute 的 `ProcedureBase` 子类才会被 `ProcedureSettings` 扫描收录（编辑器 Reset 时自动扫描，默认以名称含 `ProcedureLaunch` 的流程作为入口）
-- 双套切换入口：流程内部可用基类 `ChangeState<T>()`（无参，通过内部 `Owner` 引用）；外部（如热更层）可用 `GameApp.Services.GetRequiredService<IProcedureService>().ChangeState<T>()`
+- 双套切换入口：流程内部可用基类 `ChangeState<T>()`（无参，通过内部 `Owner` 引用）；外部（如热更层）可用 `GameApp.Procedure.ChangeState<T>()`
 - 支持运行时重建：`RestartProcedure` 清理旧状态后按新流程列表重建并以第一个流程启动
 
 ## 核心类型
@@ -18,7 +18,7 @@ Procedure 服务（`ProcedureService`）是一台自包含的状态机——内�
 
 | 类/接口 | 说明 |
 |---------|------|
-| `IProcedureService` | 流程管理器接口：`Initialize` / `StartProcedure` / `HasProcedure` / `ChangeState` / `GetProcedure` / `RestartProcedure` 及 `CurrentProcedure`、`CurrentProcedureTime`；经 `GameApp.Services.GetRequiredService<IProcedureService>()` 访问 |
+| `IProcedureService` | 流程管理器接口：`Initialize` / `StartProcedure` / `HasProcedure` / `ChangeState` / `GetProcedure` / `RestartProcedure` 及 `CurrentProcedure`、`CurrentProcedureTime`；经 `GameApp.Procedure` 访问 |
 | `ProcedureService` | 服务实现（`ServiceBase, IProcedureService, IServiceTickable`，`Priority = -2`），内置状态字典与轮询驱动 |
 | `ProcedureBase` | 流程基类（独立抽象类），提供 `OnInit / OnEnter / OnUpdate / OnLeave / OnDestroy` 无参生命周期与 `ChangeState<T>()` 切换 |
 | `ProcedureSettings` | 框架设置（面板名「流程设置」）：序列化可用流程类型名列表与入口流程类型名，静态 `StartProcedure()` 负责反射建流 |
@@ -67,15 +67,15 @@ public class ProcedureLaunch : ProcedurePremainBase
 
 ```csharp
 // 当前流程与停留时间
-ProcedureBase current = GameApp.Services.GetRequiredService<IProcedureService>().CurrentProcedure;
-float seconds = GameApp.Services.GetRequiredService<IProcedureService>().CurrentProcedureTime;
+ProcedureBase current = GameApp.Procedure.CurrentProcedure;
+float seconds = GameApp.Procedure.CurrentProcedureTime;
 
 // 查询/获取流程实例
-bool has = GameApp.Services.GetRequiredService<IProcedureService>().HasProcedure<ProcedureSplash>();
-ProcedureBase proc = GameApp.Services.GetRequiredService<IProcedureService>().GetProcedure<ProcedureSplash>();
+bool has = GameApp.Procedure.HasProcedure<ProcedureSplash>();
+ProcedureBase proc = GameApp.Procedure.GetProcedure<ProcedureSplash>();
 
 // 外部强制切换（例如热更代码中的跳转逻辑）
-GameApp.Services.GetRequiredService<IProcedureService>().ChangeState<ProcedurePreload>();
+GameApp.Procedure.ChangeState<ProcedurePreload>();
 ```
 
 ## 配置与扩展
@@ -108,7 +108,7 @@ ProcedureLaunch -> ProcedureSplash -> ProcedureInitPackage -> ProcedureInitResou
 
 ```csharp
 // 清理旧状态，用新流程列表重建，并以列表第一个流程启动（返回是否成功）
-bool ok = GameApp.Services.GetRequiredService<IProcedureService>().RestartProcedure(
+bool ok = GameApp.Procedure.RestartProcedure(
     new ProcedureLaunch(),
     new ProcedureInitPackage(),
     new ProcedurePreload());

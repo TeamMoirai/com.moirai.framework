@@ -1,7 +1,6 @@
 using Moirai.Atropos;
 using GameLogic.UI;
 using Moirai.Atropos.ConfigTable;
-using Moirai.Atropos.UI;
 
 namespace GameLogic
 {
@@ -9,8 +8,8 @@ namespace GameLogic
     {
         private static partial void StartGameLogic()
         {
-            Log.Info("Starting GameLogic...");
-            GameApp.Services.GetRequiredService<IUIService>().ShowUIAsync<StartScreen>("StartScreen", GetWindowLocation("start"), false, "Start Screen");
+            LogUtility.Info("Starting GameLogic...");
+            GameApp.UI.ShowUIAsync<StartScreen>("StartScreen", GetWindowLocation("start"), false, "Start Screen");
         }
 
         /// <summary>
@@ -20,7 +19,7 @@ namespace GameLogic
         /// <returns></returns>
         private static string GetWindowLocation(string id)
         {
-            // Log.Info($"Load UI: {id}");
+            // LogUtility.Info($"Load UI: {id}");
             return ConfigMgr.Instance.GetUIWindowLocation(id);
         }
     }

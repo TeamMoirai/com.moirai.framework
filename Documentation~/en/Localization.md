@@ -2,7 +2,7 @@
 
 > Multilingual service based on Luban configuration tables, supporting automatic injection and inline parsing of text, images, audio, and Timeline.
 
-The `Localization` service is accessed via `GameApp.Services.GetRequiredService<ILocalizationService>()` (`ILocalizationService`). On startup, it loads all localized strings from the Luban configuration table (via `ConfigMgr` from [ConfigTable](ConfigTable.md)) and registers available languages. The language is determined by priority: "command-line argument -> editor setting -> local存档 -> system language". When switching languages, it triggers `OnLanguageChanged` and automatically re-injects all registered `LocalizerBase` components. In addition to retrieving text by ID, `LocalizationHelper.ResolveLocalizedStrings` supports inline parsing of `{l10n:ID}` / `{i18n:ID}` / `{g11n:ID}` placeholders in any string.
+The `Localization` service is accessed via `GameApp.Localization` (`ILocalizationService`). On startup, it loads all localized strings from the Luban configuration table (via `ConfigMgr` from [ConfigTable](ConfigTable.md)) and registers available languages. The language is determined by priority: "command-line argument -> editor setting -> local存档 -> system language". When switching languages, it triggers `OnLanguageChanged` and automatically re-injects all registered `LocalizerBase` components. In addition to retrieving text by ID, `LocalizationHelper.ResolveLocalizedStrings` supports inline parsing of `{l10n:ID}` / `{i18n:ID}` / `{g11n:ID}` placeholders in any string.
 
 ## Core Features
 
@@ -21,7 +21,7 @@ Namespace: `Moirai.Atropos.Localization`
 
 | Class/Interface | Description |
 |----------------|-------------|
-| `ILocalizationService` | Service public interface, return type of `GameApp.Services.GetRequiredService<ILocalizationService>()`; includes `OnLanguageChanged` event |
+| `ILocalizationService` | Service public interface, return type of `GameApp.Localization`; includes `OnLanguageChanged` event |
 | `LocalizationService` | `sealed` implementation class, responsible for loading config table text, language switching, and Localizer management |
 | `Language` | Language class (`IEquatable<Language>`): `Name`, `Code`, `DisplayName`, `BuiltinLanguages`, supports conversion to/from `SystemLanguage` |
 | `LocalizationHelper` | Static helper class: `ResolveLocalizedStrings`, `RegisterLanguageMap`, `GetAllAvailableLanguages`, `ToLanguage` |
@@ -43,7 +43,7 @@ Namespace: `Moirai.Atropos.Localization`
 
 ```csharp
 // Access the service
-ILocalizationService localization = GameApp.Services.GetRequiredService<ILocalizationService>();
+ILocalizationService localization = GameApp.Localization;
 
 // Initialize language configuration (depends on ConfigTable and Resource services, must be called manually once after config tables are ready)
 localization.InitLanguageSettings();
@@ -85,7 +85,7 @@ string hint = LocalizationHelper.ResolveLocalizedStrings("Press {l10n:btn_confir
 ### Subscribing to Language Switching
 
 ```csharp
-GameApp.Services.GetRequiredService<ILocalizationService>().OnLanguageChanged += language =>
+GameApp.Localization.OnLanguageChanged += language =>
 {
     Debug.Log($"Language switched: {language.DisplayName}");
     // Manually refresh content not managed by LocalizerBase

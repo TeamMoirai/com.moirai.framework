@@ -167,7 +167,7 @@ namespace Moirai.Atropos.UI
         /// <returns></returns>
         public bool CreateByPath(string resPath, UIBase parentUI, Transform parentTrans = null, bool visible = true)
         {
-            var resourceService = GameApp.Services.GetRequiredService<IResourceService>();
+            var resourceService = GameApp.Resource;
             GameObject goInst = resourceService.LoadGameObject(resPath, parent: parentTrans);
             if (goInst == null)
             {

@@ -76,7 +76,7 @@ namespace Moirai.Atropos.Resource
             Instance = this;
             
             yield return new WaitForEndOfFrame();
-            _assetItemPool = GameApp.Services.GetRequiredService<IObjectPoolService>().CreateMultiSpawnObjectPool<AssetItemObject>(
+            _assetItemPool = GameApp.ObjectPool.CreateMultiSpawnObjectPool<AssetItemObject>(
                 "SetAssetPool",
                 m_AutoReleaseInterval, 16, 60, 0);
             _loadAssetObjectsLinkedList = new LinkedList<LoadAssetObject>();

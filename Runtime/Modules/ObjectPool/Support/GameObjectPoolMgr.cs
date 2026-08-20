@@ -73,7 +73,7 @@ namespace Moirai.Atropos.ObjectPool
         {
             this.parentObj = new GameObject(poolName);
             parentObj.transform.SetParent(poolRoot);
-            pool = GameApp.Services.GetRequiredService<IObjectPoolService>().CreateSingleSpawnObjectPool<PoolObject>(poolName, 300f, 100, 60f, 0);
+            pool = GameApp.ObjectPool.CreateSingleSpawnObjectPool<PoolObject>(poolName, 300f, 100, 60f, 0);
         }
     }
 

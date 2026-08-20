@@ -3,8 +3,6 @@ using System.Reflection;
 using Moirai.Atropos;
 using Moirai.Atropos.Events;
 using Moirai.Atropos.Procedure;
-using Moirai.Atropos.UI;
-using Moirai.Atropos.Localization;
 #if OBFUZ_INSTALLED && ENABLE_OBFUZ
 using Obfuz;
 #endif
@@ -42,15 +40,15 @@ namespace GameLogic
         {
             s_HotfixAssembly = (List<Assembly>)objects[0];
 
-            Log.Info("<b><color=orange>======= HotFix Logic Entry =======</color></b>");
+            LogUtility.Info("<b><color=orange>======= HotFix Logic Entry =======</color></b>");
 
             UnityUtility.AddDestroyListener(Release);
 
             // 保证 UIService 正常初始化
-            GameApp.Services.GetRequiredService<IUIService>().CloseAll();
+            GameApp.UI.CloseAll();
 
             // 初始化多语言配置
-            GameApp.Services.GetRequiredService<ILocalizationService>().InitLanguageSettings();
+            GameApp.Localization.InitLanguageSettings();
 
             // 事件通知
             HotfixEntryEvent.Trigger();
@@ -64,7 +62,7 @@ namespace GameLogic
         private static void Release()
         {
             SingletonSystem.Release();
-            Log.Warning("======= Release GameApp =======");
+            LogUtility.Warning("======= Release GameApp =======");
         }
     }
 }

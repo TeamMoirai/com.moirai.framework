@@ -2,7 +2,7 @@
 
 > Runtime debugger: An IMGUI-based in-game debug panel providing console, runtime environment information, memory and object pool profiling windows, etc.
 
-The Debugger service consists of a pure C# `DebuggerService` (accessed via `GameApp.Services.GetRequiredService<IDebuggerService>()`) responsible for registering and polling the window tree, and a scene component `DebuggerComp` responsible for rendering. At runtime, it appears as a floating box in the top-left corner; clicking it expands the full window. Window layout (position, size, scale) is persisted via `SettingUtility`. All windows are based on the `IDebuggerWindow` interface, and business code can register its own debug windows. This service is a pure runtime IMGUI implementation with no editor-specific code (the Editor directory's Events / Scheduler debug windows belong to other services).
+The Debugger service consists of a pure C# `DebuggerService` (accessed via `GameApp.Debugger`) responsible for registering and polling the window tree, and a scene component `DebuggerComp` responsible for rendering. At runtime, it appears as a floating box in the top-left corner; clicking it expands the full window. Window layout (position, size, scale) is persisted via `SettingUtility`. All windows are based on the `IDebuggerWindow` interface, and business code can register its own debug windows. This service is a pure runtime IMGUI implementation with no editor-specific code (the Editor directory's Events / Scheduler debug windows belong to other services).
 
 ## Core Features
 
@@ -40,8 +40,8 @@ Controlling the debugger and selecting windows in code:
 ```csharp
 using Moirai.Atropos;
 
-GameApp.Services.GetRequiredService<IDebuggerService>().ActiveWindow = true;        // Open/close the debugger window
-bool active = GameApp.Services.GetRequiredService<IDebuggerService>().ActiveWindow;
+GameApp.Debugger.ActiveWindow = true;        // Open/close the debugger window
+bool active = GameApp.Debugger.ActiveWindow;
 
 // Equivalent and extended control via DebuggerComp
 DebuggerComp.Instance.ActiveWindow = true;      // Start/stop the component as well
@@ -49,8 +49,8 @@ DebuggerComp.Instance.ShowFullWindow = true;    // Full window <-> floating box
 DebuggerComp.Instance.ResetLayout();            // Restore default layout (position/size/scale)
 
 // Select a specific window (path comes from the registration string)
-GameApp.Services.GetRequiredService<IDebuggerService>().SelectDebuggerWindow("Profiler/Memory/Texture");
-IDebuggerWindow window = GameApp.Services.GetRequiredService<IDebuggerService>().GetDebuggerWindow("Console");
+GameApp.Debugger.SelectDebuggerWindow("Profiler/Memory/Texture");
+IDebuggerWindow window = GameApp.Debugger.GetDebuggerWindow("Console");
 ```
 
 Registering a custom debug window:
@@ -75,7 +75,7 @@ public class MyWindow : IDebuggerWindow
 
 // Register via DebuggerComp or the service interface; paths use "/" as separator and are automatically grouped
 DebuggerComp.Instance.RegisterDebuggerWindow("Other/My", new MyWindow());
-// Alternatively, use the service interface directly: GameApp.Services.GetRequiredService<IDebuggerService>().RegisterDebuggerWindow("Other/My", new MyWindow());
+// Alternatively, use the service interface directly: GameApp.Debugger.RegisterDebuggerWindow("Other/My", new MyWindow());
 ```
 
 Retrieving logs recorded at runtime:

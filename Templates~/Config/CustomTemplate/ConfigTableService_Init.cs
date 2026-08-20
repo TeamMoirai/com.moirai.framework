@@ -4,7 +4,6 @@ using Luban;
 using Moirai.Atropos;
 using SimpleJSON;
 using UnityEngine;
-using Moirai.Atropos.Resource;
 
 namespace GameProto.Config
 {
@@ -93,7 +92,7 @@ namespace GameProto.Config
 			}
 #endif
 			// 因为配置是预加载（Asset tag 为 PRELOAD），所以无需异步加载
-			return GameApp.Services.GetRequiredService<IResourceService>().LoadAsset<TextAsset>(location);
+			return GameApp.Resource.LoadAsset<TextAsset>(location);
 		}
 	}
 }

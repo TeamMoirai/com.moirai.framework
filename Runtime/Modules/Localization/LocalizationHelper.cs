@@ -51,7 +51,7 @@ namespace Moirai.Atropos.Localization
 
             if (string.IsNullOrEmpty(format)) return format;
 
-            var svc = GameApp.Services?.GetService<ILocalizationService>();
+            var svc = GameApp.Localization;
             if (svc == null)
             {
                 if (!s_HasLoggedWarning) LogUtility.Warning($"{nameof(LocalizationService)} not initialized!");
@@ -105,7 +105,7 @@ namespace Moirai.Atropos.Localization
 
             if (string.IsNullOrEmpty(format)) return format;
 
-            var svc = GameApp.Services?.GetService<ILocalizationService>();
+            var svc = GameApp.Localization;
             if (svc == null)
             {
                 LogUtility.Error($"{nameof(LocalizationService)} not initialized!");
@@ -148,7 +148,7 @@ namespace Moirai.Atropos.Localization
         {
             if (string.IsNullOrEmpty(format)) return format;
 
-            var svc = GameApp.Services?.GetService<ILocalizationService>();
+            var svc = GameApp.Localization;
             if (svc == null)
             {
                 LogUtility.Error("LocalizationService not initialized!");

@@ -9,7 +9,6 @@ using Moirai.Atropos.Localization;
 using GameProto.Config.L10n;
 using UnityEngine;
 using UnityEngine.U2D;
-using Moirai.Atropos.Resource;
 
 namespace GameProto.Config
 {
@@ -144,7 +143,7 @@ namespace GameProto.Config
         {
             if (string.IsNullOrEmpty(id)) return null;
 
-            if (GameApp.Services?.GetService<IResourceService>() == null)
+            if (GameApp.Resource == null)
             {
                 Log.Warning("ResourceService is null.");
                 return null;
@@ -166,9 +165,9 @@ namespace GameProto.Config
 
             var atlas =
 // #if UNITY_WEBGL
-//             await GameApp.Services.GetRequiredService<IResourceService>().LoadAssetAsync<SpriteAtlas>(atlasConfig.Location, packageName:atlasConfig.PackageName);
+//             await GameApp.Resource.LoadAssetAsync<SpriteAtlas>(atlasConfig.Location, packageName:atlasConfig.PackageName);
 // #else
-               GameApp.Services.GetRequiredService<IResourceService>().LoadAsset<SpriteAtlas>(atlasConfig.Location, packageName:atlasConfig.PackageName);
+               GameApp.Resource.LoadAsset<SpriteAtlas>(atlasConfig.Location, packageName:atlasConfig.PackageName);
 // #endif
             return atlas?.GetSprite(spriteConfig.SpriteName);
         }

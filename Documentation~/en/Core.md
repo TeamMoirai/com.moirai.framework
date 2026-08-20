@@ -2,7 +2,7 @@
 
 > Framework's modular base: manage construction, lifecycle, polling, and scope of all sub-services with dependency injection containers, driven by `GameApp` (MonoBehaviour).
 
-`@Service` is the service infrastructure of the entire framework. All functional services (resources, UI, audio, timers, etc.) are plain C# classes inheriting from `ServiceBase` that declare dependencies via constructor parameters. The `ServiceContainer` topologically sorts, constructs, and injects them in dependency order at build time; non-service code accesses services via `GameApp.Services` (`IServiceProvider`). Services support three scopes: App/Scene/Gameplay. Cross-scope lookup follows the Gameplay → Scene → App provider chain. When a scene is unloaded, scene-level and gameplay-level services are automatically cleaned up.
+`@Service` is the service infrastructure of the entire framework. All functional services (resources, UI, audio, timers, etc.) are plain C# classes inheriting from `ServiceBase` that declare dependencies via constructor parameters. The `ServiceContainer` topologically sorts, constructs, and injects them in dependency order at build time; non-service code accesses services via `GameApp` cached properties (e.g. `GameApp.Audio`, `GameApp.Resource`, `GameApp.UI`) or `GameApp.Services` (`IServiceProvider`) for non-standard lookups. Services support three scopes: App/Scene/Gameplay. Cross-scope lookup follows the Gameplay → Scene → App provider chain. When a scene is unloaded, scene-level and gameplay-level services are automatically cleaned up.
 
 ## Core Features
 
@@ -37,15 +37,15 @@ Namespace: `Moirai.Atropos`
 | `IServiceGizmoDrawable` | Editor Gizmos drawing interface `OnDrawGizmos()` |
 | `IAsyncInitService` | Async initialization interface; services implementing `OnInitAsync()` are driven by `BuildAsync()` |
 | `ServiceMono<TScope>` | MonoBehaviour service base; instances are created by the container via `AddComponent` and receive dependencies via `Inject(IServiceProvider)` |
-| `GameApp` | MonoBehaviour entry point (`[DefaultExecutionOrder(-1000)]`); drives lifecycle and polling only; services are accessed via `GameApp.Services` |
+| `GameApp` | MonoBehaviour entry point (`[DefaultExecutionOrder(-1000)]`); drives lifecycle and polling only; services are accessed via `GameApp` cached properties (e.g. `GameApp.Audio`, `GameApp.UI`) |
 | `GameAppMessageEvent` / `EMessageEventType` | Namespace `Moirai.Atropos.Events`, framework-level pooled events (focus/unfocus/quit, SDK callbacks) |
 
 ## Quick Start
 
 ```csharp
-// 1. Non-service code accesses services via GameApp.Services
-ITimerService timer = GameApp.Services.GetRequiredService<ITimerService>();
-IResourceService resource = GameApp.Services.GetService<IResourceService>(); // null if not registered
+// 1. Non-service code accesses services via GameApp cached properties
+ITimerService timer = GameApp.Timer;
+IResourceService resource = GameApp.Resource; // null if not registered
 
 // 2. Define a custom service — dependencies declared via constructor
 public interface IMyService { void DoSomething(); }
@@ -255,7 +255,7 @@ Multiple interceptors execute in `Priority` descending order. Interceptors are c
 ## Notes
 
 - `GameServices` and `IServiceProvider` only allow calls from the main thread; for background threads or async callbacks, use `MainThreadDispatcher`'s `Post`/`Send` to switch back to the main thread.
-- Service classes should prefer constructor injection over `GameApp.Services` — the latter is intended for non-service code (MonoBehaviours, UI scripts, etc.).
+- Service classes should prefer constructor injection over `GameApp` cached properties — the latter is intended for non-service code (MonoBehaviours, UI scripts, etc.).
 - `GetRequiredService<T>()` throws `GameException` if not registered; `GetService<T>()` returns null; `TryGetService<T>()` returns bool.
 - Calling `ServiceContainer.BuildAsync()` twice throws `GameException`; re-registering the same interface in the same scope only warns and keeps the first instance.
 - Circular dependencies are detected during topological sorting in `BuildAsync()` and throw an exception.

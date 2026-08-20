@@ -2,7 +2,7 @@
 
 > 抽象输入层：以统一的轮询 API 屏蔽 Unity 新旧输入系统与移动端 UI 触控的差异，并内置按键提示（Prompts）系统。
 
-输入服务（`Moirai.Atropos.Input`）通过 `InputHandler` 抽象三种输入后端，业务代码只需面向 `GameApp.Services.GetRequiredService<IInputService>()` 的动作名（Action）API 编程，切换后端无需改动调用方。服务还监听 UI 模态事件与应用焦点事件，自动屏蔽/恢复输入，并基于 Input System 提供跨设备的按键图标提示组件。
+输入服务（`Moirai.Atropos.Input`）通过 `InputHandler` 抽象三种输入后端，业务代码只需面向 `GameApp.Input` 的动作名（Action）API 编程，切换后端无需改动调用方。服务还监听 UI 模态事件与应用焦点事件，自动屏蔽/恢复输入，并基于 Input System 提供跨设备的按键图标提示组件。
 
 ## 核心特性
 
@@ -18,7 +18,7 @@
 
 | 类/接口 | 说明 |
 |---------|------|
-| `Moirai.Atropos.Input.IInputService` | 输入服务接口，`GameApp.Services.GetRequiredService<IInputService>()` 返回此类型 |
+| `Moirai.Atropos.Input.IInputService` | 输入服务接口，`GameApp.Input` 返回此类型 |
 | `Moirai.Atropos.Input.InputService` | 输入服务实现，聚合 Handler 与状态开关 |
 | `Moirai.Atropos.Input.InputHandler` | 输入处理器抽象基类（`[Serializable]`），定义全部输入查询方法。通过 `[SerializeReference]` 在输入设置中配置 |
 | `Moirai.Atropos.Input.UnityInputSystemHandler` | 基于 Unity Input System 的处理器（宏 `ENABLE_INPUT_SYSTEM`） |
@@ -41,29 +41,29 @@
 
 ```csharp
 // Input System 后端：分组名/动作名 对应 Action Map/Action
-if (GameApp.Services.GetRequiredService<IInputService>().GetButtonDown("Jump", "Player"))
+if (GameApp.Input.GetButtonDown("Jump", "Player"))
 {
     // 本帧按下跳跃键
 }
 
-float moveX = GameApp.Services.GetRequiredService<IInputService>().GetFloat("Move", "Player");
-Vector2 move = GameApp.Services.GetRequiredService<IInputService>().GetVector2("Move", "Player");
+float moveX = GameApp.Input.GetFloat("Move", "Player");
+Vector2 move = GameApp.Input.GetVector2("Move", "Player");
 
 // actionGroup 传空时 actionName 视为完整路径（"Player/Jump"）
-bool submit = GameApp.Services.GetRequiredService<IInputService>().GetButtonPressed("UI/Submit");
+bool submit = GameApp.Input.GetButtonPressed("UI/Submit");
 
 // 鼠标
-if (GameApp.Services.GetRequiredService<IInputService>().GetMouseButtonDown(EMouseButton.Right)) { }
-Vector2 pos = GameApp.Services.GetRequiredService<IInputService>().GetMousePosition();
-Vector2 scroll = GameApp.Services.GetRequiredService<IInputService>().GetScrollDelta();
+if (GameApp.Input.GetMouseButtonDown(EMouseButton.Right)) { }
+Vector2 pos = GameApp.Input.GetMousePosition();
+Vector2 scroll = GameApp.Input.GetScrollDelta();
 ```
 
 锁定/恢复输入：
 
 ```csharp
-GameApp.Services.GetRequiredService<IInputService>().LockPlayerController = true;    // 模态弹窗期间锁角色移动
-GameApp.Services.GetRequiredService<IInputService>().PreventInteractionUI = true;    // 过场动画期间禁用 UI 交互
-GameApp.Services.GetRequiredService<IInputService>().Enabled = false;                // 全局禁用（重置所有输入状态）
+GameApp.Input.LockPlayerController = true;    // 模态弹窗期间锁角色移动
+GameApp.Input.PreventInteractionUI = true;    // 过场动画期间禁用 UI 交互
+GameApp.Input.Enabled = false;                // 全局禁用（重置所有输入状态）
 ```
 
 ## 进阶用法
@@ -94,7 +94,7 @@ private BoolAction _jump = new BoolAction();
 
 void Update()
 {
-    _jump.Value = GameApp.Services.GetRequiredService<IInputService>().GetBool("Jump", "Player");
+    _jump.Value = GameApp.Input.GetBool("Jump", "Player");
     _jump.Update(Time.deltaTime);
 
     if (_jump.IsDown) { }             // 本帧按下（等价 Started）

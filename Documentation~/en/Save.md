@@ -2,7 +2,7 @@
 
 > A pluggable Handler-based local save system supporting JSON/binary formats and AES encryption, with atomic file replacement on write.
 
-The Save service (`SaveService`) decouples the serialization format from the file read/write process: `SaveService` is responsible for path assembly, directory creation, atomic writes, and deletion/cleanup, while the specific format is determined by `ISaveHandler` implementations (`JsonSaveHandler`, encrypted version, and binary version), which can be switched in the `SaveSettings` panel. Saves are written to `Application.persistentDataPath/Data/{folderName}/`, with filenames automatically appended with the configured extension (default `.sav`). Access via `GameApp.Services.GetRequiredService<ISaveService>()` (`ISaveService`).
+The Save service (`SaveService`) decouples the serialization format from the file read/write process: `SaveService` is responsible for path assembly, directory creation, atomic writes, and deletion/cleanup, while the specific format is determined by `ISaveHandler` implementations (`JsonSaveHandler`, encrypted version, and binary version), which can be switched in the `SaveSettings` panel. Saves are written to `Application.persistentDataPath/Data/{folderName}/`, with filenames automatically appended with the configured extension (default `.sav`). Access via `GameApp.Save` (`ISaveService`).
 
 ## Core Features
 
@@ -18,7 +18,7 @@ Namespace: `Moirai.Atropos.Save`
 
 | Class/Interface | Description |
 |---------|------|
-| `ISaveService` | Save service interface: `Save` / `Load` / `DeleteSave` / `DeleteSaveFolder` / `DeleteAllSaveFiles` / `FileExists` / `DetermineSavePath`; accessed via `GameApp.Services.GetRequiredService<ISaveService>()` |
+| `ISaveService` | Save service interface: `Save` / `Load` / `DeleteSave` / `DeleteSaveFolder` / `DeleteAllSaveFiles` / `FileExists` / `DetermineSavePath`; accessed via `GameApp.Save` |
 | `SaveService` | Service implementation (`Service, ISaveService`), reads the Handler from `SaveSettings` on `OnInit` and injects the encryption key |
 | `ISaveHandler` | Serialization handler interface: `UniTask Save(object objectToSave, FileStream saveFile)` and `UniTask<T> Load<T>(FileStream saveFile)` |
 | `JsonSaveHandler` | JSON format handler, prettyPrint in editor, compact bytes on device |
@@ -45,24 +45,24 @@ public class PlayerData
 }
 
 // Save: writes to persistentDataPath/Data/Save/player_data.sav
-await GameApp.Services.GetRequiredService<ISaveService>().Save(new PlayerData { Level = 10, Coin = 999 }, "player_data");
+await GameApp.Save.Save(new PlayerData { Level = 10, Coin = 999 }, "player_data");
 
 // Load: returns default when file does not exist or decryption fails
-if (GameApp.Services.GetRequiredService<ISaveService>().FileExists("player_data"))
+if (GameApp.Save.FileExists("player_data"))
 {
-    PlayerData data = await GameApp.Services.GetRequiredService<ISaveService>().Load<PlayerData>("player_data");
+    PlayerData data = await GameApp.Save.Load<PlayerData>("player_data");
 }
 
 // Save to a subfolder (persistentDataPath/Data/Settings/)
-await GameApp.Services.GetRequiredService<ISaveService>().Save(settingsObject, "audio", "Settings");
+await GameApp.Save.Save(settingsObject, "audio", "Settings");
 
 // Deletion
-GameApp.Services.GetRequiredService<ISaveService>().DeleteSave("player_data");            // delete a single save
-GameApp.Services.GetRequiredService<ISaveService>().DeleteSaveFolder("Settings");         // delete an entire save folder
-GameApp.Services.GetRequiredService<ISaveService>().DeleteAllSaveFiles();                 // delete all saves under Data/
+GameApp.Save.DeleteSave("player_data");            // delete a single save
+GameApp.Save.DeleteSaveFolder("Settings");         // delete an entire save folder
+GameApp.Save.DeleteAllSaveFiles();                 // delete all saves under Data/
 
 // Query the actual save path
-string path = GameApp.Services.GetRequiredService<ISaveService>().DetermineSavePath();    // persistentDataPath/Data/Save/
+string path = GameApp.Save.DetermineSavePath();    // persistentDataPath/Data/Save/
 ```
 
 ## Configuration and Extensions

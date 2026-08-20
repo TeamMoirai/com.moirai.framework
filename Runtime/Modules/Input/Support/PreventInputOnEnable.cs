@@ -17,7 +17,7 @@ namespace Moirai.Atropos.Input
         
         private void OnEnable()
         {
-            var svc = GameApp.Services?.GetService<IInputService>();
+            var svc = GameApp.Input;
             if (svc == null) return;
 
             if (m_LockPlayerController)
@@ -35,7 +35,7 @@ namespace Moirai.Atropos.Input
 
         private void OnDisable()
         {
-            var svc = GameApp.Services?.GetService<IInputService>();
+            var svc = GameApp.Input;
             if (svc == null) return;
 
             svc.LockPlayerController = _lockPlayerController;

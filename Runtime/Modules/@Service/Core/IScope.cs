@@ -2,9 +2,7 @@ using System;
 
 namespace Moirai.Atropos
 {
-    /// <summary>
-    /// 作用域标记类型接口。用于 <see cref="ServiceMono{TScope}"/> 编译期确定 <see cref="EServiceScopeKind"/>。
-    /// </summary>
+    /// <summary>作用域标记类型接口。用于 <see cref="ServiceMono{TScope}"/> 编译期确定 <see cref="EServiceScopeKind"/>。</summary>
     public interface IScope { }
 
     /// <summary>App 作用域标记。</summary>
@@ -18,7 +16,7 @@ namespace Moirai.Atropos
 
     /// <summary>
     /// 泛型作用域标记 → <see cref="EServiceScopeKind"/> 映射缓存。
-    /// 利用泛型静态字段实现编译期类型 → 枚举的一次性映射，避免每次访问 ServiceMono{TScope}.Scope 时重复 typeof 比较。
+    /// 利用泛型静态字段实现一次性映射，避免每次访问 <c>ServiceMono&lt;TScope&gt;.Scope</c> 时重复 typeof 比较。
     /// </summary>
     internal static class ScopeKindCache<TScope> where TScope : IScope
     {

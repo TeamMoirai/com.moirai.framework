@@ -9,8 +9,7 @@ namespace Moirai.Atropos
 {
     /// <summary>
     /// 服务容器。负责服务的构造注入、生命周期管理和作用域 Provider 生成。
-    /// <para>每个作用域（App/Scene/Gameplay）持有独立的容器实例，通过 parent 链实现跨作用域查找。</para>
-    /// <para><b>构建流程</b>：<see cref="BuildAsync"/> 执行 拓扑排序 → 创建实例（构造注入）→ 注册到作用域 → OnInit → OnInitAsync。</para>
+    /// <para>每个作用域（App/Scene/Gameplay）持有独立实例，通过 parent 链实现跨作用域查找。</para>
     /// <para><b>线程契约</b>：所有方法仅限 Unity 主线程调用。</para>
     /// </summary>
     public sealed class ServiceContainer : IDisposable
@@ -28,16 +27,21 @@ namespace Moirai.Atropos
 
         #region 属性 [PROPERTIES]
 
-        /// <summary>此作用域的服务提供者。</summary>
+        /// <summary>
+        /// 此作用域的服务提供者。
+        /// </summary>
         public IServiceProvider ServiceProvider => _serviceProvider;
 
-        /// <summary>容器所属作用域。</summary>
+        /// <summary>
+        /// 容器所属作用域。
+        /// </summary>
         public EServiceScopeKind ScopeKind => _scopeKind;
 
-        /// <summary>父级容器（App ← Scene ← Gameplay）。</summary>
+        /// <summary>
+        /// 父级容器（App ← Scene ← Gameplay）。
+        /// </summary>
         public ServiceContainer Parent => _parent;
 
-        /// <summary>内部作用域容器（供 GameServices 调用 Tick 等）。</summary>
         internal ServiceScope Scope => _scope;
 
         #endregion
@@ -45,7 +49,7 @@ namespace Moirai.Atropos
         #region 构造 [CONSTRUCTION]
 
         /// <summary>
-        /// 创建容器实例。仅存储描述符，不创建服务实例——调用 <see cref="BuildAsync"/> 完成实际构建。
+        /// 创建容器实例。仅存储描述符，不创建服务实例——调用 <see cref="BuildAsync"/> 完成构建。
         /// </summary>
         public ServiceContainer(
             EServiceScopeKind scopeKind,
@@ -66,9 +70,8 @@ namespace Moirai.Atropos
         #region 构建 [BUILD]
 
         /// <summary>
-        /// 异步构建：拓扑排序 → 构造注入创建实例 → 注册到作用域 → OnInit → OnInitAsync。
-        /// <para>按拓扑序执行：被依赖服务先于依赖方创建和初始化。</para>
-        /// <para>重复构建抛出 <see cref="GameException"/>。</para>
+        /// 异步构建：拓扑排序 → 创建实例（构造注入）→ 注册 → OnInit → OnInitAsync。
+        /// <para>按拓扑序执行：被依赖服务先于依赖方创建和初始化。重复构建抛出 <see cref="GameException"/>。</para>
         /// </summary>
         public async UniTask BuildAsync()
         {
@@ -80,7 +83,7 @@ namespace Moirai.Atropos
             // 1. 拓扑排序（从构造函数参数推断依赖 + 显式声明的依赖）
             var sorted = TopologicalSort(_descriptors);
 
-            // 2. 按拓扑序创建实例并注册到作用域（不调用 OnInit——所有实例就位后再统一初始化）
+            // 2. 按拓扑序创建实例并注册（不调用 OnInit——所有实例就位后再统一初始化）
             foreach (var desc in sorted)
             {
                 IService instance;
@@ -144,7 +147,6 @@ namespace Moirai.Atropos
 
         private IService CreateInstance(ServiceDescriptor desc)
         {
-            // 工厂模式优先
             if (desc.Factory != null)
                 return desc.Factory(_serviceProvider);
 
@@ -153,15 +155,12 @@ namespace Moirai.Atropos
                     StringUtility.Format("Service '{0}' has no factory or implementation type.",
                         desc.InterfaceType.FullName));
 
-            // MonoBehaviour 服务：通过 AddComponent 创建
             if (desc.IsMonoBehaviour)
                 return CreateMonoBehaviourInstance(desc);
 
-            // 纯 C# 服务：通过构造函数注入
             return CreatePocoInstance(desc);
         }
 
-        /// <summary>纯 C# 服务：反射构造 + 参数解析。</summary>
         private IService CreatePocoInstance(ServiceDescriptor desc)
         {
             var implType = desc.ImplementationType;
@@ -199,7 +198,6 @@ namespace Moirai.Atropos
             return (IService)ctor.Invoke(args);
         }
 
-        /// <summary>MonoBehaviour 服务：AddComponent + Inject。</summary>
         private IService CreateMonoBehaviourInstance(ServiceDescriptor desc)
         {
             var implType = desc.ImplementationType;
@@ -211,7 +209,6 @@ namespace Moirai.Atropos
 
             var component = (IService)go.AddComponent(implType);
 
-            // 调用 Inject（MonoBehaviour 的依赖注入入口）
             if (component is ServiceMonoBase mono)
                 mono.Inject(_serviceProvider);
 
@@ -219,25 +216,25 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 选择服务构造函数。优先选择标记了 <see cref="ServiceConstructorAttribute"/> 的构造函数；
-        /// 若无标记，则回退到参数最多的公共构造函数。
+        /// 优先选择标记了 <see cref="ServiceConstructorAttribute"/> 的构造函数；
+        /// 无标记则回退到参数最多的公共构造函数。
         /// </summary>
         private static ConstructorInfo SelectConstructor(Type type)
         {
             var ctors = type.GetConstructors(BindingFlags.Public | BindingFlags.Instance);
 
-            // 优先：标记了 [ServiceConstructor] 的构造函数
             for (int i = 0; i < ctors.Length; i++)
             {
                 if (ctors[i].IsDefined(typeof(ServiceConstructorAttribute), inherit: true))
                     return ctors[i];
             }
 
-            // 回退：参数最多的公共构造函数
             return ctors.OrderByDescending(c => c.GetParameters().Length).FirstOrDefault();
         }
 
-        /// <summary>从容器链解析依赖。</summary>
+        /// <summary>
+        /// 从容器链解析依赖。
+        /// </summary>
         private bool TryResolve(Type type, out object instance)
         {
             if (_instances.TryGetValue(type, out IService svc))
@@ -255,8 +252,8 @@ namespace Moirai.Atropos
         #region 拓扑排序 [TOPOLOGICAL SORT]
 
         /// <summary>
-        /// 拓扑排序。依赖来源：纯 C# 服务从构造函数参数推断，MonoBehaviour 服务从 <c>ExplicitDependencies</c> 读取。
-        /// 循环依赖会抛出 <see cref="GameException"/>。
+        /// Kahn 算法拓扑排序。依赖来源：纯 C# 服务从构造函数参数推断，MonoBehaviour 服务从 ExplicitDependencies 读取。
+        /// 循环依赖抛出 <see cref="GameException"/>。
         /// </summary>
         private static List<ServiceDescriptor> TopologicalSort(List<ServiceDescriptor> descriptors)
         {
@@ -264,7 +261,6 @@ namespace Moirai.Atropos
             foreach (var d in descriptors)
                 byInterface[d.InterfaceType] = d;
 
-            // 构建邻接表
             var inDegree = new Dictionary<Type, int>();
             var adjacency = new Dictionary<Type, List<Type>>();
 
@@ -288,7 +284,6 @@ namespace Moirai.Atropos
                 }
             }
 
-            // Kahn 算法
             var queue = new Queue<Type>();
             foreach (var kvp in inDegree)
             {
@@ -320,10 +315,11 @@ namespace Moirai.Atropos
             return result;
         }
 
-        /// <summary>收集描述符的所有依赖类型。</summary>
+        /// <summary>
+        /// 收集描述符的所有依赖类型。
+        /// </summary>
         private static IEnumerable<Type> CollectDependencies(ServiceDescriptor desc)
         {
-            // 从构造函数参数推断
             if (desc.ImplementationType != null && !desc.IsMonoBehaviour)
             {
                 var ctor = SelectConstructor(desc.ImplementationType);
@@ -337,7 +333,6 @@ namespace Moirai.Atropos
                 }
             }
 
-            // 显式声明的依赖
             if (desc.ExplicitDependencies != null)
             {
                 foreach (var dep in desc.ExplicitDependencies)
@@ -349,7 +344,9 @@ namespace Moirai.Atropos
 
         #region 诊断 [DIAGNOSTICS]
 
-        /// <summary>收集此容器（含父链）内已注册服务的诊断信息。</summary>
+        /// <summary>
+        /// 收集此容器（含父链）内已注册服务的诊断信息。
+        /// </summary>
         internal void CollectDiagnosticInfo(List<GameServices.DiagnosticInfo> buffer)
         {
             _scope.CollectDiagnosticInfo(buffer);
