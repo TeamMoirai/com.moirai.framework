@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+using System;
+using System.Collections.Generic;
 using System.Linq;
 using Moirai.Atropos.Audio;
 using Moirai.Atropos.Debugger;
@@ -92,12 +93,15 @@ namespace Moirai.Atropos
                 if (Instance.m_EditorLanguage == value) return;
 
                 Instance.m_EditorLanguage = value;
-                GameApp.Localization?.ChangeLanguage(value);
+                GameApp.Services?.GetService<ILocalizationService>()?.ChangeLanguage(value);
             }
         }
 
 #endif
 
+        /// <summary>
+        /// 重置服务相关设置。
+        /// </summary>
         private partial void ResetServices()
         {
             m_UpdateDriverTypeName = typeof(UpdateDriverService).FullName;
@@ -115,21 +119,65 @@ namespace Moirai.Atropos
             m_UIServiceTypeName = typeof(UIService).FullName;
         }
 
-        private static partial void RegisterServices()
+        /// <summary>
+        /// 构建 App 作用域容器（仅存储描述符，实例在 GameApp.Awake 中异步创建）。
+        /// </summary>
+        private static partial void BuildAppContainer()
         {
-            GameServices.RegisterService<IUpdateDriverService>(ResolveTypeOption<ServiceBase>(Instance.m_UpdateDriverTypeName));
-            GameServices.RegisterService<IResourceService>(ResolveTypeOption<ServiceBase>(Instance.m_ResourceServiceTypeName));
-            GameServices.RegisterService<IDebuggerService>(ResolveTypeOption<ServiceBase>(Instance.m_DebuggerServiceTypeName));
-            GameServices.RegisterService<IFSMService>(ResolveTypeOption<ServiceBase>(Instance.m_FSMServiceTypeName));
-            GameServices.RegisterService<IAudioService>(ResolveTypeOption<ServiceBase>(Instance.m_AudioServiceTypeName));
-            GameServices.RegisterService<IObjectPoolService>(ResolveTypeOption<ServiceBase>(Instance.m_ObjectPoolServiceTypeName));
-            GameServices.RegisterService<IProcedureService>(ResolveTypeOption<ServiceBase>(Instance.m_ProcedureServiceTypeName));
-            GameServices.RegisterService<ILocalizationService>(ResolveTypeOption<ServiceBase>(Instance.m_LocalizationServiceTypeName));
-            GameServices.RegisterService<ISceneService>(ResolveTypeOption<ServiceBase>(Instance.m_SceneServiceTypeName));
-            GameServices.RegisterService<ITimerService>(ResolveTypeOption<ServiceBase>(Instance.m_TimerServiceTypeName));
-            GameServices.RegisterService<IInputService>(ResolveTypeOption<ServiceBase>(Instance.m_InputServiceTypeName));
-            GameServices.RegisterService<ISaveService>(ResolveTypeOption<ServiceBase>(Instance.m_SaveServiceTypeName));
-            GameServices.RegisterService<IUIService>(ResolveTypeOption<ServiceBase>(Instance.m_UIServiceTypeName));
+            GameServices.BuildContainer(EServiceScopeKind.App, BuildServiceCollection(), parent: null);
         }
+
+        #region 组合根 [COMPOSITION ROOT]
+
+        /// <summary>
+        /// 创建 App 作用域服务注册集合（Composition Root 的装配声明）。
+        /// 实例创建由 <see cref="GameServices.AppContainer"/> 在 <see cref="GameApp"/> 启动时异步完成。
+        /// </summary>
+        private static ServiceCollection BuildServiceCollection()
+        {
+            var collection = new ServiceCollection();
+
+            RegisterServiceFromInspector(collection, typeof(IUpdateDriverService), Instance.m_UpdateDriverTypeName);
+            RegisterServiceFromInspector(collection, typeof(IResourceService), Instance.m_ResourceServiceTypeName);
+            RegisterServiceFromInspector(collection, typeof(IDebuggerService), Instance.m_DebuggerServiceTypeName);
+            RegisterServiceFromInspector(collection, typeof(IFSMService), Instance.m_FSMServiceTypeName);
+            RegisterServiceFromInspector(collection, typeof(IAudioService), Instance.m_AudioServiceTypeName);
+            RegisterServiceFromInspector(collection, typeof(IObjectPoolService), Instance.m_ObjectPoolServiceTypeName);
+            RegisterServiceFromInspector(collection, typeof(IProcedureService), Instance.m_ProcedureServiceTypeName);
+            RegisterServiceFromInspector(collection, typeof(ILocalizationService), Instance.m_LocalizationServiceTypeName);
+            RegisterServiceFromInspector(collection, typeof(ISceneService), Instance.m_SceneServiceTypeName);
+            RegisterServiceFromInspector(collection, typeof(ITimerService), Instance.m_TimerServiceTypeName);
+            RegisterServiceFromInspector(collection, typeof(IInputService), Instance.m_InputServiceTypeName);
+            RegisterServiceFromInspector(collection, typeof(ISaveService), Instance.m_SaveServiceTypeName);
+            RegisterServiceFromInspector(collection, typeof(IUIService), Instance.m_UIServiceTypeName);
+
+            return collection;
+        }
+
+        /// <summary>
+        /// 从 Inspector 类型名字符串解析并注册服务到集合。
+        /// </summary>
+        private static void RegisterServiceFromInspector(
+            ServiceCollection collection, Type interfaceType, string implTypeName)
+        {
+            if (string.IsNullOrEmpty(implTypeName))
+            {
+                LogUtility.Warning("Service implementation type for '{0}' is not configured.",
+                    interfaceType.FullName);
+                return;
+            }
+
+            var implType = AssemblyUtility.GetType(implTypeName);
+            if (implType == null)
+            {
+                LogUtility.Error("Cannot resolve type '{0}' for service '{1}'.",
+                    implTypeName, interfaceType.FullName);
+                return;
+            }
+
+            collection.Register(interfaceType, implType, EServiceScopeKind.App);
+        }
+
+        #endregion
     }
 }

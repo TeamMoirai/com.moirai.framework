@@ -4,6 +4,7 @@ using Moirai.Atropos.Attributes;
 using Moirai.Atropos.Events;
 using Sirenix.OdinInspector;
 using UnityEngine;
+using Moirai.Atropos.Resource;
 
 namespace GameLogic
 {
@@ -39,7 +40,7 @@ namespace GameLogic
         private void OnHotfixEntryEvent(HotfixEntryEvent evt)
         {
             if (m_PreLoadPrefabs.Length == 0) return;
-            if (GameApp.Resource == null) return;
+            if (GameApp.Services?.GetService<IResourceService>() == null) return;
 
             Load().Forget();
         }
@@ -57,7 +58,7 @@ namespace GameLogic
                     continue;
                 }
 
-                var go = await GameApp.Resource.LoadAssetAsync<GameObject>(m_PreLoadPrefabs[i]);
+                var go = await GameApp.Services.GetRequiredService<IResourceService>().LoadAssetAsync<GameObject>(m_PreLoadPrefabs[i]);
                 var obj = Instantiate(go);
                 obj.name = go.name;
             }

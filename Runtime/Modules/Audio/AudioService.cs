@@ -20,13 +20,17 @@ namespace Moirai.Atropos.Audio
     // ReSharper disable once ClassNeverInstantiated.Global
     public sealed class AudioService : ServiceBase, IAudioService, IServiceTickable
     {
-        // OnInit 中获取 IResourceService，必须在其注册后初始化
-        private static readonly Type[] s_Dependencies = { typeof(IResourceService) };
-        public override Type[] Dependencies => s_Dependencies;
-
         private AudioGroupConfig[] _audioGroupConfigs;
         private bool _unityAudioDisabled;
-        private IResourceService _resourceService;
+        private readonly IResourceService _resourceService;
+
+        /// <summary>
+        /// 容器构造注入——依赖在编译期显式声明，由容器拓扑排序保证先于本服务初始化。
+        /// </summary>
+        public AudioService(IResourceService resourceService)
+        {
+            _resourceService = resourceService ?? throw new GameException("Resource service is invalid.");
+        }
 
         // Master 音轨过渡 Tween ID
         private long _masterFadeTweenId;
@@ -222,9 +226,7 @@ namespace Moirai.Atropos.Audio
         public override void OnInit()
         {
             if (!Application.isPlaying) return;
-            
-            _resourceService = GameServices.GetService<IResourceService>();
-            
+
             Initialize();
             
             // Register Events

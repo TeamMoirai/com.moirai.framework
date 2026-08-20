@@ -73,12 +73,12 @@ namespace Moirai.Atropos.ObjectPool
         {
             this.parentObj = new GameObject(poolName);
             parentObj.transform.SetParent(poolRoot);
-            pool = GameApp.ObjectPool.CreateSingleSpawnObjectPool<PoolObject>(poolName, 300f, 100, 60f, 0);
+            pool = GameApp.Services.GetRequiredService<IObjectPoolService>().CreateSingleSpawnObjectPool<PoolObject>(poolName, 300f, 100, 60f, 0);
         }
     }
 
     /// <summary>
-    /// 基于 GameApp.Object 的对象池管理器。
+    /// 基于对象池服务的对象池管理器。
     /// </summary>
     public class GameObjectPoolMgr : SingletonMono_Persistent<GameObjectPoolMgr>
     {

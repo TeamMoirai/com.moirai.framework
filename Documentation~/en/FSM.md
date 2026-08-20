@@ -2,7 +2,7 @@
 
 > Finite State Machine service: Centered around a generic owner, centrally creates, updates, and destroys any number of state machines.
 
-The FSM service provides a complete finite state machine implementation, accessible via the `GameApp.FSM` static accessor. Each state machine is bound to an owner and consists of several `FSMState<T>` states. The service uniformly drives the `Update` polling of all state machines. State machine instances themselves come from `MemoryPool`, ensuring zero GC allocation on creation and destruction. The Procedure management service is built on top of this service; see [Procedure](Procedure.md).
+The FSM service provides a complete finite state machine implementation, accessible via the `GameApp.Services.GetRequiredService<IFSMService>()` static accessor. Each state machine is bound to an owner and consists of several `FSMState<T>` states. The service uniformly drives the `Update` polling of all state machines. State machine instances themselves come from `MemoryPool`, ensuring zero GC allocation on creation and destruction. The Procedure management service is built on top of this service; see [Procedure](Procedure.md).
 
 ## Core Features
 
@@ -19,7 +19,7 @@ Namespace: `Moirai.Atropos.FSM`
 
 | Class/Interface | Description |
 |---------|------|
-| `IFSMService` | State machine manager interface: create/destroy/query state machines, accessed via `GameApp.FSM` |
+| `IFSMService` | State machine manager interface: create/destroy/query state machines, accessed via `GameApp.Services.GetRequiredService<IFSMService>()` |
 | `FSMService` | Default implementation (`internal sealed`), service priority `Priority = 1`, implements `IUpdateService` for unified polling |
 | `IFSM<T>` | State machine interface: `Start` / `ChangeState` / `HasState` / `GetState` / `GetAllStates` / data dictionary, etc. |
 | `FSMBase` | Abstract base class for state machines: `Name` / `FullName` / `OwnerType` / `FsmStateCount` / `IsRunning` / `IsDestroyed` / `CurrentStateName` / `CurrentStateTime` |
@@ -52,7 +52,7 @@ public class EnemyIdleState : FSMState<Enemy>
 }
 
 // 2. Create a state machine (CreateFSM has 4 overloads: params array / List, name can be omitted)
-IFSM<Enemy> fsm = GameApp.FSM.CreateFSM("enemy-1", new Enemy(),
+IFSM<Enemy> fsm = GameApp.Services.GetRequiredService<IFSMService>().CreateFSM("enemy-1", new Enemy(),
     new EnemyIdleState(), new EnemyPatrolState());
 
 // 3. Start (can only be started once; repeated starts throw GameException)
@@ -62,7 +62,7 @@ fsm.Start<EnemyIdleState>();
 fsm.ChangeState<EnemyPatrolState>();
 
 // 5. Destroy
-GameApp.FSM.DestroyFSM(fsm);
+GameApp.Services.GetRequiredService<IFSMService>().DestroyFSM(fsm);
 ```
 
 ## Advanced Usage
@@ -84,12 +84,12 @@ Named state machines and data sharing:
 
 ```csharp
 // Multiple independent state machines can be created for the same owner type
-IFSM<Enemy> fsmA = GameApp.FSM.CreateFSM("enemy-a", enemyA, new EnemyIdleState());
-IFSM<Enemy> fsmB = GameApp.FSM.CreateFSM("enemy-b", enemyB, new EnemyIdleState());
+IFSM<Enemy> fsmA = GameApp.Services.GetRequiredService<IFSMService>().CreateFSM("enemy-a", enemyA, new EnemyIdleState());
+IFSM<Enemy> fsmB = GameApp.Services.GetRequiredService<IFSMService>().CreateFSM("enemy-b", enemyB, new EnemyIdleState());
 
 // Retrieve by name later
-IFSM<Enemy> found = GameApp.FSM.GetFSM<Enemy>("enemy-a");
-bool exists = GameApp.FSM.HasFSM<Enemy>("enemy-b");
+IFSM<Enemy> found = GameApp.Services.GetRequiredService<IFSMService>().GetFSM<Enemy>("enemy-a");
+bool exists = GameApp.Services.GetRequiredService<IFSMService>().HasFSM<Enemy>("enemy-b");
 
 // Share data between states (name -> object)
 fsm.SetData("PatrolIndex", 0);

@@ -55,12 +55,13 @@ namespace Moirai.Test
         private IEnumerator Start()
         {
             yield return null;
-            
-            volume = GameApp.Audio.GetTrackVolume(track);
-            mute = GameApp.Audio.GetTrackMute(track);
-            
-            masterVolume = GameApp.Audio.MasterVolume;
-            masterMute = GameApp.Audio.MasterMute;
+
+            var audioService = GameApp.Services.GetRequiredService<IAudioService>();
+            volume = audioService.GetTrackVolume(track);
+            mute = audioService.GetTrackMute(track);
+
+            masterVolume = audioService.MasterVolume;
+            masterMute = audioService.MasterMute;
         }
         
         private void GenerateID()
@@ -104,7 +105,7 @@ namespace Moirai.Test
                 return;
             }
             
-            GameApp.Audio.Pause(audioHandle);
+            GameApp.Services.GetRequiredService<IAudioService>().Pause(audioHandle);
         }
 
         [Button]
@@ -118,7 +119,7 @@ namespace Moirai.Test
                 return;
             }
             
-            GameApp.Audio.Unpause(audioHandle);
+            GameApp.Services.GetRequiredService<IAudioService>().Unpause(audioHandle);
         }
 
         [Button]
@@ -132,7 +133,7 @@ namespace Moirai.Test
                 return;
             }
 
-            GameApp.Audio.Stop(audioHandle, 0f);
+            GameApp.Services.GetRequiredService<IAudioService>().Stop(audioHandle, 0f);
         }
 
         [Button]
@@ -163,33 +164,35 @@ namespace Moirai.Test
         private void SetVolume()
         {
             if (!Application.isPlaying) return;
-            
-            GameApp.Audio.SetTrackVolume(track, volume);
+
+            GameApp.Services.GetRequiredService<IAudioService>().SetTrackVolume(track, volume);
         }
-    
+
         [Button]
         private void ToggleTrackMute()
         {
             if (!Application.isPlaying) return;
-            
-            GameApp.Audio.SetTrackMute(track, !GameApp.Audio.GetTrackMute(track));
-            mute = GameApp.Audio.GetTrackMute(track);
+
+            var audioService = GameApp.Services.GetRequiredService<IAudioService>();
+            audioService.SetTrackMute(track, !audioService.GetTrackMute(track));
+            mute = audioService.GetTrackMute(track);
         }
-        
+
         private void SetMasterVolume()
         {
             if (!Application.isPlaying) return;
-            
-            GameApp.Audio.MasterVolume = masterVolume;
+
+            GameApp.Services.GetRequiredService<IAudioService>().MasterVolume = masterVolume;
         }
-    
+
         [Button]
         private void ToggleMasterMute()
         {
             if (!Application.isPlaying) return;
-            
-            GameApp.Audio.MasterMute = !GameApp.Audio.MasterMute;
-            masterMute = GameApp.Audio.MasterMute;
+
+            var audioService = GameApp.Services.GetRequiredService<IAudioService>();
+            audioService.MasterMute = !audioService.MasterMute;
+            masterMute = audioService.MasterMute;
         }
         
         private float finalVolume = 1f;

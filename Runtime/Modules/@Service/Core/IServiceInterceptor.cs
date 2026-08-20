@@ -19,9 +19,6 @@ namespace Moirai.Atropos
         /// <summary>服务已注册（OnInit 已调用，状态已切换为 Initialized）。</summary>
         void OnServiceRegistered(IService service, Type interfaceType, EServiceScopeKind scope) { }
 
-        /// <summary>服务即将注销（Shutdown 调用前）。</summary>
-        void OnServiceUnregistering(IService service) { }
-
         /// <summary>服务已注销（Shutdown 已调用，已从注册表移除）。</summary>
         void OnServiceUnregistered(IService service) { }
 

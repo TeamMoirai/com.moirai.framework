@@ -156,8 +156,8 @@ namespace Moirai.Atropos.Audio
         /// <param name="index">音频代理辅助器编号。</param>
         public void Init(AudioCategory audioCategory, int index = 0)
         {
-            _audioService = GameServices.GetService<IAudioService>();
-            _resourceService = GameServices.GetService<IResourceService>();
+            _audioService = GameServices.Provider?.GetService<IAudioService>();
+            _resourceService = GameServices.Provider?.GetService<IResourceService>();
             GameObject host = new GameObject(StringUtility.Format("{0} - {1}", audioCategory.AudioMixerGroup.name, index));
             host.transform.SetParent(audioCategory.InstanceRoot);
             host.transform.localPosition = Vector3.zero;
@@ -528,10 +528,10 @@ namespace Moirai.Atropos.Audio
         /// <param name="mute"></param>
         private void MuteAudiosOnTrack(EAudioTrack track, bool mute)
         {
-            foreach (var category in GameApp.Audio.AudioCategories)
+            foreach (var category in _audioService.AudioCategories)
             {
                 if (category.AudioTrack != track) continue;
-                
+
                 foreach (var agent in category.AudioAgents)
                 {
                     agent.AudioResource.mute = mute;
@@ -545,7 +545,7 @@ namespace Moirai.Atropos.Audio
         /// <param name="mute"></param>
         private void MuteAllAudios(bool mute)
         {
-            foreach (var category in GameApp.Audio.AudioCategories)
+            foreach (var category in _audioService.AudioCategories)
             {
                 foreach (var agent in category.AudioAgents)
                 {

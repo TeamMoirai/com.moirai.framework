@@ -4,18 +4,22 @@ using Moirai.Atropos.FSM;
 namespace Moirai.Atropos.Procedure
 {
     /// <summary>
-    /// 流程管理服务。
+    /// 流程管理服务。依赖 <see cref="IFSMService"/> 通过构造函数注入。
     /// </summary>
     public sealed class ProcedureService : ServiceBase, IProcedureService
     {
-        private IFSMService _fsmService;
+        private readonly IFSMService _fsmService;
         private IFSM<IProcedureService> _procedureFsm;
 
-        // Initialize/Shutdown 中使用 IFSMService（由 ProcedureSettings 注入），必须在其注册后初始化
-        private static readonly Type[] s_Dependencies = { typeof(IFSMService) };
-        public override Type[] Dependencies => s_Dependencies;
-
         public override int Priority => -2;
+
+        /// <summary>
+        /// 容器构造注入——依赖在编译期显式声明。
+        /// </summary>
+        public ProcedureService(IFSMService fsmService)
+        {
+            _fsmService = fsmService ?? throw new GameException("FSM service is invalid.");
+        }
         
         public ProcedureBase CurrentProcedure
         {
@@ -45,32 +49,20 @@ namespace Moirai.Atropos.Procedure
 
         public override void OnInit()
         {
-            _fsmService = null;
             _procedureFsm = null;
         }
-        
+
         public override void Shutdown()
         {
-            if (_fsmService != null)
+            if (_procedureFsm != null)
             {
-                if (_procedureFsm != null)
-                {
-                    _fsmService.DestroyFSM(_procedureFsm);
-                    _procedureFsm = null;
-                }
-
-                _fsmService = null;
+                _fsmService.DestroyFSM(_procedureFsm);
+                _procedureFsm = null;
             }
         }
-        
-        public void Initialize(IFSMService fsmService, params ProcedureBase[] procedures)
-        {
-            if (fsmService == null)
-            {
-                throw new GameException("FSM manager is invalid.");
-            }
 
-            _fsmService = fsmService;
+        public void Initialize(params ProcedureBase[] procedures)
+        {
             _procedureFsm = _fsmService.CreateFSM(this, procedures);
         }
         
@@ -166,7 +158,7 @@ namespace Moirai.Atropos.Procedure
                 return false;
             }
 
-            Initialize(_fsmService, procedures);
+            Initialize(procedures);
             StartProcedure(procedures[0].GetType());
             return true;
         }

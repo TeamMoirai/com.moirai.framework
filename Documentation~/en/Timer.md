@@ -2,7 +2,7 @@
 
 > High-performance timer service based on a four-level timing wheel, no full scan, suitable for large-scale timed scenarios such as skill cooldowns, heartbeat packets, and delayed tasks.
 
-The `Timer` service provides the ability to add, pause, resume, restart, and remove timers. The implementation class `TimerService` uses a four-level timing wheel algorithm (256 slots per level, 1 ms precision, advancing at most 64 ticks per frame), combined with paged slot reuse and versioned handles, maintaining zero GC and O(1) operation cost even with hundreds of thousands of timers. The service maintains two independent timing wheels: scaled (affected by `Time.timeScale`) and unscaled. Access via `GameApp.Timer`.
+The `Timer` service provides the ability to add, pause, resume, restart, and remove timers. The implementation class `TimerService` uses a four-level timing wheel algorithm (256 slots per level, 1 ms precision, advancing at most 64 ticks per frame), combined with paged slot reuse and versioned handles, maintaining zero GC and O(1) operation cost even with hundreds of thousands of timers. The service maintains two independent timing wheels: scaled (affected by `Time.timeScale`) and unscaled. Access via `GameApp.Services.GetRequiredService<ITimerService>()`.
 
 Note: This service is a separate facility from the Scheduler (`Scheduler.Delay`, `Scheduler.WaitFrame`, etc.) under `Runtime/Core/Schedulers`. The Scheduler is a zero-allocation general-purpose scheduler, while the Timer service is a timing wheel implementation designed for massive timed tasks. Choose based on your needs.
 
@@ -32,7 +32,7 @@ Namespace: `Moirai.Atropos.Timer`
 
 ```csharp
 // Access the service
-ITimerService timer = GameApp.Timer;
+ITimerService timer = GameApp.Services.GetRequiredService<ITimerService>();
 
 // 1. Delayed execution (no-parameter Action)
 ulong id1 = timer.AddTimer(() => Debug.Log("Executed after 3 seconds"), 3f);

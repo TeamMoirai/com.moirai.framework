@@ -40,8 +40,9 @@ namespace Moirai.Atropos.Debugger
 
                     GUILayout.Space(4);
 
-                    DrawItem("Is Iterating", GameServices.IsIterating ? "Yes" : "No");
-                    DrawItem("Pending Changes", GameServices.PendingChangesCount.ToString());
+                    DrawItem("App Container", GameServices.AppContainer != null ? "Active" : "—");
+                    DrawItem("Scene Container", GameServices.SceneContainer != null ? "Active" : "—");
+                    DrawItem("Gameplay Container", GameServices.GameplayContainer != null ? "Active" : "—");
                 }
                 GUILayout.EndVertical();
 

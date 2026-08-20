@@ -8,9 +8,9 @@ namespace Moirai.Atropos
     /// </summary>
     public enum EServiceState : byte
     {
-        /// <summary>已创建但未注册。</summary>
+        /// <summary>已创建但未初始化。</summary>
         Created = 0,
-        /// <summary>已注册并初始化，正在运行。</summary>
+        /// <summary>已初始化，正在运行。</summary>
         Initialized = 1,
         /// <summary>正在关闭（Shutdown 调用中）。</summary>
         ShuttingDown = 2,
@@ -19,7 +19,22 @@ namespace Moirai.Atropos
     }
 
     /// <summary>
+    /// 服务生命周期作用域种类。
+    /// </summary>
+    public enum EServiceScopeKind : byte
+    {
+        /// <summary>应用级，生命周期最长，适合资源、音频、UI、计时器等全局服务。</summary>
+        App = 0,
+        /// <summary>场景级，主场景切换时会重置，适合当前场景状态。</summary>
+        Scene = 1,
+        /// <summary>玩法级，适合一局战斗或一个玩法实例的服务。</summary>
+        Gameplay = 2,
+    }
+
+    /// <summary>
     /// 服务核心契约。
+    /// <para><b>依赖声明方式</b>：纯 C# 服务通过构造函数参数声明；MonoBehaviour 服务通过 <c>Inject(IServiceProvider)</c> 声明。</para>
+    /// <para>依赖由 <see cref="ServiceContainer"/> 在构建期拓扑排序并注入，编译期即可验证。</para>
     /// </summary>
     public interface IService
     {
@@ -29,12 +44,8 @@ namespace Moirai.Atropos
         /// <summary>所属作用域。</summary>
         EServiceScopeKind Scope { get; }
 
-        /// <summary>
-        /// 此服务依赖的合约接口类型列表。注册时验证依赖已就绪，未满足则抛出 <see cref="GameException"/>。
-        /// 声明的依赖强制先于本服务注册，因此注册顺序即依赖拓扑序，逆序关闭即逆拓扑序。
-        /// 建议以 static readonly 数组返回，避免每次访问分配。
-        /// </summary>
-        Type[] Dependencies { get; }
+        /// <summary>当前生命周期状态。</summary>
+        EServiceState State { get; }
 
         /// <summary>注册完成后调用（同步）。</summary>
         void OnInit();
@@ -67,37 +78,47 @@ namespace Moirai.Atropos
         void OnDrawGizmos();
     }
 
-    /// <summary>异步初始化服务。注册完成后由 <see cref="GameServices.InitializeAsync"/> 统一驱动。</summary>
+    /// <summary>
+    /// 异步初始化服务。由 <see cref="ServiceContainer.BuildAsync"/> 按拓扑序驱动，
+    /// 被依赖服务的 OnInitAsync 先于依赖方执行。
+    /// </summary>
     public interface IAsyncInitService
     {
         UniTask OnInitAsync();
     }
 
     /// <summary>
-    /// 纯 C# 服务基类。不依赖 MonoBehaviour，生命周期由 <see cref="GameServices"/> 精确控制。
+    /// 纯 C# 服务基类。不依赖 MonoBehaviour，生命周期由 <see cref="ServiceContainer"/> 精确控制。
+    /// <para><b>依赖注入方式</b>：通过构造函数参数声明，容器在创建时自动解析并注入。</para>
+    /// <para>若需运行时延迟解析（如可选依赖），可在构造函数中注入 <see cref="IServiceProvider"/>。</para>
     /// </summary>
+    /// <example>
+    /// <code>
+    /// public class AudioService : ServiceBase, IAudioService
+    /// {
+    ///     private readonly IResourceService _resource;
+    ///     private readonly IServiceProvider _provider;
+    ///
+    ///     public AudioService(IResourceService resource, IServiceProvider provider)
+    ///     {
+    ///         _resource = resource;     // 构造期注入——编译期明确
+    ///         _provider = provider;     // 可选：运行时延迟解析
+    ///     }
+    ///
+    ///     public override void OnInit() { }
+    ///     public override void Shutdown() { }
+    /// }
+    /// </code>
+    /// </example>
     public abstract class ServiceBase : IService
     {
-        #region 字段 [FIELDS]
-
-        private GameServices.ServiceContext _context;
-
-        #endregion
-
         #region 属性 [PROPERTIES]
 
         public virtual int Priority => 0;
         public virtual EServiceScopeKind Scope => EServiceScopeKind.App;
 
-        /// <summary>当前生命周期状态。</summary>
+        /// <summary>当前生命周期状态。由容器维护，子类只读。</summary>
         public EServiceState State { get; internal set; } = EServiceState.Created;
-
-        /// <summary>
-        /// 此服务依赖的合约接口类型列表。注册时验证依赖已就绪，未满足则抛出 <see cref="GameException"/>。
-        /// 默认为空。子类覆写以声明依赖（如 <c>typeof(IResourceService)</c>）。
-        /// 建议以 static readonly 数组返回，避免每次访问分配。
-        /// </summary>
-        public virtual Type[] Dependencies => Array.Empty<Type>();
 
         #endregion
 
@@ -107,29 +128,5 @@ namespace Moirai.Atropos
         public abstract void Shutdown();
 
         #endregion
-
-        #region 跨服务依赖 [CROSS-SERVICE DEPENDENCIES]
-
-        // DI 辅助方法与 ServiceMonoBase 中的实现完全一致——两者无法共享基类（一个继承 object，一个继承 MonoBehaviour），
-        // 刻意保持重复以避免组合带来的间接调用开销。
-
-        /// <summary>获取依赖服务（查找顺序：当前作用域 → GetBest 回退）。未找到抛 <see cref="GameException"/>。</summary>
-        protected T Require<T>() where T : class => _context.Require<T>();
-
-        /// <summary>尝试获取依赖服务。</summary>
-        protected bool TryGet<T>(out T service) where T : class => _context.TryGet(out service);
-
-        /// <summary>从 App 作用域获取服务。未找到抛 <see cref="GameException"/>。</summary>
-        protected T RequireApp<T>() where T : class => _context.RequireApp<T>();
-
-        /// <summary>从 Scene 作用域获取服务。未找到抛 <see cref="GameException"/>。</summary>
-        protected T RequireScene<T>() where T : class => _context.RequireScene<T>();
-
-        /// <summary>从 Gameplay 作用域获取服务。未找到抛 <see cref="GameException"/>。</summary>
-        protected T RequireGameplay<T>() where T : class => _context.RequireGameplay<T>();
-
-        #endregion
-
-        internal void SetContext(GameServices.ServiceContext context) => _context = context;
     }
 }

@@ -42,7 +42,7 @@ namespace Moirai.Atropos.Resource
 
         private void InitializedResources()
         {
-            s_ResourceService = GameServices.GetService<IResourceService>();
+            s_ResourceService = GameServices.Provider?.GetService<IResourceService>();
         }
 
         /// <summary>

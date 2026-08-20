@@ -107,24 +107,24 @@ namespace Moirai.Atropos
         {
             /// <summary>池化完成源（AutoReset：await 消费后自动回池）。所有 TrySet* 经其 version 护栏仲裁：
             /// 源回收复用后，本句柄的陈旧 setter 自动失效，无需额外状态。</summary>
-            internal readonly AutoResetUniTaskCompletionSource<T> Source;
+            private readonly AutoResetUniTaskCompletionSource<T> _source;
             private readonly CancellationToken _token; // 调用方令牌：停机取消时回传，便于调用方异常过滤器匹配
 
             public AwaiterHandle(AutoResetUniTaskCompletionSource<T> source, CancellationToken token)
             {
-                Source = source;
+                _source = source;
                 _token = token;
             }
 
             /// <summary>任务的唯一合法取用点——必须在任何 TrySet 之前捕获（源回收后 Task 属性失效）。</summary>
-            public UniTask<T> Task => Source.Task;
+            public UniTask<T> Task => _source.Task;
 
-            public bool TrySetResult(T value) => Source.TrySetResult(value);
+            public bool TrySetResult(T value) => _source.TrySetResult(value);
 
-            public bool TrySetException(Exception exception) => Source.TrySetException(exception);
+            public bool TrySetException(Exception exception) => _source.TrySetException(exception);
 
             public bool TrySetCanceled(CancellationToken cancellationToken = default)
-                => Source.TrySetCanceled(cancellationToken != default ? cancellationToken : _token);
+                => _source.TrySetCanceled(cancellationToken != default ? cancellationToken : _token);
 
             public override void Cancel() => TrySetCanceled();
         }
@@ -318,7 +318,7 @@ namespace Moirai.Atropos
         /// 将协程加入队列，在下次主线程泵时启动。
         /// </summary>
         /// <param name="routine">将在主线程执行的协程。</param>
-        /// <remarks>任意线程可调用；仅支持播放模式（依赖 <c>StartCoroutine</c>）。<see cref="Instance"/> 延迟到泵内（主线程）才解析。</remarks>
+        /// <remarks>任意线程可调用；仅支持播放模式（依赖 <c>StartCoroutine</c>）。<see cref="SingletonMono{T}.Instance"/> 延迟到泵内（主线程）才解析。</remarks>
         public static void Post(IEnumerator routine)
         {
             if (routine == null) throw new ArgumentNullException(nameof(routine));
@@ -383,7 +383,6 @@ namespace Moirai.Atropos
                 s_PendingAwaiters.TryRemove(handle, out _);
                 registration.Dispose();
                 handle.TrySetCanceled(cancellationToken); // 调度器已停机：取消而非挂起
-                return coreTask.AsUniTask();
             }
 
             return coreTask.AsUniTask();
@@ -437,7 +436,6 @@ namespace Moirai.Atropos
                 s_PendingAwaiters.TryRemove(handle, out _);
                 registration.Dispose();
                 handle.TrySetCanceled(cancellationToken);
-                return coreTask;
             }
 
             return coreTask;
@@ -618,26 +616,6 @@ namespace Moirai.Atropos
             return true;
         }
 
-        // --- 兼容转发层：保持既有实例 API 不变（语义与对应静态方法一致） ---
-
-        /// <inheritdoc cref="Post(IEnumerator)"/>
-        public void Enqueue(IEnumerator routine) => Post(routine);
-
-        /// <inheritdoc cref="Post(Action)"/>
-        public void Enqueue(Action action) => Post(action);
-
-        /// <inheritdoc cref="PostAsync(Action, CancellationToken)"/>
-        public UniTask EnqueueAsync(Action action) => PostAsync(action);
-
-        /// <inheritdoc cref="PostAsync{T}(Func{T}, CancellationToken)"/>
-        public UniTask<T> EnqueueAsync<T>(Func<T> func) => PostAsync(func);
-
-        /// <inheritdoc cref="PostAsync(Func{UniTask}, CancellationToken)"/>
-        public UniTask EnqueueAsync(Func<UniTask> func) => PostAsync(func);
-
-        /// <inheritdoc cref="PostAsync{T}(Func{UniTask{T}}, CancellationToken)"/>
-        public UniTask<T> EnqueueAsync<T>(Func<UniTask<T>> func) => PostAsync(func);
-
         #endregion
 
         #region 同步请求到主线程 [Dispatch/SyncRequest]
@@ -646,7 +624,7 @@ namespace Moirai.Atropos
         /// 在主线程上执行协程：已在主线程则立即启动，否则下次主线程泵时启动。
         /// </summary>
         /// <param name="routine">将在主线程执行的协程。</param>
-        /// <remarks>应用退出窗口（<c>s_ShuttingDown</c>）下 <see cref="Instance"/> 为 null——协程丢弃并告警，不抛 NRE。</remarks>
+        /// <remarks>应用退出窗口（<c>s_ShuttingDown</c>）下 <see cref="SingletonMono{T}.Instance"/> 为 null——协程丢弃并告警，不抛 NRE。</remarks>
         public static void Send(IEnumerator routine)
         {
             if (routine == null) throw new ArgumentNullException(nameof(routine));
@@ -769,20 +747,6 @@ namespace Moirai.Atropos
             AutoResetUniTaskCompletionSource<T> source = AutoResetUniTaskCompletionSource<T>.CreateFromException(exception, out short token2);
             return new UniTask<T>(source, token2);
         }
-
-        // --- 兼容转发层：保持既有实例 API 不变（语义与对应静态方法一致） ---
-
-        /// <inheritdoc cref="Send(IEnumerator)"/>
-        public void Dispatch(IEnumerator routine) => Send(routine);
-
-        /// <inheritdoc cref="Send(Action)"/>
-        public void Dispatch(Action action) => Send(action);
-
-        /// <inheritdoc cref="SendAsync(Action, CancellationToken)"/>
-        public UniTask DispatchAsync(Action action) => SendAsync(action);
-
-        /// <inheritdoc cref="SendAsync{T}(Func{T}, CancellationToken)"/>
-        public UniTask<T> DispatchAsync<T>(Func<T> func) => SendAsync(func);
 
         #endregion
     }

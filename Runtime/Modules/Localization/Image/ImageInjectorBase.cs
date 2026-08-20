@@ -1,4 +1,5 @@
 using Cysharp.Threading.Tasks;
+using Moirai.Atropos.Resource;
 using UnityEngine;
 
 namespace Moirai.Atropos.Localization
@@ -57,8 +58,10 @@ namespace Moirai.Atropos.Localization
 
         private async UniTaskVoid ApplyFromResource()
         {
-            string textIDValue = GameApp.Localization.GetTextFromId(_localizedTextID);
-            var result = await GameApp.Resource.LoadAssetAsync<Object>(textIDValue);
+            var localization = GameApp.Services.GetRequiredService<ILocalizationService>();
+            var resource = GameApp.Services.GetRequiredService<IResourceService>();
+            string textIDValue = localization.GetTextFromId(_localizedTextID);
+            var result = await resource.LoadAssetAsync<Object>(textIDValue);
 
             if (!IsExpectedType(result) && !IsConvertibleType(result))
             {

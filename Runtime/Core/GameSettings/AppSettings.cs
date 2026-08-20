@@ -137,8 +137,9 @@ namespace Moirai.Atropos
             JsonUtility.Handler = Instance.m_JsonHandler;
             ObjectUtility.Handler = Instance.m_ObjectHandler;
 
-            // 将服务实现类型注册到 GameServices
-            RegisterServices();
+            // 组合根：创建 ServiceCollection → 注册所有 App 作用域服务 → 构建 App 容器
+            // （容器仅存储描述符，实例在 GameApp.Awake 中按拓扑序异步创建）
+            BuildAppContainer();
 
             // 使用服务功能的工具
             TweenUtility.Handler = Instance.m_TweenHandler;
@@ -182,6 +183,6 @@ namespace Moirai.Atropos
         }
 
         private partial void ResetServices();
-        private static partial void RegisterServices();
+        private static partial void BuildAppContainer() ;
     }
 }

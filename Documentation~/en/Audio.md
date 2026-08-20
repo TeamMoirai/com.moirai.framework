@@ -2,7 +2,7 @@
 
 > Audio system based on AudioMixer track grouping and audio agent pool, supporting handle control, fade in/out, solo, and event-driven playback.
 
-The `Audio` service divides audio into multiple tracks (`EAudioTrack`) by usage. Each track corresponds to an `AudioCategory`, which internally maintains a set of `AudioAgent` objects (wrapping `AudioSource`) responsible for actual playback. The service is accessed via `GameApp.Audio` (`IAudioService`), returning a `ulong` handle after playback for subsequent control such as pause, resume, and stop. It also supports indirect driving through events like `AudioPlayEvent` to avoid null references when the service is not initialized. Track and master volume settings are persisted through `SettingUtility` and automatically loaded after service initialization.
+The `Audio` service divides audio into multiple tracks (`EAudioTrack`) by usage. Each track corresponds to an `AudioCategory`, which internally maintains a set of `AudioAgent` objects (wrapping `AudioSource`) responsible for actual playback. The service is accessed via `GameApp.Services.GetRequiredService<IAudioService>()` (`IAudioService`), returning a `ulong` handle after playback for subsequent control such as pause, resume, and stop. It also supports indirect driving through events like `AudioPlayEvent` to avoid null references when the service is not initialized. Track and master volume settings are persisted through `SettingUtility` and automatically loaded after service initialization.
 
 ## Core Features
 
@@ -21,7 +21,7 @@ Namespace: `Moirai.Atropos.Audio`
 
 | Class/Interface | Description |
 |----------------|-------------|
-| `IAudioService` | Service public interface, return type of `GameApp.Audio` |
+| `IAudioService` | Service public interface, return type of `GameApp.Services.GetRequiredService<IAudioService>()` |
 | `AudioService` | `sealed` implementation class, inherits `Service` and implements `IUpdateService`, registers and responds to all audio events |
 | `EAudioTrack` | Track enum: `Sfx`, `UI`, `Music`, `Voice`, `Ambience` |
 | `AudioCategory` | Track category, holds a list of `AudioAgent`, provides `GetAvailableAgent`, `PauseAll`, `StopAll`, etc. |
@@ -46,7 +46,7 @@ Namespace: `Moirai.Atropos.Audio`
 
 ```csharp
 // Access the service
-IAudioService audio = GameApp.Audio;
+IAudioService audio = GameApp.Services.GetRequiredService<IAudioService>();
 
 // 1. Play using AudioClip (Create factory presets common defaults)
 AudioPlayOptions options = AudioPlayOptions.Create(EAudioTrack.Sfx);
@@ -87,7 +87,7 @@ Specify a user ID via `AudioPlayOptions.ID` during playback, then use events to 
 ulong voice = AudioPlayEvent.Trigger(clip, AudioPlayOptions.CreateLooping(EAudioTrack.Voice));
 
 // Specify user ID using the long-parameter overload (AudioPlayOptions.ID setter is internal)
-GameApp.Audio.Play(clip, EAudioTrack.Voice, Vector3.zero, loop: true, id: 33);
+GameApp.Services.GetRequiredService<IAudioService>().Play(clip, EAudioTrack.Voice, Vector3.zero, loop: true, id: 33);
 
 AudioControlEvent.Pause(33);                    // Pause all audio with ID 33
 AudioControlEvent.Stop(33);                     // Stop
@@ -113,13 +113,13 @@ AudioServiceEvent.ResetSettings();
 `Play` provides long overloads with all parameters exposed (both clip and path versions), convenient for one-shot configuration of 3D audio:
 
 ```csharp
-ulong h = GameApp.Audio.Play(clip, EAudioTrack.Sfx, position,
+ulong h = GameApp.Services.GetRequiredService<IAudioService>().Play(clip, EAudioTrack.Sfx, position,
     volume: 0.9f, spatialBlend: 1f, rolloffMode: AudioRolloffMode.Linear,
     minDistance: 2f, maxDistance: 60f, attachToTransform: enemy.transform);
 
 // Querying
-IReadOnlyList<AudioAgent> agents = GameApp.Audio.FindAgentsByID(33); // Shared buffer, consume ASAP
-int count = GameApp.Audio.CurrentlyPlayingCount(clip);
+IReadOnlyList<AudioAgent> agents = GameApp.Services.GetRequiredService<IAudioService>().FindAgentsByID(33); // Shared buffer, consume ASAP
+int count = GameApp.Services.GetRequiredService<IAudioService>().CurrentlyPlayingCount(clip);
 ```
 
 ### Playback Option Asset
@@ -136,9 +136,9 @@ void OnShoot() => shootSfx.Play(muzzle.position);
 Frequently loaded clips can be preloaded into a handle pool and reused by passing `bInPool: true` during playback:
 
 ```csharp
-GameApp.Audio.PutInAudioPool(new List<string> { "Assets/.../hit.mp3" });
-GameApp.Audio.RemoveClipFromPool(new List<string> { "Assets/.../hit.mp3" });
-GameApp.Audio.CleanAudioPool();
+GameApp.Services.GetRequiredService<IAudioService>().PutInAudioPool(new List<string> { "Assets/.../hit.mp3" });
+GameApp.Services.GetRequiredService<IAudioService>().RemoveClipFromPool(new List<string> { "Assets/.../hit.mp3" });
+GameApp.Services.GetRequiredService<IAudioService>().CleanAudioPool();
 ```
 
 ## Configuration Notes

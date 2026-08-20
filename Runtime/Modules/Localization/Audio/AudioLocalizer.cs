@@ -22,10 +22,10 @@ namespace Moirai.Atropos.Localization
 		internal override void Localize()
 		{
 			ChangeID(localizedTextID);
-			var index = GameApp.Localization.CurrentLanguageIndex;
+			var index = GameApp.Services.GetRequiredService<ILocalizationService>().CurrentLanguageIndex;
 			_injector.Inject(clips[index], this);
 		}
-		
+
 		public bool ChangeID(string textId)
 		{
 			if (string.IsNullOrEmpty(textId)) return false;
@@ -35,17 +35,18 @@ namespace Moirai.Atropos.Localization
 			{
 				return false;
 				// todo 编辑器预览
-				// GameApp.Localization.LoadInEditor();
+				// GameApp.Services.GetRequiredService<ILocalizationService>().LoadInEditor();
 				// Prepare();
 			}
 #endif
-			if (!GameApp.Localization.Has(textId))
+			var svc = GameApp.Services?.GetService<ILocalizationService>();
+			if (svc == null || !svc.Has(textId))
 			{
 				if (Application.isPlaying) LogUtility.Error($"Text ID: {textId} 不可用。");
 				return false;
 			}
 			this.localizedTextID = textId;
-			var text = GameApp.Localization.GetTextFromId(textId);
+			var text = svc.GetTextFromId(textId);
 			_injector.Inject(text, this);
 			return true;
 		}
