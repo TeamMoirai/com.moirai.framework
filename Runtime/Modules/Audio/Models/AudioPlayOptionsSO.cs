@@ -12,7 +12,7 @@ namespace Moirai.Atropos.Audio
 	/// 保存 AudioService 播放数据的可编写脚本对象
 	/// </summary>
 	[Serializable]
-	[CreateAssetMenu(menuName = "Moirai Framework/Audio/Play Options SO")]
+	[CreateAssetMenu(menuName = "Moirai/Audio/Play Options SO")]
 	// ReSharper disable once InconsistentNaming
 	public class AudioPlayOptionsSO : ScriptableObject
 	{

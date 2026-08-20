@@ -8,7 +8,7 @@ namespace Moirai.Atropos.Input.Prompts
     /// <summary>
     /// 同一主题的按键提示配置
     /// </summary>
-    [CreateAssetMenu(menuName = "Moirai Framework/Input/Glyph Collection", order = 2)]
+    [CreateAssetMenu(menuName = "Moirai/Input/Glyph Collection", order = 2)]
     public class GlyphCollection : ScriptableObject
     {
         [Tooltip("唯一标识，用于在运行时引用此集合（如果不是默认集合）。不得包含空格、特殊字符或大小写。")]
