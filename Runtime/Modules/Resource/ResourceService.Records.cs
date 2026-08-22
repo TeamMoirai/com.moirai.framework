@@ -2062,13 +2062,7 @@ namespace Moirai.Atropos.Resource
 
         private SubAssetsHandle GetSubAssetsHandleAsync(string location, string packageName)
         {
-            if (string.IsNullOrEmpty(packageName))
-            {
-                return YooAssets.LoadSubAssetsAsync<Sprite>(location);
-            }
-
-            var package = YooAssets.GetPackage(packageName);
-            return package.LoadSubAssetsAsync<Sprite>(location);
+            return GetPackageOrThrow(packageName).LoadSubAssetsAsync<Sprite>(location);
         }
 
         private static void ClearAssetSlot(ref AssetSlot slot, bool preserveGeneration)

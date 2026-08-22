@@ -56,7 +56,7 @@ namespace Moirai.Atropos.Scene
                 SceneHandle subScene = iter.Current;
                 if (subScene != null)
                 {
-                    subScene.UnloadAsync();
+                    subScene.UnloadSceneAsync();
                 }
             }
 
@@ -94,7 +94,7 @@ namespace Moirai.Atropos.Scene
                     throw new GameException($"Could not load subScene while already loaded. Scene: {location}");
                 }
 
-                subScene = YooAssets.LoadSceneAsync(location, sceneMode, LocalPhysicsMode.None, suspendLoad, priority);
+                subScene = _resourceService.DefaultPackage.LoadSceneAsync(location, sceneMode, LocalPhysicsMode.None, suspendLoad, priority);
 
                 // 前置注册——subScene.IsDone 在 UnSuspend 之后才会是 true
                 _subScenes.Add(location, subScene);
@@ -114,7 +114,7 @@ namespace Moirai.Atropos.Scene
 
                 _currentMainSceneName = location;
 
-                _currentMainScene = YooAssets.LoadSceneAsync(location, sceneMode, LocalPhysicsMode.None, suspendLoad, priority);
+                _currentMainScene = _resourceService.DefaultPackage.LoadSceneAsync(location, sceneMode, LocalPhysicsMode.None, suspendLoad, priority);
 
                 await AwaitSceneHandle(_currentMainScene, progressCallBack);
 
@@ -205,11 +205,11 @@ namespace Moirai.Atropos.Scene
         /// <summary>
         /// 创建场景句柄。根据 packageName 选择默认包或指定包。
         /// </summary>
-        private static SceneHandle CreateSceneHandle(string location, string packageName, LoadSceneMode sceneMode, bool suspendLoad, uint priority)
+        private SceneHandle CreateSceneHandle(string location, string packageName, LoadSceneMode sceneMode, bool suspendLoad, uint priority)
         {
             if (string.IsNullOrEmpty(packageName))
             {
-                return YooAssets.LoadSceneAsync(location, sceneMode, LocalPhysicsMode.None, suspendLoad, priority);
+                return _resourceService.DefaultPackage.LoadSceneAsync(location, sceneMode, LocalPhysicsMode.None, suspendLoad, priority);
             }
 
             var package = YooAssets.GetPackage(packageName);
@@ -288,13 +288,13 @@ namespace Moirai.Atropos.Scene
         {
             if (_currentMainSceneName.Equals(location))
             {
-                return _currentMainScene != null && _currentMainScene.UnSuspend();
+                return _currentMainScene != null && _currentMainScene.ActivateScene();
             }
 
             _subScenes.TryGetValue(location, out SceneHandle subScene);
             if (subScene != null)
             {
-                return subScene.UnSuspend();
+                return subScene.ActivateScene();
             }
 
             LogUtility.Warning("UnSuspend invalid location:{0}", location);
@@ -356,7 +356,7 @@ namespace Moirai.Atropos.Scene
                     return false;
                 }
 
-                var unloadOperation = subScene.UnloadAsync();
+                var unloadOperation = subScene.UnloadSceneAsync();
 
                 if (progressCallBack != null)
                 {
@@ -405,7 +405,7 @@ namespace Moirai.Atropos.Scene
                     return;
                 }
 
-                var unloadOperation = subScene.UnloadAsync();
+                var unloadOperation = subScene.UnloadSceneAsync();
                 unloadOperation.Completed += _ =>
                 {
                     _subScenes.Remove(location);

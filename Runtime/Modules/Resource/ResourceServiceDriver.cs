@@ -85,12 +85,12 @@ namespace Moirai.Atropos.Resource
             }
         }
         
-        [SerializeField] private EncryptionType m_EncryptionType = EncryptionType.None;
+        [SerializeField] private EEncryptorType m_EncryptorType = EEncryptorType.None;
         
         /// <summary>
         /// 资源服务的加密类型。
         /// </summary>
-        public EncryptionType EncryptionType => m_EncryptionType;
+        public EEncryptorType EncryptorType => m_EncryptorType;
 
         /// <summary>
         /// 是否支持边玩边下载。
@@ -333,7 +333,7 @@ namespace Moirai.Atropos.Resource
 
             _resourceService.DefaultPackageName = PackageName;
             _resourceService.PlayMode = PlayMode;
-            _resourceService.EncryptionType = m_EncryptionType;
+            _resourceService.EncryptorType = m_EncryptorType;
             _resourceService.Milliseconds = m_Milliseconds;
             _resourceService.AutoUnloadBundleWhenUnused = m_AutoUnloadBundleWhenUnused;
             _resourceService.HostServerURL = UpdateSettings.GetResDownLoadPath();

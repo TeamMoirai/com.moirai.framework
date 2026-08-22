@@ -7,19 +7,19 @@ namespace Moirai.Atropos.Resource
             LogUtility.Info(message);
         }
 
-        public void Warning(string message)
+        public void LogWarning(string message)
         {
             LogUtility.Warning(message);
         }
 
-        public void Error(string message)
+        public void LogError(string message)
         {
             LogUtility.Error(message);
         }
 
-        public void Exception(System.Exception exception)
+        public void LogException(System.Exception exception)
         {
-            LogUtility.Fatal(exception.Message);
+            LogUtility.Fatal(exception);
         }
     }
 }

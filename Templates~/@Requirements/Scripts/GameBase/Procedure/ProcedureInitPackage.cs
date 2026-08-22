@@ -29,7 +29,7 @@ namespace Moirai.Main
                 var initializationOperation = await _resourceService.InitPackage(_resourceService.DefaultPackageName,
                     _resourceService.PlayMode == EPlayMode.OfflinePlayMode);
 
-                if (initializationOperation.Status == EOperationStatus.Succeed)
+                if (initializationOperation.Status == EOperationStatus.Succeeded)
                 {
                     // 热更新阶段文本初始化
                     LoadText.Instance.InitConfigData();

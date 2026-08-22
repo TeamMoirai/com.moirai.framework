@@ -1,4 +1,5 @@
 using Moirai.Atropos;
+using YooAsset;
 
 namespace Moirai.Main
 {
@@ -16,12 +17,13 @@ namespace Moirai.Main
             
             LauncherMgr.ShowUI<LoadUpdateUI>(LoadText.Instance.Label_ClearCache);
 
-            var operation = _resourceService.ClearCacheFilesAsync();
+            var options = new ClearCacheOptions(ClearCacheMethods.ClearUnusedBundleFiles);
+            var operation = _resourceService.ClearCacheAsync(options);
             operation.Completed += Operation_Completed;
         }
         
         
-        private void Operation_Completed(YooAsset.AsyncOperationBase obj)
+        private void Operation_Completed(AsyncOperationBase obj)
         {
             LauncherMgr.ShowUI<LoadUpdateUI>(LoadText.Instance.Label_ClearCache_Completed);
             

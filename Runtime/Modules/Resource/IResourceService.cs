@@ -31,7 +31,7 @@ namespace Moirai.Atropos.Resource
         /// <summary>
         /// 资源加密方式。
         /// </summary>
-        EncryptionType EncryptionType { get; set; }
+        EEncryptorType EncryptorType { get; set; }
 
         /// <summary>
         /// 是否边玩边下载。
@@ -52,6 +52,11 @@ namespace Moirai.Atropos.Resource
         /// 资源绑定服务。
         /// </summary>
         IResourceBindingService BindingService { get; }
+
+        /// <summary>
+        /// 默认资源包。
+        /// </summary>
+        ResourcePackage DefaultPackage { get; }
 
         #endregion
 
@@ -117,9 +122,9 @@ namespace Moirai.Atropos.Resource
         /// 初始化操作。
         /// </summary>
         /// <param name="customPackageName">资源包名称。</param>
-        /// <param name="needInitMainFest">是否需要直接初始化资源清单。</param>
+        /// <param name="needInitManifest">是否需要直接初始化资源清单。</param>
         /// <remarks>单机 OtherPackage 使用，热更项目建议修改 Procedure</remarks>
-        UniTask<InitializationOperation> InitPackage(string customPackageName, bool needInitMainFest = false);
+        UniTask<InitializePackageOperation> InitPackage(string customPackageName, bool needInitManifest = false);
 
         /// <summary>
         /// 默认资源包名称。
@@ -301,7 +306,7 @@ namespace Moirai.Atropos.Resource
         /// </summary>
         /// <param name="location">资源的定位地址</param>
         /// <param name="packageName">指定资源包的名称。不传使用默认资源包</param>
-        bool CheckLocationValid(string location, string packageName = "");
+        bool IsLocationValid(string location, string packageName = "");
 
         /// <summary>
         /// 获取资源信息列表。
@@ -459,21 +464,15 @@ namespace Moirai.Atropos.Resource
         /// <summary>
         /// 清理包裹未使用的缓存文件。
         /// </summary>
-        /// <param name="clearMode">文件清理方式。</param>
+        /// <param name="options">清理缓存的操作选项。</param>
         /// <param name="customPackageName">指定资源包的名称。不传使用默认资源包</param>
-        ClearCacheFilesOperation ClearCacheFilesAsync(
-            EFileClearMode clearMode = EFileClearMode.ClearUnusedBundleFiles, string customPackageName = "");
+        ClearCacheOperation ClearCacheAsync(ClearCacheOptions options, string customPackageName = "");
 
         /// <summary>
         /// 清理沙盒路径。
         /// </summary>
         /// <param name="customPackageName">指定资源包的名称。不传使用默认资源包</param>
         void ClearAllBundleFiles(string customPackageName = "");
-
-        /// <summary>
-        /// 资源下载器，用于下载当前资源版本所有的资源包文件。
-        /// </summary>
-        ResourceDownloaderOperation Downloader { get; set; }
 
         /// <summary>
         /// 创建资源下载器，用于下载当前资源版本所有的资源包文件。
@@ -508,7 +507,7 @@ namespace Moirai.Atropos.Resource
         /// <param name="packageVersion">更新的包裹版本</param>
         /// <param name="timeout">超时时间（默认值：60秒）</param>
         /// <param name="customPackageName">指定资源包的名称。不传使用默认资源包</param>
-        UpdatePackageManifestOperation UpdatePackageManifestAsync(string packageVersion, int timeout = 60, string customPackageName = "");
+        LoadPackageManifestOperation LoadPackageManifestAsync(string packageVersion, int timeout = 60, string customPackageName = "");
 
         /// <summary>
         /// 设置远程服务Url。

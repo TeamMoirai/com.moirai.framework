@@ -110,7 +110,7 @@ namespace Moirai.Main
             _resourceService.LoadAssetAsync(location, 100, _preLoadAssetCallbacks, null);
         }
 
-        private void OnPreLoadAssetFailure(string assetName, LoadResourceStatus status, string errorMessage, object userdata)
+        private void OnPreLoadAssetFailure(string assetName, ELoadResourceStatus status, string errorMessage, object userdata)
         {
             LogUtility.Warning("Can not preload asset from '{0}' with error message '{1}'.", assetName, errorMessage);
             _loadedFlag[assetName] = true;

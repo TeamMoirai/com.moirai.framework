@@ -33,7 +33,7 @@ namespace Moirai.Atropos.Editor
         private static readonly string[] PipelineNames = new string[]
         {
             "ScriptableBuildPipeline (SBP)",
-            "BuiltinBuildPipeline (内置)",
+            "LegacyBuildPipeline (内置)",
         };
 
         private static readonly string[] CompressNames = new string[]
@@ -177,10 +177,10 @@ namespace Moirai.Atropos.Editor
                     EditorGUILayout.Space(3);
 
                     // 构建管线
-                    int pipelineIndex = _config.BuildPipeline == EBuildPipeline.BuiltinBuildPipeline ? 1 : 0;
+                    int pipelineIndex = _config.BuildPipeline == EBuildPipeline.LegacyBuildPipeline ? 1 : 0;
                     pipelineIndex = EditorGUILayout.Popup("构建管线", pipelineIndex, PipelineNames);
                     _config.BuildPipeline = pipelineIndex == 1
-                        ? EBuildPipeline.BuiltinBuildPipeline
+                        ? EBuildPipeline.LegacyBuildPipeline
                         : EBuildPipeline.ScriptableBuildPipeline;
 
                     // 压缩方式
@@ -188,8 +188,8 @@ namespace Moirai.Atropos.Editor
                         (int)_config.CompressOption, CompressNames);
 
                     // 加密方式
-                    _config.EncryptionType = (EncryptionType)EditorGUILayout.Popup("加密方式",
-                        (int)_config.EncryptionType, EncryptionNames);
+                    _config.EncryptorType = (EEncryptorType)EditorGUILayout.Popup("加密方式",
+                        (int)_config.EncryptorType, EncryptionNames);
 
                     EditorGUILayout.Space(3);
 
@@ -299,8 +299,8 @@ namespace Moirai.Atropos.Editor
 
                     EditorGUILayout.Space(3);
 
-                    _config.BuildinFileCopyOption = (EBuildinFileCopyOption)EditorGUILayout.Popup(
-                        "内置文件拷贝", (int)_config.BuildinFileCopyOption, CopyOptionNames);
+                    _config.BundledCopyOption = (EBundledCopyOption)EditorGUILayout.Popup(
+                        "内置文件拷贝", (int)_config.BundledCopyOption, CopyOptionNames);
 
                     _config.FileNameStyle = (EFileNameStyle)EditorGUILayout.Popup(
                         "文件名风格", (int)_config.FileNameStyle, FileNameStyleNames);
@@ -581,10 +581,10 @@ namespace Moirai.Atropos.Editor
             _config.BuildTarget = PlatformTargets[_platformIndex];
 
             int pipelineIndex = EditorPrefs.GetInt("BP_BuildPipeline", 0);
-            _config.BuildPipeline = pipelineIndex == 1 ? EBuildPipeline.BuiltinBuildPipeline : EBuildPipeline.ScriptableBuildPipeline;
+            _config.BuildPipeline = pipelineIndex == 1 ? EBuildPipeline.LegacyBuildPipeline : EBuildPipeline.ScriptableBuildPipeline;
 
             _config.CompressOption = (ECompressOption)EditorPrefs.GetInt("BP_CompressOption", 1);
-            _config.EncryptionType = (EncryptionType)EditorPrefs.GetInt("BP_EncryptionType", 0);
+            _config.EncryptorType = (EEncryptorType)EditorPrefs.GetInt("BP_EncryptionType", 0);
 
             _config.PackageVersion = EditorPrefs.GetString("BP_PackageVersion", "");
             _config.OutputRoot = EditorPrefs.GetString("BP_OutputRoot", "./Builds/");
@@ -596,7 +596,7 @@ namespace Moirai.Atropos.Editor
             _config.UseAssetDependencyDB = EditorPrefs.GetBool("BP_UseDepDB", true);
             _config.ClearBuildCache = EditorPrefs.GetBool("BP_ClearCache", false);
             _config.VerifyBuildingResult = EditorPrefs.GetBool("BP_VerifyResult", true);
-            _config.BuildinFileCopyOption = (EBuildinFileCopyOption)EditorPrefs.GetInt("BP_CopyOption", 0);
+            _config.BundledCopyOption = (EBundledCopyOption)EditorPrefs.GetInt("BP_CopyOption", 0);
             _config.FileNameStyle = (EFileNameStyle)EditorPrefs.GetInt("BP_FileNameStyle", 1);
 
             _config.BuildHotFixDll = EditorPrefs.GetBool("BP_BuildDll", true);
@@ -617,9 +617,9 @@ namespace Moirai.Atropos.Editor
         private void SaveSettings()
         {
             EditorPrefs.SetInt("BP_BuildTarget", _platformIndex);
-            EditorPrefs.SetInt("BP_BuildPipeline", _config.BuildPipeline == EBuildPipeline.BuiltinBuildPipeline ? 1 : 0);
+            EditorPrefs.SetInt("BP_BuildPipeline", _config.BuildPipeline == EBuildPipeline.LegacyBuildPipeline ? 1 : 0);
             EditorPrefs.SetInt("BP_CompressOption", (int)_config.CompressOption);
-            EditorPrefs.SetInt("BP_EncryptionType", (int)_config.EncryptionType);
+            EditorPrefs.SetInt("BP_EncryptionType", (int)_config.EncryptorType);
             EditorPrefs.SetString("BP_PackageVersion", _config.PackageVersion);
             EditorPrefs.SetString("BP_OutputRoot", _config.OutputRoot);
             EditorPrefs.SetBool("BP_MinimalPackage", _config.MinimalPackage);
@@ -628,7 +628,7 @@ namespace Moirai.Atropos.Editor
             EditorPrefs.SetBool("BP_UseDepDB", _config.UseAssetDependencyDB);
             EditorPrefs.SetBool("BP_ClearCache", _config.ClearBuildCache);
             EditorPrefs.SetBool("BP_VerifyResult", _config.VerifyBuildingResult);
-            EditorPrefs.SetInt("BP_CopyOption", (int)_config.BuildinFileCopyOption);
+            EditorPrefs.SetInt("BP_CopyOption", (int)_config.BundledCopyOption);
             EditorPrefs.SetInt("BP_FileNameStyle", (int)_config.FileNameStyle);
             EditorPrefs.SetBool("BP_BuildDll", _config.BuildHotFixDll);
             EditorPrefs.SetBool("BP_BuildPlayer", _config.BuildPlayer);
@@ -672,7 +672,7 @@ namespace Moirai.Atropos.Editor
                 BuildTarget = source.BuildTarget,
                 BuildPipeline = source.BuildPipeline,
                 CompressOption = source.CompressOption,
-                EncryptionType = source.EncryptionType,
+                EncryptorType = source.EncryptorType,
                 PackageVersion = source.PackageVersion,
                 OutputRoot = source.OutputRoot,
                 MinimalPackage = source.MinimalPackage,
@@ -681,7 +681,7 @@ namespace Moirai.Atropos.Editor
                 UseAssetDependencyDB = source.UseAssetDependencyDB,
                 ClearBuildCache = source.ClearBuildCache,
                 VerifyBuildingResult = source.VerifyBuildingResult,
-                BuildinFileCopyOption = source.BuildinFileCopyOption,
+                BundledCopyOption = source.BundledCopyOption,
                 FileNameStyle = source.FileNameStyle,
                 BuildHotFixDll = source.BuildHotFixDll,
                 BuildPlayer = source.BuildPlayer,
