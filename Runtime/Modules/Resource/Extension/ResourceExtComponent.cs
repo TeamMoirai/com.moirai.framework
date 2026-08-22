@@ -128,7 +128,7 @@ namespace Moirai.Atropos.Resource
                 if (current.Value.AssetObject.IsCanRelease())
                 {
                     _assetItemPool.Despawn(current.Value.AssetTarget);
-                    MemoryPool.Release(current.Value.AssetObject);
+                    MemoryPool.Release((MemoryObject)current.Value.AssetObject);
                     _loadAssetObjectsLinkedList.Remove(current);
                 }
 

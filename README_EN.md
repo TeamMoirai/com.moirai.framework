@@ -203,7 +203,7 @@ com.moirai.framework/
 │   │   ├── Singleton/    # Singleton system (pure C# / MonoBehaviour)
 │   │   ├── Tasks/        # Task/sequence system
 │   │   └── Utility/      # Utilities (logging, encryption, HTTP, reflection, tween, etc.)
-│   └── Services/          # Functional services
+│   └── Services/         # Functional services
 │       ├── @Core/        # Service system base (Service / ServiceSystem / GameService)
 │       ├── Audio/        # Audio system (categories/agents/fade)
 │       ├── ConfigTable/  # Config table management

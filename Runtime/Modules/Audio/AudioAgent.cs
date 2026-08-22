@@ -196,7 +196,7 @@ namespace Moirai.Atropos.Audio
 
             if (_audioAssetData != null)
             {
-                AudioAssetData.DeAlloc(_audioAssetData);
+                AudioAssetData.Dealloc(_audioAssetData);
             }
         }
         
@@ -449,7 +449,7 @@ namespace Moirai.Atropos.Audio
             {
                 if (_audioAssetData != null)
                 {
-                    AudioAssetData.DeAlloc(_audioAssetData);
+                    AudioAssetData.Dealloc(_audioAssetData);
                     _audioAssetData = null;
                 }
                 

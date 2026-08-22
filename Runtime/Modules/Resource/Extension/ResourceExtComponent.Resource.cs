@@ -12,7 +12,7 @@ namespace Moirai.Atropos.Resource
         /// <summary>资源组件。</summary>
         public static IResourceService ResourceService => s_ResourceService;
 
-        private class LoadingState : IMemory
+        private class LoadingState : MemoryObject
         {
             public CancellationTokenSource Cts { get; set; }
             public string Location { get; set; }
@@ -25,7 +25,7 @@ namespace Moirai.Atropos.Resource
                 }
             }
 
-            public void Clear()
+            public override void Clear()
             {
                 var cts = Cts;
                 Cts = null;
@@ -58,7 +58,7 @@ namespace Moirai.Atropos.Resource
 
             if (target == null)
             {
-                MemoryPool.Release(setAssetObject);
+                MemoryPool.Release((MemoryObject)setAssetObject);
                 return;
             }
 
@@ -148,7 +148,7 @@ namespace Moirai.Atropos.Resource
 
                 if (!setAssetObjectTransferred)
                 {
-                    MemoryPool.Release(setAssetObject);
+                    MemoryPool.Release((MemoryObject)setAssetObject);
                 }
                 MemoryPool.Release(loadingState);
             }

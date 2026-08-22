@@ -1,5 +1,4 @@
 using Moirai.Atropos;
-using Moirai.Atropos.Procedure;
 
 namespace Moirai.Main
 {
@@ -20,7 +19,7 @@ namespace Moirai.Main
             LauncherMgr.ShowUI<LoadUpdateUI>(LoadText.Instance.Label_Download_Complete);
             
             // 下载完成之后再保存本地版本。
-            SettingUtility.SetString(Constant.GAME_VERSION, _resourceService.PackageVersion);
+            SettingUtility.SetString(GameConstant.GAME_VERSION, _resourceService.PackageVersion);
         }
 
         protected override void OnUpdate(float elapseSeconds, float realElapseSeconds)

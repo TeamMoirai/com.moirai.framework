@@ -1,4 +1,3 @@
-using System;
 using Moirai.Atropos.Audio;
 using Moirai.Atropos.Debugger;
 using Moirai.Atropos.Events;
@@ -23,7 +22,7 @@ namespace Moirai.Atropos
     /// 首次访问时从 Provider 懒加载一次并缓存；<see cref="Services"/> 仅供非标准查找使用。</para>
     /// </summary>
     [DisallowMultipleComponent]
-    [DefaultExecutionOrder(-1000)]
+    [DefaultExecutionOrder(MoiraiExecutionOrder.GAME_APP_ORDER)]
     public partial class GameApp : MonoBehaviour
     {
         #region 公共属性 [PUBLIC PROPERTIES]
@@ -244,7 +243,9 @@ namespace Moirai.Atropos
 
         #region 低内存 [LOW MEMORY]
 
-        // Application.lowMemory 由 Unity 在主线程触发（与 Application.focus/quit 一致），无需线程守卫。
+        /// <remarks>
+        /// Application.lowMemory 由 Unity 在主线程触发（与 Application.focus/quit 一致），无需线程守卫。
+        /// </remarks>
         private void OnLowMemory()
         {
             LogUtility.Warning("Low memory reported...");

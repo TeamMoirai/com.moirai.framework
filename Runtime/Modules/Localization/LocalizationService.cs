@@ -65,9 +65,9 @@ namespace Moirai.Atropos.Localization
                 else
 #endif
                 // 如果已设置语言，则使用设置的语言
-                if (SettingUtility.HasSetting(Constant.Setting.LANGUAGE))
+                if (SettingUtility.HasSetting(GameConstant.Setting.LANGUAGE))
                 {
-                    language = SettingUtility.GetString(Constant.Setting.LANGUAGE);
+                    language = SettingUtility.GetString(GameConstant.Setting.LANGUAGE);
                     settingSource = "SavedSetting";
                 }
                 // 否则，使用系统语言
@@ -121,7 +121,7 @@ namespace Moirai.Atropos.Localization
             // 重新注入所有注入器的字符串。
             _localizers.ForEach(_ => _.Localize());
 
-            SettingUtility.SetString(Constant.Setting.LANGUAGE, _currentLanguage.Code);
+            SettingUtility.SetString(GameConstant.Setting.LANGUAGE, _currentLanguage.Code);
             LogUtility.Info($"Change the language: {_currentLanguage}{(logSource ? $"(by {_settingSource})" : "")}");
         }
 

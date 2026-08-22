@@ -4,7 +4,6 @@ using System.IO;
 using System.Reflection;
 using Cysharp.Threading.Tasks;
 using Moirai.Atropos;
-using Moirai.Atropos.Procedure;
 using UnityEngine;
 using YooAsset;
 #if ENABLE_HYBRIDCLR

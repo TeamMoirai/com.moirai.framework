@@ -1,6 +1,5 @@
 using System.Collections;
 using Moirai.Atropos;
-using Moirai.Atropos.Procedure;
 using UnityEngine;
 using YooAsset;
 
@@ -86,7 +85,7 @@ namespace Moirai.Main
             var packageVersion = operation1.PackageVersion;
             _resourceService.PackageVersion = packageVersion;
 
-            SettingUtility.SetString(Constant.GAME_VERSION, _resourceService.PackageVersion);
+            SettingUtility.SetString(GameConstant.GAME_VERSION, _resourceService.PackageVersion);
 
             LogUtility.Info($"Init resource package version : {packageVersion}");
 
@@ -136,7 +135,7 @@ namespace Moirai.Main
             if (UpdateSettings.UpdateStyle == EUpdateStyle.Optional && !_resourceService.UpdatableWhilePlaying)
             {
                 // 获取上次成功记录的版本
-                string packageVersion = SettingUtility.GetString(Constant.GAME_VERSION, string.Empty);
+                string packageVersion = SettingUtility.GetString(GameConstant.GAME_VERSION, string.Empty);
                 if (string.IsNullOrEmpty(packageVersion))
                 {
                     LauncherMgr.ShowUI<LoadUpdateUI>(LoadText.Instance.Label_Net_UnReachable);

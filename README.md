@@ -210,7 +210,7 @@ com.moirai.framework/
 │   │   ├── Singleton/    # 单例系统（纯 C# / MonoBehaviour）
 │   │   ├── Tasks/        # 任务/序列系统
 │   │   └── Utility/      # 工具集（日志、加密、HTTP、反射、缓动等）
-│   └── Services/          # 功能服务
+│   └── Services/         # 功能服务
 │       ├── @Core/        # 服务系统基座（Service / ServiceSystem / GameService）
 │       ├── Audio/        # 音频系统（分类/代理/淡入淡出）
 │       ├── ConfigTable/  # 配置表管理

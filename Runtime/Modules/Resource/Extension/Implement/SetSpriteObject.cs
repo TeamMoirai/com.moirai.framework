@@ -10,7 +10,7 @@ using Sirenix.OdinInspector;
 namespace Moirai.Atropos.Resource
 {
     [Serializable]
-    public class SetSpriteObject : ISetAssetObject
+    public class SetSpriteObject : MemoryObject, ISetAssetObject
     {
         enum SetType
         {
@@ -86,7 +86,7 @@ namespace Moirai.Atropos.Resource
             return true;
         }
 
-        public void Clear()
+        public override void Clear()
         {
             _spriteRenderer = null;
             _image = null;

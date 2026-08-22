@@ -159,22 +159,22 @@ namespace Moirai.Atropos.Audio
         
         public void SetMasterSettings()
         {
-            SettingUtility.SetFloat(Constant.Setting.AUDIO_MASTER_VOLUME, _volume);
-            SettingUtility.SetBool(Constant.Setting.AUDIO_MASTER_MUTED, _isMuted);
+            SettingUtility.SetFloat(GameConstant.Setting.AUDIO_MASTER_VOLUME, _volume);
+            SettingUtility.SetBool(GameConstant.Setting.AUDIO_MASTER_MUTED, _isMuted);
         }
 
         public void LoadMasterSettings()
         {
-            _isMuted = SettingUtility.GetBool(Constant.Setting.AUDIO_MASTER_MUTED, false);
-            _volume = SettingUtility.GetFloat(Constant.Setting.AUDIO_MASTER_VOLUME, 1f);
+            _isMuted = SettingUtility.GetBool(GameConstant.Setting.AUDIO_MASTER_MUTED, false);
+            _volume = SettingUtility.GetFloat(GameConstant.Setting.AUDIO_MASTER_VOLUME, 1f);
             
             ApplyMasterVolume();
         }
 
         public void RemoveMasterSetting()
         {
-            SettingUtility.RemoveSetting(Constant.Setting.AUDIO_MASTER_MUTED);
-            SettingUtility.RemoveSetting(Constant.Setting.AUDIO_MASTER_VOLUME);
+            SettingUtility.RemoveSetting(GameConstant.Setting.AUDIO_MASTER_MUTED);
+            SettingUtility.RemoveSetting(GameConstant.Setting.AUDIO_MASTER_VOLUME);
             
             _isMuted = false;
             _volume = 1f;

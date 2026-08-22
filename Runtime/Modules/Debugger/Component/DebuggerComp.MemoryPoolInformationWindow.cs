@@ -11,6 +11,7 @@ namespace Moirai.Atropos.Debugger
             private readonly Dictionary<string, List<MemoryPoolInfo>> _memoryPoolInfos = new Dictionary<string, List<MemoryPoolInfo>>(StringComparer.Ordinal);
             private readonly Comparison<MemoryPoolInfo> _normalClassNameComparer = NormalClassNameComparer;
             private readonly Comparison<MemoryPoolInfo> _fullClassNameComparer = FullClassNameComparer;
+            private MemoryPoolInfo[] _infoBuffer = Array.Empty<MemoryPoolInfo>();
             private bool _showFullClassName = false;
 
             public override void Initialize(params object[] args)
@@ -22,16 +23,24 @@ namespace Moirai.Atropos.Debugger
                 GUILayout.Label("<b>Memory Pool Information</b>");
                 GUILayout.BeginVertical("box");
                 {
-                    DrawItem("Enable Strict Check", MemoryPool.EnableStrictCheck.ToString());
                     DrawItem("Memory Pool Count", MemoryPool.Count.ToString());
+                    DrawItem("Phase", MemoryPoolRegistry.Phase.ToString());
                 }
                 GUILayout.EndVertical();
 
                 _showFullClassName = GUILayout.Toggle(_showFullClassName, "Show Full Class Name");
                 _memoryPoolInfos.Clear();
-                MemoryPoolInfo[] memoryPoolInfos = MemoryPool.GetAllMemoryPoolInfos();
-                foreach (MemoryPoolInfo memoryPoolInfo in memoryPoolInfos)
+
+                int count = MemoryPool.Count;
+                if (_infoBuffer.Length < count)
                 {
+                    _infoBuffer = new MemoryPoolInfo[count];
+                }
+
+                int actualCount = MemoryPool.GetAllMemoryPoolInfos(_infoBuffer);
+                for (int i = 0; i < actualCount; i++)
+                {
+                    MemoryPoolInfo memoryPoolInfo = _infoBuffer[i];
                     string assemblyName = memoryPoolInfo.Type.Assembly.GetName().Name;
                     List<MemoryPoolInfo> results = null;
                     if (!_memoryPoolInfos.TryGetValue(assemblyName, out results))
@@ -51,12 +60,15 @@ namespace Moirai.Atropos.Debugger
                         GUILayout.BeginHorizontal();
                         {
                             GUILayout.Label(_showFullClassName ? "<b>Full Class Name</b>" : "<b>Class Name</b>");
-                            GUILayout.Label("<b>Unused</b>", GUILayout.Width(60f));
-                            GUILayout.Label("<b>Using</b>", GUILayout.Width(60f));
-                            GUILayout.Label("<b>Acquire</b>", GUILayout.Width(60f));
-                            GUILayout.Label("<b>Release</b>", GUILayout.Width(60f));
-                            GUILayout.Label("<b>Add</b>", GUILayout.Width(60f));
-                            GUILayout.Label("<b>Remove</b>", GUILayout.Width(60f));
+                            GUILayout.Label("<b>Unused</b>", GUILayout.Width(50f));
+                            GUILayout.Label("<b>Using</b>", GUILayout.Width(50f));
+                            GUILayout.Label("<b>Acquire</b>", GUILayout.Width(55f));
+                            GUILayout.Label("<b>Release</b>", GUILayout.Width(55f));
+                            GUILayout.Label("<b>Miss</b>", GUILayout.Width(55f));
+                            GUILayout.Label("<b>Reserve</b>", GUILayout.Width(55f));
+                            GUILayout.Label("<b>Idle</b>", GUILayout.Width(50f));
+                            GUILayout.Label("<b>Pages</b>", GUILayout.Width(50f));
+                            GUILayout.Label("<b>Util%</b>", GUILayout.Width(45f));
                         }
                         GUILayout.EndHorizontal();
 
@@ -77,17 +89,29 @@ namespace Moirai.Atropos.Debugger
                 }
             }
 
-            private void DrawMemoryPoolInfo(MemoryPoolInfo memoryPoolInfo)
+            private void DrawMemoryPoolInfo(MemoryPoolInfo info)
             {
+                int pageCapacity = info.PageCapacity;
+                int utilPercent = pageCapacity > 0
+                    ? (int)((long)info.UnusedCount * 100 / pageCapacity)
+                    : 0;
+                bool lowUtil = pageCapacity > 0 && utilPercent < 50;
+                bool longIdle = info.IdleFrames > MemoryPool.ShortDecayStartFrames;
+                bool highMissRate = info.AcquireCount > 0 && info.MissRate > 0.1f;
+                string colorTag = highMissRate ? "<color=#FF6347>" : (lowUtil ? "<color=#FFD700>" : (longIdle ? "<color=#FFD700>" : "<color=#FFFFFF>"));
+
                 GUILayout.BeginHorizontal();
                 {
-                    GUILayout.Label(_showFullClassName ? memoryPoolInfo.Type.FullName : memoryPoolInfo.Type.Name);
-                    GUILayout.Label(memoryPoolInfo.UnusedMemoryCount.ToString(), GUILayout.Width(60f));
-                    GUILayout.Label(memoryPoolInfo.UsingMemoryCount.ToString(), GUILayout.Width(60f));
-                    GUILayout.Label(memoryPoolInfo.AcquireMemoryCount.ToString(), GUILayout.Width(60f));
-                    GUILayout.Label(memoryPoolInfo.ReleaseMemoryCount.ToString(), GUILayout.Width(60f));
-                    GUILayout.Label(memoryPoolInfo.AddMemoryCount.ToString(), GUILayout.Width(60f));
-                    GUILayout.Label(memoryPoolInfo.RemoveMemoryCount.ToString(), GUILayout.Width(60f));
+                    GUILayout.Label(_showFullClassName ? info.Type.FullName : info.Type.Name);
+                    GUILayout.Label(info.UnusedCount.ToString(), GUILayout.Width(50f));
+                    GUILayout.Label(info.UsingCount.ToString(), GUILayout.Width(50f));
+                    GUILayout.Label(info.AcquireCount.ToString(), GUILayout.Width(55f));
+                    GUILayout.Label(info.ReleaseCount.ToString(), GUILayout.Width(55f));
+                    GUILayout.Label(colorTag + info.MissCount.ToString() + "</color>", GUILayout.Width(55f));
+                    GUILayout.Label(info.TargetFreeReserve.ToString(), GUILayout.Width(55f));
+                    GUILayout.Label(colorTag + info.IdleFrames.ToString() + "</color>", GUILayout.Width(50f));
+                    GUILayout.Label(colorTag + pageCapacity.ToString() + "</color>", GUILayout.Width(50f));
+                    GUILayout.Label(colorTag + utilPercent + "%</color>", GUILayout.Width(45f));
                 }
                 GUILayout.EndHorizontal();
             }
