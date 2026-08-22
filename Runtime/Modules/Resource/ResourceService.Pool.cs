@@ -1,71 +1,47 @@
-using Moirai.Atropos.ObjectPool;
-
 namespace Moirai.Atropos.Resource
 {
     // ReSharper disable once ClassNeverInstantiated.Global
     internal partial class ResourceService
     {
-        private IObjectPool<AssetObject> _assetPool;
-        
         /// <summary>
-        /// 获取或设置资源对象池自动释放可释放对象的间隔秒数。
+        /// 资源自动释放检查间隔（秒）。
         /// </summary>
         public float AssetAutoReleaseInterval
         {
-            get => _assetPool.AutoReleaseInterval;
-            set => _assetPool.AutoReleaseInterval = value;
+            get => _assetCache.CheckInterval;
+            set => _assetCache.CheckInterval = value;
         }
 
         /// <summary>
-        /// 获取或设置资源对象池的容量。
+        /// 资源容量上限。
         /// </summary>
         public int AssetCapacity
         {
-            get => _assetPool.Capacity;
-            set => _assetPool.Capacity = value;
+            get => _assetCache.Capacity;
+            set => _assetCache.Capacity = value;
         }
 
         /// <summary>
-        /// 获取或设置资源对象池对象过期秒数。
+        /// 资源过期秒数。
         /// </summary>
         public float AssetExpireTime
         {
-            get => _assetPool.ExpireTime;
-            set => _assetPool.ExpireTime = value;
+            get => _assetCache.ExpireTime;
+            set => _assetCache.ExpireTime = value;
         }
 
         /// <summary>
-        /// 获取或设置资源对象池的优先级。
+        /// 资源池优先级。
         /// </summary>
-        public int AssetPriority
-        {
-            get => _assetPool.Priority;
-            set => _assetPool.Priority = value;
-        }
-        
+        public int AssetPriority { get; set; } = 0;
+
         /// <summary>
-        /// 卸载资源。
+        /// 卸载资源（引用计数 -1）。
         /// </summary>
         /// <param name="asset">要卸载的资源。</param>
         public void UnloadAsset(object asset)
         {
-            if (_assetPool != null)
-            {
-                _assetPool.Despawn(asset);
-            }
-        }
-        
-        /// <summary>
-        /// 设置对象池管理器。
-        /// </summary>
-        /// <param name="objectPoolService">对象池管理器。</param>
-        public void SetObjectPoolService(IObjectPoolService objectPoolService)
-        {
-            if (objectPoolService == null)
-            {
-                throw new GameException("Object pool manager is invalid.");
-            }
-            _assetPool = objectPoolService.CreateMultiSpawnObjectPool<AssetObject>("Asset Pool");
+            _assetCache.Release(asset);
         }
     }
 }

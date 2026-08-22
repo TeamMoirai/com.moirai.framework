@@ -2,7 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using Cysharp.Threading.Tasks;
-using Moirai.Atropos.ObjectPool;
+using Moirai.Atropos.Resource.Internal;
 #if ODIN_INSPECTOR
 using Sirenix.OdinInspector;
 #endif
@@ -59,9 +59,9 @@ namespace Moirai.Atropos.Resource
         private LinkedList<LoadAssetObject> _loadAssetObjectsLinkedList;
 
         /// <summary>
-        /// 散图集合对象池。
+        /// 散图资源引用缓存。
         /// </summary>
-        private IObjectPool<AssetItemObject> _assetItemPool;
+        private readonly AssetReferenceCache _assetItemCache = new AssetReferenceCache();
 
 
 #if UNITY_EDITOR
@@ -76,9 +76,7 @@ namespace Moirai.Atropos.Resource
             Instance = this;
             
             yield return new WaitForEndOfFrame();
-            _assetItemPool = GameApp.ObjectPool.CreateMultiSpawnObjectPool<AssetItemObject>(
-                "SetAssetPool",
-                m_AutoReleaseInterval, 16, 60, 0);
+            _assetItemCache.Initialize();
             _loadAssetObjectsLinkedList = new LinkedList<LoadAssetObject>();
             
             InitializedResources();
@@ -127,7 +125,7 @@ namespace Moirai.Atropos.Resource
 
                 if (current.Value.AssetObject.IsCanRelease())
                 {
-                    _assetItemPool.Despawn(current.Value.AssetTarget);
+                    _assetItemCache.Release(current.Value.AssetTarget);
                     MemoryPool.Release((MemoryObject)current.Value.AssetObject);
                     _loadAssetObjectsLinkedList.Remove(current);
                 }
