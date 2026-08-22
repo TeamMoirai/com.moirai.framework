@@ -86,9 +86,9 @@ namespace Moirai.Atropos.Resource
                 }
 
                 // 检查缓存。
-                if (_assetItemPool.CanSpawn(location))
+                if (_assetItemCache.TrySpawn(location, out var cachedAsset))
                 {
-                    var assetObject = (T)_assetItemPool.Spawn(location).Target;
+                    var assetObject = (T)cachedAsset;
                     DetachCurrentRequest(target, loadingState);
                     setAssetObjectTransferred = true;
                     SetAsset(setAssetObject, assetObject);
@@ -117,7 +117,7 @@ namespace Moirai.Atropos.Resource
                         return;
                     }
 
-                    _assetItemPool.Register(AssetItemObject.Create(location, loadedResource), true);
+                    _assetItemCache.Register(location, loadedResource, null);
                     resourceRegistered = true;
                     DetachCurrentRequest(target, loadingState);
                     setAssetObjectTransferred = true;

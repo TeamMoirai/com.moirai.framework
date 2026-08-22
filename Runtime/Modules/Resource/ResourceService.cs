@@ -3,7 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
-using Moirai.Atropos.ObjectPool;
+using Moirai.Atropos.Resource.Internal;
 using UnityEngine;
 using YooAsset;
 #if UNITY_WEBGL && WEIXINMINIGAME && !UNITY_EDITOR
@@ -30,14 +30,13 @@ namespace Moirai.Atropos.Resource
 
         public override int Priority => 4;
 
-        private readonly IObjectPoolService _objectPoolService;
+        private readonly AssetReferenceCache _assetCache = new AssetReferenceCache();
 
         /// <summary>
-        /// 容器构造注入——依赖在编译期显式声明，由容器拓扑排序保证先于本服务初始化。
+        /// 无参构造——资源服务不再依赖对象池服务。
         /// </summary>
-        public ResourceService(IObjectPoolService objectPoolService)
+        public ResourceService()
         {
-            _objectPoolService = objectPoolService ?? throw new GameException("Object pool service is invalid.");
         }
 
         public override void OnInit() { }
@@ -116,7 +115,7 @@ namespace Moirai.Atropos.Resource
             }
             DefaultPackage = defaultPackage;
 
-            SetObjectPoolService(_objectPoolService);
+            _assetCache.Initialize();
         }
 
         public async UniTask<InitializationOperation> InitPackage(string packageName, bool needInitMainFest = false)
@@ -392,7 +391,7 @@ namespace Moirai.Atropos.Resource
         /// </summary>
         public void UnloadUnusedAssets()
         {
-            _assetPool.ReleaseAllUnused();
+            _assetCache.ReleaseAllUnused();
             _assetInfoMap.Clear();
             foreach (var package in PackageMap.Values)
             {
@@ -690,18 +689,16 @@ namespace Moirai.Atropos.Resource
             }
 
             string assetObjectKey = GetCacheKey(location, packageName);
-            AssetObject assetObject = _assetPool.Spawn(assetObjectKey);
-            if (assetObject != null)
+            if (_assetCache.TrySpawn(assetObjectKey, out var cachedAsset))
             {
-                return assetObject.Target as UnityEngine.Object;
+                return cachedAsset as UnityEngine.Object;
             }
 
             AssetHandle handle = GetHandleSync(location, assetType, packageName);
 
             var ret = handle.AssetObject;
 
-            assetObject = AssetObject.Create(assetObjectKey, handle.AssetObject, handle, this);
-            _assetPool.Register(assetObject, true);
+            _assetCache.Register(assetObjectKey, handle.AssetObject, handle);
 
             return ret;
         }
@@ -720,18 +717,16 @@ namespace Moirai.Atropos.Resource
             }
 
             string assetObjectKey = GetCacheKey(location, packageName);
-            AssetObject assetObject = _assetPool.Spawn(assetObjectKey);
-            if (assetObject != null)
+            if (_assetCache.TrySpawn(assetObjectKey, out var cachedAsset))
             {
-                return AssetsReference.Instantiate(assetObject.Target as GameObject, parent, this).gameObject;
+                return AssetsReference.Instantiate(cachedAsset as GameObject, parent, this).gameObject;
             }
 
             AssetHandle handle = GetHandleSync<GameObject>(location, packageName: packageName);
 
             GameObject gameObject = AssetsReference.Instantiate(handle.AssetObject as GameObject, parent, this).gameObject;
 
-            assetObject = AssetObject.Create(assetObjectKey, handle.AssetObject, handle, this);
-            _assetPool.Register(assetObject, true);
+            _assetCache.Register(assetObjectKey, handle.AssetObject, handle);
 
 #if UNITY_EDITOR && EditorFixedMaterialShader
             if (PlayMode != EPlayMode.EditorSimulateMode)
@@ -774,11 +769,10 @@ namespace Moirai.Atropos.Resource
 
             await TryWaitingLoading(assetObjectKey);
 
-            AssetObject assetObject = _assetPool.Spawn(assetObjectKey);
-            if (assetObject != null)
+            if (_assetCache.TrySpawn(assetObjectKey, out var cachedAsset))
             {
                 await UniTask.Yield();
-                callback?.Invoke(assetObject.Target as T);
+                callback?.Invoke(cachedAsset as T);
                 return;
             }
 
@@ -792,10 +786,9 @@ namespace Moirai.Atropos.Resource
 
                 if (assetHandle.AssetObject != null)
                 {
-                    assetObject = AssetObject.Create(assetObjectKey, handle.AssetObject, handle, this);
-                    _assetPool.Register(assetObject, true);
+                    _assetCache.Register(assetObjectKey, handle.AssetObject, handle);
 
-                    callback?.Invoke(assetObject.Target as T);
+                    callback?.Invoke(handle.AssetObject as T);
                 }
                 else
                 {
@@ -826,11 +819,10 @@ namespace Moirai.Atropos.Resource
 
             await TryWaitingLoading(assetObjectKey);
 
-            AssetObject assetObject = _assetPool.Spawn(assetObjectKey);
-            if (assetObject != null)
+            if (_assetCache.TrySpawn(assetObjectKey, out var cachedAsset))
             {
                 await UniTask.Yield();
-                return assetObject.Target as UnityEngine.Object;
+                return cachedAsset as UnityEngine.Object;
             }
 
             _assetLoadingList.Add(assetObjectKey);
@@ -845,8 +837,7 @@ namespace Moirai.Atropos.Resource
                 return null;
             }
 
-            assetObject = AssetObject.Create(assetObjectKey, handle.AssetObject, handle, this);
-            _assetPool.Register(assetObject, true);
+            _assetCache.Register(assetObjectKey, handle.AssetObject, handle);
 
             _assetLoadingList.Remove(assetObjectKey);
 
@@ -870,11 +861,10 @@ namespace Moirai.Atropos.Resource
 
             await TryWaitingLoading(assetObjectKey);
 
-            AssetObject assetObject = _assetPool.Spawn(assetObjectKey);
-            if (assetObject != null)
+            if (_assetCache.TrySpawn(assetObjectKey, out var cachedAsset))
             {
                 await UniTask.Yield();
-                return AssetsReference.Instantiate(assetObject.Target as GameObject, parent, this).gameObject;
+                return AssetsReference.Instantiate(cachedAsset as GameObject, parent, this).gameObject;
             }
 
             _assetLoadingList.Add(assetObjectKey);
@@ -892,8 +882,7 @@ namespace Moirai.Atropos.Resource
 
             GameObject gameObject = AssetsReference.Instantiate(handle.AssetObject as GameObject, parent, this).gameObject;
 
-            assetObject = AssetObject.Create(assetObjectKey, handle.AssetObject, handle, this);
-            _assetPool.Register(assetObject, true);
+            _assetCache.Register(assetObjectKey, handle.AssetObject, handle);
 
             _assetLoadingList.Remove(assetObjectKey);
 
@@ -949,11 +938,10 @@ namespace Moirai.Atropos.Resource
 
             float duration = UnityEngine.Time.time;
 
-            AssetObject assetObject = _assetPool.Spawn(assetObjectKey);
-            if (assetObject != null)
+            if (_assetCache.TrySpawn(assetObjectKey, out var cachedAsset))
             {
                 await UniTask.Yield();
-                loadAssetCallbacks.LoadAssetSuccessCallback(location, assetObject.Target, UnityEngine.Time.time - duration, userData);
+                loadAssetCallbacks.LoadAssetSuccessCallback(location, cachedAsset, UnityEngine.Time.time - duration, userData);
                 return;
             }
 
@@ -999,8 +987,7 @@ namespace Moirai.Atropos.Resource
             }
             else
             {
-                assetObject = AssetObject.Create(assetObjectKey, handle.AssetObject, handle, this);
-                _assetPool.Register(assetObject, true);
+                _assetCache.Register(assetObjectKey, handle.AssetObject, handle);
 
                 _assetLoadingList.Remove(assetObjectKey);
 
@@ -1059,11 +1046,10 @@ namespace Moirai.Atropos.Resource
 
             float duration = UnityEngine.Time.time;
 
-            AssetObject assetObject = _assetPool.Spawn(assetObjectKey);
-            if (assetObject != null)
+            if (_assetCache.TrySpawn(assetObjectKey, out var cachedAsset))
             {
                 await UniTask.Yield();
-                loadAssetCallbacks.LoadAssetSuccessCallback(location, assetObject.Target, UnityEngine.Time.time - duration, userData);
+                loadAssetCallbacks.LoadAssetSuccessCallback(location, cachedAsset, UnityEngine.Time.time - duration, userData);
                 return;
             }
 
@@ -1109,8 +1095,7 @@ namespace Moirai.Atropos.Resource
             }
             else
             {
-                assetObject = AssetObject.Create(assetObjectKey, handle.AssetObject, handle, this);
-                _assetPool.Register(assetObject, true);
+                _assetCache.Register(assetObjectKey, handle.AssetObject, handle);
 
                 _assetLoadingList.Remove(assetObjectKey);
 

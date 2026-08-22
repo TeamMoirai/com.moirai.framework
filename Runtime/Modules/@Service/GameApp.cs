@@ -3,7 +3,7 @@ using Moirai.Atropos.Debugger;
 using Moirai.Atropos.Events;
 using Moirai.Atropos.Input;
 using Moirai.Atropos.Localization;
-using Moirai.Atropos.ObjectPool;
+using Moirai.Atropos.GameObjectPool;
 using Moirai.Atropos.Procedure;
 using Moirai.Atropos.Resource;
 using Moirai.Atropos.Save;
@@ -72,11 +72,11 @@ namespace Moirai.Atropos
         /// </summary>
         public static IAudioService Audio => s_IsShutdown ? null : s_Audio ??= Services.GetService<IAudioService>();
 
-        private static IObjectPoolService s_ObjectPool;
+        private static IGameObjectPoolService s_GameObjectPool;
         /// <summary>
-        /// 获取对象池服务。
+        /// 获取游戏对象池服务。
         /// </summary>
-        public static IObjectPoolService ObjectPool => s_IsShutdown ? null : s_ObjectPool ??= Services.GetService<IObjectPoolService>();
+        public static IGameObjectPoolService GameObjectPool => s_IsShutdown ? null : s_GameObjectPool ??= Services.GetService<IGameObjectPoolService>();
 
         private static IProcedureService s_Procedure;
         /// <summary>
@@ -227,7 +227,7 @@ namespace Moirai.Atropos
             s_Resource = null;
             s_Debugger = null;
             s_Audio = null;
-            s_ObjectPool = null;
+            s_GameObjectPool = null;
             s_Procedure = null;
             s_Localization = null;
             s_Scene = null;
@@ -250,7 +250,7 @@ namespace Moirai.Atropos
         {
             LogUtility.Warning("Low memory reported...");
 
-            ObjectPool?.ReleaseAllUnused();
+            GameObjectPool?.FlushAll();
             Resource?.ForceUnloadUnusedAssets(true);
         }
 
