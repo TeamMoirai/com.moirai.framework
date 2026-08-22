@@ -1,5 +1,4 @@
 using Moirai.Atropos;
-using Moirai.Atropos.Procedure;
 
 namespace Moirai.Main
 {
@@ -14,7 +13,7 @@ namespace Moirai.Main
         protected override void OnEnter()
         {
             base.OnEnter();
-            
+
             // 热更新UI初始化
             LauncherMgr.Initialize();
         }

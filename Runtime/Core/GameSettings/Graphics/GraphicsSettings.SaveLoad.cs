@@ -10,7 +10,7 @@ namespace Moirai.Atropos
         public static void SetResolutionSettings(int resolutionIndex)
         {
             SetResolutionIndex(resolutionIndex);
-            SettingUtility.SetInt(Constant.Setting.GRAPHICS_RESOLUTION, GetResolutionIndex());
+            SettingUtility.SetInt(GameConstant.Setting.GRAPHICS_RESOLUTION, GetResolutionIndex());
         }
 
         /// <summary>
@@ -19,7 +19,7 @@ namespace Moirai.Atropos
         public static void SetFullScreenSettings(bool fullScreen)
         {
             SetFullScreen(fullScreen);
-            SettingUtility.SetBool(Constant.Setting.GRAPHICS_FULLSCREEN, GetFullScreen());
+            SettingUtility.SetBool(GameConstant.Setting.GRAPHICS_FULLSCREEN, GetFullScreen());
         }
 
         /// <summary>
@@ -28,7 +28,7 @@ namespace Moirai.Atropos
         public static void SetWindowModeSettings(int fullScreenMode)
         {
             SetWindowModeIndex(fullScreenMode);
-            SettingUtility.SetInt(Constant.Setting.GRAPHICS_FULLSCREEN_MODE, GetWindowModeIndex());
+            SettingUtility.SetInt(GameConstant.Setting.GRAPHICS_FULLSCREEN_MODE, GetWindowModeIndex());
         }
 
         /// <summary>
@@ -38,7 +38,7 @@ namespace Moirai.Atropos
         public static void SetVSyncSettings(bool enabled)
         {
             SetVSync(enabled);
-            SettingUtility.SetBool(Constant.Setting.GRAPHICS_VSYNC, VSyncEnabled);
+            SettingUtility.SetBool(GameConstant.Setting.GRAPHICS_VSYNC, VSyncEnabled);
         }
 
         /// <summary>
@@ -47,16 +47,16 @@ namespace Moirai.Atropos
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterAssembliesLoaded)]
         private static void GraphicsSettingsInitiation()
         {
-            int resolution = SettingUtility.GetInt(Constant.Setting.GRAPHICS_RESOLUTION, GetResolutionIndex());
+            int resolution = SettingUtility.GetInt(GameConstant.Setting.GRAPHICS_RESOLUTION, GetResolutionIndex());
             SetResolutionIndex(resolution);
 
-            bool fullScreen = SettingUtility.GetBool(Constant.Setting.GRAPHICS_FULLSCREEN, Screen.fullScreen);
+            bool fullScreen = SettingUtility.GetBool(GameConstant.Setting.GRAPHICS_FULLSCREEN, Screen.fullScreen);
             SetFullScreen(fullScreen);
 
-            int fullScreenMode = SettingUtility.GetInt(Constant.Setting.GRAPHICS_FULLSCREEN_MODE, (int)Screen.fullScreenMode);
+            int fullScreenMode = SettingUtility.GetInt(GameConstant.Setting.GRAPHICS_FULLSCREEN_MODE, (int)Screen.fullScreenMode);
             SetWindowModeIndex(fullScreenMode);
 
-            bool vSync = SettingUtility.GetBool(Constant.Setting.GRAPHICS_VSYNC, VSyncEnabled);
+            bool vSync = SettingUtility.GetBool(GameConstant.Setting.GRAPHICS_VSYNC, VSyncEnabled);
             SetVSync(vSync);
 
             LogUtility.Info("[GraphicsSettings] <color=orange>" +
@@ -72,10 +72,10 @@ namespace Moirai.Atropos
         /// </summary>
         public static void RemoveSetting()
         {
-            SettingUtility.RemoveSetting(Constant.Setting.GRAPHICS_RESOLUTION);
-            SettingUtility.RemoveSetting(Constant.Setting.GRAPHICS_FULLSCREEN);
-            SettingUtility.RemoveSetting(Constant.Setting.GRAPHICS_FULLSCREEN_MODE);
-            SettingUtility.RemoveSetting(Constant.Setting.GRAPHICS_VSYNC);
+            SettingUtility.RemoveSetting(GameConstant.Setting.GRAPHICS_RESOLUTION);
+            SettingUtility.RemoveSetting(GameConstant.Setting.GRAPHICS_FULLSCREEN);
+            SettingUtility.RemoveSetting(GameConstant.Setting.GRAPHICS_FULLSCREEN_MODE);
+            SettingUtility.RemoveSetting(GameConstant.Setting.GRAPHICS_VSYNC);
         }
     }
 }

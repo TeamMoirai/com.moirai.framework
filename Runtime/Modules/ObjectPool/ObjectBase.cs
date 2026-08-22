@@ -5,7 +5,7 @@ namespace Moirai.Atropos.ObjectPool
     /// <summary>
     /// 对象基类。
     /// </summary>
-    public abstract class ObjectBase : IMemory
+    public abstract class ObjectBase : MemoryObject
     {
         private string _name;
         private object _target;
@@ -132,7 +132,7 @@ namespace Moirai.Atropos.ObjectPool
         /// <summary>
         /// 清理对象基类。
         /// </summary>
-        public virtual void Clear()
+        public override void Clear()
         {
             _name = null;
             _target = null;

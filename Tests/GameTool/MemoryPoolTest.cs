@@ -1,40 +1,55 @@
 using System;
 using Moirai.Atropos;
 using NUnit.Framework;
+using UnityEngine;
 
 namespace GameTool
 {
     public class MemoryPoolTest
     {
-        private class TestMemory : IMemory
+        private class TestMemory : MemoryObject
         {
             public int Value { get; set; }
             public bool WasCleared { get; private set; }
 
-            public void Clear()
+            public override void Clear()
             {
                 Value = 0;
                 WasCleared = true;
             }
         }
 
-        private class OtherMemory : IMemory
+        private class OtherMemory : MemoryObject
         {
-            public void Clear() { }
+            public override void Clear() { }
+        }
+
+        private MemoryPoolInfo[] _infoBuffer = Array.Empty<MemoryPoolInfo>();
+
+        private MemoryPoolInfo[] GetInfos()
+        {
+            int count = MemoryPool.Count;
+            if (_infoBuffer.Length < count)
+            {
+                _infoBuffer = new MemoryPoolInfo[count];
+            }
+
+            int actual = MemoryPool.GetAllMemoryPoolInfos(_infoBuffer);
+            MemoryPoolInfo[] result = new MemoryPoolInfo[actual];
+            Array.Copy(_infoBuffer, result, actual);
+            return result;
         }
 
         [SetUp]
         public void SetUp()
         {
             MemoryPool.ClearAll();
-            MemoryPool.EnableStrictCheck = false;
         }
 
         [TearDown]
         public void TearDown()
         {
             MemoryPool.ClearAll();
-            MemoryPool.EnableStrictCheck = false;
         }
 
         [Test]
@@ -64,15 +79,17 @@ namespace GameTool
             var first = MemoryPool.Acquire<TestMemory>();
             MemoryPool.Release(first);
 
+            MemoryPoolRegistry.TickAll(UnityEngine.Time.frameCount);
+
             var second = MemoryPool.Acquire<TestMemory>();
 
             Assert.AreSame(first, second);
         }
 
         [Test]
-        public void Release_Null_ThrowsException()
+        public void Release_Null_Noop()
         {
-            Assert.Throws<Exception>(() => MemoryPool.Release(null));
+            Assert.DoesNotThrow(() => MemoryPool.Release((MemoryObject)null));
         }
 
         [Test]
@@ -103,43 +120,47 @@ namespace GameTool
         public void Add_PreAllocatesObjects()
         {
             MemoryPool.Add<TestMemory>(3);
+            MemoryPoolRegistry.TickAll(UnityEngine.Time.frameCount);
 
-            var infos = MemoryPool.GetAllMemoryPoolInfos();
+            var infos = GetInfos();
             Assert.AreEqual(1, infos.Length);
-            Assert.AreEqual(3, infos[0].UnusedMemoryCount);
-            Assert.AreEqual(3, infos[0].AddMemoryCount);
+            Assert.GreaterOrEqual(infos[0].UnusedCount, 3);
         }
 
         [Test]
         public void Remove_RemovesPreAllocatedObjects()
         {
             MemoryPool.Add<TestMemory>(5);
+            MemoryPoolRegistry.TickAll(UnityEngine.Time.frameCount);
             MemoryPool.Remove<TestMemory>(3);
+            MemoryPoolRegistry.TickAll(UnityEngine.Time.frameCount + 1);
 
-            var infos = MemoryPool.GetAllMemoryPoolInfos();
-            Assert.AreEqual(2, infos[0].UnusedMemoryCount);
-            Assert.AreEqual(3, infos[0].RemoveMemoryCount);
+            var infos = GetInfos();
+            Assert.LessOrEqual(infos[0].UnusedCount, 2);
         }
 
         [Test]
         public void Remove_MoreThanAvailable_ClampsToAvailable()
         {
             MemoryPool.Add<TestMemory>(2);
+            MemoryPoolRegistry.TickAll(UnityEngine.Time.frameCount);
             MemoryPool.Remove<TestMemory>(10);
+            MemoryPoolRegistry.TickAll(UnityEngine.Time.frameCount + 1);
 
-            var infos = MemoryPool.GetAllMemoryPoolInfos();
-            Assert.AreEqual(0, infos[0].UnusedMemoryCount);
-            Assert.AreEqual(2, infos[0].RemoveMemoryCount);
+            var infos = GetInfos();
+            Assert.AreEqual(0, infos[0].UnusedCount);
         }
 
         [Test]
         public void RemoveAll_ClearsAllFromType()
         {
             MemoryPool.Add<TestMemory>(5);
+            MemoryPoolRegistry.TickAll(UnityEngine.Time.frameCount);
+
             MemoryPool.RemoveAll<TestMemory>();
 
-            var infos = MemoryPool.GetAllMemoryPoolInfos();
-            Assert.AreEqual(0, infos[0].UnusedMemoryCount);
+            var infos = GetInfos();
+            Assert.AreEqual(0, infos[0].UnusedCount);
         }
 
         [Test]
@@ -148,59 +169,51 @@ namespace GameTool
             var a = MemoryPool.Acquire<TestMemory>();
             var b = MemoryPool.Acquire<TestMemory>();
             MemoryPool.Release(a);
+            MemoryPoolRegistry.TickAll(UnityEngine.Time.frameCount);
 
-            var infos = MemoryPool.GetAllMemoryPoolInfos();
+            var infos = GetInfos();
 
             Assert.AreEqual(1, infos.Length);
             Assert.AreEqual(typeof(TestMemory), infos[0].Type);
-            Assert.AreEqual(2, infos[0].AcquireMemoryCount);
-            Assert.AreEqual(1, infos[0].ReleaseMemoryCount);
-            Assert.AreEqual(1, infos[0].UsingMemoryCount);
-            Assert.AreEqual(1, infos[0].UnusedMemoryCount);
+            Assert.AreEqual(2, infos[0].AcquireCount);
+            Assert.AreEqual(1, infos[0].ReleaseCount);
+            Assert.AreEqual(1, infos[0].UsingCount);
         }
 
         [Test]
         public void Acquire_ByType_ReturnsCorrectInstance()
         {
-            IMemory obj = MemoryPool.Acquire(typeof(TestMemory));
+            MemoryObject obj = MemoryPool.Acquire(typeof(TestMemory));
 
             Assert.IsNotNull(obj);
             Assert.IsInstanceOf<TestMemory>(obj);
         }
 
         [Test]
-        public void EnableStrictCheck_DuplicateRelease_ThrowsException()
+        public void DoubleRelease_ThrowsException()
         {
-            MemoryPool.EnableStrictCheck = true;
-
             var obj = MemoryPool.Acquire<TestMemory>();
             MemoryPool.Release(obj);
 
-            Assert.Throws<Exception>(() => MemoryPool.Release(obj));
+            Assert.Throws<InvalidOperationException>(() => MemoryPool.Release(obj));
         }
 
         [Test]
-        public void EnableStrictCheck_InvalidType_ThrowsException()
+        public void Acquire_InvalidType_ThrowsException()
         {
-            MemoryPool.EnableStrictCheck = true;
-
-            Assert.Throws<Exception>(() => MemoryPool.Acquire(typeof(string)));
+            Assert.Throws<InvalidOperationException>(() => MemoryPool.Acquire(typeof(string)));
         }
 
         [Test]
-        public void EnableStrictCheck_AbstractType_ThrowsException()
+        public void Acquire_AbstractType_ThrowsException()
         {
-            MemoryPool.EnableStrictCheck = true;
-
-            Assert.Throws<Exception>(() => MemoryPool.Acquire(typeof(IMemory)));
+            Assert.Throws<InvalidOperationException>(() => MemoryPool.Acquire(typeof(IDisposable)));
         }
 
         [Test]
-        public void EnableStrictCheck_NullType_ThrowsException()
+        public void Acquire_NullType_ThrowsException()
         {
-            MemoryPool.EnableStrictCheck = true;
-
-            Assert.Throws<Exception>(() => MemoryPool.Acquire(null));
+            Assert.Throws<ArgumentNullException>(() => MemoryPool.Acquire(null));
         }
     }
 }

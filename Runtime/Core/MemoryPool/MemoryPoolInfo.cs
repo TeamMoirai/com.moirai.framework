@@ -9,110 +9,106 @@ namespace Moirai.Atropos
     [StructLayout(LayoutKind.Auto)]
     public struct MemoryPoolInfo
     {
-        private readonly Type _type;
-        private readonly int _unusedMemoryCount;
-        private readonly int _usingMemoryCount;
-        private readonly int _acquireMemoryCount;
-        private readonly int _releaseMemoryCount;
-        private readonly int _addMemoryCount;
-        private readonly int _removeMemoryCount;
+        #region 字段 [FIELDS]
 
-        /// <summary>
-        /// 初始化内存池信息的新实例。
-        /// </summary>
-        /// <param name="type">内存池类型。</param>
-        /// <param name="unusedMemoryCount">未使用内存对象数量。</param>
-        /// <param name="usingMemoryCount">正在使用内存对象数量。</param>
-        /// <param name="acquireMemoryCount">获取内存对象数量。</param>
-        /// <param name="releaseMemoryCount">归还内存对象数量。</param>
-        /// <param name="addMemoryCount">增加内存对象数量。</param>
-        /// <param name="removeMemoryCount">移除内存对象数量。</param>
-        public MemoryPoolInfo(Type type, int unusedMemoryCount, int usingMemoryCount, int acquireMemoryCount, int releaseMemoryCount, int addMemoryCount, int removeMemoryCount)
-        {
-            _type = type;
-            _unusedMemoryCount = unusedMemoryCount;
-            _usingMemoryCount = usingMemoryCount;
-            _acquireMemoryCount = acquireMemoryCount;
-            _releaseMemoryCount = releaseMemoryCount;
-            _addMemoryCount = addMemoryCount;
-            _removeMemoryCount = removeMemoryCount;
-        }
+        private Type _type;
+        private int _unusedCount;
+        private int _usingCount;
+        private int _acquireCount;
+        private int _releaseCount;
+        private int _createCount;
+        private int _missCount;
+        private int _targetFreeReserve;
+        private int _maxCapacity;
+        private int _idleFrames;
+        private int _pageCapacity;
+
+        #endregion
+
+        #region 属性 [PROPERTIES]
 
         /// <summary>
         /// 获取内存池类型。
         /// </summary>
-        public Type Type
-        {
-            get
-            {
-                return _type;
-            }
-        }
+        public Type Type => _type;
 
         /// <summary>
         /// 获取未使用内存对象数量。
         /// </summary>
-        public int UnusedMemoryCount
-        {
-            get
-            {
-                return _unusedMemoryCount;
-            }
-        }
+        public int UnusedCount => _unusedCount;
 
         /// <summary>
         /// 获取正在使用内存对象数量。
         /// </summary>
-        public int UsingMemoryCount
-        {
-            get
-            {
-                return _usingMemoryCount;
-            }
-        }
+        public int UsingCount => _usingCount;
 
         /// <summary>
-        /// 获取获取内存对象数量。
+        /// 获取内存对象获取次数。
         /// </summary>
-        public int AcquireMemoryCount
-        {
-            get
-            {
-                return _acquireMemoryCount;
-            }
-        }
+        public int AcquireCount => _acquireCount;
 
         /// <summary>
-        /// 获取归还内存对象数量。
+        /// 获取内存对象归还次数。
         /// </summary>
-        public int ReleaseMemoryCount
-        {
-            get
-            {
-                return _releaseMemoryCount;
-            }
-        }
+        public int ReleaseCount => _releaseCount;
 
         /// <summary>
-        /// 获取增加内存对象数量。
+        /// 获取内存对象创建次数。
         /// </summary>
-        public int AddMemoryCount
-        {
-            get
-            {
-                return _addMemoryCount;
-            }
-        }
+        public int CreateCount => _createCount;
 
         /// <summary>
-        /// 获取移除内存对象数量。
+        /// 获取池未命中次数（Acquire 时池中无可用对象，需紧急创建）。
         /// </summary>
-        public int RemoveMemoryCount
+        public int MissCount => _missCount;
+
+        /// <summary>
+        /// 获取池未命中率（MissCount / AcquireCount，0~1）。AcquireCount 为 0 时返回 0。
+        /// </summary>
+        public float MissRate => _acquireCount > 0 ? (float)_missCount / _acquireCount : 0f;
+
+        /// <summary>
+        /// 获取目标空闲缓存数量。
+        /// </summary>
+        public int TargetFreeReserve => _targetFreeReserve;
+
+        /// <summary>
+        /// 获取硬容量上限。
+        /// </summary>
+        public int MaxCapacity => _maxCapacity;
+
+        /// <summary>
+        /// 获取空闲帧数。
+        /// </summary>
+        public int IdleFrames => _idleFrames;
+
+        /// <summary>
+        /// 获取页容量。
+        /// </summary>
+        public int PageCapacity => _pageCapacity;
+
+        #endregion
+
+        /// <summary>
+        /// 设置内存池信息。
+        /// </summary>
+        internal void Set(Type type, int unusedCount, int usingCount,
+            int acquireCount, int releaseCount, int createCount,
+            int missCount,
+            int targetFreeReserve, int maxCapacity,
+            int idleFrames, int pageCapacity)
         {
-            get
-            {
-                return _removeMemoryCount;
-            }
+            _type = type;
+            _unusedCount = unusedCount;
+            _usingCount = usingCount;
+            _acquireCount = acquireCount;
+            _releaseCount = releaseCount;
+            _createCount = createCount;
+            _missCount = missCount;
+            _targetFreeReserve = targetFreeReserve;
+            _maxCapacity = maxCapacity;
+            _idleFrames = idleFrames;
+            _pageCapacity = pageCapacity;
         }
     }
 }

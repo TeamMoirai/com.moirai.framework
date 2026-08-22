@@ -1,7 +1,6 @@
 using System;
 using Cysharp.Threading.Tasks;
 using Moirai.Atropos;
-using Moirai.Atropos.Procedure;
 using UnityEngine;
 using YooAsset;
 
@@ -18,7 +17,7 @@ namespace Moirai.Main
         protected override void OnEnter()
         {
             base.OnEnter();
-            
+
             // Fire Forget立刻触发UniTask初始化Package
             InitPackage().Forget();
         }

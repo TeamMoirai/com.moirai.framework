@@ -12,6 +12,7 @@ namespace Moirai.Atropos.Editor.Inspector
     {
         private readonly Dictionary<string, List<MemoryPoolInfo>> _memoryPoolInfos = new Dictionary<string, List<MemoryPoolInfo>>(StringComparer.Ordinal);
         private readonly HashSet<string> _openedItems = new HashSet<string>();
+        private MemoryPoolInfo[] _infoBuffer = Array.Empty<MemoryPoolInfo>();
 
         private bool _showFullClassName = false;
 
@@ -26,11 +27,20 @@ namespace Moirai.Atropos.Editor.Inspector
             if (EditorApplication.isPlaying && IsPrefabInHierarchy(t.gameObject))
             {
                 EditorGUILayout.LabelField("Memory Pool Count", MemoryPool.Count.ToString());
+                EditorGUILayout.LabelField("Phase", MemoryPoolRegistry.Phase.ToString());
                 _showFullClassName = EditorGUILayout.Toggle("Show Full Class Name", _showFullClassName);
                 _memoryPoolInfos.Clear();
-                MemoryPoolInfo[] memoryPoolInfos = MemoryPool.GetAllMemoryPoolInfos();
-                foreach (MemoryPoolInfo memoryPoolInfo in memoryPoolInfos)
+
+                int count = MemoryPool.Count;
+                if (_infoBuffer.Length < count)
                 {
+                    _infoBuffer = new MemoryPoolInfo[count];
+                }
+
+                int actualCount = MemoryPool.GetAllMemoryPoolInfos(_infoBuffer);
+                for (int i = 0; i < actualCount; i++)
+                {
+                    MemoryPoolInfo memoryPoolInfo = _infoBuffer[i];
                     string assemblyName = memoryPoolInfo.Type.Assembly.GetName().Name;
                     List<MemoryPoolInfo> results = null;
                     if (!_memoryPoolInfos.TryGetValue(assemblyName, out results))
@@ -62,7 +72,7 @@ namespace Moirai.Atropos.Editor.Inspector
                     {
                         EditorGUILayout.BeginVertical("box");
                         {
-                            EditorGUILayout.LabelField(_showFullClassName ? "Full Class Name" : "Class Name", "Unused\tUsing\tAcquire\tRelease\tAdd\tRemove");
+                            EditorGUILayout.LabelField(_showFullClassName ? "Full Class Name" : "Class Name", "Unused\tUsing\tAcquire\tRelease\tReserve\tIdle\tPages\tUtil%");
                             assemblyMemoryPoolInfo.Value.Sort(Comparison);
                             foreach (MemoryPoolInfo memoryPoolInfo in assemblyMemoryPoolInfo.Value)
                             {
@@ -78,10 +88,24 @@ namespace Moirai.Atropos.Editor.Inspector
                                     {
                                         int index = 0;
                                         string[] data = new string[assemblyMemoryPoolInfo.Value.Count + 1];
-                                        data[index++] = "Class Name,Full Class Name,Unused,Using,Acquire,Release,Add,Remove";
+                                        data[index++] = "Class Name,Full Class Name,Unused,Using,Acquire,Release,Reserve,Idle,Pages,Util%";
                                         foreach (MemoryPoolInfo memoryPoolInfo in assemblyMemoryPoolInfo.Value)
                                         {
-                                            data[index++] = StringUtility.Format("{0},{1},{2},{3},{4},{5},{6},{7}", memoryPoolInfo.Type.Name, memoryPoolInfo.Type.FullName, memoryPoolInfo.UnusedMemoryCount.ToString(), memoryPoolInfo.UsingMemoryCount.ToString(), memoryPoolInfo.AcquireMemoryCount.ToString(), memoryPoolInfo.ReleaseMemoryCount.ToString(), memoryPoolInfo.AddMemoryCount.ToString(), memoryPoolInfo.RemoveMemoryCount.ToString());
+                                            int pageCapacity = memoryPoolInfo.PageCapacity;
+                                            int utilPercent = pageCapacity > 0
+                                                ? (int)((long)memoryPoolInfo.UnusedCount * 100 / pageCapacity)
+                                                : 0;
+                                            data[index++] = StringUtility.Format("{0},{1},{2},{3},{4},{5},{6},{7},{8},{9}",
+                                                memoryPoolInfo.Type.Name,
+                                                memoryPoolInfo.Type.FullName,
+                                                memoryPoolInfo.UnusedCount.ToString(),
+                                                memoryPoolInfo.UsingCount.ToString(),
+                                                memoryPoolInfo.AcquireCount.ToString(),
+                                                memoryPoolInfo.ReleaseCount.ToString(),
+                                                memoryPoolInfo.TargetFreeReserve.ToString(),
+                                                memoryPoolInfo.IdleFrames.ToString(),
+                                                pageCapacity.ToString(),
+                                                utilPercent.ToString());
                                         }
 
                                         File.WriteAllLines(exportFileName, data, Encoding.UTF8);
@@ -106,9 +130,28 @@ namespace Moirai.Atropos.Editor.Inspector
             Repaint();
         }
 
-        private void DrawMemoryPoolInfo(MemoryPoolInfo memoryPoolInfo)
+        private void DrawMemoryPoolInfo(MemoryPoolInfo info)
         {
-            EditorGUILayout.LabelField(_showFullClassName ? memoryPoolInfo.Type.FullName : memoryPoolInfo.Type.Name, StringUtility.Format("{0}\t{1}\t{2}\t{3}\t{4}\t{5}", memoryPoolInfo.UnusedMemoryCount.ToString(), memoryPoolInfo.UsingMemoryCount.ToString(), memoryPoolInfo.AcquireMemoryCount.ToString(), memoryPoolInfo.ReleaseMemoryCount.ToString(), memoryPoolInfo.AddMemoryCount.ToString(), memoryPoolInfo.RemoveMemoryCount.ToString()));
+            int pageCapacity = info.PageCapacity;
+            int utilPercent = pageCapacity > 0
+                ? (int)((long)info.UnusedCount * 100 / pageCapacity)
+                : 0;
+            bool lowUtil = pageCapacity > 0 && utilPercent < 50;
+            bool longIdle = info.IdleFrames > MemoryPool.ShortDecayStartFrames;
+            string marker = lowUtil || longIdle ? " ⚠" : "";
+
+            EditorGUILayout.LabelField(
+                _showFullClassName ? info.Type.FullName : info.Type.Name,
+                StringUtility.Format("{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\t{7}\t{8}%{9}",
+                    info.UnusedCount.ToString(),
+                    info.UsingCount.ToString(),
+                    info.AcquireCount.ToString(),
+                    info.ReleaseCount.ToString(),
+                    info.TargetFreeReserve.ToString(),
+                    info.IdleFrames.ToString(),
+                    pageCapacity.ToString(),
+                    utilPercent.ToString(),
+                    marker));
         }
 
         private int Comparison(MemoryPoolInfo a, MemoryPoolInfo b)

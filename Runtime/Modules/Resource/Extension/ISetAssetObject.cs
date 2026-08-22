@@ -1,6 +1,6 @@
 namespace Moirai.Atropos.Resource
 {
-    public interface ISetAssetObject : IMemory
+    public interface ISetAssetObject
     {
         /// <summary>
         /// 资源定位地址。

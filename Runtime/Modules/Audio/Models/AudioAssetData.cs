@@ -14,20 +14,13 @@ namespace Moirai.Atropos.Audio
         /// </summary>
         public bool InPool { private set; get; }
 
-        public override void InitFromPool() { }
-
         /// <summary>
-        /// 回收到对象池。
+        /// 清理音频数据。
         /// </summary>
-        public override void RecycleToPool()
+        public override void Clear()
         {
-            if (!InPool)
-            {
-                AssetOperationHandle.Dispose();
-            }
-
+            AssetOperationHandle = default;
             InPool = false;
-            AssetOperationHandle = null;
         }
 
         /// <summary>
@@ -38,7 +31,7 @@ namespace Moirai.Atropos.Audio
         /// <returns>音频数据。</returns>
         internal static AudioAssetData Alloc(AssetHandle assetHandle, bool inPool)
         {
-            AudioAssetData ret = MemoryPool.Alloc<AudioAssetData>();
+            AudioAssetData ret = MemoryPool.Acquire<AudioAssetData>();
             ret.AssetOperationHandle = assetHandle;
             ret.InPool = inPool;
             return ret;
@@ -48,12 +41,19 @@ namespace Moirai.Atropos.Audio
         /// 回收音频数据。
         /// </summary>
         /// <param name="audioAssetData"></param>
-        internal static void DeAlloc(AudioAssetData audioAssetData)
+        internal static void Dealloc(AudioAssetData audioAssetData)
         {
-            if (audioAssetData != null)
+            if (audioAssetData == null) return;
+
+            if (!audioAssetData.InPool)
             {
-                MemoryPool.Dealloc(audioAssetData);
+                audioAssetData.AssetOperationHandle.Dispose();
             }
+
+            audioAssetData.InPool = false;
+            audioAssetData.AssetOperationHandle = null;
+
+            MemoryPool.Release(audioAssetData);
         }
     }
 }

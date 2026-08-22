@@ -8,7 +8,7 @@ namespace Moirai.Atropos.ObjectPool
         /// 内部对象。
         /// </summary>
         /// <typeparam name="T">对象类型。</typeparam>
-        private sealed class Object<T> : IMemory where T : ObjectBase
+        private sealed class Object<T> : MemoryObject where T : ObjectBase
         {
             private T _object;
             private int _spawnCount;
@@ -134,7 +134,7 @@ namespace Moirai.Atropos.ObjectPool
             /// <summary>
             /// 清理内部对象。
             /// </summary>
-            public void Clear()
+            public override void Clear()
             {
                 _object = null;
                 _spawnCount = 0;

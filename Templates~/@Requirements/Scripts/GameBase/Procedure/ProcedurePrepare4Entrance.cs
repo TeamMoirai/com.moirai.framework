@@ -1,5 +1,5 @@
 using Cysharp.Threading.Tasks;
-using Moirai.Atropos.Procedure;
+using Moirai.Atropos;
 
 namespace Moirai.Main
 {
@@ -14,13 +14,16 @@ namespace Moirai.Main
         protected override void OnEnter()
         {
             base.OnEnter();
+
             StartGame().Forget();
         }
 
         private async UniTaskVoid StartGame()
         {
             await UniTask.Yield();
+
             LauncherMgr.HideAllUI();
+            MemoryPoolRegistry.Phase = EMemoryPoolPhase.Gameplay;
         }
     }
 }

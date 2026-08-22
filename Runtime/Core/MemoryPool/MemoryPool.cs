@@ -1,76 +1,88 @@
 using System;
-using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 
 namespace Moirai.Atropos
 {
     /// <summary>
-    /// 内存池。
+    /// 内存池静态门面。
     /// </summary>
     public static partial class MemoryPool
     {
-        private static readonly Dictionary<Type, MemoryCollection> s_MemoryCollections = new Dictionary<Type, MemoryCollection>();
-        private static bool s_EnableStrictCheck = false;
+        #region 常量 [CONSTANTS]
 
         /// <summary>
-        /// 获取或设置是否开启强制检查。
+        /// 最小空闲保留数量。
         /// </summary>
-        public static bool EnableStrictCheck
-        {
-            get => s_EnableStrictCheck;
-            set => s_EnableStrictCheck = value;
-        }
+        public const int MinimumFreeReserveLimit = 4;
+
+        /// <summary>
+        /// 池空闲多少帧后开始衰减目标空闲水位。实际每 tick 驱逐数量由 Phase 预算决定（Gameplay=2）。默认 1800 帧（@60fps ≈ 30秒）。
+        /// </summary>
+        public static int ShortDecayStartFrames = 1800;
+
+        /// <summary>
+        /// 池空闲多少帧后加速衰减目标空闲水位。实际每 tick 驱逐数量由 Phase 预算决定。默认 7200 帧（@60fps ≈ 2分钟）。
+        /// </summary>
+        public static int LongDecayStartFrames = 7200;
+
+        /// <summary>
+        /// 池空闲多少帧后停止调度 Tick（省 CPU）。默认 18000 帧（@60fps ≈ 5分钟）。
+        /// </summary>
+        public static int UnscheduleIdleFrames = 18000;
+
+        /// <summary>
+        /// 池空闲多少帧后允许目标空闲缓存降为 0。默认 7200 帧（@60fps ≈ 2分钟）。
+        /// </summary>
+        public static int ZeroFreeReserveStartFrames = 7200;
+
+        /// <summary>
+        /// 池空闲多少帧后，若已完全空闲则自动释放 Native 元数据。默认 18000 帧（@60fps ≈ 5分钟）。
+        /// </summary>
+        public static int AutoTrimNativeMetadataFrames = 18000;
+
+        /// <summary>
+        /// 默认空闲缓存软上限。
+        /// </summary>
+        public static int DefaultSoftFreeReserveLimit = 128;
+
+        /// <summary>
+        /// 默认空闲缓存硬上限。
+        /// </summary>
+        public static int DefaultHardFreeReserveLimit = 512;
+
+        #endregion
+
+        #region 属性 [PROPERTIES]
 
         /// <summary>
         /// 获取内存池的数量。
         /// </summary>
-        // ReSharper disable once InconsistentlySynchronizedField
-        public static int Count => s_MemoryCollections.Count;
+        public static int Count => MemoryPoolRegistry.Count;
 
-        /// <summary>
-        /// 获取所有内存池的信息。
-        /// </summary>
-        /// <returns>所有内存池的信息。</returns>
-        public static MemoryPoolInfo[] GetAllMemoryPoolInfos()
-        {
-            int index = 0;
-            MemoryPoolInfo[] results = null;
+        #endregion
 
-            lock (s_MemoryCollections)
-            {
-                results = new MemoryPoolInfo[s_MemoryCollections.Count];
-                foreach (KeyValuePair<Type, MemoryCollection> memoryCollection in s_MemoryCollections)
-                {
-                    results[index++] = new MemoryPoolInfo(memoryCollection.Key, memoryCollection.Value.UnusedMemoryCount, memoryCollection.Value.UsingMemoryCount, memoryCollection.Value.AcquireMemoryCount, memoryCollection.Value.ReleaseMemoryCount, memoryCollection.Value.AddMemoryCount, memoryCollection.Value.RemoveMemoryCount);
-                }
-            }
-
-            return results;
-        }
-
-        /// <summary>
-        /// 清除所有内存池。
-        /// </summary>
-        public static void ClearAll()
-        {
-            lock (s_MemoryCollections)
-            {
-                foreach (KeyValuePair<Type, MemoryCollection> memoryCollection in s_MemoryCollections)
-                {
-                    memoryCollection.Value.RemoveAll();
-                }
-
-                s_MemoryCollections.Clear();
-            }
-        }
+        #region 获取 [ACQUIRE]
 
         /// <summary>
         /// 从内存池获取内存对象。
         /// </summary>
         /// <typeparam name="T">内存对象类型。</typeparam>
         /// <returns>内存对象。</returns>
-        public static T Acquire<T>() where T : class, IMemory, new()
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static T Acquire<T>() where T : MemoryObject, new()
         {
-            return GetMemoryCollection(typeof(T)).Acquire<T>();
+            return MemoryPool<T>.Acquire();
+        }
+
+        /// <summary>
+        /// 获取动态内存类型的缓存句柄。运行时热路径应提前缓存该句柄，避免反复使用 Type 查找。
+        /// </summary>
+        /// <param name="memoryType">内存对象类型。</param>
+        /// <returns>缓存句柄。</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static MemoryPoolHandle GetHandle(Type memoryType)
+        {
+            return MemoryPoolRegistry.GetHandle(memoryType);
         }
 
         /// <summary>
@@ -78,36 +90,48 @@ namespace Moirai.Atropos
         /// </summary>
         /// <param name="memoryType">内存对象类型。</param>
         /// <returns>内存对象。</returns>
-        public static IMemory Acquire(Type memoryType)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static MemoryObject Acquire(Type memoryType)
         {
-            InternalCheckMemoryType(memoryType);
-            return GetMemoryCollection(memoryType).Acquire();
+            return MemoryPoolRegistry.Acquire(memoryType);
+        }
+
+        #endregion
+
+        #region 归还 [RELEASE]
+
+        /// <summary>
+        /// 将内存对象归还内存池。
+        /// </summary>
+        /// <typeparam name="T">内存对象类型。</typeparam>
+        /// <param name="memory">内存对象。</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void Release<T>(T memory) where T : MemoryObject, new()
+        {
+            MemoryPool<T>.Release(memory);
         }
 
         /// <summary>
         /// 将内存对象归还内存池。
         /// </summary>
         /// <param name="memory">内存对象。</param>
-        public static void Release(IMemory memory)
+        public static void Release(MemoryObject memory)
         {
-            if (memory == null)
-            {
-                throw new Exception("Memory is invalid.");
-            }
-
-            Type memoryType = memory.GetType();
-            InternalCheckMemoryType(memoryType);
-            GetMemoryCollection(memoryType).Release(memory);
+            MemoryPoolRegistry.Release(memory);
         }
+
+        #endregion
+
+        #region 追加与移除 [ADD & REMOVE]
 
         /// <summary>
         /// 向内存池中追加指定数量的内存对象。
         /// </summary>
         /// <typeparam name="T">内存对象类型。</typeparam>
         /// <param name="count">追加数量。</param>
-        public static void Add<T>(int count) where T : class, IMemory, new()
+        public static void Add<T>(int count) where T : MemoryObject, new()
         {
-            GetMemoryCollection(typeof(T)).Add<T>(count);
+            MemoryPool<T>.Add(count);
         }
 
         /// <summary>
@@ -117,8 +141,7 @@ namespace Moirai.Atropos
         /// <param name="count">追加数量。</param>
         public static void Add(Type memoryType, int count)
         {
-            InternalCheckMemoryType(memoryType);
-            GetMemoryCollection(memoryType).Add(count);
+            MemoryPoolRegistry.Add(memoryType, count);
         }
 
         /// <summary>
@@ -126,9 +149,10 @@ namespace Moirai.Atropos
         /// </summary>
         /// <typeparam name="T">内存对象类型。</typeparam>
         /// <param name="count">移除数量。</param>
-        public static void Remove<T>(int count) where T : class, IMemory
+        public static void Remove<T>(int count) where T : MemoryObject, new()
         {
-            GetMemoryCollection(typeof(T)).Remove(count);
+            int target = MemoryPool<T>.UnusedCount - count;
+            MemoryPool<T>.Shrink(target);
         }
 
         /// <summary>
@@ -138,17 +162,16 @@ namespace Moirai.Atropos
         /// <param name="count">移除数量。</param>
         public static void Remove(Type memoryType, int count)
         {
-            InternalCheckMemoryType(memoryType);
-            GetMemoryCollection(memoryType).Remove(count);
+            MemoryPoolRegistry.RemoveFromType(memoryType, count);
         }
 
         /// <summary>
         /// 从内存池中移除所有的内存对象。
         /// </summary>
         /// <typeparam name="T">内存对象类型。</typeparam>
-        public static void RemoveAll<T>() where T : class, IMemory
+        public static void RemoveAll<T>() where T : MemoryObject, new()
         {
-            GetMemoryCollection(typeof(T)).RemoveAll();
+            MemoryPool<T>.ClearAll();
         }
 
         /// <summary>
@@ -157,51 +180,143 @@ namespace Moirai.Atropos
         /// <param name="memoryType">内存对象类型。</param>
         public static void RemoveAll(Type memoryType)
         {
-            InternalCheckMemoryType(memoryType);
-            GetMemoryCollection(memoryType).RemoveAll();
+            MemoryPoolRegistry.ClearType(memoryType);
         }
 
-        private static void InternalCheckMemoryType(Type memoryType)
+        #endregion
+
+        #region 容量管理 [CAPACITY MANAGEMENT]
+
+        /// <summary>
+        /// 设置指定类型内存池容量。
+        /// </summary>
+        /// <typeparam name="T">内存对象类型。</typeparam>
+        /// <param name="softCapacity">软容量上限。</param>
+        /// <param name="hardCapacity">硬容量上限。</param>
+        public static void SetCapacity<T>(int softCapacity, int hardCapacity) where T : MemoryObject, new()
         {
-            if (!s_EnableStrictCheck)
-            {
-                return;
-            }
-
-            if (memoryType == null)
-            {
-                throw new Exception("Memory type is invalid.");
-            }
-
-            if (!memoryType.IsClass || memoryType.IsAbstract)
-            {
-                throw new Exception("Memory type is not a non-abstract class type.");
-            }
-
-            if (!typeof(IMemory).IsAssignableFrom(memoryType))
-            {
-                throw new Exception(string.Format("Memory type '{0}' is invalid.", memoryType.FullName));
-            }
+            MemoryPool<T>.SetCapacity(softCapacity, hardCapacity);
         }
 
-        private static MemoryCollection GetMemoryCollection(Type memoryType)
+        /// <summary>
+        /// 设置指定类型内存池容量。
+        /// </summary>
+        /// <param name="memoryType">内存对象类型。</param>
+        /// <param name="softCapacity">软容量上限。</param>
+        /// <param name="hardCapacity">硬容量上限。</param>
+        public static void SetCapacity(Type memoryType, int softCapacity, int hardCapacity)
         {
-            if (memoryType == null)
-            {
-                throw new Exception("MemoryType is invalid.");
-            }
-
-            MemoryCollection memoryCollection = null;
-            lock (s_MemoryCollections)
-            {
-                if (!s_MemoryCollections.TryGetValue(memoryType, out memoryCollection))
-                {
-                    memoryCollection = new MemoryCollection(memoryType);
-                    s_MemoryCollections.Add(memoryType, memoryCollection);
-                }
-            }
-
-            return memoryCollection;
+            MemoryPoolRegistry.SetCapacity(memoryType, softCapacity, hardCapacity);
         }
+
+        /// <summary>
+        /// 设置所有内存池的默认容量。
+        /// </summary>
+        /// <param name="softCapacity">软容量上限。</param>
+        /// <param name="hardCapacity">硬容量上限。</param>
+        public static void SetDefaultCapacity(int softCapacity, int hardCapacity)
+        {
+            softCapacity = Math.Max(softCapacity, MinimumFreeReserveLimit);
+            hardCapacity = Math.Max(hardCapacity, softCapacity);
+            DefaultSoftFreeReserveLimit = softCapacity;
+            DefaultHardFreeReserveLimit = hardCapacity;
+            MemoryPoolRegistry.SetCapacityAll(softCapacity, hardCapacity);
+        }
+
+        /// <summary>
+        /// 压缩指定类型内存池。
+        /// </summary>
+        /// <typeparam name="T">内存对象类型。</typeparam>
+        public static void Compact<T>() where T : MemoryObject, new()
+        {
+            MemoryPool<T>.Compact();
+        }
+
+        /// <summary>
+        /// 压缩指定类型内存池。
+        /// </summary>
+        /// <param name="memoryType">内存对象类型。</param>
+        public static void Compact(Type memoryType)
+        {
+            MemoryPoolRegistry.CompactType(memoryType);
+        }
+
+        /// <summary>
+        /// 压缩所有内存池。
+        /// </summary>
+        public static void CompactAll()
+        {
+            MemoryPoolRegistry.CompactAll();
+        }
+
+        #endregion
+
+        #region Native 元数据 [NATIVE METADATA]
+
+        /// <summary>
+        /// 修剪指定类型内存池的 Native 元数据。
+        /// </summary>
+        /// <typeparam name="T">内存对象类型。</typeparam>
+        public static void TrimNativeMetadata<T>() where T : MemoryObject, new()
+        {
+            MemoryPool<T>.TrimNativeMetadata();
+        }
+
+        /// <summary>
+        /// 修剪指定类型内存池的 Native 元数据。
+        /// </summary>
+        /// <param name="memoryType">内存对象类型。</param>
+        public static void TrimNativeMetadata(Type memoryType)
+        {
+            MemoryPoolRegistry.TrimNativeMetadata(memoryType);
+        }
+
+        /// <summary>
+        /// 修剪所有内存池的 Native 元数据。
+        /// </summary>
+        public static void TrimAllNativeMetadata()
+        {
+            MemoryPoolRegistry.TrimAllNativeMetadata();
+        }
+
+        #endregion
+
+        #region 统计 [STATISTICS]
+
+        /// <summary>
+        /// 重置所有内存池统计信息。
+        /// </summary>
+        public static void ResetAllStats()
+        {
+            MemoryPoolRegistry.ResetAllStats();
+        }
+
+        #endregion
+
+        #region 信息 [INFO]
+
+        /// <summary>
+        /// 获取所有内存池信息到指定缓冲区。
+        /// </summary>
+        /// <param name="infos">信息缓冲区。</param>
+        /// <returns>内存池数量。</returns>
+        public static int GetAllMemoryPoolInfos(MemoryPoolInfo[] infos)
+        {
+            return MemoryPoolRegistry.GetAllInfos(infos);
+        }
+
+        #endregion
+
+        #region 清除 [CLEAR]
+
+        /// <summary>
+        /// 清除所有内存池。
+        /// </summary>
+        public static void ClearAll()
+        {
+            MemoryPoolRegistry.ClearAll();
+        }
+
+        #endregion
     }
 }

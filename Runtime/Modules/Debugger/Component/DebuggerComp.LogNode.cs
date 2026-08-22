@@ -8,7 +8,7 @@ namespace Moirai.Atropos.Debugger
         /// <summary>
         /// 日志记录结点。
         /// </summary>
-        public sealed class LogNode : IMemory
+        public sealed class LogNode : MemoryObject
         {
             private DateTime _logTime;
             private int _logFrameCount;
@@ -104,7 +104,7 @@ namespace Moirai.Atropos.Debugger
             /// <summary>
             /// 清理日志记录结点。
             /// </summary>
-            public void Clear()
+            public override void Clear()
             {
                 _logTime = default(DateTime);
                 _logFrameCount = 0;

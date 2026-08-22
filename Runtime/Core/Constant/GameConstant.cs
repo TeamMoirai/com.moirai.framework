@@ -3,7 +3,7 @@
     /// <summary>
     /// 常用设置相关常量。
     /// </summary>
-    public static partial class Constant
+    public static partial class GameConstant
     {
         /// <summary>
         /// 游戏版本
