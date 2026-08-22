@@ -602,15 +602,39 @@ namespace Moirai.Atropos.Resource
 
                 AttachLoadingAssetHandle(loadingKey, handle);
                 StartProgressTask(location, handle, loadAssetUpdateCallback, userData, cancellationToken);
-
+                bool callerCancellationRequested = false;
                 if (!handle.IsDone)
                 {
                     await handle.ToUniTask(cancellationToken: cancellationToken);
                 }
 
-                if (cancellationToken.IsCancellationRequested ||
-                    !handle.IsValid || handle.AssetObject == null || handle.Status == EOperationStatus.Failed ||
-                    _isDestroying)
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    callerCancellationRequested = true;
+                }
+
+                if (!IsLoadingStateCurrent(loadGeneration))
+                {
+                    DisposeHandle(handle);
+                    FailLoading(loadingKey, null);
+                    return null;
+                }
+
+                if (ShouldAbortLoadingAfterCallerCancellation(loadingKey, cancellationToken, ref callerCancellationRequested))
+                {
+                    DisposeHandle(handle);
+                    FailLoading(loadingKey, null);
+                    return null;
+                }
+
+                if (!handle.IsValid || handle.AssetObject == null || handle.Status == EOperationStatus.Failed)
+                {
+                    DisposeHandle(handle);
+                    FailLoading(loadingKey, null);
+                    return null;
+                }
+
+                if (_isDestroying)
                 {
                     DisposeHandle(handle);
                     FailLoading(loadingKey, null);
@@ -620,6 +644,11 @@ namespace Moirai.Atropos.Resource
                 GetOrCreateAssetRecord(normalizedPackageName, location, assetType, assetKind,
                     EResourceHandleKind.AssetHandle, handle.AssetObject, handle);
                 CompleteLoading(loadingKey);
+                if (callerCancellationRequested)
+                {
+                    return null;
+                }
+
                 return TryGetCachedAssetRecord(normalizedPackageName, location, assetType, assetKind,
                         EResourceHandleKind.AssetHandle, out _, out cachedAsset)
                     ? cachedAsset
@@ -783,6 +812,17 @@ namespace Moirai.Atropos.Resource
         private bool IsLoadingStateCurrent(int loadGeneration)
         {
             return !_isDestroying && loadGeneration == unchecked((int)_assetUnloadGeneration);
+        }
+
+        private bool ShouldAbortLoadingAfterCallerCancellation(ulong assetObjectKey,
+            CancellationToken cancellationToken, ref bool callerCancellationRequested)
+        {
+            if (cancellationToken.IsCancellationRequested)
+            {
+                callerCancellationRequested = true;
+            }
+
+            return callerCancellationRequested && !HasLoadingWaiters(assetObjectKey);
         }
 
         private static void ReleaseLoadingOperationIfReady(LoadingOperationState loadingOperation)
@@ -1577,6 +1617,13 @@ namespace Moirai.Atropos.Resource
                 info.KeepAliveRefCount = slot.KeepAliveRefCount;
                 info.RefCountTotal = slot.DirectRefCount + slot.LegacyDirectRefCount +
                     slot.BindingRefCount + slot.KeepAliveRefCount;
+                int currentTick = ToKeepAliveTick(Time.unscaledTime);
+                info.KeepAliveExpireIn = slot.KeepAliveRefCount > 0
+                    ? Math.Max(0, slot.KeepAliveExpireTick - currentTick)
+                    : 0;
+                info.IdleExpireIn = slot.State == EResourceAssetState.Idle && slot.ExpireQueueKind == 2
+                    ? Math.Max(0, slot.IdleExpireTick - currentTick)
+                    : 0;
                 info.IdleReleaseRequested = slot.IdleReleaseRequested != 0;
                 info.HandleValid = IsSlotHandleValid(ref slot);
                 info.HandleKind = (byte)slot.HandleKind;
