@@ -125,7 +125,7 @@ namespace Moirai.Atropos.Resource
         public EPlayMode PlayMode { get; set; } = EPlayMode.OfflinePlayMode;
 
         /// <inheritdoc />
-        public EncryptionType EncryptionType { get; set; } = EncryptionType.None;
+        public EEncryptorType EncryptorType { get; set; } = EEncryptorType.None;
 
         /// <inheritdoc />
         public long Milliseconds { get; set; } = 30;
@@ -201,7 +201,7 @@ namespace Moirai.Atropos.Resource
         /// <summary>
         /// 默认资源包。
         /// </summary>
-        internal ResourcePackage DefaultPackage { private set; get; }
+        public ResourcePackage DefaultPackage { get; private set; }
 
         /// <summary>
         /// 资源包列表。
@@ -220,15 +220,15 @@ namespace Moirai.Atropos.Resource
         /// <inheritdoc />
         public void Initialize()
         {
+            // 初始化资源系统
             YooAssets.Initialize(new ResourceLogger());
-            YooAssets.SetOperationSystemMaxTimeSlice(Milliseconds);
+            YooAssets.SetAsyncOperationMaxTimeSlice(Milliseconds);
 
+            // 创建默认的资源包
             string packageName = DefaultPackageName;
-            var defaultPackage = YooAssets.TryGetPackage(packageName);
-            if (defaultPackage == null)
+            if (!YooAssets.TryGetPackage(packageName, out var defaultPackage))
             {
                 defaultPackage = YooAssets.CreatePackage(packageName);
-                YooAssets.SetDefaultPackage(defaultPackage);
             }
 
             DefaultPackage = defaultPackage;
@@ -237,18 +237,20 @@ namespace Moirai.Atropos.Resource
         }
 
         /// <inheritdoc />
-        public async UniTask<InitializationOperation> InitPackage(string packageName, bool needInitMainFest = false)
+        public async UniTask<InitializePackageOperation> InitPackage(string packageName, bool needInitManifest = false)
         {
 #if UNITY_EDITOR
+            // 编辑器模式使用。
             EPlayMode playMode = (EPlayMode)UnityEditor.EditorPrefs.GetInt(ResourceServiceDriver.EDITOR_PLAY_MODE_KEY);
             LogUtility.Warning("Editor Service Used :{0}", playMode);
 #else
+            // 运行时使用。
             EPlayMode playMode = (EPlayMode)PlayMode;
 #endif
 
             if (PackageMap.TryGetValue(packageName, out var resourcePackage))
             {
-                if (resourcePackage.InitializeStatus is EOperationStatus.Processing or EOperationStatus.Succeed)
+                if (resourcePackage.InitializeStatus is EOperationStatus.Processing or EOperationStatus.Succeeded)
                 {
                     LogUtility.Error("ResourceSystem has already init package : {0}", packageName);
                     return null;
@@ -257,86 +259,102 @@ namespace Moirai.Atropos.Resource
                 PackageMap.Remove(packageName);
             }
 
-            var package = YooAssets.TryGetPackage(packageName);
-            if (package == null)
+            // 创建默认的资源包
+            if (!YooAssets.TryGetPackage(packageName, out var package))
             {
                 package = YooAssets.CreatePackage(packageName);
             }
 
             PackageMap[packageName] = package;
 
-            // 编辑器下的模拟模式
-            InitializationOperation initializationOperation = null;
-            if (playMode == EPlayMode.EditorSimulateMode)
-            {
-                var buildResult = EditorSimulateModeHelper.SimulateBuild(packageName);
-                var packageRoot = buildResult.PackageRootDirectory;
-                var createParameters = new EditorSimulateModeParameters();
-                createParameters.EditorFileSystemParameters = FileSystemParameters.CreateDefaultEditorFileSystemParameters(packageRoot);
-                createParameters.AutoUnloadBundleWhenUnused = AutoUnloadBundleWhenUnused;
-                initializationOperation = package.InitializeAsync(createParameters);
-            }
+            InitializePackageOperation initOperation = null;
 
-            IDecryptionServices decryptionServices = CreateDecryptionServices();
-            
-            // 单机运行模式
-            if (playMode == EPlayMode.OfflinePlayMode)
+            switch (playMode)
             {
-                var createParameters = new OfflinePlayModeParameters();
-                createParameters.BuildinFileSystemParameters = FileSystemParameters.CreateDefaultBuildinFileSystemParameters(decryptionServices);
-                createParameters.AutoUnloadBundleWhenUnused = AutoUnloadBundleWhenUnused;
-                initializationOperation = package.InitializeAsync(createParameters);
-            }
-
-            if (playMode == EPlayMode.HostPlayMode)
-            {
-                string defaultHostServer = HostServerURL;
-                string fallbackHostServer = FallbackHostServerURL;
-                IRemoteServices remoteServices = new RemoteServices(defaultHostServer, fallbackHostServer);
-                var createParameters = new HostPlayModeParameters();
-                createParameters.BuildinFileSystemParameters = FileSystemParameters.CreateDefaultBuildinFileSystemParameters(decryptionServices);
-                createParameters.CacheFileSystemParameters = FileSystemParameters.CreateDefaultCacheFileSystemParameters(remoteServices, decryptionServices);
-                createParameters.AutoUnloadBundleWhenUnused = AutoUnloadBundleWhenUnused;
-                initializationOperation = package.InitializeAsync(createParameters);
-            }
-
-            if (playMode == EPlayMode.WebPlayMode)
-            {
-                var createParameters = new WebPlayModeParameters();
-                IWebDecryptionServices webDecryptionServices = CreateWebDecryptionServices();
-                string defaultHostServer = HostServerURL;
-                string fallbackHostServer = FallbackHostServerURL;
-                IRemoteServices remoteServices = new RemoteServices(defaultHostServer, fallbackHostServer);
-#if UNITY_WEBGL && WEIXINMINIGAME && !UNITY_EDITOR
-                LogUtility.Info("=======================WEIXINMINIGAME=======================");
-                // 注意：如果有子目录，请修改此处！
-                string packageRoot = StringUtility.Concat(WeChatWASM.WX.env.USER_DATA_PATH, "/__GAME_FILE_CACHE");
-                createParameters.WebServerFileSystemParameters = WechatFileSystemCreater.CreateFileSystemParameters(packageRoot, remoteServices, webDecryptionServices);
-#else
-                LogUtility.Info("=======================UNITY_WEBGL=======================");
-                if (LoadResWayWebGL == ELoadResWayWebGL.Remote)
+                // 编辑器下的模拟模式
+                case EPlayMode.EditorSimulateMode:
                 {
-                    createParameters.WebRemoteFileSystemParameters = FileSystemParameters.CreateDefaultWebRemoteFileSystemParameters(remoteServices, webDecryptionServices);
+                    var buildResult = EditorSimulateBuildInvoker.Build(packageName, (int)EBundleType.VirtualAssetBundle);
+                    var packageRoot = buildResult.PackageRootDirectory;
+                    var createParameters = new EditorSimulateModeOptions();
+                    createParameters.EditorFileSystemParameters = FileSystemParameters.CreateDefaultEditorFileSystemParameters(packageRoot);
+                    createParameters.AutoUnloadBundleWhenUnused = AutoUnloadBundleWhenUnused;
+                    initOperation = package.InitializePackageAsync(createParameters);
+                    break;
                 }
-                createParameters.WebServerFileSystemParameters = FileSystemParameters.CreateDefaultWebServerFileSystemParameters(webDecryptionServices);
+
+                // 单机运行模式
+                case EPlayMode.OfflinePlayMode:
+                {
+                    IBundleDecryptor decryptor = CreateBundleDecryptor();
+                    var createParameters = new OfflinePlayModeOptions();
+                    createParameters.BuiltinFileSystemParameters = FileSystemParameters.CreateDefaultBuiltinFileSystemParameters();
+                    createParameters.BuiltinFileSystemParameters.AddParameter(EFileSystemParameter.AssetBundleDecryptor, decryptor);
+                    createParameters.AutoUnloadBundleWhenUnused = AutoUnloadBundleWhenUnused;
+                    initOperation = package.InitializePackageAsync(createParameters);
+                    break;
+                }
+
+                // 联机运行模式
+                case EPlayMode.HostPlayMode:
+                {
+                    IBundleDecryptor decryptor = CreateBundleDecryptor();
+                    string defaultHostServer = HostServerURL;
+                    string fallbackHostServer = FallbackHostServerURL;
+                    IRemoteService remoteService = new RemoteService(defaultHostServer, fallbackHostServer);
+                    var createParameters = new HostPlayModeOptions();
+                    createParameters.BuiltinFileSystemParameters = FileSystemParameters.CreateDefaultBuiltinFileSystemParameters();
+                    createParameters.BuiltinFileSystemParameters.AddParameter(EFileSystemParameter.AssetBundleDecryptor, decryptor);
+                    createParameters.CacheFileSystemParameters = FileSystemParameters.CreateDefaultSandboxFileSystemParameters(remoteService);
+                    createParameters.CacheFileSystemParameters.AddParameter(EFileSystemParameter.AssetBundleDecryptor, decryptor);
+                    createParameters.AutoUnloadBundleWhenUnused = AutoUnloadBundleWhenUnused;
+                    initOperation = package.InitializePackageAsync(createParameters);
+                    break;
+                }
+
+                // WebGL运行模式
+                case EPlayMode.WebPlayMode:
+                {
+                    var createParameters = new WebPlayModeOptions();
+                    IBundleDecryptor decryptor = CreateBundleDecryptor();
+                    string defaultHostServer = HostServerURL;
+                    string fallbackHostServer = FallbackHostServerURL;
+                    IRemoteService remoteService = new RemoteService(defaultHostServer, fallbackHostServer);
+#if UNITY_WEBGL && WEIXINMINIGAME && !UNITY_EDITOR
+                    LogUtility.Info("=======================WEIXINMINIGAME=======================");
+                    // 注意：如果有子目录，请修改此处！
+                    string packageRoot = StringUtility.Concat(WeChatWASM.WX.env.USER_DATA_PATH, "/__GAME_FILE_CACHE");
+                    createParameters.WebNetworkFileSystemParameters = WechatFileSystemCreater.CreateFileSystemParameters(packageRoot, remoteService, decryptor);
+#else
+                    LogUtility.Info("=======================UNITY_WEBGL=======================");
+                    if (LoadResWayWebGL == ELoadResWayWebGL.Remote)
+                    {
+                        createParameters.WebNetworkFileSystemParameters = FileSystemParameters.CreateDefaultWebNetworkFileSystemParameters(remoteService);
+                        createParameters.WebNetworkFileSystemParameters.AddParameter(EFileSystemParameter.AssetBundleDecryptor, decryptor);
+                    }
+                    createParameters.WebServerFileSystemParameters = FileSystemParameters.CreateDefaultWebServerFileSystemParameters();
+                    createParameters.WebServerFileSystemParameters.AddParameter(EFileSystemParameter.AssetBundleDecryptor, decryptor);
 #endif
-                createParameters.AutoUnloadBundleWhenUnused = AutoUnloadBundleWhenUnused;
-                initializationOperation = package.InitializeAsync(createParameters);
+                    createParameters.AutoUnloadBundleWhenUnused = AutoUnloadBundleWhenUnused;
+                    initOperation = package.InitializePackageAsync(createParameters);
+                    break;
+                }
             }
 
-            await initializationOperation.ToUniTask();
+            await initOperation.ToUniTask();
 
-            LogUtility.Info("Init resource package version : {0}", initializationOperation?.Status);
+            LogUtility.Info("Init resource package version : {0}", initOperation?.Status);
 
-            if (needInitMainFest)
+            if (needInitManifest)
             {
                 // 2. 请求资源清单的版本信息
                 var requestPackageVersionOperation = package.RequestPackageVersionAsync();
                 await requestPackageVersionOperation;
-                if (requestPackageVersionOperation.Status == EOperationStatus.Succeed)
+                if (requestPackageVersionOperation.Status == EOperationStatus.Succeeded)
                 {
                     // 3. 传入的版本信息更新资源清单
-                    var updatePackageManifestAsync = package.UpdatePackageManifestAsync(requestPackageVersionOperation.PackageVersion);
+                    var options = new PrefetchManifestOptions(requestPackageVersionOperation.PackageVersion, 60);
+                    var updatePackageManifestAsync = package.PrefetchManifestAsync(options);
                     await updatePackageManifestAsync;
                     if (updatePackageManifestAsync.Status == EOperationStatus.Failed)
                     {
@@ -349,31 +367,18 @@ namespace Moirai.Atropos.Resource
                 }
             }
 
-            return initializationOperation;
+            return initOperation;
         }
 
         /// <summary>
-        /// 创建解密服务。
+        /// 创建资源包解密器。
         /// </summary>
-        private IDecryptionServices CreateDecryptionServices()
+        private IBundleDecryptor CreateBundleDecryptor()
         {
-            return EncryptionType switch
+            return EncryptorType switch
             {
-                EncryptionType.FileOffSet => new FileOffsetDecryption(),
-                EncryptionType.FileStream => new FileStreamDecryption(),
-                _ => null
-            };
-        }
-
-        /// <summary>
-        /// 创建Web解密服务。
-        /// </summary>
-        private IWebDecryptionServices CreateWebDecryptionServices()
-        {
-            return EncryptionType switch
-            {
-                EncryptionType.FileOffSet => new FileOffsetWebDecryption(),
-                EncryptionType.FileStream => new FileStreamWebDecryption(),
+                EEncryptorType.FileOffSet => new FileOffsetDecryptor(),
+                EEncryptorType.FileStream => new FileStreamDecryptor(),
                 _ => null
             };
         }
@@ -385,25 +390,16 @@ namespace Moirai.Atropos.Resource
         /// <inheritdoc />
         public string GetPackageVersion(string customPackageName = "")
         {
-            var package = string.IsNullOrEmpty(customPackageName)
-                ? YooAssets.GetPackage(DefaultPackageName)
-                : YooAssets.GetPackage(customPackageName);
-            if (package == null)
-            {
-                return string.Empty;
-            }
-
+            var package = GetPackageOrThrow(customPackageName);
             return package.GetPackageVersion();
         }
 
         /// <inheritdoc />
-        public RequestPackageVersionOperation RequestPackageVersionAsync(bool appendTimeTicks = false,
-            int timeout = 60, string customPackageName = "")
+        public RequestPackageVersionOperation RequestPackageVersionAsync(bool appendTimeTicks = false, int timeout = 60, string customPackageName = "")
         {
-            var package = string.IsNullOrEmpty(customPackageName)
-                ? YooAssets.GetPackage(DefaultPackageName)
-                : YooAssets.GetPackage(customPackageName);
-            return package.RequestPackageVersionAsync(appendTimeTicks, timeout);
+            var package = GetPackageOrThrow(customPackageName);
+            var options = new RequestPackageVersionOptions(appendTimeTicks, timeout);
+            return package.RequestPackageVersionAsync(options);
         }
 
         /// <inheritdoc />
@@ -414,49 +410,48 @@ namespace Moirai.Atropos.Resource
         }
 
         /// <inheritdoc />
-        public UpdatePackageManifestOperation UpdatePackageManifestAsync(string packageVersion,
-            int timeout = 60, string customPackageName = "")
+        public LoadPackageManifestOperation LoadPackageManifestAsync(string packageVersion, int timeout = 60, string customPackageName = "")
         {
-            var package = string.IsNullOrEmpty(customPackageName)
-                ? YooAssets.GetPackage(DefaultPackageName)
-                : YooAssets.GetPackage(customPackageName);
-            return package.UpdatePackageManifestAsync(packageVersion, timeout);
+            var package = GetPackageOrThrow(customPackageName);
+            var options = new LoadPackageManifestOptions(packageVersion, timeout);
+            return package.LoadPackageManifestAsync(options);
         }
-
-        /// <inheritdoc />
-        public ResourceDownloaderOperation Downloader { get; set; }
 
         /// <inheritdoc />
         public ResourceDownloaderOperation CreateResourceDownloader(string customPackageName = "")
         {
-            ResourcePackage package;
-            if (string.IsNullOrEmpty(customPackageName))
-            {
-                package = YooAssets.GetPackage(DefaultPackageName);
-            }
-            else
-            {
-                package = YooAssets.GetPackage(customPackageName);
-            }
-
-            Downloader = package.CreateResourceDownloader(DownloadingMaxNum, FailedTryAgain);
-            return Downloader;
+            ResourcePackage package = GetPackageOrThrow(customPackageName);
+            var options = new ResourceDownloaderOptions(DownloadingMaxNum, FailedTryAgain);
+            return package.CreateResourceDownloader(options);
         }
 
         /// <inheritdoc />
-        public ClearCacheFilesOperation ClearCacheFilesAsync(
-            EFileClearMode clearMode = EFileClearMode.ClearUnusedBundleFiles,
-            string customPackageName = "")
+        public ClearCacheOperation ClearCacheAsync(ClearCacheOptions options, string customPackageName = "")
         {
-            var package = string.IsNullOrEmpty(customPackageName)
-                ? YooAssets.GetPackage(DefaultPackageName)
-                : YooAssets.GetPackage(customPackageName);
-            return package.ClearCacheFilesAsync(clearMode);
+            var package = GetPackageOrThrow(customPackageName);
+            return package.ClearCacheAsync(options);
         }
 
         /// <inheritdoc />
         public void ClearAllBundleFiles(string customPackageName = "")
-            => ClearCacheFilesAsync(EFileClearMode.ClearAllBundleFiles, customPackageName);
+        {
+            var options = new ClearCacheOptions(ClearCacheMethods.ClearAllBundleFiles);
+            ClearCacheAsync(options, customPackageName);
+        }
+
+        private ResourcePackage GetPackageOrThrow(string packageName)
+        {
+            ResourcePackage package = string.IsNullOrEmpty(packageName)
+                ? YooAssets.GetPackage(DefaultPackageName)
+                : YooAssets.GetPackage(packageName);
+
+            if (package == null)
+            {
+                throw new GameException(StringUtility.Format("The package does not exist. Package Name :{0}", string.IsNullOrEmpty(packageName) ? DefaultPackageName : packageName));
+            }
+
+            return package;
+        }
 
         #endregion
 
@@ -484,7 +479,7 @@ namespace Moirai.Atropos.Resource
             _assetInfoMap.Clear();
             foreach (var package in PackageMap.Values)
             {
-                if (package is { InitializeStatus: EOperationStatus.Succeed })
+                if (package is { InitializeStatus: EOperationStatus.Succeeded })
                 {
                     package.UnloadUnusedAssetsAsync();
                 }
@@ -513,7 +508,7 @@ namespace Moirai.Atropos.Resource
 #else
             foreach (var package in PackageMap.Values)
             {
-                if (package is { InitializeStatus: EOperationStatus.Succeed })
+                if (package is { InitializeStatus: EOperationStatus.Succeeded })
                 {
                     package.UnloadAllAssetsAsync();
                 }
@@ -534,49 +529,25 @@ namespace Moirai.Atropos.Resource
         /// <inheritdoc />
         public bool IsNeedDownloadFromRemote(string location, string packageName = "")
         {
-            if (string.IsNullOrEmpty(packageName))
-            {
-                return YooAssets.IsNeedDownloadFromRemote(location);
-            }
-
-            var package = YooAssets.GetPackage(packageName);
-            return package.IsNeedDownloadFromRemote(location);
+            return GetPackageOrThrow(packageName).GetDownloadSize(location) > 0;
         }
 
         /// <inheritdoc />
         public bool IsNeedDownloadFromRemote(AssetInfo assetInfo, string packageName = "")
         {
-            if (string.IsNullOrEmpty(packageName))
-            {
-                return YooAssets.IsNeedDownloadFromRemote(assetInfo);
-            }
-
-            var package = YooAssets.GetPackage(packageName);
-            return package.IsNeedDownloadFromRemote(assetInfo);
+            return GetPackageOrThrow(packageName).GetDownloadSize(assetInfo) > 0;
         }
 
         /// <inheritdoc />
         public AssetInfo[] GetAssetInfos(string tag, string packageName = "")
         {
-            if (string.IsNullOrEmpty(packageName))
-            {
-                return YooAssets.GetAssetInfos(tag);
-            }
-
-            var package = YooAssets.GetPackage(packageName);
-            return package.GetAssetInfos(tag);
+            return GetPackageOrThrow(packageName).GetAssetInfos(tag);
         }
 
         /// <inheritdoc />
         public AssetInfo[] GetAssetInfos(string[] tags, string packageName = "")
         {
-            if (string.IsNullOrEmpty(packageName))
-            {
-                return YooAssets.GetAssetInfos(tags);
-            }
-
-            var package = YooAssets.GetPackage(packageName);
-            return package.GetAssetInfos(tags);
+            return GetPackageOrThrow(packageName).GetAssetInfos(tags);
         }
 
         /// <inheritdoc />
@@ -594,7 +565,7 @@ namespace Moirai.Atropos.Resource
                     return assetInfo;
                 }
 
-                assetInfo = YooAssets.GetAssetInfo(location);
+                assetInfo = DefaultPackage.GetAssetInfo(location);
                 _assetInfoMap[location] = assetInfo;
                 return assetInfo;
             }
@@ -605,12 +576,7 @@ namespace Moirai.Atropos.Resource
                 return pkgAssetInfo;
             }
 
-            var package = YooAssets.GetPackage(packageName);
-            if (package == null)
-            {
-                throw new GameException(StringUtility.Format("The package does not exist. Package Name :{0}", packageName));
-            }
-
+            var package = GetPackageOrThrow(packageName);
             pkgAssetInfo = package.GetAssetInfo(location);
             _assetInfoMap[key] = pkgAssetInfo;
             return pkgAssetInfo;
@@ -626,7 +592,7 @@ namespace Moirai.Atropos.Resource
 
             AssetInfo assetInfo = GetAssetInfo(location, packageName);
 
-            if (!CheckLocationValid(location))
+            if (!IsLocationValid(location))
             {
                 return HasAssetResult.Valid;
             }
@@ -645,15 +611,9 @@ namespace Moirai.Atropos.Resource
         }
 
         /// <inheritdoc />
-        public bool CheckLocationValid(string location, string packageName = "")
+        public bool IsLocationValid(string location, string packageName = "")
         {
-            if (string.IsNullOrEmpty(packageName))
-            {
-                return YooAssets.CheckLocationValid(location);
-            }
-
-            var package = YooAssets.GetPackage(packageName);
-            return package.CheckLocationValid(location);
+            return GetPackageOrThrow(packageName).IsLocationValid(location);
         }
 
         #endregion
@@ -667,13 +627,7 @@ namespace Moirai.Atropos.Resource
 
         private AssetHandle GetHandleSync(string location, Type assetType, string packageName = "")
         {
-            if (string.IsNullOrEmpty(packageName))
-            {
-                return YooAssets.LoadAssetSync(location, assetType);
-            }
-
-            var package = YooAssets.GetPackage(packageName);
-            return package.LoadAssetSync(location, assetType);
+            return GetPackageOrThrow(packageName).LoadAssetSync(location, assetType);
         }
 
         private AssetHandle GetHandleAsync<T>(string location, string packageName = "")
@@ -684,13 +638,7 @@ namespace Moirai.Atropos.Resource
 
         private AssetHandle GetHandleAsync(string location, Type assetType, string packageName = "")
         {
-            if (string.IsNullOrEmpty(packageName))
-            {
-                return YooAssets.LoadAssetAsync(location, assetType);
-            }
-
-            var package = YooAssets.GetPackage(packageName);
-            return package.LoadAssetAsync(location, assetType);
+            return GetPackageOrThrow(packageName).LoadAssetAsync(location, assetType);
         }
 
         /// <inheritdoc />
@@ -702,13 +650,7 @@ namespace Moirai.Atropos.Resource
         /// <inheritdoc />
         public AssetHandle LoadAssetSyncHandle(string location, System.Type type, string packageName = "")
         {
-            if (string.IsNullOrEmpty(packageName))
-            {
-                return YooAssets.LoadAssetSync(location, type);
-            }
-
-            var package = YooAssets.GetPackage(packageName);
-            return package.LoadAssetSync(location, type);
+            return GetPackageOrThrow(packageName).LoadAssetSync(location, type);
         }
 
         /// <inheritdoc />
@@ -720,13 +662,7 @@ namespace Moirai.Atropos.Resource
         /// <inheritdoc />
         public AssetHandle LoadAssetAsyncHandle(string location, Type assetType, string packageName = "")
         {
-            if (string.IsNullOrEmpty(packageName))
-            {
-                return YooAssets.LoadAssetAsync(location, assetType);
-            }
-
-            var package = YooAssets.GetPackage(packageName);
-            return package.LoadAssetAsync(location, assetType);
+            return GetPackageOrThrow(packageName).LoadAssetAsync(location, assetType);
         }
 
         #endregion
@@ -749,7 +685,7 @@ namespace Moirai.Atropos.Resource
                 throw new GameException("Asset name is invalid.");
             }
 
-            if (!CheckLocationValid(location, packageName))
+            if (!IsLocationValid(location, packageName))
             {
                 LogUtility.Error("Could not found location [{0}].", location);
                 return null;
@@ -775,7 +711,7 @@ namespace Moirai.Atropos.Resource
                 throw new GameException("Asset name is invalid.");
             }
 
-            if (!CheckLocationValid(location, packageName))
+            if (!IsLocationValid(location, packageName))
             {
                 LogUtility.Error("Could not found location [{0}].", location);
                 return null;
@@ -817,7 +753,7 @@ namespace Moirai.Atropos.Resource
                 return;
             }
 
-            if (!CheckLocationValid(location, packageName))
+            if (!IsLocationValid(location, packageName))
             {
                 LogUtility.Error("Could not found location [{0}].", location);
                 callback?.Invoke(null);
@@ -856,7 +792,7 @@ namespace Moirai.Atropos.Resource
                 throw new GameException("Asset name is invalid.");
             }
 
-            if (!CheckLocationValid(location, packageName))
+            if (!IsLocationValid(location, packageName))
             {
                 LogUtility.Error("Could not found location [{0}].", location);
                 return null;
@@ -884,7 +820,7 @@ namespace Moirai.Atropos.Resource
                 throw new GameException("Asset name is invalid.");
             }
 
-            if (!CheckLocationValid(location, packageName))
+            if (!IsLocationValid(location, packageName))
             {
                 LogUtility.Error("Could not found location [{0}].", location);
                 return null;
@@ -939,7 +875,7 @@ namespace Moirai.Atropos.Resource
 
             try
             {
-                if (!CheckLocationValid(location, packageName))
+                if (!IsLocationValid(location, packageName))
                 {
                     string errorMessage = StringUtility.Format("Could not found location [{0}].", location);
                     LogUtility.Error(errorMessage);
@@ -992,17 +928,5 @@ namespace Moirai.Atropos.Resource
 
         #endregion
 
-        #region 设置下载系统参数 [DOWNLOAD SYSTEM CONFIG]
-
-        /// <summary>
-        /// 设置下载系统参数，自定义下载请求。
-        /// </summary>
-        /// <param name="downloadSystemUnityWebRequest">自定义下载器的请求委托。</param>
-        public void SetDownloadSystemUnityWebRequest(UnityWebRequestDelegate downloadSystemUnityWebRequest)
-        {
-            YooAssets.SetDownloadSystemUnityWebRequest(downloadSystemUnityWebRequest);
-        }
-
-        #endregion
     }
 }

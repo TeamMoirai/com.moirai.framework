@@ -190,10 +190,10 @@ namespace Moirai.Atropos.Editor
             IBuildPipeline pipeline;
             BuildParameters buildParameters;
 
-            if (config.BuildPipeline == EBuildPipeline.BuiltinBuildPipeline)
+            if (config.BuildPipeline == EBuildPipeline.LegacyBuildPipeline)
             {
-                var builtinBuildParameters = new BuiltinBuildParameters();
-                pipeline = new BuiltinBuildPipeline();
+                var builtinBuildParameters = new LegacyBuildParameters();
+                pipeline = new LegacyBuildPipeline();
                 buildParameters = builtinBuildParameters;
                 builtinBuildParameters.CompressOption = config.CompressOption;
             }
@@ -215,18 +215,18 @@ namespace Moirai.Atropos.Editor
             }
 
             buildParameters.BuildOutputRoot = outputRoot;
-            buildParameters.BuildinFileRoot = AssetBundleBuilderHelper.GetStreamingAssetsRoot();
+            buildParameters.BundledFileRoot = BundleBuilderHelper.GetStreamingAssetsRoot();
             buildParameters.BuildPipeline = config.BuildPipeline.ToString();
             buildParameters.BuildTarget = config.BuildTarget;
-            buildParameters.BuildBundleType = (int)EBuildBundleType.AssetBundle;
+            buildParameters.BuildBundleType = (int)EBundleType.AssetBundle;
             buildParameters.PackageName = "DefaultPackage";
             buildParameters.PackageVersion = config.PackageVersion;
             buildParameters.VerifyBuildingResult = config.VerifyBuildingResult;
             buildParameters.EnableSharePackRule = config.EnableSharePackRule;
             buildParameters.FileNameStyle = config.FileNameStyle;
-            buildParameters.BuildinFileCopyOption = config.BuildinFileCopyOption;
-            buildParameters.BuildinFileCopyParams = string.Empty;
-            buildParameters.EncryptionServices = GetEncryptionFromType(config.EncryptionType);
+            buildParameters.BundledCopyOption = config.BundledCopyOption;
+            buildParameters.BundledCopyParams = string.Empty;
+            buildParameters.BundleEncryptor = GetBundleEncryptorFromType(config.EncryptorType);
             buildParameters.ClearBuildCacheFiles = config.ClearBuildCache;
             buildParameters.UseAssetDependencyDB = config.UseAssetDependencyDB;
 
@@ -245,10 +245,10 @@ namespace Moirai.Atropos.Editor
             IBuildPipeline pipeline = null;
             BuildParameters buildParameters = null;
 
-            if (buildPipeline == EBuildPipeline.BuiltinBuildPipeline)
+            if (buildPipeline == EBuildPipeline.LegacyBuildPipeline)
             {
-                BuiltinBuildParameters builtinBuildParameters = new BuiltinBuildParameters();
-                pipeline = new BuiltinBuildPipeline();
+                LegacyBuildParameters builtinBuildParameters = new LegacyBuildParameters();
+                pipeline = new LegacyBuildPipeline();
                 buildParameters = builtinBuildParameters;
                 builtinBuildParameters.CompressOption = ECompressOption.LZ4;
             }
@@ -263,18 +263,18 @@ namespace Moirai.Atropos.Editor
             }
 
             buildParameters.BuildOutputRoot = outputRoot;
-            buildParameters.BuildinFileRoot = AssetBundleBuilderHelper.GetStreamingAssetsRoot();
+            buildParameters.BundledFileRoot = BundleBuilderHelper.GetStreamingAssetsRoot();
             buildParameters.BuildPipeline = buildPipeline.ToString();
             buildParameters.BuildTarget = buildTarget;
-            buildParameters.BuildBundleType = (int)EBuildBundleType.AssetBundle;
+            buildParameters.BuildBundleType = (int)EBundleType.AssetBundle;
             buildParameters.PackageName = "DefaultPackage";
             buildParameters.PackageVersion = packageVersion;
             buildParameters.VerifyBuildingResult = true;
             buildParameters.EnableSharePackRule = true;
             buildParameters.FileNameStyle = EFileNameStyle.BundleName_HashName;
-            buildParameters.BuildinFileCopyOption = EBuildinFileCopyOption.ClearAndCopyAll;
-            buildParameters.BuildinFileCopyParams = string.Empty;
-            buildParameters.EncryptionServices = GetEncryptionFromResourceServiceDriver();
+            buildParameters.BundledCopyOption = EBundledCopyOption.ClearAndCopyAll;
+            buildParameters.BundledCopyParams = string.Empty;
+            buildParameters.BundleEncryptor = GetBundleEncryptorFromResourceServiceDriver();
             buildParameters.ClearBuildCacheFiles = false;
             buildParameters.UseAssetDependencyDB = true;
 
@@ -313,11 +313,11 @@ namespace Moirai.Atropos.Editor
         public static void ProcessMinimalPackage(string packageVersion, string retainTags,
             string outputPackageDirectory)
         {
-            string streamingRoot = AssetBundleBuilderHelper.GetStreamingAssetsRoot();
+            string streamingRoot = BundleBuilderHelper.GetStreamingAssetsRoot();
             string packageName = "DefaultPackage";
 
             // 定位构建报告文件
-            string reportFileName = YooAssetSettingsData.GetBuildReportFileName(packageName, packageVersion);
+            string reportFileName = YooAssetConfiguration.GetBuildReportFileName(packageName, packageVersion);
             string reportPath = $"{outputPackageDirectory}/{reportFileName}";
 
             if (!File.Exists(reportPath))
@@ -499,28 +499,28 @@ namespace Moirai.Atropos.Editor
 
         private static string GetBuiltinShaderBundleName(string packageName)
         {
-            var uniqueBundleName = AssetBundleCollectorSettingData.Setting.UniqueBundleName;
-            var packRuleResult = DefaultPackRule.CreateShadersPackRuleResult();
+            var uniqueBundleName = BundleCollectorSettingData.Setting.UniqueBundleName;
+            var packRuleResult = DefaultBundlePackRule.CreateShadersPackRuleResult();
             return packRuleResult.GetBundleName(packageName, uniqueBundleName);
         }
 
         /// <summary>
-        /// 根据 EncryptionType 枚举获取加密服务
+        /// 根据 EEncryptorType 枚举获取加密服务
         /// </summary>
-        private static IEncryptionServices GetEncryptionFromType(EncryptionType encryptionType)
+        private static IBundleEncryptor GetBundleEncryptorFromType(EEncryptorType encryptorType)
         {
-            return encryptionType switch
+            return encryptorType switch
             {
-                EncryptionType.FileOffSet => new FileOffsetEncryption(),
-                EncryptionType.FileStream => new FileStreamEncryption(),
+                EEncryptorType.FileOffSet => new FileOffsetEncryptor(),
+                EEncryptorType.FileStream => new FileStreamEncryptor(),
                 _ => null
             };
         }
 
         /// <summary>
-        /// 根据 ResourceServiceDriver 的 encryptionType 获取对应的加密服务（旧版兼容）
+        /// 根据 ResourceServiceDriver 的 encryptorType 获取对应的加密服务（旧版兼容）
         /// </summary>
-        private static IEncryptionServices GetEncryptionFromResourceServiceDriver()
+        private static IBundleEncryptor GetBundleEncryptorFromResourceServiceDriver()
         {
             var guids = AssetDatabase.FindAssets("t:Prefab GameEntry");
             if (guids.Length == 0)
@@ -544,10 +544,10 @@ namespace Moirai.Atropos.Editor
                 return null;
             }
 
-            var encryptionType = resourceServiceDriver.EncryptionType;
-            Debug.Log($"[BuildInternal] Use EncryptionType from ResourceServiceDriver: {encryptionType}");
+            var encryptionType = resourceServiceDriver.EncryptorType;
+            Debug.Log($"[BuildInternal] Use EEncryptorType from ResourceServiceDriver: {encryptionType}");
 
-            return GetEncryptionFromType(encryptionType);
+            return GetBundleEncryptorFromType(encryptionType);
         }
 
         private static string GetBuildPackageVersion()

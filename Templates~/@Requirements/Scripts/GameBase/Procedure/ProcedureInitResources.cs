@@ -76,7 +76,7 @@ namespace Moirai.Main
             // 1. 获取资源清单的版本信息
             var operation1 = _resourceService.RequestPackageVersionAsync();
             yield return operation1;
-            if (operation1.Status != EOperationStatus.Succeed)
+            if (operation1.Status != EOperationStatus.Succeeded)
             {
                 OnInitResourcesError(operation1.Error);
                 yield break;
@@ -90,9 +90,9 @@ namespace Moirai.Main
             LogUtility.Info($"Init resource package version : {packageVersion}");
 
             // 2. 传入的版本信息更新资源清单
-            var operation2 = _resourceService.UpdatePackageManifestAsync(packageVersion);
+            var operation2 = _resourceService.LoadPackageManifestAsync(packageVersion);
             yield return operation2;
-            if (operation2.Status != EOperationStatus.Succeed)
+            if (operation2.Status != EOperationStatus.Succeeded)
             {
                 OnInitResourcesError(operation2.Error);
                 yield break;

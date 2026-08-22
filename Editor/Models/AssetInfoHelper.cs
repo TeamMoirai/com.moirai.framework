@@ -5,7 +5,6 @@ using System.Linq;
 using UnityEngine;
 using Object = UnityEngine.Object;
 using UnityEditor;
-using YooAsset.Editor;
 
 namespace Moirai.Atropos.Editor
 {
@@ -14,38 +13,6 @@ namespace Moirai.Atropos.Editor
     /// </summary>
     public static class AssetInfoHelper
     {
-        private static AssetBundleCollectorSetting _setting = null;
-        public static AssetBundleCollectorSetting Setting
-        {
-            get
-            {
-                if (_setting == null)
-                    _setting = YooAsset.Editor.SettingLoader.LoadSettingData<AssetBundleCollectorSetting>();
-                return _setting;
-            }
-        }
-
-        private static List<CollectAssetInfo> _collectAssets = null;
-        public  static List<CollectAssetInfo> CollectAssets
-        {
-            get
-            {
-                if (_collectAssets == null)
-                {
-                    _collectAssets = new List<CollectAssetInfo>();
-                    foreach (var pak in Setting.Packages)
-                    {
-                        var result = Setting.BeginCollect(pak.PackageName, false, false);
-                        foreach (var collectAsset in result.CollectAssets)
-                        {
-                            _collectAssets.Add(collectAsset);
-                        }
-                    }
-                }
-                return _collectAssets;
-            }
-        }
-        
         public enum AssetCheckResult
         {
             /// <summary>
@@ -61,7 +28,7 @@ namespace Moirai.Atropos.Editor
             Pass = 0,
             PassResource = 1,
             PassAssetBundle = 2,
-            PassYooAsset = 3,
+            PassAssetPackage = 3,
         }
         
         /// <summary>
@@ -108,11 +75,10 @@ namespace Moirai.Atropos.Editor
                 return AssetCheckResult.PassAssetBundle;
             }
 
-            // 检测资源是否在 YooAsset 中。默认 YooAsset 打包路径，不再收集已打包资源，又卡又慢
+            // 检测资源是否在打包路径
             if (newPath.IndexOf("/AssetRaw/", StringComparison.OrdinalIgnoreCase) >= 0)
-            // if (CollectAssets.Any(collectAsset => collectAsset.AssetInfo.AssetPath == newPath))
             {
-                return AssetCheckResult.PassYooAsset;
+                return AssetCheckResult.PassAssetPackage;
             }
 
             return AssetCheckResult.Pass;
@@ -129,7 +95,7 @@ namespace Moirai.Atropos.Editor
                 AssetCheckResult.Pass => "资源必须位于 Resources 或 Asset Bundle 中!",
                 AssetCheckResult.PassResource => "Resources",
                 AssetCheckResult.PassAssetBundle => "AssetBundle",
-                AssetCheckResult.PassYooAsset => "YooAsset",
+                AssetCheckResult.PassAssetPackage => "AssetPackage",
                 _ => ""
             };
         }
@@ -165,7 +131,7 @@ namespace Moirai.Atropos.Editor
 
         public static Sprite GetSpriteFromImageInfo(string path, string textureInfo)
         {
-            Sprite sprite = null;
+            Sprite sprite;
             var source = AssetDatabase.LoadAllAssetsAtPath(path).OfType<Sprite>().ToArray();
             
             if (!string.IsNullOrEmpty(textureInfo))
@@ -173,7 +139,7 @@ namespace Moirai.Atropos.Editor
                 string[] parts = textureInfo.Split(';');
                 try
                 {
-                    sprite = source.First(_ => _.name == parts[0]);
+                    sprite = source.First(s => s.name == parts[0]);
                 }
                 catch
                 {
@@ -191,7 +157,7 @@ namespace Moirai.Atropos.Editor
 
         public static Texture GetTextureFromImageInfo(string path, string textureInfo)
         {
-            Texture texture = null;
+            Texture texture;
             var source = AssetDatabase.LoadAllAssetsAtPath(path).OfType<Texture>().ToArray();
 
             if (!string.IsNullOrEmpty(textureInfo))
@@ -199,7 +165,7 @@ namespace Moirai.Atropos.Editor
                 string[] parts = textureInfo.Split(';');
                 try
                 {
-                    texture = source.First(_ => _.name == parts[0]);
+                    texture = source.First(t => t.name == parts[0]);
                 }
                 catch
                 {
@@ -345,13 +311,14 @@ namespace Moirai.Atropos.Editor
             
             EditorGUI.EndProperty();
         }
-        
+
         /// <summary>
         /// 绘制资源信息
         /// </summary>
         /// <param name="property"></param>
         /// <param name="guidProperty"></param>
         /// <param name="pathProperty"></param>
+        /// <param name="title"></param>
         /// <typeparam name="T"></typeparam>
         public static void DrawBaseAssetInfo<T>(SerializedProperty property, string guidProperty, string pathProperty, string title = "")
             where T : Object
@@ -427,6 +394,7 @@ namespace Moirai.Atropos.Editor
         /// </summary>
         /// <param name="guidProperty"></param>
         /// <param name="pathProperty"></param>
+        /// <param name="title"></param>
         /// <typeparam name="T"></typeparam>
         public static void DrawBaseAssetInfo<T>(SerializedProperty guidProperty, SerializedProperty pathProperty, string title = "")
             where T : Object

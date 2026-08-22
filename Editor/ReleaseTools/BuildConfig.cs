@@ -12,7 +12,7 @@ namespace Moirai.Atropos.Editor
         public BuildTarget BuildTarget;
         public EBuildPipeline BuildPipeline = EBuildPipeline.ScriptableBuildPipeline;
         public ECompressOption CompressOption = ECompressOption.LZ4;
-        public EncryptionType EncryptionType = EncryptionType.None;
+        public EEncryptorType EncryptorType = EEncryptorType.None;
         public string PackageVersion = "";
         public string OutputRoot = "./Builds/";
 
@@ -25,7 +25,7 @@ namespace Moirai.Atropos.Editor
         public bool UseAssetDependencyDB = true;
         public bool ClearBuildCache;
         public bool VerifyBuildingResult = true;
-        public EBuildinFileCopyOption BuildinFileCopyOption = EBuildinFileCopyOption.ClearAndCopyAll;
+        public EBundledCopyOption BundledCopyOption = EBundledCopyOption.ClearAndCopyAll;
         public EFileNameStyle FileNameStyle = EFileNameStyle.BundleName_HashName;
 
         // 热更DLL设置
