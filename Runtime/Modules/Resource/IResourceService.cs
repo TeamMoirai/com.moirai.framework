@@ -11,6 +11,8 @@ namespace Moirai.Atropos.Resource
     /// </summary>
     public interface IResourceService
     {
+        #region 基础属性 [BASE PROPERTIES]
+
         /// <summary>
         /// 获取当前资源适用的游戏版本号。
         /// </summary>
@@ -25,7 +27,7 @@ namespace Moirai.Atropos.Resource
         /// 获取或设置运行模式。
         /// </summary>
         EPlayMode PlayMode { get; set; }
-        
+
         /// <summary>
         /// 资源加密方式。
         /// </summary>
@@ -45,6 +47,66 @@ namespace Moirai.Atropos.Resource
         /// 失败重试最大数目。
         /// </summary>
         int FailedTryAgain { get; set; }
+
+        /// <summary>
+        /// 资源绑定服务。
+        /// </summary>
+        IResourceBindingService BindingService { get; }
+
+        #endregion
+
+        #region 容量与过期 [CAPACITY & EXPIRY]
+
+        /// <summary>
+        /// 获取或设置资源记录预热容量。
+        /// </summary>
+        int AssetRecordCapacity { get; set; }
+
+        /// <summary>
+        /// 获取或设置资源租约预热容量。
+        /// </summary>
+        int AssetLeaseCapacity { get; set; }
+
+        /// <summary>
+        /// 获取或设置绑定所有者预热容量。
+        /// </summary>
+        int BindingOwnerCapacity { get; set; }
+
+        /// <summary>
+        /// 获取或设置绑定槽位预热容量。
+        /// </summary>
+        int BindingSlotCapacity { get; set; }
+
+        /// <summary>
+        /// 获取或设置已注册目标预热容量。
+        /// </summary>
+        int RegisteredTargetCapacity { get; set; }
+
+        /// <summary>
+        /// 获取或设置无引用资源句柄进入 Idle 后的过期秒数。
+        /// </summary>
+        float IdleAssetExpireTime { get; set; }
+
+        /// <summary>
+        /// 预热资源记录。
+        /// </summary>
+        /// <param name="assetCapacity">资源记录容量。</param>
+        /// <param name="leaseCapacity">租约容量。</param>
+        /// <param name="unityObjectIndexCapacity">Unity 对象索引容量。</param>
+        void WarmupResourceRecords(int assetCapacity, int leaseCapacity, int unityObjectIndexCapacity);
+
+        /// <summary>
+        /// 批量获取资源信息。
+        /// </summary>
+        /// <param name="results">结果数组。</param>
+        /// <param name="startIndex">起始索引。</param>
+        /// <param name="maxCount">最大数量。</param>
+        /// <returns>实际写入数量。</returns>
+        int GetAssetInfos(ResourceAssetInfo[] results, int startIndex, int maxCount);
+
+        #endregion
+
+        #region 初始化 [INITIALIZATION]
 
         /// <summary>
         /// 初始化接口。
@@ -109,16 +171,111 @@ namespace Moirai.Atropos.Resource
         /// </summary>
         int AssetPriority { get; set; }
 
+        #endregion
+
+        #region 租约 API [LEASE API]
+
+        /// <summary>
+        /// 使用显式资源 Key 获取一个直接资源租约。
+        /// </summary>
+        /// <param name="key">资源 Key。</param>
+        /// <returns>资源租约句柄，失败时返回无效句柄。</returns>
+        ResourceLeaseHandle AcquireDirect(ResourceKey key);
+
+        /// <summary>
+        /// 异步获取一个直接资源租约。
+        /// </summary>
+        /// <param name="key">资源 Key。</param>
+        /// <param name="cancellationToken">取消操作 Token。</param>
+        /// <returns>资源租约句柄，失败时返回无效句柄。</returns>
+        UniTask<ResourceLeaseHandle> AcquireDirectAsync(ResourceKey key,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// 尝试使用显式资源 Key 获取一个直接资源租约。
+        /// </summary>
+        /// <param name="key">资源 Key。</param>
+        /// <param name="handle">获取到的资源租约句柄。</param>
+        /// <returns>是否获取成功。</returns>
+        bool TryAcquireDirect(ResourceKey key, out ResourceLeaseHandle handle);
+
+        /// <summary>
+        /// 释放一个显式资源租约。
+        /// </summary>
+        /// <param name="handle">资源租约句柄。</param>
+        void Release(ResourceLeaseHandle handle);
+
+        /// <summary>
+        /// 同步加载资源并返回资源租约。调用方必须在不再使用资源时调用 Dispose 释放租约。
+        /// </summary>
+        /// <param name="key">资源 Key。</param>
+        /// <typeparam name="T">资源类型。</typeparam>
+        /// <returns>资源租约，失败时返回无效租约。</returns>
+        ResourceAssetLease<T> LoadLease<T>(ResourceKey key) where T : UnityEngine.Object;
+
+        /// <summary>
+        /// 同步加载资源并返回资源租约。调用方必须在不再使用资源时调用 Dispose 释放租约。
+        /// </summary>
+        /// <param name="location">资源定位地址。</param>
+        /// <param name="packageName">指定资源包的名称。不传使用默认资源包。</param>
+        /// <typeparam name="T">资源类型。</typeparam>
+        /// <returns>资源租约，失败时返回无效租约。</returns>
+        ResourceAssetLease<T> LoadLease<T>(string location, string packageName = "") where T : UnityEngine.Object;
+
+        /// <summary>
+        /// 异步加载资源并返回资源租约。调用方必须在不再使用资源时调用 Dispose 释放租约。
+        /// </summary>
+        /// <param name="key">资源 Key。</param>
+        /// <param name="cancellationToken">取消操作 Token。</param>
+        /// <typeparam name="T">资源类型。</typeparam>
+        /// <returns>资源租约，失败时返回无效租约。</returns>
+        UniTask<ResourceAssetLease<T>> LoadLeaseAsync<T>(ResourceKey key,
+            CancellationToken cancellationToken = default) where T : UnityEngine.Object;
+
+        /// <summary>
+        /// 异步加载资源并返回资源租约。调用方必须在不再使用资源时调用 Dispose 释放租约。
+        /// </summary>
+        /// <param name="location">资源定位地址。</param>
+        /// <param name="cancellationToken">取消操作 Token。</param>
+        /// <param name="packageName">指定资源包的名称。不传使用默认资源包。</param>
+        /// <typeparam name="T">资源类型。</typeparam>
+        /// <returns>资源租约，失败时返回无效租约。</returns>
+        UniTask<ResourceAssetLease<T>> LoadLeaseAsync<T>(string location,
+            CancellationToken cancellationToken = default, string packageName = "") where T : UnityEngine.Object;
+
+        /// <summary>
+        /// 尝试从资源租约中读取 Unity 资源对象。
+        /// </summary>
+        /// <param name="handle">资源租约句柄。</param>
+        /// <param name="asset">Unity 资源对象。</param>
+        /// <returns>是否读取成功。</returns>
+        bool TryGetLeaseAsset(ResourceLeaseHandle handle, out UnityEngine.Object asset);
+
+        #endregion
+
+        #region 遗留 API [LEGACY API]
+
         /// <summary>
         /// 卸载资源。
         /// </summary>
         /// <param name="asset">要卸载的资源。</param>
+        [Obsolete("Use ResourceAssetLease<T> or Binding instead of LoadAsset/UnloadAsset.")]
         void UnloadAsset(object asset);
+
+        #endregion
+
+        #region 资源回收 [ASSET RECYCLING]
 
         /// <summary>
         /// 资源回收（卸载引用计数为零的资源）
         /// </summary>
         void UnloadUnusedAssets();
+
+        /// <summary>
+        /// 资源回收。
+        /// </summary>
+        /// <param name="force">为 true 时忽略 Idle 过期时间，立即释放无引用记录。</param>
+        void UnloadUnusedAssets(bool force);
 
         /// <summary>
         /// 强制回收所有资源
@@ -178,6 +335,7 @@ namespace Moirai.Atropos.Resource
         /// <param name="loadAssetCallbacks">加载资源回调函数集。</param>
         /// <param name="userData">用户自定义数据。</param>
         /// <param name="packageName">指定资源包的名称。不传使用默认资源包。</param>
+        [Obsolete("Use LoadLeaseAsync<T> for explicit ownership.")]
         void LoadAssetAsync(string location, int priority, LoadAssetCallbacks loadAssetCallbacks, object userData, string packageName = "");
 
         /// <summary>
@@ -198,6 +356,7 @@ namespace Moirai.Atropos.Resource
         /// <param name="packageName">指定资源包的名称。不传使用默认资源包</param>
         /// <typeparam name="T">要加载资源的类型。</typeparam>
         /// <returns>资源实例。</returns>
+        [Obsolete("Use LoadLease<T> for explicit ownership.")]
         T LoadAsset<T>(string location, string packageName = "") where T : UnityEngine.Object;
 
         /// <summary>
@@ -226,6 +385,7 @@ namespace Moirai.Atropos.Resource
         /// <param name="callback">回调函数。</param>
         /// <param name="packageName">指定资源包的名称。不传使用默认资源包</param>
         /// <typeparam name="T">要加载资源的类型。</typeparam>
+        [Obsolete("Use LoadLeaseAsync<T> for explicit ownership.")]
         UniTaskVoid LoadAsset<T>(string location, Action<T> callback, string packageName = "") where T : UnityEngine.Object;
         
         /// <summary>
@@ -236,6 +396,7 @@ namespace Moirai.Atropos.Resource
         /// <param name="packageName">指定资源包的名称。不传使用默认资源包</param>
         /// <typeparam name="T">要加载资源的类型。</typeparam>
         /// <returns>异步资源实例。</returns>
+        [Obsolete("Use LoadLeaseAsync<T> for explicit ownership.")]
         UniTask<T> LoadAssetAsync<T>(string location, CancellationToken cancellationToken = default, string packageName = "") where T : UnityEngine.Object;
 
         /// <summary>
@@ -366,5 +527,7 @@ namespace Moirai.Atropos.Resource
         /// </summary>
         /// <param name="action">低内存行为。</param>
         void SetForceUnloadUnusedAssetsAction(Action<bool> action);
+
+        #endregion
     }
 }
