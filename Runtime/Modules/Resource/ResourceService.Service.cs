@@ -12,27 +12,40 @@ namespace Moirai.Atropos.Resource
     /// </summary>
     internal class RemoteService : IRemoteService
     {
-        private readonly string _defaultHostServer;
-        private readonly string _fallbackHostServer;
+        private readonly string _defaultHostPrefix;
+        private readonly string _fallbackHostPrefix;
+        private readonly string[] _urls;
 
         public RemoteService(string defaultHostServer, string fallbackHostServer)
         {
-            _defaultHostServer = defaultHostServer;
-            _fallbackHostServer = fallbackHostServer;
+            _defaultHostPrefix = NormalizeHostPrefix(defaultHostServer);
+            _fallbackHostPrefix = string.IsNullOrEmpty(fallbackHostServer)
+                ? null
+                : NormalizeHostPrefix(fallbackHostServer);
+            _urls = _fallbackHostPrefix == null ? new string[1] : new string[2];
         }
 
         IReadOnlyList<string> IRemoteService.GetRemoteUrls(string fileName)
         {
-            if (string.IsNullOrEmpty(_fallbackHostServer))
+            _urls[0] = StringUtility.Concat(_defaultHostPrefix, fileName);
+            if (_fallbackHostPrefix != null)
             {
-                return new[] { StringUtility.Concat(_defaultHostServer, "/", fileName) };
+                _urls[1] = StringUtility.Concat(_fallbackHostPrefix, fileName);
             }
 
-            return new[]
+            return _urls;
+        }
+
+        private static string NormalizeHostPrefix(string hostServer)
+        {
+            if (string.IsNullOrEmpty(hostServer))
             {
-                StringUtility.Concat(_defaultHostServer, "/", fileName),
-                StringUtility.Concat(_fallbackHostServer, "/", fileName)
-            };
+                return string.Empty;
+            }
+
+            return hostServer[hostServer.Length - 1] == '/'
+                ? hostServer
+                : StringUtility.Concat(hostServer, "/");
         }
     }
 
@@ -98,7 +111,7 @@ namespace Moirai.Atropos.Resource
     /// <summary>
     /// 资源文件解密流
     /// </summary>
-    class BundleStream : FileStream
+    internal class BundleStream : FileStream
     {
         public const byte KEY = 64;
 
@@ -114,7 +127,8 @@ namespace Moirai.Atropos.Resource
         public override int Read(byte[] array, int offset, int count)
         {
             var index = base.Read(array, offset, count);
-            for (int i = 0; i < array.Length; i++)
+            int end = offset + index;
+            for (int i = offset; i < end; i++)
             {
                 array[i] ^= KEY;
             }
@@ -133,7 +147,7 @@ namespace Moirai.Atropos.Resource
     {
         public BundleEncryptResult Encrypt(BundleEncryptArgs args)
         {
-            int offset = 32;
+            int offset = FileOffsetDecryptor.GetFileOffset();
             byte[] fileData = File.ReadAllBytes(args.FilePath);
             var encryptedData = new byte[fileData.Length + offset];
             Buffer.BlockCopy(fileData, 0, encryptedData, offset, fileData.Length);
@@ -144,7 +158,7 @@ namespace Moirai.Atropos.Resource
     /// <summary>
     /// 资源文件偏移加载解密类
     /// </summary>
-    class FileOffsetDecryptor : IBundleOffsetDecryptor, IBundleMemoryDecryptor
+    internal class FileOffsetDecryptor : IBundleOffsetDecryptor, IBundleMemoryDecryptor
     {
         /// <summary>
         /// 同步方式获取解密的资源包对象
@@ -162,19 +176,19 @@ namespace Moirai.Atropos.Resource
         byte[] IBundleMemoryDecryptor.GetDecryptedData(BundleDecryptArgs args)
         {
             byte[] fileData = args.FileData ?? File.ReadAllBytes(args.FilePath);
-            ulong fileOffset = GetFileOffset();
-            if ((ulong)fileData.Length <= fileOffset)
+            int fileOffset = GetFileOffset();
+            if (fileData.Length <= fileOffset)
             {
                 return Array.Empty<byte>();
             }
 
-            int outputLength = fileData.Length - (int)fileOffset;
+            int outputLength = fileData.Length - fileOffset;
             byte[] output = new byte[outputLength];
-            Buffer.BlockCopy(fileData, (int)fileOffset, output, 0, outputLength);
+            Buffer.BlockCopy(fileData, fileOffset, output, 0, outputLength);
             return output;
         }
 
-        private static ulong GetFileOffset()
+        internal static int GetFileOffset()
         {
             return 32;
         }
