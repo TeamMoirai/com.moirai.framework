@@ -30,9 +30,8 @@ namespace Moirai.Atropos
         private readonly List<IServiceLateTickable> _lateTickables = new List<IServiceLateTickable>();
         private readonly List<IServiceGizmoDrawable> _gizmoDrawables = new List<IServiceGizmoDrawable>();
 
-        // --- 迭代安全缓冲 ---
+        // --- 迭代安全状态 ---
 
-        private readonly List<PendingChange> _pendingChanges = new List<PendingChange>();
         private bool _isIterating;
         private bool _disposePending;
 
@@ -71,7 +70,7 @@ namespace Moirai.Atropos
 
         /// <summary>
         /// 将服务注册到作用域。仅存储引用和更新轮询列表，不调用 OnInit。
-        /// <para>fail-fast：契约重复、作用域已销毁/销毁中时抛出 <see cref="GameException"/>——
+        /// <para>fail-fast：契约重复、作用域已销毁/销毁中、迭代中注册均抛出 <see cref="GameException"/>——
         /// 静默拒绝会产生"已创建未入册"的影子服务（随后被 OnInit 却永不 Shutdown）。</para>
         /// </summary>
         internal void Register(Type[] contractTypes, IService service)
@@ -98,11 +97,10 @@ namespace Moirai.Atropos
                     Kind, contractTypes[0].FullName));
 
             if (_isIterating)
-            {
-                // 注册仅发生在 BuildAsync（非迭代期），此分支为防御性兜底
-                _pendingChanges.Add(PendingChange.Register(service, contractTypes));
-                return;
-            }
+                throw new GameException(StringUtility.Format(
+                    "Cannot register '{0}' while {1} scope is iterating. " +
+                    "Registration is driven by BuildAsync only; do not trigger a build of the same scope from within Tick.",
+                    contractTypes[0].FullName, Kind));
 
             RegisterInternal(service, contractTypes);
         }
@@ -245,7 +243,7 @@ namespace Moirai.Atropos
             finally
             {
                 _isIterating = false;
-                FlushPendingChanges();
+                FlushDisposeIfPending();
             }
         }
 
@@ -262,7 +260,7 @@ namespace Moirai.Atropos
                     catch (Exception ex) { LogTickFailure(_fixedTickables[i], nameof(FixedTick), ex); }
                 }
             }
-            finally { _isIterating = false; FlushPendingChanges(); }
+            finally { _isIterating = false; FlushDisposeIfPending(); }
         }
 
         internal void LateTick(float elapseSeconds, float realElapseSeconds)
@@ -278,7 +276,7 @@ namespace Moirai.Atropos
                     catch (Exception ex) { LogTickFailure(_lateTickables[i], nameof(LateTick), ex); }
                 }
             }
-            finally { _isIterating = false; FlushPendingChanges(); }
+            finally { _isIterating = false; FlushDisposeIfPending(); }
         }
 
         internal void DrawGizmos()
@@ -294,7 +292,7 @@ namespace Moirai.Atropos
                     catch (Exception ex) { LogTickFailure(_gizmoDrawables[i], "OnDrawGizmos", ex); }
                 }
             }
-            finally { _isIterating = false; FlushPendingChanges(); }
+            finally { _isIterating = false; FlushDisposeIfPending(); }
         }
 
         private static void LogTickFailure(object service, string methodName, Exception ex)
@@ -307,24 +305,11 @@ namespace Moirai.Atropos
 
         #region 迭代安全 [ITERATION SAFETY]
 
-        private void FlushPendingChanges()
+        private void FlushDisposeIfPending()
         {
+            // 迭代中请求的作用域销毁：待迭代结束后执行
             if (_disposePending)
-            {
-                // 迭代中请求的作用域销毁：待迭代结束后执行，pending 的一并随作用域销毁
                 DisposeInternal();
-                return;
-            }
-
-            if (_pendingChanges.Count == 0) return;
-
-            for (int i = 0; i < _pendingChanges.Count; i++)
-            {
-                var change = _pendingChanges[i];
-                if (!_servicesByContract.ContainsKey(change.ContractTypes[0].TypeHandle))
-                    RegisterInternal(change.Service, change.ContractTypes);
-            }
-            _pendingChanges.Clear();
         }
 
         #endregion
@@ -412,7 +397,6 @@ namespace Moirai.Atropos
             if (IsDisposed) return;
             _isIterating = false;
             _disposePending = false;
-            _pendingChanges.Clear();
 
             // 标记正在整体销毁：ShutdownService 跳过逐项列表移除，
             // 由循环结束后统一 Clear() 清空全部列表——避免逆序遍历时 List.Remove 修改被遍历列表
@@ -618,22 +602,6 @@ namespace Moirai.Atropos
             public int FixedTickIndex = MISSING_INDEX;
             public int LateTickIndex = MISSING_INDEX;
             public int GizmoIndex = MISSING_INDEX;
-        }
-
-        /// <summary>迭代期间暂缓的注册操作。</summary>
-        internal struct PendingChange
-        {
-            public readonly IService Service;
-            public readonly Type[] ContractTypes;
-
-            private PendingChange(IService service, Type[] contractTypes)
-            {
-                Service = service;
-                ContractTypes = contractTypes;
-            }
-
-            public static PendingChange Register(IService service, Type[] contractTypes) =>
-                new PendingChange(service, contractTypes);
         }
 
         #endregion
