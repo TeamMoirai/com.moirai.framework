@@ -1,14 +1,13 @@
 using Cysharp.Threading.Tasks;
-using Moirai.Atropos.Resource;
 using UnityEngine;
 
 namespace Moirai.Atropos.Localization
 {
     /// <summary>
-    /// Base class for image-based localization injectors that share the common pattern of:
-    /// - Checking if localization uses an index or a resource text ID
-    /// - Loading assets asynchronously from the resource system
-    /// - Handling Sprite/Texture type conversion with appropriate logging
+    /// 基于图片的本地化注入器基类，共享以下通用模式：<br/>
+    /// - 检查本地化使用的是索引还是资源文本 ID<br/>
+    /// - 从资源系统异步加载资源<br/>
+    /// - 处理 Sprite/Texture 类型转换，并输出相应日志
     /// </summary>
     public abstract class ImageInjectorBase : IInjector
     {
@@ -35,24 +34,24 @@ namespace Moirai.Atropos.Localization
         }
 
         /// <summary>
-        /// Apply the localized asset from a pre-assigned array by index.
+        /// 通过索引从预分配的数组中应用本地化资源。
         /// </summary>
         protected abstract void ApplyFromArray(int index);
 
         /// <summary>
-        /// Apply the loaded asset to the target component.
-        /// Called after the asset is successfully loaded and validated.
+        /// 将加载到的资源应用到目标组件。<br/>
+        /// 在资源成功加载并通过验证后调用。
         /// </summary>
         protected abstract void ApplyAsset(Object asset);
 
         /// <summary>
-        /// Get the expected asset type name for error messages.
+        /// 获取预期资源类型名称，用于错误消息。
         /// </summary>
         protected abstract string GetExpectedTypeName();
 
         /// <summary>
-        /// Try to convert a mismatched asset type and apply it.
-        /// Returns true if conversion was handled, false otherwise.
+        /// 尝试转换不匹配的资源类型并应用。<br/>
+        /// 如果转换已处理则返回 true，否则返回 false。
         /// </summary>
         protected abstract bool TryConvertAndApply(Object asset);
 
@@ -65,12 +64,12 @@ namespace Moirai.Atropos.Localization
 
             if (!IsExpectedType(result) && !IsConvertibleType(result))
             {
-                LogUtility.Error($"本地化图片类型错误，{textIDValue}");
+                LogUtility.Error("Localized image type error, {0}", textIDValue);
             }
 
             if (TryConvertAndApply(result))
             {
-                LogUtility.Warning($"本地化图片类型错误，已自动转换：{result}");
+                LogUtility.Warning("Localized image type error, automatically converted: {0}", result.ToString());
                 return;
             }
 
@@ -78,12 +77,12 @@ namespace Moirai.Atropos.Localization
         }
 
         /// <summary>
-        /// Check if the loaded asset is the expected primary type.
+        /// 检查加载的资源是否为预期的主要类型。
         /// </summary>
         protected abstract bool IsExpectedType(Object asset);
 
         /// <summary>
-        /// Check if the loaded asset is a type that can be converted.
+        /// 检查加载的资源是否为可转换的类型。
         /// </summary>
         protected abstract bool IsConvertibleType(Object asset);
     }
