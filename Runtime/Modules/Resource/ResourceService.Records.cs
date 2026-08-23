@@ -128,16 +128,17 @@ namespace Moirai.Atropos.Resource
         private int _assetInfoSlotFreeHead = -1;
 
         // 索引映射
-        private readonly ResourceUlongIntMap _assetRecordsByKey = new();
-        private readonly ResourceUlongIntMap _assetRecordByLoadKeyId = new();
-        private readonly ResourceUlongIntMap _assetRecordHeadByUnityObjectId = new();
-        private readonly ResourceUlongIntMap _assetLoadingOperationByKey = new();
-        private readonly ResourceUlongIntMap _assetInfoByKey = new();
+        private readonly ResourceUlongIntMap _assetRecordsByKey = new ResourceUlongIntMap();
+        private readonly ResourceUlongIntMap _assetRecordByLoadKeyId = new ResourceUlongIntMap();
+        private readonly ResourceUlongIntMap _assetRecordHeadByUnityObjectId = new ResourceUlongIntMap();
+        private readonly ResourceUlongIntMap _assetLoadingOperationByKey = new ResourceUlongIntMap();
 
         // 过期队列
         private int[] _idleBuckets;
         private int[] _keepAliveBuckets;
         private int[] _unusedAssetCandidates;
+        private int _lastKeepAliveProcessTick = -1;
+        private int _lastIdleProcessTick = -1;
         private int _unusedAssetCandidateCount;
 
         // 资源名称注册表（package/location/type → ID）
@@ -147,15 +148,15 @@ namespace Moirai.Atropos.Resource
         private int[] _resourcePackageRefCounts;
         private int[] _resourceLocationRefCounts;
         private int[] _resourceTypeRefCounts;
-        private readonly Dictionary<string, int> _resourcePackageIds = new();
-        private readonly Dictionary<string, int> _resourceLocationIds = new();
-        private readonly Dictionary<Type, int> _resourceTypeIds = new();
+        private readonly Dictionary<string, int> _resourcePackageIds = new Dictionary<string, int>();
+        private readonly Dictionary<string, int> _resourceLocationIds = new Dictionary<string, int>();
+        private readonly Dictionary<Type, int> _resourceTypeIds = new Dictionary<Type, int>();
         private int _nextPackageId = 1;
         private int _nextLocationId = 1;
         private int _nextTypeId = 1;
-        private readonly System.Collections.Generic.Stack<int> _freePackageIds = new();
-        private readonly System.Collections.Generic.Stack<int> _freeLocationIds = new();
-        private readonly System.Collections.Generic.Stack<int> _freeTypeIds = new();
+        private readonly Stack<int> _freePackageIds = new Stack<int>();
+        private readonly Stack<int> _freeLocationIds = new Stack<int>();
+        private readonly Stack<int> _freeTypeIds = new Stack<int>();
 
         // 加载键自增
         private int _loadKeyNextId = 1;
@@ -1018,9 +1019,11 @@ namespace Moirai.Atropos.Resource
         {
             assetId = -1;
             asset = null;
-            assetKind = NormalizeAssetKind(assetType, assetKind);
-            assetType = NormalizeAssetType(assetType, assetKind);
-            ulong key = GetAssetRecordKey(packageName, location, assetType, assetKind, handleKind);
+            if (!TryGetResourceKey(packageName, location, assetType, assetKind, handleKind, out ulong key))
+            {
+                return false;
+            }
+
             if (!_assetRecordsByKey.TryGetValue(key, out assetId) || !IsValidAssetId(assetId))
             {
                 assetId = -1;
@@ -1155,65 +1158,159 @@ namespace Moirai.Atropos.Resource
 
         #region 过期回收 [EXPIRY & RECYCLING]
 
-        internal void ProcessKeepAlive(float unscaledTime, int maxProcessCount)
+        internal void ProcessKeepAlive(float unscaledTime, int maxCount)
         {
-            if (_idleBuckets == null)
+            if ((_keepAliveBuckets == null && _idleBuckets == null) || maxCount <= 0)
             {
                 return;
             }
 
             int currentTick = ToKeepAliveTick(unscaledTime);
+            int processed = ProcessDueKeepAliveBuckets(currentTick, maxCount);
+            if (processed < maxCount)
+            {
+                ProcessDueIdleBuckets(currentTick, maxCount - processed);
+            }
+        }
+
+        private int ProcessDueKeepAliveBuckets(int currentTick, int maxCount)
+        {
+            if (maxCount <= 0)
+            {
+                return 0;
+            }
+
+            if (_lastKeepAliveProcessTick < 0 || currentTick - _lastKeepAliveProcessTick > KEEP_ALIVE_BUCKET_COUNT)
+            {
+                _lastKeepAliveProcessTick = currentTick - KEEP_ALIVE_BUCKET_COUNT;
+            }
+
             int processed = 0;
-
-            // 处理 idle 过期
-            for (int i = 0; i < IDLE_BUCKET_COUNT && processed < maxProcessCount; i++)
+            while (_lastKeepAliveProcessTick < currentTick && processed < maxCount)
             {
-                int bucketIndex = (currentTick - i) & (IDLE_BUCKET_COUNT - 1);
-                int current = _idleBuckets[bucketIndex];
-                while (current >= 0 && processed < maxProcessCount)
+                int bucketTick = _lastKeepAliveProcessTick + 1;
+                int bucketProcessed = ProcessKeepAliveBucket(bucketTick, currentTick, maxCount - processed, out bool completed);
+                processed += bucketProcessed;
+                if (!completed)
                 {
-                    ref AssetSlot slot = ref GetAssetSlotRef(current);
-                    int next = slot.ExpireQueueNext;
-                    if (slot.ExpireQueueKind == 2 && slot.IdleExpireTick <= currentTick)
-                    {
-                        if (HasNoResourceRefs(ref slot))
-                        {
-                            slot.IdleReleaseRequested = 1;
-                            ReleaseAssetStorage(current, slot.Generation);
-                            processed++;
-                        }
-                    }
-
-                    current = next;
+                    break;
                 }
+
+                _lastKeepAliveProcessTick = bucketTick;
             }
 
-            // 处理 keep-alive 过期
-            if (_keepAliveBuckets != null)
-            {
-                for (int i = 0; i < KEEP_ALIVE_BUCKET_COUNT && processed < maxProcessCount; i++)
-                {
-                    int bucketIndex = (currentTick - i) & (KEEP_ALIVE_BUCKET_COUNT - 1);
-                    int current = _keepAliveBuckets[bucketIndex];
-                    while (current >= 0 && processed < maxProcessCount)
-                    {
-                        ref AssetSlot slot = ref GetAssetSlotRef(current);
-                        int next = slot.ExpireQueueNext;
-                        if (slot.ExpireQueueKind == 1 && slot.KeepAliveExpireTick <= currentTick)
-                        {
-                            slot.KeepAliveRefCount = Math.Max(0, slot.KeepAliveRefCount - 1);
-                            if (slot.KeepAliveRefCount == 0)
-                            {
-                                RemoveFromKeepAliveBucket(current, ref slot);
-                                UpdateAssetStateAndIdleQueue(current, ref slot);
-                                processed++;
-                            }
-                        }
+            return processed;
+        }
 
-                        current = next;
-                    }
-                }
+        private int ProcessDueIdleBuckets(int currentTick, int maxCount)
+        {
+            if (maxCount <= 0)
+            {
+                return 0;
             }
+
+            if (_lastIdleProcessTick < 0 || currentTick - _lastIdleProcessTick > IDLE_BUCKET_COUNT)
+            {
+                _lastIdleProcessTick = currentTick - IDLE_BUCKET_COUNT;
+            }
+
+            int processed = 0;
+            while (_lastIdleProcessTick < currentTick && processed < maxCount)
+            {
+                int bucketTick = _lastIdleProcessTick + 1;
+                int bucketProcessed = ProcessIdleBucket(bucketTick, currentTick, maxCount - processed, out bool completed);
+                processed += bucketProcessed;
+                if (!completed)
+                {
+                    break;
+                }
+
+                _lastIdleProcessTick = bucketTick;
+            }
+
+            return processed;
+        }
+
+        private int ProcessKeepAliveBucket(int bucketTick, int currentTick, int maxCount, out bool completed)
+        {
+            completed = true;
+            if (_keepAliveBuckets == null || maxCount <= 0)
+            {
+                return 0;
+            }
+
+            int bucket = bucketTick & (KEEP_ALIVE_BUCKET_COUNT - 1);
+            int processed = 0;
+            int current = _keepAliveBuckets[bucket];
+            while (current >= 0)
+            {
+                ref AssetSlot slot = ref GetAssetSlotRef(current);
+                int next = slot.ExpireQueueNext;
+                if (slot.ExpireQueueKind == 1 && slot.KeepAliveExpireTick <= currentTick)
+                {
+                    if (processed >= maxCount)
+                    {
+                        completed = false;
+                        break;
+                    }
+
+                    RemoveFromKeepAliveBucket(current, ref slot);
+                    if (slot.KeepAliveRefCount > 0)
+                    {
+                        slot.KeepAliveRefCount = 0;
+                    }
+
+                    UpdateAssetStateAndIdleQueue(current, ref slot);
+                    processed++;
+                }
+
+                current = next;
+            }
+
+            return processed;
+        }
+
+        private int ProcessIdleBucket(int bucketTick, int currentTick, int maxCount, out bool completed)
+        {
+            completed = true;
+            if (_idleBuckets == null || maxCount <= 0)
+            {
+                return 0;
+            }
+
+            int bucket = bucketTick & (IDLE_BUCKET_COUNT - 1);
+            int processed = 0;
+            int current = _idleBuckets[bucket];
+            while (current >= 0)
+            {
+                ref AssetSlot slot = ref GetAssetSlotRef(current);
+                int next = slot.ExpireQueueNext;
+                if (slot.ExpireQueueKind == 2 && slot.IdleExpireTick <= currentTick)
+                {
+                    if (processed >= maxCount)
+                    {
+                        completed = false;
+                        break;
+                    }
+
+                    RemoveFromIdleBucket(current, ref slot);
+                    if (HasNoResourceRefs(ref slot))
+                    {
+                        slot.IdleReleaseRequested = 1;
+                        ReleaseAssetStorage(current, slot.Generation);
+                    }
+                    else
+                    {
+                        UpdateAssetStateAndIdleQueue(current, ref slot);
+                    }
+
+                    processed++;
+                }
+
+                current = next;
+            }
+
+            return processed;
         }
 
         internal int ReleaseAllUnusedAssetRecords()
@@ -1686,75 +1783,84 @@ namespace Moirai.Atropos.Resource
         private ulong GetAssetRecordKey(string packageName, string location, Type assetType,
             EResourceAssetKind assetKind, EResourceHandleKind handleKind)
         {
-            int packageId = GetOrAllocatePackageId(packageName);
-            int locationId = GetOrAllocateLocationId(location);
-            int typeId = GetOrAllocateTypeId(assetType);
+            int packageId = GetOrAddPackageId(packageName);
+            int locationId = GetOrAddLocationId(location);
+            int typeId = GetOrAddTypeId(assetType);
             return PackResourceKey(packageId, locationId, typeId, assetKind, handleKind);
         }
 
         private ulong GetLoadingOperationKey(string location, string packageName, Type assetType,
             EResourceAssetKind assetKind)
         {
-            int packageId = GetOrAllocatePackageId(packageName);
-            int locationId = GetOrAllocateLocationId(location);
-            int typeId = GetOrAllocateTypeId(assetType);
+            int packageId = GetOrAddPackageId(packageName);
+            int locationId = GetOrAddLocationId(location);
+            int typeId = GetOrAddTypeId(assetType);
             return PackResourceKey(packageId, locationId, typeId, assetKind, EResourceHandleKind.AssetHandle);
+        }
+
+        private bool TryGetResourceKey(string packageName, string location, Type assetType,
+            EResourceAssetKind assetKind, EResourceHandleKind handleKind, out ulong key)
+        {
+            key = 0;
+            assetKind = NormalizeAssetKind(assetType, assetKind);
+            assetType = NormalizeAssetType(assetType, assetKind);
+            if (!_resourcePackageIds.TryGetValue(NormalizePackageName(packageName), out int packageId) ||
+                !_resourceLocationIds.TryGetValue(location ?? string.Empty, out int locationId) ||
+                !_resourceTypeIds.TryGetValue(assetType, out int typeId))
+            {
+                return false;
+            }
+
+            key = PackResourceKey(packageId, locationId, typeId, assetKind, handleKind);
+            return true;
         }
 
         #endregion
 
         #region 资源名称注册表 [RESOURCE NAME REGISTRY]
 
-        private int GetOrAllocatePackageId(string packageName)
+        private int GetOrAddPackageId(string packageName)
         {
-            if (string.IsNullOrEmpty(packageName))
+            packageName = NormalizePackageName(packageName);
+            if (_resourcePackageIds.TryGetValue(packageName, out int id))
             {
-                packageName = DefaultPackageName;
+                return id;
             }
 
-            if (_resourcePackageIds.TryGetValue(packageName, out int existingId))
-            {
-                _resourcePackageRefCounts[existingId]++;
-                return existingId;
-            }
-
-            int id = AllocateResourceId(ref _nextPackageId, RESOURCE_KEY_PACKAGE_MAX, _freePackageIds);
+            id = AllocateResourceId(ref _nextPackageId, RESOURCE_KEY_PACKAGE_MAX, _freePackageIds);
+            _resourcePackageIds.Add(packageName, id);
             EnsureResourceNameSlot(ref _resourcePackagesById, ref _resourcePackageRefCounts, id);
             _resourcePackagesById[id] = packageName;
-            _resourcePackageRefCounts[id] = 1;
-            _resourcePackageIds[packageName] = id;
             return id;
         }
 
-        private int GetOrAllocateLocationId(string location)
+        private int GetOrAddLocationId(string location)
         {
-            if (_resourceLocationIds.TryGetValue(location, out int existingId))
+            location ??= string.Empty;
+            if (_resourceLocationIds.TryGetValue(location, out int id))
             {
-                _resourceLocationRefCounts[existingId]++;
-                return existingId;
+                return id;
             }
 
-            int id = AllocateResourceId(ref _nextLocationId, RESOURCE_KEY_LOCATION_MAX, _freeLocationIds);
+            id = AllocateResourceId(ref _nextLocationId, RESOURCE_KEY_LOCATION_MAX, _freeLocationIds);
+            _resourceLocationIds.Add(location, id);
             EnsureResourceNameSlot(ref _resourceLocationsById, ref _resourceLocationRefCounts, id);
             _resourceLocationsById[id] = location;
-            _resourceLocationRefCounts[id] = 1;
-            _resourceLocationIds[location] = id;
             return id;
         }
 
-        private int GetOrAllocateTypeId(Type assetType)
+        private int GetOrAddTypeId(Type assetType)
         {
-            if (_resourceTypeIds.TryGetValue(assetType, out int existingId))
+            assetType ??= typeof(Object);
+            if (_resourceTypeIds.TryGetValue(assetType, out int id))
             {
-                _resourceTypeRefCounts[existingId]++;
-                return existingId;
+                return id;
             }
 
-            int id = AllocateResourceId(ref _nextTypeId, RESOURCE_KEY_TYPE_MAX, _freeTypeIds);
+            id = AllocateResourceId(ref _nextTypeId, RESOURCE_KEY_TYPE_MAX, _freeTypeIds);
+            _resourceTypeIds.Add(assetType, id);
             EnsureResourceTypeSlot(id);
             _resourceTypesById[id] = assetType;
-            _resourceTypeRefCounts[id] = 1;
-            _resourceTypeIds[assetType] = id;
             return id;
         }
 
@@ -1828,65 +1934,97 @@ namespace Moirai.Atropos.Resource
 
         private void RetainResourceKey(ulong key)
         {
-            int packageId = UnpackPackageId(key);
-            int locationId = UnpackLocationId(key);
-            int typeId = UnpackTypeId(key);
-            if (packageId > 0 && packageId < _resourcePackageRefCounts?.Length)
-            {
-                _resourcePackageRefCounts[packageId]++;
-            }
-
-            if (locationId > 0 && locationId < _resourceLocationRefCounts?.Length)
-            {
-                _resourceLocationRefCounts[locationId]++;
-            }
-
-            if (typeId > 0 && typeId < _resourceTypeRefCounts?.Length)
-            {
-                _resourceTypeRefCounts[typeId]++;
-            }
+            IncrementResourceRef(_resourcePackageRefCounts, UnpackPackageId(key));
+            IncrementResourceRef(_resourceLocationRefCounts, UnpackLocationId(key));
+            IncrementResourceRef(_resourceTypeRefCounts, UnpackTypeId(key));
         }
 
         private void ReleaseResourceKey(ulong key)
         {
-            int packageId = UnpackPackageId(key);
-            int locationId = UnpackLocationId(key);
-            int typeId = UnpackTypeId(key);
-
-            if (packageId > 0 && packageId < _resourcePackageRefCounts?.Length)
-            {
-                _resourcePackageRefCounts[packageId]--;
-                if (_resourcePackageRefCounts[packageId] == 0)
-                {
-                    _freePackageIds.Push(packageId);
-                    _resourcePackageIds.Remove(_resourcePackagesById[packageId]);
-                }
-            }
-
-            if (locationId > 0 && locationId < _resourceLocationRefCounts?.Length)
-            {
-                _resourceLocationRefCounts[locationId]--;
-                if (_resourceLocationRefCounts[locationId] == 0)
-                {
-                    _freeLocationIds.Push(locationId);
-                    _resourceLocationIds.Remove(_resourceLocationsById[locationId]);
-                }
-            }
-
-            if (typeId > 0 && typeId < _resourceTypeRefCounts?.Length)
-            {
-                _resourceTypeRefCounts[typeId]--;
-                if (_resourceTypeRefCounts[typeId] == 0)
-                {
-                    _freeTypeIds.Push(typeId);
-                    _resourceTypeIds.Remove(_resourceTypesById[typeId]);
-                }
-            }
+            ReleasePackageId(UnpackPackageId(key));
+            ReleaseLocationId(UnpackLocationId(key));
+            ReleaseTypeId(UnpackTypeId(key));
         }
 
         private void ReleaseAllResourceKeysFromMap(ResourceUlongIntMap map)
         {
-            map.ForEachKey(ReleaseResourceKey);
+            map.ForEachKey(ReleaseResourceKeyNoTrim);
+        }
+
+        private void ReleaseResourceKeyNoTrim(ulong key)
+        {
+            DecrementResourceRef(_resourcePackageRefCounts, UnpackPackageId(key));
+            DecrementResourceRef(_resourceLocationRefCounts, UnpackLocationId(key));
+            DecrementResourceRef(_resourceTypeRefCounts, UnpackTypeId(key));
+        }
+
+        private void ReleasePackageId(int id)
+        {
+            if (!DecrementResourceRef(_resourcePackageRefCounts, id))
+            {
+                return;
+            }
+
+            string value = id < _resourcePackagesById.Length ? _resourcePackagesById[id] : null;
+            if (value != null)
+            {
+                _resourcePackageIds.Remove(value);
+                _resourcePackagesById[id] = null;
+                _freePackageIds.Push(id);
+            }
+        }
+
+        private void ReleaseLocationId(int id)
+        {
+            if (!DecrementResourceRef(_resourceLocationRefCounts, id))
+            {
+                return;
+            }
+
+            string value = id < _resourceLocationsById.Length ? _resourceLocationsById[id] : null;
+            if (value != null)
+            {
+                _resourceLocationIds.Remove(value);
+                _resourceLocationsById[id] = null;
+                _freeLocationIds.Push(id);
+            }
+        }
+
+        private void ReleaseTypeId(int id)
+        {
+            if (!DecrementResourceRef(_resourceTypeRefCounts, id))
+            {
+                return;
+            }
+
+            Type value = id < _resourceTypesById.Length ? _resourceTypesById[id] : null;
+            if (value != null)
+            {
+                _resourceTypeIds.Remove(value);
+                _resourceTypesById[id] = null;
+                _freeTypeIds.Push(id);
+            }
+        }
+
+        private static void IncrementResourceRef(int[] refCounts, int id)
+        {
+            if (refCounts == null || id <= 0 || id >= refCounts.Length)
+            {
+                return;
+            }
+
+            refCounts[id]++;
+        }
+
+        private static bool DecrementResourceRef(int[] refCounts, int id)
+        {
+            if (refCounts == null || id <= 0 || id >= refCounts.Length || refCounts[id] <= 0)
+            {
+                return false;
+            }
+
+            refCounts[id]--;
+            return refCounts[id] == 0;
         }
 
         #endregion
