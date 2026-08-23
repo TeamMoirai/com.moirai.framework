@@ -55,11 +55,6 @@ namespace Moirai.Atropos.Editor
 
         private void OnEnable()
         {
-            // 恢复上次选中的预设
-            string lastGuid = BuildPipelineWindowState.instance.LastSelectedPresetGUID;
-            if (!string.IsNullOrEmpty(lastGuid))
-                _selectedGUID = lastGuid;
-
             BuildUI();
             RefreshPresets();
             SyncSelectionAfterRefresh();
@@ -129,21 +124,14 @@ namespace Moirai.Atropos.Editor
             {
                 selectionType = SelectionType.Single,
             };
-            _listView.onSelectionChange += objs =>
-            {
-                if (objs.FirstOrDefault() is PresetEntry entry)
-                    SelectEntry(entry);
-            };
-            // 双击（或回车）在 Project 窗口中 Ping 该资产
-            _listView.onItemsChosen += items =>
-            {
-                if (items.FirstOrDefault() is PresetEntry entry)
-                {
-                    var asset = AssetDatabase.LoadAssetAtPath<BuildConfig>(entry.Path);
-                    if (asset != null)
-                        EditorGUIUtility.PingObject(asset);
-                }
-            };
+            // ListView 事件名在 Unity 2023.1 重命名（onSelectionChange→selectionChanged、onItemsChosen→itemsChosen）
+#if UNITY_2023_1_OR_NEWER
+            _listView.selectionChanged += OnListViewSelectionChanged;
+            _listView.itemsChosen += OnListViewItemsChosen;
+#else
+            _listView.onSelectionChange += OnListViewSelectionChanged;
+            _listView.onItemsChosen += OnListViewItemsChosen;
+#endif
             _listView.style.flexGrow = 1;
             left.Add(_listView);
 
@@ -157,6 +145,23 @@ namespace Moirai.Atropos.Editor
             left.Add(bottomBar);
 
             return left;
+        }
+
+        private void OnListViewSelectionChanged(IEnumerable<object> objs)
+        {
+            if (objs.FirstOrDefault() is PresetEntry entry)
+                SelectEntry(entry);
+        }
+
+        // 双击（或回车）在 Project 窗口中 Ping 该资产
+        private void OnListViewItemsChosen(IEnumerable<object> items)
+        {
+            if (items.FirstOrDefault() is PresetEntry entry)
+            {
+                var asset = AssetDatabase.LoadAssetAtPath<BuildConfig>(entry.Path);
+                if (asset != null)
+                    EditorGUIUtility.PingObject(asset);
+            }
         }
 
         private VisualElement BuildRightPane()
@@ -236,19 +241,11 @@ namespace Moirai.Atropos.Editor
             parent.Add(MakeSeparator());
 
             var row = new VisualElement { style = { flexDirection = FlexDirection.Row } };
-
-            var abBtn = MakeBuildButton("构建 AssetBundle", () => ExecuteBuild(CloneConfig(_config), buildPlayer: false));
-            var playerBtn = MakeBuildButton("构建 Player", ExecuteBuildPlayerOnly);
-            row.Add(abBtn);
-            row.Add(playerBtn);
+            row.Add(MakeBuildButton("构建 AssetBundle", ExecuteBuildAB));
+            row.Add(MakeBuildButton("构建 Player", ExecuteBuildPlayerOnly));
             parent.Add(row);
 
-            var fullBtn = new Button(() =>
-            {
-                var copy = CloneConfig(_config);
-                copy.BuildPlayer = true;
-                ExecuteBuild(copy, buildPlayer: true);
-            }) { text = "一键构建 (AB + Player)" };
+            var fullBtn = new Button(ExecuteBuildAll) { text = "一键构建 (AB + Player)" };
             fullBtn.style.height = 38;
             fullBtn.style.fontSize = 13;
             fullBtn.style.unityFontStyleAndWeight = FontStyle.Bold;
@@ -355,8 +352,6 @@ namespace Moirai.Atropos.Editor
 
             _selectedGUID = entry.Guid;
             BindConfig(AssetDatabase.LoadAssetAtPath<BuildConfig>(entry.Path));
-
-            BuildPipelineWindowState.instance.SetLastSelectedPresetGUID(_selectedGUID);
         }
 
         private void BindConfig(BuildConfig config)
@@ -392,7 +387,6 @@ namespace Moirai.Atropos.Editor
         {
             _selectedGUID = null;
             BindConfig(null);
-            BuildPipelineWindowState.instance.SetLastSelectedPresetGUID("");
         }
 
         private void CreatePreset()
@@ -495,8 +489,28 @@ namespace Moirai.Atropos.Editor
 
         #region 构建执行 [BUILD EXECUTION]
 
+        /// <summary>仅构建 AssetBundle（克隆配置执行，不污染预设资产）。</summary>
+        private void ExecuteBuildAB()
+        {
+            if (_config == null) return;
+            var copy = CloneConfig(_config);
+            copy.BuildPlayer = false;
+            ExecuteBuild(copy, buildPlayer: false);
+        }
+
+        /// <summary>一键构建 AB + Player。</summary>
+        private void ExecuteBuildAll()
+        {
+            if (_config == null) return;
+            var copy = CloneConfig(_config);
+            copy.BuildPlayer = true;
+            ExecuteBuild(copy, buildPlayer: true);
+        }
+
         private void ExecuteBuild(BuildConfig config, bool buildPlayer)
         {
+            if (config == null) return;
+
             _buildLogs.Clear();
             RebuildLogUI();
             AddLog("========== 开始构建 ==========");
@@ -586,25 +600,22 @@ namespace Moirai.Atropos.Editor
             }
         }
 
+        /// <summary>追加一条日志：增量添加 Label（避免全量重建），并滚动到底部。</summary>
         private void AddLog(string message)
         {
-            string timestamp = DateTime.Now.ToString("HH:mm:ss");
-            _buildLogs.Add($"[{timestamp}] {message}");
-            RebuildLogUI();
+            string entry = $"[{DateTime.Now:HH:mm:ss}] {message}";
+            _buildLogs.Add(entry);
+
+            var label = new Label(entry) { style = { whiteSpace = WhiteSpace.Normal } };
+            _logScroll.Add(label);
+            _logFoldout.text = $"构建日志 ({_buildLogs.Count})";
+            _logScroll.schedule.Execute(() => _logScroll.scrollOffset = new Vector2(0, float.MaxValue));
         }
 
         private void RebuildLogUI()
         {
             _logScroll.Clear();
-            foreach (var log in _buildLogs)
-            {
-                var label = new Label(log);
-                label.style.whiteSpace = WhiteSpace.Normal;
-                _logScroll.Add(label);
-            }
-
             _logFoldout.text = $"构建日志 ({_buildLogs.Count})";
-            _logScroll.schedule.Execute(() => _logScroll.scrollOffset = new Vector2(0, float.MaxValue));
         }
 
         #endregion
@@ -616,24 +627,6 @@ namespace Moirai.Atropos.Editor
             var clone = CreateInstance<BuildConfig>();
             EditorUtility.CopySerialized(source, clone);
             return clone;
-        }
-
-        #endregion
-
-        #region 窗口状态持久化 [WINDOW STATE]
-
-        [FilePath("ProjectSettings/BuildPipelineWindow.asset", FilePathAttribute.Location.ProjectFolder)]
-        private sealed class BuildPipelineWindowState : ScriptableSingleton<BuildPipelineWindowState>
-        {
-            [SerializeField] private string m_LastSelectedPresetGUID = "";
-
-            public string LastSelectedPresetGUID => m_LastSelectedPresetGUID;
-
-            public void SetLastSelectedPresetGUID(string guid)
-            {
-                m_LastSelectedPresetGUID = guid;
-                Save(true);
-            }
         }
 
         #endregion

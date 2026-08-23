@@ -15,7 +15,7 @@ namespace Moirai.Atropos.Editor
         public ECompressOption CompressOption = ECompressOption.LZ4;
 
         [ProviderDropdown(label: "加密方式")]
-        [SerializeReference] private ResourceEncryptorHandler m_EncryptorHandler;
+        [SerializeReference] internal ResourceEncryptorHandler m_EncryptorHandler;
 
         public string PackageVersion = "";
         public string OutputRoot = "./Builds/";
