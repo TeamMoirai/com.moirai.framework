@@ -1,3 +1,4 @@
+using System;
 using Moirai.Atropos.Resource;
 using UnityEditor;
 using UnityEngine;
@@ -6,15 +7,27 @@ using YooAsset.Editor;
 
 namespace Moirai.Atropos.Editor
 {
-    public class BuildConfig
+    public class BuildConfig : ScriptableObject
     {
         // 基础设置
         public BuildTarget BuildTarget;
         public EBuildPipeline BuildPipeline = EBuildPipeline.ScriptableBuildPipeline;
         public ECompressOption CompressOption = ECompressOption.LZ4;
-        public EEncryptorType EncryptorType = EEncryptorType.None;
+
+        [ProviderDropdown(label: "加密方式")]
+        [SerializeReference] private ResourceEncryptorHandler m_EncryptorHandler;
+
         public string PackageVersion = "";
         public string OutputRoot = "./Builds/";
+
+        /// <summary>
+        /// 资源加解密处理器。
+        /// </summary>
+        public ResourceEncryptorHandler EncryptorHandler
+        {
+            get => m_EncryptorHandler;
+            set => m_EncryptorHandler = value;
+        }
 
         // 最小包设置
         public bool MinimalPackage;
@@ -38,14 +51,13 @@ namespace Moirai.Atropos.Editor
 
         public static BuildConfig CreateDefault()
         {
-            return new BuildConfig
-            {
-                BuildTarget = EditorUserBuildSettings.activeBuildTarget,
-                PlayerPlatform = EditorUserBuildSettings.activeBuildTarget,
-                PackageVersion = GetDefaultPackageVersion(),
-                OutputRoot = "./Builds/",
-                PlayerOutputPath = GetDefaultPlayerOutputPath(EditorUserBuildSettings.activeBuildTarget),
-            };
+            var config = CreateInstance<BuildConfig>();
+            config.BuildTarget = EditorUserBuildSettings.activeBuildTarget;
+            config.PlayerPlatform = EditorUserBuildSettings.activeBuildTarget;
+            config.PackageVersion = GetDefaultPackageVersion();
+            config.OutputRoot = "./Builds/";
+            config.PlayerOutputPath = GetDefaultPlayerOutputPath(EditorUserBuildSettings.activeBuildTarget);
+            return config;
         }
 
         public static string GetDefaultPackageVersion()

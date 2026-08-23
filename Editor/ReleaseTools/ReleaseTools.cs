@@ -226,7 +226,7 @@ namespace Moirai.Atropos.Editor
             buildParameters.FileNameStyle = config.FileNameStyle;
             buildParameters.BundledCopyOption = config.BundledCopyOption;
             buildParameters.BundledCopyParams = string.Empty;
-            buildParameters.BundleEncryptor = GetBundleEncryptorFromType(config.EncryptorType);
+            buildParameters.BundleEncryptor = config.EncryptorHandler?.CreateEncryptor();
             buildParameters.ClearBuildCacheFiles = config.ClearBuildCache;
             buildParameters.UseAssetDependencyDB = config.UseAssetDependencyDB;
 
@@ -505,20 +505,7 @@ namespace Moirai.Atropos.Editor
         }
 
         /// <summary>
-        /// 根据 EEncryptorType 枚举获取加密服务
-        /// </summary>
-        private static IBundleEncryptor GetBundleEncryptorFromType(EEncryptorType encryptorType)
-        {
-            return encryptorType switch
-            {
-                EEncryptorType.FileOffSet => new FileOffsetEncryptor(),
-                EEncryptorType.FileStream => new FileStreamEncryptor(),
-                _ => null
-            };
-        }
-
-        /// <summary>
-        /// 根据 ResourceServiceDriver 的 encryptorType 获取对应的加密服务（旧版兼容）
+        /// 根据 ResourceServiceDriver 的 EncryptorHandler 获取对应的加密服务（旧版兼容）
         /// </summary>
         private static IBundleEncryptor GetBundleEncryptorFromResourceServiceDriver()
         {
@@ -544,10 +531,10 @@ namespace Moirai.Atropos.Editor
                 return null;
             }
 
-            var encryptionType = resourceServiceDriver.EncryptorType;
-            Debug.Log($"[BuildInternal] Use EEncryptorType from ResourceServiceDriver: {encryptionType}");
+            var encryptorHandler = resourceServiceDriver.EncryptorHandler;
+            Debug.Log($"[BuildInternal] Use EncryptorHandler from ResourceServiceDriver: {encryptorHandler?.GetType().Name ?? "None"}");
 
-            return GetBundleEncryptorFromType(encryptionType);
+            return encryptorHandler?.CreateEncryptor();
         }
 
         private static string GetBuildPackageVersion()
