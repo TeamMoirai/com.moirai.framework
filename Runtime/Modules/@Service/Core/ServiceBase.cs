@@ -30,7 +30,7 @@ namespace Moirai.Atropos
     /// <summary>
     /// 服务核心契约。
     /// <para>依赖声明：纯 C# 服务通过构造函数参数；MonoBehaviour 服务通过 <c>Inject(IServiceProvider)</c>。</para>
-    /// <para>依赖由 <see cref="ServiceContainer"/> 在构建期拓扑排序并注入。</para>
+    /// <para>依赖由 <see cref="ServiceWorld"/> 在构建期拓扑排序并注入。</para>
     /// </summary>
     public interface IService
     {
@@ -43,11 +43,6 @@ namespace Moirai.Atropos
         /// 所属作用域。
         /// </summary>
         EServiceScopeKind Scope { get; }
-
-        /// <summary>
-        /// 当前生命周期状态。
-        /// </summary>
-        EServiceState State { get; }
 
         /// <summary>
         /// 注册完成后调用（同步）。
@@ -84,16 +79,16 @@ namespace Moirai.Atropos
         void OnDrawGizmos();
     }
 
-    /// <summary>异步初始化服务。由 <see cref="ServiceContainer.BuildAsync"/> 按拓扑序驱动。</summary>
+    /// <summary>异步初始化服务。由 <see cref="ServiceWorld.BuildAsync"/> 按拓扑序驱动。</summary>
     public interface IAsyncInitService
     {
         UniTask OnInitAsync();
     }
 
     /// <summary>
-    /// 纯 C# 服务基类。不依赖 MonoBehaviour，生命周期由 <see cref="ServiceContainer"/> 控制。
+    /// 纯 C# 服务基类。不依赖 MonoBehaviour，生命周期由 <see cref="ServiceWorld"/> 控制。
     /// <para>依赖通过构造函数参数声明，容器在创建时自动解析并注入。</para>
-    /// <para>若需运行时延迟解析（可选依赖），可在构造函数中注入 <see cref="IServiceProvider"/>。</para>
+    /// <para>运行时延迟解析可通过 <see cref="Require{T}"/> / <see cref="TryGet{T}"/> 等方法。</para>
     /// </summary>
     public abstract class ServiceBase : IService
     {
@@ -103,9 +98,47 @@ namespace Moirai.Atropos
         public virtual EServiceScopeKind Scope => EServiceScopeKind.App;
 
         /// <summary>
-        /// 由容器维护，子类只读。
+        /// 当前生命周期状态。由容器维护，子类只读。
         /// </summary>
         public EServiceState State { get; internal set; } = EServiceState.Created;
+
+        #endregion
+
+        #region 运行时依赖查找 [RUNTIME DEPENDENCY LOOKUP]
+
+        private IServiceProvider _serviceProvider;
+
+        /// <summary>
+        /// 在当前作用域中查找服务（未找到抛 <see cref="GameException"/>）。
+        /// <para>按 Gameplay > Scene > App 优先级返回最优服务。</para>
+        /// </summary>
+        protected T Require<T>() where T : class
+            => _serviceProvider.GetRequiredService<T>();
+
+        /// <summary>
+        /// 在当前作用域中尝试查找服务。
+        /// <para>按 Gameplay > Scene > App 优先级返回最优服务。</para>
+        /// </summary>
+        protected bool TryGet<T>(out T service) where T : class
+            => _serviceProvider.TryGetService<T>(out service);
+
+        /// <summary>
+        /// 要求 App 作用域中的服务。
+        /// </summary>
+        protected T RequireApp<T>() where T : class
+            => _serviceProvider.GetRequiredServiceInScope<T>(EServiceScopeKind.App);
+
+        /// <summary>
+        /// 要求 Scene 作用域中的服务。
+        /// </summary>
+        protected T RequireScene<T>() where T : class
+            => _serviceProvider.GetRequiredServiceInScope<T>(EServiceScopeKind.Scene);
+
+        /// <summary>
+        /// 要求 Gameplay 作用域中的服务。
+        /// </summary>
+        protected T RequireGameplay<T>() where T : class
+            => _serviceProvider.GetRequiredServiceInScope<T>(EServiceScopeKind.Gameplay);
 
         #endregion
 
@@ -113,6 +146,18 @@ namespace Moirai.Atropos
 
         public abstract void OnInit();
         public abstract void Shutdown();
+
+        #endregion
+
+        #region 内部初始化 [INTERNAL INITIALIZATION]
+
+        /// <summary>
+        /// 由 <see cref="ServiceWorld"/> 在构建期调用，注入服务提供者。
+        /// </summary>
+        internal void InjectInternal(IServiceProvider provider)
+        {
+            _serviceProvider = provider;
+        }
 
         #endregion
     }

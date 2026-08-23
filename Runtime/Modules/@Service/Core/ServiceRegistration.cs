@@ -78,7 +78,7 @@ namespace Moirai.Atropos
     }
 
     /// <summary>
-    /// 服务注册集合。在组合根中创建，填充后交给 <see cref="ServiceContainer"/> 构建。
+    /// 服务注册集合。在组合根中创建，填充后交给 <see cref="ServiceWorld"/> 构建。
     /// </summary>
     public sealed class ServiceCollection
     {

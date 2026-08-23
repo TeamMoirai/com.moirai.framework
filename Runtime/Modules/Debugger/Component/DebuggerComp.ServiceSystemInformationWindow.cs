@@ -7,6 +7,9 @@ namespace Moirai.Atropos.Debugger
     {
         private sealed class ServiceSystemInformationWindow : ScrollableDebuggerWindowBase
         {
+            private static readonly Color s_SceneScopeColor = new(1f, 0.6f, 0.2f);
+            private static readonly Color s_GameplayScopeColor = new(0.4f, 1f, 0.4f);
+
             protected override void OnDrawScrollableWindow()
             {
                 GUILayout.Label("<b>Service System</b>");
@@ -40,9 +43,9 @@ namespace Moirai.Atropos.Debugger
 
                     GUILayout.Space(4);
 
-                    DrawItem("App Container", GameServices.AppContainer != null ? "Active" : "—");
-                    DrawItem("Scene Container", GameServices.SceneContainer != null ? "Active" : "—");
-                    DrawItem("Gameplay Container", GameServices.GameplayContainer != null ? "Active" : "—");
+                    DrawItem("App Scope", GameServices.HasApp ? "Active" : "—");
+                    DrawItem("Scene Scope", GameServices.HasScene ? "Active" : "—");
+                    DrawItem("Gameplay Scope", GameServices.HasGameplay ? "Active" : "—");
                 }
                 GUILayout.EndVertical();
 
@@ -62,12 +65,27 @@ namespace Moirai.Atropos.Debugger
                         if (info.HasGizmo) flags.Add("G");
 
                         string tickStr = flags.Count > 0 ? string.Join(" ", flags) : "—";
+                        string scopeStr = ScopeToString(info.Scope);
                         DrawItem(
-                            StringUtility.Format("[{0}] {1}", info.Scope, info.InterfaceType),
+                            StringUtility.Format("[{0}] {1}", scopeStr, info.InterfaceType),
                             StringUtility.Format("{0} (P:{1} [{2}])", info.ImplementationType, info.Priority, tickStr));
                     }
                 }
                 GUILayout.EndVertical();
+            }
+
+            /// <summary>
+            /// 将作用域种类转换为简短字符串标签。
+            /// </summary>
+            private static string ScopeToString(EServiceScopeKind scope)
+            {
+                return scope switch
+                {
+                    EServiceScopeKind.App => "App",
+                    EServiceScopeKind.Scene => "Scene",
+                    EServiceScopeKind.Gameplay => "Gameplay",
+                    _ => scope.ToString(),
+                };
             }
         }
     }

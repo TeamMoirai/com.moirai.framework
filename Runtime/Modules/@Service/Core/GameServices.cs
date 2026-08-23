@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Cysharp.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.Assertions;
 
@@ -16,20 +17,22 @@ namespace Moirai.Atropos
 
         private static int s_MainThreadId;
 
-        /// <summary>
-        /// App 作用域容器。
-        /// </summary>
-        public static ServiceContainer AppContainer { get; private set; }
+        private static ServiceWorld s_World;
 
         /// <summary>
-        /// Scene 作用域容器。
+        /// App 作用域是否活跃。
         /// </summary>
-        public static ServiceContainer SceneContainer { get; private set; }
+        public static bool HasApp => s_World?.HasScope(EServiceScopeKind.App) ?? false;
 
         /// <summary>
-        /// Gameplay 作用域容器。
+        /// Scene 作用域是否活跃。
         /// </summary>
-        public static ServiceContainer GameplayContainer { get; private set; }
+        public static bool HasScene => s_World?.HasScope(EServiceScopeKind.Scene) ?? false;
+
+        /// <summary>
+        /// Gameplay 作用域是否活跃。
+        /// </summary>
+        public static bool HasGameplay => s_World?.HasScope(EServiceScopeKind.Gameplay) ?? false;
 
         #endregion
 
@@ -39,10 +42,9 @@ namespace Moirai.Atropos
         /// 最深层活跃的服务提供者（Gameplay > Scene > App）。
         /// <para>服务类应优先使用构造注入而非此属性。此属性主要用于非服务代码（MonoBehaviour、UI 脚本等）。</para>
         /// </summary>
-        public static IServiceProvider Provider =>
-            GameplayContainer?.ServiceProvider ??
-            SceneContainer?.ServiceProvider ??
-            AppContainer?.ServiceProvider;
+        public static IServiceProvider Provider => HasAnyScope ? s_World : null;
+
+        private static bool HasAnyScope => HasApp || HasScene || HasGameplay;
 
         #endregion
 
@@ -95,7 +97,7 @@ namespace Moirai.Atropos
             s_Interceptors.Remove(interceptor);
         }
 
-        // ──── 拦截器与事件分发（由 ServiceScope / ServiceContainer 调用） ────
+        // ──── 拦截器与事件分发（由 ServiceScope 调用） ────
 
         internal static void InvokeRegistering(IService service, Type interfaceType, EServiceScopeKind scope)
         {
@@ -159,48 +161,31 @@ namespace Moirai.Atropos
         #region 容器管理 [CONTAINER MANAGEMENT]
 
         /// <summary>
-        /// 构建指定作用域的容器。仅存储描述符——调用 <see cref="ServiceContainer.BuildAsync"/> 完成实例创建。
+        /// 异步构建指定作用域的服务：拓扑排序 → 创建实例 → 构造注入 → OnInit → OnInitAsync。
+        /// <para>若同作用域已有服务，先关闭再重建。</para>
         /// </summary>
         /// <param name="scope">作用域种类。</param>
         /// <param name="collection">服务注册集合。</param>
-        /// <param name="parent">父级容器（Scene 的父级为 App，Gameplay 的父级为 Scene）。</param>
-        public static ServiceContainer BuildContainer(
+        public static async UniTask BuildAsync(
             EServiceScopeKind scope,
-            ServiceCollection collection,
-            ServiceContainer parent = null)
+            ServiceCollection collection)
         {
             EnsureMainThread();
-            var container = new ServiceContainer(scope, collection?.Descriptors, parent);
-
-            switch (scope)
-            {
-                case EServiceScopeKind.App: AppContainer = container; break;
-                case EServiceScopeKind.Scene: SceneContainer = container; break;
-                case EServiceScopeKind.Gameplay: GameplayContainer = container; break;
-            }
-
-            return container;
+            s_World ??= new ServiceWorld();
+            await s_World.BuildAsync(scope, collection?.Descriptors);
         }
 
         /// <summary>
-        /// 关闭指定作用域的容器。服务按逆拓扑序（依赖方先）关闭。
+        /// 关闭指定作用域。服务按逆拓扑序（依赖方先）关闭。
         /// </summary>
         public static void ShutdownContainer(EServiceScopeKind scope)
         {
             EnsureMainThread();
-            switch (scope)
-            {
-                case EServiceScopeKind.Gameplay:
-                    GameplayContainer?.Dispose(); GameplayContainer = null; break;
-                case EServiceScopeKind.Scene:
-                    SceneContainer?.Dispose(); SceneContainer = null; break;
-                case EServiceScopeKind.App:
-                    AppContainer?.Dispose(); AppContainer = null; break;
-            }
+            s_World?.ShutdownScope(scope);
         }
 
         /// <summary>
-        /// 关闭全部容器。逆序：Gameplay → Scene → App（依赖方先于被依赖方释放）。
+        /// 关闭全部作用域。逆序：Gameplay → Scene → App（依赖方先于被依赖方释放）。
         /// </summary>
         public static void Shutdown()
         {
@@ -208,6 +193,8 @@ namespace Moirai.Atropos
             ShutdownContainer(EServiceScopeKind.Gameplay);
             ShutdownContainer(EServiceScopeKind.Scene);
             ShutdownContainer(EServiceScopeKind.App);
+            s_World?.Dispose();
+            s_World = null;
             ClearAll();
         }
 
@@ -216,32 +203,16 @@ namespace Moirai.Atropos
         #region 轮询驱动 [TICK DRIVERS]
 
         public static void Tick(float elapseSeconds, float realElapseSeconds)
-        {
-            AppContainer?.Tick(elapseSeconds, realElapseSeconds);
-            SceneContainer?.Tick(elapseSeconds, realElapseSeconds);
-            GameplayContainer?.Tick(elapseSeconds, realElapseSeconds);
-        }
+            => s_World?.Tick(elapseSeconds, realElapseSeconds);
 
         public static void FixedTick(float elapseSeconds, float realElapseSeconds)
-        {
-            AppContainer?.FixedTick(elapseSeconds, realElapseSeconds);
-            SceneContainer?.FixedTick(elapseSeconds, realElapseSeconds);
-            GameplayContainer?.FixedTick(elapseSeconds, realElapseSeconds);
-        }
+            => s_World?.FixedTick(elapseSeconds, realElapseSeconds);
 
         public static void LateTick(float elapseSeconds, float realElapseSeconds)
-        {
-            AppContainer?.LateTick(elapseSeconds, realElapseSeconds);
-            SceneContainer?.LateTick(elapseSeconds, realElapseSeconds);
-            GameplayContainer?.LateTick(elapseSeconds, realElapseSeconds);
-        }
+            => s_World?.LateTick(elapseSeconds, realElapseSeconds);
 
         public static void DrawGizmos()
-        {
-            AppContainer?.DrawGizmos();
-            SceneContainer?.DrawGizmos();
-            GameplayContainer?.DrawGizmos();
-        }
+            => s_World?.DrawGizmos();
 
         #endregion
 
@@ -266,11 +237,15 @@ namespace Moirai.Atropos
 
         private static void ClearAll()
         {
+            // 拦截器和事件在全部作用域关闭后清理——此时无活跃服务可触发事件
             s_Interceptors.Clear();
             onServiceRegistered = null;
             onServiceUnregistered = null;
+
+            // MemoryPool 和 MarshalUtility 缓存清理在全部服务关闭后执行——
+            // 此时无活跃的池化对象引用（所有 Service 已 Shutdown），安全清空。
+            // 这确保域重载或重新初始化时不会残留过期对象。
             MemoryPool.ClearAll();
-            MarshalUtility.FreeCachedHGlobal();
         }
 
         #endregion

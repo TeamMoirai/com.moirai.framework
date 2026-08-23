@@ -117,10 +117,9 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 创建并构建 App 作用域服务容器，随后启动游戏流程（Composition Root）。
-        /// <para>① <see cref="GameServices.BuildContainer"/> 创建容器并存储描述符；</para>
-        /// <para>② <see cref="ServiceContainer.BuildAsync"/> 按拓扑序创建实例、构造注入、OnInit、OnInitAsync；</para>
-        /// <para>③ <see cref="ProcedureSettings.StartProcedure"/> 启动流程状态机。</para>
+        /// 创建并构建 App 作用域服务，随后启动游戏流程（Composition Root）。
+        /// <para>① <see cref="GameServices.BuildAsync"/> 按拓扑序创建实例、构造注入、OnInit、OnInitAsync；</para>
+        /// <para>② <see cref="ProcedureSettings.StartProcedure"/> 启动流程状态机。</para>
         /// <para>由 <see cref="GameAppSettings.Initiation"/> 在 <c>AfterAssembliesLoaded</c> 阶段调用。</para>
         /// </summary>
         private static partial UniTaskVoid InitializeAppServices()
@@ -129,8 +128,7 @@ namespace Moirai.Atropos
 
             async UniTaskVoid InitializeCore()
             {
-                GameServices.BuildContainer(EServiceScopeKind.App, BuildServiceCollection(), parent: null);
-                await GameServices.AppContainer.BuildAsync();
+                await GameServices.BuildAsync(EServiceScopeKind.App, BuildServiceCollection());
                 await ProcedureSettings.StartProcedure();
             }
         }

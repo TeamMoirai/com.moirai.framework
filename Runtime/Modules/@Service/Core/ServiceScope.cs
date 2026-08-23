@@ -1,11 +1,12 @@
 using System;
 using System.Collections.Generic;
+using UnityEngine;
 
 namespace Moirai.Atropos
 {
     /// <summary>
     /// 服务作用域容器。管理单个作用域内服务的注册表、轮询列表和迭代安全机制。
-    /// <para>OnInit 由 <see cref="ServiceContainer.BuildAsync"/> 按拓扑序统一驱动。</para>
+    /// <para>OnInit 由 <see cref="ServiceWorld.BuildAsync"/> 按拓扑序统一驱动。</para>
     /// <para>Dispose 时逆注册序关闭全部服务（= 逆依赖拓扑序：依赖方先关闭，被依赖方后关闭）。</para>
     /// <para><b>线程契约</b>：所有方法仅限 Unity 主线程调用。</para>
     /// </summary>
@@ -15,6 +16,7 @@ namespace Moirai.Atropos
 
         // --- 服务存储 ---
 
+        private readonly ServiceWorld _world;
         private readonly Dictionary<RuntimeTypeHandle, IService> _servicesByContract = new Dictionary<RuntimeTypeHandle, IService>();
         private readonly Dictionary<IService, ServiceEntry> _entriesByService = new Dictionary<IService, ServiceEntry>(ReferenceComparer<IService>.Instance);
         private readonly List<IService> _registrationOrder = new List<IService>();
@@ -54,10 +56,11 @@ namespace Moirai.Atropos
 
         #region 构造 [CONSTRUCTION]
 
-        internal ServiceScope(EServiceScopeKind kind, string name)
+        internal ServiceScope(EServiceScopeKind kind, string name, ServiceWorld world)
         {
             Kind = kind;
             Name = name;
+            _world = world;
         }
 
         #endregion
@@ -99,11 +102,29 @@ namespace Moirai.Atropos
 
         private void RegisterInternal(IService service, Type[] contractTypes)
         {
+            // MonoBehaviour 服务的 Tick 应由 Unity 生命周期驱动，不可混入 ServiceScope 轮询列表
+            if (service is MonoBehaviour)
+            {
+                if (service is IServiceTickable)
+                    throw new GameException(StringUtility.Format(
+                        "MonoBehaviour service '{0}' cannot implement IServiceTickable. " +
+                        "Use Unity's Update() instead.", service.GetType().FullName));
+                if (service is IServiceFixedTickable)
+                    throw new GameException(StringUtility.Format(
+                        "MonoBehaviour service '{0}' cannot implement IServiceFixedTickable. " +
+                        "Use Unity's FixedUpdate() instead.", service.GetType().FullName));
+                if (service is IServiceLateTickable)
+                    throw new GameException(StringUtility.Format(
+                        "MonoBehaviour service '{0}' cannot implement IServiceLateTickable. " +
+                        "Use Unity's LateUpdate() instead.", service.GetType().FullName));
+            }
+
             var handles = new RuntimeTypeHandle[contractTypes.Length];
             for (int i = 0; i < contractTypes.Length; i++)
             {
                 handles[i] = contractTypes[i].TypeHandle;
                 _servicesByContract[handles[i]] = service;
+                _world.AddContract(this, handles[i], service);
             }
 
             var entry = new ServiceEntry { ContractHandles = handles };
@@ -151,6 +172,20 @@ namespace Moirai.Atropos
             if (_servicesByContract.TryGetValue(typeof(T).TypeHandle, out var raw))
             {
                 service = raw as T;
+                return service != null;
+            }
+            service = null;
+            return false;
+        }
+
+        /// <summary>
+        /// 非泛型查找（用于构造注入期按 Type 解析）。
+        /// </summary>
+        internal bool TryGet(Type serviceType, out IService service)
+        {
+            if (_servicesByContract.TryGetValue(serviceType.TypeHandle, out var raw))
+            {
+                service = raw;
                 return service != null;
             }
             service = null;
@@ -260,15 +295,8 @@ namespace Moirai.Atropos
             for (int i = 0; i < _pendingChanges.Count; i++)
             {
                 var change = _pendingChanges[i];
-                if (change.IsRegister)
-                {
-                    if (!_servicesByContract.ContainsKey(change.ContractTypes[0].TypeHandle))
-                        RegisterInternal(change.Service, change.ContractTypes);
-                }
-                else
-                {
-                    ShutdownService(change.Service);
-                }
+                if (!_servicesByContract.ContainsKey(change.ContractTypes[0].TypeHandle))
+                    RegisterInternal(change.Service, change.ContractTypes);
             }
             _pendingChanges.Clear();
         }
@@ -300,7 +328,10 @@ namespace Moirai.Atropos
             if (_isDisposing)
             {
                 for (int i = 0; i < entry.ContractHandles.Length; i++)
+                {
                     _servicesByContract.Remove(entry.ContractHandles[i]);
+                    _world.RemoveContract(this, entry.ContractHandles[i], service);
+                }
                 _entriesByService.Remove(service);
                 GameServices.InvokeUnregistered(service);
             }
@@ -313,7 +344,10 @@ namespace Moirai.Atropos
         private void RemoveServiceInternal(IService service, ServiceEntry entry)
         {
             for (int i = 0; i < entry.ContractHandles.Length; i++)
+            {
                 _servicesByContract.Remove(entry.ContractHandles[i]);
+                _world.RemoveContract(this, entry.ContractHandles[i], service);
+            }
 
             // _registrationOrder 必须保持拓扑序——使用 List.Remove（O(n) 移位保序），
             // 不用 swap-with-last（会破坏依赖方的关闭顺序保证）。
@@ -554,24 +588,20 @@ namespace Moirai.Atropos
             public int GizmoIndex = MISSING_INDEX;
         }
 
-        /// <summary>迭代期间暂缓的注册/注销操作。</summary>
+        /// <summary>迭代期间暂缓的注册操作。</summary>
         internal struct PendingChange
         {
-            public readonly bool IsRegister;
             public readonly IService Service;
             public readonly Type[] ContractTypes;
 
-            private PendingChange(bool isRegister, IService service, Type[] contractTypes)
+            private PendingChange(IService service, Type[] contractTypes)
             {
-                IsRegister = isRegister;
                 Service = service;
                 ContractTypes = contractTypes;
             }
 
             public static PendingChange Register(IService service, Type[] contractTypes) =>
-                new PendingChange(true, service, contractTypes);
-
-            public static PendingChange Unregister(IService service) => new PendingChange(false, service, null);
+                new PendingChange(service, contractTypes);
         }
 
         #endregion
