@@ -1029,8 +1029,8 @@ namespace Moirai.Atropos.Editor
 
         #region 窗口状态持久化 [WINDOW STATE]
 
-        [UnityEditor.FilePath("ProjectSettings/BuildPipelineWindow.asset", UnityEditor.FilePathAttribute.Location.ProjectFolder)]
-        private sealed class BuildPipelineWindowState : UnityEditor.ScriptableSingleton<BuildPipelineWindowState>
+        [FilePath("ProjectSettings/BuildPipelineWindow.asset", FilePathAttribute.Location.ProjectFolder)]
+        private sealed class BuildPipelineWindowState : ScriptableSingleton<BuildPipelineWindowState>
         {
             [SerializeField] private string m_LastSelectedPresetGUID = "";
 
