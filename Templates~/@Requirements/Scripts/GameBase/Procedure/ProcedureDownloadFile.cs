@@ -13,6 +13,7 @@ namespace Moirai.Main
     {
         public override bool UseNativeDialog { get; }
 
+        private ResourceDownloaderOperation _downloader;
         private float _lastUpdateDownloadedSize;
         private float _totalSpeed;
         private int _speedSampleCount;
@@ -22,8 +23,8 @@ namespace Moirai.Main
             get
             {
                 float interval = Math.Max(GameTime.deltaTime, 0.01f); // 防止deltaTime过小
-                var sizeDiff = _resourceService.Downloader.CurrentDownloadBytes - _lastUpdateDownloadedSize;
-                _lastUpdateDownloadedSize = _resourceService.Downloader.CurrentDownloadBytes;
+                var sizeDiff = _downloader.CurrentDownloadBytes - _lastUpdateDownloadedSize;
+                _lastUpdateDownloadedSize = _downloader.CurrentDownloadBytes;
                 var speed = sizeDiff / interval;
 
                 // 使用滑动窗口计算平均速度
@@ -43,39 +44,39 @@ namespace Moirai.Main
 
         private async UniTaskVoid BeginDownload()
         {
-            var downloader = _resourceService.Downloader;
+            _downloader = _resourceService.CreateResourceDownloader();
 
             // 注册下载回调
-            downloader.DownloadErrorCallback = OnDownloadErrorCallback;
-            downloader.DownloadUpdateCallback = OnDownloadProgressCallback;
-            downloader.BeginDownload();
-            await downloader;
+            _downloader.DownloadError += OnDownloadErrorCallback;
+            _downloader.DownloadProgressChanged += OnDownloadProgressCallback;
+            _downloader.StartDownload();
+            await _downloader;
 
             // 检测下载结果
-            if (downloader.Status != EOperationStatus.Succeed)
+            if (_downloader.Status != EOperationStatus.Succeeded)
                 return;
 
             ChangeState<ProcedureDownloadOver>();
         }
 
-        private void OnDownloadErrorCallback(DownloadErrorData downloadErrorData)
+        private void OnDownloadErrorCallback(DownloadErrorEventArgs downloadErrorData)
         {
             LauncherMgr.ShowMessageBox($"Failed to download file : {downloadErrorData.FileName}",
                 () => { ChangeState<ProcedureCreateDownloader>(); }, UnityEngine.Application.Quit);
         }
 
-        private void OnDownloadProgressCallback(DownloadUpdateData downloadUpdateData)
+        private void OnDownloadProgressCallback(DownloadProgressChangedEventArgs downloadUpdateData)
         {
             string currentSizeMb = (downloadUpdateData.CurrentDownloadBytes / 1048576f).ToString("f1");
             string totalSizeMb = (downloadUpdateData.TotalDownloadBytes / 1048576f).ToString("f1");
-            float progressPercentage = _resourceService.Downloader.Progress * 100;
+            float progressPercentage = _downloader.Progress * 100;
             string speed = FileUtility.GetLengthString((int)CurrentSpeed);
 
             string line1 = StringUtility.Format(LoadText.Instance.Label_Download_Detail1, downloadUpdateData.CurrentDownloadCount, downloadUpdateData.TotalDownloadCount, progressPercentage);
             string line2 = StringUtility.Format(LoadText.Instance.Label_Download_Detail2, currentSizeMb, totalSizeMb);
             string line3 = StringUtility.Format(LoadText.Instance.Label_Download_Detail3, speed, GetRemainingTime(downloadUpdateData.TotalDownloadBytes, downloadUpdateData.CurrentDownloadBytes, CurrentSpeed));
             
-            LauncherMgr.RefreshProgress(_resourceService.Downloader.Progress);
+            LauncherMgr.RefreshProgress(_downloader.Progress);
             LauncherMgr.ShowUI<LoadUpdateUI>($"{line1}\n{line2}\n{line3}");
 
             LogUtility.Info($"{line1} {line2} {line3}");
@@ -92,8 +93,5 @@ namespace Moirai.Main
             TimeSpan ts = new TimeSpan(0, 0, needTime);
             return ts.ToString(@"mm\:ss");
         }
-
-
-
     }
 }

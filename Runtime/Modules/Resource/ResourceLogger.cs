@@ -4,22 +4,22 @@ namespace Moirai.Atropos.Resource
     {
         public void Log(string message)
         {
-            Atropos.LogUtility.Info(message);
+            LogUtility.Info(message);
         }
 
-        public void Warning(string message)
+        public void LogWarning(string message)
         {
-            Atropos.LogUtility.Warning(message);
+            LogUtility.Warning(message);
         }
 
-        public void Error(string message)
+        public void LogError(string message)
         {
-            Atropos.LogUtility.Error(message);
+            LogUtility.Error(message);
         }
 
-        public void Exception(System.Exception exception)
+        public void LogException(System.Exception exception)
         {
-            Atropos.LogUtility.Fatal(exception.Message);
+            LogUtility.Fatal(exception);
         }
     }
 }

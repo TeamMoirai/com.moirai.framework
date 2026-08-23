@@ -6,7 +6,7 @@ using Moirai.Atropos.Audio;
 using Moirai.Atropos.Debugger;
 using Moirai.Atropos.Input;
 using Moirai.Atropos.Localization;
-using Moirai.Atropos.ObjectPool;
+using Moirai.Atropos.GameObjectPool;
 using Moirai.Atropos.Procedure;
 using Moirai.Atropos.Resource;
 using Moirai.Atropos.Save;
@@ -46,8 +46,8 @@ namespace Moirai.Atropos
         [SerializeField] private string m_AudioServiceTypeName;
 
         [BoxGroup(SERVICE_GROUP), DisableInPlayMode]
-        [HelperDropdown(typeof(IObjectPoolService), "ObjectPool Service")]
-        [SerializeField] private string m_ObjectPoolServiceTypeName;
+        [HelperDropdown(typeof(IGameObjectPoolService), "GameObjectPool Service")]
+        [SerializeField] private string m_GameObjectPoolServiceTypeName;
 
         [BoxGroup(SERVICE_GROUP), DisableInPlayMode]
         [HelperDropdown(typeof(IProcedureService), "Procedure Service")]
@@ -106,7 +106,7 @@ namespace Moirai.Atropos
             m_ResourceServiceTypeName = typeof(ResourceService).FullName;
             m_DebuggerServiceTypeName = typeof(DebuggerService).FullName;
             m_AudioServiceTypeName = typeof(AudioService).FullName;
-            m_ObjectPoolServiceTypeName = typeof(ObjectPoolService).FullName;
+            m_GameObjectPoolServiceTypeName = typeof(GameObjectPoolService).FullName;
             m_ProcedureServiceTypeName = typeof(ProcedureService).FullName;
             m_LocalizationServiceTypeName = typeof(LocalizationService).FullName;
             m_SceneServiceTypeName = typeof(SceneService).FullName;
@@ -148,7 +148,7 @@ namespace Moirai.Atropos
             RegisterServiceFromInspector(collection, typeof(IResourceService), Instance.m_ResourceServiceTypeName);
             RegisterServiceFromInspector(collection, typeof(IDebuggerService), Instance.m_DebuggerServiceTypeName);
             RegisterServiceFromInspector(collection, typeof(IAudioService), Instance.m_AudioServiceTypeName);
-            RegisterServiceFromInspector(collection, typeof(IObjectPoolService), Instance.m_ObjectPoolServiceTypeName);
+            RegisterServiceFromInspector(collection, typeof(IGameObjectPoolService), Instance.m_GameObjectPoolServiceTypeName);
             RegisterServiceFromInspector(collection, typeof(IProcedureService), Instance.m_ProcedureServiceTypeName);
             RegisterServiceFromInspector(collection, typeof(ILocalizationService), Instance.m_LocalizationServiceTypeName);
             RegisterServiceFromInspector(collection, typeof(ISceneService), Instance.m_SceneServiceTypeName);
