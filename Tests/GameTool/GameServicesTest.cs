@@ -154,23 +154,22 @@ namespace GameTool
 
         // --- 辅助 ---
 
-        private static ServiceContainer BuildApp(Action<ServiceCollection> configure)
+        private static void BuildApp(Action<ServiceCollection> configure)
         {
+            if (GameServices.HasApp)
+                GameServices.ShutdownContainer(EServiceScopeKind.App);
             var collection = new ServiceCollection();
             configure?.Invoke(collection);
-            var container = GameServices.BuildContainer(EServiceScopeKind.App, collection);
-            container.BuildAsync().GetAwaiter().GetResult();
-            return container;
+            GameServices.BuildAsync(EServiceScopeKind.App, collection).GetAwaiter().GetResult();
         }
 
-        private static ServiceContainer BuildScene(
-            ServiceContainer parent, Action<ServiceCollection> configure)
+        private static void BuildScene(Action<ServiceCollection> configure)
         {
+            if (GameServices.HasScene)
+                GameServices.ShutdownContainer(EServiceScopeKind.Scene);
             var collection = new ServiceCollection();
             configure?.Invoke(collection);
-            var container = GameServices.BuildContainer(EServiceScopeKind.Scene, collection, parent);
-            container.BuildAsync().GetAwaiter().GetResult();
-            return container;
+            GameServices.BuildAsync(EServiceScopeKind.Scene, collection).GetAwaiter().GetResult();
         }
 
         // --- 构建与解析 ---
@@ -222,10 +221,10 @@ namespace GameTool
         [Test]
         public void BuildAsync_Twice_Throws()
         {
-            var container = BuildApp(c => c.Register<IAlphaService, AlphaService>(EServiceScopeKind.App));
+            BuildApp(c => c.Register<IAlphaService, AlphaService>(EServiceScopeKind.App));
 
             Assert.Throws<GameException>(
-                () => container.BuildAsync().GetAwaiter().GetResult());
+                () => GameServices.BuildAsync(EServiceScopeKind.App, new ServiceCollection()).GetAwaiter().GetResult());
         }
 
         // --- 构造注入与拓扑排序 ---
@@ -338,10 +337,10 @@ namespace GameTool
         [Test]
         public void Shutdown_TransitionsStateToDisposed()
         {
-            var container = BuildApp(c => c.Register<IAlphaService, AlphaService>(EServiceScopeKind.App));
-            var alpha = (AlphaService)container.ServiceProvider.GetRequiredService<IAlphaService>();
+            BuildApp(c => c.Register<IAlphaService, AlphaService>(EServiceScopeKind.App));
+            var alpha = (AlphaService)GameServices.Provider.GetRequiredService<IAlphaService>();
 
-            container.Dispose();
+            GameServices.ShutdownContainer(EServiceScopeKind.App);
 
             Assert.AreEqual(EServiceState.Disposed, alpha.State);
             Assert.AreEqual(1, alpha.ShutdownCount);
@@ -350,12 +349,12 @@ namespace GameTool
         [Test]
         public void ShutdownContainer_FreesProviderResolution()
         {
-            var container = BuildApp(c => c.Register<IAlphaService, AlphaService>(EServiceScopeKind.App));
+            BuildApp(c => c.Register<IAlphaService, AlphaService>(EServiceScopeKind.App));
 
             GameServices.ShutdownContainer(EServiceScopeKind.App);
 
             Assert.IsNull(GameServices.Provider, "全部容器关闭后 Provider 应为 null");
-            Assert.IsNull(GameServices.AppContainer);
+            Assert.IsFalse(GameServices.HasApp);
         }
 
         // --- 跨作用域链式查找 ---
@@ -364,13 +363,11 @@ namespace GameTool
         public void ProviderChain_GameplayBeatsSceneBeatsApp()
         {
             BuildApp(c => c.Register<IAlphaService, AlphaService>(EServiceScopeKind.App));
-            BuildScene(GameServices.AppContainer,
+            BuildScene(
                 c => c.Register<IAlphaService, SceneAlphaService>(EServiceScopeKind.Scene));
             var collection = new ServiceCollection();
             collection.Register<IAlphaService, GammaLikeService>(EServiceScopeKind.Gameplay);
-            var gameplay = GameServices.BuildContainer(
-                EServiceScopeKind.Gameplay, collection, GameServices.SceneContainer);
-            gameplay.BuildAsync().GetAwaiter().GetResult();
+            GameServices.BuildAsync(EServiceScopeKind.Gameplay, collection).GetAwaiter().GetResult();
 
             Assert.IsInstanceOf<GammaLikeService>(GameServices.Provider.GetRequiredService<IAlphaService>(),
                 "Gameplay 遮蔽 Scene 与 App");
@@ -391,14 +388,14 @@ namespace GameTool
         [Test]
         public void CrossScopeResolution_SceneServiceResolvesAppDependency()
         {
-            var app = BuildApp(c => c.Register<IDepTargetService, DependeeService>(EServiceScopeKind.App));
-            BuildScene(app, c => c.Register<IAlphaService, DependentService>(EServiceScopeKind.Scene));
+            BuildApp(c => c.Register<IDepTargetService, DependeeService>(EServiceScopeKind.App));
+            BuildScene(c => c.Register<IAlphaService, DependentService>(EServiceScopeKind.Scene));
 
             var dependent = (DependentService)GameServices.Provider.GetRequiredService<IAlphaService>();
-            var appDependee = app.ServiceProvider.GetRequiredService<IDepTargetService>();
+            var appDependee = GameServices.Provider.GetRequiredService<IDepTargetService>();
 
             Assert.AreSame(appDependee, dependent.Dependency,
-                "Scene 容器内的服务应能通过父链解析 App 容器中的依赖");
+                "Scene 容器内的服务应能跨作用域解析 App 容器中的依赖");
         }
 
         // --- 轮询 ---
@@ -421,11 +418,11 @@ namespace GameTool
         [Test]
         public void Tick_DrivesAllActiveContainers()
         {
-            var app = BuildApp(c => c.Register<IAlphaService, AlphaService>(EServiceScopeKind.App));
-            var scene = BuildScene(app, c => c.Register<IBetaService, BetaService>(EServiceScopeKind.Scene));
+            BuildApp(c => c.Register<IAlphaService, AlphaService>(EServiceScopeKind.App));
+            BuildScene(c => c.Register<IBetaService, BetaService>(EServiceScopeKind.Scene));
 
-            var appAlpha = (AlphaService)app.ServiceProvider.GetRequiredService<IAlphaService>();
-            var sceneBeta = (BetaService)scene.ServiceProvider.GetRequiredService<IBetaService>();
+            var appAlpha = (AlphaService)GameServices.Provider.GetRequiredService<IAlphaService>();
+            var sceneBeta = (BetaService)GameServices.Provider.GetRequiredService<IBetaService>();
 
             GameServices.Tick(0.1f, 0.1f);
 
@@ -449,7 +446,7 @@ namespace GameTool
             GameServices.onServiceRegistered += (svc, type, scope) =>
             {
                 received = svc;
-                stateAtEvent = svc.State;
+                stateAtEvent = GameServices.GetState(svc);
             };
 
             BuildApp(c => c.Register<IAlphaService, AlphaService>(EServiceScopeKind.App));
@@ -461,18 +458,18 @@ namespace GameTool
         [Test]
         public void ServiceUnregisteredEvent_FiresAfterShutdown()
         {
-            var container = BuildApp(c => c.Register<IAlphaService, AlphaService>(EServiceScopeKind.App));
-            var alpha = (AlphaService)container.ServiceProvider.GetRequiredService<IAlphaService>();
+            BuildApp(c => c.Register<IAlphaService, AlphaService>(EServiceScopeKind.App));
+            var alpha = (AlphaService)GameServices.Provider.GetRequiredService<IAlphaService>();
 
             IService received = null;
             EServiceState stateAtEvent = EServiceState.Created;
             GameServices.onServiceUnregistered += svc =>
             {
                 received = svc;
-                stateAtEvent = svc.State;
+                stateAtEvent = GameServices.GetState(svc);
             };
 
-            container.Dispose();
+            GameServices.ShutdownContainer(EServiceScopeKind.App);
 
             Assert.AreSame(alpha, received, "onServiceUnregistered 事件应在关闭时触发");
             Assert.AreEqual(EServiceState.Disposed, stateAtEvent);
@@ -486,10 +483,10 @@ namespace GameTool
             GameObject created = null;
             try
             {
-                var scene = BuildScene(null,
+                BuildScene(
                     c => c.RegisterMono<IMonoContractService, TestMonoService>(EServiceScopeKind.Scene));
 
-                var mono = (TestMonoService)(object)scene.ServiceProvider.GetRequiredService<IMonoContractService>();
+                var mono = (TestMonoService)(object)GameServices.Provider.GetRequiredService<IMonoContractService>();
                 created = mono.gameObject;
 
                 Assert.IsTrue(mono.InjectCalled, "容器应在 OnInit 前调用 Inject");
@@ -497,7 +494,7 @@ namespace GameTool
                 Assert.AreEqual(1, mono.InitCount);
                 Assert.AreEqual(EServiceState.Initialized, mono.State);
 
-                scene.Dispose();
+                GameServices.ShutdownContainer(EServiceScopeKind.Scene);
 
                 Assert.AreEqual(1, mono.ShutdownCount, "容器关闭应驱动 Mono 服务 Shutdown");
                 Assert.AreEqual(EServiceState.Disposed, mono.State);
@@ -557,7 +554,7 @@ namespace GameTool
             var interceptor = new TestInterceptor();
             GameServices.AddInterceptor(interceptor);
 
-            var container = BuildApp(c => c.Register<IAlphaService, AlphaService>(EServiceScopeKind.App));
+            BuildApp(c => c.Register<IAlphaService, AlphaService>(EServiceScopeKind.App));
 
             // Registering 在 RegisterInternal 中触发（OnInit 前）
             // Registered 在 BuildAsync 的 OnInit 后触发
@@ -565,7 +562,7 @@ namespace GameTool
             Assert.AreEqual("Registering:IAlphaService", interceptor.Events[0]);
             Assert.AreEqual("Registered:IAlphaService", interceptor.Events[1]);
 
-            var alpha = (AlphaService)container.ServiceProvider.GetRequiredService<IAlphaService>();
+            var alpha = (AlphaService)GameServices.Provider.GetRequiredService<IAlphaService>();
             Assert.AreEqual(1, alpha.InitCount, "OnInit 应在 Registering 后、Registered 前调用");
         }
 
@@ -575,10 +572,10 @@ namespace GameTool
             var interceptor = new TestInterceptor();
             GameServices.AddInterceptor(interceptor);
 
-            var container = BuildApp(c => c.Register<IAlphaService, AlphaService>(EServiceScopeKind.App));
+            BuildApp(c => c.Register<IAlphaService, AlphaService>(EServiceScopeKind.App));
             interceptor.Events.Clear();
 
-            container.Dispose();
+            GameServices.ShutdownContainer(EServiceScopeKind.App);
 
             // Shutdown 在 service.Shutdown() 调用前触发
             // Unregistered 在服务从注册表移除后触发
@@ -666,8 +663,8 @@ namespace GameTool
             // 不应抛异常（迭代中 Dispose 被延迟）
             Assert.DoesNotThrow(() => GameServices.Tick(0f, 0f));
 
-            // 容器已关闭，AppContainer 为 null
-            Assert.IsNull(GameServices.AppContainer, "迭代中请求的 Dispose 应在迭代结束后执行");
+            // 容器已关闭，HasApp 为 false
+            Assert.IsFalse(GameServices.HasApp, "迭代中请求的 Dispose 应在迭代结束后执行");
         }
 
         private sealed class TickCountService : TestServiceBase, IBetaService
@@ -685,10 +682,9 @@ namespace GameTool
                        .WithPriority(10);
             collection.Register<IBetaService, TickCountService>(EServiceScopeKind.App)
                        .WithPriority(0);
-            var container = GameServices.BuildContainer(EServiceScopeKind.App, collection);
-            container.BuildAsync().GetAwaiter().GetResult();
+            GameServices.BuildAsync(EServiceScopeKind.App, collection).GetAwaiter().GetResult();
 
-            var beta = (TickCountService)container.ServiceProvider.GetRequiredService<IBetaService>();
+            var beta = (TickCountService)GameServices.Provider.GetRequiredService<IBetaService>();
 
             Assert.DoesNotThrow(() => GameServices.Tick(0f, 0f));
             Assert.AreEqual(1, beta.TickCount, "同作用域后续服务在本轮迭代中仍应被轮询（销毁延迟到迭代结束）");
@@ -710,10 +706,10 @@ namespace GameTool
         [Test]
         public void CrossScopeDispose_DuringTick_ImmediateShutdown()
         {
-            var app = BuildApp(c => c.Register<IAlphaService, CrossScopeDisposeOnTick>(EServiceScopeKind.App));
-            var scene = BuildScene(app, c => c.Register<IBetaService, BetaService>(EServiceScopeKind.Scene));
+            BuildApp(c => c.Register<IAlphaService, CrossScopeDisposeOnTick>(EServiceScopeKind.App));
+            BuildScene(c => c.Register<IBetaService, BetaService>(EServiceScopeKind.Scene));
 
-            var sceneBeta = (BetaService)scene.ServiceProvider.GetRequiredService<IBetaService>();
+            var sceneBeta = (BetaService)GameServices.Provider.GetRequiredService<IBetaService>();
 
             // App Tick 先执行：trigger 在 App scope Tick 中关闭 Scene scope（Scene 未在迭代中 → 立即 Dispose）
             GameServices.Tick(0f, 0f);
@@ -722,7 +718,7 @@ namespace GameTool
             Assert.AreEqual(0, sceneBeta.TickCount, "Scene scope 未开始迭代即被关闭，服务不应被 Tick");
 
             // Scene 容器已关闭
-            Assert.IsNull(GameServices.SceneContainer);
+            Assert.IsFalse(GameServices.HasScene);
         }
 
         // ═══════════════════════════════════════════════════════

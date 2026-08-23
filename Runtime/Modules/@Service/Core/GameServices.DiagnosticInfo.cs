@@ -23,14 +23,12 @@ namespace Moirai.Atropos
         #region 诊断信息收集 [DIAGNOSTIC COLLECTION]
 
         /// <summary>
-        /// 收集全部活跃容器（App → Scene → Gameplay）内已注册服务的诊断信息。
+        /// 收集全部活跃作用域内已注册服务的诊断信息。
         /// </summary>
         internal static List<DiagnosticInfo> GetDiagnosticInfo()
         {
             var result = new List<DiagnosticInfo>();
-            AppContainer?.CollectDiagnosticInfo(result);
-            SceneContainer?.CollectDiagnosticInfo(result);
-            GameplayContainer?.CollectDiagnosticInfo(result);
+            s_World?.CollectDiagnosticInfo(result);
             return result;
         }
 
