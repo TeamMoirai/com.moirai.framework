@@ -32,6 +32,7 @@ namespace Moirai.Atropos.Resource
             public int BindingCount;
             public int RegisteredTargetHead;
             public int RegisteredTargetCount;
+            public ResourceOwner Owner;
             public byte State;
             public int NextFree;
         }
@@ -114,6 +115,18 @@ namespace Moirai.Atropos.Resource
             }
         }
 
+        internal readonly struct TargetOwnerEntry
+        {
+            public readonly int OwnerId;
+            public readonly uint OwnerGeneration;
+
+            public TargetOwnerEntry(int ownerId, uint ownerGeneration)
+            {
+                OwnerId = ownerId;
+                OwnerGeneration = ownerGeneration;
+            }
+        }
+
         #endregion
 
         #region 字段 [FIELDS]
@@ -133,6 +146,8 @@ namespace Moirai.Atropos.Resource
         private int _registeredTargetFreeHead = -1;
 
         private readonly ResourceIndexMap<OwnerSlotKey, int> _bindingIndexByOwnerSlot = new();
+        private readonly ResourceIndexMap<ulong, int> _ownerIndexByGameObjectId = new();
+        private readonly ResourceIndexMap<ulong, TargetOwnerEntry> _ownerByTargetComponentId = new();
 
         private bool _isShutdown;
 
@@ -161,7 +176,7 @@ namespace Moirai.Atropos.Resource
                 return EResourceBindStatus.ServiceShutdown;
             }
 
-            if (owner == null)
+            if (owner == null || owner.gameObject == null)
             {
                 return EResourceBindStatus.MissingOwner;
             }
@@ -171,16 +186,28 @@ namespace Moirai.Atropos.Resource
                 return EResourceBindStatus.Success;
             }
 
+            ulong gameObjectId = UnityObjectId.Get(owner.gameObject);
+            if (_ownerIndexByGameObjectId.TryGetValue(gameObjectId, out int existingIndex))
+            {
+                ref OwnerSlot existing = ref GetOwnerSlotRef(existingIndex);
+                if (existing.State == 1)
+                {
+                    owner.SetRegistered(existing.OwnerId, existing.GameObjectId, existing.Generation);
+                    return EResourceBindStatus.Success;
+                }
+            }
+
             int index = AllocateOwnerSlot();
             ref OwnerSlot slot = ref GetOwnerSlotRef(index);
             int ownerId = index + 1;
-            ulong gameObjectId = UnityObjectId.Get(owner.gameObject);
 
             owner.SetRegistered(ownerId, gameObjectId, slot.Generation);
 
             slot.OwnerId = ownerId;
             slot.GameObjectId = gameObjectId;
+            slot.Owner = owner;
             slot.State = 1;
+            _ownerIndexByGameObjectId.Set(gameObjectId, index);
             return EResourceBindStatus.Success;
         }
 
@@ -234,6 +261,13 @@ namespace Moirai.Atropos.Resource
             {
                 ref RegisteredTargetSlot target = ref GetRegisteredTargetSlotRef(targetCurrent);
                 int next = target.NextByOwner;
+                if (_ownerByTargetComponentId.TryGetValue(target.TargetComponentId, out TargetOwnerEntry entry) &&
+                    entry.OwnerId == slot.OwnerId &&
+                    entry.OwnerGeneration == slot.Generation)
+                {
+                    _ownerByTargetComponentId.Remove(target.TargetComponentId);
+                }
+
                 FreeRegisteredTargetSlot(targetCurrent);
                 targetCurrent = next;
             }
@@ -241,7 +275,14 @@ namespace Moirai.Atropos.Resource
             slot.RegisteredTargetHead = -1;
             slot.RegisteredTargetCount = 0;
             slot.State = 0;
+            _ownerIndexByGameObjectId.Remove(slot.GameObjectId);
+            ResourceOwner ownerObject = slot.Owner;
             FreeOwnerSlot(ownerIndex);
+            if (ownerObject != null && ownerObject.IsRegistered && ownerObject.Generation == generation)
+            {
+                ownerObject.ClearRegistered();
+            }
+
             return EResourceBindStatus.Success;
         }
 
@@ -251,19 +292,21 @@ namespace Moirai.Atropos.Resource
             if (ownerCapacity > 0)
             {
                 EnsureOwnerPage(ownerCapacity - 1);
+                _ownerIndexByGameObjectId.EnsureCapacity(ownerCapacity);
             }
 
             if (bindingCapacity > 0)
             {
                 EnsureBindingPage(bindingCapacity - 1);
+                _bindingIndexByOwnerSlot.EnsureCapacity(bindingCapacity);
             }
 
             if (registeredTargetCapacity > 0)
             {
                 EnsureRegisteredTargetPage(registeredTargetCapacity - 1);
+                _ownerByTargetComponentId.EnsureCapacity(registeredTargetCapacity);
             }
 
-            _bindingIndexByOwnerSlot.EnsureCapacity(ownerCapacity * 2);
             ResourceOwner.WarmupReleaseBuffer(ownerCapacity);
         }
 
@@ -283,6 +326,21 @@ namespace Moirai.Atropos.Resource
 
             ref OwnerSlot ownerSlot = ref GetOwnerSlotRef(ownerIndex);
             ulong targetComponentId = UnityObjectId.Get(target);
+            if (_ownerByTargetComponentId.TryGetValue(targetComponentId, out TargetOwnerEntry existingEntry))
+            {
+                if (existingEntry.OwnerId == ownerSlot.OwnerId &&
+                    existingEntry.OwnerGeneration == ownerSlot.Generation)
+                {
+                    return EResourceBindStatus.Success;
+                }
+
+                RemoveRegisteredTargetSlot(existingEntry.OwnerId, existingEntry.OwnerGeneration,
+                    targetComponentId);
+            }
+
+            _ownerByTargetComponentId.Set(targetComponentId,
+                new TargetOwnerEntry(ownerSlot.OwnerId, ownerSlot.Generation));
+
             int targetIndex = AllocateRegisteredTargetSlot();
             ref RegisteredTargetSlot targetSlot = ref GetRegisteredTargetSlotRef(targetIndex);
             targetSlot.TargetComponentId = targetComponentId;
@@ -310,7 +368,14 @@ namespace Moirai.Atropos.Resource
 
             ref OwnerSlot ownerSlot = ref GetOwnerSlotRef(ownerIndex);
             ulong targetComponentId = UnityObjectId.Get(target);
-            RemoveRegisteredTargetSlot(ownerSlot.OwnerId, ownerSlot.Generation, targetComponentId, ref ownerSlot);
+            if (_ownerByTargetComponentId.TryGetValue(targetComponentId, out TargetOwnerEntry entry) &&
+                entry.OwnerId == ownerSlot.OwnerId &&
+                entry.OwnerGeneration == ownerSlot.Generation)
+            {
+                _ownerByTargetComponentId.Remove(targetComponentId);
+                RemoveRegisteredTargetSlot(ownerSlot.OwnerId, ownerSlot.Generation, targetComponentId);
+            }
+
             return EResourceBindStatus.Success;
         }
 
@@ -398,21 +463,48 @@ namespace Moirai.Atropos.Resource
             ResourceKey atlasKey, string spriteName, EResourceBindingOption options = EResourceBindingOption.None,
             CancellationToken cancellationToken = default)
         {
+            if (image == null)
+            {
+                return EResourceBindStatus.MissingTarget;
+            }
+
+            // SetNativeSize 由 RegisterSpriteSource 统一处理。
+            return await BindSubSpriteSourceAsync(owner, image, atlasKey, spriteName,
+                EResourceBindingSlotType.SubSprite, options, cancellationToken);
+        }
+
+        /// <inheritdoc />
+        public UniTask<EResourceBindStatus> BindSubSpriteAsync(ResourceOwner owner, SpriteRenderer spriteRenderer,
+            ResourceKey atlasKey, string spriteName, EResourceBindingOption options = EResourceBindingOption.None,
+            CancellationToken cancellationToken = default)
+        {
+            if (spriteRenderer == null)
+            {
+                return UniTask.FromResult(EResourceBindStatus.MissingTarget);
+            }
+
+            return BindSubSpriteSourceAsync(owner, spriteRenderer, atlasKey, spriteName,
+                EResourceBindingSlotType.SpriteRendererSprite, options, cancellationToken);
+        }
+
+        private async UniTask<EResourceBindStatus> BindSubSpriteSourceAsync(ResourceOwner owner, Component target,
+            ResourceKey atlasKey, string spriteName, EResourceBindingSlotType slotType,
+            EResourceBindingOption options, CancellationToken cancellationToken)
+        {
             EResourceBindStatus status = EnsureOwner(owner, out int ownerIndex);
             if (status != EResourceBindStatus.Success)
             {
                 return status;
             }
 
-            if (image == null)
+            if (target == null)
             {
                 return EResourceBindStatus.MissingTarget;
             }
 
-            EResourceBindStatus reserveStatus = ReserveBindingRequest(ownerIndex, image,
-                EResourceBindingSlotType.SubSprite, out int ownerId, out uint ownerGeneration,
-                out ulong targetComponentId, out ulong targetGameObjectId, out BindingSlotKey slotKey,
-                out uint requestVersion);
+            EResourceBindStatus reserveStatus = ReserveBindingRequest(ownerIndex, target, slotType,
+                out int ownerId, out uint ownerGeneration, out ulong targetComponentId,
+                out ulong targetGameObjectId, out BindingSlotKey slotKey, out uint requestVersion);
             if (reserveStatus != EResourceBindStatus.Success)
             {
                 return reserveStatus;
@@ -428,7 +520,7 @@ namespace Moirai.Atropos.Resource
             }
 
             if (!IsBindingRequestCurrent(ownerId, ownerGeneration, targetComponentId, targetGameObjectId,
-                    slotKey, requestVersion, image))
+                    slotKey, requestVersion, target))
             {
                 _resourceService.Release(newLease);
                 CancelReservedBindingRequest(ownerId, ownerGeneration, slotKey, requestVersion);
@@ -444,7 +536,7 @@ namespace Moirai.Atropos.Resource
 
             if (cancellationToken.IsCancellationRequested ||
                 !IsBindingRequestCurrent(ownerId, ownerGeneration, targetComponentId, targetGameObjectId,
-                    slotKey, requestVersion, image))
+                    slotKey, requestVersion, target))
             {
                 _resourceService.Release(newLease);
                 CancelReservedBindingRequest(ownerId, ownerGeneration, slotKey, requestVersion);
@@ -453,23 +545,14 @@ namespace Moirai.Atropos.Resource
                     : EResourceBindStatus.StaleOwner;
             }
 
-            if (!ApplySprite(image, sprite))
+            if (!ApplySprite(target, sprite))
             {
                 _resourceService.Release(newLease);
                 CancelReservedBindingRequest(ownerId, ownerGeneration, slotKey, requestVersion);
                 return EResourceBindStatus.ApplyFailed;
             }
 
-            return RegisterSpriteSource(owner, image, newLease, sprite, EResourceBindingSlotType.SubSprite,
-                options, requestVersion);
-        }
-
-        /// <inheritdoc />
-        public UniTask<EResourceBindStatus> BindSubSpriteAsync(ResourceOwner owner, SpriteRenderer spriteRenderer,
-            ResourceKey atlasKey, string spriteName, EResourceBindingOption options = EResourceBindingOption.None,
-            CancellationToken cancellationToken = default)
-        {
-            return BindSubSpriteAsync(owner, (Image)null, atlasKey, spriteName, options, cancellationToken);
+            return RegisterSpriteSource(owner, target, newLease, sprite, slotType, options, requestVersion);
         }
 
         /// <inheritdoc />
@@ -617,82 +700,76 @@ namespace Moirai.Atropos.Resource
         /// <inheritdoc />
         public int GetOwnerInfos(ResourceOwnerInfo[] results, int startIndex, int maxCount)
         {
-            if (results == null || _ownerPages == null)
+            int total = _ownerNextIndex;
+            if (results == null || maxCount <= 0 || startIndex >= total)
             {
-                return 0;
+                return total;
             }
 
-            int total = _ownerNextIndex;
+            int writeLimit = Math.Min(Math.Min(maxCount, results.Length), total - Math.Max(0, startIndex));
             int written = 0;
-            int index = startIndex;
-            while (index < total && written < maxCount)
+            int index = Math.Max(0, startIndex);
+            while (index < total && written < writeLimit)
             {
                 ref OwnerSlot slot = ref GetOwnerSlotRef(index);
-                if (slot.State == 1)
-                {
-                    ref ResourceOwnerInfo info = ref results[written];
-                    info.Active = true;
-                    info.OwnerIndex = index;
-                    info.OwnerId = slot.OwnerId;
-                    info.GameObjectId = slot.GameObjectId;
-                    info.Generation = slot.Generation;
-                    info.BindingCount = slot.BindingCount;
-                    info.RegisteredTargetCount = slot.RegisteredTargetCount;
-                    info.HasOwnerObject = true;
+                ref ResourceOwnerInfo info = ref results[written];
+                info.Active = slot.State == 1;
+                info.OwnerIndex = index;
+                info.OwnerId = slot.OwnerId;
+                info.GameObjectId = slot.GameObjectId;
+                info.Generation = slot.Generation;
+                info.BindingCount = slot.BindingCount;
+                info.RegisteredTargetCount = slot.RegisteredTargetCount;
+                info.HasOwnerObject = slot.Owner != null;
 #if UNITY_EDITOR
-                    info.OwnerObject = null;
+                info.OwnerObject = slot.Owner != null ? slot.Owner.gameObject : null;
 #endif
-                    written++;
-                }
-
+                written++;
                 index++;
             }
 
-            return written;
+            return total;
         }
 
         /// <inheritdoc />
         public int GetBindingInfos(ResourceBindingInfo[] results, int startIndex, int maxCount)
         {
-            if (results == null || _bindingPages == null)
+            int total = _bindingNextIndex;
+            if (results == null || maxCount <= 0 || startIndex >= total)
             {
-                return 0;
+                return total;
             }
 
-            int total = _bindingNextIndex;
+            int writeLimit = Math.Min(Math.Min(maxCount, results.Length), total - Math.Max(0, startIndex));
             int written = 0;
-            int index = startIndex;
-            while (index < total && written < maxCount)
+            int index = Math.Max(0, startIndex);
+            while (index < total && written < writeLimit)
             {
                 ref BindingSlot slot = ref GetBindingSlotRef(index);
-                if (slot.Lease.IsValid)
-                {
-                    ref ResourceBindingInfo info = ref results[written];
-                    info.Active = true;
-                    info.BindingIndex = index;
-                    info.OwnerId = slot.OwnerId;
-                    info.OwnerGeneration = slot.OwnerGeneration;
-                    info.TargetGameObjectId = slot.TargetGameObjectId;
-                    info.TargetComponentId = slot.TargetComponentId;
-                    info.SlotKey = slot.SlotKey.TargetComponentId;
-                    info.AssetId = slot.AssetId;
-                    info.ViewKeyId = slot.ViewKeyId;
-                    info.Lease = slot.Lease;
-                    info.Version = slot.Version;
-                    info.SubIndex = slot.SlotKey.SubIndex;
-                    info.SlotType = slot.SlotType;
-                    info.HasAppliedAsset = slot.AppliedAsset != null;
-                    info.HasRuntimeObject = slot.RuntimeObject != null;
+                ref ResourceBindingInfo info = ref results[written];
+                info.Active = slot.OwnerId > 0 && slot.SlotType != EResourceBindingSlotType.None;
+                info.BindingIndex = index;
+                info.OwnerId = slot.OwnerId;
+                info.OwnerGeneration = slot.OwnerGeneration;
+                info.TargetGameObjectId = slot.TargetGameObjectId;
+                info.TargetComponentId = slot.TargetComponentId;
+                info.SlotKey = slot.SlotKey.TargetComponentId;
+                info.AssetId = slot.AssetId;
+                info.ViewKeyId = slot.ViewKeyId;
+                info.Lease = slot.Lease;
+                info.Version = slot.Version;
+                info.SubIndex = slot.SlotKey.SubIndex;
+                info.SlotType = slot.SlotType;
+                info.HasAppliedAsset = slot.AppliedAsset != null;
+                info.HasRuntimeObject = slot.RuntimeObject != null;
 #if UNITY_EDITOR
-                    info.TargetObject = slot.Target;
+                info.TargetObject = slot.Target;
 #endif
-                    written++;
-                }
-
+                written++;
                 index++;
             }
 
-            return written;
+            return total;
         }
 
         #endregion
@@ -950,7 +1027,7 @@ namespace Moirai.Atropos.Resource
                 appliedMaterial = runtimeMaterial;
             }
 
-            if (!ApplyMaterial(renderer, appliedMaterial, slotType))
+            if (!ApplyMaterial(renderer, appliedMaterial))
             {
                 if (runtimeMaterial != null)
                 {
@@ -1061,7 +1138,7 @@ namespace Moirai.Atropos.Resource
                 return EResourceBindStatus.StaleOwner;
             }
 
-            if (!ApplyMaterial(renderer, appliedMaterial, slotType))
+            if (!ApplyMaterial(renderer, appliedMaterial))
             {
                 if (runtimeMaterial != null)
                 {
@@ -1217,8 +1294,25 @@ namespace Moirai.Atropos.Resource
         internal void Shutdown()
         {
             _isShutdown = true;
-            int total = _bindingNextIndex;
-            for (int i = 0; i < total; i++)
+            int ownerTotal = _ownerNextIndex;
+            for (int i = 0; i < ownerTotal; i++)
+            {
+                if (!IsValidOwnerIndex(i))
+                {
+                    continue;
+                }
+
+                OwnerSlot owner = GetOwnerSlotRef(i);
+                if (owner.State != 1)
+                {
+                    continue;
+                }
+
+                ReleaseOwner(owner.OwnerId, owner.Generation);
+            }
+
+            int bindingTotal = _bindingNextIndex;
+            for (int i = 0; i < bindingTotal; i++)
             {
                 ref BindingSlot binding = ref GetBindingSlotRef(i);
                 if (!binding.Lease.IsValid)
@@ -1230,6 +1324,8 @@ namespace Moirai.Atropos.Resource
             }
 
             _bindingIndexByOwnerSlot.Clear();
+            _ownerIndexByGameObjectId.Clear();
+            _ownerByTargetComponentId.Clear();
             _ownerPages = null;
             _bindingPages = null;
             _registeredTargetPages = null;
@@ -1239,6 +1335,7 @@ namespace Moirai.Atropos.Resource
             _ownerFreeHead = -1;
             _bindingFreeHead = -1;
             _registeredTargetFreeHead = -1;
+            _isShutdown = false;
         }
 
         private EResourceBindStatus EnsureOwner(ResourceOwner owner, out int ownerIndex)
@@ -1371,9 +1468,20 @@ namespace Moirai.Atropos.Resource
             }
         }
 
-        private void RemoveRegisteredTargetSlot(int ownerId, uint ownerGeneration, ulong targetComponentId,
-            ref OwnerSlot owner)
+        private void RemoveRegisteredTargetSlot(int ownerId, uint ownerGeneration, ulong targetComponentId)
         {
+            int ownerIndex = ownerId - 1;
+            if (!IsValidOwnerIndex(ownerIndex))
+            {
+                return;
+            }
+
+            ref OwnerSlot owner = ref GetOwnerSlotRef(ownerIndex);
+            if (owner.State != 1 || owner.Generation != ownerGeneration)
+            {
+                return;
+            }
+
             int previous = -1;
             int current = owner.RegisteredTargetHead;
             while (current >= 0)
@@ -1408,48 +1516,48 @@ namespace Moirai.Atropos.Resource
             }
         }
 
-        private static bool ApplySprite(Image image, Sprite sprite)
+        private static bool ApplySprite(Component target, Sprite sprite)
         {
-            if (sprite == null || image == null)
+            if (sprite == null || target == null)
             {
                 return false;
             }
 
-            image.sprite = sprite;
-            return true;
+            switch (target)
+            {
+                case Image image:
+                    image.sprite = sprite;
+                    return true;
+
+                case SpriteRenderer spriteRenderer:
+                    spriteRenderer.sprite = sprite;
+                    return true;
+
+                default:
+                    return false;
+            }
         }
 
-        private static bool ApplySprite(SpriteRenderer spriteRenderer, Sprite sprite)
+        private static bool ApplyMaterial(Component target, Material material)
         {
-            if (sprite == null || spriteRenderer == null)
+            if (material == null || target == null)
             {
                 return false;
             }
 
-            spriteRenderer.sprite = sprite;
-            return true;
-        }
-
-        private static bool ApplyMaterial(Image image, Material material)
-        {
-            if (material == null || image == null)
+            switch (target)
             {
-                return false;
+                case Image image:
+                    image.material = material;
+                    return true;
+
+                case Renderer renderer:
+                    renderer.sharedMaterial = material;
+                    return true;
+
+                default:
+                    return false;
             }
-
-            image.material = material;
-            return true;
-        }
-
-        private static bool ApplyMaterial(Renderer renderer, Material material, EResourceBindingSlotType slotType)
-        {
-            if (material == null || renderer == null)
-            {
-                return false;
-            }
-
-            renderer.sharedMaterial = material;
-            return true;
         }
 
         internal static void ClearMaterialSlot(Component target, Material appliedMaterial,

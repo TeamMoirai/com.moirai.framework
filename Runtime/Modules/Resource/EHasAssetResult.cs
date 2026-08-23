@@ -1,9 +1,9 @@
-﻿namespace Moirai.Atropos.Resource
+namespace Moirai.Atropos.Resource
 {
     /// <summary>
     /// 检查资源是否存在的结果。
     /// </summary>
-    public enum HasAssetResult : byte
+    public enum EHasAssetResult : byte
     {
         /// <summary>
         /// 资源不存在。
@@ -38,6 +38,6 @@
         /// <summary>
         /// 资源定位地址无效。
         /// </summary>
-        Valid,
+        InvalidLocation,
     }
 }
