@@ -11,7 +11,7 @@ namespace Moirai.Atropos.Input
                  "UI 移动端：它使用场景中的特定 UI 元素（InputButton 和 InputAxes 组件）作为输入。\n\n" +
                  "请确保这些元素的「动作名称」与想要触发的角色动作相匹配。", InfoMessageType.None)]
 
-        [HelperDropdown]
+        [ProviderDropdown]
         [SerializeReference] private InputHandler m_InputHandler = CreateDefaultHandler();
 
         private static InputHandler s_InputHandler = null;

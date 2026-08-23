@@ -8,8 +8,8 @@ using UnityEngine;
 
 namespace Moirai.Atropos
 {
-    [CustomPropertyDrawer(typeof(HelperDropdownAttribute), true)]
-    internal sealed class HelperDropdownAttributeDrawer : PropertyDrawer
+    [CustomPropertyDrawer(typeof(ProviderDropdownAttribute), true)]
+    internal sealed class ProviderDropdownAttributeDrawer : PropertyDrawer
     {
         private const float PAD = 3f;
         private const float FOLDOUT_W = 16f;
@@ -19,7 +19,7 @@ namespace Moirai.Atropos
         private GUIContent[] _names;
         private bool _built;
 
-        private new HelperDropdownAttribute attribute => (HelperDropdownAttribute)base.attribute;
+        private new ProviderDropdownAttribute attribute => (ProviderDropdownAttribute)base.attribute;
 
         #region 构建 [BUILD]
 
@@ -471,8 +471,8 @@ namespace Moirai.Atropos
     }
 
     /// <summary>
-    /// Odin 原生 Drawer，为 <see cref="HelperDropdownAttribute"/> 自动接管 Odin 绘制，
-    /// 委托到 Unity <see cref="EditorGUI.PropertyField"/>（触发 <see cref="HelperDropdownAttributeDrawer"/>）。
+    /// Odin 原生 Drawer，为 <see cref="ProviderDropdownAttribute"/> 自动接管 Odin 绘制，
+    /// 委托到 Unity <see cref="EditorGUI.PropertyField"/>（触发 <see cref="ProviderDropdownAttributeDrawer"/>）。
     /// <para>无需在每个字段上手动添加 <c>[DrawWithUnity]</c>。</para>
     /// </summary>
     /// <remarks>
@@ -481,7 +481,7 @@ namespace Moirai.Atropos
     /// 否则回退到 Odin 默认行为。
     /// </remarks>
     [DrawerPriority(0, 10001, 0)]
-    internal sealed class HelperDropdownOdinDrawer : OdinAttributeDrawer<HelperDropdownAttribute>
+    internal sealed class HelperDropdownOdinDrawer : OdinAttributeDrawer<ProviderDropdownAttribute>
     {
         protected override void DrawPropertyLayout(GUIContent label)
         {

@@ -19,18 +19,18 @@ namespace Moirai.Atropos
     /// <example>
     /// 引用模式：
     /// <code>
-    /// [HelperDropdown]
+    /// [ProviderDropdown]
     /// [SerializeReference] private CustomHandler m_CustomHandler = new DefaultCustomHandler();
     /// </code>
     /// 类型名模式：
     /// <code>
-    /// [HelperDropdown(typeof(ICustomHelper), "Custom Helper")]
+    /// [ProviderDropdown(typeof(ICustomHelper), "Custom Helper")]
     /// [SerializeField] private string m_CustomHelperTypeName;
     /// </code>
     /// </example>
     [Conditional("UNITY_EDITOR")]
     [AttributeUsage(AttributeTargets.Field)]
-    public sealed class HelperDropdownAttribute : PropertyAttribute
+    public sealed class ProviderDropdownAttribute : PropertyAttribute
     {
         /// <summary>
         /// 要搜索的基类类型。为 null 时从字段类型自动推断（引用模式）。
@@ -44,7 +44,7 @@ namespace Moirai.Atropos
 
         /// <param name="baseType">基类类型，用于搜索所有派生类。null 时从字段类型推断。</param>
         /// <param name="label">可选的下拉框显示名称。</param>
-        public HelperDropdownAttribute(Type baseType = null, string label = null)
+        public ProviderDropdownAttribute(Type baseType = null, string label = null)
         {
             BaseType = baseType;
             Label = label;
