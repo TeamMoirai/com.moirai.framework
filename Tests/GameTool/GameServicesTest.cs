@@ -519,8 +519,8 @@ namespace GameTool
             var infos = GameServices.GetDiagnosticInfo();
 
             Assert.GreaterOrEqual(infos.Count, 2);
-            Assert.IsTrue(infos.Exists(i => i.InterfaceType == typeof(IAlphaService).FullName));
-            Assert.IsTrue(infos.Exists(i => i.InterfaceType == typeof(IBetaService).FullName));
+            Assert.IsTrue(infos.Exists(i => i.ContractType == typeof(IAlphaService).FullName));
+            Assert.IsTrue(infos.Exists(i => i.ContractType == typeof(IBetaService).FullName));
         }
 
         // ═══════════════════════════════════════════════════════
@@ -719,6 +719,79 @@ namespace GameTool
 
             // Scene 容器已关闭
             Assert.IsFalse(GameServices.HasScene);
+        }
+
+        // ═══════════════════════════════════════════════════════
+        // 构建失败回滚测试 [BUILD FAILURE ROLLBACK TESTS]
+        // ═══════════════════════════════════════════════════════
+
+        private sealed class InitThrowService : TestServiceBase, IAlphaService
+        {
+            public override void OnInit() => throw new InvalidOperationException("simulated init failure");
+        }
+
+        [Test]
+        public void BuildFailure_RollsBackScopeAndAllowsRebuild()
+        {
+            var dependee = new DependeeService();
+
+            // 依赖服务 OnInit 抛出 → BuildAsync 抛出 → 作用域整体回滚
+            Assert.Throws<GameException>(() => BuildApp(c =>
+            {
+                c.Register<IDepTargetService>(EServiceScopeKind.App, _ => dependee);
+                c.Register<IAlphaService, InitThrowService>(EServiceScopeKind.App);
+            }));
+
+            Assert.IsFalse(GameServices.HasApp, "构建失败后作用域应回滚到未构建状态");
+            Assert.IsNull(GameServices.Provider, "回滚后不应残留可用的 Provider");
+            Assert.AreEqual(1, dependee.ShutdownCount, "已注册服务应随回滚被 Shutdown");
+            Assert.AreEqual(EServiceState.Disposed, dependee.State);
+
+            // 回滚后允许重建（不残留"已构建"的半成品状态）
+            Assert.DoesNotThrow(() => BuildApp(c => c.Register<IAlphaService, AlphaService>(EServiceScopeKind.App)));
+            Assert.IsTrue(GameServices.HasApp);
+        }
+
+        [Test]
+        public void DuplicateContract_FailsFastBeforeCreation()
+        {
+            // As 额外契约与既有主契约重叠：拓扑排序阶段即失败（实例创建前），不产生孤儿
+            Assert.Throws<GameException>(() => BuildApp(c =>
+            {
+                c.Register<IAlphaService, AlphaService>(EServiceScopeKind.App);
+                c.Register<IBetaService, BetaService>(EServiceScopeKind.App).As<IAlphaService>();
+            }));
+
+            Assert.IsFalse(GameServices.HasApp, "契约冲突构建失败后作用域应回滚");
+            Assert.IsNull(GameServices.Provider);
+        }
+
+        private sealed class BadTickMonoService : ServiceMono<SceneScope>, IMonoContractService, IServiceTickable
+        {
+            public override void OnInit() { }
+            public override void Shutdown() { }
+            public void Tick(float elapseSeconds, float realElapseSeconds) { }
+        }
+
+        [Test]
+        public void BuildFailure_DestroysOrphanMonoGameObject()
+        {
+            // Mono 服务实现 IServiceTickable → Register 拒绝 → 实例已创建成为孤儿 → GameObject 应被销毁
+            Assert.Throws<GameException>(() => BuildScene(
+                c => c.RegisterMono<IMonoContractService, BadTickMonoService>(EServiceScopeKind.Scene)));
+
+            Assert.IsFalse(GameServices.HasScene, "构建失败后作用域应回滚");
+            Assert.AreEqual(0, UnityEngine.Object.FindObjectsOfType<BadTickMonoService>().Length,
+                "被拒注册的孤儿 Mono 服务的 GameObject 应被销毁");
+        }
+
+        [Test]
+        public void Factory_ReturningNull_Throws()
+        {
+            Assert.Throws<GameException>(() => BuildApp(
+                c => c.Register<IAlphaService>(EServiceScopeKind.App, _ => null)));
+
+            Assert.IsFalse(GameServices.HasApp, "工厂返回 null 构建失败后作用域应回滚");
         }
 
         // ═══════════════════════════════════════════════════════

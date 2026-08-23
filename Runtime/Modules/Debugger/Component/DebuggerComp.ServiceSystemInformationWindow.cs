@@ -67,7 +67,7 @@ namespace Moirai.Atropos.Debugger
                         string tickStr = flags.Count > 0 ? string.Join(" ", flags) : "—";
                         string scopeStr = ScopeToString(info.Scope);
                         DrawItem(
-                            StringUtility.Format("[{0}] {1}", scopeStr, info.InterfaceType),
+                            StringUtility.Format("[{0}] {1}", scopeStr, info.ContractType),
                             StringUtility.Format("{0} (P:{1} [{2}])", info.ImplementationType, info.Priority, tickStr));
                     }
                 }

@@ -6,6 +6,8 @@ namespace Moirai.Atropos
 {
     /// <summary>
     /// 服务作用域容器。管理单个作用域内服务的注册表、轮询列表和迭代安全机制。
+    /// <para><b>所有权</b>：注册/注销仅由 <see cref="ServiceWorld.BuildAsync"/> 在构建期驱动，
+    /// 外部代码不直接操作本类；作用域的创建与销毁由 <see cref="ServiceWorld"/> 统一调度。</para>
     /// <para>OnInit 由 <see cref="ServiceWorld.BuildAsync"/> 按拓扑序统一驱动。</para>
     /// <para>Dispose 时逆注册序关闭全部服务（= 逆依赖拓扑序：依赖方先关闭，被依赖方后关闭）。</para>
     /// <para><b>线程契约</b>：所有方法仅限 Unity 主线程调用。</para>
@@ -69,26 +71,31 @@ namespace Moirai.Atropos
 
         /// <summary>
         /// 将服务注册到作用域。仅存储引用和更新轮询列表，不调用 OnInit。
+        /// <para>fail-fast：契约重复、作用域已销毁/销毁中时抛出 <see cref="GameException"/>——
+        /// 静默拒绝会产生"已创建未入册"的影子服务（随后被 OnInit 却永不 Shutdown）。</para>
         /// </summary>
         internal void Register(Type[] contractTypes, IService service)
         {
-            // 检查所有契约是否已被注册
+            // BuildAsync 可能跨越 await（OnInitAsync）挂起，期间作用域被关闭（如场景卸载）后恢复，
+            // 后续注册必须中止而不是写入已销毁的注册表
+            if (IsDisposed)
+                throw new GameException(StringUtility.Format(
+                    "Scope {0} has been disposed; registration of '{1}' is rejected.",
+                    Kind, contractTypes[0].FullName));
+
+            // 检查所有契约是否已被注册：重复契约属于组合根编程错误
             for (int i = 0; i < contractTypes.Length; i++)
             {
                 if (_servicesByContract.ContainsKey(contractTypes[i].TypeHandle))
-                {
-                    LogUtility.Warning("{0} has already been registered in {1} scope.",
-                        contractTypes[i].FullName, Kind);
-                    return;
-                }
+                    throw new GameException(StringUtility.Format(
+                        "Contract '{0}' has already been registered in {1} scope; reject duplicate registration of '{2}'.",
+                        contractTypes[i].FullName, Kind, service.GetType().FullName));
             }
 
             if (_disposePending)
-            {
-                LogUtility.Warning("Scope {0} is being disposed; registration of {1} is rejected.",
-                    Kind, contractTypes[0].FullName);
-                return;
-            }
+                throw new GameException(StringUtility.Format(
+                    "Scope {0} is being disposed; registration of '{1}' is rejected.",
+                    Kind, contractTypes[0].FullName));
 
             if (_isIterating)
             {
@@ -192,6 +199,11 @@ namespace Moirai.Atropos
             return false;
         }
 
+        /// <summary>
+        /// 实例是否已注册（构建回滚时用于识别"已创建未注册"的孤儿实例）。
+        /// </summary>
+        internal bool Contains(IService service) => _entriesByService.ContainsKey(service);
+
         #endregion
 
         #region 轮询 [TICK]
@@ -205,15 +217,29 @@ namespace Moirai.Atropos
             try
             {
                 int count = _tickables.Count;
-                for (int i = 0; i < count; i++)
+                if (GameServices.HasInterceptors)
                 {
-                    var tickable = _tickables[i];
-                    try
+                    for (int i = 0; i < count; i++)
                     {
-                        GameServices.InvokeTick(tickable as IService, elapseSeconds, realElapseSeconds);
-                        tickable.Tick(elapseSeconds, realElapseSeconds);
+                        var tickable = _tickables[i];
+                        try
+                        {
+                            GameServices.InvokeTick(tickable as IService, elapseSeconds, realElapseSeconds);
+                            tickable.Tick(elapseSeconds, realElapseSeconds);
+                        }
+                        catch (Exception ex) { LogTickFailure(tickable, nameof(Tick), ex); }
                     }
-                    catch (Exception ex) { LogTickFailure(tickable, nameof(Tick), ex); }
+                }
+                else
+                {
+                    // 无拦截器（发布构建常态）：跳过逐服务通知与 as 转换——对齐零开销轮询路径。
+                    // 注：若服务在 Tick 中途添加拦截器，本轮余下服务不通知，下一帧生效。
+                    for (int i = 0; i < count; i++)
+                    {
+                        var tickable = _tickables[i];
+                        try { tickable.Tick(elapseSeconds, realElapseSeconds); }
+                        catch (Exception ex) { LogTickFailure(tickable, nameof(Tick), ex); }
+                    }
                 }
             }
             finally
@@ -436,7 +462,7 @@ namespace Moirai.Atropos
                 var type = Type.GetTypeFromHandle(entry.ContractHandles[0]);
                 buffer.Add(new GameServices.DiagnosticInfo
                 {
-                    InterfaceType = type != null ? type.FullName : "<unknown>",
+                    ContractType = type != null ? type.FullName : "<unknown>",
                     ImplementationType = service.GetType().FullName,
                     Scope = Kind,
                     Priority = service.Priority,
@@ -454,10 +480,16 @@ namespace Moirai.Atropos
 
         // ── lazy-sort：脏标记置位后，下次迭代前排序 + 重建索引 ──
 
+        // 缓存 Comparison 委托：方法组到委托的转换每次求值都会分配，缓存后脏排序零分配
+        private static readonly Comparison<IServiceTickable> s_TickComparison = CompareByPriority;
+        private static readonly Comparison<IServiceFixedTickable> s_FixedTickComparison = CompareByPriority;
+        private static readonly Comparison<IServiceLateTickable> s_LateTickComparison = CompareByPriority;
+        private static readonly Comparison<IServiceGizmoDrawable> s_GizmoComparison = CompareByPriority;
+
         private void SortTickablesIfDirty()
         {
             if (!_tickablesDirty) return;
-            _tickables.Sort(CompareByPriority);
+            _tickables.Sort(s_TickComparison);
             for (int i = 0; i < _tickables.Count; i++)
             {
                 if (_tickables[i] is IService svc && _entriesByService.TryGetValue(svc, out var e))
@@ -481,7 +513,7 @@ namespace Moirai.Atropos
         private void SortLateTickablesIfDirty()
         {
             if (!_lateTickablesDirty) return;
-            _lateTickables.Sort(CompareByPriority);
+            _lateTickables.Sort(s_LateTickComparison);
             for (int i = 0; i < _lateTickables.Count; i++)
             {
                 if (_lateTickables[i] is IService svc && _entriesByService.TryGetValue(svc, out var e))

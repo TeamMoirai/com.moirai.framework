@@ -238,8 +238,9 @@ namespace Moirai.Atropos
         #region 构建 [BUILD]
 
         /// <summary>
-        /// 异步构建指定作用域：拓扑排序 → 创建实例（构造注入）→ 注册 → OnInit → OnInitAsync。
+        /// 异步构建指定作用域：拓扑排序（含契约查重）→ 创建实例（构造注入）→ 注册 → OnInit → OnInitAsync。
         /// <para>若同作用域已有服务，先关闭再重建。</para>
+        /// <para>构建失败时整体回滚：作用域恢复到未构建状态，调用方可安全重试。</para>
         /// </summary>
         internal async UniTask BuildAsync(
             EServiceScopeKind scopeKind,
@@ -257,7 +258,7 @@ namespace Moirai.Atropos
 
             try
             {
-                // 1. 拓扑排序
+                // 1. 拓扑排序（重复契约在实例创建前 fail-fast，从源头消除孤儿）
                 var sorted = TopologicalSort(descriptors);
 
                 // 2. 按拓扑序创建实例并注册
@@ -271,12 +272,12 @@ namespace Moirai.Atropos
                     catch (Exception ex)
                     {
                         LogUtility.Error("Failed to create service '{0}':\n{1}",
-                            desc.InterfaceType.FullName, ex);
+                            desc.ContractType.FullName, ex);
                         throw;
                     }
 
                     var contracts = desc.AllContracts;
-                    buildInstances[desc.InterfaceType] = instance;
+                    buildInstances[desc.ContractType] = instance;
                     for (int i = 1; i < contracts.Length; i++)
                         buildInstances[contracts[i]] = instance;
 
@@ -287,17 +288,17 @@ namespace Moirai.Atropos
                 // 3. 同步 OnInit（拓扑序 = 依赖序）
                 foreach (var desc in sorted)
                 {
-                    if (!buildInstances.TryGetValue(desc.InterfaceType, out var instance)) continue;
+                    if (!buildInstances.TryGetValue(desc.ContractType, out var instance)) continue;
                     try
                     {
                         instance.OnInit();
                         GameServices.SetState(instance, EServiceState.Initialized);
-                        GameServices.InvokeRegistered(instance, desc.InterfaceType, scopeKind);
+                        GameServices.InvokeRegistered(instance, desc.ContractType, scopeKind);
                     }
                     catch (Exception ex)
                     {
                         LogUtility.Error("Service '{0}' OnInit failed:\n{1}",
-                            desc.InterfaceType.FullName, ex);
+                            desc.ContractType.FullName, ex);
                         throw;
                     }
                 }
@@ -305,7 +306,7 @@ namespace Moirai.Atropos
                 // 4. 异步 OnInitAsync（拓扑序）
                 foreach (var desc in sorted)
                 {
-                    if (!buildInstances.TryGetValue(desc.InterfaceType, out var instance)) continue;
+                    if (!buildInstances.TryGetValue(desc.ContractType, out var instance)) continue;
                     if (instance is IAsyncInitService asyncSvc)
                     {
                         try
@@ -315,16 +316,78 @@ namespace Moirai.Atropos
                         catch (Exception ex)
                         {
                             LogUtility.Error("Service '{0}' OnInitAsync failed:\n{1}",
-                                desc.InterfaceType.FullName, ex);
+                                desc.ContractType.FullName, ex);
                             throw;
                         }
                     }
                 }
             }
-            finally
+            catch
             {
-                buildInstances = null;
+                // 构建失败：回滚到未构建状态——已注册服务逆拓扑序 Shutdown，
+                // "已创建未注册"的孤儿实例销毁（否则影子服务 / GameObject 泄漏）
+                RollbackBuild(scope, buildInstances);
+                throw;
             }
+        }
+
+        /// <summary>
+        /// 构建失败的回滚：销毁作用域并从世界移除，清理孤儿实例。
+        /// <para>孤儿 = 创建成功但 Register 被拒（如 Mono 服务实现了轮询接口）的实例——
+        /// 它们永不 OnInit，须销毁 GameObject / 释放 IDisposable，而非调用 Shutdown。</para>
+        /// <para>await 挂起期间作用域可能已被外部关闭：此时全部实例均已注册并随外部关闭处理，跳过孤儿检测。</para>
+        /// </summary>
+        private void RollbackBuild(ServiceScope scope, Dictionary<Type, IService> buildInstances)
+        {
+            try
+            {
+                List<IService> orphans = null;
+                if (buildInstances != null && buildInstances.Count > 0 && !scope.IsDisposed)
+                {
+                    foreach (var instance in buildInstances.Values)
+                    {
+                        if (scope.Contains(instance)) continue;
+                        orphans ??= new List<IService>();
+                        if (!orphans.Contains(instance)) orphans.Add(instance);
+                    }
+                }
+
+                if (!scope.IsDisposed)
+                {
+                    scope.Dispose();
+                    ClearScope(scope.Kind);
+                }
+
+                if (orphans != null)
+                {
+                    for (int i = 0; i < orphans.Count; i++)
+                        DestroyOrphan(orphans[i]);
+                }
+            }
+            catch (Exception ex)
+            {
+                // 回滚自身的失败不得吞掉原始构建异常
+                LogUtility.Error("Rollback of scope '{0}' failed:\n{1}", scope.Kind, ex);
+            }
+        }
+
+        private static void DestroyOrphan(IService instance)
+        {
+            GameServices.SetState(instance, EServiceState.Disposed);
+
+            if (instance is MonoBehaviour mb)
+            {
+                // 孤儿 Mono 服务由容器创建、无人接管：销毁 GameObject 防止场景残留
+                if (mb != null)
+                {
+                    if (Application.isPlaying) UnityEngine.Object.Destroy(mb.gameObject);
+                    else UnityEngine.Object.DestroyImmediate(mb.gameObject);
+                }
+                return;
+            }
+
+            if (instance is IDisposable disposable)
+                disposable.Dispose();
         }
 
         #endregion
@@ -334,12 +397,24 @@ namespace Moirai.Atropos
         private IService CreateInstance(ServiceDescriptor desc, ServiceScope scope, Dictionary<Type, IService> buildInstances)
         {
             if (desc.Factory != null)
-                return desc.Factory(this);
+            {
+                var instance = desc.Factory(this);
+                // 运行时兜底校验（编译期已由 Func<IServiceProvider, TInterface> 约束，
+                // 覆盖非泛型注册与委托协变漏洞）：错误工厂立即失败，而非解析时静默返回 null
+                if (instance == null)
+                    throw new GameException(StringUtility.Format(
+                        "Factory for service '{0}' returned null.", desc.ContractType.FullName));
+                if (!desc.ContractType.IsInstanceOfType(instance))
+                    throw new GameException(StringUtility.Format(
+                        "Factory for service '{0}' returned '{1}', which does not implement the contract.",
+                        desc.ContractType.FullName, instance.GetType().FullName));
+                return instance;
+            }
 
             if (desc.ImplementationType == null)
                 throw new GameException(
                     StringUtility.Format("Service '{0}' has no factory or implementation type.",
-                        desc.InterfaceType.FullName));
+                        desc.ContractType.FullName));
 
             if (desc.IsMonoBehaviour)
                 return CreateMonoBehaviourInstance(desc, scope);
@@ -350,7 +425,8 @@ namespace Moirai.Atropos
         private IService CreatePocoInstance(ServiceDescriptor desc, ServiceScope scope, Dictionary<Type, IService> buildInstances)
         {
             var implType = desc.ImplementationType;
-            var ctor = SelectConstructor(implType);
+            // 构造函数缓存：拓扑排序阶段首次解析后复用，避免每个服务两次反射扫描
+            var ctor = desc.ResolvedConstructor ??= SelectConstructor(implType);
 
             if (ctor == null)
                 throw new GameException(
@@ -459,28 +535,41 @@ namespace Moirai.Atropos
 
         private static readonly List<Type> s_DepBuffer = new();
 
+        // ── 复用缓冲：主线程契约保证无并发访问；Clear() 复用字典/队列内部桶存储，
+        //    消除每次构建的容器分配。result 必须每次新建——BuildAsync 在 await 挂起期间
+        //    持有 sorted 迭代，共享缓冲会被并发构建损坏。
+        private static readonly Dictionary<Type, ServiceDescriptor> s_ByContractBuffer = new();
+        private static readonly Dictionary<Type, int> s_InDegreeBuffer = new();
+        private static readonly Dictionary<Type, List<Type>> s_AdjacencyBuffer = new();
+        private static readonly Queue<Type> s_TopologyQueueBuffer = new();
+
         private static List<ServiceDescriptor> TopologicalSort(IReadOnlyList<ServiceDescriptor> descriptors)
         {
-            var byInterface = new Dictionary<Type, ServiceDescriptor>();
+            // 1. 契约表（含查重）：重复契约（主-主 / 主-As / As-As 重叠）在实例创建前
+            //    fail-fast——旧实现静默覆盖，会导致同一描述符入结果两次、另一服务被顶替，
+            //    最终以误导性的"循环依赖"或迟到的 Register 拒绝收场
+            s_ByContractBuffer.Clear();
             foreach (var d in descriptors)
             {
-                byInterface[d.InterfaceType] = d;
+                TryMapContract(d.ContractType, d);
                 if (d.AdditionalContracts != null)
                 {
                     for (int i = 0; i < d.AdditionalContracts.Length; i++)
-                        byInterface[d.AdditionalContracts[i]] = d;
+                        TryMapContract(d.AdditionalContracts[i], d);
                 }
             }
 
-            var inDegree = new Dictionary<Type, int>();
-            var adjacency = new Dictionary<Type, List<Type>>();
-
+            // 2. 入度表与邻接表（仅主契约作为节点）
+            s_InDegreeBuffer.Clear();
+            s_AdjacencyBuffer.Clear();
             foreach (var desc in descriptors)
             {
-                inDegree.TryAdd(desc.InterfaceType, 0);
-                adjacency.TryAdd(desc.InterfaceType, new List<Type>());
+                s_InDegreeBuffer.TryAdd(desc.ContractType, 0);
+                s_AdjacencyBuffer.TryAdd(desc.ContractType, new List<Type>());
             }
 
+            // 3. 依赖建边：依赖类型可能是额外契约（As 注册）——映射回属主的主契约建边，
+            //    保证依赖额外契约的服务排在属主之后
             foreach (var desc in descriptors)
             {
                 s_DepBuffer.Clear();
@@ -488,30 +577,33 @@ namespace Moirai.Atropos
                 for (int i = 0; i < s_DepBuffer.Count; i++)
                 {
                     var depType = s_DepBuffer[i];
-                    if (!byInterface.ContainsKey(depType)) continue;
+                    if (!s_ByContractBuffer.TryGetValue(depType, out var depDesc)) continue;
+                    if (depDesc.ContractType == desc.ContractType) continue; // 自依赖跳过
 
-                    adjacency[depType].Add(desc.InterfaceType);
-                    inDegree[desc.InterfaceType] =
-                        inDegree.GetValueOrDefault(desc.InterfaceType, 0) + 1;
+                    s_AdjacencyBuffer[depDesc.ContractType].Add(desc.ContractType);
+                    s_InDegreeBuffer[desc.ContractType] =
+                        s_InDegreeBuffer.GetValueOrDefault(desc.ContractType, 0) + 1;
                 }
             }
 
-            var queue = new Queue<Type>();
-            foreach (var kvp in inDegree)
+            // 4. Kahn 队列
+            s_TopologyQueueBuffer.Clear();
+            foreach (var kvp in s_InDegreeBuffer)
             {
-                if (kvp.Value == 0) queue.Enqueue(kvp.Key);
+                if (kvp.Value == 0) s_TopologyQueueBuffer.Enqueue(kvp.Key);
             }
 
             var result = new List<ServiceDescriptor>(descriptors.Count);
-            while (queue.Count > 0)
+            while (s_TopologyQueueBuffer.Count > 0)
             {
-                var type = queue.Dequeue();
-                result.Add(byInterface[type]);
-                var dependents = adjacency[type];
+                var type = s_TopologyQueueBuffer.Dequeue();
+                result.Add(s_ByContractBuffer[type]);
+                var dependents = s_AdjacencyBuffer[type];
                 for (int i = 0; i < dependents.Count; i++)
                 {
-                    inDegree[dependents[i]]--;
-                    if (inDegree[dependents[i]] == 0) queue.Enqueue(dependents[i]);
+                    s_InDegreeBuffer[dependents[i]]--;
+                    if (s_InDegreeBuffer[dependents[i]] == 0)
+                        s_TopologyQueueBuffer.Enqueue(dependents[i]);
                 }
             }
 
@@ -519,13 +611,13 @@ namespace Moirai.Atropos
             {
                 var processed = new HashSet<Type>();
                 for (int i = 0; i < result.Count; i++)
-                    processed.Add(result[i].InterfaceType);
+                    processed.Add(result[i].ContractType);
 
                 var remaining = new List<string>();
                 for (int i = 0; i < descriptors.Count; i++)
                 {
-                    if (!processed.Contains(descriptors[i].InterfaceType))
-                        remaining.Add(descriptors[i].InterfaceType.FullName);
+                    if (!processed.Contains(descriptors[i].ContractType))
+                        remaining.Add(descriptors[i].ContractType.FullName);
                 }
 
                 throw new GameException(
@@ -536,11 +628,26 @@ namespace Moirai.Atropos
             return result;
         }
 
+        /// <summary>契约映射（带查重）：契约已被其他描述符占用时抛出 <see cref="GameException"/>。</summary>
+        private static void TryMapContract(Type contract, ServiceDescriptor descriptor)
+        {
+            if (s_ByContractBuffer.TryAdd(contract, descriptor)) return;
+
+            var existing = s_ByContractBuffer[contract];
+            throw new GameException(StringUtility.Format(
+                "Contract '{0}' is registered by both '{1}' and '{2}'.",
+                contract.FullName, DescribeService(existing), DescribeService(descriptor)));
+        }
+
+        private static string DescribeService(ServiceDescriptor desc)
+            => desc.ImplementationType?.FullName ?? "<factory>";
+
         private static void CollectDependencies(ServiceDescriptor desc, List<Type> buffer)
         {
             if (desc.ImplementationType != null && !desc.IsMonoBehaviour)
             {
-                var ctor = SelectConstructor(desc.ImplementationType);
+                // 复用描述符上缓存的构造函数（与实例创建共享一次解析）
+                var ctor = desc.ResolvedConstructor ??= SelectConstructor(desc.ImplementationType);
                 if (ctor != null)
                 {
                     var parameters = ctor.GetParameters();
