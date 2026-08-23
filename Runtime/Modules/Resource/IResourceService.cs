@@ -299,7 +299,7 @@ namespace Moirai.Atropos.Resource
         /// <param name="location">资源定位地址。</param>
         /// <param name="packageName">资源包名称。</param>
         /// <returns>检查资源是否存在的结果。</returns>
-        public HasAssetResult HasAsset(string location, string packageName = "");
+        public EHasAssetResult HasAsset(string location, string packageName = "");
 
         /// <summary>
         /// 检查资源定位地址是否有效。
@@ -352,6 +352,7 @@ namespace Moirai.Atropos.Resource
         /// <param name="loadAssetCallbacks">加载资源回调函数集。</param>
         /// <param name="userData">用户自定义数据。</param>
         /// <param name="packageName">指定资源包的名称。不传使用默认资源包。</param>
+        [Obsolete("Use LoadLeaseAsync<T> for explicit ownership.")]
         void LoadAssetAsync(string location, Type assetType, int priority, LoadAssetCallbacks loadAssetCallbacks, object userData, string packageName = "");
 
         /// <summary>
@@ -371,6 +372,7 @@ namespace Moirai.Atropos.Resource
         /// <param name="assetType">要加载的资源类型。</param>
         /// <param name="packageName">指定资源包的名称。不传使用默认资源包</param>
         /// <returns>资源实例。</returns>
+        [Obsolete("Use LoadLease<T> for explicit ownership.")]
         UnityEngine.Object LoadAsset(string location, Type assetType, string packageName = "");
 
         /// <summary>
@@ -412,6 +414,7 @@ namespace Moirai.Atropos.Resource
         /// <param name="cancellationToken">取消操作Token。</param>
         /// <param name="packageName">指定资源包的名称。不传使用默认资源包</param>
         /// <returns>异步资源实例。</returns>
+        [Obsolete("Use LoadLeaseAsync<T> for explicit ownership.")]
         UniTask<UnityEngine.Object> LoadAssetAsync(string location, Type assetType, CancellationToken cancellationToken = default, string packageName = "");
 
         /// <summary>
@@ -432,6 +435,11 @@ namespace Moirai.Atropos.Resource
         /// <param name="packageName">资源包名称。</param>
         /// <typeparam name="T">资源类型。</typeparam>
         /// <returns>资源操作句柄。</returns>
+        /// <remarks>
+        /// 逃生舱 API：直接暴露 YooAsset <see cref="AssetHandle"/>，调用方自行负责句柄生命周期（Dispose）。
+        /// 常规业务请优先使用 <c>LoadLease/LoadLeaseAsync</c> 租约 API 获得自动引用计数与防泄漏保障。
+        /// </remarks>
+        [Obsolete("Prefer LoadLease<T>/LoadLeaseAsync<T>; this escape hatch leaks YooAsset AssetHandle lifecycle to the caller.")]
         AssetHandle LoadAssetSyncHandle<T>(string location, string packageName = "") where T : UnityEngine.Object;
 
         /// <summary>
@@ -441,6 +449,8 @@ namespace Moirai.Atropos.Resource
         /// <param name="assetType">资源类型。</param>
         /// <param name="packageName">资源包名称。</param>
         /// <returns>资源操作句柄。</returns>
+        /// <remarks>逃生舱 API：句柄生命周期由调用方自行负责，常规业务请使用租约 API。</remarks>
+        [Obsolete("Prefer LoadLease<T>/LoadLeaseAsync<T>; this escape hatch leaks YooAsset AssetHandle lifecycle to the caller.")]
         AssetHandle LoadAssetSyncHandle(string location, Type assetType, string packageName = "");
 
         /// <summary>
@@ -450,6 +460,8 @@ namespace Moirai.Atropos.Resource
         /// <param name="packageName">资源包名称。</param>
         /// <typeparam name="T">资源类型。</typeparam>
         /// <returns>资源操作句柄。</returns>
+        /// <remarks>逃生舱 API：句柄生命周期由调用方自行负责，常规业务请使用租约 API。</remarks>
+        [Obsolete("Prefer LoadLease<T>/LoadLeaseAsync<T>; this escape hatch leaks YooAsset AssetHandle lifecycle to the caller.")]
         AssetHandle LoadAssetAsyncHandle<T>(string location, string packageName = "") where T : UnityEngine.Object;
 
         /// <summary>
@@ -459,6 +471,8 @@ namespace Moirai.Atropos.Resource
         /// <param name="type">资源类型。</param>
         /// <param name="packageName">资源包名称。</param>
         /// <returns>资源操作句柄。</returns>
+        /// <remarks>逃生舱 API：句柄生命周期由调用方自行负责，常规业务请使用租约 API。</remarks>
+        [Obsolete("Prefer LoadLease<T>/LoadLeaseAsync<T>; this escape hatch leaks YooAsset AssetHandle lifecycle to the caller.")]
         AssetHandle LoadAssetAsyncHandle(string location, Type type, string packageName = "");
 
         /// <summary>

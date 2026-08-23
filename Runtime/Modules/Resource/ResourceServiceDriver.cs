@@ -8,6 +8,8 @@ namespace Moirai.Atropos.Resource
     /// 资源组件。
     /// </summary>
     [DisallowMultipleComponent]
+    [UnityEngine.Scripting.Preserve]
+    [DefaultExecutionOrder(MoiraiExecutionOrder.SETTINGS_ORDER)]
     public class ResourceServiceDriver : MonoBehaviour
     {
         #region 属性 [PROPERTIES]
@@ -332,13 +334,12 @@ namespace Moirai.Atropos.Resource
 
             Application.lowMemory += OnLowMemory;
 
+#if UNITY_EDITOR
             if (PlayMode == EPlayMode.EditorSimulateMode)
             {
                 LogUtility.Info("During this run, ResourceService will use editor resource files, which you should validate first.");
-#if !UNITY_EDITOR
-                PlayMode = EPlayMode.OfflinePlayMode;
-#endif
             }
+#endif
 
             _resourceService.DefaultPackageName = PackageName;
             _resourceService.PlayMode = PlayMode;
@@ -385,6 +386,8 @@ namespace Moirai.Atropos.Resource
 
         private void Update()
         {
+            if (_resourceService == null) return;
+
             bool shouldUnloadUnusedAssets = _asyncOperation == null &&
                 (_forceUnloadUnusedAssets ||
                  _lastUnloadUnusedAssetsOperationElapseSeconds >= m_MaxUnloadUnusedAssetsInterval ||

@@ -299,18 +299,18 @@ namespace Moirai.Atropos.Resource
         /// 批量获取所有者信息。
         /// </summary>
         /// <param name="results">结果数组。</param>
-        /// <param name="startIndex">起始索引。</param>
-        /// <param name="maxCount">最大数量。</param>
-        /// <returns>实际写入数量。</returns>
+        /// <param name="startIndex">起始的槽位索引，负数按 0 处理。</param>
+        /// <param name="maxCount">最多写入数量，会钳制到 results.Length。</param>
+        /// <returns>所有者槽位总数（分页协议：调用方可据此翻页，实际写入数为 min(maxCount, results.Length, total - startIndex)）。</returns>
         int GetOwnerInfos(ResourceOwnerInfo[] results, int startIndex, int maxCount);
 
         /// <summary>
         /// 批量获取绑定信息。
         /// </summary>
         /// <param name="results">结果数组。</param>
-        /// <param name="startIndex">起始索引。</param>
-        /// <param name="maxCount">最大数量。</param>
-        /// <returns>实际写入数量。</returns>
+        /// <param name="startIndex">起始的槽位索引，负数按 0 处理。</param>
+        /// <param name="maxCount">最多写入数量，会钳制到 results.Length。</param>
+        /// <returns>绑定槽位总数（分页协议：调用方可据此翻页，实际写入数为 min(maxCount, results.Length, total - startIndex)）。</returns>
         int GetBindingInfos(ResourceBindingInfo[] results, int startIndex, int maxCount);
     }
 }

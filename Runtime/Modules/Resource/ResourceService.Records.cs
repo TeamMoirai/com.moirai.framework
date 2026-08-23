@@ -604,7 +604,7 @@ namespace Moirai.Atropos.Resource
                     return null;
                 }
 
-                AssetHandle handle = GetHandleAsync(location, assetType, packageName: packageName);
+                AssetHandle handle = GetHandleAsync(location, assetType, packageName: packageName, priority: priority);
                 if (handle == null)
                 {
                     FailLoading(loadingKey, null);
@@ -2405,6 +2405,16 @@ namespace Moirai.Atropos.Resource
         private bool IsValidAssetId(int assetId)
         {
             return assetId >= 0 && assetId < _assetSlotNextIndex && _assetSlotPages != null;
+        }
+
+        private bool IsValidActiveAssetId(int assetId)
+        {
+            if (!IsValidAssetId(assetId))
+            {
+                return false;
+            }
+
+            return GetAssetSlotRef(assetId).Generation != 0;
         }
 
         private bool IsValidLeaseId(int leaseId)

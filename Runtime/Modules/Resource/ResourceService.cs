@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading;
+using System.Threading.Tasks;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
 using YooAsset;
@@ -161,6 +162,8 @@ namespace Moirai.Atropos.Resource
             _bindingService?.Shutdown();
             ShutdownLoadingOperations();
             ForceReleaseAllAssetRecords();
+            _packageInitTasks.Clear();
+            _packageInitOperations.Clear();
         }
 
         /// <inheritdoc />
@@ -213,6 +216,18 @@ namespace Moirai.Atropos.Resource
         /// </summary>
         private readonly Dictionary<string, AssetInfo> _assetInfoMap = new Dictionary<string, AssetInfo>();
 
+        /// <summary>
+        /// 在途的包初始化任务（按包名去重，并发调用复用同一结果）。
+        /// </summary>
+        private readonly Dictionary<string, TaskCompletionSource<InitializePackageOperation>> _packageInitTasks =
+            new Dictionary<string, TaskCompletionSource<InitializePackageOperation>>(StringComparer.Ordinal);
+
+        /// <summary>
+        /// 已成功初始化的包操作句柄缓存（幂等重入时返回同一句柄，避免调用方收到 null）。
+        /// </summary>
+        private readonly Dictionary<string, InitializePackageOperation> _packageInitOperations =
+            new Dictionary<string, InitializePackageOperation>(StringComparer.Ordinal);
+
         #endregion
 
         #region 初始化 [INITIALIZATION]
@@ -239,23 +254,29 @@ namespace Moirai.Atropos.Resource
         /// <inheritdoc />
         public async UniTask<InitializePackageOperation> InitPackage(string packageName, bool needInitManifest = false)
         {
-#if UNITY_EDITOR
-            // 编辑器模式使用。
-            EPlayMode playMode = (EPlayMode)UnityEditor.EditorPrefs.GetInt(ResourceServiceDriver.EDITOR_PLAY_MODE_KEY, (int)EPlayMode.EditorSimulateMode);
-            LogUtility.Warning("Editor Service Used :{0}", playMode);
-#else
-            // 运行时使用。
-            EPlayMode playMode = (EPlayMode)PlayMode;
-#endif
+            LogUtility.Warning("Resource Service Used :{0}", PlayMode);
+
+            // 并发去重：同一包名的初始化在途时，后续调用等待同一结果。
+            if (_packageInitTasks.TryGetValue(packageName, out TaskCompletionSource<InitializePackageOperation> runningTask))
+            {
+                return await runningTask.Task.AsUniTask();
+            }
 
             if (PackageMap.TryGetValue(packageName, out var resourcePackage))
             {
-                if (resourcePackage.InitializeStatus is EOperationStatus.Processing or EOperationStatus.Succeeded)
+                if (resourcePackage.InitializeStatus == EOperationStatus.Succeeded)
                 {
-                    LogUtility.Error("ResourceSystem has already init package : {0}", packageName);
+                    // 幂等重入：已初始化成功的包直接返回已完成的操作句柄，避免调用方收到 null。
+                    if (_packageInitOperations.TryGetValue(packageName, out InitializePackageOperation completedOperation))
+                    {
+                        return completedOperation;
+                    }
+
+                    LogUtility.Warning("ResourceService has already init package : {0}", packageName);
                     return null;
                 }
 
+                // Failed 状态：YooAsset 在下次 InitializePackageAsync 内部自动复位，移除失效记录后重新初始化。
                 PackageMap.Remove(packageName);
             }
 
@@ -267,115 +288,185 @@ namespace Moirai.Atropos.Resource
 
             PackageMap[packageName] = package;
 
-            InitializePackageOperation initOperation = null;
+            TaskCompletionSource<InitializePackageOperation> initSource = new TaskCompletionSource<InitializePackageOperation>();
+            _packageInitTasks[packageName] = initSource;
+            try
+            {
+                InitializePackageOperation initOperation = CreateInitializationOperation(package, PlayMode);
+                if (initOperation == null)
+                {
+                    // 未知运行模式：回滚本地记录并快速失败。
+                    PackageMap.Remove(packageName);
+                    LogUtility.Error("Unsupported play mode : {0}", PlayMode);
+                    initSource.TrySetResult(null);
+                    throw new GameException(StringUtility.Format("Unsupported play mode : {0}", PlayMode));
+                }
 
+                _packageInitOperations[packageName] = initOperation;
+
+                await initOperation.ToUniTask();
+                LogUtility.Info("Init resource package version : {0}", initOperation.Status);
+
+                if (initOperation.Status != EOperationStatus.Succeeded)
+                {
+                    // 失败传播：移除本地记录（YooAsset 会在下次初始化时自动复位），调用方通过操作状态感知失败。
+                    PackageMap.Remove(packageName);
+                    _packageInitOperations.Remove(packageName);
+                    LogUtility.Error("Init package failed : {0}, error : {1}", packageName, initOperation.Error);
+                    initSource.TrySetResult(initOperation);
+                    return initOperation;
+                }
+
+                if (needInitManifest)
+                {
+                    await InitPackageManifestInternal(package);
+                }
+
+                initSource.TrySetResult(initOperation);
+                return initOperation;
+            }
+            catch (Exception)
+            {
+                // 异常传播：确保并发等待者不悬挂。
+                PackageMap.Remove(packageName);
+                _packageInitOperations.Remove(packageName);
+                initSource.TrySetResult(null);
+                throw;
+            }
+            finally
+            {
+                _packageInitTasks.Remove(packageName);
+            }
+        }
+
+        /// <summary>
+        /// 按运行模式创建初始化操作。
+        /// </summary>
+        private InitializePackageOperation CreateInitializationOperation(ResourcePackage package, EPlayMode playMode)
+        {
             switch (playMode)
             {
                 // 编辑器下的模拟模式
                 case EPlayMode.EditorSimulateMode:
                 {
-                    var buildResult = EditorSimulateBuildInvoker.Build(packageName, (int)EBundleType.VirtualAssetBundle);
+                    var buildResult = EditorSimulateBuildInvoker.Build(package.PackageName, (int)EBundleType.VirtualAssetBundle);
                     var packageRoot = buildResult.PackageRootDirectory;
                     var createParameters = new EditorSimulateModeOptions();
                     createParameters.EditorFileSystemParameters = FileSystemParameters.CreateDefaultEditorFileSystemParameters(packageRoot);
                     createParameters.AutoUnloadBundleWhenUnused = AutoUnloadBundleWhenUnused;
-                    initOperation = package.InitializePackageAsync(createParameters);
-                    break;
+                    return package.InitializePackageAsync(createParameters);
                 }
 
                 // 单机运行模式
                 case EPlayMode.OfflinePlayMode:
                 {
-                    IBundleDecryptor decryptor = EncryptorHandler?.CreateDecryptor();
                     var createParameters = new OfflinePlayModeOptions();
                     createParameters.BuiltinFileSystemParameters = FileSystemParameters.CreateDefaultBuiltinFileSystemParameters();
-                    ConfigureBundleDecryptor(createParameters.BuiltinFileSystemParameters, decryptor);
+                    ConfigureBundleDecryptor(createParameters.BuiltinFileSystemParameters);
                     createParameters.AutoUnloadBundleWhenUnused = AutoUnloadBundleWhenUnused;
-                    initOperation = package.InitializePackageAsync(createParameters);
-                    break;
+                    return package.InitializePackageAsync(createParameters);
                 }
 
                 // 联机运行模式
                 case EPlayMode.HostPlayMode:
                 {
-                    IBundleDecryptor decryptor = EncryptorHandler?.CreateDecryptor();
                     IRemoteService remoteService = new RemoteService(HostServerURL, FallbackHostServerURL);
                     var createParameters = new HostPlayModeOptions();
                     createParameters.BuiltinFileSystemParameters = FileSystemParameters.CreateDefaultBuiltinFileSystemParameters();
-                    ConfigureBundleDecryptor(createParameters.BuiltinFileSystemParameters, decryptor);
+                    ConfigureBundleDecryptor(createParameters.BuiltinFileSystemParameters);
                     createParameters.CacheFileSystemParameters = FileSystemParameters.CreateDefaultSandboxFileSystemParameters(remoteService);
-                    ConfigureBundleDecryptor(createParameters.CacheFileSystemParameters, decryptor);
+                    ConfigureBundleDecryptor(createParameters.CacheFileSystemParameters);
                     createParameters.AutoUnloadBundleWhenUnused = AutoUnloadBundleWhenUnused;
-                    initOperation = package.InitializePackageAsync(createParameters);
-                    break;
+                    return package.InitializePackageAsync(createParameters);
                 }
 
                 // WebGL运行模式
                 case EPlayMode.WebPlayMode:
                 {
                     var createParameters = new WebPlayModeOptions();
-                    IBundleDecryptor decryptor = EncryptorHandler?.CreateDecryptor();
                     IRemoteService remoteService = new RemoteService(HostServerURL, FallbackHostServerURL);
 #if UNITY_WEBGL && WEIXINMINIGAME && !UNITY_EDITOR
                     // 小游戏缓存根目录
                     // 注意：此处代码根据微信插件配置来填写！
                     LogUtility.Info("=======================WEIXINMINIGAME=======================");
+                    // WebGL 系文件系统仅支持内存解密（WebNetworkFileSystem 链路要求 IBundleMemoryDecryptor）。
+                    IBundleDecryptor wxDecryptor = EncryptorHandler?.CreateMemoryDecryptor();
                     string packageRoot = StringUtility.Concat(WeChatWASM.WX.env.USER_DATA_PATH, "/__GAME_FILE_CACHE");
-                    createParameters.WebNetworkFileSystemParameters = WechatFileSystemCreater.CreateFileSystemParameters(packageRoot, remoteService, decryptor);
+                    createParameters.WebNetworkFileSystemParameters = WechatFileSystemCreater.CreateFileSystemParameters(packageRoot, remoteService, wxDecryptor);
 #else
                     LogUtility.Info("=======================UNITY_WEBGL=======================");
                     if (LoadResWayWebGL == ELoadResWayWebGL.Remote)
                     {
                         createParameters.WebNetworkFileSystemParameters = FileSystemParameters.CreateDefaultWebNetworkFileSystemParameters(remoteService);
-                        ConfigureBundleDecryptor(createParameters.WebNetworkFileSystemParameters, decryptor);
+                        ConfigureWebBundleDecryptor(createParameters.WebNetworkFileSystemParameters);
                     }
                     createParameters.WebServerFileSystemParameters = FileSystemParameters.CreateDefaultWebServerFileSystemParameters();
-                    ConfigureBundleDecryptor(createParameters.WebServerFileSystemParameters, decryptor);
+                    ConfigureWebBundleDecryptor(createParameters.WebServerFileSystemParameters);
 #endif
                     createParameters.AutoUnloadBundleWhenUnused = AutoUnloadBundleWhenUnused;
-                    initOperation = package.InitializePackageAsync(createParameters);
-                    break;
+                    return package.InitializePackageAsync(createParameters);
                 }
+
+                default:
+                    return null;
             }
-
-            await initOperation.ToUniTask();
-
-            LogUtility.Info("Init resource package version : {0}", initOperation?.Status);
-
-            if (needInitManifest)
-            {
-                // 2. 请求资源清单的版本信息
-                var requestPackageVersionOperation = package.RequestPackageVersionAsync();
-                await requestPackageVersionOperation;
-                if (requestPackageVersionOperation.Status == EOperationStatus.Succeeded)
-                {
-                    // 3. 传入的版本信息更新资源清单
-                    var options = new PrefetchManifestOptions(requestPackageVersionOperation.PackageVersion, 60);
-                    var updatePackageManifestAsync = package.PrefetchManifestAsync(options);
-                    await updatePackageManifestAsync;
-                    if (updatePackageManifestAsync.Status == EOperationStatus.Failed)
-                    {
-                        LogUtility.Error("Update package manifest failed : {0}", updatePackageManifestAsync.Status);
-                    }
-                }
-                else
-                {
-                    LogUtility.Error("Request package version failed : {0}", requestPackageVersionOperation.Status);
-                }
-            }
-
-            return initOperation;
         }
 
-        private static void ConfigureBundleDecryptor(FileSystemParameters fileSystemParameters, IBundleDecryptor bundleDecryptor)
+        /// <summary>
+        /// 初始化包内清单（请求版本号并更新清单），失败时抛出异常以传播错误。
+        /// </summary>
+        private async UniTask InitPackageManifestInternal(ResourcePackage package)
         {
+            // 2. 请求资源清单的版本信息
+            var requestPackageVersionOperation = package.RequestPackageVersionAsync();
+            await requestPackageVersionOperation;
+            if (requestPackageVersionOperation.Status != EOperationStatus.Succeeded)
+            {
+                string errorMessage = StringUtility.Format("Request package version failed : {0}", requestPackageVersionOperation.Error);
+                LogUtility.Error(errorMessage);
+                throw new GameException(errorMessage);
+            }
+
+            // 3. 传入的版本信息更新资源清单
+            var options = new PrefetchManifestOptions(requestPackageVersionOperation.PackageVersion, 60);
+            var updatePackageManifestAsync = package.PrefetchManifestAsync(options);
+            await updatePackageManifestAsync;
+            if (updatePackageManifestAsync.Status == EOperationStatus.Failed)
+            {
+                string errorMessage = StringUtility.Format("Update package manifest failed : {0}", updatePackageManifestAsync.Error);
+                LogUtility.Error(errorMessage);
+                throw new GameException(errorMessage);
+            }
+
+            // 清单更新成功后失效 AssetInfo 缓存。
+            _assetInfoMap.Clear();
+        }
+
+        /// <summary>
+        /// 为本地文件系统（内置/沙盒）配置解密器：主解密器 + 内存兜底解密器。
+        /// </summary>
+        private void ConfigureBundleDecryptor(FileSystemParameters fileSystemParameters)
+        {
+            IBundleDecryptor bundleDecryptor = EncryptorHandler?.CreateDecryptor();
             if (bundleDecryptor == null) return;
 
             fileSystemParameters.AddParameter(EFileSystemParameter.AssetBundleDecryptor, bundleDecryptor);
-            if (bundleDecryptor is IBundleMemoryDecryptor fallbackDecryptor)
+            IBundleMemoryDecryptor fallbackDecryptor = EncryptorHandler.CreateMemoryDecryptor();
+            if (fallbackDecryptor != null)
             {
                 fileSystemParameters.AddParameter(EFileSystemParameter.AssetBundleFallbackDecryptor, fallbackDecryptor);
             }
+        }
+
+        /// <summary>
+        /// 为 WebGL 系文件系统配置解密器：仅支持内存解密器，且不支持 AssetBundleFallbackDecryptor 参数。
+        /// </summary>
+        private void ConfigureWebBundleDecryptor(FileSystemParameters fileSystemParameters)
+        {
+            IBundleMemoryDecryptor memoryDecryptor = EncryptorHandler?.CreateMemoryDecryptor();
+            if (memoryDecryptor == null) return;
+
+            fileSystemParameters.AddParameter(EFileSystemParameter.AssetBundleDecryptor, memoryDecryptor);
         }
 
         #endregion
@@ -409,7 +500,9 @@ namespace Moirai.Atropos.Resource
         {
             var package = GetPackageOrThrow(customPackageName);
             var options = new LoadPackageManifestOptions(packageVersion, timeout);
-            return package.LoadPackageManifestAsync(options);
+            var operation = package.LoadPackageManifestAsync(options);
+            TrackManifestUpdateOperation(operation);
+            return operation;
         }
 
         /// <inheritdoc />
@@ -651,32 +744,47 @@ namespace Moirai.Atropos.Resource
                 throw new GameException("Asset name is invalid.");
             }
 
+            bool cacheEnabled = !IsManifestUpdateInProgress();
             if (string.IsNullOrEmpty(packageName))
             {
-                if (_assetInfoMap.TryGetValue(location, out AssetInfo assetInfo))
+                if (cacheEnabled && _assetInfoMap.TryGetValue(location, out AssetInfo cachedAssetInfo))
                 {
-                    return assetInfo;
+                    return cachedAssetInfo;
                 }
 
-                assetInfo = DefaultPackage.GetAssetInfo(location);
-                _assetInfoMap[location] = assetInfo;
+                AssetInfo assetInfo = DefaultPackage.GetAssetInfo(location);
+                if (cacheEnabled && CanCacheAssetInfo(assetInfo))
+                {
+                    _assetInfoMap[location] = assetInfo;
+                }
+
                 return assetInfo;
             }
 
             string key = StringUtility.Concat(packageName, "/", location);
-            if (_assetInfoMap.TryGetValue(key, out AssetInfo pkgAssetInfo))
+            if (cacheEnabled && _assetInfoMap.TryGetValue(key, out AssetInfo pkgCachedAssetInfo))
             {
-                return pkgAssetInfo;
+                return pkgCachedAssetInfo;
             }
 
             var package = GetPackageOrThrow(packageName);
-            pkgAssetInfo = package.GetAssetInfo(location);
-            _assetInfoMap[key] = pkgAssetInfo;
+            AssetInfo pkgAssetInfo = package.GetAssetInfo(location);
+            if (cacheEnabled && CanCacheAssetInfo(pkgAssetInfo))
+            {
+                _assetInfoMap[key] = pkgAssetInfo;
+            }
+
             return pkgAssetInfo;
         }
 
+        private static bool CanCacheAssetInfo(AssetInfo assetInfo)
+        {
+            // 负缓存门控：无效的 AssetInfo 不缓存，避免清单更新或加载时序变化后命中过期负结果。
+            return assetInfo != null && assetInfo.IsValid && string.IsNullOrEmpty(assetInfo.Error);
+        }
+
         /// <inheritdoc />
-        public HasAssetResult HasAsset(string location, string packageName = "")
+        public EHasAssetResult HasAsset(string location, string packageName = "")
         {
             if (string.IsNullOrEmpty(location))
             {
@@ -684,23 +792,17 @@ namespace Moirai.Atropos.Resource
             }
 
             AssetInfo assetInfo = GetAssetInfo(location, packageName);
-
-            if (!IsLocationValid(location))
+            if (assetInfo == null || !assetInfo.IsValid || !string.IsNullOrEmpty(assetInfo.Error))
             {
-                return HasAssetResult.Valid;
+                return EHasAssetResult.InvalidLocation;
             }
 
-            if (assetInfo == null)
+            if (IsNeedDownloadFromRemote(assetInfo, packageName))
             {
-                return HasAssetResult.NotExist;
+                return EHasAssetResult.AssetOnline;
             }
 
-            if (IsNeedDownloadFromRemote(assetInfo))
-            {
-                return HasAssetResult.AssetOnline;
-            }
-
-            return HasAssetResult.AssetOnDisk;
+            return EHasAssetResult.AssetOnDisk;
         }
 
         /// <inheritdoc />
@@ -723,36 +825,41 @@ namespace Moirai.Atropos.Resource
             return GetPackageOrThrow(packageName).LoadAssetSync(location, assetType);
         }
 
-        private AssetHandle GetHandleAsync<T>(string location, string packageName = "")
+        private AssetHandle GetHandleAsync<T>(string location, string packageName = "", uint priority = 0)
             where T : UnityEngine.Object
         {
-            return GetHandleAsync(location, typeof(T), packageName);
+            return GetHandleAsync(location, typeof(T), packageName, priority);
         }
 
-        private AssetHandle GetHandleAsync(string location, Type assetType, string packageName = "")
+        private AssetHandle GetHandleAsync(string location, Type assetType, string packageName = "",
+            uint priority = 0)
         {
-            return GetPackageOrThrow(packageName).LoadAssetAsync(location, assetType);
+            return GetPackageOrThrow(packageName).LoadAssetAsync(location, assetType, priority);
         }
 
         /// <inheritdoc />
+        [Obsolete("Prefer LoadLease<T>/LoadLeaseAsync<T>; this escape hatch leaks YooAsset AssetHandle lifecycle to the caller.")]
         public AssetHandle LoadAssetSyncHandle<T>(string location, string packageName = "") where T : UnityEngine.Object
         {
             return LoadAssetSyncHandle(location, typeof(T), packageName);
         }
 
         /// <inheritdoc />
+        [Obsolete("Prefer LoadLease<T>/LoadLeaseAsync<T>; this escape hatch leaks YooAsset AssetHandle lifecycle to the caller.")]
         public AssetHandle LoadAssetSyncHandle(string location, System.Type type, string packageName = "")
         {
             return GetPackageOrThrow(packageName).LoadAssetSync(location, type);
         }
 
         /// <inheritdoc />
+        [Obsolete("Prefer LoadLease<T>/LoadLeaseAsync<T>; this escape hatch leaks YooAsset AssetHandle lifecycle to the caller.")]
         public AssetHandle LoadAssetAsyncHandle<T>(string location, string packageName = "") where T : UnityEngine.Object
         {
             return LoadAssetAsyncHandle(location, typeof(T), packageName);
         }
 
         /// <inheritdoc />
+        [Obsolete("Prefer LoadLease<T>/LoadLeaseAsync<T>; this escape hatch leaks YooAsset AssetHandle lifecycle to the caller.")]
         public AssetHandle LoadAssetAsyncHandle(string location, Type assetType, string packageName = "")
         {
             return GetPackageOrThrow(packageName).LoadAssetAsync(location, assetType);
