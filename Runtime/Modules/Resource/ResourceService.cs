@@ -738,7 +738,14 @@ namespace Moirai.Atropos.Resource
             }
 
             ResourceOwner owner = EnsureResourceOwner(instance);
-            _bindingService?.RegisterPrefabSource(owner, prefabLease, prefab);
+            EResourceBindStatus bindStatus = _bindingService.RegisterPrefabSource(owner, prefabLease, prefab);
+            if (bindStatus != EResourceBindStatus.Success)
+            {
+                UnityEngine.Object.Destroy(instance);
+                Release(prefabLease);
+                return null;
+            }
+
             return instance;
         }
 
@@ -854,7 +861,14 @@ namespace Moirai.Atropos.Resource
             }
 
             ResourceOwner owner = EnsureResourceOwner(instance);
-            _bindingService?.RegisterPrefabSource(owner, prefabLease, prefab);
+            EResourceBindStatus bindStatus = _bindingService.RegisterPrefabSource(owner, prefabLease, prefab);
+            if (bindStatus != EResourceBindStatus.Success)
+            {
+                UnityEngine.Object.Destroy(instance);
+                Release(prefabLease);
+                return null;
+            }
+
             return instance;
         }
 

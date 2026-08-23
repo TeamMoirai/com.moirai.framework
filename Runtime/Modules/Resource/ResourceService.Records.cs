@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
@@ -140,6 +141,9 @@ namespace Moirai.Atropos.Resource
         private int[] _resourcePackageRefCounts;
         private int[] _resourceLocationRefCounts;
         private int[] _resourceTypeRefCounts;
+        private readonly Dictionary<string, int> _resourcePackageIds = new();
+        private readonly Dictionary<string, int> _resourceLocationIds = new();
+        private readonly Dictionary<Type, int> _resourceTypeIds = new();
         private int _nextPackageId = 1;
         private int _nextLocationId = 1;
         private int _nextTypeId = 1;
@@ -1700,58 +1704,49 @@ namespace Moirai.Atropos.Resource
                 packageName = DefaultPackageName;
             }
 
-            for (int i = 1; i < _nextPackageId; i++)
+            if (_resourcePackageIds.TryGetValue(packageName, out int existingId))
             {
-                if (_resourcePackagesById != null && i < _resourcePackagesById.Length &&
-                    _resourcePackagesById[i] == packageName)
-                {
-                    _resourcePackageRefCounts[i]++;
-                    return i;
-                }
+                _resourcePackageRefCounts[existingId]++;
+                return existingId;
             }
 
             int id = AllocateResourceId(ref _nextPackageId, ResourceKeyPackageMax, _freePackageIds);
             EnsureResourceNameSlot(ref _resourcePackagesById, ref _resourcePackageRefCounts, id);
             _resourcePackagesById[id] = packageName;
             _resourcePackageRefCounts[id] = 1;
+            _resourcePackageIds[packageName] = id;
             return id;
         }
 
         private int GetOrAllocateLocationId(string location)
         {
-            for (int i = 1; i < _nextLocationId; i++)
+            if (_resourceLocationIds.TryGetValue(location, out int existingId))
             {
-                if (_resourceLocationsById != null && i < _resourceLocationsById.Length &&
-                    _resourceLocationsById[i] == location)
-                {
-                    _resourceLocationRefCounts[i]++;
-                    return i;
-                }
+                _resourceLocationRefCounts[existingId]++;
+                return existingId;
             }
 
             int id = AllocateResourceId(ref _nextLocationId, ResourceKeyLocationMax, _freeLocationIds);
             EnsureResourceNameSlot(ref _resourceLocationsById, ref _resourceLocationRefCounts, id);
             _resourceLocationsById[id] = location;
             _resourceLocationRefCounts[id] = 1;
+            _resourceLocationIds[location] = id;
             return id;
         }
 
         private int GetOrAllocateTypeId(Type assetType)
         {
-            for (int i = 1; i < _nextTypeId; i++)
+            if (_resourceTypeIds.TryGetValue(assetType, out int existingId))
             {
-                if (_resourceTypesById != null && i < _resourceTypesById.Length &&
-                    _resourceTypesById[i] == assetType)
-                {
-                    _resourceTypeRefCounts[i]++;
-                    return i;
-                }
+                _resourceTypeRefCounts[existingId]++;
+                return existingId;
             }
 
             int id = AllocateResourceId(ref _nextTypeId, ResourceKeyTypeMax, _freeTypeIds);
             EnsureResourceTypeSlot(id);
             _resourceTypesById[id] = assetType;
             _resourceTypeRefCounts[id] = 1;
+            _resourceTypeIds[assetType] = id;
             return id;
         }
 
@@ -1856,6 +1851,7 @@ namespace Moirai.Atropos.Resource
                 if (_resourcePackageRefCounts[packageId] == 0)
                 {
                     _freePackageIds.Push(packageId);
+                    _resourcePackageIds.Remove(_resourcePackagesById[packageId]);
                 }
             }
 
@@ -1865,6 +1861,7 @@ namespace Moirai.Atropos.Resource
                 if (_resourceLocationRefCounts[locationId] == 0)
                 {
                     _freeLocationIds.Push(locationId);
+                    _resourceLocationIds.Remove(_resourceLocationsById[locationId]);
                 }
             }
 
@@ -1874,6 +1871,7 @@ namespace Moirai.Atropos.Resource
                 if (_resourceTypeRefCounts[typeId] == 0)
                 {
                     _freeTypeIds.Push(typeId);
+                    _resourceTypeIds.Remove(_resourceTypesById[typeId]);
                 }
             }
         }
@@ -2103,7 +2101,7 @@ namespace Moirai.Atropos.Resource
                 owner = root.AddComponent<ResourceOwner>();
             }
 
-            _bindingService?.RegisterOwner(owner);
+            _bindingService.RegisterOwner(owner);
             return owner;
         }
 
