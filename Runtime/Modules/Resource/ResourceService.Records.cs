@@ -15,26 +15,32 @@ namespace Moirai.Atropos.Resource
     {
         #region 常量 [CONSTANTS]
 
-        private const int RecordPageBits = 8;
-        private const int RecordPageSize = 1 << RecordPageBits;
-        private const int RecordPageMask = RecordPageSize - 1;
-        private const int IdleBucketCount = 256;
-        private const int KeepAliveBucketCount = 256;
-        private const float ProgressCallbackThreshold = 0.01f;
+        private const int RECORD_PAGE_BITS = 8;
+        private const int RECORD_PAGE_SIZE = 1 << RECORD_PAGE_BITS;
+        private const int RECORD_PAGE_MASK = RECORD_PAGE_SIZE - 1;
+        private const int IDLE_BUCKET_COUNT = 256;
+        private const int KEEP_ALIVE_BUCKET_COUNT = 256;
+        private const float PROGRESS_CALLBACK_THRESHOLD = 0.01f;
 
         #region packed key 位域常量 [PACKED KEY BIT FIELDS]
 
-        private const int ResourceKeyPackageShift = 48;
-        private const int ResourceKeyLocationShift = 20;
-        private const int ResourceKeyTypeShift = 4;
-        private const int ResourceKeyAssetKindShift = 2;
-        private const int ResourceKeyHandleShift = 0;
+        private const int RESOURCE_KEY_HANDLE_BITS = 4;
+        private const int RESOURCE_KEY_ASSET_KIND_BITS = 4;
+        private const int RESOURCE_KEY_TYPE_BITS = 12;
+        private const int RESOURCE_KEY_LOCATION_BITS = 32;
+        private const int RESOURCE_KEY_PACKAGE_BITS = 12;
 
-        private const int ResourceKeyPackageMax = 0xFFFF;
-        private const int ResourceKeyLocationMax = 0xFFFFFFF;
-        private const int ResourceKeyTypeMax = 0xFFFF;
-        private const int ResourceKeyAssetKindMax = 0x3;
-        private const int ResourceKeyHandleMax = 0x3;
+        private const int RESOURCE_KEY_HANDLE_SHIFT = 0;
+        private const int RESOURCE_KEY_ASSET_KIND_SHIFT = RESOURCE_KEY_HANDLE_SHIFT + RESOURCE_KEY_HANDLE_BITS;
+        private const int RESOURCE_KEY_TYPE_SHIFT = RESOURCE_KEY_ASSET_KIND_SHIFT + RESOURCE_KEY_ASSET_KIND_BITS;
+        private const int RESOURCE_KEY_LOCATION_SHIFT = RESOURCE_KEY_TYPE_SHIFT + RESOURCE_KEY_TYPE_BITS;
+        private const int RESOURCE_KEY_PACKAGE_SHIFT = RESOURCE_KEY_LOCATION_SHIFT + RESOURCE_KEY_LOCATION_BITS;
+
+        private const int RESOURCE_KEY_PACKAGE_MAX = (1 << RESOURCE_KEY_PACKAGE_BITS) - 1;
+        private const int RESOURCE_KEY_LOCATION_MAX = int.MaxValue;
+        private const int RESOURCE_KEY_TYPE_MAX = (1 << RESOURCE_KEY_TYPE_BITS) - 1;
+        private const int RESOURCE_KEY_ASSET_KIND_MAX = (1 << RESOURCE_KEY_ASSET_KIND_BITS) - 1;
+        private const int RESOURCE_KEY_HANDLE_MAX = (1 << RESOURCE_KEY_HANDLE_BITS) - 1;
 
         #endregion
 
@@ -1160,9 +1166,9 @@ namespace Moirai.Atropos.Resource
             int processed = 0;
 
             // 处理 idle 过期
-            for (int i = 0; i < IdleBucketCount && processed < maxProcessCount; i++)
+            for (int i = 0; i < IDLE_BUCKET_COUNT && processed < maxProcessCount; i++)
             {
-                int bucketIndex = (currentTick - i) & (IdleBucketCount - 1);
+                int bucketIndex = (currentTick - i) & (IDLE_BUCKET_COUNT - 1);
                 int current = _idleBuckets[bucketIndex];
                 while (current >= 0 && processed < maxProcessCount)
                 {
@@ -1185,9 +1191,9 @@ namespace Moirai.Atropos.Resource
             // 处理 keep-alive 过期
             if (_keepAliveBuckets != null)
             {
-                for (int i = 0; i < KeepAliveBucketCount && processed < maxProcessCount; i++)
+                for (int i = 0; i < KEEP_ALIVE_BUCKET_COUNT && processed < maxProcessCount; i++)
                 {
-                    int bucketIndex = (currentTick - i) & (KeepAliveBucketCount - 1);
+                    int bucketIndex = (currentTick - i) & (KEEP_ALIVE_BUCKET_COUNT - 1);
                     int current = _keepAliveBuckets[bucketIndex];
                     while (current >= 0 && processed < maxProcessCount)
                     {
@@ -1386,14 +1392,14 @@ namespace Moirai.Atropos.Resource
             slot.IdleExpireTick = expireTick;
             if (_idleBuckets == null)
             {
-                _idleBuckets = new int[IdleBucketCount];
-                for (int i = 0; i < IdleBucketCount; i++)
+                _idleBuckets = new int[IDLE_BUCKET_COUNT];
+                for (int i = 0; i < IDLE_BUCKET_COUNT; i++)
                 {
                     _idleBuckets[i] = -1;
                 }
             }
 
-            int bucket = expireTick & (IdleBucketCount - 1);
+            int bucket = expireTick & (IDLE_BUCKET_COUNT - 1);
             slot.ExpireQueuePrev = -1;
             slot.ExpireQueueNext = _idleBuckets[bucket];
             if (slot.ExpireQueueNext >= 0)
@@ -1410,15 +1416,15 @@ namespace Moirai.Atropos.Resource
         {
             if (_keepAliveBuckets == null)
             {
-                _keepAliveBuckets = new int[KeepAliveBucketCount];
-                for (int i = 0; i < KeepAliveBucketCount; i++)
+                _keepAliveBuckets = new int[KEEP_ALIVE_BUCKET_COUNT];
+                for (int i = 0; i < KEEP_ALIVE_BUCKET_COUNT; i++)
                 {
                     _keepAliveBuckets[i] = -1;
                 }
             }
 
             RemoveFromKeepAliveBucket(assetId, ref slot);
-            int bucket = slot.KeepAliveExpireTick & (KeepAliveBucketCount - 1);
+            int bucket = slot.KeepAliveExpireTick & (KEEP_ALIVE_BUCKET_COUNT - 1);
             slot.ExpireQueuePrev = -1;
             slot.ExpireQueueNext = _keepAliveBuckets[bucket];
             if (slot.ExpireQueueNext >= 0)
@@ -1450,7 +1456,7 @@ namespace Moirai.Atropos.Resource
                 return;
             }
 
-            int bucket = slot.KeepAliveExpireTick & (KeepAliveBucketCount - 1);
+            int bucket = slot.KeepAliveExpireTick & (KEEP_ALIVE_BUCKET_COUNT - 1);
             int prev = slot.ExpireQueuePrev;
             int next = slot.ExpireQueueNext;
             if (prev >= 0)
@@ -1481,7 +1487,7 @@ namespace Moirai.Atropos.Resource
                 return;
             }
 
-            int bucket = slot.IdleExpireTick & (IdleBucketCount - 1);
+            int bucket = slot.IdleExpireTick & (IDLE_BUCKET_COUNT - 1);
             int prev = slot.ExpireQueuePrev;
             int next = slot.ExpireQueueNext;
             if (prev >= 0)
@@ -1646,33 +1652,35 @@ namespace Moirai.Atropos.Resource
             EResourceAssetKind assetKind, EResourceHandleKind handleKind)
         {
             if (packageId <= 0 || locationId <= 0 || typeId <= 0 ||
-                packageId > ResourceKeyPackageMax || locationId > ResourceKeyLocationMax ||
-                typeId > ResourceKeyTypeMax ||
-                (int)assetKind > ResourceKeyAssetKindMax || (int)handleKind > ResourceKeyHandleMax)
+                packageId > RESOURCE_KEY_PACKAGE_MAX ||
+                locationId > RESOURCE_KEY_LOCATION_MAX ||
+                typeId > RESOURCE_KEY_TYPE_MAX ||
+                (uint)assetKind > RESOURCE_KEY_ASSET_KIND_MAX ||
+                (uint)handleKind > RESOURCE_KEY_HANDLE_MAX)
             {
                 throw new GameException("Resource key id range exceeded.");
             }
 
-            return ((ulong)(uint)packageId << ResourceKeyPackageShift) |
-                   ((ulong)(uint)locationId << ResourceKeyLocationShift) |
-                   ((ulong)(uint)typeId << ResourceKeyTypeShift) |
-                   ((ulong)(byte)assetKind << ResourceKeyAssetKindShift) |
-                   ((ulong)(byte)handleKind << ResourceKeyHandleShift);
+            return ((ulong)(uint)packageId << RESOURCE_KEY_PACKAGE_SHIFT) |
+                   ((ulong)(uint)locationId << RESOURCE_KEY_LOCATION_SHIFT) |
+                   ((ulong)(uint)typeId << RESOURCE_KEY_TYPE_SHIFT) |
+                   ((ulong)(byte)assetKind << RESOURCE_KEY_ASSET_KIND_SHIFT) |
+                   ((ulong)(byte)handleKind << RESOURCE_KEY_HANDLE_SHIFT);
         }
 
         private static int UnpackPackageId(ulong key)
         {
-            return (int)((key >> ResourceKeyPackageShift) & ResourceKeyPackageMax);
+            return (int)((key >> RESOURCE_KEY_PACKAGE_SHIFT) & RESOURCE_KEY_PACKAGE_MAX);
         }
 
         private static int UnpackLocationId(ulong key)
         {
-            return (int)((key >> ResourceKeyLocationShift) & ResourceKeyLocationMax);
+            return (int)((key >> RESOURCE_KEY_LOCATION_SHIFT) & RESOURCE_KEY_LOCATION_MAX);
         }
 
         private static int UnpackTypeId(ulong key)
         {
-            return (int)((key >> ResourceKeyTypeShift) & ResourceKeyTypeMax);
+            return (int)((key >> RESOURCE_KEY_TYPE_SHIFT) & RESOURCE_KEY_TYPE_MAX);
         }
 
         private ulong GetAssetRecordKey(string packageName, string location, Type assetType,
@@ -1710,7 +1718,7 @@ namespace Moirai.Atropos.Resource
                 return existingId;
             }
 
-            int id = AllocateResourceId(ref _nextPackageId, ResourceKeyPackageMax, _freePackageIds);
+            int id = AllocateResourceId(ref _nextPackageId, RESOURCE_KEY_PACKAGE_MAX, _freePackageIds);
             EnsureResourceNameSlot(ref _resourcePackagesById, ref _resourcePackageRefCounts, id);
             _resourcePackagesById[id] = packageName;
             _resourcePackageRefCounts[id] = 1;
@@ -1726,7 +1734,7 @@ namespace Moirai.Atropos.Resource
                 return existingId;
             }
 
-            int id = AllocateResourceId(ref _nextLocationId, ResourceKeyLocationMax, _freeLocationIds);
+            int id = AllocateResourceId(ref _nextLocationId, RESOURCE_KEY_LOCATION_MAX, _freeLocationIds);
             EnsureResourceNameSlot(ref _resourceLocationsById, ref _resourceLocationRefCounts, id);
             _resourceLocationsById[id] = location;
             _resourceLocationRefCounts[id] = 1;
@@ -1742,7 +1750,7 @@ namespace Moirai.Atropos.Resource
                 return existingId;
             }
 
-            int id = AllocateResourceId(ref _nextTypeId, ResourceKeyTypeMax, _freeTypeIds);
+            int id = AllocateResourceId(ref _nextTypeId, RESOURCE_KEY_TYPE_MAX, _freeTypeIds);
             EnsureResourceTypeSlot(id);
             _resourceTypesById[id] = assetType;
             _resourceTypeRefCounts[id] = 1;
@@ -2078,7 +2086,7 @@ namespace Moirai.Atropos.Resource
 
                     await UniTask.Yield();
                     float progress = assetHandle.Progress;
-                    if (lastReportedProgress < 0f || progress - lastReportedProgress >= ProgressCallbackThreshold)
+                    if (lastReportedProgress < 0f || progress - lastReportedProgress >= PROGRESS_CALLBACK_THRESHOLD)
                     {
                         lastReportedProgress = progress;
                         loadAssetUpdateCallback.Invoke(location, progress, userData);
@@ -2273,22 +2281,22 @@ namespace Moirai.Atropos.Resource
 
         private ref AssetSlot GetAssetSlotRef(int index)
         {
-            return ref _assetSlotPages[index >> RecordPageBits][index & RecordPageMask];
+            return ref _assetSlotPages[index >> RECORD_PAGE_BITS][index & RECORD_PAGE_MASK];
         }
 
         private ref LeaseSlot GetLeaseSlotRef(int index)
         {
-            return ref _leaseSlotPages[index >> RecordPageBits][index & RecordPageMask];
+            return ref _leaseSlotPages[index >> RECORD_PAGE_BITS][index & RECORD_PAGE_MASK];
         }
 
         private ref LoadingOperationSlot GetLoadingOperationSlotRef(int index)
         {
-            return ref _loadingOperationSlotPages[index >> RecordPageBits][index & RecordPageMask];
+            return ref _loadingOperationSlotPages[index >> RECORD_PAGE_BITS][index & RECORD_PAGE_MASK];
         }
 
         private void EnsureAssetSlotPage(int index)
         {
-            int pageIndex = index >> RecordPageBits;
+            int pageIndex = index >> RECORD_PAGE_BITS;
             if (_assetSlotPages == null)
             {
                 _assetSlotPages = new AssetSlot[Math.Max(4, pageIndex + 1)][];
@@ -2300,13 +2308,13 @@ namespace Moirai.Atropos.Resource
 
             if (_assetSlotPages[pageIndex] == null)
             {
-                _assetSlotPages[pageIndex] = new AssetSlot[RecordPageSize];
+                _assetSlotPages[pageIndex] = new AssetSlot[RECORD_PAGE_SIZE];
             }
         }
 
         private void EnsureLeaseSlotPage(int index)
         {
-            int pageIndex = index >> RecordPageBits;
+            int pageIndex = index >> RECORD_PAGE_BITS;
             if (_leaseSlotPages == null)
             {
                 _leaseSlotPages = new LeaseSlot[Math.Max(4, pageIndex + 1)][];
@@ -2318,13 +2326,13 @@ namespace Moirai.Atropos.Resource
 
             if (_leaseSlotPages[pageIndex] == null)
             {
-                _leaseSlotPages[pageIndex] = new LeaseSlot[RecordPageSize];
+                _leaseSlotPages[pageIndex] = new LeaseSlot[RECORD_PAGE_SIZE];
             }
         }
 
         private void EnsureLoadingOperationSlotPage(int index)
         {
-            int pageIndex = index >> RecordPageBits;
+            int pageIndex = index >> RECORD_PAGE_BITS;
             if (_loadingOperationSlotPages == null)
             {
                 _loadingOperationSlotPages = new LoadingOperationSlot[Math.Max(4, pageIndex + 1)][];
@@ -2337,7 +2345,7 @@ namespace Moirai.Atropos.Resource
 
             if (_loadingOperationSlotPages[pageIndex] == null)
             {
-                _loadingOperationSlotPages[pageIndex] = new LoadingOperationSlot[RecordPageSize];
+                _loadingOperationSlotPages[pageIndex] = new LoadingOperationSlot[RECORD_PAGE_SIZE];
             }
         }
 

@@ -241,7 +241,7 @@ namespace Moirai.Atropos.Resource
         {
 #if UNITY_EDITOR
             // 编辑器模式使用。
-            EPlayMode playMode = (EPlayMode)UnityEditor.EditorPrefs.GetInt(ResourceServiceDriver.EDITOR_PLAY_MODE_KEY);
+            EPlayMode playMode = (EPlayMode)UnityEditor.EditorPrefs.GetInt(ResourceServiceDriver.EDITOR_PLAY_MODE_KEY, (int)EPlayMode.EditorSimulateMode);
             LogUtility.Warning("Editor Service Used :{0}", playMode);
 #else
             // 运行时使用。
