@@ -157,7 +157,7 @@ namespace Moirai.Atropos.Editor.Inspector
                     EditorGUILayout.LabelField("资源加密模式", EditorStyles.boldLabel);
                     if (EditorApplication.isPlaying && IsPrefabInHierarchy(t.gameObject))
                     {
-                        EditorGUILayout.EnumPopup("当前加密", t.EncryptionType);
+                        EditorGUILayout.EnumPopup("当前加密", t.EncryptorType);
                     }
                     else
                     {
@@ -593,7 +593,7 @@ namespace Moirai.Atropos.Editor.Inspector
         {
             List<string> packageNames = new List<string>();
 
-            foreach (var package in AssetBundleCollectorSettingData.Setting.Packages)
+            foreach (var package in BundleCollectorSettingData.Setting.Packages)
             {
                 packageNames.Add(package.PackageName);
             }
@@ -603,7 +603,7 @@ namespace Moirai.Atropos.Editor.Inspector
         private void OnEnable()
         {
             m_playMode = serializedObject.FindProperty("m_PlayMode");
-            m_encryptionType = serializedObject.FindProperty("m_EncryptionType");
+            m_encryptionType = serializedObject.FindProperty("m_EncryptorType");
             m_updatableWhilePlaying = serializedObject.FindProperty("m_UpdatableWhilePlaying");
             m_milliseconds = serializedObject.FindProperty("m_Milliseconds");
             m_autoUnloadBundleWhenUnused = serializedObject.FindProperty("m_AutoUnloadBundleWhenUnused");

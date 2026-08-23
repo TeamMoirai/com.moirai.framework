@@ -1,4 +1,4 @@
-using Moirai.Atropos.ObjectPool;
+using Moirai.Atropos.GameObjectPool;
 using Moirai.Atropos.Resource;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -14,17 +14,12 @@ namespace Moirai.Atropos.Debugger
                 GUILayout.Label("<b>Operations</b>");
                 GUILayout.BeginVertical("box");
                 {
-                    IObjectPoolService objectPoolService = GameServices.Provider?.GetService<IObjectPoolService>();
-                    if (objectPoolService != null)
+                    IGameObjectPoolService gameObjectPoolService = GameServices.Provider?.GetService<IGameObjectPoolService>();
+                    if (gameObjectPoolService != null)
                     {
-                        if (GUILayout.Button("Object Pool Release", GUILayout.Height(30f)))
+                        if (GUILayout.Button("GameObject Pool Flush All", GUILayout.Height(30f)))
                         {
-                            objectPoolService.Release();
-                        }
-
-                        if (GUILayout.Button("Object Pool Release All Unused", GUILayout.Height(30f)))
-                        {
-                            objectPoolService.ReleaseAllUnused();
+                            gameObjectPoolService.FlushAll();
                         }
                     }
 

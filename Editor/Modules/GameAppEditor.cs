@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using Moirai.Atropos.Localization;
-using Moirai.Atropos.ObjectPool;
+using Moirai.Atropos.GameObjectPool;
 using UnityEditor;
 using UnityEngine;
 
@@ -15,7 +15,7 @@ namespace Moirai.Atropos.Editor
         private static readonly float[] s_GameSpeed = new float[] { 0f, 0.01f, 0.1f, 0.25f, 0.5f, 1f, 1.5f, 2f, 4f, 8f };
         private static readonly string[] s_GameSpeedForDisplay = new string[] { "0x", "0.01x", "0.1x", "0.25x", "0.5x", "1x", "1.5x", "2x", "4x", "8x" };
 
-        private enum StateTab { Settings, ObjectPool }
+        private enum StateTab { Settings, GameObjectPool }
         private StateTab _currentTab = StateTab.Settings;
 
         public override void OnInspectorGUI()
@@ -68,7 +68,7 @@ namespace Moirai.Atropos.Editor
                             case StateTab.Settings:
                                 DrawSettingState();
                                 break;
-                            case StateTab.ObjectPool:
+                            case StateTab.GameObjectPool:
                                 DrawObjectPoolState();
                                 break;
                         }
@@ -107,23 +107,36 @@ namespace Moirai.Atropos.Editor
         private readonly HashSet<string> _mOpenedItems = new HashSet<string>();
         private void DrawObjectPoolState()
         {
-            var objectPoolService = GameApp.ObjectPool;
-            EditorGUILayout.LabelField("Object Pool Count", objectPoolService.Count.ToString());
-
-            ObjectPoolBase[] objectPools = objectPoolService.GetAllObjectPools(true);
-            foreach (ObjectPoolBase objectPool in objectPools)
+            var gameObjectPoolService = GameApp.GameObjectPool;
+            if (!(gameObjectPoolService is GameObjectPoolService service))
             {
-                bool lastState = _mOpenedItems.Contains(objectPool.FullName);
-                bool currentState = EditorGUILayout.Foldout(lastState, objectPool.Name);
+                EditorGUILayout.LabelField("Service does not support debug interface.");
+                return;
+            }
+
+            var summary = service.GetDebugSummary();
+            EditorGUILayout.LabelField("Pool Count", summary.PoolCount.ToString());
+            EditorGUILayout.LabelField("Loaded Prefab Count", summary.LoadedPrefabCount.ToString());
+            EditorGUILayout.LabelField("Total Instance Count", summary.TotalInstanceCount.ToString());
+            EditorGUILayout.LabelField("Active Instance Count", summary.ActiveInstanceCount.ToString());
+            EditorGUILayout.LabelField("Inactive Instance Count", summary.InactiveInstanceCount.ToString());
+
+            GameObjectPoolSnapshot[] snapshots = new GameObjectPoolSnapshot[64];
+            int count = service.GetDebugSnapshots(snapshots);
+            for (int i = 0; i < count; i++)
+            {
+                GameObjectPoolSnapshot snapshot = snapshots[i];
+                bool lastState = _mOpenedItems.Contains(snapshot.location);
+                bool currentState = EditorGUILayout.Foldout(lastState, snapshot.location);
                 if (currentState != lastState)
                 {
                     if (currentState)
                     {
-                        _mOpenedItems.Add(objectPool.FullName);
+                        _mOpenedItems.Add(snapshot.location);
                     }
                     else
                     {
-                        _mOpenedItems.Remove(objectPool.FullName);
+                        _mOpenedItems.Remove(snapshot.location);
                     }
                 }
 
@@ -131,85 +144,25 @@ namespace Moirai.Atropos.Editor
                 {
                     EditorGUILayout.BeginVertical("box");
                     {
-                        EditorGUILayout.LabelField("Name", objectPool.Name);
-                        EditorGUILayout.LabelField("Type", objectPool.ObjectType.FullName);
-                        EditorGUILayout.LabelField("Auto Release Interval", objectPool.AutoReleaseInterval.ToString());
-                        EditorGUILayout.LabelField("Capacity", objectPool.Capacity.ToString());
-                        EditorGUILayout.LabelField("Used Count", objectPool.Count.ToString());
-                        EditorGUILayout.LabelField("Can Release Count", objectPool.CanReleaseCount.ToString());
-                        EditorGUILayout.LabelField("Expire Time", objectPool.ExpireTime.ToString());
-                        EditorGUILayout.LabelField("Priority", objectPool.Priority.ToString());
-                        ObjectInfo[] objectInfos = objectPool.GetAllObjectInfos();
-                        if (objectInfos.Length > 0)
-                        {
-                            EditorGUILayout.LabelField("Name",
-                                objectPool.AllowMultiSpawn ? "Locked\tCount\tFlag\tPriority\tLast Use Time" : "Locked\tIn Use\tFlag\tPriority\tLast Use Time");
-                            foreach (ObjectInfo objectInfo in objectInfos)
-                            {
-                                EditorGUILayout.LabelField(string.IsNullOrEmpty(objectInfo.Name) ? "<None>" : objectInfo.Name,
-                                    objectPool.AllowMultiSpawn
-                                        ? StringUtility.Format("{0}\t{1}\t{2}\t{3}\t{4:yyyy-MM-dd HH:mm:ss}", objectInfo.Locked, objectInfo.SpawnCount,
-                                            objectInfo.CustomCanReleaseFlag,
-                                            objectInfo.Priority, objectInfo.LastUseTime.ToLocalTime())
-                                        : StringUtility.Format("{0}\t{1}\t{2}\t{3}\t{4:yyyy-MM-dd HH:mm:ss}", objectInfo.Locked, objectInfo.IsInUse,
-                                            objectInfo.CustomCanReleaseFlag,
-                                            objectInfo.Priority, objectInfo.LastUseTime.ToLocalTime()));
-                            }
-
-                            if (GUILayout.Button("Release"))
-                            {
-                                objectPool.Release();
-                            }
-
-                            if (GUILayout.Button("Release All Unused"))
-                            {
-                                objectPool.ReleaseAllUnused();
-                            }
-
-                            if (GUILayout.Button("Export CSV Data"))
-                            {
-                                string exportFileName = EditorUtility.SaveFilePanel("Export CSV Data", string.Empty,
-                                    StringUtility.Format("Object Pool Data - {0}.csv", objectPool.Name),
-                                    string.Empty);
-                                if (!string.IsNullOrEmpty(exportFileName))
-                                {
-                                    try
-                                    {
-                                        int index = 0;
-                                        string[] data = new string[objectInfos.Length + 1];
-                                        data[index++] = StringUtility.Format("Name,Locked,{0},Custom Can Release Flag,Priority,Last Use Time",
-                                            objectPool.AllowMultiSpawn ? "Count" : "In Use");
-                                        foreach (ObjectInfo objectInfo in objectInfos)
-                                        {
-                                            data[index++] = objectPool.AllowMultiSpawn
-                                                ? StringUtility.Format("{0},{1},{2},{3},{4},{5:yyyy-MM-dd HH:mm:ss}", objectInfo.Name, objectInfo.Locked,
-                                                    objectInfo.SpawnCount,
-                                                    objectInfo.CustomCanReleaseFlag, objectInfo.Priority, objectInfo.LastUseTime.ToLocalTime())
-                                                : StringUtility.Format("{0},{1},{2},{3},{4},{5:yyyy-MM-dd HH:mm:ss}", objectInfo.Name, objectInfo.Locked,
-                                                    objectInfo.IsInUse,
-                                                    objectInfo.CustomCanReleaseFlag, objectInfo.Priority, objectInfo.LastUseTime.ToLocalTime());
-                                        }
-
-                                        File.WriteAllLines(exportFileName, data, Encoding.UTF8);
-                                        Debug.Log(StringUtility.Format("Export object pool CSV data to '{0}' success.", exportFileName));
-                                    }
-                                    catch (Exception exception)
-                                    {
-                                        Debug.LogError(StringUtility.Format("Export object pool CSV data to '{0}' failure, exception is '{1}'.", exportFileName,
-                                            exception));
-                                    }
-                                }
-                            }
-                        }
-                        else
-                        {
-                            GUILayout.Label("Object Pool is Empty ...");
-                        }
+                        EditorGUILayout.LabelField("Entry Name", snapshot.entryName);
+                        EditorGUILayout.LabelField("Group", snapshot.group);
+                        EditorGUILayout.LabelField("Policy", snapshot.policy.ToString());
+                        EditorGUILayout.LabelField("Min Idle", snapshot.minIdle.ToString());
+                        EditorGUILayout.LabelField("Soft Capacity", snapshot.softCapacity.ToString());
+                        EditorGUILayout.LabelField("Hard Capacity", snapshot.hardCapacity.ToString());
+                        EditorGUILayout.LabelField("Total Count", snapshot.totalCount.ToString());
+                        EditorGUILayout.LabelField("Active Count", snapshot.activeCount.ToString());
+                        EditorGUILayout.LabelField("Inactive Count", snapshot.inactiveCount.ToString());
+                        EditorGUILayout.LabelField("Prefab Loaded", snapshot.prefabLoaded.ToString());
+                        EditorGUILayout.LabelField("Spawn/Despawn", StringUtility.Format("{0}/{1}", snapshot.spawnCount, snapshot.despawnCount));
+                        EditorGUILayout.LabelField("Hit/Miss", StringUtility.Format("{0}/{1}", snapshot.hitCount, snapshot.missCount));
+                        EditorGUILayout.LabelField("Expand/Destroy", StringUtility.Format("{0}/{1}", snapshot.expandCount, snapshot.destroyCount));
+                        EditorGUILayout.LabelField("Peak Active", snapshot.peakActive.ToString());
                     }
                     EditorGUILayout.EndVertical();
-
-                    EditorGUILayout.Separator();
                 }
+
+                MemoryPool.Release(snapshot);
             }
         }
 

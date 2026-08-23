@@ -18,6 +18,8 @@ namespace Moirai.Atropos.Resource
 
         private bool _forceUnloadUnusedAssets = false;
 
+        private bool _forceSystemUnloadUnusedAssets = false;
+
         private bool _preorderUnloadUnusedAssets = false;
 
         private bool _performGCCollect = false;
@@ -26,11 +28,15 @@ namespace Moirai.Atropos.Resource
 
         private float _lastUnloadUnusedAssetsOperationElapseSeconds = 0f;
 
+        private float _lastGCCollectElapseSeconds = float.MaxValue;
+
         [SerializeField] private float m_MinUnloadUnusedAssetsInterval = 60f;
 
         [SerializeField] private float m_MaxUnloadUnusedAssetsInterval = 300f;
 
         [SerializeField] private bool m_UseSystemUnloadUnusedAssets = true;
+
+        [SerializeField] private float m_MinGCCollectInterval = 30f;
 
         /// <summary>
         /// 当前最新的包裹版本。
@@ -85,12 +91,12 @@ namespace Moirai.Atropos.Resource
             }
         }
         
-        [SerializeField] private EncryptionType m_EncryptionType = EncryptionType.None;
+        [SerializeField] private EEncryptorType m_EncryptorType = EEncryptorType.None;
         
         /// <summary>
         /// 资源服务的加密类型。
         /// </summary>
-        public EncryptionType EncryptionType => m_EncryptionType;
+        public EEncryptorType EncryptorType => m_EncryptorType;
 
         /// <summary>
         /// 是否支持边玩边下载。
@@ -188,6 +194,94 @@ namespace Moirai.Atropos.Resource
 
         [SerializeField] private int m_AssetPriority = 0;
 
+        [SerializeField] private int m_AssetRecordCapacity = 64;
+
+        [SerializeField] private int m_AssetLeaseCapacity = 128;
+
+        [SerializeField] private int m_BindingOwnerCapacity = 64;
+
+        [SerializeField] private int m_BindingSlotCapacity = 128;
+
+        [SerializeField] private int m_RegisteredTargetCapacity = 128;
+
+        [SerializeField] private float m_IdleAssetExpireTime = 60f;
+
+        [SerializeField] private int m_ExpireProcessCountPerFrame = 16;
+
+        [SerializeField] private int m_ExpireProcessCountWhenUnloading = 256;
+
+        /// <summary>
+        /// 获取或设置资源记录预热容量。
+        /// </summary>
+        public int AssetRecordCapacity
+        {
+            get => _resourceService.AssetRecordCapacity;
+            set => _resourceService.AssetRecordCapacity = m_AssetRecordCapacity = value;
+        }
+
+        /// <summary>
+        /// 获取或设置资源租约预热容量。
+        /// </summary>
+        public int AssetLeaseCapacity
+        {
+            get => _resourceService.AssetLeaseCapacity;
+            set => _resourceService.AssetLeaseCapacity = m_AssetLeaseCapacity = value;
+        }
+
+        /// <summary>
+        /// 获取或设置绑定所有者预热容量。
+        /// </summary>
+        public int BindingOwnerCapacity
+        {
+            get => _resourceService.BindingOwnerCapacity;
+            set => _resourceService.BindingOwnerCapacity = m_BindingOwnerCapacity = value;
+        }
+
+        /// <summary>
+        /// 获取或设置绑定槽位预热容量。
+        /// </summary>
+        public int BindingSlotCapacity
+        {
+            get => _resourceService.BindingSlotCapacity;
+            set => _resourceService.BindingSlotCapacity = m_BindingSlotCapacity = value;
+        }
+
+        /// <summary>
+        /// 获取或设置已注册目标预热容量。
+        /// </summary>
+        public int RegisteredTargetCapacity
+        {
+            get => _resourceService.RegisteredTargetCapacity;
+            set => _resourceService.RegisteredTargetCapacity = m_RegisteredTargetCapacity = value;
+        }
+
+        /// <summary>
+        /// 获取或设置无引用资源句柄空闲过期秒数。
+        /// </summary>
+        public float IdleAssetExpireTime
+        {
+            get => _resourceService.IdleAssetExpireTime;
+            set => _resourceService.IdleAssetExpireTime = m_IdleAssetExpireTime = value;
+        }
+
+        /// <summary>
+        /// 获取或设置每帧过期处理数量。
+        /// </summary>
+        public int ExpireProcessCountPerFrame
+        {
+            get => m_ExpireProcessCountPerFrame;
+            set => m_ExpireProcessCountPerFrame = Mathf.Max(0, value);
+        }
+
+        /// <summary>
+        /// 获取或设置卸载时过期处理数量。
+        /// </summary>
+        public int ExpireProcessCountWhenUnloading
+        {
+            get => m_ExpireProcessCountWhenUnloading;
+            set => m_ExpireProcessCountWhenUnloading = Mathf.Max(m_ExpireProcessCountPerFrame, value);
+        }
+
         /// <summary>
         /// 获取或设置资源对象池自动释放可释放对象的间隔秒数。
         /// </summary>
@@ -235,6 +329,8 @@ namespace Moirai.Atropos.Resource
                 return;
             }
 
+            Application.lowMemory += OnLowMemory;
+
             if (PlayMode == EPlayMode.EditorSimulateMode)
             {
                 LogUtility.Info("During this run, ResourceService will use editor resource files, which you should validate first.");
@@ -245,7 +341,7 @@ namespace Moirai.Atropos.Resource
 
             _resourceService.DefaultPackageName = PackageName;
             _resourceService.PlayMode = PlayMode;
-            _resourceService.EncryptionType = m_EncryptionType;
+            _resourceService.EncryptorType = m_EncryptorType;
             _resourceService.Milliseconds = m_Milliseconds;
             _resourceService.AutoUnloadBundleWhenUnused = m_AutoUnloadBundleWhenUnused;
             _resourceService.HostServerURL = UpdateSettings.GetResDownLoadPath();
@@ -259,6 +355,12 @@ namespace Moirai.Atropos.Resource
             _resourceService.AssetCapacity = m_AssetCapacity;
             _resourceService.AssetExpireTime = m_AssetExpireTime;
             _resourceService.AssetPriority = m_AssetPriority;
+            _resourceService.AssetRecordCapacity = m_AssetRecordCapacity;
+            _resourceService.AssetLeaseCapacity = m_AssetLeaseCapacity;
+            _resourceService.BindingOwnerCapacity = m_BindingOwnerCapacity;
+            _resourceService.BindingSlotCapacity = m_BindingSlotCapacity;
+            _resourceService.RegisteredTargetCapacity = m_RegisteredTargetCapacity;
+            _resourceService.IdleAssetExpireTime = m_IdleAssetExpireTime;
             _resourceService.SetForceUnloadUnusedAssetsAction(ForceUnloadUnusedAssets);
             LogUtility.Info($"ResourceService Run Mode：{PlayMode}");
         }
@@ -275,25 +377,43 @@ namespace Moirai.Atropos.Resource
             if (performGCCollect)
             {
                 _performGCCollect = true;
+                _forceSystemUnloadUnusedAssets = true;
             }
         }
 
 
         private void Update()
         {
-            _lastUnloadUnusedAssetsOperationElapseSeconds += UnityEngine.Time.unscaledDeltaTime;
-            if (_asyncOperation == null && (_forceUnloadUnusedAssets || _lastUnloadUnusedAssetsOperationElapseSeconds >= m_MaxUnloadUnusedAssetsInterval ||
-                                            _preorderUnloadUnusedAssets && _lastUnloadUnusedAssetsOperationElapseSeconds >= m_MinUnloadUnusedAssetsInterval))
+            bool shouldUnloadUnusedAssets = _asyncOperation == null &&
+                (_forceUnloadUnusedAssets ||
+                 _lastUnloadUnusedAssetsOperationElapseSeconds >= m_MaxUnloadUnusedAssetsInterval ||
+                 _preorderUnloadUnusedAssets && _lastUnloadUnusedAssetsOperationElapseSeconds >= m_MinUnloadUnusedAssetsInterval);
+
+            if (_resourceService is ResourceService resourceService)
             {
-                LogUtility.Info("Unload unused assets...");
+                int expireProcessCount = shouldUnloadUnusedAssets
+                    ? Mathf.Max(m_ExpireProcessCountPerFrame, m_ExpireProcessCountWhenUnloading)
+                    : Mathf.Max(0, m_ExpireProcessCountPerFrame);
+                resourceService.ProcessKeepAlive(UnityEngine.Time.unscaledTime, expireProcessCount);
+            }
+
+            _lastUnloadUnusedAssetsOperationElapseSeconds += UnityEngine.Time.unscaledDeltaTime;
+            _lastGCCollectElapseSeconds += UnityEngine.Time.unscaledDeltaTime;
+            if (shouldUnloadUnusedAssets)
+            {
+                bool force = _forceUnloadUnusedAssets;
+                bool useSystemUnload = _forceSystemUnloadUnusedAssets && m_UseSystemUnloadUnusedAssets;
                 _forceUnloadUnusedAssets = false;
+                _forceSystemUnloadUnusedAssets = false;
                 _preorderUnloadUnusedAssets = false;
                 _lastUnloadUnusedAssetsOperationElapseSeconds = 0f;
-                _asyncOperation = Resources.UnloadUnusedAssets();
-                if (m_UseSystemUnloadUnusedAssets)
-                {
-                    _resourceService.UnloadUnusedAssets();
-                }
+                _resourceService.UnloadUnusedAssets(force);
+                _asyncOperation = useSystemUnload ? Resources.UnloadUnusedAssets() : null;
+            }
+
+            if (_asyncOperation == null && _performGCCollect)
+            {
+                TryCollectGarbage();
             }
 
             if (_asyncOperation is { isDone: true })
@@ -301,11 +421,33 @@ namespace Moirai.Atropos.Resource
                 _asyncOperation = null;
                 if (_performGCCollect)
                 {
-                    LogUtility.Info("GC.Collect...");
-                    _performGCCollect = false;
-                    GC.Collect();
+                    TryCollectGarbage();
                 }
             }
+        }
+
+        private void TryCollectGarbage()
+        {
+            if (_lastGCCollectElapseSeconds < m_MinGCCollectInterval)
+            {
+                return;
+            }
+
+            LogUtility.Info("GC.Collect...");
+            _performGCCollect = false;
+            _lastGCCollectElapseSeconds = 0f;
+            GC.Collect();
+        }
+
+        private void OnLowMemory()
+        {
+            LogUtility.Warning("Low memory reported...");
+            _resourceService?.OnLowMemory();
+        }
+
+        private void OnDestroy()
+        {
+            Application.lowMemory -= OnLowMemory;
         }
 
         #endregion
