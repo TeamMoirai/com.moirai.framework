@@ -18,15 +18,8 @@ namespace Moirai.Atropos.Editor.Inspector
             "WebGLPlayMode (WebGL运行模式)"
         };
 
-        private static readonly string[] m_encryptionNames = new string[]
-        {
-            "无加密",
-            "文件偏移加密",
-            "文件流加密",
-        };
-
         private SerializedProperty m_playMode;
-        private SerializedProperty m_encryptionType;
+        private SerializedProperty m_encryptorHandler;
         private SerializedProperty m_updatableWhilePlaying;
         private SerializedProperty m_milliseconds;
         private SerializedProperty m_autoUnloadBundleWhenUnused;
@@ -42,7 +35,6 @@ namespace Moirai.Atropos.Editor.Inspector
         private SerializedProperty m_downloadingMaxNum;
         private int m_playModeIndex;
         private int m_packageNameIndex;
-        private int m_encryptionNameIndex;
         private string[] m_packageNames;
 
         // UI状态
@@ -157,16 +149,11 @@ namespace Moirai.Atropos.Editor.Inspector
                     EditorGUILayout.LabelField("资源加密模式", EditorStyles.boldLabel);
                     if (EditorApplication.isPlaying && IsPrefabInHierarchy(t.gameObject))
                     {
-                        EditorGUILayout.EnumPopup("当前加密", t.EncryptorType);
+                        EditorGUILayout.LabelField("当前加密", t.EncryptorHandler?.GetType().Name ?? "None");
                     }
                     else
                     {
-                        int selectedIndex = EditorGUILayout.Popup("加密方式", m_encryptionNameIndex, m_encryptionNames);
-                        if (selectedIndex != m_encryptionNameIndex)
-                        {
-                            m_encryptionNameIndex = selectedIndex;
-                            m_encryptionType.enumValueIndex = selectedIndex;
-                        }
+                        EditorGUILayout.PropertyField(m_encryptorHandler, new GUIContent("加密方式"));
                     }
 
                     EditorGUILayout.Space(5);
@@ -603,7 +590,7 @@ namespace Moirai.Atropos.Editor.Inspector
         private void OnEnable()
         {
             m_playMode = serializedObject.FindProperty("m_PlayMode");
-            m_encryptionType = serializedObject.FindProperty("m_EncryptorType");
+            m_encryptorHandler = serializedObject.FindProperty("m_EncryptorHandler");
             m_updatableWhilePlaying = serializedObject.FindProperty("m_UpdatableWhilePlaying");
             m_milliseconds = serializedObject.FindProperty("m_Milliseconds");
             m_autoUnloadBundleWhenUnused = serializedObject.FindProperty("m_AutoUnloadBundleWhenUnused");
@@ -630,7 +617,6 @@ namespace Moirai.Atropos.Editor.Inspector
         private void RefreshPlayModeNames()
         {
             m_playModeIndex = m_playMode.enumValueIndex > 0 ? m_playMode.enumValueIndex : 0;
-            m_encryptionNameIndex = m_encryptionType.enumValueIndex > 0 ? m_encryptionType.enumValueIndex : 0;
         }
     }
 }

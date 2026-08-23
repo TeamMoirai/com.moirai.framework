@@ -29,9 +29,9 @@ namespace Moirai.Atropos.Resource
         EPlayMode PlayMode { get; set; }
 
         /// <summary>
-        /// 资源加密方式。
+        /// 资源加解密处理器。
         /// </summary>
-        EEncryptorType EncryptorType { get; set; }
+        ResourceEncryptorHandler EncryptorHandler { get; set; }
 
         /// <summary>
         /// 是否边玩边下载。

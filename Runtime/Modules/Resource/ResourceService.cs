@@ -125,7 +125,7 @@ namespace Moirai.Atropos.Resource
         public EPlayMode PlayMode { get; set; } = EPlayMode.OfflinePlayMode;
 
         /// <inheritdoc />
-        public EEncryptorType EncryptorType { get; set; } = EEncryptorType.None;
+        public ResourceEncryptorHandler EncryptorHandler { get; set; }
 
         /// <inheritdoc />
         public long Milliseconds { get; set; } = 30;
@@ -286,7 +286,7 @@ namespace Moirai.Atropos.Resource
                 // 单机运行模式
                 case EPlayMode.OfflinePlayMode:
                 {
-                    IBundleDecryptor decryptor = CreateBundleDecryptor();
+                    IBundleDecryptor decryptor = EncryptorHandler?.CreateDecryptor();
                     var createParameters = new OfflinePlayModeOptions();
                     createParameters.BuiltinFileSystemParameters = FileSystemParameters.CreateDefaultBuiltinFileSystemParameters();
                     ConfigureBundleDecryptor(createParameters.BuiltinFileSystemParameters, decryptor);
@@ -298,10 +298,8 @@ namespace Moirai.Atropos.Resource
                 // 联机运行模式
                 case EPlayMode.HostPlayMode:
                 {
-                    IBundleDecryptor decryptor = CreateBundleDecryptor();
-                    string defaultHostServer = HostServerURL;
-                    string fallbackHostServer = FallbackHostServerURL;
-                    IRemoteService remoteService = new RemoteService(defaultHostServer, fallbackHostServer);
+                    IBundleDecryptor decryptor = EncryptorHandler?.CreateDecryptor();
+                    IRemoteService remoteService = new RemoteService(HostServerURL, FallbackHostServerURL);
                     var createParameters = new HostPlayModeOptions();
                     createParameters.BuiltinFileSystemParameters = FileSystemParameters.CreateDefaultBuiltinFileSystemParameters();
                     ConfigureBundleDecryptor(createParameters.BuiltinFileSystemParameters, decryptor);
@@ -316,11 +314,11 @@ namespace Moirai.Atropos.Resource
                 case EPlayMode.WebPlayMode:
                 {
                     var createParameters = new WebPlayModeOptions();
-                    IBundleDecryptor decryptor = CreateBundleDecryptor();
-                    string defaultHostServer = HostServerURL;
-                    string fallbackHostServer = FallbackHostServerURL;
-                    IRemoteService remoteService = new RemoteService(defaultHostServer, fallbackHostServer);
+                    IBundleDecryptor decryptor = EncryptorHandler?.CreateDecryptor();
+                    IRemoteService remoteService = new RemoteService(HostServerURL, FallbackHostServerURL);
 #if UNITY_WEBGL && WEIXINMINIGAME && !UNITY_EDITOR
+                    // 小游戏缓存根目录
+                    // 注意：此处代码根据微信插件配置来填写！
                     LogUtility.Info("=======================WEIXINMINIGAME=======================");
                     string packageRoot = StringUtility.Concat(WeChatWASM.WX.env.USER_DATA_PATH, "/__GAME_FILE_CACHE");
                     createParameters.WebNetworkFileSystemParameters = WechatFileSystemCreater.CreateFileSystemParameters(packageRoot, remoteService, decryptor);
@@ -367,19 +365,6 @@ namespace Moirai.Atropos.Resource
             }
 
             return initOperation;
-        }
-
-        /// <summary>
-        /// 创建资源包解密器。
-        /// </summary>
-        private IBundleDecryptor CreateBundleDecryptor()
-        {
-            return EncryptorType switch
-            {
-                EEncryptorType.FileOffSet => new FileOffsetDecryptor(),
-                EEncryptorType.FileStream => new FileStreamDecryptor(),
-                _ => null
-            };
         }
 
         private static void ConfigureBundleDecryptor(FileSystemParameters fileSystemParameters, IBundleDecryptor bundleDecryptor)
