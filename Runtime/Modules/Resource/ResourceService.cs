@@ -289,7 +289,7 @@ namespace Moirai.Atropos.Resource
                     IBundleDecryptor decryptor = CreateBundleDecryptor();
                     var createParameters = new OfflinePlayModeOptions();
                     createParameters.BuiltinFileSystemParameters = FileSystemParameters.CreateDefaultBuiltinFileSystemParameters();
-                    createParameters.BuiltinFileSystemParameters.AddParameter(EFileSystemParameter.AssetBundleDecryptor, decryptor);
+                    ConfigureBundleDecryptor(createParameters.BuiltinFileSystemParameters, decryptor);
                     createParameters.AutoUnloadBundleWhenUnused = AutoUnloadBundleWhenUnused;
                     initOperation = package.InitializePackageAsync(createParameters);
                     break;
@@ -304,9 +304,9 @@ namespace Moirai.Atropos.Resource
                     IRemoteService remoteService = new RemoteService(defaultHostServer, fallbackHostServer);
                     var createParameters = new HostPlayModeOptions();
                     createParameters.BuiltinFileSystemParameters = FileSystemParameters.CreateDefaultBuiltinFileSystemParameters();
-                    createParameters.BuiltinFileSystemParameters.AddParameter(EFileSystemParameter.AssetBundleDecryptor, decryptor);
+                    ConfigureBundleDecryptor(createParameters.BuiltinFileSystemParameters, decryptor);
                     createParameters.CacheFileSystemParameters = FileSystemParameters.CreateDefaultSandboxFileSystemParameters(remoteService);
-                    createParameters.CacheFileSystemParameters.AddParameter(EFileSystemParameter.AssetBundleDecryptor, decryptor);
+                    ConfigureBundleDecryptor(createParameters.CacheFileSystemParameters, decryptor);
                     createParameters.AutoUnloadBundleWhenUnused = AutoUnloadBundleWhenUnused;
                     initOperation = package.InitializePackageAsync(createParameters);
                     break;
@@ -322,7 +322,6 @@ namespace Moirai.Atropos.Resource
                     IRemoteService remoteService = new RemoteService(defaultHostServer, fallbackHostServer);
 #if UNITY_WEBGL && WEIXINMINIGAME && !UNITY_EDITOR
                     LogUtility.Info("=======================WEIXINMINIGAME=======================");
-                    // 注意：如果有子目录，请修改此处！
                     string packageRoot = StringUtility.Concat(WeChatWASM.WX.env.USER_DATA_PATH, "/__GAME_FILE_CACHE");
                     createParameters.WebNetworkFileSystemParameters = WechatFileSystemCreater.CreateFileSystemParameters(packageRoot, remoteService, decryptor);
 #else
@@ -330,10 +329,10 @@ namespace Moirai.Atropos.Resource
                     if (LoadResWayWebGL == ELoadResWayWebGL.Remote)
                     {
                         createParameters.WebNetworkFileSystemParameters = FileSystemParameters.CreateDefaultWebNetworkFileSystemParameters(remoteService);
-                        createParameters.WebNetworkFileSystemParameters.AddParameter(EFileSystemParameter.AssetBundleDecryptor, decryptor);
+                        ConfigureBundleDecryptor(createParameters.WebNetworkFileSystemParameters, decryptor);
                     }
                     createParameters.WebServerFileSystemParameters = FileSystemParameters.CreateDefaultWebServerFileSystemParameters();
-                    createParameters.WebServerFileSystemParameters.AddParameter(EFileSystemParameter.AssetBundleDecryptor, decryptor);
+                    ConfigureBundleDecryptor(createParameters.WebServerFileSystemParameters, decryptor);
 #endif
                     createParameters.AutoUnloadBundleWhenUnused = AutoUnloadBundleWhenUnused;
                     initOperation = package.InitializePackageAsync(createParameters);
@@ -381,6 +380,17 @@ namespace Moirai.Atropos.Resource
                 EEncryptorType.FileStream => new FileStreamDecryptor(),
                 _ => null
             };
+        }
+
+        private static void ConfigureBundleDecryptor(FileSystemParameters fileSystemParameters, IBundleDecryptor bundleDecryptor)
+        {
+            if (bundleDecryptor == null) return;
+
+            fileSystemParameters.AddParameter(EFileSystemParameter.AssetBundleDecryptor, bundleDecryptor);
+            if (bundleDecryptor is IBundleMemoryDecryptor fallbackDecryptor)
+            {
+                fileSystemParameters.AddParameter(EFileSystemParameter.AssetBundleFallbackDecryptor, fallbackDecryptor);
+            }
         }
 
         #endregion
@@ -466,6 +476,10 @@ namespace Moirai.Atropos.Resource
 
         private Action<bool> _forceUnloadUnusedAssetsAction;
 
+        private readonly List<UnloadUnusedAssetsOperation> _unloadUnusedAssetsOperations = new List<UnloadUnusedAssetsOperation>();
+        private readonly List<UnloadAllAssetsOperation> _unloadAllAssetsOperations = new List<UnloadAllAssetsOperation>();
+        private readonly List<LoadPackageManifestOperation> _manifestUpdateOperations = new List<LoadPackageManifestOperation>();
+
         /// <inheritdoc />
         public void SetForceUnloadUnusedAssetsAction(Action<bool> action)
         {
@@ -475,15 +489,7 @@ namespace Moirai.Atropos.Resource
         /// <inheritdoc />
         public void UnloadUnusedAssets()
         {
-            ReleaseAllUnusedAssetRecords();
-            _assetInfoMap.Clear();
-            foreach (var package in PackageMap.Values)
-            {
-                if (package is { InitializeStatus: EOperationStatus.Succeeded })
-                {
-                    package.UnloadUnusedAssetsAsync();
-                }
-            }
+            UnloadUnusedAssets(false);
         }
 
         /// <inheritdoc />
@@ -491,12 +497,22 @@ namespace Moirai.Atropos.Resource
         {
             if (force)
             {
-                ProcessKeepAlive(Time.unscaledTime, int.MaxValue);
                 ReleaseAllUnusedAssetRecords();
             }
-            else
+
+            RemoveCompletedUnloadUnusedOperations();
+            if (_unloadUnusedAssetsOperations.Count > 0)
             {
-                UnloadUnusedAssets();
+                return;
+            }
+
+            _assetInfoMap.Clear();
+            foreach (var package in PackageMap.Values)
+            {
+                if (package is { InitializeStatus: EOperationStatus.Succeeded })
+                {
+                    _unloadUnusedAssetsOperations.Add(package.UnloadUnusedAssetsAsync());
+                }
             }
         }
 
@@ -506,11 +522,34 @@ namespace Moirai.Atropos.Resource
 #if UNITY_WEBGL
             LogUtility.Warning("WebGL not support invoke {0}", nameof(ForceUnloadAllAssets));
 #else
+            RemoveCompletedUnloadAllOperations();
+            if (_unloadAllAssetsOperations.Count > 0)
+            {
+                return;
+            }
+
+            unchecked
+            {
+                _assetUnloadGeneration++;
+            }
+
+            ShutdownLoadingOperations();
+            if (_bindingService == null)
+            {
+                _bindingService = new ResourceBindingService(this);
+            }
+            else
+            {
+                _bindingService.Shutdown();
+            }
+
+            ForceReleaseAllAssetRecords();
+            WarmupBindingRecords();
             foreach (var package in PackageMap.Values)
             {
                 if (package is { InitializeStatus: EOperationStatus.Succeeded })
                 {
-                    package.UnloadAllAssetsAsync();
+                    _unloadAllAssetsOperations.Add(package.UnloadAllAssetsAsync());
                 }
             }
 #endif
@@ -520,6 +559,75 @@ namespace Moirai.Atropos.Resource
         public void ForceUnloadUnusedAssets(bool performGCCollect)
         {
             _forceUnloadUnusedAssetsAction?.Invoke(performGCCollect);
+        }
+
+        private void RemoveCompletedUnloadUnusedOperations()
+        {
+            for (int i = _unloadUnusedAssetsOperations.Count - 1; i >= 0; i--)
+            {
+                UnloadUnusedAssetsOperation operation = _unloadUnusedAssetsOperations[i];
+                if (operation == null || operation.IsDone)
+                {
+                    _unloadUnusedAssetsOperations.RemoveAt(i);
+                }
+            }
+        }
+
+        private void RemoveCompletedUnloadAllOperations()
+        {
+            for (int i = _unloadAllAssetsOperations.Count - 1; i >= 0; i--)
+            {
+                UnloadAllAssetsOperation operation = _unloadAllAssetsOperations[i];
+                if (operation == null || operation.IsDone)
+                {
+                    _unloadAllAssetsOperations.RemoveAt(i);
+                }
+            }
+        }
+
+        private void TrackManifestUpdateOperation(LoadPackageManifestOperation operation)
+        {
+            if (operation == null || operation.IsDone)
+            {
+                return;
+            }
+
+            _manifestUpdateOperations.Add(operation);
+            WatchManifestUpdateOperation(operation).Forget();
+        }
+
+        private bool IsManifestUpdateInProgress()
+        {
+            bool inProgress = false;
+            for (int i = _manifestUpdateOperations.Count - 1; i >= 0; i--)
+            {
+                LoadPackageManifestOperation operation = _manifestUpdateOperations[i];
+                if (operation == null || operation.IsDone)
+                {
+                    _manifestUpdateOperations.RemoveAt(i);
+                    continue;
+                }
+
+                inProgress = true;
+            }
+
+            return inProgress;
+        }
+
+        private async UniTaskVoid WatchManifestUpdateOperation(LoadPackageManifestOperation operation)
+        {
+            if (operation == null)
+            {
+                return;
+            }
+
+            while (!_isDestroying && !operation.IsDone)
+            {
+                await UniTask.Yield();
+            }
+
+            _manifestUpdateOperations.Remove(operation);
+            _assetInfoMap.Clear();
         }
 
         #endregion
