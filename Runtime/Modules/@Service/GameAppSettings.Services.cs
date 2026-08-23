@@ -30,51 +30,51 @@ namespace Moirai.Atropos
         private const string SERVICE_GROUP = "游戏服务 [Game Services]";
 
         [BoxGroup(SERVICE_GROUP), DisableInPlayMode]
-        [HelperDropdown(typeof(IUpdateDriverService), "Update Driver")]
+        [ProviderDropdown(typeof(IUpdateDriverService), "Update Driver")]
         [SerializeField] private string m_UpdateDriverTypeName;
 
         [BoxGroup(SERVICE_GROUP), DisableInPlayMode]
-        [HelperDropdown(typeof(IResourceService), "Resource Service")]
+        [ProviderDropdown(typeof(IResourceService), "Resource Service")]
         [SerializeField] private string m_ResourceServiceTypeName;
 
         [BoxGroup(SERVICE_GROUP), DisableInPlayMode]
-        [HelperDropdown(typeof(IDebuggerService), "Debugger Service")]
+        [ProviderDropdown(typeof(IDebuggerService), "Debugger Service")]
         [SerializeField] private string m_DebuggerServiceTypeName;
 
         [BoxGroup(SERVICE_GROUP), DisableInPlayMode]
-        [HelperDropdown(typeof(IAudioService), "Audio Service")]
+        [ProviderDropdown(typeof(IAudioService), "Audio Service")]
         [SerializeField] private string m_AudioServiceTypeName;
 
         [BoxGroup(SERVICE_GROUP), DisableInPlayMode]
-        [HelperDropdown(typeof(IGameObjectPoolService), "GameObjectPool Service")]
+        [ProviderDropdown(typeof(IGameObjectPoolService), "GameObjectPool Service")]
         [SerializeField] private string m_GameObjectPoolServiceTypeName;
 
         [BoxGroup(SERVICE_GROUP), DisableInPlayMode]
-        [HelperDropdown(typeof(IProcedureService), "Procedure Service")]
+        [ProviderDropdown(typeof(IProcedureService), "Procedure Service")]
         [SerializeField] private string m_ProcedureServiceTypeName;
 
         [BoxGroup(SERVICE_GROUP), DisableInPlayMode]
-        [HelperDropdown(typeof(ILocalizationService), "Localization Service")]
+        [ProviderDropdown(typeof(ILocalizationService), "Localization Service")]
         [SerializeField] private string m_LocalizationServiceTypeName;
 
         [BoxGroup(SERVICE_GROUP), DisableInPlayMode]
-        [HelperDropdown(typeof(ISceneService), "Scene Service")]
+        [ProviderDropdown(typeof(ISceneService), "Scene Service")]
         [SerializeField] private string m_SceneServiceTypeName;
 
         [BoxGroup(SERVICE_GROUP), DisableInPlayMode]
-        [HelperDropdown(typeof(ITimerService), "Timer Service")]
+        [ProviderDropdown(typeof(ITimerService), "Timer Service")]
         [SerializeField] private string m_TimerServiceTypeName;
 
         [BoxGroup(SERVICE_GROUP), DisableInPlayMode]
-        [HelperDropdown(typeof(IInputService), "Input Service")]
+        [ProviderDropdown(typeof(IInputService), "Input Service")]
         [SerializeField] private string m_InputServiceTypeName;
 
         [BoxGroup(SERVICE_GROUP), DisableInPlayMode]
-        [HelperDropdown(typeof(ISaveService), "Save Service")]
+        [ProviderDropdown(typeof(ISaveService), "Save Service")]
         [SerializeField] private string m_SaveServiceTypeName;
 
         [BoxGroup(SERVICE_GROUP), DisableInPlayMode]
-        [HelperDropdown(typeof(IUIService), "UI Service")]
+        [ProviderDropdown(typeof(IUIService), "UI Service")]
         [SerializeField] private string m_UIServiceTypeName;
 
 

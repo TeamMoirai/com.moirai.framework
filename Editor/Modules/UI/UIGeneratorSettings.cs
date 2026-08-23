@@ -40,22 +40,22 @@ namespace Moirai.Atropos.UI.Editor
         [Header("UI脚本生成辅助类")]
 
         [TabGroup(GENERAL_GROUP)]
-        [HelperDropdown(typeof(IUIIdentifierFormatter), "Identifier Formatter")]
+        [ProviderDropdown(typeof(IUIIdentifierFormatter), "Identifier Formatter")]
         [SerializeField] private string m_UIIdentifierFormatterTypeName;
         public static string UIIdentifierFormatterTypeName => Instance.m_UIIdentifierFormatterTypeName;
 
         [TabGroup(GENERAL_GROUP)]
-        [HelperDropdown(typeof(IUIResourcePathResolver), "ResourcePath Resolver")]
+        [ProviderDropdown(typeof(IUIResourcePathResolver), "ResourcePath Resolver")]
         [SerializeField] private string m_UIResourcePathResolverTypeName;
         public static string UIResourcePathResolverTypeName => Instance.m_UIResourcePathResolverTypeName;
 
         [TabGroup(GENERAL_GROUP)]
-        [HelperDropdown(typeof(IUIScriptCodeEmitter), "ScriptCode Emitter")]
+        [ProviderDropdown(typeof(IUIScriptCodeEmitter), "ScriptCode Emitter")]
         [SerializeField] private string m_UIScriptCodeEmitterTypeName;
         public static string UIScriptCodeEmitterTypeName => Instance.m_UIScriptCodeEmitterTypeName;
 
         [TabGroup(GENERAL_GROUP)]
-        [HelperDropdown(typeof(IUIScriptFileWriter), "ScriptFile Writer")]
+        [ProviderDropdown(typeof(IUIScriptFileWriter), "ScriptFile Writer")]
         [SerializeField] private string m_UIScriptFileWriterTypeName;
         public static string UIScriptFileWriterTypeName => Instance.m_UIScriptFileWriterTypeName;
 
