@@ -18,7 +18,7 @@ namespace Moirai.Atropos.Editor
         private static bool _initialized;
         private static bool _isInScanExistingSprites;
 
-        private static AtlasConfiguration Config => AtlasConfiguration.Instance;
+        private static AtlasConfiguration Config => AtlasConfiguration.instance;
 
         static EditorSpriteSaveInfo()
         {
@@ -671,7 +671,7 @@ namespace Moirai.Atropos.Editor
 
         private static bool CheckIsExcludeFolder(string assetPath)
         {
-            foreach (var rootPath in AtlasConfiguration.Instance.m_ExcludeFolder)
+            foreach (var rootPath in AtlasConfiguration.instance.m_ExcludeFolder)
             {
                 var tempPath = rootPath.Replace("\\", "/").TrimEnd('/');
 

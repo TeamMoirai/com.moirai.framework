@@ -66,7 +66,7 @@ namespace Moirai.Atropos.Editor
 
         private void OnGUI()
         {
-            var config = AtlasConfiguration.Instance;
+            var config = AtlasConfiguration.instance;
 
             using (var scrollScope = new EditorGUILayout.ScrollViewScope(_scrollPosition))
             {
@@ -83,7 +83,7 @@ namespace Moirai.Atropos.Editor
                 if (EditorGUI.EndChangeCheck())
                 {
                     SpritePostprocessor.ResetCache();
-                    AtlasConfiguration.Save(true);
+                    config.Save();
                     AssetDatabase.Refresh();
                 }
 

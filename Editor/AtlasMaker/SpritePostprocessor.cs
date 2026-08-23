@@ -15,6 +15,8 @@ namespace Moirai.Atropos.Editor
         private static Dictionary<string, HashSet<string>> s_FileNameCache;
         private static bool s_CacheInitialized = false;
 
+        private static AtlasConfiguration Config => AtlasConfiguration.instance;
+
         /// <summary>
         /// 初始化文件名缓存
         /// </summary>
@@ -23,11 +25,10 @@ namespace Moirai.Atropos.Editor
             if (s_CacheInitialized && s_FileNameCache != null) return;
 
             s_FileNameCache = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
-            var config = AtlasConfiguration.Instance;
 
-            var tempRootDirArr = new List<string>(config.m_SourceAtlasRootDir);
-            tempRootDirArr.AddRange(config.m_RootChildAtlasDir);
-            tempRootDirArr.AddRange(config.m_SingleAtlasDir);
+            var tempRootDirArr = new List<string>(Config.m_SourceAtlasRootDir);
+            tempRootDirArr.AddRange(Config.m_RootChildAtlasDir);
+            tempRootDirArr.AddRange(Config.m_SingleAtlasDir);
 
             foreach (var rootDir in tempRootDirArr)
             {
@@ -108,9 +109,8 @@ namespace Moirai.Atropos.Editor
             string[] movedFromAssetPaths)
         {
             s_ResourcesToDelete.Clear();
-            var config = AtlasConfiguration.Instance;
 
-            if (!config.m_AutoGenerate) return;
+            if (!Config.m_AutoGenerate) return;
 
             // 计算需要处理的资源总数（用于进度显示）
             int totalAssets = (importedAssets?.Length ?? 0) + (deletedAssets?.Length ?? 0) + (movedAssets?.Length ?? 0);
@@ -155,7 +155,7 @@ namespace Moirai.Atropos.Editor
                         {
                             AssetDatabase.DeleteAsset(res);
                         }
-                        Debug.LogError($"<color=red>针对 {config.m_SourceAtlasRootDir} 路径下资源</color>\n<color=red>移除了空格和同名资源，请检查重新合入相关资源</color>");
+                        Debug.LogError($"<color=red>针对 {Config.m_SourceAtlasRootDir} 路径下资源</color>\n<color=red>移除了空格和同名资源，请检查重新合入相关资源</color>");
                         AssetDatabase.Refresh();
                     }
                     else
@@ -224,23 +224,23 @@ namespace Moirai.Atropos.Editor
                 isChange = true;
             }
 
-            if (AtlasConfiguration.Instance.m_CheckMipmaps)
+            if (Config.m_CheckMipmaps)
             {
-                if (AtlasConfiguration.Instance.m_EnableMipmaps && !importer.mipmapEnabled)
+                if (Config.m_EnableMipmaps && !importer.mipmapEnabled)
                 {
                     importer.mipmapEnabled = true;
                     isChange = true;
                 }
-                else if (!AtlasConfiguration.Instance.m_EnableMipmaps && importer.mipmapEnabled)
+                else if (!Config.m_EnableMipmaps && importer.mipmapEnabled)
                 {
                     importer.mipmapEnabled = false;
                     isChange = true;
                 }
             }
 
-            if (importer.textureCompression != AtlasConfiguration.Instance.m_TextureCompression)
+            if (importer.textureCompression != Config.m_TextureCompression)
             {
-                importer.textureCompression = AtlasConfiguration.Instance.m_TextureCompression;
+                importer.textureCompression = Config.m_TextureCompression;
                 isChange = true;
             }
 
@@ -351,8 +351,6 @@ namespace Moirai.Atropos.Editor
 
         private static bool ShouldProcessAsset(string assetPath)
         {
-            var config = AtlasConfiguration.Instance;
-
             if (string.IsNullOrEmpty(assetPath)) return false;
             if (assetPath.StartsWith("Packages/")) return false;
 
@@ -361,7 +359,7 @@ namespace Moirai.Atropos.Editor
 
             if (!IsValidImageFile(assetPath)) return false;
 
-            foreach (var keyword in config.m_ExcludeKeywords)
+            foreach (var keyword in Config.m_ExcludeKeywords)
             {
                 if (assetPath.IndexOf(keyword, StringComparison.OrdinalIgnoreCase) >= 0)
                     return false;
@@ -372,8 +370,8 @@ namespace Moirai.Atropos.Editor
 
         private static bool CheckIsShowProcessPath(string assetPath)
         {
-            var tempRootDirArr = new List<string>(AtlasConfiguration.Instance.m_SourceAtlasRootDir);
-            tempRootDirArr.AddRange(AtlasConfiguration.Instance.m_RootChildAtlasDir);
+            var tempRootDirArr = new List<string>(Config.m_SourceAtlasRootDir);
+            tempRootDirArr.AddRange(Config.m_RootChildAtlasDir);
             foreach (var rootPath in tempRootDirArr)
             {
                 var tempPath = rootPath.Replace("\\", "/").TrimEnd('/');
@@ -388,7 +386,7 @@ namespace Moirai.Atropos.Editor
 
         private static bool CheckIsExcludeFolder(string assetPath)
         {
-            foreach (var rootPath in AtlasConfiguration.Instance.m_ExcludeFolder)
+            foreach (var rootPath in Config.m_ExcludeFolder)
             {
                 var tempPath = rootPath.Replace("\\", "/").TrimEnd('/');
                 if (assetPath.StartsWith(tempPath + "/"))
@@ -413,7 +411,7 @@ namespace Moirai.Atropos.Editor
 
         private static void LogProcessed(string operation, string path)
         {
-            if (AtlasConfiguration.Instance.m_EnableLogging)
+            if (Config.m_EnableLogging)
             {
                 Debug.Log($"{operation} {Path.GetFileName(path)}\nPath: {path}");
             }

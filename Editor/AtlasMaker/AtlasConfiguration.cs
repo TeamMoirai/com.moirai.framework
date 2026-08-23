@@ -5,7 +5,7 @@ using UnityEditor;
 namespace Moirai.Atropos.Editor
 {
     [FilePath("ProjectSettings/AtlasConfiguration.asset", FilePathAttribute.Location.ProjectFolder)]
-    public class AtlasConfiguration : EditorScriptableSingleton<AtlasConfiguration>
+    public class AtlasConfiguration : ScriptableSingleton<AtlasConfiguration>
     {
         [Header("目录设置")]
         [Tooltip("生成的图集输出目录")]
@@ -48,6 +48,11 @@ namespace Moirai.Atropos.Editor
 
         [Header("排除关键词")]
         [SerializeField] internal string[] m_ExcludeKeywords = { "_Delete", "_Temp" };
+
+        public void Save()
+        {
+            Save(true);
+        }
     }
 }
 #endif

@@ -13,12 +13,12 @@ namespace Moirai.Atropos.Editor
 {
     internal sealed class AtlasRefWindow : EditorWindow
     {
-        private const string DefaultUIPrefabFolderPath = "Assets/AssetRaw/UI";
-        private const float ObjectColumnWidth = 210f;
-        private const float CountColumnWidth = 90f;
-        private const float ActionButtonWidth = 110f;
+        private const string DEFAULT_UI_PREFAB_FOLDER_PATH = "Assets/AssetRaw/UI";
+        private const float OBJECT_COLUMN_WIDTH = 210f;
+        private const float COUNT_COLUMN_WIDTH = 90f;
+        private const float ACTION_BUTTON_WIDTH = 110f;
 
-        private static readonly string[] InspectToolbarLabels =
+        private static readonly string[] s_InspectToolbarLabels =
         {
             "Sprite 引用",
             "Prefab 引用",
@@ -26,15 +26,15 @@ namespace Moirai.Atropos.Editor
             "场景选中物体"
         };
 
-        private static readonly List<SpriteRefData> SpriteRefDataList = new List<SpriteRefData>();
-        private static readonly Dictionary<Sprite, SpriteRefData> SpriteRefDataBySprite = new Dictionary<Sprite, SpriteRefData>();
+        private static readonly List<SpriteRefData> s_SpriteRefDataList = new List<SpriteRefData>();
+        private static readonly Dictionary<Sprite, SpriteRefData> s_SpriteRefDataBySprite = new Dictionary<Sprite, SpriteRefData>();
 
-        private static readonly List<PrefabRefData> PrefabRefDataList = new List<PrefabRefData>();
-        private static readonly Dictionary<GameObject, PrefabRefData> PrefabRefDataByPrefab = new Dictionary<GameObject, PrefabRefData>();
+        private static readonly List<PrefabRefData> s_PrefabRefDataList = new List<PrefabRefData>();
+        private static readonly Dictionary<GameObject, PrefabRefData> s_PrefabRefDataByPrefab = new Dictionary<GameObject, PrefabRefData>();
 
-        private static readonly List<AtlasRefData> AtlasRefDataList = new List<AtlasRefData>();
-        private static readonly Dictionary<string, AtlasRefData> AtlasRefDataByKey = new Dictionary<string, AtlasRefData>();
-        private static readonly StringBuilder HierarchyPathBuilder = new StringBuilder();
+        private static readonly List<AtlasRefData> s_AtlasRefDataList = new List<AtlasRefData>();
+        private static readonly Dictionary<string, AtlasRefData> s_AtlasRefDataByKey = new Dictionary<string, AtlasRefData>();
+        private static readonly StringBuilder s_HierarchyPathBuilder = new StringBuilder();
 
         private readonly List<RefStackData> _stackData = new List<RefStackData>();
 
@@ -57,7 +57,7 @@ namespace Moirai.Atropos.Editor
         private GUIStyle _primaryButtonStyle;
         private GUIStyle _metricValueStyle;
         private GUIStyle _metricLabelStyle;
-        private static Texture2D _selectBackground;
+        private static Texture2D s_SelectBackground;
 
         private enum InspectType
         {
@@ -187,34 +187,33 @@ namespace Moirai.Atropos.Editor
             }
         }
 
-        [UnityEditor.FilePath("ProjectSettings/AtlasRefWindowSettings.asset", UnityEditor.FilePathAttribute.Location.ProjectFolder)]
-        private sealed class AtlasRefWindowSettings : UnityEditor.ScriptableSingleton<AtlasRefWindowSettings>
+        [FilePath("ProjectSettings/AtlasRefWindowSettings.asset", FilePathAttribute.Location.ProjectFolder)]
+        private sealed class AtlasRefWindowSettings : ScriptableSingleton<AtlasRefWindowSettings>
         {
-            [SerializeField]
-            private string _uiPrefabFolderPath = DefaultUIPrefabFolderPath;
+            [SerializeField] private string m_UIPrefabFolderPath = DEFAULT_UI_PREFAB_FOLDER_PATH;
 
-            public static AtlasRefWindowSettings Instance => instance;
-
-            public string UIPrefabFolderPath => NormalizeAssetFolderPath(_uiPrefabFolderPath, DefaultUIPrefabFolderPath);
+            public string UIPrefabFolderPath => NormalizeAssetFolderPath(m_UIPrefabFolderPath, DEFAULT_UI_PREFAB_FOLDER_PATH);
 
             public void SetUIPrefabFolderPath(string path)
             {
-                _uiPrefabFolderPath = NormalizeAssetFolderPath(path, DefaultUIPrefabFolderPath);
+                m_UIPrefabFolderPath = NormalizeAssetFolderPath(path, DEFAULT_UI_PREFAB_FOLDER_PATH);
                 Save(true);
             }
 
             public void ResetToDefault()
             {
-                _uiPrefabFolderPath = DefaultUIPrefabFolderPath;
+                m_UIPrefabFolderPath = DEFAULT_UI_PREFAB_FOLDER_PATH;
                 Save(true);
             }
         }
 
-        private static string AtlasExtension => AtlasConfiguration.Instance.m_EnableV2 ? ".spriteatlasv2" : ".spriteatlas";
+        private static AtlasConfiguration Config => AtlasConfiguration.instance;
 
-        private static string AtlasFolderPath => NormalizeAssetFolderPath(AtlasConfiguration.Instance.m_OutputAtlasDir, "Assets/AssetArt/Atlas");
+        private static string AtlasExtension => Config.m_EnableV2 ? ".spriteatlasv2" : ".spriteatlas";
 
-        private string UIPrefabFolderPath => AtlasRefWindowSettings.Instance.UIPrefabFolderPath;
+        private static string AtlasFolderPath => NormalizeAssetFolderPath(Config.m_OutputAtlasDir, "Assets/AssetArt/Atlas");
+
+        private string UIPrefabFolderPath => AtlasRefWindowSettings.instance.UIPrefabFolderPath;
 
         [MenuItem("Tools/图集工具/图集引用分析")]
         public static void OpenWindow()
@@ -305,10 +304,10 @@ namespace Moirai.Atropos.Editor
                 return;
             }
 
-            _selectBackground = CreateSolidTexture(58, 114, 176, 75);
+            s_SelectBackground = CreateSolidTexture(58, 114, 176, 75);
             _selectStyle = new GUIStyle
             {
-                normal = { background = _selectBackground },
+                normal = { background = s_SelectBackground },
                 padding = new RectOffset(0, 0, 1, 1)
             };
             _panelStyle = new GUIStyle("box")
@@ -361,7 +360,7 @@ namespace Moirai.Atropos.Editor
 
                 if (!_showSettings)
                 {
-                    int newInspectType = GUILayout.Toolbar((int)_activeInspectType, InspectToolbarLabels, EditorStyles.toolbarButton, GUILayout.Width(420f));
+                    int newInspectType = GUILayout.Toolbar((int)_activeInspectType, s_InspectToolbarLabels, EditorStyles.toolbarButton, GUILayout.Width(420f));
                     if (newInspectType != (int)_activeInspectType)
                     {
                         SwitchInspectType((InspectType)newInspectType);
@@ -413,7 +412,7 @@ namespace Moirai.Atropos.Editor
 
         private void ShowSettings()
         {
-            AtlasRefWindowSettings settings = AtlasRefWindowSettings.Instance;
+            AtlasRefWindowSettings settings = AtlasRefWindowSettings.instance;
             if (settings == null)
             {
                 EditorGUILayout.HelpBox("AtlasRefWindow 设置加载失败，请重新打开窗口后重试。", MessageType.Error);
@@ -432,7 +431,7 @@ namespace Moirai.Atropos.Editor
                 GUILayout.Label("扫描目录", EditorStyles.boldLabel);
                 EditorGUILayout.Space(3f);
 
-                string uiPrefabFolderPath = DrawFolderField("UI Prefab 目录", settings.UIPrefabFolderPath, DefaultUIPrefabFolderPath);
+                string uiPrefabFolderPath = DrawFolderField("UI Prefab 目录", settings.UIPrefabFolderPath, DEFAULT_UI_PREFAB_FOLDER_PATH);
                 if (uiPrefabFolderPath != settings.UIPrefabFolderPath)
                 {
                     settings.SetUIPrefabFolderPath(uiPrefabFolderPath);
@@ -605,12 +604,12 @@ namespace Moirai.Atropos.Editor
 
             try
             {
-                SpriteRefDataList.Clear();
-                SpriteRefDataBySprite.Clear();
-                PrefabRefDataList.Clear();
-                PrefabRefDataByPrefab.Clear();
-                AtlasRefDataList.Clear();
-                AtlasRefDataByKey.Clear();
+                s_SpriteRefDataList.Clear();
+                s_SpriteRefDataBySprite.Clear();
+                s_PrefabRefDataList.Clear();
+                s_PrefabRefDataByPrefab.Clear();
+                s_AtlasRefDataList.Clear();
+                s_AtlasRefDataByKey.Clear();
 
                 string[] prefabGuids = AssetDatabase.FindAssets("t:Prefab", new[] { UIPrefabFolderPath });
                 for (int index = 0; index < prefabGuids.Length; index++)
@@ -630,7 +629,7 @@ namespace Moirai.Atropos.Editor
 
                 AddUnreferencedSpritesFromAtlasFolders();
                 SortAnalysisData();
-                Debug.Log($"AtlasRefWindow 引用分析完成：Sprite {SpriteRefDataList.Count}，Prefab {PrefabRefDataList.Count}，Atlas {AtlasRefDataList.Count}");
+                Debug.Log($"AtlasRefWindow 引用分析完成：Sprite {s_SpriteRefDataList.Count}，Prefab {s_PrefabRefDataList.Count}，Atlas {s_AtlasRefDataList.Count}");
             }
             catch (Exception e)
             {
@@ -693,12 +692,12 @@ namespace Moirai.Atropos.Editor
                 SpriteRefInfo refInfo = new SpriteRefInfo(sprite, atlas, atlasKey, prefab, hierarchyPath);
 
                 bool isNewSprite = false;
-                if (!SpriteRefDataBySprite.TryGetValue(sprite, out SpriteRefData spriteRefData))
+                if (!s_SpriteRefDataBySprite.TryGetValue(sprite, out SpriteRefData spriteRefData))
                 {
                     isNewSprite = true;
                     spriteRefData = new SpriteRefData(sprite, atlas, atlasKey);
-                    SpriteRefDataBySprite.Add(sprite, spriteRefData);
-                    SpriteRefDataList.Add(spriteRefData);
+                    s_SpriteRefDataBySprite.Add(sprite, spriteRefData);
+                    s_SpriteRefDataList.Add(spriteRefData);
                 }
 
                 if (!spriteRefData.PrefabInfoList.TryGetValue(prefab, out SpriteRefPrefabInfo spritePrefabInfo))
@@ -709,11 +708,11 @@ namespace Moirai.Atropos.Editor
 
                 spritePrefabInfo.RefList.Add(refInfo);
 
-                if (!PrefabRefDataByPrefab.TryGetValue(prefab, out PrefabRefData prefabRefData))
+                if (!s_PrefabRefDataByPrefab.TryGetValue(prefab, out PrefabRefData prefabRefData))
                 {
                     prefabRefData = new PrefabRefData(prefab);
-                    PrefabRefDataByPrefab.Add(prefab, prefabRefData);
-                    PrefabRefDataList.Add(prefabRefData);
+                    s_PrefabRefDataByPrefab.Add(prefab, prefabRefData);
+                    s_PrefabRefDataList.Add(prefabRefData);
                 }
 
                 if (!prefabRefData.AtlasInfoList.TryGetValue(atlasKey, out PrefabRefAtlasInfo atlasRefInfo))
@@ -767,15 +766,15 @@ namespace Moirai.Atropos.Editor
                 UnityEngine.Object[] assets = AssetDatabase.LoadAllAssetsAtPath(assetPath);
                 foreach (UnityEngine.Object asset in assets)
                 {
-                    if (asset is not Sprite sprite || SpriteRefDataBySprite.ContainsKey(sprite))
+                    if (asset is not Sprite sprite || s_SpriteRefDataBySprite.ContainsKey(sprite))
                     {
                         continue;
                     }
 
                     SpriteAtlas atlas = ResolveSpriteAtlas(sprite, out string atlasKey, out string atlasPath);
                     SpriteRefData spriteRefData = new SpriteRefData(sprite, atlas, atlasKey);
-                    SpriteRefDataBySprite.Add(sprite, spriteRefData);
-                    SpriteRefDataList.Add(spriteRefData);
+                    s_SpriteRefDataBySprite.Add(sprite, spriteRefData);
+                    s_SpriteRefDataList.Add(spriteRefData);
 
                     AtlasRefData atlasRefData = GetOrCreateAtlasRefData(atlasKey, atlas, atlasPath);
                     string spriteFolderPath = NormalizePath(Path.GetDirectoryName(assetPath));
@@ -791,10 +790,10 @@ namespace Moirai.Atropos.Editor
 
         private static void SortAnalysisData()
         {
-            SpriteRefDataList.Sort((x, y) => y.PrefabInfoList.Count.CompareTo(x.PrefabInfoList.Count));
-            PrefabRefDataList.Sort((x, y) => y.AtlasInfoList.Count.CompareTo(x.AtlasInfoList.Count));
-            AtlasRefDataList.Sort((x, y) => y.PrefabInfoList.Count.CompareTo(x.PrefabInfoList.Count));
-            foreach (AtlasRefData atlasRefData in AtlasRefDataList)
+            s_SpriteRefDataList.Sort((x, y) => y.PrefabInfoList.Count.CompareTo(x.PrefabInfoList.Count));
+            s_PrefabRefDataList.Sort((x, y) => y.AtlasInfoList.Count.CompareTo(x.AtlasInfoList.Count));
+            s_AtlasRefDataList.Sort((x, y) => y.PrefabInfoList.Count.CompareTo(x.PrefabInfoList.Count));
+            foreach (AtlasRefData atlasRefData in s_AtlasRefDataList)
             {
                 atlasRefData.SpriteList.Sort((x, y) => GetSpriteArea(y.Sprite).CompareTo(GetSpriteArea(x.Sprite)));
             }
@@ -802,14 +801,14 @@ namespace Moirai.Atropos.Editor
 
         private static AtlasRefData GetOrCreateAtlasRefData(string atlasKey, SpriteAtlas atlas, string atlasPath)
         {
-            if (!AtlasRefDataByKey.TryGetValue(atlasKey, out AtlasRefData atlasRefData))
+            if (!s_AtlasRefDataByKey.TryGetValue(atlasKey, out AtlasRefData atlasRefData))
             {
                 string atlasName = !string.IsNullOrEmpty(atlasKey) && !atlasKey.StartsWith("Unpacked/", StringComparison.Ordinal)
                     ? atlasKey
                     : "未匹配图集";
                 atlasRefData = new AtlasRefData(atlasKey, atlasName, atlasPath, atlas);
-                AtlasRefDataByKey.Add(atlasKey, atlasRefData);
-                AtlasRefDataList.Add(atlasRefData);
+                s_AtlasRefDataByKey.Add(atlasKey, atlasRefData);
+                s_AtlasRefDataList.Add(atlasRefData);
             }
 
             return atlasRefData;
@@ -850,10 +849,9 @@ namespace Moirai.Atropos.Editor
 
         private static string[] GetConfiguredAtlasFolders()
         {
-            AtlasConfiguration config = AtlasConfiguration.Instance;
             List<string> folders = new List<string>();
-            AddValidFolders(folders, config.m_SourceAtlasRootDir);
-            AddValidFolders(folders, config.m_RootChildAtlasDir);
+            AddValidFolders(folders, Config.m_SourceAtlasRootDir);
+            AddValidFolders(folders, Config.m_RootChildAtlasDir);
             return folders.Distinct().ToArray();
         }
 
@@ -887,10 +885,9 @@ namespace Moirai.Atropos.Editor
                 return false;
             }
 
-            AtlasConfiguration config = AtlasConfiguration.Instance;
-            if (config.m_ExcludeFolder != null)
+            if (Config.m_ExcludeFolder != null)
             {
-                foreach (string excludeFolder in config.m_ExcludeFolder)
+                foreach (string excludeFolder in Config.m_ExcludeFolder)
                 {
                     string folder = NormalizeAssetFolderPath(excludeFolder, string.Empty);
                     if (!string.IsNullOrEmpty(folder) && assetPath.StartsWith(folder.TrimEnd('/') + "/", StringComparison.OrdinalIgnoreCase))
@@ -900,9 +897,9 @@ namespace Moirai.Atropos.Editor
                 }
             }
 
-            if (config.m_ExcludeKeywords != null)
+            if (Config.m_ExcludeKeywords != null)
             {
-                foreach (string keyword in config.m_ExcludeKeywords)
+                foreach (string keyword in Config.m_ExcludeKeywords)
                 {
                     if (!string.IsNullOrEmpty(keyword) && assetPath.IndexOf(keyword, StringComparison.OrdinalIgnoreCase) >= 0)
                     {
@@ -916,8 +913,8 @@ namespace Moirai.Atropos.Editor
 
         private void ShowSprite()
         {
-            DrawAnalysisPanel("Sprite 引用", "查看每个 Sprite 被哪些 UI Prefab 引用。", SpriteRefDataList.Count, AnalyzeReferences, SpriteRefDataList.Count > 0 ? "重新分析" : "开始分析");
-            if (SpriteRefDataList.Count == 0)
+            DrawAnalysisPanel("Sprite 引用", "查看每个 Sprite 被哪些 UI Prefab 引用。", s_SpriteRefDataList.Count, AnalyzeReferences, s_SpriteRefDataList.Count > 0 ? "重新分析" : "开始分析");
+            if (s_SpriteRefDataList.Count == 0)
             {
                 DrawEmptyState("暂无 Sprite 引用数据，请先点击“开始分析”。");
                 return;
@@ -926,7 +923,7 @@ namespace Moirai.Atropos.Editor
             _searchSpriteName = DrawSearchToolbar(_searchSpriteName, "按 Sprite 名称筛选");
             ShowSpriteTitle();
             _scrollPosition = EditorGUILayout.BeginScrollView(_scrollPosition);
-            foreach (SpriteRefData data in SpriteRefDataList)
+            foreach (SpriteRefData data in s_SpriteRefDataList)
             {
                 if (!ContainsIgnoreCase(data.Sprite.name, _searchSpriteName))
                 {
@@ -935,7 +932,7 @@ namespace Moirai.Atropos.Editor
 
                 BeginSelectableRow(data);
                 ShowSpriteItem(data);
-                if (GUILayout.Button("引用 Prefab", GUILayout.Width(ActionButtonWidth)))
+                if (GUILayout.Button("引用 Prefab", GUILayout.Width(ACTION_BUTTON_WIDTH)))
                 {
                     PushStackData(new RefStackData(ShowType.SpritePrefab, data, _scrollPosition));
                 }
@@ -950,19 +947,19 @@ namespace Moirai.Atropos.Editor
         {
             using (new EditorGUILayout.HorizontalScope(EditorStyles.toolbar))
             {
-                GUILayout.Label("Sprite", GUILayout.Width(ObjectColumnWidth));
-                GUILayout.Label("Atlas", GUILayout.Width(ObjectColumnWidth));
+                GUILayout.Label("Sprite", GUILayout.Width(OBJECT_COLUMN_WIDTH));
+                GUILayout.Label("Atlas", GUILayout.Width(OBJECT_COLUMN_WIDTH));
                 GUILayout.Label("尺寸", GUILayout.Width(96f));
-                GUILayout.Label("Prefab 数", GUILayout.Width(CountColumnWidth));
+                GUILayout.Label("Prefab 数", GUILayout.Width(COUNT_COLUMN_WIDTH));
             }
         }
 
         private static void ShowSpriteItem(SpriteRefData data)
         {
-            DrawObjectField(data.Sprite, typeof(Sprite), false, GUILayout.Width(ObjectColumnWidth));
-            DrawObjectField(data.Atlas, typeof(SpriteAtlas), false, GUILayout.Width(ObjectColumnWidth));
+            DrawObjectField(data.Sprite, typeof(Sprite), false, GUILayout.Width(OBJECT_COLUMN_WIDTH));
+            DrawObjectField(data.Atlas, typeof(SpriteAtlas), false, GUILayout.Width(OBJECT_COLUMN_WIDTH));
             GUILayout.Label(FormatSpriteSize(data.Sprite), GUILayout.Width(96f));
-            GUILayout.Label(data.PrefabInfoList.Count.ToString(), GUILayout.Width(CountColumnWidth));
+            GUILayout.Label(data.PrefabInfoList.Count.ToString(), GUILayout.Width(COUNT_COLUMN_WIDTH));
         }
 
         private void ShowSpritePrefab()
@@ -979,9 +976,9 @@ namespace Moirai.Atropos.Editor
             {
                 SpriteRefPrefabInfo data = iter.Value;
                 BeginSelectableRow(data);
-                DrawObjectField(data.Prefab, typeof(GameObject), false, GUILayout.Width(ObjectColumnWidth));
-                GUILayout.Label(data.RefList.Count.ToString(), GUILayout.Width(CountColumnWidth));
-                if (GUILayout.Button("查看原因", GUILayout.Width(ActionButtonWidth)))
+                DrawObjectField(data.Prefab, typeof(GameObject), false, GUILayout.Width(OBJECT_COLUMN_WIDTH));
+                GUILayout.Label(data.RefList.Count.ToString(), GUILayout.Width(COUNT_COLUMN_WIDTH));
+                if (GUILayout.Button("查看原因", GUILayout.Width(ACTION_BUTTON_WIDTH)))
                 {
                     PushStackData(new RefStackData(ShowType.SpritePrefabReason, data, _scrollPosition));
                 }
@@ -996,8 +993,8 @@ namespace Moirai.Atropos.Editor
         {
             using (new EditorGUILayout.HorizontalScope(EditorStyles.toolbar))
             {
-                GUILayout.Label("Prefab", GUILayout.Width(ObjectColumnWidth));
-                GUILayout.Label("引用数量", GUILayout.Width(CountColumnWidth));
+                GUILayout.Label("Prefab", GUILayout.Width(OBJECT_COLUMN_WIDTH));
+                GUILayout.Label("引用数量", GUILayout.Width(COUNT_COLUMN_WIDTH));
             }
         }
 
@@ -1021,8 +1018,8 @@ namespace Moirai.Atropos.Editor
 
         private void ShowPrefab()
         {
-            DrawAnalysisPanel("Prefab 引用", "查看每个 UI Prefab 使用的 SpriteAtlas。", PrefabRefDataList.Count, AnalyzeReferences, PrefabRefDataList.Count > 0 ? "重新分析" : "开始分析");
-            if (PrefabRefDataList.Count == 0)
+            DrawAnalysisPanel("Prefab 引用", "查看每个 UI Prefab 使用的 SpriteAtlas。", s_PrefabRefDataList.Count, AnalyzeReferences, s_PrefabRefDataList.Count > 0 ? "重新分析" : "开始分析");
+            if (s_PrefabRefDataList.Count == 0)
             {
                 DrawEmptyState("暂无 Prefab 引用数据，请先点击“开始分析”。");
                 return;
@@ -1031,7 +1028,7 @@ namespace Moirai.Atropos.Editor
             _searchPrefabName = DrawSearchToolbar(_searchPrefabName, "按 Prefab 名称筛选");
             ShowPrefabTitle();
             _scrollPosition = EditorGUILayout.BeginScrollView(_scrollPosition);
-            foreach (PrefabRefData data in PrefabRefDataList)
+            foreach (PrefabRefData data in s_PrefabRefDataList)
             {
                 if (!ContainsIgnoreCase(data.Prefab.name, _searchPrefabName))
                 {
@@ -1039,10 +1036,10 @@ namespace Moirai.Atropos.Editor
                 }
 
                 BeginSelectableRow(data);
-                DrawObjectField(data.Prefab, typeof(GameObject), false, GUILayout.Width(ObjectColumnWidth));
-                GUILayout.Label(data.AtlasInfoList.Count.ToString(), GUILayout.Width(CountColumnWidth));
-                GUILayout.Label(GetPrefabRefCount(data).ToString(), GUILayout.Width(CountColumnWidth));
-                if (GUILayout.Button("引用 Atlas", GUILayout.Width(ActionButtonWidth)))
+                DrawObjectField(data.Prefab, typeof(GameObject), false, GUILayout.Width(OBJECT_COLUMN_WIDTH));
+                GUILayout.Label(data.AtlasInfoList.Count.ToString(), GUILayout.Width(COUNT_COLUMN_WIDTH));
+                GUILayout.Label(GetPrefabRefCount(data).ToString(), GUILayout.Width(COUNT_COLUMN_WIDTH));
+                if (GUILayout.Button("引用 Atlas", GUILayout.Width(ACTION_BUTTON_WIDTH)))
                 {
                     PushStackData(new RefStackData(ShowType.PrefabAtlas, data, _scrollPosition));
                 }
@@ -1057,9 +1054,9 @@ namespace Moirai.Atropos.Editor
         {
             using (new EditorGUILayout.HorizontalScope(EditorStyles.toolbar))
             {
-                GUILayout.Label("Prefab", GUILayout.Width(ObjectColumnWidth));
-                GUILayout.Label("Atlas 数", GUILayout.Width(CountColumnWidth));
-                GUILayout.Label("Sprite 引用", GUILayout.Width(CountColumnWidth));
+                GUILayout.Label("Prefab", GUILayout.Width(OBJECT_COLUMN_WIDTH));
+                GUILayout.Label("Atlas 数", GUILayout.Width(COUNT_COLUMN_WIDTH));
+                GUILayout.Label("Sprite 引用", GUILayout.Width(COUNT_COLUMN_WIDTH));
             }
         }
 
@@ -1077,10 +1074,10 @@ namespace Moirai.Atropos.Editor
             {
                 PrefabRefAtlasInfo data = iter.Value;
                 BeginSelectableRow(data);
-                DrawObjectField(data.Atlas, typeof(SpriteAtlas), false, GUILayout.Width(ObjectColumnWidth));
+                DrawObjectField(data.Atlas, typeof(SpriteAtlas), false, GUILayout.Width(OBJECT_COLUMN_WIDTH));
                 GUILayout.Label(data.AtlasKey, GUILayout.Width(220f));
-                GUILayout.Label(data.RefList.Count.ToString(), GUILayout.Width(CountColumnWidth));
-                if (GUILayout.Button("查看原因", GUILayout.Width(ActionButtonWidth)))
+                GUILayout.Label(data.RefList.Count.ToString(), GUILayout.Width(COUNT_COLUMN_WIDTH));
+                if (GUILayout.Button("查看原因", GUILayout.Width(ACTION_BUTTON_WIDTH)))
                 {
                     PushStackData(new RefStackData(ShowType.PrefabAtlasReason, data, _scrollPosition));
                 }
@@ -1095,9 +1092,9 @@ namespace Moirai.Atropos.Editor
         {
             using (new EditorGUILayout.HorizontalScope(EditorStyles.toolbar))
             {
-                GUILayout.Label("Atlas", GUILayout.Width(ObjectColumnWidth));
+                GUILayout.Label("Atlas", GUILayout.Width(OBJECT_COLUMN_WIDTH));
                 GUILayout.Label("Atlas Key", GUILayout.Width(220f));
-                GUILayout.Label("引用数量", GUILayout.Width(CountColumnWidth));
+                GUILayout.Label("引用数量", GUILayout.Width(COUNT_COLUMN_WIDTH));
             }
         }
 
@@ -1121,8 +1118,8 @@ namespace Moirai.Atropos.Editor
 
         private void ShowAtlas()
         {
-            DrawAnalysisPanel("Atlas 引用", "查看每个 SpriteAtlas 包含的 Sprite 和引用它的 UI Prefab。", AtlasRefDataList.Count, AnalyzeReferences, AtlasRefDataList.Count > 0 ? "重新分析" : "开始分析");
-            if (AtlasRefDataList.Count == 0)
+            DrawAnalysisPanel("Atlas 引用", "查看每个 SpriteAtlas 包含的 Sprite 和引用它的 UI Prefab。", s_AtlasRefDataList.Count, AnalyzeReferences, s_AtlasRefDataList.Count > 0 ? "重新分析" : "开始分析");
+            if (s_AtlasRefDataList.Count == 0)
             {
                 DrawEmptyState("暂无 Atlas 引用数据，请先点击“开始分析”。");
                 return;
@@ -1131,7 +1128,7 @@ namespace Moirai.Atropos.Editor
             _searchAtlasName = DrawSearchToolbar(_searchAtlasName, "按 Atlas 名称或路径筛选");
             ShowAtlasTitle();
             _scrollPosition = EditorGUILayout.BeginScrollView(_scrollPosition);
-            foreach (AtlasRefData data in AtlasRefDataList)
+            foreach (AtlasRefData data in s_AtlasRefDataList)
             {
                 if (!ContainsIgnoreCase(data.AtlasKey + data.AtlasPath, _searchAtlasName))
                 {
@@ -1139,16 +1136,16 @@ namespace Moirai.Atropos.Editor
                 }
 
                 BeginSelectableRow(data);
-                DrawObjectField(data.Atlas, typeof(SpriteAtlas), false, GUILayout.Width(ObjectColumnWidth));
+                DrawObjectField(data.Atlas, typeof(SpriteAtlas), false, GUILayout.Width(OBJECT_COLUMN_WIDTH));
                 GUILayout.Label(data.AtlasKey, GUILayout.Width(220f));
-                GUILayout.Label(data.SpriteList.Count.ToString(), GUILayout.Width(CountColumnWidth));
-                GUILayout.Label(data.PrefabInfoList.Count.ToString(), GUILayout.Width(CountColumnWidth));
-                if (GUILayout.Button("包含 Sprite", GUILayout.Width(ActionButtonWidth)))
+                GUILayout.Label(data.SpriteList.Count.ToString(), GUILayout.Width(COUNT_COLUMN_WIDTH));
+                GUILayout.Label(data.PrefabInfoList.Count.ToString(), GUILayout.Width(COUNT_COLUMN_WIDTH));
+                if (GUILayout.Button("包含 Sprite", GUILayout.Width(ACTION_BUTTON_WIDTH)))
                 {
                     PushStackData(new RefStackData(ShowType.AtlasSprite, data, _scrollPosition));
                 }
 
-                if (GUILayout.Button("引用 Prefab", GUILayout.Width(ActionButtonWidth)))
+                if (GUILayout.Button("引用 Prefab", GUILayout.Width(ACTION_BUTTON_WIDTH)))
                 {
                     PushStackData(new RefStackData(ShowType.AtlasPrefab, data, _scrollPosition));
                 }
@@ -1163,10 +1160,10 @@ namespace Moirai.Atropos.Editor
         {
             using (new EditorGUILayout.HorizontalScope(EditorStyles.toolbar))
             {
-                GUILayout.Label("Atlas", GUILayout.Width(ObjectColumnWidth));
+                GUILayout.Label("Atlas", GUILayout.Width(OBJECT_COLUMN_WIDTH));
                 GUILayout.Label("Atlas Key", GUILayout.Width(220f));
-                GUILayout.Label("Sprite 数", GUILayout.Width(CountColumnWidth));
-                GUILayout.Label("Prefab 数", GUILayout.Width(CountColumnWidth));
+                GUILayout.Label("Sprite 数", GUILayout.Width(COUNT_COLUMN_WIDTH));
+                GUILayout.Label("Prefab 数", GUILayout.Width(COUNT_COLUMN_WIDTH));
             }
         }
 
@@ -1184,7 +1181,7 @@ namespace Moirai.Atropos.Editor
             {
                 BeginSelectableRow(data);
                 ShowSpriteItem(data);
-                if (GUILayout.Button("引用 Prefab", GUILayout.Width(ActionButtonWidth)))
+                if (GUILayout.Button("引用 Prefab", GUILayout.Width(ACTION_BUTTON_WIDTH)))
                 {
                     PushStackData(new RefStackData(ShowType.SpritePrefab, data, _scrollPosition));
                 }
@@ -1209,9 +1206,9 @@ namespace Moirai.Atropos.Editor
             {
                 PrefabRefAtlasInfo data = iter.Value;
                 BeginSelectableRow(data);
-                DrawObjectField(data.Prefab, typeof(GameObject), false, GUILayout.Width(ObjectColumnWidth));
-                GUILayout.Label(data.RefList.Count.ToString(), GUILayout.Width(CountColumnWidth));
-                if (GUILayout.Button("查看原因", GUILayout.Width(ActionButtonWidth)))
+                DrawObjectField(data.Prefab, typeof(GameObject), false, GUILayout.Width(OBJECT_COLUMN_WIDTH));
+                GUILayout.Label(data.RefList.Count.ToString(), GUILayout.Width(COUNT_COLUMN_WIDTH));
+                if (GUILayout.Button("查看原因", GUILayout.Width(ACTION_BUTTON_WIDTH)))
                 {
                     PushStackData(new RefStackData(ShowType.AtlasPrefabReason, data, _scrollPosition));
                 }
@@ -1226,14 +1223,14 @@ namespace Moirai.Atropos.Editor
         {
             using (new EditorGUILayout.HorizontalScope(EditorStyles.toolbar))
             {
-                GUILayout.Label("Prefab", GUILayout.Width(ObjectColumnWidth));
-                GUILayout.Label("引用数量", GUILayout.Width(CountColumnWidth));
+                GUILayout.Label("Prefab", GUILayout.Width(OBJECT_COLUMN_WIDTH));
+                GUILayout.Label("引用数量", GUILayout.Width(COUNT_COLUMN_WIDTH));
             }
         }
 
         private void ShowSceneGameObject()
         {
-            DrawAnalysisPanel("场景物体引用", "分析 Hierarchy 当前选中物体使用的 SpriteAtlas。", _selectedSceneObjectReference?.AtlasInfoList.Count ?? 0, AnalyzeReferences, PrefabRefDataList.Count > 0 ? "刷新索引" : "生成索引");
+            DrawAnalysisPanel("场景物体引用", "分析 Hierarchy 当前选中物体使用的 SpriteAtlas。", _selectedSceneObjectReference?.AtlasInfoList.Count ?? 0, AnalyzeReferences, s_PrefabRefDataList.Count > 0 ? "刷新索引" : "生成索引");
 
             using (new EditorGUILayout.VerticalScope(_panelStyle))
             {
@@ -1255,9 +1252,9 @@ namespace Moirai.Atropos.Editor
 
             ShowSceneGameObjectTitle();
             BeginSelectableRow(_selectedSceneObjectReference);
-            DrawObjectField(_selectedSceneObjectReference?.Prefab, typeof(GameObject), true, GUILayout.Width(ObjectColumnWidth));
-            GUILayout.Label((_selectedSceneObjectReference?.AtlasInfoList.Count ?? 0).ToString(), GUILayout.Width(CountColumnWidth));
-            if (_selectedSceneObjectReference != null && GUILayout.Button("引用 Atlas", GUILayout.Width(ActionButtonWidth)))
+            DrawObjectField(_selectedSceneObjectReference?.Prefab, typeof(GameObject), true, GUILayout.Width(OBJECT_COLUMN_WIDTH));
+            GUILayout.Label((_selectedSceneObjectReference?.AtlasInfoList.Count ?? 0).ToString(), GUILayout.Width(COUNT_COLUMN_WIDTH));
+            if (_selectedSceneObjectReference != null && GUILayout.Button("引用 Atlas", GUILayout.Width(ACTION_BUTTON_WIDTH)))
             {
                 PushStackData(new RefStackData(ShowType.PrefabAtlas, _selectedSceneObjectReference, _scrollPosition));
             }
@@ -1269,8 +1266,8 @@ namespace Moirai.Atropos.Editor
         {
             using (new EditorGUILayout.HorizontalScope(EditorStyles.toolbar))
             {
-                GUILayout.Label("当前选中物体", GUILayout.Width(ObjectColumnWidth));
-                GUILayout.Label("Atlas 数", GUILayout.Width(CountColumnWidth));
+                GUILayout.Label("当前选中物体", GUILayout.Width(OBJECT_COLUMN_WIDTH));
+                GUILayout.Label("Atlas 数", GUILayout.Width(COUNT_COLUMN_WIDTH));
             }
         }
 
@@ -1278,9 +1275,9 @@ namespace Moirai.Atropos.Editor
         {
             using (new EditorGUILayout.HorizontalScope(EditorStyles.toolbar))
             {
-                GUILayout.Label("Prefab", GUILayout.Width(ObjectColumnWidth));
-                GUILayout.Label("Atlas", GUILayout.Width(ObjectColumnWidth));
-                GUILayout.Label("Sprite", GUILayout.Width(ObjectColumnWidth));
+                GUILayout.Label("Prefab", GUILayout.Width(OBJECT_COLUMN_WIDTH));
+                GUILayout.Label("Atlas", GUILayout.Width(OBJECT_COLUMN_WIDTH));
+                GUILayout.Label("Sprite", GUILayout.Width(OBJECT_COLUMN_WIDTH));
                 GUILayout.Label("路径");
             }
         }
@@ -1289,9 +1286,9 @@ namespace Moirai.Atropos.Editor
         {
             using (new EditorGUILayout.HorizontalScope())
             {
-                DrawObjectField(data.Prefab, typeof(GameObject), IsSceneObject(data.Prefab), GUILayout.Width(ObjectColumnWidth));
-                DrawObjectField(data.Atlas, typeof(SpriteAtlas), false, GUILayout.Width(ObjectColumnWidth));
-                DrawObjectField(data.Sprite, typeof(Sprite), false, GUILayout.Width(ObjectColumnWidth));
+                DrawObjectField(data.Prefab, typeof(GameObject), IsSceneObject(data.Prefab), GUILayout.Width(OBJECT_COLUMN_WIDTH));
+                DrawObjectField(data.Atlas, typeof(SpriteAtlas), false, GUILayout.Width(OBJECT_COLUMN_WIDTH));
+                DrawObjectField(data.Sprite, typeof(Sprite), false, GUILayout.Width(OBJECT_COLUMN_WIDTH));
                 EditorGUILayout.SelectableLabel(data.HierarchyPath, GUILayout.Height(EditorGUIUtility.singleLineHeight));
 
                 if (showLocateButton && GUILayout.Button("定位", GUILayout.Width(64f)))
@@ -1301,7 +1298,7 @@ namespace Moirai.Atropos.Editor
 
                 if (showSpriteRefButton && GUILayout.Button("Sprite 引用", GUILayout.Width(90f)))
                 {
-                    if (SpriteRefDataBySprite.TryGetValue(data.Sprite, out SpriteRefData spriteData))
+                    if (s_SpriteRefDataBySprite.TryGetValue(data.Sprite, out SpriteRefData spriteData))
                     {
                         PushStackData(new RefStackData(ShowType.SpritePrefab, spriteData, _scrollPosition));
                     }
@@ -1443,17 +1440,17 @@ namespace Moirai.Atropos.Editor
 
         private static string BuildHierarchyPath(Transform target, Transform root = null)
         {
-            HierarchyPathBuilder.Clear();
-            HierarchyPathBuilder.Append(target.name);
+            s_HierarchyPathBuilder.Clear();
+            s_HierarchyPathBuilder.Append(target.name);
 
             Transform transform = target.parent;
             while (transform != root && transform != null)
             {
-                HierarchyPathBuilder.Insert(0, transform.name + "/");
+                s_HierarchyPathBuilder.Insert(0, transform.name + "/");
                 transform = transform.parent;
             }
 
-            return HierarchyPathBuilder.ToString();
+            return s_HierarchyPathBuilder.ToString();
         }
 
         private static int GetPrefabRefCount(PrefabRefData data)
