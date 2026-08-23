@@ -23,7 +23,7 @@ namespace Moirai.Atropos
         private readonly Dictionary<IService, ServiceEntry> _entriesByService = new Dictionary<IService, ServiceEntry>(ReferenceComparer<IService>.Instance);
         private readonly List<IService> _registrationOrder = new List<IService>();
 
-        // --- 轮询列表（按 Priority 降序排列，由 InsertSorted 在注册时维护） ---
+        // --- 轮询列表（按 Priority 降序排列，dirty-flag + lazy-sort 维护） ---
 
         private readonly List<IServiceTickable> _tickables = new List<IServiceTickable>();
         private readonly List<IServiceFixedTickable> _fixedTickables = new List<IServiceFixedTickable>();

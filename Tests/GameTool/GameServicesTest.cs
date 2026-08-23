@@ -285,6 +285,67 @@ namespace GameTool
             Assert.IsNotNull(consumer.Provider.GetService<IBetaService>(), "注入的 Provider 应能解析同作用域服务");
         }
 
+        // --- Func<T> 延迟解析注入 [LAZY RESOLUTION] ---
+
+        private sealed class LazyConsumerService : TestServiceBase, IAlphaService
+        {
+            public Func<IDepTargetService> Resolver { get; }
+
+            public LazyConsumerService(Func<IDepTargetService> resolver)
+            {
+                Resolver = resolver;
+            }
+        }
+
+        [Test]
+        public void FuncInjection_ResolvesTargetLazily()
+        {
+            BuildApp(c =>
+            {
+                c.Register<IDepTargetService, DependeeService>(EServiceScopeKind.App);
+                c.Register<IAlphaService, LazyConsumerService>(EServiceScopeKind.App);
+            });
+
+            var consumer = (LazyConsumerService)GameServices.Provider.GetRequiredService<IAlphaService>();
+            var resolved = consumer.Resolver();
+
+            Assert.IsInstanceOf<DependeeService>(resolved,
+                "Func<T> 注入的委托应在调用时解析目标服务");
+            Assert.AreSame(
+                GameServices.Provider.GetRequiredService<IDepTargetService>(),
+                resolved,
+                "延迟解析应返回容器内同一单例");
+        }
+
+        [Test]
+        public void FuncInjection_TopologyGuaranteesTargetReady()
+        {
+            // 注册顺序故意颠倒：Func<IDepTargetService> 的目标后注册，
+            // 拓扑建边（Func<T> 解包 T）应保证目标先创建，委托调用时依赖已就绪
+            BuildApp(c =>
+            {
+                c.Register<IAlphaService, LazyConsumerService>(EServiceScopeKind.App);
+                c.Register<IDepTargetService, DependeeService>(EServiceScopeKind.App);
+            });
+
+            var consumer = (LazyConsumerService)GameServices.Provider.GetRequiredService<IAlphaService>();
+
+            Assert.DoesNotThrow(() => consumer.Resolver(),
+                "拓扑建边应保证延迟解析的目标已注册");
+        }
+
+        [Test]
+        public void FuncInjection_AfterShutdown_Throws()
+        {
+            BuildApp(c => c.Register<IAlphaService, LazyConsumerService>(EServiceScopeKind.App));
+
+            var consumer = (LazyConsumerService)GameServices.Provider.GetRequiredService<IAlphaService>();
+            GameServices.ShutdownContainer(EServiceScopeKind.App);
+
+            // 目标 IDepTargetService 从未注册：委托调用应 fail-fast 而非返回 null
+            Assert.Throws<GameException>(() => consumer.Resolver());
+        }
+
         // --- 关闭顺序与状态 ---
 
         private abstract class ShutdownOrderService : TestServiceBase

@@ -445,6 +445,15 @@ namespace Moirai.Atropos
                     continue;
                 }
 
+                // Func<T> 延迟解析注入：依赖方持有委托，首次调用时才向容器解析 T。
+                // 委托目标服务仍是构建期初始化的 singleton（拓扑建边保证就绪时序），
+                // 延迟的只是"解析"这一步——用于打破服务间的强引用启动耦合
+                if (paramType.IsGenericType && paramType.GetGenericTypeDefinition() == typeof(Func<>))
+                {
+                    args[i] = CreateLazyResolver(paramType);
+                    continue;
+                }
+
                 if (!TryResolve(paramType, scope, buildInstances, out var arg))
                 {
                     throw new GameException(
@@ -530,6 +539,36 @@ namespace Moirai.Atropos
         }
 
         #endregion
+
+        private static readonly MethodInfo s_ResolveDependencyMethod =
+            typeof(ServiceWorld).GetMethod(nameof(ResolveDependency),
+                BindingFlags.NonPublic | BindingFlags.Instance);
+
+        /// <summary>
+        /// 为 Func&lt;T&gt; 构造参数创建延迟解析委托。仅捕获 this、无闭包状态，构建期一次性分配。
+        /// <para>IL2CPP 说明：T 受 class 约束（引用类型走泛型代码共享），MakeGenericMethod 在
+        /// 全量泛型共享下可用；值类型参数在此前已被拒绝。</para>
+        /// </summary>
+        private object CreateLazyResolver(Type funcType)
+        {
+            var targetType = funcType.GetGenericArguments()[0];
+            if (targetType.IsValueType)
+                throw new GameException(StringUtility.Format(
+                    "Func<{0}> constructor injection requires a reference type; value types are not supported.",
+                    targetType.FullName));
+
+            return Delegate.CreateDelegate(
+                funcType, this, s_ResolveDependencyMethod.MakeGenericMethod(targetType));
+        }
+
+        /// <summary>Func&lt;T&gt; 委托的解析目标。目标未注册或已随作用域关闭时抛出异常（fail-fast）。</summary>
+        private T ResolveDependency<T>() where T : class
+        {
+            if (TryGet<T>(out var service)) return service;
+            throw new GameException(StringUtility.Format(
+                "Delayed resolution of '{0}' failed: service not found in any active scope " +
+                "(it may have been shut down).", typeof(T).FullName));
+        }
 
         #region 拓扑排序 [TOPOLOGICAL SORT]
 
@@ -653,8 +692,15 @@ namespace Moirai.Atropos
                     var parameters = ctor.GetParameters();
                     for (int i = 0; i < parameters.Length; i++)
                     {
-                        if (parameters[i].ParameterType != typeof(IServiceProvider))
-                            buffer.Add(parameters[i].ParameterType);
+                        var paramType = parameters[i].ParameterType;
+                        if (paramType == typeof(IServiceProvider)) continue;
+
+                        // Func<T> 延迟解析：T 同样参与拓扑建边（若已注册），
+                        // 保证委托运行期首次调用时目标服务已创建并初始化
+                        if (paramType.IsGenericType && paramType.GetGenericTypeDefinition() == typeof(Func<>))
+                            buffer.Add(paramType.GetGenericArguments()[0]);
+                        else
+                            buffer.Add(paramType);
                     }
                 }
             }
