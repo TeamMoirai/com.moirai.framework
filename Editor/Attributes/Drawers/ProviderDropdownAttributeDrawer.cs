@@ -65,7 +65,9 @@ namespace Moirai.Atropos
             private TypeMenuCache(Type baseType)
             {
                 Types = TypeCache.GetTypesDerivedFrom(baseType)
-                    .Where(t => !t.IsAbstract && !t.Assembly.GetName().Name.EndsWith(".Tests"))
+                    .Where(t => !t.IsAbstract
+                        && t.GetConstructor(Type.EmptyTypes) != null // 需无参构造（供 Activator.CreateInstance 实例化）
+                        && !t.Assembly.GetName().Name.EndsWith(".Tests"))
                     .OrderBy(t => t.Name, StringComparer.Ordinal)
                     .ToArray();
 
@@ -84,8 +86,9 @@ namespace Moirai.Atropos
                     Names[choice] = new GUIContent(t.Name);
                     DisplayNames.Add(t.Name);
                     _typeToIndex[t] = choice;
-                    _nameToIndex[t.Name] = choice;      // 简单名
-                    _nameToIndex[t.FullName] = choice;  // 全名（同名冲突时优先）
+                    _nameToIndex[t.FullName] = choice; // 全名：唯一键，不同命名空间的同名类型不冲突
+                    if (!_nameToIndex.ContainsKey(t.Name))
+                        _nameToIndex[t.Name] = choice; // 简单名：仅无冲突时登记，兼容手输的简单类型名
                 }
             }
 
@@ -149,12 +152,28 @@ namespace Moirai.Atropos
             }
         }
 
+        /// <summary>
+        /// 写入选项并注册撤销（IMGUI / UITK 共用）：
+        /// Update → Undo.RecordObject → 写值 → ApplyModifiedProperties，保证 Ctrl+Z 可回退。
+        /// </summary>
+        private void ApplySelectionWithUndo(SerializedProperty property, int index)
+        {
+            property.serializedObject.Update();
+            Undo.RecordObject(property.serializedObject.targetObject, "Change Provider");
+            ApplySelection(property, index);
+            property.serializedObject.ApplyModifiedProperties();
+        }
+
         /// <summary>读取当前选项索引（两种模式共用，字典 O(1) 查询）。</summary>
         private int FindCurrentIndex(SerializedProperty property) => _isStringMode
             ? Cache.IndexOfName(property.stringValue)
             : property.managedReferenceValue == null
                 ? 0
                 : Cache.IndexOfType(property.managedReferenceValue.GetType());
+
+        /// <summary>foldout 键：对象实例 ID + 属性路径，避免不同对象的相同属性路径互相干扰。</summary>
+        private static string FoldoutKey(SerializedProperty property) =>
+            property.serializedObject.targetObject.GetInstanceID() + property.propertyPath;
 
         private static bool GetFoldout(string key) =>
             s_Foldouts.TryGetValue(key, out bool value) ? value : true;
@@ -194,7 +213,7 @@ namespace Moirai.Atropos
 
             if (property.managedReferenceValue == null || !HasVisibleChildren(property))
                 return EditorGUIUtility.singleLineHeight;
-            if (!GetFoldout(property.propertyPath))
+            if (!GetFoldout(FoldoutKey(property)))
                 return EditorGUIUtility.singleLineHeight;
 
             float spacing = EditorGUIUtility.standardVerticalSpacing;
@@ -230,11 +249,7 @@ namespace Moirai.Atropos
 
             if (EditorGUI.DropdownButton(fieldRect, current, FocusType.Keyboard, EditorStyles.popup))
             {
-                ShowDropdown(fieldRect, index, newIndex =>
-                {
-                    ApplySelection(property, newIndex);
-                    property.serializedObject.ApplyModifiedProperties();
-                });
+                ShowDropdown(fieldRect, index, newIndex => ApplySelectionWithUndo(property, newIndex));
             }
         }
 
@@ -258,8 +273,7 @@ namespace Moirai.Atropos
             {
                 ShowDropdown(popupRect, index, newIndex =>
                 {
-                    ApplySelection(property, newIndex);
-                    property.serializedObject.ApplyModifiedProperties();
+                    ApplySelectionWithUndo(property, newIndex);
                     GUI.changed = true;
                 });
             }
@@ -267,7 +281,7 @@ namespace Moirai.Atropos
             if (!hasChildren) return;
 
             // ── foldout ──
-            string foldKey = property.propertyPath;
+            string foldKey = FoldoutKey(property);
             bool open = EditorGUI.Foldout(
                 new Rect(fieldRect.xMax - FOLDOUT_W, fieldRect.y, FOLDOUT_W, lineH),
                 GetFoldout(foldKey), GUIContent.none, true);
@@ -326,7 +340,8 @@ namespace Moirai.Atropos
             var row = new VisualElement();
             row.style.flexDirection = FlexDirection.Row;
 
-            var arrow = new Foldout { text = string.Empty, value = GetFoldout(propPath) };
+            string foldKey = FoldoutKey(property);
+            var arrow = new Foldout { text = string.Empty, value = GetFoldout(foldKey) };
             arrow.style.flexShrink = 0f;
             arrow.style.marginTop = 0f;
             arrow.style.marginBottom = 0f;
@@ -342,7 +357,7 @@ namespace Moirai.Atropos
 
             arrow.RegisterValueChangedCallback(evt =>
             {
-                SetFoldout(propPath, evt.newValue);
+                SetFoldout(foldKey, evt.newValue);
                 children.style.display = evt.newValue ? DisplayStyle.Flex : DisplayStyle.None;
             });
 
@@ -363,13 +378,14 @@ namespace Moirai.Atropos
             return root;
         }
 
-        /// <summary>UITK 选中写入：重新 FindProperty 后写值并应用。</summary>
+        /// <summary>UITK 选中写入：重新 FindProperty 后写值（含撤销注册）并应用。</summary>
         private void WriteSelectionUITK(SerializedObject so, string propPath, PopupField<string> popup)
         {
             so.Update();
             SerializedProperty fresh = so.FindProperty(propPath);
             if (fresh == null) return;
 
+            Undo.RecordObject(so.targetObject, "Change Provider");
             ApplySelection(fresh, popup.index);
             so.ApplyModifiedProperties();
         }
@@ -570,7 +586,7 @@ namespace Moirai.Atropos
 
     /// <summary>
     /// Odin 原生 Drawer，为 <see cref="ProviderDropdownAttribute"/> 自动接管 Odin 绘制，
-    /// 委托到 Unity <see cref="EditorGUI.PropertyField"/>（触发 <see cref="ProviderDropdownAttributeDrawer"/>）。
+    /// 委托到 Unity <see cref="EditorGUI.PropertyField(Rect, SerializedProperty, GUIContent, bool)"/>（触发 <see cref="ProviderDropdownAttributeDrawer"/>）。
     /// <para>无需在每个字段上手动添加 <c>[DrawWithUnity]</c>。</para>
     /// </summary>
     /// <remarks>
@@ -579,7 +595,7 @@ namespace Moirai.Atropos
     /// 否则回退到 Odin 默认行为。
     /// </remarks>
     [DrawerPriority(0, 10001, 0)]
-    internal sealed class HelperDropdownOdinDrawer : OdinAttributeDrawer<ProviderDropdownAttribute>
+    internal sealed class ProviderDropdownOdinDrawer : OdinAttributeDrawer<ProviderDropdownAttribute>
     {
         protected override void DrawPropertyLayout(GUIContent label)
         {
