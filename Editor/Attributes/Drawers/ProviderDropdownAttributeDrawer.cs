@@ -1,10 +1,13 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
 using Sirenix.OdinInspector.Editor;
 using UnityEditor;
+using UnityEditor.UIElements;
 using UnityEngine;
+using UnityEngine.UIElements;
+using PopupWindow = UnityEditor.PopupWindow;
 
 namespace Moirai.Atropos
 {
@@ -13,103 +16,392 @@ namespace Moirai.Atropos
     {
         private const float PAD = 3f;
         private const float FOLDOUT_W = 16f;
+
+        /// <summary>foldout 展开状态（IMGUI 与 UITK 共享），键为 propertyPath。</summary>
         private static readonly Dictionary<string, bool> s_Foldouts = new Dictionary<string, bool>();
 
-        private Type[] _types;
-        private GUIContent[] _names;
-        private bool _built;
+        private TypeMenuCache _cache;
+        private bool _isStringMode;
+        private GUIContent _labelGUI;
+        private string _labelText;
 
         private new ProviderDropdownAttribute attribute => (ProviderDropdownAttribute)base.attribute;
 
-        #region 构建 [BUILD]
+        #region 类型菜单缓存 [TYPE MENU CACHE]
 
         /// <summary>
-        /// 懒加载：首次绘制时通过 TypeCache 收集所有非抽象的派生类型，
-        /// 按名称排序后生成下拉选项数组。
+        /// 类型菜单缓存：按基类全局共享一份（TypeCache 查询、排序、选项数组、索引字典），
+        /// 避免同一基类的每个字段 Drawer 实例重复构建。
         /// </summary>
-        private void EnsureBuilt()
+        private sealed class TypeMenuCache
         {
-            if (_built) return;
-            _built = true;
+            private static readonly Dictionary<Type, TypeMenuCache> s_Caches = new Dictionary<Type, TypeMenuCache>();
 
-            Type baseType = attribute.BaseType ?? fieldInfo.FieldType;
+            static TypeMenuCache()
+            {
+                // 域重载被关闭时静态字段不会自动清理，脚本变更前手动失效
+                AssemblyReloadEvents.beforeAssemblyReload += () => s_Caches.Clear();
+            }
 
-            _types = TypeCache
-                .GetTypesDerivedFrom(baseType)
-                .Where(t => !t.IsAbstract && !t.Assembly.GetName().Name.EndsWith(".Tests"))
-                .ToArray();
+            internal static TypeMenuCache Get(Type baseType)
+            {
+                if (!s_Caches.TryGetValue(baseType, out var cache))
+                    s_Caches[baseType] = cache = new TypeMenuCache(baseType);
+                return cache;
+            }
 
-            Array.Sort(_types, (a, b) => string.Compare(a.Name, b.Name, StringComparison.Ordinal));
+            /// <summary>候选实现类型（按名称排序），不含 (None) 项。</summary>
+            internal readonly Type[] Types;
 
-            _names = new GUIContent[_types.Length + 1];
-            _names[0] = new GUIContent("(None)");
-            for (int i = 0; i < _types.Length; i++)
-                _names[i + 1] = new GUIContent(_types[i].Name);
+            /// <summary>IMGUI 选项内容（含 "(None)" 前缀项）。</summary>
+            internal readonly GUIContent[] Names;
+
+            /// <summary>UITK 选项文本（含 "(None)" 前缀项）。PopupField 要求 List&lt;T&gt;，全局共享一份避免分配。</summary>
+            internal readonly List<string> DisplayNames;
+
+            private readonly Dictionary<string, int> _nameToIndex;
+            private readonly Dictionary<Type, int> _typeToIndex;
+
+            private TypeMenuCache(Type baseType)
+            {
+                Types = TypeCache.GetTypesDerivedFrom(baseType)
+                    .Where(t => !t.IsAbstract && !t.Assembly.GetName().Name.EndsWith(".Tests"))
+                    .OrderBy(t => t.Name, StringComparer.Ordinal)
+                    .ToArray();
+
+                int n = Types.Length;
+                Names = new GUIContent[n + 1];
+                Names[0] = new GUIContent("(None)");
+                DisplayNames = new List<string>(n + 1) { "(None)" };
+
+                _nameToIndex = new Dictionary<string, int>(n * 2);
+                _typeToIndex = new Dictionary<Type, int>(n);
+
+                for (int i = 0; i < n; i++)
+                {
+                    Type t = Types[i];
+                    int choice = i + 1;
+                    Names[choice] = new GUIContent(t.Name);
+                    DisplayNames.Add(t.Name);
+                    _typeToIndex[t] = choice;
+                    _nameToIndex[t.Name] = choice;      // 简单名
+                    _nameToIndex[t.FullName] = choice;  // 全名（同名冲突时优先）
+                }
+            }
+
+            /// <summary>按类型全名或简单名查选项索引（0 = None），O(1)。</summary>
+            internal int IndexOfName(string typeName) =>
+                !string.IsNullOrEmpty(typeName) && _nameToIndex.TryGetValue(typeName, out int index) ? index : 0;
+
+            /// <summary>按 Type 查选项索引（0 = None），O(1)。</summary>
+            internal int IndexOfType(Type type) =>
+                type != null && _typeToIndex.TryGetValue(type, out int index) ? index : 0;
+        }
+
+        private TypeMenuCache Cache => _cache ??= TypeMenuCache.Get(attribute.BaseType ?? fieldInfo.FieldType);
+
+        #endregion
+
+        #region 标签 [LABEL]
+
+        /// <summary>字段名推导用的正则（编译并复用，避免每次绘制重建）。</summary>
+        private static class LabelPatterns
+        {
+            internal static readonly Regex MPrefix = new Regex(@"^m_", RegexOptions.Compiled);
+            internal static readonly Regex HelperSuffix = new Regex(@"HelperTypeName$", RegexOptions.Compiled);
+            internal static readonly Regex CamelSplit = new Regex(@"((?<=[a-z])[A-Z]|[A-Z](?=[a-z]))", RegexOptions.Compiled);
+
+            /// <summary>从字段名推导 string 模式标签：去 m_ 前缀与 HelperTypeName 后缀、驼峰分词、追加 " Helper"。</summary>
+            internal static string DeriveHelperLabel(string fieldName)
+            {
+                string name = HelperSuffix.Replace(MPrefix.Replace(fieldName, string.Empty), string.Empty);
+                return CamelSplit.Replace(name, " $1").Trim() + " Helper";
+            }
+        }
+
+        /// <summary>IMGUI 标签（懒加载，单次分配）。</summary>
+        private GUIContent LabelGUI => _labelGUI ??= new GUIContent(LabelText);
+
+        /// <summary>标签文本（懒加载）。优先特性 Label；string 模式从字段名推导，引用模式 Nicify 变量名。</summary>
+        private string LabelText => _labelText ??=
+            !string.IsNullOrEmpty(attribute.Label) ? attribute.Label
+            : _isStringMode ? LabelPatterns.DeriveHelperLabel(fieldInfo.Name)
+            : ObjectNames.NicifyVariableName(fieldInfo.Name);
+
+        #endregion
+
+        #region 通用 [SHARED]
+
+        /// <summary>写入选项（IMGUI / UITK 共用）：string 模式存类型全名，引用模式存实例，0 = None。</summary>
+        private void ApplySelection(SerializedProperty property, int index)
+        {
+            if (_isStringMode)
+            {
+                property.stringValue = index >= 1 && index <= Cache.Types.Length
+                    ? Cache.Types[index - 1].FullName
+                    : string.Empty;
+            }
+            else
+            {
+                property.managedReferenceValue = index == 0
+                    ? null
+                    : Activator.CreateInstance(Cache.Types[index - 1]);
+            }
+        }
+
+        /// <summary>读取当前选项索引（两种模式共用，字典 O(1) 查询）。</summary>
+        private int FindCurrentIndex(SerializedProperty property) => _isStringMode
+            ? Cache.IndexOfName(property.stringValue)
+            : property.managedReferenceValue == null
+                ? 0
+                : Cache.IndexOfType(property.managedReferenceValue.GetType());
+
+        private static bool GetFoldout(string key) =>
+            s_Foldouts.TryGetValue(key, out bool value) ? value : true;
+
+        private static void SetFoldout(string key, bool value) => s_Foldouts[key] = value;
+
+        /// <summary>遍历直接可见子属性（高度计算 / IMGUI 绘制 / UITK 构建共用）。visitor 需跨迭代持有时应自行 Copy。</summary>
+        private static void ForEachVisibleChild(SerializedProperty property, Action<SerializedProperty> visit)
+        {
+            var child = property.Copy();
+            var end = child.GetEndProperty();
+            if (!child.NextVisible(true)) return;
+
+            while (!SerializedProperty.EqualContents(child, end))
+            {
+                visit(child);
+                if (!child.NextVisible(false)) break;
+            }
+        }
+
+        private static bool HasVisibleChildren(SerializedProperty property)
+        {
+            var child = property.Copy();
+            var end = child.GetEndProperty();
+            return child.NextVisible(true) && !SerializedProperty.EqualContents(child, end);
         }
 
         #endregion
 
-        #region 高度 [HEIGHT]
+        #region IMGUI
 
         public override float GetPropertyHeight(SerializedProperty property, GUIContent label)
         {
-            EnsureBuilt();
-
             // string 模式：单行 popup，无 foldout
             if (property.propertyType == SerializedPropertyType.String)
                 return EditorGUIUtility.singleLineHeight;
 
-            float h = EditorGUIUtility.singleLineHeight;
+            if (property.managedReferenceValue == null || !HasVisibleChildren(property))
+                return EditorGUIUtility.singleLineHeight;
+            if (!GetFoldout(property.propertyPath))
+                return EditorGUIUtility.singleLineHeight;
 
-            if (property.managedReferenceValue != null && HasVisibleChildren(property))
+            float spacing = EditorGUIUtility.standardVerticalSpacing;
+            float h = EditorGUIUtility.singleLineHeight + spacing + PAD * 2;
+
+            bool first = true;
+            ForEachVisibleChild(property, child =>
             {
-                string foldKey = property.propertyPath;
-                if (!s_Foldouts.ContainsKey(foldKey))
-                    s_Foldouts[foldKey] = true;
+                if (!first) h += spacing;
+                h += EditorGUI.GetPropertyHeight(child, true);
+                first = false;
+            });
+            return h;
+        }
 
-                if (s_Foldouts[foldKey])
+        public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
+        {
+            _isStringMode = property.propertyType == SerializedPropertyType.String;
+
+            if (_isStringMode)
+                DrawStringMode(position, property);
+            else
+                DrawReferenceMode(position, property);
+        }
+
+        private void DrawStringMode(Rect position, SerializedProperty property)
+        {
+            var fieldRect = EditorGUI.PrefixLabel(
+                new Rect(position.x, position.y, position.width, EditorGUIUtility.singleLineHeight), LabelGUI);
+
+            int index = FindCurrentIndex(property);
+            GUIContent current = index < Cache.Names.Length ? Cache.Names[index] : GUIContent.none;
+
+            if (EditorGUI.DropdownButton(fieldRect, current, FocusType.Keyboard, EditorStyles.popup))
+            {
+                ShowDropdown(fieldRect, index, newIndex =>
                 {
-                    float spacing = EditorGUIUtility.standardVerticalSpacing;
-                    h += spacing;
+                    ApplySelection(property, newIndex);
+                    property.serializedObject.ApplyModifiedProperties();
+                });
+            }
+        }
 
-                    var child = property.Copy();
-                    var end = child.GetEndProperty();
-                    if (child.NextVisible(true))
-                    {
-                        h += PAD;
-                        bool first = true;
-                        while (!SerializedProperty.EqualContents(child, end))
-                        {
-                            if (!first) h += spacing;
-                            h += EditorGUI.GetPropertyHeight(child, true);
-                            first = false;
-                            if (!child.NextVisible(false)) break;
-                        }
-                        h += PAD;
-                    }
-                }
+        private void DrawReferenceMode(Rect position, SerializedProperty property)
+        {
+            float spacing = EditorGUIUtility.standardVerticalSpacing;
+            float lineH = EditorGUIUtility.singleLineHeight;
+
+            int index = FindCurrentIndex(property);
+            bool hasChildren = property.managedReferenceValue != null && HasVisibleChildren(property);
+
+            var fieldRect = EditorGUI.PrefixLabel(new Rect(position.x, position.y, position.width, lineH), LabelGUI);
+
+            // 有子属性时需要为 foldout 预留空间
+            Rect popupRect = hasChildren
+                ? new Rect(fieldRect.x, fieldRect.y, fieldRect.width - FOLDOUT_W, lineH)
+                : fieldRect;
+
+            GUIContent current = index < Cache.Names.Length ? Cache.Names[index] : GUIContent.none;
+            if (EditorGUI.DropdownButton(popupRect, current, FocusType.Keyboard, EditorStyles.popup))
+            {
+                ShowDropdown(popupRect, index, newIndex =>
+                {
+                    ApplySelection(property, newIndex);
+                    property.serializedObject.ApplyModifiedProperties();
+                    GUI.changed = true;
+                });
             }
 
-            return h;
+            if (!hasChildren) return;
+
+            // ── foldout ──
+            string foldKey = property.propertyPath;
+            bool open = EditorGUI.Foldout(
+                new Rect(fieldRect.xMax - FOLDOUT_W, fieldRect.y, FOLDOUT_W, lineH),
+                GetFoldout(foldKey), GUIContent.none, true);
+            SetFoldout(foldKey, open);
+            if (!open) return;
+
+            // ── 子属性绘制 ──
+            float childStartY = position.y + lineH + spacing;
+            GUI.Box(new Rect(position.x, childStartY, position.width, position.yMax - childStartY), GUIContent.none);
+
+            float y = childStartY + PAD;
+            int indent = EditorGUI.indentLevel;
+            EditorGUI.indentLevel++;
+
+            bool first = true;
+            ForEachVisibleChild(property, child =>
+            {
+                if (!first) y += spacing;
+                float childH = EditorGUI.GetPropertyHeight(child, true);
+                EditorGUI.PropertyField(
+                    new Rect(position.x + PAD, y, position.width - PAD * 2, childH), child, true);
+                y += childH;
+                first = false;
+            });
+
+            EditorGUI.indentLevel = indent;
         }
 
         #endregion
 
-        #region 绘制 [GUI]
+        #region UITK 支持 [UITK SUPPORT]
 
-        public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
+        /// <summary>
+        /// UI Toolkit 入口：返回原生 <see cref="PopupField{T}"/>，
+        /// 使标签与 UITK 窗口中的其他字段对齐（IMGUI 回退绘制会导致样式错位）。
+        /// </summary>
+        public override VisualElement CreatePropertyGUI(SerializedProperty property)
         {
-            EnsureBuilt();
+            _isStringMode = property.propertyType == SerializedPropertyType.String;
 
-            // ── string 模式：类型名 popup ──
-            if (property.propertyType == SerializedPropertyType.String)
+            string propPath = property.propertyPath;
+            SerializedObject so = property.serializedObject;
+
+            // 按钮拉满剩余宽度，右缘与 IMGUI popup 对齐
+            var popup = new PopupField<string>(LabelText, Cache.DisplayNames, FindCurrentIndex(property));
+            popup.style.flexGrow = 1f;
+
+            // string 模式：单行 popup，无 foldout
+            if (_isStringMode)
             {
-                DrawStringMode(position, property, label);
-                return;
+                popup.RegisterValueChangedCallback(_ => WriteSelectionUITK(so, propPath, popup));
+                return popup;
             }
 
-            // ── managed reference 模式：popup + foldout ──
-            DrawReferenceMode(position, property, label);
+            // 引用模式（仿 IMGUI 布局）：popup 与 foldout 箭头同一行，箭头在最右
+            var row = new VisualElement();
+            row.style.flexDirection = FlexDirection.Row;
+
+            var arrow = new Foldout { text = string.Empty, value = GetFoldout(propPath) };
+            arrow.style.flexShrink = 0f;
+            arrow.style.marginTop = 0f;
+            arrow.style.marginBottom = 0f;
+
+            // 子属性容器（独立于 arrow，避免进入行布局），unity-box 为编辑器内置盒样式（对应 IMGUI 的 GUI.Box）
+            var children = new VisualElement();
+            children.AddToClassList("unity-box");
+            children.style.paddingTop = PAD;
+            children.style.paddingBottom = PAD;
+            children.style.paddingLeft = PAD;
+            children.style.paddingRight = PAD;
+            children.style.marginTop = 2f;
+
+            arrow.RegisterValueChangedCallback(evt =>
+            {
+                SetFoldout(propPath, evt.newValue);
+                children.style.display = evt.newValue ? DisplayStyle.Flex : DisplayStyle.None;
+            });
+
+            popup.RegisterValueChangedCallback(_ =>
+            {
+                WriteSelectionUITK(so, propPath, popup);
+                RefreshChildrenUITK(so, propPath, popup, arrow, children);
+            });
+
+            row.Add(popup);
+            row.Add(arrow);
+
+            var root = new VisualElement();
+            root.Add(row);
+            root.Add(children);
+
+            RefreshChildrenUITK(so, propPath, popup, arrow, children);
+            return root;
+        }
+
+        /// <summary>UITK 选中写入：重新 FindProperty 后写值并应用。</summary>
+        private void WriteSelectionUITK(SerializedObject so, string propPath, PopupField<string> popup)
+        {
+            so.Update();
+            SerializedProperty fresh = so.FindProperty(propPath);
+            if (fresh == null) return;
+
+            ApplySelection(fresh, popup.index);
+            so.ApplyModifiedProperties();
+        }
+
+        /// <summary>
+        /// 类型切换后刷新下拉显示与子属性区（重新 FindProperty，避免使用失效的 SerializedProperty）。
+        /// </summary>
+        private void RefreshChildrenUITK(SerializedObject so, string propPath,
+            PopupField<string> popup, Foldout arrow, VisualElement children)
+        {
+            so.Update();
+            SerializedProperty fresh = so.FindProperty(propPath);
+            if (fresh == null) return;
+
+            bool hasInstance = fresh.managedReferenceValue != null;
+            popup.SetValueWithoutNotify(Cache.DisplayNames[FindCurrentIndex(fresh)]);
+
+            // 无实例或无可见子属性时不显示箭头与子属性区（与 IMGUI 一致）
+            bool showChildren = hasInstance && HasVisibleChildren(fresh);
+            arrow.style.display = showChildren ? DisplayStyle.Flex : DisplayStyle.None;
+            children.style.display = showChildren && arrow.value ? DisplayStyle.Flex : DisplayStyle.None;
+
+            children.Clear();
+            if (!showChildren) return;
+
+            ForEachVisibleChild(fresh, child =>
+            {
+                var childProp = child.Copy(); // PropertyField 需跨迭代持有，须复制
+                var field = new PropertyField(childProp);
+                field.BindProperty(childProp);
+                children.Add(field);
+            });
         }
 
         #endregion
@@ -117,76 +409,94 @@ namespace Moirai.Atropos
         #region 下拉弹窗 [DROPDOWN POPUP]
 
         /// <summary>
+        /// 显示带类型详情的自定义下拉弹窗（IMGUI 专用；UITK 使用原生 PopupField）。
+        /// </summary>
+        private void ShowDropdown(Rect activatorRect, int currentIndex, Action<int> onSelected)
+        {
+            PopupWindow.Show(activatorRect, new TypeDropdownPopup(Cache, currentIndex, onSelected));
+        }
+
+        /// <summary>
         /// 自定义下拉弹窗内容：选项列表 + 下方显示悬停项的类型详情。
         /// </summary>
         private sealed class TypeDropdownPopup : PopupWindowContent
         {
-            private readonly GUIContent[] _names;
-            private readonly Type[] _types;
-            private readonly int _currentIndex;
-            private readonly Action<int> _onSelected;
-            private int _hoverIndex;
-            private Vector2 _scroll;
-
             private const float ITEM_H = 20f;
             private const float LINE_H = 18f;
             private const float INFO_PAD = 8f;
             private const float INFO_LABEL_W = 70f;
             private const float MIN_WIDTH = 300f;
             private const float MAX_HEIGHT = 400f;
+            private const float SCROLLBAR_W = 16f;
 
-            internal TypeDropdownPopup(GUIContent[] names, Type[] types, int currentIndex, Action<int> onSelected)
+            private readonly TypeMenuCache _cache;
+            private readonly int _currentIndex;
+            private readonly Action<int> _onSelected;
+            private int _hoverIndex;
+            private Vector2 _scroll;
+
+            internal TypeDropdownPopup(TypeMenuCache cache, int currentIndex, Action<int> onSelected)
             {
-                _names = names;
-                _types = types;
+                _cache = cache;
                 _currentIndex = currentIndex;
                 _onSelected = onSelected;
                 _hoverIndex = currentIndex;
             }
 
+            public override void OnOpen()
+            {
+                // 不开启 wantsMouseMove 收不到 MouseMove 事件，悬停高亮与详情面板将失效
+                editorWindow.wantsMouseMove = true;
+            }
+
             public override Vector2 GetWindowSize()
             {
-                float listH = _names.Length * ITEM_H;
-                float infoH = GetInfoHeight();
-                float totalH = Mathf.Min(listH + infoH, MAX_HEIGHT);
-                return new Vector2(MIN_WIDTH, totalH);
+                float listH = _cache.Names.Length * ITEM_H;
+                return new Vector2(MIN_WIDTH, Mathf.Min(listH + GetInfoHeight(), MAX_HEIGHT));
             }
 
             public override void OnGUI(Rect rect)
             {
+                GUIContent[] names = _cache.Names;
+
                 // ── 选项列表 ──
                 float infoH = GetInfoHeight();
                 float listH = rect.height - infoH;
 
-                float scrollBarW = 16f;
-                float contentW = rect.width;
-                bool needsScroll = _names.Length * ITEM_H > listH;
-                float viewW = needsScroll ? rect.width - scrollBarW : rect.width;
+                bool needsScroll = names.Length * ITEM_H > listH;
+                float viewW = needsScroll ? rect.width - SCROLLBAR_W : rect.width;
 
                 _scroll = GUI.BeginScrollView(
                     new Rect(rect.x, rect.y, rect.width, listH),
                     _scroll,
-                    new Rect(0, 0, viewW, _names.Length * ITEM_H));
+                    new Rect(0, 0, viewW, names.Length * ITEM_H));
 
-                for (int i = 0; i < _names.Length; i++)
+                // 视口裁剪：仅绘制可见项，长列表避免整表重绘
+                int first = Mathf.Max(0, Mathf.FloorToInt(_scroll.y / ITEM_H));
+                int last = Mathf.Min(names.Length, Mathf.CeilToInt((_scroll.y + listH) / ITEM_H) + 1);
+
+                for (int i = first; i < last; i++)
                 {
                     var itemRect = new Rect(0, i * ITEM_H, viewW, ITEM_H);
-                    bool isHover = i == _hoverIndex;
-                    bool isSelected = i == _currentIndex;
 
-                    if (isHover)
+                    if (i == _hoverIndex)
                         EditorGUI.DrawRect(itemRect, new Color(0.24f, 0.38f, 0.58f, 0.3f));
 
                     var contentRect = new Rect(itemRect.x + 4, itemRect.y, itemRect.width - 8, itemRect.height);
-                    EditorGUI.LabelField(contentRect, _names[i], isSelected
-                        ? EditorStyles.boldLabel
-                        : EditorStyles.label);
+                    EditorGUI.LabelField(contentRect, names[i],
+                        i == _currentIndex ? EditorStyles.boldLabel : EditorStyles.label);
 
-                    // 悬停检测
+                    // 内容坐标 = 视图坐标 + 滚动偏移
                     var mouseRect = new Rect(itemRect.x + _scroll.x, itemRect.y + _scroll.y, itemRect.width, itemRect.height);
-                    if (Event.current.type == EventType.MouseMove && mouseRect.Contains(Event.current.mousePosition))
+
+                    if (Event.current.type == EventType.MouseMove
+                        && mouseRect.Contains(Event.current.mousePosition))
                     {
-                        _hoverIndex = i;
+                        if (_hoverIndex != i)
+                        {
+                            _hoverIndex = i;
+                            editorWindow.Repaint();
+                        }
                         Event.current.Use();
                     }
 
@@ -213,21 +523,22 @@ namespace Moirai.Atropos
 
             private void DrawInfoPanel(Rect infoRect)
             {
-                if (_hoverIndex < 1 || _hoverIndex > _types.Length)
+                if (_hoverIndex < 1 || _hoverIndex > _cache.Types.Length)
                 {
-                    EditorGUI.LabelField(new Rect(infoRect.x + INFO_PAD, infoRect.y + 4, infoRect.width - INFO_PAD * 2, LINE_H),
+                    EditorGUI.LabelField(
+                        new Rect(infoRect.x + INFO_PAD, infoRect.y + 4, infoRect.width - INFO_PAD * 2, LINE_H),
                         "(None)", EditorStyles.miniLabel);
                     return;
                 }
 
-                Type type = _types[_hoverIndex - 1];
+                Type type = _cache.Types[_hoverIndex - 1];
                 float y = infoRect.y + INFO_PAD;
 
                 DrawInfoLine(infoRect, ref y, "Type", type.FullName);
                 DrawInfoLine(infoRect, ref y, "Base", type.BaseType?.FullName ?? "(none)");
                 DrawInfoLine(infoRect, ref y, "Assembly", type.Assembly.GetName().Name);
 
-                // 点击选中
+                // 点击详情区也可选中当前悬停项
                 if (Event.current.type == EventType.MouseDown && infoRect.Contains(Event.current.mousePosition))
                 {
                     _onSelected(_hoverIndex);
@@ -239,7 +550,8 @@ namespace Moirai.Atropos
             private void DrawInfoLine(Rect infoRect, ref float y, string label, string value)
             {
                 var labelRect = new Rect(infoRect.x + INFO_PAD, y, INFO_LABEL_W, LINE_H);
-                var valueRect = new Rect(infoRect.x + INFO_PAD + INFO_LABEL_W, y, infoRect.width - INFO_PAD * 2 - INFO_LABEL_W, LINE_H);
+                var valueRect = new Rect(infoRect.x + INFO_PAD + INFO_LABEL_W, y,
+                    infoRect.width - INFO_PAD * 2 - INFO_LABEL_W, LINE_H);
 
                 var prevColor = GUI.color;
                 GUI.color = new Color(0.6f, 0.6f, 0.6f);
@@ -250,221 +562,7 @@ namespace Moirai.Atropos
                 y += LINE_H;
             }
 
-            private float GetInfoHeight()
-            {
-                return INFO_PAD * 2 + LINE_H * 3 + 4;
-            }
-        }
-
-        /// <summary>
-        /// 绘制带类型详情的自定义下拉。点击弹出 PopupWindow，悬停项下方显示详情。
-        /// </summary>
-        private int DrawTypeDropdown(Rect popupRect, int currentIndex, string propertyPath)
-        {
-            GUIContent currentContent = currentIndex >= 0 && currentIndex < _names.Length
-                ? _names[currentIndex]
-                : GUIContent.none;
-
-            bool clicked = EditorGUI.DropdownButton(popupRect, currentContent, FocusType.Keyboard, EditorStyles.popup);
-
-            if (clicked)
-            {
-                int selected = currentIndex;
-                PopupWindow.Show(popupRect, new TypeDropdownPopup(
-                    _names, _types, currentIndex, idx => selected = idx));
-
-                // PopupWindow.Show 后需 ExitGUI 避免后续 GUI 操作冲突
-                // 但我们不能在这里 ExitGUI，因为需要返回值
-                // selected 会在 popup 关闭后被读取
-            }
-
-            // 检查是否有新选择
-            // PopupWindow 回调是同步的——selected 在 lambda 中赋值
-            // 但 PopupWindow.Show 不阻塞，所以我们需要另一种方式
-            return currentIndex;
-        }
-
-        #endregion
-
-        #region string 模式 [STRING MODE]
-
-        private void DrawStringMode(Rect position, SerializedProperty property, GUIContent label)
-        {
-            float lineH = EditorGUIUtility.singleLineHeight;
-            var headerRect = new Rect(position.x, position.y, position.width, lineH);
-            var fieldRect = EditorGUI.PrefixLabel(headerRect, GetDisplayName(label));
-
-            int currentIndex = FindCurrentIndexString(property);
-
-            // 绘制 popup 按钮
-            GUIContent currentContent = currentIndex >= 0 && currentIndex < _names.Length
-                ? _names[currentIndex] : GUIContent.none;
-
-            if (EditorGUI.DropdownButton(fieldRect, currentContent, FocusType.Keyboard, EditorStyles.popup))
-            {
-                ShowDropdown(fieldRect, currentIndex, newIndex =>
-                {
-                    property.stringValue = newIndex >= 1 && newIndex <= _types.Length
-                        ? _types[newIndex - 1].FullName : null;
-                    property.serializedObject.ApplyModifiedProperties();
-                });
-            }
-        }
-
-        private int FindCurrentIndexString(SerializedProperty property)
-        {
-            string current = property.stringValue;
-            if (string.IsNullOrEmpty(current)) return 0;
-
-            for (int i = 0; i < _types.Length; i++)
-            {
-                if (_types[i].FullName == current || _types[i].Name == current)
-                    return i + 1;
-            }
-            return 0;
-        }
-
-        #endregion
-
-        #region 引用模式 [REFERENCE MODE]
-
-        private void DrawReferenceMode(Rect position, SerializedProperty property, GUIContent label)
-        {
-            float spacing = EditorGUIUtility.standardVerticalSpacing;
-            float lineH = EditorGUIUtility.singleLineHeight;
-
-            int currentIndex = FindCurrentIndexReference(property);
-            bool hasChildren = property.managedReferenceValue != null && HasVisibleChildren(property);
-
-            // 公共：绘制 dropdown header
-            var headerRect = new Rect(position.x, position.y, position.width, lineH);
-            var fieldRect = EditorGUI.PrefixLabel(headerRect, label);
-
-            // 有子属性时需要为 foldout 预留空间
-            Rect popupRect, foldoutRect = default;
-            if (hasChildren)
-            {
-                popupRect = new Rect(fieldRect.x, fieldRect.y, fieldRect.width - FOLDOUT_W, lineH);
-                foldoutRect = new Rect(fieldRect.xMax - FOLDOUT_W, fieldRect.y, FOLDOUT_W, lineH);
-            }
-            else
-            {
-                popupRect = fieldRect;
-            }
-
-            // 绘制 dropdown 按钮
-            GUIContent currentContent = currentIndex >= 0 && currentIndex < _names.Length
-                ? _names[currentIndex] : GUIContent.none;
-
-            if (EditorGUI.DropdownButton(popupRect, currentContent, FocusType.Keyboard, EditorStyles.popup))
-            {
-                ShowDropdown(popupRect, currentIndex, newIndex =>
-                {
-                    if (newIndex == 0)
-                        property.managedReferenceValue = null;
-                    else
-                        property.managedReferenceValue = Activator.CreateInstance(_types[newIndex - 1]);
-                    property.serializedObject.ApplyModifiedProperties();
-                    GUI.changed = true;
-                });
-            }
-
-            // foldout
-            if (hasChildren)
-            {
-                string foldKey = property.propertyPath;
-                if (!s_Foldouts.ContainsKey(foldKey))
-                    s_Foldouts[foldKey] = true;
-                s_Foldouts[foldKey] = EditorGUI.Foldout(foldoutRect, s_Foldouts[foldKey], GUIContent.none, true);
-
-                if (!s_Foldouts[foldKey]) return;
-
-                // ── 子属性绘制 ──
-                float childStartY = position.y + lineH + spacing;
-                float boxH = position.yMax - childStartY;
-                GUI.Box(new Rect(position.x, childStartY, position.width, boxH), GUIContent.none);
-
-                float y = childStartY + PAD;
-                var child = property.Copy();
-                var end = child.GetEndProperty();
-
-                if (child.NextVisible(true))
-                {
-                    int indent = EditorGUI.indentLevel;
-                    EditorGUI.indentLevel++;
-                    bool first = true;
-
-                    while (!SerializedProperty.EqualContents(child, end))
-                    {
-                        if (!first) y += spacing;
-                        float ch = EditorGUI.GetPropertyHeight(child, true);
-                        EditorGUI.PropertyField(
-                            new Rect(position.x + PAD, y, position.width - PAD * 2, ch),
-                            child, true);
-                        y += ch;
-                        first = false;
-                        if (!child.NextVisible(false)) break;
-                    }
-
-                    EditorGUI.indentLevel = indent;
-                }
-            }
-        }
-
-        private int FindCurrentIndexReference(SerializedProperty property)
-        {
-            if (property.managedReferenceValue == null) return 0;
-
-            var currentType = property.managedReferenceValue.GetType();
-            for (int i = 0; i < _types.Length; i++)
-            {
-                if (_types[i] == currentType) return i + 1;
-            }
-            return 0;
-        }
-
-        #endregion
-
-        #region 弹窗工具 [POPUP UTILITY]
-
-        /// <summary>
-        /// 显示带类型详情的自定义下拉弹窗。
-        /// </summary>
-        private void ShowDropdown(Rect activatorRect, int currentIndex, Action<int> onSelected)
-        {
-            PopupWindow.Show(activatorRect, new TypeDropdownPopup(
-                _names, _types, currentIndex, onSelected));
-        }
-
-        #endregion
-
-        #region 工具 [UTILITIES]
-
-        /// <summary>
-        /// 获取人性化的显示名称。
-        /// 优先使用特性中指定的 Label；否则使用 Unity 默认 label（引用模式）
-        /// 或从字段名自动推导并追加 " Helper"（string 模式）。
-        /// </summary>
-        private GUIContent GetDisplayName(GUIContent defaultLabel)
-        {
-            if (!string.IsNullOrEmpty(attribute.Label))
-                return new GUIContent(attribute.Label);
-
-            if (defaultLabel != null && !string.IsNullOrEmpty(defaultLabel.text))
-                return defaultLabel;
-
-            string name = fieldInfo.Name;
-            name = Regex.Replace(name, @"^m_", string.Empty);
-            name = Regex.Replace(name, @"HelperTypeName$", string.Empty);
-            name = Regex.Replace(name, @"((?<=[a-z])[A-Z]|[A-Z](?=[a-z]))", " $1").Trim();
-            return new GUIContent(name + " Helper");
-        }
-
-        private static bool HasVisibleChildren(SerializedProperty property)
-        {
-            var child = property.Copy();
-            var end = child.GetEndProperty();
-            return child.NextVisible(true) && !SerializedProperty.EqualContents(child, end);
+            private float GetInfoHeight() => INFO_PAD * 2 + LINE_H * 3 + 4;
         }
 
         #endregion
