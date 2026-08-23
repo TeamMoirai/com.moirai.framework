@@ -18,6 +18,8 @@ namespace Moirai.Atropos.Resource
 
         private bool _forceUnloadUnusedAssets = false;
 
+        private bool _forceSystemUnloadUnusedAssets = false;
+
         private bool _preorderUnloadUnusedAssets = false;
 
         private bool _performGCCollect = false;
@@ -26,11 +28,15 @@ namespace Moirai.Atropos.Resource
 
         private float _lastUnloadUnusedAssetsOperationElapseSeconds = 0f;
 
+        private float _lastGCCollectElapseSeconds = float.MaxValue;
+
         [SerializeField] private float m_MinUnloadUnusedAssetsInterval = 60f;
 
         [SerializeField] private float m_MaxUnloadUnusedAssetsInterval = 300f;
 
         [SerializeField] private bool m_UseSystemUnloadUnusedAssets = true;
+
+        [SerializeField] private float m_MinGCCollectInterval = 30f;
 
         /// <summary>
         /// 当前最新的包裹版本。
@@ -323,6 +329,8 @@ namespace Moirai.Atropos.Resource
                 return;
             }
 
+            Application.lowMemory += OnLowMemory;
+
             if (PlayMode == EPlayMode.EditorSimulateMode)
             {
                 LogUtility.Info("During this run, ResourceService will use editor resource files, which you should validate first.");
@@ -369,37 +377,43 @@ namespace Moirai.Atropos.Resource
             if (performGCCollect)
             {
                 _performGCCollect = true;
+                _forceSystemUnloadUnusedAssets = true;
             }
         }
 
 
         private void Update()
         {
+            bool shouldUnloadUnusedAssets = _asyncOperation == null &&
+                (_forceUnloadUnusedAssets ||
+                 _lastUnloadUnusedAssetsOperationElapseSeconds >= m_MaxUnloadUnusedAssetsInterval ||
+                 _preorderUnloadUnusedAssets && _lastUnloadUnusedAssetsOperationElapseSeconds >= m_MinUnloadUnusedAssetsInterval);
+
             if (_resourceService is ResourceService resourceService)
             {
-                bool shouldUnload = _asyncOperation == null &&
-                    (_forceUnloadUnusedAssets ||
-                     _lastUnloadUnusedAssetsOperationElapseSeconds >= m_MaxUnloadUnusedAssetsInterval ||
-                     _preorderUnloadUnusedAssets && _lastUnloadUnusedAssetsOperationElapseSeconds >= m_MinUnloadUnusedAssetsInterval);
-                int expireCount = shouldUnload
+                int expireProcessCount = shouldUnloadUnusedAssets
                     ? Mathf.Max(m_ExpireProcessCountPerFrame, m_ExpireProcessCountWhenUnloading)
                     : Mathf.Max(0, m_ExpireProcessCountPerFrame);
-                resourceService.ProcessKeepAlive(UnityEngine.Time.unscaledTime, expireCount);
+                resourceService.ProcessKeepAlive(UnityEngine.Time.unscaledTime, expireProcessCount);
             }
 
             _lastUnloadUnusedAssetsOperationElapseSeconds += UnityEngine.Time.unscaledDeltaTime;
-            if (_asyncOperation == null && (_forceUnloadUnusedAssets || _lastUnloadUnusedAssetsOperationElapseSeconds >= m_MaxUnloadUnusedAssetsInterval ||
-                                            _preorderUnloadUnusedAssets && _lastUnloadUnusedAssetsOperationElapseSeconds >= m_MinUnloadUnusedAssetsInterval))
+            _lastGCCollectElapseSeconds += UnityEngine.Time.unscaledDeltaTime;
+            if (shouldUnloadUnusedAssets)
             {
-                LogUtility.Info("Unload unused assets...");
+                bool force = _forceUnloadUnusedAssets;
+                bool useSystemUnload = _forceSystemUnloadUnusedAssets && m_UseSystemUnloadUnusedAssets;
                 _forceUnloadUnusedAssets = false;
+                _forceSystemUnloadUnusedAssets = false;
                 _preorderUnloadUnusedAssets = false;
                 _lastUnloadUnusedAssetsOperationElapseSeconds = 0f;
-                _asyncOperation = Resources.UnloadUnusedAssets();
-                if (m_UseSystemUnloadUnusedAssets)
-                {
-                    _resourceService.UnloadUnusedAssets();
-                }
+                _resourceService.UnloadUnusedAssets(force);
+                _asyncOperation = useSystemUnload ? Resources.UnloadUnusedAssets() : null;
+            }
+
+            if (_asyncOperation == null && _performGCCollect)
+            {
+                TryCollectGarbage();
             }
 
             if (_asyncOperation is { isDone: true })
@@ -407,11 +421,33 @@ namespace Moirai.Atropos.Resource
                 _asyncOperation = null;
                 if (_performGCCollect)
                 {
-                    LogUtility.Info("GC.Collect...");
-                    _performGCCollect = false;
-                    GC.Collect();
+                    TryCollectGarbage();
                 }
             }
+        }
+
+        private void TryCollectGarbage()
+        {
+            if (_lastGCCollectElapseSeconds < m_MinGCCollectInterval)
+            {
+                return;
+            }
+
+            LogUtility.Info("GC.Collect...");
+            _performGCCollect = false;
+            _lastGCCollectElapseSeconds = 0f;
+            GC.Collect();
+        }
+
+        private void OnLowMemory()
+        {
+            LogUtility.Warning("Low memory reported...");
+            _resourceService?.OnLowMemory();
+        }
+
+        private void OnDestroy()
+        {
+            Application.lowMemory -= OnLowMemory;
         }
 
         #endregion
