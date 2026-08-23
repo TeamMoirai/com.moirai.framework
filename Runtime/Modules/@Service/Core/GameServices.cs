@@ -72,6 +72,11 @@ namespace Moirai.Atropos
         public static IReadOnlyList<IServiceInterceptor> Interceptors => s_Interceptors;
 
         /// <summary>
+        /// 是否存在已注册的拦截器。轮询热路径据此选择快/慢路径（无拦截器时跳过逐服务通知）。
+        /// </summary>
+        internal static bool HasInterceptors => s_Interceptors.Count > 0;
+
+        /// <summary>
         /// 添加服务拦截器。按 <see cref="IServiceInterceptor.Priority"/> 降序插入。
         /// </summary>
         public static void AddInterceptor(IServiceInterceptor interceptor)

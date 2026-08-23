@@ -1,36 +1,41 @@
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using UnityEngine;
 
 namespace Moirai.Atropos
 {
-    /// <summary>服务注册描述符。记录一次服务注册的全部元信息。</summary>
+    /// <summary>
+    /// 服务注册描述符。记录一次服务注册的全部元信息。
+    /// <para>仅 <see cref="ServiceCollection"/> 与 <see cref="ServiceRegistrationBuilder"/> 可写（internal set），
+    /// 交给 <see cref="ServiceWorld"/> 构建后对外只读——防止构建期元数据被外部中途篡改。</para>
+    /// </summary>
     public sealed class ServiceDescriptor
     {
         /// <summary>
-        /// 服务契约接口类型。
+        /// 主服务契约类型。
         /// </summary>
-        public Type InterfaceType { get; set; }
+        public Type ContractType { get; internal set; }
 
         /// <summary>
         /// 实现类型。与 <see cref="Factory"/> 二选一。
         /// </summary>
-        public Type ImplementationType { get; set; }
+        public Type ImplementationType { get; internal set; }
 
         /// <summary>
-        /// 工厂委托（优先于 <see cref="ImplementationType"/>）。
+        /// 工厂委托（优先于 <see cref="ImplementationType"/>）。委托返回类型已由注册 API 约束为实现契约。
         /// </summary>
-        public Func<IServiceProvider, IService> Factory { get; set; }
+        public Func<IServiceProvider, IService> Factory { get; internal set; }
 
         /// <summary>
         /// 所属作用域。
         /// </summary>
-        public EServiceScopeKind Scope { get; set; }
+        public EServiceScopeKind Scope { get; internal set; }
 
         /// <summary>
         /// 轮询优先级（降序）。
         /// </summary>
-        public int Priority { get; set; }
+        public int Priority { get; internal set; }
 
         /// <summary>
         /// 是否为 MonoBehaviour 服务（容器通过 AddComponent 创建）。
@@ -50,7 +55,10 @@ namespace Moirai.Atropos
         /// </summary>
         internal Type[] AdditionalContracts { get; set; }
 
-        internal Type[] _allContractsCache;
+        /// <summary>构建期缓存的已选构造函数（拓扑排序与实例创建各用一次，避免重复反射扫描）。</summary>
+        internal ConstructorInfo ResolvedConstructor { get; set; }
+
+        private Type[] _allContractsCache;
 
         /// <summary>
         /// 全部契约类型数组（主契约 + 额外契约）。首次访问后缓存，后续零分配。
@@ -63,18 +71,21 @@ namespace Moirai.Atropos
 
                 if (AdditionalContracts == null || AdditionalContracts.Length == 0)
                 {
-                    _allContractsCache = new[] { InterfaceType };
+                    _allContractsCache = new[] { ContractType };
                 }
                 else
                 {
                     _allContractsCache = new Type[1 + AdditionalContracts.Length];
-                    _allContractsCache[0] = InterfaceType;
+                    _allContractsCache[0] = ContractType;
                     Array.Copy(AdditionalContracts, 0, _allContractsCache, 1, AdditionalContracts.Length);
                 }
 
                 return _allContractsCache;
             }
         }
+
+        /// <summary>额外契约变更后使缓存失效（仅构建器调用）。</summary>
+        internal void InvalidateContractsCache() => _allContractsCache = null;
     }
 
     /// <summary>
@@ -98,7 +109,7 @@ namespace Moirai.Atropos
         {
             var desc = new ServiceDescriptor
             {
-                InterfaceType = typeof(TInterface),
+                ContractType = typeof(TInterface),
                 ImplementationType = typeof(TImpl),
                 Scope = scope,
             };
@@ -108,15 +119,17 @@ namespace Moirai.Atropos
 
         /// <summary>
         /// 通过工厂注册服务。
+        /// <para>工厂返回类型约束为 <typeparamref name="TInterface"/>（编译期类型安全），
+        /// 返回未实现契约的实例将无法通过编译；运行时仍做空值与契约校验兜底。</para>
         /// </summary>
         public ServiceRegistrationBuilder Register<TInterface>(
             EServiceScopeKind scope,
-            Func<IServiceProvider, IService> factory)
+            Func<IServiceProvider, TInterface> factory)
             where TInterface : class, IService
         {
             var desc = new ServiceDescriptor
             {
-                InterfaceType = typeof(TInterface),
+                ContractType = typeof(TInterface),
                 Factory = factory ?? throw new ArgumentNullException(nameof(factory)),
                 Scope = scope,
             };
@@ -133,7 +146,7 @@ namespace Moirai.Atropos
         {
             var desc = new ServiceDescriptor
             {
-                InterfaceType = typeof(TInterface),
+                ContractType = typeof(TInterface),
                 ImplementationType = typeof(TImpl),
                 Scope = scope,
                 IsMonoBehaviour = true,
@@ -150,21 +163,21 @@ namespace Moirai.Atropos
         /// 按运行时类型注册服务。用于编译期无法确定类型的场景（如从 Inspector 字符串解析）。
         /// </summary>
         public ServiceRegistrationBuilder Register(
-            Type interfaceType, Type implType, EServiceScopeKind scope)
+            Type contractType, Type implType, EServiceScopeKind scope)
         {
-            if (interfaceType == null) throw new ArgumentNullException(nameof(interfaceType));
+            if (contractType == null) throw new ArgumentNullException(nameof(contractType));
             if (implType == null) throw new ArgumentNullException(nameof(implType));
-            if (!interfaceType.IsInterface)
+            if (!contractType.IsInterface)
                 throw new GameException(
-                    StringUtility.Format("'{0}' is not an interface.", interfaceType.FullName));
-            if (!interfaceType.IsAssignableFrom(implType))
+                    StringUtility.Format("'{0}' is not an interface.", contractType.FullName));
+            if (!contractType.IsAssignableFrom(implType))
                 throw new GameException(
                     StringUtility.Format("'{0}' does not implement '{1}'.",
-                        implType.FullName, interfaceType.FullName));
+                        implType.FullName, contractType.FullName));
 
             var desc = new ServiceDescriptor
             {
-                InterfaceType = interfaceType,
+                ContractType = contractType,
                 ImplementationType = implType,
                 Scope = scope,
                 IsMonoBehaviour = typeof(MonoBehaviour).IsAssignableFrom(implType),
@@ -220,7 +233,7 @@ namespace Moirai.Atropos
             Array.Copy(existing, arr, existing.Length);
             arr[existing.Length] = typeof(TExtraContract);
             _descriptor.AdditionalContracts = arr;
-            _descriptor._allContractsCache = null;
+            _descriptor.InvalidateContractsCache();
             return this;
         }
     }

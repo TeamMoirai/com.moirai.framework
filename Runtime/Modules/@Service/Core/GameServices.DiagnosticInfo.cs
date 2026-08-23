@@ -10,7 +10,7 @@ namespace Moirai.Atropos
         /// </summary>
         internal struct DiagnosticInfo
         {
-            public string InterfaceType;
+            public string ContractType;
             public string ImplementationType;
             public EServiceScopeKind Scope;
             public int Priority;
