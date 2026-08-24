@@ -165,18 +165,12 @@ namespace Moirai.Atropos
         /// <summary>
         /// 按运行时类型注册服务。用于编译期无法确定类型的场景（如从 Inspector 字符串解析）。
         /// </summary>
-        public ServiceRegistrationBuilder Register(
-            Type contractType, Type implType, EServiceScopeKind scope)
+        public ServiceRegistrationBuilder Register(Type contractType, Type implType, EServiceScopeKind scope)
         {
             if (contractType == null) throw new ArgumentNullException(nameof(contractType));
             if (implType == null) throw new ArgumentNullException(nameof(implType));
-            if (!contractType.IsInterface)
-                throw new GameException(
-                    StringUtility.Format("'{0}' is not an interface.", contractType.FullName));
-            if (!contractType.IsAssignableFrom(implType))
-                throw new GameException(
-                    StringUtility.Format("'{0}' does not implement '{1}'.",
-                        implType.FullName, contractType.FullName));
+            if (!contractType.IsInterface) throw new GameException(StringUtility.Format("'{0}' is not an interface.", contractType.FullName));
+            if (!contractType.IsAssignableFrom(implType)) throw new GameException(StringUtility.Format("'{0}' does not implement '{1}'.", implType.FullName, contractType.FullName));
 
             var desc = new ServiceDescriptor
             {
