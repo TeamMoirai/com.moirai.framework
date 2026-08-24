@@ -190,6 +190,18 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
+        /// 异步关闭指定作用域。对实现 <see cref="IAsyncShutdownService"/> 的服务先异步关闭，
+        /// 再执行同步 <c>Shutdown</c>。
+        /// </summary>
+        /// <param name="scope">要关闭的作用域。</param>
+        public static async UniTask ShutdownContainerAsync(EServiceScopeKind scope)
+        {
+            EnsureMainThread();
+            if (s_World == null) return;
+            await s_World.ShutdownScopeAsync(scope);
+        }
+
+        /// <summary>
         /// 关闭全部作用域。逆序：Gameplay → Scene → App（依赖方先于被依赖方释放）。
         /// </summary>
         public static void Shutdown()
@@ -202,6 +214,75 @@ namespace Moirai.Atropos
             s_World = null;
             ClearAll();
         }
+
+        /// <summary>
+        /// 异步关闭全部作用域。逆序：Gameplay → Scene → App。
+        /// 对实现 <see cref="IAsyncShutdownService"/> 的服务先异步关闭。
+        /// </summary>
+        public static async UniTask ShutdownAsync()
+        {
+            EnsureMainThread();
+            await ShutdownContainerAsync(EServiceScopeKind.Gameplay);
+            await ShutdownContainerAsync(EServiceScopeKind.Scene);
+            await ShutdownContainerAsync(EServiceScopeKind.App);
+            s_World?.Dispose();
+            s_World = null;
+            ClearAll();
+        }
+
+        #endregion
+
+        #region 运行时服务注册 [RUNTIME SERVICE REGISTRATION]
+
+        /// <summary>
+        /// 运行时注册单个服务到指定作用域。
+        /// <para>注册后立即驱动 <c>OnInit</c>（或 <see cref="IServiceLifecycle.Initialize"/>）。</para>
+        /// <para>迭代中（Tick）调用时默认延迟到本轮迭代结束后执行（<see cref="EDeferMode.Defer"/>）；
+        /// 传入 <see cref="EDeferMode.Throw"/> 则立即抛出异常。</para>
+        /// </summary>
+        /// <typeparam name="T">服务契约类型。</typeparam>
+        /// <param name="scope">目标作用域。</param>
+        /// <param name="service">要注册的服务实例。</param>
+        /// <param name="deferMode">迭代中调用的延迟策略。</param>
+        /// <returns>注册的服务实例（延迟模式下尚未完成初始化）。</returns>
+        public static T RegisterService<T>(
+            EServiceScopeKind scope,
+            T service,
+            EDeferMode deferMode = EDeferMode.Defer) where T : class, IService
+        {
+            EnsureMainThread();
+            s_World ??= new ServiceWorld();
+
+            if (!s_World.TryGetScope(scope, out var targetScope))
+                targetScope = s_World.EnsureScope(scope);
+
+            return targetScope.RegisterRuntime(service, deferMode);
+        }
+
+        /// <summary>
+        /// 运行时注销并关闭指定作用域中的单个服务。
+        /// <para>触发 <c>Shutdown</c> 并从注册表移除。</para>
+        /// <para>迭代中（Tick）调用时默认延迟到本轮迭代结束后执行（<see cref="EDeferMode.Defer"/>）；
+        /// 传入 <see cref="EDeferMode.Throw"/> 则立即抛出异常。</para>
+        /// </summary>
+        /// <typeparam name="T">服务契约类型。</typeparam>
+        /// <param name="scope">目标作用域。</param>
+        /// <param name="deferMode">迭代中调用的延迟策略。</param>
+        /// <returns>成功注销返回 true；未找到返回 false。</returns>
+        public static bool UnregisterService<T>(
+            EServiceScopeKind scope,
+            EDeferMode deferMode = EDeferMode.Defer) where T : class, IService
+        {
+            EnsureMainThread();
+            if (s_World == null) return false;
+            if (!s_World.TryGetScope(scope, out var targetScope)) return false;
+            return targetScope.UnregisterRuntime<T>(deferMode);
+        }
+
+        /// <summary>
+        /// 获取内部 <see cref="ServiceWorld"/> 实例。供 <see cref="SelfRegisteringMono{TScope}"/> 等内部类型使用。
+        /// </summary>
+        internal static ServiceWorld GetWorldInternal() => s_World;
 
         #endregion
 

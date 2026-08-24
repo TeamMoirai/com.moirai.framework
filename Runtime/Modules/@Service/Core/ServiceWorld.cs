@@ -67,6 +67,23 @@ namespace Moirai.Atropos
             }
         }
 
+        /// <summary>
+        /// 异步关闭指定作用域。对实现 <see cref="IAsyncShutdownService"/> 的服务先异步关闭。
+        /// </summary>
+        internal async UniTask ShutdownScopeAsync(EServiceScopeKind kind)
+        {
+            if (TryGetScope(kind, out var scope))
+            {
+                await scope.DisposeAsync();
+                if (!scope.IsDisposed)
+                {
+                    // 迭代中延迟销毁：手动完成
+                    scope.Dispose();
+                }
+                ClearScope(kind);
+            }
+        }
+
         private void ClearScope(EServiceScopeKind kind)
         {
             int index = (int)kind;
@@ -432,7 +449,18 @@ namespace Moirai.Atropos
                 throw new GameException(
                     StringUtility.Format("Service '{0}' has no public constructor.", implType.FullName));
 
-            var parameters = ctor.GetParameters();
+            // 参数缓存：与构造函数同步填充，避免每次 GetParameters() 产生新数组
+            var parameters = desc.ResolvedParameters ??= ctor.GetParameters();
+
+            // 零参数快路径：跳过参数解析数组分配与循环
+            if (parameters.Length == 0)
+            {
+                var instance = (IService)ctor.Invoke(null);
+                if (instance is ServiceBase baseSvc)
+                    baseSvc.InjectInternal(this);
+                return instance;
+            }
+
             var args = new object[parameters.Length];
 
             for (int i = 0; i < parameters.Length; i++)
@@ -445,9 +473,23 @@ namespace Moirai.Atropos
                     continue;
                 }
 
-                // Func<T> 延迟解析注入：依赖方持有委托，首次调用时才向容器解析 T。
+                // IServiceResolver<T> 延迟解析注入（AOT 优选路径）：
+                // 使用 MakeGenericType + Activator.CreateInstance 而非 MakeGenericMethod + Delegate.CreateDelegate。
+                // IL2CPP 全量泛型共享下，引用类型的泛型类型构造由运行时缓存，无动态方法绑定风险。
+                // 语义与 Func<T> 一致：延迟解析目标服务，拓扑建边保证委托调用时目标已就绪。
+                if (paramType.IsGenericType &&
+                    paramType.GetGenericTypeDefinition() == typeof(IServiceResolver<>))
+                {
+                    var targetType = paramType.GetGenericArguments()[0];
+                    args[i] = Activator.CreateInstance(
+                        typeof(ServiceResolver<>).MakeGenericType(targetType), this);
+                    continue;
+                }
+
+                // Func<T> 延迟解析注入（向后兼容保留）：依赖方持有委托，首次调用时才向容器解析 T。
                 // 委托目标服务仍是构建期初始化的 singleton（拓扑建边保证就绪时序），
-                // 延迟的只是"解析"这一步——用于打破服务间的强引用启动耦合
+                // 延迟的只是"解析"这一步——用于打破服务间的强引用启动耦合。
+                // 新代码应优先使用 IServiceResolver<T> 以获得更好的 AOT 兼容性。
                 if (paramType.IsGenericType && paramType.GetGenericTypeDefinition() == typeof(Func<>))
                 {
                     args[i] = CreateLazyResolver(paramType);
@@ -689,15 +731,20 @@ namespace Moirai.Atropos
                 var ctor = desc.ResolvedConstructor ??= SelectConstructor(desc.ImplementationType);
                 if (ctor != null)
                 {
-                    var parameters = ctor.GetParameters();
+                    var parameters = desc.ResolvedParameters ??= ctor.GetParameters();
                     for (int i = 0; i < parameters.Length; i++)
                     {
                         var paramType = parameters[i].ParameterType;
                         if (paramType == typeof(IServiceProvider)) continue;
 
+                        // IServiceResolver<T> 延迟解析：T 参与拓扑建边，
+                        // 保证解析器调用时目标服务已创建并初始化
+                        if (paramType.IsGenericType && paramType.GetGenericTypeDefinition() == typeof(IServiceResolver<>))
+                            buffer.Add(paramType.GetGenericArguments()[0]);
+
                         // Func<T> 延迟解析：T 同样参与拓扑建边（若已注册），
                         // 保证委托运行期首次调用时目标服务已创建并初始化
-                        if (paramType.IsGenericType && paramType.GetGenericTypeDefinition() == typeof(Func<>))
+                        else if (paramType.IsGenericType && paramType.GetGenericTypeDefinition() == typeof(Func<>))
                             buffer.Add(paramType.GetGenericArguments()[0]);
                         else
                             buffer.Add(paramType);
@@ -783,7 +830,7 @@ namespace Moirai.Atropos
             {
                 var scope = _activeScopes[i];
                 int j = i - 1;
-                while (j >= 0 && _activeScopes[j].Kind > scope.Kind)
+                while (j >= 0 && _activeScopes[j].Order > scope.Order)
                 {
                     _activeScopes[j + 1] = _activeScopes[j];
                     j--;
@@ -884,5 +931,29 @@ namespace Moirai.Atropos
         }
 
         #endregion
+    }
+
+    /// <summary>
+    /// <see cref="IServiceResolver{T}"/> 的内部实现。持有 <see cref="ServiceWorld"/> 引用，
+    /// 调用 <see cref="Resolve"/> 时向容器查找目标服务。
+    /// <para>构建期由容器通过 <c>Activator.CreateInstance</c> 创建（引用类型泛型构造，
+    /// IL2CPP 全量泛型共享安全），无 <c>MakeGenericMethod</c> + <c>Delegate.CreateDelegate</c> 路径。</para>
+    /// </summary>
+    internal sealed class ServiceResolver<T> : IServiceResolver<T> where T : class
+    {
+        private readonly ServiceWorld _world;
+
+        public ServiceResolver(ServiceWorld world)
+        {
+            _world = world;
+        }
+
+        public T Resolve()
+        {
+            if (_world.TryGet<T>(out var service)) return service;
+            throw new GameException(StringUtility.Format(
+                "Delayed resolution of '{0}' failed: service not found in any active scope " +
+                "(it may have been shut down).", typeof(T).FullName));
+        }
     }
 }

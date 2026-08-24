@@ -13,6 +13,11 @@
 - **生命周期接口按需实现**：`IServiceTickable`、`IServiceFixedTickable`、`IServiceLateTickable`、`IServiceGizmoDrawable`
 - **`Priority` 优先级**控制轮询顺序（高优先先轮询、后关闭）
 - **异步初始化**：实现 `IAsyncInitService` 的服务在 `BuildAsync()` 中按拓扑序异步初始化
+- **异步关闭**：实现 `IAsyncShutdownService` 的服务在 `ShutdownContainerAsync()` / `ShutdownAsync()` 中按逆拓扑序先异步关闭
+- **AOT 安全的延迟解析**：`IServiceResolver<T>` 作为 `Func<T>` 的 AOT 优选替代，零 `MakeGenericMethod` 路径
+- **运行时服务注册**：`GameServices.RegisterService<T>()` / `UnregisterService<T>()` 在已构建的作用域中动态增删单个服务
+- **自注册 Mono 服务**：`SelfRegisteringMono<TScope>` 在 Awake 中自动注册、OnDestroy 中自动注销
+- **作用域优先级常量**：`ServiceScopeOrder` 显式定义 App/Scene/Gameplay 排序优先级
 - **服务事件**：`onServiceRegistered`/`onServiceUnregistered` 事件支持热替换通知
 - **迭代安全**：轮询期间的注册操作延迟到本轮结束后统一应用；轮询中请求的作用域销毁也延迟执行
 - **Tick 异常隔离**：单个服务在 `Tick` 中抛异常不会中断同帧其他服务
@@ -40,7 +45,11 @@
 | `IServiceTickable` / `IServiceFixedTickable` / `IServiceLateTickable` | 轮询接口，方法签名 `Tick(float elapseSeconds, float realElapseSeconds)` 等（MonoBehaviour 服务不可实现） |
 | `IServiceGizmoDrawable` | 编辑器 Gizmos 绘制接口 `OnDrawGizmos()` |
 | `IAsyncInitService` | 异步初始化接口，实现 `OnInitAsync()` 的服务在 `BuildAsync()` 中统一驱动 |
+| `IAsyncShutdownService` | 异步关闭接口，实现 `OnShutdownAsync()` 的服务在 `ShutdownContainerAsync()` 中按逆拓扑序异步关闭 |
+| `IServiceResolver<T>` | AOT 安全的延迟服务解析器，替代 `Func<T>` 注入的 `MakeGenericMethod` 路径 |
 | `ServiceMono<TScope>` | 泛型 MonoBehaviour 服务基类，通过 `TScope` 编译期确定作用域 |
+| `SelfRegisteringMono<TScope>` | 自注册 MonoBehaviour 服务基类，Awake 自动注册、OnDestroy 自动注销 |
+| `ServiceScopeOrder` | 作用域优先级常量（App=-10000, Scene=-5000, Gameplay=0） |
 | `GameApp` | MonoBehaviour 入口（`[DefaultExecutionOrder(-1000)]`），仅驱动生命周期与轮询，服务访问通过 `GameApp` 缓存属性（如 `GameApp.Audio`、`GameApp.UI`） |
 | `GameAppMessageEvent` / `EMessageEventType` | 命名空间 `Moirai.Atropos.Events`，框架级池化事件（对焦/失焦/退出、SDK 回调） |
 
@@ -261,6 +270,90 @@ GameServices.AddInterceptor(new ProfilingInterceptor());
 | `OnServiceShutdown` | `Shutdown()` 调用前 |
 
 多个拦截器按 `Priority` 降序执行。`GameServices.Shutdown()` 时清空全部拦截器。
+
+### AOT 安全的延迟解析 [AOT-SAFE LAZY RESOLUTION]
+
+`Func<T>` 注入使用 `MakeGenericMethod`，IL2CPP 全量泛型共享下可用但存在风险。`IServiceResolver<T>` 提供零反射替代路径：
+
+```csharp
+public class BattleService : ServiceBase, IBattleService
+{
+    private readonly IServiceResolver<IStatsService> _statsResolver;
+
+    // IServiceResolver<T> 构造参数：容器直接 new ServiceResolver<T>(this)——零反射
+    public BattleService(IServiceResolver<IStatsService> statsResolver)
+    {
+        _statsResolver = statsResolver;
+    }
+
+    public override void OnInit()
+    {
+        // 延迟解析：拓扑建边保证目标此时已就绪
+        var stats = _statsResolver.Resolve();
+    }
+}
+
+// 注册与 Func<T> 完全一致
+collection.Register<IBattleService, BattleService>(EServiceScopeKind.Gameplay);
+collection.Register<IStatsService, StatsService>(EServiceScopeKind.Gameplay);
+```
+
+> `Func<T>` 注入保留向后兼容。新代码推荐使用 `IServiceResolver<T>`。
+
+### 运行时服务注册 [RUNTIME SERVICE REGISTRATION]
+
+在已构建的作用域中动态增删单个服务（Mod 系统、DLC 热加载等场景）：
+
+```csharp
+// 运行时注册——立即驱动 OnInit
+var buffService = new BuffService();
+GameServices.RegisterService(EServiceScopeKind.Gameplay, buffService as IBuffService);
+
+// 运行时注销——立即驱动 Shutdown
+GameServices.UnregisterService<IBuffService>(EServiceScopeKind.Gameplay);
+```
+
+> 迭代中（Tick）调用抛出 `GameException`——须在非 Tick 上下文调用。
+
+### 自注册 MonoBehaviour 服务 [SELF-REGISTERING MONO SERVICE]
+
+`SelfRegisteringMono<TScope>` 在 `Awake` 中自动注册到对应作用域，`OnDestroy` 中自动注销。适用于快速原型、Inspector 驱动配置：
+
+```csharp
+public class MyInspectorService : SelfRegisteringMono<AppScope>, IMyService
+{
+    [SerializeField] private int m_ConfigValue;
+
+    public override void OnInit() { /* Awake 注册后自动调用 */ }
+    public override void Shutdown() { /* OnDestroy 注销前自动调用 */ }
+}
+
+// 直接在 Inspector 中挂载即可——无需 ServiceCollection 注册
+```
+
+> 与 `ServiceMono<TScope>`（容器通过 `AddComponent` 创建）互斥——选择其一即可。
+
+### 异步关闭 [ASYNC SHUTDOWN]
+
+实现 `IAsyncShutdownService` 的服务在异步关闭管线中按逆拓扑序先执行 `OnShutdownAsync()`，再执行同步 `Shutdown()`：
+
+```csharp
+public class ResourceService : ServiceBase, IResourceService, IAsyncShutdownService
+{
+    public async UniTask OnShutdownAsync()
+    {
+        await UnloadAllAssetsAsync(); // 异步卸载资源
+    }
+
+    public override void Shutdown() { /* 同步清理 */ }
+}
+
+// 异步关闭单个作用域
+await GameServices.ShutdownContainerAsync(EServiceScopeKind.Gameplay);
+
+// 异步关闭全部作用域
+await GameServices.ShutdownAsync();
+```
 
 ### 运行时调试
 

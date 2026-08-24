@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Cysharp.Threading.Tasks;
 using UnityEngine;
 
 namespace Moirai.Atropos
@@ -35,12 +36,27 @@ namespace Moirai.Atropos
         private bool _isIterating;
         private bool _disposePending;
 
+        // --- 延迟变更队列：迭代中注册/注销请求延迟到本轮迭代结束后执行 ---
+
+        private readonly List<PendingChange> _pendingChanges = new List<PendingChange>();
+
+        // --- CreationIndex：同优先级服务的稳定排序（按注册顺序） ---
+
+        private int _nextCreationIndex;
+
         // --- 轮询列表（按 Priority 降序排列，dirty-flag + lazy-sort 维护） ---
 
         private bool _tickablesDirty;
         private bool _fixedTickablesDirty;
         private bool _lateTickablesDirty;
         private bool _gizmoDrawablesDirty;
+
+        // --- 实例级 Comparison 委托：CreationIndex tiebreaker 需访问 _entriesByService，不可为 static ---
+
+        private readonly Comparison<IServiceTickable> _tickComparison;
+        private readonly Comparison<IServiceFixedTickable> _fixedTickComparison;
+        private readonly Comparison<IServiceLateTickable> _lateTickComparison;
+        private readonly Comparison<IServiceGizmoDrawable> _gizmoComparison;
 
         private const int MISSING_INDEX = -1;
 
@@ -53,6 +69,12 @@ namespace Moirai.Atropos
         internal bool IsDisposed { get; private set; }
         internal int ServiceCount => _registrationOrder.Count;
 
+        /// <summary>
+        /// 作用域排序优先级（数值越小越先初始化、越后关闭）。
+        /// 由 <see cref="ServiceScopeOrder.FromKind"/> 映射，替代隐式枚举值比较。
+        /// </summary>
+        internal int Order => ServiceScopeOrder.FromKind(Kind);
+
         #endregion
 
         #region 构造 [CONSTRUCTION]
@@ -62,6 +84,10 @@ namespace Moirai.Atropos
             Kind = kind;
             Name = name;
             _world = world;
+            _tickComparison = CompareByPriority<IServiceTickable>;
+            _fixedTickComparison = CompareByPriority<IServiceFixedTickable>;
+            _lateTickComparison = CompareByPriority<IServiceLateTickable>;
+            _gizmoComparison = CompareByPriority<IServiceGizmoDrawable>;
         }
 
         #endregion
@@ -72,6 +98,7 @@ namespace Moirai.Atropos
         /// 将服务注册到作用域。仅存储引用和更新轮询列表，不调用 OnInit。
         /// <para>fail-fast：契约重复、作用域已销毁/销毁中、迭代中注册均抛出 <see cref="GameException"/>——
         /// 静默拒绝会产生"已创建未入册"的影子服务（随后被 OnInit 却永不 Shutdown）。</para>
+        /// <para>此方法仅由 <see cref="ServiceWorld.BuildAsync"/> 调用，不参与延迟队列——构建不在 Tick 中发生。</para>
         /// </summary>
         internal void Register(Type[] contractTypes, IService service)
         {
@@ -105,6 +132,120 @@ namespace Moirai.Atropos
             RegisterInternal(service, contractTypes);
         }
 
+        /// <summary>
+        /// 运行时注册单个服务到已构建的作用域。
+        /// <para>与 <see cref="Register"/> 不同，此方法在注册完成后立即驱动服务生命周期
+        /// （<see cref="IServiceLifecycle.Initialize"/> → <c>OnInit</c>），并触发
+        /// <see cref="GameServices.onServiceRegistered"/> 事件。</para>
+        /// <para>迭代中（Tick）调用时，默认延迟到本轮迭代结束后执行（<see cref="EDeferMode.Defer"/>）；
+        /// 传入 <see cref="EDeferMode.Throw"/> 则立即抛出异常。</para>
+        /// </summary>
+        /// <typeparam name="T">服务契约类型。</typeparam>
+        /// <param name="service">要注册的服务实例。</param>
+        /// <param name="deferMode">迭代中调用的延迟策略。</param>
+        /// <returns>注册的服务实例（延迟模式下尚未完成初始化）。</returns>
+        internal T RegisterRuntime<T>(T service, EDeferMode deferMode = EDeferMode.Defer) where T : class, IService
+        {
+            if (service == null)
+                throw new ArgumentNullException(nameof(service));
+
+            var contractType = typeof(T);
+
+            if (IsDisposed)
+                throw new GameException(StringUtility.Format(
+                    "Scope {0} has been disposed; runtime registration is rejected.", Kind));
+
+            if (_disposePending)
+                throw new GameException(StringUtility.Format(
+                    "Scope {0} is being disposed; runtime registration is rejected.", Kind));
+
+            // 契约查重：无论是否迭代，重复契约立即失败
+            if (_servicesByContract.ContainsKey(contractType.TypeHandle))
+                throw new GameException(StringUtility.Format(
+                    "Contract '{0}' has already been registered in {1} scope.",
+                    contractType.FullName, Kind));
+
+            if (_isIterating)
+            {
+                if (deferMode == EDeferMode.Throw)
+                    throw new GameException(StringUtility.Format(
+                        "Cannot register '{0}' while {1} scope is iterating (EDeferMode.Throw).",
+                        contractType.FullName, Kind));
+
+                // 检查 pending 中是否已有同一契约的注册
+                for (int i = 0; i < _pendingChanges.Count; i++)
+                {
+                    if (_pendingChanges[i].IsRegister && _pendingChanges[i].ContractType == contractType)
+                        throw new GameException(StringUtility.Format(
+                            "Contract '{0}' has a pending registration in {1} scope.",
+                            contractType.FullName, Kind));
+                }
+
+                _pendingChanges.Add(PendingChange.ForRegister(service, contractType));
+                return service;
+            }
+
+            var contractTypes = new[] { contractType };
+            RegisterInternal(service, contractTypes);
+
+            if (service is IServiceLifecycle lifecycle)
+                lifecycle.Initialize(_world, this);
+
+            return service;
+        }
+
+        /// <summary>
+        /// 运行时注销并关闭单个服务（按运行时类型）。
+        /// <para>触发 <see cref="IServiceLifecycle.Destroy"/>（→ <c>Shutdown</c>）并从注册表移除。</para>
+        /// <para>迭代中（Tick）调用时，默认延迟到本轮迭代结束后执行（<see cref="EDeferMode.Defer"/>）；
+        /// 传入 <see cref="EDeferMode.Throw"/> 则立即抛出异常。</para>
+        /// </summary>
+        /// <param name="serviceType">服务契约类型。</param>
+        /// <param name="deferMode">迭代中调用的延迟策略。</param>
+        /// <returns>成功注销返回 true；未找到返回 false。</returns>
+        internal bool UnregisterRuntime(Type serviceType, EDeferMode deferMode = EDeferMode.Defer)
+        {
+            if (IsDisposed) return false;
+
+            if (!_servicesByContract.ContainsKey(serviceType.TypeHandle))
+                return false;
+
+            if (_isIterating)
+            {
+                if (deferMode == EDeferMode.Throw)
+                    throw new GameException(StringUtility.Format(
+                        "Cannot unregister '{0}' while {1} scope is iterating (EDeferMode.Throw).",
+                        serviceType.FullName, Kind));
+
+                _pendingChanges.Add(PendingChange.ForUnregister(serviceType));
+                return true;
+            }
+
+            var service = _servicesByContract[serviceType.TypeHandle];
+
+            if (service is IServiceLifecycle lifecycle)
+                lifecycle.Destroy();
+
+            if (_entriesByService.TryGetValue(service, out var entry))
+                RemoveServiceInternal(service, entry);
+
+            return true;
+        }
+
+        /// <summary>
+        /// 运行时注销并关闭单个服务。
+        /// <para>触发 <see cref="IServiceLifecycle.Destroy"/>（→ <c>Shutdown</c>）并从注册表移除。</para>
+        /// <para>迭代中（Tick）调用时，默认延迟到本轮迭代结束后执行（<see cref="EDeferMode.Defer"/>）；
+        /// 传入 <see cref="EDeferMode.Throw"/> 则立即抛出异常。</para>
+        /// </summary>
+        /// <typeparam name="T">服务契约类型。</typeparam>
+        /// <param name="deferMode">迭代中调用的延迟策略。</param>
+        /// <returns>成功注销返回 true；未找到返回 false。</returns>
+        internal bool UnregisterRuntime<T>(EDeferMode deferMode = EDeferMode.Defer) where T : class, IService
+        {
+            return UnregisterRuntime(typeof(T), deferMode);
+        }
+
         private void RegisterInternal(IService service, Type[] contractTypes)
         {
             // MonoBehaviour 服务的 Tick 应由 Unity 生命周期驱动，不可混入 ServiceScope 轮询列表
@@ -132,7 +273,15 @@ namespace Moirai.Atropos
                 _world.AddContract(this, handles[i], service);
             }
 
-            var entry = new ServiceEntry { ContractHandles = handles };
+            var entry = new ServiceEntry
+            {
+                ContractHandles = handles,
+                CreationIndex = _nextCreationIndex++,
+                TickIndex = MISSING_INDEX,
+                FixedTickIndex = MISSING_INDEX,
+                LateTickIndex = MISSING_INDEX,
+                GizmoIndex = MISSING_INDEX,
+            };
 
             // _registrationOrder 记录插入序（= 依赖拓扑序），用于逆序关闭与诊断收集。
             // 轮询列表追加到末尾 + 置脏标记，下次 Tick 前 lazy-sort 并重建索引——
@@ -244,6 +393,7 @@ namespace Moirai.Atropos
             {
                 _isIterating = false;
                 FlushDisposeIfPending();
+                FlushPendingChanges();
             }
         }
 
@@ -260,7 +410,7 @@ namespace Moirai.Atropos
                     catch (Exception ex) { LogTickFailure(_fixedTickables[i], nameof(FixedTick), ex); }
                 }
             }
-            finally { _isIterating = false; FlushDisposeIfPending(); }
+            finally { _isIterating = false; FlushDisposeIfPending(); FlushPendingChanges(); }
         }
 
         internal void LateTick(float elapseSeconds, float realElapseSeconds)
@@ -276,7 +426,7 @@ namespace Moirai.Atropos
                     catch (Exception ex) { LogTickFailure(_lateTickables[i], nameof(LateTick), ex); }
                 }
             }
-            finally { _isIterating = false; FlushDisposeIfPending(); }
+            finally { _isIterating = false; FlushDisposeIfPending(); FlushPendingChanges(); }
         }
 
         internal void DrawGizmos()
@@ -292,7 +442,7 @@ namespace Moirai.Atropos
                     catch (Exception ex) { LogTickFailure(_gizmoDrawables[i], "OnDrawGizmos", ex); }
                 }
             }
-            finally { _isIterating = false; FlushDisposeIfPending(); }
+            finally { _isIterating = false; FlushDisposeIfPending(); FlushPendingChanges(); }
         }
 
         private static void LogTickFailure(object service, string methodName, Exception ex)
@@ -310,6 +460,59 @@ namespace Moirai.Atropos
             // 迭代中请求的作用域销毁：待迭代结束后执行
             if (_disposePending)
                 DisposeInternal();
+        }
+
+        /// <summary>
+        /// 处理迭代中积累的延迟注册/注销请求。在每个轮询方法结束后调用。
+        /// <para>作用域已销毁时清空队列（不处理）。</para>
+        /// </summary>
+        private void FlushPendingChanges()
+        {
+            if (_pendingChanges.Count == 0) return;
+
+            if (IsDisposed)
+            {
+                _pendingChanges.Clear();
+                return;
+            }
+
+            for (int i = 0; i < _pendingChanges.Count; i++)
+            {
+                var change = _pendingChanges[i];
+                try
+                {
+                    if (change.IsRegister)
+                    {
+                        if (change.Service == null) continue;
+                        if (_entriesByService.ContainsKey(change.Service)) continue;
+                        if (_servicesByContract.ContainsKey(change.ContractType.TypeHandle)) continue;
+
+                        var contractTypes = new[] { change.ContractType };
+                        RegisterInternal(change.Service, contractTypes);
+
+                        if (change.Service is IServiceLifecycle lifecycle)
+                            lifecycle.Initialize(_world, this);
+                    }
+                    else
+                    {
+                        if (!_servicesByContract.TryGetValue(change.ContractType.TypeHandle, out var service))
+                            continue;
+
+                        if (service is IServiceLifecycle lifecycle)
+                            lifecycle.Destroy();
+
+                        if (_entriesByService.TryGetValue(service, out var entry))
+                            RemoveServiceInternal(service, entry);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    LogUtility.Error("Failed to flush pending {0} for '{1}':\n{2}",
+                        change.IsRegister ? "register" : "unregister",
+                        change.ContractType.FullName, ex);
+                }
+            }
+            _pendingChanges.Clear();
         }
 
         #endregion
@@ -397,6 +600,7 @@ namespace Moirai.Atropos
             if (IsDisposed) return;
             _isIterating = false;
             _disposePending = false;
+            _pendingChanges.Clear();
 
             // 标记正在整体销毁：ShutdownService 跳过逐项列表移除，
             // 由循环结束后统一 Clear() 清空全部列表——避免逆序遍历时 List.Remove 修改被遍历列表
@@ -409,6 +613,59 @@ namespace Moirai.Atropos
                 var service = _registrationOrder[i];
                 if (service != null && _entriesByService.ContainsKey(service))
                     ShutdownService(service);
+            }
+
+            _isDisposing = false;
+
+            _registrationOrder.Clear();
+            _tickables.Clear();
+            _fixedTickables.Clear();
+            _lateTickables.Clear();
+            _gizmoDrawables.Clear();
+            _tickablesDirty = false;
+            _fixedTickablesDirty = false;
+            _lateTickablesDirty = false;
+            _gizmoDrawablesDirty = false;
+            _entriesByService.Clear();
+            _servicesByContract.Clear();
+            IsDisposed = true;
+        }
+
+        /// <summary>
+        /// 异步销毁作用域。对实现 <see cref="IAsyncShutdownService"/> 的服务先调用 <c>OnShutdownAsync</c>，
+        /// 再调用同步 <c>Shutdown</c>。逆注册序（= 逆依赖拓扑序）执行。
+        /// </summary>
+        internal async UniTask DisposeAsync()
+        {
+            if (IsDisposed) return;
+
+            if (_isIterating)
+            {
+                _disposePending = true;
+                return;
+            }
+
+            _isIterating = false;
+            _disposePending = false;
+            _pendingChanges.Clear();
+            _isDisposing = true;
+
+            for (int i = _registrationOrder.Count - 1; i >= 0; i--)
+            {
+                var service = _registrationOrder[i];
+                if (service == null || !_entriesByService.ContainsKey(service)) continue;
+
+                if (service is IAsyncShutdownService asyncSvc)
+                {
+                    try { await asyncSvc.OnShutdownAsync(); }
+                    catch (Exception ex)
+                    {
+                        LogUtility.Error("Service '{0}' OnShutdownAsync failed:\n{1}",
+                            service.GetType().FullName, ex);
+                    }
+                }
+
+                ShutdownService(service);
             }
 
             _isDisposing = false;
@@ -464,20 +721,17 @@ namespace Moirai.Atropos
 
         // ── lazy-sort：脏标记置位后，下次迭代前排序 + 重建索引 ──
 
-        // 缓存 Comparison 委托：方法组到委托的转换每次求值都会分配，缓存后脏排序零分配
-        private static readonly Comparison<IServiceTickable> s_TickComparison = CompareByPriority;
-        private static readonly Comparison<IServiceFixedTickable> s_FixedTickComparison = CompareByPriority;
-        private static readonly Comparison<IServiceLateTickable> s_LateTickComparison = CompareByPriority;
-        private static readonly Comparison<IServiceGizmoDrawable> s_GizmoComparison = CompareByPriority;
-
         private void SortTickablesIfDirty()
         {
             if (!_tickablesDirty) return;
-            _tickables.Sort(s_TickComparison);
+            _tickables.Sort(_tickComparison);
             for (int i = 0; i < _tickables.Count; i++)
             {
                 if (_tickables[i] is IService svc && _entriesByService.TryGetValue(svc, out var e))
+                {
                     e.TickIndex = i;
+                    _entriesByService[svc] = e;
+                }
             }
             _tickablesDirty = false;
         }
@@ -485,11 +739,14 @@ namespace Moirai.Atropos
         private void SortFixedTickablesIfDirty()
         {
             if (!_fixedTickablesDirty) return;
-            _fixedTickables.Sort(CompareByPriority);
+            _fixedTickables.Sort(_fixedTickComparison);
             for (int i = 0; i < _fixedTickables.Count; i++)
             {
                 if (_fixedTickables[i] is IService svc && _entriesByService.TryGetValue(svc, out var e))
+                {
                     e.FixedTickIndex = i;
+                    _entriesByService[svc] = e;
+                }
             }
             _fixedTickablesDirty = false;
         }
@@ -497,11 +754,14 @@ namespace Moirai.Atropos
         private void SortLateTickablesIfDirty()
         {
             if (!_lateTickablesDirty) return;
-            _lateTickables.Sort(s_LateTickComparison);
+            _lateTickables.Sort(_lateTickComparison);
             for (int i = 0; i < _lateTickables.Count; i++)
             {
                 if (_lateTickables[i] is IService svc && _entriesByService.TryGetValue(svc, out var e))
+                {
                     e.LateTickIndex = i;
+                    _entriesByService[svc] = e;
+                }
             }
             _lateTickablesDirty = false;
         }
@@ -509,23 +769,39 @@ namespace Moirai.Atropos
         private void SortGizmoDrawablesIfDirty()
         {
             if (!_gizmoDrawablesDirty) return;
-            _gizmoDrawables.Sort(CompareByPriority);
+            _gizmoDrawables.Sort(_gizmoComparison);
             for (int i = 0; i < _gizmoDrawables.Count; i++)
             {
                 if (_gizmoDrawables[i] is IService svc && _entriesByService.TryGetValue(svc, out var e))
+                {
                     e.GizmoIndex = i;
+                    _entriesByService[svc] = e;
+                }
             }
             _gizmoDrawablesDirty = false;
         }
 
         /// <summary>
-        /// Priority 降序比较器（高优先在前）。
+        /// Priority 降序比较器（高优先在前）；同优先级按 CreationIndex 升序（先注册先执行）。
+        /// <para>实例方法：CreationIndex 从 <c>_entriesByService</c> 查找，需访问实例状态。</para>
         /// </summary>
-        private static int CompareByPriority<T>(T a, T b)
+        private int CompareByPriority<T>(T a, T b)
         {
-            int left = (a is IService sa) ? sa.Priority : 0;
-            int right = (b is IService sb) ? sb.Priority : 0;
-            return right.CompareTo(left);
+            int leftPriority = (a is IService sa) ? sa.Priority : 0;
+            int rightPriority = (b is IService sb) ? sb.Priority : 0;
+            int result = rightPriority.CompareTo(leftPriority);
+            if (result != 0) return result;
+
+            int leftCreation = GetCreationIndex(a as IService);
+            int rightCreation = GetCreationIndex(b as IService);
+            return leftCreation.CompareTo(rightCreation);
+        }
+
+        private int GetCreationIndex(IService service)
+        {
+            if (service != null && _entriesByService.TryGetValue(service, out var entry))
+                return entry.CreationIndex;
+            return int.MaxValue;
         }
 
         // ── swap-with-last O(1) 移除：末尾元素填补被删位置，更新其索引 ──
@@ -540,7 +816,10 @@ namespace Moirai.Atropos
                 _tickables[index] = moved;
                 _tickables.RemoveAt(last);
                 if (moved is IService svc && _entriesByService.TryGetValue(svc, out var e))
+                {
                     e.TickIndex = index;
+                    _entriesByService[svc] = e;
+                }
             }
             _tickablesDirty = true;
         }
@@ -555,7 +834,10 @@ namespace Moirai.Atropos
                 _fixedTickables[index] = moved;
                 _fixedTickables.RemoveAt(last);
                 if (moved is IService svc && _entriesByService.TryGetValue(svc, out var e))
+                {
                     e.FixedTickIndex = index;
+                    _entriesByService[svc] = e;
+                }
             }
             _fixedTickablesDirty = true;
         }
@@ -570,7 +852,10 @@ namespace Moirai.Atropos
                 _lateTickables[index] = moved;
                 _lateTickables.RemoveAt(last);
                 if (moved is IService svc && _entriesByService.TryGetValue(svc, out var e))
+                {
                     e.LateTickIndex = index;
+                    _entriesByService[svc] = e;
+                }
             }
             _lateTickablesDirty = true;
         }
@@ -585,7 +870,10 @@ namespace Moirai.Atropos
                 _gizmoDrawables[index] = moved;
                 _gizmoDrawables.RemoveAt(last);
                 if (moved is IService svc && _entriesByService.TryGetValue(svc, out var e))
+                {
                     e.GizmoIndex = index;
+                    _entriesByService[svc] = e;
+                }
             }
             _gizmoDrawablesDirty = true;
         }
@@ -594,14 +882,40 @@ namespace Moirai.Atropos
 
         #region 内部数据结构 [INTERNAL STRUCTURES]
 
-        /// <summary>服务的注册元数据。class 而非 struct——字典中直接修改字段无需回写。</summary>
-        internal class ServiceEntry
+        /// <summary>
+        /// 服务的注册元数据。struct 以消除堆分配；字典回写模式（<c>_entriesByService[svc] = e</c>）更新字段。
+        /// </summary>
+        internal struct ServiceEntry
         {
             public RuntimeTypeHandle[] ContractHandles;
-            public int TickIndex = MISSING_INDEX;
-            public int FixedTickIndex = MISSING_INDEX;
-            public int LateTickIndex = MISSING_INDEX;
-            public int GizmoIndex = MISSING_INDEX;
+            public int CreationIndex;
+            public int TickIndex;
+            public int FixedTickIndex;
+            public int LateTickIndex;
+            public int GizmoIndex;
+        }
+
+        /// <summary>
+        /// 迭代中延迟执行的注册/注销请求。
+        /// </summary>
+        private readonly struct PendingChange
+        {
+            public readonly bool IsRegister;
+            public readonly IService Service;
+            public readonly Type ContractType;
+
+            private PendingChange(bool isRegister, IService service, Type contractType)
+            {
+                IsRegister = isRegister;
+                Service = service;
+                ContractType = contractType;
+            }
+
+            public static PendingChange ForRegister(IService service, Type contractType)
+                => new PendingChange(true, service, contractType);
+
+            public static PendingChange ForUnregister(Type contractType)
+                => new PendingChange(false, null, contractType);
         }
 
         #endregion

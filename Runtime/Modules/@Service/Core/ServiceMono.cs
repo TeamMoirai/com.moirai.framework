@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 namespace Moirai.Atropos
@@ -7,7 +8,7 @@ namespace Moirai.Atropos
     /// <para>依赖通过覆写 <see cref="Inject"/> 方法获取，或通过 <see cref="Require{T}"/> / <see cref="TryGet{T}"/> 运行时查找。</para>
     /// <para>由 <see cref="ServiceWorld"/> 通过 AddComponent 创建并管理生命周期。</para>
     /// </summary>
-    public abstract class ServiceMonoBase : MonoBehaviour, IService
+    public abstract class ServiceMonoBase : MonoBehaviour, IService, IServiceLifecycle
     {
         #region 属性 [PROPERTIES]
 
@@ -84,6 +85,38 @@ namespace Moirai.Atropos
         {
             _serviceProvider = provider;
             Inject(provider);
+        }
+
+        /// <summary>
+        /// 运行时注册后是否已完成初始化。供 <see cref="SelfRegisteringMono{TScope}"/> 使用。
+        /// </summary>
+        protected bool IsInitialized { get; private set; }
+
+        #endregion
+
+        #region IServiceLifecycle 实现 [RUNTIME LIFECYCLE]
+
+        void IServiceLifecycle.Initialize(ServiceWorld world, ServiceScope scope)
+        {
+            if (IsInitialized) return;
+
+            InjectInternal(world);
+            IsInitialized = true;
+            OnInit();
+            State = EServiceState.Initialized;
+            GameServices.InvokeRegistered(this, GetType(), scope.Kind);
+        }
+
+        void IServiceLifecycle.Destroy()
+        {
+            if (!IsInitialized) return;
+
+            State = EServiceState.ShuttingDown;
+            GameServices.InvokeShutdown(this);
+            try { Shutdown(); }
+            catch (Exception ex) { LogUtility.Error(ex.ToString()); }
+            State = EServiceState.Disposed;
+            IsInitialized = false;
         }
 
         #endregion
