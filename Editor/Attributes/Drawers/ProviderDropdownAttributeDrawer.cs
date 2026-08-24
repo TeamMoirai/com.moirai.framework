@@ -50,6 +50,9 @@ namespace Moirai.Atropos
                 return cache;
             }
 
+            /// <summary>缓存对应的基类/接口类型（字段声明类型或特性指定的 BaseType）。</summary>
+            internal readonly Type BaseType;
+
             /// <summary>候选实现类型（按名称排序），不含 (None) 项。</summary>
             internal readonly Type[] Types;
 
@@ -64,9 +67,9 @@ namespace Moirai.Atropos
 
             private TypeMenuCache(Type baseType)
             {
+                BaseType = baseType;
                 Types = TypeCache.GetTypesDerivedFrom(baseType)
                     .Where(t => !t.IsAbstract
-                        && t.GetConstructor(Type.EmptyTypes) != null // 需无参构造（供 Activator.CreateInstance 实例化）
                         && !t.Assembly.GetName().Name.EndsWith(".Tests"))
                     .OrderBy(t => t.Name, StringComparer.Ordinal)
                     .ToArray();
@@ -551,7 +554,7 @@ namespace Moirai.Atropos
                 float y = infoRect.y + INFO_PAD;
 
                 DrawInfoLine(infoRect, ref y, "Type", type.FullName);
-                DrawInfoLine(infoRect, ref y, "Base", type.BaseType?.FullName ?? "(none)");
+                DrawInfoLine(infoRect, ref y, "Base", _cache.BaseType.FullName);
                 DrawInfoLine(infoRect, ref y, "Assembly", type.Assembly.GetName().Name);
 
                 // 点击详情区也可选中当前悬停项
