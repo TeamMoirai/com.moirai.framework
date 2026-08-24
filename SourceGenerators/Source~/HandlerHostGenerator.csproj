@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <IsRoslynComponent>true</IsRoslynComponent>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <AssemblyName>HandlerHostGenerator</AssemblyName>
+    <RootNamespace>Moirai.Atropos.SourceGenerators</RootNamespace>
+    <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
+    <NoWarn>RS2008</NoWarn>
+    <OutputPath>..</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
+  </PropertyGroup>
+
+  <Target Name="CleanBuildArtifacts" AfterTargets="Build">
+    <Delete Files="$(OutputPath)$(AssemblyName).deps.json;$(OutputPath)$(AssemblyName).pdb" />
+  </Target>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.3.0" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="4.3.0" PrivateAssets="all" />
+  </ItemGroup>
+
+</Project>

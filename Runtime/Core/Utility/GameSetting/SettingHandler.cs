@@ -7,35 +7,12 @@ namespace Moirai.Atropos
     /// 游戏配置处理器基类。
     /// </summary>
     [Serializable]
-    public abstract class SettingHandler
+    public abstract class SettingHandler : FrameworkHandler
     {
-        [NonSerialized]
-        private bool _initialized;
-
         /// <summary>
         /// 获取游戏配置项数量。
         /// </summary>
         public abstract int Count { get; }
-
-        internal void Internal_Init()
-        {
-            if (_initialized) return;
-
-            OnInit();
-            _initialized = true;
-        }
-
-        internal void Internal_Shutdown()
-        {
-            if (!_initialized) return;
-
-            _initialized = false;
-            Shutdown();
-        }
-
-        protected abstract void OnInit();
-
-        protected abstract void Shutdown();
 
         /// <summary>
         /// 加载游戏配置。

@@ -24,6 +24,8 @@ namespace Moirai.Atropos
 
         protected override void OnInit()
         {
+            base.OnInit();
+
             _filePath = PathUtility.FormatToUnityPath(Path.Combine(Application.persistentDataPath, m_SettingFileName));
             _settings = new Settings();
             _serializer = new Serializer();
@@ -33,8 +35,12 @@ namespace Moirai.Atropos
             Load();
         }
 
-        protected override void Shutdown()
+        protected override void OnShutdown()
         {
+            base.OnShutdown();
+
+            _settings = null;
+            _serializer = null;
         }
 
         private bool SerializeDefaultSettingCallback(Stream stream, Settings settings)

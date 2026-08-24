@@ -16,39 +16,28 @@ namespace Moirai.Atropos
     /// </para>
     /// </summary>
     [Serializable]
-    public abstract partial class TweenHandler
+    public abstract partial class TweenHandler : FrameworkHandler
     {
         [SerializeField] private float m_CheckInterval = 60f;
-
-        [NonSerialized]
-        private bool _initialized;
 
         #region 生命周期 [LIFECYCLE]
 
         /// <summary>
-        /// 内部初始化入口。注册到 TweenManager 后调用子类 OnInit。
+        /// 初始化回调：注册到 TweenManager。
         /// </summary>
-        internal void Internal_Init()
+        protected override void OnInit()
         {
-            if (_initialized) return;
-
             TweenManager.EnsureInstance();
             TweenManager.Register(this);
             TweenManager.SetCheckInterval(m_CheckInterval);
-            OnInit();
-            _initialized = true;
         }
 
         /// <summary>
-        /// 内部关闭入口。注销 TweenManager 后调用子类 Shutdown。
+        /// 关闭回调：注销 TweenManager。
         /// </summary>
-        internal void Internal_Shutdown()
+        protected override void OnShutdown()
         {
-            if (!_initialized) return;
-            _initialized = false;
-
             TweenManager.Unregister(this);
-            Shutdown();
         }
 
         /// <summary>
@@ -59,10 +48,6 @@ namespace Moirai.Atropos
         #endregion
 
         #region 基础方法 [CORE METHODS]
-
-        protected abstract void OnInit();
-
-        protected abstract void Shutdown();
 
         /// <summary>
         /// 判断指定对象是否正在执行Tween动画。

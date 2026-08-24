@@ -17,43 +17,19 @@ namespace Moirai.Atropos
     /// TweenUtility.Position(t, end, 0.3f, myAnimationCurve); // 曲线缓动
     /// </code>
     /// </para>
+    [HandlerHost(typeof(TweenHandler))]
     public static partial class TweenUtility
     {
-        private static TweenHandler s_Handler = null;
-
-        /// <summary>
-        /// 关闭域重载时进入 Play 的静态清理：置空 handler，
-        /// 下一次访问将重新初始化并重新注册帧监听
-        /// （旧监听随 UpdateDriver 的 DontDestroyOnLoad 对象在退出 Play 时销毁，不会重复）。
-        /// </summary>
-        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        internal static void ResetStatics()
+        private static TweenHandler CreateDefaultHandler()
         {
-            s_Handler = null;
-        }
-
-        /// <summary>
-        /// 获取/设置缓动动画处理器。禁止赋 null（fail-fast）。
-        /// </summary>
-        public static TweenHandler Handler
-        {
-            get
-            {
-                if (s_Handler == null) Handler = new DefaultTweenHandler();
-                return s_Handler;
-            }
-            set
-            {
-                if (s_Handler == value) return;
-                if (value == null)
-                    throw new GameException("TweenUtility.Handler cannot be null.");
-
-                value.Internal_Init();
-                var previous = s_Handler;
-                s_Handler = value;
-                previous?.Internal_Shutdown();
-            }
-        }
+#if LITMOTION_INSTALLED
+            return new LitMotionHandler();
+#elif PRIMETWEEN_INSTALLED
+            return new PrimeTweenHandler();
+#else
+            return new DefaultTweenHandler();
+#endif
+       }
 
         // ReSharper disable once IdentifierTypo
         public static bool IsTweening(object onTarget)

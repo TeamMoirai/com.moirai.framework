@@ -31,10 +31,10 @@ namespace Moirai.Atropos
 
         #region 基础方法 [CORE METHODS]
 
-        protected override void OnInit() { }
-
-        protected override void Shutdown()
+        protected override void OnShutdown()
         {
+            base.OnShutdown();
+
             _handleMap.Clear();
             _targetMap.Clear();
             _pausedSpeeds.Clear();

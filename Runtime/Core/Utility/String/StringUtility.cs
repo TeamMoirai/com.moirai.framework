@@ -25,32 +25,16 @@ namespace Moirai.Atropos
     /// </code>
     /// </para>
     /// </remarks>
+    [HandlerHost(typeof(StringHandler))]
     public static partial class StringUtility
     {
-        private static StringHandler s_Handler = null;
-        /// <summary>
-        /// 获取/设置字符串工具底层实现。
-        /// </summary>
-        /// <remarks>
-        /// 首次访问自动初始化为 <see cref="DefaultStringHandler"/>（StringBuilder 池化）；
-        /// 赋值 null 静默忽略；赋新值时自动执行旧 handler 的 Shutdown 和新 handler 的 OnInit。
-        /// </remarks>
-        public static StringHandler Handler
+        private static StringHandler CreateDefaultHandler()
         {
-            get
-            {
-                if (s_Handler == null) Handler = new DefaultStringHandler();
-                return s_Handler;
-            }
-            set
-            {
-                if (s_Handler == value || value == null) return;
-
-                value.Internal_Init();
-                var previous = s_Handler;
-                s_Handler = value;
-                previous?.Internal_Shutdown();
-            }
+#if ZSTRING_INSTALLED
+            return new ZStringHandler();
+#else
+            return new DefaultStringHandler();
+#endif
         }
 
         /// <summary>

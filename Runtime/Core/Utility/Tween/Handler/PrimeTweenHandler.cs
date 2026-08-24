@@ -65,6 +65,8 @@ namespace Moirai.Atropos
         /// </summary>
         protected override void OnInit()
         {
+            base.OnInit();
+
             PrimeTweenConfig.SetTweensCapacity(m_TweenCapacity);
 #if PRIME_TWEEN_EXPERIMENTAL
             PrimeTweenConfig.ManualInitialize();
@@ -73,8 +75,10 @@ namespace Moirai.Atropos
             LogUtility.Info("Init PrimeTweenConfig.");
         }
 
-        protected override void Shutdown()
+        protected override void OnShutdown()
         {
+            base.OnShutdown();
+
             s_CacheTweenDic.Clear();
         }
 

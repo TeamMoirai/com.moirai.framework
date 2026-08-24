@@ -107,7 +107,7 @@ StringUtility.Handler = new DefaultStringHandler();
 
 - `Format` 内部自动创建和归还 `IStringBuilder`，高频调用无内存泄漏
 - `IStringBuilder` 使用后必须调用 `Dispose()` 或 `ToStringAndDispose()` 归还池，否则池泄漏
-- `Handler` 赋 null 时忽略；赋新值时自动调用旧 handler 的 `Shutdown()` 和新 handler 的 `OnInit()`
+- `Handler` 赋 null 抛出 `ArgumentNullException`；赋新值时自动调用旧 handler 的 `Internal_Shutdown()` 和新 handler 的 `Internal_Init()`
 - `Clear()` 清空所有缓存和池，通常在场景切换时调用
 
 ---

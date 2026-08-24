@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Diagnostics;
-using System.Threading;
 using UnityEngine;
 using Object = UnityEngine.Object;
 
@@ -15,52 +14,10 @@ namespace Moirai.Atropos
     /// （优先级：Unity Logging &gt; ZLogger &gt; Serilog &gt; Unity Debug）。</para>
     /// <para>日志方法由 T4 模板生成，见 <c>LogUtility.LogMethods.tt</c>。</para>
     /// </summary>
+    [HandlerHost(typeof(LogHandler))]
     public static partial class LogUtility
     {
         #region 处理器 [HANDLER]
-
-        private static volatile LogHandler s_Handler;
-
-        /// <summary>
-        /// 获取或设置游戏框架日志处理器。线程安全；替换时旧处理器将被关闭。
-        /// <para>应在启动阶段（无并发日志时）完成设置。</para>
-        /// </summary>
-        /// <exception cref="ArgumentNullException">value 为 null。</exception>
-        public static LogHandler Handler
-        {
-            get
-            {
-                var handler = s_Handler;
-                if (handler != null)
-                {
-                    return handler;
-                }
-
-                var created = CreateDefaultHandler();
-                if (Interlocked.CompareExchange(ref s_Handler, created, null) == null)
-                {
-                    created.Internal_Init();
-                }
-
-                // 并发竞争失败方直接丢弃 created（尚未初始化，无需释放）。
-                return s_Handler;
-            }
-            set
-            {
-                if (value == null)
-                {
-                    throw new ArgumentNullException(nameof(value));
-                }
-
-                value.Internal_Init();
-
-                var previous = Interlocked.Exchange(ref s_Handler, value);
-                if (previous != null && !ReferenceEquals(previous, value))
-                {
-                    previous.Internal_Shutdown();
-                }
-            }
-        }
 
         /// <summary>
         /// 按编译期可用的最优后端创建默认处理器。
@@ -70,10 +27,10 @@ namespace Moirai.Atropos
         {
 #if ZLOGGER_INSTALLED
             return new ZLoggerHandler();
-#elif UNITY_LOGGING_INSTALLED
-            return new UnityLoggingHandler();
 #elif SERILOG_INSTALLED
             return new SerilogHandler();
+#elif UNITY_LOGGING_INSTALLED
+            return new UnityLoggingHandler();
 #else
             return new DefaultLogHandler();
 #endif

@@ -93,7 +93,7 @@ JsonUtility.Handler = new DefaultJsonHandler();
 
 ## 注意事项
 
-- `Handler` 赋 null 时忽略，不重置；赋新值时自动调用旧 handler 的 `Shutdown()` 和新 handler 的 `OnInit()`
+- `Handler` 赋 null 抛出 `ArgumentNullException`；赋新值时自动调用旧 handler 的 `Internal_Shutdown()` 和新 handler 的 `Internal_Init()`
 - 默认不序列化 `UnityEngine.Object` 派生类型（GameObject/Component/Sprite/Texture/Material 等）和 `UnityEvent`，反射式序列化会触达原生侧对象
 - 默认要求属性同时具备 get/set（读写兼备的往返对称契约），get-only 计算属性自动排除
 - `FromJsonOverwrite` 将 JSON 数据反序列化到现有对象上并覆盖现有数据

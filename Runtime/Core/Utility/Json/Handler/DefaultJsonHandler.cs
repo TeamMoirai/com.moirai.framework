@@ -17,11 +17,9 @@ namespace Moirai.Atropos
 
         protected override void OnInit()
         {
-            DefaultJson.maxDepth = m_MaxDepth;
-        }
+            base.OnInit();
 
-        protected override void Shutdown()
-        {
+            DefaultJson.maxDepth = m_MaxDepth;
         }
 
         public override string ToJson(object obj, bool prettyPrint = false)

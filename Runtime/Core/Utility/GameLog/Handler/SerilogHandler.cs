@@ -29,6 +29,8 @@ namespace Moirai.Atropos
         /// <inheritdoc/>
         protected override void OnInit()
         {
+            base.OnInit();
+
             // 捕获全局 Logger 引用；未配置时使用静默实例，保证日志调用永不抛错。
             _logger = Log.Logger ?? Serilog.Core.Logger.None;
         }
@@ -36,6 +38,8 @@ namespace Moirai.Atropos
         /// <inheritdoc/>
         protected override void OnShutdown()
         {
+            base.OnShutdown();
+
             _logger = null;
         }
 

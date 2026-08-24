@@ -28,8 +28,17 @@ namespace Moirai.Atropos
         /// <inheritdoc/>
         protected override void OnInit()
         {
+            base.OnInit();
+
             // 捕获当前 Unity logHandler（在拦截器安装之前）
             _originalHandler = UnityEngine.Debug.unityLogger.logHandler;
+        }
+
+        protected override void OnShutdown()
+        {
+            base.OnShutdown();
+
+            _originalHandler = null;
         }
 
         /// <summary>

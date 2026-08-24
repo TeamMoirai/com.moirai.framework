@@ -6,31 +6,8 @@ namespace Moirai.Atropos
     /// JSON 处理器基类。
     /// </summary>
     [Serializable]
-    public abstract class JsonHandler
+    public abstract class JsonHandler : FrameworkHandler
     {
-        [NonSerialized]
-        private bool _initialized;
-
-        internal void Internal_Init()
-        {
-            if (_initialized) return;
-
-            OnInit();
-            _initialized = true;
-        }
-
-        internal void Internal_Shutdown()
-        {
-            if (!_initialized) return;
-
-            _initialized = false;
-            Shutdown();
-        }
-
-        protected abstract void OnInit();
-
-        protected abstract void Shutdown();
-
         /// <summary>
         /// 将对象序列化为 JSON 字符串。
         /// </summary>

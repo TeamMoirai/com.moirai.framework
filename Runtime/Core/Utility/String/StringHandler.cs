@@ -9,31 +9,15 @@ namespace Moirai.Atropos
     /// 提供统一的字符串构建功能。
     /// </remarks>
     [Serializable]
-    public abstract partial class StringHandler
+    public abstract partial class StringHandler : FrameworkHandler
     {
-        [NonSerialized]
-        private bool _initialized;
-
-        internal void Internal_Init()
+        /// <summary>
+        /// 关闭回调，清空缓存。
+        /// </summary>
+        protected override void OnShutdown()
         {
-            if (_initialized) return;
-
-            OnInit();
-            _initialized = true;
-        }
-
-        internal void Internal_Shutdown()
-        {
-            if (!_initialized) return;
-
-            _initialized = false;
             Clear();
-            Shutdown();
         }
-
-        protected abstract void OnInit();
-
-        protected abstract void Shutdown();
 
         /// <summary>
         /// 获取一个字符串构建器适配器

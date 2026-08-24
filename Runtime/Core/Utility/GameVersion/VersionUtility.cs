@@ -3,28 +3,12 @@
     /// <summary>
     /// 版本号类。
     /// </summary>
+    [HandlerHost(typeof(VersionHandler))]
     public static partial class VersionUtility
     {
-        private static VersionHandler s_Handler = null;
-        /// <summary>
-        /// 获取/设置版本号处理器。
-        /// </summary>
-        public static VersionHandler Handler
+        private static VersionHandler CreateDefaultHandler()
         {
-            get
-            {
-                if (s_Handler == null) Handler = new DefaultVersionHandler();
-                return s_Handler;
-            }
-            set
-            {
-                if (s_Handler == value || value == null) return;
-
-                value.Internal_Init();
-                var previous = s_Handler;
-                s_Handler = value;
-                previous?.Internal_Shutdown();
-            }
+            return new DefaultVersionHandler();
         }
 
         /// <summary>
