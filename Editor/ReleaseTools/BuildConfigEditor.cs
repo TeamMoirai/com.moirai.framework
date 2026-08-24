@@ -123,14 +123,14 @@ namespace Moirai.Atropos.Editor
             _platformPopup = MakePopup("目标平台", s_PlatformNames, name =>
             {
                 int idx = Array.IndexOf(s_PlatformNames, name);
-                if (idx >= 0) Apply("Set Build Target", () => cfg.BuildTarget = s_PlatformTargets[idx]);
+                if (idx >= 0) Apply("Set Build Target", () => cfg.m_BuildTarget = s_PlatformTargets[idx]);
             });
 
             _pipelinePopup = MakePopup("构建管线", s_PipelineNames, name =>
             {
                 int idx = Array.IndexOf(s_PipelineNames, name);
                 if (idx >= 0)
-                    Apply("Set Build Pipeline", () => cfg.BuildPipeline = idx == 1
+                    Apply("Set Build Pipeline", () => cfg.m_BuildPipeline = idx == 1
                         ? EBuildPipeline.LegacyBuildPipeline
                         : EBuildPipeline.ScriptableBuildPipeline);
             });
@@ -138,12 +138,11 @@ namespace Moirai.Atropos.Editor
             _compressPopup = MakePopup("压缩方式", s_CompressNames, name =>
             {
                 int idx = Array.IndexOf(s_CompressNames, name);
-                if (idx >= 0) Apply("Set Compress Option", () => cfg.CompressOption = (ECompressOption)idx);
+                if (idx >= 0) Apply("Set Compress Option", () => cfg.m_CompressOption = (ECompressOption)idx);
             });
 
             // 加密方式：抽象类型 [SerializeReference]，经 ProviderDropdown drawer 绘制，走 UITK 绑定
-            var encryptorField = new PropertyField(
-                serializedObject.FindProperty("m_EncryptorHandler"), "加密方式");
+            var encryptorField = new PropertyField(serializedObject.FindProperty(nameof(BuildConfig.m_EncryptorHandler)), "加密方式");
 
             _versionField = MakeTextField("资源版本号", v => Apply("Set Package Version", () => cfg.PackageVersion = v));
             var versionRow = MakeRow(_versionField);
@@ -153,16 +152,16 @@ namespace Moirai.Atropos.Editor
                 _versionField.SetValueWithoutNotify(cfg.PackageVersion);
             }));
 
-            _outputRootField = MakeTextField("AB输出目录", v => Apply("Set Output Root", () => cfg.OutputRoot = v));
+            _outputRootField = MakeTextField("AB输出目录", v => Apply("Set Output Root", () => cfg.m_ABOutputRoot = v));
             var outputRow = MakeRow(_outputRootField);
             outputRow.Add(MakeSmallButton("浏览", () =>
             {
-                string selected = EditorUtility.OpenFolderPanel("选择输出目录", cfg.OutputRoot, "");
+                string selected = EditorUtility.OpenFolderPanel("选择输出目录", cfg.m_ABOutputRoot, "");
                 if (string.IsNullOrEmpty(selected)) return;
 
                 string rel = PathGetRelative(Application.dataPath + "/../", selected);
-                Apply("Set Output Root", () => cfg.OutputRoot = string.IsNullOrEmpty(rel) ? selected : rel);
-                _outputRootField.SetValueWithoutNotify(cfg.OutputRoot);
+                Apply("Set Output Root", () => cfg.m_ABOutputRoot = string.IsNullOrEmpty(rel) ? selected : rel);
+                _outputRootField.SetValueWithoutNotify(cfg.m_ABOutputRoot);
             }));
 
             section.Add(_platformPopup);
@@ -182,13 +181,13 @@ namespace Moirai.Atropos.Editor
 
             _minimalToggle = MakeToggle("启用最小包模式", "构建后删除 StreamingAssets 中的 .bundle 文件", v =>
             {
-                Apply("Toggle Minimal Package", () => cfg.MinimalPackage = v);
+                Apply("Toggle Minimal Package", () => cfg.m_MinimalPackage = v);
                 UpdateExtrasVisibility();
             });
 
             _retainTagsField = MakeTextField("保留Tag(逗号分隔)", v =>
             {
-                Apply("Set Retain Tags", () => cfg.RetainTags = v);
+                Apply("Set Retain Tags", () => cfg.m_RetainTags = v);
                 UpdateMinimalHelpBox();
             });
             _retainTagsField.tooltip = "带这些Tag的bundle不会被删除";
@@ -209,23 +208,23 @@ namespace Moirai.Atropos.Editor
             var section = MakeFoldout("advanced", "高级设置", "共享打包、依赖数据库、增量构建等", false);
 
             _sharePackToggle = MakeToggle("启用共享资源打包", "自动提取共享资源到独立bundle", v =>
-                Apply("Toggle Share Pack Rule", () => cfg.EnableSharePackRule = v));
+                Apply("Toggle Share Pack Rule", () => cfg.m_EnableSharePackRule = v));
             _depDbToggle = MakeToggle("使用资源依赖数据库", "提高打包速度", v =>
-                Apply("Toggle Asset Dependency DB", () => cfg.UseAssetDependencyDB = v));
+                Apply("Toggle Asset Dependency DB", () => cfg.m_UseAssetDependencyDB = v));
             _clearCacheToggle = MakeToggle("清理构建缓存(禁用增量构建)", "全量重新构建", v =>
-                Apply("Toggle Clear Build Cache", () => cfg.ClearBuildCache = v));
+                Apply("Toggle Clear Build Cache", () => cfg.m_ClearBuildCache = v));
             _verifyToggle = MakeToggle("验证构建结果", "构建后验证资源完整性", v =>
-                Apply("Toggle Verify Building Result", () => cfg.VerifyBuildingResult = v));
+                Apply("Toggle Verify Building Result", () => cfg.m_VerifyBuildingResult = v));
 
             _copyOptionPopup = MakePopup("内置文件拷贝", s_CopyOptionNames, name =>
             {
                 int idx = Array.IndexOf(s_CopyOptionNames, name);
-                if (idx >= 0) Apply("Set Bundled Copy Option", () => cfg.BundledCopyOption = (EBundledCopyOption)idx);
+                if (idx >= 0) Apply("Set Bundled Copy Option", () => cfg.m_BundledCopyOption = (EBundledCopyOption)idx);
             });
             _fileNameStylePopup = MakePopup("文件名风格", s_FileNameStyleNames, name =>
             {
                 int idx = Array.IndexOf(s_FileNameStyleNames, name);
-                if (idx >= 0) Apply("Set File Name Style", () => cfg.FileNameStyle = (EFileNameStyle)idx);
+                if (idx >= 0) Apply("Set File Name Style", () => cfg.m_FileNameStyle = (EFileNameStyle)idx);
             });
 
             section.Add(_sharePackToggle);
@@ -242,7 +241,7 @@ namespace Moirai.Atropos.Editor
             var section = MakeFoldout("dll", "热更DLL设置", "HybridCLR 热更程序集编译", true);
 
             _dllToggle = MakeToggle("构建前编译热更DLL", "执行 BuildDLLCommand.BuildAndCopyDlls", v =>
-                Apply("Toggle Build HotFix DLL", () => cfg.BuildHotFixDll = v));
+                Apply("Toggle Build HotFix DLL", () => cfg.m_BuildHotFixDll = v));
 
             section.Add(_dllToggle);
             parent.Add(section);
@@ -254,27 +253,27 @@ namespace Moirai.Atropos.Editor
 
             _buildPlayerToggle = MakeToggle("构建Player", "构建可执行程序(exe/apk/ipa)", v =>
             {
-                Apply("Toggle Build Player", () => cfg.BuildPlayer = v);
+                Apply("Toggle Build Player", () => cfg.m_BuildPlayer = v);
                 UpdateExtrasVisibility();
             });
 
             _playerPlatformPopup = MakePopup("Player平台", s_PlatformNames, name =>
             {
                 int idx = Array.IndexOf(s_PlatformNames, name);
-                if (idx >= 0) Apply("Set Player Platform", () => cfg.PlayerPlatform = s_PlatformTargets[idx]);
+                if (idx >= 0) Apply("Set Player Platform", () => cfg.m_PlayerPlatform = s_PlatformTargets[idx]);
             });
 
             _playerOutputField = MakeTextField("输出路径", v =>
-                Apply("Set Player Output Path", () => cfg.PlayerOutputPath = v));
+                Apply("Set Player Output Path", () => cfg.m_PlayerOutputPath = v));
             var outputRow = MakeRow(_playerOutputField);
             outputRow.Add(MakeSmallButton("浏览", () =>
             {
                 string selected = EditorUtility.SaveFilePanel("选择输出路径",
-                    Path.GetDirectoryName(cfg.PlayerOutputPath),
-                    Path.GetFileName(cfg.PlayerOutputPath), "");
+                    Path.GetDirectoryName(cfg.m_PlayerOutputPath),
+                    Path.GetFileName(cfg.m_PlayerOutputPath), "");
                 if (string.IsNullOrEmpty(selected)) return;
 
-                Apply("Set Player Output Path", () => cfg.PlayerOutputPath = selected);
+                Apply("Set Player Output Path", () => cfg.m_PlayerOutputPath = selected);
                 _playerOutputField.SetValueWithoutNotify(selected);
             }));
 
@@ -352,15 +351,15 @@ namespace Moirai.Atropos.Editor
 
         private void UpdateExtrasVisibility()
         {
-            _minimalExtras.style.display = cfg.MinimalPackage ? DisplayStyle.Flex : DisplayStyle.None;
-            _playerExtras.style.display = cfg.BuildPlayer ? DisplayStyle.Flex : DisplayStyle.None;
+            _minimalExtras.style.display = cfg.m_MinimalPackage ? DisplayStyle.Flex : DisplayStyle.None;
+            _playerExtras.style.display = cfg.m_BuildPlayer ? DisplayStyle.Flex : DisplayStyle.None;
         }
 
         private void UpdateMinimalHelpBox()
         {
-            string tagInfo = string.IsNullOrWhiteSpace(cfg.RetainTags)
+            string tagInfo = string.IsNullOrWhiteSpace(cfg.m_RetainTags)
                 ? "所有 .bundle 文件将被删除（仅保留清单）"
-                : $"保留带 [{cfg.RetainTags}] Tag 的 bundle，其余删除";
+                : $"保留带 [{cfg.m_RetainTags}] Tag 的 bundle，其余删除";
 
             _minimalHelpBox.text =
                 $"最小包模式：删除 StreamingAssets 中所有 .bundle 文件，仅保留清单文件（.bytes/.hash/.version）。\n" +
@@ -371,27 +370,27 @@ namespace Moirai.Atropos.Editor
         /// <summary>将 SO 当前值同步到手动控件。枚举值经 Clamp 防御（资产数据损坏时不越界崩溃）。</summary>
         private void RefreshControlsFromConfig()
         {
-            _platformPopup.SetValueWithoutNotify(PlatformNameFromTarget(cfg.BuildTarget));
-            _pipelinePopup.SetValueWithoutNotify(s_PipelineNames[cfg.BuildPipeline == EBuildPipeline.LegacyBuildPipeline ? 1 : 0]);
-            _compressPopup.SetValueWithoutNotify(s_CompressNames[ClampIndex((int)cfg.CompressOption, s_CompressNames.Length)]);
+            _platformPopup.SetValueWithoutNotify(PlatformNameFromTarget(cfg.m_BuildTarget));
+            _pipelinePopup.SetValueWithoutNotify(s_PipelineNames[cfg.m_BuildPipeline == EBuildPipeline.LegacyBuildPipeline ? 1 : 0]);
+            _compressPopup.SetValueWithoutNotify(s_CompressNames[ClampIndex((int)cfg.m_CompressOption, s_CompressNames.Length)]);
             _versionField.SetValueWithoutNotify(cfg.PackageVersion);
-            _outputRootField.SetValueWithoutNotify(cfg.OutputRoot);
+            _outputRootField.SetValueWithoutNotify(cfg.m_ABOutputRoot);
 
-            _minimalToggle.SetValueWithoutNotify(cfg.MinimalPackage);
-            _retainTagsField.SetValueWithoutNotify(cfg.RetainTags);
+            _minimalToggle.SetValueWithoutNotify(cfg.m_MinimalPackage);
+            _retainTagsField.SetValueWithoutNotify(cfg.m_RetainTags);
 
-            _sharePackToggle.SetValueWithoutNotify(cfg.EnableSharePackRule);
-            _depDbToggle.SetValueWithoutNotify(cfg.UseAssetDependencyDB);
-            _clearCacheToggle.SetValueWithoutNotify(cfg.ClearBuildCache);
-            _verifyToggle.SetValueWithoutNotify(cfg.VerifyBuildingResult);
-            _copyOptionPopup.SetValueWithoutNotify(s_CopyOptionNames[ClampIndex((int)cfg.BundledCopyOption, s_CopyOptionNames.Length)]);
-            _fileNameStylePopup.SetValueWithoutNotify(s_FileNameStyleNames[ClampIndex((int)cfg.FileNameStyle, s_FileNameStyleNames.Length)]);
+            _sharePackToggle.SetValueWithoutNotify(cfg.m_EnableSharePackRule);
+            _depDbToggle.SetValueWithoutNotify(cfg.m_UseAssetDependencyDB);
+            _clearCacheToggle.SetValueWithoutNotify(cfg.m_ClearBuildCache);
+            _verifyToggle.SetValueWithoutNotify(cfg.m_VerifyBuildingResult);
+            _copyOptionPopup.SetValueWithoutNotify(s_CopyOptionNames[ClampIndex((int)cfg.m_BundledCopyOption, s_CopyOptionNames.Length)]);
+            _fileNameStylePopup.SetValueWithoutNotify(s_FileNameStyleNames[ClampIndex((int)cfg.m_FileNameStyle, s_FileNameStyleNames.Length)]);
 
-            _dllToggle.SetValueWithoutNotify(cfg.BuildHotFixDll);
+            _dllToggle.SetValueWithoutNotify(cfg.m_BuildHotFixDll);
 
-            _buildPlayerToggle.SetValueWithoutNotify(cfg.BuildPlayer);
-            _playerPlatformPopup.SetValueWithoutNotify(PlatformNameFromTarget(cfg.PlayerPlatform));
-            _playerOutputField.SetValueWithoutNotify(cfg.PlayerOutputPath);
+            _buildPlayerToggle.SetValueWithoutNotify(cfg.m_BuildPlayer);
+            _playerPlatformPopup.SetValueWithoutNotify(PlatformNameFromTarget(cfg.m_PlayerPlatform));
+            _playerOutputField.SetValueWithoutNotify(cfg.m_PlayerOutputPath);
 
             UpdateMinimalHelpBox();
             UpdateExtrasVisibility();

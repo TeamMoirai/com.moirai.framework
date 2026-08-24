@@ -1,4 +1,3 @@
-using System;
 using Moirai.Atropos.Resource;
 using UnityEditor;
 using UnityEngine;
@@ -10,53 +9,51 @@ namespace Moirai.Atropos.Editor
     public class BuildConfig : ScriptableObject
     {
         // 基础设置
-        public BuildTarget BuildTarget;
-        public EBuildPipeline BuildPipeline = EBuildPipeline.ScriptableBuildPipeline;
-        public ECompressOption CompressOption = ECompressOption.LZ4;
+        [SerializeField] internal BuildTarget m_BuildTarget;
+        [SerializeField] internal EBuildPipeline m_BuildPipeline = EBuildPipeline.ScriptableBuildPipeline;
+        [SerializeField] internal ECompressOption m_CompressOption = ECompressOption.LZ4;
 
         [ProviderDropdown(label: "加密方式")]
         [SerializeReference] internal ResourceEncryptorHandler m_EncryptorHandler;
 
-        public string PackageVersion = "";
-        public string OutputRoot = "./Builds/";
-
-        /// <summary>
-        /// 资源加解密处理器。
-        /// </summary>
-        public ResourceEncryptorHandler EncryptorHandler
-        {
-            get => m_EncryptorHandler;
-            set => m_EncryptorHandler = value;
-        }
+        // ReSharper disable once InconsistentNaming
+        [SerializeField] internal string m_ABOutputRoot = "./Builds/";
 
         // 最小包设置
-        public bool MinimalPackage;
-        public string RetainTags = "";
+        [SerializeField] internal bool m_MinimalPackage;
+        [SerializeField] internal string m_RetainTags = "";
 
         // 高级设置
-        public bool EnableSharePackRule = true;
-        public bool UseAssetDependencyDB = true;
-        public bool ClearBuildCache;
-        public bool VerifyBuildingResult = true;
-        public EBundledCopyOption BundledCopyOption = EBundledCopyOption.ClearAndCopyAll;
-        public EFileNameStyle FileNameStyle = EFileNameStyle.BundleName_HashName;
+        [SerializeField] internal bool m_EnableSharePackRule = true;
+        [SerializeField] internal bool m_UseAssetDependencyDB = true;
+        [SerializeField] internal bool m_ClearBuildCache;
+        [SerializeField] internal bool m_VerifyBuildingResult = true;
+        [SerializeField] internal EBundledCopyOption m_BundledCopyOption = EBundledCopyOption.ClearAndCopyAll;
+        [SerializeField] internal EFileNameStyle m_FileNameStyle = EFileNameStyle.BundleName_HashName;
 
         // 热更DLL设置
-        public bool BuildHotFixDll = true;
+        [SerializeField] internal bool m_BuildHotFixDll = true;
 
         // 打包Player设置
-        public bool BuildPlayer;
-        public BuildTarget PlayerPlatform;
-        public string PlayerOutputPath = "";
+        [SerializeField] internal bool m_BuildPlayer;
+        [SerializeField] internal BuildTarget m_PlayerPlatform;
+        [SerializeField] internal string m_PlayerOutputPath = "";
+
+        private string _packageVersion = "";
+        /// <summary>资源版本号</summary>
+        public string PackageVersion
+        {
+            get => string.IsNullOrEmpty(_packageVersion) ? GetDefaultPackageVersion() : _packageVersion;
+            set => _packageVersion = value;
+        }
 
         public static BuildConfig CreateDefault()
         {
             var config = CreateInstance<BuildConfig>();
-            config.BuildTarget = EditorUserBuildSettings.activeBuildTarget;
-            config.PlayerPlatform = EditorUserBuildSettings.activeBuildTarget;
-            config.PackageVersion = GetDefaultPackageVersion();
-            config.OutputRoot = "./Builds/";
-            config.PlayerOutputPath = GetDefaultPlayerOutputPath(EditorUserBuildSettings.activeBuildTarget);
+            config.m_BuildTarget = EditorUserBuildSettings.activeBuildTarget;
+            config.m_PlayerPlatform = EditorUserBuildSettings.activeBuildTarget;
+            config.m_ABOutputRoot = "./Builds/";
+            config.m_PlayerOutputPath = GetDefaultPlayerOutputPath(EditorUserBuildSettings.activeBuildTarget);
             return config;
         }
 
