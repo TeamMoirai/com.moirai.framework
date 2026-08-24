@@ -86,8 +86,8 @@ namespace Moirai.Atropos.Editor
         public static void BuildCurrentPlatformAB()
         {
             var config = BuildConfig.CreateDefault();
-            config.OutputRoot = "./Bundles/";
-            config.BuildHotFixDll = true;
+            config.m_ABOutputRoot = "./Bundles/";
+            config.m_BuildHotFixDll = true;
             BuildWithConfig(config, buildPlayer: false);
         }
 
@@ -95,11 +95,11 @@ namespace Moirai.Atropos.Editor
         public static void AutomationBuild()
         {
             var config = BuildConfig.CreateDefault();
-            config.BuildTarget = BuildTarget.StandaloneWindows64;
-            config.OutputRoot = Application.dataPath + "/../Builds/Windows";
-            config.BuildPlayer = true;
-            config.PlayerPlatform = BuildTarget.StandaloneWindows64;
-            config.PlayerOutputPath = $"{Application.dataPath}/../Build/Windows/Release_Windows.exe";
+            config.m_BuildTarget = BuildTarget.StandaloneWindows64;
+            config.m_ABOutputRoot = Application.dataPath + "/../Builds/Windows";
+            config.m_BuildPlayer = true;
+            config.m_PlayerPlatform = BuildTarget.StandaloneWindows64;
+            config.m_PlayerOutputPath = $"{Application.dataPath}/../Build/Windows/Release_Windows.exe";
             BuildWithConfig(config, buildPlayer: true);
         }
 
@@ -107,11 +107,11 @@ namespace Moirai.Atropos.Editor
         public static void AutomationBuildAndroid()
         {
             var config = BuildConfig.CreateDefault();
-            config.BuildTarget = BuildTarget.Android;
-            config.OutputRoot = Application.dataPath + "/../Bundles";
-            config.BuildPlayer = true;
-            config.PlayerPlatform = BuildTarget.Android;
-            config.PlayerOutputPath =
+            config.m_BuildTarget = BuildTarget.Android;
+            config.m_ABOutputRoot = Application.dataPath + "/../Bundles";
+            config.m_BuildPlayer = true;
+            config.m_PlayerPlatform = BuildTarget.Android;
+            config.m_PlayerOutputPath =
                 $"{Application.dataPath}/../Build/Android/{BuildConfig.GetDefaultPackageVersion()}Android.apk";
             BuildWithConfig(config, buildPlayer: true);
         }
@@ -120,11 +120,11 @@ namespace Moirai.Atropos.Editor
         public static void AutomationBuildIOS()
         {
             var config = BuildConfig.CreateDefault();
-            config.BuildTarget = BuildTarget.iOS;
-            config.OutputRoot = Application.dataPath + "/../Bundles";
-            config.BuildPlayer = true;
-            config.PlayerPlatform = BuildTarget.iOS;
-            config.PlayerOutputPath = $"{Application.dataPath}/../Build/IOS/XCode_Project";
+            config.m_BuildTarget = BuildTarget.iOS;
+            config.m_ABOutputRoot = Application.dataPath + "/../Bundles";
+            config.m_BuildPlayer = true;
+            config.m_PlayerPlatform = BuildTarget.iOS;
+            config.m_PlayerOutputPath = $"{Application.dataPath}/../Build/IOS/XCode_Project";
             BuildWithConfig(config, buildPlayer: true);
         }
 
@@ -138,7 +138,7 @@ namespace Moirai.Atropos.Editor
         public static void BuildWithConfig(BuildConfig config, bool buildPlayer)
         {
             // 1. [可选] 编译热更DLL
-            if (config.BuildHotFixDll)
+            if (config.m_BuildHotFixDll)
             {
 #if HYBRIDCLR_INSTALLED
                 Debug.Log("[BuildWithConfig] 编译热更DLL...");
@@ -160,21 +160,21 @@ namespace Moirai.Atropos.Editor
             Debug.Log($"[BuildWithConfig] AssetBundle构建成功: {buildResult.OutputPackageDirectory}");
 
             // 4. [最小包] 删除 StreamingAssets 中的 .bundle 文件
-            if (config.MinimalPackage)
+            if (config.m_MinimalPackage)
             {
-                ProcessMinimalPackage(config.PackageVersion, config.RetainTags, buildResult.OutputPackageDirectory);
+                ProcessMinimalPackage(config.PackageVersion, config.m_RetainTags, buildResult.OutputPackageDirectory);
             }
 
             // 5. 刷新资源
             AssetDatabase.Refresh();
 
             // 7. [可选] 构建 Player
-            if (buildPlayer || config.BuildPlayer)
+            if (buildPlayer || config.m_BuildPlayer)
             {
                 BuildImp(
-                    BuildConfig.GetBuildTargetGroup(config.PlayerPlatform),
-                    config.PlayerPlatform,
-                    config.PlayerOutputPath
+                    BuildConfig.GetBuildTargetGroup(config.m_PlayerPlatform),
+                    config.m_PlayerPlatform,
+                    config.m_PlayerOutputPath
                 );
             }
         }
@@ -185,29 +185,29 @@ namespace Moirai.Atropos.Editor
 
         private static YooAsset.Editor.BuildResult BuildInternalWithConfig(BuildConfig config)
         {
-            Debug.Log($"开始构建 : {config.BuildTarget}");
+            Debug.Log($"开始构建 : {config.m_BuildTarget}");
 
             IBuildPipeline pipeline;
             BuildParameters buildParameters;
 
-            if (config.BuildPipeline == EBuildPipeline.LegacyBuildPipeline)
+            if (config.m_BuildPipeline == EBuildPipeline.LegacyBuildPipeline)
             {
                 var builtinBuildParameters = new LegacyBuildParameters();
                 pipeline = new LegacyBuildPipeline();
                 buildParameters = builtinBuildParameters;
-                builtinBuildParameters.CompressOption = config.CompressOption;
+                builtinBuildParameters.CompressOption = config.m_CompressOption;
             }
             else
             {
                 var scriptableBuildParameters = new ScriptableBuildParameters();
                 pipeline = new ScriptableBuildPipeline();
                 buildParameters = scriptableBuildParameters;
-                scriptableBuildParameters.CompressOption = config.CompressOption;
+                scriptableBuildParameters.CompressOption = config.m_CompressOption;
                 scriptableBuildParameters.BuiltinShadersBundleName = GetBuiltinShaderBundleName("DefaultPackage");
                 scriptableBuildParameters.ReplaceAssetPathWithAddress = UpdateSettings.ReplaceAssetPathWithAddress;
             }
 
-            string outputRoot = config.OutputRoot;
+            string outputRoot = config.m_ABOutputRoot;
             if (!Path.IsPathRooted(outputRoot))
             {
                 outputRoot = Path.Combine(Application.dataPath + "/../", outputRoot);
@@ -216,19 +216,19 @@ namespace Moirai.Atropos.Editor
 
             buildParameters.BuildOutputRoot = outputRoot;
             buildParameters.BundledFileRoot = BundleBuilderHelper.GetStreamingAssetsRoot();
-            buildParameters.BuildPipeline = config.BuildPipeline.ToString();
-            buildParameters.BuildTarget = config.BuildTarget;
+            buildParameters.BuildPipeline = config.m_BuildPipeline.ToString();
+            buildParameters.BuildTarget = config.m_BuildTarget;
             buildParameters.BuildBundleType = (int)EBundleType.AssetBundle;
             buildParameters.PackageName = "DefaultPackage";
             buildParameters.PackageVersion = config.PackageVersion;
-            buildParameters.VerifyBuildingResult = config.VerifyBuildingResult;
-            buildParameters.EnableSharePackRule = config.EnableSharePackRule;
-            buildParameters.FileNameStyle = config.FileNameStyle;
-            buildParameters.BundledCopyOption = config.BundledCopyOption;
+            buildParameters.VerifyBuildingResult = config.m_VerifyBuildingResult;
+            buildParameters.EnableSharePackRule = config.m_EnableSharePackRule;
+            buildParameters.FileNameStyle = config.m_FileNameStyle;
+            buildParameters.BundledCopyOption = config.m_BundledCopyOption;
             buildParameters.BundledCopyParams = string.Empty;
-            buildParameters.BundleEncryptor = config.EncryptorHandler?.CreateEncryptor();
-            buildParameters.ClearBuildCacheFiles = config.ClearBuildCache;
-            buildParameters.UseAssetDependencyDB = config.UseAssetDependencyDB;
+            buildParameters.BundleEncryptor = config.m_EncryptorHandler?.CreateEncryptor();
+            buildParameters.ClearBuildCacheFiles = config.m_ClearBuildCache;
+            buildParameters.UseAssetDependencyDB = config.m_UseAssetDependencyDB;
 
             var result = pipeline.Run(buildParameters, true);
             return result;

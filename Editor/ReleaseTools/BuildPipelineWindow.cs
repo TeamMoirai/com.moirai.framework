@@ -494,7 +494,7 @@ namespace Moirai.Atropos.Editor
         {
             if (_config == null) return;
             var copy = CloneConfig(_config);
-            copy.BuildPlayer = false;
+            copy.m_BuildPlayer = false;
             ExecuteBuild(copy, buildPlayer: false);
         }
 
@@ -503,7 +503,7 @@ namespace Moirai.Atropos.Editor
         {
             if (_config == null) return;
             var copy = CloneConfig(_config);
-            copy.BuildPlayer = true;
+            copy.m_BuildPlayer = true;
             ExecuteBuild(copy, buildPlayer: true);
         }
 
@@ -514,7 +514,7 @@ namespace Moirai.Atropos.Editor
             _buildLogs.Clear();
             RebuildLogUI();
             AddLog("========== 开始构建 ==========");
-            AddLog($"平台: {config.BuildTarget} | 管线: {config.BuildPipeline} | 最小包: {config.MinimalPackage}");
+            AddLog($"平台: {config.m_BuildTarget} | 管线: {config.m_BuildPipeline} | 最小包: {config.m_MinimalPackage}");
 
             if (string.IsNullOrWhiteSpace(config.PackageVersion))
             {
@@ -533,7 +533,7 @@ namespace Moirai.Atropos.Editor
                 else
                 {
                     // 仅构建AB，不走Player
-                    config.BuildPlayer = false;
+                    config.m_BuildPlayer = false;
                     ReleaseTools.BuildWithConfig(config, buildPlayer: false);
                 }
 
@@ -559,15 +559,15 @@ namespace Moirai.Atropos.Editor
             _buildLogs.Clear();
             RebuildLogUI();
             AddLog("========== 仅构建 Player ==========");
-            AddLog($"平台: {_config.PlayerPlatform} | 输出: {_config.PlayerOutputPath}");
+            AddLog($"平台: {_config.m_PlayerPlatform} | 输出: {_config.m_PlayerOutputPath}");
 
             try
             {
                 Application.logMessageReceived += OnBuildLogReceived;
                 ReleaseTools.BuildImp(
-                    BuildConfig.GetBuildTargetGroup(_config.PlayerPlatform),
-                    _config.PlayerPlatform,
-                    _config.PlayerOutputPath
+                    BuildConfig.GetBuildTargetGroup(_config.m_PlayerPlatform),
+                    _config.m_PlayerPlatform,
+                    _config.m_PlayerOutputPath
                 );
                 AddLog("========== Player 构建完成 ==========");
             }
