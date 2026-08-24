@@ -13,6 +13,11 @@
 - **Lifecycle interfaces implemented on demand**: `IServiceTickable`, `IServiceFixedTickable`, `IServiceLateTickable`, `IServiceGizmoDrawable`
 - **`Priority`** controls polling order (higher priority polls first, shuts down later)
 - **Async initialization**: services implementing `IAsyncInitService` are initialized asynchronously in topological order by `BuildAsync()`
+- **Async shutdown**: services implementing `IAsyncShutdownService` are shut down asynchronously in reverse topological order by `ShutdownContainerAsync()` / `ShutdownAsync()`
+- **AOT-safe lazy resolution**: `IServiceResolver<T>` as an AOT-preferred alternative to `Func<T>`, avoiding `MakeGenericMethod`
+- **Runtime service registration**: `GameServices.RegisterService<T>()` / `UnregisterService<T>()` dynamically add/remove individual services in an already-built scope
+- **Self-registering Mono service**: `SelfRegisteringMono<TScope>` auto-registers in Awake and auto-unregisters in OnDestroy
+- **Scope order constants**: `ServiceScopeOrder` explicitly defines App/Scene/Gameplay sorting priority
 - **Service events**: `onServiceRegistered`/`onServiceUnregistered` events for hot-swap notifications
 - **Iteration safety**: registrations during polling are deferred and applied uniformly after the current cycle ends; scope disposal requested during iteration is also deferred
 - **Per-service tick exception isolation**: a single service throwing in `Tick` does not abort other services in the same frame
@@ -40,7 +45,11 @@ Namespace: `Moirai.Atropos`
 | `IServiceTickable` / `IServiceFixedTickable` / `IServiceLateTickable` | Polling interfaces with method signatures such as `Tick(float elapseSeconds, float realElapseSeconds)` (MonoBehaviour services cannot implement these) |
 | `IServiceGizmoDrawable` | Editor Gizmos drawing interface `OnDrawGizmos()` |
 | `IAsyncInitService` | Async initialization interface; services implementing `OnInitAsync()` are driven by `BuildAsync()` |
+| `IAsyncShutdownService` | Async shutdown interface; services implementing `OnShutdownAsync()` are shut down in reverse topological order by `ShutdownContainerAsync()` |
+| `IServiceResolver<T>` | AOT-safe lazy service resolver, replacing `Func<T>` injection's `MakeGenericMethod` path |
 | `ServiceMono<TScope>` | Generic MonoBehaviour service base; scope determined at compile time via `TScope` |
+| `SelfRegisteringMono<TScope>` | Self-registering MonoBehaviour service base; auto-registers in Awake, auto-unregisters in OnDestroy |
+| `ServiceScopeOrder` | Scope priority constants (App=-10000, Scene=-5000, Gameplay=0) |
 | `GameApp` | MonoBehaviour entry point (`[DefaultExecutionOrder(-1000)]`); drives lifecycle and polling only; services accessed via `GameApp` cached properties (e.g. `GameApp.Audio`, `GameApp.UI`) |
 | `GameAppMessageEvent` / `EMessageEventType` | Namespace `Moirai.Atropos.Events`, framework-level pooled events (focus/unfocus/quit, SDK callbacks) |
 
@@ -261,6 +270,90 @@ Five interception points with default empty implementations:
 | `OnServiceShutdown` | Before `Shutdown()` call |
 
 Multiple interceptors execute in `Priority` descending order. Interceptors are cleared on `GameServices.Shutdown()`.
+
+### AOT-Safe Lazy Resolution
+
+`Func<T>` injection uses `MakeGenericMethod`, which works under IL2CPP full generic sharing but carries risk. `IServiceResolver<T>` provides a zero-reflection alternative:
+
+```csharp
+public class BattleService : ServiceBase, IBattleService
+{
+    private readonly IServiceResolver<IStatsService> _statsResolver;
+
+    // IServiceResolver<T> constructor param: container directly news ServiceResolver<T>(this) — zero reflection
+    public BattleService(IServiceResolver<IStatsService> statsResolver)
+    {
+        _statsResolver = statsResolver;
+    }
+
+    public override void OnInit()
+    {
+        // Lazy resolution: topological edges guarantee target is ready
+        var stats = _statsResolver.Resolve();
+    }
+}
+
+// Registration is identical to Func<T>
+collection.Register<IBattleService, BattleService>(EServiceScopeKind.Gameplay);
+collection.Register<IStatsService, StatsService>(EServiceScopeKind.Gameplay);
+```
+
+> `Func<T>` injection is retained for backward compatibility. New code should prefer `IServiceResolver<T>`.
+
+### Runtime Service Registration
+
+Dynamically add/remove individual services in an already-built scope (mod systems, DLC hot-loading, etc.):
+
+```csharp
+// Runtime registration — drives OnInit immediately
+var buffService = new BuffService();
+GameServices.RegisterService(EServiceScopeKind.Gameplay, buffService as IBuffService);
+
+// Runtime unregistration — drives Shutdown immediately
+GameServices.UnregisterService<IBuffService>(EServiceScopeKind.Gameplay);
+```
+
+> Calling during iteration (Tick) throws `GameException` — must be called from a non-Tick context.
+
+### Self-Registering MonoBehaviour Service
+
+`SelfRegisteringMono<TScope>` auto-registers to the corresponding scope in `Awake` and auto-unregisters in `OnDestroy`. Suitable for rapid prototyping and Inspector-driven configuration:
+
+```csharp
+public class MyInspectorService : SelfRegisteringMono<AppScope>, IMyService
+{
+    [SerializeField] private int m_ConfigValue;
+
+    public override void OnInit() { /* Called automatically after Awake registration */ }
+    public override void Shutdown() { /* Called automatically before OnDestroy unregistration */ }
+}
+
+// Just add the component in the Inspector — no ServiceCollection registration needed
+```
+
+> Mutually exclusive with `ServiceMono<TScope>` (container-created via `AddComponent`) — choose one.
+
+### Async Shutdown
+
+Services implementing `IAsyncShutdownService` are first shut down asynchronously via `OnShutdownAsync()` in reverse topological order, then synchronously via `Shutdown()`:
+
+```csharp
+public class ResourceService : ServiceBase, IResourceService, IAsyncShutdownService
+{
+    public async UniTask OnShutdownAsync()
+    {
+        await UnloadAllAssetsAsync(); // Async asset unloading
+    }
+
+    public override void Shutdown() { /* Synchronous cleanup */ }
+}
+
+// Async shutdown of a single scope
+await GameServices.ShutdownContainerAsync(EServiceScopeKind.Gameplay);
+
+// Async shutdown of all scopes
+await GameServices.ShutdownAsync();
+```
 
 ### Runtime Debugger
 

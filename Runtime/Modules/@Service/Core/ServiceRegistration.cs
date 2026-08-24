@@ -58,6 +58,9 @@ namespace Moirai.Atropos
         /// <summary>构建期缓存的已选构造函数（拓扑排序与实例创建各用一次，避免重复反射扫描）。</summary>
         internal ConstructorInfo ResolvedConstructor { get; set; }
 
+        /// <summary>构建期缓存的构造函数参数（与 ResolvedConstructor 同步填充，避免每次 GetParameters() 数组分配）。</summary>
+        internal ParameterInfo[] ResolvedParameters { get; set; }
+
         private Type[] _allContractsCache;
 
         /// <summary>

@@ -16,6 +16,22 @@ namespace Moirai.Atropos
         Disposed = 3,
     }
 
+    /// <summary>
+    /// 运行时注册/注销的迭代延迟策略。
+    /// </summary>
+    public enum EDeferMode : byte
+    {
+        /// <summary>
+        /// 延迟到当前迭代结束后执行（默认）。适用于 Tick 中注册/注销服务。
+        /// </summary>
+        Defer = 0,
+
+        /// <summary>
+        /// 立即抛出异常（Fail-fast）。用于检测意外的迭代中注册。
+        /// </summary>
+        Throw = 1,
+    }
+
     /// <summary>服务作用域种类。</summary>
     public enum EServiceScopeKind : byte
     {
@@ -86,11 +102,24 @@ namespace Moirai.Atropos
     }
 
     /// <summary>
+    /// 异步关闭服务。由 <see cref="ServiceScope"/>.DisposeAsync / <see cref="GameServices"/>.ShutdownContainerAsync
+    /// 在 <c>Shutdown</c> 调用前按逆拓扑序异步关闭。
+    /// <para>用于资源异步卸载、网络连接优雅关闭等场景。</para>
+    /// </summary>
+    public interface IAsyncShutdownService
+    {
+        /// <summary>
+        /// 异步关闭。在同步 <c>Shutdown</c> 调用前执行。
+        /// </summary>
+        UniTask OnShutdownAsync();
+    }
+
+    /// <summary>
     /// 纯 C# 服务基类。不依赖 MonoBehaviour，生命周期由 <see cref="ServiceWorld"/> 控制。
     /// <para>依赖通过构造函数参数声明，容器在创建时自动解析并注入。</para>
     /// <para>运行时延迟解析可通过 <see cref="Require{T}"/> / <see cref="TryGet{T}"/> 等方法。</para>
     /// </summary>
-    public abstract class ServiceBase : IService
+    public abstract class ServiceBase : IService, IServiceLifecycle
     {
         #region 属性 [PROPERTIES]
 
@@ -157,6 +186,31 @@ namespace Moirai.Atropos
         internal void InjectInternal(IServiceProvider provider)
         {
             _serviceProvider = provider;
+        }
+
+        #endregion
+
+        #region IServiceLifecycle 实现 [RUNTIME LIFECYCLE]
+
+        void IServiceLifecycle.Initialize(ServiceWorld world, ServiceScope scope)
+        {
+            if (State >= EServiceState.Initialized) return;
+
+            InjectInternal(world);
+            OnInit();
+            State = EServiceState.Initialized;
+            GameServices.InvokeRegistered(this, GetType(), scope.Kind);
+        }
+
+        void IServiceLifecycle.Destroy()
+        {
+            if (State >= EServiceState.ShuttingDown) return;
+
+            State = EServiceState.ShuttingDown;
+            GameServices.InvokeShutdown(this);
+            try { Shutdown(); }
+            catch (Exception ex) { LogUtility.Error(ex.ToString()); }
+            State = EServiceState.Disposed;
         }
 
         #endregion

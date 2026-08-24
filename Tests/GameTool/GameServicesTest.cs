@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
+using System.Text.RegularExpressions;
 using Cysharp.Threading.Tasks;
 using Moirai.Atropos;
 using NUnit.Framework;
 using UnityEngine;
+using UnityEngine.TestTools;
 using IServiceProvider = Moirai.Atropos.IServiceProvider;
 
 namespace GameTool
@@ -344,6 +346,71 @@ namespace GameTool
 
             // 目标 IDepTargetService 从未注册：委托调用应 fail-fast 而非返回 null
             Assert.Throws<GameException>(() => consumer.Resolver());
+        }
+
+        // --- IServiceResolver<T> 延迟解析注入 [AOT-SAFE LAZY RESOLUTION] ---
+
+        private sealed class ResolverConsumerService : TestServiceBase, IAlphaService
+        {
+            public IServiceResolver<IDepTargetService> Resolver { get; }
+
+            public ResolverConsumerService(IServiceResolver<IDepTargetService> resolver)
+            {
+                Resolver = resolver;
+            }
+        }
+
+        [Test]
+        public void ServiceResolverInjection_ResolvesTargetLazily()
+        {
+            BuildApp(c =>
+            {
+                c.Register<IDepTargetService, DependeeService>(EServiceScopeKind.App);
+                c.Register<IAlphaService, ResolverConsumerService>(EServiceScopeKind.App);
+            });
+
+            var consumer = (ResolverConsumerService)GameServices.Provider.GetRequiredService<IAlphaService>();
+            var resolved = consumer.Resolver.Resolve();
+
+            Assert.IsInstanceOf<DependeeService>(resolved,
+                "IServiceResolver<T> 注入的解析器应在调用时解析目标服务");
+            Assert.AreSame(
+                GameServices.Provider.GetRequiredService<IDepTargetService>(),
+                resolved,
+                "延迟解析应返回容器内同一单例");
+        }
+
+        [Test]
+        public void ServiceResolverInjection_TopologyGuaranteesTargetReady()
+        {
+            // 注册顺序故意颠倒：IServiceResolver<IDepTargetService> 的目标后注册，
+            // 拓扑建边（IServiceResolver<T> 解包 T）应保证目标先创建，解析器调用时依赖已就绪
+            BuildApp(c =>
+            {
+                c.Register<IAlphaService, ResolverConsumerService>(EServiceScopeKind.App);
+                c.Register<IDepTargetService, DependeeService>(EServiceScopeKind.App);
+            });
+
+            var consumer = (ResolverConsumerService)GameServices.Provider.GetRequiredService<IAlphaService>();
+
+            Assert.DoesNotThrow(() => consumer.Resolver.Resolve(),
+                "拓扑建边应保证延迟解析的目标已注册");
+        }
+
+        [Test]
+        public void ServiceResolverInjection_AfterShutdown_Throws()
+        {
+            BuildApp(c =>
+            {
+                c.Register<IDepTargetService, DependeeService>(EServiceScopeKind.App);
+                c.Register<IAlphaService, ResolverConsumerService>(EServiceScopeKind.App);
+            });
+
+            var consumer = (ResolverConsumerService)GameServices.Provider.GetRequiredService<IAlphaService>();
+            GameServices.ShutdownContainer(EServiceScopeKind.App);
+
+            // 目标已随作用域关闭：解析器调用应 fail-fast 而非返回 null
+            Assert.Throws<GameException>(() => consumer.Resolver.Resolve());
         }
 
         // --- 关闭顺序与状态 ---
@@ -899,6 +966,473 @@ namespace GameTool
 
             Assert.AreEqual("attributed", svc.UsedCtor, "[ServiceConstructor] 标记的构造函数应被优先选择");
             Assert.IsNotNull(svc.Dependency, "标记构造函数的依赖应被注入");
+        }
+
+        // ═══════════════════════════════════════════════════════
+        // 运行时服务注册测试 [RUNTIME REGISTRATION TESTS]
+        // ═══════════════════════════════════════════════════════
+
+        [Test]
+        public void RuntimeRegister_AddsServiceToActiveScope()
+        {
+            BuildApp(c => c.Register<IAlphaService, AlphaService>(EServiceScopeKind.App));
+
+            var beta = new BetaService();
+            GameServices.RegisterService(EServiceScopeKind.App, beta as IBetaService);
+
+            var resolved = GameServices.Provider.GetService<IBetaService>();
+            Assert.AreSame(beta, resolved);
+            Assert.AreEqual(1, beta.InitCount, "运行时注册应驱动 OnInit");
+            Assert.AreEqual(EServiceState.Initialized, beta.State);
+        }
+
+        [Test]
+        public void RuntimeRegister_DuplicateContract_Throws()
+        {
+            BuildApp(c => c.Register<IAlphaService, AlphaService>(EServiceScopeKind.App));
+
+            var another = new AlphaService();
+            Assert.Throws<GameException>(() =>
+                GameServices.RegisterService(EServiceScopeKind.App, another as IAlphaService));
+        }
+
+        [Test]
+        public void RuntimeUnregister_RemovesAndShutsDownService()
+        {
+            BuildApp(c => c.Register<IAlphaService, AlphaService>(EServiceScopeKind.App));
+            var alpha = (AlphaService)GameServices.Provider.GetRequiredService<IAlphaService>();
+
+            bool result = GameServices.UnregisterService<IAlphaService>(EServiceScopeKind.App);
+
+            Assert.IsTrue(result);
+            Assert.AreEqual(1, alpha.ShutdownCount, "运行时注销应驱动 Shutdown");
+            Assert.AreEqual(EServiceState.Disposed, alpha.State);
+            Assert.IsNull(GameServices.Provider.GetService<IAlphaService>(),
+                "注销后服务不应再可解析");
+        }
+
+        [Test]
+        public void RuntimeUnregister_NotFound_ReturnsFalse()
+        {
+            BuildApp(c => c.Register<IAlphaService, AlphaService>(EServiceScopeKind.App));
+
+            bool result = GameServices.UnregisterService<IBetaService>(EServiceScopeKind.App);
+
+            Assert.IsFalse(result, "未注册的服务注销应返回 false");
+        }
+
+        [Test]
+        public void RuntimeRegister_WithLifecycle_CallsInitAndDestroy()
+        {
+            BuildApp(c => c.Register<IDepTargetService, DependeeService>(EServiceScopeKind.App));
+
+            var consumer = new RuntimeConsumerService();
+            GameServices.RegisterService(EServiceScopeKind.App, consumer as IAlphaService);
+
+            Assert.AreEqual(1, consumer.InitCount, "IServiceLifecycle.Initialize 应驱动 OnInit");
+            Assert.IsTrue(consumer.CanResolveDependency, "运行时注册的服务应能通过 Require<T> 解析已注册依赖");
+
+            GameServices.UnregisterService<IAlphaService>(EServiceScopeKind.App);
+
+            Assert.AreEqual(1, consumer.ShutdownCount, "IServiceLifecycle.Destroy 应驱动 Shutdown");
+        }
+
+        private sealed class RuntimeConsumerService : ServiceBase, IAlphaService
+        {
+            public int InitCount;
+            public int ShutdownCount;
+            public bool CanResolveDependency;
+
+            public override void OnInit()
+            {
+                InitCount++;
+                CanResolveDependency = TryGet(out IDepTargetService _);
+            }
+
+            public override void Shutdown() => ShutdownCount++;
+        }
+
+        // ═══════════════════════════════════════════════════════
+        // SelfRegisteringMono 测试 [SELF-REGISTERING MONO TESTS]
+        // ═══════════════════════════════════════════════════════
+
+        private sealed class SelfRegisteringTestService : SelfRegisteringMono<AppScope>, IMonoContractService
+        {
+            public int InitCount;
+            public int ShutdownCount;
+
+            public override void OnInit() => InitCount++;
+            public override void Shutdown() => ShutdownCount++;
+        }
+
+        [Test]
+        public void SelfRegisteringMono_AutoRegistersOnAwake()
+        {
+            BuildApp(null);
+
+            var go = new GameObject("SelfRegTest");
+            var mono = go.AddComponent<SelfRegisteringTestService>();
+
+            try
+            {
+                Assert.AreEqual(1, mono.InitCount, "Awake 应触发 OnInit");
+                Assert.AreEqual(EServiceState.Initialized, mono.State);
+
+                var resolved = GameServices.Provider.GetService<IMonoContractService>();
+                Assert.AreSame(mono, resolved, "自注册后应可解析");
+            }
+            finally
+            {
+                if (go != null) UnityEngine.Object.DestroyImmediate(go);
+            }
+        }
+
+        [Test]
+        public void SelfRegisteringMono_AutoUnregistersOnDestroy()
+        {
+            BuildApp(null);
+
+            var go = new GameObject("SelfRegTest");
+            var mono = go.AddComponent<SelfRegisteringTestService>();
+
+            UnityEngine.Object.DestroyImmediate(go);
+
+            Assert.AreEqual(1, mono.ShutdownCount, "OnDestroy 应触发 Shutdown");
+            Assert.AreEqual(EServiceState.Disposed, mono.State);
+            Assert.IsFalse(GameServices.HasApp || GameServices.Provider?.GetService<IMonoContractService>() != null,
+                "注销后服务不应再可解析");
+        }
+
+        [Test]
+        public void SelfRegisteringMono_Duplicate_DestroyedSelf()
+        {
+            BuildApp(null);
+
+            var go1 = new GameObject("SelfReg1");
+            var mono1 = go1.AddComponent<SelfRegisteringTestService>();
+            var go2 = new GameObject("SelfReg2");
+
+            try
+            {
+                // 第二个实例应自动销毁（同契约已注册）
+                var mono2 = go2.AddComponent<SelfRegisteringTestService>();
+                Assert.IsTrue(mono1.InitCount == 1, "首个实例应正常注册");
+                // mono2 的 GameObject 应被销毁
+                Assert.IsTrue(go2 == null || mono2 == null,
+                    "重复注册的实例应被销毁");
+            }
+            finally
+            {
+                if (go1 != null) UnityEngine.Object.DestroyImmediate(go1);
+                if (go2 != null) UnityEngine.Object.DestroyImmediate(go2);
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════
+        // 异步关闭管线测试 [ASYNC SHUTDOWN TESTS]
+        // ═══════════════════════════════════════════════════════
+
+        private sealed class AsyncShutdownService : TestServiceBase, IAlphaService, IAsyncShutdownService
+        {
+            public bool AsyncShutdownCalled;
+            public bool SyncShutdownCalled;
+
+            public override void Shutdown()
+            {
+                SyncShutdownCalled = true;
+                base.Shutdown();
+            }
+
+            public UniTask OnShutdownAsync()
+            {
+                AsyncShutdownCalled = true;
+                s_OrderLog.Add("async:shutdown");
+                return UniTask.CompletedTask;
+            }
+        }
+
+        private sealed class AsyncShutdownDependee : TestServiceBase, IDepTargetService, IAsyncShutdownService
+        {
+            public UniTask OnShutdownAsync()
+            {
+                s_OrderLog.Add("dependee:async");
+                return UniTask.CompletedTask;
+            }
+
+            public override void Shutdown()
+            {
+                s_OrderLog.Add("dependee:sync");
+                base.Shutdown();
+            }
+        }
+
+        private sealed class AsyncShutdownDependent : TestServiceBase, IAlphaService, IAsyncShutdownService
+        {
+            public AsyncShutdownDependent(IDepTargetService _) { }
+
+            public UniTask OnShutdownAsync()
+            {
+                s_OrderLog.Add("dependent:async");
+                return UniTask.CompletedTask;
+            }
+
+            public override void Shutdown()
+            {
+                s_OrderLog.Add("dependent:sync");
+                base.Shutdown();
+            }
+        }
+
+        [Test]
+        public void AsyncShutdown_CalledBeforeSyncShutdown()
+        {
+            BuildApp(c => c.Register<IAlphaService, AsyncShutdownService>(EServiceScopeKind.App));
+            var svc = (AsyncShutdownService)GameServices.Provider.GetRequiredService<IAlphaService>();
+
+            GameServices.ShutdownContainerAsync(EServiceScopeKind.App).GetAwaiter().GetResult();
+
+            Assert.IsTrue(svc.AsyncShutdownCalled, "OnShutdownAsync 应在 Shutdown 前调用");
+            Assert.IsTrue(svc.SyncShutdownCalled, "Shutdown 仍应被调用");
+            Assert.AreEqual(EServiceState.Disposed, svc.State);
+        }
+
+        [Test]
+        public void AsyncShutdown_ReverseTopology()
+        {
+            BuildApp(c =>
+            {
+                c.Register<IDepTargetService, AsyncShutdownDependee>(EServiceScopeKind.App);
+                c.Register<IAlphaService, AsyncShutdownDependent>(EServiceScopeKind.App);
+            });
+
+            s_OrderLog.Clear();
+            GameServices.ShutdownContainerAsync(EServiceScopeKind.App).GetAwaiter().GetResult();
+
+            // 逆拓扑序：Dependent 先于 Dependee
+            // 异步阶段：dependent:async → dependee:async
+            // 同步阶段：dependent:sync → dependee:sync
+            Assert.AreEqual(
+                new[] { "dependent:async", "dependee:async", "dependent:sync", "dependee:sync" },
+                s_OrderLog.ToArray(),
+                "异步关闭应按逆拓扑序执行：依赖方先关闭");
+        }
+
+        [Test]
+        public void ShutdownAsync_ClosesAllScopes()
+        {
+            BuildApp(c => c.Register<IAlphaService, AlphaService>(EServiceScopeKind.App));
+            BuildScene(c => c.Register<IBetaService, BetaService>(EServiceScopeKind.Scene));
+
+            GameServices.ShutdownAsync().GetAwaiter().GetResult();
+
+            Assert.IsFalse(GameServices.HasApp);
+            Assert.IsFalse(GameServices.HasScene);
+            Assert.IsNull(GameServices.Provider);
+        }
+
+        // ═══════════════════════════════════════════════════════
+        // PendingChanges 延迟队列测试 [DEFERRED CHANGES TESTS]
+        // ═══════════════════════════════════════════════════════
+
+        private sealed class RegisterOnTickService : TestServiceBase, IAlphaService
+        {
+            public override int Priority => 10;
+
+            public override void Tick(float elapseSeconds, float realElapseSeconds)
+            {
+                base.Tick(elapseSeconds, realElapseSeconds);
+                // 在 Tick 中注册新服务——默认 Defer 模式应延迟到本轮迭代结束
+                var beta = new BetaService();
+                GameServices.RegisterService(EServiceScopeKind.App, beta as IBetaService);
+            }
+        }
+
+        [Test]
+        public void DeferredRegister_QueuedDuringTick_ProcessedAfterIteration()
+        {
+            BuildApp(c => c.Register<IAlphaService>(
+                EServiceScopeKind.App, _ => new RegisterOnTickService()).WithPriority(10));
+
+            // Tick 中注册 BetaService——Defer 模式不应抛异常
+            Assert.DoesNotThrow(() => GameServices.Tick(0f, 0f));
+
+            // 迭代结束后应完成注册
+            var beta = GameServices.Provider.GetService<IBetaService>();
+            Assert.IsNotNull(beta, "延迟注册的服务应在迭代结束后可解析");
+            Assert.AreEqual(1, ((BetaService)(object)beta).InitCount, "延迟注册应驱动 OnInit");
+        }
+
+        private sealed class ThrowRegisterOnTickService : TestServiceBase, IAlphaService
+        {
+            public override int Priority => 10;
+
+            public override void Tick(float elapseSeconds, float realElapseSeconds)
+            {
+                base.Tick(elapseSeconds, realElapseSeconds);
+                GameServices.RegisterService(
+                    EServiceScopeKind.App, new BetaService() as IBetaService, EDeferMode.Throw);
+            }
+        }
+
+        [Test]
+        public void DeferredRegister_ThrowMode_ThrowsImmediately()
+        {
+            BuildApp(c => c.Register<IAlphaService>(
+                EServiceScopeKind.App, _ => new ThrowRegisterOnTickService()).WithPriority(10));
+
+            // EDeferMode.Throw 在迭代中抛出 GameException，被 Tick 的 try-catch 捕获并记录日志
+            LogAssert.Expect(LogType.Error, new Regex(".*EDeferMode\\.Throw.*"));
+            Assert.DoesNotThrow(() => GameServices.Tick(0f, 0f));
+        }
+
+        private sealed class UnregisterOnTickService : TestServiceBase, IAlphaService
+        {
+            public override int Priority => 10;
+
+            public override void Tick(float elapseSeconds, float realElapseSeconds)
+            {
+                base.Tick(elapseSeconds, realElapseSeconds);
+                // 在 Tick 中注销 BetaService——默认 Defer 模式应延迟到本轮迭代结束
+                GameServices.UnregisterService<IBetaService>(EServiceScopeKind.App);
+            }
+        }
+
+        [Test]
+        public void DeferredUnregister_QueuedDuringTick_ProcessedAfterIteration()
+        {
+            BuildApp(c =>
+            {
+                c.Register<IBetaService, BetaService>(EServiceScopeKind.App);
+                c.Register<IAlphaService>(
+                    EServiceScopeKind.App, _ => new UnregisterOnTickService()).WithPriority(10);
+            });
+
+            var beta = (BetaService)GameServices.Provider.GetRequiredService<IBetaService>();
+
+            // Tick 中注销 BetaService——Defer 模式不应抛异常
+            Assert.DoesNotThrow(() => GameServices.Tick(0f, 0f));
+
+            // 迭代结束后应完成注销
+            Assert.AreEqual(1, beta.ShutdownCount, "延迟注销应驱动 Shutdown");
+            Assert.IsNull(GameServices.Provider.GetService<IBetaService>(),
+                "延迟注销后服务不应再可解析");
+        }
+
+        [Test]
+        public void DeferredRegister_DuplicatePendingContract_Throws()
+        {
+            // 在同一 Tick 中注册同一契约两次——第二次应检测到 pending 重复并抛出 GameException
+            // （被 Tick 的 try-catch 捕获并记录日志）
+            var collection = new ServiceCollection();
+            collection.Register<IAlphaService>(
+                EServiceScopeKind.App, _ => new DualRegisterOnTickService()).WithPriority(10);
+            GameServices.BuildAsync(EServiceScopeKind.App, collection).GetAwaiter().GetResult();
+
+            LogAssert.Expect(LogType.Error, new Regex(".*pending.*"));
+            Assert.DoesNotThrow(() => GameServices.Tick(0f, 0f));
+        }
+
+        private sealed class DualRegisterOnTickService : TestServiceBase, IAlphaService
+        {
+            public override int Priority => 10;
+
+            public override void Tick(float elapseSeconds, float realElapseSeconds)
+            {
+                base.Tick(elapseSeconds, realElapseSeconds);
+                // 第一次注册——进入 pending 队列
+                GameServices.RegisterService(EServiceScopeKind.App, new BetaService() as IBetaService);
+                // 第二次注册同一契约——应检测到 pending 重复并抛出
+                GameServices.RegisterService(EServiceScopeKind.App, new BetaService() as IBetaService);
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════
+        // CreationIndex 稳定排序测试 [STABLE SORT TESTS]
+        // ═══════════════════════════════════════════════════════
+
+        private sealed class SamePriorityA : TestServiceBase, IAlphaService
+        {
+            public override void Tick(float elapseSeconds, float realElapseSeconds)
+                => s_OrderLog.Add("A");
+        }
+
+        private sealed class SamePriorityB : TestServiceBase, IBetaService
+        {
+            public override void Tick(float elapseSeconds, float realElapseSeconds)
+                => s_OrderLog.Add("B");
+        }
+
+        private sealed class SamePriorityC : TestServiceBase, IDepTargetService
+        {
+            public override void Tick(float elapseSeconds, float realElapseSeconds)
+                => s_OrderLog.Add("C");
+        }
+
+        [Test]
+        public void CreationIndex_SamePriority_PreservesRegistrationOrder()
+        {
+            // 三个同优先级服务，注册顺序 A → B → C
+            BuildApp(c =>
+            {
+                c.Register<IAlphaService, SamePriorityA>(EServiceScopeKind.App);
+                c.Register<IBetaService, SamePriorityB>(EServiceScopeKind.App);
+                c.Register<IDepTargetService, SamePriorityC>(EServiceScopeKind.App);
+            });
+
+            GameServices.Tick(0f, 0f);
+
+            // 同优先级应按注册顺序（CreationIndex 升序）执行
+            Assert.AreEqual(new[] { "A", "B", "C" }, s_OrderLog.ToArray(),
+                "同优先级服务应按注册顺序执行（CreationIndex 稳定排序）");
+        }
+
+        private sealed class HighPriorityBetaService : TestServiceBase, IBetaService
+        {
+            public override int Priority => 10;
+            public override void Tick(float elapseSeconds, float realElapseSeconds) => s_OrderLog.Add("high");
+        }
+
+        [Test]
+        public void CreationIndex_MixedPriority_PriorityFirstThenCreationIndex()
+        {
+            // A (Priority=0, CreationIndex=0)
+            // B (Priority=10, CreationIndex=1)
+            // C (Priority=0, CreationIndex=2)
+            // 期望顺序：B (高优先) → A (同优先, 先注册) → C (同优先, 后注册)
+            BuildApp(c =>
+            {
+                c.Register<IAlphaService, SamePriorityA>(EServiceScopeKind.App);
+                c.Register<IBetaService, HighPriorityBetaService>(EServiceScopeKind.App);
+                c.Register<IDepTargetService, SamePriorityC>(EServiceScopeKind.App);
+            });
+
+            s_OrderLog.Clear();
+            GameServices.Tick(0f, 0f);
+
+            // HighPriorityBetaService 记录 "high"，SamePriorityA 记录 "A"，SamePriorityC 记录 "C"
+            Assert.AreEqual(new[] { "high", "A", "C" }, s_OrderLog.ToArray(),
+                "高优先级先执行，同优先级按注册顺序执行");
+        }
+
+        // ═══════════════════════════════════════════════════════
+        // 零参数构造函数快路径测试 [ZERO-PARAM FAST PATH TESTS]
+        // ═══════════════════════════════════════════════════════
+
+        private sealed class ZeroParamService : TestServiceBase, IAlphaService
+        {
+            // 无构造函数参数——走零参数快路径
+        }
+
+        [Test]
+        public void ZeroParamConstructor_FastPath_CreatesAndInjects()
+        {
+            BuildApp(c => c.Register<IAlphaService, ZeroParamService>(EServiceScopeKind.App));
+
+            var resolved = GameServices.Provider.GetRequiredService<IAlphaService>();
+            Assert.IsInstanceOf<ZeroParamService>(resolved);
+            var svc = (ZeroParamService)resolved;
+            Assert.AreEqual(1, svc.InitCount, "零参数构造服务应正常初始化");
+            Assert.AreEqual(EServiceState.Initialized, svc.State);
         }
     }
 }
