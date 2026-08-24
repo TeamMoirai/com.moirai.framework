@@ -89,7 +89,6 @@ namespace Moirai.Atropos.GameObjectPool
             _containerRoot = rootGo.transform;
 
             Application.lowMemory += OnLowMemory;
-            LogUtility.Info("GameObjectPoolService OnInit.");
         }
 
         /// <summary>

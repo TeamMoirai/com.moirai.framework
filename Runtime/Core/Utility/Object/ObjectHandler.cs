@@ -7,31 +7,8 @@ namespace Moirai.Atropos
     /// 提供对象创建/删除管理的基类。
     /// </summary>
     [Serializable]
-    public abstract class ObjectHandler
+    public abstract class ObjectHandler : FrameworkHandler
     {
-        [NonSerialized]
-        private bool _initialized;
-
-        internal void Internal_Init()
-        {
-            if (_initialized) return;
-
-            OnInit();
-            _initialized = true;
-        }
-
-        internal void Internal_Shutdown()
-        {
-            if (!_initialized) return;
-
-            _initialized = false;
-            Shutdown();
-        }
-
-        protected abstract void OnInit();
-
-        protected abstract void Shutdown();
-
         /// <summary>
         /// 实例化对象
         /// </summary>

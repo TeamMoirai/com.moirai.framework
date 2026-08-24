@@ -93,7 +93,7 @@ JsonUtility.Handler = new DefaultJsonHandler();
 
 ## Notes
 
-- Setting `Handler` to null is ignored and does not reset; assigning a new value automatically calls `Shutdown()` on the old handler and `OnInit()` on the new handler
+- Setting `Handler` to null throws `ArgumentNullException`; assigning a new value automatically calls `Internal_Shutdown()` on the old handler and `Internal_Init()` on the new handler
 - By default, types derived from `UnityEngine.Object` (GameObject/Component/Sprite/Texture/Material, etc.) and `UnityEvent` are not serialized; reflection-based serialization would reach native-side objects
 - By default, properties must have both getter and setter (a round-trip symmetry contract); get-only computed properties are automatically excluded
 - `FromJsonOverwrite` deserializes JSON data onto an existing object, overwriting its current data

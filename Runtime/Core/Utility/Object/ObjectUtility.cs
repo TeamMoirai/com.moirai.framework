@@ -2,28 +2,16 @@
 
 namespace Moirai.Atropos
 {
+    [HandlerHost(typeof(ObjectHandler))]
     public static partial class ObjectUtility
     {
-        private static ObjectHandler s_Handler = null;
-        /// <summary>
-        /// 获取/设置游戏对象处理器。
-        /// </summary>
-        public static ObjectHandler Handler
+        private static ObjectHandler CreateDefaultHandler()
         {
-            get
-            {
-                if (s_Handler == null) Handler = new UnityObjectHandler();
-                return s_Handler;
-            }
-            set
-            {
-                if (s_Handler == value || value == null) return;
-
-                value.Internal_Init();
-                var previous = s_Handler;
-                s_Handler = value;
-                previous?.Internal_Shutdown();
-            }
+#if FUSION2
+            return new PhotonFusionObjectHandler();
+#else
+            return new UnityObjectHandler();
+#endif
         }
 
         /// <summary>

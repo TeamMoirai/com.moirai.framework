@@ -107,7 +107,7 @@ StringUtility.Handler = new DefaultStringHandler();
 
 - `Format` internally creates and returns the `IStringBuilder` automatically; no memory leaks in high-frequency calls
 - `IStringBuilder` must be disposed via `Dispose()` or `ToStringAndDispose()` after use, otherwise the pool will leak
-- Setting `Handler` to null is ignored; assigning a new value automatically calls `Shutdown()` on the old handler and `OnInit()` on the new handler
+- Setting `Handler` to null throws `ArgumentNullException`; assigning a new value automatically calls `Internal_Shutdown()` on the old handler and `Internal_Init()` on the new handler
 - `Clear()` clears all caches and pools, typically called during scene transitions
 
 ---

@@ -17,49 +17,11 @@ namespace Moirai.Atropos
     /// </list>
     /// </summary>
     [Serializable]
-    public abstract class LogHandler
+    public abstract class LogHandler : FrameworkHandler
     {
         [SerializeField] private bool m_TimestampEnabled = true;
         [ShowIf(nameof(m_TimestampEnabled))]
         [SerializeField] private string m_TimestampFormat = "HH:mm:ss.fff";
-
-        [NonSerialized] private bool _initialized;
-
-        /// <summary>
-        /// 初始化日志处理器，重复调用幂等。
-        /// </summary>
-        internal void Internal_Init()
-        {
-            if (_initialized) return;
-
-            OnInit();
-            _initialized = true;
-        }
-
-        /// <summary>
-        /// 关闭日志处理器，重复调用幂等。
-        /// </summary>
-        internal void Internal_Shutdown()
-        {
-            if (!_initialized) return;
-
-            _initialized = false;
-            OnShutdown();
-        }
-
-        /// <summary>
-        /// 初始化回调，用于接管后端资源（logger 工厂、sink 等）。
-        /// </summary>
-        protected virtual void OnInit()
-        {
-        }
-
-        /// <summary>
-        /// 关闭回调，用于释放后端资源。仅在处理器被替换或应用退出时调用。
-        /// </summary>
-        protected virtual void OnShutdown()
-        {
-        }
 
         /// <summary>
         /// 获取或设置是否在日志输出中包含时间戳。

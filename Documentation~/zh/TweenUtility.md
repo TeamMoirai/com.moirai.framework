@@ -130,7 +130,7 @@ TweenUtility.Handler = new LitMotionHandler();
 
 ## 注意事项
 
-- `Handler` 赋 null 时抛出 `GameException`，禁止赋 null
+- `Handler` 赋 null 抛出 `ArgumentNullException`（fail-fast）
 - 跨域重载（进入 Play 模式）时自动重置 handler 和帧监听，防止陈旧引用
 - `TweenManager` 默认每 60 秒清理一次缓存，可通过 `TweenHandler` 的 `m_CheckInterval` 调整
 - `TweenEase` 枚举模式零堆分配，`AnimationCurve` 模式持有曲线引用

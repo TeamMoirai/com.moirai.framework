@@ -11,14 +11,6 @@ namespace Moirai.Atropos
     [Serializable]
     public sealed class UnityObjectHandler : ObjectHandler
     {
-        protected override void OnInit()
-        {
-        }
-
-        protected override void Shutdown()
-        {
-        }
-
         public override T InstantiateObject<T>(T original, bool playerOwned = false, bool allowNetworked = true)
         {
             return Object.Instantiate(original);

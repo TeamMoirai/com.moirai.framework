@@ -60,7 +60,7 @@ ObjectUtility.DestroyObject(go, allowNetworked: true);
 
 ## Notes
 
-- Setting `Handler` to null is ignored and does not reset; assigning a new value automatically calls `Shutdown()` on the old handler and `OnInit()` on the new handler
+- Setting `Handler` to null throws `ArgumentNullException`; assigning a new value automatically calls `Internal_Shutdown()` on the old handler and `Internal_Init()` on the new handler
 - Generic constraint `where T : UnityEngine.Object`, supports `GameObject`, `Component` derived types, etc.
 - In the default `UnityObjectHandler`, the `playerOwned` / `allowNetworked` parameters do not affect behavior (they only take effect in the network Handler)
 

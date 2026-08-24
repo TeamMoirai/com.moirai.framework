@@ -8,28 +8,12 @@ namespace Moirai.Atropos
     /// 支持用户隔离存储（通过用户ID自动生成复合键）
     /// </summary>
     /// <remarks>仅用于游戏配置，禁止用于游戏内容保存。</remarks>
+    [HandlerHost(typeof(SettingHandler))]
     public static partial class SettingUtility
     {
-        private static SettingHandler s_Handler = null;
-        /// <summary>
-        /// 获取/设置游戏配置处理器。
-        /// </summary>
-        public static SettingHandler Handler
+        private static SettingHandler CreateDefaultHandler()
         {
-            get
-            {
-                if (s_Handler == null) Handler = new DefaultSettingHandler();
-                return s_Handler;
-            }
-            set
-            {
-                if (s_Handler == value || value == null) return;
-
-                value.Internal_Init();
-                var previous = s_Handler;
-                s_Handler = value;
-                previous?.Internal_Shutdown();
-            }
+            return new DefaultSettingHandler();
         }
 
         /// <summary>

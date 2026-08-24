@@ -372,3 +372,65 @@ The runtime debugger (DebuggerComp) Service System window displays registered se
 
 ---
 [« Back to Main README](../../README_EN.md) · [Timer](Timer.md) · [UpdateDriver](UpdateDriver.md)
+
+---
+
+## Handler Host (HandlerHost)
+
+> Via `[HandlerHost]` attribute + source generator, static utility classes automatically get a thread-safe Handler property with lazy initialization.
+
+The framework's 7 utility facades (`LogUtility`, `SettingUtility`, `VersionUtility`, `JsonUtility`, `ObjectUtility`, `StringUtility`, `TweenUtility`) all follow the unified handler host pattern:
+
+- **`[HandlerHost(typeof(XxxHandler))]`** marks a `static partial class`; the source generator generates a `Handler` property (`volatile` + `Interlocked` thread-safe get/set)
+- **`FrameworkHandler`** is the unified base class for all handler abstract base classes, providing `Internal_Init()` / `Internal_Shutdown()` idempotent lifecycle and `OnInit()` / `OnShutdown()` virtual callbacks
+- Users provide a `private static XxxHandler CreateDefaultHandler()` factory method in the partial class, called automatically on first access to `Handler`
+- When `CreateDefaultHandler` is missing, the compiler reports **MIRAI001** diagnostic (IDE provides a quick fix to generate the method), instead of a cryptic CS0103
+- Setting `Handler` to `null` throws `ArgumentNullException` (fail-fast)
+- The `s_Handler` field is `private`; partial classes of the same type can access it directly
+
+### Usage
+
+```csharp
+[HandlerHost(typeof(LogHandler))]
+public static partial class LogUtility
+{
+    private static LogHandler CreateDefaultHandler()
+    {
+#if ZLOGGER_INSTALLED
+        return new ZLoggerHandler();
+#else
+        return new DefaultLogHandler();
+#endif
+    }
+
+    // ... facade methods invoke via Handler
+    public static void Info(string msg) => Handler.Log(/* ... */);
+}
+```
+
+### Source Generator Output
+
+The source generator produces `{ClassName}.g.cs` for each class marked with `[HandlerHost]`, containing:
+
+| Member | Description |
+|--------|-------------|
+| `s_Handler` | `private static volatile` handler field |
+| `s_DefaultFactory` | `private static Func<T>` = `CreateDefaultHandler` (generated when the method exists) |
+| `Handler` | `public static` property: get lazy-inits via Interlocked; set replaces and shuts down the previous handler |
+| `Handler.set` | Inits the new handler → `Interlocked.Exchange` → calls `Internal_Shutdown()` on the previous handler |
+
+### Handler Inheritance Hierarchy
+
+```
+FrameworkHandler (abstract)
+├── OnInit() / OnShutdown()  — virtual callbacks
+├── Internal_Init() / Internal_Shutdown()  — idempotent lifecycle entry
+├── LogHandler : FrameworkHandler
+├── SettingHandler : FrameworkHandler
+├── VersionHandler : FrameworkHandler
+├── JsonHandler : FrameworkHandler
+├── ObjectHandler : FrameworkHandler
+├── StringHandler : FrameworkHandler
+├── TweenHandler : FrameworkHandler  (overrides Internal_Init to register TweenManager)
+└── InputHandler : FrameworkHandler
+```

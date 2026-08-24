@@ -33,6 +33,8 @@ namespace Moirai.Atropos
         /// <inheritdoc/>
         protected override void OnInit()
         {
+            base.OnInit();
+
             if (_factory == null)
             {
                 _factory = LoggerFactory.Create(builder =>
@@ -47,6 +49,8 @@ namespace Moirai.Atropos
         /// <inheritdoc/>
         protected override void OnShutdown()
         {
+            base.OnShutdown();
+
             _factory?.Dispose();
             _factory = null;
             _logger = null;

@@ -5,28 +5,12 @@ namespace Moirai.Atropos
     /// <summary>
     /// JSON 相关的实用函数。
     /// </summary>
+    [HandlerHost(typeof(JsonHandler))]
     public static partial class JsonUtility
     {
-        private static JsonHandler s_Handler = null;
-        /// <summary>
-        /// 获取/设置 JSON 工具实现。
-        /// </summary>
-        public static JsonHandler Handler
+        private static JsonHandler CreateDefaultHandler()
         {
-            get
-            {
-                if (s_Handler == null) Handler =  new DefaultJsonHandler();
-                return s_Handler;
-            }
-            set
-            {
-                if (s_Handler == value || value == null) return;
-
-                value.Internal_Init();
-                var previous = s_Handler;
-                s_Handler = value;
-                previous?.Internal_Shutdown();
-            }
+            return new DefaultJsonHandler();
         }
 
         /// <summary>

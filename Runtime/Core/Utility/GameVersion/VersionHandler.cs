@@ -6,31 +6,8 @@ namespace Moirai.Atropos
     /// 版本号处理器基类。
     /// </summary>
     [Serializable]
-    public abstract class VersionHandler
+    public abstract class VersionHandler : FrameworkHandler
     {
-        [NonSerialized]
-        private bool _initialized;
-
-        internal void Internal_Init()
-        {
-            if (_initialized) return;
-
-            OnInit();
-            _initialized = true;
-        }
-
-        internal void Internal_Shutdown()
-        {
-            if (!_initialized) return;
-
-            _initialized = false;
-            Shutdown();
-        }
-
-        protected abstract void OnInit();
-
-        protected abstract void Shutdown();
-
         /// <summary>
         /// 获取游戏版本号。
         /// </summary>

@@ -372,3 +372,65 @@ await GameServices.ShutdownAsync();
 
 ---
 [« 返回主 README](../../README.md) · [Timer](Timer.md) · [UpdateDriver](UpdateDriver.md)
+
+---
+
+## 处理器宿主（HandlerHost）
+
+> 通过 `[HandlerHost]` 特性 + 源生成器，为静态工具类自动生成线程安全的 Handler 属性与懒加载机制。
+
+框架的 7 个工具门面（`LogUtility`、`SettingUtility`、`VersionUtility`、`JsonUtility`、`ObjectUtility`、`StringUtility`、`TweenUtility`）均采用统一的处理器宿主模式：
+
+- **`[HandlerHost(typeof(XxxHandler))]`** 标记 `static partial class`，源生成器自动生成 `Handler` 属性（`volatile` + `Interlocked` 线程安全 get/set）
+- **`FrameworkHandler`** 是所有处理器抽象基类的统一基类，提供 `Internal_Init()` / `Internal_Shutdown()` 幂等生命周期和 `OnInit()` / `OnShutdown()` 虚方法回调
+- 用户在 partial 类中提供 `private static XxxHandler CreateDefaultHandler()` 工厂方法，首次访问 `Handler` 时自动调用
+- 未提供 `CreateDefaultHandler` 时，编译器报 **MIRAI001** 诊断（IDE 提供快速修复生成空方法），不会产生晦涩的 CS0103
+- `Handler` 赋值 `null` 抛出 `ArgumentNullException`（fail-fast）
+- `s_Handler` 字段为 `private`，partial 同类可直接访问
+
+### 使用方式
+
+```csharp
+[HandlerHost(typeof(LogHandler))]
+public static partial class LogUtility
+{
+    private static LogHandler CreateDefaultHandler()
+    {
+#if ZLOGGER_INSTALLED
+        return new ZLoggerHandler();
+#else
+        return new DefaultLogHandler();
+#endif
+    }
+
+    // ... facade 方法通过 Handler 调用
+    public static void Info(string msg) => Handler.Log(/* ... */);
+}
+```
+
+### 源生成器输出
+
+源生成器为每个标记 `[HandlerHost]` 的类生成 `{ClassName}.g.cs`，包含：
+
+| 成员 | 说明 |
+|------|------|
+| `s_Handler` | `private static volatile` 处理器字段 |
+| `s_DefaultFactory` | `private static Func<T>` = `CreateDefaultHandler`（方法存在时生成） |
+| `Handler` | `public static` 属性：get 懒加载（Interlocked），set 替换并关闭旧处理器 |
+| `Handler.set` | 初始化新处理器 → `Interlocked.Exchange` → 旧处理器 `Internal_Shutdown()` |
+
+### 处理器继承体系
+
+```
+FrameworkHandler (abstract)
+├── OnInit() / OnShutdown()  — 虚方法回调
+├── Internal_Init() / Internal_Shutdown()  — 幂等生命周期入口
+├── LogHandler : FrameworkHandler
+├── SettingHandler : FrameworkHandler
+├── VersionHandler : FrameworkHandler
+├── JsonHandler : FrameworkHandler
+├── ObjectHandler : FrameworkHandler
+├── StringHandler : FrameworkHandler
+├── TweenHandler : FrameworkHandler  (重写 Internal_Init 注册 TweenManager)
+└── InputHandler : FrameworkHandler
+```

@@ -20,14 +20,6 @@ namespace Moirai.Atropos
         private static JsonSerializerSettings s_CompactSettings;
         private static JsonSerializerSettings s_PrettySettings;
 
-        protected override void OnInit()
-        {
-        }
-
-        protected override void Shutdown()
-        {
-        }
-
         private static JsonSerializerSettings GetSettings(bool prettyPrint, int maxDepth)
         {
             if (prettyPrint)

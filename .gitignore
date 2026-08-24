@@ -78,3 +78,6 @@ Thumbs.db
 # Samples
 [Ss]amples/
 [Ss]amples.meta
+
+# SourceGenerator
+!**/Source~/*.csproj

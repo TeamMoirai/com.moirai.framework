@@ -130,7 +130,7 @@ TweenUtility.Handler = new LitMotionHandler();
 
 ## Notes
 
-- Setting `Handler` to null throws `GameException`; assigning null is prohibited
+- Setting `Handler` to null throws `ArgumentNullException` (fail-fast)
 - On domain reload (entering Play mode), the handler and frame listener are automatically reset to prevent stale references
 - `TweenManager` cleans up caches every 60 seconds by default; this can be adjusted via `TweenHandler`'s `m_CheckInterval`
 - `TweenEase` enum mode has zero heap allocation; `AnimationCurve` mode holds a reference to the curve

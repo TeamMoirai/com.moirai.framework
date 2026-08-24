@@ -25,14 +25,6 @@ namespace Moirai.Atropos
 
         #region 公共方法 [PUBLIC METHODS]
 
-        protected override void OnInit()
-        {
-        }
-
-        protected override void Shutdown()
-        {
-        }
-
         public override T InstantiateObject<T>(T original, bool playerOwned = false, bool allowNetworked = true)
         {
             return (T)Instantiate(original, Vector3.zero, Quaternion.identity, null, allowNetworked);

@@ -26,11 +26,15 @@ namespace Moirai.Atropos
 
         protected override void OnInit()
         {
+            base.OnInit();
+
             UnityUtility.AddUpdateListener(TweenTask.Update);
         }
 
-        protected override void Shutdown()
+        protected override void OnShutdown()
         {
+            base.OnShutdown();
+
             UnityUtility.RemoveUpdateListener(TweenTask.Update);
             TweenTask.StopAll(null);
         }

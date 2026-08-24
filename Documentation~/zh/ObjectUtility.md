@@ -60,7 +60,7 @@ ObjectUtility.DestroyObject(go, allowNetworked: true);
 
 ## 注意事项
 
-- `Handler` 赋 null 时忽略，不重置；赋新值时自动调用旧 handler 的 `Shutdown()` 和新 handler 的 `OnInit()`
+- `Handler` 赋 null 抛出 `ArgumentNullException`；赋新值时自动调用旧 handler 的 `Internal_Shutdown()` 和新 handler 的 `Internal_Init()`
 - 泛型约束 `where T : UnityEngine.Object`，支持 `GameObject`、`Component` 派生等类型
 - 默认 `UnityObjectHandler` 中 `playerOwned` / `allowNetworked` 参数不影响行为（仅在网络 Handler 中生效）
 
