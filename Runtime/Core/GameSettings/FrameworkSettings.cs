@@ -51,40 +51,6 @@ namespace Moirai.Atropos
         {
             Reset();
         }
-
-        /// <summary>
-        /// 根据类型全名创建并返回指定接口的实现类实例。
-        /// </summary>
-        /// <typeparam name="T">接口类型。</typeparam>
-        /// <param name="typeName">实现类的完整类型名称（包括命名空间）。</param>
-        /// <returns>类型为 <typeparamref name="T"/> 的实例。</returns>
-        /// <exception cref="GameException">当类型名为空、类型不存在或实例化失败时抛出。</exception>
-        /// <remarks>
-        /// 此方法通过反射动态创建对象。在 Unity 2019.3+ 环境中，
-        /// 建议使用 <see cref="UnityEngine.SerializeReference"/> 直接序列化抽象基类引用，Unity 会自动处理派生类的序列化与反序列化，
-        /// 无需手动调用 Activator.CreateInstance。
-        /// </remarks>
-        public static T ResolveTypeOption<T>(string typeName)
-        {
-            if (string.IsNullOrEmpty(typeName))
-            {
-                throw new GameException("Type can not be null or empty!.");
-            }
-
-            Type helperType = AssemblyUtility.GetType(typeName);
-            if (helperType == null)
-            {
-                throw new GameException(StringUtility.Format("Can not find type '{0}'.", typeName));
-            }
-
-            T instance = (T)Activator.CreateInstance(helperType);
-            if (instance == null)
-            {
-                throw new GameException(StringUtility.Format("Can not create instance '{0}'.", typeName));
-            }
-
-            return instance;
-        }
     }
 
     /// <summary>

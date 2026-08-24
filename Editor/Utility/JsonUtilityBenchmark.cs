@@ -271,7 +271,7 @@ namespace Moirai.Atropos.Editor
 
         /// <summary>
         /// 发现全部 <see cref="Moirai.Atropos.JsonHandler"/> 实现（排除抽象/测试程序集），
-        /// 经 <see cref="Moirai.Atropos.FrameworkSettings.ResolveTypeOption"/> 实例化（与 GameAppSettings 配置流同链路）。
+        /// 经 <see cref="Moirai.Atropos.ReflectionUtility.ResolveImplType{T}"/> 实例化（与 GameAppSettings 配置流同链路）。
         /// 单个 handler 实例化失败仅记录，不中断整体。
         /// </summary>
         private static List<(string name, JsonHandler handler)> DiscoverHandlers(List<string> results)
@@ -292,8 +292,9 @@ namespace Moirai.Atropos.Editor
             {
                 try
                 {
-                    // ResolveTypeOption 走 AssemblyUtility.GetType + Activator（GameAppSettings 同款解析链路）
-                    var handler = FrameworkSettings.ResolveTypeOption<JsonHandler>(type.FullName);
+                    // ResolveImplType 走 AssemblyUtility.GetType + Activator（GameAppSettings 同款解析链路）
+                    JsonHandler handler = null;
+                    ReflectionUtility.ResolveImplType(ref handler, type.FullName, typeof(DefaultJsonHandler));
                     discovered.Add((type.Name, handler));
                 }
                 catch (Exception e)

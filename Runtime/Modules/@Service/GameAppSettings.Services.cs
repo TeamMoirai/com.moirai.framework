@@ -32,50 +32,62 @@ namespace Moirai.Atropos
         [BoxGroup(SERVICE_GROUP), DisableInPlayMode]
         [ProviderDropdown(typeof(IUpdateDriverService), "Update Driver")]
         [SerializeField] private string m_UpdateDriverTypeName;
+        private static readonly Type s_UpdateDriverService = typeof(UpdateDriverService);
 
         [BoxGroup(SERVICE_GROUP), DisableInPlayMode]
         [ProviderDropdown(typeof(IResourceService), "Resource Service")]
         [SerializeField] private string m_ResourceServiceTypeName;
+        private static readonly Type s_ResourceService = typeof(ResourceService);
 
         [BoxGroup(SERVICE_GROUP), DisableInPlayMode]
         [ProviderDropdown(typeof(IDebuggerService), "Debugger Service")]
         [SerializeField] private string m_DebuggerServiceTypeName;
+        private static readonly Type s_DebuggerService = typeof(DebuggerService);
 
         [BoxGroup(SERVICE_GROUP), DisableInPlayMode]
         [ProviderDropdown(typeof(IAudioService), "Audio Service")]
         [SerializeField] private string m_AudioServiceTypeName;
+        private static readonly Type s_AudioService = typeof(AudioService);
 
         [BoxGroup(SERVICE_GROUP), DisableInPlayMode]
         [ProviderDropdown(typeof(IGameObjectPoolService), "GameObjectPool Service")]
         [SerializeField] private string m_GameObjectPoolServiceTypeName;
+        private static readonly Type s_GameObjectPoolService = typeof(GameObjectPoolService);
 
         [BoxGroup(SERVICE_GROUP), DisableInPlayMode]
         [ProviderDropdown(typeof(IProcedureService), "Procedure Service")]
         [SerializeField] private string m_ProcedureServiceTypeName;
+        private static readonly Type s_ProcedureService = typeof(ProcedureService);
 
         [BoxGroup(SERVICE_GROUP), DisableInPlayMode]
         [ProviderDropdown(typeof(ILocalizationService), "Localization Service")]
         [SerializeField] private string m_LocalizationServiceTypeName;
+        private static readonly Type s_LocalizationService = typeof(LocalizationService);
 
         [BoxGroup(SERVICE_GROUP), DisableInPlayMode]
         [ProviderDropdown(typeof(ISceneService), "Scene Service")]
         [SerializeField] private string m_SceneServiceTypeName;
+        private static readonly Type s_SceneService = typeof(SceneService);
 
         [BoxGroup(SERVICE_GROUP), DisableInPlayMode]
         [ProviderDropdown(typeof(ITimerService), "Timer Service")]
         [SerializeField] private string m_TimerServiceTypeName;
+        private static readonly Type s_TimerService = typeof(TimerService);
 
         [BoxGroup(SERVICE_GROUP), DisableInPlayMode]
         [ProviderDropdown(typeof(IInputService), "Input Service")]
         [SerializeField] private string m_InputServiceTypeName;
+        private static readonly Type s_InputService = typeof(InputService);
 
         [BoxGroup(SERVICE_GROUP), DisableInPlayMode]
         [ProviderDropdown(typeof(ISaveService), "Save Service")]
         [SerializeField] private string m_SaveServiceTypeName;
+        private static readonly Type s_SaveService = typeof(SaveService);
 
         [BoxGroup(SERVICE_GROUP), DisableInPlayMode]
         [ProviderDropdown(typeof(IUIService), "UI Service")]
         [SerializeField] private string m_UIServiceTypeName;
+        private static readonly Type s_UIService = typeof(UIService);
 
 
 #if UNITY_EDITOR
@@ -102,18 +114,18 @@ namespace Moirai.Atropos
         /// </summary>
         private partial void ResetAppServices()
         {
-            m_UpdateDriverTypeName = typeof(UpdateDriverService).FullName;
-            m_ResourceServiceTypeName = typeof(ResourceService).FullName;
-            m_DebuggerServiceTypeName = typeof(DebuggerService).FullName;
-            m_AudioServiceTypeName = typeof(AudioService).FullName;
-            m_GameObjectPoolServiceTypeName = typeof(GameObjectPoolService).FullName;
-            m_ProcedureServiceTypeName = typeof(ProcedureService).FullName;
-            m_LocalizationServiceTypeName = typeof(LocalizationService).FullName;
-            m_SceneServiceTypeName = typeof(SceneService).FullName;
-            m_TimerServiceTypeName = typeof(TimerService).FullName;
-            m_InputServiceTypeName = typeof(InputService).FullName;
-            m_SaveServiceTypeName = typeof(SaveService).FullName;
-            m_UIServiceTypeName = typeof(UIService).FullName;
+            m_UpdateDriverTypeName = s_UpdateDriverService.FullName;
+            m_ResourceServiceTypeName = s_ResourceService.FullName;
+            m_DebuggerServiceTypeName = s_DebuggerService.FullName;
+            m_AudioServiceTypeName = s_AudioService.FullName;
+            m_GameObjectPoolServiceTypeName = s_GameObjectPoolService.FullName;
+            m_ProcedureServiceTypeName = s_ProcedureService.FullName;
+            m_LocalizationServiceTypeName = s_LocalizationService.FullName;
+            m_SceneServiceTypeName = s_SceneService.FullName;
+            m_TimerServiceTypeName = s_TimerService.FullName;
+            m_InputServiceTypeName = s_InputService.FullName;
+            m_SaveServiceTypeName = s_SaveService.FullName;
+            m_UIServiceTypeName = s_UIService.FullName;
         }
 
         /// <summary>
@@ -142,43 +154,44 @@ namespace Moirai.Atropos
         {
             var collection = new ServiceCollection();
 
-            RegisterServiceFromInspector(collection, typeof(IUpdateDriverService), Instance.m_UpdateDriverTypeName);
-            RegisterServiceFromInspector(collection, typeof(IResourceService), Instance.m_ResourceServiceTypeName);
-            RegisterServiceFromInspector(collection, typeof(IDebuggerService), Instance.m_DebuggerServiceTypeName);
-            RegisterServiceFromInspector(collection, typeof(IAudioService), Instance.m_AudioServiceTypeName);
-            RegisterServiceFromInspector(collection, typeof(IGameObjectPoolService), Instance.m_GameObjectPoolServiceTypeName);
-            RegisterServiceFromInspector(collection, typeof(IProcedureService), Instance.m_ProcedureServiceTypeName);
-            RegisterServiceFromInspector(collection, typeof(ILocalizationService), Instance.m_LocalizationServiceTypeName);
-            RegisterServiceFromInspector(collection, typeof(ISceneService), Instance.m_SceneServiceTypeName);
-            RegisterServiceFromInspector(collection, typeof(ITimerService), Instance.m_TimerServiceTypeName);
-            RegisterServiceFromInspector(collection, typeof(IInputService), Instance.m_InputServiceTypeName);
-            RegisterServiceFromInspector(collection, typeof(ISaveService), Instance.m_SaveServiceTypeName);
-            RegisterServiceFromInspector(collection, typeof(IUIService), Instance.m_UIServiceTypeName);
+            collection.Register(typeof(IUpdateDriverService), ResolveType(Instance.m_UpdateDriverTypeName, s_UpdateDriverService), EServiceScopeKind.App);
+            collection.Register(typeof(IResourceService), ResolveType(Instance.m_ResourceServiceTypeName, s_ResourceService), EServiceScopeKind.App);
+            collection.Register(typeof(IDebuggerService), ResolveType(Instance.m_DebuggerServiceTypeName, s_DebuggerService), EServiceScopeKind.App);
+            collection.Register(typeof(IAudioService), ResolveType(Instance.m_AudioServiceTypeName, s_AudioService), EServiceScopeKind.App);
+            collection.Register(typeof(IGameObjectPoolService), ResolveType(Instance.m_GameObjectPoolServiceTypeName, s_GameObjectPoolService), EServiceScopeKind.App);
+            collection.Register(typeof(IProcedureService), ResolveType(Instance.m_ProcedureServiceTypeName, s_ProcedureService), EServiceScopeKind.App);
+            collection.Register(typeof(ILocalizationService), ResolveType(Instance.m_LocalizationServiceTypeName, s_LocalizationService), EServiceScopeKind.App);
+            collection.Register(typeof(ISceneService), ResolveType(Instance.m_SceneServiceTypeName, s_SceneService), EServiceScopeKind.App);
+            collection.Register(typeof(ITimerService), ResolveType(Instance.m_TimerServiceTypeName, s_TimerService), EServiceScopeKind.App);
+            collection.Register(typeof(IInputService), ResolveType(Instance.m_InputServiceTypeName, s_InputService), EServiceScopeKind.App);
+            collection.Register(typeof(ISaveService), ResolveType(Instance.m_SaveServiceTypeName, s_SaveService), EServiceScopeKind.App);
+            collection.Register(typeof(IUIService), ResolveType(Instance.m_UIServiceTypeName, s_UIService), EServiceScopeKind.App);
 
             return collection;
         }
 
         /// <summary>
-        /// 从 Inspector 类型名字符串解析并注册服务到集合。
+        /// 根据类型全名解析并返回类型。当配置类型无效时自动回退到备用类型，不抛异常。
         /// </summary>
-        private static void RegisterServiceFromInspector(ServiceCollection collection, Type interfaceType, string implTypeName)
+        /// <param name="implTypeName">
+        /// 实现类的完整类型名称（包含命名空间）。
+        /// 为 <see langword="null"/> 或空白时直接使用 <paramref name="fallbackType"/>。
+        /// </param>
+        /// <param name="fallbackType">当 <paramref name="implTypeName"/> 指定的类型不存在时使用的回退类型。</param>
+        /// <returns>解析到的 <see cref="Type"/>，保证非 null（最坏情况返回 <paramref name="fallbackType"/>）。</returns>
+        public static Type ResolveType(string implTypeName, Type fallbackType)
         {
-            if (string.IsNullOrEmpty(implTypeName))
+            var resolvedTypeName = string.IsNullOrWhiteSpace(implTypeName) ? fallbackType.FullName : implTypeName;
+            var instanceType = AssemblyUtility.GetType(resolvedTypeName);
+
+            if (instanceType != null) return instanceType;
+
+            if (!string.Equals(resolvedTypeName, fallbackType.FullName, StringComparison.Ordinal))
             {
-                LogUtility.Warning("Service implementation type for '{0}' is not configured.",
-                    interfaceType.FullName);
-                return;
+                LogUtility.Fatal("Could not load type '{0}'. Falling back to {1}.", resolvedTypeName, fallbackType.FullName);
             }
 
-            var implType = AssemblyUtility.GetType(implTypeName);
-            if (implType == null)
-            {
-                LogUtility.Error("Cannot resolve type '{0}' for service '{1}'.",
-                    implTypeName, interfaceType.FullName);
-                return;
-            }
-
-            collection.Register(interfaceType, implType, EServiceScopeKind.App);
+            return fallbackType;
         }
 
         #endregion

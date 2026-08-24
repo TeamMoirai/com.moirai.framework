@@ -602,7 +602,7 @@ namespace Moirai.Atropos
         /// <param name="assembly">目标程序集</param>
         /// <param name="inherit">是否查找基类中的特性</param>
         /// <returns>特性数组</returns>
-        public static T[] GetAttributesInAssembly<T>(System.Reflection.Assembly assembly, bool inherit = false)
+        public static T[] GetAttributesInAssembly<T>(Assembly assembly, bool inherit = false)
             where T : Attribute
         {
             var attributes = new List<T>();
@@ -624,7 +624,7 @@ namespace Moirai.Atropos
         /// <param name="assembly">目标程序集</param>
         /// <param name="inherit">是否查找基类中的特性</param>
         /// <returns>查找到的类型</returns>
-        public static Type[] GetTypesByAttribute<T>(System.Reflection.Assembly assembly, bool inherit = false)
+        public static Type[] GetTypesByAttribute<T>(Assembly assembly, bool inherit = false)
             where T : Attribute
         {
             var attributes = new List<Type>();
@@ -699,7 +699,7 @@ namespace Moirai.Atropos
         /// <typeparam name="T">特性类型</typeparam>
         /// <param name="assembly">目标程序集</param>
         /// <returns>方法信息数组</returns>
-        public static MethodInfo[] GetAssemblyMethodsByAttribute<T>(System.Reflection.Assembly assembly,
+        public static MethodInfo[] GetAssemblyMethodsByAttribute<T>(Assembly assembly,
             bool inherit = false)
             where T : Attribute
         {
@@ -737,7 +737,7 @@ namespace Moirai.Atropos
         /// <param name="typeName">类型名</param>
         /// <param name="assemblies">程序集集合</param>
         /// <returns>实例化后的对象</returns>
-        public static object GetTypeInstance(string typeName, params System.Reflection.Assembly[] assemblies)
+        public static object GetTypeInstance(string typeName, params Assembly[] assemblies)
         {
             object inst = null;
             foreach (var a in assemblies)
@@ -761,7 +761,7 @@ namespace Moirai.Atropos
         /// <param name="assemblies">程序集集合</param>
         /// <returns>实例化后的对象</returns>
         public static object GetTypeInstance(string typeName, object[] args,
-            params System.Reflection.Assembly[] assemblies)
+            params Assembly[] assemblies)
         {
             object inst = null;
             foreach (var a in assemblies)
@@ -783,7 +783,7 @@ namespace Moirai.Atropos
         /// <typeparam name="T">目标类型</typeparam>
         /// <param name="assembly">需要检测的程序集</param>
         /// <returns>反射生成后的对象数组</returns>
-        public static T[] GetDerivedTypeInstances<T>(System.Reflection.Assembly assembly = null)
+        public static T[] GetDerivedTypeInstances<T>(Assembly assembly = null)
             where T : class
         {
             Type type = typeof(T);
@@ -805,7 +805,7 @@ namespace Moirai.Atropos
         /// <param name="type">基类</param>
         /// <param name="assembly">需要检测的程序集</param>
         /// <returns>实例对象</returns>
-        public static object[] GetDerivedTypeInstances(Type type, System.Reflection.Assembly assembly = null)
+        public static object[] GetDerivedTypeInstances(Type type, Assembly assembly = null)
         {
             List<object> list = new List<object>();
             var types = GetDerivedTypes(type, assembly);
@@ -827,7 +827,7 @@ namespace Moirai.Atropos
         /// <param name="assembly">查询的程序集</param>
         /// <param name="inherit">是否检查基类特性</param>
         /// <returns>生成的对象</returns>
-        public static object GetInstanceByAttribute<T>(Type type, System.Reflection.Assembly assembly,
+        public static object GetInstanceByAttribute<T>(Type type, Assembly assembly,
             bool inherit = false)
             where T : Attribute
         {
@@ -854,7 +854,7 @@ namespace Moirai.Atropos
         /// <param name="assembly">查询的程序集</param>
         /// <param name="inherit">是否检查基类特性</param>
         /// <returns>生成的对象</returns>
-        public static K GetInstanceByAttribute<T, K>(System.Reflection.Assembly assembly = null,
+        public static K GetInstanceByAttribute<T, K>(Assembly assembly = null,
             bool inherit = false)
             where T : Attribute
             where K : class
@@ -882,7 +882,7 @@ namespace Moirai.Atropos
         /// <typeparam name="K">基类，new()约束</typeparam>
         /// <param name="assembly">查询的程序集</param>
         /// <returns>生成的对象数组</returns>
-        public static K[] GetInstancesByAttribute<T, K>(System.Reflection.Assembly assembly)
+        public static K[] GetInstancesByAttribute<T, K>(Assembly assembly)
             where T : Attribute
             where K : class
         {
@@ -898,7 +898,7 @@ namespace Moirai.Atropos
         /// <param name="assembly">查询的程序集</param>
         /// <param name="inherit">是否检查基类特性</param>
         /// <returns>生成的对象数组</returns>
-        public static K[] GetInstancesByAttribute<T, K>(bool inherit, System.Reflection.Assembly assembly = null)
+        public static K[] GetInstancesByAttribute<T, K>(bool inherit, Assembly assembly = null)
             where T : Attribute
             where K : class
         {
@@ -924,7 +924,7 @@ namespace Moirai.Atropos
         /// <param name="type">基类，new()约束</param>
         /// <param name="assembly">查询的程序集</param>
         /// <returns>生成的对象数组</returns>
-        public static object[] GetInstancesByAttribute<T>(Type type, System.Reflection.Assembly assembly = null)
+        public static object[] GetInstancesByAttribute<T>(Type type, Assembly assembly = null)
             where T : Attribute
         {
             return GetInstancesByAttribute<T>(type, false, assembly);
@@ -940,7 +940,7 @@ namespace Moirai.Atropos
         /// <param name="inherit">是否检查基类特性</param>
         /// <returns>生成的对象数组</returns>
         public static object[] GetInstancesByAttribute<T>(Type type, bool inherit,
-            System.Reflection.Assembly assembly = null)
+            Assembly assembly = null)
             where T : Attribute
         {
             List<object> set = new List<object>();
@@ -964,7 +964,7 @@ namespace Moirai.Atropos
         /// <typeparam name="K">派生的基类</typeparam>
         /// <param name="assembly">查询的程序集</param>
         /// <returns>非抽象派生类数组</returns>
-        public static Type[] GetDerivedTypesByAttribute<T, K>(System.Reflection.Assembly assembly = null)
+        public static Type[] GetDerivedTypesByAttribute<T, K>(Assembly assembly = null)
             where T : Attribute
             where K : class
         {
@@ -980,7 +980,7 @@ namespace Moirai.Atropos
         /// <param name="inherit">是否检查基类特性</param>
         /// <returns>非抽象派生类数组</returns>
         public static Type[] GetDerivedTypesByAttribute<T, K>(bool inherit,
-            System.Reflection.Assembly assembly = null)
+            Assembly assembly = null)
             where T : Attribute
             where K : class
         {
@@ -994,7 +994,7 @@ namespace Moirai.Atropos
         /// <param name="type">派生的基类</param>
         /// <param name="assembly">查询的程序集</param>
         /// <returns>非抽象派生类数组</returns>
-        public static Type[] GetDerivedTypesByAttribute<T>(Type type, System.Reflection.Assembly assembly = null)
+        public static Type[] GetDerivedTypesByAttribute<T>(Type type, Assembly assembly = null)
             where T : Attribute
         {
             return GetDerivedTypesByAttribute<T>(type, false, assembly);
@@ -1009,7 +1009,7 @@ namespace Moirai.Atropos
         /// <param name="inherit">是否检查基类特性</param>
         /// <returns>非抽象派生类数组</returns>
         public static Type[] GetDerivedTypesByAttribute<T>(Type type, bool inherit,
-            System.Reflection.Assembly assembly = null)
+            Assembly assembly = null)
             where T : Attribute
         {
             Type[] types = assembly.GetTypes();
@@ -1026,7 +1026,7 @@ namespace Moirai.Atropos
         /// <typeparam name="T">基类</typeparam>
         /// <param name="assembly">查询的程序集</param>
         /// <returns>非抽象派生类</returns>
-        public static Type GetDerivedType<T>(System.Reflection.Assembly assembly = null)
+        public static Type GetDerivedType<T>(Assembly assembly = null)
             where T : class
         {
             return GetDerivedType(typeof(T), assembly);
@@ -1038,7 +1038,7 @@ namespace Moirai.Atropos
         /// <param name="type">基类</param>
         /// <param name="assembly">查询的程序集</param>
         /// <returns>非抽象派生类</returns>
-        public static Type GetDerivedType(Type type, System.Reflection.Assembly assembly = null)
+        public static Type GetDerivedType(Type type, Assembly assembly = null)
         {
             Type[] types;
             if (assembly == null)
@@ -1057,7 +1057,7 @@ namespace Moirai.Atropos
         /// <typeparam name="T">基类</typeparam>
         /// <param name="assembly">查询的程序集</param>
         /// <returns>非抽象派生类</returns>
-        public static Type[] GetDerivedTypes<T>(System.Reflection.Assembly assembly = null)
+        public static Type[] GetDerivedTypes<T>(Assembly assembly = null)
             where T : class
         {
             Type type = typeof(T);
@@ -1075,7 +1075,7 @@ namespace Moirai.Atropos
         /// <param name="type">基类</param>
         /// <param name="assembly">查询的程序集</param>
         /// <returns>非抽象派生类</returns>
-        public static Type[] GetDerivedTypes(Type type, System.Reflection.Assembly assembly = null)
+        public static Type[] GetDerivedTypes(Type type, Assembly assembly = null)
         {
             Type[] types;
             if (assembly == null)
@@ -1091,7 +1091,7 @@ namespace Moirai.Atropos
         /// <typeparam name="T">基类</typeparam>
         /// <param name="assemblies">查询的程序集</param>
         /// <returns>非抽象派生类</returns>
-        public static Type[] GetDerivedTypes<T>(params System.Reflection.Assembly[] assemblies)
+        public static Type[] GetDerivedTypes<T>(params Assembly[] assemblies)
             where T : class
         {
             return GetDerivedTypes(typeof(T), assemblies);
@@ -1103,7 +1103,7 @@ namespace Moirai.Atropos
         /// <param name="type">基类</param>
         /// <param name="assemblies">查询的程序集集合</param>
         /// <returns>非抽象派生类</returns>
-        public static Type[] GetDerivedTypes(Type type, params System.Reflection.Assembly[] assemblies)
+        public static Type[] GetDerivedTypes(Type type, params Assembly[] assemblies)
         {
             List<Type> types;
             if (assemblies == null)
@@ -1133,7 +1133,7 @@ namespace Moirai.Atropos
         /// <typeparam name="T">基类</typeparam>
         /// <param name="assembly">查询的程序集</param>
         /// <returns>非抽象派生类完全限定名</returns>
-        public static string GetDerivedTypeName<T>(System.Reflection.Assembly assembly = null)
+        public static string GetDerivedTypeName<T>(Assembly assembly = null)
             where T : class
         {
             return GetDerivedTypeName(typeof(T), assembly);
@@ -1145,7 +1145,7 @@ namespace Moirai.Atropos
         /// <param name="type">基类</param>
         /// <param name="assembly">查询的程序集</param>
         /// <returns>非抽象派生类完全限定名</returns>
-        public static string GetDerivedTypeName(Type type, System.Reflection.Assembly assembly = null)
+        public static string GetDerivedTypeName(Type type, Assembly assembly = null)
         {
             Type[] types;
             if (assembly == null)
@@ -1164,7 +1164,7 @@ namespace Moirai.Atropos
         /// <typeparam name="T">基类</typeparam>
         /// <param name="assembly">查询的程序集</param>
         /// <returns>非抽象派生类完全限定名</returns>
-        public static string[] GetDerivedTypeNames<T>(System.Reflection.Assembly assembly = null)
+        public static string[] GetDerivedTypeNames<T>(Assembly assembly = null)
             where T : class
         {
             Type type = typeof(T);
@@ -1183,7 +1183,7 @@ namespace Moirai.Atropos
         /// <param name="type">基类</param>
         /// <param name="assembly">查询的程序集</param>
         /// <returns>非抽象派生类完全限定名</returns>
-        public static string[] GetDerivedTypeNames(Type type, System.Reflection.Assembly assembly = null)
+        public static string[] GetDerivedTypeNames(Type type, Assembly assembly = null)
         {
             Type[] types;
             if (assembly == null)
@@ -1200,7 +1200,7 @@ namespace Moirai.Atropos
         /// <param name="type">基类</param>
         /// <param name="assemblies">查询的程序集集合</param>
         /// <returns>非抽象派生类完全限定名</returns>
-        public static string[] GetDerivedTypeNames(Type type, params System.Reflection.Assembly[] assemblies)
+        public static string[] GetDerivedTypeNames(Type type, params Assembly[] assemblies)
         {
             List<string> types;
             if (assemblies == null)
@@ -1229,7 +1229,7 @@ namespace Moirai.Atropos
         /// <typeparam name="T">基类</typeparam>
         /// <param name="assemblies">查询的程序集集合</param>
         /// <returns>非抽象派生类完全限定名</returns>
-        public static string[] GetDerivedTypeNames<T>(params System.Reflection.Assembly[] assemblies)
+        public static string[] GetDerivedTypeNames<T>(params Assembly[] assemblies)
             where T : class
         {
             return GetDerivedTypeNames(typeof(T), assemblies);
@@ -1254,6 +1254,81 @@ namespace Moirai.Atropos
             }
 
             return null;
+        }
+
+        /// <summary>
+        /// 根据实现类的完整类型名称，解析并返回指定接口 <typeparamref name="T"/> 的实例。
+        /// 支持缓存复用，并在配置类型无效或实例化失败时自动回退到备用类型 <paramref name="fallbackType"/>。
+        /// </summary>
+        /// <typeparam name="T">目标类型，通常为接口或抽象基类，且必须为引用类型。</typeparam>
+        /// <param name="cachedInstance">
+        /// 缓存实例的引用（传入 <see langword="ref"/>）。
+        /// 若该实例非 <see langword="null"/> 且其类型全名与解析后的目标类型名一致，则直接返回该缓存实例，跳过反射创建。
+        /// </param>
+        /// <param name="implTypeName">
+        /// 实现类的完整类型名称（包含命名空间），例如 "MyNamespace.MyClass"。
+        /// 若为 <see langword="null"/> 或空白字符串，则直接使用 <paramref name="fallbackType"/> 作为目标类型。
+        /// </param>
+        /// <param name="fallbackType">
+        /// 当 <paramref name="implTypeName"/> 指定的类型不存在、无法赋值给 <typeparamref name="T"/>，
+        /// 或实例化失败时，将使用此类型作为最终回退。
+        /// </param>
+        /// <returns>
+        /// 类型为 <typeparamref name="T"/> 的实例，可能来自缓存、配置类型或回退类型。
+        /// 若所有尝试（包括回退类型）均实例化失败，则返回 <see langword="null"/>，同时通过 <see cref="LogUtility.Fatal(string, Object)"/> 记录错误信息。
+        /// </returns>
+        /// <remarks>
+        /// <para>
+        /// 本方法通过 <see cref="Activator.CreateInstance(Type, bool)"/> 动态创建对象，
+        /// 传入 <see langword="true"/> 允许调用非公共构造函数（如内部或私有构造），提高了灵活性。
+        /// </para>
+        /// <para>
+        /// <b>错误处理策略：</b> 该方法不会抛出任何异常。当发生类型加载失败或实例化错误时，
+        /// 会依次尝试回退，仅在完全失败时返回 <see langword="null"/> 并记录错误日志，
+        /// 适用于需要高容错性的框架初始化场景。
+        /// </para>
+        /// <para>
+        /// <b>Unity 环境建议：</b> 若使用 Unity 2019.3+，推荐使用 <see cref="UnityEngine.SerializeReference"/>
+        /// 特性序列化抽象类型，由引擎自动处理派生类实例化，可减少反射开销和手动配置错误。
+        /// </para>
+        /// </remarks>
+        public static T ResolveImplType<T>(ref T cachedInstance, string implTypeName, Type fallbackType) where T : class
+        {
+            var resolvedTypeName = string.IsNullOrWhiteSpace(implTypeName) ? fallbackType.FullName : implTypeName;
+            if (cachedInstance != null && cachedInstance.GetType().FullName == resolvedTypeName)
+            {
+                return cachedInstance;
+            }
+
+            var instanceType = AssemblyUtility.GetType(resolvedTypeName);
+            if (instanceType == null || !typeof(T).IsAssignableFrom(instanceType))
+            {
+                if (!string.Equals(resolvedTypeName, fallbackType.FullName, StringComparison.Ordinal))
+                {
+                    LogUtility.Fatal("Could not load {0} type '{1}'. Falling back to {2}.", typeof(T).Name, resolvedTypeName, fallbackType.FullName);
+                }
+
+                instanceType = fallbackType;
+            }
+
+            cachedInstance = Activator.CreateInstance(instanceType, true) as T;
+            if (cachedInstance != null)
+            {
+                return cachedInstance;
+            }
+
+            if (instanceType != fallbackType)
+            {
+                LogUtility.Fatal("Failed to instantiate {0} as {1}. Falling back to {2}.", resolvedTypeName, typeof(T).Name, fallbackType.FullName);
+                cachedInstance = Activator.CreateInstance(fallbackType, true) as T;
+            }
+
+            if (cachedInstance == null)
+            {
+                LogUtility.Fatal("Failed to instantiate fallback {0} as {1}.", fallbackType.FullName, typeof(T).Name);
+            }
+
+            return cachedInstance;
         }
     }
 }

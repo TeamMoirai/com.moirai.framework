@@ -23,8 +23,8 @@ namespace Moirai.Atropos
         [DisableInPlayMode]
         [SerializeField] private bool m_NeverSleep;
 
-        /// <!-- Handler -->
-        private const string HELPER_GROUP = "框架工具 [Global Handler]";
+        /// <!-- Utility -->
+        private const string HELPER_GROUP = "框架工具 [Global Utility]";
 
         [BoxGroup(HELPER_GROUP), DisableInPlayMode]
         [ProviderDropdown]

@@ -27,72 +27,28 @@ namespace Moirai.Atropos.UI.Editor
 
         /// <summary>标识符格式化器</summary>
         internal static IUIIdentifierFormatter IdentifierFormatter =>
-            ResolveConfiguredService(
+            ReflectionUtility.ResolveImplType(
                 ref s_IdentifierFormatter,
                 UIGeneratorSettings.UIIdentifierFormatterTypeName,
-                typeof(DefaultUIIdentifierFormatter),
-                nameof(IUIIdentifierFormatter));
+                typeof(DefaultUIIdentifierFormatter));
 
         private static IUIResourcePathResolver ResourcePathResolver =>
-            ResolveConfiguredService(
+            ReflectionUtility.ResolveImplType(
                 ref s_ResourcePathResolver,
                 UIGeneratorSettings.UIResourcePathResolverTypeName,
-                typeof(DefaultUIResourcePathResolver),
-                nameof(IUIResourcePathResolver));
+                typeof(DefaultUIResourcePathResolver));
 
         private static IUIScriptCodeEmitter ScriptCodeEmitter =>
-            ResolveConfiguredService(
+            ReflectionUtility.ResolveImplType(
                 ref s_ScriptCodeEmitter,
                 UIGeneratorSettings.UIScriptCodeEmitterTypeName,
-                typeof(DefaultUIScriptCodeEmitter),
-                nameof(IUIScriptCodeEmitter));
+                typeof(DefaultUIScriptCodeEmitter));
 
         private static IUIScriptFileWriter ScriptFileWriter =>
-            ResolveConfiguredService(
+            ReflectionUtility.ResolveImplType(
                 ref s_ScriptFileWriter,
                 UIGeneratorSettings.UIScriptFileWriterTypeName,
-                typeof(DefaultUIScriptFileWriter),
-                nameof(IUIScriptFileWriter));
-
-        private static T ResolveConfiguredService<T>(ref T cachedService, string configuredTypeName, Type defaultType, string serviceName)
-            where T : class
-        {
-            var resolvedTypeName = string.IsNullOrWhiteSpace(configuredTypeName) ? defaultType.FullName : configuredTypeName;
-            if (cachedService != null && cachedService.GetType().FullName == resolvedTypeName)
-            {
-                return cachedService;
-            }
-
-            var configuredType = AssemblyUtility.GetType(resolvedTypeName);
-            if (configuredType == null || !typeof(T).IsAssignableFrom(configuredType))
-            {
-                if (!string.Equals(resolvedTypeName, defaultType.FullName, StringComparison.Ordinal))
-                {
-                    Debug.LogError($"UIScriptGeneratorHelper: Could not load {serviceName} type '{resolvedTypeName}'. Falling back to {defaultType.FullName}.");
-                }
-
-                configuredType = defaultType;
-            }
-
-            cachedService = Activator.CreateInstance(configuredType, true) as T;
-            if (cachedService != null)
-            {
-                return cachedService;
-            }
-
-            if (configuredType != defaultType)
-            {
-                Debug.LogError($"UIScriptGeneratorHelper: Failed to instantiate {resolvedTypeName} as {serviceName}. Falling back to {defaultType.FullName}.");
-                cachedService = Activator.CreateInstance(defaultType, true) as T;
-            }
-
-            if (cachedService == null)
-            {
-                Debug.LogError($"UIScriptGeneratorHelper: Failed to instantiate fallback {defaultType.FullName} as {serviceName}.");
-            }
-
-            return cachedService;
-        }
+                typeof(DefaultUIScriptFileWriter));
 
         private static bool EnsureGenerationStrategyReady()
         {

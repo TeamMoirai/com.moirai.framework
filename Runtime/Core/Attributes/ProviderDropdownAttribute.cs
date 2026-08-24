@@ -13,7 +13,7 @@ namespace Moirai.Atropos
     /// 1. <b>引用模式</b>（推荐）：配合 <see cref="SerializeReference"/> 使用，字段类型为抽象类，
     ///    下拉选择后直接存储实例，展开可编辑子字段。<br/>
     /// 2. <b>类型名模式</b>：字段为 <c>string</c>，存储类型全名，
-    ///    运行时通过 <c>FrameworkSettings.ResolveTypeOption&lt;T&gt;(typeName)</c> 创建实例。
+    ///    运行时通过 <c>ReflectionUtility.ResolveImplType&lt;T&gt;(ref cached, typeName, fallbackType)</c> 创建实例。
     ///    适用于接口类型（无法直接序列化实例的场景）。
     /// </remarks>
     /// <example>
