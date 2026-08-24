@@ -94,13 +94,18 @@ namespace Moirai.Atropos.Editor
             var left = new VisualElement();
 
             var toolbar = new Toolbar();
-            var createBtn = new ToolbarButton(CreatePreset) { text = "+", tooltip = "新建预设" };
+
+            var createBtn = new ToolbarButton(CreatePreset) { tooltip = "新建预设", focusable = false };
+            createBtn.Add(MakeToolbarIcon("CreateAddNew"));
+
             var refreshBtn = new ToolbarButton(() =>
             {
                 RefreshPresets();
                 SyncSelectionAfterRefresh();
                 AddLog("已刷新预设列表");
-            }) { text = "⟳", tooltip = "刷新列表" };
+            }) { tooltip = "刷新列表", focusable = false };
+            refreshBtn.Add(MakeToolbarIcon("Refresh"));
+
             toolbar.Add(createBtn);
             toolbar.Add(refreshBtn);
             left.Add(toolbar);
@@ -274,6 +279,20 @@ namespace Moirai.Atropos.Editor
         #endregion
 
         #region UI 工具 [UI HELPERS]
+
+        private static Image MakeToolbarIcon(string iconName)
+        {
+            var icon = EditorGUIUtility.IconContent(iconName).image as Texture2D;
+            return new Image
+            {
+                image = icon,
+                style =
+                {
+                    width = 16,
+                    height = 16,
+                }
+            };
+        }
 
         private static VisualElement MakeSeparator()
         {
