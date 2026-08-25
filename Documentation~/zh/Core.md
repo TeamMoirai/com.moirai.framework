@@ -384,7 +384,7 @@ await GameServices.ShutdownAsync();
 - **`[HandlerHost(typeof(XxxHandler))]`** 标记 `static partial class`，源生成器自动生成 `Handler` 属性（`volatile` + `Interlocked` 线程安全 get/set）
 - **`FrameworkHandler`** 是所有处理器抽象基类的统一基类，提供 `Internal_Init()` / `Internal_Shutdown()` 幂等生命周期和 `OnInit()` / `OnShutdown()` 虚方法回调
 - 用户在 partial 类中提供 `private static XxxHandler CreateDefaultHandler()` 工厂方法，首次访问 `Handler` 时自动调用
-- 未提供 `CreateDefaultHandler` 时，编译器报 **MIRAI001** 诊断（IDE 提供快速修复生成空方法），不会产生晦涩的 CS0103
+- 未提供 `CreateDefaultHandler` 时，编译器报 **MIRAI001** 警告（IDE 提供快速修复生成空方法）；`Handler.get` 在未显式设置时抛出 `InvalidOperationException`（运行时托底）
 - `Handler` 赋值 `null` 抛出 `ArgumentNullException`（fail-fast）
 - `s_Handler` 字段为 `private`，partial 同类可直接访问
 
