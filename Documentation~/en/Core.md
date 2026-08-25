@@ -384,7 +384,7 @@ The framework's 7 utility facades (`LogUtility`, `SettingUtility`, `VersionUtili
 - **`[HandlerHost(typeof(XxxHandler))]`** marks a `static partial class`; the source generator generates a `Handler` property (`volatile` + `Interlocked` thread-safe get/set)
 - **`FrameworkHandler`** is the unified base class for all handler abstract base classes, providing `Internal_Init()` / `Internal_Shutdown()` idempotent lifecycle and `OnInit()` / `OnShutdown()` virtual callbacks
 - Users provide a `private static XxxHandler CreateDefaultHandler()` factory method in the partial class, called automatically on first access to `Handler`
-- When `CreateDefaultHandler` is missing, the compiler reports **MIRAI001** diagnostic (IDE provides a quick fix to generate the method), instead of a cryptic CS0103
+- When `CreateDefaultHandler` is missing, the compiler reports **MIRAI001** warning (IDE provides a quick fix to generate the method); `Handler.get` throws `InvalidOperationException` at runtime if accessed without explicit assignment
 - Setting `Handler` to `null` throws `ArgumentNullException` (fail-fast)
 - The `s_Handler` field is `private`; partial classes of the same type can access it directly
 

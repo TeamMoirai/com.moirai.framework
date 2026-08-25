@@ -16,11 +16,11 @@ namespace Moirai.Atropos.SourceGenerators
         public static readonly DiagnosticDescriptor MissingCreateDefaultHandlerRule = new DiagnosticDescriptor(
             id: "MIRAI001",
             title: "缺少 CreateDefaultHandler 方法",
-            messageFormat: "[HandlerHost] 标记的类 '{0}' 必须提供 'private static {1} CreateDefaultHandler()' 方法，源生成器依赖此方法创建默认处理器实例",
+            messageFormat: "[HandlerHost] 标记的类 '{0}' 未提供 'private static {1} CreateDefaultHandler()' 方法，未显式设置 Handler 前访问将抛出运行时异常",
             category: "Usage",
-            defaultSeverity: DiagnosticSeverity.Error,
+            defaultSeverity: DiagnosticSeverity.Warning,
             isEnabledByDefault: true,
-            description: "HandlerHost source generator references CreateDefaultHandler() in the generated s_DefaultFactory field initializer.",
+            description: "CreateDefaultHandler is the fallback factory when Handler is accessed without explicit assignment. Without it, Handler.get throws InvalidOperationException at runtime.",
             customTags: new[] { WellKnownDiagnosticTags.NotConfigurable });
 
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics
