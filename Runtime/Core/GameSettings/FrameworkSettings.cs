@@ -34,30 +34,10 @@ namespace Moirai.Atropos
     }
 
     /// <summary>
-    /// 框架设置非泛型基类，用于编辑器侧类型擦除访问。
-    /// </summary>
-    public abstract partial class FrameworkSettings : ScriptableObject
-    {
-        /// <summary>
-        /// 重置设置为默认值。
-        /// </summary>
-        /// <remarks>一般用于编辑器相关操作</remarks>
-        protected internal virtual void Reset() { }
-
-        /// <summary>
-        /// 公共重置入口，供编辑器工具调用。
-        /// </summary>
-        public void ResetToDefaults()
-        {
-            Reset();
-        }
-    }
-
-    /// <summary>
     /// 框架设置基类。提供统一的元数据查询、类型注册和实例加载。
     /// 所有框架设置 ScriptableObject 应继承此类。
     /// </summary>
-    public abstract class FrameworkSettings<T> : FrameworkSettings where T : FrameworkSettings<T>
+    public abstract partial class FrameworkSettings<T> : ScriptableObject where T : FrameworkSettings<T>
     {
         private static T s_Instance;
         /// <summary>获取设置实例。</summary>
@@ -84,7 +64,7 @@ namespace Moirai.Atropos
                 {
                     string filePath = saveFolder + type.Name + ".asset";
 #if UNITY_EDITOR
-                    s_Instance = LoadSettingSO<T>(filePath, t => t.ResetToDefaults());
+                    s_Instance = LoadSettingSO<T>(filePath);
 #else
                     LogUtility.Error($"Could not find {type.Name} at path '{filePath}'!");
 #endif

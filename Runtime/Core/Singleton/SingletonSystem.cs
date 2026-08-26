@@ -61,7 +61,6 @@ namespace Moirai.Atropos
     /// </summary>
     public static class SingletonSystem
     {
-        private static IUpdateDriverService s_UpdateDriver;
         private static readonly List<ISingleton> s_Singletons = new List<ISingleton>();
         private static readonly List<IUpdate> s_Updates = new List<IUpdate>();
         private static readonly List<IFixedUpdate> s_FixedUpdates = new List<IFixedUpdate>();
@@ -266,13 +265,12 @@ namespace Moirai.Atropos
 
             s_IsInit = true;
 
-            s_UpdateDriver ??= GameServices.Provider?.GetService<IUpdateDriverService>();
-            s_UpdateDriver.AddUpdateListener(OnUpdate);
-            s_UpdateDriver.AddFixedUpdateListener(OnFixedUpdate);
-            s_UpdateDriver.AddLateUpdateListener(OnLateUpdate);
+            UpdateDriverService.AddUpdateListener(OnUpdate);
+            UpdateDriverService.AddFixedUpdateListener(OnFixedUpdate);
+            UpdateDriverService.AddLateUpdateListener(OnLateUpdate);
 #if UNITY_EDITOR
-            s_UpdateDriver.AddOnDrawGizmosListener(OnDrawGizmos);
-            s_UpdateDriver.AddOnDrawGizmosSelectedListener(OnDrawGizmosSelected);
+            UpdateDriverService.AddOnDrawGizmosListener(OnDrawGizmos);
+            UpdateDriverService.AddOnDrawGizmosSelectedListener(OnDrawGizmosSelected);
 #endif
         }
 
@@ -282,13 +280,12 @@ namespace Moirai.Atropos
 
             s_IsInit = false;
 
-            s_UpdateDriver ??= GameServices.Provider?.GetService<IUpdateDriverService>();
-            s_UpdateDriver.RemoveUpdateListener(OnUpdate);
-            s_UpdateDriver.RemoveFixedUpdateListener(OnFixedUpdate);
-            s_UpdateDriver.RemoveLateUpdateListener(OnLateUpdate);
+            UpdateDriverService.RemoveUpdateListener(OnUpdate);
+            UpdateDriverService.RemoveFixedUpdateListener(OnFixedUpdate);
+            UpdateDriverService.RemoveLateUpdateListener(OnLateUpdate);
 #if UNITY_EDITOR
-            s_UpdateDriver.RemoveOnDrawGizmosListener(OnDrawGizmos);
-            s_UpdateDriver.RemoveOnDrawGizmosSelectedListener(OnDrawGizmosSelected);
+            UpdateDriverService.RemoveOnDrawGizmosListener(OnDrawGizmos);
+            UpdateDriverService.RemoveOnDrawGizmosSelectedListener(OnDrawGizmosSelected);
 #endif
         }
 

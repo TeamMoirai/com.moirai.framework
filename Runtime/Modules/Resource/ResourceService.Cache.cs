@@ -3,7 +3,7 @@ using System;
 namespace Moirai.Atropos.Resource
 {
     // ReSharper disable once ClassNeverInstantiated.Global
-    internal partial class ResourceService
+    public sealed partial class ResourceHandler
     {
         #region 字段 [FIELDS]
 

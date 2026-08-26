@@ -52,7 +52,7 @@ namespace Moirai.Atropos.Audio
             }
         }
 
-        IAudioService _target;
+        AudioHandler _target;
 
         private TrackStruct[] _tracks;
         private readonly Color[] _colorBases = new []{ ColorsUtility.YellowAmber, ColorsUtility.Coral, ColorsUtility.SteelBlue, ColorsUtility.Aquamarine, ColorsUtility.Burlywood };
@@ -64,7 +64,7 @@ namespace Moirai.Atropos.Audio
 
         private void OnEnable()
         {
-            _target = GameApp.Audio;
+            _target = AudioService.Handler;
 
             // 初始化音频轨道
             if (UnityEditor.EditorApplication.isPlaying)

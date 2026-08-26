@@ -18,8 +18,8 @@ namespace Moirai.Atropos
     {
         [SerializeField] private LogUtility.ELogLevel m_MinimumLevel = LogUtility.ELogLevel.Debug;
 
-        private ILoggerFactory _factory;
-        private ILogger _logger;
+        [NonSerialized] private ILoggerFactory _factory;
+        [NonSerialized] private ILogger _logger;
 
         /// <summary>
         /// 获取或设置最小日志等级，低于该等级的日志将被丢弃。

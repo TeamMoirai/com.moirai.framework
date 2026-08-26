@@ -4,14 +4,16 @@ using Cysharp.Threading.Tasks;
 
 namespace Moirai.Atropos.Save
 {
-    public class JsonSaveHandler : ISaveHandler
+    /// <summary>
+    /// JSON 格式存档处理器。
+    /// </summary>
+    [System.Serializable]
+    public class JsonSaveHandler : SaveHandler
     {
         /// <summary>
         /// 将指定的对象转换为 json 后将其保存在指定位置
         /// </summary>
-        /// <param name="objectToSave"></param>
-        /// <param name="saveFile"></param>
-        public UniTask Save(object objectToSave, FileStream saveFile)
+        protected internal override UniTask SerializeAsync(object objectToSave, FileStream saveFile)
         {
 #if UNITY_EDITOR
             // 编辑器保留可读格式便于人工检查存档；真机走紧凑字节通路
@@ -30,9 +32,7 @@ namespace Moirai.Atropos.Save
         /// <summary>
         /// 加载指定的文件并对其进行解码
         /// </summary>
-        /// <param name="saveFile"></param>
-        /// <returns></returns>
-        public UniTask<T> Load<T>(FileStream saveFile)
+        protected internal override UniTask<T> DeserializeAsync<T>(FileStream saveFile)
         {
             // 整体读为字节后直接解析（零 string 中间态；解析端已兼容 BOM 与编辑器可读格式）
             byte[] buffer = ReadAllBytes(saveFile);

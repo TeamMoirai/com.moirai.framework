@@ -6,11 +6,11 @@ namespace Moirai.Atropos.Procedure
     public abstract class ProcedureBase
     {
         /// <summary>
-        /// 流程服务引用，由 <see cref="ProcedureService.Initialize"/> 时注入。
+        /// 流程处理器引用，由 <see cref="ProcedureHandler.Initialize"/> 时注入。
         /// </summary>
-        internal IProcedureService Owner { get; private set; }
+        internal ProcedureHandler Owner { get; private set; }
 
-        internal void SetOwner(IProcedureService owner) => Owner = owner;
+        internal void SetOwner(ProcedureHandler owner) => Owner = owner;
 
         /// <summary>
         /// 流程初始化时调用。

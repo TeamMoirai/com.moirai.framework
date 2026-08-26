@@ -15,57 +15,23 @@ namespace Moirai.Atropos.Procedure
         [HideInInspector]
         [SerializeField] private string m_EntranceProcedureTypeName = null;
 
-        private IProcedureService _procedureService = null;
         private ProcedureBase _entranceProcedure = null;
-        
+
         /// <summary>
         /// 获取当前流程。
         /// </summary>
-        public static ProcedureBase CurrentProcedure
-        {
-            get
-            {
-                if (Instance._procedureService == null)
-                {
-                    return null;
-                }
-
-                return Instance._procedureService.CurrentProcedure;
-            }
-        }
+        public static ProcedureBase CurrentProcedure => ProcedureService.CurrentProcedure;
 
         /// <summary>
         /// 获取当前流程持续时间。
         /// </summary>
-        public static float CurrentProcedureTime
-        {
-            get
-            {
-                if (Instance._procedureService == null)
-                {
-                    return 0f;
-                }
-
-                return Instance._procedureService.CurrentProcedureTime;
-            }
-        }
+        public static float CurrentProcedureTime => ProcedureService.CurrentProcedureTime;
 
         /// <summary>
         /// 启动流程。
         /// </summary>
         public static async UniTask StartProcedure()
         {
-            if (Instance._procedureService == null)
-            {
-                Instance._procedureService = GameServices.Provider.GetRequiredService<IProcedureService>();
-            }
-
-            if (Instance._procedureService == null)
-            {
-                LogUtility.Fatal("Procedure manager is invalid.");
-                return;
-            }
-
             ProcedureBase[] procedures = new ProcedureBase[Instance.m_AvailableProcedureTypeNames.Length];
             for (int i = 0; i < Instance.m_AvailableProcedureTypeNames.Length; i++)
             {
@@ -95,11 +61,11 @@ namespace Moirai.Atropos.Procedure
                 return;
             }
 
-            Instance._procedureService.Initialize(procedures);
+            ProcedureService.Initialize(procedures);
 
             await UniTask.Yield();
 
-            Instance._procedureService.StartProcedure(Instance._entranceProcedure.GetType());
+            ProcedureService.StartProcedure(Instance._entranceProcedure.GetType());
         }
 
 #if UNITY_EDITOR
@@ -109,7 +75,7 @@ namespace Moirai.Atropos.Procedure
         /// </summary>
         internal event Action onSettingsReset;
 
-        protected internal override void Reset()
+        private void Reset()
         {
             // 设置默认值
             var procedureTypeNames = GetProcedureTypeNames();

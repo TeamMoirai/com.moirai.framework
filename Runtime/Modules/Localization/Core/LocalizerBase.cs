@@ -8,8 +8,7 @@ namespace Moirai.Atropos.Localization
 
 		protected virtual void Awake()
 		{
-			var svc = GameApp.Localization;
-			svc?.AddLocalizer(this);
+			LocalizationService.AddLocalizer(this);
 			Prepare();
 		}
 
@@ -20,8 +19,7 @@ namespace Moirai.Atropos.Localization
 
 		protected virtual void OnDestroy()
 		{
-			var svc = GameApp.Localization;
-			svc?.RemoveLocalizer(this);
+			LocalizationService.RemoveLocalizer(this);
 		}
 
 		/// <summary>

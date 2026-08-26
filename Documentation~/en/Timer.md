@@ -2,7 +2,7 @@
 
 > High-performance timer service based on a four-level timing wheel, no full scan, suitable for large-scale timed scenarios such as skill cooldowns, heartbeat packets, and delayed tasks.
 
-The `Timer` service provides the ability to add, pause, resume, restart, and remove timers. The implementation class `TimerService` uses a four-level timing wheel algorithm (256 slots per level, 1 ms precision, advancing at most 64 ticks per frame), combined with paged slot reuse and versioned handles, maintaining zero GC and O(1) operation cost even with hundreds of thousands of timers. The service maintains two independent timing wheels: scaled (affected by `Time.timeScale`) and unscaled. Access via `GameApp.Timer`.
+The `Timer` service provides the ability to add, pause, resume, restart, and remove timers. The implementation class `TimerHandler` uses a four-level timing wheel algorithm (256 slots per level, 1 ms precision, advancing at most 64 ticks per frame), combined with paged slot reuse and versioned handles, maintaining zero GC and O(1) operation cost even with hundreds of thousands of timers. The service maintains two independent timing wheels: scaled (affected by `Time.timeScale`) and unscaled. Access via the `TimerService.Xxx()` static facade (HandlerHost pattern: `TimerService` static facade + `TimerHandler` timing wheel backend + `TimerSettings` configuration).
 
 Note: This service is a separate facility from the Scheduler (`Scheduler.Delay`, `Scheduler.WaitFrame`, etc.) under `Runtime/Core/Schedulers`. The Scheduler is a zero-allocation general-purpose scheduler, while the Timer service is a timing wheel implementation designed for massive timed tasks. Choose based on your needs.
 
@@ -11,7 +11,7 @@ Note: This service is a separate facility from the Scheduler (`Scheduler.Delay`,
 - Four-level timing wheel: 4 levels x 256 buckets, 1 ms tick precision, no full scan on expiration
 - Versioned handles: handles are `(version << 32) | (slot + 1)`, old handles automatically invalidate after slot reuse (ABA prevention)
 - Dual timing wheels: scaled (`Time.timeAsDouble`) and unscaled (`Time.unscaledTimeAsDouble`) advance independently
-- Three callback forms: `TimerHandler` (object[] parameters), `Action` (no parameters), `Action<T>` (generic single parameter, avoids closures)
+- Three callback forms: `TimerCallback` (object[] parameters), `Action` (no parameters), `Action<T>` (generic single parameter, avoids closures)
 - Exception isolation: exceptions thrown by individual callbacks are only logged and do not affect other timers or timing wheel advancement
 - Reentrancy safe: callbacks can safely call `RemoveTimer` / `Stop` / `Restart` on themselves or other timers
 - Paged storage and prewarming: prewarms 1024 slots by default, expands in pages of 256, with a maximum capacity of approximately 1 million slots
@@ -22,36 +22,34 @@ Namespace: `Moirai.Atropos.Timer`
 
 | Class/Interface | Description |
 |---------|------|
-| `ITimerService` | Public service interface: `AddTimer` three overloads, `Stop` / `Resume` / `Restart` / `RemoveTimer`, `Prewarm`, `GetStatistics`, `GetAllTimers` |
-| `TimerService` | `internal sealed` implementation class, inherits `Service` and implements `IUpdateService`, driven by the service system every frame |
-| `TimerHandler` | Delegate `void TimerHandler(object[] args)`, traditional object[] parameter callback |
+| `TimerService` | Static facade (`[HandlerHost]`): all static APIs including `AddTimer` three overloads, `Stop` / `Resume` / `Restart` / `RemoveTimer`, `Prewarm`, `GetStatistics`, `GetAllTimers` |
+| `TimerHandler` | Timing wheel backend handler (inherits `FrameworkHandler`), carries the core four-level timing wheel logic |
+| `TimerSettings` | Framework settings, selects the timer backend implementation via `[ProviderDropdown]` |
+| `TimerCallback` | Delegate `void TimerCallback(object[] args)`, traditional object[] parameter callback |
 | `TimerDebugInfo` | Debug info struct: `timerHandle`, `leftTime`, `duration`, `age`, `flags` |
 | `TimerDebugFlags` | Debug flag constants: `RUNNING`, `LOOP`, `UNSCALED` |
 
 ## Quick Start
 
 ```csharp
-// Access the service
-ITimerService timer = GameApp.Timer;
-
 // 1. Delayed execution (no-parameter Action)
-ulong id1 = timer.AddTimer(() => Debug.Log("Executed after 3 seconds"), 3f);
+ulong id1 = TimerService.AddTimer(() => Debug.Log("Executed after 3 seconds"), 3f);
 
 // 2. Loop timer (affected by timeScale)
-ulong id2 = timer.AddTimer(OnHeartbeat, 1f, isLoop: true);
+ulong id2 = TimerService.AddTimer(OnHeartbeat, 1f, isLoop: true);
 
 // 3. Generic single-parameter callback, avoids closure allocation (T constrained to class)
-ulong id3 = timer.AddTimer<Entity>(OnSkillCdEnd, target, 5f);
+ulong id3 = TimerService.AddTimer<Entity>(OnSkillCdEnd, target, 5f);
 
 // 4. Traditional object[] parameter (compatible with legacy code)
-ulong id4 = timer.AddTimer(OnArgsCallback, 2f, false, false, 100, "hello");
+ulong id4 = TimerService.AddTimer(OnArgsCallback, 2f, false, false, 100, "hello");
 void OnArgsCallback(object[] args) { /* args[0]=100, args[1]="hello" */ }
 
 // Pause / Resume / Restart / Remove
-timer.Stop(id2);       // Pause and record remaining time
-timer.Resume(id2);     // Resume from remaining time
-timer.Restart(id2);    // Reset to full duration and restart
-timer.RemoveTimer(id2);// Remove completely and reclaim slot
+TimerService.Stop(id2);       // Pause and record remaining time
+TimerService.Resume(id2);     // Resume from remaining time
+TimerService.Restart(id2);    // Reset to full duration and restart
+TimerService.RemoveTimer(id2);// Remove completely and reclaim slot
 ```
 
 ## Advanced Usage
@@ -60,7 +58,7 @@ timer.RemoveTimer(id2);// Remove completely and reclaim slot
 
 ```csharp
 // isUnscaled: true means not affected by Time.timeScale (pause menus, UI countdowns, etc.)
-ulong id = timer.AddTimer(OnCountdown, 1f, isLoop: true, isUnscaled: true);
+ulong id = TimerService.AddTimer(OnCountdown, 1f, isLoop: true, isUnscaled: true);
 ```
 
 ### Loop Timer Scheduling Rules
@@ -71,15 +69,15 @@ After a loop timer triggers, it is rescheduled based on "last trigger time + dur
 
 ```csharp
 // Prewarm slots before combat to avoid runtime page expansion (max 4096 pages x 256 slots)
-timer.Prewarm(4096);
+TimerService.Prewarm(4096);
 
 // Runtime statistics: active count, pool capacity, peak active count, free count
-timer.GetStatistics(out int activeCount, out int poolCapacity,
-                    out int peakActiveCount, out int freeCount);
+TimerService.GetStatistics(out int activeCount, out int poolCapacity,
+                           out int peakActiveCount, out int freeCount);
 
 // Debug snapshot: fills the caller-provided array, returns the actual number written
 var results = new TimerDebugInfo[activeCount];
-int count = timer.GetAllTimers(results);
+int count = TimerService.GetAllTimers(results);
 for (int i = 0; i < count; i++)
 {
     bool isRunning = (results[i].flags & TimerDebugFlags.RUNNING) != 0;

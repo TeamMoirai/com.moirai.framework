@@ -16,7 +16,7 @@ namespace Moirai.Atropos.Editor
     /// JSON 序列化基准。
     /// <para>① 序列化器核心对比（DefaultJson string/bytes vs Newtonsoft vs Unity JsonUtility 参考）；</para>
     /// <para>② JsonHandler 中间件层：经 <see cref="Moirai.Atropos.AssemblyUtility.GetRuntimeTypes"/> 自动发现全部
-    /// <see cref="Moirai.Atropos.JsonHandler"/> 实现，经 <see cref="Moirai.Atropos.FrameworkSettings.ResolveTypeOption"/>
+    /// <see cref="Moirai.Atropos.JsonHandler"/> 实现，经 Activator.CreateInstance
     /// 实例化（与 GameAppSettings 配置流同链路）——新增 handler 实现无需修改本基准；</para>
     /// <para>③ IBufferJsonHandler 能力矩阵。全部数据程序化构建（零外部文件依赖），结束后恢复门面并清理临时状态。</para>
     /// 菜单：Window/Moirai/JSON Benchmark。逐场景自适迭代（每测量段约 150ms），场景间让出主线程保持编辑器响应。

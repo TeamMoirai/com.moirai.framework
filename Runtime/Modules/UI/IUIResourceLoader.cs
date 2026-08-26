@@ -37,7 +37,7 @@ namespace Moirai.Atropos.UI
     /// </summary>
     public class UIResourceLoader : IUIResourceLoader
     {
-        private readonly IResourceService _resourceLoaderImp = GameServices.Provider?.GetService<IResourceService>();
+        private readonly ResourceHandler _resourceLoaderImp = ResourceService.Handler;
 
         /// <summary>
         /// 同步加载游戏物体并实例化。

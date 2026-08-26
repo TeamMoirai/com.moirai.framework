@@ -4,7 +4,7 @@ namespace Moirai.Atropos
 {
     /// <summary>
     /// 服务提供者。所有服务访问的统一入口。
-    /// <para>纯 C# 服务通过构造函数注入此接口；非服务代码通过 <see cref="GameApp"/> 缓存属性（如 <see cref="GameApp.Audio"/>）访问。</para>
+    /// <para>服务通过 <c>GameServices.RegisterService</c> 手动注册；非服务代码通过各模块静态门面（如 <c>AudioService</c>）访问。</para>
     /// <para>跨作用域查找通过 <see cref="ServiceWorld.ContractBindings"/> 实现 O(1) 查找。</para>
     /// </summary>
     public interface IServiceProvider

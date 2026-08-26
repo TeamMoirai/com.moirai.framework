@@ -14,16 +14,12 @@ namespace Moirai.Atropos.Debugger
                 GUILayout.Label("<b>Operations</b>");
                 GUILayout.BeginVertical("box");
                 {
-                    IGameObjectPoolService gameObjectPoolService = GameServices.Provider?.GetService<IGameObjectPoolService>();
-                    if (gameObjectPoolService != null)
+                    if (GUILayout.Button("GameObject Pool Flush All", GUILayout.Height(30f)))
                     {
-                        if (GUILayout.Button("GameObject Pool Flush All", GUILayout.Height(30f)))
-                        {
-                            gameObjectPoolService.FlushAll();
-                        }
+                        GameObjectPoolService.FlushAll();
                     }
 
-                    IResourceService resourceService = GameServices.Provider?.GetService<IResourceService>();
+                    ResourceHandler resourceService = ResourceService.Handler;
                     if (resourceService != null)
                     {
                         if (GUILayout.Button("Unload Unused Assets", GUILayout.Height(30f)))

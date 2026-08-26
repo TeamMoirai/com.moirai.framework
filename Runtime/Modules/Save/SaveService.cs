@@ -1,175 +1,123 @@
-using System.IO;
 using Cysharp.Threading.Tasks;
-using UnityEngine;
 
 namespace Moirai.Atropos.Save
 {
-    public class SaveService : ServiceBase, ISaveService
+    /// <summary>
+    /// 存档服务门面（Facade）。
+    /// <para>统一的静态存档访问入口，通过替换 <see cref="Handler"/> 即可在不同序列化/加密策略之间零成本切换。</para>
+    /// <para>未显式设置处理器时，使用 <see cref="CreateDefaultHandler"/> 从 <see cref="SaveSettings"/> 创建处理器实例。</para>
+    /// <para>Handler 属性由 <c>HandlerHostGenerator</c> 源生成器自动生成（线程安全懒加载）。</para>
+    /// </summary>
+    [HandlerHost(typeof(SaveHandler))]
+    public partial class SaveService : ServiceBase
     {
-        private ISaveHandler _saveHandler;
+        #region 处理器 [HANDLER]
 
-        #region 实现方法 [IMPLEMENTATION METHODS]
-
-        public override void OnInit()
+        /// <summary>
+        /// 从 <see cref="SaveSettings"/> 创建默认存档处理器。
+        /// </summary>
+        /// <returns>默认存档处理器实例。</returns>
+        private static SaveHandler CreateDefaultHandler()
         {
-            _saveHandler = SaveSettings.SaveHandler;
-            if (_saveHandler is SaveEncryptor saveEncryptor) saveEncryptor.Key = SaveSettings.EncryptionKey;
-        }
-
-        public override void Shutdown()
-        {
-            _saveHandler = null;
-        }
-
-        public async UniTask Save(object saveObject, string fileName, string folderName = ISaveService.DEFAULT_FOLDER_NAME)
-        {
-            string savePath = DetermineSavePath(folderName);
-            string saveFileName = DetermineSaveFileName(fileName);
-
-            // 如果该目录尚不存在，则创建
-            if (!Directory.Exists(savePath))
-            {
-                Directory.CreateDirectory(savePath);
-            }
-
-            string saveFilePath = savePath + saveFileName;
-            string tempFilePath = saveFilePath + ".tmp";
-
-            // 将对象序列化并写入磁盘上的文件中
-            using (FileStream saveFile = File.Create(tempFilePath))
-            {
-                await _saveHandler.Save(saveObject, saveFile);
-            }
-
-            // 释放临时文件——用try-final确保清理
-            try
-            {
-                if (File.Exists(saveFilePath))
-                {
-                    File.Delete(saveFilePath);
-                }
-                File.Move(tempFilePath, saveFilePath);
-            }
-            catch
-            {
-                // 故障时清理临时文件
-                if (File.Exists(tempFilePath))
-                {
-                    try { File.Delete(tempFilePath); }
-                    catch
-                    {
-                        // ignored
-                    }
-                }
-                throw;
-            }
-        }
-
-        public async UniTask<T> Load<T>(string fileName, string folderName = ISaveService.DEFAULT_FOLDER_NAME)
-        {
-            string savePath = DetermineSavePath(folderName);
-            string saveFileName = savePath + DetermineSaveFileName(fileName);
-
-            // 如果 Saves 目录或保存文件不存在，则无需加载任意内容，直接退出
-            if (!Directory.Exists(savePath) || !File.Exists(saveFileName))
-            {
-                return default;
-            }
-
-            using (FileStream saveFile = File.Open(saveFileName, FileMode.Open, FileAccess.Read, FileShare.Read))
-            {
-                return await _saveHandler.Load<T>(saveFile);
-            }
-        }
-
-        public void DeleteSave(string fileName, string folderName = ISaveService.DEFAULT_FOLDER_NAME)
-        {
-            string savePath = DetermineSavePath(folderName);
-            string saveFileName = DetermineSaveFileName(fileName);
-            if (File.Exists(savePath + saveFileName))
-            {
-                File.Delete(savePath + saveFileName);
-            }
-        }
-
-        public void DeleteSaveFolder(string folderName = ISaveService.DEFAULT_FOLDER_NAME)
-        {
-            string savePath = DetermineSavePath(folderName);
-            if (Directory.Exists(savePath))
-            {
-                DeleteDirectory(savePath);
-            }
-        }
-
-        public void DeleteAllSaveFiles()
-        {
-            string savePath = DetermineSavePath("");
-            savePath = Path.GetDirectoryName(savePath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
-
-            if (savePath != null && Directory.Exists(savePath))
-            {
-                DeleteDirectory(savePath);
-            }
-        }
-
-        public bool FileExists(string fileName, string folderName = ISaveService.DEFAULT_FOLDER_NAME)
-        {
-            string savePath = DetermineSavePath(folderName);
-            string saveFileName = DetermineSaveFileName(fileName);
-
-            return File.Exists(savePath + saveFileName);
-        }
-
-        public string DetermineSavePath(string folderName = ISaveService.DEFAULT_FOLDER_NAME)
-        {
-            // 拼装路径
-            string savePath = Application.persistentDataPath + ISaveService.BASE_FOLDER_NAME;
-
-            savePath = savePath + folderName + "/";
-            return savePath;
+            return SaveSettings.SaveHandler;
         }
 
         #endregion
 
-        #region 私有方法 [PRIVATE METHODS]
+        #region 属性 [PROPERTIES]
 
         /// <summary>
-        /// 判断要保存的文件名称
+        /// 服务是否可用
         /// </summary>
-        /// <returns>保存文件名</returns>
+        public static bool IsValid => s_Handler != null;
+
+        #endregion
+
+        #region 生命周期 [LIFECYCLE]
+
+        /// <summary>
+        /// 初始化存档服务。由容器在构建期调用。
+        /// <para>确保 <c>SaveService.Handler</c> 已赋值（触发 <see cref="CreateDefaultHandler"/> 懒加载）。</para>
+        /// </summary>
+        public override void OnInit()
+        {
+            // 确保 Handler 已初始化（加密处理器在此阶段注入密钥）
+            _ = Handler;
+        }
+
+        /// <summary>
+        /// 关闭存档服务。由容器在关闭期调用。
+        /// </summary>
+        public override void Shutdown()
+        {
+            s_Handler?.Internal_Shutdown();
+            s_Handler = null;
+        }
+
+        #endregion
+
+        #region 存档读写 [SAVE / LOAD]
+
+        /// <summary>
+        /// 将指定的 saveObject、fileName 和 folderName 保存到磁盘上的文件中
+        /// </summary>
+        /// <param name="saveObject">保存对象</param>
         /// <param name="fileName">文件名</param>
-        private static string DetermineSaveFileName(string fileName)
-        {
-            return Path.GetFileNameWithoutExtension(fileName) + SaveSettings.SaveFileExtension;
-        }
+        /// <param name="folderName">文件夹名称</param>
+        public static UniTask Save(object saveObject, string fileName, string folderName = SaveHandler.DEFAULT_FOLDER_NAME) =>
+            s_Handler?.Save(saveObject, fileName, folderName) ?? UniTask.CompletedTask;
 
         /// <summary>
-        /// 删除指定的目录
+        /// 根据文件名将指定的文件加载到指定的文件夹中
         /// </summary>
-        /// <param name="targetDir"></param>
-        private static void DeleteDirectory(string targetDir)
-        {
-            string[] files = Directory.GetFiles(targetDir);
-            string[] dirs = Directory.GetDirectories(targetDir);
+        /// <param name="fileName">文件名</param>
+        /// <param name="folderName">文件夹名称</param>
+        public static UniTask<T> Load<T>(string fileName, string folderName = SaveHandler.DEFAULT_FOLDER_NAME) =>
+            s_Handler != null ? s_Handler.Load<T>(fileName, folderName) : UniTask.FromResult<T>(default);
 
-            foreach (string file in files)
-            {
-                File.SetAttributes(file, FileAttributes.Normal);
-                File.Delete(file);
-            }
+        #endregion
 
-            foreach (string dir in dirs)
-            {
-                DeleteDirectory(dir);
-            }
+        #region 存档删除 [DELETE]
 
-            Directory.Delete(targetDir, false);
+        /// <summary>
+        /// 从磁盘中删除保存
+        /// </summary>
+        /// <param name="fileName">文件名</param>
+        /// <param name="folderName">文件夹名称</param>
+        public static void DeleteSave(string fileName, string folderName = SaveHandler.DEFAULT_FOLDER_NAME) =>
+            s_Handler?.DeleteSave(fileName, folderName);
 
-            if (File.Exists(targetDir + ".meta"))
-            {
-                File.Delete(targetDir + ".meta");
-            }
-        }
+        /// <summary>
+        /// 删除整个保存文件夹
+        /// </summary>
+        /// <param name="folderName">文件夹名称</param>
+        public static void DeleteSaveFolder(string folderName = SaveHandler.DEFAULT_FOLDER_NAME) =>
+            s_Handler?.DeleteSaveFolder(folderName);
+
+        /// <summary>
+        /// 删除所有的保存文件
+        /// </summary>
+        public static void DeleteAllSaveFiles() =>
+            s_Handler?.DeleteAllSaveFiles();
+
+        #endregion
+
+        #region 路径管理 [PATH]
+
+        /// <summary>
+        /// 是否存在存档文件
+        /// </summary>
+        /// <param name="fileName">文件名</param>
+        /// <param name="folderName">文件夹名称</param>
+        public static bool FileExists(string fileName, string folderName = SaveHandler.DEFAULT_FOLDER_NAME) =>
+            s_Handler?.FileExists(fileName, folderName) ?? false;
+
+        /// <summary>
+        /// 获取文件夹的完整保存路径
+        /// </summary>
+        /// <param name="folderName">文件夹名称</param>
+        public static string DetermineSavePath(string folderName = SaveHandler.DEFAULT_FOLDER_NAME) =>
+            s_Handler?.DetermineSavePath(folderName) ?? string.Empty;
 
         #endregion
     }

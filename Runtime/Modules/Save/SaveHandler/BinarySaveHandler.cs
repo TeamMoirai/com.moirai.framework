@@ -14,18 +14,19 @@ namespace Moirai.Atropos.Save
     /// See: https://learn.microsoft.com/en-us/dotnet/standard/serialization/binaryformatter-security-guide
     /// </remarks>
     [System.Obsolete("BinaryFormatter is insecure and deprecated. Use JsonSaveHandler instead. See https://aka.ms/binaryformatter")]
-    public class BinarySaveHandler : ISaveHandler
+    [System.Serializable]
+    public class BinarySaveHandler : SaveHandler
     {
-        private readonly BinaryFormatter _formatter = new BinaryFormatter();
+        [System.NonSerialized] private BinaryFormatter _formatter;
+
+        private BinaryFormatter Formatter => _formatter ??= new BinaryFormatter();
 
         /// <summary>
         /// 序列化后将指定对象保存到指定位置的磁盘上
         /// </summary>
-        /// <param name="objectToSave"></param>
-        /// <param name="saveFile"></param>
-        public UniTask Save(object objectToSave, FileStream saveFile)
+        protected internal override UniTask SerializeAsync(object objectToSave, FileStream saveFile)
         {
-            _formatter.Serialize(saveFile, objectToSave);
+            Formatter.Serialize(saveFile, objectToSave);
             saveFile.Close();
 
             return UniTask.CompletedTask;
@@ -34,11 +35,9 @@ namespace Moirai.Atropos.Save
         /// <summary>
         /// 从磁盘加载指定的文件并对其进行反序列化
         /// </summary>
-        /// <param name="saveFile"></param>
-        /// <returns></returns>
-        public UniTask<T> Load<T>(FileStream saveFile)
+        protected internal override UniTask<T> DeserializeAsync<T>(FileStream saveFile)
         {
-            T savedObject = (T)_formatter.Deserialize(saveFile);
+            T savedObject = (T)Formatter.Deserialize(saveFile);
             saveFile.Close();
 
             return UniTask.FromResult(savedObject);

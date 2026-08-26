@@ -13,18 +13,21 @@ namespace Moirai.Atropos.Save
     /// See: https://learn.microsoft.com/en-us/dotnet/standard/serialization/binaryformatter-security-guide
     /// </remarks>
     [System.Obsolete("BinaryFormatter is insecure and deprecated. Use JsonEncryptedSaveHandler instead. See https://aka.ms/binaryformatter")]
+    [System.Serializable]
     public class BinaryEncryptedSaveHandler : EncryptedSaveHandlerBase
     {
-        private readonly BinaryFormatter _formatter = new BinaryFormatter();
+        [System.NonSerialized] private BinaryFormatter _formatter;
+
+        private BinaryFormatter Formatter => _formatter ??= new BinaryFormatter();
 
         protected override void SerializeToStream(object objectToSave, MemoryStream stream)
         {
-            _formatter.Serialize(stream, objectToSave);
+            Formatter.Serialize(stream, objectToSave);
         }
 
         protected override T DeserializeFromStream<T>(MemoryStream stream)
         {
-            return (T)_formatter.Deserialize(stream);
+            return (T)Formatter.Deserialize(stream);
         }
     }
 }

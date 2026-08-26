@@ -74,7 +74,7 @@ namespace Moirai.Atropos.GameObjectPool
             NormalizeSettings();
 
             // 将配置注入到服务实例。
-            GameApp.GameObjectPool?.LoadCatalog(m_PoolConfig);
+            GameObjectPoolService.LoadCatalog(m_PoolConfig);
         }
 
         #endregion

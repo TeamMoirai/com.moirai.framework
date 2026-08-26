@@ -11,7 +11,7 @@ namespace Moirai.Atropos.Resource
     /// <summary>
     /// 资源服务核心记录管理——分页 slot 系统、generation 验证、Timer-wheel 过期、加载去重。
     /// </summary>
-    internal sealed partial class ResourceService
+    public sealed partial class ResourceHandler
     {
         #region 常量 [CONSTANTS]
 

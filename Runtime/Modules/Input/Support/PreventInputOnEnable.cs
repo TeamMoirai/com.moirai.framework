@@ -11,35 +11,29 @@ namespace Moirai.Atropos.Input
         [SerializeField] private bool m_LockPlayerController = false;
         [Tooltip("禁止交互UI")]
         [SerializeField] private bool m_PreventInteractionUI = false;
-        
+
         private bool _lockPlayerController;
         private bool _preventInteractionUI;
-        
+
         private void OnEnable()
         {
-            var svc = GameApp.Input;
-            if (svc == null) return;
-
             if (m_LockPlayerController)
             {
-                _lockPlayerController = svc.LockPlayerController;
-                svc.LockPlayerController = true;
+                _lockPlayerController = InputService.LockPlayerController;
+                InputService.LockPlayerController = true;
             }
 
             if (m_PreventInteractionUI)
             {
-                _preventInteractionUI = svc.PreventInteractionUI;
-                svc.PreventInteractionUI = true;
+                _preventInteractionUI = InputService.PreventInteractionUI;
+                InputService.PreventInteractionUI = true;
             }
         }
 
         private void OnDisable()
         {
-            var svc = GameApp.Input;
-            if (svc == null) return;
-
-            svc.LockPlayerController = _lockPlayerController;
-            svc.PreventInteractionUI = _preventInteractionUI;
+            InputService.LockPlayerController = _lockPlayerController;
+            InputService.PreventInteractionUI = _preventInteractionUI;
         }
     }
 }

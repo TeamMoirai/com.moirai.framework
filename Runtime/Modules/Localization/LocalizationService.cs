@@ -1,210 +1,194 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using Moirai.Atropos.ConfigTable;
-using UnityEngine;
-using YooAsset;
 
 namespace Moirai.Atropos.Localization
 {
     /// <summary>
-    /// 本地化多语言服务。
-    /// todo 配置表导出分表，不需要一次加载所有多语言
+    /// 本地化服务门面（Facade）。
+    /// <para>统一的静态多语言访问入口，通过替换 <see cref="Handler"/> 即可在不同本地化数据源之间零成本切换。</para>
+    /// <para>未显式设置处理器时，使用 <see cref="CreateDefaultHandler"/> 从 <see cref="LocalizationSettings"/> 创建处理器实例。</para>
+    /// <para>Handler 属性由 <c>HandlerHostGenerator</c> 源生成器自动生成（线程安全懒加载）。</para>
     /// </summary>
-    // ReSharper disable once ClassNeverInstantiated.Global
-    public sealed class LocalizationService : ServiceBase, ILocalizationService
+    [HandlerHost(typeof(LocalizationHandler))]
+    public partial class LocalizationService : ServiceBase
     {
-        // 本地化器列表
-        private readonly List<LocalizerBase> _localizers = new List<LocalizerBase>();
-        
-        // 语言列表
-        private List<Language> LanguageList { get; set; } = new List<Language>();
-        // 本地化字符串字典
-        private Dictionary<string, List<string>> LocalizedStrings { get; set; } = new Dictionary<string, List<string>>();
-        
-        // 当前本地化语言
-        private Language _currentLanguage;
-        // 当前本地化语言设置来自
-        private string _settingSource;
-        
-        public Language CurrentLanguage => _currentLanguage ?? GetCurrentLanguage(true, ref _settingSource);
-        public int CurrentLanguageIndex => GetLanguageIndex(_currentLanguage);
-        public event ILocalizationService.OnLanguageChangedDelegate OnLanguageChanged;
+        #region 处理器 [HANDLER]
 
-        public override void OnInit() { }
-        public override void Shutdown() { }
-        
-        public void InitLanguageSettings()
-        {
-            if (LocalizedStrings.Count == 0)
-            {
-                LocalizedStrings.Clear();
-                LoadLocalizedStrings();
-            }
-            
-            ChangeLanguage(CurrentLanguage, true);
-        }
-        
-        public Language GetCurrentLanguage(bool onlySupported, ref string settingSource)
-        {
-            // 获取启动命令中的设置
-            string language = CommandLineUtility.GetForceLanguage();
-            if (!string.IsNullOrEmpty(language))
-            {
-                settingSource = "CommandLine";
-            }
-            else
-            {
-#if UNITY_EDITOR
-                // 如果处于编辑器模拟模式下，使用编辑器设置的语言
-                if (GameAppSettings.EditorLanguage != Language.Unspecified.Name)
-                {
-                    language = GameAppSettings.EditorLanguage;
-                    settingSource = "EditorSetting";
-                }
-                else
-#endif
-                // 如果已设置语言，则使用设置的语言
-                if (SettingUtility.HasSetting(GameConstant.Setting.LANGUAGE))
-                {
-                    language = SettingUtility.GetString(GameConstant.Setting.LANGUAGE);
-                    settingSource = "SavedSetting";
-                }
-                // 否则，使用系统语言
-                else
-                {
-                    SystemLanguage systemLanguage = Application.systemLanguage;
-                    // 未区分简繁时，使用简体中文
-                    if (systemLanguage == SystemLanguage.Chinese)
-                    {
-                        systemLanguage = SystemLanguage.ChineseSimplified;
-                    }
-                    language = ((Language)systemLanguage).Code;
-                    settingSource = "SystemLanguage";
-                }
-            }
-            
-            return LocalizationHelper.ToLanguage(language, onlySupported);
-        }
-        
         /// <summary>
-        /// 从配置表加载本地化字符串到内存。
+        /// 从 <see cref="LocalizationSettings"/> 创建默认本地化处理器。
         /// </summary>
-        private void LoadLocalizedStrings()
+        /// <returns>默认本地化处理器实例。</returns>
+        private static LocalizationHandler CreateDefaultHandler()
         {
-            LocalizedStrings = ConfigMgr.Instance.GetAllLocalizedStrings();
-            LanguageList = LocalizationHelper.GetAllAvailableLanguages();
-            
-            if (LanguageList.Count != 0 && LocalizedStrings != null)
-            {
-                LogUtility.Info("Load Localized Text Success!");
-            }
-            else
-            {
-                LogUtility.Error("Failed to load localized text, generate config first!");
-            }
+            return LocalizationSettings.LocalizationHandler;
         }
 
-        public void ChangeLanguage(Language language, bool logSource = false)
+        #endregion
+
+        #region 属性 [PROPERTIES]
+
+        /// <summary>
+        /// 服务是否可用
+        /// </summary>
+        public static bool IsValid => s_Handler != null;
+
+        /// <summary>
+        /// 当前使用的本地化语言。
+        /// </summary>
+        public static Language CurrentLanguage => s_Handler?.CurrentLanguage;
+
+        /// <summary>
+        /// 当前语言索引。
+        /// </summary>
+        public static int CurrentLanguageIndex => s_Handler?.CurrentLanguageIndex ?? 0;
+
+        #endregion
+
+        #region 生命周期 [LIFECYCLE]
+
+        /// <summary>
+        /// 初始化本地化服务。由容器在构建期调用。
+        /// <para>确保 <c>LocalizationService.Handler</c> 已赋值（触发 <see cref="CreateDefaultHandler"/> 懒加载），
+        /// 并订阅处理器语言变更事件用于静态事件转发。</para>
+        /// </summary>
+        public override void OnInit()
         {
-            if (LanguageList.Count == 0)
-            {
-                LogUtility.Error("No language available!");
-                return;
-            }
+            // 确保 Handler 已初始化
+            _ = Handler;
 
-            if (_currentLanguage == language) return;
-
-            _currentLanguage = LanguageList[GetLanguageIndex(language)];
-            OnLanguageChanged?.Invoke(_currentLanguage);
-
-            // 重新注入所有注入器的字符串。
-            _localizers.ForEach(_ => _.Localize());
-
-            SettingUtility.SetString(GameConstant.Setting.LANGUAGE, _currentLanguage.Code);
-            LogUtility.Info($"Change the language: {_currentLanguage}{(logSource ? $"(by {_settingSource})" : "")}");
-        }
-
-        public void ChangeLanguage(string language) => ChangeLanguage(LocalizationHelper.ToLanguage(language, true));
-
-        public void ChangeLanguage(int index) => ChangeLanguage(LanguageList[index]);
-        public string ActivatePreviousLanguage()
-        {
-            var prevIndex = (int)Mathf.Repeat(CurrentLanguageIndex - 1, LanguageList.Count);
-            ChangeLanguage(LanguageList[prevIndex]);
-            return LanguageList[prevIndex].Name;
-        }
-
-        public string ActivateNextLanguage()
-        {
-            var nextIndex = (int)Mathf.Repeat(CurrentLanguageIndex + 1, LanguageList.Count);
-            ChangeLanguage(LanguageList[nextIndex]);
-            return LanguageList[nextIndex].Name;
+            Handler.OnLanguageChanged += RaiseLanguageChanged;
         }
 
         /// <summary>
-        /// 获取语言索引
+        /// 关闭本地化服务。由容器在关闭期调用。
         /// </summary>
-        /// <param name="language"></param>
-        /// <returns></returns>
-        private int GetLanguageIndex(Language language)
+        public override void Shutdown()
         {
-            // 检查语言列表是否为空
-            if (LanguageList == null || !LanguageList.Any())
-            {
-                LogUtility.Error("Language list is empty or null");
-                throw new InvalidOperationException("Language list is empty or null");
-            }
-
-            // 进行匹配
-            var i = LanguageList.FindIndex(s => s == language);
-
-            // 处理语言不存在的情况
-            if (i == -1)
-            {
-                LogUtility.Error($"Language {language} is not available");
-                throw new KeyNotFoundException($"Language {language} is not available");
-            }
-            
-            return i;
-        }
-        
-        public void AddLocalizer(LocalizerBase localizer) => _localizers.Add(localizer);
-        
-        public void RemoveLocalizer(LocalizerBase localizer) => _localizers.Remove(localizer);
-
-        public bool Has(string id) => LocalizedStrings.ContainsKey(id);
-        
-        public string GetTextFromId(string id, params object[] p) => GetTextFromIdLanguage(id, _currentLanguage, p);
-        
-        public string GetTextFromIdLanguage(string id, Language language, params object[] p)
-        {
-            // 不是多语言直接返回
-            if (!LocalizedStrings.ContainsKey(id)) return id;
-            
-            var languageIndex = GetLanguageIndex(language);
-            string text = p is { Length: > 0 }
-                ? string.Format(LocalizedStrings[id][languageIndex], p)
-                : LocalizedStrings[id][languageIndex];
-            
-            // 如果该文本没有被翻译，返回 ID
-            return string.IsNullOrEmpty(text) ? id : text;
+            if (s_Handler != null) s_Handler.OnLanguageChanged -= RaiseLanguageChanged;
+            s_Handler = null;
+            s_OnLanguageChanged = null;
         }
 
-        public Dictionary<string, string> GetDictionaryFromId(string id)
-        {
-            var dict = new Dictionary<string, string>();
-            if (!LocalizedStrings.ContainsKey(id)) return dict;
-            
-            foreach (var language in LanguageList)
-            {
-                var text = GetTextFromIdLanguage(id, language);
-                dict.Add(language.Name, text);
-            }
+        #endregion
 
-            return dict;
+        #region 事件 [EVENTS]
+
+        private static event Action<Language> s_OnLanguageChanged;
+
+        /// <summary>
+        /// 当语言改变时调用。
+        /// </summary>
+        public static event Action<Language> OnLanguageChanged
+        {
+            add => s_OnLanguageChanged += value;
+            remove => s_OnLanguageChanged -= value;
         }
 
-        public List<string> GetAllIds() => LocalizedStrings.Keys.ToList();
+        private static void RaiseLanguageChanged(Language language) => s_OnLanguageChanged?.Invoke(language);
+
+        #endregion
+
+        #region 语言管理 [LANGUAGE MANAGEMENT]
+
+        /// <summary>
+        /// 初始化语言配置。设置当前使用的语言，如果不设置，则默认使用操作系统语言。
+        /// </summary>
+        public static void InitLanguageSettings() => s_Handler?.InitLanguageSettings();
+
+        /// <summary>
+        /// 获取当前使用的语言。
+        /// </summary>
+        /// <param name="onlySupported">是否只获取支持的语言，<c>false</c>表示仅根据设置获取语言，不关心本地化是否支持</param>
+        /// <param name="settingSource">该语言设置自</param>
+        public static Language GetCurrentLanguage(bool onlySupported, ref string settingSource)
+        {
+            if (s_Handler == null) return Language.Unspecified;
+            return s_Handler.GetCurrentLanguage(onlySupported, ref settingSource);
+        }
+
+        /// <summary>
+        /// 更改当前语言。
+        /// </summary>
+        /// <param name="language">例如：<see cref="Language.ChineseSimplified"/></param>
+        /// <param name="logSource">是否打印设置来源</param>
+        public static void ChangeLanguage(Language language, bool logSource = false) =>
+            s_Handler?.ChangeLanguage(language, logSource);
+
+        /// <summary>
+        /// 更改当前语言。
+        /// </summary>
+        /// <param name="language">要切换的语言Name或Code</param>
+        public static void ChangeLanguage(string language) => s_Handler?.ChangeLanguage(language);
+
+        /// <summary>
+        /// 更改当前语言。
+        /// </summary>
+        /// <param name="index">要切换已加载的语言索引</param>
+        public static void ChangeLanguage(int index) => s_Handler?.ChangeLanguage(index);
+
+        /// <summary>
+        /// 激活上一个语言。
+        /// </summary>
+        /// <returns>激活的语言名称</returns>
+        public static string ActivatePreviousLanguage() => s_Handler?.ActivatePreviousLanguage();
+
+        /// <summary>
+        /// 激活下一个语言。
+        /// </summary>
+        /// <returns>激活的语言名称</returns>
+        public static string ActivateNextLanguage() => s_Handler?.ActivateNextLanguage();
+
+        #endregion
+
+        #region 文本查询 [TEXT QUERIES]
+
+        /// <summary>
+        /// 检查当前数据库是否有指定的文本 ID。
+        /// </summary>
+        public static bool Has(string id) => s_Handler?.Has(id) ?? false;
+
+        /// <summary>
+        /// 根据文本 ID 获取本地化字符串。
+        /// </summary>
+        /// <param name="id">文本 ID</param>
+        /// <param name="p">Format</param>
+        public static string GetTextFromId(string id, params object[] p) =>
+            s_Handler != null ? s_Handler.GetTextFromId(id, p) : id;
+
+        /// <summary>
+        /// 根据文本 ID 和指定语言获取本地化字符串。
+        /// </summary>
+        /// <param name="id">文本 ID</param>
+        /// <param name="language">要获取的语言</param>
+        /// <param name="p">Format</param>
+        public static string GetTextFromIdLanguage(string id, Language language, params object[] p) =>
+            s_Handler != null ? s_Handler.GetTextFromIdLanguage(id, language, p) : id;
+
+        /// <summary>
+        /// 获取包含指定 ID 的所有语言的字符串字典。
+        /// </summary>
+        public static Dictionary<string, string> GetDictionaryFromId(string id) =>
+            s_Handler?.GetDictionaryFromId(id) ?? new Dictionary<string, string>();
+
+        /// <summary>
+        /// 获取所有多语言索引。
+        /// </summary>
+        public static List<string> GetAllIds() => s_Handler?.GetAllIds() ?? new List<string>();
+
+        #endregion
+
+        #region 本地化器 [LOCALIZERS]
+
+        /// <summary>
+        /// 添加本地化器。
+        /// </summary>
+        public static void AddLocalizer(LocalizerBase localizer) => s_Handler?.AddLocalizer(localizer);
+
+        /// <summary>
+        /// 移除本地化器。
+        /// </summary>
+        public static void RemoveLocalizer(LocalizerBase localizer) => s_Handler?.RemoveLocalizer(localizer);
+
+        #endregion
     }
 }

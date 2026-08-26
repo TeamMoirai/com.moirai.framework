@@ -16,7 +16,7 @@ namespace Moirai.Atropos.Resource
 
         private const int DEFAULT_PRIORITY = 0;
 
-        private IResourceService _resourceService;
+        private ResourceHandler _resourceService;
 
         private bool _forceUnloadUnusedAssets = false;
 
@@ -325,7 +325,7 @@ namespace Moirai.Atropos.Resource
 
         private void Start()
         {
-            _resourceService = GameServices.Provider?.GetService<IResourceService>();
+            _resourceService = ResourceService.Handler;
             if (_resourceService == null)
             {
                 LogUtility.Fatal("Resource service is invalid.");
@@ -393,13 +393,10 @@ namespace Moirai.Atropos.Resource
                  _lastUnloadUnusedAssetsOperationElapseSeconds >= m_MaxUnloadUnusedAssetsInterval ||
                  _preorderUnloadUnusedAssets && _lastUnloadUnusedAssetsOperationElapseSeconds >= m_MinUnloadUnusedAssetsInterval);
 
-            if (_resourceService is ResourceService resourceService)
-            {
-                int expireProcessCount = shouldUnloadUnusedAssets
-                    ? Mathf.Max(m_ExpireProcessCountPerFrame, m_ExpireProcessCountWhenUnloading)
-                    : Mathf.Max(0, m_ExpireProcessCountPerFrame);
-                resourceService.ProcessKeepAlive(UnityEngine.Time.unscaledTime, expireProcessCount);
-            }
+            int expireProcessCount = shouldUnloadUnusedAssets
+                ? Mathf.Max(m_ExpireProcessCountPerFrame, m_ExpireProcessCountWhenUnloading)
+                : Mathf.Max(0, m_ExpireProcessCountPerFrame);
+            _resourceService.ProcessKeepAlive(UnityEngine.Time.unscaledTime, expireProcessCount);
 
             _lastUnloadUnusedAssetsOperationElapseSeconds += UnityEngine.Time.unscaledDeltaTime;
             _lastGCCollectElapseSeconds += UnityEngine.Time.unscaledDeltaTime;

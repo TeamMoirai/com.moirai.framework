@@ -278,7 +278,7 @@ namespace Moirai.Atropos.Audio
 		{
 			if (!Application.isPlaying) return;
 
-			var audioService = GameApp.Audio;
+			var audioService = AudioService.Handler;
 
 			if (_sfx != null)
 			{

@@ -1,4 +1,3 @@
-using System;
 using Moirai.Atropos.Events;
 using Moirai.Atropos.UI;
 using UnityEngine;
@@ -6,140 +5,239 @@ using UnityEngine;
 namespace Moirai.Atropos.Input
 {
     /// <summary>
-    /// 输入服务。
+    /// 输入服务门面（Facade）。
+    /// <para>统一的静态输入访问入口，通过替换 <see cref="s_Handler"/> 即可在不同输入后端之间零成本切换。</para>
+    /// <para>未显式设置处理器时，使用 <see cref="CreateDefaultHandler"/> 从 <see cref="InputSettings"/> 创建处理器实例。</para>
+    /// <para>Handler 属性由 <c>HandlerHostGenerator</c> 源生成器自动生成（线程安全懒加载）。</para>
     /// </summary>
-    public sealed class InputService : ServiceBase, IInputService
+    [HandlerHost(typeof(InputHandler))]
+    public partial class InputService : ServiceBase
     {
-        [Flags]
-        private enum InputStateFlags
-        {
-            None = 0,
-            LockPlayerController = 1, // 禁止角色控制器移动
-            PreventInteractionUI = 2, // 禁止交互UI
-        }
-
-        private readonly IUIService _uiService;
+        #region 处理器 [HANDLER]
 
         /// <summary>
-        /// 容器构造注入——依赖在编译期显式声明，由容器拓扑排序保证先于本服务初始化。
+        /// 从 <see cref="InputSettings"/> 创建默认输入处理器。
         /// </summary>
-        public InputService(IUIService uiService)
+        /// <returns>默认输入处理器实例。</returns>
+        private static InputHandler CreateDefaultHandler()
         {
-            _uiService = uiService ?? throw new GameException("UI service is invalid.");
+            return InputSettings.InputHandler;
         }
 
-        private InputStateFlags _inputStateFlags;
+        #endregion
 
-        private InputHandler _inputHandler;
+        #region 属性 [PROPERTIES]
 
-        private bool _hasUIModal;
+        /// <summary>
+        /// 服务是否可用
+        /// </summary>
+        public static bool IsValid => s_Handler != null;
 
-        private bool _enabled = true;
-        public bool Enabled
-        {
-            get => _enabled;
-            set
-            {
-                if (_enabled == value) return;
+        #endregion
 
-                _enabled = value;
+        #region 生命周期 [LIFECYCLE]
 
-                if (!_enabled) _inputHandler.ResetAllInputStates();
-            }
-        }
-
-        public bool LockPlayerController
-        {
-            get => !_enabled || _inputStateFlags.HasFlag(InputStateFlags.LockPlayerController) || _hasUIModal;
-            set
-            {
-                if (_inputStateFlags.HasFlag(InputStateFlags.LockPlayerController) == value) return;
-
-                if (value)
-                {
-                    _inputStateFlags |= InputStateFlags.LockPlayerController;
-                    _inputHandler.ResetAllInputStates();
-                }
-                else
-                {
-                    _inputStateFlags &= ~InputStateFlags.LockPlayerController;
-                }
-                // LogUtility.Info($"[Input] {(value ? "Lock" : "Unlock")} Input[Player]");
-            }
-        }
-        
-        public bool PreventInteractionUI
-        {
-            get => !_enabled || _inputStateFlags.HasFlag(InputStateFlags.PreventInteractionUI);
-            set
-            {
-                if (_inputStateFlags.HasFlag(InputStateFlags.PreventInteractionUI) == value) return;
-
-                if (value)
-                {
-                    _inputStateFlags |= InputStateFlags.PreventInteractionUI;
-                    _inputHandler.ResetAllInputStates(); }
-                else
-                {
-                    _inputStateFlags &= ~InputStateFlags.PreventInteractionUI;
-                }
-                // LogUtility.Info($"[Input] {(value ? "Lock" : "Unlock")} Input[UI]");
-            }
-        }
-        
-        #region 实现方法 [IMPLEMENTATION METHODS]
-
-        // Service
+        /// <summary>
+        /// 初始化输入服务。由 <see cref="GameAppSettings.Initiation"/> 调用。
+        /// <para>确保 <c>InputService.Handler</c> 已赋值（触发 <see cref="CreateDefaultHandler"/> 懒加载），
+        /// 然后订阅全局事件。</para>
+        /// </summary>
         public override void OnInit()
         {
-            _inputHandler = InputSettings.InputHandler;
+            // 确保 Handler 已初始化
+            _ = Handler;
+
             EventManager.RegisterCallback<GameAppMessageEvent>(ResetInput);
             EventManager.RegisterCallback<UIServiceEvent>(RefreshUIModal);
         }
-        
+
+        /// <summary>
+        /// 关闭输入服务。由 <see cref="GameApp.Shutdown"/> 调用。
+        /// </summary>
         public override void Shutdown()
         {
+            s_Handler?.Internal_Shutdown();
+            s_Handler = null;
+
             EventManager.UnregisterCallback<GameAppMessageEvent>(ResetInput);
             EventManager.UnregisterCallback<UIServiceEvent>(RefreshUIModal);
         }
-        
-        // IInputService
-        public bool GetButtonDown(string actionName, string actionGroup = "") => _inputHandler.GetButtonDown(actionName, actionGroup);
-        public bool GetButtonUp(string actionName, string actionGroup = "") => _inputHandler.GetButtonUp(actionName, actionGroup);
-        public bool GetButtonPressed(string actionName, string actionGroup = "") => _inputHandler.GetButtonPressed(actionName, actionGroup);
-        public bool GetBool(string actionName, string actionGroup = "") => _inputHandler.GetBool(actionName, actionGroup);
-        public float GetFloat(string actionName, string actionGroup = "") => _inputHandler.GetFloat(actionName, actionGroup);
-        public Vector2 GetVector2(string actionName, string actionGroup = "") => _inputHandler.GetVector2(actionName, actionGroup);
-        public bool GetMouseButtonDown(EMouseButton button) => _inputHandler.GetMouseButtonDown(button);
-        public bool GetMouseButtonUp(EMouseButton button) => _inputHandler.GetMouseButtonUp(button);
-        public bool GetMouseButtonPressed(EMouseButton button) => _inputHandler.GetMouseButtonPressed(button);
-        public Vector2 GetMousePosition() => _inputHandler.GetMousePosition();
-        public Vector2 GetScrollDelta() => _inputHandler.GetScrollDelta();
+
+        #endregion
+
+        #region 状态管理 [STATE MANAGEMENT]
+
+        /// <summary>
+        /// 获取或设置是否启用输入。
+        /// </summary>
+        public static bool Enabled
+        {
+            get => s_Handler?.Enabled ?? false;
+            set
+            {
+                if (s_Handler != null) s_Handler.Enabled = value;
+            }
+        }
+
+        /// <summary>
+        /// 获取或设置是否锁定玩家控制器。
+        /// </summary>
+        public static bool LockPlayerController
+        {
+            get => s_Handler?.LockPlayerController ?? true;
+            set
+            {
+                if (s_Handler != null) s_Handler.LockPlayerController = value;
+            }
+        }
+
+        /// <summary>
+        /// 获取或设置是否禁止 UI 交互。
+        /// </summary>
+        public static bool PreventInteractionUI
+        {
+            get => s_Handler?.PreventInteractionUI ?? true;
+            set
+            {
+                if (s_Handler != null) s_Handler.PreventInteractionUI = value;
+            }
+        }
+
+        #endregion
+
+        #region 输入查询 [INPUT QUERIES]
+
+        /// <summary>
+        /// 按钮是否被按下
+        /// </summary>
+        /// <param name="actionName">输入动作名，如果为全称则 actionGroup 置空</param>
+        /// <param name="actionGroup">输入动作分组</param>
+        /// <returns>是否按下</returns>
+        public static bool GetButtonDown(string actionName, string actionGroup = "") =>
+            s_Handler?.GetButtonDown(actionName, actionGroup) ?? false;
+
+        /// <summary>
+        /// 按钮是否被松开
+        /// </summary>
+        /// <param name="actionName">输入动作名，如果为全称则 actionGroup 置空</param>
+        /// <param name="actionGroup">输入动作分组</param>
+        /// <returns>是否抬起</returns>
+        public static bool GetButtonUp(string actionName, string actionGroup = "") =>
+            s_Handler?.GetButtonUp(actionName, actionGroup) ?? false;
+
+        /// <summary>
+        /// 按钮是否被按住
+        /// </summary>
+        /// <param name="actionName">输入动作名，如果为全称则 actionGroup 置空</param>
+        /// <param name="actionGroup">输入动作分组</param>
+        /// <returns>是否按住</returns>
+        public static bool GetButtonPressed(string actionName, string actionGroup = "") =>
+            GetBool(actionName, actionGroup);
+
+        /// <summary>
+        /// 按钮是否被按住
+        /// </summary>
+        /// <param name="actionName">输入动作名，如果为全称则 actionGroup 置空</param>
+        /// <param name="actionGroup">输入动作分组</param>
+        /// <returns>是否按住</returns>
+        public static bool GetButton(string actionName, string actionGroup = "") =>
+            GetBool(actionName, actionGroup);
+
+        /// <summary>
+        /// 获取指定输入动作的 bool
+        /// </summary>
+        /// <param name="actionName">输入动作名，如果为全称则 actionGroup 置空</param>
+        /// <param name="actionGroup">输入动作分组</param>
+        /// <returns>按钮状态布尔值。</returns>
+        public static bool GetBool(string actionName, string actionGroup = "") =>
+            s_Handler?.GetBool(actionName, actionGroup) ?? false;
+
+        /// <summary>
+        /// 获取指定输入动作的 float
+        /// </summary>
+        /// <param name="actionName">输入动作名，如果为全称则 actionGroup 置空</param>
+        /// <param name="actionGroup">输入动作分组</param>
+        /// <returns>返回驱动此动作的控件或绑定的当前值。</returns>
+        public static float GetFloat(string actionName, string actionGroup = "") =>
+            s_Handler?.GetFloat(actionName, actionGroup) ?? 0f;
+
+        /// <summary>
+        /// 获取指定输入动作的 Vector2
+        /// </summary>
+        /// <param name="actionName">输入动作名，如果为全称则 actionGroup 置空</param>
+        /// <param name="actionGroup">输入动作分组</param>
+        /// <returns>返回驱动此动作的控件或绑定的当前值。</returns>
+        public static Vector2 GetVector2(string actionName, string actionGroup = "") =>
+            s_Handler?.GetVector2(actionName, actionGroup) ?? Vector2.zero;
+
+        /// <summary>
+        /// 获取是否按下指定鼠标按键
+        /// </summary>
+        /// <param name="button">鼠标按键。</param>
+        /// <returns>是否在本帧按下。</returns>
+        public static bool GetMouseButtonDown(EMouseButton button) =>
+            s_Handler?.GetMouseButtonDown(button) ?? false;
+
+        /// <summary>
+        /// 获取是否抬起指定鼠标按键
+        /// </summary>
+        /// <param name="button">鼠标按键。</param>
+        /// <returns>是否在本帧抬起。</returns>
+        public static bool GetMouseButtonUp(EMouseButton button) =>
+            s_Handler?.GetMouseButtonUp(button) ?? false;
+
+        /// <summary>
+        /// 获取是否按住指定鼠标按键
+        /// </summary>
+        /// <param name="button">鼠标按键。</param>
+        /// <returns>是否正在按住。</returns>
+        public static bool GetMouseButtonPressed(EMouseButton button) =>
+            s_Handler?.GetMouseButtonPressed(button) ?? false;
+
+        /// <summary>
+        /// 返回鼠标的当前位置
+        /// </summary>
+        /// <returns>鼠标屏幕坐标。</returns>
+        public static Vector2 GetMousePosition() =>
+            s_Handler?.GetMousePosition() ?? Vector2.zero;
+
+        /// <summary>
+        /// 获取鼠标滚轮滚动值
+        /// </summary>
+        /// <returns>滚轮滚动增量。</returns>
+        public static Vector2 GetScrollDelta() =>
+            s_Handler?.GetScrollDelta() ?? Vector2.zero;
 
         #endregion
 
         #region 事件 [EVENTS]
 
-        private void ResetInput(GameAppMessageEvent evt)
+        private static void ResetInput(GameAppMessageEvent evt)
         {
+            if (s_Handler == null) return;
+
             switch (evt.EventType)
             {
                 case EMessageEventType.ApplicationFocus:
-                    Enabled = true;
+                    s_Handler.Enabled = true;
                     break;
 
                 case EMessageEventType.NotApplicationFocus:
-                    Enabled = false;
+                    s_Handler.Enabled = false;
                     break;
             }
         }
 
-        private void RefreshUIModal(UIServiceEvent evt)
+        private static void RefreshUIModal(UIServiceEvent evt)
         {
+            if (s_Handler == null) return;
+
             if (evt.Mode == UIServiceEvent.EMode.Shown || evt.Mode == UIServiceEvent.EMode.Closed)
-                _hasUIModal = _uiService.CurrentModal != null;
+            {
+                s_Handler.SetUIModal(UIService.CurrentModal != null);
+            }
         }
 
-        #endregion 事件 [EVENT]
+        #endregion
     }
 }

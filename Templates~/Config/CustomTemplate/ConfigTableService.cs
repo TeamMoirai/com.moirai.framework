@@ -15,7 +15,7 @@ namespace GameProto.Config
     /// <summary>
     /// 游戏配置表助手。
     /// </summary>
-    public partial class ConfigTableService : IConfigTableService
+    public partial class ConfigTableService : ConfigTableHandler
     {
         #region 初始化 [INITIALIZE]
 
@@ -31,7 +31,7 @@ namespace GameProto.Config
         {
             if (s_Registered) return;
             
-            ConfigMgr.Instance.ConfigTableService = new ConfigTableService();
+            ConfigMgr.Handler = new ConfigTableService();
             s_Registered = true;
         }
 
@@ -40,7 +40,7 @@ namespace GameProto.Config
         #region 处理多语言 [LOCALIZATION]
 
         private Dictionary<string, List<string>> _allLocalizedStrings;
-        public Dictionary<string, List<string>> GetAllLocalizedStrings()
+        public override Dictionary<string, List<string>> GetAllLocalizedStrings()
         {
             if (_allLocalizedStrings == null)
             {
@@ -117,7 +117,7 @@ namespace GameProto.Config
 
         #region 界面 [UI]
 
-        public string GetUIWindowLocation(string id)
+        public override string GetUIWindowLocation(string id)
         {
             if (string.IsNullOrEmpty(id)) return null;
 
@@ -138,7 +138,7 @@ namespace GameProto.Config
         /// <param name="id">UISprite - SpriteAtlas 配置表的 id</param>
         /// <param name="cancellationToken"></param>
 #pragma warning disable CS1998 // 异步方法缺少 "await" 运算符，将以同步方式运行
-        public async UniTask<Sprite> LoadSpriteByID(string id, CancellationToken cancellationToken = default)
+        public override async UniTask<Sprite> LoadSpriteByID(string id, CancellationToken cancellationToken = default)
 #pragma warning restore CS1998 // 异步方法缺少 "await" 运算符，将以同步方式运行
         {
             if (string.IsNullOrEmpty(id)) return null;

@@ -2,29 +2,29 @@
 
 > Framework's modular base: a unified service world (`ServiceWorld`) manages construction, lifecycle, polling, and scope of all sub-services, driven by `GameApp` (MonoBehaviour).
 
-`@Service` is the service infrastructure of the entire framework. All functional services (resources, UI, audio, timers, etc.) are plain C# classes inheriting from `ServiceBase` that declare dependencies via constructor parameters. The `ServiceWorld` topologically sorts, constructs, and injects them in dependency order at build time; non-service code accesses services via `GameApp` cached properties (e.g. `GameApp.Audio`, `GameApp.Resource`, `GameApp.UI`) or `GameApp.Services` (`IServiceProvider`) for non-standard lookups. Services support three scopes: App/Scene/Gameplay. Cross-scope lookup uses a `ContractBindings` value-type struct for O(1) resolution (Gameplay > Scene > App priority). When a scene is unloaded, scene-level and gameplay-level services are automatically cleaned up.
+`@Service` is the service infrastructure of the entire framework. All functional services (resources, UI, audio, timers, etc.) are plain C# classes inheriting from `ServiceBase` that declare dependencies via the `[ServiceDependency(typeof(...))]` attribute; `GameServices.RegisterService<T>(scope, service)` is the unified registration entry that recursively pre-registers the dependency chain (zero reflection). Non-service code accesses services through each service's static facade (e.g. `AudioService.Xxx()`, `UIService.Xxx()`, `ResourceService.Xxx()`); dynamic service lookup goes through `GameApp.Services` (`IServiceProvider`). Services support three scopes: App/Scene/Gameplay. Cross-scope lookup uses a `ContractBindings` value-type struct for O(1) resolution (Gameplay > Scene > App priority). When a scene is unloaded, scene-level and gameplay-level services are automatically cleaned up.
 
 ## Core Features
 
 - **Unified service world**: `ServiceWorld` holds a 3-slot fixed array (App/Scene/Gameplay); cross-scope lookup via `ContractBindings` value-type struct achieves O(1) resolution with no parent-chain traversal
-- **Constructor injection**: plain C# services declare dependencies via constructor parameters (compile-time verifiable); the container resolves them automatically at build time
-- **Topological sorting**: Kahn algorithm infers dependencies from constructor parameters; dependees are created and initialized before dependents; circular dependencies throw at build time
+- **Attribute-declared dependencies**: `[ServiceDependency(typeof(DepA), typeof(DepB))]` declares multiple dependencies in a single attribute; validated at compile time by `ServiceDependencyAnalyzer` (MIRAI002/MIRAI003) to ensure types implement `IService`
+- **Recursive pre-registration**: `RegisterWithDependencies` recursively registers dependencies in `[ServiceDependency]` declaration order (dedup via the s_Registered bucket table + cycle detection via the s_InFlight stack fail-fast); dependees are created and initialized before dependents
+- **HandlerHost static facades**: all 12 framework services follow the `[HandlerHost] XxxService : ServiceBase` static facade + serializable `XxxHandler` backend + `XxxSettings` (`[SerializeReference]` + `[ProviderDropdown]`) backend-selection pattern
 - **Three-level scope** (`EServiceScopeKind.App` / `Scene` / `Gameplay`), cross-scope lookup follows Gameplay > Scene > App priority
 - **Lifecycle interfaces implemented on demand**: `IServiceTickable`, `IServiceFixedTickable`, `IServiceLateTickable`, `IServiceGizmoDrawable`
 - **`Priority`** controls polling order (higher priority polls first, shuts down later)
-- **Async initialization**: services implementing `IAsyncInitService` are initialized asynchronously in topological order by `BuildAsync()`
-- **Async shutdown**: services implementing `IAsyncShutdownService` are shut down asynchronously in reverse topological order by `ShutdownContainerAsync()` / `ShutdownAsync()`
-- **AOT-safe lazy resolution**: `IServiceResolver<T>` as an AOT-preferred alternative to `Func<T>`, avoiding `MakeGenericMethod`
-- **Runtime service registration**: `GameServices.RegisterService<T>()` / `UnregisterService<T>()` dynamically add/remove individual services in an already-built scope
-- **Self-registering Mono service**: `SelfRegisteringMono<TScope>` auto-registers in Awake and auto-unregisters in OnDestroy
+- **Async initialization**: services implementing `IAsyncInitService` get `OnInitAsync()` driven by the container after registration
+- **Async shutdown**: services implementing `IAsyncShutdownService` are shut down asynchronously in reverse registration order by `ShutdownContainerAsync()` / `ShutdownAsync()`
+- **Runtime service registration**: `GameServices.RegisterService<T>()` / `UnregisterService<T>()` dynamically add/remove individual services; the explicit-contract overload `RegisterService(scope, Type, instance)` supports interface contracts and multi-contract binding of one instance; calls during iteration default to deferring until the current cycle ends (`EDeferMode.Defer`)
+- **Self-registering Mono service**: `ServiceMono<TScope>` auto-registers in Awake and auto-unregisters in OnDestroy
 - **Scope order constants**: `ServiceScopeOrder` explicitly defines App/Scene/Gameplay sorting priority
 - **Service events**: `onServiceRegistered`/`onServiceUnregistered` events for hot-swap notifications
-- **Iteration safety**: registrations during polling are deferred and applied uniformly after the current cycle ends; scope disposal requested during iteration is also deferred
-- **Per-service tick exception isolation**: a single service throwing in `Tick` does not abort other services in the same frame
+- **Iteration safety**: registrations/unregistrations during polling are deferred and applied uniformly after the current cycle ends; scope disposal requested during iteration is also deferred
+- **Tiered tick exception policy**: in the editor and development builds, exceptions are logged then rethrown immediately (fail-fast, surfacing defects at once); in release builds they are logged and isolated so a single faulty service does not abort other services in the same frame
 - **Main thread affinity guard**: asserts calling thread in editor and development builds, zero overhead in release builds
 - **Lifecycle state machine**: each service tracks `EServiceState` (Created → Initialized → ShuttingDown → Disposed) with idempotent shutdown
 - **MonoBehaviour Tick constraint**: MonoBehaviour services cannot implement `IServiceTickable` etc.; use Unity's own Update/FixedUpdate/LateUpdate instead
-- **Built-in service lookup**: `ServiceBase` / `ServiceMonoBase` provide `Require<T>()`, `TryGet<T>()`, `RequireApp<T>()`, `RequireScene<T>()`, `RequireGameplay<T>()` protected methods for runtime dependency resolution without injecting `IServiceProvider`
+- **Built-in service lookup**: `ServiceBase` / `ServiceMono<TScope>` provide `Require<T>()`, `TryGet<T>()`, `RequireApp<T>()`, `RequireScene<T>()`, `RequireGameplay<T>()` protected methods for runtime dependency resolution without injecting `IServiceProvider`
 
 ## Core Types
 
@@ -33,57 +33,52 @@ Namespace: `Moirai.Atropos`
 | Class/Interface | Description |
 |---------|------|
 | `IService` | Core service contract: `Priority`, `Scope`, `OnInit()`, `Shutdown()` |
-| `ServiceBase` | Abstract base class for plain C# services; dependencies declared via constructor parameters and injected by the container; provides built-in `Require<T>()` / `TryGet<T>()` / `RequireApp<T>()` etc. |
-| `ServiceMonoBase` | MonoBehaviour service base; instances created by the container via `AddComponent` and receive dependencies via `Inject(IServiceProvider)`; also provides built-in lookup methods |
+| `ServiceBase` | Abstract base class for plain C# services; dependencies declared via `[ServiceDependency]` attribute and pre-registered recursively; provides built-in `Require<T>()` / `TryGet<T>()` / `RequireApp<T>()` etc. |
+| `ServiceMono<TScope>` | MonoBehaviour service base (generic scope marker); auto-registers in Awake, auto-unregisters in OnDestroy; also provides built-in lookup methods |
 | `IServiceProvider` | Unified service access entry: `GetRequiredService<T>()` / `GetService<T>()` / `TryGetService<T>()` / `GetRequiredServiceInScope<T>(scope)` / `TryGetServiceInScope<T>(scope)` |
-| `ServiceWorld` | Unified service world: `BuildAsync(scope, collection)` performs topological sort → constructor injection → OnInit → OnInitAsync; implements `IServiceProvider`; holds `ContractBindings` value-type struct for O(1) cross-scope lookup |
+| `ServiceWorld` | Unified service world: 3-slot fixed scope array + `ContractBindings` value-type struct for O(1) cross-scope lookup; implements `IServiceProvider` |
 | `ServiceScope` | Per-scope registry, polling lists, and iteration safety; syncs `ServiceWorld`'s `ContractBindings` on register/unregister |
-| `ServiceCollection` | Service registration collection (created in the composition root); fluent registration via `Register<TInterface, TImpl>(scope)` |
-| `GameServices` | Static facade: scope management (`BuildAsync`/`ShutdownContainer`/`HasApp`/`HasScene`/`HasGameplay`), polling drivers, interceptors |
+| `GameServices` | Static facade: unified registration entry `RegisterService<T>(scope, service, deferMode)` and explicit-contract overload `RegisterService(scope, Type, instance)`, unregistration, scope management (`ShutdownContainer`/`HasApp`/`HasScene`/`HasGameplay`), default-factory extension point `RegisterDefaultFactory`, polling drivers, interceptors |
+| `ServiceDependencyAttribute` | Dependency declaration attribute: `[ServiceDependency(typeof(DepA), typeof(DepB))]`; declaration order is dependency registration order; compile-time validated by MIRAI002/MIRAI003 |
 | `EServiceScopeKind` | Service scope enum: `App` (global), `Scene` (reset on scene unload), `Gameplay` (single session) |
-| `EServiceState` | Service lifecycle state: `Created`, `Initialized`, `ShuttingDown`, `Disposed` (`ServiceBase.State` / `ServiceMonoBase.State` property) |
+| `EServiceState` | Service lifecycle state: `Created`, `Initialized`, `ShuttingDown`, `Disposed` (`ServiceBase.State` property) |
+| `EDeferMode` | Deferral policy for registration/unregistration during iteration: `Defer` (defer until cycle ends, default) / `Throw` (throw immediately) |
 | `IServiceTickable` / `IServiceFixedTickable` / `IServiceLateTickable` | Polling interfaces with method signatures such as `Tick(float elapseSeconds, float realElapseSeconds)` (MonoBehaviour services cannot implement these) |
 | `IServiceGizmoDrawable` | Editor Gizmos drawing interface `OnDrawGizmos()` |
-| `IAsyncInitService` | Async initialization interface; services implementing `OnInitAsync()` are driven by `BuildAsync()` |
-| `IAsyncShutdownService` | Async shutdown interface; services implementing `OnShutdownAsync()` are shut down in reverse topological order by `ShutdownContainerAsync()` |
-| `IServiceResolver<T>` | AOT-safe lazy service resolver, replacing `Func<T>` injection's `MakeGenericMethod` path |
-| `ServiceMono<TScope>` | Generic MonoBehaviour service base; scope determined at compile time via `TScope` |
-| `SelfRegisteringMono<TScope>` | Self-registering MonoBehaviour service base; auto-registers in Awake, auto-unregisters in OnDestroy |
+| `IAsyncInitService` | Async initialization interface; services implementing `OnInitAsync()` are driven by the container after registration |
+| `IAsyncShutdownService` | Async shutdown interface; services implementing `OnShutdownAsync()` are shut down in reverse registration order by `ShutdownContainerAsync()` |
+| `FrameworkHandler` | Handler base class (`[Serializable]`): idempotent `Internal_Init`/`Internal_Shutdown` + sync/async lifecycle callbacks; base of all XxxHandler classes |
 | `ServiceScopeOrder` | Scope priority constants (App=-10000, Scene=-5000, Gameplay=0) |
-| `GameApp` | MonoBehaviour entry point (`[DefaultExecutionOrder(-1000)]`); drives lifecycle and polling only; services accessed via `GameApp` cached properties (e.g. `GameApp.Audio`, `GameApp.UI`) |
+| `GameApp` | MonoBehaviour entry point (`[DefaultExecutionOrder(-1000)]`); drives `GameAppSettings.Initiation` and `GameServices.Shutdown`; `GameApp.Services` is for dynamic service lookup only |
 | `GameAppMessageEvent` / `EMessageEventType` | Namespace `Moirai.Atropos.Events`, framework-level pooled events (focus/unfocus/quit, SDK callbacks) |
 
 ## Quick Start
 
 ```csharp
-// 1. Non-service code accesses services via GameApp cached properties
-ITimerService timer = GameApp.Timer;
-IResourceService resource = GameApp.Resource; // null if not registered
+// 1. Business code accesses framework services via static facades
+TimerService.AddTimer(() => Debug.Log("1s"), 1f);
+UIService.ShowUI<MainWindow>();
+ResourceService.LoadAsset<Sprite>("Assets/AssetRaw/UI/icon.png");
 
-// 2. Define a custom service — dependencies declared via constructor
-public interface IMyService { void DoSomething(); }
-
-public class MyService : ServiceBase, IMyService, IServiceTickable
+// 2. Define a custom service — dependencies declared via the [ServiceDependency] attribute
+[ServiceDependency(typeof(TimerService))]
+public class MyService : ServiceBase, IServiceTickable
 {
-    private readonly ITimerService _timer; // constructor injection, resolved by the container
-
-    public MyService(ITimerService timer) => _timer = timer;
-
     public override int Priority => 10;              // Higher priority polls first
-    public override EServiceScopeKind Scope => EServiceScopeKind.Gameplay;
 
-    public override void OnInit() { }
+    public override void OnInit()
+    {
+        TimerService.AddTimer(() => { /* dependencies ready — use static facades directly */ }, 1f);
+    }
+
     public override void Shutdown() { }
-    public void DoSomething() { }
     public void Tick(float elapseSeconds, float realElapseSeconds) { }
 }
 
-// 3. Register and build in the composition root
-var collection = new ServiceCollection();
-collection.Register<IMyService, MyService>(EServiceScopeKind.Gameplay);
-await GameServices.BuildAsync(EServiceScopeKind.Gameplay, collection);
+// 3. Register into a scope — the dependency chain is recursively pre-registered (order-independent)
+GameServices.RegisterService(EServiceScopeKind.Gameplay, new MyService());
 
-// 4. Shut down — services close in reverse topological order (dependents first)
+// 4. Shut down — services close in reverse registration order (dependents first)
 GameServices.ShutdownContainer(EServiceScopeKind.Gameplay);
 ```
 
@@ -91,11 +86,23 @@ GameServices.ShutdownContainer(EServiceScopeKind.Gameplay);
 
 ### Lifecycle and Scope
 
-- `GameServices.BuildAsync(scope, collection)` executes in topological order: create instances → register into scope → `OnInit()` → `OnInitAsync()`; dependees are initialized before dependents.
+- `GameServices.RegisterService<T>(scope, service)` is the unified registration entry: dependencies are recursively pre-registered first in `[ServiceDependency]` declaration order (dependency instances are created by the default factory table, extensible by hosts via `RegisterDefaultFactory`), then the current service is registered and its `OnInit()` driven immediately; dependees are initialized before dependents. Dependency declarations are always read from the implementation type — registering with an interface as the contract still auto-assembles the dependency chain.
 - `GameServices.Shutdown()` shuts down all scopes in reverse order: Gameplay → Scene → App; `GameServices.ShutdownContainer(scope)` shuts down only the specified scope.
 - `GameApp` listens to `SceneManager.sceneUnloaded` and automatically shuts down `Scene` and `Gameplay` scopes when a scene is unloaded.
-- The same interface can be registered with different implementations in different scopes. `IServiceProvider` lookup order is Gameplay > Scene > App (`ContractBindings.TryGetBest()`), which can be used to temporarily replace global implementations during combat.
-- Building an already-built scope throws `GameException`; call `ShutdownContainer` first to rebuild.
+- The same contract can be registered with different implementations in different scopes. `IServiceProvider` lookup order is Gameplay > Scene > App (`ContractBindings.TryGetBest()`), which can be used to temporarily replace global implementations during combat.
+- Registration is idempotent: re-registering the same contract in the same scope is skipped (the existing instance is returned); circular dependencies throw `GameException` at registration time (fail-fast).
+
+### HandlerHost Service Architecture
+
+All 12 built-in framework services (UpdateDriver/Resource/Debugger/Audio/GameObjectPool/Procedure/Localization/Scene/Timer/Save/UI/Input) follow a unified three-layer structure:
+
+| Layer | Form | Responsibility |
+|------|------|------|
+| `XxxService : ServiceBase` | Static facade, marked with `[HandlerHost(typeof(XxxHandler))]` + `[ServiceDependency(...)]` | All static APIs; `OnInit` triggers handler lazy-init, `Shutdown` clears the handler |
+| `XxxHandler : FrameworkHandler` | Serializable backend class | Carries the core logic; replacing the backend requires no changes to callers |
+| `XxxSettings : FrameworkSettings<XxxSettings>` | ScriptableObject settings | Selects the backend implementation via `[ProviderDropdown]` + `[SerializeReference]` |
+
+Business code always calls static facades (e.g. `AudioService.Play(...)`, `UIService.ShowUI<T>()`) without holding service instance references. Custom backends: inherit `XxxHandler`, override virtual methods → switch in the provider dropdown of `XxxSettings`.
 
 ### Lifecycle State Machine
 
@@ -110,44 +117,37 @@ Each service tracks its lifecycle state via `ServiceBase.State` (`EServiceState`
 
 Shutdown is idempotent: shutting down an already-disposed service is a no-op.
 
-### Dependency Injection
+### Dependency Declaration
 
-Plain C# services declare dependencies via constructor parameters; the container resolves and injects them at build time. If a dependency is not registered, the build fails with an informative `GameException`:
+Service dependencies are declared via the `[ServiceDependency(typeof(...))]` attribute (multiple types in a single attribute, similar to `RequireComponent`); the registrar recursively pre-registers them — unregistered dependencies are registered first, then the current service:
 
 ```csharp
-public class AudioService : ServiceBase, IAudioService
+[ServiceDependency(typeof(ResourceService), typeof(TimerService))]
+public sealed class UIService : ServiceBase, IServiceTickable
 {
-    private readonly IResourceService _resource;
+    public override void OnInit()
+    {
+        // By the time we get here, ResourceService/TimerService are fully initialized
+        TimerService.AddTimer(() => { }, 1f);
+    }
 
-    // IResourceService must be registered (in this scope or cross-scope) and created before this service
-    public AudioService(IResourceService resource) => _resource = resource;
-
-    public override void OnInit() { /* dependency is ready — use _resource directly */ }
+    public override void Shutdown() { }
+    public void Tick(float elapseSeconds, float realElapseSeconds) { }
 }
 ```
 
-For runtime lazy resolution (e.g., optional dependencies), there are two approaches:
+- Declaration order is dependency registration order; all dependency types must implement `IService`, validated at compile time by `ServiceDependencyAnalyzer` (MIRAI002/MIRAI003)
+- Dependency instances are created by the framework's factory table (zero reflection); if a custom service's dependency is not a built-in framework type, it must be explicitly registered before its dependents
+- Circular dependencies throw `GameException` at registration time
+
+For runtime lazy resolution, use the `Require<T>()` / `TryGet<T>()` methods built into `ServiceBase`:
 
 ```csharp
-// Approach 1: Inject IServiceProvider itself (for external assemblies or non-ServiceBase classes)
-public class BattleService : ServiceBase
-{
-    private readonly IServiceProvider _provider;
-
-    public BattleService(IServiceProvider provider) => _provider = provider;
-
-    public override void OnInit()
-    {
-        var debugger = _provider.GetService<IDebuggerService>(); // optional, returns null if not registered
-    }
-}
-
-// Approach 2: Use ServiceBase built-in Require<T>() / TryGet<T>() (no IServiceProvider injection needed)
 public class BattleService : ServiceBase
 {
     public override void OnInit()
     {
-        if (TryGet(out IDebuggerService debugger)) // optional dependency
+        if (TryGet(out DebuggerService debugger)) // optional dependency; returns false if not registered
         {
             debugger.Enable();
         }
@@ -157,7 +157,7 @@ public class BattleService : ServiceBase
 
 ### Built-in Service Lookup Methods
 
-`ServiceBase` and `ServiceMonoBase` provide the following `protected` methods for runtime dependency resolution without injecting `IServiceProvider`:
+`ServiceBase` and `ServiceMono<TScope>` provide the following `protected` methods for runtime dependency resolution without injecting `IServiceProvider`:
 
 | Method | Description |
 |--------|-------------|
@@ -167,36 +167,32 @@ public class BattleService : ServiceBase
 | `RequireScene<T>()` | Lookup in Scene scope only; throws `GameException` if not found |
 | `RequireGameplay<T>()` | Lookup in Gameplay scope only; throws `GameException` if not found |
 
-### Multi-Contract Registration
-
-A single instance can be registered under multiple interfaces via the Fluent API `.As<TExtraContract>()`:
-
-```csharp
-collection.Register<IAudioService, AudioService>(EServiceScopeKind.App)
-    .As<IAudioLoader>(); // Same instance resolvable via both interfaces
-```
-
 ### Composition Root and Built-in Service Registration
 
-Built-in services are declared in `AppSettings` (the composition root) via a `ServiceCollection`; implementation types can be replaced in the Inspector. `GameAppSettings` calls `await GameServices.BuildAsync(EServiceScopeKind.App, collection)` to perform the actual build — dependency order is guaranteed by topological sorting, independent of registration order.
+The framework's composition root is minimal: `GameAppSettings.InitializeAppServices()` (called at the `AfterAssembliesLoaded` stage) explicitly registers only the procedure chain root service:
+
+```csharp
+GameServices.RegisterService(EServiceScopeKind.App, new ProcedureService());
+await ProcedureSettings.StartProcedure();
+```
+
+The other 11 framework services are all pulled up automatically via the `[ServiceDependency]` dependency chain — zero reflection, order-independent, compile-time type-safe. Custom service backend implementations can be swapped in the corresponding `XxxSettings` Inspector via the provider dropdown.
 
 ### Async Initialization
 
 ```csharp
-public class MyResourceService : ServiceBase, IMyResourceService, IAsyncInitService
+public class MyResourceService : ServiceBase, IAsyncInitService
 {
     public override void OnInit() { /* Synchronous quick setup */ }
 
     public async UniTask OnInitAsync()
     {
-        await LoadCatalogAsync(); // Called in topological order after all OnInit complete
+        await LoadCatalogAsync(); // Driven by the container after registration
     }
 }
-
-// GameAppSettings automatically calls:
-// await GameServices.BuildAsync(EServiceScopeKind.App, collection);
-// await ProcedureSettings.StartProcedure();
 ```
+
+Handlers (`XxxHandler : FrameworkHandler`) also support an async lifecycle: override `OnInitAsync()` / `OnShutdownAsync()`, driven explicitly by `GameAppSettings.Initiation` after synchronous initialization.
 
 ### Service Events
 
@@ -214,29 +210,24 @@ GameServices.onServiceUnregistered += (service) =>
 
 ### MonoBehaviour Service
 
-Inherit `ServiceMono<TScope>` and override `Inject` to declare dependencies. The container creates the instance via `AddComponent` and calls `Inject(IServiceProvider)`:
+Inherit `ServiceMono<TScope>` (where `TScope` is a scope marker: `AppScope` / `SceneScope` / `GameplayScope`); `Awake` auto-registers into the corresponding scope, `OnDestroy` auto-unregisters:
 
 ```csharp
-public class MyMonoService : ServiceMono<AppScope>, IMyService
+public class MyMonoService : ServiceMono<AppScope>
 {
-    private IResourceService _resource;
+    public override void OnInit() { /* Called automatically after Awake registration */ }
+    public override void Shutdown() { /* Called automatically before OnDestroy unregistration */ }
 
-    protected internal override void Inject(IServiceProvider provider)
-    {
-        _resource = provider.GetRequiredService<IResourceService>();
-    }
-
-    public override void OnInit() { }
-    public override void Shutdown() { }
+    protected override void Update() { /* Driven by Unity's own lifecycle */ }
     // AppScope applies DontDestroyOnLoad automatically; SceneScope/GameplayScope are destroyed with the scene
 }
 
-// Register (dependencies must be declared explicitly via DependsOn to participate in topological sorting)
-collection.RegisterMono<IMyService, MyMonoService>(EServiceScopeKind.App)
-    .DependsOn<IResourceService>();
+// Just attach it to a scene object — no manual registration needed
 ```
 
-> **Note**: MonoBehaviour services cannot implement `IServiceTickable` / `IServiceFixedTickable` / `IServiceLateTickable`. If a MonoBehaviour service implements these interfaces, registration throws `GameException`. Use Unity's own `Update()` / `FixedUpdate()` / `LateUpdate()`.
+Resolve dependencies with the built-in `Require<T>()` / `TryGet<T>()` methods; duplicate registration of the same contract automatically destroys the extra GameObject (idempotent).
+
+> **Note**: MonoBehaviour services cannot implement `IServiceTickable` / `IServiceFixedTickable` / `IServiceLateTickable` — they are driven by Unity's own `Update()` / `FixedUpdate()` / `LateUpdate()`.
 
 ### Service Interceptors (AOP)
 
@@ -273,72 +264,58 @@ Multiple interceptors execute in `Priority` descending order. Interceptors are c
 
 ### AOT-Safe Lazy Resolution
 
-`Func<T>` injection uses `MakeGenericMethod`, which works under IL2CPP full generic sharing but carries risk. `IServiceResolver<T>` provides a zero-reflection alternative:
+`Func<T>` injection relies on `MakeGenericMethod`, which risks trimming under IL2CPP. All framework service lookups go through the `ContractBindings` value-type table keyed by `RuntimeTypeHandle` — zero reflection, zero boxing, naturally AOT-safe:
 
 ```csharp
-public class BattleService : ServiceBase, IBattleService
+public class BattleService : ServiceBase
 {
-    private readonly IServiceResolver<IStatsService> _statsResolver;
-
-    // IServiceResolver<T> constructor param: container directly news ServiceResolver<T>(this) — zero reflection
-    public BattleService(IServiceResolver<IStatsService> statsResolver)
-    {
-        _statsResolver = statsResolver;
-    }
-
     public override void OnInit()
     {
-        // Lazy resolution: topological edges guarantee target is ready
-        var stats = _statsResolver.Resolve();
+        // Runtime lazy resolution: direct generic method call, no MakeGenericMethod path
+        var stats = Require<StatsService>();
     }
 }
-
-// Registration is identical to Func<T>
-collection.Register<IBattleService, BattleService>(EServiceScopeKind.Gameplay);
-collection.Register<IStatsService, StatsService>(EServiceScopeKind.Gameplay);
 ```
-
-> `Func<T>` injection is retained for backward compatibility. New code should prefer `IServiceResolver<T>`.
 
 ### Runtime Service Registration
 
-Dynamically add/remove individual services in an already-built scope (mod systems, DLC hot-loading, etc.):
+Dynamically add/remove individual services (mod systems, DLC hot-loading, etc.):
 
 ```csharp
-// Runtime registration — drives OnInit immediately
-var buffService = new BuffService();
-GameServices.RegisterService(EServiceScopeKind.Gameplay, buffService as IBuffService);
+// Runtime registration — drives OnInit immediately; the dependency chain is recursively pre-registered
+GameServices.RegisterService(EServiceScopeKind.Gameplay, new BuffService());
 
-// Runtime unregistration — drives Shutdown immediately
-GameServices.UnregisterService<IBuffService>(EServiceScopeKind.Gameplay);
+// Explicit-contract registration — an interface as the contract key; dependencies are still read from the implementation type
+GameServices.RegisterService(EServiceScopeKind.Gameplay, typeof(IBuffService), new BuffService());
+
+// Multi-contract binding — register one instance under multiple contracts; it initializes/shuts down only once
+GameServices.RegisterService(EServiceScopeKind.Gameplay, typeof(IBuffService), buff);
+GameServices.RegisterService(EServiceScopeKind.Gameplay, typeof(BuffService), buff);
+
+// Runtime unregistration — drives Shutdown immediately; the same contract can then be re-registered with a fresh instance
+GameServices.UnregisterService<BuffService>(EServiceScopeKind.Gameplay);
 ```
 
-> Calling during iteration (Tick) throws `GameException` — must be called from a non-Tick context.
+> Calls during iteration (Tick) default to deferring until the current cycle ends (`EDeferMode.Defer`); pass `EDeferMode.Throw` to throw immediately (fail-fast). The contract type of RegisterService = the concrete `typeof(T)`; resolution must use the same type via `GetRequiredService<T>()`.
 
-### Self-Registering MonoBehaviour Service
+### Default Factory Extension
 
-`SelfRegisteringMono<TScope>` auto-registers to the corresponding scope in `Awake` and auto-unregisters in `OnDestroy`. Suitable for rapid prototyping and Inspector-driven configuration:
+The framework's built-in service factory table lives in `GameServices.Factories.cs`. Host projects can contribute factories
+for their own services so that `[ServiceDependency]` chains auto-assemble across assemblies:
 
 ```csharp
-public class MyInspectorService : SelfRegisteringMono<AppScope>, IMyService
-{
-    [SerializeField] private int m_ConfigValue;
+// Contribute a default factory (registering a duplicate type fails fast with GameException)
+GameServices.RegisterDefaultFactory(typeof(QuestService), static () => new QuestService());
 
-    public override void OnInit() { /* Called automatically after Awake registration */ }
-    public override void Shutdown() { /* Called automatically before OnDestroy unregistration */ }
-}
-
-// Just add the component in the Inspector — no ServiceCollection registration needed
+// Any service declaring [ServiceDependency(typeof(QuestService))] now auto-pre-registers it
 ```
-
-> Mutually exclusive with `ServiceMono<TScope>` (container-created via `AddComponent`) — choose one.
 
 ### Async Shutdown
 
-Services implementing `IAsyncShutdownService` are first shut down asynchronously via `OnShutdownAsync()` in reverse topological order, then synchronously via `Shutdown()`:
+Services implementing `IAsyncShutdownService` are first shut down asynchronously via `OnShutdownAsync()` in reverse registration order, then synchronously via `Shutdown()`:
 
 ```csharp
-public class ResourceService : ServiceBase, IResourceService, IAsyncShutdownService
+public class ResourceService : ServiceBase, IAsyncShutdownService
 {
     public async UniTask OnShutdownAsync()
     {
@@ -362,11 +339,11 @@ The runtime debugger (DebuggerComp) Service System window displays registered se
 ## Notes
 
 - `GameServices` and `IServiceProvider` only allow calls from the main thread; for background threads or async callbacks, use `MainThreadDispatcher`'s `Post`/`Send` to switch back to the main thread.
-- Service classes should prefer constructor injection over `GameApp` cached properties — the latter is intended for non-service code (MonoBehaviours, UI scripts, etc.).
+- Business code always accesses framework services via static facades (e.g. `AudioService.Play(...)`, `UIService.ShowUI<T>()`); `GameApp.Services` (`IServiceProvider`) is for Gameplay/Scene dynamic service lookup only.
 - `GetRequiredService<T>()` throws `GameException` if not registered; `GetService<T>()` returns null; `TryGetService<T>()` returns bool.
-- Building an already-built scope throws `GameException`; call `ShutdownContainer` first to rebuild.
-- Re-registering the same interface in the same scope only warns and keeps the first instance.
-- Circular dependencies are detected during topological sorting in `BuildAsync()` and throw an exception.
+- Re-registering the same contract in the same scope is an idempotent skip (the existing instance is returned); nested dependency chains are immune to duplicate registration.
+- A service throwing during polling: logged then rethrown immediately in the editor and development builds (fail-fast); logged and isolated in release builds so other services in the same frame keep running.
+- Circular dependencies are detected at registration time in `RegisterWithDependencies` and throw an exception (fail-fast).
 - MonoBehaviour services cannot implement `IServiceTickable` etc. — use Unity's own Update lifecycle.
 - When exiting Play Mode in the editor, `GameApp` automatically calls `GameServices.Shutdown()`, compatible with the Enter Play Mode Options setting that skips domain reload.
 

@@ -3,8 +3,8 @@ namespace Moirai.Atropos
     /// <summary>
     /// 运行时注册/注销时的生命周期回调。
     /// <para>实现此接口的服务在运行时注册时由 <see cref="ServiceScope"/> 调用 <see cref="Initialize"/>，
-    /// 注销时调用 <see cref="Destroy"/>。构建期注册（<see cref="GameServices.BuildAsync"/>）不经过此接口——
-    /// 其生命周期由 <c>BuildAsync</c> 统一驱动 <c>OnInit</c> / <c>OnInitAsync</c>。</para>
+    /// 注销时调用 <see cref="Destroy"/>。所有注册（<see cref="GameServices.RegisterService"/>）均经过此接口——
+    /// 注册时驱动 <c>OnInit</c>，注销时驱动 <c>Shutdown</c>。</para>
     /// </summary>
     internal interface IServiceLifecycle
     {

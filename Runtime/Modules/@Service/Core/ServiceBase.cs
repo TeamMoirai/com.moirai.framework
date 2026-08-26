@@ -45,8 +45,8 @@ namespace Moirai.Atropos
 
     /// <summary>
     /// 服务核心契约。
-    /// <para>依赖声明：纯 C# 服务通过构造函数参数；MonoBehaviour 服务通过 <c>Inject(IServiceProvider)</c>。</para>
-    /// <para>依赖由 <see cref="ServiceWorld"/> 在构建期拓扑排序并注入。</para>
+    /// <para>依赖通过 <c>[ServiceDependency]</c> 特性声明，由 <c>RegisterService</c> 递归预注册。</para>
+    /// <para>依赖由 <see cref="GameServices.RegisterService"/> 递归预注册。</para>
     /// </summary>
     public interface IService
     {
@@ -95,7 +95,7 @@ namespace Moirai.Atropos
         void OnDrawGizmos();
     }
 
-    /// <summary>异步初始化服务。由 <see cref="ServiceWorld.BuildAsync"/> 按拓扑序驱动。</summary>
+    /// <summary>异步初始化服务。由 <c>RegisterService</c> 在 OnInit 后驱动。</summary>
     public interface IAsyncInitService
     {
         UniTask OnInitAsync();
@@ -103,7 +103,7 @@ namespace Moirai.Atropos
 
     /// <summary>
     /// 异步关闭服务。由 <see cref="ServiceScope"/>.DisposeAsync / <see cref="GameServices"/>.ShutdownContainerAsync
-    /// 在 <c>Shutdown</c> 调用前按逆拓扑序异步关闭。
+    /// 在 <c>Shutdown</c> 调用前按逆注册序异步关闭。
     /// <para>用于资源异步卸载、网络连接优雅关闭等场景。</para>
     /// </summary>
     public interface IAsyncShutdownService
@@ -116,7 +116,7 @@ namespace Moirai.Atropos
 
     /// <summary>
     /// 纯 C# 服务基类。不依赖 MonoBehaviour，生命周期由 <see cref="ServiceWorld"/> 控制。
-    /// <para>依赖通过构造函数参数声明，容器在创建时自动解析并注入。</para>
+    /// <para>依赖通过 <c>[ServiceDependency]</c> 特性声明，由注册器递归预注册。</para>
     /// <para>运行时延迟解析可通过 <see cref="Require{T}"/> / <see cref="TryGet{T}"/> 等方法。</para>
     /// </summary>
     public abstract class ServiceBase : IService, IServiceLifecycle

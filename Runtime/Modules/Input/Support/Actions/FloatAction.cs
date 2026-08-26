@@ -32,7 +32,7 @@ namespace Moirai.Atropos.Input
 #if UNITY_EDITOR
     
     [UnityEditor.CustomPropertyDrawer(typeof(FloatAction))]
-    public class FloatActionEditor : ActionPropertyDrawerBase { }
+    public class FloatActionEditor : ActionPropertyDrawer { }
 
 #endif
 }

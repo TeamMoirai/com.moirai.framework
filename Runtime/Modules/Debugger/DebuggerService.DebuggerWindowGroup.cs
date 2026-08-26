@@ -2,12 +2,12 @@ using System.Collections.Generic;
 
 namespace Moirai.Atropos.Debugger
 {
-    internal sealed partial class DebuggerService
+    public sealed partial class DebuggerService
     {
         /// <summary>
         /// 调试器窗口组。
         /// </summary>
-        private sealed class DebuggerWindowGroup : IDebuggerWindowGroup
+        internal sealed class DebuggerWindowGroup : IDebuggerWindowGroup
         {
             private readonly List<KeyValuePair<string, IDebuggerWindow>> _debuggerWindows;
             private int _selectedIndex;

@@ -57,7 +57,7 @@ namespace Moirai.Atropos.Input
 #if UNITY_EDITOR
     
     [UnityEditor.CustomPropertyDrawer(typeof(Vector2Action))]
-    public class Vector2ActionEditor : ActionPropertyDrawerBase { }
+    public class Vector2ActionEditor : ActionPropertyDrawer { }
 
 #endif
 }

@@ -56,7 +56,7 @@ namespace Moirai.Test
         {
             yield return null;
 
-            var audioService = GameApp.Audio;
+            var audioService = AudioService.Handler;
             volume = audioService.GetTrackVolume(track);
             mute = audioService.GetTrackMute(track);
 
@@ -105,7 +105,7 @@ namespace Moirai.Test
                 return;
             }
             
-            GameApp.Audio.Pause(audioHandle);
+            AudioService.Pause(audioHandle);
         }
 
         [Button]
@@ -119,7 +119,7 @@ namespace Moirai.Test
                 return;
             }
             
-            GameApp.Audio.Unpause(audioHandle);
+            AudioService.Unpause(audioHandle);
         }
 
         [Button]
@@ -133,7 +133,7 @@ namespace Moirai.Test
                 return;
             }
 
-            GameApp.Audio.Stop(audioHandle, 0f);
+            AudioService.Stop(audioHandle, 0f);
         }
 
         [Button]
@@ -165,7 +165,7 @@ namespace Moirai.Test
         {
             if (!Application.isPlaying) return;
 
-            GameApp.Audio.SetTrackVolume(track, volume);
+            AudioService.SetTrackVolume(track, volume);
         }
 
         [Button]
@@ -173,7 +173,7 @@ namespace Moirai.Test
         {
             if (!Application.isPlaying) return;
 
-            var audioService = GameApp.Audio;
+            var audioService = AudioService.Handler;
             audioService.SetTrackMute(track, !audioService.GetTrackMute(track));
             mute = audioService.GetTrackMute(track);
         }
@@ -182,7 +182,7 @@ namespace Moirai.Test
         {
             if (!Application.isPlaying) return;
 
-            GameApp.Audio.MasterVolume = masterVolume;
+            AudioService.MasterVolume = masterVolume;
         }
 
         [Button]
@@ -190,7 +190,7 @@ namespace Moirai.Test
         {
             if (!Application.isPlaying) return;
 
-            var audioService = GameApp.Audio;
+            var audioService = AudioService.Handler;
             audioService.MasterMute = !audioService.MasterMute;
             masterMute = audioService.MasterMute;
         }
