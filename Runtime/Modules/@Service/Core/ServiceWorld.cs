@@ -292,6 +292,15 @@ namespace Moirai.Atropos
                 _scopes[i]?.CollectDiagnosticInfo(buffer);
         }
 
+        /// <summary>
+        /// 清零全部作用域的轮询耗时统计。
+        /// </summary>
+        internal void ResetPollStatistics()
+        {
+            for (int i = 0; i < SCOPE_COUNT; i++)
+                _scopes[i]?.ResetPollStatistics();
+        }
+
         #endregion
 
         #region 销毁 [DISPOSE]

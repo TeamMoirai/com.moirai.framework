@@ -36,6 +36,11 @@ namespace Moirai.Atropos
         private bool _isIterating;
         private bool _disposePending;
 
+        // --- 轮询失败粘性标记：发生过任一轮询异常后置位，启用成功路径的失败计数清零检查。
+        // 常态 false——健康服务热路径零字典访问；一旦发生过异常则保持置位（会话级）。 ---
+
+        private bool _hasPollFailures;
+
         // --- 延迟变更队列：迭代中注册/注销请求延迟到本轮迭代结束后执行 ---
 
         private readonly List<PendingChange> _pendingChanges = new List<PendingChange>();
@@ -67,6 +72,25 @@ namespace Moirai.Atropos
                 true;
 #else
                 false;
+#endif
+
+        // ── Tick 异常熔断：同一服务在同一轮询类别连续失败达到阈值即摘出对应轮询列表并汇总告警一次，
+        // 防止发布期坏服务每帧刷错误日志拖垮性能。开发环境在上抛前同样计数（编辑器可测试、诊断数据完整）。
+
+        /// <summary>
+        /// 连续失败熔断默认阈值。
+        /// </summary>
+        internal const int DEFAULT_TICK_TRIP_THRESHOLD = 300;
+
+        /// <summary>
+        /// 连续失败熔断阈值：同一服务在同一轮询类别连续异常达到该次数即被摘除出对应轮询列表。
+        /// 运行时可调（测试与运维调优）；重新注册服务即完全重置。
+        /// </summary>
+        internal static int s_TickFailureTripThreshold = DEFAULT_TICK_TRIP_THRESHOLD;
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        // Stopwatch 时间戳 → 毫秒换算系数（轮询耗时统计专用）
+        private static readonly double TIMESTAMP_TO_MS = 1000.0 / System.Diagnostics.Stopwatch.Frequency;
 #endif
 
         #endregion
@@ -463,6 +487,8 @@ namespace Moirai.Atropos
         {
             SortTickablesIfDirty();
             _isIterating = true;
+            // 局部变量阻断编译期可达性折叠——避免 throw 后的熔断补偿代码触发 CS0162（JIT 常量传播，零运行时差异）
+            bool rethrow = RETHROW_TICK_EXCEPTIONS;
             try
             {
                 int count = _tickables.Count;
@@ -471,16 +497,25 @@ namespace Moirai.Atropos
                     for (int i = 0; i < count; i++)
                     {
                         var tickable = _tickables[i];
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                        long start = System.Diagnostics.Stopwatch.GetTimestamp();
+#endif
                         try
                         {
                             GameServices.InvokeTick(tickable as IService, elapseSeconds, realElapseSeconds);
                             tickable.Tick(elapseSeconds, realElapseSeconds);
+                            ResetPollFailuresIfAny(tickable, PollCategory.Tick);
                         }
                         catch (Exception ex)
                         {
                             LogTickFailure(tickable, nameof(Tick), ex);
-                            if (RETHROW_TICK_EXCEPTIONS) throw;
+                            bool tripped = RecordPollFailure(tickable, PollCategory.Tick, nameof(Tick));
+                            if (rethrow) throw;
+                            if (tripped) { i--; count--; }
                         }
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                        finally { RecordPollDuration(tickable, System.Diagnostics.Stopwatch.GetTimestamp() - start); }
+#endif
                     }
                 }
                 else
@@ -490,12 +525,24 @@ namespace Moirai.Atropos
                     for (int i = 0; i < count; i++)
                     {
                         var tickable = _tickables[i];
-                        try { tickable.Tick(elapseSeconds, realElapseSeconds); }
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                        long start = System.Diagnostics.Stopwatch.GetTimestamp();
+#endif
+                        try
+                        {
+                            tickable.Tick(elapseSeconds, realElapseSeconds);
+                            ResetPollFailuresIfAny(tickable, PollCategory.Tick);
+                        }
                         catch (Exception ex)
                         {
                             LogTickFailure(tickable, nameof(Tick), ex);
-                            if (RETHROW_TICK_EXCEPTIONS) throw;
+                            bool tripped = RecordPollFailure(tickable, PollCategory.Tick, nameof(Tick));
+                            if (rethrow) throw;
+                            if (tripped) { i--; count--; }
                         }
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                        finally { RecordPollDuration(tickable, System.Diagnostics.Stopwatch.GetTimestamp() - start); }
+#endif
                     }
                 }
             }
@@ -511,17 +558,31 @@ namespace Moirai.Atropos
         {
             SortFixedTickablesIfDirty();
             _isIterating = true;
+            bool rethrow = RETHROW_TICK_EXCEPTIONS;
             try
             {
                 int count = _fixedTickables.Count;
                 for (int i = 0; i < count; i++)
                 {
-                    try { _fixedTickables[i].FixedTick(elapseSeconds, realElapseSeconds); }
+                    var fixedTickable = _fixedTickables[i];
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                    long start = System.Diagnostics.Stopwatch.GetTimestamp();
+#endif
+                    try
+                    {
+                        fixedTickable.FixedTick(elapseSeconds, realElapseSeconds);
+                        ResetPollFailuresIfAny(fixedTickable, PollCategory.FixedTick);
+                    }
                     catch (Exception ex)
                     {
-                        LogTickFailure(_fixedTickables[i], nameof(FixedTick), ex);
-                        if (RETHROW_TICK_EXCEPTIONS) throw;
+                        LogTickFailure(fixedTickable, nameof(FixedTick), ex);
+                        bool tripped = RecordPollFailure(fixedTickable, PollCategory.FixedTick, nameof(FixedTick));
+                        if (rethrow) throw;
+                        if (tripped) { i--; count--; }
                     }
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                    finally { RecordPollDuration(fixedTickable, System.Diagnostics.Stopwatch.GetTimestamp() - start); }
+#endif
                 }
             }
             finally { _isIterating = false; FlushDisposeIfPending(); FlushPendingChanges(); }
@@ -531,17 +592,31 @@ namespace Moirai.Atropos
         {
             SortLateTickablesIfDirty();
             _isIterating = true;
+            bool rethrow = RETHROW_TICK_EXCEPTIONS;
             try
             {
                 int count = _lateTickables.Count;
                 for (int i = 0; i < count; i++)
                 {
-                    try { _lateTickables[i].LateTick(elapseSeconds, realElapseSeconds); }
+                    var lateTickable = _lateTickables[i];
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                    long start = System.Diagnostics.Stopwatch.GetTimestamp();
+#endif
+                    try
+                    {
+                        lateTickable.LateTick(elapseSeconds, realElapseSeconds);
+                        ResetPollFailuresIfAny(lateTickable, PollCategory.LateTick);
+                    }
                     catch (Exception ex)
                     {
-                        LogTickFailure(_lateTickables[i], nameof(LateTick), ex);
-                        if (RETHROW_TICK_EXCEPTIONS) throw;
+                        LogTickFailure(lateTickable, nameof(LateTick), ex);
+                        bool tripped = RecordPollFailure(lateTickable, PollCategory.LateTick, nameof(LateTick));
+                        if (rethrow) throw;
+                        if (tripped) { i--; count--; }
                     }
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                    finally { RecordPollDuration(lateTickable, System.Diagnostics.Stopwatch.GetTimestamp() - start); }
+#endif
                 }
             }
             finally { _isIterating = false; FlushDisposeIfPending(); FlushPendingChanges(); }
@@ -571,6 +646,133 @@ namespace Moirai.Atropos
         {
             LogUtility.Error("Service '{0}' threw in {1}:\n{2}",
                 service.GetType().FullName, methodName, ex);
+        }
+
+        /// <summary>
+        /// 轮询类别。异常熔断按类别独立计数与摘除——某类轮询失败不影响其它类别的连续性判定。
+        /// </summary>
+        private enum PollCategory : byte
+        {
+            Tick = 0,
+            FixedTick = 1,
+            LateTick = 2,
+        }
+
+        /// <summary>
+        /// 记录一次轮询异常并按需熔断。
+        /// <para>开发环境在上抛前调用（计数跨帧累积，编辑器可测试）；发布期隔离路径据此熔断。</para>
+        /// </summary>
+        /// <param name="service">抛出异常的服务实例（轮询接口未继承 <see cref="IService"/>，以 object 接收后模式匹配）。</param>
+        /// <param name="category">轮询类别（独立计数）。</param>
+        /// <param name="methodName">轮询方法名（告警文案用）。</param>
+        /// <returns>是否已将服务从对应轮询列表移除；迭代方需回退索引以补偿 swap-remove 移位。</returns>
+        private bool RecordPollFailure(object service, PollCategory category, string methodName)
+        {
+            _hasPollFailures = true;
+
+            if (!(service is IService serviceKey) ||
+                !_entriesByService.TryGetValue(serviceKey, out var entry))
+                return false;
+
+            int failures;
+            switch (category)
+            {
+                case PollCategory.Tick:
+                    failures = ++entry.TickConsecutiveFailures;
+                    break;
+                case PollCategory.FixedTick:
+                    failures = ++entry.FixedTickConsecutiveFailures;
+                    break;
+                default:
+                    failures = ++entry.LateTickConsecutiveFailures;
+                    break;
+            }
+
+            _entriesByService[serviceKey] = entry;
+
+            if (failures < s_TickFailureTripThreshold) return false;
+
+            TripFromPollList(serviceKey, entry, category, methodName, failures);
+            return true;
+        }
+
+        /// <summary>
+        /// 熔断：将服务从对应轮询类别移除（swap-remove O(1)）并汇总告警一次。
+        /// 服务条目保留——仍可解析、仍参与其它类别轮询；重新注册即完全重置。
+        /// </summary>
+        private void TripFromPollList(IService service, ServiceEntry entry, PollCategory category, string methodName, int failures)
+        {
+            switch (category)
+            {
+                case PollCategory.Tick:
+                    if (entry.TickIndex != MISSING_INDEX) RemoveTickableAt(entry.TickIndex);
+                    entry.TickIndex = MISSING_INDEX;
+                    break;
+                case PollCategory.FixedTick:
+                    if (entry.FixedTickIndex != MISSING_INDEX) RemoveFixedTickableAt(entry.FixedTickIndex);
+                    entry.FixedTickIndex = MISSING_INDEX;
+                    break;
+                default:
+                    if (entry.LateTickIndex != MISSING_INDEX) RemoveLateTickableAt(entry.LateTickIndex);
+                    entry.LateTickIndex = MISSING_INDEX;
+                    break;
+            }
+
+            _entriesByService[service] = entry;
+
+            LogUtility.Warning(
+                "Service '{0}' was removed from {1} polling after {2} consecutive failures (trip threshold {3}).",
+                service.GetType().FullName, methodName, failures, s_TickFailureTripThreshold);
+        }
+
+        /// <summary>
+        /// 对应类别成功一次即清零该类别的连续失败计数。仅在发生过失败后才有实际开销
+        /// （<see cref="_hasPollFailures"/> 常态为 false，健康服务热路径零字典访问）。
+        /// </summary>
+        private void ResetPollFailuresIfAny(object service, PollCategory category)
+        {
+            if (!_hasPollFailures) return;
+
+            if (!(service is IService serviceKey) ||
+                !_entriesByService.TryGetValue(serviceKey, out var entry))
+                return;
+
+            switch (category)
+            {
+                case PollCategory.Tick:
+                    if (entry.TickConsecutiveFailures == 0) return;
+                    entry.TickConsecutiveFailures = 0;
+                    break;
+                case PollCategory.FixedTick:
+                    if (entry.FixedTickConsecutiveFailures == 0) return;
+                    entry.FixedTickConsecutiveFailures = 0;
+                    break;
+                default:
+                    if (entry.LateTickConsecutiveFailures == 0) return;
+                    entry.LateTickConsecutiveFailures = 0;
+                    break;
+            }
+
+            _entriesByService[serviceKey] = entry;
+        }
+
+        /// <summary>
+        /// 记录单次轮询耗时。仅编辑器/开发构建写入；Release 下方法体为空，JIT 裁剪为零开销。
+        /// </summary>
+        private void RecordPollDuration(object service, long elapsedTimestamps)
+        {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if (!(service is IService serviceKey) ||
+                !_entriesByService.TryGetValue(serviceKey, out var entry))
+                return;
+
+            float ms = (float)(elapsedTimestamps * TIMESTAMP_TO_MS);
+            entry.PollSamples++;
+            entry.PollTotalMs += ms;
+            if (ms > entry.PollPeakMs) entry.PollPeakMs = ms;
+
+            _entriesByService[serviceKey] = entry;
+#endif
         }
 
         #endregion
@@ -743,13 +945,7 @@ namespace Moirai.Atropos
         private void DisposeInternal()
         {
             if (IsDisposed) return;
-            _isIterating = false;
-            _disposePending = false;
-            _pendingChanges.Clear();
-
-            // 标记正在整体销毁：ShutdownService 跳过逐项列表移除，
-            // 由循环结束后统一 Clear() 清空全部列表——避免逆序遍历时 List.Remove 修改被遍历列表
-            _isDisposing = true;
+            PrepareDisposal();
 
             // 逆注册序关闭：依赖方（后注册）先关闭，被依赖方后关闭。
             // 循环依赖在 RegisterWithDependencies 的 s_InFlight 栈检测中即被阻止，此处无需再做环检测。
@@ -760,6 +956,28 @@ namespace Moirai.Atropos
                     ShutdownService(service);
             }
 
+            CompleteDisposal();
+        }
+
+        /// <summary>
+        /// 销毁前置状态复位（同步/异步销毁共用）：退出迭代态、清空延迟队列、标记整体销毁中。
+        /// </summary>
+        private void PrepareDisposal()
+        {
+            _isIterating = false;
+            _disposePending = false;
+            _pendingChanges.Clear();
+
+            // 标记正在整体销毁：ShutdownService 跳过逐项列表移除，
+            // 由循环结束后统一 Clear() 清空全部列表——避免逆序遍历时 List.Remove 修改被遍历列表
+            _isDisposing = true;
+        }
+
+        /// <summary>
+        /// 销毁收尾（同步/异步销毁共用）：退出销毁标记、统一清空全部列表与注册表、置位 IsDisposed。
+        /// </summary>
+        private void CompleteDisposal()
+        {
             _isDisposing = false;
 
             _registrationOrder.Clear();
@@ -790,10 +1008,7 @@ namespace Moirai.Atropos
                 return;
             }
 
-            _isIterating = false;
-            _disposePending = false;
-            _pendingChanges.Clear();
-            _isDisposing = true;
+            PrepareDisposal();
 
             for (int i = _registrationOrder.Count - 1; i >= 0; i--)
             {
@@ -813,20 +1028,7 @@ namespace Moirai.Atropos
                 ShutdownService(service);
             }
 
-            _isDisposing = false;
-
-            _registrationOrder.Clear();
-            _tickables.Clear();
-            _fixedTickables.Clear();
-            _lateTickables.Clear();
-            _gizmoDrawables.Clear();
-            _tickablesDirty = false;
-            _fixedTickablesDirty = false;
-            _lateTickablesDirty = false;
-            _gizmoDrawablesDirty = false;
-            _entriesByService.Clear();
-            _servicesByContract.Clear();
-            IsDisposed = true;
+            CompleteDisposal();
         }
 
         #endregion
@@ -856,7 +1058,31 @@ namespace Moirai.Atropos
                     HasFixedUpdate = service is IServiceFixedTickable,
                     HasLateUpdate = service is IServiceLateTickable,
                     HasGizmo = service is IServiceGizmoDrawable,
+                    PollAvgMs = entry.PollSamples > 0 ? entry.PollTotalMs / entry.PollSamples : 0f,
+                    PollPeakMs = entry.PollPeakMs,
+                    PollSamples = entry.PollSamples,
                 });
+            }
+        }
+
+        /// <summary>
+        /// 清零本作用域全部服务的轮询耗时统计（不影响失败计数与熔断状态）。
+        /// </summary>
+        internal void ResetPollStatistics()
+        {
+            // 遍历 _registrationOrder 而非 _entriesByService——索引器回写会使字典版本号递增，
+            // 边遍历边写回同一字典会抛 InvalidOperationException
+            for (int i = 0; i < _registrationOrder.Count; i++)
+            {
+                var service = _registrationOrder[i];
+                if (service == null || !_entriesByService.TryGetValue(service, out var entry)) continue;
+
+                if (entry.PollSamples == 0 && entry.PollTotalMs == 0f && entry.PollPeakMs == 0f) continue;
+
+                entry.PollTotalMs = 0f;
+                entry.PollPeakMs = 0f;
+                entry.PollSamples = 0;
+                _entriesByService[service] = entry;
             }
         }
 
@@ -1038,6 +1264,18 @@ namespace Moirai.Atropos
             public int FixedTickIndex;
             public int LateTickIndex;
             public int GizmoIndex;
+
+            // ── 轮询耗时统计（编辑器/开发构建写入；Release 下恒为 0，由 #if 门控）──
+
+            public float PollTotalMs;
+            public float PollPeakMs;
+            public int PollSamples;
+
+            // ── 各轮询类别的连续失败计数（异常熔断依据；对应类别成功一次即清零）──
+
+            public int TickConsecutiveFailures;
+            public int FixedTickConsecutiveFailures;
+            public int LateTickConsecutiveFailures;
         }
 
         /// <summary>
