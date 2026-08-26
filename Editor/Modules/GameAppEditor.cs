@@ -28,7 +28,7 @@ namespace Moirai.Atropos.Editor
 
             if (EditorApplication.isPlaying)
             {
-                EditorGUILayout.LabelField("Language", GameApp.Localization?.CurrentLanguage.Name);
+                EditorGUILayout.LabelField("Language", LocalizationService.CurrentLanguage?.Name);
 
                 int frameRate = EditorGUILayout.IntSlider("Frame Rate", GameAppSettings.FrameRate, 1, 300);
                 if (frameRate != GameAppSettings.FrameRate)
@@ -107,14 +107,7 @@ namespace Moirai.Atropos.Editor
         private readonly HashSet<string> _mOpenedItems = new HashSet<string>();
         private void DrawObjectPoolState()
         {
-            var gameObjectPoolService = GameApp.GameObjectPool;
-            if (!(gameObjectPoolService is GameObjectPoolService service))
-            {
-                EditorGUILayout.LabelField("Service does not support debug interface.");
-                return;
-            }
-
-            var summary = service.GetDebugSummary();
+            var summary = GameObjectPoolService.GetDebugSummary();
             EditorGUILayout.LabelField("Pool Count", summary.PoolCount.ToString());
             EditorGUILayout.LabelField("Loaded Prefab Count", summary.LoadedPrefabCount.ToString());
             EditorGUILayout.LabelField("Total Instance Count", summary.TotalInstanceCount.ToString());
@@ -122,7 +115,7 @@ namespace Moirai.Atropos.Editor
             EditorGUILayout.LabelField("Inactive Instance Count", summary.InactiveInstanceCount.ToString());
 
             GameObjectPoolSnapshot[] snapshots = new GameObjectPoolSnapshot[64];
-            int count = service.GetDebugSnapshots(snapshots);
+            int count = GameObjectPoolService.GetDebugSnapshots(snapshots);
             for (int i = 0; i < count; i++)
             {
                 GameObjectPoolSnapshot snapshot = snapshots[i];

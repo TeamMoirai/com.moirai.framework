@@ -2,7 +2,7 @@
 
 > 基于四级时间轮的高性能计时器服务，无全量扫描，适合技能 CD、心跳包、延时任务等大规模定时场景。
 
-`Timer` 服务提供添加、暂停、恢复、重启、移除计时器的能力。实现类 `TimerService` 采用四级时间轮算法（每级 256 槽、1 毫秒精度、每帧最多推进 64 个 tick），配合分页槽位复用与版本化句柄，在十万级计时器规模下仍保持零 GC、O(1) 级操作成本。服务同时维护缩放（受 `Time.timeScale` 影响）与非缩放两条独立时间轮。通过 `GameApp.Timer` 访问。
+`Timer` 服务提供添加、暂停、恢复、重启、移除计时器的能力。实现类 `TimerHandler` 采用四级时间轮算法（每级 256 槽、1 毫秒精度、每帧最多推进 64 个 tick），配合分页槽位复用与版本化句柄，在十万级计时器规模下仍保持零 GC、O(1) 级操作成本。服务同时维护缩放（受 `Time.timeScale` 影响）与非缩放两条独立时间轮。通过 `TimerService.Xxx()` 静态门面访问（HandlerHost 模式：`TimerService` 静态门面 + `TimerHandler` 时间轮后端 + `TimerSettings` 配置）。
 
 注意：本服务与 `Runtime/Core/Schedulers` 下的 Scheduler 调度器（`Scheduler.Delay`、`Scheduler.WaitFrame` 等）是两套独立设施——Scheduler 是零分配的通用调度器，Timer 服务是面向海量定时任务的时间轮实现，按需选用。
 
@@ -22,36 +22,34 @@
 
 | 类/接口 | 说明 |
 |---------|------|
-| `ITimerService` | 服务公开接口：`AddTimer` 三个重载、`Stop` / `Resume` / `Restart` / `RemoveTimer`、`Prewarm`、`GetStatistics`、`GetAllTimers` |
-| `TimerService` | `internal sealed` 实现类，继承 `Service` 并实现 `IUpdateService`，由服务系统每帧驱动 |
-| `TimerHandler` | 委托 `void TimerHandler(object[] args)`，传统 object[] 传参回调 |
+| `TimerService` | 静态门面（`[HandlerHost]`）：`AddTimer` 三个重载、`Stop` / `Resume` / `Restart` / `RemoveTimer`、`Prewarm`、`GetStatistics`、`GetAllTimers` 全部静态 API |
+| `TimerHandler` | 时间轮后端处理器（继承 `FrameworkHandler`），承载四级时间轮核心逻辑 |
+| `TimerSettings` | 框架设置，`[ProviderDropdown]` 选择计时器后端实现 |
+| `TimerCallback` | 委托 `void TimerCallback(object[] args)`，传统 object[] 传参回调 |
 | `TimerDebugInfo` | 调试信息结构体：`timerHandle`、`leftTime`、`duration`、`age`、`flags` |
 | `TimerDebugFlags` | 调试标志位常量：`RUNNING`、`LOOP`、`UNSCALED` |
 
 ## 快速上手
 
 ```csharp
-// 访问服务
-ITimerService timer = GameApp.Timer;
-
 // 1. 延时执行（无参 Action）
-ulong id1 = timer.AddTimer(() => Debug.Log("3 秒后执行"), 3f);
+ulong id1 = TimerService.AddTimer(() => Debug.Log("3 秒后执行"), 3f);
 
 // 2. 循环计时器（受 timeScale 影响）
-ulong id2 = timer.AddTimer(OnHeartbeat, 1f, isLoop: true);
+ulong id2 = TimerService.AddTimer(OnHeartbeat, 1f, isLoop: true);
 
 // 3. 泛型单参回调，避免闭包分配（T 约束为 class）
-ulong id3 = timer.AddTimer<Entity>(OnSkillCdEnd, target, 5f);
+ulong id3 = TimerService.AddTimer<Entity>(OnSkillCdEnd, target, 5f);
 
 // 4. 传统 object[] 传参（兼容旧代码）
-ulong id4 = timer.AddTimer(OnArgsCallback, 2f, false, false, 100, "hello");
+ulong id4 = TimerService.AddTimer(OnArgsCallback, 2f, false, false, 100, "hello");
 void OnArgsCallback(object[] args) { /* args[0]=100, args[1]="hello" */ }
 
 // 暂停 / 恢复 / 重启 / 移除
-timer.Stop(id2);       // 暂停并记录剩余时间
-timer.Resume(id2);     // 从剩余时间继续
-timer.Restart(id2);    // 重置为完整时长重新计时
-timer.RemoveTimer(id2);// 彻底移除并回收槽位
+TimerService.Stop(id2);       // 暂停并记录剩余时间
+TimerService.Resume(id2);     // 从剩余时间继续
+TimerService.Restart(id2);    // 重置为完整时长重新计时
+TimerService.RemoveTimer(id2);// 彻底移除并回收槽位
 ```
 
 ## 进阶用法
@@ -60,7 +58,7 @@ timer.RemoveTimer(id2);// 彻底移除并回收槽位
 
 ```csharp
 // isUnscaled: true 时不受 Time.timeScale 影响（暂停菜单、UI 倒计时等场景）
-ulong id = timer.AddTimer(OnCountdown, 1f, isLoop: true, isUnscaled: true);
+ulong id = TimerService.AddTimer(OnCountdown, 1f, isLoop: true, isUnscaled: true);
 ```
 
 ### 循环计时器的排程规则
@@ -71,15 +69,15 @@ ulong id = timer.AddTimer(OnCountdown, 1f, isLoop: true, isUnscaled: true);
 
 ```csharp
 // 战斗前预热槽位，避免运行中扩页（上限 4096 页 x 256 槽）
-timer.Prewarm(4096);
+TimerService.Prewarm(4096);
 
 // 运行时统计：活跃数、池容量、峰值活跃数、空闲数
-timer.GetStatistics(out int activeCount, out int poolCapacity,
-                    out int peakActiveCount, out int freeCount);
+TimerService.GetStatistics(out int activeCount, out int poolCapacity,
+                           out int peakActiveCount, out int freeCount);
 
 // 调试快照：填充调用方提供的数组，返回实际写入数量
 var results = new TimerDebugInfo[activeCount];
-int count = timer.GetAllTimers(results);
+int count = TimerService.GetAllTimers(results);
 for (int i = 0; i < count; i++)
 {
     bool isRunning = (results[i].flags & TimerDebugFlags.RUNNING) != 0;

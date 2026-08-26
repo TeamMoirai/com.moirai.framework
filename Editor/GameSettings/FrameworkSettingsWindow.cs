@@ -27,7 +27,7 @@ namespace Moirai.Atropos.Editor
             public string description;
             public int order;
             public string saveFolder;
-            public FrameworkSettings instance;
+            public ScriptableObject instance;
 
             // 预缓存的字段级搜索文本（含字段名、Tooltip、Header、LabelText）
             public string fieldSearchText;
@@ -409,8 +409,8 @@ namespace Moirai.Atropos.Editor
         /// <summary>
         /// 仅从磁盘加载已存在的 asset，不调用 Instance（避免意外创建缺失的配置文件）。
         /// </summary>
-        private static FrameworkSettings TryLoadAsset(string assetPath, Type type)
-            => AssetDatabase.LoadAssetAtPath(assetPath, type) as FrameworkSettings;
+        private static ScriptableObject TryLoadAsset(string assetPath, Type type)
+            => AssetDatabase.LoadAssetAtPath(assetPath, type) as ScriptableObject;
 
         private void UpdateCounts()
             => _loadedCount = _entries?.Count(e => e.Exists) ?? 0;
@@ -429,7 +429,7 @@ namespace Moirai.Atropos.Editor
             var sb = new StringBuilder(256);
             var visitedHeaders = new HashSet<string>();
 
-            // 同时扫描基类链上的字段（直到 FrameworkSettings / ScriptableObject）
+            // 同时扫描基类链上的字段（直到 FrameworkSettings<T> / ScriptableObject）
             var chain = new List<FieldInfo>();
             CollectFieldsUpChain(entry.type, chain);
 
@@ -464,15 +464,19 @@ namespace Moirai.Atropos.Editor
         }
 
         /// <summary>
-        /// 沿继承链向上收集字段，直到遇到 FrameworkSettings（非泛型基类）或 ScriptableObject 为止。
+        /// 沿继承链向上收集字段，直到遇到 FrameworkSettings&lt;T&gt; 泛型基类或 ScriptableObject 为止。
         /// 同一字段名只保留最子类的版本（Unity 序列化行为）。
         /// </summary>
         private static void CollectFieldsUpChain(Type type, List<FieldInfo> result)
         {
             var seen = new HashSet<string>();
             var current = type;
-            while (current != null && current != typeof(FrameworkSettings) && current != typeof(ScriptableObject) && current != typeof(UnityEngine.Object))
+            while (current != null && current != typeof(ScriptableObject) && current != typeof(UnityEngine.Object))
             {
+                // 遇到 FrameworkSettings<T> 泛型基类时停止
+                if (current.IsGenericType && current.GetGenericTypeDefinition() == typeof(FrameworkSettings<>))
+                    break;
+
                 foreach (var f in current.GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly))
                     if (seen.Add(f.Name)) result.Add(f);
                 current = current.BaseType;
@@ -929,7 +933,7 @@ namespace Moirai.Atropos.Editor
             if (entry.genericBase == null || entry.instanceProp == null)
             { Debug.LogWarning($"[FrameworkSettings] Cannot invoke Instance for {entry.type.Name}."); return; }
 
-            var instance = entry.instanceProp.GetValue(null) as FrameworkSettings;
+            var instance = entry.instanceProp.GetValue(null) as ScriptableObject;
             if (instance == null)
             { Debug.LogWarning($"[FrameworkSettings] Instance returned null for {entry.type.Name}."); return; }
 
@@ -942,7 +946,8 @@ namespace Moirai.Atropos.Editor
         }
 
         /// <summary>
-        /// 二次确认后重置配置到默认值，调用非泛型基类的 ResetToDefaults()。
+        /// 二次确认后重置配置到默认值。通过创建临时实例并 CopySerialized 将所有序列化字段
+        /// 恢复到字段初始值（等效 Inspector 面板的 Reset），同时保留资产原有的 m_Name。
         /// </summary>
         private void ResetSetting(SettingEntry entry)
         {
@@ -950,7 +955,12 @@ namespace Moirai.Atropos.Editor
             if (!EditorUtility.DisplayDialog("Reset Setting",
                 $"Reset '{entry.title}' to default values?\n\nThis cannot be undone.", "Reset", "Cancel")) return;
 
-            entry.instance.ResetToDefaults();
+            var temp = ScriptableObject.CreateInstance(entry.type);
+            string originalName = entry.instance.name;
+            EditorUtility.CopySerialized(temp, entry.instance);
+            entry.instance.name = originalName;
+            UnityEngine.Object.DestroyImmediate(temp);
+
             EditorUtility.SetDirty(entry.instance);
             AssetDatabase.SaveAssets();
 

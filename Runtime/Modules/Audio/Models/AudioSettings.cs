@@ -1,4 +1,5 @@
 using System;
+using Sirenix.OdinInspector;
 using UnityEngine;
 using UnityEngine.Audio;
 
@@ -6,8 +7,15 @@ namespace Moirai.Atropos.Audio
 {
     // ReSharper disable once InconsistentNaming
     [FrameworkSetting("音频设置", "音频混音器与音轨配置", -480)]
-    public class AudioSettings : FrameworkSettings<AudioSettings>
+    public sealed partial class AudioSettings : FrameworkSettings<AudioSettings>
     {
+        [InfoBox("默认使用内置音频后端。可替换为自定义音频后端。", InfoMessageType.None)]
+        [ProviderDropdown]
+        [SerializeReference] private AudioHandler m_AudioHandler = new AudioHandler();
+
+        /// <summary>音频处理器（后端）。</summary>
+        public static AudioHandler AudioHandler => Instance.m_AudioHandler;
+
         [Tooltip("如果不配置 AudioGroupConfigs，则会从 AudioMixer 读取音轨配置")]
         [SerializeField] private AudioMixer m_AudioMixer;
         /// <summary>音频混音器</summary>
@@ -19,7 +27,7 @@ namespace Moirai.Atropos.Audio
 
 #if UNITY_EDITOR
 
-        protected internal override void Reset()
+        private void Reset()
         {
             // 从 Resources 中读取默认 AudioMixer
             m_AudioMixer = Resources.Load<AudioMixer>("AudioMixer");

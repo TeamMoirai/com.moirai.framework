@@ -18,7 +18,7 @@ namespace Moirai.Atropos
         #region 变量 [VARIABLES]
 
 #if FUSION2
-        private Dictionary<Object, NetworkObject> _spawns;
+        [NonSerialized] private Dictionary<Object, NetworkObject> _spawns;
 #endif
 
         #endregion

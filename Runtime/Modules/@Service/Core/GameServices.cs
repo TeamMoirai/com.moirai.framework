@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
@@ -40,7 +41,7 @@ namespace Moirai.Atropos
 
         /// <summary>
         /// 最深层活跃的服务提供者（Gameplay > Scene > App）。
-        /// <para>服务类应优先使用构造注入而非此属性。此属性主要用于非服务代码（MonoBehaviour、UI 脚本等）。</para>
+        /// <para>服务类应优先使用静态门面（如 <c>AudioService.Play</c>）而非此属性。此属性主要用于非服务代码（MonoBehaviour、UI 脚本等）。</para>
         /// </summary>
         public static IServiceProvider Provider => HasAnyScope ? s_World : null;
 
@@ -64,7 +65,7 @@ namespace Moirai.Atropos
 
         #region 拦截器 [INTERCEPTORS]
 
-        private static readonly List<IServiceInterceptor> s_Interceptors = new();
+        private static readonly List<IServiceInterceptor> s_Interceptors = new List<IServiceInterceptor>();
 
         /// <summary>
         /// 当前已注册的拦截器（只读视图）。
@@ -165,23 +166,9 @@ namespace Moirai.Atropos
 
         #region 容器管理 [CONTAINER MANAGEMENT]
 
-        /// <summary>
-        /// 异步构建指定作用域的服务：拓扑排序 → 创建实例 → 构造注入 → OnInit → OnInitAsync。
-        /// <para>若同作用域已有服务，先关闭再重建。</para>
-        /// </summary>
-        /// <param name="scope">作用域种类。</param>
-        /// <param name="collection">服务注册集合。</param>
-        public static async UniTask BuildAsync(
-            EServiceScopeKind scope,
-            ServiceCollection collection)
-        {
-            EnsureMainThread();
-            s_World ??= new ServiceWorld();
-            await s_World.BuildAsync(scope, collection?.Descriptors);
-        }
 
         /// <summary>
-        /// 关闭指定作用域。服务按逆拓扑序（依赖方先）关闭。
+        /// 关闭指定作用域。服务按逆注册序（依赖方先）关闭。
         /// </summary>
         public static void ShutdownContainer(EServiceScopeKind scope)
         {
@@ -235,33 +222,152 @@ namespace Moirai.Atropos
         #region 运行时服务注册 [RUNTIME SERVICE REGISTRATION]
 
         /// <summary>
-        /// 运行时注册单个服务到指定作用域。
-        /// <para>注册后立即驱动 <c>OnInit</c>（或 <see cref="IServiceLifecycle.Initialize"/>）。</para>
+        /// 已注册服务表（作用域 → (契约类型 → 实例)）。重复注册幂等跳过的判断依据。
+        /// </summary>
+        private static readonly Dictionary<EServiceScopeKind, Dictionary<Type, IService>> s_Registered = new()
+        {
+            { EServiceScopeKind.App, new Dictionary<Type, IService>() },
+            { EServiceScopeKind.Scene, new Dictionary<Type, IService>() },
+            { EServiceScopeKind.Gameplay, new Dictionary<Type, IService>() },
+        };
+
+        /// <summary>
+        /// 注册中栈——循环依赖检测依据。
+        /// </summary>
+        private static readonly Stack<Type> s_InFlight = new();
+
+        /// <summary>
+        /// 类型 → 依赖类型数组缓存（特性元数据仅读取一次）。
+        /// </summary>
+        private static readonly ConcurrentDictionary<Type, Type[]> s_DependencyCache = new();
+
+        /// <summary>
+        /// 注册服务到指定作用域（统一入口）。
+        /// <para>注册前读取实现类型的 <see cref="ServiceDependencyAttribute"/> 声明：依赖未注册时优先递归注册依赖，
+        /// 全部依赖就绪后再注册当前服务（立即驱动 <c>OnInit</c>）。</para>
+        /// <para>重复注册幂等——已注册的契约（含嵌套依赖链中已注册项）直接跳过并返回既有实例；
+        /// 循环依赖注册期即抛 <see cref="GameException"/>。</para>
         /// <para>迭代中（Tick）调用时默认延迟到本轮迭代结束后执行（<see cref="EDeferMode.Defer"/>）；
         /// 传入 <see cref="EDeferMode.Throw"/> 则立即抛出异常。</para>
         /// </summary>
-        /// <typeparam name="T">服务契约类型。</typeparam>
+        /// <typeparam name="T">服务具体类型（契约即类型本身）。</typeparam>
         /// <param name="scope">目标作用域。</param>
         /// <param name="service">要注册的服务实例。</param>
         /// <param name="deferMode">迭代中调用的延迟策略。</param>
-        /// <returns>注册的服务实例（延迟模式下尚未完成初始化）。</returns>
+        /// <returns>注册的服务实例（重复注册时返回既有实例）。</returns>
         public static T RegisterService<T>(
             EServiceScopeKind scope,
             T service,
             EDeferMode deferMode = EDeferMode.Defer) where T : class, IService
         {
             EnsureMainThread();
-            s_World ??= new ServiceWorld();
+            RegisterWithDependencies(scope, typeof(T), typeof(T), () => service, deferMode);
+            return (T)s_Registered[scope][typeof(T)];
+        }
 
-            if (!s_World.TryGetScope(scope, out var targetScope))
-                targetScope = s_World.EnsureScope(scope);
+        /// <summary>
+        /// 以显式契约类型注册服务实例（运行时 Type 版本）。
+        /// <para>用于跨作用域遮蔽同接口、以接口为契约注册等泛型推断不便的场景；
+        /// 同一实例可依次以多个契约注册（多契约绑定）——首个调用创建条目，后续调用仅附加契约句柄。</para>
+        /// <para>依赖声明始终从 <c>service.GetType()</c> 实现类型读取（契约是接口时依赖仍能自动预注册）。</para>
+        /// </summary>
+        /// <param name="scope">目标作用域。</param>
+        /// <param name="contractType">契约类型（注册键与解析键）。</param>
+        /// <param name="service">要注册的服务实例。</param>
+        /// <param name="deferMode">迭代中调用的延迟策略。</param>
+        /// <returns>注册的服务实例（重复注册时返回既有实例）。</returns>
+        public static IService RegisterService(
+            EServiceScopeKind scope,
+            Type contractType,
+            IService service,
+            EDeferMode deferMode = EDeferMode.Defer)
+        {
+            EnsureMainThread();
+            if (contractType == null) throw new ArgumentNullException(nameof(contractType));
+            if (service == null) throw new ArgumentNullException(nameof(service));
+            RegisterWithDependencies(scope, contractType, service.GetType(), () => service, deferMode);
+            return s_Registered[scope][contractType];
+        }
 
-            return targetScope.RegisterRuntime(service, deferMode);
+        /// <summary>
+        /// 递归注册：依赖预注册 → 注册当前服务。
+        /// <para>①契约已注册跳过（嵌套依赖重复注册免疫）②栈内检测循环③按声明序递归注册依赖④注册并初始化自身；
+        /// 同一实例已在作用域中以其他契约注册时，仅附加新契约绑定（不重复初始化/关闭）。</para>
+        /// </summary>
+        /// <param name="scope">目标作用域。</param>
+        /// <param name="contractType">契约类型（注册表与容器的键）。</param>
+        /// <param name="implType">实现类型（<see cref="ServiceDependencyAttribute"/> 读取来源与循环检测键）。</param>
+        /// <param name="factory">实例工厂（依赖就绪后调用）。</param>
+        /// <param name="deferMode">迭代中调用的延迟策略。</param>
+        private static void RegisterWithDependencies(
+            EServiceScopeKind scope,
+            Type contractType,
+            Type implType,
+            Func<IService> factory,
+            EDeferMode deferMode)
+        {
+            var registry = s_Registered[scope];
+
+            // ① 去重：嵌套依赖链中已注册的直接返回
+            if (registry.ContainsKey(contractType)) return;
+
+            // ② 循环依赖检测：当前实现类型已在注册栈中即构成环
+            if (s_InFlight.Contains(implType))
+            {
+                throw new GameException(StringUtility.Format(
+                    "Circular service dependency detected: {0} -> {1}",
+                    string.Join(" -> ", s_InFlight), implType.FullName));
+            }
+
+            s_InFlight.Push(implType);
+            try
+            {
+                // ③ 按声明序递归预注册依赖（依赖实例由框架工厂表创建）
+                Type[] dependencies = GetDeclaredDependencies(implType);
+                for (int i = 0; i < dependencies.Length; i++)
+                {
+                    Type depType = dependencies[i];
+                    if (!registry.ContainsKey(depType))
+                    {
+                        // 递归注册依赖——工厂延迟调用，循环检测在递归入口的 s_InFlight 检查中触发
+                        RegisterWithDependencies(scope, depType, depType, () => CreateDefaultService(depType), deferMode);
+                    }
+                }
+
+                // ④ 依赖就绪，创建实例并注册（立即 OnInit + 加入轮询列表）
+                IService instance = factory();
+                s_World ??= new ServiceWorld();
+                ServiceScope targetScope = s_World.EnsureScope(scope);
+
+                if (targetScope.TryGet(contractType, out IService existing))
+                {
+                    // 容器已有同契约实例——采纳既有实例，幂等
+                    registry[contractType] = existing;
+                    return;
+                }
+
+                if (targetScope.Contains(instance))
+                {
+                    // 同实例已在本作用域以其他契约注册——仅附加新契约绑定，不新建条目
+                    targetScope.BindAdditionalContractRuntime(contractType, instance, deferMode);
+                    registry[contractType] = instance;
+                    return;
+                }
+
+                // 用显式契约类型注册，避免泛型推断为 IService 基类
+                targetScope.RegisterRuntime(contractType, instance, deferMode);
+                registry[contractType] = instance;
+            }
+            finally
+            {
+                s_InFlight.Pop();
+            }
         }
 
         /// <summary>
         /// 运行时注销并关闭指定作用域中的单个服务。
-        /// <para>触发 <c>Shutdown</c> 并从注册表移除。</para>
+        /// <para>触发 <c>Shutdown</c> 并从注册表移除；同步清理内部已注册表，
+        /// 注销后可重新以同契约注册全新实例。</para>
         /// <para>迭代中（Tick）调用时默认延迟到本轮迭代结束后执行（<see cref="EDeferMode.Defer"/>）；
         /// 传入 <see cref="EDeferMode.Throw"/> 则立即抛出异常。</para>
         /// </summary>
@@ -273,16 +379,69 @@ namespace Moirai.Atropos
             EServiceScopeKind scope,
             EDeferMode deferMode = EDeferMode.Defer) where T : class, IService
         {
-            EnsureMainThread();
-            if (s_World == null) return false;
-            if (!s_World.TryGetScope(scope, out var targetScope)) return false;
-            return targetScope.UnregisterRuntime<T>(deferMode);
+            return UnregisterService(scope, typeof(T), deferMode);
         }
 
         /// <summary>
-        /// 获取内部 <see cref="ServiceWorld"/> 实例。供 <see cref="SelfRegisteringMono{TScope}"/> 等内部类型使用。
+        /// 以显式契约类型运行时注销单个服务（运行时 Type 版本）。
+        /// <para>触发 <c>Shutdown</c> 并从注册表移除；同步清理内部已注册表。</para>
+        /// </summary>
+        /// <param name="scope">目标作用域。</param>
+        /// <param name="contractType">契约类型（注册键）。</param>
+        /// <param name="deferMode">迭代中调用的延迟策略。</param>
+        /// <returns>成功注销返回 true；未找到返回 false。</returns>
+        public static bool UnregisterService(
+            EServiceScopeKind scope,
+            Type contractType,
+            EDeferMode deferMode = EDeferMode.Defer)
+        {
+            EnsureMainThread();
+            if (contractType == null) throw new ArgumentNullException(nameof(contractType));
+            if (s_World == null) return false;
+            if (!s_World.TryGetScope(scope, out var targetScope)) return false;
+
+            bool removed = targetScope.UnregisterRuntime(contractType, deferMode);
+            if (removed) s_Registered[scope].Remove(contractType);
+            return removed;
+        }
+
+        /// <summary>
+        /// 获取内部 <see cref="ServiceWorld"/> 实例。
         /// </summary>
         internal static ServiceWorld GetWorldInternal() => s_World;
+
+        #endregion
+
+        #region 依赖声明 [DEPENDENCY DECLARATION]
+
+        /// <summary>
+        /// 读取类型的 <see cref="ServiceDependencyAttribute"/> 声明（带缓存）。
+        /// </summary>
+        private static Type[] GetDeclaredDependencies(Type serviceType)
+        {
+            return s_DependencyCache.GetOrAdd(serviceType, static type =>
+            {
+                object[] attrs = type.GetCustomAttributes(typeof(ServiceDependencyAttribute), false);
+                if (attrs.Length == 0) return Array.Empty<Type>();
+
+                int total = 0;
+                for (int i = 0; i < attrs.Length; i++)
+                {
+                    total += ((ServiceDependencyAttribute)attrs[i]).DependencyTypes.Length;
+                }
+
+                var deps = new Type[total];
+                int offset = 0;
+                for (int i = 0; i < attrs.Length; i++)
+                {
+                    Type[] types = ((ServiceDependencyAttribute)attrs[i]).DependencyTypes;
+                    Array.Copy(types, 0, deps, offset, types.Length);
+                    offset += types.Length;
+                }
+
+                return deps;
+            });
+        }
 
         #endregion
 
@@ -307,13 +466,11 @@ namespace Moirai.Atropos
         internal static void SetState(IService service, EServiceState state)
         {
             if (service is ServiceBase sb) sb.State = state;
-            else if (service is ServiceMonoBase mono) mono.State = state;
         }
 
         internal static EServiceState GetState(IService service)
         {
             if (service is ServiceBase sb) return sb.State;
-            if (service is ServiceMonoBase mono) return mono.State;
             return EServiceState.Created;
         }
 
@@ -327,6 +484,11 @@ namespace Moirai.Atropos
             s_Interceptors.Clear();
             onServiceRegistered = null;
             onServiceUnregistered = null;
+
+            // 各作用域注册表与循环检测栈同步清空——关闭后可重新注册重建（域重载安全）
+            foreach (var registry in s_Registered.Values)
+                registry.Clear();
+            s_InFlight.Clear();
 
             // MemoryPool 和 MarshalUtility 缓存清理在全部服务关闭后执行——
             // 此时无活跃的池化对象引用（所有 Service 已 Shutdown），安全清空。

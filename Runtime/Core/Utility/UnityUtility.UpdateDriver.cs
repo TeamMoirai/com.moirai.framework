@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using Cysharp.Threading.Tasks;
 using Moirai.Atropos.UpdateDriver;
@@ -12,8 +12,6 @@ namespace Moirai.Atropos
     /// </summary>
     public static partial class UnityUtility
     {
-        private static IUpdateDriverService s_UpdateDriver;
-
         #region 控制协程 [COROUTINE CONTROL]
 
         public static GameCoroutine StartCoroutine(string name, IEnumerator routine, MonoBehaviour bindBehaviour)
@@ -97,9 +95,7 @@ namespace Moirai.Atropos
             {
                 return null;
             }
-
-            _MakeEntity();
-            return s_UpdateDriver.StartCoroutine(methodName);
+            return UpdateDriverService.StartCoroutine(methodName);
         }
 
         public static Coroutine StartCoroutine(IEnumerator routine)
@@ -108,9 +104,7 @@ namespace Moirai.Atropos
             {
                 return null;
             }
-
-            _MakeEntity();
-            return s_UpdateDriver.StartCoroutine(routine);
+            return UpdateDriverService.StartCoroutine(routine);
         }
 
         public static Coroutine StartCoroutine(string methodName, [DefaultValue("null")] object value)
@@ -119,9 +113,7 @@ namespace Moirai.Atropos
             {
                 return null;
             }
-
-            _MakeEntity();
-            return s_UpdateDriver.StartCoroutine(methodName, value);
+            return UpdateDriverService.StartCoroutine(methodName, value);
         }
 
         public static void StopCoroutine(string methodName)
@@ -131,8 +123,7 @@ namespace Moirai.Atropos
                 return;
             }
 
-            _MakeEntity();
-            s_UpdateDriver.StopCoroutine(methodName);
+            UpdateDriverService.StopCoroutine(methodName);
         }
 
         public static void StopCoroutine(IEnumerator routine)
@@ -142,8 +133,7 @@ namespace Moirai.Atropos
                 return;
             }
 
-            _MakeEntity();
-            s_UpdateDriver.StopCoroutine(routine);
+            UpdateDriverService.StopCoroutine(routine);
         }
 
         public static void StopCoroutine(Coroutine routine)
@@ -153,15 +143,13 @@ namespace Moirai.Atropos
                 return;
             }
 
-            _MakeEntity();
-            s_UpdateDriver.StopCoroutine(routine);
+            UpdateDriverService.StopCoroutine(routine);
             routine = null;
         }
 
         public static void StopAllCoroutines()
         {
-            _MakeEntity();
-            s_UpdateDriver.StopAllCoroutines();
+            UpdateDriverService.StopAllCoroutines();
         }
 
         #endregion
@@ -174,14 +162,13 @@ namespace Moirai.Atropos
         /// <param name="fun"></param>
         public static void AddUpdateListener(Action fun)
         {
-            _MakeEntity();
             AddUpdateListenerImp(fun).Forget();
         }
 
         private static async UniTaskVoid AddUpdateListenerImp(Action fun)
         {
             await UniTask.Yield( /*PlayerLoopTiming.LastPreUpdate*/);
-            s_UpdateDriver.AddUpdateListener(fun);
+            UpdateDriverService.AddUpdateListener(fun);
         }
 
         /// <summary>
@@ -190,14 +177,13 @@ namespace Moirai.Atropos
         /// <param name="fun"></param>
         public static void AddFixedUpdateListener(Action fun)
         {
-            _MakeEntity();
             AddFixedUpdateListenerImp(fun).Forget();
         }
 
         private static async UniTaskVoid AddFixedUpdateListenerImp(Action fun)
         {
             await UniTask.Yield(PlayerLoopTiming.LastEarlyUpdate);
-            s_UpdateDriver.AddFixedUpdateListener(fun);
+            UpdateDriverService.AddFixedUpdateListener(fun);
         }
 
         /// <summary>
@@ -206,14 +192,13 @@ namespace Moirai.Atropos
         /// <param name="fun"></param>
         public static void AddLateUpdateListener(Action fun)
         {
-            _MakeEntity();
             AddLateUpdateListenerImp(fun).Forget();
         }
 
         private static async UniTaskVoid AddLateUpdateListenerImp(Action fun)
         {
             await UniTask.Yield( /*PlayerLoopTiming.LastPreLateUpdate*/);
-            s_UpdateDriver.AddLateUpdateListener(fun);
+            UpdateDriverService.AddLateUpdateListener(fun);
         }
 
         /// <summary>
@@ -222,8 +207,7 @@ namespace Moirai.Atropos
         /// <param name="fun"></param>
         public static void RemoveUpdateListener(Action fun)
         {
-            _MakeEntity();
-            s_UpdateDriver.RemoveUpdateListener(fun);
+            UpdateDriverService.RemoveUpdateListener(fun);
         }
 
         /// <summary>
@@ -232,8 +216,7 @@ namespace Moirai.Atropos
         /// <param name="fun"></param>
         public static void RemoveFixedUpdateListener(Action fun)
         {
-            _MakeEntity();
-            s_UpdateDriver.RemoveFixedUpdateListener(fun);
+            UpdateDriverService.RemoveFixedUpdateListener(fun);
         }
 
         /// <summary>
@@ -242,8 +225,7 @@ namespace Moirai.Atropos
         /// <param name="fun"></param>
         public static void RemoveLateUpdateListener(Action fun)
         {
-            _MakeEntity();
-            s_UpdateDriver.RemoveLateUpdateListener(fun);
+            UpdateDriverService.RemoveLateUpdateListener(fun);
         }
 
         #endregion
@@ -256,8 +238,7 @@ namespace Moirai.Atropos
         /// <param name="fun"></param>
         public static void AddDestroyListener(Action fun)
         {
-            _MakeEntity();
-            s_UpdateDriver.AddDestroyListener(fun);
+            UpdateDriverService.AddDestroyListener(fun);
         }
 
         /// <summary>
@@ -266,8 +247,7 @@ namespace Moirai.Atropos
         /// <param name="fun"></param>
         public static void RemoveDestroyListener(Action fun)
         {
-            _MakeEntity();
-            s_UpdateDriver.RemoveDestroyListener(fun);
+            UpdateDriverService.RemoveDestroyListener(fun);
         }
 
         /// <summary>
@@ -276,8 +256,7 @@ namespace Moirai.Atropos
         /// <param name="fun"></param>
         public static void AddOnDrawGizmosListener(Action fun)
         {
-            _MakeEntity();
-            s_UpdateDriver.AddOnDrawGizmosListener(fun);
+            UpdateDriverService.AddOnDrawGizmosListener(fun);
         }
 
         /// <summary>
@@ -286,8 +265,7 @@ namespace Moirai.Atropos
         /// <param name="fun"></param>
         public static void RemoveOnDrawGizmosListener(Action fun)
         {
-            _MakeEntity();
-            s_UpdateDriver.RemoveOnDrawGizmosListener(fun);
+            UpdateDriverService.RemoveOnDrawGizmosListener(fun);
         }
 
         /// <summary>
@@ -296,8 +274,7 @@ namespace Moirai.Atropos
         /// <param name="fun"></param>
         public static void AddOnApplicationPauseListener(Action<bool> fun)
         {
-            _MakeEntity();
-            s_UpdateDriver.AddOnApplicationPauseListener(fun);
+            UpdateDriverService.AddOnApplicationPauseListener(fun);
         }
 
         /// <summary>
@@ -306,21 +283,10 @@ namespace Moirai.Atropos
         /// <param name="fun"></param>
         public static void RemoveOnApplicationPauseListener(Action<bool> fun)
         {
-            _MakeEntity();
-            s_UpdateDriver.RemoveOnApplicationPauseListener(fun);
+            UpdateDriverService.RemoveOnApplicationPauseListener(fun);
         }
 
         #endregion
-
-        private static void _MakeEntity()
-        {
-            if (s_UpdateDriver != null)
-            {
-                return;
-            }
-
-            s_UpdateDriver = GameServices.Provider?.GetService<IUpdateDriverService>();
-        }
     }
 
     public class GameCoroutine

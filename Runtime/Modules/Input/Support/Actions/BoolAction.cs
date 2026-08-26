@@ -159,7 +159,7 @@ namespace Moirai.Atropos.Input
 #if UNITY_EDITOR
     
     [UnityEditor.CustomPropertyDrawer(typeof(BoolAction))]
-    public class BoolActionEditor : ActionPropertyDrawerBase { }
+    public class BoolActionEditor : ActionPropertyDrawer { }
 
 #endif
 }

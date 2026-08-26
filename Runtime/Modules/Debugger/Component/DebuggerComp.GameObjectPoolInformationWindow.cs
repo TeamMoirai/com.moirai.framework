@@ -7,29 +7,11 @@ namespace Moirai.Atropos.Debugger
     {
         private sealed class GameObjectPoolInformationWindow : ScrollableDebuggerWindowBase
         {
-            private IGameObjectPoolService _gameObjectPoolService = null;
-
-            public override void Initialize(params object[] args)
-            {
-                _gameObjectPoolService = GameServices.Provider?.GetService<IGameObjectPoolService>();
-                if (_gameObjectPoolService == null)
-                {
-                    LogUtility.Fatal("GameObjectPool service is invalid.");
-                    return;
-                }
-            }
-
             protected override void OnDrawScrollableWindow()
             {
                 GUILayout.Label("<b>GameObject Pool Information</b>");
 
-                if (!(_gameObjectPoolService is GameObjectPoolService service))
-                {
-                    GUILayout.Label("<i>Service implementation does not support debug interface.</i>");
-                    return;
-                }
-
-                GameObjectPoolSummarySnapshot summary = service.GetDebugSummary();
+                GameObjectPoolSummarySnapshot summary = GameObjectPoolService.GetDebugSummary();
                 GUILayout.BeginVertical("box");
                 {
                     DrawItem("Pool Count", summary.PoolCount.ToString());
@@ -42,7 +24,7 @@ namespace Moirai.Atropos.Debugger
                 GUILayout.EndVertical();
 
                 GameObjectPoolSnapshot[] snapshots = new GameObjectPoolSnapshot[64];
-                int count = service.GetDebugSnapshots(snapshots);
+                int count = GameObjectPoolService.GetDebugSnapshots(snapshots);
                 for (int i = 0; i < count; i++)
                 {
                     DrawPoolSnapshot(snapshots[i]);

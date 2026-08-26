@@ -1,455 +1,197 @@
-using System;
 using System.Collections;
-using System.Diagnostics;
-using Cysharp.Threading.Tasks;
 using UnityEngine;
-using UnityEngine.Internal;
-using Object = UnityEngine.Object;
 
 namespace Moirai.Atropos.UpdateDriver
 {
-    internal class UpdateDriverService : ServiceBase, IUpdateDriverService
+    /// <summary>
+    /// 更新驱动服务门面（Facade）。
+    /// <para>统一的静态协程与帧事件注入入口，通过替换 <see cref="Handler"/> 即可切换驱动后端。</para>
+    /// <para>未显式设置处理器时，使用 <see cref="CreateDefaultHandler"/> 从 <see cref="UpdateDriverSettings"/> 创建处理器实例。</para>
+    /// <para>Handler 属性由 <c>HandlerHostGenerator</c> 源生成器自动生成（线程安全懒加载）。</para>
+    /// </summary>
+    [HandlerHost(typeof(UpdateDriverHandler))]
+    public partial class UpdateDriverService : ServiceBase
     {
-        private GameObject _entity;
-        private MainBehaviour _behaviour;
+        #region 属性 [PROPERTIES]
 
+        /// <summary>
+        /// 服务是否可用
+        /// </summary>
+        public static bool IsValid => s_Handler != null;
+
+        #endregion
+
+        #region 处理器 [HANDLER]
+
+        /// <summary>
+        /// 从 <see cref="UpdateDriverSettings"/> 创建默认更新驱动处理器。
+        /// </summary>
+        /// <returns>默认更新驱动处理器实例。</returns>
+        private static UpdateDriverHandler CreateDefaultHandler()
+        {
+            return UpdateDriverSettings.UpdateDriverHandler;
+        }
+
+        #endregion
+
+        #region 生命周期 [LIFECYCLE]
+
+        /// <summary>
+        /// 初始化更新驱动服务。由容器在构建期调用。
+        /// <para>确保 <c>UpdateDriverService.Handler</c> 已赋值（触发 <see cref="CreateDefaultHandler"/> 懒加载）。</para>
+        /// </summary>
         public override void OnInit()
         {
-            _MakeEntity();
+            _ = Handler;
         }
-        
+
         /// <summary>
-        /// 释放Behaviour生命周期。
+        /// 关闭更新驱动服务。由容器在关闭期调用。
         /// </summary>
         public override void Shutdown()
         {
-            if (_behaviour != null)
-            {
-                _behaviour.Release();
-            }
-
-            if (_entity != null)
-            {
-                Object.Destroy(_entity);
-            }
-
-            _entity = null;
+            s_Handler?.Internal_Shutdown();
+            s_Handler = null;
         }
+
+        #endregion
 
         #region 控制协程 [COROUTINE CONTROL]
 
-        public Coroutine StartCoroutine(string methodName)
-        {
-            if (string.IsNullOrEmpty(methodName))
-            {
-                return null;
-            }
+        /// <summary>
+        /// 启动全局协程。
+        /// </summary>
+        public static Coroutine StartCoroutine(string methodName) =>
+            s_Handler?.StartCoroutine(methodName);
 
-            _MakeEntity();
-            return _behaviour.StartCoroutine(methodName);
-        }
+        /// <summary>
+        /// 启动全局协程。
+        /// </summary>
+        public static Coroutine StartCoroutine(IEnumerator routine) =>
+            s_Handler?.StartCoroutine(routine);
 
-        public Coroutine StartCoroutine(IEnumerator routine)
-        {
-            if (routine == null)
-            {
-                return null;
-            }
+        /// <summary>
+        /// 启动全局协程。
+        /// </summary>
+        public static Coroutine StartCoroutine(string methodName, object value) =>
+            s_Handler?.StartCoroutine(methodName, value);
 
-            _MakeEntity();
-            return _behaviour.StartCoroutine(routine);
-        }
+        /// <summary>
+        /// 停止全局协程。
+        /// </summary>
+        public static void StopCoroutine(string methodName) =>
+            s_Handler?.StopCoroutine(methodName);
 
-        public Coroutine StartCoroutine(string methodName, [DefaultValue("null")] object value)
-        {
-            if (string.IsNullOrEmpty(methodName))
-            {
-                return null;
-            }
+        /// <summary>
+        /// 停止全局协程。
+        /// </summary>
+        public static void StopCoroutine(IEnumerator routine) =>
+            s_Handler?.StopCoroutine(routine);
 
-            _MakeEntity();
-            return _behaviour.StartCoroutine(methodName, value);
-        }
+        /// <summary>
+        /// 停止全局协程。
+        /// </summary>
+        public static void StopCoroutine(Coroutine routine) =>
+            s_Handler?.StopCoroutine(routine);
 
-        public void StopCoroutine(string methodName)
-        {
-            if (string.IsNullOrEmpty(methodName))
-            {
-                return;
-            }
-
-            if (_entity != null)
-            {
-                _behaviour.StopCoroutine(methodName);
-            }
-        }
-
-        public void StopCoroutine(IEnumerator routine)
-        {
-            if (routine == null)
-            {
-                return;
-            }
-
-            if (_entity != null)
-            {
-                _behaviour.StopCoroutine(routine);
-            }
-        }
-
-        public void StopCoroutine(Coroutine routine)
-        {
-            if (routine == null)
-                return;
-
-            if (_entity != null)
-            {
-                _behaviour.StopCoroutine(routine);
-                routine = null;
-            }
-        }
-
-        public void StopAllCoroutines()
-        {
-            if (_entity != null)
-            {
-                _behaviour.StopAllCoroutines();
-            }
-        }
+        /// <summary>
+        /// 停止所有全局协程。
+        /// </summary>
+        public static void StopAllCoroutines() =>
+            s_Handler?.StopAllCoroutines();
 
         #endregion
 
         #region 注入 Unity Update [INJECT UNITY UPDATE]
 
         /// <summary>
-        /// 为给外部提供的 添加帧更新事件。
+        /// 添加帧更新事件。
         /// </summary>
-        /// <param name="action"></param>
-        public void AddUpdateListener(Action action)
-        {
-            _MakeEntity();
-            AddUpdateListenerImp(action).Forget();
-        }
-
-        private async UniTaskVoid AddUpdateListenerImp(Action action)
-        {
-            await UniTask.Yield();
-            _behaviour.AddUpdateListener(action);
-        }
+        public static void AddUpdateListener(System.Action action) =>
+            s_Handler?.AddUpdateListener(action);
 
         /// <summary>
-        /// 为给外部提供的 添加物理帧更新事件。
+        /// 添加物理帧更新事件。
         /// </summary>
-        /// <param name="action"></param>
-        public void AddFixedUpdateListener(Action action)
-        {
-            _MakeEntity();
-            AddFixedUpdateListenerImp(action).Forget();
-        }
-
-        private async UniTaskVoid AddFixedUpdateListenerImp(Action action)
-        {
-            await UniTask.Yield(PlayerLoopTiming.LastEarlyUpdate);
-            _behaviour.AddFixedUpdateListener(action);
-        }
+        public static void AddFixedUpdateListener(System.Action action) =>
+            s_Handler?.AddFixedUpdateListener(action);
 
         /// <summary>
-        /// 为给外部提供的 添加Late帧更新事件。
+        /// 添加Late帧更新事件。
         /// </summary>
-        /// <param name="action"></param>
-        public void AddLateUpdateListener(Action action)
-        {
-            _MakeEntity();
-            AddLateUpdateListenerImp(action).Forget();
-        }
-
-        private async UniTaskVoid AddLateUpdateListenerImp(Action action)
-        {
-            await UniTask.Yield();
-            _behaviour.AddLateUpdateListener(action);
-        }
+        public static void AddLateUpdateListener(System.Action action) =>
+            s_Handler?.AddLateUpdateListener(action);
 
         /// <summary>
         /// 移除帧更新事件。
         /// </summary>
-        /// <param name="action"></param>
-        public void RemoveUpdateListener(Action action)
-        {
-            _MakeEntity();
-            _behaviour.RemoveUpdateListener(action);
-        }
+        public static void RemoveUpdateListener(System.Action action) =>
+            s_Handler?.RemoveUpdateListener(action);
 
         /// <summary>
         /// 移除物理帧更新事件。
         /// </summary>
-        /// <param name="action"></param>
-        public void RemoveFixedUpdateListener(Action action)
-        {
-            _MakeEntity();
-            _behaviour.RemoveFixedUpdateListener(action);
-        }
+        public static void RemoveFixedUpdateListener(System.Action action) =>
+            s_Handler?.RemoveFixedUpdateListener(action);
 
         /// <summary>
         /// 移除Late帧更新事件。
         /// </summary>
-        /// <param name="action"></param>
-        public void RemoveLateUpdateListener(Action action)
-        {
-            _MakeEntity();
-            _behaviour.RemoveLateUpdateListener(action);
-        }
+        public static void RemoveLateUpdateListener(System.Action action) =>
+            s_Handler?.RemoveLateUpdateListener(action);
 
         #endregion
 
         #region Unity 事件注入 [UNITY EVENTS INJECT]
 
         /// <summary>
-        /// 为给外部提供的Destroy注册事件。
+        /// 注册Destroy事件。
         /// </summary>
-        /// <param name="action"></param>
-        public void AddDestroyListener(Action action)
-        {
-            _MakeEntity();
-            _behaviour.AddDestroyListener(action);
-        }
+        public static void AddDestroyListener(System.Action action) =>
+            s_Handler?.AddDestroyListener(action);
 
         /// <summary>
-        /// 为给外部提供的Destroy反注册事件。
+        /// 反注册Destroy事件。
         /// </summary>
-        /// <param name="action"></param>
-        public void RemoveDestroyListener(Action action)
-        {
-            _MakeEntity();
-            _behaviour.RemoveDestroyListener(action);
-        }
+        public static void RemoveDestroyListener(System.Action action) =>
+            s_Handler?.RemoveDestroyListener(action);
 
         /// <summary>
-        /// 为给外部提供的OnDrawGizmos注册事件。
+        /// 注册OnDrawGizmos事件。
         /// </summary>
-        /// <param name="action"></param>
-        public void AddOnDrawGizmosListener(Action action)
-        {
-            _MakeEntity();
-            _behaviour.AddOnDrawGizmosListener(action);
-        }
+        public static void AddOnDrawGizmosListener(System.Action action) =>
+            s_Handler?.AddOnDrawGizmosListener(action);
 
         /// <summary>
-        /// 为给外部提供的OnDrawGizmos反注册事件。
+        /// 反注册OnDrawGizmos事件。
         /// </summary>
-        /// <param name="action"></param>
-        public void RemoveOnDrawGizmosListener(Action action)
-        {
-            _MakeEntity();
-            _behaviour.RemoveOnDrawGizmosListener(action);
-        }
-        
-        /// <summary>
-        /// 为给外部提供的OnDrawGizmosSelected注册事件。
-        /// </summary>
-        /// <param name="action"></param>
-        public void AddOnDrawGizmosSelectedListener(Action action)
-        {
-            _MakeEntity();
-            _behaviour.AddOnDrawGizmosSelectedListener(action);
-        }
+        public static void RemoveOnDrawGizmosListener(System.Action action) =>
+            s_Handler?.RemoveOnDrawGizmosListener(action);
 
         /// <summary>
-        /// 为给外部提供的OnDrawGizmosSelected反注册事件。
+        /// 注册OnDrawGizmosSelected事件。
         /// </summary>
-        /// <param name="action"></param>
-        public void RemoveOnDrawGizmosSelectedListener(Action action)
-        {
-            _MakeEntity();
-            _behaviour.RemoveOnDrawGizmosSelectedListener(action);
-        }
+        public static void AddOnDrawGizmosSelectedListener(System.Action action) =>
+            s_Handler?.AddOnDrawGizmosSelectedListener(action);
 
         /// <summary>
-        /// 为给外部提供的OnApplicationPause注册事件。
+        /// 反注册OnDrawGizmosSelected事件。
         /// </summary>
-        /// <param name="action"></param>
-        public void AddOnApplicationPauseListener(Action<bool> action)
-        {
-            _MakeEntity();
-            _behaviour.AddOnApplicationPauseListener(action);
-        }
+        public static void RemoveOnDrawGizmosSelectedListener(System.Action action) =>
+            s_Handler?.RemoveOnDrawGizmosSelectedListener(action);
 
         /// <summary>
-        /// 为给外部提供的OnApplicationPause反注册事件。
+        /// 注册OnApplicationPause事件。
         /// </summary>
-        /// <param name="action"></param>
-        public void RemoveOnApplicationPauseListener(Action<bool> action)
-        {
-            _MakeEntity();
-            _behaviour.RemoveOnApplicationPauseListener(action);
-        }
+        public static void AddOnApplicationPauseListener(System.Action<bool> action) =>
+            s_Handler?.AddOnApplicationPauseListener(action);
+
+        /// <summary>
+        /// 反注册OnApplicationPause事件。
+        /// </summary>
+        public static void RemoveOnApplicationPauseListener(System.Action<bool> action) =>
+            s_Handler?.RemoveOnApplicationPauseListener(action);
 
         #endregion
-
-        private void _MakeEntity()
-        {
-            if (_entity != null)
-            {
-                return;
-            }
-
-            _entity = new GameObject("[UpdateDriver]");
-            _entity.SetActive(true);
-            Object.DontDestroyOnLoad(_entity);
-            _behaviour = _entity.AddComponent<MainBehaviour>();
-        }
-
-        private class MainBehaviour : MonoBehaviour
-        {
-            private event Action OnUpdateEvent;
-            private event Action OnFixedUpdateEvent;
-            private event Action OnLateUpdateEvent;
-            private event Action OnDestroyEvent;
-            private event Action OnDrawGizmosEvent;
-            private event Action OnDrawGizmosSelectedEvent;
-            private event Action<bool> OnApplicationPauseEvent;
-
-            void Update()
-            {
-                if (OnUpdateEvent != null)
-                {
-                    OnUpdateEvent();
-                }
-            }
-
-            void FixedUpdate()
-            {
-                if (OnFixedUpdateEvent != null)
-                {
-                    OnFixedUpdateEvent();
-                }
-            }
-
-            void LateUpdate()
-            {
-                if (OnLateUpdateEvent != null)
-                {
-                    OnLateUpdateEvent();
-                }
-            }
-
-            private void OnDestroy()
-            {
-                if (OnDestroyEvent != null)
-                {
-                    OnDestroyEvent();
-                }
-            }
-
-            [Conditional("UNITY_EDITOR")]
-            private void OnDrawGizmos()
-            {
-                if (OnDrawGizmosEvent != null)
-                {
-                    OnDrawGizmosEvent();
-                }
-            }
-            
-            [Conditional("UNITY_EDITOR")]
-            private void OnDrawGizmosSelected()
-            {
-                if (OnDrawGizmosSelectedEvent != null)
-                {
-                    OnDrawGizmosSelectedEvent();
-                }
-            }
-
-            private void OnApplicationPause(bool pauseStatus)
-            {
-                if (OnApplicationPauseEvent != null)
-                {
-                    OnApplicationPauseEvent(pauseStatus);
-                }
-            }
-
-            public void AddLateUpdateListener(Action action)
-            {
-                OnLateUpdateEvent += action;
-            }
-
-            public void RemoveLateUpdateListener(Action action)
-            {
-                OnLateUpdateEvent -= action;
-            }
-
-            public void AddFixedUpdateListener(Action action)
-            {
-                OnFixedUpdateEvent += action;
-            }
-
-            public void RemoveFixedUpdateListener(Action action)
-            {
-                OnFixedUpdateEvent -= action;
-            }
-
-            public void AddUpdateListener(Action action)
-            {
-                OnUpdateEvent += action;
-            }
-
-            public void RemoveUpdateListener(Action action)
-            {
-                OnUpdateEvent -= action;
-            }
-
-            public void AddDestroyListener(Action action)
-            {
-                OnDestroyEvent += action;
-            }
-
-            public void RemoveDestroyListener(Action action)
-            {
-                OnDestroyEvent -= action;
-            }
-
-            [Conditional("UNITY_EDITOR")]
-            public void AddOnDrawGizmosListener(Action action)
-            {
-                OnDrawGizmosEvent += action;
-            }
-
-            [Conditional("UNITY_EDITOR")]
-            public void RemoveOnDrawGizmosListener(Action action)
-            {
-                OnDrawGizmosEvent -= action;
-            }
-            
-            [Conditional("UNITY_EDITOR")]
-            public void AddOnDrawGizmosSelectedListener(Action action)
-            {
-                OnDrawGizmosSelectedEvent += action;
-            }
-
-            [Conditional("UNITY_EDITOR")]
-            public void RemoveOnDrawGizmosSelectedListener(Action action)
-            {
-                OnDrawGizmosSelectedEvent -= action;
-            }
-
-            public void AddOnApplicationPauseListener(Action<bool> action)
-            {
-                OnApplicationPauseEvent += action;
-            }
-
-            public void RemoveOnApplicationPauseListener(Action<bool> action)
-            {
-                OnApplicationPauseEvent -= action;
-            }
-
-            public void Release()
-            {
-                OnUpdateEvent = null;
-                OnFixedUpdateEvent = null;
-                OnLateUpdateEvent = null;
-                OnDrawGizmosEvent = null;
-                OnDrawGizmosSelectedEvent = null;
-                OnDestroyEvent = null;
-                OnApplicationPauseEvent = null;
-            }
-        }
     }
 }

@@ -13,10 +13,8 @@ namespace Moirai.Atropos.UI
         {
             get
             {
-                var inputService = GameApp.Input;
-                var uiService = GameApp.UI;
-                return (inputService != null && inputService.PreventInteractionUI)
-                    || (uiService != null && uiService.CurrentModal != null);
+                return InputService.PreventInteractionUI
+                    || UIService.CurrentModal != null;
             }
         }
 
@@ -29,11 +27,8 @@ namespace Moirai.Atropos.UI
         /// <remarks>一般用于[UI组件]交互触发前的判断</remarks>
         public static bool IsUIObjectInteractable(GameObject uiObject, bool ignoreModal = false)
         {
-            var inputService = GameApp.Input;
-            var uiService = GameApp.UI;
-
-            if (inputService == null || inputService.PreventInteractionUI) return false;
-            if (uiService == null || (!ignoreModal && uiService.IsBlockedByModal(uiObject))) return false;
+            if (InputService.PreventInteractionUI) return false;
+            if (!ignoreModal && UIService.IsBlockedByModal(uiObject)) return false;
 
             return true;
         }

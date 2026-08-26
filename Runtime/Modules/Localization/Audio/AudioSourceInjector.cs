@@ -1,5 +1,6 @@
 using Cysharp.Threading.Tasks;
 using UnityEngine;
+using Moirai.Atropos.Resource;
 
 namespace Moirai.Atropos.Localization
 {
@@ -30,8 +31,8 @@ namespace Moirai.Atropos.Localization
 
 		private async UniTaskVoid ApplyFromResource()
 		{
-			string textIDValue = GameApp.Localization.GetTextFromId(_localizedTextID);
-			var result = await GameApp.Resource.LoadAssetAsync<AudioClip>(textIDValue);
+			string textIDValue = LocalizationService.GetTextFromId(_localizedTextID);
+			var result = await ResourceService.LoadAssetAsync<AudioClip>(textIDValue);
 
 			Play(result);
 		}

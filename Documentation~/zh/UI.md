@@ -2,7 +2,16 @@
 
 > 基于 UGUI 的栈式窗口管理框架，提供窗口生命周期、层级深度排序、模态遮挡、Widget 子控件与多分辨率适配能力。
 
-UI 服务（`Moirai.Atropos.UI`）将界面抽象为纯 C# 类的 `UIWindow` / `UIWidget`，由 `UIService` 统一管理窗口栈、层级深度与可见性。窗口面板通过资源服务（YooAsset）或 `Resources` 加载实例化，窗口类本身不挂 MonoBehaviour。通过 `GameApp.UI` 静态访问器即可完成打开、关闭、隐藏、查询等全部操作。
+UI 服务（`Moirai.Atropos.UI`）将界面抽象为纯 C# 类的 `UIWindow` / `UIWidget`，由 `UIHandler` 统一管理窗口栈、层级深度与可见性，`UIService` 作为静态门面对外暴露全部 API。窗口面板通过资源服务（YooAsset）或 `Resources` 加载实例化，窗口类本身不挂 MonoBehaviour。通过 `UIService.Xxx()` 静态方法即可完成打开、关闭、隐藏、查询等全部操作。
+
+## 架构（HandlerHost 模式）
+
+UI 服务采用与框架其他服务一致的 HandlerHost 零反射架构：
+
+- **`UIService`**：静态门面（`[HandlerHost(typeof(UIHandler))]` + `[ServiceDependency(typeof(ResourceService), typeof(TimerService))]`），全部公共成员为静态方法/属性，内部转发到 `s_Handler`（源生成器生成线程安全懒加载属性）
+- **`UIHandler`**：可序列化后端类（继承 `FrameworkHandler`），承载窗口栈管理、层级排序、资源加载等核心逻辑；替换自定义后端无需改动调用方
+- **`UISettings`**：框架设置（菜单「UI设置」），通过 `[ProviderDropdown]` + `[SerializeReference]` 选择 UI 后端实现
+- 服务注册由依赖链自动拉起（`ProcedureService` → … → `UIService`），也可手动 `GameServices.RegisterService(EServiceScopeKind.App, new UIService())`
 
 ## 核心特性
 
@@ -20,8 +29,9 @@ UI 服务（`Moirai.Atropos.UI`）将界面抽象为纯 C# 类的 `UIWindow` / `
 
 | 类/接口 | 说明 |
 |---------|------|
-| `Moirai.Atropos.UI.IUIService` | UI 服务接口，`GameApp.UI` 返回此类型 |
-| `Moirai.Atropos.UI.UIService` | UI 服务实现，窗口栈管理、深度排序、可见性控制；静态属性 `UIRoot`、`Resource` |
+| `Moirai.Atropos.UI.UIService` | UI 服务静态门面（`[HandlerHost]`），打开/关闭/隐藏/查询等全部静态 API；静态属性 `IsValid`、`UIRoot`、`UICamera`、`CurrentModal`、`Resource` |
+| `Moirai.Atropos.UI.UIHandler` | UI 后端处理器（继承 `FrameworkHandler`），窗口栈管理、深度排序、可见性控制核心逻辑 |
+| `Moirai.Atropos.UI.UISettings` | 框架设置，`[ProviderDropdown]` 选择 UI 后端实现 |
 | `Moirai.Atropos.UI.UIBase` | UI 基类，定义生命周期虚方法与 Widget 创建 API |
 | `Moirai.Atropos.UI.UIWindow` | 窗口抽象基类，继承 `UIBase`，含 Canvas 深度、可见性、交互性、开关动画 |
 | `Moirai.Atropos.UI.UIWidget` | 窗口内嵌控件基类，继承 `UIBase` |
@@ -63,21 +73,21 @@ public class MainWindow : UIWindow
 
 ```csharp
 // 同步打开（WebGL 平台自动转为异步）
-GameApp.UI.ShowUI<MainWindow>();
+UIService.ShowUI<MainWindow>();
 
 // 异步打开，可携带自定义参数（窗口内以 UserData / Params 读取）
-GameApp.UI.ShowUIAsync<MainWindow>(userData: 1001);
+UIService.ShowUIAsync<MainWindow>(userData: 1001);
 
 // 异步打开并等待加载完成（超时 60 秒）
-UIWindow window = await GameApp.UI.ShowUIAsyncAwait<MainWindow>();
+UIWindow window = await UIService.ShowUIAsyncAwait<MainWindow>();
 
 // 关闭 / 隐藏（HideTimeToClose 秒后自动关闭）
-GameApp.UI.CloseUI<MainWindow>();
-GameApp.UI.HideUI<MainWindow>();
+UIService.CloseUI<MainWindow>();
+UIService.HideUI<MainWindow>();
 
 // 查询
-bool exist = GameApp.UI.HasWindow<MainWindow>();
-UIWindow top = GameApp.UI.GetTopWindow();
+bool exist = UIService.HasWindow<MainWindow>();
+UIWindow top = UIService.GetTopWindow();
 ```
 
 ## 进阶用法
@@ -88,10 +98,10 @@ UIWindow top = GameApp.UI.GetTopWindow();
 
 ```csharp
 // 关闭除 System 层外的所有窗口
-GameApp.UI.CloseAllWithOut(UILayer.System);
+UIService.CloseAllWithOut(UILayer.System);
 
 // 判断某 UI 对象是否被模态窗口遮挡
-bool blocked = GameApp.UI.IsBlockedByModal(gameObject);
+bool blocked = UIService.IsBlockedByModal(gameObject);
 ```
 
 ### Widget 子控件
@@ -115,7 +125,7 @@ AdjustIconNum<HeroItemWidget>(_items, count, parentTrans, prefab);
 
 ### 开关动画与交互锁
 
-窗口默认内置 0.5 秒打开 / 0.25 秒关闭的等待，可重写替换为动画播放；动画期间窗口自动锁定交互，模态窗口还会联动输入服务（`GameApp.Input.PreventInteractionUI`）：
+窗口默认内置 0.5 秒打开 / 0.25 秒关闭的等待，可重写替换为动画播放；动画期间窗口自动锁定交互，模态窗口还会联动输入服务（`InputService.PreventInteractionUI`）：
 
 ```csharp
 protected override async UniTask OpenAnimation()

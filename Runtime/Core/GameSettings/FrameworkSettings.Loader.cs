@@ -7,7 +7,7 @@ using UnityEngine;
 
 namespace Moirai.Atropos
 {
-    public partial class FrameworkSettings
+    public partial class FrameworkSettings<T>
     {
         /// <summary>
         /// 加载或创建设置文件，新创建时通过 onNewAsset 回调初始化

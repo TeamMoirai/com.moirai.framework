@@ -1,269 +1,156 @@
 using System;
-using System.Collections.Generic;
 
 namespace Moirai.Atropos.Procedure
 {
     /// <summary>
-    /// 流程管理服务 — 自包含状态机，不依赖外部 FSM 服务。
+    /// 流程服务门面（Facade）。
+    /// <para>统一的静态流程访问入口，通过替换 <see cref="Handler"/> 即可切换流程状态机后端。</para>
+    /// <para>未显式设置处理器时，使用 <see cref="CreateDefaultHandler"/> 创建默认处理器实例。</para>
+    /// <para>Handler 属性由 <c>HandlerHostGenerator</c> 源生成器自动生成（线程安全懒加载）。</para>
     /// </summary>
-    public sealed class ProcedureService : ServiceBase, IProcedureService, IServiceTickable
+    [HandlerHost(typeof(ProcedureHandler))]
+    public partial class ProcedureService : ServiceBase, IServiceTickable
     {
-        private Dictionary<Type, ProcedureBase> _states;
-        private ProcedureBase _currentState;
-        private float _currentStateTime;
-        private bool _isDestroyed;
-
         public override int Priority => -2;
 
+        #region 处理器 [HANDLER]
+
         /// <summary>
-        /// 无参构造 — 状态管理完全自包含。
+        /// 创建默认流程处理器。
         /// </summary>
-        public ProcedureService()
+        /// <returns>默认流程处理器实例。</returns>
+        private static ProcedureHandler CreateDefaultHandler()
         {
-            _states = new Dictionary<Type, ProcedureBase>();
-            _currentState = null;
-            _currentStateTime = 0f;
-            _isDestroyed = true;
+            return new ProcedureHandler();
         }
 
-        public ProcedureBase CurrentProcedure
-        {
-            get
-            {
-                if (_isDestroyed)
-                {
-                    throw new GameException("You must initialize procedure first.");
-                }
+        #endregion
 
-                return _currentState;
-            }
-        }
+        #region 属性 [PROPERTIES]
 
-        public float CurrentProcedureTime
-        {
-            get
-            {
-                if (_isDestroyed)
-                {
-                    throw new GameException("You must initialize procedure first.");
-                }
+        /// <summary>
+        /// 服务是否可用
+        /// </summary>
+        public static bool IsValid => s_Handler != null;
 
-                return _currentStateTime;
-            }
-        }
+        #endregion
 
+        #region 生命周期 [LIFECYCLE]
+
+        /// <summary>
+        /// 初始化流程服务。由容器在构建期调用。
+        /// <para>确保 <c>ProcedureService.Handler</c> 已赋值（触发 <see cref="CreateDefaultHandler"/> 懒加载）。</para>
+        /// </summary>
         public override void OnInit()
         {
-            _states ??= new Dictionary<Type, ProcedureBase>();
-            _currentState = null;
-            _currentStateTime = 0f;
-            _isDestroyed = true;
+            _ = Handler;
         }
 
+        /// <summary>
+        /// 关闭流程服务。由容器在关闭期调用。
+        /// </summary>
         public override void Shutdown()
         {
-            if (!_isDestroyed)
-            {
-                if (_currentState != null)
-                {
-                    _currentState.OnLeave(true);
-                }
-
-                foreach (KeyValuePair<Type, ProcedureBase> state in _states)
-                {
-                    state.Value.OnDestroy();
-                }
-
-                _isDestroyed = true;
-            }
-
-            _currentState = null;
-            _currentStateTime = 0f;
+            s_Handler?.Internal_Shutdown();
+            s_Handler = null;
         }
 
-        public void Tick(float elapseSeconds, float realElapseSeconds)
-        {
-            if (_isDestroyed || _currentState == null)
-            {
-                return;
-            }
+        /// <summary>
+        /// 容器 Tick 驱动——转发到处理器轮询当前流程。
+        /// </summary>
+        public void Tick(float elapseSeconds, float realElapseSeconds) =>
+            s_Handler?.Tick(elapseSeconds, realElapseSeconds);
 
-            _currentStateTime += elapseSeconds;
-            _currentState.OnUpdate(elapseSeconds, realElapseSeconds);
-        }
+        #endregion
 
-        public void Initialize(params ProcedureBase[] procedures)
-        {
-            if (procedures == null || procedures.Length < 1)
-            {
-                throw new GameException("Procedures is invalid.");
-            }
+        #region 流程管理 [PROCEDURE MANAGEMENT]
 
-            _states.Clear();
-            _currentState = null;
-            _currentStateTime = 0f;
-            _isDestroyed = false;
+        /// <summary>
+        /// 获取当前流程。
+        /// </summary>
+        public static ProcedureBase CurrentProcedure => s_Handler?.CurrentProcedure;
 
-            foreach (ProcedureBase procedure in procedures)
-            {
-                if (procedure == null)
-                {
-                    throw new GameException("Procedure is invalid.");
-                }
+        /// <summary>
+        /// 获取当前流程持续时间。
+        /// </summary>
+        public static float CurrentProcedureTime => s_Handler?.CurrentProcedureTime ?? 0f;
 
-                Type procedureType = procedure.GetType();
-                if (_states.ContainsKey(procedureType))
-                {
-                    throw new GameException(StringUtility.Format("Procedure '{0}' is already exist.", procedureType.FullName));
-                }
+        /// <summary>
+        /// 初始化流程管理器。
+        /// </summary>
+        /// <param name="procedures">流程管理器包含的流程。</param>
+        public static void Initialize(params ProcedureBase[] procedures) =>
+            s_Handler?.Initialize(procedures);
 
-                procedure.SetOwner(this);
-                _states.Add(procedureType, procedure);
-                procedure.OnInit();
-            }
-        }
+        /// <summary>
+        /// 开始流程。
+        /// </summary>
+        /// <typeparam name="T">要开始的流程类型。</typeparam>
+        public static void StartProcedure<T>() where T : ProcedureBase =>
+            s_Handler?.StartProcedure(typeof(T));
 
-        public void StartProcedure<T>() where T : ProcedureBase
-        {
-            StartProcedure(typeof(T));
-        }
+        /// <summary>
+        /// 开始流程。
+        /// </summary>
+        /// <param name="procedureType">要开始的流程类型。</param>
+        public static void StartProcedure(Type procedureType) =>
+            s_Handler?.StartProcedure(procedureType);
 
-        public void StartProcedure(Type procedureType)
-        {
-            if (_isDestroyed)
-            {
-                throw new GameException("You must initialize procedure first.");
-            }
+        /// <summary>
+        /// 是否存在流程。
+        /// </summary>
+        /// <typeparam name="T">要检查的流程类型。</typeparam>
+        /// <returns>是否存在流程。</returns>
+        public static bool HasProcedure<T>() where T : ProcedureBase =>
+            s_Handler != null && s_Handler.HasProcedure(typeof(T));
 
-            if (_currentState != null)
-            {
-                throw new GameException("Procedure is running, can not start again.");
-            }
+        /// <summary>
+        /// 是否存在流程。
+        /// </summary>
+        /// <param name="procedureType">要检查的流程类型。</param>
+        /// <returns>是否存在流程。</returns>
+        public static bool HasProcedure(Type procedureType) =>
+            s_Handler != null && s_Handler.HasProcedure(procedureType);
 
-            if (procedureType == null)
-            {
-                throw new GameException("Procedure type is invalid.");
-            }
+        /// <summary>
+        /// 切换流程。
+        /// </summary>
+        /// <typeparam name="T">要切换的流程类型。</typeparam>
+        public static void ChangeState<T>() where T : ProcedureBase =>
+            s_Handler?.ChangeState(typeof(T));
 
-            if (!typeof(ProcedureBase).IsAssignableFrom(procedureType))
-            {
-                throw new GameException(StringUtility.Format("Procedure type '{0}' is invalid.", procedureType.FullName));
-            }
+        /// <summary>
+        /// 切换流程。
+        /// </summary>
+        /// <param name="procedureType">要切换的状态类型。</param>
+        public static void ChangeState(Type procedureType) =>
+            s_Handler?.ChangeState(procedureType);
 
-            if (!_states.TryGetValue(procedureType, out ProcedureBase procedure))
-            {
-                throw new GameException(StringUtility.Format("Can not start procedure '{0}' which is not exist.", procedureType.FullName));
-            }
+        /// <summary>
+        /// 获取流程。
+        /// </summary>
+        /// <typeparam name="T">要获取的流程类型。</typeparam>
+        /// <returns>要获取的流程。</returns>
+        public static ProcedureBase GetProcedure<T>() where T : ProcedureBase =>
+            s_Handler?.GetProcedure(typeof(T));
 
-            _currentStateTime = 0f;
-            _currentState = procedure;
-            _currentState.OnEnter();
-        }
+        /// <summary>
+        /// 获取流程。
+        /// </summary>
+        /// <param name="procedureType">要获取的流程类型。</param>
+        /// <returns>要获取的流程。</returns>
+        public static ProcedureBase GetProcedure(Type procedureType) =>
+            s_Handler?.GetProcedure(procedureType);
 
-        public bool HasProcedure<T>() where T : ProcedureBase
-        {
-            return HasProcedure(typeof(T));
-        }
+        /// <summary>
+        /// 重启流程。
+        /// <remarks>默认使用第一个流程作为启动流程。</remarks>
+        /// </summary>
+        /// <param name="procedures">新的流程。</param>
+        /// <returns>是否重启成功。</returns>
+        public static bool RestartProcedure(params ProcedureBase[] procedures) =>
+            s_Handler?.RestartProcedure(procedures) ?? false;
 
-        public bool HasProcedure(Type procedureType)
-        {
-            if (_isDestroyed)
-            {
-                throw new GameException("You must initialize procedure first.");
-            }
-
-            if (procedureType == null)
-            {
-                throw new GameException("Procedure type is invalid.");
-            }
-
-            if (!typeof(ProcedureBase).IsAssignableFrom(procedureType))
-            {
-                throw new GameException(StringUtility.Format("Procedure type '{0}' is invalid.", procedureType.FullName));
-            }
-
-            return _states.ContainsKey(procedureType);
-        }
-
-        public void ChangeState<T>() where T : ProcedureBase
-        {
-            ChangeState(typeof(T));
-        }
-
-        public void ChangeState(Type procedureType)
-        {
-            if (_isDestroyed)
-            {
-                throw new GameException("You must initialize procedure first.");
-            }
-
-            if (_currentState == null)
-            {
-                throw new GameException("Current procedure is invalid.");
-            }
-
-            if (procedureType == null)
-            {
-                throw new GameException("Procedure type is invalid.");
-            }
-
-            if (!typeof(ProcedureBase).IsAssignableFrom(procedureType))
-            {
-                throw new GameException(StringUtility.Format("Procedure type '{0}' is invalid.", procedureType.FullName));
-            }
-
-            if (!_states.TryGetValue(procedureType, out ProcedureBase procedure))
-            {
-                throw new GameException(StringUtility.Format("Can not change procedure to '{0}' which is not exist.", procedureType.FullName));
-            }
-
-            _currentState.OnLeave(false);
-            _currentStateTime = 0f;
-            _currentState = procedure;
-            _currentState.OnEnter();
-        }
-
-        public ProcedureBase GetProcedure<T>() where T : ProcedureBase
-        {
-            return GetProcedure(typeof(T));
-        }
-
-        public ProcedureBase GetProcedure(Type procedureType)
-        {
-            if (_isDestroyed)
-            {
-                throw new GameException("You must initialize procedure first.");
-            }
-
-            if (procedureType == null)
-            {
-                throw new GameException("Procedure type is invalid.");
-            }
-
-            if (!typeof(ProcedureBase).IsAssignableFrom(procedureType))
-            {
-                throw new GameException(StringUtility.Format("Procedure type '{0}' is invalid.", procedureType.FullName));
-            }
-
-            if (_states.TryGetValue(procedureType, out ProcedureBase procedure))
-            {
-                return procedure;
-            }
-
-            return null;
-        }
-
-        public bool RestartProcedure(params ProcedureBase[] procedures)
-        {
-            if (procedures == null || procedures.Length <= 0)
-            {
-                throw new GameException("RestartProcedure Failed procedures is invalid.");
-            }
-
-            Shutdown();
-            Initialize(procedures);
-            StartProcedure(procedures[0].GetType());
-            return true;
-        }
+        #endregion
     }
 }

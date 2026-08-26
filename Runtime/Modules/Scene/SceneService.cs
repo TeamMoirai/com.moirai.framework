@@ -1,70 +1,66 @@
 using System;
-using System.Collections.Generic;
 using Cysharp.Threading.Tasks;
 using Moirai.Atropos.Resource;
 using UnityEngine.SceneManagement;
-using YooAsset;
-using SceneHandle = YooAsset.SceneHandle;
 
 namespace Moirai.Atropos.Scene
 {
     /// <summary>
-    /// 场景管理服务。支持主场景切换、附加场景加载/卸载、进度回调和挂起加载。
+    /// 场景服务门面（Facade）。
+    /// <para>统一的静态场景访问入口，通过替换 <see cref="Handler"/> 即可在不同场景加载后端之间零成本切换。</para>
+    /// <para>未显式设置处理器时，使用 <see cref="CreateDefaultHandler"/> 从 <see cref="SceneSettings"/> 创建处理器实例。</para>
+    /// <para>Handler 属性由 <c>HandlerHostGenerator</c> 源生成器自动生成（线程安全懒加载）。</para>
     /// </summary>
-    public sealed class SceneService : ServiceBase, ISceneService
+    [HandlerHost(typeof(SceneHandler))]
+    [ServiceDependency(typeof(ResourceService))]
+    public partial class SceneService : ServiceBase
     {
-        private readonly IResourceService _resourceService;
+#region 处理器 [HANDLER]
 
         /// <summary>
-        /// 容器构造注入——依赖在编译期显式声明，由容器拓扑排序保证先于本服务初始化。
+        /// 从 <see cref="SceneSettings"/> 创建默认场景处理器。
         /// </summary>
-        public SceneService(IResourceService resourceService)
+        /// <returns>默认场景处理器实例。</returns>
+        private static SceneHandler CreateDefaultHandler()
         {
-            _resourceService = resourceService ?? throw new GameException("Resource service is invalid.");
+            return SceneSettings.SceneHandler;
         }
 
-        private string _currentMainSceneName = string.Empty;
+        #endregion
 
-        private SceneHandle _currentMainScene;
-
-        private readonly Dictionary<string, SceneHandle> _subScenes = new Dictionary<string, SceneHandle>();
-
-        private readonly HashSet<string> _handlingScene = new HashSet<string>();
+        #region 属性 [PROPERTIES]
 
         /// <summary>
-        /// 当前主场景名称。
+        /// 服务是否可用
         /// </summary>
-        public string CurrentMainSceneName => _currentMainSceneName;
+        public static bool IsValid => s_Handler != null;
+
+        #endregion
+
+        #region 生命周期 [LIFECYCLE]
 
         /// <summary>
-        /// 服务初始化。
+        /// 初始化场景服务。由容器在构建期调用。
+        /// <para>确保 <c>SceneService.Handler</c> 已赋值（触发 <see cref="CreateDefaultHandler"/> 懒加载），
+        /// 并向处理器注入资源服务引用。</para>
         /// </summary>
         public override void OnInit()
         {
-            _currentMainScene = null;
-            _currentMainSceneName = SceneManager.GetSceneByBuildIndex(0).name;
+            _ = Handler;
+
+            s_Handler.ResourceService = ResourceService.Handler;
         }
 
         /// <summary>
-        /// 服务释放，卸载所有子场景。
+        /// 关闭场景服务。由容器在关闭期调用。
         /// </summary>
         public override void Shutdown()
         {
-            var iter = _subScenes.Values.GetEnumerator();
-            while (iter.MoveNext())
-            {
-                SceneHandle subScene = iter.Current;
-                if (subScene != null)
-                {
-                    subScene.UnloadSceneAsync();
-                }
-            }
-
-            iter.Dispose();
-            _subScenes.Clear();
-            _handlingScene.Clear();
-            _currentMainSceneName = string.Empty;
+            s_Handler?.Internal_Shutdown();
+            s_Handler = null;
         }
+
+        #endregion
 
         #region 场景加载 [SCENE LOADING]
 
@@ -78,57 +74,11 @@ namespace Moirai.Atropos.Scene
         /// <param name="gcCollect">主场景加载后是否执行 GC 回收。</param>
         /// <param name="progressCallBack">进度回调。</param>
         /// <returns>加载完成的场景。</returns>
-        public async UniTask<UnityEngine.SceneManagement.Scene> LoadSceneAsync(string location, LoadSceneMode sceneMode = LoadSceneMode.Single, bool suspendLoad = false, uint priority = 100,
-            bool gcCollect = true, Action<float> progressCallBack = null)
-        {
-            if (!_handlingScene.Add(location))
-            {
-                LogUtility.Error("Could not load scene while loading. Scene: {0}", location);
-                return default;
-            }
-
-            if (sceneMode == LoadSceneMode.Additive)
-            {
-                if (_subScenes.TryGetValue(location, out SceneHandle subScene))
-                {
-                    throw new GameException($"Could not load subScene while already loaded. Scene: {location}");
-                }
-
-                subScene = _resourceService.DefaultPackage.LoadSceneAsync(location, sceneMode, LocalPhysicsMode.None, suspendLoad, priority);
-
-                // 前置注册——subScene.IsDone 在 UnSuspend 之后才会是 true
-                _subScenes.Add(location, subScene);
-
-                await AwaitSceneHandle(subScene, progressCallBack);
-
-                _handlingScene.Remove(location);
-
-                return subScene.SceneObject;
-            }
-            else
-            {
-                if (_currentMainSceneName == location && _currentMainScene is { IsDone: false })
-                {
-                    throw new GameException($"Could not load MainScene while loading. CurrentMainScene: {_currentMainSceneName}.");
-                }
-
-                _currentMainSceneName = location;
-
-                _currentMainScene = _resourceService.DefaultPackage.LoadSceneAsync(location, sceneMode, LocalPhysicsMode.None, suspendLoad, priority);
-
-                await AwaitSceneHandle(_currentMainScene, progressCallBack);
-
-#if UNITY_EDITOR && EditorFixedMaterialShader
-                MaterialUtility.WaitGetRootGameObjects(_currentMainScene).Forget();
-#endif
-
-                _resourceService.ForceUnloadUnusedAssets(gcCollect);
-
-                _handlingScene.Remove(location);
-
-                return _currentMainScene.SceneObject;
-            }
-        }
+        public static UniTask<UnityEngine.SceneManagement.Scene> LoadSceneAsync(string location, LoadSceneMode sceneMode = LoadSceneMode.Single, bool suspendLoad = false, uint priority = 100,
+            bool gcCollect = true, Action<float> progressCallBack = null) =>
+            s_Handler != null
+                ? s_Handler.LoadSceneAsync(location, sceneMode, suspendLoad, priority, gcCollect, progressCallBack)
+                : UniTask.FromResult(default(UnityEngine.SceneManagement.Scene));
 
         /// <summary>
         /// 同步加载场景（回调式）。
@@ -141,193 +91,39 @@ namespace Moirai.Atropos.Scene
         /// <param name="gcCollect">主场景加载后是否执行 GC 回收。</param>
         /// <param name="callBack">加载完成回调。</param>
         /// <param name="progressCallBack">进度回调。</param>
-        public void LoadScene(string location, string packageName = "", LoadSceneMode sceneMode = LoadSceneMode.Single,
-            bool suspendLoad = false, uint priority = 100, bool gcCollect = true, Action<UnityEngine.SceneManagement.Scene> callBack = null, Action<float> progressCallBack = null)
-        {
-            if (!_handlingScene.Add(location))
-            {
-                LogUtility.Error("Could not load scene while loading. Scene: {0}", location);
-                return;
-            }
-
-            if (sceneMode == LoadSceneMode.Additive)
-            {
-                if (_subScenes.TryGetValue(location, out SceneHandle subScene))
-                {
-                    throw new GameException($"Could not load subScene while already loaded. Scene: {location}");
-                }
-
-                subScene = CreateSceneHandle(location, packageName, sceneMode, suspendLoad, priority);
-
-                subScene.Completed += handle =>
-                {
-                    _handlingScene.Remove(location);
-                    callBack?.Invoke(handle.SceneObject);
-                };
-
-                if (progressCallBack != null)
-                {
-                    InvokeProgress(subScene, progressCallBack).Forget();
-                }
-
-                _subScenes.Add(location, subScene);
-            }
-            else
-            {
-                if (_currentMainSceneName == location && _currentMainScene is { IsDone: false })
-                {
-                    throw new GameException($"Could not load MainScene while loading. CurrentMainScene: {_currentMainSceneName}.");
-                }
-
-                _currentMainSceneName = location;
-
-                _currentMainScene = CreateSceneHandle(location, packageName, sceneMode, suspendLoad, priority);
-
-                _currentMainScene.Completed += handle =>
-                {
-                    _handlingScene.Remove(location);
-                    callBack?.Invoke(handle.SceneObject);
-                };
-
-                if (progressCallBack != null)
-                {
-                    InvokeProgress(_currentMainScene, progressCallBack).Forget();
-                }
-
-#if UNITY_EDITOR && EditorFixedMaterialShader
-                MaterialUtility.WaitGetRootGameObjects(_currentMainScene).Forget();
-#endif
-
-                _resourceService.ForceUnloadUnusedAssets(gcCollect);
-            }
-        }
-
-        /// <summary>
-        /// 创建场景句柄。根据 packageName 选择默认包或指定包。
-        /// </summary>
-        private SceneHandle CreateSceneHandle(string location, string packageName, LoadSceneMode sceneMode, bool suspendLoad, uint priority)
-        {
-            if (string.IsNullOrEmpty(packageName))
-            {
-                return _resourceService.DefaultPackage.LoadSceneAsync(location, sceneMode, LocalPhysicsMode.None, suspendLoad, priority);
-            }
-
-            var package = YooAssets.GetPackage(packageName);
-            return package.LoadSceneAsync(location, sceneMode, LocalPhysicsMode.None, suspendLoad, priority);
-        }
-
-        /// <summary>
-        /// 等待场景句柄完成，可选进度回调。
-        /// </summary>
-        private static async UniTask AwaitSceneHandle(SceneHandle handle, Action<float> progressCallBack)
-        {
-            if (progressCallBack != null)
-            {
-                while (!handle.IsDone && handle.IsValid)
-                {
-                    progressCallBack.Invoke(handle.Progress);
-                    await UniTask.Yield();
-                }
-            }
-            else
-            {
-                await handle.ToUniTask();
-            }
-        }
-
-        /// <summary>
-        /// 轮询场景句柄进度（回调式加载用）。
-        /// </summary>
-        private static async UniTaskVoid InvokeProgress(SceneHandle sceneHandle, Action<float> progress)
-        {
-            if (sceneHandle == null)
-            {
-                return;
-            }
-
-            while (!sceneHandle.IsDone && sceneHandle.IsValid)
-            {
-                await UniTask.Yield();
-
-                progress?.Invoke(sceneHandle.Progress);
-            }
-        }
+        public static void LoadScene(string location, string packageName = "", LoadSceneMode sceneMode = LoadSceneMode.Single,
+            bool suspendLoad = false, uint priority = 100, bool gcCollect = true, Action<UnityEngine.SceneManagement.Scene> callBack = null, Action<float> progressCallBack = null) =>
+            s_Handler?.LoadScene(location, packageName, sceneMode, suspendLoad, priority, gcCollect, callBack, progressCallBack);
 
         #endregion
 
         #region 场景控制 [SCENE CONTROL]
 
         /// <summary>
+        /// 当前主场景名称。
+        /// </summary>
+        public static string CurrentMainSceneName => s_Handler?.CurrentMainSceneName ?? string.Empty;
+
+        /// <summary>
         /// 激活场景。
         /// </summary>
         /// <param name="location">场景资源定位地址。</param>
         /// <returns>是否激活成功。</returns>
-        public bool ActivateScene(string location)
-        {
-            if (_currentMainSceneName.Equals(location))
-            {
-                return _currentMainScene != null && _currentMainScene.ActivateScene();
-            }
-
-            _subScenes.TryGetValue(location, out SceneHandle subScene);
-            if (subScene != null)
-            {
-                return subScene.ActivateScene();
-            }
-
-            LogUtility.Warning("ActivateScene invalid location:{0}", location);
-            return false;
-        }
+        public static bool ActivateScene(string location) => s_Handler?.ActivateScene(location) ?? false;
 
         /// <summary>
         /// 取消挂起。
         /// </summary>
         /// <param name="location">场景资源定位地址。</param>
         /// <returns>是否取消成功。</returns>
-        public bool UnSuspend(string location)
-        {
-            if (_currentMainSceneName.Equals(location))
-            {
-                return _currentMainScene != null && _currentMainScene.ActivateScene();
-            }
-
-            _subScenes.TryGetValue(location, out SceneHandle subScene);
-            if (subScene != null)
-            {
-                return subScene.ActivateScene();
-            }
-
-            LogUtility.Warning("UnSuspend invalid location:{0}", location);
-            return false;
-        }
+        public static bool UnSuspend(string location) => s_Handler?.UnSuspend(location) ?? false;
 
         /// <summary>
         /// 判断指定场景是否为当前主场景。
         /// </summary>
         /// <param name="location">场景资源定位地址。</param>
         /// <returns>是否为主场景。</returns>
-        public bool IsMainScene(string location)
-        {
-            UnityEngine.SceneManagement.Scene currentScene = SceneManager.GetActiveScene();
-
-            if (_currentMainSceneName.Equals(location))
-            {
-                if (_currentMainScene == null)
-                {
-                    return false;
-                }
-                return currentScene.name == _currentMainScene.SceneName;
-            }
-
-            // 不是请求的主场景，但当前激活场景可能就是主场景
-            if (_currentMainScene != null && currentScene.name == _currentMainScene.SceneName)
-            {
-                return true;
-            }
-
-            LogUtility.Warning("IsMainScene invalid location:{0}", location);
-            return false;
-        }
+        public static bool IsMainScene(string location) => s_Handler?.IsMainScene(location) ?? false;
 
         #endregion
 
@@ -339,48 +135,10 @@ namespace Moirai.Atropos.Scene
         /// <param name="location">场景资源定位地址。</param>
         /// <param name="progressCallBack">进度回调。</param>
         /// <returns>是否卸载成功。</returns>
-        public async UniTask<bool> UnloadAsync(string location, Action<float> progressCallBack = null)
-        {
-            _subScenes.TryGetValue(location, out SceneHandle subScene);
-            if (subScene != null)
-            {
-                if (subScene.SceneObject == default)
-                {
-                    LogUtility.Error("Could not unload Scene while not loaded. Scene: {0}", location);
-                    return false;
-                }
-
-                if (!_handlingScene.Add(location))
-                {
-                    LogUtility.Warning("Could not unload Scene while loading. Scene: {0}", location);
-                    return false;
-                }
-
-                var unloadOperation = subScene.UnloadSceneAsync();
-
-                if (progressCallBack != null)
-                {
-                    while (!unloadOperation.IsDone && unloadOperation.Status != EOperationStatus.Failed)
-                    {
-                        progressCallBack.Invoke(unloadOperation.Progress);
-                        await UniTask.Yield();
-                    }
-                }
-                else
-                {
-                    await unloadOperation.ToUniTask();
-                }
-
-                _subScenes.Remove(location);
-
-                _handlingScene.Remove(location);
-
-                return true;
-            }
-
-            LogUtility.Warning("UnloadAsync invalid location:{0}", location);
-            return false;
-        }
+        public static UniTask<bool> UnloadAsync(string location, Action<float> progressCallBack = null) =>
+            s_Handler != null
+                ? s_Handler.UnloadAsync(location, progressCallBack)
+                : UniTask.FromResult(false);
 
         /// <summary>
         /// 卸载子场景（回调式）。
@@ -388,41 +146,8 @@ namespace Moirai.Atropos.Scene
         /// <param name="location">场景资源定位地址。</param>
         /// <param name="callBack">卸载完成回调。</param>
         /// <param name="progressCallBack">进度回调。</param>
-        public void Unload(string location, Action callBack = null, Action<float> progressCallBack = null)
-        {
-            _subScenes.TryGetValue(location, out SceneHandle subScene);
-            if (subScene != null)
-            {
-                if (subScene.SceneObject == default)
-                {
-                    LogUtility.Error("Could not unload Scene while not loaded. Scene: {0}", location);
-                    return;
-                }
-
-                if (!_handlingScene.Add(location))
-                {
-                    LogUtility.Warning("Could not unload Scene while loading. Scene: {0}", location);
-                    return;
-                }
-
-                var unloadOperation = subScene.UnloadSceneAsync();
-                unloadOperation.Completed += _ =>
-                {
-                    _subScenes.Remove(location);
-                    _handlingScene.Remove(location);
-                    callBack?.Invoke();
-                };
-
-                if (progressCallBack != null)
-                {
-                    InvokeProgress(subScene, progressCallBack).Forget();
-                }
-
-                return;
-            }
-
-            LogUtility.Warning("Unload invalid location:{0}", location);
-        }
+        public static void Unload(string location, Action callBack = null, Action<float> progressCallBack = null) =>
+            s_Handler?.Unload(location, callBack, progressCallBack);
 
         #endregion
 
@@ -431,14 +156,6 @@ namespace Moirai.Atropos.Scene
         /// </summary>
         /// <param name="location">场景资源定位地址。</param>
         /// <returns>是否已加载。</returns>
-        public bool IsContainScene(string location)
-        {
-            if (_currentMainSceneName.Equals(location))
-            {
-                return true;
-            }
-
-            return _subScenes.TryGetValue(location, out var _);
-        }
+        public static bool IsContainScene(string location) => s_Handler?.IsContainScene(location) ?? false;
     }
 }

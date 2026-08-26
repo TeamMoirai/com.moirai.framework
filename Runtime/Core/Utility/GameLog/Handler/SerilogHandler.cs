@@ -15,7 +15,7 @@ namespace Moirai.Atropos
     [Serializable]
     public sealed class SerilogHandler : LogHandler
     {
-        private ILogger _logger;
+        [NonSerialized] private ILogger _logger;
 
         /// <summary>
         /// 获取或设置 Serilog 日志实例，null 时回退到全局 <see cref="Serilog.Log.Logger"/>。

@@ -51,7 +51,7 @@ namespace Moirai.Atropos.GameObjectPool
 
         #region 字段 [FIELDS]
 
-        private GameObjectPoolService _service;
+        private GameObjectPoolHandler _service;
         private IPrefabLoader _loader;
         private PoolCompiledRule _rule;
         private int _poolIndex;
@@ -136,7 +136,7 @@ namespace Moirai.Atropos.GameObjectPool
         /// 初始化池。
         /// </summary>
         public void Initialize(
-            GameObjectPoolService service,
+            GameObjectPoolHandler service,
             int poolIndex,
             in PoolCompiledRule rule,
             string location,

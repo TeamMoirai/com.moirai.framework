@@ -5,6 +5,7 @@ namespace Moirai.Atropos.Save
     /// <summary>
     /// 将指定位置的指定对象保存到磁盘上，转换为json并加密
     /// </summary>
+    [System.Serializable]
     public class JsonEncryptedSaveHandler : EncryptedSaveHandlerBase
     {
         protected override void SerializeToStream(object objectToSave, MemoryStream stream)

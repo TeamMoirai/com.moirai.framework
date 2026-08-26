@@ -8,7 +8,7 @@ namespace Moirai.Atropos.UI.Editor
 {
     [FrameworkSetting("UI组件生成", "自动生成组件绑定代码设置", -500,
         "Assets/Settings/Framework/Editor/")]
-    public class UIGeneratorSettings : FrameworkSettings<UIGeneratorSettings>
+    public sealed class UIGeneratorSettings : FrameworkSettings<UIGeneratorSettings>
     {
         /// <!-- 通用设置 -->
         private const string GENERAL_GROUP = "General";
@@ -16,24 +16,24 @@ namespace Moirai.Atropos.UI.Editor
         [TabGroup(GENERAL_GROUP)]
         [CustomLabel("组件分隔符")]
         [Tooltip("组件检查分隔符，例如：Button#Close")]
-        [SerializeField] private string m_ComCheckSplitName;
+        [SerializeField] private string m_ComCheckSplitName = "#";
         public static string ComCheckSplitName => Instance.m_ComCheckSplitName;
 
         [TabGroup(GENERAL_GROUP)]
         [CustomLabel("组件结尾符")]
         [Tooltip("组件结尾分隔符，例如：@End")]
-        [SerializeField] private string m_ComCheckEndName;
+        [SerializeField] private string m_ComCheckEndName = "@";
         public static string ComCheckEndName => Instance.m_ComCheckEndName;
 
         [TabGroup(GENERAL_GROUP)]
         [CustomLabel("数组分隔")]
         [Tooltip("数组组件检查分隔符，例如：*Item")]
-        [SerializeField] private string m_ArrayComSplitName;
+        [SerializeField] private string m_ArrayComSplitName = "*";
         public static string ArrayComSplitName => Instance.m_ArrayComSplitName;
 
         [TabGroup(GENERAL_GROUP)]
         [Tooltip("排除的关键字（匹配则不生成）")]
-        [SerializeField] private string[] m_ExcludeKeywords;
+        [SerializeField] private string[] m_ExcludeKeywords = new []{ "ViewHolder" };
         /// <remarks>子字符串匹配。直接跳过整个子树，不递归遍历其子节点</remarks>
         public static string[] ExcludeKeywords => Instance.m_ExcludeKeywords;
 
@@ -41,22 +41,22 @@ namespace Moirai.Atropos.UI.Editor
 
         [TabGroup(GENERAL_GROUP)]
         [ProviderDropdown(typeof(IUIIdentifierFormatter), "Identifier Formatter")]
-        [SerializeField] private string m_UIIdentifierFormatterTypeName;
+        [SerializeField] private string m_UIIdentifierFormatterTypeName = typeof(DefaultUIIdentifierFormatter).FullName;
         public static string UIIdentifierFormatterTypeName => Instance.m_UIIdentifierFormatterTypeName;
 
         [TabGroup(GENERAL_GROUP)]
         [ProviderDropdown(typeof(IUIResourcePathResolver), "ResourcePath Resolver")]
-        [SerializeField] private string m_UIResourcePathResolverTypeName;
+        [SerializeField] private string m_UIResourcePathResolverTypeName = typeof(DefaultUIResourcePathResolver).FullName;
         public static string UIResourcePathResolverTypeName => Instance.m_UIResourcePathResolverTypeName;
 
         [TabGroup(GENERAL_GROUP)]
         [ProviderDropdown(typeof(IUIScriptCodeEmitter), "ScriptCode Emitter")]
-        [SerializeField] private string m_UIScriptCodeEmitterTypeName;
+        [SerializeField] private string m_UIScriptCodeEmitterTypeName = typeof(DefaultUIScriptCodeEmitter).FullName;
         public static string UIScriptCodeEmitterTypeName => Instance.m_UIScriptCodeEmitterTypeName;
 
         [TabGroup(GENERAL_GROUP)]
         [ProviderDropdown(typeof(IUIScriptFileWriter), "ScriptFile Writer")]
-        [SerializeField] private string m_UIScriptFileWriterTypeName;
+        [SerializeField] private string m_UIScriptFileWriterTypeName = typeof(DefaultUIScriptFileWriter).FullName;
         public static string UIScriptFileWriterTypeName => Instance.m_UIScriptFileWriterTypeName;
 
         /// <!-- 脚本生成 -->
@@ -83,18 +83,8 @@ namespace Moirai.Atropos.UI.Editor
         [SerializeField] private List<UIEventBindingConfig> m_UIEventBindingConfigs;
         public static List<UIEventBindingConfig> UIEventBindingConfigs => Instance.m_UIEventBindingConfigs;
 
-        protected internal override void Reset()
+        private void Reset()
         {
-            m_ComCheckSplitName = "#";
-            m_ComCheckEndName = "@";
-            m_ArrayComSplitName = "*";
-            m_ExcludeKeywords = new []{ "ViewHolder" };
-
-            m_UIIdentifierFormatterTypeName = typeof(DefaultUIIdentifierFormatter).FullName;
-            m_UIResourcePathResolverTypeName = typeof(DefaultUIResourcePathResolver).FullName;
-            m_UIScriptCodeEmitterTypeName = typeof(DefaultUIScriptCodeEmitter).FullName;
-            m_UIScriptFileWriterTypeName = typeof(DefaultUIScriptFileWriter).FullName;
-
             m_UIScriptGenerateConfigs = new List<UIScriptGenerateData>
             {
                 new UIScriptGenerateData(

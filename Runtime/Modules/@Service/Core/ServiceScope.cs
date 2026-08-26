@@ -7,10 +7,10 @@ namespace Moirai.Atropos
 {
     /// <summary>
     /// 服务作用域容器。管理单个作用域内服务的注册表、轮询列表和迭代安全机制。
-    /// <para><b>所有权</b>：注册/注销仅由 <see cref="ServiceWorld.BuildAsync"/> 在构建期驱动，
+    /// <para><b>所有权</b>：注册/注销由 <see cref="GameServices.RegisterService"/> 驱动，
     /// 外部代码不直接操作本类；作用域的创建与销毁由 <see cref="ServiceWorld"/> 统一调度。</para>
-    /// <para>OnInit 由 <see cref="ServiceWorld.BuildAsync"/> 按拓扑序统一驱动。</para>
-    /// <para>Dispose 时逆注册序关闭全部服务（= 逆依赖拓扑序：依赖方先关闭，被依赖方后关闭）。</para>
+    /// <para>OnInit 由 <see cref="GameServices.RegisterService"/> 在注册后立即驱动。</para>
+    /// <para>Dispose 时逆注册序关闭全部服务（依赖方先关闭，被依赖方后关闭）。</para>
     /// <para><b>线程契约</b>：所有方法仅限 Unity 主线程调用。</para>
     /// </summary>
     internal sealed class ServiceScope : IDisposable
@@ -60,6 +60,15 @@ namespace Moirai.Atropos
 
         private const int MISSING_INDEX = -1;
 
+        // ── Tick 异常分级策略：开发期 fail-fast（记录后上抛，第一时间暴露缺陷），发布期隔离续跑（单服务故障不拖垮整帧）──
+        // const 门控：JIT 裁剪死分支，Release 零运行时成本。
+        internal const bool RETHROW_TICK_EXCEPTIONS =
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                true;
+#else
+                false;
+#endif
+
         #endregion
 
         #region 属性 [PROPERTIES]
@@ -94,43 +103,6 @@ namespace Moirai.Atropos
 
         #region 注册 [REGISTER]
 
-        /// <summary>
-        /// 将服务注册到作用域。仅存储引用和更新轮询列表，不调用 OnInit。
-        /// <para>fail-fast：契约重复、作用域已销毁/销毁中、迭代中注册均抛出 <see cref="GameException"/>——
-        /// 静默拒绝会产生"已创建未入册"的影子服务（随后被 OnInit 却永不 Shutdown）。</para>
-        /// <para>此方法仅由 <see cref="ServiceWorld.BuildAsync"/> 调用，不参与延迟队列——构建不在 Tick 中发生。</para>
-        /// </summary>
-        internal void Register(Type[] contractTypes, IService service)
-        {
-            // BuildAsync 可能跨越 await（OnInitAsync）挂起，期间作用域被关闭（如场景卸载）后恢复，
-            // 后续注册必须中止而不是写入已销毁的注册表
-            if (IsDisposed)
-                throw new GameException(StringUtility.Format(
-                    "Scope {0} has been disposed; registration of '{1}' is rejected.",
-                    Kind, contractTypes[0].FullName));
-
-            // 检查所有契约是否已被注册：重复契约属于组合根编程错误
-            for (int i = 0; i < contractTypes.Length; i++)
-            {
-                if (_servicesByContract.ContainsKey(contractTypes[i].TypeHandle))
-                    throw new GameException(StringUtility.Format(
-                        "Contract '{0}' has already been registered in {1} scope; reject duplicate registration of '{2}'.",
-                        contractTypes[i].FullName, Kind, service.GetType().FullName));
-            }
-
-            if (_disposePending)
-                throw new GameException(StringUtility.Format(
-                    "Scope {0} is being disposed; registration of '{1}' is rejected.",
-                    Kind, contractTypes[0].FullName));
-
-            if (_isIterating)
-                throw new GameException(StringUtility.Format(
-                    "Cannot register '{0}' while {1} scope is iterating. " +
-                    "Registration is driven by BuildAsync only; do not trigger a build of the same scope from within Tick.",
-                    contractTypes[0].FullName, Kind));
-
-            RegisterInternal(service, contractTypes);
-        }
 
         /// <summary>
         /// 运行时注册单个服务到已构建的作用域。
@@ -175,7 +147,8 @@ namespace Moirai.Atropos
                 // 检查 pending 中是否已有同一契约的注册
                 for (int i = 0; i < _pendingChanges.Count; i++)
                 {
-                    if (_pendingChanges[i].IsRegister && _pendingChanges[i].ContractType == contractType)
+                    if (_pendingChanges[i].Kind != PendingChangeKind.Unregister &&
+                        _pendingChanges[i].ContractType == contractType)
                         throw new GameException(StringUtility.Format(
                             "Contract '{0}' has a pending registration in {1} scope.",
                             contractType.FullName, Kind));
@@ -187,6 +160,61 @@ namespace Moirai.Atropos
 
             var contractTypes = new[] { contractType };
             RegisterInternal(service, contractTypes);
+
+            if (service is IServiceLifecycle lifecycle)
+                lifecycle.Initialize(_world, this);
+
+            return service;
+        }
+
+        /// <summary>
+        /// 运行时注册服务到当前作用域（显式契约类型）。
+        /// <para>与泛型 <see cref="RegisterRuntime{T}"/> 功能一致，但允许调用方指定契约类型，
+        /// 避免传入 <c>IService</c> 基类引用时泛型推断为 <c>IService</c> 而非具体类型。</para>
+        /// </summary>
+        /// <param name="contractType">契约类型（注册键）。</param>
+        /// <param name="service">服务实例。</param>
+        /// <param name="deferMode">迭代中调用的延迟策略。</param>
+        /// <returns>注册的服务实例。</returns>
+        internal IService RegisterRuntime(Type contractType, IService service, EDeferMode deferMode = EDeferMode.Defer)
+        {
+            if (service == null)
+                throw new ArgumentNullException(nameof(service));
+
+            if (IsDisposed)
+                throw new GameException(StringUtility.Format(
+                    "Scope {0} has been disposed; runtime registration is rejected.", Kind));
+
+            if (_disposePending)
+                throw new GameException(StringUtility.Format(
+                    "Scope {0} is being disposed; runtime registration is rejected.", Kind));
+
+            if (_servicesByContract.ContainsKey(contractType.TypeHandle))
+                throw new GameException(StringUtility.Format(
+                    "Contract '{0}' has already been registered in {1} scope.",
+                    contractType.FullName, Kind));
+
+            if (_isIterating)
+            {
+                if (deferMode == EDeferMode.Throw)
+                    throw new GameException(StringUtility.Format(
+                        "Cannot register '{0}' while {1} scope is iterating (EDeferMode.Throw).",
+                        contractType.FullName, Kind));
+
+                for (int i = 0; i < _pendingChanges.Count; i++)
+                {
+                    if (_pendingChanges[i].Kind != PendingChangeKind.Unregister &&
+                        _pendingChanges[i].ContractType == contractType)
+                        throw new GameException(StringUtility.Format(
+                            "Contract '{0}' has a pending registration in {1} scope.",
+                            contractType.FullName, Kind));
+                }
+
+                _pendingChanges.Add(PendingChange.ForRegister(service, contractType));
+                return service;
+            }
+
+            RegisterInternal(service, new[] { contractType });
 
             if (service is IServiceLifecycle lifecycle)
                 lifecycle.Initialize(_world, this);
@@ -246,6 +274,80 @@ namespace Moirai.Atropos
             return UnregisterRuntime(typeof(T), deferMode);
         }
 
+        /// <summary>
+        /// 为已注册的服务实例附加一个新契约绑定（多契约支持）。
+        /// <para>不创建新条目、不驱动生命周期、不加入轮询列表——仅追加契约句柄到既有条目；
+        /// 注销/作用域关闭时随条目一并移除。契约冲突立即失败。</para>
+        /// <para>迭代中（Tick）调用时默认延迟到本轮迭代结束后执行（<see cref="EDeferMode.Defer"/>）。</para>
+        /// </summary>
+        /// <param name="contractType">附加的契约类型。</param>
+        /// <param name="service">已在当前作用域注册的服务实例。</param>
+        /// <param name="deferMode">迭代中调用的延迟策略。</param>
+        internal void BindAdditionalContractRuntime(Type contractType, IService service, EDeferMode deferMode = EDeferMode.Defer)
+        {
+            if (contractType == null) throw new ArgumentNullException(nameof(contractType));
+            if (service == null) throw new ArgumentNullException(nameof(service));
+
+            if (IsDisposed || _disposePending)
+                throw new GameException(StringUtility.Format(
+                    "Scope {0} is disposed or disposing; contract binding is rejected.", Kind));
+
+            // 契约查重：无论是否迭代，重复契约立即失败
+            if (_servicesByContract.ContainsKey(contractType.TypeHandle))
+                throw new GameException(StringUtility.Format(
+                    "Contract '{0}' has already been registered in {1} scope.",
+                    contractType.FullName, Kind));
+
+            // 实例必须已有条目（先经 RegisterRuntime 注册）
+            if (!_entriesByService.ContainsKey(service))
+                throw new GameException(StringUtility.Format(
+                    "Service '{0}' is not registered in {1} scope; register it before binding additional contracts.",
+                    service.GetType().FullName, Kind));
+
+            if (_isIterating)
+            {
+                if (deferMode == EDeferMode.Throw)
+                    throw new GameException(StringUtility.Format(
+                        "Cannot bind '{0}' while {1} scope is iterating (EDeferMode.Throw).",
+                        contractType.FullName, Kind));
+
+                for (int i = 0; i < _pendingChanges.Count; i++)
+                {
+                    if (_pendingChanges[i].Kind != PendingChangeKind.Unregister &&
+                        _pendingChanges[i].ContractType == contractType)
+                        throw new GameException(StringUtility.Format(
+                            "Contract '{0}' has a pending registration in {1} scope.",
+                            contractType.FullName, Kind));
+                }
+
+                _pendingChanges.Add(PendingChange.ForBind(service, contractType));
+                return;
+            }
+
+            GameServices.InvokeRegistering(service, contractType, Kind);
+            AttachContractCore(service, contractType);
+        }
+
+        /// <summary>
+        /// 附加契约句柄到既有条目（立即路径与延迟 flush 共用）。
+        /// </summary>
+        private void AttachContractCore(IService service, Type contractType)
+        {
+            var entry = _entriesByService[service];
+
+            var oldHandles = entry.ContractHandles;
+            var newHandles = new RuntimeTypeHandle[oldHandles.Length + 1];
+            Array.Copy(oldHandles, newHandles, oldHandles.Length);
+            newHandles[oldHandles.Length] = contractType.TypeHandle;
+            entry.ContractHandles = newHandles;
+
+            _servicesByContract[newHandles[oldHandles.Length]] = service;
+            _world.AddContract(this, newHandles[oldHandles.Length], service);
+
+            _entriesByService[service] = entry;
+            GameServices.InvokeRegistered(service, contractType, Kind);
+        }
+
         private void RegisterInternal(IService service, Type[] contractTypes)
         {
             // MonoBehaviour 服务的 Tick 应由 Unity 生命周期驱动，不可混入 ServiceScope 轮询列表
@@ -283,7 +385,7 @@ namespace Moirai.Atropos
                 GizmoIndex = MISSING_INDEX,
             };
 
-            // _registrationOrder 记录插入序（= 依赖拓扑序），用于逆序关闭与诊断收集。
+            // _registrationOrder 记录插入序，用于逆序关闭与诊断收集。
             // 轮询列表追加到末尾 + 置脏标记，下次 Tick 前 lazy-sort 并重建索引——
             // 比逐项 InsertSorted 更高效（k 次注册: O(k) Add + O(n log n) 排序 vs O(k×n) 插入移位）。
             _registrationOrder.Add(service);
@@ -333,7 +435,7 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 非泛型查找（用于构造注入期按 Type 解析）。
+        /// 非泛型查找（用于注册期按 Type 解析）。
         /// </summary>
         internal bool TryGet(Type serviceType, out IService service)
         {
@@ -374,7 +476,11 @@ namespace Moirai.Atropos
                             GameServices.InvokeTick(tickable as IService, elapseSeconds, realElapseSeconds);
                             tickable.Tick(elapseSeconds, realElapseSeconds);
                         }
-                        catch (Exception ex) { LogTickFailure(tickable, nameof(Tick), ex); }
+                        catch (Exception ex)
+                        {
+                            LogTickFailure(tickable, nameof(Tick), ex);
+                            if (RETHROW_TICK_EXCEPTIONS) throw;
+                        }
                     }
                 }
                 else
@@ -385,7 +491,11 @@ namespace Moirai.Atropos
                     {
                         var tickable = _tickables[i];
                         try { tickable.Tick(elapseSeconds, realElapseSeconds); }
-                        catch (Exception ex) { LogTickFailure(tickable, nameof(Tick), ex); }
+                        catch (Exception ex)
+                        {
+                            LogTickFailure(tickable, nameof(Tick), ex);
+                            if (RETHROW_TICK_EXCEPTIONS) throw;
+                        }
                     }
                 }
             }
@@ -407,7 +517,11 @@ namespace Moirai.Atropos
                 for (int i = 0; i < count; i++)
                 {
                     try { _fixedTickables[i].FixedTick(elapseSeconds, realElapseSeconds); }
-                    catch (Exception ex) { LogTickFailure(_fixedTickables[i], nameof(FixedTick), ex); }
+                    catch (Exception ex)
+                    {
+                        LogTickFailure(_fixedTickables[i], nameof(FixedTick), ex);
+                        if (RETHROW_TICK_EXCEPTIONS) throw;
+                    }
                 }
             }
             finally { _isIterating = false; FlushDisposeIfPending(); FlushPendingChanges(); }
@@ -423,7 +537,11 @@ namespace Moirai.Atropos
                 for (int i = 0; i < count; i++)
                 {
                     try { _lateTickables[i].LateTick(elapseSeconds, realElapseSeconds); }
-                    catch (Exception ex) { LogTickFailure(_lateTickables[i], nameof(LateTick), ex); }
+                    catch (Exception ex)
+                    {
+                        LogTickFailure(_lateTickables[i], nameof(LateTick), ex);
+                        if (RETHROW_TICK_EXCEPTIONS) throw;
+                    }
                 }
             }
             finally { _isIterating = false; FlushDisposeIfPending(); FlushPendingChanges(); }
@@ -439,7 +557,11 @@ namespace Moirai.Atropos
                 for (int i = 0; i < count; i++)
                 {
                     try { _gizmoDrawables[i].OnDrawGizmos(); }
-                    catch (Exception ex) { LogTickFailure(_gizmoDrawables[i], "OnDrawGizmos", ex); }
+                    catch (Exception ex)
+                    {
+                        LogTickFailure(_gizmoDrawables[i], "OnDrawGizmos", ex);
+                        if (RETHROW_TICK_EXCEPTIONS) throw;
+                    }
                 }
             }
             finally { _isIterating = false; FlushDisposeIfPending(); FlushPendingChanges(); }
@@ -481,35 +603,58 @@ namespace Moirai.Atropos
                 var change = _pendingChanges[i];
                 try
                 {
-                    if (change.IsRegister)
+                    switch (change.Kind)
                     {
-                        if (change.Service == null) continue;
-                        if (_entriesByService.ContainsKey(change.Service)) continue;
-                        if (_servicesByContract.ContainsKey(change.ContractType.TypeHandle)) continue;
+                        case PendingChangeKind.Register:
+                        {
+                            if (change.Service == null) continue;
+                            if (_servicesByContract.ContainsKey(change.ContractType.TypeHandle)) continue;
 
-                        var contractTypes = new[] { change.ContractType };
-                        RegisterInternal(change.Service, contractTypes);
+                            // 前序延迟注册已为该实例创建条目——本请求退化为附加契约绑定
+                            if (_entriesByService.ContainsKey(change.Service))
+                            {
+                                AttachContractCore(change.Service, change.ContractType);
+                                continue;
+                            }
 
-                        if (change.Service is IServiceLifecycle lifecycle)
-                            lifecycle.Initialize(_world, this);
-                    }
-                    else
-                    {
-                        if (!_servicesByContract.TryGetValue(change.ContractType.TypeHandle, out var service))
-                            continue;
+                            var contractTypes = new[] { change.ContractType };
+                            RegisterInternal(change.Service, contractTypes);
 
-                        if (service is IServiceLifecycle lifecycle)
-                            lifecycle.Destroy();
+                            if (change.Service is IServiceLifecycle lifecycle)
+                                lifecycle.Initialize(_world, this);
+                            break;
+                        }
 
-                        if (_entriesByService.TryGetValue(service, out var entry))
-                            RemoveServiceInternal(service, entry);
+                        case PendingChangeKind.BindAdditionalContract:
+                        {
+                            if (change.Service == null) continue;
+                            if (!_entriesByService.ContainsKey(change.Service)) continue;
+
+                            // 契约可能已被队列中更早的 Register 占用——占用即跳过（幂等）
+                            if (_servicesByContract.ContainsKey(change.ContractType.TypeHandle)) continue;
+
+                            AttachContractCore(change.Service, change.ContractType);
+                            break;
+                        }
+
+                        case PendingChangeKind.Unregister:
+                        {
+                            if (!_servicesByContract.TryGetValue(change.ContractType.TypeHandle, out var service))
+                                continue;
+
+                            if (service is IServiceLifecycle lifecycle)
+                                lifecycle.Destroy();
+
+                            if (_entriesByService.TryGetValue(service, out var entry))
+                                RemoveServiceInternal(service, entry);
+                            break;
+                        }
                     }
                 }
                 catch (Exception ex)
                 {
                     LogUtility.Error("Failed to flush pending {0} for '{1}':\n{2}",
-                        change.IsRegister ? "register" : "unregister",
-                        change.ContractType.FullName, ex);
+                        change.Kind, change.ContractType.FullName, ex);
                 }
             }
             _pendingChanges.Clear();
@@ -563,7 +708,7 @@ namespace Moirai.Atropos
                 _world.RemoveContract(this, entry.ContractHandles[i], service);
             }
 
-            // _registrationOrder 必须保持拓扑序——使用 List.Remove（O(n) 移位保序），
+            // _registrationOrder 必须保持注册序——使用 List.Remove（O(n) 移位保序），
             // 不用 swap-with-last（会破坏依赖方的关闭顺序保证）。
             _registrationOrder.Remove(service);
 
@@ -606,8 +751,8 @@ namespace Moirai.Atropos
             // 由循环结束后统一 Clear() 清空全部列表——避免逆序遍历时 List.Remove 修改被遍历列表
             _isDisposing = true;
 
-            // 逆插入序关闭 = 逆依赖拓扑序：依赖方（后注册）先关闭，被依赖方后关闭。
-            // 循环依赖在 BuildAsync 拓扑排序时即被阻止，此处无需再做环检测。
+            // 逆注册序关闭：依赖方（后注册）先关闭，被依赖方后关闭。
+            // 循环依赖在 RegisterWithDependencies 的 s_InFlight 栈检测中即被阻止，此处无需再做环检测。
             for (int i = _registrationOrder.Count - 1; i >= 0; i--)
             {
                 var service = _registrationOrder[i];
@@ -633,7 +778,7 @@ namespace Moirai.Atropos
 
         /// <summary>
         /// 异步销毁作用域。对实现 <see cref="IAsyncShutdownService"/> 的服务先调用 <c>OnShutdownAsync</c>，
-        /// 再调用同步 <c>Shutdown</c>。逆注册序（= 逆依赖拓扑序）执行。
+        /// 再调用同步 <c>Shutdown</c>。逆注册序执行。
         /// </summary>
         internal async UniTask DisposeAsync()
         {
@@ -896,26 +1041,39 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 迭代中延迟执行的注册/注销请求。
+        /// 迭代中延迟执行的注册/注销/附加契约请求。
         /// </summary>
         private readonly struct PendingChange
         {
-            public readonly bool IsRegister;
+            public readonly PendingChangeKind Kind;
             public readonly IService Service;
             public readonly Type ContractType;
 
-            private PendingChange(bool isRegister, IService service, Type contractType)
+            private PendingChange(PendingChangeKind kind, IService service, Type contractType)
             {
-                IsRegister = isRegister;
+                Kind = kind;
                 Service = service;
                 ContractType = contractType;
             }
 
             public static PendingChange ForRegister(IService service, Type contractType)
-                => new PendingChange(true, service, contractType);
+                => new PendingChange(PendingChangeKind.Register, service, contractType);
 
             public static PendingChange ForUnregister(Type contractType)
-                => new PendingChange(false, null, contractType);
+                => new PendingChange(PendingChangeKind.Unregister, null, contractType);
+
+            public static PendingChange ForBind(IService service, Type contractType)
+                => new PendingChange(PendingChangeKind.BindAdditionalContract, service, contractType);
+        }
+
+        /// <summary>
+        /// 延迟变更种类。
+        /// </summary>
+        private enum PendingChangeKind : byte
+        {
+            Register = 0,
+            Unregister = 1,
+            BindAdditionalContract = 2,
         }
 
         #endregion

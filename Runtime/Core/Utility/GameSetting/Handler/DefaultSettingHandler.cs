@@ -14,11 +14,11 @@ namespace Moirai.Atropos
         [SerializeField] private string m_SettingFileName = "Setting.dat";
 
         // 游戏配置存储文件路径
-        private string _filePath;
+        [NonSerialized] private string _filePath;
         // 游戏配置
-        private Settings _settings;
+        [NonSerialized] private Settings _settings;
         // 游戏配置序列化器
-        private Serializer _serializer;
+        [NonSerialized] private Serializer _serializer;
 
         public override int Count => _settings?.Count ?? 0;
 

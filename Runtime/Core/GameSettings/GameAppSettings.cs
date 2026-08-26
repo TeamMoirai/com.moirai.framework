@@ -1,6 +1,5 @@
 using System;
 using Cysharp.Threading.Tasks;
-using Moirai.Atropos.Localization;
 using Sirenix.OdinInspector;
 using UnityEngine;
 
@@ -11,17 +10,17 @@ namespace Moirai.Atropos
     {
         [DisableInPlayMode]
         [Range(1, 300)]
-        [SerializeField] private int m_FrameRate;
+        [SerializeField] private int m_FrameRate = 120;
 
         [DisableInPlayMode]
         [Range(0f, 8f)]
-        [SerializeField] private float m_GameSpeed;
+        [SerializeField] private float m_GameSpeed = 1f;
 
         [DisableInPlayMode]
-        [SerializeField] private bool m_RunInBackground;
+        [SerializeField] private bool m_RunInBackground = true;
 
         [DisableInPlayMode]
-        [SerializeField] private bool m_NeverSleep;
+        [SerializeField] private bool m_NeverSleep = true;
 
         /// <!-- Utility -->
         private const string HELPER_GROUP = "框架工具 [Global Utility]";
@@ -95,25 +94,6 @@ namespace Moirai.Atropos
             }
         }
 
-        protected internal override void Reset()
-        {
-            m_EditorLanguage = Language.Unspecified.Name;
-            m_FrameRate = 120;
-            m_GameSpeed = 1f;
-            m_RunInBackground = true;
-            m_NeverSleep = true;
-
-            ResetAppServices();
-
-            m_VersionHandler = new DefaultVersionHandler();
-            m_SettingHandler = new DefaultSettingHandler();
-            m_StringHandler = new DefaultStringHandler();
-            m_LogHandler = new DefaultLogHandler();
-            m_ObjectHandler = new UnityObjectHandler();
-            m_JsonHandler = new DefaultJsonHandler();
-            m_TweenHandler = new DefaultTweenHandler();
-        }
-
         /// <summary>
         /// 游戏设置初始化
         /// </summary>
@@ -182,7 +162,6 @@ namespace Moirai.Atropos
             GameSpeed = 1f;
         }
 
-        private partial void ResetAppServices();
         private static partial UniTaskVoid InitializeAppServices();
     }
 }

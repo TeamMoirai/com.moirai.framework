@@ -1,13 +1,14 @@
-﻿using System.IO;
+using System.IO;
 using System.Text;
 using System.Security.Cryptography;
 
 namespace Moirai.Atropos.Save
 {
     /// <summary>
-    /// 此类实现用于加密和解密流的抽象方法
+    /// 此类实现用于加密和解密流的 AES 加密器。
+    /// <para>以组合方式被 <see cref="SaveHandler"/> 加密处理器使用（C# 不支持多基类继承）。</para>
     /// </summary>
-    public abstract class SaveEncryptor
+    public class SaveEncryptor
     {
         /// <summary>
         /// 保存和加载文件的密钥。
@@ -27,7 +28,7 @@ namespace Moirai.Atropos.Save
         /// <param name="inputStream"></param>
         /// <param name="outputStream"></param>
         /// <param name="sKey"></param>
-        protected virtual void Encrypt(Stream inputStream, Stream outputStream, string sKey)
+        public virtual void Encrypt(Stream inputStream, Stream outputStream, string sKey)
         {
             using var algorithm = Aes.Create();
             Rfc2898DeriveBytes key = new Rfc2898DeriveBytes(sKey, Encoding.ASCII.GetBytes(Salt));
@@ -45,7 +46,7 @@ namespace Moirai.Atropos.Save
         /// <param name="inputStream"></param>
         /// <param name="outputStream"></param>
         /// <param name="sKey"></param>
-        protected virtual void Decrypt(Stream inputStream, Stream outputStream, string sKey)
+        public virtual void Decrypt(Stream inputStream, Stream outputStream, string sKey)
         {
             using var algorithm = Aes.Create();
             Rfc2898DeriveBytes key = new Rfc2898DeriveBytes(sKey, Encoding.ASCII.GetBytes(Salt));

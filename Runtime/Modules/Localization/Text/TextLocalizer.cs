@@ -55,15 +55,14 @@ namespace Moirai.Atropos.Localization
 			}
 #endif
 
-			var svc = GameApp.Localization;
-			if (!svc.Has(textId))
+			if (!LocalizationService.Has(textId))
 			{
 				if (Application.isPlaying) LogUtility.Error($"Text ID: {textId} 不可用。");
 				return false;
 			}
 
 			m_TextId = textId;
-			var text = svc.GetTextFromId(textId);
+			var text = LocalizationService.GetTextFromId(textId);
 			_injector.Inject(text, this);
 			return true;
 		}

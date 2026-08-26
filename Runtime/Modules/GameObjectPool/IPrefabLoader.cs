@@ -40,22 +40,22 @@ namespace Moirai.Atropos.GameObjectPool
         #region 字段 [FIELDS]
 
         private readonly Dictionary<int, int> _refCounts = new Dictionary<int, int>(16);
-        private IResourceService _resourceService;
+        private ResourceHandler _resource;
 
         #endregion
 
         #region 属性 [PROPERTIES]
 
-        private IResourceService ResourceService
+        private ResourceHandler Resource
         {
             get
             {
-                if (_resourceService == null)
+                if (_resource == null)
                 {
-                    _resourceService = GameApp.Resource;
+                    _resource = ResourceService.Handler;
                 }
 
-                return _resourceService;
+                return _resource;
             }
         }
 
@@ -103,7 +103,7 @@ namespace Moirai.Atropos.GameObjectPool
             if (count <= 0)
             {
                 _refCounts.Remove(instanceId);
-                ResourceService?.UnloadAsset(prefab);
+                Resource?.UnloadAsset(prefab);
             }
             else
             {

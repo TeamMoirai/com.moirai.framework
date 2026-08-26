@@ -147,7 +147,7 @@ namespace Moirai.Main
             string suffix = ""; // 语言 code 后缀
             string settingSource = null;
             
-            Language settingLanguage = GameApp.Localization.GetCurrentLanguage(false, ref settingSource);
+            Language settingLanguage = LocalizationService.GetCurrentLanguage(false, ref settingSource);
             suffix = settingLanguage.Code;
             TextAsset textAsset = Resources.Load<TextAsset>(buildInTextName + suffix);
             if (textAsset == null)

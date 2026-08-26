@@ -1,0 +1,9 @@
+<linker>
+  <!--
+    Moirai.Atropos 防裁剪：框架基础设施被多处反射消费——
+    DefaultJson 运行时反射选择序列化成员、[SerializeReference]/[ProviderDropdown]
+    跨程序集扫描派生类型填充 Inspector、事件系统泛型池化、且作为 HybridCLR
+    AOT 元数据补充程序集参与热更解释执行。全量保留避免运行期 Missing 类型。
+  -->
+  <assembly fullname="Moirai.Atropos" preserve="all"/>
+</linker>
