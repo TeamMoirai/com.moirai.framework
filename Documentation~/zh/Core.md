@@ -298,6 +298,23 @@ GameServices.UnregisterService<BuffService>(EServiceScopeKind.Gameplay);
 
 > 迭代中（Tick）调用默认延迟到本轮迭代结束后执行（`EDeferMode.Defer`）；传入 `EDeferMode.Throw` 则立即抛出异常（fail-fast）。RegisterService 的契约类型 = `typeof(T)` 具体类型，解析也必须用同一类型 `GetRequiredService<T>()`。
 
+#### 重复契约策略 [DUPLICATE CONTRACT POLICY]
+
+同作用域内已占用契约再次显式注册**不同实例**时，按 `GameServices.DuplicateContractPolicy` 处置：
+
+| 策略 | 行为 | 默认 |
+|------|------|------|
+| `EDuplicateContractPolicy.Skip` | 静默丢弃新实例并返回既有实例 | 发布构建 |
+| `EDuplicateContractPolicy.Warn` | 记录警告后丢弃新实例——意外抢占契约不再静默 | 编辑器/开发构建 |
+| `EDuplicateContractPolicy.Throw` | 抛出 `GameException`（fail-fast） | 显式配置 |
+
+```csharp
+// 排查期开启强校验
+GameServices.DuplicateContractPolicy = EDuplicateContractPolicy.Throw;
+```
+
+> 同实例重复注册始终幂等返回既有实例；依赖链自动预注册的去重始终静默——两者均不受本策略影响。
+
 ### 默认工厂扩展点 [DEFAULT FACTORY EXTENSION]
 
 框架内置服务的默认工厂表位于 `GameServices.Factories.cs`。宿主工程可为自有服务贡献工厂，
@@ -336,13 +353,15 @@ await GameServices.ShutdownAsync();
 
 在运行时调试器（DebuggerComp）的 Service System 窗口中可查看已注册服务的接口、实现、作用域、优先级与 Tick 接口实现情况（数据来自 `GameServices.GetDiagnosticInfo()`），以及各作用域的活跃状态（`HasApp` / `HasScene` / `HasGameplay`）。
 
+编辑器与开发构建还会统计每个服务的轮询耗时——均值 `PollAvgMs` / 峰值 `PollPeakMs` / 采样数 `PollSamples` 随诊断信息一并返回；调用 `GameServices.ResetPollStatistics()` 可清零统计窗口。发布构建不采集（零开销）。
+
 ## 注意事项
 
 - `GameServices` 与 `IServiceProvider` 仅允许主线程调用；后台线程/异步回调请通过 `MainThreadDispatcher` 的 `Post`/`Send` 切回主线程。
 - 业务代码一律通过静态门面访问框架服务（如 `AudioService.Play(...)`、`UIService.ShowUI<T>()`）；`GameApp.Services`（`IServiceProvider`）仅用于 Gameplay/Scene 作用域动态服务查找。
 - `GetRequiredService<T>()` 未注册时抛出 `GameException`；`GetService<T>()` 返回 null；`TryGetService<T>()` 返回 bool。
-- 同一作用域重复注册同契约幂等跳过（返回既有实例），嵌套依赖链重复注册免疫。
-- 单个服务在轮询中抛异常：编辑器与开发构建记录后立即上抛（fail-fast）；发布构建记录后隔离续跑，不影响同帧其他服务。
+- 同一作用域重复注册同契约幂等跳过（返回既有实例），嵌套依赖链重复注册免疫；以不同实例抢占已占用契约按 `DuplicateContractPolicy` 处置（开发默认告警、发布静默、可配 Throw）。
+- 单个服务在轮询中抛异常：编辑器与开发构建记录后立即上抛（fail-fast）；发布构建记录后隔离续跑，不影响同帧其他服务。同一服务在同一轮询类别连续失败达到阈值（默认 300，可经 `ServiceScope.s_TickFailureTripThreshold` 调整）即被摘除出该轮询列表并汇总告警一次（熔断）；服务条目保留、重新注册即完全重置。
 - 循环依赖在 `RegisterWithDependencies` 注册期即被检测并抛出异常（fail-fast）。
 - MonoBehaviour 服务不可实现 `IServiceTickable` 等 Tick 接口——使用 Unity 自身的 Update 生命周期。
 - 编辑器下退出 Play 模式时 `GameApp` 会自动调用 `GameServices.Shutdown()`，兼容跳过域重载的 Enter Play Mode Options 设置。

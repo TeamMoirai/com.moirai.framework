@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
@@ -219,6 +218,31 @@ namespace Moirai.Atropos
 
         #endregion
 
+        #region 重复契约策略 [DUPLICATE CONTRACT POLICY]
+
+        // 编辑器/开发构建默认 Warn（意外抢占契约不再静默），发布构建默认 Skip（零运行时成本）。
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        private static EDuplicateContractPolicy s_DuplicateContractPolicy = EDuplicateContractPolicy.Warn;
+#else
+        private static EDuplicateContractPolicy s_DuplicateContractPolicy = EDuplicateContractPolicy.Skip;
+#endif
+
+        /// <summary>
+        /// 重复契约注册处置策略。仅作用于"同作用域内已占用契约再次显式注册不同实例"的场景；
+        /// 同实例幂等与依赖链自动去重不受影响。
+        /// </summary>
+        public static EDuplicateContractPolicy DuplicateContractPolicy
+        {
+            get => s_DuplicateContractPolicy;
+            set
+            {
+                EnsureMainThread();
+                s_DuplicateContractPolicy = value;
+            }
+        }
+
+        #endregion
+
         #region 运行时服务注册 [RUNTIME SERVICE REGISTRATION]
 
         /// <summary>
@@ -238,14 +262,17 @@ namespace Moirai.Atropos
 
         /// <summary>
         /// 类型 → 依赖类型数组缓存（特性元数据仅读取一次）。
+        /// <para>主线程专用（所有注册入口均经 <see cref="EnsureMainThread"/> 守卫），
+        /// 随 <see cref="ClearAll"/> 清空——关闭 Domain Reload 的工程重启世界时不残留过期元数据。</para>
         /// </summary>
-        private static readonly ConcurrentDictionary<Type, Type[]> s_DependencyCache = new();
+        private static readonly Dictionary<Type, Type[]> s_DependencyCache = new();
 
         /// <summary>
         /// 注册服务到指定作用域（统一入口）。
         /// <para>注册前读取实现类型的 <see cref="ServiceDependencyAttribute"/> 声明：依赖未注册时优先递归注册依赖，
         /// 全部依赖就绪后再注册当前服务（立即驱动 <c>OnInit</c>）。</para>
-        /// <para>重复注册幂等——已注册的契约（含嵌套依赖链中已注册项）直接跳过并返回既有实例；
+        /// <para>同实例重复注册幂等——直接跳过并返回既有实例；以<b>不同实例</b>抢占已占用契约时按
+        /// <see cref="DuplicateContractPolicy"/> 处置（默认：开发期告警并保留既有实例，发布期静默）；
         /// 循环依赖注册期即抛 <see cref="GameException"/>。</para>
         /// <para>迭代中（Tick）调用时默认延迟到本轮迭代结束后执行（<see cref="EDeferMode.Defer"/>）；
         /// 传入 <see cref="EDeferMode.Throw"/> 则立即抛出异常。</para>
@@ -261,7 +288,7 @@ namespace Moirai.Atropos
             EDeferMode deferMode = EDeferMode.Defer) where T : class, IService
         {
             EnsureMainThread();
-            RegisterWithDependencies(scope, typeof(T), typeof(T), () => service, deferMode);
+            RegisterWithDependencies(scope, typeof(T), typeof(T), () => service, deferMode, service);
             return (T)s_Registered[scope][typeof(T)];
         }
 
@@ -285,13 +312,14 @@ namespace Moirai.Atropos
             EnsureMainThread();
             if (contractType == null) throw new ArgumentNullException(nameof(contractType));
             if (service == null) throw new ArgumentNullException(nameof(service));
-            RegisterWithDependencies(scope, contractType, service.GetType(), () => service, deferMode);
+            RegisterWithDependencies(scope, contractType, service.GetType(), () => service, deferMode, service);
             return s_Registered[scope][contractType];
         }
 
         /// <summary>
         /// 递归注册：依赖预注册 → 注册当前服务。
-        /// <para>①契约已注册跳过（嵌套依赖重复注册免疫）②栈内检测循环③按声明序递归注册依赖④注册并初始化自身；
+        /// <para>①契约已注册跳过（嵌套依赖重复注册免疫；显式传入的不同实例按
+        /// <see cref="DuplicateContractPolicy"/> 处置）②栈内检测循环③按声明序递归注册依赖④注册并初始化自身；
         /// 同一实例已在作用域中以其他契约注册时，仅附加新契约绑定（不重复初始化/关闭）。</para>
         /// </summary>
         /// <param name="scope">目标作用域。</param>
@@ -299,17 +327,27 @@ namespace Moirai.Atropos
         /// <param name="implType">实现类型（<see cref="ServiceDependencyAttribute"/> 读取来源与循环检测键）。</param>
         /// <param name="factory">实例工厂（依赖就绪后调用）。</param>
         /// <param name="deferMode">迭代中调用的延迟策略。</param>
+        /// <param name="explicitInstance">
+        /// 调用方显式传入的实例；用于区分"同实例幂等"与"不同实例抢占契约"。依赖链递归路径传 null（去重始终静默）。
+        /// </param>
         private static void RegisterWithDependencies(
             EServiceScopeKind scope,
             Type contractType,
             Type implType,
             Func<IService> factory,
-            EDeferMode deferMode)
+            EDeferMode deferMode,
+            IService explicitInstance = null)
         {
             var registry = s_Registered[scope];
 
-            // ① 去重：嵌套依赖链中已注册的直接返回
-            if (registry.ContainsKey(contractType)) return;
+            // ① 去重：嵌套依赖链中已注册的直接返回。
+            // 显式传入不同实例 → 按策略处置（Warn/Throw 可见，Skip 静默）；同实例与依赖链路径保持静默幂等
+            if (registry.TryGetValue(contractType, out IService existingService))
+            {
+                if (explicitInstance != null && !ReferenceEquals(existingService, explicitInstance))
+                    ApplyDuplicateContractPolicy(scope, contractType, existingService);
+                return;
+            }
 
             // ② 循环依赖检测：当前实现类型已在注册栈中即构成环
             if (s_InFlight.Contains(implType))
@@ -361,6 +399,32 @@ namespace Moirai.Atropos
             finally
             {
                 s_InFlight.Pop();
+            }
+        }
+
+        /// <summary>
+        /// 按 <see cref="DuplicateContractPolicy"/> 处置"不同实例抢占已占用契约"的冲突。
+        /// </summary>
+        private static void ApplyDuplicateContractPolicy(
+            EServiceScopeKind scope,
+            Type contractType,
+            IService existing)
+        {
+            switch (s_DuplicateContractPolicy)
+            {
+                case EDuplicateContractPolicy.Throw:
+                    throw new GameException(StringUtility.Format(
+                        "Duplicate contract registration rejected: contract '{0}' is already bound to '{1}' in {2} scope.",
+                        contractType.FullName, existing.GetType().FullName, scope));
+
+                case EDuplicateContractPolicy.Warn:
+                    LogUtility.Warning(
+                        "Duplicate contract registration discarded: contract '{0}' is already bound to '{1}' in {2} scope; the new instance will be ignored.",
+                        contractType.FullName, existing.GetType().FullName, scope);
+                    break;
+
+                default:
+                    break;
             }
         }
 
@@ -419,28 +483,33 @@ namespace Moirai.Atropos
         /// </summary>
         private static Type[] GetDeclaredDependencies(Type serviceType)
         {
-            return s_DependencyCache.GetOrAdd(serviceType, static type =>
+            if (s_DependencyCache.TryGetValue(serviceType, out Type[] cached))
+                return cached;
+
+            object[] attrs = serviceType.GetCustomAttributes(typeof(ServiceDependencyAttribute), false);
+            if (attrs.Length == 0)
             {
-                object[] attrs = type.GetCustomAttributes(typeof(ServiceDependencyAttribute), false);
-                if (attrs.Length == 0) return Array.Empty<Type>();
+                s_DependencyCache[serviceType] = Array.Empty<Type>();
+                return Array.Empty<Type>();
+            }
 
-                int total = 0;
-                for (int i = 0; i < attrs.Length; i++)
-                {
-                    total += ((ServiceDependencyAttribute)attrs[i]).DependencyTypes.Length;
-                }
+            int total = 0;
+            for (int i = 0; i < attrs.Length; i++)
+            {
+                total += ((ServiceDependencyAttribute)attrs[i]).DependencyTypes.Length;
+            }
 
-                var deps = new Type[total];
-                int offset = 0;
-                for (int i = 0; i < attrs.Length; i++)
-                {
-                    Type[] types = ((ServiceDependencyAttribute)attrs[i]).DependencyTypes;
-                    Array.Copy(types, 0, deps, offset, types.Length);
-                    offset += types.Length;
-                }
+            var deps = new Type[total];
+            int offset = 0;
+            for (int i = 0; i < attrs.Length; i++)
+            {
+                Type[] types = ((ServiceDependencyAttribute)attrs[i]).DependencyTypes;
+                Array.Copy(types, 0, deps, offset, types.Length);
+                offset += types.Length;
+            }
 
-                return deps;
-            });
+            s_DependencyCache[serviceType] = deps;
+            return deps;
         }
 
         #endregion
@@ -485,10 +554,12 @@ namespace Moirai.Atropos
             onServiceRegistered = null;
             onServiceUnregistered = null;
 
-            // 各作用域注册表与循环检测栈同步清空——关闭后可重新注册重建（域重载安全）
+            // 各作用域注册表、循环检测栈与依赖元数据缓存同步清空——
+            // 关闭后可重新注册重建（域重载安全；关闭 Domain Reload 的工程亦不残留过期缓存）
             foreach (var registry in s_Registered.Values)
                 registry.Clear();
             s_InFlight.Clear();
+            s_DependencyCache.Clear();
 
             // MemoryPool 和 MarshalUtility 缓存清理在全部服务关闭后执行——
             // 此时无活跃的池化对象引用（所有 Service 已 Shutdown），安全清空。

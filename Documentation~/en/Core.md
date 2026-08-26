@@ -298,6 +298,23 @@ GameServices.UnregisterService<BuffService>(EServiceScopeKind.Gameplay);
 
 > Calls during iteration (Tick) default to deferring until the current cycle ends (`EDeferMode.Defer`); pass `EDeferMode.Throw` to throw immediately (fail-fast). The contract type of RegisterService = the concrete `typeof(T)`; resolution must use the same type via `GetRequiredService<T>()`.
 
+#### Duplicate Contract Policy [DUPLICATE CONTRACT POLICY]
+
+When a different instance is explicitly registered under an already-occupied contract in the same scope, the behavior is governed by `GameServices.DuplicateContractPolicy`:
+
+| Policy | Behavior | Default |
+|--------|----------|---------|
+| `EDuplicateContractPolicy.Skip` | Silently discard the new instance and return the existing one | Release builds |
+| `EDuplicateContractPolicy.Warn` | Log a warning then discard the new instance — accidental contract hijacking is no longer silent | Editor / development builds |
+| `EDuplicateContractPolicy.Throw` | Throw `GameException` (fail-fast) | Explicit configuration |
+
+```csharp
+// Enable strict validation while investigating issues
+GameServices.DuplicateContractPolicy = EDuplicateContractPolicy.Throw;
+```
+
+> Re-registering the same instance is always an idempotent skip returning the existing instance; dependency-chain auto pre-registration dedup is always silent — neither is affected by this policy.
+
 ### Default Factory Extension
 
 The framework's built-in service factory table lives in `GameServices.Factories.cs`. Host projects can contribute factories
@@ -336,13 +353,15 @@ await GameServices.ShutdownAsync();
 
 The runtime debugger (DebuggerComp) Service System window displays registered services' interfaces, implementations, scopes, priorities, and tick interface implementations (data from `GameServices.GetDiagnosticInfo()`), plus the active status of each scope (`HasApp` / `HasScene` / `HasGameplay`).
 
+Editor and development builds also track per-service polling time — average `PollAvgMs`, peak `PollPeakMs`, and sample count `PollSamples` come back with the diagnostic info; call `GameServices.ResetPollStatistics()` to clear the statistics window. Release builds collect nothing (zero overhead).
+
 ## Notes
 
 - `GameServices` and `IServiceProvider` only allow calls from the main thread; for background threads or async callbacks, use `MainThreadDispatcher`'s `Post`/`Send` to switch back to the main thread.
 - Business code always accesses framework services via static facades (e.g. `AudioService.Play(...)`, `UIService.ShowUI<T>()`); `GameApp.Services` (`IServiceProvider`) is for Gameplay/Scene dynamic service lookup only.
 - `GetRequiredService<T>()` throws `GameException` if not registered; `GetService<T>()` returns null; `TryGetService<T>()` returns bool.
-- Re-registering the same contract in the same scope is an idempotent skip (the existing instance is returned); nested dependency chains are immune to duplicate registration.
-- A service throwing during polling: logged then rethrown immediately in the editor and development builds (fail-fast); logged and isolated in release builds so other services in the same frame keep running.
+- Re-registering the same contract in the same scope is an idempotent skip (the existing instance is returned); nested dependency chains are immune to duplicate registration. Registering a *different* instance under an occupied contract follows `DuplicateContractPolicy` (warn by default in development, silent in release, configurable to Throw).
+- A service throwing during polling: logged then rethrown immediately in the editor and development builds (fail-fast); logged and isolated in release builds so other services in the same frame keep running. If the same service fails consecutively in the same polling category beyond a threshold (default 300, tunable via `ServiceScope.s_TickFailureTripThreshold`), it is removed from that polling list with a single summary warning (circuit breaker); its entry is preserved and re-registration fully resets it.
 - Circular dependencies are detected at registration time in `RegisterWithDependencies` and throw an exception (fail-fast).
 - MonoBehaviour services cannot implement `IServiceTickable` etc. — use Unity's own Update lifecycle.
 - When exiting Play Mode in the editor, `GameApp` automatically calls `GameServices.Shutdown()`, compatible with the Enter Play Mode Options setting that skips domain reload.

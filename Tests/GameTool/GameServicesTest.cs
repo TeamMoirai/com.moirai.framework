@@ -99,6 +99,11 @@ namespace GameTool
             }
         }
 
+        // --- 可变静态配置的保存/恢复（防测试间状态泄漏） ---
+
+        private EDuplicateContractPolicy _originalPolicy;
+        private int _originalTripThreshold;
+
         // --- 生命周期 ---
 
         [SetUp]
@@ -106,11 +111,15 @@ namespace GameTool
         {
             s_OrderLog.Clear();
             GameServices.Shutdown();
+            _originalPolicy = GameServices.DuplicateContractPolicy;
+            _originalTripThreshold = ServiceScope.s_TickFailureTripThreshold;
         }
 
         [TearDown]
         public void TearDown()
         {
+            ServiceScope.s_TickFailureTripThreshold = _originalTripThreshold;
+            GameServices.DuplicateContractPolicy = _originalPolicy;
             GameServices.Shutdown();
         }
 
@@ -172,7 +181,8 @@ namespace GameTool
             var instance = new AlphaService();
             Register(instance);
 
-            // 重复注册——应幂等返回既有实例，不重复 OnInit
+            // 重复注册——应幂等返回既有实例，不重复 OnInit（开发默认策略下伴随冲突告警）
+            LogAssert.Expect(LogType.Warning, new Regex(".*already bound.*"));
             var returned = GameServices.RegisterService(EServiceScopeKind.App, new AlphaService());
 
             Assert.AreSame(instance, returned, "重复注册应返回既有实例");
@@ -548,6 +558,7 @@ namespace GameTool
             var first = new AlphaService();
             GameServices.RegisterService(EServiceScopeKind.App, first as IAlphaService);
 
+            LogAssert.Expect(LogType.Warning, new Regex(".*already bound.*"));
             var another = new AlphaService();
             var returned = GameServices.RegisterService(EServiceScopeKind.App, another as IAlphaService);
 
@@ -767,6 +778,7 @@ namespace GameTool
             var first = new AlphaService();
             GameServices.RegisterService(EServiceScopeKind.App, typeof(IAlphaService), first);
 
+            LogAssert.Expect(LogType.Warning, new Regex(".*already bound.*"));
             var returned = GameServices.RegisterService(EServiceScopeKind.App, typeof(IAlphaService), new AlphaService());
 
             Assert.AreSame(first, returned, "重复注册应返回既有实例");
@@ -937,6 +949,148 @@ namespace GameTool
             LogAssert.Expect(LogType.Error, new Regex(".*threw in Tick.*"));
             Assert.Throws<InvalidOperationException>(() => GameServices.Tick(0f, 0f),
                 "开发环境（编辑器/开发构建）下 Tick 异常应记录后上抛（fail-fast）");
+        }
+
+        // ═══════════════════════════════════════════════════════
+        // 重复契约策略测试 [DUPLICATE CONTRACT POLICY TESTS]
+        // ═══════════════════════════════════════════════════════
+
+        [Test]
+        public void DuplicateContract_PolicyWarn_LogsWarningAndReturnsExisting()
+        {
+            GameServices.DuplicateContractPolicy = EDuplicateContractPolicy.Warn;
+            var first = new AlphaService();
+            Register(first);
+
+            LogAssert.Expect(LogType.Warning, new Regex(".*already bound.*"));
+            var returned = GameServices.RegisterService(EServiceScopeKind.App, new AlphaService());
+
+            Assert.AreSame(first, returned, "Warn 策略应幂等返回既有实例");
+            Assert.AreEqual(1, first.InitCount, "Warn 策略不应驱动新实例 OnInit");
+        }
+
+        [Test]
+        public void DuplicateContract_PolicySkip_SilentReturnsExisting()
+        {
+            GameServices.DuplicateContractPolicy = EDuplicateContractPolicy.Skip;
+            var first = new AlphaService();
+            Register(first);
+
+            var returned = GameServices.RegisterService(EServiceScopeKind.App, new AlphaService());
+
+            Assert.AreSame(first, returned, "Skip 策略应静默幂等返回既有实例");
+            Assert.AreEqual(1, first.InitCount);
+        }
+
+        [Test]
+        public void DuplicateContract_PolicyThrow_RejectsConflictingInstance()
+        {
+            GameServices.DuplicateContractPolicy = EDuplicateContractPolicy.Throw;
+            var first = new AlphaService();
+            Register(first);
+
+            Assert.Throws<GameException>(
+                () => GameServices.RegisterService(EServiceScopeKind.App, new AlphaService()),
+                "Throw 策略应以不同实例抢占已占用契约时抛出异常");
+            Assert.AreSame(first, GameServices.Provider.GetRequiredService<AlphaService>(),
+                "抛出后既有实例不受影响");
+        }
+
+        [Test]
+        public void DuplicateContract_SameInstance_AlwaysIdempotent_EvenUnderThrow()
+        {
+            GameServices.DuplicateContractPolicy = EDuplicateContractPolicy.Throw;
+            var instance = new AlphaService();
+            Register(instance);
+
+            var returned = GameServices.RegisterService(EServiceScopeKind.App, instance);
+
+            Assert.AreSame(instance, returned, "同实例重复注册在任何策略下都应静默幂等");
+            Assert.AreEqual(1, instance.InitCount);
+        }
+
+        // ═══════════════════════════════════════════════════════
+        // Tick 异常熔断测试 [TICK BREAKER TESTS]
+        // ═══════════════════════════════════════════════════════
+
+        private sealed class CountingThrowService : TestServiceBase, IDepTargetService
+        {
+            public override int Priority => 10;
+
+            public override void Tick(float elapseSeconds, float realElapseSeconds)
+            {
+                TickCount++;
+                throw new InvalidOperationException("tick boom");
+            }
+        }
+
+        private sealed class HealthyBeta : TestServiceBase, IBetaService { }
+
+        [Test]
+        public void Tick_ConsecutiveFailures_TripsAfterThreshold_StopsPolling()
+        {
+            ServiceScope.s_TickFailureTripThreshold = 3;
+
+            var thrower = new CountingThrowService();
+            var healthy = new HealthyBeta();
+            GameServices.RegisterService(EServiceScopeKind.App, thrower as IDepTargetService);
+            GameServices.RegisterService(EServiceScopeKind.App, healthy as IBetaService);
+
+            // 前 3 帧异常上抛（开发环境 fail-fast）；第 3 次失败触发熔断摘除。
+            // 故障服务优先级更高——每帧先执行、先抛出，健康服务在前 3 帧被 fail-fast 中断
+            for (int frame = 1; frame <= 3; frame++)
+            {
+                LogAssert.Expect(LogType.Error, new Regex(".*threw in Tick.*"));
+                if (frame == 3)
+                    LogAssert.Expect(LogType.Warning, new Regex(".*removed from.*"));
+                Assert.Throws<InvalidOperationException>(() => GameServices.Tick(0.1f, 0.1f));
+            }
+
+            // 熔断后：不再上抛、不再轮询故障服务；健康服务恢复轮询
+            Assert.DoesNotThrow(() => GameServices.Tick(0.1f, 0.1f));
+            Assert.AreEqual(3, thrower.TickCount, "达到阈值即熔断——不应有第 4 次尝试");
+            Assert.AreEqual(1, healthy.TickCount, "健康服务应在故障服务被摘除后的帧恢复轮询");
+
+            // 条目保留——解析不受熔断影响，重新注册可完全重置
+            Assert.AreSame(thrower, GameServices.Provider.GetRequiredService<IDepTargetService>());
+        }
+
+        // ═══════════════════════════════════════════════════════
+        // 轮询耗时统计测试 [POLL STATISTICS TESTS]
+        // ═══════════════════════════════════════════════════════
+
+        [Test]
+        public void PollStatistics_AggregatedPerService_AndResettable()
+        {
+            Register(new AlphaService());
+
+            GameServices.Tick(0.1f, 0.1f);
+            GameServices.Tick(0.1f, 0.1f);
+
+            var infos = GameServices.GetDiagnosticInfo();
+            bool found = false;
+            for (int i = 0; i < infos.Count; i++)
+            {
+                // ImplementationType 为程序集全名（嵌套类含 "+ "），用包含匹配
+                if (!infos[i].ImplementationType.Contains(nameof(AlphaService))) continue;
+
+                found = true;
+                Assert.GreaterOrEqual(infos[i].PollSamples, 2, "两次 Tick 应产生至少两条采样");
+                Assert.GreaterOrEqual(infos[i].PollPeakMs, infos[i].PollAvgMs, "峰值不应小于均值");
+                break;
+            }
+            Assert.IsTrue(found, "诊断信息中应包含 AlphaService");
+
+            GameServices.ResetPollStatistics();
+
+            infos = GameServices.GetDiagnosticInfo();
+            for (int i = 0; i < infos.Count; i++)
+            {
+                if (!infos[i].ImplementationType.Contains(nameof(AlphaService))) continue;
+                Assert.AreEqual(0, infos[i].PollSamples, "重置后采样数应为零");
+                return;
+            }
+            Assert.Fail("重置后仍应能找到 AlphaService 诊断条目");
         }
     }
 }
