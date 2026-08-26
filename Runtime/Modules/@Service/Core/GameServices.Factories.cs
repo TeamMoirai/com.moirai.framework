@@ -16,8 +16,10 @@ namespace Moirai.Atropos
 
         /// <summary>
         /// 类型 → 默认实例工厂。初始化期一次性构建；static lambda 无闭包捕获。
+        /// <para><b>internal 仅供测试程序集</b>做跨域隔离清理（关闭 Domain Reload 时静态表存活，
+        /// 测试需自行快照并还原）；运行时一律经 <see cref="RegisterDefaultFactory"/> 写入。</para>
         /// </summary>
-        private static readonly Dictionary<Type, Func<IService>> s_DefaultFactories = new()
+        internal static readonly Dictionary<Type, Func<IService>> s_DefaultFactories = new()
         {
             [typeof(UpdateDriver.UpdateDriverService)] = static () => new UpdateDriver.UpdateDriverService(),
             [typeof(Resource.ResourceService)] = static () => new Resource.ResourceService(),
