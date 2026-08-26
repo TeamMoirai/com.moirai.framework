@@ -103,6 +103,7 @@ namespace GameTool
 
         private EDuplicateContractPolicy _originalPolicy;
         private int _originalTripThreshold;
+        private HashSet<Type> _factoryBaseline;
 
         // --- 生命周期 ---
 
@@ -111,6 +112,9 @@ namespace GameTool
         {
             s_OrderLog.Clear();
             GameServices.Shutdown();
+            // 关闭 Domain Reload 的环境下静态工厂表跨域存活——快照基线，
+            // TearDown 移除本用例贡献的条目，保证套件可重复运行
+            _factoryBaseline = new HashSet<Type>(GameServices.s_DefaultFactories.Keys);
             _originalPolicy = GameServices.DuplicateContractPolicy;
             _originalTripThreshold = ServiceScope.s_TickFailureTripThreshold;
         }
@@ -120,6 +124,22 @@ namespace GameTool
         {
             ServiceScope.s_TickFailureTripThreshold = _originalTripThreshold;
             GameServices.DuplicateContractPolicy = _originalPolicy;
+
+            // 移除本用例注册的工厂（先收集后删除——边枚举边改字典会抛异常）
+            List<Type> stale = null;
+            foreach (var key in GameServices.s_DefaultFactories.Keys)
+            {
+                if (_factoryBaseline.Contains(key)) continue;
+                stale ??= new List<Type>();
+                stale.Add(key);
+            }
+
+            if (stale != null)
+            {
+                for (int i = 0; i < stale.Count; i++)
+                    GameServices.s_DefaultFactories.Remove(stale[i]);
+            }
+
             GameServices.Shutdown();
         }
 
