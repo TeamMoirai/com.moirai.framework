@@ -4,7 +4,7 @@
 
 The Resource service (`ResourceService`) provides a business-oriented wrapper around [YooAsset](https://github.com/tuyoogame/YooAsset). The module has been fully refactored to use the **Lease/Binding architecture**: resources are managed through generation-validated slot handles (`ResourceLeaseHandle`) and typed leases (`ResourceAssetLease<T>`), while UI/render components can be bound declaratively via `ResourceOwner` + `IResourceBindingService`. Access via `GameApp.Resource` (`IResourceService`).
 
-The internal engine uses **paged slot arrays** (`AssetSlot[][]`, `LeaseSlot[][]`, `BindingSlot[][]`, `OwnerSlot[][]`) with generation validation, **custom zero-GC hash maps** (`ResourceUlongIntMap` with Murmur finalizer, `ResourceIndexMap<TKey,TValue>`), and a **timer-wheel** expiry system (idle buckets + keep-alive buckets, O(1) per-frame processing). Loading dedup is handled via pooled `LoadingOperationState` objects. The play mode in the editor is driven by the `ResourceServiceDriver` component and can be switched via EditorPrefs.
+The internal engine uses **paged slot arrays** (`AssetSlot[][]`, `LeaseSlot[][]`, `BindingSlot[][]`, `OwnerSlot[][]`) with generation validation, **custom zero-GC hash maps** (`ResourceUlongIntMap` with Murmur finalizer, `ResourceIndexMap<TKey,TValue>`), and a **timer-wheel** expiry system (idle buckets + keep-alive buckets, O(1) per-frame processing). Loading dedup is handled via pooled `LoadingOperationState` objects. Frame-drive orchestration (config injection, timer-wheel advancement, unload scheduling, GC throttling, low-memory response) is wired automatically with the service lifecycle through the `ResourceService.Drive*` partial; the editor play mode can still be switched via EditorPrefs.
 
 ## Core Features
 
@@ -43,7 +43,7 @@ Namespace: `Moirai.Atropos.Resource`
 | `IResourceService` | Resource manager interface, defines all APIs for loading, leasing, binding, unloading, and package operations; accessed via `GameApp.Resource` |
 | `IResourceBindingService` | Declarative resource-component binding service interface, accessed via `IResourceService.BindingService` |
 | `ResourceService` | Internal implementation (`internal sealed partial class`, split into: main logic / Records (slot system + timer-wheel) / Cache (capacity & legacy bridging) / Services) |
-| `ResourceServiceDriver` | MonoBehaviour driver component, configures play mode, encryption type, download parameters, capacity/expiry parameters, and periodically executes `UnloadUnusedAssets` + `ProcessKeepAlive` |
+| `ResourceService.Driver` | Facade partial: wired automatically on `OnInit` (Settings/UpdateSettings single-source injection + frame-drive registration); hosts `DriveTick` timer-wheel advancement and unload/GC scheduling |
 | `ResourceOwner` | MonoBehaviour component (`[DisallowMultipleComponent]`), auto-releases all bindings on `OnDestroy`. Provides `ReleaseBindings()`, `ReleaseBindingsInHierarchy(root)`, `EnsureFor(target, bindingService)`. |
 | `ResourceBindingExtensions` | Static extension class: `Image/SpriteRenderer.SetSprite`, `Image/SpriteRenderer.SetSubSprite`, `Image/SpriteRenderer/MeshRenderer.SetMaterial`, `MeshRenderer.SetSharedMaterial` |
 | `ResourceBindingTypes` | Binding-related enums and interfaces: `ResourceBindStatus`, `ResourceBindingOptions`, `ResourceBindingSlotType` |
@@ -187,7 +187,7 @@ Two circular bucket arrays (256 buckets each) drive O(1) per-frame expiry:
 - **Idle buckets:** When an asset's refcount reaches zero, it enters an idle bucket scheduled to expire after `IdleAssetExpireTime` seconds.
 - **Keep-alive buckets:** When a lease is released with `KeepAliveOnRelease` option, the asset's keep-alive refcount is incremented and scheduled to expire after `IdleAssetExpireTime` seconds.
 
-`ProcessKeepAlive(unscaledTime, maxProcessCount)` is called every frame by `ResourceServiceDriver` and processes both queues, releasing assets whose expiry tick has passed.
+`ProcessKeepAlive(unscaledTime, maxProcessCount)` is called every frame by the facade's `DriveTick` and processes both queues, releasing assets whose expiry tick has passed.
 
 ### Loading Dedup
 
@@ -330,7 +330,7 @@ Async binding methods (e.g. `BindSubSpriteAsync`, `BindImageMaterialAsync`, `Bin
 
 ## Capacity and Expiry Properties
 
-Configured on `ResourceServiceDriver` (Inspector) or via `IResourceService`:
+Configured in the `ResourceServiceSettings` (Framework settings asset) or via `IResourceService`:
 
 | Property | Default | Description |
 |----------|---------|-------------|
@@ -367,13 +367,13 @@ Batch query for asset record states. Returns the number of entries written. Each
 | `void UnloadUnusedAssets(bool force)` | `force=true`: ignores idle expire time, immediately processes keep-alive queue and releases all unused records. |
 | `void ForceUnloadAllAssets()` | Force unload all assets on all packages (not supported on WebGL — prints warning). |
 | `void ForceUnloadUnusedAssets(bool performGCCollect)` | Triggers the driver's force-unload path (optionally with GC.Collect). |
-| `void ProcessKeepAlive(float unscaledTime, int maxProcessCount)` | Per-frame timer-wheel expiry processing (idle + keep-alive buckets). Called by `ResourceServiceDriver.Update()`. |
+| `void ProcessKeepAlive(float unscaledTime, int maxProcessCount)` | Per-frame timer-wheel expiry processing (idle + keep-alive buckets). Called by `ResourceService.DriveTick()`. |
 
 ## Configuration and Extensions
 
 ### Play Mode and Encryption
 
-Configured on the `ResourceServiceDriver` component in the scene in the editor (can also be switched via the menu `YooAsset/Editor PlayMode`; editor settings take precedence over serialized values; on device, `EditorSimulateMode` automatically falls back to `OfflinePlayMode`):
+Configured on the Handler (`YooAssetHandler`) serialized fields of the `ResourceServiceSettings` asset in the editor (can also be switched via the menu `YooAsset/Editor PlayMode`; editor settings take precedence over serialized values; on device, `EditorSimulateMode` automatically falls back to `OfflinePlayMode`):
 
 - `PlayMode`: Four play modes, determines whether `InitPackage` uses simulated build, built-in file system, cache file system, or web file system
 - `EncryptionType`: `None / FileOffSet / FileStream`, the runtime creates the corresponding decryption service based on this
@@ -400,6 +400,10 @@ res.PackageVersion = op.PackageVersion;
 res.UpdatePackageManifestAsync(res.PackageVersion);
 var downloader = res.CreateResourceDownloader();   // then poll the downloader
 
+// Download size query: pending bytes for a location (for remaining-download UI; throws GameException on invalid location/package)
+long downloadBytes = res.GetDownloadSize("Assets/AssetRaw/UI/logo.png");
+bool needRemote = res.IsNeedDownloadFromRemote("Assets/AssetRaw/UI/logo.png");
+
 // Remote address and cache cleanup
 res.SetRemoteServicesUrl("https://cdn.example.com/res", "https://backup.example.com/res");
 res.ClearCacheFilesAsync();                        // clear unused cache files
@@ -419,6 +423,8 @@ AssetHandle handle = GameApp.Resource.LoadAssetAsyncHandle<GameObject>("path");
 ```
 
 ## Notes
+
+- **Addressables backend (experimental):** `AddressableHandler` supports only information queries and real cache maintenance; capability-missing members (lease/binding/instantiation/version/downloader) uniformly throw `GameException` (fail-fast) instead of silently returning Invalid or empty results. Use `YooAssetHandler` in production.
 
 - **Lease API:** `ResourceAssetLease<T>` is a `struct` — always `Dispose` it (use `using` statement). After Dispose, `IsValid` returns `false` and `Asset` is `null`.
 - **Binding API:** `SetSprite`/`SetMaterial` extension methods auto-add a `ResourceOwner` to the target's GameObject if not present. All bindings are released when the GameObject is destroyed.

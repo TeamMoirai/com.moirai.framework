@@ -3,7 +3,7 @@ using System;
 namespace Moirai.Atropos
 {
     /// <summary>
-    /// 字符串工具静态门面，提供格式化、连接、构建和操作功能。
+    /// 字符串工具静态外观，提供格式化、连接、构建和操作功能。
     /// 通过可插拔的 <see cref="StringHandler"/> 实现底层池化策略，减少 GC 压力。
     /// </summary>
     /// <remarks>

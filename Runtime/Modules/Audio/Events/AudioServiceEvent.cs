@@ -1,4 +1,4 @@
-using Moirai.Atropos.Events;
+﻿using Moirai.Atropos.Events;
 
 namespace Moirai.Atropos.Audio
 {
@@ -7,7 +7,7 @@ namespace Moirai.Atropos.Audio
     /// </summary>
     /// <example>
     /// 通过事件触发保存音量设置
-    /// <code>AudioServiceEvent.Trigger(AudioServiceEvent.EAudioServiceEventType.SaveSettings);</code>
+    /// <code>AudioServiceEvent.Trigger(AudioServiceEvent.EAudioServiceEventType.SaveServiceSettings);</code>
     /// </example>>
     public class AudioServiceEvent : EventBase<AudioServiceEvent>, IAudioServiceEvent
     {

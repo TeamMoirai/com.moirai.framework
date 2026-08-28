@@ -6,7 +6,7 @@ using UnityEngine;
 
 namespace Moirai.Atropos.UI.Editor
 {
-    [FrameworkSetting("UI组件生成", "自动生成组件绑定代码设置", -500,
+    [FrameworkSetting("[框架]UI组件生成", "自动生成组件绑定代码设置", -459,
         "Assets/Settings/Framework/Editor/")]
     public sealed class UIGeneratorSettings : FrameworkSettings<UIGeneratorSettings>
     {

@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using Cysharp.Threading.Tasks;
 using Moirai.Atropos.Localization;
@@ -38,7 +38,7 @@ namespace Moirai.Atropos
         /// 注册 App 作用域服务并启动游戏流程（Composition Root）。
         /// <para>① <see cref="GameServices.RegisterService"/> 注册流程服务——其余框架服务由
         /// <see cref="ServiceDependencyAttribute"/> 声明的依赖链自动递归预注册（零反射、顺序无关）；</para>
-        /// <para>② <see cref="ProcedureSettings.StartProcedure"/> 启动流程状态机。</para>
+        /// <para>② <see cref="ProcedureServiceSettings.StartProcedure"/> 启动流程状态机。</para>
         /// <para>由 <see cref="GameAppSettings.Initiation"/> 在 <c>AfterAssembliesLoaded</c> 阶段调用。</para>
         /// </summary>
         private static partial UniTaskVoid InitializeAppServices()
@@ -49,7 +49,7 @@ namespace Moirai.Atropos
             {
                 // 仅显式注册流程链根服务；UpdateDriver/Resource/Audio/Scene/Timer/UI 等由依赖链拉起
                 GameServices.RegisterService(EServiceScopeKind.App, new ProcedureService());
-                await ProcedureSettings.StartProcedure();
+                await ProcedureServiceSettings.StartProcedure();
             }
         }
     }

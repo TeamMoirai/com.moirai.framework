@@ -1,8 +1,8 @@
-using System;
+﻿using System;
 using Cysharp.Threading.Tasks;
 using Moirai.Atropos;
+using Moirai.Atropos.Resource;
 using UnityEngine;
-using YooAsset;
 using JsonUtility = Moirai.Atropos.JsonUtility;
 
 namespace Moirai.Main
@@ -19,11 +19,11 @@ namespace Moirai.Main
         
         public override bool UseNativeDialog { get; }
 
-        private ResourceDownloaderOperation _downloader;
+        private IResourceDownloader _downloader;
 
         private int _totalDownloadCount;
 
-        private string _totalSizeMb;
+        private string _totalSizeMB;
 
         protected override void OnEnter()
         {
@@ -38,7 +38,7 @@ namespace Moirai.Main
         {
             await UniTask.Delay(TimeSpan.FromSeconds(0.5f));
 
-            _downloader = _resourceService.CreateResourceDownloader();
+            _downloader = ResourceService.CreateResourceDownloader();
 
             if (_downloader.TotalDownloadCount == 0)
             {
@@ -48,7 +48,7 @@ namespace Moirai.Main
             else
             {
                 // 一共发现 n 个文件需要下载
-                LogUtility.Info($"Found total {_downloader.TotalDownloadCount} files that need download ！");
+                LogUtility.Info("Found total {0} files that need download ！", _downloader.TotalDownloadCount);
 
                 // 发现新更新文件后，挂起流程系统
                 // 注意：开发者需要在下载前检测磁盘空间不足
@@ -57,11 +57,11 @@ namespace Moirai.Main
 
                 float sizeMb = totalDownloadBytes / 1048576f;
                 sizeMb = Mathf.Clamp(sizeMb, 0.1f, float.MaxValue);
-                _totalSizeMb = sizeMb.ToString("f1");
+                _totalSizeMB = sizeMb.ToString("f1");
 
-                // if (!SettingsUtils.EnableUpdateData())
+                // if (!UpdateSettings.EnableUpdateData())
                 {
-                    LauncherMgr.ShowMessageBox($"Found update patch files, Total count {_totalDownloadCount} Total size {_totalSizeMb}MB",
+                    LauncherMgr.ShowMessageBox(StringUtility.Format("Found update patch files, Total count {0} Total size {1}MB", _totalDownloadCount, _totalSizeMB),
                         StartDownFile, Application.Quit);
                 }
                 // else
@@ -155,7 +155,7 @@ namespace Moirai.Main
                         {
                             desc = LoadText.Instance.Label_Load_Force_NO_WIFI;
                         }
-                        desc = string.Format(desc, $"{_totalSizeMb}MB");
+                        desc = string.Format(desc, $"{_totalSizeMB}MB");
                         LauncherMgr.ShowMessageBox(desc,
                             StartDownFile, Application.Quit);
                     }
@@ -171,7 +171,7 @@ namespace Moirai.Main
                     // 提示
                     if (data.UpdateNotice == EUpdateNotice.Notice)
                     {
-                        LauncherMgr.ShowMessageBox(string.Format(LoadText.Instance.Label_Load_Notice,$"{_totalSizeMb}MB"),
+                        LauncherMgr.ShowMessageBox(string.Format(LoadText.Instance.Label_Load_Notice,$"{_totalSizeMB}MB"),
                             StartDownFile, () =>
                             {
                                 ChangeState<ProcedureLoadAssembly>();

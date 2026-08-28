@@ -1,8 +1,8 @@
-# Timer 服务
+﻿# Timer 服务
 
 > 基于四级时间轮的高性能计时器服务，无全量扫描，适合技能 CD、心跳包、延时任务等大规模定时场景。
 
-`Timer` 服务提供添加、暂停、恢复、重启、移除计时器的能力。实现类 `TimerHandler` 采用四级时间轮算法（每级 256 槽、1 毫秒精度、每帧最多推进 64 个 tick），配合分页槽位复用与版本化句柄，在十万级计时器规模下仍保持零 GC、O(1) 级操作成本。服务同时维护缩放（受 `Time.timeScale` 影响）与非缩放两条独立时间轮。通过 `TimerService.Xxx()` 静态门面访问（HandlerHost 模式：`TimerService` 静态门面 + `TimerHandler` 时间轮后端 + `TimerSettings` 配置）。
+`Timer` 服务提供添加、暂停、恢复、重启、移除计时器的能力。默认实现 `DefaultTimerHandler` 采用四级时间轮算法（每级 256 槽、1 毫秒精度、每帧最多推进 64 个 tick），配合分页槽位复用与版本化句柄，在十万级计时器规模下仍保持零 GC、O(1) 级操作成本。服务同时维护缩放（受 `Time.timeScale` 影响）与非缩放两条独立时间轮。通过 `TimerService.Xxx()` 静态外观访问（HandlerHost 模式：`TimerService` 静态外观 + `TimerServiceHandler` 抽象基类 + `DefaultTimerHandler` 时间轮后端 + `TimerServiceSettings` 配置）。
 
 注意：本服务与 `Runtime/Core/Schedulers` 下的 Scheduler 调度器（`Scheduler.Delay`、`Scheduler.WaitFrame` 等）是两套独立设施——Scheduler 是零分配的通用调度器，Timer 服务是面向海量定时任务的时间轮实现，按需选用。
 
@@ -11,7 +11,7 @@
 - 四级时间轮：4 级 x 256 桶，1ms tick 精度，到期派发无需全量扫描
 - 版本化句柄：句柄为 `(版本号 << 32) | (槽位 + 1)`，槽位复用后旧句柄自动失效（防 ABA）
 - 双时间轮：缩放（`Time.timeAsDouble`）与非缩放（`Time.unscaledTimeAsDouble`）独立推进
-- 三种回调形态：`TimerHandler`（object[] 传参）、`Action`（无参）、`Action<T>`（泛型单参，避免闭包）
+- 三种回调形态：`TimerServiceHandler`（object[] 传参）、`Action`（无参）、`Action<T>`（泛型单参，避免闭包）
 - 异常隔离：单个回调抛出的异常仅记录日志，不影响其他计时器与时间轮推进
 - 重入安全：回调内部可安全调用 `RemoveTimer` / `Stop` / `Restart` 操作自身或其他计时器
 - 分页存储与预热：默认预热 1024 槽位，按 256/页扩展，上限约 100 万槽位
@@ -22,9 +22,10 @@
 
 | 类/接口 | 说明 |
 |---------|------|
-| `TimerService` | 静态门面（`[HandlerHost]`）：`AddTimer` 三个重载、`Stop` / `Resume` / `Restart` / `RemoveTimer`、`Prewarm`、`GetStatistics`、`GetAllTimers` 全部静态 API |
-| `TimerHandler` | 时间轮后端处理器（继承 `FrameworkHandler`），承载四级时间轮核心逻辑 |
-| `TimerSettings` | 框架设置，`[ProviderDropdown]` 选择计时器后端实现 |
+| `TimerService` | 静态外观（`[HandlerHost]`）：`AddTimer` 三个重载、`Stop` / `Resume` / `Restart` / `RemoveTimer`、`Prewarm`、`GetStatistics`、`GetAllTimers` 全部静态 API |
+| `TimerServiceHandler` | 时间轮后端处理器抽象基类（继承 `FrameworkHandler`），定义外观调用的后端契约 |
+| `DefaultTimerHandler` | 默认实现（四级时间轮算法，位于 `Handler/` 目录），承载时间轮核心逻辑 |
+| `TimerServiceSettings` | 框架设置，`[ProviderDropdown]` 选择计时器后端实现 |
 | `TimerCallback` | 委托 `void TimerCallback(object[] args)`，传统 object[] 传参回调 |
 | `TimerDebugInfo` | 调试信息结构体：`timerHandle`、`leftTime`、`duration`、`age`、`flags` |
 | `TimerDebugFlags` | 调试标志位常量：`RUNNING`、`LOOP`、`UNSCALED` |

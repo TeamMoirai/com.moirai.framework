@@ -1,8 +1,8 @@
-# TweenUtility
+﻿# TweenUtility
 
-> 框架的缓动动画统一门面，提供可插拔的 Handler 架构，支持多种补间引擎（自研/PrimeTween/LitMotion）。
+> 框架的缓动动画统一外观，提供可插拔的 Handler 架构，支持多种补间引擎（自研/PrimeTween/LitMotion）。
 
-`TweenUtility` 是框架的缓动动画静态门面。默认使用基于 Unity 驱动循环的自研 `DefaultTweenHandler`，也可切换为 `PrimeTweenHandler` 或 `LitMotionHandler` 等第三方引擎。所有缓动方法统一接收 `TweenEase` 参数，支持从 `EEase` 枚举值或 `AnimationCurve` 隐式转换。
+`TweenUtility` 是框架的缓动动画静态外观。默认使用基于 Unity 驱动循环的自研 `DefaultTweenHandler`，也可切换为 `PrimeTweenHandler` 或 `LitMotionHandler` 等第三方引擎。所有缓动方法统一接收 `TweenEase` 参数，支持从 `EEase` 枚举值或 `AnimationCurve` 隐式转换。
 
 ## 核心特性
 
@@ -22,7 +22,7 @@
 
 | 类/接口 | 说明 |
 |---------|------|
-| `TweenUtility` | 静态门面，提供所有缓动方法、`EEase` 枚举、`ECycleMode` 枚举 |
+| `TweenUtility` | 静态外观，提供所有缓动方法、`EEase` 枚举、`ECycleMode` 枚举 |
 | `TweenHandler` | 抽象基类，定义全部缓动抽象方法 + `TweenManager` 嵌套管理器类 |
 | `TweenEase` | 统一缓动参数结构体，支持 `EEase` / `AnimationCurve` 隐式转换 |
 | `TweenUtility.EEase` | 31 种内置缓动曲线枚举（Linear / InQuad / OutBounce / InElastic 等） |

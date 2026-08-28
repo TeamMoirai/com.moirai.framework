@@ -1,7 +1,7 @@
-using System;
+﻿using System;
 using Cysharp.Threading.Tasks;
 using Moirai.Atropos;
-using YooAsset;
+using Moirai.Atropos.Resource;
 
 namespace Moirai.Main
 {
@@ -13,7 +13,7 @@ namespace Moirai.Main
     {
         public override bool UseNativeDialog { get; }
 
-        private ResourceDownloaderOperation _downloader;
+        private IResourceDownloader _downloader;
         private float _lastUpdateDownloadedSize;
         private float _totalSpeed;
         private int _speedSampleCount;
@@ -44,42 +44,35 @@ namespace Moirai.Main
 
         private async UniTaskVoid BeginDownload()
         {
-            _downloader = _resourceService.CreateResourceDownloader();
+            _downloader = ResourceService.CreateResourceDownloader();
 
-            // 注册下载回调
-            _downloader.DownloadError += OnDownloadErrorCallback;
-            _downloader.DownloadProgressChanged += OnDownloadProgressCallback;
-            _downloader.StartDownload();
-            await _downloader;
+            _downloader.BeginDownload();
+            while (!_downloader.IsDone)
+            {
+                OnDownloadProgress();
+                await UniTask.Yield();
+            }
 
             // 检测下载结果
-            if (_downloader.Status != EOperationStatus.Succeeded)
+            if (!_downloader.Succeed)
                 return;
 
             ChangeState<ProcedureDownloadOver>();
         }
 
-        private void OnDownloadErrorCallback(DownloadErrorEventArgs downloadErrorData)
+        private void OnDownloadProgress()
         {
-            LauncherMgr.ShowMessageBox($"Failed to download file : {downloadErrorData.FileName}",
-                () => { ChangeState<ProcedureCreateDownloader>(); }, UnityEngine.Application.Quit);
-        }
-
-        private void OnDownloadProgressCallback(DownloadProgressChangedEventArgs downloadUpdateData)
-        {
-            string currentSizeMb = (downloadUpdateData.CurrentDownloadBytes / 1048576f).ToString("f1");
-            string totalSizeMb = (downloadUpdateData.TotalDownloadBytes / 1048576f).ToString("f1");
+            string currentSizeMb = (_downloader.CurrentDownloadBytes / 1048576f).ToString("f1");
+            string totalSizeMb = (_downloader.TotalDownloadBytes / 1048576f).ToString("f1");
             float progressPercentage = _downloader.Progress * 100;
             string speed = FileUtility.GetLengthString((int)CurrentSpeed);
 
-            string line1 = StringUtility.Format(LoadText.Instance.Label_Download_Detail1, downloadUpdateData.CurrentDownloadCount, downloadUpdateData.TotalDownloadCount, progressPercentage);
+            string line1 = StringUtility.Format(LoadText.Instance.Label_Download_Detail1, 0, _downloader.TotalDownloadCount, progressPercentage);
             string line2 = StringUtility.Format(LoadText.Instance.Label_Download_Detail2, currentSizeMb, totalSizeMb);
-            string line3 = StringUtility.Format(LoadText.Instance.Label_Download_Detail3, speed, GetRemainingTime(downloadUpdateData.TotalDownloadBytes, downloadUpdateData.CurrentDownloadBytes, CurrentSpeed));
-            
-            LauncherMgr.RefreshProgress(_downloader.Progress);
-            LauncherMgr.ShowUI<LoadUpdateUI>($"{line1}\n{line2}\n{line3}");
+            string line3 = StringUtility.Format(LoadText.Instance.Label_Download_Detail3, speed, GetRemainingTime(_downloader.TotalDownloadBytes, _downloader.CurrentDownloadBytes, CurrentSpeed));
 
-            LogUtility.Info($"{line1} {line2} {line3}");
+            LauncherMgr.RefreshProgress(_downloader.Progress);
+            LauncherMgr.ShowUI<LoadUpdateUI>(StringUtility.Format("{0}\n{1}\n{2}", line1, line2, line3));
         }
 
         private string GetRemainingTime(long totalBytes, long currentBytes, float speed)
@@ -89,7 +82,7 @@ namespace Moirai.Main
             {
                 needTime = (int)((totalBytes - currentBytes) / speed);
             }
-            
+
             TimeSpan ts = new TimeSpan(0, 0, needTime);
             return ts.ToString(@"mm\:ss");
         }

@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Text;
 using Cysharp.Threading.Tasks;
 
@@ -8,7 +8,7 @@ namespace Moirai.Atropos.Save
     /// JSON 格式存档处理器。
     /// </summary>
     [System.Serializable]
-    public class JsonSaveHandler : SaveHandler
+    public class JsonSaveHandler : SaveServiceHandler
     {
         /// <summary>
         /// 将指定的对象转换为 json 后将其保存在指定位置

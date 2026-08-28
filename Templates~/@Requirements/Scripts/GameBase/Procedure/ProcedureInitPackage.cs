@@ -1,8 +1,8 @@
-using System;
+﻿using System;
 using Cysharp.Threading.Tasks;
 using Moirai.Atropos;
+using Moirai.Atropos.Resource;
 using UnityEngine;
-using YooAsset;
 
 namespace Moirai.Main
 {
@@ -26,31 +26,31 @@ namespace Moirai.Main
         {
             try
             {
-                var initializationOperation = await _resourceService.InitPackage(_resourceService.DefaultPackageName,
-                    _resourceService.PlayMode == EPlayMode.OfflinePlayMode);
+                var initializationOperation = await ResourceService.InitPackage(ResourceService.DefaultPackageName,
+                    ResourceService.PlayMode == EResourcePlayMode.Offline);
 
-                if (initializationOperation.Status == EOperationStatus.Succeeded)
+                if (initializationOperation != null && initializationOperation.Succeed)
                 {
                     // 热更新阶段文本初始化
                     LoadText.Instance.InitConfigData();
 
-                    EPlayMode playMode = _resourceService.PlayMode;
+                    EResourcePlayMode playMode = ResourceService.PlayMode;
 
                     // 编辑器模式。
-                    if (playMode == EPlayMode.EditorSimulateMode)
+                    if (playMode == EResourcePlayMode.EditorSimulate)
                     {
                         LogUtility.Info("Editor resource mode detected.");
                         ChangeState<ProcedureInitResources>();
                     }
                     // 单机模式。
-                    else if (playMode == EPlayMode.OfflinePlayMode)
+                    else if (playMode == EResourcePlayMode.Offline)
                     {
                         LogUtility.Info("Package resource mode detected.");
                         ChangeState<ProcedureInitResources>();
                     }
                     // 可更新模式。
-                    else if (playMode == EPlayMode.HostPlayMode ||
-                             playMode == EPlayMode.WebPlayMode)
+                    else if (playMode == EResourcePlayMode.HostPlay ||
+                             playMode == EResourcePlayMode.WebPlay)
                     {
                         // 打开启动UI。
                         LauncherMgr.ShowUI<LoadUpdateUI>();
@@ -68,13 +68,13 @@ namespace Moirai.Main
                     // 打开启动UI。
                     LauncherMgr.ShowUI<LoadUpdateUI>();
 
-                    LogUtility.Error($"{initializationOperation.Error}");
+                    LogUtility.Error("{0}", initializationOperation?.Operation?.Error);
 
                     // 打开启动UI。
                     LauncherMgr.ShowUI<LoadUpdateUI>(LoadText.Instance.Label_Load_InitFailed);
 
                     LauncherMgr.ShowMessageBox(
-                        $"资源初始化失败！点击确认重试 \n \n <color=#FF0000>原因{initializationOperation.Error}</color>",
+                        $"资源初始化失败！点击确认重试\n <color=#FF0000>{initializationOperation?.Operation?.Error}</color>",
                         () => { Retry(); }, Application.Quit);
                 }
             }
@@ -89,7 +89,7 @@ namespace Moirai.Main
             // 打开启动UI。
             LauncherMgr.ShowUI<LoadUpdateUI>();
 
-            LogUtility.Error($"{message}");
+            LogUtility.Error("{0}", message);
 
             // 资源初始化失败
             LauncherMgr.ShowUI<LoadUpdateUI>(LoadText.Instance.Label_Load_InitFailed);
@@ -99,7 +99,7 @@ namespace Moirai.Main
                 message = "Check if <b>StreamingAssets/package/DefaultPackage/PackageManifest_DefaultPackage.version</b> exists!";
             }
 
-            LauncherMgr.ShowMessageBox($"Resource initialization failed! Click Confirm to try again. \n \n <color=#FF0000>Reason: {message}</color>",
+            LauncherMgr.ShowMessageBox(StringUtility.Format("Resource initialization failed! Click Confirm to try again. \n \n <color=#FF0000>Reason: {0}</color>", message),
                 () => { Retry(); }, Application.Quit);
         }
 

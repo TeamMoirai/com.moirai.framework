@@ -8,7 +8,7 @@ namespace Moirai.Atropos.Input
     /// 基于场景 UI 元素（InputButton/InputAxes 组件），适用于移动端虚拟摇杆。
     /// </summary>
     [Serializable]
-    public sealed class UIMobileInputHandler : InputHandler
+    public sealed class UIMobileInputHandler : InputServiceHandler
     {
         private readonly Dictionary<string, InputButton> _inputButtons = new Dictionary<string, InputButton>();
         private readonly Dictionary<string, InputAxes> _inputAxes = new Dictionary<string, InputAxes>();

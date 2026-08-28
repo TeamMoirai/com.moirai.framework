@@ -9,7 +9,7 @@ using UnityEngine.TestTools;
 namespace Utility
 {
     /// <summary>
-    /// LogUtility 门面与 LogHandler 抽象的单元测试。
+    /// LogUtility 外观与 LogHandler 抽象的单元测试。
     /// <para>不创建 LogHandler 子类（避免 [SerializeReference] Inspector 下拉污染），
     /// 使用 DefaultLogHandler + OnMessageLogged 事件捕获日志条目。</para>
     /// </summary>

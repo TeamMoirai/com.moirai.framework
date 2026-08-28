@@ -1,5 +1,5 @@
-using Moirai.Atropos;
-using YooAsset;
+﻿using Moirai.Atropos;
+using Moirai.Atropos.Resource;
 
 namespace Moirai.Main
 {
@@ -17,16 +17,20 @@ namespace Moirai.Main
             
             LauncherMgr.ShowUI<LoadUpdateUI>(LoadText.Instance.Label_ClearCache);
 
-            var options = new ClearCacheOptions(ClearCacheMethods.ClearUnusedBundleFiles);
-            var operation = _resourceService.ClearCacheAsync(options);
-            operation.Completed += Operation_Completed;
+            var options = EResourceClearMode.ClearUnusedBundleFiles;
+            var operation = ResourceService.ClearCacheAsync(options);
+            UnityUtility.StartCoroutine(WaitClearCacheComplete(operation));
         }
-        
-        
-        private void Operation_Completed(AsyncOperationBase obj)
+
+        private System.Collections.IEnumerator WaitClearCacheComplete(ResourceClearCacheResult operation)
         {
+            while (operation?.Operation != null && !operation.Operation.IsDone)
+            {
+                yield return null;
+            }
+
             LauncherMgr.ShowUI<LoadUpdateUI>(LoadText.Instance.Label_ClearCache_Completed);
-            
+
             ChangeState<ProcedureLoadAssembly>();
         }
     }

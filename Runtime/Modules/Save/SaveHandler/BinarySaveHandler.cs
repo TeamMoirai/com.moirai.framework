@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Runtime.Serialization.Formatters.Binary;
 using Cysharp.Threading.Tasks;
 
@@ -15,7 +15,7 @@ namespace Moirai.Atropos.Save
     /// </remarks>
     [System.Obsolete("BinaryFormatter is insecure and deprecated. Use JsonSaveHandler instead. See https://aka.ms/binaryformatter")]
     [System.Serializable]
-    public class BinarySaveHandler : SaveHandler
+    public class BinarySaveHandler : SaveServiceHandler
     {
         [System.NonSerialized] private BinaryFormatter _formatter;
 

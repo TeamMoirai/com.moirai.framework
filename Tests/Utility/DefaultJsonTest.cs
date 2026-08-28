@@ -1452,7 +1452,7 @@ namespace Utility
         [Test]
         public void Facade_Bytes_RoundTrip()
         {
-            // 门面字节 API：DefaultJsonHandler 实现了 IBufferJsonHandler（当前默认 handler 即为此）
+            // 外观字节 API：DefaultJsonHandler 实现了 IBufferJsonHandler（当前默认 handler 即为此）
             var payload = new Dictionary<string, int> { { "gold", 100 }, { "level", 3 } };
             byte[] bytes = Moirai.Atropos.JsonUtility.ToJsonBytes(payload);
             var back = Moirai.Atropos.JsonUtility.ToObject<Dictionary<string, int>>(bytes);

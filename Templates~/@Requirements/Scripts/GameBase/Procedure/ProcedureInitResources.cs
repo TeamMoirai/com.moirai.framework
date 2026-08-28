@@ -1,7 +1,7 @@
-using System.Collections;
+﻿using System.Collections;
 using Moirai.Atropos;
+using Moirai.Atropos.Resource;
 using UnityEngine;
-using YooAsset;
 
 namespace Moirai.Main
 {
@@ -37,14 +37,14 @@ namespace Moirai.Main
                 return;
             }
 
-            if (_resourceService.PlayMode == EPlayMode.HostPlayMode || _resourceService.PlayMode == EPlayMode.WebPlayMode)
+            if (ResourceService.PlayMode == EResourcePlayMode.HostPlay || ResourceService.PlayMode == EResourcePlayMode.WebPlay)
             {
                 // 线上最新版本operation.PackageVersion
-                LogUtility.Debug($"Updated package Version : from {_resourceService.GetPackageVersion()} to {_resourceService.PackageVersion}");
+                LogUtility.Debug("Updated package Version : from {0} to {1}", ResourceService.GetPackageVersion(), ResourceService.PackageVersion);
                 // 注意：保存资源版本号作为下次默认启动的版本!
                 // 如果当前是WebGL或者是边玩边下载直接进入预加载阶段。
-                if (_resourceService.PlayMode == EPlayMode.WebPlayMode ||
-                    _resourceService.UpdatableWhilePlaying)
+                if (ResourceService.PlayMode == EResourcePlayMode.WebPlay ||
+                    ResourceService.UpdatableWhilePlaying)
                 {
                     // 边玩边下载还可以拓展首包支持。
                     ChangeToPreloadState();
@@ -74,27 +74,33 @@ namespace Moirai.Main
             LauncherMgr.ShowUI<LoadUpdateUI>(LoadText.Instance.Label_UpdateManifest);
 
             // 1. 获取资源清单的版本信息
-            var operation1 = _resourceService.RequestPackageVersionAsync();
-            yield return operation1;
-            if (operation1.Status != EOperationStatus.Succeeded)
+            var operation1 = ResourceService.RequestPackageVersionAsync();
+            while (operation1?.Operation != null && !operation1.Operation.IsDone)
             {
-                OnInitResourcesError(operation1.Error);
+                yield return null;
+            }
+            if (operation1 == null || operation1.Operation == null || !operation1.Operation.Succeed)
+            {
+                OnInitResourcesError(operation1?.Operation?.Error);
                 yield break;
             }
 
             var packageVersion = operation1.PackageVersion;
-            _resourceService.PackageVersion = packageVersion;
+            ResourceService.PackageVersion = packageVersion;
 
-            SettingUtility.SetString(GameConstant.GAME_VERSION, _resourceService.PackageVersion);
+            SettingUtility.SetString(GameConstant.GAME_VERSION, ResourceService.PackageVersion);
 
-            LogUtility.Info($"Init resource package version : {packageVersion}");
+            LogUtility.Info("Init resource package version : {0}", packageVersion);
 
             // 2. 传入的版本信息更新资源清单
-            var operation2 = _resourceService.LoadPackageManifestAsync(packageVersion);
-            yield return operation2;
-            if (operation2.Status != EOperationStatus.Succeeded)
+            var operation2 = ResourceService.LoadPackageManifestAsync(packageVersion);
+            while (operation2 != null && !operation2.IsDone)
             {
-                OnInitResourcesError(operation2.Error);
+                yield return null;
+            }
+            if (operation2 == null || !operation2.Succeed)
+            {
+                OnInitResourcesError(operation2?.Error);
                 yield break;
             }
 
@@ -109,7 +115,7 @@ namespace Moirai.Main
         private void OnInitResourcesError(string message)
         {
             // 检查设备网络连接状态。
-            if (_resourceService.PlayMode == EPlayMode.HostPlayMode)
+            if (ResourceService.PlayMode == EResourcePlayMode.HostPlay)
             {
                 if (!IsNeedUpdate())
                 {
@@ -125,14 +131,14 @@ namespace Moirai.Main
             }
 
             LogUtility.Error(message);
-            LauncherMgr.ShowMessageBox($"初始化资源失败！点击确认重试 \n <color=#FF0000>{message}</color>",
+            LauncherMgr.ShowMessageBox($"初始化资源失败！点击确认重试\n <color=#FF0000>{message}</color>",
                 () => { UnityUtility.StartCoroutine(InitResources()); }, Application.Quit);
         }
 
         private bool IsNeedUpdate()
         {
             // 如果不能联网且当前游戏非强制(不更新可以进入游戏。)
-            if (UpdateSettings.UpdateStyle == EUpdateStyle.Optional && !_resourceService.UpdatableWhilePlaying)
+            if (UpdateSettings.UpdateStyle == EUpdateStyle.Optional && !ResourceService.UpdatableWhilePlaying)
             {
                 // 获取上次成功记录的版本
                 string packageVersion = SettingUtility.GetString(GameConstant.GAME_VERSION, string.Empty);
@@ -145,12 +151,12 @@ namespace Moirai.Main
                     return false;
                 }
 
-                _resourceService.PackageVersion = packageVersion;
+                ResourceService.PackageVersion = packageVersion;
 
                 if (UpdateSettings.UpdateNotice == EUpdateNotice.Notice)
                 {
                     LauncherMgr.ShowUI<LoadUpdateUI>(LoadText.Instance.Label_Load_Notice);
-                    LauncherMgr.ShowMessageBox($"更新失败，检测到可选资源更新，推荐完成更新提升游戏体验！ \\n \\n 确定再试一次，取消进入游戏",
+                    LauncherMgr.ShowMessageBox("更新失败，检测到可选资源更新，推荐完成更新提升游戏体验！ \\n \\n 确定再试一次，取消进入游戏",
                         () => { UnityUtility.StartCoroutine(InitResources()); },
                         () => { ChangeState<ProcedurePreload>(); });
                 }

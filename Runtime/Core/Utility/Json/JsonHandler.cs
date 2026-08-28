@@ -48,7 +48,7 @@ namespace Moirai.Atropos
     /// <para>面向 IO/网络等天然以字节为载体的场景（存档、加密、上行/下行报文），
     /// 序列化直接产出 UTF8 字节、反序列化直接消费 UTF8 字节，跳过 string 中间态的
     /// UTF16↔UTF8 双向转码与大字符串分配。</para>
-    /// <para>能力探测：<see cref="JsonUtility"/> 门面以 <c>Handler is IBufferJsonHandler</c>
+    /// <para>能力探测：<see cref="JsonUtility"/> 外观以 <c>Handler is IBufferJsonHandler</c>
     /// 探测；未实现者（如 Newtonsoft handler）自动回退 string 路径
     /// （<see cref="System.Text.Encoding"/>.UTF8 编解码），调用方无感。</para>
     /// <para>语义约束：字节输出必须与 string 输出 UTF8 编码后逐字节等价（紧凑格式）；

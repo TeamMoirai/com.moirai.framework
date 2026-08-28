@@ -6,7 +6,7 @@ using Object = UnityEngine.Object;
 namespace Moirai.Atropos
 {
     /// <summary>
-    /// 游戏框架日志门面（Facade）。
+    /// 游戏框架日志外观（Facade）。
     /// <para>统一的静态日志入口，通过替换 <see cref="Handler"/> 即可在
     /// Unity Debug、Unity Logging、Serilog、ZLogger 等日志系统之间零成本切换，调用方代码无需任何改动。</para>
     /// <para>所有带格式化参数的重载都会先做 <see cref="LogHandler.IsEnabled"/> 前置检查，

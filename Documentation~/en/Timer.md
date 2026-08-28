@@ -1,8 +1,8 @@
-# Timer Service
+﻿# Timer Service
 
 > High-performance timer service based on a four-level timing wheel, no full scan, suitable for large-scale timed scenarios such as skill cooldowns, heartbeat packets, and delayed tasks.
 
-The `Timer` service provides the ability to add, pause, resume, restart, and remove timers. The implementation class `TimerHandler` uses a four-level timing wheel algorithm (256 slots per level, 1 ms precision, advancing at most 64 ticks per frame), combined with paged slot reuse and versioned handles, maintaining zero GC and O(1) operation cost even with hundreds of thousands of timers. The service maintains two independent timing wheels: scaled (affected by `Time.timeScale`) and unscaled. Access via the `TimerService.Xxx()` static facade (HandlerHost pattern: `TimerService` static facade + `TimerHandler` timing wheel backend + `TimerSettings` configuration).
+The `Timer` service provides the ability to add, pause, resume, restart, and remove timers. The default implementation `DefaultTimerHandler` uses a four-level timing wheel algorithm (256 slots per level, 1 ms precision, advancing at most 64 ticks per frame), combined with paged slot reuse and versioned handles, maintaining zero GC and O(1) operation cost even with hundreds of thousands of timers. The service maintains two independent timing wheels: scaled (affected by `Time.timeScale`) and unscaled. Access via the `TimerService.Xxx()` static facade (HandlerHost pattern: `TimerService` static facade + `TimerServiceHandler` abstract base class + `DefaultTimerHandler` timing wheel backend + `TimerServiceSettings` configuration).
 
 Note: This service is a separate facility from the Scheduler (`Scheduler.Delay`, `Scheduler.WaitFrame`, etc.) under `Runtime/Core/Schedulers`. The Scheduler is a zero-allocation general-purpose scheduler, while the Timer service is a timing wheel implementation designed for massive timed tasks. Choose based on your needs.
 
@@ -23,8 +23,9 @@ Namespace: `Moirai.Atropos.Timer`
 | Class/Interface | Description |
 |---------|------|
 | `TimerService` | Static facade (`[HandlerHost]`): all static APIs including `AddTimer` three overloads, `Stop` / `Resume` / `Restart` / `RemoveTimer`, `Prewarm`, `GetStatistics`, `GetAllTimers` |
-| `TimerHandler` | Timing wheel backend handler (inherits `FrameworkHandler`), carries the core four-level timing wheel logic |
-| `TimerSettings` | Framework settings, selects the timer backend implementation via `[ProviderDropdown]` |
+| `TimerServiceHandler` | Timing wheel backend handler abstract base class (inherits `FrameworkHandler`), defines the backend contract invoked by the facade |
+| `DefaultTimerHandler` | Default implementation (four-level timing wheel algorithm, located under `Handler/`), carries the core timing wheel logic |
+| `TimerServiceSettings` | Framework settings, selects the timer backend implementation via `[ProviderDropdown]` |
 | `TimerCallback` | Delegate `void TimerCallback(object[] args)`, traditional object[] parameter callback |
 | `TimerDebugInfo` | Debug info struct: `timerHandle`, `leftTime`, `duration`, `age`, `flags` |
 | `TimerDebugFlags` | Debug flag constants: `RUNNING`, `LOOP`, `UNSCALED` |

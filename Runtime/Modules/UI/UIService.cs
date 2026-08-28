@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Cysharp.Threading.Tasks;
 using Moirai.Atropos.Resource;
 using Moirai.Atropos.Timer;
@@ -7,21 +7,21 @@ using UnityEngine;
 namespace Moirai.Atropos.UI
 {
     /// <summary>
-    /// UI服务门面（Facade）。
+    /// UI服务外观（Facade）。
     /// <para>统一的静态 UI 访问入口，通过替换 <see cref="Handler"/> 即可在不同 UI 后端之间零成本切换。</para>
-    /// <para>未显式设置处理器时，使用 <see cref="CreateDefaultHandler"/> 从 <see cref="UISettings"/> 创建处理器实例。</para>
+    /// <para>未显式设置处理器时，使用 <see cref="CreateDefaultHandler"/> 从 <see cref="UIServiceSettings"/> 创建处理器实例。</para>
     /// <para>Handler 属性由 <c>HandlerHostGenerator</c> 源生成器自动生成（线程安全懒加载）。</para>
     /// </summary>
-    [HandlerHost(typeof(UIHandler))]
+    [HandlerHost(typeof(UIServiceHandler))]
     [ServiceDependency(typeof(ResourceService), typeof(TimerService))]
     public sealed partial class UIService : ServiceBase, IServiceTickable
     {
         #region 层级常量 [LAYER CONSTANTS]
 
-        public const int LAYER_DEEP = UIHandler.LAYER_DEEP;
-        public const int WINDOW_DEEP = UIHandler.WINDOW_DEEP;
-        public const int WINDOW_HIDE_LAYER = UIHandler.WINDOW_HIDE_LAYER; // Ignore Raycast
-        public const int WINDOW_SHOW_LAYER = UIHandler.WINDOW_SHOW_LAYER; // UI
+        public const int LAYER_DEEP = UIServiceHandler.LAYER_DEEP;
+        public const int WINDOW_DEEP = UIServiceHandler.WINDOW_DEEP;
+        public const int WINDOW_HIDE_LAYER = UIServiceHandler.WINDOW_HIDE_LAYER; // Ignore Raycast
+        public const int WINDOW_SHOW_LAYER = UIServiceHandler.WINDOW_SHOW_LAYER; // UI
 
         #endregion
 
@@ -57,12 +57,12 @@ namespace Moirai.Atropos.UI
         #region 处理器 [HANDLER]
 
         /// <summary>
-        /// 从 <see cref="UISettings"/> 创建默认 UI 处理器。
+        /// 从 <see cref="UIServiceSettings"/> 创建默认 UI 处理器。
         /// </summary>
         /// <returns>默认 UI 处理器实例。</returns>
-        private static UIHandler CreateDefaultHandler()
+        private static UIServiceHandler CreateDefaultHandler()
         {
-            return UISettings.UIHandler;
+            return UIServiceSettings.UIServiceHandler;
         }
 
         #endregion

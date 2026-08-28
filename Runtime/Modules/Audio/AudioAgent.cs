@@ -1,8 +1,10 @@
-using Moirai.Atropos.Resource;
+﻿using Moirai.Atropos.Resource;
+using System;
+using Cysharp.Threading.Tasks;
 using Moirai.Atropos.Schedulers;
 using UnityEngine;
 using UnityEngine.Audio;
-using YooAsset;
+using Object = UnityEngine.Object;
 
 namespace Moirai.Atropos.Audio
 {
@@ -11,9 +13,11 @@ namespace Moirai.Atropos.Audio
     /// </summary>
     public class AudioAgent
     {
-        private AudioHandler _audioHandler;
-        private ResourceHandler _resourceService;
+        private AudioServiceHandler _audioHandler;
+        private ResourceServiceHandler _resourceService;
         private AudioAssetData _audioAssetData;
+        // 当前加载的资源路径（作为句柄池键）。
+        private string _currentPath;
 
         // 当前声源的位置
         private Transform _transform;
@@ -382,27 +386,27 @@ namespace Moirai.Atropos.Audio
         {
             _audioPlayOptions = options;
             _inPool = bInPool;
-            
+            _currentPath = path;
+
             if (_audioAgentRuntimeState == EAudioAgentRuntimeState.None || _audioAgentRuntimeState == EAudioAgentRuntimeState.End)
             {
                 if (!string.IsNullOrEmpty(path))
                 {
-                    if (bInPool && _audioHandler.AssetHandlePool.TryGetValue(path, out var operationHandle))
+                    if (bInPool && _audioHandler.AssetHandlePool.TryGetValue(path, out var operationHandleObj))
                     {
-                        OnAssetLoadComplete(operationHandle);
+                        OnAssetLoadComplete(operationHandleObj);
                         return;
                     }
 
                     if (bAsync)
                     {
                         _audioAgentRuntimeState = EAudioAgentRuntimeState.Loading;
-                        AssetHandle handle = _resourceService.LoadAssetAsyncHandle<AudioClip>(path);
-                        handle.Completed += OnAssetLoadComplete;
+                        LoadLeaseAsyncInternal(path).Forget();
                     }
                     else
                     {
-                        AssetHandle handle = _resourceService.LoadAssetSyncHandle<AudioClip>(path);
-                        OnAssetLoadComplete(handle);
+                        var lease = _resourceService.LoadLease<AudioClip>(path);
+                        OnAssetLoadComplete(lease);
                     }
                 }
             }
@@ -420,22 +424,22 @@ namespace Moirai.Atropos.Audio
         /// <summary>
         /// 资源加载完成。
         /// </summary>
-        /// <param name="handle">资源操作句柄。</param>
-        private void OnAssetLoadComplete(AssetHandle handle)
+        /// <param name="handleObj">资源操作句柄（后端原生句柄的 object 包装）。</param>
+        private void OnAssetLoadComplete(object handleObj)
         {
-            if (handle != null)
+            if (handleObj != null)
             {
-                if (_inPool)
+                if (_inPool && !string.IsNullOrEmpty(_currentPath))
                 {
-                    _audioHandler.AssetHandlePool.TryAdd(handle.GetAssetInfo().Address, handle);
+                    _audioHandler.AssetHandlePool.TryAdd(_currentPath, handleObj);
                 }
             }
 
             if (_pendingLoad != null)
             {
-                if (!_inPool && handle != null)
+                if (!_inPool && handleObj != null && ReleaseLeaseObject(handleObj))
                 {
-                    handle.Dispose();
+                    // 租约已释放
                 }
 
                 _audioAgentRuntimeState = EAudioAgentRuntimeState.End;
@@ -445,22 +449,67 @@ namespace Moirai.Atropos.Audio
                 _pendingLoad = null;
                 Load(path, _audioPlayOptions, bAsync, bInPool);
             }
-            else if (handle != null)
+            else if (handleObj != null)
             {
                 if (_audioAssetData != null)
                 {
                     AudioAssetData.Dealloc(_audioAssetData);
                     _audioAssetData = null;
                 }
-                
-                _audioAssetData = AudioAssetData.Alloc(handle, _inPool);
-                
-                HandleAudioPlay(handle.AssetObject as AudioClip);
+
+                _audioAssetData = AudioAssetData.Alloc(handleObj, _inPool);
+
+                if (TryGetLeaseClip(handleObj, out var clip))
+                {
+                    HandleAudioPlay(clip);
+                }
             }
             else
             {
                 _audioAgentRuntimeState = EAudioAgentRuntimeState.End;
             }
+        }
+
+        /// <summary>
+        /// 异步加载音频租约并触发加载完成回调。
+        /// </summary>
+        private async UniTaskVoid LoadLeaseAsyncInternal(string path)
+        {
+            var lease = await _resourceService.LoadLeaseAsync<AudioClip>(path);
+            OnAssetLoadComplete(lease);
+        }
+
+        /// <summary>
+        /// 从句柄包装对象中提取 AudioClip（兼容 ResourceAssetLease 与后端原生句柄）。
+        /// </summary>
+        private static bool TryGetLeaseClip(object handleObj, out AudioClip clip)
+        {
+            switch (handleObj)
+            {
+                case ResourceAssetLease<AudioClip> typedLease:
+                    clip = typedLease.Asset;
+                    return clip != null;
+                case YooAsset.AssetHandle nativeHandle when nativeHandle.AssetObject is AudioClip audioClip:
+                    clip = audioClip;
+                    return true;
+                default:
+                    clip = null;
+                    return false;
+            }
+        }
+
+        /// <summary>
+        /// 释放句柄包装对象持有的租约/原生句柄。
+        /// </summary>
+        private static bool ReleaseLeaseObject(object handleObj)
+        {
+            if (handleObj is IDisposable disposable)
+            {
+                disposable.Dispose();
+                return true;
+            }
+
+            return false;
         }
 
         /// <summary>

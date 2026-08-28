@@ -5,7 +5,7 @@ using UnityEngine;
 
 namespace Moirai.Atropos
 {
-    [FrameworkSetting("游戏基础配置", "自动生成组件绑定代码设置", -999)]
+    [FrameworkSetting("[框架]基础配置", "自动生成组件绑定代码设置", -1000)]
     public partial class GameAppSettings : FrameworkSettings<GameAppSettings>
     {
         [DisableInPlayMode]

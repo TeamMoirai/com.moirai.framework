@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Security.Cryptography;
 using Cysharp.Threading.Tasks;
 
@@ -11,7 +11,7 @@ namespace Moirai.Atropos.Save
     /// 具体格式的序列化逻辑。
     /// </summary>
     [System.Serializable]
-    public abstract class EncryptedSaveHandlerBase : SaveHandler
+    public abstract class EncryptedSaveHandlerBase : SaveServiceHandler
     {
         [System.NonSerialized] private SaveEncryptor _encryptor;
 
@@ -30,11 +30,11 @@ namespace Moirai.Atropos.Save
         }
 
         /// <summary>
-        /// 初始化时从 <see cref="SaveSettings"/> 注入加密密钥。
+        /// 初始化时从 <see cref="SaveServiceSettings"/> 注入加密密钥。
         /// </summary>
         protected override void OnInit()
         {
-            Key = SaveSettings.EncryptionKey;
+            Key = SaveServiceSettings.EncryptionKey;
         }
 
         protected internal override UniTask SerializeAsync(object objectToSave, FileStream saveFile)
@@ -61,7 +61,7 @@ namespace Moirai.Atropos.Save
                 }
                 catch (CryptographicException ce)
                 {
-                    LogUtility.Error("[SaveHandler] Decryption failed: " + ce);
+                    LogUtility.Error("[SaveServiceHandler] Decryption failed: " + ce);
                     return UniTask.FromResult<T>(default);
                 }
                 memoryStream.Position = 0;

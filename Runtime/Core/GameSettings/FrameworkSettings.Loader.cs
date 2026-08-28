@@ -67,7 +67,7 @@ namespace Moirai.Atropos
 
             #region 创建配置文件
 
-            TSetting setting = ScriptableObject.CreateInstance<TSetting>();
+            TSetting setting = CreateInstance<TSetting>();
             onNewAsset?.Invoke(setting);
             AssetDatabase.CreateAsset(setting, settingPath);
 
@@ -82,20 +82,20 @@ namespace Moirai.Atropos
         /// <summary>
         /// 获取资源数据库中给定类型的所有实例
         /// </summary>
-        /// <typeparam name="T"></typeparam>
+        /// <typeparam name="TSetting"></typeparam>
         /// <returns></returns>
-        private static T[] GetAllInstances<T>() where T : ScriptableObject
+        private static TSetting[] GetAllSettings<TSetting>() where TSetting : ScriptableObject
         {
             // 参考自 https://answers.unity.com/questions/1425758/how-can-i-find-all-instances-of-a-scriptable-objec.html
-            string[] guids = AssetDatabase.FindAssets("t:" + typeof(T).Name); // FindAssets 使用标签查看文档以获取更多信息
-            T[] a = new T[guids.Length];
+            string[] guids = AssetDatabase.FindAssets("t:" + typeof(T).Name);
+            TSetting[] results = new TSetting[guids.Length];
             for (int i = 0; i < guids.Length; i++) // 可能会得到优化
             {
                 string path = AssetDatabase.GUIDToAssetPath(guids[i]);
-                a[i] = AssetDatabase.LoadAssetAtPath<T>(path);
+                results[i] = AssetDatabase.LoadAssetAtPath<TSetting>(path);
             }
 
-            return a;
+            return results;
         }
     }
 }

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using UnityEngine;
 
 namespace Moirai.Atropos.Audio
@@ -52,7 +52,7 @@ namespace Moirai.Atropos.Audio
             }
         }
 
-        AudioHandler _target;
+        AudioServiceHandler _target;
 
         private TrackStruct[] _tracks;
         private readonly Color[] _colorBases = new []{ ColorsUtility.YellowAmber, ColorsUtility.Coral, ColorsUtility.SteelBlue, ColorsUtility.Aquamarine, ColorsUtility.Burlywood };

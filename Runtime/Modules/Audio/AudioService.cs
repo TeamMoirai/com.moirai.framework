@@ -1,32 +1,31 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using Moirai.Atropos.Resource;
 using UnityEngine;
 using UnityEngine.Audio;
-using YooAsset;
 
 namespace Moirai.Atropos.Audio
 {
     /// <summary>
-    /// 音效管理门面（Facade），为游戏提供统一的音效播放接口。
+    /// 音效管理外观（Facade），为游戏提供统一的音效播放接口。
     /// <para>统一的静态音频访问入口，通过替换 <see cref="Handler"/> 即可在不同音频后端之间零成本切换。</para>
-    /// <para>未显式设置处理器时，使用 <see cref="CreateDefaultHandler"/> 从 <see cref="AudioSettings"/> 创建处理器实例。</para>
+    /// <para>未显式设置处理器时，使用 <see cref="CreateDefaultHandler"/> 从 <see cref="AudioServiceSettings"/> 创建处理器实例。</para>
     /// <para>Handler 属性由 <c>HandlerHostGenerator</c> 源生成器自动生成（线程安全懒加载）。</para>
     /// <para>场景3D音效挂到场景物件、技能3D音效挂到技能特效上，并在 <see cref="AudioSource"/> 的Output上设置对应分类的 <see cref="AudioMixerGroup"/>。</para>
     /// </summary>
-    [HandlerHost(typeof(AudioHandler))]
+    [HandlerHost(typeof(AudioServiceHandler))]
     [ServiceDependency(typeof(ResourceService))]
     public partial class AudioService : ServiceBase, IServiceTickable
     {
-#region 处理器 [HANDLER]
+        #region 处理器 [HANDLER]
 
         /// <summary>
-        /// 从 <see cref="AudioSettings"/> 创建默认音频处理器。
+        /// 从 <see cref="AudioServiceSettings"/> 创建默认音频处理器。
         /// </summary>
         /// <returns>默认音频处理器实例。</returns>
-        private static AudioHandler CreateDefaultHandler()
+        private static AudioServiceHandler CreateDefaultHandler()
         {
-            return AudioSettings.AudioHandler;
+            return AudioServiceSettings.AudioServiceHandler;
         }
 
         #endregion
@@ -41,8 +40,6 @@ namespace Moirai.Atropos.Audio
         public override void OnInit()
         {
             _ = Handler;
-
-            s_Handler.ResourceService = ResourceService.Handler;
         }
 
         /// <summary>
@@ -84,9 +81,9 @@ namespace Moirai.Atropos.Audio
         }
 
         /// <summary>
-        /// 资源句柄池，用于缓存资源系统的已加载音频资源。
+        /// 资源句柄池，用于缓存资源系统的已加载音频资源（后端原生句柄的 object 包装）。
         /// </summary>
-        public static Dictionary<string, AssetHandle> AssetHandlePool => s_Handler?.AssetHandlePool;
+        public static Dictionary<string, object> AssetHandlePool => s_Handler?.AssetHandlePool;
 
         #endregion
 

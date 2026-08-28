@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
@@ -131,7 +131,7 @@ namespace Moirai.Atropos.Resource
 
         #region 字段 [FIELDS]
 
-        private readonly ResourceHandler _handler;
+        private readonly ResourceServiceHandler _handler;
 
         private OwnerSlot[][] _ownerPages;
         private int _ownerNextIndex;
@@ -159,7 +159,7 @@ namespace Moirai.Atropos.Resource
         /// 创建资源绑定服务。
         /// </summary>
         /// <param name="handler">资源处理器。</param>
-        public ResourceBindingService(ResourceHandler handler)
+        public ResourceBindingService(ResourceServiceHandler handler)
         {
             _handler = handler;
         }

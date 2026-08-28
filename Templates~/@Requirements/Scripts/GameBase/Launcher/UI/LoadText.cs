@@ -152,17 +152,17 @@ namespace Moirai.Main
             TextAsset textAsset = Resources.Load<TextAsset>(buildInTextName + suffix);
             if (textAsset == null)
             {
-                suffix = LocalizationHelper.defaultLanguage.Code;
+                suffix = LocalizationService.defaultLanguage.Code;
                 textAsset = Resources.Load<TextAsset>(buildInTextName + suffix);
             }
 
             if (textAsset == null)
             {
-                LogUtility.Error($"LoadText Failed: {buildInTextName}{suffix}");
+                LogUtility.Error("LoadText Failed: {0}{1}", buildInTextName, suffix);
                 return;
             }
 
-            LogUtility.Info($"LoadText: {buildInTextName}{suffix}");
+            LogUtility.Info("LoadText: {0}{1}", buildInTextName, suffix);
             try
             {
                 // 字节通路：TextAsset.bytes 直接解析，跳过 .text 的整串 UTF8 解码
@@ -175,20 +175,20 @@ namespace Moirai.Main
                 {
                     var fieldName = field.Name;
                     var configValue = field.GetValue(loadConfig);
-                    var targetField = this.GetType().GetField(fieldName, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+                    var targetField = GetType().GetField(fieldName, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
                     if (targetField != null)
                     {
                         targetField.SetValue(this, configValue);
                     }
                     else
                     {
-                        LogUtility.Error($"LoadText: Can not find field: {fieldName}, please check BuildInText.");
+                        LogUtility.Error("LoadText: Can not find field: {0}, please check BuildInText.", fieldName);
                     }
                 }
             }
             catch (Exception ex)
             {
-                LogUtility.Error($"Error parsing built-in text JSON ({buildInTextName}{suffix}): {ex}");
+                LogUtility.Error("Error parsing built-in text JSON ({0}{1}): {2}", buildInTextName, suffix, ex);
             }
         }
     }

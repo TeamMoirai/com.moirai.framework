@@ -505,34 +505,19 @@ namespace Moirai.Atropos.Editor
         }
 
         /// <summary>
-        /// 根据 ResourceServiceDriver 的 EncryptorHandler 获取对应的加密服务（旧版兼容）
+        /// 从 ResourceServiceHandler 获取对应的加密服务。
         /// </summary>
         private static IBundleEncryptor GetBundleEncryptorFromResourceServiceDriver()
         {
-            var guids = AssetDatabase.FindAssets("t:Prefab GameEntry");
-            if (guids.Length == 0)
+            var handler = ResourceServiceSettings.ResourceServiceHandler;
+            var encryptorHandler = handler is YooAssetHandler yooHandler ? yooHandler.EncryptorHandler : null;
+            if (encryptorHandler == null)
             {
-                Debug.LogWarning("[BuildInternal] Failed to find GameEntry.prefab");
+                Debug.LogWarning("[BuildInternal] EncryptorHandler not configured in ResourceServiceSettings");
                 return null;
             }
 
-            var gameEntryPath = AssetDatabase.GUIDToAssetPath(guids[0]);
-            var gameEntryPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(gameEntryPath);
-            if (gameEntryPrefab == null)
-            {
-                Debug.LogWarning("[BuildInternal] Failed to load GameEntry.prefab");
-                return null;
-            }
-
-            var resourceServiceDriver = gameEntryPrefab.GetComponentInChildren<ResourceServiceDriver>();
-            if (resourceServiceDriver == null)
-            {
-                Debug.LogWarning("[BuildInternal] ResourceServiceDriver not found in GameEntry.prefab");
-                return null;
-            }
-
-            var encryptorHandler = resourceServiceDriver.EncryptorHandler;
-            Debug.Log($"[BuildInternal] Use EncryptorHandler from ResourceServiceDriver: {encryptorHandler?.GetType().Name ?? "None"}");
+            Debug.Log($"[BuildInternal] Use EncryptorHandler from ResourceServiceSettings: {encryptorHandler?.GetType().Name ?? "None"}");
 
             return encryptorHandler?.CreateEncryptor();
         }

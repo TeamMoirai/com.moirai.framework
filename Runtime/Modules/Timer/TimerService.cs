@@ -1,14 +1,14 @@
-using System;
+﻿using System;
 
 namespace Moirai.Atropos.Timer
 {
     /// <summary>
-    /// 计时器服务门面（Facade）。
+    /// 计时器服务外观（Facade）。
     /// <para>统一的静态计时器访问入口，通过替换 <see cref="Handler"/> 即可在不同计时器后端之间零成本切换。</para>
-    /// <para>未显式设置处理器时，使用 <see cref="CreateDefaultHandler"/> 从 <see cref="TimerSettings"/> 创建处理器实例。</para>
+    /// <para>未显式设置处理器时，使用 <see cref="CreateDefaultHandler"/> 从 <see cref="TimerServiceSettings"/> 创建处理器实例。</para>
     /// <para>Handler 属性由 <c>HandlerHostGenerator</c> 源生成器自动生成（线程安全懒加载）。</para>
     /// </summary>
-    [HandlerHost(typeof(TimerHandler))]
+    [HandlerHost(typeof(TimerServiceHandler))]
     public partial class TimerService : ServiceBase, IServiceTickable
     {
         #region 属性 [PROPERTIES]
@@ -23,12 +23,12 @@ namespace Moirai.Atropos.Timer
         #region 处理器 [HANDLER]
 
         /// <summary>
-        /// 从 <see cref="TimerSettings"/> 创建默认计时器处理器。
+        /// 从 <see cref="TimerServiceSettings"/> 创建默认计时器处理器。
         /// </summary>
         /// <returns>默认计时器处理器实例。</returns>
-        private static TimerHandler CreateDefaultHandler()
+        private static TimerServiceHandler CreateDefaultHandler()
         {
-            return TimerSettings.TimerHandler;
+            return TimerServiceSettings.TimerServiceHandler;
         }
 
         #endregion

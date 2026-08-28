@@ -1,26 +1,27 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
+using UnityEngine;
 
 namespace Moirai.Atropos.Localization
 {
     /// <summary>
-    /// 本地化服务门面（Facade）。
+    /// 本地化服务外观（Facade）。
     /// <para>统一的静态多语言访问入口，通过替换 <see cref="Handler"/> 即可在不同本地化数据源之间零成本切换。</para>
-    /// <para>未显式设置处理器时，使用 <see cref="CreateDefaultHandler"/> 从 <see cref="LocalizationSettings"/> 创建处理器实例。</para>
+    /// <para>未显式设置处理器时，使用 <see cref="CreateDefaultHandler"/> 从 <see cref="LocalizationServiceSettings"/> 创建处理器实例。</para>
     /// <para>Handler 属性由 <c>HandlerHostGenerator</c> 源生成器自动生成（线程安全懒加载）。</para>
     /// </summary>
-    [HandlerHost(typeof(LocalizationHandler))]
+    [HandlerHost(typeof(LocalizationServiceHandler))]
     public partial class LocalizationService : ServiceBase
     {
         #region 处理器 [HANDLER]
 
         /// <summary>
-        /// 从 <see cref="LocalizationSettings"/> 创建默认本地化处理器。
+        /// 从 <see cref="LocalizationServiceSettings"/> 创建默认本地化处理器。
         /// </summary>
         /// <returns>默认本地化处理器实例。</returns>
-        private static LocalizationHandler CreateDefaultHandler()
+        private static LocalizationServiceHandler CreateDefaultHandler()
         {
-            return LocalizationSettings.LocalizationHandler;
+            return LocalizationServiceSettings.LocalizationServiceHandler;
         }
 
         #endregion
@@ -91,19 +92,50 @@ namespace Moirai.Atropos.Localization
         #region 语言管理 [LANGUAGE MANAGEMENT]
 
         /// <summary>
-        /// 初始化语言配置。设置当前使用的语言，如果不设置，则默认使用操作系统语言。
-        /// </summary>
-        public static void InitLanguageSettings() => s_Handler?.InitLanguageSettings();
-
-        /// <summary>
         /// 获取当前使用的语言。
         /// </summary>
         /// <param name="onlySupported">是否只获取支持的语言，<c>false</c>表示仅根据设置获取语言，不关心本地化是否支持</param>
         /// <param name="settingSource">该语言设置自</param>
         public static Language GetCurrentLanguage(bool onlySupported, ref string settingSource)
         {
-            if (s_Handler == null) return Language.Unspecified;
-            return s_Handler.GetCurrentLanguage(onlySupported, ref settingSource);
+            // 获取启动命令中的设置
+            string language = CommandLineUtility.GetForceLanguage();
+            if (!string.IsNullOrEmpty(language))
+            {
+                settingSource = "CommandLine";
+            }
+            else
+            {
+#if UNITY_EDITOR
+                // 如果处于编辑器模拟模式下，使用编辑器设置的语言
+                if (GameAppSettings.EditorLanguage != Language.Unspecified.Name)
+                {
+                    language = GameAppSettings.EditorLanguage;
+                    settingSource = "EditorSetting";
+                }
+                else
+#endif
+                // 如果已设置语言，则使用设置的语言
+                if (SettingUtility.HasSetting(GameConstant.Setting.LANGUAGE))
+                {
+                    language = SettingUtility.GetString(GameConstant.Setting.LANGUAGE);
+                    settingSource = "SavedSetting";
+                }
+                // 否则，使用系统语言
+                else
+                {
+                    SystemLanguage systemLanguage = Application.systemLanguage;
+                    // 未区分简繁时，使用简体中文
+                    if (systemLanguage == SystemLanguage.Chinese)
+                    {
+                        systemLanguage = SystemLanguage.ChineseSimplified;
+                    }
+                    language = ((Language)systemLanguage).Code;
+                    settingSource = "SystemLanguage";
+                }
+            }
+
+            return ToLanguage(language, onlySupported);
         }
 
         /// <summary>

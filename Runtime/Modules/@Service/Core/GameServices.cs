@@ -7,7 +7,7 @@ using UnityEngine.Assertions;
 namespace Moirai.Atropos
 {
     /// <summary>
-    /// 静态服务管理门面。统一管理容器生命周期、轮询驱动和拦截器。
+    /// 静态服务管理外观。统一管理容器生命周期、轮询驱动和拦截器。
     /// <para><b>线程契约</b>：所有公共方法仅限 Unity 主线程调用。
     /// 后台线程请通过 <c>MainThreadDispatcher.Post(Action)</c> / <c>MainThreadDispatcher.Send(Action)</c> 切回。</para>
     /// </summary>
@@ -40,7 +40,7 @@ namespace Moirai.Atropos
 
         /// <summary>
         /// 最深层活跃的服务提供者（Gameplay > Scene > App）。
-        /// <para>服务类应优先使用静态门面（如 <c>AudioService.Play</c>）而非此属性。此属性主要用于非服务代码（MonoBehaviour、UI 脚本等）。</para>
+        /// <para>服务类应优先使用静态外观（如 <c>AudioService.Play</c>）而非此属性。此属性主要用于非服务代码（MonoBehaviour、UI 脚本等）。</para>
         /// </summary>
         public static IServiceProvider Provider => HasAnyScope ? s_World : null;
 

@@ -1,8 +1,8 @@
-# StringUtility
+﻿# StringUtility
 
-> 框架的字符串格式化与构建门面，提供可插拔的 Handler 架构，内置池化字符串构建器以减少 GC。
+> 框架的字符串格式化与构建外观，提供可插拔的 Handler 架构，内置池化字符串构建器以减少 GC。
 
-`StringUtility` 是框架的字符串处理静态门面。默认使用 `DefaultStringHandler`（基于 `StringBuilder` 池化）；当安装 ZString 时可切换为 `ZStringHandler`（基于 `Utf16ValueStringBuilder` 池化，零分配格式化）。提供 `Format`、`CreateStringBuilder`、`GetString` 三种使用模式，覆盖不同场景的字符串构建需求。
+`StringUtility` 是框架的字符串处理静态外观。默认使用 `DefaultStringHandler`（基于 `StringBuilder` 池化）；当安装 ZString 时可切换为 `ZStringHandler`（基于 `Utf16ValueStringBuilder` 池化，零分配格式化）。提供 `Format`、`CreateStringBuilder`、`GetString` 三种使用模式，覆盖不同场景的字符串构建需求。
 
 ## 核心特性
 
@@ -18,7 +18,7 @@
 
 | 类/接口 | 说明 |
 |---------|------|
-| `StringUtility` | 静态门面，提供 `Format` / `CreateStringBuilder` / `GetString` / `Clear` |
+| `StringUtility` | 静态外观，提供 `Format` / `CreateStringBuilder` / `GetString` / `Clear` |
 | `StringHandler` | 抽象基类，定义 `CreateStringBuilder` / `GetString` / `Clear` |
 | `StringHandler.IStringBuilder` | 字符串构建器适配器接口（partial），统一 `StringBuilder` 与 `Utf16ValueStringBuilder` 操作；Format 重载由 T4 模板生成 |
 | `DefaultStringHandler` | 默认实现，基于 `StringBuilder` 池化 |

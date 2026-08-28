@@ -57,7 +57,7 @@ namespace @namespace@
     ///
     /// private void UpdateActionValues(float dt)
     /// {
-    ///     m_CharacterActions.SetValues(InputSettings.InputHandler);
+    ///     m_CharacterActions.SetValues(InputServiceSettings.InputServiceHandler);
     ///     m_CharacterActions.Update(dt);
     ///
     ///     // 其他逻辑处理，比如平滑移动输入（实现类似 Input.GetAxis 的效果）
@@ -109,7 +109,7 @@ namespace @namespace@
         /// <summary>
         /// 根据当前的输入处理器（针对玩家）更新所有动作的值。
         /// </summary>
-        public void SetValues(InputHandler inputHandler)
+        public void SetValues(InputServiceHandler inputHandler)
         {
             if (inputHandler == null) return;
             

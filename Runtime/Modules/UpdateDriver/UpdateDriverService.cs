@@ -1,15 +1,15 @@
-using System.Collections;
+﻿using System.Collections;
 using UnityEngine;
 
 namespace Moirai.Atropos.UpdateDriver
 {
     /// <summary>
-    /// 更新驱动服务门面（Facade）。
+    /// 更新驱动服务外观（Facade）。
     /// <para>统一的静态协程与帧事件注入入口，通过替换 <see cref="Handler"/> 即可切换驱动后端。</para>
-    /// <para>未显式设置处理器时，使用 <see cref="CreateDefaultHandler"/> 从 <see cref="UpdateDriverSettings"/> 创建处理器实例。</para>
+    /// <para>未显式设置处理器时，使用 <see cref="CreateDefaultHandler"/> 从 <see cref="UpdateDriverServiceSettings"/> 创建处理器实例。</para>
     /// <para>Handler 属性由 <c>HandlerHostGenerator</c> 源生成器自动生成（线程安全懒加载）。</para>
     /// </summary>
-    [HandlerHost(typeof(UpdateDriverHandler))]
+    [HandlerHost(typeof(UpdateDriverServiceHandler))]
     public partial class UpdateDriverService : ServiceBase
     {
         #region 属性 [PROPERTIES]
@@ -24,12 +24,12 @@ namespace Moirai.Atropos.UpdateDriver
         #region 处理器 [HANDLER]
 
         /// <summary>
-        /// 从 <see cref="UpdateDriverSettings"/> 创建默认更新驱动处理器。
+        /// 从 <see cref="UpdateDriverServiceSettings"/> 创建默认更新驱动处理器。
         /// </summary>
         /// <returns>默认更新驱动处理器实例。</returns>
-        private static UpdateDriverHandler CreateDefaultHandler()
+        private static UpdateDriverServiceHandler CreateDefaultHandler()
         {
-            return UpdateDriverSettings.UpdateDriverHandler;
+            return UpdateDriverServiceSettings.UpdateDriverServiceHandler;
         }
 
         #endregion

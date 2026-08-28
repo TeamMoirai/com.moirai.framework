@@ -1,25 +1,25 @@
-using Cysharp.Threading.Tasks;
+﻿using Cysharp.Threading.Tasks;
 
 namespace Moirai.Atropos.Save
 {
     /// <summary>
-    /// 存档服务门面（Facade）。
+    /// 存档服务外观（Facade）。
     /// <para>统一的静态存档访问入口，通过替换 <see cref="Handler"/> 即可在不同序列化/加密策略之间零成本切换。</para>
-    /// <para>未显式设置处理器时，使用 <see cref="CreateDefaultHandler"/> 从 <see cref="SaveSettings"/> 创建处理器实例。</para>
+    /// <para>未显式设置处理器时，使用 <see cref="CreateDefaultHandler"/> 从 <see cref="SaveServiceSettings"/> 创建处理器实例。</para>
     /// <para>Handler 属性由 <c>HandlerHostGenerator</c> 源生成器自动生成（线程安全懒加载）。</para>
     /// </summary>
-    [HandlerHost(typeof(SaveHandler))]
+    [HandlerHost(typeof(SaveServiceHandler))]
     public partial class SaveService : ServiceBase
     {
         #region 处理器 [HANDLER]
 
         /// <summary>
-        /// 从 <see cref="SaveSettings"/> 创建默认存档处理器。
+        /// 从 <see cref="SaveServiceSettings"/> 创建默认存档处理器。
         /// </summary>
         /// <returns>默认存档处理器实例。</returns>
-        private static SaveHandler CreateDefaultHandler()
+        private static SaveServiceHandler CreateDefaultHandler()
         {
-            return SaveSettings.SaveHandler;
+            return SaveServiceSettings.SaveServiceHandler;
         }
 
         #endregion
@@ -64,7 +64,7 @@ namespace Moirai.Atropos.Save
         /// <param name="saveObject">保存对象</param>
         /// <param name="fileName">文件名</param>
         /// <param name="folderName">文件夹名称</param>
-        public static UniTask Save(object saveObject, string fileName, string folderName = SaveHandler.DEFAULT_FOLDER_NAME) =>
+        public static UniTask Save(object saveObject, string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME) =>
             s_Handler?.Save(saveObject, fileName, folderName) ?? UniTask.CompletedTask;
 
         /// <summary>
@@ -72,7 +72,7 @@ namespace Moirai.Atropos.Save
         /// </summary>
         /// <param name="fileName">文件名</param>
         /// <param name="folderName">文件夹名称</param>
-        public static UniTask<T> Load<T>(string fileName, string folderName = SaveHandler.DEFAULT_FOLDER_NAME) =>
+        public static UniTask<T> Load<T>(string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME) =>
             s_Handler != null ? s_Handler.Load<T>(fileName, folderName) : UniTask.FromResult<T>(default);
 
         #endregion
@@ -84,14 +84,14 @@ namespace Moirai.Atropos.Save
         /// </summary>
         /// <param name="fileName">文件名</param>
         /// <param name="folderName">文件夹名称</param>
-        public static void DeleteSave(string fileName, string folderName = SaveHandler.DEFAULT_FOLDER_NAME) =>
+        public static void DeleteSave(string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME) =>
             s_Handler?.DeleteSave(fileName, folderName);
 
         /// <summary>
         /// 删除整个保存文件夹
         /// </summary>
         /// <param name="folderName">文件夹名称</param>
-        public static void DeleteSaveFolder(string folderName = SaveHandler.DEFAULT_FOLDER_NAME) =>
+        public static void DeleteSaveFolder(string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME) =>
             s_Handler?.DeleteSaveFolder(folderName);
 
         /// <summary>
@@ -109,14 +109,14 @@ namespace Moirai.Atropos.Save
         /// </summary>
         /// <param name="fileName">文件名</param>
         /// <param name="folderName">文件夹名称</param>
-        public static bool FileExists(string fileName, string folderName = SaveHandler.DEFAULT_FOLDER_NAME) =>
+        public static bool FileExists(string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME) =>
             s_Handler?.FileExists(fileName, folderName) ?? false;
 
         /// <summary>
         /// 获取文件夹的完整保存路径
         /// </summary>
         /// <param name="folderName">文件夹名称</param>
-        public static string DetermineSavePath(string folderName = SaveHandler.DEFAULT_FOLDER_NAME) =>
+        public static string DetermineSavePath(string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME) =>
             s_Handler?.DetermineSavePath(folderName) ?? string.Empty;
 
         #endregion

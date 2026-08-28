@@ -55,7 +55,7 @@ namespace Moirai.Atropos
 
         /// <summary>
         /// 获取指定日志等级是否启用。
-        /// <para>门面（<see cref="LogUtility"/>）会在格式化消息之前调用此方法做前置过滤，
+        /// <para>外观（<see cref="LogUtility"/>）会在格式化消息之前调用此方法做前置过滤，
         /// 被过滤的日志不会产生任何字符串格式化开销。</para>
         /// </summary>
         /// <param name="logLevel">游戏框架日志等级。</param>

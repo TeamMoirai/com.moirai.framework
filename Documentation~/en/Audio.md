@@ -1,16 +1,17 @@
-# Audio Service
+﻿# Audio Service
 
 > Audio system based on AudioMixer track grouping and audio agent pool, supporting handle control, fade in/out, solo, and event-driven playback.
 
-The `Audio` service divides audio into multiple tracks (`EAudioTrack`) by usage. Each track corresponds to an `AudioCategory`, which internally maintains a set of `AudioAgent` objects (wrapping `AudioSource`) responsible for actual playback. The service is accessed via the `AudioService.Xxx()` static facade (backend logic lives in `AudioHandler`), returning a `ulong` handle after playback for subsequent control such as pause, resume, and stop. It also supports indirect driving through events like `AudioPlayEvent` to avoid null references when the service is not initialized. Track and master volume settings are persisted through `SettingUtility` and automatically loaded after service initialization.
+The `Audio` service divides audio into multiple tracks (`EAudioTrack`) by usage. Each track corresponds to an `AudioCategory`, which internally maintains a set of `AudioAgent` objects (wrapping `AudioSource`) responsible for actual playback. The service is accessed via the `AudioService.Xxx()` static facade (backend logic lives in the default implementation `UnityAudioHandler` behind the abstract contract `AudioServiceHandler`), returning a `ulong` handle after playback for subsequent control such as pause, resume, and stop. It also supports indirect driving through events like `AudioPlayEvent` to avoid null references when the service is not initialized. Track and master volume settings are persisted through `SettingUtility` and automatically loaded after service initialization.
 
 ## Architecture (HandlerHost Pattern)
 
 The audio service adopts the same HandlerHost zero-reflection architecture as other framework services:
 
-- **`AudioService`**: Static facade (`[HandlerHost(typeof(AudioHandler))]` + `[ServiceDependency(typeof(ResourceService))]`); all public members are static methods that internally forward to `s_Handler`
-- **`AudioHandler`**: Serializable backend class (inherits `FrameworkHandler`) carrying the core logic of agent pool management, playback state machines, and fade transitions
-- **`AudioSettings`**: Framework settings, selecting the audio backend implementation via `[ProviderDropdown]` and configuring `AudioMixer` with `AudioGroupConfig[]`
+- **`AudioService`**: Static facade (`[HandlerHost(typeof(AudioServiceHandler))]` + `[ServiceDependency(typeof(ResourceService))]`); all public members are static methods that internally forward to `s_Handler`
+- **`AudioServiceHandler`**: Serializable abstract base class (inherits `FrameworkHandler`, strategy-pattern abstraction) defining the backend contract invoked by the facade
+- **`UnityAudioHandler`**: Default implementation of `AudioServiceHandler` (based on Unity `AudioSource`/`AudioMixer`, located under `Handler/`), carrying the core logic of agent pool management, playback state machines, and fade transitions
+- **`AudioServiceSettings`**: Framework settings, selecting the audio backend implementation via `[ProviderDropdown]` and configuring `AudioMixer` with `AudioGroupConfig[]`
 - The service is automatically pulled up by the dependency chain; you can also register manually with `GameServices.RegisterService(EServiceScopeKind.App, new AudioService())`
 
 ## Core Features
@@ -31,7 +32,8 @@ Namespace: `Moirai.Atropos.Audio`
 | Class/Interface | Description |
 |----------------|-------------|
 | `AudioService` | Static facade (`[HandlerHost]`): all static APIs including `Play` / `Pause` / `Stop` / `FadeXxx` |
-| `AudioHandler` | Audio backend handler (inherits `FrameworkHandler`), core logic for agent pool, state machine, and transitions |
+| `AudioServiceHandler` | Audio backend handler abstract base class (inherits `FrameworkHandler`), defines the full backend contract invoked by the facade |
+| `UnityAudioHandler` | Default audio backend (based on Unity `AudioSource`/`AudioMixer`): core logic for agent pool, state machine, and transitions |
 | `EAudioTrack` | Track enum: `Sfx`, `UI`, `Music`, `Voice`, `Ambience` |
 | `AudioCategory` | Track category, holds a list of `AudioAgent`, provides `GetAvailableAgent`, `PauseAll`, `StopAll`, etc. |
 | `AudioAgent` | Audio agent, wraps `AudioSource`, responsible for loading, playback, fade in/out and state machine (`EAudioAgentRuntimeState`) |
@@ -39,7 +41,7 @@ Namespace: `Moirai.Atropos.Audio`
 | `AudioGroupConfig` | Track group configuration: `AudioTrack`, `AudioMixerGroup`, default volume, `MaxChannel`, `CanExpand` and settings read/write |
 | `AudioPlayOptions` | Playback option struct, provides `Default`, `Create`, `CreateLooping`, `CreateWithFade` factories |
 | `AudioPlayOptionsSO` | Playback option asset (ScriptableObject), supports random/sequential clip selection, random volume/pitch, concurrency limit |
-| `AudioSettings` | Framework settings (`FrameworkSetting`): `[ProviderDropdown]` selects the backend; configures `AudioMixer` and `AudioGroupConfig[]` |
+| `AudioServiceSettings` | Framework settings (`FrameworkSetting`): `[ProviderDropdown]` selects the backend; configures `AudioMixer` and `AudioGroupConfig[]` |
 | `AudioAssetData` | Audio asset handle wrapper (`MemoryObject`), releases `AssetHandle` on demand during recycling |
 | `AudioPlayEvent` | Play event: `Trigger(AudioClip, AudioPlayOptions)` or `Trigger(path, options, bAsync, bInPool)` returns handle |
 | `AudioControlEvent` | Control by ID: `Pause` / `Unpause` / `Stop(int soundID)` |
@@ -149,7 +151,7 @@ AudioService.CleanAudioPool();
 
 ## Configuration Notes
 
-- `AudioSettings` (menu: Audio Settings) configures `AudioMixer` and `AudioGroupConfig` for each track; if not configured, the code falls back to reading groups under `Master/` from `Resources/AudioMixer` and matches `EAudioTrack` by group name
+- `AudioServiceSettings` (menu: Audio Settings) configures `AudioMixer` and `AudioGroupConfig` for each track; if not configured, the code falls back to reading groups under `Master/` from `Resources/AudioMixer` and matches `EAudioTrack` by group name
 - AudioMixer groups must expose a volume parameter named `{GroupName}Volume` (e.g., `MusicVolume`), and the service writes to this parameter using logarithmic conversion for track volume
 - `AudioGroupConfig.MixerValuesMultiplier` (default 20) is the conversion coefficient from normalized volume to decibels
 - It can also be passed explicitly during initialization: `AudioService.Initialize(instanceRoot, audioMixer, audioGroupConfigs)`

@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 
 namespace Moirai.Atropos.Resource
@@ -88,7 +88,7 @@ namespace Moirai.Atropos.Resource
             uint currentGeneration = _generation;
             EResourceBindStatus status = EResourceBindStatus.ServiceShutdown;
 
-            ResourceHandler handler = ResourceService.Handler;
+            ResourceServiceHandler handler = ResourceService.Handler;
             if (handler != null)
             {
                 IResourceBindingService bindingService = handler.BindingService;

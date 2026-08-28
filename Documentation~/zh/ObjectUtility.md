@@ -1,8 +1,8 @@
-# ObjectUtility
+﻿# ObjectUtility
 
-> 框架的对象实例化/销毁门面，提供可插拔的 Handler 架构，支持单机与联网两种模式。
+> 框架的对象实例化/销毁外观，提供可插拔的 Handler 架构，支持单机与联网两种模式。
 
-`ObjectUtility` 是框架的 Unity 对象创建与销毁的静态门面。默认使用 `UnityObjectHandler`（封装 `Object.Instantiate` / `Object.Destroy`）。当集成 Photon Fusion 等网络库时，可切换为 `PhotonFusionObjectHandler`，使实例化/销毁自动走网络同步流程。
+`ObjectUtility` 是框架的 Unity 对象创建与销毁的静态外观。默认使用 `UnityObjectHandler`（封装 `Object.Instantiate` / `Object.Destroy`）。当集成 Photon Fusion 等网络库时，可切换为 `PhotonFusionObjectHandler`，使实例化/销毁自动走网络同步流程。
 
 ## 核心特性
 
@@ -18,7 +18,7 @@
 
 | 类/接口 | 说明 |
 |---------|------|
-| `ObjectUtility` | 静态门面，提供 `InstantiateObject<T>` / `DestroyObject` 方法 |
+| `ObjectUtility` | 静态外观，提供 `InstantiateObject<T>` / `DestroyObject` 方法 |
 | `ObjectHandler` | 抽象基类，定义 `InstantiateObject` 4 重载 + `DestroyObject` |
 | `UnityObjectHandler` | 默认实现，封装 `Object.Instantiate` / `Object.Destroy`（单机模式） |
 | `PhotonFusionObjectHandler` | 联网实现，封装 Fusion 网络实例化/销毁 |

@@ -2,7 +2,7 @@
 
 > Multilingual service based on Luban configuration tables, supporting automatic injection and inline parsing of text, images, audio, and Timeline.
 
-The `Localization` service is accessed via `GameApp.Localization` (`ILocalizationService`). On startup, it loads all localized strings from the Luban configuration table (via `ConfigMgr` from [ConfigTable](ConfigTable.md)) and registers available languages. The language is determined by priority: "command-line argument -> editor setting -> local存档 -> system language". When switching languages, it triggers `OnLanguageChanged` and automatically re-injects all registered `LocalizerBase` components. In addition to retrieving text by ID, `LocalizationHelper.ResolveLocalizedStrings` supports inline parsing of `{l10n:ID}` / `{i18n:ID}` / `{g11n:ID}` placeholders in any string.
+The `Localization` service is accessed via `GameApp.Localization` (`ILocalizationService`). It lazily loads all localized strings from the Luban configuration table (via `ConfigMgr` from [ConfigTable](ConfigTable.md)) and registers available languages on the first access to any multilingual API. The language is determined by priority: "command-line argument -> editor setting -> local存档 -> system language". When switching languages, it triggers `OnLanguageChanged` and automatically re-injects all registered `LocalizerBase` components. In addition to retrieving text by ID, `LocalizationHelper.ResolveLocalizedStrings` supports inline parsing of `{l10n:ID}` / `{i18n:ID}` / `{g11n:ID}` placeholders in any string.
 
 ## Core Features
 
@@ -45,8 +45,8 @@ Namespace: `Moirai.Atropos.Localization`
 // Access the service
 ILocalizationService localization = GameApp.Localization;
 
-// Initialize language configuration (depends on ConfigTable and Resource services, must be called manually once after config tables are ready)
-localization.InitLanguageSettings();
+// Localized data is lazily loaded: it is automatically loaded from config tables on the first call
+// to any query/switch API — no manual initialization required
 
 // Get localized string by text ID (returns the ID as-is if untranslated or ID does not exist)
 string title = localization.GetTextFromId("main_title");
@@ -115,7 +115,7 @@ IEnumerator routine = translator.TranslateAsync(request,
 ## Notes
 
 - Localization data comes from Luban configuration tables: must generate and export tables in `Tools/Settings/ConfigTableSettings` first, otherwise loading fails with "Failed to load localized text, generate config first!"
-- `InitLanguageSettings` depends on the `Resource` service to load config table assets; do not call it during the `OnInit` phase (resources are not ready)
+- Localized data is lazily initialized: no resources are loaded during service registration (`OnInit`); data is loaded from config tables on the first access to any multilingual API (query/switch) — by then the `Resource` service is guaranteed to be ready
 - The list of available languages comes from field registration of `LocalizedBean` in the config table (`LocalizationHelper.RegisterLanguageMap`); calling `ChangeLanguage` with an unregistered language will throw `KeyNotFoundException`
 - In `ToLanguage(str, onlySupported)`, when `onlySupported` is `true`, unregistered languages fall back to the default language English (`LocalizationHelper.defaultLanguage`)
 - In the editor's non-play mode, `TextLocalizer.ChangeID` / `ImageLocalizer.ChangeID` directly return `false` (Timeline preview pending implementation), and `ResolveLocalizedStrings` also returns the input as-is

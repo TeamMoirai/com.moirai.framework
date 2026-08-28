@@ -32,9 +32,10 @@ namespace Moirai.Atropos.Localization
 		private async UniTaskVoid ApplyFromResource()
 		{
 			string textIDValue = LocalizationService.GetTextFromId(_localizedTextID);
-			var result = await ResourceService.LoadAssetAsync<AudioClip>(textIDValue);
+			var lease = await ResourceService.LoadLeaseAsync<AudioClip>(textIDValue);
 
-			Play(result);
+			Play(lease.Asset);
+			lease.Dispose();
 		}
 
 		void Play(AudioClip audioClip)

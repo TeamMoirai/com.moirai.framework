@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 
 namespace Moirai.Atropos
@@ -25,7 +25,7 @@ namespace Moirai.Atropos
             [typeof(Resource.ResourceService)] = static () => new Resource.ResourceService(),
             [typeof(Debugger.DebuggerService)] = static () => new Debugger.DebuggerService(),
             [typeof(Audio.AudioService)] = static () => new Audio.AudioService(),
-            [typeof(GameObjectPool.GameObjectPoolService)] = static () => new GameObjectPool.GameObjectPoolService(),
+            [typeof(ObjectPool.ObjectPoolService)] = static () => new ObjectPool.ObjectPoolService(),
             [typeof(Procedure.ProcedureService)] = static () => new Procedure.ProcedureService(),
             [typeof(Localization.LocalizationService)] = static () => new Localization.LocalizationService(),
             [typeof(Scene.SceneService)] = static () => new Scene.SceneService(),
@@ -33,6 +33,7 @@ namespace Moirai.Atropos
             [typeof(Save.SaveService)] = static () => new Save.SaveService(),
             [typeof(UI.UIService)] = static () => new UI.UIService(),
             [typeof(Input.InputService)] = static () => new Input.InputService(),
+            [typeof(ConfigTable.ConfigTableService)] = static () => new ConfigTable.ConfigTableService(),
         };
 
         #endregion

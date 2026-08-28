@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Cysharp.Threading.Tasks;
 using Moirai.Atropos.Resource;
 using UnityEngine.SceneManagement;
@@ -6,24 +6,24 @@ using UnityEngine.SceneManagement;
 namespace Moirai.Atropos.Scene
 {
     /// <summary>
-    /// 场景服务门面（Facade）。
+    /// 场景服务外观（Facade）。
     /// <para>统一的静态场景访问入口，通过替换 <see cref="Handler"/> 即可在不同场景加载后端之间零成本切换。</para>
-    /// <para>未显式设置处理器时，使用 <see cref="CreateDefaultHandler"/> 从 <see cref="SceneSettings"/> 创建处理器实例。</para>
+    /// <para>未显式设置处理器时，使用 <see cref="CreateDefaultHandler"/> 从 <see cref="SceneServiceSettings"/> 创建处理器实例。</para>
     /// <para>Handler 属性由 <c>HandlerHostGenerator</c> 源生成器自动生成（线程安全懒加载）。</para>
     /// </summary>
-    [HandlerHost(typeof(SceneHandler))]
+    [HandlerHost(typeof(SceneServiceHandler))]
     [ServiceDependency(typeof(ResourceService))]
     public partial class SceneService : ServiceBase
     {
 #region 处理器 [HANDLER]
 
         /// <summary>
-        /// 从 <see cref="SceneSettings"/> 创建默认场景处理器。
+        /// 从 <see cref="SceneServiceSettings"/> 创建默认场景处理器。
         /// </summary>
         /// <returns>默认场景处理器实例。</returns>
-        private static SceneHandler CreateDefaultHandler()
+        private static SceneServiceHandler CreateDefaultHandler()
         {
-            return SceneSettings.SceneHandler;
+            return SceneServiceSettings.SceneServiceHandler;
         }
 
         #endregion
@@ -41,14 +41,11 @@ namespace Moirai.Atropos.Scene
 
         /// <summary>
         /// 初始化场景服务。由容器在构建期调用。
-        /// <para>确保 <c>SceneService.Handler</c> 已赋值（触发 <see cref="CreateDefaultHandler"/> 懒加载），
-        /// 并向处理器注入资源服务引用。</para>
+        /// <para>确保 <c>SceneService.Handler</c> 已赋值（触发 <see cref="CreateDefaultHandler"/> 懒加载）。</para>
         /// </summary>
         public override void OnInit()
         {
             _ = Handler;
-
-            s_Handler.ResourceService = ResourceService.Handler;
         }
 
         /// <summary>
