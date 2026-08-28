@@ -14,12 +14,15 @@ namespace Moirai.Atropos.Timer
     [UnityEngine.Scripting.Preserve]
     [Il2CppSetOption(Option.NullChecks, false)]
     [Il2CppSetOption(Option.ArrayBoundsChecks, false)]
-    public sealed class DefaultTimerHandler : TimerServiceHandler
+    internal sealed class DefaultTimerHandler : TimerServiceHandler
     {
+        [Min(MIN_INITIAL_CAPACITY)]
+        [SerializeField] private int m_InitialCapacity = 1024;
+        private const int MIN_INITIAL_CAPACITY = 256;
+
         private const int PAGE_SHIFT = 8;
         private const int PAGE_SIZE = 1 << PAGE_SHIFT;
         private const int PAGE_MASK = PAGE_SIZE - 1;
-        private const int DEFAULT_INITIAL_CAPACITY = 1024;
         private const int MAX_PAGE_COUNT = 4096;
         private const int INVALID_INDEX = -1;
         private const int WHEEL_SHIFT = 8;
@@ -31,12 +34,13 @@ namespace Moirai.Atropos.Timer
         private const int MAX_WHEEL_TICKS_PER_FRAME = 64;
         private const double TICKS_PER_SECOND = 1000d;
         private const double MINIMUM_DELAY_SECONDS = 0.000001d;
+#if UNITY_EDITOR
+        private const double STALE_ONE_SHOT_SECONDS = 300d;
+#endif
 
         private const byte HANDLER_NONE = 0;
         private const byte HANDLER_NO_ARGS = 1;
         private const byte HANDLER_GENERIC = 2;
-        private const byte HANDLER_ACTION = 3;
-        private const byte HANDLER_LEGACY = 4;
 
         private const byte STATE_ACTIVE = 1 << 0;
         private const byte STATE_RUNNING = 1 << 1;
@@ -44,43 +48,55 @@ namespace Moirai.Atropos.Timer
         private const byte STATE_UNSCALED = 1 << 3;
         private const byte STATE_RELEASE_PENDING = 1 << 4;
 
+        internal delegate void TimerGenericInvoker(object handler, object arg);
+        internal static class TimerGenericInvokerCache<T> where T : class
+        {
+            public static readonly TimerGenericInvoker Invoke = InvokeGeneric;
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            private static void InvokeGeneric(object handler, object arg)
+            {
+                ((Action<T>)handler).Invoke((T)arg);
+            }
+        }
+
         private sealed class TimerPage
         {
-            public readonly ulong[] handles = new ulong[PAGE_SIZE];
-            public readonly uint[] versions = new uint[PAGE_SIZE];
-            public readonly byte[] states = new byte[PAGE_SIZE];
-            public readonly byte[] handlerTypes = new byte[PAGE_SIZE];
-            public readonly double[] triggerTimes = new double[PAGE_SIZE];
-            public readonly double[] durations = new double[PAGE_SIZE];
-            public readonly double[] remainingTimes = new double[PAGE_SIZE];
-            public readonly double[] creationTimes = new double[PAGE_SIZE];
-            public readonly long[] dueTicks = new long[PAGE_SIZE];
-            public readonly int[] queueIndices = new int[PAGE_SIZE];
-            public readonly int[] queueNextIndices = new int[PAGE_SIZE];
-            public readonly int[] queuePrevIndices = new int[PAGE_SIZE];
-            public readonly int[] activeIndices = new int[PAGE_SIZE];
-            public readonly TimerCallback[] legacyHandlers = new TimerCallback[PAGE_SIZE];
-            public readonly object[][] legacyArgs = new object[PAGE_SIZE][];
-            public readonly TimerGenericInvoker[] genericInvokers = new TimerGenericInvoker[PAGE_SIZE];
-            public readonly object[] genericHandlers = new object[PAGE_SIZE];
-            public readonly object[] genericArgs = new object[PAGE_SIZE];
-            public readonly Action[] actionHandlers = new Action[PAGE_SIZE];
+            public readonly ulong[] Handles = new ulong[PAGE_SIZE];
+            public readonly uint[] Versions = new uint[PAGE_SIZE];
+            public readonly byte[] States = new byte[PAGE_SIZE];
+            public readonly byte[] HandlerTypes = new byte[PAGE_SIZE];
+            public readonly double[] TriggerTimes = new double[PAGE_SIZE];
+            public readonly double[] Durations = new double[PAGE_SIZE];
+            public readonly double[] RemainingTimes = new double[PAGE_SIZE];
+#if UNITY_EDITOR
+            public readonly double[] CreationTimes = new double[PAGE_SIZE];
+#endif
+            public readonly long[] DueTicks = new long[PAGE_SIZE];
+            public readonly int[] QueueIndices = new int[PAGE_SIZE];
+            public readonly int[] QueueNextIndices = new int[PAGE_SIZE];
+            public readonly int[] QueuePrevIndices = new int[PAGE_SIZE];
+            public readonly int[] ActiveIndices = new int[PAGE_SIZE];
+            public readonly Action[] NoArgsHandlers = new Action[PAGE_SIZE];
+            public readonly TimerGenericInvoker[] GenericInvokers = new TimerGenericInvoker[PAGE_SIZE];
+            public readonly object[] GenericHandlers = new object[PAGE_SIZE];
+            public readonly object[] GenericArgs = new object[PAGE_SIZE];
 
             public TimerPage()
             {
                 for (int i = 0; i < PAGE_SIZE; i++)
                 {
-                    queueIndices[i] = INVALID_INDEX;
-                    queueNextIndices[i] = INVALID_INDEX;
-                    queuePrevIndices[i] = INVALID_INDEX;
-                    activeIndices[i] = INVALID_INDEX;
+                    QueueIndices[i] = INVALID_INDEX;
+                    QueueNextIndices[i] = INVALID_INDEX;
+                    QueuePrevIndices[i] = INVALID_INDEX;
+                    ActiveIndices[i] = INVALID_INDEX;
                 }
             }
         }
 
         private sealed class IntPage
         {
-            public readonly int[] values = new int[PAGE_SIZE];
+            public readonly int[] Values = new int[PAGE_SIZE];
         }
 
         private TimerPage[] _pages;
@@ -100,7 +116,6 @@ namespace Moirai.Atropos.Timer
         private long _scaledCurrentTick;
         private long _unscaledCurrentTick;
         private int _executingSlotIndex;
-        private double _executingCurrentTime;
 
         protected override void OnInit()
         {
@@ -111,26 +126,36 @@ namespace Moirai.Atropos.Timer
             _scaledWheelTails = CreateWheelHeads();
             _unscaledWheelHeads = CreateWheelHeads();
             _unscaledWheelTails = CreateWheelHeads();
+            _pageCount = 0;
+            _slotCapacity = 0;
+            _freeCount = 0;
+            _activeCount = 0;
+            _peakActiveCount = 0;
+            _scaledQueueCount = 0;
+            _unscaledQueueCount = 0;
             _scaledCurrentTick = TimeToTickFloor(Time.timeAsDouble);
             _unscaledCurrentTick = TimeToTickFloor(Time.unscaledTimeAsDouble);
             _executingSlotIndex = INVALID_INDEX;
-            Prewarm(DEFAULT_INITIAL_CAPACITY);
+
+            Prewarm(NormalizeCapacity(m_InitialCapacity));
         }
 
         protected override void OnShutdown()
         {
             ClearAll();
-        }
 
-        public override void Tick(float elapseSeconds, float realElapseSeconds)
-        {
-            RecoverInterruptedExecution();
-            AdvanceQueue(false, Time.timeAsDouble);
-            AdvanceQueue(true, Time.unscaledTimeAsDouble);
+            // 释放引用
+            _pages = null;
+            _freeSlotPages = null;
+            _activeSlotPages = null;
+            _scaledWheelHeads = null;
+            _scaledWheelTails = null;
+            _unscaledWheelHeads = null;
+            _unscaledWheelTails = null;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public override void Prewarm(int capacity)
+        private void Prewarm(int capacity)
         {
             int targetCapacity = NormalizeCapacity(capacity);
             if (targetCapacity > MAX_PAGE_COUNT * PAGE_SIZE)
@@ -144,68 +169,67 @@ namespace Moirai.Atropos.Timer
             }
         }
 
+        internal override void Tick(float elapseSeconds, float realElapseSeconds)
+        {
+            AdvanceQueue(false, Time.timeAsDouble);
+            AdvanceQueue(true, Time.unscaledTimeAsDouble);
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public override ulong AddTimer(TimerCallback callback, float time, bool isLoop, bool isUnscaled, params object[] args)
+        internal override ulong AddTimer(Action callback, float time, bool isLoop = false, bool isUnscaled = false)
         {
             if (callback == null)
             {
+#if UNITY_EDITOR
+                WarnAddTimerFailed("callback is null.");
+#endif
                 return 0UL;
             }
 
             int slotIndex = AcquireSlot();
             if (slotIndex < 0)
             {
+#if UNITY_EDITOR
+                WarnAddTimerFailed("no available timer slot.");
+#endif
                 return 0UL;
             }
 
             InitializeSlot(slotIndex, NormalizeDelay(time), isLoop, isUnscaled);
-            SetHandlerType(slotIndex, HANDLER_LEGACY);
-            SetLegacyHandler(slotIndex, callback);
-            SetLegacyArgs(slotIndex, args);
+            SetHandlerType(slotIndex, HANDLER_NO_ARGS);
+            SetNoArgsHandler(slotIndex, callback);
             AddActive(slotIndex);
             AddToQueue(slotIndex, isUnscaled);
             return GetHandle(slotIndex);
         }
 
+        /// <summary>
+        /// 热路径调用方必须使用缓存委托或静态方法组，禁止传入捕获 lambda 或闭包，
+        /// 因为闭包对象会产生分配，破坏 0GC 约束。
+        /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public override ulong AddTimer(Action callback, float time, bool isLoop, bool isUnscaled)
+        internal override ulong AddTimer<T>(Action<T> callback, T arg, float time, bool isLoop = false, bool isUnscaled = false) where T : class
         {
             if (callback == null)
             {
+#if UNITY_EDITOR
+                WarnAddTimerFailed("callback is null.");
+#endif
                 return 0UL;
             }
 
             int slotIndex = AcquireSlot();
             if (slotIndex < 0)
             {
-                return 0UL;
-            }
-
-            InitializeSlot(slotIndex, NormalizeDelay(time), isLoop, isUnscaled);
-            SetHandlerType(slotIndex, HANDLER_ACTION);
-            SetActionHandler(slotIndex, callback);
-            AddActive(slotIndex);
-            AddToQueue(slotIndex, isUnscaled);
-            return GetHandle(slotIndex);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public override ulong AddTimer<T>(Action<T> callback, T arg, float time, bool isLoop, bool isUnscaled) where T : class
-        {
-            if (callback == null)
-            {
-                return 0UL;
-            }
-
-            int slotIndex = AcquireSlot();
-            if (slotIndex < 0)
-            {
+#if UNITY_EDITOR
+                WarnAddTimerFailed("no available timer slot.");
+#endif
                 return 0UL;
             }
 
             InitializeSlot(slotIndex, NormalizeDelay(time), isLoop, isUnscaled);
             SetHandlerType(slotIndex, HANDLER_GENERIC);
-            SetGenericInvoker(slotIndex, TimerGenericInvokerCache<T>.s_Invoke);
+            SetGenericInvoker(slotIndex, TimerGenericInvokerCache<T>.Invoke);
             SetGenericHandler(slotIndex, callback);
             SetGenericArg(slotIndex, arg);
             AddActive(slotIndex);
@@ -213,10 +237,18 @@ namespace Moirai.Atropos.Timer
             return GetHandle(slotIndex);
         }
 
+#if UNITY_EDITOR
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public override void Stop(ulong timerId)
+        private static void WarnAddTimerFailed(string reason)
         {
-            int slotIndex = GetSlotIndex(timerId);
+            LogUtility.Warning("[Timer] AddTimer failed: {0}", reason);
+        }
+#endif
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal override void Stop(ulong timerHandle)
+        {
+            int slotIndex = GetSlotIndex(timerHandle);
             if (slotIndex < 0 || (GetState(slotIndex) & STATE_RUNNING) == 0)
             {
                 return;
@@ -238,9 +270,9 @@ namespace Moirai.Atropos.Timer
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public override void Resume(ulong timerId)
+        internal override void Resume(ulong timerHandle)
         {
-            int slotIndex = GetSlotIndex(timerId);
+            int slotIndex = GetSlotIndex(timerHandle);
             if (slotIndex < 0 || (GetState(slotIndex) & STATE_RUNNING) != 0)
             {
                 return;
@@ -260,9 +292,31 @@ namespace Moirai.Atropos.Timer
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public override void Restart(ulong timerId)
+        internal override bool IsRunning(ulong timerHandle)
         {
-            int slotIndex = GetSlotIndex(timerId);
+            int slotIndex = GetSlotIndex(timerHandle);
+            return slotIndex >= 0 && (GetState(slotIndex) & STATE_RUNNING) != 0;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal override float GetLeftTime(ulong timerHandle)
+        {
+            int slotIndex = GetSlotIndex(timerHandle);
+            if (slotIndex < 0)
+            {
+                return 0f;
+            }
+
+            double leftTime = (GetState(slotIndex) & STATE_RUNNING) == 0
+                ? GetRemainingTime(slotIndex)
+                : GetTriggerTime(slotIndex) - GetCurrentTime(IsUnscaled(slotIndex));
+            return leftTime > 0d ? (float)leftTime : 0f;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal override void Restart(ulong timerHandle)
+        {
+            int slotIndex = GetSlotIndex(timerHandle);
             if (slotIndex < 0)
             {
                 return;
@@ -281,16 +335,16 @@ namespace Moirai.Atropos.Timer
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public override void RemoveTimer(ulong timerId)
+        internal override void RemoveTimer(ulong timerHandle)
         {
-            int slotIndex = GetSlotIndex(timerId);
+            int slotIndex = GetSlotIndex(timerHandle);
             if (slotIndex >= 0)
             {
                 ReleaseSlot(slotIndex);
             }
         }
 
-        public override void GetStatistics(out int activeCount, out int poolCapacity, out int peakActiveCount, out int freeCount)
+        internal override void GetStatistics(out int activeCount, out int poolCapacity, out int peakActiveCount, out int freeCount)
         {
             activeCount = _activeCount;
             poolCapacity = _slotCapacity;
@@ -298,7 +352,33 @@ namespace Moirai.Atropos.Timer
             freeCount = _freeCount;
         }
 
-        public override int GetAllTimers(TimerDebugInfo[] results)
+        internal override int GetAllTimers(TimerDebugInfo[] results)
+        {
+            if (results == null || results.Length == 0)
+            {
+                return 0;
+            }
+
+            int count = 0;
+            double scaledTime = Time.timeAsDouble;
+            double unscaledTime = Time.unscaledTimeAsDouble;
+#if UNITY_EDITOR
+            double realtime = Time.realtimeSinceStartupAsDouble;
+#else
+            const double realtime = 0d;
+#endif
+            int limit = results.Length;
+            for (int i = 0; i < _activeCount && count < limit; i++)
+            {
+                FillDebugInfo(GetActiveSlot(i), ref results[count], scaledTime, unscaledTime, realtime);
+                count++;
+            }
+
+            return count;
+        }
+
+#if UNITY_EDITOR
+        internal override int GetStaleOneShotTimers(TimerDebugInfo[] results)
         {
             if (results == null || results.Length == 0)
             {
@@ -312,14 +392,19 @@ namespace Moirai.Atropos.Timer
             int limit = results.Length;
             for (int i = 0; i < _activeCount && count < limit; i++)
             {
-                FillDebugInfo(GetActiveSlot(i), ref results[count], scaledTime, unscaledTime, realtime);
+                int slotIndex = GetActiveSlot(i);
+                if (IsLoop(slotIndex) || realtime - GetCreationTime(slotIndex) <= STALE_ONE_SHOT_SECONDS)
+                {
+                    continue;
+                }
+
+                FillDebugInfo(slotIndex, ref results[count], scaledTime, unscaledTime, realtime);
                 count++;
             }
 
             return count;
         }
-
-        #region 槽位管理 [SLOT MANAGEMENT]
+#endif
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private int AcquireSlot()
@@ -395,13 +480,13 @@ namespace Moirai.Atropos.Timer
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static int GetPagedInt(IntPage[] pages, int index)
         {
-            return pages[index >> PAGE_SHIFT].values[index & PAGE_MASK];
+            return pages[index >> PAGE_SHIFT].Values[index & PAGE_MASK];
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void SetPagedInt(IntPage[] pages, int index, int value)
         {
-            pages[index >> PAGE_SHIFT].values[index & PAGE_MASK] = value;
+            pages[index >> PAGE_SHIFT].Values[index & PAGE_MASK] = value;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -410,26 +495,26 @@ namespace Moirai.Atropos.Timer
             int pageIndex = slotIndex >> PAGE_SHIFT;
             int offset = slotIndex & PAGE_MASK;
             TimerPage page = _pages[pageIndex];
-            uint version = page.versions[offset] + 1U;
-            page.versions[offset] = version == 0U ? 1U : version;
-            page.handles[offset] = ComposeHandle(slotIndex, page.versions[offset]);
-            page.states[offset] = ComposeState(isLoop, isUnscaled);
-            page.triggerTimes[offset] = GetCurrentTime(isUnscaled) + duration;
-            page.durations[offset] = duration;
-            page.remainingTimes[offset] = 0d;
-            page.creationTimes[offset] = Time.realtimeSinceStartupAsDouble;
-            page.dueTicks[offset] = 0L;
-            page.queueIndices[offset] = INVALID_INDEX;
-            page.queueNextIndices[offset] = INVALID_INDEX;
-            page.queuePrevIndices[offset] = INVALID_INDEX;
-            page.activeIndices[offset] = INVALID_INDEX;
-            page.handlerTypes[offset] = HANDLER_NONE;
-            page.legacyHandlers[offset] = null;
-            page.legacyArgs[offset] = null;
-            page.genericInvokers[offset] = null;
-            page.genericHandlers[offset] = null;
-            page.genericArgs[offset] = null;
-            page.actionHandlers[offset] = null;
+            uint version = page.Versions[offset] + 1U;
+            page.Versions[offset] = version == 0U ? 1U : version;
+            page.Handles[offset] = ComposeHandle(slotIndex, page.Versions[offset]);
+            page.States[offset] = ComposeState(isLoop, isUnscaled);
+            page.TriggerTimes[offset] = GetCurrentTime(isUnscaled) + duration;
+            page.Durations[offset] = duration;
+            page.RemainingTimes[offset] = 0d;
+#if UNITY_EDITOR
+            page.CreationTimes[offset] = Time.realtimeSinceStartupAsDouble;
+#endif
+            page.DueTicks[offset] = 0L;
+            page.QueueIndices[offset] = INVALID_INDEX;
+            page.QueueNextIndices[offset] = INVALID_INDEX;
+            page.QueuePrevIndices[offset] = INVALID_INDEX;
+            page.ActiveIndices[offset] = INVALID_INDEX;
+            page.HandlerTypes[offset] = HANDLER_NONE;
+            page.NoArgsHandlers[offset] = null;
+            page.GenericInvokers[offset] = null;
+            page.GenericHandlers[offset] = null;
+            page.GenericArgs[offset] = null;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -516,7 +601,9 @@ namespace Moirai.Atropos.Timer
             SetRemainingTime(slotIndex, 0d);
             SetTriggerTime(slotIndex, 0d);
             SetDuration(slotIndex, 0d);
+#if UNITY_EDITOR
             SetCreationTime(slotIndex, 0d);
+#endif
             SetDueTick(slotIndex, 0L);
             SetHandle(slotIndex, 0UL);
 
@@ -534,12 +621,10 @@ namespace Moirai.Atropos.Timer
         private void ClearHandler(int slotIndex)
         {
             SetHandlerType(slotIndex, HANDLER_NONE);
-            SetLegacyHandler(slotIndex, null);
-            SetLegacyArgs(slotIndex, null);
+            SetNoArgsHandler(slotIndex, null);
             SetGenericInvoker(slotIndex, null);
             SetGenericHandler(slotIndex, null);
             SetGenericArg(slotIndex, null);
-            SetActionHandler(slotIndex, null);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -566,49 +651,6 @@ namespace Moirai.Atropos.Timer
             _executingSlotIndex = INVALID_INDEX;
         }
 
-        #endregion
-
-        #region 执行 [EXECUTION]
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void RecoverInterruptedExecution()
-        {
-            int slotIndex = _executingSlotIndex;
-            if (slotIndex < 0)
-            {
-                return;
-            }
-
-            _executingSlotIndex = INVALID_INDEX;
-            if ((uint)slotIndex >= (uint)_slotCapacity)
-            {
-                return;
-            }
-
-            byte state = GetState(slotIndex);
-            if ((state & STATE_RELEASE_PENDING) != 0)
-            {
-                FreeReleasedExecutingSlot(slotIndex);
-                return;
-            }
-
-            if ((state & STATE_ACTIVE) == 0 || GetQueueIndex(slotIndex) >= 0)
-            {
-                return;
-            }
-
-            if ((state & STATE_LOOP) == 0)
-            {
-                ReleaseSlot(slotIndex);
-                return;
-            }
-
-            if ((state & STATE_RUNNING) != 0)
-            {
-                RescheduleLoop(slotIndex, _executingCurrentTime);
-            }
-        }
-
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void ProcessDueTimer(int slotIndex, double currentTime)
         {
@@ -619,38 +661,17 @@ namespace Moirai.Atropos.Timer
             }
 
             _executingSlotIndex = slotIndex;
-            _executingCurrentTime = currentTime;
 
             try
             {
                 byte handlerType = GetHandlerType(slotIndex);
-                switch (handlerType)
+                if (handlerType == HANDLER_NO_ARGS)
                 {
-                    case HANDLER_LEGACY:
-                    {
-                        TimerCallback handler = GetLegacyHandler(slotIndex);
-                        if (handler != null)
-                        {
-                            handler.Invoke(GetLegacyArgs(slotIndex));
-                        }
-
-                        break;
-                    }
-                    case HANDLER_GENERIC:
-                    {
-                        GetGenericInvoker(slotIndex).Invoke(GetGenericHandler(slotIndex), GetGenericArg(slotIndex));
-                        break;
-                    }
-                    case HANDLER_ACTION:
-                    {
-                        Action handler = GetActionHandler(slotIndex);
-                        if (handler != null)
-                        {
-                            handler.Invoke();
-                        }
-
-                        break;
-                    }
+                    GetNoArgsHandler(slotIndex).Invoke();
+                }
+                else if (handlerType == HANDLER_GENERIC)
+                {
+                    GetGenericInvoker(slotIndex).Invoke(GetGenericHandler(slotIndex), GetGenericArg(slotIndex));
                 }
             }
             catch (Exception exception)
@@ -700,10 +721,6 @@ namespace Moirai.Atropos.Timer
             SetTriggerTime(slotIndex, triggerTime);
             AddToQueue(slotIndex, IsUnscaled(slotIndex));
         }
-
-        #endregion
-
-        #region 时间轮 [TIMING WHEEL]
 
         private void AdvanceQueue(bool isUnscaled, double currentTime)
         {
@@ -895,10 +912,6 @@ namespace Moirai.Atropos.Timer
             return (WHEEL_MAX_LEVEL << WHEEL_SHIFT) + (int)((dueTick >> (WHEEL_SHIFT * WHEEL_MAX_LEVEL)) & WHEEL_MASK);
         }
 
-        #endregion
-
-        #region 轮访问器 [WHEEL ACCESSORS]
-
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private int GetQueueCount(bool isUnscaled)
         {
@@ -1039,10 +1052,6 @@ namespace Moirai.Atropos.Timer
             return normalizedCapacity;
         }
 
-        #endregion
-
-        #region 页数据访问器 [PAGE DATA ACCESSORS]
-
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private TimerPage GetPage(int slotIndex)
         {
@@ -1058,19 +1067,19 @@ namespace Moirai.Atropos.Timer
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private ulong GetHandle(int slotIndex)
         {
-            return GetPage(slotIndex).handles[GetOffset(slotIndex)];
+            return GetPage(slotIndex).Handles[GetOffset(slotIndex)];
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void SetHandle(int slotIndex, ulong value)
         {
-            GetPage(slotIndex).handles[GetOffset(slotIndex)] = value;
+            GetPage(slotIndex).Handles[GetOffset(slotIndex)] = value;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private byte GetState(int slotIndex)
         {
-            return GetPage(slotIndex).states[GetOffset(slotIndex)];
+            return GetPage(slotIndex).States[GetOffset(slotIndex)];
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -1078,7 +1087,7 @@ namespace Moirai.Atropos.Timer
         {
             TimerPage page = GetPage(slotIndex);
             int offset = GetOffset(slotIndex);
-            page.states[offset] = (byte)(page.states[offset] | mask);
+            page.States[offset] = (byte)(page.States[offset] | mask);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -1086,210 +1095,184 @@ namespace Moirai.Atropos.Timer
         {
             TimerPage page = GetPage(slotIndex);
             int offset = GetOffset(slotIndex);
-            page.states[offset] = (byte)(page.states[offset] & ~mask);
+            page.States[offset] = (byte)(page.States[offset] & ~mask);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void SetStateRaw(int slotIndex, byte value)
         {
-            GetPage(slotIndex).states[GetOffset(slotIndex)] = value;
+            GetPage(slotIndex).States[GetOffset(slotIndex)] = value;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private byte GetHandlerType(int slotIndex)
         {
-            return GetPage(slotIndex).handlerTypes[GetOffset(slotIndex)];
+            return GetPage(slotIndex).HandlerTypes[GetOffset(slotIndex)];
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void SetHandlerType(int slotIndex, byte value)
         {
-            GetPage(slotIndex).handlerTypes[GetOffset(slotIndex)] = value;
+            GetPage(slotIndex).HandlerTypes[GetOffset(slotIndex)] = value;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private double GetTriggerTime(int slotIndex)
         {
-            return GetPage(slotIndex).triggerTimes[GetOffset(slotIndex)];
+            return GetPage(slotIndex).TriggerTimes[GetOffset(slotIndex)];
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void SetTriggerTime(int slotIndex, double value)
         {
-            GetPage(slotIndex).triggerTimes[GetOffset(slotIndex)] = value;
+            GetPage(slotIndex).TriggerTimes[GetOffset(slotIndex)] = value;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private double GetDuration(int slotIndex)
         {
-            return GetPage(slotIndex).durations[GetOffset(slotIndex)];
+            return GetPage(slotIndex).Durations[GetOffset(slotIndex)];
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void SetDuration(int slotIndex, double value)
         {
-            GetPage(slotIndex).durations[GetOffset(slotIndex)] = value;
+            GetPage(slotIndex).Durations[GetOffset(slotIndex)] = value;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private double GetRemainingTime(int slotIndex)
         {
-            return GetPage(slotIndex).remainingTimes[GetOffset(slotIndex)];
+            return GetPage(slotIndex).RemainingTimes[GetOffset(slotIndex)];
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void SetRemainingTime(int slotIndex, double value)
         {
-            GetPage(slotIndex).remainingTimes[GetOffset(slotIndex)] = value;
+            GetPage(slotIndex).RemainingTimes[GetOffset(slotIndex)] = value;
         }
 
+#if UNITY_EDITOR
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private double GetCreationTime(int slotIndex)
         {
-            return GetPage(slotIndex).creationTimes[GetOffset(slotIndex)];
+            return GetPage(slotIndex).CreationTimes[GetOffset(slotIndex)];
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void SetCreationTime(int slotIndex, double value)
         {
-            GetPage(slotIndex).creationTimes[GetOffset(slotIndex)] = value;
+            GetPage(slotIndex).CreationTimes[GetOffset(slotIndex)] = value;
         }
+#endif
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private long GetDueTick(int slotIndex)
         {
-            return GetPage(slotIndex).dueTicks[GetOffset(slotIndex)];
+            return GetPage(slotIndex).DueTicks[GetOffset(slotIndex)];
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void SetDueTick(int slotIndex, long value)
         {
-            GetPage(slotIndex).dueTicks[GetOffset(slotIndex)] = value;
+            GetPage(slotIndex).DueTicks[GetOffset(slotIndex)] = value;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private int GetQueueIndex(int slotIndex)
         {
-            return GetPage(slotIndex).queueIndices[GetOffset(slotIndex)];
+            return GetPage(slotIndex).QueueIndices[GetOffset(slotIndex)];
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void SetQueueIndex(int slotIndex, int value)
         {
-            GetPage(slotIndex).queueIndices[GetOffset(slotIndex)] = value;
+            GetPage(slotIndex).QueueIndices[GetOffset(slotIndex)] = value;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private int GetQueueNextIndex(int slotIndex)
         {
-            return GetPage(slotIndex).queueNextIndices[GetOffset(slotIndex)];
+            return GetPage(slotIndex).QueueNextIndices[GetOffset(slotIndex)];
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void SetQueueNextIndex(int slotIndex, int value)
         {
-            GetPage(slotIndex).queueNextIndices[GetOffset(slotIndex)] = value;
+            GetPage(slotIndex).QueueNextIndices[GetOffset(slotIndex)] = value;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private int GetQueuePrevIndex(int slotIndex)
         {
-            return GetPage(slotIndex).queuePrevIndices[GetOffset(slotIndex)];
+            return GetPage(slotIndex).QueuePrevIndices[GetOffset(slotIndex)];
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void SetQueuePrevIndex(int slotIndex, int value)
         {
-            GetPage(slotIndex).queuePrevIndices[GetOffset(slotIndex)] = value;
+            GetPage(slotIndex).QueuePrevIndices[GetOffset(slotIndex)] = value;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private int GetActiveIndex(int slotIndex)
         {
-            return GetPage(slotIndex).activeIndices[GetOffset(slotIndex)];
+            return GetPage(slotIndex).ActiveIndices[GetOffset(slotIndex)];
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void SetActiveIndex(int slotIndex, int value)
         {
-            GetPage(slotIndex).activeIndices[GetOffset(slotIndex)] = value;
+            GetPage(slotIndex).ActiveIndices[GetOffset(slotIndex)] = value;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private TimerCallback GetLegacyHandler(int slotIndex)
+        private Action GetNoArgsHandler(int slotIndex)
         {
-            return GetPage(slotIndex).legacyHandlers[GetOffset(slotIndex)];
+            return GetPage(slotIndex).NoArgsHandlers[GetOffset(slotIndex)];
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void SetLegacyHandler(int slotIndex, TimerCallback value)
+        private void SetNoArgsHandler(int slotIndex, Action value)
         {
-            GetPage(slotIndex).legacyHandlers[GetOffset(slotIndex)] = value;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private object[] GetLegacyArgs(int slotIndex)
-        {
-            return GetPage(slotIndex).legacyArgs[GetOffset(slotIndex)];
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void SetLegacyArgs(int slotIndex, object[] value)
-        {
-            GetPage(slotIndex).legacyArgs[GetOffset(slotIndex)] = value;
+            GetPage(slotIndex).NoArgsHandlers[GetOffset(slotIndex)] = value;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private TimerGenericInvoker GetGenericInvoker(int slotIndex)
         {
-            return GetPage(slotIndex).genericInvokers[GetOffset(slotIndex)];
+            return GetPage(slotIndex).GenericInvokers[GetOffset(slotIndex)];
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void SetGenericInvoker(int slotIndex, TimerGenericInvoker value)
         {
-            GetPage(slotIndex).genericInvokers[GetOffset(slotIndex)] = value;
+            GetPage(slotIndex).GenericInvokers[GetOffset(slotIndex)] = value;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private object GetGenericHandler(int slotIndex)
         {
-            return GetPage(slotIndex).genericHandlers[GetOffset(slotIndex)];
+            return GetPage(slotIndex).GenericHandlers[GetOffset(slotIndex)];
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void SetGenericHandler(int slotIndex, object value)
         {
-            GetPage(slotIndex).genericHandlers[GetOffset(slotIndex)] = value;
+            GetPage(slotIndex).GenericHandlers[GetOffset(slotIndex)] = value;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private object GetGenericArg(int slotIndex)
         {
-            return GetPage(slotIndex).genericArgs[GetOffset(slotIndex)];
+            return GetPage(slotIndex).GenericArgs[GetOffset(slotIndex)];
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void SetGenericArg(int slotIndex, object value)
         {
-            GetPage(slotIndex).genericArgs[GetOffset(slotIndex)] = value;
+            GetPage(slotIndex).GenericArgs[GetOffset(slotIndex)] = value;
         }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private Action GetActionHandler(int slotIndex)
-        {
-            return GetPage(slotIndex).actionHandlers[GetOffset(slotIndex)];
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void SetActionHandler(int slotIndex, Action value)
-        {
-            GetPage(slotIndex).actionHandlers[GetOffset(slotIndex)] = value;
-        }
-
-        #endregion
-
-        #region 调试 [DEBUG]
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void FillDebugInfo(int slotIndex, ref TimerDebugInfo info, double scaledTime, double unscaledTime, double realtime)
@@ -1319,13 +1302,15 @@ namespace Moirai.Atropos.Timer
                 flags |= TimerDebugFlags.UNSCALED;
             }
 
-            info.timerHandle = GetHandle(slotIndex);
-            info.leftTime = (float)leftTime;
-            info.duration = (float)GetDuration(slotIndex);
-            info.age = (float)(realtime - GetCreationTime(slotIndex));
-            info.flags = flags;
+            info.TimerHandle = GetHandle(slotIndex);
+            info.LeftTime = (float)leftTime;
+            info.Duration = (float)GetDuration(slotIndex);
+#if UNITY_EDITOR
+            info.Age = (float)(realtime - GetCreationTime(slotIndex));
+#else
+            info.Age = 0f;
+#endif
+            info.Flags = flags;
         }
-
-        #endregion
     }
 }

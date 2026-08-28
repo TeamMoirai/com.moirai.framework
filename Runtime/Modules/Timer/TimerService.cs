@@ -1,4 +1,5 @@
 ﻿using System;
+using Unity.IL2CPP.CompilerServices;
 
 namespace Moirai.Atropos.Timer
 {
@@ -9,6 +10,9 @@ namespace Moirai.Atropos.Timer
     /// <para>Handler 属性由 <c>HandlerHostGenerator</c> 源生成器自动生成（线程安全懒加载）。</para>
     /// </summary>
     [HandlerHost(typeof(TimerServiceHandler))]
+    [UnityEngine.Scripting.Preserve]
+    [Il2CppSetOption(Option.NullChecks, false)]
+    [Il2CppSetOption(Option.ArrayBoundsChecks, false)]
     public partial class TimerService : ServiceBase, IServiceTickable
     {
         #region 属性 [PROPERTIES]
@@ -70,18 +74,6 @@ namespace Moirai.Atropos.Timer
         /// <param name="time">计时器间隔。</param>
         /// <param name="isLoop">是否循环。</param>
         /// <param name="isUnscaled">是否不收时间缩放影响。</param>
-        /// <param name="args">传参。(避免闭包)</param>
-        /// <returns>计时器Id。</returns>
-        public static ulong AddTimer(TimerCallback callback, float time, bool isLoop = false, bool isUnscaled = false, params object[] args) =>
-            s_Handler?.AddTimer(callback, time, isLoop, isUnscaled, args) ?? 0UL;
-
-        /// <summary>
-        /// 添加计时器。
-        /// </summary>
-        /// <param name="callback">计时器回调。</param>
-        /// <param name="time">计时器间隔。</param>
-        /// <param name="isLoop">是否循环。</param>
-        /// <param name="isUnscaled">是否不收时间缩放影响。</param>
         /// <returns>计时器Id。</returns>
         public static ulong AddTimer(Action callback, float time, bool isLoop = false, bool isUnscaled = false) =>
             s_Handler?.AddTimer(callback, time, isLoop, isUnscaled) ?? 0UL;
@@ -111,6 +103,20 @@ namespace Moirai.Atropos.Timer
         public static void Resume(ulong timerId) => s_Handler?.Resume(timerId);
 
         /// <summary>
+        /// 查询计时器是否处于运行状态。
+        /// </summary>
+        /// <param name="timerHandle">计时器句柄。</param>
+        /// <returns>句柄有效且未暂停时返回 true；句柄失效或服务未初始化返回 false。</returns>
+        public static bool IsRunning(ulong timerHandle) => s_Handler?.IsRunning(timerHandle) ?? false;
+
+        /// <summary>
+        /// 查询计时器剩余时间。
+        /// </summary>
+        /// <param name="timerHandle">计时器句柄。</param>
+        /// <returns>剩余秒数（已暂停的计时器返回其记录的剩余时间）；句柄失效或服务未初始化返回 0。</returns>
+        public static float GetLeftTime(ulong timerHandle) => s_Handler?.GetLeftTime(timerHandle) ?? 0f;
+
+        /// <summary>
         /// 重启计时器。
         /// </summary>
         /// <param name="timerId">计时器Id。</param>
@@ -121,41 +127,6 @@ namespace Moirai.Atropos.Timer
         /// </summary>
         /// <param name="timerId">计时器Id。</param>
         public static void RemoveTimer(ulong timerId) => s_Handler?.RemoveTimer(timerId);
-
-        /// <summary>
-        /// 预热计时器容量。
-        /// </summary>
-        /// <param name="capacity">容量。</param>
-        public static void Prewarm(int capacity) => s_Handler?.Prewarm(capacity);
-
-        /// <summary>
-        /// 获取计时器统计。
-        /// </summary>
-        /// <param name="activeCount">活跃的数量。</param>
-        /// <param name="poolCapacity">池容量。</param>
-        /// <param name="peakActiveCount">峰值活跃数量。</param>
-        /// <param name="freeCount">空闲数量。</param>
-        public static void GetStatistics(out int activeCount, out int poolCapacity, out int peakActiveCount, out int freeCount)
-        {
-            if (s_Handler == null)
-            {
-                activeCount = 0;
-                poolCapacity = 0;
-                peakActiveCount = 0;
-                freeCount = 0;
-                return;
-            }
-
-            s_Handler.GetStatistics(out activeCount, out poolCapacity, out peakActiveCount, out freeCount);
-        }
-
-        /// <summary>
-        /// 获取所有计时器调试信息。
-        /// </summary>
-        /// <param name="results">结果缓冲区。</param>
-        /// <returns>填充的数量。</returns>
-        public static int GetAllTimers(TimerDebugInfo[] results) =>
-            s_Handler?.GetAllTimers(results) ?? 0;
 
         #endregion
     }

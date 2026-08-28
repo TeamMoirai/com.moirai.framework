@@ -606,10 +606,7 @@ namespace Moirai.Atropos.UI
             window.CancelHideToCloseTimer();
             window.Visible = false;
             window.IsHide = true;
-            window.HideTimerId = TimerService.AddTimer(() =>
-            {
-                CloseUI(type, windowName);
-            }, window.HideTimeToClose);
+            window.HideTimerId = TimerService.AddTimer(window.Close, window.HideTimeToClose);
 
             if (window.FullScreen)
             {

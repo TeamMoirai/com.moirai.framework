@@ -11,10 +11,11 @@
 - 四级时间轮：4 级 x 256 桶，1ms tick 精度，到期派发无需全量扫描
 - 版本化句柄：句柄为 `(版本号 << 32) | (槽位 + 1)`，槽位复用后旧句柄自动失效（防 ABA）
 - 双时间轮：缩放（`Time.timeAsDouble`）与非缩放（`Time.unscaledTimeAsDouble`）独立推进
-- 三种回调形态：`TimerServiceHandler`（object[] 传参）、`Action`（无参）、`Action<T>`（泛型单参，避免闭包）
-- 异常隔离：单个回调抛出的异常仅记录日志，不影响其他计时器与时间轮推进
+- 两种回调形态：`Action`（无参）、`Action<T>`（泛型单参，配合缓存委托或静态方法组避免闭包分配）
+- 句柄查询：`IsRunning` 查询运行状态、`GetLeftTime` 查询剩余时间，均基于版本化句柄安全访问
+- 异常隔离：单个回调抛出的异常仅记录日志（Fatal 级），不影响其他计时器与时间轮推进
 - 重入安全：回调内部可安全调用 `RemoveTimer` / `Stop` / `Restart` 操作自身或其他计时器
-- 分页存储与预热：默认预热 1024 槽位，按 256/页扩展，上限约 100 万槽位
+- 分页存储与预热：初始容量经 `TimerServiceSettings` 配置（默认 1024、最小 256、上限 16384），按 256/页扩展，上限约 100 万槽位
 
 ## 核心类型
 
@@ -22,13 +23,13 @@
 
 | 类/接口 | 说明 |
 |---------|------|
-| `TimerService` | 静态外观（`[HandlerHost]`）：`AddTimer` 三个重载、`Stop` / `Resume` / `Restart` / `RemoveTimer`、`Prewarm`、`GetStatistics`、`GetAllTimers` 全部静态 API |
-| `TimerServiceHandler` | 时间轮后端处理器抽象基类（继承 `FrameworkHandler`），定义外观调用的后端契约 |
-| `DefaultTimerHandler` | 默认实现（四级时间轮算法，位于 `Handler/` 目录），承载时间轮核心逻辑 |
+| `TimerService` | 静态外观（`[HandlerHost]`）：`AddTimer` 两个重载、`Stop` / `Resume` / `Restart` / `RemoveTimer`、`IsRunning` / `GetLeftTime`；调试 API（`GetStatistics` / `GetAllTimers` / `GetStaleOneShotTimers`）位于 partial `TimerService.Debug` |
+| `TimerServiceHandler` | 时间轮后端处理器抽象基类（继承 `FrameworkHandler`，契约成员为 `internal`），定义外观调用的后端契约 |
+| `DefaultTimerHandler` | 默认实现（四级时间轮算法，位于 `Handler/` 目录），承载时间轮核心逻辑；初始容量由自身序列化字段 `m_InitialCapacity` 配置 |
 | `TimerServiceSettings` | 框架设置，`[ProviderDropdown]` 选择计时器后端实现 |
-| `TimerCallback` | 委托 `void TimerCallback(object[] args)`，传统 object[] 传参回调 |
-| `TimerDebugInfo` | 调试信息结构体：`timerHandle`、`leftTime`、`duration`、`age`、`flags` |
+| `TimerDebugInfo` | 调试信息结构体：`TimerHandle`、`LeftTime`、`Duration`、`Age`、`Flags` |
 | `TimerDebugFlags` | 调试标志位常量：`RUNNING`、`LOOP`、`UNSCALED` |
+| `TimerServiceDebugger` | 计时器调试组件（随用随加）：挂载到场景对象即可在 Inspector 查看运行时统计与调试信息，运行时零逻辑开销 |
 
 ## 快速上手
 
@@ -39,18 +40,18 @@ ulong id1 = TimerService.AddTimer(() => Debug.Log("3 秒后执行"), 3f);
 // 2. 循环计时器（受 timeScale 影响）
 ulong id2 = TimerService.AddTimer(OnHeartbeat, 1f, isLoop: true);
 
-// 3. 泛型单参回调，避免闭包分配（T 约束为 class）
+// 3. 泛型单参回调，避免闭包分配（T 约束为 class；热路径请使用缓存委托或静态方法组）
 ulong id3 = TimerService.AddTimer<Entity>(OnSkillCdEnd, target, 5f);
-
-// 4. 传统 object[] 传参（兼容旧代码）
-ulong id4 = TimerService.AddTimer(OnArgsCallback, 2f, false, false, 100, "hello");
-void OnArgsCallback(object[] args) { /* args[0]=100, args[1]="hello" */ }
 
 // 暂停 / 恢复 / 重启 / 移除
 TimerService.Stop(id2);       // 暂停并记录剩余时间
 TimerService.Resume(id2);     // 从剩余时间继续
 TimerService.Restart(id2);    // 重置为完整时长重新计时
 TimerService.RemoveTimer(id2);// 彻底移除并回收槽位
+
+// 句柄查询
+bool running = TimerService.IsRunning(id2);
+float leftTime = TimerService.GetLeftTime(id2);
 ```
 
 ## 进阶用法
@@ -66,12 +67,11 @@ ulong id = TimerService.AddTimer(OnCountdown, 1f, isLoop: true, isUnscaled: true
 
 循环计时器触发后按「上次触发时间 + 时长」排程以保持相位稳定；若因掉帧导致排程时间落后于当前时间，则对齐为「当前时间 + 时长」，避免连续补发。
 
-### 预热与统计
+### 容量配置与统计
+
+初始容量在 `TimerServiceSettings` 资产中配置（`DefaultTimerHandler.m_InitialCapacity`，默认 1024，最小 256，按 256 对齐），仅在服务初始化时生效，运行中不扩容配置。也可通过 `TimerServiceDebugger` 组件的 Inspector 滑条可视化调节（运行中只读）。
 
 ```csharp
-// 战斗前预热槽位，避免运行中扩页（上限 4096 页 x 256 槽）
-TimerService.Prewarm(4096);
-
 // 运行时统计：活跃数、池容量、峰值活跃数、空闲数
 TimerService.GetStatistics(out int activeCount, out int poolCapacity,
                            out int peakActiveCount, out int freeCount);
@@ -81,10 +81,25 @@ var results = new TimerDebugInfo[activeCount];
 int count = TimerService.GetAllTimers(results);
 for (int i = 0; i < count; i++)
 {
-    bool isRunning = (results[i].flags & TimerDebugFlags.RUNNING) != 0;
-    Debug.Log($"{results[i].timerHandle} 剩余 {results[i].leftTime:F2}s");
+    bool isRunning = (results[i].Flags & TimerDebugFlags.RUNNING) != 0;
+    Debug.Log($"{results[i].TimerHandle} 剩余 {results[i].LeftTime:F2}s");
 }
+
+#if UNITY_EDITOR
+// 僵尸计时器检测：存活超过 300 秒的一次性计时器（可能因逻辑错误未释放）
+var staleResults = new TimerDebugInfo[32];
+int staleCount = TimerService.GetStaleOneShotTimers(staleResults);
+#endif
 ```
+
+### 调试组件（TimerServiceDebugger）
+
+`TimerServiceDebugger` 是随用随加的空 MonoBehaviour（菜单 `Moirai/Timer Service Debugger`），挂载后其 Inspector 提供：
+
+- **配置 [CONFIGURATION]**：编辑 `TimerServiceSettings` 资产的初始容量（滑条 + 数值框，按 256 对齐钳制；运行中只读，修改在下次服务初始化时生效）。
+- **运行时调试 [RUNTIME DEBUG]**：活跃数 / 池容量 / 峰值活跃 / 空闲槽位统计与占用率进度条。
+- **活跃计时器采样 [ACTIVE TIMER SAMPLE]**：前 32 个计时器的句柄、形态（循环/单次）、缩放模式、运行状态、剩余与周期时长。
+- **僵尸一次性计时器 [STALE ONE-SHOT TIMERS]**：存活超过 300 秒的一次性计时器警告列表，帮助定位泄漏。
 
 ### 实现要点
 
@@ -95,11 +110,12 @@ for (int i = 0; i < count; i++)
 
 ## 注意事项
 
-- `AddTimer` 返回 `0UL` 表示失败（回调为 null 或槽位耗尽），有效句柄不会为 0。
-- 槽位复用带版本号：对已失效句柄调用 `Stop` / `RemoveTimer` 等均为安全的空操作。
+- `AddTimer` 返回 `0UL` 表示失败（回调为 null 或槽位耗尽），有效句柄不会为 0；编辑器下失败会输出 `LogUtility.Warning` 警告日志，运行时不产生日志开销。
+- 槽位复用带版本号：对已失效句柄调用 `Stop` / `RemoveTimer` / `IsRunning` 等均为安全的空操作或返回默认值。
 - `RemoveTimer` 与一次性的自然到期等价，均会回收槽位；循环计时器必须手动移除，否则持续触发。
 - 回调在主线程（服务 `Update`）中同步执行，不要在回调中做耗时阻塞操作。
 - 时间缩放只影响 `isUnscaled: false` 的计时器；修改 `Time.timeScale` 前请按需选择回调形态。
+- 热路径注册计时器请使用缓存委托或静态方法组，避免捕获 lambda / 闭包引入分配。
 
 ---
 [« 返回主 README](../../README.md) · [Core](Core.md) · [UpdateDriver](UpdateDriver.md)
