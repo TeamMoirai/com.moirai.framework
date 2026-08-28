@@ -59,7 +59,8 @@ namespace Moirai.Atropos.Localization
         private async UniTaskVoid ApplyFromResource()
         {
             string textIDValue = LocalizationService.GetTextFromId(_localizedTextID);
-            var result = await ResourceService.LoadAssetAsync<Object>(textIDValue);
+            var lease = await ResourceService.LoadLeaseAsync<Object>(textIDValue);
+            var result = lease.Asset;
 
             if (!IsExpectedType(result) && !IsConvertibleType(result))
             {
@@ -69,6 +70,7 @@ namespace Moirai.Atropos.Localization
             if (TryConvertAndApply(result))
             {
                 LogUtility.Warning("Localized image type error, automatically converted: {0}", result.ToString());
+                lease.Dispose();
                 return;
             }
 

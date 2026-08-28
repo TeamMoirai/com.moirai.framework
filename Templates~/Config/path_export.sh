@@ -17,4 +17,4 @@ while IFS='=' read -r key value; do
     echo "export $(key)=$(value)"
     # 导出环境变量    
     export "$key=$value"
-done < "path_export.conf"
+done < "path_define.conf"

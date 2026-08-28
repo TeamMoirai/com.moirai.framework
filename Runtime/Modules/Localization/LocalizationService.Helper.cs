@@ -50,7 +50,7 @@ namespace Moirai.Atropos.Localization
 
             if (!IsValid)
             {
-                if (!s_HasLoggedWarning) LogUtility.Warning($"{nameof(LocalizationService)} not initialized!");
+                if (!s_HasLoggedWarning) LogUtility.Warning("{0} not initialized!", nameof(LocalizationService));
                 s_HasLoggedWarning = true;
                 return format;
             }
@@ -66,17 +66,17 @@ namespace Moirai.Atropos.Localization
                 {
                     if (!Has(textId))
                     {
-                        if (Application.isPlaying) LogUtility.Warning($"Text ID: {textId}({match.Groups[1].Value}) not available.");
+                        if (Application.isPlaying) LogUtility.Warning("Text ID: {0}({1}) not available.", textId, match.Groups[1].Value);
                         continue;
                     }
 
                     string replacement = GetTextFromId(textId);
-                    // LogUtility.Info($"Resolving localization for ID: {textId}({replacement})");
+                    // LogUtility.Info("Resolving localization for ID: {0}({1})", textId, replacement);
                     format = format.Replace(match.Value, replacement);
                 }
                 catch (Exception ex)
                 {
-                    LogUtility.Error($"Failed to resolve localization for ID: {textId}. Error: {ex}");
+                    LogUtility.Fatal("Failed to resolve localization for ID: {0}. Error: {1}", textId, ex);
                 }
             }
 
@@ -109,7 +109,7 @@ namespace Moirai.Atropos.Localization
             
             if (language != Language.Unspecified && s_LoadedLanguage.Add(language))
             {
-                LogUtility.Info($"Registered language[{s_LoadedLanguage.Count}]: {language}");
+                LogUtility.Info("Registered language[{0}]: {1}",s_LoadedLanguage.Count , language);
             }
         }
 

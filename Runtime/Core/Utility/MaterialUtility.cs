@@ -1,6 +1,6 @@
 using Cysharp.Threading.Tasks;
 using UnityEngine;
-using YooAsset;
+using UnityEngine.SceneManagement;
 
 namespace Moirai.Atropos
 {
@@ -86,10 +86,10 @@ namespace Moirai.Atropos
         /// <summary>
         /// 等待能获取到场景物体时，修复材质shader
         /// </summary>
-        public static async UniTaskVoid WaitGetRootGameObjects(SceneHandle sceneHandle)
+        public static async UniTaskVoid WaitGetRootGameObjects(UnityEngine.SceneManagement.Scene scene)
         {
-            await UniTask.WaitUntil(() => sceneHandle.SceneObject.GetRootGameObjects().Length > 0);
-            FixedMaterialShader_Scenne(sceneHandle.SceneObject.GetRootGameObjects());
+            await UniTask.WaitUntil(() => scene.GetRootGameObjects().Length > 0);
+            FixedMaterialShader_Scenne(scene.GetRootGameObjects());
         }
 #endif
     }

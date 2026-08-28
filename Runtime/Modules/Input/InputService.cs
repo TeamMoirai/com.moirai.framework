@@ -1,27 +1,27 @@
-using Moirai.Atropos.Events;
+﻿using Moirai.Atropos.Events;
 using Moirai.Atropos.UI;
 using UnityEngine;
 
 namespace Moirai.Atropos.Input
 {
     /// <summary>
-    /// 输入服务门面（Facade）。
+    /// 输入服务外观（Facade）。
     /// <para>统一的静态输入访问入口，通过替换 <see cref="s_Handler"/> 即可在不同输入后端之间零成本切换。</para>
-    /// <para>未显式设置处理器时，使用 <see cref="CreateDefaultHandler"/> 从 <see cref="InputSettings"/> 创建处理器实例。</para>
+    /// <para>未显式设置处理器时，使用 <see cref="CreateDefaultHandler"/> 从 <see cref="InputServiceSettings"/> 创建处理器实例。</para>
     /// <para>Handler 属性由 <c>HandlerHostGenerator</c> 源生成器自动生成（线程安全懒加载）。</para>
     /// </summary>
-    [HandlerHost(typeof(InputHandler))]
+    [HandlerHost(typeof(InputServiceHandler))]
     public partial class InputService : ServiceBase
     {
         #region 处理器 [HANDLER]
 
         /// <summary>
-        /// 从 <see cref="InputSettings"/> 创建默认输入处理器。
+        /// 从 <see cref="InputServiceSettings"/> 创建默认输入处理器。
         /// </summary>
         /// <returns>默认输入处理器实例。</returns>
-        private static InputHandler CreateDefaultHandler()
+        private static InputServiceHandler CreateDefaultHandler()
         {
-            return InputSettings.InputHandler;
+            return InputServiceSettings.InputServiceHandler;
         }
 
         #endregion

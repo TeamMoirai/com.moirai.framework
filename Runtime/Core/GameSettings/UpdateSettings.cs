@@ -50,7 +50,7 @@ namespace Moirai.Atropos
     }
 
     // ReSharper disable once InconsistentNaming
-    [FrameworkSetting("热更设置", "热更新与资源下载配置", -450)]
+    [FrameworkSetting("[框架]热更设置", "热更新与资源下载配置", -489)]
     public class UpdateSettings : FrameworkSettings<UpdateSettings>
     {
         [Tooltip("项目名称")]

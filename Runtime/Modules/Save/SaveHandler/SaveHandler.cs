@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
 
@@ -8,9 +8,9 @@ namespace Moirai.Atropos.Save
     /// 存档处理器抽象基类（策略模式抽象策略）。
     /// <para>承载文件管理流程（路径拼装、目录创建、原子写入、删除清理），
     /// 子类只需实现 <see cref="SerializeAsync"/> / <see cref="DeserializeAsync{T}"/> 序列化策略。</para>
-    /// <para>由 <see cref="SaveSettings"/> 序列化持有实例，经 <see cref="SaveService"/> 静态门面访问。</para>
+    /// <para>由 <see cref="SaveServiceSettings"/> 序列化持有实例，经 <see cref="SaveService"/> 静态外观访问。</para>
     /// </summary>
-    public abstract class SaveHandler : FrameworkHandler
+    public abstract class SaveServiceHandler : FrameworkHandler
     {
         /// <summary>存档根目录（persistentDataPath 下）。</summary>
         public const string BASE_FOLDER_NAME = "/Data/";
@@ -189,7 +189,7 @@ namespace Moirai.Atropos.Save
         /// <returns>保存文件名</returns>
         protected static string DetermineSaveFileName(string fileName)
         {
-            return Path.GetFileNameWithoutExtension(fileName) + SaveSettings.SaveFileExtension;
+            return Path.GetFileNameWithoutExtension(fileName) + SaveServiceSettings.SaveFileExtension;
         }
 
         #endregion

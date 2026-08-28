@@ -1,8 +1,6 @@
-using Moirai.Atropos.Audio;
-using Moirai.Atropos.Debugger;
+﻿using Moirai.Atropos.Audio;
 using Moirai.Atropos.Events;
-using Moirai.Atropos.Input;
-using Moirai.Atropos.GameObjectPool;
+using Moirai.Atropos.ObjectPool;
 using Moirai.Atropos.Resource;
 using Moirai.Atropos.UI;
 using UnityEngine;
@@ -12,7 +10,7 @@ namespace Moirai.Atropos
 {
     /// <summary>
     /// 游戏入口。负责生命周期驱动与服务世界轮询。
-    /// <para>服务访问：业务代码一律通过各服务的静态门面（如 <see cref="AudioService"/>、<see cref="ResourceService"/>、<see cref="UIService"/>）；
+    /// <para>服务访问：业务代码一律通过各服务的静态外观（如 <see cref="AudioService"/>、<see cref="ResourceService"/>、<see cref="UIService"/>）；
     /// 服务类内部用基类内置查找（<c>Require&lt;T&gt;()</c> 等）；<see cref="Services"/> 仅供非标准动态查找使用。</para>
     /// </summary>
     [DisallowMultipleComponent]
@@ -30,7 +28,7 @@ namespace Moirai.Atropos
 
         /// <summary>
         /// 最深层活跃的服务提供者（Gameplay &gt; Scene &gt; App）。
-        /// <para>业务代码优先使用各服务静态门面；此属性仅供非标准动态查找（如泛型工具、编辑器诊断）。</para>
+        /// <para>业务代码优先使用各服务静态外观；此属性仅供非标准动态查找（如泛型工具、编辑器诊断）。</para>
         /// <para>关闭后返回 null——退出/重启场景中外部代码可能仍持有引用，安全返回 null 比抛异常更合理。</para>
         /// </summary>
         public static IServiceProvider Services => s_IsShutdown ? null : GameServices.Provider;
@@ -151,7 +149,7 @@ namespace Moirai.Atropos
         {
             LogUtility.Warning("Low memory reported...");
 
-            GameObjectPoolService.FlushAll();
+            ObjectPoolService.FlushAll();
             ResourceService.ForceUnloadUnusedAssets(true);
         }
 

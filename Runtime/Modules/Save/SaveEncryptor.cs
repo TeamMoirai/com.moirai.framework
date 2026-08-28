@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Text;
 using System.Security.Cryptography;
 
@@ -6,7 +6,7 @@ namespace Moirai.Atropos.Save
 {
     /// <summary>
     /// 此类实现用于加密和解密流的 AES 加密器。
-    /// <para>以组合方式被 <see cref="SaveHandler"/> 加密处理器使用（C# 不支持多基类继承）。</para>
+    /// <para>以组合方式被 <see cref="SaveServiceHandler"/> 加密处理器使用（C# 不支持多基类继承）。</para>
     /// </summary>
     public class SaveEncryptor
     {

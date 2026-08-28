@@ -1,1 +1,3 @@
-使用 luban-next, 请先执行build-luban编译或者自行导入
+使用Luban作为配置解决方案（https://www.datable.cn/docs/intro）
+
+请先安装*git*，然后执行*build-luban*编译或者自行导入编译后的工程文件到当前目录的*Luban*文件夹下（需自建Luban文件夹）

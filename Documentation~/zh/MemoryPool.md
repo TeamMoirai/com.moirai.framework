@@ -1,8 +1,8 @@
-# MemoryPool 内存池
+﻿# MemoryPool 内存池
 
 > 零 GC 页式内存池，使用非托管元数据、EWMA 自适应水位线和阶段驱动预算控制。
 
-MemoryPool 系统为纯 C# 对象（非 GameObject）提供高性能池化。它使用 `unsafe` 指针式页元数据（`Marshal.AllocHGlobal`）在热路径上实现零 GC 压力。池通过静态 `MemoryPool` 门面或泛型 `MemoryPool<T>` 类型访问。
+MemoryPool 系统为纯 C# 对象（非 GameObject）提供高性能池化。它使用 `unsafe` 指针式页元数据（`Marshal.AllocHGlobal`）在热路径上实现零 GC 压力。池通过静态 `MemoryPool` 外观或泛型 `MemoryPool<T>` 类型访问。
 
 ## 何时使用 MemoryPool vs ObjectPool
 
@@ -56,7 +56,7 @@ MemoryPool 系统为纯 C# 对象（非 GameObject）提供高性能池化。它
 
 | 类型 | 描述 |
 |------|------|
-| `MemoryPool` | 静态门面：`Acquire<T>()`、`Release<T>()`、`Add<T>()`、`CompactAll()` 等 |
+| `MemoryPool` | 静态外观：`Acquire<T>()`、`Release<T>()`、`Add<T>()`、`CompactAll()` 等 |
 | `MemoryPool<T>` | 泛型类型池：`Acquire()`、`Release()`、`Add()`、`Shrink()`、`Compact()`、`TrimNativeMetadata()` |
 | `MemoryPoolRegistry` | 注册表：管理所有池句柄、`TickAll()`、`Phase`、`ClearAll()`、`CompactAll()` |
 | `MemoryObject` | 池化对象抽象基类：`Clear()` 方法用于状态重置 |

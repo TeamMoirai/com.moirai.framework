@@ -1,9 +1,9 @@
-using System;
+﻿using System;
 
 namespace Moirai.Atropos.Resource
 {
     // ReSharper disable once ClassNeverInstantiated.Global
-    public sealed partial class ResourceHandler
+    public sealed partial class YooAssetHandler
     {
         #region 字段 [FIELDS]
 
@@ -19,7 +19,7 @@ namespace Moirai.Atropos.Resource
         #region 容量属性 [CAPACITY PROPERTIES]
 
         /// <inheritdoc />
-        public int AssetRecordCapacity
+        public override int AssetRecordCapacity
         {
             get => _assetRecordCapacity;
             set
@@ -30,7 +30,7 @@ namespace Moirai.Atropos.Resource
         }
 
         /// <inheritdoc />
-        public int AssetLeaseCapacity
+        public override int AssetLeaseCapacity
         {
             get => _assetLeaseCapacity;
             set
@@ -41,7 +41,7 @@ namespace Moirai.Atropos.Resource
         }
 
         /// <inheritdoc />
-        public int BindingOwnerCapacity
+        public override int BindingOwnerCapacity
         {
             get => _bindingOwnerCapacity;
             set
@@ -52,7 +52,7 @@ namespace Moirai.Atropos.Resource
         }
 
         /// <inheritdoc />
-        public int BindingSlotCapacity
+        public override int BindingSlotCapacity
         {
             get => _bindingSlotCapacity;
             set
@@ -63,7 +63,7 @@ namespace Moirai.Atropos.Resource
         }
 
         /// <inheritdoc />
-        public int RegisteredTargetCapacity
+        public override int RegisteredTargetCapacity
         {
             get => _registeredTargetCapacity;
             set
@@ -74,7 +74,7 @@ namespace Moirai.Atropos.Resource
         }
 
         /// <inheritdoc />
-        public float IdleAssetExpireTime
+        public override float IdleAssetExpireTime
         {
             get => _idleAssetExpireTime;
             set => _idleAssetExpireTime = value < 0f ? 0f : value;
@@ -85,7 +85,7 @@ namespace Moirai.Atropos.Resource
         #region 预热 [WARMUP]
 
         /// <inheritdoc />
-        public void WarmupResourceRecords(int assetCapacity, int leaseCapacity, int unityObjectIndexCapacity)
+        public override void WarmupResourceRecords(int assetCapacity, int leaseCapacity, int unityObjectIndexCapacity)
         {
             _assetRecordsByKey.EnsureCapacity(assetCapacity);
             _assetRecordByLoadKeyId.EnsureCapacity(assetCapacity);
@@ -116,7 +116,7 @@ namespace Moirai.Atropos.Resource
         /// <summary>
         /// 资源自动释放检查间隔（秒）——桥接到 IdleAssetExpireTime。
         /// </summary>
-        public float AssetAutoReleaseInterval
+        public override float AssetAutoReleaseInterval
         {
             get => _idleAssetExpireTime;
             set => _idleAssetExpireTime = value;
@@ -125,7 +125,7 @@ namespace Moirai.Atropos.Resource
         /// <summary>
         /// 资源容量上限——桥接到 AssetRecordCapacity。
         /// </summary>
-        public int AssetCapacity
+        public override int AssetCapacity
         {
             get => _assetRecordCapacity;
             set => AssetRecordCapacity = value;
@@ -134,7 +134,7 @@ namespace Moirai.Atropos.Resource
         /// <summary>
         /// 资源过期秒数——桥接到 IdleAssetExpireTime。
         /// </summary>
-        public float AssetExpireTime
+        public override float AssetExpireTime
         {
             get => _idleAssetExpireTime;
             set => _idleAssetExpireTime = value;
@@ -143,15 +143,14 @@ namespace Moirai.Atropos.Resource
         /// <summary>
         /// 资源池优先级——保留兼容性。
         /// </summary>
-        public int AssetPriority { get; set; } = 0;
+        public override int AssetPriority { get; set; } = 0;
 
         #endregion
 
-        #region 遗留卸载桥接 [LEGACY UNLOAD BRIDGING]
+        #region 资源卸载 [ASSET UNLOAD]
 
         /// <inheritdoc />
-        [Obsolete("Use ResourceAssetLease<T> or Binding instead of LoadAsset/UnloadAsset.")]
-        public void UnloadAsset(object asset)
+        public override void UnloadAsset(object asset)
         {
             TryReleaseLegacyDirectByAsset(asset);
         }

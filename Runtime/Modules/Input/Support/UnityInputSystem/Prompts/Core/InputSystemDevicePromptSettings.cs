@@ -10,7 +10,7 @@ namespace Moirai.Atropos.Input.Prompts
     /// <summary>
     /// InputSystem 的设备提示设置
     /// </summary>
-    [FrameworkSetting("按键提示设置", "按键提示图标设置", -460,
+    [FrameworkSetting("[框架]按键提示", "InputSystem 按键提示图标设置", -449,
         "Assets/Settings/InputSystem/Resources/")]
     public class InputSystemDevicePromptSettings : FrameworkSettings<InputSystemDevicePromptSettings>
     {

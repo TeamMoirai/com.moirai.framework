@@ -1,4 +1,4 @@
-#if ENABLE_INPUT_SYSTEM
+﻿#if ENABLE_INPUT_SYSTEM
 using System;
 using System.Collections.Generic;
 using UnityEngine;
@@ -10,7 +10,7 @@ namespace Moirai.Atropos.Input
     /// 基于 Unity Input System（Package），需定义 ENABLE_INPUT_SYSTEM。
     /// </summary>
     [Serializable]
-    public sealed class UnityInputSystemHandler : InputHandler
+    public sealed class UnityInputSystemHandler : InputServiceHandler
     {
         [Tooltip("留空使用 Edit > Project Settings > Input System Package 中的设置。")]
         [SerializeField] private InputActionAsset m_InputActions;
@@ -128,7 +128,7 @@ namespace Moirai.Atropos.Input
 
             if (InputActions == null)
             {
-                LogUtility.Error("Please set Input Actions in {0} or 'Project Settings -> Input System Package'", nameof(InputSettings));
+                LogUtility.Error("Please set Input Actions in {0} or 'Project Settings -> Input System Package'", nameof(InputServiceSettings));
                 return;
             }
 

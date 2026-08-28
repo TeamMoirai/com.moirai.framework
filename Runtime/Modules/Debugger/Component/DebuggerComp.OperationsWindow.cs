@@ -1,4 +1,4 @@
-using Moirai.Atropos.GameObjectPool;
+﻿using Moirai.Atropos.ObjectPool;
 using Moirai.Atropos.Resource;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -16,10 +16,10 @@ namespace Moirai.Atropos.Debugger
                 {
                     if (GUILayout.Button("GameObject Pool Flush All", GUILayout.Height(30f)))
                     {
-                        GameObjectPoolService.FlushAll();
+                        ObjectPoolService.FlushAll();
                     }
 
-                    ResourceHandler resourceService = ResourceService.Handler;
+                    ResourceServiceHandler resourceService = ResourceService.Handler;
                     if (resourceService != null)
                     {
                         if (GUILayout.Button("Unload Unused Assets", GUILayout.Height(30f)))

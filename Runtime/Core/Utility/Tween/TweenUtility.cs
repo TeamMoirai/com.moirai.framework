@@ -7,7 +7,7 @@ using UnityEngine.UI;
 namespace Moirai.Atropos
 {
     /// <summary>
-    /// 缓动动画统一门面（Facade）。
+    /// 缓动动画统一外观（Facade）。
     /// </summary>
     /// <para>
     /// 所有缓动参数类型为 <see cref="TweenEase"/>，支持隐式转换：

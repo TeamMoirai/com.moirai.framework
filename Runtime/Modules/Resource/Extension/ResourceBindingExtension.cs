@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 namespace Moirai.Atropos.Resource
 {
@@ -9,14 +9,14 @@ namespace Moirai.Atropos.Resource
     {
         #region 字段 [FIELDS]
 
-        private static ResourceHandler s_Handler;
+        private static ResourceServiceHandler s_Handler;
         private static IResourceBindingService s_BindingService;
 
         #endregion
 
         #region 私有方法 [PRIVATE METHODS]
 
-        private static bool TryGetResourceService(out ResourceHandler handler,
+        private static bool TryGetResourceService(out ResourceServiceHandler handler,
             out IResourceBindingService bindingService)
         {
             handler = s_Handler;

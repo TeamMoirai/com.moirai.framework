@@ -1,14 +1,14 @@
-# Procedure 服务
+﻿# Procedure 服务
 
 > 自包含的游戏流程管理：把启动、热更、预加载等阶段建模为一个个可切换的流程状态。
 
-Procedure 服务（`ProcedureService`）是一台自包含的状态机——内部维护状态字典与当前状态，不依赖任何外部状态机服务。每个游戏阶段（启动、检查更新、下载资源、加载程序集、预加载等）都是一个 `ProcedureBase` 状态。可用流程与入口流程由 `ProcedureSettings` 配置，`GameApp.Awake` 时自动反射实例化并启动，无需手写引导代码。通过 `GameApp.Procedure`（`IProcedureService`）访问。
+Procedure 服务（`ProcedureService`）是一台自包含的状态机——内部维护状态字典与当前状态，不依赖任何外部状态机服务。每个游戏阶段（启动、检查更新、下载资源、加载程序集、预加载等）都是一个 `ProcedureBase` 状态。可用流程与入口流程由 `ProcedureServiceSettings` 配置，`GameApp.Awake` 时自动反射实例化并启动，无需手写引导代码。通过 `GameApp.Procedure`（`IProcedureService`）访问。
 
 ## 核心特性
 
 - 自包含状态机：`ProcedureService` 内部维护 `Dictionary<Type, ProcedureBase>` 状态字典，自行驱动 `Tick` 轮询，不依赖外部 FSM 服务
-- 配置化启动：`ProcedureSettings` 记录可用流程类型与入口流程，`GameApp.Awake` 自动调用 `ProcedureSettings.StartProcedure()` 完成实例化与启动
-- `[ProcedureLauncher]` 标记：只有标记该 Attribute 的 `ProcedureBase` 子类才会被 `ProcedureSettings` 扫描收录（编辑器 Reset 时自动扫描，默认以名称含 `ProcedureLaunch` 的流程作为入口）
+- 配置化启动：`ProcedureServiceSettings` 记录可用流程类型与入口流程，`GameApp.Awake` 自动调用 `ProcedureServiceSettings.StartProcedure()` 完成实例化与启动
+- `[ProcedureLauncher]` 标记：只有标记该 Attribute 的 `ProcedureBase` 子类才会被 `ProcedureServiceSettings` 扫描收录（编辑器 Reset 时自动扫描，默认以名称含 `ProcedureLaunch` 的流程作为入口）
 - 双套切换入口：流程内部可用基类 `ChangeState<T>()`（无参，通过内部 `Owner` 引用）；外部（如热更层）可用 `GameApp.Procedure.ChangeState<T>()`
 - 支持运行时重建：`RestartProcedure` 清理旧状态后按新流程列表重建并以第一个流程启动
 
@@ -21,7 +21,7 @@ Procedure 服务（`ProcedureService`）是一台自包含的状态机——内�
 | `IProcedureService` | 流程管理器接口：`Initialize` / `StartProcedure` / `HasProcedure` / `ChangeState` / `GetProcedure` / `RestartProcedure` 及 `CurrentProcedure`、`CurrentProcedureTime`；经 `GameApp.Procedure` 访问 |
 | `ProcedureService` | 服务实现（`ServiceBase, IProcedureService, IServiceTickable`，`Priority = -2`），内置状态字典与轮询驱动 |
 | `ProcedureBase` | 流程基类（独立抽象类），提供 `OnInit / OnEnter / OnUpdate / OnLeave / OnDestroy` 无参生命周期与 `ChangeState<T>()` 切换 |
-| `ProcedureSettings` | 框架设置（面板名「流程设置」）：序列化可用流程类型名列表与入口流程类型名，静态 `StartProcedure()` 负责反射建流 |
+| `ProcedureServiceSettings` | 框架设置（面板名「流程设置」）：序列化可用流程类型名列表与入口流程类型名，静态 `StartProcedure()` 负责反射建流 |
 | `ProcedureLauncherAttribute` | 类标记 Attribute，标记可被流程系统收录的 `ProcedureBase` 子类 |
 | `ProcedureEvents` / `IProcedureEvent` | 流程相关事件标记接口（`public interface IProcedureEvent { }`），供业务扩展流程事件 |
 
@@ -33,7 +33,7 @@ Procedure 服务（`ProcedureService`）是一台自包含的状态机——内�
 using Moirai.Atropos;
 using Moirai.Atropos.Procedure;
 
-// 流程基类：标记 [ProcedureLauncher] 才会出现在 ProcedureSettings 的可用列表
+// 流程基类：标记 [ProcedureLauncher] 才会出现在 ProcedureServiceSettings 的可用列表
 [ProcedureLauncher]
 public abstract class ProcedurePremainBase : ProcedureBase
 {
@@ -116,9 +116,9 @@ bool ok = GameApp.Procedure.RestartProcedure(
 
 ## 注意事项
 
-- 使用流程前必须先 `Initialize`，否则 `StartProcedure` / `ChangeState` 等会抛出 `GameException("You must initialize procedure first.")`；常规项目由 `ProcedureSettings.StartProcedure()` 在 `GameApp.Awake` 自动完成。
-- 入口流程在编辑器侧由 Reset 逻辑选取「名称包含 `ProcedureLaunch` 的第一个类型」，重命名入口流程类时需在 `ProcedureSettings` 面板 Reset 刷新。
-- 流程类需要无参构造（`ProcedureSettings` 通过 `Activator.CreateInstance` 反射实例化），不要在流程类中做构造器注入。
+- 使用流程前必须先 `Initialize`，否则 `StartProcedure` / `ChangeState` 等会抛出 `GameException("You must initialize procedure first.")`；常规项目由 `ProcedureServiceSettings.StartProcedure()` 在 `GameApp.Awake` 自动完成。
+- 入口流程在编辑器侧由 Reset 逻辑选取「名称包含 `ProcedureLaunch` 的第一个类型」，重命名入口流程类时需在 `ProcedureServiceSettings` 面板 Reset 刷新。
+- 流程类需要无参构造（`ProcedureServiceSettings` 通过 `Activator.CreateInstance` 反射实例化），不要在流程类中做构造器注入。
 - 流程实例由 `ProcedureService` 持有并长期存活，不要在其中缓存短生命周期对象；需要每帧逻辑写在 `OnUpdate`，耗时异步操作建议在 `OnEnter` 启动、在 `OnUpdate` 轮询完成标记（参考模板 `_initResourcesComplete` 的写法）。
 - `ProcedureBase.OnUpdate` 含两个时间参数（`elapseSeconds` / `realElapseSeconds`），重写时注意保持签名一致。
 - `ChangeState<T>()` 是无参方法——通过 `ProcedureBase` 内部持有的 `Owner`（`IProcedureService`）引用委托切换，无需在调用时传递服务实例。

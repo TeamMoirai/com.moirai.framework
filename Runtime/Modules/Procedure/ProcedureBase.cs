@@ -1,4 +1,4 @@
-namespace Moirai.Atropos.Procedure
+﻿namespace Moirai.Atropos.Procedure
 {
     /// <summary>
     /// 流程基类 — 自包含的生命周期抽象，不依赖外部状态机。
@@ -6,11 +6,11 @@ namespace Moirai.Atropos.Procedure
     public abstract class ProcedureBase
     {
         /// <summary>
-        /// 流程处理器引用，由 <see cref="ProcedureHandler.Initialize"/> 时注入。
+        /// 流程处理器引用，由 <see cref="ProcedureServiceHandler.Initialize"/> 时注入。
         /// </summary>
-        internal ProcedureHandler Owner { get; private set; }
+        internal ProcedureServiceHandler Owner { get; private set; }
 
-        internal void SetOwner(ProcedureHandler owner) => Owner = owner;
+        internal void SetOwner(ProcedureServiceHandler owner) => Owner = owner;
 
         /// <summary>
         /// 流程初始化时调用。

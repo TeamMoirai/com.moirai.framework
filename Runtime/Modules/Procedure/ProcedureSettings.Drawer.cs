@@ -9,7 +9,7 @@ using UnityEngine;
 
 namespace Moirai.Atropos.Procedure
 {
-    public sealed partial class ProcedureSettings
+    public sealed partial class ProcedureServiceSettings
     {
         [NonSerialized] private string[] _procedureTypeNames;
         [NonSerialized] private List<string> _currentAvailableProcedureTypeNames;
@@ -27,7 +27,7 @@ namespace Moirai.Atropos.Procedure
         // ─────────────────────── Odin 绘制 ───────────────────────
 
         [OnInspectorGUI]
-        private void DrawProcedureSettings()
+        private void DrawProcedureServiceSettings()
         {
             // 只在首次绘制时订阅一次
             if (!_resetSubscribed)

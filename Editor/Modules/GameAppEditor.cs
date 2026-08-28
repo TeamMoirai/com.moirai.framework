@@ -1,9 +1,9 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using Moirai.Atropos.Localization;
-using Moirai.Atropos.GameObjectPool;
+using Moirai.Atropos.ObjectPool;
 using UnityEditor;
 using UnityEngine;
 
@@ -15,7 +15,7 @@ namespace Moirai.Atropos.Editor
         private static readonly float[] s_GameSpeed = new float[] { 0f, 0.01f, 0.1f, 0.25f, 0.5f, 1f, 1.5f, 2f, 4f, 8f };
         private static readonly string[] s_GameSpeedForDisplay = new string[] { "0x", "0.01x", "0.1x", "0.25x", "0.5x", "1x", "1.5x", "2x", "4x", "8x" };
 
-        private enum StateTab { Settings, GameObjectPool }
+        private enum StateTab { Settings, ObjectPool }
         private StateTab _currentTab = StateTab.Settings;
 
         public override void OnInspectorGUI()
@@ -68,7 +68,7 @@ namespace Moirai.Atropos.Editor
                             case StateTab.Settings:
                                 DrawSettingState();
                                 break;
-                            case StateTab.GameObjectPool:
+                            case StateTab.ObjectPool:
                                 DrawObjectPoolState();
                                 break;
                         }
@@ -107,18 +107,18 @@ namespace Moirai.Atropos.Editor
         private readonly HashSet<string> _mOpenedItems = new HashSet<string>();
         private void DrawObjectPoolState()
         {
-            var summary = GameObjectPoolService.GetDebugSummary();
+            var summary = ObjectPoolService.GetDebugSummary();
             EditorGUILayout.LabelField("Pool Count", summary.PoolCount.ToString());
             EditorGUILayout.LabelField("Loaded Prefab Count", summary.LoadedPrefabCount.ToString());
             EditorGUILayout.LabelField("Total Instance Count", summary.TotalInstanceCount.ToString());
             EditorGUILayout.LabelField("Active Instance Count", summary.ActiveInstanceCount.ToString());
             EditorGUILayout.LabelField("Inactive Instance Count", summary.InactiveInstanceCount.ToString());
 
-            GameObjectPoolSnapshot[] snapshots = new GameObjectPoolSnapshot[64];
-            int count = GameObjectPoolService.GetDebugSnapshots(snapshots);
+            ObjectPoolSnapshot[] snapshots = new ObjectPoolSnapshot[64];
+            int count = ObjectPoolService.GetDebugSnapshots(snapshots);
             for (int i = 0; i < count; i++)
             {
-                GameObjectPoolSnapshot snapshot = snapshots[i];
+                ObjectPoolSnapshot snapshot = snapshots[i];
                 bool lastState = _mOpenedItems.Contains(snapshot.location);
                 bool currentState = EditorGUILayout.Foldout(lastState, snapshot.location);
                 if (currentState != lastState)

@@ -1,10 +1,9 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using Cysharp.Threading.Tasks;
 using Moirai.Atropos;
 using Moirai.Atropos.Resource;
 using UnityEngine;
-using YooAsset;
 
 namespace Moirai.Main
 {
@@ -23,17 +22,6 @@ namespace Moirai.Main
 
         // 无预加载时的假加载进度
         private float _fakeProgress = 0f;
-
-        /// <summary>
-        /// 预加载回调。
-        /// </summary>
-        private LoadAssetCallbacks _preLoadAssetCallbacks;
-        
-        protected override void OnInit()
-        {
-            base.OnInit();
-            _preLoadAssetCallbacks = new LoadAssetCallbacks(OnPreLoadAssetSuccess, OnPreLoadAssetFailure);
-        }
         
         protected override void OnEnter()
         {
@@ -86,16 +74,16 @@ namespace Moirai.Main
         {
             if (!_preloadSwitch) return;
 
-            AssetInfo[] assetInfos = _resourceService.GetAssetInfos("PRELOAD");
+            ResourceAssetInfoEntry[] assetInfos = ResourceService.GetAssetInfos("PRELOAD");
             foreach (var assetInfo in assetInfos)
             {
-                PreLoad(assetInfo.AssetPath);
+                PreLoad(assetInfo.Location);
             }
 #if UNITY_WEBGL
-            AssetInfo[] webAssetInfos = _resourceService.GetAssetInfos("WEBGL_PRELOAD");
+            ResourceAssetInfoEntry[] webAssetInfos = ResourceService.GetAssetInfos("WEBGL_PRELOAD");
             foreach (var assetInfo in webAssetInfos)
             {
-                PreLoad(assetInfo.AssetPath);
+                PreLoad(assetInfo.Location);
             }
 #endif
 
@@ -107,16 +95,29 @@ namespace Moirai.Main
         private void PreLoad(string location)
         {
             _loadedFlag.Add(location, false);
-            _resourceService.LoadAssetAsync(location, 100, _preLoadAssetCallbacks, null);
+            PreLoadAsync(location).Forget();
         }
 
-        private void OnPreLoadAssetFailure(string assetName, ELoadResourceStatus status, string errorMessage, object userdata)
+        private async UniTaskVoid PreLoadAsync(string location)
+        {
+            try
+            {
+                var lease = await ResourceService.LoadLeaseAsync<UnityEngine.Object>(location);
+                OnPreLoadAssetSuccess(location, lease.Asset, 0, null);
+            }
+            catch (Exception e)
+            {
+                OnPreLoadAssetFailure(location, e.Message, null);
+            }
+        }
+
+        private void OnPreLoadAssetFailure(string assetName, string errorMessage, object userdata)
         {
             LogUtility.Warning("Can not preload asset from '{0}' with error message '{1}'.", assetName, errorMessage);
             _loadedFlag[assetName] = true;
         }
 
-        private void OnPreLoadAssetSuccess(string assetName, object asset, float duration, object userdata)
+        private void OnPreLoadAssetSuccess(string assetName, UnityEngine.Object asset, float duration, object userdata)
         {
             LogUtility.Debug("Success preload asset from '{0}' duration '{1}'.", assetName, duration);
             _loadedFlag[assetName] = true;
@@ -134,11 +135,6 @@ namespace Moirai.Main
 
             _fakeProgress = value;
             callback?.Invoke();
-        }
-
-        private void ChangeProcedureToLoadAssembly()
-        {
-            ChangeState<ProcedureLoadAssembly>();
         }
     }
 }

@@ -1,8 +1,8 @@
-# JsonUtility
+﻿# JsonUtility
 
-> 框架的 JSON 序列化/反序列化门面，提供可插拔的 Handler 架构，支持字符串与字节两种通路。
+> 框架的 JSON 序列化/反序列化外观，提供可插拔的 Handler 架构，支持字符串与字节两种通路。
 
-`JsonUtility` 是框架的 JSON 处理静态门面。默认使用自研 `DefaultJsonHandler`，支持反射式序列化、私有字段标记、自定义名称重命名、序列化前/反序列化后回调。当 `Handler` 实现 `IBufferJsonHandler` 时，`ToJsonBytes` / `ToObject(byte[])` 走字节快速通路，跳过 string 中间态。
+`JsonUtility` 是框架的 JSON 处理静态外观。默认使用自研 `DefaultJsonHandler`，支持反射式序列化、私有字段标记、自定义名称重命名、序列化前/反序列化后回调。当 `Handler` 实现 `IBufferJsonHandler` 时，`ToJsonBytes` / `ToObject(byte[])` 走字节快速通路，跳过 string 中间态。
 
 ## 核心特性
 
@@ -19,7 +19,7 @@
 
 | 类/接口 | 说明 |
 |---------|------|
-| `JsonUtility` | 静态门面，提供 `ToJson` / `ToObject` / `ToJsonBytes` / `FormatJson` 等方法 |
+| `JsonUtility` | 静态外观，提供 `ToJson` / `ToObject` / `ToJsonBytes` / `FormatJson` 等方法 |
 | `JsonHandler` | 抽象基类，定义 `ToJson` / `ToObject<T>` / `ToObject(Type)` / `FromJsonOverwrite` |
 | `IBufferJsonHandler` | 字节通路接口，可选实现，提供 `ToJsonBytes` / `ToObject<T>(byte[])` / `ToObject(Type, byte[])` |
 | `DefaultJsonHandler` | 默认实现，自研反射式 JSON 序列化器 |

@@ -1,4 +1,4 @@
-using Moirai.Atropos;
+using Moirai.Atropos.Procedure;
 
 namespace Moirai.Main
 {
@@ -23,7 +23,7 @@ namespace Moirai.Main
             base.OnUpdate(elapseSeconds, realElapseSeconds);
 
             // 运行一帧即切换流程
-            if (GameApp.Procedure.HasProcedure<ProcedureSplash>())
+            if (ProcedureService.HasProcedure<ProcedureSplash>())
             {
                 ChangeState<ProcedureSplash>();
             }

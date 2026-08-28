@@ -1,16 +1,17 @@
-# UI 服务
+﻿# UI 服务
 
 > 基于 UGUI 的栈式窗口管理框架，提供窗口生命周期、层级深度排序、模态遮挡、Widget 子控件与多分辨率适配能力。
 
-UI 服务（`Moirai.Atropos.UI`）将界面抽象为纯 C# 类的 `UIWindow` / `UIWidget`，由 `UIHandler` 统一管理窗口栈、层级深度与可见性，`UIService` 作为静态门面对外暴露全部 API。窗口面板通过资源服务（YooAsset）或 `Resources` 加载实例化，窗口类本身不挂 MonoBehaviour。通过 `UIService.Xxx()` 静态方法即可完成打开、关闭、隐藏、查询等全部操作。
+UI 服务（`Moirai.Atropos.UI`）将界面抽象为纯 C# 类的 `UIWindow` / `UIWidget`，由 `UIServiceHandler` 统一管理窗口栈、层级深度与可见性，`UIService` 作为静态外观对外暴露全部 API。窗口面板通过资源服务（YooAsset）或 `Resources` 加载实例化，窗口类本身不挂 MonoBehaviour。通过 `UIService.Xxx()` 静态方法即可完成打开、关闭、隐藏、查询等全部操作。
 
 ## 架构（HandlerHost 模式）
 
 UI 服务采用与框架其他服务一致的 HandlerHost 零反射架构：
 
-- **`UIService`**：静态门面（`[HandlerHost(typeof(UIHandler))]` + `[ServiceDependency(typeof(ResourceService), typeof(TimerService))]`），全部公共成员为静态方法/属性，内部转发到 `s_Handler`（源生成器生成线程安全懒加载属性）
-- **`UIHandler`**：可序列化后端类（继承 `FrameworkHandler`），承载窗口栈管理、层级排序、资源加载等核心逻辑；替换自定义后端无需改动调用方
-- **`UISettings`**：框架设置（菜单「UI设置」），通过 `[ProviderDropdown]` + `[SerializeReference]` 选择 UI 后端实现
+- **`UIService`**：静态外观（`[HandlerHost(typeof(UIServiceHandler))]` + `[ServiceDependency(typeof(ResourceService), typeof(TimerService))]`），全部公共成员为静态方法/属性，内部转发到 `s_Handler`（源生成器生成线程安全懒加载属性）
+- **`UIServiceHandler`**：可序列化抽象基类（继承 `FrameworkHandler`），定义外观调用的后端契约
+- **`UGUIHandler`**：默认实现（位于 `Handler/` 目录），承载窗口栈管理、层级排序、资源加载等核心逻辑；替换自定义后端无需改动调用方
+- **`UIServiceSettings`**：框架设置（菜单「UI设置」），通过 `[ProviderDropdown]` + `[SerializeReference]` 选择 UI 后端实现
 - 服务注册由依赖链自动拉起（`ProcedureService` → … → `UIService`），也可手动 `GameServices.RegisterService(EServiceScopeKind.App, new UIService())`
 
 ## 核心特性
@@ -29,9 +30,10 @@ UI 服务采用与框架其他服务一致的 HandlerHost 零反射架构：
 
 | 类/接口 | 说明 |
 |---------|------|
-| `Moirai.Atropos.UI.UIService` | UI 服务静态门面（`[HandlerHost]`），打开/关闭/隐藏/查询等全部静态 API；静态属性 `IsValid`、`UIRoot`、`UICamera`、`CurrentModal`、`Resource` |
-| `Moirai.Atropos.UI.UIHandler` | UI 后端处理器（继承 `FrameworkHandler`），窗口栈管理、深度排序、可见性控制核心逻辑 |
-| `Moirai.Atropos.UI.UISettings` | 框架设置，`[ProviderDropdown]` 选择 UI 后端实现 |
+| `Moirai.Atropos.UI.UIService` | UI 服务静态外观（`[HandlerHost]`），打开/关闭/隐藏/查询等全部静态 API；静态属性 `IsValid`、`UIRoot`、`UICamera`、`CurrentModal`、`Resource` |
+| `Moirai.Atropos.UI.UIServiceHandler` | UI 后端处理器抽象基类（继承 `FrameworkHandler`），定义外观调用的完整后端契约 |
+| `Moirai.Atropos.UI.UGUIHandler` | 默认 UI 后端实现（位于 `Handler/` 目录），窗口栈管理、深度排序、可见性控制核心逻辑 |
+| `Moirai.Atropos.UI.UIServiceSettings` | 框架设置，`[ProviderDropdown]` 选择 UI 后端实现 |
 | `Moirai.Atropos.UI.UIBase` | UI 基类，定义生命周期虚方法与 Widget 创建 API |
 | `Moirai.Atropos.UI.UIWindow` | 窗口抽象基类，继承 `UIBase`，含 Canvas 深度、可见性、交互性、开关动画 |
 | `Moirai.Atropos.UI.UIWidget` | 窗口内嵌控件基类，继承 `UIBase` |

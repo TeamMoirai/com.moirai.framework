@@ -4,7 +4,7 @@ using System.Runtime.CompilerServices;
 namespace Moirai.Atropos
 {
     /// <summary>
-    /// 内存池静态门面。
+    /// 内存池静态外观。
     /// </summary>
     public static partial class MemoryPool
     {

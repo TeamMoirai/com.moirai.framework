@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
@@ -11,7 +11,7 @@ namespace Moirai.Atropos.Resource
     /// <summary>
     /// 资源服务核心记录管理——分页 slot 系统、generation 验证、Timer-wheel 过期、加载去重。
     /// </summary>
-    public sealed partial class ResourceHandler
+    public sealed partial class YooAssetHandler
     {
         #region 常量 [CONSTANTS]
 
@@ -68,6 +68,7 @@ namespace Moirai.Atropos.Resource
             public int ExpireQueueKind;
             public int ExpireQueuePrev;
             public int ExpireQueueNext;
+            public int ExpireQueueBucket;
             public int IdleExpireTick;
             public int KeepAliveExpireTick;
             public int UnusedCandidateIndex;
@@ -105,69 +106,69 @@ namespace Moirai.Atropos.Resource
 
         #region 字段 [FIELDS]
 
-        private bool _isDestroying;
+        [NonSerialized] private bool _isDestroying;
 
         // 资源记录分页数组
-        private AssetSlot[][] _assetSlotPages;
-        private int _assetSlotNextIndex;
-        private int _assetSlotFreeHead = -1;
+        [NonSerialized] private AssetSlot[][] _assetSlotPages;
+        [NonSerialized] private int _assetSlotNextIndex;
+        [NonSerialized] private int _assetSlotFreeHead = -1;
 
         // 租约分页数组
-        private LeaseSlot[][] _leaseSlotPages;
-        private int _leaseSlotNextIndex;
-        private int _leaseSlotFreeHead = -1;
+        [NonSerialized] private LeaseSlot[][] _leaseSlotPages;
+        [NonSerialized] private int _leaseSlotNextIndex;
+        [NonSerialized] private int _leaseSlotFreeHead = -1;
 
         // 加载操作分页数组
-        private LoadingOperationSlot[][] _loadingOperationSlotPages;
-        private int _loadingOperationSlotNextIndex;
-        private int _loadingOperationSlotFreeHead = -1;
+        [NonSerialized] private LoadingOperationSlot[][] _loadingOperationSlotPages;
+        [NonSerialized] private int _loadingOperationSlotNextIndex;
+        [NonSerialized] private int _loadingOperationSlotFreeHead = -1;
 
         // AssetInfo 缓存分页数组
-        private AssetInfoSlot[][] _assetInfoSlotPages;
-        private int _assetInfoSlotNextIndex;
-        private int _assetInfoSlotFreeHead = -1;
+        [NonSerialized] private AssetInfoSlot[][] _assetInfoSlotPages;
+        [NonSerialized] private int _assetInfoSlotNextIndex;
+        [NonSerialized] private int _assetInfoSlotFreeHead = -1;
 
         // 索引映射
-        private readonly ResourceUlongIntMap _assetRecordsByKey = new ResourceUlongIntMap();
-        private readonly ResourceUlongIntMap _assetRecordByLoadKeyId = new ResourceUlongIntMap();
-        private readonly ResourceUlongIntMap _assetRecordHeadByUnityObjectId = new ResourceUlongIntMap();
-        private readonly ResourceUlongIntMap _assetLoadingOperationByKey = new ResourceUlongIntMap();
+        [NonSerialized] private readonly ResourceUlongIntMap _assetRecordsByKey = new ResourceUlongIntMap();
+        [NonSerialized] private readonly ResourceUlongIntMap _assetRecordByLoadKeyId = new ResourceUlongIntMap();
+        [NonSerialized] private readonly ResourceUlongIntMap _assetRecordHeadByUnityObjectId = new ResourceUlongIntMap();
+        [NonSerialized] private readonly ResourceUlongIntMap _assetLoadingOperationByKey = new ResourceUlongIntMap();
 
         // 过期队列
-        private int[] _idleBuckets;
-        private int[] _keepAliveBuckets;
-        private int[] _unusedAssetCandidates;
-        private int _lastKeepAliveProcessTick = -1;
-        private int _lastIdleProcessTick = -1;
-        private int _unusedAssetCandidateCount;
+        [NonSerialized] private int[] _idleBuckets;
+        [NonSerialized] private int[] _keepAliveBuckets;
+        [NonSerialized] private int[] _unusedAssetCandidates;
+        [NonSerialized] private int _lastKeepAliveProcessTick = -1;
+        [NonSerialized] private int _lastIdleProcessTick = -1;
+        [NonSerialized] private int _unusedAssetCandidateCount;
 
         // 资源名称注册表（package/location/type → ID）
-        private string[] _resourcePackagesById;
-        private string[] _resourceLocationsById;
-        private Type[] _resourceTypesById;
-        private int[] _resourcePackageRefCounts;
-        private int[] _resourceLocationRefCounts;
-        private int[] _resourceTypeRefCounts;
-        private readonly Dictionary<string, int> _resourcePackageIds = new Dictionary<string, int>();
-        private readonly Dictionary<string, int> _resourceLocationIds = new Dictionary<string, int>();
-        private readonly Dictionary<Type, int> _resourceTypeIds = new Dictionary<Type, int>();
-        private int _nextPackageId = 1;
-        private int _nextLocationId = 1;
-        private int _nextTypeId = 1;
-        private readonly Stack<int> _freePackageIds = new Stack<int>();
-        private readonly Stack<int> _freeLocationIds = new Stack<int>();
-        private readonly Stack<int> _freeTypeIds = new Stack<int>();
+        [NonSerialized] private string[] _resourcePackagesById;
+        [NonSerialized] private string[] _resourceLocationsById;
+        [NonSerialized] private Type[] _resourceTypesById;
+        [NonSerialized] private int[] _resourcePackageRefCounts;
+        [NonSerialized] private int[] _resourceLocationRefCounts;
+        [NonSerialized] private int[] _resourceTypeRefCounts;
+        [NonSerialized] private readonly Dictionary<string, int> _resourcePackageIds = new Dictionary<string, int>();
+        [NonSerialized] private readonly Dictionary<string, int> _resourceLocationIds = new Dictionary<string, int>();
+        [NonSerialized] private readonly Dictionary<Type, int> _resourceTypeIds = new Dictionary<Type, int>();
+        [NonSerialized] private int _nextPackageId = 1;
+        [NonSerialized] private int _nextLocationId = 1;
+        [NonSerialized] private int _nextTypeId = 1;
+        [NonSerialized] private readonly Stack<int> _freePackageIds = new Stack<int>();
+        [NonSerialized] private readonly Stack<int> _freeLocationIds = new Stack<int>();
+        [NonSerialized] private readonly Stack<int> _freeTypeIds = new Stack<int>();
 
         // 加载键自增
-        private int _loadKeyNextId = 1;
-        private uint _assetUnloadGeneration = 1;
+        [NonSerialized] private int _loadKeyNextId = 1;
+        [NonSerialized] private uint _assetUnloadGeneration = 1;
 
         #endregion
 
         #region 公共 Lease API [PUBLIC LEASE API]
 
         /// <inheritdoc />
-        public ResourceLeaseHandle AcquireDirect(ResourceKey key)
+        public override ResourceLeaseHandle AcquireDirect(ResourceKey key)
         {
             ResourceKey typedKey = key.AssetType == null && !key.HasResolvedIds
                 ? new ResourceKey(key.Location, key.PackageName, typeof(Object), InferAssetKind(typeof(Object)))
@@ -195,7 +196,7 @@ namespace Moirai.Atropos.Resource
         }
 
         /// <inheritdoc />
-        public async UniTask<ResourceLeaseHandle> AcquireDirectAsync(ResourceKey key,
+        public override async UniTask<ResourceLeaseHandle> AcquireDirectAsync(ResourceKey key,
             CancellationToken cancellationToken = default)
         {
             ResourceKey typedKey = key.AssetType == null && !key.HasResolvedIds
@@ -225,14 +226,14 @@ namespace Moirai.Atropos.Resource
         }
 
         /// <inheritdoc />
-        public bool TryAcquireDirect(ResourceKey key, out ResourceLeaseHandle handle)
+        public override bool TryAcquireDirect(ResourceKey key, out ResourceLeaseHandle handle)
         {
             handle = AcquireDirect(key);
             return handle.IsValid;
         }
 
         /// <inheritdoc />
-        public void Release(ResourceLeaseHandle handle)
+        public override void Release(ResourceLeaseHandle handle)
         {
             if (!TryGetLeaseSlotIndex(handle, out int leaseIndex))
             {
@@ -275,7 +276,7 @@ namespace Moirai.Atropos.Resource
         }
 
         /// <inheritdoc />
-        public ResourceAssetLease<T> LoadLease<T>(ResourceKey key) where T : Object
+        public override ResourceAssetLease<T> LoadLease<T>(ResourceKey key)
         {
             ResourceKey typedKey = key.AssetType == null && !key.HasResolvedIds
                 ? new ResourceKey(key.Location, key.PackageName, typeof(T), InferAssetKind(typeof(T)))
@@ -296,14 +297,14 @@ namespace Moirai.Atropos.Resource
         }
 
         /// <inheritdoc />
-        public ResourceAssetLease<T> LoadLease<T>(string location, string packageName = "") where T : Object
+        public override ResourceAssetLease<T> LoadLease<T>(string location, string packageName = "")
         {
             return LoadLease<T>(new ResourceKey(location, packageName, typeof(T), InferAssetKind(typeof(T))));
         }
 
         /// <inheritdoc />
-        public async UniTask<ResourceAssetLease<T>> LoadLeaseAsync<T>(ResourceKey key,
-            CancellationToken cancellationToken = default) where T : Object
+        public override async UniTask<ResourceAssetLease<T>> LoadLeaseAsync<T>(ResourceKey key,
+            CancellationToken cancellationToken = default)
         {
             ResourceKey typedKey = key.AssetType == null && !key.HasResolvedIds
                 ? new ResourceKey(key.Location, key.PackageName, typeof(T), InferAssetKind(typeof(T)))
@@ -330,15 +331,15 @@ namespace Moirai.Atropos.Resource
         }
 
         /// <inheritdoc />
-        public UniTask<ResourceAssetLease<T>> LoadLeaseAsync<T>(string location,
-            CancellationToken cancellationToken = default, string packageName = "") where T : Object
+        public override UniTask<ResourceAssetLease<T>> LoadLeaseAsync<T>(string location,
+            CancellationToken cancellationToken = default, string packageName = "")
         {
             return LoadLeaseAsync<T>(
                 new ResourceKey(location, packageName, typeof(T), InferAssetKind(typeof(T))), cancellationToken);
         }
 
         /// <inheritdoc />
-        public bool TryGetLeaseAsset(ResourceLeaseHandle handle, out Object asset)
+        public override bool TryGetLeaseAsset(ResourceLeaseHandle handle, out Object asset)
         {
             asset = null;
             if (!TryGetLeaseSlotIndex(handle, out int leaseIndex))
@@ -366,18 +367,18 @@ namespace Moirai.Atropos.Resource
 
         #region 内部 Lease 方法 [INTERNAL LEASE METHODS]
 
-        internal ResourceLeaseHandle AcquireBinding(ResourceKey key)
+        internal override ResourceLeaseHandle AcquireBinding(ResourceKey key)
         {
             return AcquireDirect(key);
         }
 
-        internal UniTask<ResourceLeaseHandle> AcquireBindingAsync(ResourceKey key,
+        internal override UniTask<ResourceLeaseHandle> AcquireBindingAsync(ResourceKey key,
             CancellationToken cancellationToken)
         {
             return AcquireDirectAsync(key, cancellationToken);
         }
 
-        internal async UniTask<ResourceLeaseHandle> AcquireSubAssetsBindingAsync(string location,
+        internal override async UniTask<ResourceLeaseHandle> AcquireSubAssetsBindingAsync(string location,
             string packageName, EResourceLeaseOption options, CancellationToken cancellationToken)
         {
             if (string.IsNullOrEmpty(location))
@@ -413,7 +414,7 @@ namespace Moirai.Atropos.Resource
             return AcquireLease(assetId, EResourceLeaseKind.Binding, options);
         }
 
-        internal bool TryGetSubSpriteAsset(ResourceLeaseHandle handle, string spriteName, out Sprite sprite)
+        internal override bool TryGetSubSpriteAsset(ResourceLeaseHandle handle, string spriteName, out Sprite sprite)
         {
             sprite = null;
             if (!TryGetLeaseSlotIndex(handle, out int leaseIndex))
@@ -437,7 +438,7 @@ namespace Moirai.Atropos.Resource
             return sprite != null;
         }
 
-        internal bool TryGetLeaseAssetId(ResourceLeaseHandle handle, out int assetId)
+        internal override bool TryGetLeaseAssetId(ResourceLeaseHandle handle, out int assetId)
         {
             assetId = -1;
             if (!TryGetLeaseSlotIndex(handle, out int leaseIndex))
@@ -450,7 +451,7 @@ namespace Moirai.Atropos.Resource
             return IsValidAssetId(assetId);
         }
 
-        internal void SetLeaseOptions(ResourceLeaseHandle handle, EResourceLeaseOption options)
+        internal override void SetLeaseOptions(ResourceLeaseHandle handle, EResourceLeaseOption options)
         {
             if (!TryGetLeaseSlotIndex(handle, out int leaseIndex))
             {
@@ -461,13 +462,13 @@ namespace Moirai.Atropos.Resource
             lease.Flags = (byte)options;
         }
 
-        internal ResourceLeaseHandle AcquirePrefabSourceLease(string location, string packageName)
+        internal override ResourceLeaseHandle AcquirePrefabSourceLease(string location, string packageName)
         {
             ResourceKey key = new ResourceKey(location, packageName, typeof(GameObject), EResourceAssetKind.Prefab);
             return AcquireDirect(key);
         }
 
-        internal async UniTask<ResourceLeaseHandle> AcquirePrefabSourceLeaseAsync(string location,
+        internal override async UniTask<ResourceLeaseHandle> AcquirePrefabSourceLeaseAsync(string location,
             string packageName, CancellationToken cancellationToken)
         {
             if (string.IsNullOrEmpty(location))
@@ -1158,7 +1159,7 @@ namespace Moirai.Atropos.Resource
 
         #region 过期回收 [EXPIRY & RECYCLING]
 
-        internal void ProcessKeepAlive(float unscaledTime, int maxCount)
+        internal override void ProcessKeepAlive(float unscaledTime, int maxCount)
         {
             if ((_keepAliveBuckets == null && _idleBuckets == null) || maxCount <= 0)
             {
@@ -1240,10 +1241,26 @@ namespace Moirai.Atropos.Resource
             }
 
             int bucket = bucketTick & (KEEP_ALIVE_BUCKET_COUNT - 1);
+            if (bucket >= _keepAliveBuckets.Length)
+            {
+                LogUtility.Error("[Resource][Wheel] KA bucket OOB: bucketTick={0} bucket={1} len={2} lastTick={3} currentTick={4} nextIndex={5} pages={6}",
+                    bucketTick, bucket, _keepAliveBuckets.Length, _lastKeepAliveProcessTick, currentTick,
+                    _assetSlotNextIndex, _assetSlotPages != null ? _assetSlotPages.Length : 0);
+                return 0;
+            }
+
             int processed = 0;
             int current = _keepAliveBuckets[bucket];
             while (current >= 0)
             {
+                if (current >= _assetSlotNextIndex)
+                {
+                    LogUtility.Error("[Resource][Wheel] KA zombie id: id={0} bucket={1} nextIndex={2} pages={3} head={4}",
+                        current, bucket, _assetSlotNextIndex, _assetSlotPages != null ? _assetSlotPages.Length : 0, _keepAliveBuckets[bucket]);
+                    _keepAliveBuckets[bucket] = -1;
+                    break;
+                }
+
                 ref AssetSlot slot = ref GetAssetSlotRef(current);
                 int next = slot.ExpireQueueNext;
                 if (slot.ExpireQueueKind == 1 && slot.KeepAliveExpireTick <= currentTick)
@@ -1279,10 +1296,26 @@ namespace Moirai.Atropos.Resource
             }
 
             int bucket = bucketTick & (IDLE_BUCKET_COUNT - 1);
+            if (bucket >= _idleBuckets.Length)
+            {
+                LogUtility.Error("[Resource][Wheel] Idle bucket OOB: bucketTick={0} bucket={1} len={2} lastTick={3} currentTick={4} nextIndex={5} pages={6}",
+                    bucketTick, bucket, _idleBuckets.Length, _lastIdleProcessTick, currentTick,
+                    _assetSlotNextIndex, _assetSlotPages != null ? _assetSlotPages.Length : 0);
+                return 0;
+            }
+
             int processed = 0;
             int current = _idleBuckets[bucket];
             while (current >= 0)
             {
+                if (current >= _assetSlotNextIndex)
+                {
+                    LogUtility.Error("[Resource][Wheel] Idle zombie id: id={0} bucket={1} nextIndex={2} pages={3} head={4}",
+                        current, bucket, _assetSlotNextIndex, _assetSlotPages != null ? _assetSlotPages.Length : 0, _idleBuckets[bucket]);
+                    _idleBuckets[bucket] = -1;
+                    break;
+                }
+
                 ref AssetSlot slot = ref GetAssetSlotRef(current);
                 int next = slot.ExpireQueueNext;
                 if (slot.ExpireQueueKind == 2 && slot.IdleExpireTick <= currentTick)
@@ -1313,7 +1346,7 @@ namespace Moirai.Atropos.Resource
             return processed;
         }
 
-        internal int ReleaseAllUnusedAssetRecords()
+        internal override int ReleaseAllUnusedAssetRecords()
         {
             int releasedCount = 0;
             int index = 0;
@@ -1356,7 +1389,7 @@ namespace Moirai.Atropos.Resource
             return releasedCount;
         }
 
-        internal void ForceReleaseAllAssetRecords()
+        internal override void ForceReleaseAllAssetRecords()
         {
             int total = _assetSlotNextIndex;
             for (int i = 0; i < total; i++)
@@ -1487,7 +1520,7 @@ namespace Moirai.Atropos.Resource
 
             RemoveFromExpiryQueue(assetId, ref slot);
             slot.IdleExpireTick = expireTick;
-            if (_idleBuckets == null)
+            if (_idleBuckets == null || _idleBuckets.Length != IDLE_BUCKET_COUNT)
             {
                 _idleBuckets = new int[IDLE_BUCKET_COUNT];
                 for (int i = 0; i < IDLE_BUCKET_COUNT; i++)
@@ -1497,6 +1530,7 @@ namespace Moirai.Atropos.Resource
             }
 
             int bucket = expireTick & (IDLE_BUCKET_COUNT - 1);
+            slot.ExpireQueueBucket = bucket;
             slot.ExpireQueuePrev = -1;
             slot.ExpireQueueNext = _idleBuckets[bucket];
             if (slot.ExpireQueueNext >= 0)
@@ -1511,7 +1545,7 @@ namespace Moirai.Atropos.Resource
 
         private void AddToKeepAliveBucket(int assetId, ref AssetSlot slot)
         {
-            if (_keepAliveBuckets == null)
+            if (_keepAliveBuckets == null || _keepAliveBuckets.Length != KEEP_ALIVE_BUCKET_COUNT)
             {
                 _keepAliveBuckets = new int[KEEP_ALIVE_BUCKET_COUNT];
                 for (int i = 0; i < KEEP_ALIVE_BUCKET_COUNT; i++)
@@ -1522,6 +1556,7 @@ namespace Moirai.Atropos.Resource
 
             RemoveFromKeepAliveBucket(assetId, ref slot);
             int bucket = slot.KeepAliveExpireTick & (KEEP_ALIVE_BUCKET_COUNT - 1);
+            slot.ExpireQueueBucket = bucket;
             slot.ExpireQueuePrev = -1;
             slot.ExpireQueueNext = _keepAliveBuckets[bucket];
             if (slot.ExpireQueueNext >= 0)
@@ -1553,7 +1588,17 @@ namespace Moirai.Atropos.Resource
                 return;
             }
 
-            int bucket = slot.KeepAliveExpireTick & (KEEP_ALIVE_BUCKET_COUNT - 1);
+            // 链接时已存桶号：tick 可能在链接后被更新，反推桶号会定位到错误桶导致 unlink 静默失败、桶头悬挂僵尸 id。
+            int bucket = slot.ExpireQueueBucket;
+            if (bucket < 0 || bucket >= KEEP_ALIVE_BUCKET_COUNT)
+            {
+                slot.ExpireQueuePrev = -1;
+                slot.ExpireQueueNext = -1;
+                slot.ExpireQueueKind = 0;
+                slot.ExpireQueueBucket = -1;
+                return;
+            }
+
             int prev = slot.ExpireQueuePrev;
             int next = slot.ExpireQueueNext;
             if (prev >= 0)
@@ -1575,6 +1620,7 @@ namespace Moirai.Atropos.Resource
             slot.ExpireQueuePrev = -1;
             slot.ExpireQueueNext = -1;
             slot.ExpireQueueKind = 0;
+            slot.ExpireQueueBucket = -1;
         }
 
         private void RemoveFromIdleBucket(int assetId, ref AssetSlot slot)
@@ -1584,7 +1630,17 @@ namespace Moirai.Atropos.Resource
                 return;
             }
 
-            int bucket = slot.IdleExpireTick & (IDLE_BUCKET_COUNT - 1);
+            // 同 KeepAlive：读链接时存储的桶号，禁止由当前 tick 反推。
+            int bucket = slot.ExpireQueueBucket;
+            if (bucket < 0 || bucket >= IDLE_BUCKET_COUNT)
+            {
+                slot.ExpireQueuePrev = -1;
+                slot.ExpireQueueNext = -1;
+                slot.ExpireQueueKind = 0;
+                slot.ExpireQueueBucket = -1;
+                return;
+            }
+
             int prev = slot.ExpireQueuePrev;
             int next = slot.ExpireQueueNext;
             if (prev >= 0)
@@ -1606,6 +1662,7 @@ namespace Moirai.Atropos.Resource
             slot.ExpireQueuePrev = -1;
             slot.ExpireQueueNext = -1;
             slot.ExpireQueueKind = 0;
+            slot.ExpireQueueBucket = -1;
         }
 
         #endregion
@@ -1691,7 +1748,7 @@ namespace Moirai.Atropos.Resource
 
         #region 诊断 [DIAGNOSTICS]
 
-        public int GetAssetInfos(ResourceAssetInfo[] results, int startIndex, int maxCount)
+        public override int GetAssetInfos(ResourceAssetInfo[] results, int startIndex, int maxCount)
         {
             if (results == null || _assetSlotPages == null)
             {
@@ -1948,8 +2005,12 @@ namespace Moirai.Atropos.Resource
 
         private void ReleaseAllResourceKeysFromMap(ResourceUlongIntMap map)
         {
-            map.ForEachKey(ReleaseResourceKeyNoTrim);
+            // 方法组缓存为实例委托字段，避免冷路径批量清理时逐次 new Action 分配。
+            _releaseResourceKeysNoTrimCache ??= ReleaseResourceKeyNoTrim;
+            map.ForEachKey(_releaseResourceKeysNoTrimCache);
         }
+
+        private Action<ulong> _releaseResourceKeysNoTrimCache;
 
         private void ReleaseResourceKeyNoTrim(ulong key)
         {
@@ -2265,6 +2326,7 @@ namespace Moirai.Atropos.Resource
             slot.NextFree = -1;
             slot.ExpireQueuePrev = -1;
             slot.ExpireQueueNext = -1;
+            slot.ExpireQueueBucket = -1;
             slot.UnusedCandidateIndex = -1;
             slot.State = EResourceAssetState.Released;
         }
@@ -2309,6 +2371,7 @@ namespace Moirai.Atropos.Resource
             slot.NextFree = -1;
             slot.ExpireQueuePrev = -1;
             slot.ExpireQueueNext = -1;
+            slot.ExpireQueueBucket = -1;
             slot.UnusedCandidateIndex = -1;
             slot.State = EResourceAssetState.Released;
             return index;

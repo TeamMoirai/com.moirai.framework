@@ -1,4 +1,4 @@
-# Core Service System (@Service)
+﻿# Core Service System (@Service)
 
 > Framework's modular base: a unified service world (`ServiceWorld`) manages construction, lifecycle, polling, and scope of all sub-services, driven by `GameApp` (MonoBehaviour).
 
@@ -94,7 +94,7 @@ GameServices.ShutdownContainer(EServiceScopeKind.Gameplay);
 
 ### HandlerHost Service Architecture
 
-All 12 built-in framework services (UpdateDriver/Resource/Debugger/Audio/GameObjectPool/Procedure/Localization/Scene/Timer/Save/UI/Input) follow a unified three-layer structure:
+All 12 built-in framework services (UpdateDriver/Resource/Debugger/Audio/ObjectPool/Procedure/Localization/Scene/Timer/Save/UI/Input) follow a unified three-layer structure:
 
 | Layer | Form | Responsibility |
 |------|------|------|
@@ -173,7 +173,7 @@ The framework's composition root is minimal: `GameAppSettings.InitializeAppServi
 
 ```csharp
 GameServices.RegisterService(EServiceScopeKind.App, new ProcedureService());
-await ProcedureSettings.StartProcedure();
+await ProcedureServiceSettings.StartProcedure();
 ```
 
 The other 11 framework services are all pulled up automatically via the `[ServiceDependency]` dependency chain — zero reflection, order-independent, compile-time type-safe. Custom service backend implementations can be swapped in the corresponding `XxxSettings` Inspector via the provider dropdown.
@@ -428,5 +428,5 @@ FrameworkHandler (abstract)
 ├── ObjectHandler : FrameworkHandler
 ├── StringHandler : FrameworkHandler
 ├── TweenHandler : FrameworkHandler  (overrides Internal_Init to register TweenManager)
-└── InputHandler : FrameworkHandler
+└── InputServiceHandler : FrameworkHandler
 ```

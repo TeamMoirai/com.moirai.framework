@@ -1,11 +1,11 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
 using Cysharp.Threading.Tasks;
 using Moirai.Atropos;
+using Moirai.Atropos.Resource;
 using UnityEngine;
-using YooAsset;
 #if ENABLE_HYBRIDCLR
 using HybridCLR;
 #endif
@@ -37,7 +37,6 @@ namespace Moirai.Main
         protected override void OnEnter()
         {
             base.OnEnter();
-            LogUtility.Debug("HybridCLR ProcedureLoadAssembly OnEnter");
 
             LoadAssembly().Forget();
         }
@@ -62,7 +61,7 @@ namespace Moirai.Main
                 _loadMetadataAssemblyComplete = true;
             }
 
-            if (!UpdateSettings.Enable || _resourceService.PlayMode == EPlayMode.EditorSimulateMode)
+            if (!UpdateSettings.Enable || ResourceService.PlayMode == EResourcePlayMode.EditorSimulate)
             {
                 _mainLogicAssembly = GetMainLogicAssembly();
             }
@@ -82,9 +81,10 @@ namespace Moirai.Main
                                     $"{hotUpdateDllName}{UpdateSettings.AssemblyTextAssetExtension}"));
                         }
 
-                        LogUtility.Debug($"LoadAsset: [ {assetLocation} ]");
+                        LogUtility.Debug("LoadAsset: [ {0} ]", assetLocation);
                         _loadAssetCount++;
-                        var result = await _resourceService.LoadAssetAsync<TextAsset>(assetLocation);
+                        var lease = await ResourceService.LoadLeaseAsync<TextAsset>(assetLocation);
+                        var result = lease.Asset;
                         LoadAssetSuccess(result);
                     }
 
@@ -124,7 +124,7 @@ namespace Moirai.Main
 #endif
             if (_mainLogicAssembly == null)
             {
-                LogUtility.Fatal($"Main logic assembly missing. Please check \'ENABLE_HYBRIDCLR\' is defined in Player Settings And check the file of {UpdateSettings.LogicMainDllName}.bytes is exits.");
+                LogUtility.Fatal("Main logic assembly missing. Please check \'ENABLE_HYBRIDCLR\' is defined in Player Settings And check the file of {0}.bytes is exits.", UpdateSettings.LogicMainDllName);
                 return;
             }
 
@@ -183,12 +183,12 @@ namespace Moirai.Main
             _loadAssetCount--;
             if (textAsset == null)
             {
-                LogUtility.Warning($"Load Assembly failed.");
+                LogUtility.Warning("Load Assembly failed.");
                 return;
             }
 
             var assetName = textAsset.name;
-            LogUtility.Debug($"LoadAssetSuccess, assetName: [ {assetName} ]");
+            LogUtility.Debug("LoadAssetSuccess, assetName: [ {0} ]", assetName);
 
             try
             {
@@ -198,7 +198,7 @@ namespace Moirai.Main
                     _mainLogicAssembly = assembly;
                 }
                 _hotfixAssemblyList.Add(assembly);
-                LogUtility.Debug($"Assembly [ {assembly.GetName().Name} ] loaded");
+                LogUtility.Debug("Assembly [ {0} ] loaded", assembly.GetName().Name);
             }
             catch (Exception e)
             {
@@ -210,7 +210,7 @@ namespace Moirai.Main
             {
                 _loadAssemblyComplete = _loadAssemblyWait && 0 == _loadAssetCount;
             }
-            _resourceService.UnloadAsset(textAsset);
+            ResourceService.UnloadAsset(textAsset);
         }
 
         /// <summary>
@@ -242,9 +242,10 @@ namespace Moirai.Main
                 }
 
 
-                LogUtility.Debug($"LoadMetadataAsset: [ {assetLocation} ]");
+                LogUtility.Debug("LoadMetadataAsset: [ {0} ]", assetLocation);
                 _loadMetadataAssetCount++;
-                _resourceService.LoadAsset<TextAsset>(assetLocation, LoadMetadataAssetSuccess);
+                var metaLease = ResourceService.LoadLease<TextAsset>(assetLocation);
+                LoadMetadataAssetSuccess(metaLease.Asset);
             }
             _loadMetadataAssemblyWait = true;
         }
@@ -258,12 +259,12 @@ namespace Moirai.Main
             _loadMetadataAssetCount--;
             if (null == textAsset)
             {
-                LogUtility.Debug($"LoadMetadataAssetSuccess:Load Metadata failed.");
+                LogUtility.Debug("LoadMetadataAssetSuccess:Load Metadata failed.");
                 return;
             }
 
             string assetName = textAsset.name;
-            LogUtility.Debug($"LoadMetadataAssetSuccess, assetName: [ {assetName} ]");
+            LogUtility.Debug("LoadMetadataAssetSuccess, assetName: [ {0} ]", assetName);
             try
             {
                 byte[] dllBytes = textAsset.bytes;
@@ -273,7 +274,7 @@ namespace Moirai.Main
                     // 加载assembly对应的dll，会自动为它hook。一旦Aot泛型函数的native函数不存在，用解释器版本代码
                     HomologousImageMode mode = HomologousImageMode.SuperSet;
                     LoadImageErrorCode err = (LoadImageErrorCode)HybridCLR.RuntimeApi.LoadMetadataForAOTAssembly(dllBytes,mode); 
-                    LogUtility.Warning($"LoadMetadataForAOTAssembly:{assetName}. mode:{mode} ret:{err}");
+                    LogUtility.Warning("LoadMetadataForAOTAssembly:{0}. mode:{1} ret:{2}", assetName, mode, err);
 #endif
                 }
             }
@@ -287,7 +288,7 @@ namespace Moirai.Main
             {
                 _loadMetadataAssemblyComplete = _loadMetadataAssemblyWait && 0 == _loadMetadataAssetCount;
             }
-            _resourceService.UnloadAsset(textAsset);
+            ResourceService.UnloadAsset(textAsset);
         }
     }
 }

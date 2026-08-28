@@ -4,7 +4,7 @@
 
 Resource 服务（`ResourceService`）对 [YooAsset](https://github.com/tuyoogame/YooAsset) 做了面向业务的封装。模块已全面重构为 **Lease/Binding 架构**：资源通过 generation 校验的槽位句柄（`ResourceLeaseHandle`）和类型化租约（`ResourceAssetLease<T>`）管理，UI/渲染组件可通过 `ResourceOwner` + `IResourceBindingService` 进行声明式绑定。通过 `GameApp.Resource`（`IResourceService`）访问。
 
-内部引擎使用**分页槽位数组**（`AssetSlot[][]`、`LeaseSlot[][]`、`BindingSlot[][]`、`OwnerSlot[][]`）配合 generation 校验、**自研零 GC 哈希映射**（`ResourceUlongIntMap`，Murmur 终结器混合；`ResourceIndexMap<TKey,TValue>`）、以及**时间轮**过期系统（idle 桶 + keep-alive 桶，每帧 O(1) 处理）。加载去重通过池化的 `LoadingOperationState` 对象实现。编辑器下的播放模式由 `ResourceServiceDriver` 组件驱动并可通过 EditorPrefs 切换。
+内部引擎使用**分页槽位数组**（`AssetSlot[][]`、`LeaseSlot[][]`、`BindingSlot[][]`、`OwnerSlot[][]`）配合 generation 校验、**自研零 GC 哈希映射**（`ResourceUlongIntMap`，Murmur 终结器混合；`ResourceIndexMap<TKey,TValue>`）、以及**时间轮**过期系统（idle 桶 + keep-alive 桶，每帧 O(1) 处理）。加载去重通过池化的 `LoadingOperationState` 对象实现。帧驱动编排（配置注入、时间轮推进、卸载调度、GC 节流、低内存响应）由 `ResourceService.Drive*` partial 随服务生命周期自动接线，编辑器下的播放模式可通过 EditorPrefs 切换。
 
 ## 核心特性
 
@@ -43,7 +43,7 @@ Resource 服务（`ResourceService`）对 [YooAsset](https://github.com/tuyoogam
 | `IResourceService` | 资源管理器接口，定义加载、租约、绑定、卸载、包操作全部 API；经 `GameApp.Resource` 访问 |
 | `IResourceBindingService` | 声明式资源-组件绑定服务接口，经 `IResourceService.BindingService` 访问 |
 | `ResourceService` | 内部实现（`internal sealed partial class`，拆分为：主逻辑 / Records（槽位系统 + 时间轮）/ Cache（容量与遗留桥接）/ Services） |
-| `ResourceServiceDriver` | MonoBehaviour 驱动组件，Inspector 配置播放模式、加密类型、下载参数、容量/过期参数，并周期执行 `UnloadUnusedAssets` + `ProcessKeepAlive` |
+| `ResourceService.Driver` | 门面 partial：随 `OnInit` 自动接线（Settings/UpdateSettings 单源注入 + 帧驱动注册），承载 `DriveTick` 时间轮推进与卸载/GC 调度 |
 | `ResourceOwner` | MonoBehaviour 组件（`[DisallowMultipleComponent]`），`OnDestroy` 时自动释放所有绑定。提供 `ReleaseBindings()`、`ReleaseBindingsInHierarchy(root)`、`EnsureFor(target, bindingService)`。 |
 | `ResourceBindingExtensions` | 静态扩展类：`Image/SpriteRenderer.SetSprite`、`Image/SpriteRenderer.SetSubSprite`、`Image/SpriteRenderer/MeshRenderer.SetMaterial`、`MeshRenderer.SetSharedMaterial` |
 | `ResourceBindingTypes` | 绑定相关枚举与接口：`ResourceBindStatus`、`ResourceBindingOptions`、`ResourceBindingSlotType` |
@@ -187,7 +187,7 @@ GameApp.Resource.LoadAssetAsync(
 - **Idle 桶：** 当资产引用计数归零时，进入 idle 桶，计划在 `IdleAssetExpireTime` 秒后过期。
 - **Keep-alive 桶：** 当租约以 `KeepAliveOnRelease` 选项释放时，资产的 keep-alive 引用计数递增，计划在 `IdleAssetExpireTime` 秒后过期。
 
-`ProcessKeepAlive(unscaledTime, maxProcessCount)` 由 `ResourceServiceDriver` 每帧调用，处理两个队列中已过期的资产。
+`ProcessKeepAlive(unscaledTime, maxProcessCount)` 由门面 `DriveTick` 每帧调用，处理两个队列中已过期的资产。
 
 ### 加载去重
 
@@ -330,7 +330,7 @@ public sealed class ResourceOwner : MonoBehaviour
 
 ## 容量与过期属性
 
-在 `ResourceServiceDriver`（Inspector）或通过 `IResourceService` 配置：
+在 `ResourceServiceSettings`（Framework 设置资产）或通过 `IResourceService` 配置：
 
 | 属性 | 默认值 | 说明 |
 |----------|---------|------|
@@ -367,13 +367,13 @@ int GetAssetInfos(ResourceAssetInfo[] results, int startIndex, int maxCount);
 | `void UnloadUnusedAssets(bool force)` | `force=true`：忽略空闲过期时间，立即处理 keep-alive 队列并释放所有无用记录。 |
 | `void ForceUnloadAllAssets()` | 强制卸载所有包上的所有资产（WebGL 不支持 —— 仅打印警告）。 |
 | `void ForceUnloadUnusedAssets(bool performGCCollect)` | 触发驱动器的强制卸载路径（可选 GC.Collect）。 |
-| `void ProcessKeepAlive(float unscaledTime, int maxProcessCount)` | 每帧时间轮过期处理（idle + keep-alive 桶）。由 `ResourceServiceDriver.Update()` 调用。 |
+| `void ProcessKeepAlive(float unscaledTime, int maxProcessCount)` | 每帧时间轮过期处理（idle + keep-alive 桶）。由 `ResourceService.DriveTick()` 调用。 |
 
 ## 配置与扩展
 
 ### 播放模式与加密
 
-编辑器中在场景的 `ResourceServiceDriver` 组件上配置（也可用菜单 `YooAsset/Editor PlayMode` 切换，编辑器设置优先于序列化值；真机下 `EditorSimulateMode` 自动降级为 `OfflinePlayMode`）：
+编辑器中在 `ResourceServiceSettings` 资产的 Handler（YooAssetHandler）序列化字段上配置，也可用菜单 `YooAsset/Editor PlayMode` 切换（编辑器设置优先于序列化值；真机下 `EditorSimulateMode` 自动降级为 `OfflinePlayMode`）：
 
 - `PlayMode`：四种播放模式，决定 `InitPackage` 走模拟构建、内置文件系统、缓存文件系统还是 Web 文件系统
 - `EncryptionType`：`None / FileOffSet / FileStream`，运行时据此创建对应解密服务
@@ -400,6 +400,10 @@ res.PackageVersion = op.PackageVersion;
 res.UpdatePackageManifestAsync(res.PackageVersion);
 var downloader = res.CreateResourceDownloader();   // 之后轮询 downloader
 
+// 下载量查询：定位地址待下载字节数（用于更新 UI 剩余下载量展示；定位/包无效抛 GameException）
+long downloadBytes = res.GetDownloadSize("Assets/AssetRaw/UI/logo.png");
+bool needRemote = res.IsNeedDownloadFromRemote("Assets/AssetRaw/UI/logo.png");
+
 // 远端地址与缓存清理
 res.SetRemoteServicesUrl("https://cdn.example.com/res", "https://backup.example.com/res");
 res.ClearCacheFilesAsync();                        // 清理未使用的缓存文件
@@ -420,6 +424,7 @@ AssetHandle handle = GameApp.Resource.LoadAssetAsyncHandle<GameObject>("path");
 
 ## 注意事项
 
+- **Addressables 后端（实验性）：** `AddressableHandler` 仅信息查询与真实缓存维护可用；租约/绑定/实例化/版本与下载器等能力缺失成员统一抛出 `GameException`（fail-fast），不会静默返回 Invalid 或空结果。生产环境请使用 `YooAssetHandler`。
 - **Lease API：** `ResourceAssetLease<T>` 是 `struct` —— 务必调用 `Dispose`（使用 `using` 语句）。Dispose 后 `IsValid` 返回 `false`，`Asset` 为 `null`。
 - **Binding API：** `SetSprite`/`SetMaterial` 扩展方法在目标 GameObject 上不存在 `ResourceOwner` 时自动添加。GameObject 销毁时所有绑定自动释放。
 - **遗留 API：** `LoadAsset<T>` / `LoadGameObject` 返回的是池化共享对象，不要直接 `Destroy`；需要销毁请用 `UnloadAsset` 归还引用。`LoadGameObject`/`LoadGameObjectAsync` 内部使用租约系统并挂载 `ResourceOwner` 实现自动清理。

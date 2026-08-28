@@ -1,29 +1,28 @@
-using System;
+﻿using System;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
-using YooAsset;
 
 namespace Moirai.Atropos.Resource
 {
     /// <summary>
-    /// 资源管理器门面（Facade），为游戏提供统一的资源加载、缓存、租约与绑定接口。
+    /// 资源管理器外观（Facade），为游戏提供统一的资源加载、缓存、租约与绑定接口。
     /// <para>统一的静态资源访问入口，通过替换 <see cref="Handler"/> 即可在不同资源后端之间零成本切换。</para>
-    /// <para>未显式设置处理器时，使用 <see cref="CreateDefaultHandler"/> 从 <see cref="ResourceSettings"/> 创建处理器实例。</para>
+    /// <para>未显式设置处理器时，使用 <see cref="CreateDefaultHandler"/> 从 <see cref="ResourceServiceSettings"/> 创建处理器实例。</para>
     /// <para>Handler 属性由 <c>HandlerHostGenerator</c> 源生成器自动生成（线程安全懒加载）。</para>
     /// </summary>
-    [HandlerHost(typeof(ResourceHandler))]
+    [HandlerHost(typeof(ResourceServiceHandler))]
     public partial class ResourceService : ServiceBase
     {
         #region 处理器 [HANDLER]
 
         /// <summary>
-        /// 从 <see cref="ResourceSettings"/> 创建默认资源处理器。
+        /// 从 <see cref="ResourceServiceSettings"/> 创建默认资源处理器。
         /// </summary>
         /// <returns>默认资源处理器实例。</returns>
-        private static ResourceHandler CreateDefaultHandler()
+        private static ResourceServiceHandler CreateDefaultHandler()
         {
-            return ResourceSettings.ResourceHandler;
+            return ResourceServiceSettings.ResourceServiceHandler;
         }
 
         #endregion
@@ -31,18 +30,21 @@ namespace Moirai.Atropos.Resource
         #region 生命周期 [LIFECYCLE]
 
         /// <summary>
-        /// 初始化资源服务。由容器在构建期调用，触发 <see cref="Handler"/> 懒加载。
+        /// 初始化资源服务。由容器在构建期调用：触发 <see cref="Handler"/> 懒加载、
+        /// 注入配置并接线帧驱动（时间轮推进/卸载调度/GC 节流/低内存响应）。
         /// </summary>
         public override void OnInit()
         {
             _ = Handler;
+            DriveInitialize();
         }
 
         /// <summary>
-        /// 关闭资源服务。由容器在关闭期调用。
+        /// 关闭资源服务。由容器在关闭期调用：先解除驱动接线，再关闭处理器。
         /// </summary>
         public override void Shutdown()
         {
+            DriveTeardown();
             s_Handler?.Internal_Shutdown();
             s_Handler = null;
         }
@@ -71,48 +73,16 @@ namespace Moirai.Atropos.Resource
         /// <summary>
         /// 运行模式。
         /// </summary>
-        public static EPlayMode PlayMode
+        public static EResourcePlayMode PlayMode
         {
-            get => s_Handler?.PlayMode ?? EPlayMode.OfflinePlayMode;
+            get => s_Handler?.PlayMode ?? EResourcePlayMode.Offline;
             set { if (s_Handler != null) s_Handler.PlayMode = value; }
-        }
-
-        /// <summary>
-        /// 资源加解密处理器。
-        /// </summary>
-        public static ResourceEncryptorHandler EncryptorHandler
-        {
-            get => s_Handler?.EncryptorHandler;
-            set { if (s_Handler != null) s_Handler.EncryptorHandler = value; }
-        }
-
-        /// <summary>
-        /// 异步系统每帧执行消耗的最大时间切片（单位：毫秒）。
-        /// </summary>
-        public static long Milliseconds
-        {
-            get => s_Handler?.Milliseconds ?? 30;
-            set { if (s_Handler != null) s_Handler.Milliseconds = value; }
-        }
-
-        /// <summary>
-        /// 自动释放资源引用计数为 0 的资源包。
-        /// </summary>
-        public static bool AutoUnloadBundleWhenUnused
-        {
-            get => s_Handler?.AutoUnloadBundleWhenUnused ?? false;
-            set { if (s_Handler != null) s_Handler.AutoUnloadBundleWhenUnused = value; }
         }
 
         /// <summary>
         /// 资源绑定服务。
         /// </summary>
         public static IResourceBindingService BindingService => s_Handler?.BindingService;
-
-        /// <summary>
-        /// 默认资源包。
-        /// </summary>
-        public static ResourcePackage DefaultPackage => s_Handler?.DefaultPackage;
 
         /// <summary>
         /// 热更 URL，资源服务器地址。
@@ -135,7 +105,7 @@ namespace Moirai.Atropos.Resource
         /// <summary>
         /// WebGL 平台加载本地资源/加载远程资源。
         /// </summary>
-        public static ELoadResWayWebGL LoadResWayWebGL
+        public static EResourceLoadWayWebGL LoadResWayWebGL
         {
             get => s_Handler?.LoadResWayWebGL ?? default;
             set { if (s_Handler != null) s_Handler.LoadResWayWebGL = value; }
@@ -161,31 +131,9 @@ namespace Moirai.Atropos.Resource
         }
 
         /// <summary>
-        /// 同时下载的最大数目。
-        /// </summary>
-        public static int DownloadingMaxNum
-        {
-            get => s_Handler?.DownloadingMaxNum ?? 0;
-            set { if (s_Handler != null) s_Handler.DownloadingMaxNum = value; }
-        }
-
-        /// <summary>
-        /// 失败重试最大数目。
-        /// </summary>
-        public static int FailedTryAgain
-        {
-            get => s_Handler?.FailedTryAgain ?? 0;
-            set { if (s_Handler != null) s_Handler.FailedTryAgain = value; }
-        }
-
-        /// <summary>
         /// 是否边玩边下载。
         /// </summary>
-        public static bool UpdatableWhilePlaying
-        {
-            get => s_Handler?.UpdatableWhilePlaying ?? false;
-            set { if (s_Handler != null) s_Handler.UpdatableWhilePlaying = value; }
-        }
+        public static bool UpdatableWhilePlaying => s_Handler?.UpdatableWhilePlaying ?? false;
 
         #endregion
 
@@ -298,15 +246,15 @@ namespace Moirai.Atropos.Resource
         #region 初始化 [INITIALIZATION]
 
         /// <summary>
-        /// 初始化资源系统（YooAssets 初始化、创建默认资源包与绑定服务）。
+        /// 初始化资源系统（创建默认资源包与绑定服务）。
         /// </summary>
         public static void Initialize() => s_Handler?.Initialize();
 
         /// <summary>
         /// 初始化资源包。
         /// </summary>
-        public static UniTask<InitializePackageOperation> InitPackage(string customPackageName, bool needInitManifest = false) =>
-            s_Handler?.InitPackage(customPackageName, needInitManifest) ?? UniTask.FromResult<InitializePackageOperation>(null);
+        public static UniTask<ResourcePackageInitResult> InitPackage(string customPackageName, bool needInitManifest = false) =>
+            s_Handler?.InitPackage(customPackageName, needInitManifest) ?? UniTask.FromResult<ResourcePackageInitResult>(null);
 
         #endregion
 
@@ -388,7 +336,6 @@ namespace Moirai.Atropos.Resource
         /// <summary>
         /// 卸载资源。
         /// </summary>
-        [Obsolete("Use ResourceAssetLease<T> or Binding instead of LoadAsset/UnloadAsset.")]
         public static void UnloadAsset(object asset) => s_Handler?.UnloadAsset(asset);
 
         #endregion
@@ -418,8 +365,8 @@ namespace Moirai.Atropos.Resource
         /// <summary>
         /// 检查资源是否存在。
         /// </summary>
-        public static EHasAssetResult HasAsset(string location, string packageName = "") =>
-            s_Handler?.HasAsset(location, packageName) ?? EHasAssetResult.InvalidLocation;
+        public static EResourceHasAssetResult HasAsset(string location, string packageName = "") =>
+            s_Handler?.HasAsset(location, packageName) ?? EResourceHasAssetResult.InvalidLocation;
 
         /// <summary>
         /// 检查资源定位地址是否有效。
@@ -434,28 +381,31 @@ namespace Moirai.Atropos.Resource
             s_Handler?.IsNeedDownloadFromRemote(location, packageName) ?? false;
 
         /// <summary>
-        /// 检查资源是否需要从远端下载。
+        /// 获取资源需要从远端下载的字节数。
         /// </summary>
-        public static bool IsNeedDownloadFromRemote(AssetInfo assetInfo, string packageName = "") =>
-            s_Handler?.IsNeedDownloadFromRemote(assetInfo, packageName) ?? false;
+        /// <param name="location">资源的定位地址。</param>
+        /// <param name="packageName">指定资源包的名称。不传使用默认资源包。</param>
+        /// <returns>待下载字节数；服务不可用时返回 -1。</returns>
+        public static long GetDownloadSize(string location, string packageName = "") =>
+            s_Handler != null ? s_Handler.GetDownloadSize(location, packageName) : -1;
 
         /// <summary>
         /// 获取资源信息列表。
         /// </summary>
-        public static AssetInfo[] GetAssetInfos(string resTag, string packageName = "") =>
+        public static ResourceAssetInfoEntry[] GetAssetInfos(string resTag, string packageName = "") =>
             s_Handler?.GetAssetInfos(resTag, packageName);
 
         /// <summary>
         /// 获取资源信息列表。
         /// </summary>
-        public static AssetInfo[] GetAssetInfos(string[] tags, string packageName = "") =>
+        public static ResourceAssetInfoEntry[] GetAssetInfos(string[] tags, string packageName = "") =>
             s_Handler?.GetAssetInfos(tags, packageName);
 
         /// <summary>
         /// 获取资源信息。
         /// </summary>
-        public static AssetInfo GetAssetInfo(string location, string packageName = "") =>
-            s_Handler?.GetAssetInfo(location, packageName);
+        public static ResourceAssetInfoEntry GetAssetInfo(string location, string packageName = "") =>
+            s_Handler != null ? s_Handler.GetAssetInfo(location, packageName) : default;
 
         /// <summary>
         /// 每帧过期处理（由 <see cref="ResourceServiceDriver"/> 驱动）。
@@ -476,35 +426,7 @@ namespace Moirai.Atropos.Resource
 
         #endregion
 
-        #region 遗留资源加载 [LEGACY ASSET LOADING]
-
-        /// <summary>
-        /// 异步加载资源。
-        /// </summary>
-        [Obsolete("Use LoadLeaseAsync<T> for explicit ownership.")]
-        public static void LoadAssetAsync(string location, int priority, LoadAssetCallbacks loadAssetCallbacks, object userData, string packageName = "") =>
-            s_Handler?.LoadAssetAsync(location, priority, loadAssetCallbacks, userData, packageName);
-
-        /// <summary>
-        /// 异步加载资源。
-        /// </summary>
-        [Obsolete("Use LoadLeaseAsync<T> for explicit ownership.")]
-        public static void LoadAssetAsync(string location, Type assetType, int priority, LoadAssetCallbacks loadAssetCallbacks, object userData, string packageName = "") =>
-            s_Handler?.LoadAssetAsync(location, assetType, priority, loadAssetCallbacks, userData, packageName);
-
-        /// <summary>
-        /// 同步加载资源。
-        /// </summary>
-        [Obsolete("Use LoadLease<T> for explicit ownership.")]
-        public static T LoadAsset<T>(string location, string packageName = "") where T : UnityEngine.Object =>
-            s_Handler?.LoadAsset<T>(location, packageName);
-
-        /// <summary>
-        /// 同步加载资源。
-        /// </summary>
-        [Obsolete("Use LoadLease<T> for explicit ownership.")]
-        public static UnityEngine.Object LoadAsset(string location, Type assetType, string packageName = "") =>
-            s_Handler?.LoadAsset(location, assetType, packageName);
+        #region 资源加载 [ASSET LOADING]
 
         /// <summary>
         /// 同步加载游戏物体并实例化。
@@ -513,71 +435,10 @@ namespace Moirai.Atropos.Resource
             s_Handler?.LoadGameObject(location, parent, packageName);
 
         /// <summary>
-        /// 异步加载资源。
-        /// </summary>
-        [Obsolete("Use LoadLeaseAsync<T> for explicit ownership.")]
-        public static UniTaskVoid LoadAsset<T>(string location, Action<T> callback, string packageName = "") where T : UnityEngine.Object
-        {
-            if (s_Handler != null)
-            {
-                return s_Handler.LoadAsset(location, callback, packageName);
-            }
-
-            callback?.Invoke(null);
-            return default;
-        }
-
-        /// <summary>
-        /// 异步加载资源。
-        /// </summary>
-        [Obsolete("Use LoadLeaseAsync<T> for explicit ownership.")]
-        public static UniTask<T> LoadAssetAsync<T>(string location, CancellationToken cancellationToken = default, string packageName = "") where T : UnityEngine.Object =>
-            s_Handler?.LoadAssetAsync<T>(location, cancellationToken, packageName) ?? UniTask.FromResult<T>(null);
-
-        /// <summary>
-        /// 异步加载资源。
-        /// </summary>
-        [Obsolete("Use LoadLeaseAsync<T> for explicit ownership.")]
-        public static UniTask<UnityEngine.Object> LoadAssetAsync(string location, Type assetType, CancellationToken cancellationToken = default, string packageName = "") =>
-            s_Handler?.LoadAssetAsync(location, assetType, cancellationToken, packageName) ?? UniTask.FromResult<UnityEngine.Object>(null);
-
-        /// <summary>
         /// 异步加载游戏物体并实例化。
         /// </summary>
         public static UniTask<GameObject> LoadGameObjectAsync(string location, Transform parent = null, CancellationToken cancellationToken = default, string packageName = "") =>
             s_Handler?.LoadGameObjectAsync(location, parent, cancellationToken, packageName) ?? UniTask.FromResult<GameObject>(null);
-
-        #endregion
-
-        #region 句柄获取 [HANDLE ACCESS]
-
-        /// <summary>
-        /// 获取同步加载的资源操作句柄（逃生舱 API）。
-        /// </summary>
-        [Obsolete("Prefer LoadLease<T>/LoadLeaseAsync<T>; this escape hatch leaks YooAsset AssetHandle lifecycle to the caller.")]
-        public static AssetHandle LoadAssetSyncHandle<T>(string location, string packageName = "") where T : UnityEngine.Object =>
-            s_Handler?.LoadAssetSyncHandle<T>(location, packageName);
-
-        /// <summary>
-        /// 获取同步加载的资源操作句柄（逃生舱 API）。
-        /// </summary>
-        [Obsolete("Prefer LoadLease<T>/LoadLeaseAsync<T>; this escape hatch leaks YooAsset AssetHandle lifecycle to the caller.")]
-        public static AssetHandle LoadAssetSyncHandle(string location, Type assetType, string packageName = "") =>
-            s_Handler?.LoadAssetSyncHandle(location, assetType, packageName);
-
-        /// <summary>
-        /// 获取异步加载的资源操作句柄（逃生舱 API）。
-        /// </summary>
-        [Obsolete("Prefer LoadLease<T>/LoadLeaseAsync<T>; this escape hatch leaks YooAsset AssetHandle lifecycle to the caller.")]
-        public static AssetHandle LoadAssetAsyncHandle<T>(string location, string packageName = "") where T : UnityEngine.Object =>
-            s_Handler?.LoadAssetAsyncHandle<T>(location, packageName);
-
-        /// <summary>
-        /// 获取异步加载的资源操作句柄（逃生舱 API）。
-        /// </summary>
-        [Obsolete("Prefer LoadLease<T>/LoadLeaseAsync<T>; this escape hatch leaks YooAsset AssetHandle lifecycle to the caller.")]
-        public static AssetHandle LoadAssetAsyncHandle(string location, Type assetType, string packageName = "") =>
-            s_Handler?.LoadAssetAsyncHandle(location, assetType, packageName);
 
         #endregion
 
@@ -592,7 +453,7 @@ namespace Moirai.Atropos.Resource
         /// <summary>
         /// 异步更新最新包的版本。
         /// </summary>
-        public static RequestPackageVersionOperation RequestPackageVersionAsync(bool appendTimeTicks = false, int timeout = 60, string customPackageName = "") =>
+        public static ResourcePackageVersionResult RequestPackageVersionAsync(bool appendTimeTicks = false, int timeout = 60, string customPackageName = "") =>
             s_Handler?.RequestPackageVersionAsync(appendTimeTicks, timeout, customPackageName);
 
         /// <summary>
@@ -604,20 +465,20 @@ namespace Moirai.Atropos.Resource
         /// <summary>
         /// 向网络端请求并更新清单。
         /// </summary>
-        public static LoadPackageManifestOperation LoadPackageManifestAsync(string packageVersion, int timeout = 60, string customPackageName = "") =>
+        public static IResourceOperation LoadPackageManifestAsync(string packageVersion, int timeout = 60, string customPackageName = "") =>
             s_Handler?.LoadPackageManifestAsync(packageVersion, timeout, customPackageName);
 
         /// <summary>
         /// 创建资源下载器，用于下载当前资源版本所有的资源包文件。
         /// </summary>
-        public static ResourceDownloaderOperation CreateResourceDownloader(string customPackageName = "") =>
+        public static IResourceDownloader CreateResourceDownloader(string customPackageName = "") =>
             s_Handler?.CreateResourceDownloader(customPackageName);
 
         /// <summary>
         /// 清理包裹未使用的缓存文件。
         /// </summary>
-        public static ClearCacheOperation ClearCacheAsync(ClearCacheOptions options, string customPackageName = "") =>
-            s_Handler?.ClearCacheAsync(options, customPackageName);
+        public static ResourceClearCacheResult ClearCacheAsync(EResourceClearMode clearMode, string customPackageName = "") =>
+            s_Handler?.ClearCacheAsync(clearMode, customPackageName);
 
         /// <summary>
         /// 清理沙盒路径。

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Audio;
@@ -21,7 +21,7 @@ namespace Moirai.Atropos.Audio
         /// </summary>
         /// <param name="handler">音频处理器</param>
         /// <param name="audioGroupConfig">音频轨道组配置。</param>
-        public AudioCategory(AudioHandler handler, AudioGroupConfig audioGroupConfig)
+        public AudioCategory(AudioServiceHandler handler, AudioGroupConfig audioGroupConfig)
         {
             _audioGroupConfig = audioGroupConfig;
             _maxChannel = audioGroupConfig.MaxChannel;

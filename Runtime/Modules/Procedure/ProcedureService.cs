@@ -1,14 +1,26 @@
-using System;
+﻿using System;
+using Moirai.Atropos.Localization;
+using Moirai.Atropos.Resource;
+using Moirai.Atropos.Timer;
+using Moirai.Atropos.UI;
+using Moirai.Atropos.UpdateDriver;
 
 namespace Moirai.Atropos.Procedure
 {
     /// <summary>
-    /// 流程服务门面（Facade）。
+    /// 流程服务外观（Facade）。
     /// <para>统一的静态流程访问入口，通过替换 <see cref="Handler"/> 即可切换流程状态机后端。</para>
     /// <para>未显式设置处理器时，使用 <see cref="CreateDefaultHandler"/> 创建默认处理器实例。</para>
     /// <para>Handler 属性由 <c>HandlerHostGenerator</c> 源生成器自动生成（线程安全懒加载）。</para>
     /// </summary>
-    [HandlerHost(typeof(ProcedureHandler))]
+    /// <remarks>
+    /// 组合根仅显式注册本服务——启动链所需的基础服务在此声明为依赖，
+    /// 由 <see cref="GameServices.RegisterService{T}"/> 的递归依赖预注册拉起
+    /// （UI/Timer→Resource、Audio/Scene/ObjectPool 亦传递依赖 Resource）。
+    /// </remarks>
+    [ServiceDependency(typeof(UpdateDriverService), typeof(ResourceService), typeof(UIService),
+        typeof(LocalizationService), typeof(TimerService))]
+    [HandlerHost(typeof(ProcedureServiceHandler))]
     public partial class ProcedureService : ServiceBase, IServiceTickable
     {
         public override int Priority => -2;
@@ -19,9 +31,9 @@ namespace Moirai.Atropos.Procedure
         /// 创建默认流程处理器。
         /// </summary>
         /// <returns>默认流程处理器实例。</returns>
-        private static ProcedureHandler CreateDefaultHandler()
+        private static ProcedureServiceHandler CreateDefaultHandler()
         {
-            return new ProcedureHandler();
+            return new DefaultProcedureHandler();
         }
 
         #endregion

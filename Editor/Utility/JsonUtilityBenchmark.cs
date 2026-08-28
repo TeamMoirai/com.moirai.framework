@@ -18,7 +18,7 @@ namespace Moirai.Atropos.Editor
     /// <para>② JsonHandler 中间件层：经 <see cref="Moirai.Atropos.AssemblyUtility.GetRuntimeTypes"/> 自动发现全部
     /// <see cref="Moirai.Atropos.JsonHandler"/> 实现，经 Activator.CreateInstance
     /// 实例化（与 GameAppSettings 配置流同链路）——新增 handler 实现无需修改本基准；</para>
-    /// <para>③ IBufferJsonHandler 能力矩阵。全部数据程序化构建（零外部文件依赖），结束后恢复门面并清理临时状态。</para>
+    /// <para>③ IBufferJsonHandler 能力矩阵。全部数据程序化构建（零外部文件依赖），结束后恢复外观并清理临时状态。</para>
     /// 菜单：Window/Moirai/JSON Benchmark。逐场景自适迭代（每测量段约 150ms），场景间让出主线程保持编辑器响应。
     /// </summary>
     public static class JsonUtilityBenchmark
@@ -201,7 +201,7 @@ namespace Moirai.Atropos.Editor
             BenchmarkResultWindow.Show(rows, summary, string.Join("\n", results));
         }
 
-        /// <summary>测试后清理：恢复门面 handler（触发其 OnInit 重置静态状态）、关闭进度条、释放无用资产。</summary>
+        /// <summary>测试后清理：恢复外观 handler（触发其 OnInit 重置静态状态）、关闭进度条、释放无用资产。</summary>
         private static void Cleanup(JsonHandler originalHandler)
         {
             if (originalHandler != null && !ReferenceEquals(JsonUtility.Handler, originalHandler))
@@ -308,10 +308,10 @@ namespace Moirai.Atropos.Editor
 
         #endregion
 
-        /// <summary>JsonHandler 中间件层：门面挂各实现（自动发现）的端到端开销（含抽象层与异常包装成本）。</summary>
+        /// <summary>JsonHandler 中间件层：外观挂各实现（自动发现）的端到端开销（含抽象层与异常包装成本）。</summary>
         private static async Task RunHandlerMiddleware(List<string> results, List<string> summary)
         {
-            results.Add($"{TAG} ----- JsonHandler 中间件层（门面 JsonUtility 端到端，handler 自动发现）-----");
+            results.Add($"{TAG} ----- JsonHandler 中间件层（外观 JsonUtility 端到端，handler 自动发现）-----");
             summary.Add("----- JsonHandler 中间件层 -----");
 
             var handlers = DiscoverHandlers(results);
@@ -356,7 +356,7 @@ namespace Moirai.Atropos.Editor
             double deserBytes = Measure(() => JsonUtility.ToObject(payloadType, bytes));
 
             bool isBuffer = handler is IBufferJsonHandler;
-            string bufferNote = isBuffer ? "原生字节" : "门面回退";
+            string bufferNote = isBuffer ? "原生字节" : "外观回退";
             await Task.Delay(1);
             return $"{TAG} {name} [IBuffer={(isBuffer ? "是" : "否")}] | string {serStr,7:F1}/{deserStr,7:F1} | bytes({bufferNote}) {serBytes,7:F1}/{deserBytes,7:F1} (序列化/反序列化 µs/op)";
         }
@@ -379,7 +379,7 @@ namespace Moirai.Atropos.Editor
                     var back = (Vec3Holder)JsonUtility.ToObject(typeof(Vec3Holder), bytesOut);
                     bool isBuffer = handler is IBufferJsonHandler;
                     string verdict = back.values != null && back.values.Length == 100 && back.values[0].x.Equals(payload.values[0].x) ? "OK" : "FAIL";
-                    results.Add($"{TAG} {name}: IBuffer={(isBuffer ? "是(原生字节)" : "否(门面回退)")} | bytes往返={verdict}");
+                    results.Add($"{TAG} {name}: IBuffer={(isBuffer ? "是(原生字节)" : "否(外观回退)")} | bytes往返={verdict}");
                 }
                 catch (Exception e)
                 {

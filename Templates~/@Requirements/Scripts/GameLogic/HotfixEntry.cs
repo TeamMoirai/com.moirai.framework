@@ -2,8 +2,8 @@ using System.Collections.Generic;
 using System.Reflection;
 using Moirai.Atropos;
 using Moirai.Atropos.Events;
-using Moirai.Atropos.Procedure;
 using Moirai.Atropos.UI;
+using Moirai.Atropos.Procedure;
 #if OBFUZ_INSTALLED && ENABLE_OBFUZ
 using Obfuz;
 #endif
@@ -47,9 +47,6 @@ namespace GameLogic
 
             // 保证 UIService 正常初始化
             UIService.CloseAll();
-
-            // 初始化多语言配置
-            LocalizationService.InitLanguageSettings();
 
             // 事件通知
             HotfixEntryEvent.Trigger();

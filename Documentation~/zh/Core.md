@@ -1,15 +1,15 @@
-# Core 服务系统（@Service）
+﻿# Core 服务系统（@Service）
 
 > 框架的服务化基座：以统一服务世界（`ServiceWorld`）管理所有子服务的构造、生命周期、轮询与作用域，并由 `GameApp`（MonoBehaviour）驱动。
 
-`@Service` 是整个框架的服务基础设施。所有功能服务（资源、UI、音频、计时器等）均为继承 `ServiceBase` 的普通 C# 类，依赖通过 `[ServiceDependency(typeof(...))]` 特性声明，由 `GameServices.RegisterService<T>(scope, service)` 统一注册并递归预注册依赖链（零反射）；非服务代码通过各服务的静态门面访问（如 `AudioService.Xxx()`、`UIService.Xxx()`、`ResourceService.Xxx()`），动态服务查找走 `GameApp.Services`（`IServiceProvider`）。服务支持 App/Scene/Gameplay 三级作用域，跨作用域通过 `ContractBindings` 值类型 struct 实现 O(1) 查找（Gameplay > Scene > App 优先级），场景卸载时自动清理场景与玩法级服务。
+`@Service` 是整个框架的服务基础设施。所有功能服务（资源、UI、音频、计时器等）均为继承 `ServiceBase` 的普通 C# 类，依赖通过 `[ServiceDependency(typeof(...))]` 特性声明，由 `GameServices.RegisterService<T>(scope, service)` 统一注册并递归预注册依赖链（零反射）；非服务代码通过各服务的静态外观访问（如 `AudioService.Xxx()`、`UIService.Xxx()`、`ResourceService.Xxx()`），动态服务查找走 `GameApp.Services`（`IServiceProvider`）。服务支持 App/Scene/Gameplay 三级作用域，跨作用域通过 `ContractBindings` 值类型 struct 实现 O(1) 查找（Gameplay > Scene > App 优先级），场景卸载时自动清理场景与玩法级服务。
 
 ## 核心特性
 
 - **统一服务世界**：`ServiceWorld` 持有 3-slot 固定数组（App/Scene/Gameplay），通过 `ContractBindings` 值类型 struct 实现 O(1) 跨作用域查找，无需父链遍历
 - **特性声明依赖**：`[ServiceDependency(typeof(DepA), typeof(DepB))]` 单特性声明多依赖，编译期由 `ServiceDependencyAnalyzer`（MIRAI002/MIRAI003）校验类型实现 `IService`
 - **递归预注册**：`RegisterWithDependencies` 按 [ServiceDependency] 声明序递归注册依赖（防重复 s_Registered 分桶表 + 防循环 s_InFlight 栈 fail-fast），被依赖服务先创建、先初始化
-- **HandlerHost 静态门面**：12 个框架服务均为 `[HandlerHost] XxxService : ServiceBase` 静态门面 + 可序列化 `XxxHandler` 后端 + `XxxSettings`（`[SerializeReference]` + `[ProviderDropdown]`）选择后端实现
+- **HandlerHost 静态外观**：12 个框架服务均为 `[HandlerHost] XxxService : ServiceBase` 静态外观 + 可序列化 `XxxHandler` 后端 + `XxxSettings`（`[SerializeReference]` + `[ProviderDropdown]`）选择后端实现
 - **三级作用域**（`EServiceScopeKind.App` / `Scene` / `Gameplay`），跨作用域按 Gameplay > Scene > App 优先级查找
 - **生命周期接口按需实现**：`IServiceTickable`、`IServiceFixedTickable`、`IServiceLateTickable`、`IServiceGizmoDrawable`
 - **`Priority` 优先级**控制轮询顺序（高优先先轮询、后关闭）
@@ -38,7 +38,7 @@
 | `IServiceProvider` | 服务访问统一入口：`GetRequiredService<T>()` / `GetService<T>()` / `TryGetService<T>()` / `GetRequiredServiceInScope<T>(scope)` / `TryGetServiceInScope<T>(scope)` |
 | `ServiceWorld` | 统一服务世界：3-slot 固定作用域数组 + `ContractBindings` 值类型 struct O(1) 跨作用域查找；实现 `IServiceProvider` |
 | `ServiceScope` | 单作用域注册表、轮询列表与迭代安全机制；注册/注销时同步 `ServiceWorld` 的 `ContractBindings` |
-| `GameServices` | 静态门面：统一注册入口 `RegisterService<T>(scope, service, deferMode)` 与显式契约重载 `RegisterService(scope, Type, instance)`、注销、作用域管理（`ShutdownContainer`/`HasApp`/`HasScene`/`HasGameplay`）、默认工厂扩展点 `RegisterDefaultFactory`、轮询驱动、拦截器 |
+| `GameServices` | 静态外观：统一注册入口 `RegisterService<T>(scope, service, deferMode)` 与显式契约重载 `RegisterService(scope, Type, instance)`、注销、作用域管理（`ShutdownContainer`/`HasApp`/`HasScene`/`HasGameplay`）、默认工厂扩展点 `RegisterDefaultFactory`、轮询驱动、拦截器 |
 | `ServiceDependencyAttribute` | 依赖声明特性：`[ServiceDependency(typeof(DepA), typeof(DepB))]`，声明顺序即依赖注册顺序；编译期 MIRAI002/MIRAI003 校验 |
 | `EServiceScopeKind` | 服务作用域枚举：`App`（全局）、`Scene`（场景卸载时重置）、`Gameplay`（单局玩法） |
 | `EServiceState` | 服务生命周期状态：`Created`、`Initialized`、`ShuttingDown`、`Disposed`（`ServiceBase.State` 属性） |
@@ -55,7 +55,7 @@
 ## 快速上手
 
 ```csharp
-// 1. 业务代码通过静态门面访问框架服务
+// 1. 业务代码通过静态外观访问框架服务
 TimerService.AddTimer(() => Debug.Log("1s"), 1f);
 UIService.ShowUI<MainWindow>();
 ResourceService.LoadAsset<Sprite>("Assets/AssetRaw/UI/icon.png");
@@ -68,7 +68,7 @@ public class MyService : ServiceBase, IServiceTickable
 
     public override void OnInit()
     {
-        TimerService.AddTimer(() => { /* 依赖已就绪，直接使用静态门面 */ }, 1f);
+        TimerService.AddTimer(() => { /* 依赖已就绪，直接使用静态外观 */ }, 1f);
     }
 
     public override void Shutdown() { }
@@ -94,15 +94,15 @@ GameServices.ShutdownContainer(EServiceScopeKind.Gameplay);
 
 ### HandlerHost 服务架构
 
-框架的 12 个内置服务（UpdateDriver/Resource/Debugger/Audio/GameObjectPool/Procedure/Localization/Scene/Timer/Save/UI/Input）统一采用三层结构：
+框架的 12 个内置服务（UpdateDriver/Resource/Debugger/Audio/ObjectPool/Procedure/Localization/Scene/Timer/Save/UI/Input）统一采用三层结构：
 
 | 层 | 形态 | 职责 |
 |------|------|------|
-| `XxxService : ServiceBase` | 静态门面，标记 `[HandlerHost(typeof(XxxHandler))]` + `[ServiceDependency(...)]` | 全部静态 API；`OnInit` 触发 Handler 懒加载，`Shutdown` 清空 Handler |
+| `XxxService : ServiceBase` | 静态外观，标记 `[HandlerHost(typeof(XxxHandler))]` + `[ServiceDependency(...)]` | 全部静态 API；`OnInit` 触发 Handler 懒加载，`Shutdown` 清空 Handler |
 | `XxxHandler : FrameworkHandler` | 可序列化后端类 | 承载核心逻辑；替换后端无需改动调用方 |
 | `XxxSettings : FrameworkSettings<XxxSettings>` | ScriptableObject 设置 | `[ProviderDropdown]` + `[SerializeReference]` 选择后端实现 |
 
-业务代码一律调用静态门面（如 `AudioService.Play(...)`、`UIService.ShowUI<T>()`），不持有服务实例引用。自定义后端：继承 `XxxHandler` 覆写虚方法 → 在 `XxxSettings` 的 Provider 下拉框中切换。
+业务代码一律调用静态外观（如 `AudioService.Play(...)`、`UIService.ShowUI<T>()`），不持有服务实例引用。自定义后端：继承 `XxxHandler` 覆写虚方法 → 在 `XxxSettings` 的 Provider 下拉框中切换。
 
 ### 生命周期状态机
 
@@ -173,7 +173,7 @@ public class BattleService : ServiceBase
 
 ```csharp
 GameServices.RegisterService(EServiceScopeKind.App, new ProcedureService());
-await ProcedureSettings.StartProcedure();
+await ProcedureServiceSettings.StartProcedure();
 ```
 
 其余 11 个框架服务全部由 `[ServiceDependency]` 依赖链自动递归拉起——零反射、顺序无关、编译期类型安全。自定义服务的后端实现可在对应 `XxxSettings` 的 Inspector 中通过 Provider 下拉框替换。
@@ -358,7 +358,7 @@ await GameServices.ShutdownAsync();
 ## 注意事项
 
 - `GameServices` 与 `IServiceProvider` 仅允许主线程调用；后台线程/异步回调请通过 `MainThreadDispatcher` 的 `Post`/`Send` 切回主线程。
-- 业务代码一律通过静态门面访问框架服务（如 `AudioService.Play(...)`、`UIService.ShowUI<T>()`）；`GameApp.Services`（`IServiceProvider`）仅用于 Gameplay/Scene 作用域动态服务查找。
+- 业务代码一律通过静态外观访问框架服务（如 `AudioService.Play(...)`、`UIService.ShowUI<T>()`）；`GameApp.Services`（`IServiceProvider`）仅用于 Gameplay/Scene 作用域动态服务查找。
 - `GetRequiredService<T>()` 未注册时抛出 `GameException`；`GetService<T>()` 返回 null；`TryGetService<T>()` 返回 bool。
 - 同一作用域重复注册同契约幂等跳过（返回既有实例），嵌套依赖链重复注册免疫；以不同实例抢占已占用契约按 `DuplicateContractPolicy` 处置（开发默认告警、发布静默、可配 Throw）。
 - 单个服务在轮询中抛异常：编辑器与开发构建记录后立即上抛（fail-fast）；发布构建记录后隔离续跑，不影响同帧其他服务。同一服务在同一轮询类别连续失败达到阈值（默认 300，可经 `ServiceScope.s_TickFailureTripThreshold` 调整）即被摘除出该轮询列表并汇总告警一次（熔断）；服务条目保留、重新注册即完全重置。
@@ -375,7 +375,7 @@ await GameServices.ShutdownAsync();
 
 > 通过 `[HandlerHost]` 特性 + 源生成器，为静态工具类自动生成线程安全的 Handler 属性与懒加载机制。
 
-框架的 7 个工具门面（`LogUtility`、`SettingUtility`、`VersionUtility`、`JsonUtility`、`ObjectUtility`、`StringUtility`、`TweenUtility`）均采用统一的处理器宿主模式：
+框架的 7 个工具外观（`LogUtility`、`SettingUtility`、`VersionUtility`、`JsonUtility`、`ObjectUtility`、`StringUtility`、`TweenUtility`）均采用统一的处理器宿主模式：
 
 - **`[HandlerHost(typeof(XxxHandler))]`** 标记 `static partial class`，源生成器自动生成 `Handler` 属性（`volatile` + `Interlocked` 线程安全 get/set）
 - **`FrameworkHandler`** 是所有处理器抽象基类的统一基类，提供 `Internal_Init()` / `Internal_Shutdown()` 幂等生命周期和 `OnInit()` / `OnShutdown()` 虚方法回调
@@ -428,5 +428,5 @@ FrameworkHandler (abstract)
 ├── ObjectHandler : FrameworkHandler
 ├── StringHandler : FrameworkHandler
 ├── TweenHandler : FrameworkHandler  (重写 Internal_Init 注册 TweenManager)
-└── InputHandler : FrameworkHandler
+└── InputServiceHandler : FrameworkHandler
 ```

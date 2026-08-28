@@ -1,4 +1,4 @@
-#if ENABLE_LEGACY_INPUT_MANAGER
+﻿#if ENABLE_LEGACY_INPUT_MANAGER
 using System;
 using UnityEngine;
 using System.Collections.Generic;
@@ -10,7 +10,7 @@ namespace Moirai.Atropos.Input
     /// </summary>
     /// <remarks>此方案用于桌面游戏。</remarks>
     [Serializable]
-    public sealed class UnityInputManagerHandler : InputHandler
+    public sealed class UnityInputManagerHandler : InputServiceHandler
     {
         private struct Vector2Action
         {

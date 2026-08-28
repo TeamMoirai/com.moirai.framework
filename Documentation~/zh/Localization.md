@@ -2,7 +2,7 @@
 
 > 基于 Luban 配置表的多语言服务，支持文本、图片、音频与 Timeline 的自动注入和内联解析。
 
-`Localization` 服务通过 `GameApp.Localization`（`ILocalizationService`）访问，启动时从 Luban 配置表（经 [ConfigTable](ConfigTable.md) 的 `ConfigMgr`）加载全部本地化字符串并注册可用语言。语言按「命令行参数 → 编辑器设置 → 本地存档 → 系统语言」的优先级决定，切换语言时会触发 `OnLanguageChanged` 并自动重新注入所有已注册的 `LocalizerBase` 组件。除按 ID 取文本外，`LocalizationHelper.ResolveLocalizedStrings` 还支持在任意字符串中内联解析 `{l10n:ID}` / `{i18n:ID}` / `{g11n:ID}` 占位符。
+`Localization` 服务通过 `GameApp.Localization`（`ILocalizationService`）访问，首次访问多语言 API 时从 Luban 配置表（经 [ConfigTable](ConfigTable.md) 的 `ConfigMgr`）懒式加载全部本地化字符串并注册可用语言。语言按「命令行参数 → 编辑器设置 → 本地存档 → 系统语言」的优先级决定，切换语言时会触发 `OnLanguageChanged` 并自动重新注入所有已注册的 `LocalizerBase` 组件。除按 ID 取文本外，`LocalizationHelper.ResolveLocalizedStrings` 还支持在任意字符串中内联解析 `{l10n:ID}` / `{i18n:ID}` / `{g11n:ID}` 占位符。
 
 ## 核心特性
 
@@ -45,8 +45,7 @@
 // 访问服务
 ILocalizationService localization = GameApp.Localization;
 
-// 初始化语言配置（依赖 ConfigTable 与 Resource 服务，需在配表就绪后手动调用一次）
-localization.InitLanguageSettings();
+// 本地化数据为懒式加载：首次调用任一查询/切换 API 时自动从配置表加载，无需手动初始化
 
 // 按文本 ID 取本地化字符串（未翻译或 ID 不存在时原样返回 ID）
 string title = localization.GetTextFromId("main_title");
@@ -115,7 +114,7 @@ IEnumerator routine = translator.TranslateAsync(request,
 ## 注意事项
 
 - 本地化数据来自 Luban 配置表：必须先在 `Tools/Settings/ConfigTableSettings` 中生成并转表，否则加载失败并提示 "Failed to load localized text, generate config first!"
-- `InitLanguageSettings` 依赖 `Resource` 服务加载配表资源，不要在 `OnInit` 阶段（资源未就绪）调用
+- 本地化数据为懒式初始化：服务注册期（`OnInit`）不加载任何资源，首次访问多语言 API（查询/切换）时才从配置表加载——届时 `Resource` 服务必然已就绪
 - 可用语言列表来自配表中 `LocalizedBean` 的字段注册（`LocalizationHelper.RegisterLanguageMap`），`ChangeLanguage` 传入未注册语言会抛 `KeyNotFoundException`
 - `ToLanguage(str, onlySupported)` 中 `onlySupported` 为 `true` 时，未注册语言会回落到默认语言 English（`LocalizationHelper.defaultLanguage`）
 - 编辑器非运行模式下 `TextLocalizer.ChangeID` / `ImageLocalizer.ChangeID` 直接返回 `false`（Timeline 预览待实现），`ResolveLocalizedStrings` 也会原样返回
