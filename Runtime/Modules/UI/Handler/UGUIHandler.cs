@@ -782,13 +782,13 @@ namespace Moirai.Atropos.UI
 
         private void OnSortWindowDepth(int layer)
         {
-            int depth = layer * LAYER_DEEP;
+            int depth = layer * UIService.LAYER_DEEP;
             for (int i = 0; i < _uiStack.Count; i++)
             {
                 if (_uiStack[i].WindowLayer == layer)
                 {
                     _uiStack[i].Depth = depth;
-                    depth += WINDOW_DEEP;
+                    depth += UIService.WINDOW_DEEP;
                 }
             }
         }

@@ -11,11 +11,6 @@ namespace Moirai.Atropos.UI
     [Serializable]
     public abstract class UIServiceHandler : FrameworkHandler
     {
-        public const int LAYER_DEEP = 2000;
-        public const int WINDOW_DEEP = 100;
-        public const int WINDOW_HIDE_LAYER = 2; // Ignore Raycast
-        public const int WINDOW_SHOW_LAYER = 5; // UI
-
         /// <summary>
         /// UI根节点。
         /// </summary>
