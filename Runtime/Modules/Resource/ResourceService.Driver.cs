@@ -114,7 +114,7 @@ namespace Moirai.Atropos.Resource
         private static void DriveOnLowMemory()
         {
             LogUtility.Warning("Low memory reported...");
-            s_Handler?.OnLowMemory();
+            Handler.OnLowMemory();
         }
 
         #endregion

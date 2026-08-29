@@ -35,22 +35,22 @@ namespace Moirai.Atropos.UI
         /// <summary>
         /// UI根节点。
         /// </summary>
-        public static Transform UIRoot => s_Handler?.UIRoot;
+        public static Transform UIRoot => Handler.UIRoot;
 
         /// <summary>
         /// UI专用摄像机。
         /// </summary>
-        public static Camera UICamera => s_Handler?.UICamera;
+        public static Camera UICamera => Handler.UICamera;
 
         /// <summary>
         /// 当前模态遮挡窗口。
         /// </summary>
-        public static UIWindow CurrentModal => s_Handler?.CurrentModal;
+        public static UIWindow CurrentModal => Handler.CurrentModal;
 
         /// <summary>
         /// UI资源加载器。
         /// </summary>
-        public static IUIResourceLoader Resource => s_Handler?.Resource;
+        public static IUIResourceLoader Resource => Handler.Resource;
 
         #endregion
 
@@ -91,7 +91,7 @@ namespace Moirai.Atropos.UI
         /// 容器 Tick 驱动——转发到处理器驱动窗口内部更新。
         /// </summary>
         public void Tick(float elapseSeconds, float realElapseSeconds) =>
-            s_Handler?.Tick(elapseSeconds, realElapseSeconds);
+            Handler.Tick(elapseSeconds, realElapseSeconds);
 
         #endregion
 
@@ -102,13 +102,13 @@ namespace Moirai.Atropos.UI
         /// </summary>
         /// <param name="safeRect">安全区域</param>
         public static void ApplyScreenSafeRect(Rect safeRect) =>
-            s_Handler?.ApplyScreenSafeRect(safeRect);
+            Handler.ApplyScreenSafeRect(safeRect);
 
         /// <summary>
         /// 模拟IPhoneX异形屏
         /// </summary>
         public static void SimulateIPhoneXNotchScreen() =>
-            s_Handler?.SimulateIPhoneXNotchScreen();
+            Handler.SimulateIPhoneXNotchScreen();
 
         #endregion
 
@@ -118,25 +118,25 @@ namespace Moirai.Atropos.UI
         /// 获取所有层级下顶部的窗口。
         /// </summary>
         public static UIWindow GetTopWindow() =>
-            s_Handler?.GetTopWindow();
+            Handler.GetTopWindow();
 
         /// <summary>
         /// 获取指定层级下顶部的窗口。
         /// </summary>
         public static UIWindow GetTopWindow(int layer) =>
-            s_Handler?.GetTopWindow(layer);
+            Handler.GetTopWindow(layer);
 
         /// <summary>
         /// 获取指定层级下顶部的窗口名称。
         /// </summary>
         public static string GetTopWindowName(int layer) =>
-            s_Handler?.GetTopWindowName(layer) ?? string.Empty;
+            Handler.GetTopWindowName(layer);
 
         /// <summary>
         /// 是否有任意窗口正在加载。
         /// </summary>
         public static bool IsAnyLoading() =>
-            s_Handler?.IsAnyLoading() ?? false;
+            Handler.IsAnyLoading();
 
         /// <summary>
         /// 查询窗口是否存在。
@@ -145,7 +145,7 @@ namespace Moirai.Atropos.UI
         /// <param name="windowName">窗口名称</param>
         /// <returns>是否存在。</returns>
         public static bool HasWindow<T>(string windowName = null) where T : UIWindow =>
-            s_Handler?.HasWindow<T>(windowName) ?? false;
+            Handler.HasWindow<T>(windowName);
 
         /// <summary>
         /// 查询窗口是否存在。
@@ -154,7 +154,7 @@ namespace Moirai.Atropos.UI
         /// <param name="windowName">窗口名称</param>
         /// <returns>是否存在。</returns>
         public static bool HasWindow(Type type, string windowName = null) =>
-            s_Handler?.HasWindow(type, windowName) ?? false;
+            Handler.HasWindow(type, windowName);
 
         /// <summary>
         /// 获取指定类型和名称的窗口。
@@ -163,19 +163,19 @@ namespace Moirai.Atropos.UI
         /// <param name="windowName">窗口名称。</param>
         /// <returns>窗口实例。</returns>
         public static T GetWindow<T>(string windowName) where T : UIWindow =>
-            s_Handler?.GetWindow<T>(windowName);
+            Handler.GetWindow<T>(windowName);
 
         /// <summary>
         /// 判断指定 UI 对象是否被模态窗口遮挡。
         /// </summary>
         public static bool IsBlockedByModal(GameObject obj) =>
-            s_Handler?.IsBlockedByModal(obj) ?? false;
+            Handler.IsBlockedByModal(obj);
 
         /// <summary>
         /// 判断窗口是否为模态窗口。
         /// </summary>
         public static bool IsModal(UIWindow window) =>
-            s_Handler?.IsModal(window) ?? false;
+            Handler.IsModal(window);
 
         #endregion
 
@@ -191,7 +191,7 @@ namespace Moirai.Atropos.UI
         /// <param name="userData">用户自定义数据。</param>
         public static void ShowUIAsync<T>(string windowName = null, string assetName = null, bool fromResources = false, params object[] userData)
             where T : UIWindow, new() =>
-            s_Handler?.ShowUIAsync<T>(windowName, assetName, fromResources, userData);
+            Handler.ShowUIAsync<T>(windowName, assetName, fromResources, userData);
 
         /// <summary>
         /// 同步打开窗口。
@@ -203,7 +203,7 @@ namespace Moirai.Atropos.UI
         /// <param name="userData">用户自定义数据。</param>
         public static void ShowUI<T>(string windowName = null, string assetName = null, bool fromResources = false, params object[] userData)
             where T : UIWindow, new() =>
-            s_Handler?.ShowUI<T>(windowName, assetName, fromResources, userData);
+            Handler.ShowUI<T>(windowName, assetName, fromResources, userData);
 
         /// <summary>
         /// 异步打开窗口。
@@ -214,7 +214,7 @@ namespace Moirai.Atropos.UI
         /// <param name="fromResources">从 Resources 加载资源。</param>
         /// <param name="userData">用户自定义数据。</param>
         public static void ShowUIAsync(Type type, string windowName = null, string assetName = null, bool fromResources = false, params object[] userData) =>
-            s_Handler?.ShowUIAsync(type, windowName, assetName, fromResources, userData);
+            Handler.ShowUIAsync(type, windowName, assetName, fromResources, userData);
 
         /// <summary>
         /// 同步打开窗口。
@@ -225,7 +225,7 @@ namespace Moirai.Atropos.UI
         /// <param name="fromResources">从 Resources 加载资源。</param>
         /// <param name="userData">用户自定义数据。</param>
         public static void ShowUI(Type type, string windowName = null, string assetName = null, bool fromResources = false, params object[] userData) =>
-            s_Handler?.ShowUI(type, windowName, assetName, fromResources, userData);
+            Handler.ShowUI(type, windowName, assetName, fromResources, userData);
 
         /// <summary>
         /// 异步打开窗口并等待加载完成。
@@ -238,8 +238,7 @@ namespace Moirai.Atropos.UI
         /// <returns>打开窗口操作句柄。</returns>
         public static UniTask<UIWindow> ShowUIAsyncAwait<T>(string windowName = null, string assetName = null, bool fromResources = false, params object[] userData)
             where T : UIWindow, new() =>
-            s_Handler?.ShowUIAsyncAwait<T>(windowName, assetName, fromResources, userData)
-            ?? UniTask.FromResult<UIWindow>(null);
+            Handler.ShowUIAsyncAwait<T>(windowName, assetName, fromResources, userData);
 
         #endregion
 
@@ -251,7 +250,7 @@ namespace Moirai.Atropos.UI
         /// <typeparam name="T">窗口类型。</typeparam>
         /// <param name="windowName">窗口名称。</param>
         public static void CloseUI<T>(string windowName = null) where T : UIWindow =>
-            s_Handler?.CloseUI<T>(windowName);
+            Handler.CloseUI<T>(windowName);
 
         /// <summary>
         /// 关闭窗口。
@@ -259,7 +258,7 @@ namespace Moirai.Atropos.UI
         /// <param name="type">窗口类型。</param>
         /// <param name="windowName">窗口名称。</param>
         public static void CloseUI(Type type, string windowName = null) =>
-            s_Handler?.CloseUI(type, windowName);
+            Handler.CloseUI(type, windowName);
 
         /// <summary>
         /// 隐藏窗口。
@@ -267,7 +266,7 @@ namespace Moirai.Atropos.UI
         /// <typeparam name="T">窗口类型。</typeparam>
         /// <param name="windowName">窗口名称。</param>
         public static void HideUI<T>(string windowName = null) where T : UIWindow =>
-            s_Handler?.HideUI<T>(windowName);
+            Handler.HideUI<T>(windowName);
 
         /// <summary>
         /// 隐藏窗口。
@@ -275,31 +274,31 @@ namespace Moirai.Atropos.UI
         /// <param name="type">窗口类型。</param>
         /// <param name="windowName">窗口名称。</param>
         public static void HideUI(Type type, string windowName = null) =>
-            s_Handler?.HideUI(type, windowName);
+            Handler.HideUI(type, windowName);
 
         /// <summary>
         /// 关闭所有窗口。
         /// </summary>
         public static void CloseAll(bool isShutDown = false) =>
-            s_Handler?.CloseAll(isShutDown);
+            Handler.CloseAll(isShutDown);
 
         /// <summary>
         /// 关闭所有窗口除了指定窗口。
         /// </summary>
         public static void CloseAllWithOut(UIWindow withOut) =>
-            s_Handler?.CloseAllWithOut(withOut);
+            Handler.CloseAllWithOut(withOut);
 
         /// <summary>
         /// 关闭所有窗口除了指定类型的窗口。
         /// </summary>
         public static void CloseAllWithOut<T>() where T : UIWindow =>
-            s_Handler?.CloseAllWithOut<T>();
+            Handler.CloseAllWithOut<T>();
 
         /// <summary>
         /// 关闭所有窗口除了指定层级的窗口。
         /// </summary>
         public static void CloseAllWithOut(UILayer withOut) =>
-            s_Handler?.CloseAllWithOut(withOut);
+            Handler.CloseAllWithOut(withOut);
 
         #endregion
 
@@ -311,8 +310,7 @@ namespace Moirai.Atropos.UI
         /// <typeparam name="T">窗口类型。</typeparam>
         /// <returns>窗口实例。</returns>
         public static UniTask<T> GetUIAsyncAwait<T>() where T : UIWindow =>
-            s_Handler?.GetUIAsyncAwait<T>()
-            ?? UniTask.FromResult<T>(null);
+            Handler.GetUIAsyncAwait<T>();
 
         /// <summary>
         /// 异步获取窗口。
@@ -320,7 +318,7 @@ namespace Moirai.Atropos.UI
         /// <typeparam name="T">窗口类型。</typeparam>
         /// <param name="callback">回调。</param>
         public static void GetUIAsync<T>(Action<T> callback) where T : UIWindow =>
-            s_Handler?.GetUIAsync(callback);
+            Handler.GetUIAsync(callback);
 
         #endregion
     }

@@ -65,7 +65,7 @@ namespace Moirai.Atropos.Save
         /// <param name="fileName">文件名</param>
         /// <param name="folderName">文件夹名称</param>
         public static UniTask Save(object saveObject, string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME) =>
-            s_Handler?.Save(saveObject, fileName, folderName) ?? UniTask.CompletedTask;
+            Handler.Save(saveObject, fileName, folderName);
 
         /// <summary>
         /// 根据文件名将指定的文件加载到指定的文件夹中
@@ -73,7 +73,7 @@ namespace Moirai.Atropos.Save
         /// <param name="fileName">文件名</param>
         /// <param name="folderName">文件夹名称</param>
         public static UniTask<T> Load<T>(string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME) =>
-            s_Handler != null ? s_Handler.Load<T>(fileName, folderName) : UniTask.FromResult<T>(default);
+            Handler.Load<T>(fileName, folderName);
 
         #endregion
 
@@ -85,20 +85,20 @@ namespace Moirai.Atropos.Save
         /// <param name="fileName">文件名</param>
         /// <param name="folderName">文件夹名称</param>
         public static void DeleteSave(string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME) =>
-            s_Handler?.DeleteSave(fileName, folderName);
+            Handler.DeleteSave(fileName, folderName);
 
         /// <summary>
         /// 删除整个保存文件夹
         /// </summary>
         /// <param name="folderName">文件夹名称</param>
         public static void DeleteSaveFolder(string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME) =>
-            s_Handler?.DeleteSaveFolder(folderName);
+            Handler.DeleteSaveFolder(folderName);
 
         /// <summary>
         /// 删除所有的保存文件
         /// </summary>
         public static void DeleteAllSaveFiles() =>
-            s_Handler?.DeleteAllSaveFiles();
+            Handler.DeleteAllSaveFiles();
 
         #endregion
 
@@ -110,14 +110,14 @@ namespace Moirai.Atropos.Save
         /// <param name="fileName">文件名</param>
         /// <param name="folderName">文件夹名称</param>
         public static bool FileExists(string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME) =>
-            s_Handler?.FileExists(fileName, folderName) ?? false;
+            Handler.FileExists(fileName, folderName);
 
         /// <summary>
         /// 获取文件夹的完整保存路径
         /// </summary>
         /// <param name="folderName">文件夹名称</param>
         public static string DetermineSavePath(string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME) =>
-            s_Handler?.DetermineSavePath(folderName) ?? string.Empty;
+            Handler.DetermineSavePath(folderName);
 
         #endregion
     }

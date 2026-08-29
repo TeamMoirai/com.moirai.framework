@@ -62,43 +62,43 @@ namespace Moirai.Atropos.UpdateDriver
         /// 启动全局协程。
         /// </summary>
         public static Coroutine StartCoroutine(string methodName) =>
-            s_Handler?.StartCoroutine(methodName);
+            Handler.StartCoroutine(methodName);
 
         /// <summary>
         /// 启动全局协程。
         /// </summary>
         public static Coroutine StartCoroutine(IEnumerator routine) =>
-            s_Handler?.StartCoroutine(routine);
+            Handler.StartCoroutine(routine);
 
         /// <summary>
         /// 启动全局协程。
         /// </summary>
         public static Coroutine StartCoroutine(string methodName, object value) =>
-            s_Handler?.StartCoroutine(methodName, value);
+            Handler.StartCoroutine(methodName, value);
 
         /// <summary>
         /// 停止全局协程。
         /// </summary>
         public static void StopCoroutine(string methodName) =>
-            s_Handler?.StopCoroutine(methodName);
+            Handler.StopCoroutine(methodName);
 
         /// <summary>
         /// 停止全局协程。
         /// </summary>
         public static void StopCoroutine(IEnumerator routine) =>
-            s_Handler?.StopCoroutine(routine);
+            Handler.StopCoroutine(routine);
 
         /// <summary>
         /// 停止全局协程。
         /// </summary>
         public static void StopCoroutine(Coroutine routine) =>
-            s_Handler?.StopCoroutine(routine);
+            Handler.StopCoroutine(routine);
 
         /// <summary>
         /// 停止所有全局协程。
         /// </summary>
         public static void StopAllCoroutines() =>
-            s_Handler?.StopAllCoroutines();
+            Handler.StopAllCoroutines();
 
         #endregion
 
@@ -108,37 +108,37 @@ namespace Moirai.Atropos.UpdateDriver
         /// 添加帧更新事件。
         /// </summary>
         public static void AddUpdateListener(System.Action action) =>
-            s_Handler?.AddUpdateListener(action);
+            Handler.AddUpdateListener(action);
 
         /// <summary>
         /// 添加物理帧更新事件。
         /// </summary>
         public static void AddFixedUpdateListener(System.Action action) =>
-            s_Handler?.AddFixedUpdateListener(action);
+            Handler.AddFixedUpdateListener(action);
 
         /// <summary>
         /// 添加Late帧更新事件。
         /// </summary>
         public static void AddLateUpdateListener(System.Action action) =>
-            s_Handler?.AddLateUpdateListener(action);
+            Handler.AddLateUpdateListener(action);
 
         /// <summary>
         /// 移除帧更新事件。
         /// </summary>
         public static void RemoveUpdateListener(System.Action action) =>
-            s_Handler?.RemoveUpdateListener(action);
+            Handler.RemoveUpdateListener(action);
 
         /// <summary>
         /// 移除物理帧更新事件。
         /// </summary>
         public static void RemoveFixedUpdateListener(System.Action action) =>
-            s_Handler?.RemoveFixedUpdateListener(action);
+            Handler.RemoveFixedUpdateListener(action);
 
         /// <summary>
         /// 移除Late帧更新事件。
         /// </summary>
         public static void RemoveLateUpdateListener(System.Action action) =>
-            s_Handler?.RemoveLateUpdateListener(action);
+            Handler.RemoveLateUpdateListener(action);
 
         #endregion
 
@@ -148,49 +148,49 @@ namespace Moirai.Atropos.UpdateDriver
         /// 注册Destroy事件。
         /// </summary>
         public static void AddDestroyListener(System.Action action) =>
-            s_Handler?.AddDestroyListener(action);
+            Handler.AddDestroyListener(action);
 
         /// <summary>
         /// 反注册Destroy事件。
         /// </summary>
         public static void RemoveDestroyListener(System.Action action) =>
-            s_Handler?.RemoveDestroyListener(action);
+            Handler.RemoveDestroyListener(action);
 
         /// <summary>
         /// 注册OnDrawGizmos事件。
         /// </summary>
         public static void AddOnDrawGizmosListener(System.Action action) =>
-            s_Handler?.AddOnDrawGizmosListener(action);
+            Handler.AddOnDrawGizmosListener(action);
 
         /// <summary>
         /// 反注册OnDrawGizmos事件。
         /// </summary>
         public static void RemoveOnDrawGizmosListener(System.Action action) =>
-            s_Handler?.RemoveOnDrawGizmosListener(action);
+            Handler.RemoveOnDrawGizmosListener(action);
 
         /// <summary>
         /// 注册OnDrawGizmosSelected事件。
         /// </summary>
         public static void AddOnDrawGizmosSelectedListener(System.Action action) =>
-            s_Handler?.AddOnDrawGizmosSelectedListener(action);
+            Handler.AddOnDrawGizmosSelectedListener(action);
 
         /// <summary>
         /// 反注册OnDrawGizmosSelected事件。
         /// </summary>
         public static void RemoveOnDrawGizmosSelectedListener(System.Action action) =>
-            s_Handler?.RemoveOnDrawGizmosSelectedListener(action);
+            Handler.RemoveOnDrawGizmosSelectedListener(action);
 
         /// <summary>
         /// 注册OnApplicationPause事件。
         /// </summary>
         public static void AddOnApplicationPauseListener(System.Action<bool> action) =>
-            s_Handler?.AddOnApplicationPauseListener(action);
+            Handler.AddOnApplicationPauseListener(action);
 
         /// <summary>
         /// 反注册OnApplicationPause事件。
         /// </summary>
         public static void RemoveOnApplicationPauseListener(System.Action<bool> action) =>
-            s_Handler?.RemoveOnApplicationPauseListener(action);
+            Handler.RemoveOnApplicationPauseListener(action);
 
         #endregion
     }

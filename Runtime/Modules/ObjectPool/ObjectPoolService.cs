@@ -34,7 +34,7 @@
         /// <summary>
         /// 获取池数量。
         /// </summary>
-        public static int Count => s_Handler?.Count ?? 0;
+        public static int Count => Handler.Count;
 
         #endregion
 
@@ -67,7 +67,7 @@
         /// 容器 Tick 驱动——转发到处理器处理到期的维护操作。
         /// </summary>
         public void Tick(float elapseSeconds, float realElapseSeconds) =>
-            s_Handler?.Tick(elapseSeconds, realElapseSeconds);
+            Handler.Tick(elapseSeconds, realElapseSeconds);
 
         #endregion
 
@@ -80,7 +80,7 @@
         /// <param name="name">池名称。</param>
         /// <returns>是否存在。</returns>
         public static bool HasObjectPool<T>(string name = "") where T : ObjectBase =>
-            s_Handler != null && s_Handler.HasObjectPool<T>(name);
+            Handler.HasObjectPool<T>(name);
 
         /// <summary>
         /// 获取指定类型的池。
@@ -89,7 +89,7 @@
         /// <param name="name">池名称。</param>
         /// <returns>池实例；不存在返回 null。</returns>
         public static IObjectPool<T> GetObjectPool<T>(string name = "") where T : ObjectBase =>
-            s_Handler != null ? s_Handler.GetObjectPool<T>(name) : null;
+            Handler.GetObjectPool<T>(name);
 
         /// <summary>
         /// 获取或创建指定类型的池。
@@ -98,7 +98,7 @@
         /// <param name="options">创建选项（已存在时忽略）。</param>
         /// <returns>池实例；服务未注册返回 null。</returns>
         public static IObjectPool<T> GetOrCreatePool<T>(ObjectPoolCreateOptions options = default) where T : ObjectBase =>
-            s_Handler != null ? s_Handler.GetOrCreatePool<T>(options) : null;
+            Handler.GetOrCreatePool<T>(options);
 
         /// <summary>
         /// 销毁指定类型的池（释放其全部对象）。
@@ -107,7 +107,7 @@
         /// <param name="name">池名称。</param>
         /// <returns>是否销毁成功。</returns>
         public static bool DestroyObjectPool<T>(string name = "") where T : ObjectBase =>
-            s_Handler != null && s_Handler.DestroyObjectPool<T>(name);
+            Handler.DestroyObjectPool<T>(name);
 
         /// <summary>
         /// 获取全部池（按优先级可选排序）填充到结果数组。
@@ -116,7 +116,7 @@
         /// <param name="results">结果数组。</param>
         /// <returns>池总数（可能超出数组容量）。</returns>
         public static int GetAllObjectPools(bool sort, ObjectPoolBase[] results) =>
-            s_Handler != null ? s_Handler.GetAllObjectPools(sort, results) : 0;
+            Handler.GetAllObjectPools(sort, results);
 
         #endregion
 
@@ -126,13 +126,13 @@
         /// 释放所有池的全部可释放对象。
         /// </summary>
         public static void Release() =>
-            s_Handler?.Release();
+            Handler.Release();
 
         /// <summary>
         /// 释放所有池的全部未使用且可释放的对象（低内存响应同此）。
         /// </summary>
         public static void ReleaseAllUnused() =>
-            s_Handler?.ReleaseAllUnused();
+            Handler.ReleaseAllUnused();
 
         #endregion
     }

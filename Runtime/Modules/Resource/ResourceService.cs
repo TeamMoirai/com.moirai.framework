@@ -66,8 +66,8 @@ namespace Moirai.Atropos.Resource
         /// </summary>
         public static string DefaultPackageName
         {
-            get => s_Handler?.DefaultPackageName;
-            set { if (s_Handler != null) s_Handler.DefaultPackageName = value; }
+            get => Handler.DefaultPackageName;
+            set { Handler.DefaultPackageName = value; }
         }
 
         /// <summary>
@@ -75,22 +75,22 @@ namespace Moirai.Atropos.Resource
         /// </summary>
         public static EResourcePlayMode PlayMode
         {
-            get => s_Handler?.PlayMode ?? EResourcePlayMode.Offline;
-            set { if (s_Handler != null) s_Handler.PlayMode = value; }
+            get => Handler.PlayMode;
+            set { Handler.PlayMode = value; }
         }
 
         /// <summary>
         /// 资源绑定服务。
         /// </summary>
-        public static IResourceBindingService BindingService => s_Handler?.BindingService;
+        public static IResourceBindingService BindingService => Handler.BindingService;
 
         /// <summary>
         /// 热更 URL，资源服务器地址。
         /// </summary>
         public static string HostServerURL
         {
-            get => s_Handler?.HostServerURL;
-            set { if (s_Handler != null) s_Handler.HostServerURL = value; }
+            get => Handler.HostServerURL;
+            set { Handler.HostServerURL = value; }
         }
 
         /// <summary>
@@ -98,8 +98,8 @@ namespace Moirai.Atropos.Resource
         /// </summary>
         public static string FallbackHostServerURL
         {
-            get => s_Handler?.FallbackHostServerURL;
-            set { if (s_Handler != null) s_Handler.FallbackHostServerURL = value; }
+            get => Handler.FallbackHostServerURL;
+            set { Handler.FallbackHostServerURL = value; }
         }
 
         /// <summary>
@@ -107,33 +107,33 @@ namespace Moirai.Atropos.Resource
         /// </summary>
         public static EResourceLoadWayWebGL LoadResWayWebGL
         {
-            get => s_Handler?.LoadResWayWebGL ?? default;
-            set { if (s_Handler != null) s_Handler.LoadResWayWebGL = value; }
+            get => Handler.LoadResWayWebGL;
+            set { Handler.LoadResWayWebGL = value; }
         }
 
         /// <summary>
         /// 获取当前资源适用的游戏版本号。
         /// </summary>
-        public static string ApplicableGameVersion => s_Handler?.ApplicableGameVersion;
+        public static string ApplicableGameVersion => Handler.ApplicableGameVersion;
 
         /// <summary>
         /// 获取当前内部资源版本号。
         /// </summary>
-        public static int InternalResourceVersion => s_Handler?.InternalResourceVersion ?? 0;
+        public static int InternalResourceVersion => Handler.InternalResourceVersion;
 
         /// <summary>
         /// 当前最新的包裹版本。
         /// </summary>
         public static string PackageVersion
         {
-            get => s_Handler?.PackageVersion;
-            set { if (s_Handler != null) s_Handler.PackageVersion = value; }
+            get => Handler.PackageVersion;
+            set { Handler.PackageVersion = value; }
         }
 
         /// <summary>
         /// 是否边玩边下载。
         /// </summary>
-        public static bool UpdatableWhilePlaying => s_Handler?.UpdatableWhilePlaying ?? false;
+        public static bool UpdatableWhilePlaying => Handler.UpdatableWhilePlaying;
 
         #endregion
 
@@ -144,8 +144,8 @@ namespace Moirai.Atropos.Resource
         /// </summary>
         public static int AssetRecordCapacity
         {
-            get => s_Handler?.AssetRecordCapacity ?? 0;
-            set { if (s_Handler != null) s_Handler.AssetRecordCapacity = value; }
+            get => Handler.AssetRecordCapacity;
+            set { Handler.AssetRecordCapacity = value; }
         }
 
         /// <summary>
@@ -153,8 +153,8 @@ namespace Moirai.Atropos.Resource
         /// </summary>
         public static int AssetLeaseCapacity
         {
-            get => s_Handler?.AssetLeaseCapacity ?? 0;
-            set { if (s_Handler != null) s_Handler.AssetLeaseCapacity = value; }
+            get => Handler.AssetLeaseCapacity;
+            set { Handler.AssetLeaseCapacity = value; }
         }
 
         /// <summary>
@@ -162,8 +162,8 @@ namespace Moirai.Atropos.Resource
         /// </summary>
         public static int BindingOwnerCapacity
         {
-            get => s_Handler?.BindingOwnerCapacity ?? 0;
-            set { if (s_Handler != null) s_Handler.BindingOwnerCapacity = value; }
+            get => Handler.BindingOwnerCapacity;
+            set { Handler.BindingOwnerCapacity = value; }
         }
 
         /// <summary>
@@ -171,8 +171,8 @@ namespace Moirai.Atropos.Resource
         /// </summary>
         public static int BindingSlotCapacity
         {
-            get => s_Handler?.BindingSlotCapacity ?? 0;
-            set { if (s_Handler != null) s_Handler.BindingSlotCapacity = value; }
+            get => Handler.BindingSlotCapacity;
+            set { Handler.BindingSlotCapacity = value; }
         }
 
         /// <summary>
@@ -180,8 +180,8 @@ namespace Moirai.Atropos.Resource
         /// </summary>
         public static int RegisteredTargetCapacity
         {
-            get => s_Handler?.RegisteredTargetCapacity ?? 0;
-            set { if (s_Handler != null) s_Handler.RegisteredTargetCapacity = value; }
+            get => Handler.RegisteredTargetCapacity;
+            set { Handler.RegisteredTargetCapacity = value; }
         }
 
         /// <summary>
@@ -189,8 +189,8 @@ namespace Moirai.Atropos.Resource
         /// </summary>
         public static float IdleAssetExpireTime
         {
-            get => s_Handler?.IdleAssetExpireTime ?? 60f;
-            set { if (s_Handler != null) s_Handler.IdleAssetExpireTime = value; }
+            get => Handler.IdleAssetExpireTime;
+            set { Handler.IdleAssetExpireTime = value; }
         }
 
         /// <summary>
@@ -198,8 +198,8 @@ namespace Moirai.Atropos.Resource
         /// </summary>
         public static float AssetAutoReleaseInterval
         {
-            get => s_Handler?.AssetAutoReleaseInterval ?? 60f;
-            set { if (s_Handler != null) s_Handler.AssetAutoReleaseInterval = value; }
+            get => Handler.AssetAutoReleaseInterval;
+            set { Handler.AssetAutoReleaseInterval = value; }
         }
 
         /// <summary>
@@ -207,8 +207,8 @@ namespace Moirai.Atropos.Resource
         /// </summary>
         public static int AssetCapacity
         {
-            get => s_Handler?.AssetCapacity ?? 0;
-            set { if (s_Handler != null) s_Handler.AssetCapacity = value; }
+            get => Handler.AssetCapacity;
+            set { Handler.AssetCapacity = value; }
         }
 
         /// <summary>
@@ -216,8 +216,8 @@ namespace Moirai.Atropos.Resource
         /// </summary>
         public static float AssetExpireTime
         {
-            get => s_Handler?.AssetExpireTime ?? 60f;
-            set { if (s_Handler != null) s_Handler.AssetExpireTime = value; }
+            get => Handler.AssetExpireTime;
+            set { Handler.AssetExpireTime = value; }
         }
 
         /// <summary>
@@ -225,21 +225,21 @@ namespace Moirai.Atropos.Resource
         /// </summary>
         public static int AssetPriority
         {
-            get => s_Handler?.AssetPriority ?? 0;
-            set { if (s_Handler != null) s_Handler.AssetPriority = value; }
+            get => Handler.AssetPriority;
+            set { Handler.AssetPriority = value; }
         }
 
         /// <summary>
         /// 预热资源记录。
         /// </summary>
         public static void WarmupResourceRecords(int assetCapacity, int leaseCapacity, int unityObjectIndexCapacity) =>
-            s_Handler?.WarmupResourceRecords(assetCapacity, leaseCapacity, unityObjectIndexCapacity);
+            Handler.WarmupResourceRecords(assetCapacity, leaseCapacity, unityObjectIndexCapacity);
 
         /// <summary>
         /// 批量获取资源信息。
         /// </summary>
         public static int GetAssetInfos(ResourceAssetInfo[] results, int startIndex, int maxCount) =>
-            s_Handler?.GetAssetInfos(results, startIndex, maxCount) ?? 0;
+            Handler.GetAssetInfos(results, startIndex, maxCount);
 
         #endregion
 
@@ -248,13 +248,13 @@ namespace Moirai.Atropos.Resource
         /// <summary>
         /// 初始化资源系统（创建默认资源包与绑定服务）。
         /// </summary>
-        public static void Initialize() => s_Handler?.Initialize();
+        public static void Initialize() => Handler.Initialize();
 
         /// <summary>
         /// 初始化资源包。
         /// </summary>
         public static UniTask<ResourcePackageInitResult> InitPackage(string customPackageName, bool needInitManifest = false) =>
-            s_Handler?.InitPackage(customPackageName, needInitManifest) ?? UniTask.FromResult<ResourcePackageInitResult>(null);
+            Handler.InitPackage(customPackageName, needInitManifest);
 
         #endregion
 
@@ -264,69 +264,57 @@ namespace Moirai.Atropos.Resource
         /// 使用显式资源 Key 获取一个直接资源租约。
         /// </summary>
         public static ResourceLeaseHandle AcquireDirect(ResourceKey key) =>
-            s_Handler?.AcquireDirect(key) ?? ResourceLeaseHandle.Invalid;
+            Handler.AcquireDirect(key);
 
         /// <summary>
         /// 异步获取一个直接资源租约。
         /// </summary>
         public static UniTask<ResourceLeaseHandle> AcquireDirectAsync(ResourceKey key, CancellationToken cancellationToken = default) =>
-            s_Handler?.AcquireDirectAsync(key, cancellationToken) ?? UniTask.FromResult(ResourceLeaseHandle.Invalid);
+            Handler.AcquireDirectAsync(key, cancellationToken);
 
         /// <summary>
         /// 尝试使用显式资源 Key 获取一个直接资源租约。
         /// </summary>
         public static bool TryAcquireDirect(ResourceKey key, out ResourceLeaseHandle handle)
         {
-            if (s_Handler != null)
-            {
-                return s_Handler.TryAcquireDirect(key, out handle);
-            }
-
-            handle = ResourceLeaseHandle.Invalid;
-            return false;
+            return Handler.TryAcquireDirect(key, out handle);
         }
 
         /// <summary>
         /// 释放一个显式资源租约。
         /// </summary>
-        public static void Release(ResourceLeaseHandle handle) => s_Handler?.Release(handle);
+        public static void Release(ResourceLeaseHandle handle) => Handler.Release(handle);
 
         /// <summary>
         /// 同步加载资源并返回资源租约。调用方必须在不再使用资源时调用 Dispose 释放租约。
         /// </summary>
         public static ResourceAssetLease<T> LoadLease<T>(ResourceKey key) where T : UnityEngine.Object =>
-            s_Handler?.LoadLease<T>(key) ?? default;
+            Handler.LoadLease<T>(key);
 
         /// <summary>
         /// 同步加载资源并返回资源租约。调用方必须在不再使用资源时调用 Dispose 释放租约。
         /// </summary>
         public static ResourceAssetLease<T> LoadLease<T>(string location, string packageName = "") where T : UnityEngine.Object =>
-            s_Handler?.LoadLease<T>(location, packageName) ?? default;
+            Handler.LoadLease<T>(location, packageName);
 
         /// <summary>
         /// 异步加载资源并返回资源租约。调用方必须在不再使用资源时调用 Dispose 释放租约。
         /// </summary>
         public static UniTask<ResourceAssetLease<T>> LoadLeaseAsync<T>(ResourceKey key, CancellationToken cancellationToken = default) where T : UnityEngine.Object =>
-            s_Handler?.LoadLeaseAsync<T>(key, cancellationToken) ?? UniTask.FromResult(default(ResourceAssetLease<T>));
+            Handler.LoadLeaseAsync<T>(key, cancellationToken);
 
         /// <summary>
         /// 异步加载资源并返回资源租约。调用方必须在不再使用资源时调用 Dispose 释放租约。
         /// </summary>
         public static UniTask<ResourceAssetLease<T>> LoadLeaseAsync<T>(string location, CancellationToken cancellationToken = default, string packageName = "") where T : UnityEngine.Object =>
-            s_Handler?.LoadLeaseAsync<T>(location, cancellationToken, packageName) ?? UniTask.FromResult(default(ResourceAssetLease<T>));
+            Handler.LoadLeaseAsync<T>(location, cancellationToken, packageName);
 
         /// <summary>
         /// 尝试从资源租约中读取 Unity 资源对象。
         /// </summary>
         public static bool TryGetLeaseAsset(ResourceLeaseHandle handle, out UnityEngine.Object asset)
         {
-            if (s_Handler != null)
-            {
-                return s_Handler.TryGetLeaseAsset(handle, out asset);
-            }
-
-            asset = null;
-            return false;
+            return Handler.TryGetLeaseAsset(handle, out asset);
         }
 
         #endregion
@@ -336,7 +324,7 @@ namespace Moirai.Atropos.Resource
         /// <summary>
         /// 卸载资源。
         /// </summary>
-        public static void UnloadAsset(object asset) => s_Handler?.UnloadAsset(asset);
+        public static void UnloadAsset(object asset) => Handler.UnloadAsset(asset);
 
         #endregion
 
@@ -345,40 +333,40 @@ namespace Moirai.Atropos.Resource
         /// <summary>
         /// 资源回收（卸载引用计数为零的资源）。
         /// </summary>
-        public static void UnloadUnusedAssets() => s_Handler?.UnloadUnusedAssets();
+        public static void UnloadUnusedAssets() => Handler.UnloadUnusedAssets();
 
         /// <summary>
         /// 资源回收。
         /// </summary>
-        public static void UnloadUnusedAssets(bool force) => s_Handler?.UnloadUnusedAssets(force);
+        public static void UnloadUnusedAssets(bool force) => Handler.UnloadUnusedAssets(force);
 
         /// <summary>
         /// 强制回收所有资源。
         /// </summary>
-        public static void ForceUnloadAllAssets() => s_Handler?.ForceUnloadAllAssets();
+        public static void ForceUnloadAllAssets() => Handler.ForceUnloadAllAssets();
 
         /// <summary>
         /// 强制执行释放未被使用的资源。
         /// </summary>
-        public static void ForceUnloadUnusedAssets(bool performGCCollect) => s_Handler?.ForceUnloadUnusedAssets(performGCCollect);
+        public static void ForceUnloadUnusedAssets(bool performGCCollect) => Handler.ForceUnloadUnusedAssets(performGCCollect);
 
         /// <summary>
         /// 检查资源是否存在。
         /// </summary>
         public static EResourceHasAssetResult HasAsset(string location, string packageName = "") =>
-            s_Handler?.HasAsset(location, packageName) ?? EResourceHasAssetResult.InvalidLocation;
+            Handler.HasAsset(location, packageName);
 
         /// <summary>
         /// 检查资源定位地址是否有效。
         /// </summary>
         public static bool IsLocationValid(string location, string packageName = "") =>
-            s_Handler?.IsLocationValid(location, packageName) ?? false;
+            Handler.IsLocationValid(location, packageName);
 
         /// <summary>
         /// 检查资源是否需要从远端下载。
         /// </summary>
         public static bool IsNeedDownloadFromRemote(string location, string packageName = "") =>
-            s_Handler?.IsNeedDownloadFromRemote(location, packageName) ?? false;
+            Handler.IsNeedDownloadFromRemote(location, packageName);
 
         /// <summary>
         /// 获取资源需要从远端下载的字节数。
@@ -387,42 +375,42 @@ namespace Moirai.Atropos.Resource
         /// <param name="packageName">指定资源包的名称。不传使用默认资源包。</param>
         /// <returns>待下载字节数；服务不可用时返回 -1。</returns>
         public static long GetDownloadSize(string location, string packageName = "") =>
-            s_Handler != null ? s_Handler.GetDownloadSize(location, packageName) : -1;
+            Handler.GetDownloadSize(location, packageName);
 
         /// <summary>
         /// 获取资源信息列表。
         /// </summary>
         public static ResourceAssetInfoEntry[] GetAssetInfos(string resTag, string packageName = "") =>
-            s_Handler?.GetAssetInfos(resTag, packageName);
+            Handler.GetAssetInfos(resTag, packageName);
 
         /// <summary>
         /// 获取资源信息列表。
         /// </summary>
         public static ResourceAssetInfoEntry[] GetAssetInfos(string[] tags, string packageName = "") =>
-            s_Handler?.GetAssetInfos(tags, packageName);
+            Handler.GetAssetInfos(tags, packageName);
 
         /// <summary>
         /// 获取资源信息。
         /// </summary>
         public static ResourceAssetInfoEntry GetAssetInfo(string location, string packageName = "") =>
-            s_Handler != null ? s_Handler.GetAssetInfo(location, packageName) : default;
+            Handler.GetAssetInfo(location, packageName);
 
         /// <summary>
         /// 每帧过期处理（由 <see cref="ResourceServiceDriver"/> 驱动）。
         /// </summary>
         public static void ProcessKeepAlive(float time, int processCount) =>
-            s_Handler?.ProcessKeepAlive(time, processCount);
+            Handler.ProcessKeepAlive(time, processCount);
 
         /// <summary>
         /// 低内存行为。
         /// </summary>
-        public static void OnLowMemory() => s_Handler?.OnLowMemory();
+        public static void OnLowMemory() => Handler.OnLowMemory();
 
         /// <summary>
         /// 低内存回调保护。
         /// </summary>
         public static void SetForceUnloadUnusedAssetsAction(Action<bool> action) =>
-            s_Handler?.SetForceUnloadUnusedAssetsAction(action);
+            Handler.SetForceUnloadUnusedAssetsAction(action);
 
         #endregion
 
@@ -432,13 +420,13 @@ namespace Moirai.Atropos.Resource
         /// 同步加载游戏物体并实例化。
         /// </summary>
         public static GameObject LoadGameObject(string location, Transform parent = null, string packageName = "") =>
-            s_Handler?.LoadGameObject(location, parent, packageName);
+            Handler.LoadGameObject(location, parent, packageName);
 
         /// <summary>
         /// 异步加载游戏物体并实例化。
         /// </summary>
         public static UniTask<GameObject> LoadGameObjectAsync(string location, Transform parent = null, CancellationToken cancellationToken = default, string packageName = "") =>
-            s_Handler?.LoadGameObjectAsync(location, parent, cancellationToken, packageName) ?? UniTask.FromResult<GameObject>(null);
+            Handler.LoadGameObjectAsync(location, parent, cancellationToken, packageName);
 
         #endregion
 
@@ -448,43 +436,43 @@ namespace Moirai.Atropos.Resource
         /// 获取当前资源包版本。
         /// </summary>
         public static string GetPackageVersion(string customPackageName = "") =>
-            s_Handler?.GetPackageVersion(customPackageName);
+            Handler.GetPackageVersion(customPackageName);
 
         /// <summary>
         /// 异步更新最新包的版本。
         /// </summary>
         public static ResourcePackageVersionResult RequestPackageVersionAsync(bool appendTimeTicks = false, int timeout = 60, string customPackageName = "") =>
-            s_Handler?.RequestPackageVersionAsync(appendTimeTicks, timeout, customPackageName);
+            Handler.RequestPackageVersionAsync(appendTimeTicks, timeout, customPackageName);
 
         /// <summary>
         /// 设置远程服务 URL。
         /// </summary>
         public static void SetRemoteServicesUrl(string defaultHostServer, string fallbackHostServer) =>
-            s_Handler?.SetRemoteServicesUrl(defaultHostServer, fallbackHostServer);
+            Handler.SetRemoteServicesUrl(defaultHostServer, fallbackHostServer);
 
         /// <summary>
         /// 向网络端请求并更新清单。
         /// </summary>
         public static IResourceOperation LoadPackageManifestAsync(string packageVersion, int timeout = 60, string customPackageName = "") =>
-            s_Handler?.LoadPackageManifestAsync(packageVersion, timeout, customPackageName);
+            Handler.LoadPackageManifestAsync(packageVersion, timeout, customPackageName);
 
         /// <summary>
         /// 创建资源下载器，用于下载当前资源版本所有的资源包文件。
         /// </summary>
         public static IResourceDownloader CreateResourceDownloader(string customPackageName = "") =>
-            s_Handler?.CreateResourceDownloader(customPackageName);
+            Handler.CreateResourceDownloader(customPackageName);
 
         /// <summary>
         /// 清理包裹未使用的缓存文件。
         /// </summary>
         public static ResourceClearCacheResult ClearCacheAsync(EResourceClearMode clearMode, string customPackageName = "") =>
-            s_Handler?.ClearCacheAsync(clearMode, customPackageName);
+            Handler.ClearCacheAsync(clearMode, customPackageName);
 
         /// <summary>
         /// 清理沙盒路径。
         /// </summary>
         public static void ClearAllBundleFiles(string customPackageName = "") =>
-            s_Handler?.ClearAllBundleFiles(customPackageName);
+            Handler.ClearAllBundleFiles(customPackageName);
 
         #endregion
     }

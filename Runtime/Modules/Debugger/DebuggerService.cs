@@ -57,7 +57,7 @@
         /// 容器 Tick 驱动——转发到处理器更新窗口组。
         /// </summary>
         public void Tick(float elapseSeconds, float realElapseSeconds) =>
-            s_Handler?.Tick(elapseSeconds, realElapseSeconds);
+            Handler.Tick(elapseSeconds, realElapseSeconds);
 
         #endregion
 
@@ -68,17 +68,17 @@
         /// </summary>
         public static bool ActiveWindow
         {
-            get => s_Handler?.ActiveWindow ?? false;
+            get => Handler.ActiveWindow;
             set
             {
-                if (s_Handler != null) s_Handler.ActiveWindow = value;
+                Handler.ActiveWindow = value;
             }
         }
 
         /// <summary>
         /// 调试器窗口根结点。
         /// </summary>
-        public static IDebuggerWindowGroup DebuggerWindowRoot => s_Handler?.DebuggerWindowRoot;
+        public static IDebuggerWindowGroup DebuggerWindowRoot => Handler.DebuggerWindowRoot;
 
         /// <summary>
         /// 注册调试器窗口。
@@ -87,7 +87,7 @@
         /// <param name="debuggerWindow">要注册的调试器窗口。</param>
         /// <param name="args">初始化调试器窗口参数。</param>
         public static void RegisterDebuggerWindow(string path, IDebuggerWindow debuggerWindow, params object[] args) =>
-            s_Handler?.RegisterDebuggerWindow(path, debuggerWindow, args);
+            Handler.RegisterDebuggerWindow(path, debuggerWindow, args);
 
         /// <summary>
         /// 解除注册调试器窗口。
@@ -95,7 +95,7 @@
         /// <param name="path">调试器窗口路径。</param>
         /// <returns>是否解除注册调试器窗口成功。</returns>
         public static bool UnregisterDebuggerWindow(string path) =>
-            s_Handler?.UnregisterDebuggerWindow(path) ?? false;
+            Handler.UnregisterDebuggerWindow(path);
 
         /// <summary>
         /// 获取调试器窗口。
@@ -103,7 +103,7 @@
         /// <param name="path">调试器窗口路径。</param>
         /// <returns>要获取的调试器窗口。</returns>
         public static IDebuggerWindow GetDebuggerWindow(string path) =>
-            s_Handler?.GetDebuggerWindow(path);
+            Handler.GetDebuggerWindow(path);
 
         /// <summary>
         /// 选中调试器窗口。
@@ -111,7 +111,7 @@
         /// <param name="path">调试器窗口路径。</param>
         /// <returns>是否成功选中调试器窗口。</returns>
         public static bool SelectDebuggerWindow(string path) =>
-            s_Handler?.SelectDebuggerWindow(path) ?? false;
+            Handler.SelectDebuggerWindow(path);
 
         #endregion
     }
