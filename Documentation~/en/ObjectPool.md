@@ -1,187 +1,255 @@
 ﻿# ObjectPool Service
 
-> Zero-GC GameObject pool with SoA paged slots, policy-driven recycling, min-heap maintenance scheduling, and data-driven catalog configuration.
+> Generic pool + GameObject specialization, shared kernel + dual facades in a single module.
+> The shared kernel provides paged slot storage, open-addressing hashes and a min-heap maintenance scheduler; two facades serve arbitrary CLR objects and Unity GameObjects respectively.
 
-The ObjectPool service is accessed via `GameApp.ObjectPool` and manages pooled GameObject instances by resource location. It uses a compiled `PoolCatalog` (ScriptableObject-driven) to resolve pool rules, supports three recycling policies (Fixed/Burst/Sticky), and provides async prefab loading with reference counting.
+The service is split into two independent facades; choose by pooled object type:
 
-## Core Features
+| Facade | Pooled Object | Key | Typical Usage |
+|--------|--------------|-----|---------------|
+| `ObjectPoolService` | Any `ObjectBase` derived object (data packets, connections, commands…) | `Type + pool name` | Pure C# object reuse |
+| `GameObjectPoolService` | Unity GameObject (Prefab instances) | Asset location (PoolCatalog rules) | Bullets, VFX, UI popups |
 
-- **Zero-GC hot path**: SoA paged Slot storage (128 slots/page) + intrusive doubly-linked list — no Dictionary allocations during Spawn/Despawn
-- **Policy-driven recycling**: `PoolPolicy.Fixed` (strict capacity), `PoolPolicy.Burst` (idle timeout), `PoolPolicy.Sticky` (no auto-trim)
-- **Min-heap maintenance scheduling**: Only processes pools whose maintenance is due — O(log n) per tick, not O(n) full scan
-- **Generation-based handle validation**: `ObjectPoolHandle` (MonoBehaviour) binds each instance with slot index + generation, preventing use-after-despawn
-- **Async prefab loading**: `IPrefabLoader` abstraction with `ResourcePrefabLoader` (YooAsset-backed), reference-counted prefab lifecycle
-- **Frame-budget warmup**: `WarmupAsync` creates instances in batches with per-frame time budget to avoid frame spikes
-- **Low memory response**: `Application.lowMemory` callback triggers `FlushAll()` across all pools
-- **Data-driven configuration**: `PoolConfigScriptableObject` with Glob pattern matching (`*`, `**`, `?`) for resource address rules
-- **Full observability**: Per-pool snapshots with hit/miss/expand/destroy/peak metrics + instance-level inspection
+> ⚠️ **Both services are opt-in**: they are NOT in the `ProcedureService` dependency chain and are not registered by default.
+> When unregistered, all static facade calls silently return default values and maintenance (expiry / over-capacity / low-memory shrink) never runs.
+> Enable via `GameServices.RegisterService(EServiceScopeKind.App, new ObjectPoolService())`
+> (GameObjectPoolService depends on ResourceService, which is pulled up automatically by the dependency chain).
+
+## Architecture
+
+```
+Runtime/Modules/ObjectPool/
+├── Kernel/                 # Shared kernel (internal)
+│   ├── PoolSlotStorage<T>      # Paged slot storage (128 slots/page + page-level free stacks)
+│   ├── PoolMaintenanceScheduler # Shared min-heap maintenance scheduler (1ms frame budget)
+│   ├── OpenHashMap<K> / ReferenceOpenHashMap / StringOpenHashMap  # Open-addressing zero-alloc hashes
+│   └── SlotArrayPool<T>        # Bucketed array pool by length
+├── ObjectPoolService.cs    # Generic pool static facade ([HandlerHost])
+├── ObjectBase.cs           # Pooled object base (OnSpawn/OnDespawn/Release contract)
+├── IObjectPool.cs          # Generic pool contract
+└── GameObject/             # GameObject specialization
+    ├── GameObjectPoolService.cs    # GO pool static facade ([HandlerHost] + ServiceDependency(Resource))
+    ├── RuntimeGameObjectPool.cs    # Per-pool runtime (generation handle + policy trimming)
+    ├── PoolCatalog.cs / PoolPolicy.cs / Data/  # Data-driven config and policies
+    └── IPrefabLoader.cs            # Prefab loading abstraction (ResourceAssetLease-based)
+```
+
+Both pools share the same maintenance semantics: each Tick processes only due pools (min-heap, O(log n)) within a 1ms per-frame budget;
+on low memory each Handler subscribes to `Application.lowMemory` and shrinks fully.
 
 ## Core Types
 
 Namespace: `Moirai.Atropos.ObjectPool`
 
+### Generic Pool
+
 | Class/Interface | Description |
-|---------|------|
-| `IObjectPoolService` | Service interface: `Spawn` / `SpawnAsync` / `Despawn` / `Flush` / `FlushGroup` / `FlushAll` / `WarmupAsync` / `LoadCatalog` |
-| `ObjectPoolService` | Default implementation (`internal sealed`), `Priority = 6`, implements `IServiceTickable` for min-heap maintenance |
-| `RuntimeObjectPool` | Per-location pool: SoA paged slots + intrusive linked list + generation handles |
-| `ObjectPoolHandle` | MonoBehaviour attached to pooled instances; provides `TryRelease()` for safe despawn |
-| `IObjectPoolable` | Interface for components on pooled prefabs: `OnSpawn(in PoolSpawnContext)` / `OnDespawn()` / `OnPooledDestroy()` |
-| `PoolPolicy` | Enum: `Fixed = 0`, `Burst = 1`, `Sticky = 2` |
-| `PoolEntry` | Serializable config entry: `assetPath`, `policy`, `minIdle`, `softCapacity`, `hardCapacity`, `idleSeconds`, `unloadPrefab` |
-| `PoolConfigScriptableObject` | ScriptableObject holding `List<PoolEntry>`; loaded via `LoadCatalog()` |
-| `PoolCompiledCatalog` | Compiled rule catalog with exact + Glob pattern matching |
-| `PoolGlobMatcher` | Zero-alloc Glob pattern matcher (`*`, `**`, `?`) |
-| `IPrefabLoader` | Prefab loading abstraction: `LoadPrefab` / `LoadPrefabAsync` / `UnloadPrefab` |
-| `ResourcePrefabLoader` | Default `IPrefabLoader` impl using `GameApp.Resource` (YooAsset) with ref counting |
-| `ObjectPoolSetting` | MonoBehaviour component for Inspector-configured pool settings + low memory/focus events |
-| `ObjectPoolSnapshot` | Debug snapshot: per-pool stats (spawn/despawn/hit/miss/expand/destroy/peak) + instance list |
-| `SlotArrayPool<T>` | Internal array pool (bucketed by length) for zero-GC array reuse |
-| `StringOpenHashMap` | Internal open-addressing string→int HashMap |
+|-----------------|-------------|
+| `ObjectPoolService` | Static facade: `GetOrCreatePool<T>` / `GetObjectPool<T>` / `HasObjectPool<T>` / `DestroyObjectPool<T>` / `Release` / `ReleaseAllUnused` |
+| `ObjectPoolCreateOptions` | Creation options: `Name` / `AllowMultiSpawn` / `AutoReleaseInterval` / `Capacity` / `ExpireTime` / `Priority` |
+| `IObjectPool<T>` | Per-pool contract: `Register` / `Spawn` / `Despawn` / `DespawnTarget` / `Release(count)` / `ReleaseAllUnused` |
+| `ObjectBase` | Pooled object base: `OnSpawn` / `OnDespawn` / `Release(bool)` / `Locked` / `CustomCanReleaseFlag` |
+| `ObjectPoolBase` | Pool metadata base: `FullName` / `ObjectType` / `Count` / `Capacity` / `ExpireTime` |
+| `ObjectInfo` | Object-level debug snapshot (name / ref count / locked / releasable / last use time) |
+
+### GameObject Pool
+
+| Class/Interface | Description |
+|-----------------|-------------|
+| `GameObjectPoolService` | Static facade: `Spawn` / `SpawnAsync` / `TrySpawn` / `Despawn` / `WarmupAsync` / `LoadPrefab(Async)` / `Flush` / `FlushGroup` / `FlushAll` / `LoadCatalog` |
+| `RuntimeGameObjectPool` | Per-pool runtime: paged slots + intrusive inactive list + generation handles |
+| `GameObjectPoolHandle` | MonoBehaviour attached to pooled instances; generation validation prevents use-after-despawn |
+| `IGameObjectPoolable` | Pooled component interface: `OnSpawn(in GameObjectPoolSpawnContext)` / `OnDespawn` / `OnPooledDestroy` |
+| `EPoolPolicy` | Recycle policy: `Fixed` (trim on excess) / `Burst` (trim after idle timeout) / `Sticky` (no proactive trim) |
+| `PoolEntry` / `PoolConfigScriptableObject` | Serializable config entries and config asset (supports Glob: `*`, `**`, `?`) |
+| `PoolCompiledCatalog` | Compiled rule catalog: exact + Glob matching |
+| `IPrefabLoader` | Prefab loading abstraction; default `ResourcePrefabLoader` uses `ResourceService.LoadLease` leases for ref-counting |
+
+### Debugging
+
+| Class/Interface | Description |
+|-----------------|-------------|
+| `GameObjectPoolSummarySnapshot` / `GameObjectPoolSnapshot` | GO pool statistics snapshots (spawn/despawn/hit/miss/expand/destroy/peak + instance list) |
+| `GetAllObjectPools(bool sort, ObjectPoolBase[])` / `GetAllObjectInfos(ObjectInfo[])` | Generic pool debug export |
+| Debugger windows | `Profiler/Object Pool` (generic), `Profiler/GameObject Pool` (GO pool) |
 
 ## Quick Start
 
-### 1. Configure pool rules
-
-Create a `PoolConfigScriptableObject` via `Create > Moirai > PoolConfig`:
+### 1. Generic Pool (Pure C# Objects)
 
 ```csharp
-// Or assign in Inspector on ObjectPoolSetting component
-var config = ScriptableObject.CreateInstance<PoolConfigScriptableObject>();
-config.entries = new List<PoolEntry>
+// Define a pooled object: derive ObjectBase, implement Release, reset state in Clear
+public sealed class BuffData : ObjectBase
 {
-    new PoolEntry
+    public Buff Owner { get; private set; }
+
+    public void Init(Buff owner)
     {
-        entryName = "Bullets",
-        group = "Combat",
-        assetPath = "Assets/Bundles/Prefabs/Bullet",
-        policy = PoolPolicy.Fixed,
-        minIdle = 10,
-        softCapacity = 50,
-        hardCapacity = 100,
-        idleSeconds = 15f,
-        unloadPrefab = true,
-        priority = 10
-    },
-    new PoolEntry
-    {
-        entryName = "UIPopups",
-        group = "UI",
-        assetPath = "Assets/Bundles/UI/*",  // Glob pattern
-        policy = PoolPolicy.Burst,
-        minIdle = 2,
-        softCapacity = 8,
-        hardCapacity = 32,
-        idleSeconds = 30f
+        Initialize(owner);          // target is the identity & lookup key
     }
+
+    protected internal override void Release(bool isShutdown)
+    {
+        // permanently removed: release underlying resources
+    }
+
+    public override void Clear()
+    {
+        Owner = null;               // reset before returning to MemoryPool
+        base.Clear();
+    }
+}
+
+// Get or create a pool (key = typeof(BuffData) + optional pool name)
+IObjectPool<BuffData> pool = ObjectPoolService.GetOrCreatePool<BuffData>(
+    new ObjectPoolCreateOptions(capacity: 256, expireTime: 30f));
+
+// Spawn / despawn
+BuffData buff = pool.Spawn();
+pool.Despawn(buff);
+
+// Reference-counted mode: one object can be spawned by multiple parties
+var sharedPool = ObjectPoolService.GetOrCreatePool<SharedFx>(
+    new ObjectPoolCreateOptions(allowMultiSpawn: true));
+SharedFx fx = sharedPool.Spawn();   // SpawnCount++
+sharedPool.Despawn(fx);             // SpawnCount--; reusable again when zero
+```
+
+### 2. GameObject Pool
+
+Configure a `PoolConfigScriptableObject` (Create > Moirai > PoolConfig):
+
+```csharp
+new PoolEntry
+{
+    entryName = "Bullet",
+    group = "Combat",
+    assetPath = "Assets/Bundles/Prefabs/Bullet",   // Glob also supported: Assets/Bundles/UI/*
+    policy = EPoolPolicy.Fixed,
+    minIdle = 10,
+    softCapacity = 50,
+    hardCapacity = 100,
+    idleSeconds = 15f,
+    unloadPrefab = true,
+    priority = 10
 };
 ```
 
-### 2. Spawn and despawn
+> Config can be provided via `GameObjectPoolServiceSettings` (assign the PoolConfig asset in the Inspector; auto-loaded on service init),
+> or at runtime via `GameObjectPoolService.LoadCatalog(config)` / `LoadCatalog(location)` for hot swap (rebuilds all pools).
 
 ```csharp
-// Sync spawn (requires prefab already loaded)
-GameObject bullet = GameApp.ObjectPool.Spawn("Assets/Bundles/Prefabs/Bullet", parent);
+// Synchronous spawn (prefab must be loaded)
+GameObject bullet = GameObjectPoolService.Spawn("Assets/Bundles/Prefabs/Bullet", parent);
 
-// Async spawn (loads prefab if needed)
-GameObject popup = await GameApp.ObjectPool.SpawnAsync("Assets/Bundles/UI/SettingsPopup", parent, cancellationToken);
+// Async spawn (auto loads prefab, deduplicated)
+GameObject popup = await GameObjectPoolService.SpawnAsync("Assets/Bundles/UI/SettingsPopup", parent, cancellationToken);
 
-// Get component directly
-var renderer = await GameApp.ObjectPool.SpawnAsync<MeshRenderer>("Assets/Bundles/Props/Rock", parent);
+// Spawn and fetch a component directly
+var renderer = await GameObjectPoolService.SpawnAsync<MeshRenderer>("Assets/Bundles/Props/Rock", parent);
 
-// Despawn (returns to pool)
-GameApp.ObjectPool.Despawn(bullet);
+// Despawn (return to pool)
+GameObjectPoolService.Despawn(bullet);
 
-// Or despawn via handle (attached to the GameObject)
-if (bullet.TryGetComponent(out ObjectPoolHandle handle))
+// Or via handle
+if (bullet.TryGetComponent(out GameObjectPoolHandle handle))
 {
-    GameApp.ObjectPool.Despawn(handle);
+    GameObjectPoolService.Despawn(handle);
 }
 ```
 
-### 3. Warmup
+### 3. Poolable Components & Warmup
 
 ```csharp
-// Pre-create 20 instances with frame budget (won't spike)
-await GameApp.ObjectPool.WarmupAsync("Assets/Bundles/Prefabs/Bullet", 20, cancellationToken);
-```
-
-### 4. Poolable components
-
-Implement `IObjectPoolable` on components attached to pooled prefabs:
-
-```csharp
-public class BulletController : MonoBehaviour, IObjectPoolable
+public class BulletController : MonoBehaviour, IGameObjectPoolable
 {
-    public void OnSpawn(in PoolSpawnContext context)
+    public void OnSpawn(in GameObjectPoolSpawnContext context)
     {
-        // Called when taken from pool — reset state, start movement, etc.
-        transform.SetPositionAndRotation(context.Parent.position, Quaternion.identity);
+        // taken from the pool — context.Location/Group/Parent/SpawnFrame
     }
 
     public void OnDespawn()
     {
-        // Called when returned to pool — stop movement, clear references, etc.
+        // returned to the pool
     }
 
     public void OnPooledDestroy()
     {
-        // Called when the instance is permanently destroyed (capacity trim, shutdown)
+        // instance permanently destroyed (trim, low-memory shrink, pool shutdown)
     }
 }
+
+// Pre-create 20 instances with per-frame budget (no frame spikes)
+await GameObjectPoolService.WarmupAsync("Assets/Bundles/Prefabs/Bullet", 20, cancellationToken);
 ```
 
-## Advanced Usage
+## Advanced
 
-### Flush operations
+### GameObject Pool Policies
+
+| Policy | Behavior | Use Case |
+|--------|----------|----------|
+| `Fixed` | Exceeds retain target → trim immediately | Bullets, particles (strict limits) |
+| `Burst` | Idle beyond idleSeconds → trim | UI windows, common props |
+| `Sticky` | No proactive trim; manual Flush / low-memory only | High-frequency reuse |
+
+### Generic Pool Capacity & Expiry
+
+| Option | Behavior |
+|--------|----------|
+| `Capacity` | On register overflow, tries releasing releasable idle objects first; refuses the object if still full |
+| `ExpireTime` | Unused objects past idle duration → released in budgeted batches (8 per wake) |
+| `AutoReleaseInterval` | Sustained over-capacity for the interval marks the excess for release |
+| `Locked` / `CustomCanReleaseFlag` | Per-object veto against automatic release |
+
+### Flush Operations (GO Pool)
 
 ```csharp
-// Flush a single pool
-GameApp.ObjectPool.Flush("Assets/Bundles/Prefabs/Bullet");
-
-// Flush all pools in a group
-GameApp.ObjectPool.FlushGroup("Combat");
-
-// Flush all pools (equivalent to low-memory response)
-GameApp.ObjectPool.FlushAll();
+GameObjectPoolService.Flush("Assets/Bundles/Prefabs/Bullet");  // single pool
+GameObjectPoolService.FlushGroup("Combat");                    // by group
+GameObjectPoolService.FlushAll();                               // all (same as low-memory response)
 ```
 
-### Policy reference
-
-| Policy | Trim behavior | Use case |
-|--------|---------------|----------|
-| `Fixed` | Exceeds softCapacity → immediate trim | Bullets, particles (strict limit) |
-| `Burst` | Idle > idleSeconds → trim | UI windows, general props |
-| `Sticky` | Never auto-trim; manual Flush only | Frequently reused objects |
-
-### Debug inspection
+### Debug Inspection
 
 ```csharp
-if (GameApp.ObjectPool is ObjectPoolService service)
+// GO pool
+GameObjectPoolSummarySnapshot summary = GameObjectPoolService.GetDebugSummary();
+GameObjectPoolSnapshot[] snapshots = new GameObjectPoolSnapshot[64];
+int count = GameObjectPoolService.GetDebugSnapshots(snapshots);
+for (int i = 0; i < count; i++)
 {
-    var summary = service.GetDebugSummary();
-    // summary.PoolCount, summary.ActiveInstanceCount, summary.InactiveInstanceCount, etc.
-
-    ObjectPoolSnapshot[] snapshots = new ObjectPoolSnapshot[64];
-    int count = service.GetDebugSnapshots(snapshots);
-    for (int i = 0; i < count; i++)
-    {
-        // snapshots[i].hitCount, snapshots[i].missCount, snapshots[i].peakActive, etc.
-        MemoryPool.Release(snapshots[i]); // Return snapshot to MemoryPool
-    }
+    MemoryPool.Release(snapshots[i]);   // return snapshot to MemoryPool
 }
+
+// Generic pool
+ObjectPoolBase[] pools = new ObjectPoolBase[64];
+int poolCount = ObjectPoolService.GetAllObjectPools(true, pools);   // true = sort by priority
 ```
 
-The Debugger window (`Profiler > GameObject Pool`) provides a live view of all pool stats.
+Debugger windows: `Profiler/Object Pool` (generic), `Profiler/GameObject Pool` (GO pool, with hit/miss/peak metrics).
+
+## Migration From Old API
+
+| Old (≤ before 126df59) | New | Notes |
+|------------------------|-----|-------|
+| `ObjectPoolService` (GO pool semantics) | `GameObjectPoolService` | Facade renamed; GO pool APIs unchanged |
+| `GameApp.ObjectPool` | `GameObjectPoolService` static facade | No longer accessed via GameApp |
+| `IObjectPoolable` / `PoolSpawnContext` / `ObjectPoolHandle` | `IGameObjectPoolable` / `GameObjectPoolSpawnContext` / `GameObjectPoolHandle` | Type renames |
+| `IObjectPoolable.OnPooledDestroy` etc. | Same names | Component code only changes the interface name |
+| `ObjectPoolSetting` component | `GameObjectPoolServiceSettings` (PoolConfig field) | Config single-sourced into the Settings asset |
+| — | `ObjectPoolService` | New generic pool facade (port of the AlicizaX reference capability) |
 
 ## Notes
 
-- Pool rules must be registered via `PoolConfigScriptableObject` before spawning. Unregistered locations will log an error and return null.
-- `Spawn()` (sync) returns null if the prefab hasn't been loaded yet. Use `SpawnAsync()` for first-time loads.
-- `Despawn()` is safe to call on non-pooled GameObjects — it will fall back to `Object.Destroy()` with a warning.
-- `ObjectPoolHandle` is automatically added to instances on creation. External `Destroy()` of a pooled object triggers `NotifyHandleDestroyed` for cleanup.
-- The service is driven by `IServiceTickable.Tick()` via `GameServices.Tick` — no separate MonoBehaviour Update loop.
-- `ObjectPoolSetting` component on GameEntry provides Inspector-configured defaults and low-memory/focus event registration (same pattern as `MemoryPoolSetting`).
+- **Opt-in registration**: neither service is in the dependency chain by default; when unregistered, facade calls silently no-op and maintenance never runs (see top).
+- Generic pool objects are created externally and `Register`ed; objects created via `MemoryPool.Acquire` are recycled by the pool, externally `new`ed ones go to GC on release.
+- GO pool spawns require rules registered via `PoolConfigScriptableObject`; unregistered locations log an error and return null.
+- `Spawn()` (sync) returns null when the prefab is not loaded; use `SpawnAsync()` for the first load.
+- `Despawn()` is safe on non-pooled GameObjects — falls back to `Destroy` (immediate in EditMode) with a warning.
+- `GameObjectPoolHandle` is added automatically on creation; external `Destroy` of a pooled instance triggers generation-validated cleanup with a warning.
+- Maintenance is driven by `GameServices.Tick` (min-heap due wakeups, 1ms per-frame budget) — no standalone MonoBehaviour Update loop.
+- Low memory: both pool Handlers subscribe to `Application.lowMemory` and shrink fully; `GameApp.OnLowMemory` only drives the resource layer unload.
 
 ---
-[« Back to Main README](../../README_EN.md)
+[« Back to main README](../../README.md)

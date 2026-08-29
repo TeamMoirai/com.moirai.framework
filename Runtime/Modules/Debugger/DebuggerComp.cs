@@ -71,7 +71,8 @@ namespace Moirai.Atropos.Debugger
         private RuntimeMemoryInformationWindow<Font> _runtimeMemoryFontInformationWindow = new RuntimeMemoryInformationWindow<Font>();
         private RuntimeMemoryInformationWindow<TextAsset> _runtimeMemoryTextAssetInformationWindow = new RuntimeMemoryInformationWindow<TextAsset>();
         private RuntimeMemoryInformationWindow<ScriptableObject> _runtimeMemoryScriptableObjectInformationWindow = new RuntimeMemoryInformationWindow<ScriptableObject>();
-        private ObjectPoolInformationWindow _objectPoolInformationWindow = new ObjectPoolInformationWindow();
+        private GenericObjectPoolInformationWindow _genericObjectPoolInformationWindow = new GenericObjectPoolInformationWindow();
+        private GameObjectPoolInformationWindow _gameObjectPoolInformationWindow = new GameObjectPoolInformationWindow();
         private MemoryPoolPoolInformationWindow _memoryPoolPoolInformationWindow = new MemoryPoolPoolInformationWindow();
         // private NetworkInformationWindow _networkInformationWindow = new NetworkInformationWindow();
         private SettingsWindow _settingsWindow = new SettingsWindow();
@@ -202,7 +203,8 @@ namespace Moirai.Atropos.Debugger
             RegisterDebuggerWindow("Profiler/Memory/Font", _runtimeMemoryFontInformationWindow);
             RegisterDebuggerWindow("Profiler/Memory/TextAsset", _runtimeMemoryTextAssetInformationWindow);
             RegisterDebuggerWindow("Profiler/Memory/ScriptableObject", _runtimeMemoryScriptableObjectInformationWindow);
-            RegisterDebuggerWindow("Profiler/GameObject Pool", _objectPoolInformationWindow);
+            RegisterDebuggerWindow("Profiler/Object Pool", _genericObjectPoolInformationWindow);
+            RegisterDebuggerWindow("Profiler/GameObject Pool", _gameObjectPoolInformationWindow);
             RegisterDebuggerWindow("Profiler/Reference Pool", _memoryPoolPoolInformationWindow);
             RegisterDebuggerWindow("Profiler/Service System", _serviceSystemInformationWindow);
             // RegisterDebuggerWindow("Profiler/Network", _networkInformationWindow);

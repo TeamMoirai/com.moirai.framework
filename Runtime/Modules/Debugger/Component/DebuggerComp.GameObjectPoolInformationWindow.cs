@@ -5,13 +5,13 @@ namespace Moirai.Atropos.Debugger
 {
     public sealed partial class DebuggerComp
     {
-        private sealed class ObjectPoolInformationWindow : ScrollableDebuggerWindowBase
+        private sealed class GameObjectPoolInformationWindow : ScrollableDebuggerWindowBase
         {
             protected override void OnDrawScrollableWindow()
             {
                 GUILayout.Label("<b>GameObject Pool Information</b>");
 
-                ObjectPoolSummarySnapshot summary = ObjectPoolService.GetDebugSummary();
+                GameObjectPoolSummarySnapshot summary = GameObjectPoolService.GetDebugSummary();
                 GUILayout.BeginVertical("box");
                 {
                     DrawItem("Pool Count", summary.PoolCount.ToString());
@@ -23,8 +23,8 @@ namespace Moirai.Atropos.Debugger
                 }
                 GUILayout.EndVertical();
 
-                ObjectPoolSnapshot[] snapshots = new ObjectPoolSnapshot[64];
-                int count = ObjectPoolService.GetDebugSnapshots(snapshots);
+                GameObjectPoolSnapshot[] snapshots = new GameObjectPoolSnapshot[64];
+                int count = GameObjectPoolService.GetDebugSnapshots(snapshots);
                 for (int i = 0; i < count; i++)
                 {
                     DrawPoolSnapshot(snapshots[i]);
@@ -36,7 +36,7 @@ namespace Moirai.Atropos.Debugger
                 }
             }
 
-            private void DrawPoolSnapshot(ObjectPoolSnapshot snapshot)
+            private void DrawPoolSnapshot(GameObjectPoolSnapshot snapshot)
             {
                 GUILayout.Label(StringUtility.Format("<b>Pool: {0}</b>", snapshot.location));
                 GUILayout.BeginVertical("box");

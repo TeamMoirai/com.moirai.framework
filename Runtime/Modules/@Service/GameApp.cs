@@ -1,6 +1,5 @@
 ﻿using Moirai.Atropos.Audio;
 using Moirai.Atropos.Events;
-using Moirai.Atropos.ObjectPool;
 using Moirai.Atropos.Resource;
 using Moirai.Atropos.UI;
 using UnityEngine;
@@ -144,12 +143,12 @@ namespace Moirai.Atropos
 
         /// <remarks>
         /// Application.lowMemory 由 Unity 在主线程触发（与 Application.focus/quit 一致），无需线程守卫。
+        /// 两个池服务的 Handler 各自订阅 lowMemory 并自行收缩；此处仅驱动资源层卸载。
         /// </remarks>
         private void OnLowMemory()
         {
             LogUtility.Warning("Low memory reported...");
 
-            ObjectPoolService.FlushAll();
             ResourceService.ForceUnloadUnusedAssets(true);
         }
 

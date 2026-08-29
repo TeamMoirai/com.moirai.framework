@@ -4,7 +4,7 @@ using System.Collections.Generic;
 namespace Moirai.Atropos.ObjectPool
 {
     /// <summary>
-    /// 编译后的池规则。
+    /// 编译后的 GameObject 池规则。
     /// </summary>
     internal readonly struct PoolCompiledRule
     {
@@ -86,6 +86,18 @@ namespace Moirai.Atropos.ObjectPool
         /// <summary>
         /// 初始化 <see cref="PoolCompiledRule"/> 的新实例。
         /// </summary>
+        /// <param name="ruleIndex">规则索引。</param>
+        /// <param name="entryName">条目名称。</param>
+        /// <param name="group">分组名称。</param>
+        /// <param name="pattern">匹配模式。</param>
+        /// <param name="policy">池策略。</param>
+        /// <param name="minIdle">最小空闲数量。</param>
+        /// <param name="softCapacity">软容量。</param>
+        /// <param name="hardCapacity">硬容量。</param>
+        /// <param name="idleSeconds">空闲超时秒数。</param>
+        /// <param name="unloadPrefab">是否卸载预制体。</param>
+        /// <param name="priority">优先级。</param>
+        /// <param name="matcher">匹配器。</param>
         public PoolCompiledRule(
             int ruleIndex,
             string entryName,

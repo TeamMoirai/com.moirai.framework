@@ -1,26 +1,22 @@
-﻿using System.Threading;
-using Cysharp.Threading.Tasks;
-using Moirai.Atropos.Resource;
-using UnityEngine;
-
-namespace Moirai.Atropos.ObjectPool
+﻿namespace Moirai.Atropos.ObjectPool
 {
     /// <summary>
-    /// 游戏对象池服务外观（Facade）。
-    /// <para>统一的静态对象池访问入口，通过替换 <see cref="Handler"/> 即可在不同对象池后端之间零成本切换。</para>
+    /// 通用对象池服务外观（Facade）。
+    /// <para>统一的静态通用池访问入口，通过替换 <see cref="Handler"/> 即可在不同池后端之间零成本切换。</para>
     /// <para>未显式设置处理器时，使用 <see cref="CreateDefaultHandler"/> 从 <see cref="ObjectPoolServiceSettings"/> 创建处理器实例。</para>
     /// <para>Handler 属性由 <c>HandlerHostGenerator</c> 源生成器自动生成（线程安全懒加载）。</para>
+    /// <para>通用池面向任意 <see cref="ObjectBase"/> 派生对象（非 GameObject）；GameObject 池化请使用 <see cref="GameObjectPoolService"/>。</para>
     /// </summary>
     [HandlerHost(typeof(ObjectPoolServiceHandler))]
-    [ServiceDependency(typeof(ResourceService))]
+    [UnityEngine.Scripting.Preserve]
     public partial class ObjectPoolService : ServiceBase, IServiceTickable
     {
         #region 处理器 [HANDLER]
 
         /// <summary>
-        /// 从 <see cref="ObjectPoolServiceSettings"/> 创建默认对象池处理器。
+        /// 从 <see cref="ObjectPoolServiceSettings"/> 创建默认通用对象池处理器。
         /// </summary>
-        /// <returns>默认对象池处理器实例。</returns>
+        /// <returns>默认通用对象池处理器实例。</returns>
         private static ObjectPoolServiceHandler CreateDefaultHandler()
         {
             return ObjectPoolServiceSettings.ObjectPoolServiceHandler;
@@ -31,9 +27,14 @@ namespace Moirai.Atropos.ObjectPool
         #region 属性 [PROPERTIES]
 
         /// <summary>
-        /// 服务是否可用
+        /// 服务是否可用。
         /// </summary>
         public static bool IsValid => s_Handler != null;
+
+        /// <summary>
+        /// 获取池数量。
+        /// </summary>
+        public static int Count => s_Handler?.Count ?? 0;
 
         #endregion
 
@@ -42,10 +43,10 @@ namespace Moirai.Atropos.ObjectPool
         /// <summary>
         /// 获取服务优先级。
         /// </summary>
-        public override int Priority => 6;
+        public override int Priority => 5;
 
         /// <summary>
-        /// 初始化对象池服务。由容器在构建期调用。
+        /// 初始化通用对象池服务。由容器在构建期调用。
         /// <para>确保 <c>ObjectPoolService.Handler</c> 已赋值（触发 <see cref="CreateDefaultHandler"/> 懒加载）。</para>
         /// </summary>
         public override void OnInit()
@@ -54,7 +55,7 @@ namespace Moirai.Atropos.ObjectPool
         }
 
         /// <summary>
-        /// 关闭对象池服务。由容器在关闭期调用。
+        /// 关闭通用对象池服务。由容器在关闭期调用。
         /// </summary>
         public override void Shutdown()
         {
@@ -70,139 +71,68 @@ namespace Moirai.Atropos.ObjectPool
 
         #endregion
 
-        #region 对象池操作 [POOL OPERATIONS]
+        #region 池管理 [POOL MANAGEMENT]
 
         /// <summary>
-        /// 同步获取游戏对象。
+        /// 是否存在指定类型的池。
         /// </summary>
-        /// <param name="location">资源地址。</param>
-        /// <param name="parent">父级 Transform。</param>
-        /// <returns>游戏对象。</returns>
-        public static GameObject Spawn(string location, Transform parent = null) =>
-            s_Handler?.Spawn(location, parent);
+        /// <typeparam name="T">池化对象类型。</typeparam>
+        /// <param name="name">池名称。</param>
+        /// <returns>是否存在。</returns>
+        public static bool HasObjectPool<T>(string name = "") where T : ObjectBase =>
+            s_Handler != null && s_Handler.HasObjectPool<T>(name);
 
         /// <summary>
-        /// 同步获取组件。
+        /// 获取指定类型的池。
         /// </summary>
-        /// <typeparam name="T">组件类型。</typeparam>
-        /// <param name="location">资源地址。</param>
-        /// <param name="parent">父级 Transform。</param>
-        /// <returns>组件。</returns>
-        public static T Spawn<T>(string location, Transform parent = null) where T : Component =>
-            s_Handler?.Spawn<T>(location, parent);
+        /// <typeparam name="T">池化对象类型。</typeparam>
+        /// <param name="name">池名称。</param>
+        /// <returns>池实例；不存在返回 null。</returns>
+        public static IObjectPool<T> GetObjectPool<T>(string name = "") where T : ObjectBase =>
+            s_Handler != null ? s_Handler.GetObjectPool<T>(name) : null;
 
         /// <summary>
-        /// 尝试同步获取游戏对象。
+        /// 获取或创建指定类型的池。
         /// </summary>
-        /// <param name="location">资源地址。</param>
-        /// <param name="parent">父级 Transform。</param>
-        /// <param name="instance">获取的游戏对象。</param>
-        /// <returns>是否成功。</returns>
-        public static bool TrySpawn(string location, Transform parent, out GameObject instance)
-        {
-            instance = s_Handler?.Spawn(location, parent);
-            return instance != null;
-        }
+        /// <typeparam name="T">池化对象类型。</typeparam>
+        /// <param name="options">创建选项（已存在时忽略）。</param>
+        /// <returns>池实例；服务未注册返回 null。</returns>
+        public static IObjectPool<T> GetOrCreatePool<T>(ObjectPoolCreateOptions options = default) where T : ObjectBase =>
+            s_Handler != null ? s_Handler.GetOrCreatePool<T>(options) : null;
 
         /// <summary>
-        /// 异步获取游戏对象。
+        /// 销毁指定类型的池（释放其全部对象）。
         /// </summary>
-        /// <param name="location">资源地址。</param>
-        /// <param name="parent">父级 Transform。</param>
-        /// <param name="cancellationToken">取消令牌。</param>
-        /// <returns>游戏对象。</returns>
-        public static UniTask<GameObject> SpawnAsync(string location, Transform parent = null, CancellationToken cancellationToken = default) =>
-            s_Handler != null
-                ? s_Handler.SpawnAsync(location, parent, cancellationToken)
-                : UniTask.FromResult<GameObject>(null);
+        /// <typeparam name="T">池化对象类型。</typeparam>
+        /// <param name="name">池名称。</param>
+        /// <returns>是否销毁成功。</returns>
+        public static bool DestroyObjectPool<T>(string name = "") where T : ObjectBase =>
+            s_Handler != null && s_Handler.DestroyObjectPool<T>(name);
 
         /// <summary>
-        /// 异步获取组件。
+        /// 获取全部池（按优先级可选排序）填充到结果数组。
         /// </summary>
-        /// <typeparam name="T">组件类型。</typeparam>
-        /// <param name="location">资源地址。</param>
-        /// <param name="parent">父级 Transform。</param>
-        /// <param name="cancellationToken">取消令牌。</param>
-        /// <returns>组件。</returns>
-        public static UniTask<T> SpawnAsync<T>(string location, Transform parent = null, CancellationToken cancellationToken = default) where T : Component =>
-            s_Handler != null
-                ? s_Handler.SpawnAsync<T>(location, parent, cancellationToken)
-                : UniTask.FromResult<T>(null);
-
-        /// <summary>
-        /// 异步预热指定地址的对象池。
-        /// </summary>
-        /// <param name="location">资源地址。</param>
-        /// <param name="count">预热数量。</param>
-        /// <param name="cancellationToken">取消令牌。</param>
-        /// <returns>异步任务。</returns>
-        public static UniTask WarmupAsync(string location, int count, CancellationToken cancellationToken = default) =>
-            s_Handler != null
-                ? s_Handler.WarmupAsync(location, count, cancellationToken)
-                : UniTask.CompletedTask;
-
-        /// <summary>
-        /// 回收游戏对象。
-        /// </summary>
-        /// <param name="instance">游戏对象。</param>
-        public static void Despawn(GameObject instance) =>
-            s_Handler?.Despawn(instance);
-
-        /// <summary>
-        /// 通过句柄回收游戏对象。
-        /// </summary>
-        /// <param name="handle">句柄。</param>
-        public static void Despawn(ObjectPoolHandle handle) =>
-            s_Handler?.Despawn(handle);
-
-        /// <summary>
-        /// 刷新指定地址的池。
-        /// </summary>
-        /// <param name="location">资源地址。</param>
-        public static void Flush(string location) =>
-            s_Handler?.Flush(location);
-
-        /// <summary>
-        /// 刷新指定分组的所有池。
-        /// </summary>
-        /// <param name="group">分组名称。</param>
-        public static void FlushGroup(string group) =>
-            s_Handler?.FlushGroup(group);
-
-        /// <summary>
-        /// 刷新所有池。
-        /// </summary>
-        public static void FlushAll() =>
-            s_Handler?.FlushAll();
-
-        /// <summary>
-        /// 加载池配置。
-        /// </summary>
-        /// <param name="config">配置 ScriptableObject。</param>
-        public static void LoadCatalog(PoolConfigScriptableObject config) =>
-            s_Handler?.LoadCatalog(config);
+        /// <param name="sort">是否按优先级降序排序。</param>
+        /// <param name="results">结果数组。</param>
+        /// <returns>池总数（可能超出数组容量）。</returns>
+        public static int GetAllObjectPools(bool sort, ObjectPoolBase[] results) =>
+            s_Handler != null ? s_Handler.GetAllObjectPools(sort, results) : 0;
 
         #endregion
 
-        #region 调试接口 [DEBUG INTERFACE]
+        #region 释放 [RELEASE]
 
         /// <summary>
-        /// 获取调试摘要。
+        /// 释放所有池的全部可释放对象。
         /// </summary>
-        public static ObjectPoolSummarySnapshot GetDebugSummary() =>
-            s_Handler?.GetDebugSummary() ?? default;
+        public static void Release() =>
+            s_Handler?.Release();
 
         /// <summary>
-        /// 获取调试快照。
+        /// 释放所有池的全部未使用且可释放的对象（低内存响应同此）。
         /// </summary>
-        public static int GetDebugSnapshots(ObjectPoolSnapshot[] snapshots) =>
-            s_Handler?.GetDebugSnapshots(snapshots) ?? 0;
-
-        /// <summary>
-        /// 填充实例级调试快照。
-        /// </summary>
-        public static void FillDebugInstances(ObjectPoolSnapshot snapshot) =>
-            s_Handler?.FillDebugInstances(snapshot);
+        public static void ReleaseAllUnused() =>
+            s_Handler?.ReleaseAllUnused();
 
         #endregion
     }
