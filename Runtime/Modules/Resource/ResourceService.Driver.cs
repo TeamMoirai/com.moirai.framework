@@ -4,7 +4,7 @@ using UnityEngine;
 namespace Moirai.Atropos.Resource
 {
     /// <summary>
-    /// 资源服务驱动编排（原独立 <c>ResourceServiceDriver</c> 纯 C# 类并入门面 partial）。
+    /// 资源服务驱动编排（原独立 <c>ResourceServiceDriver</c> 纯 C# 类并入外观 partial）。
     /// <para>职责：配置单源注入、每帧 Idle/KeepAlive 时间轮推进、无用资源周期卸载调度、
     /// GC.Collect 节流与低内存响应。</para>
     /// </summary>

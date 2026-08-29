@@ -2,7 +2,7 @@
 
 > A resource management system based on YooAsset, featuring a generation-validated Lease/Binding architecture with zero-GC paged slot arrays, timer-wheel expiry, reference counting, multi-package loading, cancellation control, and encryption/decryption capabilities.
 
-The Resource service (`ResourceService`) provides a business-oriented wrapper around [YooAsset](https://github.com/tuyoogame/YooAsset). The module has been fully refactored to use the **Lease/Binding architecture**: resources are managed through generation-validated slot handles (`ResourceLeaseHandle`) and typed leases (`ResourceAssetLease<T>`), while UI/render components can be bound declaratively via `ResourceOwner` + `IResourceBindingService`. Access via `GameApp.Resource` (`IResourceService`).
+The Resource service (`ResourceService`) provides a business-oriented wrapper around [YooAsset](https://github.com/tuyoogame/YooAsset). The module has been fully refactored to use the **Lease/Binding architecture**: resources are managed through generation-validated slot handles (`ResourceLeaseHandle`) and typed leases (`ResourceAssetLease<T>`), while UI/render components can be bound declaratively via `ResourceOwner` + `IResourceBindingService`. Access via the `ResourceService` static facade.
 
 The internal engine uses **paged slot arrays** (`AssetSlot[][]`, `LeaseSlot[][]`, `BindingSlot[][]`, `OwnerSlot[][]`) with generation validation, **custom zero-GC hash maps** (`ResourceUlongIntMap` with Murmur finalizer, `ResourceIndexMap<TKey,TValue>`), and a **timer-wheel** expiry system (idle buckets + keep-alive buckets, O(1) per-frame processing). Loading dedup is handled via pooled `LoadingOperationState` objects. Frame-drive orchestration (config injection, timer-wheel advancement, unload scheduling, GC throttling, low-memory response) is wired automatically with the service lifecycle through the `ResourceService.Drive*` partial; the editor play mode can still be switched via EditorPrefs.
 
@@ -40,10 +40,10 @@ Namespace: `Moirai.Atropos.Resource`
 
 | Class/Interface | Description |
 |---------|------|
-| `IResourceService` | Resource manager interface, defines all APIs for loading, leasing, binding, unloading, and package operations; accessed via `GameApp.Resource` |
-| `IResourceBindingService` | Declarative resource-component binding service interface, accessed via `IResourceService.BindingService` |
-| `ResourceService` | Internal implementation (`internal sealed partial class`, split into: main logic / Records (slot system + timer-wheel) / Cache (capacity & legacy bridging) / Services) |
+| `ResourceService` | Static facade (`[HandlerHost]`) defining all APIs for loading, leasing, binding, unloading, and package operations; all static methods/properties forward through the `Handler` property (fail-fast: lazily initialized when not ready, throws if the default factory is missing, never silently degrades). `internal` partial split: main logic / Records (slot system + timer-wheel) / Cache (capacity & legacy bridging) / Services |
 | `ResourceService.Driver` | Facade partial: wired automatically on `OnInit` (Settings/UpdateSettings single-source injection + frame-drive registration); hosts `DriveTick` timer-wheel advancement and unload/GC scheduling |
+| `ResourceServiceHandler` | Handler abstract base class defining the backend contract; default implementation `YooAssetHandler` (plus experimental `AddressableHandler`) |
+| `IResourceBindingService` | Declarative resource-component binding service interface, accessed via `ResourceService.BindingService` |
 | `ResourceOwner` | MonoBehaviour component (`[DisallowMultipleComponent]`), auto-releases all bindings on `OnDestroy`. Provides `ReleaseBindings()`, `ReleaseBindingsInHierarchy(root)`, `EnsureFor(target, bindingService)`. |
 | `ResourceBindingExtensions` | Static extension class: `Image/SpriteRenderer.SetSprite`, `Image/SpriteRenderer.SetSubSprite`, `Image/SpriteRenderer/MeshRenderer.SetMaterial`, `MeshRenderer.SetSharedMaterial` |
 | `ResourceBindingTypes` | Binding-related enums and interfaces: `ResourceBindStatus`, `ResourceBindingOptions`, `ResourceBindingSlotType` |
@@ -72,12 +72,12 @@ using Moirai.Atropos.Resource;
 using UnityEngine;
 
 // Synchronous lease with using-statement (auto-releases on scope exit)
-using var lease = GameApp.Resource.LoadLease<Sprite>("Assets/AssetRaw/UI/icon.png");
+using var lease = ResourceService.LoadLease<Sprite>("Assets/AssetRaw/UI/icon.png");
 Sprite icon = lease.Asset;
 
 // Asynchronous lease with CancellationToken
 var cts = new CancellationTokenSource();
-using (var lease2 = await GameApp.Resource.LoadLeaseAsync<Texture2D>(
+using (var lease2 = await ResourceService.LoadLeaseAsync<Texture2D>(
     "Assets/AssetRaw/UI/atlas.png", cts.Token))
 {
     Texture2D tex = lease2.Asset;
@@ -86,17 +86,17 @@ using (var lease2 = await GameApp.Resource.LoadLeaseAsync<Texture2D>(
 
 // AcquireDirect for manual handle lifecycle control
 ResourceKey key = ResourceKey.Asset<GameObject>("Assets/AssetRaw/Prefabs/Hero.prefab");
-ResourceLeaseHandle handle = GameApp.Resource.AcquireDirect(key);
-if (GameApp.Resource.TryGetLeaseAsset(handle, out Object asset))
+ResourceLeaseHandle handle = ResourceService.AcquireDirect(key);
+if (ResourceService.TryGetLeaseAsset(handle, out Object asset))
 {
     // ... use asset
 }
-GameApp.Resource.Release(handle);
+ResourceService.Release(handle);
 
 // Async AcquireDirect
-ResourceLeaseHandle handle2 = await GameApp.Resource.AcquireDirectAsync(key, cts.Token);
+ResourceLeaseHandle handle2 = await ResourceService.AcquireDirectAsync(key, cts.Token);
 // ... use handle2
-GameApp.Resource.Release(handle2);
+ResourceService.Release(handle2);
 ```
 
 ### Binding API (recommended)
@@ -129,25 +129,25 @@ When a `SetSprite`/`SetMaterial` extension method is first called on a component
 
 ```csharp
 // Synchronous loading (internally bridged to lease system via legacy direct ref counting)
-Sprite icon = GameApp.Resource.LoadAsset<Sprite>("Assets/AssetRaw/UI/icon.png");
+Sprite icon = ResourceService.LoadAsset<Sprite>("Assets/AssetRaw/UI/icon.png");
 
 // Asynchronous loading (UniTask, supports CancellationToken)
 var cts = new CancellationTokenSource();
-Texture2D tex = await GameApp.Resource.LoadAssetAsync<Texture2D>(
+Texture2D tex = await ResourceService.LoadAssetAsync<Texture2D>(
     "Assets/AssetRaw/UI/atlas.png", cts.Token);
 
 // Asynchronous instantiation: reference is automatically released on Destroy
-GameObject hero = await GameApp.Resource.LoadGameObjectAsync(
+GameObject hero = await ResourceService.LoadGameObjectAsync(
     "Assets/AssetRaw/Prefabs/Hero.prefab", parent);
 
 // Synchronous instantiation
-GameObject go = GameApp.Resource.LoadGameObject("Assets/AssetRaw/Prefabs/Item.prefab", parent);
+GameObject go = ResourceService.LoadGameObject("Assets/AssetRaw/Prefabs/Item.prefab", parent);
 
 // Unload manually loaded resources (decrements legacy direct ref count)
-GameApp.Resource.UnloadAsset(icon);
+ResourceService.UnloadAsset(icon);
 
 // Callback-based async (async void; exceptions reported via LoadAssetFailureCallback)
-GameApp.Resource.LoadAssetAsync(
+ResourceService.LoadAssetAsync(
     "Assets/AssetRaw/Audio/bgm.mp3", 0,
     new LoadAssetCallbacks(
         (assetName, asset, duration, userData) => { /* success */ },
@@ -215,7 +215,7 @@ public struct ResourceAssetLease<T> : IDisposable where T : UnityEngine.Object
     public T Asset { get; }
     public ResourceLeaseHandle Handle { get; }
     public bool IsValid { get; }
-    public void Dispose(); // calls IResourceService.Release(Handle)
+    public void Dispose(); // calls ResourceService.Release(Handle)
 }
 ```
 
@@ -238,7 +238,7 @@ public readonly struct ResourceKey
 }
 ```
 
-### IResourceService Lease Methods
+### ResourceService Lease Methods
 
 | Method | Description |
 |--------|-------------|
@@ -330,7 +330,7 @@ Async binding methods (e.g. `BindSubSpriteAsync`, `BindImageMaterialAsync`, `Bin
 
 ## Capacity and Expiry Properties
 
-Configured in the `ResourceServiceSettings` (Framework settings asset) or via `IResourceService`:
+Configured in the `ResourceServiceSettings` (Framework settings asset) or via `ResourceService`:
 
 | Property | Default | Description |
 |----------|---------|-------------|
@@ -384,42 +384,40 @@ Configured on the Handler (`YooAssetHandler`) serialized fields of the `Resource
 - `UpdatableWhilePlaying`: Download while playing
 - `AssetAutoReleaseInterval / AssetCapacity / AssetExpireTime / AssetPriority`: Legacy pool parameters (bridged to IdleAssetExpireTime / AssetRecordCapacity)
 - `MinUnloadUnusedAssetsInterval / MaxUnloadUnusedAssetsInterval`: Minimum/maximum interval for unused asset recycling (default 60s / 300s)
-- `UseSystemUnloadUnusedAssets`: Whether to call `IResourceService.UnloadUnusedAssets()` during the system unload cycle
+- `UseSystemUnloadUnusedAssets`: Whether to call `ResourceService.UnloadUnusedAssets()` during the system unload cycle
 
 ### Hot Update Process API
 
 ```csharp
-IResourceService res = GameApp.Resource;
-
 // Initialize a specified resource package (needInitMainFest: true also requests and updates the manifest, for standalone OtherPackage scenarios)
-await res.InitPackage("DefaultPackage");
+await ResourceService.InitPackage("DefaultPackage");
 
 // Online mode: request remote version -> update manifest -> create downloader -> download
-var op = res.RequestPackageVersionAsync();
-res.PackageVersion = op.PackageVersion;
-res.UpdatePackageManifestAsync(res.PackageVersion);
-var downloader = res.CreateResourceDownloader();   // then poll the downloader
+var op = await ResourceService.RequestPackageVersionAsync();
+ResourceService.PackageVersion = op.PackageVersion;
+await ResourceService.UpdatePackageManifestAsync(ResourceService.PackageVersion);
+var downloader = ResourceService.CreateResourceDownloader();   // then poll the downloader
 
 // Download size query: pending bytes for a location (for remaining-download UI; throws GameException on invalid location/package)
-long downloadBytes = res.GetDownloadSize("Assets/AssetRaw/UI/logo.png");
-bool needRemote = res.IsNeedDownloadFromRemote("Assets/AssetRaw/UI/logo.png");
+long downloadBytes = ResourceService.GetDownloadSize("Assets/AssetRaw/UI/logo.png");
+bool needRemote = ResourceService.IsNeedDownloadFromRemote("Assets/AssetRaw/UI/logo.png");
 
 // Remote address and cache cleanup
-res.SetRemoteServicesUrl("https://cdn.example.com/res", "https://backup.example.com/res");
-res.ClearCacheFilesAsync();                        // clear unused cache files
-res.ClearAllBundleFiles();                         // clear sandbox path
+ResourceService.SetRemoteServicesUrl("https://cdn.example.com/res", "https://backup.example.com/res");
+ResourceService.ClearCacheFilesAsync();            // clear unused cache files
+ResourceService.ClearAllBundleFiles();             // clear sandbox path
 ```
 
 ### Asset Query and Handles
 
 ```csharp
-HasAssetResult result = GameApp.Resource.HasAsset("Assets/AssetRaw/UI/icon.png");
-bool valid = GameApp.Resource.CheckLocationValid("Assets/AssetRaw/UI/icon.png");
-AssetInfo[] infos = GameApp.Resource.GetAssetInfos("Preload");   // batch get by tag
+HasAssetResult result = ResourceService.HasAsset("Assets/AssetRaw/UI/icon.png");
+bool valid = ResourceService.IsLocationValid("Assets/AssetRaw/UI/icon.png");
+AssetInfo[] infos = ResourceService.GetAssetInfos("Preload");   // batch get by tag
 
-// When fine-grained control over handle lifecycle is needed (bypassing lease system)
-AssetHandle handle = GameApp.Resource.LoadAssetAsyncHandle<GameObject>("path");
-// ... use handle.AssetObject, then handle.Dispose() when done
+// When fine-grained control over handle lifecycle is needed, use the lease API (not auto-managed by ResourceOwner)
+using var lease = ResourceService.LoadLeaseAsync<GameObject>("path").GetAwaiter().GetResult();
+// ... use lease.Asset; released automatically at the end of the using scope
 ```
 
 ## Notes

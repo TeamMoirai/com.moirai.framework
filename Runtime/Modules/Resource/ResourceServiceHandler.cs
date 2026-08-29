@@ -10,7 +10,7 @@ namespace Moirai.Atropos.Resource
     /// 资源管理器处理器抽象基类（策略模式抽象策略）——定义通用资源加载、缓存、租约与绑定契约。
     /// <para>框架通用，不依赖具体资源系统（YooAsset、Addressable 等）；
     /// 由具体后端（如 <see cref="YooAssetHandler"/>、<see cref="AddressableHandler"/>）实现。</para>
-    /// <para>由 <see cref="ResourceServiceSettings"/> 序列化配置，<see cref="ResourceService"/> 门面转发调用。</para>
+    /// <para>由 <see cref="ResourceServiceSettings"/> 序列化配置，<see cref="ResourceService"/> 外观转发调用。</para>
     /// </summary>
     [Serializable]
     public abstract class ResourceServiceHandler : FrameworkHandler

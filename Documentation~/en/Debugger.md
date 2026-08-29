@@ -20,8 +20,8 @@ Namespace: `Moirai.Atropos.Debugger`
 
 | Class/Interface | Description |
 |---------|------|
-| `IDebuggerService` | Debugger manager interface: `ActiveWindow`, `DebuggerWindowRoot`, `RegisterDebuggerWindow` / `UnregisterDebuggerWindow` / `GetDebuggerWindow` / `SelectDebuggerWindow` |
-| `DebuggerService` | Default implementation (`internal sealed`), `Priority = -1`, implements `IUpdateService`, polls the window tree only when a window is active |
+| `DebuggerService` | Static facade (`[HandlerHost]`, `IServiceTickable`): `ActiveWindow`, `DebuggerWindowRoot`, `RegisterDebuggerWindow` / `UnregisterDebuggerWindow` / `GetDebuggerWindow` / `SelectDebuggerWindow`; polls the window tree only when a window is active, forwarding through the `Handler` property (fail-fast: lazily initialized when not ready, throws if the default factory is missing, never silently degrades) |
+| `DebuggerServiceHandler` | Handler abstract base class defining the backend contract; the default implementation `UnityDebuggerHandler` carries window-group management |
 | `IDebuggerWindow` | Debugger window interface: `Initialize(params object[] args)` / `Shutdown()` / `OnEnter()` / `OnLeave()` / `OnUpdate(float, float)` / `OnDraw()` |
 | `IDebuggerWindowGroup` | Window group interface (inherits `IDebuggerWindow`): `DebuggerWindowCount` / `SelectedIndex` / `SelectedWindow` / `GetDebuggerWindowNames()` / `RegisterDebuggerWindow(string, IDebuggerWindow)` |
 | `DebuggerComp` | Debugger component (`public sealed partial`, MonoBehaviour), renders all panels when attached to a scene, singleton `DebuggerComp.Instance` |

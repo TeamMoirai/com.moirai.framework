@@ -2,7 +2,7 @@
 
 > 基于 Luban 配置表的多语言服务，支持文本、图片、音频与 Timeline 的自动注入和内联解析。
 
-`Localization` 服务通过 `GameApp.Localization`（`ILocalizationService`）访问，首次访问多语言 API 时从 Luban 配置表（经 [ConfigTable](ConfigTable.md) 的 `ConfigMgr`）懒式加载全部本地化字符串并注册可用语言。语言按「命令行参数 → 编辑器设置 → 本地存档 → 系统语言」的优先级决定，切换语言时会触发 `OnLanguageChanged` 并自动重新注入所有已注册的 `LocalizerBase` 组件。除按 ID 取文本外，`LocalizationHelper.ResolveLocalizedStrings` 还支持在任意字符串中内联解析 `{l10n:ID}` / `{i18n:ID}` / `{g11n:ID}` 占位符。
+`Localization` 服务通过 `LocalizationService` 静态外观访问，首次访问多语言 API 时从 Luban 配置表（经 [ConfigTable](ConfigTable.md) 的 `ConfigTableService`）懒式加载全部本地化字符串并注册可用语言。语言按「命令行参数 → 编辑器设置 → 本地存档 → 系统语言」的优先级决定，切换语言时会触发 `OnLanguageChanged` 并自动重新注入所有已注册的 `LocalizerBase` 组件。除按 ID 取文本外，`LocalizationHelper.ResolveLocalizedStrings` 还支持在任意字符串中内联解析 `{l10n:ID}` / `{i18n:ID}` / `{g11n:ID}` 占位符。
 
 ## 核心特性
 
@@ -21,8 +21,7 @@
 
 | 类/接口 | 说明 |
 |---------|------|
-| `ILocalizationService` | 服务公开接口，`GameApp.Localization` 返回类型；含 `OnLanguageChanged` 事件 |
-| `LocalizationService` | `sealed` 实现类，负责加载配表文本、语言切换与 Localizer 管理 |
+| `LocalizationService` | 静态外观（`[HandlerHost]`），负责加载配表文本、语言切换与 Localizer 管理；`OnLanguageChanged` 事件由外观直接暴露 |
 | `Language` | 语言类（`IEquatable<Language>`）：`Name`、`Code`、`DisplayName`、`BuiltinLanguages`，支持与 `SystemLanguage` 互转 |
 | `LocalizationHelper` | 静态辅助类：`ResolveLocalizedStrings`、`RegisterLanguageMap`、`GetAllAvailableLanguages`、`ToLanguage` |
 | `LocalizerBase` | 本地化器抽象基类（MonoBehaviour）：`Prepare` 获取目标组件引用，`Localize` 执行注入 |
@@ -42,33 +41,33 @@
 ## 快速上手
 
 ```csharp
-// 访问服务
-ILocalizationService localization = GameApp.Localization;
+// 访问服务（静态外观，直接调用静态方法）
+LocalizationService.ChangeLanguage("English");
 
 // 本地化数据为懒式加载：首次调用任一查询/切换 API 时自动从配置表加载，无需手动初始化
 
 // 按文本 ID 取本地化字符串（未翻译或 ID 不存在时原样返回 ID）
-string title = localization.GetTextFromId("main_title");
+string title = LocalizationService.GetTextFromId("main_title");
 
 // 带 string.Format 参数
-string welcome = localization.GetTextFromId("welcome_player", "Moirai");
+string welcome = LocalizationService.GetTextFromId("welcome_player", "Moirai");
 
 // 指定语言取文本 / 取某 ID 的所有语言译文
-string english = localization.GetTextFromIdLanguage("main_title", Language.English);
-Dictionary<string, string> all = localization.GetDictionaryFromId("main_title");
+string english = LocalizationService.GetTextFromIdLanguage("main_title", Language.English);
+Dictionary<string, string> all = LocalizationService.GetDictionaryFromId("main_title");
 
 // ID 检查与枚举
-bool has = localization.Has("main_title");
-List<string> ids = localization.GetAllIds();
+bool has = LocalizationService.Has("main_title");
+List<string> ids = LocalizationService.GetAllIds();
 
 // 切换语言（三种方式，Name 与 Code 均不区分大小写）
-localization.ChangeLanguage(Language.ChineseSimplified);
-localization.ChangeLanguage("zh-Hans");
-localization.ChangeLanguage(0);                 // 按已加载语言索引
+LocalizationService.ChangeLanguage(Language.ChineseSimplified);
+LocalizationService.ChangeLanguage("zh-Hans");
+LocalizationService.ChangeLanguage(0);                 // 按已加载语言索引
 
 // 循环切换（调试用）
-string next = localization.ActivateNextLanguage();
-string prev = localization.ActivatePreviousLanguage();
+string next = LocalizationService.ActivateNextLanguage();
+string prev = LocalizationService.ActivatePreviousLanguage();
 ```
 
 ## 进阶用法
@@ -84,7 +83,7 @@ string hint = LocalizationHelper.ResolveLocalizedStrings("按 {l10n:btn_confirm}
 ### 订阅语言切换
 
 ```csharp
-GameApp.Localization.OnLanguageChanged += language =>
+LocalizationService.OnLanguageChanged += language =>
 {
     Debug.Log($"语言已切换: {language.DisplayName}");
     // 自行刷新非 LocalizerBase 管理的内容

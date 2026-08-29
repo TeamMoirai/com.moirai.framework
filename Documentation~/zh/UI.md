@@ -8,7 +8,7 @@ UI 服务（`Moirai.Atropos.UI`）将界面抽象为纯 C# 类的 `UIWindow` / `
 
 UI 服务采用与框架其他服务一致的 HandlerHost 零反射架构：
 
-- **`UIService`**：静态外观（`[HandlerHost(typeof(UIServiceHandler))]` + `[ServiceDependency(typeof(ResourceService), typeof(TimerService))]`），全部公共成员为静态方法/属性，内部转发到 `s_Handler`（源生成器生成线程安全懒加载属性）
+- **`UIService`**：静态外观（`[HandlerHost(typeof(UIServiceHandler))]` + `[ServiceDependency(typeof(ResourceService), typeof(TimerService))]`），全部公共成员为静态方法/属性，经 `Handler` 属性转发（fail-fast：未就绪时按需初始化，工厂缺失时抛异常，不静默降级；源生成器生成线程安全懒加载属性）
 - **`UIServiceHandler`**：可序列化抽象基类（继承 `FrameworkHandler`），定义外观调用的后端契约
 - **`UGUIHandler`**：默认实现（位于 `Handler/` 目录），承载窗口栈管理、层级排序、资源加载等核心逻辑；替换自定义后端无需改动调用方
 - **`UIServiceSettings`**：框架设置（菜单「UI设置」），通过 `[ProviderDropdown]` + `[SerializeReference]` 选择 UI 后端实现

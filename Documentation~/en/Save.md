@@ -2,11 +2,11 @@
 
 > A pluggable Handler-based local save system supporting JSON/binary formats and AES encryption, with atomic file replacement on write.
 
-The Save service (`SaveService`) decouples the serialization format from the file read/write process: `SaveService` is responsible for path assembly, directory creation, atomic writes, and deletion/cleanup, while the specific format is determined by `ISaveServiceHandler` implementations (`JsonSaveHandler`, encrypted version, and binary version), which can be switched in the `SaveServiceSettings` panel. Saves are written to `Application.persistentDataPath/Data/{folderName}/`, with filenames automatically appended with the configured extension (default `.sav`). Access via `GameApp.Save` (`ISaveService`).
+The Save service (`SaveService`) decouples the serialization format from the file read/write process: the `SaveService` static facade exposes the public API, while the specific format is determined by `SaveServiceHandler` subclasses (`JsonSaveHandler`, encrypted version, and binary version), which can be switched in the `SaveServiceSettings` panel. Saves are written to `Application.persistentDataPath/Data/{folderName}/`, with filenames automatically appended with the configured extension (default `.sav`). Access via the `SaveService` static facade.
 
 ## Core Features
 
-- Pluggable Handlers: Four built-in handlers (JSON / JSON Encrypted / Binary / Binary Encrypted), with support for custom `ISaveServiceHandler` injection
+- Pluggable Handlers: Four built-in handlers (JSON / JSON Encrypted / Binary / Binary Encrypted), with support for custom `SaveServiceHandler` subclass injection
 - Atomic save: First writes to `{filename}.tmp`, then on success deletes the old save and renames the temp file; on failure, automatically cleans up the temp file, preventing corruption from interrupted writes
 - AES encryption: Encrypted handlers are based on `SaveEncryptor`, using AES + `Rfc2898DeriveBytes` (key and salt derivation); on decryption failure, returns `default` without throwing an exception
 - Directory management: Saves are organized into folders by `folderName`, supporting deletion of individual saves, entire folders, or all saves
@@ -18,9 +18,8 @@ Namespace: `Moirai.Atropos.Save`
 
 | Class/Interface | Description |
 |---------|------|
-| `ISaveService` | Save service interface: `Save` / `Load` / `DeleteSave` / `DeleteSaveFolder` / `DeleteAllSaveFiles` / `FileExists` / `DetermineSavePath`; accessed via `GameApp.Save` |
-| `SaveService` | Service implementation (`Service, ISaveService`), reads the Handler from `SaveServiceSettings` on `OnInit` and injects the encryption key |
-| `ISaveServiceHandler` | Serialization handler interface: `UniTask Save(object objectToSave, FileStream saveFile)` and `UniTask<T> Load<T>(FileStream saveFile)` |
+| `SaveService` | Save service static facade (`[HandlerHost]`): `Save` / `Load` / `DeleteSave` / `DeleteSaveFolder` / `DeleteAllSaveFiles` / `FileExists` / `DetermineSavePath`; all static APIs forward through the `Handler` property (fail-fast: lazily initialized when not ready, throws if the default factory is missing, never silently degrades) |
+| `SaveServiceHandler` | Serialization handler abstract base class: high-level `Save(object, fileName, folderName)` handles path assembly / atomic writes; subclasses implement the `SerializeAsync(object, FileStream)` and `DeserializeAsync<T>(FileStream)` serialization hooks |
 | `JsonSaveHandler` | JSON format handler, prettyPrint in editor, compact bytes on device |
 | `JsonEncryptedSaveHandler` | JSON serialization + AES encryption (inherits `EncryptedSaveHandlerBase`) |
 | `BinarySaveHandler` | Binary format (`BinaryFormatter`), marked `[System.Obsolete]`, carries deserialization RCE risk, not recommended |
@@ -45,24 +44,24 @@ public class PlayerData
 }
 
 // Save: writes to persistentDataPath/Data/Save/player_data.sav
-await GameApp.Save.Save(new PlayerData { Level = 10, Coin = 999 }, "player_data");
+await SaveService.Save(new PlayerData { Level = 10, Coin = 999 }, "player_data");
 
 // Load: returns default when file does not exist or decryption fails
-if (GameApp.Save.FileExists("player_data"))
+if (SaveService.FileExists("player_data"))
 {
-    PlayerData data = await GameApp.Save.Load<PlayerData>("player_data");
+    PlayerData data = await SaveService.Load<PlayerData>("player_data");
 }
 
 // Save to a subfolder (persistentDataPath/Data/Settings/)
-await GameApp.Save.Save(settingsObject, "audio", "Settings");
+await SaveService.Save(settingsObject, "audio", "Settings");
 
 // Deletion
-GameApp.Save.DeleteSave("player_data");            // delete a single save
-GameApp.Save.DeleteSaveFolder("Settings");         // delete an entire save folder
-GameApp.Save.DeleteAllSaveFiles();                 // delete all saves under Data/
+SaveService.DeleteSave("player_data");            // delete a single save
+SaveService.DeleteSaveFolder("Settings");         // delete an entire save folder
+SaveService.DeleteAllSaveFiles();                 // delete all saves under Data/
 
 // Query the actual save path
-string path = GameApp.Save.DetermineSavePath();    // persistentDataPath/Data/Save/
+string path = SaveService.DetermineSavePath();    // persistentDataPath/Data/Save/
 ```
 
 ## Configuration and Extensions
@@ -77,7 +76,7 @@ string path = GameApp.Save.DetermineSavePath();    // persistentDataPath/Data/Sa
 
 ### Custom Handler
 
-Implement `ISaveServiceHandler` and inject it before service initialization (e.g., at the very start of the launch process):
+Inherit `SaveServiceHandler` to implement the serialization hooks and inject it before service initialization (e.g., at the very start of the launch process):
 
 ```csharp
 using System.IO;
@@ -85,17 +84,17 @@ using Cysharp.Threading.Tasks;
 using Moirai.Atropos;
 using Moirai.Atropos.Save;
 
-public class MessagePackSaveServiceHandler : ISaveServiceHandler
+public class MessagePackSaveServiceHandler : SaveServiceHandler
 {
-    public UniTask Save(object objectToSave, FileStream saveFile)
+    protected internal override UniTask SerializeAsync(object saveObject, FileStream saveFile)
     {
-        byte[] bytes = MessagePackUtility.Serialize(objectToSave);
+        byte[] bytes = MessagePackUtility.Serialize(saveObject);
         saveFile.Write(bytes, 0, bytes.Length);
         saveFile.Close();
         return UniTask.CompletedTask;
     }
 
-    public UniTask<T> Load<T>(FileStream saveFile)
+    protected internal override UniTask<T> DeserializeAsync<T>(FileStream saveFile)
     {
         using var ms = new MemoryStream();
         saveFile.CopyTo(ms);
@@ -105,13 +104,13 @@ public class MessagePackSaveServiceHandler : ISaveServiceHandler
 }
 
 // Inject (must be done before SaveService.OnInit, otherwise the panel configuration is used)
-SaveServiceSettings.SaveServiceHandler = new MessagePackSaveServiceHandler();
+SaveService.Handler = new MessagePackSaveServiceHandler();
 ```
 
 ## Notes
 
 - The `Save` parameter order is "object first, filename second": `Save(object saveObject, string fileName, string folderName = "Save")`.
-- The Handler is read and cached during `SaveService.OnInit`; modifying `SaveServiceSettings.SaveServiceHandler` at runtime does not affect an already initialized service.
+- The Handler is read and cached during `SaveService.OnInit`; switching the handler via the settings panel takes effect on the next service initialization.
 - The `Key` for encrypted handlers comes from `SaveServiceSettings.EncryptionKey`; the `Salt` still uses the `SaveEncryptor` default. Changing the key will make old saves undecryptable (`Load` returns `default`).
 - The binary handler is based on `BinaryFormatter` (deprecated and carries deserialization attack risk, removed in .NET 9+). New projects should use `JsonSaveHandler` or `JsonEncryptedSaveHandler`.
 - The JSON handler relies on the framework's built-in `JsonUtility` (`Moirai.Atropos`'s `Core/Utility/Json`), not `UnityEngine.JsonUtility`, and can directly serialize `byte[]`, dictionaries, and other types.

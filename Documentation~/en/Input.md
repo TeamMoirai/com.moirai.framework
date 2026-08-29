@@ -2,7 +2,7 @@
 
 > Abstract input layer: uses a unified polling API to bridge the differences between Unity's new and old input systems and mobile UI touch input, with a built-in key prompt (Prompts) system.
 
-The input service (`Moirai.Atropos.Input`) abstracts three input backends through `InputServiceHandler`. Business code only needs to work with `GameApp.Input`'s action-name-based API; switching backends requires no changes to the caller. The service also listens to UI modal events and application focus events, automatically blocking/restoring input, and provides cross-device key icon prompt components based on the Input System.
+The input service (`Moirai.Atropos.Input`) abstracts three input backends through `InputServiceHandler`. Business code only needs to work with `InputService`'s action-name-based API; switching backends requires no changes to the caller. The service also listens to UI modal events and application focus events, automatically blocking/restoring input, and provides cross-device key icon prompt components based on the Input System.
 
 ## Core Features
 
@@ -18,8 +18,7 @@ The input service (`Moirai.Atropos.Input`) abstracts three input backends throug
 
 | Class/Interface | Description |
 |---------|------|
-| `Moirai.Atropos.Input.IInputService` | Input service interface, returned by `GameApp.Input` |
-| `Moirai.Atropos.Input.InputService` | Input service implementation, aggregates Handler and state toggles |
+| `Moirai.Atropos.Input.InputService` | Input service static facade (`[HandlerHost]`); all polling APIs are static methods forwarding through the `Handler` property (fail-fast: lazily initialized when not ready, throws if the default factory is missing, never silently degrades) |
 | `Moirai.Atropos.Input.InputServiceHandler` | Input handler abstract base class (`[Serializable]`), defines all input query methods. Configured via `[SerializeReference]` in Input Settings |
 | `Moirai.Atropos.Input.UnityInputSystemHandler` | Handler based on Unity Input System (macro `ENABLE_INPUT_SYSTEM`) |
 | `Moirai.Atropos.Input.UnityInputManagerHandler` | Handler based on legacy Input Manager (macro `ENABLE_LEGACY_INPUT_MANAGER`) |
@@ -41,29 +40,29 @@ After selecting an input processor in the framework settings (Project Settings -
 
 ```csharp
 // Input System backend: groupName/actionName corresponds to Action Map/Action
-if (GameApp.Input.GetButtonDown("Jump", "Player"))
+if (InputService.GetButtonDown("Jump", "Player"))
 {
     // Jump key pressed this frame
 }
 
-float moveX = GameApp.Input.GetFloat("Move", "Player");
-Vector2 move = GameApp.Input.GetVector2("Move", "Player");
+float moveX = InputService.GetFloat("Move", "Player");
+Vector2 move = InputService.GetVector2("Move", "Player");
 
 // When actionGroup is empty, actionName is treated as a full path ("Player/Jump")
-bool submit = GameApp.Input.GetButtonPressed("UI/Submit");
+bool submit = InputService.GetButtonPressed("UI/Submit");
 
 // Mouse
-if (GameApp.Input.GetMouseButtonDown(EMouseButton.Right)) { }
-Vector2 pos = GameApp.Input.GetMousePosition();
-Vector2 scroll = GameApp.Input.GetScrollDelta();
+if (InputService.GetMouseButtonDown(EMouseButton.Right)) { }
+Vector2 pos = InputService.GetMousePosition();
+Vector2 scroll = InputService.GetScrollDelta();
 ```
 
 Locking/restoring input:
 
 ```csharp
-GameApp.Input.LockPlayerController = true;    // Lock character movement during modal popups
-GameApp.Input.PreventInteractionUI = true;    // Disable UI interaction during cutscenes
-GameApp.Input.Enabled = false;                // Global disable (resets all input states)
+InputService.LockPlayerController = true;    // Lock character movement during modal popups
+InputService.PreventInteractionUI = true;    // Disable UI interaction during cutscenes
+InputService.Enabled = false;                // Global disable (resets all input states)
 ```
 
 ## Advanced Usage
@@ -94,7 +93,7 @@ private BoolAction _jump = new BoolAction();
 
 void Update()
 {
-    _jump.Value = GameApp.Input.GetBool("Jump", "Player");
+    _jump.Value = InputService.GetBool("Jump", "Player");
     _jump.Update(Time.deltaTime);
 
     if (_jump.IsDown) { }             // Pressed this frame (equivalent to Started)

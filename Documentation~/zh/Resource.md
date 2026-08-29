@@ -2,7 +2,7 @@
 
 > 基于 YooAsset 封装的资源管理系统，采用 generation 校验的 Lease/Binding 架构，具备零 GC 分页槽位数组、时间轮过期回收、引用计数、多包加载、取消控制与加密解密能力。
 
-Resource 服务（`ResourceService`）对 [YooAsset](https://github.com/tuyoogame/YooAsset) 做了面向业务的封装。模块已全面重构为 **Lease/Binding 架构**：资源通过 generation 校验的槽位句柄（`ResourceLeaseHandle`）和类型化租约（`ResourceAssetLease<T>`）管理，UI/渲染组件可通过 `ResourceOwner` + `IResourceBindingService` 进行声明式绑定。通过 `GameApp.Resource`（`IResourceService`）访问。
+Resource 服务（`ResourceService`）对 [YooAsset](https://github.com/tuyoogame/YooAsset) 做了面向业务的封装。模块已全面重构为 **Lease/Binding 架构**：资源通过 generation 校验的槽位句柄（`ResourceLeaseHandle`）和类型化租约（`ResourceAssetLease<T>`）管理，UI/渲染组件可通过 `ResourceOwner` + `IResourceBindingService` 进行声明式绑定。通过 `ResourceService` 静态外观访问。
 
 内部引擎使用**分页槽位数组**（`AssetSlot[][]`、`LeaseSlot[][]`、`BindingSlot[][]`、`OwnerSlot[][]`）配合 generation 校验、**自研零 GC 哈希映射**（`ResourceUlongIntMap`，Murmur 终结器混合；`ResourceIndexMap<TKey,TValue>`）、以及**时间轮**过期系统（idle 桶 + keep-alive 桶，每帧 O(1) 处理）。加载去重通过池化的 `LoadingOperationState` 对象实现。帧驱动编排（配置注入、时间轮推进、卸载调度、GC 节流、低内存响应）由 `ResourceService.Drive*` partial 随服务生命周期自动接线，编辑器下的播放模式可通过 EditorPrefs 切换。
 
@@ -40,10 +40,10 @@ Resource 服务（`ResourceService`）对 [YooAsset](https://github.com/tuyoogam
 
 | 类/接口 | 说明 |
 |---------|------|
-| `IResourceService` | 资源管理器接口，定义加载、租约、绑定、卸载、包操作全部 API；经 `GameApp.Resource` 访问 |
-| `IResourceBindingService` | 声明式资源-组件绑定服务接口，经 `IResourceService.BindingService` 访问 |
-| `ResourceService` | 内部实现（`internal sealed partial class`，拆分为：主逻辑 / Records（槽位系统 + 时间轮）/ Cache（容量与遗留桥接）/ Services） |
-| `ResourceService.Driver` | 门面 partial：随 `OnInit` 自动接线（Settings/UpdateSettings 单源注入 + 帧驱动注册），承载 `DriveTick` 时间轮推进与卸载/GC 调度 |
+| `ResourceService` | 静态外观（`[HandlerHost]`），定义加载、租约、绑定、卸载、包操作全部 API；全部静态方法/属性经 `Handler` 属性转发（fail-fast：未就绪时按需初始化，工厂缺失时抛异常，不静默降级）。`internal` partial 拆分：主逻辑 / Records（槽位系统 + 时间轮）/ Cache（容量与遗留桥接）/ Services |
+| `ResourceService.Driver` | 外观 partial：随 `OnInit` 自动接线（Settings/UpdateSettings 单源注入 + 帧驱动注册），承载 `DriveTick` 时间轮推进与卸载/GC 调度 |
+| `ResourceServiceHandler` | 处理器抽象基类，定义后端契约；默认实现 `YooAssetHandler`（另有实验性 `AddressableHandler`） |
+| `IResourceBindingService` | 声明式资源-组件绑定服务接口，经 `ResourceService.BindingService` 访问 |
 | `ResourceOwner` | MonoBehaviour 组件（`[DisallowMultipleComponent]`），`OnDestroy` 时自动释放所有绑定。提供 `ReleaseBindings()`、`ReleaseBindingsInHierarchy(root)`、`EnsureFor(target, bindingService)`。 |
 | `ResourceBindingExtensions` | 静态扩展类：`Image/SpriteRenderer.SetSprite`、`Image/SpriteRenderer.SetSubSprite`、`Image/SpriteRenderer/MeshRenderer.SetMaterial`、`MeshRenderer.SetSharedMaterial` |
 | `ResourceBindingTypes` | 绑定相关枚举与接口：`ResourceBindStatus`、`ResourceBindingOptions`、`ResourceBindingSlotType` |
@@ -72,12 +72,12 @@ using Moirai.Atropos.Resource;
 using UnityEngine;
 
 // 同步租约 + using 语句（作用域结束时自动释放）
-using var lease = GameApp.Resource.LoadLease<Sprite>("Assets/AssetRaw/UI/icon.png");
+using var lease = ResourceService.LoadLease<Sprite>("Assets/AssetRaw/UI/icon.png");
 Sprite icon = lease.Asset;
 
 // 异步租约 + CancellationToken
 var cts = new CancellationTokenSource();
-using (var lease2 = await GameApp.Resource.LoadLeaseAsync<Texture2D>(
+using (var lease2 = await ResourceService.LoadLeaseAsync<Texture2D>(
     "Assets/AssetRaw/UI/atlas.png", cts.Token))
 {
     Texture2D tex = lease2.Asset;
@@ -86,17 +86,17 @@ using (var lease2 = await GameApp.Resource.LoadLeaseAsync<Texture2D>(
 
 // AcquireDirect 手动管理句柄生命周期
 ResourceKey key = ResourceKey.Asset<GameObject>("Assets/AssetRaw/Prefabs/Hero.prefab");
-ResourceLeaseHandle handle = GameApp.Resource.AcquireDirect(key);
-if (GameApp.Resource.TryGetLeaseAsset(handle, out Object asset))
+ResourceLeaseHandle handle = ResourceService.AcquireDirect(key);
+if (ResourceService.TryGetLeaseAsset(handle, out Object asset))
 {
     // ... 使用 asset
 }
-GameApp.Resource.Release(handle);
+ResourceService.Release(handle);
 
 // 异步 AcquireDirect
-ResourceLeaseHandle handle2 = await GameApp.Resource.AcquireDirectAsync(key, cts.Token);
+ResourceLeaseHandle handle2 = await ResourceService.AcquireDirectAsync(key, cts.Token);
 // ... 使用 handle2
-GameApp.Resource.Release(handle2);
+ResourceService.Release(handle2);
 ```
 
 ### Binding API（推荐）
@@ -129,25 +129,25 @@ meshRenderer.SetMaterial("Assets/AssetRaw/Mat/skin.mat", isAsync: true);
 
 ```csharp
 // 同步加载（内部通过遗留直接引用计数桥接到租约系统）
-Sprite icon = GameApp.Resource.LoadAsset<Sprite>("Assets/AssetRaw/UI/icon.png");
+Sprite icon = ResourceService.LoadAsset<Sprite>("Assets/AssetRaw/UI/icon.png");
 
 // 异步加载（UniTask，支持 CancellationToken 取消）
 var cts = new CancellationTokenSource();
-Texture2D tex = await GameApp.Resource.LoadAssetAsync<Texture2D>(
+Texture2D tex = await ResourceService.LoadAssetAsync<Texture2D>(
     "Assets/AssetRaw/UI/atlas.png", cts.Token);
 
 // 异步实例化：Destroy 时自动卸载引用
-GameObject hero = await GameApp.Resource.LoadGameObjectAsync(
+GameObject hero = await ResourceService.LoadGameObjectAsync(
     "Assets/AssetRaw/Prefabs/Hero.prefab", parent);
 
 // 同步实例化
-GameObject go = GameApp.Resource.LoadGameObject("Assets/AssetRaw/Prefabs/Item.prefab", parent);
+GameObject go = ResourceService.LoadGameObject("Assets/AssetRaw/Prefabs/Item.prefab", parent);
 
 // 卸载手动加载的资源（递减遗留直接引用计数）
-GameApp.Resource.UnloadAsset(icon);
+ResourceService.UnloadAsset(icon);
 
 // 回调式异步（async void；异常经 LoadAssetFailureCallback 上报）
-GameApp.Resource.LoadAssetAsync(
+ResourceService.LoadAssetAsync(
     "Assets/AssetRaw/Audio/bgm.mp3", 0,
     new LoadAssetCallbacks(
         (assetName, asset, duration, userData) => { /* 成功 */ },
@@ -187,7 +187,7 @@ GameApp.Resource.LoadAssetAsync(
 - **Idle 桶：** 当资产引用计数归零时，进入 idle 桶，计划在 `IdleAssetExpireTime` 秒后过期。
 - **Keep-alive 桶：** 当租约以 `KeepAliveOnRelease` 选项释放时，资产的 keep-alive 引用计数递增，计划在 `IdleAssetExpireTime` 秒后过期。
 
-`ProcessKeepAlive(unscaledTime, maxProcessCount)` 由门面 `DriveTick` 每帧调用，处理两个队列中已过期的资产。
+`ProcessKeepAlive(unscaledTime, maxProcessCount)` 由外观 `DriveTick` 每帧调用，处理两个队列中已过期的资产。
 
 ### 加载去重
 
@@ -215,7 +215,7 @@ public struct ResourceAssetLease<T> : IDisposable where T : UnityEngine.Object
     public T Asset { get; }
     public ResourceLeaseHandle Handle { get; }
     public bool IsValid { get; }
-    public void Dispose(); // 调用 IResourceService.Release(Handle)
+    public void Dispose(); // 调用 ResourceService.Release(Handle)
 }
 ```
 
@@ -238,7 +238,7 @@ public readonly struct ResourceKey
 }
 ```
 
-### IResourceService 租约方法
+### ResourceService 租约方法
 
 | 方法 | 说明 |
 |--------|------|
@@ -330,7 +330,7 @@ public sealed class ResourceOwner : MonoBehaviour
 
 ## 容量与过期属性
 
-在 `ResourceServiceSettings`（Framework 设置资产）或通过 `IResourceService` 配置：
+在 `ResourceServiceSettings`（Framework 设置资产）或通过 `ResourceService` 配置：
 
 | 属性 | 默认值 | 说明 |
 |----------|---------|------|
@@ -384,42 +384,40 @@ int GetAssetInfos(ResourceAssetInfo[] results, int startIndex, int maxCount);
 - `UpdatableWhilePlaying`：边玩边下载
 - `AssetAutoReleaseInterval / AssetCapacity / AssetExpireTime / AssetPriority`：遗留池参数（桥接到 IdleAssetExpireTime / AssetRecordCapacity）
 - `MinUnloadUnusedAssetsInterval / MaxUnloadUnusedAssetsInterval`：无用资源回收的最小/最大间隔（默认 60s / 300s）
-- `UseSystemUnloadUnusedAssets`：是否在系统卸载周期中调用 `IResourceService.UnloadUnusedAssets()`
+- `UseSystemUnloadUnusedAssets`：是否在系统卸载周期中调用 `ResourceService.UnloadUnusedAssets()`
 
 ### 热更流程相关 API
 
 ```csharp
-IResourceService res = GameApp.Resource;
-
 // 初始化指定资源包（needInitMainFest: true 时顺带请求并更新清单，单机 OtherPackage 场景）
-await res.InitPackage("DefaultPackage");
+await ResourceService.InitPackage("DefaultPackage");
 
 // 联机模式：请求远端版本 -> 更新清单 -> 创建下载器 -> 下载
-var op = res.RequestPackageVersionAsync();
-res.PackageVersion = op.PackageVersion;
-res.UpdatePackageManifestAsync(res.PackageVersion);
-var downloader = res.CreateResourceDownloader();   // 之后轮询 downloader
+var op = await ResourceService.RequestPackageVersionAsync();
+ResourceService.PackageVersion = op.PackageVersion;
+await ResourceService.UpdatePackageManifestAsync(ResourceService.PackageVersion);
+var downloader = ResourceService.CreateResourceDownloader();   // 之后轮询 downloader
 
 // 下载量查询：定位地址待下载字节数（用于更新 UI 剩余下载量展示；定位/包无效抛 GameException）
-long downloadBytes = res.GetDownloadSize("Assets/AssetRaw/UI/logo.png");
-bool needRemote = res.IsNeedDownloadFromRemote("Assets/AssetRaw/UI/logo.png");
+long downloadBytes = ResourceService.GetDownloadSize("Assets/AssetRaw/UI/logo.png");
+bool needRemote = ResourceService.IsNeedDownloadFromRemote("Assets/AssetRaw/UI/logo.png");
 
 // 远端地址与缓存清理
-res.SetRemoteServicesUrl("https://cdn.example.com/res", "https://backup.example.com/res");
-res.ClearCacheFilesAsync();                        // 清理未使用的缓存文件
-res.ClearAllBundleFiles();                         // 清空沙盒路径
+ResourceService.SetRemoteServicesUrl("https://cdn.example.com/res", "https://backup.example.com/res");
+ResourceService.ClearCacheFilesAsync();            // 清理未使用的缓存文件
+ResourceService.ClearAllBundleFiles();             // 清空沙盒路径
 ```
 
 ### 资源查询与句柄
 
 ```csharp
-HasAssetResult result = GameApp.Resource.HasAsset("Assets/AssetRaw/UI/icon.png");
-bool valid = GameApp.Resource.CheckLocationValid("Assets/AssetRaw/UI/icon.png");
-AssetInfo[] infos = GameApp.Resource.GetAssetInfos("Preload");   // 按标签批量获取
+HasAssetResult result = ResourceService.HasAsset("Assets/AssetRaw/UI/icon.png");
+bool valid = ResourceService.IsLocationValid("Assets/AssetRaw/UI/icon.png");
+AssetInfo[] infos = ResourceService.GetAssetInfos("Preload");   // 按标签批量获取
 
-// 需要精细控制句柄生命周期时（不经过租约系统）
-AssetHandle handle = GameApp.Resource.LoadAssetAsyncHandle<GameObject>("path");
-// ... 使用 handle.AssetObject，用完 handle.Dispose()
+// 需要精细控制句柄生命周期时，使用租约 API（不经 ResourceOwner 自动管理）
+using var lease = ResourceService.LoadLeaseAsync<GameObject>("path").GetAwaiter().GetResult();
+// ... 使用 lease.Asset，using 结束自动释放
 ```
 
 ## 注意事项
