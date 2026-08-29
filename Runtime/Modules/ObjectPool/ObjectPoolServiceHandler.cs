@@ -1,35 +1,19 @@
 ﻿using System;
-using System.Threading;
-using Cysharp.Threading.Tasks;
-using UnityEngine;
 
 namespace Moirai.Atropos.ObjectPool
 {
     /// <summary>
-    /// 游戏对象池处理器。使用最小堆调度维护，PoolCatalog 数据驱动配置。
-    /// <para>由 <see cref="ObjectPoolServiceSettings"/> 序列化配置，可替换为自定义对象池后端。</para>
+    /// 通用对象池处理器抽象基类（策略模式抽象策略）。
+    /// <para>默认实现为 <see cref="DefaultObjectPoolHandler"/>（分页槽位存储 + 按名链 + 最小堆维护调度）。</para>
+    /// <para>可在 <see cref="ObjectPoolServiceSettings"/> 中替换为自定义实现。</para>
     /// </summary>
     [Serializable]
     public abstract class ObjectPoolServiceHandler : FrameworkHandler
     {
-        #region 生命周期 [LIFECYCLE]
+        #region 轮询 [TICK]
 
         /// <summary>
-        /// 处理器初始化。
-        /// </summary>
-        protected override void OnInit()
-        {
-        }
-
-        /// <summary>
-        /// 处理器关闭。
-        /// </summary>
-        protected override void OnShutdown()
-        {
-        }
-
-        /// <summary>
-        /// 每帧 Tick，处理到期的维护操作。
+        /// 每帧轮询——处理到期的池维护操作。
         /// </summary>
         /// <param name="elapseSeconds">逻辑流逝时间。</param>
         /// <param name="realElapseSeconds">真实流逝时间。</param>
@@ -37,94 +21,70 @@ namespace Moirai.Atropos.ObjectPool
 
         #endregion
 
-        #region 对象池操作 [POOL OPERATIONS]
+        #region 池管理 [POOL MANAGEMENT]
 
         /// <summary>
-        /// 同步获取游戏对象。
+        /// 获取池数量。
         /// </summary>
-        public abstract GameObject Spawn(string location, Transform parent = null);
+        public abstract int Count { get; }
 
         /// <summary>
-        /// 同步获取组件。
+        /// 是否存在指定类型的池。
         /// </summary>
-        public abstract T Spawn<T>(string location, Transform parent = null) where T : Component;
+        /// <typeparam name="T">池化对象类型。</typeparam>
+        /// <param name="name">池名称。</param>
+        /// <returns>是否存在。</returns>
+        public abstract bool HasObjectPool<T>(string name = "") where T : ObjectBase;
 
         /// <summary>
-        /// 尝试同步获取游戏对象。
+        /// 获取指定类型的池。
         /// </summary>
-        public abstract bool TrySpawn(string location, Transform parent, out GameObject instance);
+        /// <typeparam name="T">池化对象类型。</typeparam>
+        /// <param name="name">池名称。</param>
+        /// <returns>池实例；不存在返回 null。</returns>
+        public abstract IObjectPool<T> GetObjectPool<T>(string name = "") where T : ObjectBase;
 
         /// <summary>
-        /// 异步获取游戏对象。
+        /// 获取或创建指定类型的池。
         /// </summary>
-        public abstract UniTask<GameObject> SpawnAsync(string location, Transform parent = null, CancellationToken cancellationToken = default);
+        /// <typeparam name="T">池化对象类型。</typeparam>
+        /// <param name="options">创建选项（已存在时忽略）。</param>
+        /// <returns>池实例。</returns>
+        public abstract IObjectPool<T> GetOrCreatePool<T>(ObjectPoolCreateOptions options = default) where T : ObjectBase;
 
         /// <summary>
-        /// 异步获取组件。
+        /// 销毁指定类型的池（释放其全部对象）。
         /// </summary>
-        public abstract UniTask<T> SpawnAsync<T>(string location, Transform parent = null, CancellationToken cancellationToken = default) where T : Component;
-
-        /// <summary>
-        /// 异步预热。
-        /// </summary>
-        public abstract UniTask WarmupAsync(string location, int count, CancellationToken cancellationToken = default);
-
-        /// <summary>
-        /// 回收游戏对象。
-        /// </summary>
-        public abstract void Despawn(GameObject instance);
-
-        /// <summary>
-        /// 通过句柄回收游戏对象。
-        /// </summary>
-        public abstract void Despawn(ObjectPoolHandle handle);
-
-        /// <summary>
-        /// 刷新指定地址的池。
-        /// </summary>
-        public abstract void Flush(string location);
-
-        /// <summary>
-        /// 刷新指定分组的所有池。
-        /// </summary>
-        public abstract void FlushGroup(string group);
-
-        /// <summary>
-        /// 刷新所有池。
-        /// </summary>
-        public abstract void FlushAll();
-
-        /// <summary>
-        /// 加载池配置。
-        /// </summary>
-        public abstract void LoadCatalog(PoolConfigScriptableObject config);
+        /// <typeparam name="T">池化对象类型。</typeparam>
+        /// <param name="name">池名称。</param>
+        /// <returns>是否销毁成功。</returns>
+        public abstract bool DestroyObjectPool<T>(string name = "") where T : ObjectBase;
 
         #endregion
 
-        #region 调试接口 [DEBUG INTERFACE]
+        #region 释放 [RELEASE]
 
         /// <summary>
-        /// 获取调试摘要。
+        /// 释放所有池的全部可释放对象。
         /// </summary>
-        public abstract ObjectPoolSummarySnapshot GetDebugSummary();
+        public abstract void Release();
 
         /// <summary>
-        /// 获取调试快照。
+        /// 释放所有池的全部未使用且可释放的对象。
         /// </summary>
-        public abstract int GetDebugSnapshots(ObjectPoolSnapshot[] snapshots);
-
-        /// <summary>
-        /// 填充实例级调试快照。
-        /// </summary>
-        public abstract void FillDebugInstances(ObjectPoolSnapshot snapshot);
+        public abstract void ReleaseAllUnused();
 
         #endregion
 
-        #region 内部方法 — 维护调度 [INTERNAL MAINTENANCE SCHEDULING]
+        #region 调试 [DEBUG]
 
-        internal abstract void ScheduleMaintenance(int poolIndex, float dueTime, ref int heapIndex);
-
-        internal abstract void RemoveMaintenance(ref int heapIndex);
+        /// <summary>
+        /// 获取全部池（按优先级可选排序）填充到结果数组。
+        /// </summary>
+        /// <param name="sort">是否按优先级降序排序。</param>
+        /// <param name="results">结果数组。</param>
+        /// <returns>池总数（可能超出数组容量）。</returns>
+        public abstract int GetAllObjectPools(bool sort, ObjectPoolBase[] results);
 
         #endregion
     }

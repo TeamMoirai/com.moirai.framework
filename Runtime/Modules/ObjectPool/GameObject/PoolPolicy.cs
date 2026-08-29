@@ -3,10 +3,12 @@
 namespace Moirai.Atropos.ObjectPool
 {
     /// <summary>
-    /// 池回收计划。
+    /// GameObject 池回收计划。
     /// </summary>
     internal readonly struct PoolRecyclePlan
     {
+        #region 字段 [FIELDS]
+
         /// <summary>
         /// 保留目标数量。
         /// </summary>
@@ -27,9 +29,17 @@ namespace Moirai.Atropos.ObjectPool
         /// </summary>
         public readonly bool UnloadPrefab;
 
+        #endregion
+
+        #region 构造 [CONSTRUCTOR]
+
         /// <summary>
         /// 初始化 <see cref="PoolRecyclePlan"/> 的新实例。
         /// </summary>
+        /// <param name="retainTarget">保留目标数量。</param>
+        /// <param name="trimBudget">裁剪预算。</param>
+        /// <param name="forceTrim">是否强制裁剪。</param>
+        /// <param name="unloadPrefab">是否卸载预制体。</param>
         public PoolRecyclePlan(int retainTarget, int trimBudget, bool forceTrim, bool unloadPrefab)
         {
             RetainTarget = retainTarget;
@@ -37,10 +47,12 @@ namespace Moirai.Atropos.ObjectPool
             ForceTrim = forceTrim;
             UnloadPrefab = unloadPrefab;
         }
+
+        #endregion
     }
 
     /// <summary>
-    /// 池策略规划器。
+    /// GameObject 池策略规划器——按策略与内存状态计算回收计划（纯函数，可 EditMode 直测）。
     /// </summary>
     internal static class PoolPolicyPlanner
     {

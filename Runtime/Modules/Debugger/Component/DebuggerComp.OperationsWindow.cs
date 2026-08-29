@@ -16,7 +16,7 @@ namespace Moirai.Atropos.Debugger
                 {
                     if (GUILayout.Button("GameObject Pool Flush All", GUILayout.Height(30f)))
                     {
-                        ObjectPoolService.FlushAll();
+                        GameObjectPoolService.FlushAll();
                     }
 
                     ResourceServiceHandler resourceService = ResourceService.Handler;

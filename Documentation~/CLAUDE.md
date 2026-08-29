@@ -38,7 +38,8 @@ Game Dev Tools/
 - **FsmService** - 有限状态机
 - **InputService** - 输入系统
 - **LocalizationService** - 本地化
-- **ObjectPoolService** - 对象池
+- **ObjectPoolService** - 通用对象池（任意 ObjectBase 派生对象，opt-in 注册）
+- **GameObjectPoolService** - 游戏对象池（GameObject 实例，opt-in 注册，依赖 ResourceService）
 - **ProcedureService** - 流程管理
 - **ResourceService** - 资源管理
 - **SaveService** - 存档系统

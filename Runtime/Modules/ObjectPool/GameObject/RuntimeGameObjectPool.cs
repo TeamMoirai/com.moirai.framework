@@ -8,9 +8,9 @@ using UnityEngine;
 namespace Moirai.Atropos.ObjectPool
 {
     /// <summary>
-    /// 运行时 GameObject 池，使用 SoA 分页 Slot + 侵入式链表实现零 GC 热路径。
+    /// 运行时 GameObject 池，使用分页 Slot 存储 + 侵入式链表实现零 GC 热路径，维护经共享调度器驱动。
     /// </summary>
-    internal sealed class RuntimeObjectPool : MemoryObject
+    internal sealed class RuntimeGameObjectPool : MemoryObject, IPoolMaintenanceItem
     {
         #region 常量 [CONSTANTS]
 
@@ -21,10 +21,6 @@ namespace Moirai.Atropos.ObjectPool
             Active = 2
         }
 
-        private const int PAGE_BITS = 7;
-        private const int PAGE_SIZE = 1 << PAGE_BITS;
-        private const int PAGE_MASK = PAGE_SIZE - 1;
-        private const int INITIAL_PAGE_CAPACITY = 4;
         private const int WARMUP_CREATE_BATCH = 8;
         private const float WARMUP_FRAME_BUDGET_SECONDS = 0.001f;
 
@@ -36,8 +32,8 @@ namespace Moirai.Atropos.ObjectPool
         {
             public GameObject Instance;
             public Transform Transform;
-            public ObjectPoolHandle Handle;
-            public IObjectPoolable[] Poolables;
+            public GameObjectPoolHandle Handle;
+            public IGameObjectPoolable[] Poolables;
             public int PoolableCount;
             public float SpawnTime;
             public float LastReleaseTime;
@@ -51,10 +47,9 @@ namespace Moirai.Atropos.ObjectPool
 
         #region 字段 [FIELDS]
 
-        private ObjectPoolServiceHandler _service;
+        private PoolMaintenanceScheduler _scheduler;
         private IPrefabLoader _loader;
         private PoolCompiledRule _rule;
-        private int _poolIndex;
         private string _location;
         private Transform _root;
         private GameObject _prefab;
@@ -63,15 +58,8 @@ namespace Moirai.Atropos.ObjectPool
         private bool _isShuttingDown;
         private int _loadVersion;
         private float _nextMaintenanceAt;
-        private int _maintenanceHeapIndex;
 
-        private Slot[][] _pages;
-        private int[][] _pageFreeStacks;
-        private int[] _pageAliveCounts;
-        private int[] _pageFreeTops;
-        private int _pageCount;
-        private int[] _freePageStack;
-        private int _freePageTop;
+        private PoolSlotStorage<Slot> _storage;
 
         private int _inactiveHead;
         private int _inactiveTail;
@@ -87,7 +75,9 @@ namespace Moirai.Atropos.ObjectPool
         private int _destroyCount;
         private int _peakActive;
         private uint _generationCounter;
-        private readonly List<IObjectPoolable> _poolableBuffer = new List<IObjectPoolable>(8);
+        private readonly List<IGameObjectPoolable> _poolableBuffer = new List<IGameObjectPoolable>(8);
+
+        private static readonly Comparison<GameObjectPoolInstanceSnapshot> s_InstanceComparer = CompareInstanceSnapshot;
 
         #endregion
 
@@ -130,40 +120,42 @@ namespace Moirai.Atropos.ObjectPool
 
         #endregion
 
+        #region 维护调度 [MAINTENANCE SCHEDULING]
+
+        /// <summary>
+        /// 维护堆索引——由 <see cref="PoolMaintenanceScheduler"/> 独占维护。
+        /// </summary>
+        public int MaintenanceHeapIndex { get; set; } = -1;
+
+        #endregion
+
         #region 初始化 [INITIALIZATION]
 
         /// <summary>
         /// 初始化池。
         /// </summary>
+        /// <param name="scheduler">所属服务的维护调度器。</param>
+        /// <param name="rule">编译后的池规则。</param>
+        /// <param name="location">资源地址。</param>
+        /// <param name="loader">预制体加载器。</param>
+        /// <param name="inactiveRoot">非活跃对象挂载根。</param>
         public void Initialize(
-            ObjectPoolServiceHandler service,
-            int poolIndex,
+            PoolMaintenanceScheduler scheduler,
             in PoolCompiledRule rule,
             string location,
             IPrefabLoader loader,
             Transform inactiveRoot)
         {
-            _service = service;
-            _poolIndex = poolIndex;
+            _scheduler = scheduler;
             _rule = rule;
             _location = location;
             _loader = loader;
             _root = inactiveRoot;
             _retainTarget = rule.MinIdle;
             _nextMaintenanceAt = float.MaxValue;
-            _maintenanceHeapIndex = -1;
             _inactiveHead = -1;
             _inactiveTail = -1;
-            _pages = SlotArrayPool<Slot[]>.Rent(INITIAL_PAGE_CAPACITY);
-            _pageFreeStacks = SlotArrayPool<int[]>.Rent(INITIAL_PAGE_CAPACITY);
-            _pageAliveCounts = SlotArrayPool<int>.Rent(INITIAL_PAGE_CAPACITY);
-            _pageFreeTops = SlotArrayPool<int>.Rent(INITIAL_PAGE_CAPACITY);
-            _freePageStack = SlotArrayPool<int>.Rent(INITIAL_PAGE_CAPACITY);
-            Array.Clear(_pages, 0, INITIAL_PAGE_CAPACITY);
-            Array.Clear(_pageFreeStacks, 0, INITIAL_PAGE_CAPACITY);
-            Array.Clear(_pageAliveCounts, 0, INITIAL_PAGE_CAPACITY);
-            Array.Clear(_pageFreeTops, 0, INITIAL_PAGE_CAPACITY);
-            Array.Clear(_freePageStack, 0, INITIAL_PAGE_CAPACITY);
+            _storage.Initialize();
             ScheduleMaintenance(float.MaxValue);
         }
 
@@ -263,14 +255,14 @@ namespace Moirai.Atropos.ObjectPool
         /// <summary>
         /// 通过句柄回收对象。
         /// </summary>
-        public bool ReleaseFromHandle(ObjectPoolHandle handle)
+        public bool ReleaseFromHandle(GameObjectPoolHandle handle)
         {
-            if (handle == null || !IsValidIndex(handle.SlotIndex))
+            if (handle == null || !_storage.IsValidIndex(handle.SlotIndex))
             {
                 return false;
             }
 
-            ref Slot slot = ref GetSlotRef(handle.SlotIndex);
+            ref Slot slot = ref _storage.GetSlotRef(handle.SlotIndex);
             if (slot.Handle != handle || slot.Generation != handle.Generation || slot.State != SlotState.Active)
             {
                 return false;
@@ -285,19 +277,19 @@ namespace Moirai.Atropos.ObjectPool
         /// </summary>
         public void NotifyHandleDestroyed(int slotIndex, uint generation)
         {
-            if (_isShuttingDown || !IsValidIndex(slotIndex))
+            if (_isShuttingDown || !_storage.IsValidIndex(slotIndex))
             {
                 return;
             }
 
-            ref Slot slot = ref GetSlotRef(slotIndex);
+            ref Slot slot = ref _storage.GetSlotRef(slotIndex);
             if (slot.Generation != generation)
             {
                 return;
             }
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-            LogUtility.Warning("[ObjectPool] Pooled object destroyed outside pool. Rule:{0}, Location:{1}",
+            LogUtility.Warning("[GameObjectPool] Pooled object destroyed outside pool. Rule:{0}, Location:{1}",
                 _rule.EntryName, _location);
 #endif
             RemoveDestroyedSlot(slotIndex);
@@ -308,16 +300,10 @@ namespace Moirai.Atropos.ObjectPool
         #region 公共方法 — 维护 [PUBLIC MAINTENANCE]
 
         /// <summary>
-        /// 设置维护堆索引。
+        /// 执行维护操作（由调度器到期唤醒或服务低内存遍历调用）。
         /// </summary>
-        public void SetMaintenanceHeapIndex(int heapIndex)
-        {
-            _maintenanceHeapIndex = heapIndex;
-        }
-
-        /// <summary>
-        /// 执行维护操作。
-        /// </summary>
+        /// <param name="now">当前缩放时钟。</param>
+        /// <param name="lowMemory">是否为低内存强制维护。</param>
         public void ExecuteMaintenance(float now, bool lowMemory)
         {
             PoolRecyclePlan plan = PoolPolicyPlanner.Plan(in _rule, _totalCount, lowMemory);
@@ -362,34 +348,26 @@ namespace Moirai.Atropos.ObjectPool
             _prefabLoading = false;
             _prefabLoadCompletionSource?.TrySetCanceled();
             _prefabLoadCompletionSource = null;
-            _service.RemoveMaintenance(ref _maintenanceHeapIndex);
+            _scheduler.Remove(this);
 
-            for (int page = 0; page < _pageCount; page++)
+            int slotCount = _storage.SlotCount;
+            for (int i = 0; i < slotCount; i++)
             {
-                Slot[] pageSlots = _pages[page];
-                if (pageSlots == null)
+                ref Slot slot = ref _storage.GetSlotRef(i);
+                if (slot.State == SlotState.Free && slot.Instance == null)
                 {
                     continue;
                 }
 
-                for (int offset = 0; offset < PAGE_SIZE; offset++)
+                InvokeOnPooledDestroy(ref slot);
+                slot.Handle?.Detach();
+                if (slot.Instance != null)
                 {
-                    ref Slot slot = ref pageSlots[offset];
-                    if (slot.State == SlotState.Free && slot.Instance == null)
-                    {
-                        continue;
-                    }
-
-                    InvokeOnPooledDestroy(ref slot);
-                    slot.Handle?.Detach();
-                    if (slot.Instance != null)
-                    {
-                        UnityEngine.Object.Destroy(slot.Instance);
-                    }
-
-                    ClearSlot(ref slot);
-                    _destroyCount++;
+                    PoolDestroyUtility.Destroy(slot.Instance);
                 }
+
+                ClearSlot(ref slot);
+                _destroyCount++;
             }
 
             _inactiveHead = -1;
@@ -411,10 +389,10 @@ namespace Moirai.Atropos.ObjectPool
         /// <summary>
         /// 创建池快照。
         /// </summary>
-        public ObjectPoolSnapshot CreateSnapshot(bool includeInstances)
+        public GameObjectPoolSnapshot CreateSnapshot(bool includeInstances)
         {
             float now = Time.time;
-            ObjectPoolSnapshot snapshot = MemoryPool.Acquire<ObjectPoolSnapshot>();
+            GameObjectPoolSnapshot snapshot = MemoryPool.Acquire<GameObjectPoolSnapshot>();
             snapshot.entryName = _rule.EntryName;
             snapshot.group = _rule.Group;
             snapshot.location = _location;
@@ -447,7 +425,7 @@ namespace Moirai.Atropos.ObjectPool
         /// <summary>
         /// 填充实例快照。
         /// </summary>
-        public void FillInstances(ObjectPoolSnapshot snapshot)
+        public void FillInstances(GameObjectPoolSnapshot snapshot)
         {
             FillInstances(snapshot, Time.time);
         }
@@ -464,10 +442,9 @@ namespace Moirai.Atropos.ObjectPool
             ReturnStorage();
             _prefabLoadCompletionSource?.TrySetCanceled();
             _prefabLoadCompletionSource = null;
-            _service = null;
+            _scheduler = null;
             _loader = null;
             _rule = default;
-            _poolIndex = 0;
             _location = null;
             _root = null;
             _prefab = null;
@@ -475,7 +452,6 @@ namespace Moirai.Atropos.ObjectPool
             _isShuttingDown = false;
             _loadVersion++;
             _nextMaintenanceAt = float.MaxValue;
-            _maintenanceHeapIndex = -1;
             _inactiveHead = -1;
             _inactiveTail = -1;
             _activeCount = 0;
@@ -524,12 +500,12 @@ namespace Moirai.Atropos.ObjectPool
             }
 
             RefreshMaintenance();
-            return GetSlotRef(slotIndex).Instance;
+            return _storage.GetSlotRef(slotIndex).Instance;
         }
 
         private void ActivateTrackedInstance(int slotIndex, Transform parent)
         {
-            ref Slot slot = ref GetSlotRef(slotIndex);
+            ref Slot slot = ref _storage.GetSlotRef(slotIndex);
             slot.State = SlotState.Active;
             _activeCount++;
             slot.Transform.SetParent(parent, false);
@@ -538,13 +514,13 @@ namespace Moirai.Atropos.ObjectPool
                 slot.Instance.SetActive(true);
             }
 
-            PoolSpawnContext context = new PoolSpawnContext(_location, _rule.Group, parent, (uint)Time.frameCount);
+            GameObjectPoolSpawnContext context = new GameObjectPoolSpawnContext(_location, _rule.Group, parent, (uint)Time.frameCount);
             InvokeOnSpawn(ref slot, in context);
         }
 
         private void ReleaseTrackedInstance(int slotIndex)
         {
-            ref Slot slot = ref GetSlotRef(slotIndex);
+            ref Slot slot = ref _storage.GetSlotRef(slotIndex);
             if (slot.State != SlotState.Active)
             {
                 return;
@@ -564,7 +540,7 @@ namespace Moirai.Atropos.ObjectPool
 
         private void ParkInactive(int slotIndex)
         {
-            ref Slot slot = ref GetSlotRef(slotIndex);
+            ref Slot slot = ref _storage.GetSlotRef(slotIndex);
             slot.State = SlotState.Inactive;
             slot.LastReleaseTime = Time.time;
             slot.Transform.SetParent(_root, false);
@@ -580,14 +556,15 @@ namespace Moirai.Atropos.ObjectPool
             if (_totalCount >= _rule.HardCapacity)
             {
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-                LogUtility.Warning("[ObjectPool] HardCapacity reached. Rule:{0}, Location:{1}, Hard:{2}",
+                LogUtility.Warning("[GameObjectPool] HardCapacity reached. Rule:{0}, Location:{1}, Hard:{2}",
                     _rule.EntryName, _location, _rule.HardCapacity);
 #endif
                 return -1;
             }
 
-            int slotIndex = AllocSlot();
-            ref Slot slot = ref GetSlotRef(slotIndex);
+            int slotIndex = _storage.AllocSlot();
+            ref Slot slot = ref _storage.GetSlotRef(slotIndex);
+            slot = default;
             slot.Generation = ++_generationCounter;
             slot.State = SlotState.Inactive;
             slot.SpawnTime = Time.time;
@@ -605,10 +582,10 @@ namespace Moirai.Atropos.ObjectPool
                 slot.Instance.SetActive(false);
             }
 
-            ObjectPoolHandle handle = slot.Instance.GetComponent<ObjectPoolHandle>();
+            GameObjectPoolHandle handle = slot.Instance.GetComponent<GameObjectPoolHandle>();
             if (handle == null)
             {
-                handle = slot.Instance.AddComponent<ObjectPoolHandle>();
+                handle = slot.Instance.AddComponent<GameObjectPoolHandle>();
             }
 
             handle.Bind(this, slotIndex, slot.Generation);
@@ -621,7 +598,7 @@ namespace Moirai.Atropos.ObjectPool
 
         private void DestroyTrackedInstance(int slotIndex)
         {
-            ref Slot slot = ref GetSlotRef(slotIndex);
+            ref Slot slot = ref _storage.GetSlotRef(slotIndex);
             RemoveFromInactive(slotIndex);
             if (slot.State == SlotState.Active)
             {
@@ -632,18 +609,18 @@ namespace Moirai.Atropos.ObjectPool
             slot.Handle?.Detach();
             if (slot.Instance != null)
             {
-                UnityEngine.Object.Destroy(slot.Instance);
+                PoolDestroyUtility.Destroy(slot.Instance);
             }
 
             ClearSlot(ref slot);
-            FreeSlot(slotIndex);
+            _storage.FreeSlot(slotIndex);
             _totalCount = Mathf.Max(0, _totalCount - 1);
             _destroyCount++;
         }
 
         private void RemoveDestroyedSlot(int slotIndex)
         {
-            ref Slot slot = ref GetSlotRef(slotIndex);
+            ref Slot slot = ref _storage.GetSlotRef(slotIndex);
             RemoveFromInactive(slotIndex);
             if (slot.State == SlotState.Active)
             {
@@ -653,7 +630,7 @@ namespace Moirai.Atropos.ObjectPool
             InvokeOnPooledDestroy(ref slot);
             slot.Handle?.Detach();
             ClearSlot(ref slot);
-            FreeSlot(slotIndex);
+            _storage.FreeSlot(slotIndex);
             _totalCount = Mathf.Max(0, _totalCount - 1);
             _destroyCount++;
             RefreshMaintenance();
@@ -680,7 +657,7 @@ namespace Moirai.Atropos.ObjectPool
                 return false;
             }
 
-            return now - GetSlotRef(_inactiveHead).LastReleaseTime >= _rule.IdleSeconds;
+            return now - _storage.GetSlotRef(_inactiveHead).LastReleaseTime >= _rule.IdleSeconds;
         }
 
         private void RefreshMaintenance()
@@ -694,7 +671,7 @@ namespace Moirai.Atropos.ObjectPool
                 {
                     due = _rule.Policy == EPoolPolicy.Fixed
                         ? now
-                        : GetSlotRef(_inactiveHead).LastReleaseTime + _rule.IdleSeconds;
+                        : _storage.GetSlotRef(_inactiveHead).LastReleaseTime + _rule.IdleSeconds;
                 }
                 else if (_prefab != null && _totalCount == 0 && _rule.UnloadPrefab)
                 {
@@ -708,7 +685,7 @@ namespace Moirai.Atropos.ObjectPool
         private void ScheduleMaintenance(float dueTime)
         {
             _nextMaintenanceAt = dueTime;
-            _service.ScheduleMaintenance(_poolIndex, dueTime, ref _maintenanceHeapIndex);
+            _scheduler.Schedule(this, dueTime);
         }
 
         #endregion
@@ -745,9 +722,11 @@ namespace Moirai.Atropos.ObjectPool
             }
 
             _prefabLoading = true;
-            _prefabLoadCompletionSource = new UniTaskCompletionSource<GameObject>();
+            // 先捕获局部引用再启动加载——同步完成的加载器会立刻消费并置空字段，直接 await 字段将 NRE。
+            UniTaskCompletionSource<GameObject> completionSource = new UniTaskCompletionSource<GameObject>();
+            _prefabLoadCompletionSource = completionSource;
             RunPrefabLoadAsync(_loadVersion).Forget();
-            await _prefabLoadCompletionSource.Task.AttachExternalCancellation(cancellationToken);
+            await completionSource.Task.AttachExternalCancellation(cancellationToken);
             return _prefab != null;
         }
 
@@ -788,8 +767,8 @@ namespace Moirai.Atropos.ObjectPool
         #region 私有方法 — Poolable 回调 [PRIVATE POOLABLE CALLBACKS]
 
         /// <summary>
-        /// 缓存实例上的 IObjectPoolable 组件列表。
-        /// 使用预分配的 buffer 避免 GC 分配。
+        /// 缓存实例上的 IGameObjectPoolable 组件列表。
+        /// <para>使用预分配的 buffer 避免 GC 分配。</para>
         /// </summary>
         private void CachePoolables(ref Slot slot)
         {
@@ -802,14 +781,14 @@ namespace Moirai.Atropos.ObjectPool
                 return;
             }
 
-            slot.Poolables = SlotArrayPool<IObjectPoolable>.Rent(slot.PoolableCount);
+            slot.Poolables = SlotArrayPool<IGameObjectPoolable>.Rent(slot.PoolableCount);
             for (int i = 0; i < slot.PoolableCount; i++)
             {
                 slot.Poolables[i] = _poolableBuffer[i];
             }
         }
 
-        private static void InvokeOnSpawn(ref Slot slot, in PoolSpawnContext context)
+        private static void InvokeOnSpawn(ref Slot slot, in GameObjectPoolSpawnContext context)
         {
             for (int i = 0; i < slot.PoolableCount; i++)
             {
@@ -839,12 +818,12 @@ namespace Moirai.Atropos.ObjectPool
 
         private void AddToInactiveTail(int slotIndex)
         {
-            ref Slot slot = ref GetSlotRef(slotIndex);
+            ref Slot slot = ref _storage.GetSlotRef(slotIndex);
             slot.PrevInactive = _inactiveTail;
             slot.NextInactive = -1;
             if (_inactiveTail >= 0)
             {
-                GetSlotRef(_inactiveTail).NextInactive = slotIndex;
+                _storage.GetSlotRef(_inactiveTail).NextInactive = slotIndex;
             }
             else
             {
@@ -857,7 +836,7 @@ namespace Moirai.Atropos.ObjectPool
 
         private void RemoveFromInactive(int slotIndex)
         {
-            ref Slot slot = ref GetSlotRef(slotIndex);
+            ref Slot slot = ref _storage.GetSlotRef(slotIndex);
             if (slot.State != SlotState.Inactive)
             {
                 return;
@@ -867,7 +846,7 @@ namespace Moirai.Atropos.ObjectPool
             int next = slot.NextInactive;
             if (prev >= 0)
             {
-                GetSlotRef(prev).NextInactive = next;
+                _storage.GetSlotRef(prev).NextInactive = next;
             }
             else
             {
@@ -876,7 +855,7 @@ namespace Moirai.Atropos.ObjectPool
 
             if (next >= 0)
             {
-                GetSlotRef(next).PrevInactive = prev;
+                _storage.GetSlotRef(next).PrevInactive = prev;
             }
             else
             {
@@ -892,34 +871,49 @@ namespace Moirai.Atropos.ObjectPool
 
         #region 私有方法 — 快照填充 [PRIVATE SNAPSHOT FILL]
 
-        private void FillInstances(ObjectPoolSnapshot snapshot, float now)
+        private void FillInstances(GameObjectPoolSnapshot snapshot, float now)
         {
             snapshot.ClearInstances();
-            for (int page = 0; page < _pageCount; page++)
+            int slotCount = _storage.SlotCount;
+            for (int i = 0; i < slotCount; i++)
             {
-                Slot[] pageSlots = _pages[page];
-                if (pageSlots == null)
+                ref Slot slot = ref _storage.GetSlotRef(i);
+                if (slot.State == SlotState.Free && slot.Instance == null)
                 {
                     continue;
                 }
 
-                for (int offset = 0; offset < PAGE_SIZE; offset++)
-                {
-                    ref Slot slot = ref pageSlots[offset];
-                    if (slot.State == SlotState.Free && slot.Instance == null)
-                    {
-                        continue;
-                    }
-
-                    ObjectPoolInstanceSnapshot instanceSnapshot = MemoryPool.Acquire<ObjectPoolInstanceSnapshot>();
-                    instanceSnapshot.instanceName = slot.Instance == null ? "<destroyed>" : slot.Instance.name;
-                    instanceSnapshot.isActive = slot.State == SlotState.Active;
-                    instanceSnapshot.idleDuration = slot.State == SlotState.Active ? 0f : Mathf.Max(0f, now - slot.LastReleaseTime);
-                    instanceSnapshot.lifeDuration = Mathf.Max(0f, now - slot.SpawnTime);
-                    instanceSnapshot.gameObject = slot.Instance;
-                    snapshot.instances.Add(instanceSnapshot);
-                }
+                GameObjectPoolInstanceSnapshot instanceSnapshot = MemoryPool.Acquire<GameObjectPoolInstanceSnapshot>();
+                instanceSnapshot.instanceName = slot.Instance == null ? "<destroyed>" : slot.Instance.name;
+                instanceSnapshot.isActive = slot.State == SlotState.Active;
+                instanceSnapshot.idleDuration = slot.State == SlotState.Active ? 0f : Mathf.Max(0f, now - slot.LastReleaseTime);
+                instanceSnapshot.lifeDuration = Mathf.Max(0f, now - slot.SpawnTime);
+                instanceSnapshot.gameObject = slot.Instance;
+                snapshot.instances.Add(instanceSnapshot);
             }
+
+            snapshot.instances.Sort(s_InstanceComparer);
+        }
+
+        private static int CompareInstanceSnapshot(GameObjectPoolInstanceSnapshot left, GameObjectPoolInstanceSnapshot right)
+        {
+            if (ReferenceEquals(left, right))
+            {
+                return 0;
+            }
+
+            if (left == null)
+            {
+                return 1;
+            }
+
+            if (right == null)
+            {
+                return -1;
+            }
+
+            int state = right.isActive.CompareTo(left.isActive);
+            return state != 0 ? state : string.CompareOrdinal(left.instanceName, right.instanceName);
         }
 
         #endregion
@@ -930,7 +924,7 @@ namespace Moirai.Atropos.ObjectPool
         {
             if (slot.Poolables != null)
             {
-                SlotArrayPool<IObjectPoolable>.Return(slot.Poolables, true);
+                SlotArrayPool<IGameObjectPoolable>.Return(slot.Poolables, true);
             }
 
             slot = default;
@@ -939,127 +933,18 @@ namespace Moirai.Atropos.ObjectPool
             slot.State = SlotState.Free;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private ref Slot GetSlotRef(int index)
-        {
-            return ref _pages[index >> PAGE_BITS][index & PAGE_MASK];
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private bool IsValidIndex(int index)
-        {
-            return index >= 0 && (index >> PAGE_BITS) < _pageCount && _pages[index >> PAGE_BITS] != null;
-        }
-
-        private int AllocSlot()
-        {
-            if (_freePageTop <= 0)
-            {
-                AllocatePage();
-            }
-
-            int page = _freePageStack[_freePageTop - 1];
-            int offset = _pageFreeStacks[page][--_pageFreeTops[page]];
-            if (_pageFreeTops[page] <= 0)
-            {
-                _freePageTop--;
-            }
-
-            _pageAliveCounts[page]++;
-            return (page << PAGE_BITS) | offset;
-        }
-
-        private void FreeSlot(int index)
-        {
-            int page = index >> PAGE_BITS;
-            int offset = index & PAGE_MASK;
-            if (_pageFreeTops[page] == 0)
-            {
-                _freePageStack[_freePageTop++] = page;
-            }
-
-            _pageFreeStacks[page][_pageFreeTops[page]++] = offset;
-            _pageAliveCounts[page]--;
-        }
-
-        private void AllocatePage()
-        {
-            EnsurePageCapacity(_pageCount + 1);
-            int page = _pageCount++;
-            _pages[page] = SlotArrayPool<Slot>.Rent(PAGE_SIZE);
-            _pageFreeStacks[page] = SlotArrayPool<int>.Rent(PAGE_SIZE);
-            Array.Clear(_pages[page], 0, PAGE_SIZE);
-            for (int i = 0; i < PAGE_SIZE; i++)
-            {
-                _pageFreeStacks[page][i] = PAGE_SIZE - 1 - i;
-                _pages[page][i].PrevInactive = -1;
-                _pages[page][i].NextInactive = -1;
-            }
-
-            _pageFreeTops[page] = PAGE_SIZE;
-            _pageAliveCounts[page] = 0;
-            _freePageStack[_freePageTop++] = page;
-        }
-
-        private void EnsurePageCapacity(int required)
-        {
-            if (_pages.Length >= required)
-            {
-                return;
-            }
-
-            int newCapacity = Mathf.Max(required, _pages.Length << 1);
-            GrowArray(ref _pages, newCapacity);
-            GrowArray(ref _pageFreeStacks, newCapacity);
-            GrowArray(ref _pageAliveCounts, newCapacity);
-            GrowArray(ref _pageFreeTops, newCapacity);
-            GrowArray(ref _freePageStack, newCapacity);
-        }
-
-        private static void GrowArray<T>(ref T[] array, int newCapacity)
-        {
-            T[] grown = SlotArrayPool<T>.Rent(newCapacity);
-            Array.Clear(grown, 0, newCapacity);
-            if (array != null)
-            {
-                Array.Copy(array, 0, grown, 0, array.Length);
-                SlotArrayPool<T>.Return(array, true);
-            }
-
-            array = grown;
-        }
-
         private void ReturnStorage()
         {
-            for (int page = 0; page < _pageCount; page++)
+            int slotCount = _storage.SlotCount;
+            for (int i = 0; i < slotCount; i++)
             {
-                if (_pages[page] != null)
+                if (_storage.GetSlotRef(i).Poolables != null)
                 {
-                    for (int offset = 0; offset < PAGE_SIZE; offset++)
-                    {
-                        if (_pages[page][offset].Poolables != null)
-                        {
-                            SlotArrayPool<IObjectPoolable>.Return(_pages[page][offset].Poolables, true);
-                        }
-                    }
-
-                    SlotArrayPool<Slot>.Return(_pages[page], true);
-                    SlotArrayPool<int>.Return(_pageFreeStacks[page], true);
+                    SlotArrayPool<IGameObjectPoolable>.Return(_storage.GetSlotRef(i).Poolables, true);
                 }
             }
 
-            SlotArrayPool<Slot[]>.Return(_pages, true);
-            SlotArrayPool<int[]>.Return(_pageFreeStacks, true);
-            SlotArrayPool<int>.Return(_pageAliveCounts, true);
-            SlotArrayPool<int>.Return(_pageFreeTops, true);
-            SlotArrayPool<int>.Return(_freePageStack, true);
-            _pages = null;
-            _pageFreeStacks = null;
-            _pageAliveCounts = null;
-            _pageFreeTops = null;
-            _freePageStack = null;
-            _pageCount = 0;
-            _freePageTop = 0;
+            _storage.ReturnStorage();
         }
 
         #endregion

@@ -107,18 +107,18 @@ namespace Moirai.Atropos.Editor
         private readonly HashSet<string> _mOpenedItems = new HashSet<string>();
         private void DrawObjectPoolState()
         {
-            var summary = ObjectPoolService.GetDebugSummary();
+            var summary = GameObjectPoolService.GetDebugSummary();
             EditorGUILayout.LabelField("Pool Count", summary.PoolCount.ToString());
             EditorGUILayout.LabelField("Loaded Prefab Count", summary.LoadedPrefabCount.ToString());
             EditorGUILayout.LabelField("Total Instance Count", summary.TotalInstanceCount.ToString());
             EditorGUILayout.LabelField("Active Instance Count", summary.ActiveInstanceCount.ToString());
             EditorGUILayout.LabelField("Inactive Instance Count", summary.InactiveInstanceCount.ToString());
 
-            ObjectPoolSnapshot[] snapshots = new ObjectPoolSnapshot[64];
-            int count = ObjectPoolService.GetDebugSnapshots(snapshots);
+            GameObjectPoolSnapshot[] snapshots = new GameObjectPoolSnapshot[64];
+            int count = GameObjectPoolService.GetDebugSnapshots(snapshots);
             for (int i = 0; i < count; i++)
             {
-                ObjectPoolSnapshot snapshot = snapshots[i];
+                GameObjectPoolSnapshot snapshot = snapshots[i];
                 bool lastState = _mOpenedItems.Contains(snapshot.location);
                 bool currentState = EditorGUILayout.Foldout(lastState, snapshot.location);
                 if (currentState != lastState)
