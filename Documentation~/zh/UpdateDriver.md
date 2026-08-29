@@ -18,33 +18,32 @@
 
 | 类/接口 | 说明 |
 |---------|------|
-| `IUpdateDriverService` | 服务公开接口：协程控制、帧更新监听、Unity 事件监听的注册与移除 |
-| `UpdateDriverService` | `internal` 实现类，继承 `Service`，管理 `[UpdateDriver]` 宿主与内部 `MainBehaviour` |
+| `UpdateDriverService` | 静态外观（`[HandlerHost]`），协程控制、帧更新监听、Unity 事件监听的注册与移除；全部静态 API，经 `Handler` 属性转发（fail-fast：未就绪时按需初始化，工厂缺失时抛异常，不静默降级） |
+| `UpdateDriverServiceHandler` | 处理器抽象基类，定义后端契约；默认实现 `UnityUpdateDriverHandler` 管理 `[UpdateDriver]` 宿主 |
 
-宿主 `MainBehaviour`（`UpdateDriverService` 的私有嵌套类）为实际挂载的 MonoBehaviour，以 C# 事件聚合各 Unity 回调；Gizmos 相关回调带 `[Conditional("UNITY_EDITOR")]`，仅在编辑器编译生效。
+宿主 `MainBehaviour`（Handler 的私有嵌套类）为实际挂载的 MonoBehaviour，以 C# 事件聚合各 Unity 回调；Gizmos 相关回调带 `[Conditional("UNITY_EDITOR")]`，仅在编辑器编译生效。
 
 ## 快速上手
 
 ```csharp
-// 获取服务（GameApp 未提供静态访问器，按接口获取）
-IUpdateDriverService driver = ServiceSystem.GetService<IUpdateDriverService>();
+// 静态外观直接调用
 
 // 协程：交由框架宿主驱动，无需自身 MonoBehaviour
-Coroutine co = driver.StartCoroutine(SomeRoutine());
-driver.StopCoroutine(co);
-driver.StopAllCoroutines();
+Coroutine co = UpdateDriverService.StartCoroutine(SomeRoutine());
+UpdateDriverService.StopCoroutine(co);
+UpdateDriverService.StopAllCoroutines();
 
 // 帧更新注入：普通类获得 Update 轮询
-driver.AddUpdateListener(OnUpdate);
-driver.AddFixedUpdateListener(OnFixedUpdate);
-driver.AddLateUpdateListener(OnLateUpdate);
+UpdateDriverService.AddUpdateListener(OnUpdate);
+UpdateDriverService.AddFixedUpdateListener(OnFixedUpdate);
+UpdateDriverService.AddLateUpdateListener(OnLateUpdate);
 
 void OnUpdate() { /* 每帧调用 */ }
 void OnFixedUpdate() { /* 物理帧调用 */ }
 void OnLateUpdate() { /* Late 帧调用 */ }
 
 // 移除监听（成对调用，防止泄漏）
-driver.RemoveUpdateListener(OnUpdate);
+UpdateDriverService.RemoveUpdateListener(OnUpdate);
 ```
 
 ## 进阶用法
@@ -53,15 +52,15 @@ driver.RemoveUpdateListener(OnUpdate);
 
 ```csharp
 // 应用暂停/恢复（参数为是否暂停）
-driver.AddOnApplicationPauseListener(OnApplicationPause);
+UpdateDriverService.AddOnApplicationPauseListener(OnApplicationPause);
 void OnApplicationPause(bool pauseStatus) { }
 
 // 编辑器 Gizmos 绘制
-driver.AddOnDrawGizmosListener(DrawGizmos);
-driver.AddOnDrawGizmosSelectedListener(DrawSelectedGizmos);
+UpdateDriverService.AddOnDrawGizmosListener(DrawGizmos);
+UpdateDriverService.AddOnDrawGizmosSelectedListener(DrawSelectedGizmos);
 
 // 宿主销毁回调（服务 Shutdown 销毁宿主前不会触发，主要用于宿主被外部销载的场景）
-driver.AddDestroyListener(OnHostDestroy);
+UpdateDriverService.AddDestroyListener(OnHostDestroy);
 ```
 
 ### 框架内部使用

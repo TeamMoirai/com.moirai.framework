@@ -18,33 +18,32 @@ Namespace: `Moirai.Atropos.UpdateDriver`
 
 | Class/Interface | Description |
 |---------|------|
-| `IUpdateDriverService` | Public service interface: coroutine control, frame update listening, Unity event listening registration and removal |
-| `UpdateDriverService` | `internal` implementation class, inherits `Service`, manages the `[UpdateDriver]` host and internal `MainBehaviour` |
+| `UpdateDriverService` | Static facade (`[HandlerHost]`): coroutine control, frame update listening, Unity event listening registration and removal; all static APIs forward through the `Handler` property (fail-fast: lazily initialized when not ready, throws if the default factory is missing, never silently degrades) |
+| `UpdateDriverServiceHandler` | Handler abstract base class defining the backend contract; the default implementation `UnityUpdateDriverHandler` manages the `[UpdateDriver]` host |
 
-The host `MainBehaviour` (a private nested class of `UpdateDriverService`) is the actual MonoBehaviour attached to the host, aggregating Unity callbacks via C# events; Gizmo-related callbacks are decorated with `[Conditional("UNITY_EDITOR")]` and only compile in the editor.
+The host `MainBehaviour` (a private nested class of the handler) is the actual MonoBehaviour attached to the host, aggregating Unity callbacks via C# events; Gizmo-related callbacks are decorated with `[Conditional("UNITY_EDITOR")]` and only compile in the editor.
 
 ## Quick Start
 
 ```csharp
-// Get the service (GameApp does not provide a static accessor; retrieve by interface)
-IUpdateDriverService driver = ServiceSystem.GetService<IUpdateDriverService>();
+// Call the static facade directly
 
 // Coroutine: driven by the framework host, no own MonoBehaviour needed
-Coroutine co = driver.StartCoroutine(SomeRoutine());
-driver.StopCoroutine(co);
-driver.StopAllCoroutines();
+Coroutine co = UpdateDriverService.StartCoroutine(SomeRoutine());
+UpdateDriverService.StopCoroutine(co);
+UpdateDriverService.StopAllCoroutines();
 
 // Frame update injection: plain classes gain Update polling
-driver.AddUpdateListener(OnUpdate);
-driver.AddFixedUpdateListener(OnFixedUpdate);
-driver.AddLateUpdateListener(OnLateUpdate);
+UpdateDriverService.AddUpdateListener(OnUpdate);
+UpdateDriverService.AddFixedUpdateListener(OnFixedUpdate);
+UpdateDriverService.AddLateUpdateListener(OnLateUpdate);
 
 void OnUpdate() { /* Called every frame */ }
 void OnFixedUpdate() { /* Called on physics frames */ }
 void OnLateUpdate() { /* Called on late frames */ }
 
 // Remove listeners (pair with Add to prevent leaks)
-driver.RemoveUpdateListener(OnUpdate);
+UpdateDriverService.RemoveUpdateListener(OnUpdate);
 ```
 
 ## Advanced Usage
@@ -53,15 +52,15 @@ driver.RemoveUpdateListener(OnUpdate);
 
 ```csharp
 // Application pause/resume (parameter indicates pause status)
-driver.AddOnApplicationPauseListener(OnApplicationPause);
+UpdateDriverService.AddOnApplicationPauseListener(OnApplicationPause);
 void OnApplicationPause(bool pauseStatus) { }
 
 // Editor Gizmos drawing
-driver.AddOnDrawGizmosListener(DrawGizmos);
-driver.AddOnDrawGizmosSelectedListener(DrawSelectedGizmos);
+UpdateDriverService.AddOnDrawGizmosListener(DrawGizmos);
+UpdateDriverService.AddOnDrawGizmosSelectedListener(DrawSelectedGizmos);
 
 // Host destruction callback (not triggered when service Shutdown destroys the host; mainly for scenarios where the host is destroyed externally)
-driver.AddDestroyListener(OnHostDestroy);
+UpdateDriverService.AddDestroyListener(OnHostDestroy);
 ```
 
 ### Internal Framework Usage

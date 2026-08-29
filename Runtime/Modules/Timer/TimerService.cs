@@ -7,7 +7,7 @@ namespace Moirai.Atropos.Timer
     /// 计时器服务外观（Facade）。
     /// <para>统一的静态计时器访问入口，通过替换 <see cref="Handler"/> 即可在不同计时器后端之间零成本切换。</para>
     /// <para>未显式设置处理器时，使用 <see cref="CreateDefaultHandler"/> 从 <see cref="TimerServiceSettings"/> 创建处理器实例。</para>
-    /// <para>门面方法一律经 Handler 属性转发：服务未就绪时按需初始化，设置资产不可用或默认工厂缺失时抛出异常（fail-fast），不静默降级。</para>
+    /// <para>外观方法一律经 Handler 属性转发：服务未就绪时按需初始化，设置资产不可用或默认工厂缺失时抛出异常（fail-fast），不静默降级。</para>
     /// <para>Handler 属性由 <c>HandlerHostGenerator</c> 源生成器自动生成（线程安全懒加载）。</para>
     /// </summary>
     [HandlerHost(typeof(TimerServiceHandler))]

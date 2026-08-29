@@ -110,7 +110,7 @@ int staleCount = TimerService.GetStaleOneShotTimers(staleResults);
 
 ## 注意事项
 
-- 门面方法一律经 `Handler` 属性转发：服务未就绪时按需从 `TimerServiceSettings` 初始化；设置资产不可用或默认工厂缺失时抛出异常（fail-fast），不静默返回默认值。`Shutdown` 后调用门面同样按需重建。
+- 外观方法一律经 `Handler` 属性转发：服务未就绪时按需从 `TimerServiceSettings` 初始化；设置资产不可用或默认工厂缺失时抛出异常（fail-fast），不静默返回默认值。`Shutdown` 后调用外观同样按需重建。
 - `AddTimer` 返回 `0UL` 表示失败（回调为 null 或槽位耗尽），有效句柄不会为 0；编辑器下失败会输出 `LogUtility.Warning` 警告日志，运行时不产生日志开销。
 - 槽位复用带版本号：对已失效句柄调用 `Stop` / `RemoveTimer` / `IsRunning` 等均为安全的空操作或返回默认值。
 - `RemoveTimer` 与一次性的自然到期等价，均会回收槽位；循环计时器必须手动移除，否则持续触发。

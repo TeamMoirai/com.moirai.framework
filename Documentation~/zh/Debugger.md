@@ -20,8 +20,8 @@ Debugger 服务由纯 C# 的 `DebuggerService`（经 `GameApp.Debugger` 访问�
 
 | 类/接口 | 说明 |
 |---------|------|
-| `IDebuggerService` | 调试器管理器接口：`ActiveWindow`、`DebuggerWindowRoot`、`RegisterDebuggerWindow` / `UnregisterDebuggerWindow` / `GetDebuggerWindow` / `SelectDebuggerWindow` |
-| `DebuggerService` | 默认实现（`internal sealed`），`Priority = -1`，实现 `IUpdateService`，仅当窗口激活时轮询窗口树 |
+| `DebuggerService` | 静态外观（`[HandlerHost]`，`IServiceTickable`）：`ActiveWindow`、`DebuggerWindowRoot`、`RegisterDebuggerWindow` / `UnregisterDebuggerWindow` / `GetDebuggerWindow` / `SelectDebuggerWindow`；仅当窗口激活时轮询窗口树，经 `Handler` 属性转发（fail-fast：未就绪时按需初始化，工厂缺失时抛异常，不静默降级） |
+| `DebuggerServiceHandler` | 处理器抽象基类，定义后端契约；默认实现 `UnityDebuggerHandler` 承载窗口组管理 |
 | `IDebuggerWindow` | 调试器窗口接口：`Initialize(params object[] args)` / `Shutdown()` / `OnEnter()` / `OnLeave()` / `OnUpdate(float, float)` / `OnDraw()` |
 | `IDebuggerWindowGroup` | 窗口组接口（继承 `IDebuggerWindow`）：`DebuggerWindowCount` / `SelectedIndex` / `SelectedWindow` / `GetDebuggerWindowNames()` / `RegisterDebuggerWindow(string, IDebuggerWindow)` |
 | `DebuggerComp` | 调试器组件（`public sealed partial`，MonoBehaviour），挂接场景后绘制全部面板，单例 `DebuggerComp.Instance` |

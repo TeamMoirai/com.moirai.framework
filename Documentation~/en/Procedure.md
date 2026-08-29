@@ -2,14 +2,14 @@
 
 > Self-contained game flow management: models startup, hot update, preload, and other phases as switchable procedure states.
 
-The Procedure service (`ProcedureService`) is a self-contained state machine — it maintains an internal state dictionary and current state without depending on any external state machine service. Each game phase (startup, checking for updates, downloading resources, loading assemblies, preloading, etc.) is a `ProcedureBase` state. Available procedures and the entry procedure are configured via `ProcedureServiceSettings`. `GameApp.Awake` automatically reflects, instantiates, and starts them, requiring no manual bootstrap code. Access via `GameApp.Procedure` (`IProcedureService`).
+The Procedure service (`ProcedureService`) is a self-contained state machine — it maintains an internal state dictionary and current state without depending on any external state machine service. Each game phase (startup, checking for updates, downloading resources, loading assemblies, preloading, etc.) is a `ProcedureBase` state. Available procedures and the entry procedure are configured via `ProcedureServiceSettings`. `GameApp.Awake` automatically reflects, instantiates, and starts them, requiring no manual bootstrap code. Access via the `ProcedureService` static facade.
 
 ## Core Features
 
 - Self-contained state machine: `ProcedureService` maintains an internal `Dictionary<Type, ProcedureBase>` state dictionary, drives its own `Tick` polling via `IServiceTickable`, and does not depend on any external FSM service
 - Configuration-driven startup: `ProcedureServiceSettings` records available procedure types and the entry procedure; `GameApp.Awake` automatically calls `ProcedureServiceSettings.StartProcedure()` to instantiate and start
 - `[ProcedureLauncher]` attribute: Only `ProcedureBase` subclasses marked with this attribute are scanned and included by `ProcedureServiceSettings` (automatically scanned on editor Reset; defaults to the procedure whose name contains `ProcedureLaunch` as the entry)
-- Dual switching entry points: Inside a procedure, use the base class method `ChangeState<T>()` (parameterless, via internal `Owner` reference); externally (e.g., from the hot update layer), use `GameApp.Procedure.ChangeState<T>()`
+- Dual switching entry points: Inside a procedure, use the base class method `ChangeState<T>()` (parameterless, via internal `Owner` reference); externally (e.g., from the hot update layer), use `ProcedureService.ChangeState<T>()`
 - Supports runtime reconstruction: `RestartProcedure` cleans up old states, rebuilds with a new procedure list, and starts with the first procedure
 
 ## Core Types
@@ -18,8 +18,9 @@ Namespace: `Moirai.Atropos.Procedure`
 
 | Class/Interface | Description |
 |---------|------|
-| `IProcedureService` | Procedure manager interface: `Initialize` / `StartProcedure` / `HasProcedure` / `ChangeState` / `GetProcedure` / `RestartProcedure` and `CurrentProcedure`, `CurrentProcedureTime`; accessed via `GameApp.Procedure` |
-| `ProcedureService` | Service implementation (`ServiceBase, IProcedureService, IServiceTickable`, `Priority = -2`), holds internal state dictionary and tick-driven polling |
+| `ProcedureService` | Static facade (`[HandlerHost]`, `IServiceTickable`): `StartProcedure` / `HasProcedure` / `ChangeState` / `GetProcedure` / `RestartProcedure` and `CurrentProcedure`, `CurrentProcedureTime`; all static APIs forward through the `Handler` property (fail-fast: lazily initialized when not ready, throws if the default factory is missing, never silently degrades) |
+| `ProcedureServiceHandler` | Handler abstract base class defining the procedure state-machine backend contract; `ProcedureBase` subclasses call back into this handler via the internal `Owner` reference |
+| `DefaultProcedureHandler` | Default implementation, holds the internal state dictionary and tick-driven polling |
 | `ProcedureBase` | Procedure base class (standalone abstract class), provides `OnInit / OnEnter / OnUpdate / OnLeave / OnDestroy` parameterless lifecycle methods and `ChangeState<T>()` switching |
 | `ProcedureServiceSettings` | Framework settings (panel name "Procedure Settings"): serialized list of available procedure type names and the entry procedure type name; static `StartProcedure()` is responsible for reflecting and building the flow |
 | `ProcedureLauncherAttribute` | Class-level attribute, marks `ProcedureBase` subclasses that can be included in the procedure system |
@@ -38,8 +39,6 @@ using Moirai.Atropos.Procedure;
 public abstract class ProcedurePremainBase : ProcedureBase
 {
     public abstract bool UseNativeDialog { get; }
-
-    protected readonly IResourceService _resourceService = GameServices.Provider?.GetService<IResourceService>();
 }
 
 // Concrete procedure
@@ -67,15 +66,15 @@ Querying and switching from outside a procedure:
 
 ```csharp
 // Current procedure and elapsed time
-ProcedureBase current = GameApp.Procedure.CurrentProcedure;
-float seconds = GameApp.Procedure.CurrentProcedureTime;
+ProcedureBase current = ProcedureService.CurrentProcedure;
+float seconds = ProcedureService.CurrentProcedureTime;
 
 // Query / get a procedure instance
-bool has = GameApp.Procedure.HasProcedure<ProcedureSplash>();
-ProcedureBase proc = GameApp.Procedure.GetProcedure<ProcedureSplash>();
+bool has = ProcedureService.HasProcedure<ProcedureSplash>();
+ProcedureBase proc = ProcedureService.GetProcedure<ProcedureSplash>();
 
 // Force a switch from outside (e.g., jump logic in hot update code)
-GameApp.Procedure.ChangeState<ProcedurePreload>();
+ProcedureService.ChangeState<ProcedurePreload>();
 ```
 
 ## Configuration and Extensions
@@ -108,7 +107,7 @@ ProcedureLaunch -> ProcedureSplash -> ProcedureInitPackage -> ProcedureInitResou
 
 ```csharp
 // Clean up old states, rebuild with a new procedure list, and start with the first procedure (returns success status)
-bool ok = GameApp.Procedure.RestartProcedure(
+bool ok = ProcedureService.RestartProcedure(
     new ProcedureLaunch(),
     new ProcedureInitPackage(),
     new ProcedurePreload());
@@ -121,7 +120,7 @@ bool ok = GameApp.Procedure.RestartProcedure(
 - Procedure classes must have a parameterless constructor (`ProcedureServiceSettings` uses `Activator.CreateInstance` for reflection-based instantiation). Do not use constructor injection in procedure classes.
 - Procedure instances are held by `ProcedureService` and live for a long time; do not cache short-lived objects in them. Place per-frame logic in `OnUpdate`, and for time-consuming asynchronous operations, start them in `OnEnter` and poll for completion in `OnUpdate` (refer to the template's `_initResourcesComplete` pattern).
 - `ProcedureBase.OnUpdate` has two time parameters (`elapseSeconds` / `realElapseSeconds`). Ensure the signature is consistent when overriding.
-- `ChangeState<T>()` is a parameterless method — it delegates through the internal `Owner` (`IProcedureService`) reference held by `ProcedureBase`, no need to pass the service instance when calling.
+- `ChangeState<T>()` is a parameterless method — it delegates through the internal `Owner` (`ProcedureServiceHandler`) reference held by `ProcedureBase`, no need to pass the service instance when calling.
 
 ---
 [« Back to Main README](../../README_EN.md) · [Resource](Resource.md)

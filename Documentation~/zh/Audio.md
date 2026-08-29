@@ -2,13 +2,13 @@
 
 > 基于 AudioMixer 音轨分组与音频代理池的音频系统，支持句柄控制、淡入淡出、独奏与事件驱动播放。
 
-`Audio` 服务将音频按用途划分为多条音轨（`EAudioTrack`），每条音轨对应一个 `AudioCategory`，内部维护一组 `AudioAgent`（封装 `AudioSource`）负责实际播放。服务通过 `AudioService.Xxx()` 静态外观访问（后端逻辑在抽象契约 `AudioServiceHandler` 的默认实现 `UnityAudioHandler` 中），播放后返回 `ulong` 句柄用于暂停、恢复、停止等后续控制，同时也支持通过 `AudioPlayEvent` 等事件间接驱动，避免服务未初始化时的空引用。音轨与主音量的设置会通过 `SettingUtility` 持久化，并在服务初始化后自动加载。
+`Audio` 服务将音频按用途划分为多条音轨（`EAudioTrack`），每条音轨对应一个 `AudioCategory`，内部维护一组 `AudioAgent`（封装 `AudioSource`）负责实际播放。服务通过 `AudioService.Xxx()` 静态外观访问（后端逻辑在抽象契约 `AudioServiceHandler` 的默认实现 `UnityAudioHandler` 中），播放后返回 `ulong` 句柄用于暂停、恢复、停止等后续控制，同时也支持通过 `AudioPlayEvent` 等事件间接驱动，解耦调用方与服务的初始化时序。音轨与主音量的设置会通过 `SettingUtility` 持久化，并在服务初始化后自动加载。
 
 ## 架构（HandlerHost 模式）
 
 音频服务采用与框架其他服务一致的 HandlerHost 零反射架构：
 
-- **`AudioService`**：静态外观（`[HandlerHost(typeof(AudioServiceHandler))]` + `[ServiceDependency(typeof(ResourceService))]`），全部公共成员为静态方法，内部转发到 `s_Handler`
+- **`AudioService`**：静态外观（`[HandlerHost(typeof(AudioServiceHandler))]` + `[ServiceDependency(typeof(ResourceService))]`），全部公共成员为静态方法，经 `Handler` 属性转发（fail-fast：未就绪时按需初始化，工厂缺失时抛异常，不静默降级）
 - **`AudioServiceHandler`**：可序列化抽象基类（继承 `FrameworkHandler`，策略模式抽象策略），定义供外观调用的后端契约
 - **`UnityAudioHandler`**：`AudioServiceHandler` 的默认实现（基于 Unity `AudioSource`/`AudioMixer`，位于 `Handler/` 目录），承载代理池管理、播放状态机、淡入淡出等核心逻辑
 - **`AudioServiceSettings`**：框架设置，通过 `[ProviderDropdown]` 选择音频后端实现并配置 `AudioMixer` 与 `AudioGroupConfig[]`

@@ -2,13 +2,13 @@
 
 > Audio system based on AudioMixer track grouping and audio agent pool, supporting handle control, fade in/out, solo, and event-driven playback.
 
-The `Audio` service divides audio into multiple tracks (`EAudioTrack`) by usage. Each track corresponds to an `AudioCategory`, which internally maintains a set of `AudioAgent` objects (wrapping `AudioSource`) responsible for actual playback. The service is accessed via the `AudioService.Xxx()` static facade (backend logic lives in the default implementation `UnityAudioHandler` behind the abstract contract `AudioServiceHandler`), returning a `ulong` handle after playback for subsequent control such as pause, resume, and stop. It also supports indirect driving through events like `AudioPlayEvent` to avoid null references when the service is not initialized. Track and master volume settings are persisted through `SettingUtility` and automatically loaded after service initialization.
+The `Audio` service divides audio into multiple tracks (`EAudioTrack`) by usage. Each track corresponds to an `AudioCategory`, which internally maintains a set of `AudioAgent` objects (wrapping `AudioSource`) responsible for actual playback. The service is accessed via the `AudioService.Xxx()` static facade (backend logic lives in the default implementation `UnityAudioHandler` behind the abstract contract `AudioServiceHandler`), returning a `ulong` handle after playback for subsequent control such as pause, resume, and stop. It also supports indirect driving through events like `AudioPlayEvent`, decoupling callers from the service initialization timing. Track and master volume settings are persisted through `SettingUtility` and automatically loaded after service initialization.
 
 ## Architecture (HandlerHost Pattern)
 
 The audio service adopts the same HandlerHost zero-reflection architecture as other framework services:
 
-- **`AudioService`**: Static facade (`[HandlerHost(typeof(AudioServiceHandler))]` + `[ServiceDependency(typeof(ResourceService))]`); all public members are static methods that internally forward to `s_Handler`
+- **`AudioService`**: Static facade (`[HandlerHost(typeof(AudioServiceHandler))]` + `[ServiceDependency(typeof(ResourceService))]`); all public members are static methods that forward through the `Handler` property (fail-fast: lazily initialized when not ready, throws if the default factory is missing, never silently degrades)
 - **`AudioServiceHandler`**: Serializable abstract base class (inherits `FrameworkHandler`, strategy-pattern abstraction) defining the backend contract invoked by the facade
 - **`UnityAudioHandler`**: Default implementation of `AudioServiceHandler` (based on Unity `AudioSource`/`AudioMixer`, located under `Handler/`), carrying the core logic of agent pool management, playback state machines, and fade transitions
 - **`AudioServiceSettings`**: Framework settings, selecting the audio backend implementation via `[ProviderDropdown]` and configuring `AudioMixer` with `AudioGroupConfig[]`

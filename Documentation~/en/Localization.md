@@ -2,7 +2,7 @@
 
 > Multilingual service based on Luban configuration tables, supporting automatic injection and inline parsing of text, images, audio, and Timeline.
 
-The `Localization` service is accessed via `GameApp.Localization` (`ILocalizationService`). It lazily loads all localized strings from the Luban configuration table (via `ConfigMgr` from [ConfigTable](ConfigTable.md)) and registers available languages on the first access to any multilingual API. The language is determined by priority: "command-line argument -> editor setting -> local存档 -> system language". When switching languages, it triggers `OnLanguageChanged` and automatically re-injects all registered `LocalizerBase` components. In addition to retrieving text by ID, `LocalizationHelper.ResolveLocalizedStrings` supports inline parsing of `{l10n:ID}` / `{i18n:ID}` / `{g11n:ID}` placeholders in any string.
+The `Localization` service is accessed via the `LocalizationService` static facade. It lazily loads all localized strings from the Luban configuration table (via `ConfigTableService` from [ConfigTable](ConfigTable.md)) and registers available languages on the first access to any multilingual API. The language is determined by priority: "command-line argument -> editor setting -> local存档 -> system language". When switching languages, it triggers `OnLanguageChanged` and automatically re-injects all registered `LocalizerBase` components. In addition to retrieving text by ID, `LocalizationHelper.ResolveLocalizedStrings` supports inline parsing of `{l10n:ID}` / `{i18n:ID}` / `{g11n:ID}` placeholders in any string.
 
 ## Core Features
 
@@ -21,8 +21,7 @@ Namespace: `Moirai.Atropos.Localization`
 
 | Class/Interface | Description |
 |----------------|-------------|
-| `ILocalizationService` | Service public interface, return type of `GameApp.Localization`; includes `OnLanguageChanged` event |
-| `LocalizationService` | `sealed` implementation class, responsible for loading config table text, language switching, and Localizer management |
+| `LocalizationService` | Static facade (`[HandlerHost]`) responsible for loading config table text, language switching, and Localizer management; the `OnLanguageChanged` event is exposed directly on the facade |
 | `Language` | Language class (`IEquatable<Language>`): `Name`, `Code`, `DisplayName`, `BuiltinLanguages`, supports conversion to/from `SystemLanguage` |
 | `LocalizationHelper` | Static helper class: `ResolveLocalizedStrings`, `RegisterLanguageMap`, `GetAllAvailableLanguages`, `ToLanguage` |
 | `LocalizerBase` | Abstract base class for localizers (MonoBehaviour): `Prepare` gets the target component reference, `Localize` performs injection |
@@ -42,34 +41,34 @@ Namespace: `Moirai.Atropos.Localization`
 ## Quick Start
 
 ```csharp
-// Access the service
-ILocalizationService localization = GameApp.Localization;
+// Access the service (static facade, call static methods directly)
+LocalizationService.ChangeLanguage("English");
 
 // Localized data is lazily loaded: it is automatically loaded from config tables on the first call
 // to any query/switch API — no manual initialization required
 
 // Get localized string by text ID (returns the ID as-is if untranslated or ID does not exist)
-string title = localization.GetTextFromId("main_title");
+string title = LocalizationService.GetTextFromId("main_title");
 
 // With string.Format parameters
-string welcome = localization.GetTextFromId("welcome_player", "Moirai");
+string welcome = LocalizationService.GetTextFromId("welcome_player", "Moirai");
 
 // Get text for a specific language / get all language translations for an ID
-string english = localization.GetTextFromIdLanguage("main_title", Language.English);
-Dictionary<string, string> all = localization.GetDictionaryFromId("main_title");
+string english = LocalizationService.GetTextFromIdLanguage("main_title", Language.English);
+Dictionary<string, string> all = LocalizationService.GetDictionaryFromId("main_title");
 
 // ID check and enumeration
-bool has = localization.Has("main_title");
-List<string> ids = localization.GetAllIds();
+bool has = LocalizationService.Has("main_title");
+List<string> ids = LocalizationService.GetAllIds();
 
 // Switch language (three methods, Name and Code are case-insensitive)
-localization.ChangeLanguage(Language.ChineseSimplified);
-localization.ChangeLanguage("zh-Hans");
-localization.ChangeLanguage(0);                 // By loaded language index
+LocalizationService.ChangeLanguage(Language.ChineseSimplified);
+LocalizationService.ChangeLanguage("zh-Hans");
+LocalizationService.ChangeLanguage(0);                 // By loaded language index
 
 // Cycle through languages (debug use)
-string next = localization.ActivateNextLanguage();
-string prev = localization.ActivatePreviousLanguage();
+string next = LocalizationService.ActivateNextLanguage();
+string prev = LocalizationService.ActivatePreviousLanguage();
 ```
 
 ## Advanced Usage
@@ -85,7 +84,7 @@ string hint = LocalizationHelper.ResolveLocalizedStrings("Press {l10n:btn_confir
 ### Subscribing to Language Switching
 
 ```csharp
-GameApp.Localization.OnLanguageChanged += language =>
+LocalizationService.OnLanguageChanged += language =>
 {
     Debug.Log($"Language switched: {language.DisplayName}");
     // Manually refresh content not managed by LocalizerBase

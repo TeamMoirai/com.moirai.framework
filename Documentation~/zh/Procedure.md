@@ -2,14 +2,14 @@
 
 > 自包含的游戏流程管理：把启动、热更、预加载等阶段建模为一个个可切换的流程状态。
 
-Procedure 服务（`ProcedureService`）是一台自包含的状态机——内部维护状态字典与当前状态，不依赖任何外部状态机服务。每个游戏阶段（启动、检查更新、下载资源、加载程序集、预加载等）都是一个 `ProcedureBase` 状态。可用流程与入口流程由 `ProcedureServiceSettings` 配置，`GameApp.Awake` 时自动反射实例化并启动，无需手写引导代码。通过 `GameApp.Procedure`（`IProcedureService`）访问。
+Procedure 服务（`ProcedureService`）是一台自包含的状态机——内部维护状态字典与当前状态，不依赖任何外部状态机服务。每个游戏阶段（启动、检查更新、下载资源、加载程序集、预加载等）都是一个 `ProcedureBase` 状态。可用流程与入口流程由 `ProcedureServiceSettings` 配置，`GameApp.Awake` 时自动反射实例化并启动，无需手写引导代码。通过 `ProcedureService` 静态外观访问。
 
 ## 核心特性
 
 - 自包含状态机：`ProcedureService` 内部维护 `Dictionary<Type, ProcedureBase>` 状态字典，自行驱动 `Tick` 轮询，不依赖外部 FSM 服务
 - 配置化启动：`ProcedureServiceSettings` 记录可用流程类型与入口流程，`GameApp.Awake` 自动调用 `ProcedureServiceSettings.StartProcedure()` 完成实例化与启动
 - `[ProcedureLauncher]` 标记：只有标记该 Attribute 的 `ProcedureBase` 子类才会被 `ProcedureServiceSettings` 扫描收录（编辑器 Reset 时自动扫描，默认以名称含 `ProcedureLaunch` 的流程作为入口）
-- 双套切换入口：流程内部可用基类 `ChangeState<T>()`（无参，通过内部 `Owner` 引用）；外部（如热更层）可用 `GameApp.Procedure.ChangeState<T>()`
+- 双套切换入口：流程内部可用基类 `ChangeState<T>()`（无参，通过内部 `Owner` 引用）；外部（如热更层）可用 `ProcedureService.ChangeState<T>()`
 - 支持运行时重建：`RestartProcedure` 清理旧状态后按新流程列表重建并以第一个流程启动
 
 ## 核心类型
@@ -18,8 +18,9 @@ Procedure 服务（`ProcedureService`）是一台自包含的状态机——内�
 
 | 类/接口 | 说明 |
 |---------|------|
-| `IProcedureService` | 流程管理器接口：`Initialize` / `StartProcedure` / `HasProcedure` / `ChangeState` / `GetProcedure` / `RestartProcedure` 及 `CurrentProcedure`、`CurrentProcedureTime`；经 `GameApp.Procedure` 访问 |
-| `ProcedureService` | 服务实现（`ServiceBase, IProcedureService, IServiceTickable`，`Priority = -2`），内置状态字典与轮询驱动 |
+| `ProcedureService` | 静态外观（`[HandlerHost]`，`IServiceTickable`）：`StartProcedure` / `HasProcedure` / `ChangeState` / `GetProcedure` / `RestartProcedure` 及 `CurrentProcedure`、`CurrentProcedureTime`；全部静态 API，经 `Handler` 属性转发（fail-fast：未就绪时按需初始化，工厂缺失时抛异常，不静默降级） |
+| `ProcedureServiceHandler` | 处理器抽象基类，定义流程状态机后端契约；`ProcedureBase` 子类经内部 `Owner` 引用回调本处理器 |
+| `DefaultProcedureHandler` | 默认实现，内置状态字典与轮询驱动 |
 | `ProcedureBase` | 流程基类（独立抽象类），提供 `OnInit / OnEnter / OnUpdate / OnLeave / OnDestroy` 无参生命周期与 `ChangeState<T>()` 切换 |
 | `ProcedureServiceSettings` | 框架设置（面板名「流程设置」）：序列化可用流程类型名列表与入口流程类型名，静态 `StartProcedure()` 负责反射建流 |
 | `ProcedureLauncherAttribute` | 类标记 Attribute，标记可被流程系统收录的 `ProcedureBase` 子类 |
@@ -38,8 +39,6 @@ using Moirai.Atropos.Procedure;
 public abstract class ProcedurePremainBase : ProcedureBase
 {
     public abstract bool UseNativeDialog { get; }
-
-    protected readonly IResourceService _resourceService = GameServices.Provider?.GetService<IResourceService>();
 }
 
 // 具体流程
@@ -67,15 +66,15 @@ public class ProcedureLaunch : ProcedurePremainBase
 
 ```csharp
 // 当前流程与停留时间
-ProcedureBase current = GameApp.Procedure.CurrentProcedure;
-float seconds = GameApp.Procedure.CurrentProcedureTime;
+ProcedureBase current = ProcedureService.CurrentProcedure;
+float seconds = ProcedureService.CurrentProcedureTime;
 
 // 查询/获取流程实例
-bool has = GameApp.Procedure.HasProcedure<ProcedureSplash>();
-ProcedureBase proc = GameApp.Procedure.GetProcedure<ProcedureSplash>();
+bool has = ProcedureService.HasProcedure<ProcedureSplash>();
+ProcedureBase proc = ProcedureService.GetProcedure<ProcedureSplash>();
 
 // 外部强制切换（例如热更代码中的跳转逻辑）
-GameApp.Procedure.ChangeState<ProcedurePreload>();
+ProcedureService.ChangeState<ProcedurePreload>();
 ```
 
 ## 配置与扩展
@@ -108,7 +107,7 @@ ProcedureLaunch -> ProcedureSplash -> ProcedureInitPackage -> ProcedureInitResou
 
 ```csharp
 // 清理旧状态，用新流程列表重建，并以列表第一个流程启动（返回是否成功）
-bool ok = GameApp.Procedure.RestartProcedure(
+bool ok = ProcedureService.RestartProcedure(
     new ProcedureLaunch(),
     new ProcedureInitPackage(),
     new ProcedurePreload());
@@ -121,7 +120,7 @@ bool ok = GameApp.Procedure.RestartProcedure(
 - 流程类需要无参构造（`ProcedureServiceSettings` 通过 `Activator.CreateInstance` 反射实例化），不要在流程类中做构造器注入。
 - 流程实例由 `ProcedureService` 持有并长期存活，不要在其中缓存短生命周期对象；需要每帧逻辑写在 `OnUpdate`，耗时异步操作建议在 `OnEnter` 启动、在 `OnUpdate` 轮询完成标记（参考模板 `_initResourcesComplete` 的写法）。
 - `ProcedureBase.OnUpdate` 含两个时间参数（`elapseSeconds` / `realElapseSeconds`），重写时注意保持签名一致。
-- `ChangeState<T>()` 是无参方法——通过 `ProcedureBase` 内部持有的 `Owner`（`IProcedureService`）引用委托切换，无需在调用时传递服务实例。
+- `ChangeState<T>()` 是无参方法——通过 `ProcedureBase` 内部持有的 `Owner`（`ProcedureServiceHandler`）引用委托切换，无需在调用时传递服务实例。
 
 ---
 [« 返回主 README](../../README.md) · [Resource](Resource.md)

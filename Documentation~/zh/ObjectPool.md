@@ -1,17 +1,18 @@
 ﻿# ObjectPool 对象池服务
 
-> 通用池 + GameObject 特化、共享内核 + 双门面的单模块对象池架构。
-> 共享内核提供分页槽位存储、开放寻址哈希与最小堆维护调度；两个门面分别面向任意 CLR 对象与 Unity GameObject。
+> 通用池 + GameObject 特化、共享内核 + 双外观的单模块对象池架构。
+> 共享内核提供分页槽位存储、开放寻址哈希与最小堆维护调度；两个外观分别面向任意 CLR 对象与 Unity GameObject。
 
-服务分为两套独立门面，按池化对象类型选择：
+服务分为两套独立外观，按池化对象类型选择：
 
-| 门面 | 池化对象 | 键 | 典型场景 |
+| 外观 | 池化对象 | 键 | 典型场景 |
 |------|---------|-----|---------|
 | `ObjectPoolService` | 任意 `ObjectBase` 派生对象（数据包、连接、指令…） | `Type + 池名` | 纯 C# 对象复用 |
 | `GameObjectPoolService` | Unity GameObject（Prefab 实例） | 资源地址（PoolCatalog 规则） | 子弹、特效、UI 弹窗 |
 
 > ⚠️ **两个服务均为 opt-in 注册**：不在 `ProcedureService` 依赖链中，默认不注册。
-> 未注册时静态门面所有调用静默返回默认值，维护（过期/超容/低内存收缩）不生效。
+> 外观调用一律经 `Handler` 属性转发（fail-fast，未就绪时按需初始化）。
+> 两池服务为 opt-in 注册：未注册时直接调用 `Spawn` / `Despawn` 等仍会按需自初始化执行，但无人驱动 `Tick`，基于帧调度的维护（过期/超容/低内存收缩）不生效。
 > 启用方式：`GameServices.RegisterService(EServiceScopeKind.App, new ObjectPoolService())`
 > （GameObjectPoolService 依赖 ResourceService，注册时自动递归拉起）。
 
@@ -24,11 +25,11 @@ Runtime/Modules/ObjectPool/
 │   ├── PoolMaintenanceScheduler # 共享最小堆维护调度（1ms 帧预算）
 │   ├── OpenHashMap<K> / ReferenceOpenHashMap / StringOpenHashMap  # 开放寻址零分配哈希
 │   └── SlotArrayPool<T>        # 按长度分桶的数组池
-├── ObjectPoolService.cs    # 通用池静态门面（[HandlerHost]）
+├── ObjectPoolService.cs    # 通用池静态外观（[HandlerHost]）
 ├── ObjectBase.cs           # 池化对象基类（OnSpawn/OnDespawn/Release 契约）
 ├── IObjectPool.cs          # 通用池契约
 └── GameObject/             # GameObject 特化
-    ├── GameObjectPoolService.cs    # GO 池静态门面（[HandlerHost] + ServiceDependency(Resource)）
+    ├── GameObjectPoolService.cs    # GO 池静态外观（[HandlerHost] + ServiceDependency(Resource)）
     ├── RuntimeGameObjectPool.cs    # 单池运行时（代系句柄 + 策略裁剪）
     ├── PoolCatalog.cs / PoolPolicy.cs / Data/  # 数据驱动配置与策略
     └── IPrefabLoader.cs            # 预制体加载抽象（ResourceAssetLease 租约制）
@@ -45,7 +46,7 @@ Runtime/Modules/ObjectPool/
 
 | 类/接口 | 说明 |
 |---------|------|
-| `ObjectPoolService` | 静态门面：`GetOrCreatePool<T>` / `GetObjectPool<T>` / `HasObjectPool<T>` / `DestroyObjectPool<T>` / `Release` / `ReleaseAllUnused` |
+| `ObjectPoolService` | 静态外观：`GetOrCreatePool<T>` / `GetObjectPool<T>` / `HasObjectPool<T>` / `DestroyObjectPool<T>` / `Release` / `ReleaseAllUnused` |
 | `ObjectPoolCreateOptions` | 创建选项：`Name` / `AllowMultiSpawn` / `AutoReleaseInterval` / `Capacity` / `ExpireTime` / `Priority` |
 | `IObjectPool<T>` | 单池契约：`Register` / `Spawn` / `Despawn` / `DespawnTarget` / `Release(count)` / `ReleaseAllUnused` |
 | `ObjectBase` | 池化对象基类：`OnSpawn` / `OnDespawn` / `Release(bool)` / `Locked` / `CustomCanReleaseFlag` |
@@ -56,7 +57,7 @@ Runtime/Modules/ObjectPool/
 
 | 类/接口 | 说明 |
 |---------|------|
-| `GameObjectPoolService` | 静态门面：`Spawn` / `SpawnAsync` / `TrySpawn` / `Despawn` / `WarmupAsync` / `LoadPrefab(Async)` / `Flush` / `FlushGroup` / `FlushAll` / `LoadCatalog` |
+| `GameObjectPoolService` | 静态外观：`Spawn` / `SpawnAsync` / `TrySpawn` / `Despawn` / `WarmupAsync` / `LoadPrefab(Async)` / `Flush` / `FlushGroup` / `FlushAll` / `LoadCatalog` |
 | `RuntimeGameObjectPool` | 单池运行时：分页槽位 + 侵入式 inactive 链 + 代系句柄 |
 | `GameObjectPoolHandle` | 附着在池化实例上的 MonoBehaviour；代系校验防 use-after-despawn |
 | `IGameObjectPoolable` | 池化组件接口：`OnSpawn(in GameObjectPoolSpawnContext)` / `OnDespawn` / `OnPooledDestroy` |
@@ -233,16 +234,16 @@ Debugger 窗口：`Profiler/Object Pool`（通用池）、`Profiler/GameObject P
 
 | 旧（≤ 126df59 前） | 新 | 说明 |
 |--------------------|-----|------|
-| `ObjectPoolService`（GO 池语义） | `GameObjectPoolService` | 门面更名，GO 池全部 API 保持 |
-| `GameApp.ObjectPool` | `GameObjectPoolService` 静态门面 | 不再经 GameApp 访问 |
+| `ObjectPoolService`（GO 池语义） | `GameObjectPoolService` | 外观更名，GO 池全部 API 保持 |
+| `GameApp.ObjectPool` | `GameObjectPoolService` 静态外观 | 不再经 GameApp 访问 |
 | `IObjectPoolable` / `PoolSpawnContext` / `ObjectPoolHandle` | `IGameObjectPoolable` / `GameObjectPoolSpawnContext` / `GameObjectPoolHandle` | 类型改名 |
 | `IObjectPoolable.OnPooledDestroy` 等 | 同名，接口命名空间不变 | 组件代码只需改接口名 |
 | `ObjectPoolSetting` 组件 | `GameObjectPoolServiceSettings`（PoolConfig 字段） | 配置单源化到 Settings 资产 |
-| — | `ObjectPoolService` | 新增通用池门面（原为 AlicizaX 参考架构能力） |
+| — | `ObjectPoolService` | 新增通用池外观（原为 AlicizaX 参考架构能力） |
 
 ## 注意事项
 
-- **opt-in 注册**：两服务默认不在依赖链；未注册时门面调用静默无效，维护不生效（见顶部说明）。
+- **opt-in 注册**：两服务默认不在依赖链；未注册时外观直接调用按需自初始化仍可执行，但 `Tick` 驱动的维护（过期/超容/低内存收缩）不生效（见顶部说明）。生产使用请将服务注册进依赖链。
 - 通用池对象由外部构造并 `Register` 入池；经 `MemoryPool.Acquire` 创建的对象会被池回收复用，外部 `new` 的对象释放时交由 GC。
 - GO 池生成前必须通过 `PoolConfigScriptableObject` 注册池规则；未注册地址记录错误并返回 null。
 - `Spawn()`（同步）在预制体未加载时返回 null；首次加载请使用 `SpawnAsync()`。
