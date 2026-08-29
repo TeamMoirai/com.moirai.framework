@@ -879,7 +879,7 @@ namespace Moirai.Atropos
             GameServices.SetState(service, EServiceState.ShuttingDown);
             GameServices.InvokeShutdown(service);
 
-            try { service.Shutdown(); }
+            try { service.OnShutdown(); }
             catch (Exception ex) { LogUtility.Error(ex.ToString()); }
 
             GameServices.SetState(service, EServiceState.Disposed);

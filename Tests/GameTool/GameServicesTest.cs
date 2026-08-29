@@ -31,7 +31,7 @@ namespace GameTool
             public int TickCount;
 
             public override void OnInit() => InitCount++;
-            public override void Shutdown() => ShutdownCount++;
+            public override void OnShutdown() => ShutdownCount++;
             public virtual void Tick(float elapseSeconds, float realElapseSeconds) => TickCount++;
         }
 
@@ -85,10 +85,10 @@ namespace GameTool
             public bool AsyncShutdownCalled;
             public bool SyncShutdownCalled;
 
-            public override void Shutdown()
+            public override void OnShutdown()
             {
                 SyncShutdownCalled = true;
-                base.Shutdown();
+                base.OnShutdown();
             }
 
             public UniTask OnShutdownAsync()
@@ -926,7 +926,7 @@ namespace GameTool
         private sealed class TestMonoService : ServiceMono<AppScope>
         {
             public override void OnInit() { }
-            public override void Shutdown() { }
+            public override void OnShutdown() { }
         }
 
         [Test]

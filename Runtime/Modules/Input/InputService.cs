@@ -54,7 +54,7 @@ namespace Moirai.Atropos.Input
         /// <summary>
         /// 关闭输入服务。由 <see cref="GameApp.Shutdown"/> 调用。
         /// </summary>
-        public override void Shutdown()
+        public override void OnShutdown()
         {
             s_Handler?.Internal_Shutdown();
             s_Handler = null;

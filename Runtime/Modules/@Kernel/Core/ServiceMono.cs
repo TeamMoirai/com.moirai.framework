@@ -80,7 +80,7 @@ namespace Moirai.Atropos
         /// <summary>
         /// 注销或作用域关闭时调用。
         /// </summary>
-        public abstract void Shutdown();
+        public abstract void OnShutdown();
 
         #endregion
 
@@ -103,7 +103,7 @@ namespace Moirai.Atropos
 
             State = EServiceState.ShuttingDown;
             GameServices.InvokeShutdown(this);
-            try { Shutdown(); }
+            try { OnShutdown(); }
             catch (System.Exception ex) { LogUtility.Error(ex.ToString()); }
             State = EServiceState.Disposed;
         }
