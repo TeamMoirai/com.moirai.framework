@@ -110,6 +110,7 @@ int staleCount = TimerService.GetStaleOneShotTimers(staleResults);
 
 ## Notes
 
+- Facade methods always forward through the `Handler` property: when the service is not ready it is lazily initialized from `TimerServiceSettings`; if the settings asset is unavailable or the default factory is missing, an exception is thrown (fail-fast) instead of silently returning default values. Calls after `Shutdown` likewise rebuild on demand.
 - `AddTimer` returns `0UL` on failure (null callback or slot exhaustion); valid handles are never 0. Failures log a `LogUtility.Warning` in the Editor; no logging overhead at runtime.
 - Slot reuse includes versioning: calling `Stop` / `RemoveTimer` / `IsRunning` etc. on an invalid handle is a safe no-op or returns the default value.
 - `RemoveTimer` is equivalent to a one-time natural expiration; both recycle the slot. Loop timers must be manually removed, otherwise they continue to trigger.

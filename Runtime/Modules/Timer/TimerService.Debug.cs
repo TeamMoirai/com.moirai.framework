@@ -31,26 +31,15 @@
         /// <param name="poolCapacity">池容量。</param>
         /// <param name="peakActiveCount">峰值活跃数量。</param>
         /// <param name="freeCount">空闲数量。</param>
-        public static void GetStatistics(out int activeCount, out int poolCapacity, out int peakActiveCount, out int freeCount)
-        {
-            if (s_Handler == null)
-            {
-                activeCount = 0;
-                poolCapacity = 0;
-                peakActiveCount = 0;
-                freeCount = 0;
-                return;
-            }
-
-            s_Handler.GetStatistics(out activeCount, out poolCapacity, out peakActiveCount, out freeCount);
-        }
+        public static void GetStatistics(out int activeCount, out int poolCapacity, out int peakActiveCount, out int freeCount) =>
+            Handler.GetStatistics(out activeCount, out poolCapacity, out peakActiveCount, out freeCount);
 
         /// <summary>
         /// 获取所有计时器调试信息。
         /// </summary>
         /// <param name="results">结果缓冲区。</param>
         /// <returns>填充的数量。</returns>
-        public static int GetAllTimers(TimerDebugInfo[] results) => s_Handler?.GetAllTimers(results) ?? 0;
+        public static int GetAllTimers(TimerDebugInfo[] results) => Handler.GetAllTimers(results);
 
 #if UNITY_EDITOR
         /// <summary>
@@ -58,7 +47,7 @@
         /// </summary>
         /// <param name="results">结果缓冲区。</param>
         /// <returns>符合条件的计时器数量。</returns>
-        public static int GetStaleOneShotTimers(TimerDebugInfo[] results) => s_Handler?.GetStaleOneShotTimers(results) ?? 0;
+        public static int GetStaleOneShotTimers(TimerDebugInfo[] results) => Handler.GetStaleOneShotTimers(results);
 #endif
     }
 }

@@ -36,12 +36,12 @@ namespace Moirai.Atropos.Localization
         /// <summary>
         /// 当前使用的本地化语言。
         /// </summary>
-        public static Language CurrentLanguage => s_Handler?.CurrentLanguage;
+        public static Language CurrentLanguage => Handler.CurrentLanguage;
 
         /// <summary>
         /// 当前语言索引。
         /// </summary>
-        public static int CurrentLanguageIndex => s_Handler?.CurrentLanguageIndex ?? 0;
+        public static int CurrentLanguageIndex => Handler.CurrentLanguageIndex;
 
         #endregion
 
@@ -144,31 +144,31 @@ namespace Moirai.Atropos.Localization
         /// <param name="language">例如：<see cref="Language.ChineseSimplified"/></param>
         /// <param name="logSource">是否打印设置来源</param>
         public static void ChangeLanguage(Language language, bool logSource = false) =>
-            s_Handler?.ChangeLanguage(language, logSource);
+            Handler.ChangeLanguage(language, logSource);
 
         /// <summary>
         /// 更改当前语言。
         /// </summary>
         /// <param name="language">要切换的语言Name或Code</param>
-        public static void ChangeLanguage(string language) => s_Handler?.ChangeLanguage(language);
+        public static void ChangeLanguage(string language) => Handler.ChangeLanguage(language);
 
         /// <summary>
         /// 更改当前语言。
         /// </summary>
         /// <param name="index">要切换已加载的语言索引</param>
-        public static void ChangeLanguage(int index) => s_Handler?.ChangeLanguage(index);
+        public static void ChangeLanguage(int index) => Handler.ChangeLanguage(index);
 
         /// <summary>
         /// 激活上一个语言。
         /// </summary>
         /// <returns>激活的语言名称</returns>
-        public static string ActivatePreviousLanguage() => s_Handler?.ActivatePreviousLanguage();
+        public static string ActivatePreviousLanguage() => Handler.ActivatePreviousLanguage();
 
         /// <summary>
         /// 激活下一个语言。
         /// </summary>
         /// <returns>激活的语言名称</returns>
-        public static string ActivateNextLanguage() => s_Handler?.ActivateNextLanguage();
+        public static string ActivateNextLanguage() => Handler.ActivateNextLanguage();
 
         #endregion
 
@@ -177,7 +177,7 @@ namespace Moirai.Atropos.Localization
         /// <summary>
         /// 检查当前数据库是否有指定的文本 ID。
         /// </summary>
-        public static bool Has(string id) => s_Handler?.Has(id) ?? false;
+        public static bool Has(string id) => Handler.Has(id);
 
         /// <summary>
         /// 根据文本 ID 获取本地化字符串。
@@ -185,7 +185,7 @@ namespace Moirai.Atropos.Localization
         /// <param name="id">文本 ID</param>
         /// <param name="p">Format</param>
         public static string GetTextFromId(string id, params object[] p) =>
-            s_Handler != null ? s_Handler.GetTextFromId(id, p) : id;
+            Handler.GetTextFromId(id, p);
 
         /// <summary>
         /// 根据文本 ID 和指定语言获取本地化字符串。
@@ -194,18 +194,18 @@ namespace Moirai.Atropos.Localization
         /// <param name="language">要获取的语言</param>
         /// <param name="p">Format</param>
         public static string GetTextFromIdLanguage(string id, Language language, params object[] p) =>
-            s_Handler != null ? s_Handler.GetTextFromIdLanguage(id, language, p) : id;
+            Handler.GetTextFromIdLanguage(id, language, p);
 
         /// <summary>
         /// 获取包含指定 ID 的所有语言的字符串字典。
         /// </summary>
         public static Dictionary<string, string> GetDictionaryFromId(string id) =>
-            s_Handler?.GetDictionaryFromId(id) ?? new Dictionary<string, string>();
+            Handler.GetDictionaryFromId(id);
 
         /// <summary>
         /// 获取所有多语言索引。
         /// </summary>
-        public static List<string> GetAllIds() => s_Handler?.GetAllIds() ?? new List<string>();
+        public static List<string> GetAllIds() => Handler.GetAllIds();
 
         #endregion
 
@@ -214,12 +214,12 @@ namespace Moirai.Atropos.Localization
         /// <summary>
         /// 添加本地化器。
         /// </summary>
-        public static void AddLocalizer(LocalizerBase localizer) => s_Handler?.AddLocalizer(localizer);
+        public static void AddLocalizer(LocalizerBase localizer) => Handler.AddLocalizer(localizer);
 
         /// <summary>
         /// 移除本地化器。
         /// </summary>
-        public static void RemoveLocalizer(LocalizerBase localizer) => s_Handler?.RemoveLocalizer(localizer);
+        public static void RemoveLocalizer(LocalizerBase localizer) => Handler.RemoveLocalizer(localizer);
 
         #endregion
     }

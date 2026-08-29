@@ -56,7 +56,7 @@ namespace Moirai.Atropos
         /// </summary>
         public static void Clear()
         {
-            s_Handler?.Clear();
+            Handler.Clear();
         }
     }
 }

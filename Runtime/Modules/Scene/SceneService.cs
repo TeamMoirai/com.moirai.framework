@@ -73,9 +73,7 @@ namespace Moirai.Atropos.Scene
         /// <returns>加载完成的场景。</returns>
         public static UniTask<UnityEngine.SceneManagement.Scene> LoadSceneAsync(string location, LoadSceneMode sceneMode = LoadSceneMode.Single, bool suspendLoad = false, uint priority = 100,
             bool gcCollect = true, Action<float> progressCallBack = null) =>
-            s_Handler != null
-                ? s_Handler.LoadSceneAsync(location, sceneMode, suspendLoad, priority, gcCollect, progressCallBack)
-                : UniTask.FromResult(default(UnityEngine.SceneManagement.Scene));
+            Handler.LoadSceneAsync(location, sceneMode, suspendLoad, priority, gcCollect, progressCallBack);
 
         /// <summary>
         /// 同步加载场景（回调式）。
@@ -90,7 +88,7 @@ namespace Moirai.Atropos.Scene
         /// <param name="progressCallBack">进度回调。</param>
         public static void LoadScene(string location, string packageName = "", LoadSceneMode sceneMode = LoadSceneMode.Single,
             bool suspendLoad = false, uint priority = 100, bool gcCollect = true, Action<UnityEngine.SceneManagement.Scene> callBack = null, Action<float> progressCallBack = null) =>
-            s_Handler?.LoadScene(location, packageName, sceneMode, suspendLoad, priority, gcCollect, callBack, progressCallBack);
+            Handler.LoadScene(location, packageName, sceneMode, suspendLoad, priority, gcCollect, callBack, progressCallBack);
 
         #endregion
 
@@ -99,28 +97,28 @@ namespace Moirai.Atropos.Scene
         /// <summary>
         /// 当前主场景名称。
         /// </summary>
-        public static string CurrentMainSceneName => s_Handler?.CurrentMainSceneName ?? string.Empty;
+        public static string CurrentMainSceneName => Handler.CurrentMainSceneName;
 
         /// <summary>
         /// 激活场景。
         /// </summary>
         /// <param name="location">场景资源定位地址。</param>
         /// <returns>是否激活成功。</returns>
-        public static bool ActivateScene(string location) => s_Handler?.ActivateScene(location) ?? false;
+        public static bool ActivateScene(string location) => Handler.ActivateScene(location);
 
         /// <summary>
         /// 取消挂起。
         /// </summary>
         /// <param name="location">场景资源定位地址。</param>
         /// <returns>是否取消成功。</returns>
-        public static bool UnSuspend(string location) => s_Handler?.UnSuspend(location) ?? false;
+        public static bool UnSuspend(string location) => Handler.UnSuspend(location);
 
         /// <summary>
         /// 判断指定场景是否为当前主场景。
         /// </summary>
         /// <param name="location">场景资源定位地址。</param>
         /// <returns>是否为主场景。</returns>
-        public static bool IsMainScene(string location) => s_Handler?.IsMainScene(location) ?? false;
+        public static bool IsMainScene(string location) => Handler.IsMainScene(location);
 
         #endregion
 
@@ -133,9 +131,7 @@ namespace Moirai.Atropos.Scene
         /// <param name="progressCallBack">进度回调。</param>
         /// <returns>是否卸载成功。</returns>
         public static UniTask<bool> UnloadAsync(string location, Action<float> progressCallBack = null) =>
-            s_Handler != null
-                ? s_Handler.UnloadAsync(location, progressCallBack)
-                : UniTask.FromResult(false);
+            Handler.UnloadAsync(location, progressCallBack);
 
         /// <summary>
         /// 卸载子场景（回调式）。
@@ -144,7 +140,7 @@ namespace Moirai.Atropos.Scene
         /// <param name="callBack">卸载完成回调。</param>
         /// <param name="progressCallBack">进度回调。</param>
         public static void Unload(string location, Action callBack = null, Action<float> progressCallBack = null) =>
-            s_Handler?.Unload(location, callBack, progressCallBack);
+            Handler.Unload(location, callBack, progressCallBack);
 
         #endregion
 
@@ -153,6 +149,6 @@ namespace Moirai.Atropos.Scene
         /// </summary>
         /// <param name="location">场景资源定位地址。</param>
         /// <returns>是否已加载。</returns>
-        public static bool IsContainScene(string location) => s_Handler?.IsContainScene(location) ?? false;
+        public static bool IsContainScene(string location) => Handler.IsContainScene(location);
     }
 }
