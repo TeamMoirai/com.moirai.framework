@@ -15,6 +15,10 @@ namespace Moirai.Atropos.Input
 
         protected override void OnInit()
         {
+            // 复用实例重入 Init 时字典可能残留旧键，先清空避免 Add 重复键异常。
+            _inputButtons.Clear();
+            _inputAxes.Clear();
+
             InputButton[] inputButtonsArray = UnityUtility.FindObjectsByType<InputButton>();
             for (int i = 0; i < inputButtonsArray.Length; i++)
                 _inputButtons.Add(inputButtonsArray[i].ActionName, inputButtonsArray[i]);
@@ -22,6 +26,12 @@ namespace Moirai.Atropos.Input
             InputAxes[] inputAxesArray = UnityUtility.FindObjectsByType<InputAxes>();
             for (int i = 0; i < inputAxesArray.Length; i++)
                 _inputAxes.Add(inputAxesArray[i].ActionName, inputAxesArray[i]);
+        }
+
+        protected override void OnShutdown()
+        {
+            _inputButtons.Clear();
+            _inputAxes.Clear();
         }
 
         public override bool GetButtonDown(string actionName, string actionGroup)

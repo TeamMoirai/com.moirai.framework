@@ -15,13 +15,13 @@ namespace Moirai.Atropos.Scene
     [Serializable]
     public sealed class DefaultSceneHandler : SceneServiceHandler
     {
-        private string _currentMainSceneName = string.Empty;
+        [NonSerialized] private string _currentMainSceneName = string.Empty;
 
-        private readonly Dictionary<string, AsyncOperation> _loadingOperations = new Dictionary<string, AsyncOperation>();
+        [NonSerialized] private readonly Dictionary<string, AsyncOperation> _loadingOperations = new Dictionary<string, AsyncOperation>();
 
-        private readonly HashSet<string> _subScenes = new HashSet<string>();
+        [NonSerialized] private readonly HashSet<string> _subScenes = new HashSet<string>();
 
-        private readonly HashSet<string> _handlingScene = new HashSet<string>();
+        [NonSerialized] private readonly HashSet<string> _handlingScene = new HashSet<string>();
 
         /// <summary>
         /// 当前主场景名称。

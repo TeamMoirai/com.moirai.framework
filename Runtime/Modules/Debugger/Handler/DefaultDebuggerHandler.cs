@@ -9,8 +9,8 @@ namespace Moirai.Atropos.Debugger
     [Serializable]
     public sealed class DefaultDebuggerHandler : DebuggerServiceHandler
     {
-        private DebuggerService.DebuggerWindowGroup _debuggerWindowRoot;
-        private bool _activeWindow;
+        [NonSerialized] private DebuggerService.DebuggerWindowGroup _debuggerWindowRoot;
+        [NonSerialized] private bool _activeWindow;
 
         /// <summary>
         /// 获取或设置调试器窗口是否激活。
@@ -36,6 +36,7 @@ namespace Moirai.Atropos.Debugger
         {
             _activeWindow = false;
             _debuggerWindowRoot.Shutdown();
+            _debuggerWindowRoot = null;
         }
 
         public override void Tick(float elapseSeconds, float realElapseSeconds)

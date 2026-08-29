@@ -10,10 +10,10 @@ namespace Moirai.Atropos.Procedure
     [Serializable]
     public sealed class DefaultProcedureHandler : ProcedureServiceHandler
     {
-        private Dictionary<Type, ProcedureBase> _states;
-        private ProcedureBase _currentState;
-        private float _currentStateTime;
-        private bool _isDestroyed;
+        [NonSerialized] private Dictionary<Type, ProcedureBase> _states;
+        [NonSerialized] private ProcedureBase _currentState;
+        [NonSerialized] private float _currentStateTime;
+        [NonSerialized] private bool _isDestroyed;
 
         /// <summary>
         /// 当前流程。
@@ -80,6 +80,7 @@ namespace Moirai.Atropos.Procedure
 
             _currentState = null;
             _currentStateTime = 0f;
+            _states.Clear();
         }
 
         /// <summary>

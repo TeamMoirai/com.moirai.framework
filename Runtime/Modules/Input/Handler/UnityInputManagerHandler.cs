@@ -26,13 +26,9 @@ namespace Moirai.Atropos.Input
 
         private readonly Dictionary<string, Vector2Action> _vector2Actions = new Dictionary<string, Vector2Action>();
         private readonly HashSet<string> _validAxes = new HashSet<string>();
-        private bool _axesCached;
 
-        private void EnsureAxesCached()
+        protected override void OnInit()
         {
-            if (_axesCached) return;
-            _axesCached = true;
-
             var axes = UnityEngine.Input.GetJoystickNames();
             for (int i = 0; i < axes.Length; i++)
             {
@@ -43,9 +39,10 @@ namespace Moirai.Atropos.Input
             }
         }
 
-        private bool IsValidAxis(string axisName)
+        protected override void OnShutdown()
         {
-            return _validAxes.Contains(axisName);
+            _vector2Actions.Clear();
+            _validAxes.Clear();
         }
 
         public override bool GetButtonDown(string actionName, string actionGroup)
@@ -166,14 +163,14 @@ namespace Moirai.Atropos.Input
             return UnityEngine.Input.mouseScrollDelta;
         }
 
-        protected override void OnInit()
-        {
-            EnsureAxesCached();
-        }
-
         public override void ResetAllInputStates()
         {
             UnityEngine.Input.ResetInputAxes();
+        }
+
+        private bool IsValidAxis(string axisName)
+        {
+            return _validAxes.Contains(axisName);
         }
 
         private void PrintInputWarning(string actionName)

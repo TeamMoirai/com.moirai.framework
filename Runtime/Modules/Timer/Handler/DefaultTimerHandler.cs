@@ -99,23 +99,23 @@ namespace Moirai.Atropos.Timer
             public readonly int[] Values = new int[PAGE_SIZE];
         }
 
-        private TimerPage[] _pages;
-        private IntPage[] _freeSlotPages;
-        private IntPage[] _activeSlotPages;
-        private int[] _scaledWheelHeads;
-        private int[] _scaledWheelTails;
-        private int[] _unscaledWheelHeads;
-        private int[] _unscaledWheelTails;
-        private int _pageCount;
-        private int _slotCapacity;
-        private int _freeCount;
-        private int _activeCount;
-        private int _peakActiveCount;
-        private int _scaledQueueCount;
-        private int _unscaledQueueCount;
-        private long _scaledCurrentTick;
-        private long _unscaledCurrentTick;
-        private int _executingSlotIndex;
+        [NonSerialized] private TimerPage[] _pages;
+        [NonSerialized] private IntPage[] _freeSlotPages;
+        [NonSerialized] private IntPage[] _activeSlotPages;
+        [NonSerialized] private int[] _scaledWheelHeads;
+        [NonSerialized] private int[] _scaledWheelTails;
+        [NonSerialized] private int[] _unscaledWheelHeads;
+        [NonSerialized] private int[] _unscaledWheelTails;
+        [NonSerialized] private int _pageCount;
+        [NonSerialized] private int _slotCapacity;
+        [NonSerialized] private int _freeCount;
+        [NonSerialized] private int _activeCount;
+        [NonSerialized] private int _peakActiveCount;
+        [NonSerialized] private int _scaledQueueCount;
+        [NonSerialized] private int _unscaledQueueCount;
+        [NonSerialized] private long _scaledCurrentTick;
+        [NonSerialized] private long _unscaledCurrentTick;
+        [NonSerialized] private int _executingSlotIndex;
 
         protected override void OnInit()
         {
