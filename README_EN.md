@@ -355,12 +355,14 @@ Generic memory pool with collection management, reduces GC pressure.
 
 | Type | Description |
 |------|-------------|
-| `Singleton<T>` | Pure C# singleton, double-checked locking |
-| `SingletonMono<T>` | MonoBehaviour singleton, supports persistence/replacement strategies |
-| `SingletonRegister<T>` | Register-based singleton, supports lookup by type |
-| `ReferencedScriptableObject` | ScriptableObject reference base class |
+| `Singleton<T>` | Pure C# singleton: volatile double-checked locking, thread-safe, idempotent `Dispose()` (implements `IDisposable`) |
+| `SingletonMono<T>` | MonoBehaviour singleton: scene lookup + main-thread materialization, persistence/replacement policies and shutdown window |
+| `SingletonMono_Persistent<T>` | MonoBehaviour singleton forced to survive scene changes |
+| `SingletonRegister<T>` | Register-based pure C# singleton, no inheritance required |
+| `SingletonRegisterMono<T>` | Register-based Mono singleton, inheritance-free, main-thread materialization |
+| `ReferencedScriptableObject` | Weak-reference registry base class for ScriptableObjects |
 
-`SingletonSystem` centrally manages all singleton lifecycles, attached to UpdateDriver to drive IUpdate/IFixedUpdate/ILateUpdate.
+Pure C# singletons are safe to access from any thread (a single volatile read on the fast path once materialized); MonoBehaviour singleton materialization (lookup/creation) is main-thread only — off-thread access throws `GameException` (fail-fast), and edit mode performs lookup only without creating. See [Documentation~/en/Singleton.md](Documentation~/en/Singleton.md).
 
 ### GameLog — Logging System
 

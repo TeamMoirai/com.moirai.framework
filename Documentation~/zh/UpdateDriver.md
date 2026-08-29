@@ -65,7 +65,7 @@ UpdateDriverService.AddDestroyListener(OnHostDestroy);
 
 ### 框架内部使用
 
-`UpdateDriver` 是框架多个基础设施的底层依赖：单例系统 `SingletonSystem` 通过它驱动 `IUpdate`/`IFixedUpdate`/`ILateUpdate` 单例轮询，`UnityUtility` 中的协程工具也经由它执行。服务实现类型在 `AppSettings.Initiation()` 阶段注册，支持在 Inspector 中替换实现。
+`UpdateDriver` 是框架多个基础设施的底层依赖：`UnityUtility` 中的协程工具经由它执行。服务实现类型在 `AppSettings.Initiation()` 阶段注册，支持在 Inspector 中替换实现。
 
 ### 注册时机说明
 

@@ -59,7 +59,8 @@ namespace GameLogic
         
         private static void Release()
         {
-            SingletonSystem.Release();
+            // 单例已由各自生命周期（SingletonMono.OnDestroy / Singleton.Dispose）自行收尾，
+            // 此处仅做热更域退出通知；如需统一释放自定义单例，请在此逐个调用其 Dispose。
             LogUtility.Warning("======= Release GameApp =======");
         }
     }
