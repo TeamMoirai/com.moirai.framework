@@ -218,6 +218,7 @@ namespace Moirai.Atropos
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             Tween tween = Tween.LocalRotation(target, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
+            if (onComplete != null) tween.OnComplete(onComplete);
             CacheTween(tween);
             return tween.Id;
         }
@@ -226,6 +227,7 @@ namespace Moirai.Atropos
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             Tween tween = Tween.LocalRotation(target, startValue, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
+            if (onComplete != null) tween.OnComplete(onComplete);
             CacheTween(tween);
             return tween.Id;
         }
@@ -238,6 +240,7 @@ namespace Moirai.Atropos
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             Tween tween = Tween.Scale(target, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
+            if (onComplete != null) tween.OnComplete(onComplete);
             CacheTween(tween);
             return tween.Id;
         }
@@ -246,6 +249,7 @@ namespace Moirai.Atropos
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             Tween tween = Tween.Scale(target, startValue, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
+            if (onComplete != null) tween.OnComplete(onComplete);
             CacheTween(tween);
             return tween.Id;
         }
@@ -258,6 +262,7 @@ namespace Moirai.Atropos
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             Tween tween = Tween.Rotation(target, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
+            if (onComplete != null) tween.OnComplete(onComplete);
             CacheTween(tween);
             return tween.Id;
         }
@@ -266,6 +271,7 @@ namespace Moirai.Atropos
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             Tween tween = Tween.Rotation(target, startValue, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
+            if (onComplete != null) tween.OnComplete(onComplete);
             CacheTween(tween);
             return tween.Id;
         }
@@ -278,6 +284,7 @@ namespace Moirai.Atropos
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             Tween tween = Tween.Position(target, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
+            if (onComplete != null) tween.OnComplete(onComplete);
             CacheTween(tween);
             return tween.Id;
         }
@@ -286,6 +293,7 @@ namespace Moirai.Atropos
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             Tween tween = Tween.Position(target, startValue, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
+            if (onComplete != null) tween.OnComplete(onComplete);
             CacheTween(tween);
             return tween.Id;
         }
@@ -298,6 +306,7 @@ namespace Moirai.Atropos
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             Tween tween = Tween.PositionX(target, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
+            if (onComplete != null) tween.OnComplete(onComplete);
             CacheTween(tween);
             return tween.Id;
         }
@@ -306,6 +315,7 @@ namespace Moirai.Atropos
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             Tween tween = Tween.PositionX(target, startValue, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
+            if (onComplete != null) tween.OnComplete(onComplete);
             CacheTween(tween);
             return tween.Id;
         }
@@ -314,6 +324,7 @@ namespace Moirai.Atropos
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             Tween tween = Tween.PositionY(target, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
+            if (onComplete != null) tween.OnComplete(onComplete);
             CacheTween(tween);
             return tween.Id;
         }
@@ -322,6 +333,7 @@ namespace Moirai.Atropos
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             Tween tween = Tween.PositionY(target, startValue, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
+            if (onComplete != null) tween.OnComplete(onComplete);
             CacheTween(tween);
             return tween.Id;
         }
@@ -330,6 +342,7 @@ namespace Moirai.Atropos
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             Tween tween = Tween.PositionZ(target, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
+            if (onComplete != null) tween.OnComplete(onComplete);
             CacheTween(tween);
             return tween.Id;
         }
@@ -338,6 +351,7 @@ namespace Moirai.Atropos
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             Tween tween = Tween.PositionZ(target, startValue, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
+            if (onComplete != null) tween.OnComplete(onComplete);
             CacheTween(tween);
             return tween.Id;
         }
@@ -350,6 +364,7 @@ namespace Moirai.Atropos
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             Tween tween = Tween.LocalPosition(target, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
+            if (onComplete != null) tween.OnComplete(onComplete);
             CacheTween(tween);
             return tween.Id;
         }
@@ -358,6 +373,7 @@ namespace Moirai.Atropos
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             Tween tween = Tween.LocalPosition(target, startValue, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
+            if (onComplete != null) tween.OnComplete(onComplete);
             CacheTween(tween);
             return tween.Id;
         }
@@ -370,6 +386,7 @@ namespace Moirai.Atropos
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             Tween tween = Tween.LocalPositionX(target, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
+            if (onComplete != null) tween.OnComplete(onComplete);
             CacheTween(tween);
             return tween.Id;
         }
@@ -378,6 +395,7 @@ namespace Moirai.Atropos
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             Tween tween = Tween.LocalPositionX(target, startValue, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
+            if (onComplete != null) tween.OnComplete(onComplete);
             CacheTween(tween);
             return tween.Id;
         }
@@ -386,6 +404,7 @@ namespace Moirai.Atropos
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             Tween tween = Tween.LocalPositionY(target, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
+            if (onComplete != null) tween.OnComplete(onComplete);
             CacheTween(tween);
             return tween.Id;
         }
@@ -394,6 +413,7 @@ namespace Moirai.Atropos
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             Tween tween = Tween.LocalPositionY(target, startValue, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
+            if (onComplete != null) tween.OnComplete(onComplete);
             CacheTween(tween);
             return tween.Id;
         }
@@ -402,6 +422,7 @@ namespace Moirai.Atropos
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             Tween tween = Tween.LocalPositionZ(target, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
+            if (onComplete != null) tween.OnComplete(onComplete);
             CacheTween(tween);
             return tween.Id;
         }
@@ -410,6 +431,7 @@ namespace Moirai.Atropos
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             Tween tween = Tween.LocalPositionZ(target, startValue, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
+            if (onComplete != null) tween.OnComplete(onComplete);
             CacheTween(tween);
             return tween.Id;
         }
@@ -422,6 +444,7 @@ namespace Moirai.Atropos
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             Tween tween = Tween.Rotation(target, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
+            if (onComplete != null) tween.OnComplete(onComplete);
             CacheTween(tween);
             return tween.Id;
         }
@@ -430,6 +453,7 @@ namespace Moirai.Atropos
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             Tween tween = Tween.Rotation(target, startValue, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
+            if (onComplete != null) tween.OnComplete(onComplete);
             CacheTween(tween);
             return tween.Id;
         }
@@ -442,6 +466,7 @@ namespace Moirai.Atropos
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             Tween tween = Tween.LocalRotation(target, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
+            if (onComplete != null) tween.OnComplete(onComplete);
             CacheTween(tween);
             return tween.Id;
         }
@@ -450,6 +475,7 @@ namespace Moirai.Atropos
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             Tween tween = Tween.LocalRotation(target, startValue, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
+            if (onComplete != null) tween.OnComplete(onComplete);
             CacheTween(tween);
             return tween.Id;
         }
@@ -462,6 +488,7 @@ namespace Moirai.Atropos
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             Tween tween = Tween.Scale(target, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
+            if (onComplete != null) tween.OnComplete(onComplete);
             CacheTween(tween);
             return tween.Id;
         }
@@ -470,6 +497,7 @@ namespace Moirai.Atropos
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             Tween tween = Tween.Scale(target, startValue, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
+            if (onComplete != null) tween.OnComplete(onComplete);
             CacheTween(tween);
             return tween.Id;
         }
@@ -482,6 +510,7 @@ namespace Moirai.Atropos
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             Tween tween = Tween.ScaleX(target, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
+            if (onComplete != null) tween.OnComplete(onComplete);
             CacheTween(tween);
             return tween.Id;
         }
@@ -490,6 +519,7 @@ namespace Moirai.Atropos
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             Tween tween = Tween.ScaleX(target, startValue, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
+            if (onComplete != null) tween.OnComplete(onComplete);
             CacheTween(tween);
             return tween.Id;
         }
@@ -498,6 +528,7 @@ namespace Moirai.Atropos
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             Tween tween = Tween.ScaleY(target, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
+            if (onComplete != null) tween.OnComplete(onComplete);
             CacheTween(tween);
             return tween.Id;
         }
@@ -506,6 +537,7 @@ namespace Moirai.Atropos
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             Tween tween = Tween.ScaleY(target, startValue, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
+            if (onComplete != null) tween.OnComplete(onComplete);
             CacheTween(tween);
             return tween.Id;
         }
@@ -514,6 +546,7 @@ namespace Moirai.Atropos
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             Tween tween = Tween.ScaleZ(target, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
+            if (onComplete != null) tween.OnComplete(onComplete);
             CacheTween(tween);
             return tween.Id;
         }
@@ -522,6 +555,7 @@ namespace Moirai.Atropos
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             Tween tween = Tween.ScaleZ(target, startValue, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
+            if (onComplete != null) tween.OnComplete(onComplete);
             CacheTween(tween);
             return tween.Id;
         }
@@ -534,6 +568,7 @@ namespace Moirai.Atropos
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             Tween tween = Tween.Color(target, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
+            if (onComplete != null) tween.OnComplete(onComplete);
             CacheTween(tween);
             return tween.Id;
         }
@@ -542,6 +577,7 @@ namespace Moirai.Atropos
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             Tween tween = Tween.Color(target, startValue, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
+            if (onComplete != null) tween.OnComplete(onComplete);
             CacheTween(tween);
             return tween.Id;
         }
@@ -550,6 +586,7 @@ namespace Moirai.Atropos
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             Tween tween = Tween.Alpha(target, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
+            if (onComplete != null) tween.OnComplete(onComplete);
             CacheTween(tween);
             return tween.Id;
         }
@@ -558,6 +595,7 @@ namespace Moirai.Atropos
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             Tween tween = Tween.Alpha(target, startValue, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
+            if (onComplete != null) tween.OnComplete(onComplete);
             CacheTween(tween);
             return tween.Id;
         }
@@ -570,6 +608,7 @@ namespace Moirai.Atropos
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             Tween tween = Tween.UISliderValue(target, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
+            if (onComplete != null) tween.OnComplete(onComplete);
             CacheTween(tween);
             return tween.Id;
         }
@@ -578,6 +617,7 @@ namespace Moirai.Atropos
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             Tween tween = Tween.UISliderValue(target, startValue, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
+            if (onComplete != null) tween.OnComplete(onComplete);
             CacheTween(tween);
             return tween.Id;
         }
@@ -586,6 +626,7 @@ namespace Moirai.Atropos
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             Tween tween = Tween.UINormalizedPosition(target, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
+            if (onComplete != null) tween.OnComplete(onComplete);
             CacheTween(tween);
             return tween.Id;
         }
@@ -594,6 +635,7 @@ namespace Moirai.Atropos
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             Tween tween = Tween.UINormalizedPosition(target, startValue, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
+            if (onComplete != null) tween.OnComplete(onComplete);
             CacheTween(tween);
             return tween.Id;
         }
@@ -602,6 +644,7 @@ namespace Moirai.Atropos
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             Tween tween = Tween.UIHorizontalNormalizedPosition(target, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
+            if (onComplete != null) tween.OnComplete(onComplete);
             CacheTween(tween);
             return tween.Id;
         }
@@ -611,6 +654,7 @@ namespace Moirai.Atropos
         {
             Tween tween = Tween.UIHorizontalNormalizedPosition(target, startValue, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0,
                 useUnscaledTime);
+            if (onComplete != null) tween.OnComplete(onComplete);
             CacheTween(tween);
             return tween.Id;
         }
@@ -619,6 +663,7 @@ namespace Moirai.Atropos
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             Tween tween = Tween.UIAnchoredPosition(target, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
+            if (onComplete != null) tween.OnComplete(onComplete);
             CacheTween(tween);
             return tween.Id;
         }
@@ -627,6 +672,7 @@ namespace Moirai.Atropos
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             Tween tween = Tween.UIAnchoredPosition(target, startValue, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
+            if (onComplete != null) tween.OnComplete(onComplete);
             CacheTween(tween);
             return tween.Id;
         }
@@ -635,6 +681,7 @@ namespace Moirai.Atropos
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             Tween tween = Tween.UIAnchoredPositionX(target, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
+            if (onComplete != null) tween.OnComplete(onComplete);
             CacheTween(tween);
             return tween.Id;
         }
@@ -643,6 +690,7 @@ namespace Moirai.Atropos
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             Tween tween = Tween.UIAnchoredPositionX(target, startValue, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
+            if (onComplete != null) tween.OnComplete(onComplete);
             CacheTween(tween);
             return tween.Id;
         }
@@ -651,6 +699,7 @@ namespace Moirai.Atropos
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             Tween tween = Tween.UIAnchoredPositionY(target, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
+            if (onComplete != null) tween.OnComplete(onComplete);
             CacheTween(tween);
             return tween.Id;
         }
@@ -659,6 +708,7 @@ namespace Moirai.Atropos
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             Tween tween = Tween.UIAnchoredPositionY(target, startValue, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
+            if (onComplete != null) tween.OnComplete(onComplete);
             CacheTween(tween);
             return tween.Id;
         }
@@ -667,6 +717,7 @@ namespace Moirai.Atropos
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             Tween tween = Tween.UIVerticalNormalizedPosition(target, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
+            if (onComplete != null) tween.OnComplete(onComplete);
             CacheTween(tween);
             return tween.Id;
         }
@@ -675,6 +726,7 @@ namespace Moirai.Atropos
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             Tween tween = Tween.UIVerticalNormalizedPosition(target, startValue, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
+            if (onComplete != null) tween.OnComplete(onComplete);
             CacheTween(tween);
             return tween.Id;
         }
@@ -683,6 +735,7 @@ namespace Moirai.Atropos
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             Tween tween = Tween.UIAnchoredPosition3D(target, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
+            if (onComplete != null) tween.OnComplete(onComplete);
             CacheTween(tween);
             return tween.Id;
         }
@@ -691,6 +744,7 @@ namespace Moirai.Atropos
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             Tween tween = Tween.UIAnchoredPosition3D(target, startValue, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
+            if (onComplete != null) tween.OnComplete(onComplete);
             CacheTween(tween);
             return tween.Id;
         }
@@ -699,6 +753,7 @@ namespace Moirai.Atropos
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             Tween tween = Tween.UISizeDelta(target, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
+            if (onComplete != null) tween.OnComplete(onComplete);
             CacheTween(tween);
             return tween.Id;
         }
@@ -707,6 +762,7 @@ namespace Moirai.Atropos
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             Tween tween = Tween.UISizeDelta(target, startValue, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
+            if (onComplete != null) tween.OnComplete(onComplete);
             CacheTween(tween);
             return tween.Id;
         }
@@ -715,6 +771,7 @@ namespace Moirai.Atropos
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             Tween tween = Tween.Color(target, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
+            if (onComplete != null) tween.OnComplete(onComplete);
             CacheTween(tween);
             return tween.Id;
         }
@@ -723,6 +780,7 @@ namespace Moirai.Atropos
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             Tween tween = Tween.Color(target, startValue, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
+            if (onComplete != null) tween.OnComplete(onComplete);
             CacheTween(tween);
             return tween.Id;
         }
@@ -731,6 +789,7 @@ namespace Moirai.Atropos
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             Tween tween = Tween.MaterialColor(target, startValue, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
+            if (onComplete != null) tween.OnComplete(onComplete);
             CacheTween(tween);
             return tween.Id;
         }
@@ -739,6 +798,7 @@ namespace Moirai.Atropos
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             Tween tween = Tween.Alpha(target, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
+            if (onComplete != null) tween.OnComplete(onComplete);
             CacheTween(tween);
             return tween.Id;
         }
@@ -747,6 +807,7 @@ namespace Moirai.Atropos
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             Tween tween = Tween.Alpha(target, startValue, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
+            if (onComplete != null) tween.OnComplete(onComplete);
             CacheTween(tween);
             return tween.Id;
         }
@@ -755,6 +816,7 @@ namespace Moirai.Atropos
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             Tween tween = Tween.Alpha(target, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
+            if (onComplete != null) tween.OnComplete(onComplete);
             CacheTween(tween);
             return tween.Id;
         }
@@ -763,6 +825,7 @@ namespace Moirai.Atropos
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             Tween tween = Tween.Alpha(target, startValue, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
+            if (onComplete != null) tween.OnComplete(onComplete);
             CacheTween(tween);
             return tween.Id;
         }
@@ -771,6 +834,7 @@ namespace Moirai.Atropos
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             Tween tween = Tween.UIFillAmount(target, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
+            if (onComplete != null) tween.OnComplete(onComplete);
             CacheTween(tween);
             return tween.Id;
         }
@@ -779,6 +843,7 @@ namespace Moirai.Atropos
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             Tween tween = Tween.UIFillAmount(target, startValue, endValue, duration, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
+            if (onComplete != null) tween.OnComplete(onComplete);
             CacheTween(tween);
             return tween.Id;
         }
@@ -811,6 +876,7 @@ namespace Moirai.Atropos
                         transform.position = path[^1];
                     }
                 }, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0, useUnscaledTime);
+            if (onComplete != null) tween.OnComplete(onComplete);
             CacheTween(tween);
             return tween.Id;
         }
@@ -825,6 +891,7 @@ namespace Moirai.Atropos
         {
             Tween tween = Tween.Custom<T>(target, startValue, endValue, duration, onValueChange, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0,
                 useUnscaledTime);
+            if (onComplete != null) tween.OnComplete(onComplete);
             CacheTween(tween);
             return tween.Id;
         }
@@ -836,6 +903,7 @@ namespace Moirai.Atropos
             Tween tween = Tween.Custom<T>(target, startValue, endValue, duration, (arg1, f) => { onValueChange?.Invoke(arg1, (int)f); }, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles,
                 cycleMode.ToPrimeTweenCycleMode(), startDelay, 0,
                 useUnscaledTime);
+            if (onComplete != null) tween.OnComplete(onComplete);
             CacheTween(tween);
             return tween.Id;
         }
@@ -847,6 +915,7 @@ namespace Moirai.Atropos
             Tween tween = Tween.Custom<T>(target, startValue, endValue, duration, (arg1, f) => { onValueChange?.Invoke(arg1, (long)f); }, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles,
                 cycleMode.ToPrimeTweenCycleMode(), startDelay, 0,
                 useUnscaledTime);
+            if (onComplete != null) tween.OnComplete(onComplete);
             CacheTween(tween);
             return tween.Id;
         }
@@ -857,6 +926,7 @@ namespace Moirai.Atropos
         {
             Tween tween = Tween.Custom<T>(target, startValue, endValue, duration, onValueChange, ease.IsEase ? ease.EaseType.ToPrimeTweenEase() : ease.AnimationCurve, cycles, cycleMode.ToPrimeTweenCycleMode(), startDelay, 0,
                 useUnscaledTime);
+            if (onComplete != null) tween.OnComplete(onComplete);
             CacheTween(tween);
             return tween.Id;
         }

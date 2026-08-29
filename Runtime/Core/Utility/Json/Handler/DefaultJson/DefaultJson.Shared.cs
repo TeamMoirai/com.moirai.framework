@@ -129,6 +129,29 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
+        /// 泛型参数缓存（Writer / Reader 共享）。
+        /// </summary>
+        /// <remarks>
+        /// <para><c>GetGenericArguments()</c> 与 <c>GenericTypeArguments</c> 每次调用分配新 <c>Type[]</c>；
+        /// 字典/列表键值类型集合有限（按类型收敛），缓存后同类型重复序列化/解析零分配。</para>
+        /// </remarks>
+        internal static class GenericArgsCache
+        {
+            private static readonly System.Collections.Concurrent.ConcurrentDictionary<Type, Type[]> s_Cache =
+                new System.Collections.Concurrent.ConcurrentDictionary<Type, Type[]>();
+
+            /// <summary>
+            /// 获取泛型类型的类型参数（缓存命中零分配）。
+            /// </summary>
+            /// <param name="type">泛型类型。</param>
+            /// <returns>类型参数数组（缓存实例，调用方不得修改）。</returns>
+            public static Type[] Get(Type type)
+            {
+                return s_Cache.GetOrAdd(type, static t => t.GetGenericArguments());
+            }
+        }
+
+        /// <summary>
         /// 共享类型转换（Reader / ByteReader 共享）。
         /// 所有方法接收 string 参数——字节路径的 Reader 在物化字符串后调用。
         /// </summary>

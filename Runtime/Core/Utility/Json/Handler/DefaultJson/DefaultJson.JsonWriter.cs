@@ -508,7 +508,7 @@ namespace Moirai.Atropos
                     return;
                 }
 
-                Type keyType = dictType.GetGenericArguments()[0];
+                Type keyType = GenericArgsCache.Get(dictType)[0];
                 if (!JsonTypeUtil.IsStandardDictionaryKey(keyType))
                 {
                     WriteDictionaryLegacy(ref sink, dictionary, removeNulls, readable, depth, depthLimit);

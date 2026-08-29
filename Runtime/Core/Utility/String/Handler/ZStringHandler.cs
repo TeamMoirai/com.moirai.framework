@@ -19,6 +19,9 @@ namespace Moirai.Atropos
         private static readonly Stack<ZStringBuilder> s_AdapterPool = new Stack<ZStringBuilder>();
         private const int MAX_ADAPTER_POOL_SIZE = 16;
 
+        // 池操作锁：适配器池为跨线程共享静态栈，Pop/Push/Clear 需原子化（后台线程格式化场景）
+        private static readonly object s_PoolLock = new object();
+
         #region 实现方法 [IMPLEMENTATION METHODS]
 
         /// <summary>
@@ -29,13 +32,16 @@ namespace Moirai.Atropos
         public override IStringBuilder CreateStringBuilder(int capacity = 256)
         {
             // 优先: 从适配器池获取（0GC）
-            if (s_AdapterPool.Count > 0)
+            lock (s_PoolLock)
             {
-                var adapter = s_AdapterPool.Pop();
-                adapter.inPool = false;
-                adapter.builder = ZString.CreateStringBuilder();
-                adapter.disposed = false;
-                return adapter;
+                if (s_AdapterPool.Count > 0)
+                {
+                    var adapter = s_AdapterPool.Pop();
+                    adapter.inPool = false;
+                    adapter.builder = ZString.CreateStringBuilder();
+                    adapter.disposed = false;
+                    return adapter;
+                }
             }
 
             // 回退: 创建新适配器（仅在池空时分配）
@@ -68,7 +74,10 @@ namespace Moirai.Atropos
         /// </summary>
         public override void Clear()
         {
-            s_AdapterPool.Clear();
+            lock (s_PoolLock)
+            {
+                s_AdapterPool.Clear();
+            }
         }
 
         #endregion
@@ -92,21 +101,27 @@ namespace Moirai.Atropos
         /// </summary>
         internal static void Return(ZStringBuilder adapter)
         {
-            if (adapter == null || adapter.inPool) return;
+            if (adapter == null) return;
 
-            // 释放内部 ZString builder
-            if (!adapter.disposed)
+            // 锁内完成 inPool 检查与入池，防同适配器被并发归还导致双重入池
+            lock (s_PoolLock)
             {
-                adapter.builder.Dispose();
-                adapter.disposed = true;
-            }
+                if (adapter.inPool) return;
 
-            adapter.inPool = true;
+                // 释放内部 ZString builder
+                if (!adapter.disposed)
+                {
+                    adapter.builder.Dispose();
+                    adapter.disposed = true;
+                }
 
-            // 将适配器存入池中（0GC）
-            if (s_AdapterPool.Count < MAX_ADAPTER_POOL_SIZE)
-            {
-                s_AdapterPool.Push(adapter);
+                adapter.inPool = true;
+
+                // 将适配器存入池中（0GC）
+                if (s_AdapterPool.Count < MAX_ADAPTER_POOL_SIZE)
+                {
+                    s_AdapterPool.Push(adapter);
+                }
             }
         }
 

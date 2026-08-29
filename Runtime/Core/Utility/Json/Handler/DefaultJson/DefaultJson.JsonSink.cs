@@ -133,7 +133,7 @@ namespace Moirai.Atropos
                             case '\f': _sb.Append("\\f"); break;
                             case '\n': _sb.Append("\\n"); break;
                             case '\r': _sb.Append("\\r"); break;
-                            default: _sb.Append("\\u").Append(((int)c).ToString("X4")); break;
+                            default: AppendUnicodeEscape(_sb, c); break;
                         }
 
                         i++;
@@ -165,7 +165,7 @@ namespace Moirai.Atropos
                     default:
                         if (c < ' ')
                         {
-                            _sb.Append("\\u").Append(((int)c).ToString("X4"));
+                            AppendUnicodeEscape(_sb, c);
                         }
                         else
                         {
@@ -176,6 +176,21 @@ namespace Moirai.Atropos
                 }
 
                 _sb.Append('"');
+            }
+
+            /// <summary>零分配写入 \uXXXX 转义（栈上十六进制，对齐 Utf8Sink.WriteHex4）。</summary>
+            private static void AppendUnicodeEscape(StringHandler.IStringBuilder sb, char c)
+            {
+                sb.Append("\\u");
+                Span<char> hex = stackalloc char[4];
+                uint v = c;
+                for (int i = 0, shift = 12; shift >= 0; i++, shift -= 4)
+                {
+                    uint nibble = (v >> shift) & 0xF;
+                    hex[i] = (char)(nibble < 10 ? '0' + nibble : 'A' + nibble - 10);
+                }
+
+                sb.Append((ReadOnlySpan<char>)hex);
             }
 
             /// <summary>数字低位在前写入后原地反转。返回写入后的长度。</summary>
