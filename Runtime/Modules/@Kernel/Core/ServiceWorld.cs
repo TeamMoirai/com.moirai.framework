@@ -9,9 +9,10 @@ namespace Moirai.Atropos
     /// <summary>
     /// 统一服务世界。管理 App/Scene/Gameplay 三个固定作用域的完整生命周期：
     /// 构建（实例注册 + 初始化）、查找（<see cref="ContractBindings"/> O(1)）、轮询、销毁。
+    /// <para>查找经 <see cref="GameServices.GetRequiredService{T}"/> 等静态外观对外暴露。</para>
     /// <para><b>线程契约</b>：所有方法仅限 Unity 主线程调用。</para>
     /// </summary>
-    internal sealed class ServiceWorld : IDisposable, IServiceProvider
+    internal sealed class ServiceWorld : IDisposable
     {
         #region 常量 [CONSTANTS]
 
@@ -103,80 +104,10 @@ namespace Moirai.Atropos
 
         #endregion
 
-        #region IServiceProvider 实现 [SERVICE PROVIDER]
-
-        /// <summary>
-        /// 获取服务（未找到抛 <see cref="GameException"/>）。
-        /// </summary>
-        public T GetRequiredService<T>() where T : class
-        {
-            if (TryGet<T>(out var service)) return service;
-            throw new GameException(StringUtility.Format(
-                "Service '{0}' was not found in any active scope.", typeof(T).FullName));
-        }
-
-        /// <summary>
-        /// 获取服务（未找到返回 null）。
-        /// </summary>
-        public T GetService<T>() where T : class
-            => TryGet<T>(out var service) ? service : null;
-
-        /// <summary>
-        /// 尝试获取服务。
-        /// </summary>
-        public bool TryGetService<T>(out T service) where T : class
-            => TryGet<T>(out service);
-
-        /// <summary>
-        /// 在指定作用域中获取服务（未找到抛 <see cref="GameException"/>）。
-        /// </summary>
-        public T GetRequiredServiceInScope<T>(EServiceScopeKind scope) where T : class
-        {
-            if (TryGetScope(scope, out var targetScope) && targetScope.TryGet<T>(out var svc))
-                return svc;
-            throw new GameException(StringUtility.Format(
-                "Service '{0}' was not found in {1} scope.", typeof(T).FullName, scope));
-        }
-
-        /// <summary>
-        /// 在指定作用域中尝试获取服务。
-        /// </summary>
-        public bool TryGetServiceInScope<T>(EServiceScopeKind scope, out T service) where T : class
-        {
-            if (TryGetScope(scope, out var targetScope) && targetScope.TryGet<T>(out service))
-                return true;
-            service = null;
-            return false;
-        }
-
-        /// <summary>
-        /// 按运行时类型获取服务（未找到抛 <see cref="GameException"/>）。用于反射场景。
-        /// </summary>
-        public IService GetRequiredService(Type serviceType)
-        {
-            if (TryGet(serviceType, null, out IService service))
-                return service;
-            throw new GameException(StringUtility.Format(
-                "Service '{0}' was not found in any active scope.", serviceType.FullName));
-        }
-
-        /// <summary>
-        /// 按运行时类型获取服务（未找到返回 null）。用于反射场景。
-        /// </summary>
-        public IService GetService(Type serviceType)
-            => TryGet(serviceType, null, out IService service) ? service : null;
-
-        #endregion
-
         #region 统一契约查找 [UNIFIED CONTRACT LOOKUP]
 
-        internal bool TryGet<T>(ServiceScope preferredScope, out T service) where T : class
+        internal bool TryGet<T>(out T service) where T : class
         {
-            // 快路径：先查 preferred scope 的本地字典
-            if (preferredScope != null && !preferredScope.IsDisposed && preferredScope.TryGet<T>(out service))
-                return true;
-
-            // 跨作用域：ContractBindings.TryGetBest()
             if (_servicesByContract.TryGetValue(typeof(T).TypeHandle, out var bindings) &&
                 bindings.TryGetBest(out var raw))
             {
@@ -186,41 +117,6 @@ namespace Moirai.Atropos
 
             service = null;
             return false;
-        }
-
-        internal bool TryGet<T>(out T service) where T : class
-            => TryGet<T>(null, out service);
-
-        internal bool TryGet(Type serviceType, ServiceScope preferredScope, out IService service)
-        {
-            if (serviceType == null)
-            {
-                service = null;
-                return false;
-            }
-
-            // 快路径：先查 preferred scope
-            if (preferredScope != null && !preferredScope.IsDisposed &&
-                preferredScope.TryGet(serviceType, out service))
-                return true;
-
-            // 跨作用域
-            if (_servicesByContract.TryGetValue(serviceType.TypeHandle, out var bindings) &&
-                bindings.TryGetBest(out var raw))
-            {
-                service = raw;
-                return service != null;
-            }
-
-            service = null;
-            return false;
-        }
-
-        internal T Require<T>() where T : class
-        {
-            if (TryGet<T>(out var service)) return service;
-            throw new GameException(StringUtility.Format(
-                "Service '{0}' was not found in any active scope.", typeof(T).FullName));
         }
 
         #endregion

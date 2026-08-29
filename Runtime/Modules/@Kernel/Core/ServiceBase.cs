@@ -71,34 +71,48 @@ namespace Moirai.Atropos
         void OnShutdown();
     }
 
-    /// <summary>每帧 Update 轮询。</summary>
-    public interface IServiceTickable
+    /// <summary>
+    /// 每帧 Update 轮询能力接口。实现者必须为已注册的 <see cref="IService"/> 服务。
+    /// </summary>
+    public interface IServiceTickable : IService
     {
+        /// <summary>
+        /// 每帧 Update 轮询回调。
+        /// </summary>
         void Tick(float elapseSeconds, float realElapseSeconds);
     }
 
-    /// <summary>每帧 FixedUpdate 轮询。</summary>
-    public interface IServiceFixedTickable
+    /// <summary>
+    /// 每帧 FixedUpdate 轮询能力接口。实现者必须为已注册的 <see cref="IService"/> 服务。
+    /// </summary>
+    public interface IServiceFixedTickable : IService
     {
+        /// <summary>
+        /// 每帧 FixedUpdate 轮询回调。
+        /// </summary>
         void FixedTick(float elapseSeconds, float realElapseSeconds);
     }
 
-    /// <summary>每帧 LateUpdate 轮询。</summary>
-    public interface IServiceLateTickable
+    /// <summary>
+    /// 每帧 LateUpdate 轮询能力接口。实现者必须为已注册的 <see cref="IService"/> 服务。
+    /// </summary>
+    public interface IServiceLateTickable : IService
     {
+        /// <summary>
+        /// 每帧 LateUpdate 轮询回调。
+        /// </summary>
         void LateTick(float elapseSeconds, float realElapseSeconds);
     }
 
-    /// <summary>编辑器 Gizmos 绘制。</summary>
-    public interface IServiceGizmoDrawable
+    /// <summary>
+    /// 编辑器 Gizmos 绘制能力接口。实现者必须为已注册的 <see cref="IService"/> 服务。
+    /// </summary>
+    public interface IServiceGizmoDrawable : IService
     {
+        /// <summary>
+        /// 编辑器 Gizmos 绘制回调。
+        /// </summary>
         void OnDrawGizmos();
-    }
-
-    /// <summary>异步初始化服务。由 <c>RegisterService</c> 在 OnInit 后驱动。</summary>
-    public interface IAsyncInitService
-    {
-        UniTask OnInitAsync();
     }
 
     /// <summary>
@@ -106,7 +120,7 @@ namespace Moirai.Atropos
     /// 在 <c>Shutdown</c> 调用前按逆注册序异步关闭。
     /// <para>用于资源异步卸载、网络连接优雅关闭等场景。</para>
     /// </summary>
-    public interface IAsyncShutdownService
+    public interface IAsyncShutdownService : IService
     {
         /// <summary>
         /// 异步关闭。在同步 <c>Shutdown</c> 调用前执行。
@@ -117,7 +131,7 @@ namespace Moirai.Atropos
     /// <summary>
     /// 纯 C# 服务基类。不依赖 MonoBehaviour，生命周期由 <see cref="ServiceWorld"/> 控制。
     /// <para>依赖通过 <c>[ServiceDependency]</c> 特性声明，由注册器递归预注册。</para>
-    /// <para>运行时延迟解析可通过 <see cref="Require{T}"/> / <see cref="TryGet{T}"/> 等方法。</para>
+    /// <para>运行时延迟解析统一走 <see cref="GameServices.GetRequiredService{T}"/> / <see cref="GameServices.TryGetService{T}"/>。</para>
     /// </summary>
     public abstract class ServiceBase : IService, IServiceLifecycle
     {
@@ -133,44 +147,6 @@ namespace Moirai.Atropos
 
         #endregion
 
-        #region 运行时依赖查找 [RUNTIME DEPENDENCY LOOKUP]
-
-        private IServiceProvider _serviceProvider;
-
-        /// <summary>
-        /// 在当前作用域中查找服务（未找到抛 <see cref="GameException"/>）。
-        /// <para>按 Gameplay > Scene > App 优先级返回最优服务。</para>
-        /// </summary>
-        protected T Require<T>() where T : class
-            => _serviceProvider.GetRequiredService<T>();
-
-        /// <summary>
-        /// 在当前作用域中尝试查找服务。
-        /// <para>按 Gameplay > Scene > App 优先级返回最优服务。</para>
-        /// </summary>
-        protected bool TryGet<T>(out T service) where T : class
-            => _serviceProvider.TryGetService<T>(out service);
-
-        /// <summary>
-        /// 要求 App 作用域中的服务。
-        /// </summary>
-        protected T RequireApp<T>() where T : class
-            => _serviceProvider.GetRequiredServiceInScope<T>(EServiceScopeKind.App);
-
-        /// <summary>
-        /// 要求 Scene 作用域中的服务。
-        /// </summary>
-        protected T RequireScene<T>() where T : class
-            => _serviceProvider.GetRequiredServiceInScope<T>(EServiceScopeKind.Scene);
-
-        /// <summary>
-        /// 要求 Gameplay 作用域中的服务。
-        /// </summary>
-        protected T RequireGameplay<T>() where T : class
-            => _serviceProvider.GetRequiredServiceInScope<T>(EServiceScopeKind.Gameplay);
-
-        #endregion
-
         #region 生命周期 [LIFECYCLE]
 
         public abstract void OnInit();
@@ -178,25 +154,12 @@ namespace Moirai.Atropos
 
         #endregion
 
-        #region 内部初始化 [INTERNAL INITIALIZATION]
-
-        /// <summary>
-        /// 由 <see cref="ServiceWorld"/> 在构建期调用，注入服务提供者。
-        /// </summary>
-        internal void InjectInternal(IServiceProvider provider)
-        {
-            _serviceProvider = provider;
-        }
-
-        #endregion
-
         #region IServiceLifecycle 实现 [RUNTIME LIFECYCLE]
 
-        void IServiceLifecycle.Initialize(ServiceWorld world, ServiceScope scope)
+        void IServiceLifecycle.Initialize(ServiceScope scope)
         {
             if (State >= EServiceState.Initialized) return;
 
-            InjectInternal(world);
             OnInit();
             State = EServiceState.Initialized;
             GameServices.InvokeRegistered(this, GetType(), scope.Kind);

@@ -9,11 +9,10 @@ namespace Moirai.Atropos
     internal interface IServiceLifecycle
     {
         /// <summary>
-        /// 运行时注册后调用。注入服务提供者并触发 <c>OnInit</c>。
+        /// 运行时注册后调用。触发 <c>OnInit</c>。
         /// </summary>
-        /// <param name="world">所属服务世界。</param>
         /// <param name="scope">注册到的作用域。</param>
-        void Initialize(ServiceWorld world, ServiceScope scope);
+        void Initialize(ServiceScope scope);
 
         /// <summary>
         /// 运行时注销前调用。触发 <c>Shutdown</c>。

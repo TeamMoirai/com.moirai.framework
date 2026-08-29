@@ -7,7 +7,7 @@ using UnityEngine.Assertions;
 namespace Moirai.Atropos
 {
     /// <summary>
-    /// 静态服务管理外观。统一管理容器生命周期、轮询驱动和拦截器。
+    /// 静态服务管理外观。统一管理容器生命周期、服务查找、轮询驱动和拦截器。
     /// <para><b>线程契约</b>：所有公共方法仅限 Unity 主线程调用。
     /// 后台线程请通过 <c>MainThreadDispatcher.Post(Action)</c> / <c>MainThreadDispatcher.Send(Action)</c> 切回。</para>
     /// </summary>
@@ -33,18 +33,6 @@ namespace Moirai.Atropos
         /// Gameplay 作用域是否活跃。
         /// </summary>
         public static bool HasGameplay => s_World?.HasScope(EServiceScopeKind.Gameplay) ?? false;
-
-        #endregion
-
-        #region 公共属性 [PUBLIC PROPERTIES]
-
-        /// <summary>
-        /// 最深层活跃的服务提供者（Gameplay > Scene > App）。
-        /// <para>服务类应优先使用静态外观（如 <c>AudioService.Play</c>）而非此属性。此属性主要用于非服务代码（MonoBehaviour、UI 脚本等）。</para>
-        /// </summary>
-        public static IServiceProvider Provider => HasAnyScope ? s_World : null;
-
-        private static bool HasAnyScope => HasApp || HasScene || HasGameplay;
 
         #endregion
 
@@ -473,6 +461,45 @@ namespace Moirai.Atropos
         /// 获取内部 <see cref="ServiceWorld"/> 实例。
         /// </summary>
         internal static ServiceWorld GetWorldInternal() => s_World;
+
+        #endregion
+
+        #region 查找 [LOOKUP]
+
+        /// <summary>
+        /// 获取服务（未找到抛 <see cref="GameException"/>）。
+        /// <para>按 Gameplay &gt; Scene &gt; App 优先级返回最优服务；容器未构建时同样抛出。</para>
+        /// </summary>
+        /// <typeparam name="T">服务契约类型。</typeparam>
+        public static T GetRequiredService<T>() where T : class
+        {
+            if (s_World != null && s_World.TryGet(out T service)) return service;
+            throw new GameException(StringUtility.Format(
+                "Service '{0}' was not found in any active scope.", typeof(T).FullName));
+        }
+
+        /// <summary>
+        /// 获取服务（未找到返回 null）。
+        /// <para>按 Gameplay &gt; Scene &gt; App 优先级返回最优服务；容器未构建时返回 null。</para>
+        /// </summary>
+        /// <typeparam name="T">服务契约类型。</typeparam>
+        public static T GetService<T>() where T : class
+        {
+            return s_World != null && s_World.TryGet(out T service) ? service : null;
+        }
+
+        /// <summary>
+        /// 尝试获取服务。
+        /// <para>按 Gameplay &gt; Scene &gt; App 优先级返回最优服务；容器未构建时返回 false。</para>
+        /// </summary>
+        /// <typeparam name="T">服务契约类型。</typeparam>
+        /// <param name="service">获取到的服务；未找到时为 null。</param>
+        public static bool TryGetService<T>(out T service) where T : class
+        {
+            if (s_World != null && s_World.TryGet(out service)) return true;
+            service = null;
+            return false;
+        }
 
         #endregion
 
