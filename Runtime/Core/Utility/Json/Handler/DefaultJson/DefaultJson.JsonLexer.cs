@@ -2008,7 +2008,7 @@ namespace Moirai.Atropos
 
             private static string EncodeSpan(ReadOnlySpan<byte> s)
             {
-                return Encoding.UTF8.GetString(s.ToArray());
+                return Encoding.UTF8.GetString(s);
             }
 
             private static bool IsDelimiter(byte c)

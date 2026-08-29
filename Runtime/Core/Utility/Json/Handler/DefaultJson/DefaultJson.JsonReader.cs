@@ -354,7 +354,7 @@ namespace Moirai.Atropos
                 if (list is List<decimal> lde) { ParseTypedList(lexer, lde, LexerTokens<TLexer>.Decimal); return; }
                 if (list is List<string> lstg) { ParseStringTypedList(lexer, lstg); return; }
 
-                Type itemType = type.GenericTypeArguments[0];
+                Type itemType = GenericArgsCache.Get(type)[0];
 
                 lexer.Expect('[');
 
@@ -688,8 +688,9 @@ namespace Moirai.Atropos
             private static object ParseDictionary(TLexer lexer, Type type, IDictionary existing, int depth)
             {
                 IDictionary dict = existing ?? (IDictionary)Activator.CreateInstance(type);
-                Type keyType = type.GenericTypeArguments[0];
-                Type valueType = type.GenericTypeArguments[1];
+                Type[] args = GenericArgsCache.Get(type);
+                Type keyType = args[0];
+                Type valueType = args[1];
 
                 if (existing != null) dict.Clear(); // 覆盖语义：清空后按 JSON 重建
 
@@ -741,8 +742,9 @@ namespace Moirai.Atropos
             private static object ParseDictionaryLegacy(TLexer lexer, Type type, IDictionary existing, int depth)
             {
                 IDictionary dict = existing ?? (IDictionary)Activator.CreateInstance(type);
-                Type keyType = type.GenericTypeArguments[0];
-                Type valueType = type.GenericTypeArguments[1];
+                Type[] args = GenericArgsCache.Get(type);
+                Type keyType = args[0];
+                Type valueType = args[1];
 
                 if (existing != null) dict.Clear(); // 覆盖语义：清空后按 JSON 重建
 

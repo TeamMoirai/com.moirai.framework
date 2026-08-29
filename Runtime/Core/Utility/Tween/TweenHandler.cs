@@ -101,7 +101,7 @@ namespace Moirai.Atropos
         /// </summary>
         public virtual void Pause(long tweenId)
         {
-            throw new GameException($"TweenHandler '{GetType().Name}' does not implement Pause.");
+            throw new GameException(StringUtility.Format("TweenHandler '{0}' does not implement Pause.", GetType().Name));
         }
 
         /// <summary>
@@ -110,19 +110,22 @@ namespace Moirai.Atropos
         /// </summary>
         public virtual void Resume(long tweenId)
         {
-            throw new GameException($"TweenHandler '{GetType().Name}' does not implement Resume.");
+            throw new GameException(StringUtility.Format("TweenHandler '{0}' does not implement Resume.", GetType().Name));
         }
 
         /// <summary>
         /// 等待 tween 结束（UniTask）。
         /// <para>任何结束原因（自然完成/Complete/Stop/目标销毁/清理）→ 正常返回，不区分死因；
         /// 仅外部 CancellationToken 取消 → OperationCanceledException（放弃等待，tween 不被停止）。</para>
-        /// <para>基类默认实现为轮询兜底（每帧检查 IsAlive，判定晚一帧）；
-        /// DefaultTweenHandler / LitMotionHandler 覆写为完成信号即时版本。</para>
+        /// <para>基类默认实现为逐帧轮询兜底（async Yield 循环，无闭包/无每帧委托分配，判定晚一帧）；
+        /// DefaultTweenHandler / LitMotionHandler 覆写为完成信号即时版本；PrimeTweenHandler 覆写为同构轮询版。</para>
         /// </summary>
-        public virtual UniTask WaitAsync(long tweenId, CancellationToken cancellationToken = default)
+        public virtual async UniTask WaitAsync(long tweenId, CancellationToken cancellationToken = default)
         {
-            return UniTask.WaitUntil(() => !IsAlive(tweenId), cancellationToken: cancellationToken);
+            while (IsAlive(tweenId))
+            {
+                await UniTask.Yield(cancellationToken);
+            }
         }
 
         #endregion

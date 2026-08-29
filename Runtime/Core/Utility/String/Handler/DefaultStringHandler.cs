@@ -33,6 +33,11 @@ namespace Moirai.Atropos
         private static readonly Stack<DefaultStringBuilder> s_AdapterPool = new Stack<DefaultStringBuilder>();
         private const int MAX_ADAPTER_POOL_SIZE = 16;
 
+        // 池操作锁：静态池为跨线程共享栈，Pop/Push/Clear 需原子化（后台线程格式化场景）。
+        // 加锁顺序固定 s_AdapterPoolLock → s_PoolLock（AcquireBuilder 内层取 s_PoolLock），防止死锁
+        private static readonly object s_AdapterPoolLock = new object();
+        private static readonly object s_PoolLock = new object();
+
         #region 实现方法 [IMPLEMENTATION METHODS]
 
         /// <summary>
@@ -44,12 +49,15 @@ namespace Moirai.Atropos
         public override IStringBuilder CreateStringBuilder(int capacity = 256)
         {
             // 优先: 从适配器池获取（0GC）
-            if (s_AdapterPool.Count > 0)
+            lock (s_AdapterPoolLock)
             {
-                var adapter = s_AdapterPool.Pop();
-                adapter.inPool = false;
-                adapter.builder = AcquireBuilder(capacity);
-                return adapter;
+                if (s_AdapterPool.Count > 0)
+                {
+                    var adapter = s_AdapterPool.Pop();
+                    adapter.inPool = false;
+                    adapter.builder = AcquireBuilder(capacity);
+                    return adapter;
+                }
             }
 
             // 回退: 创建新适配器（仅在池空时分配）
@@ -82,9 +90,13 @@ namespace Moirai.Atropos
         /// </summary>
         public override void Clear()
         {
+            lock (s_AdapterPoolLock)
+            {
+                s_Pool.Clear();
+                s_AdapterPool.Clear();
+            }
+
             s_CacheStringBuilder = null;
-            s_Pool.Clear();
-            s_AdapterPool.Clear();
         }
 
         #endregion
@@ -108,16 +120,22 @@ namespace Moirai.Atropos
         /// </summary>
         internal static void Return(DefaultStringBuilder adapter)
         {
-            if (adapter == null || adapter.inPool) return;
+            if (adapter == null) return;
 
-            ReleaseBuilder(adapter.builder);
-            adapter.builder = null;
-            adapter.inPool = true;
-
-            // 将适配器存入池中（0GC）
-            if (s_AdapterPool.Count < MAX_ADAPTER_POOL_SIZE)
+            // 锁内完成 inPool 检查与入池，防同适配器被并发归还导致双重入池
+            lock (s_AdapterPoolLock)
             {
-                s_AdapterPool.Push(adapter);
+                if (adapter.inPool) return;
+
+                ReleaseBuilder(adapter.builder);
+                adapter.builder = null;
+                adapter.inPool = true;
+
+                // 将适配器存入池中（0GC）
+                if (s_AdapterPool.Count < MAX_ADAPTER_POOL_SIZE)
+                {
+                    s_AdapterPool.Push(adapter);
+                }
             }
         }
 
@@ -136,13 +154,16 @@ namespace Moirai.Atropos
             }
 
             // 回退: 多槽池
-            if (s_Pool.Count > 0)
+            lock (s_PoolLock)
             {
-                var sb = s_Pool.Pop();
-                sb.Clear();
-                if (sb.Capacity < capacity)
-                    sb.Capacity = capacity;
-                return sb;
+                if (s_Pool.Count > 0)
+                {
+                    var sb = s_Pool.Pop();
+                    sb.Clear();
+                    if (sb.Capacity < capacity)
+                        sb.Capacity = capacity;
+                    return sb;
+                }
             }
 
             // 最后: 创建新实例
@@ -164,10 +185,13 @@ namespace Moirai.Atropos
             }
 
             // 回退: 存入多槽池（容量合理且池未满时）
-            if (stringBuilder.Capacity <= MAX_POOL_CAPACITY && s_Pool.Count < MAX_POOL_SIZE)
+            lock (s_PoolLock)
             {
-                stringBuilder.Clear();
-                s_Pool.Push(stringBuilder);
+                if (stringBuilder.Capacity <= MAX_POOL_CAPACITY && s_Pool.Count < MAX_POOL_SIZE)
+                {
+                    stringBuilder.Clear();
+                    s_Pool.Push(stringBuilder);
+                }
             }
         }
 

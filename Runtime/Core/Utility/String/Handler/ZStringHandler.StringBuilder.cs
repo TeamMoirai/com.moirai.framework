@@ -422,7 +422,10 @@ namespace Moirai.Atropos
 
         public StringHandler.IStringBuilder Insert(int index, char value)
         {
-            builder.Insert(index, value.ToString());
+            // 零分配：走 ReadOnlySpan<char> 重载，避免 value.ToString() 分配
+            Span<char> buffer = stackalloc char[1];
+            buffer[0] = value;
+            builder.Insert(index, (ReadOnlySpan<char>)buffer, 1);
             return this;
         }
 
