@@ -26,6 +26,7 @@ namespace Moirai.Atropos
             [typeof(Debugger.DebuggerService)] = static () => new Debugger.DebuggerService(),
             [typeof(Audio.AudioService)] = static () => new Audio.AudioService(),
             [typeof(ObjectPool.ObjectPoolService)] = static () => new ObjectPool.ObjectPoolService(),
+            [typeof(ObjectPool.GameObjectPoolService)] = static () => new ObjectPool.GameObjectPoolService(),
             [typeof(Procedure.ProcedureService)] = static () => new Procedure.ProcedureService(),
             [typeof(Localization.LocalizationService)] = static () => new Localization.LocalizationService(),
             [typeof(Scene.SceneService)] = static () => new Scene.SceneService(),
