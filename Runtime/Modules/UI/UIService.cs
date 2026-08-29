@@ -18,10 +18,10 @@ namespace Moirai.Atropos.UI
     {
         #region 层级常量 [LAYER CONSTANTS]
 
-        public const int LAYER_DEEP = UIServiceHandler.LAYER_DEEP;
-        public const int WINDOW_DEEP = UIServiceHandler.WINDOW_DEEP;
-        public const int WINDOW_HIDE_LAYER = UIServiceHandler.WINDOW_HIDE_LAYER; // Ignore Raycast
-        public const int WINDOW_SHOW_LAYER = UIServiceHandler.WINDOW_SHOW_LAYER; // UI
+        public const int LAYER_DEEP = 2000;
+        public const int WINDOW_DEEP = 100;
+        public const int WINDOW_HIDE_LAYER = 2; // Ignore Raycast
+        public const int WINDOW_SHOW_LAYER = 5; // UI
 
         #endregion
 
