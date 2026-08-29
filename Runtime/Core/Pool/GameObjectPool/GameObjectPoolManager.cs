@@ -94,7 +94,7 @@ namespace Moirai.Atropos.Pool
             s_Instance.hideFlags = HideFlags.DontSave;
         }
 
-        protected override void Shutdown()
+        protected override void OnShutdown()
         {
             LocalReleaseAll();
         }

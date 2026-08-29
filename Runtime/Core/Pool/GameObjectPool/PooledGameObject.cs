@@ -99,7 +99,7 @@ namespace Moirai.Atropos.Pool
         {
             if (IsDisposed) return;
             ReleaseDisposables();
-            if (GameObjectPoolManager.HasInstance) GameObjectPoolManager.Release(GameObject, PoolKey);
+            if (GameObjectPoolManager.IsValid) GameObjectPoolManager.Release(GameObject, PoolKey);
             IsDisposed = true;
             s_Pool.Release(this);
         }

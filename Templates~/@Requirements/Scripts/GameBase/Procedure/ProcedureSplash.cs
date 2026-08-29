@@ -15,7 +15,7 @@ namespace Moirai.Main
         {
             base.OnEnter();
 
-            if (SplashScreenManager.HasInstance && SplashScreenManager.Instance.ShowSplashScreen)
+            if (SplashScreenManager.IsValid && SplashScreenManager.Instance.ShowSplashScreen)
             {
                 // 播放 Splash 动画
                 SplashScreenEvent.SplashStart();

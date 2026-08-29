@@ -199,9 +199,9 @@ namespace Moirai.Atropos
         }
 
         /// <inheritdoc/>
-        protected override void Shutdown()
+        protected override void OnShutdown()
         {
-            base.Shutdown();
+            base.OnShutdown();
 
             BeginShutdown();
         }

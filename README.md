@@ -362,12 +362,14 @@ handle.Cancel();
 
 | 类型 | 说明 |
 |------|------|
-| `Singleton<T>` | 纯 C# 单例，双重检查锁 |
-| `SingletonMono<T>` | MonoBehaviour 单例，支持持久化/替换策略 |
-| `SingletonRegister<T>` | 注册式单例，支持按类型查找 |
-| `ReferencedScriptableObject` | ScriptableObject 引用基类 |
+| `Singleton<T>` | 纯 C# 单例：volatile 双检锁，线程安全，`Dispose()` 幂等释放（实现 `IDisposable`） |
+| `SingletonMono<T>` | MonoBehaviour 单例：场景查找 + 主线程物化，支持持久化/替换策略与退出窗口 |
+| `SingletonMono_Persistent<T>` | 强制跨场景存活的 MonoBehaviour 单例 |
+| `SingletonRegister<T>` | 注册式纯 C# 单例，无需继承基类 |
+| `SingletonRegisterMono<T>` | 注册式 Mono 单例，免继承，物化限主线程 |
+| `ReferencedScriptableObject` | ScriptableObject 弱引用登记基类 |
 
-`SingletonSystem` 集中管理所有单例生命周期，挂接 UpdateDriver 驱动 IUpdate/IFixedUpdate/ILateUpdate。
+纯 C# 单例任意线程可安全访问（物化后仅 volatile 读快速路径）；MonoBehaviour 单例的物化（查找/创建）仅限主线程，越线程访问抛 `GameException`（fail-fast），编辑模式只查找不创建。详见 [Documentation~/zh/Singleton.md](Documentation~/zh/Singleton.md)。
 
 ### GameLog — 日志系统
 

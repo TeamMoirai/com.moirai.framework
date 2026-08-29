@@ -65,7 +65,7 @@ UpdateDriverService.AddDestroyListener(OnHostDestroy);
 
 ### Internal Framework Usage
 
-`UpdateDriver` is a low-level dependency for several framework infrastructures: the singleton system `SingletonSystem` uses it to drive `IUpdate`/`IFixedUpdate`/`ILateUpdate` singleton polling, and coroutine utilities in `UnityUtility` also execute through it. The service implementation type is registered during the `AppSettings.Initiation()` stage and supports implementation replacement in the Inspector.
+`UpdateDriver` is a low-level dependency for several framework infrastructures: coroutine utilities in `UnityUtility` execute through it. The service implementation type is registered during the `AppSettings.Initiation()` stage and supports implementation replacement in the Inspector.
 
 ### Registration Timing Notes
 
