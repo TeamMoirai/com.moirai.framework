@@ -15,8 +15,8 @@ namespace Moirai.Atropos.UpdateDriver
     [Serializable]
     public sealed class UnityUpdateDriverHandler : UpdateDriverServiceHandler
     {
-        private GameObject _entity;
-        private MainBehaviour _behaviour;
+        [NonSerialized] private GameObject _entity;
+        [NonSerialized] private MainBehaviour _behaviour;
 
         protected override void OnInit()
         {
@@ -29,6 +29,7 @@ namespace Moirai.Atropos.UpdateDriver
             {
                 _behaviour.Release();
             }
+            _behaviour = null;
 
             if (_entity != null)
             {

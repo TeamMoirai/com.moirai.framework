@@ -38,7 +38,8 @@ namespace Moirai.Atropos.Editor
 
         // ===== DTO（含双重编码嵌入 JSON、CJK 富文本、嵌套结构，程序化构建） =====
 
-        [Serializable] public class InventoryDbDto
+        [Serializable]
+        public class InventoryDbDto
         {
             public bool autoSave;
             public bool useAdvancedStats;
@@ -46,75 +47,82 @@ namespace Moirai.Atropos.Editor
             public SettingsDto settings;
         }
 
-        [Serializable] public class ItemDto
+        [Serializable]
+        public class ItemDto
         {
-            public ItemInfoDto m_Info;
-            public string m_ParentId;
-            public string m_CategoryId;
-            public ExprDto m_CountPerStack;
-            public ExprDto m_MaxStacks;
-            public string m_Weight;
-            public string m_Value;
+            public ItemInfoDto info;
+            public string parentId;
+            public string categoryId;
+            public ExprDto countPerStack;
+            public ExprDto maxStacks;
+            public string weight;
+            public string value;
             public List<PluginDto> plugins;
             public int count;
             public string customName;
-            public string InstanceId;
+            public string instanceId;
         }
 
-        [Serializable] public class ItemInfoDto
+        [Serializable]
+        public class ItemInfoDto
         {
-            public string m_ID;
-            public bool m_AutoGenId;
-            public string m_Title;
-            public ImageDto m_Image;
-            public BenchColor m_Color;
-            public List<string> m_Tags;
-            public bool m_Hidden;
+            public string id;
+            public bool autoGenId;
+            public string title;
+            public ImageDto image;
+            public BenchColor color;
+            public List<string> tags;
+            public bool hidden;
         }
 
         [Serializable] public struct BenchColor { public float r, g, b, a; }
         [Serializable] public struct BenchVec3 { public float x, y, z; }
 
-        [Serializable] public class ImageDto
+        [Serializable]
+        public class ImageDto
         {
-            public string m_PackageType;
-            public string m_Path;
-            public string m_Guid;
+            public string packageType;
+            public string path;
+            public string guid;
         }
 
-        [Serializable] public class ExprDto
+        [Serializable]
+        public class ExprDto
         {
             public string valueExpression;
-            public float m_ValueInit;
-            public bool m_Initialized;
+            public float valueInit;
+            public bool initialized;
         }
 
-        [Serializable] public class PluginDto
+        [Serializable]
+        public class PluginDto
         {
-            public string m_ID;
-            public string m_SerializationNamespace;
-            public string m_SerializationType;
-            public string m_SerializationData; // 双重编码的嵌入 JSON 字符串
+            public string id;
+            public string serializationNamespace;
+            public string serializationType;
+            public string serializationData; // 双重编码的嵌入 JSON 字符串
         }
 
-        [Serializable] public class SettingsDto
+        [Serializable]
+        public class SettingsDto
         {
-            public string m_PickupPrompt;
-            public string m_DropPrompt;
-            public string m_SellPrompt;
-            public BenchVec3 m_ColliderSize;
-            public float m_ColliderRadius;
-            public string m_EquipPrefabLocation;
-            public string m_ItemAddedFormat;
-            public string m_ItemDroppedFormat;
-            public string m_ItemEquippedFormat;
-            public string m_ItemUnattachedDestroyedFormat;
-            public List<string> m_CustomMessages;
+            public string pickupPrompt;
+            public string dropPrompt;
+            public string sellPrompt;
+            public BenchVec3 colliderSize;
+            public float colliderRadius;
+            public string equipPrefabLocation;
+            public string itemAddedFormat;
+            public string itemDroppedFormat;
+            public string itemEquippedFormat;
+            public string itemUnattachedDestroyedFormat;
+            public List<string> customMessages;
         }
 
         // ===== 合成场景 DTO =====
 
-        [Serializable] private class SaveDto
+        [Serializable]
+        private class SaveDto
         {
             public string playerName;
             public int level;
@@ -127,7 +135,8 @@ namespace Moirai.Atropos.Editor
         [Serializable] private class SavePos { public float x, y, z; }
 
         [Serializable] private class MixedItem { public int id; public string name; public List<int> tags; }
-        [Serializable] private class MixedRoot
+        [Serializable]
+            private class MixedRoot
         {
             public List<MixedItem> items;
             public Dictionary<string, int> counts;
@@ -444,59 +453,59 @@ namespace Moirai.Atropos.Editor
                 items = new List<ItemDto>(itemCount),
                 settings = new SettingsDto
                 {
-                    m_PickupPrompt = "拾取",
-                    m_DropPrompt = "丢弃",
-                    m_SellPrompt = "出售",
-                    m_ColliderSize = new BenchVec3 { x = 1, y = 1, z = 1 },
-                    m_ColliderRadius = 0.5f,
-                    m_EquipPrefabLocation = "Resources/Inventory/Equip",
-                    m_ItemAddedFormat = "<color={targetColor}>{targetDisplayName}</color>获得了<color={itemRarityColor}>{itemDisplayName}</color> x{count}。",
-                    m_ItemDroppedFormat = "<color={targetColor}>{targetDisplayName}</color>丢弃了<color={itemRarityColor}>{itemDisplayName}</color> x{count}。",
-                    m_ItemEquippedFormat = "<color={targetColor}>{targetDisplayName}</color>装备了<color={itemRarityColor}>{itemDisplayName}</color>。",
-                    m_ItemUnattachedDestroyedFormat = "<color={targetColor}>{targetDisplayName}</color>从<color={itemRarityColor}>{itemDisplayName}</color>拆下并<b>损毁了</b>了<color={attachmentRarityColor}>{attachmentDisplayName}</color>。",
-                    m_CustomMessages = new List<string>(),
+                    pickupPrompt = "拾取",
+                    dropPrompt = "丢弃",
+                    sellPrompt = "出售",
+                    colliderSize = new BenchVec3 { x = 1, y = 1, z = 1 },
+                    colliderRadius = 0.5f,
+                    equipPrefabLocation = "Resources/Inventory/Equip",
+                    itemAddedFormat = "<color={targetColor}>{targetDisplayName}</color>获得了<color={itemRarityColor}>{itemDisplayName}</color> x{count}。",
+                    itemDroppedFormat = "<color={targetColor}>{targetDisplayName}</color>丢弃了<color={itemRarityColor}>{itemDisplayName}</color> x{count}。",
+                    itemEquippedFormat = "<color={targetColor}>{targetDisplayName}</color>装备了<color={itemRarityColor}>{itemDisplayName}</color>。",
+                    itemUnattachedDestroyedFormat = "<color={targetColor}>{targetDisplayName}</color>从<color={itemRarityColor}>{itemDisplayName}</color>拆下并<b>损毁了</b>了<color={attachmentRarityColor}>{attachmentDisplayName}</color>。",
+                    customMessages = new List<string>(),
                 },
             };
 
             var pluginTypes = new[] { "Moirai.Clotho.Stats.StatModifierPlugin", "Moirai.Clotho.Inventory.EquipAction" };
             for (int i = 0; i < itemCount; i++)
             {
-                // 双重编码的嵌入 JSON（还原真实文件里 m_SerializationData 的形态）
+                // 双重编码的嵌入 JSON（还原真实文件里 serializationData 的形态）
                 string embedded = i % 2 == 0
                     ? "{\"m_ApplyToRemote\":false,\"m_EquipSlots\":\"Any\",\"m_EquipSlotIds\":[],\"m_StatModifiers\":[{\"m_AffectsStatId\":\"test\",\"m_Applies\":\"Immediately\",\"m_ChangeType\":\"Add\",\"m_Value\":{\"m_Value\":\"0\",\"m_RandomMax\":\"1\",\"initialized\":false},\"InstanceId\":\"ffad862f5fd34ba18f03600f4247f285\"}],\"Title\":\"Stat Modifier\",\"Description\":\"在装备或消耗道具时修改属性。\"}"
                     : "{\"m_AutoEquip\":\"Never\",\"m_SlotIds\":[],\"m_SpawnItem\":false,\"m_EquipSpawn\":{\"m_Parent\":true,\"m_Offset\":{\"x\":0,\"y\":0,\"z\":0},\"m_Rotation\":{\"x\":0,\"y\":0,\"z\":0}},\"_appliedModifiers\":[]}";
 
                 db.items.Add(new ItemDto
                 {
-                    m_Info = new ItemInfoDto
+                    info = new ItemInfoDto
                     {
-                        m_ID = (10001 + i).ToString(),
-                        m_AutoGenId = true,
-                        m_Title = (10001 + i).ToString(),
-                        m_Image = new ImageDto { m_PackageType = "Common", m_Path = "", m_Guid = Guid.NewGuid().ToString("N") },
-                        m_Color = new BenchColor { r = 1, g = 1, b = 1, a = 1 },
-                        m_Tags = new List<string>(),
-                        m_Hidden = false,
+                        id = (10001 + i).ToString(),
+                        autoGenId = true,
+                        title = (10001 + i).ToString(),
+                        image = new ImageDto { packageType = "Common", path = "", guid = Guid.NewGuid().ToString("N") },
+                        color = new BenchColor { r = 1, g = 1, b = 1, a = 1 },
+                        tags = new List<string>(),
+                        hidden = false,
                     },
-                    m_ParentId = "",
-                    m_CategoryId = "",
-                    m_CountPerStack = new ExprDto { valueExpression = "0", m_ValueInit = 0, m_Initialized = false },
-                    m_MaxStacks = new ExprDto { valueExpression = "0", m_ValueInit = 0, m_Initialized = false },
-                    m_Weight = "0",
-                    m_Value = "0",
+                    parentId = "",
+                    categoryId = "",
+                    countPerStack = new ExprDto { valueExpression = "0", valueInit = 0, initialized = false },
+                    maxStacks = new ExprDto { valueExpression = "0", valueInit = 0, initialized = false },
+                    weight = "0",
+                    value = "0",
                     plugins = new List<PluginDto>
                     {
                         new PluginDto
                         {
-                            m_ID = "",
-                            m_SerializationNamespace = "Moirai.Clotho",
-                            m_SerializationType = pluginTypes[i % 2],
-                            m_SerializationData = embedded,
+                            id = "",
+                            serializationNamespace = "Moirai.Clotho",
+                            serializationType = pluginTypes[i % 2],
+                            serializationData = embedded,
                         },
                     },
                     count = 0,
                     customName = "",
-                    InstanceId = Guid.NewGuid().ToString("N"),
+                    instanceId = Guid.NewGuid().ToString("N"),
                 });
             }
 

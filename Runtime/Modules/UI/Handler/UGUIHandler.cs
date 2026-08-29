@@ -17,13 +17,12 @@ namespace Moirai.Atropos.UI
     public sealed class UGUIHandler : UIServiceHandler
     {
         // 核心字段
-        private Transform _instanceRoot = null; // UI根节点变换组件
-        private bool _enableErrorLog = true; // 是否启用错误日志
-        private Camera _uiCamera = null; // UI专用摄像机
-        private readonly List<UIWindow> _uiStack = new List<UIWindow>(128); // 窗口堆栈
-        private readonly Dictionary<string, UIWindow> _cache = new Dictionary<string, UIWindow>(128);
-        private ErrorLogger _errorLogger; // 错误日志记录器
-        private bool _uiInitialized;
+        [NonSerialized] private Transform _instanceRoot = null; // UI根节点变换组件
+        [NonSerialized] private bool _enableErrorLog = true; // 是否启用错误日志
+        [NonSerialized] private Camera _uiCamera = null; // UI专用摄像机
+        [NonSerialized] private readonly List<UIWindow> _uiStack = new List<UIWindow>(128); // 窗口堆栈
+        [NonSerialized] private readonly Dictionary<string, UIWindow> _cache = new Dictionary<string, UIWindow>(128);
+        [NonSerialized] private ErrorLogger _errorLogger; // 错误日志记录器
 
         /// <summary>
         /// UI根节点。
@@ -48,11 +47,65 @@ namespace Moirai.Atropos.UI
         #region 生命周期 [LIFECYCLE]
 
         /// <summary>
-        /// 处理器初始化。此阶段（AfterAssembliesLoaded）场景尚未加载，初始化延迟到首个 Update tick。
+        /// 处理器初始化。
         /// </summary>
         protected override void OnInit()
         {
-            MainThreadDispatcher.Post(TryInitializeUIRoot);
+            // 正确性锚点：复用实例重入 Init 时必须先归零运行时状态，释放归属 OnShutdown。
+            _uiStack.Clear();
+            _cache.Clear();
+
+            // 此阶段（AfterAssembliesLoaded）场景尚未加载，初始化延迟到首个 Update tick。
+            MainThreadDispatcher.Post(() =>
+            {
+                var uiRoot = GameObject.Find("UIRoot");
+                if (uiRoot == null)
+                {
+                    LogUtility.Fatal("UIRoot not found!");
+                    return;
+                }
+
+                var canvas = uiRoot.GetComponentInChildren<Canvas>();
+                if (canvas == null)
+                {
+                    LogUtility.Fatal("Can't find any Canvas under UIRoot! Please add a Canvas first.");
+                    return;
+                }
+
+                Resource = new UIResourceLoader();
+
+                _instanceRoot = canvas.transform;
+                _uiCamera = canvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : canvas.worldCamera;
+
+                UnityEngine.Object.DontDestroyOnLoad(_instanceRoot.parent != null ? _instanceRoot.parent : _instanceRoot);
+                _instanceRoot.gameObject.layer = LayerMask.NameToLayer("UI");
+
+                if (DebuggerComp.Instance != null)
+                {
+                    switch (DebuggerComp.Instance.ActiveWindowType)
+                    {
+                        case DebuggerActiveWindowType.AlwaysOpen:
+                            _enableErrorLog = true;
+                            break;
+
+                        case DebuggerActiveWindowType.OnlyOpenWhenDevelopment:
+                            _enableErrorLog = Debug.isDebugBuild;
+                            break;
+
+                        case DebuggerActiveWindowType.OnlyOpenInEditor:
+                            _enableErrorLog = Application.isEditor;
+                            break;
+
+                        default:
+                            _enableErrorLog = false;
+                            break;
+                    }
+                    if (!_enableErrorLog)
+                    {
+                        _errorLogger = new ErrorLogger();
+                    }
+                }
+            });
         }
 
         /// <summary>
@@ -73,7 +126,11 @@ namespace Moirai.Atropos.UI
             {
                 UnityEngine.Object.Destroy(_instanceRoot.parent.gameObject);
             }
-            _uiInitialized = false;
+
+            _uiStack.Clear();
+            _cache.Clear();
+            _instanceRoot = null;
+            _uiCamera = null;
         }
 
         /// <summary>
@@ -94,65 +151,6 @@ namespace Moirai.Atropos.UI
                 var window = _uiStack[i];
                 window.InternalUpdate();
             }
-        }
-
-        #endregion
-
-        #region 初始化 [INITIALIZATION]
-
-        private void TryInitializeUIRoot()
-        {
-            if (_uiInitialized) return;
-
-            var uiRoot = GameObject.Find("UIRoot");
-            if (uiRoot == null)
-            {
-                LogUtility.Fatal("UIRoot not found!");
-                return;
-            }
-
-            var canvas = uiRoot.GetComponentInChildren<Canvas>();
-            if (canvas == null)
-            {
-                LogUtility.Fatal("Can't find any Canvas under UIRoot! Please add a Canvas first.");
-                return;
-            }
-
-            Resource = new UIResourceLoader();
-
-            _instanceRoot = canvas.transform;
-            _uiCamera = canvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : canvas.worldCamera;
-
-            UnityEngine.Object.DontDestroyOnLoad(_instanceRoot.parent != null ? _instanceRoot.parent : _instanceRoot);
-            _instanceRoot.gameObject.layer = LayerMask.NameToLayer("UI");
-
-            if (DebuggerComp.Instance != null)
-            {
-                switch (DebuggerComp.Instance.ActiveWindowType)
-                {
-                    case DebuggerActiveWindowType.AlwaysOpen:
-                        _enableErrorLog = true;
-                        break;
-
-                    case DebuggerActiveWindowType.OnlyOpenWhenDevelopment:
-                        _enableErrorLog = Debug.isDebugBuild;
-                        break;
-
-                    case DebuggerActiveWindowType.OnlyOpenInEditor:
-                        _enableErrorLog = Application.isEditor;
-                        break;
-
-                    default:
-                        _enableErrorLog = false;
-                        break;
-                }
-                if (!_enableErrorLog)
-                {
-                    _errorLogger = new ErrorLogger();
-                }
-            }
-
-            _uiInitialized = true;
         }
 
         #endregion

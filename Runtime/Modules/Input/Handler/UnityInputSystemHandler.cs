@@ -20,6 +20,32 @@ namespace Moirai.Atropos.Input
         // 缓存 InputAction 引用提升性能
         private readonly Dictionary<string, InputAction> _inputActionsDictionary = new Dictionary<string, InputAction>();
 
+        protected override void OnInit()
+        {
+            _inputActionsDictionary.Clear();
+
+            if (InputActions == null)
+            {
+                LogUtility.Error("Please set Input Actions in {0} or 'Project Settings -> Input System Package'", nameof(InputServiceSettings));
+                return;
+            }
+
+            for (int i = 0; i < InputActions.actionMaps.Count; i++)
+            {
+                InputActionMap actionMap = InputActions.actionMaps[i];
+                for (int j = 0; j < actionMap.actions.Count; j++)
+                {
+                    InputAction action = actionMap.actions[j];
+                    _inputActionsDictionary.Add($"{actionMap.name}/{action.name}", action);
+                }
+            }
+        }
+
+        protected override void OnShutdown()
+        {
+            _inputActionsDictionary.Clear();
+        }
+
         public override bool GetButtonDown(string actionName, string actionGroup)
         {
             bool output = false;
@@ -120,27 +146,6 @@ namespace Moirai.Atropos.Input
             // 新输入系统的 scroll 返回的是 tick（刻度），每滚一格通常是 120
             // 除以 120 是为了与旧系统值范围相似
             return Vector2.Scale(Mouse.current.scroll.ReadValue(), s_ScalingFactor);
-        }
-
-        protected override void OnInit()
-        {
-            _inputActionsDictionary.Clear();
-
-            if (InputActions == null)
-            {
-                LogUtility.Error("Please set Input Actions in {0} or 'Project Settings -> Input System Package'", nameof(InputServiceSettings));
-                return;
-            }
-
-            for (int i = 0; i < InputActions.actionMaps.Count; i++)
-            {
-                InputActionMap actionMap = InputActions.actionMaps[i];
-                for (int j = 0; j < actionMap.actions.Count; j++)
-                {
-                    InputAction action = actionMap.actions[j];
-                    _inputActionsDictionary.Add($"{actionMap.name}/{action.name}", action);
-                }
-            }
         }
 
         public override void ResetAllInputStates()

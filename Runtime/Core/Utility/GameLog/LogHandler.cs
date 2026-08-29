@@ -19,7 +19,7 @@ namespace Moirai.Atropos
     [Serializable]
     public abstract class LogHandler : FrameworkHandler
     {
-        [SerializeField] private bool m_TimestampEnabled = true;
+        [SerializeField] private bool m_TimestampEnabled;
         [ShowIf(nameof(m_TimestampEnabled))]
         [SerializeField] private string m_TimestampFormat = "HH:mm:ss.fff";
 

@@ -21,27 +21,27 @@ namespace Moirai.Atropos.Audio
     [Serializable]
     public sealed class UnityAudioHandler : AudioServiceHandler
     {
-        private AudioGroupConfig[] _audioGroupConfigs;
-        private bool _unityAudioDisabled;
+        [NonSerialized] private AudioGroupConfig[] _audioGroupConfigs;
+        [NonSerialized] private bool _unityAudioDisabled;
 
         // Master 音轨过渡 Tween ID
-        private long _masterFadeTweenId;
+        [NonSerialized] private long _masterFadeTweenId;
         // 音轨过渡 Tween ID（数组索引 = (int)EAudioTrack）
-        private long[] _trackFadeTweenIds;
+        [NonSerialized] private long[] _trackFadeTweenIds;
         // 音轨暂停状态（数组索引 = (int)EAudioTrack）
-        private bool[] _pausedTracks;
+        [NonSerialized] private bool[] _pausedTracks;
         // 音轨 -> Category 缓存，O(1) 数组直接访问
-        private AudioCategory[] _categoryCache;
+        [NonSerialized] private AudioCategory[] _categoryCache;
         // 音轨 -> AudioGroupConfig 缓存，O(1) 数组直接访问
-        private AudioGroupConfig[] _configCache;
+        [NonSerialized] private AudioGroupConfig[] _configCache;
         // 服务自维护 ID -> AudioAgent 映射
-        private readonly Dictionary<ulong, AudioAgent> _handleToAgent = new Dictionary<ulong, AudioAgent>();
+        [NonSerialized] private readonly Dictionary<ulong, AudioAgent> _handleToAgent = new Dictionary<ulong, AudioAgent>();
         // 用户定义 ID -> 服务句柄列表 映射（1 对多，支持事件系统通过用户 ID 查找所有句柄）
-        private readonly Dictionary<int, List<ulong>> _userHandleMap = new Dictionary<int, List<ulong>>();
+        [NonSerialized] private readonly Dictionary<int, List<ulong>> _userHandleMap = new Dictionary<int, List<ulong>>();
         // 服务自维护 ID 生成器
-        private ulong _nextAudioId = 1UL;
+        [NonSerialized] private ulong _nextAudioId = 1UL;
         // 临时列表，用于 FindAgents 系列方法（避免每次分配）
-        private readonly List<AudioAgent> _sharedAgentBuffer = new List<AudioAgent>(4);
+        [NonSerialized] private readonly List<AudioAgent> _sharedAgentBuffer = new List<AudioAgent>(4);
         // List<ulong> 对象池，避免频繁分配
         private static readonly Stack<List<ulong>> s_HandleListPool = new Stack<List<ulong>>(4);
 
@@ -56,13 +56,13 @@ namespace Moirai.Atropos.Audio
             s_HandleListPool.Push(list);
         }
 
-        private AudioMixer _audioMixer;
+        [NonSerialized] private AudioMixer _audioMixer;
         /// <summary>
         /// 音频混响器。
         /// </summary>
         public override AudioMixer AudioMixer => _audioMixer;
 
-        private Transform _instanceRoot;
+        [NonSerialized] private Transform _instanceRoot;
         /// <summary>实例化根节点。</summary>
         public override Transform InstanceRoot { get => _instanceRoot; set => _instanceRoot = value; }
 
@@ -70,7 +70,7 @@ namespace Moirai.Atropos.Audio
         // 资源句柄池，用于缓存资源系统的已加载音频资源（后端原生句柄的 object 包装）。
         public override Dictionary<string, object> AssetHandlePool { get; } = new Dictionary<string, object>();
 
-        private Action<AudioServiceHandler, float>[] _trackFadeCallbacks;
+        [NonSerialized] private Action<AudioServiceHandler, float>[] _trackFadeCallbacks;
         /// <summary>每个音轨一个回调，按 (int)EAudioTrack 索引，惰性初始化</summary>
         private Action<AudioServiceHandler, float>[] TrackFadeCallbacks
         {
@@ -98,18 +98,18 @@ namespace Moirai.Atropos.Audio
             public float StartVolume;
             public float EndVolume;
         }
-        private readonly List<AudioFadeState> _audioFades = new List<AudioFadeState>(4);
-        private int _audioFadeCount;
+        [NonSerialized] private readonly List<AudioFadeState> _audioFades = new List<AudioFadeState>(4);
+        [NonSerialized] private int _audioFadeCount;
 
         #region 音轨状态 [TRACK STATUS]
 
-        private AudioCategory[] _audioCategories;
+        [NonSerialized] private AudioCategory[] _audioCategories;
         /// <summary>
         /// 所有音轨。
         /// </summary>
         public override AudioCategory[] AudioCategories => _audioCategories;
 
-        private float _volume = 1f;
+        [NonSerialized] private float _volume = 1f;
         /// <summary>
         /// 主音轨（总音量）音量。
         /// </summary>
@@ -137,7 +137,7 @@ namespace Moirai.Atropos.Audio
             }
         }
 
-        private bool _isMuted;
+        [NonSerialized] private bool _isMuted;
         /// <summary>
         /// 主音轨（总音量）静音。
         /// </summary>
@@ -272,12 +272,7 @@ namespace Moirai.Atropos.Audio
             SceneManager.sceneLoaded += OnSceneLoaded;
 
             // 加载音频设置，必须等一帧设置才能生效
-            Scheduler.WaitFrame(1, OnSettingsLoadDelay);
-        }
-
-        private static void OnSettingsLoadDelay()
-        {
-            AudioServiceEvent.LoadSettings();
+            Scheduler.WaitFrame(1, AudioServiceEvent.LoadSettings);
         }
 
         /// <summary>
@@ -312,6 +307,17 @@ namespace Moirai.Atropos.Audio
             EventManager.UnregisterCallback<AllAudiosControlEvent>(OnAllAudiosControlEvent);
 
             SceneManager.sceneLoaded -= OnSceneLoaded;
+
+            // 释放引用持有；以上缓存均由 Initialize 无条件重建，置空不影响复用实例的再 Init。
+            _instanceRoot = null;
+            _audioMixer = null;
+            _audioGroupConfigs = null;
+            _trackFadeTweenIds = null;
+            _pausedTracks = null;
+            _audioCategories = null;
+            _categoryCache = null;
+            _configCache = null;
+            _trackFadeCallbacks = null;
         }
 
         /// <summary>

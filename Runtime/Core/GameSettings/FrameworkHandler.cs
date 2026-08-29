@@ -13,6 +13,7 @@ namespace Moirai.Atropos
     [Serializable]
     public abstract class FrameworkHandler
     {
+        // 标记 [NonSerialized] 以保证域重载后重置其值，避免序列化快照的状态污染
         [NonSerialized] private bool _initialized;
 
         /// <summary>
