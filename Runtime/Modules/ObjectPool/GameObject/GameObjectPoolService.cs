@@ -58,7 +58,7 @@ namespace Moirai.Atropos.ObjectPool
         /// <summary>
         /// 关闭游戏对象池服务。由容器在关闭期调用。
         /// </summary>
-        public override void Shutdown()
+        public override void OnShutdown()
         {
             s_Handler?.Internal_Shutdown();
             s_Handler = null;

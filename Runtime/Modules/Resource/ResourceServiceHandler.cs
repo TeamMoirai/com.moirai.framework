@@ -36,7 +36,7 @@ namespace Moirai.Atropos.Resource
 
         /// <summary>
         /// 关闭处理器——释放所有资源记录与在途加载操作。
-        /// <para>由 <see cref="ResourceService.Shutdown"/> 在容器关闭期调用。</para>
+        /// <para>由 <see cref="ResourceService.OnShutdown"/> 在容器关闭期调用。</para>
         /// </summary>
         protected override void OnShutdown()
         {

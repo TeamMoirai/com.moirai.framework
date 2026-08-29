@@ -63,7 +63,7 @@ namespace Moirai.Atropos.Localization
         /// <summary>
         /// 关闭本地化服务。由容器在关闭期调用。
         /// </summary>
-        public override void Shutdown()
+        public override void OnShutdown()
         {
             if (s_Handler != null) s_Handler.OnLanguageChanged -= RaiseLanguageChanged;
             s_Handler = null;

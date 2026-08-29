@@ -42,7 +42,7 @@ namespace Moirai.Atropos.Resource
         /// <summary>
         /// 关闭资源服务。由容器在关闭期调用：先解除驱动接线，再关闭处理器。
         /// </summary>
-        public override void Shutdown()
+        public override void OnShutdown()
         {
             DriveTeardown();
             s_Handler?.Internal_Shutdown();

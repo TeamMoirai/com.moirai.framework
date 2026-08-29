@@ -48,7 +48,7 @@ namespace Moirai.Atropos.Save
         /// <summary>
         /// 关闭存档服务。由容器在关闭期调用。
         /// </summary>
-        public override void Shutdown()
+        public override void OnShutdown()
         {
             s_Handler?.Internal_Shutdown();
             s_Handler = null;
