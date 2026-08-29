@@ -186,7 +186,7 @@ namespace Moirai.Atropos
             RegisterInternal(service, contractTypes);
 
             if (service is IServiceLifecycle lifecycle)
-                lifecycle.Initialize(_world, this);
+                lifecycle.Initialize(this);
 
             return service;
         }
@@ -241,7 +241,7 @@ namespace Moirai.Atropos
             RegisterInternal(service, new[] { contractType });
 
             if (service is IServiceLifecycle lifecycle)
-                lifecycle.Initialize(_world, this);
+                lifecycle.Initialize(this);
 
             return service;
         }
@@ -447,19 +447,8 @@ namespace Moirai.Atropos
 
         #region 查找 [LOOKUP]
 
-        internal bool TryGet<T>(out T service) where T : class
-        {
-            if (_servicesByContract.TryGetValue(typeof(T).TypeHandle, out var raw))
-            {
-                service = raw as T;
-                return service != null;
-            }
-            service = null;
-            return false;
-        }
-
         /// <summary>
-        /// 非泛型查找（用于注册期按 Type 解析）。
+        /// 非泛型查找（用于注册期按 Type 解析与 Mono 服务副本检测）。
         /// </summary>
         internal bool TryGet(Type serviceType, out IService service)
         {
@@ -502,7 +491,7 @@ namespace Moirai.Atropos
 #endif
                         try
                         {
-                            GameServices.InvokeTick(tickable as IService, elapseSeconds, realElapseSeconds);
+                            GameServices.InvokeTick(tickable, elapseSeconds, realElapseSeconds);
                             tickable.Tick(elapseSeconds, realElapseSeconds);
                             ResetPollFailuresIfAny(tickable, PollCategory.Tick);
                         }
@@ -520,7 +509,7 @@ namespace Moirai.Atropos
                 }
                 else
                 {
-                    // 无拦截器（发布构建常态）：跳过逐服务通知与 as 转换——对齐零开销轮询路径。
+                    // 无拦截器（发布构建常态）：跳过逐服务通知——对齐零开销轮询路径。
                     // 注：若服务在 Tick 中途添加拦截器，本轮余下服务不通知，下一帧生效。
                     for (int i = 0; i < count; i++)
                     {
@@ -642,7 +631,7 @@ namespace Moirai.Atropos
             finally { _isIterating = false; FlushDisposeIfPending(); FlushPendingChanges(); }
         }
 
-        private static void LogTickFailure(object service, string methodName, Exception ex)
+        private static void LogTickFailure(IService service, string methodName, Exception ex)
         {
             LogUtility.Error("Service '{0}' threw in {1}:\n{2}",
                 service.GetType().FullName, methodName, ex);
@@ -662,16 +651,15 @@ namespace Moirai.Atropos
         /// 记录一次轮询异常并按需熔断。
         /// <para>开发环境在上抛前调用（计数跨帧累积，编辑器可测试）；发布期隔离路径据此熔断。</para>
         /// </summary>
-        /// <param name="service">抛出异常的服务实例（轮询接口未继承 <see cref="IService"/>，以 object 接收后模式匹配）。</param>
+        /// <param name="service">抛出异常的服务实例。</param>
         /// <param name="category">轮询类别（独立计数）。</param>
         /// <param name="methodName">轮询方法名（告警文案用）。</param>
         /// <returns>是否已将服务从对应轮询列表移除；迭代方需回退索引以补偿 swap-remove 移位。</returns>
-        private bool RecordPollFailure(object service, PollCategory category, string methodName)
+        private bool RecordPollFailure(IService service, PollCategory category, string methodName)
         {
             _hasPollFailures = true;
 
-            if (!(service is IService serviceKey) ||
-                !_entriesByService.TryGetValue(serviceKey, out var entry))
+            if (!_entriesByService.TryGetValue(service, out var entry))
                 return false;
 
             int failures;
@@ -688,11 +676,11 @@ namespace Moirai.Atropos
                     break;
             }
 
-            _entriesByService[serviceKey] = entry;
+            _entriesByService[service] = entry;
 
             if (failures < s_TickFailureTripThreshold) return false;
 
-            TripFromPollList(serviceKey, entry, category, methodName, failures);
+            TripFromPollList(service, entry, category, methodName, failures);
             return true;
         }
 
@@ -729,12 +717,11 @@ namespace Moirai.Atropos
         /// 对应类别成功一次即清零该类别的连续失败计数。仅在发生过失败后才有实际开销
         /// （<see cref="_hasPollFailures"/> 常态为 false，健康服务热路径零字典访问）。
         /// </summary>
-        private void ResetPollFailuresIfAny(object service, PollCategory category)
+        private void ResetPollFailuresIfAny(IService service, PollCategory category)
         {
             if (!_hasPollFailures) return;
 
-            if (!(service is IService serviceKey) ||
-                !_entriesByService.TryGetValue(serviceKey, out var entry))
+            if (!_entriesByService.TryGetValue(service, out var entry))
                 return;
 
             switch (category)
@@ -753,17 +740,16 @@ namespace Moirai.Atropos
                     break;
             }
 
-            _entriesByService[serviceKey] = entry;
+            _entriesByService[service] = entry;
         }
 
         /// <summary>
         /// 记录单次轮询耗时。仅编辑器/开发构建写入；Release 下方法体为空，JIT 裁剪为零开销。
         /// </summary>
-        private void RecordPollDuration(object service, long elapsedTimestamps)
+        private void RecordPollDuration(IService service, long elapsedTimestamps)
         {
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-            if (!(service is IService serviceKey) ||
-                !_entriesByService.TryGetValue(serviceKey, out var entry))
+            if (!_entriesByService.TryGetValue(service, out var entry))
                 return;
 
             float ms = (float)(elapsedTimestamps * TIMESTAMP_TO_MS);
@@ -771,7 +757,7 @@ namespace Moirai.Atropos
             entry.PollTotalMs += ms;
             if (ms > entry.PollPeakMs) entry.PollPeakMs = ms;
 
-            _entriesByService[serviceKey] = entry;
+            _entriesByService[service] = entry;
 #endif
         }
 
@@ -823,7 +809,7 @@ namespace Moirai.Atropos
                             RegisterInternal(change.Service, contractTypes);
 
                             if (change.Service is IServiceLifecycle lifecycle)
-                                lifecycle.Initialize(_world, this);
+                                lifecycle.Initialize(this);
                             break;
                         }
 
@@ -1098,7 +1084,8 @@ namespace Moirai.Atropos
             _tickables.Sort(_tickComparison);
             for (int i = 0; i < _tickables.Count; i++)
             {
-                if (_tickables[i] is IService svc && _entriesByService.TryGetValue(svc, out var e))
+                var svc = _tickables[i];
+                if (_entriesByService.TryGetValue(svc, out var e))
                 {
                     e.TickIndex = i;
                     _entriesByService[svc] = e;
@@ -1113,7 +1100,8 @@ namespace Moirai.Atropos
             _fixedTickables.Sort(_fixedTickComparison);
             for (int i = 0; i < _fixedTickables.Count; i++)
             {
-                if (_fixedTickables[i] is IService svc && _entriesByService.TryGetValue(svc, out var e))
+                var svc = _fixedTickables[i];
+                if (_entriesByService.TryGetValue(svc, out var e))
                 {
                     e.FixedTickIndex = i;
                     _entriesByService[svc] = e;
@@ -1128,7 +1116,8 @@ namespace Moirai.Atropos
             _lateTickables.Sort(_lateTickComparison);
             for (int i = 0; i < _lateTickables.Count; i++)
             {
-                if (_lateTickables[i] is IService svc && _entriesByService.TryGetValue(svc, out var e))
+                var svc = _lateTickables[i];
+                if (_entriesByService.TryGetValue(svc, out var e))
                 {
                     e.LateTickIndex = i;
                     _entriesByService[svc] = e;
@@ -1143,7 +1132,8 @@ namespace Moirai.Atropos
             _gizmoDrawables.Sort(_gizmoComparison);
             for (int i = 0; i < _gizmoDrawables.Count; i++)
             {
-                if (_gizmoDrawables[i] is IService svc && _entriesByService.TryGetValue(svc, out var e))
+                var svc = _gizmoDrawables[i];
+                if (_entriesByService.TryGetValue(svc, out var e))
                 {
                     e.GizmoIndex = i;
                     _entriesByService[svc] = e;
@@ -1156,15 +1146,13 @@ namespace Moirai.Atropos
         /// Priority 降序比较器（高优先在前）；同优先级按 CreationIndex 升序（先注册先执行）。
         /// <para>实例方法：CreationIndex 从 <c>_entriesByService</c> 查找，需访问实例状态。</para>
         /// </summary>
-        private int CompareByPriority<T>(T a, T b)
+        private int CompareByPriority<T>(T a, T b) where T : class, IService
         {
-            int leftPriority = (a is IService sa) ? sa.Priority : 0;
-            int rightPriority = (b is IService sb) ? sb.Priority : 0;
-            int result = rightPriority.CompareTo(leftPriority);
+            int result = b.Priority.CompareTo(a.Priority);
             if (result != 0) return result;
 
-            int leftCreation = GetCreationIndex(a as IService);
-            int rightCreation = GetCreationIndex(b as IService);
+            int leftCreation = GetCreationIndex(a);
+            int rightCreation = GetCreationIndex(b);
             return leftCreation.CompareTo(rightCreation);
         }
 
@@ -1186,10 +1174,10 @@ namespace Moirai.Atropos
                 var moved = _tickables[last];
                 _tickables[index] = moved;
                 _tickables.RemoveAt(last);
-                if (moved is IService svc && _entriesByService.TryGetValue(svc, out var e))
+                if (_entriesByService.TryGetValue(moved, out var e))
                 {
                     e.TickIndex = index;
-                    _entriesByService[svc] = e;
+                    _entriesByService[moved] = e;
                 }
             }
             _tickablesDirty = true;
@@ -1204,10 +1192,10 @@ namespace Moirai.Atropos
                 var moved = _fixedTickables[last];
                 _fixedTickables[index] = moved;
                 _fixedTickables.RemoveAt(last);
-                if (moved is IService svc && _entriesByService.TryGetValue(svc, out var e))
+                if (_entriesByService.TryGetValue(moved, out var e))
                 {
                     e.FixedTickIndex = index;
-                    _entriesByService[svc] = e;
+                    _entriesByService[moved] = e;
                 }
             }
             _fixedTickablesDirty = true;
@@ -1222,10 +1210,10 @@ namespace Moirai.Atropos
                 var moved = _lateTickables[last];
                 _lateTickables[index] = moved;
                 _lateTickables.RemoveAt(last);
-                if (moved is IService svc && _entriesByService.TryGetValue(svc, out var e))
+                if (_entriesByService.TryGetValue(moved, out var e))
                 {
                     e.LateTickIndex = index;
-                    _entriesByService[svc] = e;
+                    _entriesByService[moved] = e;
                 }
             }
             _lateTickablesDirty = true;
@@ -1240,10 +1228,10 @@ namespace Moirai.Atropos
                 var moved = _gizmoDrawables[last];
                 _gizmoDrawables[index] = moved;
                 _gizmoDrawables.RemoveAt(last);
-                if (moved is IService svc && _entriesByService.TryGetValue(svc, out var e))
+                if (_entriesByService.TryGetValue(moved, out var e))
                 {
                     e.GizmoIndex = index;
-                    _entriesByService[svc] = e;
+                    _entriesByService[moved] = e;
                 }
             }
             _gizmoDrawablesDirty = true;

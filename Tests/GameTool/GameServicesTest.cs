@@ -51,7 +51,7 @@ namespace GameTool
             public override void OnInit()
             {
                 base.OnInit();
-                Dependency = GameServices.Provider.GetRequiredService<DependeeService>();
+                Dependency = GameServices.GetRequiredService<DependeeService>();
                 s_OrderLog.Add("Dependent:init");
             }
         }
@@ -166,14 +166,14 @@ namespace GameTool
         {
             Register(new AlphaService());
 
-            var resolved = GameServices.Provider.GetRequiredService<AlphaService>();
+            var resolved = GameServices.GetRequiredService<AlphaService>();
 
             Assert.IsInstanceOf<AlphaService>(resolved);
             var alpha = (AlphaService)resolved;
             Assert.AreEqual(1, alpha.InitCount, "OnInit 应在注册时调用一次");
             Assert.AreEqual(EServiceState.Initialized, alpha.State);
             Assert.AreEqual(0, alpha.ShutdownCount);
-            Assert.AreSame(resolved, GameServices.Provider.GetService<AlphaService>(), "重复解析应返回同一单例");
+            Assert.AreSame(resolved, GameServices.GetService<AlphaService>(), "重复解析应返回同一单例");
         }
 
         [Test]
@@ -182,7 +182,7 @@ namespace GameTool
             Register(new AlphaService());
 
             Assert.Throws<GameException>(
-                () => GameServices.Provider.GetRequiredService<BetaService>());
+                () => GameServices.GetRequiredService<BetaService>());
         }
 
         [Test]
@@ -190,8 +190,8 @@ namespace GameTool
         {
             Register(new AlphaService());
 
-            Assert.IsNull(GameServices.Provider.GetService<BetaService>());
-            Assert.IsFalse(GameServices.Provider.TryGetService<BetaService>(out var service));
+            Assert.IsNull(GameServices.GetService<BetaService>());
+            Assert.IsFalse(GameServices.TryGetService<BetaService>(out var service));
             Assert.IsNull(service);
         }
 
@@ -220,8 +220,8 @@ namespace GameTool
             GameServices.RegisterService(EServiceScopeKind.App, new DependeeService());
             Register(new DependentService());
 
-            var dependent = GameServices.Provider.GetRequiredService<DependentService>();
-            var dependee = GameServices.Provider.GetRequiredService<DependeeService>();
+            var dependent = GameServices.GetRequiredService<DependentService>();
+            var dependee = GameServices.GetRequiredService<DependeeService>();
 
             Assert.IsNotNull(dependent.Dependency, "依赖应已由预注册拉起");
             Assert.AreSame(dependee, dependent.Dependency, "依赖应是同一单例");
@@ -236,7 +236,7 @@ namespace GameTool
             GameServices.RegisterService(EServiceScopeKind.App, new DependeeService());
             GameServices.RegisterService(EServiceScopeKind.App, new DependentService());
 
-            var dependent = GameServices.Provider.GetRequiredService<DependentService>();
+            var dependent = GameServices.GetRequiredService<DependentService>();
             Assert.IsNotNull(dependent.Dependency, "依赖应已就位");
         }
 
@@ -262,8 +262,8 @@ namespace GameTool
             Register(new DependentService());
 
             Assert.IsTrue(GameServices.HasApp);
-            Assert.IsNotNull(GameServices.Provider.GetService<DependentService>());
-            Assert.IsNotNull(GameServices.Provider.GetService<DependeeService>());
+            Assert.IsNotNull(GameServices.GetService<DependentService>());
+            Assert.IsNotNull(GameServices.GetService<DependeeService>());
         }
 
         [Test]
@@ -288,7 +288,6 @@ namespace GameTool
 
             // Dependent 的 Shutdown 应先于 Dependee（逆注册序）
             // 由于 TestServiceBase.Shutdown 不记日志，用 InitCount 间接验证
-            var dependent = GameServices.Provider; // Provider 在关闭后为 null
             Assert.IsFalse(GameServices.HasApp, "关闭后 HasApp 应为 false");
         }
 
@@ -296,7 +295,7 @@ namespace GameTool
         public void Shutdown_TransitionsStateToDisposed()
         {
             Register(new AlphaService());
-            var alpha = (AlphaService)GameServices.Provider.GetRequiredService<AlphaService>();
+            var alpha = (AlphaService)GameServices.GetRequiredService<AlphaService>();
 
             GameServices.ShutdownContainer(EServiceScopeKind.App);
 
@@ -305,13 +304,13 @@ namespace GameTool
         }
 
         [Test]
-        public void ShutdownContainer_FreesProviderResolution()
+        public void ShutdownContainer_FreesServiceResolution()
         {
             Register(new AlphaService());
 
             GameServices.ShutdownContainer(EServiceScopeKind.App);
 
-            Assert.IsNull(GameServices.Provider, "全部容器关闭后 Provider 应为 null");
+            Assert.IsNull(GameServices.GetService<AlphaService>(), "全部容器关闭后查找应返回 null");
             Assert.IsFalse(GameServices.HasApp);
         }
 
@@ -332,7 +331,7 @@ namespace GameTool
         public void AsyncShutdown_CalledBeforeSyncShutdown()
         {
             Register(new AsyncShutdownService());
-            var svc = (AsyncShutdownService)GameServices.Provider.GetRequiredService<AsyncShutdownService>();
+            var svc = (AsyncShutdownService)GameServices.GetRequiredService<AsyncShutdownService>();
 
             GameServices.ShutdownContainerAsync(EServiceScopeKind.App).GetAwaiter().GetResult();
 
@@ -351,7 +350,8 @@ namespace GameTool
 
             Assert.IsFalse(GameServices.HasApp);
             Assert.IsFalse(GameServices.HasScene);
-            Assert.IsNull(GameServices.Provider);
+            Assert.IsFalse(GameServices.HasGameplay);
+            Assert.IsNull(GameServices.GetService<AlphaService>(), "关闭后查找应返回 null");
         }
 
         // ═══════════════════════════════════════════════════════
@@ -369,15 +369,15 @@ namespace GameTool
             GameServices.RegisterService(EServiceScopeKind.Scene, new SceneAlphaService() as IAlphaService);
             GameServices.RegisterService(EServiceScopeKind.Gameplay, new GameplayAlphaService() as IAlphaService);
 
-            Assert.IsInstanceOf<GameplayAlphaService>(GameServices.Provider.GetRequiredService<IAlphaService>(),
+            Assert.IsInstanceOf<GameplayAlphaService>(GameServices.GetRequiredService<IAlphaService>(),
                 "Gameplay 遮蔽 Scene 与 App");
 
             GameServices.ShutdownContainer(EServiceScopeKind.Gameplay);
-            Assert.IsInstanceOf<SceneAlphaService>(GameServices.Provider.GetRequiredService<IAlphaService>(),
+            Assert.IsInstanceOf<SceneAlphaService>(GameServices.GetRequiredService<IAlphaService>(),
                 "Gameplay 关闭后回退到 Scene");
 
             GameServices.ShutdownContainer(EServiceScopeKind.Scene);
-            Assert.IsInstanceOf<AlphaService>(GameServices.Provider.GetRequiredService<IAlphaService>(),
+            Assert.IsInstanceOf<AlphaService>(GameServices.GetRequiredService<IAlphaService>(),
                 "Scene 关闭后回退到 App");
         }
 
@@ -403,8 +403,8 @@ namespace GameTool
             Register(new AlphaService());
             RegisterScene(new BetaService());
 
-            var appAlpha = (AlphaService)GameServices.Provider.GetRequiredService<AlphaService>();
-            var sceneBeta = (BetaService)GameServices.Provider.GetRequiredService<BetaService>();
+            var appAlpha = (AlphaService)GameServices.GetRequiredService<AlphaService>();
+            var sceneBeta = (BetaService)GameServices.GetRequiredService<BetaService>();
 
             GameServices.Tick(0.1f, 0.1f);
 
@@ -443,7 +443,7 @@ namespace GameTool
         public void ServiceUnregisteredEvent_FiresAfterShutdown()
         {
             Register(new AlphaService());
-            var alpha = (AlphaService)GameServices.Provider.GetRequiredService<AlphaService>();
+            var alpha = (AlphaService)GameServices.GetRequiredService<AlphaService>();
 
             IService received = null;
             EServiceState stateAtEvent = EServiceState.Created;
@@ -493,7 +493,7 @@ namespace GameTool
             Register(new AlphaService());
 
             Assert.GreaterOrEqual(interceptor.Events.Count, 2, "应触发 Registering + Registered 两个事件");
-            var alpha = (AlphaService)GameServices.Provider.GetRequiredService<AlphaService>();
+            var alpha = (AlphaService)GameServices.GetRequiredService<AlphaService>();
             Assert.AreEqual(1, alpha.InitCount, "OnInit 应在 Registering 后、Registered 前调用");
         }
 
@@ -566,7 +566,7 @@ namespace GameTool
             var beta = new BetaService();
             GameServices.RegisterService(EServiceScopeKind.App, beta as IBetaService);
 
-            var resolved = GameServices.Provider.GetService<IBetaService>();
+            var resolved = GameServices.GetService<IBetaService>();
             Assert.AreSame(beta, resolved);
             Assert.AreEqual(1, beta.InitCount, "运行时注册应驱动 OnInit");
             Assert.AreEqual(EServiceState.Initialized, beta.State);
@@ -590,14 +590,14 @@ namespace GameTool
         public void RuntimeUnregister_RemovesAndShutsDownService()
         {
             Register(new AlphaService());
-            var alpha = (AlphaService)GameServices.Provider.GetRequiredService<AlphaService>();
+            var alpha = (AlphaService)GameServices.GetRequiredService<AlphaService>();
 
             bool result = GameServices.UnregisterService<AlphaService>(EServiceScopeKind.App);
 
             Assert.IsTrue(result);
             Assert.AreEqual(1, alpha.ShutdownCount, "运行时注销应驱动 Shutdown");
             Assert.AreEqual(EServiceState.Disposed, alpha.State);
-            Assert.IsNull(GameServices.Provider.GetService<AlphaService>(),
+            Assert.IsNull(GameServices.GetService<AlphaService>(),
                 "注销后服务不应再可解析");
         }
 
@@ -678,7 +678,7 @@ namespace GameTool
 
             Assert.DoesNotThrow(() => GameServices.Tick(0f, 0f));
 
-            var beta = GameServices.Provider.GetService<IBetaService>();
+            var beta = GameServices.GetService<IBetaService>();
             Assert.IsNotNull(beta, "延迟注册的服务应在迭代结束后可解析");
             Assert.AreEqual(1, ((BetaService)(object)beta).InitCount, "延迟注册应驱动 OnInit");
         }
@@ -726,7 +726,7 @@ namespace GameTool
             Assert.DoesNotThrow(() => GameServices.Tick(0f, 0f));
 
             Assert.AreEqual(1, beta.ShutdownCount, "延迟注销应驱动 Shutdown");
-            Assert.IsNull(GameServices.Provider.GetService<IBetaService>(),
+            Assert.IsNull(GameServices.GetService<IBetaService>(),
                 "延迟注销后服务不应再可解析");
         }
 
@@ -788,7 +788,7 @@ namespace GameTool
             var returned = GameServices.RegisterService(EServiceScopeKind.App, typeof(IAlphaService), svc);
 
             Assert.AreSame(svc, returned);
-            Assert.AreSame(svc, GameServices.Provider.GetRequiredService<IAlphaService>());
+            Assert.AreSame(svc, GameServices.GetRequiredService<IAlphaService>());
             Assert.AreEqual(1, svc.InitCount, "显式契约注册应驱动 OnInit");
         }
 
@@ -819,7 +819,7 @@ namespace GameTool
 
             GameServices.RegisterService(EServiceScopeKind.App, typeof(IBetaService), new InterfaceContractDependent());
 
-            var dep = GameServices.Provider.GetRequiredService<AnotherFactoryService>();
+            var dep = GameServices.GetRequiredService<AnotherFactoryService>();
             Assert.AreEqual(1, dep.InitCount, "接口契约注册也应从实现类型读取依赖并经工厂自动装配");
         }
 
@@ -836,8 +836,8 @@ namespace GameTool
             GameServices.RegisterService(EServiceScopeKind.App, typeof(IAlphaService), svc);
             GameServices.RegisterService(EServiceScopeKind.App, typeof(IBetaService), svc);
 
-            Assert.AreSame(svc, GameServices.Provider.GetRequiredService<IAlphaService>());
-            Assert.AreSame(svc, GameServices.Provider.GetRequiredService<IBetaService>());
+            Assert.AreSame(svc, GameServices.GetRequiredService<IAlphaService>());
+            Assert.AreSame(svc, GameServices.GetRequiredService<IBetaService>());
             Assert.AreEqual(1, svc.InitCount, "同实例多契约只初始化一次");
 
             GameServices.ShutdownContainer(EServiceScopeKind.App);
@@ -864,7 +864,7 @@ namespace GameTool
 
             Assert.DoesNotThrow(() => GameServices.Tick(0f, 0f));
 
-            Assert.AreSame(svc, GameServices.Provider.GetService<IDepTargetService>(),
+            Assert.AreSame(svc, GameServices.GetService<IDepTargetService>(),
                 "迭代中请求的附加契约应在迭代结束后可解析");
         }
 
@@ -884,7 +884,7 @@ namespace GameTool
 
             GameServices.RegisterService(EServiceScopeKind.App, new FactoryDependentService());
 
-            var dep = GameServices.Provider.GetRequiredService<FactoryDepService>();
+            var dep = GameServices.GetRequiredService<FactoryDepService>();
             Assert.AreEqual(1, dep.InitCount, "依赖应由贡献的默认工厂创建并初始化");
         }
 
@@ -912,7 +912,7 @@ namespace GameTool
             var fresh = new AlphaService();
             GameServices.RegisterService(EServiceScopeKind.App, fresh);
 
-            Assert.AreSame(fresh, GameServices.Provider.GetRequiredService<AlphaService>(),
+            Assert.AreSame(fresh, GameServices.GetRequiredService<AlphaService>(),
                 "注销后应以全新实例重新解析");
             Assert.AreEqual(1, fresh.InitCount, "注销后重新注册应重新初始化");
         }
@@ -937,7 +937,7 @@ namespace GameTool
             {
                 var mono = go.AddComponent<TestMonoService>();
 
-                Assert.AreSame(mono, GameServices.Provider.GetRequiredService<TestMonoService>(),
+                Assert.AreSame(mono, GameServices.GetRequiredService<TestMonoService>(),
                     "应以运行时具体类型为契约注册（而非 IService 基类）");
                 Assert.AreEqual(EServiceState.Initialized, mono.State);
             }
@@ -946,7 +946,7 @@ namespace GameTool
                 UnityEngine.Object.DestroyImmediate(go);
             }
 
-            Assert.IsNull(GameServices.Provider.GetService<TestMonoService>(), "销毁后应自动注销");
+            Assert.IsNull(GameServices.GetService<TestMonoService>(), "销毁后应自动注销");
         }
 
         // ═══════════════════════════════════════════════════════
@@ -1012,7 +1012,7 @@ namespace GameTool
             Assert.Throws<GameException>(
                 () => GameServices.RegisterService(EServiceScopeKind.App, new AlphaService()),
                 "Throw 策略应以不同实例抢占已占用契约时抛出异常");
-            Assert.AreSame(first, GameServices.Provider.GetRequiredService<AlphaService>(),
+            Assert.AreSame(first, GameServices.GetRequiredService<AlphaService>(),
                 "抛出后既有实例不受影响");
         }
 
@@ -1072,7 +1072,7 @@ namespace GameTool
             Assert.AreEqual(1, healthy.TickCount, "健康服务应在故障服务被摘除后的帧恢复轮询");
 
             // 条目保留——解析不受熔断影响，重新注册可完全重置
-            Assert.AreSame(thrower, GameServices.Provider.GetRequiredService<IDepTargetService>());
+            Assert.AreSame(thrower, GameServices.GetRequiredService<IDepTargetService>());
         }
 
         // ═══════════════════════════════════════════════════════

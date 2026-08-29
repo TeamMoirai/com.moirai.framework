@@ -10,13 +10,13 @@ namespace Moirai.Atropos
     /// <summary>
     /// 游戏入口。负责生命周期驱动与服务世界轮询。
     /// <para>服务访问：业务代码一律通过各服务的静态外观（如 <see cref="AudioService"/>、<see cref="ResourceService"/>、<see cref="UIService"/>）；
-    /// 服务类内部用基类内置查找（<c>Require&lt;T&gt;()</c> 等）；<see cref="Services"/> 仅供非标准动态查找使用。</para>
+    /// 动态服务查找统一走 <see cref="GameServices.GetRequiredService{T}"/> 等静态方法。</para>
     /// </summary>
     [DisallowMultipleComponent]
     [DefaultExecutionOrder(MoiraiExecutionOrder.GAME_APP_ORDER)]
     public partial class GameApp : MonoBehaviour
     {
-        #region 公共属性 [PUBLIC PROPERTIES]
+        #region 状态 [STATE]
 
         private static bool s_IsShutdown = true;
 
@@ -24,13 +24,6 @@ namespace Moirai.Atropos
         /// 获取游戏是否已关闭。
         /// </summary>
         public static bool IsShutdown => s_IsShutdown;
-
-        /// <summary>
-        /// 最深层活跃的服务提供者（Gameplay &gt; Scene &gt; App）。
-        /// <para>业务代码优先使用各服务静态外观；此属性仅供非标准动态查找（如泛型工具、编辑器诊断）。</para>
-        /// <para>关闭后返回 null——退出/重启场景中外部代码可能仍持有引用，安全返回 null 比抛异常更合理。</para>
-        /// </summary>
-        public static IServiceProvider Services => s_IsShutdown ? null : GameServices.Provider;
 
         #endregion
 

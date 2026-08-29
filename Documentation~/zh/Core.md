@@ -2,7 +2,7 @@
 
 > 框架的服务化基座：以统一服务世界（`ServiceWorld`）管理所有子服务的构造、生命周期、轮询与作用域，并由 `GameApp`（MonoBehaviour）驱动。
 
-`@Service` 是整个框架的服务基础设施。所有功能服务（资源、UI、音频、计时器等）均为继承 `ServiceBase` 的普通 C# 类，依赖通过 `[ServiceDependency(typeof(...))]` 特性声明，由 `GameServices.RegisterService<T>(scope, service)` 统一注册并递归预注册依赖链（零反射）；非服务代码通过各服务的静态外观访问（如 `AudioService.Xxx()`、`UIService.Xxx()`、`ResourceService.Xxx()`），动态服务查找走 `GameApp.Services`（`IServiceProvider`）。服务支持 App/Scene/Gameplay 三级作用域，跨作用域通过 `ContractBindings` 值类型 struct 实现 O(1) 查找（Gameplay > Scene > App 优先级），场景卸载时自动清理场景与玩法级服务。
+`@Service` 是整个框架的服务基础设施。所有功能服务（资源、UI、音频、计时器等）均为继承 `ServiceBase` 的普通 C# 类，依赖通过 `[ServiceDependency(typeof(...))]` 特性声明，由 `GameServices.RegisterService<T>(scope, service)` 统一注册并递归预注册依赖链（零反射）；非服务代码通过各服务的静态外观访问（如 `AudioService.Xxx()`、`UIService.Xxx()`、`ResourceService.Xxx()`），动态服务查找统一走 `GameServices.GetRequiredService<T>()` 等静态方法。服务支持 App/Scene/Gameplay 三级作用域，跨作用域通过 `ContractBindings` 值类型 struct 实现 O(1) 查找（Gameplay > Scene > App 优先级），场景卸载时自动清理场景与玩法级服务。
 
 ## 核心特性
 
@@ -11,9 +11,8 @@
 - **递归预注册**：`RegisterWithDependencies` 按 [ServiceDependency] 声明序递归注册依赖（防重复 s_Registered 分桶表 + 防循环 s_InFlight 栈 fail-fast），被依赖服务先创建、先初始化
 - **HandlerHost 静态外观**：12 个框架服务均为 `[HandlerHost] XxxService : ServiceBase` 静态外观 + 可序列化 `XxxHandler` 后端 + `XxxSettings`（`[SerializeReference]` + `[ProviderDropdown]`）选择后端实现
 - **三级作用域**（`EServiceScopeKind.App` / `Scene` / `Gameplay`），跨作用域按 Gameplay > Scene > App 优先级查找
-- **生命周期接口按需实现**：`IServiceTickable`、`IServiceFixedTickable`、`IServiceLateTickable`、`IServiceGizmoDrawable`
+- **生命周期能力接口按需实现**：`IServiceTickable`、`IServiceFixedTickable`、`IServiceLateTickable`、`IServiceGizmoDrawable`、`IAsyncShutdownService`（均继承 `IService`）
 - **`Priority` 优先级**控制轮询顺序（高优先先轮询、后关闭）
-- **异步初始化**：实现 `IAsyncInitService` 的服务在注册后由容器驱动 `OnInitAsync()`
 - **异步关闭**：实现 `IAsyncShutdownService` 的服务在 `ShutdownContainerAsync()` / `ShutdownAsync()` 中按逆注册序先异步关闭
 - **运行时服务注册**：`GameServices.RegisterService<T>()` / `UnregisterService<T>()` 动态增删单个服务；显式契约重载 `RegisterService(scope, Type, instance)` 支持接口契约与同实例多契约绑定；迭代中调用默认延迟到本轮结束后执行（`EDeferMode.Defer`）
 - **自注册 Mono 服务**：`ServiceMono<TScope>` 在 Awake 中自动注册、OnDestroy 中自动注销
@@ -24,7 +23,7 @@
 - **主线程亲和守卫**：编辑器与开发构建下断言调用线程，发布版零开销
 - **生命周期状态机**：每个服务跟踪 `EServiceState`（Created → Initialized → ShuttingDown → Disposed），关闭幂等
 - **MonoBehaviour Tick 约束**：MonoBehaviour 服务不可实现 `IServiceTickable` 等 Tick 接口，应使用 Unity 自身的 Update/FixedUpdate/LateUpdate
-- **服务基类内置查找**：`ServiceBase` / `ServiceMono<TScope>` 提供 `Require<T>()`、`TryGet<T>()`、`RequireApp<T>()`、`RequireScene<T>()`、`RequireGameplay<T>()` 等 protected 方法，无需注入 `IServiceProvider` 即可运行时查找依赖
+- **统一查找入口**：动态服务查找统一走 `GameServices.GetRequiredService<T>()` / `GetService<T>()` / `TryGetService<T>(out T)`，按 Gameplay > Scene > App 优先级返回最优服务
 
 ## 核心类型
 
@@ -33,23 +32,21 @@
 | 类/接口 | 说明 |
 |---------|------|
 | `IService` | 服务核心契约：`Priority`、`Scope`、`OnInit()`、`Shutdown()` |
-| `ServiceBase` | 纯 C# 服务抽象基类；依赖通过 `[ServiceDependency]` 特性声明，由注册器递归预注册；内置 `Require<T>()` / `TryGet<T>()` / `RequireApp<T>()` 等运行时查找方法 |
-| `ServiceMono<TScope>` | MonoBehaviour 服务基类（泛型作用域标记），Awake 自动注册、OnDestroy 自动注销；同样内置运行时查找方法 |
-| `IServiceProvider` | 服务访问统一入口：`GetRequiredService<T>()` / `GetService<T>()` / `TryGetService<T>()` / `GetRequiredServiceInScope<T>(scope)` / `TryGetServiceInScope<T>(scope)` |
-| `ServiceWorld` | 统一服务世界：3-slot 固定作用域数组 + `ContractBindings` 值类型 struct O(1) 跨作用域查找；实现 `IServiceProvider` |
+| `ServiceBase` | 纯 C# 服务抽象基类；依赖通过 `[ServiceDependency]` 特性声明，由注册器递归预注册 |
+| `ServiceMono<TScope>` | MonoBehaviour 服务基类（泛型作用域标记），Awake 自动注册、OnDestroy 自动注销 |
+| `ServiceWorld` | 统一服务世界：3-slot 固定作用域数组 + `ContractBindings` 值类型 struct O(1) 跨作用域查找；查找经 `GameServices` 静态外观暴露 |
 | `ServiceScope` | 单作用域注册表、轮询列表与迭代安全机制；注册/注销时同步 `ServiceWorld` 的 `ContractBindings` |
 | `GameServices` | 静态外观：统一注册入口 `RegisterService<T>(scope, service, deferMode)` 与显式契约重载 `RegisterService(scope, Type, instance)`、注销、作用域管理（`ShutdownContainer`/`HasApp`/`HasScene`/`HasGameplay`）、默认工厂扩展点 `RegisterDefaultFactory`、轮询驱动、拦截器 |
 | `ServiceDependencyAttribute` | 依赖声明特性：`[ServiceDependency(typeof(DepA), typeof(DepB))]`，声明顺序即依赖注册顺序；编译期 MIRAI002/MIRAI003 校验 |
 | `EServiceScopeKind` | 服务作用域枚举：`App`（全局）、`Scene`（场景卸载时重置）、`Gameplay`（单局玩法） |
 | `EServiceState` | 服务生命周期状态：`Created`、`Initialized`、`ShuttingDown`、`Disposed`（`ServiceBase.State` 属性） |
 | `EDeferMode` | 迭代中注册/注销的延迟策略：`Defer`（延迟到本轮结束，默认）/ `Throw`（立即抛异常） |
-| `IServiceTickable` / `IServiceFixedTickable` / `IServiceLateTickable` | 轮询接口，方法签名 `Tick(float elapseSeconds, float realElapseSeconds)` 等（MonoBehaviour 服务不可实现） |
-| `IServiceGizmoDrawable` | 编辑器 Gizmos 绘制接口 `OnDrawGizmos()` |
-| `IAsyncInitService` | 异步初始化接口，实现 `OnInitAsync()` 的服务在注册后由容器驱动 |
-| `IAsyncShutdownService` | 异步关闭接口，实现 `OnShutdownAsync()` 的服务在 `ShutdownContainerAsync()` 中按逆注册序异步关闭 |
+| `IServiceTickable` / `IServiceFixedTickable` / `IServiceLateTickable` | 轮询能力接口（均继承 `IService`），方法签名 `Tick(float elapseSeconds, float realElapseSeconds)` 等（MonoBehaviour 服务不可实现） |
+| `IServiceGizmoDrawable` | 编辑器 Gizmos 绘制能力接口（继承 `IService`）`OnDrawGizmos()` |
+| `IAsyncShutdownService` | 异步关闭能力接口（继承 `IService`），实现 `OnShutdownAsync()` 的服务在 `ShutdownContainerAsync()` 中按逆注册序异步关闭 |
 | `FrameworkHandler` | 处理器基类（`[Serializable]`）：幂等 `Internal_Init`/`Internal_Shutdown` + 同步/异步生命周期回调；所有 XxxHandler 的基类 |
 | `ServiceScopeOrder` | 作用域优先级常量（App=-10000, Scene=-5000, Gameplay=0） |
-| `GameApp` | MonoBehaviour 入口（`[DefaultExecutionOrder(-1000)]`）；驱动 `GameAppSettings.Initiation` 与 `GameServices.Shutdown`；`GameApp.Services` 仅用于动态服务查找 |
+| `GameApp` | MonoBehaviour 入口（`[DefaultExecutionOrder(-1000)]`）；驱动 `GameAppSettings.Initiation`、按帧驱动 `GameServices.Tick` 并在销毁时调用 `GameServices.Shutdown` |
 | `GameAppMessageEvent` / `EMessageEventType` | 命名空间 `Moirai.Atropos.Events`，框架级池化事件（对焦/失焦/退出、SDK 回调） |
 
 ## 快速上手
@@ -89,7 +86,7 @@ GameServices.ShutdownContainer(EServiceScopeKind.Gameplay);
 - `GameServices.RegisterService<T>(scope, service)` 统一注册入口：先按 `[ServiceDependency]` 声明序递归预注册依赖（依赖实例由默认工厂表创建，宿主可用 `RegisterDefaultFactory` 扩展），再注册当前服务并立即驱动 `OnInit()`；被依赖服务先于依赖方初始化。依赖声明始终从实现类型读取——以接口为契约注册时依赖链同样自动装配。
 - `GameServices.Shutdown()` 按 Gameplay → Scene → App 逆序关闭全部作用域；`GameServices.ShutdownContainer(scope)` 只关闭指定作用域。
 - `GameApp` 监听 `SceneManager.sceneUnloaded`，场景卸载时自动关闭 `Scene` 与 `Gameplay` 作用域。
-- 同一契约可在不同作用域注册不同实现，`IServiceProvider` 查找顺序为 Gameplay > Scene > App（`ContractBindings.TryGetBest()`），可用于战斗内临时替换全局实现。
+- 同一契约可在不同作用域注册不同实现，`GameServices` 查找顺序为 Gameplay > Scene > App（`ContractBindings.TryGetBest()`），可用于战斗内临时替换全局实现。
 - 注册幂等：同一作用域重复注册同契约直接跳过（返回既有实例）；循环依赖在注册期即抛 `GameException`（fail-fast）。
 
 ### HandlerHost 服务架构
@@ -140,14 +137,14 @@ public sealed class UIService : ServiceBase, IServiceTickable
 - 依赖实例由框架工厂表创建（零反射）；自定义服务的依赖若非框架内置类型，须先显式注册再注册依赖方
 - 循环依赖在注册期即抛 `GameException`
 
-需要运行时延迟解析时，使用 `ServiceBase` 内置的 `Require<T>()` / `TryGet<T>()`：
+需要运行时延迟解析时，统一使用 `GameServices` 的静态查找方法：
 
 ```csharp
 public class BattleService : ServiceBase
 {
     public override void OnInit()
     {
-        if (TryGet(out DebuggerService debugger)) // 可选依赖，未注册返回 false
+        if (GameServices.TryGetService(out DebuggerService debugger)) // 可选依赖，未注册返回 false
         {
             debugger.Enable();
         }
@@ -155,17 +152,15 @@ public class BattleService : ServiceBase
 }
 ```
 
-### 服务基类内置查找方法
+### 统一服务查找 [UNIFIED SERVICE LOOKUP]
 
-`ServiceBase` 和 `ServiceMono<TScope>` 提供以下 `protected` 方法，无需注入 `IServiceProvider` 即可运行时查找依赖：
+动态服务查找的唯一入口是 `GameServices` 静态外观——服务类内部与非服务代码使用同一组方法，无需注入任何提供者：
 
 | 方法 | 说明 |
 |------|------|
-| `Require<T>()` | 跨作用域查找服务，未找到抛 `GameException`（Gameplay > Scene > App 优先级） |
-| `TryGet<T>(out T)` | 跨作用域尝试查找服务，返回 bool |
-| `RequireApp<T>()` | 仅在 App 作用域中查找，未找到抛 `GameException` |
-| `RequireScene<T>()` | 仅在 Scene 作用域中查找，未找到抛 `GameException` |
-| `RequireGameplay<T>()` | 仅在 Gameplay 作用域中查找，未找到抛 `GameException` |
+| `GetRequiredService<T>()` | 跨作用域查找服务，未找到抛 `GameException`（Gameplay > Scene > App 优先级）；容器未构建时同样抛出 |
+| `GetService<T>()` | 跨作用域查找服务，未找到返回 null |
+| `TryGetService<T>(out T)` | 跨作用域尝试查找服务，返回 bool |
 
 ### 组合根与内置服务注册
 
@@ -178,21 +173,9 @@ await ProcedureServiceSettings.StartProcedure();
 
 其余 11 个框架服务全部由 `[ServiceDependency]` 依赖链自动递归拉起——零反射、顺序无关、编译期类型安全。自定义服务的后端实现可在对应 `XxxSettings` 的 Inspector 中通过 Provider 下拉框替换。
 
-### 异步初始化 [ASYNC INIT]
+### 处理器异步生命周期 [HANDLER ASYNC LIFECYCLE]
 
-```csharp
-public class MyResourceService : ServiceBase, IAsyncInitService
-{
-    public override void OnInit() { /* 同步快速设置 */ }
-
-    public async UniTask OnInitAsync()
-    {
-        await LoadCatalogAsync(); // 注册后由容器驱动
-    }
-}
-```
-
-处理器（`XxxHandler : FrameworkHandler`）同样支持异步生命周期：覆写 `OnInitAsync()` / `OnShutdownAsync()`，由 `GameAppSettings.Initiation` 在同步初始化后显式驱动。
+处理器（`XxxHandler : FrameworkHandler`）支持异步生命周期：覆写 `OnInitAsync()` / `OnShutdownAsync()`，由 `GameAppSettings.Initiation` 在同步初始化后显式驱动。
 
 ### 服务事件 [SERVICE EVENTS]
 
@@ -225,7 +208,7 @@ public class MyMonoService : ServiceMono<AppScope>
 // 直接挂载到场景对象即可——无需手动注册
 ```
 
-依赖查找使用基类内置的 `Require<T>()` / `TryGet<T>()` 系列方法；同契约重复注册自动销毁多余 GameObject（幂等）。
+依赖查找使用 `GameServices.GetRequiredService<T>()` / `TryGetService<T>()`；同契约重复注册自动销毁多余 GameObject（幂等）。
 
 > **注意**：MonoBehaviour 服务不可实现 `IServiceTickable` / `IServiceFixedTickable` / `IServiceLateTickable`——由 Unity 自身的 `Update()` / `FixedUpdate()` / `LateUpdate()` 驱动。
 
@@ -272,7 +255,7 @@ public class BattleService : ServiceBase
     public override void OnInit()
     {
         // 运行时延迟解析：泛型方法直接调用，无 MakeGenericMethod 路径
-        var stats = Require<StatsService>();
+        var stats = GameServices.GetRequiredService<StatsService>();
     }
 }
 ```
@@ -357,9 +340,9 @@ await GameServices.ShutdownAsync();
 
 ## 注意事项
 
-- `GameServices` 与 `IServiceProvider` 仅允许主线程调用；后台线程/异步回调请通过 `MainThreadDispatcher` 的 `Post`/`Send` 切回主线程。
-- 业务代码一律通过静态外观访问框架服务（如 `AudioService.Play(...)`、`UIService.ShowUI<T>()`）；`GameApp.Services`（`IServiceProvider`）仅用于 Gameplay/Scene 作用域动态服务查找。
-- `GetRequiredService<T>()` 未注册时抛出 `GameException`；`GetService<T>()` 返回 null；`TryGetService<T>()` 返回 bool。
+- `GameServices` 仅允许主线程调用；后台线程/异步回调请通过 `MainThreadDispatcher` 的 `Post`/`Send` 切回主线程。
+- 业务代码一律通过静态外观访问框架服务（如 `AudioService.Play(...)`、`UIService.ShowUI<T>()`）；动态服务查找统一走 `GameServices.GetRequiredService<T>()` / `TryGetService<T>()`。
+- `GameServices.GetRequiredService<T>()` 未注册时抛出 `GameException`；`GetService<T>()` 返回 null；`TryGetService<T>()` 返回 bool。
 - 同一作用域重复注册同契约幂等跳过（返回既有实例），嵌套依赖链重复注册免疫；以不同实例抢占已占用契约按 `DuplicateContractPolicy` 处置（开发默认告警、发布静默、可配 Throw）。
 - 单个服务在轮询中抛异常：编辑器与开发构建记录后立即上抛（fail-fast）；发布构建记录后隔离续跑，不影响同帧其他服务。同一服务在同一轮询类别连续失败达到阈值（默认 300，可经 `ServiceScope.s_TickFailureTripThreshold` 调整）即被摘除出该轮询列表并汇总告警一次（熔断）；服务条目保留、重新注册即完全重置。
 - 循环依赖在 `RegisterWithDependencies` 注册期即被检测并抛出异常（fail-fast）。

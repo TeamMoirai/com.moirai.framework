@@ -7,15 +7,13 @@ namespace Moirai.Atropos
     /// MonoBehaviour 服务基类。Awake 自动注册到指定作用域，OnDestroy 自动注销。
     /// <para>适用于需要 Unity 生命周期（Update/FixedUpdate/LateUpdate/碰撞/协程）的 Gameplay 层服务。</para>
     /// <para>不可实现 <see cref="IServiceTickable"/> 等 Tick 接口——Mono 服务由 Unity 自身生命周期驱动。</para>
+    /// <para>运行时延迟解析统一走 <see cref="GameServices.GetRequiredService{T}"/> / <see cref="GameServices.TryGetService{T}"/>。</para>
     /// <para>重复注册自动销毁 GameObject（同契约幂等）。</para>
     /// </summary>
     /// <typeparam name="TScope">作用域标记类型。</typeparam>
     public abstract class ServiceMono<TScope> : MonoBehaviour, IService, IServiceLifecycle
         where TScope : IServiceScope, new()
     {
-        [NonSerialized] private ServiceWorld _world;
-        [NonSerialized] private ServiceScope _scope;
-
         /// <summary>
         /// 本实例是否已完成作用域注册——未注册的重复副本在 OnDestroy 中不得触碰注册表。
         /// </summary>
@@ -36,40 +34,6 @@ namespace Moirai.Atropos
         /// </summary>
         public virtual EServiceScopeKind Scope => ScopeKindCache<TScope>.Kind;
 
-        #region 运行时依赖查找 [RUNTIME DEPENDENCY LOOKUP]
-
-        /// <summary>
-        /// 在当前作用域中查找服务（未找到抛 <see cref="GameException"/>）。
-        /// </summary>
-        protected T Require<T>() where T : class
-            => _world.GetRequiredService<T>();
-
-        /// <summary>
-        /// 在当前作用域中尝试查找服务。
-        /// </summary>
-        protected bool TryGet<T>(out T service) where T : class
-            => _world.TryGetService(out service);
-
-        /// <summary>
-        /// 要求 App 作用域中的服务。
-        /// </summary>
-        protected T RequireApp<T>() where T : class
-            => _world.GetRequiredServiceInScope<T>(EServiceScopeKind.App);
-
-        /// <summary>
-        /// 要求 Scene 作用域中的服务。
-        /// </summary>
-        protected T RequireScene<T>() where T : class
-            => _world.GetRequiredServiceInScope<T>(EServiceScopeKind.Scene);
-
-        /// <summary>
-        /// 要求 Gameplay 作用域中的服务。
-        /// </summary>
-        protected T RequireGameplay<T>() where T : class
-            => _world.GetRequiredServiceInScope<T>(EServiceScopeKind.Gameplay);
-
-        #endregion
-
         #region 生命周期 [LIFECYCLE]
 
         /// <summary>
@@ -86,12 +50,10 @@ namespace Moirai.Atropos
 
         #region IServiceLifecycle 实现 [RUNTIME LIFECYCLE]
 
-        void IServiceLifecycle.Initialize(ServiceWorld world, ServiceScope scope)
+        void IServiceLifecycle.Initialize(ServiceScope scope)
         {
             if (State >= EServiceState.Initialized) return;
 
-            _world = world;
-            _scope = scope;
             OnInit();
             State = EServiceState.Initialized;
             GameServices.InvokeRegistered(this, GetType(), scope.Kind);
