@@ -95,7 +95,8 @@ namespace Utility
         [Test]
         public void Pump_ExceptionInAction_IsolatedAndSubsequentActionsStillRun()
         {
-            LogAssert.Expect(LogType.Error, new Regex("MainThreadDispatcher action execution failed"));
+            // Pump 异常路径经 LogUtility.Fatal(ex) → Debug.LogException（LogType.Exception）
+            LogAssert.Expect(LogType.Exception, new Regex(".*boom.*"));
 
             int afterCount = 0;
             MainThreadDispatcher.Post(() => throw new InvalidOperationException("boom"));
@@ -169,7 +170,11 @@ namespace Utility
         [Test]
         public async Task PostAsync_AwaitedWorkStaysOnMainThreadChain()
         {
-            var gate = new TaskCompletionSource<bool>();
+            var gate = new TaskCompletionSource<bool>(
+#if UNITY_2023_1_OR_NEWER
+                TaskCreationOptions.RunContinuationsAsynchronously
+#endif
+            );
             bool resumedOnMain = false;
 
             UniTask task = MainThreadDispatcher.PostAsync(async () =>

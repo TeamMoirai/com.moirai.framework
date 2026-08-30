@@ -58,12 +58,12 @@ namespace Resource
         }
 
         [Test]
-        public void Initialize_NormalizesDeserializedEmptyRuntimeArrays()
+        public void RuntimeArrayFields_AreNonSerialized()
         {
-            var handler = new YooAssetHandler();
+            // [SerializeReference] 反序列化会把未标注的数组字段还原为非 null 空数组（Length=0），
+            // 使判空守卫失效（曾导致过期轮询 IOOR 错误风暴）。修复为运行时数组全部 [NonSerialized]
+            // + 使用点长度校验懒重建，NormalizeDeserializedArrays 已随之移除——本用例锁定该序列化边界契约。
             var type = typeof(YooAssetHandler);
-
-            // 模拟 [SerializeReference] 反序列化残留：非 null 空数组使判空检查失效。
             var fields = new[]
             {
                 "_idleBuckets", "_keepAliveBuckets", "_unusedAssetCandidates",
@@ -73,27 +73,8 @@ namespace Resource
             {
                 var field = type.GetField(name, System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
                 Assert.IsNotNull(field, "field {0} not found.", name);
-
-                var current = field.GetValue(handler);
-                var empty = System.Array.CreateInstance(field.FieldType.GetElementType(), 0);
-                field.SetValue(handler, empty);
-                Assert.AreSame(empty, field.GetValue(handler));
-            }
-
-            // 归一化应将空数组置 null（此后各处懒分配按常量重建）。
-            // 不经 Initialize()（其内部 YooAssets.Initialize 的 DontDestroyOnLoad 在 EditMode 抛异常），
-            // 直接反射调用归一化方法做单点验证。
-            var normalize = type.GetMethod("NormalizeDeserializedArrays",
-                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
-            Assert.IsNotNull(normalize, "NormalizeDeserializedArrays not found.");
-
-            Assert.DoesNotThrow(() => normalize.Invoke(handler, null));
-
-            foreach (var name in fields)
-            {
-                var field = type.GetField(name, System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
-                var value = (System.Array)field.GetValue(handler);
-                Assert.IsTrue(value == null || value.Length > 0, "field {0} still empty non-null array after normalization.", name);
+                Assert.IsTrue(field.IsDefined(typeof(System.NonSerializedAttribute), inherit: false),
+                    "field {0} must stay [NonSerialized]; serialized runtime arrays deserialize as non-null empty arrays.", name);
             }
         }
     }

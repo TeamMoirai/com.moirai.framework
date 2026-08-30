@@ -469,7 +469,50 @@ namespace Moirai.Atropos
 
         public StringHandler.IStringBuilder Replace(string oldValue, string newValue, int startIndex, int count)
         {
-            builder.Replace(oldValue, newValue, startIndex, count);
+            // ZString 的 Utf16ValueStringBuilder.Replace(span, span, int, int) 在区间内命中且扫描因区间耗尽退出时，
+            // 会丢弃 endIndex 之后的尾部（与 System.Text.StringBuilder 语义不一致），此处逐命中 Remove+Insert 对齐标准语义。
+            if (oldValue == null)
+            {
+                throw new ArgumentNullException(nameof(oldValue));
+            }
+
+            if (oldValue.Length == 0)
+            {
+                throw new ArgumentException("oldValue is empty.", nameof(oldValue));
+            }
+
+            int length = builder.Length;
+            if ((uint)startIndex > (uint)length)
+            {
+                throw new ArgumentOutOfRangeException(nameof(startIndex));
+            }
+
+            if (count < 0 || startIndex > length - count)
+            {
+                throw new ArgumentOutOfRangeException(nameof(count));
+            }
+
+            ReadOnlySpan<char> oldSpan = oldValue.AsSpan();
+            ReadOnlySpan<char> newSpan = (newValue ?? string.Empty).AsSpan();
+            int searchIndex = startIndex;
+            int regionEnd = startIndex + count;
+
+            while (searchIndex < regionEnd)
+            {
+                var slice = builder.AsSpan().Slice(searchIndex, regionEnd - searchIndex);
+                int pos = slice.IndexOf(oldSpan, StringComparison.Ordinal);
+                if (pos < 0)
+                {
+                    break;
+                }
+
+                int at = searchIndex + pos;
+                builder.Remove(at, oldSpan.Length);
+                builder.Insert(at, newSpan, 1);
+                searchIndex = at + newSpan.Length;
+                regionEnd += newSpan.Length - oldSpan.Length;
+            }
+
             return this;
         }
 
