@@ -18,10 +18,12 @@ namespace Moirai.Atropos.ConfigTable
 
         /// <summary>
         /// 从 <see cref="ConfigTableServiceSettings"/> 创建默认配置表处理器。
+        /// <para>首行先确保服务已注册（<c>GameServices.EnsureRegistered</c>，幂等）——外观首次访问即完成世界注册。</para>
         /// </summary>
         /// <returns>默认配置表处理器实例。</returns>
         private static ConfigTableServiceHandler CreateDefaultHandler()
         {
+            GameServices.EnsureRegistered<ConfigTableService>();
             return ConfigTableServiceSettings.ConfigTableServiceHandler;
         }
 

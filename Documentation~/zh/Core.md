@@ -32,11 +32,11 @@
 | 类/接口 | 说明 |
 |---------|------|
 | `IService` | 服务核心契约：`Priority`、`Scope`、`OnInit()`、`Shutdown()` |
-| `ServiceBase` | 纯 C# 服务抽象基类；依赖通过 `[ServiceDependency]` 特性声明，由注册器递归预注册 |
+| `ServiceBase` | 纯 C# 服务抽象基类；依赖通过 `[ServiceDependency]` 特性声明，由注册器在注册期校验（须先行手动注册） |
 | `ServiceMono<TScope>` | MonoBehaviour 服务基类（泛型作用域标记），Awake 自动注册、OnDestroy 自动注销 |
 | `ServiceWorld` | 统一服务世界：3-slot 固定作用域数组 + `ContractBindings` 值类型 struct O(1) 跨作用域查找；查找经 `GameServices` 静态外观暴露 |
 | `ServiceScope` | 单作用域注册表、轮询列表与迭代安全机制；注册/注销时同步 `ServiceWorld` 的 `ContractBindings` |
-| `GameServices` | 静态外观：统一注册入口 `RegisterService<T>(scope, service, deferMode)` 与显式契约重载 `RegisterService(scope, Type, instance)`、注销、作用域管理（`ShutdownContainer`/`HasApp`/`HasScene`/`HasGameplay`）、默认工厂扩展点 `RegisterDefaultFactory`、轮询驱动、拦截器 |
+| `GameServices` | 静态外观：统一注册入口 `RegisterService<T>(scope, service, deferMode)` 与显式契约重载 `RegisterService(scope, Type, instance)`、注销、作用域管理（`ShutdownContainer`/`HasApp`/`HasScene`/`HasGameplay`）、外观懒加载自动注册（`EnsureRegistered`，内部）、轮询驱动、拦截器 |
 | `ServiceDependencyAttribute` | 依赖声明特性：`[ServiceDependency(typeof(DepA), typeof(DepB))]`，声明顺序即依赖注册顺序；编译期 MIRAI002/MIRAI003 校验 |
 | `EServiceScopeKind` | 服务作用域枚举：`App`（全局）、`Scene`（场景卸载时重置）、`Gameplay`（单局玩法） |
 | `EServiceState` | 服务生命周期状态：`Created`、`Initialized`、`ShuttingDown`、`Disposed`（`ServiceBase.State` 属性） |
@@ -72,7 +72,8 @@ public class MyService : ServiceBase, IServiceTickable
     public void Tick(float elapseSeconds, float realElapseSeconds) { }
 }
 
-// 3. 注册到指定作用域——依赖链自动递归预注册（顺序无关）
+// 3. 先注册依赖，再注册依赖方——[ServiceDependency] 声明在注册期校验（依赖缺失即 fail-fast）
+GameServices.RegisterService(EServiceScopeKind.Gameplay, new TimerService());
 GameServices.RegisterService(EServiceScopeKind.Gameplay, new MyService());
 
 // 4. 关闭——服务按逆注册序（依赖方先）关闭
@@ -83,7 +84,7 @@ GameServices.ShutdownContainer(EServiceScopeKind.Gameplay);
 
 ### 生命周期与作用域
 
-- `GameServices.RegisterService<T>(scope, service)` 统一注册入口：先按 `[ServiceDependency]` 声明序递归预注册依赖（依赖实例由默认工厂表创建，宿主可用 `RegisterDefaultFactory` 扩展），再注册当前服务并立即驱动 `OnInit()`；被依赖服务先于依赖方初始化。依赖声明始终从实现类型读取——以接口为契约注册时依赖链同样自动装配。
+- `GameServices.RegisterService<T>(scope, service)` 统一注册入口：注册前校验 `[ServiceDependency]` 声明的依赖均已注册（服务实例仅由手动注册创建，框架不隐式实例化），存在缺失立即抛 `GameException`——注册序即依赖链序；通过校验后注册当前服务并立即驱动 `OnInit()`，被依赖服务先于依赖方初始化。依赖声明始终从实现类型读取——以接口为契约注册时依赖校验同样生效。
 - `GameServices.Shutdown()` 按 Gameplay → Scene → App 逆序关闭全部作用域；`GameServices.ShutdownContainer(scope)` 只关闭指定作用域。
 - `GameApp` 监听 `SceneManager.sceneUnloaded`，场景卸载时自动关闭 `Scene` 与 `Gameplay` 作用域。
 - 同一契约可在不同作用域注册不同实现，`GameServices` 查找顺序为 Gameplay > Scene > App（`ContractBindings.TryGetBest()`），可用于战斗内临时替换全局实现。
@@ -116,7 +117,7 @@ GameServices.ShutdownContainer(EServiceScopeKind.Gameplay);
 
 ### 依赖声明 [DEPENDENCY DECLARATION]
 
-服务依赖通过 `[ServiceDependency(typeof(...))]` 特性声明（单特性多类型，类似 `RequireComponent`），注册器据此递归预注册——依赖未注册时优先注册依赖，再注册当前服务：
+服务依赖通过 `[ServiceDependency(typeof(...))]` 特性声明（单特性多类型，类似 `RequireComponent`），注册器据此校验依赖就绪——依赖必须先行手动注册，注册序即依赖链序：
 
 ```csharp
 [ServiceDependency(typeof(ResourceService), typeof(TimerService))]
@@ -133,8 +134,8 @@ public sealed class UIService : ServiceBase, IServiceTickable
 }
 ```
 
-- 声明顺序即依赖注册顺序；所有依赖类型必须实现 `IService`，由 `ServiceDependencyAnalyzer`（MIRAI002/MIRAI003）在编译期校验
-- 依赖实例由框架工厂表创建（零反射）；自定义服务的依赖若非框架内置类型，须先显式注册再注册依赖方
+- 声明顺序即依赖校验顺序；所有依赖类型必须实现 `IService`，由 `ServiceDependencyAnalyzer`（MIRAI002/MIRAI003）在编译期校验
+- 服务实例仅由手动注册创建（框架不隐式实例化）；依赖未注册时注册依赖方立即抛 `GameException`，须先注册依赖再注册依赖方
 - 循环依赖在注册期即抛 `GameException`
 
 需要运行时延迟解析时，统一使用 `GameServices` 的静态查找方法：
@@ -164,14 +165,19 @@ public class BattleService : ServiceBase
 
 ### 组合根与内置服务注册
 
-框架组合根极简：`GameAppSettings.InitializeAppServices()`（`AfterAssembliesLoaded` 阶段调用）仅显式注册流程链根服务：
+框架组合根：`GameAppSettings.InitializeAppServices()`（`AfterAssembliesLoaded` 阶段调用）手动按依赖链序显式注册全部链上服务：
 
 ```csharp
+GameServices.RegisterService(EServiceScopeKind.App, new UpdateDriverService());
+GameServices.RegisterService(EServiceScopeKind.App, new ResourceService());
+GameServices.RegisterService(EServiceScopeKind.App, new TimerService());
+GameServices.RegisterService(EServiceScopeKind.App, new UIService());
+GameServices.RegisterService(EServiceScopeKind.App, new LocalizationService());
 GameServices.RegisterService(EServiceScopeKind.App, new ProcedureService());
 await ProcedureServiceSettings.StartProcedure();
 ```
 
-其余 11 个框架服务全部由 `[ServiceDependency]` 依赖链自动递归拉起——零反射、顺序无关、编译期类型安全。自定义服务的后端实现可在对应 `XxxSettings` 的 Inspector 中通过 Provider 下拉框替换。
+服务实例仅由手动注册创建，`[ServiceDependency]` 声明在注册期做顺序校验（依赖未注册即 fail-fast）。未列入注册的服务（Audio/Scene/ObjectPool/Save/ConfigTable/Input/Debugger 等）保持 opt-in：其外观的 `CreateDefaultHandler` 懒加载路径经 `GameServices.EnsureRegistered` 自动完成世界注册——首次经外观访问该服务即生效（轮询驱动、服务查找与关闭链路随之可用）。自定义服务的后端实现可在对应 `XxxSettings` 的 Inspector 中通过 Provider 下拉框替换。
 
 ### 处理器异步生命周期 [HANDLER ASYNC LIFECYCLE]
 
@@ -298,17 +304,19 @@ GameServices.DuplicateContractPolicy = EDuplicateContractPolicy.Throw;
 
 > 同实例重复注册始终幂等返回既有实例；依赖链自动预注册的去重始终静默——两者均不受本策略影响。
 
-### 默认工厂扩展点 [DEFAULT FACTORY EXTENSION]
+### 懒加载自动注册 [LAZY SELF REGISTRATION]
 
-框架内置服务的默认工厂表位于 `GameServices.Factories.cs`。宿主工程可为自有服务贡献工厂，
-使 `[ServiceDependency]` 依赖链跨程序集自动装配：
+服务实例没有集中工厂表（`RegisterDefaultFactory` 已随默认工厂表移除）。每个 HandlerHost 服务外观的默认处理器创建路径
+（`CreateDefaultHandler`）首行调用 `GameServices.EnsureRegistered<T>()`——服务在未注册状态下被外观访问时，
+自动创建实例并注册到 App 作用域（幂等）：
 
 ```csharp
-// 贡献默认工厂（重复注册同类型会 fail-fast 抛 GameException）
-GameServices.RegisterDefaultFactory(typeof(QuestService), static () => new QuestService());
-
-// 之后任何服务声明 [ServiceDependency(typeof(QuestService))] 即可自动预注册
+// 任意外观 API 首次访问——服务未注册时自动注册，轮询维护即刻生效
+ObjectPoolService.Spawn(...); // ObjectPoolService 由此注册进 App 作用域
 ```
+
+- 该路径不做依赖校验：各依赖由其自身外观的懒加载路径按需补齐；显式 `RegisterService` 才做依赖校验
+- 显式手动注册仍是构建依赖链的主路径——顺序由 `[ServiceDependency]` 声明约束
 
 ### 异步关闭 [ASYNC SHUTDOWN]
 

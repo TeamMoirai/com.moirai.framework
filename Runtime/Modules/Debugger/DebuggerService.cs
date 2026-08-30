@@ -13,10 +13,12 @@
 
         /// <summary>
         /// 从 <see cref="DebuggerServiceSettings"/> 创建默认调试器处理器。
+        /// <para>首行先确保服务已注册（<c>GameServices.EnsureRegistered</c>，幂等）——外观首次访问即完成世界注册。</para>
         /// </summary>
         /// <returns>默认调试器处理器实例。</returns>
         private static DebuggerServiceHandler CreateDefaultHandler()
         {
+            GameServices.EnsureRegistered<DebuggerService>();
             return DebuggerServiceSettings.DebuggerServiceHandler;
         }
 

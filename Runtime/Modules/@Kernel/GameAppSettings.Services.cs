@@ -3,6 +3,10 @@ using System.Linq;
 using Cysharp.Threading.Tasks;
 using Moirai.Atropos.Localization;
 using Moirai.Atropos.Procedure;
+using Moirai.Atropos.Resource;
+using Moirai.Atropos.Timer;
+using Moirai.Atropos.UI;
+using Moirai.Atropos.UpdateDriver;
 using Sirenix.OdinInspector;
 using UnityEngine;
 
@@ -36,9 +40,11 @@ namespace Moirai.Atropos
 
         /// <summary>
         /// 注册 App 作用域服务并启动游戏流程（Composition Root）。
-        /// <para>① <see cref="GameServices.RegisterService"/> 注册流程服务——其余框架服务由
-        /// <see cref="ServiceDependencyAttribute"/> 声明的依赖链自动递归预注册（零反射、顺序无关）；</para>
+        /// <para>① 手动按依赖链序显式注册全部链上服务——服务实例仅由手动注册创建，
+        /// <see cref="ServiceDependencyAttribute"/> 声明在注册期做顺序校验（依赖未注册即 fail-fast）；</para>
         /// <para>② <see cref="ProcedureServiceSettings.StartProcedure"/> 启动流程状态机。</para>
+        /// <para>未列入注册的服务（Audio/Scene/ObjectPool/Save/ConfigTable/Input/Debugger 等）
+        /// 保持 opt-in：由各外观的 <c>CreateDefaultHandler</c> 懒加载路径自动注册（首次访问即生效）。</para>
         /// <para>由 <see cref="GameAppSettings.Initiation"/> 在 <c>AfterAssembliesLoaded</c> 阶段调用。</para>
         /// </summary>
         private static partial UniTaskVoid InitializeAppServices()
@@ -47,7 +53,12 @@ namespace Moirai.Atropos
 
             async UniTaskVoid InitializeCore()
             {
-                // 仅显式注册流程链根服务；UpdateDriver/Resource/Audio/Scene/Timer/UI 等由依赖链拉起
+                // 依赖链序：UI 依赖 Resource+Timer，流程链根服务最后注册
+                // GameServices.RegisterService(EServiceScopeKind.App, new UpdateDriverService());
+                // GameServices.RegisterService(EServiceScopeKind.App, new ResourceService());
+                // GameServices.RegisterService(EServiceScopeKind.App, new TimerService());
+                // GameServices.RegisterService(EServiceScopeKind.App, new UIService());
+                // GameServices.RegisterService(EServiceScopeKind.App, new LocalizationService());
                 GameServices.RegisterService(EServiceScopeKind.App, new ProcedureService());
                 await ProcedureServiceSettings.StartProcedure();
             }

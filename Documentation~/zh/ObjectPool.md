@@ -10,11 +10,10 @@
 | `ObjectPoolService` | 任意 `ObjectBase` 派生对象（数据包、连接、指令…） | `Type + 池名` | 纯 C# 对象复用 |
 | `GameObjectPoolService` | Unity GameObject（Prefab 实例） | 资源地址（PoolCatalog 规则） | 子弹、特效、UI 弹窗 |
 
-> ⚠️ **两个服务均为 opt-in 注册**：不在 `ProcedureService` 依赖链中，默认不注册。
-> 外观调用一律经 `Handler` 属性转发（fail-fast，未就绪时按需初始化）。
-> 两池服务为 opt-in 注册：未注册时直接调用 `Spawn` / `Despawn` 等仍会按需自初始化执行，但无人驱动 `Tick`，基于帧调度的维护（过期/超容/低内存收缩）不生效。
-> 启用方式：`GameServices.RegisterService(EServiceScopeKind.App, new ObjectPoolService())`
-> （GameObjectPoolService 依赖 ResourceService，注册时自动递归拉起）。
+> ⚠️ **两个服务均为 opt-in 注册**：不在 `ProcedureService` 依赖链中，组合根默认不注册。
+> 外观调用一律经 `Handler` 属性转发（fail-fast，未就绪时按需初始化并自动注册——首次外观访问即完成世界注册，`Tick` 驱动的维护随之生效）。
+> 也可显式启用：`GameServices.RegisterService(EServiceScopeKind.App, new ObjectPoolService())`
+> （显式注册做依赖校验；GameObjectPoolService 依赖 ResourceService，须先行注册）。
 
 ## 架构
 
@@ -243,7 +242,7 @@ Debugger 窗口：`Profiler/Object Pool`（通用池）、`Profiler/GameObject P
 
 ## 注意事项
 
-- **opt-in 注册**：两服务默认不在依赖链；未注册时外观直接调用按需自初始化仍可执行，但 `Tick` 驱动的维护（过期/超容/低内存收缩）不生效（见顶部说明）。生产使用请将服务注册进依赖链。
+- **opt-in 注册**：两服务默认不在依赖链；首次外观访问经懒加载路径自动注册（`Tick` 驱动的维护随之生效），也可显式 `RegisterService`（依赖校验更严格，见顶部说明）。
 - 通用池对象由外部构造并 `Register` 入池；经 `MemoryPool.Acquire` 创建的对象会被池回收复用，外部 `new` 的对象释放时交由 GC。
 - GO 池生成前必须通过 `PoolConfigScriptableObject` 注册池规则；未注册地址记录错误并返回 null。
 - `Spawn()`（同步）在预制体未加载时返回 null；首次加载请使用 `SpawnAsync()`。

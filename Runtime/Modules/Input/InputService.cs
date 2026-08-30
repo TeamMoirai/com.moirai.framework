@@ -17,10 +17,12 @@ namespace Moirai.Atropos.Input
 
         /// <summary>
         /// 从 <see cref="InputServiceSettings"/> 创建默认输入处理器。
+        /// <para>首行先确保服务已注册（<c>GameServices.EnsureRegistered</c>，幂等）——外观首次访问即完成世界注册。</para>
         /// </summary>
         /// <returns>默认输入处理器实例。</returns>
         private static InputServiceHandler CreateDefaultHandler()
         {
+            GameServices.EnsureRegistered<InputService>();
             return InputServiceSettings.InputServiceHandler;
         }
 

@@ -32,11 +32,11 @@ Namespace: `Moirai.Atropos`
 | Class/Interface | Description |
 |---------|------|
 | `IService` | Core service contract: `Priority`, `Scope`, `OnInit()`, `Shutdown()` |
-| `ServiceBase` | Abstract base class for plain C# services; dependencies declared via `[ServiceDependency]` attribute and pre-registered recursively |
+| `ServiceBase` | Abstract base class for plain C# services; dependencies declared via `[ServiceDependency]` attribute and validated at registration time (must be registered manually first) |
 | `ServiceMono<TScope>` | MonoBehaviour service base (generic scope marker); auto-registers in Awake, auto-unregisters in OnDestroy |
 | `ServiceWorld` | Unified service world: 3-slot fixed scope array + `ContractBindings` value-type struct for O(1) cross-scope lookup; lookup is exposed via the `GameServices` static facade |
 | `ServiceScope` | Per-scope registry, polling lists, and iteration safety; syncs `ServiceWorld`'s `ContractBindings` on register/unregister |
-| `GameServices` | Static facade: unified registration entry `RegisterService<T>(scope, service, deferMode)` and explicit-contract overload `RegisterService(scope, Type, instance)`, unregistration, scope management (`ShutdownContainer`/`HasApp`/`HasScene`/`HasGameplay`), default-factory extension point `RegisterDefaultFactory`, polling drivers, interceptors |
+| `GameServices` | Static facade: unified registration entry `RegisterService<T>(scope, service, deferMode)` and explicit-contract overload `RegisterService(scope, Type, instance)`, unregistration, scope management (`ShutdownContainer`/`HasApp`/`HasScene`/`HasGameplay`), lazy facade self-registration (`EnsureRegistered`, internal), polling drivers, interceptors |
 | `ServiceDependencyAttribute` | Dependency declaration attribute: `[ServiceDependency(typeof(DepA), typeof(DepB))]`; declaration order is dependency registration order; compile-time validated by MIRAI002/MIRAI003 |
 | `EServiceScopeKind` | Service scope enum: `App` (global), `Scene` (reset on scene unload), `Gameplay` (single session) |
 | `EServiceState` | Service lifecycle state: `Created`, `Initialized`, `ShuttingDown`, `Disposed` (`ServiceBase.State` property) |
@@ -72,7 +72,8 @@ public class MyService : ServiceBase, IServiceTickable
     public void Tick(float elapseSeconds, float realElapseSeconds) { }
 }
 
-// 3. Register into a scope — the dependency chain is recursively pre-registered (order-independent)
+// 3. Register the dependency first, then the dependent — [ServiceDependency] declarations are validated at registration time (missing dependency fails fast)
+GameServices.RegisterService(EServiceScopeKind.Gameplay, new TimerService());
 GameServices.RegisterService(EServiceScopeKind.Gameplay, new MyService());
 
 // 4. Shut down — services close in reverse registration order (dependents first)
@@ -83,7 +84,7 @@ GameServices.ShutdownContainer(EServiceScopeKind.Gameplay);
 
 ### Lifecycle and Scope
 
-- `GameServices.RegisterService<T>(scope, service)` is the unified registration entry: dependencies are recursively pre-registered first in `[ServiceDependency]` declaration order (dependency instances are created by the default factory table, extensible by hosts via `RegisterDefaultFactory`), then the current service is registered and its `OnInit()` driven immediately; dependees are initialized before dependents. Dependency declarations are always read from the implementation type — registering with an interface as the contract still auto-assembles the dependency chain.
+- `GameServices.RegisterService<T>(scope, service)` is the unified registration entry: all dependencies declared via `[ServiceDependency]` must already be registered (service instances are created solely by manual registration; the framework never instantiates services implicitly) — a missing dependency throws `GameException` immediately, so registration order is the dependency chain order. Once validated, the current service is registered and its `OnInit()` driven immediately; dependees are initialized before dependents. Dependency declarations are always read from the implementation type — registering with an interface as the contract validates dependencies the same way.
 - `GameServices.Shutdown()` shuts down all scopes in reverse order: Gameplay → Scene → App; `GameServices.ShutdownContainer(scope)` shuts down only the specified scope.
 - `GameApp` listens to `SceneManager.sceneUnloaded` and automatically shuts down `Scene` and `Gameplay` scopes when a scene is unloaded.
 - The same contract can be registered with different implementations in different scopes. `GameServices` lookup order is Gameplay > Scene > App (`ContractBindings.TryGetBest()`), which can be used to temporarily replace global implementations during combat.
@@ -116,7 +117,7 @@ Shutdown is idempotent: shutting down an already-disposed service is a no-op.
 
 ### Dependency Declaration
 
-Service dependencies are declared via the `[ServiceDependency(typeof(...))]` attribute (multiple types in a single attribute, similar to `RequireComponent`); the registrar recursively pre-registers them — unregistered dependencies are registered first, then the current service:
+Service dependencies are declared via the `[ServiceDependency(typeof(...))]` attribute (multiple types in a single attribute, similar to `RequireComponent`); the registrar validates dependency readiness at registration time — dependencies must be registered manually first, and registration order is the dependency chain order:
 
 ```csharp
 [ServiceDependency(typeof(ResourceService), typeof(TimerService))]
@@ -133,8 +134,8 @@ public sealed class UIService : ServiceBase, IServiceTickable
 }
 ```
 
-- Declaration order is dependency registration order; all dependency types must implement `IService`, validated at compile time by `ServiceDependencyAnalyzer` (MIRAI002/MIRAI003)
-- Dependency instances are created by the framework's factory table (zero reflection); if a custom service's dependency is not a built-in framework type, it must be explicitly registered before its dependents
+- Declaration order is dependency validation order; all dependency types must implement `IService`, validated at compile time by `ServiceDependencyAnalyzer` (MIRAI002/MIRAI003)
+- Service instances are created solely by manual registration (the framework never instantiates services implicitly); registering a service whose dependency is unregistered throws `GameException` immediately — register the dependency before its dependents
 - Circular dependencies throw `GameException` at registration time
 
 For runtime lazy resolution, use the static lookup methods on `GameServices`:
@@ -164,14 +165,19 @@ The single entry for dynamic service lookup is the `GameServices` static facade 
 
 ### Composition Root and Built-in Service Registration
 
-The framework's composition root is minimal: `GameAppSettings.InitializeAppServices()` (called at the `AfterAssembliesLoaded` stage) explicitly registers only the procedure chain root service:
+The framework's composition root: `GameAppSettings.InitializeAppServices()` (called at the `AfterAssembliesLoaded` stage) explicitly registers all chain services manually in dependency chain order:
 
 ```csharp
+GameServices.RegisterService(EServiceScopeKind.App, new UpdateDriverService());
+GameServices.RegisterService(EServiceScopeKind.App, new ResourceService());
+GameServices.RegisterService(EServiceScopeKind.App, new TimerService());
+GameServices.RegisterService(EServiceScopeKind.App, new UIService());
+GameServices.RegisterService(EServiceScopeKind.App, new LocalizationService());
 GameServices.RegisterService(EServiceScopeKind.App, new ProcedureService());
 await ProcedureServiceSettings.StartProcedure();
 ```
 
-The other 11 framework services are all pulled up automatically via the `[ServiceDependency]` dependency chain — zero reflection, order-independent, compile-time type-safe. Custom service backend implementations can be swapped in the corresponding `XxxSettings` Inspector via the provider dropdown.
+Service instances are created solely by manual registration; `[ServiceDependency]` declarations are validated at registration time (missing dependency fails fast). Services not listed here (Audio/Scene/ObjectPool/Save/ConfigTable/Input/Debugger, etc.) remain opt-in: their facade's `CreateDefaultHandler` lazy path completes world registration automatically via `GameServices.EnsureRegistered` — the service becomes fully active (polling, lookup, shutdown chain) the first time its facade is accessed. Custom service backend implementations can be swapped in the corresponding `XxxSettings` Inspector via the provider dropdown.
 
 ### Handler Async Lifecycle
 
@@ -298,17 +304,19 @@ GameServices.DuplicateContractPolicy = EDuplicateContractPolicy.Throw;
 
 > Re-registering the same instance is always an idempotent skip returning the existing instance; dependency-chain auto pre-registration dedup is always silent — neither is affected by this policy.
 
-### Default Factory Extension
+### Lazy Self Registration
 
-The framework's built-in service factory table lives in `GameServices.Factories.cs`. Host projects can contribute factories
-for their own services so that `[ServiceDependency]` chains auto-assemble across assemblies:
+Service instances have no centralized factory table (`RegisterDefaultFactory` was removed along with the default factory table). Each HandlerHost service facade's default handler creation path
+(`CreateDefaultHandler`) calls `GameServices.EnsureRegistered<T>()` first — when a service is accessed through its facade while unregistered,
+an instance is automatically created and registered into the App scope (idempotent):
 
 ```csharp
-// Contribute a default factory (registering a duplicate type fails fast with GameException)
-GameServices.RegisterDefaultFactory(typeof(QuestService), static () => new QuestService());
-
-// Any service declaring [ServiceDependency(typeof(QuestService))] now auto-pre-registers it
+// First access to any facade API — the service auto-registers if unregistered; polling maintenance takes effect immediately
+ObjectPoolService.Spawn(...); // ObjectPoolService is thereby registered into the App scope
 ```
+
+- This path performs no dependency validation: each dependency is filled in by its own facade's lazy path as needed; only explicit `RegisterService` validates dependencies
+- Explicit manual registration remains the primary path for building dependency chains — order is constrained by `[ServiceDependency]` declarations
 
 ### Async Shutdown
 

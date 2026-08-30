@@ -10,11 +10,10 @@ The service is split into two independent facades; choose by pooled object type:
 | `ObjectPoolService` | Any `ObjectBase` derived object (data packets, connections, commands…) | `Type + pool name` | Pure C# object reuse |
 | `GameObjectPoolService` | Unity GameObject (Prefab instances) | Asset location (PoolCatalog rules) | Bullets, VFX, UI popups |
 
-> ⚠️ **Both services are opt-in**: they are NOT in the `ProcedureService` dependency chain and are not registered by default.
-> Facade calls always forward through the `Handler` property (fail-fast, lazily initialized on first use).
-> Both services are opt-in: when unregistered, direct calls such as `Spawn` / `Despawn` still self-initialize and execute, but nothing drives `Tick`, so frame-scheduled maintenance (expiry / over-capacity / low-memory shrink) never runs.
-> Enable via `GameServices.RegisterService(EServiceScopeKind.App, new ObjectPoolService())`
-> (GameObjectPoolService depends on ResourceService, which is pulled up automatically by the dependency chain).
+> ⚠️ **Both services are opt-in**: they are NOT in the `ProcedureService` dependency chain and are not registered by the composition root by default.
+> Facade calls always forward through the `Handler` property (fail-fast, lazily initialized on first use with automatic world registration — the first facade access completes registration, and `Tick`-driven maintenance takes effect immediately).
+> Alternatively, enable explicitly: `GameServices.RegisterService(EServiceScopeKind.App, new ObjectPoolService())`
+> (explicit registration performs dependency validation; GameObjectPoolService depends on ResourceService, which must be registered first).
 
 ## Architecture
 
@@ -243,7 +242,7 @@ Debugger windows: `Profiler/Object Pool` (generic), `Profiler/GameObject Pool` (
 
 ## Notes
 
-- **Opt-in registration**: neither service is in the dependency chain by default; when unregistered, direct facade calls still self-initialize and execute, but `Tick`-driven maintenance never runs (see top). Register the services into the dependency chain for production use.
+- **Opt-in registration**: neither service is in the dependency chain by default; the first facade access auto-registers it via the lazy path (`Tick`-driven maintenance takes effect immediately), or register explicitly via `RegisterService` (stricter dependency validation, see top).
 - Generic pool objects are created externally and `Register`ed; objects created via `MemoryPool.Acquire` are recycled by the pool, externally `new`ed ones go to GC on release.
 - GO pool spawns require rules registered via `PoolConfigScriptableObject`; unregistered locations log an error and return null.
 - `Spawn()` (sync) returns null when the prefab is not loaded; use `SpawnAsync()` for the first load.

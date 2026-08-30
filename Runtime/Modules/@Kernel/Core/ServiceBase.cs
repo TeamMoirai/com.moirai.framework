@@ -45,8 +45,8 @@ namespace Moirai.Atropos
 
     /// <summary>
     /// 服务核心契约。
-    /// <para>依赖通过 <c>[ServiceDependency]</c> 特性声明，由 <c>RegisterService</c> 递归预注册。</para>
-    /// <para>依赖由 <see cref="GameServices.RegisterService"/> 递归预注册。</para>
+    /// <para>依赖通过 <c>[ServiceDependency]</c> 特性声明，由 <c>RegisterService</c> 在注册期校验
+    /// （依赖必须先行手动注册，服务实例不由框架隐式创建）。</para>
     /// </summary>
     public interface IService
     {
@@ -130,7 +130,7 @@ namespace Moirai.Atropos
 
     /// <summary>
     /// 纯 C# 服务基类。不依赖 MonoBehaviour，生命周期由 <see cref="ServiceWorld"/> 控制。
-    /// <para>依赖通过 <c>[ServiceDependency]</c> 特性声明，由注册器递归预注册。</para>
+    /// <para>依赖通过 <c>[ServiceDependency]</c> 特性声明，由注册器在注册期校验（须先行手动注册）。</para>
     /// <para>运行时延迟解析统一走 <see cref="GameServices.GetRequiredService{T}"/> / <see cref="GameServices.TryGetService{T}"/>。</para>
     /// </summary>
     public abstract class ServiceBase : IService, IServiceLifecycle

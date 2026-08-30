@@ -19,10 +19,12 @@ namespace Moirai.Atropos.Scene
 
         /// <summary>
         /// 从 <see cref="SceneServiceSettings"/> 创建默认场景处理器。
+        /// <para>首行先确保服务已注册（<c>GameServices.EnsureRegistered</c>，幂等）——外观首次访问即完成世界注册。</para>
         /// </summary>
         /// <returns>默认场景处理器实例。</returns>
         private static SceneServiceHandler CreateDefaultHandler()
         {
+            GameServices.EnsureRegistered<SceneService>();
             return SceneServiceSettings.SceneServiceHandler;
         }
 
