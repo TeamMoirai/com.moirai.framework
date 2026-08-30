@@ -12,7 +12,7 @@ namespace Moirai.Atropos.Resource
     /// 运行时通过 <see cref="CreateDecryptor"/> 创建解密器，构建时通过 <see cref="CreateEncryptor"/> 创建加密器。
     /// </remarks>
     [Serializable]
-    public abstract class ResourceEncryptorHandler
+    public abstract class YooAssetEncryptorHandler
     {
         /// <summary>
         /// 创建运行时资源包解密器。

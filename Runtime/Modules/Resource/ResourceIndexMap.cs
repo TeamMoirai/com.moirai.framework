@@ -13,7 +13,7 @@ namespace Moirai.Atropos.Resource
     {
         #region 常量 [CONSTANTS]
 
-        private const int DefaultCapacity = 16;
+        private const int DEFAULT_CAPACITY = 16;
 
         #endregion
 
@@ -85,7 +85,7 @@ namespace Moirai.Atropos.Resource
                 return;
             }
 
-            int target = NextPowerOfTwo(Math.Max(DefaultCapacity, capacity));
+            int target = NextPowerOfTwo(Math.Max(DEFAULT_CAPACITY, capacity));
             if (_buckets == null)
             {
                 Initialize(target);
@@ -138,7 +138,7 @@ namespace Moirai.Atropos.Resource
         {
             if (_buckets == null)
             {
-                Initialize(DefaultCapacity);
+                Initialize(DEFAULT_CAPACITY);
             }
 
             int hashCode = GetHashCode(key);
@@ -300,9 +300,9 @@ namespace Moirai.Atropos.Resource
     {
         #region 常量 [CONSTANTS]
 
-        private const int DefaultCapacity = 16;
-        private const int LoadFactorNumerator = 7;
-        private const int LoadFactorDenominator = 10;
+        private const int DEFAULT_CAPACITY = 16;
+        private const int LOAD_FACTOR_NUMERATOR = 7;
+        private const int LOAD_FACTOR_DENOMINATOR = 10;
 
         #endregion
 
@@ -353,7 +353,7 @@ namespace Moirai.Atropos.Resource
                 return;
             }
 
-            int target = NextPowerOfTwo(Math.Max(DefaultCapacity, RequiredCapacity(capacity)));
+            int target = NextPowerOfTwo(Math.Max(DEFAULT_CAPACITY, RequiredCapacity(capacity)));
             if (_keys == null)
             {
                 Initialize(target);
@@ -409,7 +409,7 @@ namespace Moirai.Atropos.Resource
         {
             if (_keys == null)
             {
-                Initialize(DefaultCapacity);
+                Initialize(DEFAULT_CAPACITY);
             }
 
             if (_occupied + 1 > _resizeThreshold)
@@ -515,13 +515,13 @@ namespace Moirai.Atropos.Resource
 
         private void Initialize(int capacity)
         {
-            int actualCapacity = NextPowerOfTwo(Math.Max(DefaultCapacity, capacity));
+            int actualCapacity = NextPowerOfTwo(Math.Max(DEFAULT_CAPACITY, capacity));
             _keys = new ulong[actualCapacity];
             _values = new int[actualCapacity];
             _states = new byte[actualCapacity];
             _count = 0;
             _occupied = 0;
-            _resizeThreshold = Math.Max(1, actualCapacity * LoadFactorNumerator / LoadFactorDenominator);
+            _resizeThreshold = Math.Max(1, actualCapacity * LOAD_FACTOR_NUMERATOR / LOAD_FACTOR_DENOMINATOR);
         }
 
         private void Resize(int capacity)
@@ -546,7 +546,7 @@ namespace Moirai.Atropos.Resource
 
         private static int RequiredCapacity(int capacity)
         {
-            return (capacity * LoadFactorDenominator + LoadFactorNumerator - 1) / LoadFactorNumerator;
+            return (capacity * LOAD_FACTOR_DENOMINATOR + LOAD_FACTOR_NUMERATOR - 1) / LOAD_FACTOR_NUMERATOR;
         }
 
         private static uint Mix(ulong key)

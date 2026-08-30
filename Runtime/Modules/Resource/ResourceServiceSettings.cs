@@ -47,30 +47,6 @@ namespace Moirai.Atropos.Resource
 
         #endregion
 
-        #region 资源池 [ASSET POOL]
-
-        [SerializeField] private float m_AssetAutoReleaseInterval = 60f;
-
-        /// <summary>资源对象池自动释放可释放对象的间隔秒数。</summary>
-        public static float AssetAutoReleaseInterval => Instance.m_AssetAutoReleaseInterval;
-
-        [SerializeField] private int m_AssetCapacity = 64;
-
-        /// <summary>资源对象池的容量。</summary>
-        public static int AssetCapacity => Instance.m_AssetCapacity;
-
-        [SerializeField] private float m_AssetExpireTime = 60f;
-
-        /// <summary>资源对象池对象过期秒数。</summary>
-        public static float AssetExpireTime => Instance.m_AssetExpireTime;
-
-        [SerializeField] private int m_AssetPriority = 0;
-
-        /// <summary>资源对象池的优先级。</summary>
-        public static int AssetPriority => Instance.m_AssetPriority;
-
-        #endregion
-
         #region 记录与租约 [RECORDS AND LEASE]
 
         [SerializeField] private int m_AssetRecordCapacity = 64;

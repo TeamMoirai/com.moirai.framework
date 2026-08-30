@@ -16,12 +16,12 @@
 ## 项目结构
 
 ```
-Game Dev Tools/
-├── Assets/
-│   ├── MoiraiFramework/          # 核心框架
+Project/
+├── Packages/
+│   ├── com.moirai.framework/     # 核心框架
 │   │   ├── Runtime/              # 运行时代码
 │   │   │   ├── Core/             # 核心系统
-│   │   │   └── Services/          # 功能服务
+│   │   │   └── Modules/          # 功能服务
 │   │   ├── Editor/               # 编辑器代码
 │   │   └── Tests/                # 测试代码
 │   ├── Plugins/                  # 第三方插件

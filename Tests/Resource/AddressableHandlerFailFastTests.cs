@@ -24,6 +24,80 @@ namespace Resource
         }
 
         [Test]
+        public void InitPackageAsync_ThrowsGameException()
+        {
+            InvokeExpectingFailFast("InitPackageAsync", "InitPackageAsync", "DemoPackage", string.Empty, string.Empty);
+        }
+
+        [Test]
+        public void LoadAssetGeneric_ThrowsGameException()
+        {
+            object instance = CreateInstance();
+            if (instance == null)
+            {
+                Assert.Ignore("AddressableHandler is not compiled (ADDRESSABLES_INSTALLED undefined).");
+                return;
+            }
+
+            MethodInfo closedMethod = FindGenericMethod(instance.GetType(), "LoadAsset", m =>
+                m.GetParameters().Length == 2 && m.GetParameters()[0].ParameterType == typeof(string));
+
+            if (closedMethod == null)
+            {
+                Assert.Ignore("public generic LoadAsset<T>(string, string) not found.");
+                return;
+            }
+
+            var exception = Assert.Throws<TargetInvocationException>(
+                () => closedMethod.Invoke(instance, new object[] { "UI/Heart", string.Empty }));
+            Assert.IsInstanceOf<GameException>(exception.InnerException);
+            StringAssert.Contains(MessageFragment, exception.InnerException.Message);
+        }
+
+        [Test]
+        public void LoadAssetAsyncGeneric_ThrowsGameException()
+        {
+            object instance = CreateInstance();
+            if (instance == null)
+            {
+                Assert.Ignore("AddressableHandler is not compiled (ADDRESSABLES_INSTALLED undefined).");
+                return;
+            }
+
+            MethodInfo closedMethod = FindGenericMethod(instance.GetType(), "LoadAssetAsync", m =>
+                m.GetParameters().Length == 3 && m.GetParameters()[0].ParameterType == typeof(string));
+
+            if (closedMethod == null)
+            {
+                Assert.Ignore("public generic LoadAssetAsync<T>(string, CancellationToken, string) not found.");
+                return;
+            }
+
+            var exception = Assert.Throws<TargetInvocationException>(
+                () => closedMethod.Invoke(instance, new object[] { "UI/Heart", default(System.Threading.CancellationToken), string.Empty }));
+            Assert.IsInstanceOf<GameException>(exception.InnerException);
+            StringAssert.Contains(MessageFragment, exception.InnerException.Message);
+        }
+
+        [Test]
+        public void LoadAssetAsyncWithType_ThrowsGameException()
+        {
+            var callbacks = new LoadAssetCallbacks((name, asset, duration, userData) => { });
+            InvokeExpectingFailFast("LoadAssetAsync", "LoadAssetAsync",
+                new[] { typeof(string), typeof(Type), typeof(int), typeof(LoadAssetCallbacks), typeof(object), typeof(string) },
+                "UI/Heart", typeof(UnityEngine.Object), 0, callbacks, null, string.Empty);
+        }
+
+        [Test]
+        public void LoadAssetAsyncWithPriority_ThrowsGameException()
+        {
+            var callbacks = new LoadAssetCallbacks((name, asset, duration, userData) => { });
+            InvokeExpectingFailFast("LoadAssetAsync", "LoadAssetAsync",
+                new[] { typeof(string), typeof(int), typeof(LoadAssetCallbacks), typeof(object), typeof(string) },
+                "UI/Heart", 0, callbacks, null, string.Empty);
+        }
+
+        [Test]
         public void AcquireDirect_ThrowsGameException()
         {
             InvokeExpectingFailFast("AcquireDirect", "AcquireDirect", new ResourceKey("UI/Heart"));
@@ -121,10 +195,43 @@ namespace Resource
         }
 
         /// <summary>
+        /// 在类型上按名称与谓词定位泛型方法并关闭为 <see cref="UnityEngine.Object"/> 实例。
+        /// </summary>
+        private static MethodInfo FindGenericMethod(Type type, string methodName, Func<MethodInfo, bool> predicate)
+        {
+            foreach (var candidate in type.GetMethods())
+            {
+                if (!candidate.Name.Equals(methodName, StringComparison.Ordinal) || !candidate.IsGenericMethod)
+                {
+                    continue;
+                }
+
+                if (predicate(candidate))
+                {
+                    return candidate.MakeGenericMethod(typeof(UnityEngine.Object));
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// 反射调用指定成员并断言抛出带预期片段的 GameException（无重载成员的简写形式）。
+        /// </summary>
+        private static bool InvokeExpectingFailFast(string methodName, string expectedMessageFragment, params object[] args)
+        {
+            return InvokeExpectingFailFast(methodName, expectedMessageFragment, null, args);
+        }
+
+        /// <summary>
         /// 反射调用指定成员并断言抛出带预期片段的 GameException。
         /// </summary>
+        /// <param name="methodName">成员名。</param>
+        /// <param name="expectedMessageFragment">异常消息中必须包含的成员名片段。</param>
+        /// <param name="parameterTypes">重载消歧用的形参类型表；null 表示成员无重载。</param>
+        /// <param name="args">实参表。</param>
         /// <returns>是否实际执行了调用（false 表示后端类型不存在而忽略）。</returns>
-        private static bool InvokeExpectingFailFast(string methodName, string expectedMessageFragment, params object[] args)
+        private static bool InvokeExpectingFailFast(string methodName, string expectedMessageFragment, Type[] parameterTypes, params object[] args)
         {
             object instance = CreateInstance();
             if (instance == null)
@@ -133,7 +240,9 @@ namespace Resource
                 return false;
             }
 
-            var method = instance.GetType().GetMethod(methodName);
+            var method = parameterTypes != null
+                ? instance.GetType().GetMethod(methodName, parameterTypes)
+                : instance.GetType().GetMethod(methodName);
             Assert.IsNotNull(method, "{0} not found on handler.", methodName);
 
             var exception = Assert.Throws<System.Reflection.TargetInvocationException>(

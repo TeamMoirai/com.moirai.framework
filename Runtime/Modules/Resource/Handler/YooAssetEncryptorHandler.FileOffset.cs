@@ -8,7 +8,7 @@ namespace Moirai.Atropos.Resource
     /// 文件偏移加密处理器。
     /// </summary>
     [Serializable]
-    public sealed class FileOffsetEncryptorHandler : ResourceEncryptorHandler
+    public sealed class FileOffsetEncryptorHandler : YooAssetEncryptorHandler
     {
         internal static int GetFileOffset()
         {

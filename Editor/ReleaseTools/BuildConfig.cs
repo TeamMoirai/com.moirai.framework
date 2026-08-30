@@ -14,7 +14,7 @@ namespace Moirai.Atropos.Editor
         [SerializeField] internal ECompressOption m_CompressOption = ECompressOption.LZ4;
 
         [ProviderDropdown(label: "加密方式")]
-        [SerializeReference] internal ResourceEncryptorHandler m_EncryptorHandler;
+        [SerializeReference] internal YooAssetEncryptorHandler m_EncryptorHandler;
 
         // ReSharper disable once InconsistentNaming
         [SerializeField] internal string m_ABOutputRoot = "./Builds/";

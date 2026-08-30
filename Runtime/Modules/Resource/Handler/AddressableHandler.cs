@@ -1,5 +1,6 @@
 ﻿#if ADDRESSABLES_INSTALLED
 using System;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using Cysharp.Threading.Tasks;
@@ -56,9 +57,21 @@ namespace Moirai.Atropos.Resource
         /// <inheritdoc />
         public override bool UpdatableWhilePlaying => false;
 
+        /// <inheritdoc />
+        public override bool AutoUnloadBundleWhenUnused { get; set; }
+
+        /// <inheritdoc />
+        public override int DownloadingMaxNum { get; set; }
+
+        /// <inheritdoc />
+        public override int FailedTryAgain { get; set; }
+
+        /// <inheritdoc />
+        public override long Milliseconds { get; set; }
+
         #endregion
 
-        #region 初始化 [INITIALIZATION]
+        #region 生命周期 [LIFECYCLE]
 
         /// <inheritdoc />
         public override void Initialize()
@@ -67,7 +80,24 @@ namespace Moirai.Atropos.Resource
         }
 
         /// <inheritdoc />
+        protected override void OnShutdown()
+        {
+            _bindingService?.Shutdown();
+            ForceReleaseAllAssetRecords();
+        }
+
+        #endregion
+
+        #region 初始化 [INITIALIZATION]
+
+        /// <inheritdoc />
         public override UniTask<ResourcePackageInitResult> InitPackage(string packageName, bool needInitManifest = false)
+        {
+            throw CreateNotSupported();
+        }
+
+        /// <inheritdoc />
+        public override UniTask<bool> InitPackageAsync(string packageName = "", string hostServerURL = "", string fallbackHostServerURL = "")
         {
             throw CreateNotSupported();
         }
@@ -204,10 +234,14 @@ namespace Moirai.Atropos.Resource
         /// <inheritdoc />
         public override EResourceHasAssetResult HasAsset(string location, string packageName = "")
         {
-            if (string.IsNullOrEmpty(location)) return EResourceHasAssetResult.InvalidLocation;
-            return Addressables.ResourceLocators != null
-                ? EResourceHasAssetResult.AssetExist
-                : EResourceHasAssetResult.AssetNotExist;
+            if (string.IsNullOrEmpty(location))
+            {
+                return EResourceHasAssetResult.NotExist;
+            }
+
+            return Addressables.ResourceLocators != null && Addressables.ResourceLocators.Any()
+                ? EResourceHasAssetResult.AssetOnDisk
+                : EResourceHasAssetResult.NotExist;
         }
 
         /// <inheritdoc />
@@ -228,6 +262,45 @@ namespace Moirai.Atropos.Resource
 
         /// <inheritdoc />
         public override UniTask<GameObject> LoadGameObjectAsync(string location, Transform parent = null, CancellationToken cancellationToken = default, string packageName = "")
+        {
+            throw CreateNotSupported();
+        }
+
+        #endregion
+
+        #region 遗留 API [LEGACY API]
+
+        /// <inheritdoc />
+        [Obsolete("Use LoadLease<T> for explicit ownership.")]
+        public override T LoadAsset<T>(string location, string packageName = "")
+        {
+            throw CreateNotSupported();
+        }
+
+        /// <inheritdoc />
+        [Obsolete("Use LoadLeaseAsync<T> for explicit ownership.")]
+        public override UniTask LoadAsset<T>(string location, Action<T> callback, string packageName = "")
+        {
+            throw CreateNotSupported();
+        }
+
+        /// <inheritdoc />
+        [Obsolete("Use LoadLeaseAsync<T> for explicit ownership.")]
+        public override UniTask<T> LoadAssetAsync<T>(string location, CancellationToken cancellationToken = default, string packageName = "")
+        {
+            throw CreateNotSupported();
+        }
+
+        /// <inheritdoc />
+        [Obsolete("Use LoadLeaseAsync<T> for explicit ownership.")]
+        public override UniTask LoadAssetAsync(string location, Type assetType, int priority, LoadAssetCallbacks loadAssetCallbacks, object userData, string packageName = "")
+        {
+            throw CreateNotSupported();
+        }
+
+        /// <inheritdoc />
+        [Obsolete("Use LoadLeaseAsync<T> for explicit ownership.")]
+        public override UniTask LoadAssetAsync(string location, int priority, LoadAssetCallbacks loadAssetCallbacks, object userData, string packageName = "")
         {
             throw CreateNotSupported();
         }
@@ -265,25 +338,10 @@ namespace Moirai.Atropos.Resource
 
         #endregion
 
-        #region 池属性 [POOL PROPERTIES]
-
-        /// <inheritdoc />
-        public override float AssetAutoReleaseInterval { get; set; }
-
-        /// <inheritdoc />
-        public override int AssetCapacity { get; set; }
-
-        /// <inheritdoc />
-        public override float AssetExpireTime { get; set; }
-
-        /// <inheritdoc />
-        public override int AssetPriority { get; set; }
-
-        #endregion
-
         #region 资源卸载 [ASSET UNLOAD]
 
         /// <inheritdoc />
+        [Obsolete("Use ResourceAssetLease<T> or Binding instead of LoadAsset/UnloadAsset.")]
         public override void UnloadAsset(object asset)
         {
             throw CreateNotSupported();
@@ -431,17 +489,6 @@ namespace Moirai.Atropos.Resource
         public override int GetAssetInfos(ResourceAssetInfo[] results, int startIndex, int maxCount)
         {
             return 0;
-        }
-
-        #endregion
-
-        #region 生命周期 [LIFECYCLE]
-
-        /// <inheritdoc />
-        protected override void OnShutdown()
-        {
-            _bindingService?.Shutdown();
-            ForceReleaseAllAssetRecords();
         }
 
         #endregion

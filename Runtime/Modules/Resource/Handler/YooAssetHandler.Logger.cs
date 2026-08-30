@@ -1,6 +1,6 @@
 namespace Moirai.Atropos.Resource
 {
-    internal class ResourceLogger : YooAsset.ILogger
+    internal class YooAssetLogger : YooAsset.ILogger
     {
         public void Log(string message)
         {

@@ -8,7 +8,7 @@ namespace Moirai.Atropos.Resource
     /// 文件流加密处理器。
     /// </summary>
     [Serializable]
-    public sealed class FileStreamEncryptorHandler : ResourceEncryptorHandler
+    public sealed class FileStreamEncryptorHandler : YooAssetEncryptorHandler
     {
         /// <inheritdoc />
         /// <remarks>仅实现流式解密，本地文件系统走 <see cref="IBundleStreamDecryptor"/> 流式加载路径。</remarks>
@@ -102,7 +102,7 @@ namespace Moirai.Atropos.Resource
             /// <remarks>
             /// 安全边界说明：单字节 XOR 仅用于防止资源被普通用户直接打开/提取，
             /// 无法抵御逆向工程（密钥随客户端分发，可被提取）。
-            /// 对资源安全有更高要求时，请自行实现更复杂的加密方案并派生 <see cref="ResourceEncryptorHandler"/>。
+            /// 对资源安全有更高要求时，请自行实现更复杂的加密方案并派生 <see cref="YooAssetEncryptorHandler"/>。
             /// </remarks>
             public const byte KEY = 64;
 

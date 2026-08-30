@@ -11,19 +11,14 @@ namespace Moirai.Atropos.Resource
     {
         #region 常量 [CONSTANTS]
 
-        private const int DefaultReleaseBufferCapacity = 64;
+        private const int DEFAULT_RELEASE_BUFFER_CAPACITY = 64;
 
         #endregion
 
         #region 字段 [FIELDS]
 
-        private static readonly List<ResourceOwner> s_ReleaseBuffer = new List<ResourceOwner>(DefaultReleaseBufferCapacity);
-        private static int s_ReleaseBufferCapacity = DefaultReleaseBufferCapacity;
-
-        private int _ownerId;
-        private ulong _gameObjectId;
-        private uint _generation;
-        private bool _isRegistered;
+        private static readonly List<ResourceOwner> s_ReleaseBuffer = new List<ResourceOwner>(DEFAULT_RELEASE_BUFFER_CAPACITY);
+        private static int s_ReleaseBufferCapacity = DEFAULT_RELEASE_BUFFER_CAPACITY;
 
         #endregion
 
@@ -32,22 +27,22 @@ namespace Moirai.Atropos.Resource
         /// <summary>
         /// 所有者 ID。
         /// </summary>
-        public int OwnerId => _ownerId;
+        public int OwnerId { get; private set; }
 
         /// <summary>
         /// GameObject ID。
         /// </summary>
-        public ulong GameObjectId => _gameObjectId;
+        public ulong GameObjectId { get; private set; }
 
         /// <summary>
         /// 代际标记。
         /// </summary>
-        public uint Generation => _generation;
+        public uint Generation { get; private set; }
 
         /// <summary>
         /// 是否已注册。
         /// </summary>
-        public bool IsRegistered => _isRegistered;
+        public bool IsRegistered { get; private set; }
 
         #endregion
 
@@ -55,18 +50,18 @@ namespace Moirai.Atropos.Resource
 
         internal void SetRegistered(int newOwnerId, ulong newGameObjectId, uint newGeneration)
         {
-            _ownerId = newOwnerId;
-            _gameObjectId = newGameObjectId;
-            _generation = newGeneration;
-            _isRegistered = true;
+            OwnerId = newOwnerId;
+            GameObjectId = newGameObjectId;
+            Generation = newGeneration;
+            IsRegistered = true;
         }
 
         internal void ClearRegistered()
         {
-            _ownerId = 0;
-            _gameObjectId = 0;
-            _generation = 0;
-            _isRegistered = false;
+            OwnerId = 0;
+            GameObjectId = 0;
+            Generation = 0;
+            IsRegistered = false;
         }
 
         #endregion
@@ -79,13 +74,13 @@ namespace Moirai.Atropos.Resource
         /// <returns>绑定结果状态。</returns>
         public EResourceBindStatus ReleaseBindings()
         {
-            if (!_isRegistered)
+            if (!IsRegistered)
             {
                 return EResourceBindStatus.MissingOwner;
             }
 
-            int currentOwnerId = _ownerId;
-            uint currentGeneration = _generation;
+            int currentOwnerId = OwnerId;
+            uint currentGeneration = Generation;
             EResourceBindStatus status = EResourceBindStatus.ServiceShutdown;
 
             ResourceServiceHandler handler = ResourceService.Handler;
@@ -98,7 +93,7 @@ namespace Moirai.Atropos.Resource
                 }
             }
 
-            if (_isRegistered && _ownerId == currentOwnerId && _generation == currentGeneration)
+            if (IsRegistered && OwnerId == currentOwnerId && Generation == currentGeneration)
             {
                 ClearRegistered();
             }
@@ -129,7 +124,7 @@ namespace Moirai.Atropos.Resource
             for (int i = 0; i < s_ReleaseBuffer.Count; i++)
             {
                 ResourceOwner owner = s_ReleaseBuffer[i];
-                if (owner == null || !owner._isRegistered)
+                if (owner == null || !owner.IsRegistered)
                 {
                     continue;
                 }
@@ -186,7 +181,7 @@ namespace Moirai.Atropos.Resource
 
         private void OnDestroy()
         {
-            if (!_isRegistered)
+            if (!IsRegistered)
             {
                 return;
             }

@@ -84,6 +84,30 @@ namespace Moirai.Atropos.Resource
 
         #endregion
 
+        #region 运行时配置 [RUNTIME CONFIGURATION]
+
+        /// <summary>
+        /// 自动释放资源引用计数为 0 的资源包。
+        /// </summary>
+        public abstract bool AutoUnloadBundleWhenUnused { get; set; }
+
+        /// <summary>
+        /// 同时下载的最大数目。
+        /// </summary>
+        public abstract int DownloadingMaxNum { get; set; }
+
+        /// <summary>
+        /// 下载失败重试次数。
+        /// </summary>
+        public abstract int FailedTryAgain { get; set; }
+
+        /// <summary>
+        /// 异步系统每帧执行消耗的最大时间切片（单位：毫秒）。
+        /// </summary>
+        public abstract long Milliseconds { get; set; }
+
+        #endregion
+
         #region 初始化 [INITIALIZATION]
 
         /// <summary>
@@ -98,6 +122,15 @@ namespace Moirai.Atropos.Resource
         /// <param name="needInitManifest">是否需要初始化清单。</param>
         /// <returns>资源包初始化结果。</returns>
         public abstract UniTask<ResourcePackageInitResult> InitPackage(string packageName, bool needInitManifest = false);
+
+        /// <summary>
+        /// 初始化指定资源包（仅初始化包，不更新清单），并发去重与幂等语义与 <see cref="InitPackage"/> 一致。
+        /// </summary>
+        /// <param name="packageName">资源包名称。为空时使用默认资源包。</param>
+        /// <param name="hostServerURL">资源服务器地址。非空时写入 <see cref="HostServerURL"/>。</param>
+        /// <param name="fallbackHostServerURL">备用资源服务器地址。非空时写入 <see cref="FallbackHostServerURL"/>。</param>
+        /// <returns>初始化是否成功。</returns>
+        public abstract UniTask<bool> InitPackageAsync(string packageName = "", string hostServerURL = "", string fallbackHostServerURL = "");
 
         #endregion
 
@@ -230,6 +263,71 @@ namespace Moirai.Atropos.Resource
 
         #endregion
 
+        #region 遗留 API [LEGACY API]
+
+        /// <summary>
+        /// 同步加载资源。每次成功调用后，调用方必须在不再使用时成对调用 <see cref="UnloadAsset"/>。
+        /// </summary>
+        /// <param name="location">资源的定位地址。</param>
+        /// <param name="packageName">指定资源包的名称。不传使用默认资源包。</param>
+        /// <typeparam name="T">要加载资源的类型。</typeparam>
+        /// <returns>资源实例。</returns>
+        [Obsolete("Use LoadLease<T> for explicit ownership.")]
+        public abstract T LoadAsset<T>(string location, string packageName = "") where T : Object;
+
+        /// <summary>
+        /// 异步加载资源。每次成功回调资源后，调用方必须在不再使用时成对调用 <see cref="UnloadAsset"/>。
+        /// </summary>
+        /// <param name="location">资源的定位地址。</param>
+        /// <param name="callback">回调函数。</param>
+        /// <param name="packageName">指定资源包的名称。不传使用默认资源包。</param>
+        /// <typeparam name="T">要加载资源的类型。</typeparam>
+        [Obsolete("Use LoadLeaseAsync<T> for explicit ownership.")]
+        public abstract UniTask LoadAsset<T>(string location, Action<T> callback, string packageName = "") where T : Object;
+
+        /// <summary>
+        /// 异步加载资源。每次成功返回资源后，调用方必须在不再使用时成对调用 <see cref="UnloadAsset"/>。
+        /// </summary>
+        /// <param name="location">资源定位地址。</param>
+        /// <param name="cancellationToken">取消操作 Token。</param>
+        /// <param name="packageName">指定资源包的名称。不传使用默认资源包。</param>
+        /// <typeparam name="T">要加载资源的类型。</typeparam>
+        /// <returns>异步资源实例。</returns>
+        [Obsolete("Use LoadLeaseAsync<T> for explicit ownership.")]
+        public abstract UniTask<T> LoadAssetAsync<T>(string location, CancellationToken cancellationToken = default, string packageName = "") where T : Object;
+
+        /// <summary>
+        /// 异步加载资源。
+        /// </summary>
+        /// <param name="location">资源的定位地址。</param>
+        /// <param name="assetType">要加载的资源类型。</param>
+        /// <param name="priority">加载资源的优先级。</param>
+        /// <param name="loadAssetCallbacks">加载资源回调函数集。</param>
+        /// <param name="userData">用户自定义数据。</param>
+        /// <param name="packageName">指定资源包的名称。不传使用默认资源包。</param>
+        [Obsolete("Use LoadLeaseAsync<T> for explicit ownership.")]
+        public abstract UniTask LoadAssetAsync(string location, Type assetType, int priority, LoadAssetCallbacks loadAssetCallbacks, object userData, string packageName = "");
+
+        /// <summary>
+        /// 异步加载资源。
+        /// </summary>
+        /// <param name="location">资源的定位地址。</param>
+        /// <param name="priority">加载资源的优先级。</param>
+        /// <param name="loadAssetCallbacks">加载资源回调函数集。</param>
+        /// <param name="userData">用户自定义数据。</param>
+        /// <param name="packageName">指定资源包的名称。不传使用默认资源包。</param>
+        [Obsolete("Use LoadLeaseAsync<T> for explicit ownership.")]
+        public abstract UniTask LoadAssetAsync(string location, int priority, LoadAssetCallbacks loadAssetCallbacks, object userData, string packageName = "");
+
+        /// <summary>
+        /// 卸载资源。
+        /// </summary>
+        /// <param name="asset">要卸载的资源。每次成功调用直接返回资源的 LoadAsset 接口后，都需要成对调用一次。</param>
+        [Obsolete("Use ResourceAssetLease<T> or Binding instead of LoadAsset/UnloadAsset.")]
+        public abstract void UnloadAsset(object asset);
+
+        #endregion
+
         #region 容量属性 [CAPACITY PROPERTIES]
 
         /// <summary>
@@ -270,39 +368,6 @@ namespace Moirai.Atropos.Resource
         /// 预热资源记录。
         /// </summary>
         public abstract void WarmupResourceRecords(int assetCapacity, int leaseCapacity, int unityObjectIndexCapacity);
-
-        #endregion
-
-        #region 池属性 [POOL PROPERTIES]
-
-        /// <summary>
-        /// 资源自动释放检查间隔（秒）。
-        /// </summary>
-        public abstract float AssetAutoReleaseInterval { get; set; }
-
-        /// <summary>
-        /// 资源容量上限。
-        /// </summary>
-        public abstract int AssetCapacity { get; set; }
-
-        /// <summary>
-        /// 资源过期秒数。
-        /// </summary>
-        public abstract float AssetExpireTime { get; set; }
-
-        /// <summary>
-        /// 资源池优先级。
-        /// </summary>
-        public abstract int AssetPriority { get; set; }
-
-        #endregion
-
-        #region 资源卸载 [ASSET UNLOAD]
-
-        /// <summary>
-        /// 卸载资源（通过租约释放，由具体后端实现引用计数管理）。
-        /// </summary>
-        public abstract void UnloadAsset(object asset);
 
         #endregion
 
@@ -402,7 +467,7 @@ namespace Moirai.Atropos.Resource
         #region 过期回收 [EXPIRY & RECYCLING]
 
         /// <summary>
-        /// 每帧过期处理（由 <see cref="ResourceServiceDriver"/> 驱动）。
+        /// 每帧过期处理。
         /// </summary>
         internal abstract void ProcessKeepAlive(float unscaledTime, int maxCount);
 

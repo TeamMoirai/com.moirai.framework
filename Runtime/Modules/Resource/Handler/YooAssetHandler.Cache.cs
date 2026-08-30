@@ -111,45 +111,10 @@ namespace Moirai.Atropos.Resource
 
         #endregion
 
-        #region 遗留池属性桥接 [LEGACY POOL BRIDGING]
-
-        /// <summary>
-        /// 资源自动释放检查间隔（秒）——桥接到 IdleAssetExpireTime。
-        /// </summary>
-        public override float AssetAutoReleaseInterval
-        {
-            get => _idleAssetExpireTime;
-            set => _idleAssetExpireTime = value;
-        }
-
-        /// <summary>
-        /// 资源容量上限——桥接到 AssetRecordCapacity。
-        /// </summary>
-        public override int AssetCapacity
-        {
-            get => _assetRecordCapacity;
-            set => AssetRecordCapacity = value;
-        }
-
-        /// <summary>
-        /// 资源过期秒数——桥接到 IdleAssetExpireTime。
-        /// </summary>
-        public override float AssetExpireTime
-        {
-            get => _idleAssetExpireTime;
-            set => _idleAssetExpireTime = value;
-        }
-
-        /// <summary>
-        /// 资源池优先级——保留兼容性。
-        /// </summary>
-        public override int AssetPriority { get; set; } = 0;
-
-        #endregion
-
         #region 资源卸载 [ASSET UNLOAD]
 
         /// <inheritdoc />
+        [Obsolete("Use ResourceAssetLease<T> or Binding instead of LoadAsset/UnloadAsset.")]
         public override void UnloadAsset(object asset)
         {
             TryReleaseLegacyDirectByAsset(asset);

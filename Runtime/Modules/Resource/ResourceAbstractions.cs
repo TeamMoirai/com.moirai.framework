@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace Moirai.Atropos.Resource
+﻿namespace Moirai.Atropos.Resource
 {
     /// <summary>
     /// 资源系统运行模式（框架通用，与具体资源后端无关）。
@@ -79,27 +77,17 @@ namespace Moirai.Atropos.Resource
         /// <summary>
         /// 资源不存在。
         /// </summary>
-        AssetNotExist = 0,
+        NotExist = 0,
 
         /// <summary>
-        /// 资源存在且为原生资源。
+        /// 资源存在但需要从远端更新下载。
         /// </summary>
-        AssetExistRaw = 1,
+        AssetOnline = 1,
 
         /// <summary>
-        /// 资源存在。
+        /// 资源存在且已存储在磁盘上。
         /// </summary>
-        AssetExist = 2,
-
-        /// <summary>
-        /// 资源存在但为目录。
-        /// </summary>
-        AssetExistDirectory = 3,
-
-        /// <summary>
-        /// 定位地址无效。
-        /// </summary>
-        InvalidLocation = 4,
+        AssetOnDisk = 2,
     }
 
     /// <summary>
@@ -261,8 +249,6 @@ namespace Moirai.Atropos.Resource
         /// </summary>
         public string PackageName;
 
-        private string _packageVersion;
-
         /// <summary>
         /// 包版本号。
         /// </summary>
@@ -270,11 +256,7 @@ namespace Moirai.Atropos.Resource
         /// 异步后端在操作完成前无法得知版本号——默认实现保存调用时的快照值；
         /// 后端应派生并覆写为实时透读底层操作（推荐），避免调用方在操作完成后仍取到创建期的过期空值。
         /// </remarks>
-        public virtual string PackageVersion
-        {
-            get => _packageVersion;
-            set => _packageVersion = value;
-        }
+        public virtual string PackageVersion { get; set; }
 
         /// <summary>
         /// 请求操作。
@@ -296,37 +278,5 @@ namespace Moirai.Atropos.Resource
         /// 清理的文件数量。
         /// </summary>
         public int ClearedCount;
-    }
-
-    /// <summary>
-    /// 资源加载回调集合（框架通用，替代各资源系统的回调结构）。
-    /// </summary>
-    public sealed class ResourceLoadCallbacks
-    {
-        /// <summary>
-        /// 加载成功回调（location, asset, duration, userData）。
-        /// </summary>
-        public Action<string, UnityEngine.Object, float, object> LoadAssetSuccessCallback;
-
-        /// <summary>
-        /// 加载失败回调（location, errorMessage, userData）。
-        /// </summary>
-        public Action<string, string, object> LoadAssetFailureCallback;
-
-        /// <summary>
-        /// 加载进度回调（location, progress, userData）。
-        /// </summary>
-        public Action<string, float, object> LoadAssetUpdateCallback;
-
-        /// <summary>
-        /// 创建资源加载回调集合。
-        /// </summary>
-        /// <param name="loadAssetSuccessCallback">加载成功回调。</param>
-        /// <param name="loadAssetFailureCallback">加载失败回调。</param>
-        public ResourceLoadCallbacks(Action<string, UnityEngine.Object, float, object> loadAssetSuccessCallback, Action<string, string, object> loadAssetFailureCallback)
-        {
-            LoadAssetSuccessCallback = loadAssetSuccessCallback;
-            LoadAssetFailureCallback = loadAssetFailureCallback;
-        }
     }
 }
