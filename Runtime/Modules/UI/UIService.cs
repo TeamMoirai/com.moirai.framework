@@ -58,10 +58,12 @@ namespace Moirai.Atropos.UI
 
         /// <summary>
         /// 从 <see cref="UIServiceSettings"/> 创建默认 UI 处理器。
+        /// <para>首行先确保服务已注册（<c>GameServices.EnsureRegistered</c>，幂等）——外观首次访问即完成世界注册。</para>
         /// </summary>
         /// <returns>默认 UI 处理器实例。</returns>
         private static UIServiceHandler CreateDefaultHandler()
         {
+            GameServices.EnsureRegistered<UIService>();
             return UIServiceSettings.UIServiceHandler;
         }
 

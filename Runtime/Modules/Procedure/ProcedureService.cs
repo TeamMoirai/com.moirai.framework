@@ -14,8 +14,8 @@ namespace Moirai.Atropos.Procedure
     /// <para>Handler 属性由 <c>HandlerHostGenerator</c> 源生成器自动生成（线程安全懒加载）。</para>
     /// </summary>
     /// <remarks>
-    /// 组合根仅显式注册本服务——启动链所需的基础服务在此声明为依赖，
-    /// 由 <see cref="GameServices.RegisterService{T}"/> 的递归依赖预注册拉起
+    /// 组合根手动按依赖链序注册本服务及全部链上服务（UpdateDriver/Resource/Timer/UI/Localization），
+    /// <see cref="GameServices.RegisterService{T}"/> 在注册期按本类 <c>[ServiceDependency]</c> 声明校验依赖就绪
     /// （UI/Timer→Resource、Audio/Scene/ObjectPool 亦传递依赖 Resource）。
     /// </remarks>
     [ServiceDependency(typeof(UpdateDriverService), typeof(ResourceService), typeof(UIService),
@@ -29,10 +29,14 @@ namespace Moirai.Atropos.Procedure
 
         /// <summary>
         /// 创建默认流程处理器。
+        /// <para>首行先确保服务已注册（<c>GameServices.EnsureRegistered</c>，幂等）——外观首次访问即完成世界注册；
+        /// 重入路径下 <c>s_Handler</c> 已就绪时直接返回，避免重复实例化。</para>
         /// </summary>
         /// <returns>默认流程处理器实例。</returns>
         private static ProcedureServiceHandler CreateDefaultHandler()
         {
+            GameServices.EnsureRegistered<ProcedureService>();
+            if (s_Handler != null) return s_Handler;
             return new DefaultProcedureHandler();
         }
 

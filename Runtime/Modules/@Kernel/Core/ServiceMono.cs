@@ -102,7 +102,7 @@ namespace Moirai.Atropos
             }
 
             // 以运行时具体类型为契约注册——基类泛型参数是开放类型，不能作为契约键；
-            // 显式 Type 重载同时让子类的 [ServiceDependency] 依赖链自动预注册
+            // 显式 Type 重载同样按子类的 [ServiceDependency] 声明校验依赖（须先行注册）
             GameServices.RegisterService(kind, GetType(), this);
             _registeredToScope = true;
         }

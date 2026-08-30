@@ -25,10 +25,12 @@ namespace Moirai.Atropos.UpdateDriver
 
         /// <summary>
         /// 从 <see cref="UpdateDriverServiceSettings"/> 创建默认更新驱动处理器。
+        /// <para>首行先确保服务已注册（<c>GameServices.EnsureRegistered</c>，幂等）——外观首次访问即完成世界注册。</para>
         /// </summary>
         /// <returns>默认更新驱动处理器实例。</returns>
         private static UpdateDriverServiceHandler CreateDefaultHandler()
         {
+            GameServices.EnsureRegistered<UpdateDriverService>();
             return UpdateDriverServiceSettings.UpdateDriverServiceHandler;
         }
 

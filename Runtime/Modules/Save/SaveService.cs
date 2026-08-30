@@ -15,10 +15,12 @@ namespace Moirai.Atropos.Save
 
         /// <summary>
         /// 从 <see cref="SaveServiceSettings"/> 创建默认存档处理器。
+        /// <para>首行先确保服务已注册（<c>GameServices.EnsureRegistered</c>，幂等）——外观首次访问即完成世界注册。</para>
         /// </summary>
         /// <returns>默认存档处理器实例。</returns>
         private static SaveServiceHandler CreateDefaultHandler()
         {
+            GameServices.EnsureRegistered<SaveService>();
             return SaveServiceSettings.SaveServiceHandler;
         }
 

@@ -257,8 +257,9 @@ namespace Moirai.Atropos
 
         /// <summary>
         /// 注册服务到指定作用域（统一入口）。
-        /// <para>注册前读取实现类型的 <see cref="ServiceDependencyAttribute"/> 声明：依赖未注册时优先递归注册依赖，
-        /// 全部依赖就绪后再注册当前服务（立即驱动 <c>OnInit</c>）。</para>
+        /// <para>注册前校验实现类型的 <see cref="ServiceDependencyAttribute"/> 声明：
+        /// 全部依赖必须已注册（服务实例仅由手动注册创建，框架不隐式实例化），
+        /// 存在未注册依赖时抛 <see cref="GameException"/>——注册序即依赖链序。</para>
         /// <para>同实例重复注册幂等——直接跳过并返回既有实例；以<b>不同实例</b>抢占已占用契约时按
         /// <see cref="DuplicateContractPolicy"/> 处置（默认：开发期告警并保留既有实例，发布期静默）；
         /// 循环依赖注册期即抛 <see cref="GameException"/>。</para>
@@ -276,7 +277,7 @@ namespace Moirai.Atropos
             EDeferMode deferMode = EDeferMode.Defer) where T : class, IService
         {
             EnsureMainThread();
-            RegisterWithDependencies(scope, typeof(T), typeof(T), () => service, deferMode, service);
+            RegisterWithDependencies(scope, typeof(T), typeof(T), service, deferMode);
             return (T)s_Registered[scope][typeof(T)];
         }
 
@@ -284,7 +285,7 @@ namespace Moirai.Atropos
         /// 以显式契约类型注册服务实例（运行时 Type 版本）。
         /// <para>用于跨作用域遮蔽同接口、以接口为契约注册等泛型推断不便的场景；
         /// 同一实例可依次以多个契约注册（多契约绑定）——首个调用创建条目，后续调用仅附加契约句柄。</para>
-        /// <para>依赖声明始终从 <c>service.GetType()</c> 实现类型读取（契约是接口时依赖仍能自动预注册）。</para>
+        /// <para>依赖声明始终从 <c>service.GetType()</c> 实现类型读取（契约是接口时依赖校验同样生效）。</para>
         /// </summary>
         /// <param name="scope">目标作用域。</param>
         /// <param name="contractType">契约类型（注册键与解析键）。</param>
@@ -300,44 +301,63 @@ namespace Moirai.Atropos
             EnsureMainThread();
             if (contractType == null) throw new ArgumentNullException(nameof(contractType));
             if (service == null) throw new ArgumentNullException(nameof(service));
-            RegisterWithDependencies(scope, contractType, service.GetType(), () => service, deferMode, service);
+            RegisterWithDependencies(scope, contractType, service.GetType(), service, deferMode);
             return s_Registered[scope][contractType];
         }
 
         /// <summary>
-        /// 递归注册：依赖预注册 → 注册当前服务。
-        /// <para>①契约已注册跳过（嵌套依赖重复注册免疫；显式传入的不同实例按
-        /// <see cref="DuplicateContractPolicy"/> 处置）②栈内检测循环③按声明序递归注册依赖④注册并初始化自身；
+        /// 确保服务已注册到指定作用域——未注册时创建默认实例并注册（幂等）。
+        /// <para>HandlerHost 外观懒加载路径（<c>CreateDefaultHandler</c>）调用：
+        /// 首次经外观访问服务时自动完成世界注册，使轮询驱动、服务查找与关闭链路即刻生效。</para>
+        /// <para>注册链路进行中（<c>s_InFlight</c> 命中，如 OnInit 触发的重入）时直接跳过——
+        /// 外层注册完成后条件即满足。</para>
+        /// <para>不走依赖校验：经此路径注册的服务不校验 <see cref="ServiceDependencyAttribute"/> 声明，
+        /// 各依赖由其自身外观的懒加载路径按需补齐。</para>
+        /// </summary>
+        /// <typeparam name="T">服务具体类型（契约即类型本身，须有无参构造函数）。</typeparam>
+        /// <param name="scope">目标作用域。</param>
+        internal static void EnsureRegistered<T>(EServiceScopeKind scope = EServiceScopeKind.App)
+            where T : class, IService, new()
+        {
+            var registry = s_Registered[scope];
+            if (registry.ContainsKey(typeof(T))) return;
+            if (s_InFlight.Contains(typeof(T))) return;
+
+            RegisterService<T>(scope, new T());
+        }
+
+        /// <summary>
+        /// 注册服务：依赖校验 → 注册当前实例。
+        /// <para>①契约已注册跳过（重复注册幂等，不同实例按 <see cref="DuplicateContractPolicy"/> 处置）
+        /// ②栈内检测循环/重入③校验 <c>[ServiceDependency]</c> 声明的依赖均已注册
+        /// （服务实例仅由手动注册创建，框架不隐式实例化）④注册并初始化自身；
         /// 同一实例已在作用域中以其他契约注册时，仅附加新契约绑定（不重复初始化/关闭）。</para>
         /// </summary>
         /// <param name="scope">目标作用域。</param>
         /// <param name="contractType">契约类型（注册表与容器的键）。</param>
         /// <param name="implType">实现类型（<see cref="ServiceDependencyAttribute"/> 读取来源与循环检测键）。</param>
-        /// <param name="factory">实例工厂（依赖就绪后调用）。</param>
+        /// <param name="instance">要注册的服务实例。</param>
         /// <param name="deferMode">迭代中调用的延迟策略。</param>
-        /// <param name="explicitInstance">
-        /// 调用方显式传入的实例；用于区分"同实例幂等"与"不同实例抢占契约"。依赖链递归路径传 null（去重始终静默）。
-        /// </param>
         private static void RegisterWithDependencies(
             EServiceScopeKind scope,
             Type contractType,
             Type implType,
-            Func<IService> factory,
-            EDeferMode deferMode,
-            IService explicitInstance = null)
+            IService instance,
+            EDeferMode deferMode)
         {
             var registry = s_Registered[scope];
 
-            // ① 去重：嵌套依赖链中已注册的直接返回。
-            // 显式传入不同实例 → 按策略处置（Warn/Throw 可见，Skip 静默）；同实例与依赖链路径保持静默幂等
+            // ① 去重：契约已注册时按实例比对处置——
+            // 不同实例抢占 → 策略可见（Warn/Throw），同实例 → 静默幂等
             if (registry.TryGetValue(contractType, out IService existingService))
             {
-                if (explicitInstance != null && !ReferenceEquals(existingService, explicitInstance))
+                if (!ReferenceEquals(existingService, instance))
                     ApplyDuplicateContractPolicy(scope, contractType, existingService);
                 return;
             }
 
-            // ② 循环依赖检测：当前实现类型已在注册栈中即构成环
+            // ② 循环依赖/重入检测：当前实现类型已在注册栈中即构成环
+            // （含 OnInit 内经外观懒加载路径触发的 EnsureRegistered 重入）
             if (s_InFlight.Contains(implType))
             {
                 throw new GameException(StringUtility.Format(
@@ -348,20 +368,20 @@ namespace Moirai.Atropos
             s_InFlight.Push(implType);
             try
             {
-                // ③ 按声明序递归预注册依赖（依赖实例由框架工厂表创建）
+                // ③ 校验依赖：服务实例仅由手动注册创建（默认工厂表已移除，框架不隐式实例化），
+                //    [ServiceDependency] 声明的依赖必须先行注册——注册序即依赖链序
                 Type[] dependencies = GetDeclaredDependencies(implType);
                 for (int i = 0; i < dependencies.Length; i++)
                 {
-                    Type depType = dependencies[i];
-                    if (!registry.ContainsKey(depType))
+                    if (!registry.ContainsKey(dependencies[i]))
                     {
-                        // 递归注册依赖——工厂延迟调用，循环检测在递归入口的 s_InFlight 检查中触发
-                        RegisterWithDependencies(scope, depType, depType, () => CreateDefaultService(depType), deferMode);
+                        throw new GameException(StringUtility.Format(
+                            "Dependency '{0}' required by '{1}' is not registered in {2} scope. Services are built solely by manual registration and [ServiceDependency] declarations; register '{0}' before '{1}'.",
+                            dependencies[i].FullName, implType.FullName, scope));
                     }
                 }
 
-                // ④ 依赖就绪，创建实例并注册（立即 OnInit + 加入轮询列表）
-                IService instance = factory();
+                // ④ 依赖就绪，注册并初始化（立即 OnInit + 加入轮询列表）
                 s_World ??= new ServiceWorld();
                 ServiceScope targetScope = s_World.EnsureScope(scope);
 

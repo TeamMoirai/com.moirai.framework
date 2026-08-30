@@ -103,7 +103,6 @@ namespace GameTool
 
         private EDuplicateContractPolicy _originalPolicy;
         private int _originalTripThreshold;
-        private HashSet<Type> _factoryBaseline;
 
         // --- 生命周期 ---
 
@@ -112,9 +111,6 @@ namespace GameTool
         {
             s_OrderLog.Clear();
             GameServices.Shutdown();
-            // 关闭 Domain Reload 的环境下静态工厂表跨域存活——快照基线，
-            // TearDown 移除本用例贡献的条目，保证套件可重复运行
-            _factoryBaseline = new HashSet<Type>(GameServices.s_DefaultFactories.Keys);
             _originalPolicy = GameServices.DuplicateContractPolicy;
             _originalTripThreshold = ServiceScope.s_TickFailureTripThreshold;
         }
@@ -124,21 +120,6 @@ namespace GameTool
         {
             ServiceScope.s_TickFailureTripThreshold = _originalTripThreshold;
             GameServices.DuplicateContractPolicy = _originalPolicy;
-
-            // 移除本用例注册的工厂（先收集后删除——边枚举边改字典会抛异常）
-            List<Type> stale = null;
-            foreach (var key in GameServices.s_DefaultFactories.Keys)
-            {
-                if (_factoryBaseline.Contains(key)) continue;
-                stale ??= new List<Type>();
-                stale.Add(key);
-            }
-
-            if (stale != null)
-            {
-                for (int i = 0; i < stale.Count; i++)
-                    GameServices.s_DefaultFactories.Remove(stale[i]);
-            }
 
             GameServices.Shutdown();
         }
@@ -232,7 +213,7 @@ namespace GameTool
         [Test]
         public void RegisterService_DependencyRegisteredFirst_StillWorks()
         {
-            // 先注册依赖，再注册依赖方——顺序无关
+            // 依赖先于依赖方注册——[ServiceDependency] 声明的依赖校验通过
             GameServices.RegisterService(EServiceScopeKind.App, new DependeeService());
             GameServices.RegisterService(EServiceScopeKind.App, new DependentService());
 
@@ -269,6 +250,7 @@ namespace GameTool
         [Test]
         public void RegisterService_CircularDependency_Throws()
         {
+            // 环上任一服务的依赖都未注册——缺失依赖校验在注册期即 fail-fast（环无法完成注册）
             Assert.Throws<GameException>(() => GameServices.RegisterService(EServiceScopeKind.App, new CycleServiceA()));
         }
 
@@ -811,16 +793,15 @@ namespace GameTool
         private sealed class InterfaceContractDependent : TestServiceBase, IBetaService { }
 
         [Test]
-        public void ExplicitContract_InterfaceContract_AutoCreatesDependenciesViaImplTypeAndFactory()
+        public void ExplicitContract_InterfaceContract_StillValidatesDependenciesFromImplType()
         {
-            // 依赖未显式注册、仅有贡献的默认工厂——若依赖读取自接口契约（错误行为），
-            // 工厂不会被触发、解析失败；从实现类型读取（正确行为）则依赖自动装配
-            GameServices.RegisterDefaultFactory(typeof(AnotherFactoryService), static () => new AnotherFactoryService());
-
+            // 依赖已显式注册——以接口契约注册依赖方时，依赖校验仍从实现类型读取声明
+            // （若错误地从接口契约读取，声明将丢失且校验被跳过）
+            GameServices.RegisterService(EServiceScopeKind.App, new AnotherFactoryService());
             GameServices.RegisterService(EServiceScopeKind.App, typeof(IBetaService), new InterfaceContractDependent());
 
-            var dep = GameServices.GetRequiredService<AnotherFactoryService>();
-            Assert.AreEqual(1, dep.InitCount, "接口契约注册也应从实现类型读取依赖并经工厂自动装配");
+            Assert.AreEqual(1, GameServices.GetRequiredService<AnotherFactoryService>().InitCount,
+                "接口契约注册也应从实现类型读取依赖声明");
         }
 
         // ═══════════════════════════════════════════════════════
@@ -869,7 +850,7 @@ namespace GameTool
         }
 
         // ═══════════════════════════════════════════════════════
-        // 默认工厂扩展点测试 [DEFAULT FACTORY EXTENSION TESTS]
+        // 手动注册与懒加载自动注册测试 [MANUAL & LAZY REGISTRATION TESTS]
         // ═══════════════════════════════════════════════════════
 
         private sealed class FactoryDepService : TestServiceBase, IAlphaService { }
@@ -878,25 +859,55 @@ namespace GameTool
         private sealed class FactoryDependentService : TestServiceBase, IBetaService { }
 
         [Test]
-        public void RegisterDefaultFactory_ContributesFactoryForDependencyChain()
+        public void RegisterService_MissingDependency_Throws()
         {
-            GameServices.RegisterDefaultFactory(typeof(FactoryDepService), static () => new FactoryDepService());
-
-            GameServices.RegisterService(EServiceScopeKind.App, new FactoryDependentService());
-
-            var dep = GameServices.GetRequiredService<FactoryDepService>();
-            Assert.AreEqual(1, dep.InitCount, "依赖应由贡献的默认工厂创建并初始化");
+            // 服务实例仅由手动注册创建（默认工厂表已移除）——依赖未注册时注册依赖方立即失败
+            Assert.Throws<GameException>(() =>
+                GameServices.RegisterService(EServiceScopeKind.App, new FactoryDependentService()));
+            Assert.IsFalse(GameServices.HasApp, "失败的注册不应留下半初始化状态");
         }
 
-        private sealed class ThirdFactoryService : TestServiceBase, IDepTargetService { }
+        [Test]
+        public void EnsureRegistered_CreatesAndRegistersWhenAbsent()
+        {
+            GameServices.EnsureRegistered<AlphaService>();
+
+            var resolved = GameServices.GetRequiredService<AlphaService>();
+            Assert.IsInstanceOf<AlphaService>(resolved);
+            Assert.AreEqual(1, ((AlphaService)resolved).InitCount, "自动注册应驱动 OnInit");
+            Assert.AreEqual(EServiceState.Initialized, ((AlphaService)resolved).State);
+        }
 
         [Test]
-        public void RegisterDefaultFactory_DuplicateType_Throws()
+        public void EnsureRegistered_AlreadyRegistered_Idempotent()
         {
-            GameServices.RegisterDefaultFactory(typeof(ThirdFactoryService), static () => new ThirdFactoryService());
+            var instance = new AlphaService();
+            Register(instance);
 
-            Assert.Throws<GameException>(() =>
-                GameServices.RegisterDefaultFactory(typeof(ThirdFactoryService), static () => new ThirdFactoryService()));
+            GameServices.EnsureRegistered<AlphaService>();
+
+            Assert.AreSame(instance, GameServices.GetRequiredService<AlphaService>(), "已注册时不应替换实例");
+            Assert.AreEqual(1, instance.InitCount, "已注册时不应再次驱动 OnInit");
+        }
+
+        private sealed class SelfEnsureService : TestServiceBase, IAlphaService
+        {
+            public override void OnInit()
+            {
+                base.OnInit();
+                // 注册链路中重入 EnsureRegistered——s_InFlight 守卫应跳过而非递归
+                GameServices.EnsureRegistered<SelfEnsureService>();
+                s_OrderLog.Add("self-ensure");
+            }
+        }
+
+        [Test]
+        public void EnsureRegistered_ReentrantDuringRegistration_Skipped()
+        {
+            GameServices.RegisterService(EServiceScopeKind.App, new SelfEnsureService());
+
+            Assert.IsTrue(s_OrderLog.Contains("self-ensure"), "重入的 EnsureRegistered 应被跳过而非递归");
+            Assert.AreEqual(1, GameServices.GetRequiredService<SelfEnsureService>().InitCount);
         }
 
         // ═══════════════════════════════════════════════════════
