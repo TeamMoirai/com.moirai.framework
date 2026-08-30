@@ -8,10 +8,10 @@ namespace Moirai.Atropos.Resource
     {
         [InfoBox("默认使用内置资源后端。可替换为自定义资源后端。", InfoMessageType.None)]
         [ProviderDropdown]
-        [SerializeReference] private ResourceServiceHandler m_ResourceServiceHandler = new YooAssetHandler();
+        [SerializeReference] private ResourceServiceHandlerConfig m_HandlerConfig = new YooAssetHandlerConfig();
 
-        /// <summary>资源处理器（后端）。</summary>
-        public static ResourceServiceHandler ResourceServiceHandler => Instance.m_ResourceServiceHandler;
+        /// <summary>资源后端配置（纯数据，经 <see cref="ResourceServiceHandlerConfig.CreateHandler"/> 创建处理器实例）。</summary>
+        public static ResourceServiceHandlerConfig ResourceServiceHandlerConfig => Instance.m_HandlerConfig;
 
         #region GC 与卸载 [GC AND UNLOAD]
 

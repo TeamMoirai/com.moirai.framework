@@ -11,9 +11,9 @@ namespace Moirai.Atropos.Audio
     {
         [InfoBox("默认使用内置音频后端。可替换为自定义音频后端。", InfoMessageType.None)]
         [ProviderDropdown]
-        [SerializeReference] private AudioServiceHandler m_AudioServiceHandler = new UnityAudioHandler();
-        /// <summary>音频处理器（后端）。</summary>
-        public static AudioServiceHandler AudioServiceHandler => Instance.m_AudioServiceHandler;
+        [SerializeReference] private AudioServiceHandlerConfig m_HandlerConfig = new UnityAudioHandlerConfig();
+        /// <summary>音频后端配置（纯数据，经 <see cref="AudioServiceHandlerConfig.CreateHandler"/> 创建处理器实例）。</summary>
+        public static AudioServiceHandlerConfig AudioServiceHandlerConfig => Instance.m_HandlerConfig;
 
         [Tooltip("如果不配置 AudioGroupConfigs，则会从 AudioMixer 读取音轨配置")]
         [SerializeField] private AudioMixer m_AudioMixer;
@@ -48,5 +48,6 @@ namespace Moirai.Atropos.Audio
         }
 
 #endif
+
     }
 }

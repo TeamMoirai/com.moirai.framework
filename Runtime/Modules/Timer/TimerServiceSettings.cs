@@ -8,8 +8,8 @@ namespace Moirai.Atropos.Timer
     {
         [InfoBox("默认使用四级时间轮实现。可替换为自定义计时器后端。", InfoMessageType.None)]
         [ProviderDropdown]
-        [SerializeReference] private TimerServiceHandler m_TimerServiceHandler = new DefaultTimerHandler();
+        [SerializeReference] private TimerServiceHandlerConfig m_HandlerConfig = new DefaultTimerHandlerConfig();
 
-        public static TimerServiceHandler TimerServiceHandler => Instance.m_TimerServiceHandler;
+        public static TimerServiceHandlerConfig TimerServiceHandlerConfig => Instance.m_HandlerConfig;
     }
 }

@@ -1,14 +1,28 @@
-﻿using System;
+using System;
 using Cysharp.Threading.Tasks;
 using UnityEngine.SceneManagement;
 
 namespace Moirai.Atropos.Scene
 {
     /// <summary>
-    /// 场景处理器。支持主场景切换、附加场景加载/卸载、进度回调和挂起加载。
-    /// <para>由 <see cref="SceneServiceSettings"/> 序列化配置，可替换为自定义场景加载后端。</para>
+    /// 场景服务配置抽象基类（纯数据，无行为无生命周期）。
+    /// <para>以 <see cref="UnityEngine.SerializeReference"/> 存于 <see cref="SceneServiceSettings"/> 资产；
+    /// 经 <see cref="CreateHandler"/> 工厂创建绑定的后端处理器实例，处理器不再被序列化。</para>
     /// </summary>
     [Serializable]
+    public abstract class SceneServiceHandlerConfig
+    {
+        /// <summary>
+        /// 创建配置绑定的场景后端处理器实例。
+        /// </summary>
+        /// <returns>新的场景处理器实例。</returns>
+        public abstract SceneServiceHandler CreateHandler();
+    }
+
+    /// <summary>
+    /// 场景处理器。支持主场景切换、附加场景加载/卸载、进度回调和挂起加载。
+    /// <para>配置数据由 <see cref="SceneServiceHandlerConfig"/> 系列纯数据类承载——处理器实例本身不再被序列化，由 <see cref="SceneServiceHandlerConfig.CreateHandler"/> 工厂在运行期创建。</para>
+    /// </summary>
     public abstract class SceneServiceHandler : FrameworkHandler
     {
         /// <summary>

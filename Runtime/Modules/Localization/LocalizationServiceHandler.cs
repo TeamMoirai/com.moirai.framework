@@ -1,4 +1,5 @@
-﻿using System;
+using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -6,17 +7,33 @@ using UnityEngine;
 namespace Moirai.Atropos.Localization
 {
     /// <summary>
-    /// 本地化处理器抽象基类（策略模式抽象策略）。
-    /// <para>承载语言管理、语言切换、文本查询与本地化器注册等运行时逻辑。</para>
+    /// 本地化服务配置抽象基类（纯数据，无行为无生命周期）。
+    /// <para>以 <see cref="UnityEngine.SerializeReference"/> 存于 <see cref="LocalizationServiceSettings"/> 资产；
+    /// 经 <see cref="CreateHandler"/> 工厂创建绑定的数据源处理器实例，处理器不再被序列化。</para>
     /// </summary>
     [Serializable]
+    public abstract class LocalizationServiceHandlerConfig
+    {
+        /// <summary>
+        /// 创建配置绑定的本地化数据源处理器实例。
+        /// </summary>
+        /// <returns>新的本地化处理器实例。</returns>
+        public abstract LocalizationServiceHandler CreateHandler();
+    }
+
+    /// <summary>
+    /// 本地化处理器抽象基类（策略模式抽象策略）。
+    /// <para>公共契约由本类承载（语言管理等具体实现），数据源钩子 <c>LoadLocalizedData</c> 为 protected internal；配置数据由 <see cref="LocalizationServiceHandlerConfig"/> 系列纯数据类承载，由 <see cref="LocalizationServiceHandlerConfig.CreateHandler"/> 工厂在运行期创建。</para>
+    /// <para>处理器实例为普通运行时类，不参与序列化（由 <see cref="LocalizationServiceHandlerConfig.CreateHandler"/> 工厂创建），
+    /// 运行时字段无快照污染风险。</para>
+    /// </summary>
     public abstract class LocalizationServiceHandler : FrameworkHandler
     {
-        [NonSerialized] private Language _currentLanguage;
+        private Language _currentLanguage;
         // 当前本地化语言设置来自
-        [NonSerialized] private string _settingSource;
+        private string _settingSource;
         // 本地化数据是否已加载（懒式初始化标记）
-        [NonSerialized] private bool _dataLoaded;
+        private bool _dataLoaded;
         /// <summary>
         /// 当前使用的本地化语言
         /// </summary>
@@ -28,7 +45,7 @@ namespace Moirai.Atropos.Localization
         public int CurrentLanguageIndex => GetLanguageIndex(_currentLanguage);
 
         // 本地化器列表
-        [NonSerialized] private readonly List<LocalizerBase> _localizers = new List<LocalizerBase>();
+        private readonly List<LocalizerBase> _localizers = new List<LocalizerBase>();
 
         /// <summary>已加载的语言列表</summary>
         protected List<Language> LanguageList { get; private set; } = new List<Language>();

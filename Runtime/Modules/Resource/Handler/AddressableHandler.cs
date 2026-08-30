@@ -1,4 +1,4 @@
-﻿#if ADDRESSABLES_INSTALLED
+#if ADDRESSABLES_INSTALLED
 using System;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -12,11 +12,23 @@ using Object = UnityEngine.Object;
 namespace Moirai.Atropos.Resource
 {
     /// <summary>
-    /// 基于 Unity Addressables 的资源处理器实现（实验性）。
-    /// <para><see cref="ResourceServiceHandler"/> 的 Addressables 后端实现。</para>
-    /// <para>仅信息查询与真实缓存维护为可用行为；所有分发资源句柄或伪造成功语义的成员统一抛出 <see cref="GameException"/> fail-fast，禁止静默 no-op 掩盖误配置。</para>
+    /// Addressables 后端配置（实验性，纯数据）。
     /// </summary>
     [Serializable]
+    public sealed class AddressablesHandlerConfig : ResourceServiceHandlerConfig
+    {
+        /// <inheritdoc />
+        public override ResourceServiceHandler CreateHandler()
+        {
+            return new AddressableHandler();
+        }
+    }
+
+    /// <summary>
+    /// 基于 Unity Addressables 的资源处理器实现（实验性）。
+    /// <para><see cref="ResourceServiceHandler"/> 的 Addressables 后端实现，由 <see cref="AddressablesHandlerConfig"/> 工厂创建。</para>
+    /// <para>仅信息查询与真实缓存维护为可用行为；所有分发资源句柄或伪造成功语义的成员统一抛出 <see cref="GameException"/> fail-fast，禁止静默 no-op 掩盖误配置。</para>
+    /// </summary>
     public sealed class AddressableHandler : ResourceServiceHandler
     {
         #region 基础属性 [BASE PROPERTIES]
@@ -163,12 +175,6 @@ namespace Moirai.Atropos.Resource
         #endregion
 
         #region 资源回收 [ASSET RECYCLING]
-
-        /// <inheritdoc />
-        public override void OnLowMemory()
-        {
-            LogUtility.Warning("Low memory reported...");
-        }
 
         /// <inheritdoc />
         public override void SetForceUnloadUnusedAssetsAction(Action<bool> action)

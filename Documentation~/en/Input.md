@@ -19,7 +19,7 @@ The input service (`Moirai.Atropos.Input`) abstracts three input backends throug
 | Class/Interface | Description |
 |---------|------|
 | `Moirai.Atropos.Input.InputService` | Input service static facade (`[HandlerHost]`); all polling APIs are static methods forwarding through the `Handler` property (fail-fast: lazily initialized when not ready, throws if the default factory is missing, never silently degrades) |
-| `Moirai.Atropos.Input.InputServiceHandler` | Input handler abstract base class (`[Serializable]`), defines all input query methods. Configured via `[SerializeReference]` in Input Settings |
+| `Moirai.Atropos.Input.InputServiceHandler` | Input handler abstract base class (plain runtime class, never serialized), defines all input query methods. Created by `InputServiceConfig` via factory |
 | `Moirai.Atropos.Input.UnityInputSystemHandler` | Handler based on Unity Input System (macro `ENABLE_INPUT_SYSTEM`) |
 | `Moirai.Atropos.Input.UnityInputManagerHandler` | Handler based on legacy Input Manager (macro `ENABLE_LEGACY_INPUT_MANAGER`) |
 | `Moirai.Atropos.Input.UIMobileInputHandler` | Mobile handler, reads state from `InputButton` / `InputAxes` components in the scene |
@@ -134,7 +134,7 @@ When a GameObject with this component is enabled, it locks `LockPlayerController
 
 ## Notes
 
-- The processor type is configured in the framework settings ("Input Settings") via `[SerializeReference]` and loaded lazily via `InputServiceSettings.InputServiceHandler`; switching processors requires a restart to take effect
+- The backend config is selected in the framework settings ("Input Settings") via `[SerializeReference]` (`InputServiceConfig` subclasses, e.g. `UnityInputSystemConfig`), and lazily created via `InputServiceSettings.InputServiceConfig.CreateHandler()`; switching processors requires a restart to take effect
 - `UnityInputSystemHandler` / `UnityInputManagerHandler` are controlled by the `ENABLE_INPUT_SYSTEM` / `ENABLE_LEGACY_INPUT_MANAGER` macros respectively
 - When a UI modal window is present, `LockPlayerController` is always true (driven by `UIServiceEvent`); this is expected behavior
 - `GetButtonDown` / `GetButtonUp` in `UIMobileInputHandler` are not yet implemented (throw `NotImplementedException`); only persistent bool state queries are available

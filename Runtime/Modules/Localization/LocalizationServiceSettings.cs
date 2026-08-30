@@ -8,16 +8,16 @@ namespace Moirai.Atropos.Localization
     {
         [InfoBox("默认使用配置表数据源。可替换为自定义数据源（如 JSON 文件、远程词库等）。", InfoMessageType.None)]
         [ProviderDropdown]
-        [SerializeReference] private LocalizationServiceHandler m_LocalizationServiceHandler = new ConfigTableLocalizationHandler();
+        [SerializeReference] private LocalizationServiceHandlerConfig m_HandlerConfig = new ConfigTableLocalizationHandlerConfig();
 
         /// <summary>
-        /// 本地化处理器实例（由 Inspector 序列化配置，可替换数据源策略）。
+        /// 本地化后端配置（纯数据，经 <see cref="LocalizationServiceHandlerConfig.CreateHandler"/> 创建处理器实例，可替换数据源策略）。
         /// </summary>
-        public static LocalizationServiceHandler LocalizationServiceHandler => Instance.m_LocalizationServiceHandler;
+        public static LocalizationServiceHandlerConfig LocalizationServiceHandlerConfig => Instance.m_HandlerConfig;
 
         private void Reset()
         {
-            m_LocalizationServiceHandler = new ConfigTableLocalizationHandler();
+            m_HandlerConfig = new ConfigTableLocalizationHandlerConfig();
         }
     }
 }

@@ -1,4 +1,5 @@
-﻿using System;
+using System;
+using System;
 using System.Runtime.CompilerServices;
 using Unity.IL2CPP.CompilerServices;
 using UnityEngine;
@@ -6,19 +7,59 @@ using UnityEngine;
 namespace Moirai.Atropos.Timer
 {
     /// <summary>
-    /// 计时器处理器。四级时间轮算法的默认实现。<br/>
-    /// 无全量扫描 · 精准承载技能 CD / 心跳 / 延时任务<br/>
-    /// 可在 <see cref="TimerServiceSettings"/> 中替换为自定义实现。
+    /// 默认计时器后端配置（四级时间轮）。
     /// </summary>
     [Serializable]
+    public sealed class DefaultTimerHandlerConfig : TimerServiceHandlerConfig
+    {
+        [Min(MIN_INITIAL_CAPACITY)]
+        [SerializeField] private int m_InitialCapacity = 1024;
+        private const int MIN_INITIAL_CAPACITY = 256;
+
+        /// <summary>
+        /// 初始槽位容量（最小 256，向上取整到页对齐）。
+        /// </summary>
+        public int InitialCapacity
+        {
+            get => m_InitialCapacity;
+            set => m_InitialCapacity = value;
+        }
+
+        /// <inheritdoc />
+        public override TimerServiceHandler CreateHandler()
+        {
+            return new DefaultTimerHandler(this);
+        }
+    }
+
+    /// <summary>
+    /// 计时器处理器。四级时间轮算法的默认实现。<br/>
+    /// 无全量扫描 · 精准承载技能 CD / 心跳 / 延时任务<br/>
+    /// 由 <see cref="DefaultTimerHandlerConfig"/> 工厂创建（普通运行时类，不参与序列化——运行时字段无需 [NonSerialized] 标注）。
+    /// </summary>
     [UnityEngine.Scripting.Preserve]
     [Il2CppSetOption(Option.NullChecks, false)]
     [Il2CppSetOption(Option.ArrayBoundsChecks, false)]
     internal sealed class DefaultTimerHandler : TimerServiceHandler
     {
-        [Min(MIN_INITIAL_CAPACITY)]
-        [SerializeField] private int m_InitialCapacity = 1024;
-        private const int MIN_INITIAL_CAPACITY = 256;
+        /// <summary>后端配置（组合持有，不参与序列化）。</summary>
+        private readonly DefaultTimerHandlerConfig m_Config;
+
+        /// <summary>
+        /// 以指定配置创建处理器。
+        /// </summary>
+        /// <param name="config">默认计时器配置。</param>
+        public DefaultTimerHandler(DefaultTimerHandlerConfig config)
+        {
+            m_Config = config ?? throw new ArgumentNullException(nameof(config));
+        }
+
+        /// <summary>
+        /// 以默认配置创建处理器（供测试与默认值场景使用）。
+        /// </summary>
+        public DefaultTimerHandler() : this(new DefaultTimerHandlerConfig())
+        {
+        }
 
         private const int PAGE_SHIFT = 8;
         private const int PAGE_SIZE = 1 << PAGE_SHIFT;
@@ -99,23 +140,23 @@ namespace Moirai.Atropos.Timer
             public readonly int[] Values = new int[PAGE_SIZE];
         }
 
-        [NonSerialized] private TimerPage[] _pages;
-        [NonSerialized] private IntPage[] _freeSlotPages;
-        [NonSerialized] private IntPage[] _activeSlotPages;
-        [NonSerialized] private int[] _scaledWheelHeads;
-        [NonSerialized] private int[] _scaledWheelTails;
-        [NonSerialized] private int[] _unscaledWheelHeads;
-        [NonSerialized] private int[] _unscaledWheelTails;
-        [NonSerialized] private int _pageCount;
-        [NonSerialized] private int _slotCapacity;
-        [NonSerialized] private int _freeCount;
-        [NonSerialized] private int _activeCount;
-        [NonSerialized] private int _peakActiveCount;
-        [NonSerialized] private int _scaledQueueCount;
-        [NonSerialized] private int _unscaledQueueCount;
-        [NonSerialized] private long _scaledCurrentTick;
-        [NonSerialized] private long _unscaledCurrentTick;
-        [NonSerialized] private int _executingSlotIndex;
+        private TimerPage[] _pages;
+        private IntPage[] _freeSlotPages;
+        private IntPage[] _activeSlotPages;
+        private int[] _scaledWheelHeads;
+        private int[] _scaledWheelTails;
+        private int[] _unscaledWheelHeads;
+        private int[] _unscaledWheelTails;
+        private int _pageCount;
+        private int _slotCapacity;
+        private int _freeCount;
+        private int _activeCount;
+        private int _peakActiveCount;
+        private int _scaledQueueCount;
+        private int _unscaledQueueCount;
+        private long _scaledCurrentTick;
+        private long _unscaledCurrentTick;
+        private int _executingSlotIndex;
 
         protected override void OnInit()
         {
@@ -137,7 +178,7 @@ namespace Moirai.Atropos.Timer
             _unscaledCurrentTick = TimeToTickFloor(Time.unscaledTimeAsDouble);
             _executingSlotIndex = INVALID_INDEX;
 
-            Prewarm(NormalizeCapacity(m_InitialCapacity));
+            Prewarm(NormalizeCapacity(m_Config.InitialCapacity));
         }
 
         protected override void OnShutdown()

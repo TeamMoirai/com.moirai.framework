@@ -8,9 +8,9 @@ namespace Moirai.Atropos.UI
     {
         [InfoBox("默认使用内置 UI 后端。可替换为自定义 UI 后端。", InfoMessageType.None)]
         [ProviderDropdown]
-        [SerializeReference] private UIServiceHandler m_UIServiceHandler = new UGUIHandler();
+        [SerializeReference] private UIServiceHandlerConfig m_HandlerConfig = new UGUIHandlerConfig();
 
-        /// <summary>UI处理器（后端）。</summary>
-        public static UIServiceHandler UIServiceHandler => Instance.m_UIServiceHandler;
+        /// <summary>UI 后端配置（纯数据，经 <see cref="UIServiceHandlerConfig.CreateHandler"/> 创建处理器实例）。</summary>
+        public static UIServiceHandlerConfig UIServiceHandlerConfig => Instance.m_HandlerConfig;
     }
 }

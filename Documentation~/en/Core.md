@@ -1,4 +1,4 @@
-﻿# Core Service System (@Service)
+# Core Service System (@Service)
 
 > Framework's modular base: a unified service world (`ServiceWorld`) manages construction, lifecycle, polling, and scope of all sub-services, driven by `GameApp` (MonoBehaviour).
 
@@ -9,7 +9,7 @@
 - **Unified service world**: `ServiceWorld` holds a 3-slot fixed array (App/Scene/Gameplay); cross-scope lookup via `ContractBindings` value-type struct achieves O(1) resolution with no parent-chain traversal
 - **Attribute-declared dependencies**: `[ServiceDependency(typeof(DepA), typeof(DepB))]` declares multiple dependencies in a single attribute; validated at compile time by `ServiceDependencyAnalyzer` (MIRAI002/MIRAI003) to ensure types implement `IService`
 - **Recursive pre-registration**: `RegisterWithDependencies` recursively registers dependencies in `[ServiceDependency]` declaration order (dedup via the s_Registered bucket table + cycle detection via the s_InFlight stack fail-fast); dependees are created and initialized before dependents
-- **HandlerHost static facades**: all 12 framework services follow the `[HandlerHost] XxxService : ServiceBase` static facade + serializable `XxxHandler` backend + `XxxSettings` (`[SerializeReference]` + `[ProviderDropdown]`) backend-selection pattern
+- **HandlerHost static facades**: all 12 framework services follow the `[HandlerHost] XxxService : ServiceBase` static facade + + `XxxHandler` backend (plain runtime class, never serialized) + `XxxServiceHandlerConfig` pure-data config (`[SerializeReference]` + `[ProviderDropdown]` stored in Settings; `CreateHandler()` factory creates the handler instance)
 - **Three-level scope** (`EServiceScopeKind.App` / `Scene` / `Gameplay`), cross-scope lookup follows Gameplay > Scene > App priority
 - **Lifecycle capability interfaces implemented on demand**: `IServiceTickable`, `IServiceFixedTickable`, `IServiceLateTickable`, `IServiceGizmoDrawable`, `IAsyncShutdownService` (all inherit `IService`)
 - **`Priority`** controls polling order (higher priority polls first, shuts down later)
@@ -97,10 +97,11 @@ All 12 built-in framework services (UpdateDriver/Resource/Debugger/Audio/ObjectP
 | Layer | Form | Responsibility |
 |------|------|------|
 | `XxxService : ServiceBase` | Static facade, marked with `[HandlerHost(typeof(XxxHandler))]` + `[ServiceDependency(...)]` | All static APIs; `OnInit` triggers handler lazy-init, `Shutdown` clears the handler |
-| `XxxHandler : FrameworkHandler` | Serializable backend class | Carries the core logic; replacing the backend requires no changes to callers |
-| `XxxSettings : FrameworkSettings<XxxSettings>` | ScriptableObject settings | Selects the backend implementation via `[ProviderDropdown]` + `[SerializeReference]` |
+| `XxxHandler : FrameworkHandler` | Backend handler (plain runtime class, never serialized) | Carries the core logic; replacing the backend requires no changes to callers |
+| `XxxServiceHandlerConfig` (abstract + subclasses) | Pure-data config (`[Serializable]`, no behavior) | Held by `XxxSettings` via `[ProviderDropdown]` + `[SerializeReference]`; `CreateHandler()` factory creates the bound handler instance (fresh instance per startup — no snapshot state pollution) |
+| `XxxSettings : FrameworkSettings<XxxSettings>` | ScriptableObject settings | Holds the config and exposes static accessors |
 
-Business code always calls static facades (e.g. `AudioService.Play(...)`, `UIService.ShowUI<T>()`) without holding service instance references. Custom backends: inherit `XxxHandler`, override virtual methods → switch in the provider dropdown of `XxxSettings`.
+Business code always calls static facades (e.g. `AudioService.Play(...)`, `UIService.ShowUI<T>()`) without holding service instance references. Custom backends: inherit `XxxHandler`, override virtual methods → create an `XxxConfig` subclass whose `CreateHandler()` returns the backend → switch in the provider dropdown of `XxxSettings`.
 
 ### Lifecycle State Machine
 

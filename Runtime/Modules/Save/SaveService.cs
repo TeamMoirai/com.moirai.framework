@@ -1,4 +1,4 @@
-﻿using Cysharp.Threading.Tasks;
+using Cysharp.Threading.Tasks;
 
 namespace Moirai.Atropos.Save
 {
@@ -21,7 +21,7 @@ namespace Moirai.Atropos.Save
         private static SaveServiceHandler CreateDefaultHandler()
         {
             GameServices.EnsureRegistered<SaveService>();
-            return SaveServiceSettings.SaveServiceHandler;
+            return SaveServiceSettings.SaveServiceHandlerConfig.CreateHandler();
         }
 
         #endregion

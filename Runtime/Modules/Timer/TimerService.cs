@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Unity.IL2CPP.CompilerServices;
 
 namespace Moirai.Atropos.Timer
@@ -28,14 +28,14 @@ namespace Moirai.Atropos.Timer
         #region 处理器 [HANDLER]
 
         /// <summary>
-        /// 从 <see cref="TimerServiceSettings"/> 创建默认计时器处理器。
+        /// 从 <see cref="TimerServiceSettings"/> 配置创建默认计时器处理器。
         /// <para>首行先确保服务已注册（<c>GameServices.EnsureRegistered</c>，幂等）——外观首次访问即完成世界注册。</para>
         /// </summary>
         /// <returns>默认计时器处理器实例。</returns>
         private static TimerServiceHandler CreateDefaultHandler()
         {
             GameServices.EnsureRegistered<TimerService>();
-            return TimerServiceSettings.TimerServiceHandler;
+            return TimerServiceSettings.TimerServiceHandlerConfig.CreateHandler();
         }
 
         #endregion

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
@@ -17,19 +17,22 @@ namespace Moirai.Atropos.Resource
         #region 处理器 [HANDLER]
 
         /// <summary>
-        /// 从 <see cref="ResourceServiceSettings"/> 创建默认资源处理器。
+        /// 从 <see cref="ResourceServiceSettings"/> 配置创建默认资源处理器。
         /// <para>首行先确保服务已注册（<c>GameServices.EnsureRegistered</c>，幂等）——外观首次访问即完成世界注册。</para>
         /// </summary>
         /// <returns>默认资源处理器实例。</returns>
         private static ResourceServiceHandler CreateDefaultHandler()
         {
             GameServices.EnsureRegistered<ResourceService>();
-            return ResourceServiceSettings.ResourceServiceHandler;
+            return ResourceServiceSettings.ResourceServiceHandlerConfig.CreateHandler();
         }
 
         #endregion
 
         #region 生命周期 [LIFECYCLE]
+
+        /// <inheritdoc />
+        public override int Priority => 4;
 
         /// <summary>
         /// 初始化资源服务。由容器在构建期调用：触发 <see cref="Handler"/> 懒加载、
@@ -38,7 +41,9 @@ namespace Moirai.Atropos.Resource
         public override void OnInit()
         {
             _ = Handler;
+
             DriveInitialize();
+            Application.lowMemory += OnLowMemory;
         }
 
         /// <summary>
@@ -46,13 +51,21 @@ namespace Moirai.Atropos.Resource
         /// </summary>
         public override void OnShutdown()
         {
+            Application.lowMemory -= OnLowMemory;
+
             DriveTeardown();
             s_Handler?.Internal_Shutdown();
             s_Handler = null;
         }
 
-        /// <inheritdoc />
-        public override int Priority => 4;
+        /// <summary>
+        /// 低内存响应转发。
+        /// </summary>
+        private static void OnLowMemory()
+        {
+            LogUtility.Warning("[LowMemory] Unload Unused Assets...");
+            s_Handler?.ForceUnloadUnusedAssets(true);
+        }
 
         #endregion
 
@@ -468,15 +481,10 @@ namespace Moirai.Atropos.Resource
             Handler.GetAssetInfo(location, packageName);
 
         /// <summary>
-        /// 每帧过期处理（由 <see cref="ResourceServiceDriver"/> 驱动）。
+        /// 每帧过期处理。
         /// </summary>
         internal static void ProcessKeepAlive(float time, int processCount) =>
             Handler.ProcessKeepAlive(time, processCount);
-
-        /// <summary>
-        /// 低内存行为。
-        /// </summary>
-        public static void OnLowMemory() => Handler.OnLowMemory();
 
         /// <summary>
         /// 低内存回调保护。

@@ -1,13 +1,27 @@
-﻿using System.IO;
+using System.IO;
+using System;
 using System.Text;
 using Cysharp.Threading.Tasks;
 
 namespace Moirai.Atropos.Save
 {
     /// <summary>
-    /// JSON 格式存档处理器。
+    /// JSON 格式存档后端配置。
     /// </summary>
-    [System.Serializable]
+    [Serializable]
+    public sealed class JsonSaveHandlerConfig : SaveServiceHandlerConfig
+    {
+        /// <inheritdoc />
+        public override SaveServiceHandler CreateHandler()
+        {
+            return new JsonSaveHandler();
+        }
+    }
+
+    /// <summary>
+    /// JSON 格式存档处理器。
+    /// <para>由 <see cref="JsonSaveHandlerConfig"/> 工厂创建（普通运行时类，不参与序列化）。</para>
+    /// </summary>
     public class JsonSaveHandler : SaveServiceHandler
     {
         /// <summary>

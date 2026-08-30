@@ -1,4 +1,5 @@
-﻿using System;
+using System;
+using System;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using UnityEngine;
@@ -6,11 +7,23 @@ using UnityEngine;
 namespace Moirai.Atropos.ObjectPool
 {
     /// <summary>
-    /// 通用对象池默认处理器：分页槽位存储 + 按名复用链 + 引用计数 + 最小堆维护调度。
-    /// <para><see cref="ObjectPoolServiceHandler"/> 的内置实现，池体为内嵌 <see cref="ObjectPool{T}"/>。</para>
-    /// <para>可在 <see cref="ObjectPoolServiceSettings"/> 中替换为自定义实现。</para>
+    /// 默认通用池后端配置（分页槽位 + 按名链 + 最小堆维护调度）。当前无专有数据字段。
     /// </summary>
     [Serializable]
+    public sealed class DefaultObjectPoolHandlerConfig : ObjectPoolServiceHandlerConfig
+    {
+        /// <inheritdoc />
+        public override ObjectPoolServiceHandler CreateHandler()
+        {
+            return new DefaultObjectPoolHandler();
+        }
+    }
+
+    /// <summary>
+    /// 通用对象池默认处理器：分页槽位存储 + 按名复用链 + 引用计数 + 最小堆维护调度。
+    /// <para><see cref="ObjectPoolServiceHandler"/> 的内置实现，池体为内嵌 <see cref="ObjectPool{T}"/>。</para>
+    /// <para>由 <see cref="DefaultObjectPoolHandlerConfig"/> 工厂创建（普通运行时类，不参与序列化——运行时字段无需 [NonSerialized] 标注）。</para>
+    /// </summary>
     [UnityEngine.Scripting.Preserve]
     public sealed class DefaultObjectPoolHandler : ObjectPoolServiceHandler
     {
@@ -26,10 +39,10 @@ namespace Moirai.Atropos.ObjectPool
         #region 字段 [FIELDS]
 
         // struct 哈希表/调度器必须存于可变字段（方法直接改写字段状态），禁止 readonly。
-        [NonSerialized] private PoolMaintenanceScheduler _scheduler;
-        [NonSerialized] private OpenHashMap<ObjectPoolKey> _poolMap;
-        [NonSerialized] private ObjectPoolBase[] _pools;
-        [NonSerialized] private int _poolCount;
+        private PoolMaintenanceScheduler _scheduler;
+        private OpenHashMap<ObjectPoolKey> _poolMap;
+        private ObjectPoolBase[] _pools;
+        private int _poolCount;
 
         #endregion
 

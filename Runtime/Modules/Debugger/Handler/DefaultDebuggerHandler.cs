@@ -1,16 +1,29 @@
-﻿using System;
+using System;
 
 namespace Moirai.Atropos.Debugger
 {
     /// <summary>
-    /// 基于 Unity IMGUI 内置调试器窗口组的默认调试器处理器。
-    /// <para><see cref="DebuggerServiceHandler"/> 的内置实现，管理调试器窗口组的注册、选择与激活。</para>
+    /// 内置调试器窗口组后端配置。当前无专有数据字段。
     /// </summary>
     [Serializable]
+    public sealed class DefaultDebuggerHandlerConfig : DebuggerServiceHandlerConfig
+    {
+        /// <inheritdoc />
+        public override DebuggerServiceHandler CreateHandler()
+        {
+            return new DefaultDebuggerHandler();
+        }
+    }
+
+    /// <summary>
+    /// 基于 Unity IMGUI 内置调试器窗口组的默认调试器处理器。
+    /// <para><see cref="DebuggerServiceHandler"/> 的内置实现，管理调试器窗口组的注册、选择与激活。</para>
+    /// <para>由 <see cref="DefaultDebuggerHandlerConfig"/> 工厂创建（普通运行时类，不参与序列化——运行时字段无需 [NonSerialized] 标注）。</para>
+    /// </summary>
     public sealed class DefaultDebuggerHandler : DebuggerServiceHandler
     {
-        [NonSerialized] private DebuggerService.DebuggerWindowGroup _debuggerWindowRoot;
-        [NonSerialized] private bool _activeWindow;
+        private DebuggerService.DebuggerWindowGroup _debuggerWindowRoot;
+        private bool _activeWindow;
 
         /// <summary>
         /// 获取或设置调试器窗口是否激活。

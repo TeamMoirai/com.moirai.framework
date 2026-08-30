@@ -1,4 +1,5 @@
-﻿using System;
+using System;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Audio;
@@ -6,11 +7,26 @@ using UnityEngine.Audio;
 namespace Moirai.Atropos.Audio
 {
     /// <summary>
+    /// 音频服务配置抽象基类（纯数据，无行为无生命周期）。
+    /// <para>以 <see cref="UnityEngine.SerializeReference"/> 存于 <see cref="AudioServiceSettings"/> 资产；
+    /// 经 <see cref="CreateHandler"/> 工厂创建绑定的后端处理器实例，处理器不再被序列化。</para>
+    /// </summary>
+    [Serializable]
+    public abstract class AudioServiceHandlerConfig
+    {
+        /// <summary>
+        /// 创建配置绑定的音频后端处理器实例。
+        /// </summary>
+        /// <returns>新的音频处理器实例。</returns>
+        public abstract AudioServiceHandler CreateHandler();
+    }
+
+    /// <summary>
     /// 音频处理器抽象基类（策略模式抽象策略）。定义 <see cref="AudioService"/> 外观调用的音频后端契约。
+    /// <para>配置数据由 <see cref="AudioServiceHandlerConfig"/> 系列纯数据类承载——处理器实例本身不再被序列化，由 <see cref="AudioServiceHandlerConfig.CreateHandler"/> 工厂在运行期创建。</para>
     /// <para>默认实现为 <see cref="UnityAudioHandler"/>（基于 Unity AudioSource/AudioMixer），可替换为自定义音频后端。</para>
     /// <para>场景3D音效挂到场景物件、技能3D音效挂到技能特效上，并在 <see cref="AudioSource"/> 的Output上设置对应分类的 <see cref="AudioMixerGroup"/>。</para>
     /// </summary>
-    [Serializable]
     public abstract class AudioServiceHandler : FrameworkHandler
     {
         #region 处理器属性 [HANDLER PROPERTIES]

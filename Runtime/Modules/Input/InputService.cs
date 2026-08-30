@@ -1,4 +1,4 @@
-﻿using Moirai.Atropos.Events;
+using Moirai.Atropos.Events;
 using Moirai.Atropos.UI;
 using UnityEngine;
 
@@ -23,7 +23,7 @@ namespace Moirai.Atropos.Input
         private static InputServiceHandler CreateDefaultHandler()
         {
             GameServices.EnsureRegistered<InputService>();
-            return InputServiceSettings.InputServiceHandler;
+            return InputServiceSettings.InputServiceHandlerConfig.CreateHandler();
         }
 
         #endregion

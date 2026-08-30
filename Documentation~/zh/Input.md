@@ -19,7 +19,7 @@
 | 类/接口 | 说明 |
 |---------|------|
 | `Moirai.Atropos.Input.InputService` | 输入服务静态外观（`[HandlerHost]`），全部轮询 API 为静态方法，经 `Handler` 属性转发（fail-fast：未就绪时按需初始化，工厂缺失时抛异常，不静默降级） |
-| `Moirai.Atropos.Input.InputServiceHandler` | 输入处理器抽象基类（`[Serializable]`），定义全部输入查询方法。通过 `[SerializeReference]` 在输入设置中配置 |
+| `Moirai.Atropos.Input.InputServiceHandler` | 输入处理器抽象基类（普通运行时类，不参与序列化），定义全部输入查询方法。由 `InputServiceConfig` 经工厂创建 |
 | `Moirai.Atropos.Input.UnityInputSystemHandler` | 基于 Unity Input System 的处理器（宏 `ENABLE_INPUT_SYSTEM`） |
 | `Moirai.Atropos.Input.UnityInputManagerHandler` | 基于旧版 Input Manager 的处理器（宏 `ENABLE_LEGACY_INPUT_MANAGER`） |
 | `Moirai.Atropos.Input.UIMobileInputHandler` | 移动端处理器，读取场景中 `InputButton` / `InputAxes` 组件状态 |
@@ -134,7 +134,7 @@ Sprite device = InputDevicePromptSystem.GetDeviceSprite(spriteName);
 
 ## 注意事项
 
-- 处理器类型在框架设置"输入设置"中通过 `[SerializeReference]` 配置，运行时通过 `InputServiceSettings.InputServiceHandler` 懒加载；切换处理器需重启生效
+- 后端配置在框架设置"输入设置"中通过 `[SerializeReference]` 选择（`InputServiceConfig` 子类，如 `UnityInputSystemConfig`），运行时经 `InputServiceSettings.InputServiceConfig.CreateHandler()` 懒创建；切换处理器需重启生效
 - `UnityInputSystemHandler` / `UnityInputManagerHandler` 分别受 `ENABLE_INPUT_SYSTEM` / `ENABLE_LEGACY_INPUT_MANAGER` 宏控制编译
 - 存在 UI 模态窗口时 `LockPlayerController` 恒为 true（由 `UIServiceEvent` 驱动），属预期行为
 - `UIMobileInputHandler` 的 `GetButtonDown` / `GetButtonUp` 尚未实现（抛出 `NotImplementedException`），仅使用 bool 持续态查询

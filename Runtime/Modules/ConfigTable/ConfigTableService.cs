@@ -24,7 +24,7 @@ namespace Moirai.Atropos.ConfigTable
         private static ConfigTableServiceHandler CreateDefaultHandler()
         {
             GameServices.EnsureRegistered<ConfigTableService>();
-            return ConfigTableServiceSettings.ConfigTableServiceHandler;
+            return ConfigTableServiceSettings.ConfigTableServiceHandlerConfig.CreateHandler();
         }
 
         #endregion

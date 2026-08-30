@@ -1,4 +1,5 @@
-﻿using System;
+using System;
+using System;
 using System.Collections.Generic;
 using Cysharp.Threading.Tasks;
 using Moirai.Atropos.Resource;
@@ -8,20 +9,32 @@ using UnityEngine.SceneManagement;
 namespace Moirai.Atropos.Scene
 {
     /// <summary>
-    /// 默认场景处理器实现。
-    /// <para><see cref="SceneServiceHandler"/> 的内置实现，承载主场景切换、附加场景加载/卸载、进度回调和挂起加载等核心逻辑。</para>
-    /// <para>由 <see cref="SceneServiceSettings"/> 序列化配置，可替换为自定义场景加载后端。</para>
+    /// 默认场景后端配置（ResourceService 租约预加载 + SceneManager）。当前无专有数据字段。
     /// </summary>
     [Serializable]
+    public sealed class DefaultSceneHandlerConfig : SceneServiceHandlerConfig
+    {
+        /// <inheritdoc />
+        public override SceneServiceHandler CreateHandler()
+        {
+            return new DefaultSceneHandler();
+        }
+    }
+
+    /// <summary>
+    /// 默认场景处理器实现。
+    /// <para><see cref="SceneServiceHandler"/> 的内置实现，承载主场景切换、附加场景加载/卸载、进度回调和挂起加载等核心逻辑。</para>
+    /// <para>由 <see cref="DefaultSceneHandlerConfig"/> 工厂创建（普通运行时类，不参与序列化——运行时字段无需 [NonSerialized] 标注）。</para>
+    /// </summary>
     public sealed class DefaultSceneHandler : SceneServiceHandler
     {
-        [NonSerialized] private string _currentMainSceneName = string.Empty;
+        private string _currentMainSceneName = string.Empty;
 
-        [NonSerialized] private readonly Dictionary<string, AsyncOperation> _loadingOperations = new Dictionary<string, AsyncOperation>();
+        private readonly Dictionary<string, AsyncOperation> _loadingOperations = new Dictionary<string, AsyncOperation>();
 
-        [NonSerialized] private readonly HashSet<string> _subScenes = new HashSet<string>();
+        private readonly HashSet<string> _subScenes = new HashSet<string>();
 
-        [NonSerialized] private readonly HashSet<string> _handlingScene = new HashSet<string>();
+        private readonly HashSet<string> _handlingScene = new HashSet<string>();
 
         /// <summary>
         /// 当前主场景名称。
