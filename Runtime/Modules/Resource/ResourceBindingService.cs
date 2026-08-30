@@ -15,9 +15,9 @@ namespace Moirai.Atropos.Resource
     {
         #region 常量 [CONSTANTS]
 
-        private const int PageBits = 8;
-        private const int PageSize = 1 << PageBits;
-        private const int PageMask = PageSize - 1;
+        private const int PAGE_BITS = 8;
+        private const int PAGE_SIZE = 1 << PAGE_BITS;
+        private const int PAGE_MASK = PAGE_SIZE - 1;
 
         #endregion
 
@@ -1703,27 +1703,27 @@ namespace Moirai.Atropos.Resource
         private bool IsValidOwnerIndex(int index)
         {
             return index >= 0 && index < _ownerNextIndex && _ownerPages != null &&
-                   _ownerPages[index >> PageBits] != null;
+                   _ownerPages[index >> PAGE_BITS] != null;
         }
 
         private ref OwnerSlot GetOwnerSlotRef(int index)
         {
-            return ref _ownerPages[index >> PageBits][index & PageMask];
+            return ref _ownerPages[index >> PAGE_BITS][index & PAGE_MASK];
         }
 
         private ref BindingSlot GetBindingSlotRef(int index)
         {
-            return ref _bindingPages[index >> PageBits][index & PageMask];
+            return ref _bindingPages[index >> PAGE_BITS][index & PAGE_MASK];
         }
 
         private ref RegisteredTargetSlot GetRegisteredTargetSlotRef(int index)
         {
-            return ref _registeredTargetPages[index >> PageBits][index & PageMask];
+            return ref _registeredTargetPages[index >> PAGE_BITS][index & PAGE_MASK];
         }
 
         private void EnsureOwnerPage(int index)
         {
-            int page = index >> PageBits;
+            int page = index >> PAGE_BITS;
             if (_ownerPages == null)
             {
                 _ownerPages = new OwnerSlot[Math.Max(4, page + 1)][];
@@ -1735,13 +1735,13 @@ namespace Moirai.Atropos.Resource
 
             if (_ownerPages[page] == null)
             {
-                _ownerPages[page] = new OwnerSlot[PageSize];
+                _ownerPages[page] = new OwnerSlot[PAGE_SIZE];
             }
         }
 
         private void EnsureBindingPage(int index)
         {
-            int page = index >> PageBits;
+            int page = index >> PAGE_BITS;
             if (_bindingPages == null)
             {
                 _bindingPages = new BindingSlot[Math.Max(4, page + 1)][];
@@ -1753,13 +1753,13 @@ namespace Moirai.Atropos.Resource
 
             if (_bindingPages[page] == null)
             {
-                _bindingPages[page] = new BindingSlot[PageSize];
+                _bindingPages[page] = new BindingSlot[PAGE_SIZE];
             }
         }
 
         private void EnsureRegisteredTargetPage(int index)
         {
-            int page = index >> PageBits;
+            int page = index >> PAGE_BITS;
             if (_registeredTargetPages == null)
             {
                 _registeredTargetPages = new RegisteredTargetSlot[Math.Max(4, page + 1)][];
@@ -1772,7 +1772,7 @@ namespace Moirai.Atropos.Resource
 
             if (_registeredTargetPages[page] == null)
             {
-                _registeredTargetPages[page] = new RegisteredTargetSlot[PageSize];
+                _registeredTargetPages[page] = new RegisteredTargetSlot[PAGE_SIZE];
             }
         }
 

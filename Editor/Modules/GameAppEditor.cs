@@ -104,7 +104,7 @@ namespace Moirai.Atropos.Editor
             }
         }
 
-        private readonly HashSet<string> _mOpenedItems = new HashSet<string>();
+        private readonly HashSet<string> _openedItems = new HashSet<string>();
         private void DrawObjectPoolState()
         {
             var summary = GameObjectPoolService.GetDebugSummary();
@@ -119,17 +119,17 @@ namespace Moirai.Atropos.Editor
             for (int i = 0; i < count; i++)
             {
                 GameObjectPoolSnapshot snapshot = snapshots[i];
-                bool lastState = _mOpenedItems.Contains(snapshot.location);
+                bool lastState = _openedItems.Contains(snapshot.location);
                 bool currentState = EditorGUILayout.Foldout(lastState, snapshot.location);
                 if (currentState != lastState)
                 {
                     if (currentState)
                     {
-                        _mOpenedItems.Add(snapshot.location);
+                        _openedItems.Add(snapshot.location);
                     }
                     else
                     {
-                        _mOpenedItems.Remove(snapshot.location);
+                        _openedItems.Remove(snapshot.location);
                     }
                 }
 

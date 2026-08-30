@@ -47,10 +47,9 @@ Resource 服务（`ResourceService`）对 [YooAsset](https://github.com/tuyoogam
 | `ResourceOwner` | MonoBehaviour 组件（`[DisallowMultipleComponent]`），`OnDestroy` 时自动释放所有绑定。提供 `ReleaseBindings()`、`ReleaseBindingsInHierarchy(root)`、`EnsureFor(target, bindingService)`。 |
 | `ResourceBindingExtensions` | 静态扩展类：`Image/SpriteRenderer.SetSprite`、`Image/SpriteRenderer.SetSubSprite`、`Image/SpriteRenderer/MeshRenderer.SetMaterial`、`MeshRenderer.SetSharedMaterial` |
 | `ResourceBindingTypes` | 绑定相关枚举与接口：`ResourceBindStatus`、`ResourceBindingOptions`、`ResourceBindingSlotType` |
-| `LoadAssetCallbacks` | 回调式加载的回调函数集，组合成功/失败/进度三个委托 |
-| `LoadAssetSuccessCallback` 等委托 | `(string assetName, object asset, float duration, object userData)` 等签名，另有场景加载/卸载回调组 |
-| `LoadResourceStatus` | 加载结果状态枚举：`Success / NotExist / NotReady / DependencyError / TypeError / AssetError` |
-| `HasAssetResult` | 资源存在性检查结果：`NotExist / AssetOnline / AssetOnDisk / AssetOnFileSystem / BinaryOnDisk / BinaryOnFileSystem / Valid` |
+| `EResourceHasAssetResult` | 资源存在性检查结果（三值语义）：`NotExist`（不存在）/ `AssetOnline`（存在但需从远端下载）/ `AssetOnDisk`（存在且已在磁盘） |
+| `ELoadResourceStatus` | 遗留回调加载状态枚举：`Success / NotExist / NotReady / DependencyError / TypeError / AssetError` |
+| `LoadAssetCallbacks` | 遗留回调加载函数集：`LoadAssetSuccessCallback`（必填）/ `LoadAssetFailureCallback` / `LoadAssetUpdateCallback` 三属性；四个构造重载，success 为 null 抛 `GameException` |
 | `EncryptionType` | 加密方式枚举：`None / FileOffSet / FileStream` |
 | `FileStreamEncryption` / `FileOffsetEncryption` | 打包侧加密服务（实现 YooAsset `IEncryptionServices`） |
 | `FileStreamDecryption` / `FileOffsetDecryption` 及 Web 变体 | 运行时解密服务（实现 `IDecryptionServices` / `IWebDecryptionServices`） |
@@ -128,13 +127,25 @@ meshRenderer.SetMaterial("Assets/AssetRaw/Mat/skin.mat", isAsync: true);
 ### 遗留 API（仍可用，标记 `[Obsolete]`）
 
 ```csharp
-// 同步加载（内部通过遗留直接引用计数桥接到租约系统）
+// 同步加载（内部通过遗留直接引用计数桥接到租约系统；成功返回后必须成对 UnloadAsset）
 Sprite icon = ResourceService.LoadAsset<Sprite>("Assets/AssetRaw/UI/icon.png");
 
-// 异步加载（UniTask，支持 CancellationToken 取消）
+// 异步加载（UniTask，支持 CancellationToken 取消；成功返回后必须成对 UnloadAsset）
 var cts = new CancellationTokenSource();
 Texture2D tex = await ResourceService.LoadAssetAsync<Texture2D>(
     "Assets/AssetRaw/UI/atlas.png", cts.Token);
+
+// 回调式异步加载（回调函数集：success 必填，failure/update 可选；失败固定上报 NotReady）
+ResourceService.LoadAssetAsync(
+    "Assets/AssetRaw/UI/atlas.png", typeof(Texture2D), 0,
+    new LoadAssetCallbacks(
+        (name, asset, duration, userData) => { /* 成功 */ },
+        (name, status, error, userData) => { /* 失败 */ },
+        (name, progress, userData) => { /* 进度 */ }),
+    userData: null);
+
+// 回调函数集独立构造（四个构造重载；success 为 null 抛 GameException）
+var callbacks = new LoadAssetCallbacks(OnLoadSuccess, OnLoadFailure);
 
 // 异步实例化：Destroy 时自动卸载引用
 GameObject hero = await ResourceService.LoadGameObjectAsync(
@@ -145,18 +156,9 @@ GameObject go = ResourceService.LoadGameObject("Assets/AssetRaw/Prefabs/Item.pre
 
 // 卸载手动加载的资源（递减遗留直接引用计数）
 ResourceService.UnloadAsset(icon);
-
-// 回调式异步（async void；异常经 LoadAssetFailureCallback 上报）
-ResourceService.LoadAssetAsync(
-    "Assets/AssetRaw/Audio/bgm.mp3", 0,
-    new LoadAssetCallbacks(
-        (assetName, asset, duration, userData) => { /* 成功 */ },
-        (assetName, status, errorMessage, userData) => { /* 失败 */ },
-        (assetName, progress, userData) => { /* 进度 0~1 */ }),
-    null);
 ```
 
-> **注意：** `LoadGameObject` / `LoadGameObjectAsync` **未**被标记为过时 —— 它们内部使用新租约系统（通过 `AcquirePrefabSourceLease`），并在实例上挂载 `ResourceOwner` 实现自动清理。
+> **注意：** `LoadGameObject` / `LoadGameObjectAsync` **未**被标记为过时 —— 它们内部使用新租约系统（通过 `AcquirePrefabSourceLease`），并在实例上挂载 `ResourceOwner` 实现自动清理。新代码一律优先使用 Lease API：`LoadLease<T>` / `LoadLeaseAsync<T>` 以显式所有权取代 LoadAsset/UnloadAsset 手工配对。
 
 ## 架构
 
@@ -367,7 +369,7 @@ int GetAssetInfos(ResourceAssetInfo[] results, int startIndex, int maxCount);
 | `void UnloadUnusedAssets(bool force)` | `force=true`：忽略空闲过期时间，立即处理 keep-alive 队列并释放所有无用记录。 |
 | `void ForceUnloadAllAssets()` | 强制卸载所有包上的所有资产（WebGL 不支持 —— 仅打印警告）。 |
 | `void ForceUnloadUnusedAssets(bool performGCCollect)` | 触发驱动器的强制卸载路径（可选 GC.Collect）。 |
-| `void ProcessKeepAlive(float unscaledTime, int maxProcessCount)` | 每帧时间轮过期处理（idle + keep-alive 桶）。由 `ResourceService.DriveTick()` 调用。 |
+| `void ProcessKeepAlive(float unscaledTime, int maxProcessCount)` | 每帧时间轮过期处理（idle + keep-alive 桶）。**internal**，由 `ResourceService.DriveTick()` 内部调用。 |
 
 ## 配置与扩展
 
@@ -378,11 +380,19 @@ int GetAssetInfos(ResourceAssetInfo[] results, int startIndex, int maxCount);
 - `PlayMode`：四种播放模式，决定 `InitPackage` 走模拟构建、内置文件系统、缓存文件系统还是 Web 文件系统
 - `EncryptionType`：`None / FileOffSet / FileStream`，运行时据此创建对应解密服务
 - `PackageName`：默认资源包名（默认 `DefaultPackage`），多包项目通过各 API 的 `packageName` 参数指定其它包
-- `Milliseconds`：异步系统每帧最大时间切片（默认 30ms）
-- `AutoUnloadBundleWhenUnused`：引用计数为零时自动卸载资源包
-- `DownloadingMaxNum` / `FailedTryAgain`：下载并发数（默认 10）与失败重试次数（默认 3）
+
+以下运行时配置属性已上移至抽象契约，外观与 Handler 均可读写（Handler 序列化字段为默认值来源）：
+
+| 属性 | 默认值 | 说明 |
+|------|--------|------|
+| `Milliseconds` | 30ms | 异步系统每帧最大时间切片；外观 setter 即时应用 `SetAsyncOperationMaxTimeSlice`，负值抛 `GameException` |
+| `AutoUnloadBundleWhenUnused` | false | 引用计数为零时自动卸载资源包（初始化与卸载决策时读取） |
+| `DownloadingMaxNum` | 10 | 下载并发数（创建下载器时传入 `ResourceDownloaderOptions`） |
+| `FailedTryAgain` | 3 | 下载失败重试次数（创建下载器时传入 `ResourceDownloaderOptions`） |
+
+其余配置：
+
 - `UpdatableWhilePlaying`：边玩边下载
-- `AssetAutoReleaseInterval / AssetCapacity / AssetExpireTime / AssetPriority`：遗留池参数（桥接到 IdleAssetExpireTime / AssetRecordCapacity）
 - `MinUnloadUnusedAssetsInterval / MaxUnloadUnusedAssetsInterval`：无用资源回收的最小/最大间隔（默认 60s / 300s）
 - `UseSystemUnloadUnusedAssets`：是否在系统卸载周期中调用 `ResourceService.UnloadUnusedAssets()`
 
@@ -391,6 +401,12 @@ int GetAssetInfos(ResourceAssetInfo[] results, int startIndex, int maxCount);
 ```csharp
 // 初始化指定资源包（needInitMainFest: true 时顺带请求并更新清单，单机 OtherPackage 场景）
 await ResourceService.InitPackage("DefaultPackage");
+
+// AlicizaX 兼容签名：仅初始化包（不更新清单），并发去重/幂等语义与 InitPackage 一致；
+// hostServerURL/fallbackHostServerURL 非空时写入 HostServerURL/FallbackHostServerURL；
+// HostPlay/WebPlay 模式下两属性均为空时抛 GameException（fail-fast）。
+bool succeed = await ResourceService.InitPackageAsync();
+bool succeed2 = await ResourceService.InitPackageAsync("OtherPackage", "https://cdn.example.com/res");
 
 // 联机模式：请求远端版本 -> 更新清单 -> 创建下载器 -> 下载
 var op = await ResourceService.RequestPackageVersionAsync();
@@ -411,9 +427,10 @@ ResourceService.ClearAllBundleFiles();             // 清空沙盒路径
 ### 资源查询与句柄
 
 ```csharp
-HasAssetResult result = ResourceService.HasAsset("Assets/AssetRaw/UI/icon.png");
+EResourceHasAssetResult result = ResourceService.HasAsset("Assets/AssetRaw/UI/icon.png");
+// NotExist：定位无效或清单中不存在；AssetOnline：存在但需远端下载；AssetOnDisk：已可用
 bool valid = ResourceService.IsLocationValid("Assets/AssetRaw/UI/icon.png");
-AssetInfo[] infos = ResourceService.GetAssetInfos("Preload");   // 按标签批量获取
+ResourceAssetInfoEntry[] infos = ResourceService.GetAssetInfos("Preload");   // 按标签批量获取
 
 // 需要精细控制句柄生命周期时，使用租约 API（不经 ResourceOwner 自动管理）
 using var lease = ResourceService.LoadLeaseAsync<GameObject>("path").GetAwaiter().GetResult();
@@ -428,7 +445,6 @@ using var lease = ResourceService.LoadLeaseAsync<GameObject>("path").GetAwaiter(
 - **遗留 API：** `LoadAsset<T>` / `LoadGameObject` 返回的是池化共享对象，不要直接 `Destroy`；需要销毁请用 `UnloadAsset` 归还引用。`LoadGameObject`/`LoadGameObjectAsync` 内部使用租约系统并挂载 `ResourceOwner` 实现自动清理。
 - `LoadAssetAsync<T>` 被取消（`cancellationToken` 触发）时返回 `null` 并释放内部句柄，调用方需判空。
 - WebGL 平台不支持 `ForceUnloadAllAssets`，调用只会打印警告。
-- 回调式 `LoadAssetAsync(string, int, LoadAssetCallbacks, object, string)` 为 `async void`，异常经 `LoadAssetFailureCallback`（`LoadResourceStatus.AssetError`）上报。
 - 加密方式的打包侧（`FileStreamEncryption` 等）与运行时解密侧需一致，`BundleStream` 的 XOR 密钥为固定常量（`KEY = 64`），仅作防直读用途。
 - `GetAssetInfo` 对默认包结果做了字典缓存，切换清单（热更完成）后如需最新信息请先调用 `UnloadUnusedAssets()`（会清空缓存）。
 - 低内存时系统回调 `GameApp.OnLowMemory` 会触发 `ForceUnloadUnusedAssets(true)`，随后执行 `Resources.UnloadUnusedAssets` 与 `GC.Collect`。

@@ -1,63 +1,46 @@
-﻿using System;
-
-namespace Moirai.Atropos.Resource
+﻿namespace Moirai.Atropos.Resource
 {
     /// <summary>
     /// 加载操作状态，用于跟踪异步加载的去重和等待（后端无关：原始句柄以后端对象形式存放，由具体后端模式匹配取用）。
     /// </summary>
     internal sealed class LoadingOperationState : MemoryObject
     {
-        private object _assetHandle;
-        private object _subAssetsHandle;
-        private bool _isDone;
-        private bool _succeeded;
-        private int _waiterCount;
-        private bool _releaseRequested;
-
         /// <summary>
         /// 后端原始资源句柄（由具体资源后端解释）。
         /// </summary>
-        public object AssetHandle
-        {
-            get => _assetHandle;
-            set => _assetHandle = value;
-        }
+        public object AssetHandle { get; set; }
 
         /// <summary>
         /// 后端原子资源集句柄（由具体资源后端解释）。
         /// </summary>
-        public object SubAssetsHandle
-        {
-            get => _subAssetsHandle;
-            set => _subAssetsHandle = value;
-        }
+        public object SubAssetsHandle { get; set; }
 
         /// <summary>
         /// 是否完成。
         /// </summary>
-        public bool IsDone => _isDone;
+        public bool IsDone { get; private set; }
 
         /// <summary>
         /// 是否成功。
         /// </summary>
-        public bool Succeeded => _succeeded;
+        public bool Succeeded { get; private set; }
 
         /// <summary>
         /// 等待者数量。
         /// </summary>
-        public int WaiterCount => _waiterCount;
+        public int WaiterCount { get; private set; }
 
         /// <summary>
         /// 是否已请求释放。
         /// </summary>
-        public bool ReleaseRequested => _releaseRequested;
+        public bool ReleaseRequested { get; private set; }
 
         /// <summary>
         /// 添加等待者。
         /// </summary>
         public void AddWaiter()
         {
-            _waiterCount++;
+            WaiterCount++;
         }
 
         /// <summary>
@@ -65,9 +48,9 @@ namespace Moirai.Atropos.Resource
         /// </summary>
         public void RemoveWaiter()
         {
-            if (_waiterCount > 0)
+            if (WaiterCount > 0)
             {
-                _waiterCount--;
+                WaiterCount--;
             }
         }
 
@@ -77,8 +60,8 @@ namespace Moirai.Atropos.Resource
         /// <param name="success">是否成功。</param>
         public void Complete(bool success)
         {
-            _isDone = true;
-            _succeeded = success;
+            IsDone = true;
+            Succeeded = success;
         }
 
         /// <summary>
@@ -86,18 +69,18 @@ namespace Moirai.Atropos.Resource
         /// </summary>
         public void RequestRelease()
         {
-            _releaseRequested = true;
+            ReleaseRequested = true;
         }
 
         /// <inheritdoc />
         public override void Clear()
         {
-            _assetHandle = null;
-            _subAssetsHandle = null;
-            _isDone = false;
-            _succeeded = false;
-            _waiterCount = 0;
-            _releaseRequested = false;
+            AssetHandle = null;
+            SubAssetsHandle = null;
+            IsDone = false;
+            Succeeded = false;
+            WaiterCount = 0;
+            ReleaseRequested = false;
         }
     }
 }

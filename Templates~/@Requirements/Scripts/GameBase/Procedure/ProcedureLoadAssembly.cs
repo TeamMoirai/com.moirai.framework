@@ -84,8 +84,15 @@ namespace Moirai.Main
                         LogUtility.Debug("LoadAsset: [ {0} ]", assetLocation);
                         _loadAssetCount++;
                         var lease = await ResourceService.LoadLeaseAsync<TextAsset>(assetLocation);
-                        var result = lease.Asset;
-                        LoadAssetSuccess(result);
+                        try
+                        {
+                            LoadAssetSuccess(lease.Asset);
+                        }
+                        finally
+                        {
+                            // 租约所有权：Assembly.Load 完成后即释放租约，字节已拷贝进托管程序集。
+                            lease.Dispose();
+                        }
                     }
 
                     _loadAssemblyWait = true;
@@ -210,7 +217,6 @@ namespace Moirai.Main
             {
                 _loadAssemblyComplete = _loadAssemblyWait && 0 == _loadAssetCount;
             }
-            ResourceService.UnloadAsset(textAsset);
         }
 
         /// <summary>
@@ -245,7 +251,15 @@ namespace Moirai.Main
                 LogUtility.Debug("LoadMetadataAsset: [ {0} ]", assetLocation);
                 _loadMetadataAssetCount++;
                 var metaLease = ResourceService.LoadLease<TextAsset>(assetLocation);
-                LoadMetadataAssetSuccess(metaLease.Asset);
+                try
+                {
+                    LoadMetadataAssetSuccess(metaLease.Asset);
+                }
+                finally
+                {
+                    // 租约所有权：LoadMetadataForAOTAssembly 完成后即释放租约，字节已拷贝进 HybridCLR 运行时。
+                    metaLease.Dispose();
+                }
             }
             _loadMetadataAssemblyWait = true;
         }
@@ -288,7 +302,6 @@ namespace Moirai.Main
             {
                 _loadMetadataAssemblyComplete = _loadMetadataAssemblyWait && 0 == _loadMetadataAssetCount;
             }
-            ResourceService.UnloadAsset(textAsset);
         }
     }
 }

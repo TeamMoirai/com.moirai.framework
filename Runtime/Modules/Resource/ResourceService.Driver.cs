@@ -43,10 +43,6 @@ namespace Moirai.Atropos.Resource
             s_Handler.LoadResWayWebGL = (EResourceLoadWayWebGL)UpdateSettings.LoadResWayWebGL;
 
             // 通用配置（ResourceSettings 单源）
-            s_Handler.AssetAutoReleaseInterval = ResourceServiceSettings.AssetAutoReleaseInterval;
-            s_Handler.AssetCapacity = ResourceServiceSettings.AssetCapacity;
-            s_Handler.AssetExpireTime = ResourceServiceSettings.AssetExpireTime;
-            s_Handler.AssetPriority = ResourceServiceSettings.AssetPriority;
             s_Handler.AssetRecordCapacity = ResourceServiceSettings.AssetRecordCapacity;
             s_Handler.AssetLeaseCapacity = ResourceServiceSettings.AssetLeaseCapacity;
             s_Handler.BindingOwnerCapacity = ResourceServiceSettings.BindingOwnerCapacity;

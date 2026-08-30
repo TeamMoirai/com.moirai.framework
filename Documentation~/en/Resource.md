@@ -47,10 +47,9 @@ Namespace: `Moirai.Atropos.Resource`
 | `ResourceOwner` | MonoBehaviour component (`[DisallowMultipleComponent]`), auto-releases all bindings on `OnDestroy`. Provides `ReleaseBindings()`, `ReleaseBindingsInHierarchy(root)`, `EnsureFor(target, bindingService)`. |
 | `ResourceBindingExtensions` | Static extension class: `Image/SpriteRenderer.SetSprite`, `Image/SpriteRenderer.SetSubSprite`, `Image/SpriteRenderer/MeshRenderer.SetMaterial`, `MeshRenderer.SetSharedMaterial` |
 | `ResourceBindingTypes` | Binding-related enums and interfaces: `ResourceBindStatus`, `ResourceBindingOptions`, `ResourceBindingSlotType` |
-| `LoadAssetCallbacks` | Callback-based loading callback set, combining success/failure/progress delegates |
-| `LoadAssetSuccessCallback` and other delegates | Signatures such as `(string assetName, object asset, float duration, object userData)`, along with scene loading/unloading callback groups |
-| `LoadResourceStatus` | Load result status enum: `Success / NotExist / NotReady / DependencyError / TypeError / AssetError` |
-| `HasAssetResult` | Asset existence check result: `NotExist / AssetOnline / AssetOnDisk / AssetOnFileSystem / BinaryOnDisk / BinaryOnFileSystem / Valid` |
+| `EResourceHasAssetResult` | Asset existence check result (three-value semantics): `NotExist` (not found) / `AssetOnline` (exists but needs remote download) / `AssetOnDisk` (exists and available on disk) |
+| `ELoadResourceStatus` | Legacy callback load status enum: `Success / NotExist / NotReady / DependencyError / TypeError / AssetError` |
+| `LoadAssetCallbacks` | Legacy callback load function set: `LoadAssetSuccessCallback` (required) / `LoadAssetFailureCallback` / `LoadAssetUpdateCallback` properties; four constructor overloads, null success throws `GameException` |
 | `EncryptionType` | Encryption method enum: `None / FileOffSet / FileStream` |
 | `FileStreamEncryption` / `FileOffsetEncryption` | Build-side encryption services (implement YooAsset `IEncryptionServices`) |
 | `FileStreamDecryption` / `FileOffsetDecryption` and Web variants | Runtime decryption services (implement `IDecryptionServices` / `IWebDecryptionServices`) |
@@ -128,13 +127,27 @@ When a `SetSprite`/`SetMaterial` extension method is first called on a component
 ### Legacy API (still works, marked `[Obsolete]`)
 
 ```csharp
-// Synchronous loading (internally bridged to lease system via legacy direct ref counting)
+// Synchronous loading (internally bridged to lease system via legacy direct ref counting;
+// must pair with UnloadAsset after a successful return)
 Sprite icon = ResourceService.LoadAsset<Sprite>("Assets/AssetRaw/UI/icon.png");
 
-// Asynchronous loading (UniTask, supports CancellationToken)
+// Asynchronous loading (UniTask, supports CancellationToken; must pair with UnloadAsset)
 var cts = new CancellationTokenSource();
 Texture2D tex = await ResourceService.LoadAssetAsync<Texture2D>(
     "Assets/AssetRaw/UI/atlas.png", cts.Token);
+
+// Callback-style async loading (callback set: success required, failure/update optional;
+// failure always reports NotReady)
+ResourceService.LoadAssetAsync(
+    "Assets/AssetRaw/UI/atlas.png", typeof(Texture2D), 0,
+    new LoadAssetCallbacks(
+        (name, asset, duration, userData) => { /* success */ },
+        (name, status, error, userData) => { /* failure */ },
+        (name, progress, userData) => { /* progress */ }),
+    userData: null);
+
+// Callback set constructed standalone (four constructor overloads; null success throws GameException)
+var callbacks = new LoadAssetCallbacks(OnLoadSuccess, OnLoadFailure);
 
 // Asynchronous instantiation: reference is automatically released on Destroy
 GameObject hero = await ResourceService.LoadGameObjectAsync(
@@ -145,18 +158,9 @@ GameObject go = ResourceService.LoadGameObject("Assets/AssetRaw/Prefabs/Item.pre
 
 // Unload manually loaded resources (decrements legacy direct ref count)
 ResourceService.UnloadAsset(icon);
-
-// Callback-based async (async void; exceptions reported via LoadAssetFailureCallback)
-ResourceService.LoadAssetAsync(
-    "Assets/AssetRaw/Audio/bgm.mp3", 0,
-    new LoadAssetCallbacks(
-        (assetName, asset, duration, userData) => { /* success */ },
-        (assetName, status, errorMessage, userData) => { /* failure */ },
-        (assetName, progress, userData) => { /* progress 0~1 */ }),
-    null);
 ```
 
-> **Note:** `LoadGameObject` / `LoadGameObjectAsync` are **not** obsolete — they use the new lease system internally (via `AcquirePrefabSourceLease`) and attach a `ResourceOwner` to the instance for automatic cleanup.
+> **Note:** `LoadGameObject` / `LoadGameObjectAsync` are **not** obsolete — they use the new lease system internally (via `AcquirePrefabSourceLease`) and attach a `ResourceOwner` to the instance for automatic cleanup. New code should always prefer the Lease API: `LoadLease<T>` / `LoadLeaseAsync<T>` replace manual LoadAsset/UnloadAsset pairing with explicit ownership.
 
 ## Architecture
 
@@ -367,7 +371,7 @@ Batch query for asset record states. Returns the number of entries written. Each
 | `void UnloadUnusedAssets(bool force)` | `force=true`: ignores idle expire time, immediately processes keep-alive queue and releases all unused records. |
 | `void ForceUnloadAllAssets()` | Force unload all assets on all packages (not supported on WebGL — prints warning). |
 | `void ForceUnloadUnusedAssets(bool performGCCollect)` | Triggers the driver's force-unload path (optionally with GC.Collect). |
-| `void ProcessKeepAlive(float unscaledTime, int maxProcessCount)` | Per-frame timer-wheel expiry processing (idle + keep-alive buckets). Called by `ResourceService.DriveTick()`. |
+| `void ProcessKeepAlive(float unscaledTime, int maxProcessCount)` | Per-frame timer-wheel expiry processing (idle + keep-alive buckets). **internal**, called by `ResourceService.DriveTick()` internally. |
 
 ## Configuration and Extensions
 
@@ -378,11 +382,19 @@ Configured on the Handler (`YooAssetHandler`) serialized fields of the `Resource
 - `PlayMode`: Four play modes, determines whether `InitPackage` uses simulated build, built-in file system, cache file system, or web file system
 - `EncryptionType`: `None / FileOffSet / FileStream`, the runtime creates the corresponding decryption service based on this
 - `PackageName`: Default resource package name (default `DefaultPackage`); for multi-package projects, use the `packageName` parameter in each API to specify other packages
-- `Milliseconds`: Maximum time slice per frame for the asynchronous system (default 30ms)
-- `AutoUnloadBundleWhenUnused`: Automatically unload resource bundles when reference count reaches zero
-- `DownloadingMaxNum` / `FailedTryAgain`: Download concurrency (default 10) and failure retry count (default 3)
+
+The following runtime configuration properties are promoted to the abstract contract, readable and writable on both the facade and the handler (the handler's serialized fields are the default source):
+
+| Property | Default | Description |
+|----------|---------|-------------|
+| `Milliseconds` | 30ms | Max time slice per frame for the async system; the facade setter applies `SetAsyncOperationMaxTimeSlice` immediately, negative values throw `GameException` |
+| `AutoUnloadBundleWhenUnused` | false | Automatically unload resource bundles when reference count reaches zero (read during init/unload decisions) |
+| `DownloadingMaxNum` | 10 | Download concurrency (passed to `ResourceDownloaderOptions` at downloader creation) |
+| `FailedTryAgain` | 3 | Download failure retry count (passed to `ResourceDownloaderOptions` at downloader creation) |
+
+Other settings:
+
 - `UpdatableWhilePlaying`: Download while playing
-- `AssetAutoReleaseInterval / AssetCapacity / AssetExpireTime / AssetPriority`: Legacy pool parameters (bridged to IdleAssetExpireTime / AssetRecordCapacity)
 - `MinUnloadUnusedAssetsInterval / MaxUnloadUnusedAssetsInterval`: Minimum/maximum interval for unused asset recycling (default 60s / 300s)
 - `UseSystemUnloadUnusedAssets`: Whether to call `ResourceService.UnloadUnusedAssets()` during the system unload cycle
 
@@ -391,6 +403,13 @@ Configured on the Handler (`YooAssetHandler`) serialized fields of the `Resource
 ```csharp
 // Initialize a specified resource package (needInitMainFest: true also requests and updates the manifest, for standalone OtherPackage scenarios)
 await ResourceService.InitPackage("DefaultPackage");
+
+// AlicizaX-compatible signature: package-only initialization (no manifest update), dedup/idempotency
+// semantics identical to InitPackage; non-empty hostServerURL/fallbackHostServerURL are written to
+// HostServerURL/FallbackHostServerURL; in HostPlay/WebPlay modes with both empty, GameException is
+// thrown (fail-fast).
+bool succeed = await ResourceService.InitPackageAsync();
+bool succeed2 = await ResourceService.InitPackageAsync("OtherPackage", "https://cdn.example.com/res");
 
 // Online mode: request remote version -> update manifest -> create downloader -> download
 var op = await ResourceService.RequestPackageVersionAsync();
@@ -411,9 +430,10 @@ ResourceService.ClearAllBundleFiles();             // clear sandbox path
 ### Asset Query and Handles
 
 ```csharp
-HasAssetResult result = ResourceService.HasAsset("Assets/AssetRaw/UI/icon.png");
+EResourceHasAssetResult result = ResourceService.HasAsset("Assets/AssetRaw/UI/icon.png");
+// NotExist: invalid location or missing from manifest; AssetOnline: exists but needs remote download; AssetOnDisk: available
 bool valid = ResourceService.IsLocationValid("Assets/AssetRaw/UI/icon.png");
-AssetInfo[] infos = ResourceService.GetAssetInfos("Preload");   // batch get by tag
+ResourceAssetInfoEntry[] infos = ResourceService.GetAssetInfos("Preload");   // batch get by tag
 
 // When fine-grained control over handle lifecycle is needed, use the lease API (not auto-managed by ResourceOwner)
 using var lease = ResourceService.LoadLeaseAsync<GameObject>("path").GetAwaiter().GetResult();
@@ -429,7 +449,6 @@ using var lease = ResourceService.LoadLeaseAsync<GameObject>("path").GetAwaiter(
 - **Legacy API:** `LoadAsset<T>` / `LoadGameObject` return pooled shared objects; do not `Destroy` them directly. Use `UnloadAsset` to return the reference. `LoadGameObject`/`LoadGameObjectAsync` use the lease system internally and attach `ResourceOwner` for auto-cleanup.
 - `LoadAssetAsync<T>` returns `null` and releases the internal handle when cancelled (via `cancellationToken`); the caller must check for null.
 - The WebGL platform does not support `ForceUnloadAllAssets`; calling it will only print a warning.
-- The callback-based `LoadAssetAsync(string, int, LoadAssetCallbacks, object, string)` is `async void`; exceptions are reported via `LoadAssetFailureCallback` (`LoadResourceStatus.AssetError`).
 - The build-side encryption method (`FileStreamEncryption`, etc.) must match the runtime decryption side. The XOR key for `BundleStream` is a fixed constant (`KEY = 64`), intended only to prevent direct reading.
 - `GetAssetInfo` caches results for the default package in a dictionary. After switching manifests (hot update completed), call `UnloadUnusedAssets()` first to get the latest information (this clears the cache).
 - On low memory, the system callback `GameApp.OnLowMemory` triggers `ForceUnloadUnusedAssets(true)`, followed by `Resources.UnloadUnusedAssets` and `GC.Collect`.

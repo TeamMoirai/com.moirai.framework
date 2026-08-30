@@ -33,7 +33,7 @@ namespace Moirai.Atropos.Resource
             set => m_PackageName = value;
         }
 
-        [SerializeField] private YooAsset.EPlayMode m_PlayMode = YooAsset.EPlayMode.EditorSimulateMode;
+        [SerializeField] private EPlayMode m_PlayMode = EPlayMode.EditorSimulateMode;
 
 #if UNITY_EDITOR
         /// <summary>编辑器运行模式的 EditorPrefs 键。</summary>
@@ -43,16 +43,16 @@ namespace Moirai.Atropos.Resource
         /// <summary>
         /// YooAsset 运行模式（非编辑器下 EditorSimulateMode 自动回退为 OfflinePlayMode）。
         /// </summary>
-        public YooAsset.EPlayMode YooPlayMode
+        public EPlayMode YooPlayMode
         {
             get
             {
 #if UNITY_EDITOR
-                return (YooAsset.EPlayMode)UnityEditor.EditorPrefs.GetInt(EDITOR_PLAY_MODE_KEY);
+                return (EPlayMode)UnityEditor.EditorPrefs.GetInt(EDITOR_PLAY_MODE_KEY);
 #else
-                if (m_PlayMode == YooAsset.EPlayMode.EditorSimulateMode)
+                if (m_PlayMode == EPlayMode.EditorSimulateMode)
                 {
-                    m_PlayMode = YooAsset.EPlayMode.OfflinePlayMode;
+                    m_PlayMode = EPlayMode.OfflinePlayMode;
                 }
                 return m_PlayMode;
 #endif
@@ -68,19 +68,17 @@ namespace Moirai.Atropos.Resource
         }
 
         [ProviderDropdown]
-        [SerializeReference] private ResourceEncryptorHandler m_EncryptorHandler;
+        [SerializeReference] private YooAssetEncryptorHandler m_EncryptorHandler;
 
         /// <summary>
         /// 资源加解密处理器（YooAsset 专有）。
         /// </summary>
-        public ResourceEncryptorHandler EncryptorHandler => m_EncryptorHandler;
+        public YooAssetEncryptorHandler EncryptorHandler => m_EncryptorHandler;
 
         [SerializeField] private int m_DownloadingMaxNum = 10;
 
-        /// <summary>
-        /// 同时最大下载数目（YooAsset 专有）。
-        /// </summary>
-        public int DownloadingMaxNum
+        /// <inheritdoc />
+        public override int DownloadingMaxNum
         {
             get => m_DownloadingMaxNum;
             set => m_DownloadingMaxNum = value;
@@ -88,10 +86,8 @@ namespace Moirai.Atropos.Resource
 
         [SerializeField] private int m_FailedTryAgain = 3;
 
-        /// <summary>
-        /// 下载失败重试次数（YooAsset 专有）。
-        /// </summary>
-        public int FailedTryAgain
+        /// <inheritdoc />
+        public override int FailedTryAgain
         {
             get => m_FailedTryAgain;
             set => m_FailedTryAgain = value;
@@ -104,17 +100,30 @@ namespace Moirai.Atropos.Resource
 
         [SerializeField] private long m_Milliseconds = 30;
 
-        /// <summary>
-        /// 每帧异步操作最大时间切片毫秒数（YooAsset 专有）。
-        /// </summary>
-        public long Milliseconds => m_Milliseconds;
+        /// <inheritdoc />
+        public override long Milliseconds
+        {
+            get => m_Milliseconds;
+            set
+            {
+                if (value < 0)
+                {
+                    throw new GameException("Async operation max time slice cannot be negative.");
+                }
+
+                m_Milliseconds = value;
+                YooAssets.SetAsyncOperationMaxTimeSlice(m_Milliseconds);
+            }
+        }
 
         [SerializeField] private bool m_AutoUnloadBundleWhenUnused = false;
 
-        /// <summary>
-        /// 自动释放引用计数为 0 的资源包（YooAsset 专有）。
-        /// </summary>
-        public bool AutoUnloadBundleWhenUnused => m_AutoUnloadBundleWhenUnused;
+        /// <inheritdoc />
+        public override bool AutoUnloadBundleWhenUnused
+        {
+            get => m_AutoUnloadBundleWhenUnused;
+            set => m_AutoUnloadBundleWhenUnused = value;
+        }
 
         #endregion
 
@@ -124,21 +133,6 @@ namespace Moirai.Atropos.Resource
         public override IResourceBindingService BindingService => _bindingService;
 
         private ResourceBindingService _bindingService;
-
-        /// <summary>
-        /// 关闭处理器——释放所有资源记录与在途加载操作。
-        /// <para>由 <see cref="ResourceService.OnShutdown"/> 在容器关闭期调用。</para>
-        /// </summary>
-        protected override void OnShutdown()
-        {
-            _isDestroying = true;
-            _assetUnloadGeneration++;
-            _bindingService?.Shutdown();
-            ShutdownLoadingOperations();
-            ForceReleaseAllAssetRecords();
-            _packageInitTasks.Clear();
-            _packageInitOperations.Clear();
-        }
 
         /// <inheritdoc />
         public override string HostServerURL { get; set; }
@@ -244,14 +238,14 @@ namespace Moirai.Atropos.Resource
         /// <summary>
         /// YooAsset 运行模式 → 框架运行模式。
         /// </summary>
-        private static EResourcePlayMode ToFrameworkPlayMode(YooAsset.EPlayMode playMode)
+        private static EResourcePlayMode ToFrameworkPlayMode(EPlayMode playMode)
         {
             switch (playMode)
             {
-                case YooAsset.EPlayMode.EditorSimulateMode: return EResourcePlayMode.EditorSimulate;
-                case YooAsset.EPlayMode.OfflinePlayMode: return EResourcePlayMode.Offline;
-                case YooAsset.EPlayMode.HostPlayMode: return EResourcePlayMode.HostPlay;
-                case YooAsset.EPlayMode.WebPlayMode: return EResourcePlayMode.WebPlay;
+                case EPlayMode.EditorSimulateMode: return EResourcePlayMode.EditorSimulate;
+                case EPlayMode.OfflinePlayMode: return EResourcePlayMode.Offline;
+                case EPlayMode.HostPlayMode: return EResourcePlayMode.HostPlay;
+                case EPlayMode.WebPlayMode: return EResourcePlayMode.WebPlay;
                 default: return EResourcePlayMode.Offline;
             }
         }
@@ -259,15 +253,15 @@ namespace Moirai.Atropos.Resource
         /// <summary>
         /// 框架运行模式 → YooAsset 运行模式。
         /// </summary>
-        private static YooAsset.EPlayMode ToYooAssetPlayMode(EResourcePlayMode playMode)
+        private static EPlayMode ToYooAssetPlayMode(EResourcePlayMode playMode)
         {
             switch (playMode)
             {
-                case EResourcePlayMode.EditorSimulate: return YooAsset.EPlayMode.EditorSimulateMode;
-                case EResourcePlayMode.Offline: return YooAsset.EPlayMode.OfflinePlayMode;
-                case EResourcePlayMode.HostPlay: return YooAsset.EPlayMode.HostPlayMode;
-                case EResourcePlayMode.WebPlay: return YooAsset.EPlayMode.WebPlayMode;
-                default: return YooAsset.EPlayMode.OfflinePlayMode;
+                case EResourcePlayMode.EditorSimulate: return EPlayMode.EditorSimulateMode;
+                case EResourcePlayMode.Offline: return EPlayMode.OfflinePlayMode;
+                case EResourcePlayMode.HostPlay: return EPlayMode.HostPlayMode;
+                case EResourcePlayMode.WebPlay: return EPlayMode.WebPlayMode;
+                default: return EPlayMode.OfflinePlayMode;
             }
         }
 
@@ -304,17 +298,17 @@ namespace Moirai.Atropos.Resource
 
         #endregion
 
-        #region 初始化 [INITIALIZATION]
+        #region 生命周期 [LIFECYCLE]
 
         /// <inheritdoc />
         public override void Initialize()
         {
             // 恢复 Shutdown→Initialize 循环复用契约：处理器实例来自资产 [SerializeReference]，
-            // 容器重启后"重新创建"拿到的仍是同一实例，必须复位关闭标志（AlicizaX 原版同款行为）。
+            // 容器重启后"重新创建"拿到的仍是同一实例，必须复位关闭标志。
             _isDestroying = false;
 
             // 初始化资源系统
-            YooAssets.Initialize(new ResourceLogger());
+            YooAssets.Initialize(new YooAssetLogger());
             YooAssets.SetAsyncOperationMaxTimeSlice(Milliseconds);
 
             // 创建默认的资源包
@@ -328,6 +322,25 @@ namespace Moirai.Atropos.Resource
 
             _bindingService = new ResourceBindingService(this);
         }
+
+        /// <summary>
+        /// 关闭处理器——释放所有资源记录与在途加载操作。
+        /// <para>由 <see cref="ResourceService.OnShutdown"/> 在容器关闭期调用。</para>
+        /// </summary>
+        protected override void OnShutdown()
+        {
+            _isDestroying = true;
+            _assetUnloadGeneration++;
+            _bindingService?.Shutdown();
+            ShutdownLoadingOperations();
+            ForceReleaseAllAssetRecords();
+            _packageInitTasks.Clear();
+            _packageInitOperations.Clear();
+        }
+
+        #endregion
+
+        #region 初始化 [INITIALIZATION]
 
         /// <inheritdoc />
         public override async UniTask<ResourcePackageInitResult> InitPackage(string packageName, bool needInitManifest = false)
@@ -416,6 +429,36 @@ namespace Moirai.Atropos.Resource
             {
                 _packageInitTasks.Remove(packageName);
             }
+        }
+
+        /// <inheritdoc />
+        public override async UniTask<bool> InitPackageAsync(string packageName = "", string hostServerURL = "", string fallbackHostServerURL = "")
+        {
+            if (string.IsNullOrEmpty(packageName))
+            {
+                packageName = DefaultPackageName;
+            }
+
+            if (!string.IsNullOrEmpty(hostServerURL))
+            {
+                HostServerURL = hostServerURL;
+            }
+
+            if (!string.IsNullOrEmpty(fallbackHostServerURL))
+            {
+                FallbackHostServerURL = fallbackHostServerURL;
+            }
+
+            // HostPlay/WebPlay 必须已有资源服务器地址：参数未传时回退到预先配置的 HostServerURL（Moirai 的配置源是属性）。
+            if (PlayMode is EResourcePlayMode.HostPlay or EResourcePlayMode.WebPlay && string.IsNullOrEmpty(HostServerURL))
+            {
+                throw new GameException("Host server URL is invalid. Specify hostServerURL or set ResourceService.HostServerURL before initializing in HostPlay/WebPlay mode.");
+            }
+
+            ResourcePackageInitResult result = await InitPackage(packageName);
+
+            // result == null：包已初始化成功但操作句柄缓存缺失（Shutdown→Initialize 循环复用场景），语义为已就绪。
+            return result == null || result.Succeed;
         }
 
         /// <summary>
@@ -926,15 +969,15 @@ namespace Moirai.Atropos.Resource
             AssetInfo assetInfo = package.GetAssetInfo(location);
             if (assetInfo == null || !assetInfo.IsValid || !string.IsNullOrEmpty(assetInfo.Error))
             {
-                return EResourceHasAssetResult.InvalidLocation;
+                return EResourceHasAssetResult.NotExist;
             }
 
             if (package.GetDownloadSize(location) > 0)
             {
-                return EResourceHasAssetResult.AssetExistRaw;
+                return EResourceHasAssetResult.AssetOnline;
             }
 
-            return EResourceHasAssetResult.AssetExist;
+            return EResourceHasAssetResult.AssetOnDisk;
         }
 
         /// <inheritdoc />
@@ -947,7 +990,7 @@ namespace Moirai.Atropos.Resource
 
         #region 句柄获取 [HANDLE ACCESS]
 
-        private AssetHandle GetHandleSync<T>(string location, string packageName = "") where T : UnityEngine.Object
+        private AssetHandle GetHandleSync<T>(string location, string packageName = "") where T : Object
         {
             return GetHandleSync(location, typeof(T), packageName);
         }
@@ -958,7 +1001,7 @@ namespace Moirai.Atropos.Resource
         }
 
         private AssetHandle GetHandleAsync<T>(string location, string packageName = "", uint priority = 0)
-            where T : UnityEngine.Object
+            where T : Object
         {
             return GetHandleAsync(location, typeof(T), packageName, priority);
         }
@@ -1000,7 +1043,7 @@ namespace Moirai.Atropos.Resource
                 return null;
             }
 
-            GameObject instance = UnityEngine.Object.Instantiate(prefab, parent);
+            GameObject instance = Object.Instantiate(prefab, parent);
             if (instance == null)
             {
                 Release(prefabLease);
@@ -1011,7 +1054,7 @@ namespace Moirai.Atropos.Resource
             EResourceBindStatus bindStatus = _bindingService.RegisterPrefabSource(owner, prefabLease, prefab);
             if (bindStatus != EResourceBindStatus.Success)
             {
-                UnityEngine.Object.Destroy(instance);
+                Object.Destroy(instance);
                 Release(prefabLease);
                 return null;
             }
@@ -1053,7 +1096,7 @@ namespace Moirai.Atropos.Resource
                 return null;
             }
 
-            GameObject instance = UnityEngine.Object.Instantiate(prefab, parent);
+            GameObject instance = Object.Instantiate(prefab, parent);
             if (instance == null)
             {
                 Release(prefabLease);
@@ -1064,7 +1107,7 @@ namespace Moirai.Atropos.Resource
             EResourceBindStatus bindStatus = _bindingService.RegisterPrefabSource(owner, prefabLease, prefab);
             if (bindStatus != EResourceBindStatus.Success)
             {
-                UnityEngine.Object.Destroy(instance);
+                Object.Destroy(instance);
                 Release(prefabLease);
                 return null;
             }
@@ -1075,6 +1118,131 @@ namespace Moirai.Atropos.Resource
         private static uint NormalizePriority(int priority)
         {
             return (uint)Math.Max(0, priority);
+        }
+
+        #endregion
+
+        #region 遗留 API [LEGACY API]
+
+        /// <inheritdoc />
+        [Obsolete("Use LoadLease<T> for explicit ownership.")]
+        public override T LoadAsset<T>(string location, string packageName = "")
+        {
+            if (string.IsNullOrEmpty(location))
+            {
+                throw new GameException("Asset name is invalid.");
+            }
+
+            Type assetType = typeof(T);
+            EResourceAssetKind assetKind = InferAssetKind(assetType);
+            string normalizedPackageName = NormalizePackageName(packageName);
+            if (TryGetCachedAssetRecord(normalizedPackageName, location, assetType, assetKind,
+                    EResourceHandleKind.AssetHandle, out int cachedAssetId, out Object cachedAsset))
+            {
+                ref AssetSlot cachedSlot = ref GetAssetSlotRef(cachedAssetId);
+                TryAddLegacyDirectRef(cachedAssetId, cachedSlot.Generation);
+                return cachedAsset as T;
+            }
+
+            Object asset = GetOrLoadAsset(location, assetType, assetKind, normalizedPackageName);
+            if (asset == null)
+            {
+                return null;
+            }
+
+            ulong recordKey = GetAssetRecordKey(normalizedPackageName, location, assetType, assetKind,
+                EResourceHandleKind.AssetHandle);
+            if (_assetRecordsByKey.TryGetValue(recordKey, out int assetId) && IsValidAssetId(assetId))
+            {
+                ref AssetSlot slot = ref GetAssetSlotRef(assetId);
+                TryAddLegacyDirectRef(assetId, slot.Generation);
+            }
+
+            return asset as T;
+        }
+
+        /// <inheritdoc />
+        [Obsolete("Use LoadLeaseAsync<T> for explicit ownership.")]
+        public override async UniTask LoadAsset<T>(string location, Action<T> callback, string packageName = "")
+        {
+            if (string.IsNullOrEmpty(location))
+            {
+                LogUtility.Error("Asset name is invalid.");
+                return;
+            }
+
+            Type assetType = typeof(T);
+            EResourceAssetKind assetKind = InferAssetKind(assetType);
+            ulong assetLoadingKey = GetLoadingOperationKey(location, packageName, assetType, assetKind);
+            Object asset = await GetOrLoadAssetAsync(location, assetType, assetKind, packageName, assetLoadingKey);
+            if (asset != null)
+            {
+                TryAddLegacyDirectRefByKey(packageName, location, assetType, asset);
+            }
+
+            callback?.Invoke(asset as T);
+        }
+
+        /// <inheritdoc />
+        [Obsolete("Use LoadLeaseAsync<T> for explicit ownership.")]
+        public override async UniTask<T> LoadAssetAsync<T>(string location, CancellationToken cancellationToken = default, string packageName = "")
+        {
+            if (string.IsNullOrEmpty(location))
+            {
+                throw new GameException("Asset name is invalid.");
+            }
+
+            Type assetType = typeof(T);
+            EResourceAssetKind assetKind = InferAssetKind(assetType);
+            ulong assetLoadingKey = GetLoadingOperationKey(location, packageName, assetType, assetKind);
+            Object asset = await GetOrLoadAssetAsync(location, assetType, assetKind, packageName, assetLoadingKey,
+                cancellationToken: cancellationToken);
+            if (asset != null)
+            {
+                TryAddLegacyDirectRefByKey(packageName, location, assetType, asset);
+            }
+
+            return asset as T;
+        }
+
+        /// <inheritdoc />
+        [Obsolete("Use LoadLeaseAsync<T> for explicit ownership.")]
+        public override async UniTask LoadAssetAsync(string location, Type assetType, int priority, LoadAssetCallbacks loadAssetCallbacks, object userData, string packageName = "")
+        {
+            if (string.IsNullOrEmpty(location))
+            {
+                throw new GameException("Asset name is invalid.");
+            }
+
+            if (loadAssetCallbacks == null)
+            {
+                throw new GameException("Load asset callbacks is invalid.");
+            }
+
+            assetType ??= typeof(Object);
+            EResourceAssetKind assetKind = InferAssetKind(assetType);
+            ulong assetLoadingKey = GetLoadingOperationKey(location, packageName, assetType, assetKind);
+            float duration = Time.time;
+            Object asset = await GetOrLoadAssetAsync(location, assetType, assetKind, packageName, assetLoadingKey,
+                NormalizePriority(priority), default, loadAssetCallbacks.LoadAssetUpdateCallback, userData);
+
+            if (asset == null)
+            {
+                string errorMessage = StringUtility.Format("Can not load asset '{0}'.", location);
+                loadAssetCallbacks.LoadAssetFailureCallback?.Invoke(location, ELoadResourceStatus.NotReady, errorMessage, userData);
+                return;
+            }
+
+            TryAddLegacyDirectRefByKey(packageName, location, assetType, asset);
+            loadAssetCallbacks.LoadAssetSuccessCallback?.Invoke(location, asset, Time.time - duration, userData);
+        }
+
+        /// <inheritdoc />
+        [Obsolete("Use LoadLeaseAsync<T> for explicit ownership.")]
+        public override async UniTask LoadAssetAsync(string location, int priority, LoadAssetCallbacks loadAssetCallbacks, object userData, string packageName = "")
+        {
+            Type assetType = typeof(Object);
+            await LoadAssetAsync(location, assetType, priority, loadAssetCallbacks, userData, packageName);
         }
 
         #endregion
