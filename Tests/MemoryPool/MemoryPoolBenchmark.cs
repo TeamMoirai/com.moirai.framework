@@ -93,14 +93,14 @@ namespace GameTool
             }
         }
 
-        private sealed class CrossPoolMemoryA : MemoryObject
+        private class CrossPoolMemoryB : MemoryObject
         {
             public override void Clear() { }
         }
 
-        private sealed class CrossPoolMemoryB : MemoryObject
+        // 派生自 B：使跨池释放测试可以静态转换到 B 池参数，让拒绝发生在池 ID 校验而非类型转换。
+        private sealed class CrossPoolMemoryA : CrossPoolMemoryB
         {
-            public override void Clear() { }
         }
 
         private sealed class MultiTypeA : MemoryObject
@@ -469,13 +469,18 @@ namespace GameTool
             MemoryPool<CrossPoolMemoryB>.ClearAll();
             CrossPoolMemoryA item = MemoryPool.Acquire<CrossPoolMemoryA>();
 
-            Assert.Throws<InvalidOperationException>(
-                () => MemoryPool<CrossPoolMemoryB>.Release((CrossPoolMemoryB)(object)item),
-                "Cross-pool release was accepted");
-
-            MemoryPool.Release(item);
-            MemoryPool<CrossPoolMemoryA>.ClearAll();
-            MemoryPool<CrossPoolMemoryB>.ClearAll();
+            try
+            {
+                Assert.Throws<InvalidOperationException>(
+                    () => MemoryPool<CrossPoolMemoryB>.Release(item),
+                    "Cross-pool release was accepted");
+            }
+            finally
+            {
+                MemoryPool<CrossPoolMemoryA>.Release(item);
+                MemoryPool<CrossPoolMemoryA>.ClearAll();
+                MemoryPool<CrossPoolMemoryB>.ClearAll();
+            }
         }
 
         #endregion
@@ -487,42 +492,53 @@ namespace GameTool
         {
             int count = 96; // 3 pages worth
             MemoryPool<BenchMemory>.ClearAll();
+            // 前序用例会收缩 BenchMemory 容量且 ClearAll 不复位容量：硬上限低于 96 时释放对象被驱逐、
+            // 重取触发新建——先恢复充足容量保证跨页复用路径被真正覆盖。
+            MemoryPool<BenchMemory>.SetCapacity(256, 1024);
             if (_buffer.Length < count)
             {
                 _buffer = new BenchMemory[count];
             }
 
-            for (int i = 0; i < count; i++)
+            try
             {
-                _buffer[i] = MemoryPool.Acquire<BenchMemory>();
-            }
+                for (int i = 0; i < count; i++)
+                {
+                    _buffer[i] = MemoryPool.Acquire<BenchMemory>();
+                }
 
-            for (int i = 0; i < count; i++)
+                for (int i = 0; i < count; i++)
+                {
+                    MemoryPool.Release(_buffer[i]);
+                    _buffer[i] = null;
+                }
+
+                MemoryPoolRegistry.TickAll(UnityEngine.Time.frameCount);
+
+                MemoryPoolInfo before = GetInfo(typeof(BenchMemory));
+                Assert.GreaterOrEqual(before.PageCapacity, count, "Page boundary did not allocate enough page capacity");
+
+                for (int i = 0; i < count; i++)
+                {
+                    _buffer[i] = MemoryPool.Acquire<BenchMemory>();
+                }
+
+                MemoryPoolInfo after = GetInfo(typeof(BenchMemory));
+                Assert.AreEqual(before.CreateCount, after.CreateCount, "Page boundary reuse created extra objects");
+            }
+            finally
             {
-                MemoryPool.Release(_buffer[i]);
-                _buffer[i] = null;
+                for (int i = 0; i < count; i++)
+                {
+                    if (_buffer[i] != null)
+                    {
+                        MemoryPool.Release(_buffer[i]);
+                        _buffer[i] = null;
+                    }
+                }
+
+                MemoryPool<BenchMemory>.ClearAll();
             }
-
-            MemoryPoolRegistry.TickAll(UnityEngine.Time.frameCount);
-
-            MemoryPoolInfo before = GetInfo(typeof(BenchMemory));
-            Assert.GreaterOrEqual(before.PageCapacity, count, "Page boundary did not allocate enough page capacity");
-
-            for (int i = 0; i < count; i++)
-            {
-                _buffer[i] = MemoryPool.Acquire<BenchMemory>();
-            }
-
-            MemoryPoolInfo after = GetInfo(typeof(BenchMemory));
-            Assert.AreEqual(before.CreateCount, after.CreateCount, "Page boundary reuse created extra objects");
-
-            for (int i = 0; i < count; i++)
-            {
-                MemoryPool.Release(_buffer[i]);
-                _buffer[i] = null;
-            }
-
-            MemoryPool<BenchMemory>.ClearAll();
         }
 
         #endregion
@@ -637,14 +653,34 @@ namespace GameTool
         [Test]
         public void InfoBufferNoAlloc_ReturnsCorrectCount()
         {
-            MemoryPool.Acquire<BenchMemory>();
-            int count = MemoryPool.Count;
-            Assert.GreaterOrEqual(count, 1);
+            BenchMemory item = MemoryPool.Acquire<BenchMemory>();
+            try
+            {
+                int count = MemoryPool.Count;
+                Assert.GreaterOrEqual(count, 1);
 
-            MemoryPoolInfo[] buffer = new MemoryPoolInfo[count];
-            int actual = MemoryPool.GetAllMemoryPoolInfos(buffer);
-            Assert.AreEqual(count, actual, "Info count mismatch");
-            Assert.AreEqual(typeof(BenchMemory), buffer[0].Type);
+                MemoryPoolInfo[] buffer = new MemoryPoolInfo[count];
+                int actual = MemoryPool.GetAllMemoryPoolInfos(buffer);
+                Assert.AreEqual(count, actual, "Info count mismatch");
+
+                // 注册表为开放寻址哈希，条目顺序不保证——按类型查找而非依赖 buffer[0]。
+                bool found = false;
+                for (int i = 0; i < actual; i++)
+                {
+                    if (buffer[i].Type == typeof(BenchMemory))
+                    {
+                        found = true;
+                        break;
+                    }
+                }
+
+                Assert.IsTrue(found, "BenchMemory pool missing from info buffer");
+            }
+            finally
+            {
+                MemoryPool.Release(item);
+                MemoryPool<BenchMemory>.ClearAll();
+            }
         }
 
         [Test]
@@ -853,7 +889,7 @@ namespace GameTool
         [Test]
         public void InfoBufferNoAlloc_ZeroGcAlloc()
         {
-            MemoryPool.Acquire<BenchMemory>();
+            BenchMemory item = MemoryPool.Acquire<BenchMemory>();
             int count = MemoryPool.Count;
             MemoryPoolInfo[] buffer = new MemoryPoolInfo[count];
 
@@ -865,6 +901,7 @@ namespace GameTool
 
             Assert.AreEqual(count, actual);
             Assert.AreEqual(0, allocDelta, "GetAllMemoryPoolInfos allocated {0} bytes", allocDelta);
+            MemoryPool.Release(item);
             MemoryPool<BenchMemory>.ClearAll();
         }
 

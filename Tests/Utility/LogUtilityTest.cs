@@ -69,6 +69,7 @@ namespace Utility
             LogUtility.Debug("d");
             LogUtility.Info("i");
             LogUtility.Warning("w");
+            LogAssert.Expect(LogType.Error, new Regex(@"\[ERROR\].*e"));
             LogUtility.Error("e");
 
             Assert.AreEqual(4, _entries.Count);
@@ -124,6 +125,7 @@ namespace Utility
         public void Log_ErrorWithException_PassesException()
         {
             var exception = new InvalidOperationException("boom");
+            LogAssert.Expect(LogType.Error, new Regex(@"\[ERROR\].*boom"));
 
             LogUtility.Error(exception);
 
@@ -136,6 +138,8 @@ namespace Utility
         public void Log_FatalWithException_PassesException()
         {
             var exception = new InvalidOperationException("fatal");
+            // Fatal + 异常走 Debug.LogException（LogType.Exception）通道
+            LogAssert.Expect(LogType.Exception, new Regex(".*fatal.*"));
 
             LogUtility.Fatal(exception);
 
@@ -148,7 +152,7 @@ namespace Utility
         {
             LogAssert.Expect(LogType.Error, new Regex(".*FATAL.*unrecoverable.*"));
             Assert.DoesNotThrow(() => LogUtility.Fatal("unrecoverable"));
-            LogAssert.Expect(LogType.Error, new Regex(".*FATAL.*boom.*"));
+            LogAssert.Expect(LogType.Exception, new Regex(".*boom.*"));
             Assert.DoesNotThrow(() => LogUtility.Fatal(new InvalidOperationException("boom")));
         }
 
@@ -170,6 +174,7 @@ namespace Utility
         public void MessageLogged_FiresAfterLog()
         {
             LogUtility.Info("hello");
+            LogAssert.Expect(LogType.Error, new Regex(@"\[ERROR\].*oops"));
             LogUtility.Error("oops");
 
             Assert.AreEqual(2, _entries.Count);
@@ -194,6 +199,8 @@ namespace Utility
         public void MessageLogged_ExceptionOverload_FiresWithException()
         {
             var ex = new InvalidOperationException("err");
+            LogAssert.Expect(LogType.Error, new Regex(@"\[ERROR\].*err"));
+
             LogUtility.Error(ex);
 
             Assert.AreEqual(1, _entries.Count);

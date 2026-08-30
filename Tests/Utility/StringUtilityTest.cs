@@ -117,11 +117,10 @@ namespace Utility
         [Test]
         public void Format_OneArg_FormatsCorrectly()
         {
-            string result = StringUtility.GetString(sb =>
-            {
-                sb.Format("HP: {0}", 100);
-            });
+            var adapter = StringUtility.CreateStringBuilder();
+            string result = adapter.Format("HP: {0}", 100);
             Assert.AreEqual("HP: 100", result);
+            adapter.Dispose();
         }
 
         [Test]
@@ -283,26 +282,6 @@ namespace Utility
             Assert.AreEqual(string.Empty, result);
         }
 
-        [Test]
-        public void GetString_WithFormat_FormatsCorrectly()
-        {
-            string result = StringUtility.GetString(sb =>
-            {
-                sb.Format("HP: {0}/{1}", 100, 200);
-            });
-            Assert.AreEqual("HP: 100/200", result);
-        }
-
-        [Test]
-        public void GetString_WithConcat_FormatsCorrectly()
-        {
-            string result = StringUtility.GetString(sb =>
-            {
-                sb.Concat("Hello", " ", "World");
-            });
-            Assert.AreEqual("Hello World", result);
-        }
-
         #endregion
 
         #region 链式调用测试
@@ -402,6 +381,26 @@ namespace Utility
             string result = adapter.Concat(1, 2, 3, 4);
             Assert.AreEqual("1234", result);
             adapter.Dispose();
+        }
+
+        #endregion
+
+        #region 静态 Format 测试 [STATIC FORMAT TESTS]
+
+        // IStringBuilder.Format/Concat 直接返回结果字符串、不写入构建器内容——静态外观是等价路径。
+
+        [Test]
+        public void Static_Format_TwoArgs_FormatsCorrectly()
+        {
+            string result = StringUtility.Format("HP: {0}/{1}", 100, 200);
+            Assert.AreEqual("HP: 100/200", result);
+        }
+
+        [Test]
+        public void Static_Format_ThreeArgs_FormatsCorrectly()
+        {
+            string result = StringUtility.Format("{0}-{1}-{2}", "a", "b", "c");
+            Assert.AreEqual("a-b-c", result);
         }
 
         #endregion
