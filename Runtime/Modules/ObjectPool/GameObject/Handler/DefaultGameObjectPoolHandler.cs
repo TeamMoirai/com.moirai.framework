@@ -1,4 +1,5 @@
 using System;
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
@@ -8,11 +9,35 @@ using UnityEngine;
 namespace Moirai.Atropos.ObjectPool
 {
     /// <summary>
-    /// 基于 Unity 原生 Instantiate/Destroy 的默认 GameObject 池处理器。
-    /// <para><see cref="GameObjectPoolServiceHandler"/> 的内置实现：分页槽位存储 + 代系句柄校验 + 共享最小堆维护调度，PoolCatalog 数据驱动配置。</para>
-    /// <para>由 <see cref="GameObjectPoolServiceSettings"/> 序列化配置，可替换为自定义对象池后端。</para>
+    /// 默认 GameObject 池后端配置（分页槽位 + 代系句柄 + 最小堆维护调度）。
     /// </summary>
     [Serializable]
+    public sealed class DefaultGameObjectPoolHandlerConfig : GameObjectPoolServiceHandlerConfig
+    {
+        [Tooltip("池配置 ScriptableObject。为空时使用空配置（所有地址都会警告未注册）。")]
+        [SerializeField] private PoolConfigScriptableObject m_PoolConfig;
+
+        /// <summary>
+        /// 池配置 ScriptableObject。
+        /// </summary>
+        public PoolConfigScriptableObject PoolConfig
+        {
+            get => m_PoolConfig;
+            set => m_PoolConfig = value;
+        }
+
+        /// <inheritdoc />
+        public override GameObjectPoolServiceHandler CreateHandler()
+        {
+            return new DefaultGameObjectPoolHandler(this);
+        }
+    }
+
+    /// <summary>
+    /// 基于 Unity 原生 Instantiate/Destroy 的默认 GameObject 池处理器。
+    /// <para><see cref="GameObjectPoolServiceHandler"/> 的内置实现：分页槽位存储 + 代系句柄校验 + 共享最小堆维护调度，PoolCatalog 数据驱动配置。</para>
+    /// <para>由 <see cref="DefaultGameObjectPoolHandlerConfig"/> 工厂创建（普通运行时类，不参与序列化——运行时字段无需 [NonSerialized] 标注）。</para>
+    /// </summary>
     [UnityEngine.Scripting.Preserve]
     public sealed class DefaultGameObjectPoolHandler : GameObjectPoolServiceHandler
     {
@@ -25,25 +50,41 @@ namespace Moirai.Atropos.ObjectPool
 
         #region 字段 [FIELDS]
 
-        [Tooltip("池配置 ScriptableObject。为空时使用空配置（所有地址都会警告未注册）。")]
-        [SerializeField] private PoolConfigScriptableObject m_PoolConfig;
+        /// <summary>后端配置（组合持有，不参与序列化）。</summary>
+        private readonly DefaultGameObjectPoolHandlerConfig m_Config;
 
         // struct 哈希表/调度器必须存于可变字段（方法直接改写字段状态），禁止 readonly。
-        [NonSerialized] private PoolMaintenanceScheduler _scheduler;
-        [NonSerialized] private readonly IPrefabLoader _loader = new ResourcePrefabLoader();
-        [NonSerialized] private readonly List<GameObjectPoolSnapshot> _debugSnapshots = new List<GameObjectPoolSnapshot>(16);
-        [NonSerialized] private StringOpenHashMap _unregisteredWarned;
-        [NonSerialized] private StringOpenHashMap _unhandledDespawnWarned;
-        [NonSerialized] private StringOpenHashMap _groupRootMap;
-        [NonSerialized] private StringOpenHashMap _poolByLocation;
-        [NonSerialized] private RuntimeGameObjectPool[] _pools;
-        [NonSerialized] private int _poolCount;
-        [NonSerialized] private PoolCompiledCatalog _catalog;
-        [NonSerialized] private Transform _containerRoot;
-        [NonSerialized] private Transform[] _groupRoots;
-        [NonSerialized] private int _groupRootCount;
+        private PoolMaintenanceScheduler _scheduler;
+        private readonly IPrefabLoader _loader = new ResourcePrefabLoader();
+        private readonly List<GameObjectPoolSnapshot> _debugSnapshots = new List<GameObjectPoolSnapshot>(16);
+        private StringOpenHashMap _unregisteredWarned;
+        private StringOpenHashMap _unhandledDespawnWarned;
+        private StringOpenHashMap _groupRootMap;
+        private StringOpenHashMap _poolByLocation;
+        private RuntimeGameObjectPool[] _pools;
+        private int _poolCount;
+        private PoolCompiledCatalog _catalog;
+        private Transform _containerRoot;
+        private Transform[] _groupRoots;
+        private int _groupRootCount;
 
         private static readonly Comparison<GameObjectPoolSnapshot> s_SnapshotComparer = CompareSnapshot;
+
+        /// <summary>
+        /// 以指定配置创建处理器。
+        /// </summary>
+        /// <param name="config">默认 GameObject 池配置。</param>
+        public DefaultGameObjectPoolHandler(DefaultGameObjectPoolHandlerConfig config)
+        {
+            m_Config = config ?? new DefaultGameObjectPoolHandlerConfig();
+        }
+
+        /// <summary>
+        /// 以默认配置创建处理器（供测试与默认值场景使用）。
+        /// </summary>
+        public DefaultGameObjectPoolHandler() : this(new DefaultGameObjectPoolHandlerConfig())
+        {
+        }
 
         #endregion
 
@@ -71,9 +112,9 @@ namespace Moirai.Atropos.ObjectPool
 
             Application.lowMemory += OnLowMemory;
 
-            if (m_PoolConfig != null)
+            if (m_Config.PoolConfig != null)
             {
-                LoadCatalog(m_PoolConfig);
+                LoadCatalog(m_Config.PoolConfig);
             }
         }
 

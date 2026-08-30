@@ -1,4 +1,4 @@
-﻿#if ENABLE_INPUT_SYSTEM
+#if ENABLE_INPUT_SYSTEM
 using System;
 using System.Collections.Generic;
 using UnityEngine;
@@ -7,15 +7,55 @@ using UnityEngine.InputSystem;
 namespace Moirai.Atropos.Input
 {
     /// <summary>
-    /// 基于 Unity Input System（Package），需定义 ENABLE_INPUT_SYSTEM。
+    /// Unity Input System 后端配置。
     /// </summary>
     [Serializable]
-    public sealed class UnityInputSystemHandler : InputServiceHandler
+    public sealed class UnityInputSystemHandlerConfig : InputServiceHandlerConfig
     {
-        [Tooltip("留空使用 Edit > Project Settings > Input System Package 中的设置。")]
         [SerializeField] private InputActionAsset m_InputActions;
 
-        public InputActionAsset InputActions => m_InputActions ?? InputSystem.actions;
+        /// <summary>
+        /// 输入动作资产；为空时回退到 <see cref="InputSystem.actions"/>。
+        /// </summary>
+        public InputActionAsset InputActions
+        {
+            get => m_InputActions;
+            set => m_InputActions = value;
+        }
+
+        /// <inheritdoc />
+        public override InputServiceHandler CreateHandler()
+        {
+            return new UnityInputSystemHandler(this);
+        }
+    }
+
+    /// <summary>
+    /// 基于 Unity Input System（Package），需定义 ENABLE_INPUT_SYSTEM。
+    /// <para>由 <see cref="UnityInputSystemHandlerConfig"/> 工厂创建（普通运行时类，不参与序列化）。</para>
+    /// </summary>
+    public sealed class UnityInputSystemHandler : InputServiceHandler
+    {
+        /// <summary>后端配置（组合持有，不参与序列化）。</summary>
+        private readonly UnityInputSystemHandlerConfig m_Config;
+
+        /// <summary>
+        /// 以指定配置创建处理器。
+        /// </summary>
+        /// <param name="config">Input System 后端配置。</param>
+        public UnityInputSystemHandler(UnityInputSystemHandlerConfig config)
+        {
+            m_Config = config ?? throw new ArgumentNullException(nameof(config));
+        }
+
+        /// <summary>
+        /// 以默认配置创建处理器（供测试与默认值场景使用）。
+        /// </summary>
+        public UnityInputSystemHandler() : this(new UnityInputSystemHandlerConfig())
+        {
+        }
+
+        public InputActionAsset InputActions => m_Config.InputActions ?? InputSystem.actions;
 
         // 缓存 InputAction 引用提升性能
         private readonly Dictionary<string, InputAction> _inputActionsDictionary = new Dictionary<string, InputAction>();

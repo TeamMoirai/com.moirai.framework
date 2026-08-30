@@ -1,4 +1,5 @@
 ﻿using System;
+using System;
 using System.Collections;
 using UnityEngine;
 using UnityEngine.Internal;
@@ -6,10 +7,25 @@ using UnityEngine.Internal;
 namespace Moirai.Atropos.UpdateDriver
 {
     /// <summary>
-    /// 更新驱动处理器。通过常驻 GameObject（MainBehaviour）承载协程与 Unity 帧事件注入。
-    /// <para>可在 <see cref="UpdateDriverServiceSettings"/> 中替换为自定义实现。</para>
+    /// 更新驱动服务配置抽象基类（纯数据，无行为无生命周期）。
+    /// <para>以 <see cref="UnityEngine.SerializeReference"/> 存于 <see cref="UpdateDriverServiceSettings"/> 资产；
+    /// 经 <see cref="CreateHandler"/> 工厂创建绑定的后端处理器实例，处理器不再被序列化。</para>
     /// </summary>
     [Serializable]
+    public abstract class UpdateDriverServiceConfig
+    {
+        /// <summary>
+        /// 创建配置绑定的更新驱动后端处理器实例。
+        /// </summary>
+        /// <returns>新的更新驱动处理器实例。</returns>
+        public abstract UpdateDriverServiceHandler CreateHandler();
+    }
+
+    /// <summary>
+    /// 更新驱动处理器。通过常驻 GameObject（MainBehaviour）承载协程与 Unity 帧事件注入。
+    /// <para>配置数据由 <see cref="UpdateDriverServiceConfig"/> 系列纯数据类承载——处理器实例本身不再被序列化，
+    /// 由 <see cref="UpdateDriverServiceConfig.CreateHandler"/> 工厂在运行期创建。</para>
+    /// </summary>
     public abstract class UpdateDriverServiceHandler : FrameworkHandler
     {
         #region 控制协程 [COROUTINE CONTROL]

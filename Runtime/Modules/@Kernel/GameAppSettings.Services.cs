@@ -54,11 +54,11 @@ namespace Moirai.Atropos
             async UniTaskVoid InitializeCore()
             {
                 // 依赖链序：UI 依赖 Resource+Timer，流程链根服务最后注册
-                // GameServices.RegisterService(EServiceScopeKind.App, new UpdateDriverService());
-                // GameServices.RegisterService(EServiceScopeKind.App, new ResourceService());
-                // GameServices.RegisterService(EServiceScopeKind.App, new TimerService());
-                // GameServices.RegisterService(EServiceScopeKind.App, new UIService());
-                // GameServices.RegisterService(EServiceScopeKind.App, new LocalizationService());
+                GameServices.RegisterService(EServiceScopeKind.App, new UpdateDriverService());
+                GameServices.RegisterService(EServiceScopeKind.App, new ResourceService());
+                GameServices.RegisterService(EServiceScopeKind.App, new TimerService());
+                GameServices.RegisterService(EServiceScopeKind.App, new UIService());
+                GameServices.RegisterService(EServiceScopeKind.App, new LocalizationService());
                 GameServices.RegisterService(EServiceScopeKind.App, new ProcedureService());
                 await ProcedureServiceSettings.StartProcedure();
             }

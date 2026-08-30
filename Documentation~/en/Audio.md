@@ -9,9 +9,9 @@ The `Audio` service divides audio into multiple tracks (`EAudioTrack`) by usage.
 The audio service adopts the same HandlerHost zero-reflection architecture as other framework services:
 
 - **`AudioService`**: Static facade (`[HandlerHost(typeof(AudioServiceHandler))]` + `[ServiceDependency(typeof(ResourceService))]`); all public members are static methods that forward through the `Handler` property (fail-fast: lazily initialized when not ready, throws if the default factory is missing, never silently degrades)
-- **`AudioServiceHandler`**: Serializable abstract base class (inherits `FrameworkHandler`, strategy-pattern abstraction) defining the backend contract invoked by the facade
+- **`AudioServiceHandler`**: Abstract base class (inherits `FrameworkHandler`, strategy-pattern abstraction) defining the backend contract invoked by the facade; plain runtime class, never serialized
 - **`UnityAudioHandler`**: Default implementation of `AudioServiceHandler` (based on Unity `AudioSource`/`AudioMixer`, located under `Handler/`), carrying the core logic of agent pool management, playback state machines, and fade transitions
-- **`AudioServiceSettings`**: Framework settings, selecting the audio backend implementation via `[ProviderDropdown]` and configuring `AudioMixer` with `AudioGroupConfig[]`
+- **`AudioServiceSettings`**: Framework settings, selecting the audio backend config (`AudioServiceConfig` subclass, handler created via `CreateHandler()` factory) via `[ProviderDropdown]` and configuring `AudioMixer` with `AudioGroupConfig[]`
 - The service is automatically pulled up by the dependency chain; you can also register manually with `GameServices.RegisterService(EServiceScopeKind.App, new AudioService())`
 
 ## Core Features

@@ -1,4 +1,4 @@
-﻿# Core 服务系统（@Service）
+# Core 服务系统（@Service）
 
 > 框架的服务化基座：以统一服务世界（`ServiceWorld`）管理所有子服务的构造、生命周期、轮询与作用域，并由 `GameApp`（MonoBehaviour）驱动。
 
@@ -9,7 +9,7 @@
 - **统一服务世界**：`ServiceWorld` 持有 3-slot 固定数组（App/Scene/Gameplay），通过 `ContractBindings` 值类型 struct 实现 O(1) 跨作用域查找，无需父链遍历
 - **特性声明依赖**：`[ServiceDependency(typeof(DepA), typeof(DepB))]` 单特性声明多依赖，编译期由 `ServiceDependencyAnalyzer`（MIRAI002/MIRAI003）校验类型实现 `IService`
 - **递归预注册**：`RegisterWithDependencies` 按 [ServiceDependency] 声明序递归注册依赖（防重复 s_Registered 分桶表 + 防循环 s_InFlight 栈 fail-fast），被依赖服务先创建、先初始化
-- **HandlerHost 静态外观**：12 个框架服务均为 `[HandlerHost] XxxService : ServiceBase` 静态外观 + 可序列化 `XxxHandler` 后端 + `XxxSettings`（`[SerializeReference]` + `[ProviderDropdown]`）选择后端实现
+- **HandlerHost 静态外观**：12 个框架服务均为 `[HandlerHost] XxxService : ServiceBase` 静态外观+ `XxxHandler` 后端（普通运行时类，不参与序列化）+ `XxxServiceHandlerConfig` 纯数据配置（`[SerializeReference]` + `[ProviderDropdown]` 存于 Settings，经 `CreateHandler()` 工厂创建处理器实例）
 - **三级作用域**（`EServiceScopeKind.App` / `Scene` / `Gameplay`），跨作用域按 Gameplay > Scene > App 优先级查找
 - **生命周期能力接口按需实现**：`IServiceTickable`、`IServiceFixedTickable`、`IServiceLateTickable`、`IServiceGizmoDrawable`、`IAsyncShutdownService`（均继承 `IService`）
 - **`Priority` 优先级**控制轮询顺序（高优先先轮询、后关闭）
@@ -97,10 +97,11 @@ GameServices.ShutdownContainer(EServiceScopeKind.Gameplay);
 | 层 | 形态 | 职责 |
 |------|------|------|
 | `XxxService : ServiceBase` | 静态外观，标记 `[HandlerHost(typeof(XxxHandler))]` + `[ServiceDependency(...)]` | 全部静态 API；`OnInit` 触发 Handler 懒加载，`Shutdown` 清空 Handler |
-| `XxxHandler : FrameworkHandler` | 可序列化后端类 | 承载核心逻辑；替换后端无需改动调用方 |
-| `XxxSettings : FrameworkSettings<XxxSettings>` | ScriptableObject 设置 | `[ProviderDropdown]` + `[SerializeReference]` 选择后端实现 |
+| `XxxHandler : FrameworkHandler` | 后端处理器（普通运行时类，不参与序列化） | 承载核心逻辑；替换后端无需改动调用方 |
+| `XxxServiceHandlerConfig`（抽象 + 子类） | 纯数据配置（`[Serializable]`，无行为） | 由 `XxxSettings` 以 `[ProviderDropdown]` + `[SerializeReference]` 持有；`CreateHandler()` 工厂创建绑定的处理器实例（每次启动新实例，运行时状态无快照污染） |
+| `XxxSettings : FrameworkSettings<XxxSettings>` | ScriptableObject 设置 | 持有 Config 并提供静态访问器 |
 
-业务代码一律调用静态外观（如 `AudioService.Play(...)`、`UIService.ShowUI<T>()`），不持有服务实例引用。自定义后端：继承 `XxxHandler` 覆写虚方法 → 在 `XxxSettings` 的 Provider 下拉框中切换。
+业务代码一律调用静态外观（如 `AudioService.Play(...)`、`UIService.ShowUI<T>()`），不持有服务实例引用。自定义后端：继承 `XxxHandler` 覆写虚方法 → 新建 `XxxConfig` 子类实现 `CreateHandler()` 返回该后端 → 在 `XxxSettings` 的 Provider 下拉框中切换。
 
 ### 生命周期状态机
 

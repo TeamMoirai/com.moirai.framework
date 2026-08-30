@@ -31,7 +31,7 @@ namespace Moirai.Atropos.UpdateDriver
         private static UpdateDriverServiceHandler CreateDefaultHandler()
         {
             GameServices.EnsureRegistered<UpdateDriverService>();
-            return UpdateDriverServiceSettings.UpdateDriverServiceHandler;
+            return UpdateDriverServiceSettings.UpdateDriverServiceConfig.CreateHandler();
         }
 
         #endregion

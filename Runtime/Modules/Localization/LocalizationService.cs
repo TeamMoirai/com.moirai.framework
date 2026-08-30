@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -23,7 +23,7 @@ namespace Moirai.Atropos.Localization
         private static LocalizationServiceHandler CreateDefaultHandler()
         {
             GameServices.EnsureRegistered<LocalizationService>();
-            return LocalizationServiceSettings.LocalizationServiceHandler;
+            return LocalizationServiceSettings.LocalizationServiceHandlerConfig.CreateHandler();
         }
 
         #endregion

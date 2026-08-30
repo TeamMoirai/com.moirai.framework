@@ -27,7 +27,7 @@ namespace Moirai.Atropos.ObjectPool
         private static GameObjectPoolServiceHandler CreateDefaultHandler()
         {
             GameServices.EnsureRegistered<GameObjectPoolService>();
-            return GameObjectPoolServiceSettings.GameObjectPoolServiceHandler;
+            return GameObjectPoolServiceSettings.GameObjectPoolServiceHandlerConfig.CreateHandler();
         }
 
         #endregion

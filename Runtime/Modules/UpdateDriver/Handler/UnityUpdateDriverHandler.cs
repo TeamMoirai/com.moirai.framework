@@ -1,4 +1,5 @@
 ﻿using System;
+using System;
 using System.Collections;
 using System.Diagnostics;
 using Cysharp.Threading.Tasks;
@@ -8,15 +9,27 @@ using Object = UnityEngine.Object;
 namespace Moirai.Atropos.UpdateDriver
 {
     /// <summary>
-    /// 基于 Unity 常驻 GameObject 的默认更新驱动处理器。
-    /// <para><see cref="UpdateDriverServiceHandler"/> 的内置实现，通过 <see cref="MainBehaviour"/> 承载协程与 Unity 帧事件注入。</para>
-    /// <para>由 <see cref="UpdateDriverServiceSettings"/> 序列化配置，可替换为自定义驱动后端。</para>
+    /// 默认更新驱动后端配置（常驻 GameObject/MainBehaviour 承载）。当前无专有数据字段。
     /// </summary>
     [Serializable]
+    public sealed class UnityUpdateDriverConfig : UpdateDriverServiceConfig
+    {
+        /// <inheritdoc />
+        public override UpdateDriverServiceHandler CreateHandler()
+        {
+            return new UnityUpdateDriverHandler();
+        }
+    }
+
+    /// <summary>
+    /// 基于 Unity 常驻 GameObject 的默认更新驱动处理器。
+    /// <para><see cref="UpdateDriverServiceHandler"/> 的内置实现，通过 <see cref="MainBehaviour"/> 承载协程与 Unity 帧事件注入。</para>
+    /// <para>由 <see cref="UnityUpdateDriverConfig"/> 工厂创建（普通运行时类，不参与序列化——运行时字段无需 [NonSerialized] 标注）。</para>
+    /// </summary>
     public sealed class UnityUpdateDriverHandler : UpdateDriverServiceHandler
     {
-        [NonSerialized] private GameObject _entity;
-        [NonSerialized] private MainBehaviour _behaviour;
+        private GameObject _entity;
+        private MainBehaviour _behaviour;
 
         protected override void OnInit()
         {

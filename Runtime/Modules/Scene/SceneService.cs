@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Cysharp.Threading.Tasks;
 using Moirai.Atropos.Resource;
 using UnityEngine.SceneManagement;
@@ -25,7 +25,7 @@ namespace Moirai.Atropos.Scene
         private static SceneServiceHandler CreateDefaultHandler()
         {
             GameServices.EnsureRegistered<SceneService>();
-            return SceneServiceSettings.SceneServiceHandler;
+            return SceneServiceSettings.SceneServiceHandlerConfig.CreateHandler();
         }
 
         #endregion

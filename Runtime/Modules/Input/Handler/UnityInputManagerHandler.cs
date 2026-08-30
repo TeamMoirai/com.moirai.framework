@@ -1,4 +1,4 @@
-﻿#if ENABLE_LEGACY_INPUT_MANAGER
+#if ENABLE_LEGACY_INPUT_MANAGER
 using System;
 using UnityEngine;
 using System.Collections.Generic;
@@ -6,10 +6,22 @@ using System.Collections.Generic;
 namespace Moirai.Atropos.Input
 {
     /// <summary>
+    /// Unity 旧输入管理器（Input Manager）后端配置。
+    /// </summary>
+    [Serializable]
+    public sealed class UnityInputManagerHandlerConfig : InputServiceHandlerConfig
+    {
+        /// <inheritdoc />
+        public override InputServiceHandler CreateHandler()
+        {
+            return new UnityInputManagerHandler();
+        }
+    }
+
+    /// <summary>
     /// 基于 Unity 旧版输入管理器，需定义 ENABLE_LEGACY_INPUT_MANAGER。
     /// </summary>
-    /// <remarks>此方案用于桌面游戏。</remarks>
-    [Serializable]
+    /// <remarks>此方案用于桌面游戏。由 <see cref="UnityInputManagerHandlerConfig"/> 工厂创建（普通运行时类，不参与序列化）。</remarks>
     public sealed class UnityInputManagerHandler : InputServiceHandler
     {
         private struct Vector2Action

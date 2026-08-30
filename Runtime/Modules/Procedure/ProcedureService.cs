@@ -3,7 +3,6 @@ using Moirai.Atropos.Localization;
 using Moirai.Atropos.Resource;
 using Moirai.Atropos.Timer;
 using Moirai.Atropos.UI;
-using Moirai.Atropos.UpdateDriver;
 
 namespace Moirai.Atropos.Procedure
 {
@@ -18,8 +17,7 @@ namespace Moirai.Atropos.Procedure
     /// <see cref="GameServices.RegisterService{T}"/> 在注册期按本类 <c>[ServiceDependency]</c> 声明校验依赖就绪
     /// （UI/Timer→Resource、Audio/Scene/ObjectPool 亦传递依赖 Resource）。
     /// </remarks>
-    [ServiceDependency(typeof(UpdateDriverService), typeof(ResourceService), typeof(UIService),
-        typeof(LocalizationService), typeof(TimerService))]
+    [ServiceDependency(typeof(ResourceService), typeof(UIService), typeof(LocalizationService), typeof(TimerService))]
     [HandlerHost(typeof(ProcedureServiceHandler))]
     public partial class ProcedureService : ServiceBase, IServiceTickable
     {

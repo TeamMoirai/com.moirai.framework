@@ -1,13 +1,27 @@
-﻿using System;
+using System;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
 namespace Moirai.Atropos.Input
 {
     /// <summary>
-    /// 基于场景 UI 元素（InputButton/InputAxes 组件），适用于移动端虚拟摇杆。
+    /// UI 移动端虚拟摇杆后端配置。
     /// </summary>
     [Serializable]
+    public sealed class UIMobileInputHandlerConfig : InputServiceHandlerConfig
+    {
+        /// <inheritdoc />
+        public override InputServiceHandler CreateHandler()
+        {
+            return new UIMobileInputHandler();
+        }
+    }
+
+    /// <summary>
+    /// 基于场景 UI 元素（InputButton/InputAxes 组件），适用于移动端虚拟摇杆。
+    /// <para>由 <see cref="UIMobileInputHandlerConfig"/> 工厂创建（普通运行时类，不参与序列化）。</para>
+    /// </summary>
     public sealed class UIMobileInputHandler : InputServiceHandler
     {
         private readonly Dictionary<string, InputButton> _inputButtons = new Dictionary<string, InputButton>();

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Cysharp.Threading.Tasks;
 using Moirai.Atropos.Resource;
 using Moirai.Atropos.Timer;
@@ -64,7 +64,7 @@ namespace Moirai.Atropos.UI
         private static UIServiceHandler CreateDefaultHandler()
         {
             GameServices.EnsureRegistered<UIService>();
-            return UIServiceSettings.UIServiceHandler;
+            return UIServiceSettings.UIServiceHandlerConfig.CreateHandler();
         }
 
         #endregion

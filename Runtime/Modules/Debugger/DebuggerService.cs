@@ -1,4 +1,4 @@
-﻿namespace Moirai.Atropos.Debugger
+namespace Moirai.Atropos.Debugger
 {
     /// <summary>
     /// 调试器服务外观（Facade）。
@@ -19,7 +19,7 @@
         private static DebuggerServiceHandler CreateDefaultHandler()
         {
             GameServices.EnsureRegistered<DebuggerService>();
-            return DebuggerServiceSettings.DebuggerServiceHandler;
+            return DebuggerServiceSettings.DebuggerServiceHandlerConfig.CreateHandler();
         }
 
         #endregion

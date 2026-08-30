@@ -1,4 +1,5 @@
-﻿using System;
+using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Cysharp.Threading.Tasks;
@@ -10,19 +11,32 @@ using UnityEngine.UI;
 namespace Moirai.Atropos.UI
 {
     /// <summary>
-    /// UI处理器（后端）。承载窗口堆栈管理、层级排序与资源加载等核心逻辑。
-    /// <para>通过 <see cref="UIServiceSettings.UIServiceHandler"/> 序列化配置，可替换为自定义 UI 后端。</para>
+    /// 内置 uGUI UI 后端配置。当前无专有数据字段。
     /// </summary>
     [Serializable]
+    public sealed class UGUIHandlerConfig : UIServiceHandlerConfig
+    {
+        /// <inheritdoc />
+        public override UIServiceHandler CreateHandler()
+        {
+            return new UGUIHandler();
+        }
+    }
+
+    /// <summary>
+    /// UI处理器（后端）。承载窗口堆栈管理、层级排序与资源加载等核心逻辑。
+    /// <para><see cref="UIServiceHandler"/> 的内置 uGUI 实现。</para>
+    /// <para>由 <see cref="UGUIHandlerConfig"/> 工厂创建（普通运行时类，不参与序列化——运行时字段无需 [NonSerialized] 标注）。</para>
+    /// </summary>
     public sealed class UGUIHandler : UIServiceHandler
     {
         // 核心字段
-        [NonSerialized] private Transform _instanceRoot = null; // UI根节点变换组件
-        [NonSerialized] private bool _enableErrorLog = true; // 是否启用错误日志
-        [NonSerialized] private Camera _uiCamera = null; // UI专用摄像机
-        [NonSerialized] private readonly List<UIWindow> _uiStack = new List<UIWindow>(128); // 窗口堆栈
-        [NonSerialized] private readonly Dictionary<string, UIWindow> _cache = new Dictionary<string, UIWindow>(128);
-        [NonSerialized] private ErrorLogger _errorLogger; // 错误日志记录器
+        private Transform _instanceRoot = null; // UI根节点变换组件
+        private bool _enableErrorLog = true; // 是否启用错误日志
+        private Camera _uiCamera = null; // UI专用摄像机
+        private readonly List<UIWindow> _uiStack = new List<UIWindow>(128); // 窗口堆栈
+        private readonly Dictionary<string, UIWindow> _cache = new Dictionary<string, UIWindow>(128);
+        private ErrorLogger _errorLogger; // 错误日志记录器
 
         /// <summary>
         /// UI根节点。
