@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using Moirai.Atropos.Debugger;
 using UnityEngine;
 
 namespace Moirai.Atropos.Localization
@@ -29,11 +30,13 @@ namespace Moirai.Atropos.Localization
         /// <summary>
         /// 初始化本地化服务。由容器在构建期调用。
         /// <para>确保 <c>LocalizationService.Handler</c> 已赋值（触发 <see cref="CreateDefaultHandler"/> 懒加载），
-        /// 并订阅处理器语言变更事件用于静态事件转发。</para>
+        /// 订阅处理器语言变更事件用于静态事件转发，
+        /// 并向游戏内调试器注册调试面板（依赖组合根先注册 <see cref="DebuggerService"/>——外观未就绪时静默跳过）。</para>
         /// </summary>
         public override void OnInit()
         {
             Handler.OnLanguageChanged += OnLanguageChanged;
+            DebuggerService.RegisterDebuggerWindow("Profiler/Localization", new LocalizationServiceDebugView());
         }
 
         /// <summary>

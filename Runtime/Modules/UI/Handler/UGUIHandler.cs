@@ -94,30 +94,28 @@ namespace Moirai.Atropos.UI
                 UnityEngine.Object.DontDestroyOnLoad(_instanceRoot.parent != null ? _instanceRoot.parent : _instanceRoot);
                 _instanceRoot.gameObject.layer = LayerMask.NameToLayer("UI");
 
-                if (DebuggerComp.Instance != null)
+                switch (DebuggerService.ActiveWindowType)
                 {
-                    switch (DebuggerComp.Instance.ActiveWindowType)
-                    {
-                        case DebuggerActiveWindowType.AlwaysOpen:
-                            _enableErrorLog = true;
-                            break;
+                    case DebuggerActiveWindowType.AlwaysOpen:
+                        _enableErrorLog = true;
+                        break;
 
-                        case DebuggerActiveWindowType.OnlyOpenWhenDevelopment:
-                            _enableErrorLog = Debug.isDebugBuild;
-                            break;
+                    case DebuggerActiveWindowType.OnlyOpenWhenDevelopment:
+                        _enableErrorLog = Debug.isDebugBuild;
+                        break;
 
-                        case DebuggerActiveWindowType.OnlyOpenInEditor:
-                            _enableErrorLog = Application.isEditor;
-                            break;
+                    case DebuggerActiveWindowType.OnlyOpenInEditor:
+                        _enableErrorLog = Application.isEditor;
+                        break;
 
-                        default:
-                            _enableErrorLog = false;
-                            break;
-                    }
-                    if (!_enableErrorLog)
-                    {
-                        _errorLogger = new ErrorLogger();
-                    }
+                    default:
+                        _enableErrorLog = false;
+                        break;
+                }
+
+                if (!_enableErrorLog)
+                {
+                    _errorLogger = new ErrorLogger();
                 }
             });
         }

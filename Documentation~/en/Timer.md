@@ -29,7 +29,7 @@ Namespace: `Moirai.Atropos.Timer`
 | `TimerServiceSettings` | Framework settings, selects the timer backend implementation via `[ProviderDropdown]` |
 | `TimerDebugInfo` | Debug info struct: `TimerHandle`, `LeftTime`, `Duration`, `Age`, `Flags` |
 | `TimerDebugFlags` | Debug flag constants: `RUNNING`, `LOOP`, `UNSCALED` |
-| `TimerServiceDebugger` | Timer debug component (add-as-needed): attach to any scene object to inspect runtime statistics and debug info in the Inspector, zero runtime logic overhead |
+| `TimerServiceDebugView` | Timer debug view (native UI Toolkit, implements `IDebuggerWindow`): carries the debug content (statistics, timer sample, stale detection); auto-registered into the in-game debugger as "Profiler/Timer" by `TimerService.OnInit` |
 
 ## Quick Start
 
@@ -69,7 +69,7 @@ After a loop timer triggers, it is rescheduled based on "last trigger time + dur
 
 ### Capacity Configuration and Statistics
 
-The initial capacity is configured in the `TimerServiceSettings` asset (`DefaultTimerHandler.m_InitialCapacity`, default 1024, minimum 256, aligned by 256). It only takes effect when the service initializes; there is no runtime capacity reconfiguration. You can also adjust it visually via the `TimerServiceDebugger` component's Inspector slider (read-only during play mode).
+The initial capacity is configured in the `TimerServiceSettings` asset (`DefaultTimerHandler.m_InitialCapacity`, default 1024, minimum 256, aligned by 256). It only takes effect when the service initializes; there is no runtime capacity reconfiguration.
 
 ```csharp
 // Runtime statistics: active count, pool capacity, peak active count, free count
@@ -92,14 +92,17 @@ int staleCount = TimerService.GetStaleOneShotTimers(staleResults);
 #endif
 ```
 
-### Debug Component (TimerServiceDebugger)
+### Debug Panel (In-Game Debugger)
 
-`TimerServiceDebugger` is an add-as-needed empty MonoBehaviour (menu `Moirai/Timer Service Debugger`). Once attached, its Inspector provides:
+The timer service's debug info is integrated into the in-game debugger's **Profiler/Timer** panel — auto-registered by `TimerService.OnInit` (native UI Toolkit implementation, themed with the framework), with no scene components required. Double-click the floating FPS entry to expand the debugger and select it in the sidebar:
 
-- **Configuration**: edits the initial capacity of the `TimerServiceSettings` asset (slider + int field, aligned and clamped by 256; read-only during play mode; changes take effect on next service initialization).
-- **Runtime Debug**: active count / pool capacity / peak active / free slot statistics with usage progress bars.
+- **Runtime Statistics**: active count / pool capacity / peak active / free slot statistics with usage progress bars (click a value to copy it).
 - **Active Timer Sample**: first 32 timers with handle, form (loop/once), scaling mode, running state, remaining and total duration.
-- **Stale One-shot Timers**: warning list of one-shot timers alive for over 300 seconds, helping locate leaks.
+- **Stale One-shot Timers**: warning list of one-shot timers alive for over 300 seconds, helping locate leaks (editor builds only).
+
+The panel rebuilds on a 0.5s throttle; a hint is shown while the service is not ready. To edit the initial capacity, modify the `TimerServiceSettings` asset directly (read-only at runtime; changes take effect on next service initialization).
+
+Custom hosts can also hold independent view instances (`new TimerServiceDebugView()`, implementing the `IDebuggerWindow` contract).
 
 ### Implementation Highlights
 

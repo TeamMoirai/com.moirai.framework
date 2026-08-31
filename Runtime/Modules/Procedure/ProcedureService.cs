@@ -1,4 +1,5 @@
 ﻿using System;
+using Moirai.Atropos.Debugger;
 using Moirai.Atropos.Localization;
 using Moirai.Atropos.Resource;
 using Moirai.Atropos.Timer;
@@ -13,7 +14,7 @@ namespace Moirai.Atropos.Procedure
     /// <para>Handler 属性由 <c>HandlerHostGenerator</c> 源生成器自动生成（线程安全懒加载）。</para>
     /// </summary>
     /// <remarks>
-    /// 组合根手动按依赖链序注册本服务及全部链上服务（UpdateDriver/Resource/Timer/UI/Localization），
+    /// 组合根手动按依赖链序注册本服务及全部链上服务（Resource/Timer/UI/Localization），
     /// <see cref="GameServices.RegisterService{T}"/> 在注册期按本类 <c>[ServiceDependency]</c> 声明校验依赖就绪
     /// （UI/Timer→Resource、Audio/Scene/ObjectPool 亦传递依赖 Resource）。
     /// </remarks>
@@ -39,11 +40,13 @@ namespace Moirai.Atropos.Procedure
 
         /// <summary>
         /// 初始化流程服务。由容器在构建期调用。
-        /// <para>确保 <c>ProcedureService.Handler</c> 已赋值（触发 <see cref="CreateDefaultHandler"/> 懒加载）。</para>
+        /// <para>确保 <c>ProcedureService.Handler</c> 已赋值（触发 <see cref="CreateDefaultHandler"/> 懒加载），
+        /// 并向游戏内调试器注册调试面板（依赖组合根先注册 <see cref="DebuggerService"/>——外观未就绪时静默跳过）。</para>
         /// </summary>
         public override void OnInit()
         {
             _ = Handler;
+            DebuggerService.RegisterDebuggerWindow("Profiler/Procedure", new ProcedureServiceDebugView());
         }
 
         /// <summary>

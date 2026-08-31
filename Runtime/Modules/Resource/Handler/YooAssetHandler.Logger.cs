@@ -4,22 +4,22 @@ namespace Moirai.Atropos.Resource
     {
         public void Log(string message)
         {
-            LogUtility.Info(message);
+            LogUtility.Info("[YooAsset] {0}", message);
         }
 
         public void LogWarning(string message)
         {
-            LogUtility.Warning(message);
+            LogUtility.Warning("[YooAsset] {0}", message);
         }
 
         public void LogError(string message)
         {
-            LogUtility.Error(message);
+            LogUtility.Error("[YooAsset] {0}", message);
         }
 
         public void LogException(System.Exception exception)
         {
-            LogUtility.Fatal(exception);
+            LogUtility.Fatal("[YooAsset] {0}", exception?.ToString() ?? string.Empty);
         }
     }
 }

@@ -19,33 +19,59 @@ namespace Moirai.Atropos.Debugger
 
     /// <summary>
     /// 调试器处理器抽象基类（策略模式抽象策略）。定义 <see cref="DebuggerService"/> 外观调用的调试器后端契约。
-    /// <para>默认实现为 <see cref="DefaultDebuggerHandler"/>（内置调试器窗口组），可在 <see cref="DebuggerServiceSettings"/> 中替换为自定义实现。</para>
+    /// <para>默认实现为 <see cref="DefaultDebuggerHandler"/>（UI Toolkit 运行时调试器），可在 <see cref="DebuggerServiceSettings"/> 中替换为自定义实现。</para>
     /// <para>配置数据由 <see cref="DebuggerServiceHandlerConfig"/> 系列纯数据类承载——处理器实例本身不再被序列化，由 <see cref="DebuggerServiceHandlerConfig.CreateHandler"/> 工厂在运行期创建。</para>
     /// </summary>
     public abstract class DebuggerServiceHandler : FrameworkHandler
     {
         /// <summary>
-        /// 获取或设置调试器窗口是否激活。
+        /// 获取或设置调试器是否激活（悬浮入口可见；关闭时零 UI 开销）。
         /// </summary>
-        public abstract bool ActiveWindow { get; set; }
+        public abstract bool ActiveWindow
+        {
+            get;
+            set;
+        }
 
         /// <summary>
-        /// 调试器窗口根结点。
+        /// 获取或设置完整调试器窗口是否展开。
         /// </summary>
-        public abstract IDebuggerWindowGroup DebuggerWindowRoot { get; }
+        public abstract bool ShowFullWindow
+        {
+            get;
+            set;
+        }
 
         /// <summary>
-        /// 容器 Tick 驱动——轮询激活的调试器窗口。
+        /// 获取调试器窗口注册表（路径树导航模型）。
         /// </summary>
+        public abstract DebuggerWindowRegistry WindowRegistry
+        {
+            get;
+        }
+
+        /// <summary>
+        /// 获取日志捕获器（环形缓冲，供控制台与外部工具消费）。
+        /// </summary>
+        public abstract DebuggerLogCapture LogCapture
+        {
+            get;
+        }
+
+        /// <summary>
+        /// 容器 Tick 驱动——排空日志捕获并轮询可见窗口。
+        /// </summary>
+        /// <param name="elapseSeconds">逻辑流逝时间（以秒为单位）。</param>
+        /// <param name="realElapseSeconds">真实流逝时间（以秒为单位）。</param>
         public abstract void Tick(float elapseSeconds, float realElapseSeconds);
 
         /// <summary>
         /// 注册调试器窗口。
         /// </summary>
         /// <param name="path">调试器窗口路径。</param>
-        /// <param name="debuggerWindow">要注册的调试器窗口。</param>
+        /// <param name="window">要注册的调试器窗口。</param>
         /// <param name="args">初始化调试器窗口参数。</param>
-        public abstract void RegisterDebuggerWindow(string path, IDebuggerWindow debuggerWindow, params object[] args);
+        public abstract void RegisterDebuggerWindow(string path, IDebuggerWindow window, params object[] args);
 
         /// <summary>
         /// 解除注册调试器窗口。

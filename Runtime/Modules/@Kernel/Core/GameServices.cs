@@ -323,6 +323,15 @@ namespace Moirai.Atropos
             if (registry.ContainsKey(typeof(T))) return;
             if (s_InFlight.Contains(typeof(T))) return;
 
+            // 关闭态阻断懒加载复活——显式 RegisterService 是关闭后重建世界的唯一路径
+            // （已注册/在途早退在前：显式注册链内 OnInit 的 Handler 懒加载不受关闭态影响）
+            if (GameApp.IsShutdown)
+            {
+                throw new GameException(StringUtility.Format(
+                    "EnsureRegistered<{0}> blocked: GameApp is shut down. Rebuild the world via explicit RegisterService.",
+                    typeof(T).FullName));
+            }
+
             RegisterService<T>(scope, new T());
         }
 
