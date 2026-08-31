@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -13,7 +13,7 @@ namespace Moirai.Atropos.Localization
     [HandlerHost(typeof(LocalizationServiceHandler))]
     public partial class LocalizationService : ServiceBase
     {
-        #region 处理器 [HANDLER]
+        #region 生命周期 [LIFECYCLE]
 
         /// <summary>
         /// 从 <see cref="LocalizationServiceSettings"/> 创建默认本地化处理器。
@@ -24,6 +24,29 @@ namespace Moirai.Atropos.Localization
         {
             GameServices.EnsureRegistered<LocalizationService>();
             return LocalizationServiceSettings.LocalizationServiceHandlerConfig.CreateHandler();
+        }
+
+        /// <summary>
+        /// 初始化本地化服务。由容器在构建期调用。
+        /// <para>确保 <c>LocalizationService.Handler</c> 已赋值（触发 <see cref="CreateDefaultHandler"/> 懒加载），
+        /// 并订阅处理器语言变更事件用于静态事件转发。</para>
+        /// </summary>
+        public override void OnInit()
+        {
+            Handler.OnLanguageChanged += OnLanguageChanged;
+        }
+
+        /// <summary>
+        /// 关闭本地化服务。由容器在关闭期调用。
+        /// </summary>
+        public override void OnShutdown()
+        {
+            var handler = s_Handler;
+            s_Handler = null;
+            handler?.Internal_Shutdown();
+
+            if (handler != null) handler.OnLanguageChanged -= OnLanguageChanged;
+            OnLanguageChanged = null;
         }
 
         #endregion
@@ -47,47 +70,12 @@ namespace Moirai.Atropos.Localization
 
         #endregion
 
-        #region 生命周期 [LIFECYCLE]
-
-        /// <summary>
-        /// 初始化本地化服务。由容器在构建期调用。
-        /// <para>确保 <c>LocalizationService.Handler</c> 已赋值（触发 <see cref="CreateDefaultHandler"/> 懒加载），
-        /// 并订阅处理器语言变更事件用于静态事件转发。</para>
-        /// </summary>
-        public override void OnInit()
-        {
-            // 确保 Handler 已初始化
-            _ = Handler;
-
-            Handler.OnLanguageChanged += RaiseLanguageChanged;
-        }
-
-        /// <summary>
-        /// 关闭本地化服务。由容器在关闭期调用。
-        /// </summary>
-        public override void OnShutdown()
-        {
-            if (s_Handler != null) s_Handler.OnLanguageChanged -= RaiseLanguageChanged;
-            s_Handler = null;
-            s_OnLanguageChanged = null;
-        }
-
-        #endregion
-
         #region 事件 [EVENTS]
-
-        private static event Action<Language> s_OnLanguageChanged;
 
         /// <summary>
         /// 当语言改变时调用。
         /// </summary>
-        public static event Action<Language> OnLanguageChanged
-        {
-            add => s_OnLanguageChanged += value;
-            remove => s_OnLanguageChanged -= value;
-        }
-
-        private static void RaiseLanguageChanged(Language language) => s_OnLanguageChanged?.Invoke(language);
+        public static event Action<Language> OnLanguageChanged;
 
         #endregion
 

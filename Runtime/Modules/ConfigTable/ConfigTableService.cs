@@ -14,7 +14,7 @@ namespace Moirai.Atropos.ConfigTable
     [HandlerHost(typeof(ConfigTableServiceHandler))]
     public partial class ConfigTableService : ServiceBase
     {
-        #region 处理器 [HANDLER]
+        #region 生命周期 [LIFECYCLE]
 
         /// <summary>
         /// 从 <see cref="ConfigTableServiceSettings"/> 创建默认配置表处理器。
@@ -26,19 +26,6 @@ namespace Moirai.Atropos.ConfigTable
             GameServices.EnsureRegistered<ConfigTableService>();
             return ConfigTableServiceSettings.ConfigTableServiceHandlerConfig.CreateHandler();
         }
-
-        #endregion
-
-        #region 属性 [PROPERTIES]
-
-        /// <summary>
-        /// 服务是否可用
-        /// </summary>
-        public static bool IsValid => s_Handler != null;
-
-        #endregion
-
-        #region 生命周期 [LIFECYCLE]
 
         /// <summary>
         /// 初始化配置表服务。由容器在构建期调用。
@@ -53,9 +40,19 @@ namespace Moirai.Atropos.ConfigTable
         /// </summary>
         public override void OnShutdown()
         {
-            s_Handler?.Internal_Shutdown();
+            var handler = s_Handler;
             s_Handler = null;
+            handler?.Internal_Shutdown();
         }
+
+        #endregion
+
+        #region 属性 [PROPERTIES]
+
+        /// <summary>
+        /// 服务是否可用
+        /// </summary>
+        public static bool IsValid => s_Handler != null;
 
         #endregion
 
@@ -66,7 +63,7 @@ namespace Moirai.Atropos.ConfigTable
         /// </summary>
         /// <returns>多语言文本字典。</returns>
         public static Dictionary<string, List<string>> GetAllLocalizedStrings() =>
-            Handler.GetAllLocalizedStrings();
+            s_Handler?.GetAllLocalizedStrings();
 
         /// <summary>
         /// 根据 ID 从配置表加载图标。
@@ -74,14 +71,14 @@ namespace Moirai.Atropos.ConfigTable
         /// <param name="id">配置 ID。</param>
         /// <param name="cancellationToken">取消令牌。</param>
         public static UniTask<Sprite> LoadSpriteByID(string id, CancellationToken cancellationToken = default) =>
-            Handler.LoadSpriteByID(id, cancellationToken);
+            s_Handler?.LoadSpriteByID(id, cancellationToken) ?? UniTask.FromResult<Sprite>(null);
 
         /// <summary>
         /// 根据 ID 从配置表获取弹窗资产的位置。
         /// </summary>
         /// <param name="id">配置 ID。</param>
         public static string GetUIWindowLocation(string id) =>
-            Handler.GetUIWindowLocation(id);
+            s_Handler?.GetUIWindowLocation(id);
 
         #endregion
     }

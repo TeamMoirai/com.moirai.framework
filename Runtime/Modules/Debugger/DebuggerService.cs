@@ -9,7 +9,7 @@ namespace Moirai.Atropos.Debugger
     [HandlerHost(typeof(DebuggerServiceHandler))]
     public partial class DebuggerService : ServiceBase, IServiceTickable
     {
-        #region 处理器 [HANDLER]
+        #region 生命周期 [LIFECYCLE]
 
         /// <summary>
         /// 从 <see cref="DebuggerServiceSettings"/> 创建默认调试器处理器。
@@ -21,19 +21,6 @@ namespace Moirai.Atropos.Debugger
             GameServices.EnsureRegistered<DebuggerService>();
             return DebuggerServiceSettings.DebuggerServiceHandlerConfig.CreateHandler();
         }
-
-        #endregion
-
-        #region 属性 [PROPERTIES]
-
-        /// <summary>
-        /// 服务是否可用
-        /// </summary>
-        public static bool IsValid => s_Handler != null;
-
-        #endregion
-
-        #region 生命周期 [LIFECYCLE]
 
         public override int Priority => -1;
 
@@ -48,21 +35,24 @@ namespace Moirai.Atropos.Debugger
 
         /// <summary>
         /// 关闭调试器服务。由容器在关闭期调用。
+        /// <para>先摘除 Handler 引用再关闭——窗口组关闭回调抛异常时不得让半关状态的 Handler 残留，
+        /// 否则下一次懒加载会向旧窗口组重复注册（"Debugger window has been registered"）。</para>
         /// </summary>
         public override void OnShutdown()
         {
-            s_Handler?.Internal_Shutdown();
+            var handler = s_Handler;
             s_Handler = null;
+            handler?.Internal_Shutdown();
         }
 
         /// <summary>
         /// 容器 Tick 驱动——转发到处理器更新窗口组。
         /// </summary>
         public void Tick(float elapseSeconds, float realElapseSeconds) =>
-            Handler.Tick(elapseSeconds, realElapseSeconds);
+            s_Handler?.Tick(elapseSeconds, realElapseSeconds);
 
         #endregion
-
+        
         #region 窗口管理 [WINDOW MANAGEMENT]
 
         /// <summary>
@@ -70,17 +60,18 @@ namespace Moirai.Atropos.Debugger
         /// </summary>
         public static bool ActiveWindow
         {
-            get => Handler.ActiveWindow;
+            get => s_Handler?.ActiveWindow ?? false;
             set
             {
-                Handler.ActiveWindow = value;
+                if (s_Handler == null) return;
+                s_Handler.ActiveWindow = value;
             }
         }
 
         /// <summary>
         /// 调试器窗口根结点。
         /// </summary>
-        public static IDebuggerWindowGroup DebuggerWindowRoot => Handler.DebuggerWindowRoot;
+        public static IDebuggerWindowGroup DebuggerWindowRoot => s_Handler?.DebuggerWindowRoot;
 
         /// <summary>
         /// 注册调试器窗口。
@@ -89,7 +80,7 @@ namespace Moirai.Atropos.Debugger
         /// <param name="debuggerWindow">要注册的调试器窗口。</param>
         /// <param name="args">初始化调试器窗口参数。</param>
         public static void RegisterDebuggerWindow(string path, IDebuggerWindow debuggerWindow, params object[] args) =>
-            Handler.RegisterDebuggerWindow(path, debuggerWindow, args);
+            s_Handler?.RegisterDebuggerWindow(path, debuggerWindow, args);
 
         /// <summary>
         /// 解除注册调试器窗口。
@@ -97,7 +88,7 @@ namespace Moirai.Atropos.Debugger
         /// <param name="path">调试器窗口路径。</param>
         /// <returns>是否解除注册调试器窗口成功。</returns>
         public static bool UnregisterDebuggerWindow(string path) =>
-            Handler.UnregisterDebuggerWindow(path);
+            s_Handler?.UnregisterDebuggerWindow(path) ?? true;
 
         /// <summary>
         /// 获取调试器窗口。
@@ -105,7 +96,7 @@ namespace Moirai.Atropos.Debugger
         /// <param name="path">调试器窗口路径。</param>
         /// <returns>要获取的调试器窗口。</returns>
         public static IDebuggerWindow GetDebuggerWindow(string path) =>
-            Handler.GetDebuggerWindow(path);
+            s_Handler?.GetDebuggerWindow(path);
 
         /// <summary>
         /// 选中调试器窗口。
@@ -113,7 +104,7 @@ namespace Moirai.Atropos.Debugger
         /// <param name="path">调试器窗口路径。</param>
         /// <returns>是否成功选中调试器窗口。</returns>
         public static bool SelectDebuggerWindow(string path) =>
-            Handler.SelectDebuggerWindow(path);
+            s_Handler?.SelectDebuggerWindow(path) ?? false;
 
         #endregion
     }

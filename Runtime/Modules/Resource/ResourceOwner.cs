@@ -83,14 +83,10 @@ namespace Moirai.Atropos.Resource
             uint currentGeneration = Generation;
             EResourceBindStatus status = EResourceBindStatus.ServiceShutdown;
 
-            ResourceServiceHandler handler = ResourceService.Handler;
-            if (handler != null)
+            IResourceBindingService bindingService = ResourceService.BindingService;
+            if (bindingService != null)
             {
-                IResourceBindingService bindingService = handler.BindingService;
-                if (bindingService != null)
-                {
-                    status = bindingService.ReleaseOwner(currentOwnerId, currentGeneration);
-                }
+                status = bindingService.ReleaseOwner(currentOwnerId, currentGeneration);
             }
 
             if (IsRegistered && OwnerId == currentOwnerId && Generation == currentGeneration)

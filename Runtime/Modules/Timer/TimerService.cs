@@ -16,16 +16,7 @@ namespace Moirai.Atropos.Timer
     [Il2CppSetOption(Option.ArrayBoundsChecks, false)]
     public partial class TimerService : ServiceBase, IServiceTickable
     {
-        #region 属性 [PROPERTIES]
-
-        /// <summary>
-        /// 服务是否可用
-        /// </summary>
-        public static bool IsValid => s_Handler != null;
-
-        #endregion
-
-        #region 处理器 [HANDLER]
+        #region 生命周期 [LIFECYCLE]
 
         /// <summary>
         /// 从 <see cref="TimerServiceSettings"/> 配置创建默认计时器处理器。
@@ -37,10 +28,6 @@ namespace Moirai.Atropos.Timer
             GameServices.EnsureRegistered<TimerService>();
             return TimerServiceSettings.TimerServiceHandlerConfig.CreateHandler();
         }
-
-        #endregion
-
-        #region 生命周期 [LIFECYCLE]
 
         /// <summary>
         /// 初始化计时器服务。由容器在构建期调用。
@@ -56,8 +43,9 @@ namespace Moirai.Atropos.Timer
         /// </summary>
         public override void OnShutdown()
         {
-            s_Handler?.Internal_Shutdown();
+            var handler = s_Handler;
             s_Handler = null;
+            handler?.Internal_Shutdown();
         }
 
         /// <summary>
@@ -65,6 +53,15 @@ namespace Moirai.Atropos.Timer
         /// </summary>
         public void Tick(float elapseSeconds, float realElapseSeconds) =>
             Handler.Tick(elapseSeconds, realElapseSeconds);
+
+        #endregion
+
+        #region 属性 [PROPERTIES]
+
+        /// <summary>
+        /// 服务是否可用
+        /// </summary>
+        public static bool IsValid => s_Handler != null;
 
         #endregion
 

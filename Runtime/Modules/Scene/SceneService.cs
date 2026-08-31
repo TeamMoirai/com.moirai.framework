@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Cysharp.Threading.Tasks;
 using Moirai.Atropos.Resource;
 using UnityEngine.SceneManagement;
@@ -15,7 +15,7 @@ namespace Moirai.Atropos.Scene
     [ServiceDependency(typeof(ResourceService))]
     public partial class SceneService : ServiceBase
     {
-#region 处理器 [HANDLER]
+        #region 生命周期 [LIFECYCLE]
 
         /// <summary>
         /// 从 <see cref="SceneServiceSettings"/> 创建默认场景处理器。
@@ -27,19 +27,6 @@ namespace Moirai.Atropos.Scene
             GameServices.EnsureRegistered<SceneService>();
             return SceneServiceSettings.SceneServiceHandlerConfig.CreateHandler();
         }
-
-        #endregion
-
-        #region 属性 [PROPERTIES]
-
-        /// <summary>
-        /// 服务是否可用
-        /// </summary>
-        public static bool IsValid => s_Handler != null;
-
-        #endregion
-
-        #region 生命周期 [LIFECYCLE]
 
         /// <summary>
         /// 初始化场景服务。由容器在构建期调用。
@@ -55,9 +42,19 @@ namespace Moirai.Atropos.Scene
         /// </summary>
         public override void OnShutdown()
         {
-            s_Handler?.Internal_Shutdown();
+            var handler = s_Handler;
             s_Handler = null;
+            handler?.Internal_Shutdown();
         }
+
+        #endregion
+
+        #region 属性 [PROPERTIES]
+
+        /// <summary>
+        /// 服务是否可用
+        /// </summary>
+        public static bool IsValid => s_Handler != null;
 
         #endregion
 
