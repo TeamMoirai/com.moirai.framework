@@ -73,7 +73,7 @@ namespace Moirai.Atropos
         {
             if (!condition)
             {
-                Fatal(StringUtility.Format("{0}\n{1}", "Assert Failed", System.Environment.StackTrace));
+                Fatal("{0}\n{1}", "Assert Failed", System.Environment.StackTrace);
             }
         }
 
@@ -88,7 +88,7 @@ namespace Moirai.Atropos
         {
             if (!condition)
             {
-                Fatal(StringUtility.Format("{0}\n{1}", "Assert Failed" + retStr, System.Environment.StackTrace));
+                Fatal("{0}\n{1}", "Assert Failed" + retStr, System.Environment.StackTrace);
             }
         }
 

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Moirai.Atropos.Debugger;
 using Moirai.Atropos.Resource;
 using UnityEngine;
 using UnityEngine.Audio;
@@ -33,11 +34,12 @@ namespace Moirai.Atropos.Audio
         /// <summary>
         /// 初始化音频服务。由容器在构建期调用。
         /// <para>确保 <c>AudioService.Handler</c> 已赋值（触发 <see cref="CreateDefaultHandler"/> 懒加载），
-        /// 并向处理器注入资源服务引用。</para>
+        /// 并向游戏内调试器注册调试面板（依赖组合根先注册 <see cref="DebuggerService"/>——外观未就绪时静默跳过）。</para>
         /// </summary>
         public override void OnInit()
         {
             _ = Handler;
+            DebuggerService.RegisterDebuggerWindow("Profiler/Audio", new AudioServiceDebugView());
         }
 
         /// <summary>

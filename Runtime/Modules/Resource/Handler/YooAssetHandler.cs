@@ -118,7 +118,7 @@ namespace Moirai.Atropos.Resource
         /// <summary>
         /// 后端配置（组合持有）。
         /// </summary>
-        private readonly YooAssetHandlerConfig m_Config;
+        private readonly YooAssetHandlerConfig _config;
 
         /// <summary>
         /// 以指定配置创建处理器。
@@ -126,7 +126,7 @@ namespace Moirai.Atropos.Resource
         /// <param name="config">YooAsset 后端配置。</param>
         public YooAssetHandler(YooAssetHandlerConfig config)
         {
-            m_Config = config ?? throw new ArgumentNullException(nameof(config));
+            _config = config ?? throw new ArgumentNullException(nameof(config));
         }
 
         /// <summary>
@@ -143,8 +143,8 @@ namespace Moirai.Atropos.Resource
         /// <inheritdoc />
         public override string DefaultPackageName
         {
-            get => m_Config.DefaultPackageName;
-            set => m_Config.DefaultPackageName = value;
+            get => _config.DefaultPackageName;
+            set => _config.DefaultPackageName = value;
         }
 
 #if UNITY_EDITOR
@@ -169,42 +169,42 @@ namespace Moirai.Atropos.Resource
                 return m_Config.PlayMode;
 #endif
             }
-            set => m_Config.PlayMode = value;
+            set => _config.PlayMode = value;
         }
 
         /// <inheritdoc />
         public override EResourcePlayMode PlayMode
         {
             get => ToFrameworkPlayMode(YooPlayMode);
-            set => m_Config.PlayMode = ToYooAssetPlayMode(value);
+            set => _config.PlayMode = ToYooAssetPlayMode(value);
         }
 
         /// <summary>
         /// 资源加解密处理器（YooAsset 专有）。
         /// </summary>
-        public YooAssetEncryptorHandler EncryptorHandler => m_Config.EncryptorHandler;
+        public YooAssetEncryptorHandler EncryptorHandler => _config.EncryptorHandler;
 
         /// <inheritdoc />
         public override int DownloadingMaxNum
         {
-            get => m_Config.DownloadingMaxNum;
-            set => m_Config.DownloadingMaxNum = value;
+            get => _config.DownloadingMaxNum;
+            set => _config.DownloadingMaxNum = value;
         }
 
         /// <inheritdoc />
         public override int FailedTryAgain
         {
-            get => m_Config.FailedTryAgain;
-            set => m_Config.FailedTryAgain = value;
+            get => _config.FailedTryAgain;
+            set => _config.FailedTryAgain = value;
         }
 
         /// <inheritdoc />
-        public override bool UpdatableWhilePlaying => m_Config.UpdatableWhilePlaying;
+        public override bool UpdatableWhilePlaying => _config.UpdatableWhilePlaying;
 
         /// <inheritdoc />
         public override long Milliseconds
         {
-            get => m_Config.Milliseconds;
+            get => _config.Milliseconds;
             set
             {
                 if (value < 0)
@@ -212,7 +212,7 @@ namespace Moirai.Atropos.Resource
                     throw new GameException("Async operation max time slice cannot be negative.");
                 }
 
-                m_Config.Milliseconds = value;
+                _config.Milliseconds = value;
                 YooAssets.SetAsyncOperationMaxTimeSlice(value);
             }
         }
@@ -220,8 +220,8 @@ namespace Moirai.Atropos.Resource
         /// <inheritdoc />
         public override bool AutoUnloadBundleWhenUnused
         {
-            get => m_Config.AutoUnloadBundleWhenUnused;
-            set => m_Config.AutoUnloadBundleWhenUnused = value;
+            get => _config.AutoUnloadBundleWhenUnused;
+            set => _config.AutoUnloadBundleWhenUnused = value;
         }
 
         #endregion

@@ -29,7 +29,7 @@
 | `TimerServiceSettings` | 框架设置，`[ProviderDropdown]` 选择计时器后端实现 |
 | `TimerDebugInfo` | 调试信息结构体：`TimerHandle`、`LeftTime`、`Duration`、`Age`、`Flags` |
 | `TimerDebugFlags` | 调试标志位常量：`RUNNING`、`LOOP`、`UNSCALED` |
-| `TimerServiceDebugger` | 计时器调试组件（随用随加）：挂载到场景对象即可在 Inspector 查看运行时统计与调试信息，运行时零逻辑开销 |
+| `TimerServiceDebugView` | 计时器调试视图（原生 UI Toolkit，实现 `IDebuggerWindow`）：承载调试内容（统计、采样列表、僵尸检测）；经 `TimerService.OnInit` 自动注册进游戏内调试器 "Profiler/Timer" |
 
 ## 快速上手
 
@@ -69,7 +69,7 @@ ulong id = TimerService.AddTimer(OnCountdown, 1f, isLoop: true, isUnscaled: true
 
 ### 容量配置与统计
 
-初始容量在 `TimerServiceSettings` 资产中配置（`DefaultTimerHandler.m_InitialCapacity`，默认 1024，最小 256，按 256 对齐），仅在服务初始化时生效，运行中不扩容配置。也可通过 `TimerServiceDebugger` 组件的 Inspector 滑条可视化调节（运行中只读）。
+初始容量在 `TimerServiceSettings` 资产中配置（`DefaultTimerHandler.m_InitialCapacity`，默认 1024，最小 256，按 256 对齐），仅在服务初始化时生效，运行中不扩容配置。
 
 ```csharp
 // 运行时统计：活跃数、池容量、峰值活跃数、空闲数
@@ -92,14 +92,17 @@ int staleCount = TimerService.GetStaleOneShotTimers(staleResults);
 #endif
 ```
 
-### 调试组件（TimerServiceDebugger）
+### 调试面板（游戏内调试器）
 
-`TimerServiceDebugger` 是随用随加的空 MonoBehaviour（菜单 `Moirai/Timer Service Debugger`），挂载后其 Inspector 提供：
+计时器服务的调试信息整合于游戏内调试器的 **Profiler/Timer** 面板——由 `TimerService.OnInit` 自动注册（原生 UI Toolkit 实现，随框架主题渲染），无需在场景中挂载任何组件。双击悬浮 FPS 入口展开调试器后在侧边栏选择即可查看：
 
-- **配置 [CONFIGURATION]**：编辑 `TimerServiceSettings` 资产的初始容量（滑条 + 数值框，按 256 对齐钳制；运行中只读，修改在下次服务初始化时生效）。
-- **运行时调试 [RUNTIME DEBUG]**：活跃数 / 池容量 / 峰值活跃 / 空闲槽位统计与占用率进度条。
+- **运行时统计 [RUNTIME STATISTICS]**：活跃数 / 池容量 / 峰值活跃 / 空闲槽位统计与占用率进度条（点击取值可复制）。
 - **活跃计时器采样 [ACTIVE TIMER SAMPLE]**：前 32 个计时器的句柄、形态（循环/单次）、缩放模式、运行状态、剩余与周期时长。
-- **僵尸一次性计时器 [STALE ONE-SHOT TIMERS]**：存活超过 300 秒的一次性计时器警告列表，帮助定位泄漏。
+- **僵尸一次性计时器 [STALE ONE-SHOT TIMERS]**：存活超过 300 秒的一次性计时器警告列表，帮助定位泄漏（仅编辑器包含）。
+
+面板按 0.5 秒节流重建；服务未就绪时显示提示信息。初始容量的编辑请直接修改 `TimerServiceSettings` 资产（运行中只读，修改在下次服务初始化时生效）。
+
+自定义宿主亦可独立持有视图实例（`new TimerServiceDebugView()`，实现 `IDebuggerWindow` 契约）。
 
 ### 实现要点
 

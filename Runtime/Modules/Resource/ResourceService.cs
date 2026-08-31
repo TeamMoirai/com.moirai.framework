@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using Cysharp.Threading.Tasks;
+using Moirai.Atropos.Debugger;
 using UnityEngine;
 
 namespace Moirai.Atropos.Resource
@@ -40,6 +41,7 @@ namespace Moirai.Atropos.Resource
 
             DriveInitialize();
             Application.lowMemory += OnLowMemory;
+            DebuggerService.RegisterDebuggerWindow("Profiler/Resource", new ResourceServiceDebugView());
         }
 
         /// <summary>

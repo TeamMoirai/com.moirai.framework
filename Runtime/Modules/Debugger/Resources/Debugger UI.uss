@@ -1,0 +1,1399 @@
+/* =============================================================================
+   Debugger UI.uss —— 调试 UI 共享样式库（Debugger 与 DebugUI 共用的唯一样式来源）
+   <para>经 "Debugger UI Theme.tss" 挂载到 PanelSettings.themeStyleSheet；
+   内置控件（.unity-*）主题化使任何使用本主题的面板（含 DebugUI）获得一致外观；
+   调试器专属结构使用 .dbg-* 类（BEM：__元素 / --修饰符）。</para>
+   所有颜色/尺寸定义于本文件，C# 代码只负责结构、动态布局与内容驱动类切换。
+   ============================================================================= */
+
+/* ============================================================== 主题变量 [THEME VARIABLES] */
+
+:root {
+    /* 背景与面板 */
+    --dbg-background: rgba(12, 13, 17, 0.94);
+    --dbg-overlay-bg: rgba(9, 10, 14, 0.88);
+    --dbg-sidebar-bg: rgb(15, 17, 22);
+    --dbg-surface: rgb(20, 22, 28);
+    --dbg-surface-alt: rgb(25, 28, 36);
+    --dbg-surface-raised: rgb(30, 34, 43);
+    --dbg-surface-strong: rgb(14, 16, 21);
+
+    /* 按钮三态（常态明显亮于卡片底 rgb(20,22,28)，hover 再提亮一档） */
+    --dbg-btn: rgb(42, 47, 60);
+    --dbg-btn-hover: rgb(54, 60, 76);
+    --dbg-btn-pressed: rgb(34, 38, 49);
+
+    /* 开关/芯片三态（常态与按钮同档亮度——无高亮也可辨组件边界） */
+    --dbg-chip: rgb(36, 40, 50);
+    --dbg-chip-hover: rgb(46, 52, 66);
+    --dbg-chip-pressed: rgb(30, 34, 43);
+    --dbg-chip-active: rgb(38, 55, 85);
+    --dbg-chip-active-hover: rgb(46, 68, 105);
+    --dbg-chip-active-pressed: rgb(32, 47, 74);
+
+    /* 幽灵控件 */
+    --dbg-ghost-hover: rgba(255, 255, 255, 0.04);
+    --dbg-ghost-pressed: rgba(255, 255, 255, 0.07);
+
+    /* 侧边栏 */
+    --dbg-row-hover: rgba(255, 255, 255, 0.04);
+    --dbg-row-selected: rgb(40, 58, 90);
+    --dbg-group-text: rgb(150, 160, 180);
+    --dbg-tree-guide: rgba(255, 255, 255, 0.07);
+
+    /* 滚动条 */
+    --dbg-track: rgba(255, 255, 255, 0.05);
+    --dbg-thumb: rgba(255, 255, 255, 0.15);
+    --dbg-thumb-hover: rgba(255, 255, 255, 0.28);
+    --dbg-thumb-pressed: rgba(130, 170, 230, 0.71);
+
+    /* 边框与文字 */
+    --dbg-border: rgb(36, 40, 50);
+    --dbg-text: rgb(230, 234, 240);
+    --dbg-text-dim: rgb(128, 138, 158);
+
+    /* 语义色 */
+    --dbg-accent: rgb(82, 130, 210);
+    --dbg-selection-fill: rgb(38, 54, 82);
+    --dbg-selection-border: rgb(88, 120, 180);
+    --dbg-positive: rgb(110, 190, 135);
+    --dbg-positive-hover: rgb(141, 221, 166);
+    --dbg-positive-pressed: rgb(79, 159, 104);
+    --dbg-warning: rgb(225, 180, 75);
+    --dbg-danger: rgb(210, 85, 85);
+    --dbg-danger-hover: rgb(241, 116, 116);
+    --dbg-danger-pressed: rgb(180, 54, 54);
+    --dbg-fatal: rgb(160, 68, 68);
+
+    /* 常驻统计 HUD */
+    --dbg-stats-bg: rgba(8, 10, 14, 0.63);
+    --dbg-stats-border: rgba(255, 255, 255, 0.08);
+}
+
+/* ============================================================== 文本颜色工具 [TEXT COLOR UTILITIES] */
+
+.dbg-text--positive { color: var(--dbg-positive); }
+.dbg-text--warning { color: var(--dbg-warning); }
+.dbg-text--danger { color: var(--dbg-danger); }
+.dbg-text--fatal { color: var(--dbg-fatal); }
+.dbg-text--accent { color: var(--dbg-accent); }
+
+/* ============================================================== 内置控件主题 [BUILT-IN CONTROL THEME]
+   主题化 Unity 内置控件——任何挂载本主题的面板（含 DebugUI）直接获得统一外观 */
+
+.unity-label {
+    color: var(--dbg-text);
+    margin-top: 0;
+    margin-right: 0;
+    margin-bottom: 0;
+    margin-left: 0;
+}
+
+.unity-button {
+    color: var(--dbg-text);
+    border-top-width: 0;
+    border-right-width: 0;
+    border-bottom-width: 0;
+    border-left-width: 0;
+    border-top-left-radius: 6px;
+    border-top-right-radius: 6px;
+    border-bottom-right-radius: 6px;
+    border-bottom-left-radius: 6px;
+    background-color: var(--dbg-btn);
+    -unity-font-style: bold;
+    font-size: 14px;
+}
+
+.unity-button:hover {
+    background-color: var(--dbg-btn-hover);
+}
+
+.unity-button:active {
+    background-color: var(--dbg-btn-pressed);
+}
+
+.unity-base-field__label {
+    margin-top: 0;
+    margin-right: 0;
+    margin-bottom: 0;
+    margin-left: 0;
+    min-width: 120px;
+}
+
+.unity-base-text-field__input {
+    font-size: 13px;
+    color: var(--dbg-text);
+    background-color: var(--dbg-surface-raised);
+    border-top-width: 1px;
+    border-right-width: 1px;
+    border-bottom-width: 1px;
+    border-left-width: 1px;
+    border-top-color: var(--dbg-border);
+    border-right-color: var(--dbg-border);
+    border-bottom-color: var(--dbg-border);
+    border-left-color: var(--dbg-border);
+    border-top-left-radius: 6px;
+    border-top-right-radius: 6px;
+    border-bottom-right-radius: 6px;
+    border-bottom-left-radius: 6px;
+    padding-top: 0;
+    padding-right: 4px;
+    padding-bottom: 0;
+    padding-left: 6px;
+}
+
+.unity-base-text-field__input:disabled {
+    background-color: rgba(255, 255, 255, 0.03);
+    color: var(--dbg-text-dim);
+}
+
+.unity-base-text-field:hover > .unity-base-text-field__input {
+    border-top-color: var(--dbg-text-dim);
+    border-right-color: var(--dbg-text-dim);
+    border-bottom-color: var(--dbg-text-dim);
+    border-left-color: var(--dbg-text-dim);
+}
+
+.unity-base-text-field:focus > .unity-base-text-field__input {
+    border-top-color: var(--dbg-accent);
+    border-right-color: var(--dbg-accent);
+    border-bottom-color: var(--dbg-accent);
+    border-left-color: var(--dbg-accent);
+}
+
+.unity-base-text-field:focus {
+    background-color: var(--dbg-selection-fill);
+}
+
+/* 滑条：可见轨道 + 浅色滑块（水平/垂直分治）——轨道色须与卡片底区分（surface-strong 与卡片几乎同色会"融合"） */
+.unity-base-slider--horizontal .unity-base-slider__tracker {
+    height: 6px;
+    background-color: var(--dbg-track);
+    border-top-width: 0;
+    border-right-width: 0;
+    border-bottom-width: 0;
+    border-left-width: 0;
+    border-top-left-radius: 3px;
+    border-top-right-radius: 3px;
+    border-bottom-right-radius: 3px;
+    border-bottom-left-radius: 3px;
+}
+
+.unity-base-slider--vertical .unity-base-slider__tracker {
+    width: 6px;
+    background-color: var(--dbg-track);
+    border-top-width: 0;
+    border-right-width: 0;
+    border-bottom-width: 0;
+    border-left-width: 0;
+    border-top-left-radius: 3px;
+    border-top-right-radius: 3px;
+    border-bottom-right-radius: 3px;
+    border-bottom-left-radius: 3px;
+}
+
+.unity-base-slider .unity-base-slider__dragger {
+    background-color: rgba(240, 240, 240, 0.94);
+    border-top-width: 0;
+    border-right-width: 0;
+    border-bottom-width: 0;
+    border-left-width: 0;
+    border-top-left-radius: 3px;
+    border-top-right-radius: 3px;
+    border-bottom-right-radius: 3px;
+    border-bottom-left-radius: 3px;
+}
+
+.unity-base-slider:hover .unity-base-slider__dragger {
+    background-color: rgb(255, 255, 255);
+}
+
+.unity-base-slider .unity-base-slider__filler {
+    background-color: rgba(255, 255, 255, 0.06);
+}
+
+/* Foldout：调试器侧边栏与 DebugUI 折叠组的公共基样式 */
+.unity-foldout__toggle {
+    margin-top: 0;
+    margin-right: 0;
+    margin-bottom: 0;
+    margin-left: 0;
+}
+
+.unity-foldout__toggle > .unity-toggle__input:focus > .unity-label {
+    color: var(--dbg-text);
+}
+
+.unity-foldout__checkmark {
+    background-color: rgba(0, 0, 0, 0);
+    -unity-background-image-tint-color: var(--dbg-text-dim);
+    margin-top: 0;
+    margin-right: 0;
+    margin-bottom: 0;
+    margin-left: -5px;
+}
+
+.unity-foldout__content {
+    margin-left: 16px;
+}
+
+.unity-toggle__checkmark {
+    border-top-width: 0;
+    border-right-width: 0;
+    border-bottom-width: 0;
+    border-left-width: 0;
+    border-top-left-radius: 3px;
+    border-top-right-radius: 3px;
+    border-bottom-right-radius: 3px;
+    border-bottom-left-radius: 3px;
+    background-color: var(--dbg-track);
+    -unity-background-image-tint-color: var(--dbg-text);
+}
+
+.unity-toggle > .unity-toggle__input:disabled > .unity-toggle__checkmark {
+    background-color: rgba(255, 255, 255, 0.03);
+}
+
+/* 滚动条：12px 窄槽贴边满高、轨道与滑块同轴居中、隐藏端按钮 */
+.unity-scroller {
+    background-color: rgba(0, 0, 0, 0);
+    border-top-width: 0;
+    border-right-width: 0;
+    border-bottom-width: 0;
+    border-left-width: 0;
+    padding-top: 0;
+    padding-right: 0;
+    padding-bottom: 0;
+    padding-left: 0;
+}
+
+/* 四周零边距——轨道与滚动视图边缘（含底边）严格对齐 */
+.unity-scroller--vertical {
+    width: 12px;
+    margin-top: 0;
+    margin-right: 0;
+    margin-bottom: 0;
+    margin-left: 0;
+}
+
+.unity-scroller--horizontal {
+    height: 12px;
+    margin-top: 0;
+    margin-right: 0;
+    margin-bottom: 0;
+    margin-left: 0;
+}
+
+.unity-scroller__low-button,
+.unity-scroller__high-button {
+    display: none;
+    width: 0;
+    height: 0;
+}
+
+/* 滑条占满整个滚动条（清零默认主题为箭头按钮预留的上下 24px 边距——否则轨道短于实际拖拽行程） */
+.unity-scroller .unity-scroller__slider {
+    margin-top: 0;
+    margin-right: 0;
+    margin-bottom: 0;
+    margin-left: 0;
+    padding-top: 0;
+    padding-right: 0;
+    padding-bottom: 0;
+    padding-left: 0;
+}
+
+.unity-scroller .unity-base-slider__input {
+    margin-top: 0;
+    margin-right: 0;
+    margin-bottom: 0;
+    margin-left: 0;
+    padding-top: 0;
+    padding-right: 0;
+    padding-bottom: 0;
+    padding-left: 0;
+}
+
+/* 轨道：4px 细轨，在 12px 槽内显式居中偏移（(12-4)/2 = 4px）——与滑块严格同轴 */
+.unity-scroller .unity-base-slider__tracker {
+    background-color: var(--dbg-track);
+    border-top-left-radius: 4px;
+    border-top-right-radius: 4px;
+    border-bottom-right-radius: 4px;
+    border-bottom-left-radius: 4px;
+}
+
+.unity-scroller--vertical .unity-base-slider__tracker {
+    width: 4px;
+    left: 4px;
+    right: auto;
+    margin-left: 0;
+    margin-right: 0;
+}
+
+.unity-scroller--horizontal .unity-base-slider__tracker {
+    height: 4px;
+    top: 4px;
+    bottom: auto;
+    margin-top: 0;
+    margin-bottom: 0;
+}
+
+/* 滑块：8px 胶囊（比轨道宽、抓取目标更大）；锚点（0x0 dragger-border）被滑条代码钉在槽左缘——
+   left 偏移 (12-8)/2 = 2px 使滑块中心与轨道同轴（translate/margin 在锚点上实测无效，勿改用） */
+.unity-scroller .unity-base-slider__dragger {
+    background-color: var(--dbg-thumb);
+    border-top-left-radius: 4px;
+    border-top-right-radius: 4px;
+    border-bottom-right-radius: 4px;
+    border-bottom-left-radius: 4px;
+    border-top-width: 0;
+    border-right-width: 0;
+    border-bottom-width: 0;
+    border-left-width: 0;
+}
+
+.unity-scroller--vertical .unity-base-slider__dragger {
+    width: 8px;
+    left: 2px;
+    min-height: 18px;
+}
+
+.unity-scroller--horizontal .unity-base-slider__dragger {
+    height: 8px;
+    top: 2px;
+    min-width: 18px;
+}
+
+.unity-scroller .unity-base-slider__dragger:hover { background-color: var(--dbg-thumb-hover); }
+.unity-scroller .unity-base-slider__dragger:active { background-color: var(--dbg-thumb-pressed); }
+
+.unity-progress-bar__background {
+    background-color: var(--dbg-track);
+    border-top-width: 0;
+    border-right-width: 0;
+    border-bottom-width: 0;
+    border-left-width: 0;
+    border-top-left-radius: 3px;
+    border-top-right-radius: 3px;
+    border-bottom-right-radius: 3px;
+    border-bottom-left-radius: 3px;
+}
+
+.unity-progress-bar__progress {
+    background-color: var(--dbg-accent);
+    border-top-left-radius: 3px;
+    border-top-right-radius: 3px;
+    border-bottom-right-radius: 3px;
+    border-bottom-left-radius: 3px;
+}
+
+.unity-progress-bar__title {
+    color: var(--dbg-text);
+    font-size: 14px;
+}
+
+.unity-enum-field__arrow {
+    -unity-background-image-tint-color: var(--dbg-text-dim);
+}
+
+/* ============================================================== 调试器窗口框架 [DEBUGGER CHROME] */
+
+.dbg-root {
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+}
+
+.dbg-overlay {
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+}
+
+.dbg-window {
+    position: absolute;
+    background-color: var(--dbg-background);
+    border-top-width: 1px;
+    border-right-width: 1px;
+    border-bottom-width: 1px;
+    border-left-width: 1px;
+    border-top-color: var(--dbg-border);
+    border-right-color: var(--dbg-border);
+    border-bottom-color: var(--dbg-border);
+    border-left-color: var(--dbg-border);
+    border-top-left-radius: 10px;
+    border-top-right-radius: 10px;
+    border-bottom-right-radius: 10px;
+    border-bottom-left-radius: 10px;
+    flex-direction: column;
+    min-width: 640px;
+    min-height: 400px;
+}
+
+.dbg-window__header {
+    height: 48px;
+    min-height: 48px;
+    padding-left: 16px;
+    padding-right: 10px;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    background-color: var(--dbg-surface-alt);
+    border-bottom-width: 1px;
+    border-bottom-color: var(--dbg-border);
+}
+
+.dbg-window__header-title {
+    color: var(--dbg-text);
+    font-size: 17px;
+    -unity-font-style: bold;
+    -unity-text-align: middle-left;
+}
+
+.dbg-window__header-actions {
+    flex-direction: row;
+    align-items: center;
+}
+
+.dbg-header-btn {
+    height: 34px;
+    min-height: 34px;
+    min-width: 76px;
+    width: 76px;
+    margin-top: 0;
+    margin-bottom: 0;
+    margin-left: 0;
+    padding-left: 8px;
+    padding-right: 8px;
+    font-size: 13px;
+    -unity-text-align: middle-center;
+}
+
+.dbg-header-btn--close {
+    width: 34px;
+    min-width: 34px;
+    font-size: 18px;
+}
+
+.dbg-window__body {
+    flex-grow: 1;
+    flex-direction: row;
+    min-width: 0;
+    min-height: 0;
+}
+
+.dbg-window__content {
+    flex-grow: 1;
+    flex-shrink: 1;
+    flex-basis: 0;
+    min-width: 0;
+    min-height: 0;
+    background-color: var(--dbg-overlay-bg);
+}
+
+.dbg-resize-handle {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    width: 24px;
+    height: 24px;
+    background-color: var(--dbg-surface-alt);
+    border-top-width: 1px;
+    border-left-width: 1px;
+    border-top-color: var(--dbg-border);
+    border-left-color: var(--dbg-border);
+    border-top-right-radius: 10px;
+    border-bottom-right-radius: 10px;
+    justify-content: center;
+    align-items: center;
+}
+
+.dbg-resize-handle:hover { background-color: var(--dbg-btn-hover); }
+.dbg-resize-handle:active { background-color: var(--dbg-btn-pressed); }
+
+.dbg-resize-handle__glyph {
+    color: var(--dbg-text-dim);
+    font-size: 11px;
+    -unity-font-style: bold;
+    rotate: 45deg;
+}
+
+/* ============================================================== 悬浮 FPS 入口 [FLOATING FPS TOGGLE] */
+
+.dbg-fps-btn {
+    position: absolute;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding-left: 12px;
+    padding-right: 12px;
+    padding-top: 8px;
+    padding-bottom: 10px;
+    background-color: var(--dbg-background);
+    border-top-width: 1px;
+    border-right-width: 1px;
+    border-bottom-width: 1px;
+    border-left-width: 1px;
+    border-top-color: var(--dbg-border);
+    border-right-color: var(--dbg-border);
+    border-bottom-color: var(--dbg-border);
+    border-left-color: var(--dbg-border);
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+    border-bottom-right-radius: 8px;
+    border-bottom-left-radius: 8px;
+}
+
+.dbg-fps-btn__caption {
+    font-size: 11px;
+    -unity-font-style: bold;
+    color: var(--dbg-text-dim);
+    -unity-text-align: lower-center;
+    letter-spacing: 1px;
+}
+
+.dbg-fps-btn__number {
+    font-size: 24px;
+    -unity-font-style: bold;
+    color: var(--dbg-text);
+    -unity-text-align: upper-center;
+    margin-top: 2px;
+}
+
+.dbg-fps-btn__number--warning { color: var(--dbg-warning); }
+.dbg-fps-btn__number--danger { color: var(--dbg-danger); }
+.dbg-fps-btn__number--fatal { color: var(--dbg-fatal); }
+
+/* ============================================================== 侧边栏 [SIDEBAR] */
+
+.dbg-sidebar {
+    width: 200px;
+    min-width: 200px;
+    background-color: var(--dbg-sidebar-bg);
+    border-right-width: 1px;
+    border-right-color: var(--dbg-border);
+    flex-shrink: 0;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.dbg-sidebar__search-wrap {
+    position: relative;
+    margin-left: 10px;
+    margin-right: 10px;
+    margin-top: 10px;
+    margin-bottom: 6px;
+}
+
+.dbg-sidebar__search {
+    height: 28px;
+    min-height: 28px;
+    font-size: 13px;
+    background-color: var(--dbg-surface-raised);
+    border-top-left-radius: 6px;
+    border-top-right-radius: 6px;
+    border-bottom-right-radius: 6px;
+    border-bottom-left-radius: 6px;
+}
+
+.dbg-sidebar__search .unity-base-text-field__input {
+    background-color: rgba(0, 0, 0, 0);
+    border-top-width: 1px;
+    border-right-width: 1px;
+    border-bottom-width: 1px;
+    border-left-width: 1px;
+    border-top-color: var(--dbg-border);
+    border-right-color: var(--dbg-border);
+    border-bottom-color: var(--dbg-border);
+    border-left-color: var(--dbg-border);
+    padding-left: 8px;
+}
+
+.dbg-sidebar__search:focus {
+    background-color: var(--dbg-selection-fill);
+}
+
+.dbg-sidebar__search:focus .unity-base-text-field__input {
+    border-top-color: var(--dbg-accent);
+    border-right-color: var(--dbg-accent);
+    border-bottom-color: var(--dbg-accent);
+    border-left-color: var(--dbg-accent);
+}
+
+.dbg-sidebar__search-placeholder {
+    position: absolute;
+    left: 8px;
+    top: 0;
+    bottom: 0;
+    -unity-text-align: middle-left;
+    font-size: 13px;
+    color: var(--dbg-text-dim);
+}
+
+/* 通用搜索框占位符/包装（Console 工具栏用——输入框矩形 + 绝对定位占位符叠加） */
+.dbg-search-wrap {
+    position: relative;
+}
+
+.dbg-search-placeholder {
+    position: absolute;
+    left: 8px;
+    top: 0;
+    bottom: 0;
+    -unity-text-align: middle-left;
+    font-size: 13px;
+    color: var(--dbg-text-dim);
+}
+
+.dbg-sidebar__scroll {
+    flex-grow: 1;
+    min-height: 0;
+    padding-left: 10px;
+    padding-right: 8px;
+    padding-top: 4px;
+    padding-bottom: 12px;
+}
+
+.dbg-sidebar__scroll .unity-scroll-view__content-container {
+    flex-direction: column;
+}
+
+/* 侧边栏组：Foldout 化（自带旋转箭头 + 内容折叠） */
+.dbg-sidebar-foldout {
+    margin-top: 3px;
+    margin-bottom: 3px;
+}
+
+.dbg-sidebar-gap {
+    margin-top: 10px;
+}
+
+.dbg-sidebar-foldout > .unity-foldout__toggle {
+    height: 30px;
+    min-height: 30px;
+    padding-left: 6px;
+    padding-right: 6px;
+    border-top-left-radius: 6px;
+    border-top-right-radius: 6px;
+    border-bottom-right-radius: 6px;
+    border-bottom-left-radius: 6px;
+}
+
+.dbg-sidebar-foldout > .unity-foldout__toggle:hover {
+    background-color: var(--dbg-row-hover);
+}
+
+.dbg-sidebar-foldout > .unity-foldout__toggle:active {
+    background-color: var(--dbg-ghost-pressed);
+}
+
+.dbg-sidebar-foldout > .unity-foldout__toggle > .unity-label {
+    font-size: 13px;
+    -unity-font-style: bold;
+    color: var(--dbg-group-text);
+}
+
+.dbg-sidebar-foldout > .unity-foldout__toggle:hover > .unity-label {
+    color: var(--dbg-text);
+}
+
+.dbg-sidebar-foldout .unity-foldout__checkmark {
+    width: 14px;
+    height: 14px;
+    margin-right: 4px;
+}
+
+.dbg-sidebar-foldout .unity-foldout__content {
+    margin-left: 10px;
+    padding-left: 6px;
+    border-left-width: 1px;
+    border-left-color: var(--dbg-tree-guide);
+    margin-bottom: 3px;
+}
+
+/* 侧边栏叶子行（窗口项） */
+.dbg-sidebar-row {
+    flex-direction: row;
+    align-items: center;
+    height: 30px;
+    min-height: 30px;
+    padding-left: 8px;
+    padding-right: 6px;
+    margin-top: 3px;
+    border-top-left-radius: 6px;
+    border-top-right-radius: 6px;
+    border-bottom-right-radius: 6px;
+    border-bottom-left-radius: 6px;
+    background-color: rgba(0, 0, 0, 0);
+    border-top-width: 0;
+    border-right-width: 0;
+    border-bottom-width: 0;
+    border-left-width: 0;
+}
+
+.dbg-sidebar-row--gap { margin-top: 10px; }
+
+.dbg-sidebar-row:hover { background-color: var(--dbg-row-hover); }
+.dbg-sidebar-row:active { background-color: var(--dbg-ghost-pressed); }
+
+.dbg-sidebar-row--selected {
+    background-color: var(--dbg-row-selected);
+    border-left-width: 3px;
+    border-left-color: var(--dbg-accent);
+}
+
+.dbg-sidebar-row__title {
+    flex-grow: 1;
+    min-width: 0;
+    font-size: 13px;
+    -unity-text-align: middle-left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--dbg-text-dim);
+}
+
+.dbg-sidebar-row--selected .dbg-sidebar-row__title {
+    color: var(--dbg-text);
+    -unity-font-style: bold;
+}
+
+.dbg-sidebar-row:hover .dbg-sidebar-row__title {
+    color: var(--dbg-text);
+}
+
+/* ============================================================== 卡片与分区 [CARDS AND SECTIONS] */
+
+.dbg-card {
+    flex-direction: column;
+    padding-left: 12px;
+    padding-right: 12px;
+    padding-top: 12px;
+    padding-bottom: 12px;
+    border-top-left-radius: 6px;
+    border-top-right-radius: 6px;
+    border-bottom-right-radius: 6px;
+    border-bottom-left-radius: 6px;
+    background-color: var(--dbg-surface);
+    border-top-width: 1px;
+    border-right-width: 1px;
+    border-bottom-width: 1px;
+    border-left-width: 1px;
+    border-top-color: var(--dbg-border);
+    border-right-color: var(--dbg-border);
+    border-bottom-color: var(--dbg-border);
+    border-left-color: var(--dbg-border);
+    margin-bottom: 2px;
+}
+
+.dbg-section {
+    flex-direction: column;
+    margin-bottom: 10px;
+}
+
+.dbg-section__title {
+    color: var(--dbg-text);
+    -unity-font-style: bold;
+    font-size: 16px;
+    margin-bottom: 3px;
+}
+
+.dbg-hint {
+    color: var(--dbg-text-dim);
+    font-size: 13px;
+    white-space: normal;
+    margin-bottom: 6px;
+}
+
+/* ============================================================== 键值行 [KEY-VALUE ROWS] */
+
+.dbg-row {
+    flex-direction: row;
+    align-items: center;
+    min-height: 32px;
+    margin-bottom: 2px;
+}
+
+.dbg-row--wide { margin-bottom: 4px; }
+
+.dbg-row__title {
+    min-width: 280px;
+    max-width: 280px;
+    color: var(--dbg-text-dim);
+    font-size: 14px;
+    -unity-font-style: bold;
+    flex-shrink: 0;
+    white-space: normal;
+}
+
+.dbg-row--wide .dbg-row__title {
+    flex-grow: 2;
+    flex-shrink: 1;
+    flex-basis: 0;
+    min-width: 0;
+    max-width: none;
+}
+
+.dbg-row--wide .dbg-row__value {
+    flex-grow: 1;
+    flex-shrink: 1;
+    flex-basis: 0;
+}
+
+.dbg-row__value {
+    /* 最小高度而非固定高度——长值（Support Resolutions 等）换行后随内容增高，行不再被 28px 钉死溢出；
+       垂直 padding 归零抵消按钮默认主题的 ~7px×2（否则单行行高膨胀到 42px）。
+       flex-shrink:1 关键——UITK 默认 0（不收缩）使测量基准（整段文本换行宽）溢出行右缘 ~270px 产生横向滚动；
+       min-width 兜底：窗口过窄时值列不无限压缩（低于 280+160 行宽才出现横向滚动） */
+    min-height: 28px;
+    min-width: 140px;
+    flex-grow: 1;
+    flex-shrink: 1;
+    background-color: rgba(0, 0, 0, 0);
+    color: var(--dbg-text);
+    border-top-width: 0;
+    border-right-width: 0;
+    border-bottom-width: 0;
+    border-left-width: 0;
+    padding-left: 2px;
+    padding-right: 2px;
+    padding-top: 0;
+    padding-bottom: 0;
+    font-size: 14px;
+    -unity-text-align: middle-left;
+    white-space: normal;
+    justify-content: flex-start;
+}
+
+.dbg-row__value:hover { background-color: var(--dbg-ghost-hover); }
+.dbg-row__value:active { background-color: var(--dbg-ghost-pressed); }
+
+/* 采样对比高亮行（RuntimeMemory Sample） */
+.dbg-row--highlight {
+    background-color: rgba(225, 180, 75, 0.12);
+    border-left-width: 3px;
+    border-left-color: var(--dbg-warning);
+}
+
+/* 标签 + 控件 + 值的滑条行（音量/时间缩放等） */
+.dbg-slider-row {
+    flex-direction: row;
+    align-items: center;
+    margin-bottom: 6px;
+}
+
+.dbg-slider-row__title {
+    min-width: 200px;
+    color: var(--dbg-text-dim);
+    font-size: 14px;
+    -unity-font-style: bold;
+}
+
+.dbg-slider-row--narrow .dbg-slider-row__title {
+    min-width: 70px;
+}
+
+.dbg-slider-value {
+    min-width: 64px;
+    color: var(--dbg-text);
+    font-size: 14px;
+    -unity-text-align: middle-right;
+    margin-left: 10px;
+}
+
+/* 计量条（Timer 池占用率等自绘进度指示） */
+.dbg-meter {
+    position: relative;
+    flex-grow: 1;
+    height: 16px;
+    background-color: var(--dbg-surface-strong);
+    border-top-left-radius: 4px;
+    border-top-right-radius: 4px;
+    border-bottom-right-radius: 4px;
+    border-bottom-left-radius: 4px;
+}
+
+.dbg-meter__fill {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    background-color: var(--dbg-accent);
+    border-top-left-radius: 4px;
+    border-top-right-radius: 4px;
+    border-bottom-right-radius: 4px;
+    border-bottom-left-radius: 4px;
+}
+
+.dbg-meter__fill--danger { background-color: var(--dbg-danger); }
+
+/* ============================================================== 按钮 [BUTTONS] */
+
+.dbg-button {
+    height: 32px;
+    min-height: 32px;
+    padding-left: 12px;
+    padding-right: 12px;
+    margin-right: 6px;
+    margin-bottom: 4px;
+    margin-top: 0;
+    background-color: var(--dbg-btn);
+    color: var(--dbg-text);
+    font-size: 14px;
+}
+
+.dbg-button--danger { background-color: var(--dbg-danger); }
+.dbg-button--danger:hover { background-color: var(--dbg-danger-hover); }
+.dbg-button--danger:active { background-color: var(--dbg-danger-pressed); }
+
+.dbg-button--positive { background-color: var(--dbg-positive); }
+.dbg-button--positive:hover { background-color: var(--dbg-positive-hover); }
+.dbg-button--positive:active { background-color: var(--dbg-positive-pressed); }
+
+.dbg-button--active { background-color: var(--dbg-chip-active); }
+.dbg-button--active:hover { background-color: var(--dbg-chip-active-hover); }
+.dbg-button--active:active { background-color: var(--dbg-chip-active-pressed); }
+
+.dbg-button--warning { background-color: var(--dbg-warning); }
+.dbg-button--warning:hover { background-color: rgb(235, 197, 105); }
+.dbg-button--warning:active { background-color: rgb(183, 141, 51); }
+
+.dbg-button--toolbar {
+    height: 28px;
+    min-height: 28px;
+    margin-top: 0;
+    margin-bottom: 0;
+    font-size: 13px;
+}
+
+/* ============================================================== 开关与芯片 [TOGGLES AND CHIPS] */
+
+/* 标准 Toggle 复选框：芯片式底面（与卡片区分，无高亮也可辨）、内容垂直居中、行内居左；
+   勾选框经 .unity-toggle__input 主题化（选中强调色），交互态由 USS 伪类驱动 */
+.dbg-toggle {
+    align-items: center;
+    min-height: 24px;
+    margin-right: 6px;
+    margin-bottom: 4px;
+    padding-left: 10px;
+    padding-right: 12px;
+    padding-top: 4px;
+    padding-bottom: 4px;
+    border-top-left-radius: 6px;
+    border-top-right-radius: 6px;
+    border-bottom-right-radius: 6px;
+    border-bottom-left-radius: 6px;
+    border-top-width: 0;
+    border-right-width: 0;
+    border-bottom-width: 0;
+    border-left-width: 0;
+    background-color: var(--dbg-chip);
+    color: var(--dbg-text);
+    font-size: 14px;
+}
+
+/* 卡片纵向布局的交叉轴默认 stretch 会把直接子级 Toggle 拉满整行——限定取消拉伸（工具栏行内的不受影响） */
+.dbg-card > .dbg-toggle {
+    align-self: flex-start;
+}
+
+.dbg-toggle:hover { background-color: var(--dbg-chip-hover); }
+.dbg-toggle:active { background-color: var(--dbg-chip-pressed); }
+
+.dbg-toggle:checked { background-color: var(--dbg-chip-active); }
+.dbg-toggle:checked:hover { background-color: var(--dbg-chip-active-hover); }
+.dbg-toggle:checked:active { background-color: var(--dbg-chip-active-pressed); }
+
+/* 文字标签在勾选框左侧（BaseField 布局）——覆盖通用字段标签的 120px 最小宽 */
+.dbg-toggle > .unity-base-field__label {
+    min-width: 0;
+    margin-left: 0;
+    margin-right: 8px;
+    font-size: 14px;
+    color: var(--dbg-text);
+}
+
+/* 勾选框：16px 圆角方框（常态抬升底灰边、悬停亮边、选中强调色） */
+.dbg-toggle .unity-toggle__input {
+    width: 16px;
+    height: 16px;
+    min-width: 16px;
+    min-height: 16px;
+    margin-left: 0;
+    margin-right: 0;
+    background-color: var(--dbg-surface-raised);
+    border-top-width: 1px;
+    border-right-width: 1px;
+    border-bottom-width: 1px;
+    border-left-width: 1px;
+    border-top-color: var(--dbg-border);
+    border-right-color: var(--dbg-border);
+    border-bottom-color: var(--dbg-border);
+    border-left-color: var(--dbg-border);
+    border-top-left-radius: 4px;
+    border-top-right-radius: 4px;
+    border-bottom-right-radius: 4px;
+    border-bottom-left-radius: 4px;
+}
+
+.dbg-toggle:hover .unity-toggle__input {
+    border-top-color: var(--dbg-accent);
+    border-right-color: var(--dbg-accent);
+    border-bottom-color: var(--dbg-accent);
+    border-left-color: var(--dbg-accent);
+}
+
+.dbg-toggle .unity-toggle__input:checked {
+    background-color: var(--dbg-accent);
+    border-top-color: var(--dbg-accent);
+    border-right-color: var(--dbg-accent);
+    border-bottom-color: var(--dbg-accent);
+    border-left-color: var(--dbg-accent);
+}
+
+/* 勾形符号：铺满勾选框（默认主题 24px 溢出需约束），白色着色随选中显隐 */
+.dbg-toggle .unity-toggle__checkmark {
+    width: 14px;
+    height: 14px;
+    margin-top: 0;
+    margin-right: 0;
+    margin-bottom: 0;
+    margin-left: 0;
+    background-color: rgba(0, 0, 0, 0);
+    border-top-width: 0;
+    border-right-width: 0;
+    border-bottom-width: 0;
+    border-left-width: 0;
+    -unity-background-image-tint-color: rgb(255, 255, 255);
+}
+
+/* 控制台过滤芯片：圆点指示色经 --chip-indicator 修饰符注入 */
+.dbg-chip {
+    flex-direction: row;
+    align-items: center;
+    height: 28px;
+    min-height: 28px;
+    margin-top: 0;
+    margin-bottom: 0;
+    margin-left: 0;
+    margin-right: 4px;
+    padding-left: 8px;
+    padding-right: 10px;
+    padding-top: 0;
+    padding-bottom: 0;
+    border-top-left-radius: 6px;
+    border-top-right-radius: 6px;
+    border-bottom-right-radius: 6px;
+    border-bottom-left-radius: 6px;
+    border-top-width: 0;
+    border-right-width: 0;
+    border-bottom-width: 0;
+    border-left-width: 0;
+    background-color: var(--dbg-chip);
+    --chip-indicator: var(--dbg-text);
+}
+
+.dbg-chip:hover { background-color: var(--dbg-chip-hover); }
+.dbg-chip:active { background-color: var(--dbg-chip-pressed); }
+
+.dbg-chip:checked { background-color: var(--dbg-chip-active); }
+.dbg-chip:checked:hover { background-color: var(--dbg-chip-active-hover); }
+.dbg-chip:checked:active { background-color: var(--dbg-chip-active-pressed); }
+
+.dbg-chip--warning { --chip-indicator: var(--dbg-warning); }
+.dbg-chip--danger { --chip-indicator: var(--dbg-danger); }
+.dbg-chip--fatal { --chip-indicator: var(--dbg-fatal); }
+.dbg-chip--accent { --chip-indicator: var(--dbg-accent); }
+
+.dbg-chip .unity-toggle__input { display: none; }
+
+.dbg-chip__dot {
+    width: 8px;
+    height: 8px;
+    border-top-left-radius: 4px;
+    border-top-right-radius: 4px;
+    border-bottom-right-radius: 4px;
+    border-bottom-left-radius: 4px;
+    background-color: var(--dbg-text-dim);
+    margin-right: 6px;
+    opacity: 0.4;
+}
+
+.dbg-chip:checked .dbg-chip__dot {
+    background-color: var(--chip-indicator);
+    opacity: 1;
+}
+
+.dbg-chip__text {
+    font-size: 13px;
+    color: var(--dbg-text-dim);
+}
+
+.dbg-chip:checked .dbg-chip__text { color: var(--dbg-text); }
+
+/* ============================================================== 工具栏与文本区 [TOOLBAR AND TEXT] */
+
+.dbg-toolbar {
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-bottom: 4px;
+}
+
+.dbg-search {
+    height: 28px;
+    min-height: 28px;
+    font-size: 13px;
+    margin-top: 0;
+    margin-bottom: 0;
+    background-color: var(--dbg-surface-raised);
+    border-top-left-radius: 6px;
+    border-top-right-radius: 6px;
+    border-bottom-right-radius: 6px;
+    border-bottom-left-radius: 6px;
+}
+
+.dbg-search .unity-base-text-field__input {
+    background-color: rgba(0, 0, 0, 0);
+    border-top-width: 1px;
+    border-right-width: 1px;
+    border-bottom-width: 1px;
+    border-left-width: 1px;
+    border-top-color: var(--dbg-border);
+    border-right-color: var(--dbg-border);
+    border-bottom-color: var(--dbg-border);
+    border-left-color: var(--dbg-border);
+}
+
+.dbg-search:focus {
+    background-color: var(--dbg-selection-fill);
+}
+
+.dbg-search:focus .unity-base-text-field__input {
+    border-top-color: var(--dbg-accent);
+    border-right-color: var(--dbg-accent);
+    border-bottom-color: var(--dbg-accent);
+    border-left-color: var(--dbg-accent);
+}
+
+.dbg-multiline {
+    min-height: 120px;
+    white-space: normal;
+    flex-grow: 1;
+    color: var(--dbg-text);
+    font-size: 13px;
+    padding-left: 12px;
+    padding-right: 12px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+    background-color: var(--dbg-surface-strong);
+    border-top-left-radius: 6px;
+    border-top-right-radius: 6px;
+    border-bottom-right-radius: 6px;
+    border-bottom-left-radius: 6px;
+    border-top-width: 1px;
+    border-right-width: 1px;
+    border-bottom-width: 1px;
+    border-left-width: 1px;
+    border-top-color: var(--dbg-border);
+    border-right-color: var(--dbg-border);
+    border-bottom-color: var(--dbg-border);
+    border-left-color: var(--dbg-border);
+}
+
+.dbg-multiline .unity-base-text-field__input {
+    background-color: rgba(0, 0, 0, 0);
+    border-top-width: 0;
+    border-right-width: 0;
+    border-bottom-width: 0;
+    border-left-width: 0;
+    padding-top: 0;
+    padding-right: 0;
+    padding-bottom: 0;
+    padding-left: 0;
+    margin-top: 0;
+    margin-right: 0;
+    margin-bottom: 0;
+    margin-left: 0;
+    color: var(--dbg-text);
+    font-size: 13px;
+    white-space: normal;
+}
+
+/* ============================================================== 控制台 [CONSOLE] */
+
+.dbg-console-toolbar {
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: wrap;
+    padding-left: 12px;
+    padding-right: 12px;
+    padding-top: 10px;
+    padding-bottom: 8px;
+    border-bottom-width: 1px;
+    border-bottom-color: var(--dbg-border);
+}
+
+.dbg-console-search {
+    width: 180px;
+    margin-right: 8px;
+}
+
+.dbg-console-list {
+    flex-grow: 1;
+    min-height: 0;
+    padding-top: 8px;
+    background-color: var(--dbg-overlay-bg);
+    border-top-width: 0;
+    border-right-width: 0;
+    border-bottom-width: 0;
+    border-left-width: 0;
+    margin-top: 0;
+    margin-bottom: 0;
+}
+
+.dbg-console-list__hint {
+    color: var(--dbg-text-dim);
+    font-size: 13px;
+    -unity-text-align: middle-center;
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+}
+
+.dbg-console-row {
+    padding-left: 12px;
+    padding-right: 12px;
+    padding-top: 4px;
+    padding-bottom: 4px;
+    font-size: 12px;
+    white-space: normal;
+    color: var(--dbg-text);
+}
+
+.dbg-console-row--warning { color: var(--dbg-warning); }
+.dbg-console-row--error { color: var(--dbg-danger); }
+.dbg-console-row--fatal { color: var(--dbg-fatal); }
+
+/* 日志选中：与侧边栏选中同款（选中填充底 + 左强调条，覆盖 ListView 默认的亮蓝/白高亮） */
+.dbg-console-list .unity-list-view__item {
+    background-color: rgba(0, 0, 0, 0);
+    border-top-width: 0;
+    border-right-width: 0;
+    border-bottom-width: 0;
+    border-left-width: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+}
+
+.dbg-console-list .unity-list-view__item:hover {
+    background-color: var(--dbg-row-hover);
+}
+
+.dbg-console-list .unity-list-view__item--selected {
+    background-color: var(--dbg-row-selected);
+    border-left-width: 3px;
+    border-left-color: var(--dbg-accent);
+}
+
+.dbg-console-detail {
+    height: 172px;
+    min-height: 172px;
+    flex-direction: column;
+    border-top-width: 1px;
+    border-top-color: var(--dbg-border);
+    background-color: var(--dbg-surface-strong);
+}
+
+.dbg-console-detail__header {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+    padding-left: 12px;
+    padding-right: 12px;
+    padding-top: 4px;
+    padding-bottom: 4px;
+}
+
+.dbg-console-detail__title {
+    color: var(--dbg-text-dim);
+    font-size: 12px;
+    -unity-font-style: bold;
+}
+
+.dbg-console-detail__field {
+    flex-basis: 0;
+    flex-shrink: 1;
+    margin-left: 12px;
+    margin-right: 12px;
+    margin-bottom: 10px;
+}
+
+/* ============================================================== 常驻统计 HUD [STATS OVERLAY] */
+
+.dbg-stats {
+    position: absolute;
+    padding-left: 10px;
+    padding-right: 10px;
+    padding-top: 8px;
+    padding-bottom: 8px;
+    flex-direction: column;
+    background-color: var(--dbg-stats-bg);
+    border-top-width: 1px;
+    border-right-width: 1px;
+    border-bottom-width: 1px;
+    border-left-width: 1px;
+    border-top-color: var(--dbg-stats-border);
+    border-right-color: var(--dbg-stats-border);
+    border-bottom-color: var(--dbg-stats-border);
+    border-left-color: var(--dbg-stats-border);
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+    border-bottom-right-radius: 8px;
+    border-bottom-left-radius: 8px;
+}
+
+.dbg-stats__title {
+    color: var(--dbg-text-dim);
+    font-size: 10px;
+    -unity-font-style: bold;
+    letter-spacing: 0.8px;
+    -unity-text-align: middle-center;
+    margin-top: 6px;
+    margin-bottom: 2px;
+}
+
+.dbg-stats__row {
+    flex-direction: row;
+    justify-content: space-between;
+    padding-left: 10px;
+    padding-right: 10px;
+    padding-top: 1px;
+    padding-bottom: 1px;
+}
+
+.dbg-stats__label {
+    color: var(--dbg-text-dim);
+    font-size: 12px;
+}
+
+.dbg-stats__value {
+    color: var(--dbg-text);
+    font-size: 12px;
+    -unity-text-align: middle-right;
+}
+
+.dbg-stats__body {
+    color: var(--dbg-text);
+    font-size: 12px;
+    white-space: normal;
+    -unity-text-align: upper-left;
+}
