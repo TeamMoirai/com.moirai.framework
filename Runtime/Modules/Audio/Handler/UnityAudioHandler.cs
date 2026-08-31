@@ -504,9 +504,6 @@ namespace Moirai.Atropos.Audio
             return 0UL;
         }
 
-        /// <summary>
-        /// 播放音频。
-        /// </summary>
         public override ulong Play(AudioClip clip, EAudioTrack track, Vector3 location,
             bool loop,
             float volume, int id, bool fade, float fadeInitialVolume, float fadeDuration,

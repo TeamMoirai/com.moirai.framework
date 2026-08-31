@@ -1,4 +1,4 @@
-using Cysharp.Threading.Tasks;
+﻿using Cysharp.Threading.Tasks;
 
 namespace Moirai.Atropos.Save
 {
@@ -11,7 +11,7 @@ namespace Moirai.Atropos.Save
     [HandlerHost(typeof(SaveServiceHandler))]
     public partial class SaveService : ServiceBase
     {
-        #region 处理器 [HANDLER]
+        #region 生命周期 [LIFECYCLE]
 
         /// <summary>
         /// 从 <see cref="SaveServiceSettings"/> 创建默认存档处理器。
@@ -23,19 +23,6 @@ namespace Moirai.Atropos.Save
             GameServices.EnsureRegistered<SaveService>();
             return SaveServiceSettings.SaveServiceHandlerConfig.CreateHandler();
         }
-
-        #endregion
-
-        #region 属性 [PROPERTIES]
-
-        /// <summary>
-        /// 服务是否可用
-        /// </summary>
-        public static bool IsValid => s_Handler != null;
-
-        #endregion
-
-        #region 生命周期 [LIFECYCLE]
 
         /// <summary>
         /// 初始化存档服务。由容器在构建期调用。
@@ -52,9 +39,19 @@ namespace Moirai.Atropos.Save
         /// </summary>
         public override void OnShutdown()
         {
-            s_Handler?.Internal_Shutdown();
+            var handler = s_Handler;
             s_Handler = null;
+            handler?.Internal_Shutdown();
         }
+
+        #endregion
+
+        #region 属性 [PROPERTIES]
+
+        /// <summary>
+        /// 服务是否可用
+        /// </summary>
+        public static bool IsValid => s_Handler != null;
 
         #endregion
 

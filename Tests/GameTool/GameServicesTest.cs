@@ -867,27 +867,76 @@ namespace GameTool
             Assert.IsFalse(GameServices.HasApp, "失败的注册不应留下半初始化状态");
         }
 
-        [Test]
-        public void EnsureRegistered_CreatesAndRegistersWhenAbsent()
-        {
-            GameServices.EnsureRegistered<AlphaService>();
+        // ─── GameApp 关闭态测试工具（EditMode 下 GameApp 未 Initialize，IsShutdown 恒为 true） ───
 
-            var resolved = GameServices.GetRequiredService<AlphaService>();
-            Assert.IsInstanceOf<AlphaService>(resolved);
-            Assert.AreEqual(1, ((AlphaService)resolved).InitCount, "自动注册应驱动 OnInit");
-            Assert.AreEqual(EServiceState.Initialized, ((AlphaService)resolved).State);
+        private static void SetGameAppActive(bool active)
+        {
+            var field = typeof(GameApp).GetField("s_IsShutdown",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+            Assert.IsNotNull(field, "GameApp.s_IsShutdown 字段名变更，需同步本测试");
+            field.SetValue(null, !active);
+        }
+
+        [Test]
+        public void EnsureRegistered_WhenGameAppShutDown_ThrowsAndBlocksRevival()
+        {
+            // EditMode 下 GameApp 未 Initialize——IsShutdown 恒为 true，
+            // 等价于"框架未启动/拆除窗口/已手动关闭"的关闭态
+            Assert.IsTrue(GameApp.IsShutdown);
+
+            Assert.Throws<GameException>(() => GameServices.EnsureRegistered<AlphaService>());
+
+            Assert.IsFalse(GameServices.HasApp, "关闭期懒加载不得复活世界");
+            Assert.IsNull(GameServices.GetService<AlphaService>(), "关闭期不应留下半初始化服务");
+        }
+
+        [Test]
+        public void RegisterService_ExplicitRegister_NotBlockedByGameAppShutDown()
+        {
+            // 显式注册是关闭态下唯一的重建路径——不受 GameApp.IsShutdown 阻断
+            Assert.IsTrue(GameApp.IsShutdown);
+
+            Assert.DoesNotThrow(() => Register(new AlphaService()));
+            Assert.IsTrue(GameServices.HasApp);
+        }
+
+        [Test]
+        public void EnsureRegistered_WhenGameAppActive_CreatesAndRegistersWhenAbsent()
+        {
+            SetGameAppActive(true);
+            try
+            {
+                GameServices.EnsureRegistered<AlphaService>();
+
+                var resolved = GameServices.GetRequiredService<AlphaService>();
+                Assert.IsInstanceOf<AlphaService>(resolved);
+                Assert.AreEqual(1, ((AlphaService)resolved).InitCount, "自动注册应驱动 OnInit");
+                Assert.AreEqual(EServiceState.Initialized, ((AlphaService)resolved).State);
+            }
+            finally
+            {
+                SetGameAppActive(false);
+            }
         }
 
         [Test]
         public void EnsureRegistered_AlreadyRegistered_Idempotent()
         {
-            var instance = new AlphaService();
-            Register(instance);
+            SetGameAppActive(true);
+            try
+            {
+                var instance = new AlphaService();
+                Register(instance);
 
-            GameServices.EnsureRegistered<AlphaService>();
+                GameServices.EnsureRegistered<AlphaService>();
 
-            Assert.AreSame(instance, GameServices.GetRequiredService<AlphaService>(), "已注册时不应替换实例");
-            Assert.AreEqual(1, instance.InitCount, "已注册时不应再次驱动 OnInit");
+                Assert.AreSame(instance, GameServices.GetRequiredService<AlphaService>(), "已注册时不应替换实例");
+                Assert.AreEqual(1, instance.InitCount, "已注册时不应再次驱动 OnInit");
+            }
+            finally
+            {
+                SetGameAppActive(false);
+            }
         }
 
         private sealed class SelfEnsureService : TestServiceBase, IAlphaService
@@ -904,10 +953,18 @@ namespace GameTool
         [Test]
         public void EnsureRegistered_ReentrantDuringRegistration_Skipped()
         {
-            GameServices.RegisterService(EServiceScopeKind.App, new SelfEnsureService());
+            SetGameAppActive(true);
+            try
+            {
+                GameServices.RegisterService(EServiceScopeKind.App, new SelfEnsureService());
 
-            Assert.IsTrue(s_OrderLog.Contains("self-ensure"), "重入的 EnsureRegistered 应被跳过而非递归");
-            Assert.AreEqual(1, GameServices.GetRequiredService<SelfEnsureService>().InitCount);
+                Assert.IsTrue(s_OrderLog.Contains("self-ensure"), "重入的 EnsureRegistered 应被跳过而非递归");
+                Assert.AreEqual(1, GameServices.GetRequiredService<SelfEnsureService>().InitCount);
+            }
+            finally
+            {
+                SetGameAppActive(false);
+            }
         }
 
         // ═══════════════════════════════════════════════════════

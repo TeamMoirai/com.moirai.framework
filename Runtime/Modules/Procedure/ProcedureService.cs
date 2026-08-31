@@ -21,9 +21,7 @@ namespace Moirai.Atropos.Procedure
     [HandlerHost(typeof(ProcedureServiceHandler))]
     public partial class ProcedureService : ServiceBase, IServiceTickable
     {
-        public override int Priority => -2;
-
-        #region 处理器 [HANDLER]
+        #region 生命周期 [LIFECYCLE]
 
         /// <summary>
         /// 创建默认流程处理器。
@@ -34,22 +32,10 @@ namespace Moirai.Atropos.Procedure
         private static ProcedureServiceHandler CreateDefaultHandler()
         {
             GameServices.EnsureRegistered<ProcedureService>();
-            if (s_Handler != null) return s_Handler;
             return new DefaultProcedureHandler();
         }
 
-        #endregion
-
-        #region 属性 [PROPERTIES]
-
-        /// <summary>
-        /// 服务是否可用
-        /// </summary>
-        public static bool IsValid => s_Handler != null;
-
-        #endregion
-
-        #region 生命周期 [LIFECYCLE]
+        public override int Priority => -2;
 
         /// <summary>
         /// 初始化流程服务。由容器在构建期调用。
@@ -65,8 +51,9 @@ namespace Moirai.Atropos.Procedure
         /// </summary>
         public override void OnShutdown()
         {
-            s_Handler?.Internal_Shutdown();
+            var handler = s_Handler;
             s_Handler = null;
+            handler?.Internal_Shutdown();
         }
 
         /// <summary>
@@ -74,6 +61,15 @@ namespace Moirai.Atropos.Procedure
         /// </summary>
         public void Tick(float elapseSeconds, float realElapseSeconds) =>
             Handler.Tick(elapseSeconds, realElapseSeconds);
+
+        #endregion
+
+        #region 属性 [PROPERTIES]
+
+        /// <summary>
+        /// 服务是否可用
+        /// </summary>
+        public static bool IsValid => s_Handler != null;
 
         #endregion
 

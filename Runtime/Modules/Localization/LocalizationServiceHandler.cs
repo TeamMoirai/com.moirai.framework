@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -62,7 +62,7 @@ namespace Moirai.Atropos.Localization
         /// 加载本地化数据源。
         /// </summary>
         /// <returns>语言列表与本地化字符串字典。</returns>
-        protected internal abstract (List<Language> languages, Dictionary<string, List<string>> strings) LoadLocalizedData();
+        protected abstract (List<Language> languages, Dictionary<string, List<string>> strings) LoadLocalizedData();
 
         protected override void OnShutdown()
         {

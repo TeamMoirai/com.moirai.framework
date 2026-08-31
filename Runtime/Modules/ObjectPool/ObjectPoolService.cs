@@ -11,7 +11,7 @@ namespace Moirai.Atropos.ObjectPool
     [UnityEngine.Scripting.Preserve]
     public partial class ObjectPoolService : ServiceBase, IServiceTickable
     {
-        #region 处理器 [HANDLER]
+        #region 生命周期 [LIFECYCLE]
 
         /// <summary>
         /// 从 <see cref="ObjectPoolServiceSettings"/> 创建默认通用对象池处理器。
@@ -23,24 +23,6 @@ namespace Moirai.Atropos.ObjectPool
             GameServices.EnsureRegistered<ObjectPoolService>();
             return ObjectPoolServiceSettings.ObjectPoolServiceHandlerConfig.CreateHandler();
         }
-
-        #endregion
-
-        #region 属性 [PROPERTIES]
-
-        /// <summary>
-        /// 服务是否可用。
-        /// </summary>
-        public static bool IsValid => s_Handler != null;
-
-        /// <summary>
-        /// 获取池数量。
-        /// </summary>
-        public static int Count => Handler.Count;
-
-        #endregion
-
-        #region 生命周期 [LIFECYCLE]
 
         /// <summary>
         /// 获取服务优先级。
@@ -61,8 +43,9 @@ namespace Moirai.Atropos.ObjectPool
         /// </summary>
         public override void OnShutdown()
         {
-            s_Handler?.Internal_Shutdown();
+            var handler = s_Handler;
             s_Handler = null;
+            handler?.Internal_Shutdown();
         }
 
         /// <summary>
@@ -70,6 +53,20 @@ namespace Moirai.Atropos.ObjectPool
         /// </summary>
         public void Tick(float elapseSeconds, float realElapseSeconds) =>
             Handler.Tick(elapseSeconds, realElapseSeconds);
+
+        #endregion
+
+        #region 属性 [PROPERTIES]
+
+        /// <summary>
+        /// 服务是否可用。
+        /// </summary>
+        public static bool IsValid => s_Handler != null;
+
+        /// <summary>
+        /// 获取池数量。
+        /// </summary>
+        public static int Count => Handler.Count;
 
         #endregion
 

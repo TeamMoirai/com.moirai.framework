@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System;
 using Moirai.Atropos.ConfigTable;
 
@@ -27,7 +27,7 @@ namespace Moirai.Atropos.Localization
         /// <summary>
         /// 从配置表加载本地化数据源。
         /// </summary>
-        protected internal override (List<Language> languages, Dictionary<string, List<string>> strings) LoadLocalizedData()
+        protected override (List<Language> languages, Dictionary<string, List<string>> strings) LoadLocalizedData()
         {
             // 必须先取多语言字符串：数据源（如 LubanHandler）在首次解析字符串时才注册可用语言，
             // 元组字面量从左到右求值，若先取语言列表会捕获到空集合。

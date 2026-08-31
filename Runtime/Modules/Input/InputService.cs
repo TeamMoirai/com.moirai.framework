@@ -1,4 +1,4 @@
-using Moirai.Atropos.Events;
+﻿using Moirai.Atropos.Events;
 using Moirai.Atropos.UI;
 using UnityEngine;
 
@@ -13,7 +13,7 @@ namespace Moirai.Atropos.Input
     [HandlerHost(typeof(InputServiceHandler))]
     public partial class InputService : ServiceBase
     {
-        #region 处理器 [HANDLER]
+        #region 生命周期 [LIFECYCLE]
 
         /// <summary>
         /// 从 <see cref="InputServiceSettings"/> 创建默认输入处理器。
@@ -25,19 +25,6 @@ namespace Moirai.Atropos.Input
             GameServices.EnsureRegistered<InputService>();
             return InputServiceSettings.InputServiceHandlerConfig.CreateHandler();
         }
-
-        #endregion
-
-        #region 属性 [PROPERTIES]
-
-        /// <summary>
-        /// 服务是否可用
-        /// </summary>
-        public static bool IsValid => s_Handler != null;
-
-        #endregion
-
-        #region 生命周期 [LIFECYCLE]
 
         /// <summary>
         /// 初始化输入服务。由 <see cref="GameAppSettings.Initiation"/> 调用。
@@ -58,12 +45,22 @@ namespace Moirai.Atropos.Input
         /// </summary>
         public override void OnShutdown()
         {
-            s_Handler?.Internal_Shutdown();
+            var handler = s_Handler;
             s_Handler = null;
+            handler?.Internal_Shutdown();
 
             EventManager.UnregisterCallback<GameAppMessageEvent>(ResetInput);
             EventManager.UnregisterCallback<UIServiceEvent>(RefreshUIModal);
         }
+
+        #endregion
+
+        #region 属性 [PROPERTIES]
+
+        /// <summary>
+        /// 服务是否可用
+        /// </summary>
+        public static bool IsValid => s_Handler != null;
 
         #endregion
 

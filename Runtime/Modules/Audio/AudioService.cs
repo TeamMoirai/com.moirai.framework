@@ -17,7 +17,7 @@ namespace Moirai.Atropos.Audio
     [ServiceDependency(typeof(ResourceService))]
     public partial class AudioService : ServiceBase, IServiceTickable
     {
-        #region 处理器 [HANDLER]
+        #region 生命周期 [LIFECYCLE]
 
         /// <summary>
         /// 从 <see cref="AudioServiceSettings"/> 配置创建默认音频处理器。
@@ -29,10 +29,6 @@ namespace Moirai.Atropos.Audio
             GameServices.EnsureRegistered<AudioService>();
             return AudioServiceSettings.AudioServiceHandlerConfig.CreateHandler();
         }
-
-        #endregion
-
-        #region 生命周期 [LIFECYCLE]
 
         /// <summary>
         /// 初始化音频服务。由容器在构建期调用。
@@ -49,15 +45,16 @@ namespace Moirai.Atropos.Audio
         /// </summary>
         public override void OnShutdown()
         {
-            s_Handler?.Internal_Shutdown();
+            var handler = s_Handler;
             s_Handler = null;
+            handler?.Internal_Shutdown();
         }
 
         /// <summary>
         /// 容器 Tick 驱动——转发到处理器轮询音轨与手动过渡。
         /// </summary>
         public void Tick(float elapseSeconds, float realElapseSeconds) =>
-            Handler.Tick(elapseSeconds, realElapseSeconds);
+            s_Handler?.Tick(elapseSeconds, realElapseSeconds);
 
         #endregion
 
@@ -71,21 +68,25 @@ namespace Moirai.Atropos.Audio
         /// <summary>
         /// 音频混响器。
         /// </summary>
-        public static AudioMixer AudioMixer => Handler.AudioMixer;
+        public static AudioMixer AudioMixer => s_Handler?.AudioMixer;
 
         /// <summary>
         /// 实例化根节点。
         /// </summary>
         public static Transform InstanceRoot
         {
-            get => Handler.InstanceRoot;
-            set => Handler.InstanceRoot = value;
+            get => s_Handler?.InstanceRoot;
+            set
+            {
+                if (s_Handler == null) return;
+                s_Handler.InstanceRoot = value;
+            }
         }
 
         /// <summary>
         /// 资源句柄池，用于缓存资源系统的已加载音频资源（后端原生句柄的 object 包装）。
         /// </summary>
-        public static Dictionary<string, object> AssetHandlePool => Handler.AssetHandlePool;
+        public static Dictionary<string, object> AssetHandlePool => s_Handler?.AssetHandlePool;
 
         #endregion
 
@@ -94,7 +95,7 @@ namespace Moirai.Atropos.Audio
         /// <summary>
         /// 所有音轨。
         /// </summary>
-        public static AudioCategory[] AudioCategories => Handler.AudioCategories;
+        public static AudioCategory[] AudioCategories => s_Handler?.AudioCategories;
 
         /// <summary>
         /// 主音轨（总音量）音量。
@@ -102,8 +103,12 @@ namespace Moirai.Atropos.Audio
         /// <remarks>0-1</remarks>
         public static float MasterVolume
         {
-            get => Handler.MasterVolume;
-            set => Handler.MasterVolume = value;
+            get => s_Handler?.MasterVolume ?? 0f;
+            set
+            {
+                if (s_Handler == null) return;
+                s_Handler.MasterVolume = value;
+            }
         }
 
         /// <summary>
@@ -111,44 +116,48 @@ namespace Moirai.Atropos.Audio
         /// </summary>
         public static bool MasterMute
         {
-            get => Handler.MasterMute;
-            set => Handler.MasterMute = value;
+            get => s_Handler?.MasterMute ?? false;
+            set
+            {
+                if (s_Handler == null) return;
+                s_Handler.MasterMute = value;
+            }
         }
 
         /// <summary>
         /// 写入主音轨（总音量）配置。
         /// </summary>
-        public static void SetMasterSettings() => Handler.SetMasterSettings();
+        public static void SetMasterSettings() => s_Handler?.SetMasterSettings();
 
         /// <summary>
         /// 加载主音轨（总音量）配置。
         /// </summary>
-        public static void LoadMasterSettings() => Handler.LoadMasterSettings();
+        public static void LoadMasterSettings() => s_Handler?.LoadMasterSettings();
 
         /// <summary>
         /// 移除主音轨（总音量）设置。
         /// </summary>
-        public static void RemoveMasterSetting() => Handler.RemoveMasterSetting();
+        public static void RemoveMasterSetting() => s_Handler?.RemoveMasterSetting();
 
         /// <summary>
         /// 获取指定音轨的音量。
         /// </summary>
-        public static float GetTrackVolume(EAudioTrack track) => Handler.GetTrackVolume(track);
+        public static float GetTrackVolume(EAudioTrack track) => s_Handler?.GetTrackVolume(track) ?? 0f;
 
         /// <summary>
         /// 设置指定音轨的音量。
         /// </summary>
-        public static void SetTrackVolume(EAudioTrack track, float volume) => Handler.SetTrackVolume(track, volume);
+        public static void SetTrackVolume(EAudioTrack track, float volume) => s_Handler?.SetTrackVolume(track, volume);
 
         /// <summary>
         /// 获取指定音轨的静音状态。
         /// </summary>
-        public static bool GetTrackMute(EAudioTrack track) => Handler.GetTrackMute(track);
+        public static bool GetTrackMute(EAudioTrack track) => s_Handler?.GetTrackMute(track) ?? false;
 
         /// <summary>
         /// 设置指定音轨的静音状态。
         /// </summary>
-        public static void SetTrackMute(EAudioTrack track, bool mute) => Handler.SetTrackMute(track, mute);
+        public static void SetTrackMute(EAudioTrack track, bool mute) => s_Handler?.SetTrackMute(track, mute);
 
         #endregion 音轨状态 [TRACK STATUS]
 
@@ -162,12 +171,12 @@ namespace Moirai.Atropos.Audio
         /// <param name="audioGroupConfigs">音频轨道组配置。</param>
         /// <exception cref="GameException"></exception>
         public static void Initialize(Transform instanceRoot = null, AudioMixer audioMixer = null, AudioGroupConfig[] audioGroupConfigs = null) =>
-            Handler.Initialize(instanceRoot, audioMixer, audioGroupConfigs);
+            s_Handler?.Initialize(instanceRoot, audioMixer, audioGroupConfigs);
 
         /// <summary>
         /// 重启音频服务。
         /// </summary>
-        public static void Restart() => Handler.Restart();
+        public static void Restart() => s_Handler?.Restart();
 
         #endregion 服务方法 [SERVICE METHOD]
 
@@ -177,7 +186,7 @@ namespace Moirai.Atropos.Audio
         /// 播放音频，返回服务自维护的音频句柄。
         /// </summary>
         public static ulong Play(AudioClip clip, AudioPlayOptions options) =>
-            Handler.Play(clip, options);
+            s_Handler?.Play(clip, options) ?? 0UL;
 
         /// <summary>
         /// 播放音频。
@@ -199,9 +208,11 @@ namespace Moirai.Atropos.Audio
             AnimationCurve customRolloffCurve = null,
             bool useSpatialBlendCurve = false, AnimationCurve spatialBlendCurve = null,
             bool useReverbZoneMixCurve = false, AnimationCurve reverbZoneMixCurve = null,
-            float initialDelay = 0f
-            ) =>
-            Handler.Play(clip, track, location,
+            float initialDelay = 0f)
+        {
+            if (s_Handler == null) return 0UL;
+
+            return s_Handler.Play(clip, track, location,
                 loop, volume, id, fade, fadeInitialVolume, fadeDuration, fadeTweenEase, persistent,
                 recycleAudioSource, audioGroup, pitch, panStereo, spatialBlend, soloSingleTrack, soloAllTracks,
                 autoUnSoloOnEnd, bypassEffects, bypassListenerEffects, bypassReverbZones, priority, reverbZoneMix,
@@ -209,12 +220,13 @@ namespace Moirai.Atropos.Audio
                 playbackTime, playbackDuration, attachToTransform, useSpreadCurve, spreadCurve,
                 useCustomRolloffCurve, customRolloffCurve, useSpatialBlendCurve, spatialBlendCurve,
                 useReverbZoneMixCurve, reverbZoneMixCurve, initialDelay);
+        }
 
         /// <summary>
         /// 播放音频，返回服务自维护的音频句柄。
         /// </summary>
         public static ulong Play(string path, AudioPlayOptions options, bool bAsync = false, bool bInPool = false) =>
-            Handler.Play(path, options, bAsync, bInPool);
+            s_Handler?.Play(path, options, bAsync, bInPool) ?? 0UL;
 
         /// <summary>
         /// 播放音频。
@@ -236,8 +248,11 @@ namespace Moirai.Atropos.Audio
             AnimationCurve customRolloffCurve = null,
             bool useSpatialBlendCurve = false, AnimationCurve spatialBlendCurve = null,
             bool useReverbZoneMixCurve = false, AnimationCurve reverbZoneMixCurve = null,
-            float initialDelay = 0f) =>
-            Handler.Play(path, track, location, bAsync, bInPool,
+            float initialDelay = 0f)
+        {
+            if (s_Handler == null) return 0UL;
+
+            return s_Handler.Play(path, track, location, bAsync, bInPool,
                 loop, volume, id, fade, fadeInitialVolume, fadeDuration, fadeTweenEase, persistent,
                 recycleAudioSource, audioGroup, pitch, panStereo, spatialBlend, soloSingleTrack, soloAllTracks,
                 autoUnSoloOnEnd, bypassEffects, bypassListenerEffects, bypassReverbZones, priority, reverbZoneMix,
@@ -245,6 +260,7 @@ namespace Moirai.Atropos.Audio
                 playbackTime, playbackDuration, attachToTransform, useSpreadCurve, spreadCurve,
                 useCustomRolloffCurve, customRolloffCurve, useSpatialBlendCurve, spatialBlendCurve,
                 useReverbZoneMixCurve, reverbZoneMixCurve, initialDelay);
+        }
 
         #endregion 播放音频 [PLAY AUDIO]
 
@@ -253,17 +269,17 @@ namespace Moirai.Atropos.Audio
         /// <summary>
         /// 暂停指定句柄的音频
         /// </summary>
-        public static void Pause(ulong handle) => Handler.Pause(handle);
+        public static void Pause(ulong handle) => s_Handler?.Pause(handle);
 
         /// <summary>
         /// 恢复播放指定句柄的音频
         /// </summary>
-        public static void Unpause(ulong handle) => Handler.Unpause(handle);
+        public static void Unpause(ulong handle) => s_Handler?.Unpause(handle);
 
         /// <summary>
         /// 停止指定句柄的音频
         /// </summary>
-        public static void Stop(ulong handle, float fadeoutDuration = 0f) => Handler.Stop(handle, fadeoutDuration);
+        public static void Stop(ulong handle, float fadeoutDuration = 0f) => s_Handler?.Stop(handle, fadeoutDuration);
 
         #endregion 音频控制 [AUDIO CONTROLS]
 
@@ -272,47 +288,47 @@ namespace Moirai.Atropos.Audio
         /// <summary>
         /// 对每个匹配 ID 的 AudioAgent 执行操作（零分配）。
         /// </summary>
-        public static void ForEachAgentByID(int id, Action<AudioAgent> action) => Handler.ForEachAgentByID(id, action);
+        public static void ForEachAgentByID(int id, Action<AudioAgent> action) => s_Handler?.ForEachAgentByID(id, action);
 
         /// <summary>
         /// 返回播放过指定 ID 的音频代理（零分配：使用共享缓冲区，调用方需在下次调用前消费结果）。
         /// </summary>
-        public static IReadOnlyList<AudioAgent> FindAgentsByID(int id) => Handler.FindAgentsByID(id);
+        public static IReadOnlyList<AudioAgent> FindAgentsByID(int id) => s_Handler?.FindAgentsByID(id);
 
         /// <summary>
         /// 对每个匹配 Clip 的 AudioAgent 执行操作（零分配）。
         /// </summary>
-        public static void ForEachAgentByClip(AudioClip clip, Action<AudioAgent> action) => Handler.ForEachAgentByClip(clip, action);
+        public static void ForEachAgentByClip(AudioClip clip, Action<AudioAgent> action) => s_Handler?.ForEachAgentByClip(clip, action);
 
         /// <summary>
         /// 返回播放过指定 clip 的音频代理（零分配：使用共享缓冲区，调用方需在下次调用前消费结果）。
         /// </summary>
-        public static IReadOnlyList<AudioAgent> FindAgentsByClip(AudioClip clip) => Handler.FindAgentsByClip(clip);
+        public static IReadOnlyList<AudioAgent> FindAgentsByClip(AudioClip clip) => s_Handler?.FindAgentsByClip(clip);
 
         /// <summary>
         /// 返回当前正在播放的指定 clip 数量
         /// </summary>
-        public static int CurrentlyPlayingCount(AudioClip clip) => Handler.CurrentlyPlayingCount(clip);
+        public static int CurrentlyPlayingCount(AudioClip clip) => s_Handler?.CurrentlyPlayingCount(clip) ?? 0;
 
         /// <summary>
         /// 通过句柄获取 AudioAgent（用于访问 AudioResource 等内部属性）。
         /// </summary>
-        public static AudioAgent GetAgentByHandle(ulong handle) => Handler.GetAgentByHandle(handle);
+        public static AudioAgent GetAgentByHandle(ulong handle) => s_Handler?.GetAgentByHandle(handle);
 
         /// <summary>
         /// 检查指定句柄的音频是否正在播放。
         /// </summary>
-        public static bool IsPlaying(ulong handle) => Handler.IsPlaying(handle);
+        public static bool IsPlaying(ulong handle) => s_Handler?.IsPlaying(handle) ?? false;
 
         /// <summary>
         /// 检查指定句柄的音频是否已停止。
         /// </summary>
-        public static bool IsStopped(ulong handle) => Handler.IsStopped(handle);
+        public static bool IsStopped(ulong handle) => s_Handler?.IsStopped(handle) ?? true;
 
         /// <summary>
         /// 移除已停止音频的句柄映射。
         /// </summary>
-        public static void ReleaseHandle(ulong handle) => Handler.ReleaseHandle(handle);
+        public static void ReleaseHandle(ulong handle) => s_Handler?.ReleaseHandle(handle);
 
         #endregion 获取 [FIND]
 
@@ -321,22 +337,22 @@ namespace Moirai.Atropos.Audio
         /// <summary>
         /// 暂停某类音频的播放。
         /// </summary>
-        public static void Pause(EAudioTrack track) => Handler.Pause(track);
+        public static void Pause(EAudioTrack track) => s_Handler?.Pause(track);
 
         /// <summary>
         /// 恢复某类音频的播放。
         /// </summary>
-        public static void Unpause(EAudioTrack track) => Handler.Unpause(track);
+        public static void Unpause(EAudioTrack track) => s_Handler?.Unpause(track);
 
         /// <summary>
         /// 如果指定音轨当前处于暂停状态则返回 <c>true</c>，否则返回 <c>false</c>
         /// </summary>
-        public static bool IsPaused(EAudioTrack track) => Handler.IsPaused(track);
+        public static bool IsPaused(EAudioTrack track) => s_Handler?.IsPaused(track) ?? false;
 
         /// <summary>
         /// 停止某类音频的播放。
         /// </summary>
-        public static void Stop(EAudioTrack track, float fadeoutDuration = 0f) => Handler.Stop(track, fadeoutDuration);
+        public static void Stop(EAudioTrack track, float fadeoutDuration = 0f) => s_Handler?.Stop(track, fadeoutDuration);
 
         #endregion 音轨控制 [TRACK CONTROLS]
 
@@ -345,27 +361,27 @@ namespace Moirai.Atropos.Audio
         /// <summary>
         /// 暂停所有音频。
         /// </summary>
-        public static void PauseAll() => Handler.PauseAll();
+        public static void PauseAll() => s_Handler?.PauseAll();
 
         /// <summary>
         /// 恢复所有音频。
         /// </summary>
-        public static void UnpauseAll() => Handler.UnpauseAll();
+        public static void UnpauseAll() => s_Handler?.UnpauseAll();
 
         /// <summary>
         /// 停止所有音频。
         /// </summary>
-        public static void StopAll(float fadeoutDuration = 0f) => Handler.StopAll(fadeoutDuration);
+        public static void StopAll(float fadeoutDuration = 0f) => s_Handler?.StopAll(fadeoutDuration);
 
         /// <summary>
         /// 停止除持久性音频之外的所有音频。
         /// </summary>
-        public static void StopAllButPersistent(float fadeoutDuration = 0f) => Handler.StopAllButPersistent(fadeoutDuration);
+        public static void StopAllButPersistent(float fadeoutDuration = 0f) => s_Handler?.StopAllButPersistent(fadeoutDuration);
 
         /// <summary>
         /// 停止所有循环音频。
         /// </summary>
-        public static void StopAllLooping(float fadeoutDuration = 0f) => Handler.StopAllLooping(fadeoutDuration);
+        public static void StopAllLooping(float fadeoutDuration = 0f) => s_Handler?.StopAllLooping(fadeoutDuration);
 
         #endregion 所有音频控制 [ALL AUDIO CONTROLS]
 
@@ -375,40 +391,40 @@ namespace Moirai.Atropos.Audio
         /// 在指定的持续时间内，淡入 Master 音轨到最终音量
         /// </summary>
         public static void FadeMasterTrack(float duration, float initialVolume = 0f, float finalVolume = 1f, TweenEase tweenEase = default) =>
-            Handler.FadeMasterTrack(duration, initialVolume, finalVolume, tweenEase);
+            s_Handler?.FadeMasterTrack(duration, initialVolume, finalVolume, tweenEase);
 
         /// <summary>
         /// 停止 Master 音轨上所有当前的淡化（Fade）
         /// </summary>
-        public static void StopFadeMasterTrack() => Handler.StopFadeMasterTrack();
+        public static void StopFadeMasterTrack() => s_Handler?.StopFadeMasterTrack();
 
         /// <summary>
         /// 在指定的持续时间内，淡入整个音轨到最终音量
         /// </summary>
         public static void FadeTrack(EAudioTrack track, float duration, float initialVolume = 0f, float finalVolume = 1f, TweenEase tweenEase = default) =>
-            Handler.FadeTrack(track, duration, initialVolume, finalVolume, tweenEase);
+            s_Handler?.FadeTrack(track, duration, initialVolume, finalVolume, tweenEase);
 
         /// <summary>
         /// 停止指定音轨上所有当前的淡化（Fade）
         /// </summary>
-        public static void StopFadeTrack(EAudioTrack track) => Handler.StopFadeTrack(track);
+        public static void StopFadeTrack(EAudioTrack track) => s_Handler?.StopFadeTrack(track);
 
         /// <summary>
         /// 对指定句柄的音频进行音量过渡。
         /// </summary>
         /// <remarks>使用手动过渡系统，完全零 GC。</remarks>
         public static void FadeAudio(ulong handle, float duration, float initialVolume, float finalVolume, TweenEase tweenEase) =>
-            Handler.FadeAudio(handle, duration, initialVolume, finalVolume, tweenEase);
+            s_Handler?.FadeAudio(handle, duration, initialVolume, finalVolume, tweenEase);
 
         /// <summary>
         /// 停止指定句柄音频上所有当前的淡化（Fade）
         /// </summary>
-        public static void StopFadeAudio(ulong handle) => Handler.StopFadeAudio(handle);
+        public static void StopFadeAudio(ulong handle) => s_Handler?.StopFadeAudio(handle);
 
         /// <summary>
         /// 检查指定句柄的音频是否正在过渡中
         /// </summary>
-        public static bool SoundIsFadingOut(ulong handle) => Handler.SoundIsFadingOut(handle);
+        public static bool SoundIsFadingOut(ulong handle) => s_Handler?.SoundIsFadingOut(handle) ?? false;
 
         #endregion 过渡 [FADES]
 
@@ -417,17 +433,17 @@ namespace Moirai.Atropos.Audio
         /// <summary>
         /// 预先加载 <c>AudioClip</c>，并放入对象池。
         /// </summary>
-        public static void PutInAudioPool(List<string> list) => Handler.PutInAudioPool(list);
+        public static void PutInAudioPool(List<string> list) => s_Handler?.PutInAudioPool(list);
 
         /// <summary>
         /// 将部分 <c>AudioClip</c> 从对象池移出。
         /// </summary>
-        public static void RemoveClipFromPool(List<string> list) => Handler.RemoveClipFromPool(list);
+        public static void RemoveClipFromPool(List<string> list) => s_Handler?.RemoveClipFromPool(list);
 
         /// <summary>
         /// 清空 <c>AudioClip</c> 的对象池。
         /// </summary>
-        public static void CleanAudioPool() => Handler.CleanAudioPool();
+        public static void CleanAudioPool() => s_Handler?.CleanAudioPool();
 
         #endregion 资源池 [ASSET POOL]
     }
