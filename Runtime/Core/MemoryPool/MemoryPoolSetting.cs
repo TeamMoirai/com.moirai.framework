@@ -37,7 +37,6 @@ namespace Moirai.Atropos
     /// 内存池服务。
     /// </summary>
     [DisallowMultipleComponent]
-    [DefaultExecutionOrder(MoiraiExecutionOrder.GAME_APP_ORDER)]
     public sealed class MemoryPoolSetting : MonoBehaviour
     {
         #region 序列化字段 [SERIALIZED FIELDS]
@@ -145,7 +144,7 @@ namespace Moirai.Atropos
             m_AutoTrimNativeMetadataFrames = m_AutoTrimNativeMetadataFrames < 0
                 ? -1
                 : Mathf.Max(m_ZeroFreeReserveStartFrames, m_AutoTrimNativeMetadataFrames);
-            m_SoftFreeReserveLimit = Mathf.Max(MemoryPool.MinimumFreeReserveLimit, m_SoftFreeReserveLimit);
+            m_SoftFreeReserveLimit = Mathf.Max(MemoryPool.MINIMUM_FREE_RESERVE_LIMIT, m_SoftFreeReserveLimit);
             m_HardFreeReserveLimit = Mathf.Max(m_SoftFreeReserveLimit, m_HardFreeReserveLimit);
         }
 

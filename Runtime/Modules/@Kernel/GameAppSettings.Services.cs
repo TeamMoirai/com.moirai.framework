@@ -6,7 +6,6 @@ using Moirai.Atropos.Procedure;
 using Moirai.Atropos.Resource;
 using Moirai.Atropos.Timer;
 using Moirai.Atropos.UI;
-using Moirai.Atropos.UpdateDriver;
 using Sirenix.OdinInspector;
 using UnityEngine;
 
@@ -54,7 +53,6 @@ namespace Moirai.Atropos
             async UniTaskVoid InitializeCore()
             {
                 // 依赖链序：UI 依赖 Resource+Timer，流程链根服务最后注册
-                GameServices.RegisterService(EServiceScopeKind.App, new UpdateDriverService());
                 GameServices.RegisterService(EServiceScopeKind.App, new ResourceService());
                 GameServices.RegisterService(EServiceScopeKind.App, new TimerService());
                 GameServices.RegisterService(EServiceScopeKind.App, new UIService());
