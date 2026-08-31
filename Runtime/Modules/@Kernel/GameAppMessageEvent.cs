@@ -45,11 +45,15 @@
             return evt;
         }
         
-        public static void Trigger(EMessageEventType eventType)
+        private static void Trigger(EMessageEventType eventType)
         {
-            // Debug.Log($"GameAppMessageEvent: {(int)eventType}");
+            // Debug.Log($"GameAppMessageEvent: {eventType}");
             using var evt = GetPooled(eventType);
             EventManager.SendEvent(evt);
         }
+
+        public static void ApplicationFocus() => Trigger(EMessageEventType.ApplicationFocus);
+        public static void NotApplicationFocus() => Trigger(EMessageEventType.NotApplicationFocus);
+        public static void ApplicationQuit() => Trigger(EMessageEventType.ApplicationQuit);
     }
 }

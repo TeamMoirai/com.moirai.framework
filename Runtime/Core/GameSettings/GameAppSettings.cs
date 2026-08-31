@@ -118,6 +118,7 @@ namespace Moirai.Atropos
             JsonUtility.Handler = Instance.m_JsonHandler;
             ObjectUtility.Handler = Instance.m_ObjectHandler;
 
+            GameApp.Initialize();
             // 组合根：App 作用域服务创建、构建与流程启动
             InitializeAppServices().Forget();
 

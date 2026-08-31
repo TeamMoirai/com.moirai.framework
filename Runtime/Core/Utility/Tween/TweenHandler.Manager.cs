@@ -29,11 +29,10 @@ namespace Moirai.Atropos
 
             public static void EnsureInstance()
             {
-                if (s_Instance == null)
-                {
-                    s_Instance = new TweenManager();
-                    UnityUtility.AddUpdateListener(s_Instance.Update);
-                }
+                if (s_Instance != null) return;
+
+                s_Instance = new TweenManager();
+                GameApp.AddUpdateListener(s_Instance.Update);
             }
 
             public static void Register(TweenHandler handler)

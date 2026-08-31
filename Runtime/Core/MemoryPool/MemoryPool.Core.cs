@@ -17,7 +17,7 @@ namespace Moirai.Atropos
         private const int PageSize = 1 << PageShift;
         private const int PageMask = PageSize - 1;
         private const int InvalidIndex = -1;
-        private const int MinKeep = MemoryPool.MinimumFreeReserveLimit;
+        private const int MinKeep = MemoryPool.MINIMUM_FREE_RESERVE_LIMIT;
         private const int LookaheadFrames = 8;
         private const int MissBoost = 2;
         private const float RateEwmaAlpha = 0.25f;

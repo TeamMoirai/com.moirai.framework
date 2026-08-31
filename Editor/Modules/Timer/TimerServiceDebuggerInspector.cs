@@ -1,8 +1,8 @@
-﻿using Moirai.Atropos.Timer;
+using Moirai.Atropos.Timer;
 using UnityEditor;
 using UnityEngine;
 
-namespace Moirai.Atropos.Editor.Inspector
+namespace Moirai.Atropos.Editor
 {
     /// <summary>
     /// 计时器服务调试组件 Inspector。
@@ -22,9 +22,6 @@ namespace Moirai.Atropos.Editor.Inspector
         private readonly TimerDebugInfo[] _timerBuffer = new TimerDebugInfo[DISPLAY_COUNT];
         private readonly TimerDebugInfo[] _staleBuffer = new TimerDebugInfo[DISPLAY_COUNT];
         private double _lastUpdateTime;
-        private TimerServiceSettings _settings;
-        private SerializedObject _settingsSerializedObject;
-        private SerializedProperty _initialCapacityProperty;
         private Vector2 _timerListScrollPosition;
 
         /// <summary>
@@ -34,59 +31,11 @@ namespace Moirai.Atropos.Editor.Inspector
         {
             base.OnInspectorGUI();
 
-            EnsureSettings();
-
             EditorGUILayout.Space(6f);
             DrawConfiguration();
             DrawRuntimeDebug();
 
             RequestRuntimeRepaint();
-        }
-
-        /// <summary>
-        /// 对象销毁事件。释放设置资产的序列化对象。
-        /// </summary>
-        private void OnDisable()
-        {
-            if (_settingsSerializedObject != null)
-            {
-                _settingsSerializedObject.Dispose();
-                _settingsSerializedObject = null;
-            }
-
-            _initialCapacityProperty = null;
-            _settings = null;
-        }
-
-        /// <summary>
-        /// 定位计时器设置资产并解析初始容量属性。
-        /// </summary>
-        private void EnsureSettings()
-        {
-            if (_settingsSerializedObject != null)
-            {
-                return;
-            }
-
-            string[] settingGuids = AssetDatabase.FindAssets("t:TimerServiceSettings");
-            if (settingGuids == null || settingGuids.Length == 0)
-            {
-                return;
-            }
-
-            string settingPath = AssetDatabase.GUIDToAssetPath(settingGuids[0]);
-            _settings = AssetDatabase.LoadAssetAtPath<TimerServiceSettings>(settingPath);
-            if (_settings == null)
-            {
-                return;
-            }
-
-            _settingsSerializedObject = new SerializedObject(_settings);
-            SerializedProperty handlerProperty = _settingsSerializedObject.FindProperty("m_TimerServiceHandler");
-            if (handlerProperty != null)
-            {
-                _initialCapacityProperty = handlerProperty.FindPropertyRelative("m_InitialCapacity");
-            }
         }
 
         /// <summary>
@@ -96,13 +45,14 @@ namespace Moirai.Atropos.Editor.Inspector
         {
             EditorGUILayout.LabelField("配置 [CONFIGURATION]", EditorStyles.boldLabel);
 
-            if (_settings == null)
+            TimerServiceSettings settings = TimerServiceSettings.Instance;
+            if (settings == null)
             {
                 EditorGUILayout.HelpBox("未找到 TimerServiceSettings 资产，无法编辑初始容量。", MessageType.Warning);
                 return;
             }
 
-            if (_initialCapacityProperty == null)
+            if (TimerServiceSettings.TimerServiceHandlerConfig is not DefaultTimerHandlerConfig config)
             {
                 EditorGUILayout.HelpBox("当前计时器后端不含初始容量配置。", MessageType.Info);
                 return;
@@ -110,19 +60,25 @@ namespace Moirai.Atropos.Editor.Inspector
 
             using (new EditorGUI.DisabledScope(Application.isPlaying))
             {
-                int capacity = _initialCapacityProperty.intValue;
+                int capacity = config.InitialCapacity;
+
+                EditorGUILayout.BeginHorizontal();
+                EditorGUILayout.LabelField("初始容量 [Initial Capacity]", GUILayout.Width(ROW_LABEL_WIDTH));
                 int sliderValue = Mathf.RoundToInt(GUILayout.HorizontalSlider(
                     Mathf.Clamp(capacity, MIN_INITIAL_CAPACITY, MAX_INITIAL_CAPACITY),
                     MIN_INITIAL_CAPACITY, MAX_INITIAL_CAPACITY));
                 sliderValue = Mathf.Clamp(
-                    EditorGUILayout.IntField("初始容量 [Initial Capacity]", sliderValue),
+                    EditorGUILayout.IntField(sliderValue, GUILayout.Width(SLIDER_VALUE_WIDTH)),
                     MIN_INITIAL_CAPACITY, MAX_INITIAL_CAPACITY);
+                EditorGUILayout.EndHorizontal();
+
                 sliderValue = AlignCapacity(sliderValue);
                 if (sliderValue != capacity)
                 {
-                    _initialCapacityProperty.intValue = sliderValue;
-                    _settingsSerializedObject.ApplyModifiedProperties();
-                    AssetDatabase.SaveAssetIfDirty(_settings);
+                    Undo.RecordObject(settings, "Change Timer Initial Capacity");
+                    config.InitialCapacity = sliderValue;
+                    EditorUtility.SetDirty(settings);
+                    AssetDatabase.SaveAssetIfDirty(settings);
                 }
             }
 

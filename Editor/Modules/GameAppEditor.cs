@@ -18,69 +18,69 @@ namespace Moirai.Atropos.Editor
         private enum StateTab { Settings, ObjectPool }
         private StateTab _currentTab = StateTab.Settings;
 
-        public override void OnInspectorGUI()
-        {
-            base.OnInspectorGUI();
-
-            serializedObject.Update();
-
-            GameApp t = (GameApp)target;
-
-            if (EditorApplication.isPlaying)
-            {
-                EditorGUILayout.LabelField("Language", LocalizationService.CurrentLanguage?.Name);
-
-                int frameRate = EditorGUILayout.IntSlider("Frame Rate", GameAppSettings.FrameRate, 1, 300);
-                if (frameRate != GameAppSettings.FrameRate)
-                {
-                    GameAppSettings.FrameRate = frameRate;
-                }
-
-                EditorGUILayout.BeginVertical("box");
-                {
-                    float gameSpeed = EditorGUILayout.Slider("Game Speed", GameAppSettings.GameSpeed, 0f, 8f);
-                    int selectedGameSpeed = GUILayout.SelectionGrid(GetSelectedGameSpeed(gameSpeed), s_GameSpeedForDisplay, 5);
-                    if (selectedGameSpeed >= 0)
-                    {
-                        gameSpeed = GetGameSpeed(selectedGameSpeed);
-                    }
-
-                    if (Math.Abs(gameSpeed - GameAppSettings.GameSpeed) > 0.01f)
-                    {
-                        GameAppSettings.GameSpeed = gameSpeed;
-                    }
-                }
-                EditorGUILayout.EndVertical();
-
-                // 绘制服务的相关状态
-                if (IsPrefabInHierarchy(t.gameObject))
-                {
-                    EditorGUILayout.Space(10);
-                    _currentTab = (StateTab)GUILayout.Toolbar(
-                        (int)_currentTab,
-                        new[] { "Settings", "Object Pool" },
-                        GUILayout.Height(25));
-
-                    EditorGUILayout.BeginVertical("box");
-                    {
-                        switch (_currentTab)
-                        {
-                            case StateTab.Settings:
-                                DrawSettingState();
-                                break;
-                            case StateTab.ObjectPool:
-                                DrawObjectPoolState();
-                                break;
-                        }
-                    }
-                    EditorGUILayout.EndVertical();
-
-                    Repaint();
-                }
-            }
-
-            serializedObject.ApplyModifiedProperties();
-        }
+        // public override void OnInspectorGUI()
+        // {
+        //     base.OnInspectorGUI();
+        //
+        //     serializedObject.Update();
+        //
+        //     GameApp t = (GameApp)target;
+        //
+        //     if (EditorApplication.isPlaying)
+        //     {
+        //         EditorGUILayout.LabelField("Language", LocalizationService.CurrentLanguage?.Name);
+        //
+        //         int frameRate = EditorGUILayout.IntSlider("Frame Rate", GameAppSettings.FrameRate, 1, 300);
+        //         if (frameRate != GameAppSettings.FrameRate)
+        //         {
+        //             GameAppSettings.FrameRate = frameRate;
+        //         }
+        //
+        //         EditorGUILayout.BeginVertical("box");
+        //         {
+        //             float gameSpeed = EditorGUILayout.Slider("Game Speed", GameAppSettings.GameSpeed, 0f, 8f);
+        //             int selectedGameSpeed = GUILayout.SelectionGrid(GetSelectedGameSpeed(gameSpeed), s_GameSpeedForDisplay, 5);
+        //             if (selectedGameSpeed >= 0)
+        //             {
+        //                 gameSpeed = GetGameSpeed(selectedGameSpeed);
+        //             }
+        //
+        //             if (Math.Abs(gameSpeed - GameAppSettings.GameSpeed) > 0.01f)
+        //             {
+        //                 GameAppSettings.GameSpeed = gameSpeed;
+        //             }
+        //         }
+        //         EditorGUILayout.EndVertical();
+        //
+        //         // 绘制服务的相关状态
+        //         if (IsPrefabInHierarchy(t.gameObject))
+        //         {
+        //             EditorGUILayout.Space(10);
+        //             _currentTab = (StateTab)GUILayout.Toolbar(
+        //                 (int)_currentTab,
+        //                 new[] { "Settings", "Object Pool" },
+        //                 GUILayout.Height(25));
+        //
+        //             EditorGUILayout.BeginVertical("box");
+        //             {
+        //                 switch (_currentTab)
+        //                 {
+        //                     case StateTab.Settings:
+        //                         DrawSettingState();
+        //                         break;
+        //                     case StateTab.ObjectPool:
+        //                         DrawObjectPoolState();
+        //                         break;
+        //                 }
+        //             }
+        //             EditorGUILayout.EndVertical();
+        //
+        //             Repaint();
+        //         }
+        //     }
+        //
+        //     serializedObject.ApplyModifiedProperties();
+        // }
 
         private void DrawSettingState()
         {
@@ -104,7 +104,7 @@ namespace Moirai.Atropos.Editor
             }
         }
 
-        private readonly HashSet<string> _openedItems = new HashSet<string>();
+        private readonly HashSet<string> _mOpenedItems = new HashSet<string>();
         private void DrawObjectPoolState()
         {
             var summary = GameObjectPoolService.GetDebugSummary();
@@ -119,17 +119,17 @@ namespace Moirai.Atropos.Editor
             for (int i = 0; i < count; i++)
             {
                 GameObjectPoolSnapshot snapshot = snapshots[i];
-                bool lastState = _openedItems.Contains(snapshot.location);
+                bool lastState = _mOpenedItems.Contains(snapshot.location);
                 bool currentState = EditorGUILayout.Foldout(lastState, snapshot.location);
                 if (currentState != lastState)
                 {
                     if (currentState)
                     {
-                        _openedItems.Add(snapshot.location);
+                        _mOpenedItems.Add(snapshot.location);
                     }
                     else
                     {
-                        _openedItems.Remove(snapshot.location);
+                        _mOpenedItems.Remove(snapshot.location);
                     }
                 }
 

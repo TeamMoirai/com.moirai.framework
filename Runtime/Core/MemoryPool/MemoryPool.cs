@@ -13,7 +13,7 @@ namespace Moirai.Atropos
         /// <summary>
         /// 最小空闲保留数量。
         /// </summary>
-        public const int MinimumFreeReserveLimit = 4;
+        public const int MINIMUM_FREE_RESERVE_LIMIT = 4;
 
         /// <summary>
         /// 池空闲多少帧后开始衰减目标空闲水位。实际每 tick 驱逐数量由 Phase 预算决定（Gameplay=2）。默认 1800 帧（@60fps ≈ 30秒）。
@@ -216,7 +216,7 @@ namespace Moirai.Atropos
         /// <param name="hardCapacity">硬容量上限。</param>
         public static void SetDefaultCapacity(int softCapacity, int hardCapacity)
         {
-            softCapacity = Math.Max(softCapacity, MinimumFreeReserveLimit);
+            softCapacity = Math.Max(softCapacity, MINIMUM_FREE_RESERVE_LIMIT);
             hardCapacity = Math.Max(hardCapacity, softCapacity);
             DefaultSoftFreeReserveLimit = softCapacity;
             DefaultHardFreeReserveLimit = hardCapacity;
