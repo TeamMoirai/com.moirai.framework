@@ -16,7 +16,6 @@ namespace GameProto.Config
     /// <summary>
     /// 游戏配置表助手。
     /// </summary>
-    [Serializable]
     public sealed partial class LubanHandler : ConfigTableServiceHandler
     {
         #region 初始化 [INITIALIZE]

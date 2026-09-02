@@ -24,7 +24,7 @@ namespace Moirai.Atropos.Localization
         private static LocalizationServiceHandler CreateDefaultHandler()
         {
             GameServices.EnsureRegistered<LocalizationService>();
-            return LocalizationServiceSettings.LocalizationServiceHandlerConfig.CreateHandler();
+            return LocalizationServiceSettings.LocalizationServiceHandler;
         }
 
         /// <summary>

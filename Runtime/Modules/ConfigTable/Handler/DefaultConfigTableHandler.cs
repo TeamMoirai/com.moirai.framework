@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
@@ -7,22 +7,9 @@ using UnityEngine;
 namespace Moirai.Atropos.ConfigTable
 {
     /// <summary>
-    /// 兜底配置表后端配置（记录错误并返回空结果）。当前无专有数据字段。
+    /// 默认配置表处理器。未安装游戏侧生成代码时的兜底实现（记录错误并返回空结果）。
     /// </summary>
     [Serializable]
-    public sealed class DefaultConfigTableHandlerConfig : ConfigTableServiceHandlerConfig
-    {
-        /// <inheritdoc />
-        public override ConfigTableServiceHandler CreateHandler()
-        {
-            return new DefaultConfigTableHandler();
-        }
-    }
-
-    /// <summary>
-    /// 默认配置表处理器。未安装游戏侧生成代码时的兜底实现（记录错误并返回空结果）。
-    /// <para>由 <see cref="DefaultConfigTableHandlerConfig"/> 工厂创建（普通运行时类，不参与序列化）。</para>
-    /// </summary>
     public sealed class DefaultConfigTableHandler : ConfigTableServiceHandler
     {
         /// <summary>

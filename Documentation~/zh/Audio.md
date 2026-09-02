@@ -9,9 +9,9 @@
 音频服务采用与框架其他服务一致的 HandlerHost 零反射架构：
 
 - **`AudioService`**：静态外观（`[HandlerHost(typeof(AudioServiceHandler))]` + `[ServiceDependency(typeof(ResourceService))]`），全部公共成员为静态方法，经 `Handler` 属性转发（fail-fast：未就绪时按需初始化，工厂缺失时抛异常，不静默降级）
-- **`AudioServiceHandler`**：抽象基类（继承 `FrameworkHandler`，策略模式抽象策略），定义供外观调用的后端契约；普通运行时类，不参与序列化
+- **`AudioServiceHandler`**：可序列化抽象基类（继承 `FrameworkHandler`，策略模式抽象策略），定义供外观调用的后端契约
 - **`UnityAudioHandler`**：`AudioServiceHandler` 的默认实现（基于 Unity `AudioSource`/`AudioMixer`，位于 `Handler/` 目录），承载代理池管理、播放状态机、淡入淡出等核心逻辑
-- **`AudioServiceSettings`**：框架设置，通过 `[ProviderDropdown]` 选择音频后端配置（`AudioServiceConfig` 子类，经 `CreateHandler()` 工厂创建处理器）并配置 `AudioMixer` 与 `AudioGroupConfig[]`
+- **`AudioServiceSettings`**：框架设置，通过 `[ProviderDropdown]` 选择音频后端实现并配置 `AudioMixer` 与 `AudioGroupConfig[]`
 - 服务注册由依赖链自动拉起，也可手动 `GameServices.RegisterService(EServiceScopeKind.App, new AudioService())`
 
 ## 核心特性

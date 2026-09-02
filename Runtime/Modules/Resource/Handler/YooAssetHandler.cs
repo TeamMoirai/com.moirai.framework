@@ -13,139 +13,27 @@ using WeChatWASM;
 namespace Moirai.Atropos.Resource
 {
     /// <summary>
-    /// YooAsset 后端配置（纯数据）。
-    /// <para>承载 <see cref="YooAssetHandler"/> 的全部序列化配置字段（字段名与 .asset 内一致）；
-    /// 经 <see cref="CreateHandler"/> 创建绑定的处理器实例。</para>
+    /// 资源管理器处理器——承载资源加载、缓存、租约与绑定等全部实现逻辑。
+    /// <para>由 <see cref="ResourceServiceSettings"/> 序列化配置，<see cref="ResourceService"/> 外观转发调用。</para>
     /// </summary>
+    // ReSharper disable once ClassNeverInstantiated.Global
     [Serializable]
-    public sealed class YooAssetHandlerConfig : ResourceServiceHandlerConfig
+    public sealed partial class YooAssetHandler : ResourceServiceHandler
     {
+        #region 基础属性 [BASE PROPERTIES]
+
+        #region YooAsset 专有配置 [YOOASSET CONFIG]
+
         [SerializeField] private string m_PackageName = "DefaultPackage";
 
-        /// <summary>
-        /// 默认资源包名称。
-        /// </summary>
-        public string DefaultPackageName
+        /// <inheritdoc />
+        public override string DefaultPackageName
         {
             get => m_PackageName;
             set => m_PackageName = value;
         }
 
         [SerializeField] private EPlayMode m_PlayMode = EPlayMode.EditorSimulateMode;
-
-        /// <summary>
-        /// YooAsset 运行模式（非编辑器下 <see cref="EPlayMode.EditorSimulateMode"/> 由处理器自动回退为单机模式）。
-        /// </summary>
-        public EPlayMode PlayMode
-        {
-            get => m_PlayMode;
-            set => m_PlayMode = value;
-        }
-
-        [ProviderDropdown]
-        [SerializeReference] private YooAssetEncryptorHandler m_EncryptorHandler;
-
-        /// <summary>
-        /// 资源加解密处理器（YooAsset 专有）。
-        /// </summary>
-        public YooAssetEncryptorHandler EncryptorHandler => m_EncryptorHandler;
-
-        [SerializeField] private int m_DownloadingMaxNum = 10;
-
-        /// <summary>
-        /// 同时下载的最大数目。
-        /// </summary>
-        public int DownloadingMaxNum
-        {
-            get => m_DownloadingMaxNum;
-            set => m_DownloadingMaxNum = value;
-        }
-
-        [SerializeField] private int m_FailedTryAgain = 3;
-
-        /// <summary>
-        /// 下载失败重试次数。
-        /// </summary>
-        public int FailedTryAgain
-        {
-            get => m_FailedTryAgain;
-            set => m_FailedTryAgain = value;
-        }
-
-        [SerializeField] private bool m_UpdatableWhilePlaying = false;
-
-        /// <summary>
-        /// 是否支持边玩边下载（热更进行中可进入游戏）。
-        /// </summary>
-        public bool UpdatableWhilePlaying => m_UpdatableWhilePlaying;
-
-        [SerializeField] private long m_Milliseconds = 30;
-
-        /// <summary>
-        /// 异步系统每帧执行消耗的最大时间切片（单位：毫秒）。
-        /// </summary>
-        public long Milliseconds
-        {
-            get => m_Milliseconds;
-            set => m_Milliseconds = value;
-        }
-
-        [SerializeField] private bool m_AutoUnloadBundleWhenUnused = false;
-
-        /// <summary>
-        /// 自动释放资源引用计数为 0 的资源包。
-        /// </summary>
-        public bool AutoUnloadBundleWhenUnused
-        {
-            get => m_AutoUnloadBundleWhenUnused;
-            set => m_AutoUnloadBundleWhenUnused = value;
-        }
-
-        /// <inheritdoc />
-        public override ResourceServiceHandler CreateHandler()
-        {
-            return new YooAssetHandler(this);
-        }
-    }
-
-    /// <summary>
-    /// 资源管理器处理器——承载资源加载、缓存、租约与绑定等全部实现逻辑。
-    /// <para>配置数据由 <see cref="YooAssetHandlerConfig"/> 纯数据类承载（组合持有，运行期只读初始化），
-    /// 处理器实例本身不再被序列化，由 <see cref="YooAssetHandlerConfig.CreateHandler"/> 工厂创建。</para>
-    /// </summary>
-    public sealed partial class YooAssetHandler : ResourceServiceHandler
-    {
-        /// <summary>
-        /// 后端配置（组合持有）。
-        /// </summary>
-        private readonly YooAssetHandlerConfig _config;
-
-        /// <summary>
-        /// 以指定配置创建处理器。
-        /// </summary>
-        /// <param name="config">YooAsset 后端配置。</param>
-        public YooAssetHandler(YooAssetHandlerConfig config)
-        {
-            _config = config ?? throw new ArgumentNullException(nameof(config));
-        }
-
-        /// <summary>
-        /// 以默认配置创建处理器（供测试与默认值场景使用）。
-        /// </summary>
-        public YooAssetHandler() : this(new YooAssetHandlerConfig())
-        {
-        }
-
-        #region 基础属性 [BASE PROPERTIES]
-
-        #region YooAsset 专有配置 [YOOASSET CONFIG]
-
-        /// <inheritdoc />
-        public override string DefaultPackageName
-        {
-            get => _config.DefaultPackageName;
-            set => _config.DefaultPackageName = value;
-        }
 
 #if UNITY_EDITOR
         /// <summary>编辑器运行模式的 EditorPrefs 键。</summary>
@@ -162,49 +50,60 @@ namespace Moirai.Atropos.Resource
 #if UNITY_EDITOR
                 return (EPlayMode)UnityEditor.EditorPrefs.GetInt(EDITOR_PLAY_MODE_KEY);
 #else
-                if (m_Config.PlayMode == EPlayMode.EditorSimulateMode)
+                if (m_PlayMode == EPlayMode.EditorSimulateMode)
                 {
-                    m_Config.PlayMode = EPlayMode.OfflinePlayMode;
+                    m_PlayMode = EPlayMode.OfflinePlayMode;
                 }
-                return m_Config.PlayMode;
+                return m_PlayMode;
 #endif
             }
-            set => _config.PlayMode = value;
+            set => m_PlayMode = value;
         }
 
         /// <inheritdoc />
         public override EResourcePlayMode PlayMode
         {
             get => ToFrameworkPlayMode(YooPlayMode);
-            set => _config.PlayMode = ToYooAssetPlayMode(value);
+            set => m_PlayMode = ToYooAssetPlayMode(value);
         }
+
+        [ProviderDropdown]
+        [SerializeReference] private YooAssetEncryptorHandler m_EncryptorHandler;
 
         /// <summary>
         /// 资源加解密处理器（YooAsset 专有）。
         /// </summary>
-        public YooAssetEncryptorHandler EncryptorHandler => _config.EncryptorHandler;
+        public YooAssetEncryptorHandler EncryptorHandler => m_EncryptorHandler;
+
+        [SerializeField] private int m_DownloadingMaxNum = 10;
 
         /// <inheritdoc />
         public override int DownloadingMaxNum
         {
-            get => _config.DownloadingMaxNum;
-            set => _config.DownloadingMaxNum = value;
+            get => m_DownloadingMaxNum;
+            set => m_DownloadingMaxNum = value;
         }
+
+        [SerializeField] private int m_FailedTryAgain = 3;
 
         /// <inheritdoc />
         public override int FailedTryAgain
         {
-            get => _config.FailedTryAgain;
-            set => _config.FailedTryAgain = value;
+            get => m_FailedTryAgain;
+            set => m_FailedTryAgain = value;
         }
 
+        [SerializeField] private bool m_UpdatableWhilePlaying = false;
+
         /// <inheritdoc />
-        public override bool UpdatableWhilePlaying => _config.UpdatableWhilePlaying;
+        public override bool UpdatableWhilePlaying => m_UpdatableWhilePlaying;
+
+        [SerializeField] private long m_Milliseconds = 30;
 
         /// <inheritdoc />
         public override long Milliseconds
         {
-            get => _config.Milliseconds;
+            get => m_Milliseconds;
             set
             {
                 if (value < 0)
@@ -212,16 +111,18 @@ namespace Moirai.Atropos.Resource
                     throw new GameException("Async operation max time slice cannot be negative.");
                 }
 
-                _config.Milliseconds = value;
-                YooAssets.SetAsyncOperationMaxTimeSlice(value);
+                m_Milliseconds = value;
+                YooAssets.SetAsyncOperationMaxTimeSlice(m_Milliseconds);
             }
         }
+
+        [SerializeField] private bool m_AutoUnloadBundleWhenUnused = false;
 
         /// <inheritdoc />
         public override bool AutoUnloadBundleWhenUnused
         {
-            get => _config.AutoUnloadBundleWhenUnused;
-            set => _config.AutoUnloadBundleWhenUnused = value;
+            get => m_AutoUnloadBundleWhenUnused;
+            set => m_AutoUnloadBundleWhenUnused = value;
         }
 
         #endregion
@@ -402,7 +303,8 @@ namespace Moirai.Atropos.Resource
         /// <inheritdoc />
         public override void Initialize()
         {
-            // Shutdown→Initialize 同实例复用时必须复位关闭标志（关闭期状态不得跨周期存活）。
+            // 恢复 Shutdown→Initialize 循环复用契约：处理器实例来自资产 [SerializeReference]，
+            // 容器重启后"重新创建"拿到的仍是同一实例，必须复位关闭标志。
             _isDestroying = false;
 
             // 初始化资源系统
@@ -787,6 +689,13 @@ namespace Moirai.Atropos.Resource
         #endregion
 
         #region 资源回收 [ASSET RECYCLING]
+
+        /// <inheritdoc />
+        public override void OnLowMemory()
+        {
+            LogUtility.Warning("Low memory reported...");
+            _forceUnloadUnusedAssetsAction?.Invoke(true);
+        }
 
         private Action<bool> _forceUnloadUnusedAssetsAction;
 

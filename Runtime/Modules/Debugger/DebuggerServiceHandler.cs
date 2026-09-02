@@ -1,27 +1,12 @@
-using System;
+﻿using System;
 
 namespace Moirai.Atropos.Debugger
 {
     /// <summary>
-    /// 调试器服务配置抽象基类（纯数据，无行为无生命周期）。
-    /// <para>以 <see cref="UnityEngine.SerializeReference"/> 存于 <see cref="DebuggerServiceSettings"/> 资产；
-    /// 经 <see cref="CreateHandler"/> 工厂创建绑定的后端处理器实例，处理器不再被序列化。</para>
-    /// </summary>
-    [Serializable]
-    public abstract class DebuggerServiceHandlerConfig
-    {
-        /// <summary>
-        /// 创建配置绑定的调试器后端处理器实例。
-        /// </summary>
-        /// <returns>新的调试器处理器实例。</returns>
-        public abstract DebuggerServiceHandler CreateHandler();
-    }
-
-    /// <summary>
     /// 调试器处理器抽象基类（策略模式抽象策略）。定义 <see cref="DebuggerService"/> 外观调用的调试器后端契约。
     /// <para>默认实现为 <see cref="DefaultDebuggerHandler"/>（UI Toolkit 运行时调试器），可在 <see cref="DebuggerServiceSettings"/> 中替换为自定义实现。</para>
-    /// <para>配置数据由 <see cref="DebuggerServiceHandlerConfig"/> 系列纯数据类承载——处理器实例本身不再被序列化，由 <see cref="DebuggerServiceHandlerConfig.CreateHandler"/> 工厂在运行期创建。</para>
     /// </summary>
+    [Serializable]
     public abstract class DebuggerServiceHandler : FrameworkHandler
     {
         /// <summary>

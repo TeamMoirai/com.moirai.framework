@@ -26,10 +26,9 @@ Debugger 服务由 `DebuggerService` 静态外观负责窗口注册表与轮询�
 | 类/接口 | 说明 |
 |---------|------|
 | `DebuggerService` | 静态外观（`[HandlerHost]`，`IServiceTickable`）：`ActiveWindow` / `ShowFullWindow` / `ActiveWindowType` / `WindowRegistry` / `LogCapture`；`RegisterDebuggerWindow` / `UnregisterDebuggerWindow` / `GetDebuggerWindow` / `SelectDebuggerWindow` / `RegisterPanel` / `RegisterDebugView` / `GetRecentLogs`。经 `s_Handler` 转发（未注册时静默降级——仅主动注册方可使用服务） |
-| `DebuggerServiceHandler` | 处理器抽象基类（契约）：`ActiveWindow` / `ShowFullWindow` / `WindowRegistry` / `LogCapture` / `Tick` / 注册族四方法；配置由 `DebuggerServiceHandlerConfig` 纯数据类承载 |
-| `DefaultDebuggerHandler` | 内置后端：持有窗口注册表与日志捕获器，按激活策略解析可见性，首个 Tick 懒建运行时宿主 |
-| `DefaultDebuggerHandlerConfig` | 后端配置（`[SerializeReference]` 存于设置资产）：`ConsoleCapacity`（环形缓冲容量，默认 256）/ `FpsUpdateInterval` / `StatsOverlayVisible` / `WindowOpacity` |
-| `DebuggerServiceSettings` | 设置资产（`[FrameworkSetting]`）：`ActiveWindowType` 激活策略 + `m_HandlerConfig` 处理器配置 |
+| `DebuggerServiceHandler` | 处理器抽象基类（契约）：`ActiveWindow` / `ShowFullWindow` / `WindowRegistry` / `LogCapture` / `Tick` / 注册族四方法 |
+| `DefaultDebuggerHandler` | 内置后端：持有窗口注册表与日志捕获器，按激活策略解析可见性，首个 Tick 懒建运行时宿主；序列化字段 `ConsoleCapacity`（环形缓冲容量，默认 256）/ `FpsUpdateInterval` / `StatsOverlayVisible` / `WindowOpacity` |
+| `DebuggerServiceSettings` | 设置资产（`[FrameworkSetting]`）：`ActiveWindowType` 激活策略 + `m_DebuggerServiceHandler` 处理器 |
 | `IDebuggerWindow` | 窗口接口：`Initialize(params object[])` / `Shutdown()` / `OnEnter()` / `OnLeave()` / `OnUpdate(float, float)` / **`CreateView()` → `VisualElement`** |
 | `DebuggerWindowRegistry` | 窗口注册表（纯数据）：扁平字典 O(1) 检索 + 路径树导航模型（`DebuggerWindowNode`），结构版本号驱动侧边栏重建 |
 | `DebuggerLogCapture` | 日志捕获器：线程安全入队 + 主线程 `Drain()` 排空的池化环形缓冲；增量分级计数 + 内容版本号 |
@@ -184,9 +183,9 @@ DebuggerService.RegisterDebugView("My/IMGUI View", new MyIMGUIDebugView());
   - `OnlyOpenInEditor`：`Application.isEditor` 时打开
   - `AlwaysClose`：默认关闭
   - 非 `AlwaysOpen` 策略均可用启动参数 `-showdebugger` 强制开启
-- **后端配置**（`DefaultDebuggerHandlerConfig`）：`ConsoleCapacity` / `FpsUpdateInterval` / `StatsOverlayVisible` / `WindowOpacity`
+- **后端序列化字段**（`DefaultDebuggerHandler`）：`ConsoleCapacity` / `FpsUpdateInterval` / `StatsOverlayVisible` / `WindowOpacity`
 - **扩展信息窗口**：继承 `PollingDebuggerWindowBase`（节流重建）或 `ScrollableDebuggerWindowBase`，注册到 `"Information/..."` 路径
-- **自定义后端**：继承 `DebuggerServiceHandler` + 配对 `DebuggerServiceHandlerConfig`，在设置资产中替换
+- **自定义后端**：继承 `DebuggerServiceHandler`（以 `[SerializeField]` 字段承载配置），在设置资产中替换
 - `DebuggerService.Tick` 仅在 `ShowFullWindow` 展开时轮询可见窗口；日志捕获的排空始终执行（捕获不依赖 UI 状态）
 
 ## 注意事项

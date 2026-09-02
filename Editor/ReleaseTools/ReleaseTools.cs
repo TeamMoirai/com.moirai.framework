@@ -505,13 +505,12 @@ namespace Moirai.Atropos.Editor
         }
 
         /// <summary>
-        /// 从 ResourceServiceHandlerConfig 获取对应的加密服务。
+        /// 从 ResourceServiceHandler 获取对应的加密服务。
         /// </summary>
         private static IBundleEncryptor GetBundleEncryptorFromResourceServiceDriver()
         {
-            var encryptorHandler = ResourceServiceSettings.ResourceServiceHandlerConfig is YooAssetHandlerConfig yooConfig
-                ? yooConfig.EncryptorHandler
-                : null;
+            var handler = ResourceServiceSettings.ResourceServiceHandler;
+            var encryptorHandler = handler is YooAssetHandler yooHandler ? yooHandler.EncryptorHandler : null;
             if (encryptorHandler == null)
             {
                 Debug.LogWarning("[BuildInternal] EncryptorHandler not configured in ResourceServiceSettings");

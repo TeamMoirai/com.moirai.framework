@@ -1,4 +1,4 @@
-using Sirenix.OdinInspector;
+﻿using Sirenix.OdinInspector;
 using UnityEngine;
 
 namespace Moirai.Atropos.Debugger
@@ -17,7 +17,7 @@ namespace Moirai.Atropos.Debugger
 
         [InfoBox("默认使用内置 UI Toolkit 调试器。可替换为自定义调试器后端。", InfoMessageType.None)]
         [ProviderDropdown]
-        [SerializeReference] private DebuggerServiceHandlerConfig m_HandlerConfig = new DefaultDebuggerHandlerConfig();
+        [SerializeReference] private DebuggerServiceHandler m_DebuggerServiceHandler = new DefaultDebuggerHandler();
 
         #endregion
 
@@ -29,9 +29,9 @@ namespace Moirai.Atropos.Debugger
         public static DebuggerActiveWindowType ActiveWindowType => Instance.m_ActiveWindowType;
 
         /// <summary>
-        /// 获取调试器处理器配置。
+        /// 获取调试器处理器。
         /// </summary>
-        public static DebuggerServiceHandlerConfig DebuggerServiceHandlerConfig => Instance.m_HandlerConfig;
+        public static DebuggerServiceHandler DebuggerServiceHandler => Instance.m_DebuggerServiceHandler;
 
         #endregion
     }

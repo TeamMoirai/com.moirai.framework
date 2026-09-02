@@ -8,8 +8,8 @@ namespace Moirai.Atropos.Scene
     {
         [InfoBox("默认场景加载后端。可替换为自定义场景管理实现。", InfoMessageType.None)]
         [ProviderDropdown]
-        [SerializeReference] private SceneServiceHandlerConfig m_HandlerConfig = new DefaultSceneHandlerConfig();
+        [SerializeReference] private SceneServiceHandler m_SceneServiceHandler = new DefaultSceneHandler();
 
-        public static SceneServiceHandlerConfig SceneServiceHandlerConfig => Instance.m_HandlerConfig;
+        public static SceneServiceHandler SceneServiceHandler => Instance.m_SceneServiceHandler;
     }
 }

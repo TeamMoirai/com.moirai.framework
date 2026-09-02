@@ -26,10 +26,9 @@ Namespace: `Moirai.Atropos.Debugger`
 | Class/Interface | Description |
 |-----------------|-------------|
 | `DebuggerService` | Static facade (`[HandlerHost]`, `IServiceTickable`): `ActiveWindow` / `ShowFullWindow` / `ActiveWindowType` / `WindowRegistry` / `LogCapture`; `RegisterDebuggerWindow` / `UnregisterDebuggerWindow` / `GetDebuggerWindow` / `SelectDebuggerWindow` / `RegisterPanel` / `RegisterDebugView` / `GetRecentLogs`. Forwards via `s_Handler` (silently degrades when unregistered — only explicit registration enables the service) |
-| `DebuggerServiceHandler` | Abstract handler (contract): `ActiveWindow` / `ShowFullWindow` / `WindowRegistry` / `LogCapture` / `Tick` / the four registration methods; configuration carried by the `DebuggerServiceHandlerConfig` pure-data class |
-| `DefaultDebuggerHandler` | Built-in backend: owns the window registry and log capture, resolves visibility by activation policy, lazily spawns the runtime host on first Tick |
-| `DefaultDebuggerHandlerConfig` | Backend config (`[SerializeReference]` stored in the settings asset): `ConsoleCapacity` (ring buffer size, default 256) / `FpsUpdateInterval` / `StatsOverlayVisible` / `WindowOpacity` |
-| `DebuggerServiceSettings` | Settings asset (`[FrameworkSetting]`): `ActiveWindowType` activation policy + `m_HandlerConfig` handler config |
+| `DebuggerServiceHandler` | Abstract handler (contract): `ActiveWindow` / `ShowFullWindow` / `WindowRegistry` / `LogCapture` / `Tick` / the four registration methods |
+| `DefaultDebuggerHandler` | Built-in backend: owns the window registry and log capture, resolves visibility by activation policy, lazily spawns the runtime host on first Tick; serialized fields `ConsoleCapacity` (ring buffer size, default 256) / `FpsUpdateInterval` / `StatsOverlayVisible` / `WindowOpacity` |
+| `DebuggerServiceSettings` | Settings asset (`[FrameworkSetting]`): `ActiveWindowType` activation policy + `m_DebuggerServiceHandler` handler |
 | `IDebuggerWindow` | Window interface: `Initialize(params object[])` / `Shutdown()` / `OnEnter()` / `OnLeave()` / `OnUpdate(float, float)` / **`CreateView()` → `VisualElement`** |
 | `DebuggerWindowRegistry` | Window registry (pure data): flat dictionary with O(1) lookup + path-tree navigation model (`DebuggerWindowNode`); a structural version number drives sidebar rebuilds |
 | `DebuggerLogCapture` | Log capture: thread-safe enqueue + main-thread `Drain()` into a pooled ring buffer; incremental severity counters + content version |
@@ -184,9 +183,9 @@ Custom popups and any OnGUI context can also call `view.OnDraw()` directly.
   - `OnlyOpenInEditor`: visible when `Application.isEditor`
   - `AlwaysClose`: hidden by default
   - Any policy other than `AlwaysOpen` can be forced on with the `-showdebugger` launch argument
-- **Backend config** (`DefaultDebuggerHandlerConfig`): `ConsoleCapacity` / `FpsUpdateInterval` / `StatsOverlayVisible` / `WindowOpacity`
+- **Backend serialized fields** (`DefaultDebuggerHandler`): `ConsoleCapacity` / `FpsUpdateInterval` / `StatsOverlayVisible` / `WindowOpacity`
 - **Extending info windows**: inherit `PollingDebuggerWindowBase` (throttled rebuild) or `ScrollableDebuggerWindowBase` and register under an `"Information/..."` path
-- **Custom backend**: inherit `DebuggerServiceHandler` + a paired `DebuggerServiceHandlerConfig`, then swap it in the settings asset
+- **Custom backend**: inherit `DebuggerServiceHandler` (carry configuration via `[SerializeField]` fields), then swap it in the settings asset
 - `DebuggerService.Tick` only polls the visible window while `ShowFullWindow` is expanded; log-capture draining always runs (capture does not depend on UI state)
 
 ## Notes

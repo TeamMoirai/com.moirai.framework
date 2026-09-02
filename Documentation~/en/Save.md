@@ -2,7 +2,7 @@
 
 > A pluggable Handler-based local save system supporting JSON/binary formats and AES encryption, with atomic file replacement on write.
 
-The Save service (`SaveService`) decouples the serialization format from the file read/write process: the `SaveService` static facade exposes the public API, while the specific format is determined by `SaveServiceHandler` subclasses (`JsonSaveHandler`, encrypted version, and binary version), which can be switched in the `SaveServiceSettings` panel via `SaveServiceConfig` config subclasses (handlers are created via the `CreateHandler()` factory; handler instances are never serialized). Saves are written to `Application.persistentDataPath/Data/{folderName}/`, with filenames automatically appended with the configured extension (default `.sav`). Access via the `SaveService` static facade.
+The Save service (`SaveService`) decouples the serialization format from the file read/write process: the `SaveService` static facade exposes the public API, while the specific format is determined by `SaveServiceHandler` subclasses (`JsonSaveHandler`, encrypted version, and binary version), which can be switched in the `SaveServiceSettings` panel. Saves are written to `Application.persistentDataPath/Data/{folderName}/`, with filenames automatically appended with the configured extension (default `.sav`). Access via the `SaveService` static facade.
 
 ## Core Features
 
@@ -26,7 +26,7 @@ Namespace: `Moirai.Atropos.Save`
 | `BinaryEncryptedSaveHandler` | Binary + AES encryption, also marked `[System.Obsolete]` |
 | `EncryptedSaveHandlerBase` | Abstract base class for encrypted handlers: handles encryption/decryption stream forwarding and exception fallback; subclasses only need to implement `SerializeToStream` / `DeserializeFromStream` |
 | `SaveEncryptor` | Encryption base class: `Key` / `Salt` virtual properties (default values are placeholder strings, must be replaced before shipping) and AES `Encrypt` / `Decrypt` |
-| `SaveServiceSettings` | Framework settings (`FrameworkSettings<SaveServiceSettings>`, panel name "Save Settings"): save type (`SaveServiceConfig` subclass), encryption key, file extension; exposes static `SaveServiceConfig` and `SaveFileExtension` |
+| `SaveServiceSettings` | Framework settings (`FrameworkSettings<SaveServiceSettings>`, panel name "Save Settings"): save type, encryption key, file extension; exposes static `SaveServiceHandler` and `SaveFileExtension` |
 | `MessagePackUtility` | MessagePack serialization utility class (requires defining `MESSAGEPACK_INSTALLED` macro, namespace `Moirai.Atropos`), can be used with custom Handlers |
 
 ## Quick Start

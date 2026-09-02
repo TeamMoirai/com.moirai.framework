@@ -1,36 +1,14 @@
-using System.IO;
-using System;
+﻿using System.IO;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
 
 namespace Moirai.Atropos.Save
 {
     /// <summary>
-    /// 存档服务配置抽象基类（纯数据，无行为无生命周期）。
-    /// <para>以 <see cref="UnityEngine.SerializeReference"/> 存于 <see cref="SaveServiceSettings"/> 资产；
-    /// 经 <see cref="CreateHandler"/> 工厂创建绑定的后端处理器实例，处理器不再被序列化。</para>
-    /// </summary>
-    [Serializable]
-    public abstract class SaveServiceHandlerConfig
-    {
-        /// <summary>
-        /// 该配置是否为加密后端（Settings 用于显示密钥配置项）。
-        /// </summary>
-        public virtual bool IsEncrypted => false;
-
-        /// <summary>
-        /// 创建配置绑定的存档后端处理器实例。
-        /// </summary>
-        /// <returns>新的存档处理器实例。</returns>
-        public abstract SaveServiceHandler CreateHandler();
-    }
-
-    /// <summary>
     /// 存档处理器抽象基类（策略模式抽象策略）。
     /// <para>承载文件管理流程（路径拼装、目录创建、原子写入、删除清理），
-    /// 子类只需实现 <see cref="SerializeAsync"/> / <see cref="DeserializeAsync{T}"/> 序列化策略
-    /// （protected internal 钩子）。</para>
-    /// <para>公共契约由本类承载，处理器实例为普通运行时类，不参与序列化（由 <see cref="SaveServiceHandlerConfig.CreateHandler"/> 工厂创建）。</para>
+    /// 子类只需实现 <see cref="SerializeAsync"/> / <see cref="DeserializeAsync{T}"/> 序列化策略。</para>
+    /// <para>由 <see cref="SaveServiceSettings"/> 序列化持有实例，经 <see cref="SaveService"/> 静态外观访问。</para>
     /// </summary>
     public abstract class SaveServiceHandler : FrameworkHandler
     {

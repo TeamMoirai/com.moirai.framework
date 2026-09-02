@@ -6,10 +6,11 @@ using Object = UnityEngine.Object;
 namespace Moirai.Atropos.Debugger
 {
     /// <summary>
-    /// UI Toolkit 调试器后端配置。
+    /// 基于 UI Toolkit 运行时界面的默认调试器处理器。
+    /// <para><see cref="DebuggerServiceHandler"/> 的内置实现：持有窗口注册表与日志捕获器，按激活策略解析悬浮入口可见性，并在首个 Tick 懒建运行时宿主（<see cref="DebuggerRuntimeHost"/>，纯运行时构建的 UIDocument，无资产依赖）。</para>
     /// </summary>
     [Serializable]
-    public sealed class DefaultDebuggerHandlerConfig : DebuggerServiceHandlerConfig
+    public sealed class DefaultDebuggerHandler : DebuggerServiceHandler
     {
         #region 字段 [FIELDS]
 
@@ -21,15 +22,13 @@ namespace Moirai.Atropos.Debugger
 
         [SerializeField, Range(0.2f, 1f)] private float m_WindowOpacity = 1f;
 
-        #endregion
-
-        #region 工厂 [FACTORY]
-
-        /// <inheritdoc />
-        public override DebuggerServiceHandler CreateHandler()
-        {
-            return new DefaultDebuggerHandler(this);
-        }
+        [NonSerialized] private readonly List<IDebuggerWindow> _windowBuffer = new List<IDebuggerWindow>(32);
+        [NonSerialized] private DebuggerWindowRegistry _windowRegistry;
+        [NonSerialized] private DebuggerLogCapture _logCapture;
+        [NonSerialized] private DebuggerRuntimeHost _host;
+        [NonSerialized] private bool _activeWindow;
+        [NonSerialized] private bool _showFullWindow;
+        [NonSerialized] private bool _hostPending;
 
         #endregion
 
@@ -54,44 +53,6 @@ namespace Moirai.Atropos.Debugger
         /// 获取主窗口不透明度（0.2-1）。
         /// </summary>
         public float WindowOpacity => m_WindowOpacity;
-
-        #endregion
-    }
-
-    /// <summary>
-    /// 基于 UI Toolkit 运行时界面的默认调试器处理器。
-    /// <para><see cref="DebuggerServiceHandler"/> 的内置实现：持有窗口注册表与日志捕获器，按激活策略解析悬浮入口可见性，并在首个 Tick 懒建运行时宿主（<see cref="DebuggerRuntimeHost"/>，纯运行时构建的 UIDocument，无资产依赖）。</para>
-    /// <para>由 <see cref="DefaultDebuggerHandlerConfig"/> 工厂创建（普通运行时类，不参与序列化——运行时字段无需 [NonSerialized] 标注）。</para>
-    /// </summary>
-    public sealed class DefaultDebuggerHandler : DebuggerServiceHandler
-    {
-        #region 字段 [FIELDS]
-
-        private readonly DefaultDebuggerHandlerConfig m_Config;
-        private readonly List<IDebuggerWindow> _windowBuffer = new List<IDebuggerWindow>(32);
-        private DebuggerWindowRegistry _windowRegistry;
-        private DebuggerLogCapture _logCapture;
-        private DebuggerRuntimeHost _host;
-        private bool _activeWindow;
-        private bool _showFullWindow;
-        private bool _hostPending;
-
-        #endregion
-
-        #region 构造 [CONSTRUCTOR]
-
-        /// <summary>
-        /// 初始化默认调试器处理器的新实例。
-        /// </summary>
-        /// <param name="config">后端配置。</param>
-        public DefaultDebuggerHandler(DefaultDebuggerHandlerConfig config)
-        {
-            m_Config = config;
-        }
-
-        #endregion
-
-        #region 属性 [PROPERTIES]
 
         /// <inheritdoc />
         public override bool ActiveWindow
@@ -153,7 +114,7 @@ namespace Moirai.Atropos.Debugger
         protected override void OnInit()
         {
             _windowRegistry = new DebuggerWindowRegistry();
-            _logCapture = new DebuggerLogCapture(m_Config != null && m_Config.ConsoleCapacity > 0 ? m_Config.ConsoleCapacity : DEFAULT_CONSOLE_CAPACITY);
+            _logCapture = new DebuggerLogCapture(m_ConsoleCapacity > 0 ? m_ConsoleCapacity : DEFAULT_CONSOLE_CAPACITY);
             _logCapture.Start();
             _showFullWindow = false;
             _hostPending = false;
@@ -291,7 +252,7 @@ namespace Moirai.Atropos.Debugger
             GameObject hostObject = new GameObject("[Debugger Runtime Host]");
             Object.DontDestroyOnLoad(hostObject);
             _host = hostObject.AddComponent<DebuggerRuntimeHost>();
-            _host.Initialize(this, m_Config);
+            _host.Initialize(this);
             _host.ShowFullWindow = _showFullWindow;
         }
 

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using Moirai.Atropos.Debugger;
@@ -18,14 +18,14 @@ namespace Moirai.Atropos.Resource
         #region 生命周期 [LIFECYCLE]
 
         /// <summary>
-        /// 从 <see cref="ResourceServiceSettings"/> 配置创建默认资源处理器。
+        /// 从 <see cref="ResourceServiceSettings"/> 创建默认资源处理器。
         /// <para>首行先确保服务已注册（<c>GameServices.EnsureRegistered</c>，幂等）——外观首次访问即完成世界注册。</para>
         /// </summary>
         /// <returns>默认资源处理器实例。</returns>
         private static ResourceServiceHandler CreateDefaultHandler()
         {
             GameServices.EnsureRegistered<ResourceService>();
-            return ResourceServiceSettings.ResourceServiceHandlerConfig.CreateHandler();
+            return ResourceServiceSettings.ResourceServiceHandler;
         }
 
         /// <inheritdoc />
@@ -38,9 +38,7 @@ namespace Moirai.Atropos.Resource
         public override void OnInit()
         {
             _ = Handler;
-
             DriveInitialize();
-            Application.lowMemory += OnLowMemory;
             DebuggerService.RegisterDebuggerWindow("Profiler/Resource", new ResourceServiceDebugView());
         }
 
@@ -54,17 +52,6 @@ namespace Moirai.Atropos.Resource
             var handler = s_Handler;
             s_Handler = null;
             handler?.Internal_Shutdown();
-
-            Application.lowMemory -= OnLowMemory;
-        }
-
-        /// <summary>
-        /// 低内存响应转发。
-        /// </summary>
-        private static void OnLowMemory()
-        {
-            LogUtility.Warning("[LowMemory] Unload Unused Assets...");
-            s_Handler?.ForceUnloadUnusedAssets(true);
         }
 
         #endregion
@@ -558,10 +545,15 @@ namespace Moirai.Atropos.Resource
             s_Handler?.GetAssetInfo(location, packageName) ?? default;
 
         /// <summary>
-        /// 每帧过期处理。
+        /// 每帧过期处理（由 <see cref="ResourceServiceDriver"/> 驱动）。
         /// </summary>
         internal static void ProcessKeepAlive(float time, int processCount) =>
             s_Handler?.ProcessKeepAlive(time, processCount);
+
+        /// <summary>
+        /// 低内存行为。
+        /// </summary>
+        public static void OnLowMemory() => Handler.OnLowMemory();
 
         /// <summary>
         /// 低内存回调保护。

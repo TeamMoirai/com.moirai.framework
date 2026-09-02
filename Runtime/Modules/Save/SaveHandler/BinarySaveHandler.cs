@@ -1,23 +1,9 @@
-using System.IO;
-using System;
+﻿using System.IO;
 using System.Runtime.Serialization.Formatters.Binary;
 using Cysharp.Threading.Tasks;
 
 namespace Moirai.Atropos.Save
 {
-    /// <summary>
-    /// 二进制格式存档后端配置。
-    /// </summary>
-    [Serializable]
-    public sealed class BinarySaveHandlerConfig : SaveServiceHandlerConfig
-    {
-        /// <inheritdoc />
-        public override SaveServiceHandler CreateHandler()
-        {
-            return new BinarySaveHandler();
-        }
-    }
-
     /// <summary>
     /// 此保存加载方法将文件保存并加载为二进制文件
     /// </summary>
@@ -28,9 +14,10 @@ namespace Moirai.Atropos.Save
     /// See: https://learn.microsoft.com/en-us/dotnet/standard/serialization/binaryformatter-security-guide
     /// </remarks>
     [System.Obsolete("BinaryFormatter is insecure and deprecated. Use JsonSaveHandler instead. See https://aka.ms/binaryformatter")]
+    [System.Serializable]
     public class BinarySaveHandler : SaveServiceHandler
     {
-        private BinaryFormatter _formatter;
+        [System.NonSerialized] private BinaryFormatter _formatter;
 
         private BinaryFormatter Formatter => _formatter ??= new BinaryFormatter();
 

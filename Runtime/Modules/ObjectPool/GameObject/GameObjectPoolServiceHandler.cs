@@ -1,5 +1,4 @@
 using System;
-using System;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
@@ -7,25 +6,11 @@ using UnityEngine;
 namespace Moirai.Atropos.ObjectPool
 {
     /// <summary>
-    /// GameObject 对象池配置抽象基类（纯数据，无行为无生命周期）。
-    /// <para>以 <see cref="UnityEngine.SerializeReference"/> 存于 <see cref="GameObjectPoolServiceSettings"/> 资产；
-    /// 经 <see cref="CreateHandler"/> 工厂创建绑定的后端处理器实例，处理器不再被序列化。</para>
-    /// </summary>
-    [Serializable]
-    public abstract class GameObjectPoolServiceHandlerConfig
-    {
-        /// <summary>
-        /// 创建配置绑定的 GameObject 池后端处理器实例。
-        /// </summary>
-        /// <returns>新的 GameObject 池处理器实例。</returns>
-        public abstract GameObjectPoolServiceHandler CreateHandler();
-    }
-
-    /// <summary>
     /// GameObject 池处理器抽象基类（策略模式抽象策略）。
     /// <para>默认实现为 <see cref="DefaultGameObjectPoolHandler"/>（分页槽位 + 代系句柄 + 最小堆维护调度，PoolCatalog 数据驱动）。</para>
-    /// <para>配置数据由 <see cref="GameObjectPoolServiceHandlerConfig"/> 系列纯数据类承载——处理器实例本身不再被序列化，由 <see cref="GameObjectPoolServiceHandlerConfig.CreateHandler"/> 工厂在运行期创建。</para>
+    /// <para>可在 <see cref="GameObjectPoolServiceSettings"/> 中替换为自定义对象池后端。</para>
     /// </summary>
+    [Serializable]
     public abstract class GameObjectPoolServiceHandler : FrameworkHandler
     {
         #region 轮询 [TICK]

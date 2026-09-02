@@ -1,4 +1,4 @@
-namespace Moirai.Atropos.ObjectPool
+﻿namespace Moirai.Atropos.ObjectPool
 {
     /// <summary>
     /// 通用对象池服务外观（Facade）。
@@ -21,7 +21,7 @@ namespace Moirai.Atropos.ObjectPool
         private static ObjectPoolServiceHandler CreateDefaultHandler()
         {
             GameServices.EnsureRegistered<ObjectPoolService>();
-            return ObjectPoolServiceSettings.ObjectPoolServiceHandlerConfig.CreateHandler();
+            return ObjectPoolServiceSettings.ObjectPoolServiceHandler;
         }
 
         /// <summary>

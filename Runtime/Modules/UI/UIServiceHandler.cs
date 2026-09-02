@@ -1,29 +1,14 @@
-using System;
-using System;
+﻿using System;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
 
 namespace Moirai.Atropos.UI
 {
     /// <summary>
-    /// UI 服务配置抽象基类（纯数据，无行为无生命周期）。
-    /// <para>以 <see cref="UnityEngine.SerializeReference"/> 存于 <see cref="UIServiceSettings"/> 资产；
-    /// 经 <see cref="CreateHandler"/> 工厂创建绑定的后端处理器实例，处理器不再被序列化。</para>
+    /// UI处理器（后端）。承载窗口堆栈管理、层级排序与资源加载等核心逻辑。
+    /// <para>通过 <see cref="UIServiceSettings.UIServiceHandler"/> 序列化配置，可替换为自定义 UI 后端。</para>
     /// </summary>
     [Serializable]
-    public abstract class UIServiceHandlerConfig
-    {
-        /// <summary>
-        /// 创建配置绑定的 UI 后端处理器实例。
-        /// </summary>
-        /// <returns>新的 UI 处理器实例。</returns>
-        public abstract UIServiceHandler CreateHandler();
-    }
-
-    /// <summary>
-    /// UI处理器（后端）。承载窗口堆栈管理、层级排序与资源加载等核心逻辑。
-    /// <para>配置数据由 <see cref="UIServiceHandlerConfig"/> 系列纯数据类承载——处理器实例本身不再被序列化，由 <see cref="UIServiceHandlerConfig.CreateHandler"/> 工厂在运行期创建。</para>
-    /// </summary>
     public abstract class UIServiceHandler : FrameworkHandler
     {
         /// <summary>

@@ -23,7 +23,7 @@ namespace Moirai.Atropos.Input
         private static InputServiceHandler CreateDefaultHandler()
         {
             GameServices.EnsureRegistered<InputService>();
-            return InputServiceSettings.InputServiceHandlerConfig.CreateHandler();
+            return InputServiceSettings.InputServiceHandler;
         }
 
         /// <summary>
