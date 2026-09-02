@@ -181,8 +181,9 @@ namespace Debugger
         [Test]
         public void DebuggerService_RegisterServiceDebugView_RoundTrip()
         {
-            // 显式注册 DebuggerService（组合根模式——显式注册同时重开可能处于关闭态的服务世界）
+            // 显式注册 DebuggerService（组合根模式）+ 两阶段提交——Initialize 驱动 OnInit 后才可用
             GameServices.RegisterService(EServiceScopeKind.App, new Dbg.DebuggerService());
+            GameServices.Default.Initialize();
 
             var view = new TestServiceDebugView();
             const string path = "UnitTest/Service Debug View";
@@ -214,6 +215,7 @@ namespace Debugger
         public void DebuggerService_RegisterPanel_RoundTrip()
         {
             GameServices.RegisterService(EServiceScopeKind.App, new Dbg.DebuggerService());
+            GameServices.Default.Initialize();
 
             const string path = "UnitTest/Builder Panel";
             try
@@ -234,6 +236,7 @@ namespace Debugger
         public void DebuggerService_UnregisterUnknownPath_ReturnsFalse()
         {
             GameServices.RegisterService(EServiceScopeKind.App, new Dbg.DebuggerService());
+            GameServices.Default.Initialize();
             try
             {
                 Assert.IsFalse(Dbg.DebuggerService.UnregisterDebuggerWindow("UnitTest/NotRegistered"),
@@ -249,6 +252,7 @@ namespace Debugger
         public void DebuggerService_Unregister_CallsWindowShutdown()
         {
             GameServices.RegisterService(EServiceScopeKind.App, new Dbg.DebuggerService());
+            GameServices.Default.Initialize();
             var window = new TestWindow();
             const string path = "UnitTest/ShutdownContract";
             try

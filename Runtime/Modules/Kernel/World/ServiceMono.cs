@@ -11,7 +11,7 @@ namespace Moirai.Atropos
     /// <para>重复注册自动销毁 GameObject（同契约幂等）。</para>
     /// </summary>
     /// <typeparam name="TScope">作用域标记类型。</typeparam>
-    public abstract class ServiceMono<TScope> : MonoBehaviour, IService, IServiceLifecycle
+    public abstract class ServiceMono<TScope> : MonoBehaviour, IService, IServiceLifecycle, ServiceMonoMarker
         where TScope : IServiceScope, new()
     {
         /// <summary>
@@ -20,7 +20,7 @@ namespace Moirai.Atropos
         [NonSerialized] private bool _registeredToScope;
 
         /// <summary>
-        /// 当前生命周期状态。
+        /// 当前生命周期状态（只读投影——由容器驱动转换）。
         /// </summary>
         public EServiceState State { get; internal set; } = EServiceState.Created;
 
@@ -50,25 +50,32 @@ namespace Moirai.Atropos
 
         #region IServiceLifecycle 实现 [RUNTIME LIFECYCLE]
 
-        void IServiceLifecycle.Initialize(ServiceScope scope)
+        void IServiceLifecycle.Initialize(ServiceWorld world, ServiceScope scope)
         {
             if (State >= EServiceState.Initialized) return;
 
             OnInit();
             State = EServiceState.Initialized;
-            GameServices.InvokeRegistered(this, GetType(), scope.Kind);
+            world.InvokeRegistered(this, GetType(), scope.Kind);
         }
 
-        void IServiceLifecycle.Destroy()
+        void IServiceLifecycle.Destroy(ServiceWorld world)
         {
             if (State >= EServiceState.ShuttingDown) return;
 
             State = EServiceState.ShuttingDown;
-            GameServices.InvokeShutdown(this);
+            world.InvokeShutdown(this);
             try { OnShutdown(); }
-            catch (System.Exception ex) { LogUtility.Error(ex.ToString()); }
+            catch (Exception ex) { LogUtility.Error(ex.ToString()); }
             State = EServiceState.Disposed;
         }
+
+        #endregion
+
+        #region ServiceMonoMarker 实现 [STATE MARKER]
+
+        EServiceState ServiceMonoMarker.GetStateInternal() => State;
+        void ServiceMonoMarker.SetStateInternal(EServiceState state) => State = state;
 
         #endregion
 
@@ -95,14 +102,14 @@ namespace Moirai.Atropos
                 return;
             }
 
-            // App 作用域跨场景存活（原 db62017 契约）；DontDestroyOnLoad 仅 Play 模式合法
+            // App 作用域跨场景存活；DontDestroyOnLoad 仅 Play 模式合法
             if (Application.isPlaying && DontDestroyOnLoad)
             {
                 UnityEngine.Object.DontDestroyOnLoad(gameObject);
             }
 
             // 以运行时具体类型为契约注册——基类泛型参数是开放类型，不能作为契约键；
-            // 显式 Type 重载同样按子类的 [ServiceDependency] 声明校验依赖（须先行注册）
+            // 世界未初始化时挂入待初始化图（组合根初始化时统一拓扑驱动），已初始化时立即 OnInit
             GameServices.RegisterService(kind, GetType(), this);
             _registeredToScope = true;
         }
