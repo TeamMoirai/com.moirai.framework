@@ -49,6 +49,9 @@ namespace Moirai.Atropos
             // 因此 Scene/Gameplay 服务的 Shutdown() 不得访问场景对象。
             SceneManager.sceneUnloaded += OnSceneUnloaded;
 
+            // 确定性创建默认服务世界（幂等——已创建则取回既有实例）
+            _ = GameServices.Default;
+
             MakeEntity();
             GameTime.StartFrame();
         }
@@ -72,6 +75,10 @@ namespace Moirai.Atropos
 
             GameServices.Shutdown();
             if (s_Entity != null) Object.Destroy(s_Entity);
+
+            // 池缓存清理在全部服务关闭后执行（此时无活跃池化对象引用）。
+            // 归属本层而非内核——内核不感知 MemoryPool（分层单向）。
+            MemoryPool.ClearAll();
         }
 
         #endregion

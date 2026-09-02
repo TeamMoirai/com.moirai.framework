@@ -9,6 +9,11 @@ using UnityEngine.TestTools;
 
 namespace GameTool
 {
+    /// <summary>
+    /// 内核（ServiceWorld/GameServices）测试。
+    /// <para>两阶段语义：RegisterService 仅入图（世界未初始化时不驱动 OnInit），
+    /// <see cref="ServiceWorld.Initialize"/> 按依赖图拓扑统一驱动——初始化顺序与注册顺序无关。</para>
+    /// </summary>
     [TestFixture]
     public class GameServicesTest
     {
@@ -99,6 +104,19 @@ namespace GameTool
             }
         }
 
+        // --- 异步初始化实现 ---
+
+        private sealed class AsyncInitService : TestServiceBase, IBetaService, IServiceInitializableAsync
+        {
+            public bool AsyncInitCalled;
+
+            public UniTask OnInitAsync()
+            {
+                AsyncInitCalled = true;
+                return UniTask.CompletedTask;
+            }
+        }
+
         // --- 可变静态配置的保存/恢复（防测试间状态泄漏） ---
 
         private EDuplicateContractPolicy _originalPolicy;
@@ -126,9 +144,29 @@ namespace GameTool
 
         // --- 辅助 ---
 
+        /// <summary>
+        /// 注册并初始化（两阶段提交的测试便捷路径）。
+        /// </summary>
         private static void Register<T>(T service) where T : class, IService
         {
             GameServices.RegisterService(EServiceScopeKind.App, service);
+            GameServices.Default.Initialize();
+        }
+
+        /// <summary>
+        /// 仅注册（第一阶段：入图不初始化）。测试两阶段语义时配对 <see cref="Init"/> 使用。
+        /// </summary>
+        private static void RegisterDeferred<T>(T service) where T : class, IService
+        {
+            GameServices.RegisterService(EServiceScopeKind.App, service);
+        }
+
+        /// <summary>
+        /// 提交世界初始化（第二阶段）。
+        /// </summary>
+        private static void Init()
+        {
+            GameServices.Default.Initialize();
         }
 
         private static void RegisterScene<T>(T service) where T : class, IService
@@ -136,6 +174,125 @@ namespace GameTool
             if (GameServices.HasScene)
                 GameServices.ShutdownContainer(EServiceScopeKind.Scene);
             GameServices.RegisterService(EServiceScopeKind.Scene, service);
+            GameServices.Default.Initialize();
+        }
+
+        // ═══════════════════════════════════════════════════════
+        // 两阶段构建测试 [TWO-PHASE BUILD TESTS]
+        // ═══════════════════════════════════════════════════════
+
+        [Test]
+        public void Register_BeforeInitialize_DoesNotInvokeOnInit()
+        {
+            var alpha = new AlphaService();
+            RegisterDeferred(alpha);
+
+            Assert.AreEqual(0, alpha.InitCount, "两阶段第一阶段不得驱动 OnInit");
+            Assert.AreEqual(EServiceState.Created, alpha.State);
+            Assert.IsFalse(GameServices.Default.IsInitialized);
+
+            Init();
+
+            Assert.AreEqual(1, alpha.InitCount, "Initialize 应统一驱动 OnInit");
+            Assert.AreEqual(EServiceState.Initialized, alpha.State);
+        }
+
+        [Test]
+        public void Initialize_TopoSortsDependencies_RegistrationOrderIrrelevant()
+        {
+            // 依赖方先注册、被依赖方后注册——拓扑排序仍保证 Dependee 先初始化
+            RegisterDeferred(new DependentService());
+            RegisterDeferred(new DependeeService());
+
+            Init();
+
+            var dependent = GameServices.GetRequiredService<DependentService>();
+            var dependee = GameServices.GetRequiredService<DependeeService>();
+            Assert.AreSame(dependee, dependent.Dependency, "拓扑初始化后依赖应就位");
+            Assert.AreEqual(1, dependee.InitCount);
+            Assert.AreEqual(1, dependent.InitCount);
+        }
+
+        [Test]
+        public void Initialize_MissingDependency_Throws()
+        {
+            // 缺失依赖在两阶段构建的初始化期 fail-fast（而非注册期）
+            RegisterDeferred(new DependentService());
+
+            Assert.Throws<GameException>(() => Init());
+        }
+
+        [Test]
+        public void Initialize_CircularDependency_Throws()
+        {
+            RegisterDeferred(new CycleServiceA());
+            RegisterDeferred(new CycleServiceB());
+
+            Assert.Throws<GameException>(() => Init());
+        }
+
+        [Test]
+        public void Initialize_SyncInit_RejectsAsyncInitService()
+        {
+            RegisterDeferred(new AsyncInitService());
+
+            Assert.Throws<GameException>(() => Init());
+        }
+
+        [Test]
+        public void InitializeAsync_DrivesAsyncInitInTopoPosition()
+        {
+            RegisterDeferred(new AsyncInitService());
+
+            GameServices.Default.InitializeAsync().GetAwaiter().GetResult();
+
+            var svc = (AsyncInitService)GameServices.GetRequiredService<AsyncInitService>();
+            Assert.IsTrue(svc.AsyncInitCalled, "OnInitAsync 应在拓扑位置处被调用");
+            Assert.AreEqual(1, svc.InitCount, "OnInit 同样应被驱动");
+            Assert.AreEqual(EServiceState.Initialized, svc.State);
+        }
+
+        [Test]
+        public void RuntimeRegister_AsyncInitService_Throws()
+        {
+            Register(new AlphaService());  // 世界已初始化
+
+            Assert.Throws<GameException>(
+                () => GameServices.RegisterService(EServiceScopeKind.App, new AsyncInitService()),
+                "运行时注册异步初始化服务应 fail-fast（无法等待）");
+        }
+
+        [Test]
+        public void MultipleWorlds_AreIsolated()
+        {
+            // 可实例化内核：独立世界互不干扰（K1 修复的验收测试）
+            var worldA = new ServiceWorld();
+            var worldB = new ServiceWorld();
+            try
+            {
+                var alphaA = new AlphaService();
+                var alphaB = new AlphaService();
+                worldA.Register(EServiceScopeKind.App, alphaA);
+                worldB.Register(EServiceScopeKind.App, alphaB);
+                worldA.Initialize();
+                worldB.Initialize();
+
+                Assert.AreSame(alphaA, worldA.GetRequiredService<AlphaService>());
+                Assert.AreSame(alphaB, worldB.GetRequiredService<AlphaService>());
+                Assert.AreEqual(1, alphaA.InitCount);
+                Assert.AreEqual(1, alphaB.InitCount);
+
+                worldA.ShutdownScope(EServiceScopeKind.App);
+                Assert.IsFalse(worldA.HasApp);
+                Assert.IsTrue(worldB.HasApp, "关闭世界 A 不得影响世界 B");
+                Assert.AreEqual(EServiceState.Disposed, alphaA.State);
+                Assert.AreEqual(EServiceState.Initialized, alphaB.State);
+            }
+            finally
+            {
+                worldA.Dispose();
+                worldB.Dispose();
+            }
         }
 
         // ═══════════════════════════════════════════════════════
@@ -151,7 +308,7 @@ namespace GameTool
 
             Assert.IsInstanceOf<AlphaService>(resolved);
             var alpha = (AlphaService)resolved;
-            Assert.AreEqual(1, alpha.InitCount, "OnInit 应在注册时调用一次");
+            Assert.AreEqual(1, alpha.InitCount, "OnInit 应在初始化时调用一次");
             Assert.AreEqual(EServiceState.Initialized, alpha.State);
             Assert.AreEqual(0, alpha.ShutdownCount);
             Assert.AreSame(resolved, GameServices.GetService<AlphaService>(), "重复解析应返回同一单例");
@@ -191,67 +348,35 @@ namespace GameTool
         }
 
         // ═══════════════════════════════════════════════════════
-        // 依赖预注册测试 [DEPENDENCY PREREGISTRATION TESTS]
+        // 依赖解析测试 [DEPENDENCY RESOLUTION TESTS]
         // ═══════════════════════════════════════════════════════
 
         [Test]
         public void RegisterService_ResolvesDependencyChain()
         {
-            // 先注册依赖，再注册依赖方——依赖由 [ServiceDependency] 声明
-            GameServices.RegisterService(EServiceScopeKind.App, new DependeeService());
-            Register(new DependentService());
+            RegisterDeferred(new DependeeService());
+            RegisterDeferred(new DependentService());
+            Init();
 
             var dependent = GameServices.GetRequiredService<DependentService>();
             var dependee = GameServices.GetRequiredService<DependeeService>();
 
-            Assert.IsNotNull(dependent.Dependency, "依赖应已由预注册拉起");
+            Assert.IsNotNull(dependent.Dependency, "依赖应已就位");
             Assert.AreSame(dependee, dependent.Dependency, "依赖应是同一单例");
             Assert.AreEqual(1, dependee.InitCount, "依赖服务应已初始化");
             Assert.AreEqual(1, dependent.InitCount, "当前服务应已初始化");
         }
 
         [Test]
-        public void RegisterService_DependencyRegisteredFirst_StillWorks()
+        public void RegisterService_NestedDependency_AllResolved()
         {
-            // 依赖先于依赖方注册——[ServiceDependency] 声明的依赖校验通过
-            GameServices.RegisterService(EServiceScopeKind.App, new DependeeService());
-            GameServices.RegisterService(EServiceScopeKind.App, new DependentService());
-
-            var dependent = GameServices.GetRequiredService<DependentService>();
-            Assert.IsNotNull(dependent.Dependency, "依赖应已就位");
-        }
-
-        [Test]
-        public void RegisterService_DependencyAlreadyRegistered_NotReRegistered()
-        {
-            // 先注册依赖
-            var dependee = new DependeeService();
-            GameServices.RegisterService(EServiceScopeKind.App, dependee);
-
-            // 再注册依赖方——依赖不应被重复创建/初始化
-            GameServices.RegisterService(EServiceScopeKind.App, new DependentService());
-
-            Assert.AreEqual(1, dependee.InitCount, "已注册的依赖不应被重复初始化");
-        }
-
-        [Test]
-        public void RegisterService_NestedDependency_AllPreregistered()
-        {
-            // A → B → C: 注册 A 时应自动拉起 B 和 C
-            // 这里用真实场景：DependentService → DependeeService
-            GameServices.RegisterService(EServiceScopeKind.App, new DependeeService());
-            Register(new DependentService());
+            RegisterDeferred(new DependeeService());
+            RegisterDeferred(new DependentService());
+            Init();
 
             Assert.IsTrue(GameServices.HasApp);
             Assert.IsNotNull(GameServices.GetService<DependentService>());
             Assert.IsNotNull(GameServices.GetService<DependeeService>());
-        }
-
-        [Test]
-        public void RegisterService_CircularDependency_Throws()
-        {
-            // 环上任一服务的依赖都未注册——缺失依赖校验在注册期即 fail-fast（环无法完成注册）
-            Assert.Throws<GameException>(() => GameServices.RegisterService(EServiceScopeKind.App, new CycleServiceA()));
         }
 
         // ═══════════════════════════════════════════════════════
@@ -261,15 +386,13 @@ namespace GameTool
         [Test]
         public void Shutdown_DependentsCloseFirst_ReverseOrder()
         {
-            // 注册序：Dependee → Dependent；关闭序应为 Dependent → Dependee
-            GameServices.RegisterService(EServiceScopeKind.App, new DependeeService());
-            GameServices.RegisterService(EServiceScopeKind.App, new DependentService());
+            RegisterDeferred(new DependeeService());
+            RegisterDeferred(new DependentService());
+            Init();
 
             s_OrderLog.Clear();
             GameServices.ShutdownContainer(EServiceScopeKind.App);
 
-            // Dependent 的 Shutdown 应先于 Dependee（逆注册序）
-            // 由于 TestServiceBase.Shutdown 不记日志，用 InitCount 间接验证
             Assert.IsFalse(GameServices.HasApp, "关闭后 HasApp 应为 false");
         }
 
@@ -304,8 +427,8 @@ namespace GameTool
 
             Assert.IsFalse(GameServices.HasApp);
 
-            // 关闭后应能重新注册
-            Assert.DoesNotThrow(() => GameServices.RegisterService(EServiceScopeKind.App, new AlphaService()));
+            // 关闭后应能重新注册（显式注册是关闭后唯一重建路径）
+            Assert.DoesNotThrow(() => Register(new AlphaService()));
             Assert.IsTrue(GameServices.HasApp);
         }
 
@@ -350,6 +473,7 @@ namespace GameTool
             GameServices.RegisterService(EServiceScopeKind.App, new AlphaService() as IAlphaService);
             GameServices.RegisterService(EServiceScopeKind.Scene, new SceneAlphaService() as IAlphaService);
             GameServices.RegisterService(EServiceScopeKind.Gameplay, new GameplayAlphaService() as IAlphaService);
+            Init();
 
             Assert.IsInstanceOf<GameplayAlphaService>(GameServices.GetRequiredService<IAlphaService>(),
                 "Gameplay 遮蔽 Scene 与 App");
@@ -370,8 +494,9 @@ namespace GameTool
         [Test]
         public void Tick_HigherPriorityFirst()
         {
-            Register(new HighPriorityService());
+            RegisterDeferred(new HighPriorityService());
             GameServices.RegisterService(EServiceScopeKind.App, new LowPriorityService() as IBetaService);
+            Init();
 
             GameServices.Tick(0.1f, 0.1f);
 
@@ -400,45 +525,16 @@ namespace GameTool
             Assert.AreEqual(1, sceneBeta.TickCount, "已关闭容器的服务不应再被轮询");
         }
 
-        // ═══════════════════════════════════════════════════════
-        // 事件测试 [EVENT TESTS]
-        // ═══════════════════════════════════════════════════════
-
         [Test]
-        public void ServiceRegisteredEvent_FiresAfterOnInit()
+        public void Tick_PendingServices_NotTickedBeforeInitialize()
         {
-            IService received = null;
-            EServiceState stateAtEvent = EServiceState.Created;
-            GameServices.onServiceRegistered += (svc, type, scope) =>
-            {
-                received = svc;
-                stateAtEvent = GameServices.GetState(svc);
-            };
+            // 两阶段：未初始化的服务不进入轮询列表
+            var alpha = new AlphaService();
+            RegisterDeferred(alpha);
 
-            Register(new AlphaService());
+            GameServices.Tick(0.1f, 0.1f);
 
-            Assert.IsNotNull(received, "onServiceRegistered 事件应在注册时触发");
-            Assert.AreEqual(EServiceState.Initialized, stateAtEvent, "事件触发时服务应已完成初始化");
-        }
-
-        [Test]
-        public void ServiceUnregisteredEvent_FiresAfterShutdown()
-        {
-            Register(new AlphaService());
-            var alpha = (AlphaService)GameServices.GetRequiredService<AlphaService>();
-
-            IService received = null;
-            EServiceState stateAtEvent = EServiceState.Created;
-            GameServices.onServiceUnregistered += svc =>
-            {
-                received = svc;
-                stateAtEvent = GameServices.GetState(svc);
-            };
-
-            GameServices.ShutdownContainer(EServiceScopeKind.App);
-
-            Assert.AreSame(alpha, received, "onServiceUnregistered 事件应在关闭时触发");
-            Assert.AreEqual(EServiceState.Disposed, stateAtEvent);
+            Assert.AreEqual(0, alpha.TickCount, "待初始化服务不得被轮询");
         }
 
         // ═══════════════════════════════════════════════════════
@@ -459,11 +555,14 @@ namespace GameTool
             public void OnServiceUnregistered(IService service)
                 => Events.Add("Unregistered:" + service.GetType().Name);
 
-            public void OnServiceTick(IService service, float elapseSeconds, float realElapseSeconds)
-                => Events.Add("Tick:" + service.GetType().Name);
-
             public void OnServiceShutdown(IService service)
                 => Events.Add("Shutdown:" + service.GetType().Name);
+
+            public void OnBeforeScopeTick(EServiceScopeKind scope, float elapseSeconds, float realElapseSeconds)
+                => Events.Add("BeforeTick:" + scope);
+
+            public void OnAfterScopeTick(EServiceScopeKind scope, float elapseSeconds, float realElapseSeconds)
+                => Events.Add("AfterTick:" + scope);
         }
 
         [Test]
@@ -474,7 +573,8 @@ namespace GameTool
 
             Register(new AlphaService());
 
-            Assert.GreaterOrEqual(interceptor.Events.Count, 2, "应触发 Registering + Registered 两个事件");
+            Assert.IsTrue(interceptor.Events.Contains("Registering:AlphaService"), "应触发 Registering");
+            Assert.IsTrue(interceptor.Events.Contains("Registered:AlphaService"), "应触发 Registered");
             var alpha = (AlphaService)GameServices.GetRequiredService<AlphaService>();
             Assert.AreEqual(1, alpha.InitCount, "OnInit 应在 Registering 后、Registered 前调用");
         }
@@ -495,17 +595,22 @@ namespace GameTool
         }
 
         [Test]
-        public void Interceptor_Tick_TriggersBeforeEachService()
+        public void Interceptor_Tick_FiresOncePerScopeFrameBoundary()
         {
+            // 帧边界粒度（取代逐服务粒度）：一个作用域一帧 Before/After 各一次，与服务数量无关
             var interceptor = new TestInterceptor();
             GameServices.AddInterceptor(interceptor);
 
             Register(new AlphaService());
+            GameServices.RegisterService(EServiceScopeKind.App, new BetaService() as IBetaService);
             interceptor.Events.Clear();
 
             GameServices.Tick(0.1f, 0.1f);
 
-            Assert.AreEqual(1, interceptor.Events.Count, "应触发一次 Tick 拦截");
+            Assert.AreEqual(2, interceptor.Events.Count,
+                "App 作用域一帧应仅触发 Before + After 各一次（两个服务不翻倍）");
+            Assert.AreEqual("BeforeTick:App", interceptor.Events[0]);
+            Assert.AreEqual("AfterTick:App", interceptor.Events[1]);
         }
 
         [Test]
@@ -537,7 +642,7 @@ namespace GameTool
         }
 
         // ═══════════════════════════════════════════════════════
-        // 运行时注册测试 [RUNTIME REGISTRATION TESTS]
+        // 运行时注册测试（世界已初始化后）[RUNTIME REGISTRATION TESTS]
         // ═══════════════════════════════════════════════════════
 
         [Test]
@@ -547,11 +652,25 @@ namespace GameTool
 
             var beta = new BetaService();
             GameServices.RegisterService(EServiceScopeKind.App, beta as IBetaService);
+            Init();
 
             var resolved = GameServices.GetService<IBetaService>();
             Assert.AreSame(beta, resolved);
-            Assert.AreEqual(1, beta.InitCount, "运行时注册应驱动 OnInit");
+            Assert.AreEqual(1, beta.InitCount, "初始化应驱动 OnInit");
             Assert.AreEqual(EServiceState.Initialized, beta.State);
+        }
+
+        [Test]
+        public void RuntimeRegister_AfterInitialize_InitializesImmediately()
+        {
+            Register(new AlphaService());  // 世界已初始化
+
+            var beta = new BetaService();
+            GameServices.RegisterService(EServiceScopeKind.App, beta);
+
+            Assert.AreEqual(1, beta.InitCount, "世界已初始化后的运行时注册应立即驱动 OnInit");
+            Assert.AreEqual(EServiceState.Initialized, beta.State);
+            Assert.AreSame(beta, GameServices.GetRequiredService<BetaService>());
         }
 
         [Test]
@@ -559,12 +678,13 @@ namespace GameTool
         {
             var first = new AlphaService();
             GameServices.RegisterService(EServiceScopeKind.App, first as IAlphaService);
+            Init();
 
             LogAssert.Expect(LogType.Warning, new Regex(".*already bound.*"));
             var another = new AlphaService();
             var returned = GameServices.RegisterService(EServiceScopeKind.App, another as IAlphaService);
 
-            Assert.AreSame(first, returned, "重复注册应幂等返回既有实例（与文档契约一致）");
+            Assert.AreSame(first, returned, "重复注册应幂等返回既有实例");
             Assert.AreEqual(1, first.InitCount, "重复注册不应再次驱动 OnInit");
         }
 
@@ -593,6 +713,20 @@ namespace GameTool
             Assert.IsFalse(result, "未注册的服务注销应返回 false");
         }
 
+        [Test]
+        public void Unregister_BeforeInitialize_RemovesFromPendingGraph()
+        {
+            var alpha = new AlphaService();
+            RegisterDeferred(alpha);
+
+            bool removed = GameServices.UnregisterService<AlphaService>(EServiceScopeKind.App);
+
+            Assert.IsTrue(removed, "待初始化服务应可注销");
+            Init();
+            Assert.AreEqual(0, alpha.InitCount, "已注销的挂起服务不得再初始化");
+            Assert.IsNull(GameServices.GetService<AlphaService>());
+        }
+
         // ═══════════════════════════════════════════════════════
         // 迭代安全测试 [ITERATION SAFETY TESTS]
         // ═══════════════════════════════════════════════════════
@@ -619,12 +753,11 @@ namespace GameTool
         public void Dispose_DuringTick_DefersAndDoesNotThrow()
         {
             GameServices.RegisterService(EServiceScopeKind.App, new DisposeScopeOnTick(EServiceScopeKind.App) as IAlphaService);
+            Init();
 
             Assert.DoesNotThrow(() => GameServices.Tick(0f, 0f));
             Assert.IsFalse(GameServices.HasApp, "迭代中请求的 Dispose 应在迭代结束后执行");
         }
-
-        private sealed class TickCountService : TestServiceBase, IBetaService { }
 
         [Test]
         public void Dispose_DuringTick_OtherServicesStillTickInSameFrame()
@@ -632,6 +765,7 @@ namespace GameTool
             GameServices.RegisterService(EServiceScopeKind.App, new DisposeScopeOnTick(EServiceScopeKind.App) as IAlphaService);
             var beta = new BetaService();
             GameServices.RegisterService(EServiceScopeKind.App, beta as IBetaService);
+            Init();
 
             Assert.DoesNotThrow(() => GameServices.Tick(0f, 0f));
             Assert.AreEqual(1, beta.TickCount, "同作用域后续服务在本轮迭代中仍应被轮询");
@@ -657,6 +791,7 @@ namespace GameTool
         public void DeferredRegister_QueuedDuringTick_ProcessedAfterIteration()
         {
             GameServices.RegisterService(EServiceScopeKind.App, new RegisterOnTickService() as IAlphaService);
+            Init();
 
             Assert.DoesNotThrow(() => GameServices.Tick(0f, 0f));
 
@@ -681,6 +816,7 @@ namespace GameTool
         public void DeferredRegister_ThrowMode_LogsErrorThenRethrows()
         {
             GameServices.RegisterService(EServiceScopeKind.App, new ThrowRegisterOnTickService() as IAlphaService);
+            Init();
 
             // 开发环境下先记录日志再上抛（fail-fast 分级策略）
             LogAssert.Expect(LogType.Error, new Regex(".*EDeferMode\\.Throw.*"));
@@ -704,6 +840,7 @@ namespace GameTool
             var beta = new BetaService();
             GameServices.RegisterService(EServiceScopeKind.App, beta as IBetaService);
             GameServices.RegisterService(EServiceScopeKind.App, new UnregisterOnTickService() as IAlphaService);
+            Init();
 
             Assert.DoesNotThrow(() => GameServices.Tick(0f, 0f));
 
@@ -737,6 +874,7 @@ namespace GameTool
             GameServices.RegisterService(EServiceScopeKind.App, new SamePriorityA() as IAlphaService);
             GameServices.RegisterService(EServiceScopeKind.App, new SamePriorityB() as IBetaService);
             GameServices.RegisterService(EServiceScopeKind.App, new SamePriorityC() as IDepTargetService);
+            Init();
 
             GameServices.Tick(0f, 0f);
 
@@ -768,10 +906,11 @@ namespace GameTool
         {
             var svc = new AlphaService();
             var returned = GameServices.RegisterService(EServiceScopeKind.App, typeof(IAlphaService), svc);
+            Init();
 
             Assert.AreSame(svc, returned);
             Assert.AreSame(svc, GameServices.GetRequiredService<IAlphaService>());
-            Assert.AreEqual(1, svc.InitCount, "显式契约注册应驱动 OnInit");
+            Assert.AreEqual(1, svc.InitCount, "显式契约注册应在初始化时驱动 OnInit");
         }
 
         [Test]
@@ -779,6 +918,7 @@ namespace GameTool
         {
             var first = new AlphaService();
             GameServices.RegisterService(EServiceScopeKind.App, typeof(IAlphaService), first);
+            Init();
 
             LogAssert.Expect(LogType.Warning, new Regex(".*already bound.*"));
             var returned = GameServices.RegisterService(EServiceScopeKind.App, typeof(IAlphaService), new AlphaService());
@@ -795,13 +935,14 @@ namespace GameTool
         [Test]
         public void ExplicitContract_InterfaceContract_StillValidatesDependenciesFromImplType()
         {
-            // 依赖已显式注册——以接口契约注册依赖方时，依赖校验仍从实现类型读取声明
-            // （若错误地从接口契约读取，声明将丢失且校验被跳过）
+            // 以接口契约注册依赖方时，依赖声明仍从实现类型读取（拓扑边基于 GetType() 而非契约类型）
             GameServices.RegisterService(EServiceScopeKind.App, new AnotherFactoryService());
             GameServices.RegisterService(EServiceScopeKind.App, typeof(IBetaService), new InterfaceContractDependent());
+            Init();
 
             Assert.AreEqual(1, GameServices.GetRequiredService<AnotherFactoryService>().InitCount,
                 "接口契约注册也应从实现类型读取依赖声明");
+            Assert.AreEqual(1, ((InterfaceContractDependent)GameServices.GetRequiredService<IBetaService>()).InitCount);
         }
 
         // ═══════════════════════════════════════════════════════
@@ -816,6 +957,7 @@ namespace GameTool
             var svc = new DualContractService();
             GameServices.RegisterService(EServiceScopeKind.App, typeof(IAlphaService), svc);
             GameServices.RegisterService(EServiceScopeKind.App, typeof(IBetaService), svc);
+            Init();
 
             Assert.AreSame(svc, GameServices.GetRequiredService<IAlphaService>());
             Assert.AreSame(svc, GameServices.GetRequiredService<IBetaService>());
@@ -832,7 +974,7 @@ namespace GameTool
             public override void Tick(float elapseSeconds, float realElapseSeconds)
             {
                 base.Tick(elapseSeconds, realElapseSeconds);
-                // 同一实例在迭代中再绑一个契约——两个请求都延迟，FIFO 保证先注册后绑定
+                // 同一实例在迭代中再绑一个契约——请求延迟到迭代结束后执行
                 GameServices.RegisterService(EServiceScopeKind.App, typeof(IDepTargetService), this);
             }
         }
@@ -842,6 +984,7 @@ namespace GameTool
         {
             var svc = new BindOnTickService();
             GameServices.RegisterService(EServiceScopeKind.App, typeof(IAlphaService), svc);
+            Init();
 
             Assert.DoesNotThrow(() => GameServices.Tick(0f, 0f));
 
@@ -861,10 +1004,9 @@ namespace GameTool
         [Test]
         public void RegisterService_MissingDependency_Throws()
         {
-            // 服务实例仅由手动注册创建（默认工厂表已移除）——依赖未注册时注册依赖方立即失败
-            Assert.Throws<GameException>(() =>
-                GameServices.RegisterService(EServiceScopeKind.App, new FactoryDependentService()));
-            Assert.IsFalse(GameServices.HasApp, "失败的注册不应留下半初始化状态");
+            // 两阶段：缺失依赖在初始化期 fail-fast（注册仅入图）
+            GameServices.RegisterService(EServiceScopeKind.App, new FactoryDependentService());
+            Assert.Throws<GameException>(() => Init());
         }
 
         // ─── GameApp 关闭态测试工具（EditMode 下 GameApp 未 Initialize，IsShutdown 恒为 true） ───
@@ -910,7 +1052,7 @@ namespace GameTool
 
                 var resolved = GameServices.GetRequiredService<AlphaService>();
                 Assert.IsInstanceOf<AlphaService>(resolved);
-                Assert.AreEqual(1, ((AlphaService)resolved).InitCount, "自动注册应驱动 OnInit");
+                Assert.AreEqual(1, ((AlphaService)resolved).InitCount, "懒加载注册应保证可用（注册即初始化）");
                 Assert.AreEqual(EServiceState.Initialized, ((AlphaService)resolved).State);
             }
             finally
@@ -944,19 +1086,20 @@ namespace GameTool
             public override void OnInit()
             {
                 base.OnInit();
-                // 注册链路中重入 EnsureRegistered——s_InFlight 守卫应跳过而非递归
+                // 初始化循环内重入 EnsureRegistered——已在注册表即跳过（禁止嵌套初始化）
                 GameServices.EnsureRegistered<SelfEnsureService>();
                 s_OrderLog.Add("self-ensure");
             }
         }
 
         [Test]
-        public void EnsureRegistered_ReentrantDuringRegistration_Skipped()
+        public void EnsureRegistered_ReentrantDuringInitialization_Skipped()
         {
             SetGameAppActive(true);
             try
             {
                 GameServices.RegisterService(EServiceScopeKind.App, new SelfEnsureService());
+                Init();
 
                 Assert.IsTrue(s_OrderLog.Contains("self-ensure"), "重入的 EnsureRegistered 应被跳过而非递归");
                 Assert.AreEqual(1, GameServices.GetRequiredService<SelfEnsureService>().InitCount);
@@ -986,7 +1129,7 @@ namespace GameTool
         }
 
         // ═══════════════════════════════════════════════════════
-        // Mono 服务契约修复回归测试 [SERVICE MONO CONTRACT REGRESSION]
+        // Mono 服务契约测试 [SERVICE MONO CONTRACT]
         // ═══════════════════════════════════════════════════════
 
         // ExecuteAlways：EditMode 下 AddComponent 立即触发 Awake、DestroyImmediate 触发 OnDestroy
@@ -1004,6 +1147,7 @@ namespace GameTool
             try
             {
                 var mono = go.AddComponent<TestMonoService>();
+                Init();  // 两阶段：Awake 注册入图，Initialize 驱动 OnInit
 
                 Assert.AreSame(mono, GameServices.GetRequiredService<TestMonoService>(),
                     "应以运行时具体类型为契约注册（而非 IService 基类）");
@@ -1033,6 +1177,7 @@ namespace GameTool
         public void Tick_Exception_InDevelopmentEnvironment_LoggedThenRethrown()
         {
             GameServices.RegisterService(EServiceScopeKind.App, new ThrowingTickService() as IAlphaService);
+            Init();
 
             LogAssert.Expect(LogType.Error, new Regex(".*threw in Tick.*"));
             Assert.Throws<InvalidOperationException>(() => GameServices.Tick(0f, 0f),
@@ -1123,9 +1268,9 @@ namespace GameTool
             var healthy = new HealthyBeta();
             GameServices.RegisterService(EServiceScopeKind.App, thrower as IDepTargetService);
             GameServices.RegisterService(EServiceScopeKind.App, healthy as IBetaService);
+            Init();
 
             // 前 3 帧异常上抛（开发环境 fail-fast）；第 3 次失败触发熔断摘除。
-            // 故障服务优先级更高——每帧先执行、先抛出，健康服务在前 3 帧被 fail-fast 中断
             for (int frame = 1; frame <= 3; frame++)
             {
                 LogAssert.Expect(LogType.Error, new Regex(".*threw in Tick.*"));
@@ -1159,7 +1304,6 @@ namespace GameTool
             bool found = false;
             for (int i = 0; i < infos.Count; i++)
             {
-                // ImplementationType 为程序集全名（嵌套类含 "+ "），用包含匹配
                 if (!infos[i].ImplementationType.Contains(nameof(AlphaService))) continue;
 
                 found = true;
