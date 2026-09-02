@@ -11,16 +11,16 @@ namespace Moirai.Atropos.Input
                  "可以使用 InputActionsConfiguration 来桥接配置，避免陷入修改黑洞。", InfoMessageType.None)]
 
         [ProviderDropdown]
-        [SerializeReference] private InputServiceHandlerConfig m_HandlerConfig = new UnityInputSystemHandlerConfig();
-        public static InputServiceHandlerConfig InputServiceHandlerConfig => Instance.m_HandlerConfig;
+        [SerializeReference] private InputServiceHandler m_InputServiceHandler;
+        public static InputServiceHandler InputServiceHandler => Instance.m_InputServiceHandler;
 
         private void Reset()
         {
-            m_HandlerConfig =
+            m_InputServiceHandler =
 #if ENABLE_INPUT_SYSTEM
-                new UnityInputSystemHandlerConfig()
+                new UnityInputSystemHandler()
 #elif ENABLE_LEGACY_INPUT_MANAGER
-                new UnityInputManagerHandlerConfig()
+                new UnityInputManagerHandler()
 #endif
                 ;
         }

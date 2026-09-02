@@ -5,23 +5,10 @@ using Moirai.Atropos.ConfigTable;
 namespace Moirai.Atropos.Localization
 {
     /// <summary>
-    /// 配置表数据源本地化配置（默认实现，从 <see cref="ConfigTableService"/> 加载多语言配置表）。
-    /// </summary>
-    [Serializable]
-    public sealed class ConfigTableLocalizationHandlerConfig : LocalizationServiceHandlerConfig
-    {
-        /// <inheritdoc />
-        public override LocalizationServiceHandler CreateHandler()
-        {
-            return new ConfigTableLocalizationHandler();
-        }
-    }
-
-    /// <summary>
     /// 配置表数据源本地化处理器（默认实现）。
     /// <para>从 <see cref="ConfigTableService"/> 加载的多语言配置表获取语言列表与字符串字典。</para>
-    /// <para>由 <see cref="ConfigTableLocalizationHandlerConfig"/> 工厂创建（普通运行时类，不参与序列化）。</para>
     /// </summary>
+    [Serializable]
     public class ConfigTableLocalizationHandler : LocalizationServiceHandler
     {
         /// <summary>

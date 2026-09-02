@@ -25,7 +25,7 @@ namespace Moirai.Atropos.Scene
         private static SceneServiceHandler CreateDefaultHandler()
         {
             GameServices.EnsureRegistered<SceneService>();
-            return SceneServiceSettings.SceneServiceHandlerConfig.CreateHandler();
+            return SceneServiceSettings.SceneServiceHandler;
         }
 
         /// <summary>

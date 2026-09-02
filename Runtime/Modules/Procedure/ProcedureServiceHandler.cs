@@ -4,47 +4,12 @@ using System.Collections.Generic;
 namespace Moirai.Atropos.Procedure
 {
     /// <summary>
-    /// 流程服务公共契约（系统行为接口）。
-    /// <para>由 <see cref="ProcedureServiceHandler"/> 隐式实现；具体实现类可在此之外自由组合能力接口。</para>
-    /// </summary>
-    public interface IProcedureService
-    {
-        /// <summary>当前流程。</summary>
-        ProcedureBase CurrentProcedure { get; }
-
-        /// <summary>当前流程持续时间。</summary>
-        float CurrentProcedureTime { get; }
-
-        /// <summary>轮询当前流程。</summary>
-        void Tick(float elapseSeconds, float realElapseSeconds);
-
-        /// <summary>初始化流程管理器。</summary>
-        void Initialize(params ProcedureBase[] procedures);
-
-        /// <summary>开始流程。</summary>
-        void StartProcedure(Type procedureType);
-
-        /// <summary>是否存在流程。</summary>
-        bool HasProcedure(Type procedureType);
-
-        /// <summary>切换流程。</summary>
-        void ChangeState(Type procedureType);
-
-        /// <summary>获取流程。</summary>
-        ProcedureBase GetProcedure(Type procedureType);
-
-        /// <summary>重启流程。默认使用第一个流程作为启动流程。</summary>
-        bool RestartProcedure(params ProcedureBase[] procedures);
-    }
-
-    /// <summary>
     /// 流程处理器抽象基类（策略模式抽象策略）— 自包含状态机契约，不依赖外部 FSM 服务。
     /// <para>定义 <see cref="ProcedureService"/> 外观调用的流程状态机后端契约；<see cref="ProcedureBase"/> 子类经 <c>Owner</c> 回调本处理器。</para>
     /// <para>默认实现为 <see cref="DefaultProcedureHandler"/>，由 <see cref="ProcedureServiceSettings"/> 驱动初始化。</para>
-    /// <para>隐式实现 <see cref="IProcedureService"/> 公共契约（<see cref="ChangeState{T}"/> 为泛型便捷重载）；
-    /// 处理器实例为普通运行时类，不参与序列化（由组合根直造），运行时状态无快照污染风险。</para>
     /// </summary>
-    public abstract class ProcedureServiceHandler : FrameworkHandler, IProcedureService
+    [Serializable]
+    public abstract class ProcedureServiceHandler : FrameworkHandler
     {
         /// <summary>
         /// 当前流程。

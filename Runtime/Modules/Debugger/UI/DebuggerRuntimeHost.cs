@@ -182,17 +182,16 @@ namespace Moirai.Atropos.Debugger
         /// 由默认处理器接线（创建即构建全部运行时 UI）。
         /// </summary>
         /// <param name="handler">宿主所属处理器。</param>
-        /// <param name="config">后端配置。</param>
-        internal void Initialize(DefaultDebuggerHandler handler, DefaultDebuggerHandlerConfig config)
+        internal void Initialize(DefaultDebuggerHandler handler)
         {
             _handler = handler;
             _registry = handler.WindowRegistry;
-            _fpsCounter = new FpsCounter(config != null && config.FpsUpdateInterval > 0f ? config.FpsUpdateInterval : 0.5f);
+            _fpsCounter = new FpsCounter(handler.FpsUpdateInterval > 0f ? handler.FpsUpdateInterval : 0.5f);
 
             LoadLayoutSettings();
             EnsureRuntimePanel();
 
-            if (config != null && config.StatsOverlayVisible)
+            if (handler.StatsOverlayVisible)
             {
                 StatsOverlayVisible = true;
             }

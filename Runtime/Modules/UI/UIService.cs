@@ -26,7 +26,7 @@ namespace Moirai.Atropos.UI
         private static UIServiceHandler CreateDefaultHandler()
         {
             GameServices.EnsureRegistered<UIService>();
-            return UIServiceSettings.UIServiceHandlerConfig.CreateHandler();
+            return UIServiceSettings.UIServiceHandler;
         }
 
         /// <summary>

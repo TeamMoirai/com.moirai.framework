@@ -23,7 +23,7 @@ namespace Moirai.Atropos
         /// 按编译期可用的最优后端创建默认处理器。
         /// </summary>
         /// <returns>默认日志处理器实例。</returns>
-        private static LogHandler CreateDefaultHandler()
+        internal static LogHandler CreateDefaultHandler()
         {
 #if ZLOGGER_INSTALLED
             return new ZLoggerHandler();

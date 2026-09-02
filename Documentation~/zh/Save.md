@@ -2,7 +2,7 @@
 
 > 可插拔 Handler 的本地存档系统，支持 JSON / 二进制格式与 AES 加密，写入采用临时文件原子替换。
 
-Save 服务（`SaveService`）将存档的序列化格式与文件读写流程解耦：`SaveService` 静态外观负责对外 API，具体格式由 `SaveServiceHandler` 子类（`JsonSaveHandler`、加密版及二进制版）决定，可在 `SaveServiceSettings` 面板中通过 `SaveServiceConfig` 配置子类切换（处理器经 `CreateHandler()` 工厂创建，处理器实例不参与序列化）。存档统一写入 `Application.persistentDataPath/Data/{folderName}/`，文件名自动追加配置的扩展名（默认 `.sav`）。通过 `SaveService` 静态外观访问。
+Save 服务（`SaveService`）将存档的序列化格式与文件读写流程解耦：`SaveService` 静态外观负责对外 API，具体格式由 `SaveServiceHandler` 子类（`JsonSaveHandler`、加密版及二进制版）决定，可在 `SaveServiceSettings` 面板中切换。存档统一写入 `Application.persistentDataPath/Data/{folderName}/`，文件名自动追加配置的扩展名（默认 `.sav`）。通过 `SaveService` 静态外观访问。
 
 ## 核心特性
 
@@ -26,7 +26,7 @@ Save 服务（`SaveService`）将存档的序列化格式与文件读写流程�
 | `BinaryEncryptedSaveHandler` | 二进制 + AES 加密，同样已标记 `[System.Obsolete]` |
 | `EncryptedSaveHandlerBase` | 加密处理器抽象基类：完成加密/解密流转发与异常兜底，子类只需实现 `SerializeToStream` / `DeserializeFromStream` |
 | `SaveEncryptor` | 加密基类：`Key` / `Salt` 虚属性（默认值为占位串，上线前必须替换）与 AES `Encrypt` / `Decrypt` |
-| `SaveServiceSettings` | 框架设置（`FrameworkSettings<SaveServiceSettings>`，面板名「存档设置」）：存档类型（`SaveServiceConfig` 子类）、加密密钥、文件扩展名，暴露静态 `SaveServiceConfig` 与 `SaveFileExtension` |
+| `SaveServiceSettings` | 框架设置（`FrameworkSettings<SaveServiceSettings>`，面板名「存档设置」）：存档类型、加密密钥、文件扩展名，暴露静态 `SaveServiceHandler` 与 `SaveFileExtension` |
 | `MessagePackUtility` | MessagePack 序列化工具类（需定义 `MESSAGEPACK_INSTALLED` 宏，命名空间 `Moirai.Atropos`），可配合自定义 Handler 使用 |
 
 ## 快速上手

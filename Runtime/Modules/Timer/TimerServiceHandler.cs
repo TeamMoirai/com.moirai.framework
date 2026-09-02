@@ -1,30 +1,14 @@
-using System;
+﻿using System;
 
 namespace Moirai.Atropos.Timer
 {
     /// <summary>
-    /// 计时器服务配置抽象基类（纯数据，无行为无生命周期）。
-    /// <para>以 <see cref="UnityEngine.SerializeReference"/> 存于 <see cref="TimerServiceSettings"/> 资产；
-    /// 经 <see cref="CreateHandler"/> 工厂创建绑定的后端处理器实例，处理器不再被序列化。</para>
-    /// </summary>
-    [Serializable]
-    public abstract class TimerServiceHandlerConfig
-    {
-        /// <summary>
-        /// 创建配置绑定的计时器后端处理器实例。
-        /// </summary>
-        /// <returns>新的计时器处理器实例。</returns>
-        public abstract TimerServiceHandler CreateHandler();
-    }
-
-    /// <summary>
     /// 计时器处理器抽象基类（策略模式抽象策略）。
     /// <para>默认实现为 <see cref="DefaultTimerHandler"/>（四级时间轮算法）。</para>
     /// <para>无全量扫描 · 精准承载技能 CD / 心跳 / 延时任务</para>
-    /// 可在 <see cref="TimerServiceSettings"/> 中替换为自定义实现。</para>
-    /// <para>契约成员均为 internal（仅供外观内部转发），配置数据由
-    /// <see cref="TimerServiceHandlerConfig"/> 系列纯数据类承载——处理器实例本身不再被序列化。</para>
+    /// 可在 <see cref="TimerServiceSettings"/> 中替换为自定义实现。
     /// </summary>
+    [Serializable]
     public abstract class TimerServiceHandler : FrameworkHandler
     {
         /// <summary>

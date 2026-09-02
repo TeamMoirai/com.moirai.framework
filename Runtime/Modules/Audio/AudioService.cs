@@ -21,14 +21,14 @@ namespace Moirai.Atropos.Audio
         #region 生命周期 [LIFECYCLE]
 
         /// <summary>
-        /// 从 <see cref="AudioServiceSettings"/> 配置创建默认音频处理器。
+        /// 从 <see cref="AudioServiceSettings"/> 创建默认音频处理器。
         /// <para>首行先确保服务已注册（<c>GameServices.EnsureRegistered</c>，幂等）——外观首次访问即完成世界注册。</para>
         /// </summary>
         /// <returns>默认音频处理器实例。</returns>
         private static AudioServiceHandler CreateDefaultHandler()
         {
             GameServices.EnsureRegistered<AudioService>();
-            return AudioServiceSettings.AudioServiceHandlerConfig.CreateHandler();
+            return AudioServiceSettings.AudioServiceHandler;
         }
 
         /// <summary>

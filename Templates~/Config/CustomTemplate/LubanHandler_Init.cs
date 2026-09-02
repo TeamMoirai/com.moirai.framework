@@ -9,9 +9,10 @@ using Moirai.Atropos.Resource;
 namespace GameProto.Config
 {
 	/// <summary>
-	/// 配置加载器。桥接 Luban 生成代码与 MoiraiFramework YooAsset 资源系统。
+	/// 配置加载器。桥接 Luban 生成代码与资源系统。
 	/// </summary>
-	public partial class LubanHandler
+	[Serializable]
+	public sealed partial class LubanHandler
 	{
 		private static LubanHandler s_Instance;
 		public static LubanHandler Instance => s_Instance ??= new LubanHandler();
@@ -60,7 +61,7 @@ namespace GameProto.Config
 		/// <returns>ByteBuf</returns>
 		private static ByteBuf LoadByteBuf(string file)
 		{
-			LogUtility.Info($"Load bin config: {file}.");
+			LogUtility.Info("Load bin config: {0}.bytes", file);
 			TextAsset textAsset = LoadTextAsset(CONFIG_PATH + file + ".bytes");
 			byte[] bytes = textAsset.bytes;
 			return new ByteBuf(bytes);
@@ -73,7 +74,7 @@ namespace GameProto.Config
 		/// <returns></returns>
 		private static JSONNode LoadJson(string file)
 		{
-			LogUtility.Info($"Load json config: {file}.");
+			LogUtility.Info("Load json config: {0}.json", file);
 			TextAsset textAsset = LoadTextAsset(CONFIG_PATH + file + ".json");
 			string json = textAsset.text;
 			return JSON.Parse(json);

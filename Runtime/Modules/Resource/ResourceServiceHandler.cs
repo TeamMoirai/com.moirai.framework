@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
@@ -7,26 +7,12 @@ using Object = UnityEngine.Object;
 namespace Moirai.Atropos.Resource
 {
     /// <summary>
-    /// 资源服务配置抽象基类（纯数据，无行为无生命周期）。
-    /// <para>以 <see cref="UnityEngine.SerializeReference"/> 存于 <see cref="ResourceServiceSettings"/> 资产；
-    /// 经 <see cref="CreateHandler"/> 工厂创建绑定的后端处理器实例，处理器不再被序列化。</para>
-    /// </summary>
-    [Serializable]
-    public abstract class ResourceServiceHandlerConfig
-    {
-        /// <summary>
-        /// 创建配置绑定的资源后端处理器实例。
-        /// </summary>
-        /// <returns>新的资源处理器实例。</returns>
-        public abstract ResourceServiceHandler CreateHandler();
-    }
-
-    /// <summary>
     /// 资源管理器处理器抽象基类（策略模式抽象策略）——定义通用资源加载、缓存、租约与绑定契约。
     /// <para>框架通用，不依赖具体资源系统（YooAsset、Addressable 等）；
     /// 由具体后端（如 <see cref="YooAssetHandler"/>、<see cref="AddressableHandler"/>）实现。</para>
-    /// <para>公共契约由本类 abstract 成员承载，internal 租约/回收管线成员保留在本类；配置数据由 <see cref="ResourceServiceHandlerConfig"/> 系列纯数据类承载——处理器实例本身不再被序列化，由 <see cref="ResourceServiceHandlerConfig.CreateHandler"/> 工厂在运行期创建。</para>
+    /// <para>由 <see cref="ResourceServiceSettings"/> 序列化配置，<see cref="ResourceService"/> 外观转发调用。</para>
     /// </summary>
+    [Serializable]
     public abstract class ResourceServiceHandler : FrameworkHandler
     {
         #region 基础属性 [BASE PROPERTIES]
@@ -188,6 +174,11 @@ namespace Moirai.Atropos.Resource
         #endregion
 
         #region 资源回收 [ASSET RECYCLING]
+
+        /// <summary>
+        /// 低内存行为。
+        /// </summary>
+        public abstract void OnLowMemory();
 
         /// <summary>
         /// 设置强制卸载未使用资源回调。

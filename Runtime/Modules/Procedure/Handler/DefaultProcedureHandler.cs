@@ -6,14 +6,14 @@ namespace Moirai.Atropos.Procedure
     /// <summary>
     /// 默认流程处理器（纯 C# 状态机实现）。
     /// <para><see cref="ProcedureServiceHandler"/> 的内置实现，承载全部流程状态管理逻辑。</para>
-    /// <para>由 <see cref="ProcedureService"/> 组合根直造（普通运行时类，不参与序列化——运行时字段无需 [NonSerialized] 标注）。</para>
     /// </summary>
+    [Serializable]
     public sealed class DefaultProcedureHandler : ProcedureServiceHandler
     {
-        private Dictionary<Type, ProcedureBase> _states;
-        private ProcedureBase _currentState;
-        private float _currentStateTime;
-        private bool _isDestroyed;
+        [NonSerialized] private Dictionary<Type, ProcedureBase> _states;
+        [NonSerialized] private ProcedureBase _currentState;
+        [NonSerialized] private float _currentStateTime;
+        [NonSerialized] private bool _isDestroyed;
 
         /// <summary>
         /// 当前流程。

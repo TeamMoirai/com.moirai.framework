@@ -1,29 +1,11 @@
-using System.IO;
-
-using System;
+﻿using System.IO;
 
 namespace Moirai.Atropos.Save
 {
     /// <summary>
-    /// JSON 格式加密存档后端配置。
-    /// </summary>
-    [Serializable]
-    public sealed class JsonEncryptedSaveHandlerConfig : SaveServiceHandlerConfig
-    {
-        /// <inheritdoc />
-        public override bool IsEncrypted => true;
-
-        /// <inheritdoc />
-        public override SaveServiceHandler CreateHandler()
-        {
-            return new JsonEncryptedSaveHandler();
-        }
-    }
-
-    /// <summary>
     /// 将指定位置的指定对象保存到磁盘上，转换为json并加密
-    /// <para>由 <see cref="JsonEncryptedSaveHandlerConfig"/> 工厂创建（普通运行时类，不参与序列化）。</para>
     /// </summary>
+    [System.Serializable]
     public class JsonEncryptedSaveHandler : EncryptedSaveHandlerBase
     {
         protected override void SerializeToStream(object objectToSave, MemoryStream stream)

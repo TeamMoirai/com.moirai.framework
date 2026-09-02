@@ -54,6 +54,7 @@ namespace Moirai.Atropos.Resource
             // 初始化后端（创建默认包与绑定服务）
             s_Handler.Initialize();
 
+            Application.lowMemory += DriveOnLowMemory;
             GameApp.AddUpdateListener(DriveTick);
             GameApp.AddDestroyListener(DriveTeardown);
             s_DriveWired = true;
@@ -74,6 +75,7 @@ namespace Moirai.Atropos.Resource
             s_DriveWired = false;
             GameApp.RemoveUpdateListener(DriveTick);
             GameApp.RemoveDestroyListener(DriveTeardown);
+            Application.lowMemory -= DriveOnLowMemory;
 
             s_DriveAsyncOperation = null;
             s_DriveForceUnloadUnusedAssets = false;
@@ -100,6 +102,15 @@ namespace Moirai.Atropos.Resource
                 s_DrivePerformGCCollect = true;
                 s_DriveForceSystemUnloadUnusedAssets = true;
             }
+        }
+
+        /// <summary>
+        /// 低内存响应转发。
+        /// </summary>
+        private static void DriveOnLowMemory()
+        {
+            LogUtility.Warning("Low memory reported...");
+            Handler.OnLowMemory();
         }
 
         #endregion

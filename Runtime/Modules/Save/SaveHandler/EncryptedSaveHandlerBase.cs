@@ -10,9 +10,10 @@ namespace Moirai.Atropos.Save
     /// 子类只需实现 <see cref="SerializeToStream"/> / <see cref="DeserializeFromStream{T}"/>
     /// 具体格式的序列化逻辑。
     /// </summary>
+    [System.Serializable]
     public abstract class EncryptedSaveHandlerBase : SaveServiceHandler
     {
-        private SaveEncryptor _encryptor;
+        [System.NonSerialized] private SaveEncryptor _encryptor;
 
         /// <summary>
         /// AES 加密器（懒加载）。

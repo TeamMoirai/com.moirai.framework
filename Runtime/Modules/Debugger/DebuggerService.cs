@@ -21,7 +21,7 @@ namespace Moirai.Atropos.Debugger
         private static DebuggerServiceHandler CreateDefaultHandler()
         {
             GameServices.EnsureRegistered<DebuggerService>();
-            return DebuggerServiceSettings.DebuggerServiceHandlerConfig.CreateHandler();
+            return DebuggerServiceSettings.DebuggerServiceHandler;
         }
 
         /// <inheritdoc />

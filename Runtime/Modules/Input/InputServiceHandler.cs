@@ -1,29 +1,13 @@
-using System;
-using System;
+﻿using System;
 using UnityEngine;
 
 namespace Moirai.Atropos.Input
 {
     /// <summary>
-    /// 输入服务配置抽象基类（纯数据，无行为无生命周期）。
-    /// <para>以 <see cref="UnityEngine.SerializeReference"/> 存于 <see cref="InputServiceSettings"/> 资产；
-    /// 经 <see cref="CreateHandler"/> 工厂创建绑定的后端处理器实例，处理器不再被序列化。</para>
-    /// </summary>
-    [Serializable]
-    public abstract class InputServiceHandlerConfig
-    {
-        /// <summary>
-        /// 创建配置绑定的输入后端处理器实例。
-        /// </summary>
-        /// <returns>新的输入处理器实例。</returns>
-        public abstract InputServiceHandler CreateHandler();
-    }
-
-    /// <summary>
     /// 输入处理器抽象基类（策略模式抽象策略）。
-    /// <para>配置数据由 <see cref="InputServiceHandlerConfig"/> 系列纯数据类承载——处理器实例本身不再被序列化，由 <see cref="InputServiceHandlerConfig.CreateHandler"/> 工厂在运行期创建。</para>
     /// <para>同时承载输入状态管理（<see cref="Enabled"/>、<see cref="LockPlayerController"/>、<see cref="PreventInteractionUI"/>）。</para>
     /// </summary>
+    [Serializable]
     public abstract class InputServiceHandler : FrameworkHandler
     {
         #region 状态管理 [STATE MANAGEMENT]
@@ -36,9 +20,9 @@ namespace Moirai.Atropos.Input
             PreventInteractionUI = 2,
         }
 
-        private EInputStateFlags _stateFlags;
-        private bool _hasUIModal;
-        private bool _enabled = true;
+        [NonSerialized] private EInputStateFlags _stateFlags;
+        [NonSerialized] private bool _hasUIModal;
+        [NonSerialized] private bool _enabled = true;
 
         /// <summary>
         /// 获取或设置是否启用输入。

@@ -21,7 +21,7 @@ namespace Moirai.Atropos.Save
         private static SaveServiceHandler CreateDefaultHandler()
         {
             GameServices.EnsureRegistered<SaveService>();
-            return SaveServiceSettings.SaveServiceHandlerConfig.CreateHandler();
+            return SaveServiceSettings.SaveServiceHandler;
         }
 
         /// <summary>
