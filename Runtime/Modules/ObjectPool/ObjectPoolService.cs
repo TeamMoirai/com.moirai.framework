@@ -57,12 +57,7 @@
         #endregion
 
         #region 属性 [PROPERTIES]
-
-        /// <summary>
-        /// 服务是否可用。
-        /// </summary>
-        public static bool IsValid => s_Handler != null;
-
+		
         /// <summary>
         /// 获取池数量（未就绪时为 0）。
         /// </summary>

@@ -67,12 +67,7 @@ namespace Moirai.Atropos.Procedure
         #endregion
 
         #region 属性 [PROPERTIES]
-
-        /// <summary>
-        /// 服务是否可用
-        /// </summary>
-        public static bool IsValid => s_Handler != null;
-
+		
         #endregion
 
         #region 流程管理 [PROCEDURE MANAGEMENT]
