@@ -64,12 +64,22 @@ namespace Moirai.Atropos.Pool
 
         public void Release(T element)
         {
+            // 双重释放检测：开发期 O(n) 全查 + fail-fast 抛出；发布期仅查栈顶并拒绝压栈。
+            // 重复对象入池会导致后续两次 Get 返回同一引用（池污染），必须阻断。
 #if UNITY_DEBUG
             if (_stack.Contains(element)) // 这是O(n)复杂度，当池子规模很大时会成为问题。
 #else
             if (_stack.Count > 0 && ReferenceEquals(_stack.Peek(), element))
 #endif
+            {
+#if UNITY_DEBUG || UNITY_EDITOR || DEVELOPMENT_BUILD
+                throw new InvalidOperationException(
+                    $"Internal error. Trying to release object of type '{typeof(T).Name}' that is already in the pool.");
+#else
                 LogUtility.Error("Internal error. Trying to destroy object that is already released to pool.");
+                return; // 发布期拒绝压栈，阻断池污染
+#endif
+            }
 
             if (_stack.Count < MaxSize)
             {

@@ -182,10 +182,10 @@ namespace Singleton
         {
             TestSingletonMono first = CreateSingletonGameObject();
             InvokeAwake(first);
-            // 仲裁依赖时间戳：固定为 MaxValue 确保新实例必然胜出（与 Time.time 的编辑模式取值无关）
+            // 仲裁依赖单调序号：固定为 MaxValue 确保新实例必然胜出
             typeof(SingletonMono<TestSingletonMono>)
-                .GetField("_initializationTime", BindingFlags.NonPublic | BindingFlags.Instance)
-                .SetValue(first, float.MaxValue);
+                .GetField("_initializationOrdinal", BindingFlags.NonPublic | BindingFlags.Instance)
+                .SetValue(first, long.MaxValue);
 
             TestSingletonMono second = CreateSingletonGameObject();
             SetReplaceable(second, true);

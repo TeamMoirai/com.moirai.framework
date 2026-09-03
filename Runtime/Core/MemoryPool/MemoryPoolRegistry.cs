@@ -793,6 +793,13 @@ namespace Moirai.Atropos
             }
 
             ValidateMemoryObjectType(type);
+
+#if ENABLE_IL2CPP
+            // IL2CPP：MakeGenericType 对未 AOT 预编译的闭泛型会失败——引导至编译期安全路径。
+            throw new InvalidOperationException(
+                $"MemoryPool: Type '{type.FullName}' could not be materialized under IL2CPP via the dynamic Type path. " +
+                $"Call MemoryPool<{type.Name}>.EnsureRegistered() during startup, or use the generic API MemoryPool<T>.Acquire().");
+#else
             RuntimeHelpers.RunClassConstructor(
                 typeof(MemoryPool<>).MakeGenericType(type).TypeHandle);
 
@@ -802,6 +809,7 @@ namespace Moirai.Atropos
             }
 
             throw new InvalidOperationException($"MemoryPool: Type '{type.FullName}' could not be materialized.");
+#endif
         }
 
         private static MemoryPoolHandle GetOwnerHandle(MemoryObject memory)

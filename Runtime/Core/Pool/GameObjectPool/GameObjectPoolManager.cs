@@ -111,7 +111,10 @@ namespace Moirai.Atropos.Pool
         {
             GameObject obj = null;
             pooledMetadata = null;
-            if (Instance._poolDic.TryGetValue(key, out GameObjectPool poolData) && poolData.PoolQueue.Count > 0)
+
+            // 退出窗口守卫：单例已拆除（Instance 为 null）时直接走空池路径，不触碰 _poolDic
+            GameObjectPoolManager self = TryGetInstance();
+            if (self != null && self._poolDic.TryGetValue(key, out GameObjectPool poolData) && poolData.PoolQueue.Count > 0)
             {
                 obj = poolData.GetObj(parent, out pooledMetadata);
             }
@@ -133,11 +136,19 @@ namespace Moirai.Atropos.Pool
         {
             if (obj == null) return;
 
+            // 退出窗口守卫：单例已拆除时直接销毁对象，不再入池
+            GameObjectPoolManager self = TryGetInstance();
+            if (self == null)
+            {
+                Destroy(obj);
+                return;
+            }
+
             if (key.IsNull())
                 key = new PoolKey(obj.name);
-            if (!Instance._poolDic.TryGetValue(key, out GameObjectPool poolData))
+            if (!self._poolDic.TryGetValue(key, out GameObjectPool poolData))
             {
-                poolData = Instance._poolDic[key] = new GameObjectPool(key, Instance.transform);
+                poolData = self._poolDic[key] = new GameObjectPool(key, self.transform);
             }
             poolData.PushObj(obj, pooledMetadata);
         }
@@ -148,10 +159,14 @@ namespace Moirai.Atropos.Pool
         /// <param name="key"></param>
         public static void ReleasePool(PoolKey key)
         {
-            if (Instance._poolDic.TryGetValue(key, out var pool))
+            // 退出窗口守卫
+            GameObjectPoolManager self = TryGetInstance();
+            if (self == null) return;
+
+            if (self._poolDic.TryGetValue(key, out var pool))
             {
                 pool.Release();
-                Instance._poolDic.Remove(key);
+                self._poolDic.Remove(key);
             }
         }
         
@@ -169,7 +184,8 @@ namespace Moirai.Atropos.Pool
         /// </summary>
         public static void ReleaseAll()
         {
-            Instance.LocalReleaseAll();
+            // 退出窗口守卫
+            TryGetInstance()?.LocalReleaseAll();
         }
         
         private class GameObjectPool
@@ -214,6 +230,7 @@ namespace Moirai.Atropos.Pool
                     Destroy(instance);
                 }
                 PoolQueue.Clear();
+                _metaData.Clear();
             }
         }
     }

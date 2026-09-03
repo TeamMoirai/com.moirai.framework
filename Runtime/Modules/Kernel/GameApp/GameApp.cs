@@ -79,6 +79,9 @@ namespace Moirai.Atropos
             // 池缓存清理在全部服务关闭后执行（此时无活跃池化对象引用）。
             // 归属本层而非内核——内核不感知 MemoryPool（分层单向）。
             MemoryPool.ClearAll();
+
+            // 释放缓存的从进程的非托管内存中分配的内存。
+            MarshalUtility.FreeCachedHGlobal();
         }
 
         #endregion
