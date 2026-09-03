@@ -57,12 +57,7 @@ namespace Moirai.Atropos.Localization
         #endregion
 
         #region 属性 [PROPERTIES]
-
-        /// <summary>
-        /// 服务是否可用
-        /// </summary>
-        public static bool IsValid => s_Handler != null;
-
+		
         /// <summary>
         /// 当前使用的本地化语言（未就绪时为 <see cref="Language.Unspecified"/>）。
         /// </summary>

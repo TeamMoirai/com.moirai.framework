@@ -16,7 +16,7 @@ namespace Moirai.Atropos
     /// }
     /// </code>
     /// <para>源生成器会生成 s_Handler 字段（private，partial 同类可直接访问）、
-    /// s_DefaultFactory 字段和 Handler 属性（get/set）。</para>
+    /// s_DefaultFactory 字段、IsValid 属性（s_Handler != null）和 Handler 属性（get/set）。</para>
     /// </remarks>
     [AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
     public sealed class HandlerHostAttribute : Attribute

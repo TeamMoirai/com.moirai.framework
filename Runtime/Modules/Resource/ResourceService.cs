@@ -58,12 +58,7 @@ namespace Moirai.Atropos.Resource
         #endregion
 
         #region 属性 [PROPERTIES]
-
-        /// <summary>
-        /// 服务是否可用
-        /// </summary>
-        public static bool IsValid => s_Handler != null;
-
+		
         /// <summary>
         /// 默认资源包名称。
         /// </summary>

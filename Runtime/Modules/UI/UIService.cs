@@ -70,12 +70,7 @@ namespace Moirai.Atropos.UI
         #endregion
 
         #region 属性 [PROPERTIES]
-
-        /// <summary>
-        /// 服务是否可用
-        /// </summary>
-        public static bool IsValid => s_Handler != null;
-
+		
         /// <summary>
         /// UI根节点。
         /// </summary>

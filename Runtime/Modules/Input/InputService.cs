@@ -60,12 +60,7 @@ namespace Moirai.Atropos.Input
         #endregion
 
         #region 属性 [PROPERTIES]
-
-        /// <summary>
-        /// 服务是否可用
-        /// </summary>
-        public static bool IsValid => s_Handler != null;
-
+		
         #endregion
 
         #region 状态管理 [STATE MANAGEMENT]
