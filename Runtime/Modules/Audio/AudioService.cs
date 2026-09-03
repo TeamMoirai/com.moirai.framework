@@ -15,7 +15,7 @@ namespace Moirai.Atropos.Audio
     /// <para>场景3D音效挂到场景物件、技能3D音效挂到技能特效上，并在 <see cref="AudioSource"/> 的Output上设置对应分类的 <see cref="AudioMixerGroup"/>。</para>
     /// </summary>
     [HandlerHost(typeof(AudioServiceHandler))]
-    [ServiceDependency(typeof(ResourceService))]
+    [ServiceDependency(typeof(DebuggerService), typeof(ResourceService))]
     public partial class AudioService : ServiceBase, IServiceTickable
     {
         #region 生命周期 [LIFECYCLE]
@@ -293,9 +293,13 @@ namespace Moirai.Atropos.Audio
         public static void ForEachAgentByID(int id, Action<AudioAgent> action) => s_Handler?.ForEachAgentByID(id, action);
 
         /// <summary>
-        /// 返回播放过指定 ID 的音频代理（零分配：使用共享缓冲区，调用方需在下次调用前消费结果）。
+        /// 填充播放过指定 ID 的音频代理到调用方缓冲区（零共享状态，可安全重入）。
         /// </summary>
-        public static IReadOnlyList<AudioAgent> FindAgentsByID(int id) => s_Handler?.FindAgentsByID(id);
+        /// <param name="id">音频 ID。</param>
+        /// <param name="results">调用方持有的结果缓冲（方法内先 Clear 再填充）。</param>
+        /// <returns>填充数量（未就绪时为 0）。</returns>
+        public static int FindAgentsByID(int id, List<AudioAgent> results) =>
+            s_Handler?.FindAgentsByID(id, results) ?? 0;
 
         /// <summary>
         /// 对每个匹配 Clip 的 AudioAgent 执行操作（零分配）。
@@ -303,9 +307,13 @@ namespace Moirai.Atropos.Audio
         public static void ForEachAgentByClip(AudioClip clip, Action<AudioAgent> action) => s_Handler?.ForEachAgentByClip(clip, action);
 
         /// <summary>
-        /// 返回播放过指定 clip 的音频代理（零分配：使用共享缓冲区，调用方需在下次调用前消费结果）。
+        /// 填充播放过指定 clip 的音频代理到调用方缓冲区（零共享状态，可安全重入）。
         /// </summary>
-        public static IReadOnlyList<AudioAgent> FindAgentsByClip(AudioClip clip) => s_Handler?.FindAgentsByClip(clip);
+        /// <param name="clip">音频剪辑。</param>
+        /// <param name="results">调用方持有的结果缓冲（方法内先 Clear 再填充）。</param>
+        /// <returns>填充数量（未就绪时为 0）。</returns>
+        public static int FindAgentsByClip(AudioClip clip, List<AudioAgent> results) =>
+            s_Handler?.FindAgentsByClip(clip, results) ?? 0;
 
         /// <summary>
         /// 返回当前正在播放的指定 clip 数量

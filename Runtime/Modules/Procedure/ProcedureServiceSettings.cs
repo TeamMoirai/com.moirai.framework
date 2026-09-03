@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using Cysharp.Threading.Tasks;
+using Sirenix.OdinInspector;
 using UnityEngine;
 
 namespace Moirai.Atropos.Procedure
@@ -9,9 +10,18 @@ namespace Moirai.Atropos.Procedure
     [FrameworkSetting("[服务]流程设置", "游戏流程状态机配置", -500)]
     public sealed partial class ProcedureServiceSettings : FrameworkSettings<ProcedureServiceSettings>
     {
+        // 与其他服务一致的插拔注入：Inspector 可替换流程状态机后端
+        [ProviderDropdown]
+        [SerializeReference] private ProcedureServiceHandler m_ProcedureServiceHandler = new DefaultProcedureHandler();
+
+        /// <summary>
+        /// 当前流程处理器实例（Inspector 可拔插替换）。
+        /// </summary>
+        public static ProcedureServiceHandler ProcedureServiceHandler => Instance.m_ProcedureServiceHandler;
+
         [HideInInspector]
         [SerializeField] private string[] m_AvailableProcedureTypeNames = null;
-        
+
         [HideInInspector]
         [SerializeField] private string m_EntranceProcedureTypeName = null;
 

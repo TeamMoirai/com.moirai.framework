@@ -10,11 +10,39 @@ namespace Moirai.Atropos.Input
     [Serializable]
     public sealed class UIMobileInputHandler : InputServiceHandler
     {
+        // 状态组合语义（Enabled/Lock/PreventUI/UIModal）——组合持有，压制态自动清零虚拟按键
+        private readonly InputStateMachine _state = new InputStateMachine();
+
         private readonly Dictionary<string, InputButton> _inputButtons = new Dictionary<string, InputButton>();
         private readonly Dictionary<string, InputAxes> _inputAxes = new Dictionary<string, InputAxes>();
 
+        public override bool Enabled
+        {
+            get => _state.Enabled;
+            set => _state.Enabled = value;
+        }
+
+        public override bool LockPlayerController
+        {
+            get => _state.LockPlayerController;
+            set => _state.LockPlayerController = value;
+        }
+
+        public override bool PreventInteractionUI
+        {
+            get => _state.PreventInteractionUI;
+            set => _state.PreventInteractionUI = value;
+        }
+
+        internal override void SetUIModal(bool hasModal)
+        {
+            _state.SetUIModal(hasModal);
+        }
+
         protected override void OnInit()
         {
+            _state.ResetRequested += ResetAllInputStates;
+
             // 复用实例重入 Init 时字典可能残留旧键，先清空避免 Add 重复键异常。
             _inputButtons.Clear();
             _inputAxes.Clear();
@@ -30,6 +58,7 @@ namespace Moirai.Atropos.Input
 
         protected override void OnShutdown()
         {
+            _state.ResetRequested -= ResetAllInputStates;
             _inputButtons.Clear();
             _inputAxes.Clear();
         }

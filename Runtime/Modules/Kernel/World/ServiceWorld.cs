@@ -17,14 +17,14 @@ namespace Moirai.Atropos
     {
         #region 常量 [CONSTANTS]
 
-        private const int SCOPE_COUNT = 3;
+        private static readonly int s_ScopeCount = Enum.GetNames(typeof(EServiceScopeKind)).Length;
 
         #endregion
 
         #region 字段 [FIELDS]
 
         // 3-slot 固定数组（索引 = (int)EServiceScopeKind；固定序 App→Scene→Gameplay，零排序）
-        private readonly ServiceScope[] _scopes = new ServiceScope[SCOPE_COUNT];
+        private readonly ServiceScope[] _scopes = new ServiceScope[s_ScopeCount];
 
         // 跨作用域统一契约解析表：RuntimeTypeHandle → CrossScopeBindings（值类型 3 槽内联）
         // 与 ServiceScope._servicesByContract 的关系：本表是跨作用域视图，作用域表是同作用域 O(1) 视图——
@@ -611,7 +611,7 @@ namespace Moirai.Atropos
         public void Tick(float elapseSeconds, float realElapseSeconds)
         {
             bool notify = HasInterceptors;
-            for (int i = 0; i < SCOPE_COUNT; i++)
+            for (int i = 0; i < s_ScopeCount; i++)
             {
                 var scope = _scopes[i];
                 if (scope == null || scope.IsDisposed) continue;
@@ -637,7 +637,7 @@ namespace Moirai.Atropos
         /// </summary>
         public void FixedTick(float elapseSeconds, float realElapseSeconds)
         {
-            for (int i = 0; i < SCOPE_COUNT; i++)
+            for (int i = 0; i < s_ScopeCount; i++)
             {
                 var scope = _scopes[i];
                 if (scope == null || scope.IsDisposed) continue;
@@ -650,7 +650,7 @@ namespace Moirai.Atropos
         /// </summary>
         public void LateTick(float elapseSeconds, float realElapseSeconds)
         {
-            for (int i = 0; i < SCOPE_COUNT; i++)
+            for (int i = 0; i < s_ScopeCount; i++)
             {
                 var scope = _scopes[i];
                 if (scope == null || scope.IsDisposed) continue;
@@ -663,7 +663,7 @@ namespace Moirai.Atropos
         /// </summary>
         public void DrawGizmos()
         {
-            for (int i = 0; i < SCOPE_COUNT; i++)
+            for (int i = 0; i < s_ScopeCount; i++)
             {
                 var scope = _scopes[i];
                 if (scope == null || scope.IsDisposed) continue;
@@ -711,7 +711,7 @@ namespace Moirai.Atropos
         {
             if (_disposed) return;
 
-            for (int i = SCOPE_COUNT - 1; i >= 0; i--)
+            for (int i = s_ScopeCount - 1; i >= 0; i--)
             {
                 _scopes[i]?.Dispose();
                 _scopes[i] = null;
@@ -733,7 +733,7 @@ namespace Moirai.Atropos
         {
             if (_disposed) return;
 
-            for (int i = SCOPE_COUNT - 1; i >= 0; i--)
+            for (int i = s_ScopeCount - 1; i >= 0; i--)
             {
                 if (TryGetScope((EServiceScopeKind)i, out var scope))
                 {
@@ -758,7 +758,7 @@ namespace Moirai.Atropos
 
         internal void CollectDiagnosticInfo(List<GameServices.DiagnosticInfo> buffer)
         {
-            for (int i = 0; i < SCOPE_COUNT; i++)
+            for (int i = 0; i < s_ScopeCount; i++)
                 _scopes[i]?.CollectDiagnosticInfo(buffer);
         }
 
@@ -767,7 +767,7 @@ namespace Moirai.Atropos
         /// </summary>
         public void ResetPollStatistics()
         {
-            for (int i = 0; i < SCOPE_COUNT; i++)
+            for (int i = 0; i < s_ScopeCount; i++)
                 _scopes[i]?.ResetPollStatistics();
         }
 
