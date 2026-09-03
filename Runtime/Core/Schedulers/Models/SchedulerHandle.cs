@@ -6,7 +6,7 @@ namespace Moirai.Atropos.Schedulers
     /// <summary>
     /// Handle 允许访问跟踪计划任务
     /// </summary>
-    public readonly struct SchedulerHandle : IDisposable
+    public readonly struct SchedulerHandle : IDisposable, IEquatable<SchedulerHandle>
     {
         /// <summary>
         /// 计划任务的句柄 ID
@@ -109,6 +109,14 @@ namespace Moirai.Atropos.Schedulers
         {
             if (obj is not SchedulerHandle handle) return false;
             return handle.Handle == Handle;
+        }
+
+        /// <summary>
+        /// 类型化相等比较（防装箱路径）。
+        /// </summary>
+        public bool Equals(SchedulerHandle other)
+        {
+            return Handle == other.Handle;
         }
         
         public override int GetHashCode()

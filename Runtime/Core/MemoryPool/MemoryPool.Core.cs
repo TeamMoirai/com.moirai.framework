@@ -167,6 +167,18 @@ namespace Moirai.Atropos
         #region 公共 API [PUBLIC API]
 
         /// <summary>
+        /// 显式物化并注册本类型的内存池（AOT/IL2CPP 安全路径）。
+        /// <para>直接引用封闭泛型 <c>MemoryPool&lt;T&gt;</c> 的静态构造——编译期确定，IL2CPP 生成独立元数据；
+        /// 替代 <c>MemoryPoolRegistry.GetHandle(Type)</c> 动态路径的 <c>MakeGenericType</c> 反射（对未 AOT 预编译类型会失败）。</para>
+        /// <para>IL2CPP 工程中对每种内存对象类型在启动期调用一次（或经泛型路径 <c>Acquire</c> 首次调用时隐式完成）。</para>
+        /// </summary>
+        public static void EnsureRegistered()
+        {
+            // 读静态字段即触发静态构造（幂等）。
+            _ = s_PoolId;
+        }
+
+        /// <summary>
         /// 获取未使用内存对象数量。
         /// </summary>
         public static int UnusedCount
