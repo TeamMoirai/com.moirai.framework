@@ -24,11 +24,38 @@ namespace Moirai.Atropos.Input
             }
         }
 
+        // 状态组合语义（Enabled/Lock/PreventUI/UIModal）——组合持有，压制态自动重置输入轴
+        private readonly InputStateMachine _state = new InputStateMachine();
+
         private readonly Dictionary<string, Vector2Action> _vector2Actions = new Dictionary<string, Vector2Action>();
         private readonly HashSet<string> _validAxes = new HashSet<string>();
 
+        public override bool Enabled
+        {
+            get => _state.Enabled;
+            set => _state.Enabled = value;
+        }
+
+        public override bool LockPlayerController
+        {
+            get => _state.LockPlayerController;
+            set => _state.LockPlayerController = value;
+        }
+
+        public override bool PreventInteractionUI
+        {
+            get => _state.PreventInteractionUI;
+            set => _state.PreventInteractionUI = value;
+        }
+
+        internal override void SetUIModal(bool hasModal)
+        {
+            _state.SetUIModal(hasModal);
+        }
+
         protected override void OnInit()
         {
+            _state.ResetRequested += ResetAllInputStates;
             var axes = UnityEngine.Input.GetJoystickNames();
             for (int i = 0; i < axes.Length; i++)
             {
@@ -41,6 +68,7 @@ namespace Moirai.Atropos.Input
 
         protected override void OnShutdown()
         {
+            _state.ResetRequested -= ResetAllInputStates;
             _vector2Actions.Clear();
             _validAxes.Clear();
         }

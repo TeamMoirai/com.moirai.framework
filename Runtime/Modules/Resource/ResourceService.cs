@@ -13,6 +13,7 @@ namespace Moirai.Atropos.Resource
     /// <para>Handler 属性由 <c>HandlerHostGenerator</c> 源生成器自动生成（线程安全懒加载）。</para>
     /// </summary>
     [HandlerHost(typeof(ResourceServiceHandler))]
+    [ServiceDependency(typeof(DebuggerService))]
     public partial class ResourceService : ServiceBase
     {
         #region 生命周期 [LIFECYCLE]
@@ -553,7 +554,7 @@ namespace Moirai.Atropos.Resource
         /// <summary>
         /// 低内存行为。
         /// </summary>
-        public static void OnLowMemory() => Handler.OnLowMemory();
+        public static void OnLowMemory() => s_Handler?.OnLowMemory();
 
         /// <summary>
         /// 低内存回调保护。

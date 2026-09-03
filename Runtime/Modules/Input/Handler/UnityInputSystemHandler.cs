@@ -17,11 +17,38 @@ namespace Moirai.Atropos.Input
 
         public InputActionAsset InputActions => m_InputActions ?? InputSystem.actions;
 
+        // 状态组合语义（Enabled/Lock/PreventUI/UIModal）——组合持有，压制态自动重置设备输入
+        private readonly InputStateMachine _state = new InputStateMachine();
+
         // 缓存 InputAction 引用提升性能
         private readonly Dictionary<string, InputAction> _inputActionsDictionary = new Dictionary<string, InputAction>();
 
+        public override bool Enabled
+        {
+            get => _state.Enabled;
+            set => _state.Enabled = value;
+        }
+
+        public override bool LockPlayerController
+        {
+            get => _state.LockPlayerController;
+            set => _state.LockPlayerController = value;
+        }
+
+        public override bool PreventInteractionUI
+        {
+            get => _state.PreventInteractionUI;
+            set => _state.PreventInteractionUI = value;
+        }
+
+        internal override void SetUIModal(bool hasModal)
+        {
+            _state.SetUIModal(hasModal);
+        }
+
         protected override void OnInit()
         {
+            _state.ResetRequested += ResetAllInputStates;
             _inputActionsDictionary.Clear();
 
             if (InputActions == null)
@@ -43,6 +70,7 @@ namespace Moirai.Atropos.Input
 
         protected override void OnShutdown()
         {
+            _state.ResetRequested -= ResetAllInputStates;
             _inputActionsDictionary.Clear();
         }
 

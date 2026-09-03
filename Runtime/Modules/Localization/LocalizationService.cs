@@ -9,8 +9,10 @@ namespace Moirai.Atropos.Localization
     /// 本地化服务外观（Facade）。
     /// <para>统一的静态多语言访问入口，通过替换 <see cref="Handler"/> 即可在不同本地化数据源之间零成本切换。</para>
     /// <para>未显式设置处理器时，使用 <see cref="CreateDefaultHandler"/> 从 <see cref="LocalizationServiceSettings"/> 创建处理器实例。</para>
+    /// <para>降级契约：全部外观 API 经 <c>s_Handler?.</c> 静默降级（未注册/未初始化时返回安全默认值），与全框架统一。</para>
     /// <para>Handler 属性由 <c>HandlerHostGenerator</c> 源生成器自动生成（线程安全懒加载）。</para>
     /// </summary>
+    [ServiceDependency(typeof(DebuggerService))]
     [HandlerHost(typeof(LocalizationServiceHandler))]
     public partial class LocalizationService : ServiceBase
     {
@@ -62,14 +64,14 @@ namespace Moirai.Atropos.Localization
         public static bool IsValid => s_Handler != null;
 
         /// <summary>
-        /// 当前使用的本地化语言。
+        /// 当前使用的本地化语言（未就绪时为 <see cref="Language.Unspecified"/>）。
         /// </summary>
-        public static Language CurrentLanguage => Handler.CurrentLanguage;
+        public static Language CurrentLanguage => s_Handler?.CurrentLanguage ?? Language.Unspecified;
 
         /// <summary>
-        /// 当前语言索引。
+        /// 当前语言索引（未就绪时为 -1）。
         /// </summary>
-        public static int CurrentLanguageIndex => Handler.CurrentLanguageIndex;
+        public static int CurrentLanguageIndex => s_Handler?.CurrentLanguageIndex ?? -1;
 
         #endregion
 
@@ -137,68 +139,68 @@ namespace Moirai.Atropos.Localization
         /// <param name="language">例如：<see cref="Language.ChineseSimplified"/></param>
         /// <param name="logSource">是否打印设置来源</param>
         public static void ChangeLanguage(Language language, bool logSource = false) =>
-            Handler.ChangeLanguage(language, logSource);
+            s_Handler?.ChangeLanguage(language, logSource);
 
         /// <summary>
         /// 更改当前语言。
         /// </summary>
         /// <param name="language">要切换的语言Name或Code</param>
-        public static void ChangeLanguage(string language) => Handler.ChangeLanguage(language);
+        public static void ChangeLanguage(string language) => s_Handler?.ChangeLanguage(language);
 
         /// <summary>
         /// 更改当前语言。
         /// </summary>
         /// <param name="index">要切换已加载的语言索引</param>
-        public static void ChangeLanguage(int index) => Handler.ChangeLanguage(index);
+        public static void ChangeLanguage(int index) => s_Handler?.ChangeLanguage(index);
 
         /// <summary>
         /// 激活上一个语言。
         /// </summary>
-        /// <returns>激活的语言名称</returns>
-        public static string ActivatePreviousLanguage() => Handler.ActivatePreviousLanguage();
+        /// <returns>激活的语言名称（未就绪时为 null）</returns>
+        public static string ActivatePreviousLanguage() => s_Handler?.ActivatePreviousLanguage();
 
         /// <summary>
         /// 激活下一个语言。
         /// </summary>
-        /// <returns>激活的语言名称</returns>
-        public static string ActivateNextLanguage() => Handler.ActivateNextLanguage();
+        /// <returns>激活的语言名称（未就绪时为 null）</returns>
+        public static string ActivateNextLanguage() => s_Handler?.ActivateNextLanguage();
 
         #endregion
 
         #region 文本查询 [TEXT QUERIES]
 
         /// <summary>
-        /// 检查当前数据库是否有指定的文本 ID。
+        /// 检查当前数据库是否有指定的文本 ID（未就绪时为 false）。
         /// </summary>
-        public static bool Has(string id) => Handler.Has(id);
+        public static bool Has(string id) => s_Handler?.Has(id) ?? false;
 
         /// <summary>
-        /// 根据文本 ID 获取本地化字符串。
+        /// 根据文本 ID 获取本地化字符串（未就绪时返回 id 原文——保证 UI 可见键名而非空白）。
         /// </summary>
         /// <param name="id">文本 ID</param>
         /// <param name="p">Format</param>
         public static string GetTextFromId(string id, params object[] p) =>
-            Handler.GetTextFromId(id, p);
+            s_Handler?.GetTextFromId(id, p) ?? id;
 
         /// <summary>
-        /// 根据文本 ID 和指定语言获取本地化字符串。
+        /// 根据文本 ID 和指定语言获取本地化字符串（未就绪时返回 id 原文）。
         /// </summary>
         /// <param name="id">文本 ID</param>
         /// <param name="language">要获取的语言</param>
         /// <param name="p">Format</param>
         public static string GetTextFromIdLanguage(string id, Language language, params object[] p) =>
-            Handler.GetTextFromIdLanguage(id, language, p);
+            s_Handler?.GetTextFromIdLanguage(id, language, p) ?? id;
 
         /// <summary>
-        /// 获取包含指定 ID 的所有语言的字符串字典。
+        /// 获取包含指定 ID 的所有语言的字符串字典（未就绪时为 null）。
         /// </summary>
         public static Dictionary<string, string> GetDictionaryFromId(string id) =>
-            Handler.GetDictionaryFromId(id);
+            s_Handler?.GetDictionaryFromId(id);
 
         /// <summary>
-        /// 获取所有多语言索引。
+        /// 获取所有多语言索引（未就绪时为 null）。
         /// </summary>
-        public static List<string> GetAllIds() => Handler.GetAllIds();
+        public static List<string> GetAllIds() => s_Handler?.GetAllIds();
 
         #endregion
 
@@ -207,12 +209,12 @@ namespace Moirai.Atropos.Localization
         /// <summary>
         /// 添加本地化器。
         /// </summary>
-        public static void AddLocalizer(LocalizerBase localizer) => Handler.AddLocalizer(localizer);
+        public static void AddLocalizer(LocalizerBase localizer) => s_Handler?.AddLocalizer(localizer);
 
         /// <summary>
         /// 移除本地化器。
         /// </summary>
-        public static void RemoveLocalizer(LocalizerBase localizer) => Handler.RemoveLocalizer(localizer);
+        public static void RemoveLocalizer(LocalizerBase localizer) => s_Handler?.RemoveLocalizer(localizer);
 
         #endregion
     }

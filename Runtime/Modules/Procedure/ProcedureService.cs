@@ -14,11 +14,10 @@ namespace Moirai.Atropos.Procedure
     /// <para>Handler 属性由 <c>HandlerHostGenerator</c> 源生成器自动生成（线程安全懒加载）。</para>
     /// </summary>
     /// <remarks>
-    /// 组合根手动按依赖链序注册本服务及全部链上服务（Resource/Timer/UI/Localization），
-    /// <see cref="GameServices.RegisterService{T}"/> 在注册期按本类 <c>[ServiceDependency]</c> 声明校验依赖就绪
-    /// （UI/Timer→Resource、Audio/Scene/ObjectPool 亦传递依赖 Resource）。
+    /// 组合根无序注册全部链上服务，世界初始化按 <c>[ServiceDependency]</c> 声明拓扑排序（依赖缺失/循环即 fail-fast）。
+    /// 调试器依赖经 <see cref="DebuggerService"/> 声明显式建模——OnInit 注册调试面板要求 Debugger 拓扑先行。
     /// </remarks>
-    [ServiceDependency(typeof(ResourceService), typeof(UIService), typeof(LocalizationService), typeof(TimerService))]
+    [ServiceDependency(typeof(DebuggerService), typeof(ResourceService), typeof(UIService), typeof(LocalizationService), typeof(TimerService))]
     [HandlerHost(typeof(ProcedureServiceHandler))]
     public partial class ProcedureService : ServiceBase, IServiceTickable
     {
@@ -27,13 +26,13 @@ namespace Moirai.Atropos.Procedure
         /// <summary>
         /// 创建默认流程处理器。
         /// <para>首行先确保服务已注册（<c>GameServices.EnsureRegistered</c>，幂等）——外观首次访问即完成世界注册；
-        /// 重入路径下 <c>s_Handler</c> 已就绪时直接返回，避免重复实例化。</para>
+        /// 处理器实例由 <see cref="ProcedureServiceSettings"/> 经 [SerializeReference] 注入（Inspector 可拔插替换）。</para>
         /// </summary>
         /// <returns>默认流程处理器实例。</returns>
         private static ProcedureServiceHandler CreateDefaultHandler()
         {
             GameServices.EnsureRegistered<ProcedureService>();
-            return new DefaultProcedureHandler();
+            return ProcedureServiceSettings.ProcedureServiceHandler;
         }
 
         public override int Priority => -2;
@@ -60,10 +59,10 @@ namespace Moirai.Atropos.Procedure
         }
 
         /// <summary>
-        /// 容器 Tick 驱动——转发到处理器轮询当前流程。
+        /// 容器 Tick 驱动——转发到处理器轮询当前流程（未就绪时静默降级）。
         /// </summary>
         public void Tick(float elapseSeconds, float realElapseSeconds) =>
-            Handler.Tick(elapseSeconds, realElapseSeconds);
+            s_Handler?.Tick(elapseSeconds, realElapseSeconds);
 
         #endregion
 
@@ -79,90 +78,90 @@ namespace Moirai.Atropos.Procedure
         #region 流程管理 [PROCEDURE MANAGEMENT]
 
         /// <summary>
-        /// 获取当前流程。
+        /// 获取当前流程（未就绪时为 null）。
         /// </summary>
-        public static ProcedureBase CurrentProcedure => Handler.CurrentProcedure;
+        public static ProcedureBase CurrentProcedure => s_Handler?.CurrentProcedure;
 
         /// <summary>
-        /// 获取当前流程持续时间。
+        /// 获取当前流程持续时间（未就绪时为 0）。
         /// </summary>
-        public static float CurrentProcedureTime => Handler.CurrentProcedureTime;
+        public static float CurrentProcedureTime => s_Handler?.CurrentProcedureTime ?? 0f;
 
         /// <summary>
         /// 初始化流程管理器。
         /// </summary>
         /// <param name="procedures">流程管理器包含的流程。</param>
         public static void Initialize(params ProcedureBase[] procedures) =>
-            Handler.Initialize(procedures);
+            s_Handler?.Initialize(procedures);
 
         /// <summary>
         /// 开始流程。
         /// </summary>
         /// <typeparam name="T">要开始的流程类型。</typeparam>
         public static void StartProcedure<T>() where T : ProcedureBase =>
-            Handler.StartProcedure(typeof(T));
+            s_Handler?.StartProcedure(typeof(T));
 
         /// <summary>
         /// 开始流程。
         /// </summary>
         /// <param name="procedureType">要开始的流程类型。</param>
         public static void StartProcedure(Type procedureType) =>
-            Handler.StartProcedure(procedureType);
+            s_Handler?.StartProcedure(procedureType);
 
         /// <summary>
         /// 是否存在流程。
         /// </summary>
         /// <typeparam name="T">要检查的流程类型。</typeparam>
-        /// <returns>是否存在流程。</returns>
+        /// <returns>是否存在流程（未就绪时为 false）。</returns>
         public static bool HasProcedure<T>() where T : ProcedureBase =>
-            Handler.HasProcedure(typeof(T));
+            s_Handler?.HasProcedure(typeof(T)) ?? false;
 
         /// <summary>
         /// 是否存在流程。
         /// </summary>
         /// <param name="procedureType">要检查的流程类型。</param>
-        /// <returns>是否存在流程。</returns>
+        /// <returns>是否存在流程（未就绪时为 false）。</returns>
         public static bool HasProcedure(Type procedureType) =>
-            Handler.HasProcedure(procedureType);
+            s_Handler?.HasProcedure(procedureType) ?? false;
 
         /// <summary>
         /// 切换流程。
         /// </summary>
         /// <typeparam name="T">要切换的流程类型。</typeparam>
         public static void ChangeState<T>() where T : ProcedureBase =>
-            Handler.ChangeState(typeof(T));
+            s_Handler?.ChangeState(typeof(T));
 
         /// <summary>
         /// 切换流程。
         /// </summary>
         /// <param name="procedureType">要切换的状态类型。</param>
         public static void ChangeState(Type procedureType) =>
-            Handler.ChangeState(procedureType);
+            s_Handler?.ChangeState(procedureType);
 
         /// <summary>
         /// 获取流程。
         /// </summary>
         /// <typeparam name="T">要获取的流程类型。</typeparam>
-        /// <returns>要获取的流程。</returns>
+        /// <returns>要获取的流程（未就绪时为 null）。</returns>
         public static ProcedureBase GetProcedure<T>() where T : ProcedureBase =>
-            Handler.GetProcedure(typeof(T));
+            s_Handler?.GetProcedure(typeof(T));
 
         /// <summary>
         /// 获取流程。
         /// </summary>
         /// <param name="procedureType">要获取的流程类型。</param>
-        /// <returns>要获取的流程。</returns>
+        /// <returns>要获取的流程（未就绪时为 null）。</returns>
         public static ProcedureBase GetProcedure(Type procedureType) =>
-            Handler.GetProcedure(procedureType);
+            s_Handler?.GetProcedure(procedureType);
 
         /// <summary>
         /// 重启流程。
         /// <remarks>默认使用第一个流程作为启动流程。</remarks>
         /// </summary>
         /// <param name="procedures">新的流程。</param>
-        /// <returns>是否重启成功。</returns>
+        /// <returns>是否重启成功（未就绪时为 false）。</returns>
         public static bool RestartProcedure(params ProcedureBase[] procedures) =>
-            Handler.RestartProcedure(procedures);
+            s_Handler?.RestartProcedure(procedures) ?? false;
 
         #endregion
     }

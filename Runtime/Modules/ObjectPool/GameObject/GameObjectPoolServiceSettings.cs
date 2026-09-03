@@ -11,9 +11,10 @@ namespace Moirai.Atropos.ObjectPool
         [SerializeReference] private GameObjectPoolServiceHandler m_GameObjectPoolServiceHandler = DefaultHandler;
 
         /// <summary>
-        /// 获取配置的游戏对象池处理器。
+        /// 获取配置的游戏对象池处理器（字段为 null 时懒填充并缓存——不重复实例化）。
         /// </summary>
-        public static GameObjectPoolServiceHandler GameObjectPoolServiceHandler => Instance.m_GameObjectPoolServiceHandler ?? DefaultHandler;
+        public static GameObjectPoolServiceHandler GameObjectPoolServiceHandler =>
+            Instance.m_GameObjectPoolServiceHandler ??= DefaultHandler;
 
         /// <summary>
         /// 获取默认对象池实现。

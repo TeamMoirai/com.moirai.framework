@@ -4,89 +4,34 @@ using UnityEngine;
 namespace Moirai.Atropos.Input
 {
     /// <summary>
-    /// 输入处理器抽象基类（策略模式抽象策略）。
-    /// <para>同时承载输入状态管理（<see cref="Enabled"/>、<see cref="LockPlayerController"/>、<see cref="PreventInteractionUI"/>）。</para>
+    /// 输入处理器抽象基类（策略模式抽象策略，纯契约）。
+    /// <para>状态组合语义（Enabled/LockPlayerController/PreventInteractionUI/UIModal）由实现类经
+    /// <see cref="InputStateMachine"/> 组合持有——基类不含任何状态字段。</para>
     /// </summary>
     [Serializable]
     public abstract class InputServiceHandler : FrameworkHandler
     {
-        #region 状态管理 [STATE MANAGEMENT]
-
-        [Flags]
-        private enum EInputStateFlags
-        {
-            None = 0,
-            LockPlayerController = 1,
-            PreventInteractionUI = 2,
-        }
-
-        [NonSerialized] private EInputStateFlags _stateFlags;
-        [NonSerialized] private bool _hasUIModal;
-        [NonSerialized] private bool _enabled = true;
+        #region 状态契约 [STATE CONTRACT]
 
         /// <summary>
         /// 获取或设置是否启用输入。
         /// </summary>
-        public bool Enabled
-        {
-            get => _enabled;
-            set
-            {
-                if (_enabled == value) return;
-                _enabled = value;
-                if (!_enabled) ResetAllInputStates();
-            }
-        }
+        public abstract bool Enabled { get; set; }
 
         /// <summary>
         /// 获取或设置是否锁定玩家控制器。
         /// </summary>
-        public bool LockPlayerController
-        {
-            get => !_enabled || _stateFlags.HasFlag(EInputStateFlags.LockPlayerController) || _hasUIModal;
-            set
-            {
-                if (_stateFlags.HasFlag(EInputStateFlags.LockPlayerController) == value) return;
-                if (value)
-                {
-                    _stateFlags |= EInputStateFlags.LockPlayerController;
-                    ResetAllInputStates();
-                }
-                else
-                {
-                    _stateFlags &= ~EInputStateFlags.LockPlayerController;
-                }
-            }
-        }
+        public abstract bool LockPlayerController { get; set; }
 
         /// <summary>
         /// 获取或设置是否禁止 UI 交互。
         /// </summary>
-        public bool PreventInteractionUI
-        {
-            get => !_enabled || _stateFlags.HasFlag(EInputStateFlags.PreventInteractionUI);
-            set
-            {
-                if (_stateFlags.HasFlag(EInputStateFlags.PreventInteractionUI) == value) return;
-                if (value)
-                {
-                    _stateFlags |= EInputStateFlags.PreventInteractionUI;
-                    ResetAllInputStates();
-                }
-                else
-                {
-                    _stateFlags &= ~EInputStateFlags.PreventInteractionUI;
-                }
-            }
-        }
+        public abstract bool PreventInteractionUI { get; set; }
 
         /// <summary>
         /// 设置 UI 模态状态。由 <see cref="InputService"/> 的事件回调驱动。
         /// </summary>
-        internal void SetUIModal(bool hasModal)
-        {
-            _hasUIModal = hasModal;
-        }
+        internal abstract void SetUIModal(bool hasModal);
 
         #endregion
 
