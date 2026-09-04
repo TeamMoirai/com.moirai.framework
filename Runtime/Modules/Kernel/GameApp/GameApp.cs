@@ -18,17 +18,65 @@ namespace Moirai.Atropos
     /// </summary>
     public partial class GameApp
     {
-        #region 状态 [STATE]
+        #region 属性 [PROPERTIES]
 
         private static GameObject s_Entity;
         private static MainBehaviour s_Behaviour;
 
-        private static bool s_IsShutdown = true;
-
         /// <summary>
         /// 获取游戏是否已关闭。
         /// </summary>
-        public static bool IsShutdown => s_IsShutdown;
+        public static bool IsShutdown { get; private set; } = true;
+
+        /// <summary>
+        /// 获取或设置游戏帧率。
+        /// </summary>
+        public static int FrameRate
+        {
+            get => GameAppSettings.Instance.m_FrameRate;
+            set => Application.targetFrameRate = GameAppSettings.Instance.m_FrameRate = value;
+        }
+
+        /// <summary>
+        /// 获取或设置游戏速度。
+        /// </summary>
+        public static float GameSpeed
+        {
+            get => GameAppSettings.Instance.m_GameSpeed;
+            set => Time.timeScale = GameAppSettings.Instance.m_GameSpeed = value >= 0f ? value : 0f;
+        }
+
+        /// <summary>
+        /// 获取游戏是否暂停。
+        /// </summary>
+        public static bool IsGamePaused => GameAppSettings.Instance.m_GameSpeed <= 0f;
+
+        /// <summary>
+        /// 获取是否正常游戏速度。
+        /// </summary>
+        public static bool IsNormalGameSpeed => Math.Abs(GameAppSettings.Instance.m_GameSpeed - 1f) < 0.01f;
+
+        /// <summary>
+        /// 获取或设置是否允许后台运行。
+        /// </summary>
+        public static bool RunInBackground
+        {
+            get => GameAppSettings.Instance.m_RunInBackground;
+            set => Application.runInBackground = GameAppSettings.Instance.m_RunInBackground = value;
+        }
+
+        /// <summary>
+        /// 获取或设置是否禁止休眠。
+        /// </summary>
+        public static bool NeverSleep
+        {
+            get => GameAppSettings.Instance.m_NeverSleep;
+            set
+            {
+                GameAppSettings.Instance.m_NeverSleep = value;
+                Screen.sleepTimeout = value ? SleepTimeout.NeverSleep : SleepTimeout.SystemSetting;
+            }
+        }
 
         #endregion
 
@@ -36,10 +84,10 @@ namespace Moirai.Atropos
 
         internal static void Initialize()
         {
-            if (!s_IsShutdown) return;
+            if (!IsShutdown) return;
 
             LogUtility.Info("GameApp Active");
-            s_IsShutdown = false;
+            IsShutdown = false;
 
 #if UNITY_EDITOR
             UnityEditor.EditorApplication.playModeStateChanged += HandlePlayModeStateChanged;
@@ -62,10 +110,10 @@ namespace Moirai.Atropos
         /// </summary>
         internal static void Shutdown()
         {
-            if (s_IsShutdown) return;
+            if (IsShutdown) return;
 
             LogUtility.Info("GameApp Shutdown");
-            s_IsShutdown = true;
+            IsShutdown = true;
 
 #if UNITY_EDITOR
             UnityEditor.EditorApplication.playModeStateChanged -= HandlePlayModeStateChanged;
@@ -76,12 +124,45 @@ namespace Moirai.Atropos
             GameServices.Shutdown();
             if (s_Entity != null) Object.Destroy(s_Entity);
 
-            // 池缓存清理在全部服务关闭后执行（此时无活跃池化对象引用）。
-            // 归属本层而非内核——内核不感知 MemoryPool（分层单向）。
-            MemoryPool.ClearAll();
-
             // 释放缓存的从进程的非托管内存中分配的内存。
             MarshalUtility.FreeCachedHGlobal();
+        }
+
+        #endregion
+
+        #region 公共 API [PUBLIC API]
+
+        private static float s_GameSpeedBeforePause = 1f;
+
+        /// <summary>
+        /// 暂停游戏。
+        /// </summary>
+        public static void PauseGame()
+        {
+            if (IsGamePaused) return;
+
+            s_GameSpeedBeforePause = GameSpeed;
+            GameSpeed = 0f;
+        }
+
+        /// <summary>
+        /// 恢复游戏。
+        /// </summary>
+        public static void ResumeGame()
+        {
+            if (!IsGamePaused) return;
+
+            GameSpeed = s_GameSpeedBeforePause;
+        }
+
+        /// <summary>
+        /// 重置为正常游戏速度。
+        /// </summary>
+        public static void ResetGameSpeed()
+        {
+            if (IsNormalGameSpeed) return;
+
+            GameSpeed = 1f;
         }
 
         #endregion
@@ -93,12 +174,10 @@ namespace Moirai.Atropos
         /// </summary>
         public static Coroutine StartCoroutine(string methodName)
         {
-            if (string.IsNullOrEmpty(methodName))
-            {
-                return null;
-            }
+            if (string.IsNullOrEmpty(methodName)) return null;
 
-            return s_Behaviour.StartCoroutine(methodName);
+            MakeEntity();
+            return s_Behaviour?.StartCoroutine(methodName);
         }
 
         /// <summary>
@@ -106,12 +185,10 @@ namespace Moirai.Atropos
         /// </summary>
         public static Coroutine StartCoroutine(IEnumerator routine)
         {
-            if (routine == null)
-            {
-                return null;
-            }
+            if (routine == null) return null;
 
-            return s_Behaviour.StartCoroutine(routine);
+            MakeEntity();
+            return s_Behaviour?.StartCoroutine(routine);
         }
 
         /// <summary>
@@ -119,12 +196,10 @@ namespace Moirai.Atropos
         /// </summary>
         public static Coroutine StartCoroutine(string methodName, object value)
         {
-            if (string.IsNullOrEmpty(methodName))
-            {
-                return null;
-            }
+            if (string.IsNullOrEmpty(methodName)) return null;
 
-            return s_Behaviour.StartCoroutine(methodName, value);
+            MakeEntity();
+            return s_Behaviour?.StartCoroutine(methodName, value);
         }
 
         /// <summary>
@@ -132,15 +207,9 @@ namespace Moirai.Atropos
         /// </summary>
         public static void StopCoroutine(string methodName)
         {
-            if (string.IsNullOrEmpty(methodName))
-            {
-                return;
-            }
+            if (string.IsNullOrEmpty(methodName)) return;
 
-            if (s_Entity != null)
-            {
-                s_Behaviour.StopCoroutine(methodName);
-            }
+            s_Behaviour?.StopCoroutine(methodName);
         }
 
         /// <summary>
@@ -150,10 +219,7 @@ namespace Moirai.Atropos
         {
             if (routine == null) return;
 
-            if (s_Entity != null)
-            {
-                s_Behaviour.StopCoroutine(routine);
-            }
+            s_Behaviour?.StopCoroutine(routine);
         }
 
         /// <summary>
@@ -163,11 +229,7 @@ namespace Moirai.Atropos
         {
             if (routine == null) return;
 
-            if (s_Entity != null)
-            {
-                s_Behaviour.StopCoroutine(routine);
-                routine = null;
-            }
+            s_Behaviour?.StopCoroutine(routine);
         }
 
         /// <summary>
@@ -175,10 +237,7 @@ namespace Moirai.Atropos
         /// </summary>
         public static void StopAllCoroutines()
         {
-            if (s_Entity != null)
-            {
-                s_Behaviour.StopAllCoroutines();
-            }
+            s_Behaviour?.StopAllCoroutines();
         }
 
         #endregion
@@ -196,7 +255,8 @@ namespace Moirai.Atropos
         private static async UniTaskVoid AddUpdateListenerImp(Action action)
         {
             await UniTask.Yield();
-            s_Behaviour.AddUpdateEvent(action);
+            MakeEntity();
+            s_Behaviour?.AddUpdateEvent(action);
         }
 
         /// <summary>
@@ -210,7 +270,8 @@ namespace Moirai.Atropos
         private static async UniTaskVoid AddFixedUpdateListenerImp(Action action)
         {
             await UniTask.Yield(PlayerLoopTiming.LastEarlyUpdate);
-            s_Behaviour.AddFixedUpdateEvent(action);
+            MakeEntity();
+            s_Behaviour?.AddFixedUpdateEvent(action);
         }
 
         /// <summary>
@@ -224,7 +285,8 @@ namespace Moirai.Atropos
         private static async UniTaskVoid AddLateUpdateListenerImp(Action action)
         {
             await UniTask.Yield();
-            s_Behaviour.AddLateUpdateEvent(action);
+            MakeEntity();
+            s_Behaviour?.AddLateUpdateEvent(action);
         }
 
         /// <summary>
@@ -232,7 +294,7 @@ namespace Moirai.Atropos
         /// </summary>
         public static void RemoveUpdateListener(Action action)
         {
-            s_Behaviour.RemoveUpdateEvent(action);
+            s_Behaviour?.RemoveUpdateEvent(action);
         }
 
         /// <summary>
@@ -240,7 +302,7 @@ namespace Moirai.Atropos
         /// </summary>
         public static void RemoveFixedUpdateListener(Action action)
         {
-            s_Behaviour.RemoveFixedUpdateEvent(action);
+            s_Behaviour?.RemoveFixedUpdateEvent(action);
         }
 
         /// <summary>
@@ -248,7 +310,7 @@ namespace Moirai.Atropos
         /// </summary>
         public static void RemoveLateUpdateListener(Action action)
         {
-            s_Behaviour.RemoveLateUpdateEvent(action);
+            s_Behaviour?.RemoveLateUpdateEvent(action);
         }
 
         #endregion
@@ -260,7 +322,8 @@ namespace Moirai.Atropos
         /// </summary>
         public static void AddDestroyListener(Action action)
         {
-            s_Behaviour.AddDestroyEvent(action);
+            MakeEntity();
+            s_Behaviour?.AddDestroyEvent(action);
         }
 
         /// <summary>
@@ -268,7 +331,7 @@ namespace Moirai.Atropos
         /// </summary>
         public static void RemoveDestroyListener(Action action)
         {
-            s_Behaviour.RemoveDestroyEvent(action);
+            s_Behaviour?.RemoveDestroyEvent(action);
         }
 
         /// <summary>
@@ -276,7 +339,8 @@ namespace Moirai.Atropos
         /// </summary>
         public static void AddOnDrawGizmosListener(Action action)
         {
-            s_Behaviour.AddDrawGizmosEvent(action);
+            MakeEntity();
+            s_Behaviour?.AddDrawGizmosEvent(action);
         }
 
         /// <summary>
@@ -284,7 +348,7 @@ namespace Moirai.Atropos
         /// </summary>
         public static void RemoveOnDrawGizmosListener(Action action)
         {
-            s_Behaviour.RemoveDrawGizmosEvent(action);
+            s_Behaviour?.RemoveDrawGizmosEvent(action);
         }
 
         /// <summary>
@@ -292,7 +356,8 @@ namespace Moirai.Atropos
         /// </summary>
         public static void AddOnDrawGizmosSelectedListener(Action action)
         {
-            s_Behaviour.AddDrawGizmosSelectedEvent(action);
+            MakeEntity();
+            s_Behaviour?.AddDrawGizmosSelectedEvent(action);
         }
 
         /// <summary>
@@ -300,7 +365,7 @@ namespace Moirai.Atropos
         /// </summary>
         public static void RemoveOnDrawGizmosSelectedListener(Action action)
         {
-            s_Behaviour.RemoveDrawGizmosSelectedEvent(action);
+            s_Behaviour?.RemoveDrawGizmosSelectedEvent(action);
         }
 
         /// <summary>
@@ -308,7 +373,8 @@ namespace Moirai.Atropos
         /// </summary>
         public static void AddOnApplicationPauseListener(Action<bool> action)
         {
-            s_Behaviour.AddApplicationPauseEvent(action);
+            MakeEntity();
+            s_Behaviour?.AddApplicationPauseEvent(action);
         }
 
         /// <summary>
@@ -316,7 +382,7 @@ namespace Moirai.Atropos
         /// </summary>
         public static void RemoveOnApplicationPauseListener(Action<bool> action)
         {
-            s_Behaviour.RemoveApplicationPauseEvent(action);
+            s_Behaviour?.RemoveApplicationPauseEvent(action);
         }
 
         #endregion
@@ -329,20 +395,25 @@ namespace Moirai.Atropos
             if (!Application.isPlaying) return;
 #endif
 
-            if (s_Entity != null) return;
+            if (s_Entity == null)
+            {
+                s_Entity = new GameObject("[UpdateDriver]");
+                s_Entity.SetActive(true);
+                Object.DontDestroyOnLoad(s_Entity);
+            }
 
-            s_Entity = new GameObject("[UpdateDriver]");
-            s_Entity.SetActive(true);
-            Object.DontDestroyOnLoad(s_Entity);
-            s_Behaviour = s_Entity.AddComponent<MainBehaviour>();
+            if (s_Behaviour == null)
+            {
+                s_Behaviour = s_Entity.AddComponent<MainBehaviour>();
 
-            // 驱动内置服务
-            s_Behaviour.AddUpdateEvent(Tick);
-            s_Behaviour.AddFixedUpdateEvent(FixedTick);
-            s_Behaviour.AddLateUpdateEvent(LateTick);
-            s_Behaviour.AddApplicationFocusEvent(ApplicationFocus);
-            s_Behaviour.AddApplicationQuitEvent(ApplicationQuit);
-            s_Behaviour.AddDrawGizmosEvent(DrawGizmos);
+                // 驱动内置服务
+                s_Behaviour.AddUpdateEvent(Tick);
+                s_Behaviour.AddFixedUpdateEvent(FixedTick);
+                s_Behaviour.AddLateUpdateEvent(LateTick);
+                s_Behaviour.AddApplicationFocusEvent(ApplicationFocus);
+                s_Behaviour.AddApplicationQuitEvent(ApplicationQuit);
+                s_Behaviour.AddDrawGizmosEvent(DrawGizmos);
+            }
         }
 
 #if UNITY_EDITOR
@@ -367,21 +438,24 @@ namespace Moirai.Atropos
 
         private static void Tick()
         {
-            if (s_IsShutdown) return;
+            if (IsShutdown) return;
+
             GameTime.StartFrame();
             GameServices.Tick(GameTime.deltaTime, GameTime.unscaledDeltaTime);
         }
 
         private static void FixedTick()
         {
-            if (s_IsShutdown) return;
+            if (IsShutdown) return;
+
             GameTime.StartFrame();
             GameServices.FixedTick(GameTime.deltaTime, GameTime.unscaledDeltaTime);
         }
 
         private static void LateTick()
         {
-            if (s_IsShutdown) return;
+            if (IsShutdown) return;
+
             GameTime.StartFrame();
             GameServices.LateTick(GameTime.deltaTime, GameTime.unscaledDeltaTime);
         }
