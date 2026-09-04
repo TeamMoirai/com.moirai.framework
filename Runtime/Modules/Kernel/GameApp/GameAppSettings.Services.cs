@@ -20,12 +20,13 @@ namespace Moirai.Atropos
 {
     public partial class GameAppSettings
     {
+
+#if UNITY_EDITOR
+
         [DisableInPlayMode, PropertyOrder(-999)]
         [ValueDropdown(nameof(GetLanguageOptions))]
         [SerializeField] private string m_EditorLanguage = Language.Unspecified.Name;
         private static IEnumerable<string> GetLanguageOptions() => Language.BuiltinLanguages.Select(lang => lang.Name);
-
-#if UNITY_EDITOR
 
         /// <summary>
         /// 获取或设置编辑器语言（仅编辑器内有效）。

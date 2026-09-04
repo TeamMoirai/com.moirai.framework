@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 namespace Moirai.Atropos
@@ -36,8 +37,8 @@ namespace Moirai.Atropos
     /// <summary>
     /// 内存池服务。
     /// </summary>
-    [DisallowMultipleComponent]
-    public sealed class MemoryPoolSetting : MonoBehaviour
+    [FrameworkSetting("[框架]内存池配置", "空闲修剪、容量设置", -401)]
+    public sealed class MemoryPoolSetting : FrameworkSettings<MemoryPoolSetting>
     {
         #region 序列化字段 [SERIALIZED FIELDS]
 
@@ -64,7 +65,7 @@ namespace Moirai.Atropos
         [Tooltip("默认空闲缓存硬上限。释放对象时超过该值会直接驱逐。")]
         [SerializeField] private int m_HardFreeReserveLimit = 512;
 
-        private EMemoryPoolPhase _previousPhase = EMemoryPoolPhase.Gameplay;
+        [NonSerialized] private EMemoryPoolPhase _previousPhase = EMemoryPoolPhase.Gameplay;
 
         #endregion
 
@@ -75,77 +76,76 @@ namespace Moirai.Atropos
             NormalizeSettings();
         }
 
-        private void OnEnable()
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void OnInit()
         {
+            NormalizeSettings();
+            MemoryPool.ShortDecayStartFrames = Instance.m_ShortDecayStartFrames;
+            MemoryPool.LongDecayStartFrames = Instance.m_LongDecayStartFrames;
+            MemoryPool.UnscheduleIdleFrames = Instance.m_UnscheduleIdleFrames;
+            MemoryPool.ZeroFreeReserveStartFrames = Instance.m_ZeroFreeReserveStartFrames;
+            MemoryPool.AutoTrimNativeMetadataFrames = Instance.m_AutoTrimNativeMetadataFrames;
+            MemoryPool.SetDefaultCapacity(Instance.m_SoftFreeReserveLimit, Instance.m_HardFreeReserveLimit);
+            MemoryPoolRegistry.Phase = EMemoryPoolPhase.Boot;
+
             Application.lowMemory += OnLowMemory;
             Application.focusChanged += OnFocusChanged;
+            GameApp.AddDestroyListener(OnShutdown);
+
+            GameApp.AddUpdateListener(OnUpdate);
+            return;
+
+            static void OnUpdate()
+            {
+                MemoryPoolRegistry.TickAll(Time.frameCount);
+            }
         }
 
-        private void OnDisable()
+        private static void OnShutdown()
         {
             Application.lowMemory -= OnLowMemory;
             Application.focusChanged -= OnFocusChanged;
+
+            MemoryPoolRegistry.TrimAllNativeMetadata();
+            MemoryPoolRegistry.ClearAll();
         }
 
-        private void OnLowMemory()
+        private static void OnLowMemory()
         {
-            _previousPhase = MemoryPoolRegistry.Phase;
+            Instance._previousPhase = MemoryPoolRegistry.Phase;
             MemoryPoolRegistry.Phase = EMemoryPoolPhase.LowMemory;
             MemoryPoolRegistry.CompactAll();
-            MemoryPoolRegistry.Phase = _previousPhase;
+            MemoryPoolRegistry.Phase = Instance._previousPhase;
         }
 
-        private void OnFocusChanged(bool hasFocus)
+        private static void OnFocusChanged(bool hasFocus)
         {
             if (hasFocus)
             {
-                MemoryPoolRegistry.Phase = _previousPhase;
+                MemoryPoolRegistry.Phase = Instance._previousPhase;
             }
             else
             {
-                _previousPhase = MemoryPoolRegistry.Phase;
+                Instance._previousPhase = MemoryPoolRegistry.Phase;
                 MemoryPoolRegistry.Phase = EMemoryPoolPhase.Background;
             }
-        }
-
-        private void Awake()
-        {
-            NormalizeSettings();
-            MemoryPoolRegistry.InitializeMainThread();
-            MemoryPool.ShortDecayStartFrames = m_ShortDecayStartFrames;
-            MemoryPool.LongDecayStartFrames = m_LongDecayStartFrames;
-            MemoryPool.UnscheduleIdleFrames = m_UnscheduleIdleFrames;
-            MemoryPool.ZeroFreeReserveStartFrames = m_ZeroFreeReserveStartFrames;
-            MemoryPool.AutoTrimNativeMetadataFrames = m_AutoTrimNativeMetadataFrames;
-            MemoryPool.SetDefaultCapacity(m_SoftFreeReserveLimit, m_HardFreeReserveLimit);
-            MemoryPoolRegistry.Phase = EMemoryPoolPhase.Boot;
-        }
-
-        private void Update()
-        {
-            MemoryPoolRegistry.TickAll(Time.frameCount);
-        }
-
-        private void OnDestroy()
-        {
-            MemoryPoolRegistry.TrimAllNativeMetadata();
         }
 
         #endregion
 
         #region 私有方法 [PRIVATE METHODS]
 
-        private void NormalizeSettings()
+        private static void NormalizeSettings()
         {
-            m_ShortDecayStartFrames = Mathf.Max(0, m_ShortDecayStartFrames);
-            m_LongDecayStartFrames = Mathf.Max(m_ShortDecayStartFrames, m_LongDecayStartFrames);
-            m_ZeroFreeReserveStartFrames = Mathf.Max(m_LongDecayStartFrames, m_ZeroFreeReserveStartFrames);
-            m_UnscheduleIdleFrames = Mathf.Max(m_ZeroFreeReserveStartFrames, m_UnscheduleIdleFrames);
-            m_AutoTrimNativeMetadataFrames = m_AutoTrimNativeMetadataFrames < 0
+            Instance.m_ShortDecayStartFrames = Mathf.Max(0, Instance.m_ShortDecayStartFrames);
+            Instance.m_LongDecayStartFrames = Mathf.Max(Instance.m_ShortDecayStartFrames, Instance.m_LongDecayStartFrames);
+            Instance.m_ZeroFreeReserveStartFrames = Mathf.Max(Instance.m_LongDecayStartFrames, Instance.m_ZeroFreeReserveStartFrames);
+            Instance.m_UnscheduleIdleFrames = Mathf.Max(Instance.m_ZeroFreeReserveStartFrames, Instance.m_UnscheduleIdleFrames);
+            Instance.m_AutoTrimNativeMetadataFrames = Instance.m_AutoTrimNativeMetadataFrames < 0
                 ? -1
-                : Mathf.Max(m_ZeroFreeReserveStartFrames, m_AutoTrimNativeMetadataFrames);
-            m_SoftFreeReserveLimit = Mathf.Max(MemoryPool.MINIMUM_FREE_RESERVE_LIMIT, m_SoftFreeReserveLimit);
-            m_HardFreeReserveLimit = Mathf.Max(m_SoftFreeReserveLimit, m_HardFreeReserveLimit);
+                : Mathf.Max(Instance.m_ZeroFreeReserveStartFrames, Instance.m_AutoTrimNativeMetadataFrames);
+            Instance.m_SoftFreeReserveLimit = Mathf.Max(MemoryPool.MINIMUM_FREE_RESERVE_LIMIT, Instance.m_SoftFreeReserveLimit);
+            Instance.m_HardFreeReserveLimit = Mathf.Max(Instance.m_SoftFreeReserveLimit, Instance.m_HardFreeReserveLimit);
         }
 
         #endregion

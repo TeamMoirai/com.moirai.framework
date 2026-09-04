@@ -131,18 +131,10 @@ namespace Moirai.Atropos
 
         #region 初始化 [INITIALIZATION]
 
-        /// <summary>
-        /// 初始化主线程 ID。
-        /// </summary>
-        internal static void InitializeMainThread()
-        {
-            s_MainThreadId = Thread.CurrentThread.ManagedThreadId;
-        }
-
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         private static void InitializeMainThreadOnLoad()
         {
-            InitializeMainThread();
+            s_MainThreadId = Thread.CurrentThread.ManagedThreadId;
             AppDomain.CurrentDomain.DomainUnload -= ReleaseNativeOnDomainUnload;
             AppDomain.CurrentDomain.DomainUnload += ReleaseNativeOnDomainUnload;
         }
