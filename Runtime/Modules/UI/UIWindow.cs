@@ -630,12 +630,12 @@ namespace Moirai.Atropos.UI
 
         #endregion
 
-        internal virtual void Hide()
+        protected internal virtual void Hide()
         {
             UIService.HideUI(GetType(), WindowName);
         }
 
-        internal virtual void Close()
+        protected internal virtual void Close()
         {
             UIService.CloseUI(GetType(), WindowName);
         }
