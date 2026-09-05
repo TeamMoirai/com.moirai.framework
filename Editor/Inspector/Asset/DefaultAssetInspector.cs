@@ -3,7 +3,7 @@ using UnityEditor;
 using System.IO;
 
 [CanEditMultipleObjects, CustomEditor(typeof(DefaultAsset), false)]
-public class DefaultAssetInspector : Editor
+public class DefaultAssetInspector : UnityEditor.Editor
 {
     private const int MAX_COLUM = 10240;
     

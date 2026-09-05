@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-using System.Linq;
 using Cysharp.Threading.Tasks;
 using Moirai.Atropos.Audio;
 using Moirai.Atropos.ConfigTable;
@@ -13,38 +11,11 @@ using Moirai.Atropos.Save;
 using Moirai.Atropos.Scene;
 using Moirai.Atropos.Timer;
 using Moirai.Atropos.UI;
-using Sirenix.OdinInspector;
-using UnityEngine;
 
 namespace Moirai.Atropos
 {
     public partial class GameAppSettings
     {
-
-#if UNITY_EDITOR
-
-        [DisableInPlayMode, PropertyOrder(-999)]
-        [ValueDropdown(nameof(GetLanguageOptions))]
-        [SerializeField] private string m_EditorLanguage = Language.Unspecified.Name;
-        private static IEnumerable<string> GetLanguageOptions() => Language.BuiltinLanguages.Select(lang => lang.Name);
-
-        /// <summary>
-        /// 获取或设置编辑器语言（仅编辑器内有效）。
-        /// </summary>
-        public static string EditorLanguage
-        {
-            get => Instance.m_EditorLanguage;
-            set
-            {
-                if (Instance.m_EditorLanguage == value) return;
-
-                Instance.m_EditorLanguage = value;
-                LocalizationService.ChangeLanguage(value);
-            }
-        }
-
-#endif
-
         /// <summary>
         /// 注册 App 作用域服务并启动游戏流程（Composition Root）。
         /// <para>① 无序注册全部 App 服务——服务实例仅由手动注册创建，
