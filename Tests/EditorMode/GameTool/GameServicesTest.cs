@@ -1013,10 +1013,13 @@ namespace GameTool
 
         private static void SetGameAppActive(bool active)
         {
-            var field = typeof(GameApp).GetField("s_IsShutdown",
-                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
-            Assert.IsNotNull(field, "GameApp.s_IsShutdown 字段名变更，需同步本测试");
-            field.SetValue(null, !active);
+            // GameApp.IsShutdown 已改为 public static 自动属性（private set）——反射写 setter
+            var property = typeof(GameApp).GetProperty("IsShutdown",
+                System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
+            Assert.IsNotNull(property, "GameApp.IsShutdown 属性变更，需同步本测试");
+            var setter = property.GetSetMethod(true);
+            Assert.IsNotNull(setter, "GameApp.IsShutdown 缺少 setter（含私有）");
+            setter.Invoke(null, new object[] { !active });
         }
 
         [Test]
