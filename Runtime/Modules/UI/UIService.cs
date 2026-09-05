@@ -1,5 +1,7 @@
 ﻿using System;
 using Cysharp.Threading.Tasks;
+using Moirai.Atropos.Debugger;
+using Moirai.Atropos.Input;
 using Moirai.Atropos.Resource;
 using Moirai.Atropos.Timer;
 using UnityEngine;
@@ -13,7 +15,7 @@ namespace Moirai.Atropos.UI
     /// <para>Handler 属性由 <c>HandlerHostGenerator</c> 源生成器自动生成（线程安全懒加载）。</para>
     /// </summary>
     [HandlerHost(typeof(UIServiceHandler))]
-    [ServiceDependency(typeof(ResourceService), typeof(TimerService))]
+    [ServiceDependency(typeof(DebuggerService), typeof(ResourceService), typeof(TimerService), typeof(InputService))]
     public sealed partial class UIService : ServiceBase, IServiceTickable
     {
         #region 生命周期 [LIFECYCLE]
@@ -68,12 +70,7 @@ namespace Moirai.Atropos.UI
         #endregion
 
         #region 属性 [PROPERTIES]
-
-        /// <summary>
-        /// 服务是否可用
-        /// </summary>
-        public static bool IsValid => s_Handler != null;
-
+		
         /// <summary>
         /// UI根节点。
         /// </summary>

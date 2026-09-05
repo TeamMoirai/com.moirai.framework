@@ -9,23 +9,22 @@ namespace Moirai.Atropos.Procedure
     [FrameworkSetting("[服务]流程设置", "游戏流程状态机配置", -500)]
     public sealed partial class ProcedureServiceSettings : FrameworkSettings<ProcedureServiceSettings>
     {
+        // 与其他服务一致的插拔注入：Inspector 可替换流程状态机后端
+        [ProviderDropdown]
+        [SerializeReference] private ProcedureServiceHandler m_ProcedureServiceHandler = new DefaultProcedureHandler();
+
+        /// <summary>
+        /// 当前流程处理器实例（Inspector 可拔插替换）。
+        /// </summary>
+        public static ProcedureServiceHandler ProcedureServiceHandler => Instance.m_ProcedureServiceHandler;
+
         [HideInInspector]
         [SerializeField] private string[] m_AvailableProcedureTypeNames = null;
-        
+
         [HideInInspector]
         [SerializeField] private string m_EntranceProcedureTypeName = null;
 
         private ProcedureBase _entranceProcedure = null;
-
-        /// <summary>
-        /// 获取当前流程。
-        /// </summary>
-        public static ProcedureBase CurrentProcedure => ProcedureService.CurrentProcedure;
-
-        /// <summary>
-        /// 获取当前流程持续时间。
-        /// </summary>
-        public static float CurrentProcedureTime => ProcedureService.CurrentProcedureTime;
 
         /// <summary>
         /// 启动流程。

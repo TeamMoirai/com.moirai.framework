@@ -24,7 +24,7 @@ namespace Moirai.Main
             LauncherMgr.ShowUI<LoadUpdateUI>(LoadText.Instance.Label_Load_Init);
             
             // 注意：使用单机模式并初始化资源前，需要先构建 AssetBundle 并复制到 StreamingAssets 中，否则会产生 HTTP 404 错误
-            UnityUtility.StartCoroutine(InitResources());
+            GameApp.StartCoroutine(InitResources());
         }
 
         protected override void OnUpdate(float elapseSeconds, float realElapseSeconds)
@@ -124,15 +124,19 @@ namespace Moirai.Main
                 else
                 {
                     LogUtility.Error(message);
-                    LauncherMgr.ShowMessageBox($"获取远程版本失败！点击确认重试\n <color=#FF0000>{message}</color>",
-                        () => { UnityUtility.StartCoroutine(InitResources()); }, Application.Quit);
+                    LauncherMgr.ShowMessageBox(
+                        $"获取远程版本失败！点击确认重试\n <color=#FF0000>{message}</color>",
+                        () => { GameApp.StartCoroutine(InitResources()); },
+                        Application.Quit);
                     return;
                 }
             }
 
             LogUtility.Error(message);
-            LauncherMgr.ShowMessageBox($"初始化资源失败！点击确认重试\n <color=#FF0000>{message}</color>",
-                () => { UnityUtility.StartCoroutine(InitResources()); }, Application.Quit);
+            LauncherMgr.ShowMessageBox(
+                $"初始化资源失败！点击确认重试\n <color=#FF0000>{message}</color>",
+                () => { GameApp.StartCoroutine(InitResources()); },
+                Application.Quit);
         }
 
         private bool IsNeedUpdate()
@@ -145,8 +149,9 @@ namespace Moirai.Main
                 if (string.IsNullOrEmpty(packageVersion))
                 {
                     LauncherMgr.ShowUI<LoadUpdateUI>(LoadText.Instance.Label_Net_UnReachable);
-                    LauncherMgr.ShowMessageBox("没有找到本地版本记录，需要更新资源！",
-                        () => { UnityUtility.StartCoroutine(InitResources()); },
+                    LauncherMgr.ShowMessageBox(
+                        "没有找到本地版本记录，需要更新资源！",
+                        () => { GameApp.StartCoroutine(InitResources()); },
                         Application.Quit);
                     return false;
                 }
@@ -156,9 +161,10 @@ namespace Moirai.Main
                 if (UpdateSettings.UpdateNotice == EUpdateNotice.Notice)
                 {
                     LauncherMgr.ShowUI<LoadUpdateUI>(LoadText.Instance.Label_Load_Notice);
-                    LauncherMgr.ShowMessageBox("更新失败，检测到可选资源更新，推荐完成更新提升游戏体验！ \\n \\n 确定再试一次，取消进入游戏",
-                        () => { UnityUtility.StartCoroutine(InitResources()); },
-                        () => { ChangeState<ProcedurePreload>(); });
+                    LauncherMgr.ShowMessageBox(
+                        "更新失败，检测到可选资源更新，推荐完成更新提升游戏体验！ \\n \\n 确定再试一次，取消进入游戏",
+                        () => { GameApp.StartCoroutine(InitResources()); },
+                        ChangeState<ProcedurePreload>);
                 }
                 else
                 {

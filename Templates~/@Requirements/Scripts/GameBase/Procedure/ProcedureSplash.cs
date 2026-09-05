@@ -33,7 +33,7 @@ namespace Moirai.Main
         /// <param name="evt"></param>
         private void OnSplashScreenEvent(SplashScreenEvent evt)
         {
-            if (evt.Stage == SplashScreenEvent.SplashStage.End)
+            if (evt.Stage == SplashScreenEvent.ESplashStage.End)
             {
                 // 闪屏结束切换至初始化资源包
                 ChangeState<ProcedureInitPackage>();
@@ -47,7 +47,7 @@ namespace Moirai.Main
     /// </summary>
     public class SplashScreenEvent : EventBase<SplashScreenEvent>, IProcedureEvent
     {
-        public enum SplashStage
+        public enum ESplashStage
         {
             /// <summary>
             /// 闪屏开始
@@ -61,9 +61,9 @@ namespace Moirai.Main
         }
 
         /// <summary>闪屏阶段</summary>
-        public SplashStage Stage { get; private set; }
+        public ESplashStage Stage { get; private set; }
 
-        private static SplashScreenEvent GetPooled(SplashStage stage)
+        private static SplashScreenEvent GetPooled(ESplashStage stage)
         {
             var evt = GetPooled();
             evt.Stage = stage;
@@ -72,13 +72,13 @@ namespace Moirai.Main
 
         public static void SplashStart()
         {
-            using var evt = GetPooled(SplashStage.Start);
+            using var evt = GetPooled(ESplashStage.Start);
             EventManager.SendEvent(evt);
         }
 
         public static void SplashEnd()
         {
-            using var evt = GetPooled(SplashStage.End);
+            using var evt = GetPooled(ESplashStage.End);
             EventManager.SendEvent(evt);
         }
     }

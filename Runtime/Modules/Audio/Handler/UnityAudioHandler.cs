@@ -40,8 +40,6 @@ namespace Moirai.Atropos.Audio
         [NonSerialized] private readonly Dictionary<int, List<ulong>> _userHandleMap = new Dictionary<int, List<ulong>>();
         // 服务自维护 ID 生成器
         [NonSerialized] private ulong _nextAudioId = 1UL;
-        // 临时列表，用于 FindAgents 系列方法（避免每次分配）
-        [NonSerialized] private readonly List<AudioAgent> _sharedAgentBuffer = new List<AudioAgent>(4);
         // List<ulong> 对象池，避免频繁分配
         private static readonly Stack<List<ulong>> s_HandleListPool = new Stack<List<ulong>>(4);
 
@@ -295,7 +293,6 @@ namespace Moirai.Atropos.Audio
                 ReleaseHandleList(handles);
             }
             _userHandleMap.Clear();
-            _sharedAgentBuffer.Clear();
 
             // Unregister Events
             EventManager.UnregisterCallback<AudioPlayEvent>(OnAudioPlayEvent);
@@ -492,86 +489,7 @@ namespace Moirai.Atropos.Audio
             return 0UL;
         }
 
-        public override ulong Play(AudioClip clip, EAudioTrack track, Vector3 location,
-            bool loop,
-            float volume, int id, bool fade, float fadeInitialVolume, float fadeDuration,
-            TweenEase fadeTweenEase, bool persistent, AudioSource recycleAudioSource,
-            AudioMixerGroup audioGroup, float pitch, float panStereo, float spatialBlend,
-            bool soloSingleTrack, bool soloAllTracks, bool autoUnSoloOnEnd,
-            bool bypassEffects,
-            bool bypassListenerEffects, bool bypassReverbZones, int priority,
-            float reverbZoneMix,
-            float dopplerLevel, int spread, AudioRolloffMode rolloffMode,
-            float minDistance, float maxDistance, bool doNotAutoRecycleIfNotDonePlaying,
-            float playbackTime, float playbackDuration, Transform attachToTransform,
-            bool useSpreadCurve,
-            AnimationCurve spreadCurve, bool useCustomRolloffCurve,
-            AnimationCurve customRolloffCurve,
-            bool useSpatialBlendCurve, AnimationCurve spatialBlendCurve,
-            bool useReverbZoneMixCurve, AnimationCurve reverbZoneMixCurve,
-            float initialDelay
-            )
-        {
-            var option = new AudioPlayOptions
-            {
-                AudioTrack = track,
-                AudioGroup = audioGroup,
-
-                Loop = loop,
-                Volume = volume,
-                Pitch = pitch,
-
-                ID = id,
-
-                FadeInOnPlay = fade,
-                FadeInInitialVolume = fadeInitialVolume,
-                FadeInDuration = fadeDuration,
-                FadeInTweenEase = fadeTweenEase,
-
-                Persistent = persistent,
-                RecycleAudioSource = recycleAudioSource,
-
-                InitialDelay = initialDelay,
-                PlaybackTime = playbackTime,
-                PlaybackDuration = playbackDuration,
-
-                PanStereo = panStereo,
-                SpatialBlend = spatialBlend,
-                AttachToTransform = attachToTransform,
-
-                SoloSingleTrack = soloSingleTrack,
-                SoloAllTracks = soloAllTracks,
-                AutoUnSoloOnEnd = autoUnSoloOnEnd,
-                BypassEffects = bypassEffects,
-                BypassListenerEffects = bypassListenerEffects,
-                BypassReverbZones = bypassReverbZones,
-                Priority = priority,
-                ReverbZoneMix = reverbZoneMix,
-
-                DopplerLevel = dopplerLevel,
-                Location = location,
-                Spread = spread,
-                RolloffMode = rolloffMode,
-                MinDistance = minDistance,
-                MaxDistance = maxDistance,
-
-                DoNotAutoRecycleIfNotDonePlaying = doNotAutoRecycleIfNotDonePlaying,
-
-                UseCustomRolloffCurve = useCustomRolloffCurve,
-                CustomRolloffCurve = customRolloffCurve,
-
-                UseSpatialBlendCurve = useSpatialBlendCurve,
-                SpatialBlendCurve = spatialBlendCurve,
-
-                UseReverbZoneMixCurve = useReverbZoneMixCurve,
-                ReverbZoneMixCurve = reverbZoneMixCurve,
-
-                UseSpreadCurve = useSpreadCurve,
-                SpreadCurve = spreadCurve
-            };
-
-            return Play(clip, option);
-        }
+        // 传统巨型签名重载已由基类 virtual 转发覆盖（AudioServiceHandler.Play → BuildOptions → 参数对象版本）。
 
         /// <summary>
         /// 播放音频，返回服务自维护的音频句柄。
@@ -608,87 +526,7 @@ namespace Moirai.Atropos.Audio
             return 0UL;
         }
 
-        /// <summary>
-        /// 播放音频。
-        /// </summary>
-        public override ulong Play(string path, EAudioTrack track, Vector3 location, bool bAsync, bool bInPool,
-            bool loop, float volume, int id,
-            bool fade, float fadeInitialVolume, float fadeDuration, TweenEase fadeTweenEase,
-            bool persistent,
-            AudioSource recycleAudioSource, AudioMixerGroup audioGroup,
-            float pitch, float panStereo, float spatialBlend,
-            bool soloSingleTrack, bool soloAllTracks, bool autoUnSoloOnEnd,
-            bool bypassEffects, bool bypassListenerEffects, bool bypassReverbZones,
-            int priority, float reverbZoneMix,
-            float dopplerLevel, int spread, AudioRolloffMode rolloffMode,
-            float minDistance, float maxDistance,
-            bool doNotAutoRecycleIfNotDonePlaying, float playbackTime, float playbackDuration,
-            Transform attachToTransform,
-            bool useSpreadCurve, AnimationCurve spreadCurve, bool useCustomRolloffCurve,
-            AnimationCurve customRolloffCurve,
-            bool useSpatialBlendCurve, AnimationCurve spatialBlendCurve,
-            bool useReverbZoneMixCurve, AnimationCurve reverbZoneMixCurve,
-            float initialDelay)
-        {
-            var option = new AudioPlayOptions
-            {
-                AudioTrack = track,
-                AudioGroup = audioGroup,
-
-                Loop = loop,
-                Volume = volume,
-                Pitch = pitch,
-
-                ID = id,
-
-                FadeInOnPlay = fade,
-                FadeInInitialVolume = fadeInitialVolume,
-                FadeInDuration = fadeDuration,
-                FadeInTweenEase = fadeTweenEase,
-
-                Persistent = persistent,
-                RecycleAudioSource = recycleAudioSource,
-
-                PlaybackTime = playbackTime,
-                PlaybackDuration = playbackDuration,
-
-                PanStereo = panStereo,
-                SpatialBlend = spatialBlend,
-                AttachToTransform = attachToTransform,
-
-                SoloSingleTrack = soloSingleTrack,
-                SoloAllTracks = soloAllTracks,
-                AutoUnSoloOnEnd = autoUnSoloOnEnd,
-                BypassEffects = bypassEffects,
-                BypassListenerEffects = bypassListenerEffects,
-                BypassReverbZones = bypassReverbZones,
-                Priority = priority,
-                ReverbZoneMix = reverbZoneMix,
-
-                DopplerLevel = dopplerLevel,
-                Location = location,
-                Spread = spread,
-                RolloffMode = rolloffMode,
-                MinDistance = minDistance,
-                MaxDistance = maxDistance,
-
-                DoNotAutoRecycleIfNotDonePlaying = doNotAutoRecycleIfNotDonePlaying,
-
-                UseCustomRolloffCurve = useCustomRolloffCurve,
-                CustomRolloffCurve = customRolloffCurve,
-
-                UseSpatialBlendCurve = useSpatialBlendCurve,
-                SpatialBlendCurve = spatialBlendCurve,
-
-                UseReverbZoneMixCurve = useReverbZoneMixCurve,
-                ReverbZoneMixCurve = reverbZoneMixCurve,
-
-                UseSpreadCurve = useSpreadCurve,
-                SpreadCurve = spreadCurve
-            };
-
-            return Play(path, option, bAsync, bInPool);
-        }
+        // 传统巨型签名重载已由基类 virtual 转发覆盖（AudioServiceHandler.Play → BuildOptions → 参数对象版本）。
 
         #endregion 播放音频 [PLAY AUDIO]
 
@@ -756,11 +594,11 @@ namespace Moirai.Atropos.Audio
         }
 
         /// <summary>
-        /// 返回播放过指定 ID 的音频代理（零分配：使用共享缓冲区，调用方需在下次调用前消费结果）。
+        /// 填充播放过指定 ID 的音频代理到调用方缓冲区（零共享状态）。
         /// </summary>
-        public override IReadOnlyList<AudioAgent> FindAgentsByID(int id)
+        public override int FindAgentsByID(int id, List<AudioAgent> results)
         {
-            _sharedAgentBuffer.Clear();
+            results.Clear();
             for (int i = 0; i < AudioCategories.Length; i++)
             {
                 var agents = AudioCategories[i]?.AudioAgents;
@@ -769,10 +607,10 @@ namespace Moirai.Atropos.Audio
                 for (int j = 0; j < agents.Count; j++)
                 {
                     if (agents[j].ID == id)
-                        _sharedAgentBuffer.Add(agents[j]);
+                        results.Add(agents[j]);
                 }
             }
-            return _sharedAgentBuffer;
+            return results.Count;
         }
 
         /// <summary>
@@ -796,13 +634,13 @@ namespace Moirai.Atropos.Audio
         }
 
         /// <summary>
-        /// 返回播放过指定 clip 的音频代理（零分配：使用共享缓冲区，调用方需在下次调用前消费结果）。
+        /// 填充播放过指定 clip 的音频代理到调用方缓冲区（零共享状态）。
         /// </summary>
-        public override IReadOnlyList<AudioAgent> FindAgentsByClip(AudioClip clip)
+        public override int FindAgentsByClip(AudioClip clip, List<AudioAgent> results)
         {
-            if (clip == null) return Array.Empty<AudioAgent>();
+            results.Clear();
+            if (clip == null) return 0;
 
-            _sharedAgentBuffer.Clear();
             for (int i = 0; i < AudioCategories.Length; i++)
             {
                 var agents = AudioCategories[i]?.AudioAgents;
@@ -811,10 +649,10 @@ namespace Moirai.Atropos.Audio
                 for (int j = 0; j < agents.Count; j++)
                 {
                     if (agents[j].AudioResource.clip == clip)
-                        _sharedAgentBuffer.Add(agents[j]);
+                        results.Add(agents[j]);
                 }
             }
-            return _sharedAgentBuffer;
+            return results.Count;
         }
 
         /// <summary>

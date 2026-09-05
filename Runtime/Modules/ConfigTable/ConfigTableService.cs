@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
@@ -29,6 +29,8 @@ namespace Moirai.Atropos.ConfigTable
 
         /// <summary>
         /// 初始化配置表服务。由容器在构建期调用。
+        /// <para>调试面板显式豁免：本服务无运行时轮询状态可供观察，不注册 Profiler 窗口。</para>
+        /// <para>无跨模块静态调用——无需 <c>[ServiceDependency]</c> 声明（被 Localization 反向依赖）。</para>
         /// </summary>
         public override void OnInit()
         {
@@ -48,12 +50,7 @@ namespace Moirai.Atropos.ConfigTable
         #endregion
 
         #region 属性 [PROPERTIES]
-
-        /// <summary>
-        /// 服务是否可用
-        /// </summary>
-        public static bool IsValid => s_Handler != null;
-
+		
         #endregion
 
         #region 配置表查询 [CONFIG QUERIES]
