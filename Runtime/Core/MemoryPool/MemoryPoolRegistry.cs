@@ -131,18 +131,10 @@ namespace Moirai.Atropos
 
         #region 初始化 [INITIALIZATION]
 
-        /// <summary>
-        /// 初始化主线程 ID。
-        /// </summary>
-        internal static void InitializeMainThread()
-        {
-            s_MainThreadId = Thread.CurrentThread.ManagedThreadId;
-        }
-
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         private static void InitializeMainThreadOnLoad()
         {
-            InitializeMainThread();
+            s_MainThreadId = Thread.CurrentThread.ManagedThreadId;
             AppDomain.CurrentDomain.DomainUnload -= ReleaseNativeOnDomainUnload;
             AppDomain.CurrentDomain.DomainUnload += ReleaseNativeOnDomainUnload;
         }
@@ -793,6 +785,13 @@ namespace Moirai.Atropos
             }
 
             ValidateMemoryObjectType(type);
+
+#if ENABLE_IL2CPP
+            // IL2CPP：MakeGenericType 对未 AOT 预编译的闭泛型会失败——引导至编译期安全路径。
+            throw new InvalidOperationException(
+                $"MemoryPool: Type '{type.FullName}' could not be materialized under IL2CPP via the dynamic Type path. " +
+                $"Call MemoryPool<{type.Name}>.EnsureRegistered() during startup, or use the generic API MemoryPool<T>.Acquire().");
+#else
             RuntimeHelpers.RunClassConstructor(
                 typeof(MemoryPool<>).MakeGenericType(type).TypeHandle);
 
@@ -802,6 +801,7 @@ namespace Moirai.Atropos
             }
 
             throw new InvalidOperationException($"MemoryPool: Type '{type.FullName}' could not be materialized.");
+#endif
         }
 
         private static MemoryPoolHandle GetOwnerHandle(MemoryObject memory)

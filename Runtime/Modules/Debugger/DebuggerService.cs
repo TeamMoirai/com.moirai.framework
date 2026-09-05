@@ -176,7 +176,7 @@ namespace Moirai.Atropos.Debugger
         /// </summary>
         /// <param name="results">要获取的日志。</param>
         public static void GetRecentLogs(List<LogNode> results) =>
-            s_Handler?.LogCapture.GetRecentLogs(results);
+            s_Handler?.LogCapture?.GetRecentLogs(results);
 
         /// <summary>
         /// 获取记录的最近日志。
@@ -184,7 +184,7 @@ namespace Moirai.Atropos.Debugger
         /// <param name="results">要获取的日志。</param>
         /// <param name="count">要获取最近日志的数量。</param>
         public static void GetRecentLogs(List<LogNode> results, int count) =>
-            s_Handler?.LogCapture.GetRecentLogs(results, count);
+            s_Handler?.LogCapture?.GetRecentLogs(results, count);
 
         #endregion
     }

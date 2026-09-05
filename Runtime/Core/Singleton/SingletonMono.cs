@@ -51,8 +51,12 @@ namespace Moirai.Atropos
         /// <summary>退出窗口标记：应用退出/播放停止期间为 true，Instance 拒绝物化并返回 null。</summary>
         protected static volatile bool s_ShuttingDown;
 
-        /// <summary>初始化此单例的时间戳（多实例竞争时的仲裁依据）。</summary>
-        protected float _initializationTime;
+        /// <summary>初始化此单例的单调序号（多实例竞争时的仲裁依据——同帧 Time.time 并列不失效）。</summary>
+        protected long _initializationOrdinal;
+
+        /// <summary>序号分配器（每封闭泛型类型独立递增）。</summary>
+        // ReSharper disable once StaticMemberInGenericType
+        private static long s_NextOrdinal;
 
         #endregion
 
@@ -160,12 +164,13 @@ namespace Moirai.Atropos
         /// </summary>
         protected virtual void CheckMultipleInstance()
         {
-            _initializationTime = Time.time;
+            // 单调递增序号仲裁（同帧多实例 Time.time 相同会导致 m_Replaceable 仲裁失效）
+            _initializationOrdinal = System.Threading.Interlocked.Increment(ref s_NextOrdinal);
 
             // 防止创建多余单例
             if (s_Instance)
             {
-                if (!m_Replaceable || s_Instance._initializationTime < _initializationTime)
+                if (!m_Replaceable || s_Instance._initializationOrdinal < _initializationOrdinal)
                 {
                     Destroy(gameObject);
                     return;
@@ -195,13 +200,17 @@ namespace Moirai.Atropos
         {
             if (s_Instance != this) return;
 
-            s_ShuttingDown = true;
+            // 退出判据：OnApplicationQuit 先于 OnDestroy 触发——销毁前已置位即退出期销毁。
+            // 旧实现以 Application.isPlaying 判定，但退出期 isPlaying 仍为 true，守卫被误复位导致退出窗口单例复活。
+            bool quitting = s_ShuttingDown;
 
+            s_ShuttingDown = true;
             s_Instance = null;
             OnShutdown();
 
-            // 如果是应用退出（编辑器停止或程序关闭），保持 true，彻底阻止重新创建。
-            if (Application.isPlaying) s_ShuttingDown = false;
+            // 复位仅限"播放中的非退出销毁"（场景卸载销毁非持久单例，下一场景允许重建）。
+            // 退出期（quitting=true）与编辑模式（无播放会话，OnApplicationQuit 不会触发）保持置位，阻止复活。
+            if (!quitting && Application.isPlaying) s_ShuttingDown = false;
         }
 
         /// <summary>

@@ -85,6 +85,10 @@ namespace Moirai.Atropos.Schedulers
         }
         public void Dispose()
         {
+            // 幂等：重复 Dispose 不得二次入池（否则同一实例被两次 Get 取出，池污染）
+            if (_disposed) return;
+            _disposed = true;
+
             SchedulerRunner.Get().Unregister(this, _onComplete.IsValid() ? _onComplete.GetDelegate() : _onUpdate.GetDelegate());
             _onUpdate = default;
             _onComplete = default;
@@ -174,6 +178,8 @@ namespace Moirai.Atropos.Schedulers
         private SchedulerUnsafeBinding<float> _onUpdate;
         private float _startTime;
         private float _lastUpdateTime;
+        // 双重 Dispose 防护（幂等标记；Init 时复位）
+        private bool _disposed;
 
         // for pausing, we push the start time forward by the amount of time that has passed.
         // this will mess with the amount of time that elapsed when we're cancelled or paused if we just
@@ -203,6 +209,7 @@ namespace Moirai.Atropos.Schedulers
             IsCompleted = false;
             _timeElapsedBeforeCancel = null;
             _timeElapsedBeforePause = null;
+            _disposed = false;
         }
 
         #endregion

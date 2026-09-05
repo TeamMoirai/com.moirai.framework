@@ -1,4 +1,4 @@
-using System.Threading;
+﻿using System.Threading;
 using Cysharp.Threading.Tasks;
 using Moirai.Atropos.Resource;
 using UnityEngine;
@@ -55,20 +55,15 @@ namespace Moirai.Atropos.ObjectPool
         }
 
         /// <summary>
-        /// 容器 Tick 驱动——转发到处理器处理到期的维护操作。
+        /// 容器 Tick 驱动——转发到处理器处理到期的维护操作（未就绪时静默降级）。
         /// </summary>
         public void Tick(float elapseSeconds, float realElapseSeconds) =>
-            Handler.Tick(elapseSeconds, realElapseSeconds);
+            s_Handler?.Tick(elapseSeconds, realElapseSeconds);
 
         #endregion
 
         #region 属性 [PROPERTIES]
-
-        /// <summary>
-        /// 服务是否可用。
-        /// </summary>
-        public static bool IsValid => s_Handler != null;
-
+		
         #endregion
 
         #region 获取 [SPAWN]
@@ -80,7 +75,7 @@ namespace Moirai.Atropos.ObjectPool
         /// <param name="parent">父级 Transform。</param>
         /// <returns>游戏对象。</returns>
         public static GameObject Spawn(string location, Transform parent = null) =>
-            Handler.Spawn(location, parent);
+            s_Handler?.Spawn(location, parent);
 
         /// <summary>
         /// 同步获取组件。
@@ -88,9 +83,9 @@ namespace Moirai.Atropos.ObjectPool
         /// <typeparam name="T">组件类型。</typeparam>
         /// <param name="location">资源地址。</param>
         /// <param name="parent">父级 Transform。</param>
-        /// <returns>组件。</returns>
+        /// <returns>组件（未就绪时为 null）。</returns>
         public static T Spawn<T>(string location, Transform parent = null) where T : Component =>
-            Handler.Spawn<T>(location, parent);
+            s_Handler?.Spawn<T>(location, parent);
 
         /// <summary>
         /// 尝试同步获取游戏对象。
@@ -98,10 +93,10 @@ namespace Moirai.Atropos.ObjectPool
         /// <param name="location">资源地址。</param>
         /// <param name="parent">父级 Transform。</param>
         /// <param name="instance">获取的游戏对象。</param>
-        /// <returns>是否成功。</returns>
+        /// <returns>是否成功（未就绪时为 false 且 instance 为 null）。</returns>
         public static bool TrySpawn(string location, Transform parent, out GameObject instance)
         {
-            instance = Handler.Spawn(location, parent);
+            instance = s_Handler?.Spawn(location, parent);
             return instance != null;
         }
 
@@ -111,9 +106,9 @@ namespace Moirai.Atropos.ObjectPool
         /// <param name="location">资源地址。</param>
         /// <param name="parent">父级 Transform。</param>
         /// <param name="cancellationToken">取消令牌。</param>
-        /// <returns>游戏对象。</returns>
+        /// <returns>游戏对象（未就绪时为 null）。</returns>
         public static UniTask<GameObject> SpawnAsync(string location, Transform parent = null, CancellationToken cancellationToken = default) =>
-            Handler.SpawnAsync(location, parent, cancellationToken);
+            s_Handler?.SpawnAsync(location, parent, cancellationToken) ?? UniTask.FromResult<GameObject>(null);
 
         /// <summary>
         /// 异步获取组件。
@@ -122,9 +117,9 @@ namespace Moirai.Atropos.ObjectPool
         /// <param name="location">资源地址。</param>
         /// <param name="parent">父级 Transform。</param>
         /// <param name="cancellationToken">取消令牌。</param>
-        /// <returns>组件。</returns>
+        /// <returns>组件（未就绪时为 null）。</returns>
         public static UniTask<T> SpawnAsync<T>(string location, Transform parent = null, CancellationToken cancellationToken = default) where T : Component =>
-            Handler.SpawnAsync<T>(location, parent, cancellationToken);
+            s_Handler?.SpawnAsync<T>(location, parent, cancellationToken) ?? UniTask.FromResult<T>(null);
 
         #endregion
 
@@ -136,16 +131,16 @@ namespace Moirai.Atropos.ObjectPool
         /// <param name="location">资源地址。</param>
         /// <returns>预制体。</returns>
         public static GameObject LoadPrefab(string location) =>
-            Handler.LoadPrefab(location);
+            s_Handler?.LoadPrefab(location);
 
         /// <summary>
         /// 异步加载预制体。
         /// </summary>
         /// <param name="location">资源地址。</param>
         /// <param name="cancellationToken">取消令牌。</param>
-        /// <returns>预制体。</returns>
+        /// <returns>预制体（未就绪时为 null）。</returns>
         public static UniTask<GameObject> LoadPrefabAsync(string location, CancellationToken cancellationToken = default) =>
-            Handler.LoadPrefabAsync(location, cancellationToken);
+            s_Handler?.LoadPrefabAsync(location, cancellationToken) ?? UniTask.FromResult<GameObject>(null);
 
         /// <summary>
         /// 异步预热指定地址的池。
@@ -153,9 +148,9 @@ namespace Moirai.Atropos.ObjectPool
         /// <param name="location">资源地址。</param>
         /// <param name="count">预热数量。</param>
         /// <param name="cancellationToken">取消令牌。</param>
-        /// <returns>异步任务。</returns>
+        /// <returns>异步任务（未就绪时为 CompletedTask）。</returns>
         public static UniTask WarmupAsync(string location, int count, CancellationToken cancellationToken = default) =>
-            Handler.WarmupAsync(location, count, cancellationToken);
+            s_Handler?.WarmupAsync(location, count, cancellationToken) ?? UniTask.CompletedTask;
 
         #endregion
 
@@ -166,48 +161,48 @@ namespace Moirai.Atropos.ObjectPool
         /// </summary>
         /// <param name="instance">游戏对象。</param>
         public static void Despawn(GameObject instance) =>
-            Handler.Despawn(instance);
+            s_Handler?.Despawn(instance);
 
         /// <summary>
         /// 通过句柄回收游戏对象。
         /// </summary>
         /// <param name="handle">句柄。</param>
         public static void Despawn(GameObjectPoolHandle handle) =>
-            Handler.Despawn(handle);
+            s_Handler?.Despawn(handle);
 
         /// <summary>
         /// 刷新指定地址的池。
         /// </summary>
         /// <param name="location">资源地址。</param>
         public static void Flush(string location) =>
-            Handler.Flush(location);
+            s_Handler?.Flush(location);
 
         /// <summary>
         /// 刷新指定分组的所有池。
         /// </summary>
         /// <param name="group">分组名称。</param>
         public static void FlushGroup(string group) =>
-            Handler.FlushGroup(group);
+            s_Handler?.FlushGroup(group);
 
         /// <summary>
         /// 刷新所有池。
         /// </summary>
         public static void FlushAll() =>
-            Handler.FlushAll();
+            s_Handler?.FlushAll();
 
         /// <summary>
         /// 加载池配置（重建全部池）。
         /// </summary>
         /// <param name="config">配置 ScriptableObject。</param>
         public static void LoadCatalog(PoolConfigScriptableObject config) =>
-            Handler.LoadCatalog(config);
+            s_Handler?.LoadCatalog(config);
 
         /// <summary>
         /// 从资源地址加载池配置（重建全部池）。
         /// </summary>
         /// <param name="poolConfigPath">池配置资源地址。</param>
         public static void LoadCatalog(string poolConfigPath) =>
-            Handler.LoadCatalog(poolConfigPath);
+            s_Handler?.LoadCatalog(poolConfigPath);
 
         #endregion
     }

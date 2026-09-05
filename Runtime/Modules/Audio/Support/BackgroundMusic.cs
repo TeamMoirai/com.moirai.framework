@@ -40,6 +40,9 @@ namespace Moirai.Atropos.Audio
 		[ShowIf(nameof(m_Fade))]
 		[SerializeField] private TweenEase m_FadeTweenEase = new TweenEase(TweenUtility.EEase.InOutQuart);
 
+		// FindAgents 调用方持有缓冲（非序列化）
+		[System.NonSerialized] private System.Collections.Generic.List<AudioAgent> m_AgentsBuffer;
+
 		[Header("独奏 [Solo]")]
 		[SerializeField] private bool m_SoloSingleTrack = false;
 		[SerializeField] private bool m_SoloAllTracks = false;
@@ -56,8 +59,9 @@ namespace Moirai.Atropos.Audio
 		[Button]
 		protected virtual void PlayBGM()
 		{
-			var agents = AudioService.FindAgentsByID(m_ID);
-			if (agents == null) return;
+			// 调用方持有缓冲（零共享状态契约）——成员级复用，无重复分配
+			var agents = m_AgentsBuffer ??= new System.Collections.Generic.List<AudioAgent>(4);
+			if (AudioService.FindAgentsByID(m_ID, agents) == 0) return;
 
 			foreach (var agent in agents)
 			{

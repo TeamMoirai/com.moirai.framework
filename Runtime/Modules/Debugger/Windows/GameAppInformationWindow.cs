@@ -1,5 +1,4 @@
 using System;
-using UnityEngine;
 using UnityEngine.UIElements;
 
 namespace Moirai.Atropos.Debugger
@@ -48,7 +47,7 @@ namespace Moirai.Atropos.Debugger
         {
             VisualElement card = AddSection(root, "运行时控制 [RUNTIME CONTROLS]");
 
-            AddRow(card, "游戏是否暂停 [Is Paused]", GameAppSettings.IsGamePaused.ToString());
+            AddRow(card, "游戏是否暂停 [Is Paused]", GameApp.IsGamePaused.ToString());
             AddRow(card, "框架运行状态 [Framework]", GameApp.IsShutdown ? "Shutdown" : "Active");
 
             card.Add(BuildFrameRateRow());
@@ -60,7 +59,7 @@ namespace Moirai.Atropos.Debugger
                 int index = i;
                 presetRow.Add(DebuggerUI.CreateActionButton(s_GameSpeedLabels[i], () =>
                 {
-                    GameAppSettings.GameSpeed = s_GameSpeedPresets[index];
+                    GameApp.GameSpeed = s_GameSpeedPresets[index];
                     Rebuild();
                 }, IsSelectedSpeed(s_GameSpeedPresets[i]) ? DebuggerUI.EButtonStyle.Active : DebuggerUI.EButtonStyle.Default));
             }
@@ -108,16 +107,16 @@ namespace Moirai.Atropos.Debugger
 
             SliderInt slider = new SliderInt(MIN_FRAME_RATE, MAX_FRAME_RATE)
             {
-                value = GameAppSettings.FrameRate
+                value = GameApp.FrameRate
             };
             slider.style.flexGrow = 1f;
             slider.style.minHeight = 24f;
 
             Label valueLabel = NewSliderValueLabel();
-            valueLabel.text = StringUtility.Format("{0} FPS", GameAppSettings.FrameRate);
+            valueLabel.text = StringUtility.Format("{0} FPS", GameApp.FrameRate);
             slider.RegisterValueChangedCallback(evt =>
             {
-                GameAppSettings.FrameRate = evt.newValue;
+                GameApp.FrameRate = evt.newValue;
                 valueLabel.text = StringUtility.Format("{0} FPS", evt.newValue);
             });
 
@@ -133,16 +132,16 @@ namespace Moirai.Atropos.Debugger
             // 默认主题滑条（与目标帧率行同款外观）——自绘样式曾与默认主题不一致
             Slider slider = new Slider(0f, 8f)
             {
-                value = GameAppSettings.GameSpeed
+                value = GameApp.GameSpeed
             };
             slider.style.flexGrow = 1f;
             slider.style.minHeight = 24f;
 
             Label valueLabel = NewSliderValueLabel();
-            valueLabel.text = StringUtility.Format("{0:F2}x", GameAppSettings.GameSpeed);
+            valueLabel.text = StringUtility.Format("{0:F2}x", GameApp.GameSpeed);
             slider.RegisterValueChangedCallback(evt =>
             {
-                GameAppSettings.GameSpeed = evt.newValue;
+                GameApp.GameSpeed = evt.newValue;
                 valueLabel.text = StringUtility.Format("{0:F2}x", evt.newValue);
             });
 
@@ -171,7 +170,7 @@ namespace Moirai.Atropos.Debugger
 
         private static bool IsSelectedSpeed(float speed)
         {
-            return Math.Abs(GameAppSettings.GameSpeed - speed) < 0.001f;
+            return Math.Abs(GameApp.GameSpeed - speed) < 0.001f;
         }
 
         #endregion

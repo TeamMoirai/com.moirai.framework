@@ -19,7 +19,7 @@ namespace Moirai.Main
 
             var options = EResourceClearMode.ClearUnusedBundleFiles;
             var operation = ResourceService.ClearCacheAsync(options);
-            UnityUtility.StartCoroutine(WaitClearCacheComplete(operation));
+            GameApp.StartCoroutine(WaitClearCacheComplete(operation));
         }
 
         private System.Collections.IEnumerator WaitClearCacheComplete(ResourceClearCacheResult operation)

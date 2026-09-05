@@ -24,6 +24,7 @@ namespace Moirai.Atropos.Resource
 
         #region YooAsset 专有配置 [YOOASSET CONFIG]
 
+        [CollectorPackageDropdown]
         [SerializeField] private string m_PackageName = "DefaultPackage";
 
         /// <inheritdoc />
@@ -33,38 +34,13 @@ namespace Moirai.Atropos.Resource
             set => m_PackageName = value;
         }
 
-        [SerializeField] private EPlayMode m_PlayMode = EPlayMode.EditorSimulateMode;
-
-#if UNITY_EDITOR
-        /// <summary>编辑器运行模式的 EditorPrefs 键。</summary>
-        public const string EDITOR_PLAY_MODE_KEY = "EditorPlayMode";
-#endif
-
         /// <summary>
         /// YooAsset 运行模式（非编辑器下 EditorSimulateMode 自动回退为 OfflinePlayMode）。
         /// </summary>
         public EPlayMode YooPlayMode
         {
-            get
-            {
-#if UNITY_EDITOR
-                return (EPlayMode)UnityEditor.EditorPrefs.GetInt(EDITOR_PLAY_MODE_KEY);
-#else
-                if (m_PlayMode == EPlayMode.EditorSimulateMode)
-                {
-                    m_PlayMode = EPlayMode.OfflinePlayMode;
-                }
-                return m_PlayMode;
-#endif
-            }
-            set => m_PlayMode = value;
-        }
-
-        /// <inheritdoc />
-        public override EResourcePlayMode PlayMode
-        {
-            get => ToFrameworkPlayMode(YooPlayMode);
-            set => m_PlayMode = ToYooAssetPlayMode(value);
+            get => ToYooAssetPlayMode(ResourceServiceSettings.PlayMode);
+            set => ResourceServiceSettings.PlayMode = ToFrameworkPlayMode(value);
         }
 
         [ProviderDropdown]
@@ -243,10 +219,10 @@ namespace Moirai.Atropos.Resource
             switch (playMode)
             {
                 case EPlayMode.EditorSimulateMode: return EResourcePlayMode.EditorSimulate;
-                case EPlayMode.OfflinePlayMode: return EResourcePlayMode.Offline;
+                case EPlayMode.OfflinePlayMode: return EResourcePlayMode.OfflinePlay;
                 case EPlayMode.HostPlayMode: return EResourcePlayMode.HostPlay;
-                case EPlayMode.WebPlayMode: return EResourcePlayMode.WebPlay;
-                default: return EResourcePlayMode.Offline;
+                case EPlayMode.WebPlayMode: return EResourcePlayMode.WebGLPlay;
+                default: return EResourcePlayMode.OfflinePlay;
             }
         }
 
@@ -258,9 +234,9 @@ namespace Moirai.Atropos.Resource
             switch (playMode)
             {
                 case EResourcePlayMode.EditorSimulate: return EPlayMode.EditorSimulateMode;
-                case EResourcePlayMode.Offline: return EPlayMode.OfflinePlayMode;
+                case EResourcePlayMode.OfflinePlay: return EPlayMode.OfflinePlayMode;
                 case EResourcePlayMode.HostPlay: return EPlayMode.HostPlayMode;
-                case EResourcePlayMode.WebPlay: return EPlayMode.WebPlayMode;
+                case EResourcePlayMode.WebGLPlay: return EPlayMode.WebPlayMode;
                 default: return EPlayMode.OfflinePlayMode;
             }
         }
@@ -345,7 +321,7 @@ namespace Moirai.Atropos.Resource
         /// <inheritdoc />
         public override async UniTask<ResourcePackageInitResult> InitPackage(string packageName, bool needInitManifest = false)
         {
-            LogUtility.Warning("Resource Service Used :{0}", PlayMode);
+            LogUtility.Warning("Resource Service Used :{0}", ResourceServiceSettings.PlayMode);
 
             // 并发去重：同一包名的初始化在途时，后续调用等待同一结果。
             if (_packageInitTasks.TryGetValue(packageName, out TaskCompletionSource<InitializePackageOperation> runningTask))
@@ -389,9 +365,9 @@ namespace Moirai.Atropos.Resource
                 {
                     // 未知运行模式：回滚本地记录并快速失败。
                     PackageMap.Remove(packageName);
-                    LogUtility.Error("Unsupported play mode : {0}", PlayMode);
+                    LogUtility.Error("Unsupported play mode : {0}", ResourceServiceSettings.PlayMode);
                     initSource.TrySetResult(null);
-                    throw new GameException(StringUtility.Format("Unsupported play mode : {0}", PlayMode));
+                    throw new GameException(StringUtility.Format("Unsupported play mode : {0}", ResourceServiceSettings.PlayMode));
                 }
 
                 _packageInitOperations[packageName] = initOperation;
@@ -450,7 +426,7 @@ namespace Moirai.Atropos.Resource
             }
 
             // HostPlay/WebPlay 必须已有资源服务器地址：参数未传时回退到预先配置的 HostServerURL（Moirai 的配置源是属性）。
-            if (PlayMode is EResourcePlayMode.HostPlay or EResourcePlayMode.WebPlay && string.IsNullOrEmpty(HostServerURL))
+            if (ResourceServiceSettings.PlayMode is EResourcePlayMode.HostPlay or EResourcePlayMode.WebGLPlay && string.IsNullOrEmpty(HostServerURL))
             {
                 throw new GameException("Host server URL is invalid. Specify hostServerURL or set ResourceService.HostServerURL before initializing in HostPlay/WebPlay mode.");
             }
@@ -507,7 +483,7 @@ namespace Moirai.Atropos.Resource
                 {
                     var createParameters = new WebPlayModeOptions();
                     IRemoteService remoteService = new RemoteService(HostServerURL, FallbackHostServerURL);
-#if UNITY_WEBGL && WEIXINMINIGAME && !UNITY_EDITOR
+#if !UNITY_EDITOR && UNITY_WEBGL && WEIXINMINIGAME
                     // 小游戏缓存根目录
                     // 注意：此处代码根据微信插件配置来填写！
                     LogUtility.Info("=======================WEIXINMINIGAME=======================");

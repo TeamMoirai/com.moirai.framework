@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
 using Sirenix.OdinInspector.Editor;
+using Sirenix.Utilities.Editor;
 using UnityEditor;
 using UnityEditor.UIElements;
 using UnityEngine;
@@ -14,7 +15,7 @@ namespace Moirai.Atropos
     [CustomPropertyDrawer(typeof(ProviderDropdownAttribute), true)]
     internal sealed class ProviderDropdownAttributeDrawer : PropertyDrawer
     {
-        private const float PAD = 3f;
+        internal const float PAD = 3f;
         private const float FOLDOUT_W = 16f;
 
         /// <summary>foldout 展开状态（IMGUI 与 UITK 共享），键为 propertyPath。</summary>
@@ -33,7 +34,7 @@ namespace Moirai.Atropos
         /// 类型菜单缓存：按基类全局共享一份（TypeCache 查询、排序、选项数组、索引字典），
         /// 避免同一基类的每个字段 Drawer 实例重复构建。
         /// </summary>
-        private sealed class TypeMenuCache
+        internal sealed class TypeMenuCache
         {
             private static readonly Dictionary<Type, TypeMenuCache> s_Caches = new Dictionary<Type, TypeMenuCache>();
 
@@ -130,49 +131,54 @@ namespace Moirai.Atropos
 
         /// <summary>标签文本（懒加载）。优先特性 Label；string 模式从字段名推导，引用模式 Nicify 变量名。</summary>
         private string LabelText => _labelText ??=
+            DeriveLabelText(attribute, _isStringMode, fieldInfo.Name);
+
+        /// <summary>标签文本推导（IMGUI 与 Odin 路径共用；Odin 路径通常直接使用 Odin 传入的标签）。</summary>
+        internal static string DeriveLabelText(ProviderDropdownAttribute attribute, bool isStringMode, string fieldName) =>
             !string.IsNullOrEmpty(attribute.Label) ? attribute.Label
-            : _isStringMode ? LabelPatterns.DeriveHelperLabel(fieldInfo.Name)
-            : ObjectNames.NicifyVariableName(fieldInfo.Name);
+            : isStringMode ? LabelPatterns.DeriveHelperLabel(fieldName)
+            : ObjectNames.NicifyVariableName(fieldName);
 
         #endregion
 
-        #region 通用 [SHARED]
+        #region 通用与共享绘制 [SHARED]
 
-        /// <summary>写入选项（IMGUI / UITK 共用）：string 模式存类型全名，引用模式存实例，0 = None。</summary>
-        private void ApplySelection(SerializedProperty property, int index)
+        /// <summary>写入选项（IMGUI / UITK / Odin 共用）：string 模式存类型全名，引用模式存实例，0 = None。</summary>
+        private static void ApplySelection(SerializedProperty property, int index, TypeMenuCache cache)
         {
-            if (_isStringMode)
+            if (property.propertyType == SerializedPropertyType.String)
             {
-                property.stringValue = index >= 1 && index <= Cache.Types.Length
-                    ? Cache.Types[index - 1].FullName
+                property.stringValue = index >= 1 && index <= cache.Types.Length
+                    ? cache.Types[index - 1].FullName
                     : string.Empty;
             }
             else
             {
                 property.managedReferenceValue = index == 0
                     ? null
-                    : Activator.CreateInstance(Cache.Types[index - 1]);
+                    : Activator.CreateInstance(cache.Types[index - 1]);
             }
         }
 
         /// <summary>
-        /// 写入选项并注册撤销（IMGUI / UITK 共用）：
+        /// 写入选项并注册撤销（IMGUI / UITK / Odin 共用）：
         /// Update → Undo.RecordObject → 写值 → ApplyModifiedProperties，保证 Ctrl+Z 可回退。
         /// </summary>
-        private void ApplySelectionWithUndo(SerializedProperty property, int index)
+        internal static void ApplySelectionWithUndo(SerializedProperty property, int index, TypeMenuCache cache)
         {
             property.serializedObject.Update();
             Undo.RecordObject(property.serializedObject.targetObject, "Change Provider");
-            ApplySelection(property, index);
+            ApplySelection(property, index, cache);
             property.serializedObject.ApplyModifiedProperties();
         }
 
-        /// <summary>读取当前选项索引（两种模式共用，字典 O(1) 查询）。</summary>
-        private int FindCurrentIndex(SerializedProperty property) => _isStringMode
-            ? Cache.IndexOfName(property.stringValue)
-            : property.managedReferenceValue == null
-                ? 0
-                : Cache.IndexOfType(property.managedReferenceValue.GetType());
+        /// <summary>读取当前选项索引（按属性类型自动分派，字典 O(1) 查询）。</summary>
+        private static int FindCurrentIndex(TypeMenuCache cache, SerializedProperty property) =>
+            property.propertyType == SerializedPropertyType.String
+                ? cache.IndexOfName(property.stringValue)
+                : property.managedReferenceValue == null
+                    ? 0
+                    : cache.IndexOfType(property.managedReferenceValue.GetType());
 
         /// <summary>foldout 键：对象实例 ID + 属性路径，避免不同对象的相同属性路径互相干扰。</summary>
         private static string FoldoutKey(SerializedProperty property) =>
@@ -197,11 +203,91 @@ namespace Moirai.Atropos
             }
         }
 
-        private static bool HasVisibleChildren(SerializedProperty property)
+        internal static bool HasVisibleChildren(SerializedProperty property)
         {
             var child = property.Copy();
             var end = child.GetEndProperty();
             return child.NextVisible(true) && !SerializedProperty.EqualContents(child, end);
+        }
+
+        /// <summary>子属性区高度：内边距 ×2 + 子属性高度与间距（IMGUI 主路径与 Odin 回退路径共用）。</summary>
+        internal static float GetChildrenHeight(SerializedProperty property)
+        {
+            float spacing = EditorGUIUtility.standardVerticalSpacing;
+            float h = PAD * 2;
+
+            bool first = true;
+            ForEachVisibleChild(property, child =>
+            {
+                if (!first) h += spacing;
+                h += EditorGUI.GetPropertyHeight(child, true);
+                first = false;
+            });
+            return h;
+        }
+
+        /// <summary>
+        /// 绘制下拉行：标签 + popup 按钮（引用模式且需展开子属性时右侧并排 foldout 箭头）。<br/>
+        /// IMGUI 主路径与 Odin 路径共用，保证两种宿主下行内交互完全一致。<br/>
+        /// 返回 foldout 展开状态（string 模式恒为 true）。
+        /// </summary>
+        internal static bool DrawRow(Rect position, SerializedProperty property, GUIContent label,
+            TypeMenuCache cache, bool reserveFoldout, Action<SerializedProperty, int> applySelection)
+        {
+            float lineH = EditorGUIUtility.singleLineHeight;
+            Rect fieldRect = EditorGUI.PrefixLabel(new Rect(position.x, position.y, position.width, lineH), label);
+
+            // 需要为 foldout 预留空间
+            Rect popupRect = reserveFoldout
+                ? new Rect(fieldRect.x, fieldRect.y, fieldRect.width - FOLDOUT_W, lineH)
+                : fieldRect;
+
+            int index = FindCurrentIndex(cache, property);
+            GUIContent current = index < cache.Names.Length ? cache.Names[index] : GUIContent.none;
+            if (EditorGUI.DropdownButton(popupRect, current, FocusType.Keyboard, EditorStyles.popup))
+                ShowDropdown(popupRect, cache, index, i => applySelection(property, i));
+
+            if (!reserveFoldout) return true;
+
+            string foldKey = FoldoutKey(property);
+            bool open = EditorGUI.Foldout(
+                new Rect(fieldRect.xMax - FOLDOUT_W, fieldRect.y, FOLDOUT_W, lineH),
+                GetFoldout(foldKey), GUIContent.none, true);
+            SetFoldout(foldKey, open);
+            return open;
+        }
+
+        /// <summary>
+        /// 绘制子属性盒（IMGUI）：unity-box 背景 + PAD 内边距内逐个绘制子属性。<br/>
+        /// IMGUI 主路径与 Odin 回退路径共用。
+        /// </summary>
+        internal static void DrawChildren(Rect boxRect, SerializedProperty property)
+        {
+            GUI.Box(boxRect, GUIContent.none);
+
+            float spacing = EditorGUIUtility.standardVerticalSpacing;
+            float y = boxRect.y + PAD;
+            int indent = EditorGUI.indentLevel;
+            EditorGUI.indentLevel++;
+
+            bool first = true;
+            ForEachVisibleChild(property, child =>
+            {
+                if (!first) y += spacing;
+                float childH = EditorGUI.GetPropertyHeight(child, true);
+                EditorGUI.PropertyField(
+                    new Rect(boxRect.x + PAD, y, boxRect.width - PAD * 2, childH), child, true);
+                y += childH;
+                first = false;
+            });
+
+            EditorGUI.indentLevel = indent;
+        }
+
+        /// <summary>显示带类型详情的自定义下拉弹窗（IMGUI / Odin 路径共用；UITK 使用原生 PopupField）。</summary>
+        private static void ShowDropdown(Rect activatorRect, TypeMenuCache cache, int currentIndex, Action<int> onSelected)
+        {
+            PopupWindow.Show(activatorRect, new TypeDropdownPopup(cache, currentIndex, onSelected));
         }
 
         #endregion
@@ -219,17 +305,8 @@ namespace Moirai.Atropos
             if (!GetFoldout(FoldoutKey(property)))
                 return EditorGUIUtility.singleLineHeight;
 
-            float spacing = EditorGUIUtility.standardVerticalSpacing;
-            float h = EditorGUIUtility.singleLineHeight + spacing + PAD * 2;
-
-            bool first = true;
-            ForEachVisibleChild(property, child =>
-            {
-                if (!first) h += spacing;
-                h += EditorGUI.GetPropertyHeight(child, true);
-                first = false;
-            });
-            return h;
+            return EditorGUIUtility.singleLineHeight + EditorGUIUtility.standardVerticalSpacing
+                + GetChildrenHeight(property);
         }
 
         public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
@@ -244,73 +321,25 @@ namespace Moirai.Atropos
 
         private void DrawStringMode(Rect position, SerializedProperty property)
         {
-            var fieldRect = EditorGUI.PrefixLabel(
-                new Rect(position.x, position.y, position.width, EditorGUIUtility.singleLineHeight), LabelGUI);
-
-            int index = FindCurrentIndex(property);
-            GUIContent current = index < Cache.Names.Length ? Cache.Names[index] : GUIContent.none;
-
-            if (EditorGUI.DropdownButton(fieldRect, current, FocusType.Keyboard, EditorStyles.popup))
-            {
-                ShowDropdown(fieldRect, index, newIndex => ApplySelectionWithUndo(property, newIndex));
-            }
+            DrawRow(position, property, LabelGUI, Cache, false,
+                (p, i) => ApplySelectionWithUndo(p, i, Cache));
         }
 
         private void DrawReferenceMode(Rect position, SerializedProperty property)
         {
-            float spacing = EditorGUIUtility.standardVerticalSpacing;
-            float lineH = EditorGUIUtility.singleLineHeight;
-
-            int index = FindCurrentIndex(property);
             bool hasChildren = property.managedReferenceValue != null && HasVisibleChildren(property);
 
-            var fieldRect = EditorGUI.PrefixLabel(new Rect(position.x, position.y, position.width, lineH), LabelGUI);
-
-            // 有子属性时需要为 foldout 预留空间
-            Rect popupRect = hasChildren
-                ? new Rect(fieldRect.x, fieldRect.y, fieldRect.width - FOLDOUT_W, lineH)
-                : fieldRect;
-
-            GUIContent current = index < Cache.Names.Length ? Cache.Names[index] : GUIContent.none;
-            if (EditorGUI.DropdownButton(popupRect, current, FocusType.Keyboard, EditorStyles.popup))
+            if (!DrawRow(position, property, LabelGUI, Cache, hasChildren, (p, i) =>
             {
-                ShowDropdown(popupRect, index, newIndex =>
-                {
-                    ApplySelectionWithUndo(property, newIndex);
-                    GUI.changed = true;
-                });
-            }
+                ApplySelectionWithUndo(p, i, Cache);
+                GUI.changed = true;
+            })) return;
 
             if (!hasChildren) return;
 
-            // ── foldout ──
-            string foldKey = FoldoutKey(property);
-            bool open = EditorGUI.Foldout(
-                new Rect(fieldRect.xMax - FOLDOUT_W, fieldRect.y, FOLDOUT_W, lineH),
-                GetFoldout(foldKey), GUIContent.none, true);
-            SetFoldout(foldKey, open);
-            if (!open) return;
-
             // ── 子属性绘制 ──
-            float childStartY = position.y + lineH + spacing;
-            GUI.Box(new Rect(position.x, childStartY, position.width, position.yMax - childStartY), GUIContent.none);
-
-            float y = childStartY + PAD;
-            int indent = EditorGUI.indentLevel;
-            EditorGUI.indentLevel++;
-
-            bool first = true;
-            ForEachVisibleChild(property, child =>
-            {
-                if (!first) y += spacing;
-                float childH = EditorGUI.GetPropertyHeight(child, true);
-                EditorGUI.PropertyField(
-                    new Rect(position.x + PAD, y, position.width - PAD * 2, childH), child, true);
-                y += childH;
-                first = false;
-            });
-
-            EditorGUI.indentLevel = indent;
+            float childStartY = position.y + EditorGUIUtility.singleLineHeight + EditorGUIUtility.standardVerticalSpacing;
+            DrawChildren(new Rect(position.x, childStartY, position.width, position.yMax - childStartY), property);
         }
 
         #endregion
@@ -329,7 +358,7 @@ namespace Moirai.Atropos
             SerializedObject so = property.serializedObject;
 
             // 按钮拉满剩余宽度，右缘与 IMGUI popup 对齐
-            var popup = new PopupField<string>(LabelText, Cache.DisplayNames, FindCurrentIndex(property));
+            var popup = new PopupField<string>(LabelText, Cache.DisplayNames, FindCurrentIndex(Cache, property));
             popup.style.flexGrow = 1f;
 
             // string 模式：单行 popup，无 foldout
@@ -389,7 +418,7 @@ namespace Moirai.Atropos
             if (fresh == null) return;
 
             Undo.RecordObject(so.targetObject, "Change Provider");
-            ApplySelection(fresh, popup.index);
+            ApplySelection(fresh, popup.index, Cache);
             so.ApplyModifiedProperties();
         }
 
@@ -404,7 +433,7 @@ namespace Moirai.Atropos
             if (fresh == null) return;
 
             bool hasInstance = fresh.managedReferenceValue != null;
-            popup.SetValueWithoutNotify(Cache.DisplayNames[FindCurrentIndex(fresh)]);
+            popup.SetValueWithoutNotify(Cache.DisplayNames[FindCurrentIndex(Cache, fresh)]);
 
             // 无实例或无可见子属性时不显示箭头与子属性区（与 IMGUI 一致）
             bool showChildren = hasInstance && HasVisibleChildren(fresh);
@@ -426,14 +455,6 @@ namespace Moirai.Atropos
         #endregion
 
         #region 下拉弹窗 [DROPDOWN POPUP]
-
-        /// <summary>
-        /// 显示带类型详情的自定义下拉弹窗（IMGUI 专用；UITK 使用原生 PopupField）。
-        /// </summary>
-        private void ShowDropdown(Rect activatorRect, int currentIndex, Action<int> onSelected)
-        {
-            PopupWindow.Show(activatorRect, new TypeDropdownPopup(Cache, currentIndex, onSelected));
-        }
 
         /// <summary>
         /// 自定义下拉弹窗内容：选项列表 + 下方显示悬停项的类型详情。
@@ -588,30 +609,121 @@ namespace Moirai.Atropos
     }
 
     /// <summary>
-    /// Odin 原生 Drawer，为 <see cref="ProviderDropdownAttribute"/> 自动接管 Odin 绘制，
-    /// 委托到 Unity <see cref="EditorGUI.PropertyField(Rect, SerializedProperty, GUIContent, bool)"/>（触发 <see cref="ProviderDropdownAttributeDrawer"/>）。
+    /// Odin 原生 Drawer，为 <see cref="ProviderDropdownAttribute"/> 接管 Odin 绘制。
+    /// 下拉行与 Unity <see cref="ProviderDropdownAttributeDrawer"/> 共用同一绘制逻辑，
+    /// 而<b>子属性交由 Odin PropertyTree 绘制</b>——实现类字段上的 Odin 特性
+    /// （[ValueDropdown]、[LabelText]、[InfoBox] 等）由此正常生效。
     /// <para>无需在每个字段上手动添加 <c>[DrawWithUnity]</c>。</para>
     /// </summary>
     /// <remarks>
     /// 优先级设为 wrapper=10001，高于 Odin 默认 managed reference drawer 和 DrawWithUnity(10000)。
-    /// 当 PropertyTree 背后有 SerializedObject 时（ScriptableObject 场景），获取 SerializedProperty 并委托绘制；
+    /// 当 PropertyTree 背后有 SerializedObject 时（ScriptableObject 场景），获取 SerializedProperty 并绘制下拉行；
     /// 否则回退到 Odin 默认行为。
+    /// Odin 未解析出子属性时（如未启用多态序列化后端），子属性区回退为 Unity 序列化绘制。
     /// </remarks>
     [DrawerPriority(0, 10001, 0)]
     internal sealed class ProviderDropdownOdinDrawer : OdinAttributeDrawer<ProviderDropdownAttribute>
     {
+        /// <summary>子属性容器样式：unity-box 背景 + 与 IMGUI 路径一致的 PAD 内边距。</summary>
+        private static GUIStyle s_ChildrenBoxStyle;
+
+        private static GUIStyle ChildrenBoxStyle => s_ChildrenBoxStyle ??= new GUIStyle(GUI.skin.box)
+        {
+            padding = new RectOffset(
+                (int)ProviderDropdownAttributeDrawer.PAD, (int)ProviderDropdownAttributeDrawer.PAD,
+                (int)ProviderDropdownAttributeDrawer.PAD, (int)ProviderDropdownAttributeDrawer.PAD)
+        };
+
         protected override void DrawPropertyLayout(GUIContent label)
         {
-            var prop = Property.Tree.GetUnityPropertyForPath(Property.UnityPropertyPath);
+            SerializedProperty prop = Property.Tree.GetUnityPropertyForPath(Property.UnityPropertyPath);
             if (prop == null)
             {
                 CallNextDrawer(label);
                 return;
             }
 
-            float h = EditorGUI.GetPropertyHeight(prop, label, true);
-            Rect rect = EditorGUILayout.GetControlRect(true, h, GUILayout.ExpandWidth(true));
-            EditorGUI.PropertyField(rect, prop, label, true);
+            ProviderDropdownAttributeDrawer.TypeMenuCache cache = ProviderDropdownAttributeDrawer.TypeMenuCache
+                .Get(Attribute.BaseType ?? Property.BaseValueEntry.BaseValueType);
+
+            // 行标签：特性 Label 覆写优先，否则沿用 Odin 标签（已含 [LabelText]/[Tooltip] 等处理）
+            GUIContent rowLabel = !string.IsNullOrEmpty(Attribute.Label) ? new GUIContent(Attribute.Label) : label;
+
+            // string 模式：单行 popup，无 foldout
+            if (prop.propertyType == SerializedPropertyType.String)
+            {
+                Rect rowRect = EditorGUILayout.GetControlRect(
+                    true, EditorGUIUtility.singleLineHeight, GUILayout.ExpandWidth(true));
+                ProviderDropdownAttributeDrawer.DrawRow(rowRect, prop, rowLabel ?? GUIContent.none, cache, false,
+                    (p, i) =>
+                    {
+                        ProviderDropdownAttributeDrawer.ApplySelectionWithUndo(p, i, cache);
+                        GUI.changed = true;
+                    });
+                return;
+            }
+
+            // 引用模式：foldout 可见性取 Odin 子属性（State.Visible 已处理 [HideInInspector]/[Hidden] 等），
+            // 与 Unity 可见性取并集，任一存在可显示子属性即展示箭头
+            bool hasOdinChildren = HasVisibleOdinChildren();
+            bool hasChildren = prop.managedReferenceValue != null
+                && (hasOdinChildren || ProviderDropdownAttributeDrawer.HasVisibleChildren(prop));
+
+            Rect row = EditorGUILayout.GetControlRect(
+                true, EditorGUIUtility.singleLineHeight, GUILayout.ExpandWidth(true));
+            bool open = ProviderDropdownAttributeDrawer.DrawRow(row, prop, rowLabel ?? GUIContent.none, cache,
+                hasChildren, (p, i) =>
+                {
+                    ProviderDropdownAttributeDrawer.ApplySelectionWithUndo(p, i, cache);
+                    Property.Update(true); // 类型切换后强制重解析值与子属性
+                    GUI.changed = true;
+                });
+
+            if (!hasChildren || !open) return;
+
+            if (hasOdinChildren)
+            {
+                DrawChildrenWithOdin();
+            }
+            else
+            {
+                // Odin 未解析出子属性：回退 Unity 序列化绘制（保持与纯 Unity Inspector 一致）
+                Rect boxRect = EditorGUILayout.GetControlRect(
+                    true, ProviderDropdownAttributeDrawer.GetChildrenHeight(prop), GUILayout.ExpandWidth(true));
+                ProviderDropdownAttributeDrawer.DrawChildren(boxRect, prop);
+            }
+        }
+
+        /// <summary>子属性是否在 Odin 侧存在可见项（State.Visible 由 Odin 处理隐藏特性后写入）。</summary>
+        private bool HasVisibleOdinChildren()
+        {
+            var children = Property.Children;
+            for (int i = 0; i < children.Count; i++)
+                if (children[i].State.Visible) return true;
+            return false;
+        }
+
+        /// <summary>子属性交由 Odin PropertyTree 绘制，子字段上的 Odin 特性（ValueDropdown 等）正常生效。</summary>
+        private void DrawChildrenWithOdin()
+        {
+            using (new EditorGUILayout.VerticalScope(ChildrenBoxStyle))
+            {
+                GUIHelper.PushIndentLevel(1);
+                try
+                {
+                    var children = Property.Children;
+                    for (int i = 0; i < children.Count; i++)
+                    {
+                        InspectorProperty child = children[i];
+                        if (!child.State.Visible) continue;
+                        child.Draw();
+                    }
+                }
+                finally
+                {
+                    GUIHelper.PopIndentLevel();
+                }
+            }
         }
     }
 }

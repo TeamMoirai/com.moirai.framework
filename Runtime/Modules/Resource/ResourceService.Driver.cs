@@ -32,10 +32,7 @@ namespace Moirai.Atropos.Resource
         /// </summary>
         private static void DriveInitialize()
         {
-            if (s_Handler == null || s_DriveWired)
-            {
-                return;
-            }
+            if (s_Handler == null || s_DriveWired) return;
 
             // 远程地址（更新系统单源）
             s_Handler.HostServerURL = UpdateSettings.GetResDownLoadPath();
@@ -59,7 +56,7 @@ namespace Moirai.Atropos.Resource
             GameApp.AddDestroyListener(DriveTeardown);
             s_DriveWired = true;
 
-            LogUtility.Info("ResourceService Run Mode：{0}", s_Handler.PlayMode);
+            LogUtility.Info("ResourceService Run Mode：{0}", ResourceServiceSettings.PlayMode);
         }
 
         /// <summary>
@@ -67,10 +64,7 @@ namespace Moirai.Atropos.Resource
         /// </summary>
         internal static void DriveTeardown()
         {
-            if (!s_DriveWired)
-            {
-                return;
-            }
+            if (!s_DriveWired) return;
 
             s_DriveWired = false;
             GameApp.RemoveUpdateListener(DriveTick);
@@ -110,7 +104,7 @@ namespace Moirai.Atropos.Resource
         private static void DriveOnLowMemory()
         {
             LogUtility.Warning("Low memory reported...");
-            Handler.OnLowMemory();
+            s_Handler?.OnLowMemory();
         }
 
         #endregion

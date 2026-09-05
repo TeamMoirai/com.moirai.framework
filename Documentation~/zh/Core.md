@@ -2,13 +2,13 @@
 
 > 框架的服务化基座：以统一服务世界（`ServiceWorld`）管理所有子服务的构造、生命周期、轮询与作用域，并由 `GameApp`（MonoBehaviour）驱动。
 
-`@Service` 是整个框架的服务基础设施。所有功能服务（资源、UI、音频、计时器等）均为继承 `ServiceBase` 的普通 C# 类，依赖通过 `[ServiceDependency(typeof(...))]` 特性声明，由 `GameServices.RegisterService<T>(scope, service)` 统一注册并递归预注册依赖链（零反射）；非服务代码通过各服务的静态外观访问（如 `AudioService.Xxx()`、`UIService.Xxx()`、`ResourceService.Xxx()`），动态服务查找统一走 `GameServices.GetRequiredService<T>()` 等静态方法。服务支持 App/Scene/Gameplay 三级作用域，跨作用域通过 `ContractBindings` 值类型 struct 实现 O(1) 查找（Gameplay > Scene > App 优先级），场景卸载时自动清理场景与玩法级服务。
+`@Service` 是整个框架的服务基础设施。所有功能服务（资源、UI、音频、计时器等）均为继承 `ServiceBase` 的普通 C# 类，依赖通过 `[ServiceDependency(typeof(...))]` 特性声明；世界构建为两阶段——`GameServices.RegisterService<T>(scope, service)` 仅将服务入图，组合根统一调用 `GameServices.Default.InitializeAsync()` 按依赖图拓扑排序驱动全部 `OnInit`（缺失依赖/循环依赖 fail-fast，初始化顺序与注册顺序无关）；运行时（世界已初始化后）注册的服务立即初始化。非服务代码通过各服务的静态外观访问（如 `AudioService.Xxx()`、`UIService.Xxx()`、`ResourceService.Xxx()`），动态服务查找统一走 `GameServices.GetRequiredService<T>()` 等静态方法。服务支持 App/Scene/Gameplay 三级作用域，跨作用域通过内联 3 槽绑定值类型 struct 实现 O(1) 查找（Gameplay > Scene > App 优先级），场景卸载时自动清理场景与玩法级服务。`ServiceWorld` 可实例化（`new ServiceWorld()`）——测试与沙盒场景可构造隔离世界，不触碰 `GameServices.Default`。
 
 ## 核心特性
 
-- **统一服务世界**：`ServiceWorld` 持有 3-slot 固定数组（App/Scene/Gameplay），通过 `ContractBindings` 值类型 struct 实现 O(1) 跨作用域查找，无需父链遍历
-- **特性声明依赖**：`[ServiceDependency(typeof(DepA), typeof(DepB))]` 单特性声明多依赖，编译期由 `ServiceDependencyAnalyzer`（MIRAI002/MIRAI003）校验类型实现 `IService`
-- **递归预注册**：`RegisterWithDependencies` 按 [ServiceDependency] 声明序递归注册依赖（防重复 s_Registered 分桶表 + 防循环 s_InFlight 栈 fail-fast），被依赖服务先创建、先初始化
+- **可实例化服务世界**：`ServiceWorld` 可 `new` 构造隔离世界（测试/沙盒），`GameServices` 静态外观仅是默认世界 `Default` 的投影；3 作用域固定序槽位（App/Scene/Gameplay，零排序）+ 内联 3 槽绑定值类型 struct O(1) 跨作用域查找
+- **特性声明依赖 + 拓扑初始化**：`[ServiceDependency(typeof(DepA), typeof(DepB))]` 单特性声明多依赖，编译期由 `ServiceDependencyAnalyzer`（MIRAI002/MIRAI003）校验类型实现 `IService`；世界初始化按声明图 Kahn 拓扑排序统一驱动 OnInit（初始化顺序与注册顺序无关）
+- **两阶段构建**：`Register` 仅入图（注册期不驱动 OnInit）；`Initialize()`/`InitializeAsync()` 提交第二阶段——缺失依赖与循环依赖在初始化期 fail-fast（错误消息含环成员）；世界已初始化后的运行时注册立即拓扑插入并 OnInit（实现 `IServiceInitializableAsync` 的服务禁止运行时注册）
 - **HandlerHost 静态外观**：12 个框架服务均为 `[HandlerHost] XxxService : ServiceBase` 静态外观 + 可序列化 `XxxHandler` 后端 + `XxxSettings`（`[SerializeReference]` + `[ProviderDropdown]`）选择后端实现
 - **三级作用域**（`EServiceScopeKind.App` / `Scene` / `Gameplay`），跨作用域按 Gameplay > Scene > App 优先级查找
 - **生命周期能力接口按需实现**：`IServiceTickable`、`IServiceFixedTickable`、`IServiceLateTickable`、`IServiceGizmoDrawable`、`IAsyncShutdownService`（均继承 `IService`）
@@ -17,7 +17,7 @@
 - **运行时服务注册**：`GameServices.RegisterService<T>()` / `UnregisterService<T>()` 动态增删单个服务；显式契约重载 `RegisterService(scope, Type, instance)` 支持接口契约与同实例多契约绑定；迭代中调用默认延迟到本轮结束后执行（`EDeferMode.Defer`）
 - **自注册 Mono 服务**：`ServiceMono<TScope>` 在 Awake 中自动注册、OnDestroy 中自动注销
 - **作用域优先级常量**：`ServiceScopeOrder` 显式定义 App/Scene/Gameplay 排序优先级
-- **服务事件**：`onServiceRegistered`/`onServiceUnregistered` 事件支持热替换通知
+- **拦截器**：`IServiceInterceptor` 在服务注册/注销/关闭与作用域帧边界（`OnBeforeScopeTick`/`OnAfterScopeTick`）插入横切逻辑；按 Priority 降序执行
 - **迭代安全**：轮询期间的注册/注销操作延迟到本轮结束后统一应用；轮询中请求的作用域销毁也延迟执行
 - **Tick 异常分级策略**：编辑器与开发构建下记录后立即上抛（fail-fast，第一时间暴露缺陷）；发布构建下记录后隔离续跑（单服务故障不拖垮整帧）
 - **主线程亲和守卫**：编辑器与开发构建下断言调用线程，发布版零开销
@@ -32,12 +32,15 @@
 | 类/接口 | 说明 |
 |---------|------|
 | `IService` | 服务核心契约：`Priority`、`Scope`、`OnInit()`、`Shutdown()` |
-| `ServiceBase` | 纯 C# 服务抽象基类；依赖通过 `[ServiceDependency]` 特性声明，由注册器在注册期校验（须先行手动注册） |
+| `ServiceBase` | 纯 C# 服务抽象基类；依赖通过 `[ServiceDependency]` 特性声明，世界初始化时拓扑校验（生命周期状态机由容器经 `IServiceLifecycle` 唯一驱动，`State` 为只读投影） |
 | `ServiceMono<TScope>` | MonoBehaviour 服务基类（泛型作用域标记），Awake 自动注册、OnDestroy 自动注销 |
-| `ServiceWorld` | 统一服务世界：3-slot 固定作用域数组 + `ContractBindings` 值类型 struct O(1) 跨作用域查找；查找经 `GameServices` 静态外观暴露 |
-| `ServiceScope` | 单作用域注册表、轮询列表与迭代安全机制；注册/注销时同步 `ServiceWorld` 的 `ContractBindings` |
-| `GameServices` | 静态外观：统一注册入口 `RegisterService<T>(scope, service, deferMode)` 与显式契约重载 `RegisterService(scope, Type, instance)`、注销、作用域管理（`ShutdownContainer`/`HasApp`/`HasScene`/`HasGameplay`）、外观懒加载自动注册（`EnsureRegistered`，内部）、轮询驱动、拦截器 |
-| `ServiceDependencyAttribute` | 依赖声明特性：`[ServiceDependency(typeof(DepA), typeof(DepB))]`，声明顺序即依赖注册顺序；编译期 MIRAI002/MIRAI003 校验 |
+| `ServiceWorld` | 可实例化统一服务世界（`new ServiceWorld()` 构造隔离世界）：3 作用域固定序槽位 + 内联绑定值类型 O(1) 跨作用域查找；两阶段构建 `Register`/`Initialize(Async)`；关闭严格逆拓扑 |
+| `ServiceScope` | 单作用域注册表、轮询列表（lazy-sort + swap-remove）、迭代安全（延迟变更队列）与 Tick 异常熔断（连续失败阈值摘除） |
+| `TopologySorter` | 内部 Kahn 拓扑排序器：同入度按注册序稳定出队；缺失依赖/循环依赖 fail-fast（错误消息含环成员） |
+| `GameServices` | 静态外观（默认世界 `Default` 投影）：注册入口 `RegisterService<T>(scope, service, deferMode)` 与显式契约重载、注销、作用域管理（`ShutdownContainer`/`HasApp`/`HasScene`/`HasGameplay`）、外观懒加载自动注册（`EnsureRegistered`，内部）、轮询驱动、帧边界拦截器 |
+| `ServiceDependencyAttribute` | 依赖声明特性：`[ServiceDependency(typeof(DepA), typeof(DepB))]` 单特性多依赖；编译期 MIRAI002/MIRAI003 校验 + 初始化期拓扑排序 |
+| `IServiceInitializableAsync` | 异步初始化能力接口（`UniTask OnInitAsync()`）；须在 `InitializeAsync` 前注册（运行时注册 fail-fast） |
+| `IServiceInterceptor` | 拦截器接口：注册/注销/关闭回调 + 作用域帧边界（`OnBeforeScopeTick`/`OnAfterScopeTick`），按 Priority 降序 |
 | `EServiceScopeKind` | 服务作用域枚举：`App`（全局）、`Scene`（场景卸载时重置）、`Gameplay`（单局玩法） |
 | `EServiceState` | 服务生命周期状态：`Created`、`Initialized`、`ShuttingDown`、`Disposed`（`ServiceBase.State` 属性） |
 | `EDeferMode` | 迭代中注册/注销的延迟策略：`Defer`（延迟到本轮结束，默认）/ `Throw`（立即抛异常） |
@@ -72,11 +75,12 @@ public class MyService : ServiceBase, IServiceTickable
     public void Tick(float elapseSeconds, float realElapseSeconds) { }
 }
 
-// 3. 先注册依赖，再注册依赖方——[ServiceDependency] 声明在注册期校验（依赖缺失即 fail-fast）
+// 3. 两阶段构建：注册顺序无关（拓扑排序保证依赖先行），Initialize 统一驱动 OnInit
 GameServices.RegisterService(EServiceScopeKind.Gameplay, new TimerService());
 GameServices.RegisterService(EServiceScopeKind.Gameplay, new MyService());
+GameServices.Default.Initialize();
 
-// 4. 关闭——服务按逆注册序（依赖方先）关闭
+// 4. 关闭——按逆初始化序（依赖方先）关闭
 GameServices.ShutdownContainer(EServiceScopeKind.Gameplay);
 ```
 
@@ -84,11 +88,11 @@ GameServices.ShutdownContainer(EServiceScopeKind.Gameplay);
 
 ### 生命周期与作用域
 
-- `GameServices.RegisterService<T>(scope, service)` 统一注册入口：注册前校验 `[ServiceDependency]` 声明的依赖均已注册（服务实例仅由手动注册创建，框架不隐式实例化），存在缺失立即抛 `GameException`——注册序即依赖链序；通过校验后注册当前服务并立即驱动 `OnInit()`，被依赖服务先于依赖方初始化。依赖声明始终从实现类型读取——以接口为契约注册时依赖校验同样生效。
+- `GameServices.RegisterService<T>(scope, service)` 统一注册入口（两阶段第一阶段：仅入图，不驱动 OnInit）。世界未初始化时依赖校验推迟到 `Initialize(Async)` 的拓扑排序期统一执行（缺失依赖/循环依赖 fail-fast，错误消息含环成员）；世界已初始化后的运行时注册要求全部依赖已就绪，通过校验后立即驱动 `OnInit()`。依赖声明始终从实现类型读取——以接口为契约注册时依赖校验同样生效。
 - `GameServices.Shutdown()` 按 Gameplay → Scene → App 逆序关闭全部作用域；`GameServices.ShutdownContainer(scope)` 只关闭指定作用域。
 - `GameApp` 监听 `SceneManager.sceneUnloaded`，场景卸载时自动关闭 `Scene` 与 `Gameplay` 作用域。
-- 同一契约可在不同作用域注册不同实现，`GameServices` 查找顺序为 Gameplay > Scene > App（`ContractBindings.TryGetBest()`），可用于战斗内临时替换全局实现。
-- 注册幂等：同一作用域重复注册同契约直接跳过（返回既有实例）；循环依赖在注册期即抛 `GameException`（fail-fast）。
+- 同一契约可在不同作用域注册不同实现，`GameServices` 查找顺序为 Gameplay > Scene > App（跨作用域绑定值类型 `TryGetBest()`），可用于战斗内临时替换全局实现。
+- 注册幂等：同一作用域重复注册同契约直接跳过（返回既有实例）；循环依赖在世界初始化拓扑排序期抛 `GameException`（fail-fast，错误消息含环成员）。
 
 ### HandlerHost 服务架构
 
@@ -135,8 +139,8 @@ public sealed class UIService : ServiceBase, IServiceTickable
 ```
 
 - 声明顺序即依赖校验顺序；所有依赖类型必须实现 `IService`，由 `ServiceDependencyAnalyzer`（MIRAI002/MIRAI003）在编译期校验
-- 服务实例仅由手动注册创建（框架不隐式实例化）；依赖未注册时注册依赖方立即抛 `GameException`，须先注册依赖再注册依赖方
-- 循环依赖在注册期即抛 `GameException`
+- 服务实例仅由手动注册创建（框架不隐式实例化）；依赖未注册时，世界初始化的拓扑排序期抛 `GameException`（世界已初始化后的运行时注册则在注册期立即抛）
+- 循环依赖在世界初始化拓扑排序期抛 `GameException`（fail-fast，错误消息含环成员）
 
 需要运行时延迟解析时，统一使用 `GameServices` 的静态查找方法：
 
@@ -185,16 +189,19 @@ await ProcedureServiceSettings.StartProcedure();
 
 ### 服务事件 [SERVICE EVENTS]
 
-```csharp
-GameServices.onServiceRegistered += (service, interfaceType, scope) =>
-{
-    Debug.Log($"Service registered: {interfaceType.Name} in {scope} scope");
-};
+服务生命周期通知统一经 `IServiceInterceptor`（事件 API 已移除）：
 
-GameServices.onServiceUnregistered += (service) =>
+```csharp
+public sealed class ServiceAuditInterceptor : IServiceInterceptor
 {
-    Debug.Log($"Service unregistered: {service.GetType().Name}");
-};
+    public void OnServiceRegistered(IService service, Type interfaceType, EServiceScopeKind scope) =>
+        Debug.Log($"Service registered: {interfaceType.Name} in {scope} scope");
+
+    public void OnServiceUnregistered(IService service) =>
+        Debug.Log($"Service unregistered: {service.GetType().Name}");
+}
+
+// 注册：GameServices.AddInterceptor(new ServiceAuditInterceptor());
 ```
 
 ### MonoBehaviour 服务 [MONO SERVICE]
@@ -253,7 +260,7 @@ GameServices.AddInterceptor(new ProfilingInterceptor());
 
 ### AOT 安全的延迟解析
 
-`Func<T>` 注入依赖 `MakeGenericMethod`，IL2CPP 下存在裁剪风险。框架服务查找全部走 `RuntimeTypeHandle` 键的 `ContractBindings` 值类型表——零反射、零装箱，天然 AOT 安全：
+`Func<T>` 注入依赖 `MakeGenericMethod`，IL2CPP 下存在裁剪风险。框架服务查找全部走 `RuntimeTypeHandle` 键的内联绑定值类型表——零反射、零装箱，天然 AOT 安全：
 
 ```csharp
 public class BattleService : ServiceBase
@@ -271,7 +278,7 @@ public class BattleService : ServiceBase
 动态增删单个服务（Mod 系统、DLC 热加载等场景）：
 
 ```csharp
-// 运行时注册——立即驱动 OnInit，依赖链自动递归预注册
+// 运行时注册——依赖必须已初始化就绪（缺失即 fail-fast），通过后立即驱动 OnInit
 GameServices.RegisterService(EServiceScopeKind.Gameplay, new BuffService());
 
 // 显式契约注册——以接口为契约键，依赖声明仍从实现类型读取

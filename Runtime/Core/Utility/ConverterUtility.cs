@@ -848,8 +848,8 @@ namespace Moirai.Atropos
         }
         
         
-        [ThreadStatic] //每个静态类型字段对于每一个线程都是唯一的
-        static StringBuilder stringBuilderCache = new StringBuilder(1024);
+        [ThreadStatic] // 每个静态类型字段对于每一个线程都是唯一的
+        private static readonly StringBuilder s_StringBuilderCache = new StringBuilder(1024);
         
         /// <summary>
         /// 将字符串转换为十六进制
@@ -864,10 +864,10 @@ namespace Moirai.Atropos
             {
                 foreach (byte b in bytes)
                 {
-                    stringBuilderCache.AppendFormat("{0:x2}", b);
+                    s_StringBuilderCache.AppendFormat("{0:x2}", b);
                 }
 
-                hexString = stringBuilderCache.ToString();
+                hexString = s_StringBuilderCache.ToString();
             }
 
             return hexString;
@@ -885,10 +885,10 @@ namespace Moirai.Atropos
             {
                 foreach (byte b in bytes)
                 {
-                    stringBuilderCache.AppendFormat("{0:x2}", b);
+                    s_StringBuilderCache.AppendFormat("{0:x2}", b);
                 }
 
-                hexString = stringBuilderCache.ToString();
+                hexString = s_StringBuilderCache.ToString();
             }
 
             return hexString;

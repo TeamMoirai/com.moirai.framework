@@ -43,7 +43,7 @@ namespace GameLogic
 
             LogUtility.Info("<b><color=orange>======= HotFix Logic Entry =======</color></b>");
 
-            UnityUtility.AddDestroyListener(Release);
+            GameApp.AddDestroyListener(Release);
 
             // 保证 UIService 正常初始化
             UIService.CloseAll();
@@ -59,8 +59,6 @@ namespace GameLogic
         
         private static void Release()
         {
-            // 单例已由各自生命周期（SingletonMono.OnDestroy / Singleton.Dispose）自行收尾，
-            // 此处仅做热更域退出通知；如需统一释放自定义单例，请在此逐个调用其 Dispose。
             LogUtility.Warning("======= Release GameApp =======");
         }
     }

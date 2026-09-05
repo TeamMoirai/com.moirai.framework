@@ -77,13 +77,13 @@ namespace Moirai.Main
             ResourceAssetInfoEntry[] assetInfos = ResourceService.GetAssetInfos("PRELOAD");
             foreach (var assetInfo in assetInfos)
             {
-                PreLoad(assetInfo.Location);
+                PreLoad(assetInfo.Location).Forget();
             }
 #if UNITY_WEBGL
             ResourceAssetInfoEntry[] webAssetInfos = ResourceService.GetAssetInfos("WEBGL_PRELOAD");
             foreach (var assetInfo in webAssetInfos)
             {
-                PreLoad(assetInfo.Location);
+                PreLoadAsync(assetInfo.Location).Forget();
             }
 #endif
 
@@ -92,35 +92,25 @@ namespace Moirai.Main
 
         }
 
-        private void PreLoad(string location)
+        private async UniTaskVoid PreLoad(string location)
         {
             _loadedFlag.Add(location, false);
-            PreLoadAsync(location).Forget();
-        }
 
-        private async UniTaskVoid PreLoadAsync(string location)
-        {
+            var lease = await ResourceService.LoadLeaseAsync<UnityEngine.Object>(location);
             try
             {
-                var lease = await ResourceService.LoadLeaseAsync<UnityEngine.Object>(location);
-                OnPreLoadAssetSuccess(location, lease.Asset, 0, null);
+                LogUtility.Debug("Success preload asset from '{0}' duration '{1}'.", location, 0);
             }
             catch (Exception e)
             {
-                OnPreLoadAssetFailure(location, e.Message, null);
+                LogUtility.Warning("Can not preload asset from '{0}' with error message '{1}'.", location, e.Message);
             }
-        }
-
-        private void OnPreLoadAssetFailure(string assetName, string errorMessage, object userdata)
-        {
-            LogUtility.Warning("Can not preload asset from '{0}' with error message '{1}'.", assetName, errorMessage);
-            _loadedFlag[assetName] = true;
-        }
-
-        private void OnPreLoadAssetSuccess(string assetName, UnityEngine.Object asset, float duration, object userdata)
-        {
-            LogUtility.Debug("Success preload asset from '{0}' duration '{1}'.", assetName, duration);
-            _loadedFlag[assetName] = true;
+            finally
+            {
+                _loadedFlag[location] = true;
+                // 完成后即释放租约。
+                lease.Dispose();
+            }
         }
 
         private async UniTaskVoid SmoothValue(float value, float duration, Action callback = null)

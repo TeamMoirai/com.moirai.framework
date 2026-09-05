@@ -7,7 +7,7 @@ namespace Moirai.Atropos.SourceGenerators
 {
     /// <summary>
     /// 为标记了 [HandlerHost(typeof(THandler))] 的 partial class 生成：
-    /// s_Handler 字段、Handler 属性（线程安全 get/set）。
+    /// s_Handler 字段、IsValid 属性、Handler 属性（线程安全 get/set）。
     /// <para>生成的成员均为 static，但类声明沿用源类的修饰符（static 或非 static）。</para>
     /// <para>当 CreateDefaultHandler 方法存在时额外生成 s_DefaultFactory 字段与懒加载路径；
     /// 缺失时 Handler.get 直接抛 InvalidOperationException，由 HandlerHostAnalyzer (MIRAI001) 报告警告。</para>
@@ -70,6 +70,11 @@ namespace Moirai.Atropos.SourceGenerators
             sb.AppendLine($"    {classModifier} {info.ClassName}");
             sb.AppendLine("    {");
             sb.AppendLine($"        private static volatile {info.HandlerTypeName} s_Handler;");
+            sb.AppendLine();
+            sb.AppendLine("        /// <summary>");
+            sb.AppendLine("        /// Handler 是否可用。");
+            sb.AppendLine("        /// </summary>");
+            sb.AppendLine("        public static bool IsValid => s_Handler != null;");
             sb.AppendLine();
 
             if (info.HasCreateDefaultHandler)

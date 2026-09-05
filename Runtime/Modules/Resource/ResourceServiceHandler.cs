@@ -23,11 +23,6 @@ namespace Moirai.Atropos.Resource
         public abstract string DefaultPackageName { get; set; }
 
         /// <summary>
-        /// 资源系统运行模式（框架通用）。
-        /// </summary>
-        public abstract EResourcePlayMode PlayMode { get; set; }
-
-        /// <summary>
         /// 同步初始化回调。默认实现为空，由具体后端覆写以接管资源。
         /// </summary>
         protected override void OnInit()
