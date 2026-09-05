@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using Moirai.Atropos;
+using Moirai.Atropos.UI;
 using UnityEngine;
 using Object = UnityEngine.Object;
 
@@ -11,20 +12,10 @@ namespace Moirai.Main
     /// </summary>
     public static class LauncherMgr
     {
-        private static string s_UIRootPath = "UIRoot/UICanvas";
-        private static Transform s_UIRoot;
         private static readonly Dictionary<string, UIBase> s_UIMapDict = new Dictionary<string, UIBase>(4);
 
         public static void Initialize()
         {
-            s_UIRoot = GameObject.Find(s_UIRootPath)?.transform;
-
-            if (s_UIRoot == null)
-            {
-                Debug.LogError($"======== 找不到 UIRoot 节点 请检查资源路径或Hierarchy窗口中的游戏对象 ========");
-                return;
-            }
-
             // Debug.Log("======== 初始化 LauncherMgr 完成 ========");
         }
 
@@ -46,7 +37,7 @@ namespace Moirai.Main
 
                     if (uiWindow != null)
                     {
-                        uiWindow.transform.SetParent(s_UIRoot.transform);
+                        uiWindow.transform.SetParent(UIService.UIRoot);
                         uiWindow.name = uiName;
                         uiWindow.transform.localScale = Vector3.one;
                         uiWindow.transform.localPosition = Vector3.zero;

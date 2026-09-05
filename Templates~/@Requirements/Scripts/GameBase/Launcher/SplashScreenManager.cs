@@ -28,7 +28,7 @@ namespace Moirai.Main
             EventManager.RegisterCallback<SplashScreenEvent>(OnSplashScreenEvent);
         }
         
-        protected override void Shutdown()
+        protected override void OnShutdown()
         {
             EventManager.UnregisterCallback<SplashScreenEvent>(OnSplashScreenEvent);
         }
@@ -41,7 +41,7 @@ namespace Moirai.Main
         {
             if (_isSplashing) return;
             
-            if (evt.Stage == SplashScreenEvent.SplashStage.Start)
+            if (evt.Stage == SplashScreenEvent.ESplashStage.Start)
             {
                 m_OnSlashStart?.Invoke();
                 _isSplashing = true;
