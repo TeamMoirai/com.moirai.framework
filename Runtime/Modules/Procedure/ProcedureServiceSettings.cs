@@ -1,7 +1,6 @@
 using System;
 using System.Linq;
 using Cysharp.Threading.Tasks;
-using Sirenix.OdinInspector;
 using UnityEngine;
 
 namespace Moirai.Atropos.Procedure
@@ -26,16 +25,6 @@ namespace Moirai.Atropos.Procedure
         [SerializeField] private string m_EntranceProcedureTypeName = null;
 
         private ProcedureBase _entranceProcedure = null;
-
-        /// <summary>
-        /// 获取当前流程。
-        /// </summary>
-        public static ProcedureBase CurrentProcedure => ProcedureService.CurrentProcedure;
-
-        /// <summary>
-        /// 获取当前流程持续时间。
-        /// </summary>
-        public static float CurrentProcedureTime => ProcedureService.CurrentProcedureTime;
 
         /// <summary>
         /// 启动流程。

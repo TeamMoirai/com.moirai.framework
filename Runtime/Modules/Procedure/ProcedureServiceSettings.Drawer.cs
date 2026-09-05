@@ -54,7 +54,7 @@ namespace Moirai.Atropos.Procedure
             else if (EditorApplication.isPlaying)
             {
                 EditorGUILayout.LabelField("Current Procedure",
-                    CurrentProcedure == null ? "None" : CurrentProcedure.GetType().ToString());
+                    ProcedureService.CurrentProcedure == null ? "None" : ProcedureService.CurrentProcedure.GetType().ToString());
             }
 
             // ② 可用流程勾选列表
