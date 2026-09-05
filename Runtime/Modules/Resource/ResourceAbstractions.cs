@@ -13,7 +13,7 @@
         /// <summary>
         /// 单机离线模式。
         /// </summary>
-        Offline = 1,
+        OfflinePlay = 1,
 
         /// <summary>
         /// 联机运行模式（远程资源服务器）。
@@ -23,7 +23,7 @@
         /// <summary>
         /// WebGL 运行模式。
         /// </summary>
-        WebPlay = 3,
+        WebGLPlay = 3,
     }
 
     /// <summary>

@@ -77,12 +77,8 @@ namespace Moirai.Atropos.Resource
         /// </summary>
         public static EResourcePlayMode PlayMode
         {
-            get => s_Handler?.PlayMode ?? EResourcePlayMode.Offline;
-            set
-            {
-                if (s_Handler == null) return;
-                s_Handler.PlayMode = value;
-            }
+            get => ResourceServiceSettings.PlayMode;
+            set => ResourceServiceSettings.PlayMode = value;
         }
 
         /// <summary>

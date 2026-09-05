@@ -25,13 +25,6 @@ namespace Moirai.Atropos.Resource
         public override string DefaultPackageName { get; set; } = "Default";
 
         /// <inheritdoc />
-        public override EResourcePlayMode PlayMode
-        {
-            get => EResourcePlayMode.Offline;
-            set { }
-        }
-
-        /// <inheritdoc />
         public override IResourceBindingService BindingService => _bindingService;
 
         private ResourceBindingService _bindingService;
