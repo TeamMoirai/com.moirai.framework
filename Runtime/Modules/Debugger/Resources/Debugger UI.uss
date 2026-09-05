@@ -550,7 +550,7 @@
 }
 
 .dbg-fps-btn__caption {
-    font-size: 11px;
+    font-size: 15px;
     -unity-font-style: bold;
     color: var(--dbg-text-dim);
     -unity-text-align: lower-center;
