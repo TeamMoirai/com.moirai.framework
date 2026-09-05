@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Cysharp.Threading.Tasks;
-using Sirenix.OdinInspector;
 using UnityEngine;
 using YooAsset;
 using Object = UnityEngine.Object;
@@ -25,12 +24,8 @@ namespace Moirai.Atropos.Resource
 
         #region YooAsset 专有配置 [YOOASSET CONFIG]
 
-        [ValueDropdown(nameof(m_BuildPackageNames))]
+        [CollectorPackageDropdown]
         [SerializeField] private string m_PackageName = "DefaultPackage";
-#if UNITY_EDITOR
-        [HideInInspector]
-        [SerializeField] private string[] m_BuildPackageNames = new[] { "DefaultPackage" };
-#endif
 
         /// <inheritdoc />
         public override string DefaultPackageName
