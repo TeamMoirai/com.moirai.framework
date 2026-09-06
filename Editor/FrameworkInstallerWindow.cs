@@ -22,7 +22,6 @@ namespace Moirai.Atropos.Installer.Editor
         private const string CORE_PACKAGE_NAME = "com.moirai.framework";
         private const string URP_PACKAGE_NAME = "com.unity.render-pipelines.universal";
         private const string HYBRID_CLR_PACKAGE_NAME = "com.code-philosophy.hybridclr";
-        private const string ENABLE_LOG_SYMBOL = "LOG_ALL";
         private const string ENABLE_HYBRID_CLR_SYMBOL = "ENABLE_HYBRIDCLR";
 
         private const string REQUIRED_REGISTRY_NAME = "Open UPM";
@@ -43,8 +42,7 @@ namespace Moirai.Atropos.Installer.Editor
 
         private static readonly string[] s_RuntimeAssetMarkers =
         {
-            "Assets/AssetRaw",
-            "Assets/Settings/YooAsset"
+            "Assets/Scripts/GameProto/Gen",
         };
 
         private static readonly string[] s_HybridAssetMarkers =
@@ -773,8 +771,6 @@ namespace Moirai.Atropos.Installer.Editor
 
         private static void ApplyScriptingDefineSymbols(TemplateType templateType)
         {
-            ScriptingDefineSymbolUtility.AddScriptingDefineSymbol(ENABLE_LOG_SYMBOL);
-
             if (templateType == TemplateType.Hybrid)
             {
                 ScriptingDefineSymbolUtility.AddScriptingDefineSymbol(ENABLE_HYBRID_CLR_SYMBOL);
@@ -870,19 +866,16 @@ namespace Moirai.Atropos.Installer.Editor
                 }
             }
 
-            bool hasLogSymbol = ScriptingDefineSymbolUtility.HasScriptingDefineSymbol(EditorUserBuildSettings.selectedBuildTargetGroup, ENABLE_LOG_SYMBOL);
-            bool hasHybridSymbol = ScriptingDefineSymbolUtility.HasScriptingDefineSymbol(EditorUserBuildSettings.selectedBuildTargetGroup, ENABLE_HYBRID_CLR_SYMBOL);
-
-            if (hasHybridSymbol || HasHybridAssetMarkers())
-            {
-                source = "Compatibility fallback";
-                return ProjectInstallState.HybridTemplate;
-            }
-
-            if (hasLogSymbol || HasRuntimeAssetMarkers())
+            if (HasRuntimeAssetMarkers())
             {
                 source = "Compatibility fallback";
                 return ProjectInstallState.NormalTemplate;
+            }
+
+            if (HasHybridAssetMarkers())
+            {
+                source = "Compatibility fallback";
+                return ProjectInstallState.HybridTemplate;
             }
 
             source = "Default";
