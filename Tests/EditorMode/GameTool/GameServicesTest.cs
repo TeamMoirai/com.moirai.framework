@@ -396,6 +396,96 @@ namespace GameTool
             Assert.IsFalse(GameServices.HasApp, "关闭后 HasApp 应为 false");
         }
 
+        // --- 关闭顺序回归（注册序 ≠ 激活序场景）专用双胞胎 ---
+
+        private sealed class OrderDependee : TestServiceBase, IDepTargetService
+        {
+            public override void OnInit() { base.OnInit(); s_OrderLog.Add("dependee:init"); }
+            public override void OnShutdown() { base.OnShutdown(); s_OrderLog.Add("dependee:shutdown"); }
+        }
+
+        [ServiceDependency(typeof(OrderDependee))]
+        private sealed class OrderDependent : TestServiceBase, IAlphaService
+        {
+            public override void OnInit() { base.OnInit(); s_OrderLog.Add("dependent:init"); }
+            public override void OnShutdown() { base.OnShutdown(); s_OrderLog.Add("dependent:shutdown"); }
+        }
+
+        [Test]
+        public void Shutdown_ReverseActivationOrder_WhenRegistrationOrderDiffers()
+        {
+            // 刻意让依赖方（OrderDependent）先于被依赖方（OrderDependee）注册——合法场景。
+            // 初始化序由拓扑排序决定：Dependee 先 OnInit，Dependent 后 OnInit；
+            // 关闭必须严格逆初始化序（IService.OnShutdown 契约）：依赖方先关闭。
+            RegisterDeferred(new OrderDependent());
+            RegisterDeferred(new OrderDependee());
+            Init();
+
+            Assert.AreEqual(new[] { "dependee:init", "dependent:init" }, s_OrderLog.ToArray(),
+                "初始化应按拓扑序（依赖先行），与注册顺序无关");
+
+            s_OrderLog.Clear();
+            GameServices.ShutdownContainer(EServiceScopeKind.App);
+
+            Assert.AreEqual(new[] { "dependent:shutdown", "dependee:shutdown" }, s_OrderLog.ToArray(),
+                "关闭应严格逆初始化序：依赖方（Dependent）先于被依赖方（Dependee）关闭，" +
+                "不得按逆注册序（那会先关闭仍被依赖的 Dependee）");
+        }
+
+        private sealed class AsyncOrderDependee : TestServiceBase, IDepTargetService, IAsyncShutdownService
+        {
+            public UniTask OnShutdownAsync()
+            {
+                s_OrderLog.Add("dependee:async");
+                return UniTask.CompletedTask;
+            }
+
+            public override void OnShutdown() { base.OnShutdown(); s_OrderLog.Add("dependee:shutdown"); }
+        }
+
+        [ServiceDependency(typeof(AsyncOrderDependee))]
+        private sealed class AsyncOrderDependent : TestServiceBase, IAlphaService, IAsyncShutdownService
+        {
+            public UniTask OnShutdownAsync()
+            {
+                s_OrderLog.Add("dependent:async");
+                return UniTask.CompletedTask;
+            }
+
+            public override void OnShutdown() { base.OnShutdown(); s_OrderLog.Add("dependent:shutdown"); }
+        }
+
+        [Test]
+        public void ShutdownAsync_ReverseActivationOrder_WhenRegistrationOrderDiffers()
+        {
+            // 异步关闭路径与同步路径同契约：逆初始化序逐服务完成（异步先行 + 同步收尾）。
+            RegisterDeferred(new AsyncOrderDependent());
+            RegisterDeferred(new AsyncOrderDependee());
+            Init();
+
+            s_OrderLog.Clear();
+            GameServices.ShutdownContainerAsync(EServiceScopeKind.App).GetAwaiter().GetResult();
+
+            Assert.AreEqual(
+                new[] { "dependent:async", "dependent:shutdown", "dependee:async", "dependee:shutdown" },
+                s_OrderLog.ToArray(),
+                "异步关闭应按逆初始化序逐服务完成：依赖方（Dependent）整体先于被依赖方（Dependee）");
+        }
+
+        [Test]
+        public void Shutdown_NeverActivatedService_ReceivesShutdownFallback()
+        {
+            // 世界未完成初始化即整体销毁：服务从未 OnInit。
+            // 保持既有兜底语义——OnShutdown 仍被驱动（供构造期资源清理）。
+            var svc = new AlphaService();
+            GameServices.RegisterService(EServiceScopeKind.App, svc);
+
+            GameServices.Shutdown();
+
+            Assert.AreEqual(1, svc.ShutdownCount, "未激活服务的 OnShutdown 仍应被兜底驱动");
+            Assert.AreEqual(EServiceState.Disposed, svc.State);
+        }
+
         [Test]
         public void Shutdown_TransitionsStateToDisposed()
         {
