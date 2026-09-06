@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Diagnostics;
 using UnityEngine;
 using Object = UnityEngine.Object;
 
@@ -186,6 +185,22 @@ namespace Moirai.Atropos
             UnityEngine.Debug.unityLogger.logHandler = s_OriginalUnityHandler;
             s_Interceptor = null;
             s_OriginalUnityHandler = null;
+        }
+
+        /// <summary>
+        /// 获取可直写 Unity 控制台、绕过全局拦截器的 logHandler。
+        /// <para>各 <see cref="LogHandler"/> 实现的后端输出（DefaultLogHandler 的 Debug.Log、Serilog 的 Unity3D sink、
+        /// ZLogger 的 UnityDebug processor 等）必须经由本方法获取输出通道：若直接使用 <c>Debug.unityLogger</c>，
+        /// 框架自身输出会被 <see cref="UnityLogInterceptor"/> 当作第三方日志再次捕获、重新走一遍日志管线，
+        /// 造成级别前缀叠加（如 Serilog 的 <c>[INF] [INF]</c>）。</para>
+        /// <para>与初始化顺序无关：拦截未启用时返回当前 handler；启用后返回拦截器锁定的原始 handler。</para>
+        /// </summary>
+        internal static ILogHandler GetBypassUnityHandler()
+        {
+            // 先读入局部再判空：若 DisableGlobalInterception（如测试的 ResetStatics）在判空与取
+            // OriginalHandler 之间把 s_Interceptor 置空，直接链式访问会 NRE。
+            var interceptor = s_Interceptor;
+            return interceptor != null ? interceptor.OriginalHandler : UnityEngine.Debug.unityLogger.logHandler;
         }
 
         #endregion

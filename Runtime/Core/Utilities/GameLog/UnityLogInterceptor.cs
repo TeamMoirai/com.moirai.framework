@@ -12,16 +12,18 @@ namespace Moirai.Atropos
     /// <see cref="LogUtility.DisableGlobalInterception"/> 禁用。
     /// </para>
     /// <para>
-    /// 循环防护：各 <see cref="LogHandler"/> 实现直接输出到各自后端（如 <c>UnityEngine.Debug.Log</c>），
-    /// 不经过 <c>Debug.unityLogger.logHandler</c>，因此不会形成循环。
+    /// 循环防护（双保险）：各 <see cref="LogHandler"/> 实现的后端输出经由
+    /// <see cref="LogUtility.GetBypassUnityHandler"/> 获取的原始通道直写控制台，不回到本拦截器；
+    /// 重入守卫（<c>s_Reentering</c>）兜底——后端若误用被拦截的通道输出，重入调用直达原始 handler，
+    /// 不会再次进入日志管线（但消息会带上已渲染的前缀，因此后端不应依赖兜底路径）。
     /// </para>
     /// </summary>
     internal sealed class UnityLogInterceptor : ILogHandler
     {
         private readonly ILogHandler _originalHandler;
 
-        // 重入守卫：Handler 后端输出到 Debug.Log 时会回到本拦截器，
-        // 通过此标志在重入时直接走 _originalHandler，避免循环。
+        // 重入守卫（兜底）：后端误用被拦截的 Debug.unityLogger 输出时会回到本拦截器，
+        // 通过此标志在重入时直接走 _originalHandler，避免无限循环（无法避免前缀叠加，后端应走 GetBypassUnityHandler）。
         [NonSerialized] private static bool s_Reentering;
 
         /// <summary>
@@ -37,7 +39,7 @@ namespace Moirai.Atropos
         [HideInCallstack]
         public void LogFormat(LogType logType, Object context, string format, params object[] args)
         {
-            // 重入守卫：Handler 后端（ZLogger/DefaultLogHandler）输出到 Debug.Log 时会回到本拦截器
+            // 重入守卫（兜底）：后端误用被拦截通道输出时会回到本拦截器
             if (s_Reentering)
             {
                 _originalHandler.LogFormat(logType, context, format, args);
