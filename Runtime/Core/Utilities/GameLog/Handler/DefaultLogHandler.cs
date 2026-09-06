@@ -11,46 +11,6 @@ namespace Moirai.Atropos
     [Serializable]
     public sealed class DefaultLogHandler : LogHandler
     {
-        // 全局拦截启用时捕获的原始 Unity logHandler，Log 直接调用它绕过拦截器避免循环。
-        [NonSerialized] private ILogHandler _originalHandler;
-
-        /// <inheritdoc/>
-        protected override void OnInit()
-        {
-            base.OnInit();
-
-            // 捕获当前 Unity logHandler（在拦截器安装之前）
-            _originalHandler = UnityEngine.Debug.unityLogger.logHandler;
-        }
-
-        protected override void OnShutdown()
-        {
-            base.OnShutdown();
-
-            _originalHandler = null;
-        }
-
-        /// <summary>
-        /// 获取当前应使用的 Unity logHandler。
-        /// 全局拦截启用时使用捕获的原始 handler 绕过拦截器；否则使用当前 unityLogger.logHandler。
-        /// </summary>
-        private ILogHandler UnityHandler
-        {
-            get
-            {
-                // 拦截器启用时 Debug.unityLogger.logHandler 是 UnityLogInterceptor，
-                // 直接调用会形成 Log → Debug.Log → Interceptor.LogFormat → Log 循环。
-                // 使用 OnInit 时捕获的原始 handler 绕过。
-                var current = UnityEngine.Debug.unityLogger.logHandler;
-                if (current is UnityLogInterceptor interceptor)
-                {
-                    return _originalHandler ?? interceptor.OriginalHandler;
-                }
-
-                return current;
-            }
-        }
-
         /// <summary>
         /// 打印游戏日志，异常对象由 Unity Console 的 Exception 通道输出。
         /// </summary>
@@ -62,7 +22,10 @@ namespace Moirai.Atropos
         public override void Log(LogUtility.ELogLevel logLevel, string message, Exception exception, Object context = null)
         {
             message ??= string.Empty;
-            var handler = UnityHandler;
+
+            // 经 <see cref="LogUtility.GetBypassUnityHandler"/> 绕过全局拦截器，避免
+            // Log → Debug.Log → Interceptor.LogFormat → Log 的回环与前缀叠加。
+            var handler = LogUtility.GetBypassUnityHandler();
 
             switch (logLevel)
             {

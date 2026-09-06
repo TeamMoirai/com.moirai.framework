@@ -24,8 +24,12 @@ namespace Moirai.Atropos
         {
             base.OnInit();
 
+            // sink 必须绕过全局拦截器：Unity3D() 默认写 Debug.unityLogger，而 base.OnInit() 已把其
+            // logHandler 替换为 UnityLogInterceptor，框架自身输出会被再次捕获重新走管线，
+            // 导致 outputTemplate 的 [{Level:u3}] 前缀叠加（[INF] [INF] ...）。
             _logger = new LoggerConfiguration()
-                .WriteTo.Unity3D()
+                // .MinimumLevel.Is(ToSerilogLevel(MinimumLevel))
+                .WriteTo.Unity3D(unityLogger: new UnityEngine.Logger(LogUtility.GetBypassUnityHandler()))
                 .CreateLogger();
         }
 
