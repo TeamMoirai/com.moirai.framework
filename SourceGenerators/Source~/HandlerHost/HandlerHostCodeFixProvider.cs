@@ -12,7 +12,8 @@ using Microsoft.CodeAnalysis.Editing;
 namespace Moirai.Atropos.SourceGenerators
 {
     /// <summary>
-    /// 为 MIRAI001 诊断提供快速修复：生成空的 CreateDefaultHandler 方法。
+    /// 为 MIRAI101 / MIRAI102 诊断提供快速修复：生成 CreateDefaultHandler 方法。
+    /// 对 MIRAI102（settings-only）补充代码兜底工厂后即转为"settings 优先 / 代码兜底"契约。
     /// </summary>
     [ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(HandlerHostCodeFixProvider))]
     public class HandlerHostCodeFixProvider : CodeFixProvider
@@ -20,7 +21,7 @@ namespace Moirai.Atropos.SourceGenerators
         private const string Title = "生成 CreateDefaultHandler()";
 
         public sealed override ImmutableArray<string> FixableDiagnosticIds
-            => ImmutableArray.Create("MIRAI001");
+            => ImmutableArray.Create("MIRAI101", "MIRAI102");
 
         public sealed override FixAllProvider GetFixAllProvider()
             => WellKnownFixAllProviders.BatchFixer;

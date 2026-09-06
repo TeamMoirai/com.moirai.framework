@@ -6,7 +6,7 @@ namespace Moirai.Atropos
     /// 声明服务依赖。注册器据此在注册期校验依赖——依赖必须先行手动注册（服务实例不由框架隐式创建），
     /// 注册序即依赖链序，未注册的依赖使注册立即失败（fail-fast）。
     /// <para>支持单特性多类型声明（类似 <c>RequireComponent</c>）；声明顺序即依赖校验顺序。</para>
-    /// <para>所有依赖类型必须实现 <see cref="IService"/>——由 <c>ServiceDependencyAnalyzer</c>（MIRAI002）在编译期校验。</para>
+    /// <para>所有依赖类型必须实现 <see cref="IService"/>——由 <c>ServiceDependencyAnalyzer</c>（MIRAI201）在编译期校验。</para>
     /// <para>循环依赖在注册期即抛 <see cref="GameException"/>（fail-fast）。</para>
     /// </summary>
     /// <example>

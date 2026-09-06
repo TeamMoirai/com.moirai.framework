@@ -36,6 +36,8 @@ namespace Moirai.Atropos
 #endif
         }
 
+        private static LogHandler GetHandlerFromSettings() => GameAppSettings.LogHandler;
+
         #endregion
 
         #region 事件回调 [EVENTS]
@@ -166,9 +168,6 @@ namespace Moirai.Atropos
         public static void EnableGlobalInterception()
         {
             if (s_Interceptor != null) return;
-
-            // 确保 Handler 已初始化
-            _ = Handler;
 
             var current = UnityEngine.Debug.unityLogger.logHandler;
             if (current is UnityLogInterceptor) return;

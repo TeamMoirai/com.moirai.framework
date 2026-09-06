@@ -11,10 +11,18 @@ namespace Moirai.Atropos
     [HandlerHost(typeof(SettingHandler))]
     public static partial class SettingUtility
     {
-        private static SettingHandler CreateDefaultHandler()
+        #region 处理器 [HANDLER]
+
+        internal static SettingHandler CreateDefaultHandler()
         {
             return new DefaultSettingHandler();
         }
+
+        private static SettingHandler GetHandlerFromSettings() => GameAppSettings.SettingHandler;
+
+        #endregion
+
+        #region 公共 API [PUBLIC API]
 
         /// <summary>
         /// 当前用户标识（用于生成用户隔离的存储键）。
@@ -324,5 +332,7 @@ namespace Moirai.Atropos
         /// 获取用户隔离的字符串值。
         /// </summary>
         public static string GetUserString(string key, string defaultValue) => GetString(GetUserKey(key), defaultValue);
+
+        #endregion
     }
 }

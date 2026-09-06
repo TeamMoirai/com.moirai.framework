@@ -28,7 +28,9 @@ namespace Moirai.Atropos
     [HandlerHost(typeof(StringHandler))]
     public static partial class StringUtility
     {
-        private static StringHandler CreateDefaultHandler()
+        #region 处理器 [HANDLER]
+
+        internal static StringHandler CreateDefaultHandler()
         {
 #if ZSTRING_INSTALLED
             return new ZStringHandler();
@@ -36,6 +38,12 @@ namespace Moirai.Atropos
             return new DefaultStringHandler();
 #endif
         }
+
+        private static StringHandler GetHandlerFromSettings() => GameAppSettings.StringHandler;
+
+        #endregion
+
+        #region 公共 API [PUBLIC API]
 
         /// <summary>
         /// 获取一个池化字符串构建器适配器。
@@ -58,5 +66,7 @@ namespace Moirai.Atropos
         {
             Handler.Clear();
         }
+
+        #endregion
     }
 }

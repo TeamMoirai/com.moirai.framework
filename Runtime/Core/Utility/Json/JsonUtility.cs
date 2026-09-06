@@ -8,10 +8,18 @@ namespace Moirai.Atropos
     [HandlerHost(typeof(JsonHandler))]
     public static partial class JsonUtility
     {
-        private static JsonHandler CreateDefaultHandler()
+        #region 处理器 [HANDLER]
+
+        internal static JsonHandler CreateDefaultHandler()
         {
             return new DefaultJsonHandler();
         }
+
+        private static JsonHandler GetHandlerFromSettings() => GameAppSettings.JsonHandler;
+
+        #endregion
+
+        #region 公共 API [PUBLIC API]
 
         /// <summary>
         /// 将对象序列化为 JSON 字符串。
@@ -238,5 +246,7 @@ namespace Moirai.Atropos
                 sb.Dispose(); // 归还池
             }
         }
+
+        #endregion
     }
 }
