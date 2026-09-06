@@ -18,7 +18,7 @@ The service is split into two independent facades; choose by pooled object type:
 ## Architecture
 
 ```
-Runtime/Modules/ObjectPool/
+Runtime/Services/ObjectPool/
 ├── Kernel/                 # Shared kernel (internal)
 │   ├── PoolSlotStorage<T>      # Paged slot storage (128 slots/page + page-level free stacks)
 │   ├── PoolMaintenanceScheduler # Shared min-heap maintenance scheduler (1ms frame budget)

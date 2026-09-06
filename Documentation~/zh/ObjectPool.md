@@ -18,7 +18,7 @@
 ## 架构
 
 ```
-Runtime/Modules/ObjectPool/
+Runtime/Services/ObjectPool/
 ├── Kernel/                 # 共享内核（internal）
 │   ├── PoolSlotStorage<T>      # 分页槽位存储（128 槽/页 + 页级 free stack）
 │   ├── PoolMaintenanceScheduler # 共享最小堆维护调度（1ms 帧预算）

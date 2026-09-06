@@ -135,7 +135,7 @@ Existing IMGUI debug views (`ServiceDebugView` derivatives) integrate unchanged 
 DebuggerService.RegisterDebugView("Profiler/Timer Service", new TimerServiceDebugView());
 ```
 
-Style helpers are centralized in `DebuggerUI` (structure building and USS class assignment only): `CreateSection` / `CreateCard` / `CreateRow` (value area copies on click, 2/3-wide row overload) / `CreateActionButton` / `CreateToggle` / `CreateFilterChip` / `CreateSlider` / `CreateReadOnlyMultilineText` / `StyleScrollView`, etc.; visual styles (palette / dimensions / interaction states) are defined in the shared style library `Runtime/Modules/Debugger/Resources/Debugger UI.uss` (mounted to `DebuggerPanelSettings.themeStyleSheet` via `Debugger UI Theme.tss`, with hover/pressed/checked driven by USS pseudo-classes) — the theme structure is shared with [DebugUI](https://github.com/annulusgames/DebugUI); sidebar group nodes use the built-in `Foldout` (rotating arrow and content collapsing out of the box).
+Style helpers are centralized in `DebuggerUI` (structure building and USS class assignment only): `CreateSection` / `CreateCard` / `CreateRow` (value area copies on click, 2/3-wide row overload) / `CreateActionButton` / `CreateToggle` / `CreateFilterChip` / `CreateSlider` / `CreateReadOnlyMultilineText` / `StyleScrollView`, etc.; visual styles (palette / dimensions / interaction states) are defined in the shared style library `Runtime/Services/Debugger/Resources/Debugger UI.uss` (mounted to `DebuggerPanelSettings.themeStyleSheet` via `Debugger UI Theme.tss`, with hover/pressed/checked driven by USS pseudo-classes) — the theme structure is shared with [DebugUI](https://github.com/annulusgames/DebugUI); sidebar group nodes use the built-in `Foldout` (rotating arrow and content collapsing out of the box).
 
 ## Service Debug Panels (Framework Built-in)
 
@@ -153,7 +153,7 @@ Each framework service module holds a native UI Toolkit debug view (implementing
 The fixed pattern for adding a service debug panel:
 
 ```csharp
-// 1) Place the view class in the service module's own folder (e.g. Runtime/Modules/Audio/AudioServiceDebugView.cs),
+// 1) Place the view class in the service module's own folder (e.g. Runtime/Services/Audio/AudioServiceDebugView.cs),
 //    inheriting PollingDebuggerWindowBase (data-driven) or ScrollableDebuggerWindowBase (control-driven), content themed via DebuggerUI helpers;
 // 2) Register at the end of the service's OnInit (the composition root guarantees DebuggerService is registered first — silently skipped when the facade isn't ready):
 public override void OnInit()
