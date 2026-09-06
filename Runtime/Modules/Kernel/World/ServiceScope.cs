@@ -9,8 +9,10 @@ namespace Moirai.Atropos
     /// 服务作用域容器。管理单个作用域内服务的注册表、轮询列表和迭代安全机制。
     /// <para><b>所有权</b>：注册/注销由 <see cref="ServiceWorld"/> 驱动，外部代码不直接操作本类。</para>
     /// <para>两阶段构建：<see cref="RegisterDeferred"/> 仅入注册表（不驱动生命周期、不加入轮询列表）；
-    /// 世界 <see cref="ServiceWorld.Initialize"/> 拓扑排序后逐服务 <see cref="ActivateService"/> 补齐轮询列表并驱动 OnInit。</para>
-    /// <para>Dispose 时逆初始化序关闭全部服务（依赖方先关闭，被依赖方后关闭）。</para>
+    /// 世界 <see cref="ServiceWorld.Initialize"/> 拓扑排序后逐服务 <see cref="ActivateService"/> 补齐轮询列表并驱动 OnInit，
+    /// 同时记录激活完成序。</para>
+    /// <para>Dispose 时按逆激活序（= 逆初始化序，依赖方先关闭）关闭全部已初始化服务；
+    /// 未初始化服务归入兜底桶按逆注册序关闭。</para>
     /// <para><b>线程契约</b>：所有方法仅限 Unity 主线程调用。</para>
     /// </summary>
     internal sealed class ServiceScope : IDisposable
@@ -23,6 +25,14 @@ namespace Moirai.Atropos
         private readonly Dictionary<RuntimeTypeHandle, IService> _servicesByContract = new Dictionary<RuntimeTypeHandle, IService>();
         private readonly Dictionary<IService, ServiceEntry> _entriesByService = new Dictionary<IService, ServiceEntry>(ReferenceComparer<IService>.Instance);
         private readonly List<IService> _registrationOrder = new List<IService>();
+
+        // --- 激活完成序（= 初始化完成序）---
+
+        // ActivateService 成功驱动 OnInit 后追加。两阶段构建下初始化顺序由世界拓扑排序决定，
+        // 注册顺序不保证等于激活顺序——关闭必须依据本列表按"逆激活序（依赖方先）"执行，
+        // 逆注册序无法替代（违反 IService.OnShutdown 的"严格逆初始化序"契约）。
+
+        private readonly List<IService> _activationOrder = new List<IService>();
 
         // --- 轮询列表（按 Priority 降序排列，dirty-flag + lazy-sort 维护） ---
 
@@ -142,6 +152,8 @@ namespace Moirai.Atropos
 
         /// <summary>
         /// 两阶段第二阶段（逐服务）：补齐轮询列表并驱动 OnInit。由世界按拓扑序调用。
+        /// <para>OnInit 成功完成后记录进激活序（<see cref="_activationOrder"/>）——
+        /// 作用域关闭按逆激活序执行；初始化抛异常的服务不进入激活序，销毁时归入未激活桶兜底关闭。</para>
         /// </summary>
         internal void ActivateService(IService service)
         {
@@ -149,6 +161,13 @@ namespace Moirai.Atropos
 
             if (service is IServiceLifecycle lifecycle)
                 lifecycle.Initialize(_world, this);
+
+            if (_entriesByService.TryGetValue(service, out var entry) && !entry.ActivationRecorded)
+            {
+                entry.ActivationRecorded = true;
+                _entriesByService[service] = entry;
+                _activationOrder.Add(service);
+            }
         }
 
         /// <summary>
@@ -213,10 +232,10 @@ namespace Moirai.Atropos
                 return service;
             }
 
-            RegisterInternal(service, new[] { contractType }, activateTickables: true);
+            RegisterInternal(service, new[] { contractType }, activateTickables: false);
 
-            if (service is IServiceLifecycle lifecycle)
-                lifecycle.Initialize(_world, this);
+            // 与世界初始化路径共用 ActivateService：补齐轮询列表 + 驱动 OnInit + 记录激活序
+            ActivateService(service);
 
             return service;
         }
@@ -734,10 +753,10 @@ namespace Moirai.Atropos
                                 continue;
                             }
 
-                            RegisterInternal(change.Service, new[] { change.ContractType }, activateTickables: true);
+                            RegisterInternal(change.Service, new[] { change.ContractType }, activateTickables: false);
 
-                            if (change.Service is IServiceLifecycle lifecycle)
-                                lifecycle.Initialize(_world, this);
+                            // 与世界初始化路径共用 ActivateService：补齐轮询列表 + 驱动 OnInit + 记录激活序
+                            ActivateService(change.Service);
                             break;
                         }
 
@@ -829,7 +848,9 @@ namespace Moirai.Atropos
 
             // _registrationOrder 必须保持注册序——使用 List.Remove（O(n) 移位保序），
             // 不用 swap-with-last（会破坏依赖方的关闭顺序保证）。
+            // _activationOrder 同理移除——注销的服务不得残留在关闭序列中。
             _registrationOrder.Remove(service);
+            _activationOrder.Remove(service);
 
             // 轮询列表使用 swap-with-last O(1) 移除 + 置脏标记，下次迭代前 lazy-sort。
             if (entry.TickIndex != MISSING_INDEX) RemoveTickableAt(entry.TickIndex);
@@ -863,8 +884,19 @@ namespace Moirai.Atropos
             if (IsDisposed) return;
             PrepareDisposal();
 
-            // 逆注册序关闭：依赖方（后注册）先关闭，被依赖方后关闭。
-            // 循环依赖在世界初始化的拓扑排序中即被阻止，此处无需再做环检测。
+            // 逆激活序（= 逆初始化序）关闭：依赖方（后初始化）先关闭，被依赖方后关闭。
+            // 初始化顺序由世界拓扑排序决定、与注册顺序无关——逆注册序不保证满足
+            // IService.OnShutdown 的"严格逆初始化序"契约（IService.cs），故依据激活记录执行。
+            for (int i = _activationOrder.Count - 1; i >= 0; i--)
+            {
+                var service = _activationOrder[i];
+                if (service != null && _entriesByService.ContainsKey(service))
+                    ShutdownService(service);
+            }
+
+            // 未激活服务（世界未完成初始化即销毁；或 OnInit 抛异常未完成激活）：
+            // 从未 OnInit，无初始化序可逆——保持既有兜底语义，仍驱动 OnShutdown，
+            // 相对顺序沿用旧实现的逆注册序。
             for (int i = _registrationOrder.Count - 1; i >= 0; i--)
             {
                 var service = _registrationOrder[i];
@@ -895,6 +927,7 @@ namespace Moirai.Atropos
             _isDisposing = false;
 
             _registrationOrder.Clear();
+            _activationOrder.Clear();
             _tickables.Clear();
             _fixedTickables.Clear();
             _lateTickables.Clear();
@@ -910,7 +943,8 @@ namespace Moirai.Atropos
 
         /// <summary>
         /// 异步销毁作用域。对实现 <see cref="IAsyncShutdownService"/> 的服务先调用 <c>OnShutdownAsync</c>，
-        /// 再调用同步 <c>OnShutdown</c>。逆注册序执行。
+        /// 再调用同步 <c>OnShutdown</c>。按逆激活序（= 逆初始化序）执行；
+        /// 未激活服务归入兜底桶按逆注册序关闭（与 <see cref="DisposeInternal"/> 同语义）。
         /// </summary>
         internal async UniTask DisposeAsync()
         {
@@ -924,6 +958,26 @@ namespace Moirai.Atropos
 
             PrepareDisposal();
 
+            // 已激活服务：逆激活序，先异步关闭再同步关闭
+            for (int i = _activationOrder.Count - 1; i >= 0; i--)
+            {
+                var service = _activationOrder[i];
+                if (service == null || !_entriesByService.ContainsKey(service)) continue;
+
+                if (service is IAsyncShutdownService asyncSvc)
+                {
+                    try { await asyncSvc.OnShutdownAsync(); }
+                    catch (Exception ex)
+                    {
+                        LogUtility.Error("Service '{0}' OnShutdownAsync failed:\n{1}",
+                            service.GetType().FullName, ex);
+                    }
+                }
+
+                ShutdownService(service);
+            }
+
+            // 未激活服务：无初始化序可逆，保持既有兜底语义按逆注册序关闭
             for (int i = _registrationOrder.Count - 1; i >= 0; i--)
             {
                 var service = _registrationOrder[i];
@@ -1184,6 +1238,9 @@ namespace Moirai.Atropos
             public int FixedTickIndex;
             public int LateTickIndex;
             public int GizmoIndex;
+
+            /// <summary>是否已记录进激活序（幂等守卫——ActivateService 重复调用不重复入列）。</summary>
+            public bool ActivationRecorded;
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             // ── 轮询耗时统计（仅编辑器/开发构建；Release 结构体不含此 20 字节）──
