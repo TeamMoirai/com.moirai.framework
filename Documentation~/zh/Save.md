@@ -113,7 +113,7 @@ SaveService.Handler = new MessagePackSaveServiceHandler();
 - Handler 在 `SaveService.OnInit` 时读取并缓存；通过设置面板切换 Handler 后，需在下次服务初始化时生效。
 - 加密处理器的 `Key` 来自 `SaveServiceSettings.EncryptionKey`，`Salt` 仍为 `SaveEncryptor` 默认值；修改密钥会导致旧档无法解密（`Load` 返回 `default`）。
 - 二进制处理器基于 `BinaryFormatter`（已过时且有反序列化攻击风险，.NET 9+ 已移除），新项目请使用 `JsonSaveHandler` 或 `JsonEncryptedSaveHandler`。
-- JSON 处理器依赖框架自带 `JsonUtility`（`Moirai.Atropos` 的 `Core/Utility/Json`），而非 `UnityEngine.JsonUtility`，可直接序列化 `byte[]`、字典等类型。
+- JSON 处理器依赖框架自带 `JsonUtility`（`Moirai.Atropos` 的 `Core/Utilities/Json`），而非 `UnityEngine.JsonUtility`，可直接序列化 `byte[]`、字典等类型。
 - 原子替换依赖 `File.Delete` + `File.Move`，在个别平台（如 WebGL 虚拟文件系统）上行为受底层实现限制，建议真机验证。
 
 ---

@@ -113,7 +113,7 @@ SaveService.Handler = new MessagePackSaveServiceHandler();
 - The Handler is read and cached during `SaveService.OnInit`; switching the handler via the settings panel takes effect on the next service initialization.
 - The `Key` for encrypted handlers comes from `SaveServiceSettings.EncryptionKey`; the `Salt` still uses the `SaveEncryptor` default. Changing the key will make old saves undecryptable (`Load` returns `default`).
 - The binary handler is based on `BinaryFormatter` (deprecated and carries deserialization attack risk, removed in .NET 9+). New projects should use `JsonSaveHandler` or `JsonEncryptedSaveHandler`.
-- The JSON handler relies on the framework's built-in `JsonUtility` (`Moirai.Atropos`'s `Core/Utility/Json`), not `UnityEngine.JsonUtility`, and can directly serialize `byte[]`, dictionaries, and other types.
+- The JSON handler relies on the framework's built-in `JsonUtility` (`Moirai.Atropos`'s `Core/Utilities/Json`), not `UnityEngine.JsonUtility`, and can directly serialize `byte[]`, dictionaries, and other types.
 - Atomic replacement depends on `File.Delete` + `File.Move`; on certain platforms (e.g., WebGL virtual file system), behavior is limited by the underlying implementation. It is recommended to verify on the target device.
 
 ---

@@ -25,8 +25,8 @@ namespace Moirai.Atropos
         [SerializeField]
         internal bool m_NeverSleep = true;
 
-        /// <!-- Utility -->
-        private const string HELPER_GROUP = "框架工具 [Global Utility]";
+        /// <!-- Utilities -->
+        private const string HELPER_GROUP = "框架工具 [Global Utilities]";
 
         [BoxGroup(HELPER_GROUP), DisableInPlayMode]
         [ProviderDropdown]

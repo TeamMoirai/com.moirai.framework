@@ -3,7 +3,7 @@
 namespace Moirai.Atropos.Editor
 {
     /// <summary>
-    /// <see cref="DebugDrawHelper"/> 宏定义
+    /// <see cref="DebugDrawUtility"/> 宏定义
     /// </summary>
     public static class DebugDrawsDefineSymbols
     {
@@ -16,7 +16,7 @@ namespace Moirai.Atropos.Editor
         [MenuItem(MENU_ITEM_PATH + "Enable Debug Draws", false, MENU_ITEM_PRIORITY)]
         private static void EnableDebugDraws()
         {
-            DebugDrawHelper.DebugDrawEnabled = true;
+            DebugDrawUtility.DebugDrawEnabled = true;
         }
         
         /// <summary>
@@ -25,7 +25,7 @@ namespace Moirai.Atropos.Editor
         [MenuItem(MENU_ITEM_PATH + "Enable Debug Draws", true)]
         private static bool EnableDebugDrawsValidation()
         {
-            return !DebugDrawHelper.DebugDrawEnabled;
+            return !DebugDrawUtility.DebugDrawEnabled;
         }
         
         /// <summary>
@@ -34,7 +34,7 @@ namespace Moirai.Atropos.Editor
         [MenuItem(MENU_ITEM_PATH + "Disable Debug Draws", false, MENU_ITEM_PRIORITY + 1)]
         private static void DisableDebugDraws()
         {
-            DebugDrawHelper.DebugDrawEnabled = false;
+            DebugDrawUtility.DebugDrawEnabled = false;
         }
         
         /// <summary>
@@ -43,7 +43,7 @@ namespace Moirai.Atropos.Editor
         [MenuItem(MENU_ITEM_PATH + "Disable Debug Draws", true)]
         private static bool DisableDebugDrawsValidation()
         {
-            return DebugDrawHelper.DebugDrawEnabled;
+            return DebugDrawUtility.DebugDrawEnabled;
         }
     }
 }

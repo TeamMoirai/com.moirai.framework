@@ -9,7 +9,7 @@ namespace Moirai.Atropos
 	/// <summary>
 	/// Debug Draw helpers
 	/// </summary>
-	public static class DebugDrawHelper
+	public static class DebugDrawUtility
 	{
         #region 启用/禁用调试 [ENABLE DISABLE DEBUGS]
 
@@ -544,7 +544,7 @@ namespace Moirai.Atropos
             Vector3 pos = new Vector3( rectangle.x + rectangle.width/2, rectangle.y + rectangle.height/2, 0.0f );
 			Vector3 scale = new Vector3 (rectangle.width, rectangle.height, 0.0f );
 
-			DebugDrawHelper.DrawRectangle(pos, color, scale); 
+			DebugDrawUtility.DrawRectangle(pos, color, scale);
 		}	
 
 		/// <summary>

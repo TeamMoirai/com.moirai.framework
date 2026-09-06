@@ -135,7 +135,7 @@ DebuggerService.RegisterDebuggerWindow("Other/My", new MyWindow());
 DebuggerService.RegisterDebugView("Profiler/Timer Service", new TimerServiceDebugView());
 ```
 
-样式辅助统一收口 `DebuggerUI`（仅构建结构与挂 USS 类）：`CreateSection` / `CreateCard` / `CreateRow`（值区域点击复制，2/3 宽行重载）/ `CreateActionButton` / `CreateToggle` / `CreateFilterChip` / `CreateSlider` / `CreateReadOnlyMultilineText` / `StyleScrollView` 等；视觉样式（色板/尺寸/三态）统一定义于共享样式库「`Runtime/Modules/Debugger/Resources/Debugger UI.uss`」（经「`Debugger UI Theme.tss`」挂载到 `DebuggerPanelSettings.themeStyleSheet`，悬停/按下/选中由 USS 伪类驱动）——与 [DebugUI](https://github.com/annulusgames/DebugUI) 共用同一主题结构；侧边栏组节点使用内置 `Foldout`（自带旋转箭头与内容折叠）。
+样式辅助统一收口 `DebuggerUI`（仅构建结构与挂 USS 类）：`CreateSection` / `CreateCard` / `CreateRow`（值区域点击复制，2/3 宽行重载）/ `CreateActionButton` / `CreateToggle` / `CreateFilterChip` / `CreateSlider` / `CreateReadOnlyMultilineText` / `StyleScrollView` 等；视觉样式（色板/尺寸/三态）统一定义于共享样式库「`Runtime/Services/Debugger/Resources/Debugger UI.uss`」（经「`Debugger UI Theme.tss`」挂载到 `DebuggerPanelSettings.themeStyleSheet`，悬停/按下/选中由 USS 伪类驱动）——与 [DebugUI](https://github.com/annulusgames/DebugUI) 共用同一主题结构；侧边栏组节点使用内置 `Foldout`（自带旋转箭头与内容折叠）。
 
 ## 服务调试面板（框架内置）
 
@@ -153,7 +153,7 @@ DebuggerService.RegisterDebugView("Profiler/Timer Service", new TimerServiceDebu
 新增服务调试面板的固定模式：
 
 ```csharp
-// 1) 视图类放在服务模块自己的目录下（如 Runtime/Modules/Audio/AudioServiceDebugView.cs），
+// 1) 视图类放在服务模块自己的目录下（如 Runtime/Services/Audio/AudioServiceDebugView.cs），
 //    继承 PollingDebuggerWindowBase（数据型）或 ScrollableDebuggerWindowBase（控制型），内容经 DebuggerUI 主题化辅助构建；
 // 2) 服务 OnInit 末尾注册（组合根已保证 DebuggerService 先行——外观未就绪时静默跳过）：
 public override void OnInit()
