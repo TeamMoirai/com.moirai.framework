@@ -1,8 +1,10 @@
 #if SERILOG_INSTALLED
 using System;
+using Moirai.Atropos.Serilog;
 using Serilog;
 using Serilog.Events;
 using UnityEngine;
+using ILogger = Serilog.ILogger;
 using Object = UnityEngine.Object;
 
 namespace Moirai.Atropos
@@ -17,22 +19,14 @@ namespace Moirai.Atropos
     {
         [NonSerialized] private ILogger _logger;
 
-        /// <summary>
-        /// 获取或设置 Serilog 日志实例，null 时回退到全局 <see cref="Serilog.Log.Logger"/>。
-        /// </summary>
-        public ILogger Logger
-        {
-            get => _logger ?? Log.Logger;
-            set => _logger = value;
-        }
-
         /// <inheritdoc/>
         protected override void OnInit()
         {
             base.OnInit();
 
-            // 捕获全局 Logger 引用；未配置时使用静默实例，保证日志调用永不抛错。
-            _logger = Log.Logger ?? Serilog.Core.Logger.None;
+            _logger = new LoggerConfiguration()
+                .WriteTo.Unity3D()
+                .CreateLogger();
         }
 
         /// <inheritdoc/>
@@ -44,20 +38,10 @@ namespace Moirai.Atropos
         }
 
         /// <inheritdoc/>
-        public override bool IsEnabled(LogUtility.ELogLevel logLevel)
-        {
-            return Logger.IsEnabled(ToSerilogLevel(logLevel));
-        }
-
-        /// <inheritdoc/>
+        [HideInCallstack]
         public override void Log(LogUtility.ELogLevel logLevel, string message, Exception exception, Object context = null)
         {
-            var logger = Logger;
-            var level = ToSerilogLevel(logLevel);
-            if (!logger.IsEnabled(level))
-            {
-                return;
-            }
+            if (_logger == null) return;
 
             message ??= string.Empty;
 
@@ -67,7 +51,7 @@ namespace Moirai.Atropos
                 ? StringUtility.GetString(sb => sb.Append(TimestampPrefix).Append(message))
                 : message;
 
-            logger.Write(level, exception, "{Message}", formatted);
+            _logger.Write(ToSerilogLevel(logLevel), exception, "{Message}", formatted);
         }
 
         private static LogEventLevel ToSerilogLevel(LogUtility.ELogLevel logLevel)

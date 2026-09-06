@@ -74,19 +74,10 @@ namespace Moirai.Atropos
         }
 
         /// <inheritdoc/>
-        public override bool IsEnabled(LogUtility.ELogLevel logLevel)
-        {
-            return _logger != null && _logger.IsEnabled(ToZLoggerLevel(logLevel));
-        }
-
-        /// <inheritdoc/>
+        [HideInCallstack]
         public override void Log(LogUtility.ELogLevel logLevel, string message, Exception exception, Object context = null)
         {
-            var logger = _logger;
-            if (logger == null || !logger.IsEnabled(ToZLoggerLevel(logLevel)))
-            {
-                return;
-            }
+            if (_logger == null) return;
 
             message ??= string.Empty;
 
@@ -96,8 +87,7 @@ namespace Moirai.Atropos
                 ? StringUtility.GetString(sb => sb.Append(TimestampPrefix).Append(message))
                 : message;
 
-            logger.Log(ToZLoggerLevel(logLevel), default, formatted, exception,
-                static (state, _) => state);
+            _logger.Log(ToZLoggerLevel(logLevel), default, formatted, exception, static (state, _) => state);
         }
 
         private static LogLevel ToZLoggerLevel(LogUtility.ELogLevel logLevel)

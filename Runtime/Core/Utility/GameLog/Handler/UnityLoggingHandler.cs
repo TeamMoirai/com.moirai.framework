@@ -17,32 +17,10 @@ namespace Moirai.Atropos
     [Serializable]
     public sealed class UnityLoggingHandler : LogHandler
     {
-        [SerializeField] private LogUtility.ELogLevel m_MinimumLevel = LogUtility.ELogLevel.Debug;
-
-        /// <summary>
-        /// 获取或设置最小日志等级，低于该等级的日志将由辅助器直接丢弃
-        /// （包级别的最低等级仍由 LogSettings 控制）。
-        /// </summary>
-        public LogUtility.ELogLevel MinimumLevel
-        {
-            get => m_MinimumLevel;
-            set => m_MinimumLevel = value;
-        }
-
         /// <inheritdoc/>
-        public override bool IsEnabled(LogUtility.ELogLevel logLevel)
-        {
-            return logLevel >= m_MinimumLevel;
-        }
-
-        /// <inheritdoc/>
+        [HideInCallstack]
         public override void Log(LogUtility.ELogLevel logLevel, string message, Exception exception, Object context = null)
         {
-            if (!IsEnabled(logLevel))
-            {
-                return;
-            }
-
             message ??= string.Empty;
 
             switch (logLevel)

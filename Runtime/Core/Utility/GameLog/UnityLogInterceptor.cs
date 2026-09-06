@@ -50,8 +50,6 @@ namespace Moirai.Atropos
                 LogUtility.ELogLevel level = ToLogLevel(logType);
 
                 var handler = LogUtility.Handler;
-                if (!handler.IsEnabled(level))
-                    return;
 
                 string message = FormatMessage(format, args);
                 s_Reentering = true;
@@ -83,8 +81,6 @@ namespace Moirai.Atropos
             try
             {
                 var handler = LogUtility.Handler;
-                if (!handler.IsEnabled(LogUtility.ELogLevel.Fatal))
-                    return;
 
                 string message = exception != null ? exception.ToString() : string.Empty;
                 s_Reentering = true;
