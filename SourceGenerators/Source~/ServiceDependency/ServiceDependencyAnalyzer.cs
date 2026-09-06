@@ -12,10 +12,10 @@ namespace Moirai.Atropos.SourceGenerators
     public class ServiceDependencyAnalyzer : DiagnosticAnalyzer
     {
         /// <summary>
-        /// MIRAI002: ServiceDependency 依赖类型未实现 IService。
+        /// MIRAI201: ServiceDependency 依赖类型未实现 IService。
         /// </summary>
         public static readonly DiagnosticDescriptor DependencyMustImplementIServiceRule = new DiagnosticDescriptor(
-            id: "MIRAI002",
+            id: "MIRAI201",
             title: "ServiceDependency 依赖类型未实现 IService",
             messageFormat: "[ServiceDependency] 声明的类型 '{0}' 未实现 'Moirai.Atropos.IService'，无法作为服务依赖注册",
             category: "Usage",
@@ -25,10 +25,10 @@ namespace Moirai.Atropos.SourceGenerators
             customTags: new[] { WellKnownDiagnosticTags.NotConfigurable });
 
         /// <summary>
-        /// MIRAI003: ServiceDependency 未声明任何依赖类型。
+        /// MIRAI202: ServiceDependency 未声明任何依赖类型。
         /// </summary>
         public static readonly DiagnosticDescriptor EmptyDependencyRule = new DiagnosticDescriptor(
-            id: "MIRAI003",
+            id: "MIRAI202",
             title: "ServiceDependency 未声明依赖类型",
             messageFormat: "[ServiceDependency] 未声明任何依赖类型，至少需要一个实现 IService 的类型",
             category: "Usage",

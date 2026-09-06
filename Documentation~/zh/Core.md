@@ -7,7 +7,7 @@
 ## 核心特性
 
 - **可实例化服务世界**：`ServiceWorld` 可 `new` 构造隔离世界（测试/沙盒），`GameServices` 静态外观仅是默认世界 `Default` 的投影；3 作用域固定序槽位（App/Scene/Gameplay，零排序）+ 内联 3 槽绑定值类型 struct O(1) 跨作用域查找
-- **特性声明依赖 + 拓扑初始化**：`[ServiceDependency(typeof(DepA), typeof(DepB))]` 单特性声明多依赖，编译期由 `ServiceDependencyAnalyzer`（MIRAI002/MIRAI003）校验类型实现 `IService`；世界初始化按声明图 Kahn 拓扑排序统一驱动 OnInit（初始化顺序与注册顺序无关）
+- **特性声明依赖 + 拓扑初始化**：`[ServiceDependency(typeof(DepA), typeof(DepB))]` 单特性声明多依赖，编译期由 `ServiceDependencyAnalyzer`（MIRAI201/MIRAI202）校验类型实现 `IService`；世界初始化按声明图 Kahn 拓扑排序统一驱动 OnInit（初始化顺序与注册顺序无关）
 - **两阶段构建**：`Register` 仅入图（注册期不驱动 OnInit）；`Initialize()`/`InitializeAsync()` 提交第二阶段——缺失依赖与循环依赖在初始化期 fail-fast（错误消息含环成员）；世界已初始化后的运行时注册立即拓扑插入并 OnInit（实现 `IServiceInitializableAsync` 的服务禁止运行时注册）
 - **HandlerHost 静态外观**：12 个框架服务均为 `[HandlerHost] XxxService : ServiceBase` 静态外观 + 可序列化 `XxxHandler` 后端 + `XxxSettings`（`[SerializeReference]` + `[ProviderDropdown]`）选择后端实现
 - **三级作用域**（`EServiceScopeKind.App` / `Scene` / `Gameplay`），跨作用域按 Gameplay > Scene > App 优先级查找
@@ -38,7 +38,7 @@
 | `ServiceScope` | 单作用域注册表、轮询列表（lazy-sort + swap-remove）、迭代安全（延迟变更队列）与 Tick 异常熔断（连续失败阈值摘除） |
 | `TopologySorter` | 内部 Kahn 拓扑排序器：同入度按注册序稳定出队；缺失依赖/循环依赖 fail-fast（错误消息含环成员） |
 | `GameServices` | 静态外观（默认世界 `Default` 投影）：注册入口 `RegisterService<T>(scope, service, deferMode)` 与显式契约重载、注销、作用域管理（`ShutdownContainer`/`HasApp`/`HasScene`/`HasGameplay`）、外观懒加载自动注册（`EnsureRegistered`，内部）、轮询驱动、帧边界拦截器 |
-| `ServiceDependencyAttribute` | 依赖声明特性：`[ServiceDependency(typeof(DepA), typeof(DepB))]` 单特性多依赖；编译期 MIRAI002/MIRAI003 校验 + 初始化期拓扑排序 |
+| `ServiceDependencyAttribute` | 依赖声明特性：`[ServiceDependency(typeof(DepA), typeof(DepB))]` 单特性多依赖；编译期 MIRAI201/MIRAI202 校验 + 初始化期拓扑排序 |
 | `IServiceInitializableAsync` | 异步初始化能力接口（`UniTask OnInitAsync()`）；须在 `InitializeAsync` 前注册（运行时注册 fail-fast） |
 | `IServiceInterceptor` | 拦截器接口：注册/注销/关闭回调 + 作用域帧边界（`OnBeforeScopeTick`/`OnAfterScopeTick`），按 Priority 降序 |
 | `EServiceScopeKind` | 服务作用域枚举：`App`（全局）、`Scene`（场景卸载时重置）、`Gameplay`（单局玩法） |
@@ -138,7 +138,7 @@ public sealed class UIService : ServiceBase, IServiceTickable
 }
 ```
 
-- 声明顺序即依赖校验顺序；所有依赖类型必须实现 `IService`，由 `ServiceDependencyAnalyzer`（MIRAI002/MIRAI003）在编译期校验
+- 声明顺序即依赖校验顺序；所有依赖类型必须实现 `IService`，由 `ServiceDependencyAnalyzer`（MIRAI201/MIRAI202）在编译期校验
 - 服务实例仅由手动注册创建（框架不隐式实例化）；依赖未注册时，世界初始化的拓扑排序期抛 `GameException`（世界已初始化后的运行时注册则在注册期立即抛）
 - 循环依赖在世界初始化拓扑排序期抛 `GameException`（fail-fast，错误消息含环成员）
 
@@ -377,8 +377,8 @@ await GameServices.ShutdownAsync();
 
 - **`[HandlerHost(typeof(XxxHandler))]`** 标记 `static partial class`，源生成器自动生成 `Handler` 属性（`volatile` + `Interlocked` 线程安全 get/set）
 - **`FrameworkHandler`** 是所有处理器抽象基类的统一基类，提供 `Internal_Init()` / `Internal_Shutdown()` 幂等生命周期和 `OnInit()` / `OnShutdown()` 虚方法回调
-- 用户在 partial 类中提供 `private static XxxHandler CreateDefaultHandler()` 工厂方法，首次访问 `Handler` 时自动调用
-- 未提供 `CreateDefaultHandler` 时，编译器报 **MIRAI001** 警告（IDE 提供快速修复生成空方法）；`Handler.get` 在未显式设置时抛出 `InvalidOperationException`（运行时托底）
+- 工厂契约三档：① `CreateDefaultHandler` + 可选 `GetHandlerFromSettings`——懒加载 settings 优先，null 回退默认工厂；② 仅 `CreateDefaultHandler`——直接调用工厂；③ 仅 `GetHandlerFromSettings`（settings-only，**MIRAI102** Info 提示）——懒加载调用它并要求返回非空值，null 即抛 `InvalidOperationException`；settings 非 null 时短路不调工厂，工厂链最终为 null（①双 null / ②工厂 null）同样抛 `InvalidOperationException`
+- `CreateDefaultHandler` 与 `GetHandlerFromSettings` 均未提供时，编译器报 **MIRAI101** 警告（IDE 提供快速修复生成空方法）；`Handler.get` 在未显式设置时抛出 `InvalidOperationException`（运行时托底）
 - `Handler` 赋值 `null` 抛出 `ArgumentNullException`（fail-fast）
 - `s_Handler` 字段为 `private`，partial 同类可直接访问
 
@@ -409,7 +409,6 @@ public static partial class LogUtility
 | 成员 | 说明 |
 |------|------|
 | `s_Handler` | `private static volatile` 处理器字段 |
-| `s_DefaultFactory` | `private static Func<T>` = `CreateDefaultHandler`（方法存在时生成） |
 | `Handler` | `public static` 属性：get 懒加载（Interlocked），set 替换并关闭旧处理器 |
 | `Handler.set` | 初始化新处理器 → `Interlocked.Exchange` → 旧处理器 `Internal_Shutdown()` |
 

@@ -9,8 +9,13 @@ namespace Moirai.Atropos.SourceGenerators
     /// 为标记了 [HandlerHost(typeof(THandler))] 的 partial class 生成：
     /// s_Handler 字段、IsValid 属性、Handler 属性（线程安全 get/set）。
     /// <para>生成的成员均为 static，但类声明沿用源类的修饰符（static 或非 static）。</para>
-    /// <para>当 CreateDefaultHandler 方法存在时额外生成 s_DefaultFactory 字段与懒加载路径；
-    /// 缺失时 Handler.get 直接抛 InvalidOperationException，由 HandlerHostAnalyzer (MIRAI001) 报告警告。</para>
+    /// <para>工厂契约三档：
+    /// ① 同时声明 <c>CreateDefaultHandler</c> 与可选的 <c>GetHandlerFromSettings</c>——懒加载优先调用后者，返回 null 回退默认工厂，
+    /// 工厂链最终仍为 null 时抛 <see cref="InvalidOperationException"/>（GetHandlerFromSettings 非 null 则短路，工厂不会被调用）；
+    /// ② 仅声明 <c>CreateDefaultHandler</c>——懒加载直接调用工厂，返回 null 抛 <see cref="InvalidOperationException"/>；
+    /// ③ 仅声明 <c>GetHandlerFromSettings</c>（settings-only）——懒加载调用它并要求返回非空值，
+    /// 返回 null 时抛 <see cref="InvalidOperationException"/>（由 HandlerHostAnalyzer MIRAI102 报告 Info 提示）。</para>
+    /// <para>两者都缺失时 Handler.get 直接抛 InvalidOperationException，由 HandlerHostAnalyzer (MIRAI101) 报告警告。</para>
     /// </summary>
     [Generator]
     public class HandlerHostGenerator : IIncrementalGenerator
@@ -30,18 +35,15 @@ namespace Moirai.Atropos.SourceGenerators
                             .First(a => a.AttributeClass!.ToDisplayString() == Constants.AttributeFullyQualifiedName);
                         var handlerType = (INamedTypeSymbol)attr.ConstructorArguments[0].Value!;
 
-                        var hasCreateDefaultHandler = classSymbol.GetMembers(Constants.CreateDefaultHandlerMethodName)
-                            .OfType<IMethodSymbol>()
-                            .Any(m => m.IsStatic
-                                && !m.IsAbstract
-                                && SymbolEqualityComparer.Default.Equals(m.ReturnType, handlerType)
-                                && m.Parameters.IsEmpty);
+                        var hasCreateDefaultHandler = HasHandlerFactoryMethod(classSymbol, Constants.CreateDefaultHandlerMethodName, handlerType);
+                        var hasGetHandlerFromSettings = HasHandlerFactoryMethod(classSymbol, Constants.GetHandlerFromSettingsMethodName, handlerType);
 
                         return new HandlerHostInfo(
                             classSymbol.Name,
                             classSymbol.ContainingNamespace.ToDisplayString(),
                             handlerType.Name,
                             hasCreateDefaultHandler,
+                            hasGetHandlerFromSettings,
                             classSymbol.IsStatic);
                     });
 
@@ -51,6 +53,16 @@ namespace Moirai.Atropos.SourceGenerators
                     $"{info.ClassName}.g.cs",
                     GenerateCode(in info));
             });
+        }
+
+        private static bool HasHandlerFactoryMethod(INamedTypeSymbol classSymbol, string methodName, INamedTypeSymbol handlerType)
+        {
+            return classSymbol.GetMembers(methodName)
+                .OfType<IMethodSymbol>()
+                .Any(m => m.IsStatic
+                    && !m.IsAbstract
+                    && SymbolEqualityComparer.Default.Equals(m.ReturnType, handlerType)
+                    && m.Parameters.IsEmpty);
         }
 
         private static string GenerateCode(in HandlerHostInfo info)
@@ -77,12 +89,6 @@ namespace Moirai.Atropos.SourceGenerators
             sb.AppendLine("        public static bool IsValid => s_Handler != null;");
             sb.AppendLine();
 
-            if (info.HasCreateDefaultHandler)
-            {
-                sb.AppendLine($"        private static Func<{info.HandlerTypeName}> s_DefaultFactory = CreateDefaultHandler;");
-                sb.AppendLine();
-            }
-
             sb.AppendLine($"        public static {info.HandlerTypeName} Handler");
             sb.AppendLine("        {");
             sb.AppendLine("            get");
@@ -96,11 +102,31 @@ namespace Moirai.Atropos.SourceGenerators
 
             if (info.HasCreateDefaultHandler)
             {
-                sb.AppendLine("                var factory = s_DefaultFactory");
+                // 直接调用工厂方法：s_DefaultFactory 委托字段恒非 null 且无任何再赋值方，判空与字段均为死代码
+                sb.AppendLine(info.HasGetHandlerFromSettings
+                    ? "                var created = GetHandlerFromSettings() ?? CreateDefaultHandler()"
+                    : "                var created = CreateDefaultHandler()");
+
+                // 工厂链末端兜底：settings 缺值且工厂返回 null（或仅工厂且返回 null）时 fail-fast，
+                // 避免 null 流入 CAS 后在 Internal_Init 处 NRE 且每次访问复现
                 sb.AppendLine("                    ?? throw new InvalidOperationException(");
-                sb.AppendLine($"                        \"HandlerHost: default factory not set for {info.ClassName}.\");");
+                sb.AppendLine(info.HasGetHandlerFromSettings
+                    ? $"                        \"HandlerHost: '{info.ClassName}' GetHandlerFromSettings returned null and CreateDefaultHandler returned null.\");"
+                    : $"                        \"HandlerHost: '{info.ClassName}' CreateDefaultHandler returned null.\");");
+
+                sb.AppendLine("                if (Interlocked.CompareExchange(ref s_Handler, created, null) == null)");
+                sb.AppendLine("                {");
+                sb.AppendLine("                    created.Internal_Init();");
+                sb.AppendLine("                }");
+            }
+            else if (info.HasGetHandlerFromSettings)
+            {
+                // settings-only：懒加载唯一来源是 GetHandlerFromSettings，返回 null 即 fail-fast
+                sb.AppendLine("                var created = GetHandlerFromSettings()");
+                sb.AppendLine("                    ?? throw new InvalidOperationException(");
+                sb.AppendLine($"                        \"HandlerHost: '{info.ClassName}' has no CreateDefaultHandler and GetHandlerFromSettings returned null. Set Handler manually or configure the settings source.\");");
                 sb.AppendLine();
-                sb.AppendLine("                var created = factory();");
+
                 sb.AppendLine("                if (Interlocked.CompareExchange(ref s_Handler, created, null) == null)");
                 sb.AppendLine("                {");
                 sb.AppendLine("                    created.Internal_Init();");
@@ -109,11 +135,17 @@ namespace Moirai.Atropos.SourceGenerators
             else
             {
                 sb.AppendLine($"                throw new InvalidOperationException(");
-                sb.AppendLine($"                    \"HandlerHost: '{info.ClassName}' has no CreateDefaultHandler, set Handler manually before use.\");");
+                sb.AppendLine($"                    \"HandlerHost: '{info.ClassName}' has no CreateDefaultHandler or GetHandlerFromSettings, set Handler manually before use.\");");
             }
 
-            sb.AppendLine();
-            sb.AppendLine("                return s_Handler;");
+            if (info.HasCreateDefaultHandler || info.HasGetHandlerFromSettings)
+            {
+                // 懒加载路径：CAS 成功的一侧补 Internal_Init 后返回装配结果
+                sb.AppendLine();
+                sb.AppendLine("                return s_Handler;");
+            }
+            // else：getter 以无条件 throw 结束，块尾不可达即满足 CS0161；不追加 return（避免 CS0162 不可达代码）
+
             sb.AppendLine("            }");
             sb.AppendLine("            set");
             sb.AppendLine("            {");
@@ -143,14 +175,16 @@ namespace Moirai.Atropos.SourceGenerators
             public readonly string Namespace;
             public readonly string HandlerTypeName;
             public readonly bool HasCreateDefaultHandler;
+            public readonly bool HasGetHandlerFromSettings;
             public readonly bool IsStatic;
 
-            public HandlerHostInfo(string className, string @namespace, string handlerTypeName, bool hasCreateDefaultHandler, bool isStatic)
+            public HandlerHostInfo(string className, string @namespace, string handlerTypeName, bool hasCreateDefaultHandler, bool hasGetHandlerFromSettings, bool isStatic)
             {
                 ClassName = className;
                 Namespace = @namespace;
                 HandlerTypeName = handlerTypeName;
                 HasCreateDefaultHandler = hasCreateDefaultHandler;
+                HasGetHandlerFromSettings = hasGetHandlerFromSettings;
                 IsStatic = isStatic;
             }
         }

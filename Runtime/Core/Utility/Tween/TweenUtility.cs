@@ -20,7 +20,9 @@ namespace Moirai.Atropos
     [HandlerHost(typeof(TweenHandler))]
     public static partial class TweenUtility
     {
-        private static TweenHandler CreateDefaultHandler()
+        #region 处理器 [HANDLER]
+
+        internal static TweenHandler CreateDefaultHandler()
         {
 #if LITMOTION_INSTALLED
             return new LitMotionHandler();
@@ -29,7 +31,13 @@ namespace Moirai.Atropos
 #else
             return new DefaultTweenHandler();
 #endif
-       }
+        }
+
+        private static TweenHandler GetHandlerFromSettings() => GameAppSettings.TweenHandler;
+
+        #endregion
+
+        #region 公共 API [PUBLIC API]
 
         // ReSharper disable once IdentifierTypo
         public static bool IsTweening(object onTarget)
@@ -576,5 +584,7 @@ namespace Moirai.Atropos
         {
             return Handler.Custom(target, startValue, endValue, duration, onValueChange, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
         }
+
+        #endregion
     }
 }

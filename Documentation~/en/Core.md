@@ -7,7 +7,7 @@
 ## Core Features
 
 - **Instantiable service world**: `ServiceWorld` can be `new`-constructed into an isolated world (tests/sandboxes), and the `GameServices` static facade is merely a projection of the default world `Default`; 3 fixed-order scope slots (App/Scene/Gameplay, zero sorting) + an inline 3-slot binding value-type struct for O(1) cross-scope lookup
-- **Attribute-declared dependencies + topological initialization**: `[ServiceDependency(typeof(DepA), typeof(DepB))]` declares multiple dependencies in a single attribute, validated at compile time by `ServiceDependencyAnalyzer` (MIRAI002/MIRAI003) to ensure types implement `IService`; world initialization drives all `OnInit` uniformly via Kahn topological sorting over the declared graph (initialization order is independent of registration order)
+- **Attribute-declared dependencies + topological initialization**: `[ServiceDependency(typeof(DepA), typeof(DepB))]` declares multiple dependencies in a single attribute, validated at compile time by `ServiceDependencyAnalyzer` (MIRAI201/MIRAI202) to ensure types implement `IService`; world initialization drives all `OnInit` uniformly via Kahn topological sorting over the declared graph (initialization order is independent of registration order)
 - **Two-phase build**: `Register` only enqueues into the graph (no `OnInit` is driven during registration); `Initialize()`/`InitializeAsync()` commits the second phase — missing and circular dependencies fail-fast at initialization (the error message includes cycle members); runtime registration after the world is initialized is topologically inserted and drives `OnInit` immediately (services implementing `IServiceInitializableAsync` are forbidden from runtime registration)
 - **HandlerHost static facades**: all 12 framework services follow the `[HandlerHost] XxxService : ServiceBase` static facade + serializable `XxxHandler` backend + `XxxSettings` (`[SerializeReference]` + `[ProviderDropdown]`) backend-selection pattern
 - **Three-level scope** (`EServiceScopeKind.App` / `Scene` / `Gameplay`), cross-scope lookup follows Gameplay > Scene > App priority
@@ -38,7 +38,7 @@ Namespace: `Moirai.Atropos`
 | `ServiceScope` | Per-scope registry, polling lists (lazy-sort + swap-remove), iteration safety (deferred-change queue), and tick exception circuit breaker (removal on a consecutive-failure threshold) |
 | `TopologySorter` | Internal Kahn topological sorter: stable dequeue by registration order among equal in-degree nodes; missing/circular dependencies fail-fast (the error message includes cycle members) |
 | `GameServices` | Static facade (a projection of the default world `Default`): unified registration entry `RegisterService<T>(scope, service, deferMode)` and explicit-contract overload `RegisterService(scope, Type, instance)`, unregistration, scope management (`ShutdownContainer`/`HasApp`/`HasScene`/`HasGameplay`), lazy facade self-registration (`EnsureRegistered`, internal), polling drivers, frame-boundary interceptors |
-| `ServiceDependencyAttribute` | Dependency declaration attribute: `[ServiceDependency(typeof(DepA), typeof(DepB))]` declares multiple dependencies in a single attribute; compile-time MIRAI002/MIRAI003 validation + initialization-time topological sorting |
+| `ServiceDependencyAttribute` | Dependency declaration attribute: `[ServiceDependency(typeof(DepA), typeof(DepB))]` declares multiple dependencies in a single attribute; compile-time MIRAI201/MIRAI202 validation + initialization-time topological sorting |
 | `IServiceInitializableAsync` | Async initialization capability interface (`UniTask OnInitAsync()`); must be registered before `InitializeAsync` (runtime registration fails fast) |
 | `IServiceInterceptor` | Interceptor interface: register/unregister/shutdown callbacks + scope frame boundaries (`OnBeforeScopeTick`/`OnAfterScopeTick`), executed in `Priority` descending order |
 | `EServiceScopeKind` | Service scope enum: `App` (global), `Scene` (reset on scene unload), `Gameplay` (single session) |
@@ -138,7 +138,7 @@ public sealed class UIService : ServiceBase, IServiceTickable
 }
 ```
 
-- Declaration order is dependency validation order; all dependency types must implement `IService`, validated at compile time by `ServiceDependencyAnalyzer` (MIRAI002/MIRAI003)
+- Declaration order is dependency validation order; all dependency types must implement `IService`, validated at compile time by `ServiceDependencyAnalyzer` (MIRAI201/MIRAI202)
 - Service instances are created solely by manual registration (the framework never instantiates services implicitly); an unregistered dependency throws `GameException` during the world-initialization topological sort (for runtime registration after the world is initialized, it throws immediately at registration time)
 - Circular dependencies throw `GameException` during the world-initialization topological sort (fail-fast; the error message includes cycle members)
 
@@ -377,8 +377,8 @@ The framework's 7 utility facades (`LogUtility`, `SettingUtility`, `VersionUtili
 
 - **`[HandlerHost(typeof(XxxHandler))]`** marks a `static partial class`; the source generator generates a `Handler` property (`volatile` + `Interlocked` thread-safe get/set)
 - **`FrameworkHandler`** is the unified base class for all handler abstract base classes, providing `Internal_Init()` / `Internal_Shutdown()` idempotent lifecycle and `OnInit()` / `OnShutdown()` virtual callbacks
-- Users provide a `private static XxxHandler CreateDefaultHandler()` factory method in the partial class, called automatically on first access to `Handler`
-- When `CreateDefaultHandler` is missing, the compiler reports **MIRAI001** warning (IDE provides a quick fix to generate the method); `Handler.get` throws `InvalidOperationException` at runtime if accessed without explicit assignment
+- Factory contract, three tiers: (1) `CreateDefaultHandler` + optional `GetHandlerFromSettings` — lazy loading prefers settings, falls back to the default factory on null; (2) `CreateDefaultHandler` only — the factory is called directly; (3) `GetHandlerFromSettings` only (settings-only, **MIRAI102** Info hint) — lazy loading calls it and requires a non-null return; null throws `InvalidOperationException`; a non-null settings value short-circuits (factory never called), and a factory chain that still ends in null (both null in tier 1, factory null in tier 2) also throws `InvalidOperationException`
+- When neither `CreateDefaultHandler` nor `GetHandlerFromSettings` is provided, the compiler reports **MIRAI101** warning (IDE provides a quick fix to generate the method); `Handler.get` throws `InvalidOperationException` at runtime if accessed without explicit assignment
 - Setting `Handler` to `null` throws `ArgumentNullException` (fail-fast)
 - The `s_Handler` field is `private`; partial classes of the same type can access it directly
 
@@ -409,7 +409,6 @@ The source generator produces `{ClassName}.g.cs` for each class marked with `[Ha
 | Member | Description |
 |--------|-------------|
 | `s_Handler` | `private static volatile` handler field |
-| `s_DefaultFactory` | `private static Func<T>` = `CreateDefaultHandler` (generated when the method exists) |
 | `Handler` | `public static` property: get lazy-inits via Interlocked; set replaces and shuts down the previous handler |
 | `Handler.set` | Inits the new handler → `Interlocked.Exchange` → calls `Internal_Shutdown()` on the previous handler |
 

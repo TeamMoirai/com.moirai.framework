@@ -5,7 +5,9 @@ namespace Moirai.Atropos
     [HandlerHost(typeof(ObjectHandler))]
     public static partial class ObjectUtility
     {
-        private static ObjectHandler CreateDefaultHandler()
+        #region 处理器 [HANDLER]
+
+        internal static ObjectHandler CreateDefaultHandler()
         {
 #if FUSION2
             return new PhotonFusionObjectHandler();
@@ -13,6 +15,12 @@ namespace Moirai.Atropos
             return new UnityObjectHandler();
 #endif
         }
+
+        private static ObjectHandler GetHandlerFromSettings() => GameAppSettings.ObjectHandler;
+
+        #endregion
+
+        #region 公共 API [PUBLIC API]
 
         /// <summary>
         /// 实例化对象
@@ -85,5 +93,7 @@ namespace Moirai.Atropos
         {
             Handler.DestroyObject(target, allowNetworked);
         }
+
+        #endregion
     }
 }

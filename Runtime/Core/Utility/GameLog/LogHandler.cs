@@ -53,6 +53,14 @@ namespace Moirai.Atropos
         protected string TimestampPrefix
             => m_TimestampEnabled ? StringUtility.Format("[{0}] ", DateTime.Now.ToString(m_TimestampFormat)) : null;
 
+        /// <inheritdoc/>
+        protected override void OnInit()
+        {
+            base.OnInit();
+
+            LogUtility.EnableGlobalInterception();
+        }
+
         /// <summary>
         /// 获取指定日志等级是否启用。
         /// <para>外观（<see cref="LogUtility"/>）会在格式化消息之前调用此方法做前置过滤，
