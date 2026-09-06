@@ -14,7 +14,7 @@ using Moirai.Atropos.UI;
 
 namespace Moirai.Atropos
 {
-    public partial class GameAppSettings
+    partial class GameAppSettings
     {
         /// <summary>
         /// 注册 App 作用域服务并启动游戏流程（Composition Root）。
