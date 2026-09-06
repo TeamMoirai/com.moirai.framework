@@ -69,7 +69,6 @@ namespace Moirai.Atropos
         /// 断言严重错误级别日志。
         /// </summary>
         /// <param name="condition">条件。</param>
-        [Conditional("LOG_ALL")]
         [HideInCallstack]
         public static void Assert(bool condition)
         {
@@ -84,7 +83,6 @@ namespace Moirai.Atropos
         /// </summary>
         /// <param name="condition">条件。</param>
         /// <param name="retStr">断言输出字符串。</param>
-        [Conditional("LOG_ALL")]
         [HideInCallstack]
         public static void Assert(bool condition, string retStr)
         {
