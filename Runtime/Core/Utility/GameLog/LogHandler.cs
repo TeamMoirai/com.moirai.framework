@@ -19,6 +19,17 @@ namespace Moirai.Atropos
     [Serializable]
     public abstract class LogHandler : FrameworkHandler
     {
+        [SerializeField] private LogUtility.ELogLevel m_MinimumLevel = LogUtility.ELogLevel.Debug;
+        /// <summary>
+        /// 获取或设置最小日志等级，低于该等级的日志将被丢弃。
+        /// </summary>
+        public LogUtility.ELogLevel MinimumLevel
+        {
+            get => m_MinimumLevel;
+            set => m_MinimumLevel = value;
+        }
+
+        [Space]
         [SerializeField] private bool m_TimestampEnabled;
         [ShowIf(nameof(m_TimestampEnabled))]
         [SerializeField] private string m_TimestampFormat = "HH:mm:ss.fff";
@@ -68,7 +79,10 @@ namespace Moirai.Atropos
         /// </summary>
         /// <param name="logLevel">游戏框架日志等级。</param>
         /// <returns>等级启用返回 true，否则返回 false。</returns>
-        public abstract bool IsEnabled(LogUtility.ELogLevel logLevel);
+        internal bool IsEnabled(LogUtility.ELogLevel logLevel)
+        {
+            return logLevel >= m_MinimumLevel;
+        }
 
         /// <summary>
         /// 记录一条已格式化的日志。

@@ -133,8 +133,8 @@ namespace Moirai.Atropos.Timer
             _peakActiveCount = 0;
             _scaledQueueCount = 0;
             _unscaledQueueCount = 0;
-            _scaledCurrentTick = TimeToTickFloor(Time.timeAsDouble);
-            _unscaledCurrentTick = TimeToTickFloor(Time.unscaledTimeAsDouble);
+            _scaledCurrentTick = TimeToTickFloor(ScaledNow);
+            _unscaledCurrentTick = TimeToTickFloor(UnscaledNow);
             _executingSlotIndex = INVALID_INDEX;
 
             Prewarm(NormalizeCapacity(m_InitialCapacity));
@@ -171,8 +171,8 @@ namespace Moirai.Atropos.Timer
 
         internal override void Tick(float elapseSeconds, float realElapseSeconds)
         {
-            AdvanceQueue(false, Time.timeAsDouble);
-            AdvanceQueue(true, Time.unscaledTimeAsDouble);
+            AdvanceQueue(false, ScaledNow);
+            AdvanceQueue(true, UnscaledNow);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -360,8 +360,8 @@ namespace Moirai.Atropos.Timer
             }
 
             int count = 0;
-            double scaledTime = Time.timeAsDouble;
-            double unscaledTime = Time.unscaledTimeAsDouble;
+            double scaledTime = ScaledNow;
+            double unscaledTime = UnscaledNow;
 #if UNITY_EDITOR
             double realtime = Time.realtimeSinceStartupAsDouble;
 #else
@@ -386,8 +386,8 @@ namespace Moirai.Atropos.Timer
             }
 
             int count = 0;
-            double scaledTime = Time.timeAsDouble;
-            double unscaledTime = Time.unscaledTimeAsDouble;
+            double scaledTime = ScaledNow;
+            double unscaledTime = UnscaledNow;
             double realtime = Time.realtimeSinceStartupAsDouble;
             int limit = results.Length;
             for (int i = 0; i < _activeCount && count < limit; i++)
@@ -1000,10 +1000,19 @@ namespace Moirai.Atropos.Timer
             return (GetState(slotIndex) & STATE_LOOP) != 0;
         }
 
+        // ── 时钟源 ──
+        // 统一经 GameTime 外观读取（双精度实时直读）；虚拟时钟接缝由 GameTime.Handler 承载——
+        // 测试注入自定义 GameTimeHandler，即可实现与 Unity 主循环无关的确定性推进。
+        // 全部时间读取（初始化播种、Tick 推进、Stop/Resume/Restart/GetLeftTime、槽位触发时刻）统一经本入口。
+
+        private static double ScaledNow => GameTime.Handler.ScaledNow;
+
+        private static double UnscaledNow => GameTime.Handler.UnscaledNow;
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static double GetCurrentTime(bool isUnscaled)
         {
-            return isUnscaled ? Time.unscaledTimeAsDouble : Time.timeAsDouble;
+            return isUnscaled ? UnscaledNow : ScaledNow;
         }
 
         private static int[] CreateWheelHeads()

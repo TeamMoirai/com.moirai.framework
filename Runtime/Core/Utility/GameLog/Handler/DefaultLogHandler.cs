@@ -11,19 +11,8 @@ namespace Moirai.Atropos
     [Serializable]
     public sealed class DefaultLogHandler : LogHandler
     {
-        [SerializeField] private LogUtility.ELogLevel m_MinimumLevel = LogUtility.ELogLevel.Debug;
-
         // 全局拦截启用时捕获的原始 Unity logHandler，Log 直接调用它绕过拦截器避免循环。
         [NonSerialized] private ILogHandler _originalHandler;
-
-        /// <summary>
-        /// 获取或设置最小日志等级，低于该等级的日志将被丢弃。
-        /// </summary>
-        public LogUtility.ELogLevel MinimumLevel
-        {
-            get => m_MinimumLevel;
-            set => m_MinimumLevel = value;
-        }
 
         /// <inheritdoc/>
         protected override void OnInit()
@@ -62,12 +51,6 @@ namespace Moirai.Atropos
             }
         }
 
-        /// <inheritdoc/>
-        public override bool IsEnabled(LogUtility.ELogLevel logLevel)
-        {
-            return logLevel >= m_MinimumLevel;
-        }
-
         /// <summary>
         /// 打印游戏日志，异常对象由 Unity Console 的 Exception 通道输出。
         /// </summary>
@@ -78,11 +61,6 @@ namespace Moirai.Atropos
         [HideInCallstack]
         public override void Log(LogUtility.ELogLevel logLevel, string message, Exception exception, Object context = null)
         {
-            if (!IsEnabled(logLevel))
-            {
-                return;
-            }
-
             message ??= string.Empty;
             var handler = UnityHandler;
 
