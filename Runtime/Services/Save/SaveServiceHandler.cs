@@ -292,7 +292,15 @@ namespace Moirai.Atropos.Save
                 return SaveError.SerializationFailed;
             }
 
-            return ApplyMigration<T>(paths, entry, data);
+            SaveError migrationError = ApplyMigration<T>(paths, entry, data);
+            if (migrationError != SaveError.None)
+            {
+                // 失败路径必须回收 data（TryLoad 契约：错误时输出默认值，不得泄漏半初始化对象）
+                data = default;
+                return migrationError;
+            }
+
+            return SaveError.None;
         }
 
         /// <summary>

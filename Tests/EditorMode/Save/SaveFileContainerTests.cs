@@ -87,13 +87,14 @@ namespace Save
             byte[] buffer = new byte[SaveFileContainer.GetSize(blocks)];
             SaveFileContainer.Write(buffer, blocks);
 
-            // 逐字节截断：任何截断都必须被边界校验拦截（返回 Corrupted 而非抛异常/越界）
+            // 逐字节截断：长度仍 ≥ 定长头（12B）时块解析越界判 Corrupted；低于头长判 InvalidFormat
             for (int cut = 1; cut < buffer.Length; cut++)
             {
                 byte[] truncated = new byte[buffer.Length - cut];
                 Array.Copy(buffer, truncated, truncated.Length);
                 SaveError error = SaveFileContainer.Read(truncated, out _);
-                Assert.AreEqual(SaveError.Corrupted, error, $"截断 {cut} 字节应判别为 Corrupted");
+                SaveError expected = truncated.Length < 12 ? SaveError.InvalidFormat : SaveError.Corrupted;
+                Assert.AreEqual(expected, error, $"截断 {cut} 字节应判别为 {expected}");
             }
         }
 

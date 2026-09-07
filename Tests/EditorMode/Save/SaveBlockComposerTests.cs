@@ -31,7 +31,7 @@ namespace Save
             var source = new List<SaveBlockEntry> { Entry("stats", 1) };
 
             Assert.IsFalse(SaveBlockComposer.TryFind(source, "missing", out SaveBlockEntry entry));
-            Assert.AreEqual(default, entry);
+            Assert.IsNull(entry.Key, "未命中时条目应为 default（键为 null）");
         }
 
         [Test]
