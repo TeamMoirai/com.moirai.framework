@@ -48,7 +48,7 @@ namespace Moirai.Atropos.Editor.Save
         {
             DrawDefaultInspector();
 
-            var component = (SaveComponent)component;
+            var component = (SaveComponent)target;
 
             // Targets 列表数量可能经默认 Inspector 变化——同步折叠状态
             while (_foldouts.Count < component.Targets.Count)
