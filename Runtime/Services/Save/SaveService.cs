@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 
@@ -246,6 +247,133 @@ namespace Moirai.Atropos.Save
         /// <returns>加载结果（区分无档/损坏/解密失败等错误类别）。</returns>
         public static SaveResult<T> TryLoad<T>(string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME) =>
             TryLoadBlock<T>(fileName, MainBlockKey, folderName);
+
+        #endregion
+
+        #region 组件存取 [COMPONENTS]
+
+        /// <summary>
+        /// 将全部已注册 <see cref="SaveComponent"/> 的勾选字段异步写入存档文件（每组件一个 KVT 块；组件捕获在主线程，合并写回在工作线程）。
+        /// <para>失败抛出 <see cref="GameException"/>；处理器未就绪时静默降级为空任务；重复块键的组件记录告警并跳过。</para>
+        /// </summary>
+        /// <param name="fileName">文件名（自动追加配置的扩展名）。</param>
+        /// <param name="folderName">文件夹名称。</param>
+        /// <param name="cancellationToken">取消令牌（协作式）。</param>
+        /// <returns>写入完成的异步任务。</returns>
+        public static UniTask SaveComponentsAsync(string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default)
+        {
+            if (s_Handler is null)
+            {
+                return UniTask.CompletedTask;
+            }
+
+            List<SaveBlockEntry> entries = CaptureComponentsToEntries();
+            if (entries.Count == 0)
+            {
+                return UniTask.CompletedTask;
+            }
+
+            SaveServiceHandler.SavePaths paths = SaveServiceHandler.ResolveSavePaths(fileName, folderName);
+            return s_Handler.UpsertRawBlocksAsync(paths, entries, cancellationToken);
+        }
+
+        /// <summary>
+        /// 从存档文件异步恢复全部已注册 <see cref="SaveComponent"/> 的勾选字段（读盘在工作线程，字段写回在主线程）。
+        /// <para>缺块组件保留当前值；KVT 损坏的组件记录错误日志并跳过（不阻断其它组件）。</para>
+        /// </summary>
+        /// <param name="fileName">文件名（自动追加配置的扩展名）。</param>
+        /// <param name="folderName">文件夹名称。</param>
+        /// <param name="cancellationToken">取消令牌（协作式）。</param>
+        /// <returns>恢复完成的异步任务。</returns>
+        public static async UniTask LoadComponentsAsync(string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default)
+        {
+            if (s_Handler is null)
+            {
+                return;
+            }
+
+            SaveComponent[] components = SaveComponentRegistry.Snapshot();
+            if (components.Length == 0)
+            {
+                return;
+            }
+
+            SaveServiceHandler.SavePaths paths = SaveServiceHandler.ResolveSavePaths(fileName, folderName);
+            Dictionary<string, byte[]> blocks = await s_Handler.ReadRawBlocksAsync(paths, cancellationToken);
+
+            // 主线程写回组件字段（blocks 已在工作线程解析完毕；ref struct 读取器不可进 async 上下文，故收敛到独立方法）
+            RestoreComponentsOnMainThread(components, blocks);
+        }
+
+        /// <summary>
+        /// 在主线程将块字节恢复到组件字段（非 async 方法：SaveKeyValueReader 为 ref struct）。
+        /// </summary>
+        /// <param name="components">活跃组件快照。</param>
+        /// <param name="blocks">块键 → 载荷字节。</param>
+        private static void RestoreComponentsOnMainThread(SaveComponent[] components, Dictionary<string, byte[]> blocks)
+        {
+            for (int i = 0; i < components.Length; i++)
+            {
+                SaveComponent component = components[i];
+                if (component == null || string.IsNullOrEmpty(component.ResolvedBlockKey))
+                {
+                    continue;
+                }
+
+                if (!blocks.TryGetValue(component.ResolvedBlockKey, out byte[] bytes))
+                {
+                    continue;
+                }
+
+                try
+                {
+                    var reader = new SaveKeyValueReader(bytes);
+                    component.Restore(ref reader);
+                }
+                catch (SaveKvFormatException exception)
+                {
+                    LogUtility.Error("[SaveService] Component restore failed, key: {0}, message: {1}.", component.ResolvedBlockKey, exception.Message);
+                }
+            }
+        }
+
+        /// <summary>
+        /// 捕获全部活跃组件为块条目（主线程；重复块键记录告警并跳过）。
+        /// </summary>
+        /// <returns>块条目列表（可能为空）。</returns>
+        private static List<SaveBlockEntry> CaptureComponentsToEntries()
+        {
+            SaveComponent[] components = SaveComponentRegistry.Snapshot();
+            var entries = new List<SaveBlockEntry>(components.Length);
+            var seenKeys = new HashSet<string>(StringComparer.Ordinal);
+            for (int i = 0; i < components.Length; i++)
+            {
+                SaveComponent component = components[i];
+                if (component == null)
+                {
+                    continue;
+                }
+
+                string blockKey = component.ResolvedBlockKey;
+                if (string.IsNullOrEmpty(blockKey))
+                {
+                    LogUtility.Warning("[SaveService] SaveComponent '{0}' is not activated (block key unresolved), skipped.", component.name);
+                    continue;
+                }
+
+                if (!seenKeys.Add(blockKey))
+                {
+                    LogUtility.Warning("[SaveService] Duplicate component block key '{0}' on '{1}', skipped.", blockKey, component.name);
+                    continue;
+                }
+
+                var writer = new SaveKeyValueWriter(256);
+                component.Capture(ref writer);
+                entries.Add(new SaveBlockEntry(blockKey, 1, ESaveBackend.KeyValue, writer.ToArray()));
+            }
+
+            return entries;
+        }
 
         #endregion
 

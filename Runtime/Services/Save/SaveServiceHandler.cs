@@ -543,6 +543,135 @@ namespace Moirai.Atropos.Save
 
         #endregion
 
+        #region 组件块管线 [COMPONENT BLOCKS]
+
+        /// <summary>
+        /// 将组件捕获条目批量合并写入存档文件（主线程完成捕获，此处仅合并与原子写回），IO 在工作线程执行。
+        /// </summary>
+        /// <param name="paths">已解析的路径集合。</param>
+        /// <param name="additions">组件捕获条目（键 = 块键，载荷 = KVT 字节，后端 = <see cref="ESaveBackend.KeyValue"/>）。</param>
+        /// <param name="cancellationToken">取消令牌。</param>
+        /// <returns>写入完成的异步任务；失败抛出 <see cref="GameException"/>。</returns>
+        internal UniTask UpsertRawBlocksAsync(SavePaths paths, List<SaveBlockEntry> additions, CancellationToken cancellationToken)
+        {
+            if (additions.Count == 0)
+            {
+                return UniTask.CompletedTask;
+            }
+
+            SemaphoreSlim gate = SaveFileGate.Get(paths.SaveFilePath);
+            return UpsertRawBlocksWithGateAsync(paths, additions, gate, cancellationToken);
+        }
+
+        /// <summary>
+        /// 持串行门执行组件块合并写回。
+        /// </summary>
+        private async UniTask UpsertRawBlocksWithGateAsync(SavePaths paths, List<SaveBlockEntry> additions, SemaphoreSlim gate, CancellationToken cancellationToken)
+        {
+            await gate.WaitAsync(cancellationToken);
+            try
+            {
+                await UniTask.RunOnThreadPool(() =>
+                {
+                    ReadContainerOrEmpty(paths, out List<SaveBlockEntry> existingBlocks);
+                    List<SaveBlockEntry> mergedBlocks = existingBlocks;
+                    for (int i = 0; i < additions.Count; i++)
+                    {
+                        mergedBlocks = SaveBlockComposer.Upsert(mergedBlocks, additions[i]);
+                    }
+
+                    WriteContainerFile(paths, mergedBlocks, cancellationToken);
+                }, cancellationToken: cancellationToken);
+            }
+            finally
+            {
+                gate.Release();
+            }
+        }
+
+        /// <summary>
+        /// 读取存档文件内全部块载荷（键 → 字节），IO 与容器解析在工作线程执行。
+        /// </summary>
+        /// <param name="paths">已解析的路径集合。</param>
+        /// <param name="cancellationToken">取消令牌。</param>
+        /// <returns>键 → 块载荷字典；缺档/损坏（已记录日志）返回空字典。</returns>
+        internal UniTask<Dictionary<string, byte[]>> ReadRawBlocksAsync(SavePaths paths, CancellationToken cancellationToken)
+        {
+            return UniTask.RunOnThreadPool(() =>
+            {
+                SaveError readError = ReadContainerOrEmpty(paths, out List<SaveBlockEntry> blocks);
+                if (readError != SaveError.None)
+                {
+                    return new Dictionary<string, byte[]>();
+                }
+
+                var result = new Dictionary<string, byte[]>(blocks.Count);
+                for (int i = 0; i < blocks.Count; i++)
+                {
+                    result[blocks[i].Key] = blocks[i].Bytes;
+                }
+
+                return result;
+            }, cancellationToken: cancellationToken);
+        }
+
+        /// <summary>
+        /// 删除指定组件块键集合对应的块（读-改-写回；主线程解析路径后调用）。
+        /// </summary>
+        /// <param name="paths">已解析的路径集合。</param>
+        /// <param name="keys">块键集合。</param>
+        /// <param name="cancellationToken">取消令牌。</param>
+        /// <returns>删除完成的异步任务。</returns>
+        internal UniTask DeleteRawBlocksAsync(SavePaths paths, List<string> keys, CancellationToken cancellationToken)
+        {
+            if (keys.Count == 0)
+            {
+                return UniTask.CompletedTask;
+            }
+
+            SemaphoreSlim gate = SaveFileGate.Get(paths.SaveFilePath);
+            return DeleteRawBlocksWithGateAsync(paths, keys, gate, cancellationToken);
+        }
+
+        /// <summary>
+        /// 持串行门执行组件块删除。
+        /// </summary>
+        private async UniTask DeleteRawBlocksWithGateAsync(SavePaths paths, List<string> keys, SemaphoreSlim gate, CancellationToken cancellationToken)
+        {
+            await gate.WaitAsync(cancellationToken);
+            try
+            {
+                await UniTask.RunOnThreadPool(() =>
+                {
+                    SaveError readError = ReadContainerOrEmpty(paths, out List<SaveBlockEntry> existingBlocks);
+                    if (readError != SaveError.None)
+                    {
+                        return;
+                    }
+
+                    List<SaveBlockEntry> mergedBlocks = existingBlocks;
+                    for (int i = 0; i < keys.Count; i++)
+                    {
+                        mergedBlocks = SaveBlockComposer.Remove(mergedBlocks, keys[i]);
+                    }
+
+                    if (mergedBlocks.Count == 0)
+                    {
+                        DeleteFileWithRetry(paths.SaveFilePath);
+                        return;
+                    }
+
+                    WriteContainerFile(paths, mergedBlocks, cancellationToken);
+                }, cancellationToken: cancellationToken);
+            }
+            finally
+            {
+                gate.Release();
+            }
+        }
+
+        #endregion
+
         #region 路径管理 [PATH]
 
         /// <summary>
