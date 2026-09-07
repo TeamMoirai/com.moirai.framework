@@ -18,6 +18,16 @@ namespace Moirai.Atropos
     public sealed class UnityLoggingHandler : LogHandler
     {
         /// <inheritdoc/>
+        protected override void OnInit()
+        {
+            base.OnInit();
+
+            // 每次 domain reload 前其 CleanupFunction 会 DeleteAllLoggers。
+            // 此处幂等提前创建默认 logger（LoggerManager.Logger 已存在时不重复创建，尊重用户自定义配置），保证处理器生效后首条日志即可输出。
+            DefaultSettings.CreateDefaultLogger();
+        }
+
+        /// <inheritdoc/>
         [HideInCallstack]
         internal override void Log(ELogLevel logLevel, string message, Exception exception, Object context = null)
         {
