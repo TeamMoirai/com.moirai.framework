@@ -33,6 +33,9 @@ namespace Moirai.Atropos.Save
         /// <summary>删除操作的退避重试次数（应对云同步/杀毒软件的短时文件锁）。</summary>
         private const int DeleteRetryCount = 3;
 
+        /// <summary>单槽备份文件后缀（实际形如 <c>xxx.sav.bak</c>）。</summary>
+        private const string BackupFileSuffix = ".bak";
+
         /// <summary>兼容块键：旧单对象 API（Save/Load/TryLoad）映射的保留数据块。</summary>
         public const string MainBlockKey = "__main__";
 
@@ -495,6 +498,143 @@ namespace Moirai.Atropos.Save
             DeleteDirectoryWithRetry(rootDirectory);
         }
 
+        /// <summary>
+        /// 从磁盘中异步删除单个存档（删除退避重试在工作线程执行）。
+        /// </summary>
+        /// <param name="fileName">文件名。</param>
+        /// <param name="folderName">文件夹名称。</param>
+        /// <param name="cancellationToken">取消令牌。</param>
+        /// <returns>删除完成的异步任务。</returns>
+        public UniTask DeleteSaveAsync(string fileName, string folderName = DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default)
+        {
+            SavePaths paths = ResolveSavePaths(fileName, folderName);
+            return UniTask.RunOnThreadPool(() => DeleteFileWithRetry(paths.SaveFilePath), cancellationToken: cancellationToken);
+        }
+
+        /// <summary>
+        /// 异步删除整个存档文件夹（含其中全部文件与子目录）。
+        /// </summary>
+        /// <param name="folderName">文件夹名称；不允许为空（清空全部请用 <see cref="DeleteAllSaveFilesAsync"/>）。</param>
+        /// <param name="cancellationToken">取消令牌。</param>
+        /// <returns>删除完成的异步任务；失败抛出 <see cref="GameException"/>。</returns>
+        public UniTask DeleteSaveFolderAsync(string folderName = DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default)
+        {
+            ValidateFolderName(folderName);
+            if (string.IsNullOrEmpty(folderName))
+            {
+                throw new ArgumentException("Folder name is required when deleting a folder.", nameof(folderName));
+            }
+
+            string directoryPath = BuildFolderPath(folderName);
+            return UniTask.RunOnThreadPool(() => DeleteDirectoryWithRetry(directoryPath), cancellationToken: cancellationToken);
+        }
+
+        /// <summary>
+        /// 异步删除存档数据根目录（<c>persistentDataPath/Data/</c>）及其下所有存档。
+        /// </summary>
+        /// <param name="cancellationToken">取消令牌。</param>
+        /// <returns>删除完成的异步任务。</returns>
+        public UniTask DeleteAllSaveFilesAsync(CancellationToken cancellationToken = default)
+        {
+            string rootDirectory = BuildDataRootDirectory();
+            return UniTask.RunOnThreadPool(() => DeleteDirectoryWithRetry(rootDirectory), cancellationToken: cancellationToken);
+        }
+
+        /// <summary>
+        /// 异步枚举指定文件夹内的全部存档槽位（枚举与排序在工作线程执行）。
+        /// </summary>
+        /// <param name="folderName">文件夹名称；空串表示存档数据根目录。</param>
+        /// <param name="cancellationToken">取消令牌。</param>
+        /// <returns>存档元数据数组（按最后写入时间倒序）；文件夹不存在时为空数组。</returns>
+        public UniTask<SaveFileInfo[]> GetSaveFilesAsync(string folderName = DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default)
+        {
+            ValidateFolderName(folderName);
+            string directoryPath = BuildFolderPath(folderName);
+            string extension = SaveServiceSettings.SaveFileExtension;
+            return UniTask.RunOnThreadPool(() => EnumerateSaveFilesCore(directoryPath, extension), cancellationToken: cancellationToken);
+        }
+
+        /// <summary>
+        /// 创建存档的单槽备份（<c>.bak</c> 后缀，覆盖旧备份）。
+        /// </summary>
+        /// <param name="fileName">文件名。</param>
+        /// <param name="folderName">文件夹名称。</param>
+        public void CreateBackup(string fileName, string folderName = DEFAULT_FOLDER_NAME)
+        {
+            SavePaths paths = ResolveSavePaths(fileName, folderName);
+            if (!File.Exists(paths.SaveFilePath))
+            {
+                throw new GameException(StringUtility.Format("Save file not found for backup, path: {0}.", paths.SaveFilePath));
+            }
+
+            string backupFilePath = paths.SaveFilePath + BackupFileSuffix;
+            File.Copy(paths.SaveFilePath, backupFilePath, overwrite: true);
+        }
+
+        /// <summary>
+        /// 从单槽备份恢复存档（备份经临时文件原子替换回存档路径）。
+        /// </summary>
+        /// <param name="fileName">文件名。</param>
+        /// <param name="folderName">文件夹名称。</param>
+        public void RestoreBackup(string fileName, string folderName = DEFAULT_FOLDER_NAME)
+        {
+            SavePaths paths = ResolveSavePaths(fileName, folderName);
+            string backupFilePath = paths.SaveFilePath + BackupFileSuffix;
+            if (!File.Exists(backupFilePath))
+            {
+                throw new GameException(StringUtility.Format("Backup file not found, path: {0}.", backupFilePath));
+            }
+
+            string tempFilePath = paths.SaveFilePath + TempFileSuffix + Guid.NewGuid().ToString("N");
+            try
+            {
+                EnsureDirectory(paths.DirectoryPath);
+                File.Copy(backupFilePath, tempFilePath, overwrite: true);
+                AtomicReplace(tempFilePath, paths.SaveFilePath);
+            }
+            catch (Exception exception)
+            {
+                TryDeleteFile(tempFilePath);
+                throw new GameException(StringUtility.Format("Backup restore failed, path: {0}, exception: {1}.", paths.SaveFilePath, exception.GetType().Name), exception);
+            }
+        }
+
+        /// <summary>
+        /// 枚举存档槽位核心（纯 .NET 目录操作，可在工作线程执行）。
+        /// </summary>
+        /// <param name="directoryPath">文件夹完整路径。</param>
+        /// <param name="extension">存档扩展名（含点）。</param>
+        /// <returns>按最后写入时间倒序的槽位元数据数组。</returns>
+        private static SaveFileInfo[] EnumerateSaveFilesCore(string directoryPath, string extension)
+        {
+            if (!Directory.Exists(directoryPath))
+            {
+                return Array.Empty<SaveFileInfo>();
+            }
+
+            FileInfo[] files = new DirectoryInfo(directoryPath).GetFiles("*" + extension, SearchOption.TopDirectoryOnly);
+
+            // Windows GetFiles 的 8.3 通配符怪癖：*.sav 会命中 *.saveall——按扩展名精确过滤
+            List<SaveFileInfo> results = new List<SaveFileInfo>(files.Length);
+            for (int i = 0; i < files.Length; i++)
+            {
+                if (!string.Equals(files[i].Extension, extension, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                results.Add(new SaveFileInfo(Path.GetFileNameWithoutExtension(files[i].Name), files[i].Length, files[i].LastWriteTimeUtc));
+            }
+
+            if (results.Count == 0)
+            {
+                return Array.Empty<SaveFileInfo>();
+            }
+
+            results.Sort((left, right) => right.LastWriteTimeUtc.CompareTo(left.LastWriteTimeUtc));
+            return results.ToArray();
+        }
+
         #endregion
 
         #region 存档查询 [QUERY]
@@ -520,33 +660,8 @@ namespace Moirai.Atropos.Save
         {
             ValidateFolderName(folderName);
             string directoryPath = BuildFolderPath(folderName);
-            if (!Directory.Exists(directoryPath))
-            {
-                return Array.Empty<SaveFileInfo>();
-            }
-
             string extension = SaveServiceSettings.SaveFileExtension;
-            FileInfo[] files = new DirectoryInfo(directoryPath).GetFiles("*" + extension, SearchOption.TopDirectoryOnly);
-
-            // Windows GetFiles 的 8.3 通配符怪癖：*.sav 会命中 *.saveall——按扩展名精确过滤
-            List<SaveFileInfo> results = new List<SaveFileInfo>(files.Length);
-            for (int i = 0; i < files.Length; i++)
-            {
-                if (!string.Equals(files[i].Extension, extension, StringComparison.OrdinalIgnoreCase))
-                {
-                    continue;
-                }
-
-                results.Add(new SaveFileInfo(Path.GetFileNameWithoutExtension(files[i].Name), files[i].Length, files[i].LastWriteTimeUtc));
-            }
-
-            if (results.Count == 0)
-            {
-                return Array.Empty<SaveFileInfo>();
-            }
-
-            results.Sort((left, right) => right.LastWriteTimeUtc.CompareTo(left.LastWriteTimeUtc));
-            return results.ToArray();
+            return EnumerateSaveFilesCore(directoryPath, extension);
         }
 
         #endregion
