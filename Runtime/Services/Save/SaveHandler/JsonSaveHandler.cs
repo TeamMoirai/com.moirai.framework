@@ -1,72 +1,43 @@
-﻿using System.IO;
+﻿using System;
 using System.Text;
-using Cysharp.Threading.Tasks;
+using Moirai.Atropos;
 
 namespace Moirai.Atropos.Save
 {
     /// <summary>
-    /// JSON 格式存档处理器。
+    /// JSON 格式存档处理器（未加密）。
+    /// <para>编辑器下输出带缩进的可读 JSON 便于人工检查；真机走紧凑字节通路
+    /// （框架内置 <see cref="JsonUtility"/> 的 <c>ToJsonBytes</c>/<c>ToObject&lt;T&gt;</c>，零 string 中间态）。</para>
     /// </summary>
-    [System.Serializable]
+    [Serializable]
     public class JsonSaveHandler : SaveServiceHandler
     {
         /// <summary>
-        /// 将指定的对象转换为 json 后将其保存在指定位置
+        /// 将存档对象序列化为 UTF8 JSON 载荷字节。
         /// </summary>
-        protected internal override UniTask SerializeAsync(object objectToSave, FileStream saveFile)
+        /// <param name="saveObject">存档对象。</param>
+        /// <returns>JSON 载荷字节。</returns>
+        protected internal override byte[] Serialize(object saveObject)
         {
 #if UNITY_EDITOR
             // 编辑器保留可读格式便于人工检查存档；真机走紧凑字节通路
-            string json = JsonUtility.ToJson(objectToSave, true);
-            byte[] bytes = Encoding.UTF8.GetBytes(json);
+            return Encoding.UTF8.GetBytes(JsonUtility.ToJson(saveObject, true));
 #else
-            // 字节通路：直接产出 UTF8 JSON 字节写入文件，跳过 string 中间态与 StreamWriter 编码层
-            byte[] bytes = JsonUtility.ToJsonBytes(objectToSave);
+            // 字节通路：直接产出 UTF8 JSON 字节，跳过 string 中间态与编码层
+            return JsonUtility.ToJsonBytes(saveObject);
 #endif
-            saveFile.Write(bytes, 0, bytes.Length);
-            saveFile.Close();
-
-            return UniTask.CompletedTask;
         }
 
         /// <summary>
-        /// 加载指定的文件并对其进行解码
+        /// 从 JSON 载荷字节反序列化存档对象。
         /// </summary>
-        protected internal override UniTask<T> DeserializeAsync<T>(FileStream saveFile)
+        /// <typeparam name="T">存档数据类型。</typeparam>
+        /// <param name="payload">JSON 载荷字节。</param>
+        /// <returns>反序列化后的对象。</returns>
+        protected internal override T Deserialize<T>(byte[] payload)
         {
-            // 整体读为字节后直接解析（零 string 中间态；解析端已兼容 BOM 与编辑器可读格式）
-            byte[] buffer = ReadAllBytes(saveFile);
-            T savedObject = JsonUtility.ToObject<T>(buffer);
-            saveFile.Close();
-
-            return UniTask.FromResult(savedObject);
-        }
-
-        private static byte[] ReadAllBytes(FileStream stream)
-        {
-            long length = stream.Length;
-            if (length > int.MaxValue)
-            {
-                throw new IOException("Save file is too large: " + length);
-            }
-
-            var buffer = new byte[(int)length];
-            int read = 0;
-            while (read < buffer.Length)
-            {
-                int chunk = stream.Read(buffer, read, buffer.Length - read);
-                if (chunk <= 0) break;
-                read += chunk;
-            }
-
-            return read == buffer.Length ? buffer : TrimTrailingUnread(buffer, read);
-        }
-
-        private static byte[] TrimTrailingUnread(byte[] buffer, int read)
-        {
-            var exact = new byte[read];
-            System.Array.Copy(buffer, exact, read);
-            return exact;
+            // 直接解析字节（零 string 中间态；解析端已兼容 BOM 与编辑器可读格式）
+            return JsonUtility.ToObject<T>(payload);
         }
     }
 }
