@@ -1,7 +1,7 @@
 using System;
 using System.IO;
 using System.Text.RegularExpressions;
-using Cysharp.Threading.Tasks;
+using System.Threading;
 using Moirai.Atropos.Save;
 using NUnit.Framework;
 using UnityEngine;
@@ -10,8 +10,9 @@ using UnityEngine.TestTools;
 namespace Save
 {
     /// <summary>
-    /// <see cref="JsonEncryptedSaveHandler"/> 全链路（序列化 → 加密 → 落盘 → 读盘 → 解密 → 反序列化）往返测试。
-    /// <para>经测试派生类暴露 <c>protected</c> 密钥注入与异步 API，不触达 <see cref="SaveServiceSettings"/> 全局配置。</para>
+    /// <see cref="JsonEncryptedSaveHandler"/> 全链路（序列化 → 加密 → 文件头 → 落盘 → 读盘 → 校验 → 解密 → 反序列化）往返测试。
+    /// <para>直接经 <c>protected internal</c> 成员注入密钥与调用管线（测试程序集在 <c>InternalsVisibleTo</c> 白名单内），
+    /// 不创建 [Serializable] 处理器子类、不触达 <see cref="SaveServiceSettings"/> 全局配置。</para>
     /// </summary>
     public class JsonEncryptedSaveHandlerTests
     {
@@ -22,81 +23,103 @@ namespace Save
             public string PlayerName;
         }
 
-        private sealed class TestHandler : JsonEncryptedSaveHandler
-        {
-            public void Configure(string key) => Key = key;
-
-            public UniTask SerializeTo(object obj, FileStream stream) => SerializeAsync(obj, stream);
-
-            public UniTask<T> LoadFrom<T>(FileStream stream) => DeserializeAsync<T>(stream);
-        }
-
-        private string _filePath;
+        private JsonEncryptedSaveHandler _handler;
+        private string _directoryPath;
+        private SaveServiceHandler.SavePaths _paths;
 
         [SetUp]
         public void SetUp()
         {
-            _filePath = Path.Combine(Path.GetTempPath(), "moirai-save-test-" + Guid.NewGuid().ToString("N") + ".sav");
+            _handler = new JsonEncryptedSaveHandler
+            {
+                Key = "test-key-123"
+            };
+
+            _directoryPath = Path.Combine(Path.GetTempPath(), "moirai-save-enc-tests-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(_directoryPath);
+            _paths = new SaveServiceHandler.SavePaths(_directoryPath, Path.Combine(_directoryPath, "slot.sav"));
         }
 
         [TearDown]
         public void TearDown()
         {
-            if (File.Exists(_filePath))
+            try
             {
-                File.Delete(_filePath);
+                if (Directory.Exists(_directoryPath))
+                {
+                    Directory.Delete(_directoryPath, true);
+                }
+            }
+            catch (IOException)
+            {
+                // 临时目录清理失败不影响测试结论
             }
         }
 
         [Test]
         public void RoundTrip_PreservesData()
         {
-            var handler = new TestHandler();
-            handler.Configure("test-key-123");
-
             var data = new SaveData { Gold = 1234, PlayerName = "Moirai" };
 
-            using (var stream = new FileStream(_filePath, FileMode.Create, FileAccess.Write))
-            {
-                handler.SerializeTo(data, stream).GetAwaiter().GetResult();
-            }
+            _handler.SaveCore(_paths, data, CancellationToken.None);
 
-            Assert.IsTrue(File.Exists(_filePath), "序列化后应落盘");
-            Assert.Greater(new FileInfo(_filePath).Length, 16, "密文应至少包含一个 AES 块（非明文 JSON）");
+            Assert.IsTrue(File.Exists(_paths.SaveFilePath), "序列化后应落盘");
+            Assert.Greater(new FileInfo(_paths.SaveFilePath).Length, SaveFileHeader.Size + 16 + 32, "文件应包含文件头与完整密文");
 
-            using (var stream = new FileStream(_filePath, FileMode.Open, FileAccess.Read))
-            {
-                var loaded = handler.LoadFrom<SaveData>(stream).GetAwaiter().GetResult();
+            SaveError error = _handler.TryLoadCore<SaveData>(_paths, out SaveData loaded);
 
-                Assert.IsNotNull(loaded);
-                Assert.AreEqual(1234, loaded.Gold);
-                Assert.AreEqual("Moirai", loaded.PlayerName);
-            }
+            Assert.AreEqual(SaveError.None, error, "往返加载应成功");
+            Assert.IsNotNull(loaded);
+            Assert.AreEqual(1234, loaded.Gold);
+            Assert.AreEqual("Moirai", loaded.PlayerName);
         }
 
         [Test]
-        public void WrongKey_LoadReturnsDefault()
+        public void WrongKey_FailsAtIntegrityCheck()
         {
-            var writer = new TestHandler();
-            writer.Configure("key-for-write");
-            var reader = new TestHandler();
-            reader.Configure("key-for-read");
+            var writer = new JsonEncryptedSaveHandler { Key = "key-for-write" };
+            var reader = new JsonEncryptedSaveHandler { Key = "key-for-read" };
 
-            var data = new SaveData { Gold = 99, PlayerName = "Moirai" };
-            using (var stream = new FileStream(_filePath, FileMode.Create, FileAccess.Write))
-            {
-                writer.SerializeTo(data, stream).GetAwaiter().GetResult();
-            }
+            writer.SaveCore(_paths, new SaveData { Gold = 99, PlayerName = "Moirai" }, CancellationToken.None);
 
             // 损坏兜底路径会记录 Error 日志（运维可见性契约）——显式声明预期，避免被测试运行器判为未预期错误日志
-            LogAssert.Expect(LogType.Error, new Regex("Decryption failed"));
+            LogAssert.Expect(LogType.Error, new Regex("Load failed"));
 
-            using (var stream = new FileStream(_filePath, FileMode.Open, FileAccess.Read))
-            {
-                // EncryptedSaveHandlerBase 捕获 CryptographicException——损坏/密钥不符应返回默认值（损坏兜底契约）
-                var loaded = reader.LoadFrom<SaveData>(stream).GetAwaiter().GetResult();
-                Assert.IsNull(loaded, "密钥不符应走损坏兜底返回 null，而非抛出或返回垃圾数据");
-            }
+            // 错误密钥在 HMAC 层被拦截（encrypt-then-MAC）——判别为完整性失败而非解密失败
+            SaveError error = reader.TryLoadCore<SaveData>(_paths, out SaveData loaded);
+
+            Assert.AreEqual(SaveError.IntegrityCheckFailed, error, "密钥不符应在 HMAC 层被拦截");
+            Assert.IsNull(loaded, "密钥不符应返回默认值，而非抛出或返回垃圾数据");
+        }
+
+        [Test]
+        public void TamperedFile_FailsAtIntegrityOrCrc()
+        {
+            _handler.SaveCore(_paths, new SaveData { Gold = 1, PlayerName = "Moirai" }, CancellationToken.None);
+
+            byte[] fileBytes = File.ReadAllBytes(_paths.SaveFilePath);
+            fileBytes[^1] ^= 0xFF; // 翻转末字节（HMAC 尾部）
+            File.WriteAllBytes(_paths.SaveFilePath, fileBytes);
+
+            LogAssert.Expect(LogType.Error, new Regex("Load failed"));
+
+            SaveError error = _handler.TryLoadCore<SaveData>(_paths, out SaveData loaded);
+
+            Assert.AreEqual(SaveError.IntegrityCheckFailed, error, "密文篡改应被 HMAC 拦截");
+            Assert.IsNull(loaded);
+        }
+
+        [Test]
+        public void Serialize_IsDeterministicLayout()
+        {
+            // 两次序列化布局稳定（IV 随机导致密文不同，但长度结构一致：IV + 填充块 + MAC）
+            var data = new SaveData { Gold = 7, PlayerName = "Moirai" };
+
+            byte[] first = _handler.Serialize(data);
+            byte[] second = _handler.Serialize(data);
+
+            Assert.AreEqual(first.Length, second.Length, "相同明文的密文长度结构应一致");
+            CollectionAssert.AreNotEqual(first, second, "随机 IV 应使两次密文不同");
         }
     }
 }
