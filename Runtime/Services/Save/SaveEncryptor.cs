@@ -48,6 +48,21 @@ namespace Moirai.Atropos.Save
         /// </summary>
         public virtual int Iterations { get; set; } = DefaultIterations;
 
+        /// <summary>派生密钥缓存（同参数重复加解密时跳过 PBKDF2 重派生——每次派生为 10 万次迭代级开销）。</summary>
+        [NonSerialized] private byte[] _cachedDerivedKeys;
+
+        /// <summary>派生密钥缓存对应的口令。</summary>
+        [NonSerialized] private string _cachedKey;
+
+        /// <summary>派生密钥缓存对应的盐文。</summary>
+        [NonSerialized] private string _cachedSalt;
+
+        /// <summary>派生密钥缓存对应的迭代次数。</summary>
+        [NonSerialized] private int _cachedIterations;
+
+        /// <summary>派生密钥缓存访问锁（并发加解密不同文件时保护缓存字段；锁开销相对 PBKDF2 派生可忽略）。</summary>
+        [NonSerialized] private readonly object _deriveLock = new object();
+
         #region 公共流式 API [PUBLIC STREAM API]
 
         /// <summary>
@@ -203,14 +218,32 @@ namespace Moirai.Atropos.Save
 
         /// <summary>
         /// PBKDF2-SHA256 派生 64 字节密钥材料（前 32B 加密密钥、后 32B MAC 密钥）。
+        /// <para>同（口令, 盐文, 迭代次数）组合命中实例缓存时直接复用；缓存判读与重派生在锁内串行——
+        /// 并发派生同一参数结果幂等，锁仅消除缓存字段读写竞争。</para>
         /// </summary>
         /// <param name="sKey">口令。</param>
         /// <returns>密钥材料。</returns>
         private byte[] DeriveKeys(string sKey)
         {
-            using (Rfc2898DeriveBytes algorithm = new Rfc2898DeriveBytes(sKey, Encoding.UTF8.GetBytes(Salt), Iterations, HashAlgorithmName.SHA256))
+            lock (_deriveLock)
             {
-                return algorithm.GetBytes(EncryptionKeySize + MacSize);
+                if (_cachedDerivedKeys != null
+                    && _cachedIterations == Iterations
+                    && string.Equals(_cachedKey, sKey, StringComparison.Ordinal)
+                    && string.Equals(_cachedSalt, Salt, StringComparison.Ordinal))
+                {
+                    return _cachedDerivedKeys;
+                }
+
+                using (Rfc2898DeriveBytes algorithm = new Rfc2898DeriveBytes(sKey, Encoding.UTF8.GetBytes(Salt), Iterations, HashAlgorithmName.SHA256))
+                {
+                    _cachedDerivedKeys = algorithm.GetBytes(EncryptionKeySize + MacSize);
+                }
+
+                _cachedKey = sKey;
+                _cachedSalt = Salt;
+                _cachedIterations = Iterations;
+                return _cachedDerivedKeys;
             }
         }
 
