@@ -66,6 +66,11 @@ namespace GameTool
             Assert.IsFalse(Sav.SaveService.FileExists("any"));
             Assert.IsNull(Sav.SaveService.DetermineSavePath());
             Assert.DoesNotThrow(() => Sav.SaveService.DeleteAllSaveFiles());
+            Assert.AreEqual(0, Sav.SaveService.GetSaveFiles("any").Length, "降级时应返回空数组");
+            Assert.AreEqual(Sav.SaveError.HandlerNotReady, Sav.SaveService.TryLoad<object>("any").Error,
+                "同步判别加载降级时应返回 HandlerNotReady 失败结果");
+            Assert.DoesNotThrow(() => Sav.SaveService.Save("any", "any"), "同步写入降级时应静默跳过");
+            Assert.IsNull(Sav.SaveService.Load<object>("any"), "同步加载降级时应返回 default");
         }
 
         [Test]
