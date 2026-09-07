@@ -22,7 +22,7 @@ Namespace: `Moirai.Atropos.Save`
 
 | Class/Interface | Description |
 |---------|------|
-| `SaveService` | Save service static facade (`[HandlerHost]`): `Save` / `Load` / `TryLoad` / `DeleteSave` / `DeleteSaveFolder` / `DeleteAllSaveFiles` / `FileExists` / `GetSaveFiles` / `DetermineSavePath`; all static APIs forward through the `Handler` property (silently degrade to safe defaults when not ready) |
+| `SaveService` | Save service static facade (`[HandlerHost]`): sync `Save` / `Load` / `TryLoad`, async `SaveAsync` / `LoadAsync` / `TryLoadAsync`, plus `DeleteSave` / `DeleteSaveFolder` / `DeleteAllSaveFiles` / `FileExists` / `GetSaveFiles` / `DetermineSavePath`; all static APIs forward through the `Handler` property (silently degrade to safe defaults when not ready) |
 | `SaveServiceHandler` | Save handler abstract base class: full file pipeline (path resolution & validation, versioned header, temp file + disk flush + atomic replace, deletion retry, orphan sweep, slot enumeration); subclasses implement the `Serialize(object)` and `Deserialize<T>(byte[])` serialization hooks (pure .NET, invoked on a worker thread) |
 | `JsonSaveHandler` | JSON format handler, prettyPrint in editor, compact bytes on device |
 | `JsonEncryptedSaveHandler` | JSON serialization + AES encryption (inherits `EncryptedSaveHandlerBase`) |
@@ -48,17 +48,17 @@ public class PlayerData
     public int Coin;
 }
 
-// Save: writes to persistentDataPath/Data/Save/player_data.sav
-await SaveService.Save(new PlayerData { Level = 10, Coin = 999 }, "player_data");
+// Async save: writes to persistentDataPath/Data/Save/player_data.sav (IO on a worker thread)
+await SaveService.SaveAsync(new PlayerData { Level = 10, Coin = 999 }, "player_data");
 
-// Load: returns default when the file does not exist or loading fails (failures are logged)
+// Async load: returns default when the file does not exist or loading fails (failures are logged)
 if (SaveService.FileExists("player_data"))
 {
-    PlayerData data = await SaveService.Load<PlayerData>("player_data");
+    PlayerData data = await SaveService.LoadAsync<PlayerData>("player_data");
 }
 
-// Use TryLoad when error discrimination is needed (missing/corrupted/decryption failure, etc.)
-SaveResult<PlayerData> result = await SaveService.TryLoad<PlayerData>("player_data");
+// Use TryLoadAsync when error discrimination is needed (missing/corrupted/decryption failure, etc.)
+SaveResult<PlayerData> result = await SaveService.TryLoadAsync<PlayerData>("player_data");
 if (result.IsSuccess)
 {
     Debug.Log($"Level: {result.Data.Level}");
@@ -68,6 +68,11 @@ else if (result.Error == SaveError.Corrupted)
     // Save corrupted — enter recovery/rebuild flow
 }
 
+// Sync API (bare names; blocks the calling thread, main thread only): quit-time flushes, boot-time settings loads
+SaveService.Save(new PlayerData { Level = 11, Coin = 1000 }, "player_data");
+PlayerData synced = SaveService.Load<PlayerData>("player_data");
+SaveResult<PlayerData> syncResult = SaveService.TryLoad<PlayerData>("player_data");
+
 // Enumerate save slots (newest first)
 foreach (SaveFileInfo info in SaveService.GetSaveFiles())
 {
@@ -75,7 +80,7 @@ foreach (SaveFileInfo info in SaveService.GetSaveFiles())
 }
 
 // Save to a subfolder (persistentDataPath/Data/Settings/)
-await SaveService.Save(settingsObject, "audio", "Settings");
+await SaveService.SaveAsync(settingsObject, "audio", "Settings");
 
 // Deletion
 SaveService.DeleteSave("player_data");            // delete a single save
@@ -140,7 +145,8 @@ SaveService.Handler = new MessagePackSaveServiceHandler();
 
 ## Notes
 
-- The `Save` parameter order is "object first, filename second": `Save<T>(T saveObject, string fileName, string folderName = "Save", CancellationToken cancellationToken = default)`.
+- The read/write pair naming follows "bare name = sync, Async suffix = async" (aligned with the `ResourceService` convention): async are `SaveAsync`/`LoadAsync`/`TryLoadAsync` (`SaveAsync<T>(T saveObject, string fileName, string folderName = "Save", CancellationToken cancellationToken = default)`), sync are `Save`/`Load`/`TryLoad`.
+- **Sync APIs (`Save`/`Load`/`TryLoad`) run the full pipeline on the calling thread and block until done**: main thread only; intended for quit-time flushes, boot-time settings loads, and other must-be-synchronous scenarios. For large data or regular paths prefer the async APIs (worker-thread IO, non-blocking).
 - **Legacy saves are discarded**: This version writes the versioned-header format; header-less legacy saves return `SaveError.InvalidFormat` on load (by decision — no historical save burden before release).
 - **Unified corruption fallback**: `Load` returns `default` on a missing file (existing contract); corruption/decryption failure/deserialization failure now also log an error and return `default` (the old version threw on plain-JSON corruption). Use `TryLoad` when precise discrimination is needed.
 - Write failures (serialization exceptions, IO exceptions) throw `GameException` (with path context); the `CancellationToken` is cooperative (checked before/after serialization and before replacement — an in-flight single disk write cannot be aborted).

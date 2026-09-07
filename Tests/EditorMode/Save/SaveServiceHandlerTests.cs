@@ -194,10 +194,10 @@ namespace Save
         }
 
         [Test]
-        public void Save_NullObject_Throws()
+        public void SaveAsync_NullObject_Throws()
         {
             Assert.Throws<ArgumentNullException>(
-                () => _handler.Save<SaveData>(null, "slot"),
+                () => _handler.SaveAsync<SaveData>(null, "slot"),
                 "空存档对象应 fail-fast");
         }
 
@@ -224,7 +224,7 @@ namespace Save
         #region 损坏与格式校验兜底 [CORRUPTION / FORMAT]
 
         [Test]
-        public void TryLoad_MissingFile_ReturnsFileNotFound()
+        public void TryLoadCore_MissingFile_ReturnsFileNotFound()
         {
             // 无档属正常业务流（静默返回 FileNotFound，不记录错误日志）
             SaveError error = _handler.TryLoadCore<SaveData>(Paths("missing"), out SaveData loaded);
@@ -340,6 +340,49 @@ namespace Save
             AssertErrorLogged("Deserialize save failed");
             Assert.AreEqual(SaveError.SerializationFailed, error);
             Assert.IsNull(loaded);
+        }
+
+        #endregion
+
+        #region 同步外观 API [SYNC FACADE]
+
+        [Test]
+        public void Save_Then_Load_RoundTrips()
+        {
+            _handler.Save(new SaveData { Gold = 777, PlayerName = "sync" }, "slot", TestFolder);
+            Assert.IsTrue(_handler.FileExists("slot", TestFolder));
+
+            SaveData loaded = _handler.Load<SaveData>("slot", TestFolder);
+            Assert.IsNotNull(loaded);
+            Assert.AreEqual(777, loaded.Gold);
+            Assert.AreEqual("sync", loaded.PlayerName);
+        }
+
+        [Test]
+        public void Save_Overwrites_Then_TryLoad_ReflectsState()
+        {
+            _handler.Save(new SaveData { Gold = 1, PlayerName = "first" }, "slot", TestFolder);
+            _handler.Save(new SaveData { Gold = 2, PlayerName = "second" }, "slot", TestFolder);
+
+            SaveResult<SaveData> result = _handler.TryLoad<SaveData>("slot", TestFolder);
+            Assert.IsTrue(result.IsSuccess);
+            Assert.AreEqual(2, result.Data.Gold, "覆盖写入后应读到最新数据");
+            Assert.AreEqual("second", result.Data.PlayerName);
+        }
+
+        [Test]
+        public void TryLoad_MissingFile_ReturnsFileNotFound()
+        {
+            SaveResult<SaveData> result = _handler.TryLoad<SaveData>("missing_sync", TestFolder);
+            Assert.IsFalse(result.IsSuccess);
+            Assert.AreEqual(SaveError.FileNotFound, result.Error);
+            Assert.IsNull(result.Data);
+        }
+
+        [Test]
+        public void Save_NullObject_Throws()
+        {
+            Assert.Throws<ArgumentNullException>(() => _handler.Save<SaveData>(null, "slot", TestFolder));
         }
 
         #endregion
