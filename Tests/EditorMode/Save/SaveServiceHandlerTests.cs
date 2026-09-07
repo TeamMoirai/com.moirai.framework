@@ -787,6 +787,37 @@ namespace Save
             Assert.AreEqual("real", files[0].FileName);
         }
 
+        [Test]
+        public void CreateBackup_ThenRestoreBackup_RoundTrips()
+        {
+            var paths = Paths("slot");
+            _handler.SaveBlockCore(paths, SaveServiceHandler.MainBlockKey, new SaveData { Gold = 1, PlayerName = "backup-me" }, ESaveBackend.Json, 1, CancellationToken.None);
+
+            _handler.CreateBackup("slot", TestFolder);
+            Assert.IsTrue(File.Exists(paths.SaveFilePath + ".bak"), "备份应落盘");
+
+            // 覆盖为新数据后从备份恢复
+            _handler.SaveBlockCore(paths, SaveServiceHandler.MainBlockKey, new SaveData { Gold = 999, PlayerName = "overwritten" }, ESaveBackend.Json, 1, CancellationToken.None);
+            _handler.RestoreBackup("slot", TestFolder);
+
+            SaveError error = _handler.TryLoadBlockCore<SaveData>(paths, SaveServiceHandler.MainBlockKey, out SaveData restored);
+            Assert.AreEqual(SaveError.None, error);
+            Assert.AreEqual(1, restored.Gold, "恢复后应回到备份时点数据");
+            Assert.AreEqual("backup-me", restored.PlayerName);
+        }
+
+        [Test]
+        public void RestoreBackup_MissingBackup_Throws()
+        {
+            Assert.Throws<GameException>(() => _handler.RestoreBackup("no-backup-slot", TestFolder));
+        }
+
+        [Test]
+        public void CreateBackup_MissingSave_Throws()
+        {
+            Assert.Throws<GameException>(() => _handler.CreateBackup("no-save-slot", TestFolder));
+        }
+
         #endregion
 
         /// <summary>

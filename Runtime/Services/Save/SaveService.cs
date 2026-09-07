@@ -456,6 +456,33 @@ namespace Moirai.Atropos.Save
         public static void DeleteAllSaveFiles() =>
             s_Handler?.DeleteAllSaveFiles();
 
+        /// <summary>
+        /// 从磁盘中异步删除单个存档（含全部数据块，删除退避重试在工作线程执行）。
+        /// </summary>
+        /// <param name="fileName">文件名。</param>
+        /// <param name="folderName">文件夹名称。</param>
+        /// <param name="cancellationToken">取消令牌（协作式）。</param>
+        /// <returns>删除完成的异步任务。</returns>
+        public static UniTask DeleteSaveAsync(string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default) =>
+            s_Handler?.DeleteSaveAsync(fileName, folderName, cancellationToken) ?? UniTask.CompletedTask;
+
+        /// <summary>
+        /// 异步删除整个存档文件夹。
+        /// </summary>
+        /// <param name="folderName">文件夹名称。</param>
+        /// <param name="cancellationToken">取消令牌（协作式）。</param>
+        /// <returns>删除完成的异步任务。</returns>
+        public static UniTask DeleteSaveFolderAsync(string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default) =>
+            s_Handler?.DeleteSaveFolderAsync(folderName, cancellationToken) ?? UniTask.CompletedTask;
+
+        /// <summary>
+        /// 异步删除存档数据根目录及其下所有存档。
+        /// </summary>
+        /// <param name="cancellationToken">取消令牌（协作式）。</param>
+        /// <returns>删除完成的异步任务。</returns>
+        public static UniTask DeleteAllSaveFilesAsync(CancellationToken cancellationToken = default) =>
+            s_Handler?.DeleteAllSaveFilesAsync(cancellationToken) ?? UniTask.CompletedTask;
+
         #endregion
 
         #region 存档查询 [QUERY]
@@ -476,6 +503,31 @@ namespace Moirai.Atropos.Save
         /// <returns>存档元数据数组；处理器未就绪时降级为空数组。</returns>
         public static SaveFileInfo[] GetSaveFiles(string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME) =>
             s_Handler?.GetSaveFiles(folderName) ?? Array.Empty<SaveFileInfo>();
+
+        /// <summary>
+        /// 异步枚举指定文件夹内的全部存档槽位（枚举与排序在工作线程执行）。
+        /// </summary>
+        /// <param name="folderName">文件夹名称。</param>
+        /// <param name="cancellationToken">取消令牌（协作式）。</param>
+        /// <returns>存档元数据数组（按最后写入时间倒序）；缺目录/处理器未就绪时为空数组。</returns>
+        public static UniTask<SaveFileInfo[]> GetSaveFilesAsync(string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default) =>
+            s_Handler?.GetSaveFilesAsync(folderName, cancellationToken) ?? UniTask.FromResult(Array.Empty<SaveFileInfo>());
+
+        /// <summary>
+        /// 创建存档的单槽备份（<c>.bak</c> 后缀，覆盖旧备份；存档缺失时抛出 <see cref="GameException"/>）。
+        /// </summary>
+        /// <param name="fileName">文件名。</param>
+        /// <param name="folderName">文件夹名称。</param>
+        public static void CreateBackup(string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME) =>
+            s_Handler?.CreateBackup(fileName, folderName);
+
+        /// <summary>
+        /// 从单槽备份恢复存档（备份缺失时抛出 <see cref="GameException"/>；处理器未就绪时静默降级为空操作）。
+        /// </summary>
+        /// <param name="fileName">文件名。</param>
+        /// <param name="folderName">文件夹名称。</param>
+        public static void RestoreBackup(string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME) =>
+            s_Handler?.RestoreBackup(fileName, folderName);
 
         #endregion
 
