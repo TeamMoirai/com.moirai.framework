@@ -69,14 +69,14 @@ public sealed class PlayerStatsData : SaveDataBlock
 public partial class Player : MonoBehaviour
 {
     [SaveField] private int _hp;
-    [SaveField("bag_items")] private List<int> _items;   // 集合元素/嵌套类为生成器后续版本扩展，当前报 MIRAI200
+    [SaveField("bag_items")] private List<int> _items;   // 集合元素/嵌套类为生成器后续版本扩展，当前报 MIRAI300
 }
 ```
 
 2. GameObject 挂 **Save Component**：Inspector 里添加目标组件绑定并勾选参与存档的字段（块键空缺时自动派生 `场景名:物体路径`）。
 3. 运行期 `SaveService.SaveComponentsAsync(fileName)` / `LoadComponentsAsync(fileName)` 触发——编译期生成的强类型捕获器零反射捕获，按勾选掩码过滤；未知键跳过、缺失键保留当前值（字段增删天然向后兼容）。
 
-生成器诊断：MIRAI200 类型不支持、MIRAI201 键重复、MIRAI203 需 partial class、MIRAI204 需实例字段。修改生成器源码（`SourceGenerators/Source~/SaveHost/`）后必须 `dotnet build -c Release` 重建 `SourceGenerators/SaveHost.dll`。
+生成器诊断：MIRAI300 类型不支持、MIRAI301 键重复、MIRAI303 需 partial class、MIRAI304 需实例字段。修改生成器源码（`SourceGenerators/Source~/SaveHost/`）后必须 `dotnet build -c Release` 重建 `SourceGenerators/SaveHost.dll`。
 
 ## 公共 API（静态外观）
 
