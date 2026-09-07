@@ -458,6 +458,11 @@ namespace Moirai.Atropos.Save
         /// <param name="fileName">文件名。</param>
         private static void ValidateFileName(string fileName)
         {
+            if (fileName == null)
+            {
+                throw new ArgumentNullException(nameof(fileName));
+            }
+
             if (string.IsNullOrWhiteSpace(fileName))
             {
                 throw new ArgumentException("Save file name is null or empty.", nameof(fileName));
@@ -470,10 +475,16 @@ namespace Moirai.Atropos.Save
                 throw new ArgumentException(StringUtility.Format("Save file name '{0}' contains path separators or reserved segments.", fileName), nameof(fileName));
             }
 
-            string baseName = Path.GetFileNameWithoutExtension(fileName);
-            if (baseName.IndexOfAny(s_InvalidFileNameChars) >= 0 || s_ReservedDeviceNames.Contains(baseName))
+            // 先对原始输入做非法字符校验：GetFileNameWithoutExtension 会把 ':' 当卷分隔符切掉前段（"slot:1" → "1"），仅查基名会漏网
+            if (fileName.IndexOfAny(s_InvalidFileNameChars) >= 0)
             {
-                throw new ArgumentException(StringUtility.Format("Save file name '{0}' contains invalid or reserved characters.", fileName), nameof(fileName));
+                throw new ArgumentException(StringUtility.Format("Save file name '{0}' contains invalid characters.", fileName), nameof(fileName));
+            }
+
+            string baseName = Path.GetFileNameWithoutExtension(fileName);
+            if (s_ReservedDeviceNames.Contains(baseName))
+            {
+                throw new ArgumentException(StringUtility.Format("Save file name '{0}' is a reserved device name.", fileName), nameof(fileName));
             }
         }
 
