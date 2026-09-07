@@ -11,32 +11,32 @@ namespace Moirai.Atropos
     public static partial class ReflectionUtility
     {
         /// <summary>
-        /// Gets all fields from an object and its hierarchy inheritance.
+        /// 获取指定类型及其继承层次中的所有字段。
         /// </summary>
-        /// <param name="type">The type.</param>
-        /// <param name="flags">The flags.</param>
-        /// <returns>All fields of the type.</returns>
+        /// <param name="type">目标类型。</param>
+        /// <param name="flags">检索字段时使用的绑定标志。</param>
+        /// <returns>该类型的所有字段。</returns>
         public static List<FieldInfo> GetAllFields(this Type type, BindingFlags flags)
         {
-            // Early exit if Object type
+            // 若为 object 基类型则提前返回
             if (type == typeof(object))
             {
                 return new List<FieldInfo>();
             }
 
-            // Recursive call
+            // 递归调用
             var fields = type.BaseType.GetAllFields(flags);
             fields.AddRange(type.GetFields(flags | BindingFlags.DeclaredOnly));
             return fields;
         }
 
         /// <summary>
-        /// Perform a deep copy of the class.
+        /// 对对象执行深拷贝。
         /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="obj">The object.</param>
-        /// <returns>A deep copy of obj.</returns>
-        /// <exception cref="ArgumentNullException">Object cannot be null</exception>
+        /// <typeparam name="T">对象类型。</typeparam>
+        /// <param name="obj">待拷贝的对象。</param>
+        /// <returns>obj 的深拷贝副本。</returns>
+        /// <exception cref="ArgumentNullException">对象不能为 null。</exception>
         public static T DeepCopy<T>(T obj)
         {
             if (obj == null)
@@ -48,11 +48,11 @@ namespace Moirai.Atropos
 
 
         /// <summary>
-        /// Does the copy.
+        /// 递归执行拷贝。
         /// </summary>
-        /// <param name="obj">The object.</param>
-        /// <returns></returns>
-        /// <exception cref="ArgumentException">Unknown type</exception>
+        /// <param name="obj">待拷贝的对象。</param>
+        /// <returns>拷贝出的新对象。</returns>
+        /// <exception cref="ArgumentException">遇到不支持拷贝的类型。</exception>
         private static object DoCopy(object obj)
         {
             if (obj == null)
@@ -60,14 +60,14 @@ namespace Moirai.Atropos
                 return null;
             }
 
-            // Value type
+            // 值类型
             var type = obj.GetType();
             if (type.IsValueType || type == typeof(string))
             {
                 return obj;
             }
 
-            // Array
+            // 数组
 
             if (type.IsArray)
             {
@@ -81,13 +81,13 @@ namespace Moirai.Atropos
                 return Convert.ChangeType(copied, obj.GetType());
             }
 
-            // Unity Object
+            // Unity Object 引用类型
             if (typeof(UnityEngine.Object).IsAssignableFrom(type))
             {
                 return obj;
             }
 
-            // Class -> Recursion
+            // 类类型 -> 递归拷贝
             if (type.IsClass)
             {
                 var copy = Activator.CreateInstance(obj.GetType());
@@ -105,19 +105,19 @@ namespace Moirai.Atropos
                 return copy;
             }
 
-            // Fallback
+            // 兜底处理
             throw new ArgumentException("Unknown type");
         }
         
                 
         /// <summary>
-        /// Get type first generic argument type
+        /// 获取类型（沿继承链向上查找）的第一个泛型实参类型。
         /// </summary>
-        /// <param name="type"></param>
-        /// <returns></returns>
+        /// <param name="type">目标类型。</param>
+        /// <returns>第一个泛型实参的类型。</returns>
         public static Type GetGenericArgumentType(Type type)
         {
-            /* Prevent stackoverflow */
+            /* 防止无限递归 */
             const int maxDepth = 10;
             int depth = 0;
             while (type != null && !type.IsGenericType && depth < maxDepth)
@@ -130,6 +130,12 @@ namespace Moirai.Atropos
             return type.GetGenericArguments()[0];
         }
                 
+        /// <summary>
+        /// 判断类型自身、其基类或实现的接口是否继承自指定泛型定义。
+        /// </summary>
+        /// <param name="type">目标类型。</param>
+        /// <param name="genericDefinition">泛型定义类型（如 <c>typeof(List&lt;&gt;)</c>）。</param>
+        /// <returns>继承自该泛型定义返回 <c>true</c>，否则返回 <c>false</c>。</returns>
         public static bool IsInheritedFromGenericDefinition(Type type, Type genericDefinition)
         {
             if (type.IsGenericType && type.GetGenericTypeDefinition() == genericDefinition)
@@ -157,10 +163,10 @@ namespace Moirai.Atropos
         }
         
         /// <summary>
-        /// Get all field names of type that Unity can serialize
+        /// 获取类型中 Unity 可序列化的所有字段名称。
         /// </summary>
-        /// <param name="type"></param>
-        /// <returns></returns>
+        /// <param name="type">目标类型。</param>
+        /// <returns>可序列化字段的名称列表。</returns>
         public static List<string> GetSerializedFieldsName(Type type)
         {
             List<FieldInfo> fieldInfos = new List<FieldInfo>();
@@ -170,10 +176,10 @@ namespace Moirai.Atropos
         }
          
         /// <summary>
-        /// Get all fields of type that Unity can serialize
+        /// 获取类型中 Unity 可序列化的所有字段。
         /// </summary>
-        /// <param name="type"></param>
-        /// <returns></returns>
+        /// <param name="type">目标类型。</param>
+        /// <returns>可序列化字段的 <see cref="FieldInfo"/> 列表。</returns>
         public static List<FieldInfo> GetSerializedFields(Type type)
         {
             List<FieldInfo> fieldInfos = new List<FieldInfo>();
@@ -231,6 +237,11 @@ namespace Moirai.Atropos
             typeof(bool)
         };
 
+        /// <summary>
+        /// 判断类型是否为可序列化的数值类型（整数、浮点或布尔）。
+        /// </summary>
+        /// <param name="type">目标类型。</param>
+        /// <returns>是数值类型返回 <c>true</c>，否则返回 <c>false</c>。</returns>
         public static bool IsSerializableNumericTypes(Type type)
         {
             return s_SerializableNumericTypes.Contains(type);
@@ -250,11 +261,21 @@ namespace Moirai.Atropos
         };
         
 
+        /// <summary>
+        /// 判断类型是否为 Unity 内置类型（如 Color、Vector3、Bounds 等）。
+        /// </summary>
+        /// <param name="type">目标类型。</param>
+        /// <returns>是内置类型返回 <c>true</c>，否则返回 <c>false</c>。</returns>
         public static bool IsUnityBuiltinTypes(Type type)
         {
             return s_UnityBuiltinTypes.Contains(type);
         }
         
+        /// <summary>
+        /// 创建指定类型的默认值：数组返回空数组，值类型返回零值，字符串返回空串，其余尝试调用无参构造，失败返回 null。
+        /// </summary>
+        /// <param name="type">目标类型。</param>
+        /// <returns>默认值实例，无法创建时为 null。</returns>
         public static object CreateDefaultValue(Type type)
         {
             if (type.IsArray)

@@ -13,12 +13,18 @@ using Object = UnityEngine.Object;
 
 namespace Moirai.Atropos.Attributes.Editor.Drawers
 {
+    /// <summary>
+    /// <see cref="ResourcePathAttribute"/> 特性绘制器：以资源对象字段编辑字符串属性，按 <see cref="EStr"/> 指定的格式（Resources 相对路径、AssetDatabase 路径或 GUID）在字符串与资源对象之间转换。
+    /// </summary>
     [CustomPropertyDrawer(typeof(ResourcePathAttribute))]
     public class ResourcePathAttributeDrawer : PropertyDrawer
     {
 
         #region IMGUI
 
+        /// <summary>
+        /// 使用 IMGUI 绘制资源对象字段；找不到资产时显示警告并提供清除按钮，值变更时将资源对象转换为字符串并写回序列化属性。
+        /// </summary>
         public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
         {
             ResourcePathAttribute resourcePathAttribute = (ResourcePathAttribute)attribute;
@@ -48,7 +54,7 @@ namespace Moirai.Atropos.Attributes.Editor.Drawers
                 {
                     string result = GetNewValue(fieldResult, eStr);
                     property.stringValue = result;
-                    // fieldInfo can be null when Odin Inspector wraps the drawer
+                    // 当 Odin Inspector 包装该绘制器时 fieldInfo 可能为 null
                     MemberInfo memberInfo = fieldInfo;
                     object parent;
                     if (memberInfo == null)
@@ -119,6 +125,9 @@ namespace Moirai.Atropos.Attributes.Editor.Drawers
 //
 //         #endregion
 
+        /// <summary>
+        /// 将资源对象转换为待存储的字符串值，转换格式由 <paramref name="eStr"/> 指定（Resources 相对路径去掉扩展名、AssetDatabase 资产路径或 GUID）。
+        /// </summary>
         private static string GetNewValue(Object value, EStr eStr)
         {
             if (value == null)
@@ -167,6 +176,9 @@ namespace Moirai.Atropos.Attributes.Editor.Drawers
 
         }
 
+        /// <summary>
+        /// 将字符串值解析为资源对象，解析格式由 <paramref name="eStr"/> 指定，并要求资源类型与 <paramref name="requiredType"/> 匹配。
+        /// </summary>
         private static Object GetObjFromStr(string curStrValue, Type requiredType, EStr eStr)
         {
             if (string.IsNullOrEmpty(curStrValue))

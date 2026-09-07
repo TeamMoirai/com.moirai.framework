@@ -16,6 +16,23 @@ namespace Moirai.Atropos
     [HandlerHost(typeof(GameTimeHandler))]
     public static partial class GameTime
     {
+        #region 处理器 [HANDLER]
+
+        /// <summary>
+        /// 按缺省时间源创建默认处理器（引擎时钟）。
+        /// </summary>
+        /// <returns>默认游戏时间处理器实例。</returns>
+        internal static GameTimeHandler CreateDefaultHandler()
+        {
+            return new DefaultGameTimeHandler();
+        }
+
+        // private static GameTimeHandler GetHandlerFromSettings() => GameAppSettings.GameTimeHandler;
+
+        #endregion
+
+        #region 公共 API [PUBLIC API]
+
         /// <summary>
         /// 此帧开始时的时间（只读）。
         /// </summary>
@@ -62,13 +79,6 @@ namespace Moirai.Atropos
             unscaledTime = handler.UnscaledTime;
         }
 
-        /// <summary>
-        /// 按缺省时间源创建默认处理器（引擎时钟）。
-        /// </summary>
-        /// <returns>默认游戏时间处理器实例。</returns>
-        internal static GameTimeHandler CreateDefaultHandler()
-        {
-            return new DefaultGameTimeHandler();
-        }
+        #endregion
     }
 }

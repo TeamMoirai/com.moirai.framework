@@ -5,6 +5,9 @@ using Moirai.Atropos.Collections;
 
 namespace DataStructure
 {
+    /// <summary>
+    /// 验证 <see cref="SparseArray{T}"/> 的槽位分配与空闲复用、分配状态查询、越界/非法下标防护、收缩与仅遍历已分配元素等行为。
+    /// </summary>
     public class SparseArrayTest
     {
         [Test]

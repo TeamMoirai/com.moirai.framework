@@ -7,13 +7,20 @@ using UnityEngine.UIElements;
 
 namespace Moirai.Atropos.Attributes.Editor.Drawers
 {
+    /// <summary>
+    /// <see cref="InspectorButtonAttribute"/> 绘制器：绘制一个按钮，点击时通过反射调用目标对象上指定的方法（支持 IMGUI 与 UI Toolkit）。
+    /// </summary>
     [CustomPropertyDrawer(typeof(InspectorButtonAttribute))]
     public class InspectorButtonAttributeDrawer : PropertyDrawer
     {
+        // 缓存目标方法的反射信息，避免每次绘制都重复查找。
         private MethodInfo _eventMethodInfo = null;
 
         #region IMGUI
 
+        /// <summary>
+        /// 绘制按钮，点击时通过反射调用 <paramref name="property"/> 目标对象上指定的方法。
+        /// </summary>
         public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
         {
             InspectorButtonAttribute inspectorButtonAttribute = (InspectorButtonAttribute)attribute;
@@ -48,6 +55,9 @@ namespace Moirai.Atropos.Attributes.Editor.Drawers
 
 #if UNITY_2021_3_OR_NEWER
 
+        /// <summary>
+        /// 使用 UI Toolkit 创建按钮控件，点击时通过反射调用目标对象上指定的方法。
+        /// </summary>
         public override VisualElement CreatePropertyGUI(SerializedProperty property)
         {
             InspectorButtonAttribute inspectorButtonAttribute = (InspectorButtonAttribute)attribute;

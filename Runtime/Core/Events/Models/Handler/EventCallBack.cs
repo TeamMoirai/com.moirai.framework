@@ -3,20 +3,19 @@ using System;
 namespace Moirai.Atropos.Events
 {
     /// <summary>
-    /// Defines the structure of a callback that can be registered onto an element for an event type
+    /// 定义可注册到元素上以处理指定事件类型的回调结构。
     /// </summary>
-    /// <param name="evt">The event instance</param>
-    /// <typeparam name="TEventType">The type of event to register the callback for</typeparam>
+    /// <param name="evt">事件实例。</param>
+    /// <typeparam name="TEventType">要注册回调的事件类型。</typeparam>
     public delegate void EventCallback<in TEventType>(TEventType evt);
 
     /// <summary>
-    /// Defines the structure of a callback that can be registered onto an element for an event type,
-    /// along with a custom user defined argument.
+    /// 定义可注册到元素上以处理指定事件类型的回调结构，并附带自定义用户参数。
     /// </summary>
-    /// <param name="evt">The event instance.</param>
-    /// <param name="userArgs">The user argument instance.</param>
-    /// <typeparam name="TEventType">The type of event registered for the callback.</typeparam>
-    /// <typeparam name="TCallbackArgs">The type of the user argument.</typeparam>
+    /// <param name="evt">事件实例。</param>
+    /// <param name="userArgs">用户参数实例。</param>
+    /// <typeparam name="TEventType">回调注册的事件类型。</typeparam>
+    /// <typeparam name="TCallbackArgs">用户参数的类型。</typeparam>
     public delegate void EventCallback<in TEventType, in TCallbackArgs>(TEventType evt, TCallbackArgs userArgs);
     internal abstract class EventCallbackFunctorBase
     {

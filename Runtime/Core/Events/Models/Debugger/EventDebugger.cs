@@ -105,13 +105,16 @@ namespace Moirai.Atropos.Events
 
     internal class EventDebugger
     {
+        /// <summary>
+        /// 获取或设置调试器关联的事件协调器；编辑器构建下 getter 返回 <see cref="CoordinatorDebug"/>，setter 为空操作。
+        /// </summary>
         public IEventCoordinator Coordinator
         {
 #if UNITY_EDITOR
             get { return CoordinatorDebug; }
             set
             {
-                /* Ignore in editor */
+                /* 编辑器下忽略赋值 */
             }
 #else
             get; set;
@@ -120,6 +123,9 @@ namespace Moirai.Atropos.Events
 
 #if UNITY_EDITOR
         private IEventCoordinator m_CoordinatorDebug;
+        /// <summary>
+        /// 获取或设置编辑器调试使用的事件协调器，设置时会注册其事件类型处理计数。
+        /// </summary>
         public IEventCoordinator CoordinatorDebug
         {
             get { return m_CoordinatorDebug; }
@@ -135,10 +141,22 @@ namespace Moirai.Atropos.Events
         }
 #endif
 
+        /// <summary>
+        /// 获取或设置当前是否正在回放事件。
+        /// </summary>
         public bool IsReplaying { get; internal set; }
+        /// <summary>
+        /// 获取或设置回放速度倍率（默认 <c>1.0</c>）。
+        /// </summary>
         public float PlaybackSpeed { get; set; } = 1.0f;
+        /// <summary>
+        /// 获取或设置回放是否处于暂停状态。
+        /// </summary>
         public bool IsPlaybackPaused { get; set; }
 
+        /// <summary>
+        /// 将当前协调器的修改计数加一，用于外部检测调试数据是否变化。
+        /// </summary>
         public void UpdateModificationCount()
         {
             if (Coordinator == null)
@@ -153,29 +171,59 @@ namespace Moirai.Atropos.Events
             m_ModificationCount[Coordinator] = count;
         }
 
+        /// <summary>
+        /// 记录事件处理开始，并更新修改计数。
+        /// </summary>
+        /// <param name="evt">正在处理的事件。</param>
         public void BeginProcessEvent(EventBase evt)
         {
             AddBeginProcessEvent(evt);
             UpdateModificationCount();
         }
 
+        /// <summary>
+        /// 记录事件处理结束及其耗时，并更新修改计数。
+        /// </summary>
+        /// <param name="evt">处理完成的事件。</param>
+        /// <param name="duration">事件处理耗时（毫秒）。</param>
         public void EndProcessEvent(EventBase evt, long duration)
         {
             AddEndProcessEvent(evt, duration);
             UpdateModificationCount();
         }
 
+        /// <summary>
+        /// 记录一次事件回调调用，并更新修改计数。
+        /// </summary>
+        /// <param name="cbHashCode">回调的哈希码。</param>
+        /// <param name="cbName">回调的显示名称。</param>
+        /// <param name="evt">回调关联的事件。</param>
+        /// <param name="propagationHasStopped">回调执行后传播是否已停止。</param>
+        /// <param name="immediatePropagationHasStopped">回调执行后是否已立即停止同元素上的后续回调。</param>
+        /// <param name="defaultHasBeenPrevented">回调执行后是否已阻止默认行为。</param>
+        /// <param name="duration">回调耗时（毫秒）。</param>
         public void LogCall(int cbHashCode, string cbName, EventBase evt, bool propagationHasStopped, bool immediatePropagationHasStopped, bool defaultHasBeenPrevented, long duration)
         {
             AddCallObject(cbHashCode, cbName, evt, propagationHasStopped, immediatePropagationHasStopped, defaultHasBeenPrevented, duration);
             UpdateModificationCount();
         }
 
+        /// <summary>
+        /// 记录一次默认行为执行，并更新修改计数。
+        /// </summary>
+        /// <param name="evt">触发默认行为的事件。</param>
+        /// <param name="phase">执行默认行为时所处的传播阶段。</param>
+        /// <param name="duration">默认行为执行耗时（毫秒）。</param>
         public void LogExecuteDefaultAction(EventBase evt, PropagationPhase phase, long duration)
         {
             AddExecuteDefaultAction(evt, phase, duration);
             UpdateModificationCount();
         }
+        /// <summary>
+        /// 记录事件的传播路径（仅编辑器构建下生效）。
+        /// </summary>
+        /// <param name="evt">要记录的事件。</param>
+        /// <param name="paths">事件的传播路径。</param>
         public static void LogPropagationPaths(EventBase evt, PropagationPaths paths)
         {
 #if UNITY_EDITOR
@@ -185,12 +233,22 @@ namespace Moirai.Atropos.Events
             }
 #endif
         }
+        /// <summary>
+        /// 记录事件传播路径的副本，并更新修改计数。
+        /// </summary>
+        /// <param name="evt">要记录的事件。</param>
+        /// <param name="paths">事件的传播路径。</param>
         public void LogPropagationPathsInternal(EventBase evt, PropagationPaths paths)
         {
             var pathsCopy = paths == null ? new PropagationPaths() : new PropagationPaths(paths);
             AddPropagationPaths(evt, pathsCopy);
             UpdateModificationCount();
         }
+        /// <summary>
+        /// 将事件的传播路径添加到日志记录；调试器挂起时忽略。
+        /// </summary>
+        /// <param name="evt">要记录的事件。</param>
+        /// <param name="paths">事件的传播路径。</param>
         public void AddPropagationPaths(EventBase evt, PropagationPaths paths)
         {
             if (Suspended)
@@ -209,6 +267,12 @@ namespace Moirai.Atropos.Events
                 list.Add(pathObject);
             }
         }
+        /// <summary>
+        /// 获取指定协调器的事件回调调用记录，可按事件记录筛选。
+        /// </summary>
+        /// <param name="coordinator">要查询的事件协调器。</param>
+        /// <param name="evt">筛选依据的事件记录，为 null 时返回全部记录。</param>
+        /// <returns>回调调用记录列表；无记录时返回 null。</returns>
         public List<EventDebuggerCallTrace> GetCalls(IEventCoordinator coordinator, EventDebuggerEventRecord evt = null)
         {
             if (!m_EventCalledObjects.TryGetValue(coordinator, out var list))
@@ -232,6 +296,12 @@ namespace Moirai.Atropos.Events
 
             return list;
         }
+        /// <summary>
+        /// 获取指定协调器的事件传播路径记录，可按事件记录筛选。
+        /// </summary>
+        /// <param name="coordinator">要查询的事件协调器。</param>
+        /// <param name="evt">筛选依据的事件记录，为 null 时返回全部记录。</param>
+        /// <returns>传播路径记录列表；无记录时返回 null。</returns>
         public List<EventDebuggerPathTrace> GetPropagationPaths(IEventCoordinator coordinator, EventDebuggerEventRecord evt = null)
         {
             if (!m_EventPathObjects.TryGetValue(coordinator, out var list))
@@ -255,6 +325,12 @@ namespace Moirai.Atropos.Events
 
             return list;
         }
+        /// <summary>
+        /// 获取指定协调器的默认行为执行记录，可按事件记录筛选。
+        /// </summary>
+        /// <param name="coordinator">要查询的事件协调器。</param>
+        /// <param name="evt">筛选依据的事件记录，为 null 时返回全部记录。</param>
+        /// <returns>默认行为执行记录列表；无记录时返回 null。</returns>
         public List<EventDebuggerDefaultActionTrace> GetDefaultActions(IEventCoordinator coordinator, EventDebuggerEventRecord evt = null)
         {
             if (!m_EventDefaultActionObjects.TryGetValue(coordinator, out var list))
@@ -280,6 +356,12 @@ namespace Moirai.Atropos.Events
         }
 
 
+        /// <summary>
+        /// 获取指定协调器的事件处理开始/结束记录，可按事件记录筛选。
+        /// </summary>
+        /// <param name="coordinator">要查询的事件协调器。</param>
+        /// <param name="evt">筛选依据的事件记录，为 null 时返回全部记录。</param>
+        /// <returns>事件处理记录列表；无记录时返回 null。</returns>
         public List<EventDebuggerTrace> GetBeginEndProcessedEvents(IEventCoordinator coordinator, EventDebuggerEventRecord evt = null)
         {
             if (!m_EventProcessedEvents.TryGetValue(coordinator, out var list))
@@ -304,6 +386,11 @@ namespace Moirai.Atropos.Events
             return list;
         }
 
+        /// <summary>
+        /// 获取指定协调器的修改计数；协调器无效或无记录时返回 -1。
+        /// </summary>
+        /// <param name="coordinator">要查询的事件协调器。</param>
+        /// <returns>修改计数，无效时为 -1。</returns>
         public long GetModificationCount(IEventCoordinator coordinator)
         {
             if (coordinator == null)
@@ -317,6 +404,9 @@ namespace Moirai.Atropos.Events
             return modificationCount;
         }
 
+        /// <summary>
+        /// 清除调试日志记录；协调器为 null 时清除全部记录，否则仅清除当前协调器的记录。
+        /// </summary>
         public void ClearLogs()
         {
             UpdateModificationCount();
@@ -340,6 +430,11 @@ namespace Moirai.Atropos.Events
                 eventTypeProcessedForCoordinator.Clear();
         }
 
+        /// <summary>
+        /// 将选定的事件记录列表以 JSON 形式保存为回放会话文件。
+        /// </summary>
+        /// <param name="path">保存文件的完整路径。</param>
+        /// <param name="eventList">要保存的事件记录列表。</param>
         public void SaveReplaySessionFromSelection(string path, List<EventDebuggerEventRecord> eventList)
         {
             if (string.IsNullOrEmpty(path))
@@ -351,6 +446,11 @@ namespace Moirai.Atropos.Events
             LogUtility.Info($"Saved under: {path}");
         }
 
+        /// <summary>
+        /// 从文件加载回放会话的事件记录列表。
+        /// </summary>
+        /// <param name="path">回放会话文件的完整路径。</param>
+        /// <returns>加载的事件记录列表；路径无效时返回 null。</returns>
         public EventDebuggerRecordList LoadReplaySession(string path)
         {
             if (string.IsNullOrEmpty(path))
@@ -360,6 +460,12 @@ namespace Moirai.Atropos.Events
             return UnityEngine.JsonUtility.FromJson<EventDebuggerRecordList>(fileContent);
         }
 
+        /// <summary>
+        /// 按时间戳顺序回放事件记录（协程），事件间隔依据回放速度缩放，回放中每帧让步一次。
+        /// </summary>
+        /// <param name="eventBases">要回放的事件记录集合。</param>
+        /// <param name="refreshList">回放进度刷新回调，参数为当前索引与事件总数。</param>
+        /// <returns>回放协程的迭代器。</returns>
         public IEnumerator ReplayEvents(IEnumerable<EventDebuggerEventRecord> eventBases, Action<int, int> refreshList)
         {
             if (eventBases == null)
@@ -439,6 +545,9 @@ namespace Moirai.Atropos.Events
             IsReplaying = false;
         }
 
+        /// <summary>
+        /// 停止回放并取消暂停状态。
+        /// </summary>
         public void StopPlayback()
         {
             IsReplaying = false;
@@ -451,6 +560,11 @@ namespace Moirai.Atropos.Events
             public long duration;
         }
 
+        /// <summary>
+        /// 按事件名称统计事件数量与总耗时，构建执行直方图。
+        /// </summary>
+        /// <param name="eventBases">参与统计的事件记录列表，为 null 或空时统计全部记录。</param>
+        /// <returns>事件名称到数量/耗时统计的字典；无可用记录时返回 null。</returns>
         public Dictionary<string, HistogramRecord> ComputeHistogram(List<EventDebuggerEventRecord> eventBases)
         {
             if (Coordinator == null || !m_EventProcessedEvents.TryGetValue(Coordinator, out var list))
@@ -480,7 +594,7 @@ namespace Moirai.Atropos.Events
             return histogram;
         }
 
-        // Call Object
+        // 回调对象记录
         private readonly Dictionary<IEventCoordinator, List<EventDebuggerCallTrace>> m_EventCalledObjects;
         private readonly Dictionary<IEventCoordinator, List<EventDebuggerDefaultActionTrace>> m_EventDefaultActionObjects;
         private readonly Dictionary<IEventCoordinator, List<EventDebuggerPathTrace>> m_EventPathObjects;
@@ -488,14 +602,23 @@ namespace Moirai.Atropos.Events
         private readonly Dictionary<IEventCoordinator, Stack<EventDebuggerTrace>> m_StackOfProcessedEvent;
         private readonly Dictionary<IEventCoordinator, Dictionary<long, int>> m_EventTypeProcessedCount;
 
+        /// <summary>
+        /// 获取当前协调器按事件类型 ID 统计的处理数量；无记录时返回 null。
+        /// </summary>
         public Dictionary<long, int> EventTypeProcessedCount => m_EventTypeProcessedCount.TryGetValue(Coordinator, out var eventTypeProcessedCountForCoordinator) ? eventTypeProcessedCountForCoordinator : null;
 
         private readonly Dictionary<IEventCoordinator, long> m_ModificationCount;
         private readonly bool m_Log;
 
+        /// <summary>
+        /// 获取或设置是否挂起日志记录，挂起期间不再添加新的调试记录。
+        /// </summary>
         public bool Suspended { get; set; }
 
-        // Methods
+        // 方法
+        /// <summary>
+        /// 初始化事件调试器实例。
+        /// </summary>
         public EventDebugger()
         {
             m_EventCalledObjects = new Dictionary<IEventCoordinator, List<EventDebuggerCallTrace>>();
@@ -595,7 +718,7 @@ namespace Moirai.Atropos.Events
                         stack.Pop();
                         dbgObject.Duration = duration;
 
-                        // Update the target if it was unknown in AddBeginProcessEvent.
+                        // 若目标在 AddBeginProcessEvent 时未知，则在此更新。
                         if (dbgObject.EventBase.Target == null)
                         {
                             dbgObject.EventBase.Target = evt.Target;
@@ -627,30 +750,36 @@ namespace Moirai.Atropos.Events
             }
         }
 
+        /// <summary>
+        /// 获取对象的显示名称（类型名 + 对象名，可附加实例 ID）。
+        /// </summary>
+        /// <param name="obj">要显示的对象。</param>
+        /// <param name="withHashCode">是否在名称后附加实例 ID（十六进制）。</param>
+        /// <returns>对象的显示名称；对象为 null 时返回空字符串。</returns>
         public static string GetObjectDisplayName(object obj, bool withHashCode = true)
         {
             if (obj == null) return string.Empty;
 
             var type = obj.GetType();
             var objectName = GetTypeDisplayName(type);
-            // Two kinds
-            // MonoBehaviour implements IEventHandler
+            // 分两种情况处理
+            // MonoBehaviour 实现了 IEventHandler
             if (obj is Behaviour behaviour)
             {
                 objectName += "#" + behaviour.gameObject.name;
                 if (withHashCode)
                 {
-                    //Prefer to use instanceID at runtime
+                    //运行时优先使用 instanceID
                     objectName += " (" + UnityUtility.GetObjectEntityId(behaviour).ToString("x8") + ")";
                 }
             }
-            // EventHandler attached to a MonoBehaviour
+            // 依附于 MonoBehaviour 的 EventHandler
             else if (obj is IBehaviourScope bs)
             {
                 objectName += "#" + bs.Behaviour.gameObject.name;
                 if (withHashCode)
                 {
-                    //Prefer to use instanceID at runtime
+                    //运行时优先使用 instanceID
                     objectName += " (" + UnityUtility.GetObjectEntityId(bs.Behaviour).ToString("x8") + ")";
                 }
             }
@@ -663,6 +792,11 @@ namespace Moirai.Atropos.Events
             return objectName;
         }
 
+        /// <summary>
+        /// 获取类型的显示名称，泛型类型输出为 <c>Name&lt;T&gt;</c> 形式。
+        /// </summary>
+        /// <param name="type">要显示的类型。</param>
+        /// <returns>类型的显示名称。</returns>
         public static string GetTypeDisplayName(Type type)
         {
             return type.IsGenericType ? $"{type.Name.TrimEnd('`', '1')}<{type.GetGenericArguments()[0].Name}>" : type.Name;

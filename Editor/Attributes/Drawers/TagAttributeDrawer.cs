@@ -7,15 +7,24 @@ using UnityEngine.UIElements;
 
 namespace Moirai.Atropos.Attributes.Editor.Drawers
 {
+    /// <summary>
+    /// <see cref="TagAttribute"/> 特性绘制器：在 Inspector 上绘制 Unity 标签（Tag）选择字段。
+    /// </summary>
     [CustomPropertyDrawer(typeof(TagAttribute))]
     public class TagAttributeDrawer : PropertyDrawer
     {
         #region IMGUI
+        /// <summary>
+        /// 获取属性高度（单行）。
+        /// </summary>
         public override float GetPropertyHeight(SerializedProperty property, GUIContent guiContent)
         {
             return EditorGUIUtility.singleLineHeight;
         }
         
+        /// <summary>
+        /// 使用 IMGUI 绘制标签选择字段，仅在属性为字符串时生效，选中值写回序列化属性。
+        /// </summary>
         public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
         {
             if (property.propertyType != SerializedPropertyType.String)

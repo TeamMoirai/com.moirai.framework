@@ -16,10 +16,16 @@ using Newtonsoft.Json;
 
 namespace Moirai.Atropos.Events.Editor
 {
+    /// <summary>
+    /// 事件调试器窗口（Window/Event Debugger），基于 <see cref="EventsDebuggerImpl"/> 展示与调试事件派发。
+    /// </summary>
     internal class EventsDebuggerWindow : EditorWindow
     {
         [SerializeField] private EventsDebuggerImpl m_DebuggerImpl;
 
+        /// <summary>
+        /// 打开事件调试器窗口。
+        /// </summary>
         [MenuItem("Window/Event Debugger")]
         public static void ShowEventDebugger()
         {
@@ -41,14 +47,27 @@ namespace Moirai.Atropos.Events.Editor
         }
     }
 
+    /// <summary>
+    /// 显示已注册回调所在源代码行的标签，支持在代码编辑器中跳转到对应文件与行号。
+    /// </summary>
     internal class CodeLine : Label
     {
         private string m_FileName;
 
         private int m_LineNumber;
 
+        /// <summary>
+        /// 获取该代码行的哈希码，用于与回调记录匹配高亮。
+        /// </summary>
         public int HashCode { get; private set; }
 
+        /// <summary>
+        /// 初始化代码行的显示内容与跳转信息。
+        /// </summary>
+        /// <param name="textName">显示文本。</param>
+        /// <param name="fileName">源文件路径。</param>
+        /// <param name="lineNumber">源文件中的行号。</param>
+        /// <param name="lineHashCode">用于高亮匹配的行哈希码。</param>
         public void Init(string textName, string fileName, int lineNumber, int lineHashCode)
         {
             text = textName;
@@ -57,17 +76,26 @@ namespace Moirai.Atropos.Events.Editor
             HashCode = lineHashCode;
         }
 
+        /// <summary>
+        /// 在当前代码编辑器中打开源文件并定位到对应行。
+        /// </summary>
         public void GotoCode()
         {
             CodeEditor.Editor.CurrentCodeEditor.OpenProject(m_FileName, m_LineNumber);
         }
 
+        /// <summary>
+        /// 返回「文件名 (行号)」形式的描述文本。
+        /// </summary>
         public override string ToString()
         {
             return $"{m_FileName} ({m_LineNumber})";
         }
     }
 
+    /// <summary>
+    /// 事件调试器核心实现，负责事件日志记录、回放、直方图统计与已注册回调展示。
+    /// </summary>
     [Serializable]
     internal class EventsDebuggerImpl : CoordinatorDebugger
     {
@@ -79,25 +107,28 @@ namespace Moirai.Atropos.Events.Editor
         private const int k_DefaultMaxLogLines = 5000;
         private const string k_RegisteredEventCallbacksPrefix = "Registered Event Callbacks for ";
 
+        /// <summary>
+        /// 事件直方图时长显示模式。
+        /// </summary>
         public enum HistogramDurationMode
         {
-            // Average duration spent handling each event type
+            // 处理每种事件所花的平均时长
             AverageTime,
-            // Total duration spent handling each event type
+            // 处理每种事件所花的总时长
             TotalTime
         }
 
-        // Event playback speed, divide by 10f before using
+        // 事件回放速度，使用前需除以 10f
         public readonly List<string> m_PlaybackSpeeds = new List<string>
 
         {
-            "0.1x", // 0.1x (slowest)
+            "0.1x", // 0.1x（最慢）
             "0.2x",
             "0.5x",
-            "1x", // 1x (normal)
+            "1x", // 1x（正常）
             "2x",
             "5x",
-            "10x" // 10x (fastest)
+            "10x" // 10x（最快）
         };
         private Label m_EventPropagationPaths;
         private Label m_EventBaseInfo;
@@ -110,11 +141,15 @@ namespace Moirai.Atropos.Events.Editor
 
         private long m_ModificationCount;
         [SerializeField] private bool m_AutoScroll;
+        // 布尔开关：是否启用最大日志行数限制（行数本身见 m_MaxLogLineCount）
         [SerializeField] private bool m_MaxLogLines;
         [SerializeField] private int m_MaxLogLineCount;
         [SerializeField] private HistogramDurationMode m_DisplayHistogramDurationMode;
         [SerializeField] private float m_PlaybackSpeed;
 
+        /// <summary>
+        /// 可序列化的事件类型过滤状态项。
+        /// </summary>
         [Serializable]
         private struct EventTypeFilterStateStruct
         {
@@ -122,6 +157,12 @@ namespace Moirai.Atropos.Events.Editor
             public bool value;
         }
 
+        /// <summary>
+        /// 获取指定键的事件类型过滤状态。
+        /// </summary>
+        /// <param name="key">事件类型标识。</param>
+        /// <param name="defaultValue">未记录该键时返回的默认值。</param>
+        /// <returns>该键对应的过滤状态；状态列表为空时返回 <c>false</c>。</returns>
         public bool GetStateValue(long key, bool defaultValue)
         {
             if (m_StateList == null)
@@ -165,7 +206,7 @@ namespace Moirai.Atropos.Events.Editor
             if (m_EventsHistogramScrollView == null)
                 return;
 
-            // Clear the ScrollView
+            // 清空 ScrollView
             m_EventsHistogramScrollView.Clear();
 
             if (CoordinatorDebug == null)
@@ -242,19 +283,19 @@ namespace Moirai.Atropos.Events.Editor
                 var lineContainer = new VisualElement { pickingMode = PickingMode.Position };
                 lineContainer.AddToClassList("line-container");
 
-                // Title items
+                // 标题行
                 var titleLine = new Label { pickingMode = PickingMode.Ignore };
                 titleLine.AddToClassList("callback-list-element");
                 titleLine.AddToClassList("visual-element");
                 lineContainer.Add(titleLine);
 
-                // Callback items
+                // 回调行
                 var callbackLine = new Label { pickingMode = PickingMode.Ignore };
                 callbackLine.AddToClassList("callback-list-element");
                 callbackLine.AddToClassList("event-type");
                 lineContainer.Add(callbackLine);
 
-                // Code line items
+                // 代码行
                 var codeLineContainer = new VisualElement();
                 codeLineContainer.AddToClassList("code-line-container");
                 var line = new CodeLine { pickingMode = PickingMode.Ignore };
@@ -341,7 +382,7 @@ namespace Moirai.Atropos.Events.Editor
             var nbCallbacks = 0;
             foreach (var eventRegistrationListener in listeners)
             {
-                var key = eventRegistrationListener.Key; // VE that sends events
+                var key = eventRegistrationListener.Key; // 发送事件的 VisualElement
 
                 var text = EventDebugger.GetObjectDisplayName(key);
 
@@ -391,6 +432,11 @@ namespace Moirai.Atropos.Events.Editor
                 (nbFilteredEvents < nbEvents ? $" (filter: {nbFilteredEvents} event{(nbFilteredEvents > 1 ? "s" : "")})" : string.Empty);
         }
 
+        /// <summary>
+        /// 初始化事件调试器：加载 UXML/USS 模板、绑定控件事件并恢复序列化状态。
+        /// </summary>
+        /// <param name="debuggerWindow">宿主编辑器窗口。</param>
+        /// <param name="root">调试器 UI 的根元素。</param>
         public void Initialize(EditorWindow debuggerWindow, VisualElement root)
         {
             rootVisualElement = root;
@@ -445,7 +491,7 @@ namespace Moirai.Atropos.Events.Editor
             m_MaxLogLinesField = playbackContainer.MandatoryQ<IntegerField>("maxLogLinesField");
             m_MaxLogLinesField.RegisterValueChangedCallback(e =>
             {
-                // Minimum 1 line if max log lines is enabled
+                // 启用最大日志行数限制时至少为 1 行
                 m_MaxLogLineCount = Math.Max(1, e.newValue);
                 m_MaxLogLinesField.value = m_MaxLogLineCount;
                 DoMaxLogLines();
@@ -580,6 +626,9 @@ namespace Moirai.Atropos.Events.Editor
             BuildEventsLog();
         }
 
+        /// <summary>
+        /// 禁用时注销编辑器更新回调并执行基类清理。
+        /// </summary>
         public new void OnDisable()
         {
             base.OnDisable();
@@ -587,6 +636,11 @@ namespace Moirai.Atropos.Events.Editor
             EditorApplication.update -= EditorUpdate;
         }
 
+        /// <summary>
+        /// 事件派发前挂接日志记录器并记录事件起始时间戳。
+        /// </summary>
+        /// <param name="evt">待派发的事件。</param>
+        /// <returns>始终返回 <c>false</c>，不拦截事件派发。</returns>
         public override bool InterceptEvent(EventBase evt)
         {
             evt.EventLogger = m_Debugger;
@@ -595,6 +649,10 @@ namespace Moirai.Atropos.Events.Editor
             return false;
         }
 
+        /// <summary>
+        /// 事件派发完成后记录处理耗时并结束该事件的日志记录。
+        /// </summary>
+        /// <param name="evt">已完成派发的事件。</param>
         public override void PostProcessEvent(EventBase evt)
         {
             if (evt.Log)
@@ -1117,6 +1175,9 @@ namespace Moirai.Atropos.Events.Editor
             return m_Log.lines.ToList();
         }
 
+        /// <summary>
+        /// 清空事件日志与当前选中项并刷新界面。
+        /// </summary>
         public void ClearLogs()
         {
             m_Debugger.ClearLogs();
@@ -1137,6 +1198,10 @@ namespace Moirai.Atropos.Events.Editor
             UpdatePlaybackButtons();
         }
 
+        /// <summary>
+        /// 选中协调器后切换底层调试器的协调器，并刷新事件类型过滤与已注册回调列表。
+        /// </summary>
+        /// <param name="selectedCoordinateDebug">新选中的事件协调器，可为 <c>null</c>。</param>
         protected override void OnSelectCoordinateDebug(IEventCoordinator selectedCoordinateDebug)
         {
             if (selectedCoordinateDebug == m_Debugger.Coordinator)
@@ -1151,6 +1216,9 @@ namespace Moirai.Atropos.Events.Editor
             Refresh();
         }
 
+        /// <summary>
+        /// 检查事件调试器修改计数，若有变化则更新事件日志、直方图与各统计信息。
+        /// </summary>
         public override void Refresh()
         {
             var eventDebuggerModificationCount = m_Debugger.GetModificationCount(CoordinatorDebug);
@@ -1206,10 +1274,10 @@ namespace Moirai.Atropos.Events.Editor
         }
 
         /// <summary>
-        /// Only format for indent level 0
+        /// 仅按缩进级别 0 进行格式化，将 JSON 各属性拼接为「名称: 值」的行文本。
         /// </summary>
-        /// <param name="json"></param>
-        /// <returns></returns>
+        /// <param name="json">待格式化的 JSON 字符串。</param>
+        /// <returns>格式化后的文本。</returns>
         public static string FormatJson(string json)
         {
             StringBuilder stringBuilder = new StringBuilder();

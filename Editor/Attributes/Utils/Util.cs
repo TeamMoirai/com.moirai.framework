@@ -6,8 +6,18 @@ using UnityEngine;
 
 namespace Moirai.Atropos.Attributes.Editor.Utils
 {
+    /// <summary>
+    /// 编辑器通用工具类。
+    /// </summary>
     public static class Util
     {
+        /// <summary>
+        /// 按目标类型从对象中解析出可赋值的目标对象：GameObject 与 Component 之间按需转换（取 <c>gameObject</c> 或
+        /// <c>GetComponent</c>），Texture2D 可解析为其所属资源中的 Sprite，其余情况要求对象实例与目标类型兼容。
+        /// </summary>
+        /// <param name="fieldResult">序列化属性当前引用的对象。</param>
+        /// <param name="fieldType">期望的目标类型。</param>
+        /// <returns>解析出的对象；无法解析或 <paramref name="fieldResult"/> 为 null 时返回 null。</returns>
         public static UnityEngine.Object GetTypeFromObj(UnityEngine.Object fieldResult, Type fieldType)
         {
             UnityEngine.Object result = null;
@@ -40,7 +50,7 @@ namespace Moirai.Atropos.Attributes.Editor.Utils
                         }
                         catch (ArgumentException)
                         {
-                            // ignore
+                            // 忽略
                         }
 
                         if (r)
@@ -59,14 +69,14 @@ namespace Moirai.Atropos.Attributes.Editor.Utils
                     else
                     {
                         Component r = comp.GetComponent(fieldType);
-                        if (r)  // life circle problem, need to check bool first
+                        if (r)  // 存在生命周期问题，需先做 bool 判断
                         {
                             result = r;
                         }
                     }
                     break;
 
-                // Unity Build-in Object
+                // Unity 内置对象
                 // case Texture:
                 // case Sprite:
                 // case Material:
@@ -111,6 +121,20 @@ namespace Moirai.Atropos.Attributes.Editor.Utils
             return result;
         }
         
+        /// <summary>
+        /// 从可枚举对象中按索引取值，索引越界或未找到时返回错误信息而不抛出异常。
+        /// </summary>
+        /// <param name="source">源可枚举对象（数组、列表或任意 <see cref="IEnumerable"/>）。</param>
+        /// <param name="index">要取出的元素索引。</param>
+        /// <returns>返回一个元组：error 为错误描述（成功时为空字符串），result 为取到的元素（失败时为 null）。</returns>
+        /// <exception cref="Exception"><paramref name="source"/> 不是可枚举对象时抛出。</exception>
+        /// <summary>
+        /// 从可枚举对象中按索引取值：数组/列表按索引访问并捕获越界异常，其余可枚举对象按顺序遍历查找。
+        /// </summary>
+        /// <param name="source">源可枚举对象。</param>
+        /// <param name="index">元素索引。</param>
+        /// <returns>返回一个元组：error 为错误描述（成功时为空字符串），result 为取到的元素（失败时为 null）。</returns>
+        /// <exception cref="Exception"><paramref name="source"/> 不是可枚举对象时抛出。</exception>
         public static (string error, object result) GetValueAtIndex(object source, int index)
         {
             // ReSharper disable once UseNegatedPatternInIsExpression
