@@ -22,7 +22,7 @@ Save 服务（`SaveService`）将存档的序列化格式与文件管线解耦�
 
 | 类/接口 | 说明 |
 |---------|------|
-| `SaveService` | 静态外观（`[HandlerHost]`）：`Save` / `Load` / `TryLoad` / `DeleteSave` / `DeleteSaveFolder` / `DeleteAllSaveFiles` / `FileExists` / `GetSaveFiles` / `DetermineSavePath`；全部静态 API，经 `Handler` 属性转发（未就绪时静默降级为安全默认值） |
+| `SaveService` | 静态外观（`[HandlerHost]`）：同步 `Save` / `Load` / `TryLoad`，异步 `SaveAsync` / `LoadAsync` / `TryLoadAsync`，以及 `DeleteSave` / `DeleteSaveFolder` / `DeleteAllSaveFiles` / `FileExists` / `GetSaveFiles` / `DetermineSavePath`；全部静态 API，经 `Handler` 属性转发（未就绪时静默降级为安全默认值） |
 | `SaveServiceHandler` | 存档处理器抽象基类：完整文件管线（路径解析与校验、版本化文件头、临时文件+落盘+原子替换、删除重试、孤儿清扫、槽位枚举）；子类实现 `Serialize(object)` 与 `Deserialize<T>(byte[])` 序列化钩子（纯 .NET，工作线程调用） |
 | `JsonSaveHandler` | JSON 格式处理器：编辑器下 prettyPrint、真机紧凑字节 |
 | `JsonEncryptedSaveHandler` | JSON 序列化 + AES 加密（继承 `EncryptedSaveHandlerBase`） |
@@ -48,17 +48,17 @@ public class PlayerData
     public int Coin;
 }
 
-// 保存：写入 persistentDataPath/Data/Save/player_data.sav
-await SaveService.Save(new PlayerData { Level = 10, Coin = 999 }, "player_data");
+// 异步保存：写入 persistentDataPath/Data/Save/player_data.sav（IO 在工作线程）
+await SaveService.SaveAsync(new PlayerData { Level = 10, Coin = 999 }, "player_data");
 
-// 加载：文件不存在或加载失败时返回 default（失败已记录错误日志）
+// 异步加载：文件不存在或加载失败时返回 default（失败已记录错误日志）
 if (SaveService.FileExists("player_data"))
 {
-    PlayerData data = await SaveService.Load<PlayerData>("player_data");
+    PlayerData data = await SaveService.LoadAsync<PlayerData>("player_data");
 }
 
-// 需要错误判别时使用 TryLoad（区分无档/损坏/解密失败等）
-SaveResult<PlayerData> result = await SaveService.TryLoad<PlayerData>("player_data");
+// 需要错误判别时使用 TryLoadAsync（区分无档/损坏/解密失败等）
+SaveResult<PlayerData> result = await SaveService.TryLoadAsync<PlayerData>("player_data");
 if (result.IsSuccess)
 {
     Debug.Log($"Level: {result.Data.Level}");
@@ -68,6 +68,11 @@ else if (result.Error == SaveError.Corrupted)
     // 存档损坏——进入恢复/重建流程
 }
 
+// 同步 API（裸名，阻塞调用线程，仅限主线程）：退出前落盘、启动期设置加载等必须同步完成的场景
+SaveService.Save(new PlayerData { Level = 11, Coin = 1000 }, "player_data");
+PlayerData synced = SaveService.Load<PlayerData>("player_data");
+SaveResult<PlayerData> syncResult = SaveService.TryLoad<PlayerData>("player_data");
+
 // 枚举存档槽位（最近优先）
 foreach (SaveFileInfo info in SaveService.GetSaveFiles())
 {
@@ -75,7 +80,7 @@ foreach (SaveFileInfo info in SaveService.GetSaveFiles())
 }
 
 // 分文件夹存档（persistentDataPath/Data/Settings/）
-await SaveService.Save(settingsObject, "audio", "Settings");
+await SaveService.SaveAsync(settingsObject, "audio", "Settings");
 
 // 删除
 SaveService.DeleteSave("player_data");            // 删除单个存档
@@ -140,7 +145,8 @@ SaveService.Handler = new MessagePackSaveServiceHandler();
 
 ## 注意事项
 
-- `Save` 的参数顺序是「先对象、后文件名」：`Save<T>(T saveObject, string fileName, string folderName = "Save", CancellationToken cancellationToken = default)`。
+- 读写对命名遵循「同步裸名 / 异步 Async 后缀」（对齐 `ResourceService` 惯例）：异步为 `SaveAsync`/`LoadAsync`/`TryLoadAsync`（`SaveAsync<T>(T saveObject, string fileName, string folderName = "Save", CancellationToken cancellationToken = default)`），同步为 `Save`/`Load`/`TryLoad`。
+- **同步 API（`Save`/`Load`/`TryLoad`）在调用线程阻塞执行完整管线**：仅限主线程调用，适用于退出前落盘、启动期设置加载等必须同步完成的场景；大数据量或常规路径请用异步 API（工作线程 IO，不阻塞）。
 - **旧格式存档已作废**：新版本写入带版本化文件头的格式，无文件头的旧档读取时返回 `SaveError.InvalidFormat`（用户裁定，发布前无历史档负担）。
 - **损坏兜底统一**：`Load` 在缺档时返回 `default`（既有契约）；损坏/解密失败/反序列化失败现在也记录错误日志后返回 `default`（旧版明文 JSON 损坏会抛异常），需要精确判别时使用 `TryLoad`。
 - 写入失败（序列化异常、IO 异常）抛出 `GameException`（含路径上下文）；`CancellationToken` 为协作式取消（序列化前后与替换前检查，无法中断进行中的单次磁盘写入）。

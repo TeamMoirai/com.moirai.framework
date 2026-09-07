@@ -59,7 +59,7 @@ namespace Moirai.Atropos.Save
         #region 存档读写 [SAVE / LOAD]
 
         /// <summary>
-        /// 将存档对象写入磁盘（临时文件 + 落盘刷新 + 原子替换），IO 在工作线程执行。
+        /// 将存档对象异步写入磁盘（临时文件 + 落盘刷新 + 原子替换），IO 在工作线程执行。
         /// </summary>
         /// <typeparam name="T">存档数据类型。</typeparam>
         /// <param name="saveObject">存档对象。</param>
@@ -67,7 +67,7 @@ namespace Moirai.Atropos.Save
         /// <param name="folderName">文件夹名称；空串表示存档数据根目录。</param>
         /// <param name="cancellationToken">取消令牌（协作式：在序列化前后与替换前检查）。</param>
         /// <returns>写入完成的异步任务；失败抛出 <see cref="GameException"/>（含路径上下文）。</returns>
-        public UniTask Save<T>(T saveObject, string fileName, string folderName = DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default)
+        public UniTask SaveAsync<T>(T saveObject, string fileName, string folderName = DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default)
         {
             if (saveObject is null)
             {
@@ -79,29 +79,29 @@ namespace Moirai.Atropos.Save
         }
 
         /// <summary>
-        /// 从磁盘加载存档，IO 在工作线程执行。
-        /// <para>文件不存在返回 <c>default</c>（既有契约）；损坏/解密失败/反序列化失败记录错误日志后同样返回 <c>default</c>——需要错误判别时使用 <see cref="TryLoad{T}"/>。</para>
+        /// 从磁盘异步加载存档，IO 在工作线程执行。
+        /// <para>文件不存在返回 <c>default</c>（既有契约）；损坏/解密失败/反序列化失败记录错误日志后同样返回 <c>default</c>——需要错误判别时使用 <see cref="TryLoadAsync{T}"/>。</para>
         /// </summary>
         /// <typeparam name="T">存档数据类型。</typeparam>
         /// <param name="fileName">文件名（自动追加配置的扩展名）。</param>
         /// <param name="folderName">文件夹名称；空串表示存档数据根目录。</param>
         /// <param name="cancellationToken">取消令牌（协作式）。</param>
         /// <returns>反序列化后的存档对象；失败返回默认值。</returns>
-        public UniTask<T> Load<T>(string fileName, string folderName = DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default)
+        public UniTask<T> LoadAsync<T>(string fileName, string folderName = DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default)
         {
             SavePaths paths = ResolveSavePaths(fileName, folderName);
             return UniTask.RunOnThreadPool(() => LoadCore<T>(paths), cancellationToken: cancellationToken);
         }
 
         /// <summary>
-        /// 从磁盘加载存档并返回完整错误判别结果，IO 在工作线程执行。
+        /// 从磁盘异步加载存档并返回完整错误判别结果，IO 在工作线程执行。
         /// </summary>
         /// <typeparam name="T">存档数据类型。</typeparam>
         /// <param name="fileName">文件名（自动追加配置的扩展名）。</param>
         /// <param name="folderName">文件夹名称；空串表示存档数据根目录。</param>
         /// <param name="cancellationToken">取消令牌（协作式）。</param>
         /// <returns>加载结果（<see cref="SaveResult{T}"/> 区分无档/损坏/解密失败等错误类别）。</returns>
-        public UniTask<SaveResult<T>> TryLoad<T>(string fileName, string folderName = DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default)
+        public UniTask<SaveResult<T>> TryLoadAsync<T>(string fileName, string folderName = DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default)
         {
             SavePaths paths = ResolveSavePaths(fileName, folderName);
             return UniTask.RunOnThreadPool(() =>
@@ -109,6 +109,54 @@ namespace Moirai.Atropos.Save
                 SaveError error = TryLoadCore<T>(paths, out T data);
                 return error == SaveError.None ? SaveResult<T>.Success(data) : SaveResult<T>.Failure(error);
             }, cancellationToken: cancellationToken);
+        }
+
+        /// <summary>
+        /// 将存档对象写入磁盘（在调用线程执行完整管线，阻塞直至完成）。
+        /// <para>仅限主线程调用（触达 persistentDataPath 等 Unity API）；适用于退出前落盘等必须同步完成的场景，大数据量请用 <see cref="SaveAsync{T}"/> 避免阻塞。</para>
+        /// </summary>
+        /// <typeparam name="T">存档数据类型。</typeparam>
+        /// <param name="saveObject">存档对象。</param>
+        /// <param name="fileName">文件名（自动追加配置的扩展名）。</param>
+        /// <param name="folderName">文件夹名称；空串表示存档数据根目录。</param>
+        public void Save<T>(T saveObject, string fileName, string folderName = DEFAULT_FOLDER_NAME)
+        {
+            if (saveObject is null)
+            {
+                throw new ArgumentNullException(nameof(saveObject));
+            }
+
+            SavePaths paths = ResolveSavePaths(fileName, folderName);
+            SaveCore(paths, saveObject, CancellationToken.None);
+        }
+
+        /// <summary>
+        /// 从磁盘加载存档（在调用线程执行，阻塞直至完成）。
+        /// <para>仅限主线程调用；失败兜底语义与 <see cref="LoadAsync{T}"/> 一致（缺档/失败记录日志后返回 <c>default</c>，错误判别用 <see cref="TryLoad{T}"/>）。</para>
+        /// </summary>
+        /// <typeparam name="T">存档数据类型。</typeparam>
+        /// <param name="fileName">文件名（自动追加配置的扩展名）。</param>
+        /// <param name="folderName">文件夹名称；空串表示存档数据根目录。</param>
+        /// <returns>反序列化后的存档对象；失败返回默认值。</returns>
+        public T Load<T>(string fileName, string folderName = DEFAULT_FOLDER_NAME)
+        {
+            SavePaths paths = ResolveSavePaths(fileName, folderName);
+            return LoadCore<T>(paths);
+        }
+
+        /// <summary>
+        /// 从磁盘加载存档并返回完整错误判别结果（在调用线程执行，阻塞直至完成）。
+        /// <para>仅限主线程调用。</para>
+        /// </summary>
+        /// <typeparam name="T">存档数据类型。</typeparam>
+        /// <param name="fileName">文件名（自动追加配置的扩展名）。</param>
+        /// <param name="folderName">文件夹名称；空串表示存档数据根目录。</param>
+        /// <returns>加载结果（<see cref="SaveResult{T}"/> 区分无档/损坏/解密失败等错误类别）。</returns>
+        public SaveResult<T> TryLoad<T>(string fileName, string folderName = DEFAULT_FOLDER_NAME)
+        {
+            SavePaths paths = ResolveSavePaths(fileName, folderName);
+            SaveError error = TryLoadCore<T>(paths, out T data);
+            return error == SaveError.None ? SaveResult<T>.Success(data) : SaveResult<T>.Failure(error);
         }
 
         /// <summary>
