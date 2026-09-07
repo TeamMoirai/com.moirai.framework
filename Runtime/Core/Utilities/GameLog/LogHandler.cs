@@ -20,16 +20,16 @@ namespace Moirai.Atropos
     public abstract class LogHandler : FrameworkHandler
     {
         [Tooltip("最小日志等级，低于该等级的日志将被丢弃。")]
-        [SerializeField] private LogUtility.ELogLevel m_MinimumLevel = LogUtility.ELogLevel.Verbose;
+        [SerializeField] private ELogLevel m_MinimumLevel = ELogLevel.Verbose;
         /// <summary>
         /// 获取或设置最小日志等级，低于该等级的日志将被丢弃。
         /// </summary>
-        public LogUtility.ELogLevel MinimumLevel
+        internal ELogLevel MinimumLevel
         {
             get
             {
 #if !UNITY_EDITOR
-                if (m_MinimumLevel < LogUtility.ELogLevel.Info) return LogUtility.ELogLevel.Info;
+                if (m_MinimumLevel < ELogLevel.Info) return ELogLevel.Info;
 #endif
                 return m_MinimumLevel;
             }
@@ -86,7 +86,7 @@ namespace Moirai.Atropos
         /// </summary>
         /// <param name="logLevel">游戏框架日志等级。</param>
         /// <returns>等级启用返回 true，否则返回 false。</returns>
-        internal bool IsEnabled(LogUtility.ELogLevel logLevel)
+        internal bool IsEnabled(ELogLevel logLevel)
         {
             return logLevel >= m_MinimumLevel;
         }
@@ -98,6 +98,6 @@ namespace Moirai.Atropos
         /// <param name="message">已格式化的日志内容，不为 null。</param>
         /// <param name="exception">关联异常，无异常时为 null，由各实现决定是否输出异常堆栈。</param>
         /// <param name="context">日志关联对象（可选，Console 点击可定位到该对象）。</param>
-        public abstract void Log(LogUtility.ELogLevel logLevel, string message, [CanBeNull] Exception exception, Object context = null);
+        internal abstract void Log(ELogLevel logLevel, string message, [CanBeNull] Exception exception, Object context = null);
     }
 }

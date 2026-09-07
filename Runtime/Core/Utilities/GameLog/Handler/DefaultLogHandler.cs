@@ -19,7 +19,7 @@ namespace Moirai.Atropos
         /// <param name="exception">关联异常。</param>
         /// <param name="context">日志关联对象（Console 点击可定位）。</param>
         [HideInCallstack]
-        public override void Log(LogUtility.ELogLevel logLevel, string message, Exception exception, Object context = null)
+        internal override void Log(ELogLevel logLevel, string message, Exception exception, Object context = null)
         {
             message ??= string.Empty;
 
@@ -29,27 +29,27 @@ namespace Moirai.Atropos
 
             switch (logLevel)
             {
-                case LogUtility.ELogLevel.Verbose:
+                case ELogLevel.Verbose:
                     handler.LogFormat(LogType.Log, context, "{0}", GetFormatString("VRB", message, "#CFCFCF", "#808080", wrapBody: true));
                     break;
 
-                case LogUtility.ELogLevel.Debug:
+                case ELogLevel.Debug:
                     handler.LogFormat(LogType.Log, context, "{0}", GetFormatString("DBG", message, "#CFCFCF", "#00FF18", wrapBody: true));
                     break;
 
-                case LogUtility.ELogLevel.Info:
+                case ELogLevel.Info:
                     handler.LogFormat(LogType.Log, context, "{0}", GetFormatString("INF", message, "#CFCFCF", null, wrapBody: false));
                     break;
 
-                case LogUtility.ELogLevel.Warning:
+                case ELogLevel.Warning:
                     handler.LogFormat(LogType.Warning, context, "{0}", GetFormatString("WRN", message, "#FF9400", "yellow", wrapBody: true));
                     break;
 
-                case LogUtility.ELogLevel.Error:
+                case ELogLevel.Error:
                     handler.LogFormat(LogType.Error, context, "{0}", GetFormatString("ERR", message, "red", "red", wrapBody: true));
                     break;
 
-                case LogUtility.ELogLevel.Fatal:
+                case ELogLevel.Fatal:
                     if (exception != null)
                         handler.LogException(exception, context);
                     else
