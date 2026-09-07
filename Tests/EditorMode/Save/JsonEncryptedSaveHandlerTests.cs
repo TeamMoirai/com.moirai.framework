@@ -1,10 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text.RegularExpressions;
 using System.Threading;
 using Moirai.Atropos;
 using Moirai.Atropos.Save;
 using NUnit.Framework;
+using UnityEngine;
+using UnityEngine.TestTools;
 
 namespace Save
 {
@@ -12,8 +15,8 @@ namespace Save
     /// <see cref="JsonEncryptedSaveHandler"/> 全链路（序列化 → 加密 → 文件头 → 落盘 → 读盘 → 校验 → 解密 → 反序列化）往返测试。
     /// <para>直接经 <c>protected internal</c> 成员注入密钥与调用管线（测试程序集在 <c>InternalsVisibleTo</c> 白名单内），
     /// 不创建 [Serializable] 处理器子类、不触达 <see cref="SaveServiceSettings"/> 全局配置。</para>
-    /// <para>错误日志断言经 <see cref="LogUtility.OnMessageLogged"/> 事件捕获（运行时激活的 UnityLoggingHandler 走异步 sink，
-    /// <c>LogAssert</c> 不可见）。</para>
+    /// <para>错误日志断言经 <see cref="LogUtility.OnMessageLogged"/> 事件捕获（Handler 无关）；
+    /// DefaultLogHandler 同步链路下另补 <c>LogAssert.Expect</c> 消除 UTF 的未预期日志拦截。</para>
     /// </summary>
     public class JsonEncryptedSaveHandlerTests
     {
@@ -76,6 +79,17 @@ namespace Save
                 $"应记录含 '{fragment}' 的 Error 日志，实际捕获 {_capturedLogs.Count} 条");
         }
 
+        /// <summary>
+        /// 为随后一条 Error 日志声明 UTF 预期（仅 DefaultLogHandler 同步链路下 UTF 可见；异步链路下 UTF 不可见，跳过声明以免「预期未出现」误报）。
+        /// </summary>
+        private static void ExpectErrorLogForUtf()
+        {
+            if (LogUtility.Handler is DefaultLogHandler)
+            {
+                LogAssert.Expect(LogType.Error, new Regex(".*"));
+            }
+        }
+
         [Test]
         public void RoundTrip_PreservesData()
         {
@@ -102,6 +116,8 @@ namespace Save
 
             writer.SaveCore(_paths, new SaveData { Gold = 99, PlayerName = "Moirai" }, CancellationToken.None);
 
+            ExpectErrorLogForUtf();
+
             // 错误密钥在 HMAC 层被拦截（encrypt-then-MAC）——判别为完整性失败而非解密失败
             SaveError error = reader.TryLoadCore<SaveData>(_paths, out SaveData loaded);
 
@@ -124,6 +140,8 @@ namespace Save
             fileBytes[22] = (byte)(patchedCrc >> 16);
             fileBytes[23] = (byte)(patchedCrc >> 24);
             File.WriteAllBytes(_paths.SaveFilePath, fileBytes);
+
+            ExpectErrorLogForUtf();
 
             SaveError error = _handler.TryLoadCore<SaveData>(_paths, out SaveData loaded);
 

@@ -6,6 +6,8 @@ using System.Threading;
 using Moirai.Atropos;
 using Moirai.Atropos.Save;
 using NUnit.Framework;
+using UnityEngine;
+using UnityEngine.TestTools;
 
 namespace Save
 {
@@ -13,8 +15,8 @@ namespace Save
     /// <see cref="SaveServiceHandler"/> 文件管线测试（经框架内置 <see cref="JsonSaveHandler"/> 消费同步核心路径）：
     /// 原子写入与覆盖、孤儿临时文件清扫、版本化文件头校验、损坏兜底分型、路径参数校验、删除与槽位枚举。
     /// <para>经 <c>s_OverrideBasePath</c> 将存档根指向临时目录（<c>InternalsVisibleTo</c> 暴露 internal 管线入口），全流程真实文件 IO。</para>
-    /// <para>错误日志断言经 <see cref="LogUtility.OnMessageLogged"/> 事件捕获（运行时激活的 UnityLoggingHandler 走异步 sink，
-    /// <c>LogAssert</c> 不可见）。</para>
+    /// <para>错误日志断言经 <see cref="LogUtility.OnMessageLogged"/> 事件捕获（Handler 无关）；
+    /// DefaultLogHandler 同步链路下另补 <c>LogAssert.Expect</c> 消除 UTF 的未预期日志拦截。</para>
     /// </summary>
     public class SaveServiceHandlerTests
     {
@@ -77,6 +79,17 @@ namespace Save
         }
 
         /// <summary>
+        /// 为随后一条 Error 日志声明 UTF 预期（仅 DefaultLogHandler 同步链路下 UTF 可见；异步链路下 UTF 不可见，跳过声明以免「预期未出现」误报）。
+        /// </summary>
+        private static void ExpectErrorLogForUtf()
+        {
+            if (LogUtility.Handler is DefaultLogHandler)
+            {
+                LogAssert.Expect(LogType.Error, new Regex(".*"));
+            }
+        }
+
+        /// <summary>
         /// 在 <see cref="TestFolder"/> 下解析目标存档路径。
         /// </summary>
         private SaveServiceHandler.SavePaths Paths(string fileName)
@@ -130,6 +143,8 @@ namespace Save
             byte[] fileBytes = File.ReadAllBytes(paths.SaveFilePath);
             fileBytes[^1] ^= 0xFF;
             File.WriteAllBytes(paths.SaveFilePath, fileBytes);
+
+            ExpectErrorLogForUtf();
 
             SaveData loaded = _handler.LoadCore<SaveData>(paths);
 
@@ -226,6 +241,8 @@ namespace Save
             Directory.CreateDirectory(paths.DirectoryPath);
             File.WriteAllBytes(paths.SaveFilePath, new byte[] { 0x7B, 0x22, 0x47, 0x6F, 0x6C, 0x64, 0x7D });
 
+            ExpectErrorLogForUtf();
+
             SaveError error = _handler.TryLoadCore<SaveData>(paths, out SaveData loaded);
 
             AssertErrorLogged("Load failed");
@@ -239,6 +256,8 @@ namespace Save
             var paths = Paths("truncated");
             Directory.CreateDirectory(paths.DirectoryPath);
             File.WriteAllBytes(paths.SaveFilePath, new byte[] { (byte)'M', (byte)'R', (byte)'S', (byte)'A', 0x01 });
+
+            ExpectErrorLogForUtf();
 
             SaveError error = _handler.TryLoadCore<SaveData>(paths, out SaveData loaded);
 
@@ -255,6 +274,8 @@ namespace Save
             WriteHeaderBytes(fileBytes, 99);
             File.WriteAllBytes(paths.SaveFilePath, fileBytes);
 
+            ExpectErrorLogForUtf();
+
             SaveError error = _handler.TryLoadCore<SaveData>(paths, out SaveData loaded);
 
             AssertErrorLogged("Load failed");
@@ -270,6 +291,8 @@ namespace Save
             byte[] fileBytes = File.ReadAllBytes(paths.SaveFilePath);
             fileBytes[^1] ^= 0xFF; // 翻转载荷末字节（CRC 校验必失败）
             File.WriteAllBytes(paths.SaveFilePath, fileBytes);
+
+            ExpectErrorLogForUtf();
 
             SaveError error = _handler.TryLoadCore<SaveData>(paths, out SaveData loaded);
 
@@ -290,6 +313,8 @@ namespace Save
                 stream.SetLength(fileBytes.Length - 4); // 截断 4 字节载荷（长度与文件头不再自洽）
             }
 
+            ExpectErrorLogForUtf();
+
             SaveError error = _handler.TryLoadCore<SaveData>(paths, out SaveData loaded);
 
             AssertErrorLogged("Load failed");
@@ -307,6 +332,8 @@ namespace Save
             WriteHeaderBytes(fileBytes, SaveFileHeader.CurrentVersion, payload.Length, Crc32.Compute(payload));
             Buffer.BlockCopy(payload, 0, fileBytes, SaveFileHeader.Size, payload.Length);
             File.WriteAllBytes(paths.SaveFilePath, fileBytes);
+
+            ExpectErrorLogForUtf();
 
             SaveError error = _handler.TryLoadCore<SaveData>(paths, out SaveData loaded);
 
