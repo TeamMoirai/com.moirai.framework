@@ -66,17 +66,21 @@ namespace Utility
         [Test]
         public void Log_Levels_AreRouted()
         {
+            _handler.MinimumLevel = LogUtility.ELogLevel.Verbose;
+
+            LogUtility.Verbose("v");
             LogUtility.Debug("d");
             LogUtility.Info("i");
             LogUtility.Warning("w");
             LogAssert.Expect(LogType.Error, new Regex(@"\[ERROR\].*e"));
             LogUtility.Error("e");
 
-            Assert.AreEqual(4, _entries.Count);
-            Assert.AreEqual(LogUtility.ELogLevel.Debug, _entries[0].Level);
-            Assert.AreEqual(LogUtility.ELogLevel.Info, _entries[1].Level);
-            Assert.AreEqual(LogUtility.ELogLevel.Warning, _entries[2].Level);
-            Assert.AreEqual(LogUtility.ELogLevel.Error, _entries[3].Level);
+            Assert.AreEqual(5, _entries.Count);
+            Assert.AreEqual(LogUtility.ELogLevel.Verbose, _entries[0].Level);
+            Assert.AreEqual(LogUtility.ELogLevel.Debug, _entries[1].Level);
+            Assert.AreEqual(LogUtility.ELogLevel.Info, _entries[2].Level);
+            Assert.AreEqual(LogUtility.ELogLevel.Warning, _entries[3].Level);
+            Assert.AreEqual(LogUtility.ELogLevel.Error, _entries[4].Level);
         }
 
         [Test]
@@ -157,10 +161,23 @@ namespace Utility
         }
 
         [Test]
+        public void Log_VerboseLevel_FilteredWhenBelowMinimum()
+        {
+            _handler.MinimumLevel = LogUtility.ELogLevel.Debug;
+
+            LogUtility.Verbose("v");
+            LogUtility.Debug("d");
+
+            Assert.AreEqual(1, _entries.Count);
+            Assert.AreEqual(LogUtility.ELogLevel.Debug, _entries[0].Level);
+        }
+
+        [Test]
         public void DefaultLogHandler_MinimumLevel_FiltersEntries()
         {
             var handler = new DefaultLogHandler { MinimumLevel = LogUtility.ELogLevel.Error };
 
+            Assert.IsFalse(handler.IsEnabled(LogUtility.ELogLevel.Verbose));
             Assert.IsFalse(handler.IsEnabled(LogUtility.ELogLevel.Warning));
             Assert.IsTrue(handler.IsEnabled(LogUtility.ELogLevel.Error));
             Assert.IsTrue(handler.IsEnabled(LogUtility.ELogLevel.Fatal));

@@ -29,31 +29,35 @@ namespace Moirai.Atropos
 
             switch (logLevel)
             {
+                case LogUtility.ELogLevel.Verbose:
+                    handler.LogFormat(LogType.Log, context, "{0}", GetFormatString("VRB", message, "#CFCFCF", "#808080", wrapBody: true));
+                    break;
+
                 case LogUtility.ELogLevel.Debug:
-                    handler.LogFormat(LogType.Log, context, "{0}", GetFormatString("DEBUG", message, "#CFCFCF", "#00FF18", wrapBody: true));
+                    handler.LogFormat(LogType.Log, context, "{0}", GetFormatString("DBG", message, "#CFCFCF", "#00FF18", wrapBody: true));
                     break;
 
                 case LogUtility.ELogLevel.Info:
-                    handler.LogFormat(LogType.Log, context, "{0}", GetFormatString("INFO", message, "#CFCFCF", null, wrapBody: false));
+                    handler.LogFormat(LogType.Log, context, "{0}", GetFormatString("INF", message, "#CFCFCF", null, wrapBody: false));
                     break;
 
                 case LogUtility.ELogLevel.Warning:
-                    handler.LogFormat(LogType.Warning, context, "{0}", GetFormatString("WARNING", message, "#FF9400", "yellow", wrapBody: true));
+                    handler.LogFormat(LogType.Warning, context, "{0}", GetFormatString("WRN", message, "#FF9400", "yellow", wrapBody: true));
                     break;
 
                 case LogUtility.ELogLevel.Error:
-                    handler.LogFormat(LogType.Error, context, "{0}", GetFormatString("ERROR", message, "red", "red", wrapBody: true));
+                    handler.LogFormat(LogType.Error, context, "{0}", GetFormatString("ERR", message, "red", "red", wrapBody: true));
                     break;
 
                 case LogUtility.ELogLevel.Fatal:
                     if (exception != null)
                         handler.LogException(exception, context);
                     else
-                        handler.LogFormat(LogType.Error, context, "{0}", GetFormatString("FATAL", message, "red", "red", wrapBody: true));
+                        handler.LogFormat(LogType.Error, context, "{0}", GetFormatString("FAT", message, "red", "red", wrapBody: true));
                     break;
 
                 default:
-                    handler.LogFormat(LogType.Error, context, "{0}", GetFormatString("FATAL", message, "red", "red", wrapBody: true));
+                    handler.LogFormat(LogType.Error, context, "{0}", GetFormatString("FAT", message, "red", "red", wrapBody: true));
                     break;
             }
         }

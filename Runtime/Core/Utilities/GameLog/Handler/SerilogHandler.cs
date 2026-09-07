@@ -62,6 +62,7 @@ namespace Moirai.Atropos
         {
             return logLevel switch
             {
+                LogUtility.ELogLevel.Verbose => LogEventLevel.Verbose,
                 LogUtility.ELogLevel.Debug => LogEventLevel.Debug,
                 LogUtility.ELogLevel.Info => LogEventLevel.Information,
                 LogUtility.ELogLevel.Warning => LogEventLevel.Warning,

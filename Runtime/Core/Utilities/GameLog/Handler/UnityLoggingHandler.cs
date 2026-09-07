@@ -1,7 +1,7 @@
 #if UNITY_LOGGING_INSTALLED
 using System;
 using UnityEngine;
-using UnityLog = Unity.Logging.Log;
+using Unity.Logging;
 using Object = UnityEngine.Object;
 
 namespace Moirai.Atropos
@@ -23,33 +23,67 @@ namespace Moirai.Atropos
         {
             message ??= string.Empty;
 
+            // 日志类型前缀：默认 Editor 控制台 sink 的 outputTemplate 仅为 "{Message}"（不含 {Level} 占位符），
+            // 与其他实现类的输出对齐（ZLoggerHandler 的 {LogLevel:short}、SerilogHandler 默认模板的 [{Level:u3}]）；
+            // 时间戳仍由后端 outputTemplate 的 {Timestamp} 占位符控制（见类注释）。
+            string formatted = StringUtility.GetString(sb => sb.Append('[').Append(GetLevelTag(logLevel)).Append("] ").Append(message));
+
+            // 警示：com.unity.logging 的 Log.Info/Fatal 重载由源生成器按调用点生成，且按接收者文本前缀
+            // （"Log." / "Unity.Logging.Log." / 命名空间别名 + ".Log."）识别调用点。本类自身有同名方法 Log，
+            // 短名 Log.Info 会绑定到方法组（CS0119），且指向类型的 using 别名（如 using X = Unity.Logging.Log）
+            // 不会被生成器识别——两种写法都会让调用点静默落到兜底重载 Info(in FixedString32Bytes)，
+            // 超过 32 字节的消息在调用点的隐式转换处抛 Truncation 异常。故此处必须写全名。
             switch (logLevel)
             {
+                case LogUtility.ELogLevel.Verbose:
+                    Unity.Logging.Log.Verbose(formatted);
+                    break;
+
                 case LogUtility.ELogLevel.Debug:
-                    UnityLog.Debug(message);
+                    Unity.Logging.Log.Debug(formatted);
                     break;
 
                 case LogUtility.ELogLevel.Info:
-                    UnityLog.Info(message);
+                    Unity.Logging.Log.Info(formatted);
                     break;
 
                 case LogUtility.ELogLevel.Warning:
-                    UnityLog.Warning(message);
+                    Unity.Logging.Log.Warning(formatted);
                     break;
 
                 case LogUtility.ELogLevel.Error:
-                    UnityLog.Error(message);
+                    Unity.Logging.Log.Error(formatted);
                     break;
 
                 case LogUtility.ELogLevel.Fatal:
-                    UnityLog.Fatal(message);
+                    Unity.Logging.Log.Fatal(formatted);
                     break;
 
                 default:
                     // 静默降级：未知等级按 Fatal 处理
-                    UnityLog.Fatal(message);
+                    Unity.Logging.Log.Fatal(formatted);
                     break;
             }
+        }
+
+        /// <summary>
+        /// 获取日志等级对应的三字符类型标签。
+        /// <para>记法与 <see cref="DefaultLogHandler"/> 的级别标签一致（VRB/DBG/INF/WRN/ERR/FAT）。</para>
+        /// </summary>
+        /// <param name="logLevel">游戏框架日志等级。</param>
+        /// <returns>类型标签文本。</returns>
+        private static string GetLevelTag(LogUtility.ELogLevel logLevel)
+        {
+            return logLevel switch
+            {
+                LogUtility.ELogLevel.Verbose => "VRB",
+                LogUtility.ELogLevel.Debug => "DBG",
+                LogUtility.ELogLevel.Info => "INF",
+                LogUtility.ELogLevel.Warning => "WRN",
+                LogUtility.ELogLevel.Error => "ERR",
+                LogUtility.ELogLevel.Fatal => "FAT",
+                _ => "FAT"
+            };
         }
     }
 }
