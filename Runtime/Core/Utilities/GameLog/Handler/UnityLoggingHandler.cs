@@ -19,7 +19,7 @@ namespace Moirai.Atropos
     {
         /// <inheritdoc/>
         [HideInCallstack]
-        public override void Log(LogUtility.ELogLevel logLevel, string message, Exception exception, Object context = null)
+        internal override void Log(ELogLevel logLevel, string message, Exception exception, Object context = null)
         {
             message ??= string.Empty;
 
@@ -35,27 +35,27 @@ namespace Moirai.Atropos
             // 超过 32 字节的消息在调用点的隐式转换处抛 Truncation 异常。故此处必须写全名。
             switch (logLevel)
             {
-                case LogUtility.ELogLevel.Verbose:
+                case ELogLevel.Verbose:
                     Unity.Logging.Log.Verbose(formatted);
                     break;
 
-                case LogUtility.ELogLevel.Debug:
+                case ELogLevel.Debug:
                     Unity.Logging.Log.Debug(formatted);
                     break;
 
-                case LogUtility.ELogLevel.Info:
+                case ELogLevel.Info:
                     Unity.Logging.Log.Info(formatted);
                     break;
 
-                case LogUtility.ELogLevel.Warning:
+                case ELogLevel.Warning:
                     Unity.Logging.Log.Warning(formatted);
                     break;
 
-                case LogUtility.ELogLevel.Error:
+                case ELogLevel.Error:
                     Unity.Logging.Log.Error(formatted);
                     break;
 
-                case LogUtility.ELogLevel.Fatal:
+                case ELogLevel.Fatal:
                     Unity.Logging.Log.Fatal(formatted);
                     break;
 
@@ -72,16 +72,16 @@ namespace Moirai.Atropos
         /// </summary>
         /// <param name="logLevel">游戏框架日志等级。</param>
         /// <returns>类型标签文本。</returns>
-        private static string GetLevelTag(LogUtility.ELogLevel logLevel)
+        private static string GetLevelTag(ELogLevel logLevel)
         {
             return logLevel switch
             {
-                LogUtility.ELogLevel.Verbose => "VRB",
-                LogUtility.ELogLevel.Debug => "DBG",
-                LogUtility.ELogLevel.Info => "INF",
-                LogUtility.ELogLevel.Warning => "WRN",
-                LogUtility.ELogLevel.Error => "ERR",
-                LogUtility.ELogLevel.Fatal => "FAT",
+                ELogLevel.Verbose => "VRB",
+                ELogLevel.Debug => "DBG",
+                ELogLevel.Info => "INF",
+                ELogLevel.Warning => "WRN",
+                ELogLevel.Error => "ERR",
+                ELogLevel.Fatal => "FAT",
                 _ => "FAT"
             };
         }

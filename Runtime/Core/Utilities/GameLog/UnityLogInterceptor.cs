@@ -49,7 +49,7 @@ namespace Moirai.Atropos
             // 异常隔离——日志管线出错不能传播给第三方调用方
             try
             {
-                LogUtility.ELogLevel level = ToLogLevel(logType);
+                ELogLevel level = ToLogLevel(logType);
 
                 var handler = LogUtility.Handler;
 
@@ -88,8 +88,8 @@ namespace Moirai.Atropos
                 s_Reentering = true;
                 try
                 {
-                    handler.Log(LogUtility.ELogLevel.Fatal, message, exception, context);
-                    LogUtility.RaiseMessageLogged(LogUtility.ELogLevel.Fatal, message, exception);
+                    handler.Log(ELogLevel.Fatal, message, exception, context);
+                    LogUtility.RaiseMessageLogged(ELogLevel.Fatal, message, exception);
                 }
                 finally
                 {
@@ -106,14 +106,14 @@ namespace Moirai.Atropos
         /// 将 Unity LogType 转换为框架 ELogLevel。
         /// </summary>
         [HideInCallstack]
-        private static LogUtility.ELogLevel ToLogLevel(LogType logType)
+        private static ELogLevel ToLogLevel(LogType logType)
             => logType switch
             {
-                LogType.Error => LogUtility.ELogLevel.Error,
-                LogType.Assert => LogUtility.ELogLevel.Error,
-                LogType.Warning => LogUtility.ELogLevel.Warning,
-                LogType.Exception => LogUtility.ELogLevel.Fatal,
-                _ => LogUtility.ELogLevel.Info
+                LogType.Error => ELogLevel.Error,
+                LogType.Assert => ELogLevel.Error,
+                LogType.Warning => ELogLevel.Warning,
+                LogType.Exception => ELogLevel.Fatal,
+                _ => ELogLevel.Info
             };
 
         [HideInCallstack]

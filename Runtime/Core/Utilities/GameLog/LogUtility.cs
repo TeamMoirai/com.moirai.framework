@@ -47,7 +47,7 @@ namespace Moirai.Atropos
         /// <para>注意：仅在日志通过 <see cref="LogHandler.IsEnabled"/> 前置过滤后才会触发；
         /// 被等级过滤的日志不会触发此事件。</para>
         /// </summary>
-        public static event Action<ELogLevel, string, Exception> OnMessageLogged;
+        internal static event Action<ELogLevel, string, Exception> OnMessageLogged;
 
         /// <summary>
         /// 触发日志事件回调。由 T4 生成的方法在记录日志后调用。

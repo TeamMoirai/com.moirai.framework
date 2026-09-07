@@ -43,7 +43,7 @@ namespace Moirai.Atropos
 
         /// <inheritdoc/>
         [HideInCallstack]
-        public override void Log(LogUtility.ELogLevel logLevel, string message, Exception exception, Object context = null)
+        internal override void Log(ELogLevel logLevel, string message, Exception exception, Object context = null)
         {
             if (_logger == null) return;
 
@@ -58,16 +58,16 @@ namespace Moirai.Atropos
             _logger.Write(ToSerilogLevel(logLevel), exception, "{Message}", formatted);
         }
 
-        private static LogEventLevel ToSerilogLevel(LogUtility.ELogLevel logLevel)
+        private static LogEventLevel ToSerilogLevel(ELogLevel logLevel)
         {
             return logLevel switch
             {
-                LogUtility.ELogLevel.Verbose => LogEventLevel.Verbose,
-                LogUtility.ELogLevel.Debug => LogEventLevel.Debug,
-                LogUtility.ELogLevel.Info => LogEventLevel.Information,
-                LogUtility.ELogLevel.Warning => LogEventLevel.Warning,
-                LogUtility.ELogLevel.Error => LogEventLevel.Error,
-                LogUtility.ELogLevel.Fatal => LogEventLevel.Fatal,
+                ELogLevel.Verbose => LogEventLevel.Verbose,
+                ELogLevel.Debug => LogEventLevel.Debug,
+                ELogLevel.Info => LogEventLevel.Information,
+                ELogLevel.Warning => LogEventLevel.Warning,
+                ELogLevel.Error => LogEventLevel.Error,
+                ELogLevel.Fatal => LogEventLevel.Fatal,
                 _ => LogEventLevel.Fatal
             };
         }

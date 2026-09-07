@@ -15,15 +15,15 @@ namespace Utility
     /// </summary>
     public class LogUtilityTest
     {
-        private List<(LogUtility.ELogLevel Level, string Message, Exception Exception)> _entries;
+        private List<(ELogLevel Level, string Message, Exception Exception)> _entries;
         private DefaultLogHandler _handler;
-        private Action<LogUtility.ELogLevel, string, Exception> _callback;
+        private Action<ELogLevel, string, Exception> _callback;
 
         [SetUp]
         public void SetUp()
         {
             _entries = new();
-            _handler = new DefaultLogHandler { MinimumLevel = LogUtility.ELogLevel.Debug };
+            _handler = new DefaultLogHandler { MinimumLevel = ELogLevel.Debug };
             LogUtility.Handler = _handler;
 
             _callback = (level, msg, ex) => _entries.Add((level, msg, ex));
@@ -66,7 +66,7 @@ namespace Utility
         [Test]
         public void Log_Levels_AreRouted()
         {
-            _handler.MinimumLevel = LogUtility.ELogLevel.Verbose;
+            _handler.MinimumLevel = ELogLevel.Verbose;
 
             LogUtility.Verbose("v");
             LogUtility.Debug("d");
@@ -76,24 +76,24 @@ namespace Utility
             LogUtility.Error("e");
 
             Assert.AreEqual(5, _entries.Count);
-            Assert.AreEqual(LogUtility.ELogLevel.Verbose, _entries[0].Level);
-            Assert.AreEqual(LogUtility.ELogLevel.Debug, _entries[1].Level);
-            Assert.AreEqual(LogUtility.ELogLevel.Info, _entries[2].Level);
-            Assert.AreEqual(LogUtility.ELogLevel.Warning, _entries[3].Level);
-            Assert.AreEqual(LogUtility.ELogLevel.Error, _entries[4].Level);
+            Assert.AreEqual(ELogLevel.Verbose, _entries[0].Level);
+            Assert.AreEqual(ELogLevel.Debug, _entries[1].Level);
+            Assert.AreEqual(ELogLevel.Info, _entries[2].Level);
+            Assert.AreEqual(ELogLevel.Warning, _entries[3].Level);
+            Assert.AreEqual(ELogLevel.Error, _entries[4].Level);
         }
 
         [Test]
         public void Log_FilteredLevel_IsSkipped()
         {
-            _handler.MinimumLevel = LogUtility.ELogLevel.Warning;
+            _handler.MinimumLevel = ELogLevel.Warning;
 
             LogUtility.Debug("d");
             LogUtility.Info("i");
             LogUtility.Warning("w");
 
             Assert.AreEqual(1, _entries.Count);
-            Assert.AreEqual(LogUtility.ELogLevel.Warning, _entries[0].Level);
+            Assert.AreEqual(ELogLevel.Warning, _entries[0].Level);
         }
 
         [Test]
@@ -133,7 +133,7 @@ namespace Utility
 
             LogUtility.Error(exception);
 
-            Assert.AreEqual(LogUtility.ELogLevel.Error, _entries[0].Level);
+            Assert.AreEqual(ELogLevel.Error, _entries[0].Level);
             Assert.AreSame(exception, _entries[0].Exception);
             StringAssert.Contains("boom", _entries[0].Message);
         }
@@ -147,7 +147,7 @@ namespace Utility
 
             LogUtility.Fatal(exception);
 
-            Assert.AreEqual(LogUtility.ELogLevel.Fatal, _entries[0].Level);
+            Assert.AreEqual(ELogLevel.Fatal, _entries[0].Level);
             Assert.AreSame(exception, _entries[0].Exception);
         }
 
@@ -163,24 +163,24 @@ namespace Utility
         [Test]
         public void Log_VerboseLevel_FilteredWhenBelowMinimum()
         {
-            _handler.MinimumLevel = LogUtility.ELogLevel.Debug;
+            _handler.MinimumLevel = ELogLevel.Debug;
 
             LogUtility.Verbose("v");
             LogUtility.Debug("d");
 
             Assert.AreEqual(1, _entries.Count);
-            Assert.AreEqual(LogUtility.ELogLevel.Debug, _entries[0].Level);
+            Assert.AreEqual(ELogLevel.Debug, _entries[0].Level);
         }
 
         [Test]
         public void DefaultLogHandler_MinimumLevel_FiltersEntries()
         {
-            var handler = new DefaultLogHandler { MinimumLevel = LogUtility.ELogLevel.Error };
+            var handler = new DefaultLogHandler { MinimumLevel = ELogLevel.Error };
 
-            Assert.IsFalse(handler.IsEnabled(LogUtility.ELogLevel.Verbose));
-            Assert.IsFalse(handler.IsEnabled(LogUtility.ELogLevel.Warning));
-            Assert.IsTrue(handler.IsEnabled(LogUtility.ELogLevel.Error));
-            Assert.IsTrue(handler.IsEnabled(LogUtility.ELogLevel.Fatal));
+            Assert.IsFalse(handler.IsEnabled(ELogLevel.Verbose));
+            Assert.IsFalse(handler.IsEnabled(ELogLevel.Warning));
+            Assert.IsTrue(handler.IsEnabled(ELogLevel.Error));
+            Assert.IsTrue(handler.IsEnabled(ELogLevel.Fatal));
         }
 
         #endregion
@@ -195,21 +195,21 @@ namespace Utility
             LogUtility.Error("oops");
 
             Assert.AreEqual(2, _entries.Count);
-            Assert.AreEqual(LogUtility.ELogLevel.Info, _entries[0].Level);
+            Assert.AreEqual(ELogLevel.Info, _entries[0].Level);
             Assert.AreEqual("hello", _entries[0].Message);
-            Assert.AreEqual(LogUtility.ELogLevel.Error, _entries[1].Level);
+            Assert.AreEqual(ELogLevel.Error, _entries[1].Level);
             Assert.AreEqual("oops", _entries[1].Message);
         }
 
         [Test]
         public void MessageLogged_NotFiredWhenFiltered()
         {
-            _handler.MinimumLevel = LogUtility.ELogLevel.Warning;
+            _handler.MinimumLevel = ELogLevel.Warning;
             LogUtility.Debug("filtered");
             LogUtility.Warning("passes");
 
             Assert.AreEqual(1, _entries.Count);
-            Assert.AreEqual(LogUtility.ELogLevel.Warning, _entries[0].Level);
+            Assert.AreEqual(ELogLevel.Warning, _entries[0].Level);
         }
 
         [Test]
