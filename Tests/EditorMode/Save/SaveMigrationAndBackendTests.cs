@@ -306,11 +306,21 @@ namespace Save
 
         #region 描述符 [DESCRIPTOR]
 
+        /// <summary>
+        /// 经反射设置生成的私有静态 s_Handler（生成的 Handler 属性 setter 拒绝 null）。
+        /// </summary>
+        private static void SetHandler(object value)
+        {
+            typeof(SaveService)
+                .GetField("s_Handler", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)
+                .SetValue(null, value);
+        }
+
         [Test]
         public void Descriptor_AttributeOverridesSettingsBackend()
         {
             // [SaveData(Backend=...)] 显式声明优先于设置默认后端（经外观写路径验证）
-            SaveService.Handler = _handler;
+            SetHandler(_handler);
             try
             {
                 SaveService.SaveBlock(new MigratingData { Score = 9 }, "slot", "desc", "Slots");
@@ -319,7 +329,7 @@ namespace Save
             }
             finally
             {
-                SaveService.Handler = null;
+                SetHandler(null);
             }
         }
 

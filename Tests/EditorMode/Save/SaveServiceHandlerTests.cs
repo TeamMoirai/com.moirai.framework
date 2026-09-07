@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Reflection;
 using System.Text.RegularExpressions;
 using System.Threading;
 using Moirai.Atropos;
@@ -562,11 +563,21 @@ namespace Save
 
         #region 外观兼容映射与降级 [FACADE COMPAT / DEGRADATION]
 
+        /// <summary>
+        /// 经反射设置生成的私有静态 s_Handler（生成的 Handler 属性 setter 拒绝 null，降级契约测试需要 null 态）。
+        /// </summary>
+        private static void SetHandler(object value)
+        {
+            typeof(SaveService)
+                .GetField("s_Handler", BindingFlags.NonPublic | BindingFlags.Static)
+                .SetValue(null, value);
+        }
+
         [Test]
         public void Facade_LegacySave_MapsToMainBlock()
         {
             // 旧单对象 API 映射保留块 __main__：facade 写入后块级读应命中，反之亦然
-            SaveService.Handler = _handler;
+            SetHandler(_handler);
             try
             {
                 SaveService.Save(new SaveData { Gold = 55, PlayerName = "legacy" }, "slot", TestFolder);
@@ -585,7 +596,7 @@ namespace Save
             }
             finally
             {
-                SaveService.Handler = null;
+                SetHandler(null);
             }
         }
 
@@ -593,7 +604,7 @@ namespace Save
         public void Facade_HandlerNotReady_TryLoadBlock_FailsWithHandlerNotReady()
         {
             // 降级契约：处理器未就绪时 TryLoadBlock 判别为 HandlerNotReady，查询降级为空数组
-            SaveService.Handler = null;
+            SetHandler(null);
 
             SaveResult<SaveData> result = SaveService.TryLoadBlock<SaveData>("slot", "stats", TestFolder);
             Assert.IsFalse(result.IsSuccess);
