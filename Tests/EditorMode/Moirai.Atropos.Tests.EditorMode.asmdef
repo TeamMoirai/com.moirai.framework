@@ -14,7 +14,12 @@
     "allowUnsafeCode": false,
     "overrideReferences": true,
     "precompiledReferences": [
-        "nunit.framework.dll"
+        "nunit.framework.dll",
+        "MessagePack.dll",
+        "MessagePack.Annotations.dll",
+        "MemoryPack.Core.dll",
+        "protobuf-net.dll",
+        "protobuf-net.Core.dll"
     ],
     "autoReferenced": true,
     "defineConstraints": [
