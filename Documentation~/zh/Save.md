@@ -1,160 +1,127 @@
-﻿# Save 存档服务
+﻿# Save
 
-> 可插拔 Handler 的本地存档系统：版本化文件头 + 原子写入 + 工作线程 IO，支持 JSON 格式与 AES-CBC + HMAC-SHA256 加密。
+## 概述
 
-Save 服务（`SaveService`）将存档的序列化格式与文件管线解耦：`SaveService` 静态外观负责对外 API，具体格式由 `SaveServiceHandler` 子类（`JsonSaveHandler`、`JsonEncryptedSaveHandler`）决定，可在 `SaveServiceSettings` 面板中切换。存档统一写入 `Application.persistentDataPath/Data/{folderName}/`，文件名自动追加配置的扩展名（默认 `.sav`）。文件 IO 与序列化在工作线程执行，不阻塞主线程。
+Save 服务（`SaveService`）为游戏提供 AAA 级存档基础设施：**单文件多数据块**容器、**四种可插拔序列化后端**（JSON / MessagePack / MemoryPack / protobuf-net）、**块级版本迁移**、**AES 加密管线**与**无代码组件保存**（SourceGenerator 生成强类型捕获器）。命名空间 `Moirai.Atropos.Save`。
 
-## 核心特性
+## 架构
 
-- 可插拔 Handler：内置 JSON / JSON 加密两种处理器，并可注入自定义 `SaveServiceHandler` 子类
-- 版本化文件头：所有存档带固定 28 字节头（魔数 `MRSA` + 格式版本 + 保存时间 + 载荷长度 + 载荷 CRC32），天然支持格式演进与损坏识别
-- 原子保存：先写入唯一后缀临时文件（`{文件名}.sav.tmp-{guid}`）并强制落盘（`Flush(true)`），再经 `File.Replace` 原子替换（平台不支持时回退删除+改名）；成功后无临时文件残留，服务启动时自动清扫上次中断遗留的孤儿临时文件
-- 强加密：加密处理器为 AES-256-CBC + **随机 IV** + HMAC-SHA256（encrypt-then-MAC，防篡改）+ PBKDF2-SHA256 密钥派生（迭代次数可配置，默认 100000）
-- 工作线程 IO：`Save`/`Load` 的文件读写与序列化在 `UniTask.RunOnThreadPool` 执行，`CancellationToken` 协作式取消贯穿全程
-- 错误判别：`TryLoad` 返回 `SaveResult<T>`，区分无档/格式非法/版本不支持/损坏/解密失败/完整性失败/反序列化失败
-- 目录管理：按 `folderName` 分文件夹存档，支持删除单个存档、整个文件夹或全部存档（删除带退避重试，应对云同步/杀软短时锁文件）
-- 槽位枚举：`GetSaveFiles` 返回存档元数据（文件名/大小/最后写入时间，最近优先）
-- 编辑器友好：`JsonSaveHandler` 在编辑器下输出带缩进的可读 JSON，真机走紧凑字节通路（框架自带 `JsonUtility.ToJsonBytes` / `ToObject<T>`，零 string 中间态）
+```
+SaveService（静态外观，s_Handler null 时静默降级）
+├── 存储管线（[SerializeReference] 可切换）
+│     PlainSaveHandler        明文直通
+│     AesEncryptedSaveHandler AES-256-CBC + HMAC（encrypt-then-MAC）+ PBKDF2
+├── 序列化后端（ESaveBackend + ISaveSerializer + SaveSerializerRegistry）
+│     Json（内置，默认）/ MessagePack / MemoryPack / Protobuf / KeyValue（组件专用）
+├── 多块容器（SaveFileContainer，手写二进制，块级 key/version/backend/bytes）
+├── 数据模型（[SaveData] + SaveDataBlock.OnMigrate 版本迁移）
+└── 无代码保存（[SaveField] + SaveComponent + SaveHost SourceGenerator 生成捕获器）
+```
 
-## 核心类型
+## 文件格式 v2
 
-命名空间：`Moirai.Atropos.Save`
+```
+[32B 明文头 "MRSA"][载荷]
+头：[4B 魔数][4B 格式版本=2][8B UTC ticks][4B 载荷长][4B 载荷 CRC32][4B 标志]
+载荷 = Compress?(Container)；加密处理器下再包 [16B IV][AES-256-CBC][32B HMAC]
+容器：[4B 魔数 "MRSB"][4B 容器版本][4B 块数]
+      逐块 [4B 键字节长][键 UTF8][4B 模式版本][2B 后端][4B 载荷长][载荷]
+```
 
-| 类/接口 | 说明 |
-|---------|------|
-| `SaveService` | 静态外观（`[HandlerHost]`）：同步 `Save` / `Load` / `TryLoad`，异步 `SaveAsync` / `LoadAsync` / `TryLoadAsync`，以及 `DeleteSave` / `DeleteSaveFolder` / `DeleteAllSaveFiles` / `FileExists` / `GetSaveFiles` / `DetermineSavePath`；全部静态 API，经 `Handler` 属性转发（未就绪时静默降级为安全默认值） |
-| `SaveServiceHandler` | 存档处理器抽象基类：完整文件管线（路径解析与校验、版本化文件头、临时文件+落盘+原子替换、删除重试、孤儿清扫、槽位枚举）；子类实现 `Serialize(object)` 与 `Deserialize<T>(byte[])` 序列化钩子（纯 .NET，工作线程调用） |
-| `JsonSaveHandler` | JSON 格式处理器：编辑器下 prettyPrint、真机紧凑字节 |
-| `JsonEncryptedSaveHandler` | JSON 序列化 + AES 加密（继承 `EncryptedSaveHandlerBase`） |
-| `EncryptedSaveHandlerBase` | 加密处理器抽象基类：完成加密/解密流转发与错误分型；子类只需实现明文侧 `SerializeToStream` / `DeserializeFromStream<T>` |
-| `SaveEncryptor` | 加密器：AES-256-CBC + 随机 IV + HMAC-SHA256 + PBKDF2-SHA256；`Key`/`Salt`/`Iterations` 可配置（默认值为占位串，上线前必须替换） |
-| `SaveError` | 存档操作错误码枚举（None/FileNotFound/InvalidFormat/UnsupportedVersion/Corrupted/DecryptionFailed/IntegrityCheckFailed/SerializationFailed/IoFailed 等） |
-| `SaveResult<T>` | `TryLoad` 返回值：区分成功与各错误类别 |
-| `SaveFileInfo` | 存档槽位元数据：文件名（不含扩展名）、大小、最后写入时间（UTC） |
-| `SaveServiceSettings` | 框架设置（面板名「存档设置」）：存档类型、加密密钥、PBKDF2 迭代次数、文件扩展名 |
-| `MessagePackUtility` | MessagePack 序列化工具类（需定义 `MESSAGEPACK_INSTALLED` 宏，命名空间 `Moirai.Atropos`），可配合自定义 Handler 使用 |
+- 文件头永远明文（不解密即可读保存时间）；CRC 防存储损坏、HMAC 防篡改（先验 MAC 后解密）
+- v1（28B 头单块旧格式）读取判别为 `UnsupportedVersion` 作废（项目未上线裁定，不做兼容读）
+- 原子写入：临时文件 `xxx.sav.tmp-{guid}` → `Flush(true)` → `File.Replace`；启动期后台清扫孤儿临时文件
+- 同文件写路径经串行信号量排队（防并发读-改-写丢块）
 
-## 快速上手
+## 存档路径
+
+`Application.persistentDataPath/Data/{folderName}/{fileName}{扩展名}`；扩展名默认 `.sav`（`SaveServiceSettings` 配置，传入文件名自动剥离扩展名后重追加）。
+
+## 手动存档数据脚本（含版本升级）
 
 ```csharp
-using Cysharp.Threading.Tasks;
-using Moirai.Atropos;
-using UnityEngine;
-
-[System.Serializable]
-public class PlayerData
+[SaveData("PlayerStats", version = 3, Backend = ESaveBackend.MessagePack)]
+public sealed class PlayerStatsData : SaveDataBlock
 {
     public int Level;
-    public int Coin;
+    public long Gold;
+
+    protected internal override void OnMigrate(int fromVersion)
+    {
+        // switch 级联惯例：v1→v2→v3 逐级 fallthrough，就地修正字段
+        switch (fromVersion)
+        {
+            case 1: Gold = 0; goto case 2;
+            case 2: Level = 1; break;
+        }
+    }
 }
-
-// 异步保存：写入 persistentDataPath/Data/Save/player_data.sav（IO 在工作线程）
-await SaveService.SaveAsync(new PlayerData { Level = 10, Coin = 999 }, "player_data");
-
-// 异步加载：文件不存在或加载失败时返回 default（失败已记录错误日志）
-if (SaveService.FileExists("player_data"))
-{
-    PlayerData data = await SaveService.LoadAsync<PlayerData>("player_data");
-}
-
-// 需要错误判别时使用 TryLoadAsync（区分无档/损坏/解密失败等）
-SaveResult<PlayerData> result = await SaveService.TryLoadAsync<PlayerData>("player_data");
-if (result.IsSuccess)
-{
-    Debug.Log($"Level: {result.Data.Level}");
-}
-else if (result.Error == SaveError.Corrupted)
-{
-    // 存档损坏——进入恢复/重建流程
-}
-
-// 同步 API（裸名，阻塞调用线程，仅限主线程）：退出前落盘、启动期设置加载等必须同步完成的场景
-SaveService.Save(new PlayerData { Level = 11, Coin = 1000 }, "player_data");
-PlayerData synced = SaveService.Load<PlayerData>("player_data");
-SaveResult<PlayerData> syncResult = SaveService.TryLoad<PlayerData>("player_data");
-
-// 枚举存档槽位（最近优先）
-foreach (SaveFileInfo info in SaveService.GetSaveFiles())
-{
-    Debug.Log($"{info.FileName} {info.SizeBytes}B {info.LastWriteTimeUtc}");
-}
-
-// 分文件夹存档（persistentDataPath/Data/Settings/）
-await SaveService.SaveAsync(settingsObject, "audio", "Settings");
-
-// 删除
-SaveService.DeleteSave("player_data");            // 删除单个存档
-SaveService.DeleteSaveFolder("Settings");         // 删除整个存档文件夹
-SaveService.DeleteAllSaveFiles();                 // 删除 Data/ 下所有存档
-
-// 查询实际存档路径
-string path = SaveService.DetermineSavePath();    // persistentDataPath\Data\Save\（分隔符随平台）
 ```
 
-## 存档文件格式
+- 块写入时记录声明版本；加载时存档版本 < 声明版本 → 级联迁移（内存修正，下次写入持久化）；> 声明版本 → `UnsupportedVersion` 拒绝
+- 二进制后端要求类型带各自 AOT 标注：MessagePack `[MessagePackObject]`+SG、MemoryPack `[MemoryPackable]` partial+SG、protobuf-net `[ProtoContract]`+BuildTools SG；未标注类型 IL2CPP 不受支持
 
-```
-[4B  魔数 "MRSA"]
-[4B  格式版本（小端，当前为 1）]
-[8B  保存时间 UTC ticks（小端）]
-[4B  载荷长度（小端）]
-[4B  载荷 CRC32（小端）]
-[载荷]
-```
+## 无代码保存（组件勾选字段）
 
-- 文件头始终为明文：元数据（保存时间等）无需解密即可读，魔数/版本/长度自洽性与 CRC32 在反序列化前完成校验
-- 未加密处理器载荷 = JSON 字节；加密处理器载荷 = `[16B 随机 IV][AES-CBC 密文][32B HMAC-SHA256(IV‖密文)]`
-- 读档流程：魔数 → 版本 → 长度自洽 → CRC32 →（加密档）HMAC 验证 → 解密 → 反序列化，任一环节失败返回对应 `SaveError`
-
-## 配置与扩展
-
-### 存档设置
-
-`SaveServiceSettings`（框架设置菜单「存档设置」）提供四项配置：
-
-- 存档类型：`Json` / `JsonEncrypted`（选择加密类型时显示密钥与迭代次数字段；BinaryFormatter 系处理器因反序列化 RCE 风险已移除）
-- 加密密钥：默认值为 `CHANGE_ME_BEFORE_SHIPPING` 占位串，上线前必须改为项目专属密钥
-- PBKDF2 迭代次数：默认 100000（每次存/读档的密钥派生耗时与之线性相关，可按目标平台预算调整）
-- 存档文件扩展名：默认 `.sav`，保存时会取 `fileName` 去扩展名部分再拼接（如 `player_data`、`player_data.json` 最终均为 `player_data.sav`）
-
-### 自定义 Handler
-
-继承 `SaveServiceHandler` 实现序列化钩子（输入输出均为字节载荷，在工作线程调用，必须为纯 .NET 逻辑、禁止触达 Unity 主线程 API），并在服务初始化前注入：
+1. 玩法组件声明为 `partial class`，字段标 `[SaveField]`（可选显式存档键，重命名字段时保键稳定）：
 
 ```csharp
-using Cysharp.Threading.Tasks;
-using Moirai.Atropos;
-using Moirai.Atropos.Save;
-
-public class MessagePackSaveServiceHandler : SaveServiceHandler
+public partial class Player : MonoBehaviour
 {
-    protected internal override byte[] Serialize(object saveObject)
-    {
-        return MessagePackUtility.Serialize(saveObject);
-    }
-
-    protected internal override T Deserialize<T>(byte[] payload)
-    {
-        return MessagePackUtility.Deserialize<T>(payload);
-    }
+    [SaveField] private int _hp;
+    [SaveField("bag_items")] private List<int> _items;   // 集合元素/嵌套类为生成器后续版本扩展，当前报 MIRAI200
 }
-
-// 注入（需在 SaveService.OnInit 之前，否则沿用面板配置）
-SaveService.Handler = new MessagePackSaveServiceHandler();
 ```
 
-## 注意事项
+2. GameObject 挂 **Save Component**：Inspector 里添加目标组件绑定并勾选参与存档的字段（块键空缺时自动派生 `场景名:物体路径`）。
+3. 运行期 `SaveService.SaveComponentsAsync(fileName)` / `LoadComponentsAsync(fileName)` 触发——编译期生成的强类型捕获器零反射捕获，按勾选掩码过滤；未知键跳过、缺失键保留当前值（字段增删天然向后兼容）。
 
-- 读写对命名遵循「同步裸名 / 异步 Async 后缀」（对齐 `ResourceService` 惯例）：异步为 `SaveAsync`/`LoadAsync`/`TryLoadAsync`（`SaveAsync<T>(T saveObject, string fileName, string folderName = "Save", CancellationToken cancellationToken = default)`），同步为 `Save`/`Load`/`TryLoad`。
-- **同步 API（`Save`/`Load`/`TryLoad`）在调用线程阻塞执行完整管线**：仅限主线程调用，适用于退出前落盘、启动期设置加载等必须同步完成的场景；大数据量或常规路径请用异步 API（工作线程 IO，不阻塞）。
-- **旧格式存档已作废**：新版本写入带版本化文件头的格式，无文件头的旧档读取时返回 `SaveError.InvalidFormat`（用户裁定，发布前无历史档负担）。
-- **损坏兜底统一**：`Load` 在缺档时返回 `default`（既有契约）；损坏/解密失败/反序列化失败现在也记录错误日志后返回 `default`（旧版明文 JSON 损坏会抛异常），需要精确判别时使用 `TryLoad`。
-- 写入失败（序列化异常、IO 异常）抛出 `GameException`（含路径上下文）；`CancellationToken` 为协作式取消（序列化前后与替换前检查，无法中断进行中的单次磁盘写入）。
-- 序列化钩子在工作线程执行：自定义 Handler 禁止调用 Unity 主线程 API（`Application.persistentDataPath`、`PlayerPrefs` 等）；框架 `JsonUtility` 线程安全（ThreadStatic 缓冲）。
-- 加密处理器的 `Key`/`Iterations` 来自 `SaveServiceSettings`，`Salt` 为 `SaveEncryptor` 默认值；修改任一项会导致旧档无法解密（`TryLoad` 返回 `IntegrityCheckFailed`/`DecryptionFailed`）。
-- JSON 处理器依赖框架自带 `JsonUtility`（`Moirai.Atropos` 的 `Core/Utilities/Json`），而非 `UnityEngine.JsonUtility`，可直接序列化 `byte[]`、字典等类型。
-- 路径拼装改用 `Path.Combine`：`DetermineSavePath` 返回的分隔符随平台（Windows 为 `\`，旧版恒为 `/`）；不要对路径字符串做解析依赖。
-- 原子替换优先 `File.Replace`（NTFS 元数据级原子）；个别平台（如 WebGL 虚拟文件系统）不支持时自动回退删除+改名，建议真机验证。
+生成器诊断：MIRAI200 类型不支持、MIRAI201 键重复、MIRAI203 需 partial class、MIRAI204 需实例字段。修改生成器源码（`SourceGenerators/Source~/SaveHost/`）后必须 `dotnet build -c Release` 重建 `SourceGenerators/SaveHost.dll`。
 
----
-[« 返回主 README](../../README.md) · [Resource](Resource.md) · [Procedure](Procedure.md)
+## 公共 API（静态外观）
+
+### 块级（主体）
+
+| API | 说明 |
+|---|---|
+| `SaveBlockAsync<T>(data, fileName, key, folderName, ct)` | 读-改-写合并块（原子替换；同文件写串行排队） |
+| `LoadBlockAsync<T>(fileName, key, folderName, ct)` | 读块，失败返回 default |
+| `TryLoadBlockAsync<T>(...)` → `SaveResult<T>` | 错误判别（FileNotFound/Corrupted/IntegrityCheckFailed/UnsupportedVersion…） |
+| `DeleteBlockAsync(fileName, key, folderName, ct)` | 删块（最后一块删除时整档移除） |
+| `GetBlockInfos(fileName, folderName)` | 块元信息枚举（键/版本/后端/大小） |
+| 同步对 `SaveBlock` / `LoadBlock` / `TryLoadBlock` / `DeleteBlock` | 主线程阻塞版（退出前落盘等场景） |
+
+### 兼容（旧单对象 API，映射保留块 `__main__`）
+
+`SaveAsync<T>` / `LoadAsync<T>` / `TryLoadAsync<T>` / `Save` / `Load` / `TryLoad`——签名与 A+ 版一致。
+
+### 元数据 / 槽位 / 备份
+
+| API | 说明 |
+|---|---|
+| `SaveMetadataAsync` / `TryLoadMetadataAsync`（+同步对） | 槽位元数据（保留块 `__meta`，JSON 后端） |
+| `GetSaveFiles(folderName)` / `GetSaveFilesAsync` | 槽位枚举（按时间倒序） |
+| `FileExists` / `DetermineSavePath` | 查询与路径 |
+| `DeleteSave` / `DeleteSaveFolder` / `DeleteAllSaveFiles`（+Async 对） | 删除（退避重试） |
+| `CreateBackup` / `RestoreBackup` | 单槽 `.bak` 备份/恢复（原子替换） |
+
+### 降级契约（处理器未就绪）
+
+写/删除 no-op；读返回 default；`TryLoad*` 返回 `Failure(HandlerNotReady)`；枚举返回空数组。
+
+## 配置（SaveServiceSettings）
+
+| 字段 | 说明 |
+|---|---|
+| `m_SaveServiceHandler` | 存储管线处理器（PlainSaveHandler / AesEncryptedSaveHandler） |
+| `m_DefaultBackend` | 默认序列化后端（未声明 `[SaveData]` 的块） |
+| `m_EncryptionKey` / `m_Pbkdf2Iterations` | 加密参数（**SECURITY: 上线前必须替换占位密钥**；派生密钥按实例缓存） |
+| `m_SaveFileExtension` | 存档文件扩展名（默认 `.sav`） |
+
+## 依赖
+
+MessagePack 3.1.8、protobuf-net 3.3.8（+Core 内嵌 BuildTools SG）、MemoryPack 1.21.4（NuGetForUnity 引入，运行时 DLL 自动引用；分析器 DLL 需 RoslynAnalyzer 标签）。缺 DLL 时对应后端在 `SaveSerializerRegistry.GetRequired` fail-fast。
+
+## 测试
+
+`Tests/EditorMode/Save/`：容器布局、组合器、Handler 管线（原子写/清扫/损坏分型/参数校验）、加密全链路、四后端往返、迁移级联、组件捕获器（生成代码）。
