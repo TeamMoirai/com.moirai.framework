@@ -190,9 +190,9 @@ namespace Save
         {
             var payload = Encoding.UTF8.GetBytes("same plaintext, same key, different salt");
 
-            var withSaltA = Encrypt(payload, "key-a", "SALT_A");
-            _encryptor.Salt = "SALT_B";
-            var withSaltB = Encrypt(payload, "key-a", "SALT_B");
+            var withSaltA = Encrypt(payload, "key-a", "SALT_A_2026");
+            _encryptor.Salt = "SALT_B_2026";
+            var withSaltB = Encrypt(payload, "key-a", "SALT_B_2026");
 
             CollectionAssert.AreNotEqual(withSaltA, withSaltB, "盐文应参与密钥派生并改变密文");
 

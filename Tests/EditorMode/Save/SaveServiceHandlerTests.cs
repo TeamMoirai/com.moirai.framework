@@ -1,11 +1,11 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text.RegularExpressions;
 using System.Threading;
+using Moirai.Atropos;
 using Moirai.Atropos.Save;
 using NUnit.Framework;
-using UnityEngine;
-using UnityEngine.TestTools;
 
 namespace Save
 {
@@ -13,6 +13,8 @@ namespace Save
     /// <see cref="SaveServiceHandler"/> 文件管线测试（经框架内置 <see cref="JsonSaveHandler"/> 消费同步核心路径）：
     /// 原子写入与覆盖、孤儿临时文件清扫、版本化文件头校验、损坏兜底分型、路径参数校验、删除与槽位枚举。
     /// <para>经 <c>s_OverrideBasePath</c> 将存档根指向临时目录（<c>InternalsVisibleTo</c> 暴露 internal 管线入口），全流程真实文件 IO。</para>
+    /// <para>错误日志断言经 <see cref="LogUtility.OnMessageLogged"/> 事件捕获（运行时激活的 UnityLoggingHandler 走异步 sink，
+    /// <c>LogAssert</c> 不可见）。</para>
     /// </summary>
     public class SaveServiceHandlerTests
     {
@@ -28,6 +30,7 @@ namespace Save
 
         private JsonSaveHandler _handler;
         private string _rootPath;
+        private List<(ELogLevel Level, string Message)> _capturedLogs;
 
         [SetUp]
         public void SetUp()
@@ -36,11 +39,15 @@ namespace Save
             _rootPath = Path.Combine(Path.GetTempPath(), "moirai-save-handler-tests-" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(_rootPath);
             SaveServiceHandler.s_OverrideBasePath = _rootPath;
+
+            _capturedLogs = new List<(ELogLevel, string)>();
+            LogUtility.OnMessageLogged += CaptureLog;
         }
 
         [TearDown]
         public void TearDown()
         {
+            LogUtility.OnMessageLogged -= CaptureLog;
             SaveServiceHandler.s_OverrideBasePath = null;
             try
             {
@@ -55,12 +62,34 @@ namespace Save
             }
         }
 
+        private void CaptureLog(ELogLevel level, string message, Exception exception)
+        {
+            _capturedLogs.Add((level, message));
+        }
+
+        /// <summary>
+        /// 断言已记录包含指定片段的 Error 日志（运维可见性契约）。
+        /// </summary>
+        private void AssertErrorLogged(string fragment)
+        {
+            Assert.IsTrue(_capturedLogs.Exists(entry => entry.Level == ELogLevel.Error && entry.Message != null && entry.Message.Contains(fragment)),
+                $"应记录含 '{fragment}' 的 Error 日志，实际捕获 {_capturedLogs.Count} 条");
+        }
+
         /// <summary>
         /// 在 <see cref="TestFolder"/> 下解析目标存档路径。
         /// </summary>
         private SaveServiceHandler.SavePaths Paths(string fileName)
         {
             return SaveServiceHandler.ResolveSavePaths(fileName, TestFolder);
+        }
+
+        /// <summary>
+        /// <see cref="TestFolder"/> 在磁盘上的完整目录（覆盖根 + Data 段）。
+        /// </summary>
+        private string TestFolderDirectory()
+        {
+            return Path.Combine(_rootPath, SaveServiceHandler.DataFolderName, TestFolder);
         }
 
         #region 写入与往返 [SAVE / ROUNDTRIP]
@@ -102,9 +131,9 @@ namespace Save
             fileBytes[^1] ^= 0xFF;
             File.WriteAllBytes(paths.SaveFilePath, fileBytes);
 
-            LogAssert.Expect(LogType.Error, new Regex("Load failed"));
             SaveData loaded = _handler.LoadCore<SaveData>(paths);
 
+            AssertErrorLogged("Load failed");
             Assert.IsNull(loaded, "损坏档应兜底返回默认值");
         }
 
@@ -129,7 +158,7 @@ namespace Save
             _handler.SaveCore(paths, new SaveData { Gold = 1, PlayerName = "Moirai" }, CancellationToken.None);
             _handler.SaveCore(paths, new SaveData { Gold = 2, PlayerName = "Moirai" }, CancellationToken.None);
 
-            string[] tempFiles = Directory.GetFiles(PathsDirectory(), "*.tmp-*", SearchOption.AllDirectories);
+            string[] tempFiles = Directory.GetFiles(TestFolderDirectory(), "*.tmp-*", SearchOption.AllDirectories);
             Assert.IsEmpty(tempFiles, "成功写入后不应残留临时文件");
         }
 
@@ -194,11 +223,12 @@ namespace Save
         {
             // 旧格式（无文件头）存档按用户裁定作废——判别为格式非法并留痕
             var paths = Paths("legacy");
+            Directory.CreateDirectory(paths.DirectoryPath);
             File.WriteAllBytes(paths.SaveFilePath, new byte[] { 0x7B, 0x22, 0x47, 0x6F, 0x6C, 0x64, 0x7D });
 
-            LogAssert.Expect(LogType.Error, new Regex("Load failed"));
-
             SaveError error = _handler.TryLoadCore<SaveData>(paths, out SaveData loaded);
+
+            AssertErrorLogged("Load failed");
             Assert.AreEqual(SaveError.InvalidFormat, error);
             Assert.IsNull(loaded);
         }
@@ -207,11 +237,12 @@ namespace Save
         public void TryLoad_TruncatedFile_ReturnsInvalidFormat()
         {
             var paths = Paths("truncated");
+            Directory.CreateDirectory(paths.DirectoryPath);
             File.WriteAllBytes(paths.SaveFilePath, new byte[] { (byte)'M', (byte)'R', (byte)'S', (byte)'A', 0x01 });
 
-            LogAssert.Expect(LogType.Error, new Regex("Load failed"));
-
             SaveError error = _handler.TryLoadCore<SaveData>(paths, out SaveData loaded);
+
+            AssertErrorLogged("Load failed");
             Assert.AreEqual(SaveError.InvalidFormat, error);
         }
 
@@ -219,13 +250,14 @@ namespace Save
         public void TryLoad_UnsupportedVersion_ReturnsUnsupportedVersion()
         {
             var paths = Paths("future");
+            Directory.CreateDirectory(paths.DirectoryPath);
             byte[] fileBytes = new byte[SaveFileHeader.Size + 16];
             WriteHeaderBytes(fileBytes, 99);
             File.WriteAllBytes(paths.SaveFilePath, fileBytes);
 
-            LogAssert.Expect(LogType.Error, new Regex("Load failed"));
-
             SaveError error = _handler.TryLoadCore<SaveData>(paths, out SaveData loaded);
+
+            AssertErrorLogged("Load failed");
             Assert.AreEqual(SaveError.UnsupportedVersion, error, "高于当前版本的格式应明确拒绝（向前兼容保护）");
         }
 
@@ -239,9 +271,9 @@ namespace Save
             fileBytes[^1] ^= 0xFF; // 翻转载荷末字节（CRC 校验必失败）
             File.WriteAllBytes(paths.SaveFilePath, fileBytes);
 
-            LogAssert.Expect(LogType.Error, new Regex("Load failed"));
-
             SaveError error = _handler.TryLoadCore<SaveData>(paths, out SaveData loaded);
+
+            AssertErrorLogged("Load failed");
             Assert.AreEqual(SaveError.Corrupted, error, "存储损坏应被 CRC 拦截");
             Assert.IsNull(loaded);
         }
@@ -258,9 +290,9 @@ namespace Save
                 stream.SetLength(fileBytes.Length - 4); // 截断 4 字节载荷（长度与文件头不再自洽）
             }
 
-            LogAssert.Expect(LogType.Error, new Regex("Load failed"));
-
             SaveError error = _handler.TryLoadCore<SaveData>(paths, out SaveData loaded);
+
+            AssertErrorLogged("Load failed");
             Assert.AreEqual(SaveError.Corrupted, error);
         }
 
@@ -269,15 +301,16 @@ namespace Save
         {
             // 文件头与 CRC 均合法、但载荷不是合法 JSON——反序列化失败应分型
             var paths = Paths("badjson");
+            Directory.CreateDirectory(paths.DirectoryPath);
             byte[] payload = { 0x00, 0x01, 0x02, 0x03 };
             byte[] fileBytes = new byte[SaveFileHeader.Size + payload.Length];
             WriteHeaderBytes(fileBytes, SaveFileHeader.CurrentVersion, payload.Length, Crc32.Compute(payload));
             Buffer.BlockCopy(payload, 0, fileBytes, SaveFileHeader.Size, payload.Length);
             File.WriteAllBytes(paths.SaveFilePath, fileBytes);
 
-            LogAssert.Expect(LogType.Error, new Regex("Deserialize save failed"));
-
             SaveError error = _handler.TryLoadCore<SaveData>(paths, out SaveData loaded);
+
+            AssertErrorLogged("Deserialize save failed");
             Assert.AreEqual(SaveError.SerializationFailed, error);
             Assert.IsNull(loaded);
         }
@@ -456,14 +489,6 @@ namespace Save
         }
 
         #endregion
-
-        /// <summary>
-        /// 测试文件夹在磁盘上的完整路径。
-        /// </summary>
-        private string PathsDirectory()
-        {
-            return Path.Combine(_rootPath, TestFolder);
-        }
 
         /// <summary>
         /// 向缓冲区写入指定版本号的文件头字节（默认长度/CRC 由参数控制）。
