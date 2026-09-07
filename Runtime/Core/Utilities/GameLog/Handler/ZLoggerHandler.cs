@@ -3,7 +3,6 @@ using System;
 using Microsoft.Extensions.Logging;
 using UnityEngine;
 using ZLogger;
-using ZLogger.Unity;
 using ILogger = Microsoft.Extensions.Logging.ILogger;
 using Object = UnityEngine.Object;
 
@@ -90,6 +89,7 @@ namespace Moirai.Atropos
         {
             return logLevel switch
             {
+                LogUtility.ELogLevel.Verbose => LogLevel.Trace,
                 LogUtility.ELogLevel.Debug => LogLevel.Debug,
                 LogUtility.ELogLevel.Info => LogLevel.Information,
                 LogUtility.ELogLevel.Warning => LogLevel.Warning,

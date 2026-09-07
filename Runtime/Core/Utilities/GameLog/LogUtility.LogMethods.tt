@@ -5,6 +5,7 @@
 <#
     var levels = new[]
     {
+        new { Name = "Verbose", Enum = "Verbose", Doc = "最详细" },
         new { Name = "Debug",   Enum = "Debug",   Doc = "调试" },
         new { Name = "Info",    Enum = "Info",    Doc = "信息" },
         new { Name = "Warning", Enum = "Warning", Doc = "警告" },

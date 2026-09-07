@@ -20,13 +20,19 @@ namespace Moirai.Atropos
     public abstract class LogHandler : FrameworkHandler
     {
         [Tooltip("最小日志等级，低于该等级的日志将被丢弃。")]
-        [SerializeField] private LogUtility.ELogLevel m_MinimumLevel = LogUtility.ELogLevel.Debug;
+        [SerializeField] private LogUtility.ELogLevel m_MinimumLevel = LogUtility.ELogLevel.Verbose;
         /// <summary>
         /// 获取或设置最小日志等级，低于该等级的日志将被丢弃。
         /// </summary>
         public LogUtility.ELogLevel MinimumLevel
         {
-            get => m_MinimumLevel;
+            get
+            {
+#if !UNITY_EDITOR
+                if (m_MinimumLevel < LogUtility.ELogLevel.Info) return LogUtility.ELogLevel.Info;
+#endif
+                return m_MinimumLevel;
+            }
             set => m_MinimumLevel = value;
         }
 
