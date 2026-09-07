@@ -4,6 +4,9 @@ using NUnit.Framework;
 
 namespace GameTool
 {
+    /// <summary>
+    /// 验证 <see cref="GameException"/> 各构造重载对消息与内部异常的设置，以及可分别以基类 <see cref="Exception"/> 与派生类型捕获的行为。
+    /// </summary>
     public class GameExceptionTest
     {
         [Test]

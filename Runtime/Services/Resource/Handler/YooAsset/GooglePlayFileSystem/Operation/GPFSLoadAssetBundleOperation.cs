@@ -3,7 +3,7 @@ using YooAsset;
 using Google.Play.AssetDelivery;
 
 /// <summary>
-/// Loads an AssetBundle through Google Play Asset Delivery API.
+/// 通过 Google Play Asset Delivery API 加载 AssetBundle。
 /// </summary>
 internal sealed class GPFSLoadPackageBundleOperation : FSLoadPackageBundleOperation
 {

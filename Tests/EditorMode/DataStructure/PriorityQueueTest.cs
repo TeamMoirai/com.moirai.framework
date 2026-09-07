@@ -5,6 +5,9 @@ using Moirai.Atropos.Collections;
 
 namespace DataStructure
 {
+    /// <summary>
+    /// 验证 <see cref="PriorityQueue{T}"/> 最小堆的入队、出队、窥视、清空、重复值存储以及大数据量下的堆一致性与有序输出。
+    /// </summary>
     public class PriorityQueueTest
     {
         [Test]

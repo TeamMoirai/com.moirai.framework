@@ -10,12 +10,31 @@ using ToggleEvent = UnityEngine.UIElements.ChangeEvent<bool>;
 
 namespace Moirai.Atropos.Events.Editor
 {
+    /// <summary>
+    /// 事件类型过滤下拉列表中的单个选项，含显示名称、所属分组与事件类型标识。
+    /// </summary>
     class EventTypeChoice : IComparable<EventTypeChoice>
     {
+        /// <summary>
+        /// 选项显示名称（具体事件类型名或分组名）。
+        /// </summary>
         public string Name;
+
+        /// <summary>
+        /// 选项所属分组名（取事件基接口名，未分类时为 IUncategorized）。
+        /// </summary>
         public string Group;
+
+        /// <summary>
+        /// 事件类型标识：具体类型为正数，分组为负数，「全部」为 0。
+        /// </summary>
         public long TypeId;
 
+        /// <summary>
+        /// 比较两个选项的排序次序：分组行排在同组具体类型之前，其余按分组名、再按名称排序。
+        /// </summary>
+        /// <param name="other">比较的另一选项。</param>
+        /// <returns>排序次序比较结果。</returns>
         public int CompareTo(EventTypeChoice other)
         {
             if (Group == Name)
@@ -34,6 +53,9 @@ namespace Moirai.Atropos.Events.Editor
         }
     }
 
+    /// <summary>
+    /// 事件调试器专用的事件类型过滤搜索字段，通过下拉多选列表按分组筛选事件类型。
+    /// </summary>
 #if UNITY_6000_0_OR_NEWER
     [UxmlElement]
 #endif
@@ -59,8 +81,15 @@ namespace Moirai.Atropos.Events.Editor
         private Dictionary<long, int> m_EventCountLog;
         private bool m_IsFocused;
         private readonly FieldInfo visualInputField = typeof(BaseField<bool>).GetField("m_VisualInput", BindingFlags.Instance | BindingFlags.NonPublic);
+
+        /// <summary>
+        /// 获取当前勾选的具体事件类型数量（不含分组行与「全部」）。
+        /// </summary>
         public int GetSelectedCount() => m_Choices.Count(c => c.TypeId > 0 && m_State[c.TypeId]);
 
+        /// <summary>
+        /// 该控件及其子元素的 USS 类名。
+        /// </summary>
         public new static readonly string ussClassName = "event-debugger-filter";
         public static readonly string ussContainerClassName = ussClassName + "__container";
         public static readonly string ussListViewClassName = ussClassName + "__list-view";
@@ -70,8 +99,15 @@ namespace Moirai.Atropos.Events.Editor
         public static readonly string ussItemCountClassName = ussClassName + "__item-count";
         public static readonly string ussItemToggleClassName = ussClassName + "__item-toggle";
 
+        /// <summary>
+        /// 获取各事件类型标识对应的启用/禁用状态。
+        /// </summary>
         public IReadOnlyDictionary<long, bool> State => m_State;
 
+        /// <summary>
+        /// 设置事件类型过滤状态并更新提示文本。
+        /// </summary>
+        /// <param name="state">事件类型标识到启用状态的映射。</param>
         public void SetState(Dictionary<long, bool> state)
         {
             m_State = state;
@@ -115,6 +151,9 @@ namespace Moirai.Atropos.Events.Editor
             return isMatch;
         }
 
+        /// <summary>
+        /// 扫描所有程序集收集事件类型，构建分组选项列表与下拉过滤 UI。
+        /// </summary>
         public EventTypeSearchField()
         {
             m_Choices = new List<EventTypeChoice>();
@@ -130,7 +169,7 @@ namespace Moirai.Atropos.Events.Editor
                     {
                         AddType(type, true);
                     }
-                    // Special case for ChangeEvent<>.
+                    // 特殊处理 ChangeEvent<>
                     var implementingTypes = GetAllTypesImplementingOpenGenericType(typeof(UnityEngine.UIElements.INotifyValueChanged<>), assembly).ToList();
                     foreach (var valueChangedType in implementingTypes)
                     {
@@ -163,7 +202,7 @@ namespace Moirai.Atropos.Events.Editor
 
             m_State.Add(0, true);
 
-            // Add groups, with negative ids.
+            // 添加分组（使用负数标识）
             var keyIndex = -1;
             foreach (var key in m_GroupedEvents.Keys.OrderBy(k => k))
             {
@@ -248,6 +287,10 @@ namespace Moirai.Atropos.Events.Editor
             RegisterCallback<FocusOutEvent>(OnFocusOut);
         }
 
+        /// <summary>
+        /// 设置各事件类型的发生次数记录，用于在列表项旁显示计数。
+        /// </summary>
+        /// <param name="log">事件类型标识到发生次数的映射。</param>
         public void SetEventLog(Dictionary<long, int> log)
         {
             m_EventCountLog = log;
@@ -331,7 +374,7 @@ namespace Moirai.Atropos.Events.Editor
                 }
             }
 
-            // All toggling
+            // 「全部」开关联动
             if (m_State.Where(s => s.Key > 0).All(s => s.Value))
             {
                 m_State[0] = true;
@@ -341,7 +384,7 @@ namespace Moirai.Atropos.Events.Editor
                 m_State[0] = false;
             }
 
-            // Group toggling
+            // 分组开关联动
             if (choice.TypeId != 0)
             {
                 if (m_GroupedEvents[choice.Group].All(id => m_State[id]))
@@ -425,7 +468,7 @@ namespace Moirai.Atropos.Events.Editor
             FilterEvents(changeEvent.newValue.Trim());
         }
 
-        // Use quicksearch instead?
+        // 是否改用 quicksearch？
         private const string k_IsKeyword = "is:";
         private static readonly string[] k_OnKeywords = { "on", "enabled", "true" };
         private static readonly string[] k_OffKeywords = { "off", "disabled", "false" };

@@ -1,8 +1,14 @@
 #if UNITY_ANDROID && GOOGLE_PLAY
 using YooAsset;
 
+/// <summary>
+/// Google Play 文件系统创建器。
+/// </summary>
 public static class GooglePlayFileSystemCreater
 {
+    /// <summary>
+    /// 创建 Google Play 文件系统参数，资源包通过 Play Asset Delivery 加载。
+    /// </summary>
     public static FileSystemParameters CreateFileSystemParameters(string packageRoot)
     {
         string fileSystemClass = $"{nameof(GooglePlayFileSystem)},YooAsset.MiniGame";
@@ -12,16 +18,16 @@ public static class GooglePlayFileSystemCreater
 }
 
 /// <summary>
-/// Google Play Asset Delivery file system.
-/// Loads asset bundles via PlayAssetDelivery instead of local file I/O.
-/// See: https://developer.android.com/guide/playcore/asset-delivery
+/// Google Play Asset Delivery 文件系统。
+/// 通过 PlayAssetDelivery 加载资源包，而非本地文件 I/O。
+/// 参见：https://developer.android.com/guide/playcore/asset-delivery
 /// </summary>
 internal class GooglePlayFileSystem : BuiltinFileSystem, IFileSystem
 {
     /// <summary>
-    /// Override bundle loading to use Play Asset Delivery.
-    /// Re-implements <see cref="IFileSystem.LoadPackageBundleAsync"/> so the
-    /// interface dispatch reaches this method instead of the base class version.
+    /// 重写资源包加载逻辑，改用 Play Asset Delivery。
+    /// 重新实现 <see cref="IFileSystem.LoadPackageBundleAsync"/> 接口方法，
+    /// 使接口分发命中本方法而非基类实现。
     /// </summary>
     public new FSLoadPackageBundleOperation LoadPackageBundleAsync(FSLoadPackageBundleOptions options)
     {

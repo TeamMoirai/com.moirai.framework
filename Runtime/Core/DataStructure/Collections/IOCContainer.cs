@@ -9,10 +9,10 @@ namespace Moirai.Atropos.Collections
         private readonly Dictionary<Type, object> _instances = new Dictionary<Type, object>();
         
         /// <summary>
-        /// Register instance
+        /// 注册指定类型的实例。
         /// </summary>
-        /// <param name="instance"></param>
-        /// <typeparam name="T"></typeparam>
+        /// <param name="instance">要注册的实例。</param>
+        /// <typeparam name="T">实例的类型。</typeparam>
         public void Register<T>(T instance)
         {
             var type = typeof(T);
@@ -20,10 +20,10 @@ namespace Moirai.Atropos.Collections
         }
         
         /// <summary>
-        /// UnRegister instance
+        /// 注销指定类型的实例。
         /// </summary>
-        /// <param name="instance"></param>
-        /// <typeparam name="T"></typeparam>
+        /// <param name="instance">要注销的实例，需与当前注册实例相等才会移除。</param>
+        /// <typeparam name="T">实例的类型。</typeparam>
         public void Unregister<T>(T instance)
         {
             var type = typeof(T);
@@ -34,9 +34,9 @@ namespace Moirai.Atropos.Collections
         }
         
         /// <summary>
-        /// Get registered instance
+        /// 解析并获取已注册的实例。
         /// </summary>
-        /// <typeparam name="T"></typeparam>
+        /// <typeparam name="T">要获取的实例类型。</typeparam>
         public T Resolve<T>() where T : class
         {
             var type = typeof(T);
@@ -48,7 +48,7 @@ namespace Moirai.Atropos.Collections
         }
         
         /// <summary>
-        /// Clear registered instances
+        /// 清除所有已注册的实例。
         /// </summary>
         public void Clear()
         {

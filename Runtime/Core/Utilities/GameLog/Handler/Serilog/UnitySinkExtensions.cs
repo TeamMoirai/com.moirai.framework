@@ -11,23 +11,26 @@ using UnityEngine;
 
 namespace Moirai.Atropos.Serilog
 {
+    /// <summary>
+    /// Serilog 接收器配置扩展：提供将日志事件写入 Unity 原生日志系统的 <c>Unity3D</c> 扩展方法。
+    /// </summary>
     public static class UnitySinkExtensions
     {
+        /// <summary>
+        /// 默认输出模板：级别 + 消息 + 异常（不包含时间戳占位符，Unity Console 自带时间列）。
+        /// </summary>
         private const string DEFAULT_DEBUG_OUTPUT_TEMPLATE = "[{Level:u3}] {Message:lj}{NewLine}{Exception}";
 
         /// <summary>
-        /// Writes log events to <see cref="UnityEngine.ILogger"/>. Defaults to <see cref="UnityEngine.Debug.unityLogger"/>.
+        /// 将日志事件写入 <see cref="UnityEngine.ILogger"/>，默认使用 <see cref="UnityEngine.Debug.unityLogger"/>。
         /// </summary>
-        /// <param name="sinkConfiguration">Logger sink configuration.</param>
-        /// <param name="restrictedToMinimumLevel">The minimum level for
-        /// events passed through the sink. Ignored when <paramref name="levelSwitch"/> is specified.</param>
-        /// <param name="levelSwitch">A switch allowing the pass-through minimum level
-        /// to be changed at runtime.</param>
-        /// <param name="outputTemplate">A message template describing the format used to write to the sink.
-        /// the default is <code>"[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}"</code>.</param>
-        /// <param name="formatProvider">Supplies culture-specific formatting information, or null.</param>
-        /// <param name="unityLogger">Specify a Unity-native logger. Defaults to <see cref="UnityEngine.Debug.unityLogger"/>.</param>
-        /// <returns>Configuration object allowing method chaining.</returns>
+        /// <param name="sinkConfiguration">日志接收器配置。</param>
+        /// <param name="restrictedToMinimumLevel">允许通过接收器的最低日志级别；指定 <paramref name="levelSwitch"/> 时忽略此参数。</param>
+        /// <param name="outputTemplate">描述接收器输出格式的消息模板，默认值为 <code>"[{Level:u3}] {Message:lj}{NewLine}{Exception}"</code>。</param>
+        /// <param name="formatProvider">区域性相关格式化信息，可为 <c>null</c>。</param>
+        /// <param name="levelSwitch">允许在运行时动态调整最低通过级别的开关。</param>
+        /// <param name="unityLogger">指定 Unity 原生日志器，默认为 <see cref="UnityEngine.Debug.unityLogger"/>。</param>
+        /// <returns>支持链式调用的配置对象。</returns>
         [HideInCallstack]
         public static LoggerConfiguration Unity3D(
             this LoggerSinkConfiguration sinkConfiguration,
@@ -49,17 +52,14 @@ namespace Moirai.Atropos.Serilog
         }
 
         /// <summary>
-        /// Writes log events to <see cref="UnityEngine.ILogger"/>. Defaults to <see cref="UnityEngine.Debug.unityLogger"/>.
+        /// 将日志事件写入 <see cref="UnityEngine.ILogger"/>，默认使用 <see cref="UnityEngine.Debug.unityLogger"/>。
         /// </summary>
-        /// <param name="sinkConfiguration">Logger sink configuration.</param>
-        /// <param name="formatter">Controls the rendering of log events into text, for example to log JSON. To
-        /// control plain text formatting, use the overload that accepts an output template.</param>
-        /// <param name="restrictedToMinimumLevel">The minimum level for
-        /// events passed through the sink. Ignored when <paramref name="levelSwitch"/> is specified.</param>
-        /// <param name="levelSwitch">A switch allowing the pass-through minimum level
-        /// to be changed at runtime.</param>
-        /// <param name="unityLogger">Specify a Unity-native logger. Defaults to <see cref="UnityEngine.Debug"/>.</param>
-        /// <returns>Configuration object allowing method chaining.</returns>
+        /// <param name="sinkConfiguration">日志接收器配置。</param>
+        /// <param name="formatter">控制日志事件渲染为文本的方式（例如输出 JSON）；如需控制纯文本格式，请使用接受输出模板的重载。</param>
+        /// <param name="restrictedToMinimumLevel">允许通过接收器的最低日志级别；指定 <paramref name="levelSwitch"/> 时忽略此参数。</param>
+        /// <param name="levelSwitch">允许在运行时动态调整最低通过级别的开关。</param>
+        /// <param name="unityLogger">指定 Unity 原生日志器，默认为 <see cref="UnityEngine.Debug.unityLogger"/>。</param>
+        /// <returns>支持链式调用的配置对象。</returns>
         [HideInCallstack]
         public static LoggerConfiguration Unity3D(
             this LoggerSinkConfiguration sinkConfiguration,

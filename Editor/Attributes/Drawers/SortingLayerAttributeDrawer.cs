@@ -11,6 +11,9 @@ using UnityEngine.UIElements;
 
 namespace Moirai.Atropos.Attributes.Editor.Drawers
 {
+    /// <summary>
+    /// <see cref="SortingLayerAttribute"/> 特性绘制器：在 Inspector 上绘制排序层（Sorting Layer）选择字段，支持整数与字符串两种属性类型。
+    /// </summary>
     [CustomPropertyDrawer(typeof(SortingLayerAttribute))]
     public class SortingLayerAttributeDrawer : PropertyDrawer
     {
@@ -27,7 +30,7 @@ namespace Moirai.Atropos.Attributes.Editor.Drawers
         {
             // TagManagerInspector.ShowWithInitialExpansion(TagManagerInspector.InitialExpansionState.Layers)
             Type tagManagerInspectorType = Type.GetType("UnityEditor.TagManagerInspector, UnityEditor");
-            // Get the method Info for the ShowWithInitialExpansion method
+            // 获取 ShowWithInitialExpansion 方法的 MethodInfo
             if (tagManagerInspectorType == null)
             {
                 return;
@@ -41,16 +44,22 @@ namespace Moirai.Atropos.Attributes.Editor.Drawers
 
             Type initialExpansionStateType = tagManagerInspectorType.GetNestedType("InitialExpansionState", BindingFlags.NonPublic);
             object layersEnumValue = Enum.Parse(initialExpansionStateType, "SortingLayers");
-            // Invoke the ShowWithInitialExpansion method with the Layers enum value
+            // 以 Layers 枚举值调用 ShowWithInitialExpansion 方法
             showWithInitialExpansionMethod.Invoke(null, new object[] { layersEnumValue });
         }
 
         #region IMGUI
+        /// <summary>
+        /// 获取属性高度（单行）。
+        /// </summary>
         public override float GetPropertyHeight(SerializedProperty property, GUIContent guiContent)
         {
             return EditorGUIUtility.singleLineHeight;
         }
         
+        /// <summary>
+        /// 使用 IMGUI 绘制排序层下拉框，选择末尾附加项时打开 Tag Manager 的排序层设置。
+        /// </summary>
         public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
         {
             string[] layers = GetLayers();

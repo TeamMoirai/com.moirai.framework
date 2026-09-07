@@ -2,8 +2,18 @@
 
 namespace Moirai.Atropos.Localization
 {
+	/// <summary>
+	/// 组件查找器。
+	/// <para>按泛型参数声明顺序在指定 <see cref="MonoBehaviour"/> 所在对象上查找组件，返回第一个匹配的组件。</para>
+	/// </summary>
 	public static class ComponentFinder
 	{
+		/// <summary>
+		/// 查找第一个匹配的组件。
+		/// </summary>
+		/// <typeparam name="T1">候选组件类型。</typeparam>
+		/// <param name="behaviour">用于定位目标对象的组件。</param>
+		/// <returns>第一个匹配的组件；不存在时返回 <c>null</c>。</returns>
 		public static Component Find<T1>(MonoBehaviour behaviour)
 			where T1 : Component
 		{
@@ -15,6 +25,13 @@ namespace Moirai.Atropos.Localization
 			return null;
 		}
 
+		/// <summary>
+		/// 查找第一个匹配的组件。
+		/// </summary>
+		/// <typeparam name="T1">候选组件类型。</typeparam>
+		/// <typeparam name="T2">候选组件类型。</typeparam>
+		/// <param name="behaviour">用于定位目标对象的组件。</param>
+		/// <returns>第一个匹配的组件；不存在时返回 <c>null</c>。</returns>
 		public static Component Find<T1, T2>(MonoBehaviour behaviour)
 			where T1 : Component
 			where T2 : Component
@@ -32,6 +49,14 @@ namespace Moirai.Atropos.Localization
 			return null;
 		}
 
+		/// <summary>
+		/// 查找第一个匹配的组件。
+		/// </summary>
+		/// <typeparam name="T1">候选组件类型。</typeparam>
+		/// <typeparam name="T2">候选组件类型。</typeparam>
+		/// <typeparam name="T3">候选组件类型。</typeparam>
+		/// <param name="behaviour">用于定位目标对象的组件。</param>
+		/// <returns>第一个匹配的组件；不存在时返回 <c>null</c>。</returns>
 		public static Component Find<T1, T2, T3>(MonoBehaviour behaviour)
 			where T1 : Component
 			where T2 : Component
@@ -55,6 +80,15 @@ namespace Moirai.Atropos.Localization
 			return null;
 		}
 
+		/// <summary>
+		/// 查找第一个匹配的组件。
+		/// </summary>
+		/// <typeparam name="T1">候选组件类型。</typeparam>
+		/// <typeparam name="T2">候选组件类型。</typeparam>
+		/// <typeparam name="T3">候选组件类型。</typeparam>
+		/// <typeparam name="T4">候选组件类型。</typeparam>
+		/// <param name="behaviour">用于定位目标对象的组件。</param>
+		/// <returns>第一个匹配的组件；不存在时返回 <c>null</c>。</returns>
 		public static Component Find<T1, T2, T3, T4>(MonoBehaviour behaviour)
 			where T1 : Component
 			where T2 : Component

@@ -5,8 +5,14 @@ using TMPro;
 using UnityEngine;
 using UnityEditor;
 
+/// <summary>
+/// 示例编辑器工具：批量调整项目中 TMP_SpriteAsset 的字形度量与缩放。
+/// </summary>
 public static class SetTextSpriteScale
 {
+    /// <summary>
+    /// 菜单入口：查找 Packages 目录下所有 TMP_SpriteAsset，并逐个调整其字形表。
+    /// </summary>
     [MenuItem("Samples/Prompts/Set Text Sprite Scale")]
     public static void SetTextSpriteScales()
     {
@@ -24,6 +30,9 @@ public static class SetTextSpriteScale
         }
     }
 
+    /// <summary>
+    /// 将每个字形的 horizontalBearingY 统一调整为 80、缩放调整为 1.2，并将资产标记为脏以便保存。
+    /// </summary>
     private static void ProcessSprites(TMP_SpriteAsset textSprite)
     {
         foreach (var sprite in textSprite.spriteGlyphTable)
@@ -36,6 +45,12 @@ public static class SetTextSpriteScale
         EditorUtility.SetDirty(textSprite);
     }
 
+    /// <summary>
+    /// 查找指定目录下所有指定类型的 ScriptableObject 资产。
+    /// </summary>
+    /// <param name="filter">资源过滤关键字，空字符串表示不过滤。</param>
+    /// <param name="folder">搜索目录，默认 <c>"Assets"</c>。</param>
+    /// <returns>匹配到的资产列表。</returns>
     public static List<T> FindAllScriptableObjectsOfType<T>(string filter, string folder = "Assets")
         where T : ScriptableObject
     {

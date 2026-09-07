@@ -4,6 +4,9 @@ using Moirai.Atropos.Collections;
 
 namespace DataStructure
 {
+    /// <summary>
+    /// 验证 <see cref="RandomList{T}"/> 的随机取值来源、相邻不重复约束、带权重添加与枚举遍历等行为。
+    /// </summary>
     public class RandomListTest
     {
         [Test]

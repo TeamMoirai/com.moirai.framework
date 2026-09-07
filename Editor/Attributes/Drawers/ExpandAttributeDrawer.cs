@@ -4,6 +4,9 @@ using UnityEditor;
 
 namespace Moirai.Atropos.Attributes.Editor.Drawers
 {
+    /// <summary>
+    /// <see cref="ExpandAttribute"/> 绘制器：以带标题栏的样式绘制属性，并手动排布其子字段。
+    /// </summary>
     [CustomPropertyDrawer(typeof(ExpandAttribute), true)]
     public class ExpandAttributeDrawer : PropertyDrawer
     {
@@ -18,12 +21,18 @@ namespace Moirai.Atropos.Attributes.Editor.Drawers
         private const float ARROW_MARGIN = 5;
         private const float IS_ENABLED_WIDTH = 20;
 
+        /// <summary>
+        /// 禁用 Inspector GUI 缓存，确保属性每次都重新绘制。
+        /// </summary>
 #if UNITY_6000_0_OR_NEWER
         [System.Obsolete]
 #endif
         public override bool CanCacheInspectorGUI(SerializedProperty property) => false;
 
 
+        /// <summary>
+        /// 获取属性高度：展开时为子属性高度加两倍标题高度，收起时仅保留标题高度。
+        /// </summary>
         public override float GetPropertyHeight(SerializedProperty property, GUIContent label)
         {
             float space = 0;
@@ -41,6 +50,9 @@ namespace Moirai.Atropos.Attributes.Editor.Drawers
         }
 
 
+        /// <summary>
+        /// 绘制标题栏背景与属性名，展开时逐行绘制子字段，并在结束时恢复编辑器缩进与宽度设置。
+        /// </summary>
         public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
         {
             EditorGUI.BeginProperty(position, label, property);

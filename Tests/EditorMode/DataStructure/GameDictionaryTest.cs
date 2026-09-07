@@ -3,6 +3,9 @@ using NUnit.Framework;
 
 namespace DataStructure
 {
+    /// <summary>
+    /// 验证 <see cref="GameDictionary{TKey, TValue}"/> 的添加、索引读写、按下标访问键值、包含性检查、移除与按插入序遍历等行为。
+    /// </summary>
     public class GameDictionaryTest
     {
         [Test]
@@ -169,6 +172,9 @@ namespace DataStructure
         }
     }
 
+    /// <summary>
+    /// 验证 <see cref="GameSortedDictionary{TKey, TValue}"/> 插入后按键自动排序以及按下标按排序序访问的行为。
+    /// </summary>
     public class GameSortedDictionaryTest
     {
         [Test]
