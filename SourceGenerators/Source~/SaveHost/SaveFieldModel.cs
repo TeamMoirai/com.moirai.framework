@@ -224,43 +224,43 @@ namespace Moirai.Atropos.SourceGenerators
     }
 
     /// <summary>
-    /// SaveHost 诊断描述符（MIRAI2xx 系列）。
+    /// SaveHost 诊断描述符（MIRAI3xx 系列，与 ServiceDependencyAnalyzer 的 MIRAI1xx/2xx 系列错开）。
     /// </summary>
     internal static class Diagnostics
     {
         /// <summary>诊断类别。</summary>
         private const string Category = "SaveHost";
 
-        /// <summary>MIRAI200：字段类型不受生成器支持。</summary>
+        /// <summary>MIRAI300：字段类型不受生成器支持。</summary>
         public static readonly DiagnosticDescriptor UnsupportedFieldType = new(
-            "MIRAI200",
+            "MIRAI300",
             "SaveField 字段类型不受支持",
             "[SaveField] 字段 '{0}.{1}' 的类型 '{2}' 不受 SaveHost 生成器 v1 支持（支持：基元/枚举/string/DateTime/TimeSpan/Unity 数学类型）",
             Category,
             DiagnosticSeverity.Error,
             isEnabledByDefault: true);
 
-        /// <summary>MIRAI201：存档键重复。</summary>
+        /// <summary>MIRAI301：存档键重复。</summary>
         public static readonly DiagnosticDescriptor DuplicateKey = new(
-            "MIRAI201",
+            "MIRAI301",
             "SaveField 存档键重复",
             "类型 '{0}' 内存在重复的存档键 '{1}'",
             Category,
             DiagnosticSeverity.Error,
             isEnabledByDefault: true);
 
-        /// <summary>MIRAI203：包含类型必须为 partial class。</summary>
+        /// <summary>MIRAI303：包含类型必须为 partial class。</summary>
         public static readonly DiagnosticDescriptor TypeMustBePartial = new(
-            "MIRAI203",
+            "MIRAI303",
             "包含类型必须为 partial class",
             "[SaveField] 所在类型 '{0}' 必须声明为 partial class（生成捕获器需嵌套其中以访问字段）",
             Category,
             DiagnosticSeverity.Error,
             isEnabledByDefault: true);
 
-        /// <summary>MIRAI204：字段必须为实例字段。</summary>
+        /// <summary>MIRAI304：字段必须为实例字段。</summary>
         public static readonly DiagnosticDescriptor MustBeInstanceField = new(
-            "MIRAI204",
+            "MIRAI304",
             "SaveField 必须标注实例字段",
             "[SaveField] 不能标注类型 '{0}' 的静态/常量字段 '{1}'",
             Category,

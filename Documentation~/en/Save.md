@@ -69,14 +69,14 @@ public sealed class PlayerStatsData : SaveDataBlock
 public partial class Player : MonoBehaviour
 {
     [SaveField] private int _hp;
-    [SaveField("bag_items")] private List<int> _items;   // collections/nested classes are a future generator extension; MIRAI200 today
+    [SaveField("bag_items")] private List<int> _items;   // collections/nested classes are a future generator extension; MIRAI300 today
 }
 ```
 
 2. Attach a **Save Component** to the GameObject: add target-component bindings and check the fields to save (the block key auto-derives as `scene:path` when left empty).
 3. Trigger with `SaveService.SaveComponentsAsync(fileName)` / `LoadComponentsAsync(fileName)` — compile-time-generated strongly-typed capturers run with zero reflection, filtered by the checked mask; unknown keys are skipped and missing keys keep current values (natural forward/backward compatibility for field changes).
 
-Generator diagnostics: MIRAI200 unsupported type, MIRAI201 duplicate key, MIRAI203 partial class required, MIRAI204 instance field required. After editing generator sources (`SourceGenerators/Source~/SaveHost/`) rebuild `SourceGenerators/SaveHost.dll` with `dotnet build -c Release`.
+Generator diagnostics: MIRAI300 unsupported type, MIRAI301 duplicate key, MIRAI303 partial class required, MIRAI304 instance field required. After editing generator sources (`SourceGenerators/Source~/SaveHost/`) rebuild `SourceGenerators/SaveHost.dll` with `dotnet build -c Release`.
 
 ## Public API (static facade)
 

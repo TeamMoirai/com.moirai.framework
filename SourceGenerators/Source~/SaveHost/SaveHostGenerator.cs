@@ -13,8 +13,8 @@ namespace Moirai.Atropos.SourceGenerators
     /// SaveHost 增量源生成器 v1：扫描 <c>[SaveField]</c> 字段，为每个组件类型生成强类型键值捕获器
     /// （嵌套在组件类型内部以访问私有字段，零反射零装箱），并经模块初始化器自注册 <c>SaveCapturerRegistry</c>。
     /// <para>v1 支持字段类型：基元/枚举/string/DateTime/TimeSpan 与 Unity 数学类型（Vector2/3/4、Quaternion、Color、Rect、Bounds）；
-    /// 集合与嵌套数据类字段报 MIRAI200（KVT 格式与写入器/读取器 API 已支持，生成器支持于后续版本扩展）。</para>
-    /// <para>诊断：MIRAI200 不支持的字段类型；MIRAI201 存档键重复；MIRAI203 包含类型必须为 partial class；MIRAI204 字段必须为实例字段。</para>
+    /// 集合与嵌套数据类字段报 MIRAI300（KVT 格式与写入器/读取器 API 已支持，生成器支持于后续版本扩展）。</para>
+    /// <para>诊断：MIRAI300 不支持的字段类型；MIRAI301 存档键重复；MIRAI303 包含类型必须为 partial class；MIRAI304 字段必须为实例字段。</para>
     /// </summary>
     [Generator(LanguageNames.CSharp)]
     public sealed class SaveHostGenerator : IIncrementalGenerator
