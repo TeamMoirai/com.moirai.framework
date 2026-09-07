@@ -12,13 +12,13 @@ using UnityEngine.TestTools;
 namespace Save
 {
     /// <summary>
-    /// <see cref="JsonEncryptedSaveHandler"/> 全链路（序列化 → 加密 → 文件头 → 落盘 → 读盘 → 校验 → 解密 → 反序列化）往返测试。
+    /// <see cref="AesEncryptedSaveHandler"/> 全链路（容器组装 → 加密 → 文件头 → 落盘 → 读盘 → 校验 → 解密 → 容器解析）往返测试。
     /// <para>直接经 <c>protected internal</c> 成员注入密钥与调用管线（测试程序集在 <c>InternalsVisibleTo</c> 白名单内），
     /// 不创建 [Serializable] 处理器子类、不触达 <see cref="SaveServiceSettings"/> 全局配置。</para>
     /// <para>错误日志断言经 <see cref="LogUtility.OnMessageLogged"/> 事件捕获（Handler 无关）；
     /// DefaultLogHandler 同步链路下另补 <c>LogAssert.Expect</c> 消除 UTF 的未预期日志拦截。</para>
     /// </summary>
-    public class JsonEncryptedSaveHandlerTests
+    public class AesEncryptedSaveHandlerTests
     {
         [Serializable]
         private sealed class SaveData
@@ -27,7 +27,7 @@ namespace Save
             public string PlayerName;
         }
 
-        private JsonEncryptedSaveHandler _handler;
+        private AesEncryptedSaveHandler _handler;
         private string _directoryPath;
         private SaveServiceHandler.SavePaths _paths;
         private List<(ELogLevel Level, string Message)> _capturedLogs;
@@ -35,7 +35,7 @@ namespace Save
         [SetUp]
         public void SetUp()
         {
-            _handler = new JsonEncryptedSaveHandler
+            _handler = new AesEncryptedSaveHandler
             {
                 Key = "test-key-123"
             };
@@ -95,12 +95,12 @@ namespace Save
         {
             var data = new SaveData { Gold = 1234, PlayerName = "Moirai" };
 
-            _handler.SaveCore(_paths, data, CancellationToken.None);
+            _handler.SaveBlockCore(_paths, SaveServiceHandler.MainBlockKey, data, ESaveBackend.Json, 1, CancellationToken.None);
 
             Assert.IsTrue(File.Exists(_paths.SaveFilePath), "序列化后应落盘");
             Assert.Greater(new FileInfo(_paths.SaveFilePath).Length, SaveFileHeader.Size + 16 + 32, "文件应包含文件头与完整密文");
 
-            SaveError error = _handler.TryLoadCore<SaveData>(_paths, out SaveData loaded);
+            SaveError error = _handler.TryLoadBlockCore<SaveData>(_paths, SaveServiceHandler.MainBlockKey, out SaveData loaded);
 
             Assert.AreEqual(SaveError.None, error, "往返加载应成功");
             Assert.IsNotNull(loaded);
@@ -111,15 +111,15 @@ namespace Save
         [Test]
         public void WrongKey_FailsAtIntegrityCheck()
         {
-            var writer = new JsonEncryptedSaveHandler { Key = "key-for-write" };
-            var reader = new JsonEncryptedSaveHandler { Key = "key-for-read" };
+            var writer = new AesEncryptedSaveHandler { Key = "key-for-write" };
+            var reader = new AesEncryptedSaveHandler { Key = "key-for-read" };
 
-            writer.SaveCore(_paths, new SaveData { Gold = 99, PlayerName = "Moirai" }, CancellationToken.None);
+            writer.SaveBlockCore(_paths, SaveServiceHandler.MainBlockKey, new SaveData { Gold = 99, PlayerName = "Moirai" }, ESaveBackend.Json, 1, CancellationToken.None);
 
             ExpectErrorLogForUtf();
 
             // 错误密钥在 HMAC 层被拦截（encrypt-then-MAC）——判别为完整性失败而非解密失败
-            SaveError error = reader.TryLoadCore<SaveData>(_paths, out SaveData loaded);
+            SaveError error = reader.TryLoadBlockCore<SaveData>(_paths, SaveServiceHandler.MainBlockKey, out SaveData loaded);
 
             AssertErrorLogged("Load failed");
             Assert.AreEqual(SaveError.IntegrityCheckFailed, error, "密钥不符应在 HMAC 层被拦截");
@@ -129,7 +129,7 @@ namespace Save
         [Test]
         public void TamperedFile_FailsAtIntegrityCheck()
         {
-            _handler.SaveCore(_paths, new SaveData { Gold = 1, PlayerName = "Moirai" }, CancellationToken.None);
+            _handler.SaveBlockCore(_paths, SaveServiceHandler.MainBlockKey, new SaveData { Gold = 1, PlayerName = "Moirai" }, ESaveBackend.Json, 1, CancellationToken.None);
 
             // 攻击者模型：翻转密文字节后同步修正文件头 CRC，使存储校验通过——HMAC 层仍必须拦截
             byte[] fileBytes = File.ReadAllBytes(_paths.SaveFilePath);
@@ -143,7 +143,7 @@ namespace Save
 
             ExpectErrorLogForUtf();
 
-            SaveError error = _handler.TryLoadCore<SaveData>(_paths, out SaveData loaded);
+            SaveError error = _handler.TryLoadBlockCore<SaveData>(_paths, SaveServiceHandler.MainBlockKey, out SaveData loaded);
 
             AssertErrorLogged("Load failed");
             Assert.AreEqual(SaveError.IntegrityCheckFailed, error, "CRC 自洽的密文篡改应被 HMAC 拦截");
@@ -151,14 +151,18 @@ namespace Save
         }
 
         [Test]
-        public void Serialize_IsDeterministicLayout()
+        public void SaveCore_IsDeterministicLayout()
         {
-            // 两次序列化布局稳定（IV 随机导致密文不同，但长度结构一致：IV + 填充块 + MAC）
+            // 两次写入布局稳定（IV 随机导致密文不同，但长度结构一致：容器 + 头 + IV + 填充块 + MAC）
+            var firstPath = new SaveServiceHandler.SavePaths(_directoryPath, Path.Combine(_directoryPath, "first.sav"));
+            var secondPath = new SaveServiceHandler.SavePaths(_directoryPath, Path.Combine(_directoryPath, "second.sav"));
             var data = new SaveData { Gold = 7, PlayerName = "Moirai" };
 
-            byte[] first = _handler.Serialize(data);
-            byte[] second = _handler.Serialize(data);
+            _handler.SaveBlockCore(firstPath, SaveServiceHandler.MainBlockKey, data, ESaveBackend.Json, 1, CancellationToken.None);
+            _handler.SaveBlockCore(secondPath, SaveServiceHandler.MainBlockKey, data, ESaveBackend.Json, 1, CancellationToken.None);
 
+            byte[] first = File.ReadAllBytes(firstPath.SaveFilePath);
+            byte[] second = File.ReadAllBytes(secondPath.SaveFilePath);
             Assert.AreEqual(first.Length, second.Length, "相同明文的密文长度结构应一致");
             CollectionAssert.AreNotEqual(first, second, "随机 IV 应使两次密文不同");
         }
