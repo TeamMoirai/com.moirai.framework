@@ -1,3 +1,4 @@
+#if MESSAGEPACK_INSTALLED
 using MessagePack;
 
 namespace Moirai.Atropos.Save
@@ -42,3 +43,4 @@ namespace Moirai.Atropos.Save
         }
     }
 }
+#endif

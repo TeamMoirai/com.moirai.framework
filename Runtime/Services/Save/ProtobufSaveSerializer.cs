@@ -1,3 +1,4 @@
+#if PROTOBUF_INSTALLED
 using System;
 using System.IO;
 using ProtoBuf;
@@ -44,3 +45,4 @@ namespace Moirai.Atropos.Save
         }
     }
 }
+#endif

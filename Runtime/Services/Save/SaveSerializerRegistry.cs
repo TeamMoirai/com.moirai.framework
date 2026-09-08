@@ -23,9 +23,15 @@ namespace Moirai.Atropos.Save
             var serializers = new Dictionary<ESaveBackend, ISaveSerializer>
             {
                 { ESaveBackend.Json, new JsonSaveSerializer() },
+#if MESSAGEPACK_INSTALLED
                 { ESaveBackend.MessagePack, new MessagePackSaveSerializer() },
+#endif
+#if MEMORYPACK_INSTALLED
                 { ESaveBackend.MemoryPack, new MemoryPackSaveSerializer() },
+#endif
+#if PROTOBUF_INSTALLED
                 { ESaveBackend.Protobuf, new ProtobufSaveSerializer() },
+#endif
             };
             return serializers;
         }

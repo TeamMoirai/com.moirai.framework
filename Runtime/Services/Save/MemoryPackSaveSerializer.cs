@@ -1,3 +1,4 @@
+#if MEMORYPACK_INSTALLED
 using MemoryPack;
 
 namespace Moirai.Atropos.Save
@@ -36,3 +37,4 @@ namespace Moirai.Atropos.Save
         }
     }
 }
+#endif
