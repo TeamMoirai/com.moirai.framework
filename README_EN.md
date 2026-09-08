@@ -99,7 +99,7 @@ Moirai Framework
       ```bash
       https://github.com/TeamMoirai/com.moirai.framework.git#installer
       ```
-      <img src="Documentation~\src\quick-start-1.png" alt="quick-start-scoped-registries" />
+      <img src="Documentation~\.src\quick-start-1.png" alt="quick-start-scoped-registries" />
 
    - Clone the `install` branch to your project directory (Assets/...):
 
@@ -123,11 +123,11 @@ Moirai Framework
              com.moirai
    ```
 
-   <img src="Documentation~\src\quick-start-2-scoped-registries.png" alt="quick-start-scoped-registries" />
+   <img src="Documentation~\.src\quick-start-2-scoped-registries.png" alt="quick-start-scoped-registries" />
 
 2. In **Window/Package Manager**, select **Moirai Framework** and click **Install**:
 
-    <img src="Documentation~\src\quick-start-2-package-detail.png" alt="quick-start-package-detail" />
+    <img src="Documentation~\.src\quick-start-2-package-detail.png" alt="quick-start-package-detail" />
 
 3. <a id="manual-import"></a>Manually copy all contents from the **@Requirements** folder under `ProjectRoot/Library/PackageCach/com.moirai.framework@xxx/Templates~/` to the **ProjectRoot/Assets** directory.
 

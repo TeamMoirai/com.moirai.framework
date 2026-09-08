@@ -1,8 +1,5 @@
 using UnityEngine;
 using Debug = UnityEngine.Debug;
-#if UNITY_EDITOR
-using UnityEditor;
-#endif
 
 namespace Moirai.Atropos
 {	
@@ -17,7 +14,7 @@ namespace Moirai.Atropos
         private static bool s_SettingCached = false;
 #endif
         private static bool s_DebugDrawEnabled = false;
-        private const string DEBUG_DRAWS_KEY = "DebugDrawsEnabled";
+        private const string DEBUG_DRAWS_KEY = "DebugDraw";
         /// <summary>
         /// 是否应执行调试绘制
         /// </summary>
@@ -28,7 +25,7 @@ namespace Moirai.Atropos
 #if UNITY_EDITOR
 	            if (!s_SettingCached)
 	            {
-		            s_DebugDrawEnabled = EditorPrefs.GetBool(DEBUG_DRAWS_KEY, true);
+		            s_DebugDrawEnabled = UnityEditor.EditorPrefs.GetBool(DEBUG_DRAWS_KEY, true);
 		            s_SettingCached = true;
 	            }
 #endif
@@ -37,7 +34,7 @@ namespace Moirai.Atropos
 	        set
             {
 #if UNITY_EDITOR
-	            EditorPrefs.SetBool(DEBUG_DRAWS_KEY, value);
+	            UnityEditor.EditorPrefs.SetBool(DEBUG_DRAWS_KEY, value);
 	            s_SettingCached = true;
 #endif
 	            s_DebugDrawEnabled = value;
@@ -46,7 +43,7 @@ namespace Moirai.Atropos
 
         #endregion
 
-        #region 类型转换 [CASTS]
+        #region 射线 [CASTS]
 
         /// <summary>
         /// 投射常规 2D 射线并绘制调试射线
@@ -64,6 +61,7 @@ namespace Moirai.Atropos
 			{
 				Debug.DrawRay(rayOriginPoint, rayDirection * rayDistance, color);
 			}
+
 			return Physics2D.Raycast(rayOriginPoint, rayDirection, rayDistance, mask);		
 		}
         
@@ -153,8 +151,9 @@ namespace Moirai.Atropos
 		{	
 			if (drawGizmo && DebugDrawEnabled) 
 			{
-				Debug.DrawRay (rayOriginPoint, rayDirection * rayDistance, color);
+				Debug.DrawRay(rayOriginPoint, rayDirection * rayDistance, color);
 			}
+
 			if (Physics2D.RaycastNonAlloc(rayOriginPoint, rayDirection, array, rayDistance, mask) > 0)
 			{
 				return array[0];
@@ -179,6 +178,7 @@ namespace Moirai.Atropos
 			{
 				Debug.DrawRay(rayOriginPoint, rayDirection * rayDistance, color);
 			}
+
 			RaycastHit hit;
 			Physics.Raycast(rayOriginPoint, rayDirection, out hit, rayDistance, mask, queryTriggerInteraction);	
 			return hit;
@@ -198,10 +198,7 @@ namespace Moirai.Atropos
         /// <param name="arrowHeadAngle">箭头角度</param>
         public static void DrawGizmoArrow(Vector3 origin, Vector3 direction, Color color, float arrowHeadLength = 3f, float arrowHeadAngle = 25f)
 	    {
-            if (!DebugDrawEnabled)
-            {
-                return;
-            }
+            if (!DebugDrawEnabled) return;
 
 	        Gizmos.color = color;
 	        Gizmos.DrawRay(origin, direction);
@@ -219,10 +216,7 @@ namespace Moirai.Atropos
 	    /// <param name="arrowHeadAngle">箭头角度</param>
 	    public static void DebugDrawArrow(Vector3 origin, Vector3 direction, Color color, float arrowHeadLength = 0.2f, float arrowHeadAngle = 35f)
         {
-            if (!DebugDrawEnabled)
-            {
-                return;
-            }
+            if (!DebugDrawEnabled) return;
 
             Debug.DrawRay(origin, direction, color);
 	       
@@ -240,10 +234,7 @@ namespace Moirai.Atropos
 		/// <param name="arrowHeadAngle">箭头角度</param>
 		public static void DebugDrawArrow(Vector3 origin, Vector3 direction, Color color, float arrowLength, float arrowHeadLength = 0.20f, float arrowHeadAngle = 35.0f)
         {
-            if (!DebugDrawEnabled)
-            {
-                return;
-            }
+            if (!DebugDrawEnabled) return;
 
             Debug.DrawRay(origin, direction * arrowLength, color);
 
@@ -258,10 +249,7 @@ namespace Moirai.Atropos
 		/// <param name="color">颜色</param>
 		public static void DebugDrawCross(Vector3 spot, float crossSize, Color color)
         {
-            if (!DebugDrawEnabled)
-            {
-                return;
-            }
+            if (!DebugDrawEnabled) return;
 
             Vector3 tempOrigin = Vector3.zero;
 			Vector3 tempDirection = Vector3.zero;
@@ -294,15 +282,10 @@ namespace Moirai.Atropos
 		/// <param name="arrowHeadAngle">箭头角度</param>
 		private static void DrawArrowEnd(bool drawGizmos, Vector3 arrowEndPosition, Vector3 direction, Color color, float arrowHeadLength = 0.25f, float arrowHeadAngle = 40.0f)
         {
-            if (!DebugDrawEnabled)
-            {
-                return;
-            }
+            if (!DebugDrawEnabled) return;
 
-            if (direction == Vector3.zero)
-			{
-				return;
-			}
+            if (direction == Vector3.zero) return;
+
 	        Vector3 right = Quaternion.LookRotation(direction) * Quaternion.Euler(arrowHeadAngle, 0, 0) * Vector3.back;
 	        Vector3 left = Quaternion.LookRotation(direction) * Quaternion.Euler(-arrowHeadAngle, 0, 0) * Vector3.back;
 	        Vector3 up = Quaternion.LookRotation(direction) * Quaternion.Euler(0, arrowHeadAngle, 0) * Vector3.back;
@@ -331,10 +314,7 @@ namespace Moirai.Atropos
 		/// <param name="color">颜色</param>
 		public static void DrawHandlesBounds(Bounds bounds, Color color)
         {
-            if (!DebugDrawEnabled)
-            {
-                return;
-            }
+            if (!DebugDrawEnabled) return;
 
 #if UNITY_EDITOR
             Vector3 boundsCenter = bounds.center;
@@ -350,22 +330,22 @@ namespace Moirai.Atropos
 			Vector3 v3BackBottomRight  = new Vector3(boundsCenter.x + boundsExtents.x, boundsCenter.y - boundsExtents.y, boundsCenter.z + boundsExtents.z);  // Back bottom right corner
 
 
-			Handles.color = color;
+			UnityEditor.Handles.color = color;
 			
-			Handles.DrawLine(v3FrontTopLeft, v3FrontTopRight);
-			Handles.DrawLine(v3FrontTopRight, v3FrontBottomRight);
-			Handles.DrawLine(v3FrontBottomRight, v3FrontBottomLeft);
-			Handles.DrawLine(v3FrontBottomLeft, v3FrontTopLeft);
+			UnityEditor.Handles.DrawLine(v3FrontTopLeft, v3FrontTopRight);
+			UnityEditor.Handles.DrawLine(v3FrontTopRight, v3FrontBottomRight);
+			UnityEditor.Handles.DrawLine(v3FrontBottomRight, v3FrontBottomLeft);
+			UnityEditor.Handles.DrawLine(v3FrontBottomLeft, v3FrontTopLeft);
 			
-			Handles.DrawLine(v3BackTopLeft, v3BackTopRight);
-			Handles.DrawLine(v3BackTopRight, v3BackBottomRight);
-			Handles.DrawLine(v3BackBottomRight, v3BackBottomLeft);
-			Handles.DrawLine(v3BackBottomLeft, v3BackTopLeft);
+			UnityEditor.Handles.DrawLine(v3BackTopLeft, v3BackTopRight);
+			UnityEditor.Handles.DrawLine(v3BackTopRight, v3BackBottomRight);
+			UnityEditor.Handles.DrawLine(v3BackBottomRight, v3BackBottomLeft);
+			UnityEditor.Handles.DrawLine(v3BackBottomLeft, v3BackTopLeft);
 			
-			Handles.DrawLine(v3FrontTopLeft, v3BackTopLeft);
-			Handles.DrawLine(v3FrontTopRight, v3BackTopRight);
-			Handles.DrawLine(v3FrontBottomRight, v3BackBottomRight);
-			Handles.DrawLine(v3FrontBottomLeft, v3BackBottomLeft);
+			UnityEditor.Handles.DrawLine(v3FrontTopLeft, v3BackTopLeft);
+			UnityEditor.Handles.DrawLine(v3FrontTopRight, v3BackTopRight);
+			UnityEditor.Handles.DrawLine(v3FrontBottomRight, v3BackBottomRight);
+			UnityEditor.Handles.DrawLine(v3FrontBottomLeft, v3BackBottomLeft);
 #endif
 		}
 
@@ -378,13 +358,9 @@ namespace Moirai.Atropos
         /// <param name="solidColor"></param>
         public static void DrawSolidRectangle(Vector3 position, Vector3 size, Color borderColor, Color solidColor)
         {
-            if (!DebugDrawEnabled)
-            {
-                return;
-            }
+            if (!DebugDrawEnabled) return;
 
 #if UNITY_EDITOR
-
             Vector3 halfSize = size / 2f;
 
             Vector3[] verts = new Vector3[4];
@@ -392,8 +368,7 @@ namespace Moirai.Atropos
             verts[1] = new Vector3(-halfSize.x, halfSize.y, halfSize.z);
             verts[2] = new Vector3(-halfSize.x, -halfSize.y, halfSize.z);
             verts[3] = new Vector3(halfSize.x, -halfSize.y, halfSize.z);
-            Handles.DrawSolidRectangleWithOutline(verts, solidColor, borderColor);
-            
+            UnityEditor.Handles.DrawSolidRectangleWithOutline(verts, solidColor, borderColor);
 #endif
         }
         
@@ -405,10 +380,8 @@ namespace Moirai.Atropos
         /// <param name="color">颜色</param>
         public static void DrawGizmoPoint(Vector3 position, float size, Color color)
         {
-            if (!DebugDrawEnabled)
-            {
-                return;
-            }
+            if (!DebugDrawEnabled) return;
+
             Gizmos.color = color;
 			Gizmos.DrawWireSphere(position, size);
 		}
@@ -421,10 +394,7 @@ namespace Moirai.Atropos
 		/// <param name="size">大小</param>
 		public static void DrawCube(Vector3 position, Color color, Vector3 size)
         {
-            if (!DebugDrawEnabled)
-            {
-                return;
-            }
+            if (!DebugDrawEnabled) return;
 
             Vector3 halfSize = size / 2f; 
 
@@ -455,10 +425,7 @@ namespace Moirai.Atropos
         /// <param name="wireOnly"></param>
         public static void DrawGizmoCube(Transform transform, Vector3 offset, Vector3 cubeSize, bool wireOnly)
         {
-            if (!DebugDrawEnabled)
-            {
-                return;
-            }
+            if (!DebugDrawEnabled) return;
 
             Matrix4x4 rotationMatrix = transform.localToWorldMatrix;
             Gizmos.matrix = rotationMatrix;
@@ -480,10 +447,7 @@ namespace Moirai.Atropos
 		/// <param name="color">颜色</param>
 		public static void DrawGizmoRectangle(Vector2 center, Vector2 size, Color color)
         {
-            if (!DebugDrawEnabled)
-            {
-                return;
-            }
+            if (!DebugDrawEnabled) return;
 
             Gizmos.color = color;
 
@@ -507,10 +471,7 @@ namespace Moirai.Atropos
 		/// <param name="color">颜色</param>
 		public static void DrawGizmoRectangle(Vector2 center, Vector2 size, Matrix4x4 rotationMatrix, Color color)
         {
-            if (!DebugDrawEnabled)
-            {
-                return;
-            }
+            if (!DebugDrawEnabled) return;
 
             GL.PushMatrix();
 
@@ -536,15 +497,12 @@ namespace Moirai.Atropos
         /// <param name="color">颜色</param>
         public static void DrawRectangle(Rect rectangle, Color color)
         {
-            if (!DebugDrawEnabled)
-            {
-                return;
-            }
+            if (!DebugDrawEnabled) return;
 
             Vector3 pos = new Vector3( rectangle.x + rectangle.width/2, rectangle.y + rectangle.height/2, 0.0f );
 			Vector3 scale = new Vector3 (rectangle.width, rectangle.height, 0.0f );
 
-			DebugDrawUtility.DrawRectangle(pos, color, scale);
+			DrawRectangle(pos, color, scale);
 		}	
 
 		/// <summary>
@@ -555,10 +513,7 @@ namespace Moirai.Atropos
 		/// <param name="size">大小</param>
 		public static void DrawRectangle(Vector3 position, Color color, Vector3 size)
         {
-            if (!DebugDrawEnabled)
-            {
-                return;
-            }
+            if (!DebugDrawEnabled) return;
 
             Vector3 halfSize = size / 2f; 
 
@@ -584,10 +539,7 @@ namespace Moirai.Atropos
 		/// <param name="size">大小</param>
 		public static void DrawPoint(Vector3 position, Color color, float size)
         {
-            if (!DebugDrawEnabled)
-            {
-                return;
-            }
+            if (!DebugDrawEnabled) return;
 
             Vector3[] points = new Vector3[] 
 			{
@@ -624,10 +576,7 @@ namespace Moirai.Atropos
         /// <param name="size">大小</param>
         public static void DrawGizmoPoint(Vector3 position, Color color, float size)
         {
-	        if (!DebugDrawEnabled)
-	        {
-		        return;
-	        }
+            if (!DebugDrawEnabled) return;
 
 	        Vector3[] points = new Vector3[] 
 	        {

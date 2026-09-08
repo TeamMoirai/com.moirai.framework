@@ -102,7 +102,7 @@ Moirai Framework
       ```bash
       https://github.com/TeamMoirai/com.moirai.framework.git#installer
       ```
-      <img src="Documentation~\src\quick-start-1.png" alt="quick-start-scoped-registries" />
+      <img src="Documentation~\.src\quick-start-1.png" alt="quick-start-scoped-registries" />
    
    - 克隆 `install` 分支至工程目录（Assets/...）：
 
@@ -127,11 +127,11 @@ Moirai Framework
    		  com.moirai
    ```
 
-   <img src="Documentation~\src\quick-start-2-scoped-registries.png" alt="quick-start-scoped-registries" />
+   <img src="Documentation~\.src\quick-start-2-scoped-registries.png" alt="quick-start-scoped-registries" />
 
 2. 在 **Window/Package Manager** 中，选中 **Moirai Framework**，点击 **Install** 进行安装：
 
-    <img src="Documentation~\src\quick-start-2-package-detail.png" alt="quick-start-package-detail" />
+    <img src="Documentation~\.src\quick-start-2-package-detail.png" alt="quick-start-package-detail" />
 
 3. <a id="manual-import"></a>手动复制 `工程根目录/Library/PackageCach/com.moirai.framework@xxx/Templates~/` 下 **@Requirements** 文件夹内的所有内容到 **工程根目录/Assets** 目录。
 
