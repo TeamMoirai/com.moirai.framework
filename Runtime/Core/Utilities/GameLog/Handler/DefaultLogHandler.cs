@@ -73,8 +73,12 @@ namespace Moirai.Atropos
         /// <returns>格式化后的日志文本。</returns>
         private string GetFormatString(string tag, string message, string tagColor, string bodyColor, bool wrapBody)
         {
+            // 仅在编辑器下应用富文本标签（<color>、<b>），避免在正式包/真机日志中残留标签字符。
+            if (!Application.isEditor) return StringUtility.Format("{2}[{0}] ► {1}", tag, message, TimestampPrefix);
+
             string body = wrapBody && bodyColor != null ? ColorizePerLine(message, bodyColor) : message;
             return StringUtility.Format("{3}<color={0}><b>[{1}] ► </b></color> - {2}", tagColor, tag, body, TimestampPrefix);
+
         }
 
         /// <summary>

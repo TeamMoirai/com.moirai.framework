@@ -14,7 +14,7 @@ namespace GameLogic
             UIService.ShowUIAsync<StartScreen>("StartScreen", GetWindowLocation("start"), false, "Start Screen");
 
             // 多语言测试
-            LogUtility.Warning("Test Localization => {0}",
+            LogUtility.Debug("Test Localization => {0}",
                 LocalizationService.Localize("[l10n]test:{l10n:test} | [i18n]test_only_zh:{i18n:test_only_zh} | [g11n]test_only_en:{g11n:test_only_en}"));
         }
 
