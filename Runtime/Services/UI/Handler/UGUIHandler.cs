@@ -39,11 +39,6 @@ namespace Moirai.Atropos.UI
         /// </summary>
         public override UIWindow CurrentModal => _uiStack.LastOrDefault(IsModal);
 
-        /// <summary>
-        /// 资源加载器。
-        /// </summary>
-        public override IUIResourceLoader Resource { get; set; }
-
         #region 生命周期 [LIFECYCLE]
 
         /// <summary>
@@ -71,8 +66,6 @@ namespace Moirai.Atropos.UI
                     LogUtility.Fatal("Can't find any Canvas under UIRoot! Please add a Canvas first.");
                     return;
                 }
-
-                Resource = new UIResourceLoader();
 
                 _instanceRoot = canvas.transform;
                 _uiCamera = canvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : canvas.worldCamera;

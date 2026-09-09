@@ -86,11 +86,6 @@ namespace Moirai.Atropos.UI
         /// </summary>
         public static UIWindow CurrentModal => s_Handler?.CurrentModal;
 
-        /// <summary>
-        /// UI资源加载器。
-        /// </summary>
-        public static IUIResourceLoader Resource => s_Handler?.Resource;
-
         #endregion
 
         #region 安全区域 [SAFE AREA]

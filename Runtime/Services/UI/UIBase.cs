@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Cysharp.Threading.Tasks;
+using Moirai.Atropos.Resource;
 using UnityEngine;
 #if ENABLE_OBFUZ
 using Obfuz;
@@ -347,7 +348,7 @@ namespace Moirai.Atropos.UI
         /// <returns>UIWidget实例。</returns>
         public T CreateWidgetByPath<T>(Transform parentTrans, string assetLocation, bool visible = true) where T : UIWidget, new()
         {
-            GameObject goInst = UIService.Resource.LoadGameObject(assetLocation, parent: parentTrans);
+            GameObject goInst = ResourceService.LoadGameObject(assetLocation, parent: parentTrans);
             return CreateWidget<T>(goInst, visible);
         }
 
@@ -361,7 +362,7 @@ namespace Moirai.Atropos.UI
         /// <returns>UIWidget实例。</returns>
         public async UniTask<T> CreateWidgetByPathAsync<T>(Transform parentTrans, string assetLocation, bool visible = true) where T : UIWidget, new()
         {
-            GameObject goInst = await UIService.Resource.LoadGameObjectAsync(assetLocation, parentTrans, gameObject.GetCancellationTokenOnDestroy());
+            GameObject goInst = await ResourceService.LoadGameObjectAsync(assetLocation, parentTrans, gameObject.GetCancellationTokenOnDestroy());
             return CreateWidget<T>(goInst, visible);
         }
 
