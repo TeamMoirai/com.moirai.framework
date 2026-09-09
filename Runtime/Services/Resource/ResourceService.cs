@@ -14,8 +14,21 @@ namespace Moirai.Atropos.Resource
     /// </summary>
     [HandlerHost(typeof(ResourceServiceHandler))]
     [ServiceDependency(typeof(DebuggerService))]
-    public partial class ResourceService : ServiceBase
+    public partial class ResourceService : ServiceBase, IServiceTickable
     {
+        #region 驱动状态 [DRIVE STATE]
+
+        private static bool s_ForceUnloadUnusedAssets;
+        private static bool s_ForceSystemUnloadUnusedAssets;
+        private static bool s_PreorderUnloadUnusedAssets;
+        private static bool s_PerformGCCollect;
+
+        private static AsyncOperation s_AsyncOperation;
+        private static float s_LastUnloadElapsedSeconds;
+        private static float s_LastGCCollectElapsedSeconds = float.MaxValue;
+
+        #endregion
+
         #region 生命周期 [LIFECYCLE]
 
         /// <summary>
@@ -39,7 +52,27 @@ namespace Moirai.Atropos.Resource
         public override void OnInit()
         {
             _ = Handler;
-            DriveInitialize();
+
+            // 远程地址（更新系统单源）
+            s_Handler.HostServerURL = UpdateSettings.GetResDownLoadPath();
+            s_Handler.FallbackHostServerURL = UpdateSettings.GetFallbackResDownLoadPath();
+            s_Handler.LoadResWayWebGL = (EResourceLoadWayWebGL)UpdateSettings.LoadResWayWebGL;
+
+            // 通用配置（ResourceSettings 单源）
+            s_Handler.AssetRecordCapacity = ResourceServiceSettings.AssetRecordCapacity;
+            s_Handler.AssetLeaseCapacity = ResourceServiceSettings.AssetLeaseCapacity;
+            s_Handler.BindingOwnerCapacity = ResourceServiceSettings.BindingOwnerCapacity;
+            s_Handler.BindingSlotCapacity = ResourceServiceSettings.BindingSlotCapacity;
+            s_Handler.RegisteredTargetCapacity = ResourceServiceSettings.RegisteredTargetCapacity;
+            s_Handler.IdleAssetExpireTime = ResourceServiceSettings.IdleAssetExpireTime;
+            s_Handler.SetForceUnloadUnusedAssetsAction(RequestForceUnloadUnusedAssets);
+
+            // 初始化后端（创建默认包与绑定服务）
+            s_Handler.Initialize();
+            LogUtility.Info("ResourceService Run Mode：{0}", ResourceServiceSettings.PlayMode);
+
+            Application.lowMemory += OnLowMemory;
+
             DebuggerService.RegisterDebuggerWindow("Profiler/Resource", new ResourceServiceDebugView());
         }
 
@@ -48,11 +81,75 @@ namespace Moirai.Atropos.Resource
         /// </summary>
         public override void OnShutdown()
         {
-            DriveTeardown();
+            Application.lowMemory -= OnLowMemory;
+
+            s_AsyncOperation = null;
+            s_ForceUnloadUnusedAssets = false;
+            s_ForceSystemUnloadUnusedAssets = false;
+            s_PreorderUnloadUnusedAssets = false;
+            s_PerformGCCollect = false;
+            s_LastUnloadElapsedSeconds = 0f;
+            s_LastGCCollectElapsedSeconds = float.MaxValue;
 
             var handler = s_Handler;
             s_Handler = null;
             handler?.Internal_Shutdown();
+        }
+
+        /// <summary>
+        /// 每帧驱动：时间轮推进 + 无用资源卸载调度 + GC 节流。
+        /// </summary>
+        public void Tick(float elapseSeconds, float realElapseSeconds)
+        {
+            if (s_Handler == null) return;
+
+            float minInterval = ResourceServiceSettings.MinUnloadUnusedAssetsInterval;
+            float maxInterval = ResourceServiceSettings.MaxUnloadUnusedAssetsInterval;
+            bool useSystem = ResourceServiceSettings.UseSystemUnloadUnusedAssets;
+            int expirePerFrame = ResourceServiceSettings.ExpireProcessCountPerFrame;
+            int expireWhenUnloading = ResourceServiceSettings.ExpireProcessCountWhenUnloading;
+            float minGCInterval = ResourceServiceSettings.MinGCCollectInterval;
+
+            bool operationInFlight = s_AsyncOperation != null;
+            bool shouldUnloadUnusedAssets = ShouldUnloadUnusedAssets(
+                operationInFlight,
+                s_LastUnloadElapsedSeconds,
+                s_ForceUnloadUnusedAssets,
+                s_PreorderUnloadUnusedAssets,
+                minInterval,
+                maxInterval);
+
+            int expireProcessCount = ResolveExpireProcessCount(shouldUnloadUnusedAssets, expirePerFrame, expireWhenUnloading);
+            s_Handler.ProcessKeepAlive(Time.unscaledTime, expireProcessCount);
+
+            s_LastUnloadElapsedSeconds += Time.unscaledDeltaTime;
+            s_LastGCCollectElapsedSeconds += Time.unscaledDeltaTime;
+            if (shouldUnloadUnusedAssets)
+            {
+                bool force = s_ForceUnloadUnusedAssets;
+                bool useSystemUnload = s_ForceSystemUnloadUnusedAssets && useSystem;
+                s_ForceUnloadUnusedAssets = false;
+                s_ForceSystemUnloadUnusedAssets = false;
+                s_PreorderUnloadUnusedAssets = false;
+                s_LastUnloadElapsedSeconds = 0f;
+                s_Handler.UnloadUnusedAssets(force);
+                s_AsyncOperation = useSystemUnload ? Resources.UnloadUnusedAssets() : null;
+                LogUtility.Info("Unload unused assets...");
+            }
+
+            if (s_AsyncOperation == null && s_PerformGCCollect)
+            {
+                TryCollectGarbage(minGCInterval);
+            }
+
+            if (s_AsyncOperation is { isDone: true })
+            {
+                s_AsyncOperation = null;
+                if (s_PerformGCCollect)
+                {
+                    TryCollectGarbage(minGCInterval);
+                }
+            }
         }
 
         #endregion
@@ -322,7 +419,7 @@ namespace Moirai.Atropos.Resource
         /// <param name="fallbackHostServerURL">备用资源服务器地址。非空时写入 <see cref="FallbackHostServerURL"/>。</param>
         /// <returns>初始化是否成功。</returns>
         public static UniTask<bool> InitPackageAsync(string packageName = "", string hostServerURL = "", string fallbackHostServerURL = "") =>
-            s_Handler?.InitPackageAsync(packageName, hostServerURL, fallbackHostServerURL) ?? UniTask.FromResult<bool>(false);
+            s_Handler?.InitPackageAsync(packageName, hostServerURL, fallbackHostServerURL) ?? UniTask.FromResult(false);
 
         #endregion
 
@@ -537,21 +634,39 @@ namespace Moirai.Atropos.Resource
             s_Handler?.GetAssetInfo(location, packageName) ?? default;
 
         /// <summary>
-        /// 每帧过期处理（由 <see cref="ResourceServiceDriver"/> 驱动）。
-        /// </summary>
-        internal static void ProcessKeepAlive(float time, int processCount) =>
-            s_Handler?.ProcessKeepAlive(time, processCount);
-
-        /// <summary>
         /// 低内存行为。
         /// </summary>
-        public static void OnLowMemory() => s_Handler?.OnLowMemory();
+        internal static void OnLowMemory() => s_Handler?.OnLowMemory();
 
         /// <summary>
         /// 低内存回调保护。
         /// </summary>
         public static void SetForceUnloadUnusedAssetsAction(Action<bool> action) =>
             s_Handler?.SetForceUnloadUnusedAssetsAction(action);
+
+        /// <summary>
+        /// 请求强制执行释放未被使用的资源。
+        /// </summary>
+        /// <param name="performGCCollect">是否使用垃圾回收。</param>
+        private static void RequestForceUnloadUnusedAssets(bool performGCCollect)
+        {
+            s_ForceUnloadUnusedAssets = true;
+            if (performGCCollect)
+            {
+                s_PerformGCCollect = true;
+                s_ForceSystemUnloadUnusedAssets = true;
+            }
+        }
+
+        private static void TryCollectGarbage(float minInterval)
+        {
+            if (s_LastGCCollectElapsedSeconds < minInterval) return;
+
+            LogUtility.Info("GC.Collect...");
+            s_PerformGCCollect = false;
+            s_LastGCCollectElapsedSeconds = 0f;
+            GC.Collect();
+        }
 
         #endregion
 
@@ -614,6 +729,37 @@ namespace Moirai.Atropos.Resource
         /// </summary>
         public static void ClearAllBundleFiles(string customPackageName = "") =>
             s_Handler?.ClearAllBundleFiles(customPackageName);
+
+        #endregion
+
+        #region 调度决策（纯函数，供回归测试）[SCHEDULING DECISIONS]
+
+        /// <summary>
+        /// 判定本帧是否应触发无用资源卸载。
+        /// </summary>
+        /// <param name="operationInFlight">是否已有卸载操作在途。</param>
+        /// <param name="elapsedSinceLastUnload">距上次卸载的经过秒数。</param>
+        /// <param name="forceRequested">是否被强制请求。</param>
+        /// <param name="preorderRequested">是否被预约请求（低优先级提前卸载）。</param>
+        /// <param name="minInterval">预约请求生效所需的最小间隔。</param>
+        /// <param name="maxInterval">无请求时的最大间隔。</param>
+        /// <returns>是否应触发卸载。</returns>
+        internal static bool ShouldUnloadUnusedAssets(bool operationInFlight, float elapsedSinceLastUnload,
+            bool forceRequested, bool preorderRequested, float minInterval, float maxInterval)
+        {
+            return !operationInFlight &&
+                   (forceRequested ||
+                    elapsedSinceLastUnload >= maxInterval ||
+                    preorderRequested && elapsedSinceLastUnload >= minInterval);
+        }
+
+        /// <summary>
+        /// 计算本帧过期处理预算：常态按每帧配额，进入卸载帧时提升至上限且不低于常态值。
+        /// </summary>
+        internal static int ResolveExpireProcessCount(bool shouldUnload, int perFrameCount, int whenUnloadingCount)
+        {
+            return Mathf.Max(shouldUnload ? whenUnloadingCount : 0, perFrameCount);
+        }
 
         #endregion
     }
