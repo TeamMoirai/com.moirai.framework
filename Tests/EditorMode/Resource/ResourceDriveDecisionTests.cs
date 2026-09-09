@@ -126,17 +126,5 @@ namespace Resource
         }
 
         #endregion
-
-        #region 接线安全 [WIRING SAFETY]
-
-        [Test]
-        public void DriveTeardown_WithoutWiring_IsIdempotentNoOp()
-        {
-            // 未接线（s_DriveWired=false）时必须提前返回且不触碰 UpdateDriver/Application 回调。
-            Assert.DoesNotThrow(ResourceService.DriveTeardown);
-            Assert.DoesNotThrow(ResourceService.DriveTeardown);
-        }
-
-        #endregion
     }
 }

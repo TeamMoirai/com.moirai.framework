@@ -51,9 +51,10 @@ namespace Moirai.Atropos.Schedulers
         #endregion
         
         #region 公共静态方法 [PUBLIC STATIC METHODS]
+
         /// <summary>
         /// 注册一个新的计时器，该计时器应在经过一定时间后触发事件。
-        ///
+        /// <br/>
         /// 当场景更改时，已注册的计时器将被销毁。
         /// </summary>
         /// <param name="duration">计时器应触发之前等待的时间（以秒为单位）。</param>
@@ -74,8 +75,9 @@ namespace Moirai.Atropos.Schedulers
         #endregion
         
         #region 公共方法 [PUBLIC METHODS]
+
         /// <summary>
-        /// Stop a timer that is in-progress or paused. The timer's on completion callback will not be called.
+        /// 停止正在进行或已暂停的计时器。不会调用计时器的完成回调。
         /// </summary>
         public void Cancel()
         {
@@ -83,6 +85,7 @@ namespace Moirai.Atropos.Schedulers
             _timeElapsedBeforeCancel = GetTimeElapsed();
             _timeElapsedBeforePause = null;
         }
+
         public void Dispose()
         {
             // 幂等：重复 Dispose 不得二次入池（否则同一实例被两次 Get 取出，池污染）
@@ -94,8 +97,9 @@ namespace Moirai.Atropos.Schedulers
             _onComplete = default;
             s_Pool.Release(this);
         }
+
         /// <summary>
-        /// Pause a running timer. A paused timer can be resumed from the same point it was paused.
+        /// 暂停正在运行的计时器。已暂停的计时器可以从暂停的同一点恢复。
         /// </summary>
         public void Pause()
         {
@@ -108,7 +112,7 @@ namespace Moirai.Atropos.Schedulers
         }
 
         /// <summary>
-        /// Continue a paused timer. Does nothing if the timer has not been paused.
+        /// 继续已暂停的计时器。如果计时器尚未暂停，则不执行任何操作。
         /// </summary>
         public void Resume()
         {
@@ -121,15 +125,14 @@ namespace Moirai.Atropos.Schedulers
         }
 
         /// <summary>
-        /// Get how many seconds have elapsed since the start of this timer's current cycle.
+        /// 获取自计时器当前循环开始以来经过的秒数。
         /// </summary>
-        /// <returns>The number of seconds that have elapsed since the start of this timer's current cycle, i.e.
-        /// the current loop if the timer is looped, or the start if it isn't.
+        /// <returns>自计时器当前循环开始以来经过的秒数，即如果计时器循环则返回当前循环，
+        /// 否则返回开始以来的秒数。
         ///
-        /// If the timer has finished running, this is equal to the duration.
+        /// 如果计时器已完成运行，则该值等于持续时间。
         ///
-        /// If the timer was cancelled/paused, this is equal to the number of seconds that passed between the timer
-        /// starting and when it was cancelled/paused.</returns>
+        /// 如果计时器被取消/暂停，则该值等于计时器开始到被取消/暂停之间经过的秒数。</returns>
         public float GetTimeElapsed()
         {
             if (IsCompleted || GetWorldTime() >= GetFireTime())
@@ -143,29 +146,28 @@ namespace Moirai.Atropos.Schedulers
         }
 
         /// <summary>
-        /// Get how many seconds remain before the timer completes.
+        /// 获取计时器完成前剩余的秒数。
         /// </summary>
-        /// <returns>The number of seconds that remain to be elapsed until the timer is completed. A timer
-        /// is only elapsing time if it is not paused, cancelled, or completed. This will be equal to zero
-        /// if the timer completed.</returns>
+        /// <returns>计时器完成前还需经过的秒数。计时器只有在未被暂停、取消或完成时才会计时。
+        /// 如果计时器已完成，则该值等于零。</returns>
         public float GetTimeRemaining()
         {
             return Duration - GetTimeElapsed();
         }
 
         /// <summary>
-        /// Get how much progress the timer has made from start to finish as a ratio.
+        /// 获取计时器从开始到结束的进度比例。
         /// </summary>
-        /// <returns>A value from 0 to 1 indicating how much of the timer's duration has been elapsed.</returns>
+        /// <returns>一个从 0 到 1 的值，表示计时器已耗时长的比例。</returns>
         public float GetRatioComplete()
         {
             return GetTimeElapsed() / Duration;
         }
 
         /// <summary>
-        /// Get how much progress the timer has left to make as a ratio.
+        /// 获取计时器剩余进度的比例。
         /// </summary>
-        /// <returns>A value from 0 to 1 indicating how much of the timer's duration remains to be elapsed.</returns>
+        /// <returns>一个从 0 到 1 的值，表示计时器剩余时长占持续时间的比例。</returns>
         public float GetRatioRemaining()
         {
             return GetTimeRemaining() / Duration;
@@ -174,6 +176,7 @@ namespace Moirai.Atropos.Schedulers
         #endregion
         
         #region 私有属性/字段 [PRIVATE PROPS/FIELDS]
+
         private SchedulerUnsafeBinding _onComplete;
         private SchedulerUnsafeBinding<float> _onUpdate;
         private float _startTime;
@@ -181,10 +184,9 @@ namespace Moirai.Atropos.Schedulers
         // 双重 Dispose 防护（幂等标记；Init 时复位）
         private bool _disposed;
 
-        // for pausing, we push the start time forward by the amount of time that has passed.
-        // this will mess with the amount of time that elapsed when we're cancelled or paused if we just
-        // check the start time versus the current world time, so we need to cache the time that was elapsed
-        // before we paused/cancelled
+        // 暂停时，我们会将开始时间向前推进已流逝的时间量。
+        // 如果只比较开始时间与当前世界时间，这会干扰被取消或暂停时经过的时间计算，
+        // 因此我们需要缓存暂停/取消前已流逝的时间。
         private float? _timeElapsedBeforeCancel;
         private float? _timeElapsedBeforePause;
 

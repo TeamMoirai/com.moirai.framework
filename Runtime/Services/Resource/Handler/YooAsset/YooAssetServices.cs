@@ -41,9 +41,7 @@ namespace Moirai.Atropos.Resource
                 return string.Empty;
             }
 
-            return hostServer[hostServer.Length - 1] == '/'
-                ? hostServer
-                : StringUtility.Concat(hostServer, "/");
+            return hostServer[^1] == '/' ? hostServer : StringUtility.Concat(hostServer, "/");
         }
     }
 

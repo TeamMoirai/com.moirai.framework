@@ -669,7 +669,6 @@ namespace Moirai.Atropos.Resource
         /// <inheritdoc />
         public override void OnLowMemory()
         {
-            LogUtility.Warning("Low memory reported...");
             _forceUnloadUnusedAssetsAction?.Invoke(true);
         }
 
