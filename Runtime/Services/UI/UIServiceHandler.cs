@@ -27,11 +27,6 @@ namespace Moirai.Atropos.UI
         public abstract UIWindow CurrentModal { get; }
 
         /// <summary>
-        /// 资源加载器。
-        /// </summary>
-        public abstract IUIResourceLoader Resource { get; set; }
-
-        /// <summary>
         /// 判断窗口是否为模态窗口。
         /// </summary>
         public virtual bool IsModal(UIWindow window) => window.WindowLayer == (int)UILayer.UI ||
