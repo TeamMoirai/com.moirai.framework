@@ -1,5 +1,4 @@
 using System;
-using Moirai.Atropos.Schedulers;
 using Sirenix.OdinInspector;
 using TMPro;
 using UnityEngine;
@@ -90,19 +89,19 @@ namespace Moirai.Atropos.Audio
         [Button]
         private void SaveAudioSettings()
         {
-            AudioServiceEvent.SetSettings();
+            AudioService.SetSettings();
         }
 
         [Button]
         private void LoadAudioSettings()
         {
-            AudioServiceEvent.LoadSettings();
+            AudioService.LoadSettings();
         }
 
         [Button]
         private void ResetAudioSettings()
         {
-            AudioServiceEvent.ResetSettings();
+            AudioService.RemoveSetting();
         }
 
         #endregion
@@ -135,20 +134,12 @@ namespace Moirai.Atropos.Audio
                 }
             }
 
-            // EventManager.RegisterCallback<AudioServiceEvent>(OnAudioServiceEvent);
-            // EventManager.RegisterCallback<AudioTrackControlEvent>(OnAudioTrackEvent);
-            // EventManager.RegisterCallback<AudioTrackFadeEvent>(OnAudioTrackFadeEvent);
         }
 
         private void OnDestroy()
         {
             m_MasterSlider?.onValueChanged.RemoveListener(OnMasterVolumeChanged);
             m_MasterMuteToggle?.onValueChanged.RemoveListener(OnMasterMuteChanged);
-            // 音轨 lambda 带捕获无法精确移除，OnDestroy 时对象即将销毁，无需清理
-
-            // EventManager.UnregisterCallback<AudioServiceEvent>(OnAudioServiceEvent);
-            // EventManager.UnregisterCallback<AudioTrackControlEvent>(OnAudioTrackEvent);
-            // EventManager.UnregisterCallback<AudioTrackFadeEvent>(OnAudioTrackFadeEvent);
         }
 
         private void OnEnable()
@@ -328,52 +319,6 @@ namespace Moirai.Atropos.Audio
                 if (widget.MuteToggle != null)
                     widget.MuteToggle.isOn = m_ToggleOnIsMute ? mute : !mute;
             }
-        }
-
-        private void OnAudioServiceEvent(AudioServiceEvent evt)
-        {
-            UpdateComponentsValue();
-        }
-
-        private void OnAudioTrackEvent(AudioTrackControlEvent evt)
-        {
-            if (evt.IsMaster)
-            {
-                switch (evt.ControlMode)
-                {
-                    case AudioTrackControlEvent.EControlMode.Mute:
-                        OnMasterMuteChanged(false);
-                        break;
-                    case AudioTrackControlEvent.EControlMode.Unmute:
-                        OnMasterMuteChanged(true);
-                        break;
-                    case AudioTrackControlEvent.EControlMode.SetVolume:
-                        OnMasterVolumeChanged(evt.Volume);
-                        break;
-                }
-            }
-            else
-            {
-                int index = (int)evt.Track;
-                switch (evt.ControlMode)
-                {
-                    case AudioTrackControlEvent.EControlMode.Mute:
-                        OnTrackMuteChanged(index, false);
-                        break;
-                    case AudioTrackControlEvent.EControlMode.Unmute:
-                        OnTrackMuteChanged(index, true);
-                        break;
-                    case AudioTrackControlEvent.EControlMode.SetVolume:
-                        OnTrackVolumeChanged(index, evt.Volume);
-                        break;
-                }
-            }
-        }
-
-        private void OnAudioTrackFadeEvent(AudioTrackFadeEvent evt)
-        {
-            // 延迟更新滑动条的值
-            Scheduler.Delay(evt.FadeDuration + 0.5f, UpdateComponentsValue);
         }
 
         #endregion

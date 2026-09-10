@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using Moirai.Atropos.Debugger;
 using Moirai.Atropos.Resource;
+using Moirai.Atropos.Schedulers;
 using UnityEngine;
 using UnityEngine.Audio;
 
@@ -39,6 +40,10 @@ namespace Moirai.Atropos.Audio
         public override void OnInit()
         {
             _ = Handler;
+
+            // 加载音频设置，必须等一帧设置才能生效
+            Scheduler.WaitFrame(1, LoadSettings);
+
             DebuggerService.RegisterDebuggerWindow("Profiler/Audio", new AudioServiceDebugView());
         }
 
@@ -122,21 +127,6 @@ namespace Moirai.Atropos.Audio
         }
 
         /// <summary>
-        /// 写入主音轨（总音量）配置。
-        /// </summary>
-        public static void SetMasterSettings() => s_Handler?.SetMasterSettings();
-
-        /// <summary>
-        /// 加载主音轨（总音量）配置。
-        /// </summary>
-        public static void LoadMasterSettings() => s_Handler?.LoadMasterSettings();
-
-        /// <summary>
-        /// 移除主音轨（总音量）设置。
-        /// </summary>
-        public static void RemoveMasterSetting() => s_Handler?.RemoveMasterSetting();
-
-        /// <summary>
         /// 获取指定音轨的音量。
         /// </summary>
         public static float GetTrackVolume(EAudioTrack track) => s_Handler?.GetTrackVolume(track) ?? 0f;
@@ -156,19 +146,67 @@ namespace Moirai.Atropos.Audio
         /// </summary>
         public static void SetTrackMute(EAudioTrack track, bool mute) => s_Handler?.SetTrackMute(track, mute);
 
+        /// <summary>
+        /// 写入配置。
+        /// </summary>
+        /// <remarks>如果需要保存，直接调用 <see cref="SettingUtility.Save"/></remarks>
+        public static void SetSettings()
+        {
+            var handler = s_Handler;
+            if (handler == null) return;
+
+            handler.SetMasterSettings();
+
+            var categories = handler.AudioCategories;
+            if (categories == null) return;
+
+            foreach (var category in categories)
+            {
+                category?.SetSettings();
+            }
+        }
+
+        /// <summary>
+        /// 加载配置。
+        /// </summary>
+        public static void LoadSettings()
+        {
+            var handler = s_Handler;
+            if (handler == null) return;
+
+            handler.LoadMasterSettings();
+
+            var categories = handler.AudioCategories;
+            if (categories == null) return;
+
+            foreach (var category in categories)
+            {
+                category?.LoadSettings();
+            }
+        }
+
+        /// <summary>
+        /// 移除设置。
+        /// </summary>
+        public static void RemoveSetting()
+        {
+            var handler = s_Handler;
+            if (handler == null) return;
+
+            handler.RemoveMasterSetting();
+
+            var categories = handler.AudioCategories;
+            if (categories == null) return;
+
+            foreach (var category in categories)
+            {
+                category?.RemoveSetting();
+            }
+        }
+
         #endregion 音轨状态 [TRACK STATUS]
 
         #region 服务方法 [SERVICE METHOD]
-
-        /// <summary>
-        /// 初始化音频服务。
-        /// </summary>
-        /// <param name="instanceRoot">实例化根节点。</param>
-        /// <param name="audioMixer">音频混响器。</param>
-        /// <param name="audioGroupConfigs">音频轨道组配置。</param>
-        /// <exception cref="GameException"></exception>
-        public static void Initialize(Transform instanceRoot = null, AudioMixer audioMixer = null, AudioGroupConfig[] audioGroupConfigs = null) =>
-            s_Handler?.Initialize(instanceRoot, audioMixer, audioGroupConfigs);
 
         /// <summary>
         /// 重启音频服务。
@@ -288,27 +326,14 @@ namespace Moirai.Atropos.Audio
         public static void ForEachAgentByID(int id, Action<AudioAgent> action) => s_Handler?.ForEachAgentByID(id, action);
 
         /// <summary>
-        /// 填充播放过指定 ID 的音频代理到调用方缓冲区（零共享状态，可安全重入）。
-        /// </summary>
-        /// <param name="id">音频 ID。</param>
-        /// <param name="results">调用方持有的结果缓冲（方法内先 Clear 再填充）。</param>
-        /// <returns>填充数量（未就绪时为 0）。</returns>
-        public static int FindAgentsByID(int id, List<AudioAgent> results) =>
-            s_Handler?.FindAgentsByID(id, results) ?? 0;
-
-        /// <summary>
         /// 对每个匹配 Clip 的 AudioAgent 执行操作（零分配）。
         /// </summary>
         public static void ForEachAgentByClip(AudioClip clip, Action<AudioAgent> action) => s_Handler?.ForEachAgentByClip(clip, action);
 
         /// <summary>
-        /// 填充播放过指定 clip 的音频代理到调用方缓冲区（零共享状态，可安全重入）。
+        /// 对每个匹配 ID 的 AudioHandle 执行操作（零分配）。
         /// </summary>
-        /// <param name="clip">音频剪辑。</param>
-        /// <param name="results">调用方持有的结果缓冲（方法内先 Clear 再填充）。</param>
-        /// <returns>填充数量（未就绪时为 0）。</returns>
-        public static int FindAgentsByClip(AudioClip clip, List<AudioAgent> results) =>
-            s_Handler?.FindAgentsByClip(clip, results) ?? 0;
+        public static void ForEachHandleByID(int id, Action<ulong> action) => s_Handler?.ForEachHandleByID(id, action);
 
         /// <summary>
         /// 返回当前正在播放的指定 clip 数量
@@ -335,6 +360,31 @@ namespace Moirai.Atropos.Audio
         /// </summary>
         public static void ReleaseHandle(ulong handle) => s_Handler?.ReleaseHandle(handle);
 
+        /// <summary>
+        /// 对指定 ID 的音频进行音量过渡。
+        /// </summary>
+        public static void PlayFade(int id, float duration, float finalVolume, TweenEase ease = default) =>
+            s_Handler?.ForEachHandleByID(id, handle =>
+            {
+                var agent = s_Handler?.GetAgentByHandle(handle);
+                if (agent == null) return;
+
+                agent.CancelFadeIn();
+                s_Handler?.FadeAudio(handle, duration, agent.AudioResource.volume, finalVolume, ease);
+            });
+
+        /// <summary>
+        /// 停止指定 ID 音频的音量过渡。
+        /// </summary>
+        public static void StopFade(int id) =>
+            s_Handler?.ForEachHandleByID(id, handle =>
+            {
+                var agent = s_Handler?.GetAgentByHandle(handle);
+                if (agent == null) return;
+
+                s_Handler?.StopFadeAudio(handle);
+            });
+
         #endregion 获取 [FIND]
 
         #region 音轨控制 [TRACK CONTROLS]
@@ -342,12 +392,12 @@ namespace Moirai.Atropos.Audio
         /// <summary>
         /// 暂停某类音频的播放。
         /// </summary>
-        public static void Pause(EAudioTrack track) => s_Handler?.Pause(track);
+        public static void PauseTrack(EAudioTrack track) => s_Handler?.PauseTrack(track);
 
         /// <summary>
         /// 恢复某类音频的播放。
         /// </summary>
-        public static void Unpause(EAudioTrack track) => s_Handler?.Unpause(track);
+        public static void UnpauseTrack(EAudioTrack track) => s_Handler?.UnpauseTrack(track);
 
         /// <summary>
         /// 如果指定音轨当前处于暂停状态则返回 <c>true</c>，否则返回 <c>false</c>
@@ -357,7 +407,7 @@ namespace Moirai.Atropos.Audio
         /// <summary>
         /// 停止某类音频的播放。
         /// </summary>
-        public static void Stop(EAudioTrack track, float fadeoutDuration = 0f) => s_Handler?.Stop(track, fadeoutDuration);
+        public static void StopTrack(EAudioTrack track, float fadeoutDuration = 0f) => s_Handler?.StopTrack(track, fadeoutDuration);
 
         #endregion 音轨控制 [TRACK CONTROLS]
 
@@ -376,17 +426,17 @@ namespace Moirai.Atropos.Audio
         /// <summary>
         /// 停止所有音频。
         /// </summary>
-        public static void StopAll(float fadeoutDuration = 0f) => s_Handler?.StopAll(fadeoutDuration);
+        public static void StopAll(float fadeoutDuration = AudioAgent.FADEOUT_DEFAULT_DURATION) => s_Handler?.StopAll(fadeoutDuration);
 
         /// <summary>
         /// 停止除持久性音频之外的所有音频。
         /// </summary>
-        public static void StopAllButPersistent(float fadeoutDuration = 0f) => s_Handler?.StopAllButPersistent(fadeoutDuration);
+        public static void StopAllButPersistent(float fadeoutDuration = AudioAgent.FADEOUT_DEFAULT_DURATION) => s_Handler?.StopAllButPersistent(fadeoutDuration);
 
         /// <summary>
         /// 停止所有循环音频。
         /// </summary>
-        public static void StopAllLooping(float fadeoutDuration = 0f) => s_Handler?.StopAllLooping(fadeoutDuration);
+        public static void StopAllLooping(float fadeoutDuration = AudioAgent.FADEOUT_DEFAULT_DURATION) => s_Handler?.StopAllLooping(fadeoutDuration);
 
         #endregion 所有音频控制 [ALL AUDIO CONTROLS]
 

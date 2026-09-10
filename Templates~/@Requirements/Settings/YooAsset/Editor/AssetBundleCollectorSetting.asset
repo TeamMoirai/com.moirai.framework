@@ -12,13 +12,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 185f6993d5150494d98da50e26cb1c25, type: 3}
   m_Name: AssetBundleCollectorSetting
   m_EditorClassIdentifier: 
-  ShowPackageView: 0
+  ShowPackageView: 1
   ShowEditorAlias: 1
-  UniqueBundleName: 0
+  UniqueBundleName: 1
   Packages:
   - PackageName: DefaultPackage
     PackageDesc: "\u9ED8\u8BA4\u8D44\u6E90\u5305"
-    EnableAddressable: 1
+    EnableAddressable: 0
     SupportExtensionless: 1
     LocationToLower: 0
     IncludeAssetGUID: 0
@@ -45,7 +45,7 @@ MonoBehaviour:
       Collectors:
       - CollectPath: Assets/AssetRaw/Default/Audio
         CollectorGUID: 3992c0f3ac6c83a4e9e69868d1fe5480
-        CollectorType: 2
+        CollectorType: 0
         AddressRuleName: AddressByFileName
         PackRuleName: PackGroup
         FilterRuleName: AudioFilter
@@ -166,3 +166,21 @@ MonoBehaviour:
         FilterRuleName: CollectAll
         AssetTags: 
         UserData: 
+  - PackageName: DLC1Package
+    PackageDesc: 
+    EnableAddressable: 0
+    SupportExtensionless: 1
+    LocationToLower: 0
+    IncludeAssetGUID: 0
+    AutoCollectShaders: 1
+    IgnoreRuleName: NormalIgnoreRule
+    Groups: []
+  - PackageName: DLC2Package
+    PackageDesc: 
+    EnableAddressable: 0
+    SupportExtensionless: 1
+    LocationToLower: 0
+    IncludeAssetGUID: 0
+    AutoCollectShaders: 1
+    IgnoreRuleName: NormalIgnoreRule
+    Groups: []

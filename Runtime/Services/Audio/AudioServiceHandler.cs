@@ -93,15 +93,6 @@ namespace Moirai.Atropos.Audio
         public abstract void Tick(float elapseSeconds, float realElapseSeconds);
 
         /// <summary>
-        /// 初始化音频服务。
-        /// </summary>
-        /// <param name="instanceRoot">实例化根节点。</param>
-        /// <param name="audioMixer">音频混响器。</param>
-        /// <param name="audioGroupConfigs">音频轨道组配置。</param>
-        /// <exception cref="GameException"></exception>
-        public abstract void Initialize(Transform instanceRoot = null, AudioMixer audioMixer = null, AudioGroupConfig[] audioGroupConfigs = null);
-
-        /// <summary>
         /// 重启音频服务。
         /// </summary>
         public abstract void Restart();
@@ -273,25 +264,14 @@ namespace Moirai.Atropos.Audio
         public abstract void ForEachAgentByID(int id, Action<AudioAgent> action);
 
         /// <summary>
-        /// 填充播放过指定 ID 的音频代理到调用方缓冲区（零共享状态——消除共享缓冲的可重入覆写隐患）。
-        /// </summary>
-        /// <param name="id">音频 ID。</param>
-        /// <param name="results">调用方持有的结果缓冲（方法内先 Clear 再填充）。</param>
-        /// <returns>填充数量。</returns>
-        public abstract int FindAgentsByID(int id, List<AudioAgent> results);
-
-        /// <summary>
         /// 对每个匹配 Clip 的 AudioAgent 执行操作（零分配）。
         /// </summary>
         public abstract void ForEachAgentByClip(AudioClip clip, Action<AudioAgent> action);
 
         /// <summary>
-        /// 填充播放过指定 clip 的音频代理到调用方缓冲区（零共享状态）。
+        /// 对每个匹配 ID 的 AudioHandle 执行操作（零分配）。
         /// </summary>
-        /// <param name="clip">音频剪辑。</param>
-        /// <param name="results">调用方持有的结果缓冲（方法内先 Clear 再填充）。</param>
-        /// <returns>填充数量。</returns>
-        public abstract int FindAgentsByClip(AudioClip clip, List<AudioAgent> results);
+        public abstract void ForEachHandleByID(int id, Action<ulong> action);
 
         /// <summary>
         /// 返回当前正在播放的指定 clip 数量
@@ -325,12 +305,12 @@ namespace Moirai.Atropos.Audio
         /// <summary>
         /// 暂停某类音频的播放。
         /// </summary>
-        public abstract void Pause(EAudioTrack track);
+        public abstract void PauseTrack(EAudioTrack track);
 
         /// <summary>
         /// 恢复某类音频的播放。
         /// </summary>
-        public abstract void Unpause(EAudioTrack track);
+        public abstract void UnpauseTrack(EAudioTrack track);
 
         /// <summary>
         /// 如果指定音轨当前处于暂停状态则返回 <c>true</c>，否则返回 <c>false</c>
@@ -340,7 +320,7 @@ namespace Moirai.Atropos.Audio
         /// <summary>
         /// 停止某类音频的播放。
         /// </summary>
-        public abstract void Stop(EAudioTrack track, float fadeoutDuration = 0f);
+        public abstract void StopTrack(EAudioTrack track, float fadeoutDuration = 0f);
 
         #endregion 音轨控制 [TRACK CONTROLS]
 

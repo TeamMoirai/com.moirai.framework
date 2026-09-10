@@ -1,14 +1,14 @@
-﻿# Audio Service
+# Audio Service
 
-> Audio system based on AudioMixer track grouping and audio agent pool, supporting handle control, fade in/out, solo, and event-driven playback.
+> Audio system based on AudioMixer track grouping and audio agent pool, supporting handle control, fade in/out, and solo playback.
 
-The `Audio` service divides audio into multiple tracks (`EAudioTrack`) by usage. Each track corresponds to an `AudioCategory`, which internally maintains a set of `AudioAgent` objects (wrapping `AudioSource`) responsible for actual playback. The service is accessed via the `AudioService.Xxx()` static facade (backend logic lives in the default implementation `UnityAudioHandler` behind the abstract contract `AudioServiceHandler`), returning a `ulong` handle after playback for subsequent control such as pause, resume, and stop. It also supports indirect driving through events like `AudioPlayEvent`, decoupling callers from the service initialization timing. Track and master volume settings are persisted through `SettingUtility` and automatically loaded after service initialization.
+The `Audio` service divides audio into multiple tracks (`EAudioTrack`) by usage. Each track corresponds to an `AudioCategory`, which internally maintains a set of `AudioAgent` objects (wrapping `AudioSource`) responsible for actual playback. The service is accessed via the `AudioService.Xxx()` static facade (backend logic lives in the default implementation `UnityAudioHandler` behind the abstract contract `AudioServiceHandler`), returning a `ulong` handle after playback for subsequent control such as pause, resume, and stop. It also supports batch operations by user ID (`AudioPlayOptions.ID`) through `ForEachHandleByID` / `PlayFade`, without needing to save handles yourself. Track and master volume settings are persisted through `SettingUtility` and automatically loaded after service initialization.
 
 ## Architecture (HandlerHost Pattern)
 
 The audio service adopts the same HandlerHost zero-reflection architecture as other framework services:
 
-- **`AudioService`**: Static facade (`[HandlerHost(typeof(AudioServiceHandler))]` + `[ServiceDependency(typeof(ResourceService))]`); all public members are static methods that forward through the `Handler` property (fail-fast: lazily initialized when not ready, throws if the default factory is missing, never silently degrades)
+- **`AudioService`**: Static facade (`[HandlerHost(typeof(AudioServiceHandler))]` + `[ServiceDependency(typeof(DebuggerService), typeof(ResourceService))]`); all public members are static methods that forward through the `Handler` property (fail-fast: lazily initialized when not ready, throws if the default factory is missing, never silently degrades)
 - **`AudioServiceHandler`**: Serializable abstract base class (inherits `FrameworkHandler`, strategy-pattern abstraction) defining the backend contract invoked by the facade
 - **`UnityAudioHandler`**: Default implementation of `AudioServiceHandler` (based on Unity `AudioSource`/`AudioMixer`, located under `Handler/`), carrying the core logic of agent pool management, playback state machines, and fade transitions
 - **`AudioServiceSettings`**: Framework settings, selecting the audio backend implementation via `[ProviderDropdown]` and configuring `AudioMixer` with `AudioGroupConfig[]`
@@ -23,7 +23,8 @@ The audio service adopts the same HandlerHost zero-reflection architecture as ot
 - Solo: `SoloSingleTrack` / `SoloAllTracks` mutes the same track or all audio during playback, `AutoUnSoloOnEnd` supports auto-removal when playback ends
 - 3D spatial audio: Position, follow Transform, Doppler, attenuation curve, and other `AudioSource` parameters can all be configured in `AudioPlayOptions`
 - Persistent audio: The `Persistent` option allows audio to continue playing after scene switching; other audio automatically fades out and stops when loading a new scene
-- Event-driven: `AudioPlayEvent`, `AudioControlEvent`, `AudioTrackControlEvent`, `AudioTrackFadeEvent`, `AudioFadeEvent`, `AudioServiceEvent`, `AllAudiosControlEvent`
+- Batch operations by ID: `ForEachHandleByID(id, handler)` / `ForEachAgentByID(id, action)` iterate audio with a given user ID; `PlayFade` / `StopFade` directly transition volume for a given ID
+- Unified settings entry: `SetSettings` / `LoadSettings` / `RemoveSetting` write/load/remove master and all track settings at once
 
 ## Core Types
 
@@ -43,13 +44,6 @@ Namespace: `Moirai.Atropos.Audio`
 | `AudioPlayOptionsSO` | Playback option asset (ScriptableObject), supports random/sequential clip selection, random volume/pitch, concurrency limit |
 | `AudioServiceSettings` | Framework settings (`FrameworkSetting`): `[ProviderDropdown]` selects the backend; configures `AudioMixer` and `AudioGroupConfig[]` |
 | `AudioAssetData` | Audio asset handle wrapper (`MemoryObject`), releases `AssetHandle` on demand during recycling |
-| `AudioPlayEvent` | Play event: `Trigger(AudioClip, AudioPlayOptions)` or `Trigger(path, options, bAsync, bInPool)` returns handle |
-| `AudioControlEvent` | Control by ID: `Pause` / `Unpause` / `Stop(int soundID)` |
-| `AudioTrackControlEvent` | Track control: `MuteTrack`, `PauseTrack`, `SetTrackVolume`, `MuteMaster`, etc. |
-| `AudioFadeEvent` | Transition by ID: `PlayFade(soundID, duration, finalVolume, ease)`, `StopFade(soundID)` |
-| `AudioTrackFadeEvent` | Track transition: `PlayFade(track, ...)`, `PlayMasterFade(duration, finalVolume, ease)` |
-| `AudioServiceEvent` | Settings event: `SetSettings` / `LoadSettings` / `ResetSettings` |
-| `AllAudiosControlEvent` | Global control: `Pause`, `Play`, `Stop`, `AllButPersistent`, `StopAllLooping` |
 | `BackgroundMusic` | Component: automatically plays background music when the object is instantiated (old BGM with the same ID is automatically switched) |
 | `AudioSettingsWidget` | Component: binds Slider/Toggle to master volume and individual track settings |
 
@@ -86,34 +80,34 @@ AudioService.FadeMasterTrack(1.5f, 1f, 0.8f);                  // Master track
 
 ## Advanced Usage
 
-### Event-Driven Playback and Control by ID
+### Control and Batch Operations by ID
 
-Specify a user ID via `AudioPlayOptions.ID` during playback, then use events to batch-operate all instances with the same ID without needing to save handles yourself:
+Specify a user ID via the long-parameter overload (`AudioPlayOptions.ID` setter is internal, so use the long overload), then iterate all instances with the same ID for batch operations without saving handles yourself:
 
 ```csharp
-// Event-driven playback (returns ulong handle)
-ulong voice = AudioPlayEvent.Trigger(clip, AudioPlayOptions.CreateLooping(EAudioTrack.Voice));
+// Play (returns ulong handle), specifying a user ID
+ulong voice = AudioService.Play(clip, EAudioTrack.Voice, Vector3.zero, loop: true, id: 33);
 
-// Specify user ID using the long-parameter overload (AudioPlayOptions.ID setter is internal)
-AudioService.Play(clip, EAudioTrack.Voice, Vector3.zero, loop: true, id: 33);
-
-AudioControlEvent.Pause(33);                    // Pause all audio with ID 33
-AudioControlEvent.Stop(33);                     // Stop
-AudioFadeEvent.PlayFade(33, 2f, 0.3f);          // Transition to 0.3 volume over 2 seconds
+// Iterate handles / agents with a given ID
+AudioService.ForEachHandleByID(33, handle => AudioService.Pause(handle));   // Pause all audio with ID 33
+AudioService.ForEachHandleByID(33, handle => AudioService.Stop(handle));    // Stop
+AudioService.ForEachAgentByID(33, agent => { /* Access internal agent state */ });
+AudioService.PlayFade(33, 2f, 0.3f);          // Transition to 0.3 volume over 2 seconds
+AudioService.StopFade(33);                     // Stop volume transition for ID 33
 
 // Track-level control
-AudioTrackControlEvent.PauseTrack(EAudioTrack.UI);
-AudioTrackControlEvent.SetTrackVolume(EAudioTrack.Music, 0.5f);
-AudioTrackControlEvent.MuteMaster();
+AudioService.PauseTrack(EAudioTrack.UI);
+AudioService.SetTrackVolume(EAudioTrack.Music, 0.5f);
+AudioService.MasterMute = true;                // Mute master track
 
 // Global control
-AllAudiosControlEvent.Stop();
-AllAudiosControlEvent.AllButPersistent();       // Stop all audio except Persistent
+AudioService.StopAll();
+AudioService.StopAllButPersistent();           // Stop all audio except Persistent
 
-// Settings persistence (write / load / reset, call SettingUtility.Save to persist)
-AudioServiceEvent.SetSettings();
-AudioServiceEvent.LoadSettings();
-AudioServiceEvent.ResetSettings();
+// Settings persistence (write / load / remove, call SettingUtility.Save to persist)
+AudioService.SetSettings();
+AudioService.LoadSettings();
+AudioService.RemoveSetting();
 ```
 
 ### Long-Parameter Overload and Querying
@@ -126,7 +120,8 @@ ulong h = AudioService.Play(clip, EAudioTrack.Sfx, position,
     minDistance: 2f, maxDistance: 60f, attachToTransform: enemy.transform);
 
 // Querying
-IReadOnlyList<AudioAgent> agents = AudioService.FindAgentsByID(33); // Shared buffer, consume ASAP
+AudioService.ForEachAgentByID(33, agent => { /* Iterate agents that played ID 33 */ });
+AudioService.ForEachHandleByID(33, handle => { /* Iterate handles with ID 33 */ });
 int count = AudioService.CurrentlyPlayingCount(clip);
 ```
 
@@ -160,7 +155,7 @@ AudioService.CleanAudioPool();
 
 - `Play` returns `0UL` to indicate playback failure (no available agent, track not configured, or audio disabled in the editor)
 - When `DoNotAutoRecycleIfNotDonePlaying` is `false` (default for `new AudioPlayOptions`), exceeding the maximum sound count will fade out and interrupt the longest-playing audio; `Default` and `Create` factory series default to `true`
-- `FindAgentsByID` / `FindAgentsByClip` returns an internal shared buffer; results must be consumed before the next call
+- `ForEachAgentByID` / `ForEachHandleByID` are callback-based iteration (zero allocation); the callback runs synchronously during iteration, so do not modify the enumeration structure within it
 - When loading a new scene, the service automatically calls `StopAllButPersistent`; audio that needs to persist across scenes must set `Persistent = true`
 - In the editor, the service mounts `AudioDebugger` on the root node for Inspector debugging; when audio is disabled in the editor (`unityAudioDisabled`), all interfaces silently fail
 - Master volume takes effect via `AudioListener.volume`, while track volume takes effect via AudioMixer parameters; the two mechanisms differ

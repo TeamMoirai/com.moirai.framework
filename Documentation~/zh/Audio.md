@@ -1,14 +1,14 @@
-﻿# Audio 服务
+# Audio 服务
 
-> 基于 AudioMixer 音轨分组与音频代理池的音频系统，支持句柄控制、淡入淡出、独奏与事件驱动播放。
+> 基于 AudioMixer 音轨分组与音频代理池的音频系统，支持句柄控制、淡入淡出与独奏播放。
 
-`Audio` 服务将音频按用途划分为多条音轨（`EAudioTrack`），每条音轨对应一个 `AudioCategory`，内部维护一组 `AudioAgent`（封装 `AudioSource`）负责实际播放。服务通过 `AudioService.Xxx()` 静态外观访问（后端逻辑在抽象契约 `AudioServiceHandler` 的默认实现 `UnityAudioHandler` 中），播放后返回 `ulong` 句柄用于暂停、恢复、停止等后续控制，同时也支持通过 `AudioPlayEvent` 等事件间接驱动，解耦调用方与服务的初始化时序。音轨与主音量的设置会通过 `SettingUtility` 持久化，并在服务初始化后自动加载。
+`Audio` 服务将音频按用途划分为多条音轨（`EAudioTrack`），每条音轨对应一个 `AudioCategory`，内部维护一组 `AudioAgent`（封装 `AudioSource`）负责实际播放。服务通过 `AudioService.Xxx()` 静态外观访问（后端逻辑在抽象契约 `AudioServiceHandler` 的默认实现 `UnityAudioHandler` 中），播放后返回 `ulong` 句柄用于暂停、恢复、停止等后续控制，也支持按用户 ID（`AudioPlayOptions.ID`）通过 `ForEachHandleByID` / `PlayFade` 等批量操作，无需自行保存句柄。音轨与主音量的设置会通过 `SettingUtility` 持久化，并在服务初始化后自动加载。
 
 ## 架构（HandlerHost 模式）
 
 音频服务采用与框架其他服务一致的 HandlerHost 零反射架构：
 
-- **`AudioService`**：静态外观（`[HandlerHost(typeof(AudioServiceHandler))]` + `[ServiceDependency(typeof(ResourceService))]`），全部公共成员为静态方法，经 `Handler` 属性转发（fail-fast：未就绪时按需初始化，工厂缺失时抛异常，不静默降级）
+- **`AudioService`**：静态外观（`[HandlerHost(typeof(AudioServiceHandler))]` + `[ServiceDependency(typeof(DebuggerService), typeof(ResourceService))]`），全部公共成员为静态方法，经 `Handler` 属性转发（fail-fast：未就绪时按需初始化，工厂缺失时抛异常，不静默降级）
 - **`AudioServiceHandler`**：可序列化抽象基类（继承 `FrameworkHandler`，策略模式抽象策略），定义供外观调用的后端契约
 - **`UnityAudioHandler`**：`AudioServiceHandler` 的默认实现（基于 Unity `AudioSource`/`AudioMixer`，位于 `Handler/` 目录），承载代理池管理、播放状态机、淡入淡出等核心逻辑
 - **`AudioServiceSettings`**：框架设置，通过 `[ProviderDropdown]` 选择音频后端实现并配置 `AudioMixer` 与 `AudioGroupConfig[]`
@@ -23,7 +23,8 @@
 - Solo 独奏：`SoloSingleTrack` / `SoloAllTracks` 播放时静音同轨或全部音频，`AutoUnSoloOnEnd` 支持播完自动解除
 - 3D 空间音效：位置、跟随 Transform、多普勒、衰减曲线等 `AudioSource` 参数均可在 `AudioPlayOptions` 中配置
 - 持久音频：`Persistent` 选项让音频在场景切换后继续播放，其余音频在加载新场景时自动淡出停止
-- 事件驱动：`AudioPlayEvent`、`AudioControlEvent`、`AudioTrackControlEvent`、`AudioTrackFadeEvent`、`AudioFadeEvent`、`AudioServiceEvent`、`AllAudiosControlEvent`
+- 按 ID 批量操作：`ForEachHandleByID(id, handler)` / `ForEachAgentByID(id, action)` 遍历指定用户 ID 的音频，`PlayFade` / `StopFade` 直接对指定 ID 做音量过渡
+- 设置统一入口：`SetSettings` / `LoadSettings` / `RemoveSetting` 一次写入/加载/移除主音轨与全部音轨设置
 
 ## 核心类型
 
@@ -43,13 +44,6 @@
 | `AudioPlayOptionsSO` | 播放选项资产（ScriptableObject），支持随机/顺序选 clip、随机音量音调、并发数限制 |
 | `AudioServiceSettings` | 框架设置（`FrameworkSetting`）：`[ProviderDropdown]` 选择后端，配置 `AudioMixer` 与 `AudioGroupConfig[]` |
 | `AudioAssetData` | 音频资源句柄包装（`MemoryObject`），回收时按需释放 `AssetHandle` |
-| `AudioPlayEvent` | 播放事件：`Trigger(AudioClip, AudioPlayOptions)` 或 `Trigger(path, options, bAsync, bInPool)` 返回句柄 |
-| `AudioControlEvent` | 按 ID 控制：`Pause` / `Unpause` / `Stop(int soundID)` |
-| `AudioTrackControlEvent` | 音轨控制：`MuteTrack`、`PauseTrack`、`SetTrackVolume`、`MuteMaster` 等 |
-| `AudioFadeEvent` | 按 ID 过渡：`PlayFade(soundID, duration, finalVolume, ease)`、`StopFade(soundID)` |
-| `AudioTrackFadeEvent` | 音轨过渡：`PlayFade(track, ...)`、`PlayMasterFade(duration, finalVolume, ease)` |
-| `AudioServiceEvent` | 设置事件：`SetSettings` / `LoadSettings` / `ResetSettings` |
-| `AllAudiosControlEvent` | 全局控制：`Pause`、`Play`、`Stop`、`AllButPersistent`、`StopAllLooping` |
 | `BackgroundMusic` | 组件：物体实例化时自动播放背景音乐（同 ID 旧 BGM 自动切换） |
 | `AudioSettingsWidget` | 组件：将 Slider/Toggle 绑定到主音量与各音轨设置 |
 
@@ -86,34 +80,34 @@ AudioService.FadeMasterTrack(1.5f, 1f, 0.8f);                  // 主音轨
 
 ## 进阶用法
 
-### 事件驱动播放与按 ID 控制
+### 按 ID 控制与批量操作
 
-播放时通过 `AudioPlayOptions.ID` 指定用户 ID，之后可用事件批量操作同一 ID 的所有实例，无需自行保存句柄：
+播放时通过长参数重载指定用户 ID（`AudioPlayOptions.ID` 的 setter 为 internal，需走长重载），之后无需保存句柄即可遍历同一 ID 的所有实例进行批量操作：
 
 ```csharp
-// 事件方式播放（返回 ulong 句柄）
-ulong voice = AudioPlayEvent.Trigger(clip, AudioPlayOptions.CreateLooping(EAudioTrack.Voice));
+// 播放（返回 ulong 句柄），指定用户 ID
+ulong voice = AudioService.Play(clip, EAudioTrack.Voice, Vector3.zero, loop: true, id: 33);
 
-// 指定用户 ID 需使用长参数重载（AudioPlayOptions.ID 的 setter 为 internal）
-AudioService.Play(clip, EAudioTrack.Voice, Vector3.zero, loop: true, id: 33);
-
-AudioControlEvent.Pause(33);                    // 暂停所有 ID 为 33 的音频
-AudioControlEvent.Stop(33);                     // 停止
-AudioFadeEvent.PlayFade(33, 2f, 0.3f);          // 2 秒内过渡到 0.3 音量
+// 遍历指定 ID 的句柄 / 代理
+AudioService.ForEachHandleByID(33, handle => AudioService.Pause(handle));   // 暂停所有 ID 为 33 的音频
+AudioService.ForEachHandleByID(33, handle => AudioService.Stop(handle));    // 停止
+AudioService.ForEachAgentByID(33, agent => { /* 访问代理内部状态 */ });
+AudioService.PlayFade(33, 2f, 0.3f);          // 2 秒内过渡到 0.3 音量
+AudioService.StopFade(33);                     // 停止 ID 33 的音量过渡
 
 // 音轨级控制
-AudioTrackControlEvent.PauseTrack(EAudioTrack.UI);
-AudioTrackControlEvent.SetTrackVolume(EAudioTrack.Music, 0.5f);
-AudioTrackControlEvent.MuteMaster();
+AudioService.PauseTrack(EAudioTrack.UI);
+AudioService.SetTrackVolume(EAudioTrack.Music, 0.5f);
+AudioService.MasterMute = true;                // 主音轨静音
 
 // 全局控制
-AllAudiosControlEvent.Stop();
-AllAudiosControlEvent.AllButPersistent();       // 停止除 Persistent 外的所有音频
+AudioService.StopAll();
+AudioService.StopAllButPersistent();           // 停止除 Persistent 外的所有音频
 
-// 设置持久化（写入 / 加载 / 重置，需保存时调用 SettingUtility.Save）
-AudioServiceEvent.SetSettings();
-AudioServiceEvent.LoadSettings();
-AudioServiceEvent.ResetSettings();
+// 设置持久化（写入 / 加载 / 移除，需保存时调用 SettingUtility.Save）
+AudioService.SetSettings();
+AudioService.LoadSettings();
+AudioService.RemoveSetting();
 ```
 
 ### 长参数重载与查找
@@ -126,7 +120,8 @@ ulong h = AudioService.Play(clip, EAudioTrack.Sfx, position,
     minDistance: 2f, maxDistance: 60f, attachToTransform: enemy.transform);
 
 // 查询
-IReadOnlyList<AudioAgent> agents = AudioService.FindAgentsByID(33); // 共享缓冲区，尽快消费
+AudioService.ForEachAgentByID(33, agent => { /* 遍历播放过 ID 33 的代理 */ });
+AudioService.ForEachHandleByID(33, handle => { /* 遍历 ID 33 的句柄 */ });
 int count = AudioService.CurrentlyPlayingCount(clip);
 ```
 
@@ -160,7 +155,7 @@ AudioService.CleanAudioPool();
 
 - `Play` 返回 `0UL` 表示播放失败（无可用代理、音轨未配置或编辑器禁用了音频）
 - `DoNotAutoRecycleIfNotDonePlaying` 为 `false` 时（`new AudioPlayOptions` 的默认值），超过最大发声数会淡出打断播放最久的音频；`Default` 与 `Create` 系列工厂默认为 `true`
-- `FindAgentsByID` / `FindAgentsByClip` 返回内部共享缓冲区，结果须在下次调用前消费完毕
+- `ForEachAgentByID` / `ForEachHandleByID` 为回调式遍历（零分配），回调在遍历期间同步执行，勿在其中修改枚举结构
 - 加载新场景时服务会自动 `StopAllButPersistent`，需要跨场景的音频设置 `Persistent = true`
 - 编辑器下服务会在根节点挂载 `AudioDebugger` 供 Inspector 调试；编辑器禁用音频（`unityAudioDisabled`）时所有接口静默失效
 - 主音量经 `AudioListener.volume` 生效，音轨音量经 AudioMixer 参数生效，两者机制不同

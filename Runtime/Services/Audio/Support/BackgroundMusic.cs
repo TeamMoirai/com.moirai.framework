@@ -40,9 +40,6 @@ namespace Moirai.Atropos.Audio
 		[ShowIf(nameof(m_Fade))]
 		[SerializeField] private TweenEase m_FadeTweenEase = new TweenEase(TweenUtility.EEase.InOutQuart);
 
-		// FindAgents 调用方持有缓冲（非序列化）
-		[System.NonSerialized] private System.Collections.Generic.List<AudioAgent> m_AgentsBuffer;
-
 		[Header("独奏 [Solo]")]
 		[SerializeField] private bool m_SoloSingleTrack = false;
 		[SerializeField] private bool m_SoloAllTracks = false;
@@ -53,19 +50,15 @@ namespace Moirai.Atropos.Audio
 		/// </summary>
 		protected virtual void Start()
 		{
-			PlayBGM();
+			Play();
 		}
 
 		[Button]
-		protected virtual void PlayBGM()
+		protected virtual void Play()
 		{
-			// 调用方持有缓冲（零共享状态契约）——成员级复用，无重复分配
-			var agents = m_AgentsBuffer ??= new System.Collections.Generic.List<AudioAgent>(4);
-			if (AudioService.FindAgentsByID(m_ID, agents) == 0) return;
-
-			foreach (var agent in agents)
+			AudioService.ForEachAgentByID(m_ID, agent =>
 			{
-				if (agent.ID != m_ID) continue;
+				if (agent.ID != m_ID) return;
 
 				if ((agent.IsPlaying && agent.AudioResource.volume == 0f) || agent.IsPaused)
 				{
@@ -75,7 +68,7 @@ namespace Moirai.Atropos.Audio
 				{
 					agent.Stop(m_FadeDuration);
 				}
-			}
+			});
 
 			AudioPlayOptions options = AudioPlayOptions.Default;
 			options.ID = m_ID;
@@ -94,7 +87,7 @@ namespace Moirai.Atropos.Audio
 
 			if (m_DirectReference)
 			{
-				if (m_AudioClip != null) AudioPlayEvent.Trigger(m_AudioClip, options);
+				if (m_AudioClip != null) AudioService.Play(m_AudioClip, options);
 				else
 				{
 					LogUtility.Warning("Audio Resource is null");
@@ -102,8 +95,14 @@ namespace Moirai.Atropos.Audio
 			}
 			else
 			{
-				AudioPlayEvent.Trigger(m_SoundClip.Path, options, true, false);
+				AudioService.Play(m_SoundClip.Path, options, true, false);
 			}
+		}
+
+		[Button]
+		protected virtual void Stop()
+		{
+			AudioService.ForEachAgentByID(m_ID, _ => _.Stop());
 		}
 	}
 }

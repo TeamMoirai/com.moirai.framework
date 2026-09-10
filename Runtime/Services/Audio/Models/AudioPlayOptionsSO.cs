@@ -359,7 +359,7 @@ namespace Moirai.Atropos.Audio
 				SpreadCurve = m_SpreadCurve,
 			};
 
-			_lastPlayHandle = AudioPlayEvent.Trigger(_sfx, options);
+			_lastPlayHandle = AudioService.Play(_sfx, options);
 			_lastPlayTimestamp = Time.unscaledTime;
 		}
 

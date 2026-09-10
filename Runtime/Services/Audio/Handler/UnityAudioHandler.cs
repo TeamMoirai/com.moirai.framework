@@ -1,12 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
-using Moirai.Atropos.Events;
 using Moirai.Atropos.Resource;
-using Moirai.Atropos.Schedulers;
 using UnityEngine;
 using UnityEngine.Audio;
 using UnityEngine.SceneManagement;
-using YooAsset;
 #if UNITY_EDITOR
 using System.Reflection;
 #endif
@@ -41,31 +38,28 @@ namespace Moirai.Atropos.Audio
         // 服务自维护 ID 生成器
         [NonSerialized] private ulong _nextAudioId = 1UL;
         // List<ulong> 对象池，避免频繁分配
-        private static readonly Stack<List<ulong>> s_HandleListPool = new Stack<List<ulong>>(4);
+        private readonly Stack<List<ulong>> _handleListPool = new Stack<List<ulong>>(4);
 
-        private static List<ulong> AcquireHandleList()
+        private List<ulong> AcquireHandleList()
         {
-            return s_HandleListPool.Count > 0 ? s_HandleListPool.Pop() : new List<ulong>(2);
+            return _handleListPool.Count > 0 ? _handleListPool.Pop() : new List<ulong>(2);
         }
 
-        private static void ReleaseHandleList(List<ulong> list)
+        private void ReleaseHandleList(List<ulong> list)
         {
             list.Clear();
-            s_HandleListPool.Push(list);
+            _handleListPool.Push(list);
         }
 
         [NonSerialized] private AudioMixer _audioMixer;
-        /// <summary>
-        /// 音频混响器。
-        /// </summary>
+        /// <inheritdoc />
         public override AudioMixer AudioMixer => _audioMixer;
 
         [NonSerialized] private Transform _instanceRoot;
-        /// <summary>实例化根节点。</summary>
+        /// <inheritdoc />
         public override Transform InstanceRoot { get => _instanceRoot; set => _instanceRoot = value; }
 
-        // 资源句柄池，用于缓存资源系统的已加载音频资源。
-        // 资源句柄池，用于缓存资源系统的已加载音频资源（后端原生句柄的 object 包装）。
+        /// <inheritdoc />
         public override Dictionary<string, object> AssetHandlePool { get; } = new Dictionary<string, object>();
 
         [NonSerialized] private Action<AudioServiceHandler, float>[] _trackFadeCallbacks;
@@ -102,16 +96,11 @@ namespace Moirai.Atropos.Audio
         #region 音轨状态 [TRACK STATUS]
 
         [NonSerialized] private AudioCategory[] _audioCategories;
-        /// <summary>
-        /// 所有音轨。
-        /// </summary>
+        /// <inheritdoc />
         public override AudioCategory[] AudioCategories => _audioCategories;
 
         [NonSerialized] private float _volume = 1f;
-        /// <summary>
-        /// 主音轨（总音量）音量。
-        /// </summary>
-        /// <remarks>0-1</remarks>
+        /// <inheritdoc />
         public override float MasterVolume
         {
             get
@@ -136,9 +125,7 @@ namespace Moirai.Atropos.Audio
         }
 
         [NonSerialized] private bool _isMuted;
-        /// <summary>
-        /// 主音轨（总音量）静音。
-        /// </summary>
+        /// <inheritdoc />
         public override bool MasterMute
         {
             get
@@ -162,18 +149,14 @@ namespace Moirai.Atropos.Audio
             }
         }
 
-        /// <summary>
-        /// 写入主音轨（总音量）配置。
-        /// </summary>
+        /// <inheritdoc />
         public override void SetMasterSettings()
         {
             SettingUtility.SetFloat(GameConstant.Setting.AUDIO_MASTER_VOLUME, _volume);
             SettingUtility.SetBool(GameConstant.Setting.AUDIO_MASTER_MUTED, _isMuted);
         }
 
-        /// <summary>
-        /// 加载主音轨（总音量）配置。
-        /// </summary>
+        /// <inheritdoc />
         public override void LoadMasterSettings()
         {
             _isMuted = SettingUtility.GetBool(GameConstant.Setting.AUDIO_MASTER_MUTED, false);
@@ -182,9 +165,7 @@ namespace Moirai.Atropos.Audio
             ApplyMasterVolume();
         }
 
-        /// <summary>
-        /// 移除主音轨（总音量）设置。
-        /// </summary>
+        /// <inheritdoc />
         public override void RemoveMasterSetting()
         {
             SettingUtility.RemoveSetting(GameConstant.Setting.AUDIO_MASTER_MUTED);
@@ -203,9 +184,7 @@ namespace Moirai.Atropos.Audio
             AudioListener.volume = _isMuted ? 0f : Mathf.Clamp(_volume, 0f, 1f);
         }
 
-        /// <summary>
-        /// 获取指定音轨的音量。
-        /// </summary>
+        /// <inheritdoc />
         public override float GetTrackVolume(EAudioTrack track)
         {
             if (_unityAudioDisabled) return 0f;
@@ -213,9 +192,7 @@ namespace Moirai.Atropos.Audio
             return index >= 0 && index < _configCache.Length ? _configCache[index].Volume : 1f;
         }
 
-        /// <summary>
-        /// 设置指定音轨的音量。
-        /// </summary>
+        /// <inheritdoc />
         public override void SetTrackVolume(EAudioTrack track, float volume)
         {
             if (_unityAudioDisabled) return;
@@ -224,9 +201,7 @@ namespace Moirai.Atropos.Audio
                 _configCache[index].Volume = volume;
         }
 
-        /// <summary>
-        /// 获取指定音轨的静音状态。
-        /// </summary>
+        /// <inheritdoc />
         public override bool GetTrackMute(EAudioTrack track)
         {
             if (_unityAudioDisabled) return false;
@@ -234,9 +209,7 @@ namespace Moirai.Atropos.Audio
             return index >= 0 && index < _configCache.Length && _configCache[index].Mute;
         }
 
-        /// <summary>
-        /// 设置指定音轨的静音状态。
-        /// </summary>
+        /// <inheritdoc />
         public override void SetTrackMute(EAudioTrack track, bool mute)
         {
             if (_unityAudioDisabled) return;
@@ -258,19 +231,7 @@ namespace Moirai.Atropos.Audio
 
             Initialize(null, null, null);
 
-            // Register Events
-            EventManager.RegisterCallback<AudioPlayEvent>(OnAudioPlayEvent);
-            EventManager.RegisterCallback<AudioServiceEvent>(OnAudioServiceEvent);
-            EventManager.RegisterCallback<AudioTrackControlEvent>(OnAudioTrackEvent);
-            EventManager.RegisterCallback<AudioControlEvent>(OnAudioControlEvent);
-            EventManager.RegisterCallback<AudioTrackFadeEvent>(OnAudioTrackFadeEvent);
-            EventManager.RegisterCallback<AudioFadeEvent>(OnAudioFadeEvent);
-            EventManager.RegisterCallback<AllAudiosControlEvent>(OnAllAudiosControlEvent);
-
             SceneManager.sceneLoaded += OnSceneLoaded;
-
-            // 加载音频设置，必须等一帧设置才能生效
-            Scheduler.WaitFrame(1, AudioServiceEvent.LoadSettings);
         }
 
         /// <summary>
@@ -294,15 +255,6 @@ namespace Moirai.Atropos.Audio
             }
             _userHandleMap.Clear();
 
-            // Unregister Events
-            EventManager.UnregisterCallback<AudioPlayEvent>(OnAudioPlayEvent);
-            EventManager.UnregisterCallback<AudioServiceEvent>(OnAudioServiceEvent);
-            EventManager.UnregisterCallback<AudioTrackControlEvent>(OnAudioTrackEvent);
-            EventManager.UnregisterCallback<AudioControlEvent>(OnAudioControlEvent);
-            EventManager.UnregisterCallback<AudioTrackFadeEvent>(OnAudioTrackFadeEvent);
-            EventManager.UnregisterCallback<AudioFadeEvent>(OnAudioFadeEvent);
-            EventManager.UnregisterCallback<AllAudiosControlEvent>(OnAllAudiosControlEvent);
-
             SceneManager.sceneLoaded -= OnSceneLoaded;
 
             // 释放引用持有；以上缓存均由 Initialize 无条件重建，置空不影响复用实例的再 Init。
@@ -317,75 +269,7 @@ namespace Moirai.Atropos.Audio
             _trackFadeCallbacks = null;
         }
 
-        /// <summary>
-        /// 初始化音频服务。
-        /// </summary>
-        /// <param name="instanceRoot">实例化根节点。</param>
-        /// <param name="audioMixer">音频混响器。</param>
-        /// <param name="audioGroupConfigs">音频轨道组配置。</param>
-        /// <exception cref="GameException"></exception>
-        public override void Initialize(Transform instanceRoot, AudioMixer audioMixer, AudioGroupConfig[] audioGroupConfigs)
-        {
-            _instanceRoot = instanceRoot;
-            if (_instanceRoot == null)
-            {
-                _instanceRoot = new GameObject("[AudioService]").transform;
-                _instanceRoot.localScale = Vector3.one;
-                UnityEngine.Object.DontDestroyOnLoad(_instanceRoot);
-            }
-
-#if UNITY_EDITOR
-
-            if (!_instanceRoot.GetComponent<AudioDebugger>())
-            {
-                _instanceRoot.gameObject.AddComponent<AudioDebugger>();
-            }
-
-            try
-            {
-                TypeInfo typeInfo = typeof(UnityEngine.AudioSettings).GetTypeInfo();
-                PropertyInfo propertyInfo = typeInfo.GetDeclaredProperty("unityAudioDisabled");
-                _unityAudioDisabled = (bool)propertyInfo.GetValue(null);
-                if (_unityAudioDisabled)
-                {
-                    return;
-                }
-            }
-            catch (Exception e)
-            {
-                LogUtility.Error("[AudioService] Failed to check AudioSettings.unityAudioDisabled via reflection: {0}", e);
-            }
-#endif
-
-            _audioMixer = audioMixer;
-            if (_audioMixer == null)
-            {
-                _audioMixer = AudioServiceSettings.AudioMixer;
-            }
-
-            _audioGroupConfigs = audioGroupConfigs;
-            if (_audioGroupConfigs == null)
-            {
-                _audioGroupConfigs = AudioServiceSettings.AudioGroupConfigs;
-            }
-
-            int trackCount = _audioGroupConfigs.Length;
-            _trackFadeTweenIds = new long[trackCount];
-            _pausedTracks = new bool[trackCount];
-            _audioCategories = new AudioCategory[trackCount];
-            _categoryCache = new AudioCategory[trackCount];
-            _configCache = new AudioGroupConfig[trackCount];
-            for (int i = 0; i < trackCount; i++)
-            {
-                _audioCategories[i] = new AudioCategory(this, _audioGroupConfigs[i]);
-                _categoryCache[(int)_audioGroupConfigs[i].AudioTrack] = _audioCategories[i];
-                _configCache[(int)_audioGroupConfigs[i].AudioTrack] = _audioGroupConfigs[i];
-            }
-        }
-
-        /// <summary>
-        /// 容器 Tick 驱动——轮询音轨与手动过渡。
-        /// </summary>
+        /// <inheritdoc />
         public override void Tick(float elapseSeconds, float realElapseSeconds)
         {
             for (int i = 0; i < AudioCategories.Length; i++)
@@ -428,9 +312,7 @@ namespace Moirai.Atropos.Audio
             _audioFadeCount = writeIndex;
         }
 
-        /// <summary>
-        /// 重启音频服务。
-        /// </summary>
+        /// <inheritdoc />
         public override void Restart()
         {
             if (_unityAudioDisabled) return;
@@ -450,13 +332,74 @@ namespace Moirai.Atropos.Audio
             Initialize(null, null, _audioGroupConfigs);
         }
 
+        /// <summary>
+        /// 初始化音频服务。
+        /// </summary>
+        /// <param name="instanceRoot">实例化根节点。</param>
+        /// <param name="audioMixer">音频混响器。</param>
+        /// <param name="audioGroupConfigs">音频轨道组配置。</param>
+        /// <exception cref="GameException"></exception>
+        private void Initialize(Transform instanceRoot = null, AudioMixer audioMixer = null, AudioGroupConfig[] audioGroupConfigs = null)
+        {
+            _instanceRoot = instanceRoot;
+            if (_instanceRoot == null)
+            {
+                _instanceRoot = new GameObject("[AudioService]").transform;
+                _instanceRoot.localScale = Vector3.one;
+                UnityEngine.Object.DontDestroyOnLoad(_instanceRoot);
+            }
+
+#if UNITY_EDITOR
+            _instanceRoot.gameObject.GetOrAddComponent<AudioDebugger>();
+
+            try
+            {
+                TypeInfo typeInfo = typeof(UnityEngine.AudioSettings).GetTypeInfo();
+                PropertyInfo propertyInfo = typeInfo.GetDeclaredProperty("unityAudioDisabled");
+                _unityAudioDisabled = (bool)propertyInfo.GetValue(null);
+                if (_unityAudioDisabled)
+                {
+                    LogUtility.Warning("[AudioService] Unity Audio Disabled!");
+                    return;
+                }
+            }
+            catch (Exception e)
+            {
+                LogUtility.Error("[AudioService] Failed to check AudioSettings.unityAudioDisabled via reflection: {0}", e);
+            }
+#endif
+
+            _audioMixer = audioMixer;
+            if (_audioMixer == null)
+            {
+                _audioMixer = AudioServiceSettings.AudioMixer;
+            }
+
+            _audioGroupConfigs = audioGroupConfigs;
+            if (_audioGroupConfigs == null)
+            {
+                _audioGroupConfigs = AudioServiceSettings.AudioGroupConfigs;
+            }
+
+            int trackCount = _audioGroupConfigs.Length;
+            _trackFadeTweenIds = new long[trackCount];
+            _pausedTracks = new bool[trackCount];
+            _audioCategories = new AudioCategory[trackCount];
+            _categoryCache = new AudioCategory[trackCount];
+            _configCache = new AudioGroupConfig[trackCount];
+            for (int i = 0; i < trackCount; i++)
+            {
+                _audioCategories[i] = new AudioCategory(this, _audioGroupConfigs[i]);
+                _categoryCache[(int)_audioGroupConfigs[i].AudioTrack] = _audioCategories[i];
+                _configCache[(int)_audioGroupConfigs[i].AudioTrack] = _audioGroupConfigs[i];
+            }
+        }
+
         #endregion 服务方法 [SERVICE METHOD]
 
         #region 播放音频 [PLAY AUDIO]
 
-        /// <summary>
-        /// 播放音频，返回服务自维护的音频句柄。
-        /// </summary>
+        /// <inheritdoc />
         public override ulong Play(AudioClip clip, AudioPlayOptions options)
         {
             if (_unityAudioDisabled) return 0UL;
@@ -489,12 +432,8 @@ namespace Moirai.Atropos.Audio
             return 0UL;
         }
 
-        // 传统巨型签名重载已由基类 virtual 转发覆盖（AudioServiceHandler.Play → BuildOptions → 参数对象版本）。
-
-        /// <summary>
-        /// 播放音频，返回服务自维护的音频句柄。
-        /// </summary>
-        public override ulong Play(string path, AudioPlayOptions options, bool bAsync, bool bInPool)
+        /// <inheritdoc />
+        public override ulong Play(string path, AudioPlayOptions options, bool bAsync = false, bool bInPool = false)
         {
             if (_unityAudioDisabled) return 0UL;
 
@@ -526,15 +465,11 @@ namespace Moirai.Atropos.Audio
             return 0UL;
         }
 
-        // 传统巨型签名重载已由基类 virtual 转发覆盖（AudioServiceHandler.Play → BuildOptions → 参数对象版本）。
-
         #endregion 播放音频 [PLAY AUDIO]
 
         #region 音频控制 [AUDIO CONTROLS]
 
-        /// <summary>
-        /// 暂停指定句柄的音频
-        /// </summary>
+        /// <inheritdoc />
         public override void Pause(ulong handle)
         {
             if (_unityAudioDisabled) return;
@@ -542,9 +477,7 @@ namespace Moirai.Atropos.Audio
                 agent.Pause();
         }
 
-        /// <summary>
-        /// 恢复播放指定句柄的音频
-        /// </summary>
+        /// <inheritdoc />
         public override void Unpause(ulong handle)
         {
             if (_unityAudioDisabled) return;
@@ -552,10 +485,8 @@ namespace Moirai.Atropos.Audio
                 agent.Unpause();
         }
 
-        /// <summary>
-        /// 停止指定句柄的音频
-        /// </summary>
-        public override void Stop(ulong handle, float fadeoutDuration)
+        /// <inheritdoc />
+        public override void Stop(ulong handle, float fadeoutDuration = 0)
         {
             if (_unityAudioDisabled) return;
             if (_handleToAgent.TryGetValue(handle, out var agent) && (agent.IsPlaying || agent.IsPaused))
@@ -566,18 +497,7 @@ namespace Moirai.Atropos.Audio
 
         #region 获取 [FIND]
 
-        /// <summary>
-        /// 查找指定音轨的 AudioCategory。
-        /// </summary>
-        private AudioCategory FindCategory(EAudioTrack track)
-        {
-            int index = (int)track;
-            return index >= 0 && index < _categoryCache.Length ? _categoryCache[index] : null;
-        }
-
-        /// <summary>
-        /// 对每个匹配 ID 的 AudioAgent 执行操作（零分配）。
-        /// </summary>
+        /// <inheritdoc />
         public override void ForEachAgentByID(int id, Action<AudioAgent> action)
         {
             for (int i = 0; i < AudioCategories.Length; i++)
@@ -593,29 +513,7 @@ namespace Moirai.Atropos.Audio
             }
         }
 
-        /// <summary>
-        /// 填充播放过指定 ID 的音频代理到调用方缓冲区（零共享状态）。
-        /// </summary>
-        public override int FindAgentsByID(int id, List<AudioAgent> results)
-        {
-            results.Clear();
-            for (int i = 0; i < AudioCategories.Length; i++)
-            {
-                var agents = AudioCategories[i]?.AudioAgents;
-                if (agents == null) continue;
-
-                for (int j = 0; j < agents.Count; j++)
-                {
-                    if (agents[j].ID == id)
-                        results.Add(agents[j]);
-                }
-            }
-            return results.Count;
-        }
-
-        /// <summary>
-        /// 对每个匹配 Clip 的 AudioAgent 执行操作（零分配）。
-        /// </summary>
+        /// <inheritdoc />
         public override void ForEachAgentByClip(AudioClip clip, Action<AudioAgent> action)
         {
             if (clip == null) return;
@@ -633,31 +531,21 @@ namespace Moirai.Atropos.Audio
             }
         }
 
-        /// <summary>
-        /// 填充播放过指定 clip 的音频代理到调用方缓冲区（零共享状态）。
-        /// </summary>
-        public override int FindAgentsByClip(AudioClip clip, List<AudioAgent> results)
+        /// <inheritdoc />
+        public override void ForEachHandleByID(int id, Action<ulong> action)
         {
-            results.Clear();
-            if (clip == null) return 0;
+            // 通过用户 ID 查找对应的所有句柄
+            if (!_userHandleMap.TryGetValue(id, out var handles)) return;
 
-            for (int i = 0; i < AudioCategories.Length; i++)
+            // 缓存 count：StopFadeAudio 不修改 handles，安全迭代。
+            int count = handles.Count;
+            for (int i = 0; i < count; i++)
             {
-                var agents = AudioCategories[i]?.AudioAgents;
-                if (agents == null) continue;
-
-                for (int j = 0; j < agents.Count; j++)
-                {
-                    if (agents[j].AudioResource.clip == clip)
-                        results.Add(agents[j]);
-                }
+                action(handles[i]);
             }
-            return results.Count;
         }
 
-        /// <summary>
-        /// 返回当前正在播放的指定 clip 数量
-        /// </summary>
+        /// <inheritdoc />
         public override int CurrentlyPlayingCount(AudioClip clip)
         {
             if (clip == null) return 0;
@@ -677,35 +565,24 @@ namespace Moirai.Atropos.Audio
             return count;
         }
 
-        /// <summary>
-        /// 通过句柄获取 AudioAgent（用于访问 AudioResource 等内部属性）。
-        /// </summary>
-        public override AudioAgent GetAgentByHandle(ulong handle)
-        {
-            return _handleToAgent.TryGetValue(handle, out var agent) ? agent : null;
-        }
+        /// <inheritdoc />
+        public override AudioAgent GetAgentByHandle(ulong handle) => _handleToAgent.GetValueOrDefault(handle);
 
-        /// <summary>
-        /// 检查指定句柄的音频是否正在播放。
-        /// </summary>
+        /// <inheritdoc />
         public override bool IsPlaying(ulong handle)
         {
             if (!_handleToAgent.TryGetValue(handle, out var agent)) return false;
             return agent.IsPlaying;
         }
 
-        /// <summary>
-        /// 检查指定句柄的音频是否已停止。
-        /// </summary>
+        /// <inheritdoc />
         public override bool IsStopped(ulong handle)
         {
             if (!_handleToAgent.TryGetValue(handle, out var agent)) return true;
             return agent.IsFree;
         }
 
-        /// <summary>
-        /// 移除已停止音频的句柄映射。
-        /// </summary>
+        /// <inheritdoc />
         public override void ReleaseHandle(ulong handle)
         {
             // O(1) 反向查找清理用户 ID 映射
@@ -727,14 +604,21 @@ namespace Moirai.Atropos.Audio
             }
         }
 
+        /// <summary>
+        /// 查找指定音轨的 AudioCategory。
+        /// </summary>
+        private AudioCategory FindCategory(EAudioTrack track)
+        {
+            int index = (int)track;
+            return index >= 0 && index < _categoryCache.Length ? _categoryCache[index] : null;
+        }
+
         #endregion 获取 [FIND]
 
         #region 音轨控制 [TRACK CONTROLS]
 
-        /// <summary>
-        /// 暂停某类音频的播放。
-        /// </summary>
-        public override void Pause(EAudioTrack track)
+        /// <inheritdoc />
+        public override void PauseTrack(EAudioTrack track)
         {
             if (_unityAudioDisabled) return;
 
@@ -743,10 +627,8 @@ namespace Moirai.Atropos.Audio
             category?.PauseAll();
         }
 
-        /// <summary>
-        /// 恢复某类音频的播放。
-        /// </summary>
-        public override void Unpause(EAudioTrack track)
+        /// <inheritdoc />
+        public override void UnpauseTrack(EAudioTrack track)
         {
             if (_unityAudioDisabled) return;
 
@@ -755,18 +637,14 @@ namespace Moirai.Atropos.Audio
             category?.UnpauseAll();
         }
 
-        /// <summary>
-        /// 如果指定音轨当前处于暂停状态则返回 <c>true</c>，否则返回 <c>false</c>
-        /// </summary>
+        /// <inheritdoc />
         public override bool IsPaused(EAudioTrack track)
         {
             return _pausedTracks[(int)track];
         }
 
-        /// <summary>
-        /// 停止某类音频的播放。
-        /// </summary>
-        public override void Stop(EAudioTrack track, float fadeoutDuration)
+        /// <inheritdoc />
+        public override void StopTrack(EAudioTrack track, float fadeoutDuration)
         {
             if (_unityAudioDisabled) return;
 
@@ -778,9 +656,7 @@ namespace Moirai.Atropos.Audio
 
         #region 所有音频控制 [ALL AUDIO CONTROLS]
 
-        /// <summary>
-        /// 暂停所有音频。
-        /// </summary>
+        /// <inheritdoc />
         public override void PauseAll()
         {
             if (_unityAudioDisabled) return;
@@ -791,9 +667,7 @@ namespace Moirai.Atropos.Audio
             }
         }
 
-        /// <summary>
-        /// 恢复所有音频。
-        /// </summary>
+        /// <inheritdoc />
         public override void UnpauseAll()
         {
             if (_unityAudioDisabled) return;
@@ -804,10 +678,8 @@ namespace Moirai.Atropos.Audio
             }
         }
 
-        /// <summary>
-        /// 停止所有音频。
-        /// </summary>
-        public override void StopAll(float fadeoutDuration)
+        /// <inheritdoc />
+        public override void StopAll(float fadeoutDuration = 0)
         {
             if (_unityAudioDisabled) return;
 
@@ -817,10 +689,8 @@ namespace Moirai.Atropos.Audio
             }
         }
 
-        /// <summary>
-        /// 停止除持久性音频之外的所有音频。
-        /// </summary>
-        public override void StopAllButPersistent(float fadeoutDuration)
+        /// <inheritdoc />
+        public override void StopAllButPersistent(float fadeoutDuration = 0)
         {
             if (_unityAudioDisabled) return;
 
@@ -830,10 +700,8 @@ namespace Moirai.Atropos.Audio
             }
         }
 
-        /// <summary>
-        /// 停止所有循环音频。
-        /// </summary>
-        public override void StopAllLooping(float fadeoutDuration)
+        /// <inheritdoc />
+        public override void StopAllLooping(float fadeoutDuration = 0)
         {
             if (_unityAudioDisabled) return;
 
@@ -847,16 +715,7 @@ namespace Moirai.Atropos.Audio
 
         #region 过渡 [FADES]
 
-        // ===== 静态回调 — 零 GC =====
-
-        private static void OnMasterFadeUpdate(AudioServiceHandler service, float value)
-        {
-            service.MasterVolume = value;
-        }
-
-        /// <summary>
-        /// 在指定的持续时间内，淡入 Master 音轨到最终音量
-        /// </summary>
+        /// <inheritdoc />
         public override void FadeMasterTrack(float duration, float initialVolume, float finalVolume, TweenEase tweenEase)
         {
             if (duration <= 0f) { MasterVolume = finalVolume; return; }
@@ -864,19 +723,22 @@ namespace Moirai.Atropos.Audio
             TweenUtility.Stop(_masterFadeTweenId);
             _masterFadeTweenId = TweenUtility.Custom(this, initialVolume, finalVolume, duration,
                 OnMasterFadeUpdate, tweenEase, useUnscaledTime: true);
+            return;
+
+            // ===== 静态回调 — 零 GC =====
+            static void OnMasterFadeUpdate(AudioServiceHandler service, float value)
+            {
+                service.MasterVolume = value;
+            }
         }
 
-        /// <summary>
-        /// 停止 Master 音轨上所有当前的淡化（Fade）
-        /// </summary>
+        /// <inheritdoc />
         public override void StopFadeMasterTrack()
         {
             TweenUtility.Stop(_masterFadeTweenId);
         }
 
-        /// <summary>
-        /// 在指定的持续时间内，淡入整个音轨到最终音量
-        /// </summary>
+        /// <inheritdoc />
         public override void FadeTrack(EAudioTrack track, float duration, float initialVolume, float finalVolume, TweenEase tweenEase)
         {
             if (duration <= 0f) { SetTrackVolume(track, finalVolume); return; }
@@ -886,9 +748,7 @@ namespace Moirai.Atropos.Audio
                 TrackFadeCallbacks[(int)track], tweenEase, useUnscaledTime: true);
         }
 
-        /// <summary>
-        /// 停止指定音轨上所有当前的淡化（Fade）
-        /// </summary>
+        /// <inheritdoc />
         public override void StopFadeTrack(EAudioTrack track)
         {
             int index = (int)track;
@@ -899,10 +759,7 @@ namespace Moirai.Atropos.Audio
             }
         }
 
-        /// <summary>
-        /// 对指定句柄的音频进行音量过渡。
-        /// </summary>
-        /// <remarks>使用手动过渡系统，完全零 GC。</remarks>
+        /// <inheritdoc />
         public override void FadeAudio(ulong handle, float duration, float initialVolume, float finalVolume, TweenEase tweenEase)
         {
             if (duration <= 0f)
@@ -928,9 +785,7 @@ namespace Moirai.Atropos.Audio
             };
         }
 
-        /// <summary>
-        /// 停止指定句柄音频上所有当前的淡化（Fade）
-        /// </summary>
+        /// <inheritdoc />
         public override void StopFadeAudio(ulong handle)
         {
             if (handle == 0) return;
@@ -949,9 +804,7 @@ namespace Moirai.Atropos.Audio
             }
         }
 
-        /// <summary>
-        /// 检查指定句柄的音频是否正在过渡中
-        /// </summary>
+        /// <inheritdoc />
         public override bool SoundIsFadingOut(ulong handle)
         {
             for (int i = 0; i < _audioFadeCount; i++)
@@ -966,9 +819,7 @@ namespace Moirai.Atropos.Audio
 
         #region 资源池 [ASSET POOL]
 
-        /// <summary>
-        /// 预先加载 <c>AudioClip</c>，并放入对象池。
-        /// </summary>
+        /// <inheritdoc />
         public override void PutInAudioPool(List<string> list)
         {
             if (_unityAudioDisabled) return;
@@ -984,9 +835,7 @@ namespace Moirai.Atropos.Audio
             }
         }
 
-        /// <summary>
-        /// 将部分 <c>AudioClip</c> 从对象池移出。
-        /// </summary>
+        /// <inheritdoc />
         public override void RemoveClipFromPool(List<string> list)
         {
             if (_unityAudioDisabled) return;
@@ -1002,9 +851,7 @@ namespace Moirai.Atropos.Audio
             }
         }
 
-        /// <summary>
-        /// 清空 <c>AudioClip</c> 的对象池。
-        /// </summary>
+        /// <inheritdoc />
         public override void CleanAudioPool()
         {
             if (_unityAudioDisabled) return;
@@ -1020,7 +867,7 @@ namespace Moirai.Atropos.Audio
         /// <summary>
         /// 释放句柄包装对象持有的租约/原生句柄。
         /// </summary>
-        private static void ReleaseHandleObject(object handleObj)
+        private void ReleaseHandleObject(object handleObj)
         {
             if (handleObj is IDisposable disposable)
             {
@@ -1031,212 +878,6 @@ namespace Moirai.Atropos.Audio
         #endregion 资源池 [ASSET POOL]
 
         #region 事件 [EVENTS]
-
-        /// <summary>
-        /// 播放音频事件
-        /// </summary>
-        private void OnAudioPlayEvent(AudioPlayEvent evt)
-        {
-            if (evt.Clip != null)
-            {
-                evt.AudioHandle = Play(evt.Clip, evt.Options);
-            }
-            else if (!string.IsNullOrEmpty(evt.AudioPath))
-            {
-                evt.AudioHandle = Play(evt.AudioPath, evt.Options, evt.LoadAssetAsync, evt.CacheAssetHandle);
-            }
-        }
-
-        /// <summary>
-        /// 游戏音频设置相关事件
-        /// </summary>
-        private void OnAudioServiceEvent(AudioServiceEvent evt)
-        {
-            switch (evt.Mode)
-            {
-                case AudioServiceEvent.EMode.SetSettings:
-                    SetMasterSettings();
-                    for (int i = 0; i < AudioCategories.Length; i++) { AudioCategories[i]?.SetSettings(); }
-                    break;
-                case AudioServiceEvent.EMode.LoadSettings:
-                    LoadMasterSettings();
-                    for (int i = 0; i < AudioCategories.Length; i++) { AudioCategories[i]?.LoadSettings(); }
-                    break;
-                case AudioServiceEvent.EMode.ResetSettings:
-                    RemoveMasterSetting();
-                    for (int i = 0; i < AudioCategories.Length; i++) { AudioCategories[i]?.RemoveSetting(); }
-                    break;
-            }
-        }
-
-        /// <summary>
-        /// 音轨事件
-        /// </summary>
-        private void OnAudioTrackEvent(AudioTrackControlEvent evt)
-        {
-            if (evt.IsMaster)
-            {
-                switch (evt.ControlMode)
-                {
-                    case AudioTrackControlEvent.EControlMode.Mute:
-                        MasterMute = true;
-                        break;
-                    case AudioTrackControlEvent.EControlMode.Unmute:
-                        MasterMute = false;
-                        break;
-                    case AudioTrackControlEvent.EControlMode.SetVolume:
-                        MasterVolume = evt.Volume;
-                        break;
-                    case AudioTrackControlEvent.EControlMode.Pause:
-                        PauseAll();
-                        break;
-                    case AudioTrackControlEvent.EControlMode.Unpause:
-                        UnpauseAll();
-                        break;
-                    case AudioTrackControlEvent.EControlMode.Stop:
-                        StopAll(0f);
-                        break;
-                }
-            }
-            else
-            {
-                switch (evt.ControlMode)
-                {
-                    case AudioTrackControlEvent.EControlMode.Mute:
-                        SetTrackMute(evt.Track, true);
-                        break;
-                    case AudioTrackControlEvent.EControlMode.Unmute:
-                        SetTrackMute(evt.Track, false);
-                        break;
-                    case AudioTrackControlEvent.EControlMode.SetVolume:
-                        SetTrackVolume(evt.Track, evt.Volume);
-                        break;
-                    case AudioTrackControlEvent.EControlMode.Pause:
-                        Pause(evt.Track);
-                        break;
-                    case AudioTrackControlEvent.EControlMode.Unpause:
-                        Unpause(evt.Track);
-                        break;
-                    case AudioTrackControlEvent.EControlMode.Stop:
-                        Stop(evt.Track, 0f);
-                        break;
-                }
-            }
-        }
-
-        /// <summary>
-        /// 音频控制事件（通过用户 ID 查找所有句柄后操作）
-        /// </summary>
-        private void OnAudioControlEvent(AudioControlEvent evt)
-        {
-            if (!_userHandleMap.TryGetValue(evt.AudioID, out var handles)) return;
-
-            // 缓存 count：Stop 可能触发 ReleaseHandle 从 handles 中移除元素，
-            // 但索引访问 handles[i] 仍安全，因为 count 只增不减。
-            int count = handles.Count;
-            LogUtility.Debug("[AudioService] {0} Audio: {1} x{2}", evt.EventType, evt.AudioID, count);
-            for (int i = 0; i < count; i++)
-            {
-                ulong handle = handles[i];
-                switch (evt.EventType)
-                {
-                    case AudioControlEvent.EAudioControlEventType.Pause:
-                        Pause(handle);
-                        break;
-                    case AudioControlEvent.EAudioControlEventType.Unpause:
-                        Unpause(handle);
-                        break;
-                    case AudioControlEvent.EAudioControlEventType.Stop:
-                        Stop(handle, 0f);
-                        break;
-                }
-            }
-        }
-
-        /// <summary>
-        /// 音轨过渡事件
-        /// </summary>
-        private void OnAudioTrackFadeEvent(AudioTrackFadeEvent evt)
-        {
-            if (evt.IsMaster)
-            {
-                switch (evt.Mode)
-                {
-                    case AudioTrackFadeEvent.EMode.PlayFade:
-                        FadeMasterTrack(evt.FadeDuration, GetTrackVolume(evt.Track), evt.FinalVolume, evt.FadeTweenEase);
-                        break;
-                    case AudioTrackFadeEvent.EMode.StopFade:
-                        StopFadeMasterTrack();
-                        break;
-                }
-            }
-            else
-            {
-                switch (evt.Mode)
-                {
-                    case AudioTrackFadeEvent.EMode.PlayFade:
-                        FadeTrack(evt.Track, evt.FadeDuration, GetTrackVolume(evt.Track), evt.FinalVolume, evt.FadeTweenEase);
-                        break;
-                    case AudioTrackFadeEvent.EMode.StopFade:
-                        StopFadeTrack(evt.Track);
-                        break;
-                }
-            }
-        }
-
-        /// <summary>
-        /// 音频过渡事件（通过用户 ID 查找所有句柄后操作）
-        /// </summary>
-        private void OnAudioFadeEvent(AudioFadeEvent evt)
-        {
-            // 通过用户 ID 查找对应的所有句柄
-            if (!_userHandleMap.TryGetValue(evt.SoundID, out var handles)) return;
-
-            // 缓存 count：StopFadeAudio 不修改 handles，安全迭代。
-            int count = handles.Count;
-            for (int i = 0; i < count; i++)
-            {
-                ulong handle = handles[i];
-                var agent = GetAgentByHandle(handle);
-                if (agent == null) continue;
-
-                switch (evt.Mode)
-                {
-                    case AudioFadeEvent.EAudioFadeEventMode.PlayFade:
-                        agent.CancelFadeIn();
-                        FadeAudio(handle, evt.FadeDuration, agent.AudioResource.volume, evt.FinalVolume, evt.FadeTweenEase);
-                        break;
-                    case AudioFadeEvent.EAudioFadeEventMode.StopFade:
-                        StopFadeAudio(handle);
-                        break;
-                }
-            }
-        }
-
-        /// <summary>
-        /// 全部音频控制事件
-        /// </summary>
-        private void OnAllAudiosControlEvent(AllAudiosControlEvent evt)
-        {
-            switch (evt.ControlMode)
-            {
-                case AllAudiosControlEvent.EControlMode.Pause:
-                    PauseAll();
-                    break;
-                case AllAudiosControlEvent.EControlMode.Play:
-                    UnpauseAll();
-                    break;
-                case AllAudiosControlEvent.EControlMode.Stop:
-                    StopAll(fadeoutDuration: AudioAgent.FADEOUT_DEFAULT_DURATION);
-                    break;
-                case AllAudiosControlEvent.EControlMode.StopAllButPersistent:
-                    StopAllButPersistent(fadeoutDuration: AudioAgent.FADEOUT_DEFAULT_DURATION);
-                    break;
-                case AllAudiosControlEvent.EControlMode.StopAllLooping:
-                    StopAllLooping(fadeoutDuration: AudioAgent.FADEOUT_DEFAULT_DURATION);
-                    break;
-            }
-        }
 
         /// <summary>
         /// 释放除了持久性的音频之外的所有音频。
