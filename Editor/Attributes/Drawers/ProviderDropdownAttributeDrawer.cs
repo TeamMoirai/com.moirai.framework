@@ -107,6 +107,19 @@ namespace Moirai.Atropos
 
         private TypeMenuCache Cache => _cache ??= TypeMenuCache.Get(attribute.BaseType ?? fieldInfo.FieldType);
 
+        private ProviderOptions _options;
+
+        /// <summary>每字段的展示选项视图（按 ShowNone 与候选类型构建，固定不变故懒加载缓存）。</summary>
+        private ProviderOptions Options
+        {
+            get
+            {
+                if (_options.Cache == null)
+                    _options = new ProviderOptions(Cache, attribute.ShowNone);
+                return _options;
+            }
+        }
+
         #endregion
 
         #region 标签 [LABEL]
@@ -227,21 +240,85 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
+        /// 每字段的下拉选项视图：把 <c>(None)</c> 的显示决策与索引换算集中到这里，
+        /// 供 IMGUI / UITK / Odin 三套宿主共用同一套"本地选项"（其索引从 0 连续递增）。
+        /// </summary>
+        internal readonly struct ProviderOptions
+        {
+            /// <summary>底层共享类型菜单缓存（其索引约定：0 = None，1..n = 候选类型）。</summary>
+            internal readonly TypeMenuCache Cache;
+
+            /// <summary>本字段是否包含 "(None)" 项（ShowNone 为 true，或候选类型为空时强制为 true）。</summary>
+            internal readonly bool IncludeNone;
+
+            /// <summary>IMGUI 显示数组（本地索引）。IncludeNone 时与 <see cref="TypeMenuCache.Names"/> 同序。</summary>
+            internal readonly GUIContent[] NameOptions;
+
+            /// <summary>UITK 显示文本（本地索引）。</summary>
+            internal readonly List<string> DisplayOptions;
+
+            internal ProviderOptions(TypeMenuCache cache, bool showNone)
+            {
+                Cache = cache;
+                IncludeNone = showNone || cache.Types.Length == 0;
+
+                if (IncludeNone)
+                {
+                    NameOptions = cache.Names;          // [0]=(None)，[i+1]=类型名
+                    DisplayOptions = cache.DisplayNames;
+                }
+                else
+                {
+                    NameOptions = new GUIContent[cache.Types.Length];
+                    DisplayOptions = new List<string>(cache.Types.Length);
+                    for (int i = 0; i < cache.Types.Length; i++)
+                    {
+                        // 缓存 Names 的 [i+1] 对应第 i 个候选类型
+                        NameOptions[i] = cache.Names[i + 1];
+                        DisplayOptions.Add(cache.DisplayNames[i + 1]);
+                    }
+                }
+            }
+
+            /// <summary>本地选项数量（恒 ≥ 1：候选为空时仍强制包含 (None)）。</summary>
+            internal readonly int Count => NameOptions.Length;
+
+            /// <summary>缓存索引（0=None，1..n=类型）→ 本地索引。</summary>
+            internal readonly int CacheToLocal(int cacheIndex)
+            {
+                if (IncludeNone) return cacheIndex;
+                return cacheIndex <= 0 ? 0 : Mathf.Min(cacheIndex - 1, Count - 1);
+            }
+
+            /// <summary>本地索引 → 缓存索引（0=None，1..n=类型）。</summary>
+            internal readonly int LocalToCache(int localIndex)
+            {
+                if (IncludeNone) return localIndex;
+                return localIndex + 1;
+            }
+        }
+
+        /// <summary>
         /// 绘制下拉行：标签 + popup 按钮（引用模式且需展开子属性时右侧并排 foldout 箭头）。<br/>
         /// IMGUI 主路径与 Odin 路径共用，保证两种宿主下行内交互完全一致。<br/>
-        /// 返回 foldout 展开状态（string 模式恒为 true）。
+        /// 返回 foldout 展开状态（string 模式恒为 true）。<br/>
+        /// <paramref name="applySelection"/> 收到的是<b>缓存索引</b>（0=None，1..n=类型）。
         /// </summary>
         internal static bool DrawRow(Rect position, SerializedProperty property, GUIContent label,
-            TypeMenuCache cache, bool reserveFoldout, Action<SerializedProperty, int> applySelection)
-            => DrawRowCore(position, label, cache, reserveFoldout, FoldoutKey(property),
-                FindCurrentIndex(cache, property), i => applySelection(property, i));
+            ProviderOptions options, bool reserveFoldout, Action<SerializedProperty, int> applySelection)
+        {
+            int cacheIndex = FindCurrentIndex(options.Cache, property);
+            return DrawRowCore(position, label, options, reserveFoldout, FoldoutKey(property),
+                options.CacheToLocal(cacheIndex), i => applySelection(property, options.LocalToCache(i)));
+        }
 
         /// <summary>
         /// 下拉行核心绘制（不依赖 SerializedProperty）。<br/>
-        /// 供串行化属性路径与 Odin 值条目回退路径共用，保证两种宿主下行内交互完全一致。
+        /// 供串行化属性路径与 Odin 值条目回退路径共用，保证两种宿主下行内交互完全一致。<br/>
+        /// <paramref name="currentLocalIndex"/> 与 <paramref name="onSelectedLocal"/> 均为<b>本地索引</b>。
         /// </summary>
-        internal static bool DrawRowCore(Rect position, GUIContent label, TypeMenuCache cache, bool reserveFoldout,
-            string foldKey, int currentIndex, Action<int> applySelection)
+        internal static bool DrawRowCore(Rect position, GUIContent label, ProviderOptions options, bool reserveFoldout,
+            string foldKey, int currentLocalIndex, Action<int> onSelectedLocal)
         {
             float lineH = EditorGUIUtility.singleLineHeight;
             Rect fieldRect = EditorGUI.PrefixLabel(new Rect(position.x, position.y, position.width, lineH), label);
@@ -251,9 +328,10 @@ namespace Moirai.Atropos
                 ? new Rect(fieldRect.x, fieldRect.y, fieldRect.width - FOLDOUT_W, lineH)
                 : fieldRect;
 
-            GUIContent current = currentIndex < cache.Names.Length ? cache.Names[currentIndex] : GUIContent.none;
+            GUIContent current = currentLocalIndex < options.NameOptions.Length
+                ? options.NameOptions[currentLocalIndex] : GUIContent.none;
             if (EditorGUI.DropdownButton(popupRect, current, FocusType.Keyboard, EditorStyles.popup))
-                ShowDropdown(popupRect, cache, currentIndex, applySelection);
+                ShowDropdown(popupRect, options, currentLocalIndex, onSelectedLocal);
 
             if (!reserveFoldout) return true;
 
@@ -292,9 +370,9 @@ namespace Moirai.Atropos
         }
 
         /// <summary>显示带类型详情的自定义下拉弹窗（IMGUI / Odin 路径共用；UITK 使用原生 PopupField）。</summary>
-        private static void ShowDropdown(Rect activatorRect, TypeMenuCache cache, int currentIndex, Action<int> onSelected)
+        private static void ShowDropdown(Rect activatorRect, ProviderOptions options, int currentLocalIndex, Action<int> onSelectedLocal)
         {
-            PopupWindow.Show(activatorRect, new TypeDropdownPopup(cache, currentIndex, onSelected));
+            PopupWindow.Show(activatorRect, new TypeDropdownPopup(options, currentLocalIndex, onSelectedLocal));
         }
 
         #endregion
@@ -328,17 +406,17 @@ namespace Moirai.Atropos
 
         private void DrawStringMode(Rect position, SerializedProperty property)
         {
-            DrawRow(position, property, LabelGUI, Cache, false,
-                (p, i) => ApplySelectionWithUndo(p, i, Cache));
+            DrawRow(position, property, LabelGUI, Options, false,
+                (p, i) => ApplySelectionWithUndo(p, i, Options.Cache));
         }
 
         private void DrawReferenceMode(Rect position, SerializedProperty property)
         {
             bool hasChildren = property.managedReferenceValue != null && HasVisibleChildren(property);
 
-            if (!DrawRow(position, property, LabelGUI, Cache, hasChildren, (p, i) =>
+            if (!DrawRow(position, property, LabelGUI, Options, hasChildren, (p, i) =>
             {
-                ApplySelectionWithUndo(p, i, Cache);
+                ApplySelectionWithUndo(p, i, Options.Cache);
                 GUI.changed = true;
             })) return;
 
@@ -363,15 +441,16 @@ namespace Moirai.Atropos
 
             string propPath = property.propertyPath;
             SerializedObject so = property.serializedObject;
+            ProviderOptions opts = Options;
 
             // 按钮拉满剩余宽度，右缘与 IMGUI popup 对齐
-            var popup = new PopupField<string>(LabelText, Cache.DisplayNames, FindCurrentIndex(Cache, property));
+            var popup = new PopupField<string>(LabelText, opts.DisplayOptions, opts.CacheToLocal(FindCurrentIndex(opts.Cache, property)));
             popup.style.flexGrow = 1f;
 
             // string 模式：单行 popup，无 foldout
             if (_isStringMode)
             {
-                popup.RegisterValueChangedCallback(_ => WriteSelectionUITK(so, propPath, popup));
+                popup.RegisterValueChangedCallback(_ => WriteSelectionUITK(so, propPath, popup, opts));
                 return popup;
             }
 
@@ -402,8 +481,8 @@ namespace Moirai.Atropos
 
             popup.RegisterValueChangedCallback(_ =>
             {
-                WriteSelectionUITK(so, propPath, popup);
-                RefreshChildrenUITK(so, propPath, popup, arrow, children);
+                WriteSelectionUITK(so, propPath, popup, opts);
+                RefreshChildrenUITK(so, propPath, popup, arrow, children, opts);
             });
 
             row.Add(popup);
@@ -413,19 +492,19 @@ namespace Moirai.Atropos
             root.Add(row);
             root.Add(children);
 
-            RefreshChildrenUITK(so, propPath, popup, arrow, children);
+            RefreshChildrenUITK(so, propPath, popup, arrow, children, opts);
             return root;
         }
 
         /// <summary>UITK 选中写入：重新 FindProperty 后写值（含撤销注册）并应用。</summary>
-        private void WriteSelectionUITK(SerializedObject so, string propPath, PopupField<string> popup)
+        private void WriteSelectionUITK(SerializedObject so, string propPath, PopupField<string> popup, ProviderOptions opts)
         {
             so.Update();
             SerializedProperty fresh = so.FindProperty(propPath);
             if (fresh == null) return;
 
             Undo.RecordObject(so.targetObject, "Change Provider");
-            ApplySelection(fresh, popup.index, Cache);
+            ApplySelection(fresh, opts.LocalToCache(popup.index), opts.Cache);
             so.ApplyModifiedProperties();
         }
 
@@ -433,14 +512,14 @@ namespace Moirai.Atropos
         /// 类型切换后刷新下拉显示与子属性区（重新 FindProperty，避免使用失效的 SerializedProperty）。
         /// </summary>
         private void RefreshChildrenUITK(SerializedObject so, string propPath,
-            PopupField<string> popup, Foldout arrow, VisualElement children)
+            PopupField<string> popup, Foldout arrow, VisualElement children, ProviderOptions opts)
         {
             so.Update();
             SerializedProperty fresh = so.FindProperty(propPath);
             if (fresh == null) return;
 
             bool hasInstance = fresh.managedReferenceValue != null;
-            popup.SetValueWithoutNotify(Cache.DisplayNames[FindCurrentIndex(Cache, fresh)]);
+            popup.SetValueWithoutNotify(opts.DisplayOptions[opts.CacheToLocal(FindCurrentIndex(opts.Cache, fresh))]);
 
             // 无实例或无可见子属性时不显示箭头与子属性区（与 IMGUI 一致）
             bool showChildren = hasInstance && HasVisibleChildren(fresh);
@@ -476,18 +555,18 @@ namespace Moirai.Atropos
             private const float MAX_HEIGHT = 400f;
             private const float SCROLLBAR_W = 16f;
 
-            private readonly TypeMenuCache _cache;
-            private readonly int _currentIndex;
-            private readonly Action<int> _onSelected;
+            private readonly ProviderOptions _options;
+            private readonly int _currentLocal;
+            private readonly Action<int> _onSelectedLocal;
             private int _hoverIndex;
             private Vector2 _scroll;
 
-            internal TypeDropdownPopup(TypeMenuCache cache, int currentIndex, Action<int> onSelected)
+            internal TypeDropdownPopup(ProviderOptions options, int currentLocalIndex, Action<int> onSelectedLocal)
             {
-                _cache = cache;
-                _currentIndex = currentIndex;
-                _onSelected = onSelected;
-                _hoverIndex = currentIndex;
+                _options = options;
+                _currentLocal = currentLocalIndex;
+                _onSelectedLocal = onSelectedLocal;
+                _hoverIndex = currentLocalIndex;
             }
 
             public override void OnOpen()
@@ -498,15 +577,13 @@ namespace Moirai.Atropos
 
             public override Vector2 GetWindowSize()
             {
-                float listH = _cache.Names.Length * ITEM_H;
+                float listH = _options.NameOptions.Length * ITEM_H;
                 return new Vector2(MIN_WIDTH, Mathf.Min(listH + GetInfoHeight(), MAX_HEIGHT));
             }
 
             public override void OnGUI(Rect rect)
             {
-                GUIContent[] names = _cache.Names;
-
-                // ── 选项列表 ──
+                GUIContent[] names = _options.NameOptions;
                 float infoH = GetInfoHeight();
                 float listH = rect.height - infoH;
 
@@ -531,7 +608,7 @@ namespace Moirai.Atropos
 
                     var contentRect = new Rect(itemRect.x + 4, itemRect.y, itemRect.width - 8, itemRect.height);
                     EditorGUI.LabelField(contentRect, names[i],
-                        i == _currentIndex ? EditorStyles.boldLabel : EditorStyles.label);
+                        i == _currentLocal ? EditorStyles.boldLabel : EditorStyles.label);
 
                     // 内容坐标 = 视图坐标 + 滚动偏移
                     var mouseRect = new Rect(itemRect.x + _scroll.x, itemRect.y + _scroll.y, itemRect.width, itemRect.height);
@@ -552,7 +629,7 @@ namespace Moirai.Atropos
                         && Event.current.button == 0
                         && mouseRect.Contains(Event.current.mousePosition))
                     {
-                        _onSelected(i);
+                        _onSelectedLocal(i);
                         editorWindow.Close();
                         GUIUtility.ExitGUI();
                     }
@@ -570,7 +647,8 @@ namespace Moirai.Atropos
 
             private void DrawInfoPanel(Rect infoRect)
             {
-                if (_hoverIndex < 1 || _hoverIndex > _cache.Types.Length)
+                int cacheIndex = _options.LocalToCache(_hoverIndex);
+                if (cacheIndex < 1 || cacheIndex > _options.Cache.Types.Length)
                 {
                     EditorGUI.LabelField(
                         new Rect(infoRect.x + INFO_PAD, infoRect.y + 4, infoRect.width - INFO_PAD * 2, LINE_H),
@@ -578,17 +656,17 @@ namespace Moirai.Atropos
                     return;
                 }
 
-                Type type = _cache.Types[_hoverIndex - 1];
+                Type type = _options.Cache.Types[cacheIndex - 1];
                 float y = infoRect.y + INFO_PAD;
 
                 DrawInfoLine(infoRect, ref y, "Type", type.FullName);
-                DrawInfoLine(infoRect, ref y, "Base", _cache.BaseType.FullName);
+                DrawInfoLine(infoRect, ref y, "Base", _options.Cache.BaseType.FullName);
                 DrawInfoLine(infoRect, ref y, "Assembly", type.Assembly.GetName().Name);
 
-                // 点击详情区也可选中当前悬停项
+                // 点击详情区也可选中当前悬停项（回调需本地索引）
                 if (Event.current.type == EventType.MouseDown && infoRect.Contains(Event.current.mousePosition))
                 {
-                    _onSelected(_hoverIndex);
+                    _onSelectedLocal(_hoverIndex);
                     editorWindow.Close();
                     GUIUtility.ExitGUI();
                 }
@@ -659,6 +737,7 @@ namespace Moirai.Atropos
 
             ProviderDropdownAttributeDrawer.TypeMenuCache cache = ProviderDropdownAttributeDrawer.TypeMenuCache
                 .Get(Attribute.BaseType ?? Property.BaseValueEntry.BaseValueType);
+            var opts = new ProviderDropdownAttributeDrawer.ProviderOptions(cache, Attribute.ShowNone);
 
             // 行标签：特性 Label 覆写优先，否则沿用 Odin 标签（已含 [LabelText]/[Tooltip] 等处理）
             GUIContent rowLabel = !string.IsNullOrEmpty(Attribute.Label) ? new GUIContent(Attribute.Label) : label;
@@ -668,10 +747,10 @@ namespace Moirai.Atropos
             {
                 Rect rowRect = EditorGUILayout.GetControlRect(
                     true, EditorGUIUtility.singleLineHeight, GUILayout.ExpandWidth(true));
-                ProviderDropdownAttributeDrawer.DrawRow(rowRect, prop, rowLabel ?? GUIContent.none, cache, false,
+                ProviderDropdownAttributeDrawer.DrawRow(rowRect, prop, rowLabel ?? GUIContent.none, opts, false,
                     (p, i) =>
                     {
-                        ProviderDropdownAttributeDrawer.ApplySelectionWithUndo(p, i, cache);
+                        ProviderDropdownAttributeDrawer.ApplySelectionWithUndo(p, i, opts.Cache);
                         GUI.changed = true;
                     });
                 return;
@@ -685,10 +764,10 @@ namespace Moirai.Atropos
 
             Rect row = EditorGUILayout.GetControlRect(
                 true, EditorGUIUtility.singleLineHeight, GUILayout.ExpandWidth(true));
-            bool open = ProviderDropdownAttributeDrawer.DrawRow(row, prop, rowLabel ?? GUIContent.none, cache,
+            bool open = ProviderDropdownAttributeDrawer.DrawRow(row, prop, rowLabel ?? GUIContent.none, opts,
                 hasChildren, (p, i) =>
                 {
-                    ProviderDropdownAttributeDrawer.ApplySelectionWithUndo(p, i, cache);
+                    ProviderDropdownAttributeDrawer.ApplySelectionWithUndo(p, i, opts.Cache);
                     Property.Update(true); // 类型切换后强制重解析值与子属性
                     GUI.changed = true;
                 });
@@ -722,15 +801,9 @@ namespace Moirai.Atropos
                 return;
             }
 
-            // 值条目无 WeakSmartValue 访问（非常规宿主）时退化，避免 NRE
-            if (valueEntry.WeakSmartValue == null && valueEntry.TypeOfValue != typeof(string))
-            {
-                CallNextDrawer(label);
-                return;
-            }
-
             ProviderDropdownAttributeDrawer.TypeMenuCache cache = ProviderDropdownAttributeDrawer.TypeMenuCache
                 .Get(Attribute.BaseType ?? Property.BaseValueEntry.BaseValueType);
+            var opts = new ProviderDropdownAttributeDrawer.ProviderOptions(cache, Attribute.ShowNone);
 
             GUIContent rowLabel = !string.IsNullOrEmpty(Attribute.Label)
                 ? new GUIContent(Attribute.Label) : (label ?? GUIContent.none);
@@ -742,8 +815,9 @@ namespace Moirai.Atropos
             {
                 Rect rowRect = EditorGUILayout.GetControlRect(
                     true, EditorGUIUtility.singleLineHeight, GUILayout.ExpandWidth(true));
-                ProviderDropdownAttributeDrawer.DrawRowCore(rowRect, rowLabel, cache, false, foldKey,
-                    cache.IndexOfName(valueEntry.WeakSmartValue as string), i => ApplyValue(cache, i));
+                int currentLocal = opts.CacheToLocal(cache.IndexOfName(valueEntry.WeakSmartValue as string));
+                ProviderDropdownAttributeDrawer.DrawRowCore(rowRect, rowLabel, opts, false, foldKey,
+                    currentLocal, i => ApplyValue(opts, opts.LocalToCache(i)));
                 return;
             }
 
@@ -753,30 +827,30 @@ namespace Moirai.Atropos
 
             Rect row = EditorGUILayout.GetControlRect(
                 true, EditorGUIUtility.singleLineHeight, GUILayout.ExpandWidth(true));
-            int currentIndex = valueEntry.WeakSmartValue == null
+            int currentCacheIndex = valueEntry.WeakSmartValue == null
                 ? 0 : cache.IndexOfType(valueEntry.WeakSmartValue.GetType());
-            bool open = ProviderDropdownAttributeDrawer.DrawRowCore(row, rowLabel, cache, hasChildren, foldKey,
-                currentIndex, i => ApplyValue(cache, i));
+            bool open = ProviderDropdownAttributeDrawer.DrawRowCore(row, rowLabel, opts, hasChildren, foldKey,
+                opts.CacheToLocal(currentCacheIndex), i => ApplyValue(opts, opts.LocalToCache(i)));
 
             if (!hasChildren || !open) return;
             DrawChildrenWithOdin();
         }
 
-        /// <summary>值条目模式写入当前选中项（string 模式存类型全名，引用模式存实例，0 = None）。</summary>
-        private void ApplyValue(ProviderDropdownAttributeDrawer.TypeMenuCache cache, int index)
+        /// <summary>值条目模式写入当前选中项（string 模式存类型全名，引用模式存实例，缓存索引 0 = None）。</summary>
+        private void ApplyValue(ProviderDropdownAttributeDrawer.ProviderOptions opts, int index)
         {
             var valueEntry = Property.ValueEntry;
             if (valueEntry == null) return;
 
             if (valueEntry.TypeOfValue == typeof(string))
             {
-                valueEntry.WeakSmartValue = index >= 1 && index <= cache.Types.Length
-                    ? cache.Types[index - 1].FullName : string.Empty;
+                valueEntry.WeakSmartValue = index >= 1 && index <= opts.Cache.Types.Length
+                    ? opts.Cache.Types[index - 1].FullName : string.Empty;
             }
             else
             {
                 valueEntry.WeakSmartValue = index == 0
-                    ? null : Activator.CreateInstance(cache.Types[index - 1]);
+                    ? null : Activator.CreateInstance(opts.Cache.Types[index - 1]);
             }
 
             Property.Update(true); // 类型切换后强制重解析值与子属性
