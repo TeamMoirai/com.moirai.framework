@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using Moirai.Atropos.Debugger;
@@ -683,6 +683,23 @@ namespace Moirai.Atropos.Resource
         /// </summary>
         public static UniTask<GameObject> LoadGameObjectAsync(string location, Transform parent = null, CancellationToken cancellationToken = default, string packageName = "") =>
             s_Handler?.LoadGameObjectAsync(location, parent, cancellationToken, packageName) ?? UniTask.FromResult<GameObject>(null);
+
+        #endregion
+
+        #region 场景加载 [SCENE LOADING]
+
+        /// <summary>
+        /// 通过资源系统异步加载场景——场景资源经当前配置的资源后端（YooAsset、Addressable 等）管线加载。
+        /// <para>由 <see cref="Scene.SceneService"/> 的默认后端调用，实现场景加载与资源系统的统一。</para>
+        /// </summary>
+        /// <param name="location">场景资源定位地址。</param>
+        /// <param name="sceneMode">场景加载模式。</param>
+        /// <param name="suspendLoad">是否挂起加载（加载至待激活状态后保持挂起）。</param>
+        /// <param name="priority">加载优先级。</param>
+        /// <param name="packageName">资源包名称。为空时使用默认资源包。</param>
+        /// <returns>场景加载句柄；服务未就绪时返回 null。</returns>
+        public static ResourceSceneHandle LoadSceneAsync(string location, UnityEngine.SceneManagement.LoadSceneMode sceneMode, bool suspendLoad, uint priority, string packageName = "") =>
+            s_Handler?.LoadSceneAsync(location, sceneMode, suspendLoad, priority, packageName);
 
         #endregion
 

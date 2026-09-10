@@ -1,4 +1,4 @@
-﻿namespace Moirai.Atropos.Resource
+namespace Moirai.Atropos.Resource
 {
     /// <summary>
     /// 资源系统运行模式（框架通用，与具体资源后端无关）。
@@ -145,6 +145,59 @@
         /// 错误信息（失败时非空）。
         /// </summary>
         string Error { get; }
+    }
+
+    /// <summary>
+    /// 资源系统场景句柄抽象（框架通用）——封装一次场景加载操作及其生命周期。
+    /// <para>由具体资源后端（YooAsset、Addressable 等）适配实现，<see cref="ResourceServiceHandler.LoadSceneAsync"/> 创建，
+    /// <see cref="ResourceService"/> 外观转发，供场景服务（SceneService）后端驱动主/子场景加载、激活、挂起恢复与卸载。</para>
+    /// <para>句柄失效安全：释放（<see cref="Release"/>）或卸载完成后访问属性返回默认值，不抛出异常。</para>
+    /// </summary>
+    public abstract class ResourceSceneHandle
+    {
+        /// <summary>
+        /// 场景加载是否完成。
+        /// <para>挂起加载（suspendLoad）时加载进度停留于待激活状态，<see cref="IsDone"/> 保持 false，直至 <see cref="UnSuspend"/> 解除挂起。</para>
+        /// </summary>
+        public abstract bool IsDone { get; }
+
+        /// <summary>
+        /// 加载进度（0-1）。
+        /// </summary>
+        public abstract float Progress { get; }
+
+        /// <summary>
+        /// 错误信息（失败时非空）。
+        /// </summary>
+        public abstract string Error { get; }
+
+        /// <summary>
+        /// 已加载的场景对象（加载完成前为默认值）。
+        /// </summary>
+        public abstract UnityEngine.SceneManagement.Scene SceneObject { get; }
+
+        /// <summary>
+        /// 解除挂起，允许场景激活。
+        /// </summary>
+        /// <returns>是否解除成功。</returns>
+        public abstract bool UnSuspend();
+
+        /// <summary>
+        /// 激活场景（设为当前活动场景）。
+        /// </summary>
+        /// <returns>是否激活成功。</returns>
+        public abstract bool ActivateScene();
+
+        /// <summary>
+        /// 异步卸载场景（仅限 Additive 子场景）。卸载成功后句柄自动失效。
+        /// </summary>
+        /// <returns>卸载操作。</returns>
+        public abstract IResourceOperation UnloadAsync();
+
+        /// <summary>
+        /// 释放场景句柄引用（不卸载场景）——用于 Single 主场景被替换后回收底层资源引用计数。
+        /// </summary>
+        public abstract void Release();
     }
 
     /// <summary>

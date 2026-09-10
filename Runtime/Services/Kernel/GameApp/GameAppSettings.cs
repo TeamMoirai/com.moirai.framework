@@ -9,21 +9,17 @@ namespace Moirai.Atropos
     {
         [DisableInPlayMode]
         [Range(1, 300)]
-        [SerializeField]
-        internal int m_FrameRate = 120;
+        [SerializeField] internal int m_FrameRate = 120;
 
         [DisableInPlayMode]
         [Range(0f, 8f)]
-        [SerializeField]
-        internal float m_GameSpeed = 1f;
+        [SerializeField] internal float m_GameSpeed = 1f;
 
         [DisableInPlayMode]
-        [SerializeField]
-        internal bool m_RunInBackground = true;
+        [SerializeField] internal bool m_RunInBackground = true;
 
         [DisableInPlayMode]
-        [SerializeField]
-        internal bool m_NeverSleep = true;
+        [SerializeField] internal bool m_NeverSleep = true;
 
         /// <!-- Utilities -->
         private const string HELPER_GROUP = "框架工具 [Global Utilities]";

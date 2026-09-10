@@ -1,24 +1,26 @@
 # Scene 服务
 
-> 基于 YooAsset 场景句柄的主/子场景管理服务，提供异步加载、挂起激活、进度回调与子场景卸载能力。
+> 基于资源系统（ResourceService）场景加载管线的主/子场景管理服务，自动适配 YooAsset、Addressable 等资源后端，提供异步加载、挂起激活、进度回调与子场景卸载能力。
 
-场景服务（`Moirai.Atropos.Scene`）封装 YooAsset 的 `SceneHandle`，区分主场景（`LoadSceneMode.Single`，同时只能存在一个）与子场景（`LoadSceneMode.Additive`，可叠加多个）。支持加载到 90% 时挂起、就绪后统一激活的平滑切换模式，并在主场景加载完成后可选触发资源回收。通过 `SceneService` 静态访问器使用。
+场景服务（`Moirai.Atropos.Scene`）的默认后端 `DefaultSceneHandler` 通过 `ResourceService.LoadSceneAsync` 加载场景，资源系统按当前配置的后端（YooAsset、Addressable 等）自动应用对应适配器，产出统一的 `ResourceSceneHandle` 句柄。场景服务区分主场景（`LoadSceneMode.Single`，同时只能存在一个）与子场景（`LoadSceneMode.Additive`，可叠加多个）。支持加载到 90% 时挂起、就绪后统一激活的平滑切换模式，并在主场景加载完成后可选触发资源回收。通过 `SceneService` 静态访问器使用。
 
 ## 核心特性
 
 - 主场景 / 子场景双轨管理：Single 模式替换主场景，Additive 模式登记到子场景字典
 - 挂起加载：`suspendLoad` 加载完毕后不自动激活，调用 `UnSuspend` 手动激活，适合做加载完成的统一时机控制
-- 进度回调：`progressCallBack` 每帧回报 `SceneHandle.Progress`（0~1）
+- 进度回调：`progressCallBack` 每帧回报场景句柄加载进度（0~1）
 - 防重入保护：同一场景加载/卸载过程中重复请求会被拒绝并记录日志
 - 垃圾回收：主场景加载完成后按 `gcCollect` 参数执行 `ForceUnloadUnusedAssets`
-- 多资源包支持：回调式 `LoadScene` 可指定 `packageName` 从指定 YooAsset 资源包加载
+- 多资源包支持：回调式 `LoadScene` 可指定 `packageName` 从指定资源包加载
+- 资源后端自适应：场景加载经 `ResourceService` 管线，切换 YooAsset / Addressable 后端无需修改场景代码
 
 ## 核心类型
 
 | 类/接口 | 说明 |
 |---------|------|
 | `Moirai.Atropos.Scene.SceneService` | 场景服务静态外观（`[HandlerHost]`），经 `Handler` 属性转发（fail-fast：未就绪时按需初始化，工厂缺失时抛异常，不静默降级） |
-| `Moirai.Atropos.Scene.SceneServiceHandler` | 处理器抽象基类，定义后端契约；默认实现 `DefaultSceneHandler` 内部持有 `YooAsset.SceneHandle` 管理主/子场景 |
+| `Moirai.Atropos.Scene.SceneServiceHandler` | 处理器抽象基类，定义后端契约；默认实现 `DefaultSceneHandler` 经 `ResourceService` 加载并管理主/子场景 |
+| `Moirai.Atropos.Resource.ResourceSceneHandle` | 资源系统场景句柄抽象，由资源后端（YooAsset / Addressable）适配实现，承载加载进度、激活、解除挂起与卸载 |
 
 ## 快速上手
 
@@ -77,11 +79,11 @@ await SceneService.LoadSceneAsync("ChunkB", LoadSceneMode.Additive);
 
 ### 加载优先级
 
-`priority` 参数透传给 YooAsset，用于在多个加载请求并发时调整该场景的加载优先级（默认 100）。
+`priority` 参数透传给资源后端，用于在多个加载请求并发时调整该场景的加载优先级（默认 100）。
 
 ## 注意事项
 
-- 场景资源需纳入 YooAsset 收集构建；编辑器下请先通过 `YooAsset/Editor PlayMode` 选择模拟模式
+- 场景资源需纳入资源后端收集构建（YooAsset 收集器 / Addressables 组）；编辑器下使用 YooAsset 后端时请先通过 `YooAsset/Editor PlayMode` 选择模拟模式
 - 重复加载已在加载中的同地址场景会被拒绝（Log.Error）；重复加载已存在的子场景会抛出 `GameException`
 - `Unload` / `UnloadAsync` 仅针对 Additive 子场景，主场景通过加载新的 Single 场景替换，请勿对主场景调用卸载
 - 主场景加载完成后默认触发 `ForceUnloadUnusedAssets(gcCollect)`，加载期间如有暂存资源引用需注意（可将 `gcCollect` 置为 false 关闭）
