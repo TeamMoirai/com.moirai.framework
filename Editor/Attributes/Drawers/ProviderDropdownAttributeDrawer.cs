@@ -233,6 +233,15 @@ namespace Moirai.Atropos
         /// </summary>
         internal static bool DrawRow(Rect position, SerializedProperty property, GUIContent label,
             TypeMenuCache cache, bool reserveFoldout, Action<SerializedProperty, int> applySelection)
+            => DrawRowCore(position, label, cache, reserveFoldout, FoldoutKey(property),
+                FindCurrentIndex(cache, property), i => applySelection(property, i));
+
+        /// <summary>
+        /// 下拉行核心绘制（不依赖 SerializedProperty）。<br/>
+        /// 供串行化属性路径与 Odin 值条目回退路径共用，保证两种宿主下行内交互完全一致。
+        /// </summary>
+        internal static bool DrawRowCore(Rect position, GUIContent label, TypeMenuCache cache, bool reserveFoldout,
+            string foldKey, int currentIndex, Action<int> applySelection)
         {
             float lineH = EditorGUIUtility.singleLineHeight;
             Rect fieldRect = EditorGUI.PrefixLabel(new Rect(position.x, position.y, position.width, lineH), label);
@@ -242,14 +251,12 @@ namespace Moirai.Atropos
                 ? new Rect(fieldRect.x, fieldRect.y, fieldRect.width - FOLDOUT_W, lineH)
                 : fieldRect;
 
-            int index = FindCurrentIndex(cache, property);
-            GUIContent current = index < cache.Names.Length ? cache.Names[index] : GUIContent.none;
+            GUIContent current = currentIndex < cache.Names.Length ? cache.Names[currentIndex] : GUIContent.none;
             if (EditorGUI.DropdownButton(popupRect, current, FocusType.Keyboard, EditorStyles.popup))
-                ShowDropdown(popupRect, cache, index, i => applySelection(property, i));
+                ShowDropdown(popupRect, cache, currentIndex, applySelection);
 
             if (!reserveFoldout) return true;
 
-            string foldKey = FoldoutKey(property);
             bool open = EditorGUI.Foldout(
                 new Rect(fieldRect.xMax - FOLDOUT_W, fieldRect.y, FOLDOUT_W, lineH),
                 GetFoldout(foldKey), GUIContent.none, true);
@@ -616,12 +623,14 @@ namespace Moirai.Atropos
     /// <para>无需在每个字段上手动添加 <c>[DrawWithUnity]</c>。</para>
     /// </summary>
     /// <remarks>
-    /// 优先级设为 wrapper=10001，高于 Odin 默认 managed reference drawer 和 DrawWithUnity(10000)。
-    /// 当 PropertyTree 背后有 SerializedObject 时（ScriptableObject 场景），获取 SerializedProperty 并绘制下拉行；
-    /// 否则回退到 Odin 默认行为。
+    /// 优先级设为 super=1，确保在 Odin 4.0.x 下优先于默认 managed reference drawer 与 DrawWithUnity(10000)，始终接管绘制。
+    /// 优先获取 Unity SerializedProperty（SerializedObject 场景）走串行化属性路径绘制；
+    /// 4.0.x 下 UnityPropertyPath 解析失败或纯 Odin 宿主（无 SerializedObject）时，
+    /// 退化为 Odin 值条目驱动路径（<see cref="DrawValueEntryFallback"/>），不再回退到 Odin 默认 managed-reference 绘制，
+    /// 从而避免其子内容渲染失效。
     /// Odin 未解析出子属性时（如未启用多态序列化后端），子属性区回退为 Unity 序列化绘制。
     /// </remarks>
-    [DrawerPriority(0, 10001, 0)]
+    [DrawerPriority(1, 0, 0)]
     internal sealed class ProviderDropdownOdinDrawer : OdinAttributeDrawer<ProviderDropdownAttribute>
     {
         /// <summary>子属性容器样式：unity-box 背景 + 与 IMGUI 路径一致的 PAD 内边距。</summary>
@@ -636,10 +645,15 @@ namespace Moirai.Atropos
 
         protected override void DrawPropertyLayout(GUIContent label)
         {
-            SerializedProperty prop = Property.Tree.GetUnityPropertyForPath(Property.UnityPropertyPath);
+            // 4.0.x 下 managed reference 的 UnityPropertyPath 解析可能失败（返回 null 或抛异常）。
+            // 此时不再回退到 Odin 默认绘制（其 managed-reference 子内容易渲染失效），而是走值条目驱动路径。
+            SerializedProperty prop;
+            try { prop = Property.Tree.GetUnityPropertyForPath(Property.UnityPropertyPath); }
+            catch { prop = null; }
+
             if (prop == null)
             {
-                CallNextDrawer(label);
+                DrawValueEntryFallback(label);
                 return;
             }
 
@@ -692,6 +706,81 @@ namespace Moirai.Atropos
                     true, ProviderDropdownAttributeDrawer.GetChildrenHeight(prop), GUILayout.ExpandWidth(true));
                 ProviderDropdownAttributeDrawer.DrawChildren(boxRect, prop);
             }
+        }
+
+        /// <summary>
+        /// 值条目驱动回退路径：当无法取得 Unity SerializedProperty（4.0.x 路径解析失败 / 纯 Odin 宿主）时，
+        /// 行读取/写入改由 Odin <see cref="InspectorProperty.ValueEntry"/> 完成，子内容仍交由 Odin PropertyTree 绘制，
+        /// 保证自定义下拉与序列化内容在任何宿主下都能正常显示。
+        /// </summary>
+        private void DrawValueEntryFallback(GUIContent label)
+        {
+            var valueEntry = Property.ValueEntry;
+            if (valueEntry == null)
+            {
+                CallNextDrawer(label);
+                return;
+            }
+
+            // 值条目无 WeakSmartValue 访问（非常规宿主）时退化，避免 NRE
+            if (valueEntry.WeakSmartValue == null && valueEntry.TypeOfValue != typeof(string))
+            {
+                CallNextDrawer(label);
+                return;
+            }
+
+            ProviderDropdownAttributeDrawer.TypeMenuCache cache = ProviderDropdownAttributeDrawer.TypeMenuCache
+                .Get(Attribute.BaseType ?? Property.BaseValueEntry.BaseValueType);
+
+            GUIContent rowLabel = !string.IsNullOrEmpty(Attribute.Label)
+                ? new GUIContent(Attribute.Label) : (label ?? GUIContent.none);
+
+            // foldout 键：无 Unity ID 可用，改用 Odin 树 + 属性路径（保持稳定且与其他路径互不干扰）
+            string foldKey = "odin|" + Property.Tree.GetHashCode() + "|" + Property.Path;
+
+            if (valueEntry.TypeOfValue == typeof(string))
+            {
+                Rect rowRect = EditorGUILayout.GetControlRect(
+                    true, EditorGUIUtility.singleLineHeight, GUILayout.ExpandWidth(true));
+                ProviderDropdownAttributeDrawer.DrawRowCore(rowRect, rowLabel, cache, false, foldKey,
+                    cache.IndexOfName(valueEntry.WeakSmartValue as string), i => ApplyValue(cache, i));
+                return;
+            }
+
+            // 引用模式：子内容仅走 Odin 子属性
+            bool hasOdinChildren = HasVisibleOdinChildren();
+            bool hasChildren = valueEntry.WeakSmartValue != null && hasOdinChildren;
+
+            Rect row = EditorGUILayout.GetControlRect(
+                true, EditorGUIUtility.singleLineHeight, GUILayout.ExpandWidth(true));
+            int currentIndex = valueEntry.WeakSmartValue == null
+                ? 0 : cache.IndexOfType(valueEntry.WeakSmartValue.GetType());
+            bool open = ProviderDropdownAttributeDrawer.DrawRowCore(row, rowLabel, cache, hasChildren, foldKey,
+                currentIndex, i => ApplyValue(cache, i));
+
+            if (!hasChildren || !open) return;
+            DrawChildrenWithOdin();
+        }
+
+        /// <summary>值条目模式写入当前选中项（string 模式存类型全名，引用模式存实例，0 = None）。</summary>
+        private void ApplyValue(ProviderDropdownAttributeDrawer.TypeMenuCache cache, int index)
+        {
+            var valueEntry = Property.ValueEntry;
+            if (valueEntry == null) return;
+
+            if (valueEntry.TypeOfValue == typeof(string))
+            {
+                valueEntry.WeakSmartValue = index >= 1 && index <= cache.Types.Length
+                    ? cache.Types[index - 1].FullName : string.Empty;
+            }
+            else
+            {
+                valueEntry.WeakSmartValue = index == 0
+                    ? null : Activator.CreateInstance(cache.Types[index - 1]);
+            }
+
+            Property.Update(true); // 类型切换后强制重解析值与子属性
+            GUI.changed = true;
         }
 
         /// <summary>子属性是否在 Odin 侧存在可见项（State.Visible 由 Odin 处理隐藏特性后写入）。</summary>
