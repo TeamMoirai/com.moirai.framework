@@ -1,164 +1,126 @@
 # Audio Service
 
-> Audio system based on AudioMixer track grouping and audio agent pool, supporting handle control, fade in/out, and solo playback.
+> Audio system based on track grouping and an agent pool: swappable backends (Unity / FMOD / Wwise), handle lifecycle, fades, mix snapshots, and spatial occlusion.
 
-The `Audio` service divides audio into multiple tracks (`EAudioTrack`) by usage. Each track corresponds to an `AudioCategory`, which internally maintains a set of `AudioAgent` objects (wrapping `AudioSource`) responsible for actual playback. The service is accessed via the `AudioService.Xxx()` static facade (backend logic lives in the default implementation `UnityAudioHandler` behind the abstract contract `AudioServiceHandler`), returning a `ulong` handle after playback for subsequent control such as pause, resume, and stop. It also supports batch operations by user ID (`AudioPlayOptions.ID`) through `ForEachHandleByID` / `PlayFade`, without needing to save handles yourself. Track and master volume settings are persisted through `SettingUtility` and automatically loaded after service initialization.
+The `Audio` service divides audio into tracks (`EAudioTrack`). The Unity backend maps each track to an `AudioCategory` with `AudioAgent` instances (wrapping `AudioSource`); middleware backends share `MiddlewareAudioHandler`. Access via the `AudioService.Xxx()` static facade. Playback returns a `ulong` handle; batch control by user ID is available (`StopByID`, `PlayFade`, etc.). Volumes persist through `SettingUtility`.
 
-## Architecture (HandlerHost Pattern)
+## Directory Layout
 
-The audio service adopts the same HandlerHost zero-reflection architecture as other framework services:
+```text
+Runtime/Services/Audio/
+├── AudioService.cs / AudioServiceHandler.cs   # Facade + backend contract
+├── AudioAgent.cs / AudioCategory.cs           # Unity agents & tracks
+├── AudioAgentHostPool.cs                      # Host GameObject pool
+├── AudioServiceSettings.cs
+├── Handler/
+│   ├── UnityAudioHandler.cs                   # Default Unity backend
+│   ├── Middleware/
+│   │   ├── IAudioMiddlewareBridge.cs          # Shared FMOD/Wwise bridge
+│   │   └── MiddlewareAudioHandler.cs          # Shared middleware base
+│   ├── Fmod/  FmodBridgeStub|Native
+│   ├── FmodAudioHandler.cs
+│   ├── Wwise/ WwiseBridgeStub|Native
+│   └── WwiseAudioHandler.cs
+├── Mix/ AudioMixStateMachine.cs               # Mix snapshot state machine
+├── Spatial/ AudioOcclusionHrtf.cs             # Occlusion + HRTF
+├── Models/  AudioPlayRequest / ColdParams / Options / AssetData / GroupConfig
+└── Support/ BackgroundMusic / SettingsWidget
+```
 
-- **`AudioService`**: Static facade (`[HandlerHost(typeof(AudioServiceHandler))]` + `[ServiceDependency(typeof(DebuggerService), typeof(ResourceService))]`); all public members are static methods that forward through the `Handler` property (fail-fast: lazily initialized when not ready, throws if the default factory is missing, never silently degrades)
-- **`AudioServiceHandler`**: Serializable abstract base class (inherits `FrameworkHandler`, strategy-pattern abstraction) defining the backend contract invoked by the facade
-- **`UnityAudioHandler`**: Default implementation of `AudioServiceHandler` (based on Unity `AudioSource`/`AudioMixer`, located under `Handler/`), carrying the core logic of agent pool management, playback state machines, and fade transitions
-- **`AudioServiceSettings`**: Framework settings, selecting the audio backend implementation via `[ProviderDropdown]` and configuring `AudioMixer` with `AudioGroupConfig[]`
-- The service is automatically pulled up by the dependency chain; you can also register manually with `GameServices.RegisterService(EServiceScopeKind.App, new AudioService())`
+## Architecture (HandlerHost + Strategy)
+
+- **`AudioService`**: Static facade; depends on `DebuggerService`, `ResourceService`
+- **`AudioServiceHandler`**: Backend contract (`StopByID`, 16-byte `Play`, virtual `OnAgentPlaybackEnded`)
+- **`UnityAudioHandler`**: Default Unity `AudioSource`/`AudioMixer` backend
+- **`MiddlewareAudioHandler`**: Shared FMOD/Wwise base (handles, fades, buses, layering)
+- **`FmodAudioHandler` / `WwiseAudioHandler`**: Thin wrappers; only implement `CreateDefaultBridge()`
+- **`AudioServiceSettings`**: Backend selection, mixer/track config, optional host prefab path
+
+### Swappable backends & scripting defines
+
+| Define | Backend | Without define |
+|--------|---------|----------------|
+| (default) | `UnityAudioHandler` | — |
+| `FMOD_INSTALLED` | `FmodBridgeNative` → `FmodAudioHandler` | `FmodBridgeStub` (contract/stress-test ready) |
+| `WWISE_INSTALLED` | `WwiseBridgeNative` → `WwiseAudioHandler` | `WwiseBridgeStub` |
+
+Select `FmodAudioHandler` / `WwiseAudioHandler` in `AudioServiceSettings`. Bridge contract: `IAudioMiddlewareBridge`.
 
 ## Core Features
 
-- Five built-in tracks `EAudioTrack`: `Sfx` (sound effects), `UI`, `Music`, `Voice`, `Ambience`, each with independent volume/mute/pause, names must match AudioMixer groups
-- Agent pool playback: Each track pre-builds `AudioAgent` instances based on `MaxChannel`. When the limit is exceeded, it can either expand via `CanExpand` configuration or fade out and reuse the agent that has been playing the longest
-- Handle + User ID dual management: `Play` returns a service-maintained handle; specify a user ID via `AudioPlayOptions.ID` during playback for batch control by ID
-- Full transition capabilities: Single audio fade in/out (`FadeAudio`), track transition (`FadeTrack`), master track transition (`FadeMasterTrack`), zero GC for manual transitions
-- Solo: `SoloSingleTrack` / `SoloAllTracks` mutes the same track or all audio during playback, `AutoUnSoloOnEnd` supports auto-removal when playback ends
-- 3D spatial audio: Position, follow Transform, Doppler, attenuation curve, and other `AudioSource` parameters can all be configured in `AudioPlayOptions`
-- Persistent audio: The `Persistent` option allows audio to continue playing after scene switching; other audio automatically fades out and stops when loading a new scene
-- Batch operations by ID: `ForEachHandleByID(id, handler)` / `ForEachAgentByID(id, action)` iterate audio with a given user ID; `PlayFade` / `StopFade` directly transition volume for a given ID
-- Unified settings entry: `SetSettings` / `LoadSettings` / `RemoveSetting` write/load/remove master and all track settings at once
+- Five tracks: Sfx / UI / Music / Voice / Ambience
+- Agent pool + priority voice stealing + `HARD_CHANNEL_CAP` (32)
+- Auto handle release on stop/end via `OnAgentPlaybackEnded`
+- Layered BGM: different IDs coexist; `StopByID(id)` replaces only that layer
+- 16-byte hot request `AudioPlayRequest` + pooled cold params `AudioPlayColdParams`
+- Mix snapshot state machine with priority + crossfade
+- `AudioOcclusionHrtf`: ray occlusion → lowpass; optional HRTF spatial blend
+- Host pool: Internal stack pool reuses `AudioSource` hosts
 
 ## Core Types
 
-Namespace: `Moirai.Atropos.Audio`
+Namespace: `Moirai.Atropos.Audio` (middleware under `.Fmod` / `.Wwise` / `.Middleware`)
 
-| Class/Interface | Description |
-|----------------|-------------|
-| `AudioService` | Static facade (`[HandlerHost]`): all static APIs including `Play` / `Pause` / `Stop` / `FadeXxx` |
-| `AudioServiceHandler` | Audio backend handler abstract base class (inherits `FrameworkHandler`), defines the full backend contract invoked by the facade |
-| `UnityAudioHandler` | Default audio backend (based on Unity `AudioSource`/`AudioMixer`): core logic for agent pool, state machine, and transitions |
-| `EAudioTrack` | Track enum: `Sfx`, `UI`, `Music`, `Voice`, `Ambience` |
-| `AudioCategory` | Track category, holds a list of `AudioAgent`, provides `GetAvailableAgent`, `PauseAll`, `StopAll`, etc. |
-| `AudioAgent` | Audio agent, wraps `AudioSource`, responsible for loading, playback, fade in/out and state machine (`EAudioAgentRuntimeState`) |
-| `EAudioAgentRuntimeState` | Agent runtime state: `None`, `Loading`, `FadingIn`, `Playing`, `FadingOut`, `End`, `Pausing` |
-| `AudioGroupConfig` | Track group configuration: `AudioTrack`, `AudioMixerGroup`, default volume, `MaxChannel`, `CanExpand` and settings read/write |
-| `AudioPlayOptions` | Playback option struct, provides `Default`, `Create`, `CreateLooping`, `CreateWithFade` factories |
-| `AudioPlayOptionsSO` | Playback option asset (ScriptableObject), supports random/sequential clip selection, random volume/pitch, concurrency limit |
-| `AudioServiceSettings` | Framework settings (`FrameworkSetting`): `[ProviderDropdown]` selects the backend; configures `AudioMixer` and `AudioGroupConfig[]` |
-| `AudioAssetData` | Audio asset handle wrapper (`MemoryObject`), releases `AssetHandle` on demand during recycling |
-| `BackgroundMusic` | Component: automatically plays background music when the object is instantiated (old BGM with the same ID is automatically switched) |
-| `AudioSettingsWidget` | Component: binds Slider/Toggle to master volume and individual track settings |
+| Type | Description |
+|------|-------------|
+| `AudioService` | Static facade; includes `RequestMixSnapshot`, `StopByID`, 16B `Play` |
+| `AudioServiceHandler` | Backend contract |
+| `UnityAudioHandler` | Default Unity backend |
+| `MiddlewareAudioHandler` | Shared middleware base |
+| `FmodAudioHandler` / `WwiseAudioHandler` | FMOD / Wwise thin wrappers |
+| `AudioPlayRequest` | 16-byte hot request |
+| `AudioPlayColdParams` | Cold params (location, curves, bypass); pooled |
+| `AudioPlayOptions` | Compatibility facade; `ToRequest()` / `FromOptions()` |
+| `AudioMixStateMachine` / `EMixSnapshot` | Mix snapshot state machine |
+| `AudioOcclusionHrtf` | Occlusion + HRTF component |
+| `AudioAgentHostPool` | Internal host stack pool (warmed up from settings in OnInit) |
+| `BackgroundMusic` | Layered BGM (same ID replaces, other IDs persist) |
 
 ## Quick Start
 
 ```csharp
-// 1. Play using AudioClip (Create factory presets common defaults)
-AudioPlayOptions options = AudioPlayOptions.Create(EAudioTrack.Sfx);
-ulong handle = AudioService.Play(clip, options);
+// Option factory (compatible)
+var options = AudioPlayOptions.Create(EAudioTrack.Sfx);
+ulong h = AudioService.Play(clip, options);
 
-// 2. Looping BGM: load from the resource system by path, async + cached handle
-AudioPlayOptions bgmOptions = AudioPlayOptions.CreateLooping(EAudioTrack.Music);
-ulong bgm = AudioService.Play("Assets/AssetRaw/Default/Audio/bgm_main.mp3", bgmOptions, bAsync: true, bInPool: true);
+// 16-byte hot request (preferred)
+var req = new AudioPlayRequest(id: 1, volume: 1f, pitch: 1f, EAudioTrack.Sfx, 128,
+    AudioPlayFlags.DoNotAutoRecycle);
+ulong h2 = AudioService.Play(clip, req, cold: null);
 
-// 3. Fade-in playback
-ulong fadeIn = AudioService.Play(clip, AudioPlayOptions.CreateWithFade(EAudioTrack.Music, 2f));
+// Layered BGM: same ID replaces, different IDs coexist
+AudioService.StopByID(10001, 0.5f);
+AudioService.Play(bgm, musicOptions); // ID = 10001
 
-// 4. Control via handle
-AudioService.Pause(handle);
-AudioService.Unpause(handle);
-AudioService.Stop(handle, fadeoutDuration: 0.5f);
-bool playing = AudioService.IsPlaying(handle);
-AudioAgent agent = AudioService.GetAgentByHandle(handle); // Access internal AudioSource, etc.
-
-// 5. Track volume and mute (writes to AudioMixer exposed parameters and persists)
-AudioService.SetTrackVolume(EAudioTrack.Music, 0.8f);
-AudioService.SetTrackMute(EAudioTrack.Sfx, true);
-
-// 6. Volume transition
-AudioService.FadeAudio(bgm, 2f, 1f, 0.3f, default);           // Single audio 1 -> 0.3
-AudioService.FadeTrack(EAudioTrack.Music, 2f, 1f, 0.5f);       // Entire track
-AudioService.FadeMasterTrack(1.5f, 1f, 0.8f);                  // Master track
+// Mix snapshots
+AudioService.RequestMixSnapshot(EMixSnapshot.Dialogue, 0.3f);
+AudioService.ResetMixSnapshot(0.5f);
 ```
 
-## Advanced Usage
+### Middleware backends
 
-### Control and Batch Operations by ID
+Add `FMOD_INSTALLED` or `WWISE_INSTALLED` in Scripting Define Symbols, import the plugin, and switch the Handler in `AudioServiceSettings`. Event paths: FMOD `event:/Name`; Wwise event name; buses `bus:/Music`, etc.
 
-Specify a user ID via the long-parameter overload (`AudioPlayOptions.ID` setter is internal, so use the long overload), then iterate all instances with the same ID for batch operations without saving handles yourself:
+### Mix snapshots
 
-```csharp
-// Play (returns ulong handle), specifying a user ID
-ulong voice = AudioService.Play(clip, EAudioTrack.Voice, Vector3.zero, loop: true, id: 33);
+Priorities: Default 0; Muffled/LowHealth 2; Paused/Dialogue 3; Cinematic 4. Lower cannot interrupt higher unless `force: true`. Unity uses `AudioMixerSnapshot.TransitionTo`; middleware uses `SetMiddlewareTransitionHandler`.
 
-// Iterate handles / agents with a given ID
-AudioService.ForEachHandleByID(33, handle => AudioService.Pause(handle));   // Pause all audio with ID 33
-AudioService.ForEachHandleByID(33, handle => AudioService.Stop(handle));    // Stop
-AudioService.ForEachAgentByID(33, agent => { /* Access internal agent state */ });
-AudioService.PlayFade(33, 2f, 0.3f);          // Transition to 0.3 volume over 2 seconds
-AudioService.StopFade(33);                     // Stop volume transition for ID 33
+### Occlusion / HRTF
 
-// Track-level control
-AudioService.PauseTrack(EAudioTrack.UI);
-AudioService.SetTrackVolume(EAudioTrack.Music, 0.5f);
-AudioService.MasterMute = true;                // Mute master track
+Add `AudioOcclusionHrtf` next to the listener: raycasts active sources, drives `AudioLowPassFilter`, optionally pushes `spatialBlend` for HRTF.
 
-// Global control
-AudioService.StopAll();
-AudioService.StopAllButPersistent();           // Stop all audio except Persistent
+### Host stack warmup
 
-// Settings persistence (write / load / remove, call SettingUtility.Save to persist)
-AudioService.SetSettings();
-AudioService.LoadSettings();
-AudioService.RemoveSetting();
-```
-
-### Long-Parameter Overload and Querying
-
-`Play` provides long overloads with all parameters exposed (both clip and path versions), convenient for one-shot configuration of 3D audio:
-
-```csharp
-ulong h = AudioService.Play(clip, EAudioTrack.Sfx, position,
-    volume: 0.9f, spatialBlend: 1f, rolloffMode: AudioRolloffMode.Linear,
-    minDistance: 2f, maxDistance: 60f, attachToTransform: enemy.transform);
-
-// Querying
-AudioService.ForEachAgentByID(33, agent => { /* Iterate agents that played ID 33 */ });
-AudioService.ForEachHandleByID(33, handle => { /* Iterate handles with ID 33 */ });
-int count = AudioService.CurrentlyPlayingCount(clip);
-```
-
-### Playback Option Asset
-
-Create a `Moirai Framework/Audio/Play Options SO` asset to configure random audio arrays (random/sequential/non-repeating mode), random volume/pitch ranges, per-clip concurrency limits, etc. At runtime, call its `Play(Vector3 location)` method:
-
-```csharp
-[SerializeField] private AudioPlayOptionsSO shootSfx;
-void OnShoot() => shootSfx.Play(muzzle.position);
-```
-
-### Audio Resource Pool
-
-Frequently loaded clips can be preloaded into a handle pool and reused by passing `bInPool: true` during playback:
-
-```csharp
-AudioService.PutInAudioPool(new List<string> { "Assets/.../hit.mp3" });
-AudioService.RemoveClipFromPool(new List<string> { "Assets/.../hit.mp3" });
-AudioService.CleanAudioPool();
-```
-
-## Configuration Notes
-
-- `AudioServiceSettings` (menu: Audio Settings) configures `AudioMixer` and `AudioGroupConfig` for each track; if not configured, the code falls back to reading groups under `Master/` from `Resources/AudioMixer` and matches `EAudioTrack` by group name
-- AudioMixer groups must expose a volume parameter named `{GroupName}Volume` (e.g., `MusicVolume`), and the service writes to this parameter using logarithmic conversion for track volume
-- `AudioGroupConfig.MixerValuesMultiplier` (default 20) is the conversion coefficient from normalized volume to decibels
-- It can also be passed explicitly during initialization: `AudioService.Initialize(instanceRoot, audioMixer, audioGroupConfigs)`
+Configure `WarmupAudioHostPool` and `AudioHostWarmupCount` in `AudioServiceSettings`; `AudioService.OnInit` warms the pool under `InstanceRoot` after the handler is ready. Without warmup, hosts are created on demand and reused from the stack.
 
 ## Notes
 
-- `Play` returns `0UL` to indicate playback failure (no available agent, track not configured, or audio disabled in the editor)
-- When `DoNotAutoRecycleIfNotDonePlaying` is `false` (default for `new AudioPlayOptions`), exceeding the maximum sound count will fade out and interrupt the longest-playing audio; `Default` and `Create` factory series default to `true`
-- `ForEachAgentByID` / `ForEachHandleByID` are callback-based iteration (zero allocation); the callback runs synchronously during iteration, so do not modify the enumeration structure within it
-- When loading a new scene, the service automatically calls `StopAllButPersistent`; audio that needs to persist across scenes must set `Persistent = true`
-- In the editor, the service mounts `AudioDebugger` on the root node for Inspector debugging; when audio is disabled in the editor (`unityAudioDisabled`), all interfaces silently fail
-- Master volume takes effect via `AudioListener.volume`, while track volume takes effect via AudioMixer parameters; the two mechanisms differ
+- `Play` returns `0UL` on failure  
+- Middleware backends return null for `GetAgentByHandle` / `ForEachAgentByID` — use handle APIs  
+- Manual fades and snapshot transitions advance via service `Tick`  
+- Scene load auto `StopAllButPersistent`; set `Persistent = true` for cross-scene audio  
+- Handles are auto-released; do not rely on long-lived manual `ReleaseHandle`  
+- Cold APIs (`PlayFade` / `StopByID`) may allocate lambdas; hot path uses 16B `AudioPlayRequest`  
 
 ---
-[« Back to Main README](../../README_EN.md)
+[« Back to main README](../../README.md)

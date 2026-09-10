@@ -24,6 +24,20 @@ namespace Moirai.Atropos.Audio
         /// <summary>音轨配置</summary>
         public static AudioGroupConfig[] AudioGroupConfigs => Instance.m_AudioGroupConfigs;
 
+        // AudioAgentHostPool Bootstrap
+        [Header("池预热引导 [Pool Bootstrap]")]
+        
+        [Tooltip("是否在服务 OnInit 时预热 AudioAgent 宿主栈池")]
+        [SerializeField] private bool m_WarmupAudioHostPool = true;
+        /// <summary>是否预热宿主栈池。</summary>
+        public static bool WarmupAudioHostPool => Instance.m_WarmupAudioHostPool;
+
+        [Tooltip("AudioAgent 宿主栈池预热数量")]
+        [ShowIf(nameof(m_WarmupAudioHostPool))]
+        [SerializeField] private int m_AudioHostWarmupCount = 8;
+        /// <summary>宿主栈池预热数量。</summary>
+        public static int AudioHostWarmupCount => Instance.m_AudioHostWarmupCount;
+
 #if UNITY_EDITOR
 
         private void Reset()

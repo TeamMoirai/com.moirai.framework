@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using Moirai.Atropos.Debugger;
 using Moirai.Atropos.Resource;
@@ -41,6 +41,12 @@ namespace Moirai.Atropos.Audio
         {
             _ = Handler;
 
+            // 预热 AudioSource 宿主栈池（配置在 AudioServiceSettings）
+            if (AudioServiceSettings.WarmupAudioHostPool && Handler?.InstanceRoot != null)
+            {
+                AudioAgentHostPool.Warmup(Handler.InstanceRoot, AudioServiceSettings.AudioHostWarmupCount);
+            }
+
             // 加载音频设置，必须等一帧设置才能生效
             Scheduler.WaitFrame(1, LoadSettings);
 
@@ -52,6 +58,8 @@ namespace Moirai.Atropos.Audio
         /// </summary>
         public override void OnShutdown()
         {
+            AudioMixService.Shutdown();
+
             var handler = s_Handler;
             s_Handler = null;
             handler?.Internal_Shutdown();
@@ -209,6 +217,23 @@ namespace Moirai.Atropos.Audio
         #region 服务方法 [SERVICE METHOD]
 
         /// <summary>
+        /// 请求混音快照切换（优先级保护，低优先级不可打断高优先级）。
+        /// </summary>
+        public static bool RequestMixSnapshot(EMixSnapshot snapshot, float blendSeconds = -1f, bool force = false) =>
+            AudioMixService.Request(snapshot, blendSeconds, force);
+
+        /// <summary>
+        /// 回到默认混音快照。
+        /// </summary>
+        public static void ResetMixSnapshot(float blendSeconds = -1f) =>
+            AudioMixService.ResetToDefault(blendSeconds);
+
+        /// <summary>
+        /// 当前混音快照状态。
+        /// </summary>
+        public static EMixSnapshot CurrentMixSnapshot => AudioMixService.Current;
+
+        /// <summary>
         /// 重启音频服务。
         /// </summary>
         public static void Restart() => s_Handler?.Restart();
@@ -222,6 +247,12 @@ namespace Moirai.Atropos.Audio
         /// </summary>
         public static ulong Play(AudioClip clip, AudioPlayOptions options) =>
             s_Handler?.Play(clip, options) ?? 0UL;
+
+        /// <summary>
+        /// 16 字节热请求 + 冷参数播放（推荐热路径 API）。cold 可为 null。
+        /// </summary>
+        public static ulong Play(AudioClip clip, in AudioPlayRequest request, AudioPlayColdParams cold = null) =>
+            s_Handler?.Play(clip, request, cold) ?? 0UL;
 
         /// <summary>
         /// 播放音频。
@@ -361,29 +392,16 @@ namespace Moirai.Atropos.Audio
         public static void ReleaseHandle(ulong handle) => s_Handler?.ReleaseHandle(handle);
 
         /// <summary>
-        /// 对指定 ID 的音频进行音量过渡。
+        /// 对指定 ID 的音频进行音量过渡（零 lambda 分配）。
         /// </summary>
         public static void PlayFade(int id, float duration, float finalVolume, TweenEase ease = default) =>
-            s_Handler?.ForEachHandleByID(id, handle =>
-            {
-                var agent = s_Handler?.GetAgentByHandle(handle);
-                if (agent == null) return;
-
-                agent.CancelFadeIn();
-                s_Handler?.FadeAudio(handle, duration, agent.AudioResource.volume, finalVolume, ease);
-            });
+            s_Handler?.PlayFadeByID(id, duration, finalVolume, ease);
 
         /// <summary>
-        /// 停止指定 ID 音频的音量过渡。
+        /// 停止指定 ID 音频的音量过渡（零 lambda 分配）。
         /// </summary>
         public static void StopFade(int id) =>
-            s_Handler?.ForEachHandleByID(id, handle =>
-            {
-                var agent = s_Handler?.GetAgentByHandle(handle);
-                if (agent == null) return;
-
-                s_Handler?.StopFadeAudio(handle);
-            });
+            s_Handler?.StopFadeByID(id);
 
         #endregion 获取 [FIND]
 
@@ -437,6 +455,11 @@ namespace Moirai.Atropos.Audio
         /// 停止所有循环音频。
         /// </summary>
         public static void StopAllLooping(float fadeoutDuration = AudioAgent.FADEOUT_DEFAULT_DURATION) => s_Handler?.StopAllLooping(fadeoutDuration);
+
+        /// <summary>
+        /// 停止匹配用户 ID 的全部音频（零 lambda）。用于分层 BGM 同 ID 替换，不影响其它 ID。
+        /// </summary>
+        public static void StopByID(int id, float fadeoutDuration = 0f) => s_Handler?.StopByID(id, fadeoutDuration);
 
         #endregion 所有音频控制 [ALL AUDIO CONTROLS]
 
