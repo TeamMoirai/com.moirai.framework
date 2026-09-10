@@ -2,9 +2,9 @@ using System;
 using System.Diagnostics;
 using Moirai.Atropos;
 using NUnit.Framework;
-using UnityEngine;
+using Mp = Moirai.Atropos.MemoryPool;
 
-namespace GameTool
+namespace Service.MemoryPool
 {
     public class MemoryPoolBenchmark
     {
@@ -88,7 +88,7 @@ namespace GameTool
             {
                 if (ReenterOnClear)
                 {
-                    MemoryPool.Acquire<ReentryMemory>();
+                    Mp.Acquire<ReentryMemory>();
                 }
             }
         }
@@ -142,24 +142,24 @@ namespace GameTool
         [SetUp]
         public void SetUp()
         {
-            MemoryPool.ClearAll();
+            Mp.ClearAll();
         }
 
         [TearDown]
         public void TearDown()
         {
-            MemoryPool.ClearAll();
+            Mp.ClearAll();
         }
 
         private MemoryPoolInfo GetInfo(Type targetType)
         {
-            int count = MemoryPool.Count;
+            int count = Mp.Count;
             if (_infoBuffer.Length < count)
             {
                 _infoBuffer = new MemoryPoolInfo[count];
             }
 
-            int actual = MemoryPool.GetAllMemoryPoolInfos(_infoBuffer);
+            int actual = Mp.GetAllMemoryPoolInfos(_infoBuffer);
             for (int i = 0; i < actual; i++)
             {
                 if (_infoBuffer[i].Type == targetType)
@@ -173,7 +173,7 @@ namespace GameTool
 
         private void WarmPool<T>(int count) where T : MemoryObject, new()
         {
-            MemoryPool.Add<T>(count);
+            Mp.Add<T>(count);
             int startFrame = 10000;
             int maxFrames = Math.Max(1, count + 16);
             for (int i = 0; i < maxFrames && MemoryPool<T>.UnusedCount < count; i++)
@@ -243,16 +243,16 @@ namespace GameTool
         public void TrimNativeRespectsLease_DoesNotFreeWhileLeased()
         {
             MemoryPool<BenchMemory>.ClearAll();
-            BenchMemory leased = MemoryPool.Acquire<BenchMemory>();
+            BenchMemory leased = Mp.Acquire<BenchMemory>();
 
-            MemoryPool.TrimNativeMetadata<BenchMemory>();
+            Mp.TrimNativeMetadata<BenchMemory>();
 
             MemoryPoolInfo info = GetInfo(typeof(BenchMemory));
             Assert.AreEqual(1, info.UsingCount, "Trim native released a leased object");
             Assert.Greater(info.PageCapacity, 0, "Trim native freed pages while a lease was live");
 
-            MemoryPool.Release(leased);
-            MemoryPool.TrimNativeMetadata<BenchMemory>();
+            Mp.Release(leased);
+            Mp.TrimNativeMetadata<BenchMemory>();
 
             info = GetInfo(typeof(BenchMemory));
             Assert.AreEqual(0, info.UsingCount, "Trim native after release left objects in use");
@@ -264,12 +264,12 @@ namespace GameTool
         public void PendingNativeClearOnLastRelease_ClearsAfterLastRelease()
         {
             MemoryPool<BenchMemory>.ClearAll();
-            BenchMemory leased = MemoryPool.Acquire<BenchMemory>();
+            BenchMemory leased = Mp.Acquire<BenchMemory>();
             MemoryPool<BenchMemory>.ClearAll();
             MemoryPoolInfo afterClear = GetInfo(typeof(BenchMemory));
             Assert.AreEqual(1, afterClear.UsingCount, "Clear all with lease should keep the leased object");
 
-            MemoryPool.Release(leased);
+            Mp.Release(leased);
 
             MemoryPoolInfo info = GetInfo(typeof(BenchMemory));
             Assert.AreEqual(0, info.UsingCount, "Pending native clear left object in use");
@@ -281,18 +281,18 @@ namespace GameTool
         [Test]
         public void AutoTrimNativeAfterIdle_ReleasesAfterIdleThreshold()
         {
-            int prevShort = MemoryPool.ShortDecayStartFrames;
-            int prevLong = MemoryPool.LongDecayStartFrames;
-            int prevZero = MemoryPool.ZeroFreeReserveStartFrames;
-            int prevUnschedule = MemoryPool.UnscheduleIdleFrames;
-            int prevAutoTrim = MemoryPool.AutoTrimNativeMetadataFrames;
+            int prevShort = Mp.ShortDecayStartFrames;
+            int prevLong = Mp.LongDecayStartFrames;
+            int prevZero = Mp.ZeroFreeReserveStartFrames;
+            int prevUnschedule = Mp.UnscheduleIdleFrames;
+            int prevAutoTrim = Mp.AutoTrimNativeMetadataFrames;
             try
             {
-                MemoryPool.ShortDecayStartFrames = 4;
-                MemoryPool.LongDecayStartFrames = 8;
-                MemoryPool.ZeroFreeReserveStartFrames = 8;
-                MemoryPool.UnscheduleIdleFrames = 16;
-                MemoryPool.AutoTrimNativeMetadataFrames = 24;
+                Mp.ShortDecayStartFrames = 4;
+                Mp.LongDecayStartFrames = 8;
+                Mp.ZeroFreeReserveStartFrames = 8;
+                Mp.UnscheduleIdleFrames = 16;
+                Mp.AutoTrimNativeMetadataFrames = 24;
                 MemoryPool<BenchMemory>.ClearAll();
                 MemoryPool<BenchMemory>.SetCapacity(16, 32);
                 WarmPool<BenchMemory>(8);
@@ -314,11 +314,11 @@ namespace GameTool
             }
             finally
             {
-                MemoryPool.ShortDecayStartFrames = prevShort;
-                MemoryPool.LongDecayStartFrames = prevLong;
-                MemoryPool.ZeroFreeReserveStartFrames = prevZero;
-                MemoryPool.UnscheduleIdleFrames = prevUnschedule;
-                MemoryPool.AutoTrimNativeMetadataFrames = prevAutoTrim;
+                Mp.ShortDecayStartFrames = prevShort;
+                Mp.LongDecayStartFrames = prevLong;
+                Mp.ZeroFreeReserveStartFrames = prevZero;
+                Mp.UnscheduleIdleFrames = prevUnschedule;
+                Mp.AutoTrimNativeMetadataFrames = prevAutoTrim;
                 MemoryPool<BenchMemory>.ClearAll();
             }
         }
@@ -332,16 +332,16 @@ namespace GameTool
         {
             ThrowingClearMemory.ThrowOnClear = true;
             MemoryPool<ThrowingClearMemory>.ClearAll();
-            ThrowingClearMemory item = MemoryPool.Acquire<ThrowingClearMemory>();
+            ThrowingClearMemory item = Mp.Acquire<ThrowingClearMemory>();
 
-            Assert.Throws<InvalidOperationException>(() => MemoryPool.Release(item),
+            Assert.Throws<InvalidOperationException>(() => Mp.Release(item),
                 "Clear exception was swallowed");
 
             MemoryPoolInfo info = GetInfo(typeof(ThrowingClearMemory));
             Assert.AreEqual(1, info.UsingCount, "Clear exception did not keep object leased");
 
             ThrowingClearMemory.ThrowOnClear = false;
-            MemoryPool.Release(item);
+            Mp.Release(item);
             MemoryPool<ThrowingClearMemory>.ClearAll();
         }
 
@@ -355,15 +355,15 @@ namespace GameTool
             ThrowingEvictMemory[] items = new ThrowingEvictMemory[hardCapacity + 1];
             for (int i = 0; i < items.Length; i++)
             {
-                items[i] = MemoryPool.Acquire<ThrowingEvictMemory>();
+                items[i] = Mp.Acquire<ThrowingEvictMemory>();
             }
 
             for (int i = 0; i < hardCapacity; i++)
             {
-                MemoryPool.Release(items[i]);
+                Mp.Release(items[i]);
             }
 
-            Assert.Throws<InvalidOperationException>(() => MemoryPool.Release(items[hardCapacity]),
+            Assert.Throws<InvalidOperationException>(() => Mp.Release(items[hardCapacity]),
                 "Evict exception was swallowed");
 
             MemoryPoolInfo info = GetInfo(typeof(ThrowingEvictMemory));
@@ -379,13 +379,13 @@ namespace GameTool
         {
             ReentryMemory.ReenterOnClear = true;
             MemoryPool<ReentryMemory>.ClearAll();
-            ReentryMemory item = MemoryPool.Acquire<ReentryMemory>();
+            ReentryMemory item = Mp.Acquire<ReentryMemory>();
 
-            Assert.Throws<InvalidOperationException>(() => MemoryPool.Release(item),
+            Assert.Throws<InvalidOperationException>(() => Mp.Release(item),
                 "Callback reentry was accepted");
 
             ReentryMemory.ReenterOnClear = false;
-            MemoryPool.Release(item);
+            Mp.Release(item);
             MemoryPool<ReentryMemory>.ClearAll();
         }
 
@@ -405,12 +405,12 @@ namespace GameTool
             EvictableMemory[] items = new EvictableMemory[itemCount];
             for (int i = 0; i < itemCount; i++)
             {
-                items[i] = MemoryPool.Acquire<EvictableMemory>();
+                items[i] = Mp.Acquire<EvictableMemory>();
             }
 
             for (int i = 0; i < itemCount; i++)
             {
-                MemoryPool.Release(items[i]);
+                Mp.Release(items[i]);
             }
 
             MemoryPoolInfo info = GetInfo(typeof(EvictableMemory));
@@ -445,10 +445,10 @@ namespace GameTool
             TombstoneMemory.ClearCount = 0;
             TombstoneMemory.EvictCount = 0;
             MemoryPool<TombstoneMemory>.ClearAll();
-            TombstoneMemory item = MemoryPool.Acquire<TombstoneMemory>();
+            TombstoneMemory item = Mp.Acquire<TombstoneMemory>();
             MemoryPool<TombstoneMemory>.ClearAll();
 
-            MemoryPool.Release(item);
+            Mp.Release(item);
 
             Assert.AreEqual(1, TombstoneMemory.ClearCount, "Tombstone leased release did not call Clear once");
             Assert.AreEqual(1, TombstoneMemory.EvictCount, "Tombstone leased release did not call OnEvict once");
@@ -467,7 +467,7 @@ namespace GameTool
         {
             MemoryPool<CrossPoolMemoryA>.ClearAll();
             MemoryPool<CrossPoolMemoryB>.ClearAll();
-            CrossPoolMemoryA item = MemoryPool.Acquire<CrossPoolMemoryA>();
+            CrossPoolMemoryA item = Mp.Acquire<CrossPoolMemoryA>();
 
             try
             {
@@ -504,12 +504,12 @@ namespace GameTool
             {
                 for (int i = 0; i < count; i++)
                 {
-                    _buffer[i] = MemoryPool.Acquire<BenchMemory>();
+                    _buffer[i] = Mp.Acquire<BenchMemory>();
                 }
 
                 for (int i = 0; i < count; i++)
                 {
-                    MemoryPool.Release(_buffer[i]);
+                    Mp.Release(_buffer[i]);
                     _buffer[i] = null;
                 }
 
@@ -520,7 +520,7 @@ namespace GameTool
 
                 for (int i = 0; i < count; i++)
                 {
-                    _buffer[i] = MemoryPool.Acquire<BenchMemory>();
+                    _buffer[i] = Mp.Acquire<BenchMemory>();
                 }
 
                 MemoryPoolInfo after = GetInfo(typeof(BenchMemory));
@@ -532,7 +532,7 @@ namespace GameTool
                 {
                     if (_buffer[i] != null)
                     {
-                        MemoryPool.Release(_buffer[i]);
+                        Mp.Release(_buffer[i]);
                         _buffer[i] = null;
                     }
                 }
@@ -557,12 +557,12 @@ namespace GameTool
                 int waveSize = (wave & 1) == 0 ? count : count >> 2;
                 for (int i = 0; i < waveSize; i++)
                 {
-                    _buffer[i] = MemoryPool.Acquire<BenchMemory>();
+                    _buffer[i] = Mp.Acquire<BenchMemory>();
                 }
 
                 for (int i = 0; i < waveSize; i++)
                 {
-                    MemoryPool.Release(_buffer[i]);
+                    Mp.Release(_buffer[i]);
                     _buffer[i] = null;
                 }
 
@@ -599,16 +599,16 @@ namespace GameTool
 
             for (int i = 0; i < count; i++)
             {
-                bufA[i] = MemoryPool.Acquire<MultiTypeA>();
-                bufB[i] = MemoryPool.Acquire<MultiTypeB>();
-                bufC[i] = MemoryPool.Acquire<MultiTypeC>();
+                bufA[i] = Mp.Acquire<MultiTypeA>();
+                bufB[i] = Mp.Acquire<MultiTypeB>();
+                bufC[i] = Mp.Acquire<MultiTypeC>();
             }
 
             for (int i = 0; i < count; i++)
             {
-                MemoryPool.Release(bufA[i]);
-                MemoryPool.Release(bufB[i]);
-                MemoryPool.Release(bufC[i]);
+                Mp.Release(bufA[i]);
+                Mp.Release(bufB[i]);
+                Mp.Release(bufC[i]);
             }
 
             for (int frame = 0; frame < 16; frame++)
@@ -633,7 +633,7 @@ namespace GameTool
         {
             MemoryPool<BenchMemory>.ClearAll();
             WarmPool<BenchMemory>(16);
-            MemoryPoolHandle handle = MemoryPool.GetHandle(typeof(BenchMemory));
+            MemoryPoolHandle handle = Mp.GetHandle(typeof(BenchMemory));
             Assert.IsTrue(handle.IsValid, "Cached handle is invalid");
 
             for (int i = 0; i < 1000; i++)
@@ -653,14 +653,14 @@ namespace GameTool
         [Test]
         public void InfoBufferNoAlloc_ReturnsCorrectCount()
         {
-            BenchMemory item = MemoryPool.Acquire<BenchMemory>();
+            BenchMemory item = Mp.Acquire<BenchMemory>();
             try
             {
-                int count = MemoryPool.Count;
+                int count = Mp.Count;
                 Assert.GreaterOrEqual(count, 1);
 
                 MemoryPoolInfo[] buffer = new MemoryPoolInfo[count];
-                int actual = MemoryPool.GetAllMemoryPoolInfos(buffer);
+                int actual = Mp.GetAllMemoryPoolInfos(buffer);
                 Assert.AreEqual(count, actual, "Info count mismatch");
 
                 // 注册表为开放寻址哈希，条目顺序不保证——按类型查找而非依赖 buffer[0]。
@@ -678,7 +678,7 @@ namespace GameTool
             }
             finally
             {
-                MemoryPool.Release(item);
+                Mp.Release(item);
                 MemoryPool<BenchMemory>.ClearAll();
             }
         }
@@ -686,13 +686,13 @@ namespace GameTool
         [Test]
         public void InfoBufferUndersized_ThrowsArgumentException()
         {
-            Assert.Throws<ArgumentException>(() => MemoryPool.GetAllMemoryPoolInfos(Array.Empty<MemoryPoolInfo>()));
+            Assert.Throws<ArgumentException>(() => Mp.GetAllMemoryPoolInfos(Array.Empty<MemoryPoolInfo>()));
         }
 
         [Test]
         public void InfoBufferNull_ThrowsArgumentNullException()
         {
-            Assert.Throws<ArgumentNullException>(() => MemoryPool.GetAllMemoryPoolInfos(null));
+            Assert.Throws<ArgumentNullException>(() => Mp.GetAllMemoryPoolInfos(null));
         }
 
         #endregion
@@ -702,17 +702,17 @@ namespace GameTool
         [Test]
         public void NullReleaseNoop_DoesNotThrow()
         {
-            Assert.DoesNotThrow(() => MemoryPool.Release((MemoryObject)null));
+            Assert.DoesNotThrow(() => Mp.Release((MemoryObject)null));
         }
 
         [Test]
         public void ReleaseMemoryObjectOwnerPath_ValidObjectReleased()
         {
             MemoryPool<BenchMemory>.ClearAll();
-            BenchMemory item = MemoryPool.Acquire<BenchMemory>();
+            BenchMemory item = Mp.Acquire<BenchMemory>();
             item.Value = 23;
 
-            MemoryPool.Release((MemoryObject)item);
+            Mp.Release((MemoryObject)item);
 
             Assert.AreEqual(0, item.Value, "MemoryObject release did not clear owned object");
             MemoryPoolInfo info = GetInfo(typeof(BenchMemory));
@@ -728,8 +728,8 @@ namespace GameTool
         public void DynamicTypeAcquireRelease_MaterializesPool()
         {
             MemoryPool<DynamicMemory>.ClearAll();
-            MemoryObject memory = MemoryPool.Acquire(typeof(DynamicMemory));
-            MemoryPool.Release(memory);
+            MemoryObject memory = Mp.Acquire(typeof(DynamicMemory));
+            Mp.Release(memory);
 
             MemoryPoolInfo info = GetInfo(typeof(DynamicMemory));
             Assert.Greater(info.AcquireCount, 0, "Dynamic type acquire did not materialize pool");
@@ -740,10 +740,10 @@ namespace GameTool
         [Test]
         public void DynamicTypeAcquire_InvalidType_Throws()
         {
-            Assert.Throws<ArgumentNullException>(() => MemoryPool.Acquire(null));
-            Assert.Throws<InvalidOperationException>(() => MemoryPool.Acquire(typeof(string)));
-            Assert.Throws<InvalidOperationException>(() => MemoryPool.Acquire(typeof(AbstractMemory)));
-            Assert.Throws<InvalidOperationException>(() => MemoryPool.Acquire(typeof(PrivateCtorMemory)));
+            Assert.Throws<ArgumentNullException>(() => Mp.Acquire(null));
+            Assert.Throws<InvalidOperationException>(() => Mp.Acquire(typeof(string)));
+            Assert.Throws<InvalidOperationException>(() => Mp.Acquire(typeof(AbstractMemory)));
+            Assert.Throws<InvalidOperationException>(() => Mp.Acquire(typeof(PrivateCtorMemory)));
         }
 
         #endregion
@@ -753,21 +753,21 @@ namespace GameTool
         [Test]
         public void IdleShrinkWhileLeased_DoesNotDropLeasedObject()
         {
-            int prevShort = MemoryPool.ShortDecayStartFrames;
-            int prevLong = MemoryPool.LongDecayStartFrames;
-            int prevZero = MemoryPool.ZeroFreeReserveStartFrames;
-            int prevUnschedule = MemoryPool.UnscheduleIdleFrames;
+            int prevShort = Mp.ShortDecayStartFrames;
+            int prevLong = Mp.LongDecayStartFrames;
+            int prevZero = Mp.ZeroFreeReserveStartFrames;
+            int prevUnschedule = Mp.UnscheduleIdleFrames;
             try
             {
-                MemoryPool.ShortDecayStartFrames = 8;
-                MemoryPool.LongDecayStartFrames = 16;
-                MemoryPool.ZeroFreeReserveStartFrames = 16;
-                MemoryPool.UnscheduleIdleFrames = 128;
+                Mp.ShortDecayStartFrames = 8;
+                Mp.LongDecayStartFrames = 16;
+                Mp.ZeroFreeReserveStartFrames = 16;
+                Mp.UnscheduleIdleFrames = 128;
                 MemoryPool<BenchMemory>.ClearAll();
                 MemoryPool<BenchMemory>.SetCapacity(32, 64);
                 WarmPool<BenchMemory>(16);
 
-                BenchMemory leased = MemoryPool.Acquire<BenchMemory>();
+                BenchMemory leased = Mp.Acquire<BenchMemory>();
                 int unusedAfterLease = MemoryPool<BenchMemory>.UnusedCount;
 
                 for (int frame = 0; frame < 80; frame++)
@@ -778,14 +778,14 @@ namespace GameTool
                 MemoryPoolInfo info = GetInfo(typeof(BenchMemory));
                 Assert.AreEqual(1, info.UsingCount, "Idle shrink while leased dropped the leased object");
                 Assert.Less(info.UnusedCount, unusedAfterLease, "Idle shrink while leased did not reduce unused objects");
-                MemoryPool.Release(leased);
+                Mp.Release(leased);
             }
             finally
             {
-                MemoryPool.ShortDecayStartFrames = prevShort;
-                MemoryPool.LongDecayStartFrames = prevLong;
-                MemoryPool.ZeroFreeReserveStartFrames = prevZero;
-                MemoryPool.UnscheduleIdleFrames = prevUnschedule;
+                Mp.ShortDecayStartFrames = prevShort;
+                Mp.LongDecayStartFrames = prevLong;
+                Mp.ZeroFreeReserveStartFrames = prevZero;
+                Mp.UnscheduleIdleFrames = prevUnschedule;
                 MemoryPool<BenchMemory>.ClearAll();
             }
         }
@@ -843,8 +843,8 @@ namespace GameTool
 
             for (int i = 0; i < HotLoopCount; i++)
             {
-                BenchMemory item = MemoryPool.Acquire<BenchMemory>();
-                MemoryPool.Release(item);
+                BenchMemory item = Mp.Acquire<BenchMemory>();
+                Mp.Release(item);
             }
 
             sw.Stop();
@@ -863,7 +863,7 @@ namespace GameTool
         {
             MemoryPool<BenchMemory>.ClearAll();
             WarmPool<BenchMemory>(256);
-            MemoryPoolHandle handle = MemoryPool.GetHandle(typeof(BenchMemory));
+            MemoryPoolHandle handle = Mp.GetHandle(typeof(BenchMemory));
             Assert.IsTrue(handle.IsValid, "Cached handle is invalid");
 
             long allocBefore = GC.GetAllocatedBytesForCurrentThread();
@@ -889,19 +889,19 @@ namespace GameTool
         [Test]
         public void InfoBufferNoAlloc_ZeroGcAlloc()
         {
-            BenchMemory item = MemoryPool.Acquire<BenchMemory>();
-            int count = MemoryPool.Count;
+            BenchMemory item = Mp.Acquire<BenchMemory>();
+            int count = Mp.Count;
             MemoryPoolInfo[] buffer = new MemoryPoolInfo[count];
 
             long allocBefore = GC.GetAllocatedBytesForCurrentThread();
 
-            int actual = MemoryPool.GetAllMemoryPoolInfos(buffer);
+            int actual = Mp.GetAllMemoryPoolInfos(buffer);
 
             long allocDelta = GC.GetAllocatedBytesForCurrentThread() - allocBefore;
 
             Assert.AreEqual(count, actual);
             Assert.AreEqual(0, allocDelta, "GetAllMemoryPoolInfos allocated {0} bytes", allocDelta);
-            MemoryPool.Release(item);
+            Mp.Release(item);
             MemoryPool<BenchMemory>.ClearAll();
         }
 
@@ -1028,16 +1028,16 @@ namespace GameTool
 
             for (int i = 0; i < count; i++)
             {
-                bufA[i] = MemoryPool.Acquire<MultiTypeA>();
-                bufB[i] = MemoryPool.Acquire<MultiTypeB>();
-                bufC[i] = MemoryPool.Acquire<MultiTypeC>();
+                bufA[i] = Mp.Acquire<MultiTypeA>();
+                bufB[i] = Mp.Acquire<MultiTypeB>();
+                bufC[i] = Mp.Acquire<MultiTypeC>();
             }
 
             for (int i = 0; i < count; i++)
             {
-                MemoryPool.Release(bufA[i]);
-                MemoryPool.Release(bufB[i]);
-                MemoryPool.Release(bufC[i]);
+                Mp.Release(bufA[i]);
+                Mp.Release(bufB[i]);
+                Mp.Release(bufC[i]);
             }
 
             for (int frame = 0; frame < AdaptiveFrameCount; frame++)

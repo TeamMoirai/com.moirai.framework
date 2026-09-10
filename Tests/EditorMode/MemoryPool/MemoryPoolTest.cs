@@ -2,9 +2,9 @@ using System;
 using System.Collections.Generic;
 using Moirai.Atropos;
 using NUnit.Framework;
-using UnityEngine;
+using Mp = Moirai.Atropos.MemoryPool;
 
-namespace GameTool
+namespace Service.MemoryPool
 {
     public class MemoryPoolTest
     {
@@ -40,13 +40,13 @@ namespace GameTool
 
         private MemoryPoolInfo[] GetInfos()
         {
-            int count = MemoryPool.Count;
+            int count = Mp.Count;
             if (_infoBuffer.Length < count)
             {
                 _infoBuffer = new MemoryPoolInfo[count];
             }
 
-            int actual = MemoryPool.GetAllMemoryPoolInfos(_infoBuffer);
+            int actual = Mp.GetAllMemoryPoolInfos(_infoBuffer);
             MemoryPoolInfo[] result = new MemoryPoolInfo[actual];
             Array.Copy(_infoBuffer, result, actual);
             return result;
@@ -83,34 +83,34 @@ namespace GameTool
         [SetUp]
         public void SetUp()
         {
-            MemoryPool.ClearAll();
-            MemoryPool.ResetAllStats();
+            Mp.ClearAll();
+            Mp.ResetAllStats();
         }
 
         [TearDown]
         public void TearDown()
         {
-            MemoryPool.ClearAll();
+            Mp.ClearAll();
         }
 
         [Test]
         public void Acquire_ReturnsNewInstance()
         {
-            var obj = MemoryPool.Acquire<TestMemory>();
+            var obj = Mp.Acquire<TestMemory>();
 
             Assert.IsNotNull(obj);
             Assert.IsInstanceOf<TestMemory>(obj);
 
-            MemoryPool.Release(obj);
+            Mp.Release(obj);
         }
 
         [Test]
         public void Release_CallsClearOnObject()
         {
-            var obj = MemoryPool.Acquire<TestMemory>();
+            var obj = Mp.Acquire<TestMemory>();
             obj.Value = 42;
 
-            MemoryPool.Release(obj);
+            Mp.Release(obj);
 
             Assert.IsTrue(obj.WasCleared);
             Assert.AreEqual(0, obj.Value);
@@ -119,8 +119,8 @@ namespace GameTool
         [Test]
         public void Acquire_AfterRelease_ReusesObject()
         {
-            var first = MemoryPool.Acquire<TestMemory>();
-            MemoryPool.Release(first);
+            var first = Mp.Acquire<TestMemory>();
+            Mp.Release(first);
 
             MemoryPoolRegistry.TickAll(UnityEngine.Time.frameCount);
 
@@ -132,7 +132,7 @@ namespace GameTool
             {
                 for (int i = 0; i < unused; i++)
                 {
-                    acquired.Add(MemoryPool.Acquire<TestMemory>());
+                    acquired.Add(Mp.Acquire<TestMemory>());
                 }
 
                 Assert.Contains(first, acquired);
@@ -141,7 +141,7 @@ namespace GameTool
             {
                 for (int i = 0; i < acquired.Count; i++)
                 {
-                    MemoryPool.Release(acquired[i]);
+                    Mp.Release(acquired[i]);
                 }
             }
         }
@@ -149,7 +149,7 @@ namespace GameTool
         [Test]
         public void Release_Null_Noop()
         {
-            Assert.DoesNotThrow(() => MemoryPool.Release((MemoryObject)null));
+            Assert.DoesNotThrow(() => Mp.Release((MemoryObject)null));
         }
 
         [Test]
@@ -159,42 +159,42 @@ namespace GameTool
             // 同域重复运行时类型已注册（增量为 0），用 registeredBefore 归一。
             bool aRegistered = IsRegistered(typeof(CountMemoryA));
             bool bRegistered = IsRegistered(typeof(CountMemoryB));
-            int baseline = MemoryPool.Count;
+            int baseline = Mp.Count;
 
-            var first = MemoryPool.Acquire<CountMemoryA>();
+            var first = Mp.Acquire<CountMemoryA>();
             try
             {
-                Assert.AreEqual(baseline + (aRegistered ? 0 : 1), MemoryPool.Count);
+                Assert.AreEqual(baseline + (aRegistered ? 0 : 1), Mp.Count);
 
-                var second = MemoryPool.Acquire<CountMemoryB>();
+                var second = Mp.Acquire<CountMemoryB>();
                 try
                 {
-                    Assert.AreEqual(baseline + (aRegistered ? 0 : 1) + (bRegistered ? 0 : 1), MemoryPool.Count);
+                    Assert.AreEqual(baseline + (aRegistered ? 0 : 1) + (bRegistered ? 0 : 1), Mp.Count);
                 }
                 finally
                 {
-                    MemoryPool.Release(second);
+                    Mp.Release(second);
                 }
             }
             finally
             {
-                MemoryPool.Release(first);
+                Mp.Release(first);
             }
         }
 
         [Test]
         public void ClearAll_RemovesAllCollections()
         {
-            var a = MemoryPool.Acquire<TestMemory>();
-            var b = MemoryPool.Acquire<OtherMemory>();
-            MemoryPool.Release(a);
-            MemoryPool.Release(b);
+            var a = Mp.Acquire<TestMemory>();
+            var b = Mp.Acquire<OtherMemory>();
+            Mp.Release(a);
+            Mp.Release(b);
 
-            int countBefore = MemoryPool.Count;
-            MemoryPool.ClearAll();
+            int countBefore = Mp.Count;
+            Mp.ClearAll();
 
             // ClearAll 清空所有池内容；类型注册表是域级缓存，条目保留。
-            Assert.AreEqual(countBefore, MemoryPool.Count);
+            Assert.AreEqual(countBefore, Mp.Count);
             Assert.AreEqual(0, GetInfo(typeof(TestMemory)).UnusedCount);
             Assert.AreEqual(0, GetInfo(typeof(TestMemory)).UsingCount);
             Assert.AreEqual(0, GetInfo(typeof(OtherMemory)).UnusedCount);
@@ -204,7 +204,7 @@ namespace GameTool
         [Test]
         public void Add_PreAllocatesObjects()
         {
-            MemoryPool.Add<TestMemory>(3);
+            Mp.Add<TestMemory>(3);
             MemoryPoolRegistry.TickAll(UnityEngine.Time.frameCount);
 
             MemoryPoolInfo info = GetInfo(typeof(TestMemory));
@@ -214,11 +214,11 @@ namespace GameTool
         [Test]
         public void Remove_RemovesPreAllocatedObjects()
         {
-            MemoryPool.Add<TestMemory>(5);
+            Mp.Add<TestMemory>(5);
             MemoryPoolRegistry.TickAll(UnityEngine.Time.frameCount);
             int unusedBefore = GetInfo(typeof(TestMemory)).UnusedCount;
 
-            MemoryPool.Remove<TestMemory>(3);
+            Mp.Remove<TestMemory>(3);
 
             // Remove 即时收缩空闲量；活跃池随后会按水位目标回补，移除非永久语义（RemoveAll 才持久）。
             Assert.AreEqual(Math.Max(0, unusedBefore - 3), GetInfo(typeof(TestMemory)).UnusedCount);
@@ -227,10 +227,10 @@ namespace GameTool
         [Test]
         public void Remove_MoreThanAvailable_ClampsToAvailable()
         {
-            MemoryPool.Add<TestMemory>(2);
+            Mp.Add<TestMemory>(2);
             MemoryPoolRegistry.TickAll(UnityEngine.Time.frameCount);
 
-            MemoryPool.Remove<TestMemory>(10);
+            Mp.Remove<TestMemory>(10);
 
             Assert.AreEqual(0, GetInfo(typeof(TestMemory)).UnusedCount);
         }
@@ -238,10 +238,10 @@ namespace GameTool
         [Test]
         public void RemoveAll_ClearsAllFromType()
         {
-            MemoryPool.Add<TestMemory>(5);
+            Mp.Add<TestMemory>(5);
             MemoryPoolRegistry.TickAll(UnityEngine.Time.frameCount);
 
-            MemoryPool.RemoveAll<TestMemory>();
+            Mp.RemoveAll<TestMemory>();
 
             // RemoveAll 走 ClearAll 并反注册 Tick 调度，清空对后续 Tick 持久。
             Assert.AreEqual(0, GetInfo(typeof(TestMemory)).UnusedCount);
@@ -250,11 +250,11 @@ namespace GameTool
         [Test]
         public void GetAllMemoryPoolInfos_ReturnsCorrectStats()
         {
-            var a = MemoryPool.Acquire<TestMemory>();
-            var b = MemoryPool.Acquire<TestMemory>();
+            var a = Mp.Acquire<TestMemory>();
+            var b = Mp.Acquire<TestMemory>();
             try
             {
-                MemoryPool.Release(a);
+                Mp.Release(a);
                 MemoryPoolRegistry.TickAll(UnityEngine.Time.frameCount);
 
                 MemoryPoolInfo info = GetInfo(typeof(TestMemory));
@@ -266,46 +266,46 @@ namespace GameTool
             }
             finally
             {
-                MemoryPool.Release(b);
+                Mp.Release(b);
             }
         }
 
         [Test]
         public void Acquire_ByType_ReturnsCorrectInstance()
         {
-            MemoryObject obj = MemoryPool.Acquire(typeof(TestMemory));
+            MemoryObject obj = Mp.Acquire(typeof(TestMemory));
 
             Assert.IsNotNull(obj);
             Assert.IsInstanceOf<TestMemory>(obj);
 
-            MemoryPool.Release(obj);
+            Mp.Release(obj);
         }
 
         [Test]
         public void DoubleRelease_ThrowsException()
         {
-            var obj = MemoryPool.Acquire<TestMemory>();
-            MemoryPool.Release(obj);
+            var obj = Mp.Acquire<TestMemory>();
+            Mp.Release(obj);
 
-            Assert.Throws<InvalidOperationException>(() => MemoryPool.Release(obj));
+            Assert.Throws<InvalidOperationException>(() => Mp.Release(obj));
         }
 
         [Test]
         public void Acquire_InvalidType_ThrowsException()
         {
-            Assert.Throws<InvalidOperationException>(() => MemoryPool.Acquire(typeof(string)));
+            Assert.Throws<InvalidOperationException>(() => Mp.Acquire(typeof(string)));
         }
 
         [Test]
         public void Acquire_AbstractType_ThrowsException()
         {
-            Assert.Throws<InvalidOperationException>(() => MemoryPool.Acquire(typeof(IDisposable)));
+            Assert.Throws<InvalidOperationException>(() => Mp.Acquire(typeof(IDisposable)));
         }
 
         [Test]
         public void Acquire_NullType_ThrowsException()
         {
-            Assert.Throws<ArgumentNullException>(() => MemoryPool.Acquire(null));
+            Assert.Throws<ArgumentNullException>(() => Mp.Acquire(null));
         }
     }
 }
