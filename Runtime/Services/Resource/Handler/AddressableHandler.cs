@@ -1,4 +1,4 @@
-﻿#if ADDRESSABLES_INSTALLED
+#if ADDRESSABLES_INSTALLED
 using System;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -7,6 +7,8 @@ using Cysharp.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.AddressableAssets;
 using UnityEngine.ResourceManagement.AsyncOperations;
+using UnityEngine.ResourceManagement.ResourceProviders;
+using UnityEngine.SceneManagement;
 using Object = UnityEngine.Object;
 
 namespace Moirai.Atropos.Resource
@@ -256,6 +258,91 @@ namespace Moirai.Atropos.Resource
         public override UniTask<GameObject> LoadGameObjectAsync(string location, Transform parent = null, CancellationToken cancellationToken = default, string packageName = "")
         {
             throw CreateNotSupported();
+        }
+
+        #endregion
+
+        #region 场景加载 [SCENE LOADING]
+
+        /// <inheritdoc />
+        public override ResourceSceneHandle LoadSceneAsync(string location, LoadSceneMode sceneMode, bool suspendLoad, uint priority, string packageName = "")
+        {
+            var handle = Addressables.LoadSceneAsync(location, sceneMode, !suspendLoad, (int)priority);
+            return new AddressableSceneHandleAdapter(handle);
+        }
+
+        /// <summary>
+        /// Addressables 场景句柄适配器。
+        /// <para>注意 Addressables 挂起语义与引擎原生不同：activateOnLoad=false 时句柄在场景就绪（待激活）即完成，
+        /// 激活需显式调用 <see cref="SceneInstance.ActivateAsync"/>。</para>
+        /// </summary>
+        private sealed class AddressableSceneHandleAdapter : ResourceSceneHandle
+        {
+            private AsyncOperationHandle<SceneInstance> _handle;
+
+            public AddressableSceneHandleAdapter(AsyncOperationHandle<SceneInstance> handle)
+            {
+                _handle = handle;
+            }
+
+            /// <inheritdoc />
+            public override bool IsDone => !_handle.IsValid() || _handle.IsDone;
+
+            /// <inheritdoc />
+            public override float Progress => _handle.IsValid() ? _handle.PercentComplete : 1f;
+
+            /// <inheritdoc />
+            public override string Error => _handle.IsValid() && _handle.Status == AsyncOperationStatus.Failed
+                ? _handle.OperationException?.Message
+                : string.Empty;
+
+            /// <inheritdoc />
+            public override UnityEngine.SceneManagement.Scene SceneObject => _handle.IsValid() && _handle.Status == AsyncOperationStatus.Succeeded
+                ? _handle.Result.Scene
+                : default;
+
+            /// <inheritdoc />
+            public override bool UnSuspend()
+            {
+                if (!_handle.IsValid() || _handle.Status != AsyncOperationStatus.Succeeded)
+                {
+                    return false;
+                }
+
+                _handle.Result.ActivateAsync();
+                return true;
+            }
+
+            /// <inheritdoc />
+            public override bool ActivateScene()
+            {
+                if (!_handle.IsValid() || _handle.Status != AsyncOperationStatus.Succeeded)
+                {
+                    return false;
+                }
+
+                return SceneManager.SetActiveScene(_handle.Result.Scene);
+            }
+
+            /// <inheritdoc />
+            public override IResourceOperation UnloadAsync()
+            {
+                if (!_handle.IsValid())
+                {
+                    return null;
+                }
+
+                return new AddressableOperationAdapter(Addressables.UnloadSceneAsync(_handle));
+            }
+
+            /// <inheritdoc />
+            public override void Release()
+            {
+                if (_handle.IsValid())
+                {
+                    Addressables.Release(_handle);
+                }
+            }
         }
 
         #endregion

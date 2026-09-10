@@ -1,24 +1,26 @@
 # Scene Service
 
-> Main/sub-scene management service based on YooAsset scene handles, providing async loading, suspend activation, progress callbacks, and sub-scene unloading.
+> Main/sub-scene management service built on the resource system (ResourceService) scene loading pipeline, automatically adapting to resource backends such as YooAsset and Addressables, providing async loading, suspend activation, progress callbacks, and sub-scene unloading.
 
-The scene service (`Moirai.Atropos.Scene`) wraps YooAsset's `SceneHandle`, distinguishing between main scenes (`LoadSceneMode.Single`, only one at a time) and sub-scenes (`LoadSceneMode.Additive`, multiple can be stacked). It supports a smooth transition mode where loading can be suspended at 90% progress and then activated uniformly when ready, with optional garbage collection after the main scene finishes loading. Accessible via the `SceneService` static accessor.
+The scene service's (`Moirai.Atropos.Scene`) default backend `DefaultSceneHandler` loads scenes through `ResourceService.LoadSceneAsync`; the resource system automatically applies the adapter matching the configured backend (YooAsset, Addressables, etc.) and produces a unified `ResourceSceneHandle`. It distinguishes between main scenes (`LoadSceneMode.Single`, only one at a time) and sub-scenes (`LoadSceneMode.Additive`, multiple can be stacked). It supports a smooth transition mode where loading can be suspended at 90% progress and then activated uniformly when ready, with optional garbage collection after the main scene finishes loading. Accessible via the `SceneService` static accessor.
 
 ## Core Features
 
 - Dual-track main scene / sub-scene management: Single mode replaces the main scene, Additive mode registers sub-scenes in a dictionary
 - Suspend loading: When `suspendLoad` is enabled, the scene does not auto-activate after loading; call `UnSuspend` to manually activate. Suitable for unified timing control of load completion
-- Progress callback: `progressCallBack` reports `SceneHandle.Progress` (0 to 1) every frame
+- Progress callback: `progressCallBack` reports the scene handle's loading progress (0 to 1) every frame
 - Re-entry protection: Duplicate requests for the same scene during loading/unloading are rejected and logged
 - Garbage collection: After the main scene finishes loading, `ForceUnloadUnusedAssets` is executed according to the `gcCollect` parameter
-- Multi-package support: The callback-based `LoadScene` can specify a `packageName` to load from a specific YooAsset package
+- Multi-package support: The callback-based `LoadScene` can specify a `packageName` to load from a specific resource package
+- Backend adaptation: Scene loading goes through the `ResourceService` pipeline — switching between YooAsset / Addressables backends requires no scene code changes
 
 ## Core Types
 
 | Class/Interface | Description |
 |---------|------|
 | `Moirai.Atropos.Scene.SceneService` | Scene service static facade (`[HandlerHost]`), forwarding through the `Handler` property (fail-fast: lazily initialized when not ready, throws if the default factory is missing, never silently degrades) |
-| `Moirai.Atropos.Scene.SceneServiceHandler` | Handler abstract base class defining the backend contract; the default implementation `DefaultSceneHandler` internally holds `YooAsset.SceneHandle` to manage main/sub scenes |
+| `Moirai.Atropos.Scene.SceneServiceHandler` | Handler abstract base class defining the backend contract; the default implementation `DefaultSceneHandler` loads and manages main/sub scenes via `ResourceService` |
+| `Moirai.Atropos.Resource.ResourceSceneHandle` | Resource system scene handle abstraction, implemented per resource backend (YooAsset / Addressables), carrying load progress, activation, unsuspend, and unload |
 
 ## Quick Start
 
@@ -77,11 +79,11 @@ await SceneService.LoadSceneAsync("ChunkB", LoadSceneMode.Additive);
 
 ### Loading Priority
 
-The `priority` parameter is passed through to YooAsset to adjust the loading priority of a scene when multiple loading requests are concurrent (default is 100).
+The `priority` parameter is passed through to the resource backend to adjust the loading priority of a scene when multiple loading requests are concurrent (default is 100).
 
 ## Notes
 
-- Scene assets must be included in YooAsset collection and built; in the editor, first select a simulation mode via `YooAsset/Editor PlayMode`
+- Scene assets must be collected and built by the resource backend (YooAsset collector / Addressables group); in the editor with the YooAsset backend, first select a simulation mode via `YooAsset/Editor PlayMode`
 - Duplicate loading of a scene address that is already being loaded will be rejected (Log.Error); duplicate loading of an existing sub-scene will throw a `GameException`
 - `Unload` / `UnloadAsync` only apply to Additive sub-scenes; the main scene is replaced by loading a new Single scene — do not call unload on the main scene
 - After the main scene finishes loading, `ForceUnloadUnusedAssets(gcCollect)` is triggered by default; pay attention to any temporary asset references during loading (set `gcCollect` to false to disable)
