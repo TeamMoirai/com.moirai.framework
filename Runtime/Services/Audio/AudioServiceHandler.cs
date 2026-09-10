@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Audio;
@@ -97,6 +97,14 @@ namespace Moirai.Atropos.Audio
         /// </summary>
         public abstract void Restart();
 
+        /// <summary>
+        /// Agent 进入 End 时回调——默认空实现；Unity 后端用于自动释放句柄。
+        /// </summary>
+        /// <param name="agent">结束播放的代理。</param>
+        internal virtual void OnAgentPlaybackEnded(AudioAgent agent)
+        {
+        }
+
         #endregion 服务方法 [SERVICE METHOD]
 
         #region 播放音频 [PLAY AUDIO]
@@ -105,6 +113,11 @@ namespace Moirai.Atropos.Audio
         /// 播放音频，返回服务自维护的音频句柄。
         /// </summary>
         public abstract ulong Play(AudioClip clip, AudioPlayOptions options);
+
+        /// <summary>
+        /// 16 字节热请求 + 冷参数播放（推荐热路径 API）。冷参数所有权转移给服务。
+        /// </summary>
+        public abstract ulong Play(AudioClip clip, in AudioPlayRequest request, AudioPlayColdParams cold);
 
         /// <summary>
         /// 播放音频（传统巨型签名重载——虚拟转发到 <see cref="AudioPlayOptions"/> 版本，新代码请用参数对象）。
@@ -351,6 +364,11 @@ namespace Moirai.Atropos.Audio
         /// </summary>
         public abstract void StopAllLooping(float fadeoutDuration = 0f);
 
+        /// <summary>
+        /// 停止匹配用户 ID 的全部句柄（零 lambda 分配）。用于分层替换，不影响其它 ID。
+        /// </summary>
+        public abstract void StopByID(int id, float fadeoutDuration = 0f);
+
         #endregion 所有音频控制 [ALL AUDIO CONTROLS]
 
         #region 过渡 [FADES]
@@ -378,7 +396,7 @@ namespace Moirai.Atropos.Audio
         /// <summary>
         /// 对指定句柄的音频进行音量过渡。
         /// </summary>
-        /// <remarks>使用手动过渡系统，完全零 GC。</remarks>
+        /// <remarks>使用手动过渡系统，完全零 GC；应用 <paramref name="tweenEase"/> 曲线。</remarks>
         public abstract void FadeAudio(ulong handle, float duration, float initialVolume, float finalVolume, TweenEase tweenEase);
 
         /// <summary>
@@ -390,6 +408,16 @@ namespace Moirai.Atropos.Audio
         /// 检查指定句柄的音频是否正在过渡中
         /// </summary>
         public abstract bool SoundIsFadingOut(ulong handle);
+
+        /// <summary>
+        /// 对匹配用户 ID 的全部句柄执行淡入/音量过渡（零 lambda 分配）。
+        /// </summary>
+        public abstract void PlayFadeByID(int id, float duration, float finalVolume, TweenEase ease);
+
+        /// <summary>
+        /// 停止匹配用户 ID 的全部句柄上的过渡（零 lambda 分配）。
+        /// </summary>
+        public abstract void StopFadeByID(int id);
 
         #endregion 过渡 [FADES]
 

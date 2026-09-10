@@ -7,7 +7,10 @@ using UnityEngine.Serialization;
 namespace Moirai.Atropos.Audio
 {
     /// <summary>
-    /// <see cref="AudioService"/>的播放选项
+    /// <see cref="AudioService"/> 的播放选项（完整配置载体）。
+    /// <para>体量较大，属于冷路径配置对象：播放时由 <see cref="AudioAgent"/> 拆出热路径字段缓存，不整份驻留热循环。</para>
+    /// <para>热路径字段：ID / Track / Volume / Loop / Persistent / Priority / Location / Attach / FadeIn* / Solo*。</para>
+    /// <para>冷路径字段：曲线、旁通、Rolloff、Doppler 等——仅在 <c>BeginPlayback</c> 时写入 AudioSource。</para>
     /// </summary>
     [Serializable]
     public struct AudioPlayOptions
@@ -192,6 +195,24 @@ namespace Moirai.Atropos.Audio
         [ShowIf(nameof(m_UseSpreadCurve))]
         [SerializeField] private AnimationCurve m_SpreadCurve;
         public AnimationCurve SpreadCurve { get => m_SpreadCurve; internal set => m_SpreadCurve = value; }
+
+        /// <summary>
+        /// 提取 16 字节热路径请求。
+        /// </summary>
+        public readonly AudioPlayRequest ToRequest()
+        {
+            AudioPlayFlags flags = AudioPlayFlags.None;
+            if (m_Loop) flags |= AudioPlayFlags.Loop;
+            if (m_Persistent) flags |= AudioPlayFlags.Persistent;
+            if (m_FadeInOnPlay) flags |= AudioPlayFlags.FadeInOnPlay;
+            if (m_SoloSingleTrack) flags |= AudioPlayFlags.SoloSingleTrack;
+            if (m_SoloAllTracks) flags |= AudioPlayFlags.SoloAllTracks;
+            if (m_AutoUnSoloOnEnd) flags |= AudioPlayFlags.AutoUnSoloOnEnd;
+            if (m_DoNotAutoRecycleIfNotDonePlaying) flags |= AudioPlayFlags.DoNotAutoRecycle;
+
+            byte priority = (byte)Mathf.Clamp(m_Priority, 0, 255);
+            return new AudioPlayRequest(m_ID, m_Volume, m_Pitch, m_AudioTrack, priority, flags);
+        }
 
         /// <summary>
         /// 默认选项，旨在适应最常见的情况。

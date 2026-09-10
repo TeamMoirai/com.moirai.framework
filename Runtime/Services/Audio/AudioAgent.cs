@@ -1,103 +1,120 @@
-﻿using Moirai.Atropos.Resource;
+using Moirai.Atropos.Resource;
 using System;
+using System.Threading;
 using Cysharp.Threading.Tasks;
 using Moirai.Atropos.Schedulers;
 using UnityEngine;
 using UnityEngine.Audio;
-using Object = UnityEngine.Object;
 
 namespace Moirai.Atropos.Audio
 {
     /// <summary>
-    /// 音频代理辅助器。
+    /// 音频代理辅助器。持有单个 <see cref="AudioSource"/>，负责播放状态机、淡入淡出与资源租约生命周期。
+    /// <para>热路径状态（音量/循环/跟随/优先级等）在播放时从 <see cref="AudioPlayOptions"/> 拆出缓存，避免整份巨型结构体驻留。</para>
+    /// <para>句柄绑定：同一时刻仅有一个有效 <see cref="CurrentHandle"/>；换播/结束时由 Handler 自动解绑。</para>
     /// </summary>
     public class AudioAgent
     {
         private AudioServiceHandler _audioHandler;
         private ResourceServiceHandler _resourceService;
         private AudioAssetData _audioAssetData;
-        // 当前加载的资源路径（作为句柄池键）。
-        private string _currentPath;
 
-        // 当前声源的位置
+        private string _currentPath;
         private Transform _transform;
-        // 是否缓存已加载资源（适用于多次重复加载的资源）。
         private bool _inPool;
-        // 音频代理加载请求。
-        private LoadRequest _pendingLoad;
-        
-        // 音频淡入开始时间
+
+        // ===== 排队加载 — 字段复用，零分配 =====
+        private string _pendingPath;
+        private bool _pendingAsync;
+        private bool _pendingInPool;
+        private bool _hasPendingLoad;
+
+        // ===== 异步世代 — 防止复用后串 clip =====
+        private int _loadGeneration;
+        private CancellationTokenSource _loadCts;
+
+        // ===== 句柄绑定 =====
+        private ulong _currentHandle;
+
         private float _fadeInAt;
-        // 音频淡出开始时间
         private float _fadeOutStartTime;
-        // 音频淡出默认持续时间
         public const float FADEOUT_DEFAULT_DURATION = 0.2f;
-        // 音频淡出持续时间
         private float _fadeOutDuration;
 
-        // 音频的持续时间
         private float _playDuration;
-        // 自动取消 Solo 的句柄
         private SchedulerHandle _autoUnSoloOnEnd;
-        
-        // 音频播放配置
-        private AudioPlayOptions _audioPlayOptions;
-        // 预设的音频源
+
+        // ===== 热路径播放状态（从 AudioPlayRequest 解出，Update 高频读）=====
+        private AudioPlayRequest _hot;
+        private float _volume = 1f;
+        private float _fadeInInitialVolume;
+        private float _fadeInDuration = 1f;
+        private TweenEase _fadeInTweenEase;
+        private Transform _attachTarget;
+        private bool _loop;
+        private bool _persistent;
+        private int _priority = 128;
+        private AudioMixerGroup _overrideMixerGroup;
+        private Vector3 _location;
+        private bool _fadeInOnPlay;
+
+        // Solo — 仅 Play 时使用
+        private bool _soloSingleTrack;
+        private bool _soloAllTracks;
+        private bool _autoUnSoloOnEndFlag;
+        private EAudioTrack _soloTrack;
+
+        // 冷路径参数（池化实例），clip 到位后应用
+        private AudioPlayColdParams _cold;
+
         private AudioSource _audioSource;
-        // 预设的混音组
+        private AudioSource _recycleSource;
         private AudioMixerGroup _audioMixerGroup;
-        
-        // 音频代理辅助器运行时状态。
+
         private EAudioAgentRuntimeState _audioAgentRuntimeState = EAudioAgentRuntimeState.None;
 
-        /// <summary>
-        /// 音频代理加载请求。
-        /// </summary>
-        class LoadRequest
-        {
-            /// <summary>
-            /// 音频代理辅助器加载路径。
-            /// </summary>
-            public string path;
-            
-            /// <summary>
-            /// 是否异步。
-            /// </summary>
-            public bool bAsync;
-            
-            /// <summary>
-            /// 是否池化。
-            /// </summary>
-            public bool bInPool;
-        }
+        #region 公共属性 [PUBLIC PROPERTIES]
 
-        #region 公共属性 [PUBLIC PROPRETIES]
-        
         /// <summary>
-        /// 音频代理辅助器索引。
+        /// 用户定义 ID（用于事件系统按 ID 查找）。
         /// </summary>
-        public int ID => _audioPlayOptions.ID;
+        public int ID => _hot.Id;
+
+        /// <summary>
+        /// 当前热路径请求（16 字节）。
+        /// </summary>
+        public AudioPlayRequest HotRequest => _hot;
+
+        /// <summary>
+        /// 当前绑定的服务句柄；0 表示未绑定。
+        /// </summary>
+        public ulong CurrentHandle => _currentHandle;
 
         /// <summary>
         /// 资源操作句柄。
         /// </summary>
         public AudioAssetData AudioAssetData => _audioAssetData;
-        
+
         /// <summary>
         /// 音频代理辅助器当前是否空闲。
         /// </summary>
-        public bool IsFree => _audioAgentRuntimeState == EAudioAgentRuntimeState.None || _audioAgentRuntimeState == EAudioAgentRuntimeState.End;
+        public bool IsFree => _audioAgentRuntimeState == EAudioAgentRuntimeState.None ||
+                              _audioAgentRuntimeState == EAudioAgentRuntimeState.End;
 
         /// <summary>
         /// 音频代理辅助器播放秒数。
         /// </summary>
         public float Duration { get; private set; }
-        
+
         /// <summary>
-        /// 音频代理辅助器的当前声源。
+        /// 音频代理辅助器的当前声源（若指定 <see cref="AudioPlayOptions.RecycleAudioSource"/> 则优先使用）。
         /// </summary>
-        /// <returns></returns>
-        public AudioSource AudioResource => _audioPlayOptions.RecycleAudioSource == null ? _audioSource : _audioPlayOptions.RecycleAudioSource;
+        public AudioSource AudioResource => _recycleSource != null ? _recycleSource : _audioSource;
+
+        /// <summary>
+        /// 当前优先级（0 最高，255 最低）。用于 Voice Stealing。
+        /// </summary>
+        public int Priority => _priority;
 
         /// <summary>
         /// 音频代理辅助器当前音频长度。
@@ -106,9 +123,10 @@ namespace Moirai.Atropos.Audio
         {
             get
             {
-                if (AudioResource != null && AudioResource.clip != null)
+                var source = AudioResource;
+                if (source != null && source.clip != null)
                 {
-                    return AudioResource.clip.length;
+                    return source.clip.length;
                 }
 
                 return 0;
@@ -120,122 +138,198 @@ namespace Moirai.Atropos.Audio
         /// </summary>
         public Vector3 Position
         {
-            get => _transform.position;
-            set => _transform.position = value;
+            get => _transform != null ? _transform.position : Vector3.zero;
+            set
+            {
+                if (_transform != null) _transform.position = value;
+            }
         }
-        
+
         /// <summary>
         /// 音频代理辅助器是否正在播放。
         /// </summary>
         internal bool IsPlaying => AudioResource != null && AudioResource.isPlaying;
-        
+
         /// <summary>
         /// 音频代理辅助器是否正在暂停。
         /// </summary>
-        internal bool IsPaused => AudioResource != null && _audioAgentRuntimeState == EAudioAgentRuntimeState.Pausing;
-        
+        internal bool IsPaused => _audioAgentRuntimeState == EAudioAgentRuntimeState.Pausing;
+
         /// <summary>
         /// 音频代理辅助器是否循环。
         /// </summary>
-        internal bool IsLoop => AudioResource != null && AudioResource.loop;
-      
+        internal bool IsLoop => _loop;
+
         /// <summary>
         /// 音频代理辅助器是否持久性。
         /// </summary>
-        internal bool IsPersistent => _audioPlayOptions.Persistent;
+        internal bool IsPersistent => _persistent;
 
         /// <summary>
-        /// 音频代理辅助器的输出混音组
+        /// 音频代理辅助器的输出混音组。
         /// </summary>
-        public AudioMixerGroup OutputAudioMixerGroup => _audioPlayOptions.AudioGroup == null ? _audioMixerGroup : _audioPlayOptions.AudioGroup;
+        public AudioMixerGroup OutputAudioMixerGroup => _overrideMixerGroup == null ? _audioMixerGroup : _overrideMixerGroup;
+
+        /// <summary>
+        /// 当前异步加载世代。
+        /// </summary>
+        internal int LoadGeneration => _loadGeneration;
 
         #endregion
-        
+
+        #region 句柄绑定 [HANDLE BINDING]
+
+        /// <summary>
+        /// 绑定服务句柄（由 Handler 在 Play/Load 时调用）。
+        /// </summary>
+        internal void BindHandle(ulong handle) => _currentHandle = handle;
+
+        /// <summary>
+        /// 解绑服务句柄（由 Handler 在释放句柄时调用）。
+        /// </summary>
+        internal void UnbindHandle() => _currentHandle = 0UL;
+
+        /// <summary>
+        /// 中止进行中的异步加载并递增世代，使迟到的回调失效。
+        /// </summary>
+        private void InvalidateAsyncLoad()
+        {
+            _loadGeneration++;
+
+            if (_loadCts != null)
+            {
+                if (!_loadCts.IsCancellationRequested)
+                {
+                    try
+                    {
+                        _loadCts.Cancel();
+                    }
+                    catch (ObjectDisposedException)
+                    {
+                        // already disposed
+                    }
+                }
+
+                _loadCts.Dispose();
+                _loadCts = null;
+            }
+        }
+
+        /// <summary>
+        /// 进入 End 状态：取消异步、通知 Handler 自动释放句柄。
+        /// </summary>
+        private void EnterEndState()
+        {
+            InvalidateAsyncLoad();
+            _hasPendingLoad = false;
+            _pendingPath = null;
+            _recycleSource = null;
+
+            if (_cold != null)
+            {
+                AudioPlayColdParamsPool.Release(_cold);
+                _cold = null;
+            }
+
+            _audioAgentRuntimeState = EAudioAgentRuntimeState.End;
+            _audioHandler?.OnAgentPlaybackEnded(this);
+        }
+
+        #endregion 句柄绑定 [HANDLE BINDING]
+
         #region 服务方法 [SERVICE METHOD]
 
         /// <summary>
-        /// 初始化音频代理辅助器。
+        /// 初始化音频代理辅助器。宿主 GameObject 从 <see cref="AudioAgentHostPool"/> 获取。
         /// </summary>
         /// <param name="audioCategory">音频轨道（类别）。</param>
         /// <param name="index">音频代理辅助器编号。</param>
         public void Init(AudioCategory audioCategory, int index = 0)
         {
-            _audioHandler = AudioService.Handler;
+            // 必须绑定创建它的 Handler，不能读全局 AudioService.Handler（隔离实例/测试会串）
+            _audioHandler = audioCategory.Handler;
             _resourceService = ResourceService.Handler;
-            GameObject host = new GameObject(StringUtility.Format("{0} - {1}", audioCategory.AudioMixerGroup.name, index));
-            host.transform.SetParent(audioCategory.InstanceRoot);
-            host.transform.localPosition = Vector3.zero;
-            _transform = host.transform;
-            _audioSource = host.AddComponent<AudioSource>();
-            _audioSource.playOnAwake = false;
-            if (audioCategory.AudioMixerGroup == null)
-            {
-                // 如果不指定通用，则使用预配置音频组，命名方式如下：
-                // Master
-                //  - Voice
-                //      - Voice - 0
-                //      - Voice - 1
-                //  - Sfx
-                //      - Sfx - 0
-                AudioMixerGroup[] audioMixerGroups =
-                    audioCategory.AudioMixer.FindMatchingGroups(StringUtility.Format("Master/{0}/{1}", audioCategory.AudioMixerGroup.name,
-                        $"{audioCategory.AudioMixerGroup.name} - {index}"));
-                _audioMixerGroup = audioMixerGroups.Length > 0 ? audioMixerGroups[0] : audioCategory.AudioMixerGroup;
-            }
-            else
+
+            string groupName = audioCategory.AudioMixerGroup != null
+                ? audioCategory.AudioMixerGroup.name
+                : audioCategory.AudioTrack.ToString();
+
+            string hostName = StringUtility.Format("{0} - {1}", groupName, index);
+            _audioSource = AudioAgentHostPool.Acquire(audioCategory.InstanceRoot, hostName);
+            _transform = _audioSource.transform;
+
+            if (audioCategory.AudioMixerGroup != null)
             {
                 _audioMixerGroup = audioCategory.AudioMixerGroup;
             }
+            else if (audioCategory.AudioMixer != null)
+            {
+                string path = StringUtility.Format("Master/{0}/{0} - {1}", groupName, index);
+                AudioMixerGroup[] audioMixerGroups = audioCategory.AudioMixer.FindMatchingGroups(path);
+                _audioMixerGroup = audioMixerGroups.Length > 0 ? audioMixerGroups[0] : null;
+            }
         }
-        
+
         /// <summary>
-        /// 销毁音频代理辅助器。
+        /// 销毁音频代理辅助器。宿主归还 <see cref="AudioAgentHostPool"/> 复用。
         /// </summary>
         public void Destroy()
         {
-            if (_transform != null)
+            InvalidateAsyncLoad();
+
+            if (_audioSource != null)
             {
-                Object.Destroy(_transform.gameObject);
+                AudioAgentHostPool.Release(_audioSource);
+                _audioSource = null;
+                _transform = null;
             }
 
             if (_audioAssetData != null)
             {
                 AudioAssetData.Dealloc(_audioAssetData);
+                _audioAssetData = null;
             }
+
+            _currentHandle = 0UL;
+            _recycleSource = null;
+            _audioAgentRuntimeState = EAudioAgentRuntimeState.None;
         }
-        
+
         /// <summary>
-        /// 轮询音频代理辅助器。
+        /// 轮询音频代理辅助器。空闲代理由 Category 跳过。
         /// </summary>
         /// <param name="elapseSeconds">逻辑流逝时间（以秒为单位）。</param>
         public void Update(float elapseSeconds)
         {
-            if (_audioAgentRuntimeState == EAudioAgentRuntimeState.Playing || _audioAgentRuntimeState == EAudioAgentRuntimeState.FadingIn)
+            if (_audioAgentRuntimeState == EAudioAgentRuntimeState.Playing ||
+                _audioAgentRuntimeState == EAudioAgentRuntimeState.FadingIn)
             {
-                if (!_audioPlayOptions.Loop && Duration >= _playDuration)
+                if (!_loop && Duration >= _playDuration)
                 {
                     Stop(FADEOUT_DEFAULT_DURATION);
                 }
-                else if (_audioAgentRuntimeState == EAudioAgentRuntimeState.FadingIn) // 淡入音频
+                else if (_audioAgentRuntimeState == EAudioAgentRuntimeState.FadingIn)
                 {
-                    float endTime = _fadeInAt + _audioPlayOptions.FadeInDuration;
+                    float endTime = _fadeInAt + _fadeInDuration;
                     if (GameTime.unscaledTime <= endTime)
                     {
-                        AudioResource.volume = EaseUtility.Tween(GameTime.unscaledTime, _fadeInAt, endTime, _audioPlayOptions.FadeInInitialVolume, _audioPlayOptions.Volume, _audioPlayOptions.FadeInTweenEase);
+                        AudioResource.volume = _fadeInTweenEase.Tween(
+                            GameTime.unscaledTime, _fadeInAt, endTime,
+                            _fadeInInitialVolume, _volume);
                     }
                     else
                     {
-                        AudioResource.volume =_audioPlayOptions.Volume;
+                        AudioResource.volume = _volume;
                         _audioAgentRuntimeState = EAudioAgentRuntimeState.Playing;
                     }
                 }
-                
-                // 跟随目标
-                if (_audioPlayOptions.AttachToTransform != null)
+
+                // 跟随目标：赋值世界坐标（勿用 Translate 增量）
+                if (_attachTarget != null && AudioResource != null)
                 {
-                    AudioResource.transform.Translate(_audioPlayOptions.AttachToTransform.position, Space.World);
+                    AudioResource.transform.position = _attachTarget.position;
                 }
-                
+
                 Duration += elapseSeconds;
             }
             else if (_audioAgentRuntimeState == EAudioAgentRuntimeState.FadingOut)
@@ -244,151 +338,265 @@ namespace Moirai.Atropos.Audio
                 if (elapsed >= _fadeOutDuration)
                 {
                     Stop();
-                    if (_pendingLoad != null)
+
+                    if (_hasPendingLoad)
                     {
-                        string path = _pendingLoad.path;
-                        bool bAsync = _pendingLoad.bAsync;
-                        bool bInPool = _pendingLoad.bInPool;
-                        _pendingLoad = null;
-                        Load(path, _audioPlayOptions, bAsync, bInPool);
+                        string path = _pendingPath;
+                        bool bAsync = _pendingAsync;
+                        bool bInPool = _pendingInPool;
+                        _hasPendingLoad = false;
+                        _pendingPath = null;
+                        Load(path, default, bAsync, bInPool, restoreHotState: true);
                     }
                 }
                 else
                 {
-                    AudioResource.volume = _audioPlayOptions.Volume * (1f - elapsed / _fadeOutDuration);
+                    AudioResource.volume = _volume * (1f - elapsed / _fadeOutDuration);
                 }
             }
         }
-        
+
         #endregion 服务方法 [SERVICE METHOD]
 
         #region 音频控制 [AUDIO CONTROLS]
-        
+
         /// <summary>
-        /// 播放音频。
+        /// 公开播放入口（完整 Options 兼容层）。
         /// </summary>
-        /// <remarks>如果超过最大发声数，且 <see cref="AudioPlayOptions.DoNotAutoRecycleIfNotDonePlaying"/> 为<c>false</c>采用fadeout的方式复用最久播放的AudioSource。</remarks>
-        /// <param name="clip">音频剪辑</param>
-        /// <param name="options">音频播放选项设置</param>
-        /// <returns></returns>
         public void Play(AudioClip clip, AudioPlayOptions options)
         {
-            _audioPlayOptions = options;
-            HandleAudioPlay(clip);
+            PlayWithOptions(clip, options);
         }
 
         /// <summary>
-        /// 处理音频播放。
+        /// 应用完整热/冷参数并播放。
         /// </summary>
-        /// <param name="clip"></param>
-        /// <remarks>注意 bug https://github.com/tuyoogame/YooAsset/issues/225#event-11355675066</remarks>
-        private void HandleAudioPlay(AudioClip clip)
+        internal void PlayWithOptions(AudioClip clip, in AudioPlayOptions options)
         {
-            if (clip != null)
+            PlayWithRequest(clip, options.ToRequest(), AudioPlayColdParams.FromOptions(options));
+        }
+
+        /// <summary>
+        /// 16B 热请求 + 冷参数播放（冷参数所有权转移给 Agent，由 Agent 归还池）。
+        /// </summary>
+        internal void PlayWithRequest(AudioClip clip, in AudioPlayRequest request, AudioPlayColdParams cold)
+        {
+            CaptureHotState(request, cold);
+            if (_cold != null && !ReferenceEquals(_cold, cold))
             {
-                // 音频源设置
-                AudioResource.clip = clip;
+                AudioPlayColdParamsPool.Release(_cold);
+            }
 
-                AudioResource.pitch = _audioPlayOptions.Pitch;
-                AudioResource.spatialBlend = _audioPlayOptions.SpatialBlend;
-                AudioResource.panStereo = _audioPlayOptions.PanStereo;
-                AudioResource.loop = _audioPlayOptions.Loop;
-                AudioResource.bypassEffects = _audioPlayOptions.BypassEffects;
-                AudioResource.bypassListenerEffects = _audioPlayOptions.BypassListenerEffects;
-                AudioResource.bypassReverbZones = _audioPlayOptions.BypassReverbZones;
-                AudioResource.priority = _audioPlayOptions.Priority;
-                AudioResource.reverbZoneMix = _audioPlayOptions.ReverbZoneMix;
-                AudioResource.dopplerLevel = _audioPlayOptions.DopplerLevel;
-                AudioResource.spread = _audioPlayOptions.Spread;
-                AudioResource.rolloffMode = _audioPlayOptions.RolloffMode;
-                AudioResource.minDistance = _audioPlayOptions.MinDistance;
-                AudioResource.maxDistance = _audioPlayOptions.MaxDistance;
-                if (AudioResource.clip != null)
-                {
-                    AudioResource.time = _audioPlayOptions.PlaybackTime;
-                }
-                
-                // 曲线
-                if (_audioPlayOptions.UseSpreadCurve) { AudioResource.SetCustomCurve(AudioSourceCurveType.Spread, _audioPlayOptions.SpreadCurve); }
-                if (_audioPlayOptions.UseCustomRolloffCurve) { AudioResource.SetCustomCurve(AudioSourceCurveType.CustomRolloff, _audioPlayOptions.CustomRolloffCurve); }
-                if (_audioPlayOptions.UseSpatialBlendCurve) { AudioResource.SetCustomCurve(AudioSourceCurveType.SpatialBlend, _audioPlayOptions.SpatialBlendCurve); }
-                if (_audioPlayOptions.UseReverbZoneMixCurve) { AudioResource.SetCustomCurve(AudioSourceCurveType.ReverbZoneMix, _audioPlayOptions.ReverbZoneMixCurve); }
-                
-                // 位置
-                AudioResource.transform.position = _audioPlayOptions.Location;
-                
-                // 输出混音组
-                AudioResource.outputAudioMixerGroup = OutputAudioMixerGroup;
-                
-                // 音量
-                _fadeInAt = GameTime.unscaledTime;
-                AudioResource.volume = _audioPlayOptions.FadeInOnPlay ? _audioPlayOptions.FadeInInitialVolume : _audioPlayOptions.Volume;
-                
-                // 取消任务
-                if (_autoUnSoloOnEnd != default) { _autoUnSoloOnEnd.Cancel(); }
-                AudioResource.mute = false;
-                
-                // 开始播放音频
-                if (_audioPlayOptions.InitialDelay > 0f)
-                {
-#if UNITY_6000_0_OR_NEWER
-                    AudioResource.PlayDelayed(_audioPlayOptions.InitialDelay);
-#else
-                    // 相对于 44.1 kHz 参考速率的样本中指定的延迟
-                    AudioResource.Play((ulong)_audioPlayOptions.InitialDelay * 44100);
-#endif
-                }
-                else
-                {
-                    AudioResource.Play();
-                }
+            _cold = cold;
+            BeginPlayback(clip);
+        }
 
-                _audioAgentRuntimeState = _audioPlayOptions.FadeInOnPlay ? EAudioAgentRuntimeState.FadingIn : EAudioAgentRuntimeState.Playing;
-                Duration = 0;
-                // Debug.Log($"{clip.name}: {AudioResource.volume}");
-                
-                // 处理独奏
-                _playDuration = (_audioPlayOptions.PlaybackDuration == 0 && AudioResource.clip != null ? AudioResource.clip.length : _audioPlayOptions.PlaybackDuration) - _audioPlayOptions.PlaybackTime;
-                _autoUnSoloOnEnd = default;
-                if (_audioPlayOptions.SoloSingleTrack)
-                {
-                    MuteAudiosOnTrack(_audioPlayOptions.AudioTrack, true);
-                    AudioResource.mute = false;
-                    if (_audioPlayOptions.AutoUnSoloOnEnd)
-                    {
-                        _autoUnSoloOnEnd = Scheduler.Delay(_playDuration, () => MuteAudiosOnTrack(_audioPlayOptions.AudioTrack, false));
-                    }
-                }
-                else if (_audioPlayOptions.SoloAllTracks)
-                {
-                    MuteAllAudios(true);
-                    AudioResource.mute = false;
-                    if (_audioPlayOptions.AutoUnSoloOnEnd)
-                    {
-                        _autoUnSoloOnEnd = Scheduler.Delay(_playDuration, () => MuteAllAudios(false));
-                    }
-                }
+        /// <summary>
+        /// 从 16B 热请求 + 冷参数解出 Update 所需字段。
+        /// </summary>
+        private void CaptureHotState(in AudioPlayRequest request, AudioPlayColdParams cold)
+        {
+            _hot = request;
+            _volume = request.Volume;
+            _loop = request.Loop;
+            _persistent = request.Persistent;
+            _priority = request.Priority;
+            _fadeInOnPlay = request.FadeInOnPlay;
+            _soloSingleTrack = request.SoloSingleTrack;
+            _soloAllTracks = request.SoloAllTracks;
+            _autoUnSoloOnEndFlag = request.AutoUnSoloOnEnd;
+            _soloTrack = request.Track;
+
+            if (cold != null)
+            {
+                _overrideMixerGroup = cold.AudioGroup;
+                _recycleSource = cold.RecycleAudioSource;
+                _location = cold.Location;
+                _attachTarget = cold.AttachToTransform;
+                _fadeInInitialVolume = cold.FadeInInitialVolume;
+                _fadeInDuration = cold.FadeInDuration;
+                _fadeInTweenEase = cold.FadeInTweenEase;
             }
             else
             {
-                _audioAgentRuntimeState = EAudioAgentRuntimeState.End;
+                _overrideMixerGroup = null;
+                _recycleSource = null;
+                _location = Vector3.zero;
+                _attachTarget = null;
+                _fadeInInitialVolume = 0f;
+                _fadeInDuration = 1f;
+                _fadeInTweenEase = default;
             }
+        }
+
+        /// <summary>
+        /// 开始播放：冷路径源参数 → 热路径赋值 → Play。
+        /// </summary>
+        private void BeginPlayback(AudioClip clip)
+        {
+            if (clip == null)
+            {
+                EnterEndState();
+                return;
+            }
+
+            var source = AudioResource;
+            if (source == null)
+            {
+                EnterEndState();
+                return;
+            }
+
+            if (_currentHandle != 0)
+            {
+                _audioHandler?.StopFadeAudio(_currentHandle);
+            }
+
+            if (_autoUnSoloOnEnd != default)
+            {
+                _autoUnSoloOnEnd.Cancel();
+                _autoUnSoloOnEnd = default;
+            }
+
+            if (_cold != null)
+            {
+                ApplyColdSourceParams(source, _cold);
+            }
+
+            source.pitch = _hot.Pitch;
+            source.priority = _hot.Priority;
+            source.clip = clip;
+            source.loop = _loop;
+            source.transform.position = _location;
+            source.outputAudioMixerGroup = OutputAudioMixerGroup;
+            source.mute = false;
+
+            float initialDelay = _cold != null ? _cold.InitialDelay : 0f;
+            float playbackTime = _cold != null ? _cold.PlaybackTime : 0f;
+            float playbackDuration = _cold != null ? _cold.PlaybackDuration : 0f;
+
+            if (playbackTime > 0f && clip.length > 0f)
+            {
+                source.time = Mathf.Min(playbackTime, clip.length - 0.01f);
+            }
+
+            _playDuration = playbackDuration > 0f
+                ? playbackDuration - playbackTime
+                : clip.length - playbackTime;
+
+            _fadeInAt = GameTime.unscaledTime;
+            source.volume = _fadeInOnPlay ? _fadeInInitialVolume : _volume;
+
+            if (initialDelay > 0f)
+            {
+#if UNITY_6000_0_OR_NEWER
+                source.PlayDelayed(initialDelay);
+#else
+                source.Play((ulong)(initialDelay * 44100));
+#endif
+            }
+            else
+            {
+                source.Play();
+            }
+
+            Duration = 0f;
+            _audioAgentRuntimeState = _fadeInOnPlay ? EAudioAgentRuntimeState.FadingIn : EAudioAgentRuntimeState.Playing;
+
+            // Solo
+            if (_soloSingleTrack)
+            {
+                MuteAudiosOnTrack(_soloTrack, true);
+                source.mute = false;
+                if (_autoUnSoloOnEndFlag)
+                {
+                    EAudioTrack track = _soloTrack;
+                    _autoUnSoloOnEnd = Scheduler.Delay(_playDuration, () => MuteAudiosOnTrack(track, false));
+                }
+            }
+            else if (_soloAllTracks)
+            {
+                MuteAllAudios(true);
+                source.mute = false;
+                if (_autoUnSoloOnEndFlag)
+                {
+                    _autoUnSoloOnEnd = Scheduler.Delay(_playDuration, () => MuteAllAudios(false));
+                }
+            }
+        }
+
+        /// <summary>
+        /// 应用冷路径 AudioSource 参数。
+        /// </summary>
+        private static void ApplyColdSourceParams(AudioSource source, AudioPlayColdParams cold)
+        {
+            source.spatialBlend = cold.SpatialBlend;
+            source.panStereo = cold.PanStereo;
+            source.bypassEffects = cold.BypassEffects;
+            source.bypassListenerEffects = cold.BypassListenerEffects;
+            source.bypassReverbZones = cold.BypassReverbZones;
+            source.reverbZoneMix = cold.ReverbZoneMix;
+            source.dopplerLevel = cold.DopplerLevel;
+            source.spread = cold.Spread;
+            source.rolloffMode = cold.RolloffMode;
+            source.minDistance = cold.MinDistance;
+            source.maxDistance = cold.MaxDistance;
+
+            if (cold.UseSpreadCurve) source.SetCustomCurve(AudioSourceCurveType.Spread, cold.SpreadCurve);
+            if (cold.UseCustomRolloffCurve) source.SetCustomCurve(AudioSourceCurveType.CustomRolloff, cold.CustomRolloffCurve);
+            if (cold.UseSpatialBlendCurve) source.SetCustomCurve(AudioSourceCurveType.SpatialBlend, cold.SpatialBlendCurve);
+            if (cold.UseReverbZoneMixCurve) source.SetCustomCurve(AudioSourceCurveType.ReverbZoneMix, cold.ReverbZoneMixCurve);
         }
 
         /// <summary>
         /// 加载音频代理辅助器。
         /// </summary>
         /// <param name="path">资源路径。</param>
-        /// <param name="options">音频播放选项设置。</param>
+        /// <param name="options">音频播放选项设置（restoreHotState 为 true 时忽略）。</param>
         /// <param name="bAsync">是否异步加载。</param>
-        /// <param name="bInPool">是否缓存已加载资源（适用于多次重复加载的资源）。</param>
-        public void Load(string path, AudioPlayOptions options, bool bAsync, bool bInPool = false)
+        /// <param name="bInPool">是否缓存已加载资源。</param>
+        /// <param name="restoreHotState">排队重载时是否跳过 options 覆盖。</param>
+        public void Load(string path, AudioPlayOptions options, bool bAsync, bool bInPool = false, bool restoreHotState = false)
         {
-            _audioPlayOptions = options;
+            if (!restoreHotState)
+            {
+                LoadWithRequest(path, options.ToRequest(), AudioPlayColdParams.FromOptions(options), bAsync, bInPool);
+                return;
+            }
+
+            LoadInternal(path, bAsync, bInPool);
+        }
+
+        /// <summary>
+        /// 16B 热请求 + 冷参数路径加载。
+        /// </summary>
+        internal void LoadWithRequest(string path, in AudioPlayRequest request, AudioPlayColdParams cold, bool bAsync, bool bInPool)
+        {
+            CaptureHotState(request, cold);
+            if (_cold != null && !ReferenceEquals(_cold, cold))
+            {
+                AudioPlayColdParamsPool.Release(_cold);
+            }
+
+            _cold = cold;
+            LoadInternal(path, bAsync, bInPool);
+        }
+
+        /// <summary>
+        /// 路径加载入口（Handler 调用）。
+        /// </summary>
+        internal void LoadWithOptions(string path, in AudioPlayOptions options, bool bAsync, bool bInPool)
+        {
+            Load(path, options, bAsync, bInPool);
+        }
+
+        private void LoadInternal(string path, bool bAsync, bool bInPool)
+        {
             _inPool = bInPool;
             _currentPath = path;
 
-            if (_audioAgentRuntimeState == EAudioAgentRuntimeState.None || _audioAgentRuntimeState == EAudioAgentRuntimeState.End)
+            if (_audioAgentRuntimeState == EAudioAgentRuntimeState.None ||
+                _audioAgentRuntimeState == EAudioAgentRuntimeState.End)
             {
                 if (!string.IsNullOrEmpty(path))
                 {
@@ -401,7 +609,10 @@ namespace Moirai.Atropos.Audio
                     if (bAsync)
                     {
                         _audioAgentRuntimeState = EAudioAgentRuntimeState.Loading;
-                        LoadLeaseAsyncInternal(path).Forget();
+                        int generation = ++_loadGeneration;
+                        _loadCts?.Dispose();
+                        _loadCts = new CancellationTokenSource();
+                        LoadLeaseAsyncInternal(path, generation, _loadCts.Token).Forget();
                     }
                     else
                     {
@@ -412,44 +623,47 @@ namespace Moirai.Atropos.Audio
             }
             else
             {
-                _pendingLoad = new LoadRequest { path = path, bAsync = bAsync, bInPool = bInPool };
+                _pendingPath = path;
+                _pendingAsync = bAsync;
+                _pendingInPool = bInPool;
+                _hasPendingLoad = true;
 
-                if (_audioAgentRuntimeState == EAudioAgentRuntimeState.Playing || _audioAgentRuntimeState == EAudioAgentRuntimeState.FadingIn)
+                if (_audioAgentRuntimeState == EAudioAgentRuntimeState.Playing ||
+                    _audioAgentRuntimeState == EAudioAgentRuntimeState.FadingIn)
                 {
-                    Stop(fadeoutDuration:FADEOUT_DEFAULT_DURATION);
+                    Stop(fadeoutDuration: FADEOUT_DEFAULT_DURATION);
                 }
             }
         }
-        
+
         /// <summary>
         /// 资源加载完成。
         /// </summary>
-        /// <param name="handleObj">资源操作句柄（后端原生句柄的 object 包装）。</param>
         private void OnAssetLoadComplete(object handleObj)
         {
-            if (handleObj != null)
+            if (handleObj != null && _inPool && !string.IsNullOrEmpty(_currentPath))
             {
-                if (_inPool && !string.IsNullOrEmpty(_currentPath))
-                {
-                    _audioHandler.AssetHandlePool.TryAdd(_currentPath, handleObj);
-                }
+                _audioHandler.AssetHandlePool.TryAdd(_currentPath, handleObj);
             }
 
-            if (_pendingLoad != null)
+            if (_hasPendingLoad)
             {
-                if (!_inPool && handleObj != null && ReleaseLeaseObject(handleObj))
+                if (!_inPool && handleObj != null)
                 {
-                    // 租约已释放
+                    ReleaseLeaseObject(handleObj);
                 }
 
                 _audioAgentRuntimeState = EAudioAgentRuntimeState.End;
-                string path = _pendingLoad.path;
-                bool bAsync = _pendingLoad.bAsync;
-                bool bInPool = _pendingLoad.bInPool;
-                _pendingLoad = null;
-                Load(path, _audioPlayOptions, bAsync, bInPool);
+                string path = _pendingPath;
+                bool bAsync = _pendingAsync;
+                bool bInPool = _pendingInPool;
+                _hasPendingLoad = false;
+                _pendingPath = null;
+                Load(path, default, bAsync, bInPool, restoreHotState: true);
+                return;
             }
-            else if (handleObj != null)
+
+            if (handleObj != null)
             {
                 if (_audioAssetData != null)
                 {
@@ -461,27 +675,54 @@ namespace Moirai.Atropos.Audio
 
                 if (TryGetLeaseClip(handleObj, out var clip))
                 {
-                    HandleAudioPlay(clip);
+                    BeginPlayback(clip);
+                }
+                else
+                {
+                    EnterEndState();
                 }
             }
             else
             {
-                _audioAgentRuntimeState = EAudioAgentRuntimeState.End;
+                EnterEndState();
             }
         }
 
         /// <summary>
-        /// 异步加载音频租约并触发加载完成回调。
+        /// 异步加载音频租约（世代校验 + CancellationToken）。
         /// </summary>
-        private async UniTaskVoid LoadLeaseAsyncInternal(string path)
+        private async UniTaskVoid LoadLeaseAsyncInternal(string path, int generation, CancellationToken cancellationToken)
         {
-            var lease = await _resourceService.LoadLeaseAsync<AudioClip>(path);
+            object lease = null;
+            try
+            {
+                var result = await _resourceService.LoadLeaseAsync<AudioClip>(path, cancellationToken);
+                lease = result;
+            }
+            catch (OperationCanceledException)
+            {
+                return;
+            }
+            catch (Exception e)
+            {
+                if (generation == _loadGeneration)
+                {
+                    LogUtility.Error("[AudioAgent] Async load failed: {0}", e.Message);
+                    EnterEndState();
+                }
+
+                return;
+            }
+
+            if (generation != _loadGeneration || cancellationToken.IsCancellationRequested)
+            {
+                ReleaseLeaseObject(lease);
+                return;
+            }
+
             OnAssetLoadComplete(lease);
         }
 
-        /// <summary>
-        /// 从句柄包装对象中提取 AudioClip（兼容 ResourceAssetLease 与后端原生句柄）。
-        /// </summary>
         private static bool TryGetLeaseClip(object handleObj, out AudioClip clip)
         {
             switch (handleObj)
@@ -498,9 +739,6 @@ namespace Moirai.Atropos.Audio
             }
         }
 
-        /// <summary>
-        /// 释放句柄包装对象持有的租约/原生句柄。
-        /// </summary>
         private static bool ReleaseLeaseObject(object handleObj)
         {
             if (handleObj is IDisposable disposable)
@@ -526,21 +764,29 @@ namespace Moirai.Atropos.Audio
             }
             else
             {
-                AudioResource.Stop();
-                _audioAgentRuntimeState = EAudioAgentRuntimeState.End;
-                
-                // 取消 autoUnSoloOnEnd 的任务 
-                if (_autoUnSoloOnEnd != default) { _autoUnSoloOnEnd.Cancel(); }
+                var source = AudioResource;
+                if (source != null)
+                {
+                    source.Stop();
+                }
+
+                if (_autoUnSoloOnEnd != default)
+                {
+                    _autoUnSoloOnEnd.Cancel();
+                    _autoUnSoloOnEnd = default;
+                }
+
+                EnterEndState();
             }
         }
-        
+
         /// <summary>
         /// 暂停音频代理辅助器。
         /// </summary>
         public void Pause()
         {
             if (!IsPlaying) return;
-            
+
             _audioAgentRuntimeState = EAudioAgentRuntimeState.Pausing;
             AudioResource.Pause();
         }
@@ -551,13 +797,13 @@ namespace Moirai.Atropos.Audio
         public void Unpause()
         {
             if (_audioAgentRuntimeState != EAudioAgentRuntimeState.Pausing) return;
-            
+
             _audioAgentRuntimeState = EAudioAgentRuntimeState.Playing;
             AudioResource.UnPause();
         }
-        
+
         /// <summary>
-        /// 取消淡入
+        /// 取消淡入。
         /// </summary>
         public void CancelFadeIn()
         {
@@ -565,40 +811,51 @@ namespace Moirai.Atropos.Audio
 
             _audioAgentRuntimeState = EAudioAgentRuntimeState.Playing;
         }
-        
+
         #endregion 音频控制 [AUDIO CONTROLS]
-        
+
         #region 独奏 [SOLO]
 
-        /// <summary>
-        /// 将当前音轨上的所有声音静音（非主动设置）
-        /// </summary>
-        /// <param name="track"></param>
-        /// <param name="mute"></param>
         private void MuteAudiosOnTrack(EAudioTrack track, bool mute)
         {
-            foreach (var category in _audioHandler.AudioCategories)
-            {
-                if (category.AudioTrack != track) continue;
+            var categories = _audioHandler.AudioCategories;
+            if (categories == null) return;
 
-                foreach (var agent in category.AudioAgents)
+            for (int i = 0; i < categories.Length; i++)
+            {
+                var category = categories[i];
+                if (category == null || category.AudioTrack != track) continue;
+
+                var agents = category.AudioAgents;
+                for (int j = 0; j < agents.Count; j++)
                 {
-                    agent.AudioResource.mute = mute;
+                    var agent = agents[j];
+                    if (agent?.AudioResource != null)
+                    {
+                        agent.AudioResource.mute = mute;
+                    }
                 }
             }
         }
-        
-        /// <summary>
-        /// 将所有声音静音（非主动设置）
-        /// </summary>
-        /// <param name="mute"></param>
+
         private void MuteAllAudios(bool mute)
         {
-            foreach (var category in _audioHandler.AudioCategories)
+            var categories = _audioHandler.AudioCategories;
+            if (categories == null) return;
+
+            for (int i = 0; i < categories.Length; i++)
             {
-                foreach (var agent in category.AudioAgents)
+                var category = categories[i];
+                if (category == null) continue;
+
+                var agents = category.AudioAgents;
+                for (int j = 0; j < agents.Count; j++)
                 {
-                    agent.AudioResource.mute = mute;
+                    var agent = agents[j];
+                    if (agent?.AudioResource != null)
+                    {
+                        agent.AudioResource.mute = mute;
+                    }
                 }
             }
         }

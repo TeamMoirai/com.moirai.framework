@@ -6,7 +6,8 @@ namespace Moirai.Atropos.Audio
 {
 	/// <summary>
 	/// 对象在实例化时播放背景音乐。
-	/// 注意：一次只能播放一种背景音乐。
+	/// <para>分层设计：不同 <see cref="m_ID"/> 的 Music 可同时播放（如 BGM + 气氛层 + 压力层）。</para>
+	/// <para>同 ID 替换：再次 Play 仅淡出/停止本 ID，不影响其它分层。</para>
 	/// </summary>
 	public class BackgroundMusic : MonoBehaviour
 	{
@@ -18,7 +19,7 @@ namespace Moirai.Atropos.Audio
 		[Tooltip("需要播放的背景音乐")]
 		[HideIf(nameof(m_DirectReference))]
 		[SerializeField] private AudioClipInfo m_SoundClip;
-		[Tooltip("背景音乐的 ID")]
+		[Tooltip("分层 ID：不同 ID 可同时播放；同 ID 再次 Play 会替换本层")]
 		[SerializeField] private int m_ID = 10001;
 
 		[Range(0f, 2f)]
@@ -46,7 +47,7 @@ namespace Moirai.Atropos.Audio
 		[SerializeField] private bool m_AutoUnSoloOnEnd = false;
 
 		/// <summary>
-		/// <see cref="AudioService"/> 播放背景音乐。
+		/// 播放本层背景音乐（同 ID 替换，不同 ID 分层共存）。
 		/// </summary>
 		protected virtual void Start()
 		{
@@ -56,19 +57,8 @@ namespace Moirai.Atropos.Audio
 		[Button]
 		protected virtual void Play()
 		{
-			AudioService.ForEachAgentByID(m_ID, agent =>
-			{
-				if (agent.ID != m_ID) return;
-
-				if ((agent.IsPlaying && agent.AudioResource.volume == 0f) || agent.IsPaused)
-				{
-					agent.Stop();
-				}
-				else if (agent.IsPlaying || agent.AudioResource.isPlaying)
-				{
-					agent.Stop(m_FadeDuration);
-				}
-			});
+			// 仅替换同 ID 分层；其它 ID 的 Music 保持播放
+			AudioService.StopByID(m_ID, m_Fade ? m_FadeDuration : 0f);
 
 			AudioPlayOptions options = AudioPlayOptions.Default;
 			options.ID = m_ID;
@@ -102,7 +92,17 @@ namespace Moirai.Atropos.Audio
 		[Button]
 		protected virtual void Stop()
 		{
-			AudioService.ForEachAgentByID(m_ID, _ => _.Stop());
+			// 只停本层，保留其它分层
+			AudioService.StopByID(m_ID, 0f);
+		}
+
+		protected virtual void OnDestroy()
+		{
+			// 场景卸载时清理本层，避免句柄悬挂
+			if (Application.isPlaying)
+			{
+				AudioService.StopByID(m_ID, 0f);
+			}
 		}
 	}
 }
