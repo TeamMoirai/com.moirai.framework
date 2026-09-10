@@ -278,7 +278,7 @@ ProcedureLaunch → ProcedureSplash → ProcedureInitPackage → ProcedureInitRe
 | **Core** | 服务系统基座：服务注册/生命周期/作用域，`GameService` 静态访问器 | [Core.md](Documentation~/zh/Core.md) |
 | **Resource** | 基于 YooAsset 的资源管理：同步/异步加载、引用计数、加密、子精灵 | [Resource.md](Documentation~/zh/Resource.md) |
 | **UI** | 商业化 UI 框架：栈式窗口、五层层级、Widget 子控件、绑定代码生成 | [UI.md](Documentation~/zh/UI.md) |
-| **Audio** | 音频系统：分类管理、AudioAgent 代理播放、混音器、淡入淡出、事件驱动 | [Audio.md](Documentation~/zh/Audio.md) |
+| **Audio** | 音频系统：分类管理、AudioAgent 代理播放、混音器、淡入淡出、句柄控制 | [Audio.md](Documentation~/zh/Audio.md) |
 | **Localization** | 本地化：文本/图片/音频/Timeline 多类型注入、Google 翻译集成 | [Localization.md](Documentation~/zh/Localization.md) |
 | **ConfigTable** | Luban 配置表集成：表加载与懒加载访问、转表工具链 | [ConfigTable.md](Documentation~/zh/ConfigTable.md) |
 | **Procedure** | 游戏流程管理：启动链、可配置流程、自包含状态机 | [Procedure.md](Documentation~/zh/Procedure.md) |

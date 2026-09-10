@@ -206,7 +206,7 @@ namespace Moirai.Atropos.Audio
         /// options.location = Vector3.zero;
         /// options.AudioTrack = AudioTracks.Music;
         ///
-        /// AudioPlayEvent.Trigger(options);
+        /// AudioService.Play(options);
         /// </code>
         /// </example>>
         ///

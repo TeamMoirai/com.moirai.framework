@@ -91,7 +91,7 @@ namespace Moirai.Test
             options.AutoUnSoloOnEnd = autoUnSoloOnEnd;
             options.Location = transform.position;
             
-            audioHandle = AudioPlayEvent.Trigger(audioPath, options, true);
+            audioHandle = AudioService.Play(audioPath, options, true);
         }
 
         [Button]
@@ -158,7 +158,7 @@ namespace Moirai.Test
             options.AutoUnSoloOnEnd = autoUnSoloOnEnd;
             options.Location = transform.position;
             
-            audioHandle = AudioPlayEvent.Trigger(audioClip, options);
+            audioHandle = AudioService.Play(audioClip, options);
         }
     
         private void SetVolume()
@@ -200,7 +200,7 @@ namespace Moirai.Test
         private void ToggleFadeAudio()
         {
             finalVolume = finalVolume == 0f ? 1f : 0f;
-            AudioFadeEvent.PlayFade(audioID, 5, finalVolume, new TweenEase(TweenUtility.EEase.InCubic));
+            AudioService.PlayFade(audioID, 5, finalVolume, new TweenEase(TweenUtility.EEase.InCubic));
         }
     }
 }

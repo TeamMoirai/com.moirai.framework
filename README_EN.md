@@ -271,7 +271,7 @@ Each service has its own documentation (located in `Documentation~/en/`), coveri
 | **Core** | Service system base: registration/lifecycle/scope, `GameService` static accessors | [Core.md](Documentation~/en/Core.md) |
 | **Resource** | YooAsset-based asset management: sync/async loading, reference counting, encryption, sub-sprites | [Resource.md](Documentation~/en/Resource.md) |
 | **UI** | Production-grade UI framework: stack windows, 5 layers, Widget sub-controls, binding code generation | [UI.md](Documentation~/en/UI.md) |
-| **Audio** | Audio system: category management, AudioAgent playback, mixer, fade, event-driven | [Audio.md](Documentation~/en/Audio.md) |
+| **Audio** | Audio system: category management, AudioAgent playback, mixer, fade, handle control | [Audio.md](Documentation~/en/Audio.md) |
 | **Localization** | Localization: text/image/audio/Timeline multi-type injection, Google Translate integration | [Localization.md](Documentation~/en/Localization.md) |
 | **ConfigTable** | Luban config table integration: table loading, lazy access, export toolchain | [ConfigTable.md](Documentation~/en/ConfigTable.md) |
 | **Procedure** | Game flow management: startup chain, configurable procedures, self-contained state machine | [Procedure.md](Documentation~/en/Procedure.md) |
