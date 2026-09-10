@@ -27,7 +27,7 @@ namespace Moirai.Atropos
             {
                 _factory = LoggerFactory.Create(builder =>
                 {
-                    // builder.SetMinimumLevel(ToZLoggerLevel(MinimumLevel));
+                    builder.SetMinimumLevel(ToZLoggerLevel(MinimumLevel));
                     // 不使用 AddZLoggerUnityDebug：其 processor 硬编码 UnityEngine.Debug.Log 输出，
                     // 会落入被全局拦截器劫持的 Debug.unityLogger，使框架自身输出二次进入日志管线。
                     builder.AddProvider(new ZLoggerBypassUnityDebugLoggerProvider(CreateUnityConsoleOptions()));

@@ -99,14 +99,8 @@ namespace Moirai.Atropos
         [HideInCallstack]
         public static void Error(Exception exception, Object context = null)
         {
-            var handler = Handler;
-            if (!handler.IsEnabled(ELogLevel.Error))
-            {
-                return;
-            }
-
             var msg = exception?.ToString() ?? string.Empty;
-            handler.Log(ELogLevel.Error, msg, exception, context);
+            Handler.Log(ELogLevel.Error, msg, exception, context);
             RaiseMessageLogged(ELogLevel.Error, msg, exception);
         }
 
@@ -118,14 +112,8 @@ namespace Moirai.Atropos
         [HideInCallstack]
         public static void Fatal(Exception exception, Object context = null)
         {
-            var handler = Handler;
-            if (!handler.IsEnabled(ELogLevel.Fatal))
-            {
-                return;
-            }
-
             var msg = exception?.ToString() ?? string.Empty;
-            handler.Log(ELogLevel.Fatal, msg, exception, context);
+            Handler.Log(ELogLevel.Fatal, msg, exception, context);
             RaiseMessageLogged(ELogLevel.Fatal, msg, exception);
         }
 

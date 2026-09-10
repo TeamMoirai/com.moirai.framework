@@ -34,10 +34,8 @@ namespace Moirai.Atropos
         [HideInCallstack]
         public static void <#= lv.Name #>(object message, Object context = null)
         {
-            var handler = Handler;
-            if (!handler.IsEnabled(ELogLevel.<#= lv.Enum #>)) return;
             var msg = message?.ToString() ?? string.Empty;
-            handler.Log(ELogLevel.<#= lv.Enum #>, msg, null, context);
+            Handler.Log(ELogLevel.<#= lv.Enum #>, msg, null, context);
             RaiseMessageLogged(ELogLevel.<#= lv.Enum #>, msg, null);
         }
 
@@ -45,10 +43,8 @@ namespace Moirai.Atropos
         [HideInCallstack]
         public static void <#= lv.Name #>(string message, Object context = null)
         {
-            var handler = Handler;
-            if (!handler.IsEnabled(ELogLevel.<#= lv.Enum #>)) return;
             var msg = message ?? string.Empty;
-            handler.Log(ELogLevel.<#= lv.Enum #>, msg, null, context);
+            Handler.Log(ELogLevel.<#= lv.Enum #>, msg, null, context);
             RaiseMessageLogged(ELogLevel.<#= lv.Enum #>, msg, null);
         }
 
@@ -63,10 +59,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void <#= lv.Name #><#= tp #>(<#= fp #>)
         {
-            var handler = Handler;
-            if (!handler.IsEnabled(ELogLevel.<#= lv.Enum #>)) return;
             var msg = StringUtility.Format(<#= fa #>);
-            handler.Log(ELogLevel.<#= lv.Enum #>, msg, null, context);
+            Handler.Log(ELogLevel.<#= lv.Enum #>, msg, null, context);
             RaiseMessageLogged(ELogLevel.<#= lv.Enum #>, msg, null);
         }
 

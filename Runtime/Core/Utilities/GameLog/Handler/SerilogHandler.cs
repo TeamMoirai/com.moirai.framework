@@ -28,7 +28,7 @@ namespace Moirai.Atropos
             // logHandler 替换为 UnityLogInterceptor，框架自身输出会被再次捕获重新走管线，
             // 导致 outputTemplate 的 [{Level:u3}] 前缀叠加（[INF] [INF] ...）。
             _logger = new LoggerConfiguration()
-                // .MinimumLevel.Is(ToSerilogLevel(MinimumLevel))
+                .MinimumLevel.Is(ToSerilogLevel(MinimumLevel))
                 .WriteTo.Unity3D(unityLogger: new UnityEngine.Logger(LogUtility.GetBypassUnityHandler()))
                 .CreateLogger();
         }
