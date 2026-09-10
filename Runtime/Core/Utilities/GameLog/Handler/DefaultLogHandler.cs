@@ -21,6 +21,9 @@ namespace Moirai.Atropos
         [HideInCallstack]
         internal override void Log(ELogLevel logLevel, string message, Exception exception, Object context = null)
         {
+            // 指定日志等级是否启用
+            if (logLevel < MinimumLevel) return;
+
             message ??= string.Empty;
 
             // 经 <see cref="LogUtility.GetBypassUnityHandler"/> 绕过全局拦截器，避免

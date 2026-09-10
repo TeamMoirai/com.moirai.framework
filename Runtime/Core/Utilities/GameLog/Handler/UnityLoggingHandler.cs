@@ -31,6 +31,9 @@ namespace Moirai.Atropos
         [HideInCallstack]
         internal override void Log(ELogLevel logLevel, string message, Exception exception, Object context = null)
         {
+            // 指定日志等级是否启用
+            if (logLevel < MinimumLevel) return;
+
             message ??= string.Empty;
 
             // 日志类型前缀：默认 Editor 控制台 sink 的 outputTemplate 仅为 "{Message}"（不含 {Level} 占位符），

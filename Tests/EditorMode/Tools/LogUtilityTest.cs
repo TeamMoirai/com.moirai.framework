@@ -177,10 +177,10 @@ namespace Utility
         {
             var handler = new DefaultLogHandler { MinimumLevel = ELogLevel.Error };
 
-            Assert.IsFalse(handler.IsEnabled(ELogLevel.Verbose));
-            Assert.IsFalse(handler.IsEnabled(ELogLevel.Warning));
-            Assert.IsTrue(handler.IsEnabled(ELogLevel.Error));
-            Assert.IsTrue(handler.IsEnabled(ELogLevel.Fatal));
+            Assert.IsFalse(handler.MinimumLevel >= ELogLevel.Verbose);
+            Assert.IsFalse(handler.MinimumLevel >= ELogLevel.Warning);
+            Assert.IsTrue(handler.MinimumLevel >= ELogLevel.Error);
+            Assert.IsTrue(handler.MinimumLevel >= ELogLevel.Fatal);
         }
 
         #endregion
