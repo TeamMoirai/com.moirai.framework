@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Diagnostics;
 using UnityEngine;
 
@@ -42,12 +42,23 @@ namespace Moirai.Atropos
         /// </summary>
         public string Label { get; }
 
+        /// <summary>
+        /// 下拉是否显示 "(None)" 项。默认 <c>false</c>。
+        /// 为 <c>true</c> 时显示 "(None)" 项；无论取值如何，若该基类下无可供选择的派生类，则仍强制显示 "(None)"，
+        /// 避免出现空下拉。
+        /// </summary>
+        public bool ShowNone { get; }
+
         /// <param name="baseType">基类类型，用于搜索所有派生类。null 时从字段类型推断。</param>
         /// <param name="label">可选的下拉框显示名称。</param>
-        public ProviderDropdownAttribute(Type baseType = null, string label = null)
+        /// <param name="showNone">
+        /// 是否显示 "(None)" 项（默认 <c>false</c>）。<c>true</c> 时显示，除非无任何可选候选类型。
+        /// </param>
+        public ProviderDropdownAttribute(Type baseType = null, string label = null, bool showNone = false)
         {
             BaseType = baseType;
             Label = label;
+            ShowNone = showNone;
         }
     }
 }
