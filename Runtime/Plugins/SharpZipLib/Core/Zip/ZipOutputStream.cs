@@ -21,8 +21,8 @@ namespace ICSharpCode.SharpZipLib.Zip
 	///
 	/// It includes support for Stored and Deflated entries.
 	/// This class is not thread safe.
-	/// <br/>
-	/// <br/>Author of the original java version : Jochen Hoenicke
+	/// <br />
+	/// <br />Author of the original java version : Jochen Hoenicke
 	/// </summary>
 	/// <example> This sample shows how to create a zip file
 	/// <code>
@@ -255,9 +255,9 @@ namespace ICSharpCode.SharpZipLib.Zip
 		/// if stream was finished
 		/// </exception>
 		/// <exception cref="ZipException">
-		/// Too many entries in the Zip file<br/>
-		/// Entry name is too long<br/>
-		/// Finish has already been called<br/>
+		/// Too many entries in the Zip file<br />
+		/// Entry name is too long<br />
+		/// Finish has already been called<br />
 		/// </exception>
 		/// <exception cref="System.NotImplementedException">
 		/// The Compression method specified for the entry is unsupported.
@@ -298,17 +298,17 @@ namespace ICSharpCode.SharpZipLib.Zip
 		/// if stream was finished.
 		/// </exception>
 		/// <exception cref="ZipException">
-		/// Crc is not set<br/>
-		/// Size is not set<br/>
-		/// CompressedSize is not set<br/>
-		/// CompressionMethod is not Deflate<br/>
-		/// Too many entries in the Zip file<br/>
-		/// Entry name is too long<br/>
-		/// Finish has already been called<br/>
+		/// Crc is not set<br />
+		/// Size is not set<br />
+		/// CompressedSize is not set<br />
+		/// CompressionMethod is not Deflate<br />
+		/// Too many entries in the Zip file<br />
+		/// Entry name is too long<br />
+		/// Finish has already been called<br />
 		/// </exception>
 		/// <exception cref="System.NotImplementedException">
-		/// The Compression method specified for the entry is unsupported<br/>
-		/// Entry is encrypted<br/>
+		/// The Compression method specified for the entry is unsupported<br />
+		/// Entry is encrypted<br />
 		/// </exception>
 		public void PutNextPassthroughEntry(ZipEntry entry) 
 		{
@@ -517,9 +517,9 @@ namespace ICSharpCode.SharpZipLib.Zip
 		/// if stream was finished
 		/// </exception>
 		/// <exception cref="ZipException">
-		/// Too many entries in the Zip file<br/>
-		/// Entry name is too long<br/>
-		/// Finish has already been called<br/>
+		/// Too many entries in the Zip file<br />
+		/// Entry name is too long<br />
+		/// Finish has already been called<br />
 		/// </exception>
 		/// <exception cref="System.NotImplementedException">
 		/// The Compression method specified for the entry is unsupported.
@@ -879,7 +879,7 @@ namespace ICSharpCode.SharpZipLib.Zip
 		/// An I/O error occurs.
 		/// </exception>
 		/// <exception cref="ZipException">
-		/// Comment exceeds the maximum length<br/>
+		/// Comment exceeds the maximum length<br />
 		/// Entry name exceeds the maximum length
 		/// </exception>
 		public override void Finish()

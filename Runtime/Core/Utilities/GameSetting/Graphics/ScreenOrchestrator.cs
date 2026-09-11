@@ -4,13 +4,13 @@ using UnityEngine;
 namespace Moirai.Atropos
 {
     /// <summary>
-    /// 屏幕设置<br/>
-    /// 所有与屏幕相关的功能都是异步的（在帧结束时执行）<br/>
+    /// 屏幕设置<br />
+    /// 所有与屏幕相关的功能都是异步的（在帧结束时执行）<br />
     /// 并且有些功能彼此矛盾，例如：
     /// Screen.fullScreen = true 与 Screen.fullScreenMode = FullScreenMode.Windowed
-    /// <br/>
+    /// <br />
     /// 为了解决这个问题，决定始终以 Screen.fullScreenMode 为优先。
-    /// <br/>
+    /// <br />
     /// 因此，需要这个辅助方法来按顺序正确执行它们。
     /// </summary>
     public sealed class ScreenOrchestrator : SingletonMono_Persistent<ScreenOrchestrator>

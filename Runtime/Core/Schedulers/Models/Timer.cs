@@ -54,7 +54,7 @@ namespace Moirai.Atropos.Schedulers
 
         /// <summary>
         /// 注册一个新的计时器，该计时器应在经过一定时间后触发事件。
-        /// <br/>
+        /// <br />
         /// 当场景更改时，已注册的计时器将被销毁。
         /// </summary>
         /// <param name="duration">计时器应触发之前等待的时间（以秒为单位）。</param>

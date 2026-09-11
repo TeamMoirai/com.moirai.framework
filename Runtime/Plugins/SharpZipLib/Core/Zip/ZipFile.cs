@@ -280,8 +280,8 @@ namespace ICSharpCode.SharpZipLib.Zip
 	///
 	/// This class is thread safe for input:  You can open input streams for arbitrary
 	/// entries in different threads.
-	/// <br/>
-	/// <br/>Author of the original java version : Jochen Hoenicke
+	/// <br />
+	/// <br />Author of the original java version : Jochen Hoenicke
 	/// </summary>
 	/// <example>
 	/// <code>
@@ -503,7 +503,7 @@ namespace ICSharpCode.SharpZipLib.Zip
 		/// An i/o error occurs
 		/// </exception>
 		/// <exception cref="ZipException">
-		/// The stream doesn't contain a valid zip archive.<br/>
+		/// The stream doesn't contain a valid zip archive.<br />
 		/// </exception>
 		/// <exception cref="ArgumentException">
 		/// The <see cref="Stream">stream</see> doesnt support seeking.
@@ -526,7 +526,7 @@ namespace ICSharpCode.SharpZipLib.Zip
 		/// An i/o error occurs
 		/// </exception>
 		/// <exception cref="ZipException">
-		/// The stream doesn't contain a valid zip archive.<br/>
+		/// The stream doesn't contain a valid zip archive.<br />
 		/// </exception>
 		/// <exception cref="ArgumentException">
 		/// The <see cref="Stream">stream</see> doesnt support seeking.
@@ -550,7 +550,7 @@ namespace ICSharpCode.SharpZipLib.Zip
 		/// An i/o error occurs
 		/// </exception>
 		/// <exception cref="ZipException">
-		/// The stream doesn't contain a valid zip archive.<br/>
+		/// The stream doesn't contain a valid zip archive.<br />
 		/// </exception>
 		/// <exception cref="ArgumentException">
 		/// The <see cref="Stream">stream</see> doesnt support seeking.

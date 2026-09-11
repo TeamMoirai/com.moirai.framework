@@ -5,15 +5,15 @@ using System.Text;
 namespace Moirai.Atropos
 {
     /// <summary>
-    /// 默认字符串构建器工具实现。<br/>
+    /// 默认字符串构建器工具实现。<br />
     /// 优先使用 StringBuilderCache（ThreadStatic 单槽缓存，零分配），
     /// 回退到 StringBuilderPool（多槽池，减少分配）。
     /// </summary>
     /// <remarks>
-    /// 架构设计（0GC）：<br/>
-    /// - StringBuilderCache: ThreadStatic 单槽缓存，单线程场景下零分配<br/>
-    /// - StringBuilderPool: Stack-based 多槽池，多线程或高频场景下减少分配<br/>
-    /// - AdapterPool: 池化 StringBuilderAdapter 实例，避免堆分配<br/>
+    /// 架构设计（0GC）：<br />
+    /// - StringBuilderCache: ThreadStatic 单槽缓存，单线程场景下零分配<br />
+    /// - StringBuilderPool: Stack-based 多槽池，多线程或高频场景下减少分配<br />
+    /// - AdapterPool: 池化 StringBuilderAdapter 实例，避免堆分配<br />
     /// - 优先级: Cache > Pool > new StringBuilder
     /// </remarks>
     [Serializable]

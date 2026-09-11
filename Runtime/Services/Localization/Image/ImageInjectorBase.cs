@@ -5,9 +5,9 @@ using Moirai.Atropos.Resource;
 namespace Moirai.Atropos.Localization
 {
     /// <summary>
-    /// 基于图片的本地化注入器基类，共享以下通用模式：<br/>
-    /// - 检查本地化使用的是索引还是资源文本 ID<br/>
-    /// - 从资源系统异步加载资源<br/>
+    /// 基于图片的本地化注入器基类，共享以下通用模式：<br />
+    /// - 检查本地化使用的是索引还是资源文本 ID<br />
+    /// - 从资源系统异步加载资源<br />
     /// - 处理 Sprite/Texture 类型转换，并输出相应日志
     /// </summary>
     public abstract class ImageInjectorBase : IInjector
@@ -40,7 +40,7 @@ namespace Moirai.Atropos.Localization
         protected abstract void ApplyFromArray(int index);
 
         /// <summary>
-        /// 将加载到的资源应用到目标组件。<br/>
+        /// 将加载到的资源应用到目标组件。<br />
         /// 在资源成功加载并通过验证后调用。
         /// </summary>
         protected abstract void ApplyAsset(Object asset);
@@ -51,7 +51,7 @@ namespace Moirai.Atropos.Localization
         protected abstract string GetExpectedTypeName();
 
         /// <summary>
-        /// 尝试转换不匹配的资源类型并应用。<br/>
+        /// 尝试转换不匹配的资源类型并应用。<br />
         /// 如果转换已处理则返回 true，否则返回 false。
         /// </summary>
         protected abstract bool TryConvertAndApply(Object asset);

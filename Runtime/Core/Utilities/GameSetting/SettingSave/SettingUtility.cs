@@ -3,8 +3,8 @@ using System.Collections.Generic;
 namespace Moirai.Atropos
 {
     /// <summary>
-    /// 游戏配置服务。<br/>
-    /// 功能特性：<br/>
+    /// 游戏配置服务。<br />
+    /// 功能特性：<br />
     /// 支持用户隔离存储（通过用户ID自动生成复合键）
     /// </summary>
     /// <remarks>仅用于游戏配置，禁止用于游戏内容保存。</remarks>

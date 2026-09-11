@@ -68,15 +68,15 @@ namespace Moirai.Atropos.Input.Prompts
         /// 用于向从 <see cref="InputDevicePromptSystem.InsertPromptSprites"/> 返回的字符串添加额外富文本的格式化程序
         /// <example>
         /// TMP 支持的富文本格式：https://docs.unity3d.com/Packages/com.unity.textmeshpro@3.2/manual/RichText.html
-        /// <br/><br/>- 未格式化
+        /// <br /><br />- 未格式化
         /// <![CDATA[
         /// {SPRITE} = "<sprite="PS5_Prompts" sprite="ps5_button_cross">"
         /// ]]>
-        /// <br/><br/>- 输出双倍大小
+        /// <br /><br />- 输出双倍大小
         /// <![CDATA[
         /// <size=200%>{SPRITE}</size> = "<size=200%><sprite="PS5_Prompts" sprite="ps5_button_cross"></size>"
         /// ]]>
-        /// <br/><br/>- 修改垂直位置
+        /// <br /><br />- 修改垂直位置
         /// <![CDATA[
         /// <voffset=-3px>{SPRITE}</voffset> = "<voffset=-3px><sprite="PS5_Prompts" sprite="ps5_button_cross"></voffset>"
         /// ]]>

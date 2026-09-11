@@ -6,8 +6,8 @@ using UnityEngine;
 namespace Moirai.Atropos.Timer
 {
     /// <summary>
-    /// 计时器处理器。四级时间轮算法的默认实现。<br/>
-    /// 无全量扫描 · 精准承载技能 CD / 心跳 / 延时任务<br/>
+    /// 计时器处理器。四级时间轮算法的默认实现。<br />
+    /// 无全量扫描 · 精准承载技能 CD / 心跳 / 延时任务<br />
     /// 可在 <see cref="TimerServiceSettings"/> 中替换为自定义实现。
     /// </summary>
     [Serializable]
