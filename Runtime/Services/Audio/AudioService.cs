@@ -345,7 +345,7 @@ namespace Moirai.Atropos.Audio
         /// <summary>
         /// 停止指定句柄的音频
         /// </summary>
-        public static void Stop(ulong handle, float fadeoutDuration = 0f) => s_Handler?.Stop(handle, fadeoutDuration);
+        public static void Stop(ulong handle, float fadeoutDuration = AudioAgent.FADEOUT_DEFAULT_DURATION) => s_Handler?.Stop(handle, fadeoutDuration);
 
         #endregion 音频控制 [AUDIO CONTROLS]
 
@@ -400,8 +400,7 @@ namespace Moirai.Atropos.Audio
         /// <summary>
         /// 停止指定 ID 音频的音量过渡（零 lambda 分配）。
         /// </summary>
-        public static void StopFade(int id) =>
-            s_Handler?.StopFadeByID(id);
+        public static void StopFade(int id) => s_Handler?.StopFadeByID(id);
 
         #endregion 获取 [FIND]
 
@@ -425,7 +424,7 @@ namespace Moirai.Atropos.Audio
         /// <summary>
         /// 停止某类音频的播放。
         /// </summary>
-        public static void StopTrack(EAudioTrack track, float fadeoutDuration = 0f) => s_Handler?.StopTrack(track, fadeoutDuration);
+        public static void StopTrack(EAudioTrack track, float fadeoutDuration = AudioAgent.FADEOUT_DEFAULT_DURATION) => s_Handler?.StopTrack(track, fadeoutDuration);
 
         #endregion 音轨控制 [TRACK CONTROLS]
 
@@ -459,7 +458,7 @@ namespace Moirai.Atropos.Audio
         /// <summary>
         /// 停止匹配用户 ID 的全部音频（零 lambda）。用于分层 BGM 同 ID 替换，不影响其它 ID。
         /// </summary>
-        public static void StopByID(int id, float fadeoutDuration = 0f) => s_Handler?.StopByID(id, fadeoutDuration);
+        public static void StopByID(int id, float fadeoutDuration = AudioAgent.FADEOUT_DEFAULT_DURATION) => s_Handler?.StopByID(id, fadeoutDuration);
 
         #endregion 所有音频控制 [ALL AUDIO CONTROLS]
 

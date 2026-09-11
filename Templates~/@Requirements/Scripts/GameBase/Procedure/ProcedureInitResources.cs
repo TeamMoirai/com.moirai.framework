@@ -37,13 +37,13 @@ namespace Moirai.Main
                 return;
             }
 
-            if (ResourceService.PlayMode == EResourcePlayMode.HostPlay || ResourceService.PlayMode == EResourcePlayMode.WebPlay)
+            if (ResourceService.PlayMode == EResourcePlayMode.HostPlay || ResourceService.PlayMode == EResourcePlayMode.WebGLPlay)
             {
                 // 线上最新版本operation.PackageVersion
                 LogUtility.Debug("Updated package Version : from {0} to {1}", ResourceService.GetPackageVersion(), ResourceService.PackageVersion);
                 // 注意：保存资源版本号作为下次默认启动的版本!
                 // 如果当前是WebGL或者是边玩边下载直接进入预加载阶段。
-                if (ResourceService.PlayMode == EResourcePlayMode.WebPlay ||
+                if (ResourceService.PlayMode == EResourcePlayMode.WebGLPlay ||
                     ResourceService.UpdatableWhilePlaying)
                 {
                     // 边玩边下载还可以拓展首包支持。
