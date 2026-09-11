@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Moirai.Atropos.Attributes;
 using Sirenix.OdinInspector;
 using UnityEngine;
@@ -28,7 +28,7 @@ namespace Moirai.Atropos.ObjectPool
         #region 序列化字段 [SERIALIZED FIELDS]
 
         [Tooltip("调试名。列表和运行时 Inspector 都看这个。")]
-        [LabelText("规则名称")]
+        [LabelText("规则名称（调试用）")]
         public string entryName = DEFAULT_ENTRY_NAME;
 
         [Tooltip("空闲实例挂到 [Group] 节点下。空值回落到 DefaultGroup。")]
@@ -79,6 +79,16 @@ namespace Moirai.Atropos.ObjectPool
         /// <summary>
         /// 规范化配置条目。
         /// </summary>
+        /// <remarks>
+        /// pattern 经 <see cref="NormalizeLocation"/>：去首尾空白、`\` 转 `/`、去掉尾部分隔符和扩展名。
+        /// <para>不剥离 <c>Assets/Bundles/</c> 等路径前缀——pattern 须与运行时 location（或合成键）同形。</para>
+        /// </remarks>
+        /// <example>
+        /// Assets/Bundles/Effects/Explosion.prefab  -> Assets/Bundles/Effects/Explosion
+        /// Explosion                                -> Explosion
+        /// Effects/**                               -> 递归匹配 Effects 下所有 location
+        /// Prefab:Bullet*                           -> 匹配外部预制体合成池键（必须通配，字面量含 instanceID）
+        /// </example>
         public void Normalize()
         {
             entryName = string.IsNullOrWhiteSpace(entryName) ? DEFAULT_ENTRY_NAME : entryName.Trim();

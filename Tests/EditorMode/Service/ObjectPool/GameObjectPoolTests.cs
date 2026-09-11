@@ -667,6 +667,69 @@ namespace Service.GameObjectPool
         }
 
         [Test]
+        public void HardCap_ZombieSelfHeal_RetrySucceeds()
+        {
+            RuntimeGameObjectPool pool = CreatePool(softCapacity: 1, hardCapacity: 1);
+            GameObject first = SpawnOne(pool);
+            Object.DestroyImmediate(first);
+
+            // 活跃实例外部销毁占住硬顶：Spawn 撞顶时先 sweep 自愈再重试分配。
+            GameObject second = pool.Spawn(null);
+
+            Assert.IsNotNull(second, "hardcap must self-heal via zombie sweep");
+            Assert.AreEqual(1, pool.TotalCount);
+            Assert.AreNotSame(first, second);
+        }
+
+        [Test]
+        public void Sticky_AllActive_ZombieSweepGetsScheduled()
+        {
+            RuntimeGameObjectPool pool = CreatePool(policy: EPoolPolicy.Sticky, hardCapacity: 4);
+            GameObject instance = SpawnOne(pool);
+            Assert.AreEqual(1, pool.TotalCount);
+
+            // 全活跃 + Sticky 无自发到期维护：兜底清扫必须已排期，而非永挂 MaxValue。
+            Object.DestroyImmediate(instance);
+            Assert.Less(pool.NextMaintenanceAt, float.MaxValue, "zombie sweep must be scheduled");
+
+            _scheduler.ProcessDue(pool.NextMaintenanceAt);
+            Assert.AreEqual(0, pool.TotalCount, "zombie slot must be reclaimed by fallback sweep");
+        }
+
+        [Test]
+        public void Catalog_PrefabPrefixPattern_MatchesSyntheticKey()
+        {
+            PoolEntry entry = new PoolEntry
+            {
+                entryName = "外部预制体定制",
+                pattern = "Prefab:Fake*",
+                softCapacity = 32,
+                hardCapacity = 128
+            };
+            entry.Normalize();
+
+            PoolCompiledCatalog catalog = PoolCompiledCatalog.Build(new[] { entry });
+            try
+            {
+                GameObject prefab = new GameObject("FakePrefab_Catalog");
+                try
+                {
+                    int ruleIndex = catalog.Resolve(DefaultPoolRules.GetPrefabPoolLocation(prefab));
+                    Assert.GreaterOrEqual(ruleIndex, 0, "Prefab: pattern must match synthetic pool key");
+                    Assert.AreEqual(128, catalog.GetRule(ruleIndex).HardCapacity);
+                }
+                finally
+                {
+                    Object.DestroyImmediate(prefab);
+                }
+            }
+            finally
+            {
+                catalog.Dispose();
+            }
+        }
+
+        [Test]
         public void PooledComponent_AccessAfterDespawn_IsNullSafe()
         {
             // Component 属性在 Cache 为空时返回 null，不 NRE。

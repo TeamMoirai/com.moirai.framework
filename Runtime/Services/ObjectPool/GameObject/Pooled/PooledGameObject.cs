@@ -157,16 +157,22 @@ namespace Moirai.Atropos.ObjectPool
         /// 延迟回收。
         /// </summary>
         /// <param name="t">延迟秒数；&lt;= 0 立即回收。</param>
-        protected void Destroy(float t = 0f)
+        protected unsafe void Destroy(float t = 0f)
         {
             if (t > 0f)
             {
-                AddScheduler(Scheduler.Delay(t, Dispose));
+                // 函数指针绑定零分配——与旧 Core 包装器一致，不走 Action 装箱。
+                AddScheduler(Scheduler.DelayUnsafe(t, new SchedulerUnsafeBinding(this, &Dispose_Imp)));
             }
             else
             {
                 Dispose();
             }
+        }
+
+        private static void Dispose_Imp(object @object)
+        {
+            ((IDisposable)@object).Dispose();
         }
 
         /// <summary>

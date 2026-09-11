@@ -251,13 +251,14 @@ Debugger windows: `Profiler/Object Pool` (generic), `Profiler/GameObject Pool` (
 - **Main Thread Only**: the entire ObjectPool module (generic pool, GameObject pool, leases, Kernel) is main-thread only by design; no locking.
 - Generic pool objects are created externally and `Register`ed; objects created via `MemoryPool.Acquire` are recycled by the pool, externally `new`ed ones go to GC on release.
 - **Unregistered locations**: auto-create a pool with the default rule (Burst / soft 8 / hard 64; one warning in Editor/DevBuild). Prefer registering production addresses in PoolConfig for tuning.
-- **External prefab pools**: identity-mapped by reference (zero string alloc on the hot path); the pool does **not** load/unload that prefab (`unloadPrefab=false`). `Group` applies only on first prefab-pool creation; location groups come from the catalog rule.
+- **External prefab pools**: identity-mapped by reference (zero string alloc on the hot path); the pool does **not** load/unload that prefab (`unloadPrefab` is gated away by the source). PoolConfig supports `Prefab:` prefix patterns to customize capacity/group/policy for external prefabs (e.g. `pattern = "Prefab:Bullet*"` — the synthetic key embeds an instanceID, so a **wildcard is required**; literals cannot match; unmatched prefabs fall back to the default rule soft 8 / hard 64; a catalog rule takes precedence over the `group` argument of `FromPrefab`).
 - **Pose**: both sources reset local TRS from the prefab on reuse (aligned with `Object.Instantiate(prefab, parent)`). `OnSpawn` observes the reset pose.
 - **Lease generation**: bumps on every activate; stale leases fail `TryRelease`/`IsValid`. `Wrap` only binds Active instances.
 - **Despawn branches**: unregistered → `Destroy` (foreign); registered but not Active → safe no-op; Active → return to pool.
 - `Spawn()` (sync) returns null when a location-based prefab is not loaded; use `SpawnAsync()` for the first load.
 - **UserData single consumer**: alien occupancy degrades the component cache to non-resident (no overwrite; dev warning).
 - `default(GameObjectPoolSource)` is an invalid source; do not write `Spawn(null)` (ambiguous implicits — compile error).
+- **Zombie-slot self-heal**: hitting the hard capacity sweeps externally destroyed slots before retrying the allocation; pools with live instances but no due maintenance (Sticky / all-active) run a fallback sweep every 30s with a warning, so reclaiming externally destroyed instances is bounded and no longer depends on Flush / low memory.
 - Maintenance is driven by `GameServices.Tick` (min-heap due wakeups, 1ms per-frame budget). Sticky pools lazily reclaim externally destroyed slots on the next Spawn.
 - Low memory: both pool Handlers subscribe to `Application.lowMemory` and shrink fully; `GameApp.OnLowMemory` only drives the resource layer unload.
 
