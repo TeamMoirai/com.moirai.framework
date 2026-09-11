@@ -27,7 +27,7 @@ namespace Moirai.Main
             try
             {
                 var initializationOperation = await ResourceService.InitPackage(ResourceService.DefaultPackageName,
-                    ResourceService.PlayMode == EResourcePlayMode.Offline);
+                    ResourceService.PlayMode == EResourcePlayMode.OfflinePlay);
 
                 if (initializationOperation != null && initializationOperation.Succeed)
                 {
@@ -43,14 +43,14 @@ namespace Moirai.Main
                         ChangeState<ProcedureInitResources>();
                     }
                     // 单机模式。
-                    else if (playMode == EResourcePlayMode.Offline)
+                    else if (playMode == EResourcePlayMode.OfflinePlay)
                     {
                         LogUtility.Info("Package resource mode detected.");
                         ChangeState<ProcedureInitResources>();
                     }
                     // 可更新模式。
                     else if (playMode == EResourcePlayMode.HostPlay ||
-                             playMode == EResourcePlayMode.WebPlay)
+                             playMode == EResourcePlayMode.WebGLPlay)
                     {
                         // 打开启动UI。
                         LauncherMgr.ShowUI<LoadUpdateUI>();
