@@ -8,7 +8,7 @@ namespace Moirai.Atropos.Localization
     /// 本地化服务调试视图（原生 UI Toolkit，经 <see cref="LocalizationService.OnInit"/> 注册进游戏内调试器 "Profiler/Localization"）。
     /// <para>展示当前语言并支持点击切换可用语言，按 1s 节流重建。</para>
     /// </summary>
-    public sealed class LocalizationServiceDebugView : PollingDebuggerWindowBase
+    public sealed class LocalizationInformationWindow : PollingDebuggerWindowBase
     {
         #region 字段 [FIELDS]
 
@@ -21,7 +21,7 @@ namespace Moirai.Atropos.Localization
         /// <summary>
         /// 初始化本地化调试视图的新实例。
         /// </summary>
-        public LocalizationServiceDebugView() : base(1f)
+        public LocalizationInformationWindow() : base(1f)
         {
         }
 

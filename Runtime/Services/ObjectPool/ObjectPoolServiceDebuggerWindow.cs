@@ -1,13 +1,13 @@
-using Moirai.Atropos.ObjectPool;
+using Moirai.Atropos.Debugger;
 using UnityEngine;
 using UnityEngine.UIElements;
 
-namespace Moirai.Atropos.Debugger
+namespace Moirai.Atropos.ObjectPool
 {
     /// <summary>
     /// 通用对象池信息窗口。
     /// </summary>
-    public sealed class GenericObjectPoolInformationWindow : PollingDebuggerWindowBase
+    public sealed class ObjectPoolServiceDebuggerWindow : PollingDebuggerWindowBase
     {
         #region 字段 [FIELDS]
 
@@ -21,7 +21,7 @@ namespace Moirai.Atropos.Debugger
         /// <summary>
         /// 初始化通用对象池信息窗口的新实例。
         /// </summary>
-        public GenericObjectPoolInformationWindow() : base(0.5f)
+        public ObjectPoolServiceDebuggerWindow() : base(0.5f)
         {
         }
 
@@ -34,12 +34,12 @@ namespace Moirai.Atropos.Debugger
         {
             if (!ObjectPoolService.IsValid)
             {
-                root.Add(DebuggerUI.CreateSectionTitle("Generic Object Pool Information"));
+                root.Add(DebuggerUI.CreateSectionTitle("Object Pool Information"));
                 root.Add(DebuggerUI.CreateHintLabel("ObjectPoolService is not registered (opt-in service)."));
                 return;
             }
 
-            VisualElement card = AddSection(root, "Generic Object Pool Information");
+            VisualElement card = AddSection(root, "Object Pool Information");
             AddRow(card, "Pool Count", ObjectPoolService.Count.ToString());
 
             int poolCount = ObjectPoolService.GetAllObjectPools(false, _pools);

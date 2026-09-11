@@ -73,7 +73,7 @@ namespace Moirai.Atropos.Resource
 
             Application.lowMemory += OnLowMemory;
 
-            DebuggerService.RegisterDebuggerWindow("Profiler/Resource", new ResourceServiceDebugView());
+            DebuggerService.RegisterDebuggerWindow("Profiler/Resource", new ResourceServiceDebuggerWindow());
         }
 
         /// <summary>

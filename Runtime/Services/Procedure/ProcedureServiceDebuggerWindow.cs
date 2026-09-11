@@ -7,14 +7,14 @@ namespace Moirai.Atropos.Procedure
     /// 流程服务调试视图（原生 UI Toolkit，经 <see cref="ProcedureService.OnInit"/> 注册进游戏内调试器 "Profiler/Procedure"）。
     /// <para>展示当前流程状态与持续时长，按 0.5s 节流重建。</para>
     /// </summary>
-    public sealed class ProcedureServiceDebugView : PollingDebuggerWindowBase
+    public sealed class ProcedureServiceDebuggerWindow : PollingDebuggerWindowBase
     {
         #region 构造 [CONSTRUCTOR]
 
         /// <summary>
         /// 初始化流程调试视图的新实例。
         /// </summary>
-        public ProcedureServiceDebugView() : base(0.5f)
+        public ProcedureServiceDebuggerWindow() : base(0.5f)
         {
         }
 

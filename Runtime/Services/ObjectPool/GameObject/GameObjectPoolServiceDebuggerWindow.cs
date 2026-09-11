@@ -1,13 +1,13 @@
-using Moirai.Atropos.ObjectPool;
+using Moirai.Atropos.Debugger;
 using UnityEngine;
 using UnityEngine.UIElements;
 
-namespace Moirai.Atropos.Debugger
+namespace Moirai.Atropos.ObjectPool
 {
     /// <summary>
     /// GameObject 池信息窗口。
     /// </summary>
-    public sealed class GameObjectPoolInformationWindow : PollingDebuggerWindowBase
+    public sealed class GameObjectPoolServiceDebuggerWindow : PollingDebuggerWindowBase
     {
         #region 字段 [FIELDS]
 
@@ -20,7 +20,7 @@ namespace Moirai.Atropos.Debugger
         /// <summary>
         /// 初始化 GameObject 池信息窗口的新实例。
         /// </summary>
-        public GameObjectPoolInformationWindow() : base(0.5f)
+        public GameObjectPoolServiceDebuggerWindow() : base(0.5f)
         {
         }
 
