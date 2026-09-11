@@ -1,4 +1,4 @@
-﻿using UnityEditor;
+using UnityEditor;
 using UnityEngine;
 
 namespace Moirai.Atropos.Attributes.Editor.Drawers
@@ -12,7 +12,8 @@ namespace Moirai.Atropos.Attributes.Editor.Drawers
         // 缓存的特性引用，首次绘制时延迟获取。
         private DisableAttribute _target;
 
-        // 必须沿用属性自身的高度，否则部分属性会因折叠而小于其内容的实际高度。
+        // 沿用属性自身高度（含子字段）。wrap 型 Drawer 内调用时 Unity 会按默认 Drawer 链取高，
+        // 不会与本 Drawer 形成无限重入；与 OnGUI 里 PropertyField 的绘制高度对齐。
         public override float GetPropertyHeight(SerializedProperty property, GUIContent label)
         {
             return EditorGUI.GetPropertyHeight(property, label, true);

@@ -1,4 +1,4 @@
-﻿using UnityEditor;
+using UnityEditor;
 using UnityEngine;
 
 namespace Moirai.Atropos.Attributes.Editor.Drawers
@@ -150,7 +150,10 @@ namespace Moirai.Atropos.Attributes.Editor.Drawers
         {
             ConditionAttribute conditionAttribute = (ConditionAttribute)attribute;
 
-            return conditionAttribute.visibilityType == ConditionAttribute.VisibilityType.Hidden && !CheckCondition(conditionAttribute, property) ? 0f : EditorGUI.GetPropertyHeight(property);
+            if (conditionAttribute.visibilityType == ConditionAttribute.VisibilityType.Hidden && !CheckCondition(conditionAttribute, property))
+                return 0f;
+
+            return EditorGUI.GetPropertyHeight(property);
         }
 	}
 }
