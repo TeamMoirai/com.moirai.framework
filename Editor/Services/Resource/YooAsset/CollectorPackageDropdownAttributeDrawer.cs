@@ -17,7 +17,7 @@ namespace Moirai.Atropos.Resource.Editor
     internal sealed class CollectorPackageDropdownAttributeDrawer : PropertyDrawer
     {
         /// <summary>收集器配置缺失或未配置任何包裹时的占位项。</summary>
-        private static readonly GUIContent s_NoPackages = new GUIContent("(No collector packages configured)");
+        internal static readonly GUIContent s_NoPackages = new GUIContent("(No collector packages configured)");
 
         #region IMGUI
 
@@ -117,6 +117,13 @@ namespace Moirai.Atropos.Resource.Editor
         /// 当前值已不在选项中（包裹被改名/删除）时临时置顶显示。IMGUI / UITK / Odin 共用。
         /// </summary>
         private static List<string> CollectOptions(SerializedProperty property, out int index)
+            => CollectOptions(property.stringValue, out index);
+
+        /// <summary>
+        /// 同 <see cref="CollectOptions(SerializedProperty, out int)"/>，供无 Unity SerializedProperty 的
+        /// Odin ValueEntry 回退路径使用。
+        /// </summary>
+        internal static List<string> CollectOptions(string current, out int index)
         {
             var options = new List<string>();
             if (BundleCollectorSettingData.HasSettingAsset())
@@ -127,7 +134,6 @@ namespace Moirai.Atropos.Resource.Editor
                 }
             }
 
-            string current = property.stringValue;
             index = options.IndexOf(current);
             if (index < 0 && !string.IsNullOrEmpty(current))
             {
@@ -159,16 +165,60 @@ namespace Moirai.Atropos.Resource.Editor
     {
         protected override void DrawPropertyLayout(GUIContent label)
         {
-            SerializedProperty prop = Property.Tree.GetUnityPropertyForPath(Property.UnityPropertyPath);
-            if (prop == null)
+            // 4.0.x 下 SerializeReference 子字段的 UnityPropertyPath 可能解析失败。
+            // 此时不能 CallNextDrawer（会退化成普通字符串输入框，包裹下拉“失效”），
+            // 改走 ValueEntry 驱动的 popup，与 ProviderDropdownOdinDrawer 同一套回退约定。
+            SerializedProperty prop;
+            try { prop = Property.Tree.GetUnityPropertyForPath(Property.UnityPropertyPath); }
+            catch { prop = null; }
+
+            GUIContent rowLabel = label ?? GUIContent.none;
+            if (prop != null)
             {
-                CallNextDrawer(label);
+                Rect rowRect = EditorGUILayout.GetControlRect(
+                    true, EditorGUIUtility.singleLineHeight, GUILayout.ExpandWidth(true));
+                CollectorPackageDropdownAttributeDrawer.DrawPopupIMGUI(rowRect, prop, rowLabel);
                 return;
             }
 
+            if (!DrawValueEntryFallback(rowLabel))
+                CallNextDrawer(label);
+        }
+
+        /// <summary>
+        /// 无 SerializedProperty 时：用 Odin ValueEntry 读写包裹名，仍从收集器设置实时取选项。
+        /// </summary>
+        private bool DrawValueEntryFallback(GUIContent rowLabel)
+        {
+            var valueEntry = Property.ValueEntry;
+            if (valueEntry == null || valueEntry.TypeOfValue != typeof(string))
+                return false;
+
+            List<string> options = CollectorPackageDropdownAttributeDrawer
+                .CollectOptions(valueEntry.WeakSmartValue as string, out int index);
+
+            var displayed = new GUIContent[options.Count == 0 ? 1 : options.Count];
+            if (options.Count == 0)
+                displayed[0] = CollectorPackageDropdownAttributeDrawer.s_NoPackages;
+            else
+                for (int i = 0; i < options.Count; i++) displayed[i] = new GUIContent(options[i]);
+
             Rect rowRect = EditorGUILayout.GetControlRect(
                 true, EditorGUIUtility.singleLineHeight, GUILayout.ExpandWidth(true));
-            CollectorPackageDropdownAttributeDrawer.DrawPopupIMGUI(rowRect, prop, label ?? GUIContent.none);
+
+            using (new EditorGUI.DisabledScope(options.Count == 0))
+            {
+                EditorGUI.BeginChangeCheck();
+                int selected = EditorGUI.Popup(rowRect, rowLabel, index, displayed);
+                if (EditorGUI.EndChangeCheck() && selected >= 0 && selected < options.Count)
+                {
+                    valueEntry.WeakSmartValue = options[selected];
+                    Property.Update(true);
+                    GUI.changed = true;
+                }
+            }
+
+            return true;
         }
     }
 }
