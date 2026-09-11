@@ -38,7 +38,7 @@ namespace Moirai.Atropos.Localization
         public override void OnInit()
         {
             Handler.OnLanguageChanged += OnLanguageChanged;
-            DebuggerService.RegisterDebuggerWindow("Profiler/Localization", new LocalizationServiceDebugView());
+            DebuggerService.RegisterDebuggerWindow("Profiler/Localization", new LocalizationInformationWindow());
         }
 
         /// <summary>

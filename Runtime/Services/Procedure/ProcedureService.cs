@@ -45,7 +45,7 @@ namespace Moirai.Atropos.Procedure
         public override void OnInit()
         {
             _ = Handler;
-            DebuggerService.RegisterDebuggerWindow("Profiler/Procedure", new ProcedureServiceDebugView());
+            DebuggerService.RegisterDebuggerWindow("Profiler/Procedure", new ProcedureServiceDebuggerWindow());
         }
 
         /// <summary>

@@ -298,10 +298,8 @@ namespace Moirai.Atropos.Debugger
             RegisterDebuggerWindow("Profiler/Memory/Font", new RuntimeMemoryInformationWindow<Font>());
             RegisterDebuggerWindow("Profiler/Memory/TextAsset", new RuntimeMemoryInformationWindow<TextAsset>());
             RegisterDebuggerWindow("Profiler/Memory/ScriptableObject", new RuntimeMemoryInformationWindow<ScriptableObject>());
-            RegisterDebuggerWindow("Profiler/Object Pool", new GenericObjectPoolInformationWindow());
-            RegisterDebuggerWindow("Profiler/GameObject Pool", new GameObjectPoolInformationWindow());
             RegisterDebuggerWindow("Profiler/Memory Pool", new MemoryPoolInformationWindow());
-            RegisterDebuggerWindow("Profiler/Service System", new ServiceSystemInformationWindow());
+            RegisterDebuggerWindow("Profiler/Service Kernel", new ServiceKernelDebuggerWindow());
             RegisterDebuggerWindow("Other/Settings", new SettingsWindow());
             RegisterDebuggerWindow("Other/Game Settings", new GameAppInformationWindow());
             RegisterDebuggerWindow("Other/Operations", new OperationsWindow());

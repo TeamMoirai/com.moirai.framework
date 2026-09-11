@@ -50,7 +50,7 @@ namespace Moirai.Atropos.Audio
             // 加载音频设置，必须等一帧设置才能生效
             Scheduler.WaitFrame(1, LoadSettings);
 
-            DebuggerService.RegisterDebuggerWindow("Profiler/Audio", new AudioServiceDebugView());
+            DebuggerService.RegisterDebuggerWindow("Profiler/Audio", new AudioServiceDebuggerWindow());
         }
 
         /// <summary>

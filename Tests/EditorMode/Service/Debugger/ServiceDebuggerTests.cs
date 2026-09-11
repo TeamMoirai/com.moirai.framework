@@ -94,11 +94,11 @@ namespace Service.Debugger
         public void Architecture_ServiceViews_ImplementIDebuggerWindow()
         {
             // 各服务模块的调试视图（放置于对应模块目录）均实现 IDebuggerWindow——OnInit 注册进游戏内调试器
-            Assert.IsTrue(typeof(Dbg.IDebuggerWindow).IsAssignableFrom(typeof(Tim.TimerServiceDebugView)), "TimerServiceDebugView");
-            Assert.IsTrue(typeof(Dbg.IDebuggerWindow).IsAssignableFrom(typeof(Res.ResourceServiceDebugView)), "ResourceServiceDebugView");
-            Assert.IsTrue(typeof(Dbg.IDebuggerWindow).IsAssignableFrom(typeof(Aud.AudioServiceDebugView)), "AudioServiceDebugView");
-            Assert.IsTrue(typeof(Dbg.IDebuggerWindow).IsAssignableFrom(typeof(Proc.ProcedureServiceDebugView)), "ProcedureServiceDebugView");
-            Assert.IsTrue(typeof(Dbg.IDebuggerWindow).IsAssignableFrom(typeof(Loc.LocalizationServiceDebugView)), "LocalizationServiceDebugView");
+            Assert.IsTrue(typeof(Dbg.IDebuggerWindow).IsAssignableFrom(typeof(Tim.TimerServiceDebuggerWindow)), "TimerServiceDebugView");
+            Assert.IsTrue(typeof(Dbg.IDebuggerWindow).IsAssignableFrom(typeof(Res.ResourceServiceDebuggerWindow)), "ResourceServiceDebugView");
+            Assert.IsTrue(typeof(Dbg.IDebuggerWindow).IsAssignableFrom(typeof(Aud.AudioServiceDebuggerWindow)), "AudioServiceDebugView");
+            Assert.IsTrue(typeof(Dbg.IDebuggerWindow).IsAssignableFrom(typeof(Proc.ProcedureServiceDebuggerWindow)), "ProcedureServiceDebugView");
+            Assert.IsTrue(typeof(Dbg.IDebuggerWindow).IsAssignableFrom(typeof(Loc.LocalizationInformationWindow)), "LocalizationServiceDebugView");
         }
 
         #endregion
@@ -108,7 +108,7 @@ namespace Service.Debugger
         [Test]
         public void TimerView_WindowLifecycleMethods_DoNotThrow()
         {
-            Tim.TimerServiceDebugView view = new Tim.TimerServiceDebugView();
+            Tim.TimerServiceDebuggerWindow view = new Tim.TimerServiceDebuggerWindow();
 
             Assert.DoesNotThrow(() =>
             {
@@ -123,7 +123,7 @@ namespace Service.Debugger
         [Test]
         public void TimerView_CreateView_ReturnsThemedElementWhenServiceUnready()
         {
-            Tim.TimerServiceDebugView view = new Tim.TimerServiceDebugView();
+            Tim.TimerServiceDebuggerWindow view = new Tim.TimerServiceDebuggerWindow();
 
             UnityEngine.UIElements.VisualElement element = view.CreateView();
 
@@ -134,10 +134,10 @@ namespace Service.Debugger
         public void ServiceViews_CreateView_ReturnNonNullWhenServiceUnready()
         {
             // EditMode 下服务未初始化——各视图应返回“未就绪”提示视图而非抛异常
-            UnityEngine.UIElements.VisualElement resourceView = new Res.ResourceServiceDebugView().CreateView();
-            UnityEngine.UIElements.VisualElement audioView = new Aud.AudioServiceDebugView().CreateView();
-            UnityEngine.UIElements.VisualElement procedureView = new Proc.ProcedureServiceDebugView().CreateView();
-            UnityEngine.UIElements.VisualElement localizationView = new Loc.LocalizationServiceDebugView().CreateView();
+            UnityEngine.UIElements.VisualElement resourceView = new Res.ResourceServiceDebuggerWindow().CreateView();
+            UnityEngine.UIElements.VisualElement audioView = new Aud.AudioServiceDebuggerWindow().CreateView();
+            UnityEngine.UIElements.VisualElement procedureView = new Proc.ProcedureServiceDebuggerWindow().CreateView();
+            UnityEngine.UIElements.VisualElement localizationView = new Loc.LocalizationInformationWindow().CreateView();
             UnityEngine.UIElements.VisualElement gameAppView = new Dbg.GameAppInformationWindow().CreateView();
 
             Assert.IsNotNull(resourceView, "ResourceServiceDebugView");

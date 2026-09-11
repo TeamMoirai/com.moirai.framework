@@ -8,7 +8,7 @@ namespace Moirai.Atropos.Resource
     /// 资源服务调试视图（原生 UI Toolkit，经 <see cref="ResourceService.OnInit"/> 注册进游戏内调试器 "Profiler/Resource"）。
     /// <para>展示运行模式与已加载资产快照（定位地址/状态/引用计数），按 0.5s 节流重建。</para>
     /// </summary>
-    public sealed class ResourceServiceDebugView : PollingDebuggerWindowBase
+    public sealed class ResourceServiceDebuggerWindow : PollingDebuggerWindowBase
     {
         #region 常量 [CONSTANTS]
 
@@ -30,7 +30,7 @@ namespace Moirai.Atropos.Resource
         /// <summary>
         /// 初始化资源调试视图的新实例。
         /// </summary>
-        public ResourceServiceDebugView() : base(0.5f)
+        public ResourceServiceDebuggerWindow() : base(0.5f)
         {
         }
 

@@ -39,7 +39,7 @@ namespace Moirai.Atropos.Timer
         public override void OnInit()
         {
             _ = Handler;
-            DebuggerService.RegisterDebuggerWindow("Profiler/Timer", new TimerServiceDebugView());
+            DebuggerService.RegisterDebuggerWindow("Profiler/Timer", new TimerServiceDebuggerWindow());
         }
 
         /// <summary>

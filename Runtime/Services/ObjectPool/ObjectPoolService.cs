@@ -1,3 +1,5 @@
+using Moirai.Atropos.Debugger;
+
 namespace Moirai.Atropos.ObjectPool
 {
     /// <summary>
@@ -8,6 +10,7 @@ namespace Moirai.Atropos.ObjectPool
     /// <para>通用池面向任意 <see cref="ObjectBase"/> 派生对象（非 GameObject）；GameObject 池化请使用 <see cref="GameObjectPoolService"/>。</para>
     /// </summary>
     [HandlerHost(typeof(ObjectPoolServiceHandler))]
+    [ServiceDependency(typeof(DebuggerService))]
     [UnityEngine.Scripting.Preserve]
     public partial class ObjectPoolService : ServiceBase, IServiceTickable
     {
@@ -36,6 +39,8 @@ namespace Moirai.Atropos.ObjectPool
         public override void OnInit()
         {
             _ = Handler;
+            
+            DebuggerService.RegisterDebuggerWindow("Profiler/Object Pool", new ObjectPoolServiceDebuggerWindow());
         }
 
         /// <summary>

@@ -1,5 +1,6 @@
 using System.Threading;
 using Cysharp.Threading.Tasks;
+using Moirai.Atropos.Debugger;
 using Moirai.Atropos.Resource;
 using UnityEngine;
 
@@ -13,7 +14,7 @@ namespace Moirai.Atropos.ObjectPool
     /// <para>支持两种池化来源：资源地址（经 ResourceService 加载）、外部 Prefab 引用，经 <see cref="GameObjectPoolSource"/> 统一入口。</para>
     /// </summary>
     [HandlerHost(typeof(GameObjectPoolServiceHandler))]
-    [ServiceDependency(typeof(ResourceService))]
+    [ServiceDependency(typeof(DebuggerService), typeof(ResourceService))]
     [UnityEngine.Scripting.Preserve]
     public partial class GameObjectPoolService : ServiceBase, IServiceTickable
     {
@@ -41,6 +42,8 @@ namespace Moirai.Atropos.ObjectPool
         public override void OnInit()
         {
             _ = Handler;
+            
+            DebuggerService.RegisterDebuggerWindow("Profiler/GameObject Pool", new GameObjectPoolServiceDebuggerWindow());
         }
 
         /// <summary>

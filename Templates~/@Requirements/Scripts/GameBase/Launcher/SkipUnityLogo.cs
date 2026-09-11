@@ -5,7 +5,7 @@ using UnityEngine.Rendering;
 namespace Moirai.Main
 {
     /// <summary>
-    /// Unity 6 可以在设置中直接关闭<br/>
+    /// Unity 6 可以在设置中直接关闭<br />
     /// Project Settings -> Player -> Slash Image -> Show Splash Screen = False
     /// </summary>
     [UnityEngine.Scripting.Preserve]

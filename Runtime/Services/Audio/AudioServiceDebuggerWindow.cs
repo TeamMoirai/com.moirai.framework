@@ -7,7 +7,7 @@ namespace Moirai.Atropos.Audio
     /// 音频服务调试视图（原生 UI Toolkit，经 <see cref="AudioService.OnInit"/> 注册进游戏内调试器 "Profiler/Audio"）。
     /// <para>提供主音量与四轨（Sfx/UI/Music/Voice）音量/静音实时控制。</para>
     /// </summary>
-    public sealed class AudioServiceDebugView : ScrollableDebuggerWindowBase
+    public sealed class AudioServiceDebuggerWindow : ScrollableDebuggerWindowBase
     {
         #region 构建窗口 [BUILD WINDOW]
 

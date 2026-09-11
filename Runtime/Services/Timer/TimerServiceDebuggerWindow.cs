@@ -8,7 +8,7 @@ namespace Moirai.Atropos.Timer
     /// 计时器服务调试视图（原生 UI Toolkit，经 <see cref="TimerService.OnInit"/> 注册进游戏内调试器 "Profiler/Timer"）。
     /// <para>展示计时器运行时统计（活跃/容量/峰值/占用率）、活跃计时器采样与"僵尸"一次性计时器检测；按 0.5s 节流重建。</para>
     /// </summary>
-    public sealed class TimerServiceDebugView : PollingDebuggerWindowBase
+    public sealed class TimerServiceDebuggerWindow : PollingDebuggerWindowBase
     {
         #region 常量 [CONSTANTS]
 
@@ -28,7 +28,7 @@ namespace Moirai.Atropos.Timer
         /// <summary>
         /// 初始化计时器调试视图的新实例。
         /// </summary>
-        public TimerServiceDebugView() : base(0.5f)
+        public TimerServiceDebuggerWindow() : base(0.5f)
         {
         }
 

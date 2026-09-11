@@ -7,14 +7,14 @@ namespace Moirai.Atropos.Debugger
     /// <summary>
     /// 服务系统信息窗口（<see cref="GameServices"/> 作用域统计与服务清单）。
     /// </summary>
-    public sealed class ServiceSystemInformationWindow : PollingDebuggerWindowBase
+    public sealed class ServiceKernelDebuggerWindow : PollingDebuggerWindowBase
     {
         #region 构造 [CONSTRUCTOR]
 
         /// <summary>
         /// 初始化服务系统信息窗口的新实例。
         /// </summary>
-        public ServiceSystemInformationWindow() : base(0.5f)
+        public ServiceKernelDebuggerWindow() : base(0.5f)
         {
         }
 
@@ -25,7 +25,7 @@ namespace Moirai.Atropos.Debugger
         /// <inheritdoc />
         protected override void BuildWindow(VisualElement root)
         {
-            VisualElement summaryCard = AddSection(root, "Service System");
+            VisualElement summaryCard = AddSection(root, "Service Kernel");
 
             List<GameServices.DiagnosticInfo> diagnostics = GameServices.GetDiagnosticInfo();
             int appCount = 0, sceneCount = 0, gameplayCount = 0;
