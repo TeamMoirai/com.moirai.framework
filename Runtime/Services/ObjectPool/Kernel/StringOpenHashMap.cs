@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Buffers;
 using System.Runtime.CompilerServices;
 
@@ -117,7 +117,7 @@ namespace Moirai.Atropos.ObjectPool
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void AddOrUpdate(string key, int value)
         {
-            if (key == null)
+            if (key == null || _buckets == null)
             {
                 return;
             }

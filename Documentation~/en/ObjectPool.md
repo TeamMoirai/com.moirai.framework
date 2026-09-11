@@ -64,7 +64,7 @@ Namespace: `Moirai.Atropos.ObjectPool`
 | `Pooled<TComponent>` | Generic component lease (return type of service `SpawnPooled<T>`) |
 | `PooledComponent<T,TComponent>` | CRTP component lease base for custom subclasses (`PooledShot`, etc.) |
 | `RuntimeGameObjectPool` | Per-pool runtime: paged Slot (UserData) + intrusive inactive list + generation; Location / External Prefab |
-| `PooledInstanceRegistry` | Zero-alloc instance → (pool,slot,gen) reverse map (replaces MonoBehaviour Handle) |
+| `PooledInstanceRegistry` | Zero-alloc instance → (pool,slot) reverse map; generation lives on Slot |
 | `IGameObjectPoolable` | Pooled component interface: `OnSpawn(in GameObjectPoolSpawnContext)` / `OnDespawn` / `OnPooledDestroy` |
 | `EPoolPolicy` | Recycle policy: `Fixed` (trim on excess) / `Burst` (trim after idle timeout) / `Sticky` (no proactive trim) |
 | `PoolEntry` / `PoolConfigScriptableObject` | Serializable config entries and config asset (supports Glob: `*`, `**`, `?`) |
@@ -130,7 +130,7 @@ new PoolEntry
 {
     entryName = "Bullet",
     group = "Combat",
-    assetPath = "Assets/Bundles/Prefabs/Bullet",   // Glob also supported: Assets/Bundles/UI/*
+    pattern = "Assets/Bundles/Prefabs/Bullet",   // Glob also supported: Assets/Bundles/UI/*
     policy = EPoolPolicy.Fixed,
     minIdle = 10,
     softCapacity = 50,
@@ -248,6 +248,7 @@ Debugger windows: `Profiler/Object Pool` (generic), `Profiler/GameObject Pool` (
 ## Notes
 
 - **Opt-in registration**: neither service is in the dependency chain by default; the first facade access auto-registers it via the lazy path (`Tick`-driven maintenance takes effect immediately), or register explicitly via `RegisterService` (stricter dependency validation, see top).
+- **Main Thread Only**: the entire ObjectPool module (generic pool, GameObject pool, leases, Kernel) is main-thread only by design; no locking.
 - Generic pool objects are created externally and `Register`ed; objects created via `MemoryPool.Acquire` are recycled by the pool, externally `new`ed ones go to GC on release.
 - **Unregistered locations**: auto-create a pool with the default rule (Burst / soft 8 / hard 64; one warning in Editor/DevBuild). Prefer registering production addresses in PoolConfig for tuning.
 - **External prefab pools**: identity-mapped by reference (zero string alloc on the hot path); the pool does **not** load/unload that prefab (`unloadPrefab=false`). `Group` applies only on first prefab-pool creation; location groups come from the catalog rule.

@@ -25,9 +25,9 @@ namespace Moirai.Atropos.ObjectPool
         #region 属性 [PROPERTIES]
 
         /// <summary>
-        /// 获取缓存的目标组件。
+        /// 获取缓存的目标组件。租约失效或未解析时为 null。
         /// </summary>
-        public TComponent Component => Cache.Component;
+        public TComponent Component => Cache != null ? Cache.Component : null;
 
         private ComponentCache _cache;
         /// <summary>

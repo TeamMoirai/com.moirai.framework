@@ -115,6 +115,11 @@ namespace Moirai.Atropos.ObjectPool
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void AddOrUpdate(TKey key, int value)
         {
+            if (_buckets == null)
+            {
+                return;
+            }
+
             if (_count >= ((_mask + 1) * 3 >> 2))
             {
                 Grow();
@@ -203,6 +208,25 @@ namespace Moirai.Atropos.ObjectPool
             }
 
             return false;
+        }
+
+        /// <summary>
+        /// 清空全部条目（保留内部数组容量）。
+        /// </summary>
+        public void Clear()
+        {
+            if (_buckets == null)
+            {
+                return;
+            }
+
+            Array.Clear(_buckets, 0, _buckets.Length);
+            Array.Clear(_keys, 0, _keys.Length);
+            Array.Clear(_values, 0, _values.Length);
+            Array.Clear(_next, 0, _next.Length);
+            _count = 0;
+            _freeList = 0;
+            _allocCount = 0;
         }
 
         /// <summary>

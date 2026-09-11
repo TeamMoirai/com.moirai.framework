@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using UnityEngine;
@@ -841,6 +841,12 @@ namespace Moirai.Atropos.ObjectPool
             private void DespawnSlot(int idx)
             {
                 ref ObjectSlot slot = ref _storage.GetSlotRef(idx);
+                if (slot.SpawnCount <= 0)
+                {
+                    // 空闲对象二次 Despawn：不回调 OnDespawn，避免状态机错乱。
+                    return;
+                }
+
                 if (TrackLastUseTime)
                 {
                     float now = Time.realtimeSinceStartup;

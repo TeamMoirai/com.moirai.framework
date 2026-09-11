@@ -544,6 +544,9 @@ namespace Moirai.Atropos.ObjectPool
             {
                 _prefab = null;
             }
+
+            // 页数组立即归还，不依赖后续 MemoryPool.Clear 配对。
+            ReturnStorage();
         }
 
         #endregion
@@ -764,12 +767,11 @@ namespace Moirai.Atropos.ObjectPool
             slot.LastReleaseTime = Time.time;
             slot.PrevInactive = -1;
             slot.NextInactive = -1;
-            slot.Instance = UnityEngine.Object.Instantiate(_prefab);
+            slot.Instance = UnityEngine.Object.Instantiate(_prefab, _root, false);
             slot.Transform = slot.Instance.transform;
 #if UNITY_EDITOR
             slot.Instance.name = StringUtility.Format("{0}[Pool]", _prefab.name);
 #endif
-            slot.Transform.SetParent(_root, false);
             if (slot.Instance.activeSelf)
             {
                 slot.Instance.SetActive(false);
@@ -951,8 +953,13 @@ namespace Moirai.Atropos.ObjectPool
             {
                 loaded = await _loader.LoadPrefabAsync(_location);
             }
-            catch
+            catch (OperationCanceledException)
             {
+                loaded = null;
+            }
+            catch (Exception e)
+            {
+                LogUtility.Error("[GameObjectPool] Prefab load failed. Location:{0}, Error:{1}", _location, e.Message);
                 loaded = null;
             }
 

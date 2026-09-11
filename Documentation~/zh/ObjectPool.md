@@ -64,7 +64,7 @@ Runtime/Services/ObjectPool/
 | `Pooled<TComponent>` | 通用组件租约（服务 `SpawnPooled<T>` 的返回类型） |
 | `PooledComponent<T,TComponent>` | CRTP 组件租约基类，供 `PooledShot` 等自定义子类使用 |
 | `RuntimeGameObjectPool` | 单池运行时：分页 Slot（UserData）+ 侵入式 inactive 链 + 代系；Location / External Prefab |
-| `PooledInstanceRegistry` | 实例 → (pool,slot,gen) 零分配反向映射（替代 MonoBehaviour Handle） |
+| `PooledInstanceRegistry` | 实例 → (pool,slot) 零分配反向映射；代系由 Slot 独占 |
 | `IGameObjectPoolable` | 池化组件接口：`OnSpawn(in GameObjectPoolSpawnContext)` / `OnDespawn` / `OnPooledDestroy` |
 | `EPoolPolicy` | 回收策略：`Fixed`（超限即裁剪）/ `Burst`（空闲超时裁剪）/ `Sticky`（不主动回收） |
 | `PoolEntry` / `PoolConfigScriptableObject` | 可序列化配置条目与配置资产（支持 Glob：`*`、`**`、`?`） |
@@ -130,7 +130,7 @@ new PoolEntry
 {
     entryName = "子弹",
     group = "战斗",
-    assetPath = "Assets/Bundles/Prefabs/Bullet",   // 也支持 Glob：Assets/Bundles/UI/*
+    pattern = "Assets/Bundles/Prefabs/Bullet",   // 也支持 Glob：Assets/Bundles/UI/*
     policy = EPoolPolicy.Fixed,
     minIdle = 10,
     softCapacity = 50,
@@ -261,12 +261,13 @@ Debugger 窗口：`Profiler/Object Pool`（通用池）、`Profiler/GameObject P
 ## 注意事项
 
 - **opt-in 注册**：两服务默认不在依赖链；首次外观访问经懒加载路径自动注册（`Tick` 驱动的维护随之生效），也可显式 `RegisterService`（依赖校验更严格，见顶部说明）。
+- **Main Thread Only**：整个 ObjectPool 模块（含通用池、GameObject 池、包装租约与 Kernel）仅限主线程调用，无锁设计。
 - 通用池对象由外部构造并 `Register` 入池；经 `MemoryPool.Acquire` 创建的对象会被池回收复用，外部 `new` 的对象释放时交由 GC。
 - **未注册地址**：自动用默认规则建池（Burst / soft 8 / hard 64，Editor/DevBuild 告警一次）。建议生产地址仍写入 PoolConfig 以便调参。
 - **外部 Prefab 池**：按引用身份映射自动建池（零字符串热路径）；池**不**加载/卸载该预制体（`unloadPrefab=false`）。`Group` 仅在 Prefab 源首次建池时生效；Location 源的分组以 catalog 规则为准。
 - **姿态**：两种来源复用时均重置到 Prefab 局部 TRS（与 `Object.Instantiate(prefab, parent)` 对齐）。`OnSpawn` 回调读到的是已重置姿态。
 - **租期代系**：每次激活递增；旧租约在槽位复用后 `TryRelease`/`IsValid` 必然失败。`Wrap` 仅包装 Active 实例。
-- **Despawn 三分支**：未注册 → Destroy（外来对象）；已注册非 Active → 安全 no-op（不 Destroy）；Active → 回收入池。重复 Despawn 不会销毁仍在池中的实例。
+- **Despawn 三分支**：未注册 → Destroy（外来对象）；已注册非 Active → 安全 no-op（不 Destroy）；Active → 回收入池。重复 Despawn 不会销毁仍在池中的实例。`ReleaseByInstance` 返回 `NotOwned` 时仅告警 no-op。
 - `Spawn()`（同步）在资源地址预制体未加载时返回 null；首次加载请使用 `SpawnAsync()`。
 - **UserData 单消费者**：`Slot.UserData` 被异种类型占用时组件缓存降级为非驻留（不覆盖原数据，dev 告警）。
 - `default(GameObjectPoolSource)` 为无效源；不要写 `Spawn(null)`（两个隐式算子歧义，编译失败）。空源请用 `default`。
