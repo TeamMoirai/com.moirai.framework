@@ -52,12 +52,7 @@ namespace Moirai.Atropos.Debugger
             {
                 DrawPoolSnapshot(root, _snapshots[i]);
             }
-
-            for (int i = 0; i < count; i++)
-            {
-                MemoryPool.Release(_snapshots[i]);
-            }
-
+            
             if (count > drawCount)
             {
                 root.Add(DebuggerUI.CreateHintLabel(StringUtility.Format("... {0} more pools omitted.", count - drawCount)));
