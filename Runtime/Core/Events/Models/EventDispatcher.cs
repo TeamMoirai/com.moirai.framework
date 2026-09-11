@@ -89,7 +89,7 @@ namespace Moirai.Atropos.Events
         }
 
         private readonly List<IEventDispatchingStrategy> m_DispatchingStrategies;
-        private static readonly _ObjectPool<Queue<EventRecord>> s_EventQueuePool = new _ObjectPool<Queue<EventRecord>>(() => new Queue<EventRecord>());
+        private static readonly Internal_ObjectPool<Queue<EventRecord>> s_EventQueuePool = new Internal_ObjectPool<Queue<EventRecord>>(() => new Queue<EventRecord>());
         private Queue<EventRecord> m_Queue;
         private uint m_GateCount;
         private readonly DebuggerEventDispatchingStrategy m_DebuggerEventDispatchingStrategy;

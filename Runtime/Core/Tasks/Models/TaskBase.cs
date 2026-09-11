@@ -244,7 +244,7 @@ namespace Moirai.Atropos.Tasks
         
         private bool _pooled;
         
-        private static readonly _ObjectPool<T> s_Pool = new _ObjectPool<T>(() => new T());
+        private static readonly Internal_ObjectPool<T> s_Pool = new Internal_ObjectPool<T>(() => new T());
 
         private static readonly string s_DefaultName;
         

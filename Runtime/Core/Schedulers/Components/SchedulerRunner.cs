@@ -20,7 +20,7 @@ namespace Moirai.Atropos.Schedulers
         /// </summary>
         internal class ScheduledItem : IDisposable
         {
-            private static readonly _ObjectPool<ScheduledItem> s_Pool = new _ObjectPool<ScheduledItem>(() => new ScheduledItem());
+            private static readonly Internal_ObjectPool<ScheduledItem> s_Pool = new Internal_ObjectPool<ScheduledItem>(() => new ScheduledItem());
 #if UNITY_EDITOR
             public double Timestamp { get; private set; }
 #endif

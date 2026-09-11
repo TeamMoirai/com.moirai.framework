@@ -10,7 +10,7 @@ namespace Moirai.Atropos.Schedulers
     /// <!-- 参考自 https://github.com/akbiggs/UnityTimer -->
     internal class Timer : IScheduled
     {
-        private static readonly _ObjectPool<Timer> s_Pool = new _ObjectPool<Timer>(() => new Timer());
+        private static readonly Internal_ObjectPool<Timer> s_Pool = new Internal_ObjectPool<Timer>(() => new Timer());
         
         #region 公共属性/字段 [PUBLIC PROPS/FIELDS]
         public SchedulerHandle Handle { get; private set; }

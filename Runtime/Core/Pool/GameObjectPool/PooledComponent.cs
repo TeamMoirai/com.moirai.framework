@@ -26,7 +26,7 @@ namespace Moirai.Atropos.Pool
             s_ComponentKey = new PoolKey(typeof(T).FullName);
         }
         
-        internal static readonly _ObjectPool<T> Pool = new _ObjectPool<T>(() => new T());
+        internal static readonly Internal_ObjectPool<T> Pool = new Internal_ObjectPool<T>(() => new T());
         
         public new static void SetMaxSize(int size)
         {
