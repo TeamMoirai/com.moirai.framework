@@ -486,7 +486,7 @@ namespace Moirai.Atropos.Events
         private static readonly long s_TypeId = RegisterEventType();
     
         // ReSharper disable once InconsistentNaming
-        private static readonly _ObjectPool<T> s_Pool = new _ObjectPool<T>(() => new T());
+        private static readonly Internal_ObjectPool<T> s_Pool = new Internal_ObjectPool<T>(() => new T());
 
         internal static void SetCreateFunction(Func<T> createMethod)
         {

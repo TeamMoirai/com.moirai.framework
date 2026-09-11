@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using UnityEngine;
 
 namespace Moirai.Atropos.Pool
 {
@@ -10,7 +9,7 @@ namespace Moirai.Atropos.Pool
     /// </summary>
     /// <typeparam name="T"></typeparam>
     // ReSharper disable once InconsistentNaming
-    internal class _ObjectPool<T> where T : new()
+    internal class Internal_ObjectPool<T> where T : new()
 #pragma warning restore IDE1006 
     {
         private readonly Stack<T> _stack = new Stack<T>();
@@ -32,7 +31,7 @@ namespace Moirai.Atropos.Pool
             }
         }
 
-        public _ObjectPool(Func<T> createFunc, int maxSize = 5000)
+        public Internal_ObjectPool(Func<T> createFunc, int maxSize = 5000)
         {
             MaxSize = maxSize;
 

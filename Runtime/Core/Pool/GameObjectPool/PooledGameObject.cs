@@ -17,7 +17,7 @@ namespace Moirai.Atropos.Pool
         , IDisposableUnregister
 #endif
     {
-        private static readonly _ObjectPool<PooledGameObject> s_Pool = new _ObjectPool<PooledGameObject>(() => new PooledGameObject());
+        private static readonly Internal_ObjectPool<PooledGameObject> s_Pool = new Internal_ObjectPool<PooledGameObject>(() => new PooledGameObject());
         
         public GameObject GameObject { get; protected set; }
         

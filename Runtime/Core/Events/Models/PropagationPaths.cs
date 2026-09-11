@@ -6,7 +6,7 @@ namespace Moirai.Atropos.Events
 {
     internal class PropagationPaths
     {
-        private static readonly _ObjectPool<PropagationPaths> s_Pool = new _ObjectPool<PropagationPaths>(() => new PropagationPaths());
+        private static readonly Internal_ObjectPool<PropagationPaths> s_Pool = new Internal_ObjectPool<PropagationPaths>(() => new PropagationPaths());
 
         /// <summary>
         /// 传播路径包含的阶段标记。

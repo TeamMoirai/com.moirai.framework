@@ -5,7 +5,7 @@ namespace Moirai.Atropos.Schedulers
 {
     internal class FrameCounter : IScheduled
     {
-        private static readonly _ObjectPool<FrameCounter> s_Pool = new _ObjectPool<FrameCounter>(() => new FrameCounter());
+        private static readonly Internal_ObjectPool<FrameCounter> s_Pool = new Internal_ObjectPool<FrameCounter>(() => new FrameCounter());
       
         #region 公共属性/字段 [PUBLIC PROPS/FIELDS]
         public SchedulerHandle Handle { get; private set; }

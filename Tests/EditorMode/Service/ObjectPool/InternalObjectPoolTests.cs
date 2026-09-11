@@ -17,7 +17,7 @@ namespace Service.ObjectPool
         [Test]
         public void Release_DuplicateRelease_ThrowsAndPoolNotCorrupted()
         {
-            var pool = new _ObjectPool<PooledItem>(() => new PooledItem(), maxSize: 4);
+            var pool = new Internal_ObjectPool<PooledItem>(() => new PooledItem(), maxSize: 4);
 
             PooledItem item = pool.Get();
             pool.Release(item);
@@ -35,7 +35,7 @@ namespace Service.ObjectPool
         [Test]
         public void Get_EmptyPool_CreatesViaFactory()
         {
-            var pool = new _ObjectPool<PooledItem>(() => new PooledItem { Value = 42 }, maxSize: 2);
+            var pool = new Internal_ObjectPool<PooledItem>(() => new PooledItem { Value = 42 }, maxSize: 2);
 
             PooledItem item = pool.Get();
 
@@ -46,7 +46,7 @@ namespace Service.ObjectPool
         [Test]
         public void Release_RespectsMaxSize()
         {
-            var pool = new _ObjectPool<PooledItem>(() => new PooledItem(), maxSize: 2);
+            var pool = new Internal_ObjectPool<PooledItem>(() => new PooledItem(), maxSize: 2);
 
             pool.Release(new PooledItem());
             pool.Release(new PooledItem());
@@ -58,7 +58,7 @@ namespace Service.ObjectPool
         [Test]
         public void MaxSize_Shrink_PopsExcess()
         {
-            var pool = new _ObjectPool<PooledItem>(() => new PooledItem(), maxSize: 4);
+            var pool = new Internal_ObjectPool<PooledItem>(() => new PooledItem(), maxSize: 4);
             pool.Release(new PooledItem());
             pool.Release(new PooledItem());
             pool.Release(new PooledItem());
