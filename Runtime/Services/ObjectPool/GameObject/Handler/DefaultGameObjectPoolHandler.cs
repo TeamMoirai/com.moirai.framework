@@ -515,6 +515,15 @@ namespace Moirai.Atropos.ObjectPool
                 return _pools[existing];
             }
 
+            // 目录优先：PoolConfig 可用 "Prefab:" 前缀模式（需含通配，如 Prefab:Bullet* ——合成键
+            // 带 instanceID，字面量无法预知）为外部预制体定制容量/分组/策略；未命中回落默认规则。
+            int catalogRuleIndex = _catalog.Resolve(location);
+            if (catalogRuleIndex >= 0)
+            {
+                ref readonly PoolCompiledRule catalogRule = ref _catalog.GetRule(catalogRuleIndex);
+                return GetOrCreateExternalPrefabPool(in catalogRule, location, prefab);
+            }
+
             PoolCompiledRule rule = DefaultPoolRules.CreateExternalRule(location, group);
             return GetOrCreateExternalPrefabPool(in rule, location, prefab);
         }

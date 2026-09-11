@@ -117,6 +117,9 @@ namespace Moirai.Atropos.ObjectPool
         {
             if (_buckets == null)
             {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                LogUtility.Warning("[OpenHashMap] AddOrUpdate on disposed map — caller lifecycle bug.");
+#endif
                 return;
             }
 

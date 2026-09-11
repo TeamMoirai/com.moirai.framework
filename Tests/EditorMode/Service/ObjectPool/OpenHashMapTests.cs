@@ -268,5 +268,47 @@ namespace Service.ObjectPool
         }
 
         #endregion
+
+        #region Dispose 后写入 [DISPOSED WRITES]
+
+        [Test]
+        public void GenericMap_AddOrUpdateAfterDispose_IsSafeNoOp()
+        {
+            OpenHashMap<(int, string)> map = new OpenHashMap<(int, string)>(8);
+            (int, string) key = (1, "a");
+            map.AddOrUpdate(key, 1);
+            map.Dispose();
+
+            Assert.DoesNotThrow(() => map.AddOrUpdate(key, 2));
+            Assert.IsFalse(map.TryGetValue(key, out _));
+            Assert.AreEqual(0, map.Count);
+        }
+
+        [Test]
+        public void StringMap_AddOrUpdateAfterDispose_IsSafeNoOp()
+        {
+            StringOpenHashMap map = new StringOpenHashMap(8);
+            map.AddOrUpdate("k", 1);
+            map.Dispose();
+
+            Assert.DoesNotThrow(() => map.AddOrUpdate("k", 2));
+            Assert.IsFalse(map.TryGetValue("k", out _));
+            Assert.AreEqual(0, map.Count);
+        }
+
+        [Test]
+        public void ReferenceMap_AddOrUpdateAfterDispose_IsSafeNoOp()
+        {
+            ReferenceOpenHashMap map = new ReferenceOpenHashMap(8);
+            object key = new object();
+            map.AddOrUpdate(key, 1);
+            map.Dispose();
+
+            Assert.DoesNotThrow(() => map.AddOrUpdate(key, 2));
+            Assert.IsFalse(map.TryGetValue(key, out _));
+            Assert.AreEqual(0, map.Count);
+        }
+
+        #endregion
     }
 }

@@ -107,8 +107,16 @@ namespace Moirai.Atropos.ObjectPool
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void AddOrUpdate(object key, int value)
         {
-            if (key == null || _buckets == null)
+            if (key == null)
             {
+                return;
+            }
+
+            if (_buckets == null)
+            {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                LogUtility.Warning("[ReferenceOpenHashMap] AddOrUpdate on disposed map — caller lifecycle bug.");
+#endif
                 return;
             }
 

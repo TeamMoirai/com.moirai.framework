@@ -32,6 +32,11 @@ namespace Moirai.Atropos.ObjectPool
         private const int WARMUP_CREATE_BATCH = 8;
         private const float WARMUP_FRAME_BUDGET_SECONDS = 0.001f;
 
+        /// <summary>
+        /// 兜底僵尸清扫间隔秒数——池无自发到期维护且有实例时按此周期扫描外部销毁的槽位。
+        /// </summary>
+        private const float ZOMBIE_SWEEP_SECONDS = 30f;
+
         #endregion
 
         #region 结构体 [STRUCTS]
@@ -751,11 +756,16 @@ namespace Moirai.Atropos.ObjectPool
         {
             if (_totalCount >= _rule.HardCapacity)
             {
+                // 硬顶自愈：优先清扫外部销毁的僵尸槽位（Active / Inactive 均可），腾出容量后再判定。
+                SweepDestroyedInstances();
+                if (_totalCount >= _rule.HardCapacity)
+                {
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-                LogUtility.Warning("[GameObjectPool] HardCapacity reached. Rule:{0}, Location:{1}, Hard:{2}",
-                    _rule.EntryName, _location, _rule.HardCapacity);
+                    LogUtility.Warning("[GameObjectPool] HardCapacity reached. Rule:{0}, Location:{1}, Hard:{2}",
+                        _rule.EntryName, _location, _rule.HardCapacity);
 #endif
-                return -1;
+                    return -1;
+                }
             }
 
             int slotIndex = _storage.AllocSlot();
@@ -883,6 +893,13 @@ namespace Moirai.Atropos.ObjectPool
                 {
                     due = _rule.Policy == EPoolPolicy.Burst ? now + _rule.IdleSeconds : now;
                 }
+            }
+
+            // 兜底清扫排期：仍有实例但无自发到期维护（Sticky 池 / 全活跃池）时按周期扫描
+            // 外部销毁的僵尸槽位——保证回收有上界并触发告警，不再依赖 Flush / 低内存。
+            if (due >= float.MaxValue && _totalCount > 0)
+            {
+                due = now + ZOMBIE_SWEEP_SECONDS;
             }
 
             ScheduleMaintenance(due);
