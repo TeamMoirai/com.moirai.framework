@@ -25,58 +25,38 @@ namespace Moirai.Atropos.ObjectPool
 
         #region 序列化字段 [SERIALIZED FIELDS]
 
-        /// <summary>
-        /// 条目名称。
-        /// </summary>
+        [Tooltip("条目名称")]
         public string entryName = DEFAULT_ENTRY_NAME;
 
-        /// <summary>
-        /// 分组名称。
-        /// </summary>
+        [Tooltip("分组名称")]
         public string group = DEFAULT_GROUP;
 
-        /// <summary>
-        /// 资源地址。
-        /// </summary>
+        [Tooltip("资源地址")]
         public string assetPath = string.Empty;
 
-        /// <summary>
-        /// 池策略。
-        /// </summary>
+        [Tooltip("池策略")]
         public EPoolPolicy policy = EPoolPolicy.Burst;
 
-        /// <summary>
-        /// 最小空闲数量。
-        /// </summary>
+        [Tooltip("最小空闲数量")]
         [Min(0)]
         public int minIdle;
 
-        /// <summary>
-        /// 软容量。
-        /// </summary>
+        [Tooltip("软容量")]
         [Min(1)]
         public int softCapacity = 8;
 
-        /// <summary>
-        /// 硬容量。
-        /// </summary>
+        [Tooltip("硬容量")]
         [Min(1)]
         public int hardCapacity = 16;
 
-        /// <summary>
-        /// 空闲超时秒数。
-        /// </summary>
+        [Tooltip("空闲超时秒数")]
         [Min(0f)]
         public float idleSeconds = 15f;
 
-        /// <summary>
-        /// 是否在空闲时卸载预制体。
-        /// </summary>
+        [Tooltip("是否在空闲时卸载预制体")]
         public bool unloadPrefab = true;
 
-        /// <summary>
-        /// 优先级。
-        /// </summary>
+        [Tooltip("优先级")]
         public int priority;
 
         #endregion

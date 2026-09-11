@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
+using Moirai.Atropos.Attributes;
 using Moirai.Atropos.Resource;
 using UnityEngine;
 
@@ -26,6 +27,7 @@ namespace Moirai.Atropos.ObjectPool
         #region 字段 [FIELDS]
 
         [Tooltip("池配置 ScriptableObject。为空时使用空配置（所有地址都会警告未注册）。")]
+        [Expand]
         [SerializeField] private PoolConfigScriptableObject m_PoolConfig;
 
         // struct 哈希表/调度器必须存于可变字段（方法直接改写字段状态），禁止 readonly。
@@ -71,10 +73,7 @@ namespace Moirai.Atropos.ObjectPool
 
             Application.lowMemory += OnLowMemory;
 
-            if (m_PoolConfig != null)
-            {
-                LoadCatalog(m_PoolConfig);
-            }
+            if (m_PoolConfig != null) LoadCatalog(m_PoolConfig);
         }
 
         /// <summary>
