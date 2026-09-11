@@ -1,4 +1,4 @@
-﻿#if UNITY_EDITOR
+#if UNITY_EDITOR
 using Sirenix.OdinInspector.Editor;
 using Sirenix.Utilities;
 using Sirenix.Utilities.Editor;
@@ -42,9 +42,9 @@ namespace Moirai.Atropos.Attributes.Editor.Drawers
 
             if (IsObjectReference(property))
             {
+                // Object 引用：仅一行引用字段。SO 内容由 ExpandOdinDrawer 展开，
+                // Unity 侧再展开会导致 Entries 画两遍。
                 height += EditorGUIUtility.singleLineHeight + CHILD_GAP;
-                if (property.objectReferenceValue != null)
-                    height += GetObjectTargetChildrenHeight(property);
                 return height;
             }
 
@@ -99,14 +99,12 @@ namespace Moirai.Atropos.Attributes.Editor.Drawers
 
             if (IsObjectReference(property))
             {
-                // 禁止 PropertyField(property)：会重入本 Drawer，导致内容画两遍
+                // 禁止 PropertyField(property)：会重入本 Drawer，导致内容画两遍。
+                // 不在此展开 SO：由 ExpandOdinDrawer 统一展开，避免双份。
                 float prevFieldWidth = EditorGUIUtility.fieldWidth;
                 EditorGUIUtility.fieldWidth = 0f;
                 DrawObjectFieldDirect(childRect, property);
                 EditorGUIUtility.fieldWidth = prevFieldWidth;
-                childRect.y += EditorGUIUtility.singleLineHeight + CHILD_GAP;
-
-                DrawObjectTargetFields(property, ref childRect);
             }
             else
             {
@@ -185,58 +183,6 @@ namespace Moirai.Atropos.Attributes.Editor.Drawers
                 property.objectReferenceValue = next;
         }
 
-        /// <summary>
-        /// 展开 Object 引用目标的可见序列化字段（跳过 m_Script）。
-        /// </summary>
-        internal static void DrawObjectTargetFields(SerializedProperty property, ref Rect childRect)
-        {
-            Object target = property.objectReferenceValue;
-            if (target == null)
-                return;
-
-            using (SerializedObject targetSo = new SerializedObject(target))
-            {
-                targetSo.Update();
-                SerializedProperty it = targetSo.GetIterator();
-                bool enterChildren = true;
-                while (it.NextVisible(enterChildren))
-                {
-                    enterChildren = false;
-                    if (it.name == "m_Script")
-                        continue;
-
-                    EditorGUI.PropertyField(childRect, it, true);
-                    childRect.y += EditorGUI.GetPropertyHeight(it, true) + CHILD_GAP;
-                }
-
-                targetSo.ApplyModifiedProperties();
-            }
-        }
-
-        internal static float GetObjectTargetChildrenHeight(SerializedProperty property)
-        {
-            Object target = property.objectReferenceValue;
-            if (target == null)
-                return 0f;
-
-            float height = 0f;
-            using (SerializedObject targetSo = new SerializedObject(target))
-            {
-                SerializedProperty it = targetSo.GetIterator();
-                bool enterChildren = true;
-                while (it.NextVisible(enterChildren))
-                {
-                    enterChildren = false;
-                    if (it.name == "m_Script")
-                        continue;
-
-                    height += EditorGUI.GetPropertyHeight(it, true) + CHILD_GAP;
-                }
-            }
-
-            return height;
-        }
-
         private void SetColors()
         {
             if (EditorGUIUtility.isProSkin)
@@ -255,11 +201,16 @@ namespace Moirai.Atropos.Attributes.Editor.Drawers
     /// </summary>
     /// <remarks>
     /// 优先级 super=1，优先于默认 managed reference drawer 与 DrawWithUnity(10000)。
-    /// Object 引用字段必须用 ObjectField 直绘，禁止 PropertyField(本属性)——会重入导致内容×2。
+    /// Object 引用目标必须用 Odin <see cref="PropertyTree"/> 展开：Unity SerializedProperty
+    /// 不会应用子类型上的 LabelText / Min / EnumCondition 等 Odin 特性。
+    /// 禁止 PropertyField(本属性)——会重入导致内容×2。
     /// </remarks>
     [DrawerPriority(1, 0, 0)]
     internal sealed class ExpandOdinDrawer : OdinAttributeDrawer<ExpandAttribute>
     {
+        /// <summary>已做过「首次默认展开」的 propertyPath，之后允许用户收起。</summary>
+        private static readonly System.Collections.Generic.HashSet<string> s_FoldoutInitialized = new();
+
         private static GUIStyle s_TitleStyle;
 
         private static GUIStyle TitleStyle
@@ -288,9 +239,22 @@ namespace Moirai.Atropos.Attributes.Editor.Drawers
             try { prop = Property.Tree.GetUnityPropertyForPath(Property.UnityPropertyPath); }
             catch { prop = null; }
 
-            string titleText = label != null && !string.IsNullOrEmpty(label.text)
-                ? label.text
-                : Property.NiceName;
+            string titleText = ResolveTitle(label);
+
+            if (ExpandAttributeDrawer.IsObjectReference(prop))
+            {
+                DrawObjectReferencePath(prop, titleText);
+                return;
+            }
+
+            bool isNullRef = Property.ValueEntry != null && Property.ValueEntry.WeakSmartValue == null;
+            bool hasOdinChildren = !isNullRef && HasVisibleOdinChildren();
+
+            if (hasOdinChildren)
+            {
+                DrawOdinPath(titleText, isNullRef);
+                return;
+            }
 
             if (prop != null && prop.propertyType != SerializedPropertyType.ManagedReference)
             {
@@ -298,16 +262,43 @@ namespace Moirai.Atropos.Attributes.Editor.Drawers
                 return;
             }
 
-            bool isNullRef = Property.ValueEntry != null && Property.ValueEntry.WeakSmartValue == null;
-            bool hasOdinChildren = !isNullRef && HasVisibleOdinChildren();
+            DrawOdinPath(titleText, isNullRef);
+        }
 
-            if (!hasOdinChildren && prop != null)
+        /// <summary>
+        /// 标题：优先 LabelText（高优先级 Drawer 不会走 LabelText 的 CallNextDrawer 链）。
+        /// </summary>
+        private string ResolveTitle(GUIContent label)
+        {
+            if (Property.Label != null && !string.IsNullOrEmpty(Property.Label.text)
+                && !string.Equals(Property.Label.text, Property.NiceName, System.StringComparison.Ordinal))
+                return Property.Label.text;
+
+            try
             {
-                DrawUnityPath(prop, titleText);
-                return;
+                var attrs = Property.Attributes;
+                for (int i = 0; i < attrs.Count; i++)
+                {
+                    if (attrs[i] is Sirenix.OdinInspector.LabelTextAttribute lt && !string.IsNullOrEmpty(lt.Text))
+                    {
+                        if (!lt.Text.StartsWith("@"))
+                            return lt.Text;
+                    }
+                }
+            }
+            catch
+            {
+                // ignore
             }
 
-            DrawOdinPath(titleText, isNullRef);
+            if (label != null && !string.IsNullOrEmpty(label.text)
+                && !string.Equals(label.text, Property.NiceName, System.StringComparison.Ordinal))
+                return label.text;
+
+            if (Property.Label != null && !string.IsNullOrEmpty(Property.Label.text))
+                return Property.Label.text;
+
+            return Property.NiceName;
         }
 
         private bool HasVisibleOdinChildren()
@@ -319,7 +310,7 @@ namespace Moirai.Atropos.Attributes.Editor.Drawers
             return false;
         }
 
-        private static void DrawUnityPath(SerializedProperty prop, string titleText)
+        private static void DrawTitleBar(string titleText)
         {
             Rect row = EditorGUILayout.GetControlRect(true, EditorGUIUtility.singleLineHeight + 4f, GUILayout.ExpandWidth(true));
             GUI.Box(row, GUIContent.none, EditorStyles.helpBox);
@@ -327,49 +318,195 @@ namespace Moirai.Atropos.Attributes.Editor.Drawers
             titleRect.x += 7f;
             titleRect.width -= 14f;
             GUI.Label(titleRect, titleText, TitleStyle);
+        }
+
+        /// <summary>
+        /// Object 引用：标题 + 引用框 + 展开目标 SO。
+        /// 顶层字段走 Unity SerializedObject；列表/数组的自定义元素用 PropertyTree.Create(boxedValue)
+        /// 绘制，使 PoolEntry 等类型上的 LabelText / Min / EnumCondition 生效。
+        /// </summary>
+        private static void DrawObjectReferencePath(SerializedProperty prop, string titleText)
+        {
+            DrawTitleBar(titleText);
+
+            Rect fieldRect = EditorGUILayout.GetControlRect(true, EditorGUIUtility.singleLineHeight, GUILayout.ExpandWidth(true));
+            ExpandAttributeDrawer.DrawObjectFieldDirect(fieldRect, prop);
+
+            Object target = prop.objectReferenceValue;
+            if (target == null)
+                return;
+
+            GUIHelper.PushIndentLevel(1);
+            try
+            {
+                using (SerializedObject targetSo = new SerializedObject(target))
+                {
+                    targetSo.Update();
+                    EditorGUI.BeginChangeCheck();
+                    SerializedProperty it = targetSo.GetIterator();
+                    bool enterChildren = true;
+                    while (it.NextVisible(enterChildren))
+                    {
+                        enterChildren = false;
+                        if (it.name == "m_Script")
+                            continue;
+
+                        DrawTargetProperty(it);
+                    }
+
+                    if (EditorGUI.EndChangeCheck())
+                        targetSo.ApplyModifiedProperties();
+                }
+            }
+            finally
+            {
+                GUIHelper.PopIndentLevel();
+            }
+        }
+
+        /// <summary>
+        /// 数组/列表：逐元素展开，子字段用反射读 LabelText 后交给 Unity PropertyField。
+        /// 不用 PropertyTree.Create/Dispose（每帧建树会拖垮 Inspector）。
+        /// </summary>
+        private static void DrawTargetProperty(SerializedProperty property)
+        {
+            bool isEnumerable = property.isArray
+                                && property.propertyType != SerializedPropertyType.String;
+
+            if (!isEnumerable || property.arraySize == 0)
+            {
+                EditorGUILayout.PropertyField(property, true);
+                return;
+            }
+
+            // 首次绘制默认展开，之后允许点击收起（禁止每帧强制 true）
+            if (s_FoldoutInitialized.Add(property.propertyPath))
+                property.isExpanded = true;
+
+            property.isExpanded = EditorGUILayout.Foldout(
+                property.isExpanded,
+                new GUIContent(property.displayName, property.tooltip),
+                true);
+
+            if (!property.isExpanded)
+                return;
 
             EditorGUI.indentLevel++;
             try
             {
-                if (ExpandAttributeDrawer.IsObjectReference(prop))
+                for (int i = 0; i < property.arraySize; i++)
                 {
-                    // 禁止 PropertyField(prop)：重入 ExpandAttributeDrawer → 内容×2
-                    Rect fieldRect = EditorGUILayout.GetControlRect(true, EditorGUIUtility.singleLineHeight, GUILayout.ExpandWidth(true));
-                    ExpandAttributeDrawer.DrawObjectFieldDirect(fieldRect, prop);
-
-                    Object target = prop.objectReferenceValue;
-                    if (target == null)
-                        return;
-
-                    using (SerializedObject targetSo = new SerializedObject(target))
-                    {
-                        targetSo.Update();
-                        SerializedProperty it = targetSo.GetIterator();
-                        bool enterChildren = true;
-                        while (it.NextVisible(enterChildren))
-                        {
-                            enterChildren = false;
-                            if (it.name == "m_Script")
-                                continue;
-
-                            EditorGUILayout.PropertyField(it, true);
-                        }
-
-                        targetSo.ApplyModifiedProperties();
-                    }
+                    SerializedProperty element = property.GetArrayElementAtIndex(i);
+                    DrawEnumerableElement(element);
                 }
-                else
+            }
+            finally
+            {
+                EditorGUI.indentLevel--;
+            }
+        }
+
+        /// <summary>
+        /// 列表元素：默认展开，子字段标签取自字段上的 LabelText（无则用 Unity 名称）。
+        /// </summary>
+        private static void DrawEnumerableElement(SerializedProperty element)
+        {
+            if (s_FoldoutInitialized.Add(element.propertyPath))
+                element.isExpanded = true;
+
+            element.isExpanded = EditorGUILayout.Foldout(
+                element.isExpanded,
+                new GUIContent(element.displayName),
+                true);
+            if (!element.isExpanded)
+                return;
+
+            EditorGUI.indentLevel++;
+            try
+            {
+                System.Type elementType = null;
+                try
                 {
-                    bool drewChild = false;
-                    ExpandAttributeDrawer.ForEachChild(prop, (child) =>
-                    {
-                        EditorGUILayout.PropertyField(child, true);
-                        drewChild = true;
-                    });
-
-                    if (!drewChild && ExpandAttributeDrawer.IsNullManagedReference(prop))
-                        EditorGUILayout.LabelField("(Null)", EditorStyles.miniLabel);
+                    object boxed = element.boxedValue;
+                    if (boxed != null)
+                        elementType = boxed.GetType();
                 }
+                catch
+                {
+                    // boxedValue 不可用时退回纯 Unity 绘制
+                }
+
+                SerializedProperty end = element.GetEndProperty();
+                SerializedProperty child = element.Copy();
+                bool enterChildren = true;
+                while (child.NextVisible(enterChildren))
+                {
+                    enterChildren = false;
+                    if (SerializedProperty.EqualContents(child, end))
+                        break;
+                    if (child.name == "m_Script")
+                        continue;
+
+                    string label = ResolveFieldLabelText(elementType, child.name);
+                    var content = string.IsNullOrEmpty(label)
+                        ? new GUIContent(child.displayName, child.tooltip)
+                        : new GUIContent(label, child.tooltip);
+                    EditorGUILayout.PropertyField(child, content, true);
+                }
+            }
+            finally
+            {
+                EditorGUI.indentLevel--;
+            }
+        }
+
+        /// <summary>从字段上的 LabelText.Text 读显示名（不解析 @ 表达式）。</summary>
+        private static string ResolveFieldLabelText(System.Type elementType, string fieldName)
+        {
+            if (elementType == null || string.IsNullOrEmpty(fieldName))
+                return null;
+
+            try
+            {
+                var field = elementType.GetField(fieldName,
+                    System.Reflection.BindingFlags.Instance
+                    | System.Reflection.BindingFlags.Public
+                    | System.Reflection.BindingFlags.NonPublic);
+                if (field == null)
+                    return null;
+
+                foreach (var attr in field.GetCustomAttributes(true))
+                {
+                    if (attr is Sirenix.OdinInspector.LabelTextAttribute lt
+                        && !string.IsNullOrEmpty(lt.Text)
+                        && !lt.Text.StartsWith("@"))
+                        return lt.Text;
+                }
+            }
+            catch
+            {
+                // ignore
+            }
+
+            return null;
+        }
+
+        private static void DrawUnityPath(SerializedProperty prop, string titleText)
+        {
+            DrawTitleBar(titleText);
+
+            EditorGUI.indentLevel++;
+            try
+            {
+                bool drewChild = false;
+                ExpandAttributeDrawer.ForEachChild(prop, (child) =>
+                {
+                    EditorGUILayout.PropertyField(child, true);
+                    drewChild = true;
+                });
+
+                if (!drewChild && ExpandAttributeDrawer.IsNullManagedReference(prop))
+                    EditorGUILayout.LabelField("(Null)", EditorStyles.miniLabel);
             }
             finally
             {
@@ -379,15 +516,7 @@ namespace Moirai.Atropos.Attributes.Editor.Drawers
 
         private void DrawOdinPath(string titleText, bool isNullRef)
         {
-            Rect row = EditorGUILayout.GetControlRect(true, EditorGUIUtility.singleLineHeight + 4f, GUILayout.ExpandWidth(true));
-            GUI.Box(row, GUIContent.none, EditorStyles.helpBox);
-
-            Rect titleRect = row;
-            titleRect.x += 7f;
-            titleRect.width -= 14f;
-
-            string displayTitle = isNullRef ? $"{titleText}  ·  Null" : titleText;
-            GUI.Label(titleRect, displayTitle, TitleStyle);
+            DrawTitleBar(isNullRef ? $"{titleText}  ·  Null" : titleText);
 
             if (isNullRef)
                 return;
