@@ -29,64 +29,47 @@ namespace Moirai.Atropos.ObjectPool
         /// <summary>
         /// 同步获取游戏对象。
         /// </summary>
-        /// <param name="location">资源地址。</param>
+        /// <param name="source">池化来源（地址或 Prefab）。</param>
         /// <param name="parent">父级 Transform。</param>
         /// <returns>游戏对象。</returns>
-        public abstract GameObject Spawn(string location, Transform parent = null);
+        public abstract GameObject Spawn(GameObjectPoolSource source, Transform parent = null);
 
         /// <summary>
         /// 同步获取组件。
         /// </summary>
         /// <typeparam name="T">组件类型。</typeparam>
-        /// <param name="location">资源地址。</param>
+        /// <param name="source">池化来源。</param>
         /// <param name="parent">父级 Transform。</param>
         /// <returns>组件。</returns>
-        public abstract T Spawn<T>(string location, Transform parent = null) where T : Component;
-
-        /// <summary>
-        /// 以外部预制体引用同步获取游戏对象。
-        /// </summary>
-        /// <param name="prefab">外部预制体引用（池不负责加载/卸载）。</param>
-        /// <param name="parent">父级 Transform。</param>
-        /// <returns>游戏对象。</returns>
-        public abstract GameObject Spawn(GameObject prefab, Transform parent = null);
-
-        /// <summary>
-        /// 以外部预制体引用同步获取组件。
-        /// </summary>
-        /// <typeparam name="T">组件类型。</typeparam>
-        /// <param name="prefab">外部预制体引用。</param>
-        /// <param name="parent">父级 Transform。</param>
-        /// <returns>组件。</returns>
-        public abstract T Spawn<T>(GameObject prefab, Transform parent = null) where T : Component;
+        public abstract T Spawn<T>(GameObjectPoolSource source, Transform parent = null) where T : Component;
 
         /// <summary>
         /// 尝试同步获取游戏对象。
         /// </summary>
-        /// <param name="location">资源地址。</param>
+        /// <param name="source">池化来源。</param>
         /// <param name="parent">父级 Transform。</param>
         /// <param name="instance">获取的游戏对象。</param>
         /// <returns>是否成功。</returns>
-        public abstract bool TrySpawn(string location, Transform parent, out GameObject instance);
+        public abstract bool TrySpawn(GameObjectPoolSource source, Transform parent, out GameObject instance);
 
         /// <summary>
         /// 异步获取游戏对象。
         /// </summary>
-        /// <param name="location">资源地址。</param>
+        /// <param name="source">池化来源。</param>
         /// <param name="parent">父级 Transform。</param>
         /// <param name="cancellationToken">取消令牌。</param>
         /// <returns>游戏对象。</returns>
-        public abstract UniTask<GameObject> SpawnAsync(string location, Transform parent = null, CancellationToken cancellationToken = default);
+        public abstract UniTask<GameObject> SpawnAsync(GameObjectPoolSource source, Transform parent = null, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// 异步获取组件。
         /// </summary>
         /// <typeparam name="T">组件类型。</typeparam>
-        /// <param name="location">资源地址。</param>
+        /// <param name="source">池化来源。</param>
         /// <param name="parent">父级 Transform。</param>
         /// <param name="cancellationToken">取消令牌。</param>
         /// <returns>组件。</returns>
-        public abstract UniTask<T> SpawnAsync<T>(string location, Transform parent = null, CancellationToken cancellationToken = default) where T : Component;
+        public abstract UniTask<T> SpawnAsync<T>(GameObjectPoolSource source, Transform parent = null, CancellationToken cancellationToken = default) where T : Component;
 
         #endregion
 
@@ -108,22 +91,13 @@ namespace Moirai.Atropos.ObjectPool
         public abstract UniTask<GameObject> LoadPrefabAsync(string location, CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// 异步预热指定地址的池。
+        /// 异步预热指定来源的池。
         /// </summary>
-        /// <param name="location">资源地址。</param>
+        /// <param name="source">池化来源。</param>
         /// <param name="count">预热数量。</param>
         /// <param name="cancellationToken">取消令牌。</param>
         /// <returns>异步任务。</returns>
-        public abstract UniTask WarmupAsync(string location, int count, CancellationToken cancellationToken = default);
-
-        /// <summary>
-        /// 异步预热外部预制体对应的池。
-        /// </summary>
-        /// <param name="prefab">外部预制体引用。</param>
-        /// <param name="count">预热数量。</param>
-        /// <param name="cancellationToken">取消令牌。</param>
-        /// <returns>异步任务。</returns>
-        public abstract UniTask WarmupAsync(GameObject prefab, int count, CancellationToken cancellationToken = default);
+        public abstract UniTask WarmupAsync(GameObjectPoolSource source, int count, CancellationToken cancellationToken = default);
 
         #endregion
 
@@ -144,19 +118,13 @@ namespace Moirai.Atropos.ObjectPool
         /// <summary>
         /// 尝试解析实例身份（供租约包装与 Despawn 使用）。
         /// </summary>
-        internal abstract bool TryResolveInstance(GameObject instance, out RuntimeGameObjectPool pool, out int slotIndex, out uint generation);
+        internal abstract bool TryResolveInstance(GameObject instance, out RuntimeGameObjectPool pool, out int slotIndex);
 
         /// <summary>
-        /// 刷新指定地址的池。
+        /// 刷新指定来源的池。
         /// </summary>
-        /// <param name="location">资源地址。</param>
-        public abstract void Flush(string location);
-
-        /// <summary>
-        /// 刷新外部预制体对应的池。
-        /// </summary>
-        /// <param name="prefab">外部预制体引用。</param>
-        public abstract void Flush(GameObject prefab);
+        /// <param name="source">池化来源。</param>
+        public abstract void Flush(GameObjectPoolSource source);
 
         /// <summary>
         /// 刷新指定分组的所有池。

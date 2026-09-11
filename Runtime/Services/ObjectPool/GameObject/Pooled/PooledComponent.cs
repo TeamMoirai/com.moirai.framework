@@ -8,6 +8,7 @@ namespace Moirai.Atropos.ObjectPool
     /// <summary>
     /// 池化组件租约：在 <see cref="PooledGameObject"/> 之上缓存目标组件，跨池复用保留（存于 Slot.UserData）。
     /// <para>通用场景请用 <see cref="Pooled{TComponent}"/>；需要自定义 Init / 组件解析时继承本类型（CRTP）。</para>
+    /// <para>UserData 为单消费者槽位：异种占用时缓存降级为非驻留，不覆盖原数据。</para>
     /// </summary>
     /// <typeparam name="T">包装器自身类型。</typeparam>
     /// <typeparam name="TComponent">目标组件类型。</typeparam>
@@ -30,7 +31,7 @@ namespace Moirai.Atropos.ObjectPool
 
         private ComponentCache _cache;
         /// <summary>
-        /// 获取或初始化组件缓存。
+        /// 获取组件缓存（仅读取已解析结果；创建职责在 <see cref="ResolveComponent"/>）。
         /// </summary>
         protected ComponentCache Cache
         {
@@ -38,14 +39,14 @@ namespace Moirai.Atropos.ObjectPool
             {
                 if (_cache == null)
                 {
-                    _cache = GetOrAddUserData<ComponentCache>();
+                    _cache = GetUserData<ComponentCache>();
                 }
 
                 return _cache;
             }
             set => _cache = value;
         }
-        
+
         #endregion
 
         #region 嵌套类型 [NESTED TYPES]
@@ -72,88 +73,56 @@ namespace Moirai.Atropos.ObjectPool
         /// <returns>组件池化租约。</returns>
         public new static T Wrap(GameObject instance)
         {
-            if (!GameObjectPoolService.TryResolveInstance(instance, out RuntimeGameObjectPool pool, out int slotIndex, out uint generation))
+            if (!GameObjectPoolService.TryResolveInstance(instance, out RuntimeGameObjectPool pool, out int slotIndex))
+            {
+                return null;
+            }
+
+            if (!pool.TryBindLease(slotIndex, out uint generation, out GameObject bound, out Transform transform))
             {
                 return null;
             }
 
             T pooled = s_Pool.Get();
-            pooled.Bind(pool, slotIndex, generation);
+            pooled.Bind(pool, slotIndex, generation, bound, transform);
             return pooled;
         }
 
         /// <summary>
-        /// 按资源地址同步获取组件租约。
+        /// 按池化来源同步获取组件租约。
         /// </summary>
-        /// <param name="location">资源地址。</param>
+        /// <param name="source">池化来源。</param>
         /// <param name="parent">父级 Transform。</param>
         /// <returns>组件池化租约。</returns>
-        public new static T Spawn(string location, Transform parent = null) =>
-            Wrap(GameObjectPoolService.Spawn(location, parent));
+        public new static T Spawn(GameObjectPoolSource source, Transform parent = null) =>
+            Wrap(GameObjectPoolService.Spawn(source, parent));
 
         /// <summary>
-        /// 以外部预制体同步获取组件租约。回池复用时重置到预制体局部姿态。
+        /// 按池化来源在指定姿态同步获取组件租约。
         /// </summary>
-        /// <param name="prefab">预制体。</param>
-        /// <param name="parent">父级 Transform。</param>
-        /// <returns>组件池化租约。</returns>
-        public new static T Spawn(GameObject prefab, Transform parent = null)
-        {
-            GameObject instance = GameObjectPoolService.Spawn(prefab, parent);
-            if (instance == null)
-            {
-                return null;
-            }
-
-            if (prefab != null)
-            {
-                Transform transform = instance.transform;
-                transform.localPosition = prefab.transform.localPosition;
-                transform.localRotation = prefab.transform.localRotation;
-                transform.localScale = prefab.transform.localScale;
-            }
-
-            return Wrap(instance);
-        }
-
-        /// <summary>
-        /// 以外部预制体在指定姿态同步获取组件租约。
-        /// </summary>
-        /// <param name="prefab">预制体。</param>
+        /// <param name="source">池化来源。</param>
         /// <param name="position">位置。</param>
         /// <param name="rotation">旋转。</param>
         /// <param name="parent">父级 Transform。</param>
         /// <param name="useLocalPosition">是否使用本地位置而不是世界位置。</param>
         /// <returns>组件池化租约。</returns>
-        public static T Spawn(GameObject prefab, Vector3 position, Quaternion rotation, Transform parent = null, bool useLocalPosition = false)
-        {
-            T pooled = Spawn(prefab, parent);
-            if (pooled == null)
-            {
-                return null;
-            }
-
-            if (useLocalPosition)
-            {
-                pooled.GameObject.transform.SetLocalPositionAndRotation(position, rotation);
-            }
-            else
-            {
-                pooled.GameObject.transform.SetPositionAndRotation(position, rotation);
-            }
-
-            return pooled;
-        }
+        public static T Spawn(
+            GameObjectPoolSource source,
+            Vector3 position,
+            Quaternion rotation,
+            Transform parent = null,
+            bool useLocalPosition = false) =>
+            Wrap(GameObjectPoolService.Spawn(source, position, rotation, parent, useLocalPosition));
 
         /// <summary>
-        /// 按资源地址异步获取组件租约。
+        /// 按池化来源异步获取组件租约。
         /// </summary>
-        /// <param name="location">资源地址。</param>
+        /// <param name="source">池化来源。</param>
         /// <param name="parent">父级 Transform。</param>
         /// <param name="cancellationToken">取消令牌。</param>
         /// <returns>组件池化租约。</returns>
-        public new static async UniTask<T> SpawnAsync(string location, Transform parent = null, CancellationToken cancellationToken = default) =>
-            Wrap(await GameObjectPoolService.SpawnAsync(location, parent, cancellationToken));
+        public new static async UniTask<T> SpawnAsync(GameObjectPoolSource source, Transform parent = null, CancellationToken cancellationToken = default) =>
+            Wrap(await GameObjectPoolService.SpawnAsync(source, parent, cancellationToken));
 
         /// <summary>
         /// 设置包装器池最大容量。
@@ -183,17 +152,52 @@ namespace Moirai.Atropos.ObjectPool
         /// </summary>
         protected virtual void ResolveComponent()
         {
-            _cache = GetOrAddUserData<ComponentCache>();
-            if (_cache == null)
+            if (TryResolveResidentCache<ComponentCache>(out ComponentCache cache))
             {
-                _cache = new ComponentCache();
-                SetUserData(_cache);
+                if (!cache.Component && GameObject != null)
+                {
+                    cache.Component = GameObject.GetOrAddComponent<TComponent>();
+                }
+
+                return;
             }
 
-            if (!_cache.Component && GameObject != null)
+            // 非驻留降级：异种占用 UserData 或无槽位，每租期解析。
+            ComponentCache transient = cache ?? new ComponentCache();
+            if (!transient.Component && GameObject != null)
             {
-                _cache.Component = GameObject.GetOrAddComponent<TComponent>();
+                transient.Component = GameObject.GetOrAddComponent<TComponent>();
             }
+
+            Cache = transient;
+        }
+
+        /// <summary>
+        /// 尝试获取驻留 UserData 缓存。异种占用时不覆盖原数据，返回 false 并给出非驻落实例。
+        /// </summary>
+        /// <typeparam name="TCache">缓存类型。</typeparam>
+        /// <param name="cache">驻留缓存；失败时为新建的非驻落实例（可为 null）。</param>
+        /// <returns>是否驻留成功。</returns>
+        protected bool TryResolveResidentCache<TCache>(out TCache cache) where TCache : ComponentCache, new()
+        {
+            TCache existing = GetOrAddUserData<TCache>();
+            if (existing != null)
+            {
+                cache = existing;
+                Cache = existing;
+                return true;
+            }
+
+            // Slot.UserData 被异种类型占用：不覆盖，降级非驻留。
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if (GetUserData<object>() != null)
+            {
+                LogUtility.Warning("[GameObjectPool] Slot.UserData occupied by alien type; component cache is non-resident: {0}", typeof(TCache).Name);
+            }
+#endif
+            cache = new TCache();
+            Cache = cache;
+            return false;
         }
 
         /// <summary>

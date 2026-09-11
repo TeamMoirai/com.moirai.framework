@@ -1,11 +1,11 @@
-﻿using System;
+using System;
 using UnityEngine;
 
 namespace Moirai.Atropos.ObjectPool
 {
     /// <summary>
-    /// 池化实例注册表：GameObject 引用 → (池, Slot, 代系) 的零分配反向映射。
-    /// <para>替代 MonoBehaviour Handle：Despawn(GameObject) 经引用哈希解析，无需 GetComponent。</para>
+    /// 池化实例注册表：GameObject 引用 → (池, Slot) 的零分配反向映射。
+    /// <para>代系由 Slot 独占维护（租期级），本表仅负责实例身份解析；主线程单线程访问，无需同步。</para>
     /// </summary>
     internal sealed class PooledInstanceRegistry : IDisposable
     {
@@ -15,7 +15,6 @@ namespace Moirai.Atropos.ObjectPool
         {
             public RuntimeGameObjectPool Pool;
             public int SlotIndex;
-            public uint Generation;
             public int NextFree;
         }
 
@@ -46,7 +45,7 @@ namespace Moirai.Atropos.ObjectPool
 
         #region 公共方法 [PUBLIC METHODS]
 
-        public void Register(GameObject instance, RuntimeGameObjectPool pool, int slotIndex, uint generation)
+        public void Register(GameObject instance, RuntimeGameObjectPool pool, int slotIndex)
         {
             if (instance == null)
             {
@@ -57,14 +56,12 @@ namespace Moirai.Atropos.ObjectPool
             {
                 _entries[existing].Pool = pool;
                 _entries[existing].SlotIndex = slotIndex;
-                _entries[existing].Generation = generation;
                 return;
             }
 
             int index = AllocEntry();
             _entries[index].Pool = pool;
             _entries[index].SlotIndex = slotIndex;
-            _entries[index].Generation = generation;
             _map.AddOrUpdate(instance, index);
             _count++;
         }
@@ -86,11 +83,10 @@ namespace Moirai.Atropos.ObjectPool
             _count--;
         }
 
-        public bool TryResolve(GameObject instance, out RuntimeGameObjectPool pool, out int slotIndex, out uint generation)
+        public bool TryResolve(GameObject instance, out RuntimeGameObjectPool pool, out int slotIndex)
         {
             pool = null;
             slotIndex = -1;
-            generation = 0;
             if (instance == null)
             {
                 return false;
@@ -104,7 +100,6 @@ namespace Moirai.Atropos.ObjectPool
             Entry entry = _entries[index];
             pool = entry.Pool;
             slotIndex = entry.SlotIndex;
-            generation = entry.Generation;
             return pool != null;
         }
 

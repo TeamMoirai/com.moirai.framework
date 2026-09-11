@@ -38,6 +38,8 @@ namespace Moirai.Atropos.ObjectPool
         [NonSerialized] private StringOpenHashMap _unhandledDespawnWarned;
         [NonSerialized] private StringOpenHashMap _groupRootMap;
         [NonSerialized] private StringOpenHashMap _poolByLocation;
+        // struct 哈希表必须存于可变字段；Prefab 源热路径零字符串分配查找。
+        [NonSerialized] private ReferenceOpenHashMap _poolByPrefab;
         [NonSerialized] private RuntimeGameObjectPool[] _pools;
         [NonSerialized] private int _poolCount;
         [NonSerialized] private PoolCompiledCatalog _catalog;
@@ -67,6 +69,7 @@ namespace Moirai.Atropos.ObjectPool
             _unhandledDespawnWarned = new StringOpenHashMap(8);
             _groupRootMap = new StringOpenHashMap(8);
             _poolByLocation = new StringOpenHashMap(32);
+            _poolByPrefab = new ReferenceOpenHashMap(16);
             _registry = new PooledInstanceRegistry(64);
 
             GameObject rootGo = new GameObject("[GameObjectPool]");
@@ -90,6 +93,7 @@ namespace Moirai.Atropos.ObjectPool
             _catalog = null;
             _registry?.Dispose();
             _registry = null;
+            _poolByPrefab.Dispose();
 
             if (_containerRoot != null)
             {
@@ -115,12 +119,12 @@ namespace Moirai.Atropos.ObjectPool
         /// <summary>
         /// 同步获取游戏对象。
         /// </summary>
-        /// <param name="location">资源地址。</param>
+        /// <param name="source">池化来源。</param>
         /// <param name="parent">父级 Transform。</param>
         /// <returns>游戏对象。</returns>
-        public override GameObject Spawn(string location, Transform parent)
+        public override GameObject Spawn(GameObjectPoolSource source, Transform parent)
         {
-            RuntimeGameObjectPool pool = ResolvePool(location);
+            RuntimeGameObjectPool pool = ResolveSourcePool(source);
             return pool == null ? null : pool.Spawn(parent);
         }
 
@@ -128,68 +132,38 @@ namespace Moirai.Atropos.ObjectPool
         /// 同步获取组件。
         /// </summary>
         /// <typeparam name="T">组件类型。</typeparam>
-        /// <param name="location">资源地址。</param>
+        /// <param name="source">池化来源。</param>
         /// <param name="parent">父级 Transform。</param>
         /// <returns>组件。</returns>
-        public override T Spawn<T>(string location, Transform parent)
+        public override T Spawn<T>(GameObjectPoolSource source, Transform parent)
         {
-            GameObject instance = Spawn(location, parent);
-            return instance == null ? null : instance.GetComponent<T>();
-        }
-
-        /// <summary>
-        /// 以外部预制体引用同步获取游戏对象。
-        /// </summary>
-        /// <param name="prefab">外部预制体引用。</param>
-        /// <param name="parent">父级 Transform。</param>
-        /// <returns>游戏对象。</returns>
-        public override GameObject Spawn(GameObject prefab, Transform parent)
-        {
-            if (prefab == null)
-            {
-                return null;
-            }
-
-            RuntimeGameObjectPool pool = ResolveOrCreatePrefabPool(prefab);
-            return pool.Spawn(parent);
-        }
-
-        /// <summary>
-        /// 以外部预制体引用同步获取组件。
-        /// </summary>
-        /// <typeparam name="T">组件类型。</typeparam>
-        /// <param name="prefab">外部预制体引用。</param>
-        /// <param name="parent">父级 Transform。</param>
-        /// <returns>组件。</returns>
-        public override T Spawn<T>(GameObject prefab, Transform parent)
-        {
-            GameObject instance = Spawn(prefab, parent);
+            GameObject instance = Spawn(source, parent);
             return instance == null ? null : instance.GetComponent<T>();
         }
 
         /// <summary>
         /// 尝试同步获取游戏对象。
         /// </summary>
-        /// <param name="location">资源地址。</param>
+        /// <param name="source">池化来源。</param>
         /// <param name="parent">父级 Transform。</param>
         /// <param name="instance">获取的游戏对象。</param>
         /// <returns>是否成功。</returns>
-        public override bool TrySpawn(string location, Transform parent, out GameObject instance)
+        public override bool TrySpawn(GameObjectPoolSource source, Transform parent, out GameObject instance)
         {
-            instance = Spawn(location, parent);
+            instance = Spawn(source, parent);
             return instance != null;
         }
 
         /// <summary>
         /// 异步获取游戏对象。
         /// </summary>
-        /// <param name="location">资源地址。</param>
+        /// <param name="source">池化来源。</param>
         /// <param name="parent">父级 Transform。</param>
         /// <param name="cancellationToken">取消令牌。</param>
         /// <returns>游戏对象。</returns>
-        public override async UniTask<GameObject> SpawnAsync(string location, Transform parent, CancellationToken cancellationToken)
+        public override async UniTask<GameObject> SpawnAsync(GameObjectPoolSource source, Transform parent, CancellationToken cancellationToken)
         {
-            RuntimeGameObjectPool pool = ResolvePool(location);
+            RuntimeGameObjectPool pool = ResolveSourcePool(source);
             return pool == null ? null : await pool.SpawnAsync(parent, cancellationToken);
         }
 
@@ -197,13 +171,13 @@ namespace Moirai.Atropos.ObjectPool
         /// 异步获取组件。
         /// </summary>
         /// <typeparam name="T">组件类型。</typeparam>
-        /// <param name="location">资源地址。</param>
+        /// <param name="source">池化来源。</param>
         /// <param name="parent">父级 Transform。</param>
         /// <param name="cancellationToken">取消令牌。</param>
         /// <returns>组件。</returns>
-        public override async UniTask<T> SpawnAsync<T>(string location, Transform parent, CancellationToken cancellationToken)
+        public override async UniTask<T> SpawnAsync<T>(GameObjectPoolSource source, Transform parent, CancellationToken cancellationToken)
         {
-            GameObject instance = await SpawnAsync(location, parent, cancellationToken);
+            GameObject instance = await SpawnAsync(source, parent, cancellationToken);
             return instance == null ? null : instance.GetComponent<T>();
         }
 
@@ -235,37 +209,19 @@ namespace Moirai.Atropos.ObjectPool
         }
 
         /// <summary>
-        /// 异步预热。
+        /// 异步预热指定来源的池。
         /// </summary>
-        /// <param name="location">资源地址。</param>
+        /// <param name="source">池化来源。</param>
         /// <param name="count">预热数量。</param>
         /// <param name="cancellationToken">取消令牌。</param>
         /// <returns>异步任务。</returns>
-        public override async UniTask WarmupAsync(string location, int count, CancellationToken cancellationToken)
+        public override async UniTask WarmupAsync(GameObjectPoolSource source, int count, CancellationToken cancellationToken)
         {
-            RuntimeGameObjectPool pool = ResolvePool(location);
+            RuntimeGameObjectPool pool = ResolveSourcePool(source);
             if (pool != null)
             {
                 await pool.WarmupAsync(count, cancellationToken);
             }
-        }
-
-        /// <summary>
-        /// 异步预热外部预制体对应的池。
-        /// </summary>
-        /// <param name="prefab">外部预制体引用。</param>
-        /// <param name="count">预热数量。</param>
-        /// <param name="cancellationToken">取消令牌。</param>
-        /// <returns>异步任务。</returns>
-        public override async UniTask WarmupAsync(GameObject prefab, int count, CancellationToken cancellationToken)
-        {
-            if (prefab == null)
-            {
-                return;
-            }
-
-            RuntimeGameObjectPool pool = ResolveOrCreatePrefabPool(prefab);
-            await pool.WarmupAsync(count, cancellationToken);
         }
 
         #endregion
@@ -273,7 +229,7 @@ namespace Moirai.Atropos.ObjectPool
         #region 回收与刷新 [DESPAWN & FLUSH]
 
         /// <summary>
-        /// 回收游戏对象。
+        /// 回收游戏对象。仅外来（未注册）对象才会 Destroy；已注册但非 Active 的重复 Despawn 为安全 no-op。
         /// </summary>
         /// <param name="instance">游戏对象。</param>
         public override void Despawn(GameObject instance)
@@ -283,10 +239,23 @@ namespace Moirai.Atropos.ObjectPool
                 return;
             }
 
-            if (TryResolveInstance(instance, out RuntimeGameObjectPool pool, out int slotIndex, out uint generation)
-                && pool.TryRelease(slotIndex, generation))
+            if (TryResolveInstance(instance, out RuntimeGameObjectPool pool, out int slotIndex))
             {
-                return;
+                switch (pool.ReleaseByInstance(slotIndex, instance))
+                {
+                    case PoolReleaseResult.Released:
+                        return;
+                    case PoolReleaseResult.NotActive:
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                        LogUtility.Warning("[GameObjectPool] Despawn ignored: instance is not active (duplicate Despawn?): {0}", instance.name);
+#endif
+                        return;
+                    default:
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                        LogUtility.Warning("[GameObjectPool] Despawn ignored: instance does not own the resolved slot: {0}", instance.name);
+#endif
+                        return;
+                }
             }
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
@@ -307,36 +276,28 @@ namespace Moirai.Atropos.ObjectPool
         /// <summary>
         /// 尝试解析实例身份。
         /// </summary>
-        internal override bool TryResolveInstance(GameObject instance, out RuntimeGameObjectPool pool, out int slotIndex, out uint generation)
+        internal override bool TryResolveInstance(GameObject instance, out RuntimeGameObjectPool pool, out int slotIndex)
         {
             pool = null;
             slotIndex = -1;
-            generation = 0;
-            return _registry != null && _registry.TryResolve(instance, out pool, out slotIndex, out generation);
+            return _registry != null && _registry.TryResolve(instance, out pool, out slotIndex);
         }
 
         /// <summary>
-        /// 刷新指定地址的池。
+        /// 刷新指定来源的池。
         /// </summary>
-        /// <param name="location">资源地址。</param>
-        public override void Flush(string location)
+        /// <param name="source">池化来源。</param>
+        public override void Flush(GameObjectPoolSource source)
         {
-            RuntimeGameObjectPool pool = FindPool(location);
-            pool?.Flush();
-        }
-
-        /// <summary>
-        /// 刷新外部预制体对应的池。
-        /// </summary>
-        /// <param name="prefab">外部预制体引用。</param>
-        public override void Flush(GameObject prefab)
-        {
-            if (prefab == null)
+            if (!source.IsValid)
             {
                 return;
             }
 
-            FindPool(DefaultPoolRules.GetPrefabPoolLocation(prefab))?.Flush();
+            RuntimeGameObjectPool pool = source.IsPrefab
+                ? FindPrefabPool(source.Prefab)
+                : FindPool(source.Location);
+            pool?.Flush();
         }
 
         /// <summary>
@@ -485,6 +446,28 @@ namespace Moirai.Atropos.ObjectPool
 
         #region 私有方法 — 池解析 [PRIVATE POOL RESOLUTION]
 
+        private RuntimeGameObjectPool ResolveSourcePool(GameObjectPoolSource source)
+        {
+            if (!source.IsValid)
+            {
+                return null;
+            }
+
+            if (source.IsPrefab)
+            {
+                return ResolveOrCreatePrefabPool(source.Prefab, source.Group);
+            }
+
+            if (!string.IsNullOrEmpty(source.Group))
+            {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                LogUtility.Warning("[GameObjectPool] Group on location source is ignored; catalog rule decides group: {0}", source.Location);
+#endif
+            }
+
+            return ResolvePool(source.Location);
+        }
+
         private RuntimeGameObjectPool ResolvePool(string location)
         {
             string normalized = PoolEntry.NormalizeLocation(location);
@@ -508,24 +491,51 @@ namespace Moirai.Atropos.ObjectPool
             return GetOrCreatePool(ruleIndex, normalized);
         }
 
-        private RuntimeGameObjectPool ResolveOrCreatePrefabPool(GameObject prefab)
+        private RuntimeGameObjectPool ResolveOrCreatePrefabPool(GameObject prefab, string group = null)
         {
-            string location = DefaultPoolRules.GetPrefabPoolLocation(prefab);
-            if (_poolByLocation.TryGetValue(location, out int poolIndex))
+            if (prefab == null)
+            {
+                return null;
+            }
+
+            if (_poolByPrefab.TryGetValue(prefab, out int poolIndex))
             {
                 return _pools[poolIndex];
             }
 
-            PoolCompiledRule rule = DefaultPoolRules.CreateExternalRule(location);
+            string location = DefaultPoolRules.GetPrefabPoolLocation(prefab);
+            if (_poolByLocation.TryGetValue(location, out int existing))
+            {
+                _poolByPrefab.AddOrUpdate(prefab, existing);
+                return _pools[existing];
+            }
+
+            PoolCompiledRule rule = DefaultPoolRules.CreateExternalRule(location, group);
             return GetOrCreateExternalPrefabPool(in rule, location, prefab);
         }
 
         private RuntimeGameObjectPool FindPool(string location)
         {
+            // raw 优先：合成 Prefab 键可含 '.'，规范化会剥扩展名导致查找失败。
+            if (!string.IsNullOrEmpty(location) && _poolByLocation.TryGetValue(location, out int rawIndex))
+            {
+                return _pools[rawIndex];
+            }
+
             string normalized = PoolEntry.NormalizeLocation(location);
             return !string.IsNullOrEmpty(normalized) && _poolByLocation.TryGetValue(normalized, out int poolIndex)
                 ? _pools[poolIndex]
                 : null;
+        }
+
+        private RuntimeGameObjectPool FindPrefabPool(GameObject prefab)
+        {
+            if (prefab != null && _poolByPrefab.TryGetValue(prefab, out int poolIndex))
+            {
+                return _pools[poolIndex];
+            }
+
+            return prefab == null ? null : FindPool(DefaultPoolRules.GetPrefabPoolLocation(prefab));
         }
 
         private RuntimeGameObjectPool GetOrCreatePool(int ruleIndex, string location)
@@ -557,6 +567,7 @@ namespace Moirai.Atropos.ObjectPool
         {
             if (_poolByLocation.TryGetValue(location, out int existing))
             {
+                _poolByPrefab.AddOrUpdate(prefab, existing);
                 return _pools[existing];
             }
 
@@ -564,6 +575,7 @@ namespace Moirai.Atropos.ObjectPool
             RuntimeGameObjectPool pool = MemoryPool.Acquire<RuntimeGameObjectPool>();
             pool.InitializeWithPrefab(_scheduler, rule, location, prefab, GetOrCreateGroupRoot(rule.Group), _registry);
             RegisterPool(pool, location);
+            _poolByPrefab.AddOrUpdate(prefab, _poolCount - 1);
             return pool;
         }
 
@@ -622,6 +634,7 @@ namespace Moirai.Atropos.ObjectPool
             _poolCount = 0;
             _scheduler.Clear();
             _poolByLocation.Clear();
+            _poolByPrefab.Clear();
             _unregisteredWarned.Clear();
             ClearGroupRoots();
             ReleaseDebugSnapshots();
@@ -669,7 +682,7 @@ namespace Moirai.Atropos.ObjectPool
             }
 
             _unhandledDespawnWarned.AddOrUpdate(name, 1);
-            LogUtility.Warning("[GameObjectPool] Despawn target is not a pooled instance and will be destroyed: {0}", name);
+            LogUtility.Warning("[GameObjectPool] Despawn target is not a registered pooled instance (foreign or already destroyed) and will be destroyed: {0}", name);
         }
 
         #endregion

@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using Moirai.Atropos.Resource;
@@ -98,7 +98,7 @@ namespace Moirai.Atropos.ObjectPool
                 return;
             }
 
-            int instanceId = prefab.GetInstanceID();
+            int instanceId = UnityUtility.GetObjectEntityId(prefab);
             if (!_leases.TryGetValue(instanceId, out List<ResourceAssetLease<GameObject>> leases) || leases.Count == 0)
             {
                 return;
@@ -127,7 +127,7 @@ namespace Moirai.Atropos.ObjectPool
                 return null;
             }
 
-            int instanceId = lease.Asset.GetInstanceID();
+            int instanceId = UnityUtility.GetObjectEntityId(lease.Asset);
             if (!_leases.TryGetValue(instanceId, out List<ResourceAssetLease<GameObject>> leases))
             {
                 leases = new List<ResourceAssetLease<GameObject>>(1);
