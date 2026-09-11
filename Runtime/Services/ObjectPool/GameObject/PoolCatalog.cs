@@ -142,7 +142,7 @@ namespace Moirai.Atropos.ObjectPool
                 ruleIndex,
                 entry.entryName,
                 entry.group,
-                entry.assetPath,
+                entry.pattern,
                 entry.policy,
                 entry.minIdle,
                 entry.softCapacity,
@@ -150,7 +150,7 @@ namespace Moirai.Atropos.ObjectPool
                 entry.idleSeconds,
                 entry.unloadPrefab,
                 entry.priority,
-                PoolGlobMatcher.Compile(entry.assetPath));
+                PoolGlobMatcher.Compile(entry.pattern));
         }
 
         #endregion
@@ -274,7 +274,7 @@ namespace Moirai.Atropos.ObjectPool
             for (int i = 0; i < entries.Count; i++)
             {
                 PoolEntry entry = entries[i];
-                if (entry != null && !string.IsNullOrEmpty(entry.assetPath))
+                if (entry != null && !string.IsNullOrEmpty(entry.pattern))
                 {
                     validCount++;
                 }
@@ -290,7 +290,7 @@ namespace Moirai.Atropos.ObjectPool
             for (int i = 0; i < entries.Count; i++)
             {
                 PoolEntry entry = entries[i];
-                if (entry == null || string.IsNullOrEmpty(entry.assetPath))
+                if (entry == null || string.IsNullOrEmpty(entry.pattern))
                 {
                     continue;
                 }

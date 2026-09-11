@@ -1,4 +1,4 @@
-﻿using System.Threading;
+using System.Threading;
 using Cysharp.Threading.Tasks;
 using Moirai.Atropos.Resource;
 using UnityEngine;
@@ -10,7 +10,7 @@ namespace Moirai.Atropos.ObjectPool
     /// <para>统一的静态游戏对象池访问入口，通过替换 <see cref="Handler"/> 即可在不同对象池后端之间零成本切换。</para>
     /// <para>未显式设置处理器时，使用 <see cref="CreateDefaultHandler"/> 从 <see cref="GameObjectPoolServiceSettings"/> 创建处理器实例。</para>
     /// <para>Handler 属性由 <c>HandlerHostGenerator</c> 源生成器自动生成（线程安全懒加载）。</para>
-    /// <para>按资源地址管理池化 GameObject 实例；任意 CLR 对象池化请使用 <see cref="ObjectPoolService"/>。</para>
+    /// <para>支持两种池化来源：资源地址（经 ResourceService 加载）、外部 Prefab 引用。任意 CLR 对象池化请使用 <see cref="ObjectPoolService"/>。</para>
     /// </summary>
     [HandlerHost(typeof(GameObjectPoolServiceHandler))]
     [ServiceDependency(typeof(ResourceService))]
@@ -62,10 +62,6 @@ namespace Moirai.Atropos.ObjectPool
 
         #endregion
 
-        #region 属性 [PROPERTIES]
-		
-        #endregion
-
         #region 获取 [SPAWN]
 
         /// <summary>
@@ -86,6 +82,26 @@ namespace Moirai.Atropos.ObjectPool
         /// <returns>组件（未就绪时为 null）。</returns>
         public static T Spawn<T>(string location, Transform parent = null) where T : Component =>
             s_Handler?.Spawn<T>(location, parent);
+
+        /// <summary>
+        /// 以外部预制体引用同步获取游戏对象。
+        /// <para>池按预制体实例 ID 自动建池；池不负责加载/卸载该预制体。</para>
+        /// </summary>
+        /// <param name="prefab">外部预制体引用。</param>
+        /// <param name="parent">父级 Transform。</param>
+        /// <returns>游戏对象。</returns>
+        public static GameObject Spawn(GameObject prefab, Transform parent = null) =>
+            s_Handler?.Spawn(prefab, parent);
+
+        /// <summary>
+        /// 以外部预制体引用同步获取组件。
+        /// </summary>
+        /// <typeparam name="T">组件类型。</typeparam>
+        /// <param name="prefab">外部预制体引用。</param>
+        /// <param name="parent">父级 Transform。</param>
+        /// <returns>组件（未就绪时为 null）。</returns>
+        public static T Spawn<T>(GameObject prefab, Transform parent = null) where T : Component =>
+            s_Handler?.Spawn<T>(prefab, parent);
 
         /// <summary>
         /// 尝试同步获取游戏对象。
@@ -123,6 +139,69 @@ namespace Moirai.Atropos.ObjectPool
 
         #endregion
 
+        #region 池化租约 [POOLED LEASE]
+
+        /// <summary>
+        /// 同步获取池化租约（资源地址）。Dispose 时自动 <see cref="Despawn(GameObject)"/>。
+        /// </summary>
+        /// <param name="location">资源地址。</param>
+        /// <param name="parent">父级 Transform。</param>
+        /// <returns>池化租约。</returns>
+        public static PooledGameObject SpawnPooled(string location, Transform parent = null) =>
+            PooledGameObject.Wrap(Spawn(location, parent));
+
+        /// <summary>
+        /// 同步获取池化租约（外部预制体）。
+        /// </summary>
+        /// <param name="prefab">外部预制体引用。</param>
+        /// <param name="parent">父级 Transform。</param>
+        /// <returns>池化租约。</returns>
+        public static PooledGameObject SpawnPooled(GameObject prefab, Transform parent = null) =>
+            PooledGameObject.Wrap(Spawn(prefab, parent));
+
+        /// <summary>
+        /// 异步获取池化租约（资源地址）。
+        /// </summary>
+        /// <param name="location">资源地址。</param>
+        /// <param name="parent">父级 Transform。</param>
+        /// <param name="cancellationToken">取消令牌。</param>
+        /// <returns>池化租约。</returns>
+        public static async UniTask<PooledGameObject> SpawnPooledAsync(string location, Transform parent = null, CancellationToken cancellationToken = default) =>
+            PooledGameObject.Wrap(await SpawnAsync(location, parent, cancellationToken));
+
+        /// <summary>
+        /// 同步获取组件池化租约（资源地址）。
+        /// </summary>
+        /// <typeparam name="TComponent">组件类型。</typeparam>
+        /// <param name="location">资源地址。</param>
+        /// <param name="parent">父级 Transform。</param>
+        /// <returns>组件池化租约。</returns>
+        public static Pooled<TComponent> SpawnPooled<TComponent>(string location, Transform parent = null) where TComponent : Component =>
+            Pooled<TComponent>.Wrap(Spawn(location, parent));
+
+        /// <summary>
+        /// 同步获取组件池化租约（外部预制体）。
+        /// </summary>
+        /// <typeparam name="TComponent">组件类型。</typeparam>
+        /// <param name="prefab">外部预制体引用。</param>
+        /// <param name="parent">父级 Transform。</param>
+        /// <returns>组件池化租约。</returns>
+        public static Pooled<TComponent> SpawnPooled<TComponent>(GameObject prefab, Transform parent = null) where TComponent : Component =>
+            Pooled<TComponent>.Wrap(Spawn(prefab, parent));
+
+        /// <summary>
+        /// 异步获取组件池化租约（资源地址）。
+        /// </summary>
+        /// <typeparam name="TComponent">组件类型。</typeparam>
+        /// <param name="location">资源地址。</param>
+        /// <param name="parent">父级 Transform。</param>
+        /// <param name="cancellationToken">取消令牌。</param>
+        /// <returns>组件池化租约。</returns>
+        public static async UniTask<Pooled<TComponent>> SpawnPooledAsync<TComponent>(string location, Transform parent = null, CancellationToken cancellationToken = default) where TComponent : Component =>
+            Pooled<TComponent>.Wrap(await SpawnAsync(location, parent, cancellationToken));
+
+        #endregion
+
         #region 预制体与预热 [PREFAB & WARMUP]
 
         /// <summary>
@@ -152,6 +231,16 @@ namespace Moirai.Atropos.ObjectPool
         public static UniTask WarmupAsync(string location, int count, CancellationToken cancellationToken = default) =>
             s_Handler?.WarmupAsync(location, count, cancellationToken) ?? UniTask.CompletedTask;
 
+        /// <summary>
+        /// 异步预热外部预制体对应的池。
+        /// </summary>
+        /// <param name="prefab">外部预制体引用。</param>
+        /// <param name="count">预热数量。</param>
+        /// <param name="cancellationToken">取消令牌。</param>
+        /// <returns>异步任务（未就绪时为 CompletedTask）。</returns>
+        public static UniTask WarmupAsync(GameObject prefab, int count, CancellationToken cancellationToken = default) =>
+            s_Handler?.WarmupAsync(prefab, count, cancellationToken) ?? UniTask.CompletedTask;
+
         #endregion
 
         #region 回收与刷新 [DESPAWN & FLUSH]
@@ -164,11 +253,22 @@ namespace Moirai.Atropos.ObjectPool
             s_Handler?.Despawn(instance);
 
         /// <summary>
-        /// 通过句柄回收游戏对象。
+        /// 通过租约回收游戏对象。
         /// </summary>
-        /// <param name="handle">句柄。</param>
-        public static void Despawn(GameObjectPoolHandle handle) =>
-            s_Handler?.Despawn(handle);
+        /// <param name="pooled">池化租约。</param>
+        public static void Despawn(PooledGameObject pooled) =>
+            s_Handler?.Despawn(pooled);
+
+        /// <summary>
+        /// 尝试解析实例身份（内部：租约包装）。
+        /// </summary>
+        internal static bool TryResolveInstance(GameObject instance, out RuntimeGameObjectPool pool, out int slotIndex, out uint generation)
+        {
+            pool = null;
+            slotIndex = -1;
+            generation = 0;
+            return s_Handler != null && s_Handler.TryResolveInstance(instance, out pool, out slotIndex, out generation);
+        }
 
         /// <summary>
         /// 刷新指定地址的池。
@@ -176,6 +276,13 @@ namespace Moirai.Atropos.ObjectPool
         /// <param name="location">资源地址。</param>
         public static void Flush(string location) =>
             s_Handler?.Flush(location);
+
+        /// <summary>
+        /// 刷新外部预制体对应的池。
+        /// </summary>
+        /// <param name="prefab">外部预制体引用。</param>
+        public static void Flush(GameObject prefab) =>
+            s_Handler?.Flush(prefab);
 
         /// <summary>
         /// 刷新指定分组的所有池。

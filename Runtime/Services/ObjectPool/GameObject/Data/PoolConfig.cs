@@ -1,4 +1,6 @@
 ﻿using System;
+using Moirai.Atropos.Attributes;
+using Sirenix.OdinInspector;
 using UnityEngine;
 
 namespace Moirai.Atropos.ObjectPool
@@ -25,38 +27,49 @@ namespace Moirai.Atropos.ObjectPool
 
         #region 序列化字段 [SERIALIZED FIELDS]
 
-        [Tooltip("条目名称")]
+        [Tooltip("调试名。列表和运行时 Inspector 都看这个。")]
+        [LabelText("规则名称")]
         public string entryName = DEFAULT_ENTRY_NAME;
 
-        [Tooltip("分组名称")]
+        [Tooltip("空闲实例挂到 [Group] 节点下。空值回落到 DefaultGroup。")]
+        [LabelText("分组名称")]
         public string group = DEFAULT_GROUP;
 
-        [Tooltip("资源地址")]
-        public string assetPath = string.Empty;
+        [Tooltip("location 或 glob。* 单级，** 递归，? 单字符。不含通配符则精确匹配。")]
+        [LabelText("资源地址匹配模式")]
+        public string pattern = string.Empty;
 
-        [Tooltip("池策略")]
+        [Tooltip("")]
+        [LabelText("池策略")]
         public EPoolPolicy policy = EPoolPolicy.Burst;
 
-        [Tooltip("最小空闲数量")]
+        [Tooltip("维护后至少保留的空闲实例数。")]
+        [LabelText("常驻空闲")]
         [Min(0)]
         public int minIdle;
 
-        [Tooltip("软容量")]
+        [Tooltip("空闲修剪目标上限。Burst / Fixed 超了会剪。")]
+        [LabelText("软容量")]
         [Min(1)]
         public int softCapacity = 8;
 
-        [Tooltip("硬容量")]
+        [Tooltip("总实例硬顶（含在场）。到达后 Spawn 返回 null。")]
+        [LabelText("硬容量")]
         [Min(1)]
         public int hardCapacity = 16;
 
-        [Tooltip("空闲超时秒数")]
+        [Tooltip("仅 Burst：最老空闲超过该秒数才剪。")]
+        [LabelText("空闲秒数")]
+        [EnumCondition(nameof(policy), (int)EPoolPolicy.Burst)]
         [Min(0f)]
         public float idleSeconds = 15f;
 
-        [Tooltip("是否在空闲时卸载预制体")]
+        [Tooltip("池被剪空后是否 UnloadAsset Prefab。")]
+        [LabelText("空池卸载Prefab")]
         public bool unloadPrefab = true;
 
-        [Tooltip("优先级")]
+        [Tooltip("由左侧拖拽顺序自动维护，越靠上越先匹配。")]
+        [LabelText("优先级")]
         public int priority;
 
         #endregion
@@ -70,7 +83,7 @@ namespace Moirai.Atropos.ObjectPool
         {
             entryName = string.IsNullOrWhiteSpace(entryName) ? DEFAULT_ENTRY_NAME : entryName.Trim();
             group = string.IsNullOrWhiteSpace(group) ? DEFAULT_GROUP : group.Trim();
-            assetPath = NormalizeLocation(assetPath);
+            pattern = NormalizeLocation(pattern);
             if (!Enum.IsDefined(typeof(EPoolPolicy), policy))
             {
                 policy = EPoolPolicy.Burst;
@@ -113,8 +126,8 @@ namespace Moirai.Atropos.ObjectPool
                 return priorityCompare;
             }
 
-            int leftLength = left.assetPath == null ? 0 : left.assetPath.Length;
-            int rightLength = right.assetPath == null ? 0 : right.assetPath.Length;
+            int leftLength = left.pattern == null ? 0 : left.pattern.Length;
+            int rightLength = right.pattern == null ? 0 : right.pattern.Length;
             int pathLengthCompare = rightLength.CompareTo(leftLength);
             if (pathLengthCompare != 0)
             {

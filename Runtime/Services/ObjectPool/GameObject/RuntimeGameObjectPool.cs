@@ -1,6 +1,5 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
-using System.Runtime.CompilerServices;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
@@ -21,6 +20,15 @@ namespace Moirai.Atropos.ObjectPool
             Active = 2
         }
 
+        /// <summary>
+        /// 预制体来源：资源地址加载、外部直接引用。
+        /// </summary>
+        private enum EPrefabSource : byte
+        {
+            Location = 0,
+            External = 1
+        }
+
         private const int WARMUP_CREATE_BATCH = 8;
         private const float WARMUP_FRAME_BUDGET_SECONDS = 0.001f;
 
@@ -32,7 +40,7 @@ namespace Moirai.Atropos.ObjectPool
         {
             public GameObject Instance;
             public Transform Transform;
-            public GameObjectPoolHandle Handle;
+            public object UserData;
             public IGameObjectPoolable[] Poolables;
             public int PoolableCount;
             public float SpawnTime;
@@ -49,10 +57,12 @@ namespace Moirai.Atropos.ObjectPool
 
         private PoolMaintenanceScheduler _scheduler;
         private IPrefabLoader _loader;
+        private PooledInstanceRegistry _registry;
         private PoolCompiledRule _rule;
         private string _location;
         private Transform _root;
         private GameObject _prefab;
+        private EPrefabSource _prefabSource;
         private UniTaskCompletionSource<GameObject> _prefabLoadCompletionSource;
         private bool _prefabLoading;
         private bool _isShuttingDown;
@@ -109,7 +119,7 @@ namespace Moirai.Atropos.ObjectPool
         public int InactiveCount => _inactiveCount;
 
         /// <summary>
-        /// 获取预制体是否已加载。
+        /// 获取预制体是否已就绪（Location 源需已加载；External 源取决于 prefab 是否有效）。
         /// </summary>
         public bool IsPrefabLoaded => _prefab != null;
 
@@ -132,24 +142,63 @@ namespace Moirai.Atropos.ObjectPool
         #region 初始化 [INITIALIZATION]
 
         /// <summary>
-        /// 初始化池。
+        /// 初始化池（资源地址加载预制体）。
         /// </summary>
         /// <param name="scheduler">所属服务的维护调度器。</param>
         /// <param name="rule">编译后的池规则。</param>
         /// <param name="location">资源地址。</param>
         /// <param name="loader">预制体加载器。</param>
         /// <param name="inactiveRoot">非活跃对象挂载根。</param>
+        /// <param name="registry">实例注册表。</param>
         public void Initialize(
             PoolMaintenanceScheduler scheduler,
             in PoolCompiledRule rule,
             string location,
             IPrefabLoader loader,
-            Transform inactiveRoot)
+            Transform inactiveRoot,
+            PooledInstanceRegistry registry)
+        {
+            InitializeCore(scheduler, rule, location, inactiveRoot, registry);
+            _prefabSource = EPrefabSource.Location;
+            _loader = loader;
+        }
+
+        /// <summary>
+        /// 初始化池（外部预制体引用，池不负责卸载预制体）。
+        /// </summary>
+        /// <param name="scheduler">所属服务的维护调度器。</param>
+        /// <param name="rule">编译后的池规则。</param>
+        /// <param name="location">池键（合成地址）。</param>
+        /// <param name="prefab">外部预制体引用。</param>
+        /// <param name="inactiveRoot">非活跃对象挂载根。</param>
+        /// <param name="registry">实例注册表。</param>
+        public void InitializeWithPrefab(
+            PoolMaintenanceScheduler scheduler,
+            in PoolCompiledRule rule,
+            string location,
+            GameObject prefab,
+            Transform inactiveRoot,
+            PooledInstanceRegistry registry)
+        {
+            InitializeCore(scheduler, rule, location, inactiveRoot, registry);
+            _prefabSource = EPrefabSource.External;
+            _prefab = prefab;
+        }
+
+        private void InitializeCore(
+            PoolMaintenanceScheduler scheduler,
+            in PoolCompiledRule rule,
+            string location,
+            Transform inactiveRoot,
+            PooledInstanceRegistry registry)
         {
             _scheduler = scheduler;
             _rule = rule;
             _location = location;
-            _loader = loader;
+            _loader = null;
+            _registry = registry;
+            _prefab = null;
+            _prefabSource = EPrefabSource.Location;
             _root = inactiveRoot;
             _retainTarget = rule.MinIdle;
             _nextMaintenanceAt = float.MaxValue;
@@ -164,11 +213,18 @@ namespace Moirai.Atropos.ObjectPool
         #region 公共方法 — Spawn [PUBLIC SPAWN]
 
         /// <summary>
-        /// 同步获取对象。需预制体已加载。
+        /// 同步获取对象。
+        /// <para>Location 源：需预制体已加载（请先 LoadPrefab / Warmup / SpawnAsync），否则返回 null。</para>
+        /// <para>External 源：需 prefab 引用仍有效。</para>
         /// </summary>
         public GameObject Spawn(Transform parent)
         {
-            if (_prefab == null)
+            if (_prefabSource == EPrefabSource.Location && _prefab == null)
+            {
+                return null;
+            }
+
+            if (!EnsurePrefabLoaded())
             {
                 return null;
             }
@@ -250,49 +306,101 @@ namespace Moirai.Atropos.ObjectPool
 
         #endregion
 
-        #region 公共方法 — 回收 [PUBLIC DESPAWN]
+        #region 公共方法 — 回收与租约 [PUBLIC DESPAWN & LEASE]
 
         /// <summary>
-        /// 通过句柄回收对象。
+        /// 按槽位与代系回收活跃实例。
         /// </summary>
-        public bool ReleaseFromHandle(GameObjectPoolHandle handle)
+        public bool TryRelease(int slotIndex, uint generation)
         {
-            if (handle == null || !_storage.IsValidIndex(handle.SlotIndex))
+            if (!_storage.IsValidIndex(slotIndex))
             {
                 return false;
             }
 
-            ref Slot slot = ref _storage.GetSlotRef(handle.SlotIndex);
-            if (slot.Handle != handle || slot.Generation != handle.Generation || slot.State != SlotState.Active)
+            ref Slot slot = ref _storage.GetSlotRef(slotIndex);
+            if (slot.Generation != generation || slot.State != SlotState.Active)
             {
                 return false;
             }
 
-            ReleaseTrackedInstance(handle.SlotIndex);
+            ReleaseTrackedInstance(slotIndex);
             return true;
         }
 
         /// <summary>
-        /// 通知句柄已销毁（GameObject 被外部 Destroy）。
+        /// 槽位是否仍指向有效非 Free 实例。
         /// </summary>
-        public void NotifyHandleDestroyed(int slotIndex, uint generation)
+        public bool IsAlive(int slotIndex, uint generation)
         {
-            if (_isShuttingDown || !_storage.IsValidIndex(slotIndex))
+            if (!_storage.IsValidIndex(slotIndex))
             {
-                return;
+                return false;
             }
 
             ref Slot slot = ref _storage.GetSlotRef(slotIndex);
-            if (slot.Generation != generation)
+            return slot.Generation == generation && slot.State != SlotState.Free && slot.Instance != null;
+        }
+
+        /// <summary>
+        /// 获取实例与 Transform（代系校验）。
+        /// </summary>
+        public bool TryGetInstance(int slotIndex, uint generation, out GameObject instance, out Transform transform)
+        {
+            instance = null;
+            transform = null;
+            if (!IsAlive(slotIndex, generation))
             {
-                return;
+                return false;
             }
 
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-            LogUtility.Warning("[GameObjectPool] Pooled object destroyed outside pool. Rule:{0}, Location:{1}",
-                _rule.EntryName, _location);
-#endif
-            RemoveDestroyedSlot(slotIndex);
+            ref Slot slot = ref _storage.GetSlotRef(slotIndex);
+            instance = slot.Instance;
+            transform = slot.Transform;
+            return true;
+        }
+
+        /// <summary>
+        /// 获取用户数据。
+        /// </summary>
+        public T GetUserData<T>(int slotIndex) where T : class =>
+            _storage.IsValidIndex(slotIndex) ? _storage.GetSlotRef(slotIndex).UserData as T : null;
+
+        /// <summary>
+        /// 获取或创建用户数据。
+        /// </summary>
+        public T GetOrAddUserData<T>(int slotIndex) where T : class, new()
+        {
+            if (!_storage.IsValidIndex(slotIndex))
+            {
+                return null;
+            }
+
+            ref Slot slot = ref _storage.GetSlotRef(slotIndex);
+            if (slot.UserData is T typed)
+            {
+                return typed;
+            }
+
+            if (slot.UserData != null)
+            {
+                return null;
+            }
+
+            typed = new T();
+            slot.UserData = typed;
+            return typed;
+        }
+
+        /// <summary>
+        /// 覆盖用户数据。
+        /// </summary>
+        public void SetUserData(int slotIndex, object value)
+        {
+            if (_storage.IsValidIndex(slotIndex))
+            {
+                _storage.GetSlotRef(slotIndex).UserData = value;
+            }
         }
 
         #endregion
@@ -306,6 +414,7 @@ namespace Moirai.Atropos.ObjectPool
         /// <param name="lowMemory">是否为低内存强制维护。</param>
         public void ExecuteMaintenance(float now, bool lowMemory)
         {
+            SweepDestroyedInstances();
             PoolRecyclePlan plan = PoolPolicyPlanner.Plan(in _rule, _totalCount, lowMemory);
             _retainTarget = Mathf.Clamp(plan.RetainTarget, _rule.MinIdle, _rule.HardCapacity);
 
@@ -316,7 +425,7 @@ namespace Moirai.Atropos.ObjectPool
                 budget--;
             }
 
-            if (_prefab != null && _totalCount == 0 && plan.UnloadPrefab)
+            if (_prefab != null && _totalCount == 0 && plan.UnloadPrefab && _prefabSource == EPrefabSource.Location)
             {
                 _loader.UnloadPrefab(_prefab);
                 _prefab = null;
@@ -360,10 +469,11 @@ namespace Moirai.Atropos.ObjectPool
                 }
 
                 InvokeOnPooledDestroy(ref slot);
-                slot.Handle?.Detach();
-                if (slot.Instance != null)
+                GameObject instance = slot.Instance;
+                _registry?.Unregister(instance);
+                if (instance != null)
                 {
-                    PoolDestroyUtility.Destroy(slot.Instance);
+                    PoolDestroyUtility.Destroy(instance);
                 }
 
                 ClearSlot(ref slot);
@@ -375,9 +485,13 @@ namespace Moirai.Atropos.ObjectPool
             _activeCount = 0;
             _inactiveCount = 0;
             _totalCount = 0;
-            if (_prefab != null)
+            if (_prefab != null && _prefabSource == EPrefabSource.Location)
             {
                 _loader.UnloadPrefab(_prefab);
+                _prefab = null;
+            }
+            else if (_prefabSource == EPrefabSource.External)
+            {
                 _prefab = null;
             }
         }
@@ -444,10 +558,12 @@ namespace Moirai.Atropos.ObjectPool
             _prefabLoadCompletionSource = null;
             _scheduler = null;
             _loader = null;
+            _registry = null;
             _rule = default;
             _location = null;
             _root = null;
             _prefab = null;
+            _prefabSource = EPrefabSource.Location;
             _prefabLoading = false;
             _isShuttingDown = false;
             _loadVersion++;
@@ -582,14 +698,7 @@ namespace Moirai.Atropos.ObjectPool
                 slot.Instance.SetActive(false);
             }
 
-            GameObjectPoolHandle handle = slot.Instance.GetComponent<GameObjectPoolHandle>();
-            if (handle == null)
-            {
-                handle = slot.Instance.AddComponent<GameObjectPoolHandle>();
-            }
-
-            handle.Bind(this, slotIndex, slot.Generation);
-            slot.Handle = handle;
+            _registry?.Register(slot.Instance, this, slotIndex, slot.Generation);
             CachePoolables(ref slot);
             _totalCount++;
             _expandCount++;
@@ -606,10 +715,11 @@ namespace Moirai.Atropos.ObjectPool
             }
 
             InvokeOnPooledDestroy(ref slot);
-            slot.Handle?.Detach();
-            if (slot.Instance != null)
+            GameObject instance = slot.Instance;
+            _registry?.Unregister(instance);
+            if (instance != null)
             {
-                PoolDestroyUtility.Destroy(slot.Instance);
+                PoolDestroyUtility.Destroy(instance);
             }
 
             ClearSlot(ref slot);
@@ -628,12 +738,29 @@ namespace Moirai.Atropos.ObjectPool
             }
 
             InvokeOnPooledDestroy(ref slot);
-            slot.Handle?.Detach();
+            _registry?.Unregister(slot.Instance);
             ClearSlot(ref slot);
             _storage.FreeSlot(slotIndex);
             _totalCount = Mathf.Max(0, _totalCount - 1);
             _destroyCount++;
             RefreshMaintenance();
+        }
+
+        private void SweepDestroyedInstances()
+        {
+            int slotCount = _storage.SlotCount;
+            for (int i = 0; i < slotCount; i++)
+            {
+                ref Slot slot = ref _storage.GetSlotRef(i);
+                if (slot.State != SlotState.Free && slot.Instance == null)
+                {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                    LogUtility.Warning("[GameObjectPool] Pooled object destroyed outside pool. Rule:{0}, Location:{1}",
+                        _rule.EntryName, _location);
+#endif
+                    RemoveDestroyedSlot(i);
+                }
+            }
         }
 
         #endregion
@@ -673,7 +800,7 @@ namespace Moirai.Atropos.ObjectPool
                         ? now
                         : _storage.GetSlotRef(_inactiveHead).LastReleaseTime + _rule.IdleSeconds;
                 }
-                else if (_prefab != null && _totalCount == 0 && _rule.UnloadPrefab)
+                else if (_prefabSource == EPrefabSource.Location && _prefab != null && _totalCount == 0 && _rule.UnloadPrefab)
                 {
                     due = _rule.Policy == EPoolPolicy.Burst ? now + _rule.IdleSeconds : now;
                 }
@@ -694,6 +821,11 @@ namespace Moirai.Atropos.ObjectPool
 
         private bool EnsurePrefabLoaded()
         {
+            if (_prefabSource == EPrefabSource.External)
+            {
+                return _prefab != null;
+            }
+
             if (_prefab != null)
             {
                 return true;
@@ -710,6 +842,11 @@ namespace Moirai.Atropos.ObjectPool
 
         private async UniTask<bool> EnsurePrefabLoadedAsync(CancellationToken cancellationToken)
         {
+            if (_prefabSource == EPrefabSource.External)
+            {
+                return _prefab != null;
+            }
+
             if (_prefab != null)
             {
                 return true;
@@ -744,7 +881,7 @@ namespace Moirai.Atropos.ObjectPool
 
             if (_isShuttingDown || loadVersion != _loadVersion)
             {
-                if (loaded != null)
+                if (loaded != null && _loader != null)
                 {
                     _loader.UnloadPrefab(loaded);
                 }
