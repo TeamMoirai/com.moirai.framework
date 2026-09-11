@@ -13,6 +13,7 @@ namespace Moirai.Atropos.ObjectPool
         /// <summary>
         /// 获取配置的通用对象池处理器。
         /// </summary>
-        public static ObjectPoolServiceHandler ObjectPoolServiceHandler => Instance.m_ObjectPoolServiceHandler;
+        public static ObjectPoolServiceHandler ObjectPoolServiceHandler =>
+            Instance.m_ObjectPoolServiceHandler ??= new DefaultObjectPoolHandler();
     }
 }

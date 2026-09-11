@@ -119,7 +119,8 @@ namespace Moirai.Atropos.ObjectPool
         /// <inheritdoc />
         public override int GetHashCode()
         {
-            int hash = _prefab == null ? 0 : _prefab.GetInstanceID();
+            // 与 Equals 同用引用身份，避免 Unity 假空把 hash 污染为 0。
+            int hash = ReferenceEquals(_prefab, null) ? 0 : _prefab.GetInstanceID();
             return string.IsNullOrEmpty(_location) ? hash : (hash * 397) ^ _location.GetHashCode();
         }
 

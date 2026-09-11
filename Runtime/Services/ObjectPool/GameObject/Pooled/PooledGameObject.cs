@@ -179,16 +179,23 @@ namespace Moirai.Atropos.ObjectPool
                 return;
             }
 
-            OnDispose();
-            ReleaseDisposables();
-            if (_owner != null)
-            {
-                _owner.TryRelease(_slotIndex, _generation);
-            }
-
-            ClearIdentity();
             IsDisposed = true;
-            ReturnToPool();
+            try
+            {
+                OnDispose();
+                ReleaseDisposables();
+                if (_owner != null)
+                {
+                    _owner.TryRelease(_slotIndex, _generation);
+                }
+
+                ClearIdentity();
+            }
+            finally
+            {
+                // OnDispose 抛异常时仍归还包装器，防 s_Pool 泄漏。
+                ReturnToPool();
+            }
         }
 
 #if R3_INSTALLED

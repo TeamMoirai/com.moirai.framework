@@ -93,13 +93,18 @@ namespace Moirai.Atropos.ObjectPool
             _catalog = null;
             _registry?.Dispose();
             _registry = null;
-            _poolByPrefab.Dispose();
 
             if (_containerRoot != null)
             {
                 PoolDestroyUtility.Destroy(_containerRoot.gameObject);
                 _containerRoot = null;
             }
+
+            _poolByLocation.Dispose();
+            _poolByPrefab.Dispose();
+            _unregisteredWarned.Dispose();
+            _unhandledDespawnWarned.Dispose();
+            _groupRootMap.Dispose();
         }
 
         /// <summary>

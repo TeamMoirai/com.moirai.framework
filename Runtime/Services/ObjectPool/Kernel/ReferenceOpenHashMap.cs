@@ -107,7 +107,7 @@ namespace Moirai.Atropos.ObjectPool
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void AddOrUpdate(object key, int value)
         {
-            if (key == null)
+            if (key == null || _buckets == null)
             {
                 return;
             }

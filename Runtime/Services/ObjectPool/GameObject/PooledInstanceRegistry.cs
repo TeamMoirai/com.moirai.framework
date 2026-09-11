@@ -68,7 +68,8 @@ namespace Moirai.Atropos.ObjectPool
 
         public void Unregister(GameObject instance)
         {
-            if (instance == null)
+            // 真 null 才跳过：Unity 假空（外部 Destroy）仍持有托管引用，必须移除条目防泄漏。
+            if (ReferenceEquals(instance, null))
             {
                 return;
             }

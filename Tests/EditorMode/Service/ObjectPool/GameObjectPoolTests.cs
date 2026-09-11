@@ -652,6 +652,29 @@ namespace Service.GameObjectPool
             Assert.AreEqual(1, pool.TotalCount, "destroyed slot must be lazily reclaimed");
         }
 
+        [Test]
+        public void ExternalDestroy_UnregistersRegistryEntry()
+        {
+            RuntimeGameObjectPool pool = CreatePool();
+            GameObject instance = SpawnOne(pool);
+            Assert.IsTrue(_registry.TryResolve(instance, out _, out int slotIndex));
+
+            Object.DestroyImmediate(instance);
+            pool.ExecuteMaintenance(Time.time, true);
+
+            Assert.IsFalse(_registry.TryResolve(instance, out _, out _), "destroyed instance must leave registry");
+            Assert.AreEqual(0, pool.TotalCount);
+        }
+
+        [Test]
+        public void PooledComponent_AccessAfterDespawn_IsNullSafe()
+        {
+            // Component 属性在 Cache 为空时返回 null，不 NRE。
+            Pooled<MeshFilter> lease = new Pooled<MeshFilter>();
+            Assert.IsNull(lease.Component);
+            lease.Dispose();
+        }
+
         #endregion
 
         private sealed class UserDataProbe
