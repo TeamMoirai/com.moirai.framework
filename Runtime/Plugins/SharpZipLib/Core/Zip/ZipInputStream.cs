@@ -15,8 +15,8 @@ namespace ICSharpCode.SharpZipLib.Zip
 	/// the next file.  The zip entry contains information about the file name
 	/// size, compressed size, Crc, etc.
 	/// It includes support for Stored and Deflated entries.
-	/// <br/>
-	/// <br/>Author of the original java version : Jochen Hoenicke
+	/// <br />
+	/// <br />Author of the original java version : Jochen Hoenicke
 	/// </summary>
 	///
 	/// <example> This sample shows how to read a zip file

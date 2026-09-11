@@ -466,13 +466,13 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 根据索引设置分辨率。<br/>
+        /// 根据索引设置分辨率。<br />
         /// 详见：https://docs.unity3d.com/ScriptReference/Screen.SetResolution.html
         /// </summary>
         /// <param name="index"></param>
         /// <remarks>
-        /// 注意：在编辑器中无效。<br/>
-        /// 注意：分辨率切换不会立即生效，而是在当前帧渲染完成后才会执行。<br/>
+        /// 注意：在编辑器中无效。<br />
+        /// 注意：分辨率切换不会立即生效，而是在当前帧渲染完成后才会执行。<br />
         /// </remarks>
         public static void SetResolutionIndex(int index)
         {

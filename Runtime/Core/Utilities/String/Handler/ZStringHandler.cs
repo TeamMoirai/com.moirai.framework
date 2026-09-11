@@ -6,7 +6,7 @@ using Cysharp.Text;
 namespace Moirai.Atropos
 {
     /// <summary>
-    /// 基于 ZString 的零分配字符串构建器工具实现。<br/>
+    /// 基于 ZString 的零分配字符串构建器工具实现。<br />
     /// 使用 <see cref="Cysharp.Text.ZString"/> 提供完全零分配的字符串操作。
     /// </summary>
     /// <remarks>

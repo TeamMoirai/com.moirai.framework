@@ -57,8 +57,8 @@ namespace Moirai.Atropos.ConfigTable
         }
 
         /// <summary>
-        /// 将框架内置的 Config 模板复制到用户指定的目录。<br/>
-        /// 若选中的目录名不包含 "Config"，则自动在其下创建 Config 子目录。<br/>
+        /// 将框架内置的 Config 模板复制到用户指定的目录。<br />
+        /// 若选中的目录名不包含 "Config"，则自动在其下创建 Config 子目录。<br />
         /// 目标路径在 Assets 内时会自动添加 "~" 后缀以避免 Unity 导入。
         /// </summary>
         [Button("生成 Config 到指定目录", ButtonSizes.Large), PropertyOrder(-999f)]

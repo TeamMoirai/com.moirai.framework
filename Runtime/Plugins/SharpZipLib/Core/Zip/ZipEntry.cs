@@ -121,8 +121,8 @@ namespace ICSharpCode.SharpZipLib.Zip
 	/// ZipFile and ZipInputStream will give you instances of this class as
 	/// information about the members in an archive.  ZipOutputStream
 	/// uses an instance of this class when creating an entry in a Zip file.
-	/// <br/>
-	/// <br/>Author of the original java version : Jochen Hoenicke
+	/// <br />
+	/// <br />Author of the original java version : Jochen Hoenicke
 	/// </summary>
 	public class ZipEntry
 	{
@@ -302,30 +302,30 @@ namespace ICSharpCode.SharpZipLib.Zip
 		/// Get/Set general purpose bit flag for entry
 		/// </summary>
 		/// <remarks>
-		/// General purpose bit flag<br/>
-		/// <br/>
-		/// Bit 0: If set, indicates the file is encrypted<br/>
-		/// Bit 1-2 Only used for compression type 6 Imploding, and 8, 9 deflating<br/>
-		/// Imploding:<br/>
-		/// Bit 1 if set indicates an 8K sliding dictionary was used.  If clear a 4k dictionary was used<br/>
-		/// Bit 2 if set indicates 3 Shannon-Fanno trees were used to encode the sliding dictionary, 2 otherwise<br/>
-		/// <br/>
-		/// Deflating:<br/>
-		///   Bit 2    Bit 1<br/>
-		///     0        0       Normal compression was used<br/>
-		///     0        1       Maximum compression was used<br/>
-		///     1        0       Fast compression was used<br/>
-		///     1        1       Super fast compression was used<br/>
-		/// <br/>
+		/// General purpose bit flag<br />
+		/// <br />
+		/// Bit 0: If set, indicates the file is encrypted<br />
+		/// Bit 1-2 Only used for compression type 6 Imploding, and 8, 9 deflating<br />
+		/// Imploding:<br />
+		/// Bit 1 if set indicates an 8K sliding dictionary was used.  If clear a 4k dictionary was used<br />
+		/// Bit 2 if set indicates 3 Shannon-Fanno trees were used to encode the sliding dictionary, 2 otherwise<br />
+		/// <br />
+		/// Deflating:<br />
+		///   Bit 2    Bit 1<br />
+		///     0        0       Normal compression was used<br />
+		///     0        1       Maximum compression was used<br />
+		///     1        0       Fast compression was used<br />
+		///     1        1       Super fast compression was used<br />
+		/// <br />
 		/// Bit 3: If set, the fields crc-32, compressed size
 		/// and uncompressed size are were not able to be written during zip file creation
-		/// The correct values are held in a data descriptor immediately following the compressed data. <br/>
-		/// Bit 4: Reserved for use by PKZIP for enhanced deflating<br/>
-		/// Bit 5: If set indicates the file contains compressed patch data<br/>
-		/// Bit 6: If set indicates strong encryption was used.<br/>
-		/// Bit 7-10: Unused or reserved<br/>
-		/// Bit 11: If set the name and comments for this entry are in <a href="http://www.unicode.org">unicode</a>.<br/>
-		/// Bit 12-15: Unused or reserved<br/>
+		/// The correct values are held in a data descriptor immediately following the compressed data. <br />
+		/// Bit 4: Reserved for use by PKZIP for enhanced deflating<br />
+		/// Bit 5: If set indicates the file contains compressed patch data<br />
+		/// Bit 6: If set indicates strong encryption was used.<br />
+		/// Bit 7-10: Unused or reserved<br />
+		/// Bit 11: If set the name and comments for this entry are in <a href="http://www.unicode.org">unicode</a>.<br />
+		/// Bit 12-15: Unused or reserved<br />
 		/// </remarks>
 		/// <seealso cref="IsUnicodeText"></seealso>
 		/// <seealso cref="IsCrypted"></seealso>
@@ -456,30 +456,30 @@ namespace ICSharpCode.SharpZipLib.Zip
 		/// Get minimum Zip feature version required to extract this entry
 		/// </summary>
 		/// <remarks>
-		/// Minimum features are defined as:<br/>
-		/// 1.0 - Default value<br/>
-		/// 1.1 - File is a volume label<br/>
-		/// 2.0 - File is a folder/directory<br/>
-		/// 2.0 - File is compressed using Deflate compression<br/>
-		/// 2.0 - File is encrypted using traditional encryption<br/>
-		/// 2.1 - File is compressed using Deflate64<br/>
-		/// 2.5 - File is compressed using PKWARE DCL Implode<br/>
-		/// 2.7 - File is a patch data set<br/>
-		/// 4.5 - File uses Zip64 format extensions<br/>
-		/// 4.6 - File is compressed using BZIP2 compression<br/>
-		/// 5.0 - File is encrypted using DES<br/>
-		/// 5.0 - File is encrypted using 3DES<br/>
-		/// 5.0 - File is encrypted using original RC2 encryption<br/>
-		/// 5.0 - File is encrypted using RC4 encryption<br/>
-		/// 5.1 - File is encrypted using AES encryption<br/>
-		/// 5.1 - File is encrypted using corrected RC2 encryption<br/>
-		/// 5.1 - File is encrypted using corrected RC2-64 encryption<br/>
-		/// 6.1 - File is encrypted using non-OAEP key wrapping<br/>
-		/// 6.2 - Central directory encryption (not confirmed yet)<br/>
-		/// 6.3 - File is compressed using LZMA<br/>
-		/// 6.3 - File is compressed using PPMD+<br/>
-		/// 6.3 - File is encrypted using Blowfish<br/>
-		/// 6.3 - File is encrypted using Twofish<br/>
+		/// Minimum features are defined as:<br />
+		/// 1.0 - Default value<br />
+		/// 1.1 - File is a volume label<br />
+		/// 2.0 - File is a folder/directory<br />
+		/// 2.0 - File is compressed using Deflate compression<br />
+		/// 2.0 - File is encrypted using traditional encryption<br />
+		/// 2.1 - File is compressed using Deflate64<br />
+		/// 2.5 - File is compressed using PKWARE DCL Implode<br />
+		/// 2.7 - File is a patch data set<br />
+		/// 4.5 - File uses Zip64 format extensions<br />
+		/// 4.6 - File is compressed using BZIP2 compression<br />
+		/// 5.0 - File is encrypted using DES<br />
+		/// 5.0 - File is encrypted using 3DES<br />
+		/// 5.0 - File is encrypted using original RC2 encryption<br />
+		/// 5.0 - File is encrypted using RC4 encryption<br />
+		/// 5.1 - File is encrypted using AES encryption<br />
+		/// 5.1 - File is encrypted using corrected RC2 encryption<br />
+		/// 5.1 - File is encrypted using corrected RC2-64 encryption<br />
+		/// 6.1 - File is encrypted using non-OAEP key wrapping<br />
+		/// 6.2 - Central directory encryption (not confirmed yet)<br />
+		/// 6.3 - File is compressed using LZMA<br />
+		/// 6.3 - File is compressed using PPMD+<br />
+		/// 6.3 - File is encrypted using Blowfish<br />
+		/// 6.3 - File is encrypted using Twofish<br />
 		/// </remarks>
 		/// <seealso cref="CanDecompress"></seealso>
 		public int Version

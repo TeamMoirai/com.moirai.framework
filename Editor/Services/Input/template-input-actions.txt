@@ -14,7 +14,7 @@ namespace @namespace@
     /// 此结构体包含了角色可用于交互的所有输入动作。
     /// </summary>
     /// <example>
-    /// 逻辑更新与按键检测的更新应保持一致<br/>
+    /// 逻辑更新与按键检测的更新应保持一致<br />
     /// <code><![CDATA[
     /// [Tooltip("指示何时应该更新动作。\n\n" +
     ///     "FixedUpdate（推荐）：当游戏玩法逻辑需要在 FixedUpdate 期间运行时使用。\n\n" +

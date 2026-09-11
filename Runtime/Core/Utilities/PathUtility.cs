@@ -138,7 +138,7 @@ namespace Moirai.Atropos
         }
         
         /// <summary>
-        /// 格式化UNC地址<br/>
+        /// 格式化UNC地址<br />
         /// </summary>
         /// <param name="path">需要格式化的地址</param>
         /// <returns>格式化后的UNC地址</returns>

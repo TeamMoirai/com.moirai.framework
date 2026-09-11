@@ -5,13 +5,13 @@ using UnityEngine;
 namespace Moirai.Atropos
 {
     /// <summary>
-    /// 为 <see cref="SerializeReference"/> 字段或 <see cref="string"/> 类型名字段提供实现类下拉菜单。<br/>
+    /// 为 <see cref="SerializeReference"/> 字段或 <see cref="string"/> 类型名字段提供实现类下拉菜单。<br />
     /// 自动列出字段声明类型（或 <see cref="BaseType"/>）的所有非抽象派生类。
     /// </summary>
     /// <remarks>
-    /// 两种使用模式：<br/>
+    /// 两种使用模式：<br />
     /// 1. <b>引用模式</b>（推荐）：配合 <see cref="SerializeReference"/> 使用，字段类型为抽象类，
-    ///    下拉选择后直接存储实例，展开可编辑子字段。<br/>
+    ///    下拉选择后直接存储实例，展开可编辑子字段。<br />
     /// 2. <b>类型名模式</b>：字段为 <c>string</c>，存储类型全名，
     ///    运行时通过 <c>ReflectionUtility.ResolveImplType&lt;T&gt;(ref cached, typeName, fallbackType)</c> 创建实例。
     ///    适用于接口类型（无法直接序列化实例的场景）。

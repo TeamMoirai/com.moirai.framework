@@ -10,7 +10,7 @@ namespace ICSharpCode.SharpZipLib.Zip.Compression.Streams
 {
 	/// <summary>
 	/// A special stream deflating or compressing the bytes that are
-	/// written to it.  It uses a Deflater to perform actual deflating.<br/>
+	/// written to it.  It uses a Deflater to perform actual deflating.<br />
 	/// Authors of the original java version : Tom Tromey, Jochen Hoenicke
 	/// </summary>
 	public class DeflaterOutputStream : Stream

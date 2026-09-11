@@ -299,9 +299,9 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 绘制下拉行：标签 + popup 按钮（引用模式且需展开子属性时右侧并排 foldout 箭头）。<br/>
-        /// IMGUI 主路径与 Odin 路径共用，保证两种宿主下行内交互完全一致。<br/>
-        /// 返回 foldout 展开状态（string 模式恒为 true）。<br/>
+        /// 绘制下拉行：标签 + popup 按钮（引用模式且需展开子属性时右侧并排 foldout 箭头）。<br />
+        /// IMGUI 主路径与 Odin 路径共用，保证两种宿主下行内交互完全一致。<br />
+        /// 返回 foldout 展开状态（string 模式恒为 true）。<br />
         /// <paramref name="applySelection"/> 收到的是<b>缓存索引</b>（0=None，1..n=类型）。
         /// </summary>
         internal static bool DrawRow(Rect position, SerializedProperty property, GUIContent label,
@@ -313,8 +313,8 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 下拉行核心绘制（不依赖 SerializedProperty）。<br/>
-        /// 供串行化属性路径与 Odin 值条目回退路径共用，保证两种宿主下行内交互完全一致。<br/>
+        /// 下拉行核心绘制（不依赖 SerializedProperty）。<br />
+        /// 供串行化属性路径与 Odin 值条目回退路径共用，保证两种宿主下行内交互完全一致。<br />
         /// <paramref name="currentLocalIndex"/> 与 <paramref name="onSelectedLocal"/> 均为<b>本地索引</b>。
         /// </summary>
         internal static bool DrawRowCore(Rect position, GUIContent label, ProviderOptions options, bool reserveFoldout,
@@ -343,7 +343,7 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 绘制子属性盒（IMGUI）：unity-box 背景 + PAD 内边距内逐个绘制子属性。<br/>
+        /// 绘制子属性盒（IMGUI）：unity-box 背景 + PAD 内边距内逐个绘制子属性。<br />
         /// IMGUI 主路径与 Odin 回退路径共用。
         /// </summary>
         internal static void DrawChildren(Rect boxRect, SerializedProperty property)

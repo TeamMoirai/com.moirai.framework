@@ -5,7 +5,7 @@ namespace ICSharpCode.SharpZipLib.Zip.Compression.Streams
 	/// <summary>
 	/// Contains the output from the Inflation process.
 	/// We need to have a window so that we can refer backwards into the output stream
-	/// to repeat stuff.<br/>
+	/// to repeat stuff.<br />
 	/// Author of the original java version : John Leuner
 	/// </summary>
 	public class OutputWindow

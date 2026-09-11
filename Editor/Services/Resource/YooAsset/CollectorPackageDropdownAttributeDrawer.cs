@@ -147,7 +147,7 @@ namespace Moirai.Atropos.Resource.Editor
 
     /// <summary>
     /// Odin 原生 Drawer，为 <see cref="YooAssetHandler.CollectorPackageDropdownAttribute"/> 接管 Odin 绘制，
-    /// 与 <see cref="ProviderDropdownOdinDrawer"/> 同一套宿主约定。<br/>
+    /// 与 <see cref="ProviderDropdownOdinDrawer"/> 同一套宿主约定。<br />
     /// 必须接管的原因：Odin 开启 UITK 集成（Preferences → Odin → General → Enable UIToolkit Support）时，
     /// 其 <c>UnityPropertyAttributeDrawer</c> 只要检测到 Unity 绘制器重写了 CreatePropertyGUI（按方法存在与否
     /// 静态判定，不看返回值）便会放弃 IMGUI OnGUI 路径，改走内嵌 UITK 元素——该内嵌在 FrameworkSettingsWindow
