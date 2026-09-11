@@ -53,7 +53,7 @@ namespace Moirai.Atropos.ObjectPool
         public Transform Transform => _transform;
 
         /// <summary>
-        /// 获取租约是否仍指向有效活跃实例（代系校验）。
+        /// 获取租约是否仍指向有效且处于 Active 状态的实例（租期代系校验）。
         /// </summary>
         public bool IsValid => _owner != null && _owner.IsAlive(_slotIndex, _generation);
 
@@ -67,49 +67,45 @@ namespace Moirai.Atropos.ObjectPool
         #region 公共方法 — Spawn [PUBLIC SPAWN]
 
         /// <summary>
-        /// 将已生成实例包装为租约（不触发新的 Spawn）。
+        /// 将已生成实例包装为租约（不触发新的 Spawn）。仅 Active 实例可包装。
         /// </summary>
         /// <param name="instance">池化实例。</param>
         /// <returns>池化租约。</returns>
         public static PooledGameObject Wrap(GameObject instance)
         {
-            if (!GameObjectPoolService.TryResolveInstance(instance, out RuntimeGameObjectPool pool, out int slotIndex, out uint generation))
+            if (!GameObjectPoolService.TryResolveInstance(instance, out RuntimeGameObjectPool pool, out int slotIndex))
+            {
+                return null;
+            }
+
+            if (!pool.TryBindLease(slotIndex, out uint generation, out GameObject bound, out Transform transform))
             {
                 return null;
             }
 
             PooledGameObject pooled = s_Pool.Get();
-            pooled.Bind(pool, slotIndex, generation);
+            pooled.Bind(pool, slotIndex, generation, bound, transform);
             return pooled;
         }
 
         /// <summary>
-        /// 按资源地址同步获取租约。
+        /// 按池化来源同步获取租约（地址或 Prefab）。
         /// </summary>
-        /// <param name="location">资源地址。</param>
+        /// <param name="source">池化来源。</param>
         /// <param name="parent">父级 Transform。</param>
         /// <returns>池化租约。</returns>
-        public static PooledGameObject Spawn(string location, Transform parent = null) =>
-            Wrap(GameObjectPoolService.Spawn(location, parent));
+        public static PooledGameObject Spawn(GameObjectPoolSource source, Transform parent = null) =>
+            Wrap(GameObjectPoolService.Spawn(source, parent));
 
         /// <summary>
-        /// 以外部预制体同步获取租约。
+        /// 按池化来源异步获取租约。
         /// </summary>
-        /// <param name="prefab">外部预制体引用。</param>
-        /// <param name="parent">父级 Transform。</param>
-        /// <returns>池化租约。</returns>
-        public static PooledGameObject Spawn(GameObject prefab, Transform parent = null) =>
-            Wrap(GameObjectPoolService.Spawn(prefab, parent));
-
-        /// <summary>
-        /// 按资源地址异步获取租约。
-        /// </summary>
-        /// <param name="location">资源地址。</param>
+        /// <param name="source">池化来源。</param>
         /// <param name="parent">父级 Transform。</param>
         /// <param name="cancellationToken">取消令牌。</param>
         /// <returns>池化租约。</returns>
-        public static async UniTask<PooledGameObject> SpawnAsync(string location, Transform parent = null, CancellationToken cancellationToken = default) =>
-            Wrap(await GameObjectPoolService.SpawnAsync(location, parent, cancellationToken));
+        public static async UniTask<PooledGameObject> SpawnAsync(GameObjectPoolSource source, Transform parent = null, CancellationToken cancellationToken = default) =>
+            Wrap(await GameObjectPoolService.SpawnAsync(source, parent, cancellationToken));
 
         #endregion
 
@@ -238,13 +234,16 @@ namespace Moirai.Atropos.ObjectPool
         /// </summary>
         /// <param name="owner">所属池。</param>
         /// <param name="slotIndex">槽位。</param>
-        /// <param name="generation">代系。</param>
-        internal void Bind(RuntimeGameObjectPool owner, int slotIndex, uint generation)
+        /// <param name="generation">租期代系。</param>
+        /// <param name="instance">实例引用。</param>
+        /// <param name="transform">实例 Transform。</param>
+        internal void Bind(RuntimeGameObjectPool owner, int slotIndex, uint generation, GameObject instance, Transform transform)
         {
             _owner = owner;
             _slotIndex = slotIndex;
             _generation = generation;
-            owner.TryGetInstance(slotIndex, generation, out _instance, out _transform);
+            _instance = instance;
+            _transform = transform;
             IsDisposed = false;
             Init();
         }

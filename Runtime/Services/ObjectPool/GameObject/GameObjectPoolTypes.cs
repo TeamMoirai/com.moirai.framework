@@ -5,6 +5,27 @@ using UnityEngine;
 namespace Moirai.Atropos.ObjectPool
 {
     /// <summary>
+    /// 按实例引用回收的结果。
+    /// </summary>
+    public enum PoolReleaseResult : byte
+    {
+        /// <summary>
+        /// 已成功回收到池。
+        /// </summary>
+        Released = 0,
+
+        /// <summary>
+        /// 实例已不在 Active 状态（重复 Despawn / 已回收）。
+        /// </summary>
+        NotActive = 1,
+
+        /// <summary>
+        /// 实例不归属该槽位（身份不匹配）。
+        /// </summary>
+        NotOwned = 2
+    }
+
+    /// <summary>
     /// GameObject 池回收策略。
     /// </summary>
     public enum EPoolPolicy : byte

@@ -10,7 +10,7 @@ namespace Moirai.Atropos.ObjectPool
     /// <para>统一的静态游戏对象池访问入口，通过替换 <see cref="Handler"/> 即可在不同对象池后端之间零成本切换。</para>
     /// <para>未显式设置处理器时，使用 <see cref="CreateDefaultHandler"/> 从 <see cref="GameObjectPoolServiceSettings"/> 创建处理器实例。</para>
     /// <para>Handler 属性由 <c>HandlerHostGenerator</c> 源生成器自动生成（线程安全懒加载）。</para>
-    /// <para>支持两种池化来源：资源地址（经 ResourceService 加载）、外部 Prefab 引用。任意 CLR 对象池化请使用 <see cref="ObjectPoolService"/>。</para>
+    /// <para>支持两种池化来源：资源地址（经 ResourceService 加载）、外部 Prefab 引用，经 <see cref="GameObjectPoolSource"/> 统一入口。</para>
     /// </summary>
     [HandlerHost(typeof(GameObjectPoolServiceHandler))]
     [ServiceDependency(typeof(ResourceService))]
@@ -37,7 +37,6 @@ namespace Moirai.Atropos.ObjectPool
 
         /// <summary>
         /// 初始化游戏对象池服务。由容器在构建期调用。
-        /// <para>确保 <c>GameObjectPoolService.Handler</c> 已赋值（触发 <see cref="CreateDefaultHandler"/> 懒加载）。</para>
         /// </summary>
         public override void OnInit()
         {
@@ -67,145 +66,186 @@ namespace Moirai.Atropos.ObjectPool
         /// <summary>
         /// 同步获取游戏对象。
         /// </summary>
-        /// <param name="location">资源地址。</param>
+        /// <param name="source">池化来源（地址或 Prefab，string/GameObject 隐式转换）。</param>
         /// <param name="parent">父级 Transform。</param>
         /// <returns>游戏对象。</returns>
-        public static GameObject Spawn(string location, Transform parent = null) =>
-            s_Handler?.Spawn(location, parent);
+        public static GameObject Spawn(GameObjectPoolSource source, Transform parent = null) =>
+            source.IsValid ? s_Handler?.Spawn(source, parent) : null;
+
+        /// <summary>
+        /// 同步获取游戏对象并设置姿态。
+        /// </summary>
+        /// <param name="source">池化来源。</param>
+        /// <param name="position">位置。</param>
+        /// <param name="rotation">旋转。</param>
+        /// <param name="parent">父级 Transform。</param>
+        /// <param name="useLocalPosition">是否使用本地位置而不是世界位置。</param>
+        /// <returns>游戏对象。</returns>
+        public static GameObject Spawn(
+            GameObjectPoolSource source,
+            Vector3 position,
+            Quaternion rotation,
+            Transform parent = null,
+            bool useLocalPosition = false)
+        {
+            GameObject instance = Spawn(source, parent);
+            if (instance == null)
+            {
+                return null;
+            }
+
+            ApplyPose(instance.transform, position, rotation, useLocalPosition);
+            return instance;
+        }
 
         /// <summary>
         /// 同步获取组件。
         /// </summary>
         /// <typeparam name="T">组件类型。</typeparam>
-        /// <param name="location">资源地址。</param>
+        /// <param name="source">池化来源。</param>
         /// <param name="parent">父级 Transform。</param>
         /// <returns>组件（未就绪时为 null）。</returns>
-        public static T Spawn<T>(string location, Transform parent = null) where T : Component =>
-            s_Handler?.Spawn<T>(location, parent);
-
-        /// <summary>
-        /// 以外部预制体引用同步获取游戏对象。
-        /// <para>池按预制体实例 ID 自动建池；池不负责加载/卸载该预制体。</para>
-        /// </summary>
-        /// <param name="prefab">外部预制体引用。</param>
-        /// <param name="parent">父级 Transform。</param>
-        /// <returns>游戏对象。</returns>
-        public static GameObject Spawn(GameObject prefab, Transform parent = null) =>
-            s_Handler?.Spawn(prefab, parent);
-
-        /// <summary>
-        /// 以外部预制体引用同步获取组件。
-        /// </summary>
-        /// <typeparam name="T">组件类型。</typeparam>
-        /// <param name="prefab">外部预制体引用。</param>
-        /// <param name="parent">父级 Transform。</param>
-        /// <returns>组件（未就绪时为 null）。</returns>
-        public static T Spawn<T>(GameObject prefab, Transform parent = null) where T : Component =>
-            s_Handler?.Spawn<T>(prefab, parent);
+        public static T Spawn<T>(GameObjectPoolSource source, Transform parent = null) where T : Component =>
+            source.IsValid ? s_Handler?.Spawn<T>(source, parent) : null;
 
         /// <summary>
         /// 尝试同步获取游戏对象。
         /// </summary>
-        /// <param name="location">资源地址。</param>
+        /// <param name="source">池化来源。</param>
         /// <param name="parent">父级 Transform。</param>
         /// <param name="instance">获取的游戏对象。</param>
-        /// <returns>是否成功（未就绪时为 false 且 instance 为 null）。</returns>
-        public static bool TrySpawn(string location, Transform parent, out GameObject instance)
+        /// <returns>是否成功。</returns>
+        public static bool TrySpawn(GameObjectPoolSource source, Transform parent, out GameObject instance)
         {
-            instance = s_Handler?.Spawn(location, parent);
-            return instance != null;
+            instance = null;
+            if (!source.IsValid || s_Handler == null)
+            {
+                return false;
+            }
+
+            return s_Handler.TrySpawn(source, parent, out instance);
         }
 
         /// <summary>
         /// 异步获取游戏对象。
         /// </summary>
-        /// <param name="location">资源地址。</param>
+        /// <param name="source">池化来源。</param>
         /// <param name="parent">父级 Transform。</param>
         /// <param name="cancellationToken">取消令牌。</param>
         /// <returns>游戏对象（未就绪时为 null）。</returns>
-        public static UniTask<GameObject> SpawnAsync(string location, Transform parent = null, CancellationToken cancellationToken = default) =>
-            s_Handler?.SpawnAsync(location, parent, cancellationToken) ?? UniTask.FromResult<GameObject>(null);
+        public static UniTask<GameObject> SpawnAsync(GameObjectPoolSource source, Transform parent = null, CancellationToken cancellationToken = default)
+        {
+            if (!source.IsValid || s_Handler == null)
+            {
+                return UniTask.FromResult<GameObject>(null);
+            }
+
+            return s_Handler.SpawnAsync(source, parent, cancellationToken);
+        }
 
         /// <summary>
         /// 异步获取组件。
         /// </summary>
         /// <typeparam name="T">组件类型。</typeparam>
-        /// <param name="location">资源地址。</param>
+        /// <param name="source">池化来源。</param>
         /// <param name="parent">父级 Transform。</param>
         /// <param name="cancellationToken">取消令牌。</param>
         /// <returns>组件（未就绪时为 null）。</returns>
-        public static UniTask<T> SpawnAsync<T>(string location, Transform parent = null, CancellationToken cancellationToken = default) where T : Component =>
-            s_Handler?.SpawnAsync<T>(location, parent, cancellationToken) ?? UniTask.FromResult<T>(null);
+        public static UniTask<T> SpawnAsync<T>(GameObjectPoolSource source, Transform parent = null, CancellationToken cancellationToken = default) where T : Component
+        {
+            if (!source.IsValid || s_Handler == null)
+            {
+                return UniTask.FromResult<T>(null);
+            }
+
+            return s_Handler.SpawnAsync<T>(source, parent, cancellationToken);
+        }
 
         #endregion
 
         #region 池化租约 [POOLED LEASE]
 
         /// <summary>
-        /// 同步获取池化租约（资源地址）。Dispose 时自动 <see cref="Despawn(GameObject)"/>。
+        /// 同步获取池化租约。Dispose 时自动 <see cref="Despawn(GameObject)"/>。
         /// </summary>
-        /// <param name="location">资源地址。</param>
+        /// <param name="source">池化来源。</param>
         /// <param name="parent">父级 Transform。</param>
         /// <returns>池化租约。</returns>
-        public static PooledGameObject SpawnPooled(string location, Transform parent = null) =>
-            PooledGameObject.Wrap(Spawn(location, parent));
+        public static PooledGameObject SpawnPooled(GameObjectPoolSource source, Transform parent = null) =>
+            PooledGameObject.Wrap(Spawn(source, parent));
 
         /// <summary>
-        /// 同步获取池化租约（外部预制体）。
+        /// 同步获取池化租约并设置姿态。
         /// </summary>
-        /// <param name="prefab">外部预制体引用。</param>
+        /// <param name="source">池化来源。</param>
+        /// <param name="position">位置。</param>
+        /// <param name="rotation">旋转。</param>
         /// <param name="parent">父级 Transform。</param>
+        /// <param name="useLocalPosition">是否使用本地位置而不是世界位置。</param>
         /// <returns>池化租约。</returns>
-        public static PooledGameObject SpawnPooled(GameObject prefab, Transform parent = null) =>
-            PooledGameObject.Wrap(Spawn(prefab, parent));
+        public static PooledGameObject SpawnPooled(
+            GameObjectPoolSource source,
+            Vector3 position,
+            Quaternion rotation,
+            Transform parent = null,
+            bool useLocalPosition = false) =>
+            PooledGameObject.Wrap(Spawn(source, position, rotation, parent, useLocalPosition));
 
         /// <summary>
-        /// 异步获取池化租约（资源地址）。
+        /// 异步获取池化租约。
         /// </summary>
-        /// <param name="location">资源地址。</param>
+        /// <param name="source">池化来源。</param>
         /// <param name="parent">父级 Transform。</param>
         /// <param name="cancellationToken">取消令牌。</param>
         /// <returns>池化租约。</returns>
-        public static async UniTask<PooledGameObject> SpawnPooledAsync(string location, Transform parent = null, CancellationToken cancellationToken = default) =>
-            PooledGameObject.Wrap(await SpawnAsync(location, parent, cancellationToken));
+        public static async UniTask<PooledGameObject> SpawnPooledAsync(GameObjectPoolSource source, Transform parent = null, CancellationToken cancellationToken = default) =>
+            PooledGameObject.Wrap(await SpawnAsync(source, parent, cancellationToken));
 
         /// <summary>
-        /// 同步获取组件池化租约（资源地址）。
+        /// 同步获取组件池化租约。
         /// </summary>
         /// <typeparam name="TComponent">组件类型。</typeparam>
-        /// <param name="location">资源地址。</param>
+        /// <param name="source">池化来源。</param>
         /// <param name="parent">父级 Transform。</param>
         /// <returns>组件池化租约。</returns>
-        public static Pooled<TComponent> SpawnPooled<TComponent>(string location, Transform parent = null) where TComponent : Component =>
-            Pooled<TComponent>.Wrap(Spawn(location, parent));
+        public static Pooled<TComponent> SpawnPooled<TComponent>(GameObjectPoolSource source, Transform parent = null) where TComponent : Component =>
+            Pooled<TComponent>.Wrap(Spawn(source, parent));
 
         /// <summary>
-        /// 同步获取组件池化租约（外部预制体）。
+        /// 同步获取组件池化租约并设置姿态。
         /// </summary>
         /// <typeparam name="TComponent">组件类型。</typeparam>
-        /// <param name="prefab">外部预制体引用。</param>
+        /// <param name="source">池化来源。</param>
+        /// <param name="position">位置。</param>
+        /// <param name="rotation">旋转。</param>
         /// <param name="parent">父级 Transform。</param>
+        /// <param name="useLocalPosition">是否使用本地位置而不是世界位置。</param>
         /// <returns>组件池化租约。</returns>
-        public static Pooled<TComponent> SpawnPooled<TComponent>(GameObject prefab, Transform parent = null) where TComponent : Component =>
-            Pooled<TComponent>.Wrap(Spawn(prefab, parent));
+        public static Pooled<TComponent> SpawnPooled<TComponent>(
+            GameObjectPoolSource source,
+            Vector3 position,
+            Quaternion rotation,
+            Transform parent = null,
+            bool useLocalPosition = false) where TComponent : Component =>
+            Pooled<TComponent>.Wrap(Spawn(source, position, rotation, parent, useLocalPosition));
 
         /// <summary>
-        /// 异步获取组件池化租约（资源地址）。
+        /// 异步获取组件池化租约。
         /// </summary>
         /// <typeparam name="TComponent">组件类型。</typeparam>
-        /// <param name="location">资源地址。</param>
+        /// <param name="source">池化来源。</param>
         /// <param name="parent">父级 Transform。</param>
         /// <param name="cancellationToken">取消令牌。</param>
         /// <returns>组件池化租约。</returns>
-        public static async UniTask<Pooled<TComponent>> SpawnPooledAsync<TComponent>(string location, Transform parent = null, CancellationToken cancellationToken = default) where TComponent : Component =>
-            Pooled<TComponent>.Wrap(await SpawnAsync(location, parent, cancellationToken));
+        public static async UniTask<Pooled<TComponent>> SpawnPooledAsync<TComponent>(GameObjectPoolSource source, Transform parent = null, CancellationToken cancellationToken = default) where TComponent : Component =>
+            Pooled<TComponent>.Wrap(await SpawnAsync(source, parent, cancellationToken));
 
         #endregion
 
         #region 预制体与预热 [PREFAB & WARMUP]
 
         /// <summary>
-        /// 同步加载预制体。
+        /// 同步加载预制体（仅资源地址源）。
         /// </summary>
         /// <param name="location">资源地址。</param>
         /// <returns>预制体。</returns>
@@ -213,7 +253,7 @@ namespace Moirai.Atropos.ObjectPool
             s_Handler?.LoadPrefab(location);
 
         /// <summary>
-        /// 异步加载预制体。
+        /// 异步加载预制体（仅资源地址源）。
         /// </summary>
         /// <param name="location">资源地址。</param>
         /// <param name="cancellationToken">取消令牌。</param>
@@ -222,31 +262,28 @@ namespace Moirai.Atropos.ObjectPool
             s_Handler?.LoadPrefabAsync(location, cancellationToken) ?? UniTask.FromResult<GameObject>(null);
 
         /// <summary>
-        /// 异步预热指定地址的池。
+        /// 异步预热指定来源的池。
         /// </summary>
-        /// <param name="location">资源地址。</param>
+        /// <param name="source">池化来源。</param>
         /// <param name="count">预热数量。</param>
         /// <param name="cancellationToken">取消令牌。</param>
         /// <returns>异步任务（未就绪时为 CompletedTask）。</returns>
-        public static UniTask WarmupAsync(string location, int count, CancellationToken cancellationToken = default) =>
-            s_Handler?.WarmupAsync(location, count, cancellationToken) ?? UniTask.CompletedTask;
+        public static UniTask WarmupAsync(GameObjectPoolSource source, int count, CancellationToken cancellationToken = default)
+        {
+            if (!source.IsValid || s_Handler == null)
+            {
+                return UniTask.CompletedTask;
+            }
 
-        /// <summary>
-        /// 异步预热外部预制体对应的池。
-        /// </summary>
-        /// <param name="prefab">外部预制体引用。</param>
-        /// <param name="count">预热数量。</param>
-        /// <param name="cancellationToken">取消令牌。</param>
-        /// <returns>异步任务（未就绪时为 CompletedTask）。</returns>
-        public static UniTask WarmupAsync(GameObject prefab, int count, CancellationToken cancellationToken = default) =>
-            s_Handler?.WarmupAsync(prefab, count, cancellationToken) ?? UniTask.CompletedTask;
+            return s_Handler.WarmupAsync(source, count, cancellationToken);
+        }
 
         #endregion
 
         #region 回收与刷新 [DESPAWN & FLUSH]
 
         /// <summary>
-        /// 回收游戏对象。
+        /// 回收游戏对象。仅外来对象会 Destroy。
         /// </summary>
         /// <param name="instance">游戏对象。</param>
         public static void Despawn(GameObject instance) =>
@@ -262,27 +299,24 @@ namespace Moirai.Atropos.ObjectPool
         /// <summary>
         /// 尝试解析实例身份（内部：租约包装）。
         /// </summary>
-        internal static bool TryResolveInstance(GameObject instance, out RuntimeGameObjectPool pool, out int slotIndex, out uint generation)
+        internal static bool TryResolveInstance(GameObject instance, out RuntimeGameObjectPool pool, out int slotIndex)
         {
             pool = null;
             slotIndex = -1;
-            generation = 0;
-            return s_Handler != null && s_Handler.TryResolveInstance(instance, out pool, out slotIndex, out generation);
+            return s_Handler != null && s_Handler.TryResolveInstance(instance, out pool, out slotIndex);
         }
 
         /// <summary>
-        /// 刷新指定地址的池。
+        /// 刷新指定来源的池。
         /// </summary>
-        /// <param name="location">资源地址。</param>
-        public static void Flush(string location) =>
-            s_Handler?.Flush(location);
-
-        /// <summary>
-        /// 刷新外部预制体对应的池。
-        /// </summary>
-        /// <param name="prefab">外部预制体引用。</param>
-        public static void Flush(GameObject prefab) =>
-            s_Handler?.Flush(prefab);
+        /// <param name="source">池化来源。</param>
+        public static void Flush(GameObjectPoolSource source)
+        {
+            if (source.IsValid)
+            {
+                s_Handler?.Flush(source);
+            }
+        }
 
         /// <summary>
         /// 刷新指定分组的所有池。
@@ -310,6 +344,22 @@ namespace Moirai.Atropos.ObjectPool
         /// <param name="poolConfigPath">池配置资源地址。</param>
         public static void LoadCatalog(string poolConfigPath) =>
             s_Handler?.LoadCatalog(poolConfigPath);
+
+        #endregion
+
+        #region 私有方法 [PRIVATE METHODS]
+
+        private static void ApplyPose(Transform transform, Vector3 position, Quaternion rotation, bool useLocalPosition)
+        {
+            if (useLocalPosition)
+            {
+                transform.SetLocalPositionAndRotation(position, rotation);
+            }
+            else
+            {
+                transform.SetPositionAndRotation(position, rotation);
+            }
+        }
 
         #endregion
     }

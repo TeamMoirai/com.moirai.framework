@@ -309,7 +309,7 @@ namespace Moirai.Atropos.ObjectPool
         #region 公共方法 — 回收与租约 [PUBLIC DESPAWN & LEASE]
 
         /// <summary>
-        /// 按槽位与代系回收活跃实例。
+        /// 按槽位与租期代系回收活跃实例。
         /// </summary>
         public bool TryRelease(int slotIndex, uint generation)
         {
@@ -329,7 +329,57 @@ namespace Moirai.Atropos.ObjectPool
         }
 
         /// <summary>
-        /// 槽位是否仍指向有效非 Free 实例。
+        /// 按槽位与实例引用回收（代系由 Slot 独占校验）。
+        /// </summary>
+        public PoolReleaseResult ReleaseByInstance(int slotIndex, GameObject instance)
+        {
+            if (!_storage.IsValidIndex(slotIndex))
+            {
+                return PoolReleaseResult.NotOwned;
+            }
+
+            ref Slot slot = ref _storage.GetSlotRef(slotIndex);
+            if (!ReferenceEquals(slot.Instance, instance))
+            {
+                return PoolReleaseResult.NotOwned;
+            }
+
+            if (slot.State != SlotState.Active)
+            {
+                return PoolReleaseResult.NotActive;
+            }
+
+            ReleaseTrackedInstance(slotIndex);
+            return PoolReleaseResult.Released;
+        }
+
+        /// <summary>
+        /// 尝试绑定租约：仅 Active 且实例有效时返回租期代系与引用。
+        /// </summary>
+        public bool TryBindLease(int slotIndex, out uint generation, out GameObject instance, out Transform transform)
+        {
+            generation = 0;
+            instance = null;
+            transform = null;
+            if (!_storage.IsValidIndex(slotIndex))
+            {
+                return false;
+            }
+
+            ref Slot slot = ref _storage.GetSlotRef(slotIndex);
+            if (slot.State != SlotState.Active || slot.Instance == null)
+            {
+                return false;
+            }
+
+            generation = slot.Generation;
+            instance = slot.Instance;
+            transform = slot.Transform;
+            return true;
+        }
+
+        /// <summary>
+        /// 槽位是否仍指向有效 Active 实例。
         /// </summary>
         public bool IsAlive(int slotIndex, uint generation)
         {
@@ -339,7 +389,7 @@ namespace Moirai.Atropos.ObjectPool
             }
 
             ref Slot slot = ref _storage.GetSlotRef(slotIndex);
-            return slot.Generation == generation && slot.State != SlotState.Free && slot.Instance != null;
+            return slot.Generation == generation && slot.State == SlotState.Active && slot.Instance != null;
         }
 
         /// <summary>
@@ -581,7 +631,7 @@ namespace Moirai.Atropos.ObjectPool
             _expandCount = 0;
             _destroyCount = 0;
             _peakActive = 0;
-            _generationCounter = 0;
+            // 代系计数在池对象 CLR 生命期内单调递增，避免回收再用时与陈旧租约碰撞。
         }
 
         #endregion
@@ -591,14 +641,24 @@ namespace Moirai.Atropos.ObjectPool
         private GameObject SpawnPrepared(Transform parent)
         {
             _spawnCount++;
-            int slotIndex;
-            if (_inactiveTail >= 0)
+            int slotIndex = -1;
+            while (_inactiveTail >= 0)
             {
                 slotIndex = _inactiveTail;
                 RemoveFromInactive(slotIndex);
+                // Sticky 池可能长期不排维护：外部 Destroy 的槽位在此惰性清扫。
+                if (_storage.GetSlotRef(slotIndex).Instance == null)
+                {
+                    RemoveDestroyedSlot(slotIndex);
+                    slotIndex = -1;
+                    continue;
+                }
+
                 _hitCount++;
+                break;
             }
-            else
+
+            if (slotIndex < 0)
             {
                 _missCount++;
                 slotIndex = CreateTrackedInstance();
@@ -623,8 +683,18 @@ namespace Moirai.Atropos.ObjectPool
         {
             ref Slot slot = ref _storage.GetSlotRef(slotIndex);
             slot.State = SlotState.Active;
+            // 租期级代系：每次激活递增，使旧租约在槽位复用后必然失效。
+            slot.Generation = ++_generationCounter;
             _activeCount++;
             slot.Transform.SetParent(parent, false);
+            if (_prefab != null)
+            {
+                // 与 Object.Instantiate(prefab, parent) 对齐：复用实例重置到预制体局部姿态。
+                slot.Transform.localPosition = _prefab.transform.localPosition;
+                slot.Transform.localRotation = _prefab.transform.localRotation;
+                slot.Transform.localScale = _prefab.transform.localScale;
+            }
+
             if (!slot.Instance.activeSelf)
             {
                 slot.Instance.SetActive(true);
@@ -639,6 +709,13 @@ namespace Moirai.Atropos.ObjectPool
             ref Slot slot = ref _storage.GetSlotRef(slotIndex);
             if (slot.State != SlotState.Active)
             {
+                return;
+            }
+
+            // 帧末延迟销毁窗口：外部 Destroy 后实例已假空，禁止再访问 .activeSelf。
+            if (slot.Instance == null)
+            {
+                RemoveDestroyedSlot(slotIndex);
                 return;
             }
 
@@ -698,7 +775,7 @@ namespace Moirai.Atropos.ObjectPool
                 slot.Instance.SetActive(false);
             }
 
-            _registry?.Register(slot.Instance, this, slotIndex, slot.Generation);
+            _registry?.Register(slot.Instance, this, slotIndex);
             CachePoolables(ref slot);
             _totalCount++;
             _expandCount++;

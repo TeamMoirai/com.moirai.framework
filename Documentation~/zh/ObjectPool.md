@@ -58,8 +58,9 @@ Runtime/Services/ObjectPool/
 
 | 类/接口 | 说明 |
 |---------|------|
+| `GameObjectPoolSource` | 统一来源键：资源地址 / 外部 Prefab；`string` / `GameObject` 隐式转换；`Group` 仅 Prefab 源建池生效 |
 | `GameObjectPoolService` | 静态外观（唯一入口）：`Spawn` / `SpawnAsync` / `SpawnPooled` / `SpawnPooledAsync` / `Despawn` / `WarmupAsync` / `LoadPrefab(Async)` / `Flush` / `FlushGroup` / `FlushAll` / `LoadCatalog` |
-| `PooledGameObject` | 纯 C# 租约（非 MonoBehaviour）：owner/slot/代系；`Spawn` / `SpawnAsync` / `Wrap` / `Dispose` |
+| `PooledGameObject` | 纯 C# 租约（非 MonoBehaviour）：owner/slot/租期代系；`Spawn` / `SpawnAsync` / `Wrap` / `Dispose`；仅 Active 可包装 |
 | `Pooled<TComponent>` | 通用组件租约（服务 `SpawnPooled<T>` 的返回类型） |
 | `PooledComponent<T,TComponent>` | CRTP 组件租约基类，供 `PooledShot` 等自定义子类使用 |
 | `RuntimeGameObjectPool` | 单池运行时：分页 Slot（UserData）+ 侵入式 inactive 链 + 代系；Location / External Prefab |
@@ -144,10 +145,11 @@ new PoolEntry
 > 或运行时 `GameObjectPoolService.LoadCatalog(config)` / `LoadCatalog(资源地址)` 热切换（重建全部池）。
 
 ```csharp
-// —— 原始实例（手动 Despawn）——
+// —— 原始实例（手动 Despawn；string / GameObject 均隐式转为 GameObjectPoolSource）——
 GameObject bullet = GameObjectPoolService.Spawn("Assets/Bundles/Prefabs/Bullet", parent);
 GameObject fx = GameObjectPoolService.Spawn(vfxPrefab, parent);
 GameObject popup = await GameObjectPoolService.SpawnAsync("Assets/Bundles/UI/SettingsPopup", parent, ct);
+GameObject posed = GameObjectPoolService.Spawn(vfxPrefab, position, rotation, parent, useLocalPosition: false);
 GameObjectPoolService.Despawn(bullet);
 
 // —— 池化租约（using 自动回收，同一套 Spawn 动词）——
@@ -161,7 +163,8 @@ using (Pooled<ParticleSystem> ps = GameObjectPoolService.SpawnPooled<ParticleSys
     ps.Component.Play();
 }
 
-PooledGameObject pooled = await PooledGameObject.SpawnAsync(location, parent, ct);
+// Prefab 源异步与地址源同一签名
+PooledGameObject pooled = await PooledGameObject.SpawnAsync(vfxPrefab, parent, ct);
 pooled.Dispose(); // 等价 GameObjectPoolService.Despawn(pooled)
 ```
 
@@ -249,21 +252,25 @@ Debugger 窗口：`Profiler/Object Pool`（通用池）、`Profiler/GameObject P
 | `ObjectPoolSetting` 组件 | `GameObjectPoolServiceSettings`（PoolConfig 字段） | 配置单源化到 Settings 资产 |
 | — | `ObjectPoolService` | 新增通用池外观（原为 AlicizaX 参考架构能力） |
 | `GameObjectPoolManager.Get/Release` | `GameObjectPoolService.Spawn/Despawn` | Core 层 Manager 已删除，统一走服务 |
-| `GameObjectPoolManager.ReleasePool(key)` | `GameObjectPoolService.Flush(location/prefab)` | 按地址或 Prefab 刷新 |
+| `GameObjectPoolManager.ReleasePool(key)` | `GameObjectPoolService.Flush(source)` | 按 `GameObjectPoolSource` 刷新 |
 | `Moirai.Atropos.Pool.PooledGameObject/PooledComponent` | `Moirai.Atropos.ObjectPool.PooledGameObject/PooledComponent` | 命名空间迁移，后端改为服务 |
 | `PooledGameObject.Get` / `PooledComponent.Instantiate` | `Spawn` / `SpawnAsync`（或服务 `SpawnPooled`） | 动词与服务对齐 |
-| `PoolKey` / `IPooledMetadata` | 资源地址 / Prefab 引用 / `GameObjectPoolHandle.UserData` | 键与元数据机制替换 |
+| `PoolKey` / `IPooledMetadata` | `GameObjectPoolSource` / `Slot.UserData` | 键与元数据机制替换 |
+| `Spawn(location)` / `Spawn(prefab)` 双重载 | 统一 `Spawn(GameObjectPoolSource)` | `string` / `GameObject` 隐式转换 |
 
 ## 注意事项
 
 - **opt-in 注册**：两服务默认不在依赖链；首次外观访问经懒加载路径自动注册（`Tick` 驱动的维护随之生效），也可显式 `RegisterService`（依赖校验更严格，见顶部说明）。
 - 通用池对象由外部构造并 `Register` 入池；经 `MemoryPool.Acquire` 创建的对象会被池回收复用，外部 `new` 的对象释放时交由 GC。
 - **未注册地址**：自动用默认规则建池（Burst / soft 8 / hard 64，Editor/DevBuild 告警一次）。建议生产地址仍写入 PoolConfig 以便调参。
-- **外部 Prefab 池**：按 `GetInstanceID` 合成键自动建池；池**不**加载/卸载该预制体（`unloadPrefab=false`）。
-- `Spawn()`（同步）在资源地址预制体未加载时返回 null；首次加载请使用 `SpawnAsync()`.
-- `Despawn()` 对非池化 GameObject 安全 — fallback 到 `Destroy`（EditMode 为立即销毁）并告警。
-- `GameObjectPoolHandle` 在实例创建时自动添加；外部 `Destroy` 池化实例会触发代系校验清理并告警。
-- 维护由 `GameServices.Tick` 驱动（最小堆到期唤醒，单帧 1ms 预算）— 无独立 MonoBehaviour Update 循环。
+- **外部 Prefab 池**：按引用身份映射自动建池（零字符串热路径）；池**不**加载/卸载该预制体（`unloadPrefab=false`）。`Group` 仅在 Prefab 源首次建池时生效；Location 源的分组以 catalog 规则为准。
+- **姿态**：两种来源复用时均重置到 Prefab 局部 TRS（与 `Object.Instantiate(prefab, parent)` 对齐）。`OnSpawn` 回调读到的是已重置姿态。
+- **租期代系**：每次激活递增；旧租约在槽位复用后 `TryRelease`/`IsValid` 必然失败。`Wrap` 仅包装 Active 实例。
+- **Despawn 三分支**：未注册 → Destroy（外来对象）；已注册非 Active → 安全 no-op（不 Destroy）；Active → 回收入池。重复 Despawn 不会销毁仍在池中的实例。
+- `Spawn()`（同步）在资源地址预制体未加载时返回 null；首次加载请使用 `SpawnAsync()`。
+- **UserData 单消费者**：`Slot.UserData` 被异种类型占用时组件缓存降级为非驻留（不覆盖原数据，dev 告警）。
+- `default(GameObjectPoolSource)` 为无效源；不要写 `Spawn(null)`（两个隐式算子歧义，编译失败）。空源请用 `default`。
+- 维护由 `GameServices.Tick` 驱动（最小堆到期唤醒，单帧 1ms 预算）— 无独立 MonoBehaviour Update 循环。Sticky 池不排维护时，外部 Destroy 的槽位在下次 Spawn 惰性清扫。
 - 低内存：两池 Handler 各自订阅 `Application.lowMemory` 全量收缩；`GameApp.OnLowMemory` 仅驱动资源层卸载。
 
 ---

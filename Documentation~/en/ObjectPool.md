@@ -58,6 +58,7 @@ Namespace: `Moirai.Atropos.ObjectPool`
 
 | Class/Interface | Description |
 |-----------------|-------------|
+| `GameObjectPoolSource` | Unified source key: location or external prefab; implicit from `string`/`GameObject`; `Group` applies only when a prefab pool is first created |
 | `GameObjectPoolService` | Static facade (single entry): `Spawn` / `SpawnAsync` / `SpawnPooled` / `SpawnPooledAsync` / `Despawn` / `WarmupAsync` / `LoadPrefab(Async)` / `Flush` / `FlushGroup` / `FlushAll` / `LoadCatalog` |
 | `PooledGameObject` | Pure C# lease (not MonoBehaviour): owner/slot/generation; `Spawn` / `SpawnAsync` / `Wrap` / `Dispose` |
 | `Pooled<TComponent>` | Generic component lease (return type of service `SpawnPooled<T>`) |
@@ -144,23 +145,17 @@ new PoolEntry
 > or at runtime via `GameObjectPoolService.LoadCatalog(config)` / `LoadCatalog(location)` for hot swap (rebuilds all pools).
 
 ```csharp
-// Synchronous spawn (prefab must be loaded)
+// string / GameObject implicitly convert to GameObjectPoolSource
 GameObject bullet = GameObjectPoolService.Spawn("Assets/Bundles/Prefabs/Bullet", parent);
-
-// Async spawn (auto loads prefab, deduplicated)
+GameObject fx = GameObjectPoolService.Spawn(vfxPrefab, parent);
 GameObject popup = await GameObjectPoolService.SpawnAsync("Assets/Bundles/UI/SettingsPopup", parent, cancellationToken);
+GameObject posed = GameObjectPoolService.Spawn(vfxPrefab, position, rotation, parent, useLocalPosition: false);
 
-// Spawn and fetch a component directly
-var renderer = await GameObjectPoolService.SpawnAsync<MeshRenderer>("Assets/Bundles/Props/Rock", parent);
+// Spawn with component
+var lease = GameObjectPoolService.SpawnPooled<MeshRenderer>("Assets/Bundles/Props/Rock", parent);
 
 // Despawn (return to pool)
 GameObjectPoolService.Despawn(bullet);
-
-// Or via handle
-if (bullet.TryGetComponent(out GameObjectPoolHandle handle))
-{
-    GameObjectPoolService.Despawn(handle);
-}
 ```
 
 ### 3. Poolable Components & Warmup
@@ -247,18 +242,22 @@ Debugger windows: `Profiler/Object Pool` (generic), `Profiler/GameObject Pool` (
 | `GameObjectPoolManager.Get/Release` | `GameObjectPoolService.Spawn/Despawn` | Core-layer Manager removed; unified on the service |
 | `GameObjectPoolManager.ReleasePool(key)` | `GameObjectPoolService.Flush(location/prefab)` | Flush by location or prefab |
 | `Moirai.Atropos.Pool.PooledGameObject/PooledComponent` | `Moirai.Atropos.ObjectPool.PooledGameObject/PooledComponent` | Namespace moved; backend is the service |
-| `PoolKey` / `IPooledMetadata` | Location / Prefab ref / `GameObjectPoolHandle.UserData` | Key and metadata mechanisms replaced |
+| `PoolKey` / `IPooledMetadata` | `GameObjectPoolSource` / `Slot.UserData` | Key and metadata mechanisms replaced |
+| Dual `Spawn(location)` / `Spawn(prefab)` overloads | Single `Spawn(GameObjectPoolSource)` | Implicit conversion from `string`/`GameObject` |
 
 ## Notes
 
 - **Opt-in registration**: neither service is in the dependency chain by default; the first facade access auto-registers it via the lazy path (`Tick`-driven maintenance takes effect immediately), or register explicitly via `RegisterService` (stricter dependency validation, see top).
 - Generic pool objects are created externally and `Register`ed; objects created via `MemoryPool.Acquire` are recycled by the pool, externally `new`ed ones go to GC on release.
 - **Unregistered locations**: auto-create a pool with the default rule (Burst / soft 8 / hard 64; one warning in Editor/DevBuild). Prefer registering production addresses in PoolConfig for tuning.
-- **External prefab pools**: keyed by `GetInstanceID`; the pool does **not** load/unload that prefab (`unloadPrefab=false`).
+- **External prefab pools**: identity-mapped by reference (zero string alloc on the hot path); the pool does **not** load/unload that prefab (`unloadPrefab=false`). `Group` applies only on first prefab-pool creation; location groups come from the catalog rule.
+- **Pose**: both sources reset local TRS from the prefab on reuse (aligned with `Object.Instantiate(prefab, parent)`). `OnSpawn` observes the reset pose.
+- **Lease generation**: bumps on every activate; stale leases fail `TryRelease`/`IsValid`. `Wrap` only binds Active instances.
+- **Despawn branches**: unregistered → `Destroy` (foreign); registered but not Active → safe no-op; Active → return to pool.
 - `Spawn()` (sync) returns null when a location-based prefab is not loaded; use `SpawnAsync()` for the first load.
-- `Despawn()` is safe on non-pooled GameObjects — falls back to `Destroy` (immediate in EditMode) with a warning.
-- `GameObjectPoolHandle` is added automatically on creation; external `Destroy` of a pooled instance triggers generation-validated cleanup with a warning.
-- Maintenance is driven by `GameServices.Tick` (min-heap due wakeups, 1ms per-frame budget) — no standalone MonoBehaviour Update loop.
+- **UserData single consumer**: alien occupancy degrades the component cache to non-resident (no overwrite; dev warning).
+- `default(GameObjectPoolSource)` is an invalid source; do not write `Spawn(null)` (ambiguous implicits — compile error).
+- Maintenance is driven by `GameServices.Tick` (min-heap due wakeups, 1ms per-frame budget). Sticky pools lazily reclaim externally destroyed slots on the next Spawn.
 - Low memory: both pool Handlers subscribe to `Application.lowMemory` and shrink fully; `GameApp.OnLowMemory` only drives the resource layer unload.
 
 ---

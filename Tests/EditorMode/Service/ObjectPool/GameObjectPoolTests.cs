@@ -114,9 +114,9 @@ namespace Service.GameObjectPool
 
         private void DespawnOne(RuntimeGameObjectPool pool, GameObject instance)
         {
-            Assert.IsTrue(_registry.TryResolve(instance, out RuntimeGameObjectPool owner, out int slotIndex, out uint generation));
+            Assert.IsTrue(_registry.TryResolve(instance, out RuntimeGameObjectPool owner, out int slotIndex));
             Assert.AreSame(pool, owner);
-            Assert.IsTrue(pool.TryRelease(slotIndex, generation));
+            Assert.AreEqual(PoolReleaseResult.Released, pool.ReleaseByInstance(slotIndex, instance));
         }
 
         #endregion
@@ -131,7 +131,7 @@ namespace Service.GameObjectPool
             GameObject instance = SpawnOne(pool);
 
             Assert.NotNull(instance);
-            Assert.IsTrue(_registry.TryResolve(instance, out _, out _, out _));
+            Assert.IsTrue(_registry.TryResolve(instance, out _, out _));
             Assert.AreEqual(1, pool.TotalCount);
             Assert.AreEqual(1, pool.ActiveCount);
             Assert.AreEqual(0, pool.InactiveCount);
@@ -181,10 +181,10 @@ namespace Service.GameObjectPool
         {
             RuntimeGameObjectPool pool = CreatePool();
             GameObject instance = SpawnOne(pool);
-            Assert.IsTrue(_registry.TryResolve(instance, out _, out int slotIndex, out uint generation));
+            Assert.IsTrue(_registry.TryResolve(instance, out _, out int slotIndex));
 
-            Assert.IsTrue(pool.TryRelease(slotIndex, generation));
-            Assert.IsFalse(pool.TryRelease(slotIndex, generation));
+            Assert.AreEqual(PoolReleaseResult.Released, pool.ReleaseByInstance(slotIndex, instance));
+            Assert.AreEqual(PoolReleaseResult.NotActive, pool.ReleaseByInstance(slotIndex, instance));
             Assert.AreEqual(1, pool.InactiveCount);
         }
 
@@ -479,7 +479,7 @@ namespace Service.GameObjectPool
 
                 Assert.NotNull(instance);
                 Assert.AreNotSame(prefab, instance, "must clone the external prefab");
-                Assert.IsTrue(_registry.TryResolve(instance, out _, out _, out _));
+                Assert.IsTrue(_registry.TryResolve(instance, out _, out _));
                 Assert.AreEqual(1, _pool.TotalCount);
             }
             finally
@@ -499,8 +499,8 @@ namespace Service.GameObjectPool
                 _pool.InitializeWithPrefab(_scheduler, rule, "Prefab:ExtPrefab:2", prefab, _root, _registry);
 
                 GameObject first = _pool.Spawn(null);
-                Assert.IsTrue(_registry.TryResolve(first, out _, out int slotIndex, out uint generation));
-                Assert.IsTrue(_pool.TryRelease(slotIndex, generation));
+                Assert.IsTrue(_registry.TryResolve(first, out _, out int slotIndex));
+                Assert.AreEqual(PoolReleaseResult.Released, _pool.ReleaseByInstance(slotIndex, first));
 
                 GameObject second = _pool.Spawn(null);
                 Assert.AreSame(first, second);
@@ -523,19 +523,252 @@ namespace Service.GameObjectPool
                 _pool.InitializeWithPrefab(_scheduler, rule, "Prefab:ExtPrefab:3", prefab, _root, _registry);
 
                 GameObject first = _pool.Spawn(null);
-                Assert.IsTrue(_registry.TryResolve(first, out _, out int slotIndex, out uint generation));
+                Assert.IsTrue(_registry.TryResolve(first, out _, out int slotIndex));
                 _pool.SetUserData(slotIndex, "cached");
-                Assert.IsTrue(_pool.TryRelease(slotIndex, generation));
+                Assert.AreEqual(PoolReleaseResult.Released, _pool.ReleaseByInstance(slotIndex, first));
 
                 GameObject second = _pool.Spawn(null);
                 Assert.AreSame(first, second);
-                Assert.IsTrue(_registry.TryResolve(second, out _, out int slot2, out _));
+                Assert.IsTrue(_registry.TryResolve(second, out _, out int slot2));
                 Assert.AreEqual("cached", _pool.GetUserData<string>(slot2));
             }
             finally
             {
                 Object.DestroyImmediate(prefab);
             }
+        }
+
+        #endregion
+
+        #region 租期代系与 Despawn 语义 [LEASE GENERATION & DESPAWN]
+
+        [Test]
+        public void Generation_Recycle_InvalidatesOldLease()
+        {
+            RuntimeGameObjectPool pool = CreatePool();
+            GameObject first = SpawnOne(pool);
+            Assert.IsTrue(_registry.TryResolve(first, out _, out int slotIndex));
+            Assert.IsTrue(pool.TryBindLease(slotIndex, out uint gen1, out _, out _));
+
+            Assert.AreEqual(PoolReleaseResult.Released, pool.ReleaseByInstance(slotIndex, first));
+            GameObject second = SpawnOne(pool);
+            Assert.AreSame(first, second);
+            Assert.IsTrue(_registry.TryResolve(second, out _, out int slot2));
+            Assert.IsTrue(pool.TryBindLease(slot2, out uint gen2, out _, out _));
+            Assert.AreNotEqual(gen1, gen2, "lease generation must bump on re-activate");
+            Assert.IsFalse(pool.TryRelease(slotIndex, gen1), "stale lease must fail");
+            Assert.IsTrue(pool.IsAlive(slot2, gen2));
+        }
+
+        [Test]
+        public void Lease_IsValid_FalseAfterDespawn()
+        {
+            RuntimeGameObjectPool pool = CreatePool();
+            GameObject instance = SpawnOne(pool);
+            Assert.IsTrue(_registry.TryResolve(instance, out _, out int slotIndex));
+            Assert.IsTrue(pool.TryBindLease(slotIndex, out uint generation, out GameObject bound, out Transform tr));
+            Assert.IsTrue(pool.IsAlive(slotIndex, generation));
+
+            Assert.AreEqual(PoolReleaseResult.Released, pool.ReleaseByInstance(slotIndex, instance));
+            Assert.IsFalse(pool.IsAlive(slotIndex, generation), "lease identity dies with Active state");
+        }
+
+        [Test]
+        public void Wrap_InactiveInstance_ReturnsNull()
+        {
+            RuntimeGameObjectPool pool = CreatePool();
+            GameObject instance = SpawnOne(pool);
+            DespawnOne(pool, instance);
+
+            Assert.IsTrue(_registry.TryResolve(instance, out _, out int slotIndex));
+            Assert.IsFalse(pool.TryBindLease(slotIndex, out _, out _, out _), "inactive must not bind lease");
+        }
+
+        [Test]
+        public void Despawn_Twice_DoesNotDestroyInactiveInstance()
+        {
+            DefaultGameObjectPoolHandler handler = new DefaultGameObjectPoolHandler();
+            GameObject root = null;
+            try
+            {
+                handler.Internal_Init();
+                GameObject prefab = new GameObject("DupDespawnPrefab");
+                GameObject instance = handler.Spawn(prefab, null);
+                Assert.NotNull(instance);
+
+                handler.Despawn(instance);
+                Assert.IsNotNull(instance, "first despawn parks instance");
+
+                handler.Despawn(instance);
+                Assert.IsNotNull(instance, "duplicate despawn must not destroy inactive instance");
+            }
+            finally
+            {
+                handler.Internal_Shutdown();
+            }
+        }
+
+        [Test]
+        public void Despawn_ForeignInstance_Destroys()
+        {
+            DefaultGameObjectPoolHandler handler = new DefaultGameObjectPoolHandler();
+            try
+            {
+                handler.Internal_Init();
+                GameObject foreign = new GameObject("ForeignInstance");
+                handler.Despawn(foreign);
+                Assert.IsTrue(foreign == null, "foreign instance must be destroyed");
+            }
+            finally
+            {
+                handler.Internal_Shutdown();
+            }
+        }
+
+        [Test]
+        public void Dispose_ActiveInstanceExternallyDestroyed_DoesNotThrow()
+        {
+            RuntimeGameObjectPool pool = CreatePool();
+            GameObject instance = SpawnOne(pool);
+            Assert.IsTrue(_registry.TryResolve(instance, out _, out int slotIndex));
+            Assert.IsTrue(pool.TryBindLease(slotIndex, out uint generation, out _, out _));
+
+            Object.DestroyImmediate(instance);
+
+            Assert.DoesNotThrow(() => pool.TryRelease(slotIndex, generation));
+            Assert.AreEqual(0, pool.ActiveCount);
+        }
+
+        [Test]
+        public void Sticky_LazySweep_ReclaimsDestroyedSlot()
+        {
+            RuntimeGameObjectPool pool = CreatePool(policy: EPoolPolicy.Sticky);
+            GameObject first = SpawnOne(pool);
+            Object.DestroyImmediate(first);
+
+            GameObject second = pool.Spawn(null);
+
+            Assert.NotNull(second);
+            Assert.AreEqual(1, pool.TotalCount, "destroyed slot must be lazily reclaimed");
+        }
+
+        #endregion
+
+        private sealed class UserDataProbe
+        {
+        }
+
+        #region Source 与姿态 [SOURCE & POSE]
+
+        [Test]
+        public void Source_ImplicitConversion_Roundtrip()
+        {
+            GameObjectPoolSource fromLocation = "Assets/X";
+            Assert.IsTrue(fromLocation.IsValid);
+            Assert.IsFalse(fromLocation.IsPrefab);
+            Assert.AreEqual("Assets/X", fromLocation.Location);
+
+            GameObject prefab = new GameObject("SrcPrefab");
+            try
+            {
+                GameObjectPoolSource fromPrefab = prefab;
+                Assert.IsTrue(fromPrefab.IsValid);
+                Assert.IsTrue(fromPrefab.IsPrefab);
+                Assert.AreSame(prefab, fromPrefab.Prefab);
+
+                Assert.IsFalse(default(GameObjectPoolSource).IsValid);
+            }
+            finally
+            {
+                Object.DestroyImmediate(prefab);
+            }
+        }
+
+        [Test]
+        public void ExternalSpawn_ResetsPrefabLocalPose()
+        {
+            GameObject prefab = new GameObject("PosePrefab");
+            try
+            {
+                prefab.transform.localPosition = new Vector3(1f, 2f, 3f);
+                prefab.transform.localRotation = Quaternion.Euler(10f, 20f, 30f);
+                prefab.transform.localScale = new Vector3(2f, 2f, 2f);
+
+                PoolCompiledRule rule = DefaultPoolRules.CreateExternalRule("Prefab:PosePrefab:9");
+                _pool = new RuntimeGameObjectPool();
+                _pool.InitializeWithPrefab(_scheduler, rule, "Prefab:PosePrefab:9", prefab, _root, _registry);
+
+                GameObject first = _pool.Spawn(null);
+                first.transform.localPosition = Vector3.one * 99f;
+                Assert.IsTrue(_registry.TryResolve(first, out _, out int slotIndex));
+                Assert.AreEqual(PoolReleaseResult.Released, _pool.ReleaseByInstance(slotIndex, first));
+
+                GameObject second = _pool.Spawn(null);
+                Assert.AreSame(first, second);
+                Assert.AreEqual(prefab.transform.localPosition, second.transform.localPosition);
+                Assert.AreEqual(prefab.transform.localRotation.eulerAngles.x, second.transform.localRotation.eulerAngles.x, 0.1f);
+                Assert.AreEqual(prefab.transform.localScale, second.transform.localScale);
+            }
+            finally
+            {
+                Object.DestroyImmediate(prefab);
+            }
+        }
+
+        [Test]
+        public void UserData_AlienOccupancy_DoesNotOverwrite()
+        {
+            GameObject prefab = new GameObject("UserDataAlien");
+            try
+            {
+                PoolCompiledRule rule = DefaultPoolRules.CreateExternalRule("Prefab:UserDataAlien:1");
+                _pool = new RuntimeGameObjectPool();
+                _pool.InitializeWithPrefab(_scheduler, rule, "Prefab:UserDataAlien:1", prefab, _root, _registry);
+
+                GameObject instance = _pool.Spawn(null);
+                Assert.IsTrue(_registry.TryResolve(instance, out _, out int slotIndex));
+                _pool.SetUserData(slotIndex, "alien");
+
+                Assert.IsNull(_pool.GetOrAddUserData<UserDataProbe>(slotIndex));
+                Assert.AreEqual("alien", _pool.GetUserData<string>(slotIndex));
+            }
+            finally
+            {
+                Object.DestroyImmediate(prefab);
+            }
+        }
+
+        #endregion
+
+        #region 零 GC 热路径 [ZERO GC HOT PATH]
+
+        [Test]
+        public void HotPath_ZeroGcAlloc_WarmPoolRoundtrip()
+        {
+            RuntimeGameObjectPool pool = CreatePool(hardCapacity: 32);
+            pool.LoadPrefab();
+            pool.WarmupAsync(8, CancellationToken.None).GetAwaiter().GetResult();
+
+            // 预热 JIT / 池扩容
+            for (int i = 0; i < 32; i++)
+            {
+                GameObject warm = pool.Spawn(null);
+                Assert.IsTrue(_registry.TryResolve(warm, out _, out int warmSlot));
+                pool.ReleaseByInstance(warmSlot, warm);
+            }
+
+            long before = System.GC.GetAllocatedBytesForCurrentThread();
+            for (int i = 0; i < 256; i++)
+            {
+                GameObject instance = pool.Spawn(null);
+                if (_registry.TryResolve(instance, out _, out int slotIndex))
+                {
+                    pool.ReleaseByInstance(slotIndex, instance);
+                }
+            }
+
+            long after = System.GC.GetAllocatedBytesForCurrentThread();
+            Assert.LessOrEqual(after - before, 0L, "warm spawn/despawn roundtrip must be zero GC");
         }
 
         #endregion

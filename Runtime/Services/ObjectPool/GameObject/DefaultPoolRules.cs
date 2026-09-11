@@ -69,7 +69,7 @@ namespace Moirai.Atropos.ObjectPool
                 return string.Empty;
             }
 
-            return string.Concat(PREFAB_LOCATION_PREFIX, prefab.name, ":", prefab.GetInstanceID().ToString());
+            return string.Concat(PREFAB_LOCATION_PREFIX, prefab.name, ":", UnityUtility.GetObjectEntityId(prefab).ToString());
         }
 
         #endregion
