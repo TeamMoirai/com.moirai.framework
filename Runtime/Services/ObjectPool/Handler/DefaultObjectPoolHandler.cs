@@ -586,6 +586,30 @@ namespace Moirai.Atropos.ObjectPool
             }
 
             /// <summary>
+            /// 尝试按名取用一个对象。
+            /// </summary>
+            public bool TrySpawn(string name, out T obj)
+            {
+                obj = Spawn(name);
+                return obj != null;
+            }
+
+            /// <summary>
+            /// 指定引用目标是否在池内（含已取用）。
+            /// </summary>
+            public bool Contains(object target)
+            {
+                if (target == null)
+                {
+                    return false;
+                }
+
+                return _targetMap.TryGetValue(target, out int idx)
+                       && _storage.IsValidIndex(idx)
+                       && _storage.GetSlotRef(idx).IsAlive();
+            }
+
+            /// <summary>
             /// 归还对象。
             /// </summary>
             /// <param name="obj">池化对象。</param>

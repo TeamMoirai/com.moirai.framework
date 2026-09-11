@@ -1,4 +1,4 @@
-﻿namespace Moirai.Atropos.ObjectPool
+namespace Moirai.Atropos.ObjectPool
 {
     /// <summary>
     /// 通用对象池服务外观（Facade）。
@@ -104,6 +104,29 @@
             s_Handler?.DestroyObjectPool<T>(name) ?? false;
 
         /// <summary>
+        /// 尝试从默认池按名取用对象（不自动建池）。
+        /// </summary>
+        /// <typeparam name="T">池化对象类型。</typeparam>
+        /// <param name="name">对象名称。</param>
+        /// <param name="obj">取用到的对象；失败为 null。</param>
+        /// <returns>是否成功。</returns>
+        public static bool TrySpawn<T>(string name, out T obj) where T : ObjectBase
+        {
+            obj = null;
+            IObjectPool<T> pool = GetObjectPool<T>();
+            return pool != null && pool.TrySpawn(name, out obj);
+        }
+
+        /// <summary>
+        /// 指定类型默认池中是否存在该引用目标。
+        /// </summary>
+        /// <typeparam name="T">池化对象类型。</typeparam>
+        /// <param name="target">引用目标。</param>
+        /// <returns>是否在池内。</returns>
+        public static bool Contains<T>(object target) where T : ObjectBase =>
+            GetObjectPool<T>()?.Contains(target) ?? false;
+
+        /// <summary>
         /// 获取全部池（按优先级可选排序）填充到结果数组。
         /// </summary>
         /// <param name="sort">是否按优先级降序排序。</param>
@@ -127,6 +150,12 @@
         /// </summary>
         public static void ReleaseAllUnused() =>
             s_Handler?.ReleaseAllUnused();
+
+        /// <summary>
+        /// 刷新全部池（动词与 <see cref="GameObjectPoolService.FlushAll"/> 对齐；等价 <see cref="ReleaseAllUnused"/>）。
+        /// </summary>
+        public static void FlushAll() =>
+            s_Handler?.FlushAll();
 
         #endregion
     }

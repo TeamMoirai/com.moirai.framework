@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace Moirai.Atropos.ObjectPool
@@ -101,8 +101,14 @@ namespace Moirai.Atropos.ObjectPool
 
             int index = 0;
             int size = MIN_BUCKET_SIZE;
-            while (size < count && index < MAX_BUCKETS - 1)
+            while (size < count)
             {
+                if (index >= MAX_BUCKETS - 1)
+                {
+                    // 超出最大桶容量：标记为不可入池（调用方走 new T[count] 精确分配）。
+                    return -1;
+                }
+
                 size <<= 1;
                 index++;
             }

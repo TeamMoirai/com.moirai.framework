@@ -123,6 +123,11 @@ namespace Moirai.Atropos.ObjectPool
         /// </summary>
         public abstract void ReleaseAllUnused();
 
+        /// <summary>
+        /// 刷新池（默认等价 <see cref="ReleaseAllUnused"/>，动词与 GameObject 池对齐）。
+        /// </summary>
+        public virtual void Flush() => ReleaseAllUnused();
+
         #endregion
 
         #region 内部契约 [INTERNAL CONTRACTS]

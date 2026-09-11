@@ -33,16 +33,22 @@ namespace Moirai.Atropos.ObjectPool
         /// <summary>
         /// 固定容量：超出保留目标立即裁剪。
         /// </summary>
+        /// <remarks>可涨到 hard。一有空闲且 `total > retain` 就立刻剪空闲；`retain = clamp(minIdle, 0, soft)`。在场对象不剪。</remarks>
+        /// <example>适合 HUD</example>
         Fixed = 0,
 
         /// <summary>
         /// 突发容忍：空闲超时才裁剪。
         /// </summary>
+        /// <remarks>可涨到 hard。`total > soft` 时立刻剪空闲；未超 soft 时最老空闲超过 `idleSeconds` 再剪。</remarks>
+        /// <example>适合特效 / 子弹</example>
         Burst = 1,
 
         /// <summary>
         /// 粘性保留：不主动回收，仅手动 Flush / 低内存收缩。
         /// </summary>
+        /// <remarks>只涨不自动剪，等 `Flush` 或 `Application.lowMemory`。</remarks>
+        /// <example>适合关卡常驻</example>
         Sticky = 2
     }
 

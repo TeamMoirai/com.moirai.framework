@@ -76,6 +76,21 @@ namespace Moirai.Atropos.ObjectPool
         T Spawn(string name);
 
         /// <summary>
+        /// 尝试按名取用一个对象。
+        /// </summary>
+        /// <param name="name">对象名称；null 视为空名。</param>
+        /// <param name="obj">取用到的对象；失败为 default。</param>
+        /// <returns>是否成功。</returns>
+        bool TrySpawn(string name, out T obj);
+
+        /// <summary>
+        /// 指定引用目标是否在池内（含已取用）。
+        /// </summary>
+        /// <param name="target">引用目标。</param>
+        /// <returns>是否在池内。</returns>
+        bool Contains(object target);
+
+        /// <summary>
         /// 归还对象。
         /// </summary>
         /// <param name="obj">池化对象。</param>
@@ -102,5 +117,10 @@ namespace Moirai.Atropos.ObjectPool
         /// 释放全部未使用且可释放的对象。
         /// </summary>
         void ReleaseAllUnused();
+
+        /// <summary>
+        /// 刷新池（与 <see cref="ReleaseAllUnused"/> 同义，动词与 GameObject 池对齐）。
+        /// </summary>
+        void Flush();
     }
 }

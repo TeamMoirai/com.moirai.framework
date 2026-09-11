@@ -594,6 +594,48 @@ namespace Service.ObjectPool
             Assert.AreEqual("B", results[1].Name);
         }
 
+        [Test]
+        public void TrySpawn_Available_ReturnsTrue()
+        {
+            DefaultObjectPoolHandler handler = CreateHandler();
+            IObjectPool<TestObject> pool = handler.GetOrCreatePool<TestObject>(default);
+            TestObject obj = new TestObject(new object(), "alpha");
+            pool.Register(obj, false);
+
+            Assert.IsTrue(pool.TrySpawn("alpha", out TestObject spawned));
+            Assert.AreSame(obj, spawned);
+            Assert.IsFalse(pool.TrySpawn("alpha", out _), "already spawned → no available");
+        }
+
+        [Test]
+        public void Contains_TargetInOut_ReturnsTrue()
+        {
+            DefaultObjectPoolHandler handler = CreateHandler();
+            IObjectPool<TestObject> pool = handler.GetOrCreatePool<TestObject>(default);
+            object target = new object();
+            TestObject obj = new TestObject(target);
+            pool.Register(obj, false);
+
+            Assert.IsTrue(pool.Contains(target));
+            pool.Despawn(obj);
+            Assert.IsTrue(pool.Contains(target));
+            Assert.IsFalse(pool.Contains(new object()));
+        }
+
+        [Test]
+        public void Flush_MatchesReleaseAllUnused()
+        {
+            DefaultObjectPoolHandler handler = CreateHandler();
+            IObjectPool<TestObject> pool = handler.GetOrCreatePool<TestObject>(default);
+            TestObject a = new TestObject(new object(), "a");
+            pool.Register(a, false);
+
+            pool.Flush();
+
+            Assert.AreEqual(0, pool.Count);
+            Assert.IsTrue(a.Released);
+        }
+
         #endregion
     }
 }
