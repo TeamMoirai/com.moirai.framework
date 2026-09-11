@@ -1,4 +1,4 @@
-﻿# ObjectPool Service
+# ObjectPool Service
 
 > Generic pool + GameObject specialization, shared kernel + dual facades in a single module.
 > The shared kernel provides paged slot storage, open-addressing hashes and a min-heap maintenance scheduler; two facades serve arbitrary CLR objects and Unity GameObjects respectively.
@@ -8,7 +8,7 @@ The service is split into two independent facades; choose by pooled object type:
 | Facade | Pooled Object | Key | Typical Usage |
 |--------|--------------|-----|---------------|
 | `ObjectPoolService` | Any `ObjectBase` derived object (data packets, connections, commands…) | `Type + pool name` | Pure C# object reuse |
-| `GameObjectPoolService` | Unity GameObject (Prefab instances) | Asset location (PoolCatalog rules) | Bullets, VFX, UI popups |
+| `GameObjectPoolService` | Unity GameObject (Prefab instances) | Asset location / external Prefab reference | Bullets, VFX, UI popups |
 
 > ⚠️ **Both services are opt-in**: they are NOT in the `ProcedureService` dependency chain and are not registered by the composition root by default.
 > Facade calls always forward through the `Handler` property (fail-fast, lazily initialized on first use with automatic world registration — the first facade access completes registration, and `Tick`-driven maintenance takes effect immediately).
@@ -29,9 +29,11 @@ Runtime/Services/ObjectPool/
 ├── IObjectPool.cs          # Generic pool contract
 └── GameObject/             # GameObject specialization
     ├── GameObjectPoolService.cs    # GO pool static facade ([HandlerHost] + ServiceDependency(Resource))
-    ├── RuntimeGameObjectPool.cs    # Per-pool runtime (generation handle + policy trimming)
+    ├── RuntimeGameObjectPool.cs    # Per-pool runtime (generation handle + policy; Location / External Prefab sources)
+    ├── DefaultPoolRules.cs         # Default rules for unregistered locations / external prefabs
     ├── PoolCatalog.cs / PoolPolicy.cs / Data/  # Data-driven config and policies
-    └── IPrefabLoader.cs            # Prefab loading abstraction (ResourceAssetLease-based)
+    ├── IPrefabLoader.cs            # Prefab loading abstraction (ResourceAssetLease-based)
+    └── Pooled/                     # IDisposable thin wrappers (PooledGameObject / PooledComponent)
 ```
 
 Both pools share the same maintenance semantics: each Tick processes only due pools (min-heap, O(log n)) within a 1ms per-frame budget;
@@ -56,9 +58,12 @@ Namespace: `Moirai.Atropos.ObjectPool`
 
 | Class/Interface | Description |
 |-----------------|-------------|
-| `GameObjectPoolService` | Static facade: `Spawn` / `SpawnAsync` / `TrySpawn` / `Despawn` / `WarmupAsync` / `LoadPrefab(Async)` / `Flush` / `FlushGroup` / `FlushAll` / `LoadCatalog` |
-| `RuntimeGameObjectPool` | Per-pool runtime: paged slots + intrusive inactive list + generation handles |
-| `GameObjectPoolHandle` | MonoBehaviour attached to pooled instances; generation validation prevents use-after-despawn |
+| `GameObjectPoolService` | Static facade (single entry): `Spawn` / `SpawnAsync` / `SpawnPooled` / `SpawnPooledAsync` / `Despawn` / `WarmupAsync` / `LoadPrefab(Async)` / `Flush` / `FlushGroup` / `FlushAll` / `LoadCatalog` |
+| `PooledGameObject` | Pure C# lease (not MonoBehaviour): owner/slot/generation; `Spawn` / `SpawnAsync` / `Wrap` / `Dispose` |
+| `Pooled<TComponent>` | Generic component lease (return type of service `SpawnPooled<T>`) |
+| `PooledComponent<T,TComponent>` | CRTP component lease base for custom subclasses (`PooledShot`, etc.) |
+| `RuntimeGameObjectPool` | Per-pool runtime: paged Slot (UserData) + intrusive inactive list + generation; Location / External Prefab |
+| `PooledInstanceRegistry` | Zero-alloc instance → (pool,slot,gen) reverse map (replaces MonoBehaviour Handle) |
 | `IGameObjectPoolable` | Pooled component interface: `OnSpawn(in GameObjectPoolSpawnContext)` / `OnDespawn` / `OnPooledDestroy` |
 | `EPoolPolicy` | Recycle policy: `Fixed` (trim on excess) / `Burst` (trim after idle timeout) / `Sticky` (no proactive trim) |
 | `PoolEntry` / `PoolConfigScriptableObject` | Serializable config entries and config asset (supports Glob: `*`, `**`, `?`) |
@@ -239,13 +244,18 @@ Debugger windows: `Profiler/Object Pool` (generic), `Profiler/GameObject Pool` (
 | `IObjectPoolable.OnPooledDestroy` etc. | Same names | Component code only changes the interface name |
 | `ObjectPoolSetting` component | `GameObjectPoolServiceSettings` (PoolConfig field) | Config single-sourced into the Settings asset |
 | — | `ObjectPoolService` | New generic pool facade (port of the AlicizaX reference capability) |
+| `GameObjectPoolManager.Get/Release` | `GameObjectPoolService.Spawn/Despawn` | Core-layer Manager removed; unified on the service |
+| `GameObjectPoolManager.ReleasePool(key)` | `GameObjectPoolService.Flush(location/prefab)` | Flush by location or prefab |
+| `Moirai.Atropos.Pool.PooledGameObject/PooledComponent` | `Moirai.Atropos.ObjectPool.PooledGameObject/PooledComponent` | Namespace moved; backend is the service |
+| `PoolKey` / `IPooledMetadata` | Location / Prefab ref / `GameObjectPoolHandle.UserData` | Key and metadata mechanisms replaced |
 
 ## Notes
 
 - **Opt-in registration**: neither service is in the dependency chain by default; the first facade access auto-registers it via the lazy path (`Tick`-driven maintenance takes effect immediately), or register explicitly via `RegisterService` (stricter dependency validation, see top).
 - Generic pool objects are created externally and `Register`ed; objects created via `MemoryPool.Acquire` are recycled by the pool, externally `new`ed ones go to GC on release.
-- GO pool spawns require rules registered via `PoolConfigScriptableObject`; unregistered locations log an error and return null.
-- `Spawn()` (sync) returns null when the prefab is not loaded; use `SpawnAsync()` for the first load.
+- **Unregistered locations**: auto-create a pool with the default rule (Burst / soft 8 / hard 64; one warning in Editor/DevBuild). Prefer registering production addresses in PoolConfig for tuning.
+- **External prefab pools**: keyed by `GetInstanceID`; the pool does **not** load/unload that prefab (`unloadPrefab=false`).
+- `Spawn()` (sync) returns null when a location-based prefab is not loaded; use `SpawnAsync()` for the first load.
 - `Despawn()` is safe on non-pooled GameObjects — falls back to `Destroy` (immediate in EditMode) with a warning.
 - `GameObjectPoolHandle` is added automatically on creation; external `Destroy` of a pooled instance triggers generation-validated cleanup with a warning.
 - Maintenance is driven by `GameServices.Tick` (min-heap due wakeups, 1ms per-frame budget) — no standalone MonoBehaviour Update loop.

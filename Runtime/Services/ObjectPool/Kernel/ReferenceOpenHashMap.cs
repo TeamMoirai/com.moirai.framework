@@ -6,7 +6,7 @@ namespace Moirai.Atropos.ObjectPool
 {
     /// <summary>
     /// 引用键开放寻址哈希表（桶链 + ArrayPool 租借），对象引用到 int 的零分配映射。
-    /// <para>以 <see cref="RuntimeHelpers.GetHashCode(object)"/>（引用身份哈希）分桶，<see cref="ReferenceEquals(object,object)"/> 判等。</para>
+    /// <para>以 <see cref="RuntimeHelpers.GetHashCode(object)"/>（引用身份哈希）分桶，<see cref="Object.ReferenceEquals(object,object)"/> 判等。</para>
     /// <para>struct 语义——必须存储于可变字段后调用；Dispose 后归还全部内部数组。</para>
     /// </summary>
     internal struct ReferenceOpenHashMap
@@ -200,6 +200,25 @@ namespace Moirai.Atropos.ObjectPool
             }
 
             return false;
+        }
+
+        /// <summary>
+        /// 清空全部条目（保留内部数组容量）。
+        /// </summary>
+        public void Clear()
+        {
+            if (_buckets == null)
+            {
+                return;
+            }
+
+            Array.Clear(_buckets, 0, _buckets.Length);
+            Array.Clear(_keys, 0, _keys.Length);
+            Array.Clear(_values, 0, _values.Length);
+            Array.Clear(_next, 0, _next.Length);
+            _count = 0;
+            _freeList = 0;
+            _allocCount = 0;
         }
 
         /// <summary>

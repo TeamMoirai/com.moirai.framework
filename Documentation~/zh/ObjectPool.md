@@ -1,4 +1,4 @@
-﻿# ObjectPool 对象池服务
+# ObjectPool 对象池服务
 
 > 通用池 + GameObject 特化、共享内核 + 双外观的单模块对象池架构。
 > 共享内核提供分页槽位存储、开放寻址哈希与最小堆维护调度；两个外观分别面向任意 CLR 对象与 Unity GameObject。
@@ -8,7 +8,7 @@
 | 外观 | 池化对象 | 键 | 典型场景 |
 |------|---------|-----|---------|
 | `ObjectPoolService` | 任意 `ObjectBase` 派生对象（数据包、连接、指令…） | `Type + 池名` | 纯 C# 对象复用 |
-| `GameObjectPoolService` | Unity GameObject（Prefab 实例） | 资源地址（PoolCatalog 规则） | 子弹、特效、UI 弹窗 |
+| `GameObjectPoolService` | Unity GameObject（Prefab 实例） | 资源地址 / 外部 Prefab 引用 | 子弹、特效、UI 弹窗 |
 
 > ⚠️ **两个服务均为 opt-in 注册**：不在 `ProcedureService` 依赖链中，组合根默认不注册。
 > 外观调用一律经 `Handler` 属性转发（fail-fast，未就绪时按需初始化并自动注册——首次外观访问即完成世界注册，`Tick` 驱动的维护随之生效）。
@@ -29,9 +29,11 @@ Runtime/Services/ObjectPool/
 ├── IObjectPool.cs          # 通用池契约
 └── GameObject/             # GameObject 特化
     ├── GameObjectPoolService.cs    # GO 池静态外观（[HandlerHost] + ServiceDependency(Resource)）
-    ├── RuntimeGameObjectPool.cs    # 单池运行时（代系句柄 + 策略裁剪）
+    ├── RuntimeGameObjectPool.cs    # 单池运行时（代系句柄 + 策略裁剪；Location / External Prefab）
+    ├── DefaultPoolRules.cs         # 未注册地址 / 外部 Prefab 的默认规则
     ├── PoolCatalog.cs / PoolPolicy.cs / Data/  # 数据驱动配置与策略
-    └── IPrefabLoader.cs            # 预制体加载抽象（ResourceAssetLease 租约制）
+    ├── IPrefabLoader.cs            # 预制体加载抽象（ResourceAssetLease 租约制）
+    └── Pooled/                     # IDisposable 薄包装（PooledGameObject / PooledComponent）
 ```
 
 两池共用同一维护调度器语义：每帧 Tick 仅处理到期池（最小堆 O(log n)），单帧维护预算 1ms；
@@ -56,9 +58,12 @@ Runtime/Services/ObjectPool/
 
 | 类/接口 | 说明 |
 |---------|------|
-| `GameObjectPoolService` | 静态外观：`Spawn` / `SpawnAsync` / `TrySpawn` / `Despawn` / `WarmupAsync` / `LoadPrefab(Async)` / `Flush` / `FlushGroup` / `FlushAll` / `LoadCatalog` |
-| `RuntimeGameObjectPool` | 单池运行时：分页槽位 + 侵入式 inactive 链 + 代系句柄 |
-| `GameObjectPoolHandle` | 附着在池化实例上的 MonoBehaviour；代系校验防 use-after-despawn |
+| `GameObjectPoolService` | 静态外观（唯一入口）：`Spawn` / `SpawnAsync` / `SpawnPooled` / `SpawnPooledAsync` / `Despawn` / `WarmupAsync` / `LoadPrefab(Async)` / `Flush` / `FlushGroup` / `FlushAll` / `LoadCatalog` |
+| `PooledGameObject` | 纯 C# 租约（非 MonoBehaviour）：owner/slot/代系；`Spawn` / `SpawnAsync` / `Wrap` / `Dispose` |
+| `Pooled<TComponent>` | 通用组件租约（服务 `SpawnPooled<T>` 的返回类型） |
+| `PooledComponent<T,TComponent>` | CRTP 组件租约基类，供 `PooledShot` 等自定义子类使用 |
+| `RuntimeGameObjectPool` | 单池运行时：分页 Slot（UserData）+ 侵入式 inactive 链 + 代系；Location / External Prefab |
+| `PooledInstanceRegistry` | 实例 → (pool,slot,gen) 零分配反向映射（替代 MonoBehaviour Handle） |
 | `IGameObjectPoolable` | 池化组件接口：`OnSpawn(in GameObjectPoolSpawnContext)` / `OnDespawn` / `OnPooledDestroy` |
 | `EPoolPolicy` | 回收策略：`Fixed`（超限即裁剪）/ `Burst`（空闲超时裁剪）/ `Sticky`（不主动回收） |
 | `PoolEntry` / `PoolConfigScriptableObject` | 可序列化配置条目与配置资产（支持 Glob：`*`、`**`、`?`） |
@@ -139,23 +144,25 @@ new PoolEntry
 > 或运行时 `GameObjectPoolService.LoadCatalog(config)` / `LoadCatalog(资源地址)` 热切换（重建全部池）。
 
 ```csharp
-// 同步获取（需预制体已加载）
+// —— 原始实例（手动 Despawn）——
 GameObject bullet = GameObjectPoolService.Spawn("Assets/Bundles/Prefabs/Bullet", parent);
-
-// 异步获取（自动加载预制体，合流去重）
-GameObject popup = await GameObjectPoolService.SpawnAsync("Assets/Bundles/UI/SettingsPopup", parent, cancellationToken);
-
-// 直接获取组件
-var renderer = await GameObjectPoolService.SpawnAsync<MeshRenderer>("Assets/Bundles/Props/Rock", parent);
-
-// 回收（归还池中）
+GameObject fx = GameObjectPoolService.Spawn(vfxPrefab, parent);
+GameObject popup = await GameObjectPoolService.SpawnAsync("Assets/Bundles/UI/SettingsPopup", parent, ct);
 GameObjectPoolService.Despawn(bullet);
 
-// 或通过句柄回收
-if (bullet.TryGetComponent(out GameObjectPoolHandle handle))
+// —— 池化租约（using 自动回收，同一套 Spawn 动词）——
+using (PooledGameObject lease = GameObjectPoolService.SpawnPooled("Assets/Bundles/Prefabs/Bullet", parent))
 {
-    GameObjectPoolService.Despawn(handle);
+    // lease.GameObject / lease.Transform
 }
+
+using (Pooled<ParticleSystem> ps = GameObjectPoolService.SpawnPooled<ParticleSystem>(vfxPrefab, parent))
+{
+    ps.Component.Play();
+}
+
+PooledGameObject pooled = await PooledGameObject.SpawnAsync(location, parent, ct);
+pooled.Dispose(); // 等价 GameObjectPoolService.Despawn(pooled)
 ```
 
 ### 3. 可池化组件与预热
@@ -181,6 +188,7 @@ public class BulletController : MonoBehaviour, IGameObjectPoolable
 
 // 预创建 20 个实例，帧预算分帧不卡顿
 await GameObjectPoolService.WarmupAsync("Assets/Bundles/Prefabs/Bullet", 20, cancellationToken);
+await GameObjectPoolService.WarmupAsync(vfxPrefab, 8, cancellationToken);
 ```
 
 ## 高级用法
@@ -206,6 +214,7 @@ await GameObjectPoolService.WarmupAsync("Assets/Bundles/Prefabs/Bullet", 20, can
 
 ```csharp
 GameObjectPoolService.Flush("Assets/Bundles/Prefabs/Bullet");  // 刷新单个池
+GameObjectPoolService.Flush(vfxPrefab);                        // 刷新外部 Prefab 池
 GameObjectPoolService.FlushGroup("战斗");                       // 刷新分组
 GameObjectPoolService.FlushAll();                               // 刷新全部（等同低内存响应）
 ```
@@ -239,13 +248,19 @@ Debugger 窗口：`Profiler/Object Pool`（通用池）、`Profiler/GameObject P
 | `IObjectPoolable.OnPooledDestroy` 等 | 同名，接口命名空间不变 | 组件代码只需改接口名 |
 | `ObjectPoolSetting` 组件 | `GameObjectPoolServiceSettings`（PoolConfig 字段） | 配置单源化到 Settings 资产 |
 | — | `ObjectPoolService` | 新增通用池外观（原为 AlicizaX 参考架构能力） |
+| `GameObjectPoolManager.Get/Release` | `GameObjectPoolService.Spawn/Despawn` | Core 层 Manager 已删除，统一走服务 |
+| `GameObjectPoolManager.ReleasePool(key)` | `GameObjectPoolService.Flush(location/prefab)` | 按地址或 Prefab 刷新 |
+| `Moirai.Atropos.Pool.PooledGameObject/PooledComponent` | `Moirai.Atropos.ObjectPool.PooledGameObject/PooledComponent` | 命名空间迁移，后端改为服务 |
+| `PooledGameObject.Get` / `PooledComponent.Instantiate` | `Spawn` / `SpawnAsync`（或服务 `SpawnPooled`） | 动词与服务对齐 |
+| `PoolKey` / `IPooledMetadata` | 资源地址 / Prefab 引用 / `GameObjectPoolHandle.UserData` | 键与元数据机制替换 |
 
 ## 注意事项
 
 - **opt-in 注册**：两服务默认不在依赖链；首次外观访问经懒加载路径自动注册（`Tick` 驱动的维护随之生效），也可显式 `RegisterService`（依赖校验更严格，见顶部说明）。
 - 通用池对象由外部构造并 `Register` 入池；经 `MemoryPool.Acquire` 创建的对象会被池回收复用，外部 `new` 的对象释放时交由 GC。
-- GO 池生成前必须通过 `PoolConfigScriptableObject` 注册池规则；未注册地址记录错误并返回 null。
-- `Spawn()`（同步）在预制体未加载时返回 null；首次加载请使用 `SpawnAsync()`。
+- **未注册地址**：自动用默认规则建池（Burst / soft 8 / hard 64，Editor/DevBuild 告警一次）。建议生产地址仍写入 PoolConfig 以便调参。
+- **外部 Prefab 池**：按 `GetInstanceID` 合成键自动建池；池**不**加载/卸载该预制体（`unloadPrefab=false`）。
+- `Spawn()`（同步）在资源地址预制体未加载时返回 null；首次加载请使用 `SpawnAsync()`.
 - `Despawn()` 对非池化 GameObject 安全 — fallback 到 `Destroy`（EditMode 为立即销毁）并告警。
 - `GameObjectPoolHandle` 在实例创建时自动添加；外部 `Destroy` 池化实例会触发代系校验清理并告警。
 - 维护由 `GameServices.Tick` 驱动（最小堆到期唤醒，单帧 1ms 预算）— 无独立 MonoBehaviour Update 循环。

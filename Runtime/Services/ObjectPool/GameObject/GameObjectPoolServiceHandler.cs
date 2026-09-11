@@ -7,7 +7,7 @@ namespace Moirai.Atropos.ObjectPool
 {
     /// <summary>
     /// GameObject 池处理器抽象基类（策略模式抽象策略）。
-    /// <para>默认实现为 <see cref="DefaultGameObjectPoolHandler"/>（分页槽位 + 代系句柄 + 最小堆维护调度，PoolCatalog 数据驱动）。</para>
+    /// <para>默认实现为 <see cref="DefaultGameObjectPoolHandler"/>（分页槽位 + 代系租约 + 最小堆维护调度，PoolCatalog 数据驱动）。</para>
     /// <para>可在 <see cref="GameObjectPoolServiceSettings"/> 中替换为自定义对象池后端。</para>
     /// </summary>
     [Serializable]
@@ -42,6 +42,23 @@ namespace Moirai.Atropos.ObjectPool
         /// <param name="parent">父级 Transform。</param>
         /// <returns>组件。</returns>
         public abstract T Spawn<T>(string location, Transform parent = null) where T : Component;
+
+        /// <summary>
+        /// 以外部预制体引用同步获取游戏对象。
+        /// </summary>
+        /// <param name="prefab">外部预制体引用（池不负责加载/卸载）。</param>
+        /// <param name="parent">父级 Transform。</param>
+        /// <returns>游戏对象。</returns>
+        public abstract GameObject Spawn(GameObject prefab, Transform parent = null);
+
+        /// <summary>
+        /// 以外部预制体引用同步获取组件。
+        /// </summary>
+        /// <typeparam name="T">组件类型。</typeparam>
+        /// <param name="prefab">外部预制体引用。</param>
+        /// <param name="parent">父级 Transform。</param>
+        /// <returns>组件。</returns>
+        public abstract T Spawn<T>(GameObject prefab, Transform parent = null) where T : Component;
 
         /// <summary>
         /// 尝试同步获取游戏对象。
@@ -99,6 +116,15 @@ namespace Moirai.Atropos.ObjectPool
         /// <returns>异步任务。</returns>
         public abstract UniTask WarmupAsync(string location, int count, CancellationToken cancellationToken = default);
 
+        /// <summary>
+        /// 异步预热外部预制体对应的池。
+        /// </summary>
+        /// <param name="prefab">外部预制体引用。</param>
+        /// <param name="count">预热数量。</param>
+        /// <param name="cancellationToken">取消令牌。</param>
+        /// <returns>异步任务。</returns>
+        public abstract UniTask WarmupAsync(GameObject prefab, int count, CancellationToken cancellationToken = default);
+
         #endregion
 
         #region 回收与刷新 [DESPAWN & FLUSH]
@@ -110,16 +136,27 @@ namespace Moirai.Atropos.ObjectPool
         public abstract void Despawn(GameObject instance);
 
         /// <summary>
-        /// 通过句柄回收游戏对象。
+        /// 通过租约回收游戏对象。
         /// </summary>
-        /// <param name="handle">句柄。</param>
-        public abstract void Despawn(GameObjectPoolHandle handle);
+        /// <param name="pooled">池化租约。</param>
+        public abstract void Despawn(PooledGameObject pooled);
+
+        /// <summary>
+        /// 尝试解析实例身份（供租约包装与 Despawn 使用）。
+        /// </summary>
+        internal abstract bool TryResolveInstance(GameObject instance, out RuntimeGameObjectPool pool, out int slotIndex, out uint generation);
 
         /// <summary>
         /// 刷新指定地址的池。
         /// </summary>
         /// <param name="location">资源地址。</param>
         public abstract void Flush(string location);
+
+        /// <summary>
+        /// 刷新外部预制体对应的池。
+        /// </summary>
+        /// <param name="prefab">外部预制体引用。</param>
+        public abstract void Flush(GameObject prefab);
 
         /// <summary>
         /// 刷新指定分组的所有池。

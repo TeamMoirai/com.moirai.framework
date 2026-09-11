@@ -52,6 +52,7 @@ namespace Service.GameObjectPool
         private FakePrefabLoader _loader;
         private Transform _root;
         private RuntimeGameObjectPool _pool;
+        private PooledInstanceRegistry _registry;
 
         [SetUp]
         public void SetUp()
@@ -59,6 +60,7 @@ namespace Service.GameObjectPool
             _scheduler = new PoolMaintenanceScheduler();
             _loader = new FakePrefabLoader();
             _root = new GameObject("PoolRoot").transform;
+            _registry = new PooledInstanceRegistry(16);
         }
 
         [TearDown]
@@ -69,6 +71,9 @@ namespace Service.GameObjectPool
                 _pool.Shutdown();
                 _pool = null;
             }
+
+            _registry?.Dispose();
+            _registry = null;
 
             if (_root != null)
             {
@@ -96,7 +101,7 @@ namespace Service.GameObjectPool
                 policy, minIdle, softCapacity, hardCapacity, idleSeconds, unloadPrefab, 0,
                 PoolGlobMatcher.Compile("Assets/Test/Fake"));
             _pool = new RuntimeGameObjectPool();
-            _pool.Initialize(_scheduler, rule, "Assets/Test/Fake", _loader, _root);
+            _pool.Initialize(_scheduler, rule, "Assets/Test/Fake", _loader, _root, _registry);
             return _pool;
         }
 
@@ -109,8 +114,9 @@ namespace Service.GameObjectPool
 
         private void DespawnOne(RuntimeGameObjectPool pool, GameObject instance)
         {
-            Assert.IsTrue(instance.TryGetComponent(out GameObjectPoolHandle handle));
-            Assert.IsTrue(handle.TryRelease());
+            Assert.IsTrue(_registry.TryResolve(instance, out RuntimeGameObjectPool owner, out int slotIndex, out uint generation));
+            Assert.AreSame(pool, owner);
+            Assert.IsTrue(pool.TryRelease(slotIndex, generation));
         }
 
         #endregion
@@ -118,14 +124,14 @@ namespace Service.GameObjectPool
         #region Spawn / Despawn 往返 [SPAWN ROUND TRIP]
 
         [Test]
-        public void Spawn_CreatesInstanceWithHandle()
+        public void Spawn_CreatesInstanceAndRegisters()
         {
             RuntimeGameObjectPool pool = CreatePool();
 
             GameObject instance = SpawnOne(pool);
 
             Assert.NotNull(instance);
-            Assert.IsTrue(instance.TryGetComponent(out GameObjectPoolHandle handle));
+            Assert.IsTrue(_registry.TryResolve(instance, out _, out _, out _));
             Assert.AreEqual(1, pool.TotalCount);
             Assert.AreEqual(1, pool.ActiveCount);
             Assert.AreEqual(0, pool.InactiveCount);
@@ -171,14 +177,14 @@ namespace Service.GameObjectPool
         }
 
         [Test]
-        public void Handle_TryReleaseTwice_SecondFails()
+        public void TryRelease_Twice_SecondFails()
         {
             RuntimeGameObjectPool pool = CreatePool();
             GameObject instance = SpawnOne(pool);
-            GameObjectPoolHandle handle = instance.GetComponent<GameObjectPoolHandle>();
+            Assert.IsTrue(_registry.TryResolve(instance, out _, out int slotIndex, out uint generation));
 
-            Assert.IsTrue(handle.TryRelease());
-            Assert.IsFalse(handle.TryRelease(), "second release of same generation must fail");
+            Assert.IsTrue(pool.TryRelease(slotIndex, generation));
+            Assert.IsFalse(pool.TryRelease(slotIndex, generation));
             Assert.AreEqual(1, pool.InactiveCount);
         }
 
@@ -453,6 +459,83 @@ namespace Service.GameObjectPool
 
             Assert.AreEqual(3, plan.RetainTarget);
             Assert.IsTrue(plan.UnloadPrefab);
+        }
+
+        #endregion
+
+        #region 外部 Prefab [EXTERNAL PREFAB]
+
+        [Test]
+        public void Spawn_ExternalPrefab_WithoutLoader_CreatesInstance()
+        {
+            GameObject prefab = new GameObject("ExtPrefab");
+            try
+            {
+                PoolCompiledRule rule = DefaultPoolRules.CreateExternalRule("Prefab:ExtPrefab:1");
+                _pool = new RuntimeGameObjectPool();
+                _pool.InitializeWithPrefab(_scheduler, rule, "Prefab:ExtPrefab:1", prefab, _root, _registry);
+
+                GameObject instance = _pool.Spawn(null);
+
+                Assert.NotNull(instance);
+                Assert.AreNotSame(prefab, instance, "must clone the external prefab");
+                Assert.IsTrue(_registry.TryResolve(instance, out _, out _, out _));
+                Assert.AreEqual(1, _pool.TotalCount);
+            }
+            finally
+            {
+                Object.DestroyImmediate(prefab);
+            }
+        }
+
+        [Test]
+        public void Spawn_ExternalPrefab_AfterDespawn_ReusesInstance()
+        {
+            GameObject prefab = new GameObject("ExtPrefab");
+            try
+            {
+                PoolCompiledRule rule = DefaultPoolRules.CreateExternalRule("Prefab:ExtPrefab:2");
+                _pool = new RuntimeGameObjectPool();
+                _pool.InitializeWithPrefab(_scheduler, rule, "Prefab:ExtPrefab:2", prefab, _root, _registry);
+
+                GameObject first = _pool.Spawn(null);
+                Assert.IsTrue(_registry.TryResolve(first, out _, out int slotIndex, out uint generation));
+                Assert.IsTrue(_pool.TryRelease(slotIndex, generation));
+
+                GameObject second = _pool.Spawn(null);
+                Assert.AreSame(first, second);
+                Assert.AreEqual(1, _pool.TotalCount);
+            }
+            finally
+            {
+                Object.DestroyImmediate(prefab);
+            }
+        }
+
+        [Test]
+        public void UserData_SurvivesDespawnReuse()
+        {
+            GameObject prefab = new GameObject("ExtPrefab");
+            try
+            {
+                PoolCompiledRule rule = DefaultPoolRules.CreateExternalRule("Prefab:ExtPrefab:3");
+                _pool = new RuntimeGameObjectPool();
+                _pool.InitializeWithPrefab(_scheduler, rule, "Prefab:ExtPrefab:3", prefab, _root, _registry);
+
+                GameObject first = _pool.Spawn(null);
+                Assert.IsTrue(_registry.TryResolve(first, out _, out int slotIndex, out uint generation));
+                _pool.SetUserData(slotIndex, "cached");
+                Assert.IsTrue(_pool.TryRelease(slotIndex, generation));
+
+                GameObject second = _pool.Spawn(null);
+                Assert.AreSame(first, second);
+                Assert.IsTrue(_registry.TryResolve(second, out _, out int slot2, out _));
+                Assert.AreEqual("cached", _pool.GetUserData<string>(slot2));
+            }
+            finally
+            {
+                Object.DestroyImmediate(prefab);
+            }
         }
 
         #endregion
