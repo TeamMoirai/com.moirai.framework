@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Cysharp.Threading.Tasks;
+using Sirenix.OdinInspector;
 using UnityEngine;
 using YooAsset;
 using Object = UnityEngine.Object;
@@ -25,8 +26,8 @@ namespace Moirai.Atropos.Resource
         #region YooAsset 专有配置 [YOOASSET CONFIG]
 
         [CollectorPackageDropdown]
+        [LabelText("资源包名")]
         [SerializeField] private string m_PackageName = "DefaultPackage";
-
         /// <inheritdoc />
         public override string DefaultPackageName
         {
@@ -44,15 +45,26 @@ namespace Moirai.Atropos.Resource
         }
 
         [ProviderDropdown]
+        [LabelText("资源加密模式")]
         [SerializeReference] private YooAssetEncryptorHandler m_EncryptorHandler;
-
         /// <summary>
         /// 资源加解密处理器（YooAsset 专有）。
         /// </summary>
         public YooAssetEncryptorHandler EncryptorHandler => m_EncryptorHandler;
+        
+        [Title("下载设置(网络下载和重试配置)")]
+        [InfoBox("下载设置影响网络资源加载的效率和稳定性")]
 
+        [Tooltip("游戏运行时允许下载资源")]
+        [LabelText("允许边玩边下")]        
+        [SerializeField] private bool m_UpdatableWhilePlaying = false;
+        /// <inheritdoc />
+        public override bool UpdatableWhilePlaying => m_UpdatableWhilePlaying;
+        
+        [Tooltip("同时进行的最大下载任务数")]
+        [LabelText("最大下载数量")]             
+        [Range(1, 48)]
         [SerializeField] private int m_DownloadingMaxNum = 10;
-
         /// <inheritdoc />
         public override int DownloadingMaxNum
         {
@@ -60,8 +72,10 @@ namespace Moirai.Atropos.Resource
             set => m_DownloadingMaxNum = value;
         }
 
+        [Tooltip("下载失败时的重试次数")]
+        [LabelText("失败重试次数")]             
+        [Range(1, 48)]        
         [SerializeField] private int m_FailedTryAgain = 3;
-
         /// <inheritdoc />
         public override int FailedTryAgain
         {
@@ -69,13 +83,12 @@ namespace Moirai.Atropos.Resource
             set => m_FailedTryAgain = value;
         }
 
-        [SerializeField] private bool m_UpdatableWhilePlaying = false;
-
-        /// <inheritdoc />
-        public override bool UpdatableWhilePlaying => m_UpdatableWhilePlaying;
-
+        [Title("性能调优相关配置")]
+        
+        [Tooltip("每帧处理资源操作的最大时间")]
+        [LabelText("异步处理帧时间限制(毫秒)")]             
+        [Range(1L, 100L)]        
         [SerializeField] private long m_Milliseconds = 30;
-
         /// <inheritdoc />
         public override long Milliseconds
         {
@@ -92,8 +105,9 @@ namespace Moirai.Atropos.Resource
             }
         }
 
+        [Tooltip("自动释放资源引用计数为0的资源包")]
+        [LabelText("自动释放资源无用资源包")]              
         [SerializeField] private bool m_AutoUnloadBundleWhenUnused = false;
-
         /// <inheritdoc />
         public override bool AutoUnloadBundleWhenUnused
         {
