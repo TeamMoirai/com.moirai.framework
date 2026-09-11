@@ -20,15 +20,6 @@ namespace Moirai.Atropos.ObjectPool
             Active = 2
         }
 
-        /// <summary>
-        /// 预制体来源：资源地址加载、外部直接引用。
-        /// </summary>
-        private enum EPrefabSource : byte
-        {
-            Location = 0,
-            External = 1
-        }
-
         private const int WARMUP_CREATE_BATCH = 8;
         private const float WARMUP_FRAME_BUDGET_SECONDS = 0.001f;
 
@@ -61,17 +52,11 @@ namespace Moirai.Atropos.ObjectPool
         #region 字段 [FIELDS]
 
         private PoolMaintenanceScheduler _scheduler;
-        private IPrefabLoader _loader;
+        private readonly GameObjectPrefabSource _prefabSource = new GameObjectPrefabSource();
         private PooledInstanceRegistry _registry;
         private PoolCompiledRule _rule;
         private string _location;
         private Transform _root;
-        private GameObject _prefab;
-        private EPrefabSource _prefabSource;
-        private UniTaskCompletionSource<GameObject> _prefabLoadCompletionSource;
-        private bool _prefabLoading;
-        private bool _isShuttingDown;
-        private int _loadVersion;
         private float _nextMaintenanceAt;
 
         private PoolSlotStorage<Slot> _storage;
@@ -126,7 +111,7 @@ namespace Moirai.Atropos.ObjectPool
         /// <summary>
         /// 获取预制体是否已就绪（Location 源需已加载；External 源取决于 prefab 是否有效）。
         /// </summary>
-        public bool IsPrefabLoaded => _prefab != null;
+        public bool IsPrefabLoaded => _prefabSource.IsReady;
 
         /// <summary>
         /// 获取下次维护时间。
@@ -164,8 +149,7 @@ namespace Moirai.Atropos.ObjectPool
             PooledInstanceRegistry registry)
         {
             InitializeCore(scheduler, rule, location, inactiveRoot, registry);
-            _prefabSource = EPrefabSource.Location;
-            _loader = loader;
+            _prefabSource.InitializeLocation(loader);
         }
 
         /// <summary>
@@ -186,8 +170,7 @@ namespace Moirai.Atropos.ObjectPool
             PooledInstanceRegistry registry)
         {
             InitializeCore(scheduler, rule, location, inactiveRoot, registry);
-            _prefabSource = EPrefabSource.External;
-            _prefab = prefab;
+            _prefabSource.InitializeExternal(prefab);
         }
 
         private void InitializeCore(
@@ -200,10 +183,7 @@ namespace Moirai.Atropos.ObjectPool
             _scheduler = scheduler;
             _rule = rule;
             _location = location;
-            _loader = null;
             _registry = registry;
-            _prefab = null;
-            _prefabSource = EPrefabSource.Location;
             _root = inactiveRoot;
             _retainTarget = rule.MinIdle;
             _nextMaintenanceAt = float.MaxValue;
@@ -224,12 +204,12 @@ namespace Moirai.Atropos.ObjectPool
         /// </summary>
         public GameObject Spawn(Transform parent)
         {
-            if (_prefabSource == EPrefabSource.Location && _prefab == null)
+            if (!_prefabSource.IsExternal && !_prefabSource.IsReady)
             {
                 return null;
             }
 
-            if (!EnsurePrefabLoaded())
+            if (!_prefabSource.EnsureLoaded(_location))
             {
                 return null;
             }
@@ -242,7 +222,7 @@ namespace Moirai.Atropos.ObjectPool
         /// </summary>
         public async UniTask<GameObject> SpawnAsync(Transform parent, CancellationToken cancellationToken)
         {
-            if (!await EnsurePrefabLoadedAsync(cancellationToken))
+            if (!await _prefabSource.EnsureLoadedAsync(_location, cancellationToken))
             {
                 return null;
             }
@@ -261,7 +241,7 @@ namespace Moirai.Atropos.ObjectPool
                 return;
             }
 
-            if (!await EnsurePrefabLoadedAsync(cancellationToken))
+            if (!await _prefabSource.EnsureLoadedAsync(_location, cancellationToken))
             {
                 return;
             }
@@ -298,7 +278,7 @@ namespace Moirai.Atropos.ObjectPool
         /// </summary>
         public GameObject LoadPrefab()
         {
-            return EnsurePrefabLoaded() ? _prefab : null;
+            return _prefabSource.EnsureLoaded(_location) ? _prefabSource.Prefab : null;
         }
 
         /// <summary>
@@ -306,7 +286,7 @@ namespace Moirai.Atropos.ObjectPool
         /// </summary>
         public async UniTask<GameObject> LoadPrefabAsync(CancellationToken cancellationToken)
         {
-            return await EnsurePrefabLoadedAsync(cancellationToken) ? _prefab : null;
+            return await _prefabSource.EnsureLoadedAsync(_location, cancellationToken) ? _prefabSource.Prefab : null;
         }
 
         #endregion
@@ -480,11 +460,9 @@ namespace Moirai.Atropos.ObjectPool
                 budget--;
             }
 
-            if (_prefab != null && _totalCount == 0 && plan.UnloadPrefab && _prefabSource == EPrefabSource.Location)
+            if (_prefabSource.IsReady && _totalCount == 0 && plan.UnloadPrefab && !_prefabSource.IsExternal)
             {
-                _loader.UnloadPrefab(_prefab);
-                _prefab = null;
-                _prefabLoading = false;
+                _prefabSource.UnloadIfOwned();
             }
 
             RefreshMaintenance();
@@ -507,11 +485,7 @@ namespace Moirai.Atropos.ObjectPool
         /// </summary>
         public void Shutdown()
         {
-            _isShuttingDown = true;
-            _loadVersion++;
-            _prefabLoading = false;
-            _prefabLoadCompletionSource?.TrySetCanceled();
-            _prefabLoadCompletionSource = null;
+            _prefabSource.Shutdown();
             _scheduler.Remove(this);
 
             int slotCount = _storage.SlotCount;
@@ -540,15 +514,6 @@ namespace Moirai.Atropos.ObjectPool
             _activeCount = 0;
             _inactiveCount = 0;
             _totalCount = 0;
-            if (_prefab != null && _prefabSource == EPrefabSource.Location)
-            {
-                _loader.UnloadPrefab(_prefab);
-                _prefab = null;
-            }
-            else if (_prefabSource == EPrefabSource.External)
-            {
-                _prefab = null;
-            }
 
             // 页数组立即归还，不依赖后续 MemoryPool.Clear 配对。
             ReturnStorage();
@@ -577,7 +542,7 @@ namespace Moirai.Atropos.ObjectPool
             snapshot.totalCount = _totalCount;
             snapshot.activeCount = _activeCount;
             snapshot.inactiveCount = _inactiveCount;
-            snapshot.prefabLoaded = _prefab != null;
+            snapshot.prefabLoaded = _prefabSource.IsReady;
             snapshot.nextMaintenanceIn = _nextMaintenanceAt >= float.MaxValue ? -1f : Mathf.Max(0f, _nextMaintenanceAt - now);
             snapshot.spawnCount = _spawnCount;
             snapshot.despawnCount = _despawnCount;
@@ -612,19 +577,12 @@ namespace Moirai.Atropos.ObjectPool
         public override void Clear()
         {
             ReturnStorage();
-            _prefabLoadCompletionSource?.TrySetCanceled();
-            _prefabLoadCompletionSource = null;
+            _prefabSource.Clear();
             _scheduler = null;
-            _loader = null;
             _registry = null;
             _rule = default;
             _location = null;
             _root = null;
-            _prefab = null;
-            _prefabSource = EPrefabSource.Location;
-            _prefabLoading = false;
-            _isShuttingDown = false;
-            _loadVersion++;
             _nextMaintenanceAt = float.MaxValue;
             _inactiveHead = -1;
             _inactiveTail = -1;
@@ -695,12 +653,13 @@ namespace Moirai.Atropos.ObjectPool
             slot.Generation = ++_generationCounter;
             _activeCount++;
             slot.Transform.SetParent(parent, false);
-            if (_prefab != null)
+            if (_prefabSource.Prefab != null)
             {
                 // 与 Object.Instantiate(prefab, parent) 对齐：复用实例重置到预制体局部姿态。
-                slot.Transform.localPosition = _prefab.transform.localPosition;
-                slot.Transform.localRotation = _prefab.transform.localRotation;
-                slot.Transform.localScale = _prefab.transform.localScale;
+                Transform prefabTransform = _prefabSource.Prefab.transform;
+                slot.Transform.localPosition = prefabTransform.localPosition;
+                slot.Transform.localRotation = prefabTransform.localRotation;
+                slot.Transform.localScale = prefabTransform.localScale;
             }
 
             if (!slot.Instance.activeSelf)
@@ -777,10 +736,10 @@ namespace Moirai.Atropos.ObjectPool
             slot.LastReleaseTime = Time.time;
             slot.PrevInactive = -1;
             slot.NextInactive = -1;
-            slot.Instance = UnityEngine.Object.Instantiate(_prefab, _root, false);
+            slot.Instance = UnityEngine.Object.Instantiate(_prefabSource.Prefab, _root, false);
             slot.Transform = slot.Instance.transform;
 #if UNITY_EDITOR
-            slot.Instance.name = StringUtility.Format("{0}[Pool]", _prefab.name);
+            slot.Instance.name = StringUtility.Format("{0}[Pool]", _prefabSource.Prefab.name);
 #endif
             if (slot.Instance.activeSelf)
             {
@@ -889,7 +848,7 @@ namespace Moirai.Atropos.ObjectPool
                         ? now
                         : _storage.GetSlotRef(_inactiveHead).LastReleaseTime + _rule.IdleSeconds;
                 }
-                else if (_prefabSource == EPrefabSource.Location && _prefab != null && _totalCount == 0 && _rule.UnloadPrefab)
+                else if (!_prefabSource.IsExternal && _prefabSource.IsReady && _totalCount == 0 && _rule.UnloadPrefab)
                 {
                     due = _rule.Policy == EPoolPolicy.Burst ? now + _rule.IdleSeconds : now;
                 }
@@ -909,95 +868,6 @@ namespace Moirai.Atropos.ObjectPool
         {
             _nextMaintenanceAt = dueTime;
             _scheduler.Schedule(this, dueTime);
-        }
-
-        #endregion
-
-        #region 私有方法 — 预制体加载 [PRIVATE PREFAB LOADING]
-
-        private bool EnsurePrefabLoaded()
-        {
-            if (_prefabSource == EPrefabSource.External)
-            {
-                return _prefab != null;
-            }
-
-            if (_prefab != null)
-            {
-                return true;
-            }
-
-            if (_prefabLoading)
-            {
-                return false;
-            }
-
-            _prefab = _loader.LoadPrefab(_location);
-            return _prefab != null;
-        }
-
-        private async UniTask<bool> EnsurePrefabLoadedAsync(CancellationToken cancellationToken)
-        {
-            if (_prefabSource == EPrefabSource.External)
-            {
-                return _prefab != null;
-            }
-
-            if (_prefab != null)
-            {
-                return true;
-            }
-
-            if (_prefabLoading)
-            {
-                await _prefabLoadCompletionSource.Task.AttachExternalCancellation(cancellationToken);
-                return _prefab != null;
-            }
-
-            _prefabLoading = true;
-            // 先捕获局部引用再启动加载——同步完成的加载器会立刻消费并置空字段，直接 await 字段将 NRE。
-            UniTaskCompletionSource<GameObject> completionSource = new UniTaskCompletionSource<GameObject>();
-            _prefabLoadCompletionSource = completionSource;
-            RunPrefabLoadAsync(_loadVersion).Forget();
-            await completionSource.Task.AttachExternalCancellation(cancellationToken);
-            return _prefab != null;
-        }
-
-        private async UniTaskVoid RunPrefabLoadAsync(int loadVersion)
-        {
-            GameObject loaded = null;
-            try
-            {
-                loaded = await _loader.LoadPrefabAsync(_location);
-            }
-            catch (OperationCanceledException)
-            {
-                loaded = null;
-            }
-            catch (Exception e)
-            {
-                LogUtility.Error("[GameObjectPool] Prefab load failed. Location:{0}, Error:{1}", _location, e.Message);
-                loaded = null;
-            }
-
-            if (_isShuttingDown || loadVersion != _loadVersion)
-            {
-                if (loaded != null && _loader != null)
-                {
-                    _loader.UnloadPrefab(loaded);
-                }
-
-                _prefabLoading = false;
-                _prefabLoadCompletionSource?.TrySetCanceled();
-                _prefabLoadCompletionSource = null;
-                return;
-            }
-
-            _prefab = loaded;
-            _prefabLoading = false;
-            UniTaskCompletionSource<GameObject> completionSource = _prefabLoadCompletionSource;
-            _prefabLoadCompletionSource = null;
-            completionSource?.TrySetResult(_prefab);
         }
 
         #endregion

@@ -47,9 +47,9 @@ Runtime/Services/ObjectPool/
 
 | 类/接口 | 说明 |
 |---------|------|
-| `ObjectPoolService` | 静态外观：`GetOrCreatePool<T>` / `GetObjectPool<T>` / `HasObjectPool<T>` / `DestroyObjectPool<T>` / `Release` / `ReleaseAllUnused` |
+| `ObjectPoolService` | 静态外观：`GetOrCreatePool<T>` / `GetObjectPool<T>` / `HasObjectPool<T>` / `DestroyObjectPool<T>` / `TrySpawn<T>` / `Contains<T>` / `Release` / `ReleaseAllUnused` / `FlushAll` |
 | `ObjectPoolCreateOptions` | 创建选项：`Name` / `AllowMultiSpawn` / `AutoReleaseInterval` / `Capacity` / `ExpireTime` / `Priority` |
-| `IObjectPool<T>` | 单池契约：`Register` / `Spawn` / `Despawn` / `DespawnTarget` / `Release(count)` / `ReleaseAllUnused` |
+| `IObjectPool<T>` | 单池契约：`Register` / `Spawn` / `TrySpawn` / `Contains` / `Despawn` / `DespawnTarget` / `Release(count)` / `ReleaseAllUnused` / `Flush` |
 | `ObjectBase` | 池化对象基类：`OnSpawn` / `OnDespawn` / `Release(bool)` / `Locked` / `CustomCanReleaseFlag` |
 | `ObjectPoolBase` | 池元数据基类：`FullName` / `ObjectType` / `Count` / `Capacity` / `ExpireTime` |
 | `ObjectInfo` | 对象级调试快照（名称 / 引用计数 / 锁定 / 可释放标记 / 最近使用时间） |

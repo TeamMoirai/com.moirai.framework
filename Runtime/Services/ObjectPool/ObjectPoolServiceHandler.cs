@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 
 namespace Moirai.Atropos.ObjectPool
 {
@@ -73,6 +73,11 @@ namespace Moirai.Atropos.ObjectPool
         /// 释放所有池的全部未使用且可释放的对象。
         /// </summary>
         public abstract void ReleaseAllUnused();
+
+        /// <summary>
+        /// 刷新全部池（默认等价 <see cref="ReleaseAllUnused"/>，动词与 GameObject 池对齐）。
+        /// </summary>
+        public virtual void FlushAll() => ReleaseAllUnused();
 
         #endregion
 

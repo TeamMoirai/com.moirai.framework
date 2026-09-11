@@ -47,7 +47,7 @@ Namespace: `Moirai.Atropos.ObjectPool`
 
 | Class/Interface | Description |
 |-----------------|-------------|
-| `ObjectPoolService` | Static facade: `GetOrCreatePool<T>` / `GetObjectPool<T>` / `HasObjectPool<T>` / `DestroyObjectPool<T>` / `Release` / `ReleaseAllUnused` |
+| `ObjectPoolService` | Static facade: `GetOrCreatePool<T>` / `GetObjectPool<T>` / `HasObjectPool<T>` / `DestroyObjectPool<T>` / `TrySpawn<T>` / `Contains<T>` / `Release` / `ReleaseAllUnused` / `FlushAll` |
 | `ObjectPoolCreateOptions` | Creation options: `Name` / `AllowMultiSpawn` / `AutoReleaseInterval` / `Capacity` / `ExpireTime` / `Priority` |
 | `IObjectPool<T>` | Per-pool contract: `Register` / `Spawn` / `Despawn` / `DespawnTarget` / `Release(count)` / `ReleaseAllUnused` |
 | `ObjectBase` | Pooled object base: `OnSpawn` / `OnDespawn` / `Release(bool)` / `Locked` / `CustomCanReleaseFlag` |
