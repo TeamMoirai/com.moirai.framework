@@ -17,7 +17,8 @@ SaveService (static facade, silently degrades when s_Handler is null)
 │     Compression: ICompressionProvider + SaveCompressionRegistry (GZip built-in, ID=1; unknown IDs rejected on read)
 │     Keys: ISaveKeyProvider + SaveKeyProvider (Static passphrase default / Passphrase runtime-injected / HkdfPerUser per-user HKDF)
 ├── Serialization backends (ESaveBackend + ISaveSerializer + SaveSerializerRegistry)
-│     Json (built-in, default) / MessagePack / MemoryPack / Protobuf / KeyValue (component-only)
+│     Json (built-in, default) / MessagePack / MemoryPack / Protobuf / KeyValue (reserved for the component capture format)
+│     open registration: Register(ISaveSerializer)/Unregister(ESaveBackend) (duplicate backends fail fast; KeyValue cannot be claimed)
 ├── Multi-block container (SaveFileContainer, hand-rolled binary: key/version/backend/bytes per block)
 ├── Data model ([SaveData] + SaveDataBlock.OnMigrate version migration)
 ├── Migration bus (SaveMigrationManager + ISaveMigrator: file-level version chain, pre-positioned on load/write pipelines)
@@ -137,14 +138,28 @@ public sealed class SaveMigratorV1ToV2 : ISaveMigrator
 public partial class Player : MonoBehaviour
 {
     [SaveField] private int _hp;
-    [SaveField("bag_items")] private List<int> _items;   // collections/nested classes are a future generator extension; MIRAI300 today
+    [SaveField("bag_items")] private List<int> _items;
+    [SaveField] private Dictionary<string, int> _inventory;
+    [SaveField] private PlayerStats _stats;          // nested [SaveData] data class
+    [SaveField] private EnemyAI _target;             // scene reference (target needs SaveObjectIdentity)
+    [SaveField] private Texture2D _icon;             // asset reference (must be registered in SaveAssetCatalog)
 }
 ```
 
 2. Attach a **Save Component** to the GameObject: add target-component bindings and check the fields to save (the block key auto-derives as `scene:path` when left empty; the path is the **full name chain** from scene root to object, and same-name siblings/roots get a `[N]` ordinal suffix for disambiguation so cross-branch key collisions cannot silently overwrite each other).
 3. Trigger with `SaveService.SaveComponentsAsync(fileName)` / `LoadComponentsAsync(fileName)` — compile-time-generated strongly-typed capturers run with zero reflection, filtered by the checked mask; unknown keys are skipped and missing keys keep current values (natural forward/backward compatibility for field changes).
 
-Generator diagnostics: MIRAI300 unsupported type, MIRAI301 duplicate key, MIRAI302 migrator not registrable, MIRAI303 partial class required, MIRAI304 instance field required. After editing generator sources (`SourceGenerators/Source~/SaveHost/`) rebuild `SourceGenerators/SaveHost.dll` with `dotnet build -c Release -t:Rebuild` (an incremental build can skip compilation and emit a broken skeleton DLL).
+### Supported field types (SG v2)
+
+- **Scalars**: primitives/enums/string/DateTime/TimeSpan/Unity math types (Vector2/3/4, Quaternion, Color, Rect, Bounds).
+- **Collections**: arrays `T[]`, `List<T>`, `Queue<T>`, `Stack<T>`, `HashSet<T>`, `Dictionary<K,V>`; elements recursively support scalars and nested data classes (collections of collections included); map keys are scalar/enum only; **reference types are not supported as collection elements** (MIRAI308). Restore uses **replace semantics** (a fresh container instance); null and empty collections stay distinct; `Stack<T>` is written top-to-bottom and restored by pushing in reverse to preserve LIFO state.
+- **Nested data classes**: a non-MonoBehaviour class marked `[SaveData]`; captures **all its public instance fields** (key = field name, JSON-style; the Key/Version arguments are unused in the nested context). Cycles/abstract classes/missing accessible parameterless constructors/structs report MIRAI307; `SaveDataBlock` subclasses cannot be nested field types (use the manual block API).
+- **Scene object references** (GameObject/Component-derived fields): capture stores the target's `SaveObjectIdentity` **stable ID** (baked as a GUID by OnValidate in the editor, auto-assigned when empty); restore looks up the same ID in the current scene via `SaveEntityRegistry` (Component fields resolve via `GetComponent<T>`). A target without SaveObjectIdentity captures as Null with a warning; a stored ID absent from the current scene restores null with a warning. Duplicating an object (Ctrl+D) copies the ID — duplicates are first-come-first-served at runtime with a warning; clear the ID field to re-bake. Every scene-reference field emits a MIRAI305 Info reminder.
+- **Asset references** (other UnityEngine.Object-derived fields such as Texture/SO/Material): capture resolves object → ResourceService location via `SaveServiceSettings.m_AssetCatalog` (a SaveAssetCatalog SO); restore resolves the location back through the same catalog — **catalog-based two-way resolution with no runtime loading** (keeps the capturer contract synchronous, zero lease burden). Referenced assets must be registered first; unregistered assets or a missing catalog capture as Null with a warning. Fields declared as the `UnityEngine.Object` base type are ambiguous between scene/asset and report MIRAI306 (skipped).
+
+### Generator diagnostics
+
+MIRAI300 unsupported field type; MIRAI301 duplicate key; MIRAI302 migrator not registrable; MIRAI303 the containing type and every level of its nesting chain must be partial classes; MIRAI304 instance field required; MIRAI305 scene-reference needs SaveObjectIdentity guidance (Info); MIRAI306 reference declared as the UnityEngine.Object base type (Warning, field skipped); MIRAI307 invalid nested data type; MIRAI308 unsupported collection-element/map-key/value type. After editing generator sources (`SourceGenerators/Source~/SaveHost/`) rebuild `SourceGenerators/SaveHost.dll` with `dotnet build -c Release -t:Rebuild` (an incremental build can skip compilation and emit a broken skeleton DLL).
 
 ## Public API (static facade)
 
@@ -214,6 +229,7 @@ Static events (default zero-overhead channel) + `EventManager` bridge events (`S
 | `m_EncryptionKey` / `m_Pbkdf2Iterations` | Static-key parameters (**SECURITY: replace the placeholder key before shipping**; effective only when no key provider is configured; derived keys are cached per instance) |
 | `m_SaveFileExtension` | Save file extension (default `.sav`) |
 | `m_MigrationWriteBack` | Migration write-back (default on): lazily persists load-triggered migrations; when off, migration applies to in-memory data of that load only |
+| `m_AssetCatalog` | Asset reference catalog (SaveAssetCatalog SO): no-code asset reference fields resolve locations two-way through the catalog; empty = asset reference fields always capture Null |
 
 ## Dependencies
 
@@ -221,4 +237,4 @@ MessagePack 3.1.8, protobuf-net 3.3.8 (+Core with embedded BuildTools SG), Memor
 
 ## Tests
 
-`Tests/EditorMode/Save/`: container layout and v2 per-block validation (`SaveFileContainerTests`: round-trips/corrupted-block skip/structural prefix preservation/v1 hard-cut, `SaveContainerV2Tests`: partial recovery past a repatched header CRC/whole-file rejection/corrupted-block listing/write-back salvage), events API (`SaveEventTests`: trigger timing/count/args, failure-stage typing, background dispatch to main thread, progress batching), composer, handler pipeline (atomic writes/sweep/corruption classification/argument validation), storage backend contract (`FileSaveStorageBackendTests`: atomic writes/idempotent deletes/exact-filter listing/backup-restore/capabilities), compression transform chain (`SaveCompressionTests`: GZip round-trips/compress+encrypt combos/legacy uncompressed reads/header classification/registry), key providers (`SaveKeyProviderTests`: static equivalence/passphrase injection/HKDF per-user isolation), full crypto chain, four-backend round-trips, migration cascades, component capturers (generated code), migration bus (`SaveMigrationBusTests`: single/multi-step chains/missing-link/ambiguity/downgrade/Priority ordering/exception typing, JSON & KVT rename/retype, whole-block transform, write-back on/off, audit history, version stamping, write-time healing, explicit migration, component schema hook routing).
+`Tests/EditorMode/Save/`: container layout and v2 per-block validation (`SaveFileContainerTests`: round-trips/corrupted-block skip/structural prefix preservation/v1 hard-cut, `SaveContainerV2Tests`: partial recovery past a repatched header CRC/whole-file rejection/corrupted-block listing/write-back salvage), events API (`SaveEventTests`: trigger timing/count/args, failure-stage typing, background dispatch to main thread, progress batching), composer, handler pipeline (atomic writes/sweep/corruption classification/argument validation), storage backend contract (`FileSaveStorageBackendTests`: atomic writes/idempotent deletes/exact-filter listing/backup-restore/capabilities), compression transform chain (`SaveCompressionTests`: GZip round-trips/compress+encrypt combos/legacy uncompressed reads/header classification/registry), key providers (`SaveKeyProviderTests`: static equivalence/passphrase injection/HKDF per-user isolation), full crypto chain, four-backend round-trips, migration cascades, component capturers (generated code; `SaveCapturerV2Tests`: collection/nested/scene-reference/asset-reference full-matrix round-trips), migration bus (`SaveMigrationBusTests`: single/multi-step chains/missing-link/ambiguity/downgrade/Priority ordering/exception typing, JSON & KVT rename/retype, whole-block transform, write-back on/off, audit history, version stamping, write-time healing, explicit migration, component schema hook routing), serializer registry open registration (`SaveSerializerRegistryTests`: registration validation/duplicate fail-fast/reserved backend/unregister), KVT element-level records (`SaveKeyValueElementTests`: sequence/map/nested-element round-trips, null elements, type-mismatch cursor alignment, buffer-boundary regression), scene object identity (`SaveObjectIdentityTests`: register/unregister/empty-ID rejection/duplicate-ID first-wins/destroy-invalidation/Resolve), asset reference catalog (`SaveAssetCatalogTests`: two-way lookup/type mismatch/duplicate first-wins/editor-time cache invalidation).

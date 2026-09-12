@@ -17,7 +17,8 @@ SaveService（静态外观，s_Handler null 时静默降级）
 │     压缩：ICompressionProvider + SaveCompressionRegistry（GZip 内建 ID=1；未知 ID 读侧拒载）
 │     密钥：ISaveKeyProvider + SaveKeyProvider（Static 静态口令默认 / Passphrase 运行期注入 / HkdfPerUser 按用户派生）
 ├── 序列化后端（ESaveBackend + ISaveSerializer + SaveSerializerRegistry）
-│     Json（内置，默认）/ MessagePack / MemoryPack / Protobuf / KeyValue（组件专用）
+│     Json（内置，默认）/ MessagePack / MemoryPack / Protobuf / KeyValue（组件捕获格式保留标识）
+│     开放注册：Register(ISaveSerializer)/Unregister(ESaveBackend)（重复后端 fail-fast，KeyValue 不可占用）
 ├── 多块容器（SaveFileContainer，手写二进制，块级 key/version/backend/bytes）
 ├── 数据模型（[SaveData] + SaveDataBlock.OnMigrate 版本迁移）
 ├── 迁移总线（SaveMigrationManager + ISaveMigrator：文件级版本链，加载/写入管线前置）
@@ -137,14 +138,28 @@ public sealed class SaveMigratorV1ToV2 : ISaveMigrator
 public partial class Player : MonoBehaviour
 {
     [SaveField] private int _hp;
-    [SaveField("bag_items")] private List<int> _items;   // 集合元素/嵌套类为生成器后续版本扩展，当前报 MIRAI300
+    [SaveField("bag_items")] private List<int> _items;
+    [SaveField] private Dictionary<string, int> _inventory;
+    [SaveField] private PlayerStats _stats;          // 嵌套 [SaveData] 数据类
+    [SaveField] private EnemyAI _target;             // 场景引用（目标须挂 SaveObjectIdentity）
+    [SaveField] private Texture2D _icon;             // 资产引用（须登记进 SaveAssetCatalog）
 }
 ```
 
 2. GameObject 挂 **Save Component**：Inspector 里添加目标组件绑定并勾选参与存档的字段（块键空缺时自动派生 `场景名:物体路径`；物体路径为场景根到物体的**完整名称链**，同名兄弟/同名场景根自动追加 `[N]` 序号消歧，杜绝跨分支撞键覆盖）。
 3. 运行期 `SaveService.SaveComponentsAsync(fileName)` / `LoadComponentsAsync(fileName)` 触发——编译期生成的强类型捕获器零反射捕获，按勾选掩码过滤；未知键跳过、缺失键保留当前值（字段增删天然向后兼容）。
 
-生成器诊断：MIRAI300 类型不支持、MIRAI301 键重复、MIRAI302 迁移器无法自注册、MIRAI303 需 partial class、MIRAI304 需实例字段。修改生成器源码（`SourceGenerators/Source~/SaveHost/`）后必须 `dotnet build -c Release -t:Rebuild` 强制全量重建 `SourceGenerators/SaveHost.dll`（增量构建在输入缓存未过期时会跳过编译产出残缺 DLL）。
+### 支持的字段类型（SG v2）
+
+- **标量**：基元/枚举/string/DateTime/TimeSpan/Unity 数学类型（Vector2/3/4、Quaternion、Color、Rect、Bounds）。
+- **集合**：数组 `T[]`、`List<T>`、`Queue<T>`、`Stack<T>`、`HashSet<T>`、`Dictionary<K,V>`；元素递归支持标量与嵌套数据类（含集合套集合）；映射键仅限标量/枚举；**引用类型暂不支持作集合元素**（报 MIRAI308）。恢复为**替换语义**（读回新容器实例）；null 与空集合严格区分；`Stack<T>` 按栈顶→栈底写出、恢复逆序压栈还原 LIFO。
+- **嵌套数据类**：标注 `[SaveData]` 的非 MonoBehaviour class，捕获其**全部 public 实例字段**（键 = 字段名，对齐 JSON 惯例；Key/Version 参数在嵌套语境不使用）。循环引用/抽象类/无可访问无参构造/struct 报 MIRAI307；`SaveDataBlock` 子类不能作嵌套字段（走手动轨块 API）。
+- **场景对象引用**（GameObject/Component 派生字段）：捕获存目标 `SaveObjectIdentity` 的**稳定 ID**（编辑器期 OnValidate 烘焙 GUID，空则自动赋值），恢复经 `SaveEntityRegistry` 反查当前场景内同 ID 对象（Component 字段经 `GetComponent<T>` 解析）。目标未挂 SaveObjectIdentity 时捕获写 Null 并记告警；档内 ID 在当前场景不存在时恢复为 null 并记告警。复制物体（Ctrl+D）会连 ID 拷贝——重复 ID 运行期首到先得并记告警，清空 ID 字段可重新烘焙。每个场景引用字段生成 MIRAI305 Info 指引。
+- **资产引用**（Texture/SO/Material 等其余 UnityEngine.Object 派生字段）：捕获经 `SaveServiceSettings.m_AssetCatalog`（SaveAssetCatalog SO）查 object → ResourceService 定位串写入；恢复按定位串经同一目录反查资产——**目录制双向解析，不触发运行时加载**（保持捕获器同步契约、零租约负担）。被引用资产须先登记入册；未登记/无目录时捕获写 Null 并记告警。声明为 `UnityEngine.Object` 基类的字段无法区分场景/资产，报 MIRAI306 且不参与捕获。
+
+### 生成器诊断
+
+MIRAI300 字段类型不支持；MIRAI301 存档键重复；MIRAI302 迁移器无法自注册；MIRAI303 所在类型及其嵌套外层链须均为 partial class；MIRAI304 需实例字段；MIRAI305 场景引用需 SaveObjectIdentity 指引（Info）；MIRAI306 引用类型声明为 UnityEngine.Object 基类（Warning，字段跳过）；MIRAI307 嵌套数据类型无效；MIRAI308 集合元素/映射键值类型不支持。修改生成器源码（`SourceGenerators/Source~/SaveHost/`）后必须 `dotnet build -c Release -t:Rebuild` 强制全量重建 `SourceGenerators/SaveHost.dll`（增量构建在输入缓存未过期时会跳过编译产出残缺 DLL）。
 
 ## 公共 API（静态外观）
 
@@ -214,6 +229,7 @@ public partial class Player : MonoBehaviour
 | `m_EncryptionKey` / `m_Pbkdf2Iterations` | 静态密钥参数（**SECURITY: 上线前必须替换占位密钥**；仅在密钥提供方为空时生效；派生密钥按实例缓存） |
 | `m_SaveFileExtension` | 存档文件扩展名（默认 `.sav`） |
 | `m_MigrationWriteBack` | 迁移回写（默认开）：加载触发迁移成功后惰性回写存档；关闭则迁移仅作用于当次加载的内存数据 |
+| `m_AssetCatalog` | 资产引用目录（SaveAssetCatalog SO）：无代码保存的资产引用字段经目录双向解析定位串；空 = 资产引用字段捕获恒写 Null |
 
 ## 依赖
 
@@ -221,4 +237,4 @@ MessagePack 3.1.8、protobuf-net 3.3.8（+Core 内嵌 BuildTools SG）、MemoryP
 
 ## 测试
 
-`Tests/EditorMode/Save/`：容器布局与 v2 逐块校验（`SaveFileContainerTests`：往返/坏块跳过/结构性前缀保留/v1 硬切、`SaveContainerV2Tests`：头 CRC 重算放行的部分恢复/整档拒绝/坏块列报/写回收留）、事件 API（`SaveEventTests`：触发时机/次数/参数、失败阶段分型、后台派发主线程化、进度批次）、组合器、Handler 管线（原子写/清扫/损坏分型/参数校验）、存储后端契约（`FileSaveStorageBackendTests`：原子写/幂等删除/精确枚举/备份恢复/能力自描述）、压缩转换链（`SaveCompressionTests`：GZip 往返/压加组合/旧档兼容读/头部分型/注册表）、密钥提供方（`SaveKeyProviderTests`：静态等价/口令注入/HKDF 按用户隔离）、加密全链路、四后端往返、迁移级联、组件捕获器（生成代码）、迁移总线（`SaveMigrationBusTests`：版本链单步/多步/缺链/歧义/降级/Priority 序/异常归一、JSON 与 KVT 改名改型、整块变换、回写开关、审计历史、版本盖章、写入自愈、显式迁移、组件模式钩子路由）。
+`Tests/EditorMode/Save/`：容器布局与 v2 逐块校验（`SaveFileContainerTests`：往返/坏块跳过/结构性前缀保留/v1 硬切、`SaveContainerV2Tests`：头 CRC 重算放行的部分恢复/整档拒绝/坏块列报/写回收留）、事件 API（`SaveEventTests`：触发时机/次数/参数、失败阶段分型、后台派发主线程化、进度批次）、组合器、Handler 管线（原子写/清扫/损坏分型/参数校验）、存储后端契约（`FileSaveStorageBackendTests`：原子写/幂等删除/精确枚举/备份恢复/能力自描述）、压缩转换链（`SaveCompressionTests`：GZip 往返/压加组合/旧档兼容读/头部分型/注册表）、密钥提供方（`SaveKeyProviderTests`：静态等价/口令注入/HKDF 按用户隔离）、加密全链路、四后端往返、迁移级联、组件捕获器（生成代码；`SaveCapturerV2Tests`：集合/嵌套/场景引用/资产引用全矩阵往返）、迁移总线（`SaveMigrationBusTests`：版本链单步/多步/缺链/歧义/降级/Priority 序/异常归一、JSON 与 KVT 改名改型、整块变换、回写开关、审计历史、版本盖章、写入自愈、显式迁移、组件模式钩子路由）、序列化注册表开放注册（`SaveSerializerRegistryTests`：注册校验/重复 fail-fast/保留标识/注销）、KVT 元素级记录（`SaveKeyValueElementTests`：序列/映射/嵌套元素往返、null 元素、类型不符游标对齐、缓冲区边界回归）、场景对象身份（`SaveObjectIdentityTests`：注册/注销/空 ID 拒注册/重复 ID 首到先得/销毁失效/Resolve）、资产引用目录（`SaveAssetCatalogTests`：双向查找/类型不符/重复首到先得/编辑器期缓存失效）。
