@@ -39,8 +39,9 @@ namespace Moirai.Atropos.Tasks
 #endif
             if (s_Instance == null)
             {
-                GameObject managerObject = new GameObject { name = nameof(TaskRunner) };
+                GameObject managerObject = new GameObject { name = $"[{nameof(TaskRunner)}]" };
                 s_Instance = managerObject.AddComponent<TaskRunner>();
+                DontDestroyOnLoad(s_Instance);
             }
             return s_Instance;
         }
@@ -75,6 +76,26 @@ namespace Moirai.Atropos.Tasks
         private void Update()
         {
             UpdateAllTasks();
+        }
+
+        private void OnDestroy()
+        {
+            for (int i = 0; i < _tasksToAdd.Count; i++)
+            {
+                _tasksToAdd[i].Dispose();
+            }
+            _tasksToAdd.Clear();
+
+            for (int i = 0; i < Tasks.Count; i++)
+            {
+                Tasks[i].Dispose();
+            }
+            Tasks.Clear();
+
+            if (s_Instance == this)
+            {
+                s_Instance = null;
+            }
         }
 
         public CallbackEventHandler GetEventHandler()
