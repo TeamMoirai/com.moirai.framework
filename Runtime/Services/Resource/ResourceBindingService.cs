@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
@@ -230,6 +230,14 @@ namespace Moirai.Atropos.Resource
                 return EResourceBindStatus.ServiceShutdown;
             }
 
+            return Internal_ReleaseOwner(ownerId, generation);
+        }
+
+        /// <summary>
+        /// Owner 释放核心路径，无 shutdown 守卫——仅供 <see cref="Shutdown"/> 在置位后调用。
+        /// </summary>
+        private EResourceBindStatus Internal_ReleaseOwner(int ownerId, uint generation)
+        {
             int ownerIndex = ownerId - 1;
             if (!IsValidOwnerIndex(ownerIndex))
             {
@@ -1308,7 +1316,7 @@ namespace Moirai.Atropos.Resource
                     continue;
                 }
 
-                ReleaseOwner(owner.OwnerId, owner.Generation);
+                Internal_ReleaseOwner(owner.OwnerId, owner.Generation);
             }
 
             int bindingTotal = _bindingNextIndex;
