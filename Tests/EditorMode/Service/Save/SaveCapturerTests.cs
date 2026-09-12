@@ -11,7 +11,7 @@ namespace Service.Save
     /// 生成捕获器行为测试：注册表自注册、全字段捕获/恢复往返、掩码过滤、未知键跳过与缺失键保留当前值。
     /// <para>测试组件声明在本程序集（partial + internal，捕获器经 SaveHostGenerator 生成并模块初始化器注册）。</para>
     /// </summary>
-    public class SaveCapturerTests
+    public partial class SaveCapturerTests
     {
         /// <summary>测试枚举。</summary>
         internal enum ETestMode
@@ -123,7 +123,8 @@ namespace Service.Save
             var writer = new SaveKeyValueWriter(256);
             capturer.Capture(source, ref writer, allMask);
             var reader = new SaveKeyValueReader(writer.ToArray());
-            capturer.Restore(target, ref reader, capturer.FieldNames.Length, allMask);
+            int recordCount = ConsumeScopeHeader(ref reader, capturer.FieldNames.Length);
+            capturer.Restore(target, ref reader, recordCount, allMask);
 
             Assert.AreEqual(90, target.Hp);
             Assert.AreEqual("Moirai⑵", target.PlayerName);
@@ -152,7 +153,8 @@ namespace Service.Save
             var writer = new SaveKeyValueWriter(64);
             capturer.Capture(source, ref writer, partialMask);
             var reader = new SaveKeyValueReader(writer.ToArray());
-            capturer.Restore(target, ref reader, 1, partialMask);
+            int recordCount = ConsumeScopeHeader(ref reader, 1);
+            capturer.Restore(target, ref reader, recordCount, partialMask);
 
             Assert.AreEqual(77, target.Hp, "掩码内字段应恢复");
             Assert.AreEqual(2, target.Coins, "掩码外字段应保留目标当前值");
@@ -198,9 +200,22 @@ namespace Service.Save
                     var writer = new SaveKeyValueWriter(64);
                     capturer.Capture(source, ref writer, allMask);
                     var reader = new SaveKeyValueReader(writer.ToArray());
-                    capturer.Restore(target, ref reader, capturer.FieldNames.Length, allMask);
+                    int recordCount = ConsumeScopeHeader(ref reader, capturer.FieldNames.Length);
+                    capturer.Restore(target, ref reader, recordCount, allMask);
 
                     Assert.IsNull(target.PlayerName, "Null 记录应恢复为 null 字符串");
+                }
+
+                /// <summary>
+                /// 消费捕获输出的外层类型名作用域头（捕获契约：写入「键 = 组件类型全名」的嵌套作用域），返回作用域内记录数。
+                /// </summary>
+                private static int ConsumeScopeHeader(ref SaveKeyValueReader reader, int expectedCount)
+                {
+                    Assert.IsTrue(reader.ReadRecord(out _, out ESaveKvType scopeType), "应有外层作用域记录");
+                    Assert.AreEqual(ESaveKvType.Object, scopeType, "外层记录应为嵌套对象作用域");
+                    int recordCount = reader.ReadChildCount();
+                    Assert.AreEqual(expectedCount, recordCount, "作用域记录数 = 启用字段数");
+                    return recordCount;
                 }
 
                 /// <summary>
@@ -218,6 +233,17 @@ namespace Service.Save
                     public void Capture(object component, ref SaveKeyValueWriter writer, in SaveFieldMask mask)
                     {
                         var self = (KvTestComponent)component;
+                        // 捕获契约：写入「键 = 组件类型全名」的嵌套作用域（与 SG 生成捕获器一致）
+                        int enabledCount = 0;
+                        for (int i = 0; i < s_FieldNames.Length; i++)
+                        {
+                            if (mask.IsEnabled(i))
+                            {
+                                enabledCount++;
+                            }
+                        }
+
+                        writer.BeginNestedObject(ComponentType.FullName, enabledCount);
                         if (mask.IsEnabled(0)) writer.WriteInt32("Hp", self.Hp);
                         if (mask.IsEnabled(1)) writer.WriteString("player_name", self.PlayerName);
                         if (mask.IsEnabled(2)) writer.WriteSingle("Speed", self.SpeedValue);
@@ -226,6 +252,7 @@ namespace Service.Save
                         if (mask.IsEnabled(5)) writer.WriteInt32("Mode", (int)self.Mode);
                         if (mask.IsEnabled(6)) writer.WriteBoolean("Active", self.Active);
                         if (mask.IsEnabled(7)) writer.WriteInt64("Coins", self.Coins);
+                        writer.EndNested();
                     }
 
                     public void Restore(object component, ref SaveKeyValueReader reader, int recordCount, in SaveFieldMask mask)

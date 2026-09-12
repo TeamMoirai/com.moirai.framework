@@ -43,6 +43,9 @@ namespace Moirai.Atropos.Save
         [Tooltip("迁移回写：加载触发版本迁移成功后将迁移结果惰性回写存档（默认开）。关闭时迁移仅作用于当次加载的内存数据，同文件同会话不重复迁移（经会话级缓存），但存档文件保持旧版本。")]
         [SerializeField] private bool m_MigrationWriteBack = true;
 
+        [Tooltip("资产引用目录：无代码保存的资产引用字段（Texture/SO/Material 等）按目录双向解析定位串——被引用资产须登记入册，空 = 资产引用字段捕获恒写 Null。")]
+        [SerializeField] private SaveAssetCatalog m_AssetCatalog;
+
         private bool IsEncryptedHandler => m_SaveServiceHandler is AesEncryptedSaveHandler;
 
         /// <summary>旧版静态密钥字段可见性（配置自定义密钥提供方后隐藏——密钥来源以提供方为准）。</summary>
@@ -94,6 +97,11 @@ namespace Moirai.Atropos.Save
         /// </summary>
         public static bool MigrationWriteBack => Instance.m_MigrationWriteBack;
 
+        /// <summary>
+        /// 资产引用目录（由 Inspector 序列化配置；<c>null</c> = 无资产引用解析能力）。
+        /// </summary>
+        public static SaveAssetCatalog AssetCatalog => Instance.m_AssetCatalog;
+
         private void Reset()
         {
             m_SaveServiceHandler = new PlainSaveHandler();
@@ -104,6 +112,7 @@ namespace Moirai.Atropos.Save
             m_Pbkdf2Iterations = SaveEncryptor.DefaultIterations;
             m_SaveFileExtension = ".sav";
             m_MigrationWriteBack = true;
+            m_AssetCatalog = null;
         }
     }
 }
