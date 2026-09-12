@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
@@ -260,7 +260,7 @@ namespace Moirai.Atropos
                 throw new NullReferenceException($"Type : {type} can not find property: {propertyName} !");
             }
 
-            return property.GetValue(propertyName);
+            return property.GetValue(null);
         }
 
         /// <summary>
