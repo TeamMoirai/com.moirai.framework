@@ -1,4 +1,3 @@
-using UnityEngine;
 using Object = UnityEngine.Object;
 
 namespace Moirai.Atropos.Resource
@@ -21,7 +20,7 @@ namespace Moirai.Atropos.Resource
             }
 
 #if UNITY_6000_5_OR_NEWER
-            return EntityId.ToULong(target.GetEntityId());
+            return UnityEngine.EntityId.ToULong(target.GetEntityId());
 #else
             return unchecked((ulong)(uint)target.GetInstanceID());
 #endif
