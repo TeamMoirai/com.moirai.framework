@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Security.Cryptography;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using Moirai.Atropos;
@@ -11,12 +10,13 @@ namespace Moirai.Atropos.Save
 {
     /// <summary>
     /// 存档处理器抽象基类（存储管线策略抽象）。
-    /// <para>承载完整文件管线：路径解析与参数校验、多块容器组装与解析（<see cref="SaveFileContainer"/>）、
-    /// 版本化文件头、载荷变换钩子（明文直通 / AES 加密由子类决定）、临时文件 + Flush(true) 落盘 + 原子替换、
-    /// 删除退避重试、孤儿临时文件清扫、槽位与块枚举；文件 IO 在工作线程执行，
+    /// <para>承载格式与编排管线：路径解析与参数校验、多块容器组装与解析（<see cref="SaveFileContainer"/>）、
+    /// 版本化文件头读写与 CRC、载荷变换钩子（明文直通 / AES 加密由子类决定）、按路径串行门（<see cref="SaveFileGate"/>）、
+    /// 槽位与块枚举；全部持久化 IO 委托存储层 <see cref="ISaveStorage"/>（<see cref="SaveStorageBackend"/> 插拔件，
+    /// 本地文件 / 云 KV 后端正交可换），文件 IO 在工作线程执行，
     /// 避免大存档阻塞主线程（<see cref="CancellationToken"/> 协作式取消贯穿写入与读取）。</para>
     /// <para>数据块序列化职责由 <see cref="ISaveSerializer"/>（<see cref="SaveSerializerRegistry"/> 查询）承担，
-    /// 处理器只搬运容器字节——序列化后端与存储管线两轴正交可插拔。</para>
+    /// 处理器只搬运容器字节——序列化后端、存储后端与存储管线三轴正交可插拔。</para>
     /// <para>由 <see cref="SaveServiceSettings"/> 序列化持有实例，经 <see cref="SaveService"/> 静态外观访问。</para>
     /// <para>错误语义契约（全模块统一）：写入路径失败 fail-fast 抛 <see cref="GameException"/>（写失败绝不容忍半档状态）；
     /// 读取路径失败返回 default + 记错误日志（错误判别用 Try* 族 <see cref="SaveResult{T}"/>）；
@@ -29,15 +29,6 @@ namespace Moirai.Atropos.Save
 
         /// <summary>默认存档文件夹名。</summary>
         public const string DEFAULT_FOLDER_NAME = "Save";
-
-        /// <summary>临时文件唯一后缀（实际形如 <c>xxx.sav.tmp-3f2a…</c>，避免并发写入互撞）。</summary>
-        private const string TempFileSuffix = ".tmp-";
-
-        /// <summary>删除操作的退避重试次数（应对云同步/杀毒软件的短时文件锁）。</summary>
-        private const int DeleteRetryCount = 3;
-
-        /// <summary>单槽备份文件后缀（实际形如 <c>xxx.sav.bak</c>）。</summary>
-        private const string BackupFileSuffix = ".bak";
 
         /// <summary>兼容块键：旧单对象 API（Save/Load/TryLoad）映射的保留数据块。</summary>
         public const string MainBlockKey = "__main__";
@@ -61,16 +52,34 @@ namespace Moirai.Atropos.Save
         /// <summary>存档根路径覆盖点（仅供测试注入；非 null 时优先于 persistentDataPath）。</summary>
         [NonSerialized] internal static string s_OverrideBasePath;
 
+        /// <summary>存储后端（<see cref="OnInit"/> 在主线程从设置解析；标记 NonSerialized 避免序列化快照污染）。</summary>
+        [NonSerialized] private SaveStorageBackend _storage;
+
+        /// <summary>
+        /// 存储后端（未经容器初始化的直接实例回退共享文件后端——纯 .NET 无副作用，任意线程安全；
+        /// 严禁在核心管线惰性触达 <see cref="SaveServiceSettings"/>（Resources.Load 为 Unity 主线程 API，工作线程触达即崩）。
+        /// </summary>
+        private SaveStorageBackend Storage => _storage ?? FileSaveStorageBackend.Default;
+
         #region 生命周期 [LIFECYCLE]
 
         /// <summary>
-        /// 初始化存档处理器。由容器在构建期调用。
+        /// 初始化存档处理器。由容器在构建期调用（主线程：解析存储后端并后台清扫孤儿临时文件）。
         /// </summary>
         protected override void OnInit()
         {
+            SaveStorageBackend backend = SaveServiceSettings.StorageBackend;
+            if (backend == null)
+            {
+                LogUtility.Warning("[SaveService] Storage backend is not configured, falling back to FileSaveStorageBackend.");
+                backend = FileSaveStorageBackend.Default;
+            }
+
+            _storage = backend;
+
             // 后台清扫上次写入中断残留的孤儿临时文件；根目录须在主线程解析（persistentDataPath 为 Unity API）
             string rootDirectory = BuildDataRootDirectory();
-            _ = UniTask.RunOnThreadPool(() => CleanupOrphanTempFiles(rootDirectory));
+            _ = UniTask.RunOnThreadPool(() => backend.CleanupOrphanTempFiles(rootDirectory));
         }
 
         #endregion
@@ -490,7 +499,7 @@ namespace Moirai.Atropos.Save
             List<SaveBlockEntry> remainingBlocks = SaveBlockComposer.Remove(blocks, key);
             if (remainingBlocks.Count == 0)
             {
-                DeleteFileWithRetry(paths.SaveFilePath);
+                Storage.DeleteFile(paths.SaveFilePath);
                 return;
             }
 
@@ -543,7 +552,7 @@ namespace Moirai.Atropos.Save
         public void DeleteSave(string fileName, string folderName = DEFAULT_FOLDER_NAME)
         {
             SavePaths paths = ResolveSavePaths(fileName, folderName);
-            DeleteFileWithRetry(paths.SaveFilePath);
+            Storage.DeleteFile(paths.SaveFilePath);
         }
 
         /// <summary>
@@ -559,7 +568,7 @@ namespace Moirai.Atropos.Save
             }
 
             string directoryPath = BuildFolderPath(folderName);
-            DeleteDirectoryWithRetry(directoryPath);
+            Storage.DeleteDirectory(directoryPath);
         }
 
         /// <summary>
@@ -568,7 +577,7 @@ namespace Moirai.Atropos.Save
         public void DeleteAllSaveFiles()
         {
             string rootDirectory = BuildDataRootDirectory();
-            DeleteDirectoryWithRetry(rootDirectory);
+            Storage.DeleteDirectory(rootDirectory);
         }
 
         /// <summary>
@@ -581,7 +590,8 @@ namespace Moirai.Atropos.Save
         public UniTask DeleteSaveAsync(string fileName, string folderName = DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default)
         {
             SavePaths paths = ResolveSavePaths(fileName, folderName);
-            return UniTask.RunOnThreadPool(() => DeleteFileWithRetry(paths.SaveFilePath), cancellationToken: cancellationToken);
+            SaveStorageBackend storage = Storage;
+            return UniTask.RunOnThreadPool(() => storage.DeleteFile(paths.SaveFilePath), cancellationToken: cancellationToken);
         }
 
         /// <summary>
@@ -599,7 +609,8 @@ namespace Moirai.Atropos.Save
             }
 
             string directoryPath = BuildFolderPath(folderName);
-            return UniTask.RunOnThreadPool(() => DeleteDirectoryWithRetry(directoryPath), cancellationToken: cancellationToken);
+            SaveStorageBackend storage = Storage;
+            return UniTask.RunOnThreadPool(() => storage.DeleteDirectory(directoryPath), cancellationToken: cancellationToken);
         }
 
         /// <summary>
@@ -610,7 +621,8 @@ namespace Moirai.Atropos.Save
         public UniTask DeleteAllSaveFilesAsync(CancellationToken cancellationToken = default)
         {
             string rootDirectory = BuildDataRootDirectory();
-            return UniTask.RunOnThreadPool(() => DeleteDirectoryWithRetry(rootDirectory), cancellationToken: cancellationToken);
+            SaveStorageBackend storage = Storage;
+            return UniTask.RunOnThreadPool(() => storage.DeleteDirectory(rootDirectory), cancellationToken: cancellationToken);
         }
 
         /// <summary>
@@ -624,7 +636,8 @@ namespace Moirai.Atropos.Save
             ValidateFolderName(folderName);
             string directoryPath = BuildFolderPath(folderName);
             string extension = SaveServiceSettings.SaveFileExtension;
-            return UniTask.RunOnThreadPool(() => EnumerateSaveFilesCore(directoryPath, extension), cancellationToken: cancellationToken);
+            SaveStorageBackend storage = Storage;
+            return UniTask.RunOnThreadPool(() => storage.EnumerateFiles(directoryPath, extension), cancellationToken: cancellationToken);
         }
 
         /// <summary>
@@ -639,13 +652,7 @@ namespace Moirai.Atropos.Save
             gate.Wait();
             try
             {
-                if (!File.Exists(paths.SaveFilePath))
-                {
-                    throw new GameException(StringUtility.Format("Save file not found for backup, path: {0}.", paths.SaveFilePath));
-                }
-
-                string backupFilePath = paths.SaveFilePath + BackupFileSuffix;
-                File.Copy(paths.SaveFilePath, backupFilePath, overwrite: true);
+                Storage.CreateBackup(paths.SaveFilePath);
             }
             finally
             {
@@ -665,65 +672,12 @@ namespace Moirai.Atropos.Save
             gate.Wait();
             try
             {
-                string backupFilePath = paths.SaveFilePath + BackupFileSuffix;
-                if (!File.Exists(backupFilePath))
-                {
-                    throw new GameException(StringUtility.Format("Backup file not found, path: {0}.", backupFilePath));
-                }
-
-                string tempFilePath = paths.SaveFilePath + TempFileSuffix + Guid.NewGuid().ToString("N");
-                try
-                {
-                    EnsureDirectory(paths.DirectoryPath);
-                    File.Copy(backupFilePath, tempFilePath, overwrite: true);
-                    AtomicReplace(tempFilePath, paths.SaveFilePath);
-                }
-                catch (Exception exception)
-                {
-                    TryDeleteFile(tempFilePath);
-                    throw new GameException(StringUtility.Format("Backup restore failed, path: {0}, exception: {1}.", paths.SaveFilePath, exception.GetType().Name), exception);
-                }
+                Storage.RestoreBackup(paths.SaveFilePath);
             }
             finally
             {
                 SaveFileGate.Leave(paths.SaveFilePath, gate, acquired: true);
             }
-        }
-
-        /// <summary>
-        /// 枚举存档槽位核心（纯 .NET 目录操作，可在工作线程执行）。
-        /// </summary>
-        /// <param name="directoryPath">文件夹完整路径。</param>
-        /// <param name="extension">存档扩展名（含点）。</param>
-        /// <returns>按最后写入时间倒序的槽位元数据数组。</returns>
-        private static SaveFileInfo[] EnumerateSaveFilesCore(string directoryPath, string extension)
-        {
-            if (!Directory.Exists(directoryPath))
-            {
-                return Array.Empty<SaveFileInfo>();
-            }
-
-            FileInfo[] files = new DirectoryInfo(directoryPath).GetFiles("*" + extension, SearchOption.TopDirectoryOnly);
-
-            // Windows GetFiles 的 8.3 通配符怪癖：*.sav 会命中 *.saveall——按扩展名精确过滤
-            List<SaveFileInfo> results = new List<SaveFileInfo>(files.Length);
-            for (int i = 0; i < files.Length; i++)
-            {
-                if (!string.Equals(files[i].Extension, extension, StringComparison.OrdinalIgnoreCase))
-                {
-                    continue;
-                }
-
-                results.Add(new SaveFileInfo(Path.GetFileNameWithoutExtension(files[i].Name), files[i].Length, files[i].LastWriteTimeUtc));
-            }
-
-            if (results.Count == 0)
-            {
-                return Array.Empty<SaveFileInfo>();
-            }
-
-            results.Sort((left, right) => right.LastWriteTimeUtc.CompareTo(left.LastWriteTimeUtc));
-            return results.ToArray();
         }
 
         #endregion
@@ -739,7 +693,7 @@ namespace Moirai.Atropos.Save
         public bool FileExists(string fileName, string folderName = DEFAULT_FOLDER_NAME)
         {
             SavePaths paths = ResolveSavePaths(fileName, folderName);
-            return File.Exists(paths.SaveFilePath);
+            return Storage.Exists(paths.SaveFilePath);
         }
 
         /// <summary>
@@ -752,7 +706,7 @@ namespace Moirai.Atropos.Save
             ValidateFolderName(folderName);
             string directoryPath = BuildFolderPath(folderName);
             string extension = SaveServiceSettings.SaveFileExtension;
-            return EnumerateSaveFilesCore(directoryPath, extension);
+            return Storage.EnumerateFiles(directoryPath, extension);
         }
 
         #endregion
@@ -894,7 +848,7 @@ namespace Moirai.Atropos.Save
 
                     if (mergedBlocks.Count == 0)
                     {
-                        DeleteFileWithRetry(paths.SaveFilePath);
+                        Storage.DeleteFile(paths.SaveFilePath);
                         return;
                     }
 
@@ -1038,7 +992,7 @@ namespace Moirai.Atropos.Save
 
             if (fileName.IndexOfAny(s_PathSeparators) >= 0
                 || fileName.Contains("..")
-                || fileName.Contains(TempFileSuffix))
+                || fileName.Contains(FileSaveStorageBackend.TempFileSuffix))
             {
                 throw new ArgumentException(StringUtility.Format("Save file name '{0}' contains path separators or reserved segments.", fileName), nameof(fileName));
             }
@@ -1075,7 +1029,7 @@ namespace Moirai.Atropos.Save
             if (folderName.IndexOfAny(s_PathSeparators) >= 0
                 || folderName.Contains("..")
                 || folderName.Contains(":")
-                || folderName.Contains(TempFileSuffix)
+                || folderName.Contains(FileSaveStorageBackend.TempFileSuffix)
                 || folderName == ".")
             {
                 throw new ArgumentException(StringUtility.Format("Save folder name '{0}' contains path separators or reserved segments.", folderName), nameof(folderName));
@@ -1158,20 +1112,17 @@ namespace Moirai.Atropos.Save
         private SaveError ReadContainerOrEmpty(SavePaths paths, out List<SaveBlockEntry> blocks)
         {
             blocks = new List<SaveBlockEntry>();
-            if (!File.Exists(paths.SaveFilePath))
+            SaveError ioError = Storage.TryReadAllBytes(paths.SaveFilePath, out byte[] fileBytes);
+            if (ioError == SaveError.FileNotFound)
             {
+                // 缺档 = 空块集（正常业务流，不记录日志）
                 return SaveError.None;
             }
 
-            byte[] fileBytes;
-            try
+            if (ioError != SaveError.None)
             {
-                fileBytes = File.ReadAllBytes(paths.SaveFilePath);
-            }
-            catch (Exception exception)
-            {
-                LogUtility.Error("[SaveService] Read save file failed, path: {0}, exception: {1}.", paths.SaveFilePath, exception.GetType().Name);
-                return SaveError.IoFailed;
+                // IO 失败的详细日志已由存储层记录
+                return ioError;
             }
 
             SaveError restoreError = ReadAndRestoreContainer(fileBytes, out blocks);
@@ -1223,7 +1174,7 @@ namespace Moirai.Atropos.Save
         }
 
         /// <summary>
-        /// 将容器块集写入存档文件：容器组装 → CRC → 临时文件 → 落盘 → 原子替换。
+        /// 将容器块集写入存档文件：容器组装 → 载荷变换（子类加密钩子）→ CRC → 组装文件头 → 存储层原子提交。
         /// </summary>
         /// <param name="paths">已解析的路径集合。</param>
         /// <param name="blocks">数据块列表。</param>
@@ -1239,27 +1190,12 @@ namespace Moirai.Atropos.Save
                 throw new GameException(StringUtility.Format("Save payload transform failed, path: {0}, error: {1}.", paths.SaveFilePath, transformError));
             }
 
+            // 写盘的是存储载荷（加密后），不是未加密容器——CRC 也是载荷的
             uint payloadCrc = Crc32.Compute(payload);
-            string tempFilePath = paths.SaveFilePath + TempFileSuffix + Guid.NewGuid().ToString("N");
-
-            try
-            {
-                EnsureDirectory(paths.DirectoryPath);
-                // 写盘的是存储载荷（加密后），不是未加密容器——CRC 也是载荷的
-                WriteToTempFile(tempFilePath, payload, payloadCrc, 0u, cancellationToken);
-                cancellationToken.ThrowIfCancellationRequested();
-                AtomicReplace(tempFilePath, paths.SaveFilePath);
-            }
-            catch (OperationCanceledException)
-            {
-                TryDeleteFile(tempFilePath);
-                throw;
-            }
-            catch (Exception exception)
-            {
-                TryDeleteFile(tempFilePath);
-                throw new GameException(StringUtility.Format("Save write failed, path: {0}, exception: {1}.", paths.SaveFilePath, exception.GetType().Name), exception);
-            }
+            byte[] fileBytes = new byte[SaveFileHeader.Size + payload.Length];
+            SaveFileHeader.Write(fileBytes.AsSpan(0, SaveFileHeader.Size), payload.Length, payloadCrc, 0u);
+            Buffer.BlockCopy(payload, 0, fileBytes, SaveFileHeader.Size, payload.Length);
+            Storage.WriteAtomic(paths.SaveFilePath, fileBytes, cancellationToken);
         }
 
         /// <summary>
@@ -1279,203 +1215,6 @@ namespace Moirai.Atropos.Save
         /// <param name="container">成功时的容器字节。</param>
         /// <returns>错误码。</returns>
         protected internal abstract SaveError OnRestorePayload(byte[] payload, out byte[] container);
-
-        /// <summary>
-        /// 确保目标目录存在（幂等）。
-        /// </summary>
-        /// <param name="directoryPath">目标目录。</param>
-        private static void EnsureDirectory(string directoryPath)
-        {
-            if (!Directory.Exists(directoryPath))
-            {
-                Directory.CreateDirectory(directoryPath);
-            }
-        }
-
-        /// <summary>
-        /// 将文件头与载荷写入临时文件并强制落盘。
-        /// </summary>
-        /// <param name="tempFilePath">临时文件路径。</param>
-        /// <param name="payload">载荷字节。</param>
-        /// <param name="payloadCrc">载荷 CRC-32 校验值。</param>
-        /// <param name="flags">文件头特性标志位。</param>
-        /// <param name="cancellationToken">取消令牌。</param>
-        private static void WriteToTempFile(string tempFilePath, byte[] payload, uint payloadCrc, uint flags, CancellationToken cancellationToken)
-        {
-            using (FileStream stream = new FileStream(tempFilePath, FileMode.Create, FileAccess.Write, FileShare.None, 4096, FileOptions.SequentialScan))
-            {
-                Span<byte> header = stackalloc byte[SaveFileHeader.Size];
-                SaveFileHeader.Write(header, payload.Length, payloadCrc, flags);
-                stream.Write(header);
-                stream.Write(payload, 0, payload.Length);
-                FlushToDisk(stream);
-            }
-        }
-
-        /// <summary>
-        /// 强制刷新到物理磁盘（断电/崩溃安全）；平台不支持 fsync 时退化为常规刷新。
-        /// </summary>
-        /// <param name="stream">目标文件流。</param>
-        private static void FlushToDisk(FileStream stream)
-        {
-            try
-            {
-                stream.Flush(true);
-            }
-            catch (Exception exception) when (exception is IOException || exception is PlatformNotSupportedException)
-            {
-                stream.Flush();
-            }
-        }
-
-        /// <summary>
-        /// 原子替换：目标存在时优先 <see cref="File.Replace"/>（NTFS 元数据级原子，无丢失窗口），
-        /// 平台不支持时退化为删除+改名；目标不存在时直接改名。
-        /// </summary>
-        /// <param name="tempFilePath">临时文件路径。</param>
-        /// <param name="saveFilePath">目标存档路径。</param>
-        private static void AtomicReplace(string tempFilePath, string saveFilePath)
-        {
-            if (File.Exists(saveFilePath))
-            {
-                try
-                {
-                    File.Replace(tempFilePath, saveFilePath, null);
-                    return;
-                }
-                catch (Exception exception) when (exception is PlatformNotSupportedException || exception is NotImplementedException)
-                {
-                    DeleteFileWithRetry(saveFilePath);
-                }
-            }
-
-            File.Move(tempFilePath, saveFilePath);
-        }
-
-        /// <summary>
-        /// 删除文件（带退避重试，应对云同步/杀毒软件短时锁文件）。
-        /// </summary>
-        /// <param name="filePath">文件路径。</param>
-        private static void DeleteFileWithRetry(string filePath)
-        {
-            for (int attempt = 1; ; attempt++)
-            {
-                try
-                {
-                    if (File.Exists(filePath))
-                    {
-                        File.Delete(filePath);
-                    }
-
-                    return;
-                }
-                catch (Exception exception) when ((exception is IOException || exception is UnauthorizedAccessException) && attempt < DeleteRetryCount)
-                {
-                    Thread.Sleep(10 * attempt);
-                }
-            }
-        }
-
-        /// <summary>
-        /// 尽力删除文件（失败仅告警，用于临时文件清理等容错路径）。
-        /// </summary>
-        /// <param name="filePath">文件路径。</param>
-        private static void TryDeleteFile(string filePath)
-        {
-            try
-            {
-                if (File.Exists(filePath))
-                {
-                    File.Delete(filePath);
-                }
-            }
-            catch (Exception exception)
-            {
-                LogUtility.Warning("[SaveService] Cleanup temp file failed, path: {0}, exception: {1}.", filePath, exception.GetType().Name);
-            }
-        }
-
-        /// <summary>
-        /// 删除目录（带退避重试；只读文件先清除只读属性）。
-        /// </summary>
-        /// <param name="targetDirectory">目标目录。</param>
-        private static void DeleteDirectoryWithRetry(string targetDirectory)
-        {
-            if (!Directory.Exists(targetDirectory))
-            {
-                return;
-            }
-
-            for (int attempt = 1; ; attempt++)
-            {
-                try
-                {
-                    Directory.Delete(targetDirectory, true);
-                    return;
-                }
-                catch (Exception exception) when ((exception is IOException || exception is UnauthorizedAccessException) && attempt < DeleteRetryCount)
-                {
-                    if (exception is UnauthorizedAccessException)
-                    {
-                        ClearReadOnlyAttributes(targetDirectory);
-                    }
-
-                    Thread.Sleep(10 * attempt);
-                }
-            }
-        }
-
-        /// <summary>
-        /// 递归清除目录树内全部只读属性（<see cref="Directory.Delete"/> 不处理只读文件）。
-        /// </summary>
-        /// <param name="targetDirectory">目标目录。</param>
-        private static void ClearReadOnlyAttributes(string targetDirectory)
-        {
-            try
-            {
-                foreach (string filePath in Directory.EnumerateFiles(targetDirectory, "*", SearchOption.AllDirectories))
-                {
-                    File.SetAttributes(filePath, FileAttributes.Normal);
-                }
-
-                foreach (string directoryPath in Directory.EnumerateDirectories(targetDirectory, "*", SearchOption.AllDirectories))
-                {
-                    FileAttributes attributes = File.GetAttributes(directoryPath);
-                    if ((attributes & FileAttributes.ReadOnly) != 0)
-                    {
-                        File.SetAttributes(directoryPath, attributes & ~FileAttributes.ReadOnly);
-                    }
-                }
-            }
-            catch (Exception exception)
-            {
-                LogUtility.Warning("[SaveService] Clear read-only attributes failed, directory: {0}, exception: {1}.", targetDirectory, exception.GetType().Name);
-            }
-        }
-
-        /// <summary>
-        /// 清扫指定根目录树内的孤儿临时文件（上次写入中断残留）。
-        /// </summary>
-        /// <param name="rootDirectory">存档数据根目录。</param>
-        internal static void CleanupOrphanTempFiles(string rootDirectory)
-        {
-            try
-            {
-                if (!Directory.Exists(rootDirectory))
-                {
-                    return;
-                }
-
-                foreach (string tempFilePath in Directory.EnumerateFiles(rootDirectory, "*" + TempFileSuffix + "*", SearchOption.AllDirectories))
-                {
-                    TryDeleteFile(tempFilePath);
-                }
-            }
-            catch (Exception exception)
-            {
-                LogUtility.Warning("[SaveService] Cleanup orphan temp files failed, directory: {0}, exception: {1}.", rootDirectory, exception.GetType().Name);
-            }
-        }
 
         /// <summary>
         /// 记录读取失败日志（运维可见性：损坏/解密失败等必须留下可追溯痕迹）。

@@ -216,7 +216,7 @@ namespace Service.Save
             string legitSave = Path.Combine(_rootPath, "legit" + SaveServiceSettings.SaveFileExtension);
             File.WriteAllText(legitSave, "keep me");
 
-            SaveServiceHandler.CleanupOrphanTempFiles(_rootPath);
+            FileSaveStorageBackend.Default.CleanupOrphanTempFiles(_rootPath);
 
             Assert.IsFalse(File.Exists(orphanTemp), "孤儿临时文件应被清扫");
             Assert.IsTrue(File.Exists(legitSave), "正式存档不应被误删");

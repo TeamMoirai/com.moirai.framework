@@ -4,7 +4,7 @@ using UnityEngine;
 namespace Moirai.Atropos.Save
 {
     /// <summary>
-    /// 存档服务设置：存档处理器（存储管线策略）、默认序列化后端、加密密钥、PBKDF2 迭代次数与文件扩展名。
+    /// 存档服务设置：存档处理器（存储管线策略）、存储后端（IO 下沉目标）、默认序列化后端、加密密钥、PBKDF2 迭代次数与文件扩展名。
     /// </summary>
     [FrameworkSetting("[服务]存档设置", "存档格式与加密配置", -410)]
     public class SaveServiceSettings : FrameworkSettings<SaveServiceSettings>
@@ -12,6 +12,10 @@ namespace Moirai.Atropos.Save
         [InfoBox("加密处理器使用下方密钥与派生参数。SECURITY: 发布前必须替换为项目专属密钥与盐文（盐文由加密器内占位值提供，可按需覆盖）。", InfoMessageType.None, nameof(IsEncryptedHandler))]
         [ProviderDropdown]
         [SerializeReference] private SaveServiceHandler m_SaveServiceHandler = new PlainSaveHandler();
+
+        [Tooltip("存储后端：存档 IO 的下沉目标（默认本地文件；云存档等自定义后端继承 SaveStorageBackend 接入）。置空时回退本地文件后端。")]
+        [ProviderDropdown]
+        [SerializeReference] private SaveStorageBackend m_StorageBackend = new FileSaveStorageBackend();
 
         [Tooltip("默认序列化后端：未显式声明后端的数据块（无 SaveDataAttribute）使用该后端。二进制后端要求项目已引入对应 NuGet 包。")]
         [SerializeField] private ESaveBackend m_DefaultBackend = ESaveBackend.Json;
@@ -33,6 +37,11 @@ namespace Moirai.Atropos.Save
         /// 存档处理器实例（由 Inspector 序列化配置，可替换存储管线策略）。
         /// </summary>
         public static SaveServiceHandler SaveServiceHandler => Instance.m_SaveServiceHandler;
+
+        /// <summary>
+        /// 存储后端实例（由 Inspector 序列化配置，可替换 IO 下沉目标；未配置时为 <c>null</c>，由处理器回退本地文件后端）。
+        /// </summary>
+        public static SaveStorageBackend StorageBackend => Instance.m_StorageBackend;
 
         /// <summary>
         /// 默认序列化后端（未显式声明后端的数据块使用该后端）。
@@ -58,6 +67,7 @@ namespace Moirai.Atropos.Save
         private void Reset()
         {
             m_SaveServiceHandler = new PlainSaveHandler();
+            m_StorageBackend = new FileSaveStorageBackend();
             m_DefaultBackend = ESaveBackend.Json;
             m_Pbkdf2Iterations = SaveEncryptor.DefaultIterations;
             m_SaveFileExtension = ".sav";
