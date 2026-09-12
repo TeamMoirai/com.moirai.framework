@@ -29,7 +29,25 @@ namespace Moirai.Atropos.Save
         public List<string> MigrationHistory;
 
         /// <summary>
-        /// 自定义扩展键值（截图文件名、关卡名、游玩时长等由游戏层自行约定）。
+        /// 截图缩略图文件名（sidecar <c>.screenshot.png</c>，与存档文件同目录；<c>null</c> = 无截图）。
+        /// <para>由截图管线（<c>SaveService.CaptureScreenshotAsync</c>）镜像写入；游戏层只读使用。</para>
+        /// </summary>
+        public string ThumbnailFileName;
+
+        /// <summary>
+        /// 游玩时长（<see cref="TimeSpan"/> ticks；0 = 未记录）。
+        /// <para>游戏层按自身累计口径填充（框架不假定跨会话累计语义），存档列表 UI 展示用。</para>
+        /// </summary>
+        public long PlayTimeTicks;
+
+        /// <summary>
+        /// 保存时活动场景名（<c>null</c> = 未记录）。
+        /// <para>截图管线镜像时自动填充当前活动场景；游戏层也可经 <c>SaveMetadataAsync</c> 自行写入。</para>
+        /// </summary>
+        public string SceneName;
+
+        /// <summary>
+        /// 自定义扩展键值（关卡名、难度标识等由游戏层自行约定）。
         /// </summary>
         public Dictionary<string, string> Custom;
     }

@@ -58,7 +58,7 @@ namespace Moirai.Atropos.Save
         public static event Action<SaveFailedArgs> LoadFailed;
 
         /// <summary>
-        /// 存档截图完成事件（先行定义；生产点由截图管线接线）。
+        /// 存档截图完成事件（<see cref="CaptureScreenshotAsync"/> 管线成功完成后派发）。
         /// </summary>
         public static event Action<SaveScreenshotArgs> ScreenshotCaptured;
 
@@ -200,7 +200,7 @@ namespace Moirai.Atropos.Save
         }
 
         /// <summary>
-        /// 触发截图完成事件（先行定义；生产点后续接线）。
+        /// 触发截图完成事件。
         /// </summary>
         /// <param name="fileName">存档文件名。</param>
         /// <param name="folderName">存档文件夹名称。</param>

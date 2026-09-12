@@ -205,6 +205,19 @@ await SaveService.RestoreEntitiesAsync("slot1");
 | `SaveEntitiesAsync(fileName, folderName, ct)` | 写入实体表与全部活跃实体差分块（预热基准→差分捕获→清理陈旧块→原子合并；失败抛 `GameException`） |
 | `RestoreEntitiesAsync(fileName, folderName, ct)` | 按档案状态整体重建实体（DestroyUnwanted→SpawnMissing→RestoreAll；逐只触发 `EntityRestored`） |
 
+## 截图与元数据镜像
+
+存档槽位缩略图管线：帧末捕获屏幕（`ScreenCapture.CaptureScreenshotAsTexture`，**仅运行态主线程**）→ CPU 盒式降采样（保纵横比、不放大，最长边经 `m_ScreenshotMaxDimension` 配置，默认 256）→ 主线程 PNG 编码一次 → 经存储层原子写 sidecar `{存档基名}.screenshot.png`（与存档同目录；云存储后端天然跟随）。
+
+- **元数据镜像**：截图成功后镜像保留块 `__meta`——`ThumbnailFileName`（sidecar 文件名）与 `SceneName`（活动场景名）由管线自动填充；`PlayTimeTicks`（`TimeSpan` ticks）由游戏层按自身累计口径写入。既有元数据损坏时不覆盖（记告警并跳过镜像，保留抢救空间）。
+- **保存联动**：`m_CaptureScreenshotOnSave` 开启后，`SaveBlockAsync` / `SaveComponentsAsync` 成功即自动捕获（保留块 `__` 前缀豁免——元数据镜像回写不递归）；联动失败不回传保存结果，联动取消不外溢到保存方令牌。
+- **生命周期级联**：`DeleteSave` / `DeleteSaveAsync` 删除存档时级联删除 sidecar（防止同名新档复活陈旧缩略图）；目录级删除天然覆盖。
+- **降级契约**：处理器未就绪返回 `HandlerNotReady`；非运行态/批处理模式返回 `NotSupported`（记告警）；sidecar 写入失败返回 `IoFailed` 并记错误日志（不上抛）。截图成功派发 `ScreenshotCaptured` 事件。
+
+| API（截图分部） | 说明 |
+|---|---|
+| `CaptureScreenshotAsync(fileName, folderName, ct)` → `SaveError` | 捕获截图 + 写 sidecar + 镜像元数据 + 派发事件（仅运行态主线程） |
+
 ## 公共 API（静态外观）
 
 ### 版本迁移
@@ -241,7 +254,7 @@ await SaveService.RestoreEntitiesAsync("slot1");
 | `SaveMetadataAsync` / `TryLoadMetadataAsync`（+同步对） | 槽位元数据（保留块 `__meta`，JSON 后端） |
 | `GetSaveFiles(folderName)` / `GetSaveFilesAsync` | 槽位枚举（按时间倒序） |
 | `FileExists` / `DetermineSavePath` | 查询与路径 |
-| `DeleteSave` / `DeleteSaveFolder` / `DeleteAllSaveFiles`（+Async 对） | 删除（退避重试） |
+| `DeleteSave` / `DeleteSaveFolder` / `DeleteAllSaveFiles`（+Async 对） | 删除（退避重试；单档删除级联截图 sidecar） |
 | `CreateBackup` / `RestoreBackup` | 单槽 `.bak` 备份/恢复（原子替换） |
 
 ### 降级契约（处理器未就绪）
@@ -259,7 +272,7 @@ await SaveService.RestoreEntitiesAsync("slot1");
 | `SaveProgress` / `LoadProgress` | `SaveProgressEvent` | 组件存取按批回报（每 8 个一批 + 最终必报；`ShouldReportProgress`） |
 | `SaveFailed` / `LoadFailed` | `SaveFailedEvent` | 失败（`ESaveFailureStage` 阶段 + `SaveError`）；写路径同时 fail-fast 上抛 `GameException`；缺档/无块（FileNotFound）不触发 |
 | `EntityRestored` | `SaveEntityRestoredEvent` | `RestoreEntitiesAsync` 恢复管线逐只实体触发（激活后；参数 = 实体 ID + 预制体键 + 实例） |
-| `ScreenshotCaptured` | `SaveScreenshotEvent` | 先行定义，截图管线接线 |
+| `ScreenshotCaptured` | `SaveScreenshotEvent` | 截图管线成功完成（fileName+sidecar 文件名+缩略图宽高） |
 
 ## 配置（SaveServiceSettings）
 
@@ -275,6 +288,8 @@ await SaveService.RestoreEntitiesAsync("slot1");
 | `m_MigrationWriteBack` | 迁移回写（默认开）：加载触发迁移成功后惰性回写存档；关闭则迁移仅作用于当次加载的内存数据 |
 | `m_AssetCatalog` | 资产引用目录（SaveAssetCatalog SO）：无代码保存的资产引用字段经目录双向解析定位串；空 = 资产引用字段捕获恒写 Null |
 | `m_PrefabRegistry` | 预制体注册表（SavePrefabRegistry SO）：可持久化动态实体登记（稳定键 → ResourceService 定位串）；空 = `InstantiatePersistent` 不可用、实体生成记录恢复按未登记键跳过 |
+| `m_CaptureScreenshotOnSave` | 保存时截图（默认关）：`SaveBlockAsync`/`SaveComponentsAsync` 成功后自动捕获截图并镜像 sidecar 与元数据（仅运行态主线程生效） |
+| `m_ScreenshotMaxDimension` | 截图缩略图最长边（像素，保纵横比不放大，默认 256） |
 
 ## 依赖
 
@@ -282,4 +297,4 @@ MessagePack 3.1.8、protobuf-net 3.3.8（+Core 内嵌 BuildTools SG）、MemoryP
 
 ## 测试
 
-`Tests/EditorMode/Save/`：容器布局与 v2 逐块校验（`SaveFileContainerTests`：往返/坏块跳过/结构性前缀保留/v1 硬切、`SaveContainerV2Tests`：头 CRC 重算放行的部分恢复/整档拒绝/坏块列报/写回收留）、事件 API（`SaveEventTests`：触发时机/次数/参数、失败阶段分型、后台派发主线程化、进度批次）、组合器、Handler 管线（原子写/清扫/损坏分型/参数校验）、存储后端契约（`FileSaveStorageBackendTests`：原子写/幂等删除/精确枚举/备份恢复/能力自描述）、压缩转换链（`SaveCompressionTests`：GZip 往返/压加组合/旧档兼容读/头部分型/注册表）、密钥提供方（`SaveKeyProviderTests`：静态等价/口令注入/HKDF 按用户隔离）、加密全链路、四后端往返、迁移级联、组件捕获器（生成代码；`SaveCapturerV2Tests`：集合/嵌套/场景引用/资产引用全矩阵往返）、迁移总线（`SaveMigrationBusTests`：版本链单步/多步/缺链/歧义/降级/Priority 序/异常归一、JSON 与 KVT 改名改型、整块变换、回写开关、审计历史、版本盖章、写入自愈、显式迁移、组件模式钩子路由）、序列化注册表开放注册（`SaveSerializerRegistryTests`：注册校验/重复 fail-fast/保留标识/注销）、KVT 元素级记录（`SaveKeyValueElementTests`：序列/映射/嵌套元素往返、null 元素、类型不符游标对齐、缓冲区边界回归）、场景对象身份（`SaveObjectIdentityTests`：注册/注销/空 ID 拒注册/重复 ID 首到先得/销毁失效/Resolve）、资产引用目录（`SaveAssetCatalogTests`：双向查找/类型不符/重复首到先得/编辑器期缓存失效）、KVT 模板差分（`SaveKvDifferTests`：标量/嵌套/集合/新增/类型漂移/恒透传/体积收缩/坏档）、实体表读写（`SaveEntityTableTests`：往返/空表/可空字段/未知记录容错）、动态实体闭环（`SaveEntityPersistenceTests`：注入 ID/差分内容与体积/销毁标记/父子接线/恢复往返/EntityRestored 事件/陈旧与孤儿块清理/加载失败降级）、内置捕获器（`SaveBuiltInCapturerTests`：Transform 三字段/Rigidbody 速度与运动学跳过/ParticleSystem 时间/掩码禁用）。
+`Tests/EditorMode/Save/`：容器布局与 v2 逐块校验（`SaveFileContainerTests`：往返/坏块跳过/结构性前缀保留/v1 硬切、`SaveContainerV2Tests`：头 CRC 重算放行的部分恢复/整档拒绝/坏块列报/写回收留）、事件 API（`SaveEventTests`：触发时机/次数/参数、失败阶段分型、后台派发主线程化、进度批次）、组合器、Handler 管线（原子写/清扫/损坏分型/参数校验）、存储后端契约（`FileSaveStorageBackendTests`：原子写/幂等删除/精确枚举/备份恢复/能力自描述）、压缩转换链（`SaveCompressionTests`：GZip 往返/压加组合/旧档兼容读/头部分型/注册表）、密钥提供方（`SaveKeyProviderTests`：静态等价/口令注入/HKDF 按用户隔离）、加密全链路、四后端往返、迁移级联、组件捕获器（生成代码；`SaveCapturerV2Tests`：集合/嵌套/场景引用/资产引用全矩阵往返）、迁移总线（`SaveMigrationBusTests`：版本链单步/多步/缺链/歧义/降级/Priority 序/异常归一、JSON 与 KVT 改名改型、整块变换、回写开关、审计历史、版本盖章、写入自愈、显式迁移、组件模式钩子路由）、序列化注册表开放注册（`SaveSerializerRegistryTests`：注册校验/重复 fail-fast/保留标识/注销）、KVT 元素级记录（`SaveKeyValueElementTests`：序列/映射/嵌套元素往返、null 元素、类型不符游标对齐、缓冲区边界回归）、场景对象身份（`SaveObjectIdentityTests`：注册/注销/空 ID 拒注册/重复 ID 首到先得/销毁失效/Resolve）、资产引用目录（`SaveAssetCatalogTests`：双向查找/类型不符/重复首到先得/编辑器期缓存失效）、KVT 模板差分（`SaveKvDifferTests`：标量/嵌套/集合/新增/类型漂移/恒透传/体积收缩/坏档）、实体表读写（`SaveEntityTableTests`：往返/空表/可空字段/未知记录容错）、动态实体闭环（`SaveEntityPersistenceTests`：注入 ID/差分内容与体积/销毁标记/父子接线/恢复往返/EntityRestored 事件/陈旧与孤儿块清理/加载失败降级）、内置捕获器（`SaveBuiltInCapturerTests`：Transform 三字段/Rigidbody 速度与运动学跳过/ParticleSystem 时间/掩码禁用）、截图与元数据镜像（`SaveScreenshotTests`：sidecar 命名/缩略图尺寸/盒式降采样/PNG 编码回读/sidecar 落盘与级联删除/元数据合并与容器回读/事件派发/非运行态降级）。

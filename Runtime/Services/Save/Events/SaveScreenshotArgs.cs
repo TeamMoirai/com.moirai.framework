@@ -1,8 +1,7 @@
 namespace Moirai.Atropos.Save
 {
     /// <summary>
-    /// 存档截图完成事件参数（<see cref="SaveService.ScreenshotCaptured"/>）。
-    /// <para>随 P4 先行定义；生产点由截图管线（P8）接线。</para>
+    /// 存档截图完成事件参数（<see cref="SaveService.ScreenshotCaptured"/>；生产点为 <see cref="SaveService.CaptureScreenshotAsync"/> 截图管线）。
     /// </summary>
     public readonly struct SaveScreenshotArgs
     {

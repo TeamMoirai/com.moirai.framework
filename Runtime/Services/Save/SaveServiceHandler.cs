@@ -607,7 +607,7 @@ namespace Moirai.Atropos.Save
         #region 存档删除 [DELETE]
 
         /// <summary>
-        /// 从磁盘中删除单个存档（含全部数据块；幂等——目标不存在视为删除成功，不触发事件）。
+        /// 从磁盘中删除单个存档（含全部数据块与截图 sidecar；幂等——目标不存在视为删除成功，不触发事件）。
         /// </summary>
         /// <param name="fileName">文件名。</param>
         /// <param name="folderName">文件夹名称。</param>
@@ -621,6 +621,7 @@ namespace Moirai.Atropos.Save
             }
 
             storage.DeleteFile(paths.SaveFilePath);
+            DeleteScreenshot(paths);
             SaveMigrationManager.InvalidateSession(paths.SaveFilePath);
             SaveService.RaiseSlotChanged(ESaveSlotChangeKind.Deleted, paths.FileName, paths.FolderName);
         }
@@ -657,7 +658,7 @@ namespace Moirai.Atropos.Save
         }
 
         /// <summary>
-        /// 从磁盘中异步删除单个存档（删除退避重试在工作线程执行；幂等——目标不存在不触发事件）。
+        /// 从磁盘中异步删除单个存档（含截图 sidecar；删除退避重试在工作线程执行；幂等——目标不存在不触发事件）。
         /// </summary>
         /// <param name="fileName">文件名。</param>
         /// <param name="folderName">文件夹名称。</param>
@@ -671,6 +672,11 @@ namespace Moirai.Atropos.Save
             {
                 bool exists = storage.Exists(paths.SaveFilePath);
                 storage.DeleteFile(paths.SaveFilePath);
+                if (exists)
+                {
+                    storage.DeleteFile(ResolveScreenshotPath(paths));
+                }
+
                 return exists;
             }, cancellationToken: cancellationToken);
 
@@ -1193,6 +1199,52 @@ namespace Moirai.Atropos.Save
             metadata.SaveVersion = currentVersion;
             byte[] metaBytes = SaveSerializerRegistry.GetRequired(ESaveBackend.Json).Serialize(metadata);
             return SaveBlockComposer.Upsert(blocks, new SaveBlockEntry(MetaBlockKey, 1, ESaveBackend.Json, metaBytes));
+        }
+
+        #endregion
+
+        #region 截图随档文件 [SCREENSHOT SIDECAR]
+
+        /// <summary>
+        /// 解析截图 sidecar 完整路径（与存档文件同目录；存档基名 + <c>.screenshot.png</c>）。
+        /// </summary>
+        /// <param name="paths">存档路径集合。</param>
+        /// <returns>截图 sidecar 完整路径。</returns>
+        internal static string ResolveScreenshotPath(SavePaths paths)
+        {
+            string screenshotFileName = SaveScreenshotUtility.DetermineScreenshotFileName(Path.GetFileName(paths.SaveFilePath));
+            return Path.Combine(paths.DirectoryPath, screenshotFileName);
+        }
+
+        /// <summary>
+        /// 写入截图 sidecar（在调用线程执行，阻塞直至完成；经存储层原子写，失败抛 <see cref="GameException"/>）。
+        /// </summary>
+        /// <param name="paths">存档路径集合。</param>
+        /// <param name="pngBytes">PNG 编码字节。</param>
+        internal void WriteScreenshot(SavePaths paths, byte[] pngBytes)
+        {
+            Storage.WriteAtomic(ResolveScreenshotPath(paths), pngBytes, CancellationToken.None);
+        }
+
+        /// <summary>
+        /// 异步写入截图 sidecar（IO 在工作线程执行；失败抛 <see cref="GameException"/>）。
+        /// </summary>
+        /// <param name="paths">存档路径集合。</param>
+        /// <param name="pngBytes">PNG 编码字节。</param>
+        /// <param name="cancellationToken">取消令牌。</param>
+        /// <returns>写入完成的异步任务。</returns>
+        internal UniTask WriteScreenshotAsync(SavePaths paths, byte[] pngBytes, CancellationToken cancellationToken)
+        {
+            return Storage.WriteAtomicAsync(ResolveScreenshotPath(paths), pngBytes, cancellationToken);
+        }
+
+        /// <summary>
+        /// 删除截图 sidecar（幂等——不存在视为成功；存档删除时级联调用，防止同名新档复活陈旧缩略图）。
+        /// </summary>
+        /// <param name="paths">存档路径集合。</param>
+        internal void DeleteScreenshot(SavePaths paths)
+        {
+            Storage.DeleteFile(ResolveScreenshotPath(paths));
         }
 
         #endregion
