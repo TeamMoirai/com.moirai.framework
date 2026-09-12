@@ -28,6 +28,9 @@ namespace Moirai.Atropos.Save
             _data = data;
         }
 
+        /// <summary>剩余未读数据视图（迁移变换器原始透传拷贝用——配合 <see cref="SkipRecordPayload"/> 定位记录载荷区间）。</summary>
+        internal ReadOnlySpan<byte> Remaining => _data;
+
         /// <summary>
         /// 读取下一个对象级记录头（带键；记录头后紧跟载荷长度与载荷）。
         /// </summary>

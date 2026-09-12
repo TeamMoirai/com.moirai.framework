@@ -213,6 +213,7 @@ namespace Service.Save
 
                     public Type ComponentType => typeof(KvTestComponent);
                     public string[] FieldNames => s_FieldNames;
+                    public int SchemaVersion => 1;
 
                     public void Capture(object component, ref SaveKeyValueWriter writer, in SaveFieldMask mask)
                     {

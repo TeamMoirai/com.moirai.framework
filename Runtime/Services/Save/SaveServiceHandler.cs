@@ -65,6 +65,9 @@ namespace Moirai.Atropos.Save
         /// <summary>压缩提供方（<c>null</c> = 不压缩；<see cref="OnInit"/> 在主线程从设置解析，测试可直接赋值注入——无状态纯 .NET，工作线程调用安全）。</summary>
         [NonSerialized] internal ICompressionProvider _compression;
 
+        /// <summary>迁移回写开关（<see cref="OnInit"/> 在主线程从设置解析；测试可直接赋值注入——纯数据，工作线程读取安全；默认值与设置默认一致）。</summary>
+        [NonSerialized] internal bool _migrationWriteBack = true;
+
         #region 生命周期 [LIFECYCLE]
 
         /// <summary>
@@ -81,6 +84,7 @@ namespace Moirai.Atropos.Save
 
             _storage = backend;
             _compression = SaveServiceSettings.CompressionProvider;
+            _migrationWriteBack = SaveServiceSettings.MigrationWriteBack;
 
             // 后台清扫上次写入中断残留的孤儿临时文件；根目录须在主线程解析（persistentDataPath 为 Unity API）
             string rootDirectory = BuildDataRootDirectory();
@@ -315,7 +319,9 @@ namespace Moirai.Atropos.Save
             }
 
             // 既有档不可读按空块集处理（整体覆写）；容器 v2 下坏块在写回时自然剔除（数据已不可读），健康块保留
-            ReadContainerOrEmpty(paths, out List<SaveBlockEntry> existingBlocks, out _);
+            ReadContainerOrEmpty(paths, out List<SaveBlockEntry> existingBlocks, out List<SaveBlockError> blockErrors);
+            // 写入自愈：旧版本档先迁移到当前版本再合并新块（杜绝新形态块落入旧版本档后再次被迁移链误变换）
+            MigrateBlocksForWrite(paths, ref existingBlocks, blockErrors, cancellationToken);
             List<SaveBlockEntry> mergedBlocks = SaveBlockComposer.Upsert(existingBlocks, new SaveBlockEntry(key, dataVersion, backend, blockBytes));
             WriteContainerFile(paths, mergedBlocks, cancellationToken);
             SaveService.RaiseBlockSaved(paths.FileName, paths.FolderName, key, backend, blockBytes.Length);
@@ -350,6 +356,14 @@ namespace Moirai.Atropos.Save
             if (readError != SaveError.None)
             {
                 return readError;
+            }
+
+            // 迁移总线前置（文件级版本链；SaveDataBlock.OnMigrate 类型级级联在其后的 ApplyMigration 保留执行）
+            SaveError busError = MigrateBlocksIfNeeded(paths, ref blocks, blockErrors, forceWriteBack: false, CancellationToken.None);
+            if (busError != SaveError.None)
+            {
+                SaveService.RaiseLoadFailed(paths.FileName, paths.FolderName, null, ESaveFailureStage.Migrate, busError);
+                return busError;
             }
 
             if (!SaveBlockComposer.TryFind(blocks, key, out SaveBlockEntry entry))
@@ -505,14 +519,26 @@ namespace Moirai.Atropos.Save
         internal void DeleteBlockCore(SavePaths paths, string key, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            SaveError readError = ReadContainerOrEmpty(paths, out List<SaveBlockEntry> blocks, out _);
+            SaveError readError = ReadContainerOrEmpty(paths, out List<SaveBlockEntry> blocks, out List<SaveBlockError> blockErrors);
             if (readError != SaveError.None)
             {
                 throw new GameException(StringUtility.Format("Save block delete failed, path: {0}, error: {1}.", paths.SaveFilePath, readError));
             }
 
+            // 目标块不存在 = 幂等空删早退（不做迁移——迁移不持久化却占会话缓存会导致后续读取跳过迁移拿到旧数据）
             if (!SaveBlockComposer.TryFind(blocks, key, out SaveBlockEntry removedEntry))
             {
+                return;
+            }
+
+            // 删除触发的整档重写同样先自愈迁移（保持「任何落盘文件均为当前版本」封闭性）
+            MigrateBlocksForWrite(paths, ref blocks, blockErrors, cancellationToken);
+
+            // 迁移可能改名了目标块——重定位；被改名走掉视为删除已达成（按迁移后键集合为准，删除事件仍报原始条目）
+            if (!SaveBlockComposer.TryFind(blocks, key, out _))
+            {
+                WriteContainerFile(paths, blocks, cancellationToken);
+                SaveService.RaiseBlockDeleted(paths.FileName, paths.FolderName, key, removedEntry.Backend, removedEntry.Bytes.Length);
                 return;
             }
 
@@ -595,6 +621,7 @@ namespace Moirai.Atropos.Save
             }
 
             storage.DeleteFile(paths.SaveFilePath);
+            SaveMigrationManager.InvalidateSession(paths.SaveFilePath);
             SaveService.RaiseSlotChanged(ESaveSlotChangeKind.Deleted, paths.FileName, paths.FolderName);
         }
 
@@ -613,6 +640,7 @@ namespace Moirai.Atropos.Save
 
             string directoryPath = BuildFolderPath(folderName);
             Storage.DeleteDirectory(directoryPath);
+            SaveMigrationManager.InvalidateSession(null);
             SaveService.RaiseSlotChanged(ESaveSlotChangeKind.Deleted, null, folderName);
         }
 
@@ -624,6 +652,7 @@ namespace Moirai.Atropos.Save
         {
             string rootDirectory = BuildDataRootDirectory();
             Storage.DeleteDirectory(rootDirectory);
+            SaveMigrationManager.InvalidateSession(null);
             SaveService.RaiseSlotChanged(ESaveSlotChangeKind.Deleted, null, string.Empty);
         }
 
@@ -647,6 +676,7 @@ namespace Moirai.Atropos.Save
 
             if (existed)
             {
+                SaveMigrationManager.InvalidateSession(paths.SaveFilePath);
                 SaveService.RaiseSlotChanged(ESaveSlotChangeKind.Deleted, paths.FileName, paths.FolderName);
             }
         }
@@ -669,6 +699,7 @@ namespace Moirai.Atropos.Save
             string directoryPath = BuildFolderPath(folderName);
             SaveStorageBackend storage = Storage;
             await UniTask.RunOnThreadPool(() => storage.DeleteDirectory(directoryPath), cancellationToken: cancellationToken);
+            SaveMigrationManager.InvalidateSession(null);
             SaveService.RaiseSlotChanged(ESaveSlotChangeKind.Deleted, null, folderName);
         }
 
@@ -682,6 +713,7 @@ namespace Moirai.Atropos.Save
             string rootDirectory = BuildDataRootDirectory();
             SaveStorageBackend storage = Storage;
             await UniTask.RunOnThreadPool(() => storage.DeleteDirectory(rootDirectory), cancellationToken: cancellationToken);
+            SaveMigrationManager.InvalidateSession(null);
             SaveService.RaiseSlotChanged(ESaveSlotChangeKind.Deleted, null, string.Empty);
         }
 
@@ -757,6 +789,8 @@ namespace Moirai.Atropos.Save
                 SaveFileGate.Leave(paths.SaveFilePath, gate, acquired: true);
             }
 
+            // 备份内容可能处于旧数据版本——失效会话迁移缓存，下次读取重新探测
+            SaveMigrationManager.InvalidateSession(paths.SaveFilePath);
             SaveService.RaiseSlotChanged(ESaveSlotChangeKind.BackupRestored, paths.FileName, paths.FolderName);
         }
 
@@ -824,7 +858,9 @@ namespace Moirai.Atropos.Save
                 await UniTask.RunOnThreadPool(() =>
                 {
                     // 坏块在写回时自然剔除（数据已不可读），健康块保留
-                    ReadContainerOrEmpty(paths, out List<SaveBlockEntry> existingBlocks, out _);
+                    ReadContainerOrEmpty(paths, out List<SaveBlockEntry> existingBlocks, out List<SaveBlockError> blockErrors);
+                    // 写入自愈：旧版本档先迁移到当前版本再合并组件块
+                    MigrateBlocksForWrite(paths, ref existingBlocks, blockErrors, cancellationToken);
                     List<SaveBlockEntry> mergedBlocks = existingBlocks;
                     for (int i = 0; i < additions.Count; i++)
                     {
@@ -874,6 +910,14 @@ namespace Moirai.Atropos.Save
                     SaveError readError = ReadContainerOrEmpty(paths, out List<SaveBlockEntry> blocks, out List<SaveBlockError> blockErrors);
                     if (readError != SaveError.None)
                     {
+                        return new Dictionary<string, byte[]>();
+                    }
+
+                    // 迁移总线前置（组件块同样参与文件级版本链——迁移器可改名组件块键/重写 KVT 记录）
+                    SaveError migrationError = MigrateBlocksIfNeeded(paths, ref blocks, blockErrors, forceWriteBack: false, cancellationToken);
+                    if (migrationError != SaveError.None)
+                    {
+                        SaveService.RaiseLoadFailed(paths.FileName, paths.FolderName, null, ESaveFailureStage.Migrate, migrationError);
                         return new Dictionary<string, byte[]>();
                     }
 
@@ -930,11 +974,14 @@ namespace Moirai.Atropos.Save
                 acquired = true;
                 await UniTask.RunOnThreadPool(() =>
                 {
-                    SaveError readError = ReadContainerOrEmpty(paths, out List<SaveBlockEntry> existingBlocks, out _);
+                    SaveError readError = ReadContainerOrEmpty(paths, out List<SaveBlockEntry> existingBlocks, out List<SaveBlockError> blockErrors);
                     if (readError != SaveError.None)
                     {
                         return;
                     }
+
+                    // 删除触发的整档重写同样先自愈迁移
+                    MigrateBlocksForWrite(paths, ref existingBlocks, blockErrors, cancellationToken);
 
                     List<SaveBlockEntry> mergedBlocks = existingBlocks;
                     for (int i = 0; i < keys.Count; i++)
@@ -966,6 +1013,186 @@ namespace Moirai.Atropos.Save
             {
                 SaveFileGate.Leave(paths.SaveFilePath, gate, acquired);
             }
+        }
+
+        #endregion
+
+        #region 版本迁移 [MIGRATION]
+
+        /// <summary>
+        /// 显式迁移指定存档到当前数据版本（在调用线程执行，阻塞直至完成；仅限主线程）。
+        /// <para>显式调用即表达立即修复意图——迁移成功后强制回写（不受 <see cref="SaveServiceSettings.MigrationWriteBack"/> 约束）；
+        /// 版本相等/迁移总线未激活为无操作。版本低于当前且迁移链缺失/失败返回 <see cref="SaveError.MigrationFailed"/>，高于当前返回 <see cref="SaveError.UnsupportedVersion"/>。</para>
+        /// </summary>
+        /// <param name="fileName">文件名（自动追加配置的扩展名）。</param>
+        /// <param name="folderName">文件夹名称；空串表示存档数据根目录。</param>
+        /// <returns>错误码（缺档返回 <see cref="SaveError.FileNotFound"/>）。</returns>
+        public SaveError MigrateSave(string fileName, string folderName = DEFAULT_FOLDER_NAME)
+        {
+            SavePaths paths = ResolveSavePaths(fileName, folderName);
+            SemaphoreSlim gate = SaveFileGate.Enter(paths.SaveFilePath);
+            gate.Wait();
+            try
+            {
+                return MigrateSaveCore(paths, CancellationToken.None);
+            }
+            finally
+            {
+                SaveFileGate.Leave(paths.SaveFilePath, gate, acquired: true);
+            }
+        }
+
+        /// <summary>
+        /// 显式迁移指定存档到当前数据版本，IO 在工作线程执行。
+        /// <para>语义与 <see cref="MigrateSave"/> 一致（迁移成功强制回写）。</para>
+        /// </summary>
+        /// <param name="fileName">文件名（自动追加配置的扩展名）。</param>
+        /// <param name="folderName">文件夹名称；空串表示存档数据根目录。</param>
+        /// <param name="cancellationToken">取消令牌。</param>
+        /// <returns>迁移结果（错误码）。</returns>
+        public UniTask<SaveError> MigrateSaveAsync(string fileName, string folderName = DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default)
+        {
+            SavePaths paths = ResolveSavePaths(fileName, folderName);
+            SemaphoreSlim gate = SaveFileGate.Enter(paths.SaveFilePath);
+            return MigrateSaveWithGateAsync(paths, gate, cancellationToken);
+        }
+
+        /// <summary>
+        /// 持串行门执行显式迁移。
+        /// </summary>
+        private async UniTask<SaveError> MigrateSaveWithGateAsync(SavePaths paths, SemaphoreSlim gate, CancellationToken cancellationToken)
+        {
+            bool acquired = false;
+            try
+            {
+                await gate.WaitAsync(cancellationToken);
+                acquired = true;
+                return await UniTask.RunOnThreadPool(() => MigrateSaveCore(paths, cancellationToken), cancellationToken: cancellationToken);
+            }
+            finally
+            {
+                SaveFileGate.Leave(paths.SaveFilePath, gate, acquired);
+            }
+        }
+
+        /// <summary>
+        /// 显式迁移核心（同步，工作线程调用；须持串行门）：读容器 → 迁移 → 成功强制回写。
+        /// </summary>
+        /// <param name="paths">已解析的路径集合。</param>
+        /// <param name="cancellationToken">取消令牌。</param>
+        /// <returns>错误码。</returns>
+        internal SaveError MigrateSaveCore(SavePaths paths, CancellationToken cancellationToken)
+        {
+            SaveError readError = ReadContainerOrEmpty(paths, out List<SaveBlockEntry> blocks, out List<SaveBlockError> blockErrors);
+            if (readError != SaveError.None)
+            {
+                return readError;
+            }
+
+            if (blocks.Count == 0)
+            {
+                return SaveError.FileNotFound;
+            }
+
+            return MigrateBlocksIfNeeded(paths, ref blocks, blockErrors, forceWriteBack: true, cancellationToken);
+        }
+
+        /// <summary>
+        /// 读路径迁移前置（加载管线统一入口）：按需执行迁移链并按 <see cref="_migrationWriteBack"/> 惰性回写。
+        /// <para>回写失败不阻断本次加载（内存数据已迁移；失败经日志与 <see cref="SaveService.SaveFailed"/> 事件观测，下一会话重试）。</para>
+        /// </summary>
+        /// <param name="paths">已解析的路径集合。</param>
+        /// <param name="blocks">健康数据块列表（迁移后替换）。</param>
+        /// <param name="blockErrors">坏块清单（元数据块损坏时迁移保守失败）。</param>
+        /// <param name="forceWriteBack">显式迁移调用的强制回写（绕过 <see cref="_migrationWriteBack"/> 设置）。</param>
+        /// <param name="cancellationToken">取消令牌。</param>
+        /// <returns>错误码。</returns>
+        private SaveError MigrateBlocksIfNeeded(SavePaths paths, ref List<SaveBlockEntry> blocks, List<SaveBlockError> blockErrors, bool forceWriteBack, CancellationToken cancellationToken)
+        {
+            if (!SaveMigrationManager.IsActive || blocks.Count == 0)
+            {
+                return SaveError.None;
+            }
+
+            SaveError error = SaveMigrationManager.TryMigrateBlocks(paths, blocks, blockErrors, out List<SaveBlockEntry> migratedBlocks, out bool migrated);
+            if (error != SaveError.None || !migrated)
+            {
+                return error;
+            }
+
+            blocks = migratedBlocks;
+            if (!forceWriteBack && !_migrationWriteBack)
+            {
+                return SaveError.None;
+            }
+
+            try
+            {
+                WriteContainerFile(paths, blocks, cancellationToken);
+            }
+            catch (Exception exception) when (!(exception is OperationCanceledException))
+            {
+                LogUtility.Error("[SaveService] Migration write-back failed, path: {0}, exception: {1}.", paths.SaveFilePath, exception.GetType().Name);
+                SaveService.RaiseSaveFailed(paths.FileName, paths.FolderName, null, ESaveFailureStage.StorageWrite, SaveError.IoFailed);
+            }
+
+            return SaveError.None;
+        }
+
+        /// <summary>
+        /// 写路径迁移前置（写入自愈）：旧版本档先迁移到当前版本再合并写回，失败按写路径契约 fail-fast 上抛 <see cref="GameException"/>。
+        /// <para>迁移结果由调用方随后的 <see cref="WriteContainerFile"/> 一并落盘（不单独回写）。</para>
+        /// </summary>
+        /// <param name="paths">已解析的路径集合。</param>
+        /// <param name="blocks">健康数据块列表（迁移后替换）。</param>
+        /// <param name="blockErrors">坏块清单。</param>
+        /// <param name="cancellationToken">取消令牌。</param>
+        private void MigrateBlocksForWrite(SavePaths paths, ref List<SaveBlockEntry> blocks, List<SaveBlockError> blockErrors, CancellationToken cancellationToken)
+        {
+            SaveError error = MigrateBlocksIfNeeded(paths, ref blocks, blockErrors, forceWriteBack: false, cancellationToken);
+            if (error != SaveError.None)
+            {
+                SaveService.RaiseSaveFailed(paths.FileName, paths.FolderName, null, ESaveFailureStage.Migrate, error);
+                throw new GameException(StringUtility.Format("Save migration failed on write path, path: {0}, error: {1}.", paths.SaveFilePath, error));
+            }
+        }
+
+        /// <summary>
+        /// 版本化激活时将当前数据版本盖章进元数据块（保留游戏层元数据字段，仅推进 <see cref="SaveMetadata.SaveVersion"/>）。
+        /// <para>元数据块 JSON 损坏时用全新元数据替换并记告警；未激活时零开销直通。</para>
+        /// </summary>
+        /// <param name="blocks">待写入的数据块列表。</param>
+        /// <returns>盖章后的数据块列表。</returns>
+        private List<SaveBlockEntry> StampSaveVersionIfActive(List<SaveBlockEntry> blocks)
+        {
+            if (!SaveMigrationManager.IsActive)
+            {
+                return blocks;
+            }
+
+            int currentVersion = SaveMigrationManager.CurrentVersion;
+            SaveMetadata metadata = null;
+            if (SaveBlockComposer.TryFind(blocks, MetaBlockKey, out SaveBlockEntry metaEntry))
+            {
+                try
+                {
+                    metadata = SaveSerializerRegistry.GetRequired(ESaveBackend.Json).Deserialize<SaveMetadata>(metaEntry.Bytes);
+                }
+                catch (Exception)
+                {
+                    LogUtility.Warning("[SaveService] Meta block is undecodable, replacing with a fresh one, path context: stamping save version.");
+                }
+            }
+
+            if (metadata != null && metadata.SaveVersion == currentVersion)
+            {
+                return blocks;
+            }
+
+            metadata ??= new SaveMetadata();
+            metadata.SaveVersion = currentVersion;
+            byte[] metaBytes = SaveSerializerRegistry.GetRequired(ESaveBackend.Json).Serialize(metadata);
+            return SaveBlockComposer.Upsert(blocks, new SaveBlockEntry(MetaBlockKey, 1, ESaveBackend.Json, metaBytes));
         }
 
         #endregion
@@ -1407,6 +1634,8 @@ namespace Moirai.Atropos.Save
         /// <param name="cancellationToken">取消令牌。</param>
         private void WriteContainerFile(SavePaths paths, List<SaveBlockEntry> blocks, CancellationToken cancellationToken)
         {
+            // 版本化激活时盖章当前数据版本（任何落盘文件均为当前版本——写入自愈封闭性）
+            blocks = StampSaveVersionIfActive(blocks);
             int containerSize = SaveFileContainer.GetSize(blocks);
             ICompressionProvider compression = _compression;
             byte[] containerBuffer = compression == null

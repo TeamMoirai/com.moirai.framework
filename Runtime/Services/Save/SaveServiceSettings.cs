@@ -40,6 +40,9 @@ namespace Moirai.Atropos.Save
 
         [SerializeField] private string m_SaveFileExtension = ".sav";
 
+        [Tooltip("迁移回写：加载触发版本迁移成功后将迁移结果惰性回写存档（默认开）。关闭时迁移仅作用于当次加载的内存数据，同文件同会话不重复迁移（经会话级缓存），但存档文件保持旧版本。")]
+        [SerializeField] private bool m_MigrationWriteBack = true;
+
         private bool IsEncryptedHandler => m_SaveServiceHandler is AesEncryptedSaveHandler;
 
         /// <summary>旧版静态密钥字段可见性（配置自定义密钥提供方后隐藏——密钥来源以提供方为准）。</summary>
@@ -86,6 +89,11 @@ namespace Moirai.Atropos.Save
         /// </summary>
         public static string SaveFileExtension => Instance.m_SaveFileExtension;
 
+        /// <summary>
+        /// 迁移回写开关（加载触发版本迁移成功后是否将迁移结果惰性回写存档；默认开）。
+        /// </summary>
+        public static bool MigrationWriteBack => Instance.m_MigrationWriteBack;
+
         private void Reset()
         {
             m_SaveServiceHandler = new PlainSaveHandler();
@@ -95,6 +103,7 @@ namespace Moirai.Atropos.Save
             m_DefaultBackend = ESaveBackend.Json;
             m_Pbkdf2Iterations = SaveEncryptor.DefaultIterations;
             m_SaveFileExtension = ".sav";
+            m_MigrationWriteBack = true;
         }
     }
 }
