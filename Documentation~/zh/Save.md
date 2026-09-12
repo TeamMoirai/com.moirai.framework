@@ -2,7 +2,7 @@
 
 ## 概述
 
-Save 服务（`SaveService`）为游戏提供 AAA 级存档基础设施：**单文件多数据块**容器、**四种可插拔序列化后端**（JSON / MessagePack / MemoryPack / protobuf-net）、**块级版本迁移**、**AES 加密管线**与**无代码组件保存**（SourceGenerator 生成强类型捕获器）。命名空间 `Moirai.Atropos.Save`。
+Save 服务（`SaveService`）为游戏提供 AAA 级存档基础设施：**单文件多数据块**容器、**四种可插拔序列化后端**（JSON / MessagePack / MemoryPack / protobuf-net）、**块级版本迁移**、**AES 加密管线**（密钥来源可插拔：静态口令 / 运行期口令注入 / HKDF 按用户派生）、**可选 GZip 压缩**与**无代码组件保存**（SourceGenerator 生成强类型捕获器）。命名空间 `Moirai.Atropos.Save`。
 
 ## 架构
 
@@ -10,9 +10,12 @@ Save 服务（`SaveService`）为游戏提供 AAA 级存档基础设施：**单�
 SaveService（静态外观，s_Handler null 时静默降级）
 ├── 存储管线（[SerializeReference] 可切换）
 │     PlainSaveHandler        明文直通
-│     AesEncryptedSaveHandler AES-256-CBC + HMAC（encrypt-then-MAC）+ PBKDF2
+│     AesEncryptedSaveHandler AES-256-CBC + HMAC（encrypt-then-MAC），密钥经 ISaveKeyProvider 直给
 ├── 存储后端（[SerializeReference] 可切换，ISaveStorage + SaveStorageBackend）
 │     FileSaveStorageBackend  本地文件（临时文件 + Flush(true) + 原子替换，默认）
+├── 转换链（顺序固定：Serialize → Compress? → Encrypt? → CRC）
+│     压缩：ICompressionProvider + SaveCompressionRegistry（GZip 内建 ID=1；未知 ID 读侧拒载）
+│     密钥：ISaveKeyProvider + SaveKeyProvider（Static 静态口令默认 / Passphrase 运行期注入 / HkdfPerUser 按用户派生）
 ├── 序列化后端（ESaveBackend + ISaveSerializer + SaveSerializerRegistry）
 │     Json（内置，默认）/ MessagePack / MemoryPack / Protobuf / KeyValue（组件专用）
 ├── 多块容器（SaveFileContainer，手写二进制，块级 key/version/backend/bytes）
@@ -20,18 +23,20 @@ SaveService（静态外观，s_Handler null 时静默降级）
 └── 无代码保存（[SaveField] + SaveComponent + SaveHost SourceGenerator 生成捕获器）
 ```
 
-## 文件格式 v2
+## 文件格式
 
 ```
 [32B 明文头 "MRSA"][载荷]
-头：[4B 魔数][4B 格式版本=2][8B UTC ticks][4B 载荷长][4B 载荷 CRC32][4B 标志]
+头：[4B 魔数][4B 格式版本=2][8B UTC ticks][4B 载荷长][4B 载荷 CRC32][4B 压缩提供方 ID][4B 标志]
 载荷 = Compress?(Container)；加密处理器下再包 [16B IV][AES-256-CBC][32B HMAC]
 容器：[4B 魔数 "MRSB"][4B 容器版本][4B 块数]
       逐块 [4B 键字节长][键 UTF8][4B 模式版本][2B 后端][4B 载荷长][载荷]
 ```
 
 - 文件头永远明文（不解密即可读保存时间）；CRC 防存储损坏、HMAC 防篡改（先验 MAC 后解密）
-- v1（28B 头单块旧格式）读取判别为 `UnsupportedVersion` 作废（项目未上线裁定，不做兼容读）
+- 转换链顺序固定：序列化 → **压缩（可选，加密前）** → 加密 → CRC；读侧反向（解密 → 按文件头 ID 查注册表解压）——未压缩旧档原样透传（魔数/flags sniff 幂等，新旧档共存）
+- 文件头 offset 24-27 为压缩提供方 ID（0 = 未压缩）；未知 ID 判别为 `UnsupportedVersion`，标志位与 ID 不一致判别为 `Corrupted`
+- 密钥来源（`ISaveKeyProvider`）：静态口令 PBKDF2（`StaticSaveKeyProvider`，默认，与 V2 逐参一致）/ 运行期口令注入（`PassphraseSaveKeyProvider`，口令仅内存不落盘，未注入时读 `InvalidArgument`、写 fail-fast）/ HKDF-SHA256 按用户派生（`HkdfPerUserSaveKeyProvider`，多账号存档互相不可读）
 - 原子写入：临时文件 `xxx.sav.tmp-{guid}` → `Flush(true)` → `File.Replace`（经 `FileSaveStorageBackend`）；启动期后台清扫孤儿临时文件
 - 同文件写路径经串行信号量排队（防并发读-改-写丢块）——串行门在 Handler 编排层，存储后端无感知
 - 存储层契约（`ISaveStorage`）：同步原语为契约核心（`Exists`/`TryReadAllBytes`/`WriteAtomic`/`DeleteFile`/`DeleteDirectory`/`EnumerateFiles`/`CreateBackup`/`RestoreBackup`），异步包装默认线程池卸载（真异步后端覆盖并声明 `Capabilities`）；读取错误分型返回、写入失败抛 `GameException`、删除幂等；实现必须纯 .NET（任意线程可调）
@@ -96,7 +101,7 @@ public partial class Player : MonoBehaviour
 
 ### 兼容（旧单对象 API，映射保留块 `__main__`）
 
-`SaveAsync<T>` / `LoadAsync<T>` / `TryLoadAsync<T>` / `Save` / `Load` / `TryLoad`——签名与 A+ 版一致。
+`SaveAsync<T>` / `LoadAsync<T>` / `TryLoadAsync<T>` / `Save` / `Load` / `TryLoad`——签名与 v1 版一致。
 
 ### 元数据 / 槽位 / 备份
 
@@ -118,8 +123,10 @@ public partial class Player : MonoBehaviour
 |---|---|
 | `m_SaveServiceHandler` | 存储管线处理器（PlainSaveHandler / AesEncryptedSaveHandler） |
 | `m_StorageBackend` | 存储后端（IO 下沉目标，默认 FileSaveStorageBackend；置空回退文件后端；云存档等继承 `SaveStorageBackend` 接入） |
+| `m_CompressionProvider` | 压缩提供方（空 = 不压缩；内置 GZipCompressionProvider） |
+| `m_KeyProvider` | 密钥提供方（空 = 静态密钥；可选 PassphraseSaveKeyProvider / HkdfPerUserSaveKeyProvider） |
 | `m_DefaultBackend` | 默认序列化后端（未声明 `[SaveData]` 的块） |
-| `m_EncryptionKey` / `m_Pbkdf2Iterations` | 加密参数（**SECURITY: 上线前必须替换占位密钥**；派生密钥按实例缓存） |
+| `m_EncryptionKey` / `m_Pbkdf2Iterations` | 静态密钥参数（**SECURITY: 上线前必须替换占位密钥**；仅在密钥提供方为空时生效；派生密钥按实例缓存） |
 | `m_SaveFileExtension` | 存档文件扩展名（默认 `.sav`） |
 
 ## 依赖
@@ -128,4 +135,4 @@ MessagePack 3.1.8、protobuf-net 3.3.8（+Core 内嵌 BuildTools SG）、MemoryP
 
 ## 测试
 
-`Tests/EditorMode/Save/`：容器布局、组合器、Handler 管线（原子写/清扫/损坏分型/参数校验）、存储后端契约（`FileSaveStorageBackendTests`：原子写/幂等删除/精确枚举/备份恢复/能力自描述）、加密全链路、四后端往返、迁移级联、组件捕获器（生成代码）。
+`Tests/EditorMode/Save/`：容器布局、组合器、Handler 管线（原子写/清扫/损坏分型/参数校验）、存储后端契约（`FileSaveStorageBackendTests`：原子写/幂等删除/精确枚举/备份恢复/能力自描述）、压缩转换链（`SaveCompressionTests`：GZip 往返/压加组合/旧档兼容读/头部分型/注册表）、密钥提供方（`SaveKeyProviderTests`：静态等价/口令注入/HKDF 按用户隔离）、加密全链路、四后端往返、迁移级联、组件捕获器（生成代码）。

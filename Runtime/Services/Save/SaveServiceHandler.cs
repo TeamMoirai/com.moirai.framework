@@ -61,10 +61,13 @@ namespace Moirai.Atropos.Save
         /// </summary>
         private SaveStorageBackend Storage => _storage ?? FileSaveStorageBackend.Default;
 
+        /// <summary>压缩提供方（<c>null</c> = 不压缩；<see cref="OnInit"/> 在主线程从设置解析，测试可直接赋值注入——无状态纯 .NET，工作线程调用安全）。</summary>
+        [NonSerialized] internal ICompressionProvider _compression;
+
         #region 生命周期 [LIFECYCLE]
 
         /// <summary>
-        /// 初始化存档处理器。由容器在构建期调用（主线程：解析存储后端并后台清扫孤儿临时文件）。
+        /// 初始化存档处理器。由容器在构建期调用（主线程：解析存储后端与压缩提供方，并后台清扫孤儿临时文件）。
         /// </summary>
         protected override void OnInit()
         {
@@ -76,6 +79,7 @@ namespace Moirai.Atropos.Save
             }
 
             _storage = backend;
+            _compression = SaveServiceSettings.CompressionProvider;
 
             // 后台清扫上次写入中断残留的孤儿临时文件；根目录须在主线程解析（persistentDataPath 为 Unity API）
             string rootDirectory = BuildDataRootDirectory();
@@ -1164,17 +1168,62 @@ namespace Moirai.Atropos.Save
             Buffer.BlockCopy(fileBytes, SaveFileHeader.Size, payload, 0, payloadLength);
             fileBytes = null;
 
-            SaveError transformError = OnRestorePayload(payload, out byte[] container);
+            SaveError transformError = OnRestorePayload(payload, out byte[] restored);
             if (transformError != SaveError.None)
             {
                 return transformError;
+            }
+
+            SaveError decompressError = TryDecompressContainer(header, restored, out byte[] container);
+            if (decompressError != SaveError.None)
+            {
+                return decompressError;
             }
 
             return SaveFileContainer.Read(container, out blocks);
         }
 
         /// <summary>
-        /// 将容器块集写入存档文件：容器组装 → 载荷变换（子类加密钩子）→ CRC → 组装文件头 → 存储层原子提交。
+        /// 按文件头标志还原容器字节（魔数/flags sniff 幂等：未压缩档原样透传，新旧档共存）。
+        /// <para>标志与提供方 ID 不一致（篡改/写中断）判别为 <see cref="SaveError.Corrupted"/>；
+        /// 未注册的提供方 ID 判别为 <see cref="SaveError.UnsupportedVersion"/>（未来格式/依赖未接入保护）。</para>
+        /// </summary>
+        /// <param name="header">已解析的文件头。</param>
+        /// <param name="restored">载荷还原字节（解密后）。</param>
+        /// <param name="container">成功时的容器字节。</param>
+        /// <returns>错误码。</returns>
+        private static SaveError TryDecompressContainer(SaveFileHeader header, byte[] restored, out byte[] container)
+        {
+            container = restored;
+            if ((header.Flags & SaveFileHeader.FlagCompressed) == 0)
+            {
+                return header.CompressionProviderId != 0 ? SaveError.Corrupted : SaveError.None;
+            }
+
+            if (header.CompressionProviderId == 0 || header.CompressionProviderId > byte.MaxValue)
+            {
+                return SaveError.Corrupted;
+            }
+
+            if (!SaveCompressionRegistry.TryGet((byte)header.CompressionProviderId, out ICompressionProvider compression))
+            {
+                return SaveError.UnsupportedVersion;
+            }
+
+            try
+            {
+                container = compression.Decompress(restored);
+                return SaveError.None;
+            }
+            catch (Exception)
+            {
+                // 压缩数据非法（流格式破坏）——归一为存储损坏分型
+                return SaveError.Corrupted;
+            }
+        }
+
+        /// <summary>
+        /// 将容器块集写入存档文件：容器组装 → 压缩（可选，转换链固定为压缩先于加密）→ 载荷变换（子类加密钩子）→ CRC → 组装文件头 → 存储层原子提交。
         /// </summary>
         /// <param name="paths">已解析的路径集合。</param>
         /// <param name="blocks">数据块列表。</param>
@@ -1184,7 +1233,26 @@ namespace Moirai.Atropos.Save
             byte[] container = new byte[SaveFileContainer.GetSize(blocks)];
             SaveFileContainer.Write(container, blocks);
 
-            SaveError transformError = OnTransformContainer(container, out byte[] payload);
+            uint flags = 0u;
+            uint compressionProviderId = 0u;
+            byte[] transformInput = container;
+            ICompressionProvider compression = _compression;
+            if (compression != null)
+            {
+                try
+                {
+                    transformInput = compression.Compress(container);
+                }
+                catch (Exception exception)
+                {
+                    throw new GameException(StringUtility.Format("Save compression failed, path: {0}, exception: {1}.", paths.SaveFilePath, exception.GetType().Name), exception);
+                }
+
+                flags = SaveFileHeader.FlagCompressed;
+                compressionProviderId = compression.ProviderId;
+            }
+
+            SaveError transformError = OnTransformContainer(transformInput, out byte[] payload);
             if (transformError != SaveError.None)
             {
                 throw new GameException(StringUtility.Format("Save payload transform failed, path: {0}, error: {1}.", paths.SaveFilePath, transformError));
@@ -1193,7 +1261,7 @@ namespace Moirai.Atropos.Save
             // 写盘的是存储载荷（加密后），不是未加密容器——CRC 也是载荷的
             uint payloadCrc = Crc32.Compute(payload);
             byte[] fileBytes = new byte[SaveFileHeader.Size + payload.Length];
-            SaveFileHeader.Write(fileBytes.AsSpan(0, SaveFileHeader.Size), payload.Length, payloadCrc, 0u);
+            SaveFileHeader.Write(fileBytes.AsSpan(0, SaveFileHeader.Size), payload.Length, payloadCrc, flags, compressionProviderId);
             Buffer.BlockCopy(payload, 0, fileBytes, SaveFileHeader.Size, payload.Length);
             Storage.WriteAtomic(paths.SaveFilePath, fileBytes, cancellationToken);
         }
