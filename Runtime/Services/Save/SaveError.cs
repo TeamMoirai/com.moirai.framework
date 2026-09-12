@@ -74,5 +74,10 @@ namespace Moirai.Atropos.Save
         /// 迁移失败（迁移链缺失/成环/迁移器执行异常或上下文操作失败；读路径经 <c>SaveService.LoadFailed</c> 事件观测，写路径 fail-fast 上抛）。
         /// </summary>
         MigrationFailed,
+
+        /// <summary>
+        /// 当前环境不支持该操作（如非运行态/批处理模式下截图）。
+        /// </summary>
+        NotSupported,
     }
 }

@@ -67,12 +67,16 @@ namespace Moirai.Atropos.Save
         /// <param name="folderName">文件夹名称。</param>
         /// <param name="cancellationToken">取消令牌（协作式）。</param>
         /// <returns>写入完成的异步任务。</returns>
-        public static UniTask SaveBlockAsync<T>(T data, string fileName, string key, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default)
+        public static async UniTask SaveBlockAsync<T>(T data, string fileName, string key, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default)
         {
+            if (s_Handler is null)
+            {
+                return;
+            }
+
             ESaveBackend backend = ResolveBackend<T>();
-            return s_Handler is null
-                ? UniTask.CompletedTask
-                : s_Handler.SaveBlockAsync(data, fileName, key, folderName, backend, ResolveDataVersion<T>(), cancellationToken);
+            await s_Handler.SaveBlockAsync(data, fileName, key, folderName, backend, ResolveDataVersion<T>(), cancellationToken);
+            await CaptureScreenshotOnSaveIfEnabledAsync(fileName, folderName, key);
         }
 
         /// <summary>
@@ -265,21 +269,22 @@ namespace Moirai.Atropos.Save
         /// <param name="folderName">文件夹名称。</param>
         /// <param name="cancellationToken">取消令牌（协作式）。</param>
         /// <returns>写入完成的异步任务。</returns>
-        public static UniTask SaveComponentsAsync(string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default)
+        public static async UniTask SaveComponentsAsync(string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default)
         {
             if (s_Handler is null)
             {
-                return UniTask.CompletedTask;
+                return;
             }
 
             List<SaveBlockEntry> entries = CaptureComponentsToEntries(fileName, folderName);
             if (entries.Count == 0)
             {
-                return UniTask.CompletedTask;
+                return;
             }
 
             SaveServiceHandler.SavePaths paths = SaveServiceHandler.ResolveSavePaths(fileName, folderName);
-            return s_Handler.UpsertRawBlocksAsync(paths, entries, cancellationToken);
+            await s_Handler.UpsertRawBlocksAsync(paths, entries, cancellationToken);
+            await CaptureScreenshotOnSaveIfEnabledAsync(fileName, folderName, null);
         }
 
         /// <summary>

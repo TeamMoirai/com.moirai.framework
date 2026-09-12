@@ -49,6 +49,13 @@ namespace Moirai.Atropos.Save
         [Tooltip("预制体注册表：可持久化动态实体的预制体登记（稳定键 → ResourceService 定位串）。空 = InstantiatePersistent 不可用、实体生成记录恢复时按未登记键跳过。")]
         [SerializeField] private SavePrefabRegistry m_PrefabRegistry;
 
+        [Tooltip("保存时截图：块保存（SaveBlockAsync）与组件保存（SaveComponentsAsync）成功后自动捕获屏幕截图并镜像到存档 sidecar 与元数据（仅运行态主线程生效）。")]
+        [SerializeField] private bool m_CaptureScreenshotOnSave;
+
+        [Tooltip("截图缩略图最长边（像素，保纵横比不放大）。")]
+        [MinValue(16)]
+        [SerializeField] private int m_ScreenshotMaxDimension = SaveScreenshotUtility.DEFAULT_MAX_DIMENSION;
+
         private bool IsEncryptedHandler => m_SaveServiceHandler is AesEncryptedSaveHandler;
 
         /// <summary>旧版静态密钥字段可见性（配置自定义密钥提供方后隐藏——密钥来源以提供方为准）。</summary>
@@ -110,6 +117,16 @@ namespace Moirai.Atropos.Save
         /// </summary>
         public static SavePrefabRegistry PrefabRegistry => Instance.m_PrefabRegistry;
 
+        /// <summary>
+        /// 保存时截图开关（默认关；开时块保存/组件保存成功后自动捕获截图并镜像 sidecar 与元数据）。
+        /// </summary>
+        public static bool CaptureScreenshotOnSave => Instance.m_CaptureScreenshotOnSave;
+
+        /// <summary>
+        /// 截图缩略图最长边（像素）。
+        /// </summary>
+        public static int ScreenshotMaxDimension => Instance.m_ScreenshotMaxDimension;
+
         private void Reset()
         {
             m_SaveServiceHandler = new PlainSaveHandler();
@@ -122,6 +139,8 @@ namespace Moirai.Atropos.Save
             m_MigrationWriteBack = true;
             m_AssetCatalog = null;
             m_PrefabRegistry = null;
+            m_CaptureScreenshotOnSave = false;
+            m_ScreenshotMaxDimension = SaveScreenshotUtility.DEFAULT_MAX_DIMENSION;
         }
     }
 }
