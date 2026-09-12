@@ -4,10 +4,11 @@ using System.Buffers.Binary;
 namespace Moirai.Atropos.Save
 {
     /// <summary>
-    /// 存档文件头（固定 32 字节，小端序）：魔数 + 格式版本 + 保存时间 + 载荷长度 + 载荷 CRC32 + 特性标志。
-    /// <para>文件布局：<c>[4B 魔数 "MRSA"][4B 格式版本][8B UTC ticks][4B 载荷长度][4B 载荷 CRC32][4B 标志][载荷]</c>。
-    /// 文件头始终为明文（元数据无需解密即可读）；载荷为多块容器经加密处理器变换后的字节。</para>
-    /// <para>v2 相对 v1 扩展 4 字节标志位（预留压缩等管线特性）；v1 旧档（单块无容器）不兼容，读取判别为 <see cref="SaveError.UnsupportedVersion"/> 作废。</para>
+    /// 存档文件头（固定 32 字节，小端序）：魔数 + 格式版本 + 保存时间 + 载荷长度 + 载荷 CRC32 + 压缩提供方 ID + 特性标志。
+    /// <para>文件布局：<c>[4B 魔数 "MRSA"][4B 格式版本][8B UTC ticks][4B 载荷长度][4B 载荷 CRC32][4B 压缩提供方 ID][4B 标志][载荷]</c>。
+    /// 文件头始终为明文（元数据无需解密即可读）；载荷为多块容器经压缩（可选）+ 加密处理器变换后的字节。</para>
+    /// <para>v2 相对 v1 扩展 8 字节（压缩提供方 ID + 标志位——v2 早期写出的零值段即「未压缩」语义，天然前后兼容）；
+    /// v1 旧档（单块无容器）不兼容，读取判别为 <see cref="SaveError.UnsupportedVersion"/> 作废。</para>
     /// </summary>
     internal readonly struct SaveFileHeader
     {
@@ -53,6 +54,11 @@ namespace Moirai.Atropos.Save
         public readonly uint PayloadCrc;
 
         /// <summary>
+        /// 压缩提供方标识（0 = 未压缩；非零时经 <see cref="SaveCompressionRegistry"/> 查表解压，未知 ID 判别为 <see cref="SaveError.UnsupportedVersion"/>）。
+        /// </summary>
+        public readonly uint CompressionProviderId;
+
+        /// <summary>
         /// 特性标志位（<see cref="FlagCompressed"/> 等）。
         /// </summary>
         public readonly uint Flags;
@@ -64,38 +70,41 @@ namespace Moirai.Atropos.Save
         /// <param name="savedAtUtcTicks">保存时间（UTC ticks）。</param>
         /// <param name="payloadLength">载荷字节数。</param>
         /// <param name="payloadCrc">载荷 CRC-32 校验值。</param>
+        /// <param name="compressionProviderId">压缩提供方标识。</param>
         /// <param name="flags">特性标志位。</param>
-        private SaveFileHeader(int formatVersion, long savedAtUtcTicks, int payloadLength, uint payloadCrc, uint flags)
+        private SaveFileHeader(int formatVersion, long savedAtUtcTicks, int payloadLength, uint payloadCrc, uint compressionProviderId, uint flags)
         {
             FormatVersion = formatVersion;
             SavedAtUtcTicks = savedAtUtcTicks;
             PayloadLength = payloadLength;
             PayloadCrc = payloadCrc;
+            CompressionProviderId = compressionProviderId;
             Flags = flags;
         }
 
         /// <summary>
         /// 将文件头写入目标缓冲区（必须恰好 <see cref="Size"/> 字节）。
-        /// <para>offset 24-27 为保留段（写入置零，读取忽略；预留给压缩提供方 ID 等管线元数据）。</para>
         /// </summary>
         /// <param name="destination">目标缓冲区。</param>
         /// <param name="payloadLength">载荷字节数。</param>
         /// <param name="payloadCrc">载荷 CRC-32 校验值。</param>
         /// <param name="flags">特性标志位。</param>
-        public static void Write(Span<byte> destination, int payloadLength, uint payloadCrc, uint flags)
+        /// <param name="compressionProviderId">压缩提供方标识（未压缩传 0）。</param>
+        public static void Write(Span<byte> destination, int payloadLength, uint payloadCrc, uint flags, uint compressionProviderId)
         {
             s_Magic.AsSpan().CopyTo(destination);
             BinaryPrimitives.WriteInt32LittleEndian(destination.Slice(4), CurrentVersion);
             BinaryPrimitives.WriteInt64LittleEndian(destination.Slice(8), DateTime.UtcNow.Ticks);
             BinaryPrimitives.WriteInt32LittleEndian(destination.Slice(16), payloadLength);
             BinaryPrimitives.WriteUInt32LittleEndian(destination.Slice(20), payloadCrc);
-            // offset 24-27 保留段保持调用方提供的零值（stackalloc 已清零）
+            BinaryPrimitives.WriteUInt32LittleEndian(destination.Slice(24), compressionProviderId);
             BinaryPrimitives.WriteUInt32LittleEndian(destination.Slice(28), flags);
         }
 
         /// <summary>
         /// 从字节序列解析文件头并校验魔数、版本与长度自洽性。
         /// <para>v1 旧档（多块容器化之前）判别为 <see cref="SaveError.UnsupportedVersion"/>（用户裁定作废，不做双格式兼容读）。</para>
+        /// <para>压缩标志与提供方 ID 的一致性校验在编排队（Handler 读路径）：标志置位但 ID 为零、或 ID 非零但标志未置位，均判别为 <see cref="SaveError.Corrupted"/>。</para>
         /// </summary>
         /// <param name="source">文件头字节序列（至少 <see cref="Size"/> 字节）。</param>
         /// <param name="header">解析成功时的文件头。</param>
@@ -130,13 +139,14 @@ namespace Moirai.Atropos.Save
             long savedAtUtcTicks = BinaryPrimitives.ReadInt64LittleEndian(source.Slice(8));
             int payloadLength = BinaryPrimitives.ReadInt32LittleEndian(source.Slice(16));
             uint payloadCrc = BinaryPrimitives.ReadUInt32LittleEndian(source.Slice(20));
+            uint compressionProviderId = BinaryPrimitives.ReadUInt32LittleEndian(source.Slice(24));
 
             if (savedAtUtcTicks <= 0 || payloadLength < 0)
             {
                 return SaveError.Corrupted;
             }
 
-            header = new SaveFileHeader(formatVersion, savedAtUtcTicks, payloadLength, payloadCrc, flags);
+            header = new SaveFileHeader(formatVersion, savedAtUtcTicks, payloadLength, payloadCrc, compressionProviderId, flags);
             return SaveError.None;
         }
 
