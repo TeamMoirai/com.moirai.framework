@@ -82,6 +82,9 @@ namespace Moirai.Atropos.SourceGenerators
         /// <summary>字段位置（诊断报告用）。</summary>
         public Location Location { get; private set; }
 
+        /// <summary>包含类型的组件模式版本（[SaveComponentSchema] 声明，缺省 1）。</summary>
+        public int SchemaVersion { get; private set; }
+
         /// <summary>
         /// 从属性语法上下文创建字段模型。
         /// </summary>
@@ -121,6 +124,18 @@ namespace Moirai.Atropos.SourceGenerators
                 : containingType.ContainingNamespace.ToDisplayString();
             string hintPrefix = string.IsNullOrEmpty(fieldNamespace) ? string.Empty : fieldNamespace.Replace('.', '_') + ".";
 
+            int schemaVersion = 1;
+            foreach (AttributeData attribute in containingType.GetAttributes())
+            {
+                if (attribute.AttributeClass?.ToDisplayString() == "Moirai.Atropos.Save.SaveComponentSchemaAttribute"
+                    && attribute.ConstructorArguments.Length > 0
+                    && attribute.ConstructorArguments[0].Value is int declaredVersion)
+                {
+                    schemaVersion = declaredVersion < 1 ? 1 : declaredVersion;
+                    break;
+                }
+            }
+
             FieldKind kind = Classify(fieldSymbol.Type, out string enumUnderlyingName, out string enumUnderlyingCsType);
             var model = new SaveFieldModel
             {
@@ -138,6 +153,7 @@ namespace Moirai.Atropos.SourceGenerators
                 EnumUnderlyingName = enumUnderlyingName,
                 EnumUnderlyingCsType = enumUnderlyingCsType,
                 Location = fieldSymbol.Locations.Length > 0 ? fieldSymbol.Locations[0] : Location.None,
+                SchemaVersion = schemaVersion,
             };
             return model;
         }
@@ -245,6 +261,15 @@ namespace Moirai.Atropos.SourceGenerators
             "MIRAI301",
             "SaveField 存档键重复",
             "类型 '{0}' 内存在重复的存档键 '{1}'",
+            Category,
+            DiagnosticSeverity.Error,
+            isEnabledByDefault: true);
+
+        /// <summary>MIRAI302：ISaveMigrator 实现无法生成自注册代码。</summary>
+        public static readonly DiagnosticDescriptor InvalidMigrator = new(
+            "MIRAI302",
+            "ISaveMigrator 实现无法自注册",
+            "ISaveMigrator 实现 '{0}' 无法生成自注册代码：须为具体（非抽象）类、不能嵌套在私有类型内、且提供可访问的无参构造函数",
             Category,
             DiagnosticSeverity.Error,
             isEnabledByDefault: true);

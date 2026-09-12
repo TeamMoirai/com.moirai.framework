@@ -12,15 +12,20 @@ namespace Moirai.Atropos.SourceGenerators
     /// <summary>
     /// SaveHost 增量源生成器 v1：扫描 <c>[SaveField]</c> 字段，为每个组件类型生成强类型键值捕获器
     /// （嵌套在组件类型内部以访问私有字段，零反射零装箱），并经模块初始化器自注册 <c>SaveCapturerRegistry</c>。
+    /// 同管线扫描 <c>ISaveMigrator</c> 实现类，生成 <c>SaveMigrationManager.Register</c> 自注册（AOT 安全）。
     /// <para>v1 支持字段类型：基元/枚举/string/DateTime/TimeSpan 与 Unity 数学类型（Vector2/3/4、Quaternion、Color、Rect、Bounds）；
-    /// 集合与嵌套数据类字段报 MIRAI300（KVT 格式与写入器/读取器 API 已支持，生成器支持于后续版本扩展）。</para>
-    /// <para>诊断：MIRAI300 不支持的字段类型；MIRAI301 存档键重复；MIRAI303 包含类型必须为 partial class；MIRAI304 字段必须为实例字段。</para>
+    /// 集合与嵌套数据类字段报 MIRAI300（KVT 格式与写入器/读取器 API 已支持，生成器支持于后续版本扩展）。
+    /// 捕获器额外发射 <see cref="SaveFieldModel.SchemaVersion"/>（[SaveComponentSchema] 声明，缺省 1）。</para>
+    /// <para>诊断：MIRAI300 不支持的字段类型；MIRAI301 存档键重复；MIRAI302 迁移器无法自注册；MIRAI303 包含类型必须为 partial class；MIRAI304 字段必须为实例字段。</para>
     /// </summary>
     [Generator(LanguageNames.CSharp)]
     public sealed class SaveHostGenerator : IIncrementalGenerator
     {
         /// <summary>SaveFieldAttribute 的元数据全名（生成器触发锚点）。</summary>
         private const string SaveFieldAttributeMetadataName = "Moirai.Atropos.Save.SaveFieldAttribute";
+
+        /// <summary>ISaveMigrator 接口的全名（迁移器扫描锚点）。</summary>
+        private const string SaveMigratorInterfaceName = "Moirai.Atropos.Save.ISaveMigrator";
 
         /// <summary>
         /// 注册增量管线。
@@ -33,14 +38,19 @@ namespace Moirai.Atropos.SourceGenerators
                 static (node, _) => node is FieldDeclarationSyntax,
                 static (ctx, ct) => SaveFieldModel.Create(ctx, ct));
 
-            var collected = fields.Collect().Combine(context.CompilationProvider);
-            context.RegisterSourceOutput(collected, static (spc, source) => Execute(spc, source.Left, source.Right));
+            // 迁移器实现无特性锚点——按「带基类列表的 class」粗筛后语义检查接口
+            var migrators = context.SyntaxProvider.CreateSyntaxProvider(
+                static (node, _) => node is ClassDeclarationSyntax declaration && declaration.BaseList != null,
+                static (ctx, ct) => MigratorModel.Create(ctx, ct));
+
+            var collected = fields.Collect().Combine(migrators.Collect()).Combine(context.CompilationProvider);
+            context.RegisterSourceOutput(collected, static (spc, source) => Execute(spc, source.Left.Left, source.Left.Right, source.Right));
         }
 
         /// <summary>
         /// 生成全部捕获器源码与诊断。
         /// </summary>
-        private static void Execute(SourceProductionContext context, ImmutableArray<SaveFieldModel> allFields, Compilation compilation)
+        private static void Execute(SourceProductionContext context, ImmutableArray<SaveFieldModel> allFields, ImmutableArray<MigratorModel> allMigrators, Compilation compilation)
         {
             var diagnostics = new List<Diagnostic>();
 
@@ -63,6 +73,23 @@ namespace Moirai.Atropos.SourceGenerators
             }
 
             var registrationLines = new List<string>();
+            var migratorRegistrationLines = new List<string>();
+            foreach (MigratorModel migrator in allMigrators)
+            {
+                if (migrator == null)
+                {
+                    continue;
+                }
+
+                if (!migrator.IsRegistrable)
+                {
+                    diagnostics.Add(Diagnostic.Create(Diagnostics.InvalidMigrator, migrator.Location, migrator.TypeDisplay));
+                    continue;
+                }
+
+                migratorRegistrationLines.Add($"            global::Moirai.Atropos.Save.SaveMigrationManager.Register(new {migrator.TypeFqn}());");
+            }
+
             foreach (KeyValuePair<string, List<SaveFieldModel>> pair in fieldsByType)
             {
                 List<SaveFieldModel> fields = pair.Value;
@@ -109,10 +136,10 @@ namespace Moirai.Atropos.SourceGenerators
                 registrationLines.Add($"            global::Moirai.Atropos.Save.SaveCapturerRegistry.Register(typeof({head.ContainingTypeFqn}), new {head.ContainingTypeFqn}.SaveCaptureInner());");
             }
 
-            if (registrationLines.Count > 0)
+            if (registrationLines.Count > 0 || migratorRegistrationLines.Count > 0)
             {
                 bool hasBuiltinModuleInitializer = compilation.GetTypeByMetadataName("System.Runtime.CompilerServices.ModuleInitializerAttribute") != null;
-                context.AddSource("SaveCaptureModuleInit.g.cs", SourceText.From(EmitModuleInitializer(registrationLines, hasBuiltinModuleInitializer), Encoding.UTF8));
+                context.AddSource("SaveCaptureModuleInit.g.cs", SourceText.From(EmitModuleInitializer(registrationLines, migratorRegistrationLines, hasBuiltinModuleInitializer), Encoding.UTF8));
             }
 
             foreach (Diagnostic diagnostic in diagnostics)
@@ -138,6 +165,8 @@ namespace Moirai.Atropos.SourceGenerators
             builder.AppendLine("    internal sealed class SaveCaptureInner : global::Moirai.Atropos.Save.ISaveComponentCapturer");
             builder.AppendLine("    {");
             builder.AppendLine($"        public global::System.Type ComponentType => typeof({head.ContainingTypeFqn});");
+            builder.AppendLine();
+            builder.AppendLine($"        public int SchemaVersion => {head.SchemaVersion};");
             builder.AppendLine();
             builder.AppendLine("        public string[] FieldNames { get; } = new string[]");
             builder.AppendLine("        {");
@@ -238,7 +267,10 @@ namespace Moirai.Atropos.SourceGenerators
         /// <summary>
         /// 生成模块初始化器（含 ModuleInitializerAttribute 缺失定义——同程序集内私有副本，按完整类型名被编译器识别）。
         /// </summary>
-        private static string EmitModuleInitializer(List<string> registrationLines, bool hasBuiltinModuleInitializer)
+        /// <param name="registrationLines">捕获器注册行。</param>
+        /// <param name="migratorRegistrationLines">迁移器注册行。</param>
+        /// <param name="hasBuiltinModuleInitializer">编译单元是否已带 ModuleInitializerAttribute。</param>
+        private static string EmitModuleInitializer(List<string> registrationLines, List<string> migratorRegistrationLines, bool hasBuiltinModuleInitializer)
         {
             var builder = new StringBuilder(1024);
             AppendGeneratedHeader(builder);
@@ -260,6 +292,11 @@ namespace Moirai.Atropos.SourceGenerators
             builder.AppendLine("    internal static void Initialize()");
             builder.AppendLine("    {");
             foreach (string line in registrationLines)
+            {
+                builder.AppendLine(line);
+            }
+
+            foreach (string line in migratorRegistrationLines)
             {
                 builder.AppendLine(line);
             }

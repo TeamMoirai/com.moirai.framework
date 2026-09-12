@@ -20,6 +20,12 @@ namespace Moirai.Atropos.Save
         string[] FieldNames { get; }
 
         /// <summary>
+        /// 组件数据模式版本（生成器自 <see cref="SaveComponentSchemaAttribute"/> 发射；缺省 1）。
+        /// <para>保存时按组件类型记录进 KVT 块内 <c>$schemas</c> 作用域；恢复时与存档版本不符走 <see cref="ISaveComponentMigrator"/> 钩子。</para>
+        /// </summary>
+        int SchemaVersion { get; }
+
+        /// <summary>
         /// 将组件的启用字段捕获为键值字节（写入类型名键的嵌套作用域，主线程调用）。
         /// </summary>
         /// <param name="component">组件实例。</param>

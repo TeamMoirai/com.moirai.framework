@@ -38,6 +38,9 @@ namespace Moirai.Atropos.Save
         /// <summary>解析后的块键（空串自动派生时在注册期计算）。</summary>
         [NonSerialized] private string _resolvedBlockKey;
 
+        /// <summary>KVT 块内模式版本作用域保留键（"$" 不可能出现在 C# 类型全名中，与绑定作用域键天然隔离）。</summary>
+        internal const string SchemaScopeKey = "$schemas";
+
         /// <summary>
         /// 数据块键（自动派生：场景名:物体路径）。
         /// </summary>
@@ -64,11 +67,36 @@ namespace Moirai.Atropos.Save
 
         /// <summary>
         /// 将本组件的全部启用字段捕获为键值字节（主线程调用）。
-        /// <para>格式：逐绑定写入「键 = 组件类型全名」的嵌套作用域；同类型多绑定时后者追加（键重复由编辑器 UI 约束避免）。</para>
+        /// <para>格式：首个记录为 <see cref="SchemaScopeKey"/> 模式版本作用域（组件类型全名 → <see cref="ISaveComponentCapturer.SchemaVersion"/>，恢复侧路由迁移钩子的依据）；
+        /// 随后逐绑定写入「键 = 组件类型全名」的嵌套作用域；同类型多绑定时后者追加（键重复由编辑器 UI 约束避免）。</para>
         /// </summary>
         /// <param name="writer">键值写入器。</param>
         internal void Capture(ref SaveKeyValueWriter writer)
         {
+            // 模式版本作用域先行（恢复侧须先于绑定作用域读到版本表才能路由迁移钩子）
+            int schemaCount = CountCapturableBindings();
+            if (schemaCount > 0)
+            {
+                writer.BeginNestedObject(SchemaScopeKey, schemaCount);
+                for (int i = 0; i < Targets.Count; i++)
+                {
+                    SaveTargetBinding binding = Targets[i];
+                    if (binding == null || binding.Target == null)
+                    {
+                        continue;
+                    }
+
+                    if (!SaveCapturerRegistry.TryGet(binding.Target.GetType(), out ISaveComponentCapturer schemaCapturer))
+                    {
+                        continue;
+                    }
+
+                    writer.WriteInt32(binding.Target.GetType().FullName, schemaCapturer.SchemaVersion);
+                }
+
+                writer.EndNested();
+            }
+
             for (int i = 0; i < Targets.Count; i++)
             {
                 SaveTargetBinding binding = Targets[i];
@@ -89,12 +117,33 @@ namespace Moirai.Atropos.Save
         }
 
         /// <summary>
+        /// 统计可捕获绑定数（目标有效且捕获器已注册）。
+        /// </summary>
+        private int CountCapturableBindings()
+        {
+            int count = 0;
+            for (int i = 0; i < Targets.Count; i++)
+            {
+                SaveTargetBinding binding = Targets[i];
+                if (binding != null && binding.Target != null && SaveCapturerRegistry.TryGet(binding.Target.GetType(), out _))
+                {
+                    count++;
+                }
+            }
+
+            return count;
+        }
+
+        /// <summary>
         /// 从键值字节恢复本组件的全部启用字段（主线程调用）。
-        /// <para>顶层记录键 = 组件类型全名；按类型名路由到绑定，作用域内精确消费记录；未知类型跳过、缺失绑定跳过。</para>
+        /// <para>顶层记录键 = 组件类型全名；按类型名路由到绑定，作用域内精确消费记录；未知类型跳过、缺失绑定跳过。
+        /// <see cref="SchemaScopeKey"/> 记录提供存档模式版本——与捕获器当前版本不符时走 <see cref="ISaveComponentMigrator"/> 迁移钩子
+        /// （组件未实现钩子则记告警并按键匹配容错恢复）。</para>
         /// </summary>
         /// <param name="reader">键值读取器。</param>
         internal void Restore(ref SaveKeyValueReader reader)
         {
+            Dictionary<string, int> storedVersions = null;
             while (reader.ReadRecord(out ReadOnlySpan<byte> key, out ESaveKvType type))
             {
                 if (type != ESaveKvType.Object)
@@ -104,6 +153,12 @@ namespace Moirai.Atropos.Save
                 }
 
                 string typeName = Encoding.UTF8.GetString(key);
+                if (string.Equals(typeName, SchemaScopeKey, StringComparison.Ordinal))
+                {
+                    ReadSchemaVersions(ref reader, ref storedVersions);
+                    continue;
+                }
+
                 if (!TryFindBinding(typeName, out SaveTargetBinding binding, out ISaveComponentCapturer capturer))
                 {
                     reader.SkipRecordPayload();
@@ -111,8 +166,55 @@ namespace Moirai.Atropos.Save
                 }
 
                 int recordCount = reader.ReadChildCount();
+                int storedVersion = capturer.SchemaVersion;
+                if (storedVersions != null)
+                {
+                    storedVersions.TryGetValue(typeName, out storedVersion);
+                    // 版本表缺失该类型条目（旧档新绑定）按当前版本处理——KVT 键匹配天然容错
+                    if (storedVersion == 0)
+                    {
+                        storedVersion = capturer.SchemaVersion;
+                    }
+                }
+
+                if (storedVersion != capturer.SchemaVersion && binding.Target is ISaveComponentMigrator migrator)
+                {
+                    migrator.OnMigrateComponent(storedVersion, ref reader, recordCount);
+                    continue;
+                }
+
+                if (storedVersion != capturer.SchemaVersion)
+                {
+                    LogUtility.Warning("[SaveService] Component '{0}' schema version mismatch ({1} -> {2}) without ISaveComponentMigrator, restoring by key matching.", typeName, storedVersion, capturer.SchemaVersion);
+                }
+
                 var mask = new SaveFieldMask(capturer.FieldNames, binding.EnabledFields);
                 capturer.Restore(binding.Target, ref reader, recordCount, mask);
+            }
+        }
+
+        /// <summary>
+        /// 读取模式版本作用域（组件类型全名 → 存档版本）。
+        /// </summary>
+        private static void ReadSchemaVersions(ref SaveKeyValueReader reader, ref Dictionary<string, int> versions)
+        {
+            int recordCount = reader.ReadChildCount();
+            versions ??= new Dictionary<string, int>(recordCount);
+            for (int i = 0; i < recordCount; i++)
+            {
+                if (!reader.ReadRecord(out ReadOnlySpan<byte> entryKey, out ESaveKvType entryType))
+                {
+                    return;
+                }
+
+                if (entryType == ESaveKvType.Int32)
+                {
+                    versions[Encoding.UTF8.GetString(entryKey)] = reader.ReadInt32();
+                }
+                else
+                {
+                    reader.SkipRecordPayload();
+                }
             }
         }
 

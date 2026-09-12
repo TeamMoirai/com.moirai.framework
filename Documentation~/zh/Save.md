@@ -2,7 +2,7 @@
 
 ## 概述
 
-Save 服务（`SaveService`）为游戏提供 AAA 级存档基础设施：**单文件多数据块**容器、**四种可插拔序列化后端**（JSON / MessagePack / MemoryPack / protobuf-net）、**块级版本迁移**、**AES 加密管线**（密钥来源可插拔：静态口令 / 运行期口令注入 / HKDF 按用户派生）、**可选 GZip 压缩**与**无代码组件保存**（SourceGenerator 生成强类型捕获器）。命名空间 `Moirai.Atropos.Save`。
+Save 服务（`SaveService`）为游戏提供 AAA 级存档基础设施：**单文件多数据块**容器、**四种可插拔序列化后端**（JSON / MessagePack / MemoryPack / protobuf-net）、**文件级版本迁移总线**（版本链 + 审计 + 惰性回写）与**块级版本迁移**、**AES 加密管线**（密钥来源可插拔：静态口令 / 运行期口令注入 / HKDF 按用户派生）、**可选 GZip 压缩**与**无代码组件保存**（SourceGenerator 生成强类型捕获器）。命名空间 `Moirai.Atropos.Save`。
 
 ## 架构
 
@@ -20,7 +20,8 @@ SaveService（静态外观，s_Handler null 时静默降级）
 │     Json（内置，默认）/ MessagePack / MemoryPack / Protobuf / KeyValue（组件专用）
 ├── 多块容器（SaveFileContainer，手写二进制，块级 key/version/backend/bytes）
 ├── 数据模型（[SaveData] + SaveDataBlock.OnMigrate 版本迁移）
-└── 无代码保存（[SaveField] + SaveComponent + SaveHost SourceGenerator 生成捕获器）
+├── 迁移总线（SaveMigrationManager + ISaveMigrator：文件级版本链，加载/写入管线前置）
+└── 无代码保存（[SaveField] + SaveComponent + SaveHost SourceGenerator 生成捕获器，[SaveComponentSchema] 模式版本）
 ```
 
 ## 文件格式
@@ -71,6 +72,63 @@ public sealed class PlayerStatsData : SaveDataBlock
 - 块写入时记录声明版本；加载时存档版本 < 声明版本 → 级联迁移（内存修正，下次写入持久化）；> 声明版本 → `UnsupportedVersion` 拒绝
 - 二进制后端要求类型带各自 AOT 标注：MessagePack `[MessagePackObject]`+SG、MemoryPack `[MemoryPackable]` partial+SG、protobuf-net `[ProtoContract]`+BuildTools SG；未标注类型 IL2CPP 不受支持
 
+## 版本迁移总线（文件级）
+
+块级 `OnMigrate` 处理**单类型**模式演进；迁移总线（`SaveMigrationManager` + `ISaveMigrator`）处理**整档**数据版本——跨块改名、字段改型、废弃块清理等横向变更。两条轨道独立可组合，加载管线上总线**先于** `OnMigrate` 执行。
+
+### 启用与版本模型
+
+- 版本号 int 递增：`0` = 版本化前基线存档；游戏层启动期设置 `SaveService.CurrentSaveVersion = N`（默认 `0` = 总线完全旁路，零开销）
+- 采纳仪式：启用版本化且存在旧档时，须注册自版本 `0` 起的迁移链（无元数据块的旧档按版本 `0` 处理；形状未变可注册空迁移器桥接 `0→1`）
+- 版本盖章：总线激活后，任何落盘的存档自动在 `__meta` 元数据块写入当前 `SaveVersion`（游戏层无需手动赋值；语义化三段式可按 `主*10000+次*100+修订` 映射为 int，映射规则项目内固化）
+
+### 迁移器（ISaveMigrator）
+
+```csharp
+public sealed class SaveMigratorV1ToV2 : ISaveMigrator
+{
+    public int FromVersion => 1;
+    public int ToVersion => 2;
+    public int Priority => 0;   // 同一边多个迁移器按 Priority 升序执行
+
+    public UniTask Migrate(SaveMigrationContext ctx)
+    {
+        ctx.RenameBlock("oldKey", "newKey");
+        ctx.RenameField<PlayerData>("gold", "coins");                   // 块键经 [SaveData] 声明解析（也可显式传键）
+        ctx.RetypeField<int, string>("profile", "level", v => v.ToString());
+        ctx.TransformBlock<PlayerData>("profile", old => new PlayerData { /* … */ });
+        ctx.DeleteBlock("obsolete");
+        return UniTask.CompletedTask;
+    }
+}
+```
+
+- 注册：实现类由 SaveHost SourceGenerator 扫描经模块初始化器自注册（AOT 安全；要求具体非抽象类、非私有嵌套、可访问无参构造，否则报 MIRAI302）；也可 `SaveService.RegisterMigrator(...)` 手动注册。非法版本边（`To <= From`）注册期抛 `ArgumentException`——仅允许升级方向，天然防环
+- 执行约束：迁移在加载/写入管线内**同步执行**（串行门持有期，可能在主线程）——`Migrate` 必须同步完成，禁止切线程或返回未完成任务（fail-fast `MigrationFailed`）；禁止触达 Unity 主线程 API
+- 目标块/字段不存在时操作为无操作（返回 `false`，兼容从未写过该块的旧档）；反序列化失败等真异常中止整条链
+- 字段级操作（`RenameField`/`RetypeField`）支持 JSON（需 Newtonsoft.Json）与 KeyValue 块；**二进制后端不支持字段级操作**（记告警并跳过——用 `TransformBlock<T>` 保留旧类型整对象迁移，键序纪律见下方分析器）
+
+### 链语义与错误分型
+
+- 版本相等短路；`文件版本 > 当前版本` → `UnsupportedVersion`（拒绝降级）；链缺失/歧义（同起始版本多条不同目标边）/迁移器异常 → `MigrationFailed`（经 `LoadFailed` 事件 `Migrate` 阶段观测）
+- **写入自愈**：任何读-改-写（块写入/组件块 upsert/块删除回写）触达旧版本档时先迁移再合并——任何落盘文件恒为当前版本，杜绝新形态块落入旧档后被迁移链误变换
+- **回写策略**：加载触发迁移成功后按 `m_MigrationWriteBack`（默认开）惰性回写（避免每次加载重跑迁移链）；关闭时迁移仅作用于内存，同文件同会话不重复迁移（会话级缓存），盘上保持旧版本
+- **审计**：每个迁移步向 `SaveMetadata.MigrationHistory` 追加 `"{from}->{to}|{迁移器类型全名}|{UTC ISO-8601}"`（随回写持久化）
+- **显式迁移**：`SaveService.MigrateSave(fileName)` / `MigrateSaveAsync`——启动期批量修复旧档用；迁移成功**强制回写**（不受回写设置约束）；处理器未就绪返回 `HandlerNotReady`
+- 会话缓存失效：`RestoreBackup` 与删除类操作自动失效对应路径（或全量）的会话缓存
+
+### 组件模式版本（无代码链）
+
+- 组件类标注 `[SaveComponentSchema(version)]`（缺省 1）→ 生成器发射捕获器 `SchemaVersion`；保存时按组件类型写入 KVT 块内 `$schemas` 作用域（该保留键不可能与类型全名冲突）
+- 恢复时存档版本与捕获器当前版本不符：组件实现 `ISaveComponentMigrator` → 路由到 `OnMigrateComponent(fromVersion, ref reader, recordCount)`（须恰好消费 recordCount 条记录）；未实现 → 记告警并按键匹配容错恢复
+- 旧格式块（无 `$schemas`）按当前版本处理（KVT 键匹配天然向后兼容）
+
+### 二进制后端键序冻结（分析器 MIRAI400/401）
+
+- `ServiceDependency.dll` 内置 `SaveSchemaAnalyzer`：`[SaveData(Backend=MessagePack/MemoryPack/Protobuf)]` 类型的成员键序号（`[Key]`/`[MemoryPackOrder]`/`[ProtoMember]`）与快照比对——MIRAI400 键序重排告警、MIRAI401 成员删除且未重写 `OnMigrate` 告警（均 Warning）
+- 快照为附加文件 `.SaveSchemaSnapshot`（行格式 `类型全限定名|成员名:序号;…`，序号 -1 = MessagePack 字符串键模式），纳入版本控制随模式演进更新；快照缺失时分析器静默
+- Unity 编辑器无 AdditionalFiles 界面，经 `csc.rsp` 的 `/additionalfile:` 或 CI `dotnet build` 接线
+
 ## 无代码保存（组件勾选字段）
 
 1. 玩法组件声明为 `partial class`，字段标 `[SaveField]`（可选显式存档键，重命名字段时保键稳定）：
@@ -86,7 +144,19 @@ public partial class Player : MonoBehaviour
 2. GameObject 挂 **Save Component**：Inspector 里添加目标组件绑定并勾选参与存档的字段（块键空缺时自动派生 `场景名:物体路径`；物体路径为场景根到物体的**完整名称链**，同名兄弟/同名场景根自动追加 `[N]` 序号消歧，杜绝跨分支撞键覆盖）。
 3. 运行期 `SaveService.SaveComponentsAsync(fileName)` / `LoadComponentsAsync(fileName)` 触发——编译期生成的强类型捕获器零反射捕获，按勾选掩码过滤；未知键跳过、缺失键保留当前值（字段增删天然向后兼容）。
 
-生成器诊断：MIRAI300 类型不支持、MIRAI301 键重复、MIRAI303 需 partial class、MIRAI304 需实例字段。修改生成器源码（`SourceGenerators/Source~/SaveHost/`）后必须 `dotnet build -c Release` 重建 `SourceGenerators/SaveHost.dll`。
+生成器诊断：MIRAI300 类型不支持、MIRAI301 键重复、MIRAI302 迁移器无法自注册、MIRAI303 需 partial class、MIRAI304 需实例字段。修改生成器源码（`SourceGenerators/Source~/SaveHost/`）后必须 `dotnet build -c Release -t:Rebuild` 强制全量重建 `SourceGenerators/SaveHost.dll`（增量构建在输入缓存未过期时会跳过编译产出残缺 DLL）。
+
+## 公共 API（静态外观）
+
+### 版本迁移
+
+| API | 说明 |
+|---|---|
+| `CurrentSaveVersion { get; set; }` | 当前存档数据版本（int 递增；启动期主线程设置，默认 0 = 迁移总线未激活） |
+| `RegisterMigrator(ISaveMigrator)` | 手动注册迁移器（自注册之外的补充通道；非法版本边抛 `ArgumentException`） |
+| `MigrateSave(fileName, folderName)` / `MigrateSaveAsync(...)` | 显式迁移整档到当前版本（迁移成功强制回写；缺档 `FileNotFound`，未就绪 `HandlerNotReady`） |
+
+### 块级（主体）
 
 ## 公共 API（静态外观）
 
@@ -143,6 +213,7 @@ public partial class Player : MonoBehaviour
 | `m_DefaultBackend` | 默认序列化后端（未声明 `[SaveData]` 的块） |
 | `m_EncryptionKey` / `m_Pbkdf2Iterations` | 静态密钥参数（**SECURITY: 上线前必须替换占位密钥**；仅在密钥提供方为空时生效；派生密钥按实例缓存） |
 | `m_SaveFileExtension` | 存档文件扩展名（默认 `.sav`） |
+| `m_MigrationWriteBack` | 迁移回写（默认开）：加载触发迁移成功后惰性回写存档；关闭则迁移仅作用于当次加载的内存数据 |
 
 ## 依赖
 
@@ -150,4 +221,4 @@ MessagePack 3.1.8、protobuf-net 3.3.8（+Core 内嵌 BuildTools SG）、MemoryP
 
 ## 测试
 
-`Tests/EditorMode/Save/`：容器布局与 v2 逐块校验（`SaveFileContainerTests`：往返/坏块跳过/结构性前缀保留/v1 硬切、`SaveContainerV2Tests`：头 CRC 重算放行的部分恢复/整档拒绝/坏块列报/写回收留）、事件 API（`SaveEventTests`：触发时机/次数/参数、失败阶段分型、后台派发主线程化、进度批次）、组合器、Handler 管线（原子写/清扫/损坏分型/参数校验）、存储后端契约（`FileSaveStorageBackendTests`：原子写/幂等删除/精确枚举/备份恢复/能力自描述）、压缩转换链（`SaveCompressionTests`：GZip 往返/压加组合/旧档兼容读/头部分型/注册表）、密钥提供方（`SaveKeyProviderTests`：静态等价/口令注入/HKDF 按用户隔离）、加密全链路、四后端往返、迁移级联、组件捕获器（生成代码）。
+`Tests/EditorMode/Save/`：容器布局与 v2 逐块校验（`SaveFileContainerTests`：往返/坏块跳过/结构性前缀保留/v1 硬切、`SaveContainerV2Tests`：头 CRC 重算放行的部分恢复/整档拒绝/坏块列报/写回收留）、事件 API（`SaveEventTests`：触发时机/次数/参数、失败阶段分型、后台派发主线程化、进度批次）、组合器、Handler 管线（原子写/清扫/损坏分型/参数校验）、存储后端契约（`FileSaveStorageBackendTests`：原子写/幂等删除/精确枚举/备份恢复/能力自描述）、压缩转换链（`SaveCompressionTests`：GZip 往返/压加组合/旧档兼容读/头部分型/注册表）、密钥提供方（`SaveKeyProviderTests`：静态等价/口令注入/HKDF 按用户隔离）、加密全链路、四后端往返、迁移级联、组件捕获器（生成代码）、迁移总线（`SaveMigrationBusTests`：版本链单步/多步/缺链/歧义/降级/Priority 序/异常归一、JSON 与 KVT 改名改型、整块变换、回写开关、审计历史、版本盖章、写入自愈、显式迁移、组件模式钩子路由）。

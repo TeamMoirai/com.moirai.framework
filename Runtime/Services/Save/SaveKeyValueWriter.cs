@@ -384,6 +384,23 @@ namespace Moirai.Atropos.Save
         #region 写入管线 [WRITE PIPELINE]
 
         /// <summary>
+        /// 写入原始记录（键 + 类型 + 已编码载荷区间——含 4B 载荷长度前缀）。
+        /// <para>仅迁移变换器原样透传未命中规则的数据记录用；载荷区间须取自 <see cref="SaveKeyValueReader"/> 记录头之后、<c>SkipRecordPayload</c> 前后的游标差。</para>
+        /// </summary>
+        /// <param name="key">记录键。</param>
+        /// <param name="type">记录类型。</param>
+        /// <param name="rawPayloadWithLengthPrefix">已编码载荷区间（4B 长度前缀 + 载荷字节）。</param>
+        internal void WriteRawRecord(string key, ESaveKvType type, ReadOnlySpan<byte> rawPayloadWithLengthPrefix)
+        {
+            int keyByteCount = s_Utf8.GetByteCount(key);
+            EnsureCapacity(3 + keyByteCount + rawPayloadWithLengthPrefix.Length);
+            BinaryPrimitives.WriteUInt16LittleEndian(Advance(2), (ushort)keyByteCount);
+            s_Utf8.GetBytes(key, Advance(keyByteCount));
+            _buffer[_position++] = (byte)type;
+            rawPayloadWithLengthPrefix.CopyTo(Advance(rawPayloadWithLengthPrefix.Length));
+        }
+
+        /// <summary>
         /// 写入对象级记录头：[2B 键长][键 UTF8][1B 类型][4B 载荷长占位]。
         /// </summary>
         private void BeginRecord(string key, ESaveKvType type, int payloadLength)
@@ -439,6 +456,8 @@ namespace Moirai.Atropos.Save
 
         /// <summary>
         /// 压入嵌套帧（记录载荷长度占位偏移与载荷起点）。
+        /// <para>调用点在子项数写入之后：载荷长度占位在 <c>_position - 8</c>，载荷区间（4B 子项数 + 子记录）自 <c>_position - 4</c> 起——
+        /// <see cref="EndNested"/> 回填的载荷长度含子项数自身（读取侧 <c>ReadChildCount</c>/<c>SkipRecordPayload</c> 依此消费）。</para>
         /// </summary>
         private void PushNestingFrame()
         {
@@ -451,7 +470,7 @@ namespace Moirai.Atropos.Save
                 Array.Resize(ref _nestingStack, _nestingDepth * 2);
             }
 
-            _nestingStack[_nestingDepth++] = new NestingFrame(_position - 4, _position);
+            _nestingStack[_nestingDepth++] = new NestingFrame(_position - 8, _position - 4);
         }
 
         /// <summary>嵌套帧：长度占位偏移 + 载荷起点。</summary>

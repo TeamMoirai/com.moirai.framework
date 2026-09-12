@@ -103,7 +103,7 @@ namespace Save
         /// </summary>
         private static void ExpectErrorLogForUtf()
         {
-            if (LogUtility.Handler is DefaultLogHandler)
+            if (LogUtility.Handler is not UnityLoggingHandler)
             {
                 LogAssert.Expect(LogType.Error, new Regex(".*"));
             }
@@ -114,7 +114,7 @@ namespace Save
         /// </summary>
         private static void ExpectWarningLogForUtf()
         {
-            if (LogUtility.Handler is DefaultLogHandler)
+            if (LogUtility.Handler is not UnityLoggingHandler)
             {
                 LogAssert.Expect(LogType.Warning, new Regex(".*"));
             }
