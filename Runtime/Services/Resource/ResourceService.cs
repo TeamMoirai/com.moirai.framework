@@ -43,7 +43,7 @@ namespace Moirai.Atropos.Resource
         }
 
         /// <inheritdoc />
-        public override int Priority => 4;
+        public override int Priority => ServicePriorityOrder.RESOURCE;
 
         /// <summary>
         /// 初始化资源服务。由容器在构建期调用：触发 <see cref="Handler"/> 懒加载、

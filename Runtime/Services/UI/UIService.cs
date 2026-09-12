@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Cysharp.Threading.Tasks;
 using Moirai.Atropos.Debugger;
 using Moirai.Atropos.Input;
@@ -30,6 +30,9 @@ namespace Moirai.Atropos.UI
             GameServices.EnsureRegistered<UIService>();
             return UIServiceSettings.UIServiceHandler;
         }
+
+        /// <inheritdoc />
+        public override int Priority => ServicePriorityOrder.MID_TIER;
 
         /// <summary>
         /// 初始化 UI 服务。由容器在构建期调用。

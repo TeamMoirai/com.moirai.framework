@@ -27,10 +27,8 @@ namespace Moirai.Atropos.ObjectPool
             return ObjectPoolServiceSettings.ObjectPoolServiceHandler;
         }
 
-        /// <summary>
-        /// 获取服务优先级。
-        /// </summary>
-        public override int Priority => 5;
+        /// <inheritdoc />
+        public override int Priority => ServicePriorityOrder.OBJECT_POOL;
 
         /// <summary>
         /// 初始化通用对象池服务。由容器在构建期调用。

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using Moirai.Atropos.Debugger;
 using UnityEngine;
@@ -28,6 +28,9 @@ namespace Moirai.Atropos.Localization
             GameServices.EnsureRegistered<LocalizationService>();
             return LocalizationServiceSettings.LocalizationServiceHandler;
         }
+
+        /// <inheritdoc />
+        public override int Priority => ServicePriorityOrder.MID_TIER;
 
         /// <summary>
         /// 初始化本地化服务。由容器在构建期调用。

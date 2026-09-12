@@ -1,4 +1,4 @@
-﻿using Moirai.Atropos.Events;
+using Moirai.Atropos.Events;
 using Moirai.Atropos.UI;
 using UnityEngine;
 
@@ -29,6 +29,9 @@ namespace Moirai.Atropos.Input
             GameServices.EnsureRegistered<InputService>();
             return InputServiceSettings.InputServiceHandler;
         }
+
+        /// <inheritdoc />
+        public override int Priority => ServicePriorityOrder.MID_TIER;
 
         /// <summary>
         /// 初始化输入服务。由 <see cref="GameAppSettings.Initiation"/> 调用。

@@ -249,7 +249,7 @@ var timer = GameService.Timer;
 - `OnInit()` — 服务初始化
 - `Shutdown()` — 服务销毁
 - 支持 `IUpdateService`、`IFixedUpdateService`、`ILateUpdateService` 接口注册到驱动循环
-- 通过 `Priority` 属性控制轮询顺序，通过 `Scope`（App / Scene / Gameplay）控制生命周期范围，场景卸载时自动清理场景与玩法级服务
+- 通过 `Priority` 属性控制轮询顺序（框架内置服务统一 ≤ -1000，业务服务默认 0 及以上），通过 `Scope`（App / Scene / Gameplay）控制生命周期范围，场景卸载时自动清理场景与玩法级服务
 
 > 📖 详细用法（自定义服务、作用域遮蔽、跨服务依赖）见 **[Core 服务系统文档](Documentation~/zh/Core.md)**
 

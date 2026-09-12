@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Unity.IL2CPP.CompilerServices;
 using Moirai.Atropos.Debugger;
 
@@ -30,6 +30,9 @@ namespace Moirai.Atropos.Timer
             GameServices.EnsureRegistered<TimerService>();
             return TimerServiceSettings.TimerServiceHandler;
         }
+
+        /// <inheritdoc />
+        public override int Priority => ServicePriorityOrder.MID_TIER;
 
         /// <summary>
         /// 初始化计时器服务。由容器在构建期调用。
