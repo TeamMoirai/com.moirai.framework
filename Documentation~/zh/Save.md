@@ -11,6 +11,8 @@ SaveService（静态外观，s_Handler null 时静默降级）
 ├── 存储管线（[SerializeReference] 可切换）
 │     PlainSaveHandler        明文直通
 │     AesEncryptedSaveHandler AES-256-CBC + HMAC（encrypt-then-MAC）+ PBKDF2
+├── 存储后端（[SerializeReference] 可切换，ISaveStorage + SaveStorageBackend）
+│     FileSaveStorageBackend  本地文件（临时文件 + Flush(true) + 原子替换，默认）
 ├── 序列化后端（ESaveBackend + ISaveSerializer + SaveSerializerRegistry）
 │     Json（内置，默认）/ MessagePack / MemoryPack / Protobuf / KeyValue（组件专用）
 ├── 多块容器（SaveFileContainer，手写二进制，块级 key/version/backend/bytes）
@@ -30,8 +32,9 @@ SaveService（静态外观，s_Handler null 时静默降级）
 
 - 文件头永远明文（不解密即可读保存时间）；CRC 防存储损坏、HMAC 防篡改（先验 MAC 后解密）
 - v1（28B 头单块旧格式）读取判别为 `UnsupportedVersion` 作废（项目未上线裁定，不做兼容读）
-- 原子写入：临时文件 `xxx.sav.tmp-{guid}` → `Flush(true)` → `File.Replace`；启动期后台清扫孤儿临时文件
-- 同文件写路径经串行信号量排队（防并发读-改-写丢块）
+- 原子写入：临时文件 `xxx.sav.tmp-{guid}` → `Flush(true)` → `File.Replace`（经 `FileSaveStorageBackend`）；启动期后台清扫孤儿临时文件
+- 同文件写路径经串行信号量排队（防并发读-改-写丢块）——串行门在 Handler 编排层，存储后端无感知
+- 存储层契约（`ISaveStorage`）：同步原语为契约核心（`Exists`/`TryReadAllBytes`/`WriteAtomic`/`DeleteFile`/`DeleteDirectory`/`EnumerateFiles`/`CreateBackup`/`RestoreBackup`），异步包装默认线程池卸载（真异步后端覆盖并声明 `Capabilities`）；读取错误分型返回、写入失败抛 `GameException`、删除幂等；实现必须纯 .NET（任意线程可调）
 
 ## 存档路径
 
@@ -114,6 +117,7 @@ public partial class Player : MonoBehaviour
 | 字段 | 说明 |
 |---|---|
 | `m_SaveServiceHandler` | 存储管线处理器（PlainSaveHandler / AesEncryptedSaveHandler） |
+| `m_StorageBackend` | 存储后端（IO 下沉目标，默认 FileSaveStorageBackend；置空回退文件后端；云存档等继承 `SaveStorageBackend` 接入） |
 | `m_DefaultBackend` | 默认序列化后端（未声明 `[SaveData]` 的块） |
 | `m_EncryptionKey` / `m_Pbkdf2Iterations` | 加密参数（**SECURITY: 上线前必须替换占位密钥**；派生密钥按实例缓存） |
 | `m_SaveFileExtension` | 存档文件扩展名（默认 `.sav`） |
@@ -124,4 +128,4 @@ MessagePack 3.1.8、protobuf-net 3.3.8（+Core 内嵌 BuildTools SG）、MemoryP
 
 ## 测试
 
-`Tests/EditorMode/Save/`：容器布局、组合器、Handler 管线（原子写/清扫/损坏分型/参数校验）、加密全链路、四后端往返、迁移级联、组件捕获器（生成代码）。
+`Tests/EditorMode/Save/`：容器布局、组合器、Handler 管线（原子写/清扫/损坏分型/参数校验）、存储后端契约（`FileSaveStorageBackendTests`：原子写/幂等删除/精确枚举/备份恢复/能力自描述）、加密全链路、四后端往返、迁移级联、组件捕获器（生成代码）。

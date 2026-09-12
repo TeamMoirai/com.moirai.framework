@@ -29,10 +29,11 @@ namespace Moirai.Atropos.Save
         }
 
         /// <summary>
-        /// 初始化时从 <see cref="SaveServiceSettings"/> 注入加密密钥与 PBKDF2 迭代次数。
+        /// 初始化时从 <see cref="SaveServiceSettings"/> 注入加密密钥与 PBKDF2 迭代次数（基类先行解析存储后端与孤儿临时文件清扫）。
         /// </summary>
         protected override void OnInit()
         {
+            base.OnInit();
             Encryptor.Key = SaveServiceSettings.EncryptionKey;
             Encryptor.Iterations = SaveServiceSettings.Pbkdf2Iterations;
         }
