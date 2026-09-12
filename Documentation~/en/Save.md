@@ -161,6 +161,50 @@ public partial class Player : MonoBehaviour
 
 MIRAI300 unsupported field type; MIRAI301 duplicate key; MIRAI302 migrator not registrable; MIRAI303 the containing type and every level of its nesting chain must be partial classes; MIRAI304 instance field required; MIRAI305 scene-reference needs SaveObjectIdentity guidance (Info); MIRAI306 reference declared as the UnityEngine.Object base type (Warning, field skipped); MIRAI307 invalid nested data type; MIRAI308 unsupported collection-element/map-key/value type. After editing generator sources (`SourceGenerators/Source~/SaveHost/`) rebuild `SourceGenerators/SaveHost.dll` with `dotnet build -c Release -t:Rebuild` (an incremental build can skip compilation and emit a broken skeleton DLL).
 
+### Built-in capturers (engine components)
+
+Engine components carry no `[SaveField]` annotations — the framework ships hand-written capturers whose field lists drive the Inspector checkbox view (shown automatically when a type has no [SaveField] fields):
+
+| Component | Fields | Notes |
+|---|---|---|
+| `Transform` | `localPosition` / `localRotation` / `localScale` | Local space — local coordinates stay correct after entity parent rewiring |
+| `Rigidbody` | `linearVelocity` / `angularVelocity` | Physics motion persistence; restore applies only to non-kinematic bodies (kinematic velocity is driven by animation/scripts) |
+| `ParticleSystem` | `time` | Playback progress; restore writes `ParticleSystem.time` directly (visible effect only while playing) |
+
+## Dynamic Entity Persistence (prefab diffing)
+
+Objects spawned from prefabs at runtime (monsters/drops/temporary structures) persist as a "spawn table + one diff block per entity":
+
+1. **Register prefabs**: create a `SavePrefabRegistry` SO (Create → Moirai → Save Prefab Registry) and register each persistable prefab with a **stable key** (the save-file reference — renaming breaks saves) and a **ResourceService location** (YooAsset address), then reference it in `m_PrefabRegistry` of the save settings.
+2. **Add a SaveComponent to the entity root** and check fields (include the built-in Transform capturer fields to persist position/rotation/scale).
+3. Game code replaces `Instantiate`/`Destroy` with the persistent spawn/destroy pair:
+
+```csharp
+// Spawn (registered in the session spawn table; inactive-staging trick — stable ID/block key injected before activation, Awake sees the final state)
+GameObject goblin = SaveService.InstantiatePersistent("goblin", pos, rot);
+// Destroy (dynamic entities leave the spawn table → their blocks are cleaned on next save; scene-preset objects join the destroyed table → destroyed on restore)
+SaveService.DestroyPersistent(goblin);
+// Save/restore (restore = DestroyUnwanted → SpawnMissing → parent wiring → RestoreAll → activate + EntityRestored event)
+await SaveService.SaveEntitiesAsync("slot1");
+await SaveService.RestoreEntitiesAsync("slot1");
+```
+
+- **Template diffing**: entity capture is compared field-by-field against the prefab template baseline (one baseline KVT cached per stable key per session) and **only fields changed relative to the template are written** (nested objects diff recursively; any collection change carries the whole record — element-level diffing is v2 scope); restore = instantiate (natural template defaults) + apply the diff, minimizing save growth. When the baseline is unavailable (prefab unregistered / no root SaveComponent) capture degrades to full writes.
+- **Block layout**: entity table = reserved `__entities` block (spawn records EntityId/PrefabKey/SceneName/ParentId + destroyed preset IDs); entity data = one `entity:{EntityId}` block per entity (the pipeline rewrites the entity component's block key before activation). **Component save/load APIs skip `entity:`-prefixed blocks** — full world save = `SaveEntitiesAsync` + `SaveComponentsAsync`, restore = `RestoreEntitiesAsync` + `LoadComponentsAsync` (entities first).
+- **CarryForward semantics**: saving only upserts active entities; blocks of unvisited scenes and failed spawns stay untouched; entities destroyed by bypassing `DestroyPersistent` (plain `Object.Destroy`) also keep their records and blocks (explicit destroy is required for removal). After a restore, the session spawn/destroy tables are replaced wholesale with the file state.
+- **Parenting and scene placement**: a spawn record's ParentId (the parent must carry a SaveObjectIdentity, otherwise the link is not persisted and a warning is logged) is wired in a dedicated second pass; when the recorded SceneName is loaded the entity lands there, otherwise it lands in the active scene with a warning. Stable-ID lookup goes through `SaveEntityRegistry` — two tables: scene scope (swept on scene unload) and global scope (DontDestroyOnLoad residents).
+- **Restore timing**: spawned entities stay inactive until their diff blocks have been written back — Awake/OnEnable see the final parent and restored field values (listen to `EntityRestored` or run logic after Start when post-restore state is required). An entity whose diff block is corrupted logs an error and restores to template defaults without blocking others.
+- **Degradation contract**: `InstantiatePersistent`/`DestroyPersistent` do not depend on the save handler (registry + resource service suffice); unregistered keys or load failures log an error and return `null`. `SaveEntitiesAsync`/`RestoreEntitiesAsync` silently degrade to completed tasks when the handler is not ready.
+- **No ID baking on prefab assets**: `SaveObjectIdentity.OnValidate` skips the prefab asset itself (an ID on the asset would be shared by every instance and inevitably collide); scene instances still bake individually, and dynamic entities receive a per-instance unique ID injected by the spawn pipeline before activation.
+
+| API (entity track) | Description |
+|---|---|
+| `InstantiatePersistent(prefabKey, position, rotation, parent)` | Spawn a persistent entity synchronously (template loaded via ResourceService; `null` on failure) |
+| `InstantiatePersistentAsync(prefabKey, position, rotation, parent, ct)` | Async spawn (`null` on cancellation/failure) |
+| `DestroyPersistent(target)` | Destroy with persistence semantics (dynamic entity removed from table / preset object marked destroyed / plain object just destroyed) |
+| `SaveEntitiesAsync(fileName, folderName, ct)` | Write the entity table and all active entity diff blocks (baseline warm-up → diff capture → stale-block cleanup → atomic merge; `GameException` on failure) |
+| `RestoreEntitiesAsync(fileName, folderName, ct)` | Rebuild all dynamic entities from the file state (DestroyUnwanted→SpawnMissing→RestoreAll; `EntityRestored` per entity) |
+
 ## Public API (static facade)
 
 ### Version migration
@@ -214,7 +258,7 @@ Static events (default zero-overhead channel) + `EventManager` bridge events (`S
 | `BlockSaved` / `BlockDeleted` | `SaveBlockChangedEvent` | Block save/delete completed (fileName+key+backend+size); idempotent no-op deletes never fire |
 | `SaveProgress` / `LoadProgress` | `SaveProgressEvent` | Component capture/restore reported in batches (every 8 + always the final one; `ShouldReportProgress`) |
 | `SaveFailed` / `LoadFailed` | `SaveFailedEvent` | Failures (`ESaveFailureStage` stage + `SaveError`); write failures also fail-fast with `GameException`; missing file/block (`FileNotFound`) never fires |
-| `EntityRestored` | `SaveEntityRestoredEvent` | Pre-defined; wired by dynamic entity persistence |
+| `EntityRestored` | `SaveEntityRestoredEvent` | Fired per entity by the `RestoreEntitiesAsync` pipeline (after activation; args = entity ID + prefab key + instance) |
 | `ScreenshotCaptured` | `SaveScreenshotEvent` | Pre-defined; wired by the screenshot pipeline |
 
 ## Configuration (SaveServiceSettings)
@@ -230,6 +274,7 @@ Static events (default zero-overhead channel) + `EventManager` bridge events (`S
 | `m_SaveFileExtension` | Save file extension (default `.sav`) |
 | `m_MigrationWriteBack` | Migration write-back (default on): lazily persists load-triggered migrations; when off, migration applies to in-memory data of that load only |
 | `m_AssetCatalog` | Asset reference catalog (SaveAssetCatalog SO): no-code asset reference fields resolve locations two-way through the catalog; empty = asset reference fields always capture Null |
+| `m_PrefabRegistry` | Prefab registry (SavePrefabRegistry SO): persistable dynamic entities (stable key → ResourceService location); empty = `InstantiatePersistent` unavailable and saved spawn records skip as unregistered |
 
 ## Dependencies
 
@@ -237,4 +282,4 @@ MessagePack 3.1.8, protobuf-net 3.3.8 (+Core with embedded BuildTools SG), Memor
 
 ## Tests
 
-`Tests/EditorMode/Save/`: container layout and v2 per-block validation (`SaveFileContainerTests`: round-trips/corrupted-block skip/structural prefix preservation/v1 hard-cut, `SaveContainerV2Tests`: partial recovery past a repatched header CRC/whole-file rejection/corrupted-block listing/write-back salvage), events API (`SaveEventTests`: trigger timing/count/args, failure-stage typing, background dispatch to main thread, progress batching), composer, handler pipeline (atomic writes/sweep/corruption classification/argument validation), storage backend contract (`FileSaveStorageBackendTests`: atomic writes/idempotent deletes/exact-filter listing/backup-restore/capabilities), compression transform chain (`SaveCompressionTests`: GZip round-trips/compress+encrypt combos/legacy uncompressed reads/header classification/registry), key providers (`SaveKeyProviderTests`: static equivalence/passphrase injection/HKDF per-user isolation), full crypto chain, four-backend round-trips, migration cascades, component capturers (generated code; `SaveCapturerV2Tests`: collection/nested/scene-reference/asset-reference full-matrix round-trips), migration bus (`SaveMigrationBusTests`: single/multi-step chains/missing-link/ambiguity/downgrade/Priority ordering/exception typing, JSON & KVT rename/retype, whole-block transform, write-back on/off, audit history, version stamping, write-time healing, explicit migration, component schema hook routing), serializer registry open registration (`SaveSerializerRegistryTests`: registration validation/duplicate fail-fast/reserved backend/unregister), KVT element-level records (`SaveKeyValueElementTests`: sequence/map/nested-element round-trips, null elements, type-mismatch cursor alignment, buffer-boundary regression), scene object identity (`SaveObjectIdentityTests`: register/unregister/empty-ID rejection/duplicate-ID first-wins/destroy-invalidation/Resolve), asset reference catalog (`SaveAssetCatalogTests`: two-way lookup/type mismatch/duplicate first-wins/editor-time cache invalidation).
+`Tests/EditorMode/Save/`: container layout and v2 per-block validation (`SaveFileContainerTests`: round-trips/corrupted-block skip/structural prefix preservation/v1 hard-cut, `SaveContainerV2Tests`: partial recovery past a repatched header CRC/whole-file rejection/corrupted-block listing/write-back salvage), events API (`SaveEventTests`: trigger timing/count/args, failure-stage typing, background dispatch to main thread, progress batching), composer, handler pipeline (atomic writes/sweep/corruption classification/argument validation), storage backend contract (`FileSaveStorageBackendTests`: atomic writes/idempotent deletes/exact-filter listing/backup-restore/capabilities), compression transform chain (`SaveCompressionTests`: GZip round-trips/compress+encrypt combos/legacy uncompressed reads/header classification/registry), key providers (`SaveKeyProviderTests`: static equivalence/passphrase injection/HKDF per-user isolation), full crypto chain, four-backend round-trips, migration cascades, component capturers (generated code; `SaveCapturerV2Tests`: collection/nested/scene-reference/asset-reference full-matrix round-trips), migration bus (`SaveMigrationBusTests`: single/multi-step chains/missing-link/ambiguity/downgrade/Priority ordering/exception typing, JSON & KVT rename/retype, whole-block transform, write-back on/off, audit history, version stamping, write-time healing, explicit migration, component schema hook routing), serializer registry open registration (`SaveSerializerRegistryTests`: registration validation/duplicate fail-fast/reserved backend/unregister), KVT element-level records (`SaveKeyValueElementTests`: sequence/map/nested-element round-trips, null elements, type-mismatch cursor alignment, buffer-boundary regression), scene object identity (`SaveObjectIdentityTests`: register/unregister/empty-ID rejection/duplicate-ID first-wins/destroy-invalidation/Resolve), asset reference catalog (`SaveAssetCatalogTests`: two-way lookup/type mismatch/duplicate first-wins/editor-time cache invalidation), KVT template diffing (`SaveKvDifferTests`: scalar/nested/collection/new-record/type-drift/always-pass-through/size shrink/corruption), entity table IO (`SaveEntityTableTests`: round-trips/empty tables/nullable fields/unknown-record tolerance), dynamic entity loop (`SaveEntityPersistenceTests`: ID injection/diff content & size/destroy markers/parent rewiring/restore round-trip/EntityRestored event/stale & orphan block cleanup/load-failure degradation), built-in capturers (`SaveBuiltInCapturerTests`: Transform TRS/Rigidbody velocities & kinematic skip/ParticleSystem time/mask disabling).

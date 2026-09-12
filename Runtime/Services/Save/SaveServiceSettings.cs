@@ -46,6 +46,9 @@ namespace Moirai.Atropos.Save
         [Tooltip("资产引用目录：无代码保存的资产引用字段（Texture/SO/Material 等）按目录双向解析定位串——被引用资产须登记入册，空 = 资产引用字段捕获恒写 Null。")]
         [SerializeField] private SaveAssetCatalog m_AssetCatalog;
 
+        [Tooltip("预制体注册表：可持久化动态实体的预制体登记（稳定键 → ResourceService 定位串）。空 = InstantiatePersistent 不可用、实体生成记录恢复时按未登记键跳过。")]
+        [SerializeField] private SavePrefabRegistry m_PrefabRegistry;
+
         private bool IsEncryptedHandler => m_SaveServiceHandler is AesEncryptedSaveHandler;
 
         /// <summary>旧版静态密钥字段可见性（配置自定义密钥提供方后隐藏——密钥来源以提供方为准）。</summary>
@@ -102,6 +105,11 @@ namespace Moirai.Atropos.Save
         /// </summary>
         public static SaveAssetCatalog AssetCatalog => Instance.m_AssetCatalog;
 
+        /// <summary>
+        /// 预制体注册表（由 Inspector 序列化配置；<c>null</c> = 动态实体持久化不可用）。
+        /// </summary>
+        public static SavePrefabRegistry PrefabRegistry => Instance.m_PrefabRegistry;
+
         private void Reset()
         {
             m_SaveServiceHandler = new PlainSaveHandler();
@@ -113,6 +121,7 @@ namespace Moirai.Atropos.Save
             m_SaveFileExtension = ".sav";
             m_MigrationWriteBack = true;
             m_AssetCatalog = null;
+            m_PrefabRegistry = null;
         }
     }
 }

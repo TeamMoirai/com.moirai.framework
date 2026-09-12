@@ -161,6 +161,50 @@ public partial class Player : MonoBehaviour
 
 MIRAI300 字段类型不支持；MIRAI301 存档键重复；MIRAI302 迁移器无法自注册；MIRAI303 所在类型及其嵌套外层链须均为 partial class；MIRAI304 需实例字段；MIRAI305 场景引用需 SaveObjectIdentity 指引（Info）；MIRAI306 引用类型声明为 UnityEngine.Object 基类（Warning，字段跳过）；MIRAI307 嵌套数据类型无效；MIRAI308 集合元素/映射键值类型不支持。修改生成器源码（`SourceGenerators/Source~/SaveHost/`）后必须 `dotnet build -c Release -t:Rebuild` 强制全量重建 `SourceGenerators/SaveHost.dll`（增量构建在输入缓存未过期时会跳过编译产出残缺 DLL）。
 
+### 内置捕获器（引擎组件）
+
+引擎组件无 `[SaveField]` 标注——框架内置手写捕获器，勾选清单来自捕获器字段表（Inspector 无 [SaveField] 字段时自动回退展示）：
+
+| 组件 | 字段 | 说明 |
+|---|---|---|
+| `Transform` | `localPosition` / `localRotation` / `localScale` | 局部空间——实体父子接线后局部坐标天然正确 |
+| `Rigidbody` | `linearVelocity` / `angularVelocity` | 物理运动态持久化；恢复仅作用于非运动学刚体（运动学速度由动画/脚本驱动，写回无物理意义） |
+| `ParticleSystem` | `time` | 粒子播放进度；恢复直接写 `ParticleSystem.time`，播放态时方有视觉效果 |
+
+## 动态实体持久化（预制体差分）
+
+运行期经预制体生成的物体（怪物/掉落物/临时建筑等）按「生成表 + 每实体差分块」持久化：
+
+1. **登记预制体**：创建 `SavePrefabRegistry` SO（Create → Moirai → Save Prefab Registry），为每个可持久化预制体登记**稳定键**（存档内引用标识，改名即毁档）与 **ResourceService 定位串**（YooAsset 地址），并在存档设置 `m_PrefabRegistry` 引用。
+2. **实体根挂 SaveComponent 并勾选字段**（含 Transform 内置捕获器字段以持久化位置/旋转/缩放）。
+3. 游戏代码用持久化生成/销毁对替代 `Instantiate`/`Destroy`：
+
+```csharp
+// 生成（登记进会话生成表；未激活临时父技巧——先注入稳定 ID/块键，就位后激活，Awake 即见最终状态）
+GameObject goblin = SaveService.InstantiatePersistent("goblin", pos, rot);
+// 销毁（动态实体移出生成表→数据块下次保存时清理；场景预置对象记入销毁表→恢复时销毁）
+SaveService.DestroyPersistent(goblin);
+// 保存/恢复（恢复 = DestroyUnwanted → SpawnMissing → 父子接线 → RestoreAll → 激活 + EntityRestored 事件）
+await SaveService.SaveEntitiesAsync("slot1");
+await SaveService.RestoreEntitiesAsync("slot1");
+```
+
+- **模板差分**：实体捕获与预制体模板基准（每稳定键会话级缓存一份基准 KVT）逐字段比对，**只写相对模板的变动字段**（嵌套对象递归差分；集合任一变动整条携带，元素级差分为 v2 范围）；恢复 = 实例化（天然模板默认值）+ 应用差分，存档增量最小化。基准不可用（预制体未登记/无根 SaveComponent）时退化为全量写入。
+- **块布局**：实体表 = 保留块 `__entities`（生成记录 EntityId/PrefabKey/SceneName/ParentId + 预置对象销毁 ID）；实体数据 = 每实体一个 `entity:{EntityId}` 块（实体组件块键由管线在激活前改写）。**组件存取 API 跳过 `entity:` 前缀块**——完整世界存取 = `SaveEntitiesAsync` + `SaveComponentsAsync`，恢复 = `RestoreEntitiesAsync` + `LoadComponentsAsync`（顺序：先实体后组件）。
+- **CarryForward 语义**：保存仅 upsert 活跃实体，未访问场景与生成失败实体的块原样滞留；绕过 `DestroyPersistent` 直接 `Object.Destroy` 的实体，其记录与块同样滞留（须走显式销毁移除）。恢复后会话生成/销毁表以档案状态整体替换。
+- **父子与场景落位**：生成记录的 ParentId（父级须挂 SaveObjectIdentity，否则父子关系不持久化并记告警）在恢复第二轮接线；SceneName 场景已加载则落位其中，否则落位活跃场景并记告警。稳定 ID 查询走 `SaveEntityRegistry`——场景作用域表（场景卸载清扫）+ 全局作用域表（DontDestroyOnLoad 对象常驻）双表。
+- **恢复时序**：生成保持未激活直到差分块写回完成——Awake/OnEnable 即见最终父级与恢复后字段值（游戏逻辑须读档后状态时监听 `EntityRestored` 事件或在 Start 之后）。差分块损坏的实体记错误日志并按模板默认恢复（不阻断其它实体）。
+- **降级契约**：`InstantiatePersistent`/`DestroyPersistent` 不依赖存档处理器（注册表与资源服务可用即可），预制体键未登记/加载失败记错误日志返回 `null`；`SaveEntitiesAsync`/`RestoreEntitiesAsync` 在处理器未就绪时静默降级为空任务。
+- **预制体资产不烘焙 ID**：`SaveObjectIdentity.OnValidate` 跳过预制体资产本体（资产上的 ID 会被全部实例共享而必然撞键）；场景内实例仍各自烘焙，动态实体由生成管线在激活前注入每实例唯一 ID。
+
+| API（实体分部） | 说明 |
+|---|---|
+| `InstantiatePersistent(prefabKey, position, rotation, parent)` | 同步生成持久化实体（模板经 ResourceService 加载；失败返回 `null`） |
+| `InstantiatePersistentAsync(prefabKey, position, rotation, parent, ct)` | 异步生成（取消时返回 `null`） |
+| `DestroyPersistent(target)` | 销毁并登记语义（动态实体移表 / 预置对象记销毁表 / 无身份物体仅销毁） |
+| `SaveEntitiesAsync(fileName, folderName, ct)` | 写入实体表与全部活跃实体差分块（预热基准→差分捕获→清理陈旧块→原子合并；失败抛 `GameException`） |
+| `RestoreEntitiesAsync(fileName, folderName, ct)` | 按档案状态整体重建实体（DestroyUnwanted→SpawnMissing→RestoreAll；逐只触发 `EntityRestored`） |
+
 ## 公共 API（静态外观）
 
 ### 版本迁移
@@ -214,7 +258,7 @@ MIRAI300 字段类型不支持；MIRAI301 存档键重复；MIRAI302 迁移器�
 | `BlockSaved` / `BlockDeleted` | `SaveBlockChangedEvent` | 块保存/删除完成（fileName+key+后端+字节数）；幂等空删不触发 |
 | `SaveProgress` / `LoadProgress` | `SaveProgressEvent` | 组件存取按批回报（每 8 个一批 + 最终必报；`ShouldReportProgress`） |
 | `SaveFailed` / `LoadFailed` | `SaveFailedEvent` | 失败（`ESaveFailureStage` 阶段 + `SaveError`）；写路径同时 fail-fast 上抛 `GameException`；缺档/无块（FileNotFound）不触发 |
-| `EntityRestored` | `SaveEntityRestoredEvent` | 先行定义，动态实体持久化接线 |
+| `EntityRestored` | `SaveEntityRestoredEvent` | `RestoreEntitiesAsync` 恢复管线逐只实体触发（激活后；参数 = 实体 ID + 预制体键 + 实例） |
 | `ScreenshotCaptured` | `SaveScreenshotEvent` | 先行定义，截图管线接线 |
 
 ## 配置（SaveServiceSettings）
@@ -230,6 +274,7 @@ MIRAI300 字段类型不支持；MIRAI301 存档键重复；MIRAI302 迁移器�
 | `m_SaveFileExtension` | 存档文件扩展名（默认 `.sav`） |
 | `m_MigrationWriteBack` | 迁移回写（默认开）：加载触发迁移成功后惰性回写存档；关闭则迁移仅作用于当次加载的内存数据 |
 | `m_AssetCatalog` | 资产引用目录（SaveAssetCatalog SO）：无代码保存的资产引用字段经目录双向解析定位串；空 = 资产引用字段捕获恒写 Null |
+| `m_PrefabRegistry` | 预制体注册表（SavePrefabRegistry SO）：可持久化动态实体登记（稳定键 → ResourceService 定位串）；空 = `InstantiatePersistent` 不可用、实体生成记录恢复按未登记键跳过 |
 
 ## 依赖
 
@@ -237,4 +282,4 @@ MessagePack 3.1.8、protobuf-net 3.3.8（+Core 内嵌 BuildTools SG）、MemoryP
 
 ## 测试
 
-`Tests/EditorMode/Save/`：容器布局与 v2 逐块校验（`SaveFileContainerTests`：往返/坏块跳过/结构性前缀保留/v1 硬切、`SaveContainerV2Tests`：头 CRC 重算放行的部分恢复/整档拒绝/坏块列报/写回收留）、事件 API（`SaveEventTests`：触发时机/次数/参数、失败阶段分型、后台派发主线程化、进度批次）、组合器、Handler 管线（原子写/清扫/损坏分型/参数校验）、存储后端契约（`FileSaveStorageBackendTests`：原子写/幂等删除/精确枚举/备份恢复/能力自描述）、压缩转换链（`SaveCompressionTests`：GZip 往返/压加组合/旧档兼容读/头部分型/注册表）、密钥提供方（`SaveKeyProviderTests`：静态等价/口令注入/HKDF 按用户隔离）、加密全链路、四后端往返、迁移级联、组件捕获器（生成代码；`SaveCapturerV2Tests`：集合/嵌套/场景引用/资产引用全矩阵往返）、迁移总线（`SaveMigrationBusTests`：版本链单步/多步/缺链/歧义/降级/Priority 序/异常归一、JSON 与 KVT 改名改型、整块变换、回写开关、审计历史、版本盖章、写入自愈、显式迁移、组件模式钩子路由）、序列化注册表开放注册（`SaveSerializerRegistryTests`：注册校验/重复 fail-fast/保留标识/注销）、KVT 元素级记录（`SaveKeyValueElementTests`：序列/映射/嵌套元素往返、null 元素、类型不符游标对齐、缓冲区边界回归）、场景对象身份（`SaveObjectIdentityTests`：注册/注销/空 ID 拒注册/重复 ID 首到先得/销毁失效/Resolve）、资产引用目录（`SaveAssetCatalogTests`：双向查找/类型不符/重复首到先得/编辑器期缓存失效）。
+`Tests/EditorMode/Save/`：容器布局与 v2 逐块校验（`SaveFileContainerTests`：往返/坏块跳过/结构性前缀保留/v1 硬切、`SaveContainerV2Tests`：头 CRC 重算放行的部分恢复/整档拒绝/坏块列报/写回收留）、事件 API（`SaveEventTests`：触发时机/次数/参数、失败阶段分型、后台派发主线程化、进度批次）、组合器、Handler 管线（原子写/清扫/损坏分型/参数校验）、存储后端契约（`FileSaveStorageBackendTests`：原子写/幂等删除/精确枚举/备份恢复/能力自描述）、压缩转换链（`SaveCompressionTests`：GZip 往返/压加组合/旧档兼容读/头部分型/注册表）、密钥提供方（`SaveKeyProviderTests`：静态等价/口令注入/HKDF 按用户隔离）、加密全链路、四后端往返、迁移级联、组件捕获器（生成代码；`SaveCapturerV2Tests`：集合/嵌套/场景引用/资产引用全矩阵往返）、迁移总线（`SaveMigrationBusTests`：版本链单步/多步/缺链/歧义/降级/Priority 序/异常归一、JSON 与 KVT 改名改型、整块变换、回写开关、审计历史、版本盖章、写入自愈、显式迁移、组件模式钩子路由）、序列化注册表开放注册（`SaveSerializerRegistryTests`：注册校验/重复 fail-fast/保留标识/注销）、KVT 元素级记录（`SaveKeyValueElementTests`：序列/映射/嵌套元素往返、null 元素、类型不符游标对齐、缓冲区边界回归）、场景对象身份（`SaveObjectIdentityTests`：注册/注销/空 ID 拒注册/重复 ID 首到先得/销毁失效/Resolve）、资产引用目录（`SaveAssetCatalogTests`：双向查找/类型不符/重复首到先得/编辑器期缓存失效）、KVT 模板差分（`SaveKvDifferTests`：标量/嵌套/集合/新增/类型漂移/恒透传/体积收缩/坏档）、实体表读写（`SaveEntityTableTests`：往返/空表/可空字段/未知记录容错）、动态实体闭环（`SaveEntityPersistenceTests`：注入 ID/差分内容与体积/销毁标记/父子接线/恢复往返/EntityRestored 事件/陈旧与孤儿块清理/加载失败降级）、内置捕获器（`SaveBuiltInCapturerTests`：Transform 三字段/Rigidbody 速度与运动学跳过/ParticleSystem 时间/掩码禁用）。
