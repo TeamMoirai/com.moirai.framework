@@ -119,6 +119,19 @@ public partial class Player : MonoBehaviour
 
 写/删除 no-op；读返回 default；`TryLoad*` 返回 `Failure(HandlerNotReady)`；枚举返回空数组。
 
+### 事件（SaveService.Events）
+
+静态事件（默认零开销通道）+ `EventManager` 桥事件（`SaveSlotChangedEvent` 等，订阅侧二选一）。全部主线程派发：主线程操作内联，异步操作工作线程完成后经 `MainThreadDispatcher` 入队。`OnShutdown` 不清理订阅者——订阅方自行退订。参数均为只读值类型（≤32B）。
+
+| 静态事件 | 桥事件 | 时机 |
+|---|---|---|
+| `SlotChanged` | `SaveSlotChangedEvent` | 槽位写入（`Saved` 创建/更新合并语义）/删除/备份创建/备份恢复；目录级批量删除 `FileName` 为 null |
+| `BlockSaved` / `BlockDeleted` | `SaveBlockChangedEvent` | 块保存/删除完成（fileName+key+后端+字节数）；幂等空删不触发 |
+| `SaveProgress` / `LoadProgress` | `SaveProgressEvent` | 组件存取按批回报（每 8 个一批 + 最终必报；`ShouldReportProgress`） |
+| `SaveFailed` / `LoadFailed` | `SaveFailedEvent` | 失败（`ESaveFailureStage` 阶段 + `SaveError`）；写路径同时 fail-fast 上抛 `GameException`；缺档/无块（FileNotFound）不触发 |
+| `EntityRestored` | `SaveEntityRestoredEvent` | 先行定义，动态实体持久化接线 |
+| `ScreenshotCaptured` | `SaveScreenshotEvent` | 先行定义，截图管线接线 |
+
 ## 配置（SaveServiceSettings）
 
 | 字段 | 说明 |
@@ -137,4 +150,4 @@ MessagePack 3.1.8、protobuf-net 3.3.8（+Core 内嵌 BuildTools SG）、MemoryP
 
 ## 测试
 
-`Tests/EditorMode/Save/`：容器布局与 v2 逐块校验（`SaveFileContainerTests`：往返/坏块跳过/结构性前缀保留/v1 硬切、`SaveContainerV2Tests`：头 CRC 重算放行的部分恢复/整档拒绝/坏块列报/写回收留）、组合器、Handler 管线（原子写/清扫/损坏分型/参数校验）、存储后端契约（`FileSaveStorageBackendTests`：原子写/幂等删除/精确枚举/备份恢复/能力自描述）、压缩转换链（`SaveCompressionTests`：GZip 往返/压加组合/旧档兼容读/头部分型/注册表）、密钥提供方（`SaveKeyProviderTests`：静态等价/口令注入/HKDF 按用户隔离）、加密全链路、四后端往返、迁移级联、组件捕获器（生成代码）。
+`Tests/EditorMode/Save/`：容器布局与 v2 逐块校验（`SaveFileContainerTests`：往返/坏块跳过/结构性前缀保留/v1 硬切、`SaveContainerV2Tests`：头 CRC 重算放行的部分恢复/整档拒绝/坏块列报/写回收留）、事件 API（`SaveEventTests`：触发时机/次数/参数、失败阶段分型、后台派发主线程化、进度批次）、组合器、Handler 管线（原子写/清扫/损坏分型/参数校验）、存储后端契约（`FileSaveStorageBackendTests`：原子写/幂等删除/精确枚举/备份恢复/能力自描述）、压缩转换链（`SaveCompressionTests`：GZip 往返/压加组合/旧档兼容读/头部分型/注册表）、密钥提供方（`SaveKeyProviderTests`：静态等价/口令注入/HKDF 按用户隔离）、加密全链路、四后端往返、迁移级联、组件捕获器（生成代码）。
