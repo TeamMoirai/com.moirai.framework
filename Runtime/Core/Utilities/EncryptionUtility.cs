@@ -117,7 +117,7 @@ namespace Moirai.Atropos
             }
 
             int codeIndex = startIndex % codeLength;
-            for (int i = startIndex; i < length; i++)
+            for (int i = startIndex; i < startIndex + length; i++)
             {
                 bytes[i] ^= code[codeIndex++];
                 codeIndex %= codeLength;
@@ -224,6 +224,7 @@ namespace Moirai.Atropos
             MD5 md5 = MD5.Create();
             byte[] cryptBytes = md5.ComputeHash(md5Bytes);
             int length = cryptBytes.Length;
+            stringBuilderCache.Clear();
             for (int i = 0; i < length; i++)
             {
                 //X大写的16进制，x小写
