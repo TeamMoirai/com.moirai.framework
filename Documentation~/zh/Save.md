@@ -29,11 +29,13 @@ SaveService（静态外观，s_Handler null 时静默降级）
 [32B 明文头 "MRSA"][载荷]
 头：[4B 魔数][4B 格式版本=2][8B UTC ticks][4B 载荷长][4B 载荷 CRC32][4B 压缩提供方 ID][4B 标志]
 载荷 = Compress?(Container)；加密处理器下再包 [16B IV][AES-256-CBC][32B HMAC]
-容器：[4B 魔数 "MRSB"][4B 容器版本][4B 块数]
-      逐块 [4B 键字节长][键 UTF8][4B 模式版本][2B 后端][4B 载荷长][载荷]
+容器：[4B 魔数 "MRSB"][4B 容器版本=2][4B 块数]
+      逐块 [4B 键字节长][键 UTF8][4B 模式版本][2B 后端][4B 载荷长][4B 载荷 CRC32][载荷]
 ```
 
-- 文件头永远明文（不解密即可读保存时间）；CRC 防存储损坏、HMAC 防篡改（先验 MAC 后解密）
+- 文件头永远明文（不解密即可读保存时间）；头 CRC 防整档存储损坏、HMAC 防篡改（先验 MAC 后解密）
+- 容器 v2 逐块 CRC32 自校验（头 CRC 放行后的第二道隔离层）：载荷校验不符的坏块跳过并记告警日志，其余健康块照常可救（**部分恢复**）；块框架（长度/键字段）越界的结构性损坏因后续块边界不可知，保留已解析前缀后终止。`TryLoadBlock` 对坏块键返回 `Corrupted`（区别于真无块的 `FileNotFound`）；坏块在下次写回时自然剔除（健康块保留）
+- 容器 v1 旧档硬切作废：读取判别为 `UnsupportedVersion`，不做双格式兼容读
 - 转换链顺序固定：序列化 → **压缩（可选，加密前）** → 加密 → CRC；读侧反向（解密 → 按文件头 ID 查注册表解压）——未压缩旧档原样透传（魔数/flags sniff 幂等，新旧档共存）
 - 文件头 offset 24-27 为压缩提供方 ID（0 = 未压缩）；未知 ID 判别为 `UnsupportedVersion`，标志位与 ID 不一致判别为 `Corrupted`
 - 密钥来源（`ISaveKeyProvider`）：静态口令 PBKDF2（`StaticSaveKeyProvider`，默认，与 V2 逐参一致）/ 运行期口令注入（`PassphraseSaveKeyProvider`，口令仅内存不落盘，未注入时读 `InvalidArgument`、写 fail-fast）/ HKDF-SHA256 按用户派生（`HkdfPerUserSaveKeyProvider`，多账号存档互相不可读）
@@ -96,7 +98,7 @@ public partial class Player : MonoBehaviour
 | `LoadBlockAsync<T>(fileName, key, folderName, ct)` | 读块，失败返回 default |
 | `TryLoadBlockAsync<T>(...)` → `SaveResult<T>` | 错误判别（FileNotFound/Corrupted/IntegrityCheckFailed/UnsupportedVersion…） |
 | `DeleteBlockAsync(fileName, key, folderName, ct)` | 删块（最后一块删除时整档移除） |
-| `GetBlockInfos(fileName, folderName)` | 块元信息枚举（键/版本/后端/大小） |
+| `GetBlockInfos(fileName, folderName)` | 块元信息枚举（键/版本/后端/大小/逐块错误分型；坏块列入，`Error != None` 时框架字段仅 `HasMetadata` 为真可信） |
 | 同步对 `SaveBlock` / `LoadBlock` / `TryLoadBlock` / `DeleteBlock` | 主线程阻塞版（退出前落盘等场景） |
 
 ### 兼容（旧单对象 API，映射保留块 `__main__`）
@@ -135,4 +137,4 @@ MessagePack 3.1.8、protobuf-net 3.3.8（+Core 内嵌 BuildTools SG）、MemoryP
 
 ## 测试
 
-`Tests/EditorMode/Save/`：容器布局、组合器、Handler 管线（原子写/清扫/损坏分型/参数校验）、存储后端契约（`FileSaveStorageBackendTests`：原子写/幂等删除/精确枚举/备份恢复/能力自描述）、压缩转换链（`SaveCompressionTests`：GZip 往返/压加组合/旧档兼容读/头部分型/注册表）、密钥提供方（`SaveKeyProviderTests`：静态等价/口令注入/HKDF 按用户隔离）、加密全链路、四后端往返、迁移级联、组件捕获器（生成代码）。
+`Tests/EditorMode/Save/`：容器布局与 v2 逐块校验（`SaveFileContainerTests`：往返/坏块跳过/结构性前缀保留/v1 硬切、`SaveContainerV2Tests`：头 CRC 重算放行的部分恢复/整档拒绝/坏块列报/写回收留）、组合器、Handler 管线（原子写/清扫/损坏分型/参数校验）、存储后端契约（`FileSaveStorageBackendTests`：原子写/幂等删除/精确枚举/备份恢复/能力自描述）、压缩转换链（`SaveCompressionTests`：GZip 往返/压加组合/旧档兼容读/头部分型/注册表）、密钥提供方（`SaveKeyProviderTests`：静态等价/口令注入/HKDF 按用户隔离）、加密全链路、四后端往返、迁移级联、组件捕获器（生成代码）。
