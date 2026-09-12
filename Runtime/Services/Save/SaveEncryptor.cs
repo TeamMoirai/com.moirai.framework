@@ -48,19 +48,37 @@ namespace Moirai.Atropos.Save
         /// </summary>
         public virtual int Iterations { get; set; } = DefaultIterations;
 
-        /// <summary>派生密钥缓存（同参数重复加解密时跳过 PBKDF2 重派生——每次派生为 10 万次迭代级开销）。</summary>
-        [NonSerialized] private byte[] _cachedDerivedKeys;
+        /// <summary>派生密钥材料快照（口令/盐/迭代次数 + 派生结果的不可变整体，原子读避免字段组撕裂）。</summary>
+        private sealed class DerivedKeySnapshot
+        {
+            internal readonly string Key;
+            internal readonly string Salt;
+            internal readonly int Iterations;
+            internal readonly byte[] DerivedKeys;
 
-        /// <summary>派生密钥缓存对应的口令。</summary>
-        [NonSerialized] private string _cachedKey;
+            internal DerivedKeySnapshot(string key, string salt, int iterations, byte[] derivedKeys)
+            {
+                Key = key;
+                Salt = salt;
+                Iterations = iterations;
+                DerivedKeys = derivedKeys;
+            }
 
-        /// <summary>派生密钥缓存对应的盐文。</summary>
-        [NonSerialized] private string _cachedSalt;
+            /// <summary>
+            /// 判断快照是否匹配当前派生参数。
+            /// </summary>
+            internal bool Matches(string key, string salt, int iterations)
+            {
+                return Iterations == iterations
+                    && string.Equals(Key, key, StringComparison.Ordinal)
+                    && string.Equals(Salt, salt, StringComparison.Ordinal);
+            }
+        }
 
-        /// <summary>派生密钥缓存对应的迭代次数。</summary>
-        [NonSerialized] private int _cachedIterations;
+        /// <summary>派生密钥缓存（同参数重复加解密时跳过 PBKDF2 重派生——每次派生为 10 万次迭代级开销；整体替换原子读）。</summary>
+        [NonSerialized] private volatile DerivedKeySnapshot _derivedKeyCache;
 
-        /// <summary>派生密钥缓存访问锁（并发加解密不同文件时保护缓存字段；锁开销相对 PBKDF2 派生可忽略）。</summary>
+        /// <summary>缓存安装锁（仅保护「查缓存 → 安装」竞态；PBKDF2 派生本体在锁外执行，不阻塞并发存档 IO 线程）。</summary>
         [NonSerialized] private readonly object _deriveLock = new object();
 
         #region 公共流式 API [PUBLIC STREAM API]
@@ -218,32 +236,36 @@ namespace Moirai.Atropos.Save
 
         /// <summary>
         /// PBKDF2-SHA256 派生 64 字节密钥材料（前 32B 加密密钥、后 32B MAC 密钥）。
-        /// <para>同（口令, 盐文, 迭代次数）组合命中实例缓存时直接复用；缓存判读与重派生在锁内串行——
-        /// 并发派生同一参数结果幂等，锁仅消除缓存字段读写竞争。</para>
+        /// <para>同（口令, 盐文, 迭代次数）组合命中实例缓存时无锁复用；未命中时派生本体在锁外执行（10 万迭代级开销不阻塞并发线程），
+        /// 安装阶段才取锁二次判读——并发同参派生结果幂等，后到者覆盖安装等值结果。</para>
         /// </summary>
         /// <param name="sKey">口令。</param>
         /// <returns>密钥材料。</returns>
         private byte[] DeriveKeys(string sKey)
         {
+            DerivedKeySnapshot snapshot = _derivedKeyCache;
+            if (snapshot != null && snapshot.Matches(sKey, Salt, Iterations))
+            {
+                return snapshot.DerivedKeys;
+            }
+
+            // 锁外派生：并发同参各自派生等值结果，安装时先到先得
+            byte[] derivedKeys;
+            using (Rfc2898DeriveBytes algorithm = new Rfc2898DeriveBytes(sKey, Encoding.UTF8.GetBytes(Salt), Iterations, HashAlgorithmName.SHA256))
+            {
+                derivedKeys = algorithm.GetBytes(EncryptionKeySize + MacSize);
+            }
+
             lock (_deriveLock)
             {
-                if (_cachedDerivedKeys != null
-                    && _cachedIterations == Iterations
-                    && string.Equals(_cachedKey, sKey, StringComparison.Ordinal)
-                    && string.Equals(_cachedSalt, Salt, StringComparison.Ordinal))
+                snapshot = _derivedKeyCache;
+                if (snapshot != null && snapshot.Matches(sKey, Salt, Iterations))
                 {
-                    return _cachedDerivedKeys;
+                    return snapshot.DerivedKeys;
                 }
 
-                using (Rfc2898DeriveBytes algorithm = new Rfc2898DeriveBytes(sKey, Encoding.UTF8.GetBytes(Salt), Iterations, HashAlgorithmName.SHA256))
-                {
-                    _cachedDerivedKeys = algorithm.GetBytes(EncryptionKeySize + MacSize);
-                }
-
-                _cachedKey = sKey;
-                _cachedSalt = Salt;
-                _cachedIterations = Iterations;
-                return _cachedDerivedKeys;
+                _derivedKeyCache = new DerivedKeySnapshot(sKey, Salt, Iterations, derivedKeys);
+                return derivedKeys;
             }
         }
 

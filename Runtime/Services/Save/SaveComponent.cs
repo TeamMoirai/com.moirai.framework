@@ -155,12 +155,91 @@ namespace Moirai.Atropos.Save
 
         /// <summary>
         /// 拼装物体层级路径（场景根到本物体的名称链）。
+        /// <para>同场景同名兄弟物体以兄弟索引消歧（「Name」或「Name[N]」，N 为 <see cref="Transform.GetSiblingIndex"/> 中同名次序）。</para>
         /// </summary>
-        private string TransformPath()
+        internal string TransformPath()
         {
-            return transform.parent == null
-                ? name
-                : transform.parent.name + "/" + name;
+            // 一次上行收集链段，再反向追加写出，避免逐级字符串重分配。
+            Transform current = transform;
+            int depth = 0;
+            for (Transform t = current; t != null; t = t.parent)
+            {
+                depth++;
+            }
+
+            var segments = new string[depth];
+            for (int i = depth - 1; i >= 0; i--)
+            {
+                segments[i] = DisambiguatedName(current);
+                current = current.parent;
+            }
+
+            return string.Join("/", segments);
+        }
+
+        /// <summary>
+        /// 生成同级消歧名：无同名兄弟（或同名根）用裸名；否则追加「[N]」序号（N = 自身在同名序列中的次序，从 0 起）。
+        /// </summary>
+        /// <param name="target">目标变换组件。</param>
+        private static string DisambiguatedName(Transform target)
+        {
+            Transform parent = target.parent;
+            if (parent == null)
+            {
+                return DisambiguateSceneRoot(target);
+            }
+
+            int ordinal = 0;
+            int total = 0;
+            int selfIndex = target.GetSiblingIndex();
+            for (int i = 0; i < parent.childCount; i++)
+            {
+                if (!string.Equals(parent.GetChild(i).name, target.name, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                if (i < selfIndex)
+                {
+                    ordinal++;
+                }
+
+                total++;
+            }
+
+            return total <= 1
+                ? target.name
+                : StringUtility.Format("{0}[{1}]", target.name, ordinal);
+        }
+
+        /// <summary>
+        /// 场景根物体消歧：按同名根的层级次序追加序号（根无父级，兄弟索引语义由场景根序承担）。
+        /// </summary>
+        /// <param name="target">根变换组件。</param>
+        private static string DisambiguateSceneRoot(Transform target)
+        {
+            var roots = new List<GameObject>(target.gameObject.scene.rootCount);
+            target.gameObject.scene.GetRootGameObjects(roots);
+            int ordinal = 0;
+            int total = 0;
+            for (int i = 0; i < roots.Count; i++)
+            {
+                if (!string.Equals(roots[i].name, target.name, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                if (roots[i].transform == target)
+                {
+                    ordinal = total;
+                }
+
+                total++;
+            }
+
+            return total <= 1
+                ? target.name
+                : StringUtility.Format("{0}[{1}]", target.name, ordinal);
         }
     }
 
