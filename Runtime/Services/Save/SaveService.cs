@@ -271,7 +271,7 @@ namespace Moirai.Atropos.Save
                 return UniTask.CompletedTask;
             }
 
-            List<SaveBlockEntry> entries = CaptureComponentsToEntries();
+            List<SaveBlockEntry> entries = CaptureComponentsToEntries(fileName, folderName);
             if (entries.Count == 0)
             {
                 return UniTask.CompletedTask;
@@ -306,74 +306,83 @@ namespace Moirai.Atropos.Save
             Dictionary<string, byte[]> blocks = await s_Handler.ReadRawBlocksAsync(paths, cancellationToken);
 
             // 主线程写回组件字段（blocks 已在工作线程解析完毕；ref struct 读取器不可进 async 上下文，故收敛到独立方法）
-            RestoreComponentsOnMainThread(components, blocks);
+            RestoreComponentsOnMainThread(components, blocks, fileName, folderName);
         }
 
         /// <summary>
         /// 在主线程将块字节恢复到组件字段（非 async 方法：SaveKeyValueReader 为 ref struct）。
+        /// <para>按批触发 <see cref="LoadProgress"/> 事件。</para>
         /// </summary>
         /// <param name="components">活跃组件快照。</param>
         /// <param name="blocks">块键 → 载荷字节。</param>
-        private static void RestoreComponentsOnMainThread(SaveComponent[] components, Dictionary<string, byte[]> blocks)
+        /// <param name="fileName">存档文件名（进度事件参数）。</param>
+        /// <param name="folderName">存档文件夹名称（进度事件参数）。</param>
+        private static void RestoreComponentsOnMainThread(SaveComponent[] components, Dictionary<string, byte[]> blocks, string fileName, string folderName)
         {
+            int total = components.Length;
             for (int i = 0; i < components.Length; i++)
             {
                 SaveComponent component = components[i];
-                if (component == null || string.IsNullOrEmpty(component.ResolvedBlockKey))
+                if (component != null && !string.IsNullOrEmpty(component.ResolvedBlockKey) && blocks.TryGetValue(component.ResolvedBlockKey, out byte[] bytes))
                 {
-                    continue;
+                    try
+                    {
+                        var reader = new SaveKeyValueReader(bytes);
+                        component.Restore(ref reader);
+                    }
+                    catch (SaveKvFormatException exception)
+                    {
+                        LogUtility.Error("[SaveService] Component restore failed, key: {0}, message: {1}.", component.ResolvedBlockKey, exception.Message);
+                    }
                 }
 
-                if (!blocks.TryGetValue(component.ResolvedBlockKey, out byte[] bytes))
+                int completed = i + 1;
+                if (ShouldReportProgress(completed, total))
                 {
-                    continue;
-                }
-
-                try
-                {
-                    var reader = new SaveKeyValueReader(bytes);
-                    component.Restore(ref reader);
-                }
-                catch (SaveKvFormatException exception)
-                {
-                    LogUtility.Error("[SaveService] Component restore failed, key: {0}, message: {1}.", component.ResolvedBlockKey, exception.Message);
+                    RaiseLoadProgress(fileName, folderName, completed, total);
                 }
             }
         }
 
         /// <summary>
-        /// 捕获全部活跃组件为块条目（主线程；重复块键记录告警并跳过）。
+        /// 捕获全部活跃组件为块条目（主线程；重复块键记录告警并跳过；按批触发 <see cref="SaveProgress"/> 事件）。
         /// </summary>
+        /// <param name="fileName">存档文件名（进度事件参数）。</param>
+        /// <param name="folderName">存档文件夹名称（进度事件参数）。</param>
         /// <returns>块条目列表（可能为空）。</returns>
-        private static List<SaveBlockEntry> CaptureComponentsToEntries()
+        private static List<SaveBlockEntry> CaptureComponentsToEntries(string fileName, string folderName)
         {
             SaveComponent[] components = SaveComponentRegistry.Snapshot();
             var entries = new List<SaveBlockEntry>(components.Length);
             var seenKeys = new HashSet<string>(StringComparer.Ordinal);
+            int total = components.Length;
             for (int i = 0; i < components.Length; i++)
             {
                 SaveComponent component = components[i];
-                if (component == null)
+                if (component != null)
                 {
-                    continue;
+                    string blockKey = component.ResolvedBlockKey;
+                    if (string.IsNullOrEmpty(blockKey))
+                    {
+                        LogUtility.Warning("[SaveService] SaveComponent '{0}' is not activated (block key unresolved), skipped.", component.name);
+                    }
+                    else if (!seenKeys.Add(blockKey))
+                    {
+                        LogUtility.Warning("[SaveService] Duplicate component block key '{0}' on '{1}', skipped.", blockKey, component.name);
+                    }
+                    else
+                    {
+                        var writer = new SaveKeyValueWriter(256);
+                        component.Capture(ref writer);
+                        entries.Add(new SaveBlockEntry(blockKey, 1, ESaveBackend.KeyValue, writer.ToArray()));
+                    }
                 }
 
-                string blockKey = component.ResolvedBlockKey;
-                if (string.IsNullOrEmpty(blockKey))
+                int completed = i + 1;
+                if (ShouldReportProgress(completed, total))
                 {
-                    LogUtility.Warning("[SaveService] SaveComponent '{0}' is not activated (block key unresolved), skipped.", component.name);
-                    continue;
+                    RaiseSaveProgress(fileName, folderName, completed, total);
                 }
-
-                if (!seenKeys.Add(blockKey))
-                {
-                    LogUtility.Warning("[SaveService] Duplicate component block key '{0}' on '{1}', skipped.", blockKey, component.name);
-                    continue;
-                }
-
-                var writer = new SaveKeyValueWriter(256);
-                component.Capture(ref writer);
-                entries.Add(new SaveBlockEntry(blockKey, 1, ESaveBackend.KeyValue, writer.ToArray()));
             }
 
             return entries;

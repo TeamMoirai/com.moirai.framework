@@ -310,6 +310,7 @@ namespace Moirai.Atropos.Save
             }
             catch (Exception exception)
             {
+                SaveService.RaiseSaveFailed(paths.FileName, paths.FolderName, key, ESaveFailureStage.Serialize, SaveError.SerializationFailed);
                 throw new GameException(StringUtility.Format("Save block serialization failed, path: {0}, exception: {1}.", paths.SaveFilePath, exception.GetType().Name), exception);
             }
 
@@ -317,6 +318,8 @@ namespace Moirai.Atropos.Save
             ReadContainerOrEmpty(paths, out List<SaveBlockEntry> existingBlocks, out _);
             List<SaveBlockEntry> mergedBlocks = SaveBlockComposer.Upsert(existingBlocks, new SaveBlockEntry(key, dataVersion, backend, blockBytes));
             WriteContainerFile(paths, mergedBlocks, cancellationToken);
+            SaveService.RaiseBlockSaved(paths.FileName, paths.FolderName, key, backend, blockBytes.Length);
+            SaveService.RaiseSlotChanged(ESaveSlotChangeKind.Saved, paths.FileName, paths.FolderName);
         }
 
         /// <summary>
@@ -351,13 +354,21 @@ namespace Moirai.Atropos.Save
 
             if (!SaveBlockComposer.TryFind(blocks, key, out SaveBlockEntry entry))
             {
-                return ClassifyMissingKey(blockErrors, key);
+                SaveError missError = ClassifyMissingKey(blockErrors, key);
+                if (missError != SaveError.FileNotFound)
+                {
+                    // 坏块键命中（或结构性坏块致状态不可知）——逐块损坏经失败事件观测（确无块的 FileNotFound 属正常业务流）
+                    SaveService.RaiseLoadFailed(paths.FileName, paths.FolderName, key, ESaveFailureStage.ContainerParse, missError);
+                }
+
+                return missError;
             }
 
             if (!SaveSerializerRegistry.TryGet(entry.Backend, out ISaveSerializer serializer))
             {
                 // 块记录的后端未注册（依赖未接入或文件被改写）——明确拒绝而非静默解析
                 LogLoadFailure(paths.SaveFilePath, SaveError.InvalidFormat);
+                SaveService.RaiseLoadFailed(paths.FileName, paths.FolderName, key, ESaveFailureStage.ContainerParse, SaveError.InvalidFormat);
                 return SaveError.InvalidFormat;
             }
 
@@ -368,6 +379,7 @@ namespace Moirai.Atropos.Save
             catch (Exception exception)
             {
                 LogUtility.Error("[SaveService] Deserialize save block failed, path: {0}, key: {1}, exception: {2}.", paths.SaveFilePath, key, exception.GetType().Name);
+                SaveService.RaiseLoadFailed(paths.FileName, paths.FolderName, key, ESaveFailureStage.Deserialize, SaveError.SerializationFailed);
                 return SaveError.SerializationFailed;
             }
 
@@ -402,6 +414,7 @@ namespace Moirai.Atropos.Save
             {
                 // SaveDataBlock 子类必须以 SaveDataAttribute 声明版本——缺失即契约破坏，fail-fast
                 LogUtility.Error("[SaveService] SaveDataBlock '{0}' is missing SaveDataAttribute, path: {1}.", typeof(T).FullName, paths.SaveFilePath);
+                SaveService.RaiseLoadFailed(paths.FileName, paths.FolderName, entry.Key, ESaveFailureStage.Migrate, SaveError.SerializationFailed);
                 return SaveError.SerializationFailed;
             }
 
@@ -409,6 +422,7 @@ namespace Moirai.Atropos.Save
             if (entry.DataVersion > declaredVersion)
             {
                 LogLoadFailure(paths.SaveFilePath, SaveError.UnsupportedVersion);
+                SaveService.RaiseLoadFailed(paths.FileName, paths.FolderName, entry.Key, ESaveFailureStage.Migrate, SaveError.UnsupportedVersion);
                 return SaveError.UnsupportedVersion;
             }
 
@@ -497,7 +511,7 @@ namespace Moirai.Atropos.Save
                 throw new GameException(StringUtility.Format("Save block delete failed, path: {0}, error: {1}.", paths.SaveFilePath, readError));
             }
 
-            if (!SaveBlockComposer.TryFind(blocks, key, out _))
+            if (!SaveBlockComposer.TryFind(blocks, key, out SaveBlockEntry removedEntry))
             {
                 return;
             }
@@ -505,11 +519,16 @@ namespace Moirai.Atropos.Save
             List<SaveBlockEntry> remainingBlocks = SaveBlockComposer.Remove(blocks, key);
             if (remainingBlocks.Count == 0)
             {
+                // 删除最后一个块时整档移除——槽位同步消亡
                 Storage.DeleteFile(paths.SaveFilePath);
-                return;
+                SaveService.RaiseSlotChanged(ESaveSlotChangeKind.Deleted, paths.FileName, paths.FolderName);
+            }
+            else
+            {
+                WriteContainerFile(paths, remainingBlocks, cancellationToken);
             }
 
-            WriteContainerFile(paths, remainingBlocks, cancellationToken);
+            SaveService.RaiseBlockDeleted(paths.FileName, paths.FolderName, key, removedEntry.Backend, removedEntry.Bytes.Length);
         }
 
         /// <summary>
@@ -562,18 +581,26 @@ namespace Moirai.Atropos.Save
         #region 存档删除 [DELETE]
 
         /// <summary>
-        /// 从磁盘中删除单个存档（含全部数据块）。
+        /// 从磁盘中删除单个存档（含全部数据块；幂等——目标不存在视为删除成功，不触发事件）。
         /// </summary>
         /// <param name="fileName">文件名。</param>
         /// <param name="folderName">文件夹名称。</param>
         public void DeleteSave(string fileName, string folderName = DEFAULT_FOLDER_NAME)
         {
             SavePaths paths = ResolveSavePaths(fileName, folderName);
-            Storage.DeleteFile(paths.SaveFilePath);
+            SaveStorageBackend storage = Storage;
+            if (!storage.Exists(paths.SaveFilePath))
+            {
+                return;
+            }
+
+            storage.DeleteFile(paths.SaveFilePath);
+            SaveService.RaiseSlotChanged(ESaveSlotChangeKind.Deleted, paths.FileName, paths.FolderName);
         }
 
         /// <summary>
         /// 删除整个存档文件夹（含其中全部文件与子目录）。
+        /// <para>目录级批量删除触发一次 <see cref="SaveService.SlotChanged"/>（<see cref="SaveSlotChangedArgs.FileName"/> 为 <c>null</c>；不保证目录先前存在）。</para>
         /// </summary>
         /// <param name="folderName">文件夹名称；不允许为空（清空全部请用 <see cref="DeleteAllSaveFiles"/>）。</param>
         public void DeleteSaveFolder(string folderName = DEFAULT_FOLDER_NAME)
@@ -586,38 +613,52 @@ namespace Moirai.Atropos.Save
 
             string directoryPath = BuildFolderPath(folderName);
             Storage.DeleteDirectory(directoryPath);
+            SaveService.RaiseSlotChanged(ESaveSlotChangeKind.Deleted, null, folderName);
         }
 
         /// <summary>
         /// 删除存档数据根目录（<c>persistentDataPath/Data/</c>）及其下所有存档。
+        /// <para>触发一次 <see cref="SaveService.SlotChanged"/>（<see cref="SaveSlotChangedArgs.FileName"/> 为 <c>null</c>，文件夹为空串 = 数据根目录）。</para>
         /// </summary>
         public void DeleteAllSaveFiles()
         {
             string rootDirectory = BuildDataRootDirectory();
             Storage.DeleteDirectory(rootDirectory);
+            SaveService.RaiseSlotChanged(ESaveSlotChangeKind.Deleted, null, string.Empty);
         }
 
         /// <summary>
-        /// 从磁盘中异步删除单个存档（删除退避重试在工作线程执行）。
+        /// 从磁盘中异步删除单个存档（删除退避重试在工作线程执行；幂等——目标不存在不触发事件）。
         /// </summary>
         /// <param name="fileName">文件名。</param>
         /// <param name="folderName">文件夹名称。</param>
         /// <param name="cancellationToken">取消令牌。</param>
         /// <returns>删除完成的异步任务。</returns>
-        public UniTask DeleteSaveAsync(string fileName, string folderName = DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default)
+        public async UniTask DeleteSaveAsync(string fileName, string folderName = DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default)
         {
             SavePaths paths = ResolveSavePaths(fileName, folderName);
             SaveStorageBackend storage = Storage;
-            return UniTask.RunOnThreadPool(() => storage.DeleteFile(paths.SaveFilePath), cancellationToken: cancellationToken);
+            bool existed = await UniTask.RunOnThreadPool(() =>
+            {
+                bool exists = storage.Exists(paths.SaveFilePath);
+                storage.DeleteFile(paths.SaveFilePath);
+                return exists;
+            }, cancellationToken: cancellationToken);
+
+            if (existed)
+            {
+                SaveService.RaiseSlotChanged(ESaveSlotChangeKind.Deleted, paths.FileName, paths.FolderName);
+            }
         }
 
         /// <summary>
         /// 异步删除整个存档文件夹（含其中全部文件与子目录）。
+        /// <para>目录级批量删除触发一次 <see cref="SaveService.SlotChanged"/>（不保证目录先前存在）。</para>
         /// </summary>
         /// <param name="folderName">文件夹名称；不允许为空（清空全部请用 <see cref="DeleteAllSaveFilesAsync"/>）。</param>
         /// <param name="cancellationToken">取消令牌。</param>
         /// <returns>删除完成的异步任务；失败抛出 <see cref="GameException"/>。</returns>
-        public UniTask DeleteSaveFolderAsync(string folderName = DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default)
+        public async UniTask DeleteSaveFolderAsync(string folderName = DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default)
         {
             ValidateFolderName(folderName);
             if (string.IsNullOrEmpty(folderName))
@@ -627,7 +668,8 @@ namespace Moirai.Atropos.Save
 
             string directoryPath = BuildFolderPath(folderName);
             SaveStorageBackend storage = Storage;
-            return UniTask.RunOnThreadPool(() => storage.DeleteDirectory(directoryPath), cancellationToken: cancellationToken);
+            await UniTask.RunOnThreadPool(() => storage.DeleteDirectory(directoryPath), cancellationToken: cancellationToken);
+            SaveService.RaiseSlotChanged(ESaveSlotChangeKind.Deleted, null, folderName);
         }
 
         /// <summary>
@@ -635,11 +677,12 @@ namespace Moirai.Atropos.Save
         /// </summary>
         /// <param name="cancellationToken">取消令牌。</param>
         /// <returns>删除完成的异步任务。</returns>
-        public UniTask DeleteAllSaveFilesAsync(CancellationToken cancellationToken = default)
+        public async UniTask DeleteAllSaveFilesAsync(CancellationToken cancellationToken = default)
         {
             string rootDirectory = BuildDataRootDirectory();
             SaveStorageBackend storage = Storage;
-            return UniTask.RunOnThreadPool(() => storage.DeleteDirectory(rootDirectory), cancellationToken: cancellationToken);
+            await UniTask.RunOnThreadPool(() => storage.DeleteDirectory(rootDirectory), cancellationToken: cancellationToken);
+            SaveService.RaiseSlotChanged(ESaveSlotChangeKind.Deleted, null, string.Empty);
         }
 
         /// <summary>
@@ -669,12 +712,22 @@ namespace Moirai.Atropos.Save
             gate.Wait();
             try
             {
-                Storage.CreateBackup(paths.SaveFilePath);
+                try
+                {
+                    Storage.CreateBackup(paths.SaveFilePath);
+                }
+                catch (GameException)
+                {
+                    SaveService.RaiseSaveFailed(paths.FileName, paths.FolderName, null, ESaveFailureStage.StorageWrite, SaveError.IoFailed);
+                    throw;
+                }
             }
             finally
             {
                 SaveFileGate.Leave(paths.SaveFilePath, gate, acquired: true);
             }
+
+            SaveService.RaiseSlotChanged(ESaveSlotChangeKind.BackupCreated, paths.FileName, paths.FolderName);
         }
 
         /// <summary>
@@ -689,12 +742,22 @@ namespace Moirai.Atropos.Save
             gate.Wait();
             try
             {
-                Storage.RestoreBackup(paths.SaveFilePath);
+                try
+                {
+                    Storage.RestoreBackup(paths.SaveFilePath);
+                }
+                catch (GameException)
+                {
+                    SaveService.RaiseSaveFailed(paths.FileName, paths.FolderName, null, ESaveFailureStage.StorageWrite, SaveError.IoFailed);
+                    throw;
+                }
             }
             finally
             {
                 SaveFileGate.Leave(paths.SaveFilePath, gate, acquired: true);
             }
+
+            SaveService.RaiseSlotChanged(ESaveSlotChangeKind.BackupRestored, paths.FileName, paths.FolderName);
         }
 
         #endregion
@@ -769,6 +832,12 @@ namespace Moirai.Atropos.Save
                     }
 
                     WriteContainerFile(paths, mergedBlocks, cancellationToken);
+                    for (int i = 0; i < additions.Count; i++)
+                    {
+                        SaveService.RaiseBlockSaved(paths.FileName, paths.FolderName, additions[i].Key, additions[i].Backend, additions[i].Bytes.Length);
+                    }
+
+                    SaveService.RaiseSlotChanged(ESaveSlotChangeKind.Saved, paths.FileName, paths.FolderName);
                 }, cancellationToken: cancellationToken);
             }
             finally
@@ -801,11 +870,19 @@ namespace Moirai.Atropos.Save
                 acquired = true;
                 return await UniTask.RunOnThreadPool(() =>
                 {
-                    // 组件恢复只取健康块——坏块对应组件保持现状（部分恢复），坏块明细已记告警日志
-                    SaveError readError = ReadContainerOrEmpty(paths, out List<SaveBlockEntry> blocks, out _);
+                    // 组件恢复只取健康块——坏块对应组件保持现状（部分恢复），坏块明细记告警日志并逐块触发失败事件
+                    SaveError readError = ReadContainerOrEmpty(paths, out List<SaveBlockEntry> blocks, out List<SaveBlockError> blockErrors);
                     if (readError != SaveError.None)
                     {
                         return new Dictionary<string, byte[]>();
+                    }
+
+                    if (blockErrors != null)
+                    {
+                        for (int i = 0; i < blockErrors.Count; i++)
+                        {
+                            SaveService.RaiseLoadFailed(paths.FileName, paths.FolderName, blockErrors[i].Key, ESaveFailureStage.ContainerParse, blockErrors[i].Error);
+                        }
                     }
 
                     var result = new Dictionary<string, byte[]>(blocks.Count);
@@ -862,12 +939,23 @@ namespace Moirai.Atropos.Save
                     List<SaveBlockEntry> mergedBlocks = existingBlocks;
                     for (int i = 0; i < keys.Count; i++)
                     {
-                        mergedBlocks = SaveBlockComposer.Remove(mergedBlocks, keys[i]);
+                        // 仅真实存在并移除的块触发删除事件（幂等空删不触发）
+                        if (SaveBlockComposer.TryFind(mergedBlocks, keys[i], out SaveBlockEntry removedEntry))
+                        {
+                            mergedBlocks = SaveBlockComposer.Remove(mergedBlocks, keys[i]);
+                            SaveService.RaiseBlockDeleted(paths.FileName, paths.FolderName, removedEntry.Key, removedEntry.Backend, removedEntry.Bytes.Length);
+                        }
+                    }
+
+                    if (mergedBlocks.Count == existingBlocks.Count)
+                    {
+                        return; // 无实际移除——不写回
                     }
 
                     if (mergedBlocks.Count == 0)
                     {
                         Storage.DeleteFile(paths.SaveFilePath);
+                        SaveService.RaiseSlotChanged(ESaveSlotChangeKind.Deleted, paths.FileName, paths.FolderName);
                         return;
                     }
 
@@ -906,15 +994,35 @@ namespace Moirai.Atropos.Save
             /// <summary>目标存档文件完整路径。</summary>
             public readonly string SaveFilePath;
 
+            /// <summary>API 层原始文件名（事件参数用；手工构造路径集合时为 <c>null</c>）。</summary>
+            public readonly string FileName;
+
+            /// <summary>API 层原始文件夹名称（事件参数用；手工构造路径集合时为 <c>null</c>）。</summary>
+            public readonly string FolderName;
+
+            /// <summary>
+            /// 创建路径集合（无 API 层名称上下文）。
+            /// </summary>
+            /// <param name="directoryPath">目标文件夹完整路径。</param>
+            /// <param name="saveFilePath">目标存档文件完整路径。</param>
+            public SavePaths(string directoryPath, string saveFilePath)
+                : this(directoryPath, saveFilePath, null, null)
+            {
+            }
+
             /// <summary>
             /// 创建路径集合。
             /// </summary>
             /// <param name="directoryPath">目标文件夹完整路径。</param>
             /// <param name="saveFilePath">目标存档文件完整路径。</param>
-            public SavePaths(string directoryPath, string saveFilePath)
+            /// <param name="fileName">API 层原始文件名。</param>
+            /// <param name="folderName">API 层原始文件夹名称。</param>
+            public SavePaths(string directoryPath, string saveFilePath, string fileName, string folderName)
             {
                 DirectoryPath = directoryPath;
                 SaveFilePath = saveFilePath;
+                FileName = fileName;
+                FolderName = folderName;
             }
         }
 
@@ -930,7 +1038,7 @@ namespace Moirai.Atropos.Save
             ValidateFolderName(folderName);
             string directoryPath = BuildFolderPath(folderName);
             string saveFilePath = Path.Combine(directoryPath, DetermineSaveFileName(fileName));
-            return new SavePaths(directoryPath, saveFilePath);
+            return new SavePaths(directoryPath, saveFilePath, fileName, folderName);
         }
 
         /// <summary>
@@ -1143,11 +1251,12 @@ namespace Moirai.Atropos.Save
 
             if (ioError != SaveError.None)
             {
-                // IO 失败的详细日志已由存储层记录
+                // IO 失败的详细日志已由存储层记录；事件统一走 LoadFailed（写路径的合并读失败同样经此观测）
+                SaveService.RaiseLoadFailed(paths.FileName, paths.FolderName, null, ESaveFailureStage.StorageRead, ioError);
                 return ioError;
             }
 
-            SaveError restoreError = ReadAndRestoreContainer(fileBytes, out blocks, out blockErrors);
+            SaveError restoreError = ReadAndRestoreContainer(paths, fileBytes, out blocks, out blockErrors);
             if (restoreError != SaveError.None)
             {
                 LogLoadFailure(paths.SaveFilePath, restoreError);
@@ -1163,21 +1272,23 @@ namespace Moirai.Atropos.Save
         }
 
         /// <summary>
-        /// 将文件字节（头 + 载荷）还原为容器块列表（纯变换，不做日志；错误分型由各环节判定）。
+        /// 将文件字节（头 + 载荷）还原为容器块列表（纯变换，不做日志；错误分型由各环节判定并触发 <see cref="SaveService.LoadFailed"/> 事件）。
         /// <para>载荷不做整档拷贝——以 <see cref="SaveBufferSegment"/> 视图直通载荷还原钩子（明文处理器零拷贝，加密处理器区间直解）。</para>
         /// </summary>
+        /// <param name="paths">已解析的路径集合（事件参数上下文）。</param>
         /// <param name="fileBytes">存档文件完整字节。</param>
         /// <param name="blocks">成功时的健康数据块列表。</param>
         /// <param name="blockErrors">坏块清单（无坏块为 <c>null</c>）。</param>
         /// <returns>错误码：<see cref="SaveError.None"/>（含部分恢复）、<see cref="SaveError.InvalidFormat"/>、<see cref="SaveError.UnsupportedVersion"/>、
         /// <see cref="SaveError.Corrupted"/>、<see cref="SaveError.DecryptionFailed"/> 或 <see cref="SaveError.IntegrityCheckFailed"/>。</returns>
-        private SaveError ReadAndRestoreContainer(byte[] fileBytes, out List<SaveBlockEntry> blocks, out List<SaveBlockError> blockErrors)
+        private SaveError ReadAndRestoreContainer(SavePaths paths, byte[] fileBytes, out List<SaveBlockEntry> blocks, out List<SaveBlockError> blockErrors)
         {
             blocks = null;
             blockErrors = null;
             SaveError headerError = SaveFileHeader.Read(fileBytes, out SaveFileHeader header);
             if (headerError != SaveError.None)
             {
+                SaveService.RaiseLoadFailed(paths.FileName, paths.FolderName, null, ESaveFailureStage.HeaderValidation, headerError);
                 return headerError;
             }
 
@@ -1186,16 +1297,27 @@ namespace Moirai.Atropos.Save
             if (payloadLength != header.PayloadLength
                 || Crc32.Compute(fileBytes.AsSpan(SaveFileHeader.Size, payloadLength)) != header.PayloadCrc)
             {
+                SaveService.RaiseLoadFailed(paths.FileName, paths.FolderName, null, ESaveFailureStage.HeaderValidation, SaveError.Corrupted);
                 return SaveError.Corrupted;
             }
 
             SaveError transformError = OnRestorePayload(new SaveBufferSegment(fileBytes, SaveFileHeader.Size, payloadLength), out SaveBufferSegment restored);
             if (transformError != SaveError.None)
             {
+                SaveService.RaiseLoadFailed(paths.FileName, paths.FolderName, null, ESaveFailureStage.Restore, transformError);
                 return transformError;
             }
 
-            return TryDecompressAndReadContainer(header, restored, out blocks, out blockErrors);
+            SaveError containerError = TryDecompressAndReadContainer(header, restored, out blocks, out blockErrors);
+            if (containerError != SaveError.None)
+            {
+                SaveService.RaiseLoadFailed(paths.FileName, paths.FolderName, null,
+                    (header.Flags & SaveFileHeader.FlagCompressed) != 0 ? ESaveFailureStage.Decompress : ESaveFailureStage.ContainerParse,
+                    containerError);
+                return containerError;
+            }
+
+            return SaveError.None;
         }
 
         /// <summary>
@@ -1306,6 +1428,7 @@ namespace Moirai.Atropos.Save
                     }
                     catch (Exception exception)
                     {
+                        SaveService.RaiseSaveFailed(paths.FileName, paths.FolderName, null, ESaveFailureStage.Compress, SaveError.CompressionFailed);
                         throw new GameException(StringUtility.Format("Save compression failed, path: {0}, exception: {1}.", paths.SaveFilePath, exception.GetType().Name), exception);
                     }
 
@@ -1317,6 +1440,7 @@ namespace Moirai.Atropos.Save
                 SaveError transformError = OnTransformContainer(transformInput, out SaveBufferSegment payload);
                 if (transformError != SaveError.None)
                 {
+                    SaveService.RaiseSaveFailed(paths.FileName, paths.FolderName, null, ESaveFailureStage.Transform, SaveError.TransformFailed);
                     throw new GameException(StringUtility.Format("Save payload transform failed, path: {0}, error: {1}.", paths.SaveFilePath, transformError));
                 }
 
@@ -1325,7 +1449,19 @@ namespace Moirai.Atropos.Save
                 byte[] fileBytes = new byte[SaveFileHeader.Size + payload.Length];
                 SaveFileHeader.Write(fileBytes.AsSpan(0, SaveFileHeader.Size), payload.Length, payloadCrc, flags, compressionProviderId);
                 payload.AsSpan().CopyTo(fileBytes.AsSpan(SaveFileHeader.Size));
-                Storage.WriteAtomic(paths.SaveFilePath, fileBytes, cancellationToken);
+                try
+                {
+                    Storage.WriteAtomic(paths.SaveFilePath, fileBytes, cancellationToken);
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch (Exception)
+                {
+                    SaveService.RaiseSaveFailed(paths.FileName, paths.FolderName, null, ESaveFailureStage.StorageWrite, SaveError.IoFailed);
+                    throw;
+                }
             }
             finally
             {

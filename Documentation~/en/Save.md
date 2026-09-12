@@ -119,6 +119,19 @@ Generator diagnostics: MIRAI300 unsupported type, MIRAI301 duplicate key, MIRAI3
 
 Writes/deletes no-op; reads return default; `TryLoad*` returns `Failure(HandlerNotReady)`; enumerations return empty arrays.
 
+### Events (SaveService.Events)
+
+Static events (default zero-overhead channel) + `EventManager` bridge events (`SaveSlotChangedEvent` etc. — subscribers pick either channel). All events dispatch on the main thread: operations triggered on the main thread dispatch inline; async operations complete on worker threads and are queued via `MainThreadDispatcher`. `OnShutdown` does not clear subscribers — subscribers must unsubscribe themselves. Args are readonly value types (≤32B).
+
+| Static event | Bridge event | When |
+|---|---|---|
+| `SlotChanged` | `SaveSlotChangedEvent` | Slot write (`Saved` merges create/update)/delete/backup create/backup restore; `FileName` is null for folder-level bulk deletes |
+| `BlockSaved` / `BlockDeleted` | `SaveBlockChangedEvent` | Block save/delete completed (fileName+key+backend+size); idempotent no-op deletes never fire |
+| `SaveProgress` / `LoadProgress` | `SaveProgressEvent` | Component capture/restore reported in batches (every 8 + always the final one; `ShouldReportProgress`) |
+| `SaveFailed` / `LoadFailed` | `SaveFailedEvent` | Failures (`ESaveFailureStage` stage + `SaveError`); write failures also fail-fast with `GameException`; missing file/block (`FileNotFound`) never fires |
+| `EntityRestored` | `SaveEntityRestoredEvent` | Pre-defined; wired by dynamic entity persistence |
+| `ScreenshotCaptured` | `SaveScreenshotEvent` | Pre-defined; wired by the screenshot pipeline |
+
 ## Configuration (SaveServiceSettings)
 
 | Field | Description |
@@ -137,4 +150,4 @@ MessagePack 3.1.8, protobuf-net 3.3.8 (+Core with embedded BuildTools SG), Memor
 
 ## Tests
 
-`Tests/EditorMode/Save/`: container layout and v2 per-block validation (`SaveFileContainerTests`: round-trips/corrupted-block skip/structural prefix preservation/v1 hard-cut, `SaveContainerV2Tests`: partial recovery past a repatched header CRC/whole-file rejection/corrupted-block listing/write-back salvage), composer, handler pipeline (atomic writes/sweep/corruption classification/argument validation), storage backend contract (`FileSaveStorageBackendTests`: atomic writes/idempotent deletes/exact-filter listing/backup-restore/capabilities), compression transform chain (`SaveCompressionTests`: GZip round-trips/compress+encrypt combos/legacy uncompressed reads/header classification/registry), key providers (`SaveKeyProviderTests`: static equivalence/passphrase injection/HKDF per-user isolation), full crypto chain, four-backend round-trips, migration cascades, component capturers (generated code).
+`Tests/EditorMode/Save/`: container layout and v2 per-block validation (`SaveFileContainerTests`: round-trips/corrupted-block skip/structural prefix preservation/v1 hard-cut, `SaveContainerV2Tests`: partial recovery past a repatched header CRC/whole-file rejection/corrupted-block listing/write-back salvage), events API (`SaveEventTests`: trigger timing/count/args, failure-stage typing, background dispatch to main thread, progress batching), composer, handler pipeline (atomic writes/sweep/corruption classification/argument validation), storage backend contract (`FileSaveStorageBackendTests`: atomic writes/idempotent deletes/exact-filter listing/backup-restore/capabilities), compression transform chain (`SaveCompressionTests`: GZip round-trips/compress+encrypt combos/legacy uncompressed reads/header classification/registry), key providers (`SaveKeyProviderTests`: static equivalence/passphrase injection/HKDF per-user isolation), full crypto chain, four-backend round-trips, migration cascades, component capturers (generated code).
