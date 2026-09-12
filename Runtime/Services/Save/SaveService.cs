@@ -90,7 +90,8 @@ namespace Moirai.Atropos.Save
 
         /// <summary>
         /// 从存档文件异步加载指定数据块并返回完整错误判别结果。
-        /// <para>处理器未就绪时降级为 <see cref="SaveError.HandlerNotReady"/> 失败结果。</para>
+        /// <para>处理器未就绪时降级为 <see cref="SaveError.HandlerNotReady"/> 失败结果。
+        /// 块缺失细分（容器 v2）：目标块损坏返回 <see cref="SaveError.Corrupted"/>（与其余健康块互不影响），确无该块才返回 <see cref="SaveError.FileNotFound"/>。</para>
         /// </summary>
         /// <typeparam name="T">存档数据类型。</typeparam>
         /// <param name="fileName">文件名（自动追加配置的扩展名）。</param>
@@ -134,7 +135,8 @@ namespace Moirai.Atropos.Save
 
         /// <summary>
         /// 从存档文件加载指定数据块并返回完整错误判别结果（在调用线程执行，阻塞直至完成）。
-        /// <para>仅限主线程调用；处理器未就绪时降级为 <see cref="SaveError.HandlerNotReady"/> 失败结果。</para>
+        /// <para>仅限主线程调用；处理器未就绪时降级为 <see cref="SaveError.HandlerNotReady"/> 失败结果。
+        /// 块缺失细分（容器 v2）：目标块损坏返回 <see cref="SaveError.Corrupted"/>（与其余健康块互不影响），确无该块才返回 <see cref="SaveError.FileNotFound"/>。</para>
         /// </summary>
         /// <typeparam name="T">存档数据类型。</typeparam>
         /// <param name="fileName">文件名（自动追加配置的扩展名）。</param>
@@ -167,10 +169,12 @@ namespace Moirai.Atropos.Save
 
         /// <summary>
         /// 枚举存档文件内的全部数据块（含保留块；同步执行，加密处理器下需解密整档）。
+        /// <para>容器 v2 逐块校验下坏块同样列入清单——<see cref="SaveBlockInfo.Error"/> 非 <see cref="SaveError.None"/> 即坏块，
+        /// 其框架字段仅在 <see cref="SaveBlockInfo.HasMetadata"/> 为 <c>true</c> 时可信。</para>
         /// </summary>
         /// <param name="fileName">文件名（自动追加配置的扩展名）。</param>
         /// <param name="folderName">文件夹名称。</param>
-        /// <returns>块元信息数组；缺档/损坏/处理器未就绪时为空数组（损坏已记录错误日志）。</returns>
+        /// <returns>块元信息数组（健康块在前、坏块在后）；整档缺档/损坏/处理器未就绪时为空数组（损坏已记录错误日志）。</returns>
         public static SaveBlockInfo[] GetBlockInfos(string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME) =>
             s_Handler?.GetBlockInfos(fileName, folderName) ?? Array.Empty<SaveBlockInfo>();
 

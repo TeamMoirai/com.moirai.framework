@@ -158,8 +158,23 @@ namespace Moirai.Atropos.Save
         /// <returns>错误码。</returns>
         internal SaveError TryEncryptWithMaterial(byte[] plaintext, byte[] encryptionKey, byte[] macKey, out byte[] encrypted)
         {
+            return TryEncryptWithMaterial(plaintext, 0, plaintext?.Length ?? 0, encryptionKey, macKey, out encrypted);
+        }
+
+        /// <summary>
+        /// 加密缓冲区有效区间内的明文（密钥材料直给——区间形式供池化缓冲区直通，避免精确数组二次拷贝）。
+        /// </summary>
+        /// <param name="plaintext">明文缓冲区。</param>
+        /// <param name="offset">有效区间起始偏移。</param>
+        /// <param name="length">有效区间字节数。</param>
+        /// <param name="encryptionKey">加密密钥（<see cref="EncryptionKeySize"/> 字节）。</param>
+        /// <param name="macKey">MAC 密钥（<see cref="MacSize"/> 字节）。</param>
+        /// <param name="encrypted">成功时的密文字节。</param>
+        /// <returns>错误码。</returns>
+        internal SaveError TryEncryptWithMaterial(byte[] plaintext, int offset, int length, byte[] encryptionKey, byte[] macKey, out byte[] encrypted)
+        {
             encrypted = null;
-            if (plaintext == null)
+            if (plaintext == null || offset < 0 || length < 0 || plaintext.Length - offset < length)
             {
                 return SaveError.InvalidArgument;
             }
@@ -180,7 +195,7 @@ namespace Moirai.Atropos.Save
                 algorithm.IV = iv;
                 using (ICryptoTransform encryptor = algorithm.CreateEncryptor())
                 {
-                    ciphertext = encryptor.TransformFinalBlock(plaintext, 0, plaintext.Length);
+                    ciphertext = encryptor.TransformFinalBlock(plaintext, offset, length);
                 }
             }
 
@@ -188,7 +203,7 @@ namespace Moirai.Atropos.Save
             Buffer.BlockCopy(iv, 0, encrypted, 0, IvSize);
             Buffer.BlockCopy(ciphertext, 0, encrypted, IvSize, ciphertext.Length);
 
-            byte[] mac = ComputeMac(macKey, encrypted, IvSize + ciphertext.Length);
+            byte[] mac = ComputeMac(macKey, encrypted, 0, IvSize + ciphertext.Length);
             Buffer.BlockCopy(mac, 0, encrypted, IvSize + ciphertext.Length, MacSize);
             return SaveError.None;
         }
@@ -229,13 +244,29 @@ namespace Moirai.Atropos.Save
         /// <see cref="SaveError.InvalidFormat"/>、<see cref="SaveError.IntegrityCheckFailed"/> 或 <see cref="SaveError.DecryptionFailed"/>。</returns>
         internal SaveError TryDecryptWithMaterial(byte[] encrypted, byte[] encryptionKey, byte[] macKey, out byte[] plaintext)
         {
+            return TryDecryptWithMaterial(encrypted, 0, encrypted?.Length ?? 0, encryptionKey, macKey, out plaintext);
+        }
+
+        /// <summary>
+        /// 解密缓冲区有效区间内的密文（密钥材料直给，先验证 HMAC 后解密——区间形式供文件字节直通，避免载荷二次拷贝）。
+        /// </summary>
+        /// <param name="encrypted">密文缓冲区。</param>
+        /// <param name="offset">有效区间起始偏移。</param>
+        /// <param name="length">有效区间字节数。</param>
+        /// <param name="encryptionKey">加密密钥（<see cref="EncryptionKeySize"/> 字节）。</param>
+        /// <param name="macKey">MAC 密钥（<see cref="MacSize"/> 字节）。</param>
+        /// <param name="plaintext">成功时的明文字节。</param>
+        /// <returns>错误码：<see cref="SaveError.None"/>、<see cref="SaveError.InvalidArgument"/>、
+        /// <see cref="SaveError.InvalidFormat"/>、<see cref="SaveError.IntegrityCheckFailed"/> 或 <see cref="SaveError.DecryptionFailed"/>。</returns>
+        internal SaveError TryDecryptWithMaterial(byte[] encrypted, int offset, int length, byte[] encryptionKey, byte[] macKey, out byte[] plaintext)
+        {
             plaintext = null;
-            if (encrypted == null)
+            if (encrypted == null || offset < 0 || length < 0 || encrypted.Length - offset < length)
             {
                 return SaveError.InvalidArgument;
             }
 
-            if (encrypted.Length < IvSize + MinCipherSize + MacSize)
+            if (length < IvSize + MinCipherSize + MacSize)
             {
                 return SaveError.InvalidFormat;
             }
@@ -245,11 +276,11 @@ namespace Moirai.Atropos.Save
                 return SaveError.InvalidArgument;
             }
 
-            int ciphertextLength = encrypted.Length - IvSize - MacSize;
+            int ciphertextLength = length - IvSize - MacSize;
 
             // encrypt-then-MAC：先对 [IV‖密文] 验证 HMAC（常数时间比较），未过验不触碰解密器
-            byte[] expectedMac = ComputeMac(macKey, encrypted, IvSize + ciphertextLength);
-            if (!CryptographicOperations.FixedTimeEquals(expectedMac, encrypted.AsSpan(encrypted.Length - MacSize, MacSize)))
+            byte[] expectedMac = ComputeMac(macKey, encrypted, offset, IvSize + ciphertextLength);
+            if (!CryptographicOperations.FixedTimeEquals(expectedMac, encrypted.AsSpan(offset + length - MacSize, MacSize)))
             {
                 return SaveError.IntegrityCheckFailed;
             }
@@ -259,10 +290,10 @@ namespace Moirai.Atropos.Save
                 using (Aes algorithm = Aes.Create())
                 {
                     algorithm.Key = encryptionKey;
-                    algorithm.IV = encrypted.AsSpan(0, IvSize).ToArray();
+                    algorithm.IV = encrypted.AsSpan(offset, IvSize).ToArray();
                     using (ICryptoTransform decryptor = algorithm.CreateDecryptor())
                     {
-                        plaintext = decryptor.TransformFinalBlock(encrypted, IvSize, ciphertextLength);
+                        plaintext = decryptor.TransformFinalBlock(encrypted, offset + IvSize, ciphertextLength);
                     }
                 }
 
@@ -279,17 +310,18 @@ namespace Moirai.Atropos.Save
         #region 私有方法 [PRIVATE METHODS]
 
         /// <summary>
-        /// 计算载荷前缀（IV‖密文）的 HMAC-SHA256。
+        /// 计算缓冲区有效区间（IV‖密文）的 HMAC-SHA256。
         /// </summary>
         /// <param name="macKey">MAC 密钥。</param>
         /// <param name="buffer">承载 [IV‖密文] 的缓冲区。</param>
-        /// <param name="length">参与计算的前缀长度。</param>
+        /// <param name="offset">有效区间起始偏移。</param>
+        /// <param name="length">参与计算的区间长度。</param>
         /// <returns>HMAC 摘要。</returns>
-        private static byte[] ComputeMac(byte[] macKey, byte[] buffer, int length)
+        private static byte[] ComputeMac(byte[] macKey, byte[] buffer, int offset, int length)
         {
             using (HMACSHA256 hmac = new HMACSHA256(macKey))
             {
-                return hmac.ComputeHash(buffer, 0, length);
+                return hmac.ComputeHash(buffer, offset, length);
             }
         }
 

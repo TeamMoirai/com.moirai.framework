@@ -29,11 +29,13 @@ SaveService (static facade, silently degrades when s_Handler is null)
 [32B plaintext header "MRSA"][payload]
 Header: [4B magic][4B format version=2][8B UTC ticks][4B payload length][4B payload CRC32][4B compression provider ID][4B flags]
 Payload = Compress?(Container); encrypted handlers wrap [16B IV][AES-256-CBC][32B HMAC]
-Container: [4B magic "MRSB"][4B container version][4B block count]
-      per block [4B key length][key UTF8][4B data version][2B backend][4B byte length][bytes]
+Container: [4B magic "MRSB"][4B container version=2][4B block count]
+      per block [4B key length][key UTF8][4B data version][2B backend][4B byte length][4B payload CRC32][bytes]
 ```
 
-- The header is always plaintext (saved time readable without decryption); CRC guards storage corruption, HMAC guards tampering (verify MAC before decrypting)
+- The header is always plaintext (saved time readable without decryption); the header CRC guards whole-file storage corruption, HMAC guards tampering (verify MAC before decrypting)
+- Container v2 per-block CRC32 self-validation (second, fine-grained layer after the header CRC gate): a block whose payload fails validation is skipped and logged with a warning while the remaining healthy blocks load normally (**partial recovery**); structural damage to block framing (length/key fields out of bounds) preserves the parsed prefix and stops, since later block boundaries are unknowable. `TryLoadBlock` returns `Corrupted` for a corrupted key (distinct from `FileNotFound` for a truly absent one); corrupted blocks are dropped on the next write-back (healthy blocks are preserved)
+- Container v1 files are hard-cut: reads classify as `UnsupportedVersion` with no dual-format compatibility
 - Transform chain order is fixed: Serialize → **Compress (optional, before encryption)** → Encrypt → CRC; the read side reverses it (decrypt → decompress via header ID registry lookup) — uncompressed legacy files pass through unchanged (magic/flags sniffing is idempotent, old and new files coexist)
 - Header offset 24-27 holds the compression provider ID (0 = uncompressed); unknown IDs are classified `UnsupportedVersion`, flag/ID inconsistency is classified `Corrupted`
 - Key sources (`ISaveKeyProvider`): static passphrase PBKDF2 (`StaticSaveKeyProvider`, default, parameter-identical to V2) / runtime passphrase injection (`PassphraseSaveKeyProvider`, passphrase held in memory only — reads classify `InvalidArgument` and writes fail fast until injected) / HKDF-SHA256 per-user derivation (`HkdfPerUserSaveKeyProvider`, accounts cannot read each other's saves)
@@ -96,7 +98,7 @@ Generator diagnostics: MIRAI300 unsupported type, MIRAI301 duplicate key, MIRAI3
 | `LoadBlockAsync<T>(fileName, key, folderName, ct)` | Read block; returns default on failure |
 | `TryLoadBlockAsync<T>(...)` → `SaveResult<T>` | Error classification (FileNotFound/Corrupted/IntegrityCheckFailed/UnsupportedVersion…) |
 | `DeleteBlockAsync(fileName, key, folderName, ct)` | Delete block (removes the file when the last block goes) |
-| `GetBlockInfos(fileName, folderName)` | Block metadata (key/version/backend/size) |
+| `GetBlockInfos(fileName, folderName)` | Block metadata (key/version/backend/size/per-block error typing; corrupted blocks are listed — framing fields trustworthy only when `HasMetadata` is true and `Error != None`) |
 | Sync pairs `SaveBlock` / `LoadBlock` / `TryLoadBlock` / `DeleteBlock` | Main-thread blocking variants (quit-time flushes) |
 
 ### Legacy (single-object APIs mapped to the reserved `__main__` block)
@@ -135,4 +137,4 @@ MessagePack 3.1.8, protobuf-net 3.3.8 (+Core with embedded BuildTools SG), Memor
 
 ## Tests
 
-`Tests/EditorMode/Save/`: container layout, composer, handler pipeline (atomic writes/sweep/corruption classification/argument validation), storage backend contract (`FileSaveStorageBackendTests`: atomic writes/idempotent deletes/exact-filter listing/backup-restore/capabilities), compression transform chain (`SaveCompressionTests`: GZip round-trips/compress+encrypt combos/legacy uncompressed reads/header classification/registry), key providers (`SaveKeyProviderTests`: static equivalence/passphrase injection/HKDF per-user isolation), full crypto chain, four-backend round-trips, migration cascades, component capturers (generated code).
+`Tests/EditorMode/Save/`: container layout and v2 per-block validation (`SaveFileContainerTests`: round-trips/corrupted-block skip/structural prefix preservation/v1 hard-cut, `SaveContainerV2Tests`: partial recovery past a repatched header CRC/whole-file rejection/corrupted-block listing/write-back salvage), composer, handler pipeline (atomic writes/sweep/corruption classification/argument validation), storage backend contract (`FileSaveStorageBackendTests`: atomic writes/idempotent deletes/exact-filter listing/backup-restore/capabilities), compression transform chain (`SaveCompressionTests`: GZip round-trips/compress+encrypt combos/legacy uncompressed reads/header classification/registry), key providers (`SaveKeyProviderTests`: static equivalence/passphrase injection/HKDF per-user isolation), full crypto chain, four-backend round-trips, migration cascades, component capturers (generated code).
