@@ -271,6 +271,7 @@ namespace Moirai.Atropos.Audio
 		[NonSerialized] private float _lastPlayTimestamp = -float.MaxValue;
 		[NonSerialized] private int _currentIndex = 0;
 		[NonSerialized] private ShuffleBag<int> _randomUniqueShuffleBag;
+		[NonSerialized] private int _randomUniqueShuffleBagSourceLength = -1;
 		[NonSerialized] private ulong _lastPlayHandle;
 		[NonSerialized] private AudioClip _sfx;
 
@@ -375,6 +376,7 @@ namespace Moirai.Atropos.Audio
 			{
 				if (m_RandomUnique)
 				{
+					EnsureRandomUniqueShuffleBag();
 					newIndex = _randomUniqueShuffleBag.Pick();
 				}
 				else
@@ -405,6 +407,22 @@ namespace Moirai.Atropos.Audio
 				_currentIndex = newIndex + 1;
 			}
 			return m_RandomAudio[newIndex];
+		}
+
+		private void EnsureRandomUniqueShuffleBag()
+		{
+			int length = m_RandomAudio != null ? m_RandomAudio.Length : 0;
+			if (_randomUniqueShuffleBag != null && _randomUniqueShuffleBagSourceLength == length)
+			{
+				return;
+			}
+
+			_randomUniqueShuffleBag = new ShuffleBag<int>(Mathf.Max(1, length));
+			for (int i = 0; i < length; i++)
+			{
+				_randomUniqueShuffleBag.Add(i, 1);
+			}
+			_randomUniqueShuffleBagSourceLength = length;
 		}
 	}
 }
