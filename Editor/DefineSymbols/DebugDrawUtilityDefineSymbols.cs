@@ -7,7 +7,7 @@ namespace Moirai.Atropos.Editor
     /// </summary>
     public static class DebugDrawUtilityDefineSymbols
     {
-        private const string MENU_ITEM_PATH = DefineSymbols.MENU_ITEM_PATH + "DebugDraw";
+        private const string MENU_ITEM_PATH = DefineSymbols.MENU_ITEM_PATH + "DebugDraw/";
         private const int MENU_ITEM_PRIORITY = DefineSymbols.MENU_ITEM_PRIORITY;
 
         /// <summary>
