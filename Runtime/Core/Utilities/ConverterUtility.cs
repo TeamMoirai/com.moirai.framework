@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.Text;
@@ -862,6 +862,7 @@ namespace Moirai.Atropos
             var bytes = Encoding.UTF8.GetBytes(srcData);
             if (bytes != null)
             {
+                s_StringBuilderCache.Clear();
                 foreach (byte b in bytes)
                 {
                     s_StringBuilderCache.AppendFormat("{0:x2}", b);
@@ -883,6 +884,7 @@ namespace Moirai.Atropos
             string hexString = string.Empty;
             if (bytes != null)
             {
+                s_StringBuilderCache.Clear();
                 foreach (byte b in bytes)
                 {
                     s_StringBuilderCache.AppendFormat("{0:x2}", b);
