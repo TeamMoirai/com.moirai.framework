@@ -73,7 +73,7 @@ public partial class Player : MonoBehaviour
 }
 ```
 
-2. GameObject 挂 **Save Component**：Inspector 里添加目标组件绑定并勾选参与存档的字段（块键空缺时自动派生 `场景名:物体路径`）。
+2. GameObject 挂 **Save Component**：Inspector 里添加目标组件绑定并勾选参与存档的字段（块键空缺时自动派生 `场景名:物体路径`；物体路径为场景根到物体的**完整名称链**，同名兄弟/同名场景根自动追加 `[N]` 序号消歧，杜绝跨分支撞键覆盖）。
 3. 运行期 `SaveService.SaveComponentsAsync(fileName)` / `LoadComponentsAsync(fileName)` 触发——编译期生成的强类型捕获器零反射捕获，按勾选掩码过滤；未知键跳过、缺失键保留当前值（字段增删天然向后兼容）。
 
 生成器诊断：MIRAI300 类型不支持、MIRAI301 键重复、MIRAI303 需 partial class、MIRAI304 需实例字段。修改生成器源码（`SourceGenerators/Source~/SaveHost/`）后必须 `dotnet build -c Release` 重建 `SourceGenerators/SaveHost.dll`。

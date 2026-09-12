@@ -26,6 +26,9 @@ namespace Moirai.Atropos.Save
         /// </summary>
         public const uint FlagCompressed = 1u << 0;
 
+        /// <summary>已定义标志位掩码（读侧拒识未知位：未来特性被旧运行时静默忽略会写坏档）。</summary>
+        private const uint KNOWN_FLAGS_MASK = FlagCompressed;
+
         /// <summary>魔数。</summary>
         private static readonly byte[] s_Magic = { (byte)'M', (byte)'R', (byte)'S', (byte)'A' };
 
@@ -73,6 +76,7 @@ namespace Moirai.Atropos.Save
 
         /// <summary>
         /// 将文件头写入目标缓冲区（必须恰好 <see cref="Size"/> 字节）。
+        /// <para>offset 24-27 为保留段（写入置零，读取忽略；预留给压缩提供方 ID 等管线元数据）。</para>
         /// </summary>
         /// <param name="destination">目标缓冲区。</param>
         /// <param name="payloadLength">载荷字节数。</param>
@@ -85,6 +89,7 @@ namespace Moirai.Atropos.Save
             BinaryPrimitives.WriteInt64LittleEndian(destination.Slice(8), DateTime.UtcNow.Ticks);
             BinaryPrimitives.WriteInt32LittleEndian(destination.Slice(16), payloadLength);
             BinaryPrimitives.WriteUInt32LittleEndian(destination.Slice(20), payloadCrc);
+            // offset 24-27 保留段保持调用方提供的零值（stackalloc 已清零）
             BinaryPrimitives.WriteUInt32LittleEndian(destination.Slice(28), flags);
         }
 
@@ -115,10 +120,16 @@ namespace Moirai.Atropos.Save
                 return SaveError.UnsupportedVersion;
             }
 
+            uint flags = BinaryPrimitives.ReadUInt32LittleEndian(source.Slice(28));
+            if ((flags & ~KNOWN_FLAGS_MASK) != 0)
+            {
+                // 未知特性位 = 该档由更新版本的运行时写出，旧运行时静默忽略会写坏档——拒绝加载
+                return SaveError.UnsupportedVersion;
+            }
+
             long savedAtUtcTicks = BinaryPrimitives.ReadInt64LittleEndian(source.Slice(8));
             int payloadLength = BinaryPrimitives.ReadInt32LittleEndian(source.Slice(16));
             uint payloadCrc = BinaryPrimitives.ReadUInt32LittleEndian(source.Slice(20));
-            uint flags = BinaryPrimitives.ReadUInt32LittleEndian(source.Slice(28));
 
             if (savedAtUtcTicks <= 0 || payloadLength < 0)
             {

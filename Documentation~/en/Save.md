@@ -73,7 +73,7 @@ public partial class Player : MonoBehaviour
 }
 ```
 
-2. Attach a **Save Component** to the GameObject: add target-component bindings and check the fields to save (the block key auto-derives as `scene:path` when left empty).
+2. Attach a **Save Component** to the GameObject: add target-component bindings and check the fields to save (the block key auto-derives as `scene:path` when left empty; the path is the **full name chain** from scene root to object, and same-name siblings/roots get a `[N]` ordinal suffix for disambiguation so cross-branch key collisions cannot silently overwrite each other).
 3. Trigger with `SaveService.SaveComponentsAsync(fileName)` / `LoadComponentsAsync(fileName)` — compile-time-generated strongly-typed capturers run with zero reflection, filtered by the checked mask; unknown keys are skipped and missing keys keep current values (natural forward/backward compatibility for field changes).
 
 Generator diagnostics: MIRAI300 unsupported type, MIRAI301 duplicate key, MIRAI303 partial class required, MIRAI304 instance field required. After editing generator sources (`SourceGenerators/Source~/SaveHost/`) rebuild `SourceGenerators/SaveHost.dll` with `dotnet build -c Release`.

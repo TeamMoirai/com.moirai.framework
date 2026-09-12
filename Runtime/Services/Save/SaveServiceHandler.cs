@@ -18,6 +18,9 @@ namespace Moirai.Atropos.Save
     /// <para>数据块序列化职责由 <see cref="ISaveSerializer"/>（<see cref="SaveSerializerRegistry"/> 查询）承担，
     /// 处理器只搬运容器字节——序列化后端与存储管线两轴正交可插拔。</para>
     /// <para>由 <see cref="SaveServiceSettings"/> 序列化持有实例，经 <see cref="SaveService"/> 静态外观访问。</para>
+    /// <para>错误语义契约（全模块统一）：写入路径失败 fail-fast 抛 <see cref="GameException"/>（写失败绝不容忍半档状态）；
+    /// 读取路径失败返回 default + 记错误日志（错误判别用 Try* 族 <see cref="SaveResult{T}"/>）；
+    /// 删除路径幂等——目标不存在视为删除成功（静默返回），调用方无需先查存在性。</para>
     /// </summary>
     public abstract class SaveServiceHandler : FrameworkHandler
     {
@@ -92,7 +95,7 @@ namespace Moirai.Atropos.Save
             ValidateBlockData(data);
             ValidateBlockKey(key);
             SavePaths paths = ResolveSavePaths(fileName, folderName);
-            SemaphoreSlim gate = SaveFileGate.Get(paths.SaveFilePath);
+            SemaphoreSlim gate = SaveFileGate.Enter(paths.SaveFilePath);
             return SaveBlockWithGateAsync(paths, key, data, backend, dataVersion, gate, cancellationToken);
         }
 
@@ -101,14 +104,16 @@ namespace Moirai.Atropos.Save
         /// </summary>
         private async UniTask SaveBlockWithGateAsync<T>(SavePaths paths, string key, T data, ESaveBackend backend, int dataVersion, SemaphoreSlim gate, CancellationToken cancellationToken)
         {
-            await gate.WaitAsync(cancellationToken);
+            bool acquired = false;
             try
             {
+                await gate.WaitAsync(cancellationToken);
+                acquired = true;
                 await UniTask.RunOnThreadPool(() => SaveBlockCore(paths, key, data, backend, dataVersion, cancellationToken), cancellationToken: cancellationToken);
             }
             finally
             {
-                gate.Release();
+                SaveFileGate.Leave(paths.SaveFilePath, gate, acquired);
             }
         }
 
@@ -126,7 +131,26 @@ namespace Moirai.Atropos.Save
         {
             ValidateBlockKey(key);
             SavePaths paths = ResolveSavePaths(fileName, folderName);
-            return UniTask.RunOnThreadPool(() => LoadBlockCore<T>(paths, key), cancellationToken: cancellationToken);
+            SemaphoreSlim gate = SaveFileGate.Enter(paths.SaveFilePath);
+            return LoadBlockWithGateAsync<T>(paths, key, gate, cancellationToken);
+        }
+
+        /// <summary>
+        /// 持串行门执行块读取（与写路径互斥：不读到读-改-写进行中的旧档）。
+        /// </summary>
+        private async UniTask<T> LoadBlockWithGateAsync<T>(SavePaths paths, string key, SemaphoreSlim gate, CancellationToken cancellationToken)
+        {
+            bool acquired = false;
+            try
+            {
+                await gate.WaitAsync(cancellationToken);
+                acquired = true;
+                return await UniTask.RunOnThreadPool(() => LoadBlockCore<T>(paths, key), cancellationToken: cancellationToken);
+            }
+            finally
+            {
+                SaveFileGate.Leave(paths.SaveFilePath, gate, acquired);
+            }
         }
 
         /// <summary>
@@ -142,11 +166,30 @@ namespace Moirai.Atropos.Save
         {
             ValidateBlockKey(key);
             SavePaths paths = ResolveSavePaths(fileName, folderName);
-            return UniTask.RunOnThreadPool(() =>
+            SemaphoreSlim gate = SaveFileGate.Enter(paths.SaveFilePath);
+            return TryLoadBlockWithGateAsync<T>(paths, key, gate, cancellationToken);
+        }
+
+        /// <summary>
+        /// 持串行门执行块读取（错误判别版）。
+        /// </summary>
+        private async UniTask<SaveResult<T>> TryLoadBlockWithGateAsync<T>(SavePaths paths, string key, SemaphoreSlim gate, CancellationToken cancellationToken)
+        {
+            bool acquired = false;
+            try
             {
-                SaveError error = TryLoadBlockCore<T>(paths, key, out T data);
-                return error == SaveError.None ? SaveResult<T>.Success(data) : SaveResult<T>.Failure(error);
-            }, cancellationToken: cancellationToken);
+                await gate.WaitAsync(cancellationToken);
+                acquired = true;
+                return await UniTask.RunOnThreadPool(() =>
+                {
+                    SaveError error = TryLoadBlockCore<T>(paths, key, out T data);
+                    return error == SaveError.None ? SaveResult<T>.Success(data) : SaveResult<T>.Failure(error);
+                }, cancellationToken: cancellationToken);
+            }
+            finally
+            {
+                SaveFileGate.Leave(paths.SaveFilePath, gate, acquired);
+            }
         }
 
         /// <summary>
@@ -165,7 +208,7 @@ namespace Moirai.Atropos.Save
             ValidateBlockData(data);
             ValidateBlockKey(key);
             SavePaths paths = ResolveSavePaths(fileName, folderName);
-            SemaphoreSlim gate = SaveFileGate.Get(paths.SaveFilePath);
+            SemaphoreSlim gate = SaveFileGate.Enter(paths.SaveFilePath);
             gate.Wait();
             try
             {
@@ -173,7 +216,7 @@ namespace Moirai.Atropos.Save
             }
             finally
             {
-                gate.Release();
+                SaveFileGate.Leave(paths.SaveFilePath, gate, acquired: true);
             }
         }
 
@@ -190,7 +233,16 @@ namespace Moirai.Atropos.Save
         {
             ValidateBlockKey(key);
             SavePaths paths = ResolveSavePaths(fileName, folderName);
-            return LoadBlockCore<T>(paths, key);
+            SemaphoreSlim gate = SaveFileGate.Enter(paths.SaveFilePath);
+            gate.Wait();
+            try
+            {
+                return LoadBlockCore<T>(paths, key);
+            }
+            finally
+            {
+                SaveFileGate.Leave(paths.SaveFilePath, gate, acquired: true);
+            }
         }
 
         /// <summary>
@@ -206,8 +258,17 @@ namespace Moirai.Atropos.Save
         {
             ValidateBlockKey(key);
             SavePaths paths = ResolveSavePaths(fileName, folderName);
-            SaveError error = TryLoadBlockCore<T>(paths, key, out T data);
-            return error == SaveError.None ? SaveResult<T>.Success(data) : SaveResult<T>.Failure(error);
+            SemaphoreSlim gate = SaveFileGate.Enter(paths.SaveFilePath);
+            gate.Wait();
+            try
+            {
+                SaveError error = TryLoadBlockCore<T>(paths, key, out T data);
+                return error == SaveError.None ? SaveResult<T>.Success(data) : SaveResult<T>.Failure(error);
+            }
+            finally
+            {
+                SaveFileGate.Leave(paths.SaveFilePath, gate, acquired: true);
+            }
         }
 
         /// <summary>
@@ -360,7 +421,7 @@ namespace Moirai.Atropos.Save
         {
             ValidateBlockKey(key);
             SavePaths paths = ResolveSavePaths(fileName, folderName);
-            SemaphoreSlim gate = SaveFileGate.Get(paths.SaveFilePath);
+            SemaphoreSlim gate = SaveFileGate.Enter(paths.SaveFilePath);
             return DeleteBlockWithGateAsync(paths, key, gate, cancellationToken);
         }
 
@@ -369,14 +430,16 @@ namespace Moirai.Atropos.Save
         /// </summary>
         private async UniTask DeleteBlockWithGateAsync(SavePaths paths, string key, SemaphoreSlim gate, CancellationToken cancellationToken)
         {
-            await gate.WaitAsync(cancellationToken);
+            bool acquired = false;
             try
             {
+                await gate.WaitAsync(cancellationToken);
+                acquired = true;
                 await UniTask.RunOnThreadPool(() => DeleteBlockCore(paths, key, cancellationToken), cancellationToken: cancellationToken);
             }
             finally
             {
-                gate.Release();
+                SaveFileGate.Leave(paths.SaveFilePath, gate, acquired);
             }
         }
 
@@ -391,7 +454,7 @@ namespace Moirai.Atropos.Save
         {
             ValidateBlockKey(key);
             SavePaths paths = ResolveSavePaths(fileName, folderName);
-            SemaphoreSlim gate = SaveFileGate.Get(paths.SaveFilePath);
+            SemaphoreSlim gate = SaveFileGate.Enter(paths.SaveFilePath);
             gate.Wait();
             try
             {
@@ -399,12 +462,13 @@ namespace Moirai.Atropos.Save
             }
             finally
             {
-                gate.Release();
+                SaveFileGate.Leave(paths.SaveFilePath, gate, acquired: true);
             }
         }
 
         /// <summary>
         /// 块删除核心（同步，工作线程调用；须持串行门）：读容器 → 移除块 → 块集为空时整档删除，否则原子写回。
+        /// <para>幂等契约：块或文件不存在时静默返回（删除即达成目标状态）。</para>
         /// </summary>
         /// <param name="paths">已解析的路径集合。</param>
         /// <param name="key">数据块键。</param>
@@ -443,19 +507,28 @@ namespace Moirai.Atropos.Save
         public SaveBlockInfo[] GetBlockInfos(string fileName, string folderName = DEFAULT_FOLDER_NAME)
         {
             SavePaths paths = ResolveSavePaths(fileName, folderName);
-            SaveError readError = ReadContainerOrEmpty(paths, out List<SaveBlockEntry> blocks);
-            if (readError != SaveError.None)
+            SemaphoreSlim gate = SaveFileGate.Enter(paths.SaveFilePath);
+            gate.Wait();
+            try
             {
-                return Array.Empty<SaveBlockInfo>();
-            }
+                SaveError readError = ReadContainerOrEmpty(paths, out List<SaveBlockEntry> blocks);
+                if (readError != SaveError.None)
+                {
+                    return Array.Empty<SaveBlockInfo>();
+                }
 
-            var infos = new SaveBlockInfo[blocks.Count];
-            for (int i = 0; i < blocks.Count; i++)
+                var infos = new SaveBlockInfo[blocks.Count];
+                for (int i = 0; i < blocks.Count; i++)
+                {
+                    infos[i] = new SaveBlockInfo(blocks[i].Key, blocks[i].DataVersion, blocks[i].Backend, blocks[i].Bytes.Length);
+                }
+
+                return infos;
+            }
+            finally
             {
-                infos[i] = new SaveBlockInfo(blocks[i].Key, blocks[i].DataVersion, blocks[i].Backend, blocks[i].Bytes.Length);
+                SaveFileGate.Leave(paths.SaveFilePath, gate, acquired: true);
             }
-
-            return infos;
         }
 
         #endregion
@@ -562,13 +635,22 @@ namespace Moirai.Atropos.Save
         public void CreateBackup(string fileName, string folderName = DEFAULT_FOLDER_NAME)
         {
             SavePaths paths = ResolveSavePaths(fileName, folderName);
-            if (!File.Exists(paths.SaveFilePath))
+            SemaphoreSlim gate = SaveFileGate.Enter(paths.SaveFilePath);
+            gate.Wait();
+            try
             {
-                throw new GameException(StringUtility.Format("Save file not found for backup, path: {0}.", paths.SaveFilePath));
-            }
+                if (!File.Exists(paths.SaveFilePath))
+                {
+                    throw new GameException(StringUtility.Format("Save file not found for backup, path: {0}.", paths.SaveFilePath));
+                }
 
-            string backupFilePath = paths.SaveFilePath + BackupFileSuffix;
-            File.Copy(paths.SaveFilePath, backupFilePath, overwrite: true);
+                string backupFilePath = paths.SaveFilePath + BackupFileSuffix;
+                File.Copy(paths.SaveFilePath, backupFilePath, overwrite: true);
+            }
+            finally
+            {
+                SaveFileGate.Leave(paths.SaveFilePath, gate, acquired: true);
+            }
         }
 
         /// <summary>
@@ -579,23 +661,32 @@ namespace Moirai.Atropos.Save
         public void RestoreBackup(string fileName, string folderName = DEFAULT_FOLDER_NAME)
         {
             SavePaths paths = ResolveSavePaths(fileName, folderName);
-            string backupFilePath = paths.SaveFilePath + BackupFileSuffix;
-            if (!File.Exists(backupFilePath))
-            {
-                throw new GameException(StringUtility.Format("Backup file not found, path: {0}.", backupFilePath));
-            }
-
-            string tempFilePath = paths.SaveFilePath + TempFileSuffix + Guid.NewGuid().ToString("N");
+            SemaphoreSlim gate = SaveFileGate.Enter(paths.SaveFilePath);
+            gate.Wait();
             try
             {
-                EnsureDirectory(paths.DirectoryPath);
-                File.Copy(backupFilePath, tempFilePath, overwrite: true);
-                AtomicReplace(tempFilePath, paths.SaveFilePath);
+                string backupFilePath = paths.SaveFilePath + BackupFileSuffix;
+                if (!File.Exists(backupFilePath))
+                {
+                    throw new GameException(StringUtility.Format("Backup file not found, path: {0}.", backupFilePath));
+                }
+
+                string tempFilePath = paths.SaveFilePath + TempFileSuffix + Guid.NewGuid().ToString("N");
+                try
+                {
+                    EnsureDirectory(paths.DirectoryPath);
+                    File.Copy(backupFilePath, tempFilePath, overwrite: true);
+                    AtomicReplace(tempFilePath, paths.SaveFilePath);
+                }
+                catch (Exception exception)
+                {
+                    TryDeleteFile(tempFilePath);
+                    throw new GameException(StringUtility.Format("Backup restore failed, path: {0}, exception: {1}.", paths.SaveFilePath, exception.GetType().Name), exception);
+                }
             }
-            catch (Exception exception)
+            finally
             {
-                TryDeleteFile(tempFilePath);
-                throw new GameException(StringUtility.Format("Backup restore failed, path: {0}, exception: {1}.", paths.SaveFilePath, exception.GetType().Name), exception);
+                SaveFileGate.Leave(paths.SaveFilePath, gate, acquired: true);
             }
         }
 
@@ -682,7 +773,7 @@ namespace Moirai.Atropos.Save
                 return UniTask.CompletedTask;
             }
 
-            SemaphoreSlim gate = SaveFileGate.Get(paths.SaveFilePath);
+            SemaphoreSlim gate = SaveFileGate.Enter(paths.SaveFilePath);
             return UpsertRawBlocksWithGateAsync(paths, additions, gate, cancellationToken);
         }
 
@@ -691,9 +782,11 @@ namespace Moirai.Atropos.Save
         /// </summary>
         private async UniTask UpsertRawBlocksWithGateAsync(SavePaths paths, List<SaveBlockEntry> additions, SemaphoreSlim gate, CancellationToken cancellationToken)
         {
-            await gate.WaitAsync(cancellationToken);
+            bool acquired = false;
             try
             {
+                await gate.WaitAsync(cancellationToken);
+                acquired = true;
                 await UniTask.RunOnThreadPool(() =>
                 {
                     ReadContainerOrEmpty(paths, out List<SaveBlockEntry> existingBlocks);
@@ -708,34 +801,53 @@ namespace Moirai.Atropos.Save
             }
             finally
             {
-                gate.Release();
+                SaveFileGate.Leave(paths.SaveFilePath, gate, acquired);
             }
         }
 
         /// <summary>
-        /// 读取存档文件内全部块载荷（键 → 字节），IO 与容器解析在工作线程执行。
+        /// 读取存档文件内全部块载荷（键 → 字节），IO 与容器解析在工作线程执行（持串行门，与写路径互斥）。
         /// </summary>
         /// <param name="paths">已解析的路径集合。</param>
         /// <param name="cancellationToken">取消令牌。</param>
         /// <returns>键 → 块载荷字典；缺档/损坏（已记录日志）返回空字典。</returns>
         internal UniTask<Dictionary<string, byte[]>> ReadRawBlocksAsync(SavePaths paths, CancellationToken cancellationToken)
         {
-            return UniTask.RunOnThreadPool(() =>
+            SemaphoreSlim gate = SaveFileGate.Enter(paths.SaveFilePath);
+            return ReadRawBlocksWithGateAsync(paths, gate, cancellationToken);
+        }
+
+        /// <summary>
+        /// 持串行门执行组件块读取。
+        /// </summary>
+        private async UniTask<Dictionary<string, byte[]>> ReadRawBlocksWithGateAsync(SavePaths paths, SemaphoreSlim gate, CancellationToken cancellationToken)
+        {
+            bool acquired = false;
+            try
             {
-                SaveError readError = ReadContainerOrEmpty(paths, out List<SaveBlockEntry> blocks);
-                if (readError != SaveError.None)
+                await gate.WaitAsync(cancellationToken);
+                acquired = true;
+                return await UniTask.RunOnThreadPool(() =>
                 {
-                    return new Dictionary<string, byte[]>();
-                }
+                    SaveError readError = ReadContainerOrEmpty(paths, out List<SaveBlockEntry> blocks);
+                    if (readError != SaveError.None)
+                    {
+                        return new Dictionary<string, byte[]>();
+                    }
 
-                var result = new Dictionary<string, byte[]>(blocks.Count);
-                for (int i = 0; i < blocks.Count; i++)
-                {
-                    result[blocks[i].Key] = blocks[i].Bytes;
-                }
+                    var result = new Dictionary<string, byte[]>(blocks.Count);
+                    for (int i = 0; i < blocks.Count; i++)
+                    {
+                        result[blocks[i].Key] = blocks[i].Bytes;
+                    }
 
-                return result;
-            }, cancellationToken: cancellationToken);
+                    return result;
+                }, cancellationToken: cancellationToken);
+            }
+            finally
+            {
+                SaveFileGate.Leave(paths.SaveFilePath, gate, acquired);
+            }
         }
 
         /// <summary>
@@ -752,7 +864,7 @@ namespace Moirai.Atropos.Save
                 return UniTask.CompletedTask;
             }
 
-            SemaphoreSlim gate = SaveFileGate.Get(paths.SaveFilePath);
+            SemaphoreSlim gate = SaveFileGate.Enter(paths.SaveFilePath);
             return DeleteRawBlocksWithGateAsync(paths, keys, gate, cancellationToken);
         }
 
@@ -761,9 +873,11 @@ namespace Moirai.Atropos.Save
         /// </summary>
         private async UniTask DeleteRawBlocksWithGateAsync(SavePaths paths, List<string> keys, SemaphoreSlim gate, CancellationToken cancellationToken)
         {
-            await gate.WaitAsync(cancellationToken);
+            bool acquired = false;
             try
             {
+                await gate.WaitAsync(cancellationToken);
+                acquired = true;
                 await UniTask.RunOnThreadPool(() =>
                 {
                     SaveError readError = ReadContainerOrEmpty(paths, out List<SaveBlockEntry> existingBlocks);
@@ -789,7 +903,7 @@ namespace Moirai.Atropos.Save
             }
             finally
             {
-                gate.Release();
+                SaveFileGate.Leave(paths.SaveFilePath, gate, acquired);
             }
         }
 
@@ -974,7 +1088,9 @@ namespace Moirai.Atropos.Save
         }
 
         /// <summary>
-        /// 校验数据块键：非空白、长度受限、不含控制字符/路径分隔符、禁止保留前缀（<c>__main__</c>/<c>__meta</c> 由框架专用）。
+        /// 校验数据块键：非空白、长度受限、不含控制字符/路径分隔符、禁止保留前缀。
+        /// <para>保留前缀（<c>__</c>）禁止用户新建块——但对既有保留块（<c>__main__</c>/<c>__meta</c>）的读写/删除为合法操作（兼容旧 API 与元数据管理），
+        /// 经 <see cref="MainBlockKey"/>/<see cref="MetaBlockKey"/> 常量访问时豁免前缀校验。</para>
         /// </summary>
         /// <param name="key">数据块键。</param>
         private static void ValidateBlockKey(string key)
@@ -999,7 +1115,10 @@ namespace Moirai.Atropos.Save
                 throw new ArgumentException(StringUtility.Format("Save block key '{0}' contains invalid characters.", key), nameof(key));
             }
 
-            if (key.StartsWith(ReservedBlockKeyPrefix, StringComparison.Ordinal))
+            // 保留前缀仅豁免框架专用保留块（__main__/__meta），其余 __ 前缀一律拒绝
+            if (key.StartsWith(ReservedBlockKeyPrefix, StringComparison.Ordinal)
+                && !string.Equals(key, MainBlockKey, StringComparison.Ordinal)
+                && !string.Equals(key, MetaBlockKey, StringComparison.Ordinal))
             {
                 throw new ArgumentException(StringUtility.Format("Save block key '{0}' uses the reserved prefix '{1}'.", key, ReservedBlockKeyPrefix), nameof(key));
             }
@@ -1082,8 +1201,10 @@ namespace Moirai.Atropos.Save
             }
 
             int payloadLength = fileBytes.Length - SaveFileHeader.Size;
-            if (payloadLength != header.PayloadLength
-                || Crc32.Compute(fileBytes.AsSpan(SaveFileHeader.Size, payloadLength)) != header.PayloadCrc)
+            uint actualCrc = payloadLength >= 0
+                ? Crc32.Compute(fileBytes.AsSpan(SaveFileHeader.Size, payloadLength))
+                : 0u;
+            if (payloadLength != header.PayloadLength || actualCrc != header.PayloadCrc)
             {
                 return SaveError.Corrupted;
             }
@@ -1124,7 +1245,8 @@ namespace Moirai.Atropos.Save
             try
             {
                 EnsureDirectory(paths.DirectoryPath);
-                WriteToTempFile(tempFilePath, container, payloadCrc, 0u, cancellationToken);
+                // 写盘的是存储载荷（加密后），不是未加密容器——CRC 也是载荷的
+                WriteToTempFile(tempFilePath, payload, payloadCrc, 0u, cancellationToken);
                 cancellationToken.ThrowIfCancellationRequested();
                 AtomicReplace(tempFilePath, paths.SaveFilePath);
             }
