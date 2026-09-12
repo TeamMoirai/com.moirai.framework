@@ -25,7 +25,7 @@ namespace Moirai.Atropos.Debugger
         }
 
         /// <inheritdoc />
-        public override int Priority => -1;
+        public override int Priority => ServicePriorityOrder.DEBUGGER;
 
         /// <summary>
         /// 初始化调试器服务。由容器在构建期调用。

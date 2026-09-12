@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Cysharp.Threading.Tasks;
 using Moirai.Atropos.Resource;
 using UnityEngine.SceneManagement;
@@ -27,6 +27,9 @@ namespace Moirai.Atropos.Scene
             GameServices.EnsureRegistered<SceneService>();
             return SceneServiceSettings.SceneServiceHandler;
         }
+
+        /// <inheritdoc />
+        public override int Priority => ServicePriorityOrder.MID_TIER;
 
         /// <summary>
         /// 初始化场景服务。由容器在构建期调用。

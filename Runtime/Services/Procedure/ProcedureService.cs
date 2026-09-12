@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Moirai.Atropos.Debugger;
 using Moirai.Atropos.Localization;
 using Moirai.Atropos.Resource;
@@ -34,8 +34,9 @@ namespace Moirai.Atropos.Procedure
             GameServices.EnsureRegistered<ProcedureService>();
             return ProcedureServiceSettings.ProcedureServiceHandler;
         }
-
-        public override int Priority => -2;
+		
+        /// <inheritdoc />
+        public override int Priority => ServicePriorityOrder.PROCEDURE;
 
         /// <summary>
         /// 初始化流程服务。由容器在构建期调用。

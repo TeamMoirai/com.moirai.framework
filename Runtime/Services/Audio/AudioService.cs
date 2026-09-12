@@ -32,6 +32,9 @@ namespace Moirai.Atropos.Audio
             return AudioServiceSettings.AudioServiceHandler;
         }
 
+        /// <inheritdoc />
+        public override int Priority => ServicePriorityOrder.MID_TIER;
+
         /// <summary>
         /// 初始化音频服务。由容器在构建期调用。
         /// <para>确保 <c>AudioService.Handler</c> 已赋值（触发 <see cref="CreateDefaultHandler"/> 懒加载），

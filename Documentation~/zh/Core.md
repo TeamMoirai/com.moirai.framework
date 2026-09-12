@@ -1,4 +1,4 @@
-﻿# Core 服务系统（@Service）
+# Core 服务系统（@Service）
 
 > 框架的服务化基座：以统一服务世界（`ServiceWorld`）管理所有子服务的构造、生命周期、轮询与作用域，并由 `GameApp`（MonoBehaviour）驱动。
 
@@ -12,7 +12,7 @@
 - **HandlerHost 静态外观**：12 个框架服务均为 `[HandlerHost] XxxService : ServiceBase` 静态外观 + 可序列化 `XxxHandler` 后端 + `XxxSettings`（`[SerializeReference]` + `[ProviderDropdown]`）选择后端实现
 - **三级作用域**（`EServiceScopeKind.App` / `Scene` / `Gameplay`），跨作用域按 Gameplay > Scene > App 优先级查找
 - **生命周期能力接口按需实现**：`IServiceTickable`、`IServiceFixedTickable`、`IServiceLateTickable`、`IServiceGizmoDrawable`、`IAsyncShutdownService`（均继承 `IService`）
-- **`Priority` 优先级**控制轮询顺序（高优先先轮询、后关闭）
+- **`Priority` 优先级**控制轮询顺序（高优先先轮询、后关闭）。框架内置服务统一 ≤ -1000（见 `ServicePriorityOrder`），业务服务默认 0 及以上
 - **异步关闭**：实现 `IAsyncShutdownService` 的服务在 `ShutdownContainerAsync()` / `ShutdownAsync()` 中按逆注册序先异步关闭
 - **运行时服务注册**：`GameServices.RegisterService<T>()` / `UnregisterService<T>()` 动态增删单个服务；显式契约重载 `RegisterService(scope, Type, instance)` 支持接口契约与同实例多契约绑定；迭代中调用默认延迟到本轮结束后执行（`EDeferMode.Defer`）
 - **自注册 Mono 服务**：`ServiceMono<TScope>` 在 Awake 中自动注册、OnDestroy 中自动注销
@@ -32,7 +32,7 @@
 | 类/接口 | 说明 |
 |---------|------|
 | `IService` | 服务核心契约：`Priority`、`Scope`、`OnInit()`、`Shutdown()` |
-| `ServiceBase` | 纯 C# 服务抽象基类；依赖通过 `[ServiceDependency]` 特性声明，世界初始化时拓扑校验（生命周期状态机由容器经 `IServiceLifecycle` 唯一驱动，`State` 为只读投影） |
+| `ServiceBase` | 纯 C# 服务抽象基类；依赖通过 `[ServiceDependency]` 特性声明，世界初始化时拓扑校验（生命周期状态机由容器经 `IServiceLifecycle` 唯一驱动，`State` 为只读投影）；内置服务 `Priority` 统一 ≤ -1000 |
 | `ServiceMono<TScope>` | MonoBehaviour 服务基类（泛型作用域标记），Awake 自动注册、OnDestroy 自动注销 |
 | `ServiceWorld` | 可实例化统一服务世界（`new ServiceWorld()` 构造隔离世界）：3 作用域固定序槽位 + 内联绑定值类型 O(1) 跨作用域查找；两阶段构建 `Register`/`Initialize(Async)`；关闭严格逆拓扑 |
 | `ServiceScope` | 单作用域注册表、轮询列表（lazy-sort + swap-remove）、迭代安全（延迟变更队列）与 Tick 异常熔断（连续失败阈值摘除） |
@@ -49,6 +49,7 @@
 | `IAsyncShutdownService` | 异步关闭能力接口（继承 `IService`），实现 `OnShutdownAsync()` 的服务在 `ShutdownContainerAsync()` 中按逆注册序异步关闭 |
 | `FrameworkHandler` | 处理器基类（`[Serializable]`）：幂等 `Internal_Init`/`Internal_Shutdown` + 同步/异步生命周期回调；所有 XxxHandler 的基类 |
 | `ServiceScopeOrder` | 作用域优先级常量（App=-10000, Scene=-5000, Gameplay=0） |
+| `ServicePriorityOrder` | 框架内置服务轮询优先级常量（全部 ≤ -1000，与业务服务分带） |
 | `GameApp` | MonoBehaviour 入口（`[DefaultExecutionOrder(-1000)]`）；驱动 `GameAppSettings.Initiation`、按帧驱动 `GameServices.Tick` 并在销毁时调用 `GameServices.Shutdown` |
 | `GameAppMessageEvent` / `EMessageEventType` | 命名空间 `Moirai.Atropos.Events`，框架级池化事件（对焦/失焦/退出、SDK 回调） |
 

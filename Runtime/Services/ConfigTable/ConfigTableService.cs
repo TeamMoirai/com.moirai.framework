@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
@@ -26,6 +26,9 @@ namespace Moirai.Atropos.ConfigTable
             GameServices.EnsureRegistered<ConfigTableService>();
             return ConfigTableServiceSettings.ConfigTableServiceHandler;
         }
+
+        /// <inheritdoc />
+        public override int Priority => ServicePriorityOrder.MID_TIER;
 
         /// <summary>
         /// 初始化配置表服务。由容器在构建期调用。

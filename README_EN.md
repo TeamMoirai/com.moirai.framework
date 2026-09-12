@@ -242,7 +242,7 @@ var timer = GameService.Timer;
 - `OnInit()` — Service initialization
 - `Shutdown()` — Service destruction
 - Supports `IUpdateService`, `IFixedUpdateService`, `ILateUpdateService` interfaces for update loop registration
-- Update order controlled by `Priority` property; lifecycle scope controlled by `Scope` (App / Scene / Gameplay), auto-cleaning scene and gameplay services on scene unload
+- Update order controlled by `Priority` property (framework built-in services are uniformly ≤ -1000; business services default to 0 and above); lifecycle scope controlled by `Scope` (App / Scene / Gameplay), auto-cleaning scene and gameplay services on scene unload
 
 > See **[Core Service System documentation](Documentation~/en/Core.md)** for details (custom services, scope shadowing, cross-service dependencies)
 

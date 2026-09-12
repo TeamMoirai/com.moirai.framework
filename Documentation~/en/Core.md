@@ -1,4 +1,4 @@
-﻿# Core Service System (@Service)
+# Core Service System (@Service)
 
 > Framework's modular base: a unified service world (`ServiceWorld`) manages construction, lifecycle, polling, and scope of all sub-services, driven by `GameApp` (MonoBehaviour).
 
@@ -12,7 +12,7 @@
 - **HandlerHost static facades**: all 12 framework services follow the `[HandlerHost] XxxService : ServiceBase` static facade + serializable `XxxHandler` backend + `XxxSettings` (`[SerializeReference]` + `[ProviderDropdown]`) backend-selection pattern
 - **Three-level scope** (`EServiceScopeKind.App` / `Scene` / `Gameplay`), cross-scope lookup follows Gameplay > Scene > App priority
 - **Lifecycle capability interfaces implemented on demand**: `IServiceTickable`, `IServiceFixedTickable`, `IServiceLateTickable`, `IServiceGizmoDrawable`, `IAsyncShutdownService` (all inherit `IService`)
-- **`Priority`** controls polling order (higher priority polls first, shuts down later)
+- **`Priority`** controls polling order (higher priority polls first, shuts down later). Framework built-in services are uniformly ≤ -1000 (see `ServicePriorityOrder`); business services default to 0 and above
 - **Async shutdown**: services implementing `IAsyncShutdownService` are shut down asynchronously in reverse registration order by `ShutdownContainerAsync()` / `ShutdownAsync()`
 - **Runtime service registration**: `GameServices.RegisterService<T>()` / `UnregisterService<T>()` dynamically add/remove individual services; the explicit-contract overload `RegisterService(scope, Type, instance)` supports interface contracts and multi-contract binding of one instance; calls during iteration default to deferring until the current cycle ends (`EDeferMode.Defer`)
 - **Self-registering Mono service**: `ServiceMono<TScope>` auto-registers in Awake and auto-unregisters in OnDestroy
@@ -32,7 +32,7 @@ Namespace: `Moirai.Atropos`
 | Class/Interface | Description |
 |---------|------|
 | `IService` | Core service contract: `Priority`, `Scope`, `OnInit()`, `Shutdown()` |
-| `ServiceBase` | Abstract base class for plain C# services; dependencies declared via the `[ServiceDependency]` attribute and topologically validated at world initialization (the lifecycle state machine is driven solely by the container via `IServiceLifecycle`; `State` is a read-only projection) |
+| `ServiceBase` | Abstract base class for plain C# services; dependencies declared via the `[ServiceDependency]` attribute and topologically validated at world initialization (the lifecycle state machine is driven solely by the container via `IServiceLifecycle`; `State` is a read-only projection); built-in services use `Priority` ≤ -1000 |
 | `ServiceMono<TScope>` | MonoBehaviour service base (generic scope marker); auto-registers in Awake, auto-unregisters in OnDestroy |
 | `ServiceWorld` | Instantiable unified service world (`new ServiceWorld()` constructs an isolated world): 3 fixed-order scope slots + an inline binding value-type struct for O(1) cross-scope lookup; two-phase build via `Register`/`Initialize(Async)`; shutdown is strictly reverse-topological |
 | `ServiceScope` | Per-scope registry, polling lists (lazy-sort + swap-remove), iteration safety (deferred-change queue), and tick exception circuit breaker (removal on a consecutive-failure threshold) |
@@ -49,6 +49,7 @@ Namespace: `Moirai.Atropos`
 | `IAsyncShutdownService` | Async shutdown capability interface (inherits `IService`); services implementing `OnShutdownAsync()` are shut down in reverse registration order by `ShutdownContainerAsync()` |
 | `FrameworkHandler` | Handler base class (`[Serializable]`): idempotent `Internal_Init`/`Internal_Shutdown` + sync/async lifecycle callbacks; base of all XxxHandler classes |
 | `ServiceScopeOrder` | Scope priority constants (App=-10000, Scene=-5000, Gameplay=0) |
+| `ServicePriorityOrder` | Framework built-in service polling priority constants (all ≤ -1000, banded separately from business services) |
 | `GameApp` | MonoBehaviour entry point (`[DefaultExecutionOrder(-1000)]`); drives `GameAppSettings.Initiation`, drives `GameServices.Tick` every frame, and calls `GameServices.Shutdown` on destroy |
 | `GameAppMessageEvent` / `EMessageEventType` | Namespace `Moirai.Atropos.Events`, framework-level pooled events (focus/unfocus/quit, SDK callbacks) |
 
