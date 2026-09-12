@@ -258,7 +258,8 @@ namespace Moirai.Atropos.Save
 
         /// <summary>
         /// 将全部已注册 <see cref="SaveComponent"/> 的勾选字段异步写入存档文件（每组件一个 KVT 块；组件捕获在主线程，合并写回在工作线程）。
-        /// <para>失败抛出 <see cref="GameException"/>；处理器未就绪时静默降级为空任务；重复块键的组件记录告警并跳过。</para>
+        /// <para>失败抛出 <see cref="GameException"/>；处理器未就绪时静默降级为空任务；重复块键的组件记录告警并跳过。
+        /// 实体管线管理的实体组件（<c>entity:</c> 前缀块键）跳过——经 <c>SaveEntitiesAsync</c> 持久化。</para>
         /// </summary>
         /// <param name="fileName">文件名（自动追加配置的扩展名）。</param>
         /// <param name="folderName">文件夹名称。</param>
@@ -283,7 +284,8 @@ namespace Moirai.Atropos.Save
 
         /// <summary>
         /// 从存档文件异步恢复全部已注册 <see cref="SaveComponent"/> 的勾选字段（读盘在工作线程，字段写回在主线程）。
-        /// <para>缺块组件保留当前值；KVT 损坏的组件记录错误日志并跳过（不阻断其它组件）。</para>
+        /// <para>缺块组件保留当前值；KVT 损坏的组件记录错误日志并跳过（不阻断其它组件）。
+        /// 实体管线管理的实体组件（<c>entity:</c> 前缀块键）跳过——经 <c>RestoreEntitiesAsync</c> 恢复。</para>
         /// </summary>
         /// <param name="fileName">文件名（自动追加配置的扩展名）。</param>
         /// <param name="folderName">文件夹名称。</param>
@@ -323,7 +325,8 @@ namespace Moirai.Atropos.Save
             for (int i = 0; i < components.Length; i++)
             {
                 SaveComponent component = components[i];
-                if (component != null && !string.IsNullOrEmpty(component.ResolvedBlockKey) && blocks.TryGetValue(component.ResolvedBlockKey, out byte[] bytes))
+                // 实体块（entity: 前缀）由实体管线 RestoreEntitiesAsync 独占恢复——组件管线跳过
+                if (component != null && !string.IsNullOrEmpty(component.ResolvedBlockKey) && !SaveEntityPersistence.IsEntityBlockKey(component.ResolvedBlockKey) && blocks.TryGetValue(component.ResolvedBlockKey, out byte[] bytes))
                 {
                     try
                     {
@@ -365,6 +368,10 @@ namespace Moirai.Atropos.Save
                     if (string.IsNullOrEmpty(blockKey))
                     {
                         LogUtility.Warning("[SaveService] SaveComponent '{0}' is not activated (block key unresolved), skipped.", component.name);
+                    }
+                    else if (SaveEntityPersistence.IsEntityBlockKey(blockKey))
+                    {
+                        // 实体块由实体管线 SaveEntitiesAsync 独占捕获——组件管线跳过
                     }
                     else if (!seenKeys.Add(blockKey))
                     {

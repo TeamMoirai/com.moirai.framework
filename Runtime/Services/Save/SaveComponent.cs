@@ -51,9 +51,23 @@ namespace Moirai.Atropos.Save
         /// </summary>
         private void Awake()
         {
-            _resolvedBlockKey = string.IsNullOrWhiteSpace(BlockKey)
-                ? gameObject.scene.name + ":" + TransformPath()
-                : BlockKey;
+            EnsureActivated();
+        }
+
+        /// <summary>
+        /// 确保块键已解析并注册（幂等）。
+        /// <para>实体管线在编辑模式下的兜底入口——非 ExecuteInEditMode 组件的 Awake 在编辑模式不执行，
+        /// 生成/恢复后显式调用补齐注册（播放态 Awake 已执行，重复调用无副作用）。</para>
+        /// </summary>
+        internal void EnsureActivated()
+        {
+            if (_resolvedBlockKey == null)
+            {
+                _resolvedBlockKey = string.IsNullOrWhiteSpace(BlockKey)
+                    ? gameObject.scene.name + ":" + TransformPath()
+                    : BlockKey;
+            }
+
             SaveComponentRegistry.Register(this);
         }
 

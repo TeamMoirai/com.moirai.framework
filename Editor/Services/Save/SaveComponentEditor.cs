@@ -21,6 +21,15 @@ namespace Moirai.Atropos.Editor.Save
         /// <summary>绑定折叠状态。</summary>
         private readonly List<bool> _foldouts = new List<bool>();
 
+        /// <summary>
+        /// 编辑器域注册内置捕获器（Transform/Rigidbody/ParticleSystem 的字段清单展示依赖注册表；幂等）。
+        /// </summary>
+        [InitializeOnLoadMethod]
+        private static void RegisterBuiltInCapturersForEditor()
+        {
+            SaveBuiltInCapturers.RegisterBuiltIns();
+        }
+
         /// <summary>可保存字段元信息。</summary>
         private readonly struct SaveFieldMeta
         {
@@ -131,6 +140,7 @@ namespace Moirai.Atropos.Editor.Save
 
         /// <summary>
         /// 获取组件类型的可保存字段元信息（反射一次并缓存）。
+        /// <para>无 [SaveField] 字段的引擎组件回退到已注册捕获器的字段清单（Transform/Rigidbody/ParticleSystem 内置捕获器）。</para>
         /// </summary>
         /// <param name="componentType">组件类型。</param>
         /// <returns>字段元信息数组。</returns>
@@ -153,6 +163,15 @@ namespace Moirai.Atropos.Editor.Save
                 string key = attribute.Key ?? fieldInfo.Name;
                 string displayName = attribute.Key == null ? fieldInfo.Name : $"{fieldInfo.Name} → {attribute.Key}";
                 list.Add(new SaveFieldMeta(key, displayName, fieldInfo.FieldType.Name));
+            }
+
+            // 引擎组件无 [SaveField] 标注——回退到内置捕获器的字段清单
+            if (list.Count == 0 && SaveCapturerRegistry.TryGet(componentType, out ISaveComponentCapturer capturer))
+            {
+                for (int i = 0; i < capturer.FieldNames.Length; i++)
+                {
+                    list.Add(new SaveFieldMeta(capturer.FieldNames[i], capturer.FieldNames[i], "内置"));
+                }
             }
 
             metas = list.ToArray();
