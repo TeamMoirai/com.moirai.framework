@@ -66,6 +66,12 @@ namespace Moirai.Atropos.Debugger
                 _activeWindow = value;
                 if (_activeWindow)
                 {
+                    // 运行期从关闭切到开启时补启日志捕获（OnInit 未激活路径下捕获未启动）
+                    if (_logCapture != null && !_logCapture.IsRunning)
+                    {
+                        _logCapture.Start();
+                    }
+
                     _hostPending = true;
                 }
                 else
@@ -77,7 +83,10 @@ namespace Moirai.Atropos.Debugger
                     }
                 }
 
-                _host?.SetRootVisible(_activeWindow);
+                if (_host != null)
+                {
+                    _host.SetRootVisible(_activeWindow);
+                }
             }
         }
 
@@ -115,7 +124,6 @@ namespace Moirai.Atropos.Debugger
         {
             _windowRegistry = new DebuggerWindowRegistry();
             _logCapture = new DebuggerLogCapture(m_ConsoleCapacity > 0 ? m_ConsoleCapacity : DEFAULT_CONSOLE_CAPACITY);
-            _logCapture.Start();
             _showFullWindow = false;
             _hostPending = false;
 
@@ -124,6 +132,8 @@ namespace Moirai.Atropos.Debugger
             _activeWindow = ResolveActivation(DebuggerServiceSettings.ActiveWindowType);
             if (_activeWindow)
             {
+                // 日志捕获随激活门控——AlwaysClose（生产）下不订阅日志回调、不驻留环形缓冲
+                _logCapture.Start();
                 _hostPending = true;
             }
         }
@@ -138,6 +148,7 @@ namespace Moirai.Atropos.Debugger
             if (_host != null)
             {
                 _host.Shutdown();
+                Object.Destroy(_host.gameObject);
                 _host = null;
             }
 
@@ -221,6 +232,11 @@ namespace Moirai.Atropos.Debugger
             }
 
             window.Shutdown();
+            if (_host != null)
+            {
+                _host.RemoveCachedView(window);
+            }
+
             return true;
         }
 

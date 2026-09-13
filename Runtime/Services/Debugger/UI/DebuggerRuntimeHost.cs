@@ -191,6 +191,12 @@ namespace Moirai.Atropos.Debugger
             LoadLayoutSettings();
             EnsureRuntimePanel();
 
+            // 主窗口不透明度（0.2-1）——作用于调试器主窗口层；悬浮 FPS 入口保持完全不透明
+            if (_overlay != null)
+            {
+                _overlay.style.opacity = Mathf.Clamp(handler.WindowOpacity, 0.2f, 1f);
+            }
+
             if (handler.StatsOverlayVisible)
             {
                 StatsOverlayVisible = true;
@@ -229,6 +235,21 @@ namespace Moirai.Atropos.Debugger
             _viewByWindow.Clear();
             _handler = null;
             _registry = null;
+        }
+
+        /// <summary>
+        /// 移除窗口的缓存视图（窗口注销后调用——防止已关停窗口的视图树被字典持有无法回收）。
+        /// <para>若被注销窗口正被选中，内容区由注册表版本号驱动的下一帧 <see cref="RefreshSelectionContent"/> 重建。</para>
+        /// </summary>
+        /// <param name="window">已注销的调试器窗口。</param>
+        internal void RemoveCachedView(IDebuggerWindow window)
+        {
+            if (window == null)
+            {
+                return;
+            }
+
+            _viewByWindow.Remove(window);
         }
 
         private void Awake()
