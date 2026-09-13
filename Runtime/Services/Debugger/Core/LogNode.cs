@@ -14,7 +14,7 @@ namespace Moirai.Atropos.Debugger
         private int _logFrameCount;
         private LogType _logType;
         private string _logMessage;
-        private string _stackTrack;
+        private string _stackTrace;
 
         #endregion
 
@@ -29,7 +29,7 @@ namespace Moirai.Atropos.Debugger
             _logFrameCount = 0;
             _logType = LogType.Error;
             _logMessage = null;
-            _stackTrack = null;
+            _stackTrace = null;
         }
 
         #endregion
@@ -83,11 +83,11 @@ namespace Moirai.Atropos.Debugger
         /// <summary>
         /// 获取日志堆栈信息。
         /// </summary>
-        public string StackTrack
+        public string StackTrace
         {
             get
             {
-                return _stackTrack;
+                return _stackTrace;
             }
         }
 
@@ -100,16 +100,16 @@ namespace Moirai.Atropos.Debugger
         /// </summary>
         /// <param name="logType">日志类型。</param>
         /// <param name="logMessage">日志内容。</param>
-        /// <param name="stackTrack">日志堆栈信息。</param>
+        /// <param name="stackTrace">日志堆栈信息。</param>
         /// <returns>创建的日志记录结点。</returns>
-        public static LogNode Create(LogType logType, string logMessage, string stackTrack)
+        public static LogNode Create(LogType logType, string logMessage, string stackTrace)
         {
             LogNode logNode = MemoryPool.Acquire<LogNode>();
             logNode._logTime = DateTime.UtcNow;
             logNode._logFrameCount = Time.frameCount;
             logNode._logType = logType;
             logNode._logMessage = logMessage;
-            logNode._stackTrack = stackTrack;
+            logNode._stackTrace = stackTrace;
             return logNode;
         }
 
@@ -126,7 +126,7 @@ namespace Moirai.Atropos.Debugger
             _logFrameCount = 0;
             _logType = LogType.Error;
             _logMessage = null;
-            _stackTrack = null;
+            _stackTrace = null;
         }
 
         #endregion

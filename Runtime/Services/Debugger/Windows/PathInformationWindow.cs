@@ -9,6 +9,17 @@ namespace Moirai.Atropos.Debugger
     /// </summary>
     public sealed class PathInformationWindow : PollingDebuggerWindowBase
     {
+        #region 构造 [CONSTRUCTOR]
+
+        /// <summary>
+        /// 初始化路径信息窗口的新实例（路径为进程级常量——禁用轮询，进入时构建一次）。
+        /// </summary>
+        public PathInformationWindow() : base(0f)
+        {
+        }
+
+        #endregion
+
         #region 构建窗口 [BUILD WINDOW]
 
         /// <inheritdoc />

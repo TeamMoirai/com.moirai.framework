@@ -40,8 +40,8 @@ namespace Moirai.Atropos.Debugger
 #if UNITY_EDITOR
                 UnityEditor.EditorApplication.isPlaying = false;
 #endif
-                    }, DebuggerUI.EButtonStyle.Danger));
-            }
+            }, DebuggerUI.EButtonStyle.Danger));
+        }
 
         #endregion
 

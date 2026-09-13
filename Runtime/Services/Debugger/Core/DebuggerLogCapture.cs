@@ -37,6 +37,7 @@ namespace Moirai.Atropos.Debugger
         private readonly ConcurrentQueue<PendingLogEntry> _pendingEntries = new ConcurrentQueue<PendingLogEntry>();
         private readonly Queue<LogNode> _nodes = new Queue<LogNode>();
         private readonly int _capacity;
+        private bool _isRunning;
         private int _infoCount;
         private int _warningCount;
         private int _errorCount;
@@ -69,6 +70,11 @@ namespace Moirai.Atropos.Debugger
         /// 获取环形缓冲容量。
         /// </summary>
         public int Capacity => _capacity;
+
+        /// <summary>
+        /// 获取是否正在捕获（Start/Stop 幂等守卫——重复 Start 不会重复订阅日志回调）。
+        /// </summary>
+        public bool IsRunning => _isRunning;
 
         /// <summary>
         /// 获取当前缓冲的日志总数。
@@ -105,18 +111,30 @@ namespace Moirai.Atropos.Debugger
         #region 生命周期 [LIFECYCLE]
 
         /// <summary>
-        /// 开始捕获（订阅 Unity 日志回调）。
+        /// 开始捕获（订阅 Unity 日志回调；幂等——已运行时无操作）。
         /// </summary>
         public void Start()
         {
+            if (_isRunning)
+            {
+                return;
+            }
+
+            _isRunning = true;
             Application.logMessageReceivedThreaded += OnLogMessageReceived;
         }
 
         /// <summary>
-        /// 停止捕获（退订回调并清空缓冲）。
+        /// 停止捕获（退订回调并清空缓冲；幂等——未运行时无操作）。
         /// </summary>
         public void Stop()
         {
+            if (!_isRunning)
+            {
+                return;
+            }
+
+            _isRunning = false;
             Application.logMessageReceivedThreaded -= OnLogMessageReceived;
             Clear();
         }

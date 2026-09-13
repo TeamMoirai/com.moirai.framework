@@ -361,7 +361,7 @@ namespace Moirai.Atropos.Debugger
             {
                 if (_selectedNode != null)
                 {
-                    DebuggerUI.CopyToClipboard(StringUtility.Format("{0}\n\n{1}", _selectedNode.LogMessage, _selectedNode.StackTrack));
+                    DebuggerUI.CopyToClipboard(StringUtility.Format("{0}\n\n{1}", _selectedNode.LogMessage, _selectedNode.StackTrace));
                 }
             });
             copyButton.style.paddingLeft = 14f;
@@ -393,7 +393,7 @@ namespace Moirai.Atropos.Debugger
                 return;
             }
 
-            _detailField.value = StringUtility.Format("{0}\n\n{1}", _selectedNode.LogMessage, _selectedNode.StackTrack);
+            _detailField.value = StringUtility.Format("{0}\n\n{1}", _selectedNode.LogMessage, _selectedNode.StackTrace);
         }
 
         #endregion

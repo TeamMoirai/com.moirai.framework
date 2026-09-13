@@ -110,8 +110,20 @@ namespace Moirai.Atropos.Debugger
             AddRow(card, "Acceleration", accelerometer.acceleration.ReadValue().ToString("F4"));
 
             VisualElement buttonRow = DebuggerUI.CreateToolbarRow();
-            buttonRow.Add(DebuggerUI.CreateActionButton("Enable", () => InputSystem.EnableDevice(Accelerometer.current), DebuggerUI.EButtonStyle.Positive));
-            buttonRow.Add(DebuggerUI.CreateActionButton("Disable", () => InputSystem.DisableDevice(Accelerometer.current), DebuggerUI.EButtonStyle.Danger));
+            buttonRow.Add(DebuggerUI.CreateActionButton("Enable", () =>
+            {
+                if (Accelerometer.current != null)
+                {
+                    InputSystem.EnableDevice(Accelerometer.current);
+                }
+            }, DebuggerUI.EButtonStyle.Positive));
+            buttonRow.Add(DebuggerUI.CreateActionButton("Disable", () =>
+            {
+                if (Accelerometer.current != null)
+                {
+                    InputSystem.DisableDevice(Accelerometer.current);
+                }
+            }, DebuggerUI.EButtonStyle.Danger));
             card.Add(buttonRow);
         }
 
@@ -136,7 +148,11 @@ namespace Moirai.Atropos.Debugger
             VisualElement buttonRow = DebuggerUI.CreateToolbarRow();
             buttonRow.Add(DebuggerUI.CreateActionButton("Enable", () =>
             {
-                InputSystem.EnableDevice(UnityEngine.InputSystem.Gyroscope.current);
+                if (UnityEngine.InputSystem.Gyroscope.current != null)
+                {
+                    InputSystem.EnableDevice(UnityEngine.InputSystem.Gyroscope.current);
+                }
+
                 if (AttitudeSensor.current != null)
                 {
                     InputSystem.EnableDevice(AttitudeSensor.current);
@@ -144,7 +160,11 @@ namespace Moirai.Atropos.Debugger
             }, DebuggerUI.EButtonStyle.Positive));
             buttonRow.Add(DebuggerUI.CreateActionButton("Disable", () =>
             {
-                InputSystem.DisableDevice(UnityEngine.InputSystem.Gyroscope.current);
+                if (UnityEngine.InputSystem.Gyroscope.current != null)
+                {
+                    InputSystem.DisableDevice(UnityEngine.InputSystem.Gyroscope.current);
+                }
+
                 if (AttitudeSensor.current != null)
                 {
                     InputSystem.DisableDevice(AttitudeSensor.current);
@@ -168,8 +188,20 @@ namespace Moirai.Atropos.Debugger
             AddRow(card, "Heading", "Input System 未提供罗盘朝向角（仅原始磁场强度）");
 
             VisualElement buttonRow = DebuggerUI.CreateToolbarRow();
-            buttonRow.Add(DebuggerUI.CreateActionButton("Enable", () => InputSystem.EnableDevice(MagneticFieldSensor.current), DebuggerUI.EButtonStyle.Positive));
-            buttonRow.Add(DebuggerUI.CreateActionButton("Disable", () => InputSystem.DisableDevice(MagneticFieldSensor.current), DebuggerUI.EButtonStyle.Danger));
+            buttonRow.Add(DebuggerUI.CreateActionButton("Enable", () =>
+            {
+                if (MagneticFieldSensor.current != null)
+                {
+                    InputSystem.EnableDevice(MagneticFieldSensor.current);
+                }
+            }, DebuggerUI.EButtonStyle.Positive));
+            buttonRow.Add(DebuggerUI.CreateActionButton("Disable", () =>
+            {
+                if (MagneticFieldSensor.current != null)
+                {
+                    InputSystem.DisableDevice(MagneticFieldSensor.current);
+                }
+            }, DebuggerUI.EButtonStyle.Danger));
             card.Add(buttonRow);
         }
 #endif
