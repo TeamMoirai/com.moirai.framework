@@ -17,7 +17,8 @@ namespace Moirai.Atropos
     /// }
     /// </code>
     /// <para>源生成器会生成 s_Handler 字段（private，partial 同类可直接访问）、
-    /// IsValid 属性（s_Handler != null）和 Handler 属性（get/set）。</para>
+    /// IsValid 属性（s_Handler != null）、Handler 属性（get/set）和
+    /// RequireHandler 方法（读 s_Handler 不触发懒加载，未就绪抛 <see cref="GameException"/>——写路径 fail-fast 入口）。</para>
     /// <para>工厂契约三档：① 同时声明两者——懒加载优先调用 <c>GetHandlerFromSettings</c>，
     /// 返回 null 回退到 <c>CreateDefaultHandler</c>；② 仅声明 <c>CreateDefaultHandler</c>——懒加载直接调用工厂；
     /// ③ 仅声明 <c>GetHandlerFromSettings</c>（settings-only，MIRAI102 Info 提示）——懒加载调用它并要求返回非空值，
