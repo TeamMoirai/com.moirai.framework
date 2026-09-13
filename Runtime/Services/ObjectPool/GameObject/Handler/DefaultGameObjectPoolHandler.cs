@@ -73,7 +73,11 @@ namespace Moirai.Atropos.ObjectPool
             _registry = new PooledInstanceRegistry(64);
 
             GameObject rootGo = new GameObject("[GameObjectPool]");
-            UnityEngine.Object.DontDestroyOnLoad(rootGo);
+            // EditMode 下 DontDestroyOnLoad 抛 InvalidOperationException——仅播放态常驻跨场景
+            if (Application.isPlaying)
+            {
+                UnityEngine.Object.DontDestroyOnLoad(rootGo);
+            }
             _containerRoot = rootGo.transform;
 
             Application.lowMemory += OnLowMemory;
