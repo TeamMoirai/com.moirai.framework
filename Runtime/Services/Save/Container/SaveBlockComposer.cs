@@ -69,6 +69,58 @@ namespace Moirai.Atropos.Save
         }
 
         /// <summary>
+        /// 批量按键插入或替换数据块（单次 O(n+m) 归并；同键以 additions 中最后一次为准，新键按该次出现顺序追加）。
+        /// </summary>
+        /// <param name="source">源块列表（可为 null = 空列表）。</param>
+        /// <param name="additions">待合并条目列表。</param>
+        /// <returns>合并后的新块列表。</returns>
+        public static List<SaveBlockEntry> UpsertAll(List<SaveBlockEntry> source, List<SaveBlockEntry> additions)
+        {
+            if (additions == null || additions.Count == 0)
+            {
+                return source != null ? new List<SaveBlockEntry>(source) : new List<SaveBlockEntry>();
+            }
+
+            // 每个键只保留 additions 中最后一次出现
+            var lastIndexOfKey = new Dictionary<string, int>(additions.Count, StringComparer.Ordinal);
+            for (int i = 0; i < additions.Count; i++)
+            {
+                lastIndexOfKey[additions[i].Key] = i;
+            }
+
+            int sourceCount = source?.Count ?? 0;
+            var sourceKeys = new HashSet<string>(sourceCount, StringComparer.Ordinal);
+            for (int i = 0; i < sourceCount; i++)
+            {
+                sourceKeys.Add(source[i].Key);
+            }
+
+            var result = new List<SaveBlockEntry>(sourceCount + lastIndexOfKey.Count);
+            for (int i = 0; i < sourceCount; i++)
+            {
+                SaveBlockEntry existing = source[i];
+                if (lastIndexOfKey.TryGetValue(existing.Key, out int replacementIndex))
+                {
+                    result.Add(additions[replacementIndex]);
+                }
+                else
+                {
+                    result.Add(existing);
+                }
+            }
+
+            for (int i = 0; i < additions.Count; i++)
+            {
+                if (lastIndexOfKey[additions[i].Key] == i && !sourceKeys.Contains(additions[i].Key))
+                {
+                    result.Add(additions[i]);
+                }
+            }
+
+            return result;
+        }
+
+        /// <summary>
         /// 按键移除数据块（未命中返回等价于源列表的新列表）。
         /// </summary>
         /// <param name="source">源块列表（可为 null = 空列表）。</param>

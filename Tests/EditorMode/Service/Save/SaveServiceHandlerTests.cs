@@ -614,6 +614,17 @@ namespace Service.Save
             Assert.IsFalse(SaveService.FileExists("slot", TestFolder));
         }
 
+        [Test]
+        public void Facade_HandlerNotReady_Save_ThrowsGameException()
+        {
+            // 写路径 fail-fast：处理器未就绪抛 GameException，禁止静默丢档
+            SetHandler(null);
+
+            Assert.Throws<GameException>(() => SaveService.SaveBlock(new SaveData { Gold = 1 }, "slot", "stats", TestFolder));
+            Assert.Throws<GameException>(() => SaveService.Save(new SaveData { Gold = 1 }, "slot", TestFolder));
+            Assert.Throws<GameException>(() => SaveService.SaveMetadata(new SaveMetadata(), "slot", TestFolder));
+        }
+
         #endregion
 
         #region 路径参数校验 [ARGUMENT VALIDATION]

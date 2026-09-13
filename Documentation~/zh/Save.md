@@ -1,4 +1,4 @@
-﻿# Save
+# Save
 
 ## 概述
 
@@ -7,7 +7,7 @@ Save 服务（`SaveService`）为游戏提供 AAA 级存档基础设施：**单�
 ## 架构
 
 ```
-SaveService（静态外观，s_Handler null 时静默降级）
+SaveService（静态外观，写路径未就绪抛 GameException，读路径降级）
 ├── 存储管线（[SerializeReference] 可切换）
 │     PlainSaveHandler        明文直通
 │     AesEncryptedSaveHandler AES-256-CBC + HMAC（encrypt-then-MAC），密钥经 ISaveKeyProvider 直给
@@ -194,7 +194,7 @@ await SaveService.RestoreEntitiesAsync("slot1");
 - **CarryForward 语义**：保存仅 upsert 活跃实体，未访问场景与生成失败实体的块原样滞留；绕过 `DestroyPersistent` 直接 `Object.Destroy` 的实体，其记录与块同样滞留（须走显式销毁移除）。恢复后会话生成/销毁表以档案状态整体替换。
 - **父子与场景落位**：生成记录的 ParentId（父级须挂 SaveObjectIdentity，否则父子关系不持久化并记告警）在恢复第二轮接线；SceneName 场景已加载则落位其中，否则落位活跃场景并记告警。稳定 ID 查询走 `SaveEntityRegistry`——场景作用域表（场景卸载清扫）+ 全局作用域表（DontDestroyOnLoad 对象常驻）双表。
 - **恢复时序**：生成保持未激活直到差分块写回完成——Awake/OnEnable 即见最终父级与恢复后字段值（游戏逻辑须读档后状态时监听 `EntityRestored` 事件或在 Start 之后）。差分块损坏的实体记错误日志并按模板默认恢复（不阻断其它实体）。
-- **降级契约**：`InstantiatePersistent`/`DestroyPersistent` 不依赖存档处理器（注册表与资源服务可用即可），预制体键未登记/加载失败记错误日志返回 `null`；`SaveEntitiesAsync`/`RestoreEntitiesAsync` 在处理器未就绪时静默降级为空任务。
+- **降级契约**：`InstantiatePersistent`/`DestroyPersistent` 不依赖存档处理器（注册表与资源服务可用即可），预制体键未登记/加载失败记错误日志返回 `null`；`SaveEntitiesAsync` 在处理器未就绪时抛 `GameException`；`RestoreEntitiesAsync` 静默降级为空任务。
 - **预制体资产不烘焙 ID**：`SaveObjectIdentity.OnValidate` 跳过预制体资产本体（资产上的 ID 会被全部实例共享而必然撞键）；场景内实例仍各自烘焙，动态实体由生成管线在激活前注入每实例唯一 ID。
 
 | API（实体分部） | 说明 |
@@ -276,11 +276,11 @@ await SaveService.RestoreEntitiesAsync("slot1");
 
 ### 降级契约（处理器未就绪）
 
-写/删除 no-op；读返回 default；`TryLoad*` 返回 `Failure(HandlerNotReady)`；枚举返回空数组。
+写路径（`SaveBlock`/`SaveBlockAsync`/`SaveComponentsAsync`/`SaveEntitiesAsync`/`SaveMetadata`/`SaveMetadataAsync`）**抛 `GameException`**——不静默丢档；读返回 default；`TryLoad*` 返回 `Failure(HandlerNotReady)`；删除/枚举 no-op 或空数组。
 
 ### 事件（SaveService.Events）
 
-静态事件（默认零开销通道）+ `EventManager` 桥事件（`SaveSlotChangedEvent` 等，订阅侧二选一）。全部主线程派发：主线程操作内联，异步操作工作线程完成后经 `MainThreadDispatcher` 入队。`OnShutdown` 不清理订阅者——订阅方自行退订。参数均为只读值类型（≤32B）。
+静态事件（默认零开销通道）+ `EventManager` 桥事件（`SaveSlotChangedEvent` 等，订阅侧二选一）。全部主线程派发：主线程操作内联，异步操作工作线程完成后经 `MainThreadDispatcher` 入队。`OnShutdown` 不清理订阅者——订阅方自行退订；调试可用 `SaveService.UnsubscribeAll()` 一键清空。参数均为只读值类型（≤32B）。
 
 | 静态事件 | 桥事件 | 时机 |
 |---|---|---|

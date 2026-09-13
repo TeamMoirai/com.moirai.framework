@@ -96,7 +96,7 @@ namespace Moirai.Atropos.Save
         /// <returns>存在返回 <c>true</c>。</returns>
         public virtual UniTask<bool> ExistsAsync(string filePath, CancellationToken cancellationToken = default)
         {
-            return UniTask.RunOnThreadPool(() => Exists(filePath), cancellationToken: cancellationToken);
+            return UniTask.RunOnThreadPool(() => Exists(filePath), configureAwait: false, cancellationToken: cancellationToken);
         }
 
         /// <summary>
@@ -111,7 +111,7 @@ namespace Moirai.Atropos.Save
             {
                 SaveError error = TryReadAllBytes(filePath, out byte[] bytes);
                 return error == SaveError.None ? bytes : null;
-            }, cancellationToken: cancellationToken);
+            }, configureAwait: false, cancellationToken: cancellationToken);
         }
 
         /// <summary>
@@ -123,7 +123,7 @@ namespace Moirai.Atropos.Save
         /// <returns>写入完成的异步任务；失败抛出 <see cref="GameException"/>。</returns>
         public virtual UniTask WriteAtomicAsync(string filePath, byte[] bytes, CancellationToken cancellationToken = default)
         {
-            return UniTask.RunOnThreadPool(() => WriteAtomic(filePath, bytes, cancellationToken), cancellationToken: cancellationToken);
+            return UniTask.RunOnThreadPool(() => WriteAtomic(filePath, bytes, cancellationToken), configureAwait: false, cancellationToken: cancellationToken);
         }
 
         /// <summary>
@@ -134,7 +134,7 @@ namespace Moirai.Atropos.Save
         /// <returns>删除完成的异步任务。</returns>
         public virtual UniTask DeleteFileAsync(string filePath, CancellationToken cancellationToken = default)
         {
-            return UniTask.RunOnThreadPool(() => DeleteFile(filePath), cancellationToken: cancellationToken);
+            return UniTask.RunOnThreadPool(() => DeleteFile(filePath), configureAwait: false, cancellationToken: cancellationToken);
         }
 
         /// <summary>
@@ -145,7 +145,7 @@ namespace Moirai.Atropos.Save
         /// <returns>删除完成的异步任务。</returns>
         public virtual UniTask DeleteDirectoryAsync(string directoryPath, CancellationToken cancellationToken = default)
         {
-            return UniTask.RunOnThreadPool(() => DeleteDirectory(directoryPath), cancellationToken: cancellationToken);
+            return UniTask.RunOnThreadPool(() => DeleteDirectory(directoryPath), configureAwait: false, cancellationToken: cancellationToken);
         }
 
         /// <summary>
@@ -157,7 +157,7 @@ namespace Moirai.Atropos.Save
         /// <returns>文件元信息数组。</returns>
         public virtual UniTask<SaveFileInfo[]> EnumerateFilesAsync(string directoryPath, string extension, CancellationToken cancellationToken = default)
         {
-            return UniTask.RunOnThreadPool(() => EnumerateFiles(directoryPath, extension), cancellationToken: cancellationToken);
+            return UniTask.RunOnThreadPool(() => EnumerateFiles(directoryPath, extension), configureAwait: false, cancellationToken: cancellationToken);
         }
 
         /// <summary>
@@ -168,7 +168,7 @@ namespace Moirai.Atropos.Save
         /// <returns>备份完成的异步任务；失败抛出 <see cref="GameException"/>。</returns>
         public virtual UniTask CreateBackupAsync(string filePath, CancellationToken cancellationToken = default)
         {
-            return UniTask.RunOnThreadPool(() => CreateBackup(filePath), cancellationToken: cancellationToken);
+            return UniTask.RunOnThreadPool(() => CreateBackup(filePath), configureAwait: false, cancellationToken: cancellationToken);
         }
 
         /// <summary>
@@ -179,7 +179,7 @@ namespace Moirai.Atropos.Save
         /// <returns>恢复完成的异步任务；失败抛出 <see cref="GameException"/>。</returns>
         public virtual UniTask RestoreBackupAsync(string filePath, CancellationToken cancellationToken = default)
         {
-            return UniTask.RunOnThreadPool(() => RestoreBackup(filePath), cancellationToken: cancellationToken);
+            return UniTask.RunOnThreadPool(() => RestoreBackup(filePath), configureAwait: false, cancellationToken: cancellationToken);
         }
 
         #endregion
