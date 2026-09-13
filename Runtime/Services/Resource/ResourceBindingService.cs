@@ -3,7 +3,7 @@ using System.Threading;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.UI;
-using Object = UnityEngine.Object;
+using UObject = UnityEngine.Object;
 
 namespace Moirai.Atropos.Resource
 {
@@ -45,8 +45,8 @@ namespace Moirai.Atropos.Resource
             public ulong TargetGameObjectId;
             public ulong TargetComponentId;
             public Component Target;
-            public Object AppliedAsset;
-            public Object RuntimeObject;
+            public UObject AppliedAsset;
+            public UObject RuntimeObject;
             public int AssetId;
             public int ViewKeyId;
             public ResourceLeaseHandle Lease;
@@ -411,7 +411,7 @@ namespace Moirai.Atropos.Resource
                 return EResourceBindStatus.LoadFailed;
             }
 
-            if (!_handler.TryGetLeaseAsset(newLease, out Object asset) || asset is not Sprite sprite)
+            if (!_handler.TryGetLeaseAsset(newLease, out UObject asset) || asset is not Sprite sprite)
             {
                 _handler.Release(newLease);
                 return EResourceBindStatus.LoadFailed;
@@ -450,7 +450,7 @@ namespace Moirai.Atropos.Resource
                 return EResourceBindStatus.LoadFailed;
             }
 
-            if (!_handler.TryGetLeaseAsset(newLease, out Object asset) || asset is not Sprite sprite)
+            if (!_handler.TryGetLeaseAsset(newLease, out UObject asset) || asset is not Sprite sprite)
             {
                 _handler.Release(newLease);
                 return EResourceBindStatus.LoadFailed;
@@ -587,7 +587,7 @@ namespace Moirai.Atropos.Resource
                 return EResourceBindStatus.LoadFailed;
             }
 
-            if (!_handler.TryGetLeaseAsset(newLease, out Object asset) || asset is not Material mat)
+            if (!_handler.TryGetLeaseAsset(newLease, out UObject asset) || asset is not Material mat)
             {
                 _handler.Release(newLease);
                 return EResourceBindStatus.LoadFailed;
@@ -646,7 +646,7 @@ namespace Moirai.Atropos.Resource
                 return EResourceBindStatus.StaleOwner;
             }
 
-            if (!_handler.TryGetLeaseAsset(newLease, out Object asset) || asset is not Material mat)
+            if (!_handler.TryGetLeaseAsset(newLease, out UObject asset) || asset is not Material mat)
             {
                 _handler.Release(newLease);
                 CancelReservedBindingRequest(ownerId, ownerGeneration, slotKey, requestVersion);
@@ -785,7 +785,7 @@ namespace Moirai.Atropos.Resource
         #region 内部注册方法 [INTERNAL REGISTRATION]
 
         internal EResourceBindStatus RegisterPrefabSource(ResourceOwner owner, ResourceLeaseHandle lease,
-            Object prefabSource)
+            UObject prefabSource)
         {
             EResourceBindStatus status = EnsureOwner(owner, out int ownerIndex);
             if (status != EResourceBindStatus.Success)
@@ -952,7 +952,7 @@ namespace Moirai.Atropos.Resource
 
             ref BindingSlot binding = ref GetBindingSlotRef(bindingIndex);
             ResourceLeaseHandle oldLease = binding.Lease;
-            Object oldRuntimeObject = binding.RuntimeObject;
+            UObject oldRuntimeObject = binding.RuntimeObject;
             binding.SlotKey = slotKey;
             binding.OwnerId = ownerSlot.OwnerId;
             binding.TargetGameObjectId = UnityObjectId.Get(target.gameObject);
@@ -978,7 +978,7 @@ namespace Moirai.Atropos.Resource
 
             if (oldRuntimeObject != null)
             {
-                Object.Destroy(oldRuntimeObject);
+                UObject.Destroy(oldRuntimeObject);
             }
 
             if (oldLease.IsValid)
@@ -1017,7 +1017,7 @@ namespace Moirai.Atropos.Resource
                 return EResourceBindStatus.LoadFailed;
             }
 
-            if (!_handler.TryGetLeaseAsset(newLease, out Object asset) || asset is not Material sourceMat)
+            if (!_handler.TryGetLeaseAsset(newLease, out UObject asset) || asset is not Material sourceMat)
             {
                 _handler.Release(newLease);
                 return EResourceBindStatus.LoadFailed;
@@ -1031,7 +1031,7 @@ namespace Moirai.Atropos.Resource
 
             if (createRuntimeInstance)
             {
-                runtimeMaterial = Object.Instantiate(sourceMat);
+                runtimeMaterial = UObject.Instantiate(sourceMat);
                 appliedMaterial = runtimeMaterial;
             }
 
@@ -1039,7 +1039,7 @@ namespace Moirai.Atropos.Resource
             {
                 if (runtimeMaterial != null)
                 {
-                    Object.Destroy(runtimeMaterial);
+                    UObject.Destroy(runtimeMaterial);
                 }
 
                 _handler.Release(newLease);
@@ -1053,7 +1053,7 @@ namespace Moirai.Atropos.Resource
                 ClearMaterialSlot(renderer, appliedMaterial, runtimeMaterial, slotType);
                 if (runtimeMaterial != null)
                 {
-                    Object.Destroy(runtimeMaterial);
+                    UObject.Destroy(runtimeMaterial);
                 }
 
                 _handler.Release(newLease);
@@ -1107,7 +1107,7 @@ namespace Moirai.Atropos.Resource
                 return EResourceBindStatus.StaleOwner;
             }
 
-            if (!_handler.TryGetLeaseAsset(newLease, out Object asset) || asset is not Material sourceMat)
+            if (!_handler.TryGetLeaseAsset(newLease, out UObject asset) || asset is not Material sourceMat)
             {
                 _handler.Release(newLease);
                 CancelReservedBindingRequest(ownerId, ownerGeneration, slotKey, requestVersion);
@@ -1129,7 +1129,7 @@ namespace Moirai.Atropos.Resource
             Material runtimeMaterial = null;
             if (createRuntimeInstance)
             {
-                runtimeMaterial = Object.Instantiate(sourceMat);
+                runtimeMaterial = UObject.Instantiate(sourceMat);
                 appliedMaterial = runtimeMaterial;
             }
 
@@ -1138,7 +1138,7 @@ namespace Moirai.Atropos.Resource
             {
                 if (runtimeMaterial != null)
                 {
-                    Object.Destroy(runtimeMaterial);
+                    UObject.Destroy(runtimeMaterial);
                 }
 
                 _handler.Release(newLease);
@@ -1150,7 +1150,7 @@ namespace Moirai.Atropos.Resource
             {
                 if (runtimeMaterial != null)
                 {
-                    Object.Destroy(runtimeMaterial);
+                    UObject.Destroy(runtimeMaterial);
                 }
 
                 _handler.Release(newLease);
@@ -1165,7 +1165,7 @@ namespace Moirai.Atropos.Resource
                 ClearMaterialSlot(renderer, appliedMaterial, runtimeMaterial, slotType);
                 if (runtimeMaterial != null)
                 {
-                    Object.Destroy(runtimeMaterial);
+                    UObject.Destroy(runtimeMaterial);
                 }
 
                 _handler.Release(newLease);
@@ -1388,7 +1388,7 @@ namespace Moirai.Atropos.Resource
             ClearKnownComponentSlot(ref binding);
             if (binding.RuntimeObject != null)
             {
-                Object.Destroy(binding.RuntimeObject);
+                UObject.Destroy(binding.RuntimeObject);
             }
 
             if (binding.Lease.IsValid)

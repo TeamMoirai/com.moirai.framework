@@ -2,7 +2,7 @@ using System;
 using JetBrains.Annotations;
 using Sirenix.OdinInspector;
 using UnityEngine;
-using Object = UnityEngine.Object;
+using UObject = UnityEngine.Object;
 
 namespace Moirai.Atropos
 {
@@ -86,6 +86,6 @@ namespace Moirai.Atropos
         /// <param name="message">已格式化的日志内容，不为 null。</param>
         /// <param name="exception">关联异常，无异常时为 null，由各实现决定是否输出异常堆栈。</param>
         /// <param name="context">日志关联对象（可选，Console 点击可定位到该对象）。</param>
-        internal abstract void Log(ELogLevel logLevel, string message, [CanBeNull] Exception exception, Object context = null);
+        internal abstract void Log(ELogLevel logLevel, string message, [CanBeNull] Exception exception, UObject context = null);
     }
 }

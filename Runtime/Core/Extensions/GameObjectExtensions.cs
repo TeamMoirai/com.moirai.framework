@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngineInternal;
-using Object = UnityEngine.Object;
+using UObject = UnityEngine.Object;
 
 namespace Moirai.Atropos
 {
@@ -184,7 +184,7 @@ namespace Moirai.Atropos
 
             if (component != null)
             {
-                Object.Destroy(component);
+                UObject.Destroy(component);
             }
         }
 
@@ -199,7 +199,7 @@ namespace Moirai.Atropos
 
             if (component != null)
             {
-                Object.Destroy(component);
+                UObject.Destroy(component);
             }
         }
 

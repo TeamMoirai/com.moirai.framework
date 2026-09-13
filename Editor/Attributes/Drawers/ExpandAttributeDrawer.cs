@@ -1,10 +1,9 @@
 #if UNITY_EDITOR
 using Sirenix.OdinInspector.Editor;
-using Sirenix.Utilities;
 using Sirenix.Utilities.Editor;
 using UnityEditor;
 using UnityEngine;
-using Object = UnityEngine.Object;
+using UObject = UnityEngine.Object;
 
 namespace Moirai.Atropos.Attributes.Editor.Drawers
 {
@@ -178,7 +177,7 @@ namespace Moirai.Atropos.Attributes.Editor.Drawers
         internal static void DrawObjectFieldDirect(Rect rect, SerializedProperty property)
         {
             EditorGUI.BeginChangeCheck();
-            Object next = EditorGUI.ObjectField(rect, property.objectReferenceValue, typeof(Object), true);
+            UObject next = EditorGUI.ObjectField(rect, property.objectReferenceValue, typeof(UObject), true);
             if (EditorGUI.EndChangeCheck())
                 property.objectReferenceValue = next;
         }
@@ -332,7 +331,7 @@ namespace Moirai.Atropos.Attributes.Editor.Drawers
             Rect fieldRect = EditorGUILayout.GetControlRect(true, EditorGUIUtility.singleLineHeight, GUILayout.ExpandWidth(true));
             ExpandAttributeDrawer.DrawObjectFieldDirect(fieldRect, prop);
 
-            Object target = prop.objectReferenceValue;
+            UObject target = prop.objectReferenceValue;
             if (target == null)
                 return;
 

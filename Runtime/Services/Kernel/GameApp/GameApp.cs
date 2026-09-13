@@ -7,7 +7,7 @@ using Moirai.Atropos.Resource;
 using Moirai.Atropos.UI;
 using UnityEngine;
 using UnityEngine.SceneManagement;
-using Object = UnityEngine.Object;
+using UObject = UnityEngine.Object;
 
 namespace Moirai.Atropos
 {
@@ -122,7 +122,7 @@ namespace Moirai.Atropos
             SceneManager.sceneUnloaded -= OnSceneUnloaded;
 
             GameServices.Shutdown();
-            if (s_Entity != null) Object.Destroy(s_Entity);
+            if (s_Entity != null) UObject.Destroy(s_Entity);
 
             // 释放缓存的从进程的非托管内存中分配的内存。
             MarshalUtility.FreeCachedHGlobal();
@@ -399,7 +399,7 @@ namespace Moirai.Atropos
             {
                 s_Entity = new GameObject("[UpdateDriver]");
                 s_Entity.SetActive(true);
-                Object.DontDestroyOnLoad(s_Entity);
+                UObject.DontDestroyOnLoad(s_Entity);
             }
 
             if (s_Behaviour == null)

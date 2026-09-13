@@ -1,7 +1,7 @@
 using System;
 using UnityEngine;
 using UnityEngine.UI;
-using Object = UnityEngine.Object;
+using UObject = UnityEngine.Object;
 
 namespace Moirai.Atropos
 {
@@ -708,11 +708,11 @@ namespace Moirai.Atropos
         /// <typeparam name="T"></typeparam>
         /// <param name="includeInactive">是否包含不活动对象</param>
         /// <returns></returns>
-        public static T FindObjectByType<T>(bool includeInactive = false) where T : Object
+        public static T FindObjectByType<T>(bool includeInactive = false) where T : UObject
         {
             return
 #if UNITY_2023_1_OR_NEWER
-                Object.FindAnyObjectByType<T>(includeInactive ? FindObjectsInactive.Include : FindObjectsInactive.Exclude)
+                UObject.FindAnyObjectByType<T>(includeInactive ? FindObjectsInactive.Include : FindObjectsInactive.Exclude)
 #else
                 Object.FindObjectOfType<T>(includeInactive)
 #endif
@@ -725,11 +725,11 @@ namespace Moirai.Atropos
         /// <typeparam name="T"></typeparam>
         /// <param name="includeInactive">是否包含不活动对象</param>
         /// <returns></returns>
-        public static T FindFirstObjectByType<T>(bool includeInactive = false) where T : Object
+        public static T FindFirstObjectByType<T>(bool includeInactive = false) where T : UObject
         {
             return
 #if UNITY_2023_1_OR_NEWER
-                Object.FindFirstObjectByType<T>(includeInactive ? FindObjectsInactive.Include : FindObjectsInactive.Exclude)
+                UObject.FindFirstObjectByType<T>(includeInactive ? FindObjectsInactive.Include : FindObjectsInactive.Exclude)
 #else
                 Object.FindObjectOfType<T>(includeInactive)
 #endif
@@ -742,13 +742,13 @@ namespace Moirai.Atropos
         /// <typeparam name="T"></typeparam>
         /// <param name="includeInactive">是否包含不活动对象</param>
         /// <returns></returns>
-        public static T[] FindObjectsByType<T>(bool includeInactive = false) where T : Object
+        public static T[] FindObjectsByType<T>(bool includeInactive = false) where T : UObject
         {
             return
 #if UNITY_6000_4_OR_NEWER
                 Object.FindObjectsByType<T>(includeInactive ? FindObjectsInactive.Include : FindObjectsInactive.Exclude)
 #elif UNITY_2023_1_OR_NEWER
-                Object.FindObjectsByType<T>(includeInactive ? FindObjectsInactive.Include : FindObjectsInactive.Exclude, FindObjectsSortMode.None)
+                UObject.FindObjectsByType<T>(includeInactive ? FindObjectsInactive.Include : FindObjectsInactive.Exclude, FindObjectsSortMode.None)
 #else
 				Object.FindObjectsOfType<T>(includeInactive)
 #endif
@@ -761,11 +761,11 @@ namespace Moirai.Atropos
         /// <param name="classType">要查找的对象类型。</param>
         /// <param name="includeInactive">是否包含不活动对象</param>
         /// <returns></returns>
-        public static Object FindFirstObjectByType(Type classType, bool includeInactive = false)
+        public static UObject FindFirstObjectByType(Type classType, bool includeInactive = false)
         {
             return
 #if UNITY_2023_1_OR_NEWER
-                Object.FindFirstObjectByType(classType, includeInactive ? FindObjectsInactive.Include : FindObjectsInactive.Exclude)
+                UObject.FindFirstObjectByType(classType, includeInactive ? FindObjectsInactive.Include : FindObjectsInactive.Exclude)
 #else
                 Object.FindObjectOfType(classType, includeInactive)
 #endif
@@ -778,11 +778,11 @@ namespace Moirai.Atropos
         /// <param name="classType">要查找的对象类型。</param>
         /// <param name="includeInactive">是否包含不活动对象</param>
         /// <returns></returns>
-        public static Object[] FindObjectsByType(Type classType, bool includeInactive = false)
+        public static UObject[] FindObjectsByType(Type classType, bool includeInactive = false)
         {
             return
 #if UNITY_2023_1_OR_NEWER
-                Object.FindObjectsByType(classType, includeInactive ? FindObjectsInactive.Include : FindObjectsInactive.Exclude, FindObjectsSortMode.None)
+                UObject.FindObjectsByType(classType, includeInactive ? FindObjectsInactive.Include : FindObjectsInactive.Exclude, FindObjectsSortMode.None)
 #else
 				Object.FindObjectsOfType(classType, includeInactive)
 #endif
@@ -798,7 +798,7 @@ namespace Moirai.Atropos
         /// </summary>
         /// <param name="target"></param>
         /// <returns></returns>
-        public static int GetObjectEntityId(Object target)
+        public static int GetObjectEntityId(UObject target)
         {
             if (target == null) return 0;
 

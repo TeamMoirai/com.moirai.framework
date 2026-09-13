@@ -3,7 +3,7 @@ using System.Threading;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.SceneManagement;
-using Object = UnityEngine.Object;
+using UObject = UnityEngine.Object;
 
 namespace Moirai.Atropos.Resource
 {
@@ -284,7 +284,7 @@ namespace Moirai.Atropos.Resource
         /// <typeparam name="T">要加载资源的类型。</typeparam>
         /// <returns>资源实例。</returns>
         [Obsolete("Use LoadLease<T> for explicit ownership.")]
-        public abstract T LoadAsset<T>(string location, string packageName = "") where T : Object;
+        public abstract T LoadAsset<T>(string location, string packageName = "") where T : UObject;
 
         /// <summary>
         /// 异步加载资源。每次成功回调资源后，调用方必须在不再使用时成对调用 <see cref="UnloadAsset"/>。
@@ -294,7 +294,7 @@ namespace Moirai.Atropos.Resource
         /// <param name="packageName">指定资源包的名称。不传使用默认资源包。</param>
         /// <typeparam name="T">要加载资源的类型。</typeparam>
         [Obsolete("Use LoadLeaseAsync<T> for explicit ownership.")]
-        public abstract UniTask LoadAsset<T>(string location, Action<T> callback, string packageName = "") where T : Object;
+        public abstract UniTask LoadAsset<T>(string location, Action<T> callback, string packageName = "") where T : UObject;
 
         /// <summary>
         /// 异步加载资源。每次成功返回资源后，调用方必须在不再使用时成对调用 <see cref="UnloadAsset"/>。
@@ -305,7 +305,7 @@ namespace Moirai.Atropos.Resource
         /// <typeparam name="T">要加载资源的类型。</typeparam>
         /// <returns>异步资源实例。</returns>
         [Obsolete("Use LoadLeaseAsync<T> for explicit ownership.")]
-        public abstract UniTask<T> LoadAssetAsync<T>(string location, CancellationToken cancellationToken = default, string packageName = "") where T : Object;
+        public abstract UniTask<T> LoadAssetAsync<T>(string location, CancellationToken cancellationToken = default, string packageName = "") where T : UObject;
 
         /// <summary>
         /// 异步加载资源。
@@ -407,27 +407,27 @@ namespace Moirai.Atropos.Resource
         /// <summary>
         /// 同步加载资源并返回资源租约。
         /// </summary>
-        public abstract ResourceAssetLease<T> LoadLease<T>(ResourceKey key) where T : Object;
+        public abstract ResourceAssetLease<T> LoadLease<T>(ResourceKey key) where T : UObject;
 
         /// <summary>
         /// 同步加载资源并返回资源租约。
         /// </summary>
-        public abstract ResourceAssetLease<T> LoadLease<T>(string location, string packageName = "") where T : Object;
+        public abstract ResourceAssetLease<T> LoadLease<T>(string location, string packageName = "") where T : UObject;
 
         /// <summary>
         /// 异步加载资源并返回资源租约。
         /// </summary>
-        public abstract UniTask<ResourceAssetLease<T>> LoadLeaseAsync<T>(ResourceKey key, CancellationToken cancellationToken = default) where T : Object;
+        public abstract UniTask<ResourceAssetLease<T>> LoadLeaseAsync<T>(ResourceKey key, CancellationToken cancellationToken = default) where T : UObject;
 
         /// <summary>
         /// 异步加载资源并返回资源租约。
         /// </summary>
-        public abstract UniTask<ResourceAssetLease<T>> LoadLeaseAsync<T>(string location, CancellationToken cancellationToken = default, string packageName = "") where T : Object;
+        public abstract UniTask<ResourceAssetLease<T>> LoadLeaseAsync<T>(string location, CancellationToken cancellationToken = default, string packageName = "") where T : UObject;
 
         /// <summary>
         /// 尝试从资源租约中读取 Unity 资源对象。
         /// </summary>
-        public abstract bool TryGetLeaseAsset(ResourceLeaseHandle handle, out Object asset);
+        public abstract bool TryGetLeaseAsset(ResourceLeaseHandle handle, out UObject asset);
 
         #endregion
 

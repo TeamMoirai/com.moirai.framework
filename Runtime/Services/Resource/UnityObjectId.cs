@@ -1,4 +1,4 @@
-using Object = UnityEngine.Object;
+using UObject = UnityEngine.Object;
 
 namespace Moirai.Atropos.Resource
 {
@@ -12,7 +12,7 @@ namespace Moirai.Atropos.Resource
         /// </summary>
         /// <param name="target">目标对象。</param>
         /// <returns>稳定 ID，对象为空时返回 0。</returns>
-        public static ulong Get(Object target)
+        public static ulong Get(UObject target)
         {
             if (target == null)
             {

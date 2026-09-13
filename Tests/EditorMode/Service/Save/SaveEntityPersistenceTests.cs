@@ -9,7 +9,7 @@ using Moirai.Atropos.Save;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
-using Object = UnityEngine.Object;
+using UObject = UnityEngine.Object;
 
 namespace Service.Save
 {
@@ -91,14 +91,14 @@ namespace Service.Save
             {
                 if (gameObject != null)
                 {
-                    Object.DestroyImmediate(gameObject);
+                    UObject.DestroyImmediate(gameObject);
                 }
             }
 
             _objects.Clear();
             if (_prefabSource != null)
             {
-                Object.DestroyImmediate(_prefabSource);
+                UObject.DestroyImmediate(_prefabSource);
                 _prefabSource = null;
             }
 
@@ -127,7 +127,7 @@ namespace Service.Save
                 return null;
             }
 
-            return Object.Instantiate(_prefabSource, SaveEntityPersistence.EnsureStaging().transform);
+            return UObject.Instantiate(_prefabSource, SaveEntityPersistence.EnsureStaging().transform);
         }
 
         /// <summary>
@@ -247,7 +247,7 @@ namespace Service.Save
 
             // —— 实体表：一条生成记录，字段齐全
             SaveBlockEntry tableEntry = entries[1];
-            Assert.AreEqual(SaveEntityPersistence.EntityTableBlockKey, tableEntry.Key);
+            Assert.AreEqual(SaveEntityPersistence.ENTITY_TABLE_BLOCK_KEY, tableEntry.Key);
             SaveEntityTable.Read(tableEntry.Bytes, out List<SaveSpawnRecord> spawns, out List<string> destroyed);
             Assert.AreEqual(1, spawns.Count);
             Assert.AreEqual(entityId, spawns[0].EntityId);

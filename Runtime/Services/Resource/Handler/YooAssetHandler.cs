@@ -6,7 +6,7 @@ using Cysharp.Threading.Tasks;
 using Sirenix.OdinInspector;
 using UnityEngine;
 using YooAsset;
-using Object = UnityEngine.Object;
+using UObject = UnityEngine.Object;
 #if UNITY_WEBGL && WEIXINMINIGAME && !UNITY_EDITOR
 using WeChatWASM;
 #endif
@@ -979,7 +979,7 @@ namespace Moirai.Atropos.Resource
 
         #region 句柄获取 [HANDLE ACCESS]
 
-        private AssetHandle GetHandleSync<T>(string location, string packageName = "") where T : Object
+        private AssetHandle GetHandleSync<T>(string location, string packageName = "") where T : UObject
         {
             return GetHandleSync(location, typeof(T), packageName);
         }
@@ -990,7 +990,7 @@ namespace Moirai.Atropos.Resource
         }
 
         private AssetHandle GetHandleAsync<T>(string location, string packageName = "", uint priority = 0)
-            where T : Object
+            where T : UObject
         {
             return GetHandleAsync(location, typeof(T), packageName, priority);
         }
@@ -1025,14 +1025,14 @@ namespace Moirai.Atropos.Resource
                 return null;
             }
 
-            if (!TryGetLeaseAsset(prefabLease, out Object prefabObject) ||
+            if (!TryGetLeaseAsset(prefabLease, out UObject prefabObject) ||
                 prefabObject is not GameObject prefab)
             {
                 Release(prefabLease);
                 return null;
             }
 
-            GameObject instance = Object.Instantiate(prefab, parent);
+            GameObject instance = UObject.Instantiate(prefab, parent);
             if (instance == null)
             {
                 Release(prefabLease);
@@ -1043,7 +1043,7 @@ namespace Moirai.Atropos.Resource
             EResourceBindStatus bindStatus = _bindingService.RegisterPrefabSource(owner, prefabLease, prefab);
             if (bindStatus != EResourceBindStatus.Success)
             {
-                Object.Destroy(instance);
+                UObject.Destroy(instance);
                 Release(prefabLease);
                 return null;
             }
@@ -1078,14 +1078,14 @@ namespace Moirai.Atropos.Resource
                 return null;
             }
 
-            if (!TryGetLeaseAsset(prefabLease, out Object prefabObject) ||
+            if (!TryGetLeaseAsset(prefabLease, out UObject prefabObject) ||
                 prefabObject is not GameObject prefab)
             {
                 Release(prefabLease);
                 return null;
             }
 
-            GameObject instance = Object.Instantiate(prefab, parent);
+            GameObject instance = UObject.Instantiate(prefab, parent);
             if (instance == null)
             {
                 Release(prefabLease);
@@ -1096,7 +1096,7 @@ namespace Moirai.Atropos.Resource
             EResourceBindStatus bindStatus = _bindingService.RegisterPrefabSource(owner, prefabLease, prefab);
             if (bindStatus != EResourceBindStatus.Success)
             {
-                Object.Destroy(instance);
+                UObject.Destroy(instance);
                 Release(prefabLease);
                 return null;
             }
@@ -1126,14 +1126,14 @@ namespace Moirai.Atropos.Resource
             EResourceAssetKind assetKind = InferAssetKind(assetType);
             string normalizedPackageName = NormalizePackageName(packageName);
             if (TryGetCachedAssetRecord(normalizedPackageName, location, assetType, assetKind,
-                    EResourceHandleKind.AssetHandle, out int cachedAssetId, out Object cachedAsset))
+                    EResourceHandleKind.AssetHandle, out int cachedAssetId, out UObject cachedAsset))
             {
                 ref AssetSlot cachedSlot = ref GetAssetSlotRef(cachedAssetId);
                 TryAddLegacyDirectRef(cachedAssetId, cachedSlot.Generation);
                 return cachedAsset as T;
             }
 
-            Object asset = GetOrLoadAsset(location, assetType, assetKind, normalizedPackageName);
+            UObject asset = GetOrLoadAsset(location, assetType, assetKind, normalizedPackageName);
             if (asset == null)
             {
                 return null;
@@ -1163,7 +1163,7 @@ namespace Moirai.Atropos.Resource
             Type assetType = typeof(T);
             EResourceAssetKind assetKind = InferAssetKind(assetType);
             ulong assetLoadingKey = GetLoadingOperationKey(location, packageName, assetType, assetKind);
-            Object asset = await GetOrLoadAssetAsync(location, assetType, assetKind, packageName, assetLoadingKey);
+            UObject asset = await GetOrLoadAssetAsync(location, assetType, assetKind, packageName, assetLoadingKey);
             if (asset != null)
             {
                 TryAddLegacyDirectRefByKey(packageName, location, assetType, asset);
@@ -1184,7 +1184,7 @@ namespace Moirai.Atropos.Resource
             Type assetType = typeof(T);
             EResourceAssetKind assetKind = InferAssetKind(assetType);
             ulong assetLoadingKey = GetLoadingOperationKey(location, packageName, assetType, assetKind);
-            Object asset = await GetOrLoadAssetAsync(location, assetType, assetKind, packageName, assetLoadingKey,
+            UObject asset = await GetOrLoadAssetAsync(location, assetType, assetKind, packageName, assetLoadingKey,
                 cancellationToken: cancellationToken);
             if (asset != null)
             {
@@ -1208,11 +1208,11 @@ namespace Moirai.Atropos.Resource
                 throw new GameException("Load asset callbacks is invalid.");
             }
 
-            assetType ??= typeof(Object);
+            assetType ??= typeof(UObject);
             EResourceAssetKind assetKind = InferAssetKind(assetType);
             ulong assetLoadingKey = GetLoadingOperationKey(location, packageName, assetType, assetKind);
             float duration = Time.time;
-            Object asset = await GetOrLoadAssetAsync(location, assetType, assetKind, packageName, assetLoadingKey,
+            UObject asset = await GetOrLoadAssetAsync(location, assetType, assetKind, packageName, assetLoadingKey,
                 NormalizePriority(priority), default, loadAssetCallbacks.LoadAssetUpdateCallback, userData);
 
             if (asset == null)
@@ -1230,7 +1230,7 @@ namespace Moirai.Atropos.Resource
         [Obsolete("Use LoadLeaseAsync<T> for explicit ownership.")]
         public override async UniTask LoadAssetAsync(string location, int priority, LoadAssetCallbacks loadAssetCallbacks, object userData, string packageName = "")
         {
-            Type assetType = typeof(Object);
+            Type assetType = typeof(UObject);
             await LoadAssetAsync(location, assetType, priority, loadAssetCallbacks, userData, packageName);
         }
 

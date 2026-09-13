@@ -20,7 +20,7 @@
 
 using JetBrains.Annotations;
 using UnityEngine;
-using Object = UnityEngine.Object;
+using UObject = UnityEngine.Object;
 
 namespace Moirai.Atropos
 {
@@ -32,7 +32,7 @@ namespace Moirai.Atropos
 #>
         /// <summary>打印<#= lv.Doc #>级别日志。</summary>
         [HideInCallstack]
-        public static void <#= lv.Name #>(object message, Object context = null)
+        public static void <#= lv.Name #>(object message, UObject context = null)
         {
             var msg = message?.ToString() ?? string.Empty;
             Handler.Log(ELogLevel.<#= lv.Enum #>, msg, null, context);
@@ -41,7 +41,7 @@ namespace Moirai.Atropos
 
         /// <summary>打印<#= lv.Doc #>级别日志。</summary>
         [HideInCallstack]
-        public static void <#= lv.Name #>(string message, Object context = null)
+        public static void <#= lv.Name #>(string message, UObject context = null)
         {
             var msg = message ?? string.Empty;
             Handler.Log(ELogLevel.<#= lv.Enum #>, msg, null, context);

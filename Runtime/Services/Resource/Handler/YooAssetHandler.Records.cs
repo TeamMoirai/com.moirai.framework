@@ -4,7 +4,7 @@ using System.Threading;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
 using YooAsset;
-using Object = UnityEngine.Object;
+using UObject = UnityEngine.Object;
 
 namespace Moirai.Atropos.Resource
 {
@@ -52,7 +52,7 @@ namespace Moirai.Atropos.Resource
         {
             public ulong Key;
             public int LoadKeyId;
-            public Object Asset;
+            public UObject Asset;
             public ulong AssetInstanceId;
             public AssetHandle AssetHandle;
             public SubAssetsHandle SubAssetsHandle;
@@ -171,7 +171,7 @@ namespace Moirai.Atropos.Resource
         public override ResourceLeaseHandle AcquireDirect(ResourceKey key)
         {
             ResourceKey typedKey = key.AssetType == null && !key.HasResolvedIds
-                ? new ResourceKey(key.Location, key.PackageName, typeof(Object), InferAssetKind(typeof(Object)))
+                ? new ResourceKey(key.Location, key.PackageName, typeof(UObject), InferAssetKind(typeof(UObject)))
                 : key;
 
             string normalizedPackageName = NormalizePackageName(typedKey.PackageName);
@@ -179,7 +179,7 @@ namespace Moirai.Atropos.Resource
             Type assetType = NormalizeAssetType(typedKey.AssetType, assetKind);
             ulong loadingKey = GetLoadingOperationKey(typedKey.Location, normalizedPackageName, assetType, assetKind);
 
-            Object asset = GetOrLoadAsset(typedKey.Location, assetType, assetKind, normalizedPackageName);
+            UObject asset = GetOrLoadAsset(typedKey.Location, assetType, assetKind, normalizedPackageName);
             if (asset == null)
             {
                 return ResourceLeaseHandle.Invalid;
@@ -200,7 +200,7 @@ namespace Moirai.Atropos.Resource
             CancellationToken cancellationToken = default)
         {
             ResourceKey typedKey = key.AssetType == null && !key.HasResolvedIds
-                ? new ResourceKey(key.Location, key.PackageName, typeof(Object), InferAssetKind(typeof(Object)))
+                ? new ResourceKey(key.Location, key.PackageName, typeof(UObject), InferAssetKind(typeof(UObject)))
                 : key;
 
             string normalizedPackageName = NormalizePackageName(typedKey.PackageName);
@@ -208,7 +208,7 @@ namespace Moirai.Atropos.Resource
             Type assetType = NormalizeAssetType(typedKey.AssetType, assetKind);
             ulong loadingKey = GetLoadingOperationKey(typedKey.Location, normalizedPackageName, assetType, assetKind);
 
-            Object asset = await GetOrLoadAssetAsync(typedKey.Location, assetType, assetKind, normalizedPackageName,
+            UObject asset = await GetOrLoadAssetAsync(typedKey.Location, assetType, assetKind, normalizedPackageName,
                 loadingKey, cancellationToken: cancellationToken);
             if (asset == null)
             {
@@ -287,7 +287,7 @@ namespace Moirai.Atropos.Resource
                 return default;
             }
 
-            if (!TryGetLeaseAsset(handle, out Object asset) || asset is not T typedAsset)
+            if (!TryGetLeaseAsset(handle, out UObject asset) || asset is not T typedAsset)
             {
                 Release(handle);
                 return default;
@@ -321,7 +321,7 @@ namespace Moirai.Atropos.Resource
                 return default;
             }
 
-            if (!TryGetLeaseAsset(handle, out Object asset) || asset is not T typedAsset)
+            if (!TryGetLeaseAsset(handle, out UObject asset) || asset is not T typedAsset)
             {
                 Release(handle);
                 return default;
@@ -339,7 +339,7 @@ namespace Moirai.Atropos.Resource
         }
 
         /// <inheritdoc />
-        public override bool TryGetLeaseAsset(ResourceLeaseHandle handle, out Object asset)
+        public override bool TryGetLeaseAsset(ResourceLeaseHandle handle, out UObject asset)
         {
             asset = null;
             if (!TryGetLeaseSlotIndex(handle, out int leaseIndex))
@@ -479,7 +479,7 @@ namespace Moirai.Atropos.Resource
             string normalizedPackageName = NormalizePackageName(packageName);
             ulong loadingKey = GetLoadingOperationKey(location, normalizedPackageName, typeof(GameObject),
                 EResourceAssetKind.Prefab);
-            Object asset = await GetOrLoadAssetAsync(location, typeof(GameObject), EResourceAssetKind.Prefab,
+            UObject asset = await GetOrLoadAssetAsync(location, typeof(GameObject), EResourceAssetKind.Prefab,
                 normalizedPackageName, loadingKey, cancellationToken: cancellationToken);
             if (asset == null)
             {
@@ -500,7 +500,7 @@ namespace Moirai.Atropos.Resource
 
         #region 资源加载核心 [CORE ASSET LOADING]
 
-        private Object GetOrLoadAsset(string location, Type assetType, EResourceAssetKind assetKind,
+        private UObject GetOrLoadAsset(string location, Type assetType, EResourceAssetKind assetKind,
             string packageName)
         {
             string normalizedPackageName = NormalizePackageName(packageName);
@@ -516,7 +516,7 @@ namespace Moirai.Atropos.Resource
                 }
 
                 if (TryGetCachedAssetRecord(normalizedPackageName, location, assetType, assetKind,
-                        EResourceHandleKind.AssetHandle, out _, out Object cachedAsset))
+                        EResourceHandleKind.AssetHandle, out _, out UObject cachedAsset))
                 {
                     return cachedAsset;
                 }
@@ -561,7 +561,7 @@ namespace Moirai.Atropos.Resource
             }
         }
 
-        private async UniTask<Object> GetOrLoadAssetAsync(string location, Type assetType,
+        private async UniTask<UObject> GetOrLoadAssetAsync(string location, Type assetType,
             EResourceAssetKind assetKind, string packageName, ulong loadingKey,
             uint priority = 0, CancellationToken cancellationToken = default,
             LoadAssetUpdateCallback loadAssetUpdateCallback = null, object userData = null)
@@ -583,7 +583,7 @@ namespace Moirai.Atropos.Resource
                 }
 
                 if (TryGetCachedAssetRecord(normalizedPackageName, location, assetType, assetKind,
-                        EResourceHandleKind.AssetHandle, out _, out Object cachedAsset))
+                        EResourceHandleKind.AssetHandle, out _, out UObject cachedAsset))
                 {
                     return cachedAsset;
                 }
@@ -913,7 +913,7 @@ namespace Moirai.Atropos.Resource
         }
 
         private int GetOrCreateAssetRecord(string packageName, string location, Type assetType,
-            EResourceAssetKind assetKind, EResourceHandleKind handleKind, Object asset, AssetHandle assetHandle)
+            EResourceAssetKind assetKind, EResourceHandleKind handleKind, UObject asset, AssetHandle assetHandle)
         {
             assetKind = NormalizeAssetKind(assetType, assetKind);
             assetType = NormalizeAssetType(assetType, assetKind);
@@ -1016,7 +1016,7 @@ namespace Moirai.Atropos.Resource
         }
 
         private bool TryGetCachedAssetRecord(string packageName, string location, Type assetType,
-            EResourceAssetKind assetKind, EResourceHandleKind handleKind, out int assetId, out Object asset)
+            EResourceAssetKind assetKind, EResourceHandleKind handleKind, out int assetId, out UObject asset)
         {
             assetId = -1;
             asset = null;
@@ -1065,7 +1065,7 @@ namespace Moirai.Atropos.Resource
             return true;
         }
 
-        private bool TryAddLegacyDirectRefByKey(string packageName, string location, Type assetType, Object asset)
+        private bool TryAddLegacyDirectRefByKey(string packageName, string location, Type assetType, UObject asset)
         {
             EResourceAssetKind assetKind = InferAssetKind(assetType);
             assetType = NormalizeAssetType(assetType, assetKind);
@@ -1080,7 +1080,7 @@ namespace Moirai.Atropos.Resource
             return TryAddLegacyDirectRefByAsset(asset);
         }
 
-        private bool TryAddLegacyDirectRefByAsset(Object asset)
+        private bool TryAddLegacyDirectRefByAsset(UObject asset)
         {
             if (asset == null)
             {
@@ -1118,7 +1118,7 @@ namespace Moirai.Atropos.Resource
 
         private bool TryReleaseLegacyDirectByAsset(object asset)
         {
-            if (asset is not Object unityObject)
+            if (asset is not UObject unityObject)
             {
                 return false;
             }
@@ -1908,7 +1908,7 @@ namespace Moirai.Atropos.Resource
 
         private int GetOrAddTypeId(Type assetType)
         {
-            assetType ??= typeof(Object);
+            assetType ??= typeof(UObject);
             if (_resourceTypeIds.TryGetValue(assetType, out int id))
             {
                 return id;
@@ -2124,7 +2124,7 @@ namespace Moirai.Atropos.Resource
                 return typeof(Sprite);
             }
 
-            return assetType ?? typeof(Object);
+            return assetType ?? typeof(UObject);
         }
 
         private static EResourceAssetKind InferAssetKind(Type assetType)

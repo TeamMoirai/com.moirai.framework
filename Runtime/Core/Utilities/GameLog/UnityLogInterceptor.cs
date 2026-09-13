@@ -1,6 +1,6 @@
 using System;
 using UnityEngine;
-using Object = UnityEngine.Object;
+using UObject = UnityEngine.Object;
 
 namespace Moirai.Atropos
 {
@@ -37,7 +37,7 @@ namespace Moirai.Atropos
         }
 
         [HideInCallstack]
-        public void LogFormat(LogType logType, Object context, string format, params object[] args)
+        public void LogFormat(LogType logType, UObject context, string format, params object[] args)
         {
             // 重入守卫（兜底）：后端误用被拦截通道输出时会回到本拦截器
             if (s_Reentering)
@@ -72,7 +72,7 @@ namespace Moirai.Atropos
         }
 
         [HideInCallstack]
-        public void LogException(Exception exception, Object context)
+        public void LogException(Exception exception, UObject context)
         {
             if (s_Reentering)
             {
@@ -126,7 +126,7 @@ namespace Moirai.Atropos
         }
 
         [HideInCallstack]
-        private void FallbackToOriginal(LogType logType, Object context, string format, object[] args, Exception ex)
+        private void FallbackToOriginal(LogType logType, UObject context, string format, object[] args, Exception ex)
         {
             try
             {

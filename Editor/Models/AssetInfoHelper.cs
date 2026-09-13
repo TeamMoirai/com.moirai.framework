@@ -1,10 +1,9 @@
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using UnityEngine;
-using Object = UnityEngine.Object;
 using UnityEditor;
+using UObject = UnityEngine.Object;
 
 namespace Moirai.Atropos.Editor
 {
@@ -37,7 +36,7 @@ namespace Moirai.Atropos.Editor
         /// <param name="guid"></param>
         /// <param name="path"></param>
         /// <typeparam name="T"></typeparam>
-        public static AssetCheckResult CheckAssetGuidAndPath<T>(string guid, string path) where T : Object
+        public static AssetCheckResult CheckAssetGuidAndPath<T>(string guid, string path) where T : UObject
         {
             if (string.IsNullOrEmpty(guid) && string.IsNullOrEmpty(path))
             {
@@ -189,7 +188,7 @@ namespace Moirai.Atropos.Editor
         /// <param name="guid"></param>
         /// <returns></returns>
         public static float GetAssetInfoHeight<T>(string guid, string path, int initialLines = 1)
-            where T : Object
+            where T : UObject
         {
             // 默认显示 精灵选择绘制框 和 packageType 2行
             int lines = initialLines;
@@ -233,7 +232,7 @@ namespace Moirai.Atropos.Editor
         /// <param name="pathProperty"></param>
         /// <typeparam name="T"></typeparam>
         public static void DrawBaseAssetInfo<T>(ref Rect position, SerializedProperty property, string guidProperty, string pathProperty)
-            where T : Object
+            where T : UObject
         {
             position.height = EditorGUIUtility.singleLineHeight;
            
@@ -263,7 +262,7 @@ namespace Moirai.Atropos.Editor
             
             // 根据保存的 GUID 加载资源
             EditorGUI.BeginChangeCheck();
-            Object target = EditorGUI.ObjectField(position, $"{property.displayName}",
+            UObject target = EditorGUI.ObjectField(position, $"{property.displayName}",
                 AssetDatabase.LoadAssetAtPath<T>(path), typeof(T), false);
 
             var newPath = AssetDatabase.GetAssetPath(target);
@@ -321,7 +320,7 @@ namespace Moirai.Atropos.Editor
         /// <param name="title"></param>
         /// <typeparam name="T"></typeparam>
         public static void DrawBaseAssetInfo<T>(SerializedProperty property, string guidProperty, string pathProperty, string title = "")
-            where T : Object
+            where T : UObject
         {
            
             #region 检查资源是否已移动 [CHECK ASSET MOVED]
@@ -353,7 +352,7 @@ namespace Moirai.Atropos.Editor
             
             // 根据保存的 GUID 加载资源
             EditorGUI.BeginChangeCheck();
-            Object target = EditorGUILayout.ObjectField(title,
+            UObject target = EditorGUILayout.ObjectField(title,
                 AssetDatabase.LoadAssetAtPath<T>(AssetDatabase.GUIDToAssetPath(guid)),
                 typeof(T), false, GUILayout.Height(EditorGUIUtility.singleLineHeight));
             
@@ -397,7 +396,7 @@ namespace Moirai.Atropos.Editor
         /// <param name="title"></param>
         /// <typeparam name="T"></typeparam>
         public static void DrawBaseAssetInfo<T>(SerializedProperty guidProperty, SerializedProperty pathProperty, string title = "")
-            where T : Object
+            where T : UObject
         {
 
             #region 检查资源是否已移动 [CHECK ASSET MOVED]
@@ -429,7 +428,7 @@ namespace Moirai.Atropos.Editor
 
             // 根据保存的 GUID 加载资源
             EditorGUI.BeginChangeCheck();
-            Object target = EditorGUILayout.ObjectField(title,
+            UObject target = EditorGUILayout.ObjectField(title,
                 AssetDatabase.LoadAssetAtPath<T>(AssetDatabase.GUIDToAssetPath(guid)),
                 typeof(T), false, GUILayout.Height(EditorGUIUtility.singleLineHeight));
 

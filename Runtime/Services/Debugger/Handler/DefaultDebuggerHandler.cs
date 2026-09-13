@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
-using Object = UnityEngine.Object;
+using UObject = UnityEngine.Object;
 
 namespace Moirai.Atropos.Debugger
 {
@@ -148,7 +148,7 @@ namespace Moirai.Atropos.Debugger
             if (_host != null)
             {
                 _host.Shutdown();
-                Object.Destroy(_host.gameObject);
+                UObject.Destroy(_host.gameObject);
                 _host = null;
             }
 
@@ -266,7 +266,7 @@ namespace Moirai.Atropos.Debugger
             }
 
             GameObject hostObject = new GameObject("[Debugger Runtime Host]");
-            Object.DontDestroyOnLoad(hostObject);
+            UObject.DontDestroyOnLoad(hostObject);
             _host = hostObject.AddComponent<DebuggerRuntimeHost>();
             _host.Initialize(this);
             _host.ShowFullWindow = _showFullWindow;
@@ -304,7 +304,7 @@ namespace Moirai.Atropos.Debugger
             RegisterDebuggerWindow("Information/Other/Path", new PathInformationWindow());
             RegisterDebuggerWindow("Profiler/Summary", new ProfilerInformationWindow());
             RegisterDebuggerWindow("Profiler/Memory/Summary", new RuntimeMemorySummaryWindow());
-            RegisterDebuggerWindow("Profiler/Memory/All", new RuntimeMemoryInformationWindow<Object>());
+            RegisterDebuggerWindow("Profiler/Memory/All", new RuntimeMemoryInformationWindow<UObject>());
             RegisterDebuggerWindow("Profiler/Memory/Texture", new RuntimeMemoryInformationWindow<Texture>());
             RegisterDebuggerWindow("Profiler/Memory/Mesh", new RuntimeMemoryInformationWindow<Mesh>());
             RegisterDebuggerWindow("Profiler/Memory/Material", new RuntimeMemoryInformationWindow<Material>());

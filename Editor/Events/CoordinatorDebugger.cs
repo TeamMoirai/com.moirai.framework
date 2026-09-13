@@ -6,7 +6,7 @@ using UnityEngine;
 using UnityEngine.UIElements;
 using UnityEditor.UIElements;
 using Toolbar = UnityEditor.UIElements.Toolbar;
-using Object = UnityEngine.Object;
+using UObject = UnityEngine.Object;
 
 namespace Moirai.Atropos.Events.Editor
 {
@@ -139,7 +139,7 @@ namespace Moirai.Atropos.Events.Editor
 
         private void TrySelectWindow()
         {
-            MonoEventCoordinator monoEventCoordinator = Object.FindAnyObjectByType<MonoEventCoordinator>();
+            MonoEventCoordinator monoEventCoordinator = UObject.FindAnyObjectByType<MonoEventCoordinator>();
             SelectCoordinatorToDebug(monoEventCoordinator);
 
             if (m_SelectedCoordinator != null)
@@ -181,7 +181,7 @@ namespace Moirai.Atropos.Events.Editor
         /// <param name="coordinatorChoices">待填充的选项列表。</param>
         protected virtual void PopulateCoordinatorChoices(List<ICoordinatorChoice> coordinatorChoices)
         {
-            MonoEventCoordinator[] monoEventCoordinators = Object.FindObjectsByType<MonoEventCoordinator>(FindObjectsSortMode.InstanceID);
+            MonoEventCoordinator[] monoEventCoordinators = UObject.FindObjectsByType<MonoEventCoordinator>(FindObjectsSortMode.InstanceID);
             coordinatorChoices.AddRange(monoEventCoordinators.Select(x => new CoordinatorChoice(x)));
         }
 

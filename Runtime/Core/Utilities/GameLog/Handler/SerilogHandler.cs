@@ -5,7 +5,7 @@ using Serilog;
 using Serilog.Events;
 using UnityEngine;
 using ILogger = Serilog.ILogger;
-using Object = UnityEngine.Object;
+using UObject = UnityEngine.Object;
 
 namespace Moirai.Atropos
 {
@@ -43,7 +43,7 @@ namespace Moirai.Atropos
 
         /// <inheritdoc/>
         [HideInCallstack]
-        internal override void Log(ELogLevel logLevel, string message, Exception exception, Object context = null)
+        internal override void Log(ELogLevel logLevel, string message, Exception exception, UObject context = null)
         {
             if (_logger == null) return;
 

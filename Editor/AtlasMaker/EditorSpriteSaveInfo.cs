@@ -7,6 +7,7 @@ using UnityEditor;
 using UnityEditor.U2D;
 using UnityEngine;
 using UnityEngine.U2D;
+using UObject = UnityEngine.Object;
 
 namespace Moirai.Atropos.Editor
 {
@@ -740,7 +741,7 @@ namespace Moirai.Atropos.Editor
                 return true;
             }
 
-            UnityEngine.Object[] packables = atlas.GetPackables();
+            UObject[] packables = atlas.GetPackables();
 
             if (packables == null || packables.Any(packable => packable == null))
             {

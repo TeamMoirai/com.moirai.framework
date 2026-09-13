@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using Moirai.Atropos.Resource;
 using UnityEngine;
+using UObject = UnityEngine.Object;
 
 namespace Moirai.Atropos.UI
 {
@@ -199,7 +200,7 @@ namespace Moirai.Atropos.UI
                 parentTrans = parentUI.rectTransform;
             }
 
-            return CreateImp(parentUI, UnityEngine.Object.Instantiate(goPrefab, parentTrans), true, visible);
+            return CreateImp(parentUI, UObject.Instantiate(goPrefab, parentTrans), true, visible);
         }
 
         private bool CreateImp(UIBase parentUI, GameObject widgetRoot, bool bindGo, bool visible = true)
@@ -297,7 +298,7 @@ namespace Moirai.Atropos.UI
 
             if (gameObject != null)
             {
-                UnityEngine.Object.Destroy(gameObject);
+                UObject.Destroy(gameObject);
             }
         }
 
