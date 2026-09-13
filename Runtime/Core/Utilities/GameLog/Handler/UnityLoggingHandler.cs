@@ -2,7 +2,7 @@
 using System;
 using UnityEngine;
 using Unity.Logging;
-using Object = UnityEngine.Object;
+using UObject = UnityEngine.Object;
 
 namespace Moirai.Atropos
 {
@@ -29,7 +29,7 @@ namespace Moirai.Atropos
 
         /// <inheritdoc/>
         [HideInCallstack]
-        internal override void Log(ELogLevel logLevel, string message, Exception exception, Object context = null)
+        internal override void Log(ELogLevel logLevel, string message, Exception exception, UObject context = null)
         {
             // 指定日志等级是否启用
             if (logLevel < MinimumLevel) return;

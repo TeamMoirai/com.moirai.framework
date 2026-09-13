@@ -1,6 +1,6 @@
 ﻿using System;
 using UnityEngine;
-using Object = UnityEngine.Object;
+using UObject = UnityEngine.Object;
 
 namespace Moirai.Atropos
 {
@@ -101,7 +101,7 @@ namespace Moirai.Atropos
         /// <param name="exception">日志异常。</param>
         /// <param name="context">日志关联对象（Console 点击可定位）。</param>
         [HideInCallstack]
-        public static void Error(Exception exception, Object context = null)
+        public static void Error(Exception exception, UObject context = null)
         {
             var msg = exception?.ToString() ?? string.Empty;
             Handler.Log(ELogLevel.Error, msg, exception, context);
@@ -114,7 +114,7 @@ namespace Moirai.Atropos
         /// <param name="exception">日志异常。</param>
         /// <param name="context">日志关联对象（Console 点击可定位）。</param>
         [HideInCallstack]
-        public static void Fatal(Exception exception, Object context = null)
+        public static void Fatal(Exception exception, UObject context = null)
         {
             var msg = exception?.ToString() ?? string.Empty;
             Handler.Log(ELogLevel.Fatal, msg, exception, context);

@@ -1,8 +1,8 @@
 #if UNITY_EDITOR
-
 using UnityEngine;
 using UnityEditor;
 using System.Collections.Generic;
+using UObject = UnityEngine.Object;
 
 namespace Moirai.Atropos.Editor
 {
@@ -163,7 +163,7 @@ namespace Moirai.Atropos.Editor
                 _resultsList = new List<string>();
                 foreach (string prefab in allPrefabs)
                 {
-                    UnityEngine.Object asset = AssetDatabase.LoadMainAssetAtPath(prefab);
+                    UObject asset = AssetDatabase.LoadMainAssetAtPath(prefab);
                     GameObject assetGameObject;
                     try
                     {

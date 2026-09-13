@@ -3,6 +3,7 @@ using System.Threading;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.UI;
+using UObject = UnityEngine.Object;
 
 namespace Moirai.Atropos
 {
@@ -102,7 +103,7 @@ namespace Moirai.Atropos
         /// 公共字段集中装配：消除 40+ 补间方法中重复的样板赋值。
         /// 值字段（Start/End 等）由调用方按操作类型补齐。
         /// </summary>
-        private static TweenState BuildState(object target, UnityEngine.Object unityObject,
+        private static TweenState BuildState(object target, UObject unityObject,
             TweenOperationType operationType, float duration, TweenEase ease, int cycles,
             TweenUtility.ECycleMode cycleMode, float startDelay, bool useUnscaledTime,
             Action onComplete, bool warnIfTargetDestroyed = false)
@@ -143,7 +144,7 @@ namespace Moirai.Atropos
         private static long CreateDelay(object target, float duration, Action onComplete, bool useUnscaledTime,
             bool warnIfTargetDestroyed)
         {
-            var state = BuildState(target, target as UnityEngine.Object, TweenOperationType.Delay,
+            var state = BuildState(target, target as UObject, TweenOperationType.Delay,
                 duration, default, 1, TweenUtility.ECycleMode.Restart, 0f, useUnscaledTime, onComplete,
                 warnIfTargetDestroyed);
             return TweenTask.Create(in state);
@@ -778,7 +779,7 @@ namespace Moirai.Atropos
         {
             // 捕获引用类型回调，不装箱 T（T 已约束为 class）
             Action<float, float, float> onUpdate = (x, y, z) => onValueChange(target, new Vector3(x, y, z));
-            var state = BuildState(target, target as UnityEngine.Object, TweenOperationType.CustomVector3,
+            var state = BuildState(target, target as UObject, TweenOperationType.CustomVector3,
                 duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
             state.StartX = startValue.x; state.StartY = startValue.y; state.StartZ = startValue.z;
             state.EndX = endValue.x; state.EndY = endValue.y; state.EndZ = endValue.z;
@@ -791,7 +792,7 @@ namespace Moirai.Atropos
             float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             Action<float> onUpdate = v => onValueChange(target, Mathf.RoundToInt(v));
-            var state = BuildState(target, target as UnityEngine.Object, TweenOperationType.CustomInt,
+            var state = BuildState(target, target as UObject, TweenOperationType.CustomInt,
                 duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
             state.StartX = startValue;
             state.EndX = endValue;
@@ -804,7 +805,7 @@ namespace Moirai.Atropos
             float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             Action<float> onUpdate = v => onValueChange(target, (long)v);
-            var state = BuildState(target, target as UnityEngine.Object, TweenOperationType.CustomLong,
+            var state = BuildState(target, target as UObject, TweenOperationType.CustomLong,
                 duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
             state.StartX = startValue;
             state.EndX = endValue;
@@ -817,7 +818,7 @@ namespace Moirai.Atropos
             float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
             Action<float> onUpdate = v => onValueChange(target, v);
-            var state = BuildState(target, target as UnityEngine.Object, TweenOperationType.CustomFloat,
+            var state = BuildState(target, target as UObject, TweenOperationType.CustomFloat,
                 duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
             state.StartX = startValue;
             state.EndX = endValue;
@@ -837,7 +838,7 @@ namespace Moirai.Atropos
             TweenEase ease = default, int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart,
             float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            var state = BuildState(target, target as UnityEngine.Object, TweenOperationType.CustomFloat,
+            var state = BuildState(target, target as UObject, TweenOperationType.CustomFloat,
                 duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
             state.StartX = startValue;
             state.EndX = endValue;
@@ -852,7 +853,7 @@ namespace Moirai.Atropos
             TweenEase ease = default, int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart,
             float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {
-            var state = BuildState(target, target as UnityEngine.Object, TweenOperationType.CustomVector3,
+            var state = BuildState(target, target as UObject, TweenOperationType.CustomVector3,
                 duration, ease, cycles, cycleMode, startDelay, useUnscaledTime, onComplete);
             state.StartX = startValue.x; state.StartY = startValue.y; state.StartZ = startValue.z;
             state.EndX = endValue.x; state.EndY = endValue.y; state.EndZ = endValue.z;

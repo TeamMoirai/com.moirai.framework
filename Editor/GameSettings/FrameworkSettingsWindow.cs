@@ -6,6 +6,7 @@ using System.Reflection;
 using System.Text;
 using UnityEditor;
 using UnityEngine;
+using UObject = UnityEngine.Object;
 
 namespace Moirai.Atropos.Editor
 {
@@ -215,17 +216,17 @@ namespace Moirai.Atropos.Editor
             {
                 if (s_HeaderBgTex != null)
                 {
-                    UnityEngine.Object.DestroyImmediate(s_HeaderBgTex);
+                    DestroyImmediate(s_HeaderBgTex);
                     s_HeaderBgTex = null;
                 }
                 if (s_SearchBgTex != null)
                 {
-                    UnityEngine.Object.DestroyImmediate(s_SearchBgTex);
+                    DestroyImmediate(s_SearchBgTex);
                     s_SearchBgTex = null;
                 }
                 if (s_SearchBgFocusTex != null)
                 {
-                    UnityEngine.Object.DestroyImmediate(s_SearchBgFocusTex);
+                    DestroyImmediate(s_SearchBgFocusTex);
                     s_SearchBgFocusTex = null;
                 }
                 s_Initialized = false;
@@ -471,7 +472,7 @@ namespace Moirai.Atropos.Editor
         {
             var seen = new HashSet<string>();
             var current = type;
-            while (current != null && current != typeof(ScriptableObject) && current != typeof(UnityEngine.Object))
+            while (current != null && current != typeof(ScriptableObject) && current != typeof(UObject))
             {
                 // 遇到 FrameworkSettings<T> 泛型基类时停止
                 if (current.IsGenericType && current.GetGenericTypeDefinition() == typeof(FrameworkSettings<>))
@@ -571,7 +572,7 @@ namespace Moirai.Atropos.Editor
         {
             if (_editorCache.TryGetValue(absoluteIndex, out var editor))
             {
-                if (editor != null) UnityEngine.Object.DestroyImmediate(editor);
+                if (editor != null) DestroyImmediate(editor);
                 _editorCache.Remove(absoluteIndex);
             }
         }
@@ -579,7 +580,7 @@ namespace Moirai.Atropos.Editor
         private void ClearEditorCache()
         {
             foreach (var kvp in _editorCache)
-                if (kvp.Value != null) UnityEngine.Object.DestroyImmediate(kvp.Value);
+                if (kvp.Value != null) DestroyImmediate(kvp.Value);
             _editorCache.Clear();
         }
 
@@ -959,7 +960,7 @@ namespace Moirai.Atropos.Editor
             string originalName = entry.instance.name;
             EditorUtility.CopySerialized(temp, entry.instance);
             entry.instance.name = originalName;
-            UnityEngine.Object.DestroyImmediate(temp);
+            DestroyImmediate(temp);
 
             EditorUtility.SetDirty(entry.instance);
             AssetDatabase.SaveAssets();

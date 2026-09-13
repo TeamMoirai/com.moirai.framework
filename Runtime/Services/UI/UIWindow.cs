@@ -7,7 +7,7 @@ using Moirai.Atropos.Resource;
 using Moirai.Atropos.Timer;
 using UnityEngine;
 using UnityEngine.UI;
-using Object = UnityEngine.Object;
+using UObject = UnityEngine.Object;
 
 namespace Moirai.Atropos.UI
 {
@@ -334,7 +334,7 @@ namespace Moirai.Atropos.UI
             }
             else
             {
-                GameObject panel = Object.Instantiate(Resources.Load<GameObject>(location), UIService.UIRoot);
+                GameObject panel = UObject.Instantiate(Resources.Load<GameObject>(location), UIService.UIRoot);
                 Handle_Completed(panel);
             }
         }
@@ -498,7 +498,7 @@ namespace Moirai.Atropos.UI
             {
                 if (_panel != null)
                 {
-                    Object.Destroy(_panel);
+                    UObject.Destroy(_panel);
                     _panel = null;
                 }
             }

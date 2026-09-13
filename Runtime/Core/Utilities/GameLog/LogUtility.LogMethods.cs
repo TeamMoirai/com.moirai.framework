@@ -5,7 +5,7 @@
 
 using JetBrains.Annotations;
 using UnityEngine;
-using Object = UnityEngine.Object;
+using UObject = UnityEngine.Object;
 
 namespace Moirai.Atropos
 {
@@ -13,7 +13,7 @@ namespace Moirai.Atropos
     {
         /// <summary>打印最详细级别日志。</summary>
         [HideInCallstack]
-        public static void Verbose(object message, Object context = null)
+        public static void Verbose(object message, UObject context = null)
         {
             var msg = message?.ToString() ?? string.Empty;
             Handler.Log(ELogLevel.Verbose, msg, null, context);
@@ -22,7 +22,7 @@ namespace Moirai.Atropos
 
         /// <summary>打印最详细级别日志。</summary>
         [HideInCallstack]
-        public static void Verbose(string message, Object context = null)
+        public static void Verbose(string message, UObject context = null)
         {
             var msg = message ?? string.Empty;
             Handler.Log(ELogLevel.Verbose, msg, null, context);
@@ -191,7 +191,7 @@ namespace Moirai.Atropos
 
         /// <summary>打印调试级别日志。</summary>
         [HideInCallstack]
-        public static void Debug(object message, Object context = null)
+        public static void Debug(object message, UObject context = null)
         {
             var msg = message?.ToString() ?? string.Empty;
             Handler.Log(ELogLevel.Debug, msg, null, context);
@@ -200,7 +200,7 @@ namespace Moirai.Atropos
 
         /// <summary>打印调试级别日志。</summary>
         [HideInCallstack]
-        public static void Debug(string message, Object context = null)
+        public static void Debug(string message, UObject context = null)
         {
             var msg = message ?? string.Empty;
             Handler.Log(ELogLevel.Debug, msg, null, context);
@@ -369,7 +369,7 @@ namespace Moirai.Atropos
 
         /// <summary>打印信息级别日志。</summary>
         [HideInCallstack]
-        public static void Info(object message, Object context = null)
+        public static void Info(object message, UObject context = null)
         {
             var msg = message?.ToString() ?? string.Empty;
             Handler.Log(ELogLevel.Info, msg, null, context);
@@ -378,7 +378,7 @@ namespace Moirai.Atropos
 
         /// <summary>打印信息级别日志。</summary>
         [HideInCallstack]
-        public static void Info(string message, Object context = null)
+        public static void Info(string message, UObject context = null)
         {
             var msg = message ?? string.Empty;
             Handler.Log(ELogLevel.Info, msg, null, context);
@@ -547,7 +547,7 @@ namespace Moirai.Atropos
 
         /// <summary>打印警告级别日志。</summary>
         [HideInCallstack]
-        public static void Warning(object message, Object context = null)
+        public static void Warning(object message, UObject context = null)
         {
             var msg = message?.ToString() ?? string.Empty;
             Handler.Log(ELogLevel.Warning, msg, null, context);
@@ -556,7 +556,7 @@ namespace Moirai.Atropos
 
         /// <summary>打印警告级别日志。</summary>
         [HideInCallstack]
-        public static void Warning(string message, Object context = null)
+        public static void Warning(string message, UObject context = null)
         {
             var msg = message ?? string.Empty;
             Handler.Log(ELogLevel.Warning, msg, null, context);
@@ -725,7 +725,7 @@ namespace Moirai.Atropos
 
         /// <summary>打印错误级别日志。</summary>
         [HideInCallstack]
-        public static void Error(object message, Object context = null)
+        public static void Error(object message, UObject context = null)
         {
             var msg = message?.ToString() ?? string.Empty;
             Handler.Log(ELogLevel.Error, msg, null, context);
@@ -734,7 +734,7 @@ namespace Moirai.Atropos
 
         /// <summary>打印错误级别日志。</summary>
         [HideInCallstack]
-        public static void Error(string message, Object context = null)
+        public static void Error(string message, UObject context = null)
         {
             var msg = message ?? string.Empty;
             Handler.Log(ELogLevel.Error, msg, null, context);
@@ -903,7 +903,7 @@ namespace Moirai.Atropos
 
         /// <summary>打印严重错误级别日志。</summary>
         [HideInCallstack]
-        public static void Fatal(object message, Object context = null)
+        public static void Fatal(object message, UObject context = null)
         {
             var msg = message?.ToString() ?? string.Empty;
             Handler.Log(ELogLevel.Fatal, msg, null, context);
@@ -912,7 +912,7 @@ namespace Moirai.Atropos
 
         /// <summary>打印严重错误级别日志。</summary>
         [HideInCallstack]
-        public static void Fatal(string message, Object context = null)
+        public static void Fatal(string message, UObject context = null)
         {
             var msg = message ?? string.Empty;
             Handler.Log(ELogLevel.Fatal, msg, null, context);

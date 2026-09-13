@@ -4,7 +4,7 @@ using System.Threading;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.SceneManagement;
-using Object = UnityEngine.Object;
+using UObject = UnityEngine.Object;
 
 namespace Moirai.Atropos.Save
 {
@@ -19,10 +19,10 @@ namespace Moirai.Atropos.Save
     internal static class SaveEntityPersistence
     {
         /// <summary>实体块键前缀（保留——用户块键不得以此前缀开头，由实体管线独占管理）。</summary>
-        internal const string EntityBlockKeyPrefix = "entity:";
+        internal const string ENTITY_BLOCK_KEY_PREFIX = "entity:";
 
         /// <summary>实体表保留块键（生成记录 + 销毁 ID；经原始块管线读写以豁免保留前缀校验）。</summary>
-        internal const string EntityTableBlockKey = "__entities";
+        internal const string ENTITY_TABLE_BLOCK_KEY = "__entities";
 
         /// <summary>克隆名后缀（实例化命名规整用）。</summary>
         private const string CLONE_NAME_SUFFIX = "(Clone)";
@@ -104,7 +104,7 @@ namespace Moirai.Atropos.Save
         /// <returns>实体块键返回 <c>true</c>。</returns>
         internal static bool IsEntityBlockKey(string key)
         {
-            return key != null && key.StartsWith(EntityBlockKeyPrefix, StringComparison.Ordinal);
+            return key != null && key.StartsWith(ENTITY_BLOCK_KEY_PREFIX, StringComparison.Ordinal);
         }
 
         /// <summary>
@@ -114,7 +114,7 @@ namespace Moirai.Atropos.Save
         /// <returns>实体块键。</returns>
         internal static string BuildEntityBlockKey(string entityId)
         {
-            return StringUtility.Concat(EntityBlockKeyPrefix, entityId);
+            return StringUtility.Concat(ENTITY_BLOCK_KEY_PREFIX, entityId);
         }
 
         /// <summary>
@@ -130,7 +130,7 @@ namespace Moirai.Atropos.Save
                 s_Staging.hideFlags = HideFlags.HideAndDontSave;
                 if (Application.isPlaying)
                 {
-                    Object.DontDestroyOnLoad(s_Staging);
+                    UObject.DontDestroyOnLoad(s_Staging);
                 }
             }
 
@@ -453,7 +453,7 @@ namespace Moirai.Atropos.Save
                 }
             }
 
-            entries.Add(new SaveBlockEntry(EntityTableBlockKey, 1, ESaveBackend.KeyValue, SaveEntityTable.Write(s_Spawns, s_DestroyedIds)));
+            entries.Add(new SaveBlockEntry(ENTITY_TABLE_BLOCK_KEY, 1, ESaveBackend.KeyValue, SaveEntityTable.Write(s_Spawns, s_DestroyedIds)));
             return entries;
         }
 
@@ -472,7 +472,7 @@ namespace Moirai.Atropos.Save
             }
 
             List<SaveSpawnRecord> fileSpawns;
-            if (existingBlocks.TryGetValue(EntityTableBlockKey, out byte[] tableBytes))
+            if (existingBlocks.TryGetValue(ENTITY_TABLE_BLOCK_KEY, out byte[] tableBytes))
             {
                 SaveEntityTable.Read(tableBytes, out fileSpawns, out _);
             }
@@ -502,7 +502,7 @@ namespace Moirai.Atropos.Save
                     continue;
                 }
 
-                string entityId = pair.Key.Substring(EntityBlockKeyPrefix.Length);
+                string entityId = pair.Key.Substring(ENTITY_BLOCK_KEY_PREFIX.Length);
                 if (s_SpawnIds.Contains(entityId))
                 {
                     continue;
@@ -549,7 +549,7 @@ namespace Moirai.Atropos.Save
         internal static async UniTask RestoreFromBlocksAsync(Dictionary<string, byte[]> blocks, string fileName, string folderName, CancellationToken cancellationToken)
         {
             blocks = blocks ?? new Dictionary<string, byte[]>();
-            blocks.TryGetValue(EntityTableBlockKey, out byte[] tableBytes);
+            blocks.TryGetValue(ENTITY_TABLE_BLOCK_KEY, out byte[] tableBytes);
             SaveEntityTable.Read(tableBytes, out List<SaveSpawnRecord> fileSpawns, out List<string> fileDestroyed);
 
             // —— DestroyUnwanted：会话生成实体整体移除（档案状态替换会话状态）
@@ -800,7 +800,7 @@ namespace Moirai.Atropos.Save
         /// 销毁 Unity 对象（编辑模式直毁，播放模式延迟销毁）。
         /// </summary>
         /// <param name="target">目标对象。</param>
-        private static void DestroyObject(Object target)
+        private static void DestroyObject(UObject target)
         {
             if (target == null)
             {
@@ -809,11 +809,11 @@ namespace Moirai.Atropos.Save
 
             if (Application.isPlaying)
             {
-                Object.Destroy(target);
+                UObject.Destroy(target);
             }
             else
             {
-                Object.DestroyImmediate(target);
+                UObject.DestroyImmediate(target);
             }
         }
 

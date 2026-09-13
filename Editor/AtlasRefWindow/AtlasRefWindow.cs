@@ -8,6 +8,7 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.U2D;
 using UnityEngine.UI;
+using UObject = UnityEngine.Object;
 
 namespace Moirai.Atropos.Editor
 {
@@ -763,8 +764,8 @@ namespace Moirai.Atropos.Editor
                     continue;
                 }
 
-                UnityEngine.Object[] assets = AssetDatabase.LoadAllAssetsAtPath(assetPath);
-                foreach (UnityEngine.Object asset in assets)
+                UObject[] assets = AssetDatabase.LoadAllAssetsAtPath(assetPath);
+                foreach (UObject asset in assets)
                 {
                     if (asset is not Sprite sprite || s_SpriteRefDataBySprite.ContainsKey(sprite))
                     {
@@ -1422,7 +1423,7 @@ namespace Moirai.Atropos.Editor
             return gameObject != null && !EditorUtility.IsPersistent(gameObject);
         }
 
-        private static void DrawObjectField(UnityEngine.Object obj, Type objType, bool allowSceneObjects, params GUILayoutOption[] options)
+        private static void DrawObjectField(UObject obj, Type objType, bool allowSceneObjects, params GUILayoutOption[] options)
         {
             Rect rect = EditorGUILayout.GetControlRect(false, EditorGUIUtility.singleLineHeight, options);
             using (new EditorGUI.DisabledScope(true))

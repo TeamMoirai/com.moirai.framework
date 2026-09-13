@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using Moirai.Atropos.Save;
 using NUnit.Framework;
 using UnityEngine;
-using Object = UnityEngine.Object;
+using UObject = UnityEngine.Object;
 
 namespace Service.Save
 {
@@ -27,7 +27,7 @@ namespace Service.Save
             {
                 if (gameObject != null)
                 {
-                    Object.DestroyImmediate(gameObject);
+                    UObject.DestroyImmediate(gameObject);
                 }
             }
 

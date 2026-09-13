@@ -9,7 +9,7 @@ using System.Reflection;
 using UnityEditor.UIElements;
 using UnityEngine.UIElements;
 #endif
-using Object = UnityEngine.Object;
+using UObject = UnityEngine.Object;
 
 namespace Moirai.Atropos.Attributes.Editor.Drawers
 {
@@ -32,7 +32,7 @@ namespace Moirai.Atropos.Attributes.Editor.Drawers
             // Debug.Log(requiredComp);
             EStr eStr = resourcePathAttribute.EStr;
             string curStrValue = property.stringValue;
-            Object requiredValue = GetObjFromStr(curStrValue, requiredComp, eStr);
+            UObject requiredValue = GetObjFromStr(curStrValue, requiredComp, eStr);
 
             if (!string.IsNullOrEmpty(curStrValue) && requiredValue == null)
             {
@@ -48,7 +48,7 @@ namespace Moirai.Atropos.Attributes.Editor.Drawers
             // ReSharper disable once ConvertToUsingDeclaration
             using (EditorGUI.ChangeCheckScope changed = new EditorGUI.ChangeCheckScope())
             {
-                Object fieldResult = EditorGUI.ObjectField(position, label, requiredValue, requiredComp, false);
+                UObject fieldResult = EditorGUI.ObjectField(position, label, requiredValue, requiredComp, false);
                 // ReSharper disable once InvertIf
                 if (changed.changed)
                 {
@@ -128,7 +128,7 @@ namespace Moirai.Atropos.Attributes.Editor.Drawers
         /// <summary>
         /// 将资源对象转换为待存储的字符串值，转换格式由 <paramref name="eStr"/> 指定（Resources 相对路径去掉扩展名、AssetDatabase 资产路径或 GUID）。
         /// </summary>
-        private static string GetNewValue(Object value, EStr eStr)
+        private static string GetNewValue(UObject value, EStr eStr)
         {
             if (value == null)
             {
@@ -179,14 +179,14 @@ namespace Moirai.Atropos.Attributes.Editor.Drawers
         /// <summary>
         /// 将字符串值解析为资源对象，解析格式由 <paramref name="eStr"/> 指定，并要求资源类型与 <paramref name="requiredType"/> 匹配。
         /// </summary>
-        private static Object GetObjFromStr(string curStrValue, Type requiredType, EStr eStr)
+        private static UObject GetObjFromStr(string curStrValue, Type requiredType, EStr eStr)
         {
             if (string.IsNullOrEmpty(curStrValue))
             {
                 return null;
             }
 
-            Object obj = null;
+            UObject obj = null;
 
             switch (eStr)
             {
@@ -194,10 +194,10 @@ namespace Moirai.Atropos.Attributes.Editor.Drawers
                     obj = Resources.Load(curStrValue);
                     break;
                 case EStr.AssetDatabase:
-                    obj = AssetDatabase.LoadAssetAtPath<Object>(curStrValue);
+                    obj = AssetDatabase.LoadAssetAtPath<UObject>(curStrValue);
                     break;
                 case EStr.Guid:
-                    obj = AssetDatabase.LoadAssetAtPath<Object>(AssetDatabase.GUIDToAssetPath(curStrValue));
+                    obj = AssetDatabase.LoadAssetAtPath<UObject>(AssetDatabase.GUIDToAssetPath(curStrValue));
                     break;
                 default:
                     throw new ArgumentOutOfRangeException(nameof(eStr), eStr, null);

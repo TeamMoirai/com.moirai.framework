@@ -9,7 +9,7 @@ using UnityEngine.AddressableAssets;
 using UnityEngine.ResourceManagement.AsyncOperations;
 using UnityEngine.ResourceManagement.ResourceProviders;
 using UnityEngine.SceneManagement;
-using Object = UnityEngine.Object;
+using UObject = UnityEngine.Object;
 
 namespace Moirai.Atropos.Resource
 {
@@ -480,7 +480,7 @@ namespace Moirai.Atropos.Resource
         }
 
         /// <inheritdoc />
-        public override bool TryGetLeaseAsset(ResourceLeaseHandle handle, out Object asset)
+        public override bool TryGetLeaseAsset(ResourceLeaseHandle handle, out UObject asset)
         {
             asset = null;
             throw CreateNotSupported();
