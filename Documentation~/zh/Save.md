@@ -218,6 +218,17 @@ await SaveService.RestoreEntitiesAsync("slot1");
 |---|---|
 | `CaptureScreenshotAsync(fileName, folderName, ct)` → `SaveError` | 捕获截图 + 写 sidecar + 镜像元数据 + 派发事件（仅运行态主线程） |
 
+## 云存档一体（本地镜像 + 远端 KV）
+
+`CloudSaveStorageBackend`（存储后端插拔件，经 `m_StorageBackend` 配置）：本地文件镜像 + 远端 KV 双写，读按冲突策略裁决。远端 KV 语义抽象为 `CloudSaveKvStore`（[SerializeReference] 插拔件）——**具体云端后端（Unity Cloud Save / 自定义 REST 等）随项目接入**，框架只交付抽象 + 镜像/冲突管线。
+
+- **键规范**：云端键 = 相对存档数据根目录（`persistentDataPath/Data/`）的路径，`/` 分隔（如 `Save/slot1.sav`）——不携带本机目录结构，跨设备一致。
+- **错误语义**：远端不可达/失败/未登录一律抛异常，后端归一为**离线降级**（降级本地镜像直通并记告警）；缺档非错误（读 `null` / 存在性 `false` / 删除幂等）。
+- **写双发**：本地镜像原子提交后远端跟随；远端失败**不阻断本地提交**——记入待回传集合，下次远端操作成功时 backfill 重放（待传上传 / 待删单键 / 待删前缀，按序弹出，失败即停余项保留）。
+- **读裁决**（`ESaveSyncPolicy`）：`Latest` 时间戳新者优先（相等取镜像避免无谓下载）/ `LocalWins` 本地权威 / `CloudWins` 云端权威 / `Custom` 逐键委托 `SaveSyncConflictResolver`（未配置回退 Latest 并记告警）。单侧存在时自动对齐另一侧（远端独有 → 下载刷新镜像并保留远端时间戳；镜像独有 → 回传补传远端）。
+- **同步原语仅作用本地镜像**（同步裸名 API 不见远端；远端同步由异步 API 族驱动）；单槽备份（`.bak`）为本地概念不随云同步；目录级删除对远端按前缀尽力删除。
+- **能力声明**：`Capabilities.SupportsTrueAsyncIO = true`（远端网络 IO 为真异步）；WebGL 等平台同步读不可用的约束不适用于本后端——同步 API 只读本地镜像恒可用。
+
 ## 公共 API（静态外观）
 
 ### 版本迁移
@@ -279,7 +290,7 @@ await SaveService.RestoreEntitiesAsync("slot1");
 | 字段 | 说明 |
 |---|---|
 | `m_SaveServiceHandler` | 存储管线处理器（PlainSaveHandler / AesEncryptedSaveHandler） |
-| `m_StorageBackend` | 存储后端（IO 下沉目标，默认 FileSaveStorageBackend；置空回退文件后端；云存档等继承 `SaveStorageBackend` 接入） |
+| `m_StorageBackend` | 存储后端（IO 下沉目标，默认 FileSaveStorageBackend；置空回退文件后端；云存档选 `CloudSaveStorageBackend`——组合远端 KV 插拔件 + 冲突策略 + 自定义裁决器） |
 | `m_CompressionProvider` | 压缩提供方（空 = 不压缩；内置 GZipCompressionProvider） |
 | `m_KeyProvider` | 密钥提供方（空 = 静态密钥；可选 PassphraseSaveKeyProvider / HkdfPerUserSaveKeyProvider） |
 | `m_DefaultBackend` | 默认序列化后端（未声明 `[SaveData]` 的块） |
@@ -297,4 +308,4 @@ MessagePack 3.1.8、protobuf-net 3.3.8（+Core 内嵌 BuildTools SG）、MemoryP
 
 ## 测试
 
-`Tests/EditorMode/Save/`：容器布局与 v2 逐块校验（`SaveFileContainerTests`：往返/坏块跳过/结构性前缀保留/v1 硬切、`SaveContainerV2Tests`：头 CRC 重算放行的部分恢复/整档拒绝/坏块列报/写回收留）、事件 API（`SaveEventTests`：触发时机/次数/参数、失败阶段分型、后台派发主线程化、进度批次）、组合器、Handler 管线（原子写/清扫/损坏分型/参数校验）、存储后端契约（`FileSaveStorageBackendTests`：原子写/幂等删除/精确枚举/备份恢复/能力自描述）、压缩转换链（`SaveCompressionTests`：GZip 往返/压加组合/旧档兼容读/头部分型/注册表）、密钥提供方（`SaveKeyProviderTests`：静态等价/口令注入/HKDF 按用户隔离）、加密全链路、四后端往返、迁移级联、组件捕获器（生成代码；`SaveCapturerV2Tests`：集合/嵌套/场景引用/资产引用全矩阵往返）、迁移总线（`SaveMigrationBusTests`：版本链单步/多步/缺链/歧义/降级/Priority 序/异常归一、JSON 与 KVT 改名改型、整块变换、回写开关、审计历史、版本盖章、写入自愈、显式迁移、组件模式钩子路由）、序列化注册表开放注册（`SaveSerializerRegistryTests`：注册校验/重复 fail-fast/保留标识/注销）、KVT 元素级记录（`SaveKeyValueElementTests`：序列/映射/嵌套元素往返、null 元素、类型不符游标对齐、缓冲区边界回归）、场景对象身份（`SaveObjectIdentityTests`：注册/注销/空 ID 拒注册/重复 ID 首到先得/销毁失效/Resolve）、资产引用目录（`SaveAssetCatalogTests`：双向查找/类型不符/重复首到先得/编辑器期缓存失效）、KVT 模板差分（`SaveKvDifferTests`：标量/嵌套/集合/新增/类型漂移/恒透传/体积收缩/坏档）、实体表读写（`SaveEntityTableTests`：往返/空表/可空字段/未知记录容错）、动态实体闭环（`SaveEntityPersistenceTests`：注入 ID/差分内容与体积/销毁标记/父子接线/恢复往返/EntityRestored 事件/陈旧与孤儿块清理/加载失败降级）、内置捕获器（`SaveBuiltInCapturerTests`：Transform 三字段/Rigidbody 速度与运动学跳过/ParticleSystem 时间/掩码禁用）、截图与元数据镜像（`SaveScreenshotTests`：sidecar 命名/缩略图尺寸/盒式降采样/PNG 编码回读/sidecar 落盘与级联删除/元数据合并与容器回读/事件派发/非运行态降级）。
+`Tests/EditorMode/Save/`：容器布局与 v2 逐块校验（`SaveFileContainerTests`：往返/坏块跳过/结构性前缀保留/v1 硬切、`SaveContainerV2Tests`：头 CRC 重算放行的部分恢复/整档拒绝/坏块列报/写回收留）、事件 API（`SaveEventTests`：触发时机/次数/参数、失败阶段分型、后台派发主线程化、进度批次）、组合器、Handler 管线（原子写/清扫/损坏分型/参数校验）、存储后端契约（`FileSaveStorageBackendTests`：原子写/幂等删除/精确枚举/备份恢复/能力自描述）、压缩转换链（`SaveCompressionTests`：GZip 往返/压加组合/旧档兼容读/头部分型/注册表）、密钥提供方（`SaveKeyProviderTests`：静态等价/口令注入/HKDF 按用户隔离）、加密全链路、四后端往返、迁移级联、组件捕获器（生成代码；`SaveCapturerV2Tests`：集合/嵌套/场景引用/资产引用全矩阵往返）、迁移总线（`SaveMigrationBusTests`：版本链单步/多步/缺链/歧义/降级/Priority 序/异常归一、JSON 与 KVT 改名改型、整块变换、回写开关、审计历史、版本盖章、写入自愈、显式迁移、组件模式钩子路由）、序列化注册表开放注册（`SaveSerializerRegistryTests`：注册校验/重复 fail-fast/保留标识/注销）、KVT 元素级记录（`SaveKeyValueElementTests`：序列/映射/嵌套元素往返、null 元素、类型不符游标对齐、缓冲区边界回归）、场景对象身份（`SaveObjectIdentityTests`：注册/注销/空 ID 拒注册/重复 ID 首到先得/销毁失效/Resolve）、资产引用目录（`SaveAssetCatalogTests`：双向查找/类型不符/重复首到先得/编辑器期缓存失效）、KVT 模板差分（`SaveKvDifferTests`：标量/嵌套/集合/新增/类型漂移/恒透传/体积收缩/坏档）、实体表读写（`SaveEntityTableTests`：往返/空表/可空字段/未知记录容错）、动态实体闭环（`SaveEntityPersistenceTests`：注入 ID/差分内容与体积/销毁标记/父子接线/恢复往返/EntityRestored 事件/陈旧与孤儿块清理/加载失败降级）、内置捕获器（`SaveBuiltInCapturerTests`：Transform 三字段/Rigidbody 速度与运动学跳过/ParticleSystem 时间/掩码禁用）、截图与元数据镜像（`SaveScreenshotTests`：sidecar 命名/缩略图尺寸/盒式降采样/PNG 编码回读/sidecar 落盘与级联删除/元数据合并与容器回读/事件派发/非运行态降级）、云存档一体（`SaveCloudStorageBackendTests`：写双发/读策略矩阵 Latest·LocalWins·CloudWins·Custom/单侧对齐/离线降级与 backfill 重放/枚举并集/同步原语镜像直通/云端键规范化，内存 Fake 含时钟偏移与故障注入）。
