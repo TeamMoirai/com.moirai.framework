@@ -13,7 +13,7 @@ namespace Moirai.Atropos.Audio
     /// <para>热路径状态（音量/循环/跟随/优先级等）在播放时从 <see cref="AudioPlayOptions"/> 拆出缓存，避免整份巨型结构体驻留。</para>
     /// <para>句柄绑定：同一时刻仅有一个有效 <see cref="CurrentHandle"/>；换播/结束时由 Handler 自动解绑。</para>
     /// </summary>
-    public class AudioAgent
+    public class AudioAgent : IAudioVoiceRef
     {
         private AudioServiceHandler _audioHandler;
         private ResourceServiceHandler _resourceService;
@@ -176,6 +176,13 @@ namespace Moirai.Atropos.Audio
         internal int LoadGeneration => _loadGeneration;
 
         #endregion
+
+        #region 句柄注册表契约 [HANDLE REGISTRY CONTRACT]
+
+        /// <summary>用户定义 ID（句柄注册表反查用，与 <see cref="ID"/> 同值）。</summary>
+        int IAudioVoiceRef.UserId => ID;
+
+        #endregion 句柄注册表契约 [HANDLE REGISTRY CONTRACT]
 
         #region 句柄绑定 [HANDLE BINDING]
 
@@ -480,9 +487,10 @@ namespace Moirai.Atropos.Audio
                 source.time = Mathf.Min(playbackTime, clip.length - 0.01f);
             }
 
+            // 自然结束计时需包含起播延迟，否则带延迟的音会提前淡出
             _playDuration = playbackDuration > 0f
-                ? playbackDuration - playbackTime
-                : clip.length - playbackTime;
+                ? initialDelay + playbackDuration - playbackTime
+                : initialDelay + clip.length - playbackTime;
 
             _fadeInAt = GameTime.unscaledTime;
             source.volume = _fadeInOnPlay ? _fadeInInitialVolume : _volume;

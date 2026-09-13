@@ -24,6 +24,11 @@ namespace Moirai.Atropos.Audio
         /// <summary>音轨配置</summary>
         public static AudioGroupConfig[] AudioGroupConfigs => Instance.m_AudioGroupConfigs;
 
+        [Tooltip("混音快照配置：状态 → AudioMixerSnapshot 映射；Priority < 0 使用内置默认优先级")]
+        [SerializeField] private AudioMixSnapshotEntry[] m_MixSnapshots;
+        /// <summary>混音快照配置</summary>
+        public static AudioMixSnapshotEntry[] MixSnapshots => Instance.m_MixSnapshots;
+
         // AudioAgentHostPool Bootstrap
         [Header("池预热引导 [Pool Bootstrap]")]
         
@@ -45,20 +50,22 @@ namespace Moirai.Atropos.Audio
             // 从 Resources 中读取默认 AudioMixer
             m_AudioMixer = Resources.Load<AudioMixer>("AudioMixer");
 
-            if (m_AudioMixer != null)
-            {
-                // 从传入的 audioMixer 读取音轨配置
-                var audioMixerGroups = m_AudioMixer.FindMatchingGroups("Master/");
-                m_AudioGroupConfigs = new AudioGroupConfig[audioMixerGroups.Length];
-                for (int i = 0; i < audioMixerGroups.Length; i++)
-                {
-                    m_AudioGroupConfigs[i] = new AudioGroupConfig();
-                    m_AudioGroupConfigs[i].AudioMixerGroup = audioMixerGroups[i];
+            if (m_AudioMixer == null) return;
 
-                    Enum.TryParse<EAudioTrack>(audioMixerGroups[i].name, out var audioTrack);
-                    m_AudioGroupConfigs[i].AudioTrack = audioTrack;
-                }
+            // 仅保留能映射到 EAudioTrack 的混音组，避免嵌套组（如 Player SFX）挤占音轨造成重复
+            var audioMixerGroups = m_AudioMixer.FindMatchingGroups("Master/");
+            var configs = new System.Collections.Generic.List<AudioGroupConfig>(audioMixerGroups.Length);
+            for (int i = 0; i < audioMixerGroups.Length; i++)
+            {
+                if (!Enum.TryParse<EAudioTrack>(audioMixerGroups[i].name, out var audioTrack)) continue;
+
+                var config = new AudioGroupConfig();
+                config.AudioMixerGroup = audioMixerGroups[i];
+                config.AudioTrack = audioTrack;
+                configs.Add(config);
             }
+
+            m_AudioGroupConfigs = configs.ToArray();
         }
 
 #endif

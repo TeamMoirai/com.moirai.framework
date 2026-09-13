@@ -13,6 +13,8 @@ Runtime/Services/Audio/
 ├── AudioAgentHostPool.cs                      # 宿主 GameObject 池
 ├── AudioServiceSettings.cs
 ├── Handler/
+│   ├── AudioHandleRegistry.cs                 # 共享句柄注册表（句柄生成/用户 ID 映射/列表池）
+│   ├── AudioFadeScheduler.cs                  # 共享音量过渡调度器（声部 + 总线伪句柄）
 │   ├── UnityAudioHandler.cs                   # 默认 Unity 后端
 │   ├── Middleware/
 │   │   ├── IAudioMiddlewareBridge.cs          # FMOD/Wwise 共用桥接
@@ -31,10 +33,11 @@ Runtime/Services/Audio/
 
 - **`AudioService`**：静态外观，依赖 `DebuggerService`、`ResourceService`
 - **`AudioServiceHandler`**：后端抽象契约（含 `StopByID`、16B 热请求 `Play`、`OnAgentPlaybackEnded` 虚回调）
+- **`AudioHandleRegistry<TVoice>` / `AudioFadeScheduler`**：Unity 与中间件后端共享的句柄注册与过渡调度（总线 Fade 用高位段伪句柄）
 - **`UnityAudioHandler`**：默认 Unity `AudioSource`/`AudioMixer` 后端
 - **`MiddlewareAudioHandler`**：FMOD / Wwise 共用基类（句柄、Fade、总线、分层）
 - **`FmodAudioHandler` / `WwiseAudioHandler`**：薄封装，仅提供 `CreateDefaultBridge()`
-- **`AudioServiceSettings`**：选择后端、配置 Mixer 与 `AudioGroupConfig[]`、可选宿主 Prefab 路径
+- **`AudioServiceSettings`**：选择后端、配置 Mixer 与 `AudioGroupConfig[]`、混音快照映射、可选宿主池预热
 
 ### 可替换后端与预编译宏
 
@@ -120,7 +123,7 @@ AudioService.Stop(h2, fadeoutDuration: 0.2f);
 | Paused / Dialogue | 3 |
 | Cinematic | 4 |
 
-低优先级不可打断高优先级（`force: true` 可破）。Unity 后端驱动 `AudioMixerSnapshot.TransitionTo`；中间件经 `SetMiddlewareTransitionHandler` 回调。
+低优先级不可打断高优先级（`force: true` 可破）。Unity 后端驱动 `AudioMixerSnapshot.TransitionTo`；中间件经 `SetMiddlewareTransitionHandler` 回调。快照映射（状态 → `AudioMixerSnapshot` + 可选优先级）在 `AudioServiceSettings` 的 `MixSnapshots` 中配置，`OnInit` 自动注册；未配置时需手动 `AudioMixService.RegisterSnapshot`。
 
 ### 遮挡 / HRTF
 
@@ -138,8 +141,11 @@ AudioService.Stop(h2, fadeoutDuration: 0.2f);
 
 ## 注意事项
 
-- `Play` 返回 `0UL` 表示失败（无通道、音轨未配置、后端未初始化等）  
-- 中间件后端 `GetAgentByHandle` / `ForEachAgentByID` 返回空——无 Unity `AudioSource` Agent，请用句柄 API  
+- `Play` 返回 `0UL` 表示失败（无通道、音轨未配置、音轨暂停中、后端未初始化等）  
+- 暂停的音轨会拦截新播放；`MasterVolume` getter 始终返回未静音的设置值（两后端语义一致）  
+- 中间件后端 `GetAgentByHandle` / `ForEachAgentByID` 返回空——无 Unity `AudioSource` Agent，请用句柄 API；不支持 InitialDelay / PlaybackDuration / Solo  
+- 传统巨型签名 `Play` 重载已标记 `[Obsolete]`，请迁移到 `AudioPlayOptions` / `AudioPlayRequest`；各工厂方法与重载的 `DoNotAutoRecycle` 默认统一为 true（不抢占未播完的通道）  
+- 无可用通道的告警按轨节流（3 秒）降级为 Warning  
 - 手动 `FadeAudio` / 快照过渡依赖服务 `Tick` 推进  
 - 加载新场景自动 `StopAllButPersistent`；跨场景音频设 `Persistent = true`  
 - 句柄由服务自动释放，无需（也不应长期）手动 `ReleaseHandle`  

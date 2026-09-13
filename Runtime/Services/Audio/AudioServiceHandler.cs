@@ -9,6 +9,12 @@ namespace Moirai.Atropos.Audio
     /// 音频处理器抽象基类（策略模式抽象策略）。定义 <see cref="AudioService"/> 外观调用的音频后端契约。
     /// <para>默认实现为 <see cref="UnityAudioHandler"/>（基于 Unity AudioSource/AudioMixer），可替换为自定义音频后端。</para>
     /// <para>场景3D音效挂到场景物件、技能3D音效挂到技能特效上，并在 <see cref="AudioSource"/> 的Output上设置对应分类的 <see cref="AudioMixerGroup"/>。</para>
+    /// <para>跨后端语义约定（Unity / 中间件保持一致）：</para>
+    /// <para>1. 暂停的音轨会拦截新播放（<see cref="Play"/> 直接返回 0）；</para>
+    /// <para>2. <see cref="MasterVolume"/> getter 始终返回未静音的设置值（静音只影响实际输出）；</para>
+    /// <para>3. Master/音轨 Fade 经共享 <see cref="AudioFadeScheduler"/> 驱动，带缓动且可中途停止；</para>
+    /// <para>4. 句柄生命周期与用户 ID 映射由共享 <see cref="AudioHandleRegistry{TVoice}"/> 保证。</para>
+    /// <para>Unity 专属成员（中间件后端返回 null/空操作）见各成员 remarks；中间件不支持 InitialDelay / PlaybackDuration / Solo。</para>
     /// </summary>
     [Serializable]
     public abstract class AudioServiceHandler : FrameworkHandler
@@ -18,6 +24,7 @@ namespace Moirai.Atropos.Audio
         /// <summary>
         /// 音频混响器。
         /// </summary>
+        /// <remarks>Unity 专属；中间件后端返回 null。</remarks>
         public abstract AudioMixer AudioMixer { get; }
 
         /// <summary>实例化根节点。</summary>
@@ -26,6 +33,7 @@ namespace Moirai.Atropos.Audio
         /// <summary>
         /// 资源句柄池，用于缓存资源系统的已加载音频资源（后端原生句柄的 object 包装）。
         /// </summary>
+        /// <remarks>中间件后端仅作键值占位，不持有真实资源句柄。</remarks>
         public abstract Dictionary<string, object> AssetHandlePool { get; }
 
         #endregion 处理器属性 [HANDLER PROPERTIES]
@@ -35,6 +43,7 @@ namespace Moirai.Atropos.Audio
         /// <summary>
         /// 所有音轨。
         /// </summary>
+        /// <remarks>Unity 专属；中间件后端返回空数组。</remarks>
         public abstract AudioCategory[] AudioCategories { get; }
 
         /// <summary>
@@ -122,6 +131,7 @@ namespace Moirai.Atropos.Audio
         /// <summary>
         /// 播放音频（传统巨型签名重载——虚拟转发到 <see cref="AudioPlayOptions"/> 版本，新代码请用参数对象）。
         /// </summary>
+        /// <remarks>默认值与各工厂方法/契约对齐：<c>doNotAutoRecycleIfNotDonePlaying</c> 为 true。</remarks>
         public virtual ulong Play(AudioClip clip, EAudioTrack track, Vector3 location,
             bool loop = false,
             float volume = 1, int id = 0, bool fade = false, float fadeInitialVolume = 0, float fadeDuration = 1,
@@ -132,7 +142,7 @@ namespace Moirai.Atropos.Audio
             bool bypassListenerEffects = false, bool bypassReverbZones = false, int priority = 128,
             float reverbZoneMix = 1,
             float dopplerLevel = 1, int spread = 0, AudioRolloffMode rolloffMode = AudioRolloffMode.Logarithmic,
-            float minDistance = 1, float maxDistance = 500, bool doNotAutoRecycleIfNotDonePlaying = false,
+            float minDistance = 1, float maxDistance = 500, bool doNotAutoRecycleIfNotDonePlaying = true,
             float playbackTime = 0, float playbackDuration = 0, Transform attachToTransform = null,
             bool useSpreadCurve = false,
             AnimationCurve spreadCurve = null, bool useCustomRolloffCurve = false,
@@ -159,6 +169,7 @@ namespace Moirai.Atropos.Audio
         /// <summary>
         /// 播放音频（传统巨型签名重载——虚拟转发到 <see cref="AudioPlayOptions"/> 版本，新代码请用参数对象）。
         /// </summary>
+        /// <remarks>默认值与各工厂方法/契约对齐：<c>doNotAutoRecycleIfNotDonePlaying</c> 为 true。</remarks>
         public virtual ulong Play(string path, EAudioTrack track, Vector3 location, bool bAsync = false, bool bInPool = false,
             bool loop = false, float volume = 1.0f, int id = 0,
             bool fade = false, float fadeInitialVolume = 0f, float fadeDuration = 1f, TweenEase fadeTweenEase = default,
@@ -170,7 +181,7 @@ namespace Moirai.Atropos.Audio
             int priority = 128, float reverbZoneMix = 1f,
             float dopplerLevel = 1f, int spread = 0, AudioRolloffMode rolloffMode = AudioRolloffMode.Logarithmic,
             float minDistance = 1f, float maxDistance = 500f,
-            bool doNotAutoRecycleIfNotDonePlaying = false, float playbackTime = 0f, float playbackDuration = 0f,
+            bool doNotAutoRecycleIfNotDonePlaying = true, float playbackTime = 0f, float playbackDuration = 0f,
             Transform attachToTransform = null,
             bool useSpreadCurve = false, AnimationCurve spreadCurve = null, bool useCustomRolloffCurve = false,
             AnimationCurve customRolloffCurve = null,
@@ -274,11 +285,13 @@ namespace Moirai.Atropos.Audio
         /// <summary>
         /// 对每个匹配 ID 的 AudioAgent 执行操作（零分配）。
         /// </summary>
+        /// <remarks>Unity 专属；中间件后端为空操作。</remarks>
         public abstract void ForEachAgentByID(int id, Action<AudioAgent> action);
 
         /// <summary>
         /// 对每个匹配 Clip 的 AudioAgent 执行操作（零分配）。
         /// </summary>
+        /// <remarks>Unity 专属；中间件后端为空操作。</remarks>
         public abstract void ForEachAgentByClip(AudioClip clip, Action<AudioAgent> action);
 
         /// <summary>
@@ -289,11 +302,13 @@ namespace Moirai.Atropos.Audio
         /// <summary>
         /// 返回当前正在播放的指定 clip 数量
         /// </summary>
+        /// <remarks>中间件后端按 clip 名映射的事件路径统计。</remarks>
         public abstract int CurrentlyPlayingCount(AudioClip clip);
 
         /// <summary>
         /// 通过句柄获取 AudioAgent（用于访问 AudioResource 等内部属性）。
         /// </summary>
+        /// <remarks>Unity 专属；中间件后端返回 null。</remarks>
         public abstract AudioAgent GetAgentByHandle(ulong handle);
 
         /// <summary>

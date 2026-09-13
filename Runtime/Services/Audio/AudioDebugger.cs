@@ -55,6 +55,7 @@ namespace Moirai.Atropos.Audio
         AudioServiceHandler _target;
 
         private TrackStruct[] _tracks;
+        private int _trackCount;
         private readonly Color[] _colorBases = new []{ ColorsUtility.YellowAmber, ColorsUtility.Coral, ColorsUtility.SteelBlue, ColorsUtility.Aquamarine, ColorsUtility.Burlywood };
 
         private readonly Color _baseColor = new Color32(150, 150, 150, 255);
@@ -67,7 +68,7 @@ namespace Moirai.Atropos.Audio
             _target = AudioService.Handler;
 
             // 初始化音频轨道
-            if (UnityEditor.EditorApplication.isPlaying)
+            if (UnityEditor.EditorApplication.isPlaying && _target != null && _target.AudioCategories != null)
             {
                 _tracks = new TrackStruct[_target.AudioCategories.Length + 1];
 
@@ -79,18 +80,23 @@ namespace Moirai.Atropos.Audio
                     _baseColor.Colorize(_colorBases[0], _coloringMode, 0.7f),
                     _baseColor.Colorize(_colorBases[0], _coloringMode, 0.5f)
                 );
+                _trackCount = 1;
 
-                // 添加其他配置音轨
+                // 添加其他配置音轨（重复音轨校验产生的空槽跳过）
                 for (int i = 0; i < _target.AudioCategories.Length; i++)
                 {
-                    var track = _target.AudioCategories[i].AudioTrack;
-                    var baseColor = _colorBases[i + 1];
-                    _tracks[i + 1] = new TrackStruct(track, 1f,
+                    var category = _target.AudioCategories[i];
+                    if (category == null) continue;
+
+                    var track = category.AudioTrack;
+                    var baseColor = _colorBases[_trackCount % _colorBases.Length];
+                    _tracks[_trackCount] = new TrackStruct(track, 1f,
                         _baseColor.Colorize(baseColor, _coloringMode, 1f),
                         _baseColor.Colorize(baseColor, _coloringMode, 0.9f),
                         _baseColor.Colorize(baseColor, _coloringMode, 0.8f),
                         _baseColor.Colorize(baseColor, _coloringMode, 0.7f),
                         _baseColor.Colorize(baseColor, _coloringMode, 0.5f));
+                    _trackCount++;
                 }
             }
         }
@@ -99,12 +105,12 @@ namespace Moirai.Atropos.Audio
         {
             serializedObject.Update();
 
-            if (UnityEditor.EditorApplication.isPlaying)
+            if (UnityEditor.EditorApplication.isPlaying && _target != null && _target.AudioCategories != null)
             {
                 // todo 绘制音频状态
-                foreach (var track in _tracks)
+                for (int i = 0; i < _trackCount; i++)
                 {
-                    DrawTrack(track);
+                    DrawTrack(_tracks[i]);
                 }
 
                 if (GUILayout.Button("Save Settings"))
