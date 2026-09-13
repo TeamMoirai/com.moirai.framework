@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UIElements;
-using Object = UnityEngine.Object;
+using UObject = UnityEngine.Object;
 
 namespace Moirai.Atropos.Debugger
 {
@@ -419,49 +419,12 @@ namespace Moirai.Atropos.Debugger
 
         private static Font CreateSystemFallbackFont()
         {
-            string[] candidates =
-            {
-#if UNITY_EDITOR_WIN || UNITY_STANDALONE_WIN
-                "Microsoft YaHei UI",
-                "Microsoft YaHei",
-                "Segoe UI",
-                "Arial",
-#elif UNITY_EDITOR_OSX || UNITY_STANDALONE_OSX || UNITY_IOS
-                "PingFang SC",
-                "Hiragino Sans GB",
-                "Helvetica Neue",
-                "Arial",
-#elif UNITY_ANDROID
-                "Noto Sans CJK SC",
-                "Roboto",
-                "Droid Sans Fallback",
-#elif UNITY_WEBGL
-                "Arial",
-#else
-                "Arial",
-                "Helvetica",
-                "Roboto",
-#endif
-            };
+            // 新版本 Unity (2022+)
+            Font font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            if (font != null) return font;
 
-            for (int i = 0; i < candidates.Length; i++)
-            {
-                try
-                {
-                    Font font = Font.CreateDynamicFontFromOSFont(candidates[i], 14);
-                    if (font != null)
-                    {
-                        font.hideFlags = HideFlags.HideAndDontSave;
-                        return font;
-                    }
-                }
-                catch
-                {
-                    // 候选字体缺失时继续尝试下一候选。
-                }
-            }
-
-            return Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            // 兼容旧版本 (2018~2021)
+            return Resources.GetBuiltinResource<Font>("Arial.ttf");
         }
 
         #endregion
