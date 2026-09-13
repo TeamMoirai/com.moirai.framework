@@ -19,14 +19,20 @@ namespace Moirai.Atropos.Save
         /// </summary>
         public const int DefaultIterations = 100000;
 
+        /// <summary>默认占位口令（标记「未配置」；上线前必须替换为项目专属密钥）。</summary>
+        internal const string DefaultPassphrase = "CHANGE_ME_BEFORE_SHIPPING";
+
+        /// <summary>默认占位盐文（标记「未配置」；上线前必须替换为项目专属盐文）。</summary>
+        internal const string DefaultSalt = "CHANGE_ME_SALT";
+
         /// <summary>IV 字节数（AES 块大小）。</summary>
         private const int IvSize = 16;
 
         /// <summary>AES-256 密钥字节数。</summary>
-        private const int EncryptionKeySize = 32;
+        internal const int EncryptionKeySize = 32;
 
         /// <summary>HMAC-SHA256 密钥/摘要字节数。</summary>
-        private const int MacSize = 32;
+        internal const int MacSize = 32;
 
         /// <summary>AES-CBC 最小密文长度（空明文的 PKCS7 填充块）。</summary>
         private const int MinCipherSize = 16;
@@ -35,32 +41,50 @@ namespace Moirai.Atropos.Save
         /// 保存和加载文件的密钥。
         /// <para>SECURITY: 上线前必须替换为项目专属密钥（默认占位值用于标记「未配置」）。</para>
         /// </summary>
-        public virtual string Key { get; set; } = "CHANGE_ME_BEFORE_SHIPPING";
+        public virtual string Key { get; set; } = DefaultPassphrase;
 
         /// <summary>
         /// 加密盐文（UTF-8 编码后参与 PBKDF2 密钥派生）。
         /// <para>SECURITY: 上线前必须替换为项目专属盐文。</para>
         /// </summary>
-        public virtual string Salt { get; set; } = "CHANGE_ME_SALT";
+        public virtual string Salt { get; set; } = DefaultSalt;
 
         /// <summary>
         /// PBKDF2 迭代次数（由 <c>SaveServiceSettings</c> 注入覆盖）。
         /// </summary>
         public virtual int Iterations { get; set; } = DefaultIterations;
 
-        /// <summary>派生密钥缓存（同参数重复加解密时跳过 PBKDF2 重派生——每次派生为 10 万次迭代级开销）。</summary>
-        [NonSerialized] private byte[] _cachedDerivedKeys;
+        /// <summary>派生密钥材料快照（口令/盐/迭代次数 + 派生结果的不可变整体，原子读避免字段组撕裂）。</summary>
+        private sealed class DerivedKeySnapshot
+        {
+            internal readonly string Key;
+            internal readonly string Salt;
+            internal readonly int Iterations;
+            internal readonly byte[] DerivedKeys;
 
-        /// <summary>派生密钥缓存对应的口令。</summary>
-        [NonSerialized] private string _cachedKey;
+            internal DerivedKeySnapshot(string key, string salt, int iterations, byte[] derivedKeys)
+            {
+                Key = key;
+                Salt = salt;
+                Iterations = iterations;
+                DerivedKeys = derivedKeys;
+            }
 
-        /// <summary>派生密钥缓存对应的盐文。</summary>
-        [NonSerialized] private string _cachedSalt;
+            /// <summary>
+            /// 判断快照是否匹配当前派生参数。
+            /// </summary>
+            internal bool Matches(string key, string salt, int iterations)
+            {
+                return Iterations == iterations
+                    && string.Equals(Key, key, StringComparison.Ordinal)
+                    && string.Equals(Salt, salt, StringComparison.Ordinal);
+            }
+        }
 
-        /// <summary>派生密钥缓存对应的迭代次数。</summary>
-        [NonSerialized] private int _cachedIterations;
+        /// <summary>派生密钥缓存（同参数重复加解密时跳过 PBKDF2 重派生——每次派生为 10 万次迭代级开销；整体替换原子读）。</summary>
+        [NonSerialized] private volatile DerivedKeySnapshot _derivedKeyCache;
 
-        /// <summary>派生密钥缓存访问锁（并发加解密不同文件时保护缓存字段；锁开销相对 PBKDF2 派生可忽略）。</summary>
+        /// <summary>缓存安装锁（仅保护「查缓存 → 安装」竞态；PBKDF2 派生本体在锁外执行，不阻塞并发存档 IO 线程）。</summary>
         [NonSerialized] private readonly object _deriveLock = new object();
 
         #region 公共流式 API [PUBLIC STREAM API]
@@ -121,6 +145,44 @@ namespace Moirai.Atropos.Save
             }
 
             byte[] derivedKeys = DeriveKeys(sKey);
+            return TryEncryptWithMaterial(plaintext, derivedKeys.AsSpan(0, EncryptionKeySize).ToArray(), derivedKeys.AsSpan(EncryptionKeySize, MacSize).ToArray(), out encrypted);
+        }
+
+        /// <summary>
+        /// 加密字节载荷（密钥材料直给，跳过 PBKDF2 派生——供 <see cref="ISaveKeyProvider"/> 管线调用）。
+        /// </summary>
+        /// <param name="plaintext">明文字节。</param>
+        /// <param name="encryptionKey">加密密钥（<see cref="EncryptionKeySize"/> 字节）。</param>
+        /// <param name="macKey">MAC 密钥（<see cref="MacSize"/> 字节）。</param>
+        /// <param name="encrypted">成功时的密文字节。</param>
+        /// <returns>错误码。</returns>
+        internal SaveError TryEncryptWithMaterial(byte[] plaintext, byte[] encryptionKey, byte[] macKey, out byte[] encrypted)
+        {
+            return TryEncryptWithMaterial(plaintext, 0, plaintext?.Length ?? 0, encryptionKey, macKey, out encrypted);
+        }
+
+        /// <summary>
+        /// 加密缓冲区有效区间内的明文（密钥材料直给——区间形式供池化缓冲区直通，避免精确数组二次拷贝）。
+        /// </summary>
+        /// <param name="plaintext">明文缓冲区。</param>
+        /// <param name="offset">有效区间起始偏移。</param>
+        /// <param name="length">有效区间字节数。</param>
+        /// <param name="encryptionKey">加密密钥（<see cref="EncryptionKeySize"/> 字节）。</param>
+        /// <param name="macKey">MAC 密钥（<see cref="MacSize"/> 字节）。</param>
+        /// <param name="encrypted">成功时的密文字节。</param>
+        /// <returns>错误码。</returns>
+        internal SaveError TryEncryptWithMaterial(byte[] plaintext, int offset, int length, byte[] encryptionKey, byte[] macKey, out byte[] encrypted)
+        {
+            encrypted = null;
+            if (plaintext == null || offset < 0 || length < 0 || plaintext.Length - offset < length)
+            {
+                return SaveError.InvalidArgument;
+            }
+
+            if (!IsValidKeyMaterial(encryptionKey, macKey))
+            {
+                return SaveError.InvalidArgument;
+            }
 
             // 随机 IV：相同明文/密钥每次加密产出不同密文，杜绝静态 IV 的前缀模式泄露
             byte[] iv = new byte[IvSize];
@@ -129,11 +191,11 @@ namespace Moirai.Atropos.Save
             byte[] ciphertext;
             using (Aes algorithm = Aes.Create())
             {
-                algorithm.Key = derivedKeys.AsSpan(0, EncryptionKeySize).ToArray();
+                algorithm.Key = encryptionKey;
                 algorithm.IV = iv;
                 using (ICryptoTransform encryptor = algorithm.CreateEncryptor())
                 {
-                    ciphertext = encryptor.TransformFinalBlock(plaintext, 0, plaintext.Length);
+                    ciphertext = encryptor.TransformFinalBlock(plaintext, offset, length);
                 }
             }
 
@@ -141,7 +203,7 @@ namespace Moirai.Atropos.Save
             Buffer.BlockCopy(iv, 0, encrypted, 0, IvSize);
             Buffer.BlockCopy(ciphertext, 0, encrypted, IvSize, ciphertext.Length);
 
-            byte[] mac = ComputeMac(derivedKeys, encrypted, IvSize + ciphertext.Length);
+            byte[] mac = ComputeMac(macKey, encrypted, 0, IvSize + ciphertext.Length);
             Buffer.BlockCopy(mac, 0, encrypted, IvSize + ciphertext.Length, MacSize);
             return SaveError.None;
         }
@@ -168,11 +230,57 @@ namespace Moirai.Atropos.Save
             }
 
             byte[] derivedKeys = DeriveKeys(sKey);
-            int ciphertextLength = encrypted.Length - IvSize - MacSize;
+            return TryDecryptWithMaterial(encrypted, derivedKeys.AsSpan(0, EncryptionKeySize).ToArray(), derivedKeys.AsSpan(EncryptionKeySize, MacSize).ToArray(), out plaintext);
+        }
+
+        /// <summary>
+        /// 解密字节载荷（密钥材料直给，先验证 HMAC 后解密——供 <see cref="ISaveKeyProvider"/> 管线调用）。
+        /// </summary>
+        /// <param name="encrypted">密文字节。</param>
+        /// <param name="encryptionKey">加密密钥（<see cref="EncryptionKeySize"/> 字节）。</param>
+        /// <param name="macKey">MAC 密钥（<see cref="MacSize"/> 字节）。</param>
+        /// <param name="plaintext">成功时的明文字节。</param>
+        /// <returns>错误码：<see cref="SaveError.None"/>、<see cref="SaveError.InvalidArgument"/>、
+        /// <see cref="SaveError.InvalidFormat"/>、<see cref="SaveError.IntegrityCheckFailed"/> 或 <see cref="SaveError.DecryptionFailed"/>。</returns>
+        internal SaveError TryDecryptWithMaterial(byte[] encrypted, byte[] encryptionKey, byte[] macKey, out byte[] plaintext)
+        {
+            return TryDecryptWithMaterial(encrypted, 0, encrypted?.Length ?? 0, encryptionKey, macKey, out plaintext);
+        }
+
+        /// <summary>
+        /// 解密缓冲区有效区间内的密文（密钥材料直给，先验证 HMAC 后解密——区间形式供文件字节直通，避免载荷二次拷贝）。
+        /// </summary>
+        /// <param name="encrypted">密文缓冲区。</param>
+        /// <param name="offset">有效区间起始偏移。</param>
+        /// <param name="length">有效区间字节数。</param>
+        /// <param name="encryptionKey">加密密钥（<see cref="EncryptionKeySize"/> 字节）。</param>
+        /// <param name="macKey">MAC 密钥（<see cref="MacSize"/> 字节）。</param>
+        /// <param name="plaintext">成功时的明文字节。</param>
+        /// <returns>错误码：<see cref="SaveError.None"/>、<see cref="SaveError.InvalidArgument"/>、
+        /// <see cref="SaveError.InvalidFormat"/>、<see cref="SaveError.IntegrityCheckFailed"/> 或 <see cref="SaveError.DecryptionFailed"/>。</returns>
+        internal SaveError TryDecryptWithMaterial(byte[] encrypted, int offset, int length, byte[] encryptionKey, byte[] macKey, out byte[] plaintext)
+        {
+            plaintext = null;
+            if (encrypted == null || offset < 0 || length < 0 || encrypted.Length - offset < length)
+            {
+                return SaveError.InvalidArgument;
+            }
+
+            if (length < IvSize + MinCipherSize + MacSize)
+            {
+                return SaveError.InvalidFormat;
+            }
+
+            if (!IsValidKeyMaterial(encryptionKey, macKey))
+            {
+                return SaveError.InvalidArgument;
+            }
+
+            int ciphertextLength = length - IvSize - MacSize;
 
             // encrypt-then-MAC：先对 [IV‖密文] 验证 HMAC（常数时间比较），未过验不触碰解密器
-            byte[] expectedMac = ComputeMac(derivedKeys, encrypted, IvSize + ciphertextLength);
-            if (!CryptographicOperations.FixedTimeEquals(expectedMac, encrypted.AsSpan(encrypted.Length - MacSize, MacSize)))
+            byte[] expectedMac = ComputeMac(macKey, encrypted, offset, IvSize + ciphertextLength);
+            if (!CryptographicOperations.FixedTimeEquals(expectedMac, encrypted.AsSpan(offset + length - MacSize, MacSize)))
             {
                 return SaveError.IntegrityCheckFailed;
             }
@@ -181,11 +289,11 @@ namespace Moirai.Atropos.Save
             {
                 using (Aes algorithm = Aes.Create())
                 {
-                    algorithm.Key = derivedKeys.AsSpan(0, EncryptionKeySize).ToArray();
-                    algorithm.IV = encrypted.AsSpan(0, IvSize).ToArray();
+                    algorithm.Key = encryptionKey;
+                    algorithm.IV = encrypted.AsSpan(offset, IvSize).ToArray();
                     using (ICryptoTransform decryptor = algorithm.CreateDecryptor())
                     {
-                        plaintext = decryptor.TransformFinalBlock(encrypted, IvSize, ciphertextLength);
+                        plaintext = decryptor.TransformFinalBlock(encrypted, offset + IvSize, ciphertextLength);
                     }
                 }
 
@@ -202,48 +310,76 @@ namespace Moirai.Atropos.Save
         #region 私有方法 [PRIVATE METHODS]
 
         /// <summary>
-        /// 计算载荷前缀（IV‖密文）的 HMAC-SHA256。
+        /// 计算缓冲区有效区间（IV‖密文）的 HMAC-SHA256。
         /// </summary>
-        /// <param name="derivedKeys">PBKDF2 派生的 64 字节密钥材料。</param>
+        /// <param name="macKey">MAC 密钥。</param>
         /// <param name="buffer">承载 [IV‖密文] 的缓冲区。</param>
-        /// <param name="length">参与计算的前缀长度。</param>
+        /// <param name="offset">有效区间起始偏移。</param>
+        /// <param name="length">参与计算的区间长度。</param>
         /// <returns>HMAC 摘要。</returns>
-        private static byte[] ComputeMac(byte[] derivedKeys, byte[] buffer, int length)
+        private static byte[] ComputeMac(byte[] macKey, byte[] buffer, int offset, int length)
         {
-            using (HMACSHA256 hmac = new HMACSHA256(derivedKeys.AsSpan(EncryptionKeySize, MacSize).ToArray()))
+            using (HMACSHA256 hmac = new HMACSHA256(macKey))
             {
-                return hmac.ComputeHash(buffer, 0, length);
+                return hmac.ComputeHash(buffer, offset, length);
+            }
+        }
+
+        /// <summary>
+        /// 校验密钥材料长度（加密密钥 32 字节、MAC 密钥 32 字节）。
+        /// </summary>
+        /// <param name="encryptionKey">加密密钥。</param>
+        /// <param name="macKey">MAC 密钥。</param>
+        /// <returns>长度合法返回 <c>true</c>。</returns>
+        private static bool IsValidKeyMaterial(byte[] encryptionKey, byte[] macKey)
+        {
+            return encryptionKey != null && encryptionKey.Length == EncryptionKeySize
+                && macKey != null && macKey.Length == MacSize;
+        }
+
+        /// <summary>
+        /// PBKDF2-SHA256 派生 64 字节密钥材料（前 32B 加密密钥、后 32B MAC 密钥）——静态纯函数，供密钥提供方在工作线程调用。
+        /// </summary>
+        /// <param name="passphrase">口令。</param>
+        /// <param name="salt">盐文。</param>
+        /// <param name="iterations">迭代次数。</param>
+        /// <returns>64 字节密钥材料。</returns>
+        internal static byte[] DeriveKeyMaterial(string passphrase, string salt, int iterations)
+        {
+            using (Rfc2898DeriveBytes algorithm = new Rfc2898DeriveBytes(passphrase, Encoding.UTF8.GetBytes(salt), iterations, HashAlgorithmName.SHA256))
+            {
+                return algorithm.GetBytes(EncryptionKeySize + MacSize);
             }
         }
 
         /// <summary>
         /// PBKDF2-SHA256 派生 64 字节密钥材料（前 32B 加密密钥、后 32B MAC 密钥）。
-        /// <para>同（口令, 盐文, 迭代次数）组合命中实例缓存时直接复用；缓存判读与重派生在锁内串行——
-        /// 并发派生同一参数结果幂等，锁仅消除缓存字段读写竞争。</para>
+        /// <para>同（口令, 盐文, 迭代次数）组合命中实例缓存时无锁复用；未命中时派生本体在锁外执行（10 万迭代级开销不阻塞并发线程），
+        /// 安装阶段才取锁二次判读——并发同参派生结果幂等，后到者覆盖安装等值结果。</para>
         /// </summary>
         /// <param name="sKey">口令。</param>
         /// <returns>密钥材料。</returns>
         private byte[] DeriveKeys(string sKey)
         {
+            DerivedKeySnapshot snapshot = _derivedKeyCache;
+            if (snapshot != null && snapshot.Matches(sKey, Salt, Iterations))
+            {
+                return snapshot.DerivedKeys;
+            }
+
+            // 锁外派生：并发同参各自派生等值结果，安装时先到先得
+            byte[] derivedKeys = DeriveKeyMaterial(sKey, Salt, Iterations);
+
             lock (_deriveLock)
             {
-                if (_cachedDerivedKeys != null
-                    && _cachedIterations == Iterations
-                    && string.Equals(_cachedKey, sKey, StringComparison.Ordinal)
-                    && string.Equals(_cachedSalt, Salt, StringComparison.Ordinal))
+                snapshot = _derivedKeyCache;
+                if (snapshot != null && snapshot.Matches(sKey, Salt, Iterations))
                 {
-                    return _cachedDerivedKeys;
+                    return snapshot.DerivedKeys;
                 }
 
-                using (Rfc2898DeriveBytes algorithm = new Rfc2898DeriveBytes(sKey, Encoding.UTF8.GetBytes(Salt), Iterations, HashAlgorithmName.SHA256))
-                {
-                    _cachedDerivedKeys = algorithm.GetBytes(EncryptionKeySize + MacSize);
-                }
-
-                _cachedKey = sKey;
-                _cachedSalt = Salt;
-                _cachedIterations = Iterations;
-                return _cachedDerivedKeys;
+                _derivedKeyCache = new DerivedKeySnapshot(sKey, Salt, Iterations, derivedKeys);
+                return derivedKeys;
             }
         }
 

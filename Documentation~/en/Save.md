@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Save service (`SaveService`) provides AAA-grade save infrastructure: a **single-file multi-block** container, **four pluggable serialization backends** (JSON / MessagePack / MemoryPack / protobuf-net), **block-level version migration**, an **AES-encrypted pipeline**, and **no-code component saving** (Source-Generator-generated strongly-typed capturers). Namespace `Moirai.Atropos.Save`.
+The Save service (`SaveService`) provides AAA-grade save infrastructure: a **single-file multi-block** container, **four pluggable serialization backends** (JSON / MessagePack / MemoryPack / protobuf-net), a **file-level version migration bus** (version chains + auditing + lazy write-back) alongside **block-level version migration**, an **AES-encrypted pipeline** (pluggable key source: static passphrase / runtime passphrase injection / HKDF per-user derivation), **optional GZip compression**, and **no-code component saving** (Source-Generator-generated strongly-typed capturers). Namespace `Moirai.Atropos.Save`.
 
 ## Architecture
 
@@ -10,28 +10,40 @@ The Save service (`SaveService`) provides AAA-grade save infrastructure: a **sin
 SaveService (static facade, silently degrades when s_Handler is null)
 ├── Storage pipeline ([SerializeReference] swappable)
 │     PlainSaveHandler        pass-through (no crypto)
-│     AesEncryptedSaveHandler AES-256-CBC + HMAC (encrypt-then-MAC) + PBKDF2
+│     AesEncryptedSaveHandler AES-256-CBC + HMAC (encrypt-then-MAC), key material via ISaveKeyProvider
+├── Storage backend ([SerializeReference] swappable, ISaveStorage + SaveStorageBackend)
+│     FileSaveStorageBackend  local files (temp + Flush(true) + atomic replace, default)
+├── Transform chain (fixed order: Serialize → Compress? → Encrypt? → CRC)
+│     Compression: ICompressionProvider + SaveCompressionRegistry (GZip built-in, ID=1; unknown IDs rejected on read)
+│     Keys: ISaveKeyProvider + SaveKeyProvider (Static passphrase default / Passphrase runtime-injected / HkdfPerUser per-user HKDF)
 ├── Serialization backends (ESaveBackend + ISaveSerializer + SaveSerializerRegistry)
-│     Json (built-in, default) / MessagePack / MemoryPack / Protobuf / KeyValue (component-only)
+│     Json (built-in, default) / MessagePack / MemoryPack / Protobuf / KeyValue (reserved for the component capture format)
+│     open registration: Register(ISaveSerializer)/Unregister(ESaveBackend) (duplicate backends fail fast; KeyValue cannot be claimed)
 ├── Multi-block container (SaveFileContainer, hand-rolled binary: key/version/backend/bytes per block)
 ├── Data model ([SaveData] + SaveDataBlock.OnMigrate version migration)
-└── No-code saving ([SaveField] + SaveComponent + SaveHost Source Generator capturers)
+├── Migration bus (SaveMigrationManager + ISaveMigrator: file-level version chain, pre-positioned on load/write pipelines)
+└── No-code saving ([SaveField] + SaveComponent + SaveHost Source Generator capturers, [SaveComponentSchema] schema versions)
 ```
 
-## File Format v2
+## File Format
 
 ```
 [32B plaintext header "MRSA"][payload]
-Header: [4B magic][4B format version=2][8B UTC ticks][4B payload length][4B payload CRC32][4B flags]
+Header: [4B magic][4B format version=2][8B UTC ticks][4B payload length][4B payload CRC32][4B compression provider ID][4B flags]
 Payload = Compress?(Container); encrypted handlers wrap [16B IV][AES-256-CBC][32B HMAC]
-Container: [4B magic "MRSB"][4B container version][4B block count]
-      per block [4B key length][key UTF8][4B data version][2B backend][4B byte length][bytes]
+Container: [4B magic "MRSB"][4B container version=2][4B block count]
+      per block [4B key length][key UTF8][4B data version][2B backend][4B byte length][4B payload CRC32][bytes]
 ```
 
-- The header is always plaintext (saved time readable without decryption); CRC guards storage corruption, HMAC guards tampering (verify MAC before decrypting)
-- v1 files (28B header, single-block legacy format) are rejected with `UnsupportedVersion` (pre-launch decision, no dual-format reads)
-- Atomic writes: temp file `xxx.sav.tmp-{guid}` → `Flush(true)` → `File.Replace`; orphan temp files swept in background at init
-- Write paths on the same file are serialized through a per-file semaphore (prevents lost updates from concurrent read-modify-write)
+- The header is always plaintext (saved time readable without decryption); the header CRC guards whole-file storage corruption, HMAC guards tampering (verify MAC before decrypting)
+- Container v2 per-block CRC32 self-validation (second, fine-grained layer after the header CRC gate): a block whose payload fails validation is skipped and logged with a warning while the remaining healthy blocks load normally (**partial recovery**); structural damage to block framing (length/key fields out of bounds) preserves the parsed prefix and stops, since later block boundaries are unknowable. `TryLoadBlock` returns `Corrupted` for a corrupted key (distinct from `FileNotFound` for a truly absent one); corrupted blocks are dropped on the next write-back (healthy blocks are preserved)
+- Container v1 files are hard-cut: reads classify as `UnsupportedVersion` with no dual-format compatibility
+- Transform chain order is fixed: Serialize → **Compress (optional, before encryption)** → Encrypt → CRC; the read side reverses it (decrypt → decompress via header ID registry lookup) — uncompressed legacy files pass through unchanged (magic/flags sniffing is idempotent, old and new files coexist)
+- Header offset 24-27 holds the compression provider ID (0 = uncompressed); unknown IDs are classified `UnsupportedVersion`, flag/ID inconsistency is classified `Corrupted`
+- Key sources (`ISaveKeyProvider`): static passphrase PBKDF2 (`StaticSaveKeyProvider`, default, parameter-identical to V2) / runtime passphrase injection (`PassphraseSaveKeyProvider`, passphrase held in memory only — reads classify `InvalidArgument` and writes fail fast until injected) / HKDF-SHA256 per-user derivation (`HkdfPerUserSaveKeyProvider`, accounts cannot read each other's saves)
+- Atomic writes: temp file `xxx.sav.tmp-{guid}` → `Flush(true)` → `File.Replace` (via `FileSaveStorageBackend`); orphan temp files swept in background at init
+- Write paths on the same file are serialized through a per-file semaphore (prevents lost updates from concurrent read-modify-write) — the gate lives in the handler orchestration layer, transparent to storage backends
+- Storage contract (`ISaveStorage`): sync primitives are the contract core (`Exists`/`TryReadAllBytes`/`WriteAtomic`/`DeleteFile`/`DeleteDirectory`/`EnumerateFiles`/`CreateBackup`/`RestoreBackup`); async wrappers default to thread-pool offload (true-async backends override and declare `Capabilities`); read errors are classified codes, write failures throw `GameException`, deletes are idempotent; implementations must be pure .NET (callable from any thread)
 
 ## Save Paths
 
@@ -61,6 +73,63 @@ public sealed class PlayerStatsData : SaveDataBlock
 - Writes record the declared version; on load, a stored version lower than declared runs the cascade (in-memory fix, persisted on the next save); higher → rejected with `UnsupportedVersion`
 - Binary backends require their own AOT annotations: MessagePack `[MessagePackObject]`+SG, MemoryPack `[MemoryPackable]` partial+SG, protobuf-net `[ProtoContract]`+BuildTools SG; unannotated types are unsupported on IL2CPP
 
+## Version Migration Bus (file-level)
+
+Block-level `OnMigrate` covers **single-type** schema evolution; the migration bus (`SaveMigrationManager` + `ISaveMigrator`) covers **whole-file** data versions — cross-block renames, field retypes, obsolete-block cleanup and other lateral changes. The two tracks compose; on the load pipeline the bus runs **before** `OnMigrate`.
+
+### Enablement and version model
+
+- Versions are monotonically increasing ints: `0` = the pre-versioning baseline; the game sets `SaveService.CurrentSaveVersion = N` at startup (default `0` = bus fully bypassed, zero overhead)
+- Adoption ritual: when enabling versioning with existing saves, register the chain from version `0` (meta-less saves are treated as version `0`; if the shape is unchanged, an empty migrator bridges `0→1`)
+- Version stamping: while the bus is active, every written file gets the current `SaveVersion` stamped into the `__meta` block automatically (no game-side bookkeeping; a semver triple can map to int as `major*10000+minor*100+patch` — fix the mapping rule per project)
+
+### Migrators (ISaveMigrator)
+
+```csharp
+public sealed class SaveMigratorV1ToV2 : ISaveMigrator
+{
+    public int FromVersion => 1;
+    public int ToVersion => 2;
+    public int Priority => 0;   // migrators on the same edge run in ascending Priority order
+
+    public UniTask Migrate(SaveMigrationContext ctx)
+    {
+        ctx.RenameBlock("oldKey", "newKey");
+        ctx.RenameField<PlayerData>("gold", "coins");                   // block key resolved from [SaveData] (explicit key also supported)
+        ctx.RetypeField<int, string>("profile", "level", v => v.ToString());
+        ctx.TransformBlock<PlayerData>("profile", old => new PlayerData { /* … */ });
+        ctx.DeleteBlock("obsolete");
+        return UniTask.CompletedTask;
+    }
+}
+```
+
+- Registration: implementations are scanned by the SaveHost Source Generator and self-register via a module initializer (AOT-safe; requires a concrete, non-abstract, non-privately-nested class with an accessible parameterless constructor — MIRAI302 otherwise); manual registration via `SaveService.RegisterMigrator(...)`. Invalid edges (`To <= From`) throw `ArgumentException` at registration — upgrade direction only, cycles impossible by construction
+- Execution constraints: migrations run **synchronously** inside the load/write pipeline (gate held, possibly on the main thread) — `Migrate` must complete synchronously; returning an incomplete task fails fast with `MigrationFailed`; Unity main-thread APIs are forbidden
+- Operations on absent blocks/fields are no-ops (return `false`, tolerating saves that never wrote that block); real exceptions (e.g. deserialize failures) abort the whole chain
+- Field-level ops (`RenameField`/`RetypeField`) support JSON (requires Newtonsoft.Json) and KeyValue blocks; **binary backends do not support field-level ops** (warned and skipped — use `TransformBlock<T>` with the legacy type kept around; key-order discipline is guarded by the analyzer below)
+
+### Chain semantics and error typing
+
+- Equal versions short-circuit; `file version > current version` → `UnsupportedVersion` (downgrade rejected); missing/ambiguous chain (multiple edges from one version to different targets)/migrator exceptions → `MigrationFailed` (observable via the `LoadFailed` event at stage `Migrate`)
+- **Write-time healing**: any read-modify-write (block save/component upsert/block delete write-back) reaching an old-version file migrates it before merging — every file on disk is always at the current version, so new-shape blocks can never land in an old file and get re-transformed by the chain
+- **Write-back policy**: after a load-triggered migration, the result is lazily written back per `m_MigrationWriteBack` (default on — avoids re-running the chain on every load); when off, migration applies to memory only, a session-level cache prevents re-running for the same file in the session, and the file stays at its old version
+- **Audit**: every migration step appends `"{from}->{to}|{migrator type full name}|{UTC ISO-8601}"` to `SaveMetadata.MigrationHistory` (persisted with write-back)
+- **Explicit migration**: `SaveService.MigrateSave(fileName)` / `MigrateSaveAsync` — for batch-healing old saves at startup; a successful migration **forces write-back** (regardless of the write-back setting); returns `HandlerNotReady` when the handler is not ready
+- Session-cache invalidation: `RestoreBackup` and delete operations invalidate the per-path (or whole) session cache automatically
+
+### Component schema versions (no-code track)
+
+- Mark a component class with `[SaveComponentSchema(version)]` (default 1) → the generator emits the capturer `SchemaVersion`; saves record it per component type in the KVT block's `$schemas` scope (a reserved key that can never collide with a type full name)
+- On restore, when the stored version differs from the capturer's current version: if the component implements `ISaveComponentMigrator`, restore routes to `OnMigrateComponent(fromVersion, ref reader, recordCount)` (which must consume exactly recordCount records); otherwise a warning is logged and key-matching tolerant restore applies
+- Legacy blocks (without `$schemas`) are treated as current (KVT key matching is naturally backward compatible)
+
+### Binary-backend key-order freeze (analyzers MIRAI400/401)
+
+- `ServiceDependency.dll` ships `SaveSchemaAnalyzer`: member key ordinals (`[Key]`/`[MemoryPackOrder]`/`[ProtoMember]`) of `[SaveData(Backend=MessagePack/MemoryPack/Protobuf)]` types are compared against a snapshot — MIRAI400 warns on key reordering, MIRAI401 warns on deleted members without an `OnMigrate` override (both Warning)
+- The snapshot is an additional file `.SaveSchemaSnapshot` (line format `TypeFullName|member:number;…`, number -1 = MessagePack string-key mode), checked into version control and updated as the schema evolves; the analyzer stays silent while no snapshot exists
+- Unity has no AdditionalFiles UI — wire it via `/additionalfile:` in `csc.rsp` or via CI `dotnet build`
+
 ## No-Code Saving (checked component fields)
 
 1. Declare gameplay components as `partial class` and mark fields with `[SaveField]` (optional explicit key to stay stable across renames):
@@ -69,14 +138,114 @@ public sealed class PlayerStatsData : SaveDataBlock
 public partial class Player : MonoBehaviour
 {
     [SaveField] private int _hp;
-    [SaveField("bag_items")] private List<int> _items;   // collections/nested classes are a future generator extension; MIRAI300 today
+    [SaveField("bag_items")] private List<int> _items;
+    [SaveField] private Dictionary<string, int> _inventory;
+    [SaveField] private PlayerStats _stats;          // nested [SaveData] data class
+    [SaveField] private EnemyAI _target;             // scene reference (target needs SaveObjectIdentity)
+    [SaveField] private Texture2D _icon;             // asset reference (must be registered in SaveAssetCatalog)
 }
 ```
 
-2. Attach a **Save Component** to the GameObject: add target-component bindings and check the fields to save (the block key auto-derives as `scene:path` when left empty).
+2. Attach a **Save Component** to the GameObject: add target-component bindings and check the fields to save (the block key auto-derives as `scene:path` when left empty; the path is the **full name chain** from scene root to object, and same-name siblings/roots get a `[N]` ordinal suffix for disambiguation so cross-branch key collisions cannot silently overwrite each other).
 3. Trigger with `SaveService.SaveComponentsAsync(fileName)` / `LoadComponentsAsync(fileName)` — compile-time-generated strongly-typed capturers run with zero reflection, filtered by the checked mask; unknown keys are skipped and missing keys keep current values (natural forward/backward compatibility for field changes).
 
-Generator diagnostics: MIRAI300 unsupported type, MIRAI301 duplicate key, MIRAI303 partial class required, MIRAI304 instance field required. After editing generator sources (`SourceGenerators/Source~/SaveHost/`) rebuild `SourceGenerators/SaveHost.dll` with `dotnet build -c Release`.
+### Supported field types (SG v2)
+
+- **Scalars**: primitives/enums/string/DateTime/TimeSpan/Unity math types (Vector2/3/4, Quaternion, Color, Rect, Bounds).
+- **Collections**: arrays `T[]`, `List<T>`, `Queue<T>`, `Stack<T>`, `HashSet<T>`, `Dictionary<K,V>`; elements recursively support scalars and nested data classes (collections of collections included); map keys are scalar/enum only; **reference types are not supported as collection elements** (MIRAI308). Restore uses **replace semantics** (a fresh container instance); null and empty collections stay distinct; `Stack<T>` is written top-to-bottom and restored by pushing in reverse to preserve LIFO state.
+- **Nested data classes**: a non-MonoBehaviour class marked `[SaveData]`; captures **all its public instance fields** (key = field name, JSON-style; the Key/Version arguments are unused in the nested context). Cycles/abstract classes/missing accessible parameterless constructors/structs report MIRAI307; `SaveDataBlock` subclasses cannot be nested field types (use the manual block API).
+- **Scene object references** (GameObject/Component-derived fields): capture stores the target's `SaveObjectIdentity` **stable ID** (baked as a GUID by OnValidate in the editor, auto-assigned when empty); restore looks up the same ID in the current scene via `SaveEntityRegistry` (Component fields resolve via `GetComponent<T>`). A target without SaveObjectIdentity captures as Null with a warning; a stored ID absent from the current scene restores null with a warning. Duplicating an object (Ctrl+D) copies the ID — duplicates are first-come-first-served at runtime with a warning; clear the ID field to re-bake. Every scene-reference field emits a MIRAI305 Info reminder.
+- **Asset references** (other UnityEngine.Object-derived fields such as Texture/SO/Material): capture resolves object → ResourceService location via `SaveServiceSettings.m_AssetCatalog` (a SaveAssetCatalog SO); restore resolves the location back through the same catalog — **catalog-based two-way resolution with no runtime loading** (keeps the capturer contract synchronous, zero lease burden). Referenced assets must be registered first; unregistered assets or a missing catalog capture as Null with a warning. Fields declared as the `UnityEngine.Object` base type are ambiguous between scene/asset and report MIRAI306 (skipped).
+
+### Generator diagnostics
+
+MIRAI300 unsupported field type; MIRAI301 duplicate key; MIRAI302 migrator not registrable; MIRAI303 the containing type and every level of its nesting chain must be partial classes; MIRAI304 instance field required; MIRAI305 scene-reference needs SaveObjectIdentity guidance (Info); MIRAI306 reference declared as the UnityEngine.Object base type (Warning, field skipped); MIRAI307 invalid nested data type; MIRAI308 unsupported collection-element/map-key/value type. After editing generator sources (`SourceGenerators/Source~/SaveHost/`) rebuild `SourceGenerators/SaveHost.dll` with `dotnet build -c Release -t:Rebuild` (an incremental build can skip compilation and emit a broken skeleton DLL).
+
+### Built-in capturers (engine components)
+
+Engine components carry no `[SaveField]` annotations — the framework ships hand-written capturers whose field lists drive the Inspector checkbox view (shown automatically when a type has no [SaveField] fields):
+
+| Component | Fields | Notes |
+|---|---|---|
+| `Transform` | `localPosition` / `localRotation` / `localScale` | Local space — local coordinates stay correct after entity parent rewiring |
+| `Rigidbody` | `linearVelocity` / `angularVelocity` | Physics motion persistence; restore applies only to non-kinematic bodies (kinematic velocity is driven by animation/scripts) |
+| `ParticleSystem` | `time` | Playback progress; restore writes `ParticleSystem.time` directly (visible effect only while playing) |
+
+## Dynamic Entity Persistence (prefab diffing)
+
+Objects spawned from prefabs at runtime (monsters/drops/temporary structures) persist as a "spawn table + one diff block per entity":
+
+1. **Register prefabs**: create a `SavePrefabRegistry` SO (Create → Moirai → Save Prefab Registry) and register each persistable prefab with a **stable key** (the save-file reference — renaming breaks saves) and a **ResourceService location** (YooAsset address), then reference it in `m_PrefabRegistry` of the save settings.
+2. **Add a SaveComponent to the entity root** and check fields (include the built-in Transform capturer fields to persist position/rotation/scale).
+3. Game code replaces `Instantiate`/`Destroy` with the persistent spawn/destroy pair:
+
+```csharp
+// Spawn (registered in the session spawn table; inactive-staging trick — stable ID/block key injected before activation, Awake sees the final state)
+GameObject goblin = SaveService.InstantiatePersistent("goblin", pos, rot);
+// Destroy (dynamic entities leave the spawn table → their blocks are cleaned on next save; scene-preset objects join the destroyed table → destroyed on restore)
+SaveService.DestroyPersistent(goblin);
+// Save/restore (restore = DestroyUnwanted → SpawnMissing → parent wiring → RestoreAll → activate + EntityRestored event)
+await SaveService.SaveEntitiesAsync("slot1");
+await SaveService.RestoreEntitiesAsync("slot1");
+```
+
+- **Template diffing**: entity capture is compared field-by-field against the prefab template baseline (one baseline KVT cached per stable key per session) and **only fields changed relative to the template are written** (nested objects diff recursively; any collection change carries the whole record — element-level diffing is v2 scope); restore = instantiate (natural template defaults) + apply the diff, minimizing save growth. When the baseline is unavailable (prefab unregistered / no root SaveComponent) capture degrades to full writes.
+- **Block layout**: entity table = reserved `__entities` block (spawn records EntityId/PrefabKey/SceneName/ParentId + destroyed preset IDs); entity data = one `entity:{EntityId}` block per entity (the pipeline rewrites the entity component's block key before activation). **Component save/load APIs skip `entity:`-prefixed blocks** — full world save = `SaveEntitiesAsync` + `SaveComponentsAsync`, restore = `RestoreEntitiesAsync` + `LoadComponentsAsync` (entities first).
+- **CarryForward semantics**: saving only upserts active entities; blocks of unvisited scenes and failed spawns stay untouched; entities destroyed by bypassing `DestroyPersistent` (plain `Object.Destroy`) also keep their records and blocks (explicit destroy is required for removal). After a restore, the session spawn/destroy tables are replaced wholesale with the file state.
+- **Parenting and scene placement**: a spawn record's ParentId (the parent must carry a SaveObjectIdentity, otherwise the link is not persisted and a warning is logged) is wired in a dedicated second pass; when the recorded SceneName is loaded the entity lands there, otherwise it lands in the active scene with a warning. Stable-ID lookup goes through `SaveEntityRegistry` — two tables: scene scope (swept on scene unload) and global scope (DontDestroyOnLoad residents).
+- **Restore timing**: spawned entities stay inactive until their diff blocks have been written back — Awake/OnEnable see the final parent and restored field values (listen to `EntityRestored` or run logic after Start when post-restore state is required). An entity whose diff block is corrupted logs an error and restores to template defaults without blocking others.
+- **Degradation contract**: `InstantiatePersistent`/`DestroyPersistent` do not depend on the save handler (registry + resource service suffice); unregistered keys or load failures log an error and return `null`. `SaveEntitiesAsync`/`RestoreEntitiesAsync` silently degrade to completed tasks when the handler is not ready.
+- **No ID baking on prefab assets**: `SaveObjectIdentity.OnValidate` skips the prefab asset itself (an ID on the asset would be shared by every instance and inevitably collide); scene instances still bake individually, and dynamic entities receive a per-instance unique ID injected by the spawn pipeline before activation.
+
+| API (entity track) | Description |
+|---|---|
+| `InstantiatePersistent(prefabKey, position, rotation, parent)` | Spawn a persistent entity synchronously (template loaded via ResourceService; `null` on failure) |
+| `InstantiatePersistentAsync(prefabKey, position, rotation, parent, ct)` | Async spawn (`null` on cancellation/failure) |
+| `DestroyPersistent(target)` | Destroy with persistence semantics (dynamic entity removed from table / preset object marked destroyed / plain object just destroyed) |
+| `SaveEntitiesAsync(fileName, folderName, ct)` | Write the entity table and all active entity diff blocks (baseline warm-up → diff capture → stale-block cleanup → atomic merge; `GameException` on failure) |
+| `RestoreEntitiesAsync(fileName, folderName, ct)` | Rebuild all dynamic entities from the file state (DestroyUnwanted→SpawnMissing→RestoreAll; `EntityRestored` per entity) |
+
+## Screenshot & Metadata Mirroring
+
+Save-slot thumbnail pipeline: capture the screen at end of frame (`ScreenCapture.CaptureScreenshotAsTexture`, **playing main thread only**) → CPU box downsample (aspect-preserving, never upscales; longest edge via `m_ScreenshotMaxDimension`, default 256) → single main-thread PNG encode → atomic sidecar write `{save base name}.screenshot.png` through the storage layer (next to the save file; cloud storage backends follow naturally).
+
+- **Metadata mirroring**: on capture success the reserved `__meta` block is mirrored — `ThumbnailFileName` (sidecar file name) and `SceneName` (active scene) are filled by the pipeline; `PlayTimeTicks` (`TimeSpan` ticks) is written by the game layer under its own accounting. Corrupted existing metadata is never overwritten (a warning is logged and mirroring is skipped, preserving salvage options).
+- **Save linkage**: with `m_CaptureScreenshotOnSave` on, `SaveBlockAsync` / `SaveComponentsAsync` capture automatically after success (reserved `__`-prefixed blocks are exempt — the metadata mirror write-back never recurses); linkage failures never propagate to the save result, and linkage cancellation never leaks into the caller's token.
+- **Lifecycle cascade**: `DeleteSave` / `DeleteSaveAsync` cascade-delete the sidecar (stale thumbnails cannot resurrect for a same-named new slot); folder-level deletes cover it naturally.
+- **Degradation contract**: `HandlerNotReady` when the handler is not ready; `NotSupported` outside play mode / in batch mode (with a warning); sidecar write failures return `IoFailed` and log an error (never thrown). A successful capture fires the `ScreenshotCaptured` event.
+
+| API (screenshot track) | Description |
+|---|---|
+| `CaptureScreenshotAsync(fileName, folderName, ct)` → `SaveError` | Capture screenshot + write sidecar + mirror metadata + fire event (playing main thread only) |
+
+## Cloud Saves (local mirror + remote KV)
+
+`CloudSaveStorageBackend` (storage backend plug-in, configured via `m_StorageBackend`): local file mirror + remote KV dual-write, with policy-arbitrated reads. The remote KV semantics are abstracted as `CloudSaveKvStore` ([SerializeReference] plug-in) — **concrete cloud backends (Unity Cloud Save / custom REST etc.) plug in per project**; the framework ships only the abstraction plus the mirror/conflict pipeline.
+
+- **Key spec**: cloud key = path relative to the save data root (`persistentDataPath/Data/`), `/`-separated (e.g. `Save/slot1.sav`) — no machine-local directory structure, consistent across devices.
+- **Error semantics**: unreachable/failed/logged-out remote calls throw; the backend normalizes to **offline degradation** (local mirror passthrough + warning). Missing keys are not errors (read `null` / exists `false` / idempotent delete).
+- **Dual write**: the local mirror commits atomically first, the remote follows; a remote failure **never blocks the local commit** — it is queued for backfill and replayed on the next successful remote operation (pending uploads / pending key deletes / pending prefix deletes, popped in order; on failure the remainder stays queued).
+- **Read arbitration** (`ESaveSyncPolicy`): `Latest` picks the newer timestamp (ties take the mirror to avoid pointless downloads) / `LocalWins` local authority / `CloudWins` remote authority / `Custom` delegates per key to `SaveSyncConflictResolver` (falls back to `Latest` with a warning when unconfigured). Single-sided entries self-heal the other side (remote-only → download and refresh the mirror preserving the remote timestamp; mirror-only → upload backfill).
+- **Sync primitives operate on the mirror only** (sync bare-name APIs never see the remote; remote sync is driven by the async API family); single-slot backups (`.bak`) are a local concept and never cloud-sync; folder-level deletes best-effort delete the remote prefix.
+- **Capability declaration**: `Capabilities.SupportsTrueAsyncIO = true` (remote network IO is truly async); platforms where sync reads are unavailable (e.g. WebGL) are unaffected — sync APIs read only the local mirror and stay usable.
+
+## Tooling (debugger & editor)
+
+- **In-game debugger window** `Profiler/Save` (`SaveServiceDebugView`, auto-registered by `SaveService.OnInit`): pipeline state (handler/storage backend/compression/default backend/screenshot toggle), slot list and selected-slot details (block table, metadata, corrupted blocks highlighted in red, screenshot sidecar state). Folder/slot selectors stay resident; the data region rebuilds on a 1s throttle.
+- **Save browser editor window** (`Window/Moirai/Save Browser`): browses folders and slots under `persistentDataPath/Data/`; block table (key/version/backend/size/per-block errors); content preview for unencrypted saves (raw JSON blocks / hex sample of KVT blocks); backup/restore-backup/delete (with screenshot sidecar cascade)/reveal-in-finder. The editor reads with a plaintext handler plus the configured compression provider — encrypted saves are intentionally not previewable.
+- **SaveComponentEditor enhancements**: field checkboxes annotate reference kinds (scene reference = GameObject/Component-derived fields; asset reference = other UnityEngine.Object fields) with Identity/Catalog configuration hints; each binding shows its schema version (SG-emitted value → `[SaveComponentSchema]` declaration → default 1).
+
+## Public API (static facade)
+
+### Version migration
+
+| API | Description |
+|---|---|
+| `CurrentSaveVersion { get; set; }` | Current save data version (monotonically increasing int; set on the main thread at startup, default 0 = bus inactive) |
+| `RegisterMigrator(ISaveMigrator)` | Manual migrator registration (complement to self-registration; invalid edges throw `ArgumentException`) |
+| `MigrateSave(fileName, folderName)` / `MigrateSaveAsync(...)` | Explicitly migrate a whole save file to the current version (forces write-back on success; `FileNotFound` when absent, `HandlerNotReady` when not ready) |
+
+### Block-level (primary)
 
 ## Public API (static facade)
 
@@ -88,12 +257,12 @@ Generator diagnostics: MIRAI300 unsupported type, MIRAI301 duplicate key, MIRAI3
 | `LoadBlockAsync<T>(fileName, key, folderName, ct)` | Read block; returns default on failure |
 | `TryLoadBlockAsync<T>(...)` → `SaveResult<T>` | Error classification (FileNotFound/Corrupted/IntegrityCheckFailed/UnsupportedVersion…) |
 | `DeleteBlockAsync(fileName, key, folderName, ct)` | Delete block (removes the file when the last block goes) |
-| `GetBlockInfos(fileName, folderName)` | Block metadata (key/version/backend/size) |
+| `GetBlockInfos(fileName, folderName)` | Block metadata (key/version/backend/size/per-block error typing; corrupted blocks are listed — framing fields trustworthy only when `HasMetadata` is true and `Error != None`) |
 | Sync pairs `SaveBlock` / `LoadBlock` / `TryLoadBlock` / `DeleteBlock` | Main-thread blocking variants (quit-time flushes) |
 
 ### Legacy (single-object APIs mapped to the reserved `__main__` block)
 
-`SaveAsync<T>` / `LoadAsync<T>` / `TryLoadAsync<T>` / `Save` / `Load` / `TryLoad` — signatures unchanged from the A+ version.
+`SaveAsync<T>` / `LoadAsync<T>` / `TryLoadAsync<T>` / `Save` / `Load` / `TryLoad` — signatures unchanged from the v1 version.
 
 ### Metadata / Slots / Backup
 
@@ -102,21 +271,42 @@ Generator diagnostics: MIRAI300 unsupported type, MIRAI301 duplicate key, MIRAI3
 | `SaveMetadataAsync` / `TryLoadMetadataAsync` (+sync pairs) | Slot metadata (reserved `__meta` block, JSON backend) |
 | `GetSaveFiles(folderName)` / `GetSaveFilesAsync` | Slot enumeration (newest first) |
 | `FileExists` / `DetermineSavePath` | Queries and paths |
-| `DeleteSave` / `DeleteSaveFolder` / `DeleteAllSaveFiles` (+Async pairs) | Deletion (backoff retries) |
+| `DeleteSave` / `DeleteSaveFolder` / `DeleteAllSaveFiles` (+Async pairs) | Deletion (backoff retries; single-slot deletes cascade the screenshot sidecar) |
 | `CreateBackup` / `RestoreBackup` | Single-slot `.bak` backup/restore (atomic replace) |
 
 ### Degradation contract (handler not ready)
 
 Writes/deletes no-op; reads return default; `TryLoad*` returns `Failure(HandlerNotReady)`; enumerations return empty arrays.
 
+### Events (SaveService.Events)
+
+Static events (default zero-overhead channel) + `EventManager` bridge events (`SaveSlotChangedEvent` etc. — subscribers pick either channel). All events dispatch on the main thread: operations triggered on the main thread dispatch inline; async operations complete on worker threads and are queued via `MainThreadDispatcher`. `OnShutdown` does not clear subscribers — subscribers must unsubscribe themselves. Args are readonly value types (≤32B).
+
+| Static event | Bridge event | When |
+|---|---|---|
+| `SlotChanged` | `SaveSlotChangedEvent` | Slot write (`Saved` merges create/update)/delete/backup create/backup restore; `FileName` is null for folder-level bulk deletes |
+| `BlockSaved` / `BlockDeleted` | `SaveBlockChangedEvent` | Block save/delete completed (fileName+key+backend+size); idempotent no-op deletes never fire |
+| `SaveProgress` / `LoadProgress` | `SaveProgressEvent` | Component capture/restore reported in batches (every 8 + always the final one; `ShouldReportProgress`) |
+| `SaveFailed` / `LoadFailed` | `SaveFailedEvent` | Failures (`ESaveFailureStage` stage + `SaveError`); write failures also fail-fast with `GameException`; missing file/block (`FileNotFound`) never fires |
+| `EntityRestored` | `SaveEntityRestoredEvent` | Fired per entity by the `RestoreEntitiesAsync` pipeline (after activation; args = entity ID + prefab key + instance) |
+| `ScreenshotCaptured` | `SaveScreenshotEvent` | Screenshot pipeline completed (fileName + sidecar name + thumbnail size) |
+
 ## Configuration (SaveServiceSettings)
 
 | Field | Description |
 |---|---|
 | `m_SaveServiceHandler` | Storage pipeline handler (PlainSaveHandler / AesEncryptedSaveHandler) |
+| `m_StorageBackend` | Storage backend (IO sink, default FileSaveStorageBackend; empty falls back to the file backend; for cloud saves pick `CloudSaveStorageBackend` — composes the remote KV plug-in + sync policy + custom resolver) |
+| `m_CompressionProvider` | Compression provider (empty = no compression; built-in GZipCompressionProvider) |
+| `m_KeyProvider` | Key provider (empty = static key; alternatives: PassphraseSaveKeyProvider / HkdfPerUserSaveKeyProvider) |
 | `m_DefaultBackend` | Default serialization backend (blocks without `[SaveData]`) |
-| `m_EncryptionKey` / `m_Pbkdf2Iterations` | Crypto parameters (**SECURITY: replace the placeholder key before shipping**; derived keys are cached per instance) |
+| `m_EncryptionKey` / `m_Pbkdf2Iterations` | Static-key parameters (**SECURITY: replace the placeholder key before shipping**; effective only when no key provider is configured; derived keys are cached per instance) |
 | `m_SaveFileExtension` | Save file extension (default `.sav`) |
+| `m_MigrationWriteBack` | Migration write-back (default on): lazily persists load-triggered migrations; when off, migration applies to in-memory data of that load only |
+| `m_AssetCatalog` | Asset reference catalog (SaveAssetCatalog SO): no-code asset reference fields resolve locations two-way through the catalog; empty = asset reference fields always capture Null |
+| `m_PrefabRegistry` | Prefab registry (SavePrefabRegistry SO): persistable dynamic entities (stable key → ResourceService location); empty = `InstantiatePersistent` unavailable and saved spawn records skip as unregistered |
+| `m_CaptureScreenshotOnSave` | Screenshot on save (default off): `SaveBlockAsync`/`SaveComponentsAsync` capture automatically after success and mirror the sidecar + metadata (playing main thread only) |
+| `m_ScreenshotMaxDimension` | Screenshot thumbnail longest edge (pixels, aspect-preserving, never upscales; default 256) |
 
 ## Dependencies
 
@@ -124,4 +314,4 @@ MessagePack 3.1.8, protobuf-net 3.3.8 (+Core with embedded BuildTools SG), Memor
 
 ## Tests
 
-`Tests/EditorMode/Save/`: container layout, composer, handler pipeline (atomic writes/sweep/corruption classification/argument validation), full crypto chain, four-backend round-trips, migration cascades, component capturers (generated code).
+`Tests/EditorMode/Save/`: container layout and v2 per-block validation (`SaveFileContainerTests`: round-trips/corrupted-block skip/structural prefix preservation/v1 hard-cut, `SaveContainerV2Tests`: partial recovery past a repatched header CRC/whole-file rejection/corrupted-block listing/write-back salvage), events API (`SaveEventTests`: trigger timing/count/args, failure-stage typing, background dispatch to main thread, progress batching), composer, handler pipeline (atomic writes/sweep/corruption classification/argument validation/raw block read sync core ReadRawBlocks round-trip·missing·corrupted), storage backend contract (`FileSaveStorageBackendTests`: atomic writes/idempotent deletes/exact-filter listing/backup-restore/capabilities), compression transform chain (`SaveCompressionTests`: GZip round-trips/compress+encrypt combos/legacy uncompressed reads/header classification/registry), key providers (`SaveKeyProviderTests`: static equivalence/passphrase injection/HKDF per-user isolation), full crypto chain, four-backend round-trips, migration cascades, component capturers (generated code; `SaveCapturerV2Tests`: collection/nested/scene-reference/asset-reference full-matrix round-trips), migration bus (`SaveMigrationBusTests`: single/multi-step chains/missing-link/ambiguity/downgrade/Priority ordering/exception typing, JSON & KVT rename/retype, whole-block transform, write-back on/off, audit history, version stamping, write-time healing, explicit migration, component schema hook routing), serializer registry open registration (`SaveSerializerRegistryTests`: registration validation/duplicate fail-fast/reserved backend/unregister), KVT element-level records (`SaveKeyValueElementTests`: sequence/map/nested-element round-trips, null elements, type-mismatch cursor alignment, buffer-boundary regression), scene object identity (`SaveObjectIdentityTests`: register/unregister/empty-ID rejection/duplicate-ID first-wins/destroy-invalidation/Resolve), asset reference catalog (`SaveAssetCatalogTests`: two-way lookup/type mismatch/duplicate first-wins/editor-time cache invalidation), KVT template diffing (`SaveKvDifferTests`: scalar/nested/collection/new-record/type-drift/always-pass-through/size shrink/corruption), entity table IO (`SaveEntityTableTests`: round-trips/empty tables/nullable fields/unknown-record tolerance), dynamic entity loop (`SaveEntityPersistenceTests`: ID injection/diff content & size/destroy markers/parent rewiring/restore round-trip/EntityRestored event/stale & orphan block cleanup/load-failure degradation), built-in capturers (`SaveBuiltInCapturerTests`: Transform TRS/Rigidbody velocities & kinematic skip/ParticleSystem time/mask disabling), screenshot & metadata mirroring (`SaveScreenshotTests`: sidecar naming/thumbnail sizing/box downsampling/PNG encode round-trip/sidecar write & cascade delete/metadata merge & container round-trip/event dispatch/non-playing degradation), cloud saves (`SaveCloudStorageBackendTests`: dual write/read-policy matrix Latest·LocalWins·CloudWins·Custom/single-side self-healing/offline degradation & backfill replay/enumeration union/sync primitives mirror-only/cloud key normalization; in-memory fake with clock offset and failure injection).
