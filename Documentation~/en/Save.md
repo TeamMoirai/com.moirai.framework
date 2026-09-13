@@ -1,4 +1,4 @@
-﻿# Save
+# Save
 
 ## Overview
 
@@ -7,7 +7,7 @@ The Save service (`SaveService`) provides AAA-grade save infrastructure: a **sin
 ## Architecture
 
 ```
-SaveService (static facade, silently degrades when s_Handler is null)
+SaveService (static facade, write paths throw GameException when handler is null, reads degrade)
 ├── Storage pipeline ([SerializeReference] swappable)
 │     PlainSaveHandler        pass-through (no crypto)
 │     AesEncryptedSaveHandler AES-256-CBC + HMAC (encrypt-then-MAC), key material via ISaveKeyProvider
@@ -194,7 +194,7 @@ await SaveService.RestoreEntitiesAsync("slot1");
 - **CarryForward semantics**: saving only upserts active entities; blocks of unvisited scenes and failed spawns stay untouched; entities destroyed by bypassing `DestroyPersistent` (plain `Object.Destroy`) also keep their records and blocks (explicit destroy is required for removal). After a restore, the session spawn/destroy tables are replaced wholesale with the file state.
 - **Parenting and scene placement**: a spawn record's ParentId (the parent must carry a SaveObjectIdentity, otherwise the link is not persisted and a warning is logged) is wired in a dedicated second pass; when the recorded SceneName is loaded the entity lands there, otherwise it lands in the active scene with a warning. Stable-ID lookup goes through `SaveEntityRegistry` — two tables: scene scope (swept on scene unload) and global scope (DontDestroyOnLoad residents).
 - **Restore timing**: spawned entities stay inactive until their diff blocks have been written back — Awake/OnEnable see the final parent and restored field values (listen to `EntityRestored` or run logic after Start when post-restore state is required). An entity whose diff block is corrupted logs an error and restores to template defaults without blocking others.
-- **Degradation contract**: `InstantiatePersistent`/`DestroyPersistent` do not depend on the save handler (registry + resource service suffice); unregistered keys or load failures log an error and return `null`. `SaveEntitiesAsync`/`RestoreEntitiesAsync` silently degrade to completed tasks when the handler is not ready.
+- **Degradation contract**: `InstantiatePersistent`/`DestroyPersistent` do not depend on the save handler (registry + resource service suffice); unregistered keys or load failures log an error and return `null`. `SaveEntitiesAsync` throws `GameException` when the handler is not ready; `RestoreEntitiesAsync` silently degrades to a completed task.
 - **No ID baking on prefab assets**: `SaveObjectIdentity.OnValidate` skips the prefab asset itself (an ID on the asset would be shared by every instance and inevitably collide); scene instances still bake individually, and dynamic entities receive a per-instance unique ID injected by the spawn pipeline before activation.
 
 | API (entity track) | Description |
@@ -276,11 +276,11 @@ Save-slot thumbnail pipeline: capture the screen at end of frame (`ScreenCapture
 
 ### Degradation contract (handler not ready)
 
-Writes/deletes no-op; reads return default; `TryLoad*` returns `Failure(HandlerNotReady)`; enumerations return empty arrays.
+Write paths (`SaveBlock`/`SaveBlockAsync`/`SaveComponentsAsync`/`SaveEntitiesAsync`/`SaveMetadata`/`SaveMetadataAsync`) **throw `GameException`** — never silently drop player progress; reads return default; `TryLoad*` returns `Failure(HandlerNotReady)`; deletes no-op; enumerations return empty arrays.
 
 ### Events (SaveService.Events)
 
-Static events (default zero-overhead channel) + `EventManager` bridge events (`SaveSlotChangedEvent` etc. — subscribers pick either channel). All events dispatch on the main thread: operations triggered on the main thread dispatch inline; async operations complete on worker threads and are queued via `MainThreadDispatcher`. `OnShutdown` does not clear subscribers — subscribers must unsubscribe themselves. Args are readonly value types (≤32B).
+Static events (default zero-overhead channel) + `EventManager` bridge events (`SaveSlotChangedEvent` etc. — subscribers pick either channel). All events dispatch on the main thread: operations triggered on the main thread dispatch inline; async operations complete on worker threads and are queued via `MainThreadDispatcher`. `OnShutdown` does not clear subscribers — subscribers must unsubscribe themselves; debug helpers may call `SaveService.UnsubscribeAll()`. Args are readonly value types (≤32B).
 
 | Static event | Bridge event | When |
 |---|---|---|

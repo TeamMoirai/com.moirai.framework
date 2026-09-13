@@ -5,7 +5,7 @@ using NUnit.Framework;
 namespace Service.Save
 {
     /// <summary>
-    /// <see cref="SaveBlockComposer"/> 不可变块合并纯函数测试：查找、按键插入/替换（保持原位）、删除、源列表不被修改。
+    /// <see cref="SaveBlockComposer"/> 不可变块合并纯函数测试：查找、按键插入/替换（保持原位）、批量归并、删除、源列表不被修改。
     /// </summary>
     public class SaveBlockComposerTests
     {
@@ -74,6 +74,61 @@ namespace Service.Save
             SaveBlockComposer.Upsert(source, Entry("inventory", 2));
 
             Assert.AreEqual(1, source.Count, "源列表不可被修改（不可变合并契约）");
+        }
+
+        [Test]
+        public void UpsertAll_MergesBatch_InOnePass()
+        {
+            var source = new List<SaveBlockEntry> { Entry("a", 1), Entry("b", 2), Entry("c", 3) };
+            var additions = new List<SaveBlockEntry> { Entry("b", 20), Entry("d", 4), Entry("a", 10) };
+
+            List<SaveBlockEntry> merged = SaveBlockComposer.UpsertAll(source, additions);
+
+            Assert.AreEqual(4, merged.Count);
+            Assert.AreEqual("a", merged[0].Key);
+            Assert.AreEqual(10, merged[0].Bytes[0], "同键应取 additions 中最后一次值");
+            Assert.AreEqual("b", merged[1].Key);
+            Assert.AreEqual(20, merged[1].Bytes[0]);
+            Assert.AreEqual("c", merged[2].Key);
+            Assert.AreEqual("d", merged[3].Key);
+            Assert.AreEqual(3, source.Count, "源列表不可被修改");
+        }
+
+        [Test]
+        public void UpsertAll_EmptyAdditions_ReturnsSourceCopy()
+        {
+            var source = new List<SaveBlockEntry> { Entry("a", 1) };
+
+            List<SaveBlockEntry> merged = SaveBlockComposer.UpsertAll(source, new List<SaveBlockEntry>());
+
+            Assert.AreEqual(1, merged.Count);
+            Assert.AreNotSame(source, merged);
+        }
+
+        [Test]
+        public void UpsertAll_NullSource_AppendsAll()
+        {
+            var additions = new List<SaveBlockEntry> { Entry("a", 1), Entry("b", 2) };
+
+            List<SaveBlockEntry> merged = SaveBlockComposer.UpsertAll(null, additions);
+
+            Assert.AreEqual(2, merged.Count);
+            Assert.AreEqual("a", merged[0].Key);
+            Assert.AreEqual("b", merged[1].Key);
+        }
+
+        [Test]
+        public void UpsertAll_DuplicateKeysInAdditions_LastWins()
+        {
+            var source = new List<SaveBlockEntry> { Entry("keep", 1) };
+            var additions = new List<SaveBlockEntry> { Entry("dup", 7), Entry("dup", 9) };
+
+            List<SaveBlockEntry> merged = SaveBlockComposer.UpsertAll(source, additions);
+
+            Assert.AreEqual(2, merged.Count, "additions 内重复键只应落盘一次");
+            Assert.AreEqual("keep", merged[0].Key);
+            Assert.AreEqual("dup", merged[1].Key);
+            Assert.AreEqual(9, merged[1].Bytes[0], "同键应取 additions 中最后一次值");
         }
 
         [Test]

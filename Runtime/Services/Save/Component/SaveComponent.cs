@@ -361,11 +361,21 @@ namespace Moirai.Atropos.Save
 
     /// <summary>
     /// 存档组件注册表：场景内活跃 <see cref="SaveComponent"/> 的快照源（Awake 注册 / OnDestroy 注销）。
+    /// <para>无域重载进入播放时经 <see cref="ResetStatics"/> 清空，避免跨会话残留陈旧引用。</para>
     /// </summary>
     public static class SaveComponentRegistry
     {
         /// <summary>活跃组件表（插入序；快照供存取管线遍历）。</summary>
         private static readonly List<SaveComponent> s_Components = new List<SaveComponent>();
+
+        /// <summary>
+        /// 静态状态复位（无域重载进入播放时清理，保证跨会话无脏状态）。
+        /// </summary>
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetStatics()
+        {
+            s_Components.Clear();
+        }
 
         /// <summary>
         /// 注册组件（幂等）。

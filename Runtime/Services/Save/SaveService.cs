@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
+using Moirai.Atropos;
 using Moirai.Atropos.Debugger;
 
 namespace Moirai.Atropos.Save
@@ -32,6 +33,21 @@ namespace Moirai.Atropos.Save
         {
             GameServices.EnsureRegistered<SaveService>();
             return SaveServiceSettings.SaveServiceHandler;
+        }
+
+        /// <summary>
+        /// 取就绪处理器；未就绪时抛 <see cref="GameException"/>（写路径专用——静默丢档不可接受）。
+        /// </summary>
+        /// <returns>处理器实例。</returns>
+        private static SaveServiceHandler RequireHandler()
+        {
+            SaveServiceHandler handler = s_Handler;
+            if (handler is null)
+            {
+                throw new GameException("SaveService handler is not ready. Register SaveService (GameServices.EnsureRegistered) before writing saves.");
+            }
+
+            return handler;
         }
 
         /// <inheritdoc />
@@ -65,7 +81,7 @@ namespace Moirai.Atropos.Save
 
         /// <summary>
         /// 将数据块异步写入存档文件（读-改-写合并进既有块集合；原子替换；同文件写路径串行排队）。
-        /// <para>失败抛出 <see cref="GameException"/>（含路径上下文）；处理器未就绪时静默降级为空任务。</para>
+        /// <para>失败抛出 <see cref="GameException"/>（含路径上下文）；处理器未就绪时抛 <see cref="GameException"/>（不静默丢档）。</para>
         /// </summary>
         /// <typeparam name="T">存档数据类型。</typeparam>
         /// <param name="data">存档数据对象。</param>
@@ -76,13 +92,9 @@ namespace Moirai.Atropos.Save
         /// <returns>写入完成的异步任务。</returns>
         public static async UniTask SaveBlockAsync<T>(T data, string fileName, string key, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default)
         {
-            if (s_Handler is null)
-            {
-                return;
-            }
-
+            SaveServiceHandler handler = RequireHandler();
             ESaveBackend backend = ResolveBackend<T>();
-            await s_Handler.SaveBlockAsync(data, fileName, key, folderName, backend, ResolveDataVersion<T>(), cancellationToken);
+            await handler.SaveBlockAsync(data, fileName, key, folderName, backend, ResolveDataVersion<T>(), cancellationToken);
             await CaptureScreenshotOnSaveIfEnabledAsync(fileName, folderName, key);
         }
 
@@ -114,7 +126,7 @@ namespace Moirai.Atropos.Save
             s_Handler?.TryLoadBlockAsync<T>(fileName, key, folderName, cancellationToken) ?? UniTask.FromResult(SaveResult<T>.Failure(SaveError.HandlerNotReady));
 
         /// <summary>
-        /// 将数据块写入存档文件（在调用线程执行完整管线，阻塞直至完成；处理器未就绪时静默降级为空操作）。
+        /// 将数据块写入存档文件（在调用线程执行完整管线，阻塞直至完成；处理器未就绪时抛 <see cref="GameException"/>）。
         /// <para>仅限主线程调用；适用于退出前落盘等必须同步完成的场景，大数据量请用 <see cref="SaveBlockAsync{T}"/> 避免阻塞。</para>
         /// </summary>
         /// <typeparam name="T">存档数据类型。</typeparam>
@@ -124,12 +136,7 @@ namespace Moirai.Atropos.Save
         /// <param name="folderName">文件夹名称。</param>
         public static void SaveBlock<T>(T data, string fileName, string key, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME)
         {
-            if (s_Handler is null)
-            {
-                return;
-            }
-
-            s_Handler.SaveBlock(data, fileName, key, folderName, ResolveBackend<T>(), ResolveDataVersion<T>());
+            RequireHandler().SaveBlock(data, fileName, key, folderName, ResolveBackend<T>(), ResolveDataVersion<T>());
         }
 
         /// <summary>
@@ -195,7 +202,7 @@ namespace Moirai.Atropos.Save
 
         /// <summary>
         /// 将存档对象异步写入磁盘（映射到保留块 <see cref="MAIN_BLOCK_KEY"/> 的块写入），IO 在工作线程执行。
-        /// <para>失败抛出 <see cref="GameException"/>（含路径上下文）；处理器未就绪时静默降级为空任务。</para>
+        /// <para>失败抛出 <see cref="GameException"/>（含路径上下文）；处理器未就绪时抛 <see cref="GameException"/>。</para>
         /// </summary>
         /// <typeparam name="T">存档数据类型。</typeparam>
         /// <param name="saveObject">存档对象。</param>
@@ -269,7 +276,7 @@ namespace Moirai.Atropos.Save
 
         /// <summary>
         /// 将全部已注册 <see cref="SaveComponent"/> 的勾选字段异步写入存档文件（每组件一个 KVT 块；组件捕获在主线程，合并写回在工作线程）。
-        /// <para>失败抛出 <see cref="GameException"/>；处理器未就绪时静默降级为空任务；重复块键的组件记录告警并跳过。
+        /// <para>失败抛出 <see cref="GameException"/>；处理器未就绪时抛 <see cref="GameException"/>（不静默丢档）；重复块键的组件记录告警并跳过。
         /// 实体管线管理的实体组件（<c>entity:</c> 前缀块键）跳过——经 <c>SaveEntitiesAsync</c> 持久化。</para>
         /// </summary>
         /// <param name="fileName">文件名（自动追加配置的扩展名）。</param>
@@ -278,11 +285,7 @@ namespace Moirai.Atropos.Save
         /// <returns>写入完成的异步任务。</returns>
         public static async UniTask SaveComponentsAsync(string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default)
         {
-            if (s_Handler is null)
-            {
-                return;
-            }
-
+            SaveServiceHandler handler = RequireHandler();
             List<SaveBlockEntry> entries = CaptureComponentsToEntries(fileName, folderName);
             if (entries.Count == 0)
             {
@@ -290,7 +293,7 @@ namespace Moirai.Atropos.Save
             }
 
             SaveServiceHandler.SavePaths paths = SaveServiceHandler.ResolveSavePaths(fileName, folderName);
-            await s_Handler.UpsertRawBlocksAsync(paths, entries, cancellationToken);
+            await handler.UpsertRawBlocksAsync(paths, entries, cancellationToken);
             await CaptureScreenshotOnSaveIfEnabledAsync(fileName, folderName, null);
         }
 
@@ -413,7 +416,7 @@ namespace Moirai.Atropos.Save
 
         /// <summary>
         /// 将槽位元数据异步写入存档文件（保留块 <c>__meta</c>，JSON 后端）。
-        /// <para>失败抛出 <see cref="GameException"/>；处理器未就绪时静默降级为空任务。</para>
+        /// <para>失败抛出 <see cref="GameException"/>；处理器未就绪时抛 <see cref="GameException"/>（不静默丢档）。</para>
         /// </summary>
         /// <param name="metadata">槽位元数据。</param>
         /// <param name="fileName">文件名（自动追加配置的扩展名）。</param>
@@ -421,9 +424,7 @@ namespace Moirai.Atropos.Save
         /// <param name="cancellationToken">取消令牌（协作式）。</param>
         /// <returns>写入完成的异步任务。</returns>
         public static UniTask SaveMetadataAsync(SaveMetadata metadata, string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default) =>
-            s_Handler is null
-                ? UniTask.CompletedTask
-                : s_Handler.SaveBlockAsync(metadata, fileName, SaveServiceHandler.META_BLOCK_KEY, folderName, ESaveBackend.Json, 1, cancellationToken);
+            RequireHandler().SaveBlockAsync(metadata, fileName, SaveServiceHandler.META_BLOCK_KEY, folderName, ESaveBackend.Json, 1, cancellationToken);
 
         /// <summary>
         /// 从存档文件异步读取槽位元数据（保留块 <c>__meta</c>）。
@@ -438,20 +439,13 @@ namespace Moirai.Atropos.Save
                 ?? UniTask.FromResult(SaveResult<SaveMetadata>.Failure(SaveError.HandlerNotReady));
 
         /// <summary>
-        /// 将槽位元数据写入存档文件（在调用线程执行，阻塞直至完成）。
+        /// 将槽位元数据写入存档文件（在调用线程执行，阻塞直至完成；处理器未就绪时抛 <see cref="GameException"/>）。
         /// </summary>
         /// <param name="metadata">槽位元数据。</param>
         /// <param name="fileName">文件名（自动追加配置的扩展名）。</param>
         /// <param name="folderName">文件夹名称。</param>
-        public static void SaveMetadata(SaveMetadata metadata, string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME)
-        {
-            if (s_Handler is null)
-            {
-                return;
-            }
-
-            s_Handler.SaveBlock(metadata, fileName, SaveServiceHandler.META_BLOCK_KEY, folderName, ESaveBackend.Json, 1);
-        }
+        public static void SaveMetadata(SaveMetadata metadata, string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME) =>
+            RequireHandler().SaveBlock(metadata, fileName, SaveServiceHandler.META_BLOCK_KEY, folderName, ESaveBackend.Json, 1);
 
         /// <summary>
         /// 从存档文件读取槽位元数据（在调用线程执行，阻塞直至完成）。

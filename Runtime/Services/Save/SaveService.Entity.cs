@@ -92,7 +92,7 @@ namespace Moirai.Atropos.Save
         /// <summary>
         /// 将实体表与全部活跃实体的差分块异步写入存档文件（主线程捕获，IO 在工作线程）。
         /// <para>流程：预热模板基准（异步加载，避免捕获期卡顿）→ 逐实体差分捕获 → 清理陈旧实体块（档有而会话已移除）→ 合并写回。
-        /// 失败抛出 <see cref="GameException"/>；处理器未就绪时静默降级为空任务。</para>
+        /// 失败抛出 <see cref="GameException"/>；处理器未就绪时抛 <see cref="GameException"/>（不静默丢档）。</para>
         /// <para>CarryForward 语义：保存仅 upsert 活跃实体，未访问场景与生成失败实体的块原样滞留。</para>
         /// </summary>
         /// <param name="fileName">文件名（自动追加配置的扩展名）。</param>
@@ -101,23 +101,19 @@ namespace Moirai.Atropos.Save
         /// <returns>写入完成的异步任务。</returns>
         public static async UniTask SaveEntitiesAsync(string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default)
         {
-            if (s_Handler is null)
-            {
-                return;
-            }
-
+            SaveServiceHandler handler = RequireHandler();
             await SaveEntityPersistence.WarmBaselinesAsync(cancellationToken);
             List<SaveBlockEntry> entries = SaveEntityPersistence.CaptureEntityEntries(fileName, folderName);
             SaveServiceHandler.SavePaths paths = SaveServiceHandler.ResolveSavePaths(fileName, folderName);
 
-            Dictionary<string, byte[]> existingBlocks = await s_Handler.ReadRawBlocksAsync(paths, cancellationToken);
+            Dictionary<string, byte[]> existingBlocks = await handler.ReadRawBlocksAsync(paths, cancellationToken);
             List<string> staleKeys = SaveEntityPersistence.ComputeStaleEntityKeys(existingBlocks);
             if (staleKeys.Count > 0)
             {
-                await s_Handler.DeleteRawBlocksAsync(paths, staleKeys, cancellationToken);
+                await handler.DeleteRawBlocksAsync(paths, staleKeys, cancellationToken);
             }
 
-            await s_Handler.UpsertRawBlocksAsync(paths, entries, cancellationToken);
+            await handler.UpsertRawBlocksAsync(paths, entries, cancellationToken);
         }
 
         /// <summary>

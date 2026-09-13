@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Buffers;
 using System.Collections.Generic;
 using System.IO;
@@ -88,7 +88,7 @@ namespace Moirai.Atropos.Save
 
             // 后台清扫上次写入中断残留的孤儿临时文件；根目录须在主线程解析（persistentDataPath 为 Unity API）
             string rootDirectory = BuildDataRootDirectory();
-            _ = UniTask.RunOnThreadPool(() => backend.CleanupOrphanTempFiles(rootDirectory));
+            _ = UniTask.RunOnThreadPool(() => backend.CleanupOrphanTempFiles(rootDirectory), configureAwait: false);
         }
 
         #endregion
@@ -127,7 +127,8 @@ namespace Moirai.Atropos.Save
             {
                 await gate.WaitAsync(cancellationToken);
                 acquired = true;
-                await UniTask.RunOnThreadPool(() => SaveBlockCore(paths, key, data, backend, dataVersion, cancellationToken), cancellationToken: cancellationToken);
+                // configureAwait: false —— Leave 在线程池续延执行，避免主线程被同步 gate.Wait() 阻死时无法归还信号量
+                await UniTask.RunOnThreadPool(() => SaveBlockCore(paths, key, data, backend, dataVersion, cancellationToken), configureAwait: false, cancellationToken: cancellationToken);
             }
             finally
             {
@@ -163,7 +164,7 @@ namespace Moirai.Atropos.Save
             {
                 await gate.WaitAsync(cancellationToken);
                 acquired = true;
-                return await UniTask.RunOnThreadPool(() => LoadBlockCore<T>(paths, key), cancellationToken: cancellationToken);
+                return await UniTask.RunOnThreadPool(() => LoadBlockCore<T>(paths, key), configureAwait: false, cancellationToken: cancellationToken);
             }
             finally
             {
@@ -202,7 +203,7 @@ namespace Moirai.Atropos.Save
                 {
                     SaveError error = TryLoadBlockCore<T>(paths, key, out T data);
                     return error == SaveError.None ? SaveResult<T>.Success(data) : SaveResult<T>.Failure(error);
-                }, cancellationToken: cancellationToken);
+                }, configureAwait: false, cancellationToken: cancellationToken);
             }
             finally
             {
@@ -318,8 +319,15 @@ namespace Moirai.Atropos.Save
                 throw new GameException(StringUtility.Format("Save block serialization failed, path: {0}, exception: {1}.", paths.SaveFilePath, exception.GetType().Name), exception);
             }
 
-            // 既有档不可读按空块集处理（整体覆写）；容器 v2 下坏块在写回时自然剔除（数据已不可读），健康块保留
-            ReadContainerOrEmpty(paths, out List<SaveBlockEntry> existingBlocks, out List<SaveBlockError> blockErrors);
+            // 既有档不可读时隔离拷贝为 sidecar 后再按空块集覆写（保留可抢救字节）；容器 v2 下坏块在写回时自然剔除，健康块保留
+            SaveError readError = ReadContainerOrEmpty(paths, out List<SaveBlockEntry> existingBlocks, out List<SaveBlockError> blockErrors);
+            if (readError != SaveError.None)
+            {
+                QuarantineUnreadableSave(paths, readError);
+                existingBlocks = new List<SaveBlockEntry>();
+                blockErrors = null;
+            }
+
             // 写入自愈：旧版本档先迁移到当前版本再合并新块（杜绝新形态块落入旧版本档后再次被迁移链误变换）
             MigrateBlocksForWrite(paths, ref existingBlocks, blockErrors, cancellationToken);
             List<SaveBlockEntry> mergedBlocks = SaveBlockComposer.Upsert(existingBlocks, new SaveBlockEntry(key, dataVersion, backend, blockBytes));
@@ -478,7 +486,7 @@ namespace Moirai.Atropos.Save
             {
                 await gate.WaitAsync(cancellationToken);
                 acquired = true;
-                await UniTask.RunOnThreadPool(() => DeleteBlockCore(paths, key, cancellationToken), cancellationToken: cancellationToken);
+                await UniTask.RunOnThreadPool(() => DeleteBlockCore(paths, key, cancellationToken), configureAwait: false, cancellationToken: cancellationToken);
             }
             finally
             {
@@ -678,7 +686,7 @@ namespace Moirai.Atropos.Save
                 }
 
                 return exists;
-            }, cancellationToken: cancellationToken);
+            }, configureAwait: false, cancellationToken: cancellationToken);
 
             if (existed)
             {
@@ -704,7 +712,7 @@ namespace Moirai.Atropos.Save
 
             string directoryPath = BuildFolderPath(folderName);
             SaveStorageBackend storage = Storage;
-            await UniTask.RunOnThreadPool(() => storage.DeleteDirectory(directoryPath), cancellationToken: cancellationToken);
+            await UniTask.RunOnThreadPool(() => storage.DeleteDirectory(directoryPath), configureAwait: false, cancellationToken: cancellationToken);
             SaveMigrationManager.InvalidateSession(null);
             SaveService.RaiseSlotChanged(ESaveSlotChangeKind.Deleted, null, folderName);
         }
@@ -718,7 +726,7 @@ namespace Moirai.Atropos.Save
         {
             string rootDirectory = BuildDataRootDirectory();
             SaveStorageBackend storage = Storage;
-            await UniTask.RunOnThreadPool(() => storage.DeleteDirectory(rootDirectory), cancellationToken: cancellationToken);
+            await UniTask.RunOnThreadPool(() => storage.DeleteDirectory(rootDirectory), configureAwait: false, cancellationToken: cancellationToken);
             SaveMigrationManager.InvalidateSession(null);
             SaveService.RaiseSlotChanged(ESaveSlotChangeKind.Deleted, null, string.Empty);
         }
@@ -735,7 +743,7 @@ namespace Moirai.Atropos.Save
             string directoryPath = BuildFolderPath(folderName);
             string extension = SaveServiceSettings.SaveFileExtension;
             SaveStorageBackend storage = Storage;
-            return UniTask.RunOnThreadPool(() => storage.EnumerateFiles(directoryPath, extension), cancellationToken: cancellationToken);
+            return UniTask.RunOnThreadPool(() => storage.EnumerateFiles(directoryPath, extension), configureAwait: false, cancellationToken: cancellationToken);
         }
 
         /// <summary>
@@ -864,15 +872,17 @@ namespace Moirai.Atropos.Save
                 await UniTask.RunOnThreadPool(() =>
                 {
                     // 坏块在写回时自然剔除（数据已不可读），健康块保留
-                    ReadContainerOrEmpty(paths, out List<SaveBlockEntry> existingBlocks, out List<SaveBlockError> blockErrors);
-                    // 写入自愈：旧版本档先迁移到当前版本再合并组件块
-                    MigrateBlocksForWrite(paths, ref existingBlocks, blockErrors, cancellationToken);
-                    List<SaveBlockEntry> mergedBlocks = existingBlocks;
-                    for (int i = 0; i < additions.Count; i++)
+                    SaveError readError = ReadContainerOrEmpty(paths, out List<SaveBlockEntry> existingBlocks, out List<SaveBlockError> blockErrors);
+                    if (readError != SaveError.None)
                     {
-                        mergedBlocks = SaveBlockComposer.Upsert(mergedBlocks, additions[i]);
+                        QuarantineUnreadableSave(paths, readError);
+                        existingBlocks = new List<SaveBlockEntry>();
+                        blockErrors = null;
                     }
 
+                    // 写入自愈：旧版本档先迁移到当前版本再合并组件块
+                    MigrateBlocksForWrite(paths, ref existingBlocks, blockErrors, cancellationToken);
+                    List<SaveBlockEntry> mergedBlocks = SaveBlockComposer.UpsertAll(existingBlocks, additions);
                     WriteContainerFile(paths, mergedBlocks, cancellationToken);
                     for (int i = 0; i < additions.Count; i++)
                     {
@@ -880,7 +890,7 @@ namespace Moirai.Atropos.Save
                     }
 
                     SaveService.RaiseSlotChanged(ESaveSlotChangeKind.Saved, paths.FileName, paths.FolderName);
-                }, cancellationToken: cancellationToken);
+                }, configureAwait: false, cancellationToken: cancellationToken);
             }
             finally
             {
@@ -991,7 +1001,7 @@ namespace Moirai.Atropos.Save
                     }
 
                     return result;
-                }, cancellationToken: cancellationToken);
+                }, configureAwait: false, cancellationToken: cancellationToken);
             }
             finally
             {
@@ -1062,7 +1072,7 @@ namespace Moirai.Atropos.Save
                     }
 
                     WriteContainerFile(paths, mergedBlocks, cancellationToken);
-                }, cancellationToken: cancellationToken);
+                }, configureAwait: false, cancellationToken: cancellationToken);
             }
             finally
             {
@@ -1122,7 +1132,7 @@ namespace Moirai.Atropos.Save
             {
                 await gate.WaitAsync(cancellationToken);
                 acquired = true;
-                return await UniTask.RunOnThreadPool(() => MigrateSaveCore(paths, cancellationToken), cancellationToken: cancellationToken);
+                return await UniTask.RunOnThreadPool(() => MigrateSaveCore(paths, cancellationToken), configureAwait: false, cancellationToken: cancellationToken);
             }
             finally
             {
@@ -1556,6 +1566,39 @@ namespace Moirai.Atropos.Save
         #endregion
 
         #region 文件管线 [FILE PIPELINE]
+
+        /// <summary>不可读旧档隔离后缀（写路径覆写前侧车拷贝，保留可抢救字节）。</summary>
+        internal const string CorruptFileSuffix = ".corrupt";
+
+        /// <summary>
+        /// 将不可读旧档隔离拷贝为 <c>xxx.sav.corrupt</c> sidecar（尽力而为：失败仅记错误日志，不阻断后续覆写）。
+        /// <para>写路径读失败（头损坏/解密失败/瞬时 IO）时调用——避免下一次保存静默用「仅含新块」的文件替换旧档。</para>
+        /// </summary>
+        /// <param name="paths">已解析的路径集合。</param>
+        /// <param name="error">读失败错误码（仅用于日志上下文）。</param>
+        private void QuarantineUnreadableSave(SavePaths paths, SaveError error)
+        {
+            SaveError ioError = Storage.TryReadAllBytes(paths.SaveFilePath, out byte[] fileBytes);
+            if (ioError != SaveError.None || fileBytes == null)
+            {
+                LogUtility.Error("[SaveService] Unreadable save cannot be quarantined (raw read failed), path: {0}, readError: {1}, quarantineError: {2}.",
+                    paths.SaveFilePath, error, ioError);
+                return;
+            }
+
+            string quarantinePath = paths.SaveFilePath + CorruptFileSuffix;
+            try
+            {
+                Storage.WriteAtomic(quarantinePath, fileBytes, CancellationToken.None);
+                LogUtility.Warning("[SaveService] Unreadable save quarantined before overwrite, path: {0} -> {1}, error: {2}.",
+                    paths.SaveFilePath, quarantinePath, error);
+            }
+            catch (Exception exception)
+            {
+                LogUtility.Error("[SaveService] Unreadable save quarantine failed, path: {0}, quarantinePath: {1}, exception: {2}.",
+                    paths.SaveFilePath, quarantinePath, exception.GetType().Name);
+            }
+        }
 
         /// <summary>
         /// 读取并还原存档容器：缺档返回空块集（<see cref="SaveError.None"/>），其余错误分型返回（调用方决定日志与兜底语义）。

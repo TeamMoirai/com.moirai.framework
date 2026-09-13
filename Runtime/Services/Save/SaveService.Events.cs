@@ -7,7 +7,8 @@ namespace Moirai.Atropos.Save
     /// 存档服务事件分部：静态事件（零开销默认通道）+ <see cref="EventManager"/> 桥事件（可选第二通道，订阅侧二选一）。
     /// <para>派发契约：全部事件在主线程派发——主线程触发的操作（同步裸名 API）内联派发；
     /// 异步 API 在工作线程完成后经 <see cref="MainThreadDispatcher"/> 入队派发（下一主线程泵）。</para>
-    /// <para>订阅生命周期自负盈亏：<see cref="OnShutdown"/> 不清理订阅者，长时间存活的订阅方须自行退订防泄漏。</para>
+    /// <para>订阅生命周期自负盈亏：<see cref="OnShutdown"/> 不清理订阅者，长时间存活的订阅方须自行退订防泄漏；
+    /// 调试可用 <see cref="UnsubscribeAll"/> 一键清空全部静态事件订阅。</para>
     /// <para>事件参数均为只读值类型（≤32B）；缺档（<see cref="SaveError.FileNotFound"/>）等正常业务流不产生失败事件。</para>
     /// </summary>
     public partial class SaveService
@@ -61,6 +62,22 @@ namespace Moirai.Atropos.Save
         /// 存档截图完成事件（<see cref="CaptureScreenshotAsync"/> 管线成功完成后派发）。
         /// </summary>
         public static event Action<SaveScreenshotArgs> ScreenshotCaptured;
+
+        /// <summary>
+        /// 清空全部静态存档事件订阅（调试/热重载入口；正常业务请在订阅方 OnDestroy 中逐项退订）。
+        /// </summary>
+        public static void UnsubscribeAll()
+        {
+            SlotChanged = null;
+            BlockSaved = null;
+            BlockDeleted = null;
+            SaveProgress = null;
+            LoadProgress = null;
+            EntityRestored = null;
+            SaveFailed = null;
+            LoadFailed = null;
+            ScreenshotCaptured = null;
+        }
 
         #endregion
 
