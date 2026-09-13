@@ -120,6 +120,17 @@
     min-width: 120px;
 }
 
+/* 聚焦时字段名保持正文色（默认主题会把聚焦字段名染成绿色/青色系，与暗色主题不协调）——
+   5 token 链式形式压过默认主题的高特异性交互态规则（全字段族通用）；
+   后代形式兜底 label 非直接子级的自定义字段 */
+.unity-base-field:focus > .unity-text-element.unity-label.unity-base-field__label {
+    color: var(--dbg-text);
+}
+
+.unity-base-field:focus .unity-base-field__label {
+    color: var(--dbg-text);
+}
+
 .unity-base-text-field__input {
     font-size: 13px;
     color: var(--dbg-text);
@@ -163,6 +174,125 @@
 
 .unity-base-text-field:focus {
     background-color: var(--dbg-selection-fill);
+}
+
+/* ============================================================== 下拉框 [DROPDOWN FIELD]
+   DropdownField/EnumField（BasePopupField 家族）：输入框与文本框同底同框，
+   弹窗为深色面板（默认主题亮白刺目）。
+   交互态铁律：默认主题用「字段根:pseudo > __input(:pseudo)」复合伪类选择器（≥4 token，
+   hover 为白色背景图），且焦点/悬停/按下伪类均落在字段根上（input 不可聚焦）——
+   交互态必须以同构复合形式声明，单类 __input:pseudo 永远打不过 */
+
+/* 输入框常态 */
+.unity-base-popup-field__input {
+    background-color: var(--dbg-surface-raised);
+    border-top-width: 1px;
+    border-right-width: 1px;
+    border-bottom-width: 1px;
+    border-left-width: 1px;
+    border-top-color: var(--dbg-border);
+    border-right-color: var(--dbg-border);
+    border-bottom-color: var(--dbg-border);
+    border-left-color: var(--dbg-border);
+    border-top-left-radius: 6px;
+    border-top-right-radius: 6px;
+    border-bottom-right-radius: 6px;
+    border-bottom-left-radius: 6px;
+}
+
+/* 悬停：链式三类 + 字段根伪类（5 token，不依赖 input 伪类——默认主题同类规则为 4 token） */
+.unity-base-field.unity-popup-field.unity-base-popup-field:hover > .unity-base-popup-field__input {
+    background-color: var(--dbg-surface-raised);
+    background-image: none;
+    border-top-color: var(--dbg-text-dim);
+    border-right-color: var(--dbg-text-dim);
+    border-bottom-color: var(--dbg-text-dim);
+    border-left-color: var(--dbg-text-dim);
+}
+
+/* 聚焦/按下（选择态）：置于悬停之后，聚焦+悬停同现时按顺序与特异性胜出 */
+.unity-base-field.unity-popup-field.unity-base-popup-field:focus > .unity-base-popup-field__input,
+.unity-base-field.unity-popup-field.unity-base-popup-field:active > .unity-base-popup-field__input {
+    background-color: var(--dbg-selection-fill);
+    background-image: none;
+    border-top-color: var(--dbg-accent);
+    border-right-color: var(--dbg-accent);
+    border-bottom-color: var(--dbg-accent);
+    border-left-color: var(--dbg-accent);
+}
+
+/* 文本与箭头 */
+.unity-base-popup-field__text {
+    color: var(--dbg-text);
+    font-size: 13px;
+}
+
+.unity-base-popup-field__arrow {
+    -unity-background-image-tint-color: var(--dbg-text-dim);
+}
+
+/* 禁用（无可选项时置灰，与文本框禁用同语言） */
+.unity-base-popup-field__input:disabled {
+    background-color: rgba(255, 255, 255, 0.03);
+    border-top-color: var(--dbg-border);
+    border-right-color: var(--dbg-border);
+    border-bottom-color: var(--dbg-border);
+    border-left-color: var(--dbg-border);
+}
+
+.unity-base-popup-field__input:disabled > .unity-base-popup-field__text {
+    color: var(--dbg-text-dim);
+}
+
+.unity-base-popup-field:disabled > .unity-base-field__label {
+    color: var(--dbg-text-dim);
+}
+
+/* 下拉弹窗列表（运行时实际类名为 unity-base-dropdown 家族；全屏遮罩透明） */
+.unity-base-dropdown__container-outer {
+    background-color: var(--dbg-surface-alt);
+    background-image: none;
+    border-top-width: 1px;
+    border-right-width: 1px;
+    border-bottom-width: 1px;
+    border-left-width: 1px;
+    border-top-color: var(--dbg-border);
+    border-right-color: var(--dbg-border);
+    border-bottom-color: var(--dbg-border);
+    border-left-color: var(--dbg-border);
+    border-top-left-radius: 6px;
+    border-top-right-radius: 6px;
+    border-bottom-right-radius: 6px;
+    border-bottom-left-radius: 6px;
+}
+
+.unity-base-dropdown__container-inner {
+    background-color: rgba(0, 0, 0, 0);
+    background-image: none;
+}
+
+.unity-base-dropdown .unity-scroll-view__content-viewport {
+    background-color: rgba(0, 0, 0, 0);
+}
+
+.unity-base-dropdown__item {
+    background-color: rgba(0, 0, 0, 0);
+}
+
+/* 列表项悬停/按下：选中行高亮（与侧边栏/控制台选中同语言），带祖先前缀压过默认主题亮色 */
+.unity-base-dropdown .unity-base-dropdown__item:hover,
+.unity-base-dropdown .unity-base-dropdown__item:active,
+.unity-base-dropdown .unity-base-dropdown__item:hover:active {
+    background-color: var(--dbg-row-selected);
+}
+
+.unity-base-dropdown__label {
+    color: var(--dbg-text);
+    font-size: 13px;
+}
+
+.unity-base-dropdown__checkmark {
+    -unity-background-image-tint-color: var(--dbg-text);
 }
 
 /* 滑条：可见轨道 + 浅色滑块（水平/垂直分治）——轨道色须与卡片底区分（surface-strong 与卡片几乎同色会"融合"） */

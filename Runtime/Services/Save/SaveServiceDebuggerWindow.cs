@@ -142,6 +142,7 @@ namespace Moirai.Atropos.Save
             string current = _folderField.value;
             _folderField.choices = choices;
             _folderField.value = choices.Contains(current) ? current : SaveServiceHandler.DEFAULT_FOLDER_NAME;
+            _folderField.SetEnabled(choices.Count > 0);
         }
 
         /// <summary>
@@ -165,6 +166,7 @@ namespace Moirai.Atropos.Save
             _slotField.choices = choices;
             _slotField.value = choices.Contains(current) ? current : null;
             _selectedFileName = _slotField.value;
+            _slotField.SetEnabled(choices.Count > 0);
         }
 
         #endregion

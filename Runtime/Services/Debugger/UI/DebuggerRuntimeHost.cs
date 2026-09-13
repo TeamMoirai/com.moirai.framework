@@ -1050,6 +1050,8 @@ namespace Moirai.Atropos.Debugger
                     value = node.Expanded
                 };
                 foldout.AddToClassList("dbg-sidebar-foldout");
+                // 折叠头退出焦点游走：点击子行时焦点不会命中父级 Toggle
+                foldout.Q<Toggle>(null, "unity-foldout__toggle").focusable = false;
                 if (depth == 0 && parent.childCount > 0)
                 {
                     foldout.AddToClassList("dbg-sidebar-gap");
