@@ -43,6 +43,8 @@ namespace Moirai.Atropos.Save
         {
             // 确保 Handler 已初始化（加密处理器在此阶段注入密钥与派生参数）
             _ = Handler;
+
+            Debugger.DebuggerService.RegisterDebuggerWindow("Profiler/Save", new SaveServiceDebugView());
         }
 
         /// <summary>
@@ -70,12 +72,16 @@ namespace Moirai.Atropos.Save
         /// <param name="folderName">文件夹名称。</param>
         /// <param name="cancellationToken">取消令牌（协作式）。</param>
         /// <returns>写入完成的异步任务。</returns>
-        public static UniTask SaveBlockAsync<T>(T data, string fileName, string key, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default)
+        public static async UniTask SaveBlockAsync<T>(T data, string fileName, string key, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default)
         {
+            if (s_Handler is null)
+            {
+                return;
+            }
+
             ESaveBackend backend = ResolveBackend<T>();
-            return s_Handler is null
-                ? UniTask.CompletedTask
-                : s_Handler.SaveBlockAsync(data, fileName, key, folderName, backend, ResolveDataVersion<T>(), cancellationToken);
+            await s_Handler.SaveBlockAsync(data, fileName, key, folderName, backend, ResolveDataVersion<T>(), cancellationToken);
+            await CaptureScreenshotOnSaveIfEnabledAsync(fileName, folderName, key);
         }
 
         /// <summary>
@@ -93,7 +99,8 @@ namespace Moirai.Atropos.Save
 
         /// <summary>
         /// 从存档文件异步加载指定数据块并返回完整错误判别结果。
-        /// <para>处理器未就绪时降级为 <see cref="SaveError.HandlerNotReady"/> 失败结果。</para>
+        /// <para>处理器未就绪时降级为 <see cref="SaveError.HandlerNotReady"/> 失败结果。
+        /// 块缺失细分（容器 v2）：目标块损坏返回 <see cref="SaveError.Corrupted"/>（与其余健康块互不影响），确无该块才返回 <see cref="SaveError.FileNotFound"/>。</para>
         /// </summary>
         /// <typeparam name="T">存档数据类型。</typeparam>
         /// <param name="fileName">文件名（自动追加配置的扩展名）。</param>
@@ -137,7 +144,8 @@ namespace Moirai.Atropos.Save
 
         /// <summary>
         /// 从存档文件加载指定数据块并返回完整错误判别结果（在调用线程执行，阻塞直至完成）。
-        /// <para>仅限主线程调用；处理器未就绪时降级为 <see cref="SaveError.HandlerNotReady"/> 失败结果。</para>
+        /// <para>仅限主线程调用；处理器未就绪时降级为 <see cref="SaveError.HandlerNotReady"/> 失败结果。
+        /// 块缺失细分（容器 v2）：目标块损坏返回 <see cref="SaveError.Corrupted"/>（与其余健康块互不影响），确无该块才返回 <see cref="SaveError.FileNotFound"/>。</para>
         /// </summary>
         /// <typeparam name="T">存档数据类型。</typeparam>
         /// <param name="fileName">文件名（自动追加配置的扩展名）。</param>
@@ -170,10 +178,12 @@ namespace Moirai.Atropos.Save
 
         /// <summary>
         /// 枚举存档文件内的全部数据块（含保留块；同步执行，加密处理器下需解密整档）。
+        /// <para>容器 v2 逐块校验下坏块同样列入清单——<see cref="SaveBlockInfo.Error"/> 非 <see cref="SaveError.None"/> 即坏块，
+        /// 其框架字段仅在 <see cref="SaveBlockInfo.HasMetadata"/> 为 <c>true</c> 时可信。</para>
         /// </summary>
         /// <param name="fileName">文件名（自动追加配置的扩展名）。</param>
         /// <param name="folderName">文件夹名称。</param>
-        /// <returns>块元信息数组；缺档/损坏/处理器未就绪时为空数组（损坏已记录错误日志）。</returns>
+        /// <returns>块元信息数组（健康块在前、坏块在后）；整档缺档/损坏/处理器未就绪时为空数组（损坏已记录错误日志）。</returns>
         public static SaveBlockInfo[] GetBlockInfos(string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME) =>
             s_Handler?.GetBlockInfos(fileName, folderName) ?? Array.Empty<SaveBlockInfo>();
 
@@ -257,32 +267,35 @@ namespace Moirai.Atropos.Save
 
         /// <summary>
         /// 将全部已注册 <see cref="SaveComponent"/> 的勾选字段异步写入存档文件（每组件一个 KVT 块；组件捕获在主线程，合并写回在工作线程）。
-        /// <para>失败抛出 <see cref="GameException"/>；处理器未就绪时静默降级为空任务；重复块键的组件记录告警并跳过。</para>
+        /// <para>失败抛出 <see cref="GameException"/>；处理器未就绪时静默降级为空任务；重复块键的组件记录告警并跳过。
+        /// 实体管线管理的实体组件（<c>entity:</c> 前缀块键）跳过——经 <c>SaveEntitiesAsync</c> 持久化。</para>
         /// </summary>
         /// <param name="fileName">文件名（自动追加配置的扩展名）。</param>
         /// <param name="folderName">文件夹名称。</param>
         /// <param name="cancellationToken">取消令牌（协作式）。</param>
         /// <returns>写入完成的异步任务。</returns>
-        public static UniTask SaveComponentsAsync(string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default)
+        public static async UniTask SaveComponentsAsync(string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default)
         {
             if (s_Handler is null)
             {
-                return UniTask.CompletedTask;
+                return;
             }
 
-            List<SaveBlockEntry> entries = CaptureComponentsToEntries();
+            List<SaveBlockEntry> entries = CaptureComponentsToEntries(fileName, folderName);
             if (entries.Count == 0)
             {
-                return UniTask.CompletedTask;
+                return;
             }
 
             SaveServiceHandler.SavePaths paths = SaveServiceHandler.ResolveSavePaths(fileName, folderName);
-            return s_Handler.UpsertRawBlocksAsync(paths, entries, cancellationToken);
+            await s_Handler.UpsertRawBlocksAsync(paths, entries, cancellationToken);
+            await CaptureScreenshotOnSaveIfEnabledAsync(fileName, folderName, null);
         }
 
         /// <summary>
         /// 从存档文件异步恢复全部已注册 <see cref="SaveComponent"/> 的勾选字段（读盘在工作线程，字段写回在主线程）。
-        /// <para>缺块组件保留当前值；KVT 损坏的组件记录错误日志并跳过（不阻断其它组件）。</para>
+        /// <para>缺块组件保留当前值；KVT 损坏的组件记录错误日志并跳过（不阻断其它组件）。
+        /// 实体管线管理的实体组件（<c>entity:</c> 前缀块键）跳过——经 <c>RestoreEntitiesAsync</c> 恢复。</para>
         /// </summary>
         /// <param name="fileName">文件名（自动追加配置的扩展名）。</param>
         /// <param name="folderName">文件夹名称。</param>
@@ -305,74 +318,88 @@ namespace Moirai.Atropos.Save
             Dictionary<string, byte[]> blocks = await s_Handler.ReadRawBlocksAsync(paths, cancellationToken);
 
             // 主线程写回组件字段（blocks 已在工作线程解析完毕；ref struct 读取器不可进 async 上下文，故收敛到独立方法）
-            RestoreComponentsOnMainThread(components, blocks);
+            RestoreComponentsOnMainThread(components, blocks, fileName, folderName);
         }
 
         /// <summary>
         /// 在主线程将块字节恢复到组件字段（非 async 方法：SaveKeyValueReader 为 ref struct）。
+        /// <para>按批触发 <see cref="LoadProgress"/> 事件。</para>
         /// </summary>
         /// <param name="components">活跃组件快照。</param>
         /// <param name="blocks">块键 → 载荷字节。</param>
-        private static void RestoreComponentsOnMainThread(SaveComponent[] components, Dictionary<string, byte[]> blocks)
+        /// <param name="fileName">存档文件名（进度事件参数）。</param>
+        /// <param name="folderName">存档文件夹名称（进度事件参数）。</param>
+        private static void RestoreComponentsOnMainThread(SaveComponent[] components, Dictionary<string, byte[]> blocks, string fileName, string folderName)
         {
+            int total = components.Length;
             for (int i = 0; i < components.Length; i++)
             {
                 SaveComponent component = components[i];
-                if (component == null || string.IsNullOrEmpty(component.ResolvedBlockKey))
+                // 实体块（entity: 前缀）由实体管线 RestoreEntitiesAsync 独占恢复——组件管线跳过
+                if (component != null && !string.IsNullOrEmpty(component.ResolvedBlockKey) && !SaveEntityPersistence.IsEntityBlockKey(component.ResolvedBlockKey) && blocks.TryGetValue(component.ResolvedBlockKey, out byte[] bytes))
                 {
-                    continue;
+                    try
+                    {
+                        var reader = new SaveKeyValueReader(bytes);
+                        component.Restore(ref reader);
+                    }
+                    catch (SaveKvFormatException exception)
+                    {
+                        LogUtility.Error("[SaveService] Component restore failed, key: {0}, message: {1}.", component.ResolvedBlockKey, exception.Message);
+                    }
                 }
 
-                if (!blocks.TryGetValue(component.ResolvedBlockKey, out byte[] bytes))
+                int completed = i + 1;
+                if (ShouldReportProgress(completed, total))
                 {
-                    continue;
-                }
-
-                try
-                {
-                    var reader = new SaveKeyValueReader(bytes);
-                    component.Restore(ref reader);
-                }
-                catch (SaveKvFormatException exception)
-                {
-                    LogUtility.Error("[SaveService] Component restore failed, key: {0}, message: {1}.", component.ResolvedBlockKey, exception.Message);
+                    RaiseLoadProgress(fileName, folderName, completed, total);
                 }
             }
         }
 
         /// <summary>
-        /// 捕获全部活跃组件为块条目（主线程；重复块键记录告警并跳过）。
+        /// 捕获全部活跃组件为块条目（主线程；重复块键记录告警并跳过；按批触发 <see cref="SaveProgress"/> 事件）。
         /// </summary>
+        /// <param name="fileName">存档文件名（进度事件参数）。</param>
+        /// <param name="folderName">存档文件夹名称（进度事件参数）。</param>
         /// <returns>块条目列表（可能为空）。</returns>
-        private static List<SaveBlockEntry> CaptureComponentsToEntries()
+        private static List<SaveBlockEntry> CaptureComponentsToEntries(string fileName, string folderName)
         {
             SaveComponent[] components = SaveComponentRegistry.Snapshot();
             var entries = new List<SaveBlockEntry>(components.Length);
             var seenKeys = new HashSet<string>(StringComparer.Ordinal);
+            int total = components.Length;
             for (int i = 0; i < components.Length; i++)
             {
                 SaveComponent component = components[i];
-                if (component == null)
+                if (component != null)
                 {
-                    continue;
+                    string blockKey = component.ResolvedBlockKey;
+                    if (string.IsNullOrEmpty(blockKey))
+                    {
+                        LogUtility.Warning("[SaveService] SaveComponent '{0}' is not activated (block key unresolved), skipped.", component.name);
+                    }
+                    else if (SaveEntityPersistence.IsEntityBlockKey(blockKey))
+                    {
+                        // 实体块由实体管线 SaveEntitiesAsync 独占捕获——组件管线跳过
+                    }
+                    else if (!seenKeys.Add(blockKey))
+                    {
+                        LogUtility.Warning("[SaveService] Duplicate component block key '{0}' on '{1}', skipped.", blockKey, component.name);
+                    }
+                    else
+                    {
+                        var writer = new SaveKeyValueWriter(256);
+                        component.Capture(ref writer);
+                        entries.Add(new SaveBlockEntry(blockKey, 1, ESaveBackend.KeyValue, writer.ToArray()));
+                    }
                 }
 
-                string blockKey = component.ResolvedBlockKey;
-                if (string.IsNullOrEmpty(blockKey))
+                int completed = i + 1;
+                if (ShouldReportProgress(completed, total))
                 {
-                    LogUtility.Warning("[SaveService] SaveComponent '{0}' is not activated (block key unresolved), skipped.", component.name);
-                    continue;
+                    RaiseSaveProgress(fileName, folderName, completed, total);
                 }
-
-                if (!seenKeys.Add(blockKey))
-                {
-                    LogUtility.Warning("[SaveService] Duplicate component block key '{0}' on '{1}', skipped.", blockKey, component.name);
-                    continue;
-                }
-
-                var writer = new SaveKeyValueWriter(256);
-                component.Capture(ref writer);
-                entries.Add(new SaveBlockEntry(blockKey, 1, ESaveBackend.KeyValue, writer.ToArray()));
             }
 
             return entries;

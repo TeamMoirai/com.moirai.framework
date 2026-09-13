@@ -70,7 +70,7 @@ namespace Moirai.Atropos.Save
         public void WriteBoolean(string key, bool value)
         {
             BeginRecord(key, ESaveKvType.Bool, 1);
-            _buffer[_position++] = value ? (byte)1 : (byte)0;
+            WriteBooleanPayload(value);
         }
 
         /// <summary>
@@ -79,7 +79,7 @@ namespace Moirai.Atropos.Save
         public void WriteSByte(string key, sbyte value)
         {
             BeginRecord(key, ESaveKvType.SByte, 1);
-            _buffer[_position++] = unchecked((byte)value);
+            WriteSBytePayload(value);
         }
 
         /// <summary>
@@ -88,7 +88,7 @@ namespace Moirai.Atropos.Save
         public void WriteByte(string key, byte value)
         {
             BeginRecord(key, ESaveKvType.Byte, 1);
-            _buffer[_position++] = value;
+            WriteBytePayload(value);
         }
 
         /// <summary>
@@ -97,7 +97,7 @@ namespace Moirai.Atropos.Save
         public void WriteInt16(string key, short value)
         {
             BeginRecord(key, ESaveKvType.Int16, 2);
-            BinaryPrimitives.WriteInt16LittleEndian(Advance(2), value);
+            WriteInt16Payload(value);
         }
 
         /// <summary>
@@ -106,7 +106,7 @@ namespace Moirai.Atropos.Save
         public void WriteUInt16(string key, ushort value)
         {
             BeginRecord(key, ESaveKvType.UInt16, 2);
-            BinaryPrimitives.WriteUInt16LittleEndian(Advance(2), value);
+            WriteUInt16Payload(value);
         }
 
         /// <summary>
@@ -115,7 +115,7 @@ namespace Moirai.Atropos.Save
         public void WriteInt32(string key, int value)
         {
             BeginRecord(key, ESaveKvType.Int32, 4);
-            BinaryPrimitives.WriteInt32LittleEndian(Advance(4), value);
+            WriteInt32Payload(value);
         }
 
         /// <summary>
@@ -124,7 +124,7 @@ namespace Moirai.Atropos.Save
         public void WriteUInt32(string key, uint value)
         {
             BeginRecord(key, ESaveKvType.UInt32, 4);
-            BinaryPrimitives.WriteUInt32LittleEndian(Advance(4), value);
+            WriteUInt32Payload(value);
         }
 
         /// <summary>
@@ -133,7 +133,7 @@ namespace Moirai.Atropos.Save
         public void WriteInt64(string key, long value)
         {
             BeginRecord(key, ESaveKvType.Int64, 8);
-            BinaryPrimitives.WriteInt64LittleEndian(Advance(8), value);
+            WriteInt64Payload(value);
         }
 
         /// <summary>
@@ -142,7 +142,7 @@ namespace Moirai.Atropos.Save
         public void WriteUInt64(string key, ulong value)
         {
             BeginRecord(key, ESaveKvType.UInt64, 8);
-            BinaryPrimitives.WriteUInt64LittleEndian(Advance(8), value);
+            WriteUInt64Payload(value);
         }
 
         /// <summary>
@@ -151,7 +151,7 @@ namespace Moirai.Atropos.Save
         public void WriteSingle(string key, float value)
         {
             BeginRecord(key, ESaveKvType.Single, 4);
-            BinaryPrimitives.WriteInt32LittleEndian(Advance(4), BitConverter.SingleToInt32Bits(value));
+            WriteSinglePayload(value);
         }
 
         /// <summary>
@@ -160,7 +160,7 @@ namespace Moirai.Atropos.Save
         public void WriteDouble(string key, double value)
         {
             BeginRecord(key, ESaveKvType.Double, 8);
-            BinaryPrimitives.WriteInt64LittleEndian(Advance(8), BitConverter.DoubleToInt64Bits(value));
+            WriteDoublePayload(value);
         }
 
         /// <summary>
@@ -169,12 +169,7 @@ namespace Moirai.Atropos.Save
         public void WriteDecimal(string key, decimal value)
         {
             BeginRecord(key, ESaveKvType.Decimal, 16);
-            Span<int> bits = stackalloc int[4];
-            decimal.GetBits(value).CopyTo(bits);
-            BinaryPrimitives.WriteInt32LittleEndian(Advance(4), bits[0]);
-            BinaryPrimitives.WriteInt32LittleEndian(Advance(4), bits[1]);
-            BinaryPrimitives.WriteInt32LittleEndian(Advance(4), bits[2]);
-            BinaryPrimitives.WriteInt32LittleEndian(Advance(4), bits[3]);
+            WriteDecimalPayload(value);
         }
 
         /// <summary>
@@ -183,7 +178,7 @@ namespace Moirai.Atropos.Save
         public void WriteChar(string key, char value)
         {
             BeginRecord(key, ESaveKvType.Char, 2);
-            BinaryPrimitives.WriteUInt16LittleEndian(Advance(2), value);
+            WriteCharPayload(value);
         }
 
         /// <summary>
@@ -199,7 +194,7 @@ namespace Moirai.Atropos.Save
 
             int byteCount = s_Utf8.GetByteCount(value);
             BeginRecord(key, ESaveKvType.String, byteCount);
-            s_Utf8.GetBytes(value, Advance(byteCount));
+            WriteStringPayload(value, byteCount);
         }
 
         /// <summary>
@@ -208,8 +203,7 @@ namespace Moirai.Atropos.Save
         public void WriteDateTime(string key, DateTime value)
         {
             BeginRecord(key, ESaveKvType.DateTime, 9);
-            BinaryPrimitives.WriteInt64LittleEndian(Advance(8), value.Ticks);
-            _buffer[_position++] = (byte)value.Kind;
+            WriteDateTimePayload(value);
         }
 
         /// <summary>
@@ -218,7 +212,7 @@ namespace Moirai.Atropos.Save
         public void WriteTimeSpan(string key, TimeSpan value)
         {
             BeginRecord(key, ESaveKvType.TimeSpan, 8);
-            BinaryPrimitives.WriteInt64LittleEndian(Advance(8), value.Ticks);
+            WriteTimeSpanPayload(value);
         }
 
         #endregion
@@ -231,9 +225,7 @@ namespace Moirai.Atropos.Save
         public void WriteVector2(string key, Vector2 value)
         {
             BeginRecord(key, ESaveKvType.Vector2, 8);
-            Span<byte> span = Advance(8);
-            WriteFloat(span, value.x);
-            WriteFloat(span.Slice(4), value.y);
+            WriteVector2Payload(value);
         }
 
         /// <summary>
@@ -242,10 +234,7 @@ namespace Moirai.Atropos.Save
         public void WriteVector3(string key, Vector3 value)
         {
             BeginRecord(key, ESaveKvType.Vector3, 12);
-            Span<byte> span = Advance(12);
-            WriteFloat(span, value.x);
-            WriteFloat(span.Slice(4), value.y);
-            WriteFloat(span.Slice(8), value.z);
+            WriteVector3Payload(value);
         }
 
         /// <summary>
@@ -254,7 +243,7 @@ namespace Moirai.Atropos.Save
         public void WriteVector4(string key, Vector4 value)
         {
             BeginRecord(key, ESaveKvType.Vector4, 16);
-            WriteFloat4(span: Advance(16), value.x, value.y, value.z, value.w);
+            WriteFloat4(Advance(16), value.x, value.y, value.z, value.w);
         }
 
         /// <summary>
@@ -263,7 +252,7 @@ namespace Moirai.Atropos.Save
         public void WriteQuaternion(string key, Quaternion value)
         {
             BeginRecord(key, ESaveKvType.Quaternion, 16);
-            WriteFloat4(span: Advance(16), value.x, value.y, value.z, value.w);
+            WriteFloat4(Advance(16), value.x, value.y, value.z, value.w);
         }
 
         /// <summary>
@@ -272,7 +261,7 @@ namespace Moirai.Atropos.Save
         public void WriteColor(string key, Color value)
         {
             BeginRecord(key, ESaveKvType.Color, 16);
-            WriteFloat4(span: Advance(16), value.r, value.g, value.b, value.a);
+            WriteFloat4(Advance(16), value.r, value.g, value.b, value.a);
         }
 
         /// <summary>
@@ -281,7 +270,7 @@ namespace Moirai.Atropos.Save
         public void WriteRect(string key, Rect value)
         {
             BeginRecord(key, ESaveKvType.Rect, 16);
-            WriteFloat4(span: Advance(16), value.x, value.y, value.width, value.height);
+            WriteFloat4(Advance(16), value.x, value.y, value.width, value.height);
         }
 
         /// <summary>
@@ -290,33 +279,12 @@ namespace Moirai.Atropos.Save
         public void WriteBounds(string key, Bounds value)
         {
             BeginRecord(key, ESaveKvType.Bounds, 24);
-            Span<byte> span = Advance(24);
-            WriteFloat(span, value.center.x);
-            WriteFloat(span.Slice(4), value.center.y);
-            WriteFloat(span.Slice(8), value.center.z);
-            WriteFloat(span.Slice(12), value.extents.x);
-            WriteFloat(span.Slice(16), value.extents.y);
-            WriteFloat(span.Slice(20), value.extents.z);
-        }
-
-        /// <summary>写入单精度浮点（netstandard2.1 无 BinaryPrimitives 浮点重载，经位模式转换）。</summary>
-        private static void WriteFloat(Span<byte> span, float value)
-        {
-            BinaryPrimitives.WriteInt32LittleEndian(span, BitConverter.SingleToInt32Bits(value));
-        }
-
-        /// <summary>写入 4 个连续 float。</summary>
-        private void WriteFloat4(Span<byte> span, float a, float b, float c, float d)
-        {
-            WriteFloat(span, a);
-            WriteFloat(span.Slice(4), b);
-            WriteFloat(span.Slice(8), c);
-            WriteFloat(span.Slice(12), d);
+            WriteBoundsPayload(value);
         }
 
         #endregion
 
-        #region 嵌套与集合 [NESTED / COLLECTIONS]
+        #region 嵌套与集合作用域 [NESTED / COLLECTION SCOPES]
 
         /// <summary>
         /// 开始写入嵌套对象字段（配合 <see cref="EndNested"/>；null 嵌套用 <see cref="WriteNull(string)"/>）。
@@ -332,7 +300,7 @@ namespace Moirai.Atropos.Save
         }
 
         /// <summary>
-        /// 开始写入序列字段（List/T[]/HashSet；配合元素写入与 <see cref="EndNested"/>；null 用 <see cref="WriteNull(string)"/>）。
+        /// 开始写入序列字段（List/T[]/HashSet/Queue/Stack；配合元素写入与 <see cref="EndNested"/>；null 用 <see cref="WriteNull(string)"/>）。
         /// </summary>
         /// <param name="key">字段键。</param>
         /// <param name="elementCount">元素数。</param>
@@ -372,7 +340,7 @@ namespace Moirai.Atropos.Save
         }
 
         /// <summary>
-        /// 写入空引用字段（字符串/嵌套对象/集合均可；集合元素场景传 <see cref="string.Empty"/> 键）。
+        /// 写入空引用字段（字符串/嵌套对象/集合均可；集合元素场景用 <see cref="WriteNullElement"/>）。
         /// </summary>
         public void WriteNull(string key)
         {
@@ -381,7 +349,286 @@ namespace Moirai.Atropos.Save
 
         #endregion
 
+        #region 集合元素 [COLLECTION ELEMENTS]
+
+        /// <summary>
+        /// 写入空引用元素（序列元素/映射键值位为 null 时）。
+        /// </summary>
+        public void WriteNullElement()
+        {
+            BeginElementRecord(ESaveKvType.Null, 0);
+        }
+
+        /// <summary>
+        /// 写入布尔元素。
+        /// </summary>
+        public void WriteBooleanElement(bool value)
+        {
+            BeginElementRecord(ESaveKvType.Bool, 1);
+            WriteBooleanPayload(value);
+        }
+
+        /// <summary>
+        /// 写入有符号字节元素。
+        /// </summary>
+        public void WriteSByteElement(sbyte value)
+        {
+            BeginElementRecord(ESaveKvType.SByte, 1);
+            WriteSBytePayload(value);
+        }
+
+        /// <summary>
+        /// 写入无符号字节元素。
+        /// </summary>
+        public void WriteByteElement(byte value)
+        {
+            BeginElementRecord(ESaveKvType.Byte, 1);
+            WriteBytePayload(value);
+        }
+
+        /// <summary>
+        /// 写入有符号 16 位元素。
+        /// </summary>
+        public void WriteInt16Element(short value)
+        {
+            BeginElementRecord(ESaveKvType.Int16, 2);
+            WriteInt16Payload(value);
+        }
+
+        /// <summary>
+        /// 写入无符号 16 位元素。
+        /// </summary>
+        public void WriteUInt16Element(ushort value)
+        {
+            BeginElementRecord(ESaveKvType.UInt16, 2);
+            WriteUInt16Payload(value);
+        }
+
+        /// <summary>
+        /// 写入有符号 32 位元素。
+        /// </summary>
+        public void WriteInt32Element(int value)
+        {
+            BeginElementRecord(ESaveKvType.Int32, 4);
+            WriteInt32Payload(value);
+        }
+
+        /// <summary>
+        /// 写入无符号 32 位元素。
+        /// </summary>
+        public void WriteUInt32Element(uint value)
+        {
+            BeginElementRecord(ESaveKvType.UInt32, 4);
+            WriteUInt32Payload(value);
+        }
+
+        /// <summary>
+        /// 写入有符号 64 位元素。
+        /// </summary>
+        public void WriteInt64Element(long value)
+        {
+            BeginElementRecord(ESaveKvType.Int64, 8);
+            WriteInt64Payload(value);
+        }
+
+        /// <summary>
+        /// 写入无符号 64 位元素。
+        /// </summary>
+        public void WriteUInt64Element(ulong value)
+        {
+            BeginElementRecord(ESaveKvType.UInt64, 8);
+            WriteUInt64Payload(value);
+        }
+
+        /// <summary>
+        /// 写入单精度浮点元素。
+        /// </summary>
+        public void WriteSingleElement(float value)
+        {
+            BeginElementRecord(ESaveKvType.Single, 4);
+            WriteSinglePayload(value);
+        }
+
+        /// <summary>
+        /// 写入双精度浮点元素。
+        /// </summary>
+        public void WriteDoubleElement(double value)
+        {
+            BeginElementRecord(ESaveKvType.Double, 8);
+            WriteDoublePayload(value);
+        }
+
+        /// <summary>
+        /// 写入十进制元素。
+        /// </summary>
+        public void WriteDecimalElement(decimal value)
+        {
+            BeginElementRecord(ESaveKvType.Decimal, 16);
+            WriteDecimalPayload(value);
+        }
+
+        /// <summary>
+        /// 写入字符元素。
+        /// </summary>
+        public void WriteCharElement(char value)
+        {
+            BeginElementRecord(ESaveKvType.Char, 2);
+            WriteCharPayload(value);
+        }
+
+        /// <summary>
+        /// 写入字符串元素（null 写为 Null 元素）。
+        /// </summary>
+        public void WriteStringElement(string value)
+        {
+            if (value == null)
+            {
+                BeginElementRecord(ESaveKvType.Null, 0);
+                return;
+            }
+
+            int byteCount = s_Utf8.GetByteCount(value);
+            BeginElementRecord(ESaveKvType.String, byteCount);
+            WriteStringPayload(value, byteCount);
+        }
+
+        /// <summary>
+        /// 写入日期时间元素。
+        /// </summary>
+        public void WriteDateTimeElement(DateTime value)
+        {
+            BeginElementRecord(ESaveKvType.DateTime, 9);
+            WriteDateTimePayload(value);
+        }
+
+        /// <summary>
+        /// 写入时间跨度元素。
+        /// </summary>
+        public void WriteTimeSpanElement(TimeSpan value)
+        {
+            BeginElementRecord(ESaveKvType.TimeSpan, 8);
+            WriteTimeSpanPayload(value);
+        }
+
+        /// <summary>
+        /// 写入二维向量元素。
+        /// </summary>
+        public void WriteVector2Element(Vector2 value)
+        {
+            BeginElementRecord(ESaveKvType.Vector2, 8);
+            WriteVector2Payload(value);
+        }
+
+        /// <summary>
+        /// 写入三维向量元素。
+        /// </summary>
+        public void WriteVector3Element(Vector3 value)
+        {
+            BeginElementRecord(ESaveKvType.Vector3, 12);
+            WriteVector3Payload(value);
+        }
+
+        /// <summary>
+        /// 写入四维向量元素。
+        /// </summary>
+        public void WriteVector4Element(Vector4 value)
+        {
+            BeginElementRecord(ESaveKvType.Vector4, 16);
+            WriteFloat4(Advance(16), value.x, value.y, value.z, value.w);
+        }
+
+        /// <summary>
+        /// 写入四元数元素。
+        /// </summary>
+        public void WriteQuaternionElement(Quaternion value)
+        {
+            BeginElementRecord(ESaveKvType.Quaternion, 16);
+            WriteFloat4(Advance(16), value.x, value.y, value.z, value.w);
+        }
+
+        /// <summary>
+        /// 写入颜色元素。
+        /// </summary>
+        public void WriteColorElement(Color value)
+        {
+            BeginElementRecord(ESaveKvType.Color, 16);
+            WriteFloat4(Advance(16), value.r, value.g, value.b, value.a);
+        }
+
+        /// <summary>
+        /// 写入矩形元素。
+        /// </summary>
+        public void WriteRectElement(Rect value)
+        {
+            BeginElementRecord(ESaveKvType.Rect, 16);
+            WriteFloat4(Advance(16), value.x, value.y, value.width, value.height);
+        }
+
+        /// <summary>
+        /// 写入包围盒元素。
+        /// </summary>
+        public void WriteBoundsElement(Bounds value)
+        {
+            BeginElementRecord(ESaveKvType.Bounds, 24);
+            WriteBoundsPayload(value);
+        }
+
+        /// <summary>
+        /// 开始写入嵌套对象元素（元素位为 null 时用 <see cref="WriteNullElement"/>）。
+        /// </summary>
+        /// <param name="fieldCount">嵌套对象字段数。</param>
+        public void BeginNestedObjectElement(int fieldCount)
+        {
+            BeginElementRecord(ESaveKvType.Object, -1);
+            WriteLengthPlaceholder();
+            BinaryPrimitives.WriteInt32LittleEndian(Advance(4), fieldCount);
+            PushNestingFrame();
+        }
+
+        /// <summary>
+        /// 开始写入序列元素（嵌套集合；元素位为 null 时用 <see cref="WriteNullElement"/>）。
+        /// </summary>
+        /// <param name="elementCount">元素数。</param>
+        public void BeginSequenceElement(int elementCount)
+        {
+            BeginElementRecord(ESaveKvType.Sequence, -1);
+            WriteLengthPlaceholder();
+            BinaryPrimitives.WriteInt32LittleEndian(Advance(4), elementCount);
+            PushNestingFrame();
+        }
+
+        /// <summary>
+        /// 开始写入映射元素（嵌套映射；元素位为 null 时用 <see cref="WriteNullElement"/>）。
+        /// </summary>
+        /// <param name="pairCount">键值对数。</param>
+        public void BeginMapElement(int pairCount)
+        {
+            BeginElementRecord(ESaveKvType.Map, -1);
+            WriteLengthPlaceholder();
+            BinaryPrimitives.WriteInt32LittleEndian(Advance(4), pairCount);
+            PushNestingFrame();
+        }
+
+        #endregion
+
         #region 写入管线 [WRITE PIPELINE]
+
+        /// <summary>
+        /// 写入原始记录（键 + 类型 + 已编码载荷区间——含 4B 载荷长度前缀）。
+        /// <para>仅迁移变换器原样透传未命中规则的数据记录用；载荷区间须取自 <see cref="SaveKeyValueReader"/> 记录头之后、<c>SkipRecordPayload</c> 前后的游标差。</para>
+        /// </summary>
+        /// <param name="key">记录键。</param>
+        /// <param name="type">记录类型。</param>
+        /// <param name="rawPayloadWithLengthPrefix">已编码载荷区间（4B 长度前缀 + 载荷字节）。</param>
+        internal void WriteRawRecord(string key, ESaveKvType type, ReadOnlySpan<byte> rawPayloadWithLengthPrefix)
+        {
+            int keyByteCount = s_Utf8.GetByteCount(key);
+            EnsureCapacity(3 + keyByteCount + rawPayloadWithLengthPrefix.Length);
+            BinaryPrimitives.WriteUInt16LittleEndian(Advance(2), (ushort)keyByteCount);
+            s_Utf8.GetBytes(key, Advance(keyByteCount));
+            _buffer[_position++] = (byte)type;
+            rawPayloadWithLengthPrefix.CopyTo(Advance(rawPayloadWithLengthPrefix.Length));
+        }
 
         /// <summary>
         /// 写入对象级记录头：[2B 键长][键 UTF8][1B 类型][4B 载荷长占位]。
@@ -400,11 +647,174 @@ namespace Moirai.Atropos.Save
         }
 
         /// <summary>
+        /// 写入元素级记录头：[1B 类型][4B 载荷长占位]（集合元素无键）。
+        /// </summary>
+        private void BeginElementRecord(ESaveKvType type, int payloadLength)
+        {
+            EnsureCapacity(5);
+            _buffer[_position++] = (byte)type;
+            if (payloadLength >= 0)
+            {
+                BinaryPrimitives.WriteInt32LittleEndian(Advance(4), payloadLength);
+            }
+        }
+
+        /// <summary>
         /// 写入 4 字节载荷长度占位（由 <see cref="EndNested"/> 回填）。
         /// </summary>
         private void WriteLengthPlaceholder()
         {
             BinaryPrimitives.WriteInt32LittleEndian(Advance(4), 0);
+        }
+
+        #endregion
+
+        #region 载荷编码 [PAYLOAD ENCODERS]
+
+        /// <summary>写入布尔载荷。</summary>
+        private void WriteBooleanPayload(bool value)
+        {
+            Advance(1)[0] = value ? (byte)1 : (byte)0;
+        }
+
+        /// <summary>写入有符号字节载荷。</summary>
+        private void WriteSBytePayload(sbyte value)
+        {
+            Advance(1)[0] = unchecked((byte)value);
+        }
+
+        /// <summary>写入无符号字节载荷。</summary>
+        private void WriteBytePayload(byte value)
+        {
+            Advance(1)[0] = value;
+        }
+
+        /// <summary>写入有符号 16 位载荷。</summary>
+        private void WriteInt16Payload(short value)
+        {
+            BinaryPrimitives.WriteInt16LittleEndian(Advance(2), value);
+        }
+
+        /// <summary>写入无符号 16 位载荷。</summary>
+        private void WriteUInt16Payload(ushort value)
+        {
+            BinaryPrimitives.WriteUInt16LittleEndian(Advance(2), value);
+        }
+
+        /// <summary>写入有符号 32 位载荷。</summary>
+        private void WriteInt32Payload(int value)
+        {
+            BinaryPrimitives.WriteInt32LittleEndian(Advance(4), value);
+        }
+
+        /// <summary>写入无符号 32 位载荷。</summary>
+        private void WriteUInt32Payload(uint value)
+        {
+            BinaryPrimitives.WriteUInt32LittleEndian(Advance(4), value);
+        }
+
+        /// <summary>写入有符号 64 位载荷。</summary>
+        private void WriteInt64Payload(long value)
+        {
+            BinaryPrimitives.WriteInt64LittleEndian(Advance(8), value);
+        }
+
+        /// <summary>写入无符号 64 位载荷。</summary>
+        private void WriteUInt64Payload(ulong value)
+        {
+            BinaryPrimitives.WriteUInt64LittleEndian(Advance(8), value);
+        }
+
+        /// <summary>写入单精度浮点载荷（netstandard2.1 无 BinaryPrimitives 浮点重载，经位模式转换）。</summary>
+        private void WriteSinglePayload(float value)
+        {
+            BinaryPrimitives.WriteInt32LittleEndian(Advance(4), BitConverter.SingleToInt32Bits(value));
+        }
+
+        /// <summary>写入双精度浮点载荷。</summary>
+        private void WriteDoublePayload(double value)
+        {
+            BinaryPrimitives.WriteInt64LittleEndian(Advance(8), BitConverter.DoubleToInt64Bits(value));
+        }
+
+        /// <summary>写入十进制载荷。</summary>
+        private void WriteDecimalPayload(decimal value)
+        {
+            Span<int> bits = stackalloc int[4];
+            decimal.GetBits(value).CopyTo(bits);
+            BinaryPrimitives.WriteInt32LittleEndian(Advance(4), bits[0]);
+            BinaryPrimitives.WriteInt32LittleEndian(Advance(4), bits[1]);
+            BinaryPrimitives.WriteInt32LittleEndian(Advance(4), bits[2]);
+            BinaryPrimitives.WriteInt32LittleEndian(Advance(4), bits[3]);
+        }
+
+        /// <summary>写入字符载荷。</summary>
+        private void WriteCharPayload(char value)
+        {
+            BinaryPrimitives.WriteUInt16LittleEndian(Advance(2), value);
+        }
+
+        /// <summary>写入字符串载荷。</summary>
+        private void WriteStringPayload(string value, int byteCount)
+        {
+            s_Utf8.GetBytes(value, Advance(byteCount));
+        }
+
+        /// <summary>写入日期时间载荷。</summary>
+        private void WriteDateTimePayload(DateTime value)
+        {
+            BinaryPrimitives.WriteInt64LittleEndian(Advance(8), value.Ticks);
+            Advance(1)[0] = (byte)value.Kind;
+        }
+
+        /// <summary>写入时间跨度载荷。</summary>
+        private void WriteTimeSpanPayload(TimeSpan value)
+        {
+            BinaryPrimitives.WriteInt64LittleEndian(Advance(8), value.Ticks);
+        }
+
+        /// <summary>写入二维向量载荷。</summary>
+        private void WriteVector2Payload(Vector2 value)
+        {
+            Span<byte> span = Advance(8);
+            WriteFloat(span, value.x);
+            WriteFloat(span.Slice(4), value.y);
+        }
+
+        /// <summary>写入三维向量载荷。</summary>
+        private void WriteVector3Payload(Vector3 value)
+        {
+            Span<byte> span = Advance(12);
+            WriteFloat(span, value.x);
+            WriteFloat(span.Slice(4), value.y);
+            WriteFloat(span.Slice(8), value.z);
+        }
+
+        /// <summary>写入包围盒载荷。</summary>
+        private void WriteBoundsPayload(Bounds value)
+        {
+            Span<byte> span = Advance(24);
+            WriteFloat(span, value.center.x);
+            WriteFloat(span.Slice(4), value.center.y);
+            WriteFloat(span.Slice(8), value.center.z);
+            WriteFloat(span.Slice(12), value.extents.x);
+            WriteFloat(span.Slice(16), value.extents.y);
+            WriteFloat(span.Slice(20), value.extents.z);
+        }
+
+        /// <summary>写入单精度浮点（netstandard2.1 无 BinaryPrimitives 浮点重载，经位模式转换）。</summary>
+        private static void WriteFloat(Span<byte> span, float value)
+        {
+            BinaryPrimitives.WriteInt32LittleEndian(span, BitConverter.SingleToInt32Bits(value));
+        }
+
+        /// <summary>写入 4 个连续 float。</summary>
+        private void WriteFloat4(Span<byte> span, float a, float b, float c, float d)
+        {
+            WriteFloat(span, a);
+            WriteFloat(span.Slice(4), b);
+            WriteFloat(span.Slice(8), c);
+            WriteFloat(span.Slice(12), d);
         }
 
         /// <summary>
@@ -439,6 +849,9 @@ namespace Moirai.Atropos.Save
 
         /// <summary>
         /// 压入嵌套帧（记录载荷长度占位偏移与载荷起点）。
+        /// <para>调用点在子项数写入之后：载荷长度占位在 <c>_position - 8</c>，载荷区间（4B 子项数 + 子记录）自 <c>_position - 4</c> 起——
+        /// <see cref="EndNested"/> 回填的载荷长度含子项数自身（读取侧 <c>ReadChildCount</c>/<c>SkipRecordPayload</c> 依此消费）。
+        /// 键控与元素级作用域头布局一致（尾段均为 [4B 占位][4B 子项数]），帧偏移算法通用。</para>
         /// </summary>
         private void PushNestingFrame()
         {
@@ -451,7 +864,7 @@ namespace Moirai.Atropos.Save
                 Array.Resize(ref _nestingStack, _nestingDepth * 2);
             }
 
-            _nestingStack[_nestingDepth++] = new NestingFrame(_position - 4, _position);
+            _nestingStack[_nestingDepth++] = new NestingFrame(_position - 8, _position - 4);
         }
 
         /// <summary>嵌套帧：长度占位偏移 + 载荷起点。</summary>

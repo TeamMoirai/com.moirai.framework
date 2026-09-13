@@ -59,5 +59,25 @@ namespace Moirai.Atropos.Save
         /// 磁盘 IO 失败。
         /// </summary>
         IoFailed,
+
+        /// <summary>
+        /// 压缩失败（写路径压缩提供方异常；经 <c>SaveService.SaveFailed</c> 事件与 <see cref="GameException"/> 上抛观测）。
+        /// </summary>
+        CompressionFailed,
+
+        /// <summary>
+        /// 载荷变换失败（写路径加密钩子异常；经 <c>SaveService.SaveFailed</c> 事件与 <see cref="GameException"/> 上抛观测）。
+        /// </summary>
+        TransformFailed,
+
+        /// <summary>
+        /// 迁移失败（迁移链缺失/成环/迁移器执行异常或上下文操作失败；读路径经 <c>SaveService.LoadFailed</c> 事件观测，写路径 fail-fast 上抛）。
+        /// </summary>
+        MigrationFailed,
+
+        /// <summary>
+        /// 当前环境不支持该操作（如非运行态/批处理模式下截图）。
+        /// </summary>
+        NotSupported,
     }
 }

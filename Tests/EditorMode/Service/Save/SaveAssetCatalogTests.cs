@@ -1,0 +1,202 @@
+using System;
+using System.Collections.Generic;
+using System.Text.RegularExpressions;
+using Moirai.Atropos;
+using Moirai.Atropos.Save;
+using NUnit.Framework;
+using UnityEngine;
+using UnityEngine.TestTools;
+
+namespace Save
+{
+    /// <summary>
+    /// 资产引用目录测试：双向查找、类型不匹配未命中、重复条目首到先得、无效条目跳过、编辑器期查找表失效重建。
+    /// <para>告警断言经 <see cref="LogUtility.OnMessageLogged"/> 事件捕获（Handler 无关）；
+    /// UTF 可见链路另补 <c>LogAssert.Expect</c>（黑名单：is not UnityLoggingHandler）。</para>
+    /// </summary>
+    public class SaveAssetCatalogTests
+    {
+        private SaveAssetCatalog _catalog;
+        private readonly List<UnityEngine.Object> _assets = new List<UnityEngine.Object>();
+        private List<(ELogLevel Level, string Message)> _capturedLogs;
+
+        [SetUp]
+        public void SetUp()
+        {
+            _catalog = ScriptableObject.CreateInstance<SaveAssetCatalog>();
+            _capturedLogs = new List<(ELogLevel, string)>();
+            LogUtility.OnMessageLogged += CaptureLog;
+        }
+
+        [TearDown]
+        public void TearDown()
+        {
+            LogUtility.OnMessageLogged -= CaptureLog;
+            foreach (UnityEngine.Object asset in _assets)
+            {
+                if (asset != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(asset);
+                }
+            }
+
+            _assets.Clear();
+            if (_catalog != null)
+            {
+                UnityEngine.Object.DestroyImmediate(_catalog);
+            }
+        }
+
+        private void CaptureLog(ELogLevel level, string message, Exception exception)
+        {
+            _capturedLogs.Add((level, message));
+        }
+
+        /// <summary>
+        /// 为随后一条 Warning 日志声明 UTF 预期（仅 DefaultLogHandler 同步链路下 UTF 可见）。
+        /// </summary>
+        private static void ExpectWarningLogForUtf()
+        {
+            if (LogUtility.Handler is not UnityLoggingHandler)
+            {
+                LogAssert.Expect(LogType.Warning, new Regex(".*"));
+            }
+        }
+
+        /// <summary>
+        /// 断言已记录包含指定片段的 Warning 日志。
+        /// </summary>
+        private void AssertWarningLogged(string fragment)
+        {
+            Assert.IsTrue(_capturedLogs.Exists(entry => entry.Level == ELogLevel.Warning && entry.Message != null && entry.Message.Contains(fragment)),
+                $"应记录含 '{fragment}' 的 Warning 日志，实际捕获 {_capturedLogs.Count} 条");
+        }
+
+        /// <summary>
+        /// 创建可销毁的测试资产。
+        /// </summary>
+        private T CreateAsset<T>() where T : UnityEngine.Object
+        {
+            UnityEngine.Object asset = typeof(T) == typeof(Texture2D)
+                ? new Texture2D(2, 2)
+                : ScriptableObject.CreateInstance(typeof(T));
+            _assets.Add(asset);
+            return (T)asset;
+        }
+
+        /// <summary>
+        /// 登记条目。
+        /// </summary>
+        private void AddEntry(UnityEngine.Object asset, string location)
+        {
+            _catalog.m_Entries.Add(new SaveAssetCatalog.Entry { m_Asset = asset, m_Location = location });
+        }
+
+        [Test]
+        public void TryGetLocation_Registered_ReturnsLocation()
+        {
+            Texture2D texture = CreateAsset<Texture2D>();
+            AddEntry(texture, "Assets/Textures/hero.png");
+
+            Assert.IsTrue(_catalog.TryGetLocation(texture, out string location));
+            Assert.AreEqual("Assets/Textures/hero.png", location);
+        }
+
+        [Test]
+        public void TryGetLocation_Unregistered_Misses()
+        {
+            Texture2D texture = CreateAsset<Texture2D>();
+            Assert.IsFalse(_catalog.TryGetLocation(texture, out string location));
+            Assert.IsNull(location);
+        }
+
+        [Test]
+        public void TryGetLocation_Null_Misses()
+        {
+            Assert.IsFalse(_catalog.TryGetLocation(null, out string location));
+            Assert.IsNull(location);
+        }
+
+        [Test]
+        public void TryResolve_Registered_ReturnsAsset()
+        {
+            Texture2D texture = CreateAsset<Texture2D>();
+            AddEntry(texture, "Assets/Textures/hero.png");
+
+            Assert.IsTrue(_catalog.TryResolve("Assets/Textures/hero.png", out Texture2D resolved));
+            Assert.AreSame(texture, resolved);
+        }
+
+        [Test]
+        public void TryResolve_TypeMismatch_Misses()
+        {
+            Texture2D texture = CreateAsset<Texture2D>();
+            AddEntry(texture, "Assets/Textures/hero.png");
+
+            Assert.IsFalse(_catalog.TryResolve("Assets/Textures/hero.png", out Material resolved), "登记类型与期望类型不符应按未命中处理");
+            Assert.IsNull(resolved);
+        }
+
+        [Test]
+        public void TryResolve_NullOrEmptyLocation_Misses()
+        {
+            Assert.IsFalse(_catalog.TryResolve<Texture2D>(null, out _));
+            Assert.IsFalse(_catalog.TryResolve<Texture2D>(string.Empty, out _));
+        }
+
+        [Test]
+        public void Lookup_DuplicateAsset_FirstWinsWithWarning()
+        {
+            ExpectWarningLogForUtf();
+            Texture2D texture = CreateAsset<Texture2D>();
+            AddEntry(texture, "first.png");
+            AddEntry(texture, "second.png");
+
+            Assert.IsTrue(_catalog.TryGetLocation(texture, out string location));
+            Assert.AreEqual("first.png", location, "重复资产首到先得");
+            AssertWarningLogged("duplicate asset entry");
+        }
+
+        [Test]
+        public void Lookup_DuplicateLocation_FirstWinsWithWarning()
+        {
+            ExpectWarningLogForUtf();
+            Texture2D first = CreateAsset<Texture2D>();
+            Texture2D second = CreateAsset<Texture2D>();
+            AddEntry(first, "same.png");
+            AddEntry(second, "same.png");
+
+            Assert.IsTrue(_catalog.TryResolve("same.png", out Texture2D resolved));
+            Assert.AreSame(first, resolved, "重复定位串首到先得");
+            AssertWarningLogged("duplicate location");
+        }
+
+        [Test]
+        public void Lookup_InvalidEntries_Skipped()
+        {
+            AddEntry(null, "no-asset.png");
+            AddEntry(CreateAsset<Texture2D>(), string.Empty);
+
+            Assert.AreEqual(2, _catalog.Count, "条目仍在清单中（仅查找跳过）");
+            Assert.IsFalse(_catalog.TryResolve<Texture2D>("no-asset.png", out _));
+        }
+
+        [Test]
+        public void OnValidate_InvalidatesLookupCache()
+        {
+            Texture2D texture = CreateAsset<Texture2D>();
+            AddEntry(texture, "cached.png");
+            Assert.IsTrue(_catalog.TryGetLocation(texture, out _));
+
+            _catalog.m_Entries.Clear();
+            AddEntry(texture, "rebuilt.png");
+            // 模拟编辑器修改资产触发的 OnValidate（私有方法，反射调用）
+            typeof(SaveAssetCatalog)
+                .GetMethod("OnValidate", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                ?.Invoke(_catalog, null);
+
+            Assert.IsTrue(_catalog.TryGetLocation(texture, out string location));
+            Assert.AreEqual("rebuilt.png", location, "OnValidate 后查找表应重建并反映最新条目");
+        }
+    }
+}
