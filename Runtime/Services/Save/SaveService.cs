@@ -2,22 +2,24 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
+using Moirai.Atropos.Debugger;
 
 namespace Moirai.Atropos.Save
 {
     /// <summary>
     /// 存档服务外观（Facade）。
     /// <para>统一的静态存档访问入口。存档文件为「单文件多数据块」容器：一个文件（存档槽）内含多个按键寻址的数据块，
-    /// 块级 API（<c>SaveBlockAsync</c>/<c>LoadBlockAsync</c>/…）为主体；旧单对象 API（<c>SaveAsync</c>/<c>LoadAsync</c>/…）保留签名并映射到保留块 <see cref="MainBlockKey"/>。</para>
+    /// 块级 API（<c>SaveBlockAsync</c>/<c>LoadBlockAsync</c>/…）为主体；旧单对象 API（<c>SaveAsync</c>/<c>LoadAsync</c>/…）保留签名并映射到保留块 <see cref="MAIN_BLOCK_KEY"/>。</para>
     /// <para>序列化后端（JSON/MessagePack/MemoryPack/protobuf-net）与存储管线（明文/AES 加密）两轴可插拔，经 <see cref="SaveServiceSettings"/> 配置。</para>
     /// <para>未显式设置处理器时，使用 <see cref="CreateDefaultHandler"/> 从 <see cref="SaveServiceSettings"/> 创建处理器实例。</para>
     /// <para>Handler 属性由 <c>HandlerHostGenerator</c> 源生成器自动生成（线程安全懒加载）。</para>
     /// </summary>
     [HandlerHost(typeof(SaveServiceHandler))]
+    [ServiceDependency(typeof(DebuggerService))]
     public partial class SaveService : ServiceBase
     {
         /// <summary>兼容保留块键：旧单对象 API 读写的逻辑数据块。</summary>
-        public const string MainBlockKey = SaveServiceHandler.MainBlockKey;
+        public const string MAIN_BLOCK_KEY = SaveServiceHandler.MAIN_BLOCK_KEY;
 
         #region 生命周期 [LIFECYCLE]
 
@@ -44,7 +46,7 @@ namespace Moirai.Atropos.Save
             // 确保 Handler 已初始化（加密处理器在此阶段注入密钥与派生参数）
             _ = Handler;
 
-            Debugger.DebuggerService.RegisterDebuggerWindow("Profiler/Save", new SaveServiceDebugView());
+            DebuggerService.RegisterDebuggerWindow("Profiler/Save", new SaveServiceDebuggerWindow());
         }
 
         /// <summary>
@@ -192,7 +194,7 @@ namespace Moirai.Atropos.Save
         #region 兼容读写 [LEGACY SAVE / LOAD]
 
         /// <summary>
-        /// 将存档对象异步写入磁盘（映射到保留块 <see cref="MainBlockKey"/> 的块写入），IO 在工作线程执行。
+        /// 将存档对象异步写入磁盘（映射到保留块 <see cref="MAIN_BLOCK_KEY"/> 的块写入），IO 在工作线程执行。
         /// <para>失败抛出 <see cref="GameException"/>（含路径上下文）；处理器未就绪时静默降级为空任务。</para>
         /// </summary>
         /// <typeparam name="T">存档数据类型。</typeparam>
@@ -202,10 +204,10 @@ namespace Moirai.Atropos.Save
         /// <param name="cancellationToken">取消令牌（协作式）。</param>
         /// <returns>写入完成的异步任务。</returns>
         public static UniTask SaveAsync<T>(T saveObject, string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default) =>
-            SaveBlockAsync(saveObject, fileName, MainBlockKey, folderName, cancellationToken);
+            SaveBlockAsync(saveObject, fileName, MAIN_BLOCK_KEY, folderName, cancellationToken);
 
         /// <summary>
-        /// 从磁盘异步加载存档（映射到保留块 <see cref="MainBlockKey"/> 的块读取），IO 在工作线程执行。
+        /// 从磁盘异步加载存档（映射到保留块 <see cref="MAIN_BLOCK_KEY"/> 的块读取），IO 在工作线程执行。
         /// <para>文件不存在或加载失败（损坏/解密失败/反序列化失败，均已记录错误日志）返回 <c>default</c>——需要错误判别时使用 <see cref="TryLoadAsync{T}"/>。</para>
         /// </summary>
         /// <typeparam name="T">存档数据类型。</typeparam>
@@ -214,7 +216,7 @@ namespace Moirai.Atropos.Save
         /// <param name="cancellationToken">取消令牌（协作式）。</param>
         /// <returns>反序列化后的存档对象；失败返回默认值。</returns>
         public static UniTask<T> LoadAsync<T>(string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default) =>
-            LoadBlockAsync<T>(fileName, MainBlockKey, folderName, cancellationToken);
+            LoadBlockAsync<T>(fileName, MAIN_BLOCK_KEY, folderName, cancellationToken);
 
         /// <summary>
         /// 从磁盘异步加载存档并返回完整错误判别结果，IO 在工作线程执行。
@@ -226,10 +228,10 @@ namespace Moirai.Atropos.Save
         /// <param name="cancellationToken">取消令牌（协作式）。</param>
         /// <returns>加载结果（区分无档/损坏/解密失败等错误类别）。</returns>
         public static UniTask<SaveResult<T>> TryLoadAsync<T>(string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default) =>
-            TryLoadBlockAsync<T>(fileName, MainBlockKey, folderName, cancellationToken);
+            TryLoadBlockAsync<T>(fileName, MAIN_BLOCK_KEY, folderName, cancellationToken);
 
         /// <summary>
-        /// 将存档对象写入磁盘（映射到保留块 <see cref="MainBlockKey"/> 的块写入；在调用线程执行完整管线，阻塞直至完成）。
+        /// 将存档对象写入磁盘（映射到保留块 <see cref="MAIN_BLOCK_KEY"/> 的块写入；在调用线程执行完整管线，阻塞直至完成）。
         /// <para>仅限主线程调用；适用于退出前落盘等必须同步完成的场景，大数据量请用 <see cref="SaveAsync{T}"/> 避免阻塞。</para>
         /// </summary>
         /// <typeparam name="T">存档数据类型。</typeparam>
@@ -237,10 +239,10 @@ namespace Moirai.Atropos.Save
         /// <param name="fileName">文件名（自动追加配置的扩展名）。</param>
         /// <param name="folderName">文件夹名称。</param>
         public static void Save<T>(T saveObject, string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME) =>
-            SaveBlock(saveObject, fileName, MainBlockKey, folderName);
+            SaveBlock(saveObject, fileName, MAIN_BLOCK_KEY, folderName);
 
         /// <summary>
-        /// 从磁盘加载存档（映射到保留块 <see cref="MainBlockKey"/> 的块读取；在调用线程执行，阻塞直至完成）。
+        /// 从磁盘加载存档（映射到保留块 <see cref="MAIN_BLOCK_KEY"/> 的块读取；在调用线程执行，阻塞直至完成）。
         /// <para>仅限主线程调用；文件不存在或加载失败（均已记录错误日志）返回 <c>default</c>，处理器未就绪时同样降级返回 <c>default</c>。</para>
         /// </summary>
         /// <typeparam name="T">存档数据类型。</typeparam>
@@ -248,7 +250,7 @@ namespace Moirai.Atropos.Save
         /// <param name="folderName">文件夹名称。</param>
         /// <returns>反序列化后的存档对象；失败返回默认值。</returns>
         public static T Load<T>(string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME) =>
-            LoadBlock<T>(fileName, MainBlockKey, folderName);
+            LoadBlock<T>(fileName, MAIN_BLOCK_KEY, folderName);
 
         /// <summary>
         /// 从磁盘加载存档并返回完整错误判别结果（在调用线程执行，阻塞直至完成）。
@@ -259,7 +261,7 @@ namespace Moirai.Atropos.Save
         /// <param name="folderName">文件夹名称。</param>
         /// <returns>加载结果（区分无档/损坏/解密失败等错误类别）。</returns>
         public static SaveResult<T> TryLoad<T>(string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME) =>
-            TryLoadBlock<T>(fileName, MainBlockKey, folderName);
+            TryLoadBlock<T>(fileName, MAIN_BLOCK_KEY, folderName);
 
         #endregion
 
@@ -421,7 +423,7 @@ namespace Moirai.Atropos.Save
         public static UniTask SaveMetadataAsync(SaveMetadata metadata, string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default) =>
             s_Handler is null
                 ? UniTask.CompletedTask
-                : s_Handler.SaveBlockAsync(metadata, fileName, SaveServiceHandler.MetaBlockKey, folderName, ESaveBackend.Json, 1, cancellationToken);
+                : s_Handler.SaveBlockAsync(metadata, fileName, SaveServiceHandler.META_BLOCK_KEY, folderName, ESaveBackend.Json, 1, cancellationToken);
 
         /// <summary>
         /// 从存档文件异步读取槽位元数据（保留块 <c>__meta</c>）。
@@ -432,7 +434,7 @@ namespace Moirai.Atropos.Save
         /// <param name="cancellationToken">取消令牌（协作式）。</param>
         /// <returns>元数据加载结果。</returns>
         public static UniTask<SaveResult<SaveMetadata>> TryLoadMetadataAsync(string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default) =>
-            s_Handler?.TryLoadBlockAsync<SaveMetadata>(fileName, SaveServiceHandler.MetaBlockKey, folderName, cancellationToken)
+            s_Handler?.TryLoadBlockAsync<SaveMetadata>(fileName, SaveServiceHandler.META_BLOCK_KEY, folderName, cancellationToken)
                 ?? UniTask.FromResult(SaveResult<SaveMetadata>.Failure(SaveError.HandlerNotReady));
 
         /// <summary>
@@ -448,7 +450,7 @@ namespace Moirai.Atropos.Save
                 return;
             }
 
-            s_Handler.SaveBlock(metadata, fileName, SaveServiceHandler.MetaBlockKey, folderName, ESaveBackend.Json, 1);
+            s_Handler.SaveBlock(metadata, fileName, SaveServiceHandler.META_BLOCK_KEY, folderName, ESaveBackend.Json, 1);
         }
 
         /// <summary>
@@ -458,7 +460,7 @@ namespace Moirai.Atropos.Save
         /// <param name="folderName">文件夹名称。</param>
         /// <returns>元数据加载结果。</returns>
         public static SaveResult<SaveMetadata> TryLoadMetadata(string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME) =>
-            s_Handler?.TryLoadBlock<SaveMetadata>(fileName, SaveServiceHandler.MetaBlockKey, folderName)
+            s_Handler?.TryLoadBlock<SaveMetadata>(fileName, SaveServiceHandler.META_BLOCK_KEY, folderName)
                 ?? SaveResult<SaveMetadata>.Failure(SaveError.HandlerNotReady);
 
         #endregion

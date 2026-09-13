@@ -200,8 +200,6 @@ com.moirai.framework/
 │   │   ├── Extensions/   # 扩展方法（R3 响应式、UGUI 等）
 │   │   ├── GameException/# 游戏异常系统
 │   │   ├── GameProfiler/ # 性能分析器
-│   │   ├── GameSettings/ # 框架设置与画面设置
-│   │   ├── GameTime/     # 游戏时间
 │   │   ├── MemoryPool/   # 内存池
 │   │   ├── Models/       # 数据模型
 │   │   ├── Obfuz/        # 代码混淆初始化
@@ -209,9 +207,9 @@ com.moirai.framework/
 │   │   ├── Schedulers/   # 零分配调度器（定时器/帧计数器）
 │   │   ├── Singleton/    # 单例系统（纯 C# / MonoBehaviour）
 │   │   ├── Tasks/        # 任务/序列系统
-│   │   └── Utility/      # 工具集（日志、加密、HTTP、反射、缓动等）
+│   │   └── Utilities/    # 工具集（日志、设置、时间、加密、HTTP、反射、缓动等）
 │   └── Services/         # 功能服务
-│       ├── @Core/        # 服务系统基座（Service / ServiceSystem / GameService）
+│       ├── Kernel/       # 服务系统基座（Contracts / GameApp / Interception / World）
 │       ├── Audio/        # 音频系统（分类/代理/淡入淡出）
 │       ├── ConfigTable/  # 配置表管理
 │       ├── Debugger/     # 运行时调试器
@@ -220,14 +218,14 @@ com.moirai.framework/
 │       ├── ObjectPool/   # 对象池服务
 │       ├── Procedure/    # 流程管理
 │       ├── Resource/     # YooAsset 资源管理
-│       ├── Save/         # 存档系统（JSON/二进制/加密）
+│       ├── Save/         # 存档系统（多块容器/多后端序列化/加密/迁移/云同步）
 │       ├── Scene/        # 场景管理
 │       ├── Timer/        # 计时器
-│       ├── UI/           # UI 框架（窗口/控件/层）
-│       └── UpdateDriver/ # 更新循环驱动
+│       └── UI/           # UI 框架（窗口/控件/层）
 ├── Editor/               # 编辑器工具集
 ├── Plugins/              # 第三方库
 ├── Samples~/             # 示例
+├── SourceGenerators/     # 预编译源生成器（HandlerHost / SaveHost / ServiceDependency）
 ├── Templates~/           # 项目初始模板
 ├── Documentation~/zh/    # 服务文档（每个服务一份 README）
 └── Tests/                # 单元测试
@@ -235,21 +233,24 @@ com.moirai.framework/
 
 ### 服务系统
 
-框架采用**服务化架构**，所有子系统均为普通 C# 类（非 MonoBehaviour），通过 `ServiceSystem` 统一注册管理。入口为 `GameService`（MonoBehaviour），提供所有服务的静态访问器。
+框架采用**服务化架构**，所有子系统均为继承 `ServiceBase` 的普通 C# 类（非 MonoBehaviour），由统一服务世界 `ServiceWorld` 管理注册、生命周期、轮询与作用域；入口 `GameApp` 驱动世界轮询（内建更新循环、引擎回调代理与协程托管）。
 
 ```csharp
-// 服务访问 — 懒加载，首次访问时自动创建
-var resource = GameService.Resource;
-var ui = GameService.UI;
-var audio = GameService.Audio;
-var timer = GameService.Timer;
+// 服务访问 — 各服务提供静态外观（HandlerHost 源生成），内部懒加载
+ResourceService.LoadAsset<Sprite>("Assets/AssetRaw/UI/icon.png");
+UIService.ShowUI<MainWindow>();
+TimerService.AddTimer(() => Debug.Log("1s"), 1f);
+
+// 动态服务查找
+var my = GameServices.GetRequiredService<MyService>();
 ```
 
 **服务生命周期：**
-- `OnInit()` — 服务初始化
-- `Shutdown()` — 服务销毁
-- 支持 `IUpdateService`、`IFixedUpdateService`、`ILateUpdateService` 接口注册到驱动循环
+- `OnInit()` — 服务初始化；`Shutdown()` — 服务销毁（支持 `IAsyncShutdownService` 异步关闭）
+- 依赖通过 `[ServiceDependency]` 特性声明，两阶段构建：`RegisterService` 仅入图，`InitializeAsync()` 按依赖图拓扑排序统一驱动 OnInit（缺失/循环依赖 fail-fast，初始化顺序与注册顺序无关）
+- 实现 `IServiceTickable`、`IServiceFixedTickable`、`IServiceLateTickable` 接口注册进轮询循环
 - 通过 `Priority` 属性控制轮询顺序（框架内置服务统一 ≤ -1000，业务服务默认 0 及以上），通过 `Scope`（App / Scene / Gameplay）控制生命周期范围，场景卸载时自动清理场景与玩法级服务
+- `ServiceWorld` 可 `new` 构造隔离世界（测试/沙盒），`GameServices` 静态外观仅是默认世界的投影
 
 > 📖 详细用法（自定义服务、作用域遮蔽、跨服务依赖）见 **[Core 服务系统文档](Documentation~/zh/Core.md)**
 
@@ -275,7 +276,7 @@ ProcedureLaunch → ProcedureSplash → ProcedureInitPackage → ProcedureInitRe
 
 | 服务 | 说明 | 服务文档 |
 |------|------|----------|
-| **Core** | 服务系统基座：服务注册/生命周期/作用域，`GameService` 静态访问器 | [Core.md](Documentation~/zh/Core.md) |
+| **Kernel** | 服务系统基座（@Service）：`ServiceWorld` 服务世界、`GameServices` 注册/查找/作用域、`[ServiceDependency]` 依赖拓扑初始化 | [Core.md](Documentation~/zh/Core.md) |
 | **Resource** | 基于 YooAsset 的资源管理：同步/异步加载、引用计数、加密、子精灵 | [Resource.md](Documentation~/zh/Resource.md) |
 | **UI** | 商业化 UI 框架：栈式窗口、五层层级、Widget 子控件、绑定代码生成 | [UI.md](Documentation~/zh/UI.md) |
 | **Audio** | 音频系统：分类管理、AudioAgent 代理播放、混音器、淡入淡出、句柄控制 | [Audio.md](Documentation~/zh/Audio.md) |
@@ -283,12 +284,11 @@ ProcedureLaunch → ProcedureSplash → ProcedureInitPackage → ProcedureInitRe
 | **ConfigTable** | Luban 配置表集成：表加载与懒加载访问、转表工具链 | [ConfigTable.md](Documentation~/zh/ConfigTable.md) |
 | **Procedure** | 游戏流程管理：启动链、可配置流程、自包含状态机 | [Procedure.md](Documentation~/zh/Procedure.md) |
 | **Input** | 多平台输入抽象：Input System / 旧版输入 / 移动端 UI 触控、按键提示 | [Input.md](Documentation~/zh/Input.md) |
-| **Save** | 可插拔存档系统：JSON / 二进制 / 加密 Handler、原子写入 | [Save.md](Documentation~/zh/Save.md) |
+| **Save** | 可插拔存档系统：单文件多数据块容器、JSON/MessagePack/MemoryPack/Protobuf 四后端序列化、AES 加密与 GZip 压缩、文件级版本迁移总线、无代码组件保存（SourceGenerator）、云同步 | [Save.md](Documentation~/zh/Save.md) |
 | **Scene** | 场景管理：基于 YooAsset SceneHandle 的异步加载/激活/卸载 | [Scene.md](Documentation~/zh/Scene.md) |
 | **Timer** | 四级时间轮计时器：版本化句柄、预热、统计信息 | [Timer.md](Documentation~/zh/Timer.md) |
 | **ObjectPool** | 服务级对象池：单次/多次 Spawn 池、GameObject 池 | [ObjectPool.md](Documentation~/zh/ObjectPool.md) |
 | **Debugger** | 运行时调试器：可注册调试窗口、日志回放 | [Debugger.md](Documentation~/zh/Debugger.md) |
-| **UpdateDriver** | 更新循环驱动：三类帧更新注入、协程托管、Unity 事件注入 | [UpdateDriver.md](Documentation~/zh/UpdateDriver.md) |
 
 ---
 
@@ -374,13 +374,15 @@ handle.Cancel();
 ### GameLog — 日志系统
 
 ```csharp
-Log.Info("玩家登录: {0}", playerName);
-Log.Warning("资源加载失败: {0}", path);
-Log.Error("严重错误!");
+LogUtility.Info("玩家登录: {0}", playerName);
+LogUtility.Warning("资源加载失败: {0}", path);
+LogUtility.Error("严重错误!");
 ```
 
-- 条件编译：`LOG_DEBUG_ENABLE`、`LOG_ALL`、`LOG_INFO_ENABLE` 等
-- 可插拔 `ILogHelper` 实现自定义日志输出
+- 运行时级别过滤：`LogHandler.MinimumLevel`（`ELogLevel`：Verbose / Debug / Info / Warning / Error / Exception）
+- 可插拔输出后端：Default / Serilog / ZLogger / UnityLogging（com.unity.logging）
+- T4 模板生成格式化重载（`LogUtility.LogMethods.tt`），支持结构化上下文与消息事件回调
+- 拦截 Unity 原生 `Debug.Log` 统一走框架日志管线
 
 ### GameTime — 游戏时间
 
@@ -407,8 +409,7 @@ GameProfiler.EndSample();
 
 ### GameSettings — 游戏设置
 
-画面设置管理：分辨率、全屏、VSync、窗口模式等。
-同时包含框架设置（`FrameworkSettings`）和更新设置（`UpdateSettings`）。
+框架与游戏设置（`Core/Utilities/GameSetting`）：框架设置（`FrameworkSettings`）、画面设置（Graphics：分辨率、全屏、VSync、窗口模式等）与更新设置（`UpdateSettings`），编辑器菜单 `Tools/Framework Settings`。
 
 ### GameException — 异常系统
 
@@ -482,7 +483,7 @@ hp.BindTo(hpSlider);  // Slider 自动同步
 | `CommandLineUtility` | 命令行解析 |
 | `ConverterUtility` | 类型转换 |
 | `CoroutineUtility` | 协程工具 |
-| `DebugDrawHelper` | 调试绘制 |
+| `DebugDrawUtility` | 调试绘制 |
 | `DiagnosticsUtility` | 诊断工具 |
 | `EncryptionUtility` | 加密工具 |
 | `FileUtility` | 文件操作 |
@@ -501,7 +502,7 @@ hp.BindTo(hpSlider);  // Slider 自动同步
 | `TimeUtility` | 时间工具 |
 | `ToolRegistry` | 组件注册表 |
 | `TweenUtility` | 缓动系统（含贝塞尔路径），可插拔引擎，[文档](Documentation~/zh/TweenUtility.md) |
-| `UniTaskUtils` | UniTask 工具 |
+| `UniParallel` | UniTask 并行任务收集器（等待全部完成） |
 | `UnityUtility` | Unity 通用工具 |
 | `XmlUtility` | XML 工具 |
 | `ZipWrapper` | 压缩解压封装 |
@@ -512,27 +513,27 @@ hp.BindTo(hpSlider);  // Slider 自动同步
 
 | 工具 | 用途 |
 |------|------|
-| Atlas Maker | Sprite Atlas 创建 |
+| Atlas Maker | 图集创建、引用分析、变动自动重生成、配置面板（`Tools/图集工具`） |
+| Benchmark | JSON 序列化性能基准（`Window/Moirai/JSON Benchmark`） |
 | Custom Attributes | ~20 个自定义属性绘制器 + Odin 扩展 |
-| Define Symbols | Debug/Log/Profiler/Obfuz 宏定义管理 |
-| Design Tool | 综合概率计算器 |
+| Define Symbols | Debug/Log/Profiler/HybridCLR/Obfuz 宏定义管理 |
 | Editor Design | 编辑器图标资源、GUIStyle 查看器 |
-| Event Debugger | 可视化事件派发调试窗口 |
-| Game Settings | 音频组、流程设置、更新设置编辑器 |
+| Event Debugger | 可视化事件派发调试窗口（`Window/Event Debugger`） |
+| Game Settings | 音频组、流程设置、更新设置编辑器（`Tools/Framework Settings`） |
 | HybridCLR | 热更新 DLL 构建命令 |
 | Inspector | Asset/Core 组件自定义 Inspector |
 | Luban Tools | Luban 配置表生成（`Tools/Settings/ConfigTableSettings`） |
-| Maintenance | 清理空文件夹、查找丢失脚本、分组选择、锁定 Inspector |
-| Service System | 服务系统可视化窗口（`Tools/Moirai/Service System`） |
-| Reference Finder | 资源依赖/引用树视图 |
-| Release Tools | 构建流水线窗口、构建配置 |
-| Scheduler Debugger | 可视化调度器/计时器调试器 |
+| Maintenance | 清理空文件夹、查找丢失脚本、预制体查找器、分组选择、锁定 Inspector |
+| Reference Finder | 资源依赖/引用树视图（`Tools/资产相关/查找资产引用`） |
+| Release Tools | 构建流水线窗口、一键打包 Android/iOS/Window/AssetBundle（`Tools/Build`） |
+| Scheduler Debugger | 可视化调度器/计时器调试器（`Window/Scheduler Debugger`） |
 | Tasks Editor | 任务运行器编辑器 |
 | Tween | 缓动属性绘制器 |
 | UI Service | UI 绑定代码自动生成（`GameObject/ScriptGenerator/生成绑定代码`）、组件 Inspector |
 | Input Service | 输入动作配置编辑器、按键图标集合编辑器 |
+| Save Service | 存档浏览器（`Window/Moirai/Save Browser`）、无代码保存组件编辑器 |
 | Utility | 命令行读取、日志重定向、EditorScriptableSingleton、Shell 调用等 |
-| YooAsset | 构建缓存清理、内置目录、自定义构建管线、Shader 变体收集 |
+| YooAsset | 构建缓存清理、内置目录/补丁包工具、自定义构建管线、Shader 变体收集 |
 
 ---
 

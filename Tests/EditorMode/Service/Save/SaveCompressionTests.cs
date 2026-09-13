@@ -185,7 +185,7 @@ namespace Save
             var paths = Paths("slot");
             var data = new SaveData { Gold = 1234, PlayerName = new string('M', 512) };
 
-            _handler.SaveBlockCore(paths, SaveServiceHandler.MainBlockKey, data, ESaveBackend.Json, 1, CancellationToken.None);
+            _handler.SaveBlockCore(paths, SaveServiceHandler.MAIN_BLOCK_KEY, data, ESaveBackend.Json, 1, CancellationToken.None);
 
             byte[] fileBytes = File.ReadAllBytes(paths.SaveFilePath);
             SaveError headerError = SaveFileHeader.Read(fileBytes, out SaveFileHeader header);
@@ -193,7 +193,7 @@ namespace Save
             Assert.AreEqual(SaveFileHeader.FlagCompressed, header.Flags & SaveFileHeader.FlagCompressed, "压缩档应置压缩标志位");
             Assert.AreEqual(GZipCompressionProvider.PROVIDER_ID, header.CompressionProviderId, "文件头应记录压缩提供方 ID");
 
-            SaveError error = _handler.TryLoadBlockCore<SaveData>(paths, SaveServiceHandler.MainBlockKey, out SaveData loaded);
+            SaveError error = _handler.TryLoadBlockCore<SaveData>(paths, SaveServiceHandler.MAIN_BLOCK_KEY, out SaveData loaded);
             Assert.AreEqual(SaveError.None, error);
             Assert.AreEqual(1234, loaded.Gold);
             Assert.AreEqual(new string('M', 512), loaded.PlayerName);
@@ -206,9 +206,9 @@ namespace Save
             var plainPaths = Paths("plain");
             var compressedPaths = Paths("compressed");
 
-            _handler.SaveBlockCore(plainPaths, SaveServiceHandler.MainBlockKey, data, ESaveBackend.Json, 1, CancellationToken.None);
+            _handler.SaveBlockCore(plainPaths, SaveServiceHandler.MAIN_BLOCK_KEY, data, ESaveBackend.Json, 1, CancellationToken.None);
             _handler._compression = GZipCompressionProvider.Shared;
-            _handler.SaveBlockCore(compressedPaths, SaveServiceHandler.MainBlockKey, data, ESaveBackend.Json, 1, CancellationToken.None);
+            _handler.SaveBlockCore(compressedPaths, SaveServiceHandler.MAIN_BLOCK_KEY, data, ESaveBackend.Json, 1, CancellationToken.None);
 
             long plainSize = new FileInfo(plainPaths.SaveFilePath).Length;
             long compressedSize = new FileInfo(compressedPaths.SaveFilePath).Length;
@@ -220,7 +220,7 @@ namespace Save
         {
             // 无压缩位旧档（P2 之前写出）在开启压缩的运行时下必须原样透传读取——魔数/flags sniff 幂等
             var paths = Paths("legacy");
-            _handler.SaveBlockCore(paths, SaveServiceHandler.MainBlockKey, new SaveData { Gold = 42, PlayerName = "plain" }, ESaveBackend.Json, 1, CancellationToken.None);
+            _handler.SaveBlockCore(paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 42, PlayerName = "plain" }, ESaveBackend.Json, 1, CancellationToken.None);
 
             byte[] fileBytes = File.ReadAllBytes(paths.SaveFilePath);
             SaveFileHeader.Read(fileBytes, out SaveFileHeader header);
@@ -228,7 +228,7 @@ namespace Save
             Assert.AreEqual(0u, header.CompressionProviderId);
 
             _handler._compression = GZipCompressionProvider.Shared;
-            SaveError error = _handler.TryLoadBlockCore<SaveData>(paths, SaveServiceHandler.MainBlockKey, out SaveData loaded);
+            SaveError error = _handler.TryLoadBlockCore<SaveData>(paths, SaveServiceHandler.MAIN_BLOCK_KEY, out SaveData loaded);
             Assert.AreEqual(SaveError.None, error, "未压缩旧档在开启压缩后必须可读");
             Assert.AreEqual(42, loaded.Gold);
         }
@@ -242,14 +242,14 @@ namespace Save
             var paths = Paths("combo");
             var data = new SaveData { Gold = 7, PlayerName = new string('E', 256) };
 
-            handler.SaveBlockCore(paths, SaveServiceHandler.MainBlockKey, data, ESaveBackend.Json, 1, CancellationToken.None);
+            handler.SaveBlockCore(paths, SaveServiceHandler.MAIN_BLOCK_KEY, data, ESaveBackend.Json, 1, CancellationToken.None);
 
             byte[] fileBytes = File.ReadAllBytes(paths.SaveFilePath);
             SaveFileHeader.Read(fileBytes, out SaveFileHeader header);
             Assert.AreEqual(SaveFileHeader.FlagCompressed, header.Flags & SaveFileHeader.FlagCompressed);
 
             var reader = new AesEncryptedSaveHandler { Key = "compress-then-encrypt" };
-            SaveError error = reader.TryLoadBlockCore<SaveData>(paths, SaveServiceHandler.MainBlockKey, out SaveData loaded);
+            SaveError error = reader.TryLoadBlockCore<SaveData>(paths, SaveServiceHandler.MAIN_BLOCK_KEY, out SaveData loaded);
             Assert.AreEqual(SaveError.None, error);
             Assert.AreEqual(7, loaded.Gold);
             Assert.AreEqual(new string('E', 256), loaded.PlayerName);
@@ -277,13 +277,13 @@ namespace Save
         {
             _handler._compression = GZipCompressionProvider.Shared;
             var paths = Paths("slot");
-            _handler.SaveBlockCore(paths, SaveServiceHandler.MainBlockKey, new SaveData { Gold = 1, PlayerName = "x" }, ESaveBackend.Json, 1, CancellationToken.None);
+            _handler.SaveBlockCore(paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 1, PlayerName = "x" }, ESaveBackend.Json, 1, CancellationToken.None);
 
             // 模拟未来运行时写出的未知压缩提供方
             PatchCompressionProviderId(paths.SaveFilePath, 200);
 
             ExpectErrorLogForUtf();
-            SaveError error = _handler.TryLoadBlockCore<SaveData>(paths, SaveServiceHandler.MainBlockKey, out SaveData loaded);
+            SaveError error = _handler.TryLoadBlockCore<SaveData>(paths, SaveServiceHandler.MAIN_BLOCK_KEY, out SaveData loaded);
             AssertErrorLogged("UnsupportedVersion");
             Assert.AreEqual(SaveError.UnsupportedVersion, error, "未知压缩提供方 ID 应拒载（未来格式保护）");
             Assert.IsNull(loaded);
@@ -294,12 +294,12 @@ namespace Save
         {
             _handler._compression = GZipCompressionProvider.Shared;
             var paths = Paths("slot");
-            _handler.SaveBlockCore(paths, SaveServiceHandler.MainBlockKey, new SaveData { Gold = 1, PlayerName = "x" }, ESaveBackend.Json, 1, CancellationToken.None);
+            _handler.SaveBlockCore(paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 1, PlayerName = "x" }, ESaveBackend.Json, 1, CancellationToken.None);
 
             PatchCompressionProviderId(paths.SaveFilePath, 0);
 
             ExpectErrorLogForUtf();
-            SaveError error = _handler.TryLoadBlockCore<SaveData>(paths, SaveServiceHandler.MainBlockKey, out _);
+            SaveError error = _handler.TryLoadBlockCore<SaveData>(paths, SaveServiceHandler.MAIN_BLOCK_KEY, out _);
             AssertErrorLogged("Corrupted");
             Assert.AreEqual(SaveError.Corrupted, error, "标志位置位但 ID 为零 = 头字段不一致，应判别为损坏");
         }
@@ -308,12 +308,12 @@ namespace Save
         public void TryLoad_IdSetButFlagClear_ReturnsCorrupted()
         {
             var paths = Paths("slot");
-            _handler.SaveBlockCore(paths, SaveServiceHandler.MainBlockKey, new SaveData { Gold = 1, PlayerName = "x" }, ESaveBackend.Json, 1, CancellationToken.None);
+            _handler.SaveBlockCore(paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 1, PlayerName = "x" }, ESaveBackend.Json, 1, CancellationToken.None);
 
             PatchCompressionProviderId(paths.SaveFilePath, 1);
 
             ExpectErrorLogForUtf();
-            SaveError error = _handler.TryLoadBlockCore<SaveData>(paths, SaveServiceHandler.MainBlockKey, out _);
+            SaveError error = _handler.TryLoadBlockCore<SaveData>(paths, SaveServiceHandler.MAIN_BLOCK_KEY, out _);
             AssertErrorLogged("Corrupted");
             Assert.AreEqual(SaveError.Corrupted, error, "ID 非零但标志位未置位 = 头字段不一致，应判别为损坏");
         }
@@ -323,7 +323,7 @@ namespace Save
         {
             _handler._compression = GZipCompressionProvider.Shared;
             var paths = Paths("slot");
-            _handler.SaveBlockCore(paths, SaveServiceHandler.MainBlockKey, new SaveData { Gold = 1, PlayerName = "x" }, ESaveBackend.Json, 1, CancellationToken.None);
+            _handler.SaveBlockCore(paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 1, PlayerName = "x" }, ESaveBackend.Json, 1, CancellationToken.None);
 
             // 破坏压缩载荷首字节（GZip 魔数）并同步重算 CRC——CRC 自洽但解压失败
             byte[] fileBytes = File.ReadAllBytes(paths.SaveFilePath);
@@ -336,7 +336,7 @@ namespace Save
             File.WriteAllBytes(paths.SaveFilePath, fileBytes);
 
             ExpectErrorLogForUtf();
-            SaveError error = _handler.TryLoadBlockCore<SaveData>(paths, SaveServiceHandler.MainBlockKey, out _);
+            SaveError error = _handler.TryLoadBlockCore<SaveData>(paths, SaveServiceHandler.MAIN_BLOCK_KEY, out _);
             AssertErrorLogged("Corrupted");
             Assert.AreEqual(SaveError.Corrupted, error, "CRC 自洽的压缩流破坏应在解压环节归一为损坏");
         }

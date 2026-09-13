@@ -11,7 +11,7 @@ namespace Moirai.Atropos.Save
     /// <para>管线状态（处理器/存储后端/压缩/默认后端/截图开关）、槽位清单与选中槽位详情（块表、元数据、坏块可视化）。</para>
     /// <para>布局纪律：文件夹/槽位选择控件区常驻（不随轮询重建，避免吞点击）；数据区按 1s 节流重建。</para>
     /// </summary>
-    public sealed class SaveServiceDebugView : ScrollableDebuggerWindowBase
+    public sealed class SaveServiceDebuggerWindow : ScrollableDebuggerWindowBase
     {
         #region 常量 [CONSTANTS]
 

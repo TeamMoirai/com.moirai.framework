@@ -83,7 +83,7 @@ namespace Moirai.Atropos.Save
         /// <returns>镜像完成的异步任务。</returns>
         private static async UniTask MirrorScreenshotMetadataAsync(string fileName, string folderName, string screenshotFileName, CancellationToken cancellationToken)
         {
-            SaveResult<SaveMetadata> loadResult = await s_Handler.TryLoadBlockAsync<SaveMetadata>(fileName, SaveServiceHandler.MetaBlockKey, folderName, cancellationToken);
+            SaveResult<SaveMetadata> loadResult = await s_Handler.TryLoadBlockAsync<SaveMetadata>(fileName, SaveServiceHandler.META_BLOCK_KEY, folderName, cancellationToken);
             string sceneName = SceneManager.GetActiveScene().name;
             SaveMetadata metadata = MergeScreenshotMetadata(loadResult, screenshotFileName, sceneName, out bool shouldWrite);
             if (!shouldWrite)
@@ -93,7 +93,7 @@ namespace Moirai.Atropos.Save
 
             try
             {
-                await s_Handler.SaveBlockAsync(metadata, fileName, SaveServiceHandler.MetaBlockKey, folderName, ESaveBackend.Json, 1, cancellationToken);
+                await s_Handler.SaveBlockAsync(metadata, fileName, SaveServiceHandler.META_BLOCK_KEY, folderName, ESaveBackend.Json, 1, cancellationToken);
             }
             catch (OperationCanceledException)
             {
@@ -144,7 +144,7 @@ namespace Moirai.Atropos.Save
         /// <returns>联动完成的异步任务。</returns>
         private static async UniTask CaptureScreenshotOnSaveIfEnabledAsync(string fileName, string folderName, string key)
         {
-            if (key != null && key.StartsWith(SaveServiceHandler.ReservedBlockKeyPrefix, StringComparison.Ordinal))
+            if (key != null && key.StartsWith(SaveServiceHandler.RESERVED_BLOCK_KEY_PREFIX, StringComparison.Ordinal))
             {
                 return;
             }

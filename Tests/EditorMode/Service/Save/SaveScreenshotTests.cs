@@ -276,7 +276,7 @@ namespace Save
         public void WriteScreenshot_PersistsSidecarBytes()
         {
             SaveServiceHandler.SavePaths paths = SaveServiceHandler.ResolveSavePaths("slot7", TestFolder);
-            _handler.SaveBlock(new SaveData { Gold = 1 }, "slot7", SaveServiceHandler.MainBlockKey, TestFolder, ESaveBackend.Json, 1);
+            _handler.SaveBlock(new SaveData { Gold = 1 }, "slot7", SaveServiceHandler.MAIN_BLOCK_KEY, TestFolder, ESaveBackend.Json, 1);
 
             byte[] png = SaveScreenshotUtility.EncodeThumbnailPng(BuildGradientPixels(4, 4), 4, 4, 4, out _, out _);
             _handler.WriteScreenshot(paths, png);
@@ -291,7 +291,7 @@ namespace Save
         public void DeleteSave_CascadesScreenshotSidecar()
         {
             SaveServiceHandler.SavePaths paths = SaveServiceHandler.ResolveSavePaths("slot8", TestFolder);
-            _handler.SaveBlock(new SaveData { Gold = 1 }, "slot8", SaveServiceHandler.MainBlockKey, TestFolder, ESaveBackend.Json, 1);
+            _handler.SaveBlock(new SaveData { Gold = 1 }, "slot8", SaveServiceHandler.MAIN_BLOCK_KEY, TestFolder, ESaveBackend.Json, 1);
             _handler.WriteScreenshot(paths, SaveScreenshotUtility.EncodeThumbnailPng(BuildGradientPixels(2, 2), 2, 2, 2, out _, out _));
 
             string screenshotPath = SaveServiceHandler.ResolveScreenshotPath(paths);
@@ -349,16 +349,16 @@ namespace Save
         [Test]
         public void MetadataMirror_RoundTripsThroughContainer()
         {
-            _handler.SaveBlock(new SaveData { Gold = 42 }, "slot9", SaveServiceHandler.MainBlockKey, TestFolder, ESaveBackend.Json, 1);
+            _handler.SaveBlock(new SaveData { Gold = 42 }, "slot9", SaveServiceHandler.MAIN_BLOCK_KEY, TestFolder, ESaveBackend.Json, 1);
 
-            SaveResult<SaveMetadata> loadResult = _handler.TryLoadBlock<SaveMetadata>("slot9", SaveServiceHandler.MetaBlockKey, TestFolder);
+            SaveResult<SaveMetadata> loadResult = _handler.TryLoadBlock<SaveMetadata>("slot9", SaveServiceHandler.META_BLOCK_KEY, TestFolder);
             Assert.AreEqual(SaveError.FileNotFound, loadResult.Error);
 
             SaveMetadata metadata = SaveService.MergeScreenshotMetadata(loadResult, "slot9.screenshot.png", "Level_09", out bool shouldWrite);
             Assert.IsTrue(shouldWrite);
-            _handler.SaveBlock(metadata, "slot9", SaveServiceHandler.MetaBlockKey, TestFolder, ESaveBackend.Json, 1);
+            _handler.SaveBlock(metadata, "slot9", SaveServiceHandler.META_BLOCK_KEY, TestFolder, ESaveBackend.Json, 1);
 
-            SaveResult<SaveMetadata> reloaded = _handler.TryLoadBlock<SaveMetadata>("slot9", SaveServiceHandler.MetaBlockKey, TestFolder);
+            SaveResult<SaveMetadata> reloaded = _handler.TryLoadBlock<SaveMetadata>("slot9", SaveServiceHandler.META_BLOCK_KEY, TestFolder);
             Assert.IsTrue(reloaded.IsSuccess);
             Assert.AreEqual("slot9.screenshot.png", reloaded.Data.ThumbnailFileName);
             Assert.AreEqual("Level_09", reloaded.Data.SceneName);
