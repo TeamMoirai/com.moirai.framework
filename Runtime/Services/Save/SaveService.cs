@@ -40,6 +40,8 @@ namespace Moirai.Atropos.Save
         {
             // 确保 Handler 已初始化（加密处理器在此阶段注入密钥与派生参数）
             _ = Handler;
+
+            Debugger.DebuggerService.RegisterDebuggerWindow("Profiler/Save", new SaveServiceDebugView());
         }
 
         /// <summary>
