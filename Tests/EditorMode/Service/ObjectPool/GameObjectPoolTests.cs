@@ -833,7 +833,9 @@ namespace Service.GameObjectPool
         {
             RuntimeGameObjectPool pool = CreatePool(hardCapacity: 32);
             pool.LoadPrefab();
-            pool.WarmupAsync(8, CancellationToken.None).GetAwaiter().GetResult();
+            // 预热量须低于 WarmupAsync 单帧批量阈值（WARMUP_CREATE_BATCH = 8），
+            // 否则触发帧 yield，EditMode 下同步 GetResult 抛 "Not yet completed"。
+            pool.WarmupAsync(4, CancellationToken.None).GetAwaiter().GetResult();
 
             // 预热 JIT / 池扩容
             for (int i = 0; i < 32; i++)

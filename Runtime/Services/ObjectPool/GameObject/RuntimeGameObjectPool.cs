@@ -627,6 +627,9 @@ namespace Moirai.Atropos.ObjectPool
             if (slotIndex < 0)
             {
                 _missCount++;
+                // 扩容前惰性清扫外部销毁的僵尸槽位（含 Active）——Sticky 池可能长期不排维护，
+                // 清扫腾出的容量供本次分配复用，避免僵尸把池撑大。
+                SweepDestroyedInstances();
                 slotIndex = CreateTrackedInstance();
                 if (slotIndex < 0)
                 {
