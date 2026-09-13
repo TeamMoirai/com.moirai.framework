@@ -42,11 +42,15 @@ namespace Moirai.Atropos.Editor.Save
             /// <summary>字段类型显示名。</summary>
             public readonly string TypeName;
 
-            public SaveFieldMeta(string key, string displayName, string typeName)
+            /// <summary>引用类别标注（<c>null</c> = 非引用字段；"场景引用"/"资产引用"）。</summary>
+            public readonly string ReferenceHint;
+
+            public SaveFieldMeta(string key, string displayName, string typeName, string referenceHint = null)
             {
                 Key = key;
                 DisplayName = displayName;
                 TypeName = typeName;
+                ReferenceHint = referenceHint;
             }
         }
 
@@ -103,9 +107,26 @@ namespace Moirai.Atropos.Editor.Save
                 return;
             }
 
-            if (!SaveCapturerRegistry.TryGet(binding.Target.GetType(), out _))
+            bool hasCapturer = SaveCapturerRegistry.TryGet(binding.Target.GetType(), out ISaveComponentCapturer registeredCapturer);
+            EditorGUILayout.LabelField("模式版本 [SchemaVersion]", ResolveSchemaVersion(binding.Target.GetType(), registeredCapturer).ToString());
+            if (!hasCapturer)
             {
                 EditorGUILayout.HelpBox("该组件类型尚未注册捕获器——确认字段标注与编译状态", MessageType.Warning);
+            }
+
+            bool hasReferenceField = false;
+            foreach (SaveFieldMeta meta in metas)
+            {
+                if (meta.ReferenceHint != null)
+                {
+                    hasReferenceField = true;
+                    break;
+                }
+            }
+
+            if (hasReferenceField)
+            {
+                EditorGUILayout.HelpBox("含引用字段：场景对象引用需目标挂 SaveObjectIdentity（编辑器期烘焙稳定 ID）；资产引用需在 SaveAssetCatalog 登记，否则捕获写 Null。", MessageType.Info);
             }
 
             EditorGUI.indentLevel++;
@@ -113,7 +134,10 @@ namespace Moirai.Atropos.Editor.Save
             foreach (SaveFieldMeta meta in metas)
             {
                 bool checkedState = enabledSet.Contains(meta.Key);
-                bool newChecked = EditorGUILayout.Toggle($"{meta.DisplayName}  ({meta.TypeName})", checkedState);
+                string label = meta.ReferenceHint == null
+                    ? $"{meta.DisplayName}  ({meta.TypeName})"
+                    : $"{meta.DisplayName}  ({meta.TypeName}·{meta.ReferenceHint})";
+                bool newChecked = EditorGUILayout.Toggle(label, checkedState);
                 if (newChecked != checkedState)
                 {
                     if (newChecked)
@@ -162,7 +186,7 @@ namespace Moirai.Atropos.Editor.Save
 
                 string key = attribute.Key ?? fieldInfo.Name;
                 string displayName = attribute.Key == null ? fieldInfo.Name : $"{fieldInfo.Name} → {attribute.Key}";
-                list.Add(new SaveFieldMeta(key, displayName, fieldInfo.FieldType.Name));
+                list.Add(new SaveFieldMeta(key, displayName, fieldInfo.FieldType.Name, ResolveReferenceHint(fieldInfo.FieldType)));
             }
 
             // 引擎组件无 [SaveField] 标注——回退到内置捕获器的字段清单
@@ -177,6 +201,38 @@ namespace Moirai.Atropos.Editor.Save
             metas = list.ToArray();
             s_FieldMetaCache[componentType] = metas;
             return metas;
+        }
+
+        /// <summary>
+        /// 解析引用类别标注（UnityEngine.Object 派生字段：GameObject/Component 为场景引用，其余为资产引用；非引用返回 <c>null</c>）。
+        /// </summary>
+        /// <param name="fieldType">字段类型。</param>
+        /// <returns>引用类别标注或 <c>null</c>。</returns>
+        private static string ResolveReferenceHint(Type fieldType)
+        {
+            if (!typeof(UnityEngine.Object).IsAssignableFrom(fieldType))
+            {
+                return null;
+            }
+
+            return fieldType == typeof(GameObject) || typeof(Component).IsAssignableFrom(fieldType) ? "场景引用" : "资产引用";
+        }
+
+        /// <summary>
+        /// 解析组件模式版本（已注册捕获器以 SG 发射值为准；否则读 <see cref="SaveComponentSchemaAttribute"/> 声明；缺省 1）。
+        /// </summary>
+        /// <param name="componentType">组件类型。</param>
+        /// <param name="capturer">已注册捕获器（未注册为 <c>null</c>）。</param>
+        /// <returns>模式版本。</returns>
+        private static int ResolveSchemaVersion(Type componentType, ISaveComponentCapturer capturer)
+        {
+            if (capturer != null)
+            {
+                return capturer.SchemaVersion;
+            }
+
+            var attribute = componentType.GetCustomAttribute<SaveComponentSchemaAttribute>(false);
+            return attribute != null && attribute.Version >= 1 ? attribute.Version : 1;
         }
     }
 }

@@ -901,6 +901,55 @@ namespace Moirai.Atropos.Save
         }
 
         /// <summary>
+        /// 读取存档文件内全部块载荷（键 → 字节；在调用线程执行，阻塞直至完成；持串行门，与写路径互斥）。
+        /// <para>语义与 <see cref="ReadRawBlocksAsync"/> 一致（含迁移总线前置与坏块失败事件）；编辑器工具与同步场景使用。</para>
+        /// </summary>
+        /// <param name="paths">已解析的路径集合。</param>
+        /// <returns>键 → 块载荷字典；缺档/损坏（已记录日志）返回空字典。</returns>
+        internal Dictionary<string, byte[]> ReadRawBlocks(SavePaths paths)
+        {
+            SemaphoreSlim gate = SaveFileGate.Enter(paths.SaveFilePath);
+            gate.Wait();
+            try
+            {
+                // 组件恢复只取健康块——坏块对应组件保持现状（部分恢复），坏块明细记告警日志并逐块触发失败事件
+                SaveError readError = ReadContainerOrEmpty(paths, out List<SaveBlockEntry> blocks, out List<SaveBlockError> blockErrors);
+                if (readError != SaveError.None)
+                {
+                    return new Dictionary<string, byte[]>();
+                }
+
+                // 迁移总线前置（组件块同样参与文件级版本链——迁移器可改名组件块键/重写 KVT 记录）
+                SaveError migrationError = MigrateBlocksIfNeeded(paths, ref blocks, blockErrors, forceWriteBack: false, CancellationToken.None);
+                if (migrationError != SaveError.None)
+                {
+                    SaveService.RaiseLoadFailed(paths.FileName, paths.FolderName, null, ESaveFailureStage.Migrate, migrationError);
+                    return new Dictionary<string, byte[]>();
+                }
+
+                if (blockErrors != null)
+                {
+                    for (int i = 0; i < blockErrors.Count; i++)
+                    {
+                        SaveService.RaiseLoadFailed(paths.FileName, paths.FolderName, blockErrors[i].Key, ESaveFailureStage.ContainerParse, blockErrors[i].Error);
+                    }
+                }
+
+                var result = new Dictionary<string, byte[]>(blocks.Count);
+                for (int i = 0; i < blocks.Count; i++)
+                {
+                    result[blocks[i].Key] = blocks[i].Bytes;
+                }
+
+                return result;
+            }
+            finally
+            {
+                SaveFileGate.Leave(paths.SaveFilePath, gate, true);
+            }
+        }
+
+        /// <summary>
         /// 持串行门执行组件块读取。
         /// </summary>
         private async UniTask<Dictionary<string, byte[]>> ReadRawBlocksWithGateAsync(SavePaths paths, SemaphoreSlim gate, CancellationToken cancellationToken)

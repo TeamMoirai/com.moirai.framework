@@ -820,6 +820,49 @@ namespace Service.Save
 
         #endregion
 
+        #region 原始块读取 [RAW BLOCK READ]
+
+        [Test]
+        public void ReadRawBlocks_RoundTrip_ReturnsAllHealthyBlocks()
+        {
+            var paths = Paths("slot");
+            _handler.SaveBlockCore(paths, SaveServiceHandler.MainBlockKey, new SaveData { Gold = 7, PlayerName = "main" }, ESaveBackend.Json, 1, CancellationToken.None);
+            _handler.SaveBlockCore(paths, "stats", new SaveData { Gold = 99, PlayerName = "stats" }, ESaveBackend.Json, 1, CancellationToken.None);
+
+            Dictionary<string, byte[]> blocks = _handler.ReadRawBlocks(paths);
+            Assert.AreEqual(2, blocks.Count);
+            Assert.IsTrue(blocks.ContainsKey(SaveServiceHandler.MainBlockKey));
+            Assert.IsTrue(blocks.ContainsKey("stats"));
+
+            // 与类型化读取同一载荷来源——反序列化内容一致
+            SaveData stats = SaveSerializerRegistry.GetRequired(ESaveBackend.Json).Deserialize<SaveData>(blocks["stats"]);
+            Assert.AreEqual(99, stats.Gold);
+            Assert.AreEqual("stats", stats.PlayerName);
+        }
+
+        [Test]
+        public void ReadRawBlocks_MissingFile_ReturnsEmpty()
+        {
+            Dictionary<string, byte[]> blocks = _handler.ReadRawBlocks(Paths("missing"));
+            Assert.AreEqual(0, blocks.Count);
+            Assert.IsFalse(_capturedLogs.Exists(entry => entry.Level == ELogLevel.Error), "缺档为正常业务流，不应记录错误日志");
+        }
+
+        [Test]
+        public void ReadRawBlocks_CorruptedFile_ReturnsEmptyWithErrorLog()
+        {
+            var paths = Paths("slot");
+            Directory.CreateDirectory(Path.GetDirectoryName(paths.SaveFilePath));
+            File.WriteAllBytes(paths.SaveFilePath, new byte[] { 0xDE, 0xAD, 0xBE, 0xEF, 0x01, 0x02, 0x03, 0x04 });
+
+            ExpectErrorLogForUtf();
+            Dictionary<string, byte[]> blocks = _handler.ReadRawBlocks(paths);
+            Assert.AreEqual(0, blocks.Count);
+            AssertErrorLogged("slot.sav");
+        }
+
+        #endregion
+
         /// <summary>
         /// 向缓冲区写入 v1 旧格式（28 字节）文件头字节。
         /// </summary>
