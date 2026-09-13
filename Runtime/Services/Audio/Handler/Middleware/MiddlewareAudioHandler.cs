@@ -8,16 +8,20 @@ namespace Moirai.Atropos.Audio.Middleware
 {
     /// <summary>
     /// 中间件音频处理器基类——FMOD / Wwise 共用。
-    /// <para>统一：句柄生命周期、用户 ID 映射、Fade 紧凑列表、总线音量/静音/暂停、场景切换清理。</para>
+    /// <para>统一：句柄生命周期（<see cref="AudioHandleRegistry{TVoice}"/>）、用户 ID 映射、
+    /// 声部与总线 Fade（<see cref="AudioFadeScheduler"/>）、总线音量/静音/暂停、场景切换清理。</para>
     /// <para>子类只需提供 <see cref="CreateDefaultBridge"/> 与可选总线路径覆盖。</para>
     /// <para>冷路径 API（PlayFadeByID / StopByID 等）直接用 lambda，不做委托缓存——UI 触发频率低，可读性优先。</para>
+    /// <para>语义与 Unity 后端对齐：暂停轨拦截新播放、MasterVolume getter 始终返回未静音值、
+    /// Master/音轨 Fade 带缓动（经共享过渡调度器驱动总线音量）。</para>
+    /// <para>不支持项：InitialDelay / PlaybackDuration / Solo（中间件事件由工程侧编排）。</para>
     /// </summary>
     [Serializable]
-    public abstract class MiddlewareAudioHandler : AudioServiceHandler
+    public abstract class MiddlewareAudioHandler : AudioServiceHandler, IAudioFadeTarget
     {
         #region 声部 [VOICE]
 
-        private sealed class Voice
+        private sealed class Voice : IAudioVoiceRef
         {
             public ulong Handle;
             public ulong InstanceId;
@@ -30,6 +34,8 @@ namespace Moirai.Atropos.Audio.Middleware
             public EAudioTrack Track;
             public bool Paused;
             public bool Playing;
+
+            int IAudioVoiceRef.UserId => UserId;
         }
 
         #endregion 声部 [VOICE]
@@ -38,30 +44,17 @@ namespace Moirai.Atropos.Audio.Middleware
         [NonSerialized] private Transform _instanceRoot;
         [NonSerialized] private bool _backendFailed;
 
-        [NonSerialized] private readonly Dictionary<ulong, Voice> _handleToVoice = new Dictionary<ulong, Voice>(64);
-        [NonSerialized] private readonly Dictionary<int, List<ulong>> _userHandleMap = new Dictionary<int, List<ulong>>(16);
-        [NonSerialized] private ulong _nextAudioId = 1UL;
-        private readonly Stack<List<ulong>> _handleListPool = new Stack<List<ulong>>(4);
+        // 服务句柄注册表（句柄生成、句柄→Voice、用户 ID 映射、列表池）
+        [NonSerialized] private readonly AudioHandleRegistry<Voice> _handles = new AudioHandleRegistry<Voice>();
+        // 音量过渡调度器（声部 + Master/音轨总线伪句柄共用）
+        [NonSerialized] private readonly AudioFadeScheduler _fades = new AudioFadeScheduler();
+        [NonSerialized] private readonly Dictionary<ulong, float> _pendingStopAt = new Dictionary<ulong, float>(8);
 
         [NonSerialized] private float _masterVolume = 1f;
         [NonSerialized] private bool _masterMute;
         [NonSerialized] private float[] _trackVolumes;
         [NonSerialized] private bool[] _trackMutes;
         [NonSerialized] private bool[] _pausedTracks;
-
-        private struct AudioFadeState
-        {
-            public ulong Handle;
-            public float StartTime;
-            public float Duration;
-            public float StartVolume;
-            public float EndVolume;
-            public TweenEase Ease;
-        }
-
-        [NonSerialized] private readonly List<AudioFadeState> _audioFades = new List<AudioFadeState>(8);
-        [NonSerialized] private int _audioFadeCount;
-        [NonSerialized] private readonly Dictionary<ulong, float> _pendingStopAt = new Dictionary<ulong, float>(8);
 
         /// <summary>默认总线路径，按 EAudioTrack 索引。</summary>
         private static readonly string[] s_DefaultBusPaths =
@@ -92,15 +85,6 @@ namespace Moirai.Atropos.Audio.Middleware
         /// 当前桥接。
         /// </summary>
         public IAudioMiddlewareBridge Bridge => _bridge;
-
-        private List<ulong> AcquireHandleList()
-            => _handleListPool.Count > 0 ? _handleListPool.Pop() : new List<ulong>(2);
-
-        private void ReleaseHandleList(List<ulong> list)
-        {
-            list.Clear();
-            _handleListPool.Push(list);
-        }
 
         private void EnsureTrackArrays()
         {
@@ -137,7 +121,8 @@ namespace Moirai.Atropos.Audio.Middleware
         /// <inheritdoc />
         public override float MasterVolume
         {
-            get => _masterMute ? 0f : _masterVolume;
+            // 与 Unity 后端语义一致：静音只影响实际总线输出，getter 始终返回设置值
+            get => _masterVolume;
             set
             {
                 _masterVolume = Mathf.Clamp01(value);
@@ -273,12 +258,9 @@ namespace Moirai.Atropos.Audio.Middleware
             if (!Application.isPlaying) return;
 
             StopAll(0f);
-            _audioFades.Clear();
-            _audioFadeCount = 0;
+            _fades.Clear();
             _pendingStopAt.Clear();
-            _handleToVoice.Clear();
-            foreach (var list in _userHandleMap.Values) ReleaseHandleList(list);
-            _userHandleMap.Clear();
+            _handles.Clear();
 
             _bridge?.Shutdown();
             _bridge = null;
@@ -291,38 +273,9 @@ namespace Moirai.Atropos.Audio.Middleware
         {
             if (_bridge == null) return;
             _bridge.Update(Time.unscaledDeltaTime);
-            UpdateAudioFades();
+            _fades.Update(GameTime.unscaledTime, this);
             ProcessPendingStops();
             ReleaseFinishedOneshots();
-        }
-
-        private void UpdateAudioFades()
-        {
-            float currentTime = GameTime.unscaledTime;
-            int writeIndex = 0;
-
-            for (int i = 0; i < _audioFadeCount; i++)
-            {
-                var fade = _audioFades[i];
-                if (!_handleToVoice.TryGetValue(fade.Handle, out var voice)) continue;
-
-                float elapsed = currentTime - fade.StartTime;
-                if (elapsed >= fade.Duration)
-                {
-                    voice.CurrentVolume = fade.EndVolume;
-                    _bridge?.SetInstanceVolume(voice.InstanceId, fade.EndVolume);
-                }
-                else
-                {
-                    float t = fade.Duration > 0f ? elapsed / fade.Duration : 1f;
-                    float v = fade.StartVolume + fade.Ease.Evaluate(t) * (fade.EndVolume - fade.StartVolume);
-                    voice.CurrentVolume = v;
-                    _bridge?.SetInstanceVolume(voice.InstanceId, v);
-                    _audioFades[writeIndex++] = fade;
-                }
-            }
-
-            _audioFadeCount = writeIndex;
         }
 
         private void ProcessPendingStops()
@@ -345,7 +298,7 @@ namespace Moirai.Atropos.Audio.Middleware
             {
                 ulong handle = done[i];
                 _pendingStopAt.Remove(handle);
-                if (_handleToVoice.TryGetValue(handle, out var voice))
+                if (_handles.TryGet(handle, out var voice))
                 {
                     voice.Playing = false;
                     _bridge?.StopInstance(voice.InstanceId, true);
@@ -358,10 +311,11 @@ namespace Moirai.Atropos.Audio.Middleware
         private void ReleaseFinishedOneshots()
         {
             List<ulong> dead = null;
-            foreach (var kv in _handleToVoice)
+            foreach (var kv in _handles.Map)
             {
                 var voice = kv.Value;
-                if (!voice.Playing || voice.Loop) continue;
+                // 暂停中的 oneshot 不算播完（否则 Pause 后下一帧即被误回收）
+                if (!voice.Playing || voice.Paused || voice.Loop) continue;
                 if (_bridge != null && _bridge.IsPlaying(voice.InstanceId)) continue;
                 dead ??= new List<ulong>(4);
                 dead.Add(kv.Key);
@@ -379,12 +333,9 @@ namespace Moirai.Atropos.Audio.Middleware
         {
             StopAll(0f);
             CleanAudioPool();
-            _audioFades.Clear();
-            _audioFadeCount = 0;
+            _fades.Clear();
             _pendingStopAt.Clear();
-            _handleToVoice.Clear();
-            foreach (var list in _userHandleMap.Values) ReleaseHandleList(list);
-            _userHandleMap.Clear();
+            _handles.Clear();
         }
 
         #endregion 服务方法 [SERVICE METHOD]
@@ -437,8 +388,7 @@ namespace Moirai.Atropos.Audio.Middleware
             ulong instanceId = _bridge.PlayEvent(eventPath, request.Volume, request.Pitch, request.Loop, pos);
             if (instanceId == 0UL) return 0UL;
 
-            ulong handle = _nextAudioId++;
-            if (handle == 0UL) handle = _nextAudioId++;
+            ulong handle = _handles.NextHandle();
 
             var voice = new Voice
             {
@@ -454,15 +404,8 @@ namespace Moirai.Atropos.Audio.Middleware
                 Playing = true,
             };
 
-            _handleToVoice[handle] = voice;
-
-            if (!_userHandleMap.TryGetValue(request.Id, out var list))
-            {
-                list = AcquireHandleList();
-                _userHandleMap[request.Id] = list;
-            }
-
-            list.Add(handle);
+            _handles.Bind(handle, voice);
+            _handles.RegisterUser(request.Id, handle);
 
             if (request.FadeInOnPlay && fadeInDuration > 0f)
             {
@@ -479,7 +422,7 @@ namespace Moirai.Atropos.Audio.Middleware
         /// <inheritdoc />
         public override void Pause(ulong handle)
         {
-            if (_handleToVoice.TryGetValue(handle, out var voice) && voice.Playing)
+            if (_handles.TryGet(handle, out var voice) && voice.Playing)
             {
                 voice.Paused = true;
                 _bridge?.SetPaused(voice.InstanceId, true);
@@ -489,7 +432,7 @@ namespace Moirai.Atropos.Audio.Middleware
         /// <inheritdoc />
         public override void Unpause(ulong handle)
         {
-            if (_handleToVoice.TryGetValue(handle, out var voice) && voice.Paused)
+            if (_handles.TryGet(handle, out var voice) && voice.Paused)
             {
                 voice.Paused = false;
                 _bridge?.SetPaused(voice.InstanceId, false);
@@ -499,7 +442,7 @@ namespace Moirai.Atropos.Audio.Middleware
         /// <inheritdoc />
         public override void Stop(ulong handle, float fadeoutDuration = 0f)
         {
-            if (!_handleToVoice.TryGetValue(handle, out var voice)) return;
+            if (!_handles.TryGet(handle, out var voice)) return;
 
             if (fadeoutDuration > 0f && voice.Playing && !voice.Paused)
             {
@@ -530,16 +473,7 @@ namespace Moirai.Atropos.Audio.Middleware
 
         /// <inheritdoc />
         public override void ForEachHandleByID(int id, Action<ulong> action)
-        {
-            if (action == null) return;
-            if (!_userHandleMap.TryGetValue(id, out var handles)) return;
-
-            int count = handles.Count;
-            for (int i = 0; i < count; i++)
-            {
-                action(handles[i]);
-            }
-        }
+            => _handles.ForEachHandleByUser(id, action);
 
         /// <inheritdoc />
         public override int CurrentlyPlayingCount(AudioClip clip)
@@ -548,7 +482,7 @@ namespace Moirai.Atropos.Audio.Middleware
             if (string.IsNullOrEmpty(path)) return 0;
 
             int count = 0;
-            foreach (var kv in _handleToVoice)
+            foreach (var kv in _handles.Map)
             {
                 if (kv.Value.Playing && kv.Value.EventPath == path) count++;
             }
@@ -561,32 +495,18 @@ namespace Moirai.Atropos.Audio.Middleware
 
         /// <inheritdoc />
         public override bool IsPlaying(ulong handle)
-            => _handleToVoice.TryGetValue(handle, out var voice) && voice.Playing && !voice.Paused;
+            => _handles.TryGet(handle, out var voice) && voice.Playing && !voice.Paused;
 
         /// <inheritdoc />
-        public override bool IsStopped(ulong handle) => !_handleToVoice.ContainsKey(handle);
+        public override bool IsStopped(ulong handle) => !_handles.IsRegistered(handle);
 
         /// <inheritdoc />
         public override void ReleaseHandle(ulong handle)
         {
             if (handle == 0UL) return;
 
-            if (_handleToVoice.TryGetValue(handle, out var voice))
-            {
-                if (_userHandleMap.TryGetValue(voice.UserId, out var list))
-                {
-                    list.Remove(handle);
-                    if (list.Count == 0)
-                    {
-                        _userHandleMap.Remove(voice.UserId);
-                        ReleaseHandleList(list);
-                    }
-                }
-
-                _handleToVoice.Remove(handle);
-            }
-
-            StopFadeAudio(handle);
+            _handles.Release(handle, out _);
+            _fades.Stop(handle);
             _pendingStopAt.Remove(handle);
         }
 
@@ -601,7 +521,7 @@ namespace Moirai.Atropos.Audio.Middleware
             int index = (int)track;
             if (index >= 0 && index < _pausedTracks.Length) _pausedTracks[index] = true;
 
-            foreach (var kv in _handleToVoice)
+            foreach (var kv in _handles.Map)
             {
                 if (kv.Value.Track == track) Pause(kv.Key);
             }
@@ -614,7 +534,7 @@ namespace Moirai.Atropos.Audio.Middleware
             int index = (int)track;
             if (index >= 0 && index < _pausedTracks.Length) _pausedTracks[index] = false;
 
-            foreach (var kv in _handleToVoice)
+            foreach (var kv in _handles.Map)
             {
                 if (kv.Value.Track == track) Unpause(kv.Key);
             }
@@ -632,7 +552,7 @@ namespace Moirai.Atropos.Audio.Middleware
         public override void StopTrack(EAudioTrack track, float fadeoutDuration = 0f)
         {
             List<ulong> toStop = null;
-            foreach (var kv in _handleToVoice)
+            foreach (var kv in _handles.Map)
             {
                 if (kv.Value.Track != track) continue;
                 toStop ??= new List<ulong>(8);
@@ -653,22 +573,22 @@ namespace Moirai.Atropos.Audio.Middleware
         /// <inheritdoc />
         public override void PauseAll()
         {
-            foreach (var kv in _handleToVoice) Pause(kv.Key);
+            foreach (var kv in _handles.Map) Pause(kv.Key);
         }
 
         /// <inheritdoc />
         public override void UnpauseAll()
         {
-            foreach (var kv in _handleToVoice) Unpause(kv.Key);
+            foreach (var kv in _handles.Map) Unpause(kv.Key);
         }
 
         /// <inheritdoc />
         public override void StopAll(float fadeoutDuration = 0f)
         {
             List<ulong> all = null;
-            foreach (var kv in _handleToVoice)
+            foreach (var kv in _handles.Map)
             {
-                all ??= new List<ulong>(_handleToVoice.Count);
+                all ??= new List<ulong>(_handles.Map.Count);
                 all.Add(kv.Key);
             }
 
@@ -683,7 +603,7 @@ namespace Moirai.Atropos.Audio.Middleware
         public override void StopAllButPersistent(float fadeoutDuration = 0f)
         {
             List<ulong> all = null;
-            foreach (var kv in _handleToVoice)
+            foreach (var kv in _handles.Map)
             {
                 if (kv.Value.Persistent) continue;
                 all ??= new List<ulong>(8);
@@ -701,7 +621,7 @@ namespace Moirai.Atropos.Audio.Middleware
         public override void StopAllLooping(float fadeoutDuration = 0f)
         {
             List<ulong> all = null;
-            foreach (var kv in _handleToVoice)
+            foreach (var kv in _handles.Map)
             {
                 if (!kv.Value.Loop) continue;
                 all ??= new List<ulong>(8);
@@ -719,7 +639,7 @@ namespace Moirai.Atropos.Audio.Middleware
         public override void StopByID(int id, float fadeoutDuration = 0f)
         {
             // 冷路径：设置面板/分层替换，lambda 分配可忽略
-            ForEachHandleByID(id, handle => Stop(handle, fadeoutDuration));
+            _handles.ForEachHandleByUser(id, handle => Stop(handle, fadeoutDuration));
         }
 
         #endregion 所有音频控制 [ALL AUDIO CONTROLS]
@@ -728,38 +648,57 @@ namespace Moirai.Atropos.Audio.Middleware
 
         /// <inheritdoc />
         public override void FadeMasterTrack(float duration, float initialVolume, float finalVolume, TweenEase tweenEase)
-            => MasterVolume = finalVolume;
+        {
+            if (duration <= 0f) { MasterVolume = finalVolume; return; }
+
+            _fades.Stop(AudioFadeScheduler.MASTER_FADE_HANDLE);
+            _fades.Add(new AudioFadeState
+            {
+                Handle = AudioFadeScheduler.MASTER_FADE_HANDLE,
+                StartTime = GameTime.unscaledTime,
+                Duration = duration,
+                StartVolume = initialVolume,
+                EndVolume = finalVolume,
+                Ease = tweenEase,
+            });
+        }
 
         /// <inheritdoc />
-        public override void StopFadeMasterTrack()
-        {
-        }
+        public override void StopFadeMasterTrack() => _fades.Stop(AudioFadeScheduler.MASTER_FADE_HANDLE);
 
         /// <inheritdoc />
         public override void FadeTrack(EAudioTrack track, float duration, float initialVolume, float finalVolume, TweenEase tweenEase)
-            => SetTrackVolume(track, finalVolume);
+        {
+            if (duration <= 0f) { SetTrackVolume(track, finalVolume); return; }
+
+            ulong fadeHandle = AudioFadeScheduler.TrackFadeHandle((int)track);
+            _fades.Stop(fadeHandle);
+            _fades.Add(new AudioFadeState
+            {
+                Handle = fadeHandle,
+                StartTime = GameTime.unscaledTime,
+                Duration = duration,
+                StartVolume = initialVolume,
+                EndVolume = finalVolume,
+                Ease = tweenEase,
+            });
+        }
 
         /// <inheritdoc />
         public override void StopFadeTrack(EAudioTrack track)
-        {
-        }
+            => _fades.Stop(AudioFadeScheduler.TrackFadeHandle((int)track));
 
         /// <inheritdoc />
         public override void FadeAudio(ulong handle, float duration, float initialVolume, float finalVolume, TweenEase tweenEase)
         {
-            if (!_handleToVoice.TryGetValue(handle, out var voice)) return;
-
             if (duration <= 0f)
             {
-                voice.CurrentVolume = finalVolume;
-                _bridge?.SetInstanceVolume(voice.InstanceId, finalVolume);
+                ApplyFadeVolume(handle, finalVolume, finished: true);
                 return;
             }
 
-            StopFadeAudio(handle);
-
-            if (_audioFadeCount >= _audioFades.Count) _audioFades.Add(default);
-            _audioFades[_audioFadeCount++] = new AudioFadeState
+            _fades.Stop(handle);
+            _fades.Add(new AudioFadeState
             {
                 Handle = handle,
                 StartTime = GameTime.unscaledTime,
@@ -767,45 +706,54 @@ namespace Moirai.Atropos.Audio.Middleware
                 StartVolume = initialVolume,
                 EndVolume = finalVolume,
                 Ease = tweenEase,
-            };
+            });
         }
 
         /// <inheritdoc />
-        public override void StopFadeAudio(ulong handle)
-        {
-            for (int i = _audioFadeCount - 1; i >= 0; i--)
-            {
-                if (_audioFades[i].Handle != handle) continue;
-                _audioFadeCount--;
-                if (i < _audioFadeCount) _audioFades[i] = _audioFades[_audioFadeCount];
-            }
-        }
+        public override void StopFadeAudio(ulong handle) => _fades.Stop(handle);
 
         /// <inheritdoc />
-        public override bool SoundIsFadingOut(ulong handle)
-        {
-            for (int i = 0; i < _audioFadeCount; i++)
-            {
-                if (_audioFades[i].Handle == handle) return true;
-            }
-
-            return false;
-        }
+        public override bool SoundIsFadingOut(ulong handle) => _fades.IsFading(handle);
 
         /// <inheritdoc />
         public override void PlayFadeByID(int id, float duration, float finalVolume, TweenEase ease)
         {
-            ForEachHandleByID(id, handle =>
+            _handles.ForEachHandleByUser(id, handle =>
             {
-                if (!_handleToVoice.TryGetValue(handle, out var voice)) return;
+                if (!_handles.TryGet(handle, out var voice)) return;
                 FadeAudio(handle, duration, voice.CurrentVolume, finalVolume, ease);
             });
         }
 
         /// <inheritdoc />
         public override void StopFadeByID(int id)
+            => _handles.ForEachHandleByUser(id, _fades.Stop);
+
+        /// <summary>
+        /// 过渡应用：总线伪句柄走音量属性（含 Clamp 与总线写入），声部句柄经桥接写实例音量。
+        /// </summary>
+        bool IAudioFadeTarget.ApplyFade(ulong handle, float volume, bool finished)
+            => ApplyFadeVolume(handle, volume, finished);
+
+        private bool ApplyFadeVolume(ulong handle, float volume, bool finished)
         {
-            ForEachHandleByID(id, StopFadeAudio);
+            if (handle == AudioFadeScheduler.MASTER_FADE_HANDLE)
+            {
+                MasterVolume = volume;
+                return true;
+            }
+
+            if (AudioFadeScheduler.TryGetBusTrackIndex(handle, out int trackIndex))
+            {
+                SetTrackVolume((EAudioTrack)trackIndex, volume);
+                return true;
+            }
+
+            if (!_handles.TryGet(handle, out var voice)) return false;
+
+            voice.CurrentVolume = volume;
+            _bridge?.SetInstanceVolume(voice.InstanceId, volume);
+            return true;
         }
 
         #endregion 过渡 [FADES]

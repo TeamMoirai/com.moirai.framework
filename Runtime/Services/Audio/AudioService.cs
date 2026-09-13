@@ -61,6 +61,8 @@ namespace Moirai.Atropos.Audio
         /// </summary>
         public override void OnShutdown()
         {
+            DebuggerService.UnregisterDebuggerWindow("Profiler/Audio");
+
             AudioMixService.Shutdown();
 
             var handler = s_Handler;
@@ -300,6 +302,7 @@ namespace Moirai.Atropos.Audio
         /// <summary>
         /// 播放音频。
         /// </summary>
+        /// <remarks>传统巨型签名重载，仅为兼容保留；默认值与各工厂方法/契约对齐（DoNotAutoRecycle 为 true）。</remarks>
         public static ulong Play(string path, EAudioTrack track, Vector3 location, bool bAsync = false, bool bInPool = false,
             bool loop = false, float volume = 1.0f, int id = 0,
             bool fade = false, float fadeInitialVolume = 0f, float fadeDuration = 1f, TweenEase fadeTweenEase = default,

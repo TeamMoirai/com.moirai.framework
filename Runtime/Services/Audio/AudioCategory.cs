@@ -16,6 +16,9 @@ namespace Moirai.Atropos.Audio
         private readonly AudioServiceHandler _handler;
         private readonly AudioGroupConfig _audioGroupConfig;
         private int _maxChannel;
+        // 无可用通道告警的最小间隔（秒），防止满载时刷屏
+        private const float NO_CHANNEL_LOG_INTERVAL = 3f;
+        private float _lastNoChannelLogAt;
 
         /// <summary>
         /// 扩展硬上限，防止 CanExpand 时通道无界增长。
@@ -175,7 +178,14 @@ namespace Moirai.Atropos.Audio
 
             if (selected < 0)
             {
-                LogUtility.Error("Here is no channel to play audio {0}", AudioMixerGroup != null ? AudioMixerGroup.name : AudioTrack.ToString());
+                // 同轨满载可反复触发；按轨节流，Error 降级为 Warning
+                float now = Time.unscaledTime;
+                if (now - _lastNoChannelLogAt >= NO_CHANNEL_LOG_INTERVAL)
+                {
+                    _lastNoChannelLogAt = now;
+                    LogUtility.Warning("Here is no channel to play audio {0}", AudioMixerGroup != null ? AudioMixerGroup.name : AudioTrack.ToString());
+                }
+
                 return null;
             }
 

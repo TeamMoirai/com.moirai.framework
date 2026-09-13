@@ -56,6 +56,16 @@ namespace Moirai.Atropos.Audio
             pooled.volume = 1f;
             pooled.loop = false;
             pooled.mute = false;
+
+            // 复位遮挡低通：AudioOcclusionHrtf 挂载的滤镜不会随播放结束移除，
+            // 不复位会让复用宿主继承上一次的截止频率（起播瞬间的闷声毛刺）
+            var lowPass = pooled.GetComponent<AudioLowPassFilter>();
+            if (lowPass != null)
+            {
+                lowPass.enabled = false;
+                lowPass.cutoffFrequency = 22000f;
+            }
+
             return pooled;
         }
 

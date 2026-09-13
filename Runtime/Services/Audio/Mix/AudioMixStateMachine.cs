@@ -30,6 +30,22 @@ namespace Moirai.Atropos.Audio
     }
 
     /// <summary>
+    /// 混音快照配置项——状态 → AudioMixerSnapshot 映射（<see cref="AudioServiceSettings"/> 序列化用）。
+    /// </summary>
+    [Serializable]
+    public sealed class AudioMixSnapshotEntry
+    {
+        /// <summary>混音快照状态。</summary>
+        public EMixSnapshot State;
+
+        /// <summary>对应的 AudioMixer 快照。</summary>
+        public AudioMixerSnapshot Snapshot;
+
+        /// <summary>打断优先级；&lt;0 表示使用内置默认优先级。</summary>
+        [Range(-1f, 10f)] public float Priority = -1f;
+    }
+
+    /// <summary>
     /// 混音快照状态机——按状态切换 Mixer Snapshot，支持交叉淡入与优先级。
     /// <para>Unity 后端：驱动 <see cref="AudioMixerSnapshot.TransitionTo"/>。</para>
     /// <para>中间件后端：通过回调写总线/RTPC（见 <see cref="SetMiddlewareTransitionHandler"/>）。</para>

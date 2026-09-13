@@ -13,16 +13,35 @@ namespace Moirai.Atropos.Audio.Wwise
         private readonly System.Collections.Generic.Dictionary<ulong, uint> _handleToPlayingId =
             new System.Collections.Generic.Dictionary<ulong, uint>(64);
         private ulong _nextHandle = 1UL;
+        // 常驻发声体：避免每次 Play 分配临时 GameObject（原实现 Destroy(go, 30f) 会截断长音）
+        private GameObject _emitter;
 
         public bool Initialize(Transform instanceRoot)
         {
             // AkInitializer 由 Wwise 场景对象驱动；此处确保 SoundEngine 可用
-            return AkSoundEngine.IsInitialized();
+            if (!AkSoundEngine.IsInitialized()) return false;
+
+            _emitter = new GameObject("[WwiseBridgeEmitter]");
+            if (instanceRoot != null)
+            {
+                _emitter.transform.SetParent(instanceRoot, false);
+            }
+
+            UnityEngine.Object.DontDestroyOnLoad(_emitter);
+            return true;
         }
 
         public void Shutdown()
         {
             AkSoundEngine.ClearBanks();
+
+            if (_emitter != null)
+            {
+                UnityEngine.Object.Destroy(_emitter);
+                _emitter = null;
+            }
+
+            _handleToPlayingId.Clear();
         }
 
         public void Update(float unscaledDeltaTime)
@@ -32,9 +51,15 @@ namespace Moirai.Atropos.Audio.Wwise
 
         public ulong PlayEvent(string eventPath, float volume, float pitch, bool loop, Vector3? position3D)
         {
-            if (string.IsNullOrEmpty(eventPath)) return 0UL;
+            if (string.IsNullOrEmpty(eventPath) || _emitter == null) return 0UL;
 
-            uint playingId = AkSoundEngine.PostEvent(eventPath, instanceRootOrDefault(position3D));
+            // 单发声体复用：位置在 PostEvent 时采样；如需持续跟随需配合 RTPC/骨骼挂点
+            if (position3D.HasValue)
+            {
+                _emitter.transform.position = position3D.Value;
+            }
+
+            uint playingId = AkSoundEngine.PostEvent(eventPath, _emitter);
             if (playingId == AkSoundEngine.AK_INVALID_PLAYING_ID) return 0UL;
 
             ulong handle = _nextHandle++;
@@ -49,28 +74,23 @@ namespace Moirai.Atropos.Audio.Wwise
             return handle;
         }
 
-        private static GameObject instanceRootOrDefault(Vector3? position3D)
-        {
-            // Wwise 需要 GameObject 发声体；2D 用临时锚点
-            var go = new GameObject("WwiseTempEmitter");
-            if (position3D.HasValue) go.transform.position = position3D.Value;
-            Object.Destroy(go, 30f);
-            return go;
-        }
-
         public void StopInstance(ulong instanceId, bool immediate)
         {
             if (!_handleToPlayingId.TryGetValue(instanceId, out var playingId)) return;
-            AkSoundEngine.ExecuteActionOnPlayingID(
-                immediate ? AkActionOnEventType.AkActionOnEventType_Stop : AkActionOnEventType.AkActionOnEventType_Pause,
-                playingId);
+
+            // 非立即 = 短衰减停止（原先误映射为 Pause，会留下无法恢复也无法停止的悬挂声）
+            AkSoundEngine.ExecuteActionOnPlayingId(
+                AkActionOnEventType.AkActionOnEventType_Stop,
+                playingId,
+                immediate ? 0u : 250u,
+                AkCurveInterpolation.AkCurveInterpolation_Linear);
             _handleToPlayingId.Remove(instanceId);
         }
 
         public void SetPaused(ulong instanceId, bool paused)
         {
             if (!_handleToPlayingId.TryGetValue(instanceId, out var playingId)) return;
-            AkSoundEngine.ExecuteActionOnPlayingID(
+            AkSoundEngine.ExecuteActionOnPlayingId(
                 paused ? AkActionOnEventType.AkActionOnEventType_Pause : AkActionOnEventType.AkActionOnEventType_Resume,
                 playingId);
         }

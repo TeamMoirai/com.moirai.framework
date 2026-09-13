@@ -162,6 +162,8 @@ namespace Moirai.Atropos.Audio
                 _filters[source] = filter;
             }
 
+            // 宿主池复用时会禁用并复位滤镜，这里按需重新启用
+            if (!filter.enabled) filter.enabled = true;
             filter.cutoffFrequency = lowpass;
 
             if (m_HrtfEnabled)

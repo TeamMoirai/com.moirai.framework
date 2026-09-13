@@ -1,3 +1,4 @@
+using System;
 using Moirai.Atropos.Debugger;
 using UnityEngine.UIElements;
 
@@ -5,7 +6,7 @@ namespace Moirai.Atropos.Audio
 {
     /// <summary>
     /// 音频服务调试视图（原生 UI Toolkit，经 <see cref="AudioService.OnInit"/> 注册进游戏内调试器 "Profiler/Audio"）。
-    /// <para>提供主音量与四轨（Sfx/UI/Music/Voice）音量/静音实时控制。</para>
+    /// <para>提供主音量与各音轨（枚举全量生成）音量/静音实时控制。</para>
     /// </summary>
     public sealed class AudioServiceDebuggerWindow : ScrollableDebuggerWindowBase
     {
@@ -25,10 +26,11 @@ namespace Moirai.Atropos.Audio
             AddVolumeSlider(masterCard, "Master", () => AudioService.MasterVolume, value => AudioService.MasterVolume = value);
 
             VisualElement trackCard = AddSection(root, "音轨 [TRACKS]");
-            AddTrackControls(trackCard, EAudioTrack.Sfx);
-            AddTrackControls(trackCard, EAudioTrack.UI);
-            AddTrackControls(trackCard, EAudioTrack.Music);
-            AddTrackControls(trackCard, EAudioTrack.Voice);
+            var values = (EAudioTrack[])Enum.GetValues(typeof(EAudioTrack));
+            for (int i = 0; i < values.Length; i++)
+            {
+                AddTrackControls(trackCard, values[i]);
+            }
         }
 
         #endregion
@@ -65,7 +67,7 @@ namespace Moirai.Atropos.Audio
             card.Add(row);
         }
 
-        private static void AddVolumeSlider(VisualElement card, string label, System.Func<float> getter, System.Action<float> setter)
+        private void AddVolumeSlider(VisualElement card, string label, System.Func<float> getter, System.Action<float> setter)
         {
             VisualElement row = new VisualElement();
             row.AddToClassList("dbg-slider-row");
@@ -96,7 +98,8 @@ namespace Moirai.Atropos.Audio
 
         #region 私有字段 [PRIVATE FIELDS]
 
-        private static UnityEngine.UIElements.Label _masterVolumeLabel;
+        // 实例字段：跨窗口重建/域重载后 static 引用会向已脱离的可视树写值
+        private UnityEngine.UIElements.Label _masterVolumeLabel;
 
         #endregion
     }

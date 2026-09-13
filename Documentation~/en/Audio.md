@@ -13,6 +13,8 @@ Runtime/Services/Audio/
 ├── AudioAgentHostPool.cs                      # Host GameObject pool
 ├── AudioServiceSettings.cs
 ├── Handler/
+│   ├── AudioHandleRegistry.cs                 # Shared handle registry (handle gen / user-ID map / list pool)
+│   ├── AudioFadeScheduler.cs                  # Shared fade scheduler (voices + bus pseudo-handles)
 │   ├── UnityAudioHandler.cs                   # Default Unity backend
 │   ├── Middleware/
 │   │   ├── IAudioMiddlewareBridge.cs          # Shared FMOD/Wwise bridge
@@ -31,10 +33,11 @@ Runtime/Services/Audio/
 
 - **`AudioService`**: Static facade; depends on `DebuggerService`, `ResourceService`
 - **`AudioServiceHandler`**: Backend contract (`StopByID`, 16-byte `Play`, virtual `OnAgentPlaybackEnded`)
+- **`AudioHandleRegistry<TVoice>` / `AudioFadeScheduler`**: Shared handle registry and fade scheduling for both backends (bus fades use high-segment pseudo-handles)
 - **`UnityAudioHandler`**: Default Unity `AudioSource`/`AudioMixer` backend
 - **`MiddlewareAudioHandler`**: Shared FMOD/Wwise base (handles, fades, buses, layering)
 - **`FmodAudioHandler` / `WwiseAudioHandler`**: Thin wrappers; only implement `CreateDefaultBridge()`
-- **`AudioServiceSettings`**: Backend selection, mixer/track config, optional host prefab path
+- **`AudioServiceSettings`**: Backend selection, mixer/track config, mix snapshot mapping, host pool warmup
 
 ### Swappable backends & scripting defines
 
@@ -103,7 +106,7 @@ Add `FMOD_INSTALLED` or `WWISE_INSTALLED` in Scripting Define Symbols, import th
 
 ### Mix snapshots
 
-Priorities: Default 0; Muffled/LowHealth 2; Paused/Dialogue 3; Cinematic 4. Lower cannot interrupt higher unless `force: true`. Unity uses `AudioMixerSnapshot.TransitionTo`; middleware uses `SetMiddlewareTransitionHandler`.
+Priorities: Default 0; Muffled/LowHealth 2; Paused/Dialogue 3; Cinematic 4. Lower cannot interrupt higher unless `force: true`. Unity uses `AudioMixerSnapshot.TransitionTo`; middleware uses `SetMiddlewareTransitionHandler`. Snapshot mapping (state → `AudioMixerSnapshot` + optional priority) is configured in `AudioServiceSettings.MixSnapshots` and auto-registered in `OnInit`; otherwise call `AudioMixService.RegisterSnapshot` manually.
 
 ### Occlusion / HRTF
 
@@ -115,8 +118,11 @@ Configure `WarmupAudioHostPool` and `AudioHostWarmupCount` in `AudioServiceSetti
 
 ## Notes
 
-- `Play` returns `0UL` on failure  
-- Middleware backends return null for `GetAgentByHandle` / `ForEachAgentByID` — use handle APIs  
+- `Play` returns `0UL` on failure (no channel, unconfigured track, paused track, backend not initialized)  
+- Paused tracks block new plays; `MasterVolume` getter always returns the unmuted setting value (consistent across backends)  
+- Middleware backends return null for `GetAgentByHandle` / `ForEachAgentByID` — use handle APIs; InitialDelay / PlaybackDuration / Solo are unsupported  
+- Legacy giant-signature `Play` overloads are `[Obsolete]`; migrate to `AudioPlayOptions` / `AudioPlayRequest`. `DoNotAutoRecycle` defaults to true consistently across factories and overloads  
+- No-channel warnings are throttled per track (3 s) as Warning  
 - Manual fades and snapshot transitions advance via service `Tick`  
 - Scene load auto `StopAllButPersistent`; set `Persistent = true` for cross-scene audio  
 - Handles are auto-released; do not rely on long-lived manual `ReleaseHandle`  
