@@ -282,7 +282,7 @@ namespace Moirai.Atropos.Save
             fileVersion = 0;
             metadata = null;
 
-            if (SaveBlockComposer.TryFind(blocks, SaveServiceHandler.MetaBlockKey, out SaveBlockEntry metaEntry))
+            if (SaveBlockComposer.TryFind(blocks, SaveServiceHandler.META_BLOCK_KEY, out SaveBlockEntry metaEntry))
             {
                 try
                 {
@@ -302,7 +302,7 @@ namespace Moirai.Atropos.Save
             {
                 for (int i = 0; i < blockErrors.Count; i++)
                 {
-                    if (string.Equals(blockErrors[i].Key, SaveServiceHandler.MetaBlockKey, StringComparison.Ordinal))
+                    if (string.Equals(blockErrors[i].Key, SaveServiceHandler.META_BLOCK_KEY, StringComparison.Ordinal))
                     {
                         return SaveError.Corrupted;
                     }
@@ -430,7 +430,7 @@ namespace Moirai.Atropos.Save
         private static List<SaveBlockEntry> UpsertMetaBlock(List<SaveBlockEntry> migratedBlocks, SaveMetadata metadata)
         {
             byte[] metaBytes = SaveSerializerRegistry.GetRequired(ESaveBackend.Json).Serialize(metadata);
-            var newMetaEntry = new SaveBlockEntry(SaveServiceHandler.MetaBlockKey, 1, ESaveBackend.Json, metaBytes);
+            var newMetaEntry = new SaveBlockEntry(SaveServiceHandler.META_BLOCK_KEY, 1, ESaveBackend.Json, metaBytes);
             return SaveBlockComposer.Upsert(migratedBlocks, newMetaEntry);
         }
 

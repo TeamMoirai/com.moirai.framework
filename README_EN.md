@@ -193,8 +193,6 @@ com.moirai.framework/
 │   │   ├── Extensions/   # Extension methods (R3 reactive, UGUI, etc.)
 │   │   ├── GameException/# Game exception system
 │   │   ├── GameProfiler/ # Performance profiler
-│   │   ├── GameSettings/ # Framework and graphics settings
-│   │   ├── GameTime/     # Game time
 │   │   ├── MemoryPool/   # Memory pool
 │   │   ├── Models/       # Data models
 │   │   ├── Obfuz/        # Code obfuscation initialization
@@ -202,9 +200,9 @@ com.moirai.framework/
 │   │   ├── Schedulers/   # Zero-allocation scheduler (timer/frame counter)
 │   │   ├── Singleton/    # Singleton system (pure C# / MonoBehaviour)
 │   │   ├── Tasks/        # Task/sequence system
-│   │   └── Utility/      # Utilities (logging, encryption, HTTP, reflection, tween, etc.)
+│   │   └── Utilities/    # Utilities (logging, settings, time, encryption, HTTP, reflection, tween, etc.)
 │   └── Services/         # Functional services
-│       ├── @Core/        # Service system base (Service / ServiceSystem / GameService)
+│       ├── Kernel/       # Service system base (Contracts / GameApp / Interception / World)
 │       ├── Audio/        # Audio system (categories/agents/fade)
 │       ├── ConfigTable/  # Config table management
 │       ├── Debugger/     # Runtime debugger
@@ -213,14 +211,14 @@ com.moirai.framework/
 │       ├── ObjectPool/   # Object pool service
 │       ├── Procedure/    # Procedure management
 │       ├── Resource/     # YooAsset asset management
-│       ├── Save/         # Save system (JSON/binary/encrypted)
+│       ├── Save/         # Save system (multi-block container/multi-backend serialization/encryption/migration/cloud sync)
 │       ├── Scene/        # Scene management
 │       ├── Timer/        # Timer
 │       ├── UI/           # UI framework (windows/widgets/layers)
-│       └── UpdateDriver/ # Update loop driver
 ├── Editor/               # Editor toolset
 ├── Plugins/              # Third-party libraries
 ├── Samples~/             # Examples
+├── SourceGenerators/     # Precompiled source generators (HandlerHost / SaveHost / ServiceDependency)
 ├── Templates~/           # Project initial templates
 ├── Documentation~/en/    # Service documentation (README per service)
 └── Tests/                # Unit tests
@@ -228,21 +226,24 @@ com.moirai.framework/
 
 ### Service System
 
-The framework uses a **modular architecture** where all subsystems are plain C# classes (not MonoBehaviour), registered and managed via `ServiceSystem`. The entry point is `GameService` (MonoBehaviour), which provides static accessors for all services.
+The framework uses a **service-oriented architecture** where all subsystems are plain C# classes inheriting `ServiceBase` (not MonoBehaviour), managed by a unified service world `ServiceWorld` for registration, lifecycle, ticking and scoping; the entry point `GameApp` drives the world tick (built-in update loop, engine callback proxy and coroutine hosting).
 
 ```csharp
-// Service access - lazy loaded, auto-created on first access
-var resource = GameService.Resource;
-var ui = GameService.UI;
-var audio = GameService.Audio;
-var timer = GameService.Timer;
+// Service access — each service provides a static facade (HandlerHost generated), lazy-loaded internally
+ResourceService.LoadAsset<Sprite>("Assets/AssetRaw/UI/icon.png");
+UIService.ShowUI<MainWindow>();
+TimerService.AddTimer(() => Debug.Log("1s"), 1f);
+
+// Dynamic service lookup
+var my = GameServices.GetRequiredService<MyService>();
 ```
 
 **Service Lifecycle:**
-- `OnInit()` — Service initialization
-- `Shutdown()` — Service destruction
-- Supports `IUpdateService`, `IFixedUpdateService`, `ILateUpdateService` interfaces for update loop registration
-- Update order controlled by `Priority` property (framework built-in services are uniformly ≤ -1000; business services default to 0 and above); lifecycle scope controlled by `Scope` (App / Scene / Gameplay), auto-cleaning scene and gameplay services on scene unload
+- `OnInit()` — Service initialization; `Shutdown()` — Service destruction (async shutdown via `IAsyncShutdownService`)
+- Dependencies are declared via the `[ServiceDependency]` attribute with two-phase construction: `RegisterService` only adds the service to the graph, then `InitializeAsync()` drives all `OnInit` in dependency-graph topological order (missing/circular dependencies fail fast; init order is independent of registration order)
+- Implement `IServiceTickable`, `IServiceFixedTickable`, `IServiceLateTickable` interfaces to join the tick loop
+- Update order controlled by `Priority` (framework built-in services are uniformly ≤ -1000; business services default to 0 and above); lifecycle scope controlled by `Scope` (App / Scene / Gameplay), auto-cleaning scene and gameplay services on scene unload
+- `ServiceWorld` can be `new`-ed for isolated worlds (tests/sandboxes); the `GameServices` static facade is only a projection of the default world
 
 > See **[Core Service System documentation](Documentation~/en/Core.md)** for details (custom services, scope shadowing, cross-service dependencies)
 
@@ -268,7 +269,7 @@ Each service has its own documentation (located in `Documentation~/en/`), coveri
 
 | Service | Description | Documentation |
 |--------|-------------|---------------|
-| **Core** | Service system base: registration/lifecycle/scope, `GameService` static accessors | [Core.md](Documentation~/en/Core.md) |
+| **Kernel** | Service system base (@Service): `ServiceWorld` service world, `GameServices` registration/lookup/scopes, `[ServiceDependency]` dependency topological init | [Core.md](Documentation~/en/Core.md) |
 | **Resource** | YooAsset-based asset management: sync/async loading, reference counting, encryption, sub-sprites | [Resource.md](Documentation~/en/Resource.md) |
 | **UI** | Production-grade UI framework: stack windows, 5 layers, Widget sub-controls, binding code generation | [UI.md](Documentation~/en/UI.md) |
 | **Audio** | Audio system: category management, AudioAgent playback, mixer, fade, handle control | [Audio.md](Documentation~/en/Audio.md) |
@@ -276,12 +277,11 @@ Each service has its own documentation (located in `Documentation~/en/`), coveri
 | **ConfigTable** | Luban config table integration: table loading, lazy access, export toolchain | [ConfigTable.md](Documentation~/en/ConfigTable.md) |
 | **Procedure** | Game flow management: startup chain, configurable procedures, self-contained state machine | [Procedure.md](Documentation~/en/Procedure.md) |
 | **Input** | Multi-platform input abstraction: Input System / Legacy Input / Mobile UI touch, button prompts | [Input.md](Documentation~/en/Input.md) |
-| **Save** | Pluggable save system: JSON / Binary / Encrypted handlers, atomic writes | [Save.md](Documentation~/en/Save.md) |
+| **Save** | Pluggable save system: single-file multi-block container, JSON/MessagePack/MemoryPack/Protobuf serialization backends, AES encryption & GZip compression, file-level version migration bus, codeless component saving (SourceGenerator), cloud sync | [Save.md](Documentation~/en/Save.md) |
 | **Scene** | Scene management: async load/activate/unload based on YooAsset SceneHandle | [Scene.md](Documentation~/en/Scene.md) |
 | **Timer** | 4-level time wheel timer: versioned handles, prewarming, statistics | [Timer.md](Documentation~/en/Timer.md) |
 | **ObjectPool** | Service-level object pool: single/multi-spawn pools, GameObject pool | [ObjectPool.md](Documentation~/en/ObjectPool.md) |
 | **Debugger** | Runtime debugger: registerable debug windows, log replay | [Debugger.md](Documentation~/en/Debugger.md) |
-| **UpdateDriver** | Update loop driver: three frame update types, coroutine hosting, Unity event injection | [UpdateDriver.md](Documentation~/en/UpdateDriver.md) |
 
 ---
 
@@ -367,13 +367,15 @@ Pure C# singletons are safe to access from any thread (a single volatile read on
 ### GameLog — Logging System
 
 ```csharp
-Log.Info("Player logged in: {0}", playerName);
-Log.Warning("Asset load failed: {0}", path);
-Log.Error("Critical error!");
+LogUtility.Info("Player logged in: {0}", playerName);
+LogUtility.Warning("Asset load failed: {0}", path);
+LogUtility.Error("Critical error!");
 ```
 
-- Conditional compilation: `LOG_DEBUG_ENABLE`, `LOG_ALL`, `LOG_INFO_ENABLE`, etc.
-- Pluggable `ILogHelper` for custom log output
+- Runtime level filtering: `LogHandler.MinimumLevel` (`ELogLevel`: Verbose / Debug / Info / Warning / Error / Exception)
+- Pluggable output backends: Default / Serilog / ZLogger / UnityLogging (com.unity.logging)
+- T4-template generated formatting overloads (`LogUtility.LogMethods.tt`), with structured context and message-event callbacks
+- Intercepts native Unity `Debug.Log` and routes it through the framework logging pipeline
 
 ### GameTime — Game Time
 
@@ -400,8 +402,7 @@ GameProfiler.EndSample();
 
 ### GameSettings — Game Settings
 
-Graphics settings management: resolution, fullscreen, VSync, window mode, etc.
-Also includes framework settings (`FrameworkSettings`) and update settings (`UpdateSettings`).
+Framework and game settings (`Core/Utilities/GameSetting`): framework settings (`FrameworkSettings`), graphics settings (Graphics: resolution, fullscreen, VSync, window mode, etc.) and update settings (`UpdateSettings`), editor menu `Tools/Framework Settings`.
 
 ### GameException — Exception System
 
@@ -475,7 +476,7 @@ hp.BindTo(hpSlider);  // Slider auto-syncs
 | `CommandLineUtility` | Command-line parsing |
 | `ConverterUtility` | Type conversion |
 | `CoroutineUtility` | Coroutine utilities |
-| `DebugDrawHelper` | Debug drawing |
+| `DebugDrawUtility` | Debug drawing |
 | `DiagnosticsUtility` | Diagnostics utilities |
 | `EncryptionUtility` | Encryption utilities |
 | `FileUtility` | File operations |
@@ -494,7 +495,7 @@ hp.BindTo(hpSlider);  // Slider auto-syncs
 | `TimeUtility` | Time utilities |
 | `ToolRegistry` | Component registry |
 | `TweenUtility` | Tween system (with Bezier paths), pluggable engine, [docs](Documentation~/en/TweenUtility.md) |
-| `UniTaskUtils` | UniTask utilities |
+| `UniParallel` | UniTask parallel task collector (await all) |
 | `UnityUtility` | Unity common utilities |
 | `XmlUtility` | XML utilities |
 | `ZipWrapper` | Compression/decompression wrapper |
@@ -505,27 +506,27 @@ hp.BindTo(hpSlider);  // Slider auto-syncs
 
 | Tool | Purpose |
 |------|---------|
-| Atlas Maker | Sprite Atlas creation |
+| Atlas Maker | Atlas creation, reference analysis, auto regeneration of changes, config panel (`Tools/图集工具`) |
+| Benchmark | JSON serialization performance benchmark (`Window/Moirai/JSON Benchmark`) |
 | Custom Attributes | ~20 custom property drawers + Odin extensions |
-| Define Symbols | Debug/Log/Profiler/Obfuz macro definition management |
-| Design Tool | Comprehensive probability calculator |
+| Define Symbols | Debug/Log/Profiler/HybridCLR/Obfuz macro definition management |
 | Editor Design | Editor icon resources, GUIStyle viewer |
-| Event Debugger | Visual event dispatch debug window |
-| Game Settings | Audio group, procedure settings, update settings editor |
+| Event Debugger | Visual event dispatch debug window (`Window/Event Debugger`) |
+| Game Settings | Audio group, procedure settings, update settings editor (`Tools/Framework Settings`) |
 | HybridCLR | Hot update DLL build commands |
 | Inspector | Asset/Core component custom inspectors |
 | Luban Tools | Luban config table generation (`Tools/Settings/ConfigTableSettings`) |
-| Maintenance | Clean empty folders, find missing scripts, group selection, lock Inspector |
-| Service System | Service system visualization window (`Tools/Moirai/Service System`) |
-| Reference Finder | Asset dependency/reference tree view |
-| Release Tools | Build pipeline window, build configuration |
-| Scheduler Debugger | Visual scheduler/timer debugger |
+| Maintenance | Clean empty folders, find missing scripts, prefab finder, group selection, lock Inspector |
+| Reference Finder | Asset dependency/reference tree view (`Tools/资产相关/查找资产引用`) |
+| Release Tools | Build pipeline window, one-click build Android/iOS/Window/AssetBundle (`Tools/Build`) |
+| Scheduler Debugger | Visual scheduler/timer debugger (`Window/Scheduler Debugger`) |
 | Tasks Editor | Task runner editor |
 | Tween | Easing property drawer |
 | UI Service | UI binding code auto-generation (`GameObject/ScriptGenerator/Generate Binding Code`), component Inspector |
 | Input Service | Input action config editor, button icon collection editor |
+| Save Service | Save browser (`Window/Moirai/Save Browser`), codeless save component editor |
 | Utility | Command-line reader, log redirection, EditorScriptableSingleton, Shell helper, etc. |
-| YooAsset | Build cache cleanup, built-in directory, custom build pipeline, Shader variant collection |
+| YooAsset | Build cache cleanup, builtin catalog/patch package tools, custom build pipeline, Shader variant collection |
 
 ---
 

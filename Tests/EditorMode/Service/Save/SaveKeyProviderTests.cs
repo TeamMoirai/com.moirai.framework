@@ -37,7 +37,7 @@ namespace Save
         public void SetUp()
         {
             _rootPath = Path.Combine(Path.GetTempPath(), "moirai-save-key-tests-" + Guid.NewGuid().ToString("N"));
-            _directoryPath = Path.Combine(_rootPath, SaveServiceHandler.DataFolderName, "Slots");
+            _directoryPath = Path.Combine(_rootPath, SaveServiceHandler.DATA_FOLDER_NAME, "Slots");
             Directory.CreateDirectory(_directoryPath);
             SaveServiceHandler.s_OverrideBasePath = _rootPath;
             _paths = new SaveServiceHandler.SavePaths(_directoryPath, Path.Combine(_directoryPath, "slot.sav"));
@@ -134,13 +134,13 @@ namespace Save
         {
             // Key 属性桥接（V2 契约）与静态提供方同参派生等价——两种注入方式的档互读
             var writer = new AesEncryptedSaveHandler { Key = "cross-key" };
-            writer.SaveBlockCore(_paths, SaveServiceHandler.MainBlockKey, new SaveData { Gold = 88, PlayerName = "bridge" }, ESaveBackend.Json, 1, CancellationToken.None);
+            writer.SaveBlockCore(_paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 88, PlayerName = "bridge" }, ESaveBackend.Json, 1, CancellationToken.None);
 
             var staticProvider = new StaticSaveKeyProvider();
             staticProvider.Configure("cross-key", SaveEncryptor.DefaultSalt, SaveEncryptor.DefaultIterations);
             var reader = new AesEncryptedSaveHandler { _keyProvider = staticProvider };
 
-            SaveError error = reader.TryLoadBlockCore<SaveData>(_paths, SaveServiceHandler.MainBlockKey, out SaveData loaded);
+            SaveError error = reader.TryLoadBlockCore<SaveData>(_paths, SaveServiceHandler.MAIN_BLOCK_KEY, out SaveData loaded);
             Assert.AreEqual(SaveError.None, error, "Key 桥接与静态提供方同参派生应互读");
             Assert.AreEqual(88, loaded.Gold);
         }
@@ -193,13 +193,13 @@ namespace Save
             var writerProvider = new PassphraseSaveKeyProvider();
             writerProvider.SetPassphrase("player-password");
             var writer = new AesEncryptedSaveHandler { _keyProvider = writerProvider };
-            writer.SaveBlockCore(_paths, SaveServiceHandler.MainBlockKey, new SaveData { Gold = 66, PlayerName = "locked" }, ESaveBackend.Json, 1, CancellationToken.None);
+            writer.SaveBlockCore(_paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 66, PlayerName = "locked" }, ESaveBackend.Json, 1, CancellationToken.None);
 
             var readerProvider = new PassphraseSaveKeyProvider();
             readerProvider.SetPassphrase("player-password");
             var reader = new AesEncryptedSaveHandler { _keyProvider = readerProvider };
 
-            SaveError error = reader.TryLoadBlockCore<SaveData>(_paths, SaveServiceHandler.MainBlockKey, out SaveData loaded);
+            SaveError error = reader.TryLoadBlockCore<SaveData>(_paths, SaveServiceHandler.MAIN_BLOCK_KEY, out SaveData loaded);
             Assert.AreEqual(SaveError.None, error);
             Assert.AreEqual(66, loaded.Gold);
         }
@@ -208,12 +208,12 @@ namespace Save
         public void Passphrase_HandlerLoad_Unset_ReturnsInvalidArgument()
         {
             var writer = new AesEncryptedSaveHandler { Key = "any" };
-            writer.SaveBlockCore(_paths, SaveServiceHandler.MainBlockKey, new SaveData { Gold = 1, PlayerName = "x" }, ESaveBackend.Json, 1, CancellationToken.None);
+            writer.SaveBlockCore(_paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 1, PlayerName = "x" }, ESaveBackend.Json, 1, CancellationToken.None);
 
             var reader = new AesEncryptedSaveHandler { _keyProvider = new PassphraseSaveKeyProvider() };
 
             ExpectErrorLogForUtf();
-            SaveError error = reader.TryLoadBlockCore<SaveData>(_paths, SaveServiceHandler.MainBlockKey, out SaveData loaded);
+            SaveError error = reader.TryLoadBlockCore<SaveData>(_paths, SaveServiceHandler.MAIN_BLOCK_KEY, out SaveData loaded);
             AssertErrorLogged("InvalidArgument");
             Assert.AreEqual(SaveError.InvalidArgument, error, "未注入口令的读取应分型为参数错误");
             Assert.IsNull(loaded);
@@ -225,7 +225,7 @@ namespace Save
             // 写路径 fail-fast 契约：密钥材料不可得 = 写入失败抛 GameException
             var writer = new AesEncryptedSaveHandler { _keyProvider = new PassphraseSaveKeyProvider() };
             Assert.Throws<GameException>(() =>
-                writer.SaveBlockCore(_paths, SaveServiceHandler.MainBlockKey, new SaveData { Gold = 1, PlayerName = "x" }, ESaveBackend.Json, 1, CancellationToken.None));
+                writer.SaveBlockCore(_paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 1, PlayerName = "x" }, ESaveBackend.Json, 1, CancellationToken.None));
         }
 
         #endregion
@@ -275,7 +275,7 @@ namespace Save
             {
                 _keyProvider = new HkdfPerUserSaveKeyProvider { UserId = "user-a" }
             };
-            writer.SaveBlockCore(_paths, SaveServiceHandler.MainBlockKey, new SaveData { Gold = 42, PlayerName = "user-a-data" }, ESaveBackend.Json, 1, CancellationToken.None);
+            writer.SaveBlockCore(_paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 42, PlayerName = "user-a-data" }, ESaveBackend.Json, 1, CancellationToken.None);
 
             var wrongUser = new AesEncryptedSaveHandler
             {
@@ -283,7 +283,7 @@ namespace Save
             };
 
             ExpectErrorLogForUtf();
-            SaveError wrongError = wrongUser.TryLoadBlockCore<SaveData>(_paths, SaveServiceHandler.MainBlockKey, out SaveData rejected);
+            SaveError wrongError = wrongUser.TryLoadBlockCore<SaveData>(_paths, SaveServiceHandler.MAIN_BLOCK_KEY, out SaveData rejected);
             AssertErrorLogged("IntegrityCheckFailed");
             Assert.AreEqual(SaveError.IntegrityCheckFailed, wrongError, "他用户密钥应在 HMAC 层被拦截");
             Assert.IsNull(rejected);
@@ -292,7 +292,7 @@ namespace Save
             {
                 _keyProvider = new HkdfPerUserSaveKeyProvider { UserId = "user-a" }
             };
-            SaveError error = sameUser.TryLoadBlockCore<SaveData>(_paths, SaveServiceHandler.MainBlockKey, out SaveData loaded);
+            SaveError error = sameUser.TryLoadBlockCore<SaveData>(_paths, SaveServiceHandler.MAIN_BLOCK_KEY, out SaveData loaded);
             Assert.AreEqual(SaveError.None, error, "同用户应可读回");
             Assert.AreEqual(42, loaded.Gold);
         }

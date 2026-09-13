@@ -357,7 +357,7 @@ namespace Save
         /// </summary>
         private SaveMetadata ReadMeta(string fileName)
         {
-            SaveError error = _handler.TryLoadBlockCore<SaveMetadata>(Paths(fileName), SaveServiceHandler.MetaBlockKey, out SaveMetadata metadata);
+            SaveError error = _handler.TryLoadBlockCore<SaveMetadata>(Paths(fileName), SaveServiceHandler.META_BLOCK_KEY, out SaveMetadata metadata);
             Assert.AreEqual(SaveError.None, error, "元数据块应可读");
             return metadata;
         }
@@ -771,7 +771,7 @@ namespace Save
             _handler.SaveBlockCore(Paths("slot"), "profile", new ProfileData { Gold = 1 }, ESaveBackend.Json, 1, CancellationToken.None);
             SaveError error = _handler.MigrateSave("slot", TestFolder);
             Assert.AreEqual(SaveError.None, error);
-            SaveError metaError = _handler.TryLoadBlockCore<SaveMetadata>(Paths("slot"), SaveServiceHandler.MetaBlockKey, out _);
+            SaveError metaError = _handler.TryLoadBlockCore<SaveMetadata>(Paths("slot"), SaveServiceHandler.META_BLOCK_KEY, out _);
             Assert.AreEqual(SaveError.FileNotFound, metaError, "未激活时不应创建元数据块");
         }
 

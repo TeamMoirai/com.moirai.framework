@@ -26,22 +26,22 @@ namespace Moirai.Atropos.Save
     public abstract class SaveServiceHandler : FrameworkHandler
     {
         /// <summary>存档数据根目录名（persistentDataPath 下）。</summary>
-        public const string DataFolderName = "Data";
+        public const string DATA_FOLDER_NAME = "Data";
 
         /// <summary>默认存档文件夹名。</summary>
         public const string DEFAULT_FOLDER_NAME = "Save";
 
         /// <summary>兼容块键：旧单对象 API（Save/Load/TryLoad）映射的保留数据块。</summary>
-        public const string MainBlockKey = "__main__";
+        public const string MAIN_BLOCK_KEY = "__main__";
 
         /// <summary>保留块键：槽位元数据块（JSON 后端）。</summary>
-        internal const string MetaBlockKey = "__meta";
+        internal const string META_BLOCK_KEY = "__meta";
 
         /// <summary>保留块键前缀（用户块键禁止使用，避免与框架保留块冲突）。</summary>
-        internal const string ReservedBlockKeyPrefix = "__";
+        internal const string RESERVED_BLOCK_KEY_PREFIX = "__";
 
         /// <summary>块键最大字符数。</summary>
-        internal const int MaxBlockKeyLength = 64;
+        internal const int MAX_BLOCK_KEY_LENGTH = 64;
 
         private static readonly char[] s_PathSeparators = { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar };
         private static readonly char[] s_InvalidFileNameChars = Path.GetInvalidFileNameChars();
@@ -102,7 +102,7 @@ namespace Moirai.Atropos.Save
         /// <typeparam name="T">存档数据类型。</typeparam>
         /// <param name="data">存档数据对象。</param>
         /// <param name="fileName">文件名（自动追加配置的扩展名）。</param>
-        /// <param name="key">数据块键（禁止保留前缀 <see cref="ReservedBlockKeyPrefix"/>）。</param>
+        /// <param name="key">数据块键（禁止保留前缀 <see cref="RESERVED_BLOCK_KEY_PREFIX"/>）。</param>
         /// <param name="folderName">文件夹名称；空串表示存档数据根目录。</param>
         /// <param name="backend">序列化后端标识。</param>
         /// <param name="dataVersion">数据块模式版本。</param>
@@ -1227,7 +1227,7 @@ namespace Moirai.Atropos.Save
 
             int currentVersion = SaveMigrationManager.CurrentVersion;
             SaveMetadata metadata = null;
-            if (SaveBlockComposer.TryFind(blocks, MetaBlockKey, out SaveBlockEntry metaEntry))
+            if (SaveBlockComposer.TryFind(blocks, META_BLOCK_KEY, out SaveBlockEntry metaEntry))
             {
                 try
                 {
@@ -1247,7 +1247,7 @@ namespace Moirai.Atropos.Save
             metadata ??= new SaveMetadata();
             metadata.SaveVersion = currentVersion;
             byte[] metaBytes = SaveSerializerRegistry.GetRequired(ESaveBackend.Json).Serialize(metadata);
-            return SaveBlockComposer.Upsert(blocks, new SaveBlockEntry(MetaBlockKey, 1, ESaveBackend.Json, metaBytes));
+            return SaveBlockComposer.Upsert(blocks, new SaveBlockEntry(META_BLOCK_KEY, 1, ESaveBackend.Json, metaBytes));
         }
 
         #endregion
@@ -1377,8 +1377,8 @@ namespace Moirai.Atropos.Save
         private static string BuildFolderPath(string folderName)
         {
             string directoryPath = string.IsNullOrEmpty(folderName)
-                ? Path.Combine(BasePath, DataFolderName)
-                : Path.Combine(BasePath, DataFolderName, folderName);
+                ? Path.Combine(BasePath, DATA_FOLDER_NAME)
+                : Path.Combine(BasePath, DATA_FOLDER_NAME, folderName);
             return directoryPath + Path.DirectorySeparatorChar;
         }
 
@@ -1388,7 +1388,7 @@ namespace Moirai.Atropos.Save
         /// <returns>根目录路径。</returns>
         private static string BuildDataRootDirectory()
         {
-            return Path.Combine(BasePath, DataFolderName);
+            return Path.Combine(BasePath, DATA_FOLDER_NAME);
         }
 
         /// <summary>
@@ -1499,7 +1499,7 @@ namespace Moirai.Atropos.Save
         /// <summary>
         /// 校验数据块键：非空白、长度受限、不含控制字符/路径分隔符、禁止保留前缀。
         /// <para>保留前缀（<c>__</c>）禁止用户新建块——但对既有保留块（<c>__main__</c>/<c>__meta</c>）的读写/删除为合法操作（兼容旧 API 与元数据管理），
-        /// 经 <see cref="MainBlockKey"/>/<see cref="MetaBlockKey"/> 常量访问时豁免前缀校验。</para>
+        /// 经 <see cref="MAIN_BLOCK_KEY"/>/<see cref="META_BLOCK_KEY"/> 常量访问时豁免前缀校验。</para>
         /// </summary>
         /// <param name="key">数据块键。</param>
         private static void ValidateBlockKey(string key)
@@ -1514,9 +1514,9 @@ namespace Moirai.Atropos.Save
                 throw new ArgumentException("Save block key is null or empty.", nameof(key));
             }
 
-            if (key.Length > MaxBlockKeyLength)
+            if (key.Length > MAX_BLOCK_KEY_LENGTH)
             {
-                throw new ArgumentException(StringUtility.Format("Save block key '{0}' exceeds the max length {1}.", key, MaxBlockKeyLength), nameof(key));
+                throw new ArgumentException(StringUtility.Format("Save block key '{0}' exceeds the max length {1}.", key, MAX_BLOCK_KEY_LENGTH), nameof(key));
             }
 
             if (key.IndexOfAny(s_PathSeparators) >= 0 || key.IndexOfAny(s_InvalidFileNameChars) >= 0)
@@ -1525,11 +1525,11 @@ namespace Moirai.Atropos.Save
             }
 
             // 保留前缀仅豁免框架专用保留块（__main__/__meta），其余 __ 前缀一律拒绝
-            if (key.StartsWith(ReservedBlockKeyPrefix, StringComparison.Ordinal)
-                && !string.Equals(key, MainBlockKey, StringComparison.Ordinal)
-                && !string.Equals(key, MetaBlockKey, StringComparison.Ordinal))
+            if (key.StartsWith(RESERVED_BLOCK_KEY_PREFIX, StringComparison.Ordinal)
+                && !string.Equals(key, MAIN_BLOCK_KEY, StringComparison.Ordinal)
+                && !string.Equals(key, META_BLOCK_KEY, StringComparison.Ordinal))
             {
-                throw new ArgumentException(StringUtility.Format("Save block key '{0}' uses the reserved prefix '{1}'.", key, ReservedBlockKeyPrefix), nameof(key));
+                throw new ArgumentException(StringUtility.Format("Save block key '{0}' uses the reserved prefix '{1}'.", key, RESERVED_BLOCK_KEY_PREFIX), nameof(key));
             }
         }
 
