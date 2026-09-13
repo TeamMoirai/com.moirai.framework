@@ -173,8 +173,14 @@ namespace Service.Timer
             Advance(5.0); // 仅推进缩放时钟
             Assert.AreEqual(0, _fired, "不受缩放时间影响的计时器不应被缩放时钟推进触发");
 
+            // 真实时钟跳变 1.2s（1200 tick）超出单帧时间轮预算（MAX_WHEEL_TICKS_PER_FRAME = 64），
+            // 需连续 Tick 驱动时间轮追平到期 tick；触发后继续驱动验证一次性不重复触发
             _unscaledNow += 1.2;
-            _handler.Tick(0f, 0f);
+            for (int i = 0; i < 32; i++)
+            {
+                _handler.Tick(0f, 0f);
+            }
+
             Assert.AreEqual(1, _fired, "真实时钟推进后应触发");
             Assert.IsFalse(_handler.IsRunning(handle), "一次性计时器触发后应结束");
         }

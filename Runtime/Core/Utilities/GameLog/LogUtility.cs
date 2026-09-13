@@ -8,8 +8,9 @@ namespace Moirai.Atropos
     /// 游戏框架日志外观（Facade）。
     /// <para>统一的静态日志入口，通过替换 <see cref="Handler"/> 即可在
     /// Unity Debug、Unity Logging、Serilog、ZLogger 等日志系统之间零成本切换，调用方代码无需任何改动。</para>
-    /// <para>所有带格式化参数的重载都会先做 <see cref="LogHandler.IsEnabled"/> 前置检查，
-    /// 被过滤的日志不会产生字符串格式化开销。未显式设置处理器时，按编译期可用的最优后端自动选择
+    /// <para>等级过滤由各 <see cref="LogHandler"/> 实现在 <see cref="LogHandler.Log"/> 入口按
+    /// <see cref="LogHandler.MinimumLevel"/> 执行（覆盖全局拦截器转发的三方日志）；
+    /// <see cref="OnMessageLogged"/> 仅在日志通过等级过滤后触发。未显式设置处理器时，按编译期可用的最优后端自动选择
     /// （优先级：Unity Logging &gt; ZLogger &gt; Serilog &gt; Unity Debug）。</para>
     /// <para>日志方法由 T4 模板生成，见 <c>LogUtility.LogMethods.tt</c>。</para>
     /// </summary>
@@ -44,7 +45,7 @@ namespace Moirai.Atropos
         /// <summary>
         /// 日志事件回调。每次日志被记录后触发（在 <see cref="LogHandler.Log"/> 之后）。
         /// <para>可用于调试器内嵌控制台、崩溃上报、测试断言等场景。</para>
-        /// <para>注意：仅在日志通过 <see cref="LogHandler.IsEnabled"/> 前置过滤后才会触发；
+        /// <para>注意：仅在日志通过 <see cref="LogHandler.MinimumLevel"/> 等级过滤后才会触发；
         /// 被等级过滤的日志不会触发此事件。</para>
         /// </summary>
         internal static event Action<ELogLevel, string, Exception> OnMessageLogged;
@@ -57,6 +58,9 @@ namespace Moirai.Atropos
         /// <param name="exception">关联异常，无异常时为 null。</param>
         internal static void RaiseMessageLogged(ELogLevel logLevel, string message, Exception exception)
         {
+            // 事件契约：与各 Handler 内部过滤同判定——低于 MinimumLevel 的日志不触发事件
+            if (Handler.MinimumLevel > logLevel) return;
+
             OnMessageLogged?.Invoke(logLevel, message, exception);
         }
 

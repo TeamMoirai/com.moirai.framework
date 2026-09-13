@@ -72,7 +72,8 @@ namespace Utility
             LogUtility.Debug("d");
             LogUtility.Info("i");
             LogUtility.Warning("w");
-            LogAssert.Expect(LogType.Error, new Regex(@"\[ERROR\].*e"));
+            // LogAssert 仅承担 UTF 错误日志消除职责，不耦合 Handler 渲染前缀；内容断言走 OnMessageLogged
+            LogAssert.Expect(LogType.Error, new Regex(".*"));
             LogUtility.Error("e");
 
             Assert.AreEqual(5, _entries.Count);
@@ -129,7 +130,7 @@ namespace Utility
         public void Log_ErrorWithException_PassesException()
         {
             var exception = new InvalidOperationException("boom");
-            LogAssert.Expect(LogType.Error, new Regex(@"\[ERROR\].*boom"));
+            LogAssert.Expect(LogType.Error, new Regex(".*"));
 
             LogUtility.Error(exception);
 
@@ -154,7 +155,7 @@ namespace Utility
         [Test]
         public void DefaultLogHandler_Fatal_DoesNotThrow()
         {
-            LogAssert.Expect(LogType.Error, new Regex(".*FATAL.*unrecoverable.*"));
+            LogAssert.Expect(LogType.Error, new Regex(".*"));
             Assert.DoesNotThrow(() => LogUtility.Fatal("unrecoverable"));
             LogAssert.Expect(LogType.Exception, new Regex(".*boom.*"));
             Assert.DoesNotThrow(() => LogUtility.Fatal(new InvalidOperationException("boom")));
@@ -177,10 +178,11 @@ namespace Utility
         {
             var handler = new DefaultLogHandler { MinimumLevel = ELogLevel.Error };
 
-            Assert.IsFalse(handler.MinimumLevel >= ELogLevel.Verbose);
-            Assert.IsFalse(handler.MinimumLevel >= ELogLevel.Warning);
-            Assert.IsTrue(handler.MinimumLevel >= ELogLevel.Error);
-            Assert.IsTrue(handler.MinimumLevel >= ELogLevel.Fatal);
+            // ELogLevel 升序（Verbose=0 → Fatal=5）：低于最小等级应被过滤，达到最小等级应被保留
+            Assert.IsTrue(ELogLevel.Verbose < handler.MinimumLevel);
+            Assert.IsTrue(ELogLevel.Warning < handler.MinimumLevel);
+            Assert.IsTrue(ELogLevel.Error >= handler.MinimumLevel);
+            Assert.IsTrue(ELogLevel.Fatal >= handler.MinimumLevel);
         }
 
         #endregion
@@ -191,7 +193,7 @@ namespace Utility
         public void MessageLogged_FiresAfterLog()
         {
             LogUtility.Info("hello");
-            LogAssert.Expect(LogType.Error, new Regex(@"\[ERROR\].*oops"));
+            LogAssert.Expect(LogType.Error, new Regex(".*"));
             LogUtility.Error("oops");
 
             Assert.AreEqual(2, _entries.Count);
@@ -216,7 +218,7 @@ namespace Utility
         public void MessageLogged_ExceptionOverload_FiresWithException()
         {
             var ex = new InvalidOperationException("err");
-            LogAssert.Expect(LogType.Error, new Regex(@"\[ERROR\].*err"));
+            LogAssert.Expect(LogType.Error, new Regex(".*"));
 
             LogUtility.Error(ex);
 
