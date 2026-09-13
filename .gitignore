@@ -80,4 +80,5 @@ Thumbs.db
 [Ss]amples.meta
 
 # SourceGenerator
-!**/Source~/*.csproj
+!**/Source~/**/*.csproj
+!**/Source~/**/*.sln

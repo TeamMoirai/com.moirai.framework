@@ -7,7 +7,7 @@ namespace Moirai.Atropos.SourceGenerators
 {
     /// <summary>
     /// 为标记了 [HandlerHost(typeof(THandler))] 的 partial class 生成：
-    /// s_Handler 字段、IsValid 属性、Handler 属性（线程安全 get/set）。
+    /// s_Handler 字段、IsValid 属性、Handler 属性（线程安全 get/set）、RequireHandler 方法。
     /// <para>生成的成员均为 static，但类声明沿用源类的修饰符（static 或非 static）。</para>
     /// <para>工厂契约三档：
     /// ① 同时声明 <c>CreateDefaultHandler</c> 与可选的 <c>GetHandlerFromSettings</c>——懒加载优先调用后者，返回 null 回退默认工厂，
@@ -16,6 +16,7 @@ namespace Moirai.Atropos.SourceGenerators
     /// ③ 仅声明 <c>GetHandlerFromSettings</c>（settings-only）——懒加载调用它并要求返回非空值，
     /// 返回 null 时抛 <see cref="InvalidOperationException"/>（由 HandlerHostAnalyzer MIRAI102 报告 Info 提示）。</para>
     /// <para>两者都缺失时 Handler.get 直接抛 InvalidOperationException，由 HandlerHostAnalyzer (MIRAI101) 报告警告。</para>
+    /// <para>RequireHandler 读 s_Handler（不触发懒加载）：未就绪抛 <see cref="GameException"/>——写路径 fail-fast 入口。</para>
     /// </summary>
     [Generator]
     public class HandlerHostGenerator : IIncrementalGenerator
@@ -87,6 +88,23 @@ namespace Moirai.Atropos.SourceGenerators
             sb.AppendLine("        /// Handler 是否可用。");
             sb.AppendLine("        /// </summary>");
             sb.AppendLine("        public static bool IsValid => s_Handler != null;");
+            sb.AppendLine();
+            sb.AppendLine("        /// <summary>");
+            sb.AppendLine("        /// 取就绪处理器；未就绪时抛 <see cref=\"Moirai.Atropos.GameException\"/>（写路径 fail-fast——禁止静默降级）。");
+            sb.AppendLine("        /// <para>读 <c>s_Handler</c> 不触发懒加载：服务未注册/未初始化时立即失败，避免写操作静默丢档。</para>");
+            sb.AppendLine("        /// </summary>");
+            sb.AppendLine($"        /// <returns>已就绪的处理器实例。</returns>");
+            sb.AppendLine($"        private static {info.HandlerTypeName} RequireHandler()");
+            sb.AppendLine("        {");
+            sb.AppendLine("            var handler = s_Handler;");
+            sb.AppendLine("            if (handler == null)");
+            sb.AppendLine("            {");
+            sb.AppendLine("                throw new Moirai.Atropos.GameException(");
+            sb.AppendLine($"                    \"HandlerHost: '{info.ClassName}' handler is not ready. Register and initialize the service before writing.\");");
+            sb.AppendLine("            }");
+            sb.AppendLine();
+            sb.AppendLine("            return handler;");
+            sb.AppendLine("        }");
             sb.AppendLine();
 
             sb.AppendLine($"        public static {info.HandlerTypeName} Handler");

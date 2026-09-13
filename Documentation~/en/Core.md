@@ -412,6 +412,7 @@ The source generator produces `{ClassName}.g.cs` for each class marked with `[Ha
 | `s_Handler` | `private static volatile` handler field |
 | `Handler` | `public static` property: get lazy-inits via Interlocked; set replaces and shuts down the previous handler |
 | `Handler.set` | Inits the new handler → `Interlocked.Exchange` → calls `Internal_Shutdown()` on the previous handler |
+| `RequireHandler` | `private static` method: reads `s_Handler` (no lazy-init); throws `GameException` when not ready — fail-fast write-path entry that never silently drops operations |
 
 ### Handler Inheritance Hierarchy
 

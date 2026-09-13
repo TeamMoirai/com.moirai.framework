@@ -412,6 +412,7 @@ public static partial class LogUtility
 | `s_Handler` | `private static volatile` 处理器字段 |
 | `Handler` | `public static` 属性：get 懒加载（Interlocked），set 替换并关闭旧处理器 |
 | `Handler.set` | 初始化新处理器 → `Interlocked.Exchange` → 旧处理器 `Internal_Shutdown()` |
+| `RequireHandler` | `private static` 方法：读 `s_Handler`（不触发懒加载），未就绪抛 `GameException`——写路径 fail-fast 入口，禁止静默丢操作 |
 
 ### 处理器继承体系
 

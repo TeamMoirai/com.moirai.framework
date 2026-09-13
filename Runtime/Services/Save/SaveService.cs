@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
-using Moirai.Atropos;
 using Moirai.Atropos.Debugger;
 
 namespace Moirai.Atropos.Save
@@ -33,21 +32,6 @@ namespace Moirai.Atropos.Save
         {
             GameServices.EnsureRegistered<SaveService>();
             return SaveServiceSettings.SaveServiceHandler;
-        }
-
-        /// <summary>
-        /// 取就绪处理器；未就绪时抛 <see cref="GameException"/>（写路径专用——静默丢档不可接受）。
-        /// </summary>
-        /// <returns>处理器实例。</returns>
-        private static SaveServiceHandler RequireHandler()
-        {
-            SaveServiceHandler handler = s_Handler;
-            if (handler is null)
-            {
-                throw new GameException("SaveService handler is not ready. Register SaveService (GameServices.EnsureRegistered) before writing saves.");
-            }
-
-            return handler;
         }
 
         /// <inheritdoc />
