@@ -28,6 +28,11 @@ namespace Moirai.Atropos.ObjectPool
     /// <summary>
     /// GameObject 池回收策略。
     /// </summary>
+    /// <remarks>
+    /// `Flush` / 低内存：所有策略（含 Sticky）按 `minIdle` 剪空闲；剪空后若 `unloadPrefab` 为真则释放 Prefab 源租约（进入资源模块 Idle TTL，不是立刻从内存抠掉）。<br />
+    /// 普通 Tick 不会动 Sticky。<br />
+    /// 每次维护有剪裁预算（约 `soft/4`，封顶 16；低内存 16），不一定一帧剪完。
+    /// </remarks>
     public enum EPoolPolicy : byte
     {
         /// <summary>
