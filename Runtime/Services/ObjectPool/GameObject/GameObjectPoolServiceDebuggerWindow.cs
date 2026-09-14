@@ -333,6 +333,7 @@ namespace Moirai.Atropos.ObjectPool
                 // 策略徽标与摘要并排右侧——toggle 的文本标签非直接子级（IndexOf 为 -1），不可按索引插入
                 Label policyLabel = new Label(snapshot.policy.ToString().ToUpperInvariant()) { pickingMode = PickingMode.Ignore };
                 policyLabel.AddToClassList("dbg-text--accent");
+                policyLabel.style.unityTextAlign = TextAnchor.MiddleLeft;
                 policyLabel.style.flexShrink = 0f;
                 policyLabel.style.marginLeft = 8f;
 
