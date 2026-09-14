@@ -112,26 +112,24 @@ namespace Moirai.Atropos.Save
             ValidateBlockData(data);
             ValidateBlockKey(key);
             SavePaths paths = ResolveSavePaths(fileName, folderName);
-            SemaphoreSlim gate = SaveFileGate.Enter(paths.SaveFilePath);
-            return SaveBlockWithGateAsync(paths, key, data, backend, dataVersion, gate, cancellationToken);
+            GateScope scope = GateScope.EnterFile(paths);
+            return SaveBlockWithGateAsync(paths, key, data, backend, dataVersion, scope, cancellationToken);
         }
 
         /// <summary>
         /// 持串行门执行块写入（先排队后进线程池；取消发生在排队期时不持门）。
         /// </summary>
-        private async UniTask SaveBlockWithGateAsync<T>(SavePaths paths, string key, T data, ESaveBackend backend, int dataVersion, SemaphoreSlim gate, CancellationToken cancellationToken)
+        private async UniTask SaveBlockWithGateAsync<T>(SavePaths paths, string key, T data, ESaveBackend backend, int dataVersion, GateScope scope, CancellationToken cancellationToken)
         {
-            bool acquired = false;
             try
             {
-                await gate.WaitAsync(cancellationToken);
-                acquired = true;
+                await scope.WaitAsync(cancellationToken);
                 // configureAwait: false —— Leave 在线程池续延执行，避免主线程被同步 gate.Wait() 阻死时无法归还信号量
                 await UniTask.RunOnThreadPool(() => SaveBlockCore(paths, key, data, backend, dataVersion, cancellationToken), configureAwait: false, cancellationToken: cancellationToken);
             }
             finally
             {
-                SaveFileGate.Leave(paths.SaveFilePath, gate, acquired);
+                scope.Leave();
             }
         }
 
@@ -149,25 +147,23 @@ namespace Moirai.Atropos.Save
         {
             ValidateBlockKey(key);
             SavePaths paths = ResolveSavePaths(fileName, folderName);
-            SemaphoreSlim gate = SaveFileGate.Enter(paths.SaveFilePath);
-            return LoadBlockWithGateAsync<T>(paths, key, gate, cancellationToken);
+            GateScope scope = GateScope.EnterFile(paths);
+            return LoadBlockWithGateAsync<T>(paths, key, scope, cancellationToken);
         }
 
         /// <summary>
         /// 持串行门执行块读取（与写路径互斥：不读到读-改-写进行中的旧档）。
         /// </summary>
-        private async UniTask<T> LoadBlockWithGateAsync<T>(SavePaths paths, string key, SemaphoreSlim gate, CancellationToken cancellationToken)
+        private async UniTask<T> LoadBlockWithGateAsync<T>(SavePaths paths, string key, GateScope scope, CancellationToken cancellationToken)
         {
-            bool acquired = false;
             try
             {
-                await gate.WaitAsync(cancellationToken);
-                acquired = true;
+                await scope.WaitAsync(cancellationToken);
                 return await UniTask.RunOnThreadPool(() => LoadBlockCore<T>(paths, key), configureAwait: false, cancellationToken: cancellationToken);
             }
             finally
             {
-                SaveFileGate.Leave(paths.SaveFilePath, gate, acquired);
+                scope.Leave();
             }
         }
 
@@ -184,20 +180,18 @@ namespace Moirai.Atropos.Save
         {
             ValidateBlockKey(key);
             SavePaths paths = ResolveSavePaths(fileName, folderName);
-            SemaphoreSlim gate = SaveFileGate.Enter(paths.SaveFilePath);
-            return TryLoadBlockWithGateAsync<T>(paths, key, gate, cancellationToken);
+            GateScope scope = GateScope.EnterFile(paths);
+            return TryLoadBlockWithGateAsync<T>(paths, key, scope, cancellationToken);
         }
 
         /// <summary>
         /// 持串行门执行块读取（错误判别版）。
         /// </summary>
-        private async UniTask<SaveResult<T>> TryLoadBlockWithGateAsync<T>(SavePaths paths, string key, SemaphoreSlim gate, CancellationToken cancellationToken)
+        private async UniTask<SaveResult<T>> TryLoadBlockWithGateAsync<T>(SavePaths paths, string key, GateScope scope, CancellationToken cancellationToken)
         {
-            bool acquired = false;
             try
             {
-                await gate.WaitAsync(cancellationToken);
-                acquired = true;
+                await scope.WaitAsync(cancellationToken);
                 return await UniTask.RunOnThreadPool(() =>
                 {
                     SaveError error = TryLoadBlockCore<T>(paths, key, out T data);
@@ -206,7 +200,7 @@ namespace Moirai.Atropos.Save
             }
             finally
             {
-                SaveFileGate.Leave(paths.SaveFilePath, gate, acquired);
+                scope.Leave();
             }
         }
 
@@ -226,15 +220,15 @@ namespace Moirai.Atropos.Save
             ValidateBlockData(data);
             ValidateBlockKey(key);
             SavePaths paths = ResolveSavePaths(fileName, folderName);
-            SemaphoreSlim gate = SaveFileGate.Enter(paths.SaveFilePath);
-            gate.Wait();
+            GateScope scope = GateScope.EnterFile(paths);
+            scope.Wait();
             try
             {
                 SaveBlockCore(paths, key, data, backend, dataVersion, CancellationToken.None);
             }
             finally
             {
-                SaveFileGate.Leave(paths.SaveFilePath, gate, acquired: true);
+                scope.Leave();
             }
         }
 
@@ -251,15 +245,15 @@ namespace Moirai.Atropos.Save
         {
             ValidateBlockKey(key);
             SavePaths paths = ResolveSavePaths(fileName, folderName);
-            SemaphoreSlim gate = SaveFileGate.Enter(paths.SaveFilePath);
-            gate.Wait();
+            GateScope scope = GateScope.EnterFile(paths);
+            scope.Wait();
             try
             {
                 return LoadBlockCore<T>(paths, key);
             }
             finally
             {
-                SaveFileGate.Leave(paths.SaveFilePath, gate, acquired: true);
+                scope.Leave();
             }
         }
 
@@ -276,8 +270,8 @@ namespace Moirai.Atropos.Save
         {
             ValidateBlockKey(key);
             SavePaths paths = ResolveSavePaths(fileName, folderName);
-            SemaphoreSlim gate = SaveFileGate.Enter(paths.SaveFilePath);
-            gate.Wait();
+            GateScope scope = GateScope.EnterFile(paths);
+            scope.Wait();
             try
             {
                 SaveError error = TryLoadBlockCore<T>(paths, key, out T data);
@@ -285,7 +279,7 @@ namespace Moirai.Atropos.Save
             }
             finally
             {
-                SaveFileGate.Leave(paths.SaveFilePath, gate, acquired: true);
+                scope.Leave();
             }
         }
 
@@ -471,25 +465,23 @@ namespace Moirai.Atropos.Save
         {
             ValidateBlockKey(key);
             SavePaths paths = ResolveSavePaths(fileName, folderName);
-            SemaphoreSlim gate = SaveFileGate.Enter(paths.SaveFilePath);
-            return DeleteBlockWithGateAsync(paths, key, gate, cancellationToken);
+            GateScope scope = GateScope.EnterFile(paths);
+            return DeleteBlockWithGateAsync(paths, key, scope, cancellationToken);
         }
 
         /// <summary>
         /// 持串行门执行块删除。
         /// </summary>
-        private async UniTask DeleteBlockWithGateAsync(SavePaths paths, string key, SemaphoreSlim gate, CancellationToken cancellationToken)
+        private async UniTask DeleteBlockWithGateAsync(SavePaths paths, string key, GateScope scope, CancellationToken cancellationToken)
         {
-            bool acquired = false;
             try
             {
-                await gate.WaitAsync(cancellationToken);
-                acquired = true;
+                await scope.WaitAsync(cancellationToken);
                 await UniTask.RunOnThreadPool(() => DeleteBlockCore(paths, key, cancellationToken), configureAwait: false, cancellationToken: cancellationToken);
             }
             finally
             {
-                SaveFileGate.Leave(paths.SaveFilePath, gate, acquired);
+                scope.Leave();
             }
         }
 
@@ -504,15 +496,15 @@ namespace Moirai.Atropos.Save
         {
             ValidateBlockKey(key);
             SavePaths paths = ResolveSavePaths(fileName, folderName);
-            SemaphoreSlim gate = SaveFileGate.Enter(paths.SaveFilePath);
-            gate.Wait();
+            GateScope scope = GateScope.EnterFile(paths);
+            scope.Wait();
             try
             {
                 DeleteBlockCore(paths, key, CancellationToken.None);
             }
             finally
             {
-                SaveFileGate.Leave(paths.SaveFilePath, gate, acquired: true);
+                scope.Leave();
             }
         }
 
@@ -576,8 +568,8 @@ namespace Moirai.Atropos.Save
         public SaveBlockInfo[] GetBlockInfos(string fileName, string folderName = DEFAULT_FOLDER_NAME)
         {
             SavePaths paths = ResolveSavePaths(fileName, folderName);
-            SemaphoreSlim gate = SaveFileGate.Enter(paths.SaveFilePath);
-            gate.Wait();
+            GateScope scope = GateScope.EnterFile(paths);
+            scope.Wait();
             try
             {
                 SaveError readError = ReadContainerOrEmpty(paths, out List<SaveBlockEntry> blocks, out List<SaveBlockError> blockErrors);
@@ -605,7 +597,7 @@ namespace Moirai.Atropos.Save
             }
             finally
             {
-                SaveFileGate.Leave(paths.SaveFilePath, gate, acquired: true);
+                scope.Leave();
             }
         }
 
@@ -615,27 +607,42 @@ namespace Moirai.Atropos.Save
 
         /// <summary>
         /// 从磁盘中删除单个存档（含全部数据块与截图 sidecar；幂等——目标不存在视为删除成功，不触发事件）。
+        /// <para>持分层门执行（与块级读写互斥）——存在性判定与删除在同一临界区内完成，杜绝并发写入在删除后复活文件。</para>
         /// </summary>
         /// <param name="fileName">文件名。</param>
         /// <param name="folderName">文件夹名称。</param>
         public void DeleteSave(string fileName, string folderName = DEFAULT_FOLDER_NAME)
         {
             SavePaths paths = ResolveSavePaths(fileName, folderName);
-            SaveStorageBackend storage = Storage;
-            if (!storage.Exists(paths.SaveFilePath))
+            GateScope scope = GateScope.EnterFile(paths);
+            scope.Wait();
+            bool existed;
+            try
             {
-                return;
+                SaveStorageBackend storage = Storage;
+                existed = storage.Exists(paths.SaveFilePath);
+                if (existed)
+                {
+                    storage.DeleteFile(paths.SaveFilePath);
+                    DeleteScreenshot(paths);
+                }
+            }
+            finally
+            {
+                scope.Leave();
             }
 
-            storage.DeleteFile(paths.SaveFilePath);
-            DeleteScreenshot(paths);
-            SaveMigrationManager.InvalidateSession(paths.SaveFilePath);
-            SaveService.RaiseSlotChanged(ESaveSlotChangeKind.Deleted, paths.FileName, paths.FolderName);
+            if (existed)
+            {
+                SaveMigrationManager.InvalidateSession(paths.SaveFilePath);
+                SaveService.RaiseSlotChanged(ESaveSlotChangeKind.Deleted, paths.FileName, paths.FolderName);
+            }
         }
 
         /// <summary>
         /// 删除整个存档文件夹（含其中全部文件与子目录）。
         /// <para>目录级批量删除触发一次 <see cref="SaveService.SlotChanged"/>（<see cref="SaveSlotChangedArgs.FileName"/> 为 <c>null</c>；不保证目录先前存在）。</para>
+        /// <para>持分层门执行（根 + 文件夹两级）——与该文件夹内全部槽位的块级读写互斥。</para>
         /// </summary>
         /// <param name="folderName">文件夹名称；不允许为空（清空全部请用 <see cref="DeleteAllSaveFiles"/>）。</param>
         public void DeleteSaveFolder(string folderName = DEFAULT_FOLDER_NAME)
@@ -647,7 +654,17 @@ namespace Moirai.Atropos.Save
             }
 
             string directoryPath = BuildFolderPath(folderName);
-            Storage.DeleteDirectory(directoryPath);
+            GateScope scope = GateScope.EnterFolder(directoryPath);
+            scope.Wait();
+            try
+            {
+                Storage.DeleteDirectory(directoryPath);
+            }
+            finally
+            {
+                scope.Leave();
+            }
+
             SaveMigrationManager.InvalidateSession(null);
             SaveService.RaiseSlotChanged(ESaveSlotChangeKind.Deleted, null, folderName);
         }
@@ -655,11 +672,22 @@ namespace Moirai.Atropos.Save
         /// <summary>
         /// 删除存档数据根目录（<c>persistentDataPath/Data/</c>）及其下所有存档。
         /// <para>触发一次 <see cref="SaveService.SlotChanged"/>（<see cref="SaveSlotChangedArgs.FileName"/> 为 <c>null</c>，文件夹为空串 = 数据根目录）。</para>
+        /// <para>持分层门执行（根级）——与所有存档的块级读写互斥；用户数据清除场景（如合规删除）结果可靠。</para>
         /// </summary>
         public void DeleteAllSaveFiles()
         {
             string rootDirectory = BuildDataRootDirectory();
-            Storage.DeleteDirectory(rootDirectory);
+            GateScope scope = GateScope.EnterRoot(rootDirectory);
+            scope.Wait();
+            try
+            {
+                Storage.DeleteDirectory(rootDirectory);
+            }
+            finally
+            {
+                scope.Leave();
+            }
+
             SaveMigrationManager.InvalidateSession(null);
             SaveService.RaiseSlotChanged(ESaveSlotChangeKind.Deleted, null, string.Empty);
         }
@@ -671,21 +699,39 @@ namespace Moirai.Atropos.Save
         /// <param name="folderName">文件夹名称。</param>
         /// <param name="cancellationToken">取消令牌。</param>
         /// <returns>删除完成的异步任务。</returns>
+        /// <summary>
+        /// 从磁盘中异步删除单个存档（含截图 sidecar；删除退避重试在工作线程执行；幂等——目标不存在不触发事件）。
+        /// <para>持分层门执行（与块级读写互斥）——存在性判定与删除在同一临界区内完成，杜绝并发写入在删除后复活文件。</para>
+        /// </summary>
+        /// <param name="fileName">文件名。</param>
+        /// <param name="folderName">文件夹名称。</param>
+        /// <param name="cancellationToken">取消令牌。</param>
+        /// <returns>删除完成的异步任务。</returns>
         public async UniTask DeleteSaveAsync(string fileName, string folderName = DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default)
         {
             SavePaths paths = ResolveSavePaths(fileName, folderName);
-            SaveStorageBackend storage = Storage;
-            bool existed = await UniTask.RunOnThreadPool(() =>
+            GateScope scope = GateScope.EnterFile(paths);
+            bool existed;
+            try
             {
-                bool exists = storage.Exists(paths.SaveFilePath);
-                storage.DeleteFile(paths.SaveFilePath);
-                if (exists)
+                await scope.WaitAsync(cancellationToken);
+                SaveStorageBackend storage = Storage;
+                existed = await UniTask.RunOnThreadPool(() =>
                 {
-                    storage.DeleteFile(ResolveScreenshotPath(paths));
-                }
+                    bool exists = storage.Exists(paths.SaveFilePath);
+                    storage.DeleteFile(paths.SaveFilePath);
+                    if (exists)
+                    {
+                        storage.DeleteFile(ResolveScreenshotPath(paths));
+                    }
 
-                return exists;
-            }, configureAwait: false, cancellationToken: cancellationToken);
+                    return exists;
+                }, configureAwait: false, cancellationToken: cancellationToken);
+            }
+            finally
+            {
+                scope.Leave();
+            }
 
             if (existed)
             {
@@ -697,6 +743,7 @@ namespace Moirai.Atropos.Save
         /// <summary>
         /// 异步删除整个存档文件夹（含其中全部文件与子目录）。
         /// <para>目录级批量删除触发一次 <see cref="SaveService.SlotChanged"/>（不保证目录先前存在）。</para>
+        /// <para>持分层门执行（根 + 文件夹两级）——与该文件夹内全部槽位的块级读写互斥。</para>
         /// </summary>
         /// <param name="folderName">文件夹名称；不允许为空（清空全部请用 <see cref="DeleteAllSaveFilesAsync"/>）。</param>
         /// <param name="cancellationToken">取消令牌。</param>
@@ -710,22 +757,43 @@ namespace Moirai.Atropos.Save
             }
 
             string directoryPath = BuildFolderPath(folderName);
-            SaveStorageBackend storage = Storage;
-            await UniTask.RunOnThreadPool(() => storage.DeleteDirectory(directoryPath), configureAwait: false, cancellationToken: cancellationToken);
+            GateScope scope = GateScope.EnterFolder(directoryPath);
+            try
+            {
+                await scope.WaitAsync(cancellationToken);
+                SaveStorageBackend storage = Storage;
+                await UniTask.RunOnThreadPool(() => storage.DeleteDirectory(directoryPath), configureAwait: false, cancellationToken: cancellationToken);
+            }
+            finally
+            {
+                scope.Leave();
+            }
+
             SaveMigrationManager.InvalidateSession(null);
             SaveService.RaiseSlotChanged(ESaveSlotChangeKind.Deleted, null, folderName);
         }
 
         /// <summary>
         /// 异步删除存档数据根目录（<c>persistentDataPath/Data/</c>）及其下所有存档。
+        /// <para>持分层门执行（根级）——与所有存档的块级读写互斥。</para>
         /// </summary>
         /// <param name="cancellationToken">取消令牌。</param>
         /// <returns>删除完成的异步任务。</returns>
         public async UniTask DeleteAllSaveFilesAsync(CancellationToken cancellationToken = default)
         {
             string rootDirectory = BuildDataRootDirectory();
-            SaveStorageBackend storage = Storage;
-            await UniTask.RunOnThreadPool(() => storage.DeleteDirectory(rootDirectory), configureAwait: false, cancellationToken: cancellationToken);
+            GateScope scope = GateScope.EnterRoot(rootDirectory);
+            try
+            {
+                await scope.WaitAsync(cancellationToken);
+                SaveStorageBackend storage = Storage;
+                await UniTask.RunOnThreadPool(() => storage.DeleteDirectory(rootDirectory), configureAwait: false, cancellationToken: cancellationToken);
+            }
+            finally
+            {
+                scope.Leave();
+            }
+
             SaveMigrationManager.InvalidateSession(null);
             SaveService.RaiseSlotChanged(ESaveSlotChangeKind.Deleted, null, string.Empty);
         }
@@ -753,8 +821,8 @@ namespace Moirai.Atropos.Save
         public void CreateBackup(string fileName, string folderName = DEFAULT_FOLDER_NAME)
         {
             SavePaths paths = ResolveSavePaths(fileName, folderName);
-            SemaphoreSlim gate = SaveFileGate.Enter(paths.SaveFilePath);
-            gate.Wait();
+            GateScope scope = GateScope.EnterFile(paths);
+            scope.Wait();
             try
             {
                 try
@@ -769,7 +837,7 @@ namespace Moirai.Atropos.Save
             }
             finally
             {
-                SaveFileGate.Leave(paths.SaveFilePath, gate, acquired: true);
+                scope.Leave();
             }
 
             SaveService.RaiseSlotChanged(ESaveSlotChangeKind.BackupCreated, paths.FileName, paths.FolderName);
@@ -783,8 +851,8 @@ namespace Moirai.Atropos.Save
         public void RestoreBackup(string fileName, string folderName = DEFAULT_FOLDER_NAME)
         {
             SavePaths paths = ResolveSavePaths(fileName, folderName);
-            SemaphoreSlim gate = SaveFileGate.Enter(paths.SaveFilePath);
-            gate.Wait();
+            GateScope scope = GateScope.EnterFile(paths);
+            scope.Wait();
             try
             {
                 try
@@ -799,7 +867,7 @@ namespace Moirai.Atropos.Save
             }
             finally
             {
-                SaveFileGate.Leave(paths.SaveFilePath, gate, acquired: true);
+                scope.Leave();
             }
 
             // 备份内容可能处于旧数据版本——失效会话迁移缓存，下次读取重新探测
@@ -854,20 +922,18 @@ namespace Moirai.Atropos.Save
                 return UniTask.CompletedTask;
             }
 
-            SemaphoreSlim gate = SaveFileGate.Enter(paths.SaveFilePath);
-            return UpsertRawBlocksWithGateAsync(paths, additions, gate, cancellationToken);
+            GateScope scope = GateScope.EnterFile(paths);
+            return UpsertRawBlocksWithGateAsync(paths, additions, scope, cancellationToken);
         }
 
         /// <summary>
         /// 持串行门执行组件块合并写回。
         /// </summary>
-        private async UniTask UpsertRawBlocksWithGateAsync(SavePaths paths, List<SaveBlockEntry> additions, SemaphoreSlim gate, CancellationToken cancellationToken)
+        private async UniTask UpsertRawBlocksWithGateAsync(SavePaths paths, List<SaveBlockEntry> additions, GateScope scope, CancellationToken cancellationToken)
         {
-            bool acquired = false;
             try
             {
-                await gate.WaitAsync(cancellationToken);
-                acquired = true;
+                await scope.WaitAsync(cancellationToken);
                 await UniTask.RunOnThreadPool(() =>
                 {
                     // 坏块在写回时自然剔除（数据已不可读），健康块保留
@@ -893,7 +959,7 @@ namespace Moirai.Atropos.Save
             }
             finally
             {
-                SaveFileGate.Leave(paths.SaveFilePath, gate, acquired);
+                scope.Leave();
             }
         }
 
@@ -905,8 +971,8 @@ namespace Moirai.Atropos.Save
         /// <returns>键 → 块载荷字典；缺档/损坏（已记录日志）返回空字典。</returns>
         internal UniTask<Dictionary<string, byte[]>> ReadRawBlocksAsync(SavePaths paths, CancellationToken cancellationToken)
         {
-            SemaphoreSlim gate = SaveFileGate.Enter(paths.SaveFilePath);
-            return ReadRawBlocksWithGateAsync(paths, gate, cancellationToken);
+            GateScope scope = GateScope.EnterFile(paths);
+            return ReadRawBlocksWithGateAsync(paths, scope, cancellationToken);
         }
 
         /// <summary>
@@ -917,8 +983,8 @@ namespace Moirai.Atropos.Save
         /// <returns>键 → 块载荷字典；缺档/损坏（已记录日志）返回空字典。</returns>
         internal Dictionary<string, byte[]> ReadRawBlocks(SavePaths paths)
         {
-            SemaphoreSlim gate = SaveFileGate.Enter(paths.SaveFilePath);
-            gate.Wait();
+            GateScope scope = GateScope.EnterFile(paths);
+            scope.Wait();
             try
             {
                 // 组件恢复只取健康块——坏块对应组件保持现状（部分恢复），坏块明细记告警日志并逐块触发失败事件
@@ -954,20 +1020,18 @@ namespace Moirai.Atropos.Save
             }
             finally
             {
-                SaveFileGate.Leave(paths.SaveFilePath, gate, true);
+                scope.Leave();
             }
         }
 
         /// <summary>
         /// 持串行门执行组件块读取。
         /// </summary>
-        private async UniTask<Dictionary<string, byte[]>> ReadRawBlocksWithGateAsync(SavePaths paths, SemaphoreSlim gate, CancellationToken cancellationToken)
+        private async UniTask<Dictionary<string, byte[]>> ReadRawBlocksWithGateAsync(SavePaths paths, GateScope scope, CancellationToken cancellationToken)
         {
-            bool acquired = false;
             try
             {
-                await gate.WaitAsync(cancellationToken);
-                acquired = true;
+                await scope.WaitAsync(cancellationToken);
                 return await UniTask.RunOnThreadPool(() =>
                 {
                     // 组件恢复只取健康块——坏块对应组件保持现状（部分恢复），坏块明细记告警日志并逐块触发失败事件
@@ -1004,7 +1068,7 @@ namespace Moirai.Atropos.Save
             }
             finally
             {
-                SaveFileGate.Leave(paths.SaveFilePath, gate, acquired);
+                scope.Leave();
             }
         }
 
@@ -1022,20 +1086,18 @@ namespace Moirai.Atropos.Save
                 return UniTask.CompletedTask;
             }
 
-            SemaphoreSlim gate = SaveFileGate.Enter(paths.SaveFilePath);
-            return DeleteRawBlocksWithGateAsync(paths, keys, gate, cancellationToken);
+            GateScope scope = GateScope.EnterFile(paths);
+            return DeleteRawBlocksWithGateAsync(paths, keys, scope, cancellationToken);
         }
 
         /// <summary>
         /// 持串行门执行组件块删除。
         /// </summary>
-        private async UniTask DeleteRawBlocksWithGateAsync(SavePaths paths, List<string> keys, SemaphoreSlim gate, CancellationToken cancellationToken)
+        private async UniTask DeleteRawBlocksWithGateAsync(SavePaths paths, List<string> keys, GateScope scope, CancellationToken cancellationToken)
         {
-            bool acquired = false;
             try
             {
-                await gate.WaitAsync(cancellationToken);
-                acquired = true;
+                await scope.WaitAsync(cancellationToken);
                 await UniTask.RunOnThreadPool(() =>
                 {
                     SaveError readError = ReadContainerOrEmpty(paths, out List<SaveBlockEntry> existingBlocks, out List<SaveBlockError> blockErrors);
@@ -1075,7 +1137,7 @@ namespace Moirai.Atropos.Save
             }
             finally
             {
-                SaveFileGate.Leave(paths.SaveFilePath, gate, acquired);
+                scope.Leave();
             }
         }
 
@@ -1094,15 +1156,15 @@ namespace Moirai.Atropos.Save
         public SaveError MigrateSave(string fileName, string folderName = DEFAULT_FOLDER_NAME)
         {
             SavePaths paths = ResolveSavePaths(fileName, folderName);
-            SemaphoreSlim gate = SaveFileGate.Enter(paths.SaveFilePath);
-            gate.Wait();
+            GateScope scope = GateScope.EnterFile(paths);
+            scope.Wait();
             try
             {
                 return MigrateSaveCore(paths, CancellationToken.None);
             }
             finally
             {
-                SaveFileGate.Leave(paths.SaveFilePath, gate, acquired: true);
+                scope.Leave();
             }
         }
 
@@ -1117,25 +1179,23 @@ namespace Moirai.Atropos.Save
         public UniTask<SaveError> MigrateSaveAsync(string fileName, string folderName = DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default)
         {
             SavePaths paths = ResolveSavePaths(fileName, folderName);
-            SemaphoreSlim gate = SaveFileGate.Enter(paths.SaveFilePath);
-            return MigrateSaveWithGateAsync(paths, gate, cancellationToken);
+            GateScope scope = GateScope.EnterFile(paths);
+            return MigrateSaveWithGateAsync(paths, scope, cancellationToken);
         }
 
         /// <summary>
         /// 持串行门执行显式迁移。
         /// </summary>
-        private async UniTask<SaveError> MigrateSaveWithGateAsync(SavePaths paths, SemaphoreSlim gate, CancellationToken cancellationToken)
+        private async UniTask<SaveError> MigrateSaveWithGateAsync(SavePaths paths, GateScope scope, CancellationToken cancellationToken)
         {
-            bool acquired = false;
             try
             {
-                await gate.WaitAsync(cancellationToken);
-                acquired = true;
+                await scope.WaitAsync(cancellationToken);
                 return await UniTask.RunOnThreadPool(() => MigrateSaveCore(paths, cancellationToken), configureAwait: false, cancellationToken: cancellationToken);
             }
             finally
             {
-                SaveFileGate.Leave(paths.SaveFilePath, gate, acquired);
+                scope.Leave();
             }
         }
 
@@ -1318,6 +1378,120 @@ namespace Moirai.Atropos.Save
         {
             ValidateFolderName(folderName);
             return BuildFolderPath(folderName);
+        }
+
+        /// <summary>
+        /// 分层门作用域：按「根目录 → 文件夹 → 文件」固定序取门（顺序全局一致，防死锁），
+        /// 使整档删除、文件夹删除与根目录清空同块级读写互斥——删除不再与读-改-写交叉（删除后被并发写入复活/丢块），
+        /// 用户数据清除类操作（<see cref="DeleteAllSaveFiles"/>）结果可靠。
+        /// <para>根门为全局串行点：跨文件夹的存档 IO 互相排队（存档 IO 低频，以队列化换删除可靠性）。
+        /// 各层级计数在 <see cref="SaveFileGate"/> 表上登记，<see cref="Leave"/> 幂等归还（取消等门只释放已持层级）。</para>
+        /// </summary>
+        private sealed class GateScope
+        {
+            /// <summary>层级键（取门顺序：根 → 文件夹 → 文件）。</summary>
+            private readonly string[] _keys;
+
+            /// <summary>层级信号量（与 <see cref="_keys"/> 对齐）。</summary>
+            private readonly SemaphoreSlim[] _gates;
+
+            /// <summary>已实际持门的前缀层级数（等门取消时只释放该前缀）。</summary>
+            private int _acquiredCount;
+
+            /// <summary>归还标记（幂等守卫）。</summary>
+            private bool _left;
+
+            private GateScope(string[] keys, SemaphoreSlim[] gates)
+            {
+                _keys = keys;
+                _gates = gates;
+            }
+
+            /// <summary>
+            /// 取文件级门作用域（根 + 文件夹 + 文件三级）。
+            /// </summary>
+            /// <param name="paths">已解析的路径集合。</param>
+            /// <returns>门作用域。</returns>
+            public static GateScope EnterFile(SavePaths paths)
+            {
+                return EnterAll(BuildDataRootDirectory(), paths.DirectoryPath, paths.SaveFilePath);
+            }
+
+            /// <summary>
+            /// 取文件夹级门作用域（根 + 文件夹两级；文件夹批量删除用）。
+            /// </summary>
+            /// <param name="directoryPath">目标文件夹完整路径（与 <see cref="SavePaths.DirectoryPath"/> 同串）。</param>
+            /// <returns>门作用域。</returns>
+            public static GateScope EnterFolder(string directoryPath)
+            {
+                return EnterAll(BuildDataRootDirectory(), directoryPath);
+            }
+
+            /// <summary>
+            /// 取根级门作用域（仅根目录；清空全部存档用）。
+            /// </summary>
+            /// <param name="rootDirectory">存档数据根目录完整路径。</param>
+            /// <returns>门作用域。</returns>
+            public static GateScope EnterRoot(string rootDirectory)
+            {
+                return EnterAll(rootDirectory);
+            }
+
+            private static GateScope EnterAll(params string[] keys)
+            {
+                var gates = new SemaphoreSlim[keys.Length];
+                for (int i = 0; i < keys.Length; i++)
+                {
+                    gates[i] = SaveFileGate.Enter(keys[i]);
+                }
+
+                return new GateScope(keys, gates);
+            }
+
+            /// <summary>
+            /// 同步等待全部层级持门。
+            /// </summary>
+            public void Wait()
+            {
+                for (int i = 0; i < _gates.Length; i++)
+                {
+                    _gates[i].Wait();
+                    _acquiredCount = i + 1;
+                }
+            }
+
+            /// <summary>
+            /// 异步等待全部层级持门（等门期取消时抛出，已持前缀层级由 <see cref="Leave"/> 正确归还）。
+            /// </summary>
+            /// <param name="cancellationToken">取消令牌。</param>
+            /// <returns>持门完成的异步任务。</returns>
+            public async UniTask WaitAsync(CancellationToken cancellationToken)
+            {
+                for (int i = 0; i < _gates.Length; i++)
+                {
+                    await _gates[i].WaitAsync(cancellationToken);
+                    _acquiredCount = i + 1;
+                }
+            }
+
+            /// <summary>
+            /// 归还全部层级（逆序释放已持前缀，未持层级仅归还占用计数；幂等——重复调用为空操作）。
+            /// </summary>
+            public void Leave()
+            {
+                if (_left)
+                {
+                    return;
+                }
+
+                _left = true;
+                for (int i = _gates.Length - 1; i >= 0; i--)
+                {
+                    SaveFileGate.Leave(_keys[i], _gates[i], i < _acquiredCount);
+                }
+
+                _acquiredCount = 0;
+            }
         }
 
         /// <summary>

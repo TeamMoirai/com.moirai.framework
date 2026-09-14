@@ -322,6 +322,114 @@ namespace Save
             Assert.IsFalse(GateTable().Contains(paths.SaveFilePath));
         }
 
+        [Test]
+        public void DeleteSave_WhileFileGateHeld_BlocksUntilRelease()
+        {
+            // 主线程预热（Settings 懒加载须先于工作线程访问）并造档
+            _handler.SaveBlock(new SaveData { Gold = 1, PlayerName = "p" }, "gate-del-slot", "k", TestFolder);
+            Assert.IsTrue(_handler.FileExists("gate-del-slot", TestFolder));
+
+            // 持文件级门——整档删除（分层门：根+文件夹+文件）必须在文件级排队
+            var paths = SaveServiceHandler.ResolveSavePaths("gate-del-slot", TestFolder);
+            SemaphoreSlim fileGate = SaveFileGate.Enter(paths.SaveFilePath);
+            fileGate.Wait();
+
+            Exception failure = null;
+            bool completed = false;
+            var thread = new Thread(() =>
+            {
+                try
+                {
+                    _handler.DeleteSave("gate-del-slot", TestFolder);
+                    completed = true;
+                }
+                catch (Exception exception)
+                {
+                    failure = exception;
+                }
+            });
+            thread.Start();
+            Thread.Sleep(200);
+            Assert.IsFalse(completed, "文件级门被持期间整档删除必须排队（防删除后并发写入复活文件）");
+
+            SaveFileGate.Leave(paths.SaveFilePath, fileGate, acquired: true);
+            thread.Join();
+            Assert.IsNull(failure, failure?.Message);
+            Assert.IsTrue(completed);
+            Assert.IsFalse(_handler.FileExists("gate-del-slot", TestFolder), "门释放后删除应完成");
+        }
+
+        [Test]
+        public void DeleteSaveFolder_WhileFolderGateHeld_BlocksUntilRelease()
+        {
+            _handler.SaveBlock(new SaveData { Gold = 1, PlayerName = "p" }, "gate-folder-slot", "k", TestFolder);
+            var paths = SaveServiceHandler.ResolveSavePaths("gate-folder-slot", TestFolder);
+
+            // 持文件夹级门（块级读写持「根+文件夹+文件」三级，故文件夹删除与任一槽位写入互斥）
+            SemaphoreSlim dirGate = SaveFileGate.Enter(paths.DirectoryPath);
+            dirGate.Wait();
+
+            Exception failure = null;
+            bool completed = false;
+            var thread = new Thread(() =>
+            {
+                try
+                {
+                    _handler.DeleteSaveFolder(TestFolder);
+                    completed = true;
+                }
+                catch (Exception exception)
+                {
+                    failure = exception;
+                }
+            });
+            thread.Start();
+            Thread.Sleep(200);
+            Assert.IsFalse(completed, "文件夹级门被持期间文件夹删除必须排队");
+
+            SaveFileGate.Leave(paths.DirectoryPath, dirGate, acquired: true);
+            thread.Join();
+            Assert.IsNull(failure, failure?.Message);
+            Assert.IsTrue(completed);
+            Assert.IsFalse(_handler.FileExists("gate-folder-slot", TestFolder), "门释放后文件夹删除应完成");
+        }
+
+        [Test]
+        public void DeleteAllSaveFiles_WhileRootGateHeld_BlocksUntilRelease()
+        {
+            _handler.SaveBlock(new SaveData { Gold = 1, PlayerName = "p" }, "gate-root-slot", "k", TestFolder);
+            var paths = SaveServiceHandler.ResolveSavePaths("gate-root-slot", TestFolder);
+
+            // 持根级门（与 BuildDataRootDirectory 同串：文件夹路径去尾分隔符后取父目录）
+            string rootKey = Path.GetDirectoryName(paths.DirectoryPath.TrimEnd(Path.DirectorySeparatorChar));
+            SemaphoreSlim rootGate = SaveFileGate.Enter(rootKey);
+            rootGate.Wait();
+
+            Exception failure = null;
+            bool completed = false;
+            var thread = new Thread(() =>
+            {
+                try
+                {
+                    _handler.DeleteAllSaveFiles();
+                    completed = true;
+                }
+                catch (Exception exception)
+                {
+                    failure = exception;
+                }
+            });
+            thread.Start();
+            Thread.Sleep(200);
+            Assert.IsFalse(completed, "根级门被持期间根目录清空必须排队（用户数据清除可靠性）");
+
+            SaveFileGate.Leave(rootKey, rootGate, acquired: true);
+            thread.Join();
+            Assert.IsNull(failure, failure?.Message);
+            Assert.IsTrue(completed);
+            Assert.IsFalse(_handler.FileExists("gate-root-slot", TestFolder), "门释放后根目录清空应完成");
+        }
+
         /// <summary>
         /// 反射读取门表（惰性回收断言用）。
         /// </summary>
