@@ -9,7 +9,7 @@
 - 三种输入后端可配置：新版 Input System、旧版 Input Manager、移动端 UI 触控组件
 - 统一动作轮询 API：`GetButtonDown` / `GetButtonUp` / `GetButtonPressed` / `GetBool` / `GetFloat` / `GetVector2`，支持动作分组（`actionGroup`）
 - 鼠标专用查询：按键三态、位置、滚轮（新旧系统滚轮值已归一化对齐）
-- 输入状态开关：`Enabled`（全局）、`LockPlayerController`（锁角色控制）、`PreventInteractionUI`（锁 UI 交互），切换时自动重置残留输入状态
+- 输入状态开关：`Enabled`（全局硬门控，动作类查询一律返回默认值）、`LockPlayerController`（锁角色控制）、`PreventInteractionUI`（锁 UI 交互），进入压制态时自动重置残留输入状态；Input System 后端经 Action Map 整体启停中心强制，消费者无需自查
 - UI 模态联动：监听 `UIServiceEvent`，存在模态窗口时自动锁定玩家控制
 - 应用焦点联动：失焦自动禁用输入，聚焦自动恢复
 - 按键提示系统（Prompts）：按键图标随当前活动输入设备自动切换，支持图文混排
@@ -18,7 +18,7 @@
 
 | 类/接口 | 说明 |
 |---------|------|
-| `Moirai.Atropos.Input.InputService` | 输入服务静态外观（`[HandlerHost]`），全部轮询 API 为静态方法，经 `Handler` 属性转发（fail-fast：未就绪时按需初始化，工厂缺失时抛异常，不静默降级） |
+| `Moirai.Atropos.Input.InputService` | 输入服务静态外观（`[HandlerHost]`），全部轮询 API 为静态方法，经 `Handler` 属性转发；降级契约——未注册/未初始化时返回安全默认值（false/0/zero），不抛异常 |
 | `Moirai.Atropos.Input.InputServiceHandler` | 输入处理器抽象基类（`[Serializable]`），定义全部输入查询方法。通过 `[SerializeReference]` 在输入设置中配置 |
 | `Moirai.Atropos.Input.UnityInputSystemHandler` | 基于 Unity Input System 的处理器（宏 `ENABLE_INPUT_SYSTEM`） |
 | `Moirai.Atropos.Input.UnityInputManagerHandler` | 基于旧版 Input Manager 的处理器（宏 `ENABLE_LEGACY_INPUT_MANAGER`） |
@@ -71,9 +71,9 @@ InputService.Enabled = false;                // 全局禁用（重置所有输�
 
 | 处理器 | 动作解析方式 | 备注 |
 |--------|-------------|------|
-| `UnityInputSystemHandler` | `$"{actionGroup}/{actionName}"` 查找 `InputSystem.actions` 中的 `InputAction` | 需在 Project Settings → Input System Package 配置 Action Asset；滚轮值除以 120 与旧系统对齐 |
-| `UnityInputManagerHandler` | `actionName` 即 Input Manager 轴名；Vector2 按 `"{name} X"` / `"{name} Y"` 组合两轴 | 使用 `GetAxisRaw`，不存在的轴会输出警告 |
-| `UIMobileInputHandler` | 按 `ActionName` 查找场景中的 `InputButton`（bool）与 `InputAxes`（Vector2） | 鼠标相关接口恒为默认值 |
+| `UnityInputSystemHandler` | `$"{actionGroup}/{actionName}"` 查找 `InputSystem.actions` 中的 `InputAction` | 需在 Project Settings → Input System Package 配置 Action Asset（自定义资产由处理器自动接管启用）；滚轮值除以 120 与旧系统对齐；支持上下文压制——玩家/UI Map 随压制态整体启停（Map 名可在处理器上配置，默认 `Player`/`UI`） |
+| `UnityInputManagerHandler` | `actionName` 即 Input Manager 轴名；Vector2 按 `"{name} X"` / `"{name} Y"` 组合两轴 | 使用 `GetAxisRaw`，未注册轴惰性探测一次并告警；仅支持 `Enabled` 全局硬门控（无 Action Map 概念，上下文压制为 Input System 后端专属能力） |
+| `UIMobileInputHandler` | 按 `ActionName` 查找场景中的 `InputButton`（bool）与 `InputAxes`（Vector2），组件经 `UIMobileInputRegistry` 自注册 | 鼠标相关接口恒为默认值；仅支持 `Enabled` 全局硬门控 |
 
 ### 移动端 UI 输入组件
 
@@ -136,8 +136,9 @@ Sprite device = InputDevicePromptSystem.GetDeviceSprite(spriteName);
 
 - 处理器类型在框架设置"输入设置"中通过 `[SerializeReference]` 配置，运行时通过 `InputServiceSettings.InputServiceHandler` 懒加载；切换处理器需重启生效
 - `UnityInputSystemHandler` / `UnityInputManagerHandler` 分别受 `ENABLE_INPUT_SYSTEM` / `ENABLE_LEGACY_INPUT_MANAGER` 宏控制编译
-- 存在 UI 模态窗口时 `LockPlayerController` 恒为 true（由 `UIServiceEvent` 驱动），属预期行为
-- `UIMobileInputHandler` 的 `GetButtonDown` / `GetButtonUp` 尚未实现（抛出 `NotImplementedException`），仅使用 bool 持续态查询
+- 存在 UI 模态窗口时 `LockPlayerController` 恒为 true（由 `UIServiceEvent` 驱动），属预期行为；Input System 后端此时玩家 Map 整体禁用而 UI Map 保持可用，模态自身热键不受影响
+- 压制门控仅作用于动作类查询（按钮/轴/向量）；鼠标查询不参与门控。未列入玩家/UI Map 配置的动作不受上下文压制（仅受 `Enabled` 全局门控）
+- `UIMobileInputHandler` 的 `GetButtonDown` / `GetButtonUp` 读取组件帧闩锁边沿（语义对齐 `WasPressedThisFrame`）
 - 输入查询应每帧轮询调用，服务本身不做事件推送
 
 ---
