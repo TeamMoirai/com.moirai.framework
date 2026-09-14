@@ -79,7 +79,9 @@ namespace Moirai.Atropos.Procedure
             // 设置默认值
             var procedureTypeNames = GetProcedureTypeNames();
             m_AvailableProcedureTypeNames = procedureTypeNames;
-            m_EntranceProcedureTypeName = procedureTypeNames.Single(x => x.Contains("ProcedureLaunch"));
+            // 优先约定入口 ProcedureLaunch；缺失时回退第一个可用流程（Reset 不可抛异常中断资产重置）
+            m_EntranceProcedureTypeName = procedureTypeNames.FirstOrDefault(x => x.Contains("ProcedureLaunch"))
+                ?? procedureTypeNames.FirstOrDefault();
 
             onSettingsReset?.Invoke();
         }
