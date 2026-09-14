@@ -12,6 +12,9 @@ namespace Moirai.Atropos.Input
     /// 此方案用于桌面游戏。动作名直接映射 Input Manager（Project Settings &gt; Input Manager）中注册的
     /// Axis/Button 名称，<paramref name="actionGroup"/> 参数仅为外观契约兼容，此实现忽略分组。
     /// <para>Vector2 动作遵循约定：读取同名 "X X"/"Y Y" 后缀轴（例如 "Move" 读取 "Move X" 与 "Move Y"）。</para>
+    /// <para>门控能力：旧版 API 无动作分组概念，此后端仅支持 <c>Enabled=false</c> 全局硬门控（动作类查询
+    /// 一律降级返回默认值）；玩家/UI 上下文压制（Action Map 切换）为 Input System 后端专属能力，
+    /// 需要上下文隔离的项目请使用 Input System 后端。</para>
     /// </remarks>
     [Serializable]
     public sealed class UnityInputManagerHandler : InputServiceHandler
@@ -77,26 +80,28 @@ namespace Moirai.Atropos.Input
 
         public override bool GetButtonDown(string actionName, string actionGroup = "")
         {
-            return IsRegisteredButton(actionName) && UnityEngine.Input.GetButtonDown(actionName);
+            return _state.Enabled && IsRegisteredButton(actionName) && UnityEngine.Input.GetButtonDown(actionName);
         }
 
         public override bool GetButtonUp(string actionName, string actionGroup = "")
         {
-            return IsRegisteredButton(actionName) && UnityEngine.Input.GetButtonUp(actionName);
+            return _state.Enabled && IsRegisteredButton(actionName) && UnityEngine.Input.GetButtonUp(actionName);
         }
 
         public override bool GetBool(string actionName, string actionGroup = "")
         {
-            return IsRegisteredButton(actionName) && UnityEngine.Input.GetButton(actionName);
+            return _state.Enabled && IsRegisteredButton(actionName) && UnityEngine.Input.GetButton(actionName);
         }
 
         public override float GetFloat(string actionName, string actionGroup = "")
         {
-            return IsRegisteredAxis(actionName) ? UnityEngine.Input.GetAxisRaw(actionName) : 0f;
+            return _state.Enabled && IsRegisteredAxis(actionName) ? UnityEngine.Input.GetAxisRaw(actionName) : 0f;
         }
 
         public override Vector2 GetVector2(string actionName, string actionGroup = "")
         {
+            if (!_state.Enabled) return Vector2.zero;
+
             if (!_vector2Actions.TryGetValue(actionName, out Vector2Action vector2Action))
             {
                 vector2Action = new Vector2Action(

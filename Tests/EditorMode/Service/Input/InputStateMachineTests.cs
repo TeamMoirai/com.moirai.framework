@@ -169,6 +169,101 @@ namespace Service.Input
 
         #endregion
 
+        #region 有效压制态与广播 [EFFECTIVE SUPPRESSION]
+
+        [Test]
+        public void Suppression_Defaults_NoneSuppressed()
+        {
+            Assert.IsFalse(_state.IsPlayerInputSuppressed);
+            Assert.IsFalse(_state.IsUIInteractionSuppressed);
+        }
+
+        [Test]
+        public void Suppression_Disable_SuppressesBoth()
+        {
+            _state.Enabled = false;
+
+            Assert.IsTrue(_state.IsPlayerInputSuppressed);
+            Assert.IsTrue(_state.IsUIInteractionSuppressed);
+        }
+
+        [Test]
+        public void Suppression_Lock_SuppressesPlayerOnly()
+        {
+            _state.LockPlayerController = true;
+
+            Assert.IsTrue(_state.IsPlayerInputSuppressed);
+            Assert.IsFalse(_state.IsUIInteractionSuppressed);
+        }
+
+        [Test]
+        public void Suppression_PreventUI_SuppressesUIOnly()
+        {
+            _state.PreventInteractionUI = true;
+
+            Assert.IsTrue(_state.IsUIInteractionSuppressed);
+            Assert.IsFalse(_state.IsPlayerInputSuppressed);
+        }
+
+        [Test]
+        public void Suppression_UIModal_SuppressesPlayerOnly()
+        {
+            _state.SetUIModal(true);
+
+            Assert.IsTrue(_state.IsPlayerInputSuppressed);
+            Assert.IsFalse(_state.IsUIInteractionSuppressed);
+        }
+
+        [Test]
+        public void SuppressionChanged_FiresOnEveryEffectiveFlip()
+        {
+            int count = 0;
+            _state.SuppressionChanged += () => count++;
+
+            _state.LockPlayerController = true;    // 玩家压制 false→true
+            _state.LockPlayerController = false;   // 恢复 true→false
+            _state.SetUIModal(true);               // 玩家压制 false→true
+            _state.SetUIModal(false);              // 恢复
+            _state.Enabled = false;                // 双压制 false→true（一次广播）
+            _state.Enabled = true;                 // 恢复
+
+            Assert.AreEqual(6, count);
+        }
+
+        [Test]
+        public void SuppressionChanged_IdempotentSets_DoNotFire()
+        {
+            int count = 0;
+            _state.SuppressionChanged += () => count++;
+
+            _state.Enabled = true;
+            _state.LockPlayerController = false;
+            _state.PreventInteractionUI = false;
+            _state.SetUIModal(false);
+
+            Assert.AreEqual(0, count);
+        }
+
+        [Test]
+        public void SuppressionChanged_OverlappingStates_FiresOnlyOnEffectiveFlip()
+        {
+            // 锁定 + 模态同压玩家：解除其一仍处压制不应广播，全部解除才广播
+            int count = 0;
+            _state.LockPlayerController = true;
+            _state.SetUIModal(true);
+            _state.SuppressionChanged += () => count++;
+
+            _state.LockPlayerController = false;
+            Assert.AreEqual(0, count);
+            Assert.IsTrue(_state.IsPlayerInputSuppressed);
+
+            _state.SetUIModal(false);
+            Assert.AreEqual(1, count);
+            Assert.IsFalse(_state.IsPlayerInputSuppressed);
+        }
+
+        #endregion
+
         #region 组合语义 [COMPOSITION]
 
         [Test]
