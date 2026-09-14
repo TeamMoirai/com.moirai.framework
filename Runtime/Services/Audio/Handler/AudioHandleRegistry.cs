@@ -10,6 +10,13 @@ namespace Moirai.Atropos.Audio
     {
         /// <summary>用户定义 ID。</summary>
         int UserId { get; }
+
+        /// <summary>
+        /// 声部侧句柄（双向关联的 agent→handle 方向）。
+        /// 由 <c>AudioHandleRegistry.Bind/Release</c> 单点写入，保证与注册表映射不失步；
+        /// 实现方请勿在绑定生命周期内于其他位置赋值。
+        /// </summary>
+        ulong BoundHandle { set; }
     }
 
     /// <summary>
@@ -43,8 +50,15 @@ namespace Moirai.Atropos.Audio
             return handle;
         }
 
-        /// <summary>绑定句柄与声部（同句柄重复绑定视为替换）。</summary>
-        public void Bind(ulong handle, TVoice voice) => _handleMap[handle] = voice;
+        /// <summary>
+        /// 绑定句柄与声部：注册表映射与声部侧句柄在此单点同步，
+        /// 调用方无需（也不应）再单独给声部赋句柄。
+        /// </summary>
+        public void Bind(ulong handle, TVoice voice)
+        {
+            _handleMap[handle] = voice;
+            voice.BoundHandle = handle;
+        }
 
         /// <summary>登记用户 ID → 句柄映射。</summary>
         public void RegisterUser(int userId, ulong handle)
@@ -75,6 +89,8 @@ namespace Moirai.Atropos.Audio
             if (!_handleMap.TryGetValue(handle, out voice)) return false;
 
             _handleMap.Remove(handle);
+            voice.BoundHandle = 0UL;
+
             if (_userHandleMap.TryGetValue(voice.UserId, out var list))
             {
                 list.Remove(handle);

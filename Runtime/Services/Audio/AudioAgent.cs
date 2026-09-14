@@ -11,7 +11,7 @@ namespace Moirai.Atropos.Audio
     /// <summary>
     /// 音频代理辅助器。持有单个 <see cref="AudioSource"/>，负责播放状态机、淡入淡出与资源租约生命周期。
     /// <para>热路径状态（音量/循环/跟随/优先级等）在播放时从 <see cref="AudioPlayOptions"/> 拆出缓存，避免整份巨型结构体驻留。</para>
-    /// <para>句柄绑定：同一时刻仅有一个有效 <see cref="CurrentHandle"/>；换播/结束时由 Handler 自动解绑。</para>
+    /// <para>句柄绑定：同一时刻仅有一个有效 <see cref="CurrentHandle"/>，由句柄注册表 Bind/Release 单点维护；换播/结束时自动解绑。</para>
     /// </summary>
     public class AudioAgent : IAudioVoiceRef
     {
@@ -182,19 +182,17 @@ namespace Moirai.Atropos.Audio
         /// <summary>用户定义 ID（句柄注册表反查用，与 <see cref="ID"/> 同值）。</summary>
         int IAudioVoiceRef.UserId => ID;
 
+        /// <summary>声部侧句柄（由注册表 Bind/Release 单点写入，读取走 <see cref="CurrentHandle"/>）。</summary>
+        ulong IAudioVoiceRef.BoundHandle
+        {
+            set => _currentHandle = value;
+        }
+
         #endregion 句柄注册表契约 [HANDLE REGISTRY CONTRACT]
 
         #region 句柄绑定 [HANDLE BINDING]
 
-        /// <summary>
-        /// 绑定服务句柄（由 Handler 在 Play/Load 时调用）。
-        /// </summary>
-        internal void BindHandle(ulong handle) => _currentHandle = handle;
-
-        /// <summary>
-        /// 解绑服务句柄（由 Handler 在释放句柄时调用）。
-        /// </summary>
-        internal void UnbindHandle() => _currentHandle = 0UL;
+        // 绑定/解绑已收敛至 AudioHandleRegistry.Bind/Release（IAudioVoiceRef.BoundHandle 单点写入）
 
         /// <summary>
         /// 中止进行中的异步加载并递增世代，使迟到的回调失效。
