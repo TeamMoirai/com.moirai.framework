@@ -272,8 +272,6 @@ namespace Moirai.Atropos.Audio
             }
 
 #if UNITY_EDITOR
-            _instanceRoot.gameObject.GetOrAddComponent<AudioDebugger>();
-
             try
             {
                 TypeInfo typeInfo = typeof(UnityEngine.AudioSettings).GetTypeInfo();
