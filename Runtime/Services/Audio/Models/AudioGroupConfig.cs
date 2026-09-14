@@ -179,13 +179,5 @@ namespace Moirai.Atropos.Audio
         {
             return Mathf.Log10(normalizedVolume) * m_MixerValuesMultiplier;
         }
-
-        /// <summary>
-        /// 将混音器音量转换为归一化值
-        /// </summary>
-        private float MixerVolumeToNormalized(float mixerVolume)
-        {
-            return (float)Math.Pow(10, mixerVolume / m_MixerValuesMultiplier);
-        }
     }
 }

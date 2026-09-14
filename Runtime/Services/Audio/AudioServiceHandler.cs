@@ -121,7 +121,7 @@ namespace Moirai.Atropos.Audio
         /// <summary>
         /// 播放音频，返回服务自维护的音频句柄。
         /// </summary>
-        public abstract ulong Play(AudioClip clip, AudioPlayOptions options);
+        public abstract ulong Play(AudioClip clip, in AudioPlayOptions options);
 
         /// <summary>
         /// 16 字节热请求 + 冷参数播放（推荐热路径 API）。冷参数所有权转移给服务。
@@ -164,13 +164,14 @@ namespace Moirai.Atropos.Audio
         /// <summary>
         /// 播放音频，返回服务自维护的音频句柄。
         /// </summary>
-        public abstract ulong Play(string path, AudioPlayOptions options, bool bAsync = false, bool bInPool = false);
+        /// <remarks>默认异步加载；同步加载（<paramref name="bAsync"/>=false）会阻塞主线程，仅限启动期/预加载场景使用。</remarks>
+        public abstract ulong Play(string path, in AudioPlayOptions options, bool bAsync = true, bool bInPool = false);
 
         /// <summary>
         /// 播放音频（传统巨型签名重载——虚拟转发到 <see cref="AudioPlayOptions"/> 版本，新代码请用参数对象）。
         /// </summary>
-        /// <remarks>默认值与各工厂方法/契约对齐：<c>doNotAutoRecycleIfNotDonePlaying</c> 为 true。</remarks>
-        public virtual ulong Play(string path, EAudioTrack track, Vector3 location, bool bAsync = false, bool bInPool = false,
+        /// <remarks>默认值与各工厂方法/契约对齐：<c>doNotAutoRecycleIfNotDonePlaying</c> 为 true，<paramref name="bAsync"/> 为 true。</remarks>
+        public virtual ulong Play(string path, EAudioTrack track, Vector3 location, bool bAsync = true, bool bInPool = false,
             bool loop = false, float volume = 1.0f, int id = 0,
             bool fade = false, float fadeInitialVolume = 0f, float fadeDuration = 1f, TweenEase fadeTweenEase = default,
             bool persistent = false,

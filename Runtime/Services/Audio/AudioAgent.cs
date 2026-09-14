@@ -304,7 +304,7 @@ namespace Moirai.Atropos.Audio
         /// <summary>
         /// 轮询音频代理辅助器。空闲代理由 Category 跳过。
         /// </summary>
-        /// <param name="elapseSeconds">逻辑流逝时间（以秒为单位）。</param>
+        /// <param name="elapseSeconds">真实流逝时间（未缩放，以秒为单位）——自然结束计时与 AudioSource 实际播放进度对齐。</param>
         public void Update(float elapseSeconds)
         {
             if (_audioAgentRuntimeState == EAudioAgentRuntimeState.Playing ||
@@ -369,7 +369,7 @@ namespace Moirai.Atropos.Audio
         /// <summary>
         /// 公开播放入口（完整 Options 兼容层）。
         /// </summary>
-        public void Play(AudioClip clip, AudioPlayOptions options)
+        public void Play(AudioClip clip, in AudioPlayOptions options)
         {
             PlayWithOptions(clip, options);
         }
@@ -563,7 +563,7 @@ namespace Moirai.Atropos.Audio
         /// <param name="bAsync">是否异步加载。</param>
         /// <param name="bInPool">是否缓存已加载资源。</param>
         /// <param name="restoreHotState">排队重载时是否跳过 options 覆盖。</param>
-        public void Load(string path, AudioPlayOptions options, bool bAsync, bool bInPool = false, bool restoreHotState = false)
+        public void Load(string path, in AudioPlayOptions options, bool bAsync, bool bInPool = false, bool restoreHotState = false)
         {
             if (!restoreHotState)
             {

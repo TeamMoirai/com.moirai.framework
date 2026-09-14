@@ -61,6 +61,9 @@ namespace Moirai.Atropos.Audio
             new System.Collections.Generic.Dictionary<AudioSource, float>(32);
         private readonly System.Collections.Generic.Dictionary<AudioSource, AudioLowPassFilter> _filters =
             new System.Collections.Generic.Dictionary<AudioSource, AudioLowPassFilter>(32);
+        // 修剪暂存（复用，避免每 tick 分配）
+        private readonly System.Collections.Generic.List<AudioSource> _pruneScratch =
+            new System.Collections.Generic.List<AudioSource>(8);
 
         private void Awake()
         {
@@ -89,6 +92,7 @@ namespace Moirai.Atropos.Audio
         {
             if (_listener == null) return;
 
+            PruneDeadSources();
             CollectSources();
             Vector3 listenerPos = _listener.position;
             int count = Mathf.Min(_sources.Count, m_MaxSources);
@@ -173,6 +177,25 @@ namespace Moirai.Atropos.Audio
                 {
                     source.spatialBlend = Mathf.MoveTowards(source.spatialBlend, 1f, Time.unscaledDeltaTime * 4f);
                 }
+            }
+        }
+
+        /// <summary>
+        /// 清理已销毁声源的死引用（宿主池 Clear / Restart 后字典只增不减，长会话会缓慢膨胀）。
+        /// </summary>
+        private void PruneDeadSources()
+        {
+            _pruneScratch.Clear();
+            foreach (var kv in _occlusionSmooth)
+            {
+                if (kv.Key == null) _pruneScratch.Add(kv.Key);
+            }
+
+            for (int i = 0; i < _pruneScratch.Count; i++)
+            {
+                var dead = _pruneScratch[i];
+                _occlusionSmooth.Remove(dead);
+                _filters.Remove(dead);
             }
         }
 
