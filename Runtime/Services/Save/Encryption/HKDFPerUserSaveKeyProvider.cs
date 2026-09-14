@@ -11,6 +11,7 @@ namespace Moirai.Atropos.Save
     /// 主密钥序列化于设置资产（SECURITY: 上线前必须替换占位值）；用户 ID 仅内存（运行期注入）。</para>
     /// </summary>
     [Serializable]
+    // ReSharper disable once InconsistentNaming
     public class HKDFPerUserSaveKeyProvider : SaveKeyProvider
     {
         /// <summary>HKDF expand 的 info 上下文串（域分隔）。</summary>

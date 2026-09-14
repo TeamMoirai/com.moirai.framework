@@ -10,12 +10,12 @@ Save 服务（`SaveService`）提供 AAA 级存档基础设施：**四种可插�
 SaveService（静态外观，写路径未就绪抛 GameException，读路径降级）
 ├── 存储管线（[SerializeReference] 可切换）
 │     PlainSaveHandler        明文直通
-│     AESEncryptedSaveHandler AES-256-CBC + HMAC（encrypt-then-MAC），密钥经 ISaveKeyProvider 直给
+│     AESEncryptedSaveHandler AES-256-CBC + HMAC（encrypt-then-MAC），内嵌 [SerializeReference] 密钥提供方
 ├── 存储后端（[SerializeReference] 可切换，ISaveStorage + SaveStorageBackend）
 │     FileSaveStorageBackend  本地文件（临时文件 + Flush(true) + 原子替换，默认）
 ├── 转换链（顺序固定：Serialize → Compress? → Encrypt? → CRC）
 │     压缩：ICompressionProvider + SaveCompressionRegistry（GZip 内建 ID=1；未知 ID 读侧拒载）
-│     密钥：ISaveKeyProvider + SaveKeyProvider（Static 静态口令默认 / Passphrase 运行期注入 / HkdfPerUser 按用户派生）
+│     密钥：ISaveKeyProvider + SaveKeyProvider（内嵌于 AES 处理器；Static 静态口令默认 / Passphrase 运行期注入 / HkdfPerUser 按用户派生）
 ├── 序列化后端（ESaveBackend + ISaveSerializer + SaveSerializerRegistry）
 │     Json（内置，默认）/ MessagePack / MemoryPack / Protobuf / KeyValue（组件捕获格式保留标识）
 │     开放注册：Register(ISaveSerializer)/Unregister(ESaveBackend)（重复后端 fail-fast，KeyValue 不可占用）
@@ -291,10 +291,9 @@ await SaveService.RestoreEntitiesAsync("slot1");
 
 | 字段 | 说明 |
 |---|---|
-| `m_SaveServiceHandler` | 存储管线处理器（PlainSaveHandler / AESEncryptedSaveHandler） |
+| `m_SaveServiceHandler` | 存储管线处理器（PlainSaveHandler / AESEncryptedSaveHandler；密钥提供方内嵌在 AES 处理器上——空 = 回退 `StaticSaveKeyProvider.Default` 占位默认；可选 StaticSaveKeyProvider / PassphraseSaveKeyProvider / HKDFPerUserSaveKeyProvider） |
 | `m_StorageBackend` | 存储后端（IO 下沉目标，默认 FileSaveStorageBackend；置空回退文件后端；云存档选 `CloudSaveStorageBackend`——组合远端 KV 插拔件 + 冲突策略 + 自定义裁决器） |
 | `m_CompressionProvider` | 压缩提供方（空 = 不压缩；内置 GZipCompressionProvider） |
-| `m_KeyProvider` | 密钥提供方（空 = 加密处理器回退 `StaticSaveKeyProvider.Default` 占位默认；可选 StaticSaveKeyProvider / PassphraseSaveKeyProvider / HKDFPerUserSaveKeyProvider） |
 | `m_DefaultBackend` | 默认序列化后端（未声明 `[SaveData]` 的块） |
 | `m_SaveFileExtension` | 存档文件扩展名（默认 `.sav`） |
 | `m_MigrationWriteBack` | 迁移回写（默认开）：加载触发迁移成功后惰性回写存档；关闭则迁移仅作用于当次加载的内存数据 |

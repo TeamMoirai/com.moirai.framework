@@ -1,62 +1,39 @@
 using System;
+using Sirenix.OdinInspector;
+using UnityEngine;
 
 namespace Moirai.Atropos.Save
 {
     /// <summary>
     /// AES 加密存档处理器：容器字节经 <see cref="SaveEncryptor"/>（AES-256-CBC + HMAC，encrypt-then-MAC）变换后存储。
-    /// <para>密钥材料来源由 <see cref="SaveKeyProvider"/> 提供（<see cref="OnInit"/> 从 <see cref="SaveServiceSettings.KeyProvider"/> 解析；
-    /// 未配置时回退 <see cref="StaticSaveKeyProvider.Default"/> 占位默认——上线前须在设置中配置项目专属密钥提供方）。派生材料由提供方按参数缓存。</para>
+    /// <para>密钥材料来源由处理器内嵌的 <see cref="SaveKeyProvider"/> 提供（空 = 回退 <see cref="StaticSaveKeyProvider.Default"/> 占位默认——
+    /// 上线前须在 Inspector 配置项目专属密钥提供方）。派生材料由提供方按参数缓存；提供方须为纯 .NET，工作线程调用安全。</para>
     /// </summary>
     [Serializable]
+    // ReSharper disable once InconsistentNaming
     public class AESEncryptedSaveHandler : SaveServiceHandler
     {
         [NonSerialized] private SaveEncryptor _encryptor;
 
-        /// <summary>密钥提供方（<see cref="OnInit"/> 主线程从设置解析；测试可直接赋值注入——纯 .NET，工作线程调用安全）。</summary>
-        [NonSerialized] internal SaveKeyProvider _keyProvider;
+        [InfoBox("须配置密钥提供方（推荐 StaticSaveKeyProvider，并替换占位口令/盐文）。未配置时回退占位默认静态密钥，SECURITY: 发布前必须替换。", InfoMessageType.Warning, nameof(ShowMissingKeyProviderWarning))]
+        [Tooltip("密钥提供方：加密密钥来源（空 = 回退 StaticSaveKeyProvider.Default 占位默认）。推荐配置 StaticSaveKeyProvider 并替换占位口令/盐文；口令注入 / HKDF 按用户派生等进阶策略在此接入。")]
+        [ProviderDropdown]
+        [SerializeReference] private SaveKeyProvider m_KeyProvider = StaticSaveKeyProvider.Default;
+        /// <summary>密钥提供方未配置时显示告警（运行期回退占位默认静态密钥）。</summary>
+        private bool ShowMissingKeyProviderWarning => m_KeyProvider == null;
 
-        /// <summary><see cref="Key"/> 属性桥接的显式口令提供方（设置 Key 时创建；优先于 OnInit 解析结果）。</summary>
-        [NonSerialized] private StaticSaveKeyProvider _explicitKeyProvider;
+        /// <summary>密钥提供方注入点（测试/代码装配用；Inspector 配置走序列化字段——纯 .NET，工作线程调用安全）。</summary>
+        internal SaveKeyProvider KeyProvider
+        {
+            get => m_KeyProvider ?? StaticSaveKeyProvider.Default;
+            set => m_KeyProvider = value;
+        }
 
         /// <summary>
         /// AES 加密器（懒加载；仅承担 AES/HMAC 机件，密钥材料经 <see cref="ISaveKeyProvider"/> 直给）。
         /// </summary>
         private SaveEncryptor Encryptor => _encryptor ??= new SaveEncryptor();
-
-        /// <summary>
-        /// 保存和加载文件的密钥（静态口令桥接：写入即切换为显式口令提供方；读取回显当前静态口令，未设置时为占位默认值）。
-        /// <para>与用户/设备绑定的进阶密钥策略请改用 <see cref="SaveServiceSettings"/> 的密钥提供方配置（口令注入 / HKDF 按用户派生）。</para>
-        /// </summary>
-        protected internal string Key
-        {
-            get => _explicitKeyProvider != null
-                ? _explicitKeyProvider.Passphrase
-                : (_keyProvider as StaticSaveKeyProvider)?.Passphrase ?? SaveEncryptor.DEFAULT_PASSPHRASE;
-            set
-            {
-                StaticSaveKeyProvider provider = new StaticSaveKeyProvider();
-                provider.Configure(value, SaveEncryptor.DEFAULT_SALT, SaveEncryptor.DEFAULT_ITERATIONS);
-                _explicitKeyProvider = provider;
-            }
-        }
-
-        /// <summary>
-        /// 密钥提供方（显式口令优先，其次 OnInit 解析结果，兜底占位默认——全程不触达 <see cref="SaveServiceSettings"/>，工作线程安全）。
-        /// </summary>
-        private SaveKeyProvider KeyProvider => _explicitKeyProvider ?? _keyProvider ?? StaticSaveKeyProvider.Default;
-
-        /// <summary>
-        /// 初始化时从 <see cref="SaveServiceSettings"/> 解析密钥提供方（未配置时回退占位默认静态密钥；显式 <see cref="Key"/> 注入优先）。
-        /// </summary>
-        protected override void OnInit()
-        {
-            base.OnInit();
-            if (_explicitKeyProvider == null)
-            {
-                _keyProvider = SaveServiceSettings.KeyProvider;
-            }
-        }
-
+        
         /// <summary>
         /// 载荷变换：容器字节加密为存储载荷（区间直通 <see cref="SaveEncryptor"/>，无二次拷贝）。
         /// </summary>

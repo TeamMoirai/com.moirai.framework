@@ -3,7 +3,7 @@ using System;
 namespace Moirai.Atropos.Save
 {
     /// <summary>
-    /// 存档密钥提供方抽象基类（框架插拔件惯例：<see cref="SaveServiceSettings"/> 以 [SerializeReference] + ProviderDropdown 持有实例）。
+    /// 存档密钥提供方抽象基类（框架插拔件惯例：<see cref="AESEncryptedSaveHandler"/> 以 [SerializeReference] + ProviderDropdown 持有实例）。
     /// <para>实现 <see cref="ISaveKeyProvider"/>；派生材料缓存约定 = 不可变快照（<see cref="DerivedMaterial"/>）+ volatile 引用整体替换，
     /// 参数变更经 <see cref="DerivedMaterial.Matches"/> 失配自动失效重派生。</para>
     /// </summary>

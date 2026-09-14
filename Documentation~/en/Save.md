@@ -10,12 +10,12 @@ The Save service (`SaveService`) provides AAA-grade save infrastructure: **four 
 SaveService (static facade, write paths throw GameException when handler is null, reads degrade)
 ├── Storage pipeline ([SerializeReference] swappable)
 │     PlainSaveHandler        pass-through (no crypto)
-│     AESEncryptedSaveHandler AES-256-CBC + HMAC (encrypt-then-MAC), key material via ISaveKeyProvider
+│     AESEncryptedSaveHandler AES-256-CBC + HMAC (encrypt-then-MAC), nested [SerializeReference] key provider
 ├── Storage backend ([SerializeReference] swappable, ISaveStorage + SaveStorageBackend)
 │     FileSaveStorageBackend  local files (temp + Flush(true) + atomic replace, default)
 ├── Transform chain (fixed order: Serialize → Compress? → Encrypt? → CRC)
 │     Compression: ICompressionProvider + SaveCompressionRegistry (GZip built-in, ID=1; unknown IDs rejected on read)
-│     Keys: ISaveKeyProvider + SaveKeyProvider (Static passphrase default / Passphrase runtime-injected / HkdfPerUser per-user HKDF)
+│     Keys: ISaveKeyProvider + SaveKeyProvider (nested on the AES handler; Static passphrase default / Passphrase runtime-injected / HkdfPerUser per-user HKDF)
 ├── Serialization backends (ESaveBackend + ISaveSerializer + SaveSerializerRegistry)
 │     Json (built-in, default) / MessagePack / MemoryPack / Protobuf / KeyValue (reserved for the component capture format)
 │     open registration: Register(ISaveSerializer)/Unregister(ESaveBackend) (duplicate backends fail fast; KeyValue cannot be claimed)
@@ -291,10 +291,9 @@ Static events (default zero-overhead channel) + `EventManager` bridge events (`S
 
 | Field | Description |
 |---|---|
-| `m_SaveServiceHandler` | Storage pipeline handler (PlainSaveHandler / AESEncryptedSaveHandler) |
+| `m_SaveServiceHandler` | Storage pipeline handler (PlainSaveHandler / AESEncryptedSaveHandler; the key provider is nested on the AES handler — empty falls back to `StaticSaveKeyProvider.Default` placeholders; alternatives: StaticSaveKeyProvider / PassphraseSaveKeyProvider / HKDFPerUserSaveKeyProvider) |
 | `m_StorageBackend` | Storage backend (IO sink, default FileSaveStorageBackend; empty falls back to the file backend; for cloud saves pick `CloudSaveStorageBackend` — composes the remote KV plug-in + sync policy + custom resolver) |
 | `m_CompressionProvider` | Compression provider (empty = no compression; built-in GZipCompressionProvider) |
-| `m_KeyProvider` | Key provider (empty = AES handler falls back to `StaticSaveKeyProvider.Default` placeholders; alternatives: StaticSaveKeyProvider / PassphraseSaveKeyProvider / HKDFPerUserSaveKeyProvider) |
 | `m_DefaultBackend` | Default serialization backend (blocks without `[SaveData]`) |
 | `m_SaveFileExtension` | Save file extension (default `.sav`) |
 | `m_MigrationWriteBack` | Migration write-back (default on): lazily persists load-triggered migrations; when off, migration applies to in-memory data of that load only |
