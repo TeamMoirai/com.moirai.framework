@@ -48,6 +48,9 @@ namespace Moirai.Atropos.Save
             Color32[] pixels = SaveScreenshotUtility.CaptureScreenPixels(out int sourceWidth, out int sourceHeight);
             byte[] pngBytes = SaveScreenshotUtility.EncodeThumbnailPng(pixels, sourceWidth, sourceHeight, SaveServiceSettings.ScreenshotMaxDimension, out int thumbnailWidth, out int thumbnailHeight);
 
+            // 场景名必须在任何线程池 await 之前读取（WriteScreenshotAsync 续体不保证回主线程）
+            string sceneName = SceneManager.GetActiveScene().name;
+
             try
             {
                 await s_Handler.WriteScreenshotAsync(paths, pngBytes, cancellationToken);
@@ -63,7 +66,7 @@ namespace Moirai.Atropos.Save
             }
 
             string screenshotFileName = SaveScreenshotUtility.DetermineScreenshotFileName(fileName);
-            await MirrorScreenshotMetadataAsync(fileName, folderName, screenshotFileName, cancellationToken);
+            await MirrorScreenshotMetadataAsync(fileName, folderName, screenshotFileName, sceneName, cancellationToken);
             RaiseScreenshotCaptured(fileName, folderName, screenshotFileName, thumbnailWidth, thumbnailHeight);
             return SaveError.None;
         }
@@ -74,17 +77,17 @@ namespace Moirai.Atropos.Save
 
         /// <summary>
         /// 异步镜像截图元数据到保留块 <c>__meta</c>（尽力而为：失败记录错误日志，不影响截图结果）。
-        /// <para>既有元数据损坏时不覆盖（保留抢救空间）；场景名在主线程读取后随块写入。</para>
+        /// <para>既有元数据损坏时不覆盖（保留抢救空间）；场景名由调用方在主线程读取后传入。</para>
         /// </summary>
         /// <param name="fileName">存档文件名。</param>
         /// <param name="folderName">存档文件夹名称。</param>
         /// <param name="screenshotFileName">截图 sidecar 文件名。</param>
+        /// <param name="sceneName">活动场景名（须在主线程读取）。</param>
         /// <param name="cancellationToken">取消令牌。</param>
         /// <returns>镜像完成的异步任务。</returns>
-        private static async UniTask MirrorScreenshotMetadataAsync(string fileName, string folderName, string screenshotFileName, CancellationToken cancellationToken)
+        private static async UniTask MirrorScreenshotMetadataAsync(string fileName, string folderName, string screenshotFileName, string sceneName, CancellationToken cancellationToken)
         {
             SaveResult<SaveMetadata> loadResult = await s_Handler.TryLoadBlockAsync<SaveMetadata>(fileName, SaveServiceHandler.META_BLOCK_KEY, folderName, cancellationToken);
-            string sceneName = SceneManager.GetActiveScene().name;
             SaveMetadata metadata = MergeScreenshotMetadata(loadResult, screenshotFileName, sceneName, out bool shouldWrite);
             if (!shouldWrite)
             {
