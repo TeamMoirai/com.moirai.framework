@@ -1,9 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.Reflection;
+using System.Text.RegularExpressions;
 using Moirai.Atropos;
 using Moirai.Atropos.Procedure;
 using NUnit.Framework;
+using UnityEngine;
+using UnityEngine.TestTools;
 
 namespace Service.Procedure
 {
@@ -23,6 +26,8 @@ namespace Service.Procedure
         {
             public readonly List<string> Log = new List<string>();
             public Action OnEnterHook;
+            public Action OnLeaveHook;
+            public Action OnDestroyHook;
 
             public void ForceChangeState<T>() where T : ProcedureBase => ChangeState<T>();
 
@@ -36,9 +41,17 @@ namespace Service.Procedure
 
             protected internal override void OnUpdate(float elapseSeconds, float realElapseSeconds) => Log.Add("Update");
 
-            protected internal override void OnLeave(bool isShutdown) => Log.Add(isShutdown ? "Leave:Shutdown" : "Leave");
+            protected internal override void OnLeave(bool isShutdown)
+            {
+                Log.Add(isShutdown ? "Leave:Shutdown" : "Leave");
+                OnLeaveHook?.Invoke();
+            }
 
-            protected internal override void OnDestroy() => Log.Add("Destroy");
+            protected internal override void OnDestroy()
+            {
+                Log.Add("Destroy");
+                OnDestroyHook?.Invoke();
+            }
         }
 
         private sealed class ProbeA : ProbeProcedure { }
@@ -333,6 +346,11 @@ namespace Service.Procedure
                 var a = new ProbeA();
                 var b = new ProbeB();
                 ProcedureService.Initialize(a, b);
+
+                // 订阅者抛异常被隔离后转 Error 日志 ×2（启动广播 + 切换广播各一次）
+                ExpectErrorLogForUtf();
+                ExpectErrorLogForUtf();
+
                 ProcedureService.StartProcedure(typeof(ProbeA));
 
                 Assert.AreEqual(1, fired);
@@ -518,6 +536,9 @@ namespace Service.Procedure
                 ProcedureService.Handler = handler;
                 ProcedureService.Initialize(a, b);
 
+                // 回调内同步 ChangeState 抛 GameException，被隔离后转 Error 日志 ×1
+                ExpectErrorLogForUtf();
+
                 Assert.DoesNotThrow(() => ProcedureService.StartProcedure(typeof(ProbeA)));
                 Assert.AreSame(a, ProcedureService.CurrentProcedure);
                 Assert.AreEqual(1, ProcedureService.TransitionHistory.Count);
@@ -528,6 +549,112 @@ namespace Service.Procedure
                 handler.Internal_Shutdown();
                 s_ProcedureHandlerField.SetValue(null, savedHandler);
             }
+        }
+
+        #endregion
+
+        #region 异常容错 [EXCEPTION RESILIENCE]
+
+        /// <summary>
+        /// 为随后一条 Error 日志声明 UTF 预期（黑名单：<c>UnityLoggingHandler</c> 直写 ConsoleWindow
+        /// 不经 Debug 通路，声明期望反报「预期未出现」；与 Save 测试同约定）。
+        /// </summary>
+        private static void ExpectErrorLogForUtf()
+        {
+            if (LogUtility.Handler is not UnityLoggingHandler)
+            {
+                LogAssert.Expect(LogType.Error, new Regex(".*"));
+            }
+        }
+
+        [Test]
+        public void Shutdown_IsolatesLeaveAndDestroyExceptions()
+        {
+            _a.OnLeaveHook = () => throw new InvalidOperationException("leave boom");
+            _a.OnDestroyHook = () => throw new InvalidOperationException("destroy boom a");
+            _b.OnDestroyHook = () => throw new InvalidOperationException("destroy boom b");
+            _handler.Initialize(_a, _b);
+            _handler.StartProcedure(typeof(ProbeA));
+
+            // 三条 Error：OnLeave(关停) ×1 + OnDestroy ×2——均被隔离，不阻断关停收尾
+            ExpectErrorLogForUtf();
+            ExpectErrorLogForUtf();
+            ExpectErrorLogForUtf();
+
+            Assert.DoesNotThrow(() => _handler.Internal_Shutdown());
+
+            Assert.AreEqual(new[] { "Init", "Enter", "Leave:Shutdown", "Destroy" }, _a.Log);
+            Assert.AreEqual(new[] { "Init", "Destroy" }, _b.Log);
+            Assert.IsFalse(_handler.IsStateReady);
+
+            // 关停记录在 finally 保证下仍写入
+            var history = _handler.TransitionHistory;
+            Assert.AreEqual(2, history.Count);
+            Assert.AreEqual(ProcedureTransitionKind.Shutdown, history[1].Kind);
+            Assert.AreSame(_a, history[1].From);
+            Assert.IsNull(history[1].To);
+        }
+
+        [Test]
+        public void ChangeState_OnEnterThrows_RollsBackToPreviousProcedure()
+        {
+            _handler.Initialize(_a, _b);
+            _handler.StartProcedure(typeof(ProbeA));
+            _handler.Tick(2f, 2f);
+            _b.OnEnterHook = () => throw new InvalidOperationException("enter boom");
+
+            Assert.Throws<InvalidOperationException>(() => _handler.ChangeState(typeof(ProbeB)));
+
+            // 回滚到切出流程：恢复完整进入态与驻留时长，失败切换不留痕
+            Assert.AreSame(_a, _handler.CurrentProcedure);
+            Assert.AreEqual(2f, _handler.CurrentProcedureTime, 0.001f);
+            Assert.AreEqual(1, _handler.TransitionHistory.Count);
+
+            // 回滚后状态机仍可正常切换
+            _b.OnEnterHook = null;
+            _handler.ChangeState(typeof(ProbeB));
+            Assert.AreSame(_b, _handler.CurrentProcedure);
+        }
+
+        [Test]
+        public void StartProcedure_OnEnterThrows_RollsBackToNotStarted()
+        {
+            _a.OnEnterHook = () => throw new InvalidOperationException("enter boom");
+            _handler.Initialize(_a, _b);
+
+            Assert.Throws<InvalidOperationException>(() => _handler.StartProcedure(typeof(ProbeA)));
+
+            // 回滚到未启动态：机器仍就绪、无当前流程、无切换记录
+            Assert.IsTrue(_handler.IsStateReady);
+            Assert.IsNull(_handler.CurrentProcedure);
+            Assert.AreEqual(0, _handler.TransitionHistory.Count);
+
+            // 修复后可重新启动
+            _a.OnEnterHook = null;
+            _handler.StartProcedure(typeof(ProbeA));
+            Assert.AreSame(_a, _handler.CurrentProcedure);
+        }
+
+        [Test]
+        public void ChangeState_OnEnterThrowsAfterNestedRedirect_KeepsSettledTarget()
+        {
+            _handler.Initialize(_a, _b);
+            _handler.StartProcedure(typeof(ProbeA));
+            _b.OnEnterHook = () =>
+            {
+                _handler.ChangeState(typeof(ProbeA));
+                throw new InvalidOperationException("enter boom");
+            };
+
+            Assert.Throws<InvalidOperationException>(() => _handler.ChangeState(typeof(ProbeB)));
+
+            // 嵌套重定向已完整进入并记录——外层失败不回滚嵌套终态、不追加记录
+            Assert.AreSame(_a, _handler.CurrentProcedure);
+            var history = _handler.TransitionHistory;
+            Assert.AreEqual(2, history.Count);
+            Assert.AreEqual(ProcedureTransitionKind.Change, history[1].Kind);
+            Assert.AreSame(_b, history[1].From);
+            Assert.AreSame(_a, history[1].To);
         }
 
         #endregion

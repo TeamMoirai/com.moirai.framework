@@ -17,6 +17,10 @@ namespace Moirai.Atropos.Procedure
     /// <remarks>
     /// 组合根无序注册全部链上服务，世界初始化按 <c>[ServiceDependency]</c> 声明拓扑排序（依赖缺失/循环即 fail-fast）。
     /// 调试器依赖经 <see cref="DebuggerService"/> 声明显式建模——OnInit 注册调试面板要求 Debugger 拓扑先行。
+    /// <para><b>依赖门槛意图</b>：<see cref="ResourceService"/> / <see cref="UIService"/> / <see cref="LocalizationService"/> /
+    /// <see cref="TimerService"/> 四个依赖并非本服务自身消费，而是启动链的时序门槛——游戏侧启动流程
+    /// （初始化资源包、闪屏 UI、多语言加载、计时驱动）要求这四者在流程 OnInit 前拓扑就绪，
+    /// 缺失即世界初始化 fail-fast。不含这些服务的极简项目应移除对应声明（耦合点仅此一处）。</para>
     /// <para><b>未就绪契约</b>：查询类 API（<see cref="CurrentProcedure"/>、<see cref="HasProcedure"/> 等）
     /// 在处理器缺失或状态机未 <see cref="Initialize"/> 时静默降级为安全默认值；变更类 API 中
     /// <see cref="StartProcedure"/> / <see cref="ChangeState"/> 同样在未就绪时忽略并告警；
@@ -77,8 +81,7 @@ namespace Moirai.Atropos.Procedure
         /// <summary>
         /// 容器 Tick 驱动——转发到处理器轮询当前流程。
         /// <para><c>s_Handler</c> 静态字段会被域重载（编辑器内脚本编译）清空而服务实例仍在轮询，
-        /// 此处经 <see cref="Handler"/> 属性懒加载重绑，避免流程状态机从此静默停摆；
-        /// 重绑后的处理器流程集为空，需重新执行 <see cref="ProcedureServiceSettings.StartProcedure"/>。</para>
+        /// 此处经 <see cref="Handler"/> 属性懒加载重绑，避免流程状态机从此静默停摆。</para>
         /// </summary>
         public void Tick(float elapseSeconds, float realElapseSeconds)
         {
