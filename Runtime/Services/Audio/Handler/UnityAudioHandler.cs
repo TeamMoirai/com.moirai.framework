@@ -396,7 +396,8 @@ namespace Moirai.Atropos.Audio
 
             ulong handle = _handles.NextHandle();
 
-            // 先登记再播放：立即失败时 EnterEndState → OnAgentPlaybackEnded 能命中字典
+            // 先登记再播放：注册表 Bind 单点写入 Agent 侧句柄；
+            // 立即失败时 EnterEndState → OnAgentPlaybackEnded 能命中映射
             _handles.Bind(handle, audioAgent);
             _handles.RegisterUser(options.ID, handle);
 
@@ -662,11 +663,8 @@ namespace Moirai.Atropos.Audio
         {
             if (handle == 0UL) return;
 
-            if (_handles.Release(handle, out var agent) && agent != null && agent.CurrentHandle == handle)
-            {
-                agent.UnbindHandle();
-            }
-
+            // 注册表 Release 单点解除映射与 Agent 侧绑定
+            _handles.Release(handle, out _);
             _fades.Stop(handle);
         }
 

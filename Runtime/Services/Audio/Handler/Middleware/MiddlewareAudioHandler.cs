@@ -36,6 +36,11 @@ namespace Moirai.Atropos.Audio.Middleware
             public bool Playing;
 
             int IAudioVoiceRef.UserId => UserId;
+
+            ulong IAudioVoiceRef.BoundHandle
+            {
+                set => Handle = value;
+            }
         }
 
         #endregion 声部 [VOICE]
