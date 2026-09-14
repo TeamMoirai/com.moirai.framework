@@ -16,8 +16,8 @@ namespace Moirai.Atropos.Save
         /// <summary>HKDF expand 的 info 上下文串（域分隔）。</summary>
         private static readonly byte[] s_Info = Encoding.UTF8.GetBytes("Moirai.Save");
 
-        [Tooltip("HKDF 主密钥。SECURITY: Must be changed to a unique, per-project secret before shipping.")]
-        [SerializeField] private string m_MasterSecret = SaveEncryptor.DefaultPassphrase;
+        [Tooltip("HKDF 主密钥。SECURITY：在发布前必须改为每个项目唯一的密钥。")]
+        [SerializeField] private string m_MasterSecret = SaveEncryptor.DEFAULT_PASSPHRASE;
 
         /// <summary>当前用户 ID（仅内存，运行期注入；null/空 = 默认档）。</summary>
         [NonSerialized] private string _userId;
@@ -50,7 +50,7 @@ namespace Moirai.Atropos.Save
                     Encoding.UTF8.GetBytes(m_MasterSecret),
                     Encoding.UTF8.GetBytes(userId),
                     s_Info,
-                    SaveEncryptor.EncryptionKeySize + SaveEncryptor.MacSize);
+                    SaveEncryptor.ENCRYPTION_KEY_SIZE + SaveEncryptor.MAC_SIZE);
                 snapshot = new DerivedMaterial(m_MasterSecret, userId, 0, material);
                 _cache = snapshot;
             }

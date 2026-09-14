@@ -2,7 +2,6 @@
 using System.IO;
 using System.Security.Cryptography;
 using System.Text;
-using Moirai.Atropos;
 
 namespace Moirai.Atropos.Save
 {
@@ -17,42 +16,42 @@ namespace Moirai.Atropos.Save
         /// <summary>
         /// 默认 PBKDF2 迭代次数（移动端预算内兼顾派生强度的基线值，可经 <c>SaveServiceSettings</c> 覆盖）。
         /// </summary>
-        public const int DefaultIterations = 100000;
+        public const int DEFAULT_ITERATIONS = 100000;
 
         /// <summary>默认占位口令（标记「未配置」；上线前必须替换为项目专属密钥）。</summary>
-        internal const string DefaultPassphrase = "CHANGE_ME_BEFORE_SHIPPING";
+        internal const string DEFAULT_PASSPHRASE = "CHANGE_ME_BEFORE_SHIPPING";
 
         /// <summary>默认占位盐文（标记「未配置」；上线前必须替换为项目专属盐文）。</summary>
-        internal const string DefaultSalt = "CHANGE_ME_SALT";
+        internal const string DEFAULT_SALT = "CHANGE_ME_SALT";
 
         /// <summary>IV 字节数（AES 块大小）。</summary>
-        private const int IvSize = 16;
+        private const int IV_SIZE = 16;
 
         /// <summary>AES-256 密钥字节数。</summary>
-        internal const int EncryptionKeySize = 32;
+        internal const int ENCRYPTION_KEY_SIZE = 32;
 
         /// <summary>HMAC-SHA256 密钥/摘要字节数。</summary>
-        internal const int MacSize = 32;
+        internal const int MAC_SIZE = 32;
 
         /// <summary>AES-CBC 最小密文长度（空明文的 PKCS7 填充块）。</summary>
-        private const int MinCipherSize = 16;
+        private const int MIN_CIPHER_SIZE = 16;
 
         /// <summary>
         /// 保存和加载文件的密钥。
         /// <para>SECURITY: 上线前必须替换为项目专属密钥（默认占位值用于标记「未配置」）。</para>
         /// </summary>
-        public virtual string Key { get; set; } = DefaultPassphrase;
+        public virtual string Key { get; set; } = DEFAULT_PASSPHRASE;
 
         /// <summary>
         /// 加密盐文（UTF-8 编码后参与 PBKDF2 密钥派生）。
         /// <para>SECURITY: 上线前必须替换为项目专属盐文。</para>
         /// </summary>
-        public virtual string Salt { get; set; } = DefaultSalt;
+        public virtual string Salt { get; set; } = DEFAULT_SALT;
 
         /// <summary>
         /// PBKDF2 迭代次数（由 <c>SaveServiceSettings</c> 注入覆盖）。
         /// </summary>
-        public virtual int Iterations { get; set; } = DefaultIterations;
+        public virtual int Iterations { get; set; } = DEFAULT_ITERATIONS;
 
         /// <summary>派生密钥材料快照（口令/盐/迭代次数 + 派生结果的不可变整体，原子读避免字段组撕裂）。</summary>
         private sealed class DerivedKeySnapshot
@@ -145,15 +144,15 @@ namespace Moirai.Atropos.Save
             }
 
             byte[] derivedKeys = DeriveKeys(sKey);
-            return TryEncryptWithMaterial(plaintext, derivedKeys.AsSpan(0, EncryptionKeySize).ToArray(), derivedKeys.AsSpan(EncryptionKeySize, MacSize).ToArray(), out encrypted);
+            return TryEncryptWithMaterial(plaintext, derivedKeys.AsSpan(0, ENCRYPTION_KEY_SIZE).ToArray(), derivedKeys.AsSpan(ENCRYPTION_KEY_SIZE, MAC_SIZE).ToArray(), out encrypted);
         }
 
         /// <summary>
         /// 加密字节载荷（密钥材料直给，跳过 PBKDF2 派生——供 <see cref="ISaveKeyProvider"/> 管线调用）。
         /// </summary>
         /// <param name="plaintext">明文字节。</param>
-        /// <param name="encryptionKey">加密密钥（<see cref="EncryptionKeySize"/> 字节）。</param>
-        /// <param name="macKey">MAC 密钥（<see cref="MacSize"/> 字节）。</param>
+        /// <param name="encryptionKey">加密密钥（<see cref="ENCRYPTION_KEY_SIZE"/> 字节）。</param>
+        /// <param name="macKey">MAC 密钥（<see cref="MAC_SIZE"/> 字节）。</param>
         /// <param name="encrypted">成功时的密文字节。</param>
         /// <returns>错误码。</returns>
         internal SaveError TryEncryptWithMaterial(byte[] plaintext, byte[] encryptionKey, byte[] macKey, out byte[] encrypted)
@@ -167,8 +166,8 @@ namespace Moirai.Atropos.Save
         /// <param name="plaintext">明文缓冲区。</param>
         /// <param name="offset">有效区间起始偏移。</param>
         /// <param name="length">有效区间字节数。</param>
-        /// <param name="encryptionKey">加密密钥（<see cref="EncryptionKeySize"/> 字节）。</param>
-        /// <param name="macKey">MAC 密钥（<see cref="MacSize"/> 字节）。</param>
+        /// <param name="encryptionKey">加密密钥（<see cref="ENCRYPTION_KEY_SIZE"/> 字节）。</param>
+        /// <param name="macKey">MAC 密钥（<see cref="MAC_SIZE"/> 字节）。</param>
         /// <param name="encrypted">成功时的密文字节。</param>
         /// <returns>错误码。</returns>
         internal SaveError TryEncryptWithMaterial(byte[] plaintext, int offset, int length, byte[] encryptionKey, byte[] macKey, out byte[] encrypted)
@@ -185,7 +184,7 @@ namespace Moirai.Atropos.Save
             }
 
             // 随机 IV：相同明文/密钥每次加密产出不同密文，杜绝静态 IV 的前缀模式泄露
-            byte[] iv = new byte[IvSize];
+            byte[] iv = new byte[IV_SIZE];
             RandomNumberGenerator.Fill(iv);
 
             byte[] ciphertext;
@@ -199,12 +198,12 @@ namespace Moirai.Atropos.Save
                 }
             }
 
-            encrypted = new byte[IvSize + ciphertext.Length + MacSize];
-            Buffer.BlockCopy(iv, 0, encrypted, 0, IvSize);
-            Buffer.BlockCopy(ciphertext, 0, encrypted, IvSize, ciphertext.Length);
+            encrypted = new byte[IV_SIZE + ciphertext.Length + MAC_SIZE];
+            Buffer.BlockCopy(iv, 0, encrypted, 0, IV_SIZE);
+            Buffer.BlockCopy(ciphertext, 0, encrypted, IV_SIZE, ciphertext.Length);
 
-            byte[] mac = ComputeMac(macKey, encrypted, 0, IvSize + ciphertext.Length);
-            Buffer.BlockCopy(mac, 0, encrypted, IvSize + ciphertext.Length, MacSize);
+            byte[] mac = ComputeMac(macKey, encrypted, 0, IV_SIZE + ciphertext.Length);
+            Buffer.BlockCopy(mac, 0, encrypted, IV_SIZE + ciphertext.Length, MAC_SIZE);
             return SaveError.None;
         }
 
@@ -224,21 +223,21 @@ namespace Moirai.Atropos.Save
                 return SaveError.InvalidArgument;
             }
 
-            if (encrypted.Length < IvSize + MinCipherSize + MacSize)
+            if (encrypted.Length < IV_SIZE + MIN_CIPHER_SIZE + MAC_SIZE)
             {
                 return SaveError.InvalidFormat;
             }
 
             byte[] derivedKeys = DeriveKeys(sKey);
-            return TryDecryptWithMaterial(encrypted, derivedKeys.AsSpan(0, EncryptionKeySize).ToArray(), derivedKeys.AsSpan(EncryptionKeySize, MacSize).ToArray(), out plaintext);
+            return TryDecryptWithMaterial(encrypted, derivedKeys.AsSpan(0, ENCRYPTION_KEY_SIZE).ToArray(), derivedKeys.AsSpan(ENCRYPTION_KEY_SIZE, MAC_SIZE).ToArray(), out plaintext);
         }
 
         /// <summary>
         /// 解密字节载荷（密钥材料直给，先验证 HMAC 后解密——供 <see cref="ISaveKeyProvider"/> 管线调用）。
         /// </summary>
         /// <param name="encrypted">密文字节。</param>
-        /// <param name="encryptionKey">加密密钥（<see cref="EncryptionKeySize"/> 字节）。</param>
-        /// <param name="macKey">MAC 密钥（<see cref="MacSize"/> 字节）。</param>
+        /// <param name="encryptionKey">加密密钥（<see cref="ENCRYPTION_KEY_SIZE"/> 字节）。</param>
+        /// <param name="macKey">MAC 密钥（<see cref="MAC_SIZE"/> 字节）。</param>
         /// <param name="plaintext">成功时的明文字节。</param>
         /// <returns>错误码：<see cref="SaveError.None"/>、<see cref="SaveError.InvalidArgument"/>、
         /// <see cref="SaveError.InvalidFormat"/>、<see cref="SaveError.IntegrityCheckFailed"/> 或 <see cref="SaveError.DecryptionFailed"/>。</returns>
@@ -253,8 +252,8 @@ namespace Moirai.Atropos.Save
         /// <param name="encrypted">密文缓冲区。</param>
         /// <param name="offset">有效区间起始偏移。</param>
         /// <param name="length">有效区间字节数。</param>
-        /// <param name="encryptionKey">加密密钥（<see cref="EncryptionKeySize"/> 字节）。</param>
-        /// <param name="macKey">MAC 密钥（<see cref="MacSize"/> 字节）。</param>
+        /// <param name="encryptionKey">加密密钥（<see cref="ENCRYPTION_KEY_SIZE"/> 字节）。</param>
+        /// <param name="macKey">MAC 密钥（<see cref="MAC_SIZE"/> 字节）。</param>
         /// <param name="plaintext">成功时的明文字节。</param>
         /// <returns>错误码：<see cref="SaveError.None"/>、<see cref="SaveError.InvalidArgument"/>、
         /// <see cref="SaveError.InvalidFormat"/>、<see cref="SaveError.IntegrityCheckFailed"/> 或 <see cref="SaveError.DecryptionFailed"/>。</returns>
@@ -266,7 +265,7 @@ namespace Moirai.Atropos.Save
                 return SaveError.InvalidArgument;
             }
 
-            if (length < IvSize + MinCipherSize + MacSize)
+            if (length < IV_SIZE + MIN_CIPHER_SIZE + MAC_SIZE)
             {
                 return SaveError.InvalidFormat;
             }
@@ -276,11 +275,11 @@ namespace Moirai.Atropos.Save
                 return SaveError.InvalidArgument;
             }
 
-            int ciphertextLength = length - IvSize - MacSize;
+            int ciphertextLength = length - IV_SIZE - MAC_SIZE;
 
             // encrypt-then-MAC：先对 [IV‖密文] 验证 HMAC（常数时间比较），未过验不触碰解密器
-            byte[] expectedMac = ComputeMac(macKey, encrypted, offset, IvSize + ciphertextLength);
-            if (!CryptographicOperations.FixedTimeEquals(expectedMac, encrypted.AsSpan(offset + length - MacSize, MacSize)))
+            byte[] expectedMac = ComputeMac(macKey, encrypted, offset, IV_SIZE + ciphertextLength);
+            if (!CryptographicOperations.FixedTimeEquals(expectedMac, encrypted.AsSpan(offset + length - MAC_SIZE, MAC_SIZE)))
             {
                 return SaveError.IntegrityCheckFailed;
             }
@@ -290,10 +289,10 @@ namespace Moirai.Atropos.Save
                 using (Aes algorithm = Aes.Create())
                 {
                     algorithm.Key = encryptionKey;
-                    algorithm.IV = encrypted.AsSpan(offset, IvSize).ToArray();
+                    algorithm.IV = encrypted.AsSpan(offset, IV_SIZE).ToArray();
                     using (ICryptoTransform decryptor = algorithm.CreateDecryptor())
                     {
-                        plaintext = decryptor.TransformFinalBlock(encrypted, offset + IvSize, ciphertextLength);
+                        plaintext = decryptor.TransformFinalBlock(encrypted, offset + IV_SIZE, ciphertextLength);
                     }
                 }
 
@@ -333,8 +332,8 @@ namespace Moirai.Atropos.Save
         /// <returns>长度合法返回 <c>true</c>。</returns>
         private static bool IsValidKeyMaterial(byte[] encryptionKey, byte[] macKey)
         {
-            return encryptionKey != null && encryptionKey.Length == EncryptionKeySize
-                && macKey != null && macKey.Length == MacSize;
+            return encryptionKey != null && encryptionKey.Length == ENCRYPTION_KEY_SIZE
+                && macKey != null && macKey.Length == MAC_SIZE;
         }
 
         /// <summary>
@@ -348,7 +347,7 @@ namespace Moirai.Atropos.Save
         {
             using (Rfc2898DeriveBytes algorithm = new Rfc2898DeriveBytes(passphrase, Encoding.UTF8.GetBytes(salt), iterations, HashAlgorithmName.SHA256))
             {
-                return algorithm.GetBytes(EncryptionKeySize + MacSize);
+                return algorithm.GetBytes(ENCRYPTION_KEY_SIZE + MAC_SIZE);
             }
         }
 

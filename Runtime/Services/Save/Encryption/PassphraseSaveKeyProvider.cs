@@ -13,11 +13,11 @@ namespace Moirai.Atropos.Save
     public class PassphraseSaveKeyProvider : SaveKeyProvider
     {
         [Tooltip("PBKDF2 盐文（口令派生用；项目级固定值，非玩家口令）。")]
-        [SerializeField] private string m_Salt = SaveEncryptor.DefaultSalt;
+        [SerializeField] private string m_Salt = SaveEncryptor.DEFAULT_SALT;
 
         [Tooltip("PBKDF2-SHA256 迭代次数（派生结果按口令缓存）。")]
         [MinValue(1000)]
-        [SerializeField] private int m_Iterations = SaveEncryptor.DefaultIterations;
+        [SerializeField] private int m_Iterations = SaveEncryptor.DEFAULT_ITERATIONS;
 
         /// <summary>运行期口令（仅内存，绝不序列化）。</summary>
         [NonSerialized] private string _passphrase;

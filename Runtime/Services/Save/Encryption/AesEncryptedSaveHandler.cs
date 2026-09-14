@@ -4,9 +4,8 @@ namespace Moirai.Atropos.Save
 {
     /// <summary>
     /// AES 加密存档处理器：容器字节经 <see cref="SaveEncryptor"/>（AES-256-CBC + HMAC，encrypt-then-MAC）变换后存储。
-    /// <para>密钥材料来源由 <see cref="ISaveKeyProvider"/> 提供（<see cref="OnInit"/> 从 <see cref="SaveServiceSettings"/> 解析，
-    /// 默认 <see cref="StaticSaveKeyProvider"/> 沿用 V2 静态口令 PBKDF2 语义——同参派生结果逐位一致，旧档可直接读回）；
-    /// 派生材料由提供方按参数缓存。</para>
+    /// <para>密钥材料来源由 <see cref="SaveKeyProvider"/> 提供（<see cref="OnInit"/> 从 <see cref="SaveServiceSettings.KeyProvider"/> 解析；
+    /// 未配置时回退 <see cref="StaticSaveKeyProvider.Default"/> 占位默认——上线前须在设置中配置项目专属密钥提供方）。派生材料由提供方按参数缓存。</para>
     /// </summary>
     [Serializable]
     public class AesEncryptedSaveHandler : SaveServiceHandler
@@ -16,7 +15,7 @@ namespace Moirai.Atropos.Save
         /// <summary>密钥提供方（<see cref="OnInit"/> 主线程从设置解析；测试可直接赋值注入——纯 .NET，工作线程调用安全）。</summary>
         [NonSerialized] internal SaveKeyProvider _keyProvider;
 
-        /// <summary><see cref="Key"/> 属性桥接的显式口令提供方（设置 Key 时创建；优先于 OnInit 解析结果，行为等价 V2 直接设 Encryptor.Key）。</summary>
+        /// <summary><see cref="Key"/> 属性桥接的显式口令提供方（设置 Key 时创建；优先于 OnInit 解析结果）。</summary>
         [NonSerialized] private StaticSaveKeyProvider _explicitKeyProvider;
 
         /// <summary>
@@ -32,11 +31,11 @@ namespace Moirai.Atropos.Save
         {
             get => _explicitKeyProvider != null
                 ? _explicitKeyProvider.Passphrase
-                : (_keyProvider as StaticSaveKeyProvider)?.Passphrase ?? SaveEncryptor.DefaultPassphrase;
+                : (_keyProvider as StaticSaveKeyProvider)?.Passphrase ?? SaveEncryptor.DEFAULT_PASSPHRASE;
             set
             {
                 StaticSaveKeyProvider provider = new StaticSaveKeyProvider();
-                provider.Configure(value, SaveEncryptor.DefaultSalt, SaveEncryptor.DefaultIterations);
+                provider.Configure(value, SaveEncryptor.DEFAULT_SALT, SaveEncryptor.DEFAULT_ITERATIONS);
                 _explicitKeyProvider = provider;
             }
         }
@@ -47,7 +46,7 @@ namespace Moirai.Atropos.Save
         private SaveKeyProvider KeyProvider => _explicitKeyProvider ?? _keyProvider ?? StaticSaveKeyProvider.Default;
 
         /// <summary>
-        /// 初始化时从 <see cref="SaveServiceSettings"/> 解析密钥提供方（未配置时按 V2 语义以静态密钥参数构建；显式 <see cref="Key"/> 注入优先）。
+        /// 初始化时从 <see cref="SaveServiceSettings"/> 解析密钥提供方（未配置时回退占位默认静态密钥；显式 <see cref="Key"/> 注入优先）。
         /// </summary>
         protected override void OnInit()
         {
@@ -55,13 +54,6 @@ namespace Moirai.Atropos.Save
             if (_explicitKeyProvider == null)
             {
                 _keyProvider = SaveServiceSettings.KeyProvider;
-                if (_keyProvider == null)
-                {
-                    // 未配置密钥提供方 = V2 静态密钥语义（口令/迭代次数沿用设置项，盐文为加密器默认占位）
-                    StaticSaveKeyProvider staticProvider = new StaticSaveKeyProvider();
-                    staticProvider.Configure(SaveServiceSettings.EncryptionKey, SaveEncryptor.DefaultSalt, SaveServiceSettings.Pbkdf2Iterations);
-                    _keyProvider = staticProvider;
-                }
             }
         }
 

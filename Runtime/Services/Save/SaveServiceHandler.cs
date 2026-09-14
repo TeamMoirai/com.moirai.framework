@@ -31,7 +31,7 @@ namespace Moirai.Atropos.Save
         /// <summary>默认存档文件夹名。</summary>
         public const string DEFAULT_FOLDER_NAME = "Save";
 
-        /// <summary>兼容块键：旧单对象 API（Save/Load/TryLoad）映射的保留数据块。</summary>
+        /// <summary>便捷单对象 API（Save/Load/TryLoad）映射的保留数据块。</summary>
         public const string MAIN_BLOCK_KEY = "__main__";
 
         /// <summary>保留块键：槽位元数据块（JSON 后端）。</summary>
@@ -1508,7 +1508,7 @@ namespace Moirai.Atropos.Save
 
         /// <summary>
         /// 校验数据块键：非空白、长度受限、不含控制字符/路径分隔符、禁止保留前缀。
-        /// <para>保留前缀（<c>__</c>）禁止用户新建块——但对既有保留块（<c>__main__</c>/<c>__meta</c>）的读写/删除为合法操作（兼容旧 API 与元数据管理），
+        /// <para>保留前缀（<c>__</c>）禁止用户新建块——但对既有保留块（<c>__main__</c>/<c>__meta</c>）的读写/删除为合法操作（便捷 API 与元数据管理），
         /// 经 <see cref="MAIN_BLOCK_KEY"/>/<see cref="META_BLOCK_KEY"/> 常量访问时豁免前缀校验。</para>
         /// </summary>
         /// <param name="key">数据块键。</param>
