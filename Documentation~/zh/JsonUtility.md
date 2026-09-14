@@ -1,4 +1,4 @@
-﻿# JsonUtility
+# JsonUtility
 
 > 框架的 JSON 序列化/反序列化外观，提供可插拔的 Handler 架构，支持字符串与字节两种通路。
 
@@ -99,4 +99,4 @@ JsonUtility.Handler = new DefaultJsonHandler();
 - `FromJsonOverwrite` 将 JSON 数据反序列化到现有对象上并覆盖现有数据
 
 ---
-[« 返回主 README](../../README.md)
+[« 返回文档索引](Index.md) · [主 README](../../README.md) · [StringUtility](StringUtility.md) · [Save](Save.md)

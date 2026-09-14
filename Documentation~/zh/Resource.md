@@ -450,4 +450,4 @@ using var lease = ResourceService.LoadLeaseAsync<GameObject>("path").GetAwaiter(
 - 低内存时系统回调 `GameApp.OnLowMemory` 会触发 `ForceUnloadUnusedAssets(true)`，随后执行 `Resources.UnloadUnusedAssets` 与 `GC.Collect`。
 
 ---
-[« 返回主 README](../../README.md) · [Procedure](Procedure.md) · [Save](Save.md)
+[« 返回文档索引](Index.md) · [主 README](../../README.md) · [Procedure](Procedure.md) · [Save](Save.md) · [ObjectPool](ObjectPool.md)

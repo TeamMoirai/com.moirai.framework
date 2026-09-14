@@ -1,4 +1,4 @@
-﻿# StringUtility
+# StringUtility
 
 > 框架的字符串格式化与构建外观，提供可插拔的 Handler 架构，内置池化字符串构建器以减少 GC。
 
@@ -111,4 +111,4 @@ StringUtility.Handler = new DefaultStringHandler();
 - `Clear()` 清空所有缓存和池，通常在场景切换时调用
 
 ---
-[« 返回主 README](../../README.md)
+[« 返回文档索引](Index.md) · [主 README](../../README.md) · [JsonUtility](JsonUtility.md)

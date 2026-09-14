@@ -265,7 +265,7 @@ Each stage is an independent `ProcedureBase` state, customizable via `ProcedureS
 
 ## Core Services
 
-Each service has its own documentation (located in `Documentation~/en/`), covering core features, core types, quick start and advanced usage:
+Each service has its own documentation (located in `Documentation~/en/`), covering core features, core types, quick start and advanced usage. Full documentation catalog: **[Documentation Index](Documentation~/en/Index.md)** (Chinese: [文档索引](Documentation~/zh/Index.md)):
 
 | Service | Description | Documentation |
 |--------|-------------|---------------|
@@ -349,7 +349,7 @@ handle.Cancel();
 
 ### MemoryPool — Memory Pool
 
-Generic memory pool with collection management, reduces GC pressure.
+Zero-GC paged memory pool (unmanaged metadata + EWMA adaptive watermarks), ideal for high-frequency pure C# objects such as events, params, and buffers. See [Documentation~/en/MemoryPool.md](Documentation~/en/MemoryPool.md).
 
 ### Singleton — Singleton System
 

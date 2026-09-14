@@ -109,4 +109,4 @@ SingletonRegisterMono<FxPlayer>.Instance.Play("explosion");
 `SingletonRegisterMono<T>` materialization is likewise main-thread only (off-thread access throws `GameException`). Use `SingletonMono<T>` when you need lookup, multi-instance resolution, or lifecycle callbacks.
 
 ---
-[« Back to Main README](../../README_EN.md) · [Core](Core.md) · [UpdateDriver](UpdateDriver.md)
+[« Documentation Index](Index.md) · [Main README](../../README_EN.md) · [Core](Core.md) · [UpdateDriver](UpdateDriver.md)

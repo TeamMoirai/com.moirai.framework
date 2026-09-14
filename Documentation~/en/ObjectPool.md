@@ -262,4 +262,4 @@ Debugger windows: `Profiler/Object Pool` (generic), `Profiler/GameObject Pool` (
 - Low memory: both pool Handlers subscribe to `Application.lowMemory` and shrink fully; `GameApp.OnLowMemory` only drives the resource layer unload.
 
 ---
-[« Back to main README](../../README.md)
+[« Documentation Index](Index.md) · [Main README](../../README_EN.md) · [MemoryPool](MemoryPool.md) · [Resource](Resource.md)

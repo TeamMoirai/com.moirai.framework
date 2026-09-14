@@ -1,4 +1,4 @@
-﻿# UI 服务
+# UI 服务
 
 > 基于 UGUI 的栈式窗口管理框架，提供窗口生命周期、层级深度排序、模态遮挡、Widget 子控件与多分辨率适配能力。
 
@@ -162,4 +162,4 @@ protected override async UniTask OpenAnimation()
 - 窗口更新（`OnUpdate`）仅对可见窗口触发；全屏窗口会遮挡其下窗口的可见性
 
 ---
-[« 返回主 README](../../README.md) · [Input](Input.md) · [Scene](Scene.md)
+[« 返回文档索引](Index.md) · [主 README](../../README.md) · [Input](Input.md) · [Scene](Scene.md) · [Audio](Audio.md)

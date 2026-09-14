@@ -1,4 +1,4 @@
-﻿# UI Service
+# UI Service
 
 > UGUI-based stack window management framework providing window lifecycle, layer depth sorting, modal blocking, Widget sub-controls, and multi-resolution adaptation.
 
@@ -162,4 +162,4 @@ Select the root node of a UI prefab and use the menu:
 - Window updates (`OnUpdate`) are only triggered for visible windows; full-screen windows will block the visibility of windows beneath them
 
 ---
-[« Back to Main README](../../README_EN.md) · [Input](Input.md) · [Scene](Scene.md)
+[« Documentation Index](Index.md) · [Main README](../../README_EN.md) · [Input](Input.md) · [Scene](Scene.md) · [Audio](Audio.md)

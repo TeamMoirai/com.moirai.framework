@@ -1,8 +1,8 @@
-# Save
+# Save 存档服务
 
-## 概述
+> 单文件多数据块容器、可插拔序列化/加密/压缩、文件级版本迁移总线与无代码组件保存。
 
-Save 服务（`SaveService`）为游戏提供 AAA 级存档基础设施：**单文件多数据块**容器、**四种可插拔序列化后端**（JSON / MessagePack / MemoryPack / protobuf-net）、**文件级版本迁移总线**（版本链 + 审计 + 惰性回写）与**块级版本迁移**、**AES 加密管线**（密钥来源可插拔：静态口令 / 运行期口令注入 / HKDF 按用户派生）、**可选 GZip 压缩**与**无代码组件保存**（SourceGenerator 生成强类型捕获器）。命名空间 `Moirai.Atropos.Save`。
+Save 服务（`SaveService`）提供 AAA 级存档基础设施：**四种可插拔序列化后端**（JSON / MessagePack / MemoryPack / protobuf-net）、**文件级版本迁移总线**（版本链 + 审计 + 惰性回写）与**块级版本迁移**、**AES 加密管线**（密钥来源可插拔：静态口令 / 运行期口令注入 / HKDF 按用户派生）、**可选 GZip 压缩**与**无代码组件保存**（SourceGenerator 生成强类型捕获器）。命名空间 `Moirai.Atropos.Save`。
 
 ## 架构
 
@@ -10,7 +10,7 @@ Save 服务（`SaveService`）为游戏提供 AAA 级存档基础设施：**单�
 SaveService（静态外观，写路径未就绪抛 GameException，读路径降级）
 ├── 存储管线（[SerializeReference] 可切换）
 │     PlainSaveHandler        明文直通
-│     AesEncryptedSaveHandler AES-256-CBC + HMAC（encrypt-then-MAC），密钥经 ISaveKeyProvider 直给
+│     AESEncryptedSaveHandler AES-256-CBC + HMAC（encrypt-then-MAC），密钥经 ISaveKeyProvider 直给
 ├── 存储后端（[SerializeReference] 可切换，ISaveStorage + SaveStorageBackend）
 │     FileSaveStorageBackend  本地文件（临时文件 + Flush(true) + 原子替换，默认）
 ├── 转换链（顺序固定：Serialize → Compress? → Encrypt? → CRC）
@@ -40,7 +40,7 @@ SaveService（静态外观，写路径未就绪抛 GameException，读路径降�
 - 容器 v1 旧档硬切作废：读取判别为 `UnsupportedVersion`，不做双格式兼容读
 - 转换链顺序固定：序列化 → **压缩（可选，加密前）** → 加密 → CRC；读侧反向（解密 → 按文件头 ID 查注册表解压）——未压缩旧档原样透传（魔数/flags sniff 幂等，新旧档共存）
 - 文件头 offset 24-27 为压缩提供方 ID（0 = 未压缩）；未知 ID 判别为 `UnsupportedVersion`，标志位与 ID 不一致判别为 `Corrupted`
-- 密钥来源（`ISaveKeyProvider`）：静态口令 PBKDF2（`StaticSaveKeyProvider`，默认，与 V2 逐参一致）/ 运行期口令注入（`PassphraseSaveKeyProvider`，口令仅内存不落盘，未注入时读 `InvalidArgument`、写 fail-fast）/ HKDF-SHA256 按用户派生（`HkdfPerUserSaveKeyProvider`，多账号存档互相不可读）
+- 密钥来源（`ISaveKeyProvider`）：静态口令 PBKDF2（`StaticSaveKeyProvider`，未配置时的占位默认）/ 运行期口令注入（`PassphraseSaveKeyProvider`，口令仅内存不落盘，未注入时读 `InvalidArgument`、写 fail-fast）/ HKDF-SHA256 按用户派生（`HKDFPerUserSaveKeyProvider`，多账号存档互相不可读）
 - 原子写入：临时文件 `xxx.sav.tmp-{guid}` → `Flush(true)` → `File.Replace`（经 `FileSaveStorageBackend`）；启动期后台清扫孤儿临时文件
 - 同文件写路径经串行信号量排队（防并发读-改-写丢块）——串行门在 Handler 编排层，存储后端无感知
 - 存储层契约（`ISaveStorage`）：同步原语为契约核心（`Exists`/`TryReadAllBytes`/`WriteAtomic`/`DeleteFile`/`DeleteDirectory`/`EnumerateFiles`/`CreateBackup`/`RestoreBackup`），异步包装默认线程池卸载（真异步后端覆盖并声明 `Capabilities`）；读取错误分型返回、写入失败抛 `GameException`、删除幂等；实现必须纯 .NET（任意线程可调）
@@ -247,10 +247,6 @@ await SaveService.RestoreEntitiesAsync("slot1");
 
 ### 块级（主体）
 
-## 公共 API（静态外观）
-
-### 块级（主体）
-
 | API | 说明 |
 |---|---|
 | `SaveBlockAsync<T>(data, fileName, key, folderName, ct)` | 读-改-写合并块（原子替换；同文件写串行排队） |
@@ -295,10 +291,10 @@ await SaveService.RestoreEntitiesAsync("slot1");
 
 | 字段 | 说明 |
 |---|---|
-| `m_SaveServiceHandler` | 存储管线处理器（PlainSaveHandler / AesEncryptedSaveHandler） |
+| `m_SaveServiceHandler` | 存储管线处理器（PlainSaveHandler / AESEncryptedSaveHandler） |
 | `m_StorageBackend` | 存储后端（IO 下沉目标，默认 FileSaveStorageBackend；置空回退文件后端；云存档选 `CloudSaveStorageBackend`——组合远端 KV 插拔件 + 冲突策略 + 自定义裁决器） |
 | `m_CompressionProvider` | 压缩提供方（空 = 不压缩；内置 GZipCompressionProvider） |
-| `m_KeyProvider` | 密钥提供方（空 = 加密处理器回退 `StaticSaveKeyProvider.Default` 占位默认；可选 StaticSaveKeyProvider / PassphraseSaveKeyProvider / HkdfPerUserSaveKeyProvider） |
+| `m_KeyProvider` | 密钥提供方（空 = 加密处理器回退 `StaticSaveKeyProvider.Default` 占位默认；可选 StaticSaveKeyProvider / PassphraseSaveKeyProvider / HKDFPerUserSaveKeyProvider） |
 | `m_DefaultBackend` | 默认序列化后端（未声明 `[SaveData]` 的块） |
 | `m_SaveFileExtension` | 存档文件扩展名（默认 `.sav`） |
 | `m_MigrationWriteBack` | 迁移回写（默认开）：加载触发迁移成功后惰性回写存档；关闭则迁移仅作用于当次加载的内存数据 |
@@ -309,8 +305,44 @@ await SaveService.RestoreEntitiesAsync("slot1");
 
 ## 依赖
 
-MessagePack 3.1.8、protobuf-net 3.3.8（+Core 内嵌 BuildTools SG）、MemoryPack 1.21.4（NuGetForUnity 引入，运行时 DLL 自动引用；分析器 DLL 需 RoslynAnalyzer 标签）。缺 DLL 时对应后端在 `SaveSerializerRegistry.GetRequired` fail-fast。
+| 包 | 版本 | 说明 |
+|---|---|---|
+| MessagePack | 3.1.8 | NuGetForUnity 引入；运行时 DLL 自动引用，分析器 DLL 需 `RoslynAnalyzer` 标签 |
+| protobuf-net | 3.3.8 | 同上（+Core 内嵌 BuildTools SG） |
+| MemoryPack | 1.21.4 | 同上 |
+
+缺 DLL 时对应后端在 `SaveSerializerRegistry.GetRequired` fail-fast。
 
 ## 测试
 
-`Tests/EditorMode/Save/`：容器布局与 v2 逐块校验（`SaveFileContainerTests`：往返/坏块跳过/结构性前缀保留/v1 硬切、`SaveContainerV2Tests`：头 CRC 重算放行的部分恢复/整档拒绝/坏块列报/写回收留）、事件 API（`SaveEventTests`：触发时机/次数/参数、失败阶段分型、后台派发主线程化、进度批次）、组合器、Handler 管线（原子写/清扫/损坏分型/参数校验/原始块读取同步核心 ReadRawBlocks 往返·缺档·损坏）、存储后端契约（`FileSaveStorageBackendTests`：原子写/幂等删除/精确枚举/备份恢复/能力自描述）、压缩转换链（`SaveCompressionTests`：GZip 往返/压加组合/旧档兼容读/头部分型/注册表）、密钥提供方（`SaveKeyProviderTests`：静态等价/口令注入/HKDF 按用户隔离）、加密全链路、四后端往返、迁移级联、组件捕获器（生成代码；`SaveCapturerV2Tests`：集合/嵌套/场景引用/资产引用全矩阵往返）、迁移总线（`SaveMigrationBusTests`：版本链单步/多步/缺链/歧义/降级/Priority 序/异常归一、JSON 与 KVT 改名改型、整块变换、回写开关、审计历史、版本盖章、写入自愈、显式迁移、组件模式钩子路由）、序列化注册表开放注册（`SaveSerializerRegistryTests`：注册校验/重复 fail-fast/保留标识/注销）、KVT 元素级记录（`SaveKeyValueElementTests`：序列/映射/嵌套元素往返、null 元素、类型不符游标对齐、缓冲区边界回归）、场景对象身份（`SaveObjectIdentityTests`：注册/注销/空 ID 拒注册/重复 ID 首到先得/销毁失效/Resolve）、资产引用目录（`SaveAssetCatalogTests`：双向查找/类型不符/重复首到先得/编辑器期缓存失效）、KVT 模板差分（`SaveKvDifferTests`：标量/嵌套/集合/新增/类型漂移/恒透传/体积收缩/坏档）、实体表读写（`SaveEntityTableTests`：往返/空表/可空字段/未知记录容错）、动态实体闭环（`SaveEntityPersistenceTests`：注入 ID/差分内容与体积/销毁标记/父子接线/恢复往返/EntityRestored 事件/陈旧与孤儿块清理/加载失败降级）、内置捕获器（`SaveBuiltInCapturerTests`：Transform 三字段/Rigidbody 速度与运动学跳过/ParticleSystem 时间/掩码禁用）、截图与元数据镜像（`SaveScreenshotTests`：sidecar 命名/缩略图尺寸/盒式降采样/PNG 编码回读/sidecar 落盘与级联删除/元数据合并与容器回读/事件派发/非运行态降级）、云存档一体（`SaveCloudStorageBackendTests`：写双发/读策略矩阵 Latest·LocalWins·CloudWins·Custom/单侧对齐/离线降级与 backfill 重放/枚举并集/同步原语镜像直通/云端键规范化，内存 Fake 含时钟偏移与故障注入）。
+目录：`Tests/EditorMode/Service/Save/`
+
+| 测试类 | 覆盖点 |
+|---|---|
+| `SaveFileContainerTests` | 容器往返、坏块跳过、结构性前缀保留、v1 硬切 |
+| `SaveContainerV2Tests` | 头 CRC 重算放行的部分恢复、整档拒绝、坏块列报、写回收留 |
+| `SaveEventTests` | 事件触发时机/次数/参数、失败阶段分型、后台派发主线程化、进度批次 |
+| `SaveServiceHandlerTests` | 原子写、孤儿清扫、损坏分型、参数校验、便捷映射与降级、RawBlocks 往返 |
+| `FileSaveStorageBackendTests` | 原子写、幂等删除、精确枚举、备份恢复、能力自描述 |
+| `SaveCompressionTests` | GZip 往返、压+加组合、未压缩档兼容读、头部分型、注册表 |
+| `SaveKeyProviderTests` | 静态派生、口令注入、HKDF 按用户隔离 |
+| `AesEncryptedSaveHandlerTests` | 加密全链路 |
+| `SaveEncryptorTests` | AES/HMAC 机件 |
+| `SaveMigrationAndBackendTests` | 四后端往返、块级版本迁移级联 |
+| `SaveMigrationBusTests` | 版本链、改名改型、整块变换、回写开关、审计、写入自愈、显式迁移 |
+| `SaveCapturerTests` / `SaveCapturerV2Tests` | 组件捕获器：字段增删、集合/嵌套/场景引用/资产引用矩阵 |
+| `SaveSerializerRegistryTests` | 注册校验、重复 fail-fast、保留标识、注销 |
+| `SaveKeyValueElementTests` | KVT 元素级：序列/映射/嵌套、null、类型不符、缓冲区边界 |
+| `SaveObjectIdentityTests` | 注册/注销、空 ID、重复 ID 首到先得、销毁失效、Resolve |
+| `SaveAssetCatalogTests` | 资产目录双向查找、类型不符、重复首到先得、缓存失效 |
+| `SaveKvDifferTests` | 模板差分：标量/嵌套/集合/新增/类型漂移/体积收缩/坏档 |
+| `SaveEntityTableTests` | 实体表往返、空表、可空字段、未知记录容错 |
+| `SaveEntityPersistenceTests` | 动态实体闭环、差分、销毁标记、父子接线、EntityRestored |
+| `SaveBuiltInCapturerTests` | Transform / Rigidbody / ParticleSystem 内置捕获器 |
+| `SaveScreenshotTests` | sidecar、缩略图、PNG 编码、元数据镜像、级联删除、非运行态降级 |
+| `SaveCloudStorageBackendTests` | 写双发、读策略矩阵、单侧对齐、离线降级、backfill 重放 |
+| `SaveBlockComposerTests` | 块组合器 |
+| `SaveV3HardeningTests` | 加固路径回归 |
+
+---
+[« 返回文档索引](Index.md) · [主 README](../../README.md) · [Resource](Resource.md) · [Core](Core.md)

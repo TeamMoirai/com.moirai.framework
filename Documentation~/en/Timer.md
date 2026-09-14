@@ -1,4 +1,4 @@
-﻿# Timer Service
+# Timer Service
 
 > High-performance timer service based on a four-level timing wheel, no full scan, suitable for large-scale timed scenarios such as skill cooldowns, heartbeat packets, and delayed tasks.
 
@@ -122,4 +122,4 @@ Custom hosts can also hold independent view instances (`new TimerServiceDebugVie
 - On hot paths, register timers with cached delegates or static method groups; avoid captured lambdas / closures that introduce allocations.
 
 ---
-[« Back to Main README](../../README_EN.md) · [Core](Core.md) · [UpdateDriver](UpdateDriver.md)
+[« Documentation Index](Index.md) · [Main README](../../README_EN.md) · [Core](Core.md) · [UpdateDriver](UpdateDriver.md)

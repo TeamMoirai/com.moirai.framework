@@ -275,4 +275,4 @@ Debugger 窗口：`Profiler/Object Pool`（通用池）、`Profiler/GameObject P
 - 低内存：两池 Handler 各自订阅 `Application.lowMemory` 全量收缩；`GameApp.OnLowMemory` 仅驱动资源层卸载。
 
 ---
-[« 返回主 README](../../README.md)
+[« 返回文档索引](Index.md) · [主 README](../../README.md) · [MemoryPool](MemoryPool.md) · [Resource](Resource.md)

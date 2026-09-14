@@ -1,8 +1,8 @@
-# Save
+# Save Service
 
-## Overview
+> Single-file multi-block container, pluggable serialization/encryption/compression, file-level migration bus, and no-code component saving.
 
-The Save service (`SaveService`) provides AAA-grade save infrastructure: a **single-file multi-block** container, **four pluggable serialization backends** (JSON / MessagePack / MemoryPack / protobuf-net), a **file-level version migration bus** (version chains + auditing + lazy write-back) alongside **block-level version migration**, an **AES-encrypted pipeline** (pluggable key source: static passphrase / runtime passphrase injection / HKDF per-user derivation), **optional GZip compression**, and **no-code component saving** (Source-Generator-generated strongly-typed capturers). Namespace `Moirai.Atropos.Save`.
+The Save service (`SaveService`) provides AAA-grade save infrastructure: **four pluggable serialization backends** (JSON / MessagePack / MemoryPack / protobuf-net), a **file-level version migration bus** (version chains + auditing + lazy write-back) alongside **block-level version migration**, an **AES-encrypted pipeline** (pluggable key source: static passphrase / runtime passphrase injection / HKDF per-user derivation), **optional GZip compression**, and **no-code component saving** (Source-Generator-generated strongly-typed capturers). Namespace `Moirai.Atropos.Save`.
 
 ## Architecture
 
@@ -10,7 +10,7 @@ The Save service (`SaveService`) provides AAA-grade save infrastructure: a **sin
 SaveService (static facade, write paths throw GameException when handler is null, reads degrade)
 ├── Storage pipeline ([SerializeReference] swappable)
 │     PlainSaveHandler        pass-through (no crypto)
-│     AesEncryptedSaveHandler AES-256-CBC + HMAC (encrypt-then-MAC), key material via ISaveKeyProvider
+│     AESEncryptedSaveHandler AES-256-CBC + HMAC (encrypt-then-MAC), key material via ISaveKeyProvider
 ├── Storage backend ([SerializeReference] swappable, ISaveStorage + SaveStorageBackend)
 │     FileSaveStorageBackend  local files (temp + Flush(true) + atomic replace, default)
 ├── Transform chain (fixed order: Serialize → Compress? → Encrypt? → CRC)
@@ -40,7 +40,7 @@ Container: [4B magic "MRSB"][4B container version=2][4B block count]
 - Container v1 files are hard-cut: reads classify as `UnsupportedVersion` with no dual-format compatibility
 - Transform chain order is fixed: Serialize → **Compress (optional, before encryption)** → Encrypt → CRC; the read side reverses it (decrypt → decompress via header ID registry lookup) — uncompressed legacy files pass through unchanged (magic/flags sniffing is idempotent, old and new files coexist)
 - Header offset 24-27 holds the compression provider ID (0 = uncompressed); unknown IDs are classified `UnsupportedVersion`, flag/ID inconsistency is classified `Corrupted`
-- Key sources (`ISaveKeyProvider`): static passphrase PBKDF2 (`StaticSaveKeyProvider`, default, parameter-identical to V2) / runtime passphrase injection (`PassphraseSaveKeyProvider`, passphrase held in memory only — reads classify `InvalidArgument` and writes fail fast until injected) / HKDF-SHA256 per-user derivation (`HkdfPerUserSaveKeyProvider`, accounts cannot read each other's saves)
+- Key sources (`ISaveKeyProvider`): static passphrase PBKDF2 (`StaticSaveKeyProvider`, default placeholder when none is configured) / runtime passphrase injection (`PassphraseSaveKeyProvider`, passphrase held in memory only — reads classify `InvalidArgument` and writes fail fast until injected) / HKDF-SHA256 per-user derivation (`HKDFPerUserSaveKeyProvider`, accounts cannot read each other's saves)
 - Atomic writes: temp file `xxx.sav.tmp-{guid}` → `Flush(true)` → `File.Replace` (via `FileSaveStorageBackend`); orphan temp files swept in background at init
 - Write paths on the same file are serialized through a per-file semaphore (prevents lost updates from concurrent read-modify-write) — the gate lives in the handler orchestration layer, transparent to storage backends
 - Storage contract (`ISaveStorage`): sync primitives are the contract core (`Exists`/`TryReadAllBytes`/`WriteAtomic`/`DeleteFile`/`DeleteDirectory`/`EnumerateFiles`/`CreateBackup`/`RestoreBackup`); async wrappers default to thread-pool offload (true-async backends override and declare `Capabilities`); read errors are classified codes, write failures throw `GameException`, deletes are idempotent; implementations must be pure .NET (callable from any thread)
@@ -247,10 +247,6 @@ Save-slot thumbnail pipeline: capture the screen at end of frame (`ScreenCapture
 
 ### Block-level (primary)
 
-## Public API (static facade)
-
-### Block-level (primary)
-
 | API | Description |
 |---|---|
 | `SaveBlockAsync<T>(data, fileName, key, folderName, ct)` | Read-modify-write block merge (atomic replace; per-file write serialization) |
@@ -260,9 +256,9 @@ Save-slot thumbnail pipeline: capture the screen at end of frame (`ScreenCapture
 | `GetBlockInfos(fileName, folderName)` | Block metadata (key/version/backend/size/per-block error typing; corrupted blocks are listed — framing fields trustworthy only when `HasMetadata` is true and `Error != None`) |
 | Sync pairs `SaveBlock` / `LoadBlock` / `TryLoadBlock` / `DeleteBlock` | Main-thread blocking variants (quit-time flushes) |
 
-### Legacy (single-object APIs mapped to the reserved `__main__` block)
+### Quick (single-object shortcuts mapped to the reserved `__main__` block)
 
-`SaveAsync<T>` / `LoadAsync<T>` / `TryLoadAsync<T>` / `Save` / `Load` / `TryLoad` — signatures unchanged from the v1 version.
+`SaveAsync<T>` / `LoadAsync<T>` / `TryLoadAsync<T>` / `Save` / `Load` / `TryLoad` — single-object save/load convenience entry points.
 
 ### Metadata / Slots / Backup
 
@@ -295,12 +291,11 @@ Static events (default zero-overhead channel) + `EventManager` bridge events (`S
 
 | Field | Description |
 |---|---|
-| `m_SaveServiceHandler` | Storage pipeline handler (PlainSaveHandler / AesEncryptedSaveHandler) |
+| `m_SaveServiceHandler` | Storage pipeline handler (PlainSaveHandler / AESEncryptedSaveHandler) |
 | `m_StorageBackend` | Storage backend (IO sink, default FileSaveStorageBackend; empty falls back to the file backend; for cloud saves pick `CloudSaveStorageBackend` — composes the remote KV plug-in + sync policy + custom resolver) |
 | `m_CompressionProvider` | Compression provider (empty = no compression; built-in GZipCompressionProvider) |
-| `m_KeyProvider` | Key provider (empty = static key; alternatives: PassphraseSaveKeyProvider / HkdfPerUserSaveKeyProvider) |
+| `m_KeyProvider` | Key provider (empty = AES handler falls back to `StaticSaveKeyProvider.Default` placeholders; alternatives: StaticSaveKeyProvider / PassphraseSaveKeyProvider / HKDFPerUserSaveKeyProvider) |
 | `m_DefaultBackend` | Default serialization backend (blocks without `[SaveData]`) |
-| `m_EncryptionKey` / `m_Pbkdf2Iterations` | Static-key parameters (**SECURITY: replace the placeholder key before shipping**; effective only when no key provider is configured; derived keys are cached per instance) |
 | `m_SaveFileExtension` | Save file extension (default `.sav`) |
 | `m_MigrationWriteBack` | Migration write-back (default on): lazily persists load-triggered migrations; when off, migration applies to in-memory data of that load only |
 | `m_AssetCatalog` | Asset reference catalog (SaveAssetCatalog SO): no-code asset reference fields resolve locations two-way through the catalog; empty = asset reference fields always capture Null |
@@ -310,8 +305,44 @@ Static events (default zero-overhead channel) + `EventManager` bridge events (`S
 
 ## Dependencies
 
-MessagePack 3.1.8, protobuf-net 3.3.8 (+Core with embedded BuildTools SG), MemoryPack 1.21.4 (via NuGetForUnity; runtime DLLs are auto-referenced; analyzer DLLs need the RoslynAnalyzer label). Missing DLLs fail fast in `SaveSerializerRegistry.GetRequired`.
+| Package | Version | Notes |
+|---|---|---|
+| MessagePack | 3.1.8 | Via NuGetForUnity; runtime DLLs auto-referenced; analyzer DLLs need the `RoslynAnalyzer` label |
+| protobuf-net | 3.3.8 | Same (+Core with embedded BuildTools SG) |
+| MemoryPack | 1.21.4 | Same |
+
+Missing DLLs fail fast in `SaveSerializerRegistry.GetRequired`.
 
 ## Tests
 
-`Tests/EditorMode/Save/`: container layout and v2 per-block validation (`SaveFileContainerTests`: round-trips/corrupted-block skip/structural prefix preservation/v1 hard-cut, `SaveContainerV2Tests`: partial recovery past a repatched header CRC/whole-file rejection/corrupted-block listing/write-back salvage), events API (`SaveEventTests`: trigger timing/count/args, failure-stage typing, background dispatch to main thread, progress batching), composer, handler pipeline (atomic writes/sweep/corruption classification/argument validation/raw block read sync core ReadRawBlocks round-trip·missing·corrupted), storage backend contract (`FileSaveStorageBackendTests`: atomic writes/idempotent deletes/exact-filter listing/backup-restore/capabilities), compression transform chain (`SaveCompressionTests`: GZip round-trips/compress+encrypt combos/legacy uncompressed reads/header classification/registry), key providers (`SaveKeyProviderTests`: static equivalence/passphrase injection/HKDF per-user isolation), full crypto chain, four-backend round-trips, migration cascades, component capturers (generated code; `SaveCapturerV2Tests`: collection/nested/scene-reference/asset-reference full-matrix round-trips), migration bus (`SaveMigrationBusTests`: single/multi-step chains/missing-link/ambiguity/downgrade/Priority ordering/exception typing, JSON & KVT rename/retype, whole-block transform, write-back on/off, audit history, version stamping, write-time healing, explicit migration, component schema hook routing), serializer registry open registration (`SaveSerializerRegistryTests`: registration validation/duplicate fail-fast/reserved backend/unregister), KVT element-level records (`SaveKeyValueElementTests`: sequence/map/nested-element round-trips, null elements, type-mismatch cursor alignment, buffer-boundary regression), scene object identity (`SaveObjectIdentityTests`: register/unregister/empty-ID rejection/duplicate-ID first-wins/destroy-invalidation/Resolve), asset reference catalog (`SaveAssetCatalogTests`: two-way lookup/type mismatch/duplicate first-wins/editor-time cache invalidation), KVT template diffing (`SaveKvDifferTests`: scalar/nested/collection/new-record/type-drift/always-pass-through/size shrink/corruption), entity table IO (`SaveEntityTableTests`: round-trips/empty tables/nullable fields/unknown-record tolerance), dynamic entity loop (`SaveEntityPersistenceTests`: ID injection/diff content & size/destroy markers/parent rewiring/restore round-trip/EntityRestored event/stale & orphan block cleanup/load-failure degradation), built-in capturers (`SaveBuiltInCapturerTests`: Transform TRS/Rigidbody velocities & kinematic skip/ParticleSystem time/mask disabling), screenshot & metadata mirroring (`SaveScreenshotTests`: sidecar naming/thumbnail sizing/box downsampling/PNG encode round-trip/sidecar write & cascade delete/metadata merge & container round-trip/event dispatch/non-playing degradation), cloud saves (`SaveCloudStorageBackendTests`: dual write/read-policy matrix Latest·LocalWins·CloudWins·Custom/single-side self-healing/offline degradation & backfill replay/enumeration union/sync primitives mirror-only/cloud key normalization; in-memory fake with clock offset and failure injection).
+Directory: `Tests/EditorMode/Service/Save/`
+
+| Test class | Coverage |
+|---|---|
+| `SaveFileContainerTests` | Container round-trips, corrupted-block skip, structural prefix preservation, v1 hard-cut |
+| `SaveContainerV2Tests` | Partial recovery past a repatched header CRC, whole-file rejection, corrupted-block listing, write-back salvage |
+| `SaveEventTests` | Trigger timing/count/args, failure-stage typing, background dispatch to main thread, progress batching |
+| `SaveServiceHandlerTests` | Atomic writes, orphan sweep, corruption classification, argument validation, quick-map & degradation, RawBlocks round-trip |
+| `FileSaveStorageBackendTests` | Atomic writes, idempotent deletes, exact-filter listing, backup/restore, capabilities |
+| `SaveCompressionTests` | GZip round-trips, compress+encrypt combos, uncompressed reads, header classification, registry |
+| `SaveKeyProviderTests` | Static derivation, passphrase injection, HKDF per-user isolation |
+| `AesEncryptedSaveHandlerTests` | Full crypto chain |
+| `SaveEncryptorTests` | AES/HMAC machinery |
+| `SaveMigrationAndBackendTests` | Four-backend round-trips, block-level migration cascades |
+| `SaveMigrationBusTests` | Version chains, rename/retype, whole-block transform, write-back toggle, audit, write-time healing, explicit migration |
+| `SaveCapturerTests` / `SaveCapturerV2Tests` | Component capturers: field add/remove, collection/nested/scene/asset reference matrices |
+| `SaveSerializerRegistryTests` | Registration validation, duplicate fail-fast, reserved backend, unregister |
+| `SaveKeyValueElementTests` | KVT elements: sequence/map/nested, null, type-mismatch, buffer bounds |
+| `SaveObjectIdentityTests` | Register/unregister, empty ID, duplicate-ID first-wins, destroy-invalidation, Resolve |
+| `SaveAssetCatalogTests` | Two-way lookup, type mismatch, duplicate first-wins, cache invalidation |
+| `SaveKvDifferTests` | Template diff: scalar/nested/collection/add/type-drift/size-shrink/corrupt |
+| `SaveEntityTableTests` | Entity table round-trip, empty table, nullable fields, unknown-record tolerance |
+| `SaveEntityPersistenceTests` | Dynamic entity loop, diff, destroy marks, parent wiring, EntityRestored |
+| `SaveBuiltInCapturerTests` | Transform / Rigidbody / ParticleSystem built-in capturers |
+| `SaveScreenshotTests` | Sidecar, thumbnail, PNG encode, metadata mirror, cascade delete, non-playing degrade |
+| `SaveCloudStorageBackendTests` | Dual-write, sync policy matrix, single-side align, offline degrade, backfill replay |
+| `SaveBlockComposerTests` | Block composer |
+| `SaveV3HardeningTests` | Hardening path regressions |
+
+---
+[« Documentation Index](Index.md) · [Main README](../../README_EN.md) · [Resource](Resource.md) · [Core](Core.md)
