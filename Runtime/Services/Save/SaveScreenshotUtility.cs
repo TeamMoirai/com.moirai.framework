@@ -6,14 +6,14 @@ namespace Moirai.Atropos.Save
 {
     /// <summary>
     /// 存档截图工具：屏幕捕获（运行态主线程）与缩略图 PNG 编码（纯函数核心，像素源可注入）。
-    /// <para>管线：<see cref="ScreenCapture.CaptureScreenshotAsTexture"/>（主线程，帧末捕获）→ CPU 盒式降采样（保纵横比、不放大）
+    /// <para>管线：<see cref="ScreenCapture.CaptureScreenshotAsTexture()"/>（主线程，帧末捕获）→ CPU 盒式降采样（保纵横比、不放大）
     /// → <see cref="ImageConversion.EncodeToPNG"/> 主线程一次编码（小图成本可忽略；ImageConversion 为主线程约束 API）。</para>
     /// <para>降采样与编码收敛为单一 CPU 路径（非 GPU Blit 双路径），EditMode 下以注入像素源全链路覆盖。</para>
     /// </summary>
     internal static class SaveScreenshotUtility
     {
         /// <summary>截图 sidecar 文件名后缀（与存档文件同目录；经 ISaveStorage 落盘，云后端天然跟随）。</summary>
-        internal const string ScreenshotFileSuffix = ".screenshot.png";
+        internal const string SCREENSHOT_FILE_SUFFIX = ".screenshot.png";
 
         /// <summary>缩略图最长边默认值（像素）。</summary>
         internal const int DEFAULT_MAX_DIMENSION = 256;
@@ -21,13 +21,13 @@ namespace Moirai.Atropos.Save
         #region 命名 [NAMING]
 
         /// <summary>
-        /// 解析存档文件名对应的截图 sidecar 文件名（去扩展名后追加 <see cref="ScreenshotFileSuffix"/>）。
+        /// 解析存档文件名对应的截图 sidecar 文件名（去扩展名后追加 <see cref="SCREENSHOT_FILE_SUFFIX"/>）。
         /// </summary>
         /// <param name="fileName">存档文件名（已校验）。</param>
         /// <returns>截图 sidecar 文件名。</returns>
         internal static string DetermineScreenshotFileName(string fileName)
         {
-            return Path.GetFileNameWithoutExtension(fileName) + ScreenshotFileSuffix;
+            return Path.GetFileNameWithoutExtension(fileName) + SCREENSHOT_FILE_SUFFIX;
         }
 
         #endregion
