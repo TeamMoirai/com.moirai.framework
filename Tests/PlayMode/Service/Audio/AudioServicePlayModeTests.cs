@@ -197,5 +197,42 @@ namespace Service.Audio
             Assert.DoesNotThrow(() => _handler.StopByID(999999, 0f));
             yield return null;
         }
+
+        /// <summary>
+        /// 回归：Bind 必须同时写入注册表与 Agent 侧句柄，否则世代校验恒失败、循环音无法 Stop。
+        /// </summary>
+        [UnityTest]
+        public IEnumerator Play_BindsAgentHandle_StopActuallyStops()
+        {
+            if (!Application.isPlaying) Assert.Ignore("需要 PlayMode");
+            var categories = _handler.AudioCategories;
+            if (categories == null || categories.Length == 0)
+            {
+                Assert.Ignore("AudioGroupConfigs 未配置，跳过");
+            }
+
+            var flags = AudioPlayFlags.DoNotAutoRecycle | AudioPlayFlags.Loop;
+            ulong handle = _handler.Play(_clip, MakeRequest(5001, EAudioTrack.Sfx, flags), null);
+            Assert.AreNotEqual(0UL, handle, "循环音播放应返回有效句柄");
+
+            yield return null;
+            _handler.Tick(Time.unscaledDeltaTime, Time.unscaledDeltaTime);
+
+            var agent = _handler.GetAgentByHandle(handle);
+            Assert.IsNotNull(agent, "Play 后世代校验必须通过（Agent 侧句柄已绑定）");
+            Assert.AreEqual(handle, agent.CurrentHandle, "注册表句柄与 Agent 侧句柄应一致");
+            Assert.IsTrue(_handler.IsPlaying(handle));
+
+            _handler.Stop(handle, 0f);
+            yield return null;
+            _handler.Tick(Time.unscaledDeltaTime, Time.unscaledDeltaTime);
+
+            Assert.IsTrue(_handler.IsStopped(handle), "Stop 应从注册表释放句柄");
+            Assert.IsNull(_handler.GetAgentByHandle(handle));
+            Assert.AreEqual(0UL, agent.CurrentHandle, "释放后 Agent 侧句柄应清零");
+
+            bool stillPlaying = agent.AudioResource != null && agent.AudioResource.isPlaying;
+            Assert.IsFalse(stillPlaying, "Stop 后 AudioSource 不应仍在播（杜绝孤儿循环音）");
+        }
     }
 }

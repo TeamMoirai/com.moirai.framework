@@ -121,7 +121,7 @@ Configure `WarmupAudioHostPool` and `AudioHostWarmupCount` in `AudioServiceSetti
 - `Play` returns `0UL` on failure (no channel, unconfigured track, paused track, backend not initialized)  
 - Paused tracks block new plays; `MasterVolume` getter always returns the unmuted setting value (consistent across backends)  
 - Middleware backends return null for `GetAgentByHandle` / `ForEachAgentByID` — use handle APIs; InitialDelay / PlaybackDuration / Solo are unsupported  
-- Legacy giant-signature `Play` overloads are `[Obsolete]`; migrate to `AudioPlayOptions` / `AudioPlayRequest`. `DoNotAutoRecycle` defaults to true consistently across factories and overloads  
+- `DoNotAutoRecycle` defaults to true consistently across factories and overloads  
 - No-channel warnings are throttled per track (3 s) as Warning  
 - Manual fades and snapshot transitions advance via service `Tick`  
 - Scene load auto `StopAllButPersistent`; set `Persistent = true` for cross-scene audio  

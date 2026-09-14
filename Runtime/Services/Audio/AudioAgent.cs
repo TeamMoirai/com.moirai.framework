@@ -182,9 +182,10 @@ namespace Moirai.Atropos.Audio
         /// <summary>用户定义 ID（句柄注册表反查用，与 <see cref="ID"/> 同值）。</summary>
         int IAudioVoiceRef.UserId => ID;
 
-        /// <summary>声部侧句柄（由注册表 Bind/Release 单点写入，读取走 <see cref="CurrentHandle"/>）。</summary>
+        /// <summary>声部侧句柄（由注册表 Bind/Release 单点写入，与 <see cref="CurrentHandle"/> 同源）。</summary>
         ulong IAudioVoiceRef.BoundHandle
         {
+            get => _currentHandle;
             set => _currentHandle = value;
         }
 

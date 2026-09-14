@@ -16,12 +16,13 @@ namespace Moirai.Atropos.Audio
         /// 由 <c>AudioHandleRegistry.Bind/Release</c> 单点写入，保证与注册表映射不失步；
         /// 实现方请勿在绑定生命周期内于其他位置赋值。
         /// </summary>
-        ulong BoundHandle { set; }
+        ulong BoundHandle { get; set; }
     }
 
     /// <summary>
     /// 音频句柄注册表（Unity / 中间件后端共用）。
     /// <para>职责：服务句柄生成、句柄 → 声部映射、用户 ID → 句柄列表映射（1 对多）、列表对象池。</para>
+    /// <para>不变量：句柄 ↔ 声部为 1:1；<see cref="Bind"/> 重绑前会自动卸掉声部旧句柄与本句柄上的旧声部。</para>
     /// <para>零分配约定：按 ID 遍历使用池化快照，action 内 Stop/Release 改写源列表不会破坏迭代或跳过元素。</para>
     /// </summary>
     /// <typeparam name="TVoice">后端声部类型（Unity 为 <see cref="AudioAgent"/>，中间件为私有 Voice）。</typeparam>
@@ -51,11 +52,25 @@ namespace Moirai.Atropos.Audio
         }
 
         /// <summary>
-        /// 绑定句柄与声部：注册表映射与声部侧句柄在此单点同步，
-        /// 调用方无需（也不应）再单独给声部赋句柄。
+        /// 绑定句柄与声部：注册表映射与声部侧句柄在此单点同步。
+        /// <para>结构保证 1:1：若声部已绑其他句柄、或本句柄已绑其他声部，会先完整卸绑再写入，
+        /// 因此不会出现「同声部双句柄」。</para>
         /// </summary>
         public void Bind(ulong handle, TVoice voice)
         {
+            // 声部旧句柄 → 先卸绑（含用户 ID 映射），避免双绑
+            ulong oldHandle = voice.BoundHandle;
+            if (oldHandle != 0UL && oldHandle != handle)
+            {
+                Release(oldHandle, out _);
+            }
+
+            // 本句柄被其他声部占用 → 先卸掉对方
+            if (_handleMap.TryGetValue(handle, out var previous) && !ReferenceEquals(previous, voice))
+            {
+                Release(handle, out _);
+            }
+
             _handleMap[handle] = voice;
             voice.BoundHandle = handle;
         }
@@ -89,6 +104,7 @@ namespace Moirai.Atropos.Audio
             if (!_handleMap.TryGetValue(handle, out voice)) return false;
 
             _handleMap.Remove(handle);
+            // Bind 已保证 1:1：map 命中时声部侧必为本句柄（或已是 0 的空闲态）
             voice.BoundHandle = 0UL;
 
             if (_userHandleMap.TryGetValue(voice.UserId, out var list))
@@ -128,9 +144,14 @@ namespace Moirai.Atropos.Audio
             }
         }
 
-        /// <summary>清空全部映射并回收列表。</summary>
+        /// <summary>清空全部映射并回收列表；同步清零仍留在 map 上的声部侧句柄。</summary>
         public void Clear()
         {
+            foreach (var voice in _handleMap.Values)
+            {
+                if (voice != null) voice.BoundHandle = 0UL;
+            }
+
             _handleMap.Clear();
             foreach (var list in _userHandleMap.Values)
             {
