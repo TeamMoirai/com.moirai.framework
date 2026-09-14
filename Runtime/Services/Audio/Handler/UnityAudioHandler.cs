@@ -212,6 +212,12 @@ namespace Moirai.Atropos.Audio
 
             SceneManager.sceneLoaded -= OnSceneLoaded;
 
+            // 销毁 DDOL 实例根整棵树（含 Category 根）；池中宿主已被 Clear 销毁，活动宿主随树销毁
+            if (_instanceRoot != null)
+            {
+                UnityEngine.Object.Destroy(_instanceRoot.gameObject);
+            }
+
             _instanceRoot = null;
             _audioMixer = null;
             _audioGroupConfigs = null;
@@ -227,9 +233,11 @@ namespace Moirai.Atropos.Audio
             var categories = _audioCategories;
             if (categories == null) return;
 
+            // 音频按真实时间播放（AudioSource 不受 timeScale 影响），自然结束计时必须用 unscaled，
+            // 否则 timeScale>1 会提前淡出、timeScale=0（暂停）时播完的 agent 悬挂不释放
             for (int i = 0; i < categories.Length; i++)
             {
-                categories[i]?.Update(elapseSeconds);
+                categories[i]?.Update(realElapseSeconds);
             }
 
             _fades.Update(GameTime.unscaledTime, this);
@@ -254,6 +262,14 @@ namespace Moirai.Atropos.Audio
 
             _handles.Clear();
             _fades.Clear();
+
+            // 销毁旧实例根整棵树（含 Category 根），避免 Restart 泄漏空壳 GameObject。
+            // 已归还栈池的宿主仍挂在旧树下会一并销毁——池 Acquire 的 null 检查会惰性剔除这些失效引用。
+            if (_instanceRoot != null)
+            {
+                UnityEngine.Object.Destroy(_instanceRoot.gameObject);
+                _instanceRoot = null;
+            }
 
             Initialize(null, null, _audioGroupConfigs);
         }
@@ -327,6 +343,14 @@ namespace Moirai.Atropos.Audio
             for (int i = 0; i < trackCount; i++)
             {
                 var config = _audioGroupConfigs[i];
+
+                // 空配置槽跳过（防御序列化数组留空），避免构造期 NRE
+                if (config == null)
+                {
+                    LogUtility.Warning("[AudioService] AudioGroupConfigs[{0}] is null; the slot is ignored.", i);
+                    continue;
+                }
+
                 int trackIndex = (int)config.AudioTrack;
 
                 // 重复音轨拒绝：后者会覆盖 O(1) 缓存并使前一个 Category 不可达
@@ -371,7 +395,7 @@ namespace Moirai.Atropos.Audio
         #region 播放音频 [PLAY AUDIO]
 
         /// <inheritdoc />
-        public override ulong Play(AudioClip clip, AudioPlayOptions options)
+        public override ulong Play(AudioClip clip, in AudioPlayOptions options)
         {
             if (_unityAudioDisabled || IsTrackPaused(options.AudioTrack)) return 0UL;
 
@@ -452,7 +476,7 @@ namespace Moirai.Atropos.Audio
         }
 
         /// <inheritdoc />
-        public override ulong Play(string path, AudioPlayOptions options, bool bAsync = false, bool bInPool = false)
+        public override ulong Play(string path, in AudioPlayOptions options, bool bAsync, bool bInPool)
         {
             if (_unityAudioDisabled || IsTrackPaused(options.AudioTrack)) return 0UL;
 
@@ -550,6 +574,8 @@ namespace Moirai.Atropos.Audio
                 return;
             }
 
+            // Stop 的内部淡出接管音量：先清掉调度器在同句柄上的手动过渡，避免双写
+            _fades.Stop(handle);
             agent.Stop(fadeoutDuration);
         }
 
@@ -858,6 +884,9 @@ namespace Moirai.Atropos.Audio
         /// <inheritdoc />
         public override void FadeAudio(ulong handle, float duration, float initialVolume, float finalVolume, TweenEase tweenEase)
         {
+            // 调度器接管音量：取消 Agent 内部淡入状态机，避免同句柄双写
+            GetAgentByHandle(handle)?.CancelFadeIn();
+
             if (duration <= 0f)
             {
                 var agent = GetAgentByHandle(handle);

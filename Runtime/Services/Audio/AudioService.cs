@@ -79,7 +79,7 @@ namespace Moirai.Atropos.Audio
         #endregion
 
         #region 属性 [PROPERTIES]
-		
+        
         /// <summary>
         /// 音频混响器。
         /// </summary>
@@ -99,9 +99,10 @@ namespace Moirai.Atropos.Audio
         }
 
         /// <summary>
-        /// 资源句柄池，用于缓存资源系统的已加载音频资源（后端原生句柄的 object 包装）。
+        /// 资源句柄池（只读视图），用于缓存资源系统的已加载音频资源（后端原生句柄的 object 包装）。
+        /// <para>池条目的增删与租约释放由服务内部配对管理（<see cref="PutInAudioPool"/>/<see cref="RemoveClipFromPool"/>/<see cref="CleanAudioPool"/>），外部请勿直接改写。</para>
         /// </summary>
-        public static Dictionary<string, object> AssetHandlePool => s_Handler?.AssetHandlePool;
+        public static IReadOnlyDictionary<string, object> AssetHandlePool => s_Handler?.AssetHandlePool;
 
         #endregion
 
@@ -250,7 +251,7 @@ namespace Moirai.Atropos.Audio
         /// <summary>
         /// 播放音频，返回服务自维护的音频句柄。
         /// </summary>
-        public static ulong Play(AudioClip clip, AudioPlayOptions options) =>
+        public static ulong Play(AudioClip clip, in AudioPlayOptions options) =>
             s_Handler?.Play(clip, options) ?? 0UL;
 
         /// <summary>
@@ -296,14 +297,16 @@ namespace Moirai.Atropos.Audio
         /// <summary>
         /// 播放音频，返回服务自维护的音频句柄。
         /// </summary>
-        public static ulong Play(string path, AudioPlayOptions options, bool bAsync = false, bool bInPool = false) =>
+        /// <remarks>默认异步加载；同步加载（<paramref name="bAsync"/>=false）会阻塞主线程，仅限启动期/预加载场景使用。</remarks>
+        public static ulong Play(string path, in AudioPlayOptions options, bool bAsync = true, bool bInPool = false) =>
             s_Handler?.Play(path, options, bAsync, bInPool) ?? 0UL;
 
         /// <summary>
         /// 播放音频。
         /// </summary>
-        /// <remarks>传统巨型签名重载，仅为兼容保留；默认值与各工厂方法/契约对齐（DoNotAutoRecycle 为 true）。</remarks>
-        public static ulong Play(string path, EAudioTrack track, Vector3 location, bool bAsync = false, bool bInPool = false,
+        /// <remarks>传统巨型签名重载，仅为兼容保留；默认值与各工厂方法/契约对齐（DoNotAutoRecycle 为 true）。
+        /// 默认异步加载；同步加载（<paramref name="bAsync"/>=false）会阻塞主线程，仅限启动期/预加载场景使用。</remarks>
+        public static ulong Play(string path, EAudioTrack track, Vector3 location, bool bAsync = true, bool bInPool = false,
             bool loop = false, float volume = 1.0f, int id = 0,
             bool fade = false, float fadeInitialVolume = 0f, float fadeDuration = 1f, TweenEase fadeTweenEase = default,
             bool persistent = false,

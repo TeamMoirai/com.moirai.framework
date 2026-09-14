@@ -17,7 +17,10 @@ namespace Moirai.Atropos.Audio.Middleware
         /// <summary>每帧更新。</summary>
         void Update(float unscaledDeltaTime);
 
-        /// <summary>播放事件，返回原生实例 ID（0 失败）。</summary>
+        /// <summary>
+        /// 播放事件，返回原生实例 ID（0 失败）。
+        /// </summary>
+        /// <remarks><paramref name="loop"/> 为尽力生效：FMOD 桥支持运行时设置循环模式；Wwise 桥忽略该参数（循环由 Wwise 工程侧事件配置）。</remarks>
         ulong PlayEvent(string eventPath, float volume, float pitch, bool loop, Vector3? position3D);
 
         /// <summary>停止实例。</summary>

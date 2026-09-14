@@ -161,12 +161,25 @@ namespace Moirai.Atropos.Audio
                 return;
             }
 
-            if (m_Mixer == null) return;
+            if (m_Mixer == null)
+            {
+                if (target != EMixSnapshot.Default)
+                {
+                    LogUtility.Warning("[AudioMix] Mixer 未绑定且无中间件过渡回调，状态 {0} 的切换为无操作。", target);
+                }
+
+                return;
+            }
 
             AudioMixerSnapshot snap = FindSnapshot(target);
             if (snap != null)
             {
                 snap.TransitionTo(Mathf.Max(0.01f, blendSeconds));
+            }
+            else if (target != EMixSnapshot.Default)
+            {
+                // Default 无 Snapshot 属正常（回到 Mixer 默认状态）；其余状态缺失视为配置遗漏
+                LogUtility.Warning("[AudioMix] 状态 {0} 未注册 AudioMixerSnapshot（见 AudioServiceSettings.MixSnapshots），切换为无操作。", target);
             }
         }
 
