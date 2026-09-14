@@ -273,8 +273,10 @@ namespace Moirai.Atropos.Resource
 
         /// <summary>
         /// Addressables 场景句柄适配器。
-        /// <para>注意 Addressables 挂起语义与引擎原生不同：activateOnLoad=false 时句柄在场景就绪（待激活）即完成，
-        /// 激活需显式调用 <see cref="SceneInstance.ActivateAsync"/>。</para>
+        /// <para>Addressables 挂起语义与引擎原生不同：activateOnLoad=false 时外层句柄在场景就绪（待激活）即完成，
+        /// 激活需显式调用 <see cref="SceneInstance.ActivateAsync"/>。为遵守 <see cref="ResourceSceneHandle"/> 契约
+        /// （挂起待激活期间 <c>IsDone</c> 保持 false、<c>SceneObject</c> 为默认值），二者均以 <see cref="Scene.isLoaded"/>
+        /// （激活完成标记）为准；未完成时 <c>Progress</c> 封顶于 0.99，避免回报 100%。</para>
         /// </summary>
         private sealed class AddressableSceneHandleAdapter : ResourceSceneHandle
         {
@@ -286,10 +288,14 @@ namespace Moirai.Atropos.Resource
             }
 
             /// <inheritdoc />
-            public override bool IsDone => !_handle.IsValid() || _handle.IsDone;
+            public override bool IsDone => !_handle.IsValid() || (_handle.IsDone && (_handle.Status != AsyncOperationStatus.Succeeded || _handle.Result.Scene.isLoaded));
 
             /// <inheritdoc />
-            public override float Progress => _handle.IsValid() ? _handle.PercentComplete : 1f;
+            public override float Progress => !_handle.IsValid()
+                ? 1f
+                : _handle.Status == AsyncOperationStatus.Succeeded && !_handle.Result.Scene.isLoaded
+                    ? 0.99f
+                    : _handle.PercentComplete;
 
             /// <inheritdoc />
             public override string Error => _handle.IsValid() && _handle.Status == AsyncOperationStatus.Failed
@@ -297,7 +303,7 @@ namespace Moirai.Atropos.Resource
                 : string.Empty;
 
             /// <inheritdoc />
-            public override UnityEngine.SceneManagement.Scene SceneObject => _handle.IsValid() && _handle.Status == AsyncOperationStatus.Succeeded
+            public override UnityEngine.SceneManagement.Scene SceneObject => _handle.IsValid() && _handle.Status == AsyncOperationStatus.Succeeded && _handle.Result.Scene.isLoaded
                 ? _handle.Result.Scene
                 : default;
 
