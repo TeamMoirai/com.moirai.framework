@@ -7,6 +7,9 @@ namespace Moirai.Atropos.Input
     /// 输入处理器抽象基类（策略模式抽象策略，纯契约）。
     /// <para>状态组合语义（Enabled/LockPlayerController/PreventInteractionUI/UIModal）由实现类经
     /// <see cref="InputStateMachine"/> 组合持有——基类不含任何状态字段。</para>
+    /// <para>门控契约：<c>Enabled=false</c> 为全局硬门控（所有后端必须在动作类查询入口检查并降级）；
+    /// 玩家/UI 上下文压制的强制方式由后端能力决定（Input System 经 Action Map 切换中心强制，
+    /// 无 Map 概念的后端仅供消费者协作自查）。鼠标查询不参与门控。</para>
     /// </summary>
     [Serializable]
     public abstract class InputServiceHandler : FrameworkHandler
