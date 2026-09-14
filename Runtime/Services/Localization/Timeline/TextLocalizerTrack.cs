@@ -22,11 +22,13 @@ namespace Moirai.Atropos.Localization
 		/// <returns>默认的轨道混合器可播放对象。</returns>
 		public override Playable CreateTrackMixer(PlayableGraph graph, GameObject go, int inputCount)
 		{
-			var clips = GetClips();
-			foreach (var clip in clips)
+			foreach (var clip in GetClips())
 			{
-				var asset = clip.asset as TextLocalizerPlayableAsset;
-				clip.displayName = asset.textId;
+				// 片段资源类型不匹配时跳过，避免空引用
+				if (clip.asset is TextLocalizerPlayableAsset asset)
+				{
+					clip.displayName = asset.textId;
+				}
 			}
 
 			return base.CreateTrackMixer(graph, go, inputCount);

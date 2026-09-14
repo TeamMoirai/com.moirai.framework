@@ -136,7 +136,7 @@ namespace Moirai.Atropos.Localization
                             onError.Invoke(new TranslationErrorEventArgs(response.error.message, response.error.code));
                         }
                     }
-                    if (onError != null)
+                    else if (onError != null)
                     {
                         onError.Invoke(new TranslationErrorEventArgs("Response data could not be read.", -1));
                     }

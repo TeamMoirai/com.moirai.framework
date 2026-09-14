@@ -26,14 +26,30 @@ namespace Moirai.Atropos.Localization
 		}
 
 		/// <inheritdoc/>
+		protected override void ClearTarget()
+		{
+			if (_rawImage != null) _rawImage.texture = null;
+		}
+
+		/// <inheritdoc/>
 		protected override void ApplyFromArray(int index)
 		{
+			if (_textures == null || index < 0 || index >= _textures.Length)
+			{
+				LogUtility.Error("RawImageInjector: textures array invalid for language index {0}.", index);
+				return;
+			}
+
+			if (_rawImage == null) return;
+
 			_rawImage.texture = _textures[index];
 		}
 
 		/// <inheritdoc/>
 		protected override void ApplyAsset(Object asset)
 		{
+			if (_rawImage == null) return; // 异步加载期间组件已销毁
+
 			_rawImage.texture = asset as Texture;
 		}
 
@@ -51,6 +67,8 @@ namespace Moirai.Atropos.Localization
 		{
 			if (asset is Sprite sprite)
 			{
+				if (_rawImage == null) return true; // 目标已销毁
+
 				_rawImage.texture = sprite.texture;
 				return true;
 			}
