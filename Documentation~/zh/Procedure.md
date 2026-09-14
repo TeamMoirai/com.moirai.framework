@@ -18,7 +18,7 @@ Procedure 服务（`ProcedureService`）是一台自包含的状态机——内�
 
 | 类/接口 | 说明 |
 |---------|------|
-| `ProcedureService` | 静态外观（`[HandlerHost]`，`IServiceTickable`）：`StartProcedure` / `HasProcedure` / `ChangeState` / `GetProcedure` / `RestartProcedure` 及 `CurrentProcedure`、`CurrentProcedureTime`；全部静态 API，经 `Handler` 属性转发（fail-fast：未就绪时按需初始化，工厂缺失时抛异常，不静默降级） |
+| `ProcedureService` | 静态外观（`[HandlerHost]`，`IServiceTickable`）：`StartProcedure` / `HasProcedure` / `ChangeState` / `GetProcedure` / `RestartProcedure` 及 `CurrentProcedure`、`CurrentProcedureTime`；查询类 API 未就绪时静默降级为安全默认值，变更类 API（`StartProcedure` / `ChangeState`）未就绪时忽略并告警，`Initialize` / `RestartProcedure` 是引导入口仅要求处理器在位；后端直接调用仍 fail-fast |
 | `ProcedureServiceHandler` | 处理器抽象基类，定义流程状态机后端契约；`ProcedureBase` 子类经内部 `Owner` 引用回调本处理器 |
 | `DefaultProcedureHandler` | 默认实现，内置状态字典与轮询驱动 |
 | `ProcedureBase` | 流程基类（独立抽象类），提供 `OnInit / OnEnter / OnUpdate / OnLeave / OnDestroy` 无参生命周期与 `ChangeState<T>()` 切换 |
@@ -116,6 +116,10 @@ bool ok = ProcedureService.RestartProcedure(
 ## 注意事项
 
 - 使用流程前必须先 `Initialize`，否则 `StartProcedure` / `ChangeState` 等会抛出 `GameException("You must initialize procedure first.")`；常规项目由 `ProcedureServiceSettings.StartProcedure()` 在 `GameApp.Awake` 自动完成。
+- 引导失败 fail-fast：`ProcedureServiceSettings.StartProcedure()` 在流程服务未注册、类型解析失败或入口流程无效时抛出 `GameException`（经 UniTask 未观察异常通道输出错误日志）——启动链配置错误属发布级缺陷，静默吞掉会让玩家面对永久黑屏，不要在调用侧捕获吞掉。
+- 异常回滚语义：`ChangeState` / `StartProcedure` 中目标流程 `OnEnter` 抛异常时异常上抛并回滚——`ChangeState` 回滚到切出流程（恢复其驻留时长，轮询安全），`StartProcedure` 回滚到未启动态（修复后可重试）；若 `OnEnter` 内已完成嵌套重定向，保留嵌套终态不回滚。失败的切换不写入切换历史。
+- 关停异常隔离：服务关闭时逐流程隔离 `OnLeave(true)` / `OnDestroy` 异常（记 Error 日志后继续），单个坏流程不阻断其余流程的销毁回调；关停切换记录在 finally 保证下仍写入。
+- `Initialize` 部分失败：任一流程 `OnInit` 抛出即整体 fail-fast（`IsStateReady` 保持 false），已完成 `OnInit` 的流程不做回收（保留现场供诊断），调用方应丢弃整批流程实例后重建传入。
 - 入口流程在编辑器侧由 Reset 逻辑选取「名称包含 `ProcedureLaunch` 的第一个类型」，重命名入口流程类时需在 `ProcedureServiceSettings` 面板 Reset 刷新。
 - 流程类需要无参构造（`ProcedureServiceSettings` 通过 `Activator.CreateInstance` 反射实例化），不要在流程类中做构造器注入。
 - 流程实例由 `ProcedureService` 持有并长期存活，不要在其中缓存短生命周期对象；需要每帧逻辑写在 `OnUpdate`，耗时异步操作建议在 `OnEnter` 启动、在 `OnUpdate` 轮询完成标记（参考模板 `_initResourcesComplete` 的写法）。
