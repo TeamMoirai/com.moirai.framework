@@ -148,8 +148,9 @@ namespace Moirai.Atropos.Save
         /// <param name="position">世界坐标（<c>null</c> = 保持模板变换，恢复路径）。</param>
         /// <param name="rotation">世界旋转（<paramref name="position"/> 为 <c>null</c> 时忽略）。</param>
         /// <param name="parent">父级（<c>null</c> = 场景根）。</param>
+        /// <param name="attributionSceneName">归属场景名（<c>null</c> = 实际落位场景；恢复路径传入原记录场景——落位回落不改写归属，跨会话不漂移）。</param>
         /// <returns>激活后的实体实例；<paramref name="template"/> 为 <c>null</c> 时返回 <c>null</c>。</returns>
-        internal static GameObject SpawnCore(GameObject template, string prefabKey, string entityId, string sceneName, Vector3? position, Quaternion? rotation, Transform parent)
+        internal static GameObject SpawnCore(GameObject template, string prefabKey, string entityId, string sceneName, Vector3? position, Quaternion? rotation, Transform parent, string attributionSceneName = null)
         {
             if (template == null)
             {
@@ -213,7 +214,9 @@ namespace Moirai.Atropos.Save
                 }
             }
 
-            RegisterSpawn(new SaveSpawnRecord(entityId, prefabKey, template.scene.name, parentId));
+            // 归属场景优先取调用方指定值（恢复路径 = 档案原记录）：落位回落到活跃场景不改写归属，跨会话不漂移
+            string recordedSceneName = string.IsNullOrEmpty(attributionSceneName) ? template.scene.name : attributionSceneName;
+            RegisterSpawn(new SaveSpawnRecord(entityId, prefabKey, recordedSceneName, parentId));
             return template;
         }
 
@@ -598,7 +601,7 @@ namespace Moirai.Atropos.Save
                     DestroyObject(existing.gameObject);
                 }
 
-                GameObject instance = SpawnCore(template, record.PrefabKey, record.EntityId, record.SceneName, null, null, null);
+                GameObject instance = SpawnCore(template, record.PrefabKey, record.EntityId, record.SceneName, null, null, null, record.SceneName);
                 pending.Add(new PendingRestore(record, instance));
 
                 int completed = i + 1;

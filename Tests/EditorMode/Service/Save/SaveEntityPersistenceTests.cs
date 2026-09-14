@@ -375,6 +375,38 @@ namespace Service.Save
         }
 
         [Test]
+        public async Task RestoreEntities_RecordedSceneNotLoaded_PreservesSceneAttribution()
+        {
+            GameObject entity = SaveService.InstantiatePersistent(ENEMY_KEY, Vector3.zero, Quaternion.identity);
+            _objects.Add(entity);
+            string entityId = SaveObjectIdentity.Resolve(entity).Id;
+            List<SaveBlockEntry> entries = SaveEntityPersistence.CaptureEntityEntries("slot1", "Save");
+            Dictionary<string, byte[]> blocks = ToBlockDict(entries);
+            SaveService.DestroyPersistent(entity);
+
+            // 篡改档内记录的场景归属为未加载场景（模拟跨会话：原归属场景本次未加载）
+            SaveEntityTable.Read(blocks[SaveEntityPersistence.ENTITY_TABLE_BLOCK_KEY], out List<SaveSpawnRecord> spawns, out List<string> destroyed);
+            var shifted = new List<SaveSpawnRecord>(spawns.Count);
+            for (int i = 0; i < spawns.Count; i++)
+            {
+                shifted.Add(new SaveSpawnRecord(spawns[i].EntityId, spawns[i].PrefabKey, "NotLoadedScene", spawns[i].ParentId));
+            }
+
+            blocks[SaveEntityPersistence.ENTITY_TABLE_BLOCK_KEY] = SaveEntityTable.Write(shifted, destroyed);
+
+            // 恢复：落位回落活跃场景（记告警），但归属必须保持档案原场景
+            await SaveEntityPersistence.RestoreFromBlocksAsync(blocks, "slot1", "Save", default).AsTask();
+            Assert.IsTrue(SaveEntityRegistry.TryFind(entityId, out SaveObjectIdentity restored), "原 ID 恢复");
+            _objects.Add(restored.gameObject);
+            AssertLogged(ELogLevel.Warning, "is not loaded");
+
+            List<SaveBlockEntry> recaptured = SaveEntityPersistence.CaptureEntityEntries("slot1", "Save");
+            SaveEntityTable.Read(recaptured[recaptured.Count - 1].Bytes, out List<SaveSpawnRecord> respawns, out _);
+            Assert.AreEqual(1, respawns.Count);
+            Assert.AreEqual("NotLoadedScene", respawns[0].SceneName, "落位回落不得改写场景归属（跨会话漂移防护）");
+        }
+
+        [Test]
         public async Task RestoreEntities_LoadFailure_PreservesRecordAndLogsError()
         {
             GameObject entity = SaveService.InstantiatePersistent(ENEMY_KEY, Vector3.zero, Quaternion.identity);
