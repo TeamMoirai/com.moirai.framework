@@ -11,6 +11,8 @@ namespace Moirai.Atropos.Localization
 	{
 		private readonly Image _image;
 		private readonly Sprite[] _sprites;
+		// Texture2D 转换出的运行时 Sprite，切换/清理/销毁时释放，避免泄漏
+		private Sprite _convertedSprite;
 
 		/// <summary>
 		/// 创建针对指定 <see cref="Image"/> 的本地化图片注入器。
@@ -26,14 +28,38 @@ namespace Moirai.Atropos.Localization
 		}
 
 		/// <inheritdoc/>
+		protected override void OnDispose()
+		{
+			DestroyConvertedSprite();
+		}
+
+		/// <inheritdoc/>
+		protected override void ClearTarget()
+		{
+			if (_image != null) _image.sprite = null;
+		}
+
+		/// <inheritdoc/>
 		protected override void ApplyFromArray(int index)
 		{
+			if (_sprites == null || index < 0 || index >= _sprites.Length)
+			{
+				LogUtility.Error("ImageInjector: sprites array invalid for language index {0}.", index);
+				return;
+			}
+
+			if (_image == null) return;
+
+			DestroyConvertedSprite();
 			_image.sprite = _sprites[index];
 		}
 
 		/// <inheritdoc/>
 		protected override void ApplyAsset(Object asset)
 		{
+			if (_image == null) return; // 异步加载期间组件已销毁
+
+			DestroyConvertedSprite();
 			_image.sprite = asset as Sprite;
 		}
 
@@ -51,11 +77,23 @@ namespace Moirai.Atropos.Localization
 		{
 			if (asset is Texture2D texture)
 			{
-				Sprite sprite = Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height), new Vector2(0.5f, 0.5f));
-				_image.sprite = sprite;
+				if (_image == null) return true; // 目标已销毁，转换结果丢弃
+
+				DestroyConvertedSprite();
+				_convertedSprite = Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height), new Vector2(0.5f, 0.5f));
+				_image.sprite = _convertedSprite;
 				return true;
 			}
 			return false;
+		}
+
+		private void DestroyConvertedSprite()
+		{
+			if (_convertedSprite == null) return;
+
+			if (Application.isPlaying) Object.Destroy(_convertedSprite);
+			else Object.DestroyImmediate(_convertedSprite);
+			_convertedSprite = null;
 		}
 	}
 }

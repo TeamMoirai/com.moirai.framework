@@ -1,4 +1,4 @@
-﻿namespace Moirai.Atropos.Localization
+namespace Moirai.Atropos.Localization
 {
 	/// <summary>
 	/// 本地化数据注入器接口。
@@ -13,5 +13,10 @@
 		/// <param name="localizedData">待注入的本地化数据。</param>
 		/// <param name="localizer">发起注入的本地化器。</param>
 		void Inject<T1, T2>(T1 localizedData, T2 localizer) where T2 : LocalizerBase;
+
+		/// <summary>
+		/// 清除已注入内容，并释放注入器持有的资源租约（若有）。
+		/// </summary>
+		void Clear();
 	}
 }

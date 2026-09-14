@@ -1,4 +1,4 @@
-﻿using UnityEngine.UI;
+using UnityEngine.UI;
 
 namespace Moirai.Atropos.Localization
 {
@@ -25,7 +25,15 @@ namespace Moirai.Atropos.Localization
 		/// <param name="localizer">发起注入的本地化器，本实现未使用。</param>
 		public void Inject<T1, T2>(T1 localizedData, T2 localizer) where T2 : LocalizerBase
 		{
+			if (uiText == null) return;
 			uiText.text = localizedData as string;
+		}
+
+		/// <inheritdoc/>
+		public void Clear()
+		{
+			if (uiText == null) return;
+			uiText.text = string.Empty;
 		}
 	}
 }

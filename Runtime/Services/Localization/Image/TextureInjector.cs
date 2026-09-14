@@ -28,14 +28,32 @@ namespace Moirai.Atropos.Localization
 		}
 
 		/// <inheritdoc/>
+		protected override void ClearTarget()
+		{
+			if (_renderer == null) return;
+
+			_renderer.material.SetTexture(_propertyName, null);
+		}
+
+		/// <inheritdoc/>
 		protected override void ApplyFromArray(int index)
 		{
+			if (_texture2Ds == null || index < 0 || index >= _texture2Ds.Length)
+			{
+				LogUtility.Error("TextureInjector: texture2Ds array invalid for language index {0}.", index);
+				return;
+			}
+
+			if (_renderer == null) return;
+
 			_renderer.material.SetTexture(_propertyName, _texture2Ds[index]);
 		}
 
 		/// <inheritdoc/>
 		protected override void ApplyAsset(Object asset)
 		{
+			if (_renderer == null) return; // 异步加载期间组件已销毁
+
 			_renderer.material.SetTexture(_propertyName, asset as Texture2D);
 		}
 
@@ -53,6 +71,8 @@ namespace Moirai.Atropos.Localization
 		{
 			if (asset is Sprite sprite)
 			{
+				if (_renderer == null) return true; // 目标已销毁
+
 				_renderer.material.SetTexture(_propertyName, sprite.texture);
 				return true;
 			}

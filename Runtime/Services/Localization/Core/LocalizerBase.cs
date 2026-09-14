@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 namespace Moirai.Atropos.Localization
@@ -20,6 +21,8 @@ namespace Moirai.Atropos.Localization
 		protected virtual void OnDestroy()
 		{
 			LocalizationService.RemoveLocalizer(this);
+			// 释放注入器持有的资源租约（如图片/音频注入器）
+			(_injector as IDisposable)?.Dispose();
 		}
 
 		/// <summary>

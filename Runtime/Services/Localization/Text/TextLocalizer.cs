@@ -35,12 +35,20 @@ namespace Moirai.Atropos.Localization
 #endif
 		}
 
-		internal override void Localize()
-		{
-			ChangeID(m_TextId);
-		}
+		internal override void Localize() => Apply(m_TextId);
 
 		public bool ChangeID(string textId)
+		{
+			if (string.IsNullOrEmpty(textId)) return false;
+			// 同 ID 早退：Timeline 每帧调用 ChangeID，避免重复查询与文本重排版
+			if (textId == m_TextId) return true;
+			return Apply(textId);
+		}
+
+		/// <summary>
+		/// 应用指定文本 ID 的本地化字符串到目标组件。
+		/// </summary>
+		private bool Apply(string textId)
 		{
 			if (string.IsNullOrEmpty(textId)) return false;
 
@@ -61,16 +69,21 @@ namespace Moirai.Atropos.Localization
 				return false;
 			}
 
+			if (_injector == null)
+			{
+				if (Application.isPlaying) LogUtility.Error($"TextLocalizer {name}: no injectable text component found.");
+				return false;
+			}
+
 			m_TextId = textId;
-			var text = LocalizationService.GetTextFromId(textId);
-			_injector.Inject(text, this);
+			_injector.Inject(LocalizationService.GetTextFromId(textId), this);
 			return true;
 		}
 
 		public void Clear()
 		{
 			m_TextId = null;
-			_injector.Inject("", this);
+			_injector?.Clear();
 		}
 	}
 }

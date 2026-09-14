@@ -10,12 +10,12 @@ namespace Moirai.Atropos.Localization
 		public Texture2D[] texture2Ds;
 		public Sprite[] sprites;
 		public Texture[] textures;
-		
+
 		protected override void Prepare()
 		{
 			var component = ComponentFinder.Find<Image, RawImage, SpriteRenderer, Renderer>(this);
 			if (component == null) return;
-			
+
 			if (component is Image image)
 			{
 				_injector = new ImageInjector(image, localizedTextID, sprites);
@@ -36,14 +36,37 @@ namespace Moirai.Atropos.Localization
 
 		internal override void Localize()
 		{
-			ChangeID(localizedTextID);
+			if (_injector == null)
+			{
+				if (Application.isPlaying) LogUtility.Error($"ImageLocalizer {name}: no target render component found.");
+				return;
+			}
+
+			// 资源模式：有文本 ID 时由注入器自行异步加载；索引模式才需要语言下标
+			if (!string.IsNullOrEmpty(localizedTextID))
+			{
+				if (!LocalizationService.Has(localizedTextID))
+				{
+					if (Application.isPlaying) LogUtility.Error($"Text ID: {localizedTextID} 不可用。");
+					return;
+				}
+
+				_injector.Inject(0, this);
+				return;
+			}
+
 			var index = LocalizationService.CurrentLanguageIndex;
+			if (index < 0) return;
+
+			// ImageInjectorBase：无文本 ID 时按索引取预分配数组
 			_injector.Inject(index, this);
 		}
-		
+
 		public bool ChangeID(string textId)
 		{
 			if (string.IsNullOrEmpty(textId)) return false;
+			// 同 ID 早退：避免重复异步加载；语言切换走 Localize() 仍会重刷
+			if (textId == localizedTextID) return true;
 #if UNITY_EDITOR
 			// Timeline 预览
 			if (!Application.isPlaying)
@@ -59,15 +82,23 @@ namespace Moirai.Atropos.Localization
 				if (Application.isPlaying) LogUtility.Error($"Text ID: {textId} 不可用。");
 				return false;
 			}
+
 			this.localizedTextID = textId;
-			var text = LocalizationService.GetTextFromId(textId);
-			_injector.Inject(text, this);
+			// 同步注入器资源 ID，避免 Prepare 时冻结的旧地址继续生效
+			if (_injector is ImageInjectorBase imageInjector)
+			{
+				imageInjector.SetLocalizedId(textId);
+			}
+
+			// 与 TextLocalizer.ChangeID 语义一致：记录后立即应用
+			Localize();
 			return true;
 		}
+
 		public void Clear()
 		{
 			localizedTextID = null;
-			_injector.Inject("", this);
+			_injector?.Clear();
 		}
 	}
 }
