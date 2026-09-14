@@ -127,5 +127,27 @@ namespace Service.Audio
         }
 
         #endregion Fade 委托 [FADE DELEGATE CONTRACT]
+
+        #region 路径播放契约 [PATH PLAY CONTRACT]
+
+        [Test]
+        public void Play_PathOverloads_DefaultToAsyncLoad()
+        {
+            // in 参数在反射中呈 ByRef 类型
+            var byRefOptions = typeof(AudioPlayOptions).MakeByRefType();
+            var signature = new[] { typeof(string), byRefOptions, typeof(bool), typeof(bool) };
+
+            var facade = typeof(AudioService).GetMethod("Play", signature);
+            Assert.IsNotNull(facade, "AudioService.Play(string, in AudioPlayOptions, bool, bool) 应存在");
+            Assert.AreEqual(true, facade.GetParameters()[2].DefaultValue,
+                "路径播放必须默认异步加载（同步 IO 阻塞主线程，仅限启动期显式传入）");
+
+            var contract = typeof(AudioServiceHandler).GetMethod("Play", signature);
+            Assert.IsNotNull(contract, "AudioServiceHandler.Play(string, in AudioPlayOptions, bool, bool) 应存在");
+            Assert.AreEqual(true, contract.GetParameters()[2].DefaultValue,
+                "抽象契约默认异步加载，外观与后端默认值必须一致");
+        }
+
+        #endregion 路径播放契约 [PATH PLAY CONTRACT]
     }
 }
