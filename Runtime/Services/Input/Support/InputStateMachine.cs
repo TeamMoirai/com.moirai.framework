@@ -22,10 +22,32 @@ namespace Moirai.Atropos.Input
         private bool _hasUIModal;
         private bool _enabled = true;
 
+        // 上一次对外广播时的有效压制态——仅在实际变化时触发 SuppressionChanged
+        private bool _lastPlayerSuppressed;
+        private bool _lastUISuppressed;
+
         /// <summary>
         /// 进入压制态（禁用/锁定/禁 UI）时触发——由持有方接线到后端的输入重置。
         /// </summary>
         public event Action ResetRequested;
+
+        /// <summary>
+        /// 有效压制态（<see cref="IsPlayerInputSuppressed"/> / <see cref="IsUIInteractionSuppressed"/>）实际变化时触发——
+        /// 由持有方接线到后端的上下文切换（如 Input System 的 Action Map 启用/禁用）。
+        /// </summary>
+        public event Action SuppressionChanged;
+
+        /// <summary>
+        /// 有效玩家输入压制（未启用 / 锁定玩家控制器 / UI 模态的并集）。
+        /// <para>与 <see cref="LockPlayerController"/> 读取同值——压制语义的唯一权威出口。</para>
+        /// </summary>
+        public bool IsPlayerInputSuppressed => LockPlayerController;
+
+        /// <summary>
+        /// 有效 UI 交互压制（未启用 / 禁止 UI 交互的并集）。
+        /// <para>与 <see cref="PreventInteractionUI"/> 读取同值——压制语义的唯一权威出口。</para>
+        /// </summary>
+        public bool IsUIInteractionSuppressed => PreventInteractionUI;
 
         /// <summary>
         /// 获取或设置是否启用输入。
@@ -38,6 +60,7 @@ namespace Moirai.Atropos.Input
                 if (_enabled == value) return;
                 _enabled = value;
                 if (!_enabled) ResetRequested?.Invoke();
+                NotifySuppressionChanged();
             }
         }
 
@@ -59,6 +82,8 @@ namespace Moirai.Atropos.Input
                 {
                     _stateFlags &= ~EInputStateFlags.LockPlayerController;
                 }
+
+                NotifySuppressionChanged();
             }
         }
 
@@ -80,6 +105,8 @@ namespace Moirai.Atropos.Input
                 {
                     _stateFlags &= ~EInputStateFlags.PreventInteractionUI;
                 }
+
+                NotifySuppressionChanged();
             }
         }
 
@@ -94,6 +121,22 @@ namespace Moirai.Atropos.Input
 
             _hasUIModal = hasModal;
             if (hasModal) ResetRequested?.Invoke();
+            NotifySuppressionChanged();
+        }
+
+        /// <summary>
+        /// 有效压制态变化检测与广播——任何底层状态变更后调用，仅在实际变化时触发事件。
+        /// </summary>
+        private void NotifySuppressionChanged()
+        {
+            bool playerSuppressed = IsPlayerInputSuppressed;
+            bool uiSuppressed = IsUIInteractionSuppressed;
+
+            if (playerSuppressed == _lastPlayerSuppressed && uiSuppressed == _lastUISuppressed) return;
+
+            _lastPlayerSuppressed = playerSuppressed;
+            _lastUISuppressed = uiSuppressed;
+            SuppressionChanged?.Invoke();
         }
     }
 }
