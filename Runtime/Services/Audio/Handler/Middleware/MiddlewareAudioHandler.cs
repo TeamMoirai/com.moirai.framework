@@ -39,6 +39,7 @@ namespace Moirai.Atropos.Audio.Middleware
 
             ulong IAudioVoiceRef.BoundHandle
             {
+                get => Handle;
                 set => Handle = value;
             }
         }
@@ -329,7 +330,15 @@ namespace Moirai.Atropos.Audio.Middleware
             if (dead == null) return;
             for (int i = 0; i < dead.Count; i++)
             {
-                ReleaseHandle(dead[i]);
+                ulong handle = dead[i];
+                // 通知桥接清实例映射/发射体（oneshot 自然结束不会走 Stop）
+                if (_handles.TryGet(handle, out var voice))
+                {
+                    voice.Playing = false;
+                    _bridge?.StopInstance(voice.InstanceId, true);
+                }
+
+                ReleaseHandle(handle);
             }
         }
 

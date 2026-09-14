@@ -144,7 +144,7 @@ AudioService.Stop(h2, fadeoutDuration: 0.2f);
 - `Play` 返回 `0UL` 表示失败（无通道、音轨未配置、音轨暂停中、后端未初始化等）  
 - 暂停的音轨会拦截新播放；`MasterVolume` getter 始终返回未静音的设置值（两后端语义一致）  
 - 中间件后端 `GetAgentByHandle` / `ForEachAgentByID` 返回空——无 Unity `AudioSource` Agent，请用句柄 API；不支持 InitialDelay / PlaybackDuration / Solo  
-- 传统巨型签名 `Play` 重载已标记 `[Obsolete]`，请迁移到 `AudioPlayOptions` / `AudioPlayRequest`；各工厂方法与重载的 `DoNotAutoRecycle` 默认统一为 true（不抢占未播完的通道）  
+- 各工厂方法与重载的 `DoNotAutoRecycle` 默认统一为 true（不抢占未播完的通道）  
 - 无可用通道的告警按轨节流（3 秒）降级为 Warning  
 - 手动 `FadeAudio` / 快照过渡依赖服务 `Tick` 推进  
 - 加载新场景自动 `StopAllButPersistent`；跨场景音频设 `Persistent = true`  
