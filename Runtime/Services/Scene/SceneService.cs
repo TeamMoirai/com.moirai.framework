@@ -13,8 +13,7 @@ namespace Moirai.Atropos.Scene
     /// <para>未显式设置处理器时，使用 <see cref="CreateDefaultHandler"/> 从 <see cref="SceneServiceSettings"/> 创建处理器实例。</para>
     /// <para>Handler 属性由 <c>HandlerHostGenerator</c> 源生成器自动生成（线程安全懒加载）。</para>
     /// <para>错误契约：加载失败抛出 <see cref="GameException"/>；卸载失败以 <c>false</c> 返回值报告；服务未注册时查询降级返回默认值、加载静默无效（调用方须检查 <see cref="UnityEngine.SceneManagement.Scene.IsValid"/>）。</para>
-    /// <para>生命周期事件（<see cref="onMainSceneChanged"/> 等）在主线程同步触发，订阅者异常被隔离记录，不影响其他订阅者。
-    /// 命名约定：事件字段为 <c>onXXX</c>，订阅方法建议命名为 <c>OnXXX</c>。服务关闭时静态事件会被清空。</para>
+    /// <para>生命周期事件（<see cref="MainSceneChanged"/> 等）在主线程同步触发，订阅者异常被隔离记录，不影响其他订阅者；服务关闭时静态事件会被清空。</para>
     /// <para>场景短名须尽量全局唯一：短名碰撞时按名查询/激活/卸载可能解析到错误对象（后注册者覆盖，详见处理器日志）。</para>
     /// </summary>
     [HandlerHost(typeof(SceneServiceHandler))]
@@ -33,7 +32,7 @@ namespace Moirai.Atropos.Scene
         {
             GameServices.EnsureRegistered<SceneService>();
             var handler = SceneServiceSettings.SceneServiceHandler;
-            return handler != null ? handler : throw new InvalidOperationException("[SceneService] 场景设置中的场景处理器为空，请在 Project Settings 中重新指定。");
+            return handler != null ? handler : throw new InvalidOperationException("[SceneService] Scene handler configured in settings is null. Re-assign it in Project Settings.");
         }
 
         /// <inheritdoc />
@@ -55,9 +54,9 @@ namespace Moirai.Atropos.Scene
         {
             var handler = s_Handler;
             s_Handler = null;
-            onMainSceneChanged = null;
-            onSubSceneLoaded = null;
-            onSubSceneUnloaded = null;
+            MainSceneChanged = null;
+            SubSceneLoaded = null;
+            SubSceneUnloaded = null;
             handler?.Internal_Shutdown();
         }
 
@@ -65,38 +64,36 @@ namespace Moirai.Atropos.Scene
 
         #region 事件 [EVENTS]
 
-        // 命名约定：事件字段 onXXX，订阅方法 OnXXX
-
         /// <summary>
         /// 主场景切换完成（Single 模式加载并激活后触发，参数为归一化场景短名）。
         /// <para>主线程同步触发；订阅者异常被隔离记录。</para>
         /// </summary>
-        public static event Action<string> onMainSceneChanged;
+        public static event Action<string> MainSceneChanged;
 
         /// <summary>
         /// 子场景加载完成（Additive 模式登记为已加载后触发，参数为归一化场景短名）。
         /// </summary>
-        public static event Action<string> onSubSceneLoaded;
+        public static event Action<string> SubSceneLoaded;
 
         /// <summary>
         /// 子场景卸载完成（参数为归一化场景短名）。
         /// </summary>
-        public static event Action<string> onSubSceneUnloaded;
+        public static event Action<string> SubSceneUnloaded;
 
         /// <summary>
         /// 触发主场景切换事件（由处理器在加载收尾时调用）。
         /// </summary>
-        internal static void InvokeMainSceneChangedEvent(string sceneName) => RaiseEvent(onMainSceneChanged, sceneName);
+        internal static void InvokeMainSceneChangedEvent(string sceneName) => RaiseEvent(MainSceneChanged, sceneName);
 
         /// <summary>
         /// 触发子场景加载完成事件（由处理器在加载收尾时调用）。
         /// </summary>
-        internal static void InvokeSubSceneLoadedEvent(string sceneName) => RaiseEvent(onSubSceneLoaded, sceneName);
+        internal static void InvokeSubSceneLoadedEvent(string sceneName) => RaiseEvent(SubSceneLoaded, sceneName);
 
         /// <summary>
         /// 触发子场景卸载完成事件（由处理器在卸载收尾时调用）。
         /// </summary>
-        internal static void InvokeSubSceneUnloadedEvent(string sceneName) => RaiseEvent(onSubSceneUnloaded, sceneName);
+        internal static void InvokeSubSceneUnloadedEvent(string sceneName) => RaiseEvent(SubSceneUnloaded, sceneName);
 
         /// <summary>
         /// 逐订阅者隔离派发事件——单个订阅者异常仅记录日志，不中断其余订阅者。
@@ -137,7 +134,7 @@ namespace Moirai.Atropos.Scene
         /// <param name="suspendLoad">是否挂起加载。</param>
         /// <param name="priority">加载优先级。</param>
         /// <param name="gcCollect">主场景加载后是否执行 GC 回收。</param>
-        /// <param name="progressCallBack">进度回调（必以 1.0 收尾一次）。</param>
+        /// <param name="progressCallBack">进度回调（成功完成时以 1.0 收尾一次；失败不伪报完成进度）。</param>
         /// <param name="packageName">资源包名称（空串使用默认包）。</param>
         /// <param name="cancellationToken">取消令牌——放弃等待语义，不中止底层加载。</param>
         /// <returns>加载完成的场景。</returns>
@@ -157,7 +154,7 @@ namespace Moirai.Atropos.Scene
         /// <param name="priority">加载优先级。</param>
         /// <param name="gcCollect">主场景加载后是否执行 GC 回收。</param>
         /// <param name="callBack">加载完成回调。</param>
-        /// <param name="progressCallBack">进度回调（必以 1.0 收尾一次）。</param>
+        /// <param name="progressCallBack">进度回调（成功完成时以 1.0 收尾一次；失败不伪报完成进度）。</param>
         public static void LoadScene(string location, string packageName = "", LoadSceneMode sceneMode = LoadSceneMode.Single,
             bool suspendLoad = false, uint priority = 100, bool gcCollect = true, Action<UnityEngine.SceneManagement.Scene> callBack = null, Action<float> progressCallBack = null) =>
             s_Handler?.LoadScene(location, packageName, sceneMode, suspendLoad, priority, gcCollect, callBack, progressCallBack);
@@ -189,18 +186,18 @@ namespace Moirai.Atropos.Scene
         /// 句柄已失效（适配器发起卸载后置空等）同样视为失败，不会误报成功。
         /// </summary>
         /// <param name="location">场景资源定位地址或场景短名。</param>
-        /// <param name="progressCallBack">进度回调（必以 1.0 收尾一次）。</param>
+        /// <param name="progressCallBack">进度回调（成功完成时以 1.0 收尾一次；失败不伪报完成进度）。</param>
         /// <returns>是否卸载成功。</returns>
         public static UniTask<bool> UnloadAsync(string location, Action<float> progressCallBack = null) =>
             s_Handler?.UnloadAsync(location, progressCallBack) ?? UniTask.FromResult(false);
 
         /// <summary>
-        /// 卸载子场景（回调式）。回调契约：卸载发起后无论成败恰好回调一次；无效请求（地址未登记、存在在途操作）不发起亦不回调。
+        /// 卸载子场景（回调式）。回调契约：卸载发起后无论成败恰好回调一次（参数为是否成功）；无效请求（地址未登记、存在在途操作）不发起亦不回调。
         /// </summary>
         /// <param name="location">场景资源定位地址或场景短名。</param>
-        /// <param name="callBack">卸载完成回调。</param>
-        /// <param name="progressCallBack">进度回调（必以 1.0 收尾一次）。</param>
-        public static void Unload(string location, Action callBack = null, Action<float> progressCallBack = null) =>
+        /// <param name="callBack">卸载完成回调（参数为是否卸载成功）。</param>
+        /// <param name="progressCallBack">进度回调（成功完成时以 1.0 收尾一次；失败不伪报完成进度）。</param>
+        public static void Unload(string location, Action<bool> callBack = null, Action<float> progressCallBack = null) =>
             s_Handler?.Unload(location, callBack, progressCallBack);
 
         #endregion
