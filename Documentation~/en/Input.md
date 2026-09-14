@@ -9,7 +9,7 @@ The input service (`Moirai.Atropos.Input`) abstracts three input backends throug
 - Three configurable input backends: New Input System, Legacy Input Manager, Mobile UI touch components
 - Unified action polling API: `GetButtonDown` / `GetButtonUp` / `GetButtonPressed` / `GetBool` / `GetFloat` / `GetVector2`, with action group support (`actionGroup`)
 - Dedicated mouse queries: button tri-state, position, scroll wheel (scroll values normalized across new and old systems)
-- Input state toggles: `Enabled` (global), `LockPlayerController` (lock character control), `PreventInteractionUI` (lock UI interaction); residual input states are automatically reset on toggle
+- Input state toggles: `Enabled` (global hard gate — action queries always return defaults), `LockPlayerController` (lock character control), `PreventInteractionUI` (lock UI interaction); residual input states are automatically reset when entering suppression. The Input System backend enforces suppression centrally by enabling/disabling whole Action Maps — consumers never need to check the flags themselves
 - UI modal coordination: Listens to `UIServiceEvent`; automatically locks player control when a modal window is present
 - Application focus coordination: Automatically disables input on focus lost, restores on focus gained
 - Key prompt system (Prompts): Key icons automatically switch based on the current active input device, supports mixed text and sprite rendering
@@ -18,7 +18,7 @@ The input service (`Moirai.Atropos.Input`) abstracts three input backends throug
 
 | Class/Interface | Description |
 |---------|------|
-| `Moirai.Atropos.Input.InputService` | Input service static facade (`[HandlerHost]`); all polling APIs are static methods forwarding through the `Handler` property (fail-fast: lazily initialized when not ready, throws if the default factory is missing, never silently degrades) |
+| `Moirai.Atropos.Input.InputService` | Input service static facade (`[HandlerHost]`); all polling APIs are static methods forwarding through the `Handler` property. Degradation contract: when not registered/initialized, APIs return safe defaults (false/0/zero) instead of throwing |
 | `Moirai.Atropos.Input.InputServiceHandler` | Input handler abstract base class (`[Serializable]`), defines all input query methods. Configured via `[SerializeReference]` in Input Settings |
 | `Moirai.Atropos.Input.UnityInputSystemHandler` | Handler based on Unity Input System (macro `ENABLE_INPUT_SYSTEM`) |
 | `Moirai.Atropos.Input.UnityInputManagerHandler` | Handler based on legacy Input Manager (macro `ENABLE_LEGACY_INPUT_MANAGER`) |
@@ -71,9 +71,9 @@ InputService.Enabled = false;                // Global disable (resets all input
 
 | Processor | Action Resolution | Notes |
 |--------|-------------|------|
-| `UnityInputSystemHandler` | Looks up `InputAction` in `InputSystem.actions` using `$"{actionGroup}/{actionName}"` | Requires Action Asset configuration in Project Settings -> Input System Package; scroll value divided by 120 to align with legacy system |
-| `UnityInputManagerHandler` | `actionName` is the Input Manager axis name; Vector2 combines `"{name} X"` / `"{name} Y"` axes | Uses `GetAxisRaw`, warns on missing axes |
-| `UIMobileInputHandler` | Looks up `InputButton` (bool) and `InputAxes` (Vector2) by `ActionName` in the scene | Mouse-related interfaces always return default values |
+| `UnityInputSystemHandler` | Looks up `InputAction` in `InputSystem.actions` using `$"{actionGroup}/{actionName}"` | Requires Action Asset configuration in Project Settings -> Input System Package (custom assets are enabled by the handler automatically); scroll value divided by 120 to align with legacy system. Supports context suppression — player/UI maps are enabled/disabled as a whole with the suppression state (map names configurable on the handler, defaults `Player`/`UI`) |
+| `UnityInputManagerHandler` | `actionName` is the Input Manager axis name; Vector2 combines `"{name} X"` / `"{name} Y"` axes | Uses `GetAxisRaw`, unregistered axes are probed once and warned. Supports only the `Enabled` global hard gate (no Action Map concept; context suppression is exclusive to the Input System backend) |
+| `UIMobileInputHandler` | Looks up `InputButton` (bool) and `InputAxes` (Vector2) by `ActionName` in the scene; components self-register via `UIMobileInputRegistry` | Mouse-related interfaces always return default values; supports only the `Enabled` global hard gate |
 
 ### Mobile UI Input Components
 
@@ -136,8 +136,9 @@ When a GameObject with this component is enabled, it locks `LockPlayerController
 
 - The processor type is configured in the framework settings ("Input Settings") via `[SerializeReference]` and loaded lazily via `InputServiceSettings.InputServiceHandler`; switching processors requires a restart to take effect
 - `UnityInputSystemHandler` / `UnityInputManagerHandler` are controlled by the `ENABLE_INPUT_SYSTEM` / `ENABLE_LEGACY_INPUT_MANAGER` macros respectively
-- When a UI modal window is present, `LockPlayerController` is always true (driven by `UIServiceEvent`); this is expected behavior
-- `GetButtonDown` / `GetButtonUp` in `UIMobileInputHandler` are not yet implemented (throw `NotImplementedException`); only persistent bool state queries are available
+- When a UI modal window is present, `LockPlayerController` is always true (driven by `UIServiceEvent`); this is expected behavior. On the Input System backend, the player map is disabled while the UI map stays active, so the modal's own hotkeys keep working
+- Suppression gating only applies to action queries (buttons/axes/vectors); mouse queries are not gated. Actions not listed in the player/UI map configuration are unaffected by context suppression (only gated by `Enabled`)
+- `GetButtonDown` / `GetButtonUp` in `UIMobileInputHandler` read per-frame latched edges from the components (semantics aligned with `WasPressedThisFrame`)
 - Input queries should be polled every frame; the service itself does not push events
 
 ---
