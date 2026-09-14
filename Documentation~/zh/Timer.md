@@ -1,4 +1,4 @@
-﻿# Timer 服务
+# Timer 服务
 
 > 基于四级时间轮的高性能计时器服务，无全量扫描，适合技能 CD、心跳包、延时任务等大规模定时场景。
 
@@ -122,4 +122,4 @@ int staleCount = TimerService.GetStaleOneShotTimers(staleResults);
 - 热路径注册计时器请使用缓存委托或静态方法组，避免捕获 lambda / 闭包引入分配。
 
 ---
-[« 返回主 README](../../README.md) · [Core](Core.md) · [UpdateDriver](UpdateDriver.md)
+[« 返回文档索引](Index.md) · [主 README](../../README.md) · [Core](Core.md) · [UpdateDriver](UpdateDriver.md)

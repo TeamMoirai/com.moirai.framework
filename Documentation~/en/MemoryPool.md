@@ -173,3 +173,6 @@ The `MemoryPoolSetting` component exposes:
 | `m_AutoTrimNativeMetadataFrames` | 18000 | Frames before native metadata is auto-released (~5min @60fps) |
 | `m_SoftFreeReserveLimit` | 128 | Default soft capacity limit |
 | `m_HardFreeReserveLimit` | 512 | Default hard capacity limit (overflow triggers eviction) |
+
+---
+[« Documentation Index](Index.md) · [Main README](../../README_EN.md) · [ObjectPool](ObjectPool.md) · [Core](Core.md)

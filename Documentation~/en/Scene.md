@@ -6,10 +6,14 @@ The scene service's (`Moirai.Atropos.Scene`) default backend `DefaultSceneHandle
 
 ## Core Features
 
-- Dual-track main scene / sub-scene management: Single mode replaces the main scene, Additive mode registers sub-scenes in a dictionary
+- Dual-track main scene / sub-scene management: Single mode replaces the main scene, Additive mode registers sub-scenes in a registry table
 - Suspend loading: When `suspendLoad` is enabled, the scene does not auto-activate after loading; call `UnSuspend` to manually activate. Suitable for unified timing control of load completion
-- Progress callback: `progressCallBack` reports the scene handle's loading progress (0 to 1) every frame
-- Re-entry protection: Duplicate requests for the same scene during loading/unloading are rejected and logged
+- Progress callback: `progressCallBack` reports the scene handle's loading progress (0 to 1) every frame, finishing with exactly one 1.0 report on success (no fake completion on failure); callback exceptions are isolated and logged without interrupting the load
+- Error contract: load failures (duplicate loads, in-flight conflicts, backend errors, etc.) throw `GameException` (fail-fast); unload failures return `false` and keep the registration for retry
+- Lifecycle events: `MainSceneChanged` / `SubSceneLoaded` / `SubSceneUnloaded` fire synchronously on the main thread; subscriber exceptions are isolated and logged
+- Re-entry protection: Duplicate requests for the same scene during loading/unloading are rejected (load throws `GameException`, unload warns and returns `false`)
+- Dual-identity queries: query/activate/unload APIs accept both resource location and scene short name (on short-name collision the later registration wins with a warning)
+- Cancellation semantics: the `CancellationToken` of `LoadSceneAsync` only abandons waiting (the underlying load cannot be aborted); registration and events are finalized by the handler when the load actually completes
 - Garbage collection: After the main scene finishes loading, `ForceUnloadUnusedAssets` is executed according to the `gcCollect` parameter
 - Multi-package support: The callback-based `LoadScene` can specify a `packageName` to load from a specific resource package
 - Backend adaptation: Scene loading goes through the `ResourceService` pipeline — switching between YooAsset / Addressables backends requires no scene code changes
@@ -18,7 +22,7 @@ The scene service's (`Moirai.Atropos.Scene`) default backend `DefaultSceneHandle
 
 | Class/Interface | Description |
 |---------|------|
-| `Moirai.Atropos.Scene.SceneService` | Scene service static facade (`[HandlerHost]`), forwarding through the `Handler` property (fail-fast: lazily initialized when not ready, throws if the default factory is missing, never silently degrades) |
+| `Moirai.Atropos.Scene.SceneService` | Scene service static facade (`[HandlerHost]`). When unregistered, facade calls silently degrade (queries return defaults, loads return an invalid scene); the `Handler` property lazily creates the handler from `SceneServiceSettings` and throws `InvalidOperationException` if the configured handler is null |
 | `Moirai.Atropos.Scene.SceneServiceHandler` | Handler abstract base class defining the backend contract; the default implementation `DefaultSceneHandler` loads and manages main/sub scenes via `ResourceService` |
 | `Moirai.Atropos.Resource.ResourceSceneHandle` | Resource system scene handle abstraction, implemented per resource backend (YooAsset / Addressables), carrying load progress, activation, unsuspend, and unload |
 
@@ -41,14 +45,15 @@ SceneService.LoadScene(
     callBack: s => { /* Load complete, s is the Scene */ },
     progressCallBack: p => Debug.Log($"Progress: {p}"));
 
-// Unload sub-scene
+// Unload sub-scene (failure returns false and keeps the registration for retry)
 bool ok = await SceneService.UnloadAsync("BattleMap");
-SceneService.Unload("BattleMap", callBack: () => Debug.Log("Unloaded"));
+SceneService.Unload("BattleMap", callBack: success => Debug.Log($"Unload result: {success}"));
 
 // Query
 string main = SceneService.CurrentMainSceneName;
 bool loaded = SceneService.IsContainScene("BattleMap");
 bool isMain = SceneService.IsMainScene("GameMain");
+IReadOnlyCollection<string> subs = SceneService.LoadedSubSceneLocations;
 ```
 
 ## Advanced Usage
@@ -81,13 +86,44 @@ await SceneService.LoadSceneAsync("ChunkB", LoadSceneMode.Additive);
 
 The `priority` parameter is passed through to the resource backend to adjust the loading priority of a scene when multiple loading requests are concurrent (default is 100).
 
+### Lifecycle Events
+
+Events fire when main/sub-scene loads and unloads complete, carrying the normalized scene short name. They fire synchronously on the main thread; a throwing subscriber is only logged and does not affect the others. Static events are cleared when the service shuts down.
+
+```csharp
+SceneService.MainSceneChanged += name => Debug.Log($"Main scene changed: {name}");
+SceneService.SubSceneLoaded += name => Debug.Log($"Sub scene loaded: {name}");
+SceneService.SubSceneUnloaded += name => Debug.Log($"Sub scene unloaded: {name}");
+```
+
+### Abandoning the Wait
+
+A scene load, once started, cannot be aborted (neither the engine nor resource backends support cancellation). The `CancellationToken` of `LoadSceneAsync` only cancels the wait and progress callbacks (abandon-wait semantics) — the awaiting caller receives an `OperationCanceledException`, while the load itself continues; registration and the `SubSceneLoaded` / `MainSceneChanged` events are finalized by the handler when the load actually completes:
+
+```csharp
+try
+{
+    await SceneService.LoadSceneAsync("BattleMap", LoadSceneMode.Additive,
+        cancellationToken: timeoutToken);
+}
+catch (OperationCanceledException)
+{
+    // Wait timed out / cancelled: the scene keeps loading in the background
+    // and is registered (with events) once it completes
+}
+```
+
 ## Notes
 
 - Scene assets must be collected and built by the resource backend (YooAsset collector / Addressables group); in the editor with the YooAsset backend, first select a simulation mode via `YooAsset/Editor PlayMode`
-- Duplicate loading of a scene address that is already being loaded will be rejected (Log.Error); duplicate loading of an existing sub-scene will throw a `GameException`
+- Load failures always throw `GameException`: re-loading an address with an in-flight operation, re-loading an already registered sub-scene, main-scene mutex (another main scene is loading), cross-mode duplicates (a location registered as sub-scene being loaded as Single, or vice versa), resource service not ready, and backend load errors
+- The callback-based `LoadScene` never throws: it invokes the callback exactly once regardless of outcome, with the default scene on failure — callers must check `Scene.IsValid()`
+- Unload failures (backend unload errors, invalid handles) return `false` / callback `false` and keep the registration, so retrying is safe; unload requests with an unknown address or an in-flight operation are not started (warning logged)
 - `Unload` / `UnloadAsync` only apply to Additive sub-scenes; the main scene is replaced by loading a new Single scene — do not call unload on the main scene
+- Query/activate/unload APIs accept both resource location and scene short name; scene short names should be globally unique — on collision the later registration overwrites the reverse index with a warning, and name-based operations may resolve to the wrong scene
 - After the main scene finishes loading, `ForceUnloadUnusedAssets(gcCollect)` is triggered by default; pay attention to any temporary asset references during loading (set `gcCollect` to false to disable)
-- `progressCallBack` is called every frame until the handle completes or becomes invalid; do not perform expensive operations inside the callback
+- `progressCallBack` is called every frame until the handle completes or becomes invalid; do not perform expensive operations inside the callback; it finishes with exactly one 1.0 report on success and never fakes completion on failure
+- A suspended load (`suspendLoad`) started by this service must eventually be `UnSuspend`ed — the underlying load cannot be aborted and never completes while suspended
 
 ---
-[« Back to Main README](../../README_EN.md) · [UI](UI.md) · [Input](Input.md)
+[« Documentation Index](Index.md) · [Main README](../../README_EN.md) · [UI](UI.md) · [Input](Input.md)

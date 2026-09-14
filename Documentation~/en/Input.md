@@ -1,4 +1,4 @@
-﻿# Input Service
+# Input Service
 
 > Abstract input layer: uses a unified polling API to bridge the differences between Unity's new and old input systems and mobile UI touch input, with a built-in key prompt (Prompts) system.
 
@@ -141,4 +141,4 @@ When a GameObject with this component is enabled, it locks `LockPlayerController
 - Input queries should be polled every frame; the service itself does not push events
 
 ---
-[« Back to Main README](../../README_EN.md) · [UI](UI.md) · [Scene](Scene.md)
+[« Documentation Index](Index.md) · [Main README](../../README_EN.md) · [UI](UI.md) · [Scene](Scene.md)

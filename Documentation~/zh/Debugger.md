@@ -211,4 +211,4 @@ DebuggerService.RegisterDebugView("My/IMGUI View", new MyIMGUIDebugView());
 - 输入信息窗口由旧 `UnityEngine.Input` API（仅 Input System 构建下抛异常）重写为 Input System 设备模型读取
 
 ---
-[« 返回主 README](../../README.md)
+[« 返回文档索引](Index.md) · [主 README](../../README.md) · [Core](Core.md)

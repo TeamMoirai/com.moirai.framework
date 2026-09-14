@@ -1,4 +1,4 @@
-﻿# TweenUtility
+# TweenUtility
 
 > 框架的缓动动画统一外观，提供可插拔的 Handler 架构，支持多种补间引擎（自研/PrimeTween/LitMotion）。
 
@@ -137,4 +137,4 @@ TweenUtility.Handler = new LitMotionHandler();
 - `Custom(object, ...)` 零分配重载配合 static lambda 使用，避免泛型闭包分配
 
 ---
-[« 返回主 README](../../README.md)
+[« 返回文档索引](Index.md) · [主 README](../../README.md) · [UI](UI.md) · [UpdateDriver](UpdateDriver.md)

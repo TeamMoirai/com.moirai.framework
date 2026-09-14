@@ -211,4 +211,4 @@ Custom popups and any OnGUI context can also call `view.OnDraw()` directly.
 - The input info window was rewritten from the legacy `UnityEngine.Input` API (which throws under an Input System-only build) to Input System device model reads
 
 ---
-[« Back to main README](../../README.md)
+[« Documentation Index](Index.md) · [Main README](../../README_EN.md) · [Core](Core.md)

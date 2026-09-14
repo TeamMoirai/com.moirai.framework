@@ -78,4 +78,4 @@ string location = ConfigTableService.GetUIWindowLocation("MainWindow");
 - 配置根目录位于 Assets 内时会自动加 `~` 后缀（如 `Assets/Config~`），Unity 不会导入该目录，转表脚本仍可正常访问
 
 ---
-[« 返回主 README](../../README.md) · [Localization](Localization.md)
+[« 返回文档索引](Index.md) · [主 README](../../README.md) · [Localization](Localization.md)

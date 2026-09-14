@@ -149,7 +149,7 @@ AudioService.Stop(h2, fadeoutDuration: 0.2f);
 - 手动 `FadeAudio` / 快照过渡依赖服务 `Tick` 推进  
 - 加载新场景自动 `StopAllButPersistent`；跨场景音频设 `Persistent = true`  
 - 句柄由服务自动释放，无需（也不应长期）手动 `ReleaseHandle`  
-- 冷路径 API（`PlayFade` / `StopByID`）允许 lambda；热路径用 16B `AudioPlayRequest`  
+- 冷路径 API（`PlayFade` / `StopByID`）允许 lambda；热路径用 16B `AudioPlayRequest`
 
 ---
-[« 返回主 README](../../README.md)
+[« 返回文档索引](Index.md) · [主 README](../../README.md) · [Resource](Resource.md) · [UI](UI.md)

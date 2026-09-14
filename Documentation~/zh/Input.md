@@ -1,4 +1,4 @@
-﻿# Input 服务
+# Input 服务
 
 > 抽象输入层：以统一的轮询 API 屏蔽 Unity 新旧输入系统与移动端 UI 触控的差异，并内置按键提示（Prompts）系统。
 
@@ -141,4 +141,4 @@ Sprite device = InputDevicePromptSystem.GetDeviceSprite(spriteName);
 - 输入查询应每帧轮询调用，服务本身不做事件推送
 
 ---
-[« 返回主 README](../../README.md) · [UI](UI.md) · [Scene](Scene.md)
+[« 返回文档索引](Index.md) · [主 README](../../README.md) · [UI](UI.md) · [Scene](Scene.md)

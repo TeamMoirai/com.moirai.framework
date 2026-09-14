@@ -126,7 +126,7 @@ Configure `WarmupAudioHostPool` and `AudioHostWarmupCount` in `AudioServiceSetti
 - Manual fades and snapshot transitions advance via service `Tick`  
 - Scene load auto `StopAllButPersistent`; set `Persistent = true` for cross-scene audio  
 - Handles are auto-released; do not rely on long-lived manual `ReleaseHandle`  
-- Cold APIs (`PlayFade` / `StopByID`) may allocate lambdas; hot path uses 16B `AudioPlayRequest`  
+- Cold APIs (`PlayFade` / `StopByID`) may allocate lambdas; hot path uses 16B `AudioPlayRequest`
 
 ---
-[« Back to main README](../../README.md)
+[« Documentation Index](Index.md) · [Main README](../../README_EN.md) · [Resource](Resource.md) · [UI](UI.md)

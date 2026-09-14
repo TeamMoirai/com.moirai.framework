@@ -272,7 +272,7 @@ ProcedureLaunch → ProcedureSplash → ProcedureInitPackage → ProcedureInitRe
 
 ## 📦 功能服务
 
-每个服务均有独立文档（位于 `Documentation~/zh/`），包含核心特性、核心类型、快速上手与进阶用法：
+每个服务均有独立文档（位于 `Documentation~/zh/`），包含核心特性、核心类型、快速上手与进阶用法。完整文档目录见 **[文档索引](Documentation~/zh/Index.md)**（英文版：[Documentation Index](Documentation~/en/Index.md)）：
 
 | 服务 | 说明 | 服务文档 |
 |------|------|----------|
@@ -356,7 +356,7 @@ handle.Cancel();
 
 ### MemoryPool — 内存池
 
-带集合管理的泛型内存池，减少 GC 压力。
+零 GC 页式内存池（非托管元数据 + EWMA 自适应水位线），适合事件、参数、缓冲区等高频纯 C# 对象。详见 [Documentation~/zh/MemoryPool.md](Documentation~/zh/MemoryPool.md)。
 
 ### Singleton — 单例系统
 

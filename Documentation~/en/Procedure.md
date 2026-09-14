@@ -1,4 +1,4 @@
-﻿# Procedure Service
+# Procedure Service
 
 > Self-contained game flow management: models startup, hot update, preload, and other phases as switchable procedure states.
 
@@ -123,4 +123,4 @@ bool ok = ProcedureService.RestartProcedure(
 - `ChangeState<T>()` is a parameterless method — it delegates through the internal `Owner` (`ProcedureServiceHandler`) reference held by `ProcedureBase`, no need to pass the service instance when calling.
 
 ---
-[« Back to Main README](../../README_EN.md) · [Resource](Resource.md)
+[« Documentation Index](Index.md) · [Main README](../../README_EN.md) · [Resource](Resource.md) · [Scene](Scene.md)

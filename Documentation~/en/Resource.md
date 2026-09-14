@@ -454,4 +454,4 @@ using var lease = ResourceService.LoadLeaseAsync<GameObject>("path").GetAwaiter(
 - On low memory, the system callback `GameApp.OnLowMemory` triggers `ForceUnloadUnusedAssets(true)`, followed by `Resources.UnloadUnusedAssets` and `GC.Collect`.
 
 ---
-[« Back to Main README](../../README_EN.md) · [Procedure](Procedure.md) · [Save](Save.md)
+[« Documentation Index](Index.md) · [Main README](../../README_EN.md) · [Procedure](Procedure.md) · [Save](Save.md) · [ObjectPool](ObjectPool.md)

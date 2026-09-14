@@ -1,4 +1,4 @@
-﻿# Procedure 服务
+# Procedure 服务
 
 > 自包含的游戏流程管理：把启动、热更、预加载等阶段建模为一个个可切换的流程状态。
 
@@ -123,4 +123,4 @@ bool ok = ProcedureService.RestartProcedure(
 - `ChangeState<T>()` 是无参方法——通过 `ProcedureBase` 内部持有的 `Owner`（`ProcedureServiceHandler`）引用委托切换，无需在调用时传递服务实例。
 
 ---
-[« 返回主 README](../../README.md) · [Resource](Resource.md)
+[« 返回文档索引](Index.md) · [主 README](../../README.md) · [Resource](Resource.md) · [Scene](Scene.md)

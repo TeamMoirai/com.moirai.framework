@@ -1,4 +1,4 @@
-﻿# ObjectUtility
+# ObjectUtility
 
 > 框架的对象实例化/销毁外观，提供可插拔的 Handler 架构，支持单机与联网两种模式。
 
@@ -65,4 +65,4 @@ ObjectUtility.DestroyObject(go, allowNetworked: true);
 - 默认 `UnityObjectHandler` 中 `playerOwned` / `allowNetworked` 参数不影响行为（仅在网络 Handler 中生效）
 
 ---
-[« 返回主 README](../../README.md)
+[« 返回文档索引](Index.md) · [主 README](../../README.md) · [ObjectPool](ObjectPool.md) · [Resource](Resource.md)

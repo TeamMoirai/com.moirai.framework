@@ -1,4 +1,4 @@
-﻿# MemoryPool 内存池
+# MemoryPool 内存池
 
 > 零 GC 页式内存池，使用非托管元数据、EWMA 自适应水位线和阶段驱动预算控制。
 
@@ -173,3 +173,6 @@ Debugger 窗口（如已启用）显示所有池的列：Unused、Using、Acquir
 | `m_AutoTrimNativeMetadataFrames` | 18000 | 空闲多少帧后自动释放 Native 元数据（@60fps ≈ 5分钟） |
 | `m_SoftFreeReserveLimit` | 128 | 默认空闲缓存软上限 |
 | `m_HardFreeReserveLimit` | 512 | 默认空闲缓存硬上限（超限触发驱逐） |
+
+---
+[« 返回文档索引](Index.md) · [主 README](../../README.md) · [ObjectPool](ObjectPool.md) · [Core](Core.md)
