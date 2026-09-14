@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using Moirai.Atropos.Resource;
-using UnityEngine;
 using UnityEngine.SceneManagement;
 
 namespace Moirai.Atropos.Scene
@@ -16,8 +15,8 @@ namespace Moirai.Atropos.Scene
     /// <para>标识约定：内部登记以资源地址（location）为键，同时维护场景短名（<see cref="UnityEngine.SceneManagement.Scene.name"/>）反向索引；
     /// 查询/激活/卸载接口同时接受资源地址与场景短名，<see cref="CurrentMainSceneName"/> 与生命周期事件统一使用场景短名。
     /// 场景短名须尽量全局唯一——碰撞时后注册者覆盖反向索引并打 Warning，按名查询可能解析到错误对象。</para>
-    /// <para>登记结构：主场景在途用 <see cref="_mainSceneLoadingHandle"/>（完成后迁入 <see cref="_mainSceneHandle"/>）；
-    /// 子场景一律登记于 <see cref="_subScenes"/>（<see cref="ESubSceneState.Loading"/> → <see cref="ESubSceneState.Loaded"/>），句柄只存一处。</para>
+    /// <para>登记结构：全部登记状态收敛于 <see cref="SceneRegistry"/>（纯决策单元，可独立单测）；
+    /// 本类仅负责异步编排、进度/回调边界与日志/异常翻译。句柄只存一处（主场景在途用登记簿在途字段，子场景用子场景表）。</para>
     /// <para>挂起加载契约：底层加载不可中止，挂起场景必须最终 <see cref="UnSuspend"/>；
     /// 等待方取消（<see cref="CancellationToken"/>）只放弃等待，登记与事件由后台续体在加载真正结束时收尾。</para>
     /// <para>由 <see cref="SceneServiceSettings"/> 序列化配置，可替换为自定义场景加载后端。</para>
@@ -26,171 +25,63 @@ namespace Moirai.Atropos.Scene
     public sealed class DefaultSceneHandler : SceneServiceHandler
     {
         /// <summary>
-        /// 子场景登记状态。
+        /// 场景登记簿——主/子场景登记、在途防重入与短名索引的唯一状态源。
         /// </summary>
-        private enum ESubSceneState : byte
-        {
-            /// <summary>已发起加载（可能挂起待激活），尚未完成。</summary>
-            Loading = 0,
-
-            /// <summary>加载完成，可激活与卸载。</summary>
-            Loaded = 1,
-        }
-
-        /// <summary>
-        /// 子场景登记项——句柄、归一化场景短名与登记状态。
-        /// </summary>
-        private readonly struct SubSceneEntry
-        {
-            /// <summary>资源系统场景句柄。</summary>
-            public readonly ResourceSceneHandle Handle;
-
-            /// <summary>归一化场景短名（加载完成前为空串）。</summary>
-            public readonly string SceneName;
-
-            /// <summary>登记状态。</summary>
-            public readonly ESubSceneState State;
-
-            /// <summary>
-            /// 创建子场景登记项。
-            /// </summary>
-            public SubSceneEntry(ResourceSceneHandle handle, string sceneName, ESubSceneState state)
-            {
-                Handle = handle;
-                SceneName = sceneName;
-                State = state;
-            }
-        }
-
-        /// <summary>
-        /// 待执行卸载的解析结果——规范化登记地址、场景短名与句柄。
-        /// </summary>
-        private readonly struct PendingUnload
-        {
-            /// <summary>子场景登记地址。</summary>
-            public readonly string Location;
-
-            /// <summary>归一化场景短名。</summary>
-            public readonly string SceneName;
-
-            /// <summary>资源系统场景句柄。</summary>
-            public readonly ResourceSceneHandle Handle;
-
-            /// <summary>
-            /// 创建待执行卸载解析结果。
-            /// </summary>
-            public PendingUnload(string location, string sceneName, ResourceSceneHandle handle)
-            {
-                Location = location;
-                SceneName = sceneName;
-                Handle = handle;
-            }
-        }
-
-        /// <summary>
-        /// 当前主场景短名（<see cref="Scene.name"/> 归一化）。
-        /// </summary>
-        [NonSerialized] private string _currentMainSceneName = string.Empty;
-
-        /// <summary>
-        /// 当前主场景资源地址（启动场景未经本服务加载时为空串）。
-        /// </summary>
-        [NonSerialized] private string _currentMainSceneLocation = string.Empty;
-
-        /// <summary>
-        /// 当前主场景句柄（Single 模式加载完成，被替换时释放引用计数）。
-        /// </summary>
-        [NonSerialized] private ResourceSceneHandle _mainSceneHandle;
-
-        /// <summary>
-        /// 主场景在途加载句柄（Single 发起后、收尾前；含挂起待激活）。非空即表示主场景加载互斥中。
-        /// </summary>
-        [NonSerialized] private ResourceSceneHandle _mainSceneLoadingHandle;
-
-        /// <summary>
-        /// 主场景在途加载的资源地址（供 <see cref="UnSuspend"/> 按地址命中）。
-        /// </summary>
-        [NonSerialized] private string _mainSceneLoadingLocation = string.Empty;
-
-        /// <summary>
-        /// 已登记子场景（location → 登记项）。前置登记于加载发起时，Loading/Loaded 表达子场景生命周期；句柄只存于此处。
-        /// </summary>
-        [NonSerialized] private readonly Dictionary<string, SubSceneEntry> _subScenes = new Dictionary<string, SubSceneEntry>();
-
-        /// <summary>
-        /// 子场景短名反向索引（<see cref="Scene.name"/> → location），加载完成时登记。
-        /// </summary>
-        [NonSerialized] private readonly Dictionary<string, string> _subSceneNameIndex = new Dictionary<string, string>();
-
-        /// <summary>
-        /// 在途操作防重入标记（location 级，覆盖加载与卸载）。
-        /// </summary>
-        [NonSerialized] private readonly HashSet<string> _handlingScene = new HashSet<string>();
+        [NonSerialized] private readonly SceneRegistry _registry = new SceneRegistry();
 
         /// <summary>
         /// 当前主场景名称（场景短名）。
         /// </summary>
-        public override string CurrentMainSceneName => _currentMainSceneName;
+        public override string CurrentMainSceneName => _registry.CurrentMainSceneName;
 
         /// <summary>
         /// 已完成加载的子场景资源地址快照（不含加载中的子场景）。
         /// </summary>
-        public override IReadOnlyCollection<string> LoadedSubSceneLocations
-        {
-            get
-            {
-                var result = new List<string>(_subScenes.Count);
-                foreach (var pair in _subScenes)
-                {
-                    if (pair.Value.State == ESubSceneState.Loaded)
-                    {
-                        result.Add(pair.Key);
-                    }
-                }
-
-                return result;
-            }
-        }
+        public override IReadOnlyCollection<string> LoadedSubSceneLocations => _registry.SnapshotLoadedSubScenes();
 
         /// <summary>
-        /// 处理器初始化。取当前激活场景作为初始主场景（编辑器下启动场景可能不在 Build Settings，
-        /// <c>GetSceneByBuildIndex(0)</c> 会得到无效场景）。
+        /// 处理器初始化。取当前激活场景作为初始主场景。
         /// </summary>
         protected override void OnInit()
         {
-            var activeScene = SceneManager.GetActiveScene();
-            _currentMainSceneName = activeScene.IsValid() ? activeScene.name : string.Empty;
+            _registry.CaptureActiveMainScene(SceneManager.GetActiveScene());
         }
 
         /// <summary>
         /// 处理器关闭，卸载已加载子场景并释放主场景在途/已完成句柄。
-        /// <para>每个句柄只从其唯一登记处释放一次：主场景在途用 <see cref="_mainSceneLoadingHandle"/>，子场景用 <see cref="_subScenes"/>。</para>
+        /// <para>登记簿排空保证每个句柄只从唯一登记处取出一次；逐项隔离异常，单个句柄处置失败不中断关闭链。</para>
         /// </summary>
         protected override void OnShutdown()
         {
-            // 主场景在途/挂起：不可中止，仅回收引用计数
-            _mainSceneLoadingHandle?.Release();
-            ClearMainSceneLoading();
+            // 排空前先取日志上下文（Shutdown 会重置全部字段）
+            var mainLoadingLocation = _registry.MainLoadingLocation;
+            var mainLocation = _registry.CurrentMainSceneLocation;
 
-            foreach (var pair in _subScenes)
+            var subScenes = _registry.Shutdown(out var mainLoadingHandle, out var mainHandle);
+
+            // 主场景在途/挂起：不可中止，仅回收引用计数
+            ReleaseHandleSafely(mainLoadingHandle, mainLoadingLocation);
+            ReleaseHandleSafely(mainHandle, mainLocation);
+
+            for (var i = 0; i < subScenes.Count; i++)
             {
-                if (pair.Value.State == ESubSceneState.Loaded)
+                var entry = subScenes[i];
+                try
                 {
-                    pair.Value.Handle.UnloadAsync();
+                    if (entry.State == SceneRegistry.ESubSceneState.Loaded)
+                    {
+                        entry.Handle.UnloadAsync();
+                    }
+                    else
+                    {
+                        entry.Handle.Release();
+                    }
                 }
-                else
+                catch (Exception ex)
                 {
-                    pair.Value.Handle.Release();
+                    LogUtility.Error("Could not dispose sub scene during shutdown. Scene: {0}, error: {1}", entry.SceneName, ex.Message);
                 }
             }
-
-            _subScenes.Clear();
-            _subSceneNameIndex.Clear();
-            _handlingScene.Clear();
-            _mainSceneHandle?.Release();
-            _mainSceneHandle = null;
-            _currentMainSceneName = string.Empty;
-            _currentMainSceneLocation = string.Empty;
         }
 
         #region 场景加载 [SCENE LOADING]
@@ -203,7 +94,7 @@ namespace Moirai.Atropos.Scene
         /// <param name="suspendLoad">是否挂起加载。</param>
         /// <param name="priority">加载优先级。</param>
         /// <param name="gcCollect">主场景加载后是否执行 GC 回收。</param>
-        /// <param name="progressCallBack">进度回调（必以 1.0 收尾一次）。</param>
+        /// <param name="progressCallBack">进度回调（成功完成时以 1.0 收尾一次；失败不伪报完成进度）。</param>
         /// <param name="packageName">资源包名称（空串使用默认包）。</param>
         /// <param name="cancellationToken">取消令牌——放弃等待语义，不中止底层加载。</param>
         /// <returns>加载完成的场景。</returns>
@@ -225,7 +116,7 @@ namespace Moirai.Atropos.Scene
         /// <param name="priority">加载优先级。</param>
         /// <param name="gcCollect">主场景加载后是否执行 GC 回收。</param>
         /// <param name="callBack">加载完成回调。</param>
-        /// <param name="progressCallBack">进度回调（必以 1.0 收尾一次）。</param>
+        /// <param name="progressCallBack">进度回调（成功完成时以 1.0 收尾一次；失败不伪报完成进度）。</param>
         public override void LoadScene(string location, string packageName, LoadSceneMode sceneMode,
             bool suspendLoad, uint priority, bool gcCollect, Action<UnityEngine.SceneManagement.Scene> callBack, Action<float> progressCallBack)
         {
@@ -233,7 +124,7 @@ namespace Moirai.Atropos.Scene
         }
 
         /// <summary>
-        /// 回调式加载包装——复用核心加载流程，无论成败恰好回调一次。
+        /// 回调式加载包装——复用核心加载流程，无论成败恰好回调一次（回调自身异常被隔离记录）。
         /// </summary>
         private async UniTaskVoid LoadSceneCallbackInternal(string location, string packageName, LoadSceneMode sceneMode,
             bool suspendLoad, uint priority, bool gcCollect, Action<UnityEngine.SceneManagement.Scene> callBack, Action<float> progressCallBack)
@@ -248,12 +139,24 @@ namespace Moirai.Atropos.Scene
                 LogUtility.Error("Could not load scene. Scene: {0}, error: {1}", location, ex.Message);
             }
 
-            callBack?.Invoke(scene);
+            if (callBack == null)
+            {
+                return;
+            }
+
+            try
+            {
+                callBack.Invoke(scene);
+            }
+            catch (Exception ex)
+            {
+                LogUtility.Error("Scene load callback threw an exception. Scene: {0}, error: {1}", location, ex.Message);
+            }
         }
 
         /// <summary>
         /// 场景加载核心流程——经 <see cref="ResourceService"/> 走资源系统管线加载场景。
-        /// <para>防重入与互斥失败、资源后端同步失败、加载错误均抛出 <see cref="GameException"/>；
+        /// <para>门禁失败、资源后端同步失败、加载错误均抛出 <see cref="GameException"/>；
         /// 等待方取消时由 <see cref="FinalizeLoadDetached"/> 后台收尾后重抛 <see cref="OperationCanceledException"/>。</para>
         /// </summary>
         private async UniTask<UnityEngine.SceneManagement.Scene> LoadSceneInternal(string location, string packageName, LoadSceneMode sceneMode,
@@ -265,23 +168,14 @@ namespace Moirai.Atropos.Scene
                 throw new GameException("Could not load scene. Location is null or empty.");
             }
 
-            // —— 防重入与互斥检查 ——
-            if (!_handlingScene.Add(location))
+            // —— 门禁判定（纯查询，含防重入与互斥检查）——
+            var gate = _registry.CheckBeginLoad(location, sceneMode);
+            if (gate != SceneRegistry.ELoadGate.Allow)
             {
-                throw new GameException($"Could not load scene while an operation is in flight. Scene: {location}");
+                throw CreateLoadException(gate, location);
             }
 
-            if (sceneMode == LoadSceneMode.Additive && _subScenes.ContainsKey(location))
-            {
-                _handlingScene.Remove(location);
-                throw new GameException($"Could not load sub scene while already registered. Scene: {location}");
-            }
-
-            if (sceneMode == LoadSceneMode.Single && _mainSceneLoadingHandle != null)
-            {
-                _handlingScene.Remove(location);
-                throw new GameException($"Could not load main scene while another main scene is loading. Scene: {location}");
-            }
+            _registry.TryMarkOperation(location);
 
             // —— 发起加载 ——
             ResourceSceneHandle handle;
@@ -291,27 +185,25 @@ namespace Moirai.Atropos.Scene
             }
             catch (Exception)
             {
-                // 资源后端同步失败（如资源包未初始化）：清理防重入标记后上抛
-                _handlingScene.Remove(location);
+                // 资源后端同步失败（如资源包未初始化）：释放在途标记后上抛
+                _registry.UnmarkOperation(location);
                 throw;
             }
 
             if (handle == null)
             {
-                _handlingScene.Remove(location);
-                throw new GameException($"Could not load scene. Resource service is not ready. Scene: {location}");
+                _registry.UnmarkOperation(location);
+                throw new GameException(StringUtility.Format("Could not load scene. Resource service is not ready. Scene: {0}", location));
             }
 
             // —— 登记（句柄只存一处）——
             if (sceneMode == LoadSceneMode.Single)
             {
-                _mainSceneLoadingHandle = handle;
-                _mainSceneLoadingLocation = location;
+                _registry.RegisterMainInFlight(location, handle);
             }
             else
             {
-                // 前置登记——挂起加载的场景在 UnSuspend 之后才会完成加载
-                _subScenes[location] = new SubSceneEntry(handle, string.Empty, ESubSceneState.Loading);
+                _registry.RegisterSubInFlight(location, handle);
             }
 
             // —— 等待完成 ——
@@ -328,8 +220,8 @@ namespace Moirai.Atropos.Scene
             catch (Exception)
             {
                 // 真实异常：登记作废、句柄释放，后端状态视为不可用（fail fast）
-                AbandonLoadRegistration(location, sceneMode);
-                _handlingScene.Remove(location);
+                _registry.AbandonLoad(location, sceneMode);
+                _registry.UnmarkOperation(location);
                 handle.Release();
                 throw;
             }
@@ -338,45 +230,63 @@ namespace Moirai.Atropos.Scene
         }
 
         /// <summary>
-        /// 放弃加载登记——主场景清空在途字段，子场景移除 Loading 项。
+        /// 按门禁判定结果构造加载异常。
         /// </summary>
-        private void AbandonLoadRegistration(string location, LoadSceneMode sceneMode)
+        private static GameException CreateLoadException(SceneRegistry.ELoadGate gate, string location)
         {
-            if (sceneMode == LoadSceneMode.Single)
+            switch (gate)
             {
-                // 仅当仍指向本次在途加载时清空，避免误清后续主场景加载
-                if (_mainSceneLoadingHandle != null && location == _mainSceneLoadingLocation)
-                {
-                    ClearMainSceneLoading();
-                }
-            }
-            else
-            {
-                _subScenes.Remove(location);
+                case SceneRegistry.ELoadGate.InFlight:
+                    return new GameException(StringUtility.Format("Could not load scene while an operation is in flight. Scene: {0}", location));
+                case SceneRegistry.ELoadGate.SubAlreadyRegistered:
+                    return new GameException(StringUtility.Format("Could not load sub scene while already registered. Scene: {0}", location));
+                case SceneRegistry.ELoadGate.MainLoadInFlight:
+                    return new GameException(StringUtility.Format("Could not load main scene while another main scene is loading. Scene: {0}", location));
+                case SceneRegistry.ELoadGate.RegisteredAsSub:
+                    return new GameException(StringUtility.Format("Could not load scene as main while registered as sub scene. Scene: {0}", location));
+                case SceneRegistry.ELoadGate.RegisteredAsMain:
+                    return new GameException(StringUtility.Format("Could not load scene as sub while registered as main scene. Scene: {0}", location));
+                default:
+                    return new GameException(StringUtility.Format("Could not load scene. Scene: {0}", location));
             }
         }
 
         /// <summary>
-        /// 清空主场景在途加载字段（互斥标记由句柄是否为空隐含表达）。
-        /// </summary>
-        private void ClearMainSceneLoading()
-        {
-            _mainSceneLoadingHandle = null;
-            _mainSceneLoadingLocation = string.Empty;
-        }
-
-        /// <summary>
-        /// 等待场景加载句柄完成，可选进度回调（必以 1.0 收尾一次），支持取消等待。
+        /// 等待场景加载句柄完成，支持取消等待；进度回调逐帧回报（异常被隔离记录），成功完成时以 1.0 收尾一次。
         /// </summary>
         private static async UniTask AwaitSceneHandle(ResourceSceneHandle handle, Action<float> progressCallBack, CancellationToken cancellationToken)
         {
             while (!handle.IsDone)
             {
-                progressCallBack?.Invoke(handle.Progress);
+                ReportProgress(progressCallBack, handle.Progress);
                 await UniTask.Yield(cancellationToken);
             }
 
-            progressCallBack?.Invoke(1f);
+            // 失败不伪报 100% 进度
+            if (string.IsNullOrEmpty(handle.Error))
+            {
+                ReportProgress(progressCallBack, 1f);
+            }
+        }
+
+        /// <summary>
+        /// 隔离回报进度——进度回调为调用方代码，单个回调异常仅记录日志，不中断加载/卸载流程。
+        /// </summary>
+        private static void ReportProgress(Action<float> progressCallBack, float progress)
+        {
+            if (progressCallBack == null)
+            {
+                return;
+            }
+
+            try
+            {
+                progressCallBack.Invoke(progress);
+            }
+            catch (Exception ex)
+            {
+                LogUtility.Error("Scene progress callback threw an exception. Error: {0}", ex.Message);
+            }
         }
 
         /// <summary>
@@ -385,13 +295,13 @@ namespace Moirai.Atropos.Scene
         /// </summary>
         private UnityEngine.SceneManagement.Scene FinalizeSceneLoad(string location, ResourceSceneHandle handle, LoadSceneMode sceneMode, bool gcCollect)
         {
-            _handlingScene.Remove(location);
+            _registry.UnmarkOperation(location);
 
             if (!string.IsNullOrEmpty(handle.Error))
             {
-                AbandonLoadRegistration(location, sceneMode);
+                _registry.AbandonLoad(location, sceneMode);
                 handle.Release();
-                throw new GameException($"Could not load scene. Scene: {location}, error: {handle.Error}");
+                throw new GameException(StringUtility.Format("Could not load scene. Scene: {0}, error: {1}", location, handle.Error));
             }
 
             var scene = handle.SceneObject;
@@ -399,25 +309,30 @@ namespace Moirai.Atropos.Scene
 
             if (sceneMode == LoadSceneMode.Additive)
             {
-                RegisterSubSceneNameIndex(location, sceneName);
-                _subScenes[location] = new SubSceneEntry(handle, sceneName, ESubSceneState.Loaded);
+                var overwrittenLocation = _registry.CompleteSubLoad(location, sceneName);
+                if (overwrittenLocation != null)
+                {
+                    LogUtility.Warning("Scene short name collision. Name: {0}, existing: {1}, new: {2}. Name-based queries will resolve to the new location.",
+                        sceneName, overwrittenLocation, location);
+                }
+
+                if (sceneName == _registry.CurrentMainSceneName)
+                {
+                    LogUtility.Warning("Sub scene short name collides with the current main scene. Name: {0}, sub location: {1}", sceneName, location);
+                }
+
                 SceneService.InvokeSubSceneLoadedEvent(sceneName);
                 return scene;
             }
 
-            // 主场景在途 → 已完成：先清在途再迁入 _mainSceneHandle
-            AbandonLoadRegistration(location, LoadSceneMode.Single);
-
-            if (_subSceneNameIndex.TryGetValue(sceneName, out var collidingSubLocation))
+            if (_registry.TryGetSubLocationByName(sceneName, out var collidingSubLocation))
             {
                 LogUtility.Warning("Main scene short name collides with a registered sub scene. Name: {0}, sub location: {1}, main location: {2}",
                     sceneName, collidingSubLocation, location);
             }
 
-            var previousHandle = _mainSceneHandle;
-            _mainSceneHandle = handle;
-            _currentMainSceneLocation = location;
-            _currentMainSceneName = sceneName;
+            // 主场景在途 → 已完成：新场景已激活，旧场景由引擎卸载，此处释放旧句柄回收底层资源引用计数
+            var previousHandle = _registry.CompleteMainLoad(location, sceneName, handle);
             previousHandle?.Release();
 
 #if UNITY_EDITOR && EditorFixedMaterialShader
@@ -433,7 +348,7 @@ namespace Moirai.Atropos.Scene
 
         /// <summary>
         /// 放弃等待后的后台收尾续体——轮询至加载真正完成后执行与同步路径一致的收尾逻辑。
-        /// <para>处理器已关闭（句柄被 <see cref="OnShutdown"/> 释放后 <c>IsDone</c> 恒为真）时直接返回。</para>
+        /// <para>处理器已关闭（<see cref="OnShutdown"/> 已排空登记簿）或登记被清理时直接返回，放弃过期收尾。</para>
         /// </summary>
         private async UniTaskVoid FinalizeLoadDetached(string location, ResourceSceneHandle handle, LoadSceneMode sceneMode, bool gcCollect)
         {
@@ -443,6 +358,12 @@ namespace Moirai.Atropos.Scene
             }
 
             if (!IsInitialized)
+            {
+                return;
+            }
+
+            // 在途标记随关闭流程清空——登记簿已排空，收尾不再有意义
+            if (!_registry.IsOperationMarked(location))
             {
                 return;
             }
@@ -473,15 +394,14 @@ namespace Moirai.Atropos.Scene
                 return false;
             }
 
-            var subLocation = ResolveSubSceneLocation(location);
-            if (subLocation != null && _subScenes.TryGetValue(subLocation, out var entry) && entry.State == ESubSceneState.Loaded)
+            if (_registry.TryGetLoadedSubScene(location, out var entry))
             {
                 return entry.Handle.ActivateScene();
             }
 
-            if ((location == _currentMainSceneName || location == _currentMainSceneLocation) && _mainSceneHandle != null)
+            if ((location == _registry.CurrentMainSceneName || location == _registry.CurrentMainSceneLocation) && _registry.MainSceneHandle != null)
             {
-                return _mainSceneHandle.ActivateScene();
+                return _registry.MainSceneHandle.ActivateScene();
             }
 
             // 回退：非资源系统加载的场景（如启动场景）按名称激活
@@ -509,13 +429,13 @@ namespace Moirai.Atropos.Scene
             }
 
             // 主场景在途（含挂起）
-            if (_mainSceneLoadingHandle != null && location == _mainSceneLoadingLocation)
+            if (_registry.MainLoadingHandle != null && location == _registry.MainLoadingLocation)
             {
-                return _mainSceneLoadingHandle.UnSuspend();
+                return _registry.MainLoadingHandle.UnSuspend();
             }
 
             // 子场景在途（Loading，含挂起）
-            if (_subScenes.TryGetValue(location, out var entry) && entry.State == ESubSceneState.Loading)
+            if (_registry.TryGetSubScene(location, out var entry) && entry.State == SceneRegistry.ESubSceneState.Loading)
             {
                 return entry.Handle.UnSuspend();
             }
@@ -531,12 +451,7 @@ namespace Moirai.Atropos.Scene
         /// <returns>是否为主场景。</returns>
         public override bool IsMainScene(string location)
         {
-            if (string.IsNullOrEmpty(location))
-            {
-                return false;
-            }
-
-            return location == _currentMainSceneName || location == _currentMainSceneLocation;
+            return _registry.IsMainScene(location);
         }
 
         #endregion
@@ -547,7 +462,7 @@ namespace Moirai.Atropos.Scene
         /// 异步卸载子场景。失败返回 <c>false</c> 并保留登记供重试。
         /// </summary>
         /// <param name="location">场景资源定位地址或场景短名。</param>
-        /// <param name="progressCallBack">进度回调（必以 1.0 收尾一次）。</param>
+        /// <param name="progressCallBack">进度回调（成功完成时以 1.0 收尾一次；失败不伪报完成进度）。</param>
         /// <returns>是否卸载成功。</returns>
         public override UniTask<bool> UnloadAsync(string location, Action<float> progressCallBack)
         {
@@ -560,12 +475,13 @@ namespace Moirai.Atropos.Scene
         }
 
         /// <summary>
-        /// 卸载子场景（回调式）。回调契约：卸载发起后无论成败恰好回调一次；无效请求（地址未登记、存在在途操作）不发起亦不回调。
+        /// 卸载子场景（回调式）。回调契约：卸载发起后无论成败恰好回调一次（参数为是否成功）；
+        /// 无效请求（地址未登记、存在在途操作）不发起亦不回调。
         /// </summary>
         /// <param name="location">场景资源定位地址或场景短名。</param>
-        /// <param name="callBack">卸载完成回调。</param>
-        /// <param name="progressCallBack">进度回调（必以 1.0 收尾一次）。</param>
-        public override void Unload(string location, Action callBack, Action<float> progressCallBack)
+        /// <param name="callBack">卸载完成回调（参数为是否卸载成功）。</param>
+        /// <param name="progressCallBack">进度回调（成功完成时以 1.0 收尾一次；失败不伪报完成进度）。</param>
+        public override void Unload(string location, Action<bool> callBack, Action<float> progressCallBack)
         {
             if (!TryBeginUnload(location, out var pending))
             {
@@ -576,39 +492,30 @@ namespace Moirai.Atropos.Scene
         }
 
         /// <summary>
-        /// 卸载前置检查——将入参解析为子场景登记项，校验已加载且无在途操作，通过后占用防重入标记。
+        /// 卸载前置检查——门禁判定并占用在途标记，拒绝路径输出规范日志。
         /// </summary>
-        private bool TryBeginUnload(string requestedLocation, out PendingUnload pending)
+        private bool TryBeginUnload(string requestedLocation, out SceneRegistry.PendingUnload pending)
         {
-            pending = default;
-
-            var location = ResolveSubSceneLocation(requestedLocation);
-            if (location == null || !_subScenes.TryGetValue(location, out var entry))
+            var gate = _registry.TryBeginUnload(requestedLocation, out pending);
+            switch (gate)
             {
-                LogUtility.Warning("Unload invalid location:{0}", requestedLocation);
-                return false;
+                case SceneRegistry.EUnloadGate.Allow:
+                    return true;
+                case SceneRegistry.EUnloadGate.NotRegistered:
+                    LogUtility.Warning("Unload invalid location:{0}", requestedLocation);
+                    return false;
+                case SceneRegistry.EUnloadGate.InFlight:
+                    LogUtility.Warning("Could not unload scene while an operation is in flight. Scene: {0}", pending.Location);
+                    return false;
+                default:
+                    LogUtility.Warning("Could not unload scene while still loading. Scene: {0}", pending.Location);
+                    return false;
             }
-
-            if (!_handlingScene.Add(location))
-            {
-                LogUtility.Warning("Could not unload scene while an operation is in flight. Scene: {0}", location);
-                return false;
-            }
-
-            if (entry.State != ESubSceneState.Loaded)
-            {
-                _handlingScene.Remove(location);
-                LogUtility.Warning("Could not unload scene while still loading. Scene: {0}", location);
-                return false;
-            }
-
-            pending = new PendingUnload(location, entry.SceneName, entry.Handle);
-            return true;
         }
 
         /// <summary>
         /// 卸载核心流程（异步）——等待资源系统卸载操作完成，成功后清理登记并派发事件。
-        /// <para>卸载失败或句柄已失效时保留登记（场景仍在场）并返回 <c>false</c> 供重试；<c>_handlingScene</c> 由 finally 保证释放。</para>
+        /// <para>卸载失败或句柄已失效时保留登记（场景仍在场）并返回 <c>false</c> 供重试；在途标记由 finally 保证释放。</para>
         /// </summary>
         private async UniTask<bool> UnloadSceneInternal(string location, string sceneName, ResourceSceneHandle handle, Action<float> progressCallBack)
         {
@@ -634,11 +541,9 @@ namespace Moirai.Atropos.Scene
 
                 while (!operation.IsDone)
                 {
-                    progressCallBack?.Invoke(operation.Progress);
+                    ReportProgress(progressCallBack, operation.Progress);
                     await UniTask.Yield();
                 }
-
-                progressCallBack?.Invoke(1f);
 
                 if (!operation.Succeed)
                 {
@@ -646,38 +551,46 @@ namespace Moirai.Atropos.Scene
                     return false;
                 }
 
-                _subScenes.Remove(location);
-                if (!string.IsNullOrEmpty(sceneName) &&
-                    _subSceneNameIndex.TryGetValue(sceneName, out var mappedLocation) && mappedLocation == location)
-                {
-                    // 短名碰撞时后注册者可能已覆盖索引，仅移除仍指向本地址的项
-                    _subSceneNameIndex.Remove(sceneName);
-                }
+                ReportProgress(progressCallBack, 1f);
 
+                _registry.CompleteUnload(location, sceneName);
                 SceneService.InvokeSubSceneUnloadedEvent(sceneName);
                 return true;
             }
             finally
             {
-                _handlingScene.Remove(location);
+                _registry.UnmarkOperation(location);
             }
         }
 
         /// <summary>
-        /// 卸载核心流程（回调式）——发起后无论成败恰好回调一次。
+        /// 卸载核心流程（回调式）——发起后无论成败恰好回调一次（参数为是否成功；回调自身异常被隔离记录）。
         /// </summary>
-        private async UniTaskVoid UnloadSceneCallbackInternal(string location, string sceneName, ResourceSceneHandle handle, Action callBack, Action<float> progressCallBack)
+        private async UniTaskVoid UnloadSceneCallbackInternal(string location, string sceneName, ResourceSceneHandle handle, Action<bool> callBack, Action<float> progressCallBack)
         {
+            var success = false;
             try
             {
-                await UnloadSceneInternal(location, sceneName, handle, progressCallBack);
+                success = await UnloadSceneInternal(location, sceneName, handle, progressCallBack);
             }
             catch (Exception ex)
             {
                 LogUtility.Error("Could not unload scene. Scene: {0}, error: {1}", location, ex.Message);
             }
 
-            callBack?.Invoke();
+            if (callBack == null)
+            {
+                return;
+            }
+
+            try
+            {
+                callBack.Invoke(success);
+            }
+            catch (Exception ex)
+            {
+                LogUtility.Error("Scene unload callback threw an exception. Scene: {0}, error: {1}", location, ex.Message);
+            }
         }
 
         #endregion
@@ -691,64 +604,29 @@ namespace Moirai.Atropos.Scene
         /// <returns>是否已登记。</returns>
         public override bool IsContainScene(string location)
         {
-            if (string.IsNullOrEmpty(location))
-            {
-                return false;
-            }
-
-            if (location == _currentMainSceneName || location == _currentMainSceneLocation)
-            {
-                return true;
-            }
-
-            // 主场景在途加载也视为已登记
-            if (_mainSceneLoadingHandle != null && location == _mainSceneLoadingLocation)
-            {
-                return true;
-            }
-
-            return _subScenes.ContainsKey(location) || _subSceneNameIndex.ContainsKey(location);
+            return _registry.IsContainScene(location);
         }
 
         #endregion
 
         /// <summary>
-        /// 登记子场景短名反向索引。同名不同地址时后注册者覆盖，并打 Warning 提示按名查询可能解析错误。
+        /// 关闭路径安全释放句柄——逐项隔离异常，不中断关闭链。
         /// </summary>
-        private void RegisterSubSceneNameIndex(string location, string sceneName)
+        private static void ReleaseHandleSafely(ResourceSceneHandle handle, string location)
         {
-            if (string.IsNullOrEmpty(sceneName))
+            if (handle == null)
             {
                 return;
             }
 
-            if (_subSceneNameIndex.TryGetValue(sceneName, out var existingLocation) && existingLocation != location)
+            try
             {
-                LogUtility.Warning("Scene short name collision. Name: {0}, existing: {1}, new: {2}. Name-based queries will resolve to the new location.",
-                    sceneName, existingLocation, location);
+                handle.Release();
             }
-
-            _subSceneNameIndex[sceneName] = location;
-        }
-
-        /// <summary>
-        /// 将入参解析为子场景登记地址——直接命中登记键，否则经场景短名反向索引解析。
-        /// </summary>
-        /// <param name="locationOrName">资源地址或场景短名。</param>
-        /// <returns>登记地址；未命中返回 <c>null</c>。</returns>
-        private string ResolveSubSceneLocation(string locationOrName)
-        {
-            if (string.IsNullOrEmpty(locationOrName))
+            catch (Exception ex)
             {
-                return null;
+                LogUtility.Error("Could not release scene handle during shutdown. Scene: {0}, error: {1}", location, ex.Message);
             }
-
-            if (_subScenes.ContainsKey(locationOrName))
-            {
-                return locationOrName;
-            }
-
-            return _subSceneNameIndex.TryGetValue(locationOrName, out var location) ? location : null;
         }
     }
 }
