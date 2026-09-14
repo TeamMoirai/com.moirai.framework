@@ -19,6 +19,16 @@ namespace Moirai.Atropos.Procedure
 
         // ─────────────────────── 事件 ───────────────────────
 
+        private void OnEnable()
+        {
+            // 订阅放在引擎生命周期回调而非 OnInspectorGUI——绘制期副作用且永不退订属反模式
+            if (!_resetSubscribed)
+            {
+                onSettingsReset += OnSettingsResetEvent;
+                _resetSubscribed = true;
+            }
+        }
+
         private void OnSettingsResetEvent()
         {
             _editorInitialized = false;
@@ -29,13 +39,6 @@ namespace Moirai.Atropos.Procedure
         [OnInspectorGUI]
         private void DrawProcedureServiceSettings()
         {
-            // 只在首次绘制时订阅一次
-            if (!_resetSubscribed)
-            {
-                onSettingsReset += OnSettingsResetEvent;
-                _resetSubscribed = true;
-            }
-
             // 域重载或 Reset 后自动重建
             if (!_editorInitialized)
             {
@@ -53,8 +56,11 @@ namespace Moirai.Atropos.Procedure
             }
             else if (EditorApplication.isPlaying)
             {
+                // 守卫处理器未就绪（状态机未 Initialize）——CurrentProcedure 内部会 fail-fast
                 EditorGUILayout.LabelField("Current Procedure",
-                    ProcedureService.CurrentProcedure == null ? "None" : ProcedureService.CurrentProcedure.GetType().ToString());
+                    !ProcedureService.IsStateReady || ProcedureService.CurrentProcedure == null
+                        ? "None"
+                        : ProcedureService.CurrentProcedure.GetType().ToString());
             }
 
             // ② 可用流程勾选列表
