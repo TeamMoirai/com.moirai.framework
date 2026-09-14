@@ -561,7 +561,7 @@ namespace Service.Save
 
         #endregion
 
-        #region 外观兼容映射与降级 [FACADE COMPAT / DEGRADATION]
+        #region 便捷映射与降级 [FACADE QUICK MAP / DEGRADATION]
 
         /// <summary>
         /// 经反射设置生成的私有静态 s_Handler（生成的 Handler 属性 setter 拒绝 null，降级契约测试需要 null 态）。
@@ -574,9 +574,9 @@ namespace Service.Save
         }
 
         [Test]
-        public void Facade_LegacySave_MapsToMainBlock()
+        public void Facade_QuickSave_MapsToMainBlock()
         {
-            // 旧单对象 API 映射保留块 __main__：facade 写入后块级读应命中，反之亦然
+            // 便捷单对象 API 映射保留块 __main__：facade 写入后块级读应命中，反之亦然
             SetHandler(_handler);
             try
             {

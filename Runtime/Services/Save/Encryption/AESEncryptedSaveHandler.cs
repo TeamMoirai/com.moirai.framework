@@ -8,7 +8,7 @@ namespace Moirai.Atropos.Save
     /// 未配置时回退 <see cref="StaticSaveKeyProvider.Default"/> 占位默认——上线前须在设置中配置项目专属密钥提供方）。派生材料由提供方按参数缓存。</para>
     /// </summary>
     [Serializable]
-    public class AesEncryptedSaveHandler : SaveServiceHandler
+    public class AESEncryptedSaveHandler : SaveServiceHandler
     {
         [NonSerialized] private SaveEncryptor _encryptor;
 

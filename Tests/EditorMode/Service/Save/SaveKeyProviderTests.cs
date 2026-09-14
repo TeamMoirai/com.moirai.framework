@@ -92,17 +92,17 @@ namespace Save
         #region 静态密钥 [STATIC KEY]
 
         [Test]
-        public void Static_Default_MatchesLegacyDerivation()
+        public void Static_Default_MatchesEncryptorPlaceholderDerivation()
         {
-            // V2 语义等价：默认静态提供方 = PBKDF2(占位口令, 默认盐, 默认迭代)——旧档密钥逐位一致
+            // 默认静态提供方 = PBKDF2(占位口令, 默认盐, 默认迭代)
             SaveError error = StaticSaveKeyProvider.Default.TryGetKeyMaterial(out byte[] encKey, out byte[] macKey);
             Assert.AreEqual(SaveError.None, error);
 
-            byte[] legacy = SaveEncryptor.DeriveKeyMaterial(SaveEncryptor.DefaultPassphrase, SaveEncryptor.DefaultSalt, SaveEncryptor.DefaultIterations);
+            byte[] expected = SaveEncryptor.DeriveKeyMaterial(SaveEncryptor.DEFAULT_PASSPHRASE, SaveEncryptor.DEFAULT_SALT, SaveEncryptor.DEFAULT_ITERATIONS);
             Assert.AreEqual(32, encKey.Length);
             Assert.AreEqual(32, macKey.Length);
-            Assert.AreEqual(new Span<byte>(legacy, 0, 32).ToArray(), encKey, "加密密钥应与 V2 派生一致");
-            Assert.AreEqual(new Span<byte>(legacy, 32, 32).ToArray(), macKey, "认证密钥应与 V2 派生一致");
+            Assert.AreEqual(new Span<byte>(expected, 0, 32).ToArray(), encKey, "加密密钥应与占位派生一致");
+            Assert.AreEqual(new Span<byte>(expected, 32, 32).ToArray(), macKey, "认证密钥应与占位派生一致");
         }
 
         [Test]
@@ -122,7 +122,7 @@ namespace Save
             var provider = new StaticSaveKeyProvider();
             provider.TryGetKeyMaterial(out byte[] before, out _);
 
-            provider.Configure("new-project-secret", SaveEncryptor.DefaultSalt, SaveEncryptor.DefaultIterations);
+            provider.Configure("new-project-secret", SaveEncryptor.DEFAULT_SALT, SaveEncryptor.DEFAULT_ITERATIONS);
             provider.TryGetKeyMaterial(out byte[] after, out _);
 
             Assert.AreNotSame(before, after, "参数变更应重派生");
@@ -133,12 +133,12 @@ namespace Save
         public void KeyBridge_ThenStaticProvider_CrossReads()
         {
             // Key 属性桥接（V2 契约）与静态提供方同参派生等价——两种注入方式的档互读
-            var writer = new AesEncryptedSaveHandler { Key = "cross-key" };
+            var writer = new AESEncryptedSaveHandler { Key = "cross-key" };
             writer.SaveBlockCore(_paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 88, PlayerName = "bridge" }, ESaveBackend.Json, 1, CancellationToken.None);
 
             var staticProvider = new StaticSaveKeyProvider();
-            staticProvider.Configure("cross-key", SaveEncryptor.DefaultSalt, SaveEncryptor.DefaultIterations);
-            var reader = new AesEncryptedSaveHandler { _keyProvider = staticProvider };
+            staticProvider.Configure("cross-key", SaveEncryptor.DEFAULT_SALT, SaveEncryptor.DEFAULT_ITERATIONS);
+            var reader = new AESEncryptedSaveHandler { _keyProvider = staticProvider };
 
             SaveError error = reader.TryLoadBlockCore<SaveData>(_paths, SaveServiceHandler.MAIN_BLOCK_KEY, out SaveData loaded);
             Assert.AreEqual(SaveError.None, error, "Key 桥接与静态提供方同参派生应互读");
@@ -148,8 +148,8 @@ namespace Save
         [Test]
         public void KeyBridge_Getter_ReflectsConfiguredPassphrase()
         {
-            var handler = new AesEncryptedSaveHandler();
-            Assert.AreEqual(SaveEncryptor.DefaultPassphrase, handler.Key, "未设置时应回显占位默认值");
+            var handler = new AESEncryptedSaveHandler();
+            Assert.AreEqual(SaveEncryptor.DEFAULT_PASSPHRASE, handler.Key, "未设置时应回显占位默认值");
 
             handler.Key = "explicit-key";
             Assert.AreEqual("explicit-key", handler.Key);
@@ -192,12 +192,12 @@ namespace Save
         {
             var writerProvider = new PassphraseSaveKeyProvider();
             writerProvider.SetPassphrase("player-password");
-            var writer = new AesEncryptedSaveHandler { _keyProvider = writerProvider };
+            var writer = new AESEncryptedSaveHandler { _keyProvider = writerProvider };
             writer.SaveBlockCore(_paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 66, PlayerName = "locked" }, ESaveBackend.Json, 1, CancellationToken.None);
 
             var readerProvider = new PassphraseSaveKeyProvider();
             readerProvider.SetPassphrase("player-password");
-            var reader = new AesEncryptedSaveHandler { _keyProvider = readerProvider };
+            var reader = new AESEncryptedSaveHandler { _keyProvider = readerProvider };
 
             SaveError error = reader.TryLoadBlockCore<SaveData>(_paths, SaveServiceHandler.MAIN_BLOCK_KEY, out SaveData loaded);
             Assert.AreEqual(SaveError.None, error);
@@ -207,10 +207,10 @@ namespace Save
         [Test]
         public void Passphrase_HandlerLoad_Unset_ReturnsInvalidArgument()
         {
-            var writer = new AesEncryptedSaveHandler { Key = "any" };
+            var writer = new AESEncryptedSaveHandler { Key = "any" };
             writer.SaveBlockCore(_paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 1, PlayerName = "x" }, ESaveBackend.Json, 1, CancellationToken.None);
 
-            var reader = new AesEncryptedSaveHandler { _keyProvider = new PassphraseSaveKeyProvider() };
+            var reader = new AESEncryptedSaveHandler { _keyProvider = new PassphraseSaveKeyProvider() };
 
             ExpectErrorLogForUtf();
             SaveError error = reader.TryLoadBlockCore<SaveData>(_paths, SaveServiceHandler.MAIN_BLOCK_KEY, out SaveData loaded);
@@ -223,7 +223,7 @@ namespace Save
         public void Passphrase_HandlerSave_Unset_ThrowsGameException()
         {
             // 写路径 fail-fast 契约：密钥材料不可得 = 写入失败抛 GameException
-            var writer = new AesEncryptedSaveHandler { _keyProvider = new PassphraseSaveKeyProvider() };
+            var writer = new AESEncryptedSaveHandler { _keyProvider = new PassphraseSaveKeyProvider() };
             Assert.Throws<GameException>(() =>
                 writer.SaveBlockCore(_paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 1, PlayerName = "x" }, ESaveBackend.Json, 1, CancellationToken.None));
         }
@@ -235,8 +235,8 @@ namespace Save
         [Test]
         public void Hkdf_PerUser_ProducesDistinctKeys()
         {
-            var providerA = new HkdfPerUserSaveKeyProvider { UserId = "user-a" };
-            var providerB = new HkdfPerUserSaveKeyProvider { UserId = "user-b" };
+            var providerA = new HKDFPerUserSaveKeyProvider { UserId = "user-a" };
+            var providerB = new HKDFPerUserSaveKeyProvider { UserId = "user-b" };
 
             providerA.TryGetKeyMaterial(out byte[] encKeyA, out byte[] macKeyA);
             providerB.TryGetKeyMaterial(out byte[] encKeyB, out byte[] macKeyB);
@@ -248,8 +248,8 @@ namespace Save
         [Test]
         public void Hkdf_SameUser_Deterministic()
         {
-            var first = new HkdfPerUserSaveKeyProvider { UserId = "user-a" };
-            var second = new HkdfPerUserSaveKeyProvider { UserId = "user-a" };
+            var first = new HKDFPerUserSaveKeyProvider { UserId = "user-a" };
+            var second = new HKDFPerUserSaveKeyProvider { UserId = "user-a" };
 
             first.TryGetKeyMaterial(out byte[] encKey1, out _);
             second.TryGetKeyMaterial(out byte[] encKey2, out _);
@@ -260,7 +260,7 @@ namespace Save
         [Test]
         public void Hkdf_NoUser_DerivesDefaultSlot()
         {
-            var provider = new HkdfPerUserSaveKeyProvider();
+            var provider = new HKDFPerUserSaveKeyProvider();
             SaveError error = provider.TryGetKeyMaterial(out byte[] encKey, out byte[] macKey);
 
             Assert.AreEqual(SaveError.None, error, "未设用户 ID 应以空盐派生默认档");
@@ -271,15 +271,15 @@ namespace Save
         [Test]
         public void Hkdf_HandlerIsolation_PerUser()
         {
-            var writer = new AesEncryptedSaveHandler
+            var writer = new AESEncryptedSaveHandler
             {
-                _keyProvider = new HkdfPerUserSaveKeyProvider { UserId = "user-a" }
+                _keyProvider = new HKDFPerUserSaveKeyProvider { UserId = "user-a" }
             };
             writer.SaveBlockCore(_paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 42, PlayerName = "user-a-data" }, ESaveBackend.Json, 1, CancellationToken.None);
 
-            var wrongUser = new AesEncryptedSaveHandler
+            var wrongUser = new AESEncryptedSaveHandler
             {
-                _keyProvider = new HkdfPerUserSaveKeyProvider { UserId = "user-b" }
+                _keyProvider = new HKDFPerUserSaveKeyProvider { UserId = "user-b" }
             };
 
             ExpectErrorLogForUtf();
@@ -288,9 +288,9 @@ namespace Save
             Assert.AreEqual(SaveError.IntegrityCheckFailed, wrongError, "他用户密钥应在 HMAC 层被拦截");
             Assert.IsNull(rejected);
 
-            var sameUser = new AesEncryptedSaveHandler
+            var sameUser = new AESEncryptedSaveHandler
             {
-                _keyProvider = new HkdfPerUserSaveKeyProvider { UserId = "user-a" }
+                _keyProvider = new HKDFPerUserSaveKeyProvider { UserId = "user-a" }
             };
             SaveError error = sameUser.TryLoadBlockCore<SaveData>(_paths, SaveServiceHandler.MAIN_BLOCK_KEY, out SaveData loaded);
             Assert.AreEqual(SaveError.None, error, "同用户应可读回");
