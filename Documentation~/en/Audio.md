@@ -124,6 +124,9 @@ Configure `WarmupAudioHostPool` and `AudioHostWarmupCount` in `AudioServiceSetti
 - `DoNotAutoRecycle` defaults to true consistently across factories and overloads  
 - No-channel warnings are throttled per track (3 s) as Warning  
 - Manual fades and snapshot transitions advance via service `Tick`  
+- Path-based `Play(path, ...)` loads asynchronously by default (`bAsync = true`); synchronous loading blocks the main thread — reserve it for startup/preload scenarios  
+- Natural-end timing uses unscaled real time (`AudioSource` is not affected by `timeScale`): at `timeScale = 0` a non-looping voice still finishes in real time and auto-releases its handle  
+- `Stop(handle, fadeout)` and `FadeAudio(handle, ...)` take over the same handle's volume exclusively (the later call cancels the former) — do not stack them  
 - Scene load auto `StopAllButPersistent`; set `Persistent = true` for cross-scene audio  
 - Handles are auto-released; do not rely on long-lived manual `ReleaseHandle`  
 - Cold APIs (`PlayFade` / `StopByID`) may allocate lambdas; hot path uses 16B `AudioPlayRequest`

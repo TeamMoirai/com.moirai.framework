@@ -147,6 +147,9 @@ AudioService.Stop(h2, fadeoutDuration: 0.2f);
 - 各工厂方法与重载的 `DoNotAutoRecycle` 默认统一为 true（不抢占未播完的通道）  
 - 无可用通道的告警按轨节流（3 秒）降级为 Warning  
 - 手动 `FadeAudio` / 快照过渡依赖服务 `Tick` 推进  
+- 路径播放 `Play(path, ...)` 默认异步加载（`bAsync = true`）；同步加载阻塞主线程，仅限启动期/预加载显式使用  
+- 自然结束计时按未缩放真实时间推进（`AudioSource` 不受 `timeScale` 影响）：`timeScale = 0` 时非循环音仍会真实播完并自动释放句柄  
+- `Stop(handle, fadeout)` 与 `FadeAudio(handle, ...)` 互斥接管同句柄音量（后调用者取消前者），请勿混用叠加  
 - 加载新场景自动 `StopAllButPersistent`；跨场景音频设 `Persistent = true`  
 - 句柄由服务自动释放，无需（也不应长期）手动 `ReleaseHandle`  
 - 冷路径 API（`PlayFade` / `StopByID`）允许 lambda；热路径用 16B `AudioPlayRequest`
