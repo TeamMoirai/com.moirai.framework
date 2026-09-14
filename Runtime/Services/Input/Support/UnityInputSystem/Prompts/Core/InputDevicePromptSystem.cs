@@ -49,6 +49,11 @@ namespace Moirai.Atropos.Input.Prompts
         /// 当前是否已初始化
         /// </summary>
         private static bool s_Initialized = false;
+
+        /// <summary>
+        /// 是否已尝试过初始化——失败后不再重复尝试，避免每次调用重复刷告警
+        /// </summary>
+        private static bool s_InitializeAttempted = false;
         
         /// <summary>
         /// 设置文件
@@ -80,13 +85,20 @@ namespace Moirai.Atropos.Input.Prompts
                 return true;
             }
 
+            // Initialize 失败时 settings 可能为空；对外 API 按降级契约返回 false
+            if (s_Settings == null)
+            {
+                inputDevice = null;
+                return false;
+            }
+
             // 获取当前平台
             var platform = Application.platform;
             // 检查是否有平台覆盖
             foreach (var platformOverride in s_Settings.RuntimePlatformsOverride)
             {
                 if (platformOverride.platform == platform)
-                { 
+                {
                     inputDevice = platformOverride.devicePromptData;
                     return true;
                 }
@@ -101,6 +113,7 @@ namespace Moirai.Atropos.Input.Prompts
         /// </summary>
         private static void Initialize()
         {
+            s_InitializeAttempted = true;
             LogUtility.Info("Initialising InputDevicePromptSystem");
             s_Settings = InputSystemDevicePromptSettings.Instance;
             
@@ -136,6 +149,46 @@ namespace Moirai.Atropos.Input.Prompts
         }
 
         /// <summary>
+        /// 确保已尝试初始化；曾初始化失败则静默返回（告警只在首次失败时输出一次），由调用方按降级路径处理
+        /// </summary>
+        private static void EnsureInitialized()
+        {
+            if (s_Initialized || s_InitializeAttempted) return;
+            Initialize();
+        }
+
+        /// <summary>
+        /// 释放事件订阅并清空全部静态状态。
+        /// </summary>
+        /// <remarks>
+        /// 供显式关闭与编辑器"禁用 Domain Reload 的 Enter Play Mode"设置下的静态重置使用——
+        /// 不重置时 <see cref="InputSystem.onAnyButtonPress"/>/<see cref="InputSystem.onDeviceChange"/>
+        /// 订阅会在多次进入 Play Mode 间重复累积。
+        /// </remarks>
+        public static void Shutdown()
+        {
+            s_EventListener?.Dispose();
+            s_EventListener = null;
+            InputSystem.onDeviceChange -= OnDeviceChange;
+
+            s_ActionBindingMap.Clear();
+            s_DeviceDataBindingMap.Clear();
+            s_ActiveDevice = null;
+            s_PlatformDeviceOverride = null;
+            s_Settings = null;
+            s_Initialized = false;
+            s_InitializeAttempted = false;
+        }
+
+#if UNITY_EDITOR
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetStaticsForDomainReloadDisabled()
+        {
+            Shutdown();
+        }
+#endif
+
+        /// <summary>
         /// 在设备更改时调用
         /// </summary>
         /// <param name="device"></param>
@@ -166,7 +219,7 @@ namespace Moirai.Atropos.Input.Prompts
         /// <returns></returns>
         public static string InsertPromptSprites(string inputText, bool isComposite)
         {
-            if (!s_Initialized) Initialize();
+            EnsureInitialized();
             if (!s_Initialized) return "InputSystemDevicePrompt Settings missing - please create using menu item 'Window/Input System Device Prompts/Create Settings'";
 
             var replacedText = inputText;
@@ -200,7 +253,7 @@ namespace Moirai.Atropos.Input.Prompts
         /// <remarks>不支持复合标签。例如 WASD，如果 <see cref="isComposite"/> = <c>false</c>，会只返回第一个 W，建议将 <see cref="isComposite"/> 设为 <c>true</c></remarks>
         public static Sprite GetActionPathBindingSprite(string inputTag, bool isComposite)
         {
-            if (!s_Initialized) Initialize();
+            EnsureInitialized();
 
             if (s_PlatformDeviceOverride == null) // 非平台覆盖
             {
@@ -247,7 +300,7 @@ namespace Moirai.Atropos.Input.Prompts
         /// <returns></returns>
         public static Sprite GetDeviceSprite(string spriteName)
         {
-            if (!s_Initialized) Initialize();
+            EnsureInitialized();
 
             GlyphMap validDevice;
 

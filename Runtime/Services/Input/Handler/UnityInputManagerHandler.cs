@@ -1,14 +1,18 @@
-﻿#if ENABLE_LEGACY_INPUT_MANAGER
+#if ENABLE_LEGACY_INPUT_MANAGER
 using System;
-using UnityEngine;
 using System.Collections.Generic;
+using UnityEngine;
 
 namespace Moirai.Atropos.Input
 {
     /// <summary>
     /// 基于 Unity 旧版输入管理器，需定义 ENABLE_LEGACY_INPUT_MANAGER。
     /// </summary>
-    /// <remarks>此方案用于桌面游戏。</remarks>
+    /// <remarks>
+    /// 此方案用于桌面游戏。动作名直接映射 Input Manager（Project Settings &gt; Input Manager）中注册的
+    /// Axis/Button 名称，<paramref name="actionGroup"/> 参数仅为外观契约兼容，此实现忽略分组。
+    /// <para>Vector2 动作遵循约定：读取同名 "X X"/"Y Y" 后缀轴（例如 "Move" 读取 "Move X" 与 "Move Y"）。</para>
+    /// </remarks>
     [Serializable]
     public sealed class UnityInputManagerHandler : InputServiceHandler
     {
@@ -28,7 +32,12 @@ namespace Moirai.Atropos.Input
         private readonly InputStateMachine _state = new InputStateMachine();
 
         private readonly Dictionary<string, Vector2Action> _vector2Actions = new Dictionary<string, Vector2Action>();
-        private readonly HashSet<string> _validAxes = new HashSet<string>();
+
+        // 注册校验缓存：Input Manager 轴表是构建期静态数据，按调用种类（Button/Axis）惰性探测一次后终身缓存。
+        // 探测借助旧版 Input API 对未注册名称抛 ArgumentException 的行为实现，不依赖编辑器 API；
+        // 探测为只读操作（GetButtonDown/GetAxisRaw 无消费语义），不影响输入状态本身。
+        private readonly Dictionary<string, bool> _registeredButtons = new Dictionary<string, bool>();
+        private readonly Dictionary<string, bool> _registeredAxes = new Dictionary<string, bool>();
 
         public override bool Enabled
         {
@@ -56,72 +65,39 @@ namespace Moirai.Atropos.Input
         protected override void OnInit()
         {
             _state.ResetRequested += ResetAllInputStates;
-            var axes = UnityEngine.Input.GetJoystickNames();
-            for (int i = 0; i < axes.Length; i++)
-            {
-                if (!string.IsNullOrEmpty(axes[i]))
-                {
-                    _validAxes.Add(axes[i]);
-                }
-            }
         }
 
         protected override void OnShutdown()
         {
             _state.ResetRequested -= ResetAllInputStates;
             _vector2Actions.Clear();
-            _validAxes.Clear();
+            _registeredButtons.Clear();
+            _registeredAxes.Clear();
         }
 
-        public override bool GetButtonDown(string actionName, string actionGroup)
+        public override bool GetButtonDown(string actionName, string actionGroup = "")
         {
-            if (!IsValidAxis(actionName))
-            {
-                PrintInputWarning(actionName);
-                return false;
-            }
-
-            return UnityEngine.Input.GetButtonDown(actionName);
+            return IsRegisteredButton(actionName) && UnityEngine.Input.GetButtonDown(actionName);
         }
 
-        public override bool GetButtonUp(string actionName, string actionGroup)
+        public override bool GetButtonUp(string actionName, string actionGroup = "")
         {
-            if (!IsValidAxis(actionName))
-            {
-                PrintInputWarning(actionName);
-                return false;
-            }
-
-            return UnityEngine.Input.GetButtonUp(actionName);
+            return IsRegisteredButton(actionName) && UnityEngine.Input.GetButtonUp(actionName);
         }
-        
+
         public override bool GetBool(string actionName, string actionGroup = "")
         {
-            if (!IsValidAxis(actionName))
-            {
-                PrintInputWarning(actionName);
-                return false;
-            }
-
-            return UnityEngine.Input.GetButton(actionName);
+            return IsRegisteredButton(actionName) && UnityEngine.Input.GetButton(actionName);
         }
 
         public override float GetFloat(string actionName, string actionGroup = "")
         {
-            if (!IsValidAxis(actionName))
-            {
-                PrintInputWarning(actionName);
-                return 0f;
-            }
-
-            return UnityEngine.Input.GetAxisRaw(actionName);
+            return IsRegisteredAxis(actionName) ? UnityEngine.Input.GetAxisRaw(actionName) : 0f;
         }
 
         public override Vector2 GetVector2(string actionName, string actionGroup = "")
         {
-            bool found = _vector2Actions.TryGetValue(actionName, out Vector2Action vector2Action);
-
-            if (!found)
+            if (!_vector2Actions.TryGetValue(actionName, out Vector2Action vector2Action))
             {
                 vector2Action = new Vector2Action(
                     string.Concat(actionName, " X"),
@@ -131,13 +107,8 @@ namespace Moirai.Atropos.Input
                 _vector2Actions.Add(actionName, vector2Action);
             }
 
-            float x = IsValidAxis(vector2Action.X) ? UnityEngine.Input.GetAxisRaw(vector2Action.X) : 0f;
-            float y = IsValidAxis(vector2Action.Y) ? UnityEngine.Input.GetAxisRaw(vector2Action.Y) : 0f;
-
-            if (!IsValidAxis(vector2Action.X) || !IsValidAxis(vector2Action.Y))
-            {
-                PrintInputWarning(vector2Action.X, vector2Action.Y);
-            }
+            float x = IsRegisteredAxis(vector2Action.X) ? UnityEngine.Input.GetAxisRaw(vector2Action.X) : 0f;
+            float y = IsRegisteredAxis(vector2Action.Y) ? UnityEngine.Input.GetAxisRaw(vector2Action.Y) : 0f;
 
             return new Vector2(x, y);
         }
@@ -146,9 +117,9 @@ namespace Moirai.Atropos.Input
         {
             switch (button)
             {
-                case EMouseButton.Right: 
+                case EMouseButton.Right:
                     return UnityEngine.Input.GetMouseButton(1);
-                case EMouseButton.Middle: 
+                case EMouseButton.Middle:
                     return UnityEngine.Input.GetMouseButton(2);
                 default:
                     return UnityEngine.Input.GetMouseButton(0);
@@ -167,7 +138,7 @@ namespace Moirai.Atropos.Input
                     return UnityEngine.Input.GetMouseButtonDown(0);
             }
         }
-        
+
         public override bool GetMouseButtonUp(EMouseButton button)
         {
             switch (button)
@@ -196,19 +167,54 @@ namespace Moirai.Atropos.Input
             UnityEngine.Input.ResetInputAxes();
         }
 
-        private bool IsValidAxis(string axisName)
+        /// <summary>
+        /// 校验动作名是否已在 Input Manager 中注册为 Button（未注册时惰性探测一次并缓存，告警只在探测失败时发一次）。
+        /// </summary>
+        private bool IsRegisteredButton(string actionName)
         {
-            return _validAxes.Contains(axisName);
+            if (!_registeredButtons.TryGetValue(actionName, out bool registered))
+            {
+                try
+                {
+                    _ = UnityEngine.Input.GetButtonDown(actionName);
+                    registered = true;
+                }
+                catch (ArgumentException)
+                {
+                    registered = false;
+                    LogUtility.Warning(StringUtility.Format(
+                        "[{0}] action not found! Please make sure this action is included in your input settings (button).", actionName));
+                }
+
+                _registeredButtons.Add(actionName, registered);
+            }
+
+            return registered;
         }
 
-        private void PrintInputWarning(string actionName)
+        /// <summary>
+        /// 校验动作名是否已在 Input Manager 中注册为 Axis（未注册时惰性探测一次并缓存，告警只在探测失败时发一次）。
+        /// </summary>
+        private bool IsRegisteredAxis(string actionName)
         {
-            LogUtility.Warning(StringUtility.Format("[{0}] action not found! Please make sure this action is included in your input settings (axis).", actionName));
-        }
+            if (!_registeredAxes.TryGetValue(actionName, out bool registered))
+            {
+                try
+                {
+                    _ = UnityEngine.Input.GetAxisRaw(actionName);
+                    registered = true;
+                }
+                catch (ArgumentException)
+                {
+                    registered = false;
+                    LogUtility.Warning(StringUtility.Format(
+                        "[{0}] action not found! Please make sure this action is included in your input settings (axis).", actionName));
+                }
 
-        private void PrintInputWarning(string actionXName, string actionYName)
-        {
-            LogUtility.Warning(StringUtility.Format("[{0}] and/or [{1}] actions not found! Please make sure both of these actions are included in your input settings (axis).", actionXName, actionYName));
+                _registeredAxes.Add(actionName, registered);
+            }
+
+            return registered;
         }
     }
 }

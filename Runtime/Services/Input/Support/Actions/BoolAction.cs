@@ -5,6 +5,13 @@ namespace Moirai.Atropos.Input
     /// <summary>
     /// 此结构体包含所有按钮状态，这些状态会逐帧进行更新。
     /// </summary>
+    /// <remarks>
+    /// 帧序契约（必须严格遵守，否则边沿标志与 IsPressed 等派生属性将失效）：
+    /// 每帧先写入 <see cref="Value"/>，再调用 <see cref="Update"/>，随后读取
+    /// <see cref="Started"/>/<see cref="Canceled"/> 等状态，最后调用 <see cref="Reset"/>
+    /// 清除边沿标志，等待下一帧。<see cref="Update"/> 内部以上一帧值为基准累积边沿，
+    /// 不调用 <see cref="Reset"/> 会使 <see cref="Started"/> 恒为 true、<see cref="IsPressed"/> 恒为 false。
+    /// </remarks>
     [System.Serializable]
     public struct BoolAction
     {
@@ -94,6 +101,7 @@ namespace Moirai.Atropos.Input
         /// <summary>
         /// 重置动作。
         /// </summary>
+        /// <remarks>清除 <see cref="Started"/>/<see cref="Canceled"/> 边沿标志；必须在每帧读取状态之后调用（详见类型级帧序契约）。</remarks>
         public void Reset()
         {
             Started = false;

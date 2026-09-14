@@ -140,5 +140,9 @@ namespace Moirai.Atropos.Input
         {
             _drag = false;
         }
+
+        // 自注册到 UIMobileInputRegistry：延迟实例化（对象池/动态生成）的虚拟摇杆也可被查询，销毁后自动注销
+        private void OnEnable() => UIMobileInputRegistry.Register(this);
+        private void OnDisable() => UIMobileInputRegistry.Unregister(this);
     }
 }

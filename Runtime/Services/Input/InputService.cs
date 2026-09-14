@@ -62,10 +62,6 @@ namespace Moirai.Atropos.Input
 
         #endregion
 
-        #region 属性 [PROPERTIES]
-		
-        #endregion
-
         #region 状态管理 [STATE MANAGEMENT]
 
         /// <summary>
@@ -130,7 +126,7 @@ namespace Moirai.Atropos.Input
             s_Handler?.GetButtonUp(actionName, actionGroup) ?? false;
 
         /// <summary>
-        /// 按钮是否被按住
+        /// 按钮是否被按住（<see cref="GetBool"/> 的别名，保留以贴近旧版 Input 习惯命名）。
         /// </summary>
         /// <param name="actionName">输入动作名，如果为全称则 actionGroup 置空</param>
         /// <param name="actionGroup">输入动作分组</param>
@@ -139,7 +135,7 @@ namespace Moirai.Atropos.Input
             GetBool(actionName, actionGroup);
 
         /// <summary>
-        /// 按钮是否被按住
+        /// 按钮是否被按住（<see cref="GetBool"/> 的别名，保留以贴近旧版 Input 习惯命名）。
         /// </summary>
         /// <param name="actionName">输入动作名，如果为全称则 actionGroup 置空</param>
         /// <param name="actionGroup">输入动作分组</param>
@@ -216,20 +212,31 @@ namespace Moirai.Atropos.Input
 
         #region 事件 [EVENTS]
 
+        // 失焦/回焦联动：重复焦点事件去重，避免连续失焦把记录值覆盖为 false 导致回焦后输入永久关闭
+        private static readonly FocusInputGuard s_FocusGuard = new FocusInputGuard();
+
         private static void ResetInput(GameAppMessageEvent evt)
         {
-            if (s_Handler == null) return;
+            var handler = s_Handler;
+            if (handler == null) return;
 
+            bool hasFocus;
             switch (evt.EventType)
             {
-                case EMessageEventType.ApplicationFocus:
-                    s_Handler.Enabled = true;
+                case EMessageEventType.NotApplicationFocus:
+                    hasFocus = false;
                     break;
 
-                case EMessageEventType.NotApplicationFocus:
-                    s_Handler.Enabled = false;
+                case EMessageEventType.ApplicationFocus:
+                    hasFocus = true;
                     break;
+
+                default:
+                    return;
             }
+
+            bool? target = s_FocusGuard.Evaluate(hasFocus, handler.Enabled);
+            if (target.HasValue) handler.Enabled = target.Value;
         }
 
         private static void RefreshUIModal(UIServiceEvent evt)
@@ -241,6 +248,17 @@ namespace Moirai.Atropos.Input
                 s_Handler.SetUIModal(UIService.CurrentModal != null);
             }
         }
+
+#if UNITY_EDITOR
+        /// <summary>
+        /// 编辑器禁用 Domain Reload 的 Enter Play Mode 设置下重置静态字段——失焦记录不得跨 Play 会话残留。
+        /// </summary>
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetStaticsForDomainReloadDisabled()
+        {
+            s_FocusGuard.Reset();
+        }
+#endif
 
         #endregion
     }

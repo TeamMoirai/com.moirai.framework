@@ -85,10 +85,15 @@ namespace Moirai.Atropos.Input
 
         /// <summary>
         /// 设置 UI 模态状态。由 <see cref="InputService"/> 的事件回调驱动。
+        /// <para>进入模态与进入其他压制态语义对齐：触发一次输入重置，清掉残留的按住状态，
+        /// 避免模态弹出瞬间 gameplay 输入泄漏；退出模态不重置（玩家可能正合法按住输入）。</para>
         /// </summary>
         public void SetUIModal(bool hasModal)
         {
+            if (_hasUIModal == hasModal) return;
+
             _hasUIModal = hasModal;
+            if (hasModal) ResetRequested?.Invoke();
         }
     }
 }
