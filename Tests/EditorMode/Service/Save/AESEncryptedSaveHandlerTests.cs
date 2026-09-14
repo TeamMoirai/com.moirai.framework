@@ -12,13 +12,13 @@ using UnityEngine.TestTools;
 namespace Service.Save
 {
     /// <summary>
-    /// <see cref="AesEncryptedSaveHandler"/> 全链路（容器组装 → 加密 → 文件头 → 落盘 → 读盘 → 校验 → 解密 → 容器解析）往返测试。
+    /// <see cref="AESEncryptedSaveHandler"/> 全链路（容器组装 → 加密 → 文件头 → 落盘 → 读盘 → 校验 → 解密 → 容器解析）往返测试。
     /// <para>直接经 <c>protected internal</c> 成员注入密钥与调用管线（测试程序集在 <c>InternalsVisibleTo</c> 白名单内），
     /// 不创建 [Serializable] 处理器子类、不触达 <see cref="SaveServiceSettings"/> 全局配置。</para>
     /// <para>错误日志断言经 <see cref="LogUtility.OnMessageLogged"/> 事件捕获（Handler 无关）；
     /// DefaultLogHandler 同步链路下另补 <c>LogAssert.Expect</c> 消除 UTF 的未预期日志拦截。</para>
     /// </summary>
-    public class AesEncryptedSaveHandlerTests
+    public class AESEncryptedSaveHandlerTests
     {
         [Serializable]
         private sealed class SaveData
@@ -27,7 +27,7 @@ namespace Service.Save
             public string PlayerName;
         }
 
-        private AesEncryptedSaveHandler _handler;
+        private AESEncryptedSaveHandler _handler;
         private string _directoryPath;
         private SaveServiceHandler.SavePaths _paths;
         private List<(ELogLevel Level, string Message)> _capturedLogs;
@@ -35,7 +35,7 @@ namespace Service.Save
         [SetUp]
         public void SetUp()
         {
-            _handler = new AesEncryptedSaveHandler
+            _handler = new AESEncryptedSaveHandler
             {
                 Key = "test-key-123"
             };
@@ -111,8 +111,8 @@ namespace Service.Save
         [Test]
         public void WrongKey_FailsAtIntegrityCheck()
         {
-            var writer = new AesEncryptedSaveHandler { Key = "key-for-write" };
-            var reader = new AesEncryptedSaveHandler { Key = "key-for-read" };
+            var writer = new AESEncryptedSaveHandler { Key = "key-for-write" };
+            var reader = new AESEncryptedSaveHandler { Key = "key-for-read" };
 
             writer.SaveBlockCore(_paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 99, PlayerName = "Moirai" }, ESaveBackend.Json, 1, CancellationToken.None);
 

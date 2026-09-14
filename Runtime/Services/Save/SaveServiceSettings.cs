@@ -12,7 +12,16 @@ namespace Moirai.Atropos.Save
         [InfoBox("加密处理器须配置密钥提供方（推荐 StaticSaveKeyProvider，并替换占位口令/盐文）。未配置时回退占位默认静态密钥，SECURITY: 发布前必须替换。", InfoMessageType.Warning, nameof(ShowMissingKeyProviderWarning))]
         [ProviderDropdown]
         [SerializeReference] private SaveServiceHandler m_SaveServiceHandler = new PlainSaveHandler();
+        private bool IsEncryptedHandler => m_SaveServiceHandler is AESEncryptedSaveHandler;
 
+        /// <summary>加密处理器未配置密钥提供方时显示告警（运行期回退占位默认静态密钥）。</summary>
+        private bool ShowMissingKeyProviderWarning => IsEncryptedHandler && m_KeyProvider == null;
+        
+        [ShowIf(nameof(IsEncryptedHandler))]
+        [Tooltip("密钥提供方：加密密钥来源（空 = 回退 StaticSaveKeyProvider.Default 占位默认）。推荐配置 StaticSaveKeyProvider 并替换占位口令/盐文；口令注入 / HKDF 按用户派生等进阶策略在此接入。")]
+        [ProviderDropdown]
+        [SerializeReference] private SaveKeyProvider m_KeyProvider;
+        
         [Tooltip("存储后端：存档 IO 的下沉目标（默认本地文件；云存档等自定义后端继承 SaveStorageBackend 接入）。置空时回退本地文件后端。")]
         [ProviderDropdown]
         [SerializeReference] private SaveStorageBackend m_StorageBackend = new FileSaveStorageBackend();
@@ -20,11 +29,6 @@ namespace Moirai.Atropos.Save
         [Tooltip("压缩提供方：容器字节在加密前压缩（空 = 不压缩）。写出档的文件头记录提供方 ID；自定义提供方须注册到 SaveCompressionRegistry 才能读回旧档。")]
         [ProviderDropdown]
         [SerializeReference] private SaveCompressionProvider m_CompressionProvider;
-
-        [ShowIf(nameof(IsEncryptedHandler))]
-        [Tooltip("密钥提供方：加密密钥来源（空 = 回退 StaticSaveKeyProvider.Default 占位默认）。推荐配置 StaticSaveKeyProvider 并替换占位口令/盐文；口令注入 / HKDF 按用户派生等进阶策略在此接入。")]
-        [ProviderDropdown]
-        [SerializeReference] private SaveKeyProvider m_KeyProvider;
 
         [Tooltip("默认序列化后端：未显式声明后端的数据块（无 SaveDataAttribute）使用该后端。二进制后端要求项目已引入对应 NuGet 包。")]
         [SerializeField] private ESaveBackend m_DefaultBackend = ESaveBackend.Json;
@@ -46,12 +50,7 @@ namespace Moirai.Atropos.Save
         [Tooltip("截图缩略图最长边（像素，保纵横比不放大）。")]
         [MinValue(16)]
         [SerializeField] private int m_ScreenshotMaxDimension = SaveScreenshotUtility.DEFAULT_MAX_DIMENSION;
-
-        private bool IsEncryptedHandler => m_SaveServiceHandler is AesEncryptedSaveHandler;
-
-        /// <summary>加密处理器未配置密钥提供方时显示告警（运行期回退占位默认静态密钥）。</summary>
-        private bool ShowMissingKeyProviderWarning => IsEncryptedHandler && m_KeyProvider == null;
-
+        
         /// <summary>
         /// 存档处理器实例（由 Inspector 序列化配置，可替换存储管线策略）。
         /// </summary>

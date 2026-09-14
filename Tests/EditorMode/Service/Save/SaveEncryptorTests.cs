@@ -37,8 +37,8 @@ namespace Service.Save
         public void DefaultIterations_IsDocumentedBaseline()
         {
             // 派生强度基线：默认迭代次数降低会被静默削弱安全预算，此处锁死
-            Assert.AreEqual(100000, SaveEncryptor.DefaultIterations);
-            Assert.AreEqual(SaveEncryptor.DefaultIterations, new SaveEncryptor().Iterations);
+            Assert.AreEqual(100000, SaveEncryptor.DEFAULT_ITERATIONS);
+            Assert.AreEqual(SaveEncryptor.DEFAULT_ITERATIONS, new SaveEncryptor().Iterations);
         }
 
         [TestCase(0)]

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using Moirai.Atropos;
 using Moirai.Atropos.UI;
 using UnityEngine;
-using Object = UnityEngine.Object;
+using UObject = UnityEngine.Object;
 
 namespace Moirai.Main
 {
@@ -30,10 +30,10 @@ namespace Moirai.Main
 
             if (!s_UIMapDict.TryGetValue(uiName, out var uiBase))
             {
-                Object obj = Resources.Load(UpdateSettings.UIWindowPath + uiName);
+                UObject obj = Resources.Load(UpdateSettings.UIWindowPath + uiName);
                 if (obj != null)
                 {
-                    var uiWindow = Object.Instantiate(obj) as GameObject;
+                    var uiWindow = UObject.Instantiate(obj) as GameObject;
 
                     if (uiWindow != null)
                     {
@@ -80,7 +80,7 @@ namespace Moirai.Main
             }
 
             uiWindow?.Hide();
-            Object.DestroyImmediate(uiWindow?.gameObject);
+            UObject.DestroyImmediate(uiWindow?.gameObject);
             s_UIMapDict.Remove(uiName);
         }
 
@@ -99,7 +99,7 @@ namespace Moirai.Main
             foreach (var ui in s_UIMapDict.Values)
             {
                 ui?.Hide();
-                Object.Destroy(ui?.gameObject);
+                UObject.Destroy(ui?.gameObject);
             }
             s_UIMapDict.Clear();
         }

@@ -4,6 +4,7 @@ using Cysharp.Threading.Tasks;
 using Moirai.Atropos;
 using Moirai.Atropos.Resource;
 using UnityEngine;
+using UObject = UnityEngine.Object;
 
 namespace Moirai.Main
 {
@@ -96,7 +97,7 @@ namespace Moirai.Main
         {
             _loadedFlag.Add(location, false);
 
-            var lease = await ResourceService.LoadLeaseAsync<UnityEngine.Object>(location);
+            var lease = await ResourceService.LoadLeaseAsync<UObject>(location);
             try
             {
                 LogUtility.Debug("Success preload asset from '{0}' duration '{1}'.", location, 0);
