@@ -37,14 +37,24 @@ namespace Moirai.Atropos.Audio
         /// </summary>
         /// <param name="handler">音频处理器</param>
         /// <param name="audioGroupConfig">音频轨道组配置。</param>
+        /// <exception cref="ArgumentNullException">handler 或 audioGroupConfig 为 null。</exception>
         public AudioCategory(AudioServiceHandler handler, AudioGroupConfig audioGroupConfig)
         {
+            // Fail-Fast：配置缺失时构造期即抛，避免后续 NRE 链
+            if (handler == null) throw new ArgumentNullException(nameof(handler));
+            if (audioGroupConfig == null) throw new ArgumentNullException(nameof(audioGroupConfig));
+
             _handler = handler;
             _audioGroupConfig = audioGroupConfig;
             _maxChannel = audioGroupConfig.MaxChannel;
 
+            // MixerGroup 可空（AudioAgent.Init 有降级路径），命名回退到音轨名
+            string categoryName = audioGroupConfig.AudioMixerGroup != null
+                ? audioGroupConfig.AudioMixerGroup.name
+                : audioGroupConfig.AudioTrack.ToString();
+
             AudioAgents = new List<AudioAgent>(_maxChannel);
-            InstanceRoot = new GameObject(StringUtility.Format("Audio Category - {0}", audioGroupConfig.AudioMixerGroup.name)).transform;
+            InstanceRoot = new GameObject(StringUtility.Format("Audio Category - {0}", categoryName)).transform;
             InstanceRoot.SetParent(handler.InstanceRoot);
             for (int index = 0; index < _maxChannel; index++)
             {
@@ -95,7 +105,7 @@ namespace Moirai.Atropos.Audio
         /// <summary>
         /// 音频轨道轮询——仅遍历非空闲代理。
         /// </summary>
-        /// <param name="elapseSeconds">逻辑流逝时间（以秒为单位）。</param>
+        /// <param name="elapseSeconds">真实流逝时间（未缩放，以秒为单位）——AudioSource 播放不受 timeScale 影响。</param>
         public void Update(float elapseSeconds)
         {
             var agents = AudioAgents;
