@@ -278,11 +278,8 @@ namespace Moirai.Atropos.Debugger
                 _panelSettings = null;
             }
 
-            if (_runtimeSystemFont != null)
-            {
-                Destroy(_runtimeSystemFont);
-                _runtimeSystemFont = null;
-            }
+            // _runtimeSystemFont 经 GetBuiltinResource 取自引擎内置资产，只需清引用（内置资源随引擎释放）。
+            _runtimeSystemFont = null;
         }
 
         #endregion
@@ -412,19 +409,16 @@ namespace Moirai.Atropos.Debugger
             {
                 return _runtimeSystemFont;
             }
-
-            _runtimeSystemFont = CreateSystemFallbackFont();
+            
+            _runtimeSystemFont = Resources.GetBuiltinResource<Font>(
+#if UNITY_2022_1_OR_NEWER
+                "LegacyRuntime.ttf"
+                #else
+                "Arial.ttf"
+#endif
+                );
+            
             return _runtimeSystemFont;
-        }
-
-        private static Font CreateSystemFallbackFont()
-        {
-            // 新版本 Unity (2022+)
-            Font font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            if (font != null) return font;
-
-            // 兼容旧版本 (2018~2021)
-            return Resources.GetBuiltinResource<Font>("Arial.ttf");
         }
 
         #endregion
