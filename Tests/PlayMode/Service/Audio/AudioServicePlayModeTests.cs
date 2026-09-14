@@ -234,5 +234,48 @@ namespace Service.Audio
             bool stillPlaying = agent.AudioResource != null && agent.AudioResource.isPlaying;
             Assert.IsFalse(stillPlaying, "Stop 后 AudioSource 不应仍在播（杜绝孤儿循环音）");
         }
+
+        /// <summary>
+        /// 回归：自然结束计时必须走 unscaled 时间——timeScale=0 时 AudioSource 仍按真实时间播完，
+        /// agent 必须检测结束并自动释放句柄（修复前 Duration 按 scaled 累加，暂停时句柄永久悬挂、通道不可复用）。
+        /// </summary>
+        [UnityTest]
+        public IEnumerator NaturalEnd_AtZeroTimeScale_ReleasesHandle()
+        {
+            if (!Application.isPlaying) Assert.Ignore("需要 PlayMode");
+            var categories = _handler.AudioCategories;
+            if (categories == null || categories.Length == 0)
+            {
+                Assert.Ignore("AudioGroupConfigs 未配置，跳过");
+            }
+
+            // 0.2s 短 clip：真实播放时长 0.2s + 默认淡出 0.2s
+            var shortClip = AudioClip.Create("short_tone", 8820, 1, 44100, false);
+            var data = new float[8820];
+            for (int i = 0; i < data.Length; i++)
+            {
+                data[i] = Mathf.Sin(i * 0.05f) * 0.1f;
+            }
+
+            shortClip.SetData(data, 0);
+
+            ulong handle = _handler.Play(shortClip, MakeRequest(6001), null);
+            Assert.AreNotEqual(0UL, handle, "短音播放应返回有效句柄");
+
+            // 模拟 timeScale=0：scaled=0 / unscaled 真实推进。修复前 Duration 按第一个参数累加，永不触发结束。
+            float realElapsed = 0f;
+            while (realElapsed < 1.0f && !_handler.IsStopped(handle))
+            {
+                float realDelta = Time.unscaledDeltaTime;
+                realElapsed += realDelta;
+                _handler.Tick(0f, realDelta);
+                yield return null;
+            }
+
+            Object.Destroy(shortClip);
+
+            Assert.IsTrue(_handler.IsStopped(handle), "timeScale=0 下非循环音播完后必须自动结束并释放句柄");
+            Assert.IsNull(_handler.GetAgentByHandle(handle), "句柄映射应已自动清除，通道可复用");
+        }
     }
 }

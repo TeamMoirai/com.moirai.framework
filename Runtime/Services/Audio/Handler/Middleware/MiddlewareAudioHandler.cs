@@ -357,7 +357,7 @@ namespace Moirai.Atropos.Audio.Middleware
         #region 播放音频 [PLAY AUDIO]
 
         /// <inheritdoc />
-        public override ulong Play(AudioClip clip, AudioPlayOptions options)
+        public override ulong Play(AudioClip clip, in AudioPlayOptions options)
             => PlayWithRequest(clip, options.ToRequest(), AudioPlayColdParams.FromOptions(options));
 
         /// <inheritdoc />
@@ -365,7 +365,7 @@ namespace Moirai.Atropos.Audio.Middleware
             => PlayWithRequest(clip, request, cold);
 
         /// <inheritdoc />
-        public override ulong Play(string path, AudioPlayOptions options, bool bAsync = false, bool bInPool = false)
+        public override ulong Play(string path, in AudioPlayOptions options, bool bAsync, bool bInPool)
             => PlayEventPath(path, options.ToRequest(), AudioPlayColdParams.FromOptions(options));
 
         /// <summary>
