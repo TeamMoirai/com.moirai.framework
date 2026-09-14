@@ -4,24 +4,15 @@ using UnityEngine;
 namespace Moirai.Atropos.Save
 {
     /// <summary>
-    /// 存档服务设置：存档处理器（存储管线策略）、存储后端（IO 下沉目标）、压缩提供方、密钥提供方、默认序列化后端与文件扩展名。
+    /// 存档服务设置：存档处理器（存储管线策略）、存储后端（IO 下沉目标）、压缩提供方、默认序列化后端与文件扩展名。
     /// </summary>
     [FrameworkSetting("[服务]存档设置", "存档格式与加密配置", -410)]
     public class SaveServiceSettings : FrameworkSettings<SaveServiceSettings>
     {
-        [InfoBox("加密处理器须配置密钥提供方（推荐 StaticSaveKeyProvider，并替换占位口令/盐文）。未配置时回退占位默认静态密钥，SECURITY: 发布前必须替换。", InfoMessageType.Warning, nameof(ShowMissingKeyProviderWarning))]
+        [Tooltip("存储管线处理器（PlainSaveHandler / AESEncryptedSaveHandler）。密钥提供方内嵌在 AES 处理器上配置，不在本设置平铺。")]
         [ProviderDropdown]
         [SerializeReference] private SaveServiceHandler m_SaveServiceHandler = new PlainSaveHandler();
-        private bool IsEncryptedHandler => m_SaveServiceHandler is AESEncryptedSaveHandler;
 
-        /// <summary>加密处理器未配置密钥提供方时显示告警（运行期回退占位默认静态密钥）。</summary>
-        private bool ShowMissingKeyProviderWarning => IsEncryptedHandler && m_KeyProvider == null;
-        
-        [ShowIf(nameof(IsEncryptedHandler))]
-        [Tooltip("密钥提供方：加密密钥来源（空 = 回退 StaticSaveKeyProvider.Default 占位默认）。推荐配置 StaticSaveKeyProvider 并替换占位口令/盐文；口令注入 / HKDF 按用户派生等进阶策略在此接入。")]
-        [ProviderDropdown]
-        [SerializeReference] private SaveKeyProvider m_KeyProvider;
-        
         [Tooltip("存储后端：存档 IO 的下沉目标（默认本地文件；云存档等自定义后端继承 SaveStorageBackend 接入）。置空时回退本地文件后端。")]
         [ProviderDropdown]
         [SerializeReference] private SaveStorageBackend m_StorageBackend = new FileSaveStorageBackend();
@@ -67,11 +58,6 @@ namespace Moirai.Atropos.Save
         public static SaveCompressionProvider CompressionProvider => Instance.m_CompressionProvider;
 
         /// <summary>
-        /// 密钥提供方实例（由 Inspector 序列化配置；<c>null</c> = 加密处理器回退 <see cref="StaticSaveKeyProvider.Default"/> 占位默认）。
-        /// </summary>
-        public static SaveKeyProvider KeyProvider => Instance.m_KeyProvider;
-
-        /// <summary>
         /// 默认序列化后端（未显式声明后端的数据块使用该后端）。
         /// </summary>
         public static ESaveBackend DefaultBackend => Instance.m_DefaultBackend;
@@ -111,7 +97,6 @@ namespace Moirai.Atropos.Save
             m_SaveServiceHandler = new PlainSaveHandler();
             m_StorageBackend = new FileSaveStorageBackend();
             m_CompressionProvider = null;
-            m_KeyProvider = null;
             m_DefaultBackend = ESaveBackend.Json;
             m_SaveFileExtension = ".sav";
             m_MigrationWriteBack = true;

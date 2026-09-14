@@ -6,7 +6,7 @@ namespace Moirai.Atropos.Save
 {
     /// <summary>
     /// 静态密钥提供方（默认）：固定口令 + 盐文经 PBKDF2-SHA256 派生密钥材料。
-    /// <para>SECURITY: 上线前必须替换占位口令与盐文（可在 Inspector 序列化配置，或运行期经 <see cref="Configure"/> 注入——如按平台账号派生）。</para>
+    /// <para>SECURITY: 上线前必须替换占位口令与盐文（可在 Inspector 序列化配置，或运行期经 <see cref="SetDerivationParameters"/> 注入——如按平台账号派生）。</para>
     /// </summary>
     [Serializable]
     public class StaticSaveKeyProvider : SaveKeyProvider
@@ -30,7 +30,7 @@ namespace Moirai.Atropos.Save
         internal static readonly StaticSaveKeyProvider Default = new StaticSaveKeyProvider();
 
         /// <summary>
-        /// 当前口令（只读；供处理器 <c>Key</c> 属性桥接回读）。
+        /// 当前口令（只读；供测试与调试回读配置值）。
         /// </summary>
         internal string Passphrase => m_Passphrase;
 
@@ -40,7 +40,7 @@ namespace Moirai.Atropos.Save
         /// <param name="passphrase">口令。</param>
         /// <param name="salt">盐文。</param>
         /// <param name="iterations">PBKDF2 迭代次数。</param>
-        public void Configure(string passphrase, string salt, int iterations)
+        public void SetDerivationParameters(string passphrase, string salt, int iterations)
         {
             m_Passphrase = passphrase;
             m_Salt = salt;

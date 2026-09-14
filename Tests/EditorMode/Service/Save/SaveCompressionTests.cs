@@ -56,6 +56,13 @@ namespace Save
         private string _rootPath;
         private List<(ELogLevel Level, string Message)> _capturedLogs;
 
+        private static AESEncryptedSaveHandler CreateHandler(string passphrase)
+        {
+            var provider = new StaticSaveKeyProvider();
+            provider.SetDerivationParameters(passphrase, SaveEncryptor.DEFAULT_SALT, SaveEncryptor.DEFAULT_ITERATIONS);
+            return new AESEncryptedSaveHandler { KeyProvider = provider };
+        }
+
         [SetUp]
         public void SetUp()
         {
@@ -237,7 +244,7 @@ namespace Save
         public void CompressedThenEncrypted_RoundTrips()
         {
             // 压 + 加组合：压缩在加密前、解压在解密后（顺序固定）
-            var handler = new AESEncryptedSaveHandler { Key = "compress-then-encrypt" };
+            var handler = CreateHandler("compress-then-encrypt");
             handler._compression = GZipCompressionProvider.Shared;
             var paths = Paths("combo");
             var data = new SaveData { Gold = 7, PlayerName = new string('E', 256) };
@@ -248,7 +255,7 @@ namespace Save
             SaveFileHeader.Read(fileBytes, out SaveFileHeader header);
             Assert.AreEqual(SaveFileHeader.FlagCompressed, header.Flags & SaveFileHeader.FlagCompressed);
 
-            var reader = new AESEncryptedSaveHandler { Key = "compress-then-encrypt" };
+            var reader = CreateHandler("compress-then-encrypt");
             SaveError error = reader.TryLoadBlockCore<SaveData>(paths, SaveServiceHandler.MAIN_BLOCK_KEY, out SaveData loaded);
             Assert.AreEqual(SaveError.None, error);
             Assert.AreEqual(7, loaded.Gold);

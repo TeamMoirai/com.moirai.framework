@@ -13,11 +13,12 @@ namespace Service.Save
 {
     /// <summary>
     /// <see cref="AESEncryptedSaveHandler"/> 全链路（容器组装 → 加密 → 文件头 → 落盘 → 读盘 → 校验 → 解密 → 容器解析）往返测试。
-    /// <para>直接经 <c>protected internal</c> 成员注入密钥与调用管线（测试程序集在 <c>InternalsVisibleTo</c> 白名单内），
+    /// <para>密钥经 internal 属性 <c>KeyProvider</c> 注入（测试程序集在 <c>InternalsVisibleTo</c> 白名单内），
     /// 不创建 [Serializable] 处理器子类、不触达 <see cref="SaveServiceSettings"/> 全局配置。</para>
     /// <para>错误日志断言经 <see cref="LogUtility.OnMessageLogged"/> 事件捕获（Handler 无关）；
     /// DefaultLogHandler 同步链路下另补 <c>LogAssert.Expect</c> 消除 UTF 的未预期日志拦截。</para>
     /// </summary>
+    // ReSharper disable once InconsistentNaming
     public class AESEncryptedSaveHandlerTests
     {
         [Serializable]
@@ -32,13 +33,17 @@ namespace Service.Save
         private SaveServiceHandler.SavePaths _paths;
         private List<(ELogLevel Level, string Message)> _capturedLogs;
 
+        private static AESEncryptedSaveHandler CreateHandler(string passphrase)
+        {
+            var provider = new StaticSaveKeyProvider();
+            provider.SetDerivationParameters(passphrase, SaveEncryptor.DEFAULT_SALT, SaveEncryptor.DEFAULT_ITERATIONS);
+            return new AESEncryptedSaveHandler { KeyProvider = provider };
+        }
+
         [SetUp]
         public void SetUp()
         {
-            _handler = new AESEncryptedSaveHandler
-            {
-                Key = "test-key-123"
-            };
+            _handler = CreateHandler("test-key-123");
 
             _directoryPath = Path.Combine(Path.GetTempPath(), "moirai-save-enc-tests-" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(_directoryPath);
@@ -111,8 +116,8 @@ namespace Service.Save
         [Test]
         public void WrongKey_FailsAtIntegrityCheck()
         {
-            var writer = new AESEncryptedSaveHandler { Key = "key-for-write" };
-            var reader = new AESEncryptedSaveHandler { Key = "key-for-read" };
+            var writer = CreateHandler("key-for-write");
+            var reader = CreateHandler("key-for-read");
 
             writer.SaveBlockCore(_paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 99, PlayerName = "Moirai" }, ESaveBackend.Json, 1, CancellationToken.None);
 
