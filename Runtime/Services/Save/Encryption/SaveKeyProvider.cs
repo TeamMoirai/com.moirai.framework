@@ -50,10 +50,10 @@ namespace Moirai.Atropos.Save
                 Secret = secret;
                 Secondary = secondary;
                 Iterations = iterations;
-                EncryptionKey = new byte[SaveEncryptor.EncryptionKeySize];
-                MacKey = new byte[SaveEncryptor.MacSize];
-                Buffer.BlockCopy(material, 0, EncryptionKey, 0, SaveEncryptor.EncryptionKeySize);
-                Buffer.BlockCopy(material, SaveEncryptor.EncryptionKeySize, MacKey, 0, SaveEncryptor.MacSize);
+                EncryptionKey = new byte[SaveEncryptor.ENCRYPTION_KEY_SIZE];
+                MacKey = new byte[SaveEncryptor.MAC_SIZE];
+                Buffer.BlockCopy(material, 0, EncryptionKey, 0, SaveEncryptor.ENCRYPTION_KEY_SIZE);
+                Buffer.BlockCopy(material, SaveEncryptor.ENCRYPTION_KEY_SIZE, MacKey, 0, SaveEncryptor.MAC_SIZE);
             }
 
             /// <summary>

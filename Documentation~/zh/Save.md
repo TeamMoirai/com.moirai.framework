@@ -260,9 +260,9 @@ await SaveService.RestoreEntitiesAsync("slot1");
 | `GetBlockInfos(fileName, folderName)` | 块元信息枚举（键/版本/后端/大小/逐块错误分型；坏块列入，`Error != None` 时框架字段仅 `HasMetadata` 为真可信） |
 | 同步对 `SaveBlock` / `LoadBlock` / `TryLoadBlock` / `DeleteBlock` | 主线程阻塞版（退出前落盘等场景） |
 
-### 兼容（旧单对象 API，映射保留块 `__main__`）
+### 便捷（单对象快速通道，映射保留块 `__main__`）
 
-`SaveAsync<T>` / `LoadAsync<T>` / `TryLoadAsync<T>` / `Save` / `Load` / `TryLoad`——签名与 v1 版一致。
+`SaveAsync<T>` / `LoadAsync<T>` / `TryLoadAsync<T>` / `Save` / `Load` / `TryLoad`——单对象读写快捷入口。
 
 ### 元数据 / 槽位 / 备份
 
@@ -298,9 +298,8 @@ await SaveService.RestoreEntitiesAsync("slot1");
 | `m_SaveServiceHandler` | 存储管线处理器（PlainSaveHandler / AesEncryptedSaveHandler） |
 | `m_StorageBackend` | 存储后端（IO 下沉目标，默认 FileSaveStorageBackend；置空回退文件后端；云存档选 `CloudSaveStorageBackend`——组合远端 KV 插拔件 + 冲突策略 + 自定义裁决器） |
 | `m_CompressionProvider` | 压缩提供方（空 = 不压缩；内置 GZipCompressionProvider） |
-| `m_KeyProvider` | 密钥提供方（空 = 静态密钥；可选 PassphraseSaveKeyProvider / HkdfPerUserSaveKeyProvider） |
+| `m_KeyProvider` | 密钥提供方（空 = 加密处理器回退 `StaticSaveKeyProvider.Default` 占位默认；可选 StaticSaveKeyProvider / PassphraseSaveKeyProvider / HkdfPerUserSaveKeyProvider） |
 | `m_DefaultBackend` | 默认序列化后端（未声明 `[SaveData]` 的块） |
-| `m_EncryptionKey` / `m_Pbkdf2Iterations` | 静态密钥参数（**SECURITY: 上线前必须替换占位密钥**；仅在密钥提供方为空时生效；派生密钥按实例缓存） |
 | `m_SaveFileExtension` | 存档文件扩展名（默认 `.sav`） |
 | `m_MigrationWriteBack` | 迁移回写（默认开）：加载触发迁移成功后惰性回写存档；关闭则迁移仅作用于当次加载的内存数据 |
 | `m_AssetCatalog` | 资产引用目录（SaveAssetCatalog SO）：无代码保存的资产引用字段经目录双向解析定位串；空 = 资产引用字段捕获恒写 Null |

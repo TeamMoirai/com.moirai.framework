@@ -9,7 +9,7 @@ namespace Moirai.Atropos.Save
     /// <summary>
     /// 存档服务外观（Facade）。
     /// <para>统一的静态存档访问入口。存档文件为「单文件多数据块」容器：一个文件（存档槽）内含多个按键寻址的数据块，
-    /// 块级 API（<c>SaveBlockAsync</c>/<c>LoadBlockAsync</c>/…）为主体；旧单对象 API（<c>SaveAsync</c>/<c>LoadAsync</c>/…）保留签名并映射到保留块 <see cref="MAIN_BLOCK_KEY"/>。</para>
+    /// 块级 API（<c>SaveBlockAsync</c>/<c>LoadBlockAsync</c>/…）为主体；便捷单对象 API（<c>SaveAsync</c>/<c>LoadAsync</c>/…）为快速通道，映射到保留块 <see cref="MAIN_BLOCK_KEY"/>。</para>
     /// <para>序列化后端（JSON/MessagePack/MemoryPack/protobuf-net）与存储管线（明文/AES 加密）两轴可插拔，经 <see cref="SaveServiceSettings"/> 配置。</para>
     /// <para>未显式设置处理器时，使用 <see cref="CreateDefaultHandler"/> 从 <see cref="SaveServiceSettings"/> 创建处理器实例。</para>
     /// <para>Handler 属性由 <c>HandlerHostGenerator</c> 源生成器自动生成（线程安全懒加载）。</para>
@@ -18,7 +18,7 @@ namespace Moirai.Atropos.Save
     [ServiceDependency(typeof(DebuggerService))]
     public partial class SaveService : ServiceBase
     {
-        /// <summary>兼容保留块键：旧单对象 API 读写的逻辑数据块。</summary>
+        /// <summary>便捷单对象 API 读写的保留数据块键。</summary>
         public const string MAIN_BLOCK_KEY = SaveServiceHandler.MAIN_BLOCK_KEY;
 
         #region 生命周期 [LIFECYCLE]
@@ -182,7 +182,7 @@ namespace Moirai.Atropos.Save
 
         #endregion
 
-        #region 兼容读写 [LEGACY SAVE / LOAD]
+        #region 便捷读写 [QUICK SAVE / LOAD]
 
         /// <summary>
         /// 将存档对象异步写入磁盘（映射到保留块 <see cref="MAIN_BLOCK_KEY"/> 的块写入），IO 在工作线程执行。

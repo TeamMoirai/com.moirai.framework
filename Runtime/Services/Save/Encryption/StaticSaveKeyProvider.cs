@@ -5,27 +5,27 @@ using UnityEngine;
 namespace Moirai.Atropos.Save
 {
     /// <summary>
-    /// 静态密钥提供方（默认）：固定口令 + 盐文经 PBKDF2-SHA256 派生密钥材料——与 V2 既有加密行为逐参一致（旧档可直接读回）。
+    /// 静态密钥提供方（默认）：固定口令 + 盐文经 PBKDF2-SHA256 派生密钥材料。
     /// <para>SECURITY: 上线前必须替换占位口令与盐文（可在 Inspector 序列化配置，或运行期经 <see cref="Configure"/> 注入——如按平台账号派生）。</para>
     /// </summary>
     [Serializable]
     public class StaticSaveKeyProvider : SaveKeyProvider
     {
-        [Tooltip("SECURITY: Must be changed to a unique, per-project secret before shipping.")]
-        [SerializeField] private string m_Passphrase = SaveEncryptor.DefaultPassphrase;
+        [Tooltip("SECURITY：发布前必须将其修改为每个项目唯一的密钥。")]
+        [SerializeField] private string m_Passphrase = SaveEncryptor.DEFAULT_PASSPHRASE;
 
-        [Tooltip("SECURITY: Must be changed to a unique, per-project salt before shipping.")]
-        [SerializeField] private string m_Salt = SaveEncryptor.DefaultSalt;
+        [Tooltip("SECURITY：发布前必须将其修改为每个项目唯一的盐值。")]
+        [SerializeField] private string m_Salt = SaveEncryptor.DEFAULT_SALT;
 
         [Tooltip("PBKDF2-SHA256 迭代次数：越高抗暴力破解越强，代价是首次派生耗时线性增长（派生结果按参数缓存）。")]
         [MinValue(1000)]
-        [SerializeField] private int m_Iterations = SaveEncryptor.DefaultIterations;
+        [SerializeField] private int m_Iterations = SaveEncryptor.DEFAULT_ITERATIONS;
 
         /// <summary>派生材料缓存（volatile 引用整体替换原子读；参数变更经 Matches 失配自动失效）。</summary>
         [NonSerialized] private volatile DerivedMaterial _cache;
 
         /// <summary>
-        /// 共享默认实例（占位参数——等价于 V2 未配置行为；未初始化/未配置路径回退使用）。
+        /// 共享默认实例（占位参数；未配置密钥提供方时的运行期回退）。
         /// </summary>
         internal static readonly StaticSaveKeyProvider Default = new StaticSaveKeyProvider();
 
