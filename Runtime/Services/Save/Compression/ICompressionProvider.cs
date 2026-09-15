@@ -16,15 +16,15 @@ namespace Moirai.Atropos.Save
         /// <summary>
         /// 压缩容器字节。
         /// </summary>
-        /// <param name="raw">容器字节。</param>
+        /// <param name="raw">容器字节视图（缓冲区可能为池化租赁——有效区间以视图为准）。</param>
         /// <returns>压缩字节。</returns>
-        byte[] Compress(byte[] raw);
+        byte[] Compress(SaveBufferSegment raw);
 
         /// <summary>
         /// 解压为容器字节（数据非法时抛异常，由读侧归一为 <see cref="SaveError.Corrupted"/>）。
         /// </summary>
-        /// <param name="packed">压缩字节。</param>
+        /// <param name="packed">压缩字节视图（缓冲区可能为池化租赁/文件大缓冲区别名——有效区间以视图为准）。</param>
         /// <returns>容器字节。</returns>
-        byte[] Decompress(byte[] packed);
+        byte[] Decompress(SaveBufferSegment packed);
     }
 }

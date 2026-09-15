@@ -40,6 +40,12 @@ namespace Moirai.Atropos.Save
         /// <summary>待回传/待删集合锁（并发远端操作共享；取改极快，非热路径）。</summary>
         [NonSerialized] private readonly object _syncLock = new object();
 
+        /// <summary>镜像独有回传的上次尝试时间（云端键 → UTC ticks；远端持续失败时冷却期内读路径不再重试——积压由 backfill 重放兜底）。</summary>
+        [NonSerialized] private readonly Dictionary<string, long> _uploadLastAttemptUtcTicks = new Dictionary<string, long>(StringComparer.Ordinal);
+
+        /// <summary>镜像独有回传的失败冷却时长（默认 30s；测试可注入零值强制立即重试）。</summary>
+        [NonSerialized] internal TimeSpan UploadRetryCooldown = TimeSpan.FromSeconds(30);
+
         /// <summary>待回传上传（云端键 → 本地镜像路径；远端写失败时登记，下次远端操作成功时重放）。</summary>
         [NonSerialized] private readonly Dictionary<string, string> _pendingUploads = new Dictionary<string, string>(StringComparer.Ordinal);
 
@@ -144,6 +150,18 @@ namespace Moirai.Atropos.Save
         public override void WriteAtomic(string filePath, byte[] bytes, CancellationToken cancellationToken)
         {
             Mirror.WriteAtomic(filePath, bytes, cancellationToken);
+        }
+
+        /// <summary>
+        /// 原子写入本地镜像（两段式：镜像为文件后端，真分段落盘零拼接；不同步远端）。
+        /// </summary>
+        /// <param name="filePath">目标文件完整路径。</param>
+        /// <param name="head">文件头部字节（先写入）。</param>
+        /// <param name="payload">载荷字节（头部之后写入）。</param>
+        /// <param name="cancellationToken">取消令牌。</param>
+        public override void WriteAtomic(string filePath, ReadOnlySpan<byte> head, ReadOnlySpan<byte> payload, CancellationToken cancellationToken)
+        {
+            Mirror.WriteAtomic(filePath, head, payload, cancellationToken);
         }
 
         /// <summary>
@@ -285,8 +303,12 @@ namespace Moirai.Atropos.Save
 
             if (!remoteEntry.HasValue)
             {
-                // 镜像独有 → 回传远端（离线落本地后的恢复路径同样走这里）
-                await UploadAsync(remote, cloudKey, filePath, localBytes, cancellationToken);
+                // 镜像独有 → 回传远端（离线落本地后的恢复路径同样走这里；失败冷却期内不重试——积压由 backfill 重放兜底）
+                if (!IsUploadCoolingDown(cloudKey))
+                {
+                    await UploadAsync(remote, cloudKey, filePath, localBytes, cancellationToken);
+                }
+
                 return localBytes;
             }
 
@@ -474,10 +496,11 @@ namespace Moirai.Atropos.Save
                 return localFiles;
             }
 
+            string prefix = ToCloudKey(directoryPath);
             CloudKvEntryInfo[] remoteEntries;
             try
             {
-                remoteEntries = await remote.EnumerateAsync(cancellationToken);
+                remoteEntries = await remote.EnumerateAsync(prefix, cancellationToken);
             }
             catch (OperationCanceledException)
             {
@@ -489,7 +512,6 @@ namespace Moirai.Atropos.Save
                 return localFiles;
             }
 
-            string prefix = ToCloudKey(directoryPath);
             List<RemoteFileEntry> remoteFiles = FilterRemoteEntries(remoteEntries, prefix, extension);
             if (m_Policy == ESaveSyncPolicy.CloudWins)
             {
@@ -653,6 +675,10 @@ namespace Moirai.Atropos.Save
             {
                 long version = await remote.WriteAsync(cloudKey, bytes, cancellationToken);
                 WriteMirrorVersion(localPath, version);
+                lock (_syncLock)
+                {
+                    _uploadLastAttemptUtcTicks.Remove(cloudKey);
+                }
             }
             catch (OperationCanceledException)
             {
@@ -663,6 +689,7 @@ namespace Moirai.Atropos.Save
                 lock (_syncLock)
                 {
                     _pendingUploads[cloudKey] = localPath;
+                    _uploadLastAttemptUtcTicks[cloudKey] = DateTime.UtcNow.Ticks;
                 }
 
                 LogUtility.Warning("[SaveService] Cloud upload deferred (will backfill), key: {0}, exception: {1}.", cloudKey, exception.GetType().Name);
@@ -670,7 +697,21 @@ namespace Moirai.Atropos.Save
         }
 
         /// <summary>
-        /// 删除远端前缀下全部条目（尽力逐键删除）。
+        /// 镜像独有回传冷却判定（远端持续失败时抑制读路径重试风暴；冷却过期自动恢复）。
+        /// </summary>
+        /// <param name="cloudKey">云端键。</param>
+        /// <returns>冷却期内返回 <c>true</c>。</returns>
+        private bool IsUploadCoolingDown(string cloudKey)
+        {
+            lock (_syncLock)
+            {
+                return _uploadLastAttemptUtcTicks.TryGetValue(cloudKey, out long lastAttemptTicks)
+                    && DateTime.UtcNow.Ticks - lastAttemptTicks < UploadRetryCooldown.Ticks;
+            }
+        }
+
+        /// <summary>
+        /// 删除远端前缀下全部条目（尽力逐键删除；经前缀枚举下推减少流量）。
         /// </summary>
         /// <param name="remote">远端存储。</param>
         /// <param name="prefix">目录云端前缀。</param>
@@ -678,7 +719,7 @@ namespace Moirai.Atropos.Save
         /// <returns>删除完成的异步任务。</returns>
         private static async UniTask DeleteRemotePrefixAsync(CloudSaveKvStore remote, string prefix, CancellationToken cancellationToken)
         {
-            CloudKvEntryInfo[] entries = await remote.EnumerateAsync(cancellationToken);
+            CloudKvEntryInfo[] entries = await remote.EnumerateAsync(prefix, cancellationToken);
             for (int i = 0; i < entries.Length; i++)
             {
                 if (entries[i].Key != null && entries[i].Key.StartsWith(prefix, StringComparison.Ordinal))

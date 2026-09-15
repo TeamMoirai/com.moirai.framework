@@ -45,6 +45,22 @@ namespace Moirai.Atropos.Save
         public abstract void WriteAtomic(string filePath, byte[] bytes, CancellationToken cancellationToken);
 
         /// <summary>
+        /// 原子写入（两段式）：头部与载荷不经拼接拷贝直接分段落盘（语义与 <see cref="WriteAtomic(string, byte[], CancellationToken)"/> 一致）。
+        /// <para>默认实现拼接后走整段写入（保持正确性）；具备流式写能力的后端应覆写为真分段落盘以消灭拼接分配。</para>
+        /// </summary>
+        /// <param name="filePath">目标文件完整路径（目录由实现确保存在）。</param>
+        /// <param name="head">文件头部字节（先写入）。</param>
+        /// <param name="payload">载荷字节（头部之后写入）。</param>
+        /// <param name="cancellationToken">取消令牌（替换前检查，取消时清理临时文件）。</param>
+        public virtual void WriteAtomic(string filePath, ReadOnlySpan<byte> head, ReadOnlySpan<byte> payload, CancellationToken cancellationToken)
+        {
+            byte[] combined = new byte[head.Length + payload.Length];
+            head.CopyTo(combined);
+            payload.CopyTo(combined.AsSpan(head.Length));
+            WriteAtomic(filePath, combined, cancellationToken);
+        }
+
+        /// <summary>
         /// 删除文件（幂等：不存在视为成功；带退避重试应对云同步/杀毒短时锁）。
         /// </summary>
         /// <param name="filePath">文件完整路径。</param>

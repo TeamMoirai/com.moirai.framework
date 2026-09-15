@@ -39,14 +39,14 @@ namespace Save
 
             public byte ProviderId => _id;
 
-            public byte[] Compress(byte[] raw)
+            public byte[] Compress(SaveBufferSegment raw)
             {
-                return raw;
+                return raw.ToExactArray();
             }
 
-            public byte[] Decompress(byte[] packed)
+            public byte[] Decompress(SaveBufferSegment packed)
             {
-                return packed;
+                return packed.ToExactArray();
             }
         }
 
@@ -137,10 +137,10 @@ namespace Save
                 raw[i] = (byte)(i % 7);
             }
 
-            byte[] packed = GZipCompressionProvider.Shared.Compress(raw);
+            byte[] packed = GZipCompressionProvider.Shared.Compress(SaveBufferSegment.FromExact(raw));
             Assert.Less(packed.Length, raw.Length, "重复模式数据应被有效压缩");
 
-            byte[] restored = GZipCompressionProvider.Shared.Decompress(packed);
+            byte[] restored = GZipCompressionProvider.Shared.Decompress(SaveBufferSegment.FromExact(packed));
             Assert.AreEqual(raw, restored, "GZip 往返应还原原始字节");
         }
 

@@ -84,11 +84,23 @@ namespace Moirai.Atropos.Save
         /// <param name="cancellationToken">取消令牌（替换前检查）。</param>
         public override void WriteAtomic(string filePath, byte[] bytes, CancellationToken cancellationToken)
         {
+            WriteAtomic(filePath, ReadOnlySpan<byte>.Empty, bytes.AsSpan(), cancellationToken);
+        }
+
+        /// <summary>
+        /// 原子写入（两段式）：头部与载荷分段写临时文件（零拼接分配）→ 强制落盘 → 原子替换目标（失败抛 <see cref="GameException"/> 并清理临时文件）。
+        /// </summary>
+        /// <param name="filePath">目标文件完整路径。</param>
+        /// <param name="head">文件头部字节（先写入）。</param>
+        /// <param name="payload">载荷字节（头部之后写入）。</param>
+        /// <param name="cancellationToken">取消令牌（替换前检查）。</param>
+        public override void WriteAtomic(string filePath, ReadOnlySpan<byte> head, ReadOnlySpan<byte> payload, CancellationToken cancellationToken)
+        {
             string tempFilePath = filePath + TempFileSuffix + Guid.NewGuid().ToString("N");
             try
             {
                 EnsureDirectory(Path.GetDirectoryName(filePath));
-                WriteToTempFile(tempFilePath, bytes, cancellationToken);
+                WriteToTempFile(tempFilePath, head, payload, cancellationToken);
                 cancellationToken.ThrowIfCancellationRequested();
                 AtomicReplace(tempFilePath, filePath);
             }
@@ -239,16 +251,22 @@ namespace Moirai.Atropos.Save
         }
 
         /// <summary>
-        /// 将文件字节写入临时文件并强制落盘。
+        /// 将头部与载荷分段写入临时文件并强制落盘（跨度直写流，零拼接分配）。
         /// </summary>
         /// <param name="tempFilePath">临时文件路径。</param>
-        /// <param name="bytes">完整文件字节。</param>
+        /// <param name="head">文件头部字节（先写入）。</param>
+        /// <param name="payload">载荷字节（头部之后写入）。</param>
         /// <param name="cancellationToken">取消令牌。</param>
-        private static void WriteToTempFile(string tempFilePath, byte[] bytes, CancellationToken cancellationToken)
+        private static void WriteToTempFile(string tempFilePath, ReadOnlySpan<byte> head, ReadOnlySpan<byte> payload, CancellationToken cancellationToken)
         {
             using (FileStream stream = new FileStream(tempFilePath, FileMode.Create, FileAccess.Write, FileShare.None, 4096, FileOptions.SequentialScan))
             {
-                stream.Write(bytes, 0, bytes.Length);
+                if (!head.IsEmpty)
+                {
+                    stream.Write(head);
+                }
+
+                stream.Write(payload);
                 FlushToDisk(stream);
             }
         }

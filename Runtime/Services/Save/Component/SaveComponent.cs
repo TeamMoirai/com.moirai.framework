@@ -42,7 +42,7 @@ namespace Moirai.Atropos.Save
         internal const string SchemaScopeKey = "$schemas";
 
         /// <summary>
-        /// 数据块键（自动派生：场景名:物体路径）。
+        /// 数据块键（自动派生：场景命名空间：物体路径——已保存场景命名空间为资产路径（同名 Additive 防撞），未保存场景为场景名）。
         /// </summary>
         public string ResolvedBlockKey => _resolvedBlockKey;
 
@@ -64,11 +64,22 @@ namespace Moirai.Atropos.Save
             if (_resolvedBlockKey == null)
             {
                 _resolvedBlockKey = string.IsNullOrWhiteSpace(BlockKey)
-                    ? gameObject.scene.name + ":" + TransformPath()
+                    ? ResolveSceneNamespace(gameObject.scene) + ":" + TransformPath()
                     : BlockKey;
             }
 
             SaveComponentRegistry.Register(this);
+        }
+
+        /// <summary>
+        /// 解析场景命名空间（预置组件块键的场景段）：已保存场景用资产路径（同名 Additive 场景防撞键——
+        /// 场景名不区分不同路径的同名场景文件）；未保存/动态场景回退场景名。
+        /// </summary>
+        /// <param name="scene">目标场景（<c>default</c>/未初始化场景回退空串，防御非法场景句柄）。</param>
+        /// <returns>场景命名空间串。</returns>
+        internal static string ResolveSceneNamespace(UnityEngine.SceneManagement.Scene scene)
+        {
+            return !string.IsNullOrEmpty(scene.path) ? scene.path : scene.name ?? string.Empty;
         }
 
         /// <summary>

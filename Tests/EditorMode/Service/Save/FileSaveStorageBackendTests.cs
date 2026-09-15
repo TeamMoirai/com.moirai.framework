@@ -65,6 +65,36 @@ namespace Save
         }
 
         [Test]
+        public void WriteAtomic_TwoSegment_RoundTripsInOrder()
+        {
+            string filePath = FilePath("slot-two-segment.sav");
+            byte[] head = { 0x4D, 0x52, 0x53, 0x41 };
+            byte[] payload = { 0x01, 0x02, 0x03, 0x04, 0x05 };
+
+            _backend.WriteAtomic(filePath, head.AsSpan(), payload.AsSpan(), CancellationToken.None);
+
+            SaveError error = _backend.TryReadAllBytes(filePath, out byte[] loaded);
+            Assert.AreEqual(SaveError.None, error);
+            var expected = new byte[head.Length + payload.Length];
+            head.CopyTo(expected, 0);
+            payload.CopyTo(expected, head.Length);
+            Assert.AreEqual(expected, loaded, "两段写必须按「头 → 载荷」顺序落盘");
+        }
+
+        [Test]
+        public void WriteAtomic_TwoSegment_EmptyHead_WritesPayloadOnly()
+        {
+            string filePath = FilePath("slot-empty-head.sav");
+            byte[] payload = { 0x09, 0x08 };
+
+            _backend.WriteAtomic(filePath, ReadOnlySpan<byte>.Empty, payload.AsSpan(), CancellationToken.None);
+
+            SaveError error = _backend.TryReadAllBytes(filePath, out byte[] loaded);
+            Assert.AreEqual(SaveError.None, error);
+            Assert.AreEqual(payload, loaded);
+        }
+
+        [Test]
         public void WriteAtomic_CreatesMissingDirectory()
         {
             string filePath = Path.Combine(_rootPath, "nested", "deep", "slot.sav");

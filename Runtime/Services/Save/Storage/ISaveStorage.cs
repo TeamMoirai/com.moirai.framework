@@ -1,3 +1,4 @@
+using System;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 
@@ -46,6 +47,16 @@ namespace Moirai.Atropos.Save
         /// <param name="bytes">完整文件字节（含文件头）。</param>
         /// <param name="cancellationToken">取消令牌（替换前检查，取消时清理临时文件）。</param>
         void WriteAtomic(string filePath, byte[] bytes, CancellationToken cancellationToken);
+
+        /// <summary>
+        /// 原子写入（两段式）：头部与载荷不经拼接拷贝直接分段落盘（临时文件 + 落盘刷新 + 原子替换，语义与 <see cref="WriteAtomic(string, byte[], CancellationToken)"/> 一致）。
+        /// <para>跨度仅在本调用内有效（同步消费）；需要跨异步边界的实现自行转存。</para>
+        /// </summary>
+        /// <param name="filePath">目标文件完整路径（目录由实现确保存在）。</param>
+        /// <param name="head">文件头部字节（先写入）。</param>
+        /// <param name="payload">载荷字节（头部之后写入）。</param>
+        /// <param name="cancellationToken">取消令牌（替换前检查，取消时清理临时文件）。</param>
+        void WriteAtomic(string filePath, ReadOnlySpan<byte> head, ReadOnlySpan<byte> payload, CancellationToken cancellationToken);
 
         /// <summary>
         /// 删除文件（幂等：不存在视为成功；带退避重试应对云同步/杀毒短时锁）。

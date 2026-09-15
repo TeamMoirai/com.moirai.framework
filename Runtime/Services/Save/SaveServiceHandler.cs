@@ -1898,7 +1898,8 @@ namespace Moirai.Atropos.Save
             byte[] container;
             try
             {
-                container = compression.Decompress(restored.ToExactArray());
+                // 视图直通解压（明文处理器下别名为文件缓冲——零整档拷贝）
+                container = compression.Decompress(restored);
             }
             catch (Exception)
             {
@@ -1942,9 +1943,9 @@ namespace Moirai.Atropos.Save
         }
 
         /// <summary>
-        /// 将容器块集写入存档文件：容器组装 → 压缩（可选，转换链固定为压缩先于加密）→ 载荷变换（子类加密钩子）→ CRC → 组装文件头 → 存储层原子提交。
-        /// <para>未压缩档（默认路径）容器缓冲区经 <see cref="ArrayPool{T}"/> 租赁复用（明文热路径零容器分配）；
-        /// 压缩提供方消费精确长度数组，压缩档不走池化。</para>
+        /// 将容器块集写入存档文件：容器组装 → 压缩（可选，转换链固定为压缩先于加密）→ 载荷变换（子类加密钩子）→ CRC → 组装文件头 → 存储层两段式原子提交。
+        /// <para>容器缓冲区统一经 <see cref="ArrayPool{T}"/> 租赁复用（含压缩档——压缩提供方经 <see cref="SaveBufferSegment"/> 视图消费租赁缓冲）；
+        /// 文件头 stackalloc + 载荷视图经存储层两段写直落盘，写路径无整档拼接分配（归还缓冲区清零防明文残留）。</para>
         /// </summary>
         /// <param name="paths">已解析的路径集合。</param>
         /// <param name="blocks">数据块列表。</param>
@@ -1955,9 +1956,7 @@ namespace Moirai.Atropos.Save
             blocks = StampSaveVersionIfActive(blocks);
             int containerSize = SaveFileContainer.GetSize(blocks);
             ICompressionProvider compression = _compression;
-            byte[] containerBuffer = compression == null
-                ? ArrayPool<byte>.Shared.Rent(containerSize)
-                : new byte[containerSize];
+            byte[] containerBuffer = ArrayPool<byte>.Shared.Rent(containerSize);
             try
             {
                 SaveFileContainer.Write(containerBuffer.AsSpan(0, containerSize), blocks);
@@ -1970,7 +1969,7 @@ namespace Moirai.Atropos.Save
                     byte[] compressed;
                     try
                     {
-                        compressed = compression.Compress(containerBuffer);
+                        compressed = compression.Compress(transformInput);
                     }
                     catch (Exception exception)
                     {
@@ -1990,14 +1989,13 @@ namespace Moirai.Atropos.Save
                     throw new GameException(StringUtility.Format("Save payload transform failed, path: {0}, error: {1}.", paths.SaveFilePath, transformError));
                 }
 
-                // 写盘的是存储载荷（加密后），不是未加密容器——CRC 也是载荷的
+                // 写盘的是存储载荷（加密后），不是未加密容器——CRC 也是载荷的；头部 stackalloc + 载荷视图两段写直落盘，零整档拼接
                 uint payloadCrc = Crc32.Compute(payload.AsSpan());
-                byte[] fileBytes = new byte[SaveFileHeader.Size + payload.Length];
-                SaveFileHeader.Write(fileBytes.AsSpan(0, SaveFileHeader.Size), payload.Length, payloadCrc, flags, compressionProviderId);
-                payload.AsSpan().CopyTo(fileBytes.AsSpan(SaveFileHeader.Size));
+                Span<byte> headerBytes = stackalloc byte[SaveFileHeader.Size];
+                SaveFileHeader.Write(headerBytes, payload.Length, payloadCrc, flags, compressionProviderId);
                 try
                 {
-                    Storage.WriteAtomic(paths.SaveFilePath, fileBytes, cancellationToken);
+                    Storage.WriteAtomic(paths.SaveFilePath, headerBytes, payload.AsSpan(), cancellationToken);
                 }
                 catch (OperationCanceledException)
                 {
@@ -2011,11 +2009,8 @@ namespace Moirai.Atropos.Save
             }
             finally
             {
-                if (compression == null)
-                {
-                    // 容器为明文（加密在下游钩子）——归还时清零，避免明文残留池化缓冲区被后续租用者复读
-                    ArrayPool<byte>.Shared.Return(containerBuffer, clearArray: true);
-                }
+                // 容器为明文（加密在下游钩子）——归还时清零，避免明文残留池化缓冲区被后续租用者复读
+                ArrayPool<byte>.Shared.Return(containerBuffer, clearArray: true);
             }
         }
 
