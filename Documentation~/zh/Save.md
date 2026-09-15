@@ -42,7 +42,8 @@ SaveService（静态外观，写路径未就绪抛 GameException，读路径降�
 - 文件头 offset 24-27 为压缩提供方 ID（0 = 未压缩）；未知 ID 判别为 `UnsupportedVersion`，标志位与 ID 不一致判别为 `Corrupted`
 - 密钥来源（`ISaveKeyProvider`）：静态口令 PBKDF2（`StaticSaveKeyProvider`，未配置时的占位默认）/ 运行期口令注入（`PassphraseSaveKeyProvider`，口令仅内存不落盘，未注入时读 `InvalidArgument`、写 fail-fast）/ HKDF-SHA256 按用户派生（`HKDFPerUserSaveKeyProvider`，多账号存档互相不可读）
 - 原子写入：临时文件 `xxx.sav.tmp-{guid}` → `Flush(true)` → `File.Replace`（经 `FileSaveStorageBackend`）；启动期后台清扫孤儿临时文件
-- 同文件写路径经串行信号量排队（防并发读-改-写丢块）——串行门在 Handler 编排层，存储后端无感知
+- 同文件读写经串行信号量排队（防并发读-改-写丢块）——串行门在 Handler 编排层，存储后端无感知
+- 删除全族（单档/文件夹/根目录清空，同步与异步版）持「根目录 → 文件夹 → 文件」分层门（固定序取门防死锁），与块级读写互斥——存在性判定与删除同临界区完成，杜绝删除后并发写入复活文件；合规性数据清除（`DeleteAllSaveFiles`）结果可靠
 - 存储层契约（`ISaveStorage`）：同步原语为契约核心（`Exists`/`TryReadAllBytes`/`WriteAtomic`/`DeleteFile`/`DeleteDirectory`/`EnumerateFiles`/`CreateBackup`/`RestoreBackup`），异步包装默认线程池卸载（真异步后端覆盖并声明 `Capabilities`）；读取错误分型返回、写入失败抛 `GameException`、删除幂等；实现必须纯 .NET（任意线程可调）
 
 ## 存档路径
@@ -128,6 +129,7 @@ public sealed class SaveMigratorV1ToV2 : ISaveMigrator
 
 - `ServiceDependency.dll` 内置 `SaveSchemaAnalyzer`：`[SaveData(Backend=MessagePack/MemoryPack/Protobuf)]` 类型的成员键序号（`[Key]`/`[MemoryPackOrder]`/`[ProtoMember]`）与快照比对——MIRAI400 键序重排告警、MIRAI401 成员删除且未重写 `OnMigrate` 告警（均 Warning）
 - 快照为附加文件 `.SaveSchemaSnapshot`（行格式 `类型全限定名|成员名:序号;…`，序号 -1 = MessagePack 字符串键模式），纳入版本控制随模式演进更新；快照缺失时分析器静默
+- **快照生成**：菜单 `Tools/Moirai/Save/Export Schema Snapshot` 一键扫描全部二进制后端 [SaveData] 类型并写出项目根目录 `.SaveSchemaSnapshot`（提取规则与分析器逐条对齐，成员按名排序保证 diff 稳定）；二进制线格式变更前重新导出即推进基线
 - Unity 编辑器无 AdditionalFiles 界面，经 `csc.rsp` 的 `/additionalfile:` 或 CI `dotnet build` 接线
 
 ## 无代码保存（组件勾选字段）
@@ -192,7 +194,7 @@ await SaveService.RestoreEntitiesAsync("slot1");
 - **模板差分**：实体捕获与预制体模板基准（每稳定键会话级缓存一份基准 KVT）逐字段比对，**只写相对模板的变动字段**（嵌套对象递归差分；集合任一变动整条携带，元素级差分为 v2 范围）；恢复 = 实例化（天然模板默认值）+ 应用差分，存档增量最小化。基准不可用（预制体未登记/无根 SaveComponent）时退化为全量写入。
 - **块布局**：实体表 = 保留块 `__entities`（生成记录 EntityId/PrefabKey/SceneName/ParentId + 预置对象销毁 ID）；实体数据 = 每实体一个 `entity:{EntityId}` 块（实体组件块键由管线在激活前改写）。**组件存取 API 跳过 `entity:` 前缀块**——完整世界存取 = `SaveEntitiesAsync` + `SaveComponentsAsync`，恢复 = `RestoreEntitiesAsync` + `LoadComponentsAsync`（顺序：先实体后组件）。
 - **CarryForward 语义**：保存仅 upsert 活跃实体，未访问场景与生成失败实体的块原样滞留；绕过 `DestroyPersistent` 直接 `Object.Destroy` 的实体，其记录与块同样滞留（须走显式销毁移除）。恢复后会话生成/销毁表以档案状态整体替换。
-- **父子与场景落位**：生成记录的 ParentId（父级须挂 SaveObjectIdentity，否则父子关系不持久化并记告警）在恢复第二轮接线；SceneName 场景已加载则落位其中，否则落位活跃场景并记告警。稳定 ID 查询走 `SaveEntityRegistry`——场景作用域表（场景卸载清扫）+ 全局作用域表（DontDestroyOnLoad 对象常驻）双表。
+- **父子与场景落位**：生成记录的 ParentId（父级须挂 SaveObjectIdentity，否则父子关系不持久化并记告警）在恢复第二轮接线；SceneName 场景已加载则落位其中，否则落位活跃场景并记告警——**落位回落不改写场景归属**（生成表保持档案原 SceneName，下次会话场景加载时实体回到原场景，不漂移）。稳定 ID 查询走 `SaveEntityRegistry`——场景作用域表（场景卸载清扫）+ 全局作用域表（DontDestroyOnLoad 对象常驻）双表。
 - **恢复时序**：生成保持未激活直到差分块写回完成——Awake/OnEnable 即见最终父级与恢复后字段值（游戏逻辑须读档后状态时监听 `EntityRestored` 事件或在 Start 之后）。差分块损坏的实体记错误日志并按模板默认恢复（不阻断其它实体）。
 - **降级契约**：`InstantiatePersistent`/`DestroyPersistent` 不依赖存档处理器（注册表与资源服务可用即可），预制体键未登记/加载失败记错误日志返回 `null`；`SaveEntitiesAsync` 在处理器未就绪时抛 `GameException`；`RestoreEntitiesAsync` 静默降级为空任务。
 - **预制体资产不烘焙 ID**：`SaveObjectIdentity.OnValidate` 跳过预制体资产本体（资产上的 ID 会被全部实例共享而必然撞键）；场景内实例仍各自烘焙，动态实体由生成管线在激活前注入每实例唯一 ID。
@@ -225,13 +227,13 @@ await SaveService.RestoreEntitiesAsync("slot1");
 - **键规范**：云端键 = 相对存档数据根目录（`persistentDataPath/Data/`）的路径，`/` 分隔（如 `Save/slot1.sav`）——不携带本机目录结构，跨设备一致。
 - **错误语义**：远端不可达/失败/未登录一律抛异常，后端归一为**离线降级**（降级本地镜像直通并记告警）；缺档非错误（读 `null` / 存在性 `false` / 删除幂等）。
 - **写双发**：本地镜像原子提交后远端跟随；远端失败**不阻断本地提交**——记入待回传集合，下次远端操作成功时 backfill 重放（待传上传 / 待删单键 / 待删前缀，按序弹出，失败即停余项保留）。
-- **读裁决**（`ESaveSyncPolicy`）：`Latest` 时间戳新者优先（相等取镜像避免无谓下载）/ `LocalWins` 本地权威 / `CloudWins` 云端权威 / `Custom` 逐键委托 `SaveSyncConflictResolver`（未配置回退 Latest 并记告警）。单侧存在时自动对齐另一侧（远端独有 → 下载刷新镜像并保留远端时间戳；镜像独有 → 回传补传远端）。
+- **读裁决**（`ESaveSyncPolicy`）：`Latest` 新者优先 / `LocalWins` 本地权威 / `CloudWins` 云端权威 / `Custom` 逐键委托 `SaveSyncConflictResolver`（未配置回退 Latest 并记告警）。**裁决去时钟化**：远端提供单调修订号（`CloudKvEntry.Version` > 0）时按版本号裁决——镜像已同步修订号记录于 `{file}.cloudver` sidecar，镜像脏判定用镜像与 sidecar 的本地 mtime 失配（同一本地时钟，客户端与远端时钟偏移不参与）；无版本号后端回退时间戳比较（下载已把远端权威时间戳转写镜像）。单侧存在时自动对齐另一侧（远端独有 → 下载刷新镜像并保留远端时间戳与版本；镜像独有 → 回传补传远端）。`WriteAsync` 返回远端分配的修订号（0 = 后端不提供版本号）。
 - **同步原语仅作用本地镜像**（同步裸名 API 不见远端；远端同步由异步 API 族驱动）；单槽备份（`.bak`）为本地概念不随云同步；目录级删除对远端按前缀尽力删除。
 - **能力声明**：`Capabilities.SupportsTrueAsyncIO = true`（远端网络 IO 为真异步）；WebGL 等平台同步读不可用的约束不适用于本后端——同步 API 只读本地镜像恒可用。
 
 ## 工具链（调试器与编辑器）
 
-- **游戏内调试器窗口** `Profiler/Save`（`SaveServiceDebugView`，`SaveService.OnInit` 自动注册）：管线状态（处理器/存储后端/压缩/默认后端/截图开关）、槽位清单与选中槽位详情（块表、元数据、坏块红色高亮、截图 sidecar 状态）。文件夹/槽位选择控件常驻，数据区 1s 节流重建。
+- **游戏内调试器窗口** `Profiler/Save`（`SaveServiceDebuggerWindow`，`SaveService.OnInit` 自动注册）：管线状态（处理器/存储后端/压缩/默认后端/截图开关）、槽位清单与选中槽位详情（块表、元数据、坏块红色高亮、截图 sidecar 状态）。文件夹/槽位选择控件常驻，数据区 1s 节流重建。
 - **存档浏览器编辑器窗口**（`Window/Moirai/Save Browser`）：浏览 `persistentDataPath/Data/` 下文件夹与槽位；块表（键/版本/后端/大小/逐块错误）；未加密档内容预览（JSON 块原文 / KVT 块十六进制采样）；备份/恢复备份/删除（含截图 sidecar 级联）/打开目录。编辑器以明文处理器 + 设置的压缩提供方读取——加密档不可预览属预期。
 - **SaveComponentEditor 补强**：字段勾选清单标注引用类别（场景引用 = GameObject/Component 派生字段，资产引用 = 其余 UnityEngine.Object 字段）并给出 Identity/Catalog 配置提示；每个绑定显示模式版本（SG 发射值优先 → `[SaveComponentSchema]` 声明 → 缺省 1）。
 

@@ -12,6 +12,9 @@ namespace Moirai.Atropos.Save
     /// 云存档存储后端：本地镜像 + 远端 KV 双写，读按 <see cref="ESaveSyncPolicy"/> 裁决（CrystalSave 模式）。
     /// <para>写入双发（本地镜像原子写提交后远端跟随；远端失败不阻断本地提交——记入待回传集合，下次远端操作成功时 backfill 回传）；
     /// 删除同理（待删集合回传）；离线（远端抛异常）降级为本地镜像直通并记告警。</para>
+    /// <para>冲突裁决去时钟化：远端提供单调修订号（<see cref="CloudKvEntry.Version"/> &gt; 0）时按版本号裁决——
+    /// 镜像已同步修订号记录于 <c>{file}.cloudver</c> sidecar，镜像脏判定用镜像与 sidecar 的本地 mtime 失配（同为本地时钟）；
+    /// 客户端时钟与远端时钟的偏移不参与裁决。后端不提供版本号时回退时间戳比较（远端权威时钟 vs 镜像戳——下载已转写远端戳）。</para>
     /// <para>同步原语仅作用于本地镜像（同步 API 不见远端；远端同步由异步 API 族驱动）；
     /// 单槽备份（<c>.bak</c>）为本地概念，不随云同步。</para>
     /// <para>目录级删除对远端按前缀尽力删除（失败记待删前缀，回传时重放）。</para>
@@ -30,6 +33,9 @@ namespace Moirai.Atropos.Save
         [Tooltip("自定义冲突裁决器（Custom 策略时生效；未配置时回退 Latest 并记告警）。")]
         [ProviderDropdown]
         [SerializeReference] private SaveSyncConflictResolver m_ConflictResolver;
+
+        /// <summary>镜像版本 sidecar 后缀（记录镜像已同步的远端修订号——版本通道裁决依据）。</summary>
+        private const string MIRROR_VERSION_SUFFIX = ".cloudver";
 
         /// <summary>待回传/待删集合锁（并发远端操作共享；取改极快，非热路径）。</summary>
         [NonSerialized] private readonly object _syncLock = new object();
@@ -142,11 +148,13 @@ namespace Moirai.Atropos.Save
 
         /// <summary>
         /// 删除本地镜像文件（幂等；远端删除由异步 API 族驱动）。
+        /// <para>级联清理版本 sidecar——残留版本记录会让同名新档的裁决误用陈旧修订号。</para>
         /// </summary>
         /// <param name="filePath">文件完整路径。</param>
         public override void DeleteFile(string filePath)
         {
             Mirror.DeleteFile(filePath);
+            DeleteMirrorVersion(filePath);
         }
 
         /// <summary>
@@ -293,7 +301,7 @@ namespace Moirai.Atropos.Save
             switch (m_Policy)
             {
                 case ESaveSyncPolicy.LocalWins:
-                    if (remoteEntry.Value.LastWriteTimeUtc < localTime)
+                    if (ShouldUpload(filePath, localTime, remoteEntry.Value))
                     {
                         await UploadAsync(remote, cloudKey, filePath, localBytes, cancellationToken);
                     }
@@ -305,13 +313,13 @@ namespace Moirai.Atropos.Save
                     return remoteEntry.Value.Bytes;
 
                 case ESaveSyncPolicy.Custom:
-                    if (ResolveCustom(cloudKey, localTime, localBytes.LongLength, remoteEntry.Value) == ESaveSyncDecision.UseRemote)
+                    if (ResolveCustom(cloudKey, filePath, localTime, localBytes.LongLength, remoteEntry.Value) == ESaveSyncDecision.UseRemote)
                     {
                         RefreshMirror(filePath, remoteEntry.Value);
                         return remoteEntry.Value.Bytes;
                     }
 
-                    if (remoteEntry.Value.LastWriteTimeUtc < localTime)
+                    if (ShouldUpload(filePath, localTime, remoteEntry.Value))
                     {
                         await UploadAsync(remote, cloudKey, filePath, localBytes, cancellationToken);
                     }
@@ -319,14 +327,14 @@ namespace Moirai.Atropos.Save
                     return localBytes;
 
                 default:
-                    // Latest：时间戳新者优先；相等视为已同步取镜像（避免无谓下载）
-                    if (remoteEntry.Value.LastWriteTimeUtc > localTime)
+                    // Latest：远端提供版本号且镜像有同步记录时按修订号裁决（去时钟化），否则回退时间戳比较
+                    if (ShouldDownload(filePath, localTime, remoteEntry.Value))
                     {
                         RefreshMirror(filePath, remoteEntry.Value);
                         return remoteEntry.Value.Bytes;
                     }
 
-                    if (localTime > remoteEntry.Value.LastWriteTimeUtc)
+                    if (ShouldUpload(filePath, localTime, remoteEntry.Value))
                     {
                         await UploadAsync(remote, cloudKey, filePath, localBytes, cancellationToken);
                     }
@@ -354,7 +362,8 @@ namespace Moirai.Atropos.Save
             string cloudKey = ToCloudKey(filePath);
             try
             {
-                await remote.WriteAsync(cloudKey, bytes, cancellationToken);
+                long version = await remote.WriteAsync(cloudKey, bytes, cancellationToken);
+                WriteMirrorVersion(filePath, version);
                 await ReplayPendingAsync(remote, cancellationToken);
             }
             catch (OperationCanceledException)
@@ -381,6 +390,7 @@ namespace Moirai.Atropos.Save
         public override async UniTask DeleteFileAsync(string filePath, CancellationToken cancellationToken = default)
         {
             Mirror.DeleteFile(filePath);
+            DeleteMirrorVersion(filePath);
             CloudSaveKvStore remote = m_RemoteStore;
             if (remote == null)
             {
@@ -480,11 +490,17 @@ namespace Moirai.Atropos.Save
             }
 
             string prefix = ToCloudKey(directoryPath);
-            List<SaveFileInfo> remoteFiles = FilterRemoteEntries(remoteEntries, prefix, extension);
+            List<RemoteFileEntry> remoteFiles = FilterRemoteEntries(remoteEntries, prefix, extension);
             if (m_Policy == ESaveSyncPolicy.CloudWins)
             {
-                remoteFiles.Sort(CompareNewestFirst);
-                return remoteFiles.ToArray();
+                var cloudWinsFiles = new List<SaveFileInfo>(remoteFiles.Count);
+                for (int i = 0; i < remoteFiles.Count; i++)
+                {
+                    cloudWinsFiles.Add(remoteFiles[i].Info);
+                }
+
+                cloudWinsFiles.Sort(CompareNewestFirst);
+                return cloudWinsFiles.ToArray();
             }
 
             // Latest / Custom：双侧并集按名取舍
@@ -496,19 +512,19 @@ namespace Moirai.Atropos.Save
 
             for (int i = 0; i < remoteFiles.Count; i++)
             {
-                SaveFileInfo remoteFile = remoteFiles[i];
-                if (!merged.TryGetValue(remoteFile.FileName, out SaveFileInfo localFile))
+                RemoteFileEntry remoteFile = remoteFiles[i];
+                if (!merged.TryGetValue(remoteFile.Info.FileName, out SaveFileInfo localFile))
                 {
-                    merged[remoteFile.FileName] = remoteFile;
+                    merged[remoteFile.Info.FileName] = remoteFile.Info;
                     continue;
                 }
 
                 bool useRemote = m_Policy == ESaveSyncPolicy.Custom
-                    ? ResolveCustom(prefix + remoteFile.FileName + extension, localFile.LastWriteTimeUtc, localFile.SizeBytes, new CloudKvEntry(null, remoteFile.LastWriteTimeUtc)) == ESaveSyncDecision.UseRemote
-                    : remoteFile.LastWriteTimeUtc > localFile.LastWriteTimeUtc;
+                    ? ResolveCustom(prefix + remoteFile.Info.FileName + extension, directoryPath + remoteFile.Info.FileName + extension, localFile.LastWriteTimeUtc, localFile.SizeBytes, new CloudKvEntry(null, remoteFile.Info.LastWriteTimeUtc, remoteFile.Version)) == ESaveSyncDecision.UseRemote
+                    : ShouldDownload(directoryPath + remoteFile.Info.FileName + extension, localFile.LastWriteTimeUtc, new CloudKvEntry(null, remoteFile.Info.LastWriteTimeUtc, remoteFile.Version));
                 if (useRemote)
                 {
-                    merged[remoteFile.FileName] = remoteFile;
+                    merged[remoteFile.Info.FileName] = remoteFile.Info;
                 }
             }
 
@@ -526,15 +542,33 @@ namespace Moirai.Atropos.Save
         }
 
         /// <summary>
-        /// 过滤远端清单为目录内存档条目（前缀匹配 + 扩展名精确匹配 + 不深入子目录；文件名去扩展名与本地同构）。
+        /// 远端文件条目（枚举裁决用：本地同构的文件元信息 + 远端修订号）。
+        /// </summary>
+        private readonly struct RemoteFileEntry
+        {
+            /// <summary>文件元信息（与本地同构）。</summary>
+            internal readonly SaveFileInfo Info;
+
+            /// <summary>远端单调修订号（0 = 后端不提供版本号）。</summary>
+            internal readonly long Version;
+
+            internal RemoteFileEntry(SaveFileInfo info, long version)
+            {
+                Info = info;
+                Version = version;
+            }
+        }
+
+        /// <summary>
+        /// 过滤远端清单为目录内存档条目（前缀匹配 + 扩展名精确匹配 + 不深入子目录；文件名去扩展名与本地同构；携带远端修订号）。
         /// </summary>
         /// <param name="entries">远端条目清单。</param>
         /// <param name="prefix">目录云端前缀（<c>/</c> 结尾）。</param>
         /// <param name="extension">扩展名（含点）。</param>
-        /// <returns>过滤后的文件元信息列表。</returns>
-        private static List<SaveFileInfo> FilterRemoteEntries(CloudKvEntryInfo[] entries, string prefix, string extension)
+        /// <returns>过滤后的远端文件条目列表。</returns>
+        private static List<RemoteFileEntry> FilterRemoteEntries(CloudKvEntryInfo[] entries, string prefix, string extension)
         {
-            var results = new List<SaveFileInfo>();
+            var results = new List<RemoteFileEntry>();
             for (int i = 0; i < entries.Length; i++)
             {
                 string key = entries[i].Key;
@@ -550,36 +584,39 @@ namespace Moirai.Atropos.Save
                 }
 
                 string fileName = relativeName.Substring(0, relativeName.Length - extension.Length);
-                results.Add(new SaveFileInfo(fileName, entries[i].SizeBytes, entries[i].LastWriteTimeUtc));
+                results.Add(new RemoteFileEntry(new SaveFileInfo(fileName, entries[i].SizeBytes, entries[i].LastWriteTimeUtc), entries[i].Version));
             }
 
             return results;
         }
 
         /// <summary>
-        /// 自定义裁决（未配置裁决器时回退 Latest 并记告警）。
+        /// 自定义裁决（未配置裁决器时回退 Latest 并记告警）。裁决条目携带版本号（远端修订号 / 镜像已同步修订号），无版本信息时为 0。
         /// </summary>
         /// <param name="cloudKey">云端键。</param>
+        /// <param name="filePath">本地镜像完整路径（镜像版本 sidecar 读取依据）。</param>
         /// <param name="localTime">本地镜像最后写入时间（UTC）。</param>
         /// <param name="localSize">本地镜像大小（字节）。</param>
         /// <param name="remoteEntry">远端条目。</param>
         /// <returns>取舍结果。</returns>
-        private ESaveSyncDecision ResolveCustom(string cloudKey, DateTime localTime, long localSize, CloudKvEntry remoteEntry)
+        private ESaveSyncDecision ResolveCustom(string cloudKey, string filePath, DateTime localTime, long localSize, CloudKvEntry remoteEntry)
         {
             SaveSyncConflictResolver resolver = m_ConflictResolver;
             if (resolver == null)
             {
                 LogUtility.Warning("[SaveService] Sync policy is Custom but no conflict resolver is configured, falling back to Latest.");
-                return remoteEntry.LastWriteTimeUtc > localTime ? ESaveSyncDecision.UseRemote : ESaveSyncDecision.UseLocal;
+                return ShouldDownload(filePath, localTime, remoteEntry) ? ESaveSyncDecision.UseRemote : ESaveSyncDecision.UseLocal;
             }
 
-            var localInfo = new SaveSyncEntryInfo(true, localTime, localSize);
-            var remoteInfo = new SaveSyncEntryInfo(true, remoteEntry.LastWriteTimeUtc, remoteEntry.Bytes?.LongLength ?? 0L);
+            TryReadMirrorVersion(filePath, out long localVersion);
+            var localInfo = new SaveSyncEntryInfo(true, localTime, localSize, localVersion);
+            var remoteInfo = new SaveSyncEntryInfo(true, remoteEntry.LastWriteTimeUtc, remoteEntry.Bytes?.LongLength ?? 0L, remoteEntry.Version);
             return resolver.Resolve(cloudKey, localInfo, remoteInfo);
         }
 
         /// <summary>
-        /// 下载远端条目并刷新本地镜像（原子写 + 保留远端时间戳——后续 Latest 比较以远端权威时钟为准）。
+        /// 下载远端条目并刷新本地镜像（原子写 + 保留远端时间戳——后续时间戳回退比较以远端权威时钟为准；
+        /// 远端提供版本号时记录镜像已同步修订号 sidecar，0 则清除陈旧 sidecar）。
         /// </summary>
         /// <param name="filePath">本地镜像完整路径。</param>
         /// <param name="remoteEntry">远端条目。</param>
@@ -597,10 +634,12 @@ namespace Moirai.Atropos.Save
                     LogUtility.Warning("[SaveService] Failed to stamp mirror timestamp, path: {0}, exception: {1}.", filePath, exception.GetType().Name);
                 }
             }
+
+            WriteMirrorVersion(filePath, remoteEntry.Version);
         }
 
         /// <summary>
-        /// 回传本地镜像到远端（失败登记待回传并记告警——本地镜像始终为已提交事实）。
+        /// 回传本地镜像到远端（失败登记待回传并记告警——本地镜像始终为已提交事实；成功记录镜像已同步修订号）。
         /// </summary>
         /// <param name="remote">远端存储。</param>
         /// <param name="cloudKey">云端键。</param>
@@ -612,7 +651,8 @@ namespace Moirai.Atropos.Save
         {
             try
             {
-                await remote.WriteAsync(cloudKey, bytes, cancellationToken);
+                long version = await remote.WriteAsync(cloudKey, bytes, cancellationToken);
+                WriteMirrorVersion(localPath, version);
             }
             catch (OperationCanceledException)
             {
@@ -720,7 +760,8 @@ namespace Moirai.Atropos.Save
                         SaveError readError = Mirror.TryReadAllBytes(upload.Value, out byte[] bytes);
                         if (readError == SaveError.None)
                         {
-                            await remote.WriteAsync(upload.Key, bytes, cancellationToken);
+                            long version = await remote.WriteAsync(upload.Key, bytes, cancellationToken);
+                            WriteMirrorVersion(upload.Value, version);
                         }
 
                         // 镜像已消失（如先写后删的交错时序）→ 丢弃该待传项
@@ -761,6 +802,157 @@ namespace Moirai.Atropos.Save
         private static void LogRemoteFailure(string operation, string path, Exception exception)
         {
             LogUtility.Warning("[SaveService] Cloud {0} failed, falling back to local mirror, path: {1}, exception: {2}.", operation, path, exception.GetType().Name);
+        }
+
+        #endregion
+
+        #region 版本裁决辅助 [VERSION RESOLUTION]
+
+        /// <summary>
+        /// 下载判定：远端修订号领先镜像已同步修订号（版本通道）；版本不可用回退时间戳比较（远端新于镜像）。
+        /// </summary>
+        /// <param name="filePath">本地镜像完整路径。</param>
+        /// <param name="localTime">本地镜像最后写入时间（UTC，回退通道用）。</param>
+        /// <param name="remoteEntry">远端条目（枚举场景 Bytes 为 <c>null</c> 的元信息存根）。</param>
+        /// <returns>应下载返回 <c>true</c>。</returns>
+        private static bool ShouldDownload(string filePath, DateTime localTime, CloudKvEntry remoteEntry)
+        {
+            if (remoteEntry.Version > 0L && TryReadMirrorVersion(filePath, out long mirrorVersion))
+            {
+                return remoteEntry.Version > mirrorVersion;
+            }
+
+            return remoteEntry.LastWriteTimeUtc > localTime;
+        }
+
+        /// <summary>
+        /// 上传判定（去时钟化优先）：版本通道下「远端落后（镜像领先，远端回滚等异常态以镜像为权威）」
+        /// 或「版本相等但镜像脏（本地改写未同步）」；版本不可用回退时间戳比较（镜像新于远端）。
+        /// </summary>
+        /// <param name="filePath">本地镜像完整路径。</param>
+        /// <param name="localTime">本地镜像最后写入时间（UTC，回退通道用）。</param>
+        /// <param name="remoteEntry">远端条目。</param>
+        /// <returns>应上传返回 <c>true</c>。</returns>
+        private static bool ShouldUpload(string filePath, DateTime localTime, CloudKvEntry remoteEntry)
+        {
+            if (remoteEntry.Version > 0L && TryReadMirrorVersion(filePath, out long mirrorVersion))
+            {
+                if (remoteEntry.Version < mirrorVersion)
+                {
+                    return true;
+                }
+
+                return remoteEntry.Version == mirrorVersion && IsMirrorDirty(filePath);
+            }
+
+            return localTime > remoteEntry.LastWriteTimeUtc;
+        }
+
+        /// <summary>
+        /// 镜像脏判定：镜像 mtime 与版本 sidecar mtime 失配即同步后被本地改写（同步原语直通不更新 sidecar）。
+        /// <para>两者均为本地文件——同一时钟比较，客户端与远端的时钟偏移不参与；读取失败保守判脏（触发回传对齐）。</para>
+        /// </summary>
+        /// <param name="filePath">本地镜像完整路径。</param>
+        /// <returns>镜像已脏返回 <c>true</c>。</returns>
+        private static bool IsMirrorDirty(string filePath)
+        {
+            try
+            {
+                return File.GetLastWriteTimeUtc(filePath) != File.GetLastWriteTimeUtc(ResolveMirrorVersionPath(filePath));
+            }
+            catch (Exception)
+            {
+                return true;
+            }
+        }
+
+        /// <summary>
+        /// 镜像版本 sidecar 路径（<c>{file}.cloudver</c>，8 字节小端修订号）。
+        /// </summary>
+        /// <param name="filePath">本地镜像完整路径。</param>
+        /// <returns>sidecar 完整路径。</returns>
+        private static string ResolveMirrorVersionPath(string filePath)
+        {
+            return filePath + MIRROR_VERSION_SUFFIX;
+        }
+
+        /// <summary>
+        /// 读取镜像已同步的远端修订号（sidecar 缺失/损坏/非正版本均判无版本通道——回退时间戳裁决）。
+        /// </summary>
+        /// <param name="filePath">本地镜像完整路径。</param>
+        /// <param name="version">读到的修订号。</param>
+        /// <returns>存在有效版本记录返回 <c>true</c>。</returns>
+        private static bool TryReadMirrorVersion(string filePath, out long version)
+        {
+            version = 0L;
+            try
+            {
+                string sidecarPath = ResolveMirrorVersionPath(filePath);
+                if (!File.Exists(sidecarPath))
+                {
+                    return false;
+                }
+
+                byte[] bytes = File.ReadAllBytes(sidecarPath);
+                if (bytes.Length != 8)
+                {
+                    return false;
+                }
+
+                version = BitConverter.ToInt64(bytes, 0);
+                return version > 0L;
+            }
+            catch (Exception)
+            {
+                version = 0L;
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// 写入镜像已同步修订号（sidecar mtime 与镜像 mtime 对齐——脏判定基准；&lt;= 0 清除陈旧记录）。
+        /// <para>写失败仅降级裁决精度（回退时间戳），不阻断同步主流程。</para>
+        /// </summary>
+        /// <param name="filePath">本地镜像完整路径。</param>
+        /// <param name="version">远端分配的修订号（<c>0</c> = 后端不提供版本号）。</param>
+        private static void WriteMirrorVersion(string filePath, long version)
+        {
+            if (version <= 0L)
+            {
+                DeleteMirrorVersion(filePath);
+                return;
+            }
+
+            string sidecarPath = ResolveMirrorVersionPath(filePath);
+            try
+            {
+                File.WriteAllBytes(sidecarPath, BitConverter.GetBytes(version));
+                File.SetLastWriteTimeUtc(sidecarPath, File.GetLastWriteTimeUtc(filePath));
+            }
+            catch (Exception exception)
+            {
+                LogUtility.Warning("[SaveService] Failed to write mirror version sidecar, path: {0}, exception: {1}.", sidecarPath, exception.GetType().Name);
+            }
+        }
+
+        /// <summary>
+        /// 删除镜像版本 sidecar（幂等；失败仅告警——陈旧 sidecar 会降级为时间戳裁决，不丢数据）。
+        /// </summary>
+        /// <param name="filePath">本地镜像完整路径。</param>
+        private static void DeleteMirrorVersion(string filePath)
+        {
+            try
+            {
+                string sidecarPath = ResolveMirrorVersionPath(filePath);
+                if (File.Exists(sidecarPath))
+                {
+                    File.Delete(sidecarPath);
+                }
+            }
+            catch (Exception exception)
+            {
+                LogUtility.Warning("[SaveService] Failed to delete mirror version sidecar, path: {0}, exception: {1}.", ResolveMirrorVersionPath(filePath), exception.GetType().Name);
+            }
         }
 
         #endregion
