@@ -8,7 +8,7 @@ namespace Moirai.Atropos.Localization
     /// <summary>
     /// 本地化服务外观（Facade）。
     /// <para>统一的静态多语言访问入口，通过替换 <see cref="Handler"/> 即可在不同本地化数据源之间零成本切换。</para>
-    /// <para>未显式设置处理器时，使用 <see cref="CreateDefaultHandler"/> 从 <see cref="LocalizationServiceSettings"/> 创建处理器实例。</para>
+    /// <para>未显式设置处理器时，懒加载优先经 <c>GetHandlerFromSettings</c> 从 <see cref="LocalizationServiceSettings"/> 解析；settings 未配置则回退 <see cref="CreateDefaultHandler"/>。</para>
     /// <para>降级契约：全部外观 API 经 <c>s_Handler?.</c> 静默降级（未注册/未初始化时返回安全默认值），与全框架统一。</para>
     /// <para>Handler 属性由 <c>HandlerHostGenerator</c> 源生成器自动生成（线程安全懒加载）。</para>
     /// </summary>
@@ -19,11 +19,17 @@ namespace Moirai.Atropos.Localization
         #region 生命周期 [LIFECYCLE]
 
         /// <summary>
-        /// 从 <see cref="LocalizationServiceSettings"/> 创建默认本地化处理器。
-        /// <para>首行先确保服务已注册（<c>GameServices.EnsureRegistered</c>，幂等）——外观首次访问即完成世界注册。</para>
+        /// 创建默认本地化处理器（settings 未配置时的代码兜底）。
         /// </summary>
         /// <returns>默认本地化处理器实例。</returns>
-        private static LocalizationServiceHandler CreateDefaultHandler()
+        internal static LocalizationServiceHandler CreateDefaultHandler() => new ConfigTableLocalizationHandler();
+
+        /// <summary>
+        /// 从 <see cref="LocalizationServiceSettings"/> 解析本地化处理器。
+        /// <para>首行先确保服务已注册（<c>GameServices.EnsureRegistered</c>，幂等）——懒加载主路径（settings 已配置时 <see cref="CreateDefaultHandler"/> 被短路）首次访问即完成世界注册。</para>
+        /// </summary>
+        /// <returns>settings 中配置的处理器；未配置时返回 <c>null</c> 回退到 <see cref="CreateDefaultHandler"/>。</returns>
+        private static LocalizationServiceHandler GetHandlerFromSettings()
         {
             GameServices.EnsureRegistered<LocalizationService>();
             return LocalizationServiceSettings.LocalizationServiceHandler;
@@ -34,7 +40,7 @@ namespace Moirai.Atropos.Localization
 
         /// <summary>
         /// 初始化本地化服务。由容器在构建期调用。
-        /// <para>确保 <c>LocalizationService.Handler</c> 已赋值（触发 <see cref="CreateDefaultHandler"/> 懒加载），
+        /// <para>确保 <c>LocalizationService.Handler</c> 已赋值（触发 <c>Handler</c> 懒加载），
         /// 订阅处理器语言变更事件用于静态事件转发，
         /// 并向游戏内调试器注册调试面板（依赖组合根先注册 <see cref="DebuggerService"/>——外观未就绪时静默跳过）。</para>
         /// </summary>

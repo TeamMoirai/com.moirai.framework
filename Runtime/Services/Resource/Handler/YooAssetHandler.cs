@@ -117,13 +117,13 @@ namespace Moirai.Atropos.Resource
 
         #endregion
 
-        /// <summary>
-        /// 绑定服务。
-        /// </summary>
-        public override IResourceBindingService BindingService => _bindingService;
+        /// <inheritdoc />
+        public override bool IsInitialized => base.IsInitialized && YooAssets.IsInitialized;
 
         private ResourceBindingService _bindingService;
-
+        /// <inheritdoc />
+        public override IResourceBindingService BindingService => _bindingService;
+        
         /// <inheritdoc />
         public override string HostServerURL { get; set; }
 
@@ -134,12 +134,10 @@ namespace Moirai.Atropos.Resource
         public override EResourceLoadWayWebGL LoadResWayWebGL { get; set; }
 
         private string _applicableGameVersion;
-
         /// <inheritdoc />
         public override string ApplicableGameVersion => _applicableGameVersion;
 
         private int _internalResourceVersion;
-
         /// <inheritdoc />
         public override int InternalResourceVersion => _internalResourceVersion;
 

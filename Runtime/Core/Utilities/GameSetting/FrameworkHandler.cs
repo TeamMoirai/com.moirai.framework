@@ -15,11 +15,10 @@ namespace Moirai.Atropos
     {
         // 标记 [NonSerialized] 以保证域重载后重置其值，避免序列化快照的状态污染
         [NonSerialized] private bool _initialized;
-
         /// <summary>
         /// 处理器是否已初始化。
         /// </summary>
-        public bool IsInitialized => _initialized;
+        public virtual bool IsInitialized => _initialized;
 
         #region 同步生命周期 [SYNC LIFECYCLE]
 
