@@ -4,7 +4,7 @@ using UnityEngine;
 namespace Moirai.Atropos.Resource
 {
     [FrameworkSetting("[服务]资源设置", "资源加载、缓存与绑定后端配置", -490)]
-    public sealed partial class ResourceServiceSettings : FrameworkSettings<ResourceServiceSettings>
+    public sealed class ResourceServiceSettings : FrameworkSettings<ResourceServiceSettings>
     {
         internal const string BASE_GROUP = "基础设置";
         
@@ -32,7 +32,7 @@ namespace Moirai.Atropos.Resource
         [BoxGroup(BASE_GROUP)]
         [InfoBox("默认使用内置资源后端。可替换为自定义资源后端。", InfoMessageType.None)]
         [ProviderDropdown]
-        [SerializeReference] private ResourceServiceHandler m_ResourceServiceHandler = new YooAssetHandler();
+        [SerializeReference] private ResourceServiceHandler m_ResourceServiceHandler = ResourceService.CreateDefaultHandler();
         /// <summary>资源处理器（后端）。</summary>
         public static ResourceServiceHandler ResourceServiceHandler => Instance.m_ResourceServiceHandler;
         
