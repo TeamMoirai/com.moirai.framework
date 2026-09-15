@@ -31,6 +31,9 @@ namespace Save
             public bool Offline;
             public int FailNextOperations;
 
+            /// <summary>单调修订号发生器（远端写入递增；版本通道裁决依据）。</summary>
+            public long NextVersion;
+
             private DateTime Now => DateTime.UtcNow + ClockOffset;
 
             private void ThrowIfUnavailable()
@@ -47,9 +50,9 @@ namespace Save
                 }
             }
 
-            public void Seed(string key, byte[] bytes, DateTime lastWriteTimeUtc)
+            public void Seed(string key, byte[] bytes, DateTime lastWriteTimeUtc, long version = 0L)
             {
-                Entries[key] = new CloudKvEntry(bytes, lastWriteTimeUtc);
+                Entries[key] = new CloudKvEntry(bytes, lastWriteTimeUtc, version);
             }
 
             public override UniTask<CloudKvEntry?> ReadAsync(string key, CancellationToken cancellationToken)
@@ -64,11 +67,12 @@ namespace Save
                 return UniTask.FromResult(Entries.ContainsKey(key));
             }
 
-            public override UniTask WriteAsync(string key, byte[] bytes, CancellationToken cancellationToken)
+            public override UniTask<long> WriteAsync(string key, byte[] bytes, CancellationToken cancellationToken)
             {
                 ThrowIfUnavailable();
-                Entries[key] = new CloudKvEntry(bytes, Now);
-                return UniTask.CompletedTask;
+                long version = ++NextVersion;
+                Entries[key] = new CloudKvEntry(bytes, Now, version);
+                return UniTask.FromResult(version);
             }
 
             public override UniTask DeleteAsync(string key, CancellationToken cancellationToken)
@@ -84,7 +88,7 @@ namespace Save
                 var infos = new List<CloudKvEntryInfo>(Entries.Count);
                 foreach (KeyValuePair<string, CloudKvEntry> pair in Entries)
                 {
-                    infos.Add(new CloudKvEntryInfo(pair.Key, pair.Value.Bytes.LongLength, pair.Value.LastWriteTimeUtc));
+                    infos.Add(new CloudKvEntryInfo(pair.Key, pair.Value.Bytes.LongLength, pair.Value.LastWriteTimeUtc, pair.Value.Version));
                 }
 
                 return UniTask.FromResult(infos.ToArray());
@@ -193,6 +197,26 @@ namespace Save
             string path = PathFor(fileName);
             File.WriteAllBytes(path, bytes);
             File.SetLastWriteTimeUtc(path, lastWriteTimeUtc);
+        }
+
+        /// <summary>
+        /// 写入镜像版本 sidecar（<c>{file}.cloudver</c>）并把 sidecar mtime 与镜像 mtime 对齐（干净态）。
+        /// </summary>
+        private void WriteMirrorVersionSidecar(string fileName, long version)
+        {
+            string path = PathFor(fileName);
+            string sidecarPath = path + ".cloudver";
+            File.WriteAllBytes(sidecarPath, BitConverter.GetBytes(version));
+            File.SetLastWriteTimeUtc(sidecarPath, File.GetLastWriteTimeUtc(path));
+        }
+
+        /// <summary>
+        /// 读取镜像版本 sidecar（不存在返回 0）。
+        /// </summary>
+        private static long ReadMirrorVersionSidecar(string filePath)
+        {
+            string sidecarPath = filePath + ".cloudver";
+            return File.Exists(sidecarPath) ? BitConverter.ToInt64(File.ReadAllBytes(sidecarPath), 0) : 0L;
         }
 
         #region 键规范化 [KEY NORMALIZATION]
@@ -428,6 +452,72 @@ namespace Save
             _backend.WriteAtomic(PathFor("slot2"), s_LocalBytes, CancellationToken.None);
             Assert.IsTrue(File.Exists(PathFor("slot2")));
             Assert.IsFalse(_remote.Entries.ContainsKey(KeyFor("slot2")));
+        }
+
+        #endregion
+
+        #region 版本通道裁决（去时钟化） [VERSION-CHANNEL RESOLUTION]
+
+        [Test]
+        public async Task ReadAllBytesAsync_Latest_RemoteNewerByVersion_Downloads_DespiteLocalClockAhead()
+        {
+            // 远端 v5（旧远端时间戳）；镜像时间戳被前拨（客户端时钟超前）——时间戳裁决会误判本地新，版本通道必须纠正
+            _remote.Seed(KeyFor("slot1"), s_RemoteBytes, s_TimeOld, version: 5L);
+            WriteMirror("slot1", s_LocalBytes, s_TimeNew);
+            WriteMirrorVersionSidecar("slot1", 4L);
+
+            byte[] read = await _backend.ReadAllBytesAsync(PathFor("slot1"), CancellationToken.None);
+
+            CollectionAssert.AreEqual(s_RemoteBytes, read, "远端 v5 > 镜像已同步 v4 → 下载（客户端时钟偏移不参与裁决）");
+            Assert.AreEqual(5L, ReadMirrorVersionSidecar(PathFor("slot1")), "下载后镜像版本推进到 v5");
+        }
+
+        [Test]
+        public async Task ReadAllBytesAsync_Latest_InSyncVersion_CleanMirror_NoTransfer()
+        {
+            _remote.Seed(KeyFor("slot1"), s_RemoteBytes, s_TimeNew, version: 5L);
+            WriteMirror("slot1", s_LocalBytes, s_TimeNew);
+            WriteMirrorVersionSidecar("slot1", 5L);
+
+            byte[] read = await _backend.ReadAllBytesAsync(PathFor("slot1"), CancellationToken.None);
+
+            CollectionAssert.AreEqual(s_LocalBytes, read, "版本相等且镜像干净 → 不下载");
+            Assert.AreEqual(5L, _remote.Entries[KeyFor("slot1")].Version, "镜像干净 → 不上传（远端版本不变）");
+            CollectionAssert.AreEqual(s_RemoteBytes, _remote.Entries[KeyFor("slot1")].Bytes);
+        }
+
+        [Test]
+        public async Task ReadAllBytesAsync_Latest_InSyncVersion_DirtyMirror_Uploads()
+        {
+            // 干净对齐 v5 后镜像被本地改写（同步原语直通不更新 sidecar → mtime 失配 = 脏）
+            byte[] newLocalBytes = { 7, 7, 7 };
+            _remote.Seed(KeyFor("slot1"), s_RemoteBytes, s_TimeNew, version: 5L);
+            _remote.NextVersion = 5L; // 修订号发生器与已播种版本对齐（下次远端写入分配 6）
+            WriteMirror("slot1", s_LocalBytes, s_TimeNew);
+            WriteMirrorVersionSidecar("slot1", 5L);
+            string path = PathFor("slot1");
+            File.WriteAllBytes(path, newLocalBytes);
+            File.SetLastWriteTimeUtc(path, s_TimeNew.AddSeconds(1));
+
+            byte[] read = await _backend.ReadAllBytesAsync(path, CancellationToken.None);
+
+            CollectionAssert.AreEqual(newLocalBytes, read, "脏镜像为本地事实——读返回本地内容");
+            CollectionAssert.AreEqual(newLocalBytes, _remote.Entries[KeyFor("slot1")].Bytes, "脏镜像应回传远端");
+            Assert.AreEqual(6L, _remote.Entries[KeyFor("slot1")].Version, "远端分配新修订号");
+            Assert.AreEqual(6L, ReadMirrorVersionSidecar(path), "上传后镜像版本推进");
+        }
+
+        [Test]
+        public async Task ReadAllBytesAsync_Latest_NoVersionChannel_FallsBackToTimestamp()
+        {
+            // 远端不提供版本号（0）——回退时间戳裁决（远端时间戳新者优先）
+            _remote.Seed(KeyFor("slot1"), s_RemoteBytes, s_TimeNew);
+            WriteMirror("slot1", s_LocalBytes, s_TimeOld);
+
+            byte[] read = await _backend.ReadAllBytesAsync(PathFor("slot1"), CancellationToken.None);
+
+            CollectionAssert.AreEqual(s_RemoteBytes, read, "无版本通道时保持时间戳裁决语义");
+            Assert.AreEqual(0L, ReadMirrorVersionSidecar(PathFor("slot1")), "无版本后端不产生 sidecar");
         }
 
         #endregion

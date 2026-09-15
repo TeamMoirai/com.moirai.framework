@@ -38,8 +38,8 @@ namespace Moirai.Atropos.Save
         /// <param name="key">云端键。</param>
         /// <param name="bytes">载荷字节。</param>
         /// <param name="cancellationToken">取消令牌。</param>
-        /// <returns>写入完成的异步任务。</returns>
-        public abstract UniTask WriteAsync(string key, byte[] bytes, CancellationToken cancellationToken);
+        /// <returns>远端分配的单调修订号（<c>0</c> = 本后端不提供版本号，同步裁决回退时间戳比较）。</returns>
+        public abstract UniTask<long> WriteAsync(string key, byte[] bytes, CancellationToken cancellationToken);
 
         /// <summary>
         /// 删除远端条目（幂等——不存在视为成功；远端失败抛异常）。
