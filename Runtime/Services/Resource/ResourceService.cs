@@ -9,7 +9,7 @@ namespace Moirai.Atropos.Resource
     /// <summary>
     /// 资源管理器外观（Facade），为游戏提供统一的资源加载、缓存、租约与绑定接口。
     /// <para>统一的静态资源访问入口，通过替换 <see cref="Handler"/> 即可在不同资源后端之间零成本切换。</para>
-    /// <para>未显式设置处理器时，使用 <see cref="CreateDefaultHandler"/> 从 <see cref="ResourceServiceSettings"/> 创建处理器实例。</para>
+    /// <para>未显式设置处理器时，懒加载优先经 <c>GetHandlerFromSettings</c> 从 <see cref="ResourceServiceSettings"/> 解析；settings 未配置则回退 <see cref="CreateDefaultHandler"/>。</para>
     /// <para>Handler 属性由 <c>HandlerHostGenerator</c> 源生成器自动生成（线程安全懒加载）。</para>
     /// </summary>
     [HandlerHost(typeof(ResourceServiceHandler))]
@@ -28,15 +28,21 @@ namespace Moirai.Atropos.Resource
         private static float s_LastGCCollectElapsedSeconds = float.MaxValue;
 
         #endregion
-
+        
         #region 生命周期 [LIFECYCLE]
 
         /// <summary>
-        /// 从 <see cref="ResourceServiceSettings"/> 创建默认资源处理器。
-        /// <para>首行先确保服务已注册（<c>GameServices.EnsureRegistered</c>，幂等）——外观首次访问即完成世界注册。</para>
+        /// 创建默认资源处理器（settings 未配置时的代码兜底）。
         /// </summary>
         /// <returns>默认资源处理器实例。</returns>
-        private static ResourceServiceHandler CreateDefaultHandler()
+        internal static ResourceServiceHandler CreateDefaultHandler() => new YooAssetHandler();
+
+        /// <summary>
+        /// 从 <see cref="ResourceServiceSettings"/> 解析资源处理器。
+        /// <para>首行先确保服务已注册（<c>GameServices.EnsureRegistered</c>，幂等）——懒加载主路径（settings 已配置时 <see cref="CreateDefaultHandler"/> 被短路）首次访问即完成世界注册。</para>
+        /// </summary>
+        /// <returns>settings 中配置的处理器；未配置时返回 <c>null</c> 回退到 <see cref="CreateDefaultHandler"/>。</returns>
+        private static ResourceServiceHandler GetHandlerFromSettings()
         {
             GameServices.EnsureRegistered<ResourceService>();
             return ResourceServiceSettings.ResourceServiceHandler;
@@ -155,6 +161,11 @@ namespace Moirai.Atropos.Resource
         #endregion
 
         #region 属性 [PROPERTIES]
+
+        /// <summary>
+        /// 是否已经初始化
+        /// </summary>
+        public static bool IsInitialized => IsValid && s_Handler.IsInitialized;
 		
         /// <summary>
         /// 默认资源包名称。
