@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using Cysharp.Threading.Tasks;
 
 namespace Moirai.Atropos.Save
@@ -27,8 +28,9 @@ namespace Moirai.Atropos.Save
         private static readonly List<ISaveMigrator> s_Migrators = new List<ISaveMigrator>();
         private static readonly object s_RegistryLock = new object();
 
-        /// <summary>会话级已校验文件路径缓存（版本相等或迁移完成的文件同会话不再重复探测/迁移；备份恢复与删除操作负责失效）。</summary>
-        private static readonly HashSet<string> s_MigratedPaths = new HashSet<string>(StringComparer.Ordinal);
+        /// <summary>会话级已校验文件路径缓存（存档路径 → 标记时文件最后写入时间 UTC；版本相等或迁移完成的文件同会话不再重复探测/迁移——
+        /// 文件写入时间变化（外部替换/云同步落盘/备份恢复）使缓存条目被动失效自动重探测；备份恢复与删除操作另经 <see cref="InvalidateSession"/> 主动失效）。</summary>
+        private static readonly Dictionary<string, DateTime> s_MigratedPaths = new Dictionary<string, DateTime>(StringComparer.Ordinal);
         private static readonly object s_SessionLock = new object();
 
         /// <summary>当前数据版本（默认 0 = 版本化未激活，管线完全旁路迁移总线）。</summary>
@@ -156,6 +158,48 @@ namespace Moirai.Atropos.Save
             s_CurrentVersion = 0;
         }
 
+        /// <summary>
+        /// 会话缓存命中判定（须在 <see cref="s_SessionLock"/> 内调用）：路径已标记且文件写入时间未变——
+        /// 外部替换/云同步落盘改变写入时间时被动失效（重走版本探测）；读取失败按未命中处理（后续探测给出准确错误语义）。
+        /// </summary>
+        /// <param name="saveFilePath">存档文件完整路径。</param>
+        /// <returns>缓存有效命中返回 <c>true</c>。</returns>
+        private static bool IsSessionMigrated(string saveFilePath)
+        {
+            if (!s_MigratedPaths.TryGetValue(saveFilePath, out DateTime markedTimeUtc))
+            {
+                return false;
+            }
+
+            try
+            {
+                return markedTimeUtc == File.GetLastWriteTimeUtc(saveFilePath);
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// 标记会话迁移缓存（须在 <see cref="s_SessionLock"/> 内调用；记录当前文件写入时间作为有效性锚点）。
+        /// </summary>
+        /// <param name="saveFilePath">存档文件完整路径。</param>
+        private static void MarkSessionMigrated(string saveFilePath)
+        {
+            DateTime markedTimeUtc;
+            try
+            {
+                markedTimeUtc = File.GetLastWriteTimeUtc(saveFilePath);
+            }
+            catch (Exception)
+            {
+                markedTimeUtc = DateTime.MinValue; // 读取失败：与命中判定同为失败语义（不会误命中）
+            }
+
+            s_MigratedPaths[saveFilePath] = markedTimeUtc;
+        }
+
         #endregion
 
         #region 迁移执行 [MIGRATION]
@@ -181,7 +225,7 @@ namespace Moirai.Atropos.Save
 
             lock (s_SessionLock)
             {
-                if (s_MigratedPaths.Contains(paths.SaveFilePath))
+                if (IsSessionMigrated(paths.SaveFilePath))
                 {
                     return SaveError.None;
                 }
@@ -207,7 +251,7 @@ namespace Moirai.Atropos.Save
                 // 版本相等同样进会话缓存——同文件后续加载免重复元数据探测
                 lock (s_SessionLock)
                 {
-                    s_MigratedPaths.Add(paths.SaveFilePath);
+                    MarkSessionMigrated(paths.SaveFilePath);
                 }
 
                 return SaveError.None;
@@ -262,7 +306,7 @@ namespace Moirai.Atropos.Save
 
             lock (s_SessionLock)
             {
-                s_MigratedPaths.Add(paths.SaveFilePath);
+                MarkSessionMigrated(paths.SaveFilePath);
             }
 
             LogUtility.Info("[SaveService] Save migrated, path: {0}, version: {1} -> {2}, steps: {3}.", paths.SaveFilePath, fileVersion, currentVersion, steps);

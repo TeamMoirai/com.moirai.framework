@@ -6,9 +6,10 @@ namespace Moirai.Atropos.Save
 {
     /// <summary>
     /// 存档截图工具：屏幕捕获（运行态主线程）与缩略图 PNG 编码（纯函数核心，像素源可注入）。
-    /// <para>管线：<see cref="ScreenCapture.CaptureScreenshotAsTexture()"/>（主线程，帧末捕获）→ CPU 盒式降采样（保纵横比、不放大）
-    /// → <see cref="ImageConversion.EncodeToPNG"/> 主线程一次编码（小图成本可忽略；ImageConversion 为主线程约束 API）。</para>
-    /// <para>降采样与编码收敛为单一 CPU 路径（非 GPU Blit 双路径），EditMode 下以注入像素源全链路覆盖。</para>
+    /// <para>生产管线：<see cref="ScreenCapture.CaptureScreenshotAsTexture()"/>（主线程，帧末捕获）→ GPU Blit 降采样到小尺寸
+    /// RenderTexture → 小图回读 → <see cref="ImageConversion.EncodeToPNG"/> 主线程一次编码（256² 量级，成本可忽略）——
+    /// 规避 4K 全尺寸 CPU 盒式滤波与全尺寸回读的卡顿风险。</para>
+    /// <para>CPU 盒式降采样路径（<see cref="DownsampleBox"/>/<see cref="EncodeThumbnailPng"/>）保留为纯函数核心，EditMode 以注入像素源全链路覆盖。</para>
     /// </summary>
     internal static class SaveScreenshotUtility
     {
@@ -48,6 +49,56 @@ namespace Moirai.Atropos.Save
                 width = captured.width;
                 height = captured.height;
                 return captured.GetPixels32();
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(captured);
+            }
+        }
+
+        /// <summary>
+        /// 捕获当前帧屏幕缩略图像素（仅限运行态主线程，须在 <c>WaitForEndOfFrame</c> 之后调用）：
+        /// 屏幕捕获 → GPU Blit 降采样到小尺寸 RenderTexture → 小图回读。
+        /// <para>降采样在 GPU 侧完成、回读仅小图——主线程 CPU 不再承担全尺寸盒式滤波与全尺寸回读（4K 卡顿风险消除）。</para>
+        /// </summary>
+        /// <param name="maxDimension">缩略图最长边上限（像素，保纵横比不放大）。</param>
+        /// <param name="width">输出缩略图宽度。</param>
+        /// <param name="height">输出缩略图高度。</param>
+        /// <returns>缩略图像素数组（RGBA32，行主序）。</returns>
+        internal static Color32[] CaptureThumbnailPixels(int maxDimension, out int width, out int height)
+        {
+            Texture2D captured = ScreenCapture.CaptureScreenshotAsTexture();
+            try
+            {
+                ComputeThumbnailSize(captured.width, captured.height, maxDimension, out width, out height);
+                if (width == captured.width && height == captured.height)
+                {
+                    return captured.GetPixels32();
+                }
+
+                RenderTexture thumbnail = RenderTexture.GetTemporary(width, height, 0, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Default);
+                try
+                {
+                    Graphics.Blit(captured, thumbnail);
+                    RenderTexture previous = RenderTexture.active;
+                    RenderTexture.active = thumbnail;
+                    var readback = new Texture2D(width, height, TextureFormat.RGBA32, false);
+                    try
+                    {
+                        readback.ReadPixels(new Rect(0f, 0f, width, height), 0, 0);
+                        readback.Apply();
+                        return readback.GetPixels32();
+                    }
+                    finally
+                    {
+                        RenderTexture.active = previous;
+                        UnityEngine.Object.DestroyImmediate(readback);
+                    }
+                }
+                finally
+                {
+                    RenderTexture.ReleaseTemporary(thumbnail);
+                }
             }
             finally
             {

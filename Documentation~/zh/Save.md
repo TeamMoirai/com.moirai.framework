@@ -209,7 +209,7 @@ await SaveService.RestoreEntitiesAsync("slot1");
 
 ## 截图与元数据镜像
 
-存档槽位缩略图管线：帧末捕获屏幕（`ScreenCapture.CaptureScreenshotAsTexture`，**仅运行态主线程**）→ CPU 盒式降采样（保纵横比、不放大，最长边经 `m_ScreenshotMaxDimension` 配置，默认 256）→ 主线程 PNG 编码一次 → 经存储层原子写 sidecar `{存档基名}.screenshot.png`（与存档同目录；云存储后端天然跟随）。
+存档槽位缩略图管线：帧末捕获屏幕（`ScreenCapture.CaptureScreenshotAsTexture`，**仅运行态主线程**）→ GPU Blit 降采样到小尺寸 RenderTexture + 小图回读（保纵横比、不放大，最长边经 `m_ScreenshotMaxDimension` 配置，默认 256；规避 4K 全尺寸 CPU 滤波与回读卡顿）→ 主线程 PNG 编码一次 → 经存储层原子写 sidecar `{存档基名}.screenshot.png`（与存档同目录；云存储后端天然跟随）。
 
 - **元数据镜像**：截图成功后镜像保留块 `__meta`——`ThumbnailFileName`（sidecar 文件名）与 `SceneName`（活动场景名）由管线自动填充；`PlayTimeTicks`（`TimeSpan` ticks）由游戏层按自身累计口径写入。既有元数据损坏时不覆盖（记告警并跳过镜像，保留抢救空间）。
 - **保存联动**：`m_CaptureScreenshotOnSave` 开启后，`SaveBlockAsync` / `SaveComponentsAsync` 成功即自动捕获（保留块 `__` 前缀豁免——元数据镜像回写不递归）；联动失败不回传保存结果，联动取消不外溢到保存方令牌。
@@ -278,7 +278,7 @@ await SaveService.RestoreEntitiesAsync("slot1");
 
 ### 事件（SaveService.Events）
 
-静态事件（默认零开销通道）+ `EventManager` 桥事件（`SaveSlotChangedEvent` 等，订阅侧二选一）。全部主线程派发：主线程操作内联，异步操作工作线程完成后经 `MainThreadDispatcher` 入队。`OnShutdown` 不清理订阅者——订阅方自行退订；调试可用 `SaveService.UnsubscribeAll()` 一键清空。参数均为只读值类型（≤32B）。
+静态事件（默认零开销通道）+ `EventManager` 桥事件（`SaveSlotChangedEvent` 等，订阅侧二选一）。全部主线程派发：主线程操作内联直发（零闭包），异步操作工作线程完成后经 `MainThreadDispatcher.Post<TState>` 状态化入队（池化工作项 + 静态 lambda 缓存——稳态零分配）。`OnShutdown` 不清理订阅者——订阅方自行退订；调试可用 `SaveService.UnsubscribeAll()` 一键清空。参数均为只读值类型（≤32B）。
 
 | 静态事件 | 桥事件 | 时机 |
 |---|---|---|

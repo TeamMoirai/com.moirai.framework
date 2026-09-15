@@ -365,6 +365,32 @@ namespace Save
         #region 版本链 [CHAIN]
 
         [Test]
+        public void SessionCache_ExternalRewrite_PassivelyInvalidates()
+        {
+            WriteSlotAtVersion("slot", new ProfileData { Gold = 42, Title = "knight" }, 1);
+            SaveMigrationManager.Register(new RenameGoldMigrator());
+            SaveMigrationManager.CurrentVersion = 2;
+
+            // 首次加载迁移并标记会话缓存（回写后文件时间变化 → 二次加载经版本相等短路重锚）
+            Assert.AreEqual(SaveError.None, _handler.TryLoadBlockCore<ProfileDataV2>(Paths("slot"), "profile", out _));
+            Assert.AreEqual(1, RenameGoldMigrator.RunCount);
+
+            // 同会话加载：版本相等短路（不重复执行迁移器）
+            Assert.AreEqual(SaveError.None, _handler.TryLoadBlockCore<ProfileDataV2>(Paths("slot"), "profile", out _));
+            Assert.AreEqual(1, RenameGoldMigrator.RunCount, "同会话不得重复迁移");
+
+            // 外部把旧版内容重写回存档（模拟云同步落盘/外部替换）——写入时间变化必须使缓存被动失效
+            WriteSlotAtVersion("slot", new ProfileData { Gold = 7, Title = "squire" }, 1);
+            File.SetLastWriteTimeUtc(Paths("slot").SaveFilePath, DateTime.UtcNow.AddSeconds(2));
+            SaveMigrationManager.CurrentVersion = 2;
+
+            Assert.AreEqual(SaveError.None, _handler.TryLoadBlockCore<ProfileDataV2>(Paths("slot"), "profile", out ProfileDataV2 reloaded));
+            Assert.AreEqual(2, RenameGoldMigrator.RunCount, "外部替换改变写入时间必须被动失效会话缓存并重迁移");
+            Assert.AreEqual(7, reloaded.Coins, "重写后的旧版数据应重新迁移");
+            Assert.AreEqual("squire", reloaded.Title);
+        }
+
+        [Test]
         public void Chain_SingleStep_MigratesAndWritesBack()
         {
             WriteSlotAtVersion("slot", new ProfileData { Gold = 42, Title = "knight" }, 1);
