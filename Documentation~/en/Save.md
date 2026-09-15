@@ -209,7 +209,7 @@ await SaveService.RestoreEntitiesAsync("slot1");
 
 ## Screenshot & Metadata Mirroring
 
-Save-slot thumbnail pipeline: capture the screen at end of frame (`ScreenCapture.CaptureScreenshotAsTexture`, **playing main thread only**) → CPU box downsample (aspect-preserving, never upscales; longest edge via `m_ScreenshotMaxDimension`, default 256) → single main-thread PNG encode → atomic sidecar write `{save base name}.screenshot.png` through the storage layer (next to the save file; cloud storage backends follow naturally).
+Save-slot thumbnail pipeline: capture the screen at end of frame (`ScreenCapture.CaptureScreenshotAsTexture`, **playing main thread only**) → GPU Blit downsample into a small RenderTexture with small-format readback (aspect-preserving, never upscales; longest edge via `m_ScreenshotMaxDimension`, default 256 — avoids full-resolution CPU filtering and readback stalls at 4K) → single main-thread PNG encode → atomic sidecar write `{save base name}.screenshot.png` through the storage layer (next to the save file; cloud storage backends follow naturally).
 
 - **Metadata mirroring**: on capture success the reserved `__meta` block is mirrored — `ThumbnailFileName` (sidecar file name) and `SceneName` (active scene) are filled by the pipeline; `PlayTimeTicks` (`TimeSpan` ticks) is written by the game layer under its own accounting. Corrupted existing metadata is never overwritten (a warning is logged and mirroring is skipped, preserving salvage options).
 - **Save linkage**: with `m_CaptureScreenshotOnSave` on, `SaveBlockAsync` / `SaveComponentsAsync` capture automatically after success (reserved `__`-prefixed blocks are exempt — the metadata mirror write-back never recurses); linkage failures never propagate to the save result, and linkage cancellation never leaks into the caller's token.
@@ -278,7 +278,7 @@ Write paths (`SaveBlock`/`SaveBlockAsync`/`SaveComponentsAsync`/`SaveEntitiesAsy
 
 ### Events (SaveService.Events)
 
-Static events (default zero-overhead channel) + `EventManager` bridge events (`SaveSlotChangedEvent` etc. — subscribers pick either channel). All events dispatch on the main thread: operations triggered on the main thread dispatch inline; async operations complete on worker threads and are queued via `MainThreadDispatcher`. `OnShutdown` does not clear subscribers — subscribers must unsubscribe themselves; debug helpers may call `SaveService.UnsubscribeAll()`. Args are readonly value types (≤32B).
+Static events (default zero-overhead channel) + `EventManager` bridge events (`SaveSlotChangedEvent` etc. — subscribers pick either channel). All events dispatch on the main thread: operations triggered on the main thread dispatch inline (zero closure); async operations complete on worker threads and are queued via `MainThreadDispatcher.Post<TState>` (pooled work items + cached static lambdas — zero steady-state allocation). `OnShutdown` does not clear subscribers — subscribers must unsubscribe themselves; debug helpers may call `SaveService.UnsubscribeAll()`. Args are readonly value types (≤32B).
 
 | Static event | Bridge event | When |
 |---|---|---|

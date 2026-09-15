@@ -95,23 +95,7 @@ namespace Moirai.Atropos.Save
         }
 
         /// <summary>
-        /// 派发动作到主线程（主线程内联，工作线程入队下一泵）。
-        /// </summary>
-        /// <param name="action">派发动作。</param>
-        private static void DispatchToMain(Action action)
-        {
-            if (MainThreadDispatcher.IsMainThread)
-            {
-                action();
-            }
-            else
-            {
-                MainThreadDispatcher.Post(action);
-            }
-        }
-
-        /// <summary>
-        /// 触发槽位变动事件（任意线程可调；主线程内联派发，工作线程入队派发）。
+        /// 触发槽位变动事件（任意线程可调；主线程内联派发，工作线程经状态化入队零闭包派发）。
         /// </summary>
         /// <param name="kind">变动类别。</param>
         /// <param name="fileName">存档文件名。</param>
@@ -119,7 +103,14 @@ namespace Moirai.Atropos.Save
         internal static void RaiseSlotChanged(ESaveSlotChangeKind kind, string fileName, string folderName)
         {
             var args = new SaveSlotChangedArgs(kind, fileName, folderName);
-            DispatchToMain(() => PublishSlotChanged(args));
+            if (MainThreadDispatcher.IsMainThread)
+            {
+                PublishSlotChanged(args);
+            }
+            else
+            {
+                MainThreadDispatcher.Post(args, static a => PublishSlotChanged(a));
+            }
         }
 
         /// <summary>
@@ -133,7 +124,14 @@ namespace Moirai.Atropos.Save
         internal static void RaiseBlockSaved(string fileName, string folderName, string key, ESaveBackend backend, int sizeBytes)
         {
             var args = new SaveBlockChangedArgs(fileName, folderName, key, backend, sizeBytes);
-            DispatchToMain(() => PublishBlockSaved(args));
+            if (MainThreadDispatcher.IsMainThread)
+            {
+                PublishBlockSaved(args);
+            }
+            else
+            {
+                MainThreadDispatcher.Post(args, static a => PublishBlockSaved(a));
+            }
         }
 
         /// <summary>
@@ -147,7 +145,14 @@ namespace Moirai.Atropos.Save
         internal static void RaiseBlockDeleted(string fileName, string folderName, string key, ESaveBackend backend, int sizeBytes)
         {
             var args = new SaveBlockChangedArgs(fileName, folderName, key, backend, sizeBytes);
-            DispatchToMain(() => PublishBlockDeleted(args));
+            if (MainThreadDispatcher.IsMainThread)
+            {
+                PublishBlockDeleted(args);
+            }
+            else
+            {
+                MainThreadDispatcher.Post(args, static a => PublishBlockDeleted(a));
+            }
         }
 
         /// <summary>
@@ -160,7 +165,14 @@ namespace Moirai.Atropos.Save
         internal static void RaiseSaveProgress(string fileName, string folderName, int completed, int total)
         {
             var args = new SaveProgressArgs(fileName, folderName, completed, total);
-            DispatchToMain(() => PublishSaveProgress(args));
+            if (MainThreadDispatcher.IsMainThread)
+            {
+                PublishSaveProgress(args);
+            }
+            else
+            {
+                MainThreadDispatcher.Post(args, static a => PublishSaveProgress(a));
+            }
         }
 
         /// <summary>
@@ -173,7 +185,14 @@ namespace Moirai.Atropos.Save
         internal static void RaiseLoadProgress(string fileName, string folderName, int completed, int total)
         {
             var args = new SaveProgressArgs(fileName, folderName, completed, total);
-            DispatchToMain(() => PublishLoadProgress(args));
+            if (MainThreadDispatcher.IsMainThread)
+            {
+                PublishLoadProgress(args);
+            }
+            else
+            {
+                MainThreadDispatcher.Post(args, static a => PublishLoadProgress(a));
+            }
         }
 
         /// <summary>
@@ -185,7 +204,14 @@ namespace Moirai.Atropos.Save
         internal static void RaiseEntityRestored(string entityId, string prefabKey, UnityEngine.GameObject instance)
         {
             var args = new SaveEntityRestoredArgs(entityId, prefabKey, instance);
-            DispatchToMain(() => PublishEntityRestored(args));
+            if (MainThreadDispatcher.IsMainThread)
+            {
+                PublishEntityRestored(args);
+            }
+            else
+            {
+                MainThreadDispatcher.Post(args, static a => PublishEntityRestored(a));
+            }
         }
 
         /// <summary>
@@ -199,7 +225,14 @@ namespace Moirai.Atropos.Save
         internal static void RaiseSaveFailed(string fileName, string folderName, string key, ESaveFailureStage stage, SaveError error)
         {
             var args = new SaveFailedArgs(fileName, folderName, key, stage, error);
-            DispatchToMain(() => PublishSaveFailed(args));
+            if (MainThreadDispatcher.IsMainThread)
+            {
+                PublishSaveFailed(args);
+            }
+            else
+            {
+                MainThreadDispatcher.Post(args, static a => PublishSaveFailed(a));
+            }
         }
 
         /// <summary>
@@ -213,7 +246,14 @@ namespace Moirai.Atropos.Save
         internal static void RaiseLoadFailed(string fileName, string folderName, string key, ESaveFailureStage stage, SaveError error)
         {
             var args = new SaveFailedArgs(fileName, folderName, key, stage, error);
-            DispatchToMain(() => PublishLoadFailed(args));
+            if (MainThreadDispatcher.IsMainThread)
+            {
+                PublishLoadFailed(args);
+            }
+            else
+            {
+                MainThreadDispatcher.Post(args, static a => PublishLoadFailed(a));
+            }
         }
 
         /// <summary>
@@ -227,7 +267,14 @@ namespace Moirai.Atropos.Save
         internal static void RaiseScreenshotCaptured(string fileName, string folderName, string screenshotFileName, int width, int height)
         {
             var args = new SaveScreenshotArgs(fileName, folderName, screenshotFileName, width, height);
-            DispatchToMain(() => PublishScreenshotCaptured(args));
+            if (MainThreadDispatcher.IsMainThread)
+            {
+                PublishScreenshotCaptured(args);
+            }
+            else
+            {
+                MainThreadDispatcher.Post(args, static a => PublishScreenshotCaptured(a));
+            }
         }
 
         #endregion

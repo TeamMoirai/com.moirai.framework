@@ -365,6 +365,90 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
+        /// 将「状态 + 处理器」入队，在下次主线程泵时执行（状态化零闭包路径：工作项池化复用，
+        /// 处理器经静态 lambda/方法组的编译器缓存后稳态零分配；值类型状态经泛型工作项传递零装箱）。
+        /// </summary>
+        /// <typeparam name="TState">状态类型。</typeparam>
+        /// <param name="state">随队列携带的状态（工作项归还池时清空——引用类型状态不滞留）。</param>
+        /// <param name="action">将在主线程执行的处理器。</param>
+        /// <remarks>任意线程可调用，入队路径不触碰任何 Unity API。停机后调用会被丢弃并告警（工作项照常归还池）。</remarks>
+        public static void Post<TState>(TState state, Action<TState> action)
+        {
+            if (action == null) throw new ArgumentNullException(nameof(action));
+
+            StateWorkItem<TState> item = StateWorkItem<TState>.Acquire(state, action);
+            if (!TryPost(item.CachedExecute))
+            {
+                item.Release();
+                LogUtility.Warning("MainThreadDispatcher.Post rejected: dispatcher has shut down.");
+            }
+        }
+
+        /// <summary>
+        /// 状态化工作项（池化：执行入口委托在实例构造时以方法组缓存——同一实例反复入队零委托分配；
+        /// 归还前清场，引用类型状态不跨任务滞留）。
+        /// </summary>
+        /// <typeparam name="T">状态类型。</typeparam>
+        private sealed class StateWorkItem<T>
+        {
+            /// <summary>实例池（无锁队列；容量随历史峰值积压自然伸缩，与 PendingQueue 语义一致不设上限）。</summary>
+            private static readonly ConcurrentQueue<StateWorkItem<T>> s_Pool = new ConcurrentQueue<StateWorkItem<T>>();
+
+            /// <summary>携带状态。</summary>
+            private T _state;
+
+            /// <summary>主线程处理器。</summary>
+            private Action<T> _handler;
+
+            /// <summary>入队用执行入口（方法组缓存委托——泵直接调用本字段，无需每次构造闭包）。</summary>
+            internal readonly Action CachedExecute;
+
+            private StateWorkItem()
+            {
+                CachedExecute = Execute;
+            }
+
+            /// <summary>
+            /// 取工作项并装载状态与处理器。
+            /// </summary>
+            /// <param name="state">携带状态。</param>
+            /// <param name="handler">主线程处理器。</param>
+            /// <returns>工作项实例。</returns>
+            internal static StateWorkItem<T> Acquire(T state, Action<T> handler)
+            {
+                if (!s_Pool.TryDequeue(out StateWorkItem<T> item))
+                {
+                    item = new StateWorkItem<T>();
+                }
+
+                item._state = state;
+                item._handler = handler;
+                return item;
+            }
+
+            /// <summary>
+            /// 泵内执行（先取引用再清场归还——归还后实例可能已被其他线程复用，状态读取必须先完成）。
+            /// </summary>
+            private void Execute()
+            {
+                Action<T> handler = _handler;
+                T state = _state;
+                Release();
+                handler(state);
+            }
+
+            /// <summary>
+            /// 清场并归还池（幂等语义由调用方保证：每实例每次入队生命周期内仅调用一次）。
+            /// </summary>
+            internal void Release()
+            {
+                _handler = null;
+                _state = default;
+                s_Pool.Enqueue(this);
+            }
+        }
+
+        /// <summary>
         /// 将函数入队，使其在主线程上执行，并返回其完成时完成的任务。
         /// </summary>
         /// <param name="action">将在主线程执行的函数。</param>

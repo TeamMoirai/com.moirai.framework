@@ -8,7 +8,7 @@ namespace Moirai.Atropos.Save
 {
     /// <summary>
     /// 存档服务外观——截图与元数据镜像分部。
-    /// <para>截图管线：帧末捕获屏幕 → CPU 降采样编码 PNG → 经存储层（<see cref="ISaveStorage"/>，云后端天然跟随）原子写 sidecar
+    /// <para>截图管线：帧末捕获屏幕 → GPU Blit 降采样 + 小图回读编码 PNG → 经存储层（<see cref="ISaveStorage"/>，云后端天然跟随）原子写 sidecar
     /// <c>{存档基名}.screenshot.png</c> → 镜像元数据块（缩略图文件名 + 活动场景名）→ 派发 <see cref="ScreenshotCaptured"/> 事件。</para>
     /// <para>截图仅限运行态主线程；存档删除时 sidecar 级联删除（防止同名新档复活陈旧缩略图）。</para>
     /// <para>联动开关：<see cref="SaveServiceSettings.CaptureScreenshotOnSave"/> 开启时，块保存（<see cref="SaveBlockAsync{T}"/>）
@@ -43,10 +43,10 @@ namespace Moirai.Atropos.Save
 
             SaveServiceHandler.SavePaths paths = SaveServiceHandler.ResolveSavePaths(fileName, folderName);
 
-            // 帧末捕获（屏幕捕获须在帧渲染完成后进行；ImageConversion 主线程编码，小图成本可忽略）
+            // 帧末捕获（屏幕捕获须在帧渲染完成后进行；GPU 降采样 + 小图回读，ImageConversion 主线程编码小图）
             await UniTask.WaitForEndOfFrame(cancellationToken: cancellationToken);
-            Color32[] pixels = SaveScreenshotUtility.CaptureScreenPixels(out int sourceWidth, out int sourceHeight);
-            byte[] pngBytes = SaveScreenshotUtility.EncodeThumbnailPng(pixels, sourceWidth, sourceHeight, SaveServiceSettings.ScreenshotMaxDimension, out int thumbnailWidth, out int thumbnailHeight);
+            Color32[] pixels = SaveScreenshotUtility.CaptureThumbnailPixels(SaveServiceSettings.ScreenshotMaxDimension, out int thumbnailWidth, out int thumbnailHeight);
+            byte[] pngBytes = SaveScreenshotUtility.EncodeThumbnailPng(pixels, thumbnailWidth, thumbnailHeight, SaveServiceSettings.ScreenshotMaxDimension, out _, out _);
 
             // 场景名必须在任何线程池 await 之前读取（WriteScreenshotAsync 续体不保证回主线程）
             string sceneName = SceneManager.GetActiveScene().name;

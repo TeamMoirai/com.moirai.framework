@@ -88,6 +88,48 @@ namespace Utility
             Assert.AreEqual(1, executed);
         }
 
+        [Test]
+        public void Post_TState_DeliversExactStateExactlyOnce()
+        {
+            string received = null;
+            MainThreadDispatcher.Post("payload-42", state => received = state);
+
+            Assert.IsNull(received, "Pump 前不应执行");
+            Assert.AreEqual(1, MainThreadDispatcher.PendingCount);
+
+            MainThreadDispatcher.Pump();
+
+            Assert.AreEqual("payload-42", received, "状态化入队必须原样交付状态");
+            Assert.AreEqual(0, MainThreadDispatcher.PendingCount);
+        }
+
+        [Test]
+        public void Post_TState_RepeatedPosts_ReusePooledWorkItems()
+        {
+            int sum = 0;
+            for (int i = 0; i < 64; i++)
+            {
+                MainThreadDispatcher.Post(i, state => sum += state);
+            }
+
+            MainThreadDispatcher.Pump();
+
+            Assert.AreEqual(63 * 64 / 2, sum, "池化工作项复用不得串扰状态（0..63 求和）");
+            Assert.AreEqual(0, MainThreadDispatcher.PendingCount);
+
+            // 复用后再投仍正确（工作项清场彻底）
+            int second = -1;
+            MainThreadDispatcher.Post(7, state => second = state);
+            MainThreadDispatcher.Pump();
+            Assert.AreEqual(7, second);
+        }
+
+        [Test]
+        public void Post_TState_NullAction_Throws()
+        {
+            Assert.Throws<System.ArgumentNullException>(() => MainThreadDispatcher.Post<int>(1, null));
+        }
+
         #endregion
 
         #region 异常隔离 [Exception Isolation]
