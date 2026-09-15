@@ -25,17 +25,17 @@ namespace Moirai.Atropos.Save
         public override byte ProviderId => PROVIDER_ID;
 
         /// <summary>
-        /// GZip 压缩容器字节。
+        /// GZip 压缩容器字节（经跨度写入零中间拷贝）。
         /// </summary>
-        /// <param name="raw">容器字节。</param>
+        /// <param name="raw">容器字节视图。</param>
         /// <returns>压缩字节。</returns>
-        public override byte[] Compress(byte[] raw)
+        public override byte[] Compress(SaveBufferSegment raw)
         {
             using (MemoryStream output = new MemoryStream())
             {
                 using (GZipStream gzip = new GZipStream(output, CompressionLevel.Optimal, leaveOpen: true))
                 {
-                    gzip.Write(raw, 0, raw.Length);
+                    gzip.Write(raw.AsSpan());
                 }
 
                 return output.ToArray();
@@ -43,13 +43,13 @@ namespace Moirai.Atropos.Save
         }
 
         /// <summary>
-        /// GZip 解压为容器字节（数据非法抛 <see cref="InvalidDataException"/>，由读侧归一为 <see cref="SaveError.Corrupted"/>）。
+        /// GZip 解压为容器字节（经缓冲区视图包装零拷贝；数据非法抛 <see cref="InvalidDataException"/>，由读侧归一为 <see cref="SaveError.Corrupted"/>）。
         /// </summary>
-        /// <param name="packed">压缩字节。</param>
+        /// <param name="packed">压缩字节视图。</param>
         /// <returns>容器字节。</returns>
-        public override byte[] Decompress(byte[] packed)
+        public override byte[] Decompress(SaveBufferSegment packed)
         {
-            using (MemoryStream input = new MemoryStream(packed, writable: false))
+            using (MemoryStream input = new MemoryStream(packed.Buffer, packed.Offset, packed.Length, writable: false))
             using (GZipStream gzip = new GZipStream(input, CompressionMode.Decompress))
             using (MemoryStream output = new MemoryStream())
             {

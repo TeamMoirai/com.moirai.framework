@@ -8,6 +8,7 @@ using Moirai.Atropos;
 using Moirai.Atropos.Save;
 using NUnit.Framework;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.TestTools;
 using UObject = UnityEngine.Object;
 
@@ -372,6 +373,19 @@ namespace Service.Save
             string firstKey = first.GetComponent<SaveComponent>().ResolvedBlockKey;
             string secondKey = second.GetComponent<SaveComponent>().ResolvedBlockKey;
             Assert.AreNotEqual(firstKey, secondKey, "同预制体同名的两个实体块键必须不同（GUID 天然防撞键）");
+        }
+
+        [Test]
+        public void InstantiatePersistent_RecordsActiveSceneAttribution()
+        {
+            GameObject entity = SaveService.InstantiatePersistent(ENEMY_KEY, Vector3.zero, Quaternion.identity);
+            _objects.Add(entity);
+
+            List<SaveBlockEntry> entries = SaveEntityPersistence.CaptureEntityEntries("slot1", "Save");
+            SaveEntityTable.Read(entries[entries.Count - 1].Bytes, out List<SaveSpawnRecord> spawns, out _);
+            Assert.AreEqual(1, spawns.Count);
+            Assert.AreEqual(SceneManager.GetActiveScene().name ?? string.Empty, spawns[0].SceneName,
+                "生成记录场景归属 = 落位场景名（跨会话恢复依据）");
         }
 
         [Test]

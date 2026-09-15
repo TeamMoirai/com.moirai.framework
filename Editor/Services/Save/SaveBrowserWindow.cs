@@ -1522,7 +1522,8 @@ namespace Moirai.Atropos.Editor.Save
                     }
                     else if (block.Backend == ESaveBackend.KeyValue)
                     {
-                        text = BuildHexDump(bytes, HEX_PREVIEW_MAX_BYTES);
+                        // KVT 结构化树预览（解析失败回退十六进制采样）
+                        text = SaveKvPreviewFormatter.Format(bytes) ?? BuildHexDump(bytes, HEX_PREVIEW_MAX_BYTES);
                     }
                     else
                     {

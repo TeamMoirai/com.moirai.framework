@@ -55,5 +55,32 @@ namespace Moirai.Atropos.Save
         /// <param name="cancellationToken">取消令牌。</param>
         /// <returns>条目元信息数组。</returns>
         public abstract UniTask<CloudKvEntryInfo[]> EnumerateAsync(CancellationToken cancellationToken);
+
+        /// <summary>
+        /// 枚举远端指定前缀下的条目（默认实现：全量枚举后客户端过滤——流量与延迟随键总数线性增长；
+        /// 支持服务端前缀过滤的后端应覆写本方法以下推过滤）。
+        /// </summary>
+        /// <param name="prefix">键前缀（空 = 全部）。</param>
+        /// <param name="cancellationToken">取消令牌。</param>
+        /// <returns>前缀命中的条目元信息数组。</returns>
+        public virtual async UniTask<CloudKvEntryInfo[]> EnumerateAsync(string prefix, CancellationToken cancellationToken)
+        {
+            CloudKvEntryInfo[] all = await EnumerateAsync(cancellationToken);
+            if (string.IsNullOrEmpty(prefix))
+            {
+                return all;
+            }
+
+            var results = new System.Collections.Generic.List<CloudKvEntryInfo>(all.Length);
+            for (int i = 0; i < all.Length; i++)
+            {
+                if (all[i].Key != null && all[i].Key.StartsWith(prefix, StringComparison.Ordinal))
+                {
+                    results.Add(all[i]);
+                }
+            }
+
+            return results.Count == all.Length ? all : results.ToArray();
+        }
     }
 }

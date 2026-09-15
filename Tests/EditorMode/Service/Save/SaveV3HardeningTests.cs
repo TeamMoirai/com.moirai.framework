@@ -7,8 +7,14 @@ using System.Threading;
 using Moirai.Atropos;
 using Moirai.Atropos.Save;
 using NUnit.Framework;
+using UnityEditor;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.TestTools;
+using EditorSceneManager = UnityEditor.SceneManagement.EditorSceneManager;
+using NewSceneMode = UnityEditor.SceneManagement.NewSceneMode;
+using NewSceneSetup = UnityEditor.SceneManagement.NewSceneSetup;
+using OpenSceneMode = UnityEditor.SceneManagement.OpenSceneMode;
 
 namespace Save
 {
@@ -218,6 +224,57 @@ namespace Save
             SaveError error = _handler.TryLoadBlockCore<SaveData>(paths, SaveServiceHandler.MAIN_BLOCK_KEY, out SaveData loaded);
             Assert.AreEqual(SaveError.None, error);
             Assert.AreEqual(7, loaded.Gold);
+        }
+
+        #endregion
+
+        #region 场景命名空间 [SCENE NAMESPACE]
+
+        [Test]
+        public void ResolveSceneNamespace_UntitledActiveScene_FallsBackToName()
+        {
+            // EditMode 测试活跃场景为未保存场景（无资产路径）——命名空间回退场景名
+            Scene active = SceneManager.GetActiveScene();
+            Assert.AreEqual(string.Empty, active.path, "测试活跃场景应为未保存场景");
+            Assert.AreEqual(active.name ?? string.Empty, SaveComponent.ResolveSceneNamespace(active), "未保存场景命名空间回退场景名");
+        }
+
+        [Test]
+        public void ResolveSceneNamespace_DefaultScene_ReturnsEmpty()
+        {
+            Assert.AreEqual(string.Empty, SaveComponent.ResolveSceneNamespace(default), "非法/未初始化场景句柄不得抛异常");
+        }
+
+        [Test]
+        public void ResolvedBlockKey_SavedScene_UsesScenePathNamespace()
+        {
+            // 新建空场景（成为活跃场景）→ 保存为资产（盖章场景资产路径）——EditMode 下 NewScene(Additive) 要求
+            // 活跃场景已保存，本流程规避该前置条件；收尾恢复未保存空场景，消除夹具内测试顺序耦合
+            string scenePath = "Assets/save-ns-test-scene.unity";
+            Scene created = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            try
+            {
+                EditorSceneManager.SaveScene(created, scenePath);
+                Assert.AreEqual(scenePath, SaveComponent.ResolveSceneNamespace(created), "已保存场景命名空间取资产路径");
+
+                var go = Track(new GameObject("SamePath"));
+                var component = go.AddComponent<SaveComponent>();
+                component.EnsureActivated();
+                try
+                {
+                    StringAssert.StartsWith(scenePath + ":", component.ResolvedBlockKey,
+                        "已保存场景的块键必须以资产路径为命名空间（同名 Additive 场景防撞键）");
+                }
+                finally
+                {
+                    SaveComponentRegistry.Unregister(component);
+                }
+            }
+            finally
+            {
+                AssetDatabase.DeleteAsset(scenePath);
+                EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            }
         }
 
         #endregion

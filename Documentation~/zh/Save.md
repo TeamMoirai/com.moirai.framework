@@ -148,7 +148,7 @@ public partial class Player : MonoBehaviour
 }
 ```
 
-2. GameObject 挂 **Save Component**：Inspector 里添加目标组件绑定并勾选参与存档的字段（块键空缺时自动派生 `场景名:物体路径`；物体路径为场景根到物体的**完整名称链**，同名兄弟/同名场景根自动追加 `[N]` 序号消歧，杜绝跨分支撞键覆盖）。
+2. GameObject 挂 **Save Component**：Inspector 里添加目标组件绑定并勾选参与存档的字段（块键空缺时自动派生 `场景命名空间:物体路径`——已保存场景命名空间为场景资产路径（同名 Additive 场景防撞键），未保存/动态场景为场景名；物体路径为场景根到物体的**完整名称链**，同名兄弟/同名场景根自动追加 `[N]` 序号消歧，杜绝跨分支撞键覆盖）。
 3. 运行期 `SaveService.SaveComponentsAsync(fileName)` / `LoadComponentsAsync(fileName)` 触发——编译期生成的强类型捕获器零反射捕获，按勾选掩码过滤；未知键跳过、缺失键保留当前值（字段增删天然向后兼容）。
 
 ### 支持的字段类型（SG v2）
@@ -226,7 +226,8 @@ await SaveService.RestoreEntitiesAsync("slot1");
 
 - **键规范**：云端键 = 相对存档数据根目录（`persistentDataPath/Data/`）的路径，`/` 分隔（如 `Save/slot1.sav`）——不携带本机目录结构，跨设备一致。
 - **错误语义**：远端不可达/失败/未登录一律抛异常，后端归一为**离线降级**（降级本地镜像直通并记告警）；缺档非错误（读 `null` / 存在性 `false` / 删除幂等）。
-- **写双发**：本地镜像原子提交后远端跟随；远端失败**不阻断本地提交**——记入待回传集合，下次远端操作成功时 backfill 重放（待传上传 / 待删单键 / 待删前缀，按序弹出，失败即停余项保留）。
+- **写双发**：本地镜像原子提交后远端跟随；远端失败**不阻断本地提交**——记入待回传集合，下次远端操作成功时 backfill 重放（待传上传 / 待删单键 / 待删前缀，按序弹出，失败即停余项保留）。镜像独有回传有失败冷却（默认 30s，冷却期内读路径不重试，积压由 backfill 兜底）。
+- **枚举下推**：`EnumerateAsync(prefix, ct)` 前缀重载——默认实现全量枚举后客户端过滤；支持服务端前缀过滤的后端覆写即降低流量（槽位枚举与前缀删除均经此通道）。
 - **读裁决**（`ESaveSyncPolicy`）：`Latest` 新者优先 / `LocalWins` 本地权威 / `CloudWins` 云端权威 / `Custom` 逐键委托 `SaveSyncConflictResolver`（未配置回退 Latest 并记告警）。**裁决去时钟化**：远端提供单调修订号（`CloudKvEntry.Version` > 0）时按版本号裁决——镜像已同步修订号记录于 `{file}.cloudver` sidecar，镜像脏判定用镜像与 sidecar 的本地 mtime 失配（同一本地时钟，客户端与远端时钟偏移不参与）；无版本号后端回退时间戳比较（下载已把远端权威时间戳转写镜像）。单侧存在时自动对齐另一侧（远端独有 → 下载刷新镜像并保留远端时间戳与版本；镜像独有 → 回传补传远端）。`WriteAsync` 返回远端分配的修订号（0 = 后端不提供版本号）。
 - **同步原语仅作用本地镜像**（同步裸名 API 不见远端；远端同步由异步 API 族驱动）；单槽备份（`.bak`）为本地概念不随云同步；目录级删除对远端按前缀尽力删除。
 - **能力声明**：`Capabilities.SupportsTrueAsyncIO = true`（远端网络 IO 为真异步）；WebGL 等平台同步读不可用的约束不适用于本后端——同步 API 只读本地镜像恒可用。
@@ -234,7 +235,8 @@ await SaveService.RestoreEntitiesAsync("slot1");
 ## 工具链（调试器与编辑器）
 
 - **游戏内调试器窗口** `Profiler/Save`（`SaveServiceDebuggerWindow`，`SaveService.OnInit` 自动注册）：管线状态（处理器/存储后端/压缩/默认后端/截图开关）、槽位清单与选中槽位详情（块表、元数据、坏块红色高亮、截图 sidecar 状态）。文件夹/槽位选择控件常驻，数据区 1s 节流重建。
-- **存档浏览器编辑器窗口**（`Window/Moirai/Save Browser`）：浏览 `persistentDataPath/Data/` 下文件夹与槽位；块表（键/版本/后端/大小/逐块错误）；未加密档内容预览（JSON 块原文 / KVT 块十六进制采样）；备份/恢复备份/删除（含截图 sidecar 级联）/打开目录。编辑器以明文处理器 + 设置的压缩提供方读取——加密档不可预览属预期。
+- **存档浏览器编辑器窗口**（`Window/Moirai/Save Browser`）：浏览 `persistentDataPath/Data/` 下文件夹与槽位；块表（键/版本/后端/大小/逐块错误）；未加密档内容预览（JSON 块原文美化 / KVT 块**结构化树预览**（嵌套对象/集合/映射缩进展开，解析失败回退十六进制采样）/ 其余后端十六进制采样）；备份/恢复备份/删除（含截图 sidecar 级联）/打开目录。编辑器以明文处理器 + 设置的压缩提供方读取——加密档不可预览属预期。
+- **资产引用收集器**（`Tools/Moirai/Save/Collect Asset References into Catalog`）：扫描已打开场景的 SaveComponent，把资产引用字段当前引用的项目资产登记进 `SaveAssetCatalog`（定位串按文件名寻址约定推导，自定义寻址项目须复核；场景对象实例仅告警）——消除「漏登记 → 捕获写 Null」面。
 - **SaveComponentEditor 补强**：字段勾选清单标注引用类别（场景引用 = GameObject/Component 派生字段，资产引用 = 其余 UnityEngine.Object 字段）并给出 Identity/Catalog 配置提示；每个绑定显示模式版本（SG 发射值优先 → `[SaveComponentSchema]` 声明 → 缺省 1）。
 
 ## 公共 API（静态外观）

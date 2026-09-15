@@ -34,6 +34,15 @@ namespace Save
             /// <summary>单调修订号发生器（远端写入递增；版本通道裁决依据）。</summary>
             public long NextVersion;
 
+            /// <summary>远端写调用计数（冷却抑制断言用）。</summary>
+            public int WriteCallCount;
+
+            /// <summary>仅写路径离线（读可达——镜像独有回传场景注入）。</summary>
+            public bool WritesOffline;
+
+            /// <summary>最近一次前缀枚举请求（前缀下推断言用；null = 未走前缀重载）。</summary>
+            public string LastEnumeratePrefix;
+
             private DateTime Now => DateTime.UtcNow + ClockOffset;
 
             private void ThrowIfUnavailable()
@@ -69,6 +78,12 @@ namespace Save
 
             public override UniTask<long> WriteAsync(string key, byte[] bytes, CancellationToken cancellationToken)
             {
+                WriteCallCount++;
+                if (WritesOffline)
+                {
+                    throw new IOException("fake cloud write offline");
+                }
+
                 ThrowIfUnavailable();
                 long version = ++NextVersion;
                 Entries[key] = new CloudKvEntry(bytes, Now, version);
@@ -92,6 +107,12 @@ namespace Save
                 }
 
                 return UniTask.FromResult(infos.ToArray());
+            }
+
+            public override UniTask<CloudKvEntryInfo[]> EnumerateAsync(string prefix, CancellationToken cancellationToken)
+            {
+                LastEnumeratePrefix = prefix;
+                return base.EnumerateAsync(prefix, cancellationToken);
             }
         }
 
@@ -518,6 +539,46 @@ namespace Save
 
             CollectionAssert.AreEqual(s_RemoteBytes, read, "无版本通道时保持时间戳裁决语义");
             Assert.AreEqual(0L, ReadMirrorVersionSidecar(PathFor("slot1")), "无版本后端不产生 sidecar");
+        }
+
+        #endregion
+
+        #region 前缀下推与回传冷却 [PREFIX PUSH-DOWN / UPLOAD COOLDOWN]
+
+        [Test]
+        public async Task EnumerateFilesAsync_PassesDirectoryPrefixToStore()
+        {
+            WriteMirror("slot1", s_LocalBytes, s_TimeNew);
+            _remote.Seed(KeyFor("slot2"), s_RemoteBytes, s_TimeNew);
+
+            await _backend.EnumerateFilesAsync(_directoryPath, ".sav", CancellationToken.None);
+
+            Assert.AreEqual(TestFolder + "/", _remote.LastEnumeratePrefix, "枚举必须下推目录前缀（服务端过滤接入点）");
+        }
+
+        [Test]
+        public async Task ReadAllBytesAsync_MirrorOnly_FailingUpload_CooldownSuppressesRetryStorm()
+        {
+            // 镜像独有 + 远端读可达但写持续失败：冷却期内读不再额外触发镜像独有补传
+            // （每次读仍各有一次 backfill 重放尝试——重放是独立机制，冷却只抑制读触发的补传）
+            WriteMirror("slot1", s_LocalBytes, s_TimeNew);
+            _remote.WritesOffline = true;
+
+            ExpectWarningLogForUtf();
+            await _backend.ReadAllBytesAsync(PathFor("slot1"), CancellationToken.None);
+            int afterFirstRead = _remote.WriteCallCount;
+            Assert.AreEqual(1, afterFirstRead, "首次读经镜像独有分支触发一次补传尝试");
+            Assert.AreEqual(1, _backend.PendingUploadCount);
+
+            // 冷却期内（默认 30s）：读只经 backfill 重放尝试一次，镜像独有补传被抑制
+            await _backend.ReadAllBytesAsync(PathFor("slot1"), CancellationToken.None);
+            int afterSecondRead = _remote.WriteCallCount;
+            Assert.AreEqual(afterFirstRead + 1, afterSecondRead, "冷却期内读不再额外触发镜像独有补传（仅重放一次）");
+
+            // 冷却过期：读恢复「重放 + 镜像独有补传」两次尝试
+            _backend.UploadRetryCooldown = TimeSpan.Zero;
+            await _backend.ReadAllBytesAsync(PathFor("slot1"), CancellationToken.None);
+            Assert.AreEqual(afterSecondRead + 2, _remote.WriteCallCount, "冷却过期后恢复镜像独有补传尝试");
         }
 
         #endregion
