@@ -714,7 +714,7 @@ namespace Moirai.Atropos
 #if UNITY_2023_1_OR_NEWER
                 UObject.FindAnyObjectByType<T>(includeInactive ? FindObjectsInactive.Include : FindObjectsInactive.Exclude)
 #else
-                Object.FindObjectOfType<T>(includeInactive)
+                UObject.FindObjectOfType<T>(includeInactive)
 #endif
                 ;
         }
@@ -731,7 +731,7 @@ namespace Moirai.Atropos
 #if UNITY_2023_1_OR_NEWER
                 UObject.FindFirstObjectByType<T>(includeInactive ? FindObjectsInactive.Include : FindObjectsInactive.Exclude)
 #else
-                Object.FindObjectOfType<T>(includeInactive)
+                UObject.FindObjectOfType<T>(includeInactive)
 #endif
                 ;
         }
@@ -746,11 +746,11 @@ namespace Moirai.Atropos
         {
             return
 #if UNITY_6000_4_OR_NEWER
-                Object.FindObjectsByType<T>(includeInactive ? FindObjectsInactive.Include : FindObjectsInactive.Exclude)
+                UObject.FindObjectsByType<T>(includeInactive ? FindObjectsInactive.Include : FindObjectsInactive.Exclude)
 #elif UNITY_2023_1_OR_NEWER
                 UObject.FindObjectsByType<T>(includeInactive ? FindObjectsInactive.Include : FindObjectsInactive.Exclude, FindObjectsSortMode.None)
 #else
-				Object.FindObjectsOfType<T>(includeInactive)
+				UObject.FindObjectsOfType<T>(includeInactive)
 #endif
                 ;
         }
@@ -767,7 +767,7 @@ namespace Moirai.Atropos
 #if UNITY_2023_1_OR_NEWER
                 UObject.FindFirstObjectByType(classType, includeInactive ? FindObjectsInactive.Include : FindObjectsInactive.Exclude)
 #else
-                Object.FindObjectOfType(classType, includeInactive)
+                UObject.FindObjectOfType(classType, includeInactive)
 #endif
                 ;
         }
@@ -784,7 +784,7 @@ namespace Moirai.Atropos
 #if UNITY_2023_1_OR_NEWER
                 UObject.FindObjectsByType(classType, includeInactive ? FindObjectsInactive.Include : FindObjectsInactive.Exclude, FindObjectsSortMode.None)
 #else
-				Object.FindObjectsOfType(classType, includeInactive)
+				UObject.FindObjectsOfType(classType, includeInactive)
 #endif
                 ;
         }
