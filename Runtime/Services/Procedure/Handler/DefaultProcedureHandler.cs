@@ -353,7 +353,7 @@ namespace Moirai.Atropos.Procedure
         #region 校验与解析 [VALIDATION]
 
         /// <summary>
-        /// 广播期重入防护——<see cref="ProcedureService.ProcedureChanged"/> 回调内禁止同步启动/切换。
+        /// 广播期重入防护——<see cref="ProcedureService.onProcedureChanged"/> 回调内禁止同步启动/切换。
         /// <para>切换深度上限只防 OnEnter/OnLeave 互切环；事件回调发生在深度归零之后，须单独置位拒绝。</para>
         /// </summary>
         private void ThrowIfBroadcastingTransition()

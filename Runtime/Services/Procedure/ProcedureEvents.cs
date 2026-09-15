@@ -4,7 +4,7 @@
     /// 流程域事件标记。
     /// <para>标记归属于游戏流程（启动链、热更、入口切换）上下文的事件类型，供约定检索与诊断使用；
     /// 框架不据此过滤分发，仅作为领域契约锚点。</para>
-    /// <para>流程状态机自身的切换广播不走该标记，见 <see cref="ProcedureService.ProcedureChanged"/>。</para>
+    /// <para>流程状态机自身的切换广播不走该标记，见 <see cref="ProcedureService.onProcedureChanged"/>。</para>
     /// </summary>
     public interface IProcedureEvent { }
 
@@ -25,7 +25,7 @@
 
     /// <summary>
     /// 流程切换记录（值类型快照）。
-    /// <para>既作为 <see cref="ProcedureService.ProcedureChanged"/> 的广播载荷，
+    /// <para>既作为 <see cref="ProcedureService.onProcedureChanged"/> 的广播载荷，
     /// 也作为 <see cref="ProcedureServiceHandler.TransitionHistory"/> 的历史条目，均不可变。</para>
     /// </summary>
     public readonly struct ProcedureTransitionRecord

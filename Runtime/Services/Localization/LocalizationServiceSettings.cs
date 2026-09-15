@@ -9,7 +9,6 @@ namespace Moirai.Atropos.Localization
     public sealed class LocalizationServiceSettings : FrameworkSettings<LocalizationServiceSettings>
     {
 #if UNITY_EDITOR
-
         [DisableInPlayMode, PropertyOrder(-999)]
         [ValueDropdown(nameof(GetLanguageOptions))]
         [SerializeField] private string m_EditorLanguage = Language.Unspecified.Name;
@@ -29,21 +28,14 @@ namespace Moirai.Atropos.Localization
                 LocalizationService.ChangeLanguage(value);
             }
         }
-
 #endif
 
         [InfoBox("默认使用配置表数据源。可替换为自定义数据源（如 JSON 文件、远程词库等）。", InfoMessageType.None)]
         [ProviderDropdown]
-        [SerializeReference] private LocalizationServiceHandler m_LocalizationServiceHandler = new ConfigTableLocalizationHandler();
-
+        [SerializeReference] private LocalizationServiceHandler m_LocalizationServiceHandler = LocalizationService.CreateDefaultHandler();
         /// <summary>
         /// 本地化处理器实例（由 Inspector 序列化配置，可替换数据源策略）。
         /// </summary>
         public static LocalizationServiceHandler LocalizationServiceHandler => Instance.m_LocalizationServiceHandler;
-
-        private void Reset()
-        {
-            m_LocalizationServiceHandler = new ConfigTableLocalizationHandler();
-        }
     }
 }
