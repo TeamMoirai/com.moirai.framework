@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 
@@ -73,6 +74,39 @@ namespace Moirai.Atropos.Save
             head.CopyTo(combined);
             payload.CopyTo(combined.AsSpan(head.Length));
             WriteAtomic(filePath, combined, cancellationToken);
+        }
+
+        /// <summary>
+        /// 流式原子写入（默认实现：委托对内存流聚合后走两段式原子写——正确性兜底；具备临时文件流的后端应覆写为真流式落盘以消灭整档聚合）。
+        /// </summary>
+        /// <param name="filePath">目标文件完整路径（目录由实现确保存在）。</param>
+        /// <param name="writeFile">写入委托（收到的流生命周期仅限本次调用）。</param>
+        /// <param name="cancellationToken">取消令牌（替换前检查，取消时清理临时文件）。</param>
+        public virtual void WriteAtomic(string filePath, Action<Stream> writeFile, CancellationToken cancellationToken)
+        {
+            if (writeFile == null)
+            {
+                throw new ArgumentNullException(nameof(writeFile));
+            }
+
+            using (MemoryStream buffer = new MemoryStream())
+            {
+                writeFile(buffer);
+                WriteAtomic(filePath, ReadOnlySpan<byte>.Empty, buffer.GetBuffer().AsSpan(0, (int)buffer.Length), cancellationToken);
+            }
+        }
+
+        /// <summary>
+        /// 流式读（默认实现：整档读入后包装内存流——正确性兜底；文件后端覆写为真文件流以消灭整档预读）。
+        /// </summary>
+        /// <param name="filePath">文件完整路径。</param>
+        /// <param name="stream">成功时的只读流（生命周期由调用方管理）。</param>
+        /// <returns>错误码：<see cref="SaveError.None"/>、<see cref="SaveError.FileNotFound"/> 或 <see cref="SaveError.IoFailed"/>。</returns>
+        public virtual SaveError TryOpenRead(string filePath, out Stream stream)
+        {
+            SaveError error = TryReadAllBytes(filePath, out byte[] bytes);
+            stream = error == SaveError.None ? new MemoryStream(bytes, writable: false) : null;
+            return error;
         }
 
         /// <summary>

@@ -154,6 +154,77 @@ namespace Moirai.Atropos.Save
         }
 
         /// <summary>
+        /// 流式原子写入：临时文件流（可寻址）交委托写入全部内容 → 强制落盘 → 原子替换目标（失败抛 <see cref="GameException"/> 并清理临时文件）。
+        /// <para>委托抛 <see cref="GameException"/>/<see cref="OperationCanceledException"/> 原样上抛，其余异常归一为 <see cref="GameException"/>（含路径上下文）。</para>
+        /// </summary>
+        /// <param name="filePath">目标文件完整路径。</param>
+        /// <param name="writeFile">写入委托（收到的临时文件流生命周期仅限本次调用）。</param>
+        /// <param name="cancellationToken">取消令牌（替换前检查）。</param>
+        public override void WriteAtomic(string filePath, Action<Stream> writeFile, CancellationToken cancellationToken)
+        {
+            if (writeFile == null)
+            {
+                throw new ArgumentNullException(nameof(writeFile));
+            }
+
+            string tempFilePath = filePath + TempFileSuffix + Guid.NewGuid().ToString("N");
+            try
+            {
+                EnsureDirectory(Path.GetDirectoryName(filePath));
+                using (FileStream stream = new FileStream(tempFilePath, FileMode.Create, FileAccess.Write, FileShare.None, 8192, FileOptions.None))
+                {
+                    writeFile(stream);
+                    FlushToDisk(stream);
+                }
+
+                cancellationToken.ThrowIfCancellationRequested();
+                AtomicReplace(tempFilePath, filePath);
+            }
+            catch (OperationCanceledException)
+            {
+                TryDeleteFile(tempFilePath);
+                throw;
+            }
+            catch (GameException)
+            {
+                TryDeleteFile(tempFilePath);
+                throw;
+            }
+            catch (Exception exception)
+            {
+                TryDeleteFile(tempFilePath);
+                throw new GameException(StringUtility.Format("Save write failed, path: {0}, exception: {1}.", filePath, exception.GetType().Name), exception);
+            }
+        }
+
+        /// <summary>
+        /// 流式读：打开目标文件只读流（顺序扫描优化；可寻址）。
+        /// </summary>
+        /// <param name="filePath">文件完整路径。</param>
+        /// <param name="stream">成功时的只读流（生命周期由调用方管理）。</param>
+        /// <returns>错误码（缺档不记日志；IO 失败记录详细日志）。</returns>
+        public override SaveError TryOpenRead(string filePath, out Stream stream)
+        {
+            if (!File.Exists(filePath))
+            {
+                stream = null;
+                return SaveError.FileNotFound;
+            }
+
+            try
+            {
+                stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, 8192, FileOptions.SequentialScan);
+                return SaveError.None;
+            }
+            catch (Exception exception)
+            {
+                LogUtility.Error("[SaveService] Open save file for streaming read failed, path: {0}, exception: {1}.", filePath, exception.GetType().Name);
+                stream = null;
+                return SaveError.IoFailed;
+            }
+        }
+
+        /// <summary>
         /// 删除文件（幂等：不存在视为成功；带退避重试）。
         /// </summary>
         /// <param name="filePath">文件完整路径。</param>

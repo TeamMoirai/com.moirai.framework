@@ -128,6 +128,87 @@ namespace Save
         }
 
         [Test]
+        public void WriteAtomic_Stream_WritesAllContent_AndSupportsSeekPatching()
+        {
+            string filePath = FilePath("slot-stream.sav");
+            byte[] payload = { 0x10, 0x20, 0x30, 0x40, 0x50 };
+
+            _backend.WriteAtomic(filePath, stream =>
+            {
+                Assert.IsTrue(stream.CanSeek, "流式写委托收到的流必须可寻址（头补写场景依赖）");
+                // 占位头 → 写载荷 → 回填真头（流式容器管线的 CRC 时序模式）
+                stream.Write(new byte[4], 0, 4);
+                stream.Write(payload, 0, payload.Length);
+                stream.Position = 0;
+                stream.Write(new byte[] { 0x4D, 0x52, 0x53, 0x41 }, 0, 4);
+            }, CancellationToken.None);
+
+            SaveError error = _backend.TryReadAllBytes(filePath, out byte[] loaded);
+            Assert.AreEqual(SaveError.None, error);
+            var expected = new byte[9];
+            expected[0] = 0x4D; expected[1] = 0x52; expected[2] = 0x53; expected[3] = 0x41;
+            payload.CopyTo(expected, 4);
+            Assert.AreEqual(expected, loaded, "流式写应原样提交委托写入的全部内容（含回填头）");
+        }
+
+        [Test]
+        public void WriteAtomic_Stream_DelegateThrows_CleansTempFile()
+        {
+            string filePath = FilePath("slot-stream-fail.sav");
+
+            GameException caught = Assert.Throws<GameException>(() => _backend.WriteAtomic(filePath, stream =>
+            {
+                stream.WriteByte(0x01);
+                throw new InvalidOperationException("delegate failure (injected)");
+            }, CancellationToken.None));
+
+            StringAssert.Contains(filePath, caught.Message, "异常应携带路径上下文");
+            Assert.IsFalse(File.Exists(filePath), "失败后不应产生目标文件");
+            string[] tempFiles = Directory.GetFiles(_rootPath, "*.tmp-*", SearchOption.AllDirectories);
+            Assert.IsEmpty(tempFiles, "失败后不应残留临时文件");
+        }
+
+        [Test]
+        public void WriteAtomic_Stream_NullDelegate_Throws()
+        {
+            Assert.Throws<ArgumentNullException>(() => _backend.WriteAtomic(FilePath("slot.sav"), (Action<Stream>)null, CancellationToken.None));
+        }
+
+        [Test]
+        public void TryOpenRead_RoundTrips_AndMissingReturnsFileNotFound()
+        {
+            string filePath = FilePath("slot-open.sav");
+            byte[] bytes = { 0x01, 0x02, 0x03, 0x04 };
+            _backend.WriteAtomic(filePath, bytes, CancellationToken.None);
+
+            SaveError error = _backend.TryOpenRead(filePath, out Stream stream);
+            Assert.AreEqual(SaveError.None, error);
+            Assert.IsNotNull(stream);
+            using (stream)
+            {
+                var loaded = new byte[bytes.Length];
+                int readTotal = 0;
+                while (readTotal < loaded.Length)
+                {
+                    int read = stream.Read(loaded, readTotal, loaded.Length - readTotal);
+                    if (read == 0)
+                    {
+                        break;
+                    }
+
+                    readTotal += read;
+                }
+
+                Assert.AreEqual(bytes.Length, readTotal, "流式读应返回全部字节");
+                Assert.AreEqual(bytes, loaded);
+            }
+
+            SaveError missingError = _backend.TryOpenRead(FilePath("missing.sav"), out Stream missingStream);
+            Assert.AreEqual(SaveError.FileNotFound, missingError, "缺档应判别为 FileNotFound");
+            Assert.IsNull(missingStream);
+        }
+
+        [Test]
         public void TryReadAllBytes_Missing_ReturnsFileNotFound()
         {
             SaveError error = _backend.TryReadAllBytes(FilePath("missing.sav"), out byte[] bytes);
