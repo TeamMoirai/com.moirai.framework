@@ -46,6 +46,7 @@ namespace Moirai.Atropos.Editor
             public static GUIStyle Title;
             public static GUIStyle Description;
             public static GUIStyle Meta;
+            public static GUIStyle CountLabel;
 
             /// <summary>
             /// 样式是否已就绪。
@@ -89,6 +90,12 @@ namespace Moirai.Atropos.Editor
                 {
                     wordWrap = true,
                     normal = { textColor = new Color(0.55f, 0.55f, 0.55f) }
+                };
+
+                // 工具栏计数：槽内水平 + 垂直居中
+                CountLabel = new GUIStyle(EditorStyles.miniLabel)
+                {
+                    alignment = TextAnchor.MiddleCenter
                 };
             }
         }
@@ -178,6 +185,9 @@ namespace Moirai.Atropos.Editor
         // delayCall 防抖：同帧多次触发只重建一次
         private bool _rebuildQueued;
 
+        // 工具栏条件按钮的选中条目：仅 Layout 遍刷新，保证同帧 Layout/Repaint 控件数一致
+        private SettingEntry _toolbarEntry;
+
         #endregion
 
         #region 菜单 [MENU]
@@ -201,7 +211,10 @@ namespace Moirai.Atropos.Editor
             titleContent = new GUIContent("Framework Settings");
             MenuWidth = MENU_WIDTH;
             base.OnEnable();
-            if (MenuTree == null) ForceMenuTreeRebuild();
+            // 此构建中基类 OnEnable/懒建路径都不会主动建树，需自行兜底；
+            // 域重载早期 EditorStyles 未就绪时跳过（BuildMenuTree 内样式代码依赖它），由 OnImGUI 的排队重建接管
+            if (MenuTree == null && EditorStyles.label != null)
+                ForceMenuTreeRebuild();
         }
 
         private void OnFocus()
@@ -254,6 +267,17 @@ namespace Moirai.Atropos.Editor
             Discover();
 
             var tree = new OdinMenuTree(false);
+
+            // 侧边栏样式：条目名称加粗（含选中态）。
+            // DefaultLabelStyle 内部访问 EditorStyles，域重载早期为 null，未就绪时跳过定制
+            if (EditorStyles.label != null)
+            {
+                var menuStyle = tree.DefaultMenuStyle.Clone();
+                menuStyle.DefaultLabelStyle = new GUIStyle(menuStyle.DefaultLabelStyle) { fontStyle = FontStyle.Bold };
+                menuStyle.SelectedLabelStyle = new GUIStyle(menuStyle.SelectedLabelStyle) { fontStyle = FontStyle.Bold };
+                tree.DefaultMenuStyle = menuStyle;
+            }
+
             tree.Config.DrawSearchToolbar = true;
             tree.Config.AutoScrollOnSelectionChanged = true;
             tree.Config.AutoHandleKeyboardNavigation = true;
@@ -264,7 +288,8 @@ namespace Moirai.Atropos.Editor
                 object target = entry.Exists ? (object)entry.instance : new MissingSettingPage(this, entry);
                 var item = tree.Add(entry.title, target).Last();
                 item.SearchString = entry.fieldSearchText;
-                item.SdfIcon = SdfIconType.CircleFill;
+                // 状态图标：√ = 资产已创建，× = 未创建
+                item.SdfIcon = entry.Exists ? SdfIconType.CheckCircleFill : SdfIconType.XCircleFill;
                 item.SdfIconColor = entry.Exists ? s_ExistsIconColor : s_MissingIconColor;
                 item.OnRightClick = _ => ShowContextMenu(entry);
             }
@@ -299,19 +324,31 @@ namespace Moirai.Atropos.Editor
         /// </summary>
         protected override void OnImGUI()
         {
-            if (_entries == null) return;
+            HeaderStyles.Init();
+
+            if (_entries == null)
+            {
+                // 域重载恢复后树未建（EditorStyles 未就绪跳过了 OnEnable 兜底），排队到 GUI 外重建
+                QueueTreeRebuild();
+                return;
+            }
+
+            // 选中条目仅在 Layout 遍求值，避免帧内选中状态变化导致控件数不匹配异常
+            if (Event.current.type == EventType.Layout)
+                _toolbarEntry = GetSelectedEntry();
 
             using (new EditorGUILayout.HorizontalScope(EditorStyles.toolbar))
             {
                 int loadedCount = _entries.Count(e => e.Exists);
-                GUILayout.Label($"{loadedCount}/{_entries.Count}", EditorStyles.miniLabel, GUILayout.Width(48));
+                GUILayout.Label($"{loadedCount}/{_entries.Count}",
+                    HeaderStyles.IsReady ? HeaderStyles.CountLabel : EditorStyles.miniLabel, GUILayout.Width(48));
 
                 if (GUILayout.Button("Refresh", EditorStyles.toolbarButton, GUILayout.Width(64)))
                     QueueTreeRebuild();
 
                 GUILayout.FlexibleSpace();
 
-                var entry = GetSelectedEntry();
+                var entry = _toolbarEntry;
                 if (entry != null)
                 {
                     if (entry.Exists)
