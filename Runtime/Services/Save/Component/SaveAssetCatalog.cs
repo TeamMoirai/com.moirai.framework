@@ -94,6 +94,17 @@ namespace Moirai.Atropos.Save
         }
 
         /// <summary>
+        /// 失效双向查找表（下次查询按 <see cref="m_Entries"/> 重建）。
+        /// <para>程序化修改 <see cref="m_Entries"/>（编辑器工具、导入器等）后必须调用——
+        /// 否则查找继续命中陈旧缓存，既看不到新条目也会放行重复登记。</para>
+        /// </summary>
+        public void InvalidateLookup()
+        {
+            _assetToLocation = null;
+            _locationToAsset = null;
+        }
+
+        /// <summary>
         /// 构建/重建双向查找表（重复资产或重复定位串首到先得并记告警——目录数据错误不应静默换绑）。
         /// </summary>
         private void EnsureLookup()
@@ -136,8 +147,7 @@ namespace Moirai.Atropos.Save
         /// </summary>
         private void OnValidate()
         {
-            _assetToLocation = null;
-            _locationToAsset = null;
+            InvalidateLookup();
         }
 #endif
     }

@@ -335,7 +335,7 @@ namespace Moirai.Atropos.Save
                     return remoteEntry.Value.Bytes;
 
                 case ESaveSyncPolicy.Custom:
-                    if (ResolveCustom(cloudKey, filePath, localTime, localBytes.LongLength, remoteEntry.Value) == ESaveSyncDecision.UseRemote)
+                    if (ResolveCustom(cloudKey, filePath, localTime, localBytes.LongLength, remoteEntry.Value.LastWriteTimeUtc, remoteEntry.Value.Bytes?.LongLength ?? 0L, remoteEntry.Value.Version) == ESaveSyncDecision.UseRemote)
                     {
                         RefreshMirror(filePath, remoteEntry.Value);
                         return remoteEntry.Value.Bytes;
@@ -542,7 +542,7 @@ namespace Moirai.Atropos.Save
                 }
 
                 bool useRemote = m_Policy == ESaveSyncPolicy.Custom
-                    ? ResolveCustom(prefix + remoteFile.Info.FileName + extension, directoryPath + remoteFile.Info.FileName + extension, localFile.LastWriteTimeUtc, localFile.SizeBytes, new CloudKvEntry(null, remoteFile.Info.LastWriteTimeUtc, remoteFile.Version)) == ESaveSyncDecision.UseRemote
+                    ? ResolveCustom(prefix + remoteFile.Info.FileName + extension, directoryPath + remoteFile.Info.FileName + extension, localFile.LastWriteTimeUtc, localFile.SizeBytes, remoteFile.Info.LastWriteTimeUtc, remoteFile.Info.SizeBytes, remoteFile.Version) == ESaveSyncDecision.UseRemote
                     : ShouldDownload(directoryPath + remoteFile.Info.FileName + extension, localFile.LastWriteTimeUtc, new CloudKvEntry(null, remoteFile.Info.LastWriteTimeUtc, remoteFile.Version));
                 if (useRemote)
                 {
@@ -614,25 +614,28 @@ namespace Moirai.Atropos.Save
 
         /// <summary>
         /// 自定义裁决（未配置裁决器时回退 Latest 并记告警）。裁决条目携带版本号（远端修订号 / 镜像已同步修订号），无版本信息时为 0。
+        /// <para>远端尺寸由调用方显式传入——读路径取载荷长度，枚举路径取清单 SizeBytes（枚举元信息无载荷，不得从 Bytes 推导）。</para>
         /// </summary>
         /// <param name="cloudKey">云端键。</param>
         /// <param name="filePath">本地镜像完整路径（镜像版本 sidecar 读取依据）。</param>
         /// <param name="localTime">本地镜像最后写入时间（UTC）。</param>
         /// <param name="localSize">本地镜像大小（字节）。</param>
-        /// <param name="remoteEntry">远端条目。</param>
+        /// <param name="remoteTime">远端最后写入时间（UTC）。</param>
+        /// <param name="remoteSize">远端条目大小（字节；枚举元信息可用）。</param>
+        /// <param name="remoteVersion">远端单调修订号（0 = 无版本通道）。</param>
         /// <returns>取舍结果。</returns>
-        private ESaveSyncDecision ResolveCustom(string cloudKey, string filePath, DateTime localTime, long localSize, CloudKvEntry remoteEntry)
+        private ESaveSyncDecision ResolveCustom(string cloudKey, string filePath, DateTime localTime, long localSize, DateTime remoteTime, long remoteSize, long remoteVersion)
         {
             SaveSyncConflictResolver resolver = m_ConflictResolver;
             if (resolver == null)
             {
                 LogUtility.Warning("[SaveService] Sync policy is Custom but no conflict resolver is configured, falling back to Latest.");
-                return ShouldDownload(filePath, localTime, remoteEntry) ? ESaveSyncDecision.UseRemote : ESaveSyncDecision.UseLocal;
+                return ShouldDownload(filePath, localTime, new CloudKvEntry(null, remoteTime, remoteVersion)) ? ESaveSyncDecision.UseRemote : ESaveSyncDecision.UseLocal;
             }
 
             TryReadMirrorVersion(filePath, out long localVersion);
             var localInfo = new SaveSyncEntryInfo(true, localTime, localSize, localVersion);
-            var remoteInfo = new SaveSyncEntryInfo(true, remoteEntry.LastWriteTimeUtc, remoteEntry.Bytes?.LongLength ?? 0L, remoteEntry.Version);
+            var remoteInfo = new SaveSyncEntryInfo(true, remoteTime, remoteSize, remoteVersion);
             return resolver.Resolve(cloudKey, localInfo, remoteInfo);
         }
 
@@ -712,6 +715,7 @@ namespace Moirai.Atropos.Save
 
         /// <summary>
         /// 删除远端前缀下全部条目（尽力逐键删除；经前缀枚举下推减少流量）。
+        /// <para>本地二次前缀校验不是性能冗余——自定义后端若错误返回前缀外的键，此处拦截，防止误删远端数据。</para>
         /// </summary>
         /// <param name="remote">远端存储。</param>
         /// <param name="prefix">目录云端前缀。</param>
@@ -722,6 +726,7 @@ namespace Moirai.Atropos.Save
             CloudKvEntryInfo[] entries = await remote.EnumerateAsync(prefix, cancellationToken);
             for (int i = 0; i < entries.Length; i++)
             {
+                // 安全护栏：仅删除前缀命中键——后端枚举实现有误时不得扩大删除面
                 if (entries[i].Key != null && entries[i].Key.StartsWith(prefix, StringComparison.Ordinal))
                 {
                     await remote.DeleteAsync(entries[i].Key, cancellationToken);

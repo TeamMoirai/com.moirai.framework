@@ -157,7 +157,7 @@ public partial class Player : MonoBehaviour
 - **集合**：数组 `T[]`、`List<T>`、`Queue<T>`、`Stack<T>`、`HashSet<T>`、`Dictionary<K,V>`；元素递归支持标量与嵌套数据类（含集合套集合）；映射键仅限标量/枚举；**引用类型暂不支持作集合元素**（报 MIRAI308）。恢复为**替换语义**（读回新容器实例）；null 与空集合严格区分；`Stack<T>` 按栈顶→栈底写出、恢复逆序压栈还原 LIFO。
 - **嵌套数据类**：标注 `[SaveData]` 的非 MonoBehaviour class，捕获其**全部 public 实例字段**（键 = 字段名，对齐 JSON 惯例；Key/Version 参数在嵌套语境不使用）。循环引用/抽象类/无可访问无参构造/struct 报 MIRAI307；`SaveDataBlock` 子类不能作嵌套字段（走手动轨块 API）。
 - **场景对象引用**（GameObject/Component 派生字段）：捕获存目标 `SaveObjectIdentity` 的**稳定 ID**（编辑器期 OnValidate 烘焙 GUID，空则自动赋值），恢复经 `SaveEntityRegistry` 反查当前场景内同 ID 对象（Component 字段经 `GetComponent<T>` 解析）。目标未挂 SaveObjectIdentity 时捕获写 Null 并记告警；档内 ID 在当前场景不存在时恢复为 null 并记告警。复制物体（Ctrl+D）会连 ID 拷贝——重复 ID 运行期首到先得并记告警，清空 ID 字段可重新烘焙。每个场景引用字段生成 MIRAI305 Info 指引。
-- **资产引用**（Texture/SO/Material 等其余 UnityEngine.Object 派生字段）：捕获经 `SaveServiceSettings.m_AssetCatalog`（SaveAssetCatalog SO）查 object → ResourceService 定位串写入；恢复按定位串经同一目录反查资产——**目录制双向解析，不触发运行时加载**（保持捕获器同步契约、零租约负担）。被引用资产须先登记入册；未登记/无目录时捕获写 Null 并记告警。声明为 `UnityEngine.Object` 基类的字段无法区分场景/资产，报 MIRAI306 且不参与捕获。
+- **资产引用**（Texture/SO/Material 等其余 UnityEngine.Object 派生字段）：捕获经 `SaveServiceSettings.m_AssetCatalog`（SaveAssetCatalog SO）查 object → ResourceService 定位串写入；恢复按定位串经同一目录反查资产——**目录制双向解析，不触发运行时加载**（保持捕获器同步契约、零租约负担）。被引用资产须先登记入册；未登记/无目录时捕获写 Null 并记告警。声明为 `UnityEngine.Object` 基类的字段无法区分场景/资产，报 MIRAI306 且不参与捕获。程序化修改目录条目（编辑器工具/导入器直改 `m_Entries`）后必须调用 `SaveAssetCatalog.InvalidateLookup()`——查找表延迟构建，缓存不失效既看不到新条目也无法拦截重复登记。
 
 ### 生成器诊断
 
@@ -228,7 +228,7 @@ await SaveService.RestoreEntitiesAsync("slot1");
 - **错误语义**：远端不可达/失败/未登录一律抛异常，后端归一为**离线降级**（降级本地镜像直通并记告警）；缺档非错误（读 `null` / 存在性 `false` / 删除幂等）。
 - **写双发**：本地镜像原子提交后远端跟随；远端失败**不阻断本地提交**——记入待回传集合，下次远端操作成功时 backfill 重放（待传上传 / 待删单键 / 待删前缀，按序弹出，失败即停余项保留）。镜像独有回传有失败冷却（默认 30s，冷却期内读路径不重试，积压由 backfill 兜底）。
 - **枚举下推**：`EnumerateAsync(prefix, ct)` 前缀重载——默认实现全量枚举后客户端过滤；支持服务端前缀过滤的后端覆写即降低流量（槽位枚举与前缀删除均经此通道）。
-- **读裁决**（`ESaveSyncPolicy`）：`Latest` 新者优先 / `LocalWins` 本地权威 / `CloudWins` 云端权威 / `Custom` 逐键委托 `SaveSyncConflictResolver`（未配置回退 Latest 并记告警）。**裁决去时钟化**：远端提供单调修订号（`CloudKvEntry.Version` > 0）时按版本号裁决——镜像已同步修订号记录于 `{file}.cloudver` sidecar，镜像脏判定用镜像与 sidecar 的本地 mtime 失配（同一本地时钟，客户端与远端时钟偏移不参与）；无版本号后端回退时间戳比较（下载已把远端权威时间戳转写镜像）。单侧存在时自动对齐另一侧（远端独有 → 下载刷新镜像并保留远端时间戳与版本；镜像独有 → 回传补传远端）。`WriteAsync` 返回远端分配的修订号（0 = 后端不提供版本号）。
+- **读裁决**（`ESaveSyncPolicy`）：`Latest` 新者优先 / `LocalWins` 本地权威 / `CloudWins` 云端权威 / `Custom` 逐键委托 `SaveSyncConflictResolver`（未配置回退 Latest 并记告警；裁决条目携带双方尺寸与修订号——枚举路径远端尺寸取清单 SizeBytes，不从空载荷推导）。**裁决去时钟化**：远端提供单调修订号（`CloudKvEntry.Version` > 0）时按版本号裁决——镜像已同步修订号记录于 `{file}.cloudver` sidecar，镜像脏判定用镜像与 sidecar 的本地 mtime 失配（同一本地时钟，客户端与远端时钟偏移不参与）；无版本号后端回退时间戳比较（下载已把远端权威时间戳转写镜像）。单侧存在时自动对齐另一侧（远端独有 → 下载刷新镜像并保留远端时间戳与版本；镜像独有 → 回传补传远端）。`WriteAsync` 返回远端分配的修订号（0 = 后端不提供版本号）。
 - **同步原语仅作用本地镜像**（同步裸名 API 不见远端；远端同步由异步 API 族驱动）；单槽备份（`.bak`）为本地概念不随云同步；目录级删除对远端按前缀尽力删除。
 - **能力声明**：`Capabilities.SupportsTrueAsyncIO = true`（远端网络 IO 为真异步）；WebGL 等平台同步读不可用的约束不适用于本后端——同步 API 只读本地镜像恒可用。
 
@@ -236,7 +236,7 @@ await SaveService.RestoreEntitiesAsync("slot1");
 
 - **游戏内调试器窗口** `Profiler/Save`（`SaveServiceDebuggerWindow`，`SaveService.OnInit` 自动注册）：管线状态（处理器/存储后端/压缩/默认后端/截图开关）、槽位清单与选中槽位详情（块表、元数据、坏块红色高亮、截图 sidecar 状态）。文件夹/槽位选择控件常驻，数据区 1s 节流重建。
 - **存档浏览器编辑器窗口**（`Window/Moirai/Save Browser`）：浏览 `persistentDataPath/Data/` 下文件夹与槽位；块表（键/版本/后端/大小/逐块错误）；未加密档内容预览（JSON 块原文美化 / KVT 块**结构化树预览**（嵌套对象/集合/映射缩进展开，解析失败回退十六进制采样）/ 其余后端十六进制采样）；备份/恢复备份/删除（含截图 sidecar 级联）/打开目录。编辑器以明文处理器 + 设置的压缩提供方读取——加密档不可预览属预期。
-- **资产引用收集器**（`Tools/Moirai/Save/Collect Asset References into Catalog`）：扫描已打开场景的 SaveComponent，把资产引用字段当前引用的项目资产登记进 `SaveAssetCatalog`（定位串按文件名寻址约定推导，自定义寻址项目须复核；场景对象实例仅告警）——消除「漏登记 → 捕获写 Null」面。
+- **资产引用收集器**（`Tools/Moirai/Save/Collect Asset References into Catalog`）：扫描已打开场景的 SaveComponent，把资产引用字段当前引用的项目资产登记进 `SaveAssetCatalog`（定位串按文件名寻址约定推导，自定义寻址项目须复核；场景对象实例仅告警）——消除「漏登记 → 捕获写 Null」面。同一次扫描内同一资产只登记一次（本地去重集，不依赖目录延迟缓存）；有新增时自动 `InvalidateLookup` 并保存资产。
 - **SaveComponentEditor 补强**：字段勾选清单标注引用类别（场景引用 = GameObject/Component 派生字段，资产引用 = 其余 UnityEngine.Object 字段）并给出 Identity/Catalog 配置提示；每个绑定显示模式版本（SG 发射值优先 → `[SaveComponentSchema]` 声明 → 缺省 1）。
 
 ## 公共 API（静态外观）
@@ -337,7 +337,7 @@ await SaveService.RestoreEntitiesAsync("slot1");
 | `SaveSerializerRegistryTests` | 注册校验、重复 fail-fast、保留标识、注销 |
 | `SaveKeyValueElementTests` | KVT 元素级：序列/映射/嵌套、null、类型不符、缓冲区边界 |
 | `SaveObjectIdentityTests` | 注册/注销、空 ID、重复 ID 首到先得、销毁失效、Resolve |
-| `SaveAssetCatalogTests` | 资产目录双向查找、类型不符、重复首到先得、缓存失效 |
+| `SaveAssetCatalogTests` | 资产目录双向查找、类型不符、重复首到先得、缓存失效、InvalidateLookup 程序化契约 |
 | `SaveKvDifferTests` | 模板差分：标量/嵌套/集合/新增/类型漂移/体积收缩/坏档 |
 | `SaveEntityTableTests` | 实体表往返、空表、可空字段、未知记录容错 |
 | `SaveEntityPersistenceTests` | 动态实体闭环、差分、销毁标记、父子接线、EntityRestored |

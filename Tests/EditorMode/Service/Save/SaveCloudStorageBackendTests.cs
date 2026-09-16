@@ -129,6 +129,25 @@ namespace Save
             }
         }
 
+        /// <summary>
+        /// 捕获型裁决器（断言枚举路径传入的远端尺寸/版本——元信息无载荷，不得从 Bytes 推导为 0）。
+        /// </summary>
+        private sealed class CapturingResolver : SaveSyncConflictResolver
+        {
+            public string LastKey;
+            public SaveSyncEntryInfo LastLocal;
+            public SaveSyncEntryInfo LastRemote;
+            public ESaveSyncDecision Decision = ESaveSyncDecision.UseLocal;
+
+            public override ESaveSyncDecision Resolve(string key, SaveSyncEntryInfo localEntry, SaveSyncEntryInfo remoteEntry)
+            {
+                LastKey = key;
+                LastLocal = localEntry;
+                LastRemote = remoteEntry;
+                return Decision;
+            }
+        }
+
         private const string TestFolder = "Slots";
         private static readonly byte[] s_LocalBytes = { 1, 2, 3, 4 };
         private static readonly byte[] s_RemoteBytes = { 9, 8, 7, 6, 5 };
@@ -402,6 +421,24 @@ namespace Save
             ExpectWarningLogForUtf();
             byte[] read = await _backend.ReadAllBytesAsync(PathFor("slot1"), CancellationToken.None);
             CollectionAssert.AreEqual(s_RemoteBytes, read);
+        }
+
+        [Test]
+        public async Task EnumerateFilesAsync_Custom_PassesRemoteSizeAndVersionFromListing()
+        {
+            // 枚举裁决：远端条目仅有元信息（无 Bytes）——SizeBytes/Version 必须原样进入裁决器
+            _backend.Policy = ESaveSyncPolicy.Custom;
+            var resolver = new CapturingResolver { Decision = ESaveSyncDecision.UseLocal };
+            _backend.ConflictResolver = resolver;
+            WriteMirror("slot1", s_LocalBytes, s_TimeNew);
+            _remote.Seed(KeyFor("slot1"), s_RemoteBytes, s_TimeNew, version: 9L);
+
+            await _backend.EnumerateFilesAsync(_directoryPath, ".sav", CancellationToken.None);
+
+            Assert.IsNotNull(resolver.LastKey, "双侧并集冲突应触发自定义裁决");
+            Assert.AreEqual(s_RemoteBytes.LongLength, resolver.LastRemote.SizeBytes, "远端尺寸须取枚举清单 SizeBytes（不得因 Bytes 为 null 恒 0）");
+            Assert.AreEqual(9L, resolver.LastRemote.Version, "远端修订号须原样传入裁决器");
+            Assert.AreEqual(s_LocalBytes.LongLength, resolver.LastLocal.SizeBytes);
         }
 
         [Test]
