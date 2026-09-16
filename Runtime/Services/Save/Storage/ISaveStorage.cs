@@ -40,6 +40,14 @@ namespace Moirai.Atropos.Save
         bool DirectoryExists(string directoryPath);
 
         /// <summary>
+        /// 查询目标文件的最后写入时间（轻量元数据查询——会话级增量守卫依赖）。
+        /// </summary>
+        /// <param name="filePath">文件完整路径。</param>
+        /// <param name="writeTimeUtc">成功时的最后写入时间（UTC）。</param>
+        /// <returns>文件存在返回 <c>true</c>；缺档/查询失败返回 <c>false</c>。</returns>
+        bool TryGetWriteTimeUtc(string filePath, out DateTime writeTimeUtc);
+
+        /// <summary>
         /// 读取文件全部字节（错误分型返回；IO 失败由实现记录详细日志）。
         /// </summary>
         /// <param name="filePath">文件完整路径。</param>

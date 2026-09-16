@@ -34,6 +34,30 @@ namespace Moirai.Atropos.Save
             return SaveServiceSettings.SaveServiceHandler;
         }
 
+        /// <summary>同步镜像读告警去重标志（会话级——一次告警足够让调用方改用异步裁决读）。</summary>
+        private static bool s_WarnedSyncMirrorRead;
+
+        /// <summary>
+        /// 同步裸名读按位告警（会话级一次性）：存储后端同步读非权威（云镜像，<see cref="SaveStorageCapabilities.SyncReadsAuthoritative"/> 为 <c>false</c>）时，
+        /// 同步裸名读 API 返回的是本地镜像（可能滞后于远端）——远端内容须经异步 API 族裁决获取。
+        /// </summary>
+        private static void WarnSyncMirrorReadOnce()
+        {
+            if (s_WarnedSyncMirrorRead || s_Handler == null)
+            {
+                return;
+            }
+
+            SaveStorageBackend storage = SaveServiceSettings.StorageBackend;
+            if (storage == null || storage.Capabilities.SyncReadsAuthoritative)
+            {
+                return;
+            }
+
+            s_WarnedSyncMirrorRead = true;
+            LogUtility.Warning("[SaveService] Sync read APIs return the local mirror only (SyncReadsAuthoritative=false) — remote/cloud content requires the async API family.");
+        }
+
         /// <inheritdoc />
         public override int Priority => ServicePriorityOrder.MID_TIER;
 
@@ -132,8 +156,11 @@ namespace Moirai.Atropos.Save
         /// <param name="key">数据块键。</param>
         /// <param name="folderName">文件夹名称。</param>
         /// <returns>反序列化后的块数据；失败返回默认值。</returns>
-        public static T LoadBlock<T>(string fileName, string key, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME) =>
-            s_Handler != null ? s_Handler.LoadBlock<T>(fileName, key, folderName) : default;
+        public static T LoadBlock<T>(string fileName, string key, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME)
+        {
+            WarnSyncMirrorReadOnce();
+            return s_Handler != null ? s_Handler.LoadBlock<T>(fileName, key, folderName) : default;
+        }
 
         /// <summary>
         /// 从存档文件加载指定数据块并返回完整错误判别结果（在调用线程执行，阻塞直至完成）。
@@ -145,8 +172,11 @@ namespace Moirai.Atropos.Save
         /// <param name="key">数据块键。</param>
         /// <param name="folderName">文件夹名称。</param>
         /// <returns>加载结果（区分无档/无块/损坏/解密失败等错误类别）。</returns>
-        public static SaveResult<T> TryLoadBlock<T>(string fileName, string key, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME) =>
-            s_Handler?.TryLoadBlock<T>(fileName, key, folderName) ?? SaveResult<T>.Failure(SaveError.HandlerNotReady);
+        public static SaveResult<T> TryLoadBlock<T>(string fileName, string key, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME)
+        {
+            WarnSyncMirrorReadOnce();
+            return s_Handler?.TryLoadBlock<T>(fileName, key, folderName) ?? SaveResult<T>.Failure(SaveError.HandlerNotReady);
+        }
 
         /// <summary>
         /// 从存档文件中删除指定数据块（删除最后一个块时整档移除），IO 在工作线程执行。
@@ -177,8 +207,11 @@ namespace Moirai.Atropos.Save
         /// <param name="fileName">文件名（自动追加配置的扩展名）。</param>
         /// <param name="folderName">文件夹名称。</param>
         /// <returns>块元信息数组（健康块在前、坏块在后）；整档缺档/损坏/处理器未就绪时为空数组（损坏已记录错误日志）。</returns>
-        public static SaveBlockInfo[] GetBlockInfos(string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME) =>
-            s_Handler?.GetBlockInfos(fileName, folderName) ?? Array.Empty<SaveBlockInfo>();
+        public static SaveBlockInfo[] GetBlockInfos(string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME)
+        {
+            WarnSyncMirrorReadOnce();
+            return s_Handler?.GetBlockInfos(fileName, folderName) ?? Array.Empty<SaveBlockInfo>();
+        }
 
         #endregion
 
@@ -437,9 +470,12 @@ namespace Moirai.Atropos.Save
         /// <param name="fileName">文件名（自动追加配置的扩展名）。</param>
         /// <param name="folderName">文件夹名称。</param>
         /// <returns>元数据加载结果。</returns>
-        public static SaveResult<SaveMetadata> TryLoadMetadata(string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME) =>
-            s_Handler?.TryLoadBlock<SaveMetadata>(fileName, SaveServiceHandler.META_BLOCK_KEY, folderName)
+        public static SaveResult<SaveMetadata> TryLoadMetadata(string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME)
+        {
+            WarnSyncMirrorReadOnce();
+            return s_Handler?.TryLoadBlock<SaveMetadata>(fileName, SaveServiceHandler.META_BLOCK_KEY, folderName)
                 ?? SaveResult<SaveMetadata>.Failure(SaveError.HandlerNotReady);
+        }
 
         #endregion
 

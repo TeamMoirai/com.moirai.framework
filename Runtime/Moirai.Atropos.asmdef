@@ -104,6 +104,16 @@
             "name": "com.unity.addressables",
             "expression": "1.0.0",
             "define": "ADDRESSABLES_INSTALLED"
+        },
+        {
+            "name": "org.nuget.k4os.compression.lz4",
+            "expression": "1.0.0",
+            "define": "LZ4_INSTALLED"
+        },
+        {
+            "name": "com.unity.services.cloudsave",
+            "expression": "1.0.0",
+            "define": "UNITY_CLOUD_SAVE_INSTALLED"
         }
     ],
     "noEngineReferences": false

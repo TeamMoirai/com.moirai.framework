@@ -64,13 +64,15 @@ namespace Moirai.Atropos.Save
         private static FileSaveStorageBackend Mirror => FileSaveStorageBackend.Default;
 
         /// <summary>
-        /// 后端能力自描述（镜像原子写 + 远端整值替换视为原子；远端网络 IO 为真异步；不设尺寸上限；非易失）。
+        /// 后端能力自描述（镜像原子写 + 远端整值替换视为原子；远端网络 IO 为真异步；不设尺寸上限；非易失；
+        /// 同步读非权威——同步原语仅作用本地镜像，远端内容须经异步 API 族裁决获取）。
         /// </summary>
         public override SaveStorageCapabilities Capabilities => new SaveStorageCapabilities(
             supportsAtomicRename: true,
             supportsTrueAsyncIO: true,
             maxRecommendedSize: -1L,
-            volatileStorage: false);
+            volatileStorage: false,
+            syncReadsAuthoritative: false);
 
         /// <summary>远端存储注入点（测试/代码装配用；Inspector 配置走序列化字段）。</summary>
         internal CloudSaveKvStore RemoteStore
@@ -138,6 +140,17 @@ namespace Moirai.Atropos.Save
         public override bool DirectoryExists(string directoryPath)
         {
             return Mirror.DirectoryExists(directoryPath);
+        }
+
+        /// <summary>
+        /// 查询本地镜像的最后写入时间（远端状态不影响同步 API——镜像时间是下载/本地提交时间，非远端权威时钟）。
+        /// </summary>
+        /// <param name="filePath">文件完整路径。</param>
+        /// <param name="writeTimeUtc">成功时的最后写入时间（UTC）。</param>
+        /// <returns>镜像存在返回 <c>true</c>；缺档/查询失败返回 <c>false</c>。</returns>
+        public override bool TryGetWriteTimeUtc(string filePath, out DateTime writeTimeUtc)
+        {
+            return Mirror.TryGetWriteTimeUtc(filePath, out writeTimeUtc);
         }
 
         /// <summary>
