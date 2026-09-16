@@ -33,6 +33,68 @@ namespace Moirai.Atropos.Editor
 
         #endregion
 
+        #region 信息头样式 [HEADER STYLES]
+
+        /// <summary>
+        /// 信息头 GUIStyle 懒初始化。域重载早期 EditorStyles 未就绪时跳过，等下一帧重试。
+        /// </summary>
+        private static class HeaderStyles
+        {
+            private static bool s_Initialized;
+
+            public static GUIStyle HeaderBg;
+            public static GUIStyle Title;
+            public static GUIStyle Description;
+            public static GUIStyle Meta;
+
+            /// <summary>
+            /// 样式是否已就绪。
+            /// </summary>
+            public static bool IsReady => s_Initialized && Title != null;
+
+            public static void Init()
+            {
+                if (IsReady) return;
+                // 域重载后 EditorStyles 可能尚未初始化，此时属性返回 null，直接等下一帧
+                if (EditorStyles.boldLabel == null) return;
+
+                s_Initialized = true;
+
+                var headerBgTex = new Texture2D(1, 1, TextureFormat.RGBA32, false)
+                {
+                    hideFlags = HideFlags.HideAndDontSave
+                };
+                headerBgTex.SetPixel(0, 0, new Color(0.158f, 0.158f, 0.158f));
+                headerBgTex.Apply();
+
+                HeaderBg = new GUIStyle
+                {
+                    normal = { background = headerBgTex },
+                    padding = new RectOffset(14, 14, 12, 10)
+                };
+
+                Title = new GUIStyle(EditorStyles.boldLabel)
+                {
+                    fontSize = 17,
+                    normal = { textColor = new Color(0.95f, 0.95f, 0.95f) }
+                };
+
+                Description = new GUIStyle(EditorStyles.wordWrappedLabel)
+                {
+                    fontSize = 12,
+                    normal = { textColor = new Color(0.60f, 0.60f, 0.60f) }
+                };
+
+                Meta = new GUIStyle(EditorStyles.miniLabel)
+                {
+                    wordWrap = true,
+                    normal = { textColor = new Color(0.55f, 0.55f, 0.55f) }
+                };
+            }
+        }
+
+        #endregion
+
         #region 条目元数据 [ENTRY METADATA]
 
         /// <summary>
@@ -285,6 +347,50 @@ namespace Moirai.Atropos.Editor
                 ScriptableObject so => _entriesByType.TryGetValue(so.GetType(), out var entry) ? entry : null,
                 _ => null,
             };
+        }
+
+        #endregion
+
+        #region 信息头 [HEADER]
+
+        /// <summary>
+        /// 编辑器区绘制前的信息头（仅内容列）：配置名称、描述、Script 引用与类型/资产路径。
+        /// </summary>
+        protected override void OnBeginDrawEditors()
+        {
+            HeaderStyles.Init();
+
+            var entry = GetSelectedEntry();
+            if (entry == null) return;
+
+            using (new EditorGUILayout.VerticalScope(HeaderStyles.IsReady ? HeaderStyles.HeaderBg : EditorStyles.helpBox))
+            {
+                // 标题行：名称 + Script 引用（对齐 Unity 默认 Inspector 的 Script 字段）
+                using (new EditorGUILayout.HorizontalScope())
+                {
+                    var titleContent = entry.title;
+                    GUILayout.Label(titleContent, HeaderStyles.IsReady ? HeaderStyles.Title : EditorStyles.boldLabel,
+                        GUILayout.ExpandWidth(true), GUILayout.MinWidth(0));
+
+                    if (entry.instance != null)
+                    {
+                        var script = MonoScript.FromScriptableObject(entry.instance);
+                        using (new EditorGUI.DisabledScope(true))
+                        {
+                            EditorGUILayout.ObjectField(script, typeof(MonoScript), false, GUILayout.Width(260f));
+                        }
+                    }
+                }
+
+                if (!string.IsNullOrEmpty(entry.description))
+                    GUILayout.Label(entry.description, HeaderStyles.IsReady ? HeaderStyles.Description : EditorStyles.wordWrappedLabel);
+
+                GUILayout.Label($"{entry.type.FullName}  \u00B7  {entry.AssetPath}",
+                    HeaderStyles.IsReady ? HeaderStyles.Meta : EditorStyles.miniLabel);
+                EditorGUILayout.Space(2);
+            }
+
+            EditorGUILayout.Space(4);
         }
 
         #endregion
