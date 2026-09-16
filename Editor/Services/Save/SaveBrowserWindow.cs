@@ -2,23 +2,23 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
-using System.Linq;
 using System.Text;
 using Moirai.Atropos.Save;
+using Sirenix.OdinInspector;
+using Sirenix.OdinInspector.Editor;
 using UnityEditor;
-using UnityEditor.UIElements;
 using UnityEngine;
-using UnityEngine.UIElements;
 
 namespace Moirai.Atropos.Editor.Save
 {
     /// <summary>
-    /// 存档浏览器编辑器窗口：三栏工作台（文件夹 / 槽位卡片 / 详情），
-    /// 浏览 <c>persistentDataPath/Data/</c> 下的存档，展示块表、元数据、截图 sidecar 与内容预览。
-    /// <para>支持搜索过滤、排序、备份/恢复/删除/复制槽位、导出块、十六进制与 JSON 美化预览、自动刷新。</para>
+    /// 存档浏览器编辑器窗口（Odin 原生实现）：左侧菜单树（文件夹 → 槽位，健康状态图标），
+    /// 右侧由 Odin 属性树绘制选中节点详情（概览、元数据、操作按钮、数据块表、内容预览与截图缩略图）。
+    /// <para>浏览 <c>persistentDataPath/Data/</c> 下的存档，支持菜单搜索过滤、排序、仅问题过滤、
+    /// 自动刷新、备份/恢复/删除/复制槽位、导出块、JSON 美化 / KVT 结构化树 / 十六进制预览。</para>
     /// <para>加密档/压缩档在缺管线配置时解析失败按提示展示（编辑器以明文处理器 + 设置的压缩提供方读取）。</para>
     /// </summary>
-    public sealed class SaveBrowserWindow : EditorWindow
+    public sealed class SaveBrowserWindow : OdinMenuEditorWindow
     {
         #region 常量 [CONSTANTS]
 
@@ -31,22 +31,25 @@ namespace Moirai.Atropos.Editor.Save
         /// <summary>保留元数据块键。</summary>
         private const string META_BLOCK_KEY = "__meta";
 
-        /// <summary>槽位列表项高度。</summary>
-        private const float SLOT_ITEM_HEIGHT = 56f;
+        /// <summary>自动刷新间隔（秒）。</summary>
+        private const double AUTO_REFRESH_INTERVAL = 2.0;
 
-        /// <summary>文件夹列表项高度。</summary>
-        private const float FOLDER_ITEM_HEIGHT = 28f;
+        private const string SESSION_AUTO_REFRESH = "Moirai.SaveBrowser.AutoRefresh";
+        private const string SESSION_SORT_MODE = "Moirai.SaveBrowser.SortMode";
+        private const string SESSION_PRETTY_JSON = "Moirai.SaveBrowser.PrettyJson";
+        private const string SESSION_SHOW_ONLY_ISSUES = "Moirai.SaveBrowser.ShowOnlyIssues";
 
-        /// <summary>块列表项高度。</summary>
-        private const float BLOCK_ITEM_HEIGHT = 34f;
+        /// <summary>缩略图预览最大高度。</summary>
+        private const float THUMBNAIL_MAX_HEIGHT = 120f;
 
-        /// <summary>截图预览最大高度。</summary>
-        private const float THUMBNAIL_MAX_HEIGHT = 160f;
+        /// <summary>菜单树宽度。</summary>
+        private const float MENU_WIDTH = 300f;
 
         #endregion
 
         #region 枚举 [ENUMS]
 
+        /// <summary>槽位排序模式。</summary>
         private enum SlotSortMode
         {
             TimeDesc = 0,
@@ -57,6 +60,7 @@ namespace Moirai.Atropos.Editor.Save
             SizeAsc = 5,
         }
 
+        /// <summary>预览渲染模式。</summary>
         private enum PreviewMode
         {
             Auto = 0,
@@ -68,7 +72,7 @@ namespace Moirai.Atropos.Editor.Save
 
         #region 数据模型 [MODELS]
 
-        /// <summary>槽位列表展示模型。</summary>
+        /// <summary>槽位列表展示模型（窗口内数据管道，Odin 不直接绘制）。</summary>
         private sealed class SlotView
         {
             public SaveFileInfo Info;
@@ -80,71 +84,476 @@ namespace Moirai.Atropos.Editor.Save
             public int CorruptedBlocks;
             public bool IsEncryptedLikely;
             public bool DetailLoaded;
+            public bool StillExists;
         }
 
-        /// <summary>文件夹列表展示模型。</summary>
-        private sealed class FolderView
+        /// <summary>文件夹数据模型：菜单树一级节点与其槽位集合。</summary>
+        private sealed class FolderData
         {
             public string Name;
-            public int SlotCount;
+            public readonly List<SlotView> Slots = new List<SlotView>();
+        }
+
+        /// <summary>数据块表格行模型（Odin TableList 绘制，纯展示；列头取成员名，勿加 LabelText——Odin 4 会渲染成行内前缀标签导致列错位）。</summary>
+        private sealed class BlockRow
+        {
+            [TableColumnWidth(230, false)]
+            public string Key;
+
+            [TableColumnWidth(70, false)]
+            public string Backend;
+
+            [TableColumnWidth(52, false)]
+            public string Version;
+
+            [TableColumnWidth(78, false)]
+            public string Size;
+
+            [GUIColor("StatusColor")]
+            public string Status;
+
+            [HideInTables]
+            public bool Corrupted;
+
+            private Color StatusColor =>
+                Corrupted ? new Color(0.90f, 0.45f, 0.45f) : new Color(0.55f, 0.85f, 0.60f);
+        }
+
+        /// <summary>文件夹详情视图模型：由 Odin 属性树绘制（概览 + 定位/删除操作）。</summary>
+        private sealed class FolderModel
+        {
+            private readonly SaveBrowserWindow _owner;
+            private readonly FolderData _data;
+
+            public FolderModel(SaveBrowserWindow owner, FolderData data)
+            {
+                _owner = owner;
+                _data = data;
+            }
+
+            public string FolderName => _data.Name;
+
+            [ShowInInspector, LabelText("文件夹"), ReadOnly]
+            private string Name => _data.Name;
+
+            [ShowInInspector, LabelText("路径"), ReadOnly]
+            private string FullPath => _owner.SafeDetermineSavePath(_data.Name);
+
+            [ShowInInspector, LabelText("槽位数"), ReadOnly]
+            private int SlotCount => _data.Slots.Count;
+
+            [ShowInInspector, LabelText("总大小"), ReadOnly]
+            private string TotalSize
+            {
+                get
+                {
+                    long total = 0;
+                    for (int i = 0; i < _data.Slots.Count; i++)
+                    {
+                        total += _data.Slots[i].Info.SizeBytes;
+                    }
+
+                    return FormatBytes(total);
+                }
+            }
+
+            [Button("定位"), ButtonGroup("文件夹操作"), GUIColor(0.40f, 0.70f, 0.95f)]
+            private void Reveal()
+            {
+                string path = _owner.SafeDetermineSavePath(_data.Name);
+                if (!string.IsNullOrEmpty(path))
+                {
+                    EditorUtility.RevealInFinder(path);
+                }
+            }
+
+            [Button("删除文件夹"), ButtonGroup("文件夹操作"), GUIColor(0.90f, 0.35f, 0.35f)]
+            private void Delete() => _owner.DeleteFolderDialog(_data.Name);
+        }
+
+        /// <summary>槽位详情视图模型：由 Odin 属性树绘制（概览/元数据/操作/块表/预览/缩略图）。</summary>
+        private sealed class SlotDetailModel
+        {
+            private readonly SaveBrowserWindow _owner;
+            private readonly SlotView _view;
+            private readonly string _folder;
+            private readonly List<BlockRow> _blockRows = new List<BlockRow>();
+            private Dictionary<string, byte[]> _rawBlocks;
+            private string _blockFilter = string.Empty;
+            private string _previewBlockKey = string.Empty;
+            private PreviewMode _previewMode = PreviewMode.Auto;
+            private string _previewText = string.Empty;
+
+            public SlotDetailModel(SaveBrowserWindow owner, SlotView view, string folder)
+            {
+                _owner = owner;
+                _view = view;
+                _folder = folder;
+                ReloadData();
+            }
+
+            public SlotView View => _view;
+
+            public string Folder => _folder;
+
+            public string PreviewKey => _previewBlockKey;
+
+            public string PreviewTextValue => _previewText;
+
+            #region 对外写入 [MUTATION]
+
+            /// <summary>写入原始块载荷字典（窗口加载详情后调用）。</summary>
+            public void SetRawBlocks(Dictionary<string, byte[]> rawBlocks)
+            {
+                _rawBlocks = rawBlocks;
+            }
+
+            /// <summary>重算块表与预览缓存（数据刷新后调用）。</summary>
+            public void ReloadData()
+            {
+                RebuildBlockRows();
+                if (string.IsNullOrEmpty(_previewBlockKey))
+                {
+                    AutoSelectPreviewBlock();
+                }
+
+                RebuildPreview();
+            }
+
+            /// <summary>读取指定块的原始载荷。</summary>
+            public bool TryGetRawBytes(string blockKey, out byte[] bytes)
+            {
+                if (_rawBlocks != null && blockKey != null && _rawBlocks.TryGetValue(blockKey, out byte[] payload) && payload != null)
+                {
+                    bytes = payload;
+                    return true;
+                }
+
+                bytes = null;
+                return false;
+            }
+
+            #endregion
+
+            #region 缩略图 [THUMBNAIL]
+
+            [OnInspectorGUI, PropertyOrder(-100f)]
+            private void DrawThumbnail()
+            {
+                Texture2D texture = _owner._thumbnailTexture;
+                if (texture == null)
+                {
+                    return;
+                }
+
+                EditorGUILayout.Space(4);
+                GUILayout.Box(texture, GUILayout.Height(THUMBNAIL_MAX_HEIGHT), GUILayout.ExpandWidth(true));
+            }
+
+            #endregion
+
+            #region 概览 [OVERVIEW]
+
+            [ShowInInspector, LabelText("文件"), ReadOnly]
+            private string FileName => _view.Info.FileName + SaveServiceSettings.SaveFileExtension;
+
+            [ShowInInspector, LabelText("大小"), ReadOnly]
+            private string Size => FormatBytes(_view.Info.SizeBytes);
+
+            [ShowInInspector, LabelText("最后写入"), ReadOnly]
+            private string LastWrite => _view.Info.LastWriteTimeUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
+
+            [ShowInInspector, LabelText("路径"), ReadOnly]
+            private string PathText => TruncatePath(_owner.SafeGetSlotFullPath(_view.Info.FileName, _folder), 80);
+
+            [ShowInInspector, LabelText("数据块"), ReadOnly]
+            private string Health => BuildHealthSummary(_view);
+
+            [ShowInInspector, LabelText("截图"), ReadOnly]
+            private string Screenshot => _view.HasScreenshot ? "有" : "无";
+
+            [ShowInInspector, LabelText("备份"), ReadOnly]
+            private string BackupText => _view.HasBackup ? "有 (.bak)" : "无";
+
+            #endregion
+
+            #region 操作 [ACTIONS]
+
+            [Button("备份"), ButtonGroup("操作行1", 9f), GUIColor(0.40f, 0.70f, 0.95f)]
+            private void Backup() => _owner.RunBackupForActive();
+
+            [Button("恢复备份"), ButtonGroup("操作行1", 9f), GUIColor(0.92f, 0.72f, 0.25f)]
+            private void RestoreBackup() => _owner.RestoreBackupForActive();
+
+            [Button("复制槽位"), ButtonGroup("操作行1", 9f)]
+            private void Duplicate() => _owner.DuplicateSelectedSlot();
+
+            [Button("定位文件"), ButtonGroup("操作行2", 12f), GUIColor(0.40f, 0.70f, 0.95f)]
+            private void Reveal() => _owner.RevealSelectedFile();
+
+            [Button("复制路径"), ButtonGroup("操作行2", 12f), GUIColor(0.40f, 0.70f, 0.95f)]
+            private void CopyPath() => _owner.CopySelectedPath();
+
+            [Button("导出块"), ButtonGroup("操作行2", 12f)]
+            private void Export() => _owner.ExportSelectedBlock(this);
+
+            [Button("删除存档"), ButtonGroup("操作行2", 12f), GUIColor(0.90f, 0.35f, 0.35f)]
+            private void Delete() => _owner.DeleteSelectedSlotDialog();
+
+            #endregion
+
+            #region 元数据 [METADATA]
+
+            [ShowInInspector, FoldoutGroup("元数据", true, 20f), LabelText("游戏版本"), ReadOnly, InfoBox("无法解析元数据。当前项目可能使用加密处理器，或档文件已损坏。", InfoMessageType.Warning, "IsMetadataMissing")]
+            private string GameVersion => _view.Metadata != null && !string.IsNullOrEmpty(_view.Metadata.GameVersion) ? _view.Metadata.GameVersion : "-";
+
+            [ShowInInspector, FoldoutGroup("元数据", true, 20f), LabelText("存档版本"), ReadOnly]
+            private string SaveVersionText => _view.Metadata != null ? _view.Metadata.SaveVersion.ToString() : "-";
+
+            [ShowInInspector, FoldoutGroup("元数据", true, 20f), LabelText("场景"), ReadOnly]
+            private string Scene => _view.Metadata != null && !string.IsNullOrEmpty(_view.Metadata.SceneName) ? _view.Metadata.SceneName : "-";
+
+            [ShowInInspector, FoldoutGroup("元数据", true, 20f), LabelText("游玩时长"), ReadOnly]
+            private string PlayTime => _view.Metadata != null && _view.Metadata.PlayTimeTicks > 0L ? FormatTimeSpan(new TimeSpan(_view.Metadata.PlayTimeTicks)) : "-";
+
+            [ShowInInspector, FoldoutGroup("元数据", true, 20f), LabelText("迁移历史"), ReadOnly]
+            private string MigrationCount
+            {
+                get
+                {
+                    List<string> history = _view.Metadata?.MigrationHistory;
+                    return history is { Count: > 0 } ? $"{history.Count} 次" : "-";
+                }
+            }
+
+            [ShowInInspector, FoldoutGroup("元数据", true, 20f), LabelText("迁移明细"), ReadOnly, TextArea(2, 8), HideIf("HasNoMigrations")]
+            private string MigrationText
+            {
+                get
+                {
+                    List<string> history = _view.Metadata?.MigrationHistory;
+                    if (history is not { Count: > 0 })
+                    {
+                        return string.Empty;
+                    }
+
+                    return string.Join("\n", history);
+                }
+            }
+
+            [ShowInInspector, FoldoutGroup("元数据", true, 20f), LabelText("自定义"), ReadOnly, TextArea(2, 8), HideIf("HasNoCustom")]
+            private string CustomText
+            {
+                get
+                {
+                    Dictionary<string, string> custom = _view.Metadata?.Custom;
+                    if (custom is not { Count: > 0 })
+                    {
+                        return string.Empty;
+                    }
+
+                    var builder = new StringBuilder(64 * custom.Count);
+                    foreach (KeyValuePair<string, string> pair in custom)
+                    {
+                        builder.Append(pair.Key).Append(": ").Append(string.IsNullOrEmpty(pair.Value) ? "-" : pair.Value).Append('\n');
+                    }
+
+                    return builder.ToString().TrimEnd('\n');
+                }
+            }
+
+            private bool HasNoMigrations => !(_view.Metadata?.MigrationHistory is { Count: > 0 });
+
+            private bool HasNoCustom => !(_view.Metadata?.Custom is { Count: > 0 });
+
+            private bool IsMetadataMissing => _view.Metadata == null && _view.IsEncryptedLikely;
+
+            #endregion
+
+            #region 数据块 [BLOCKS]
+
+            [ShowInInspector, FoldoutGroup("数据块", true, 30f), LabelText("过滤块键")]
+            private string BlockFilter
+            {
+                get => _blockFilter;
+                set
+                {
+                    _blockFilter = value ?? string.Empty;
+                    RebuildBlockRows();
+                }
+            }
+
+            [ShowInInspector, FoldoutGroup("数据块", true, 30f), TableList, ListDrawerSettings(DraggableItems = false)]
+            private List<BlockRow> BlockRows => _blockRows;
+
+            #endregion
+
+            #region 预览 [PREVIEW]
+
+            [ShowInInspector, FoldoutGroup("预览", true, 40f), LabelText("预览块"), ValueDropdown("GetBlockKeyChoices")]
+            private string PreviewBlockKey
+            {
+                get => _previewBlockKey;
+                set
+                {
+                    _previewBlockKey = value ?? string.Empty;
+                    RebuildPreview();
+                }
+            }
+
+            [ShowInInspector, FoldoutGroup("预览", true, 40f), EnumToggleButtons, LabelText("模式")]
+            private PreviewMode Mode
+            {
+                get => _previewMode;
+                set
+                {
+                    _previewMode = value;
+                    RebuildPreview();
+                }
+            }
+
+            [ShowInInspector, FoldoutGroup("预览", true, 40f), LabelText("JSON 美化")]
+            private bool PrettyJson
+            {
+                get => _owner._prettyJson;
+                set
+                {
+                    _owner._prettyJson = value;
+                    RebuildPreview();
+                }
+            }
+
+            [ShowInInspector, FoldoutGroup("预览", true, 40f), HideLabel, ReadOnly, TextArea(12, 28), PropertySpace(6f, 0f)]
+            private string PreviewText => _previewText;
+
+            [Button("复制"), ButtonGroup("预览操作", 45f), GUIColor(0.40f, 0.70f, 0.95f)]
+            private void CopyPreview() => _owner.CopyPreviewToClipboard(this);
+
+            [Button("导出块"), ButtonGroup("预览操作", 45f)]
+            private void ExportPreview() => _owner.ExportSelectedBlock(this);
+
+            private IEnumerable<ValueDropdownItem<string>> GetBlockKeyChoices()
+            {
+                var choices = new List<ValueDropdownItem<string>>();
+                SaveBlockInfo[] blocks = _view.Blocks;
+                if (blocks != null)
+                {
+                    for (int i = 0; i < blocks.Length; i++)
+                    {
+                        SaveBlockInfo block = blocks[i];
+                        if (block.Key == null)
+                        {
+                            choices.Add(new ValueDropdownItem<string>("<结构不可读>", string.Empty));
+                            continue;
+                        }
+
+                        choices.Add(new ValueDropdownItem<string>(block.Key + "  ·  " + ShortBackendName(block.Backend), block.Key));
+                    }
+                }
+
+                if (choices.Count == 0)
+                {
+                    choices.Add(new ValueDropdownItem<string>("(无数据块)", string.Empty));
+                }
+
+                return choices;
+            }
+
+            #endregion
+
+            #region 内部重算 [REBUILD]
+
+            private void RebuildBlockRows()
+            {
+                _blockRows.Clear();
+                SaveBlockInfo[] blocks = _view.Blocks;
+                if (blocks == null)
+                {
+                    return;
+                }
+
+                for (int i = 0; i < blocks.Length; i++)
+                {
+                    SaveBlockInfo block = blocks[i];
+                    if (_blockFilter.Length > 0 &&
+                        (block.Key == null || block.Key.IndexOf(_blockFilter, StringComparison.OrdinalIgnoreCase) < 0))
+                    {
+                        continue;
+                    }
+
+                    _blockRows.Add(new BlockRow
+                    {
+                        Key = block.Key ?? (block.Error != SaveError.None ? "<结构不可读>" : "<未知>"),
+                        Backend = ShortBackendName(block.Backend),
+                        Version = $"v{block.DataVersion}",
+                        Size = FormatBytes(block.SizeBytes),
+                        Status = !block.HasMetadata ? "结构不可读" : block.Error != SaveError.None ? block.Error.ToString() : "正常",
+                        Corrupted = block.Error != SaveError.None || !block.HasMetadata,
+                    });
+                }
+            }
+
+            private void AutoSelectPreviewBlock()
+            {
+                SaveBlockInfo[] blocks = _view.Blocks;
+                if (blocks == null)
+                {
+                    _previewBlockKey = string.Empty;
+                    return;
+                }
+
+                for (int i = 0; i < blocks.Length; i++)
+                {
+                    if (blocks[i].Key != null && blocks[i].Error == SaveError.None)
+                    {
+                        _previewBlockKey = blocks[i].Key;
+                        return;
+                    }
+                }
+
+                _previewBlockKey = string.Empty;
+            }
+
+            private void RebuildPreview()
+            {
+                _previewText = _owner.BuildPreviewText(_view, _rawBlocks, _previewBlockKey, _previewMode, _owner._prettyJson);
+            }
+
+            #endregion
         }
 
         #endregion
 
         #region 字段 [FIELDS]
 
+        private static readonly string[] s_SortModeLabels =
+        {
+            "时间 ↓",
+            "时间 ↑",
+            "名称 ↑",
+            "名称 ↓",
+            "大小 ↓",
+            "大小 ↑",
+        };
+
         private PlainSaveHandler _handler;
-        private string[] _folders = Array.Empty<string>();
-        private readonly List<FolderView> _folderViews = new List<FolderView>();
-        private readonly List<SlotView> _slotViews = new List<SlotView>();
-        private readonly List<SlotView> _filteredSlots = new List<SlotView>();
-        private readonly List<SaveBlockInfo> _blockViews = new List<SaveBlockInfo>();
-        private readonly List<SaveBlockInfo> _filteredBlocks = new List<SaveBlockInfo>();
-
-        private int _selectedFolderIndex;
-        private string _selectedSlotName;
-        private int _selectedBlockIndex = -1;
-        private Dictionary<string, byte[]> _rawBlocks;
-        private SlotView _selectedSlot;
-        private Texture2D _thumbnailTexture;
-
+        private readonly List<FolderData> _folders = new List<FolderData>();
         private SlotSortMode _sortMode = SlotSortMode.TimeDesc;
-        private PreviewMode _previewMode = PreviewMode.Auto;
-        private bool _prettyJson = true;
         private bool _autoRefresh;
+        private bool _prettyJson = true;
         private bool _showOnlyIssues;
         private double _nextAutoRefreshTime;
+        private bool _refreshDataPending;
+        private bool _treeRebuildQueued;
         private string _statusMessage = string.Empty;
         private MessageType _statusType = MessageType.Info;
         private double _statusExpireTime;
-
-        private string _folderFilter = string.Empty;
-        private string _slotFilter = string.Empty;
-        private string _blockFilter = string.Empty;
-
-        // UI Toolkit 控件
-        private ToolbarSearchField _slotSearchField;
-        private ToolbarSearchField _blockSearchField;
-        private ToolbarSearchField _folderSearchField;
-        private ListView _folderList;
-        private ListView _slotList;
-        private ListView _blockList;
-        private Label _folderHeaderLabel;
-        private Label _slotHeaderLabel;
-        private Label _detailHeaderLabel;
-        private Label _pipelineLabel;
-        private Label _statusLabel;
-        private VisualElement _thumbnailElement;
-        private VisualElement _metadataContainer;
-        private VisualElement _actionBar;
-        private ScrollView _previewScroll;
-        private Label _previewLabel;
-        private HelpBox _previewHelp;
-        private VisualElement _detailRoot;
-        private VisualElement _emptyDetail;
-        private VisualElement _detailContent;
-
-        private IVisualElementScheduledItem _autoRefreshSchedule;
+        private string _pipelineText = string.Empty;
+        private OdinMenuItem _cachedSelection;
+        private SlotDetailModel _activeDetail;
+        private Texture2D _thumbnailTexture;
+        private string _pendingSelectionFolder;
+        private string _pendingSelectionSlot;
 
         #endregion
 
@@ -162,850 +571,445 @@ namespace Moirai.Atropos.Editor.Save
             window.Show();
         }
 
-        private void OnEnable()
+        protected override void OnEnable()
         {
+            base.OnEnable();
             _handler = new PlainSaveHandler
             {
                 _compression = SaveServiceSettings.CompressionProvider,
             };
-            _autoRefresh = SessionState.GetBool("Moirai.SaveBrowser.AutoRefresh", false);
-            _sortMode = (SlotSortMode)SessionState.GetInt("Moirai.SaveBrowser.SortMode", (int)SlotSortMode.TimeDesc);
-            _prettyJson = SessionState.GetBool("Moirai.SaveBrowser.PrettyJson", true);
-            _showOnlyIssues = SessionState.GetBool("Moirai.SaveBrowser.ShowOnlyIssues", false);
+            _autoRefresh = SessionState.GetBool(SESSION_AUTO_REFRESH, false);
+            _sortMode = (SlotSortMode)SessionState.GetInt(SESSION_SORT_MODE, (int)SlotSortMode.TimeDesc);
+            _prettyJson = SessionState.GetBool(SESSION_PRETTY_JSON, true);
+            _showOnlyIssues = SessionState.GetBool(SESSION_SHOW_ONLY_ISSUES, false);
+
+            DrawMenuSearchBar = true;
+            MenuWidth = MENU_WIDTH;
+            ResizableMenuWidth = true;
+            UpdatePipelineText();
+
+            EditorApplication.update += OnEditorUpdate;
+
+            // Odin 4 契约：基类 OnEnable 不建树；域重载早期 EditorStyles 未就绪（get_label 可抛 NRE 而非返回 null），
+            // 因此守卫需吞异常——失败则保持未建树，由 OnImGUI 兜底重试。
+            try
+            {
+                if (EditorStyles.label != null)
+                {
+                    ForceMenuTreeRebuild();
+                }
+            }
+            catch
+            {
+                // 编辑器皮肤尚未初始化，等待下一次 OnImGUI 兜底建树
+            }
         }
 
-        private void OnDisable()
+        protected override void OnDisable()
         {
-            SessionState.SetBool("Moirai.SaveBrowser.AutoRefresh", _autoRefresh);
-            SessionState.SetInt("Moirai.SaveBrowser.SortMode", (int)_sortMode);
-            SessionState.SetBool("Moirai.SaveBrowser.PrettyJson", _prettyJson);
-            SessionState.SetBool("Moirai.SaveBrowser.ShowOnlyIssues", _showOnlyIssues);
+            EditorApplication.update -= OnEditorUpdate;
+            SessionState.SetBool(SESSION_AUTO_REFRESH, _autoRefresh);
+            SessionState.SetInt(SESSION_SORT_MODE, (int)_sortMode);
+            SessionState.SetBool(SESSION_PRETTY_JSON, _prettyJson);
+            SessionState.SetBool(SESSION_SHOW_ONLY_ISSUES, _showOnlyIssues);
             ReleaseThumbnail();
-            _autoRefreshSchedule?.Pause();
+            base.OnDisable();
         }
 
         #endregion
 
-        #region 构建 UI [BUILD]
+        #region 菜单树 [MENU TREE]
 
-        private void CreateGUI()
+        /// <summary>
+        /// 构建菜单树：文件夹节点（FolderModel）→ 槽位子节点（SlotDetailModel，按健康状态给图标）。
+        /// </summary>
+        protected override OdinMenuTree BuildMenuTree()
         {
-            rootVisualElement.style.flexDirection = FlexDirection.Column;
-            BuildToolbar();
-            BuildStatusStrip();
-            BuildMainLayout();
-            RefreshAll();
-            RegisterShortcuts();
-            SetupAutoRefresh();
+            RefreshFoldersAndSlots();
+
+            var tree = new OdinMenuTree(false);
+            tree.DefaultMenuStyle.SetHeight(26);
+
+            for (int i = 0; i < _folders.Count; i++)
+            {
+                FolderData folder = _folders[i];
+                tree.Add(folder.Name, new FolderModel(this, folder), SdfIconType.FolderFill);
+
+                List<SlotView> slots = folder.Slots;
+                for (int j = 0; j < slots.Count; j++)
+                {
+                    SlotView slot = slots[j];
+                    if (!IsSlotVisible(slot))
+                    {
+                        continue;
+                    }
+
+                    var detail = new SlotDetailModel(this, slot, folder.Name);
+                    tree.Add(folder.Name + "/" + slot.Info.FileName, detail, ResolveSlotHealthIcon(slot));
+                }
+            }
+
+            TryRestoreSelection(tree);
+            return tree;
         }
 
-        /// <summary>构建顶部工具栏。</summary>
-        private void BuildToolbar()
+        /// <summary>「仅问题」过滤判定。</summary>
+        private bool IsSlotVisible(SlotView view)
         {
-            var toolbar = new Toolbar();
-            toolbar.style.flexShrink = 0;
-
-            var refreshButton = new ToolbarButton(RefreshAll) { tooltip = "刷新全部 (F5)" };
-            refreshButton.Add(new Label("刷新"));
-            toolbar.Add(refreshButton);
-
-            var autoToggle = new ToolbarToggle
+            if (!_showOnlyIssues)
             {
-                text = "自动",
-                tooltip = "每 2 秒自动刷新（槽位列表与详情）",
-                value = _autoRefresh,
+                return true;
+            }
+
+            return view.CorruptedBlocks > 0
+                   || view.IsEncryptedLikely
+                   || (view.Blocks != null && view.Blocks.Length == 0);
+        }
+
+        /// <summary>按健康状态解析槽位菜单图标。</summary>
+        private static SdfIconType ResolveSlotHealthIcon(SlotView view)
+        {
+            if (view.CorruptedBlocks > 0)
+            {
+                return SdfIconType.XCircleFill;
+            }
+
+            if (view.IsEncryptedLikely)
+            {
+                return SdfIconType.LockFill;
+            }
+
+            if (view.Blocks == null || view.Blocks.Length == 0)
+            {
+                return SdfIconType.Info;
+            }
+
+            return SdfIconType.CheckCircleFill;
+        }
+
+        /// <summary>重建后恢复选中节点（编程式 Select，不依赖窗口焦点）。</summary>
+        private void TryRestoreSelection(OdinMenuTree tree)
+        {
+            if (_pendingSelectionFolder == null && _pendingSelectionSlot == null)
+            {
+                return;
+            }
+
+            string wantFolder = _pendingSelectionFolder;
+            string wantSlot = _pendingSelectionSlot;
+            _pendingSelectionFolder = null;
+            _pendingSelectionSlot = null;
+
+            OdinMenuItem match = null;
+            tree.EnumerateTree(item =>
+            {
+                if (match != null || item.Value == null || item.Parent == null)
+                {
+                    return;
+                }
+
+                if (wantSlot != null)
+                {
+                    if (string.Equals(item.Name, wantSlot, StringComparison.Ordinal) &&
+                        string.Equals(item.Parent.Name, wantFolder ?? string.Empty, StringComparison.Ordinal))
+                    {
+                        match = item;
+                    }
+                }
+                else if (wantFolder != null && item.Parent.Parent == null &&
+                         string.Equals(item.Name, wantFolder, StringComparison.Ordinal))
+                {
+                    match = item;
+                }
+            });
+
+            if (match != null)
+            {
+                tree.Selection.Clear();
+                match.Select(false);
+            }
+        }
+
+        #endregion
+
+        #region 生命周期 [LIFECYCLE]
+
+        protected override void OnImGUI()
+        {
+            EnsureMenuTree();
+            DrainQueuedRebuild();
+            DrainRefreshDataPending();
+            PollSelection();
+            DrawToolbar();
+            DrawStatusStrip();
+            HandleShortcuts();
+            base.OnImGUI();
+            EnsureTreePopulated();
+        }
+
+        /// <summary>Odin 4 契约：样式未就绪不建树，就绪后 ForceMenuTreeRebuild 兜底。</summary>
+        private void EnsureMenuTree()
+        {
+            if (MenuTree != null || EditorStyles.label == null)
+            {
+                return;
+            }
+
+            ForceMenuTreeRebuild();
+        }
+
+        private void DrainQueuedRebuild()
+        {
+            if (!_treeRebuildQueued)
+            {
+                return;
+            }
+
+            _treeRebuildQueued = false;
+            if (EditorStyles.label == null)
+            {
+                return;
+            }
+
+            ForceMenuTreeRebuild();
+        }
+
+        private void DrainRefreshDataPending()
+        {
+            if (!_refreshDataPending)
+            {
+                return;
+            }
+
+            _refreshDataPending = false;
+            RefreshFoldersAndSlots();
+            if (_activeDetail != null && _activeDetail.View.StillExists)
+            {
+                RefreshActiveDetailInPlace();
+            }
+            else
+            {
+                _activeDetail = null;
+                ReleaseThumbnail();
+            }
+        }
+
+        /// <summary>轮询菜单树选中变化并按需加载槽位详情（选中条目在 Layout 遍缓存）。</summary>
+        private void PollSelection()
+        {
+            OdinMenuItem current = null;
+            OdinMenuTreeSelection selection = MenuTree?.Selection;
+            if (selection != null)
+            {
+                foreach (OdinMenuItem item in selection)
+                {
+                    current = item;
+                    break;
+                }
+            }
+
+            if (ReferenceEquals(current, _cachedSelection))
+            {
+                return;
+            }
+
+            _cachedSelection = current;
+            LoadDetailForSelection();
+        }
+
+        /// <summary>Odin 4 契约：空树经 delayCall 防抖重建。</summary>
+        private void EnsureTreePopulated()
+        {
+            if (MenuTree != null && MenuTree.MenuItems.Count > 0)
+            {
+                return;
+            }
+
+            QueueTreeRebuild();
+        }
+
+        private void QueueTreeRebuild()
+        {
+            if (_treeRebuildQueued)
+            {
+                return;
+            }
+
+            _treeRebuildQueued = true;
+            EditorApplication.delayCall += () =>
+            {
+                if (!_treeRebuildQueued)
+                {
+                    return;
+                }
+
+                _treeRebuildQueued = false;
+                if (EditorStyles.label == null)
+                {
+                    return;
+                }
+
+                ForceMenuTreeRebuild();
+                Repaint();
             };
-            autoToggle.RegisterValueChangedCallback(evt =>
+        }
+
+        private void OnEditorUpdate()
+        {
+            double now = EditorApplication.timeSinceStartup;
+            if (_autoRefresh && now >= _nextAutoRefreshTime)
             {
-                _autoRefresh = evt.newValue;
+                _nextAutoRefreshTime = now + AUTO_REFRESH_INTERVAL;
+                _refreshDataPending = true;
+                Repaint();
+            }
+
+            if (_statusExpireTime > 0 && _statusMessage.Length > 0 && now > _statusExpireTime)
+            {
+                _statusMessage = string.Empty;
+                _statusExpireTime = 0;
+                Repaint();
+            }
+        }
+
+        #endregion
+
+        #region 工具栏 [TOOLBAR]
+
+        private void DrawToolbar()
+        {
+            EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
+
+            if (GUILayout.Button("刷新", EditorStyles.toolbarButton, GUILayout.Width(48)))
+            {
+                RequestTreeRebuildPreservingSelection();
+                SetStatus("已刷新。", MessageType.Info, 2.5);
+            }
+
+            bool auto = GUILayout.Toggle(_autoRefresh, "自动", EditorStyles.toolbarButton, GUILayout.Width(52));
+            if (auto != _autoRefresh)
+            {
+                _autoRefresh = auto;
                 if (_autoRefresh)
                 {
-                    _autoRefreshSchedule?.Resume();
-                    _nextAutoRefreshTime = EditorApplication.timeSinceStartup + 2.0;
-                }
-                else
-                {
-                    _autoRefreshSchedule?.Pause();
-                }
-            });
-            toolbar.Add(autoToggle);
-
-            toolbar.Add(new ToolbarSpacer());
-
-            _folderSearchField = new ToolbarSearchField { tooltip = "过滤文件夹" };
-            _folderSearchField.style.width = 120;
-            _folderSearchField.RegisterValueChangedCallback(evt =>
-            {
-                _folderFilter = evt.newValue ?? string.Empty;
-                RebuildFolderList(keepSelection: true);
-            });
-            toolbar.Add(_folderSearchField);
-
-            _slotSearchField = new ToolbarSearchField { tooltip = "过滤槽位名" };
-            _slotSearchField.style.width = 160;
-            _slotSearchField.RegisterValueChangedCallback(evt =>
-            {
-                _slotFilter = evt.newValue ?? string.Empty;
-                RebuildSlotList(keepSelection: true);
-            });
-            toolbar.Add(_slotSearchField);
-
-            var sortEnum = new EnumField(_sortMode) { tooltip = "槽位排序" };
-            sortEnum.style.width = 110;
-            sortEnum.RegisterValueChangedCallback(evt =>
-            {
-                _sortMode = (SlotSortMode)evt.newValue;
-                RebuildSlotList(keepSelection: true);
-            });
-            toolbar.Add(sortEnum);
-
-            var issuesToggle = new ToolbarToggle
-            {
-                text = "仅问题",
-                tooltip = "只显示含坏块或解析失败的槽位",
-                value = _showOnlyIssues,
-            };
-            issuesToggle.RegisterValueChangedCallback(evt =>
-            {
-                _showOnlyIssues = evt.newValue;
-                RebuildSlotList(keepSelection: true);
-            });
-            toolbar.Add(issuesToggle);
-
-            toolbar.Add(new ToolbarSpacer());
-
-            var openRootButton = new ToolbarButton(() =>
-            {
-                string root = SafeDetermineSavePath(string.Empty);
-                if (!string.IsNullOrEmpty(root))
-                {
-                    EditorUtility.RevealInFinder(root);
-                }
-            })
-            { tooltip = "在资源管理器中打开存档根目录" };
-            openRootButton.Add(new Label("根目录"));
-            toolbar.Add(openRootButton);
-
-            var settingsButton = new ToolbarButton(() => EditorApplication.ExecuteMenuItem("Tools/Framework Settings"));
-            settingsButton.Add(new Label("设置"));
-            settingsButton.tooltip = "打开框架设置（存档管线配置）";
-            toolbar.Add(settingsButton);
-
-            rootVisualElement.Add(toolbar);
-        }
-
-        /// <summary>构建状态条（管线信息 + 操作反馈）。</summary>
-        private void BuildStatusStrip()
-        {
-            var strip = new VisualElement();
-            strip.style.flexDirection = FlexDirection.Row;
-            strip.style.alignItems = Align.Center;
-            strip.style.minHeight = 22;
-            strip.style.paddingLeft = 8;
-            strip.style.paddingRight = 8;
-            strip.style.borderBottomWidth = 1;
-            strip.style.borderBottomColor = GetHairlineColor();
-            strip.style.backgroundColor = GetStripBackgroundColor();
-
-            _pipelineLabel = new Label();
-            _pipelineLabel.style.unityFontStyleAndWeight = FontStyle.Italic;
-            _pipelineLabel.style.fontSize = 11;
-            _pipelineLabel.style.color = GetMutedColor();
-            _pipelineLabel.style.flexGrow = 1;
-            strip.Add(_pipelineLabel);
-
-            _statusLabel = new Label();
-            _statusLabel.style.fontSize = 11;
-            _statusLabel.style.unityTextAlign = TextAnchor.MiddleRight;
-            _statusLabel.style.flexShrink = 0;
-            strip.Add(_statusLabel);
-
-            rootVisualElement.Add(strip);
-            UpdatePipelineLabel();
-        }
-
-        /// <summary>构建三栏主布局。</summary>
-        private void BuildMainLayout()
-        {
-            var main = new TwoPaneSplitView(0, 180, TwoPaneSplitViewOrientation.Horizontal);
-            main.style.flexGrow = 1;
-
-            // ── 左：文件夹 ──
-            var folderPane = new VisualElement();
-            folderPane.style.flexGrow = 1;
-            folderPane.style.borderRightWidth = 1;
-            folderPane.style.borderRightColor = GetHairlineColor();
-
-            _folderHeaderLabel = MakeSectionHeader("文件夹");
-            folderPane.Add(_folderHeaderLabel);
-
-            _folderList = new ListView
-            {
-                virtualizationMethod = CollectionVirtualizationMethod.FixedHeight,
-                fixedItemHeight = FOLDER_ITEM_HEIGHT,
-                selectionType = SelectionType.Single,
-                showBorder = false,
-                showAlternatingRowBackgrounds = AlternatingRowBackground.None,
-                makeItem = MakeFolderItem,
-                bindItem = BindFolderItem,
-            };
-            _folderList.style.flexGrow = 1;
-            _folderList.style.overflow = Overflow.Hidden;
-#if UNITY_2023_1_OR_NEWER
-            _folderList.selectionChanged += OnFolderSelectionChanged;
-#else
-            _folderList.onSelectionChange += OnFolderSelectionChanged;
-#endif
-            folderPane.Add(_folderList);
-
-            var folderActions = new VisualElement();
-            folderActions.style.flexDirection = FlexDirection.Row;
-            folderActions.style.paddingLeft = 4;
-            folderActions.style.paddingRight = 4;
-            folderActions.style.paddingTop = 4;
-            folderActions.style.paddingBottom = 4;
-            folderActions.style.borderTopWidth = 1;
-            folderActions.style.borderTopColor = GetHairlineColor();
-
-            var newFolderButton = new Button(CreateFolderDialog) { text = "新建", tooltip = "新建存档文件夹" };
-            newFolderButton.style.flexGrow = 1;
-            folderActions.Add(newFolderButton);
-
-            var deleteFolderButton = new Button(DeleteCurrentFolderDialog) { text = "删除", tooltip = "删除当前文件夹（含全部槽位）" };
-            deleteFolderButton.style.flexGrow = 1;
-            folderActions.Add(deleteFolderButton);
-
-            var openFolderButton = new Button(() =>
-            {
-                string path = SafeDetermineSavePath(CurrentFolder);
-                if (!string.IsNullOrEmpty(path))
-                {
-                    EditorUtility.RevealInFinder(path);
-                }
-            })
-            { text = "定位", tooltip = "在资源管理器中打开当前文件夹" };
-            openFolderButton.style.flexGrow = 1;
-            folderActions.Add(openFolderButton);
-
-            folderPane.Add(folderActions);
-            main.Add(folderPane);
-
-            // ── 右：槽位 + 详情 ──
-            var rightSplit = new TwoPaneSplitView(0, 260, TwoPaneSplitViewOrientation.Horizontal);
-            rightSplit.style.flexGrow = 1;
-
-            var slotPane = new VisualElement();
-            slotPane.style.flexGrow = 1;
-            slotPane.style.borderRightWidth = 1;
-            slotPane.style.borderRightColor = GetHairlineColor();
-
-            _slotHeaderLabel = MakeSectionHeader("槽位");
-            slotPane.Add(_slotHeaderLabel);
-
-            _slotList = new ListView
-            {
-                virtualizationMethod = CollectionVirtualizationMethod.FixedHeight,
-                fixedItemHeight = SLOT_ITEM_HEIGHT,
-                selectionType = SelectionType.Single,
-                showBorder = false,
-                makeItem = MakeSlotItem,
-                bindItem = BindSlotItem,
-            };
-            _slotList.style.flexGrow = 1;
-            _slotList.style.overflow = Overflow.Hidden;
-#if UNITY_2023_1_OR_NEWER
-            _slotList.selectionChanged += OnSlotSelectionChanged;
-#else
-            _slotList.onSelectionChange += OnSlotSelectionChanged;
-#endif
-            slotPane.Add(_slotList);
-
-            var slotActions = new VisualElement();
-            slotActions.style.flexDirection = FlexDirection.Row;
-            slotActions.style.paddingLeft = 4;
-            slotActions.style.paddingRight = 4;
-            slotActions.style.paddingTop = 4;
-            slotActions.style.paddingBottom = 4;
-            slotActions.style.borderTopWidth = 1;
-            slotActions.style.borderTopColor = GetHairlineColor();
-
-            var refreshSlotsButton = new Button(RefreshSlots) { text = "刷新槽位" };
-            refreshSlotsButton.style.flexGrow = 1;
-            slotActions.Add(refreshSlotsButton);
-
-            var copySlotButton = new Button(DuplicateSelectedSlot) { text = "复制槽位" };
-            copySlotButton.style.flexGrow = 1;
-            copySlotButton.tooltip = "复制当前槽位为新文件名";
-            slotActions.Add(copySlotButton);
-
-            slotPane.Add(slotActions);
-            rightSplit.Add(slotPane);
-
-            // ── 最右：详情 ──
-            _detailRoot = new VisualElement();
-            _detailRoot.style.flexGrow = 1;
-            BuildDetailPane();
-            rightSplit.Add(_detailRoot);
-
-            main.Add(rightSplit);
-            rootVisualElement.Add(main);
-        }
-
-        /// <summary>构建详情栏骨架（整栏纵向滚动，避免窗口变矮时区块互相压叠）。</summary>
-        private void BuildDetailPane()
-        {
-            _detailHeaderLabel = MakeSectionHeader("详情");
-            _detailRoot.Add(_detailHeaderLabel);
-
-            _emptyDetail = new HelpBox("选择左侧槽位查看详情。", HelpBoxMessageType.Info);
-            _emptyDetail.style.marginLeft = 8;
-            _emptyDetail.style.marginRight = 8;
-            _emptyDetail.style.marginTop = 8;
-            _detailRoot.Add(_emptyDetail);
-
-            var detailScroll = new ScrollView(ScrollViewMode.Vertical);
-            detailScroll.style.flexGrow = 1;
-            detailScroll.style.minHeight = 0;
-            _detailRoot.Add(detailScroll);
-
-            _detailContent = new VisualElement();
-            _detailContent.style.display = DisplayStyle.None;
-            _detailContent.style.flexShrink = 0;
-            detailScroll.Add(_detailContent);
-
-            // 缩略图
-            _thumbnailElement = new VisualElement();
-            _thumbnailElement.style.height = THUMBNAIL_MAX_HEIGHT;
-            _thumbnailElement.style.flexShrink = 0;
-            _thumbnailElement.style.marginLeft = 8;
-            _thumbnailElement.style.marginRight = 8;
-            _thumbnailElement.style.marginTop = 6;
-            _thumbnailElement.style.backgroundColor = new Color(0f, 0f, 0f, 0.25f);
-            _thumbnailElement.style.borderTopLeftRadius = 4;
-            _thumbnailElement.style.borderTopRightRadius = 4;
-            _thumbnailElement.style.borderBottomLeftRadius = 4;
-            _thumbnailElement.style.borderBottomRightRadius = 4;
-            _thumbnailElement.style.alignItems = Align.Center;
-            _thumbnailElement.style.justifyContent = Justify.Center;
-            _thumbnailElement.style.unityBackgroundScaleMode = ScaleMode.ScaleToFit;
-            var thumbPlaceholder = new Label("无截图");
-            thumbPlaceholder.name = "thumb-placeholder";
-            thumbPlaceholder.style.color = GetMutedColor();
-            thumbPlaceholder.style.fontSize = 11;
-            _thumbnailElement.Add(thumbPlaceholder);
-            _detailContent.Add(_thumbnailElement);
-
-            // 元数据
-            _metadataContainer = new VisualElement();
-            _metadataContainer.style.flexShrink = 0;
-            _metadataContainer.style.marginLeft = 8;
-            _metadataContainer.style.marginRight = 8;
-            _metadataContainer.style.marginTop = 6;
-            _metadataContainer.style.paddingLeft = 8;
-            _metadataContainer.style.paddingRight = 8;
-            _metadataContainer.style.paddingTop = 6;
-            _metadataContainer.style.paddingBottom = 6;
-            _metadataContainer.style.backgroundColor = GetCardBackgroundColor();
-            _metadataContainer.style.borderTopLeftRadius = 4;
-            _metadataContainer.style.borderTopRightRadius = 4;
-            _metadataContainer.style.borderBottomLeftRadius = 4;
-            _metadataContainer.style.borderBottomRightRadius = 4;
-            _detailContent.Add(_metadataContainer);
-
-            // 操作栏
-            _actionBar = new VisualElement();
-            _actionBar.style.flexDirection = FlexDirection.Row;
-            _actionBar.style.flexWrap = Wrap.Wrap;
-            _actionBar.style.flexShrink = 0;
-            _actionBar.style.marginLeft = 8;
-            _actionBar.style.marginRight = 8;
-            _actionBar.style.marginTop = 6;
-            _actionBar.style.marginBottom = 2;
-            _detailContent.Add(_actionBar);
-
-            // 数据块区（固定高度列表，不随 flex 塌陷）
-            var blockSection = MakeSubSection("数据块");
-            blockSection.style.flexShrink = 0;
-            var blockToolbar = new VisualElement();
-            blockToolbar.style.flexDirection = FlexDirection.Row;
-            blockToolbar.style.flexShrink = 0;
-            blockToolbar.style.marginBottom = 4;
-
-            _blockSearchField = new ToolbarSearchField { tooltip = "过滤块键" };
-            _blockSearchField.style.flexGrow = 1;
-            _blockSearchField.RegisterValueChangedCallback(evt =>
-            {
-                _blockFilter = evt.newValue ?? string.Empty;
-                RebuildBlockList(keepSelection: true);
-            });
-            blockToolbar.Add(_blockSearchField);
-            blockSection.Add(blockToolbar);
-
-            _blockList = new ListView
-            {
-                virtualizationMethod = CollectionVirtualizationMethod.FixedHeight,
-                fixedItemHeight = BLOCK_ITEM_HEIGHT,
-                selectionType = SelectionType.Single,
-                showBorder = false,
-                makeItem = MakeBlockItem,
-                bindItem = BindBlockItem,
-            };
-            _blockList.style.flexShrink = 0;
-            _blockList.style.flexGrow = 0;
-            _blockList.style.height = 132;
-            _blockList.style.marginBottom = 4;
-            _blockList.style.overflow = Overflow.Hidden;
-#if UNITY_2023_1_OR_NEWER
-            _blockList.selectionChanged += OnBlockSelectionChanged;
-#else
-            _blockList.onSelectionChange += OnBlockSelectionChanged;
-#endif
-            blockSection.Add(_blockList);
-            _detailContent.Add(blockSection);
-
-            // 预览区
-            var previewSection = MakeSubSection("预览");
-            previewSection.style.flexShrink = 0;
-            previewSection.style.flexGrow = 0;
-            previewSection.style.marginBottom = 16;
-            var previewToolbar = new VisualElement();
-            previewToolbar.style.flexDirection = FlexDirection.Row;
-            previewToolbar.style.flexShrink = 0;
-            previewToolbar.style.marginBottom = 4;
-
-            var previewModeField = new EnumField("模式", _previewMode);
-            previewModeField.style.width = 120;
-            previewModeField.RegisterValueChangedCallback(evt =>
-            {
-                _previewMode = (PreviewMode)evt.newValue;
-                RebuildPreview();
-            });
-            previewToolbar.Add(previewModeField);
-
-            var prettyToggle = new Toggle("JSON 美化") { value = _prettyJson };
-            prettyToggle.style.marginLeft = 8;
-            prettyToggle.RegisterValueChangedCallback(evt =>
-            {
-                _prettyJson = evt.newValue;
-                RebuildPreview();
-            });
-            previewToolbar.Add(prettyToggle);
-
-            var copyPreviewButton = new Button(CopyPreviewToClipboard) { text = "复制" };
-            copyPreviewButton.style.marginLeft = 8;
-            previewToolbar.Add(copyPreviewButton);
-
-            var exportPreviewButton = new Button(ExportSelectedBlock) { text = "导出块" };
-            exportPreviewButton.style.marginLeft = 4;
-            previewToolbar.Add(exportPreviewButton);
-
-            previewSection.Add(previewToolbar);
-
-            _previewScroll = new ScrollView(ScrollViewMode.VerticalAndHorizontal);
-            _previewScroll.style.flexShrink = 0;
-            _previewScroll.style.flexGrow = 0;
-            _previewScroll.style.height = 200;
-            _previewScroll.style.overflow = Overflow.Hidden;
-            _previewScroll.style.backgroundColor = GetCardBackgroundColor();
-            _previewScroll.style.borderTopLeftRadius = 4;
-            _previewScroll.style.borderTopRightRadius = 4;
-            _previewScroll.style.borderBottomLeftRadius = 4;
-            _previewScroll.style.borderBottomRightRadius = 4;
-
-            _previewLabel = new Label();
-            _previewLabel.style.whiteSpace = WhiteSpace.Normal;
-            _previewLabel.style.fontSize = 11;
-            _previewLabel.style.color = GetPreviewTextColor();
-            _previewLabel.style.paddingLeft = 8;
-            _previewLabel.style.paddingRight = 8;
-            _previewLabel.style.paddingTop = 6;
-            _previewLabel.style.paddingBottom = 6;
-            _previewScroll.Add(_previewLabel);
-            previewSection.Add(_previewScroll);
-
-            _previewHelp = new HelpBox(string.Empty, HelpBoxMessageType.None);
-            _previewHelp.style.display = DisplayStyle.None;
-            _previewHelp.style.flexShrink = 0;
-            _previewHelp.style.marginTop = 4;
-            previewSection.Add(_previewHelp);
-
-            _detailContent.Add(previewSection);
-        }
-
-        /// <summary>注册快捷键。</summary>
-        private void RegisterShortcuts()
-        {
-            rootVisualElement.RegisterCallback<KeyDownEvent>(evt =>
-            {
-                if (evt.keyCode == KeyCode.F5)
-                {
-                    RefreshAll();
-                    evt.StopPropagation();
-                }
-                else if (evt.keyCode == KeyCode.Delete && _selectedSlot != null
-                                                         && (evt.target as VisualElement)?.GetFirstAncestorOfType<TextField>() == null
-                                                         && (evt.target as VisualElement)?.GetFirstAncestorOfType<ToolbarSearchField>() == null)
-                {
-                    DeleteSelectedSlotDialog();
-                    evt.StopPropagation();
-                }
-            });
-        }
-
-        /// <summary>配置自动刷新调度。</summary>
-        private void SetupAutoRefresh()
-        {
-            _autoRefreshSchedule = rootVisualElement.schedule.Execute(() =>
-            {
-                if (!_autoRefresh)
-                {
-                    return;
+                    _nextAutoRefreshTime = EditorApplication.timeSinceStartup + AUTO_REFRESH_INTERVAL;
                 }
 
-                if (EditorApplication.timeSinceStartup < _nextAutoRefreshTime)
-                {
-                    return;
-                }
-
-                _nextAutoRefreshTime = EditorApplication.timeSinceStartup + 2.0;
-                RefreshSlots(preserveSelection: true);
-                if (_selectedSlot != null)
-                {
-                    LoadSlotDetail(_selectedSlot);
-                    RefreshDetailUI();
-                }
-            }).Every(500);
-            if (!_autoRefresh)
-            {
-                _autoRefreshSchedule.Pause();
-            }
-        }
-
-        #endregion
-
-        #region 列表项工厂 [LIST ITEMS]
-
-        private static Label MakeSectionHeader(string title)
-        {
-            var label = new Label(title);
-            label.style.unityFontStyleAndWeight = FontStyle.Bold;
-            label.style.fontSize = 12;
-            label.style.paddingLeft = 8;
-            label.style.paddingTop = 6;
-            label.style.paddingBottom = 4;
-            label.style.borderBottomWidth = 1;
-            label.style.borderBottomColor = GetHairlineColor();
-            label.style.flexShrink = 0;
-            return label;
-        }
-
-        private static VisualElement MakeSubSection(string title)
-        {
-            var section = new VisualElement();
-            section.style.flexGrow = 0;
-            section.style.flexShrink = 0;
-            section.style.flexDirection = FlexDirection.Column;
-            section.style.marginLeft = 8;
-            section.style.marginRight = 8;
-            section.style.marginTop = 8;
-
-            var header = new Label(title);
-            header.name = "section-header";
-            header.style.unityFontStyleAndWeight = FontStyle.Bold;
-            header.style.fontSize = 11;
-            header.style.marginBottom = 4;
-            header.style.color = GetMutedColor();
-            section.Add(header);
-            return section;
-        }
-
-        private VisualElement MakeFolderItem()
-        {
-            var root = new VisualElement();
-            root.style.flexDirection = FlexDirection.Row;
-            root.style.alignItems = Align.Center;
-            root.style.paddingLeft = 8;
-            root.style.paddingRight = 8;
-
-            var icon = new Label("▸");
-            icon.name = "icon";
-            icon.style.width = 14;
-            icon.style.color = GetMutedColor();
-            icon.style.fontSize = 11;
-            root.Add(icon);
-
-            var name = new Label();
-            name.name = "name";
-            name.style.flexGrow = 1;
-            name.style.unityTextAlign = TextAnchor.MiddleLeft;
-            name.style.fontSize = 12;
-            root.Add(name);
-
-            var count = new Label();
-            count.name = "count";
-            count.style.fontSize = 11;
-            count.style.color = GetMutedColor();
-            root.Add(count);
-
-            return root;
-        }
-
-        private void BindFolderItem(VisualElement element, int index)
-        {
-            if (index < 0 || index >= _folderViews.Count)
-            {
-                return;
+                SessionState.SetBool(SESSION_AUTO_REFRESH, _autoRefresh);
             }
 
-            FolderView view = _folderViews[index];
-            var name = element.Q<Label>("name");
-            var count = element.Q<Label>("count");
-            var icon = element.Q<Label>("icon");
+            GUILayout.Space(8);
+            EditorGUILayout.LabelField("排序", EditorStyles.miniLabel, GUILayout.Width(30));
+            int sortIndex = EditorGUILayout.Popup((int)_sortMode, s_SortModeLabels, EditorStyles.toolbarPopup, GUILayout.Width(92));
+            if (sortIndex != (int)_sortMode)
+            {
+                _sortMode = (SlotSortMode)sortIndex;
+                SessionState.SetInt(SESSION_SORT_MODE, sortIndex);
+                RequestTreeRebuildPreservingSelection();
+            }
 
-            name.text = view.Name;
-            count.text = view.SlotCount > 0 ? view.SlotCount.ToString() : string.Empty;
+            GUILayout.Space(8);
+            bool issues = GUILayout.Toggle(_showOnlyIssues, "仅问题", EditorStyles.toolbarButton, GUILayout.Width(64));
+            if (issues != _showOnlyIssues)
+            {
+                _showOnlyIssues = issues;
+                SessionState.SetBool(SESSION_SHOW_ONLY_ISSUES, _showOnlyIssues);
+                RequestTreeRebuildPreservingSelection();
+            }
 
-            // 选中态交给 ListView 原生样式，避免自定义背景与内建选中叠加
-            bool selected = index == _folderList.selectedIndex;
-            name.style.unityFontStyleAndWeight = selected ? FontStyle.Bold : FontStyle.Normal;
-            name.style.color = selected ? GetSelectedTextColor() : GetPrimaryTextColor();
-            icon.text = selected ? "▾" : "▸";
+            GUILayout.FlexibleSpace();
+
+            if (GUILayout.Button("新建文件夹", EditorStyles.toolbarButton, GUILayout.Width(84)))
+            {
+                CreateFolderDialog();
+            }
+
+            if (GUILayout.Button("根目录", EditorStyles.toolbarButton, GUILayout.Width(58)))
+            {
+                RevealSaveRoot();
+            }
+
+            if (GUILayout.Button("设置", EditorStyles.toolbarButton, GUILayout.Width(46)))
+            {
+                EditorApplication.ExecuteMenuItem("Tools/Framework Settings");
+            }
+
+            EditorGUILayout.EndHorizontal();
         }
 
-        private VisualElement MakeSlotItem()
+        private void DrawStatusStrip()
         {
-            var root = new VisualElement();
-            root.style.flexDirection = FlexDirection.Row;
-            root.style.alignItems = Align.Center;
-            root.style.paddingLeft = 8;
-            root.style.paddingRight = 8;
-
-            var badge = new Label();
-            badge.name = "badge";
-            badge.style.width = 6;
-            badge.style.height = 32;
-            badge.style.marginRight = 8;
-            badge.style.borderTopLeftRadius = 2;
-            badge.style.borderBottomLeftRadius = 2;
-            root.Add(badge);
-
-            var body = new VisualElement();
-            body.style.flexGrow = 1;
-            body.style.flexDirection = FlexDirection.Column;
-
-            var titleRow = new VisualElement();
-            titleRow.style.flexDirection = FlexDirection.Row;
-
-            var name = new Label();
-            name.name = "name";
-            name.style.flexGrow = 1;
-            name.style.fontSize = 12;
-            name.style.unityTextAlign = TextAnchor.MiddleLeft;
-            titleRow.Add(name);
-
-            var size = new Label();
-            size.name = "size";
-            size.style.fontSize = 11;
-            size.style.color = GetMutedColor();
-            size.style.marginLeft = 6;
-            titleRow.Add(size);
-            body.Add(titleRow);
-
-            var meta = new Label();
-            meta.name = "meta";
-            meta.style.fontSize = 11;
-            meta.style.color = GetMutedColor();
-            meta.style.unityTextAlign = TextAnchor.MiddleLeft;
-            body.Add(meta);
-
-            root.Add(body);
-            return root;
-        }
-
-        private void BindSlotItem(VisualElement element, int index)
-        {
-            if (index < 0 || index >= _filteredSlots.Count)
+            if (_statusExpireTime > 0 && _statusMessage.Length > 0 &&
+                EditorApplication.timeSinceStartup > _statusExpireTime)
             {
-                return;
+                _statusMessage = string.Empty;
+                _statusExpireTime = 0;
             }
 
-            SlotView view = _filteredSlots[index];
-            SaveFileInfo info = view.Info;
-
-            var badge = element.Q<Label>("badge");
-            var name = element.Q<Label>("name");
-            var size = element.Q<Label>("size");
-            var meta = element.Q<Label>("meta");
-
-            name.text = info.FileName;
-            size.text = FormatBytes(info.SizeBytes);
-
-            var metaParts = new List<string>(4)
+            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.LabelField(_pipelineText, EditorStyles.miniLabel, GUILayout.ExpandWidth(true));
+            if (_statusMessage.Length > 0)
             {
-                FormatRelativeTime(info.LastWriteTimeUtc),
-            };
-            if (view.DetailLoaded)
-            {
-                if (view.CorruptedBlocks > 0)
+                Color previous = GUI.contentColor;
+                GUI.contentColor = _statusType switch
                 {
-                    metaParts.Add($"{view.HealthyBlocks}块/{view.CorruptedBlocks}坏");
-                }
-                else
-                {
-                    metaParts.Add($"{view.Blocks.Length}块");
-                }
-
-                if (view.HasScreenshot)
-                {
-                    metaParts.Add("图");
-                }
-
-                if (view.HasBackup)
-                {
-                    metaParts.Add("备份");
-                }
-
-                if (view.Metadata != null && !string.IsNullOrEmpty(view.Metadata.SceneName))
-                {
-                    metaParts.Add(view.Metadata.SceneName);
-                }
-            }
-            else
-            {
-                metaParts.Add("…");
-            }
-
-            meta.text = string.Join("  ·  ", metaParts);
-
-            bool selected = view.Info.FileName == _selectedSlotName;
-            element.style.backgroundColor = selected ? GetSelectedRowColor() : Color.clear;
-            name.style.unityFontStyleAndWeight = selected ? FontStyle.Bold : FontStyle.Normal;
-            badge.style.backgroundColor = ResolveSlotHealthColor(view);
-        }
-
-        private VisualElement MakeBlockItem()
-        {
-            var root = new VisualElement();
-            root.style.flexDirection = FlexDirection.Row;
-            root.style.alignItems = Align.Center;
-            root.style.paddingLeft = 8;
-            root.style.paddingRight = 8;
-
-            var badge = new Label();
-            badge.name = "badge";
-            badge.style.width = 4;
-            badge.style.height = 22;
-            badge.style.marginRight = 8;
-            badge.style.borderTopLeftRadius = 2;
-            badge.style.borderBottomLeftRadius = 2;
-            root.Add(badge);
-
-            var body = new VisualElement();
-            body.style.flexGrow = 1;
-            body.style.flexDirection = FlexDirection.Column;
-
-            var key = new Label();
-            key.name = "key";
-            key.style.fontSize = 12;
-            key.style.unityTextAlign = TextAnchor.MiddleLeft;
-            body.Add(key);
-
-            var info = new Label();
-            info.name = "info";
-            info.style.fontSize = 11;
-            info.style.color = GetMutedColor();
-            info.style.unityTextAlign = TextAnchor.MiddleLeft;
-            body.Add(info);
-
-            root.Add(body);
-
-            var backend = new Label();
-            backend.name = "backend";
-            backend.style.fontSize = 10;
-            backend.style.paddingLeft = 6;
-            backend.style.paddingRight = 6;
-            backend.style.paddingTop = 1;
-            backend.style.paddingBottom = 1;
-            backend.style.borderTopLeftRadius = 3;
-            backend.style.borderTopRightRadius = 3;
-            backend.style.borderBottomLeftRadius = 3;
-            backend.style.borderBottomRightRadius = 3;
-            root.Add(backend);
-
-            return root;
-        }
-
-        private void BindBlockItem(VisualElement element, int index)
-        {
-            if (index < 0 || index >= _filteredBlocks.Count)
-            {
-                return;
-            }
-
-            SaveBlockInfo block = _filteredBlocks[index];
-            bool isSelected = index == _selectedBlockIndex;
-
-            var badge = element.Q<Label>("badge");
-            var key = element.Q<Label>("key");
-            var info = element.Q<Label>("info");
-            var backend = element.Q<Label>("backend");
-
-            string keyText = block.Key ?? (block.Error != SaveError.None ? "<结构不可读>" : "<未知>");
-            key.text = keyText;
-            key.style.unityFontStyleAndWeight = isSelected ? FontStyle.Bold : FontStyle.Normal;
-
-            if (!block.HasMetadata)
-            {
-                info.text = block.Error != SaveError.None ? $"结构不可读 · {block.Error}" : "结构不可读";
-                badge.style.backgroundColor = GetErrorColor();
-                backend.text = "?";
-                backend.style.color = GetErrorColor();
-                backend.style.backgroundColor = WithAlpha(GetErrorColor(), 0.2f);
-            }
-            else
-            {
-                var parts = new List<string>
-                {
-                    $"v{block.DataVersion}",
-                    FormatBytes(block.SizeBytes),
+                    MessageType.Error => new Color(0.90f, 0.45f, 0.45f),
+                    MessageType.Warning => new Color(0.92f, 0.78f, 0.35f),
+                    _ => new Color(0.62f, 0.62f, 0.62f),
                 };
-                if (block.Error != SaveError.None)
-                {
-                    parts.Add(block.Error.ToString());
-                }
-
-                info.text = string.Join("  ·  ", parts);
-                badge.style.backgroundColor = block.Error != SaveError.None ? GetErrorColor() : GetOkColor();
-                backend.text = ShortBackendName(block.Backend);
-                backend.style.color = BackendColor(block.Backend);
-                backend.style.backgroundColor = WithAlpha(BackendColor(block.Backend), 0.18f);
+                EditorGUILayout.LabelField(_statusMessage, EditorStyles.miniLabel, GUILayout.ExpandWidth(false));
+                GUI.contentColor = previous;
             }
 
-            element.style.backgroundColor = isSelected ? GetSelectedRowColor() : Color.clear;
+            EditorGUILayout.EndHorizontal();
+        }
+
+        /// <summary>F5 刷新、Delete 删除选中槽位（文本编辑焦点时跳过）。</summary>
+        private void HandleShortcuts()
+        {
+            Event evt = Event.current;
+            if (evt == null || evt.type != EventType.KeyDown)
+            {
+                return;
+            }
+
+            if (evt.keyCode == KeyCode.F5)
+            {
+                RequestTreeRebuildPreservingSelection();
+                SetStatus("已刷新。", MessageType.Info, 2.5);
+                evt.Use();
+                return;
+            }
+
+            if (evt.keyCode == KeyCode.Delete && GUIUtility.keyboardControl == 0 && _activeDetail != null)
+            {
+                DeleteSelectedSlotDialog();
+                evt.Use();
+            }
         }
 
         #endregion
 
-        #region 选择与刷新 [SELECTION / REFRESH]
+        #region 数据刷新 [DATA REFRESH]
 
-        /// <summary>当前选中文件夹名。</summary>
-        private string CurrentFolder =>
-            _folderViews.Count == 0 || _selectedFolderIndex < 0 || _selectedFolderIndex >= _folderViews.Count
-                ? SaveServiceHandler.DEFAULT_FOLDER_NAME
-                : _folderViews[_selectedFolderIndex].Name;
-
-        /// <summary>刷新全部数据。</summary>
-        private void RefreshAll()
+        /// <summary>扫描存档根目录与全部文件夹，尽量复用既有 SlotView 实例（保持详情模型有效）。</summary>
+        private void RefreshFoldersAndSlots()
         {
-            UpdatePipelineLabel();
-            RefreshFolders();
-            SetStatus("已刷新。", MessageType.Info, 2.5);
-        }
+            var previous = new Dictionary<string, SlotView>(StringComparer.Ordinal);
+            for (int i = 0; i < _folders.Count; i++)
+            {
+                FolderData folder = _folders[i];
+                for (int j = 0; j < folder.Slots.Count; j++)
+                {
+                    SlotView slot = folder.Slots[j];
+                    previous[folder.Name + "/" + slot.Info.FileName] = slot;
+                    slot.StillExists = false;
+                }
+            }
 
-        private void RefreshFolders()
-        {
-            string previous = CurrentFolder;
-            var folders = new List<string> { SaveServiceHandler.DEFAULT_FOLDER_NAME };
+            _folders.Clear();
+            AddFolderData(SaveServiceHandler.DEFAULT_FOLDER_NAME, previous);
+
             string rootDirectory = SafeDetermineSavePath(string.Empty);
             if (!string.IsNullOrEmpty(rootDirectory) && Directory.Exists(rootDirectory))
             {
@@ -1013,122 +1017,65 @@ namespace Moirai.Atropos.Editor.Save
                 for (int i = 0; i < directories.Length; i++)
                 {
                     string folderName = Path.GetFileName(directories[i]);
-                    if (!string.IsNullOrEmpty(folderName) && !folders.Contains(folderName))
+                    if (!string.IsNullOrEmpty(folderName) && folderName != SaveServiceHandler.DEFAULT_FOLDER_NAME)
                     {
-                        folders.Add(folderName);
+                        AddFolderData(folderName, previous);
                     }
                 }
             }
 
-            _folders = folders.ToArray();
-
-            int newIndex = folders.IndexOf(previous);
-            _selectedFolderIndex = newIndex >= 0 ? newIndex : 0;
-
-            RebuildFolderList(keepSelection: true);
-            RefreshSlots(preserveSelection: true);
+            for (int i = 0; i < _folders.Count; i++)
+            {
+                SortSlots(_folders[i].Slots);
+            }
         }
 
-        private void RebuildFolderList(bool keepSelection)
+        private void AddFolderData(string folderName, Dictionary<string, SlotView> previous)
         {
-            string selectedName = keepSelection ? CurrentFolder : null;
-            _folderViews.Clear();
-            for (int i = 0; i < _folders.Length; i++)
+            var data = new FolderData { Name = folderName };
+            SaveFileInfo[] files = SafeGetSaveFiles(folderName);
+            if (files != null)
             {
-                string folderName = _folders[i];
-                if (!string.IsNullOrEmpty(_folderFilter) &&
-                    folderName.IndexOf(_folderFilter, StringComparison.OrdinalIgnoreCase) < 0)
+                for (int i = 0; i < files.Length; i++)
                 {
-                    continue;
-                }
-
-                SaveFileInfo[] slots = SafeGetSaveFiles(folderName);
-                _folderViews.Add(new FolderView
-                {
-                    Name = folderName,
-                    SlotCount = slots?.Length ?? 0,
-                });
-            }
-
-            if (!string.IsNullOrEmpty(selectedName))
-            {
-                int idx = _folderViews.FindIndex(f => string.Equals(f.Name, selectedName, StringComparison.Ordinal));
-                _selectedFolderIndex = idx >= 0 ? idx : 0;
-            }
-            else if (_selectedFolderIndex >= _folderViews.Count)
-            {
-                _selectedFolderIndex = Mathf.Max(0, _folderViews.Count - 1);
-            }
-
-            _folderList.itemsSource = _folderViews;
-            _folderList.RefreshItems();
-            _folderList.SetSelectionWithoutNotify(new[] { _selectedFolderIndex });
-
-            _folderHeaderLabel.text = $"文件夹  ({_folderViews.Count})";
-        }
-
-        private void OnFolderSelectionChanged(IEnumerable<object> _)
-        {
-            if (_folderList.selectedIndex < 0 || _folderList.selectedIndex >= _folderViews.Count)
-            {
-                return;
-            }
-
-            if (_folderList.selectedIndex == _selectedFolderIndex)
-            {
-                return;
-            }
-
-            _selectedFolderIndex = _folderList.selectedIndex;
-            _selectedSlotName = null;
-            ClearSlotDetail();
-            RebuildFolderList(keepSelection: true);
-            _folderList.RefreshItems();
-            RefreshSlots();
-            RefreshDetailUI();
-        }
-
-        private void RefreshSlots()
-        {
-            RefreshSlots(preserveSelection: false);
-        }
-
-        private void RefreshSlots(bool preserveSelection)
-        {
-            string previousName = preserveSelection ? _selectedSlotName : null;
-            string folder = CurrentFolder;
-            SaveFileInfo[] files = SafeGetSaveFiles(folder) ?? Array.Empty<SaveFileInfo>();
-
-            _slotViews.Clear();
-            for (int i = 0; i < files.Length; i++)
-            {
-                _slotViews.Add(new SlotView { Info = files[i] });
-            }
-
-            // 轻量详情：批量读块信息与 sidecar 存在性（元数据仅选中槽加载，避免列表刷盘开销）
-            for (int i = 0; i < _slotViews.Count; i++)
-            {
-                EnrichSlotView(_slotViews[i], folder, loadMetadata: false);
-            }
-
-            RebuildSlotList(keepSelection: false);
-
-            if (!string.IsNullOrEmpty(previousName))
-            {
-                int idx = _filteredSlots.FindIndex(s => string.Equals(s.Info.FileName, previousName, StringComparison.Ordinal));
-                if (idx >= 0)
-                {
-                    _slotList.SetSelection(new[] { idx });
-                    return;
+                    string key = folderName + "/" + files[i].FileName;
+                    SlotView view = previous.TryGetValue(key, out SlotView existing) ? existing : new SlotView();
+                    view.Info = files[i];
+                    view.StillExists = true;
+                    EnrichSlotView(view, folderName, loadMetadata: false);
+                    data.Slots.Add(view);
                 }
             }
 
-            _selectedSlotName = null;
-            _selectedSlot = null;
-            ClearSlotDetail();
-            RefreshDetailUI();
+            _folders.Add(data);
         }
 
+        private void SortSlots(List<SlotView> slots)
+        {
+            switch (_sortMode)
+            {
+                case SlotSortMode.TimeAsc:
+                    slots.Sort((a, b) => a.Info.LastWriteTimeUtc.CompareTo(b.Info.LastWriteTimeUtc));
+                    break;
+                case SlotSortMode.NameAsc:
+                    slots.Sort((a, b) => string.Compare(a.Info.FileName, b.Info.FileName, StringComparison.OrdinalIgnoreCase));
+                    break;
+                case SlotSortMode.NameDesc:
+                    slots.Sort((a, b) => string.Compare(b.Info.FileName, a.Info.FileName, StringComparison.OrdinalIgnoreCase));
+                    break;
+                case SlotSortMode.SizeDesc:
+                    slots.Sort((a, b) => b.Info.SizeBytes.CompareTo(a.Info.SizeBytes));
+                    break;
+                case SlotSortMode.SizeAsc:
+                    slots.Sort((a, b) => a.Info.SizeBytes.CompareTo(b.Info.SizeBytes));
+                    break;
+                default:
+                    slots.Sort((a, b) => b.Info.LastWriteTimeUtc.CompareTo(a.Info.LastWriteTimeUtc));
+                    break;
+            }
+        }
+
+        /// <summary>轻量富化槽位视图：块表、健康统计、截图/备份 sidecar 存在性；选中槽位才加载元数据。</summary>
         private void EnrichSlotView(SlotView view, string folder, bool loadMetadata = false)
         {
             try
@@ -1170,501 +1117,127 @@ namespace Moirai.Atropos.Editor.Save
             }
         }
 
-        private void RebuildSlotList(bool keepSelection)
+        /// <summary>选中变化后加载重详情：元数据 + 原始块载荷 + 缩略图。</summary>
+        private void LoadDetailForSelection()
         {
-            string selected = keepSelection ? _selectedSlotName : null;
-
-            IEnumerable<SlotView> query = _slotViews;
-            if (!string.IsNullOrEmpty(_slotFilter))
-            {
-                query = query.Where(s => s.Info.FileName.IndexOf(_slotFilter, StringComparison.OrdinalIgnoreCase) >= 0);
-            }
-
-            if (_showOnlyIssues)
-            {
-                query = query.Where(s => s.CorruptedBlocks > 0 || s.IsEncryptedLikely || (s.Blocks != null && s.Blocks.Length == 0));
-            }
-
-            query = _sortMode switch
-            {
-                SlotSortMode.TimeAsc => query.OrderBy(s => s.Info.LastWriteTimeUtc),
-                SlotSortMode.NameAsc => query.OrderBy(s => s.Info.FileName, StringComparer.OrdinalIgnoreCase),
-                SlotSortMode.NameDesc => query.OrderByDescending(s => s.Info.FileName, StringComparer.OrdinalIgnoreCase),
-                SlotSortMode.SizeDesc => query.OrderByDescending(s => s.Info.SizeBytes),
-                SlotSortMode.SizeAsc => query.OrderBy(s => s.Info.SizeBytes),
-                _ => query.OrderByDescending(s => s.Info.LastWriteTimeUtc),
-            };
-
-            _filteredSlots.Clear();
-            _filteredSlots.AddRange(query);
-
-            _slotList.itemsSource = _filteredSlots;
-            _slotList.RefreshItems();
-            _slotHeaderLabel.text = $"槽位  ({_filteredSlots.Count})";
-
-            int selectedIndex = -1;
-            if (!string.IsNullOrEmpty(selected))
-            {
-                selectedIndex = _filteredSlots.FindIndex(s => string.Equals(s.Info.FileName, selected, StringComparison.Ordinal));
-            }
-
-            if (selectedIndex >= 0)
-            {
-                _slotList.SetSelectionWithoutNotify(new[] { selectedIndex });
-            }
-        }
-
-        private void OnSlotSelectionChanged(IEnumerable<object> selection)
-        {
-            if (_slotList.selectedIndex < 0 || _slotList.selectedIndex >= _filteredSlots.Count)
-            {
-                _selectedSlotName = null;
-                _selectedSlot = null;
-                ClearSlotDetail();
-                RefreshDetailUI();
-                return;
-            }
-
-            SlotView view = _filteredSlots[_slotList.selectedIndex];
-            _selectedSlotName = view.Info.FileName;
-            _selectedSlot = view;
-            _selectedBlockIndex = -1;
-            _rawBlocks = null;
-            LoadSlotDetail(view);
-            // 整表重绑：否则上一个选中项的自定义背景不会被清掉，出现双选中
-            _slotList.RefreshItems();
-            RefreshDetailUI();
-        }
-
-        /// <summary>加载选中槽位的块表与原始块内容。</summary>
-        private void LoadSlotDetail(SlotView view)
-        {
-            if (view == null)
-            {
-                return;
-            }
-
-            string folder = CurrentFolder;
-            EnrichSlotView(view, folder, loadMetadata: true);
-
-            try
-            {
-                SaveServiceHandler.SavePaths paths = SaveServiceHandler.ResolveSavePaths(view.Info.FileName, folder);
-                _rawBlocks = _handler.ReadRawBlocks(paths);
-            }
-            catch
-            {
-                _rawBlocks = null;
-            }
-
-            RebuildBlockList(keepSelection: false);
-            LoadThumbnail(view, folder);
-        }
-
-        private void ClearSlotDetail()
-        {
-            _blockViews.Clear();
-            _filteredBlocks.Clear();
-            _rawBlocks = null;
-            _selectedBlockIndex = -1;
-            _selectedSlot = null;
             ReleaseThumbnail();
-        }
-
-        private void RebuildBlockList(bool keepSelection)
-        {
-            _blockViews.Clear();
-            if (_selectedSlot?.Blocks != null)
+            object value = _cachedSelection?.Value;
+            if (value is SlotDetailModel detail)
             {
-                _blockViews.AddRange(_selectedSlot.Blocks);
+                _activeDetail = detail;
+                RefreshActiveDetailInPlace();
+                LoadThumbnail(detail.View, detail.Folder);
             }
-
-            IEnumerable<SaveBlockInfo> query = _blockViews;
-            if (!string.IsNullOrEmpty(_blockFilter))
+            else
             {
-                query = query.Where(b => b.Key != null &&
-                                         b.Key.IndexOf(_blockFilter, StringComparison.OrdinalIgnoreCase) >= 0);
-            }
-
-            _filteredBlocks.Clear();
-            _filteredBlocks.AddRange(query);
-
-            if (_blockList != null)
-            {
-                _blockList.itemsSource = _filteredBlocks;
-                _blockList.RefreshItems();
-                if (keepSelection && _selectedBlockIndex >= 0 && _selectedBlockIndex < _filteredBlocks.Count)
-                {
-                    _blockList.SetSelectionWithoutNotify(new[] { _selectedBlockIndex });
-                }
+                _activeDetail = null;
             }
         }
 
-        private void OnBlockSelectionChanged(IEnumerable<object> selection)
+        /// <summary>就地刷新激活详情（不重建菜单树，保持选中与展开状态）。</summary>
+        private void RefreshActiveDetailInPlace()
         {
-            _selectedBlockIndex = _blockList.selectedIndex;
-            _blockList.RefreshItems();
-            RebuildPreview();
-        }
-
-        #endregion
-
-        #region 详情 UI [DETAIL UI]
-
-        /// <summary>重建详情栏内容。</summary>
-        private void RefreshDetailUI()
-        {
-            if (_selectedSlot == null)
-            {
-                _emptyDetail.style.display = DisplayStyle.Flex;
-                _detailContent.style.display = DisplayStyle.None;
-                _detailHeaderLabel.text = "详情";
-                return;
-            }
-
-            SaveFileInfo info = _selectedSlot.Info;
-            _emptyDetail.style.display = DisplayStyle.None;
-            _detailContent.style.display = DisplayStyle.Flex;
-            _detailHeaderLabel.text = $"详情 — {info.FileName}";
-
-            RebuildMetadataPanel();
-            RebuildActionBar();
-            RebuildBlockList(keepSelection: true);
-            RebuildPreview();
-            RefreshThumbnailUI();
-        }
-
-        private void RebuildMetadataPanel()
-        {
-            _metadataContainer.Clear();
-            SlotView slot = _selectedSlot;
-            SaveFileInfo info = slot.Info;
-
-            AddMetaRow(_metadataContainer, "文件", info.FileName + SaveServiceSettings.SaveFileExtension);
-            AddMetaRow(_metadataContainer, "大小", FormatBytes(info.SizeBytes));
-            AddMetaRow(_metadataContainer, "最后写入", info.LastWriteTimeUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss"));
-            AddMetaRow(_metadataContainer, "路径", TruncatePath(SafeGetSlotFullPath(info.FileName, CurrentFolder), 64));
-
-            int total = slot.Blocks?.Length ?? 0;
-            string health = slot.CorruptedBlocks > 0
-                ? $"{total} 块  ·  {slot.HealthyBlocks} 健康  ·  {slot.CorruptedBlocks} 坏块"
-                : total == 0
-                    ? (slot.IsEncryptedLikely ? "0 块  ·  疑似加密/不可解析" : "0 块")
-                    : $"{total} 块  ·  全部健康";
-            AddMetaRow(_metadataContainer, "数据块", health);
-            AddMetaRow(_metadataContainer, "截图", slot.HasScreenshot ? "有" : "无");
-            AddMetaRow(_metadataContainer, "备份", slot.HasBackup ? "有 (.bak)" : "无");
-
-            SaveMetadata metadata = slot.Metadata;
-            if (metadata != null)
-            {
-                _metadataContainer.Add(MakeDivider());
-                AddMetaRow(_metadataContainer, "游戏版本", string.IsNullOrEmpty(metadata.GameVersion) ? "-" : metadata.GameVersion);
-                AddMetaRow(_metadataContainer, "存档版本", metadata.SaveVersion.ToString());
-                AddMetaRow(_metadataContainer, "场景", string.IsNullOrEmpty(metadata.SceneName) ? "-" : metadata.SceneName);
-                AddMetaRow(_metadataContainer, "游玩时长", metadata.PlayTimeTicks > 0L ? FormatTimeSpan(new TimeSpan(metadata.PlayTimeTicks)) : "-");
-                int migrations = metadata.MigrationHistory?.Count ?? 0;
-                AddMetaRow(_metadataContainer, "迁移历史", migrations > 0 ? $"{migrations} 次" : "-");
-
-                if (metadata.Custom != null && metadata.Custom.Count > 0)
-                {
-                    foreach (KeyValuePair<string, string> pair in metadata.Custom)
-                    {
-                        AddMetaRow(_metadataContainer, pair.Key, pair.Value ?? "-");
-                    }
-                }
-
-                if (metadata.MigrationHistory is { Count: > 0 })
-                {
-                    var foldout = new Foldout { text = "迁移明细", value = false };
-                    foldout.style.marginTop = 4;
-                    for (int i = 0; i < metadata.MigrationHistory.Count; i++)
-                    {
-                        var line = new Label(metadata.MigrationHistory[i]);
-                        line.style.fontSize = 10;
-                        line.style.color = GetMutedColor();
-                        line.style.whiteSpace = WhiteSpace.Normal;
-                        foldout.Add(line);
-                    }
-
-                    _metadataContainer.Add(foldout);
-                }
-            }
-            else if (slot.IsEncryptedLikely)
-            {
-                _metadataContainer.Add(MakeDivider());
-                var warn = new HelpBox("无法解析元数据。当前项目可能使用加密处理器，或档文件已损坏。", HelpBoxMessageType.Warning);
-                _metadataContainer.Add(warn);
-            }
-        }
-
-        private void RebuildActionBar()
-        {
-            _actionBar.Clear();
-            if (_selectedSlot == null)
+            if (_activeDetail == null)
             {
                 return;
             }
 
-            AddActionButton("备份", "创建 .bak 备份（覆盖旧备份）", RunBackup, isDestructive: false);
-            AddActionButton("恢复备份", "用 .bak 覆盖当前存档", RestoreBackupDialog, isDestructive: true);
-            AddActionButton("删除", "删除存档（含截图）；不可撤销", DeleteSelectedSlotDialog, isDestructive: true);
-            AddActionButton("复制槽位", "复制为新槽位文件", DuplicateSelectedSlot, isDestructive: false);
-            AddActionButton("定位文件", "在资源管理器中选中存档文件", RevealSelectedFile, isDestructive: false);
-            AddActionButton("复制路径", "复制存档完整路径到剪贴板", CopySelectedPath, isDestructive: false);
-            AddActionButton("导出块", "导出选中数据块为文件", ExportSelectedBlock, isDestructive: false);
-        }
-
-        private void AddActionButton(string text, string tooltip, Action onClick, bool isDestructive)
-        {
-            var button = new Button(onClick) { text = text, tooltip = tooltip };
-            button.style.marginRight = 4;
-            button.style.marginBottom = 2;
-            if (isDestructive)
-            {
-                button.style.color = GetErrorColor();
-            }
-
-            _actionBar.Add(button);
-        }
-
-        private static void AddMetaRow(VisualElement container, string label, string value)
-        {
-            var row = new VisualElement();
-            row.style.flexDirection = FlexDirection.Row;
-            row.style.alignItems = Align.FlexStart;
-            row.style.minHeight = 16;
-            row.style.marginBottom = 2;
-            row.style.flexShrink = 0;
-
-            var key = new Label(label);
-            key.style.width = 84;
-            key.style.minWidth = 84;
-            key.style.maxWidth = 84;
-            key.style.fontSize = 11;
-            key.style.color = GetMutedColor();
-            key.style.unityTextAlign = TextAnchor.MiddleLeft;
-            key.style.whiteSpace = WhiteSpace.NoWrap;
-            key.style.flexShrink = 0;
-            row.Add(key);
-
-            var val = new Label(value ?? "-");
-            val.style.flexGrow = 1;
-            val.style.flexShrink = 1;
-            val.style.fontSize = 11;
-            val.style.color = GetPrimaryTextColor();
-            val.style.unityTextAlign = TextAnchor.MiddleLeft;
-            val.style.whiteSpace = WhiteSpace.Normal;
-            val.style.marginLeft = 4;
-            row.Add(val);
-
-            container.Add(row);
-        }
-
-        private static VisualElement MakeDivider()
-        {
-            var divider = new VisualElement();
-            divider.style.height = 1;
-            divider.style.marginTop = 6;
-            divider.style.marginBottom = 6;
-            divider.style.backgroundColor = GetHairlineColor();
-            return divider;
-        }
-
-        #endregion
-
-        #region 预览 [PREVIEW]
-
-        private void RebuildPreview()
-        {
-            if (_previewLabel == null)
-            {
-                return;
-            }
-
-            if (_selectedBlockIndex < 0 || _selectedBlockIndex >= _filteredBlocks.Count || _rawBlocks == null)
-            {
-                _previewLabel.text = string.Empty;
-                SetPreviewHelp("选中数据块以查看内容。", MessageType.None, visible: true);
-                return;
-            }
-
-            SaveBlockInfo block = _filteredBlocks[_selectedBlockIndex];
-            if (block.Error != SaveError.None)
-            {
-                _previewLabel.text = string.Empty;
-                SetPreviewHelp($"该块损坏（{block.Error}），载荷不可信。", MessageType.Warning, visible: true);
-                return;
-            }
-
-            if (block.Key == null || !_rawBlocks.TryGetValue(block.Key, out byte[] bytes) || bytes == null)
-            {
-                _previewLabel.text = string.Empty;
-                SetPreviewHelp("无法读取块载荷。", MessageType.Warning, visible: true);
-                return;
-            }
-
-            string text;
-            bool isBinaryBackend = block.Backend != ESaveBackend.Json && block.Backend != ESaveBackend.KeyValue;
-
-            switch (_previewMode)
-            {
-                case PreviewMode.Text:
-                    text = TryDecodeText(bytes, isBinaryBackend);
-                    break;
-                case PreviewMode.Hex:
-                    text = BuildHexDump(bytes);
-                    break;
-                default:
-                    if (block.Backend == ESaveBackend.Json)
-                    {
-                        text = FormatJson(Encoding.UTF8.GetString(bytes), _prettyJson);
-                    }
-                    else if (block.Backend == ESaveBackend.KeyValue)
-                    {
-                        // KVT 结构化树预览（解析失败回退十六进制采样）
-                        text = SaveKvPreviewFormatter.Format(bytes) ?? BuildHexDump(bytes, HEX_PREVIEW_MAX_BYTES);
-                    }
-                    else
-                    {
-                        text = BuildHexDump(bytes);
-                    }
-
-                    break;
-            }
-
-            if (string.IsNullOrEmpty(text))
-            {
-                _previewLabel.text = string.Empty;
-                SetPreviewHelp($"二进制后端（{block.Backend}）载荷 {FormatBytes(bytes.Length)}，不提供文本预览。请切换到十六进制模式。", MessageType.Info, visible: true);
-                return;
-            }
-
-            _previewLabel.text = text;
-            string footer = $"{block.Key}  ·  {block.Backend}  ·  v{block.DataVersion}  ·  {FormatBytes(bytes.Length)}";
-            SetPreviewHelp(footer, MessageType.None, visible: true);
-        }
-
-        private string TryDecodeText(byte[] bytes, bool isBinaryBackend)
-        {
-            if (isBinaryBackend)
-            {
-                return string.Empty;
-            }
-
+            EnrichSlotView(_activeDetail.View, _activeDetail.Folder, loadMetadata: true);
             try
             {
-                string text = Encoding.UTF8.GetString(bytes);
-                return _prettyJson ? FormatJson(text, true) : text;
+                SaveServiceHandler.SavePaths paths = SaveServiceHandler.ResolveSavePaths(_activeDetail.View.Info.FileName, _activeDetail.Folder);
+                _activeDetail.SetRawBlocks(_handler.ReadRawBlocks(paths));
             }
             catch
             {
-                return string.Empty;
-            }
-        }
-
-        private void CopyPreviewToClipboard()
-        {
-            if (!string.IsNullOrEmpty(_previewLabel?.text))
-            {
-                EditorGUIUtility.systemCopyBuffer = _previewLabel.text;
-                SetStatus("预览内容已复制到剪贴板。", MessageType.Info, 2.5);
-            }
-        }
-
-        private void SetPreviewHelp(string message, MessageType type, bool visible)
-        {
-            if (_previewHelp == null)
-            {
-                return;
+                _activeDetail.SetRawBlocks(null);
             }
 
-            _previewHelp.text = message;
-            _previewHelp.messageType = type switch
-            {
-                MessageType.Error => HelpBoxMessageType.Error,
-                MessageType.Warning => HelpBoxMessageType.Warning,
-                MessageType.Info => HelpBoxMessageType.Info,
-                _ => HelpBoxMessageType.None,
-            };
-            _previewHelp.style.display = visible ? DisplayStyle.Flex : DisplayStyle.None;
+            _activeDetail.ReloadData();
+            Repaint();
         }
 
         #endregion
 
         #region 操作 [OPERATIONS]
 
-        private void RunBackup()
+        private void RequestTreeRebuildPreservingSelection()
         {
-            if (_selectedSlot == null)
+            if (_activeDetail != null)
             {
-                return;
+                _pendingSelectionFolder = _activeDetail.Folder;
+                _pendingSelectionSlot = _activeDetail.View.Info.FileName;
+            }
+            else if (_cachedSelection?.Value is FolderModel folderModel)
+            {
+                _pendingSelectionFolder = folderModel.FolderName;
+                _pendingSelectionSlot = null;
             }
 
-            RunOperation("已创建备份。", () => _handler.CreateBackup(_selectedSlot.Info.FileName, CurrentFolder), after: () =>
-            {
-                RefreshSlots(preserveSelection: true);
-                RefreshDetailUI();
-            });
+            _treeRebuildQueued = true;
         }
 
-        private void RestoreBackupDialog()
+        private void RequestTreeRebuild(string pendingFolder, string pendingSlot)
         {
-            if (_selectedSlot == null)
+            _pendingSelectionFolder = pendingFolder;
+            _pendingSelectionSlot = pendingSlot;
+            _treeRebuildQueued = true;
+        }
+
+        private void RunBackupForActive()
+        {
+            if (_activeDetail == null)
             {
                 return;
             }
 
-            if (!EditorUtility.DisplayDialog("恢复备份", $"以 {_selectedSlot.Info.FileName}{BACKUP_SUFFIX} 覆盖当前存档？", "恢复", "取消"))
+            RunOperation("已创建备份。", () => _handler.CreateBackup(_activeDetail.View.Info.FileName, _activeDetail.Folder), RefreshActiveDetailInPlace);
+        }
+
+        private void RestoreBackupForActive()
+        {
+            if (_activeDetail == null)
             {
                 return;
             }
 
-            RunOperation("已从备份恢复。", () => _handler.RestoreBackup(_selectedSlot.Info.FileName, CurrentFolder), after: () =>
+            string fileName = _activeDetail.View.Info.FileName;
+            string folder = _activeDetail.Folder;
+            if (!EditorUtility.DisplayDialog("恢复备份", $"以 {fileName}{BACKUP_SUFFIX} 覆盖当前存档？", "恢复", "取消"))
             {
-                RefreshSlots(preserveSelection: true);
-                if (_selectedSlot != null)
-                {
-                    LoadSlotDetail(_selectedSlot);
-                }
+                return;
+            }
 
-                RefreshDetailUI();
-            });
+            RunOperation("已从备份恢复。", () => _handler.RestoreBackup(fileName, folder), RefreshActiveDetailInPlace);
         }
 
         private void DeleteSelectedSlotDialog()
         {
-            if (_selectedSlot == null)
+            if (_activeDetail == null)
             {
                 return;
             }
 
-            string name = _selectedSlot.Info.FileName;
+            string name = _activeDetail.View.Info.FileName;
+            string folder = _activeDetail.Folder;
             if (!EditorUtility.DisplayDialog("删除存档", $"删除存档「{name}」（含截图 sidecar）？\n不可撤销。", "删除", "取消"))
             {
                 return;
             }
 
-            RunOperation("已删除。", () => _handler.DeleteSave(name, CurrentFolder), after: () =>
-            {
-                _selectedSlotName = null;
-                _selectedSlot = null;
-                ClearSlotDetail();
-                RefreshSlots();
-                RefreshDetailUI();
-            });
+            RunOperation("已删除。", () => _handler.DeleteSave(name, folder), () => RequestTreeRebuild(folder, null));
         }
 
         private void DuplicateSelectedSlot()
         {
-            if (_selectedSlot == null)
+            if (_activeDetail == null)
             {
                 SetStatus("请先选择槽位。", MessageType.Warning, 2.5);
                 return;
             }
 
-            string sourceName = _selectedSlot.Info.FileName;
-            string folder = CurrentFolder;
+            string sourceName = _activeDetail.View.Info.FileName;
+            string folder = _activeDetail.Folder;
             string directory = SafeDetermineSavePath(folder);
             if (string.IsNullOrEmpty(directory))
             {
@@ -1704,33 +1277,24 @@ namespace Moirai.Atropos.Editor.Save
                 {
                     File.Copy(srcBak, dstBak, overwrite: false);
                 }
-            }, after: () =>
-            {
-                _selectedSlotName = newName;
-                RefreshSlots(preserveSelection: true);
-                int idx = _filteredSlots.FindIndex(s => s.Info.FileName == newName);
-                if (idx >= 0)
-                {
-                    _slotList.SetSelection(new[] { idx });
-                }
-            });
+            }, () => RequestTreeRebuild(folder, newName));
         }
 
         private void RevealSelectedFile()
         {
-            if (_selectedSlot == null)
+            if (_activeDetail == null)
             {
                 return;
             }
 
-            string path = SafeGetSlotFullPath(_selectedSlot.Info.FileName, CurrentFolder);
+            string path = SafeGetSlotFullPath(_activeDetail.View.Info.FileName, _activeDetail.Folder);
             if (File.Exists(path))
             {
                 EditorUtility.RevealInFinder(path);
             }
             else
             {
-                string directory = SafeDetermineSavePath(CurrentFolder);
+                string directory = SafeDetermineSavePath(_activeDetail.Folder);
                 if (Directory.Exists(directory))
                 {
                     EditorUtility.RevealInFinder(directory);
@@ -1740,40 +1304,50 @@ namespace Moirai.Atropos.Editor.Save
 
         private void CopySelectedPath()
         {
-            if (_selectedSlot == null)
+            if (_activeDetail == null)
             {
                 return;
             }
 
-            string path = SafeGetSlotFullPath(_selectedSlot.Info.FileName, CurrentFolder);
+            string path = SafeGetSlotFullPath(_activeDetail.View.Info.FileName, _activeDetail.Folder);
             EditorGUIUtility.systemCopyBuffer = path;
             SetStatus("路径已复制。", MessageType.Info, 2.5);
         }
 
-        private void ExportSelectedBlock()
+        private void ExportSelectedBlock(SlotDetailModel model)
         {
-            if (_selectedBlockIndex < 0 || _selectedBlockIndex >= _filteredBlocks.Count || _rawBlocks == null)
+            string blockKey = model?.PreviewKey;
+            if (string.IsNullOrEmpty(blockKey))
             {
-                SetStatus("请先选中数据块。", MessageType.Warning, 2.5);
+                SetStatus("请先在「预览块」下拉中选择要导出的数据块。", MessageType.Warning, 3);
                 return;
             }
 
-            SaveBlockInfo block = _filteredBlocks[_selectedBlockIndex];
-            if (block.Key == null || !_rawBlocks.TryGetValue(block.Key, out byte[] bytes) || bytes == null)
+            if (!model.TryGetRawBytes(blockKey, out byte[] bytes))
             {
                 SetStatus("块载荷不可用。", MessageType.Warning, 2.5);
                 return;
             }
 
-            string defaultName = SanitizeFileName(block.Key);
-            string extension = block.Backend == ESaveBackend.Json ? "json" : "bin";
-            string path = EditorUtility.SaveFilePanel("导出数据块", "", defaultName, extension);
+            SaveBlockInfo? block = FindBlock(model.View, blockKey);
+            string extension = block is { Backend: ESaveBackend.Json } ? "json" : "bin";
+            string path = EditorUtility.SaveFilePanel("导出数据块", string.Empty, SanitizeFileName(blockKey), extension);
             if (string.IsNullOrEmpty(path))
             {
                 return;
             }
 
             RunOperation($"已导出 {Path.GetFileName(path)}", () => File.WriteAllBytes(path, bytes));
+        }
+
+        private void CopyPreviewToClipboard(SlotDetailModel model)
+        {
+            string text = model?.PreviewTextValue;
+            if (!string.IsNullOrEmpty(text))
+            {
+                EditorGUIUtility.systemCopyBuffer = text;
+                SetStatus("预览内容已复制到剪贴板。", MessageType.Info, 2.5);
+            }
         }
 
         private void CreateFolderDialog()
@@ -1804,24 +1378,32 @@ namespace Moirai.Atropos.Editor.Save
                 {
                     Directory.CreateDirectory(target);
                 }
-            }, after: RefreshFolders);
+            }, () => RequestTreeRebuild(folderName, null));
         }
 
-        private void DeleteCurrentFolderDialog()
+        private void DeleteFolderDialog(string folderName)
         {
-            string folder = CurrentFolder;
-            if (folder == SaveServiceHandler.DEFAULT_FOLDER_NAME)
+            if (folderName == SaveServiceHandler.DEFAULT_FOLDER_NAME)
             {
                 SetStatus("默认文件夹不允许删除。", MessageType.Warning, 3);
                 return;
             }
 
-            if (!EditorUtility.DisplayDialog("删除文件夹", $"删除文件夹「{folder}」及其下全部存档？\n不可撤销。", "删除", "取消"))
+            if (!EditorUtility.DisplayDialog("删除文件夹", $"删除文件夹「{folderName}」及其下全部存档？\n不可撤销。", "删除", "取消"))
             {
                 return;
             }
 
-            RunOperation($"已删除文件夹「{folder}」。", () => _handler.DeleteSaveFolder(folder), after: RefreshFolders);
+            RunOperation($"已删除文件夹「{folderName}」。", () => _handler.DeleteSaveFolder(folderName), () => RequestTreeRebuild(SaveServiceHandler.DEFAULT_FOLDER_NAME, null));
+        }
+
+        private void RevealSaveRoot()
+        {
+            string root = SafeDetermineSavePath(string.Empty);
+            if (!string.IsNullOrEmpty(root))
+            {
+                EditorUtility.RevealInFinder(root);
+            }
         }
 
         private void RunOperation(string successMessage, Action operation, Action after = null)
@@ -1837,6 +1419,119 @@ namespace Moirai.Atropos.Editor.Save
                 SetStatus(string.Empty, MessageType.None, 0);
                 EditorUtility.DisplayDialog("存档操作失败", exception.Message, "确定");
             }
+        }
+
+        private void SetStatus(string message, MessageType type, double durationSeconds)
+        {
+            _statusMessage = message ?? string.Empty;
+            _statusType = type;
+            _statusExpireTime = durationSeconds <= 0 ? 0 : EditorApplication.timeSinceStartup + durationSeconds;
+            Repaint();
+        }
+
+        #endregion
+
+        #region 预览 [PREVIEW]
+
+        private string BuildPreviewText(SlotView view, Dictionary<string, byte[]> rawBlocks, string blockKey, PreviewMode mode, bool prettyJson)
+        {
+            if (string.IsNullOrEmpty(blockKey))
+            {
+                return "在「预览块」下拉中选择数据块以查看内容。";
+            }
+
+            if (rawBlocks == null)
+            {
+                return "原始块载荷未加载。";
+            }
+
+            SaveBlockInfo? block = FindBlock(view, blockKey);
+            if (block == null)
+            {
+                return "数据块信息缺失。";
+            }
+
+            if (block.Value.Error != SaveError.None)
+            {
+                return $"该块损坏（{block.Value.Error}），载荷不可信。";
+            }
+
+            if (!rawBlocks.TryGetValue(blockKey, out byte[] bytes) || bytes == null)
+            {
+                return "无法读取块载荷。";
+            }
+
+            bool isBinaryBackend = block.Value.Backend != ESaveBackend.Json && block.Value.Backend != ESaveBackend.KeyValue;
+            string text;
+            switch (mode)
+            {
+                case PreviewMode.Text:
+                    text = TryDecodeText(bytes, isBinaryBackend, prettyJson);
+                    break;
+                case PreviewMode.Hex:
+                    text = BuildHexDump(bytes);
+                    break;
+                default:
+                    if (block.Value.Backend == ESaveBackend.Json)
+                    {
+                        text = FormatJson(Encoding.UTF8.GetString(bytes), prettyJson);
+                    }
+                    else if (block.Value.Backend == ESaveBackend.KeyValue)
+                    {
+                        // KVT 结构化树预览（解析失败回退十六进制采样）
+                        text = SaveKvPreviewFormatter.Format(bytes) ?? BuildHexDump(bytes, HEX_PREVIEW_MAX_BYTES);
+                    }
+                    else
+                    {
+                        text = BuildHexDump(bytes);
+                    }
+
+                    break;
+            }
+
+            if (string.IsNullOrEmpty(text))
+            {
+                return $"二进制后端（{block.Value.Backend}）载荷 {FormatBytes(bytes.Length)}，不提供文本预览。请切换到十六进制模式。";
+            }
+
+            return text;
+        }
+
+        private static string TryDecodeText(byte[] bytes, bool isBinaryBackend, bool prettyJson)
+        {
+            if (isBinaryBackend)
+            {
+                return string.Empty;
+            }
+
+            try
+            {
+                string text = Encoding.UTF8.GetString(bytes);
+                return prettyJson ? FormatJson(text, true) : text;
+            }
+            catch
+            {
+                return string.Empty;
+            }
+        }
+
+        private static SaveBlockInfo? FindBlock(SlotView view, string blockKey)
+        {
+            SaveBlockInfo[] blocks = view?.Blocks;
+            if (blocks == null || blockKey == null)
+            {
+                return null;
+            }
+
+            for (int i = 0; i < blocks.Length; i++)
+            {
+                if (string.Equals(blocks[i].Key, blockKey, StringComparison.Ordinal))
+                {
+                    return blocks[i];
+                }
+            }
+
+            return null;
         }
 
         #endregion
@@ -1877,28 +1572,6 @@ namespace Moirai.Atropos.Editor.Save
             }
         }
 
-        private void RefreshThumbnailUI()
-        {
-            if (_thumbnailElement == null)
-            {
-                return;
-            }
-
-            _thumbnailElement.Clear();
-            if (_thumbnailTexture != null)
-            {
-                _thumbnailElement.style.backgroundImage = new StyleBackground(_thumbnailTexture);
-            }
-            else
-            {
-                _thumbnailElement.style.backgroundImage = StyleKeyword.Null;
-                var placeholder = new Label(_selectedSlot != null && _selectedSlot.HasScreenshot ? "截图加载失败" : "无截图");
-                placeholder.style.color = GetMutedColor();
-                placeholder.style.fontSize = 11;
-                _thumbnailElement.Add(placeholder);
-            }
-        }
-
         private void ReleaseThumbnail()
         {
             if (_thumbnailTexture != null)
@@ -1906,18 +1579,13 @@ namespace Moirai.Atropos.Editor.Save
                 DestroyImmediate(_thumbnailTexture);
                 _thumbnailTexture = null;
             }
-
-            if (_thumbnailElement != null)
-            {
-                _thumbnailElement.style.backgroundImage = StyleKeyword.Null;
-            }
         }
 
         #endregion
 
         #region 工具方法 [UTILITIES]
 
-        private void UpdatePipelineLabel()
+        private void UpdatePipelineText()
         {
             string handlerName = SaveServiceSettings.SaveServiceHandler?.GetType().Name ?? "PlainSaveHandler";
             string compression = SaveServiceSettings.CompressionProvider?.GetType().Name ?? "不压缩";
@@ -1925,43 +1593,7 @@ namespace Moirai.Atropos.Editor.Save
             string extension = SaveServiceSettings.SaveFileExtension;
             string root = SafeDetermineSavePath(string.Empty);
             string rootHint = string.IsNullOrEmpty(root) ? "(未解析)" : root;
-
-            if (_pipelineLabel != null)
-            {
-                _pipelineLabel.text = $"管线  {handlerName}  ·  压缩 {compression}  ·  默认后端 {backend}  ·  扩展名 {extension}  ·  根目录 {rootHint}";
-                _pipelineLabel.tooltip = root;
-            }
-        }
-
-        private void SetStatus(string message, MessageType type, double durationSeconds)
-        {
-            _statusMessage = message;
-            _statusType = type;
-            _statusExpireTime = durationSeconds <= 0 ? 0 : EditorApplication.timeSinceStartup + durationSeconds;
-            UpdateStatusLabel();
-        }
-
-        private void UpdateStatusLabel()
-        {
-            if (_statusLabel == null)
-            {
-                return;
-            }
-
-            if (string.IsNullOrEmpty(_statusMessage) ||
-                (_statusExpireTime > 0 && EditorApplication.timeSinceStartup > _statusExpireTime))
-            {
-                _statusLabel.text = string.Empty;
-                return;
-            }
-
-            _statusLabel.text = _statusMessage;
-            _statusLabel.style.color = _statusType switch
-            {
-                MessageType.Error => GetErrorColor(),
-                MessageType.Warning => GetWarningColor(),
-                _ => GetMutedColor(),
-            };
+            _pipelineText = $"管线  {handlerName}  ·  压缩 {compression}  ·  默认后端 {backend}  ·  扩展名 {extension}  ·  根目录 {rootHint}";
         }
 
         private string SafeDetermineSavePath(string folderName)
@@ -2001,24 +1633,20 @@ namespace Moirai.Atropos.Editor.Save
             }
         }
 
-        private static Color ResolveSlotHealthColor(SlotView view)
+        private static string BuildHealthSummary(SlotView view)
         {
-            if (!view.DetailLoaded)
-            {
-                return GetMutedColor();
-            }
-
+            int total = view.Blocks?.Length ?? 0;
             if (view.CorruptedBlocks > 0)
             {
-                return GetErrorColor();
+                return $"{total} 块  ·  {view.HealthyBlocks} 健康  ·  {view.CorruptedBlocks} 坏块";
             }
 
-            if (view.IsEncryptedLikely || view.Blocks == null || view.Blocks.Length == 0)
+            if (total == 0)
             {
-                return GetWarningColor();
+                return view.IsEncryptedLikely ? "0 块  ·  疑似加密/不可解析" : "0 块";
             }
 
-            return GetOkColor();
+            return $"{total} 块  ·  全部健康";
         }
 
         private static string FormatBytes(long bytes)
@@ -2039,33 +1667,6 @@ namespace Moirai.Atropos.Editor.Save
             }
 
             return (bytes / (1024f * 1024f * 1024f)).ToString("0.##", CultureInfo.InvariantCulture) + " GB";
-        }
-
-        private static string FormatRelativeTime(DateTime lastWriteUtc)
-        {
-            DateTime local = lastWriteUtc.ToLocalTime();
-            TimeSpan delta = DateTime.Now - local;
-            if (delta.TotalSeconds < 60)
-            {
-                return "刚刚";
-            }
-
-            if (delta.TotalMinutes < 60)
-            {
-                return $"{(int)delta.TotalMinutes} 分钟前";
-            }
-
-            if (delta.TotalHours < 24)
-            {
-                return $"{(int)delta.TotalHours} 小时前";
-            }
-
-            if (delta.TotalDays < 7)
-            {
-                return $"{(int)delta.TotalDays} 天前";
-            }
-
-            return local.ToString("yyyy-MM-dd HH:mm");
         }
 
         private static string FormatTimeSpan(TimeSpan span)
@@ -2253,75 +1854,6 @@ namespace Moirai.Atropos.Editor.Save
             }
 
             return builder.ToString();
-        }
-
-        #endregion
-
-        #region 主题颜色 [THEME COLORS]
-
-        private static bool IsProSkin => EditorGUIUtility.isProSkin;
-
-        private static Color GetHairlineColor() =>
-            IsProSkin ? new Color(0f, 0f, 0f, 0.35f) : new Color(0f, 0f, 0f, 0.15f);
-
-        private static Color GetStripBackgroundColor() =>
-            IsProSkin ? new Color(0.18f, 0.18f, 0.18f, 1f) : new Color(0.88f, 0.88f, 0.88f, 1f);
-
-        private static Color GetCardBackgroundColor() =>
-            IsProSkin ? new Color(0.22f, 0.22f, 0.22f, 0.6f) : new Color(1f, 1f, 1f, 0.55f);
-
-        private static Color GetSelectedRowColor() =>
-            IsProSkin ? new Color(0.24f, 0.48f, 0.90f, 0.35f) : new Color(0.24f, 0.48f, 0.90f, 0.25f);
-
-        private static Color GetSelectedTextColor() =>
-            IsProSkin ? new Color(0.75f, 0.85f, 1f) : new Color(0.1f, 0.25f, 0.55f);
-
-        private static Color GetPrimaryTextColor() =>
-            IsProSkin ? new Color(0.88f, 0.88f, 0.88f) : new Color(0.15f, 0.15f, 0.15f);
-
-        private static Color GetMutedColor() =>
-            IsProSkin ? new Color(0.55f, 0.55f, 0.55f) : new Color(0.4f, 0.4f, 0.4f);
-
-        private static Color GetPreviewTextColor() =>
-            IsProSkin ? new Color(0.82f, 0.85f, 0.82f) : new Color(0.15f, 0.2f, 0.15f);
-
-        private static Color GetOkColor() =>
-            IsProSkin ? new Color(0.35f, 0.75f, 0.45f) : new Color(0.18f, 0.55f, 0.28f);
-
-        private static Color GetWarningColor() =>
-            IsProSkin ? new Color(0.92f, 0.72f, 0.25f) : new Color(0.75f, 0.5f, 0.05f);
-
-        private static Color GetErrorColor() =>
-            IsProSkin ? new Color(0.90f, 0.35f, 0.35f) : new Color(0.75f, 0.2f, 0.2f);
-
-        private static Color BackendColor(ESaveBackend backend)
-        {
-            return backend switch
-            {
-                ESaveBackend.Json => IsProSkin ? new Color(0.40f, 0.70f, 0.95f) : new Color(0.15f, 0.40f, 0.70f),
-                ESaveBackend.KeyValue => IsProSkin ? new Color(0.95f, 0.80f, 0.30f) : new Color(0.70f, 0.50f, 0.05f),
-                _ => IsProSkin ? new Color(0.70f, 0.70f, 0.75f) : new Color(0.40f, 0.40f, 0.45f),
-            };
-        }
-
-        private static Color WithAlpha(Color color, float alpha)
-        {
-            color.a = alpha;
-            return color;
-        }
-
-        #endregion
-
-        #region 生命周期钩子 [UPDATE]
-
-        private void Update()
-        {
-            if (!string.IsNullOrEmpty(_statusMessage) && _statusExpireTime > 0 &&
-                EditorApplication.timeSinceStartup > _statusExpireTime)
-            {
-                _statusMessage = string.Empty;
-                UpdateStatusLabel();
-            }
         }
 
         #endregion
