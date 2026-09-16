@@ -4,6 +4,8 @@ using System.IO;
 using System.Reflection;
 using System.Text.RegularExpressions;
 using System.Threading;
+using System.Threading.Tasks;
+using Cysharp.Threading.Tasks;
 using Moirai.Atropos;
 using Moirai.Atropos.Save;
 using NUnit.Framework;
@@ -743,6 +745,74 @@ namespace Service.Save
             _handler.DeleteSaveFolder(TestFolder);
 
             Assert.IsFalse(Directory.Exists(paths.DirectoryPath), "删除文件夹应移除整个目录树");
+        }
+
+        [Test]
+        public void TryDeleteSave_Existing_ReturnsTrue_AndRemovesFile()
+        {
+            var paths = Paths("slot");
+            _handler.SaveBlockCore(paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 1, PlayerName = "Moirai" }, ESaveBackend.Json, 1, CancellationToken.None);
+
+            bool existed = _handler.TryDeleteSave("slot", TestFolder);
+
+            Assert.IsTrue(existed, "已存在的存档删除应返回 true");
+            Assert.IsFalse(File.Exists(paths.SaveFilePath), "删除后存档应不存在");
+        }
+
+        [Test]
+        public void TryDeleteSave_Missing_ReturnsFalse()
+        {
+            bool existed = _handler.TryDeleteSave("never-existed", TestFolder);
+
+            Assert.IsFalse(existed, "缺档删除应返回 false（NotFound 语义显式化）");
+        }
+
+        [Test]
+        public async Task TryDeleteSaveAsync_ReflectsExistence()
+        {
+            var paths = Paths("slot");
+            _handler.SaveBlockCore(paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 1, PlayerName = "Moirai" }, ESaveBackend.Json, 1, CancellationToken.None);
+
+            bool existed = await _handler.TryDeleteSaveAsync("slot", TestFolder).AsTask();
+            bool missing = await _handler.TryDeleteSaveAsync("slot", TestFolder).AsTask();
+
+            Assert.IsTrue(existed, "已存在的存档异步删除应返回 true");
+            Assert.IsFalse(missing, "缺档二次删除应返回 false");
+            Assert.IsFalse(File.Exists(paths.SaveFilePath), "删除后存档应不存在");
+        }
+
+        [Test]
+        public void TryDeleteSaveFolder_ReflectsDirectoryExistence()
+        {
+            Assert.IsFalse(_handler.TryDeleteSaveFolder(TestFolder), "缺目录删除应返回 false");
+
+            var paths = Paths("slot");
+            _handler.SaveBlockCore(paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 1, PlayerName = "Moirai" }, ESaveBackend.Json, 1, CancellationToken.None);
+
+            bool existed = _handler.TryDeleteSaveFolder(TestFolder);
+
+            Assert.IsTrue(existed, "已存在的目录删除应返回 true");
+            Assert.IsFalse(Directory.Exists(paths.DirectoryPath), "删除后目录应不存在");
+        }
+
+        [Test]
+        public void TryDeleteSaveFolder_EmptyName_Throws()
+        {
+            Assert.Throws<ArgumentException>(() => _handler.TryDeleteSaveFolder(""));
+        }
+
+        [Test]
+        public void TryDeleteAllSaveFiles_ReflectsRootExistence()
+        {
+            Assert.IsFalse(_handler.TryDeleteAllSaveFiles(), "数据根目录尚未创建时应返回 false");
+
+            var paths = Paths("slot");
+            _handler.SaveBlockCore(paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 1, PlayerName = "Moirai" }, ESaveBackend.Json, 1, CancellationToken.None);
+
+            bool existed = _handler.TryDeleteAllSaveFiles();
+
+            Assert.IsTrue(existed, "数据根目录存在时删除应返回 true");
+            Assert.IsFalse(Directory.Exists(Path.Combine(_rootPath, SaveServiceHandler.DATA_FOLDER_NAME)), "删除后数据根目录应不存在");
         }
 
         [Test]

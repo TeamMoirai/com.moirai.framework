@@ -493,6 +493,57 @@ namespace Moirai.Atropos.Save
         public static UniTask DeleteAllSaveFilesAsync(CancellationToken cancellationToken = default) =>
             s_Handler?.DeleteAllSaveFilesAsync(cancellationToken) ?? UniTask.CompletedTask;
 
+        /// <summary>
+        /// 删除单个存档并返回目标先前的存在性（幂等语义与 <see cref="DeleteSave"/> 一致；<c>false</c> = 目标本不存在）。
+        /// </summary>
+        /// <param name="fileName">文件名。</param>
+        /// <param name="folderName">文件夹名称。</param>
+        /// <returns>存在并已删除返回 <c>true</c>；本不存在或处理器未就绪（未发生删除）返回 <c>false</c>。</returns>
+        public static bool TryDeleteSave(string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME) =>
+            s_Handler?.TryDeleteSave(fileName, folderName) ?? false;
+
+        /// <summary>
+        /// 删除整个存档文件夹并返回目录先前的存在性（事件行为与 <see cref="DeleteSaveFolder"/> 一致；<c>false</c> = 目录本不存在）。
+        /// </summary>
+        /// <param name="folderName">文件夹名称；不允许为空。</param>
+        /// <returns>存在并已删除返回 <c>true</c>；本不存在或处理器未就绪（未发生删除）返回 <c>false</c>。</returns>
+        public static bool TryDeleteSaveFolder(string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME) =>
+            s_Handler?.TryDeleteSaveFolder(folderName) ?? false;
+
+        /// <summary>
+        /// 删除存档数据根目录并返回目录先前的存在性（事件行为与 <see cref="DeleteAllSaveFiles"/> 一致；<c>false</c> = 根目录本不存在）。
+        /// </summary>
+        /// <returns>存在并已删除返回 <c>true</c>；本不存在或处理器未就绪（未发生删除）返回 <c>false</c>。</returns>
+        public static bool TryDeleteAllSaveFiles() =>
+            s_Handler?.TryDeleteAllSaveFiles() ?? false;
+
+        /// <summary>
+        /// 异步删除单个存档并返回目标先前的存在性（幂等语义与 <see cref="DeleteSaveAsync"/> 一致；<c>false</c> = 目标本不存在）。
+        /// </summary>
+        /// <param name="fileName">文件名。</param>
+        /// <param name="folderName">文件夹名称。</param>
+        /// <param name="cancellationToken">取消令牌（协作式）。</param>
+        /// <returns>存在并已删除返回 <c>true</c>；本不存在或处理器未就绪（未发生删除）返回 <c>false</c>。</returns>
+        public static UniTask<bool> TryDeleteSaveAsync(string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default) =>
+            s_Handler?.TryDeleteSaveAsync(fileName, folderName, cancellationToken) ?? UniTask.FromResult(false);
+
+        /// <summary>
+        /// 异步删除整个存档文件夹并返回目录先前的存在性（事件行为与 <see cref="DeleteSaveFolderAsync"/> 一致；<c>false</c> = 目录本不存在）。
+        /// </summary>
+        /// <param name="folderName">文件夹名称；不允许为空。</param>
+        /// <param name="cancellationToken">取消令牌（协作式）。</param>
+        /// <returns>存在并已删除返回 <c>true</c>；本不存在或处理器未就绪（未发生删除）返回 <c>false</c>。</returns>
+        public static UniTask<bool> TryDeleteSaveFolderAsync(string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default) =>
+            s_Handler?.TryDeleteSaveFolderAsync(folderName, cancellationToken) ?? UniTask.FromResult(false);
+
+        /// <summary>
+        /// 异步删除存档数据根目录并返回目录先前的存在性（事件行为与 <see cref="DeleteAllSaveFilesAsync"/> 一致；<c>false</c> = 根目录本不存在）。
+        /// </summary>
+        /// <param name="cancellationToken">取消令牌（协作式）。</param>
+        /// <returns>存在并已删除返回 <c>true</c>；本不存在或处理器未就绪（未发生删除）返回 <c>false</c>。</returns>
+        public static UniTask<bool> TryDeleteAllSaveFilesAsync(CancellationToken cancellationToken = default) =>
+            s_Handler?.TryDeleteAllSaveFilesAsync(cancellationToken) ?? UniTask.FromResult(false);
+
         #endregion
 
         #region 存档查询 [QUERY]

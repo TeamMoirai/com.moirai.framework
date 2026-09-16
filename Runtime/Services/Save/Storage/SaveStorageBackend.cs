@@ -29,6 +29,13 @@ namespace Moirai.Atropos.Save
         public abstract bool Exists(string filePath);
 
         /// <summary>
+        /// 是否存在目标目录（与 <see cref="Exists"/> 对称——目录级删除的存在性判定依赖）。
+        /// </summary>
+        /// <param name="directoryPath">目录完整路径。</param>
+        /// <returns>存在返回 <c>true</c>。</returns>
+        public abstract bool DirectoryExists(string directoryPath);
+
+        /// <summary>
         /// 读取文件全部字节（错误分型返回；IO 失败由实现记录详细日志）。
         /// </summary>
         /// <param name="filePath">文件完整路径。</param>
