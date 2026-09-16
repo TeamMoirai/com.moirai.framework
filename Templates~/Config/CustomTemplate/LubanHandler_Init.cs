@@ -94,7 +94,8 @@ namespace GameProto.Config
 			}
 #endif
 			// 因为配置是预加载（Asset tag 为 PRELOAD），所以无需异步加载
-			return ResourceService.LoadAsset<TextAsset>(location);
+			using var lease = ResourceService.LoadLease<TextAsset>(location);
+			return lease.Asset;
 		}
 	}
 }
