@@ -188,6 +188,28 @@ namespace Moirai.Atropos.Save
         }
 
         /// <summary>
+        /// 流式原子写入本地镜像（镜像为文件后端，真临时文件流落盘零整档聚合；不同步远端）。
+        /// </summary>
+        /// <param name="filePath">目标文件完整路径。</param>
+        /// <param name="writeFile">写入委托（收到的临时文件流生命周期仅限本次调用）。</param>
+        /// <param name="cancellationToken">取消令牌。</param>
+        public override void WriteAtomic(string filePath, Action<Stream> writeFile, CancellationToken cancellationToken)
+        {
+            Mirror.WriteAtomic(filePath, writeFile, cancellationToken);
+        }
+
+        /// <summary>
+        /// 流式读本地镜像（远端不参与同步读；策略裁决在 <see cref="ReadAllBytesAsync"/>）。
+        /// </summary>
+        /// <param name="filePath">文件完整路径。</param>
+        /// <param name="stream">成功时的只读流（生命周期由调用方管理）。</param>
+        /// <returns>错误码（镜像直通）。</returns>
+        public override SaveError TryOpenRead(string filePath, out Stream stream)
+        {
+            return Mirror.TryOpenRead(filePath, out stream);
+        }
+
+        /// <summary>
         /// 删除本地镜像文件（幂等；远端删除由异步 API 族驱动）。
         /// <para>级联清理版本 sidecar——残留版本记录会让同名新档的裁决误用陈旧修订号。</para>
         /// </summary>

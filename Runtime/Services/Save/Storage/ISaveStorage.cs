@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 
@@ -72,6 +73,26 @@ namespace Moirai.Atropos.Save
         /// <param name="payload">载荷字节（头部之后写入）。</param>
         /// <param name="cancellationToken">取消令牌（替换前检查，取消时清理临时文件）。</param>
         void WriteAtomic(string filePath, ReadOnlySpan<byte> head, ReadOnlySpan<byte> payload, CancellationToken cancellationToken);
+
+        /// <summary>
+        /// 流式原子写入：实现提供可寻址临时流并调用 <paramref name="writeFile"/> 写入全部文件字节，返回时强制落盘刷新 + 原子替换提交。
+        /// <para>大档管线（容器 → 压缩 → 加密链）的流式演进契约——写入全程无整档缓冲：委托收到的流可寻址（Seek/Position 可用）且仅支持写入，
+        /// 全部文件内容（含文件头）由委托写入，实现不做任何补充；委托抛异常/取消时实现清理临时文件并上抛（<see cref="GameException"/> 与
+        /// <see cref="OperationCanceledException"/> 原样透传，其余异常归一为 <see cref="GameException"/>），不留半文件窗口。</para>
+        /// <para>委托在实现的工作线程内同步调用；需要跨异步边界的实现（如云远端整值上传）自行在委托内聚合转存。</para>
+        /// </summary>
+        /// <param name="filePath">目标文件完整路径（目录由实现确保存在）。</param>
+        /// <param name="writeFile">写入委托（收到的流生命周期仅限本次调用）。</param>
+        /// <param name="cancellationToken">取消令牌（替换前检查，取消时清理临时文件）。</param>
+        void WriteAtomic(string filePath, Action<Stream> writeFile, CancellationToken cancellationToken);
+
+        /// <summary>
+        /// 流式读：打开目标文件只读流（调用方负责释放；流可寻址——解密链尾部 MAC 剥离等随机访问场景依赖）。
+        /// </summary>
+        /// <param name="filePath">文件完整路径。</param>
+        /// <param name="stream">成功时的只读流（生命周期由调用方管理）。</param>
+        /// <returns>错误码：<see cref="SaveError.None"/>、<see cref="SaveError.FileNotFound"/>（不记日志）或 <see cref="SaveError.IoFailed"/>（实现记录详细日志）。</returns>
+        SaveError TryOpenRead(string filePath, out Stream stream);
 
         /// <summary>
         /// 删除文件（幂等：不存在视为成功；带退避重试应对云同步/杀毒短时锁）。
