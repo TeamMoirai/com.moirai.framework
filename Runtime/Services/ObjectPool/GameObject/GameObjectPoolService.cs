@@ -337,21 +337,7 @@ namespace Moirai.Atropos.ObjectPool
         /// </summary>
         public static void FlushAll() =>
             s_Handler?.FlushAll();
-
-        /// <summary>
-        /// 加载池配置（重建全部池）。
-        /// </summary>
-        /// <param name="config">配置 ScriptableObject。</param>
-        public static void LoadCatalog(PoolConfigScriptableObject config) =>
-            s_Handler?.LoadCatalog(config);
-
-        /// <summary>
-        /// 从资源地址加载池配置（重建全部池）。
-        /// </summary>
-        /// <param name="poolConfigPath">池配置资源地址。</param>
-        public static void LoadCatalog(string poolConfigPath) =>
-            s_Handler?.LoadCatalog(poolConfigPath);
-
+        
         #endregion
 
         #region 私有方法 [PRIVATE METHODS]
