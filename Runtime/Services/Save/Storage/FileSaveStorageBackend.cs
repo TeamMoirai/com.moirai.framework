@@ -51,6 +51,16 @@ namespace Moirai.Atropos.Save
         }
 
         /// <summary>
+        /// 是否存在目标目录。
+        /// </summary>
+        /// <param name="directoryPath">目录完整路径。</param>
+        /// <returns>存在返回 <c>true</c>。</returns>
+        public override bool DirectoryExists(string directoryPath)
+        {
+            return Directory.Exists(directoryPath);
+        }
+
+        /// <summary>
         /// 读取文件全部字节（缺档返回 <see cref="SaveError.FileNotFound"/> 不记日志；IO 失败记录详细日志后返回 <see cref="SaveError.IoFailed"/>）。
         /// </summary>
         /// <param name="filePath">文件完整路径。</param>

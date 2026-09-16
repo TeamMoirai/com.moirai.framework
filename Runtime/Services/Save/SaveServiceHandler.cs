@@ -613,6 +613,20 @@ namespace Moirai.Atropos.Save
         /// <param name="folderName">文件夹名称。</param>
         public void DeleteSave(string fileName, string folderName = DEFAULT_FOLDER_NAME)
         {
+            _ = TryDeleteSave(fileName, folderName);
+        }
+
+        /// <summary>
+        /// 从磁盘中删除单个存档并返回目标先前的存在性（含全部数据块与截图 sidecar）。
+        /// <para>幂等语义与 <see cref="DeleteSave"/> 一致（目标不存在不触发事件）；返回值消除 NotFound 悬而未决——
+        /// <c>false</c> = 目标本不存在，<c>true</c> = 存在并已删除。</para>
+        /// <para>持分层门执行（与块级读写互斥）——存在性判定与删除在同一临界区内完成，杜绝并发写入在删除后复活文件。</para>
+        /// </summary>
+        /// <param name="fileName">文件名。</param>
+        /// <param name="folderName">文件夹名称。</param>
+        /// <returns>目标先前存在并已删除返回 <c>true</c>；本不存在返回 <c>false</c>。</returns>
+        public bool TryDeleteSave(string fileName, string folderName = DEFAULT_FOLDER_NAME)
+        {
             SavePaths paths = ResolveSavePaths(fileName, folderName);
             GateScope scope = GateScope.EnterFile(paths);
             scope.Wait();
@@ -637,6 +651,8 @@ namespace Moirai.Atropos.Save
                 SaveMigrationManager.InvalidateSession(paths.SaveFilePath);
                 SaveService.RaiseSlotChanged(ESaveSlotChangeKind.Deleted, paths.FileName, paths.FolderName);
             }
+
+            return existed;
         }
 
         /// <summary>
@@ -647,6 +663,19 @@ namespace Moirai.Atropos.Save
         /// <param name="folderName">文件夹名称；不允许为空（清空全部请用 <see cref="DeleteAllSaveFiles"/>）。</param>
         public void DeleteSaveFolder(string folderName = DEFAULT_FOLDER_NAME)
         {
+            _ = TryDeleteSaveFolder(folderName);
+        }
+
+        /// <summary>
+        /// 删除整个存档文件夹并返回目录先前的存在性（含其中全部文件与子目录）。
+        /// <para>事件行为与 <see cref="DeleteSaveFolder"/> 完全一致（目录级批量删除恒触发一次 <see cref="SaveService.SlotChanged"/>）；
+        /// 返回值消除 NotFound 悬而未决——<c>false</c> = 目录本不存在。</para>
+        /// <para>持分层门执行（根 + 文件夹两级）——与该文件夹内全部槽位的块级读写互斥。</para>
+        /// </summary>
+        /// <param name="folderName">文件夹名称；不允许为空（清空全部请用 <see cref="TryDeleteAllSaveFiles"/>）。</param>
+        /// <returns>目录先前存在并已删除返回 <c>true</c>；本不存在返回 <c>false</c>。</returns>
+        public bool TryDeleteSaveFolder(string folderName = DEFAULT_FOLDER_NAME)
+        {
             ValidateFolderName(folderName);
             if (string.IsNullOrEmpty(folderName))
             {
@@ -656,9 +685,15 @@ namespace Moirai.Atropos.Save
             string directoryPath = BuildFolderPath(folderName);
             GateScope scope = GateScope.EnterFolder(directoryPath);
             scope.Wait();
+            bool existed;
             try
             {
-                Storage.DeleteDirectory(directoryPath);
+                SaveStorageBackend storage = Storage;
+                existed = storage.DirectoryExists(directoryPath);
+                if (existed)
+                {
+                    storage.DeleteDirectory(directoryPath);
+                }
             }
             finally
             {
@@ -667,6 +702,7 @@ namespace Moirai.Atropos.Save
 
             SaveMigrationManager.InvalidateSession(null);
             SaveService.RaiseSlotChanged(ESaveSlotChangeKind.Deleted, null, folderName);
+            return existed;
         }
 
         /// <summary>
@@ -676,12 +712,30 @@ namespace Moirai.Atropos.Save
         /// </summary>
         public void DeleteAllSaveFiles()
         {
+            _ = TryDeleteAllSaveFiles();
+        }
+
+        /// <summary>
+        /// 删除存档数据根目录并返回目录先前的存在性（<c>persistentDataPath/Data/</c> 及其下所有存档）。
+        /// <para>事件行为与 <see cref="DeleteAllSaveFiles"/> 完全一致（恒触发一次 <see cref="SaveService.SlotChanged"/>）；
+        /// 返回值消除 NotFound 悬而未决——<c>false</c> = 数据根目录本不存在。</para>
+        /// <para>持分层门执行（根级）——与所有存档的块级读写互斥；用户数据清除场景（如合规删除）结果可靠。</para>
+        /// </summary>
+        /// <returns>目录先前存在并已删除返回 <c>true</c>；本不存在返回 <c>false</c>。</returns>
+        public bool TryDeleteAllSaveFiles()
+        {
             string rootDirectory = BuildDataRootDirectory();
             GateScope scope = GateScope.EnterRoot(rootDirectory);
             scope.Wait();
+            bool existed;
             try
             {
-                Storage.DeleteDirectory(rootDirectory);
+                SaveStorageBackend storage = Storage;
+                existed = storage.DirectoryExists(rootDirectory);
+                if (existed)
+                {
+                    storage.DeleteDirectory(rootDirectory);
+                }
             }
             finally
             {
@@ -690,6 +744,7 @@ namespace Moirai.Atropos.Save
 
             SaveMigrationManager.InvalidateSession(null);
             SaveService.RaiseSlotChanged(ESaveSlotChangeKind.Deleted, null, string.Empty);
+            return existed;
         }
 
         /// <summary>
@@ -699,15 +754,20 @@ namespace Moirai.Atropos.Save
         /// <param name="folderName">文件夹名称。</param>
         /// <param name="cancellationToken">取消令牌。</param>
         /// <returns>删除完成的异步任务。</returns>
+        public UniTask DeleteSaveAsync(string fileName, string folderName = DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default)
+        {
+            return TryDeleteSaveAsync(fileName, folderName, cancellationToken);
+        }
+
         /// <summary>
-        /// 从磁盘中异步删除单个存档（含截图 sidecar；删除退避重试在工作线程执行；幂等——目标不存在不触发事件）。
-        /// <para>持分层门执行（与块级读写互斥）——存在性判定与删除在同一临界区内完成，杜绝并发写入在删除后复活文件。</para>
+        /// 异步删除单个存档并返回目标先前的存在性（含截图 sidecar；删除退避重试在工作线程执行）。
+        /// <para>幂等与事件语义同 <see cref="TryDeleteSave"/>；持分层门执行——存在性判定与删除在同一临界区内完成。</para>
         /// </summary>
         /// <param name="fileName">文件名。</param>
         /// <param name="folderName">文件夹名称。</param>
         /// <param name="cancellationToken">取消令牌。</param>
-        /// <returns>删除完成的异步任务。</returns>
-        public async UniTask DeleteSaveAsync(string fileName, string folderName = DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default)
+        /// <returns>目标先前存在并已删除返回 <c>true</c>；本不存在返回 <c>false</c>。</returns>
+        public async UniTask<bool> TryDeleteSaveAsync(string fileName, string folderName = DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default)
         {
             SavePaths paths = ResolveSavePaths(fileName, folderName);
             GateScope scope = GateScope.EnterFile(paths);
@@ -738,6 +798,8 @@ namespace Moirai.Atropos.Save
                 SaveMigrationManager.InvalidateSession(paths.SaveFilePath);
                 SaveService.RaiseSlotChanged(ESaveSlotChangeKind.Deleted, paths.FileName, paths.FolderName);
             }
+
+            return existed;
         }
 
         /// <summary>
@@ -748,7 +810,20 @@ namespace Moirai.Atropos.Save
         /// <param name="folderName">文件夹名称；不允许为空（清空全部请用 <see cref="DeleteAllSaveFilesAsync"/>）。</param>
         /// <param name="cancellationToken">取消令牌。</param>
         /// <returns>删除完成的异步任务；失败抛出 <see cref="GameException"/>。</returns>
-        public async UniTask DeleteSaveFolderAsync(string folderName = DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default)
+        public UniTask DeleteSaveFolderAsync(string folderName = DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default)
+        {
+            return TryDeleteSaveFolderAsync(folderName, cancellationToken);
+        }
+
+        /// <summary>
+        /// 异步删除整个存档文件夹并返回目录先前的存在性（含其中全部文件与子目录）。
+        /// <para>事件行为与 <see cref="DeleteSaveFolderAsync"/> 完全一致（目录级批量删除恒触发一次 <see cref="SaveService.SlotChanged"/>）；
+        /// 持分层门执行（根 + 文件夹两级）——存在性判定与删除在同一临界区内完成。</para>
+        /// </summary>
+        /// <param name="folderName">文件夹名称；不允许为空（清空全部请用 <see cref="TryDeleteAllSaveFilesAsync"/>）。</param>
+        /// <param name="cancellationToken">取消令牌。</param>
+        /// <returns>目录先前存在并已删除返回 <c>true</c>；本不存在返回 <c>false</c>。</returns>
+        public async UniTask<bool> TryDeleteSaveFolderAsync(string folderName = DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default)
         {
             ValidateFolderName(folderName);
             if (string.IsNullOrEmpty(folderName))
@@ -758,11 +833,21 @@ namespace Moirai.Atropos.Save
 
             string directoryPath = BuildFolderPath(folderName);
             GateScope scope = GateScope.EnterFolder(directoryPath);
+            bool existed;
             try
             {
                 await scope.WaitAsync(cancellationToken);
                 SaveStorageBackend storage = Storage;
-                await UniTask.RunOnThreadPool(() => storage.DeleteDirectory(directoryPath), configureAwait: false, cancellationToken: cancellationToken);
+                existed = await UniTask.RunOnThreadPool(() =>
+                {
+                    bool exists = storage.DirectoryExists(directoryPath);
+                    if (exists)
+                    {
+                        storage.DeleteDirectory(directoryPath);
+                    }
+
+                    return exists;
+                }, configureAwait: false, cancellationToken: cancellationToken);
             }
             finally
             {
@@ -771,6 +856,7 @@ namespace Moirai.Atropos.Save
 
             SaveMigrationManager.InvalidateSession(null);
             SaveService.RaiseSlotChanged(ESaveSlotChangeKind.Deleted, null, folderName);
+            return existed;
         }
 
         /// <summary>
@@ -779,15 +865,37 @@ namespace Moirai.Atropos.Save
         /// </summary>
         /// <param name="cancellationToken">取消令牌。</param>
         /// <returns>删除完成的异步任务。</returns>
-        public async UniTask DeleteAllSaveFilesAsync(CancellationToken cancellationToken = default)
+        public UniTask DeleteAllSaveFilesAsync(CancellationToken cancellationToken = default)
+        {
+            return TryDeleteAllSaveFilesAsync(cancellationToken);
+        }
+
+        /// <summary>
+        /// 异步删除存档数据根目录并返回目录先前的存在性（<c>persistentDataPath/Data/</c> 及其下所有存档）。
+        /// <para>事件行为与 <see cref="DeleteAllSaveFilesAsync"/> 完全一致（恒触发一次 <see cref="SaveService.SlotChanged"/>）；
+        /// 持分层门执行（根级）——存在性判定与删除在同一临界区内完成。</para>
+        /// </summary>
+        /// <param name="cancellationToken">取消令牌。</param>
+        /// <returns>目录先前存在并已删除返回 <c>true</c>；本不存在返回 <c>false</c>。</returns>
+        public async UniTask<bool> TryDeleteAllSaveFilesAsync(CancellationToken cancellationToken = default)
         {
             string rootDirectory = BuildDataRootDirectory();
             GateScope scope = GateScope.EnterRoot(rootDirectory);
+            bool existed;
             try
             {
                 await scope.WaitAsync(cancellationToken);
                 SaveStorageBackend storage = Storage;
-                await UniTask.RunOnThreadPool(() => storage.DeleteDirectory(rootDirectory), configureAwait: false, cancellationToken: cancellationToken);
+                existed = await UniTask.RunOnThreadPool(() =>
+                {
+                    bool exists = storage.DirectoryExists(rootDirectory);
+                    if (exists)
+                    {
+                        storage.DeleteDirectory(rootDirectory);
+                    }
+
+                    return exists;
+                }, configureAwait: false, cancellationToken: cancellationToken);
             }
             finally
             {
@@ -796,6 +904,7 @@ namespace Moirai.Atropos.Save
 
             SaveMigrationManager.InvalidateSession(null);
             SaveService.RaiseSlotChanged(ESaveSlotChangeKind.Deleted, null, string.Empty);
+            return existed;
         }
 
         /// <summary>

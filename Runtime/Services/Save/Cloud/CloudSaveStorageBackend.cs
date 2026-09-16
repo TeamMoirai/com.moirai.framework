@@ -131,6 +131,16 @@ namespace Moirai.Atropos.Save
         }
 
         /// <summary>
+        /// 是否存在目标目录（仅查本地镜像；远端状态不影响同步 API）。
+        /// </summary>
+        /// <param name="directoryPath">目录完整路径。</param>
+        /// <returns>镜像存在返回 <c>true</c>。</returns>
+        public override bool DirectoryExists(string directoryPath)
+        {
+            return Mirror.DirectoryExists(directoryPath);
+        }
+
+        /// <summary>
         /// 读取本地镜像字节（远端不参与同步读；策略裁决在 <see cref="ReadAllBytesAsync"/>）。
         /// </summary>
         /// <param name="filePath">文件完整路径。</param>
