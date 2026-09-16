@@ -2043,7 +2043,7 @@ namespace Moirai.Atropos.Save
         /// <param name="error">错误码。</param>
         private static void LogLoadFailure(string saveFilePath, SaveError error)
         {
-            LogUtility.Error("[SaveService] Load failed, path: {0}, error: {1}.", saveFilePath, error);
+            LogUtility.Error("[SaveService] Load failed({0}), path: {1}.", error, saveFilePath);
         }
 
         #endregion

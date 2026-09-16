@@ -10,7 +10,8 @@ using UnityEngine.TestTools;
 namespace Save
 {
     /// <summary>
-    /// 资产引用目录测试：双向查找、类型不匹配未命中、重复条目首到先得、无效条目跳过、编辑器期查找表失效重建。
+    /// 资产引用目录测试：双向查找、类型不匹配未命中、重复条目首到先得、无效条目跳过、编辑器期查找表失效重建、
+    /// 程序化改条目后的 <see cref="SaveAssetCatalog.InvalidateLookup"/> 契约。
     /// <para>告警断言经 <see cref="LogUtility.OnMessageLogged"/> 事件捕获（Handler 无关）；
     /// UTF 可见链路另补 <c>LogAssert.Expect</c>（黑名单：is not UnityLoggingHandler）。</para>
     /// </summary>
@@ -197,6 +198,51 @@ namespace Save
 
             Assert.IsTrue(_catalog.TryGetLocation(texture, out string location));
             Assert.AreEqual("rebuilt.png", location, "OnValidate 后查找表应重建并反映最新条目");
+        }
+
+        [Test]
+        public void ProgrammaticAdd_WithoutInvalidate_StaleCacheMissesNewEntry()
+        {
+            // 锁定契约：m_Entries 直改不会同步失效查找缓存——程序化工具必须调用 InvalidateLookup
+            Texture2D first = CreateAsset<Texture2D>();
+            Texture2D second = CreateAsset<Texture2D>();
+            AddEntry(first, "first.png");
+            Assert.IsTrue(_catalog.TryGetLocation(first, out _), "预热查找缓存");
+
+            AddEntry(second, "second.png");
+            Assert.IsFalse(_catalog.TryGetLocation(second, out _),
+                "缓存未失效时新条目不可见（收集器不得依赖 TryGetLocation 做扫描期去重）");
+        }
+
+        [Test]
+        public void InvalidateLookup_AfterProgrammaticAdd_RevealsNewEntry()
+        {
+            Texture2D first = CreateAsset<Texture2D>();
+            Texture2D second = CreateAsset<Texture2D>();
+            AddEntry(first, "first.png");
+            Assert.IsTrue(_catalog.TryGetLocation(first, out _));
+
+            AddEntry(second, "second.png");
+            _catalog.InvalidateLookup();
+
+            Assert.IsTrue(_catalog.TryGetLocation(second, out string location), "InvalidateLookup 后应重建并命中新条目");
+            Assert.AreEqual("second.png", location);
+            Assert.IsTrue(_catalog.TryGetLocation(first, out string firstLocation), "既有条目在重建后仍可见");
+            Assert.AreEqual("first.png", firstLocation);
+        }
+
+        [Test]
+        public void InvalidateLookup_RemovedEntry_NoLongerResolves()
+        {
+            Texture2D texture = CreateAsset<Texture2D>();
+            AddEntry(texture, "hero.png");
+            Assert.IsTrue(_catalog.TryGetLocation(texture, out _));
+
+            _catalog.m_Entries.Clear();
+            _catalog.InvalidateLookup();
+
+            Assert.IsFalse(_catalog.TryGetLocation(texture, out _), "失效重建后已移除条目不得再命中");
+            Assert.IsFalse(_catalog.TryResolve<Texture2D>("hero.png", out _));
         }
     }
 }

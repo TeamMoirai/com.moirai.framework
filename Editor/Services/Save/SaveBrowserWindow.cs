@@ -153,7 +153,7 @@ namespace Moirai.Atropos.Editor.Save
         /// <summary>
         /// 打开存档浏览器窗口。
         /// </summary>
-        [MenuItem("Window/Moirai/Save Browser", priority = 2200)]
+        [MenuItem("Tools/Moirai/Save/Save Browser", priority = 2200)]
         public static void Open()
         {
             var window = GetWindow<SaveBrowserWindow>();

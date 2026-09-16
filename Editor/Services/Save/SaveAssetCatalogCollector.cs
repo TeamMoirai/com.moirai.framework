@@ -13,7 +13,8 @@ namespace Moirai.Atropos.Editor.Save
     /// <summary>
     /// 资产引用收集器：扫描已打开场景中的 <see cref="SaveComponent"/>，把资产引用字段（UnityEngine.Object 派生且非
     /// GameObject/Component 派生）当前引用的资产登记进 <see cref="SaveAssetCatalog"/>（缺失定位串按文件名寻址约定推导）。
-    /// <para>消除「漏登记 → 捕获静默写 Null」面：登记后编辑器立即标脏并保存目录资产；
+    /// <para>消除「漏登记 → 捕获静默写 Null」面：登记后失效目录查找缓存、标脏并保存目录资产；
+    /// 同一次扫描内同一资产只登记一次（本地去重集——目录查找缓存在 Add 后不会同步重建）；
     /// 场景对象实例（非项目资产）与无法推导定位串的资产仅告警不登记。项目使用自定义寻址约定时须人工复核定位串。</para>
     /// </summary>
     public static class SaveAssetCatalogCollector
@@ -36,6 +37,9 @@ namespace Moirai.Atropos.Editor.Save
             int added = 0;
             int skippedExisting = 0;
             var warnings = new List<string>();
+            // 扫描期去重集：目录 TryGetLocation 走延迟缓存，m_Entries.Add 不会同步失效——
+            // 同一资产被多个组件引用时必须靠本地集合拦截，否则一次扫描写入重复条目
+            var seenAssets = BuildSeenAssetSet(catalog);
 
             Undo.RecordObject(catalog, "Collect Save Asset References");
             for (int i = 0; i < SceneManager.sceneCount; i++)
@@ -51,13 +55,14 @@ namespace Moirai.Atropos.Editor.Save
                     foreach (SaveComponent component in root.GetComponentsInChildren<SaveComponent>(includeInactive: true))
                     {
                         scannedComponents++;
-                        CollectComponent(component, catalog, ref scannedFields, ref added, ref skippedExisting, warnings);
+                        CollectComponent(component, catalog, seenAssets, ref scannedFields, ref added, ref skippedExisting, warnings);
                     }
                 }
             }
 
             if (added > 0)
             {
+                catalog.InvalidateLookup();
                 EditorUtility.SetDirty(catalog);
                 AssetDatabase.SaveAssets();
             }
@@ -72,9 +77,30 @@ namespace Moirai.Atropos.Editor.Save
         }
 
         /// <summary>
+        /// 以目录既有条目构建扫描期去重集（无效/空资产条目跳过）。
+        /// </summary>
+        /// <param name="catalog">目标目录。</param>
+        /// <returns>已登记资产集合。</returns>
+        private static HashSet<UObject> BuildSeenAssetSet(SaveAssetCatalog catalog)
+        {
+            var seen = new HashSet<UObject>();
+            List<SaveAssetCatalog.Entry> entries = catalog.m_Entries;
+            for (int i = 0; i < entries.Count; i++)
+            {
+                SaveAssetCatalog.Entry entry = entries[i];
+                if (entry != null && entry.m_Asset != null)
+                {
+                    seen.Add(entry.m_Asset);
+                }
+            }
+
+            return seen;
+        }
+
+        /// <summary>
         /// 收集单个组件的全部资产引用字段值。
         /// </summary>
-        private static void CollectComponent(SaveComponent component, SaveAssetCatalog catalog, ref int scannedFields, ref int added, ref int skippedExisting, List<string> warnings)
+        private static void CollectComponent(SaveComponent component, SaveAssetCatalog catalog, HashSet<UObject> seenAssets, ref int scannedFields, ref int added, ref int skippedExisting, List<string> warnings)
         {
             for (int i = 0; i < component.Targets.Count; i++)
             {
@@ -101,17 +127,17 @@ namespace Moirai.Atropos.Editor.Save
                         continue;
                     }
 
-                    RegisterAsset(asset, catalog, component, fieldName, ref added, ref skippedExisting, warnings);
+                    RegisterAsset(asset, catalog, seenAssets, component, fieldName, ref added, ref skippedExisting, warnings);
                 }
             }
         }
 
         /// <summary>
-        /// 登记单个资产（已登记跳过；场景对象/无法推导定位串仅告警）。
+        /// 登记单个资产（目录既有或本扫描已登记则跳过；场景对象/无法推导定位串仅告警）。
         /// </summary>
-        private static void RegisterAsset(UObject asset, SaveAssetCatalog catalog, SaveComponent component, string fieldName, ref int added, ref int skippedExisting, List<string> warnings)
+        private static void RegisterAsset(UObject asset, SaveAssetCatalog catalog, HashSet<UObject> seenAssets, SaveComponent component, string fieldName, ref int added, ref int skippedExisting, List<string> warnings)
         {
-            if (catalog.TryGetLocation(asset, out _))
+            if (!seenAssets.Add(asset))
             {
                 skippedExisting++;
                 return;
@@ -120,6 +146,8 @@ namespace Moirai.Atropos.Editor.Save
             string assetPath = AssetDatabase.GetAssetPath(asset);
             if (string.IsNullOrEmpty(assetPath))
             {
+                // 非项目资产不入册——同时从去重集移除，避免同一场景对象被后续字段引用时误计为 already registered
+                seenAssets.Remove(asset);
                 warnings.Add($"{component.name}.{fieldName}: '{asset.name}' 不是项目资产（场景对象/运行期实例），跳过。");
                 Debug.LogWarning($"[SaveAssetCatalogCollector] '{asset.name}' on '{component.name}.{fieldName}' is not a project asset, skipped.");
                 return;
