@@ -98,7 +98,10 @@ namespace Moirai.Atropos.Audio
 
         protected virtual void OnDestroy()
         {
-            // 场景卸载时清理本层，避免句柄悬挂
+            // 持久音跨场景继续播放：组件随场景销毁不得停声，句柄由服务在结束/显式 Stop 时释放
+            if (m_Persistent) return;
+
+            // 非持久音在组件销毁时清理本层，避免句柄悬挂
             if (Application.isPlaying)
             {
                 AudioService.StopByID(m_ID, 0f);
