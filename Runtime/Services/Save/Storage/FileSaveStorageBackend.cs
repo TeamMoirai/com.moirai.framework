@@ -30,13 +30,14 @@ namespace Moirai.Atropos.Save
         internal static readonly FileSaveStorageBackend Default = new FileSaveStorageBackend();
 
         /// <summary>
-        /// 后端能力自描述（本地文件：原子改名、无线程池外真异步、不设尺寸上限、非易失）。
+        /// 后端能力自描述（本地文件：原子改名、无线程池外真异步、不设尺寸上限、非易失、同步读权威）。
         /// </summary>
         public override SaveStorageCapabilities Capabilities => new SaveStorageCapabilities(
             supportsAtomicRename: true,
             supportsTrueAsyncIO: false,
             maxRecommendedSize: -1L,
-            volatileStorage: false);
+            volatileStorage: false,
+            syncReadsAuthoritative: true);
 
         #region 同步原语 [SYNC PRIMITIVES]
 
@@ -58,6 +59,32 @@ namespace Moirai.Atropos.Save
         public override bool DirectoryExists(string directoryPath)
         {
             return Directory.Exists(directoryPath);
+        }
+
+        /// <summary>
+        /// 查询目标文件的最后写入时间（文件系统元数据直查）。
+        /// </summary>
+        /// <param name="filePath">文件完整路径。</param>
+        /// <param name="writeTimeUtc">成功时的最后写入时间（UTC）。</param>
+        /// <returns>文件存在返回 <c>true</c>；缺档/查询失败返回 <c>false</c>。</returns>
+        public override bool TryGetWriteTimeUtc(string filePath, out DateTime writeTimeUtc)
+        {
+            if (!File.Exists(filePath))
+            {
+                writeTimeUtc = default;
+                return false;
+            }
+
+            try
+            {
+                writeTimeUtc = File.GetLastWriteTimeUtc(filePath);
+                return true;
+            }
+            catch (Exception)
+            {
+                writeTimeUtc = default;
+                return false;
+            }
         }
 
         /// <summary>

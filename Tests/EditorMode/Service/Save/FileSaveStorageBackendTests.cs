@@ -136,6 +136,28 @@ namespace Save
             Assert.IsNull(bytes);
         }
 
+        [Test]
+        public void TryGetWriteTimeUtc_Existing_ReturnsTrue_AndMatchesFileSystem()
+        {
+            string filePath = FilePath("slot.sav");
+            _backend.WriteAtomic(filePath, new byte[] { 0x01 }, CancellationToken.None);
+            DateTime expected = File.GetLastWriteTimeUtc(filePath);
+
+            bool found = _backend.TryGetWriteTimeUtc(filePath, out DateTime writeTimeUtc);
+
+            Assert.IsTrue(found, "已存在文件应查询成功");
+            Assert.AreEqual(expected, writeTimeUtc, "写入时间应与文件系统元数据一致");
+        }
+
+        [Test]
+        public void TryGetWriteTimeUtc_Missing_ReturnsFalse()
+        {
+            bool found = _backend.TryGetWriteTimeUtc(FilePath("missing.sav"), out DateTime writeTimeUtc);
+
+            Assert.IsFalse(found, "缺档应返回 false");
+            Assert.AreEqual(default(DateTime), writeTimeUtc);
+        }
+
         #endregion
 
         #region 删除 [DELETE]
@@ -239,6 +261,7 @@ namespace Save
             SaveStorageCapabilities capabilities = _backend.Capabilities;
             Assert.IsTrue(capabilities.SupportsAtomicRename, "本地文件后端应声明原子改名能力");
             Assert.IsFalse(capabilities.VolatileStorage, "本地文件后端不应声明易失存储");
+            Assert.IsTrue(capabilities.SyncReadsAuthoritative, "本地文件后端同步读应权威（同步裸名读即权威数据）");
         }
 
         [Test]

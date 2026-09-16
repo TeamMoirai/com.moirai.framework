@@ -512,6 +512,26 @@ namespace Save
             Assert.IsFalse(_remote.Entries.ContainsKey(KeyFor("slot2")));
         }
 
+        [Test]
+        public void Capabilities_DeclaresMirrorSyncReads_NotAuthoritative()
+        {
+            SaveStorageCapabilities capabilities = _backend.Capabilities;
+            Assert.IsFalse(capabilities.SyncReadsAuthoritative, "云镜像后端同步读应声明非权威（同步裸名读仅见镜像）");
+            Assert.IsTrue(capabilities.SupportsTrueAsyncIO, "远端网络 IO 应声明真异步");
+        }
+
+        [Test]
+        public void TryGetWriteTimeUtc_QueriesMirrorTimestamp()
+        {
+            WriteMirror("slot1", s_LocalBytes, s_TimeNew);
+
+            bool found = _backend.TryGetWriteTimeUtc(PathFor("slot1"), out DateTime writeTimeUtc);
+
+            Assert.IsTrue(found, "镜像存在时应查询成功");
+            Assert.AreEqual(s_TimeNew, writeTimeUtc, "镜像时间应与文件系统元数据一致（非远端权威时钟）");
+            Assert.IsFalse(_backend.TryGetWriteTimeUtc(PathFor("missing"), out _), "缺档应返回 false");
+        }
+
         #endregion
 
         #region 版本通道裁决（去时钟化） [VERSION-CHANNEL RESOLUTION]
