@@ -25,37 +25,23 @@ namespace Moirai.Atropos.Save
         public override byte ProviderId => PROVIDER_ID;
 
         /// <summary>
-        /// GZip 压缩容器字节（经跨度写入零中间拷贝）。
+        /// 打开 GZip 压缩包装流（leaveOpen——关闭包装流收尾压缩帧但不关闭底层目标流）。
         /// </summary>
-        /// <param name="raw">容器字节视图。</param>
-        /// <returns>压缩字节。</returns>
-        public override byte[] Compress(SaveBufferSegment raw)
+        /// <param name="target">压缩字节的落点流。</param>
+        /// <returns>压缩包装流（只写）。</returns>
+        public override Stream OpenCompressStream(Stream target)
         {
-            using (MemoryStream output = new MemoryStream())
-            {
-                using (GZipStream gzip = new GZipStream(output, CompressionLevel.Optimal, leaveOpen: true))
-                {
-                    gzip.Write(raw.AsSpan());
-                }
-
-                return output.ToArray();
-            }
+            return new GZipStream(target, CompressionLevel.Optimal, leaveOpen: true);
         }
 
         /// <summary>
-        /// GZip 解压为容器字节（经缓冲区视图包装零拷贝；数据非法抛 <see cref="InvalidDataException"/>，由读侧归一为 <see cref="SaveError.Corrupted"/>）。
+        /// 打开 GZip 解压包装流（数据非法抛 <see cref="InvalidDataException"/>，由读侧归一为 <see cref="SaveError.Corrupted"/>）。
         /// </summary>
-        /// <param name="packed">压缩字节视图。</param>
-        /// <returns>容器字节。</returns>
-        public override byte[] Decompress(SaveBufferSegment packed)
+        /// <param name="source">压缩字节源流。</param>
+        /// <returns>解压包装流（只读）。</returns>
+        public override Stream OpenDecompressStream(Stream source)
         {
-            using (MemoryStream input = new MemoryStream(packed.Buffer, packed.Offset, packed.Length, writable: false))
-            using (GZipStream gzip = new GZipStream(input, CompressionMode.Decompress))
-            using (MemoryStream output = new MemoryStream())
-            {
-                gzip.CopyTo(output);
-                return output.ToArray();
-            }
+            return new GZipStream(source, CompressionMode.Decompress, leaveOpen: true);
         }
     }
 }

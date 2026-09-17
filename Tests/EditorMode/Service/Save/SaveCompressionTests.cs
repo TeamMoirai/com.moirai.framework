@@ -39,14 +39,14 @@ namespace Save
 
             public byte ProviderId => _id;
 
-            public byte[] Compress(SaveBufferSegment raw)
+            public Stream OpenCompressStream(Stream target)
             {
-                return raw.ToExactArray();
+                return target;
             }
 
-            public byte[] Decompress(SaveBufferSegment packed)
+            public Stream OpenDecompressStream(Stream source)
             {
-                return packed.ToExactArray();
+                return source;
             }
         }
 
@@ -137,10 +137,28 @@ namespace Save
                 raw[i] = (byte)(i % 7);
             }
 
-            byte[] packed = GZipCompressionProvider.Shared.Compress(SaveBufferSegment.FromExact(raw));
+            byte[] packed;
+            using (var output = new MemoryStream())
+            {
+                using (Stream gzip = GZipCompressionProvider.Shared.OpenCompressStream(output))
+                {
+                    gzip.Write(raw, 0, raw.Length);
+                }
+
+                packed = output.ToArray();
+            }
+
             Assert.Less(packed.Length, raw.Length, "重复模式数据应被有效压缩");
 
-            byte[] restored = GZipCompressionProvider.Shared.Decompress(SaveBufferSegment.FromExact(packed));
+            byte[] restored;
+            using (var input = new MemoryStream(packed, writable: false))
+            using (Stream gunzip = GZipCompressionProvider.Shared.OpenDecompressStream(input))
+            using (var restoredOutput = new MemoryStream())
+            {
+                gunzip.CopyTo(restoredOutput);
+                restored = restoredOutput.ToArray();
+            }
+
             Assert.AreEqual(raw, restored, "GZip 往返应还原原始字节");
         }
 

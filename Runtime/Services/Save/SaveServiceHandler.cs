@@ -2,6 +2,7 @@ using System;
 using System.Buffers;
 using System.Collections.Generic;
 using System.IO;
+using System.Security.Cryptography;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
@@ -1895,7 +1896,7 @@ namespace Moirai.Atropos.Save
         {
             blocks = new List<SaveBlockEntry>();
             blockErrors = null;
-            SaveError ioError = Storage.TryReadAllBytes(paths.SaveFilePath, out byte[] fileBytes);
+            SaveError ioError = Storage.TryOpenRead(paths.SaveFilePath, out Stream stream);
             if (ioError == SaveError.FileNotFound)
             {
                 // 缺档 = 空块集（正常业务流，不记录日志）
@@ -1909,114 +1910,309 @@ namespace Moirai.Atropos.Save
                 return ioError;
             }
 
-            SaveError restoreError = ReadAndRestoreContainer(paths, fileBytes, out blocks, out blockErrors);
-            if (restoreError != SaveError.None)
+            using (stream)
             {
-                LogLoadFailure(paths.SaveFilePath, restoreError);
-                return restoreError;
-            }
+                SaveError restoreError = ReadAndRestoreContainer(paths, stream, out blocks, out blockErrors);
+                if (restoreError != SaveError.None)
+                {
+                    LogLoadFailure(paths.SaveFilePath, restoreError);
+                    return restoreError;
+                }
 
-            if (blockErrors != null)
-            {
-                LogUtility.Warning("[SaveService] {0} save block(s) corrupted and skipped, path: {1}.", blockErrors.Count, paths.SaveFilePath);
-            }
+                if (blockErrors != null)
+                {
+                    LogUtility.Warning("[SaveService] {0} save block(s) corrupted and skipped, path: {1}.", blockErrors.Count, paths.SaveFilePath);
+                }
 
-            return SaveError.None;
+                return SaveError.None;
+            }
         }
 
         /// <summary>
-        /// 将文件字节（头 + 载荷）还原为容器块列表（纯变换，不做日志；错误分型由各环节判定并触发 <see cref="SaveService.LoadFailed"/> 事件）。
-        /// <para>载荷不做整档拷贝——以 <see cref="SaveBufferSegment"/> 视图直通载荷还原钩子（明文处理器零拷贝，加密处理器区间直解）。</para>
+        /// 将存档流（头 + 载荷）还原为容器块列表（流式管线：头读取 → CRC 增量包装 → 解密链（子类流式钩子）→ 解压包装流（按头标志）
+        /// → 段池拉取多段序列 → 整档 CRC 把关 → 容器跨段解析；错误分型由各环节判定并触发 <see cref="SaveService.LoadFailed"/> 事件）。
+        /// <para>读路径全程无整档文件/容器驻留——解密/解压链输出经 256KB 池化段拉取（归还于 finally），峰值与文件大小解耦。</para>
         /// </summary>
         /// <param name="paths">已解析的路径集合（事件参数上下文）。</param>
-        /// <param name="fileBytes">存档文件完整字节。</param>
+        /// <param name="stream">存档只读流（调用方管理生命周期；当前位置即文件起点）。</param>
         /// <param name="blocks">成功时的健康数据块列表。</param>
         /// <param name="blockErrors">坏块清单（无坏块为 <c>null</c>）。</param>
         /// <returns>错误码：<see cref="SaveError.None"/>（含部分恢复）、<see cref="SaveError.InvalidFormat"/>、<see cref="SaveError.UnsupportedVersion"/>、
-        /// <see cref="SaveError.Corrupted"/>、<see cref="SaveError.DecryptionFailed"/> 或 <see cref="SaveError.IntegrityCheckFailed"/>。</returns>
-        private SaveError ReadAndRestoreContainer(SavePaths paths, byte[] fileBytes, out List<SaveBlockEntry> blocks, out List<SaveBlockError> blockErrors)
+        /// <see cref="SaveError.Corrupted"/>、<see cref="SaveError.DecryptionFailed"/>、<see cref="SaveError.IntegrityCheckFailed"/> 或 <see cref="SaveError.IoFailed"/>。</returns>
+        private SaveError ReadAndRestoreContainer(SavePaths paths, Stream stream, out List<SaveBlockEntry> blocks, out List<SaveBlockError> blockErrors)
         {
             blocks = null;
             blockErrors = null;
-            SaveError headerError = SaveFileHeader.Read(fileBytes, out SaveFileHeader header);
+
+            Span<byte> headerBytes = stackalloc byte[SaveFileHeader.Size];
+            if (!TryReadExactly(stream, headerBytes))
+            {
+                SaveService.RaiseLoadFailed(paths.FileName, paths.FolderName, null, ESaveFailureStage.HeaderValidation, SaveError.InvalidFormat);
+                return SaveError.InvalidFormat;
+            }
+
+            SaveError headerError = SaveFileHeader.Read(headerBytes, out SaveFileHeader header);
             if (headerError != SaveError.None)
             {
                 SaveService.RaiseLoadFailed(paths.FileName, paths.FolderName, null, ESaveFailureStage.HeaderValidation, headerError);
                 return headerError;
             }
 
-            // 整档 CRC 先行把关（头校验优先）：存储损坏在此整档拒绝，不进入逐块部分恢复
-            int payloadLength = fileBytes.Length - SaveFileHeader.Size;
-            if (payloadLength != header.PayloadLength
-                || Crc32.Compute(fileBytes.AsSpan(SaveFileHeader.Size, payloadLength)) != header.PayloadCrc)
+            bool compressed = (header.Flags & SaveFileHeader.FlagCompressed) != 0;
+            if (!compressed && header.CompressionProviderId != 0)
             {
+                // 标志与提供方 ID 不一致（篡改/写中断）
                 SaveService.RaiseLoadFailed(paths.FileName, paths.FolderName, null, ESaveFailureStage.HeaderValidation, SaveError.Corrupted);
                 return SaveError.Corrupted;
             }
 
-            SaveError transformError = OnRestorePayload(new SaveBufferSegment(fileBytes, SaveFileHeader.Size, payloadLength), out SaveBufferSegment restored);
-            if (transformError != SaveError.None)
+            ICompressionProvider compression = null;
+            if (compressed)
             {
-                SaveService.RaiseLoadFailed(paths.FileName, paths.FolderName, null, ESaveFailureStage.Restore, transformError);
-                return transformError;
+                if (header.CompressionProviderId == 0 || header.CompressionProviderId > byte.MaxValue)
+                {
+                    SaveService.RaiseLoadFailed(paths.FileName, paths.FolderName, null, ESaveFailureStage.HeaderValidation, SaveError.Corrupted);
+                    return SaveError.Corrupted;
+                }
+
+                if (!SaveCompressionRegistry.TryGet((byte)header.CompressionProviderId, out compression))
+                {
+                    // 未注册的提供方 ID（未来格式/依赖未接入保护）
+                    SaveService.RaiseLoadFailed(paths.FileName, paths.FolderName, null, ESaveFailureStage.Decompress, SaveError.UnsupportedVersion);
+                    return SaveError.UnsupportedVersion;
+                }
             }
 
-            SaveError containerError = TryDecompressAndReadContainer(header, restored, out blocks, out blockErrors);
-            if (containerError != SaveError.None)
+            var crcStream = new Crc32.Crc32ReadStream(stream, leaveOpen: true);
+            List<byte[]> rentedBuffers = null;
+            try
             {
-                SaveService.RaiseLoadFailed(paths.FileName, paths.FolderName, null,
-                    (header.Flags & SaveFileHeader.FlagCompressed) != 0 ? ESaveFailureStage.Decompress : ESaveFailureStage.ContainerParse,
-                    containerError);
-                return containerError;
-            }
+                Stream payloadStream;
+                try
+                {
+                    payloadStream = OpenPayloadReadStream(crcStream, header.PayloadLength);
+                }
+                catch (SaveEncryptor.SaveDecryptStreamException exception)
+                {
+                    SaveService.RaiseLoadFailed(paths.FileName, paths.FolderName, null, ESaveFailureStage.Restore, exception.Error);
+                    return exception.Error;
+                }
 
-            return SaveError.None;
+                bool ownsPayloadStream = !ReferenceEquals(payloadStream, crcStream);
+                ReadOnlySequence<byte> container;
+                try
+                {
+                    Stream containerSource = payloadStream;
+                    bool ownsDecompressStream = false;
+                    if (compressed)
+                    {
+                        containerSource = compression.OpenDecompressStream(payloadStream);
+                        ownsDecompressStream = true;
+                    }
+
+                    try
+                    {
+                        container = ReadAllToSequence(containerSource, out rentedBuffers);
+                    }
+                    finally
+                    {
+                        if (ownsDecompressStream)
+                        {
+                            containerSource.Dispose();
+                        }
+                    }
+                }
+                catch (SaveEncryptor.SaveDecryptStreamException exception)
+                {
+                    SaveService.RaiseLoadFailed(paths.FileName, paths.FolderName, null, ESaveFailureStage.Restore, exception.Error);
+                    return exception.Error;
+                }
+                catch (CryptographicException)
+                {
+                    SaveService.RaiseLoadFailed(paths.FileName, paths.FolderName, null, ESaveFailureStage.Restore, SaveError.DecryptionFailed);
+                    return SaveError.DecryptionFailed;
+                }
+                catch (IOException)
+                {
+                    // Mono GZipStream 对损坏压缩数据抛 IOException（"Corrupted data ..."）——压缩链内异常归存储损坏；
+                    // 仅未压缩直通路径的底层存储流 IO 中断归 IoFailed（压缩档的底层 IO 中断随压缩链归损坏，分型保守）
+                    if (compressed)
+                    {
+                        SaveService.RaiseLoadFailed(paths.FileName, paths.FolderName, null, ESaveFailureStage.Decompress, SaveError.Corrupted);
+                        return SaveError.Corrupted;
+                    }
+
+                    SaveService.RaiseLoadFailed(paths.FileName, paths.FolderName, null, ESaveFailureStage.StorageRead, SaveError.IoFailed);
+                    return SaveError.IoFailed;
+                }
+                catch (Exception)
+                {
+                    // 压缩帧破坏等（GZip InvalidDataException）——归一为存储损坏分型
+                    SaveService.RaiseLoadFailed(paths.FileName, paths.FolderName, null,
+                        compressed ? ESaveFailureStage.Decompress : ESaveFailureStage.ContainerParse, SaveError.Corrupted);
+                    return SaveError.Corrupted;
+                }
+                finally
+                {
+                    if (ownsPayloadStream)
+                    {
+                        payloadStream.Dispose();
+                    }
+                }
+
+                // 整档 CRC 先行把关（存储载荷口径——解密链之前增量累计；长度与校验值双重自洽）
+                if (crcStream.BytesRead != header.PayloadLength || crcStream.Result != header.PayloadCrc)
+                {
+                    SaveService.RaiseLoadFailed(paths.FileName, paths.FolderName, null, ESaveFailureStage.HeaderValidation, SaveError.Corrupted);
+                    return SaveError.Corrupted;
+                }
+
+                SaveError containerError = SaveFileContainer.Read(container, out blocks, out blockErrors);
+                if (containerError != SaveError.None)
+                {
+                    SaveService.RaiseLoadFailed(paths.FileName, paths.FolderName, null,
+                        compressed ? ESaveFailureStage.Decompress : ESaveFailureStage.ContainerParse, containerError);
+                    return containerError;
+                }
+
+                return SaveError.None;
+            }
+            finally
+            {
+                if (rentedBuffers != null)
+                {
+                    for (int i = 0; i < rentedBuffers.Count; i++)
+                    {
+                        ArrayPool<byte>.Shared.Return(rentedBuffers[i]);
+                    }
+                }
+            }
         }
 
         /// <summary>
-        /// 按文件头标志还原并解析容器（魔数/flags sniff 幂等：未压缩档原样透传，新旧档共存）。
-        /// <para>标志与提供方 ID 不一致（篡改/写中断）判别为 <see cref="SaveError.Corrupted"/>；
-        /// 未注册的提供方 ID 判别为 <see cref="SaveError.UnsupportedVersion"/>（未来格式/依赖未接入保护）。</para>
+        /// 自源流精确读满缓冲区（流式管线的定长头/段读取）。
         /// </summary>
-        /// <param name="header">已解析的文件头。</param>
-        /// <param name="restored">载荷还原视图（解密后）。</param>
-        /// <param name="blocks">成功时的健康数据块列表。</param>
-        /// <param name="blockErrors">坏块清单（无坏块为 <c>null</c>）。</param>
-        /// <returns>错误码。</returns>
-        private static SaveError TryDecompressAndReadContainer(SaveFileHeader header, SaveBufferSegment restored, out List<SaveBlockEntry> blocks, out List<SaveBlockError> blockErrors)
+        /// <param name="stream">源流。</param>
+        /// <param name="buffer">目标缓冲区（读满为止）。</param>
+        /// <returns>读满返回 <c>true</c>；流提前结束返回 <c>false</c>。</returns>
+        private static bool TryReadExactly(Stream stream, Span<byte> buffer)
         {
-            blocks = null;
-            blockErrors = null;
-            if ((header.Flags & SaveFileHeader.FlagCompressed) == 0)
+            int total = 0;
+            while (total < buffer.Length)
             {
-                return header.CompressionProviderId != 0
-                    ? SaveError.Corrupted
-                    : SaveFileContainer.Read(restored.AsSpan(), out blocks, out blockErrors);
+                int read = stream.Read(buffer.Slice(total));
+                if (read == 0)
+                {
+                    return false;
+                }
+
+                total += read;
             }
 
-            if (header.CompressionProviderId == 0 || header.CompressionProviderId > byte.MaxValue)
+            return true;
+        }
+
+        /// <summary>
+        /// 将源流全部内容拉取为多段只读序列（256KB 池化段链——解密/解压流式链输出的承接形态；段缓冲经 <paramref name="rentedBuffers"/> 外借，调用方归还）。
+        /// </summary>
+        /// <param name="source">源流。</param>
+        /// <param name="rentedBuffers">拉取产生的池化租赁缓冲清单（调用方消费完序列后逐一归还 <see cref="ArrayPool{T}"/>）。</param>
+        /// <returns>多段只读序列（源为空流时为空序列）。</returns>
+        private static ReadOnlySequence<byte> ReadAllToSequence(Stream source, out List<byte[]> rentedBuffers)
+        {
+            const int SegmentSize = 256 * 1024;
+            rentedBuffers = new List<byte[]>();
+            PooledSequenceSegment first = null;
+            PooledSequenceSegment last = null;
+            long runningIndex = 0L;
+            for (;;)
             {
-                return SaveError.Corrupted;
+                byte[] buffer = ArrayPool<byte>.Shared.Rent(SegmentSize);
+                int offset = 0;
+                while (offset < buffer.Length)
+                {
+                    int read = source.Read(buffer, offset, buffer.Length - offset);
+                    if (read == 0)
+                    {
+                        break;
+                    }
+
+                    offset += read;
+                }
+
+                if (offset == 0)
+                {
+                    ArrayPool<byte>.Shared.Return(buffer);
+                    break;
+                }
+
+                rentedBuffers.Add(buffer);
+                var node = new PooledSequenceSegment(buffer, offset, last, runningIndex);
+                if (first == null)
+                {
+                    first = node;
+                }
+
+                last = node;
+                runningIndex += offset;
+                if (offset < buffer.Length)
+                {
+                    // 流提前结束（未满段即终段）
+                    break;
+                }
             }
 
-            if (!SaveCompressionRegistry.TryGet((byte)header.CompressionProviderId, out ICompressionProvider compression))
+            if (first == null)
             {
-                return SaveError.UnsupportedVersion;
+                return ReadOnlySequence<byte>.Empty;
             }
 
-            byte[] container;
-            try
-            {
-                // 视图直通解压（明文处理器下别名为文件缓冲——零整档拷贝）
-                container = compression.Decompress(restored);
-            }
-            catch (Exception)
-            {
-                // 压缩数据非法（流格式破坏）——归一为存储损坏分型
-                return SaveError.Corrupted;
-            }
+            return new ReadOnlySequence<byte>(first, 0, last, last.Memory.Length);
+        }
 
-            return SaveFileContainer.Read(container, out blocks, out blockErrors);
+        /// <summary>
+        /// 池化段链表节点（<see cref="ReadOnlySequenceSegment{T}"/> 载体 + ArrayPool 归还句柄）。
+        /// </summary>
+        private sealed class PooledSequenceSegment : ReadOnlySequenceSegment<byte>
+        {
+            /// <summary>池化租赁缓冲（归还句柄）。</summary>
+            internal readonly byte[] Buffer;
+
+            /// <summary>有效字节数。</summary>
+            internal readonly int Length;
+
+            /// <summary>
+            /// 创建段节点并链接到前驱（protected 成员须经同类实例访问——链接在此内聚）。
+            /// </summary>
+            /// <param name="buffer">池化租赁缓冲。</param>
+            /// <param name="length">有效字节数。</param>
+            /// <param name="previous">前驱节点（首段传 <c>null</c>）。</param>
+            /// <param name="runningIndex">本段在序列中的起始偏移。</param>
+            internal PooledSequenceSegment(byte[] buffer, int length, PooledSequenceSegment previous, long runningIndex)
+            {
+                Buffer = buffer;
+                Length = length;
+                Memory = buffer.AsMemory(0, length);
+                RunningIndex = runningIndex;
+                if (previous != null)
+                {
+                    previous.Next = this;
+                }
+            }
+        }
+
+        /// <summary>
+        /// 载荷读流包装钩子：子类将存储载荷源流包装为解密读流（加密处理器在此叠加解密链；明文处理器基类默认直通）。
+        /// <para>在工作线程调用（流式读管线）；实现必须为纯 .NET 逻辑，禁止触达 Unity 主线程 API。
+        /// 长度非法/密钥材料不可用抛 <see cref="SaveEncryptor.SaveDecryptStreamException"/>（读管线归一为对应错误码——与旧整段钩子分型对齐）；
+        /// 源流可寻址与否不作要求（解密链全程顺序读）。</para>
+        /// </summary>
+        /// <param name="source">存储载荷源流（当前位置即载荷起点；载荷 CRC 增量包装层——读取经此累计校验值）。</param>
+        /// <param name="payloadLength">存储载荷总字节数（文件头口径——含 IV/密文/MAC 尾等加密布局开销）。</param>
+        /// <returns>解密读流（只读；调用方负责关闭）。</returns>
+        protected internal virtual Stream OpenPayloadReadStream(Stream source, long payloadLength)
+        {
+            return source;
         }
 
         /// <summary>
@@ -2052,9 +2248,9 @@ namespace Moirai.Atropos.Save
         }
 
         /// <summary>
-        /// 将容器块集写入存档文件：容器组装 → 压缩（可选，转换链固定为压缩先于加密）→ 载荷变换（子类加密钩子）→ CRC → 组装文件头 → 存储层两段式原子提交。
-        /// <para>容器缓冲区统一经 <see cref="ArrayPool{T}"/> 租赁复用（含压缩档——压缩提供方经 <see cref="SaveBufferSegment"/> 视图消费租赁缓冲）；
-        /// 文件头 stackalloc + 载荷视图经存储层两段写直落盘，写路径无整档拼接分配（归还缓冲区清零防明文残留）。</para>
+        /// 将容器块集写入存档文件（流式管线）：占位头 → CRC 包装 → 载荷加密链（子类流式钩子）→ 压缩包装流（可选）→ 容器段流直灌 → 回填真头 → 存储层流式原子提交。
+        /// <para>写路径全程无整档容器/载荷缓冲——容器段流（<see cref="SaveFileContainer.Write(Stream, List{SaveBlockEntry})"/>）经压缩/加密包装链直落临时文件流；
+        /// 载荷 CRC 由 <see cref="Crc32.Crc32Stream"/> 增量累计，头部回填依赖临时流可寻址（存储层流式写契约）。</para>
         /// </summary>
         /// <param name="paths">已解析的路径集合。</param>
         /// <param name="blocks">数据块列表。</param>
@@ -2063,87 +2259,118 @@ namespace Moirai.Atropos.Save
         {
             // 版本化激活时盖章当前数据版本（任何落盘文件均为当前版本——写入自愈封闭性）
             blocks = StampSaveVersionIfActive(blocks);
-            int containerSize = SaveFileContainer.GetSize(blocks);
             ICompressionProvider compression = _compression;
-            byte[] containerBuffer = ArrayPool<byte>.Shared.Rent(containerSize);
+            uint flags = compression != null ? SaveFileHeader.FlagCompressed : 0u;
+            uint compressionProviderId = compression?.ProviderId ?? 0u;
+            ESaveFailureStage failureStage = ESaveFailureStage.StorageWrite;
+            SaveError failureError = SaveError.IoFailed;
             try
             {
-                SaveFileContainer.Write(containerBuffer.AsSpan(0, containerSize), blocks);
-
-                uint flags = 0u;
-                uint compressionProviderId = 0u;
-                SaveBufferSegment transformInput = new SaveBufferSegment(containerBuffer, 0, containerSize);
-                if (compression != null)
+                Storage.WriteAtomic(paths.SaveFilePath, stream =>
                 {
-                    byte[] compressed;
+                    // 占位头——载荷长度/CRC 在灌流完成后回填
+                    long origin = stream.Position;
+                    Span<byte> placeholder = stackalloc byte[SaveFileHeader.Size];
+                    stream.Write(placeholder);
+
+                    var crcStream = new Crc32.Crc32Stream(stream, leaveOpen: true);
+                    Stream payloadStream;
                     try
                     {
-                        compressed = compression.Compress(transformInput);
+                        payloadStream = OpenPayloadWriteStream(crcStream);
                     }
                     catch (Exception exception)
                     {
-                        SaveService.RaiseSaveFailed(paths.FileName, paths.FolderName, null, ESaveFailureStage.Compress, SaveError.CompressionFailed);
-                        throw new GameException(StringUtility.Format("Save compression failed, path: {0}, exception: {1}.", paths.SaveFilePath, exception.GetType().Name), exception);
+                        failureStage = ESaveFailureStage.Transform;
+                        failureError = SaveError.TransformFailed;
+                        if (exception is GameException)
+                        {
+                            throw;
+                        }
+
+                        throw new GameException(StringUtility.Format("Save payload transform failed, path: {0}, exception: {1}.", paths.SaveFilePath, exception.GetType().Name), exception);
                     }
 
-                    transformInput = SaveBufferSegment.FromExact(compressed);
-                    flags = SaveFileHeader.FlagCompressed;
-                    compressionProviderId = compression.ProviderId;
-                }
+                    bool ownsPayloadStream = !ReferenceEquals(payloadStream, crcStream);
+                    try
+                    {
+                        try
+                        {
+                            Stream containerTarget = payloadStream;
+                            if (compression != null)
+                            {
+                                containerTarget = compression.OpenCompressStream(payloadStream);
+                            }
 
-                SaveError transformError = OnTransformContainer(transformInput, out SaveBufferSegment payload);
-                if (transformError != SaveError.None)
-                {
-                    SaveService.RaiseSaveFailed(paths.FileName, paths.FolderName, null, ESaveFailureStage.Transform, SaveError.TransformFailed);
-                    throw new GameException(StringUtility.Format("Save payload transform failed, path: {0}, error: {1}.", paths.SaveFilePath, transformError));
-                }
+                            bool ownsCompressStream = !ReferenceEquals(containerTarget, payloadStream);
+                            try
+                            {
+                                SaveFileContainer.Write(containerTarget, blocks);
+                            }
+                            finally
+                            {
+                                if (ownsCompressStream)
+                                {
+                                    containerTarget.Dispose();
+                                }
+                            }
+                        }
+                        catch (Exception exception) when (!(exception is GameException))
+                        {
+                            failureStage = ESaveFailureStage.Compress;
+                            failureError = SaveError.CompressionFailed;
+                            throw new GameException(StringUtility.Format("Save compression failed, path: {0}, exception: {1}.", paths.SaveFilePath, exception.GetType().Name), exception);
+                        }
+                    }
+                    finally
+                    {
+                        if (ownsPayloadStream)
+                        {
+                            try
+                            {
+                                payloadStream.Dispose();
+                            }
+                            catch (Exception exception) when (!(exception is GameException))
+                            {
+                                failureStage = ESaveFailureStage.Transform;
+                                failureError = SaveError.TransformFailed;
+                                throw new GameException(StringUtility.Format("Save payload transform failed, path: {0}, exception: {1}.", paths.SaveFilePath, exception.GetType().Name), exception);
+                            }
+                        }
+                    }
 
-                // 写盘的是存储载荷（加密后），不是未加密容器——CRC 也是载荷的；头部 stackalloc + 载荷视图两段写直落盘，零整档拼接
-                uint payloadCrc = Crc32.Compute(payload.AsSpan());
-                Span<byte> headerBytes = stackalloc byte[SaveFileHeader.Size];
-                SaveFileHeader.Write(headerBytes, payload.Length, payloadCrc, flags, compressionProviderId);
-                try
-                {
-                    Storage.WriteAtomic(paths.SaveFilePath, headerBytes, payload.AsSpan(), cancellationToken);
-                }
-                catch (OperationCanceledException)
-                {
-                    throw;
-                }
-                catch (Exception)
-                {
-                    SaveService.RaiseSaveFailed(paths.FileName, paths.FolderName, null, ESaveFailureStage.StorageWrite, SaveError.IoFailed);
-                    throw;
-                }
+                    long payloadLength = crcStream.BytesWritten;
+                    uint payloadCrc = crcStream.Result;
+
+                    // 回填真头（写盘的是存储载荷——加密/压缩后字节；CRC 与长度均为载荷口径）
+                    stream.Position = origin;
+                    Span<byte> headerBytes = stackalloc byte[SaveFileHeader.Size];
+                    SaveFileHeader.Write(headerBytes, (int)payloadLength, payloadCrc, flags, compressionProviderId);
+                    stream.Write(headerBytes);
+                }, cancellationToken);
             }
-            finally
+            catch (OperationCanceledException)
             {
-                // 容器为明文（加密在下游钩子）——归还时清零，避免明文残留池化缓冲区被后续租用者复读
-                ArrayPool<byte>.Shared.Return(containerBuffer, clearArray: true);
+                throw;
+            }
+            catch (GameException)
+            {
+                SaveService.RaiseSaveFailed(paths.FileName, paths.FolderName, null, failureStage, failureError);
+                throw;
             }
         }
 
         /// <summary>
-        /// 载荷变换钩子：子类将容器字节视图变换为存储载荷视图（加密处理器在此加密，明文处理器视图别名直通）。
-        /// <para>在工作线程调用；实现必须为纯 .NET 逻辑，禁止触达 Unity 主线程 API。
-        /// 输入缓冲区可能为池化租赁（有效区间以视图为准，勿按 <see cref="SaveBufferSegment.Buffer"/> 全长读取）；
-        /// 输出视图的生命周期到调用方消费完毕为止，实现不得缓存输出缓冲区。</para>
+        /// 载荷写流包装钩子：子类将存储目标流包装为载荷写入流（加密处理器在此叠加加密链；明文处理器基类默认直通）。
+        /// <para>在工作线程调用（存储层流式写委托内）；实现必须为纯 .NET 逻辑，禁止触达 Unity 主线程 API。
+        /// 返回流的生命周期由调用方管理（直通时调用方按引用比较跳过释放）；密钥材料不可用时抛 <see cref="GameException"/>（fail-fast）。</para>
         /// </summary>
-        /// <param name="container">容器字节视图。</param>
-        /// <param name="payload">成功时的存储载荷视图。</param>
-        /// <returns>错误码。</returns>
-        protected internal abstract SaveError OnTransformContainer(SaveBufferSegment container, out SaveBufferSegment payload);
-
-        /// <summary>
-        /// 载荷还原钩子：子类将存储载荷视图还原为容器字节视图（加密处理器在此解密，明文处理器视图别名直通）。
-        /// <para>在工作线程调用；实现必须为纯 .NET 逻辑，禁止触达 Unity 主线程 API。
-        /// 输入视图的缓冲区即文件完整字节（有效区间自 <see cref="SaveFileHeader.Size"/> 起），直通别名零拷贝；
-        /// 输出视图的生命周期到调用方消费完毕为止，实现不得缓存输出缓冲区。</para>
-        /// </summary>
-        /// <param name="payload">存储载荷视图。</param>
-        /// <param name="container">成功时的容器字节视图。</param>
-        /// <returns>错误码。</returns>
-        protected internal abstract SaveError OnRestorePayload(SaveBufferSegment payload, out SaveBufferSegment container);
+        /// <param name="target">存储目标流（载荷 CRC 包装层——写入经此增量累计校验值）。</param>
+        /// <returns>载荷写入流（只写；调用方负责关闭以收尾加密/变换帧）。</returns>
+        protected internal virtual Stream OpenPayloadWriteStream(Stream target)
+        {
+            return target;
+        }
 
         /// <summary>
         /// 记录读取失败日志（运维可见性：损坏/解密失败等必须留下可追溯痕迹）。

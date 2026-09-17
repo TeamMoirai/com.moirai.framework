@@ -9,7 +9,7 @@ namespace Moirai.Atropos.Save
     /// </summary>
     internal static class Crc32
     {
-        private const uint Polynomial = 0xEDB88320u;
+        private const uint POLYNOMIAL = 0xEDB88320u;
 
         private static readonly uint[] s_Table = BuildTable();
 
@@ -66,7 +66,7 @@ namespace Moirai.Atropos.Save
                 uint value = i;
                 for (int bit = 0; bit < 8; bit++)
                 {
-                    value = (value & 1) != 0 ? Polynomial ^ (value >> 1) : value >> 1;
+                    value = (value & 1) != 0 ? POLYNOMIAL ^ (value >> 1) : value >> 1;
                 }
 
                 table[i] = value;
@@ -160,6 +160,139 @@ namespace Moirai.Atropos.Save
 
             /// <inheritdoc />
             public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+
+            /// <inheritdoc />
+            public override void SetLength(long value) => throw new NotSupportedException();
+
+            /// <inheritdoc />
+            protected override void Dispose(bool disposing)
+            {
+                if (disposing && !_leaveOpen)
+                {
+                    _inner.Dispose();
+                }
+
+                base.Dispose(disposing);
+            }
+        }
+
+        /// <summary>
+        /// CRC-32 增量计算读包装流（读透传并增量累计校验值——流式读管线的载荷 CRC 累计载体）。
+        /// <para>默认只读禁寻址（Seek 会破坏增量语义）；<see cref="Freeze"/> 冻结后停止喂入并放开寻址——
+        /// 解密链「第一遍 HMAC 预验（喂 CRC）→ rewind → 第二遍限长解密读（不再喂）」两遍流式的核心机件。</para>
+        /// </summary>
+        internal sealed class Crc32ReadStream : Stream
+        {
+            /// <summary>底层源流。</summary>
+            private readonly Stream _inner;
+
+            /// <summary>Dispose 时是否保留底层流。</summary>
+            private readonly bool _leaveOpen;
+
+            /// <summary>CRC 寄存器值。</summary>
+            private uint _crc = INITIAL_STATE;
+
+            /// <summary>已透传字节数。</summary>
+            private long _bytesRead;
+
+            /// <summary>CRC 累计是否已冻结（冻结后读取不再喂入、允许寻址 rewind）。</summary>
+            private bool _frozen;
+
+            /// <summary>
+            /// 创建 CRC 读包装流。
+            /// </summary>
+            /// <param name="inner">底层源流。</param>
+            /// <param name="leaveOpen">Dispose 时是否保留底层流。</param>
+            internal Crc32ReadStream(Stream inner, bool leaveOpen = false)
+            {
+                _inner = inner ?? throw new ArgumentNullException(nameof(inner));
+                _leaveOpen = leaveOpen;
+            }
+
+            /// <summary>
+            /// 源流读尽后的 CRC-32 校验值。
+            /// </summary>
+            public uint Result => Crc32.Finalize(_crc);
+
+            /// <summary>
+            /// 已透传读取的字节总数（冻结后读取不再计入）。
+            /// </summary>
+            public long BytesRead => _bytesRead;
+
+            /// <summary>底层源流（解密链 rewind/定位用——绕过包装层直接寻址）。</summary>
+            internal Stream Inner => _inner;
+
+            /// <summary>
+            /// 冻结 CRC 累计（第一遍读取完成后调用——后续读取不再喂入，允许 Seek rewind 重读）。
+            /// </summary>
+            internal void Freeze()
+            {
+                _frozen = true;
+            }
+
+            /// <inheritdoc />
+            public override bool CanRead => true;
+
+            /// <inheritdoc />
+            public override bool CanSeek => _frozen && _inner.CanSeek;
+
+            /// <inheritdoc />
+            public override bool CanWrite => false;
+
+            /// <inheritdoc />
+            public override long Length => throw new NotSupportedException();
+
+            /// <inheritdoc />
+            public override long Position
+            {
+                get => _bytesRead;
+                set => throw new NotSupportedException();
+            }
+
+            /// <inheritdoc />
+            public override int Read(byte[] buffer, int offset, int count)
+            {
+                int read = _inner.Read(buffer, offset, count);
+                if (read > 0 && !_frozen)
+                {
+                    _crc = Update(_crc, buffer.AsSpan(offset, read));
+                    _bytesRead += read;
+                }
+
+                return read;
+            }
+
+            /// <inheritdoc />
+            public override int Read(Span<byte> buffer)
+            {
+                int read = _inner.Read(buffer);
+                if (read > 0 && !_frozen)
+                {
+                    _crc = Update(_crc, buffer.Slice(0, read));
+                    _bytesRead += read;
+                }
+
+                return read;
+            }
+
+            /// <inheritdoc />
+            public override long Seek(long offset, SeekOrigin origin)
+            {
+                if (!_frozen)
+                {
+                    throw new NotSupportedException();
+                }
+
+                return _inner.Seek(offset, origin);
+            }
+
+            /// <inheritdoc />
+            public override void Flush()
+            {
+            }
+
+            /// <inheritdoc />
+            public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
 
             /// <inheritdoc />
             public override void SetLength(long value) => throw new NotSupportedException();
