@@ -1,6 +1,8 @@
 using System;
+using System.Buffers;
 using System.Buffers.Binary;
 using System.Collections.Generic;
+using System.IO;
 using System.Text;
 
 namespace Moirai.Atropos.Save
@@ -215,6 +217,51 @@ namespace Moirai.Atropos.Save
         }
 
         /// <summary>
+        /// 将数据块列表流式序列化到目标流（容器头 + 逐块描述符 + 载荷直灌——零整档容器缓冲，流式写管线核心）。
+        /// <para>输出字节与 <see cref="Write(Span{byte}, List{SaveBlockEntry})"/> 完全一致（同一布局单源序列化）；
+        /// 键 UTF8 编码经栈缓冲直写（键长校验层已限 64 字符——超限防御分支走堆缓冲）。</para>
+        /// </summary>
+        /// <param name="target">目标流（调用方管理生命周期）。</param>
+        /// <param name="blocks">数据块条目列表。</param>
+        public static void Write(Stream target, List<SaveBlockEntry> blocks)
+        {
+            Span<byte> header = stackalloc byte[HeaderSize];
+            s_Magic.AsSpan().CopyTo(header);
+            BinaryPrimitives.WriteInt32LittleEndian(header.Slice(4), CurrentVersion);
+            BinaryPrimitives.WriteInt32LittleEndian(header.Slice(8), blocks.Count);
+            target.Write(header);
+
+            // 栈缓冲：4B 键长 + 键 UTF8（校验层限 64 字符 → ≤256B，防御上限 512）+ 14B 定长字段
+            Span<byte> keyLengthBuffer = stackalloc byte[4];
+            Span<byte> fixedFields = stackalloc byte[BlockFixedFieldSize];
+            Span<byte> keyBuffer = stackalloc byte[512];
+            for (int i = 0; i < blocks.Count; i++)
+            {
+                SaveBlockEntry entry = blocks[i];
+                int keyByteCount = Encoding.UTF8.GetByteCount(entry.Key);
+                BinaryPrimitives.WriteInt32LittleEndian(keyLengthBuffer, keyByteCount);
+                target.Write(keyLengthBuffer);
+                if (keyByteCount <= keyBuffer.Length)
+                {
+                    target.Write(keyBuffer.Slice(0, Encoding.UTF8.GetBytes(entry.Key, keyBuffer)));
+                }
+                else
+                {
+                    // 防御分支：键长校验层失效时的兜底（正常路径不可达）
+                    byte[] keyBytes = Encoding.UTF8.GetBytes(entry.Key);
+                    target.Write(keyBytes, 0, keyBytes.Length);
+                }
+
+                BinaryPrimitives.WriteInt32LittleEndian(fixedFields, entry.DataVersion);
+                BinaryPrimitives.WriteUInt16LittleEndian(fixedFields.Slice(4), (ushort)entry.Backend);
+                BinaryPrimitives.WriteInt32LittleEndian(fixedFields.Slice(6), entry.Bytes.Length);
+                BinaryPrimitives.WriteUInt32LittleEndian(fixedFields.Slice(10), Crc32.Compute(entry.Bytes));
+                target.Write(fixedFields);
+                target.Write(entry.Bytes, 0, entry.Bytes.Length);
+            }
+        }
+
+        /// <summary>
         /// 从字节序列解析容器（v2 逐块自校验：坏块跳过记入 <paramref name="blockErrors"/>，健康块照常返回）。
         /// </summary>
         /// <param name="source">容器字节序列。</param>
@@ -330,6 +377,160 @@ namespace Moirai.Atropos.Save
 
             byte[] bytes = new byte[byteCount];
             payloadSpan.CopyTo(bytes);
+
+            entry = new SaveBlockEntry(key, dataVersion, backend, bytes);
+            return EBlockParseResult.Parsed;
+        }
+
+        /// <summary>
+        /// 从多段字节序列解析容器（跨段流式读管线的消费形态；语义与 <see cref="Read(ReadOnlySpan{byte}, out List{SaveBlockEntry}, out List{SaveBlockError})"/> 完全一致）。
+        /// <para>单段序列直通跨度解析器（零额外开销）；多段经 <see cref="SequenceReader{T}"/> 跨段解析——
+        /// 段池拉取的多段容器（解压/解密流式链输出）在此还原为块列表。</para>
+        /// </summary>
+        /// <param name="source">容器字节序列（可多段）。</param>
+        /// <param name="blocks">解析成功时的健康数据块列表（坏块已剔除）。</param>
+        /// <param name="blockErrors">坏块清单（无坏块为 <c>null</c>）。</param>
+        /// <returns>错误码（同跨度重载）。</returns>
+        public static SaveError Read(ReadOnlySequence<byte> source, out List<SaveBlockEntry> blocks, out List<SaveBlockError> blockErrors)
+        {
+            if (source.IsSingleSegment)
+            {
+                return Read(source.FirstSpan, out blocks, out blockErrors);
+            }
+
+            blocks = null;
+            blockErrors = null;
+            if (source.Length < HeaderSize)
+            {
+                return SaveError.InvalidFormat;
+            }
+
+            var reader = new SequenceReader<byte>(source);
+            Span<byte> magic = stackalloc byte[4];
+            if (!reader.TryCopyTo(magic))
+            {
+                return SaveError.InvalidFormat;
+            }
+
+            if (!magic.SequenceEqual(s_Magic))
+            {
+                return SaveError.InvalidFormat;
+            }
+
+            reader.Advance(4);
+            if (!reader.TryReadLittleEndian(out int containerVersion))
+            {
+                return SaveError.InvalidFormat;
+            }
+
+            if (containerVersion != CurrentVersion)
+            {
+                // 容器 v1 旧档与未来版本一律拒绝（用户裁定硬切，不做兼容读）
+                return SaveError.UnsupportedVersion;
+            }
+
+            if (!reader.TryReadLittleEndian(out int blockCount))
+            {
+                return SaveError.InvalidFormat;
+            }
+
+            if (blockCount < 0 || blockCount > MaxBlockCount)
+            {
+                return SaveError.Corrupted;
+            }
+
+            var entries = new List<SaveBlockEntry>(blockCount);
+            List<SaveBlockError> errors = null;
+            for (int i = 0; i < blockCount; i++)
+            {
+                EBlockParseResult result = TryParseBlock(ref reader, out SaveBlockEntry entry, out SaveBlockError blockError);
+                if (result == EBlockParseResult.Parsed)
+                {
+                    entries.Add(entry);
+                    continue;
+                }
+
+                (errors ??= new List<SaveBlockError>()).Add(blockError);
+                if (result == EBlockParseResult.Structural)
+                {
+                    // 结构性损坏后续块边界不可知——保留已解析前缀，终止解析
+                    break;
+                }
+            }
+
+            blocks = entries;
+            blockErrors = errors;
+            return SaveError.None;
+        }
+
+        /// <summary>
+        /// 跨段解析单个数据块（SequenceReader 版——边界语义与跨度版逐条对齐）。
+        /// </summary>
+        /// <param name="reader">序列读取器（边界可信时推进至下一块——含 CRC 坏块；结构性损坏时不保证推进有效）。</param>
+        /// <param name="entry">解析成功时的数据块条目。</param>
+        /// <param name="blockError">解析失败时的坏块记录。</param>
+        /// <returns>解析结果。</returns>
+        private static EBlockParseResult TryParseBlock(ref SequenceReader<byte> reader, out SaveBlockEntry entry, out SaveBlockError blockError)
+        {
+            entry = default;
+            blockError = default;
+
+            if (!reader.TryReadLittleEndian(out int keyByteCount))
+            {
+                blockError = new SaveBlockError(null);
+                return EBlockParseResult.Structural;
+            }
+
+            if (keyByteCount < 0 || keyByteCount > MaxKeyByteCount || reader.Remaining < keyByteCount + BlockFixedFieldSize)
+            {
+                blockError = new SaveBlockError(null);
+                return EBlockParseResult.Structural;
+            }
+
+            string key;
+            if (keyByteCount <= 512)
+            {
+                Span<byte> keyBuffer = stackalloc byte[512];
+                reader.TryCopyTo(keyBuffer.Slice(0, keyByteCount));
+                key = Encoding.UTF8.GetString(keyBuffer.Slice(0, keyByteCount));
+            }
+            else
+            {
+                // 防御分支：键长校验层失效时的兜底（正常路径不可达）
+                var keyBytes = new byte[keyByteCount];
+                reader.TryCopyTo(keyBytes);
+                key = Encoding.UTF8.GetString(keyBytes);
+            }
+
+            reader.Advance(keyByteCount);
+
+            reader.TryReadLittleEndian(out int dataVersion);
+            // Tuanjie BCL 的 SequenceReader.TryReadLittleEndian 仅有符号重载（short/int/long）——无符号字段读同宽有符号后位级强转
+            reader.TryReadLittleEndian(out short backendValue);
+            reader.TryReadLittleEndian(out int byteCount);
+            reader.TryReadLittleEndian(out int crcValue);
+            var backend = (ESaveBackend)(ushort)backendValue;
+            uint expectedCrc = (uint)crcValue;
+            if (byteCount < 0 || reader.Remaining < byteCount)
+            {
+                // 载荷长度越界（截断/篡改）——键已知但后续边界不可信
+                blockError = new SaveBlockError(key);
+                return EBlockParseResult.Structural;
+            }
+
+            var bytes = new byte[byteCount];
+            if (byteCount > 0)
+            {
+                reader.TryCopyTo(bytes);
+                reader.Advance(byteCount);
+            }
+
+            if (Crc32.Compute(bytes) != expectedCrc)
+            {
+                // 载荷损坏但框架自洽——跳过该块，解析继续
+                blockError = new SaveBlockError(key, dataVersion, backend, byteCount);
+                return EBlockParseResult.PayloadCorrupted;
+            }
 
             entry = new SaveBlockEntry(key, dataVersion, backend, bytes);
             return EBlockParseResult.Parsed;

@@ -306,6 +306,533 @@ namespace Moirai.Atropos.Save
 
         #endregion
 
+        #region 流式写链 [STREAMING WRITE PIPELINE]
+
+        /// <summary>
+        /// 打开加密写流（密钥材料直给）：明文经返回流写入即 AES-256-CBC 加密并落底层流，关闭返回流收尾
+        /// （FlushFinalBlock 补齐末块密文并追加 HMAC-SHA256 摘要尾）。
+        /// <para>输出布局与 <see cref="TryEncryptWithMaterial(byte[], byte[], byte[], out byte[])"/> 完全一致：
+        /// <c>[16B 随机 IV][密文][32B HMAC(IV‖密文)]</c>——流式写全程无整档明文/密文驻留（流式容器管线核心）。</para>
+        /// </summary>
+        /// <param name="target">密文落点流（生命周期由调用方管理；关闭返回流不关闭该流）。</param>
+        /// <param name="encryptionKey">加密密钥（<see cref="ENCRYPTION_KEY_SIZE"/> 字节）。</param>
+        /// <param name="macKey">MAC 密钥（<see cref="MAC_SIZE"/> 字节）。</param>
+        /// <returns>加密包装流（只写；调用方负责关闭以收尾密文与 MAC 尾）。</returns>
+        internal Stream OpenEncryptStreamWithMaterial(Stream target, byte[] encryptionKey, byte[] macKey)
+        {
+            if (target == null || !IsValidKeyMaterial(encryptionKey, macKey))
+            {
+                throw new ArgumentException("Encrypt stream requires a writable target and valid key material.");
+            }
+
+            // 随机 IV：相同明文/密钥每次加密产出不同密文，杜绝静态 IV 的前缀模式泄露
+            byte[] iv = new byte[IV_SIZE];
+            RandomNumberGenerator.Fill(iv);
+            target.Write(iv, 0, IV_SIZE);
+
+            var algorithm = Aes.Create();
+            algorithm.Key = encryptionKey;
+            algorithm.IV = iv;
+            ICryptoTransform encryptor = algorithm.CreateEncryptor();
+
+            // 链：CryptoStream(密文) → HmacWriteStream(喂 MAC + 关闭时追加摘要尾) → target；IV 先行喂入 HMAC
+            var hmacStream = new HmacWriteStream(target, macKey);
+            hmacStream.Feed(iv, 0, IV_SIZE);
+            var cryptoStream = new CryptoStream(hmacStream, encryptor, CryptoStreamMode.Write);
+            return new EncryptWriteStream(cryptoStream, hmacStream, encryptor, algorithm);
+        }
+
+        /// <summary>
+        /// HMAC-SHA256 增量写包装流：写入透传到底层流并增量喂入 HMAC；关闭时定稿摘要并追加到底层流末尾。
+        /// </summary>
+        private sealed class HmacWriteStream : Stream
+        {
+            /// <summary>底层目标流。</summary>
+            private readonly Stream _inner;
+
+            /// <summary>HMAC 机件。</summary>
+            private readonly HMACSHA256 _hmac;
+
+            /// <summary>是否已关闭（幂等守卫）。</summary>
+            private bool _disposed;
+
+            /// <summary>
+            /// 创建 HMAC 写包装流。
+            /// </summary>
+            /// <param name="inner">底层目标流。</param>
+            /// <param name="macKey">MAC 密钥。</param>
+            internal HmacWriteStream(Stream inner, byte[] macKey)
+            {
+                _inner = inner;
+                _hmac = new HMACSHA256(macKey);
+            }
+
+            /// <summary>
+            /// 手动喂入前缀数据（IV 等已写入底层流但需参与 HMAC 的前缀字节）。
+            /// </summary>
+            /// <param name="buffer">数据缓冲区。</param>
+            /// <param name="offset">起始偏移。</param>
+            /// <param name="count">字节数。</param>
+            internal void Feed(byte[] buffer, int offset, int count)
+            {
+                _hmac.TransformBlock(buffer, offset, count, null, 0);
+            }
+
+            /// <inheritdoc />
+            public override bool CanRead => false;
+
+            /// <inheritdoc />
+            public override bool CanSeek => false;
+
+            /// <inheritdoc />
+            public override bool CanWrite => true;
+
+            /// <inheritdoc />
+            public override long Length => throw new NotSupportedException();
+
+            /// <inheritdoc />
+            public override long Position
+            {
+                get => throw new NotSupportedException();
+                set => throw new NotSupportedException();
+            }
+
+            /// <inheritdoc />
+            public override void Write(byte[] buffer, int offset, int count)
+            {
+                _hmac.TransformBlock(buffer, offset, count, null, 0);
+                _inner.Write(buffer, offset, count);
+            }
+
+            /// <inheritdoc />
+            public override void Flush()
+            {
+                _inner.Flush();
+            }
+
+            /// <inheritdoc />
+            public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+
+            /// <inheritdoc />
+            public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+
+            /// <inheritdoc />
+            public override void SetLength(long value) => throw new NotSupportedException();
+
+            /// <inheritdoc />
+            protected override void Dispose(bool disposing)
+            {
+                if (disposing && !_disposed)
+                {
+                    _disposed = true;
+                    _hmac.TransformFinalBlock(Array.Empty<byte>(), 0, 0);
+                    byte[] mac = _hmac.Hash;
+                    _inner.Write(mac, 0, mac.Length);
+                    _hmac.Dispose();
+                }
+
+                base.Dispose(disposing);
+            }
+        }
+
+        /// <summary>
+        /// 加密写流组合体：写入面为 <see cref="CryptoStream"/>；关闭时按序收尾（密文补齐 → MAC 尾 → 机件释放）。
+        /// </summary>
+        private sealed class EncryptWriteStream : Stream
+        {
+            /// <summary>AES-CBC 加密流（写入面）。</summary>
+            private readonly CryptoStream _cryptoStream;
+
+            /// <summary>HMAC 中间层（密文喂入 + 关闭时追加摘要尾）。</summary>
+            private readonly HmacWriteStream _hmacStream;
+
+            /// <summary>加密变换器。</summary>
+            private readonly ICryptoTransform _encryptor;
+
+            /// <summary>AES 算法机件。</summary>
+            private readonly Aes _algorithm;
+
+            /// <summary>是否已关闭（幂等守卫）。</summary>
+            private bool _disposed;
+
+            /// <summary>
+            /// 创建加密写流组合体。
+            /// </summary>
+            /// <param name="cryptoStream">加密流（写入面）。</param>
+            /// <param name="hmacStream">HMAC 中间层。</param>
+            /// <param name="encryptor">加密变换器。</param>
+            /// <param name="algorithm">AES 算法机件。</param>
+            internal EncryptWriteStream(CryptoStream cryptoStream, HmacWriteStream hmacStream, ICryptoTransform encryptor, Aes algorithm)
+            {
+                _cryptoStream = cryptoStream;
+                _hmacStream = hmacStream;
+                _encryptor = encryptor;
+                _algorithm = algorithm;
+            }
+
+            /// <inheritdoc />
+            public override bool CanRead => false;
+
+            /// <inheritdoc />
+            public override bool CanSeek => false;
+
+            /// <inheritdoc />
+            public override bool CanWrite => true;
+
+            /// <inheritdoc />
+            public override long Length => throw new NotSupportedException();
+
+            /// <inheritdoc />
+            public override long Position
+            {
+                get => throw new NotSupportedException();
+                set => throw new NotSupportedException();
+            }
+
+            /// <inheritdoc />
+            public override void Write(byte[] buffer, int offset, int count)
+            {
+                _cryptoStream.Write(buffer, offset, count);
+            }
+
+            /// <inheritdoc />
+            public override void Flush()
+            {
+                _cryptoStream.Flush();
+            }
+
+            /// <inheritdoc />
+            public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+
+            /// <inheritdoc />
+            public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+
+            /// <inheritdoc />
+            public override void SetLength(long value) => throw new NotSupportedException();
+
+            /// <inheritdoc />
+            protected override void Dispose(bool disposing)
+            {
+                if (disposing && !_disposed)
+                {
+                    _disposed = true;
+                    _cryptoStream.FlushFinalBlock();
+                    _cryptoStream.Dispose();
+                    _hmacStream.Dispose();
+                    _encryptor.Dispose();
+                    _algorithm.Dispose();
+                }
+
+                base.Dispose(disposing);
+            }
+        }
+
+        #endregion
+
+        #region 流式读链 [STREAMING READ PIPELINE]
+
+        /// <summary>
+        /// 解密读链失败分型异常（携带 <see cref="SaveError"/>——读管线归一为对应错误码）。
+        /// </summary>
+        internal sealed class SaveDecryptStreamException : Exception
+        {
+            /// <summary>错误码。</summary>
+            internal readonly SaveError Error;
+
+            /// <summary>
+            /// 创建解密读链异常。
+            /// </summary>
+            /// <param name="error">错误码。</param>
+            /// <param name="message">异常消息。</param>
+            internal SaveDecryptStreamException(SaveError error, string message) : base(message)
+            {
+                Error = error;
+            }
+        }
+
+        /// <summary>
+        /// 打开解密读流（密钥材料直给）：源流读取 <c>[16B IV][密文][32B HMAC]</c> 布局的存储载荷——
+        /// <para>两遍流式（encrypt-then-MAC 语义完整）：第一遍流式 HMAC 预验（64KB 池化循环喂入 [IV‖密文]，比对尾部摘要，
+        /// 不符抛 <see cref="SaveDecryptStreamException"/>（<see cref="SaveError.IntegrityCheckFailed"/>）——先验证后解密，杜绝填充 oracle；
+        /// 预验通过后冻结载荷 CRC 包装层并 rewind 回载荷起点，第二遍限长 [IV‖密文] 解密链（HMAC 尾留在限长段外——任意时刻关闭均安全）。</para>
+        /// </summary>
+        /// <param name="source">存储载荷源流（<see cref="Crc32.Crc32ReadStream"/> 包装层——第一遍预验读取经此累计载荷 CRC；底层流须可寻址）。</param>
+        /// <param name="payloadLength">存储载荷总字节数（文件头口径——含 IV/密文/HMAC 尾）。</param>
+        /// <param name="encryptionKey">加密密钥（<see cref="ENCRYPTION_KEY_SIZE"/> 字节）。</param>
+        /// <param name="macKey">MAC 密钥（<see cref="MAC_SIZE"/> 字节）。</param>
+        /// <returns>解密读流（只读；调用方负责关闭）。</returns>
+        internal Stream OpenDecryptStreamWithMaterial(Stream source, long payloadLength, byte[] encryptionKey, byte[] macKey)
+        {
+            if (source == null || !IsValidKeyMaterial(encryptionKey, macKey))
+            {
+                throw new ArgumentException("Decrypt stream requires a readable source and valid key material.");
+            }
+
+            if (payloadLength < IV_SIZE + MIN_CIPHER_SIZE + MAC_SIZE)
+            {
+                throw new SaveDecryptStreamException(SaveError.InvalidFormat, "Encrypted payload shorter than the minimum layout.");
+            }
+
+            var crcStream = source as Crc32.Crc32ReadStream;
+            if (crcStream == null)
+            {
+                throw new ArgumentException("Decrypt stream requires the payload CRC wrapping stream (Crc32ReadStream).", nameof(source));
+            }
+
+            long payloadStart = crcStream.Inner.Position;
+
+            // 第一遍：流式 HMAC 预验（读取同时经 CRC 包装层累计校验值）——未过验不触碰解密器
+            VerifyMacStreaming(source, payloadLength, macKey);
+
+            // rewind：冻结 CRC（第二遍解密读不再重复喂入）并回到载荷起点
+            crcStream.Freeze();
+            crcStream.Seek(payloadStart, SeekOrigin.Begin);
+
+            // 第二遍：限长 [IV‖密文] 解密链（HMAC 尾留在限长段外，永不进入解密器）
+            var bounded = new BoundedStream(source, payloadLength - MAC_SIZE);
+            byte[] iv = ReadExactly(bounded, IV_SIZE);
+
+            var algorithm = Aes.Create();
+            algorithm.Key = encryptionKey;
+            algorithm.IV = iv;
+            ICryptoTransform decryptor = algorithm.CreateDecryptor();
+            var cryptoStream = new CryptoStream(bounded, decryptor, CryptoStreamMode.Read);
+            return new DecryptReadStream(cryptoStream, decryptor, algorithm);
+        }
+
+        /// <summary>
+        /// 流式 HMAC 预验：顺序读取 [IV‖密文] 增量喂入 HMAC，与尾部 32B 摘要常数时间比对。
+        /// </summary>
+        /// <param name="source">存储载荷源流（当前位置即载荷起点；读取经其 CRC 包装层累计校验值）。</param>
+        /// <param name="payloadLength">存储载荷总字节数（含 HMAC 尾）。</param>
+        /// <param name="macKey">MAC 密钥。</param>
+        private static void VerifyMacStreaming(Stream source, long payloadLength, byte[] macKey)
+        {
+            const int BufferSize = 64 * 1024;
+            byte[] buffer = System.Buffers.ArrayPool<byte>.Shared.Rent(BufferSize);
+            try
+            {
+                using (var hmac = new HMACSHA256(macKey))
+                {
+                    long remaining = payloadLength - MAC_SIZE;
+                    while (remaining > 0)
+                    {
+                        int read = source.Read(buffer, 0, (int)Math.Min(buffer.Length, remaining));
+                        if (read == 0)
+                        {
+                            throw new SaveDecryptStreamException(SaveError.InvalidFormat, "Unexpected end of encrypted payload.");
+                        }
+
+                        hmac.TransformBlock(buffer, 0, read, null, 0);
+                        remaining -= read;
+                    }
+
+                    byte[] expectedMac = ReadExactly(source, MAC_SIZE);
+                    hmac.TransformFinalBlock(Array.Empty<byte>(), 0, 0);
+                    if (!CryptographicOperations.FixedTimeEquals(hmac.Hash, expectedMac))
+                    {
+                        throw new SaveDecryptStreamException(SaveError.IntegrityCheckFailed, "Save payload HMAC mismatch (tampered or wrong key).");
+                    }
+                }
+            }
+            finally
+            {
+                System.Buffers.ArrayPool<byte>.Shared.Return(buffer);
+            }
+        }
+
+        /// <summary>
+        /// 自源流精确读取指定字节数（读不足判别为格式损坏）。
+        /// </summary>
+        /// <param name="source">源流。</param>
+        /// <param name="count">字节数。</param>
+        /// <returns>读到的字节。</returns>
+        private static byte[] ReadExactly(Stream source, int count)
+        {
+            var buffer = new byte[count];
+            int total = 0;
+            while (total < count)
+            {
+                int read = source.Read(buffer, total, count - total);
+                if (read == 0)
+                {
+                    throw new SaveDecryptStreamException(SaveError.InvalidFormat, "Unexpected end of encrypted payload.");
+                }
+
+                total += read;
+            }
+
+            return buffer;
+        }
+
+        /// <summary>
+        /// 限长读包装流：仅暴露源流前 N 字节（尾部字节留在底层流中供后续顺序读取——HMAC 尾剥离的核心机件）。
+        /// </summary>
+        private sealed class BoundedStream : Stream
+        {
+            /// <summary>底层源流。</summary>
+            private readonly Stream _inner;
+
+            /// <summary>剩余可暴露字节数。</summary>
+            private long _remaining;
+
+            /// <summary>
+            /// 创建限长读包装流。
+            /// </summary>
+            /// <param name="inner">底层源流。</param>
+            /// <param name="maxBytes">暴露的最大字节数。</param>
+            internal BoundedStream(Stream inner, long maxBytes)
+            {
+                _inner = inner;
+                _remaining = maxBytes;
+            }
+
+            /// <summary>底层源流（读尽段外尾部用）。</summary>
+            internal Stream Inner => _inner;
+
+            /// <inheritdoc />
+            public override bool CanRead => true;
+
+            /// <inheritdoc />
+            public override bool CanSeek => false;
+
+            /// <inheritdoc />
+            public override bool CanWrite => false;
+
+            /// <inheritdoc />
+            public override long Length => _remaining;
+
+            /// <inheritdoc />
+            public override long Position
+            {
+                get => throw new NotSupportedException();
+                set => throw new NotSupportedException();
+            }
+
+            /// <inheritdoc />
+            public override int Read(byte[] buffer, int offset, int count)
+            {
+                if (_remaining <= 0)
+                {
+                    return 0;
+                }
+
+                int read = _inner.Read(buffer, offset, (int)Math.Min(count, _remaining));
+                _remaining -= read;
+                return read;
+            }
+
+            /// <inheritdoc />
+            public override void Flush()
+            {
+            }
+
+            /// <inheritdoc />
+            public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+
+            /// <inheritdoc />
+            public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+
+            /// <inheritdoc />
+            public override void SetLength(long value) => throw new NotSupportedException();
+        }
+
+        /// <summary>
+        /// 解密读流组合体：读取面为 <see cref="CryptoStream"/>（HMAC 已预验——限长源流读尽即密文恰好耗尽）。
+        /// <para>关闭语义：Mono 读模式 <see cref="CryptoStream"/> 的 Dispose 会对剩余数据 FinalDecrypt——
+        /// 限长段内剩余恒为合法密文（HMAC 尾在段外），但提前关闭时末块不完整会抛填充异常，此处吞并（提前关闭语义，数据未消费不完整非错误）。</para>
+        /// </summary>
+        private sealed class DecryptReadStream : Stream
+        {
+            /// <summary>AES-CBC 解密流（读取面）。</summary>
+            private readonly CryptoStream _cryptoStream;
+
+            /// <summary>解密变换器。</summary>
+            private readonly ICryptoTransform _decryptor;
+
+            /// <summary>AES 算法机件。</summary>
+            private readonly Aes _algorithm;
+
+            /// <summary>是否已关闭（幂等守卫）。</summary>
+            private bool _disposed;
+
+            /// <summary>
+            /// 创建解密读流组合体。
+            /// </summary>
+            /// <param name="cryptoStream">解密流（读取面）。</param>
+            /// <param name="decryptor">解密变换器。</param>
+            /// <param name="algorithm">AES 算法机件。</param>
+            internal DecryptReadStream(CryptoStream cryptoStream, ICryptoTransform decryptor, Aes algorithm)
+            {
+                _cryptoStream = cryptoStream;
+                _decryptor = decryptor;
+                _algorithm = algorithm;
+            }
+
+            /// <inheritdoc />
+            public override bool CanRead => true;
+
+            /// <inheritdoc />
+            public override bool CanSeek => false;
+
+            /// <inheritdoc />
+            public override bool CanWrite => false;
+
+            /// <inheritdoc />
+            public override long Length => throw new NotSupportedException();
+
+            /// <inheritdoc />
+            public override long Position
+            {
+                get => throw new NotSupportedException();
+                set => throw new NotSupportedException();
+            }
+
+            /// <inheritdoc />
+            public override int Read(byte[] buffer, int offset, int count)
+            {
+                return _cryptoStream.Read(buffer, offset, count);
+            }
+
+            /// <inheritdoc />
+            public override void Flush()
+            {
+            }
+
+            /// <inheritdoc />
+            public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+
+            /// <inheritdoc />
+            public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+
+            /// <inheritdoc />
+            public override void SetLength(long value) => throw new NotSupportedException();
+
+            /// <inheritdoc />
+            protected override void Dispose(bool disposing)
+            {
+                if (disposing && !_disposed)
+                {
+                    _disposed = true;
+                    try
+                    {
+                        _cryptoStream.Dispose();
+                    }
+                    catch (CryptographicException)
+                    {
+                        // 提前关闭（未读尽）时 Mono 读模式 CryptoStream 对不完整末块 FinalDecrypt 抛填充异常——提前关闭语义，吞并
+                    }
+
+                    _decryptor.Dispose();
+                    _algorithm.Dispose();
+                }
+
+                base.Dispose(disposing);
+            }
+        }
+
+        #endregion
+
         #region 私有方法 [PRIVATE METHODS]
 
         /// <summary>

@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using Sirenix.OdinInspector;
 using UnityEngine;
 
@@ -38,40 +39,37 @@ namespace Moirai.Atropos.Save
         /// 载荷变换：容器字节加密为存储载荷（区间直通 <see cref="SaveEncryptor"/>，无二次拷贝）。
         /// </summary>
         /// <param name="container">容器字节视图。</param>
-        /// <param name="payload">存储载荷视图。</param>
-        /// <returns>错误码。</returns>
-        protected internal sealed override SaveError OnTransformContainer(SaveBufferSegment container, out SaveBufferSegment payload)
+        /// <summary>
+        /// 载荷写流包装：叠加 AES-256-CBC + HMAC 加密链（明文经返回流写入即加密落存储目标流，关闭收尾末块与 MAC 尾）。
+        /// </summary>
+        /// <param name="target">存储目标流（载荷 CRC 包装层）。</param>
+        /// <returns>加密写入流（只写；调用方负责关闭以收尾加密帧）。</returns>
+        protected internal sealed override Stream OpenPayloadWriteStream(Stream target)
         {
             SaveError keyError = KeyProvider.TryGetKeyMaterial(out byte[] encryptionKey, out byte[] macKey);
             if (keyError != SaveError.None)
             {
-                payload = default;
-                return keyError;
+                throw new GameException(StringUtility.Format("Save encryption key unavailable, error: {0}.", keyError));
             }
 
-            SaveError error = Encryptor.TryEncryptWithMaterial(container.Buffer, container.Offset, container.Length, encryptionKey, macKey, out byte[] encrypted);
-            payload = encrypted != null ? SaveBufferSegment.FromExact(encrypted) : default;
-            return error;
+            return Encryptor.OpenEncryptStreamWithMaterial(target, encryptionKey, macKey);
         }
 
         /// <summary>
-        /// 载荷还原：存储载荷验证并解密为容器字节（区间直通 <see cref="SaveEncryptor"/>，无二次拷贝）。
+        /// 载荷读流包装：叠加 AES-256-CBC + HMAC 解密链（源流读取即解密，读尽时 HMAC 定稿比对）。
         /// </summary>
-        /// <param name="payload">存储载荷视图。</param>
-        /// <param name="container">成功时的容器字节视图。</param>
-        /// <returns>错误码（<see cref="SaveError.IntegrityCheckFailed"/> = 疑似篡改；<see cref="SaveError.DecryptionFailed"/> = 密钥不匹配/密文非法）。</returns>
-        protected internal sealed override SaveError OnRestorePayload(SaveBufferSegment payload, out SaveBufferSegment container)
+        /// <param name="source">存储载荷源流（载荷 CRC 增量包装层）。</param>
+        /// <param name="payloadLength">存储载荷总字节数（文件头口径）。</param>
+        /// <returns>解密读流（只读；调用方负责关闭）。</returns>
+        protected internal sealed override Stream OpenPayloadReadStream(Stream source, long payloadLength)
         {
             SaveError keyError = KeyProvider.TryGetKeyMaterial(out byte[] encryptionKey, out byte[] macKey);
             if (keyError != SaveError.None)
             {
-                container = default;
-                return keyError;
+                throw new SaveEncryptor.SaveDecryptStreamException(keyError, "Save decryption key unavailable.");
             }
 
-            SaveError error = Encryptor.TryDecryptWithMaterial(payload.Buffer, payload.Offset, payload.Length, encryptionKey, macKey, out byte[] decrypted);
-            container = decrypted != null ? SaveBufferSegment.FromExact(decrypted) : default;
-            return error;
+            return Encryptor.OpenDecryptStreamWithMaterial(source, payloadLength, encryptionKey, macKey);
         }
     }
 }
