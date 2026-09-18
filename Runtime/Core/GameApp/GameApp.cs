@@ -1,27 +1,23 @@
-﻿using System;
+using System;
 using System.Collections;
-using Cysharp.Threading.Tasks;
-using Moirai.Atropos.Audio;
 using Moirai.Atropos.Events;
-using Moirai.Atropos.Resource;
-using Moirai.Atropos.UI;
+using Moirai.Atropos.FrameLoop;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UObject = UnityEngine.Object;
 
 namespace Moirai.Atropos
 {
-    /// <summary>
-    /// 游戏入口。负责生命周期驱动与服务世界轮询。
-    /// <para>服务访问：业务代码一律通过各服务的静态外观（如 <see cref="AudioService"/>、<see cref="ResourceService"/>、<see cref="UIService"/>）；
-    /// 动态服务查找统一走 <see cref="GameServices.GetRequiredService{T}"/> 等静态方法。</para>
-    /// </summary>
     public partial class GameApp
     {
         #region 属性 [PROPERTIES]
 
+        /// <summary>
+        /// 协程 / Editor Gizmos / ApplicationPause 宿主。
+        /// <para>帧逻辑驱动已迁至 <see cref="PlayerLoopDriver"/>——本宿主被销毁不再丢失逻辑订阅。</para>
+        /// </summary>
         private static GameObject s_Entity;
-        private static MainBehaviour s_Behaviour;
+        private static CoroutineHost s_Behaviour;
 
         /// <summary>
         /// 获取游戏是否已关闭。
@@ -97,10 +93,13 @@ namespace Moirai.Atropos
             // 因此 Scene/Gameplay 服务的 Shutdown() 不得访问场景对象。
             SceneManager.sceneUnloaded += OnSceneUnloaded;
 
-            // 确定性创建默认服务世界（幂等——已创建则取回既有实例）
-            _ = GameServices.Default;
+            // 注入 PlayerLoop 并挂接框架 Tick（静态注册表，与场景/宿主无关）
+            PlayerLoopDriver.Initialize();
+            RegisterBuiltinDrivers();
 
-            MakeEntity();
+            // 协程宿主：仅供 Coroutine / Gizmos / ApplicationPause，不承载帧订阅
+            MakeCoroutineHost();
+
             GameTime.StartFrame();
         }
 
@@ -121,8 +120,14 @@ namespace Moirai.Atropos
 
             SceneManager.sceneUnloaded -= OnSceneUnloaded;
 
+            // Destroy 订阅由 PlayerLoopDriver.Shutdown 广播并清空；随后恢复默认 PlayerLoop
+            UnregisterBuiltinDrivers();
+            PlayerLoopDriver.Shutdown();
+
             GameServices.Shutdown();
             if (s_Entity != null) UObject.Destroy(s_Entity);
+            s_Entity = null;
+            s_Behaviour = null;
 
             // 释放缓存的从进程的非托管内存中分配的内存。
             MarshalUtility.FreeCachedHGlobal();
@@ -176,8 +181,8 @@ namespace Moirai.Atropos
         {
             if (string.IsNullOrEmpty(methodName)) return null;
 
-            MakeEntity();
-            return s_Behaviour?.StartCoroutine(methodName);
+            MakeCoroutineHost();
+            return s_Behaviour != null ? s_Behaviour.StartCoroutine(methodName) : null;
         }
 
         /// <summary>
@@ -187,8 +192,8 @@ namespace Moirai.Atropos
         {
             if (routine == null) return null;
 
-            MakeEntity();
-            return s_Behaviour?.StartCoroutine(routine);
+            MakeCoroutineHost();
+            return s_Behaviour != null ? s_Behaviour.StartCoroutine(routine) : null;
         }
 
         /// <summary>
@@ -198,8 +203,8 @@ namespace Moirai.Atropos
         {
             if (string.IsNullOrEmpty(methodName)) return null;
 
-            MakeEntity();
-            return s_Behaviour?.StartCoroutine(methodName, value);
+            MakeCoroutineHost();
+            return s_Behaviour != null ? s_Behaviour.StartCoroutine(methodName, value) : null;
         }
 
         /// <summary>
@@ -245,18 +250,11 @@ namespace Moirai.Atropos
         #region 注入 Unity Update [INJECT UNITY UPDATE]
 
         /// <summary>
-        /// 添加帧更新事件。
+        /// 添加帧更新事件。订阅写入 <see cref="PlayerLoopDriver"/> 静态表，宿主销毁不丢失。
         /// </summary>
         public static void AddUpdateListener(Action action)
         {
-            AddUpdateListenerImp(action).Forget();
-        }
-
-        private static async UniTaskVoid AddUpdateListenerImp(Action action)
-        {
-            await UniTask.Yield();
-            MakeEntity();
-            s_Behaviour?.AddUpdateEvent(action);
+            PlayerLoopDriver.AddUpdateCallback(action);
         }
 
         /// <summary>
@@ -264,14 +262,7 @@ namespace Moirai.Atropos
         /// </summary>
         public static void AddFixedUpdateListener(Action action)
         {
-            AddFixedUpdateListenerImp(action).Forget();
-        }
-
-        private static async UniTaskVoid AddFixedUpdateListenerImp(Action action)
-        {
-            await UniTask.Yield(PlayerLoopTiming.LastEarlyUpdate);
-            MakeEntity();
-            s_Behaviour?.AddFixedUpdateEvent(action);
+            PlayerLoopDriver.AddFixedUpdateCallback(action);
         }
 
         /// <summary>
@@ -279,14 +270,7 @@ namespace Moirai.Atropos
         /// </summary>
         public static void AddLateUpdateListener(Action action)
         {
-            AddLateUpdateListenerImp(action).Forget();
-        }
-
-        private static async UniTaskVoid AddLateUpdateListenerImp(Action action)
-        {
-            await UniTask.Yield();
-            MakeEntity();
-            s_Behaviour?.AddLateUpdateEvent(action);
+            PlayerLoopDriver.AddLateUpdateCallback(action);
         }
 
         /// <summary>
@@ -294,7 +278,7 @@ namespace Moirai.Atropos
         /// </summary>
         public static void RemoveUpdateListener(Action action)
         {
-            s_Behaviour?.RemoveUpdateEvent(action);
+            PlayerLoopDriver.RemoveUpdateCallback(action);
         }
 
         /// <summary>
@@ -302,7 +286,7 @@ namespace Moirai.Atropos
         /// </summary>
         public static void RemoveFixedUpdateListener(Action action)
         {
-            s_Behaviour?.RemoveFixedUpdateEvent(action);
+            PlayerLoopDriver.RemoveFixedUpdateCallback(action);
         }
 
         /// <summary>
@@ -310,7 +294,7 @@ namespace Moirai.Atropos
         /// </summary>
         public static void RemoveLateUpdateListener(Action action)
         {
-            s_Behaviour?.RemoveLateUpdateEvent(action);
+            PlayerLoopDriver.RemoveLateUpdateCallback(action);
         }
 
         #endregion
@@ -318,12 +302,11 @@ namespace Moirai.Atropos
         #region Unity 事件注入 [UNITY EVENTS INJECT]
 
         /// <summary>
-        /// 注册Destroy事件。
+        /// 注册Destroy事件。在 <see cref="Shutdown"/> 时广播。
         /// </summary>
         public static void AddDestroyListener(Action action)
         {
-            MakeEntity();
-            s_Behaviour?.AddDestroyEvent(action);
+            PlayerLoopDriver.AddDestroyCallback(action);
         }
 
         /// <summary>
@@ -331,15 +314,15 @@ namespace Moirai.Atropos
         /// </summary>
         public static void RemoveDestroyListener(Action action)
         {
-            s_Behaviour?.RemoveDestroyEvent(action);
+            PlayerLoopDriver.RemoveDestroyCallback(action);
         }
 
         /// <summary>
-        /// 注册OnDrawGizmos事件。
+        /// 注册OnDrawGizmos事件（仅编辑器，仍需 CoroutineHost）。
         /// </summary>
         public static void AddOnDrawGizmosListener(Action action)
         {
-            MakeEntity();
+            MakeCoroutineHost();
             s_Behaviour?.AddDrawGizmosEvent(action);
         }
 
@@ -352,11 +335,11 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 注册OnDrawGizmosSelected事件。
+        /// 注册OnDrawGizmosSelected事件（仅编辑器，仍需 CoroutineHost）。
         /// </summary>
         public static void AddOnDrawGizmosSelectedListener(Action action)
         {
-            MakeEntity();
+            MakeCoroutineHost();
             s_Behaviour?.AddDrawGizmosSelectedEvent(action);
         }
 
@@ -373,8 +356,7 @@ namespace Moirai.Atropos
         /// </summary>
         public static void AddOnApplicationPauseListener(Action<bool> action)
         {
-            MakeEntity();
-            s_Behaviour?.AddApplicationPauseEvent(action);
+            PlayerLoopDriver.AddApplicationPauseCallback(action);
         }
 
         /// <summary>
@@ -382,36 +364,54 @@ namespace Moirai.Atropos
         /// </summary>
         public static void RemoveOnApplicationPauseListener(Action<bool> action)
         {
-            s_Behaviour?.RemoveApplicationPauseEvent(action);
+            PlayerLoopDriver.RemoveApplicationPauseCallback(action);
         }
 
         #endregion
 
         #region 私有方法 [PRIVATE METHODS]
 
-        private static void MakeEntity()
+        private static void RegisterBuiltinDrivers()
+        {
+            PlayerLoopDriver.AddUpdateCallback(Tick);
+            PlayerLoopDriver.AddFixedUpdateCallback(FixedTick);
+            PlayerLoopDriver.AddLateUpdateCallback(LateTick);
+            PlayerLoopDriver.AddApplicationFocusCallback(ApplicationFocus);
+            PlayerLoopDriver.AddApplicationQuitCallback(ApplicationQuit);
+        }
+
+        private static void UnregisterBuiltinDrivers()
+        {
+            PlayerLoopDriver.RemoveUpdateCallback(Tick);
+            PlayerLoopDriver.RemoveFixedUpdateCallback(FixedTick);
+            PlayerLoopDriver.RemoveLateUpdateCallback(LateTick);
+            PlayerLoopDriver.RemoveApplicationFocusCallback(ApplicationFocus);
+            PlayerLoopDriver.RemoveApplicationQuitCallback(ApplicationQuit);
+        }
+
+        private static void MakeCoroutineHost()
         {
 #if UNITY_EDITOR
             if (!Application.isPlaying) return;
 #endif
 
+            // 宿主被意外销毁时惰性重建；帧订阅在 PlayerLoopDriver，不依赖本宿主
             if (s_Entity == null)
             {
-                s_Entity = new GameObject("[UpdateDriver]");
+                s_Entity = new GameObject("[CoroutineHost]");
                 s_Entity.SetActive(true);
                 UObject.DontDestroyOnLoad(s_Entity);
             }
 
             if (s_Behaviour == null)
             {
-                s_Behaviour = s_Entity.AddComponent<MainBehaviour>();
+                s_Behaviour = s_Entity.GetComponent<CoroutineHost>();
+                if (s_Behaviour == null)
+                {
+                    s_Behaviour = s_Entity.AddComponent<CoroutineHost>();
+                }
 
-                // 驱动内置服务
-                s_Behaviour.AddUpdateEvent(Tick);
-                s_Behaviour.AddFixedUpdateEvent(FixedTick);
-                s_Behaviour.AddLateUpdateEvent(LateTick);
-                s_Behaviour.AddApplicationFocusEvent(ApplicationFocus);
-                s_Behaviour.AddApplicationQuitEvent(ApplicationQuit);
+                s_Behaviour.AddApplicationPauseEvent(PlayerLoopDriver.RaiseApplicationPause);
                 s_Behaviour.AddDrawGizmosEvent(DrawGizmos);
             }
         }
@@ -434,7 +434,6 @@ namespace Moirai.Atropos
             GameServices.ShutdownContainer(EServiceScopeKind.Gameplay);
             GameServices.ShutdownContainer(EServiceScopeKind.Scene);
         }
-
 
         private static void Tick()
         {
@@ -478,6 +477,5 @@ namespace Moirai.Atropos
         }
 
         #endregion
-
     }
 }
