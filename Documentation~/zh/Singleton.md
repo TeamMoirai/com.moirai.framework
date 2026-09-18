@@ -109,4 +109,4 @@ SingletonRegisterMono<FxPlayer>.Instance.Play("explosion");
 `SingletonRegisterMono<T>` 的物化同样仅限主线程（越线程抛 `GameException`）。需要查找、多实例消解或生命周期回调时请改用 `SingletonMono<T>`。
 
 ---
-[« 返回文档索引](Index.md) · [主 README](../../README.md) · [Core](Core.md) · [UpdateDriver](UpdateDriver.md)
+[« 返回文档索引](Index.md) · [主 README](../../README.md) · [Core](Core.md) · [GameApp](GameApp.md)

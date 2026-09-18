@@ -4,9 +4,9 @@
 
 ## Background
 
-The previous `GameApp` stored `Update`/`FixedUpdate`/`LateUpdate` listeners on a hidden host `MainBehaviour` (`[UpdateDriver]`). That host could be destroyed before the initial scene load, silently dropping all subscriptions.
+The previous `GameApp` stored `Update`/`FixedUpdate`/`LateUpdate` listeners on **instance events** of a hidden Mono host. That host could be destroyed before the initial scene load, silently dropping all subscriptions.
 
-`Runtime/Services/Timer` (`TimerService`) is the unified timing subsystem (four-level timing wheel + frame timers), exposing `Delay` / `WaitFrame` and friends. It subscribes to this driver itself as an `IUpdateHandler` / `IFixedUpdateHandler` / `ILateUpdateHandler` and is advanced by the PlayerLoop per phase, rather than driving game logic in reverse.
+`Runtime/Services/Timer` (`TimerService`) is the unified timing subsystem (four-level timing wheel + frame timers), exposing `Delay` / `WaitFrame` and friends. It is advanced through `IServiceTickable` by `GameServices.Tick`, which is itself registered as an Update callback on this driver. `IUpdateHandler` targets game-side systems and DI composition roots — do not confuse the two paths.
 
 ## Architecture
 
@@ -16,8 +16,8 @@ The previous `GameApp` stored `Update`/`FixedUpdate`/`LateUpdate` listeners on a
 | `Moirai.Atropos.FrameLoop.PlayerLoopInjector` | Inject/restore Unity `PlayerLoopSystem` |
 | `IUpdateHandler` / `IFixedUpdateHandler` / `ILateUpdateHandler` | Interface handlers (recommended, DI-friendly) |
 | `IPlayerLoopPriority` | Optional drive order (lower runs first) |
-| `GameApp` static APIs | Compatibility facade forwarding to Driver |
-| `CoroutineHost` | Coroutines / Gizmos / ApplicationPause only |
+| `GameApp` static APIs | Compatibility facade forwarding to Driver; holds no MonoBehaviour |
+| `GameAppHost` | The single lightweight Mono host: coroutines / Gizmos / ApplicationPause, forwarding only |
 
 Injection points:
 
@@ -26,6 +26,8 @@ Injection points:
 - End of `PlayerLoop.PreLateUpdate` → Framework LateUpdate (after MonoBehaviour.LateUpdate)
 
 Injection uses the **current** PlayerLoop so UniTask and other systems are preserved. Default loop is captured at `SubsystemRegistration` and restored on Shutdown.
+
+Each Drive entry samples the frame clock with `GameTime.StartFrame()` before invoking handlers and then callbacks — **both subscription kinds read the same frame**.
 
 ## Quick Start
 
@@ -52,16 +54,17 @@ GameApp.AddUpdateListener(OnUpdate);
 `DriveUpdate` / `DriveFixedUpdate` / `DriveLateUpdate` and all handler implementations:
 
 - `for` loops only; no LINQ / closures / string concat
-- Register/unregister during drive is deferred until after iteration
+- Register/unregister during drive is deferred into the pending buffer **of that stage**, committed when the stage finishes; cross-stage registrations never leak into each other
+- A throwing subscriber cannot wedge the driving flag: `finally` resets it and commits the buffers
 - Profiler markers: `PlayerLoopDriver.Update`, etc.
 
 ## Lifecycle
 
 | Moment | Behavior |
 |------|------|
-| `SubsystemRegistration` | Capture default PlayerLoop; Driver marked Shutdown |
-| `GameApp.Initialize` (AfterAssembliesLoaded) | `PlayerLoopDriver.Initialize()` injects + registers builtin ticks |
-| `GameApp.Shutdown` / exit Play | Broadcast Destroy → clear registry → restore default PlayerLoop |
+| `SubsystemRegistration` | Capture default PlayerLoop; Driver marked Shutdown; `GameAppHost` clears its shutdown flag |
+| `GameApp.Initialize` (AfterAssembliesLoaded) | `PlayerLoopDriver.Initialize()` injects + registers builtin ticks, then materializes `GameAppHost` |
+| `GameApp.Shutdown` / exit Play | Broadcast Destroy → clear registry → restore default PlayerLoop → destroy host |
 | After ECS resets PlayerLoop | Call `PlayerLoopInjector.Reinject()` |
 
 ## DI (VContainer etc.)
@@ -77,8 +80,9 @@ PlayerLoopDriver.Register(system);
 
 - **UniTask**: injection bases on current loop and does not overwrite UniTask systems; restoring default on Play exit lets UniTask re-init next Play.
 - **ECS/DOTS**: call `PlayerLoopInjector.Reinject()` after Entities resets the loop.
-- **ApplicationPause**: no pure C# API — `CoroutineHost` forwards to `PlayerLoopDriver.RaiseApplicationPause`.
-- **Coroutines**: still require `GameApp.StartCoroutine` (`[CoroutineHost]`); host destruction does not affect frame subscriptions.
+- **ApplicationPause**: Unity exposes no pure C# event — `GameAppHost.OnApplicationPause` forwards to `PlayerLoopDriver.RaiseApplicationPause`. Subscriptions live in the static table, so rebuilding the host restores dispatch.
+- **Gizmos**: same pattern — `GameAppHost.OnDrawGizmos(Selected)` forwards to `PlayerLoopDriver.RaiseDrawGizmos(Selected)`. Only the editor has a dispatcher; in builds the table is never raised.
+- **Coroutines**: `GameApp.StartCoroutine` goes through `GameAppHost.Instance`; destroying the host only kills running coroutines, never subscriptions.
 
 ## Editor Debugging
 
@@ -89,4 +93,4 @@ Menu **Window → PlayerLoop Debugger**:
 - Buttons: Ensure Injected / Reinject / Restore Default
 
 ---
-[« Documentation Index](Index.md) · [UpdateDriver](UpdateDriver.md)
+[« Documentation Index](Index.md) · [GameApp](GameApp.md)

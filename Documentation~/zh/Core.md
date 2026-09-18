@@ -1,6 +1,6 @@
 # Core 服务系统（@Service）
 
-> 框架的服务化基座：以统一服务世界（`ServiceWorld`）管理所有子服务的构造、生命周期、轮询与作用域，并由 `GameApp`（MonoBehaviour）驱动。
+> 框架的服务化基座：以统一服务世界（`ServiceWorld`）管理所有子服务的构造、生命周期、轮询与作用域，并由 `GameApp`（静态外观，不含 MonoBehaviour）经 PlayerLoop 驱动。
 
 `@Service` 是整个框架的服务基础设施。所有功能服务（资源、UI、音频、计时器等）均为继承 `ServiceBase` 的普通 C# 类，依赖通过 `[ServiceDependency(typeof(...))]` 特性声明；世界构建为两阶段——`GameServices.RegisterService<T>(scope, service)` 仅将服务入图，组合根统一调用 `GameServices.Default.InitializeAsync()` 按依赖图拓扑排序驱动全部 `OnInit`（缺失依赖/循环依赖 fail-fast，初始化顺序与注册顺序无关）；运行时（世界已初始化后）注册的服务立即初始化。非服务代码通过各服务的静态外观访问（如 `AudioService.Xxx()`、`UIService.Xxx()`、`ResourceService.Xxx()`），动态服务查找统一走 `GameServices.GetRequiredService<T>()` 等静态方法。服务支持 App/Scene/Gameplay 三级作用域，跨作用域通过内联 3 槽绑定值类型 struct 实现 O(1) 查找（Gameplay > Scene > App 优先级），场景卸载时自动清理场景与玩法级服务。`ServiceWorld` 可实例化（`new ServiceWorld()`）——测试与沙盒场景可构造隔离世界，不触碰 `GameServices.Default`。
 
@@ -50,7 +50,7 @@
 | `FrameworkHandler` | 处理器基类（`[Serializable]`）：幂等 `Internal_Init`/`Internal_Shutdown` + 同步/异步生命周期回调；所有 XxxHandler 的基类 |
 | `ServiceScopeOrder` | 作用域优先级常量（App=-10000, Scene=-5000, Gameplay=0） |
 | `ServicePriorityOrder` | 框架内置服务轮询优先级常量（全部 ≤ -1000，与业务服务分带） |
-| `GameApp` | MonoBehaviour 入口（`[DefaultExecutionOrder(-1000)]`）；驱动 `GameAppSettings.Initiation`、按帧驱动 `GameServices.Tick` 并在销毁时调用 `GameServices.Shutdown` |
+| `GameApp` | 静态外观入口（不含 MonoBehaviour）：由 `GameAppSettings.Initiation` 在 `AfterAssembliesLoaded` 初始化，向 `PlayerLoopDriver` 注册内置 Tick 以按帧驱动 `GameServices.Tick`，`Shutdown` 时调用 `GameServices.Shutdown`；协程/Gizmos/Pause 委托 `GameAppHost` |
 | `GameAppMessageEvent` / `EMessageEventType` | 命名空间 `Moirai.Atropos.Events`，框架级池化事件（对焦/失焦/退出、SDK 回调） |
 
 ## 快速上手
@@ -97,7 +97,7 @@ GameServices.ShutdownContainer(EServiceScopeKind.Gameplay);
 
 ### HandlerHost 服务架构
 
-框架的 12 个内置服务（UpdateDriver/Resource/Debugger/Audio/ObjectPool/Procedure/Localization/Scene/Timer/Save/UI/Input）统一采用三层结构：
+框架的 11 个内置服务（Resource/Debugger/Audio/ObjectPool/Procedure/Localization/Scene/Timer/Save/UI/Input）统一采用三层结构：
 
 | 层 | 形态 | 职责 |
 |------|------|------|
@@ -173,7 +173,6 @@ public class BattleService : ServiceBase
 框架组合根：`GameAppSettings.InitializeAppServices()`（`AfterAssembliesLoaded` 阶段调用）手动按依赖链序显式注册全部链上服务：
 
 ```csharp
-GameServices.RegisterService(EServiceScopeKind.App, new UpdateDriverService());
 GameServices.RegisterService(EServiceScopeKind.App, new ResourceService());
 GameServices.RegisterService(EServiceScopeKind.App, new TimerService());
 GameServices.RegisterService(EServiceScopeKind.App, new UIService());
@@ -366,4 +365,4 @@ await GameServices.ShutdownAsync();
 - 编辑器下退出 Play 模式时 `GameApp` 会自动调用 `GameServices.Shutdown()`，兼容跳过域重载的 Enter Play Mode Options 设置。
 
 ---
-[« 返回文档索引](Index.md) · [主 README](../../README.md) · [Timer](Timer.md) · [UpdateDriver](UpdateDriver.md) · [Singleton](Singleton.md)
+[« 返回文档索引](Index.md) · [主 README](../../README.md) · [Timer](Timer.md) · [GameApp](GameApp.md) · [Singleton](Singleton.md)

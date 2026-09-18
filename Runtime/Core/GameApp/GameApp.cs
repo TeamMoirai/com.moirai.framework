@@ -4,20 +4,17 @@ using Moirai.Atropos.Events;
 using Moirai.Atropos.FrameLoop;
 using UnityEngine;
 using UnityEngine.SceneManagement;
-using UObject = UnityEngine.Object;
 
 namespace Moirai.Atropos
 {
+    /// <summary>
+    /// 游戏框架静态外观：生命周期、协程、帧与 Unity 事件订阅。
+    /// <para>本类不含任何 MonoBehaviour 成员：帧逻辑订阅由 <see cref="PlayerLoopDriver"/> 的静态注册表驱动，
+    /// Unity 只在 MonoBehaviour 上派发的消息（协程 / Gizmos / ApplicationPause）由 <see cref="GameAppHost"/> 承接。</para>
+    /// </summary>
     public partial class GameApp
     {
         #region 属性 [PROPERTIES]
-
-        /// <summary>
-        /// 协程 / Editor Gizmos / ApplicationPause 宿主。
-        /// <para>帧逻辑驱动已迁至 <see cref="PlayerLoopDriver"/>——本宿主被销毁不再丢失逻辑订阅。</para>
-        /// </summary>
-        private static GameObject s_Entity;
-        private static CoroutineHost s_Behaviour;
 
         /// <summary>
         /// 获取游戏是否已关闭。
@@ -97,15 +94,15 @@ namespace Moirai.Atropos
             PlayerLoopDriver.Initialize();
             RegisterBuiltinDrivers();
 
-            // 协程宿主：仅供 Coroutine / Gizmos / ApplicationPause，不承载帧订阅
-            MakeCoroutineHost();
+            // 协程 / Gizmos / ApplicationPause 宿主：主线程物化一次，不承载帧订阅
+            GameAppHost.Bootstrap();
 
             GameTime.StartFrame();
         }
 
         /// <summary>
         /// 关闭游戏框架。幂等——重复调用安全。
-        /// 统一入口：编辑器退出 Play 模式和 OnDestroy 均通过此方法清理。
+        /// 统一入口：编辑器退出 Play 模式与 ApplicationQuit 均通过此方法清理。
         /// </summary>
         internal static void Shutdown()
         {
@@ -125,9 +122,7 @@ namespace Moirai.Atropos
             PlayerLoopDriver.Shutdown();
 
             GameServices.Shutdown();
-            if (s_Entity != null) UObject.Destroy(s_Entity);
-            s_Entity = null;
-            s_Behaviour = null;
+            GameAppHost.Release();
 
             // 释放缓存的从进程的非托管内存中分配的内存。
             MarshalUtility.FreeCachedHGlobal();
@@ -181,8 +176,8 @@ namespace Moirai.Atropos
         {
             if (string.IsNullOrEmpty(methodName)) return null;
 
-            MakeCoroutineHost();
-            return s_Behaviour != null ? s_Behaviour.StartCoroutine(methodName) : null;
+            GameAppHost host = GameAppHost.Instance;
+            return host != null ? host.StartCoroutine(methodName) : null;
         }
 
         /// <summary>
@@ -192,8 +187,8 @@ namespace Moirai.Atropos
         {
             if (routine == null) return null;
 
-            MakeCoroutineHost();
-            return s_Behaviour != null ? s_Behaviour.StartCoroutine(routine) : null;
+            GameAppHost host = GameAppHost.Instance;
+            return host != null ? host.StartCoroutine(routine) : null;
         }
 
         /// <summary>
@@ -203,8 +198,8 @@ namespace Moirai.Atropos
         {
             if (string.IsNullOrEmpty(methodName)) return null;
 
-            MakeCoroutineHost();
-            return s_Behaviour != null ? s_Behaviour.StartCoroutine(methodName, value) : null;
+            GameAppHost host = GameAppHost.Instance;
+            return host != null ? host.StartCoroutine(methodName, value) : null;
         }
 
         /// <summary>
@@ -214,7 +209,8 @@ namespace Moirai.Atropos
         {
             if (string.IsNullOrEmpty(methodName)) return;
 
-            s_Behaviour?.StopCoroutine(methodName);
+            GameAppHost host = GameAppHost.TryGetInstance();
+            host?.StopCoroutine(methodName);
         }
 
         /// <summary>
@@ -224,7 +220,8 @@ namespace Moirai.Atropos
         {
             if (routine == null) return;
 
-            s_Behaviour?.StopCoroutine(routine);
+            GameAppHost host = GameAppHost.TryGetInstance();
+            host?.StopCoroutine(routine);
         }
 
         /// <summary>
@@ -234,7 +231,8 @@ namespace Moirai.Atropos
         {
             if (routine == null) return;
 
-            s_Behaviour?.StopCoroutine(routine);
+            GameAppHost host = GameAppHost.TryGetInstance();
+            host?.StopCoroutine(routine);
         }
 
         /// <summary>
@@ -242,7 +240,8 @@ namespace Moirai.Atropos
         /// </summary>
         public static void StopAllCoroutines()
         {
-            s_Behaviour?.StopAllCoroutines();
+            GameAppHost host = GameAppHost.TryGetInstance();
+            host?.StopAllCoroutines();
         }
 
         #endregion
@@ -318,12 +317,13 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 注册OnDrawGizmos事件（仅编辑器，仍需 CoroutineHost）。
+        /// 注册OnDrawGizmos事件（仅编辑器）。
+        /// <para>订阅写入 <see cref="PlayerLoopDriver"/> 静态表，宿主销毁不丢失；此处只确保派发者存在。</para>
         /// </summary>
         public static void AddOnDrawGizmosListener(Action action)
         {
-            MakeCoroutineHost();
-            s_Behaviour?.AddDrawGizmosEvent(action);
+            PlayerLoopDriver.AddDrawGizmosCallback(action);
+            GameAppHost.Bootstrap();
         }
 
         /// <summary>
@@ -331,16 +331,16 @@ namespace Moirai.Atropos
         /// </summary>
         public static void RemoveOnDrawGizmosListener(Action action)
         {
-            s_Behaviour?.RemoveDrawGizmosEvent(action);
+            PlayerLoopDriver.RemoveDrawGizmosCallback(action);
         }
 
         /// <summary>
-        /// 注册OnDrawGizmosSelected事件（仅编辑器，仍需 CoroutineHost）。
+        /// 注册OnDrawGizmosSelected事件（仅编辑器）。
         /// </summary>
         public static void AddOnDrawGizmosSelectedListener(Action action)
         {
-            MakeCoroutineHost();
-            s_Behaviour?.AddDrawGizmosSelectedEvent(action);
+            PlayerLoopDriver.AddDrawGizmosSelectedCallback(action);
+            GameAppHost.Bootstrap();
         }
 
         /// <summary>
@@ -348,15 +348,17 @@ namespace Moirai.Atropos
         /// </summary>
         public static void RemoveOnDrawGizmosSelectedListener(Action action)
         {
-            s_Behaviour?.RemoveDrawGizmosSelectedEvent(action);
+            PlayerLoopDriver.RemoveDrawGizmosSelectedCallback(action);
         }
 
         /// <summary>
         /// 注册OnApplicationPause事件。
+        /// <para>暂停回调只能由 MonoBehaviour 消息派发，故注册时一并物化 <see cref="GameAppHost"/>。</para>
         /// </summary>
         public static void AddOnApplicationPauseListener(Action<bool> action)
         {
             PlayerLoopDriver.AddApplicationPauseCallback(action);
+            GameAppHost.Bootstrap();
         }
 
         /// <summary>
@@ -376,6 +378,7 @@ namespace Moirai.Atropos
             PlayerLoopDriver.AddUpdateCallback(Tick);
             PlayerLoopDriver.AddFixedUpdateCallback(FixedTick);
             PlayerLoopDriver.AddLateUpdateCallback(LateTick);
+            PlayerLoopDriver.AddDrawGizmosCallback(DrawGizmos);
             PlayerLoopDriver.AddApplicationFocusCallback(ApplicationFocus);
             PlayerLoopDriver.AddApplicationQuitCallback(ApplicationQuit);
         }
@@ -385,35 +388,9 @@ namespace Moirai.Atropos
             PlayerLoopDriver.RemoveUpdateCallback(Tick);
             PlayerLoopDriver.RemoveFixedUpdateCallback(FixedTick);
             PlayerLoopDriver.RemoveLateUpdateCallback(LateTick);
+            PlayerLoopDriver.RemoveDrawGizmosCallback(DrawGizmos);
             PlayerLoopDriver.RemoveApplicationFocusCallback(ApplicationFocus);
             PlayerLoopDriver.RemoveApplicationQuitCallback(ApplicationQuit);
-        }
-
-        private static void MakeCoroutineHost()
-        {
-#if UNITY_EDITOR
-            if (!Application.isPlaying) return;
-#endif
-
-            // 宿主被意外销毁时惰性重建；帧订阅在 PlayerLoopDriver，不依赖本宿主
-            if (s_Entity == null)
-            {
-                s_Entity = new GameObject("[CoroutineHost]");
-                s_Entity.SetActive(true);
-                UObject.DontDestroyOnLoad(s_Entity);
-            }
-
-            if (s_Behaviour == null)
-            {
-                s_Behaviour = s_Entity.GetComponent<CoroutineHost>();
-                if (s_Behaviour == null)
-                {
-                    s_Behaviour = s_Entity.AddComponent<CoroutineHost>();
-                }
-
-                s_Behaviour.AddApplicationPauseEvent(PlayerLoopDriver.RaiseApplicationPause);
-                s_Behaviour.AddDrawGizmosEvent(DrawGizmos);
-            }
         }
 
 #if UNITY_EDITOR
@@ -435,11 +412,11 @@ namespace Moirai.Atropos
             GameServices.ShutdownContainer(EServiceScopeKind.Scene);
         }
 
+        // 帧时钟由 PlayerLoopDriver 在各阶段入口采样，此处直接读取本帧快照
         private static void Tick()
         {
             if (IsShutdown) return;
 
-            GameTime.StartFrame();
             GameServices.Tick(GameTime.deltaTime, GameTime.unscaledDeltaTime);
         }
 
@@ -447,7 +424,6 @@ namespace Moirai.Atropos
         {
             if (IsShutdown) return;
 
-            GameTime.StartFrame();
             GameServices.FixedTick(GameTime.deltaTime, GameTime.unscaledDeltaTime);
         }
 
@@ -455,7 +431,6 @@ namespace Moirai.Atropos
         {
             if (IsShutdown) return;
 
-            GameTime.StartFrame();
             GameServices.LateTick(GameTime.deltaTime, GameTime.unscaledDeltaTime);
         }
 

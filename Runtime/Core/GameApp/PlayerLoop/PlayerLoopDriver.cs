@@ -7,12 +7,15 @@ namespace Moirai.Atropos.FrameLoop
 {
     /// <summary>
     /// 剥离 MonoBehaviour 的游戏逻辑驱动器：由 Unity PlayerLoop 直接回调。
-    /// <para>订阅存储在静态注册表，不挂在任何 GameObject 上——场景切换 / 驱动宿主销毁不会丢失订阅。</para>
-    /// <para><b>零分配契约</b>：<see cref="DriveUpdate"/> / <see cref="DriveFixedUpdate"/> / <see cref="DriveLateUpdate"/>
-    /// 及所有 <see cref="IUpdateHandler"/> 实现的热路径不得产生堆分配：
-    /// 使用 for 循环、禁止 LINQ/闭包/字符串拼接；驱动中注册/注销进入延迟缓冲，迭代结束后统一提交。</para>
+    /// <para>订阅存储在静态注册表，不挂在任何 GameObject 上——场景切换 / 宿主销毁不会丢失订阅。</para>
+    /// <para><b>帧时钟</b>：每个 Drive 阶段入口先调用 <see cref="GameTime.StartFrame"/> 采样，
+    /// 再依次驱动接口 Handler 与 Action 回调——两类订阅读到的是同一帧的时间快照。</para>
+    /// <para><b>零分配契约</b>：<see cref="DriveUpdate"/> / <see cref="DriveFixedUpdate"/> /
+    /// <see cref="DriveLateUpdate"/> 及所有 <see cref="IUpdateHandler"/> 实现的热路径不得产生堆分配：
+    /// 使用 for 循环、禁止 LINQ/闭包/字符串拼接。驱动中的注册/注销进入<b>所属阶段各自的</b>延迟缓冲，
+    /// 该阶段迭代结束后统一提交。</para>
     /// <para>DI 集成：将本类或包装服务注册进 VContainer 等容器；Handler 实现经构造注入依赖，
-    /// 再由组合根调用 <see cref="Register"/>，驱动与对象创建解耦。</para>
+    /// 再由组合根调用 <see cref="Register(IUpdateHandler)"/>，驱动与对象创建解耦。</para>
     /// </summary>
     public static class PlayerLoopDriver
     {
@@ -28,39 +31,22 @@ namespace Moirai.Atropos.FrameLoop
 
         #region 状态 [STATE]
 
-        private static IUpdateHandler[] s_UpdateHandlers = new IUpdateHandler[INITIAL_CAPACITY];
-        private static int s_UpdateCount;
+        // 每阶段一条独立注册表：接口 Handler 与 Action 回调各一份，延迟缓冲同样按阶段隔离
+        private static readonly HandlerSlot<IUpdateHandler> s_Update = new HandlerSlot<IUpdateHandler>();
+        private static readonly HandlerSlot<IFixedUpdateHandler> s_Fixed = new HandlerSlot<IFixedUpdateHandler>();
+        private static readonly HandlerSlot<ILateUpdateHandler> s_Late = new HandlerSlot<ILateUpdateHandler>();
 
-        private static IFixedUpdateHandler[] s_FixedHandlers = new IFixedUpdateHandler[INITIAL_CAPACITY];
-        private static int s_FixedCount;
+        private static readonly CallbackSlot s_UpdateCallback = new CallbackSlot();
+        private static readonly CallbackSlot s_FixedCallback = new CallbackSlot();
+        private static readonly CallbackSlot s_LateCallback = new CallbackSlot();
 
-        private static ILateUpdateHandler[] s_LateHandlers = new ILateUpdateHandler[INITIAL_CAPACITY];
-        private static int s_LateCount;
-
-        // Action 路径：兼容 GameApp.AddUpdateListener 等回调式 API（调用时零分配）
-        private static Action[] s_UpdateCallbacks = new Action[INITIAL_CAPACITY];
-        private static int s_UpdateCallbackCount;
-
-        private static Action[] s_FixedCallbacks = new Action[INITIAL_CAPACITY];
-        private static int s_FixedCallbackCount;
-
-        private static Action[] s_LateCallbacks = new Action[INITIAL_CAPACITY];
-        private static int s_LateCallbackCount;
-
+        // Unity 生命周期事件表：非帧阶段，低频且无热路径要求，直接用多播委托
         private static Action s_DestroyCallbacks;
+        private static Action s_DrawGizmosCallbacks;
+        private static Action s_DrawGizmosSelectedCallbacks;
         private static Action<bool> s_ApplicationPauseCallbacks;
         private static Action<bool> s_ApplicationFocusCallbacks;
         private static Action s_ApplicationQuitCallbacks;
-
-        // 驱动中缓冲（避免迭代中改集合；提交阶段无分配路径上的增删）
-        private static readonly List<object> s_PendingInterfaceAdd = new List<object>(INITIAL_CAPACITY);
-        private static readonly List<object> s_PendingInterfaceRemove = new List<object>(INITIAL_CAPACITY);
-        private static readonly List<Action> s_PendingCallbackAdd = new List<Action>(INITIAL_CAPACITY);
-        private static readonly List<Action> s_PendingCallbackRemove = new List<Action>(INITIAL_CAPACITY);
-
-        private static readonly List<IUpdateHandler> s_PriorityUpdateBuffer = new List<IUpdateHandler>(INITIAL_CAPACITY);
-        private static readonly List<IFixedUpdateHandler> s_PriorityFixedBuffer = new List<IFixedUpdateHandler>(INITIAL_CAPACITY);
-        private static readonly List<ILateUpdateHandler> s_PriorityLateBuffer = new List<ILateUpdateHandler>(INITIAL_CAPACITY);
 
         private static bool s_IsDriving;
         private static bool s_IsShutdown = true;
@@ -69,23 +55,23 @@ namespace Moirai.Atropos.FrameLoop
         /// <summary>驱动器是否已关闭（Shutdown 后注册仍可写入，但 Drive 空转）。</summary>
         public static bool IsShutdown => s_IsShutdown;
 
-        /// <summary>Update 接口 Handler 数量（含延迟缓冲中未提交项之外的已注册项）。</summary>
-        public static int UpdateHandlerCount => s_UpdateCount;
+        /// <summary>Update 接口 Handler 数量（不含延迟缓冲中未提交项）。</summary>
+        public static int UpdateHandlerCount => s_Update.Count;
 
         /// <summary>FixedUpdate 接口 Handler 数量。</summary>
-        public static int FixedUpdateHandlerCount => s_FixedCount;
+        public static int FixedUpdateHandlerCount => s_Fixed.Count;
 
         /// <summary>LateUpdate 接口 Handler 数量。</summary>
-        public static int LateUpdateHandlerCount => s_LateCount;
+        public static int LateUpdateHandlerCount => s_Late.Count;
 
         /// <summary>Update Action 回调数量。</summary>
-        public static int UpdateCallbackCount => s_UpdateCallbackCount;
+        public static int UpdateCallbackCount => s_UpdateCallback.Count;
 
         /// <summary>FixedUpdate Action 回调数量。</summary>
-        public static int FixedUpdateCallbackCount => s_FixedCallbackCount;
+        public static int FixedUpdateCallbackCount => s_FixedCallback.Count;
 
         /// <summary>LateUpdate Action 回调数量。</summary>
-        public static int LateUpdateCallbackCount => s_LateCallbackCount;
+        public static int LateUpdateCallbackCount => s_LateCallback.Count;
 
         #endregion
 
@@ -123,34 +109,22 @@ namespace Moirai.Atropos.FrameLoop
         }
 
         /// <summary>
-        /// 仅清空 Handler/回调订阅，不恢复 PlayerLoop、不触发 Destroy。
-        /// <para>域重载 / 退出 Play 时由 SubsystemRegistration 路径调用。</para>
+        /// 清空全部 Handler / 回调订阅，但不恢复 PlayerLoop、不广播 Destroy。
+        /// <para>仅由 <see cref="Shutdown"/> 调用。域重载下静态字段随域自然重置；关闭域重载时
+        /// 也无需在此清空——见 <see cref="ResetOnDomainReload"/> 的顺序说明。</para>
         /// </summary>
-        public static void ClearHandlers()
+        private static void ClearHandlers()
         {
-            s_UpdateCount = 0;
-            s_FixedCount = 0;
-            s_LateCount = 0;
-            s_UpdateCallbackCount = 0;
-            s_FixedCallbackCount = 0;
-            s_LateCallbackCount = 0;
-
-            Array.Clear(s_UpdateHandlers, 0, s_UpdateHandlers.Length);
-            Array.Clear(s_FixedHandlers, 0, s_FixedHandlers.Length);
-            Array.Clear(s_LateHandlers, 0, s_LateHandlers.Length);
-            Array.Clear(s_UpdateCallbacks, 0, s_UpdateCallbacks.Length);
-            Array.Clear(s_FixedCallbacks, 0, s_FixedCallbacks.Length);
-            Array.Clear(s_LateCallbacks, 0, s_LateCallbacks.Length);
-
-            s_PendingInterfaceAdd.Clear();
-            s_PendingInterfaceRemove.Clear();
-            s_PendingCallbackAdd.Clear();
-            s_PendingCallbackRemove.Clear();
-            s_PriorityUpdateBuffer.Clear();
-            s_PriorityFixedBuffer.Clear();
-            s_PriorityLateBuffer.Clear();
+            s_Update.Clear();
+            s_Fixed.Clear();
+            s_Late.Clear();
+            s_UpdateCallback.Clear();
+            s_FixedCallback.Clear();
+            s_LateCallback.Clear();
 
             s_DestroyCallbacks = null;
+            s_DrawGizmosCallbacks = null;
+            s_DrawGizmosSelectedCallbacks = null;
             s_ApplicationPauseCallbacks = null;
             s_ApplicationFocusCallbacks = null;
             s_ApplicationQuitCallbacks = null;
@@ -196,191 +170,9 @@ namespace Moirai.Atropos.FrameLoop
             s_ApplicationFocusCallbacks?.Invoke(hasFocus);
         }
 
-        /// <summary>广播 ApplicationPause（由协程宿主 OnApplicationPause 转发）。</summary>
-        public static void RaiseApplicationPause(bool pauseStatus)
-        {
-            s_ApplicationPauseCallbacks?.Invoke(pauseStatus);
-        }
-
         #endregion
 
-        #region 接口注册 [INTERFACE REGISTRATION]
-
-        /// <summary>注册 Update Handler。驱动中调用将延迟到本轮 Drive 结束后提交。</summary>
-        public static void Register(IUpdateHandler handler)
-        {
-            if (handler == null) return;
-            if (s_IsDriving)
-            {
-                s_PendingInterfaceAdd.Add(handler);
-                return;
-            }
-            RegisterUpdateImmediate(handler);
-        }
-
-        /// <summary>注册 FixedUpdate Handler。</summary>
-        public static void Register(IFixedUpdateHandler handler)
-        {
-            if (handler == null) return;
-            if (s_IsDriving)
-            {
-                s_PendingInterfaceAdd.Add(handler);
-                return;
-            }
-            RegisterFixedImmediate(handler);
-        }
-
-        /// <summary>注册 LateUpdate Handler。</summary>
-        public static void Register(ILateUpdateHandler handler)
-        {
-            if (handler == null) return;
-            if (s_IsDriving)
-            {
-                s_PendingInterfaceAdd.Add(handler);
-                return;
-            }
-            RegisterLateImmediate(handler);
-        }
-
-        /// <summary>注销 Update Handler。</summary>
-        public static void Unregister(IUpdateHandler handler)
-        {
-            if (handler == null) return;
-            if (s_IsDriving)
-            {
-                s_PendingInterfaceRemove.Add(handler);
-                return;
-            }
-            UnregisterUpdateImmediate(handler);
-        }
-
-        /// <summary>注销 FixedUpdate Handler。</summary>
-        public static void Unregister(IFixedUpdateHandler handler)
-        {
-            if (handler == null) return;
-            if (s_IsDriving)
-            {
-                s_PendingInterfaceRemove.Add(handler);
-                return;
-            }
-            UnregisterFixedImmediate(handler);
-        }
-
-        /// <summary>注销 LateUpdate Handler。</summary>
-        public static void Unregister(ILateUpdateHandler handler)
-        {
-            if (handler == null) return;
-            if (s_IsDriving)
-            {
-                s_PendingInterfaceRemove.Add(handler);
-                return;
-            }
-            UnregisterLateImmediate(handler);
-        }
-
-        /// <summary>
-        /// 注册一个对象到其实现的全部 PlayerLoop 阶段（接口多实现便利入口）。
-        /// </summary>
-        public static void RegisterAll(object handler)
-        {
-            if (handler == null) return;
-            if (handler is IUpdateHandler u) Register(u);
-            if (handler is IFixedUpdateHandler f) Register(f);
-            if (handler is ILateUpdateHandler l) Register(l);
-        }
-
-        /// <summary>
-        /// 从其曾注册的全部 PlayerLoop 阶段注销。
-        /// </summary>
-        public static void UnregisterAll(object handler)
-        {
-            if (handler == null) return;
-            if (handler is IUpdateHandler u) Unregister(u);
-            if (handler is IFixedUpdateHandler f) Unregister(f);
-            if (handler is ILateUpdateHandler l) Unregister(l);
-        }
-
-        #endregion
-
-        #region Action 注册 [ACTION REGISTRATION]
-
-        /// <summary>注册每帧 Update 回调（同步，不依赖 GameObject / UniTask 延迟）。</summary>
-        public static void AddUpdateCallback(Action callback)
-        {
-            if (callback == null) return;
-            if (s_IsDriving)
-            {
-                s_PendingCallbackAdd.Add(callback);
-                return;
-            }
-            if (ContainsCallback(s_UpdateCallbacks, s_UpdateCallbackCount, callback)) return;
-            EnsureCallbackCapacity(ref s_UpdateCallbacks, s_UpdateCallbackCount);
-            s_UpdateCallbacks[s_UpdateCallbackCount++] = callback;
-        }
-
-        /// <summary>注册 FixedUpdate 回调。</summary>
-        public static void AddFixedUpdateCallback(Action callback)
-        {
-            if (callback == null) return;
-            if (s_IsDriving)
-            {
-                s_PendingCallbackAdd.Add(callback);
-                return;
-            }
-            if (ContainsCallback(s_FixedCallbacks, s_FixedCallbackCount, callback)) return;
-            EnsureCallbackCapacity(ref s_FixedCallbacks, s_FixedCallbackCount);
-            s_FixedCallbacks[s_FixedCallbackCount++] = callback;
-        }
-
-        /// <summary>注册 LateUpdate 回调。</summary>
-        public static void AddLateUpdateCallback(Action callback)
-        {
-            if (callback == null) return;
-            if (s_IsDriving)
-            {
-                s_PendingCallbackAdd.Add(callback);
-                return;
-            }
-            if (ContainsCallback(s_LateCallbacks, s_LateCallbackCount, callback)) return;
-            EnsureCallbackCapacity(ref s_LateCallbacks, s_LateCallbackCount);
-            s_LateCallbacks[s_LateCallbackCount++] = callback;
-        }
-
-        /// <summary>注销 Update 回调。</summary>
-        public static void RemoveUpdateCallback(Action callback)
-        {
-            if (callback == null) return;
-            if (s_IsDriving)
-            {
-                s_PendingCallbackRemove.Add(callback);
-                return;
-            }
-            RemoveCallback(s_UpdateCallbacks, ref s_UpdateCallbackCount, callback);
-        }
-
-        /// <summary>注销 FixedUpdate 回调。</summary>
-        public static void RemoveFixedUpdateCallback(Action callback)
-        {
-            if (callback == null) return;
-            if (s_IsDriving)
-            {
-                s_PendingCallbackRemove.Add(callback);
-                return;
-            }
-            RemoveCallback(s_FixedCallbacks, ref s_FixedCallbackCount, callback);
-        }
-
-        /// <summary>注销 LateUpdate 回调。</summary>
-        public static void RemoveLateUpdateCallback(Action callback)
-        {
-            if (callback == null) return;
-            if (s_IsDriving)
-            {
-                s_PendingCallbackRemove.Add(callback);
-                return;
-            }
-            RemoveCallback(s_LateCallbacks, ref s_LateCallbackCount, callback);
-        }
+        #region Unity 事件注册表 [UNITY EVENT REGISTRATION]
 
         /// <summary>注册 Shutdown / Destroy 广播回调。</summary>
         public static void AddDestroyCallback(Action callback)
@@ -394,6 +186,34 @@ namespace Moirai.Atropos.FrameLoop
         {
             if (callback == null) return;
             s_DestroyCallbacks -= callback;
+        }
+
+        /// <summary>注册 OnDrawGizmos 回调（仅编辑器；由 <see cref="GameAppHost"/> 转发驱动）。</summary>
+        public static void AddDrawGizmosCallback(Action callback)
+        {
+            if (callback == null) return;
+            s_DrawGizmosCallbacks += callback;
+        }
+
+        /// <summary>注销 OnDrawGizmos 回调。</summary>
+        public static void RemoveDrawGizmosCallback(Action callback)
+        {
+            if (callback == null) return;
+            s_DrawGizmosCallbacks -= callback;
+        }
+
+        /// <summary>注册 OnDrawGizmosSelected 回调（仅编辑器）。</summary>
+        public static void AddDrawGizmosSelectedCallback(Action callback)
+        {
+            if (callback == null) return;
+            s_DrawGizmosSelectedCallbacks += callback;
+        }
+
+        /// <summary>注销 OnDrawGizmosSelected 回调。</summary>
+        public static void RemoveDrawGizmosSelectedCallback(Action callback)
+        {
+            if (callback == null) return;
+            s_DrawGizmosSelectedCallbacks -= callback;
         }
 
         /// <summary>注册 ApplicationPause 回调。</summary>
@@ -438,6 +258,148 @@ namespace Moirai.Atropos.FrameLoop
             s_ApplicationQuitCallbacks -= callback;
         }
 
+        /// <summary>广播 OnDrawGizmos（由宿主转发，编辑器专用）。</summary>
+        public static void RaiseDrawGizmos()
+        {
+            s_DrawGizmosCallbacks?.Invoke();
+        }
+
+        /// <summary>广播 OnDrawGizmosSelected（由宿主转发，编辑器专用）。</summary>
+        public static void RaiseDrawGizmosSelected()
+        {
+            s_DrawGizmosSelectedCallbacks?.Invoke();
+        }
+
+        /// <summary>广播 ApplicationPause（由宿主 OnApplicationPause 转发）。</summary>
+        public static void RaiseApplicationPause(bool pauseStatus)
+        {
+            s_ApplicationPauseCallbacks?.Invoke(pauseStatus);
+        }
+
+        #endregion
+
+        #region 接口注册 [INTERFACE REGISTRATION]
+
+        /// <summary>注册 Update Handler。驱动中调用将延迟到本阶段 Drive 结束后提交。</summary>
+        public static void Register(IUpdateHandler handler)
+        {
+            if (handler == null) return;
+            if (s_IsDriving) s_Update.AddPending(handler);
+            else s_Update.Add(handler);
+        }
+
+        /// <summary>注册 FixedUpdate Handler。</summary>
+        public static void Register(IFixedUpdateHandler handler)
+        {
+            if (handler == null) return;
+            if (s_IsDriving) s_Fixed.AddPending(handler);
+            else s_Fixed.Add(handler);
+        }
+
+        /// <summary>注册 LateUpdate Handler。</summary>
+        public static void Register(ILateUpdateHandler handler)
+        {
+            if (handler == null) return;
+            if (s_IsDriving) s_Late.AddPending(handler);
+            else s_Late.Add(handler);
+        }
+
+        /// <summary>注销 Update Handler。</summary>
+        public static void Unregister(IUpdateHandler handler)
+        {
+            if (handler == null) return;
+            if (s_IsDriving) s_Update.RemovePending(handler);
+            else s_Update.Remove(handler);
+        }
+
+        /// <summary>注销 FixedUpdate Handler。</summary>
+        public static void Unregister(IFixedUpdateHandler handler)
+        {
+            if (handler == null) return;
+            if (s_IsDriving) s_Fixed.RemovePending(handler);
+            else s_Fixed.Remove(handler);
+        }
+
+        /// <summary>注销 LateUpdate Handler。</summary>
+        public static void Unregister(ILateUpdateHandler handler)
+        {
+            if (handler == null) return;
+            if (s_IsDriving) s_Late.RemovePending(handler);
+            else s_Late.Remove(handler);
+        }
+
+        /// <summary>
+        /// 注册一个对象到其实现的全部 PlayerLoop 阶段（接口多实现便利入口）。
+        /// </summary>
+        public static void RegisterAll(object handler)
+        {
+            if (handler is IUpdateHandler u) Register(u);
+            if (handler is IFixedUpdateHandler f) Register(f);
+            if (handler is ILateUpdateHandler l) Register(l);
+        }
+
+        /// <summary>
+        /// 从其曾注册的全部 PlayerLoop 阶段注销。
+        /// </summary>
+        public static void UnregisterAll(object handler)
+        {
+            if (handler is IUpdateHandler u) Unregister(u);
+            if (handler is IFixedUpdateHandler f) Unregister(f);
+            if (handler is ILateUpdateHandler l) Unregister(l);
+        }
+
+        #endregion
+
+        #region Action 注册 [ACTION REGISTRATION]
+
+        /// <summary>注册每帧 Update 回调（同步，不依赖 GameObject / UniTask 延迟）。</summary>
+        public static void AddUpdateCallback(Action callback)
+        {
+            if (callback == null) return;
+            if (s_IsDriving) s_UpdateCallback.AddPending(callback);
+            else s_UpdateCallback.Add(callback);
+        }
+
+        /// <summary>注册 FixedUpdate 回调。</summary>
+        public static void AddFixedUpdateCallback(Action callback)
+        {
+            if (callback == null) return;
+            if (s_IsDriving) s_FixedCallback.AddPending(callback);
+            else s_FixedCallback.Add(callback);
+        }
+
+        /// <summary>注册 LateUpdate 回调。</summary>
+        public static void AddLateUpdateCallback(Action callback)
+        {
+            if (callback == null) return;
+            if (s_IsDriving) s_LateCallback.AddPending(callback);
+            else s_LateCallback.Add(callback);
+        }
+
+        /// <summary>注销 Update 回调。</summary>
+        public static void RemoveUpdateCallback(Action callback)
+        {
+            if (callback == null) return;
+            if (s_IsDriving) s_UpdateCallback.RemovePending(callback);
+            else s_UpdateCallback.Remove(callback);
+        }
+
+        /// <summary>注销 FixedUpdate 回调。</summary>
+        public static void RemoveFixedUpdateCallback(Action callback)
+        {
+            if (callback == null) return;
+            if (s_IsDriving) s_FixedCallback.RemovePending(callback);
+            else s_FixedCallback.Remove(callback);
+        }
+
+        /// <summary>注销 LateUpdate 回调。</summary>
+        public static void RemoveLateUpdateCallback(Action callback)
+        {
+            if (callback == null) return;
+            if (s_IsDriving) s_LateCallback.RemovePending(callback);
+            else s_LateCallback.Remove(callback);
+        }
+
         #endregion
 
         #region 驱动 [DRIVE]
@@ -448,27 +410,36 @@ namespace Moirai.Atropos.FrameLoop
             if (s_IsShutdown) return;
 
             s_IsDriving = true;
-            using (s_UpdateMarker.Auto())
+            try
             {
-                float dt = GameTime.deltaTime;
-                float udt = GameTime.unscaledDeltaTime;
-
-                int handlerCount = s_UpdateCount;
-                for (int i = 0; i < handlerCount; i++)
+                using (s_UpdateMarker.Auto())
                 {
-                    IUpdateHandler handler = s_UpdateHandlers[i];
-                    if (handler != null) handler.Update(dt, udt);
-                }
+                    GameTime.StartFrame();
 
-                int callbackCount = s_UpdateCallbackCount;
-                for (int i = 0; i < callbackCount; i++)
-                {
-                    Action callback = s_UpdateCallbacks[i];
-                    callback?.Invoke();
+                    float dt = GameTime.deltaTime;
+                    float udt = GameTime.unscaledDeltaTime;
+
+                    IUpdateHandler[] handlers = s_Update.Handlers;
+                    int handlerCount = s_Update.Count;
+                    for (int i = 0; i < handlerCount; i++)
+                    {
+                        handlers[i]?.Update(dt, udt);
+                    }
+
+                    Action[] callbacks = s_UpdateCallback.Handlers;
+                    int callbackCount = s_UpdateCallback.Count;
+                    for (int i = 0; i < callbackCount; i++)
+                    {
+                        callbacks[i]?.Invoke();
+                    }
                 }
             }
-            s_IsDriving = false;
-            FlushPending();
+            finally
+            {
+                // 订阅方抛异常不得卡死 driving 标记，否则后续注册将永久滞留在延迟缓冲
+                s_IsDriving = false;
+                FlushPending();
+            }
         }
 
         /// <summary>PlayerLoop FixedUpdate 阶段入口。</summary>
@@ -477,27 +448,35 @@ namespace Moirai.Atropos.FrameLoop
             if (s_IsShutdown) return;
 
             s_IsDriving = true;
-            using (s_FixedUpdateMarker.Auto())
+            try
             {
-                float fdt = GameTime.fixedDeltaTime;
-                float udt = GameTime.unscaledDeltaTime;
-
-                int handlerCount = s_FixedCount;
-                for (int i = 0; i < handlerCount; i++)
+                using (s_FixedUpdateMarker.Auto())
                 {
-                    IFixedUpdateHandler handler = s_FixedHandlers[i];
-                    if (handler != null) handler.FixedUpdate(fdt, udt);
-                }
+                    GameTime.StartFrame();
 
-                int callbackCount = s_FixedCallbackCount;
-                for (int i = 0; i < callbackCount; i++)
-                {
-                    Action callback = s_FixedCallbacks[i];
-                    callback?.Invoke();
+                    float fdt = GameTime.fixedDeltaTime;
+                    float udt = GameTime.unscaledDeltaTime;
+
+                    IFixedUpdateHandler[] handlers = s_Fixed.Handlers;
+                    int handlerCount = s_Fixed.Count;
+                    for (int i = 0; i < handlerCount; i++)
+                    {
+                        handlers[i]?.FixedUpdate(fdt, udt);
+                    }
+
+                    Action[] callbacks = s_FixedCallback.Handlers;
+                    int callbackCount = s_FixedCallback.Count;
+                    for (int i = 0; i < callbackCount; i++)
+                    {
+                        callbacks[i]?.Invoke();
+                    }
                 }
             }
-            s_IsDriving = false;
-            FlushPending();
+            finally
+            {
+                s_IsDriving = false;
+                FlushPending();
+            }
         }
 
         /// <summary>PlayerLoop LateUpdate（PreLateUpdate 末尾）阶段入口。</summary>
@@ -506,301 +485,245 @@ namespace Moirai.Atropos.FrameLoop
             if (s_IsShutdown) return;
 
             s_IsDriving = true;
-            using (s_LateUpdateMarker.Auto())
+            try
             {
-                float dt = GameTime.deltaTime;
-                float udt = GameTime.unscaledDeltaTime;
-
-                int handlerCount = s_LateCount;
-                for (int i = 0; i < handlerCount; i++)
+                using (s_LateUpdateMarker.Auto())
                 {
-                    ILateUpdateHandler handler = s_LateHandlers[i];
-                    if (handler != null) handler.LateUpdate(dt, udt);
-                }
+                    GameTime.StartFrame();
 
-                int callbackCount = s_LateCallbackCount;
-                for (int i = 0; i < callbackCount; i++)
-                {
-                    Action callback = s_LateCallbacks[i];
-                    callback?.Invoke();
+                    float dt = GameTime.deltaTime;
+                    float udt = GameTime.unscaledDeltaTime;
+
+                    ILateUpdateHandler[] handlers = s_Late.Handlers;
+                    int handlerCount = s_Late.Count;
+                    for (int i = 0; i < handlerCount; i++)
+                    {
+                        handlers[i]?.LateUpdate(dt, udt);
+                    }
+
+                    Action[] callbacks = s_LateCallback.Handlers;
+                    int callbackCount = s_LateCallback.Count;
+                    for (int i = 0; i < callbackCount; i++)
+                    {
+                        callbacks[i]?.Invoke();
+                    }
                 }
             }
-            s_IsDriving = false;
-            FlushPending();
+            finally
+            {
+                s_IsDriving = false;
+                FlushPending();
+            }
         }
 
-        /// <summary>
-        /// 将驱动中缓冲的注册变更提交到正式列表。Drive 之间调用；热路径上仅在有 pending 时进入。
-        /// </summary>
+        /// <summary>提交各阶段延迟缓冲。每帧每阶段各一次，无 pending 时仅两次 Count 读。</summary>
         private static void FlushPending()
         {
-            int interfaceAdd = s_PendingInterfaceAdd.Count;
-            int interfaceRemove = s_PendingInterfaceRemove.Count;
-            int callbackAdd = s_PendingCallbackAdd.Count;
-            int callbackRemove = s_PendingCallbackRemove.Count;
-            if (interfaceAdd == 0 && interfaceRemove == 0 && callbackAdd == 0 && callbackRemove == 0)
-            {
-                return;
-            }
-
-            for (int i = 0; i < interfaceRemove; i++)
-            {
-                object handler = s_PendingInterfaceRemove[i];
-                if (handler is IUpdateHandler u) UnregisterUpdateImmediate(u);
-                if (handler is IFixedUpdateHandler f) UnregisterFixedImmediate(f);
-                if (handler is ILateUpdateHandler l) UnregisterLateImmediate(l);
-            }
-            s_PendingInterfaceRemove.Clear();
-
-            for (int i = 0; i < interfaceAdd; i++)
-            {
-                object handler = s_PendingInterfaceAdd[i];
-                if (handler is IUpdateHandler u) RegisterUpdateImmediate(u);
-                if (handler is IFixedUpdateHandler f) RegisterFixedImmediate(f);
-                if (handler is ILateUpdateHandler l) RegisterLateImmediate(l);
-            }
-            s_PendingInterfaceAdd.Clear();
-
-            for (int i = 0; i < callbackRemove; i++)
-            {
-                Action cb = s_PendingCallbackRemove[i];
-                // 从三个列表中移除（调用方语义是 Remove 指定委托）
-                RemoveCallback(s_UpdateCallbacks, ref s_UpdateCallbackCount, cb);
-                RemoveCallback(s_FixedCallbacks, ref s_FixedCallbackCount, cb);
-                RemoveCallback(s_LateCallbacks, ref s_LateCallbackCount, cb);
-            }
-            s_PendingCallbackRemove.Clear();
-
-            for (int i = 0; i < callbackAdd; i++)
-            {
-                Action cb = s_PendingCallbackAdd[i];
-                // pending 路径无法区分阶段，仅当尚未存在于任一列表时作为 Update 回调注册
-                // —— GameApp 应使用带阶段的 Add*Callback API；此分支兜底防丢
-                if (!ContainsCallback(s_UpdateCallbacks, s_UpdateCallbackCount, cb) &&
-                    !ContainsCallback(s_FixedCallbacks, s_FixedCallbackCount, cb) &&
-                    !ContainsCallback(s_LateCallbacks, s_LateCallbackCount, cb))
-                {
-                    AddUpdateCallback(cb);
-                }
-            }
-            s_PendingCallbackAdd.Clear();
+            s_Update.FlushPending();
+            s_Fixed.FlushPending();
+            s_Late.FlushPending();
+            s_UpdateCallback.FlushPending();
+            s_FixedCallback.FlushPending();
+            s_LateCallback.FlushPending();
         }
 
         #endregion
 
-        #region 立即注册辅助 [IMMEDIATE HELPERS]
+        #region 阶段注册表 [SLOTS]
 
-        private static void RegisterUpdateImmediate(IUpdateHandler handler)
+        /// <summary>
+        /// 单阶段的接口 Handler 注册表：紧凑数组 + 本阶段独立的延迟缓冲。
+        /// <para>实现 <see cref="IPlayerLoopPriority"/> 者按优先级稳定插入排序，其余按注册序追加。</para>
+        /// </summary>
+        private sealed class HandlerSlot<T> where T : class
         {
-            if (ContainsHandler(s_UpdateHandlers, s_UpdateCount, handler)) return;
+            private T[] m_Handlers = new T[INITIAL_CAPACITY];
+            private int m_Count;
+            private readonly List<T> m_PendingAdd = new List<T>(INITIAL_CAPACITY);
+            private readonly List<T> m_PendingRemove = new List<T>(INITIAL_CAPACITY);
+            private readonly List<T> m_SortBuffer = new List<T>(INITIAL_CAPACITY);
 
-            if (handler is IPlayerLoopPriority)
+            /// <summary>底层数组：Drive 热路径在循环外读取一次。</summary>
+            public T[] Handlers => m_Handlers;
+
+            public int Count => m_Count;
+
+            public void Add(T handler)
             {
-                s_PriorityUpdateBuffer.Clear();
-                for (int i = 0; i < s_UpdateCount; i++)
+                if (Contains(handler)) return;
+
+                if (handler is IPlayerLoopPriority)
                 {
-                    if (s_UpdateHandlers[i] != null) s_PriorityUpdateBuffer.Add(s_UpdateHandlers[i]);
+                    m_SortBuffer.Clear();
+                    for (int i = 0; i < m_Count; i++) m_SortBuffer.Add(m_Handlers[i]);
+                    m_SortBuffer.Add(handler);
+                    SortByPriority(m_SortBuffer);
+
+                    EnsureCapacity(m_SortBuffer.Count);
+                    m_Count = m_SortBuffer.Count;
+                    for (int i = 0; i < m_Count; i++) m_Handlers[i] = m_SortBuffer[i];
+                    m_SortBuffer.Clear();
+                    return;
                 }
-                s_PriorityUpdateBuffer.Add(handler);
-                InsertionSortUpdate(s_PriorityUpdateBuffer);
-                EnsureHandlerCapacity(ref s_UpdateHandlers, s_PriorityUpdateBuffer.Count);
-                s_UpdateCount = s_PriorityUpdateBuffer.Count;
-                for (int i = 0; i < s_UpdateCount; i++) s_UpdateHandlers[i] = s_PriorityUpdateBuffer[i];
-                s_PriorityUpdateBuffer.Clear();
-                return;
+
+                EnsureCapacity(m_Count + 1);
+                m_Handlers[m_Count++] = handler;
             }
 
-            EnsureHandlerCapacity(ref s_UpdateHandlers, s_UpdateCount);
-            s_UpdateHandlers[s_UpdateCount++] = handler;
-        }
-
-        private static void RegisterFixedImmediate(IFixedUpdateHandler handler)
-        {
-            if (ContainsHandler(s_FixedHandlers, s_FixedCount, handler)) return;
-
-            if (handler is IPlayerLoopPriority)
+            public void Remove(T handler)
             {
-                s_PriorityFixedBuffer.Clear();
-                for (int i = 0; i < s_FixedCount; i++)
+                for (int i = 0; i < m_Count; i++)
                 {
-                    if (s_FixedHandlers[i] != null) s_PriorityFixedBuffer.Add(s_FixedHandlers[i]);
+                    if (!ReferenceEquals(m_Handlers[i], handler)) continue;
+
+                    // 尾部前移，保持相对顺序
+                    for (int j = i; j < m_Count - 1; j++) m_Handlers[j] = m_Handlers[j + 1];
+                    m_Handlers[--m_Count] = null;
+                    return;
                 }
-                s_PriorityFixedBuffer.Add(handler);
-                InsertionSortFixed(s_PriorityFixedBuffer);
-                EnsureHandlerCapacity(ref s_FixedHandlers, s_PriorityFixedBuffer.Count);
-                s_FixedCount = s_PriorityFixedBuffer.Count;
-                for (int i = 0; i < s_FixedCount; i++) s_FixedHandlers[i] = s_PriorityFixedBuffer[i];
-                s_PriorityFixedBuffer.Clear();
-                return;
             }
 
-            EnsureHandlerCapacity(ref s_FixedHandlers, s_FixedCount);
-            s_FixedHandlers[s_FixedCount++] = handler;
-        }
+            public void AddPending(T handler) => m_PendingAdd.Add(handler);
 
-        private static void RegisterLateImmediate(ILateUpdateHandler handler)
-        {
-            if (ContainsHandler(s_LateHandlers, s_LateCount, handler)) return;
+            public void RemovePending(T handler) => m_PendingRemove.Add(handler);
 
-            if (handler is IPlayerLoopPriority)
+            public void FlushPending()
             {
-                s_PriorityLateBuffer.Clear();
-                for (int i = 0; i < s_LateCount; i++)
+                int remove = m_PendingRemove.Count;
+                int add = m_PendingAdd.Count;
+                if (remove == 0 && add == 0) return;
+
+                // 先注销后注册：同阶段内同帧「移除再添加」按调用序生效
+                for (int i = 0; i < remove; i++) Remove(m_PendingRemove[i]);
+                m_PendingRemove.Clear();
+
+                for (int i = 0; i < add; i++) Add(m_PendingAdd[i]);
+                m_PendingAdd.Clear();
+            }
+
+            public void Clear()
+            {
+                m_Count = 0;
+                Array.Clear(m_Handlers, 0, m_Handlers.Length);
+                m_PendingAdd.Clear();
+                m_PendingRemove.Clear();
+                m_SortBuffer.Clear();
+            }
+
+            private bool Contains(T handler)
+            {
+                for (int i = 0; i < m_Count; i++)
                 {
-                    if (s_LateHandlers[i] != null) s_PriorityLateBuffer.Add(s_LateHandlers[i]);
+                    if (ReferenceEquals(m_Handlers[i], handler)) return true;
                 }
-                s_PriorityLateBuffer.Add(handler);
-                InsertionSortLate(s_PriorityLateBuffer);
-                EnsureHandlerCapacity(ref s_LateHandlers, s_PriorityLateBuffer.Count);
-                s_LateCount = s_PriorityLateBuffer.Count;
-                for (int i = 0; i < s_LateCount; i++) s_LateHandlers[i] = s_PriorityLateBuffer[i];
-                s_PriorityLateBuffer.Clear();
-                return;
+                return false;
             }
 
-            EnsureHandlerCapacity(ref s_LateHandlers, s_LateCount);
-            s_LateHandlers[s_LateCount++] = handler;
-        }
-
-        private static void UnregisterUpdateImmediate(IUpdateHandler handler)
-        {
-            for (int i = 0; i < s_UpdateCount; i++)
+            private void EnsureCapacity(int required)
             {
-                if (!ReferenceEquals(s_UpdateHandlers[i], handler)) continue;
-                // 尾部前移，保持相对顺序
-                for (int j = i; j < s_UpdateCount - 1; j++)
+                if (required <= m_Handlers.Length) return;
+
+                int capacity = m_Handlers.Length;
+                while (capacity < required) capacity *= 2;
+                Array.Resize(ref m_Handlers, capacity);
+            }
+
+            private static void SortByPriority(List<T> list)
+            {
+                // 插入排序：稳定性保证同优先级项维持注册序
+                for (int i = 1; i < list.Count; i++)
                 {
-                    s_UpdateHandlers[j] = s_UpdateHandlers[j + 1];
+                    T key = list[i];
+                    int keyPriority = GetPriority(key);
+                    int j = i - 1;
+                    while (j >= 0 && GetPriority(list[j]) > keyPriority)
+                    {
+                        list[j + 1] = list[j];
+                        j--;
+                    }
+                    list[j + 1] = key;
                 }
-                s_UpdateHandlers[--s_UpdateCount] = null;
-                return;
+            }
+
+            private static int GetPriority(T handler)
+            {
+                return handler is IPlayerLoopPriority p ? p.Priority : 0;
             }
         }
 
-        private static void UnregisterFixedImmediate(IFixedUpdateHandler handler)
+        /// <summary>单阶段的 Action 回调注册表（语义同 <see cref="HandlerSlot{T}"/>，无优先级）。</summary>
+        private sealed class CallbackSlot
         {
-            for (int i = 0; i < s_FixedCount; i++)
+            private Action[] m_Callbacks = new Action[INITIAL_CAPACITY];
+            private int m_Count;
+            private readonly List<Action> m_PendingAdd = new List<Action>(INITIAL_CAPACITY);
+            private readonly List<Action> m_PendingRemove = new List<Action>(INITIAL_CAPACITY);
+
+            public Action[] Handlers => m_Callbacks;
+
+            public int Count => m_Count;
+
+            public void Add(Action callback)
             {
-                if (!ReferenceEquals(s_FixedHandlers[i], handler)) continue;
-                for (int j = i; j < s_FixedCount - 1; j++)
+                if (Contains(callback)) return;
+
+                EnsureCapacity(m_Count + 1);
+                m_Callbacks[m_Count++] = callback;
+            }
+
+            public void Remove(Action callback)
+            {
+                for (int i = 0; i < m_Count; i++)
                 {
-                    s_FixedHandlers[j] = s_FixedHandlers[j + 1];
-                }
-                s_FixedHandlers[--s_FixedCount] = null;
-                return;
-            }
-        }
+                    if (m_Callbacks[i] != callback) continue;
 
-        private static void UnregisterLateImmediate(ILateUpdateHandler handler)
-        {
-            for (int i = 0; i < s_LateCount; i++)
+                    for (int j = i; j < m_Count - 1; j++) m_Callbacks[j] = m_Callbacks[j + 1];
+                    m_Callbacks[--m_Count] = null;
+                    return;
+                }
+            }
+
+            public void AddPending(Action callback) => m_PendingAdd.Add(callback);
+
+            public void RemovePending(Action callback) => m_PendingRemove.Add(callback);
+
+            public void FlushPending()
             {
-                if (!ReferenceEquals(s_LateHandlers[i], handler)) continue;
-                for (int j = i; j < s_LateCount - 1; j++)
+                int remove = m_PendingRemove.Count;
+                int add = m_PendingAdd.Count;
+                if (remove == 0 && add == 0) return;
+
+                for (int i = 0; i < remove; i++) Remove(m_PendingRemove[i]);
+                m_PendingRemove.Clear();
+
+                for (int i = 0; i < add; i++) Add(m_PendingAdd[i]);
+                m_PendingAdd.Clear();
+            }
+
+            public void Clear()
+            {
+                m_Count = 0;
+                Array.Clear(m_Callbacks, 0, m_Callbacks.Length);
+                m_PendingAdd.Clear();
+                m_PendingRemove.Clear();
+            }
+
+            private bool Contains(Action callback)
+            {
+                for (int i = 0; i < m_Count; i++)
                 {
-                    s_LateHandlers[j] = s_LateHandlers[j + 1];
+                    if (m_Callbacks[i] == callback) return true;
                 }
-                s_LateHandlers[--s_LateCount] = null;
-                return;
+                return false;
             }
-        }
 
-        private static void InsertionSortUpdate(List<IUpdateHandler> list)
-        {
-            for (int i = 1; i < list.Count; i++)
+            private void EnsureCapacity(int required)
             {
-                IUpdateHandler key = list[i];
-                int keyPriority = GetPriority(key);
-                int j = i - 1;
-                while (j >= 0 && GetPriority(list[j]) > keyPriority)
-                {
-                    list[j + 1] = list[j];
-                    j--;
-                }
-                list[j + 1] = key;
-            }
-        }
+                if (required <= m_Callbacks.Length) return;
 
-        private static void InsertionSortFixed(List<IFixedUpdateHandler> list)
-        {
-            for (int i = 1; i < list.Count; i++)
-            {
-                IFixedUpdateHandler key = list[i];
-                int keyPriority = GetPriority(key);
-                int j = i - 1;
-                while (j >= 0 && GetPriority(list[j]) > keyPriority)
-                {
-                    list[j + 1] = list[j];
-                    j--;
-                }
-                list[j + 1] = key;
-            }
-        }
-
-        private static void InsertionSortLate(List<ILateUpdateHandler> list)
-        {
-            for (int i = 1; i < list.Count; i++)
-            {
-                ILateUpdateHandler key = list[i];
-                int keyPriority = GetPriority(key);
-                int j = i - 1;
-                while (j >= 0 && GetPriority(list[j]) > keyPriority)
-                {
-                    list[j + 1] = list[j];
-                    j--;
-                }
-                list[j + 1] = key;
-            }
-        }
-
-        private static int GetPriority(object handler)
-        {
-            return handler is IPlayerLoopPriority p ? p.Priority : 0;
-        }
-
-        private static void EnsureHandlerCapacity<T>(ref T[] array, int count)
-        {
-            if (count < array.Length) return;
-            int newCapacity = array.Length * 2;
-            Array.Resize(ref array, newCapacity);
-        }
-
-        private static void EnsureCallbackCapacity(ref Action[] array, int count)
-        {
-            if (count < array.Length) return;
-            int newCapacity = array.Length * 2;
-            Array.Resize(ref array, newCapacity);
-        }
-
-        private static bool ContainsHandler<T>(T[] array, int count, T handler) where T : class
-        {
-            for (int i = 0; i < count; i++)
-            {
-                if (ReferenceEquals(array[i], handler)) return true;
-            }
-            return false;
-        }
-
-        private static bool ContainsCallback(Action[] array, int count, Action callback)
-        {
-            for (int i = 0; i < count; i++)
-            {
-                if (array[i] == callback) return true;
-            }
-            return false;
-        }
-
-        private static void RemoveCallback(Action[] array, ref int count, Action callback)
-        {
-            for (int i = 0; i < count; i++)
-            {
-                if (array[i] != callback) continue;
-                for (int j = i; j < count - 1; j++)
-                {
-                    array[j] = array[j + 1];
-                }
-                array[--count] = null;
-                return;
+                int capacity = m_Callbacks.Length;
+                while (capacity < required) capacity *= 2;
+                Array.Resize(ref m_Callbacks, capacity);
             }
         }
 

@@ -4,9 +4,9 @@
 
 ## 背景
 
-旧版 `GameApp` 将 `Update`/`FixedUpdate`/`LateUpdate` 订阅挂在隐藏宿主 `MainBehaviour`（`[UpdateDriver]`）实例事件上。该宿主在初始场景加载前可能被意外销毁，导致全部订阅丢失，服务 Tick 静默停摆。
+旧版 `GameApp` 把 `Update`/`FixedUpdate`/`LateUpdate` 订阅挂在隐藏 Mono 宿主的**实例事件**上。该宿主在初始场景加载前可能被意外销毁，导致全部订阅丢失，服务 Tick 静默停摆。
 
-`Runtime/Services/Timer`（`TimerService`）是统一的计时子系统（四级时间轮 + 帧计时），提供 `Delay` / `WaitFrame` 等能力；它本身作为 `IUpdateHandler` / `IFixedUpdateHandler` / `ILateUpdateHandler` 订阅本驱动，由 PlayerLoop 按阶段推进，而非反向驱动游戏逻辑。
+`Runtime/Services/Timer`（`TimerService`）是统一的计时子系统（四级时间轮 + 帧计时），提供 `Delay` / `WaitFrame` 等能力；它经 `IServiceTickable` 由 `GameServices.Tick` 推进，而 `GameServices.Tick` 本身注册在本驱动的 Update 回调上。`IUpdateHandler` 面向游戏侧系统与 DI 组合根，二者不要混用。
 
 ## 架构
 
@@ -16,8 +16,8 @@
 | `Moirai.Atropos.FrameLoop.PlayerLoopInjector` | 注入/恢复 Unity `PlayerLoopSystem` |
 | `IUpdateHandler` / `IFixedUpdateHandler` / `ILateUpdateHandler` | 接口式逻辑处理器（推荐，DI 友好） |
 | `IPlayerLoopPriority` | 可选驱动顺序（数值小者先执行） |
-| `GameApp` 静态 API | 兼容层：`AddUpdateListener` 等转发到 Driver |
-| `CoroutineHost` | 仅协程 / Gizmos / ApplicationPause |
+| `GameApp` 静态 API | 兼容层：`AddUpdateListener` 等转发到 Driver，自身不含 MonoBehaviour |
+| `GameAppHost` | 唯一的轻量 Mono 宿主：协程 / Gizmos / ApplicationPause，只做转发 |
 
 注入点：
 
@@ -26,6 +26,8 @@
 - `PlayerLoop.PreLateUpdate` 末尾 → Framework LateUpdate（晚于 MonoBehaviour.LateUpdate）
 
 注入时基于 `GetCurrentPlayerLoop()`，保留 UniTask 等第三方系统。`SubsystemRegistration` 记录默认循环，Shutdown 时恢复。
+
+每个 Drive 入口先调用 `GameTime.StartFrame()` 采样本帧时间快照，再依次驱动接口 Handler 与 Action 回调——**两类订阅读到的是同一帧的值**。
 
 ## 快速上手
 
@@ -47,7 +49,7 @@ PlayerLoopDriver.Register(new MySystem());
 
 // 或兼容 API
 GameApp.AddUpdateListener(OnUpdate);
-GameApp.AddUpdateListener -= ... // RemoveUpdateListener
+GameApp.RemoveUpdateListener(OnUpdate);
 ```
 
 ## 零分配契约
@@ -55,16 +57,17 @@ GameApp.AddUpdateListener -= ... // RemoveUpdateListener
 `DriveUpdate` / `DriveFixedUpdate` / `DriveLateUpdate` 及所有 Handler 实现：
 
 - 使用 `for` 循环，禁止 LINQ / 闭包 / 字符串拼接
-- 驱动中注册/注销进入延迟缓冲，迭代结束后提交
+- 驱动中注册/注销进入**所属阶段各自**的延迟缓冲，该阶段迭代结束后提交；跨阶段注册互不串台
+- 订阅方抛异常时由 `finally` 复位 driving 标记并提交缓冲，不会永久滞留
 - Profiler Marker：`PlayerLoopDriver.Update` 等
 
 ## 生命周期
 
 | 时机 | 行为 |
 |------|------|
-| `SubsystemRegistration` | 记录默认 PlayerLoop；Driver 标记 Shutdown |
-| `GameApp.Initialize`（AfterAssembliesLoaded） | `PlayerLoopDriver.Initialize()` 注入并注册内置 Tick |
-| `GameApp.Shutdown` / 退出 Play | 广播 Destroy → 清空注册表 → 恢复默认 PlayerLoop |
+| `SubsystemRegistration` | 记录默认 PlayerLoop；Driver 标记 Shutdown；`GameAppHost` 复位退出标记 |
+| `GameApp.Initialize`（AfterAssembliesLoaded） | `PlayerLoopDriver.Initialize()` 注入并注册内置 Tick，随后物化 `GameAppHost` |
+| `GameApp.Shutdown` / 退出 Play | 广播 Destroy → 清空注册表 → 恢复默认 PlayerLoop → 销毁宿主 |
 | ECS 重置 PlayerLoop 后 | 调用 `PlayerLoopInjector.Reinject()` |
 
 ## DI（VContainer 等）
@@ -82,8 +85,9 @@ PlayerLoopDriver.Register(system);
 
 - **UniTask**：注入基于当前循环，不覆盖 UniTask 系统；退出 Play 恢复默认循环后由 UniTask 自行重新初始化。
 - **ECS/DOTS**：Entities 可能在 `BeforeSceneLoad` 重置 PlayerLoop，初始化完成后 `PlayerLoopInjector.Reinject()`。
-- **ApplicationPause**：无纯 C# API，仍由 `CoroutineHost` 转发到 `PlayerLoopDriver.RaiseApplicationPause`。
-- **协程**：仍需 `GameApp.StartCoroutine`（`[CoroutineHost]`）；宿主销毁只影响协程，不影响帧订阅。
+- **ApplicationPause**：Unity 无纯 C# 事件，由 `GameAppHost.OnApplicationPause` 转发到 `PlayerLoopDriver.RaiseApplicationPause`；订阅存在静态表，宿主重建即恢复派发。
+- **Gizmos**：同理，`GameAppHost.OnDrawGizmos(Selected)` 转发到 `PlayerLoopDriver.RaiseDrawGizmos(Selected)`；仅编辑器有派发者，打包后表为空即无副作用。
+- **协程**：`GameApp.StartCoroutine` 经 `GameAppHost.Instance` 取用；宿主销毁只影响在跑的协程，不影响任何订阅。
 
 ## 编辑器调试
 
@@ -94,4 +98,4 @@ PlayerLoopDriver.Register(system);
 - 按钮：Ensure Injected / Reinject / Restore Default
 
 ---
-[« 返回文档索引](Index.md) · [GameApp](UpdateDriver.md)
+[« 返回文档索引](Index.md) · [GameApp](GameApp.md)
