@@ -46,7 +46,6 @@ Project/
 - **SceneService** - 场景管理
 - **TimerService** - 定时器
 - **UIService** - UI 框架
-- **UpdateDriver** - 更新驱动
 
 ### Core 系统
 - **Attributes** - 自定义特性

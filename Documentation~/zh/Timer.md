@@ -172,4 +172,4 @@ int staleCount = TimerService.GetStaleOneShotTimers(staleResults);
 - 旧命名 `AddTimer` / `AddTimerUnsafe` / `Stop` / `RemoveTimer` 仍保留为 `[Obsolete]` 别名（分别转发到 `Delay` / `DelayUnsafe` / `Pause` / `Cancel`），仅为兼容存量调用点，新代码请直接使用 `Delay` 系列命名。
 
 ---
-[« 返回文档索引](Index.md) · [主 README](../../README.md) · [Core](Core.md) · [UpdateDriver](UpdateDriver.md)
+[« 返回文档索引](Index.md) · [主 README](../../README.md) · [Core](Core.md) · [GameApp](GameApp.md)

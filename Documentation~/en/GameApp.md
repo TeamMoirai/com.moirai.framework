@@ -1,16 +1,16 @@
-# UpdateDriver / GameApp Frame Driver
+# GameApp Frame Driver and Host
 
 > Unity lifecycle proxy for non-MonoBehaviour code: coroutine hosting, frame update injection, and Unity event injection.
 
 ## Architecture Change (Important)
 
-Frame subscriptions moved from a MonoBehaviour host to **`PlayerLoopDriver`** (`Runtime/Core/PlayerLoop`, namespace `Moirai.Atropos.FrameLoop`):
+Frame subscriptions moved from a MonoBehaviour host to **`PlayerLoopDriver`** (`Runtime/Core/GameApp/PlayerLoop`, namespace `Moirai.Atropos.FrameLoop`):
 
 - Subscriptions live in a **static registry**, not on any GameObject
-- Scene loads / unexpected host destruction **do not lose** `Update`/`FixedUpdate`/`LateUpdate`/`Destroy` listeners
-- Prior bug: `[UpdateDriver]` host could be destroyed before the initial scene load, dropping all `MainBehaviour` events
+- Scene loads / unexpected host destruction **do not lose** `Update`/`FixedUpdate`/`LateUpdate`/`Destroy`/`Gizmos`/`Pause` listeners
+- Prior bug: listeners lived on a hidden Mono host instance events, which could be destroyed before the initial scene load, dropping every subscription
 
-Coroutines / Editor Gizmos / `OnApplicationPause` still use the lightweight `CoroutineHost` (`[CoroutineHost]`). Host destruction only affects those three; frame subscriptions stay intact.
+`GameApp` itself now holds **no MonoBehaviour at all** (no nested host, no GameObject field). The Unity messages that only dispatch on a MonoBehaviour — coroutines, `OnDrawGizmos(Selected)`, `OnApplicationPause` — are collected in a single `SingletonMono_Persistent` host, `GameAppHost` (`Runtime/Core/GameApp/GameAppHost.cs`). It only **forwards**; the subscriptions stay in the Driver's static tables, so destroying or rebuilding the host loses nothing.
 
 See [PlayerLoopDriver](PlayerLoopDriver.md) for details.
 
@@ -19,16 +19,16 @@ See [PlayerLoopDriver](PlayerLoopDriver.md) for details.
 - Coroutine hosting: `GameApp.StartCoroutine` / `StopCoroutine` / `StopAllCoroutines`
 - Frame updates: `GameApp.AddUpdateListener` APIs write **synchronously** into `PlayerLoopDriver` (no `UniTask.Yield` deferral)
 - Unity events: `AddDestroyListener` (broadcast on Shutdown), `AddOnApplicationPauseListener`, Gizmos APIs
-- Clean shutdown: `GameApp.Shutdown` clears the Driver registry and restores the default PlayerLoop
+- Clean shutdown: `GameApp.Shutdown` clears the Driver registry, restores the default PlayerLoop and releases the host
 
 ## Core Types
 
 | Class/Interface | Description |
 |---------|------|
-| `GameApp` | Framework entry static facade: lifecycle, coroutines, subscription APIs |
+| `GameApp` | Framework entry static facade: lifecycle, coroutines, subscription APIs (no Mono members) |
 | `PlayerLoopDriver` | Mono-free logic driver (static) |
 | `IUpdateHandler` etc. | Interface handlers — preferred for new code |
-| `GameApp.CoroutineHost` | Coroutine / Gizmos / Pause host |
+| `GameAppHost` | Coroutine / Gizmos / Pause host (`SingletonMono_Persistent`) |
 
 ## Quick Start
 
@@ -58,8 +58,9 @@ GameApp.AddDestroyListener(OnShutdown);
 ## Notes
 
 - Listeners hold strong references — always pair Add/Remove; Shutdown clears the Driver.
-- Gizmos APIs are editor-only and require `CoroutineHost`.
-- Do not manually destroy `[CoroutineHost]`; it is lazily recreated. Frame subscriptions are unaffected.
+- Gizmos APIs only have a dispatcher in the editor; subscriptions still go to the Driver's static table, so registering in a build is harmless.
+- Do not manually destroy `[GameAppHost]`; it is lazily rebuilt through `Instance`, which restores dispatch only — subscriptions were never lost.
+- Calling `GameApp.StartCoroutine` from a background thread throws via `SingletonMono<T>.Instance`: the host must be materialized on the main thread first (`GameApp.Initialize` guarantees this).
 - Exiting Play restores the default PlayerLoop (removes UniTask injection too); each library re-inits on the next Play.
 
 ---

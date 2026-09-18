@@ -1,6 +1,6 @@
 # Core Service System (@Service)
 
-> Framework's modular base: a unified service world (`ServiceWorld`) manages construction, lifecycle, polling, and scope of all sub-services, driven by `GameApp` (MonoBehaviour).
+> Framework's modular base: a unified service world (`ServiceWorld`) manages construction, lifecycle, polling, and scope of all sub-services, driven by `GameApp` (a static facade holding no MonoBehaviour) through the PlayerLoop.
 
 `@Service` is the service infrastructure of the entire framework. All functional services (resources, UI, audio, timers, etc.) are plain C# classes inheriting from `ServiceBase` that declare dependencies via the `[ServiceDependency(typeof(...))]` attribute; the world build is two-phase — `GameServices.RegisterService<T>(scope, service)` only enqueues the service into the graph, and the composition root calls `GameServices.Default.InitializeAsync()` to drive all `OnInit` in dependency-graph topological order (missing/circular dependencies fail-fast with cycle members in the error; initialization order is independent of registration order); services registered at runtime (after the world is initialized) are initialized immediately (requires all dependencies ready). Non-service code accesses services through each service's static facade (e.g. `AudioService.Xxx()`, `UIService.Xxx()`, `ResourceService.Xxx()`); dynamic service lookup goes through `GameServices.GetRequiredService<T>()` static methods. Services support three scopes: App/Scene/Gameplay. Cross-scope lookup uses an inline 3-slot binding value-type struct for O(1) resolution (Gameplay > Scene > App priority). When a scene is unloaded, scene-level and gameplay-level services are automatically cleaned up. `ServiceWorld` is instantiable — `new ServiceWorld()` constructs an isolated world for tests and sandboxes without touching `GameServices.Default`.
 
@@ -50,7 +50,7 @@ Namespace: `Moirai.Atropos`
 | `FrameworkHandler` | Handler base class (`[Serializable]`): idempotent `Internal_Init`/`Internal_Shutdown` + sync/async lifecycle callbacks; base of all XxxHandler classes |
 | `ServiceScopeOrder` | Scope priority constants (App=-10000, Scene=-5000, Gameplay=0) |
 | `ServicePriorityOrder` | Framework built-in service polling priority constants (all ≤ -1000, banded separately from business services) |
-| `GameApp` | MonoBehaviour entry point (`[DefaultExecutionOrder(-1000)]`); drives `GameAppSettings.Initiation`, drives `GameServices.Tick` every frame, and calls `GameServices.Shutdown` on destroy |
+| `GameApp` | Static facade entry point (no MonoBehaviour): initialized by `GameAppSettings.Initiation` at `AfterAssembliesLoaded`, registers its builtin Tick on `PlayerLoopDriver` to drive `GameServices.Tick` every frame, and calls `GameServices.Shutdown` on `Shutdown`; coroutines/Gizmos/Pause delegate to `GameAppHost` |
 | `GameAppMessageEvent` / `EMessageEventType` | Namespace `Moirai.Atropos.Events`, framework-level pooled events (focus/unfocus/quit, SDK callbacks) |
 
 ## Quick Start
@@ -97,7 +97,7 @@ GameServices.ShutdownContainer(EServiceScopeKind.Gameplay);
 
 ### HandlerHost Service Architecture
 
-All 12 built-in framework services (UpdateDriver/Resource/Debugger/Audio/ObjectPool/Procedure/Localization/Scene/Timer/Save/UI/Input) follow a unified three-layer structure:
+All 11 built-in framework services (Resource/Debugger/Audio/ObjectPool/Procedure/Localization/Scene/Timer/Save/UI/Input) follow a unified three-layer structure:
 
 | Layer | Form | Responsibility |
 |------|------|------|
@@ -173,7 +173,6 @@ The single entry for dynamic service lookup is the `GameServices` static facade 
 The framework's composition root: `GameAppSettings.InitializeAppServices()` (called at the `AfterAssembliesLoaded` stage) explicitly registers all chain services manually in dependency chain order:
 
 ```csharp
-GameServices.RegisterService(EServiceScopeKind.App, new UpdateDriverService());
 GameServices.RegisterService(EServiceScopeKind.App, new ResourceService());
 GameServices.RegisterService(EServiceScopeKind.App, new TimerService());
 GameServices.RegisterService(EServiceScopeKind.App, new UIService());
@@ -366,4 +365,4 @@ Editor and development builds also track per-service polling time — average `P
 - When exiting Play Mode in the editor, `GameApp` automatically calls `GameServices.Shutdown()`, compatible with the Enter Play Mode Options setting that skips domain reload.
 
 ---
-[« Documentation Index](Index.md) · [Main README](../../README_EN.md) · [Timer](Timer.md) · [UpdateDriver](UpdateDriver.md) · [Singleton](Singleton.md)
+[« Documentation Index](Index.md) · [Main README](../../README_EN.md) · [Timer](Timer.md) · [GameApp](GameApp.md) · [Singleton](Singleton.md)

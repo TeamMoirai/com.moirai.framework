@@ -172,4 +172,4 @@ Custom hosts can also hold independent view instances (`new TimerServiceDebugger
 - The legacy names `AddTimer` / `AddTimerUnsafe` / `Stop` / `RemoveTimer` are kept as `[Obsolete]` aliases (forwarding to `Delay` / `DelayUnsafe` / `Pause` / `Cancel` respectively) only for existing call sites; new code should use the `Delay` family names directly.
 
 ---
-[« Documentation Index](Index.md) · [Main README](../../README_EN.md) · [Core](Core.md) · [UpdateDriver](UpdateDriver.md)
+[« Documentation Index](Index.md) · [Main README](../../README_EN.md) · [Core](Core.md) · [GameApp](GameApp.md)
