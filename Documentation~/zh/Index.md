@@ -34,6 +34,7 @@
 | [Singleton](Singleton.md) | 单例系统：纯 C# / MonoBehaviour / 注册式单例基类家族 |
 | [MemoryPool](MemoryPool.md) | 零 GC 页式内存池：非托管元数据、EWMA 自适应水位线 |
 | [UpdateDriver](UpdateDriver.md) | Unity 生命周期代理：协程托管、帧更新注入、引擎事件注入 |
+| [PlayerLoopDriver](PlayerLoopDriver.md) | 剥离 Mono 的 PlayerLoop 逻辑驱动：零分配 Handler、注入/恢复、编辑器可视化 |
 | [StringUtility](StringUtility.md) | 字符串格式化与构建：可插拔 Handler、池化 StringBuilder |
 | [JsonUtility](JsonUtility.md) | JSON 序列化/反序列化：可插拔 Handler、字节快速通路 |
 | [ObjectUtility](ObjectUtility.md) | 对象实例化/销毁：可插拔 Handler、联网感知 |

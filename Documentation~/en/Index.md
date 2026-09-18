@@ -34,6 +34,7 @@ Welcome to Moirai Framework. This documentation set covers every functional serv
 | [Singleton](Singleton.md) | Singleton system: pure C# / MonoBehaviour / registration-based singleton base classes |
 | [MemoryPool](MemoryPool.md) | Zero-GC paged memory pool: unmanaged metadata, EWMA adaptive watermarks |
 | [UpdateDriver](UpdateDriver.md) | Unity lifecycle proxy: coroutine hosting, frame update injection, engine event injection |
+| [PlayerLoopDriver](PlayerLoopDriver.md) | Mono-free PlayerLoop logic driver: zero-alloc handlers, inject/restore, editor visualization |
 | [StringUtility](StringUtility.md) | String formatting and building: pluggable Handler, pooled StringBuilder |
 | [JsonUtility](JsonUtility.md) | JSON serialization/deserialization: pluggable Handler, byte fast path |
 | [ObjectUtility](ObjectUtility.md) | Object instantiation/destruction: pluggable Handler, network-aware |

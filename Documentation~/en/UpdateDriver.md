@@ -1,82 +1,66 @@
-# UpdateDriver Service
+# UpdateDriver / GameApp Frame Driver
 
-> Provides Unity lifecycle proxy for non-MonoBehaviour code: coroutine hosting, frame update injection, and Unity event injection.
+> Unity lifecycle proxy for non-MonoBehaviour code: coroutine hosting, frame update injection, and Unity event injection.
 
-`UpdateDriver` solves the problem of plain C# classes not being able to access Unity engine callbacks. All services in the framework are plain C# classes (see [Core Service System](Core.md)). When business classes need coroutines, `Update` polling, or engine callbacks such as `OnApplicationPause`, this service allows registering callbacks onto a persistent hidden host `MainBehaviour`. The service implementation class `UpdateDriverService` lazily creates a `DontDestroyOnLoad` game object named `[UpdateDriver]` on first use, and all engine callbacks are forwarded as aggregated events.
+## Architecture Change (Important)
+
+Frame subscriptions moved from a MonoBehaviour host to **`PlayerLoopDriver`** (`Runtime/Core/PlayerLoop`, namespace `Moirai.Atropos.FrameLoop`):
+
+- Subscriptions live in a **static registry**, not on any GameObject
+- Scene loads / unexpected host destruction **do not lose** `Update`/`FixedUpdate`/`LateUpdate`/`Destroy` listeners
+- Prior bug: `[UpdateDriver]` host could be destroyed before the initial scene load, dropping all `MainBehaviour` events
+
+Coroutines / Editor Gizmos / `OnApplicationPause` still use the lightweight `CoroutineHost` (`[CoroutineHost]`). Host destruction only affects those three; frame subscriptions stay intact.
+
+See [PlayerLoopDriver](PlayerLoopDriver.md) for details.
 
 ## Core Features
 
-- Coroutine hosting: start/stop coroutines without placing a MonoBehaviour in the scene
-- Frame update injection: registration and removal of `Update` / `FixedUpdate` / `LateUpdate` frame callbacks
-- Unity event injection: `OnDestroy`, `OnDrawGizmos`, `OnDrawGizmosSelected`, `OnApplicationPause`
-- Lazy host creation: the `[UpdateDriver]` persistent object is created only on the first API call, zero upfront cost
-- Clean shutdown: clears all events and destroys the host object when the service shuts down
+- Coroutine hosting: `GameApp.StartCoroutine` / `StopCoroutine` / `StopAllCoroutines`
+- Frame updates: `GameApp.AddUpdateListener` APIs write **synchronously** into `PlayerLoopDriver` (no `UniTask.Yield` deferral)
+- Unity events: `AddDestroyListener` (broadcast on Shutdown), `AddOnApplicationPauseListener`, Gizmos APIs
+- Clean shutdown: `GameApp.Shutdown` clears the Driver registry and restores the default PlayerLoop
 
 ## Core Types
 
-Namespace: `Moirai.Atropos.UpdateDriver`
-
 | Class/Interface | Description |
 |---------|------|
-| `UpdateDriverService` | Static facade (`[HandlerHost]`): coroutine control, frame update listening, Unity event listening registration and removal; all static APIs forward through the `Handler` property (fail-fast: lazily initialized when not ready, throws if the default factory is missing, never silently degrades) |
-| `UpdateDriverServiceHandler` | Handler abstract base class defining the backend contract; the default implementation `UnityUpdateDriverHandler` manages the `[UpdateDriver]` host |
-
-The host `MainBehaviour` (a private nested class of the handler) is the actual MonoBehaviour attached to the host, aggregating Unity callbacks via C# events; Gizmo-related callbacks are decorated with `[Conditional("UNITY_EDITOR")]` and only compile in the editor.
+| `GameApp` | Framework entry static facade: lifecycle, coroutines, subscription APIs |
+| `PlayerLoopDriver` | Mono-free logic driver (static) |
+| `IUpdateHandler` etc. | Interface handlers — preferred for new code |
+| `GameApp.CoroutineHost` | Coroutine / Gizmos / Pause host |
 
 ## Quick Start
 
 ```csharp
-// Call the static facade directly
+// Callback style (compatible API)
+GameApp.AddUpdateListener(OnUpdate);
+GameApp.AddFixedUpdateListener(OnFixedUpdate);
+GameApp.AddLateUpdateListener(OnLateUpdate);
+GameApp.RemoveUpdateListener(OnUpdate);
 
-// Coroutine: driven by the framework host, no own MonoBehaviour needed
-Coroutine co = UpdateDriverService.StartCoroutine(SomeRoutine());
-UpdateDriverService.StopCoroutine(co);
-UpdateDriverService.StopAllCoroutines();
+// Interface style (recommended)
+using Moirai.Atropos.FrameLoop;
+PlayerLoopDriver.Register(myUpdateHandler);
 
-// Frame update injection: plain classes gain Update polling
-UpdateDriverService.AddUpdateListener(OnUpdate);
-UpdateDriverService.AddFixedUpdateListener(OnFixedUpdate);
-UpdateDriverService.AddLateUpdateListener(OnLateUpdate);
+// Coroutines
+Coroutine co = GameApp.StartCoroutine(SomeRoutine());
+GameApp.StopCoroutine(co);
 
-void OnUpdate() { /* Called every frame */ }
-void OnFixedUpdate() { /* Called on physics frames */ }
-void OnLateUpdate() { /* Called on late frames */ }
-
-// Remove listeners (pair with Add to prevent leaks)
-UpdateDriverService.RemoveUpdateListener(OnUpdate);
+// Destroy (fired on GameApp.Shutdown)
+GameApp.AddDestroyListener(OnShutdown);
 ```
 
-## Advanced Usage
+## Registration Timing
 
-### Unity Event Injection
-
-```csharp
-// Application pause/resume (parameter indicates pause status)
-UpdateDriverService.AddOnApplicationPauseListener(OnApplicationPause);
-void OnApplicationPause(bool pauseStatus) { }
-
-// Editor Gizmos drawing
-UpdateDriverService.AddOnDrawGizmosListener(DrawGizmos);
-UpdateDriverService.AddOnDrawGizmosSelectedListener(DrawSelectedGizmos);
-
-// Host destruction callback (not triggered when service Shutdown destroys the host; mainly for scenarios where the host is destroyed externally)
-UpdateDriverService.AddDestroyListener(OnHostDestroy);
-```
-
-### Internal Framework Usage
-
-`UpdateDriver` is a low-level dependency for several framework infrastructures: coroutine utilities in `UnityUtility` execute through it. The service implementation type is registered during the `AppSettings.Initiation()` stage and supports implementation replacement in the Inspector.
-
-### Registration Timing Notes
-
-`AddUpdateListener` / `AddFixedUpdateListener` / `AddLateUpdateListener` internally use UniTask to defer actual mounting by one frame (FixedUpdate listener registration occurs at `PlayerLoopTiming.LastEarlyUpdate`), ensuring the host completes its current frame initialization before receiving callbacks; `Remove*` methods and Unity event listener add/remove operations take effect synchronously.
+`Add*Listener` / `PlayerLoopDriver.Register` write **synchronously** into static tables and are safe at any init stage (including `SubsystemRegistration`). Driving starts after PlayerLoop injection.
 
 ## Notes
 
-- Listeners hold strong references; always pair `Add`/`Remove` calls, otherwise the target object cannot be garbage collected. The service `Shutdown` clears all listeners uniformly.
-- Gizmos and GizmosSelected APIs only work in the editor; the calls are compiled out in release builds.
-- `StartCoroutine` returns `null` when passed an empty method name or empty iterator, without throwing an exception.
-- The host object is `DontDestroyOnLoad` and survives across scenes; do not manually destroy the `[UpdateDriver]` object externally, otherwise all coroutines and listeners will become invalid.
+- Listeners hold strong references — always pair Add/Remove; Shutdown clears the Driver.
+- Gizmos APIs are editor-only and require `CoroutineHost`.
+- Do not manually destroy `[CoroutineHost]`; it is lazily recreated. Frame subscriptions are unaffected.
+- Exiting Play restores the default PlayerLoop (removes UniTask injection too); each library re-inits on the next Play.
 
 ---
-[« Documentation Index](Index.md) · [Main README](../../README_EN.md) · [Core](Core.md) · [Timer](Timer.md)
+[« Documentation Index](Index.md) · [PlayerLoopDriver](PlayerLoopDriver.md) · [Core](Core.md)
