@@ -56,7 +56,6 @@ Moirai Framework
 - [Core Tools](#core-tools)
   - [Attributes — Custom Attributes](#attributes--custom-attributes)
   - [Events — Event System](#events--event-system)
-  - [Scheduler — Scheduler](#scheduler--scheduler)
   - [MemoryPool — Memory Pool](#memorypool--memory-pool)
   - [Singleton — Singleton System](#singleton--singleton-system)
   - [GameLog — Logging System](#gamelog--logging-system)
@@ -197,7 +196,6 @@ com.moirai.framework/
 │   │   ├── Models/       # Data models
 │   │   ├── Obfuz/        # Code obfuscation initialization
 │   │   ├── Pool/         # Object pool (generic/UniTask/GameObject)
-│   │   ├── Schedulers/   # Zero-allocation scheduler (timer/frame counter)
 │   │   ├── Singleton/    # Singleton system (pure C# / MonoBehaviour)
 │   │   ├── Tasks/        # Task/sequence system
 │   │   └── Utilities/    # Utilities (logging, settings, time, encryption, HTTP, reflection, tween, etc.)
@@ -232,7 +230,7 @@ The framework uses a **service-oriented architecture** where all subsystems are 
 // Service access — each service provides a static facade (HandlerHost generated), lazy-loaded internally
 ResourceService.LoadAsset<Sprite>("Assets/AssetRaw/UI/icon.png");
 UIService.ShowUI<MainWindow>();
-TimerService.AddTimer(() => Debug.Log("1s"), 1f);
+TimerService.Delay(1f, () => Debug.Log("1s"));
 
 // Dynamic service lookup
 var my = GameServices.GetRequiredService<MyService>();
@@ -326,26 +324,6 @@ EventManager.UnregisterCallback<GameStartEvent>(OnGameStart);
 - **Propagation** — TrickleDown (capture) → BubbleUp (bubble)
 - **Propagation Control** — `StopPropagation()`, `StopImmediatePropagation()`, `PreventDefault()`
 - **Editor Debug** — Visual event dispatch debug window
-
-### Scheduler — Scheduler
-
-Zero-allocation timer/frame scheduling system (`Runtime/Core/Schedulers`, independent from the [Timer service](Documentation~/en/Timer.md)).
-
-```csharp
-// Delayed execution
-SchedulerHandle handle = Scheduler.Delay(2.0f, () => Debug.Log("Executes after 2 seconds"));
-
-// Wait frames
-Scheduler.WaitFrame(3, () => Debug.Log("Executes after 3 frames"));
-
-// Cancel scheduling
-handle.Cancel();
-```
-
-- Supports Update / FixedUpdate / LateUpdate frames (`TickFrame`)
-- Supports looping, ignores TimeScale
-- `SchedulerUnsafeBinding` — Unsafe struct for zero-allocation function pointer dispatch
-- `handle.WaitAsync(cancellationToken)` — UniTask integration
 
 ### MemoryPool — Memory Pool
 
@@ -519,7 +497,6 @@ hp.BindTo(hpSlider);  // Slider auto-syncs
 | Maintenance | Clean empty folders, find missing scripts, prefab finder, group selection, lock Inspector |
 | Reference Finder | Asset dependency/reference tree view (`Tools/资产相关/查找资产引用`) |
 | Release Tools | Build pipeline window, one-click build Android/iOS/Window/AssetBundle (`Tools/Build`) |
-| Scheduler Debugger | Visual scheduler/timer debugger (`Window/Scheduler Debugger`) |
 | Tasks Editor | Task runner editor |
 | Tween | Easing property drawer |
 | UI Service | UI binding code auto-generation (`GameObject/ScriptGenerator/Generate Binding Code`), component Inspector |

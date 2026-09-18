@@ -56,7 +56,6 @@ Moirai Framework
 - [🧰 核心工具](#-%E6%A0%B8%E5%BF%83%E5%B7%A5%E5%85%B7)
   - [Attributes — 自定义属性](#attributes--%E8%87%AA%E5%AE%9A%E4%B9%89%E5%B1%9E%E6%80%A7)
   - [Events — 事件系统](#events--%E4%BA%8B%E4%BB%B6%E7%B3%BB%E7%BB%9F)
-  - [Scheduler — 调度器](#scheduler--%E8%B0%83%E5%BA%A6%E5%99%A8)
   - [MemoryPool — 内存池](#memorypool--%E5%86%85%E5%AD%98%E6%B1%A0)
   - [Singleton — 单例系统](#singleton--%E5%8D%95%E4%BE%8B%E7%B3%BB%E7%BB%9F)
   - [GameLog — 日志系统](#gamelog--%E6%97%A5%E5%BF%97%E7%B3%BB%E7%BB%9F)
@@ -204,7 +203,6 @@ com.moirai.framework/
 │   │   ├── Models/       # 数据模型
 │   │   ├── Obfuz/        # 代码混淆初始化
 │   │   ├── Pool/         # 对象池（内部池/UniTask/GameObject）
-│   │   ├── Schedulers/   # 零分配调度器（定时器/帧计数器）
 │   │   ├── Singleton/    # 单例系统（纯 C# / MonoBehaviour）
 │   │   ├── Tasks/        # 任务/序列系统
 │   │   └── Utilities/    # 工具集（日志、设置、时间、加密、HTTP、反射、缓动等）
@@ -239,7 +237,7 @@ com.moirai.framework/
 // 服务访问 — 各服务提供静态外观（HandlerHost 源生成），内部懒加载
 ResourceService.LoadAsset<Sprite>("Assets/AssetRaw/UI/icon.png");
 UIService.ShowUI<MainWindow>();
-TimerService.AddTimer(() => Debug.Log("1s"), 1f);
+TimerService.Delay(1f, () => Debug.Log("1s"));
 
 // 动态服务查找
 var my = GameServices.GetRequiredService<MyService>();
@@ -333,26 +331,6 @@ EventManager.UnregisterCallback<GameStartEvent>(OnGameStart);
 - **传播机制** — TrickleDown（捕获）→ BubbleUp（冒泡）
 - **传播控制** — `StopPropagation()`、`StopImmediatePropagation()`、`PreventDefault()`
 - **编辑器调试** — 可视化事件派发调试窗口
-
-### Scheduler — 调度器
-
-零分配的定时器/帧调度系统（`Runtime/Core/Schedulers`，与 [Timer 服务](Documentation~/zh/Timer.md)相互独立）。
-
-```csharp
-// 延迟执行
-SchedulerHandle handle = Scheduler.Delay(2.0f, () => Debug.Log("2秒后执行"));
-
-// 等待帧
-Scheduler.WaitFrame(3, () => Debug.Log("3帧后执行"));
-
-// 取消调度
-handle.Cancel();
-```
-
-- 支持 Update / FixedUpdate / LateUpdate 帧（`TickFrame`）
-- 支持循环、忽略 TimeScale
-- `SchedulerUnsafeBinding` — unsafe 结构体实现零分配函数指针派发
-- `handle.WaitAsync(cancellationToken)` — 与 UniTask 集成
 
 ### MemoryPool — 内存池
 
@@ -526,7 +504,6 @@ hp.BindTo(hpSlider);  // Slider 自动同步
 | Maintenance | 清理空文件夹、查找丢失脚本、预制体查找器、分组选择、锁定 Inspector |
 | Reference Finder | 资源依赖/引用树视图（`Tools/资产相关/查找资产引用`） |
 | Release Tools | 构建流水线窗口、一键打包 Android/iOS/Window/AssetBundle（`Tools/Build`） |
-| Scheduler Debugger | 可视化调度器/计时器调试器（`Window/Scheduler Debugger`） |
 | Tasks Editor | 任务运行器编辑器 |
 | Tween | 缓动属性绘制器 |
 | UI Service | UI 绑定代码自动生成（`GameObject/ScriptGenerator/生成绑定代码`）、组件 Inspector |

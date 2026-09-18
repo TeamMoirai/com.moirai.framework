@@ -324,9 +324,9 @@ namespace Moirai.Atropos.Timer
                 RestartCaseMeasure();
                 for (int i = 0; i < m_LoopCount; i++)
                 {
-                    ulong handle = TimerService.AddTimer(s_NoOpHandler, m_ControlDuration);
+                    ulong handle = TimerService.Delay(m_ControlDuration, s_NoOpHandler);
                     AssertNotZero(handle, "one-shot add returned invalid handle");
-                    TimerService.RemoveTimer(handle);
+                    TimerService.Cancel(handle);
                 }
 
                 StopCaseMeasure();
@@ -342,9 +342,9 @@ namespace Moirai.Atropos.Timer
                 RestartCaseMeasure();
                 for (int i = 0; i < m_LoopCount; i++)
                 {
-                    ulong handle = TimerService.AddTimer(s_NoOpHandler, m_ControlDuration, true);
+                    ulong handle = TimerService.Delay(m_ControlDuration, s_NoOpHandler, true);
                     AssertNotZero(handle, "loop add returned invalid handle");
-                    TimerService.RemoveTimer(handle);
+                    TimerService.Cancel(handle);
                 }
 
                 StopCaseMeasure();
@@ -361,9 +361,9 @@ namespace Moirai.Atropos.Timer
                 RestartCaseMeasure();
                 for (int i = 0; i < m_LoopCount; i++)
                 {
-                    ulong handle = TimerService.AddTimer(s_GenericHandler, _genericArg, m_ControlDuration);
+                    ulong handle = TimerService.Delay(m_ControlDuration, s_GenericHandler, _genericArg);
                     AssertNotZero(handle, "generic add returned invalid handle");
-                    TimerService.RemoveTimer(handle);
+                    TimerService.Cancel(handle);
                 }
 
                 StopCaseMeasure();
@@ -380,14 +380,14 @@ namespace Moirai.Atropos.Timer
                 RestartCaseMeasure();
                 for (int i = 0; i < count; i++)
                 {
-                    _handles[i] = TimerService.AddTimer(s_NoOpHandler, m_ControlDuration, false, true);
+                    _handles[i] = TimerService.Delay(m_ControlDuration, s_NoOpHandler, false, true);
                     AssertNotZero(_handles[i], "unscaled add returned invalid handle");
                     AssertTrue(TimerService.IsRunning(_handles[i]), "unscaled timer is not running");
                 }
 
                 AssertActiveCount(count, "unscaled add active count mismatch");
                 for (int i = 0; i < count; i++)
-                    TimerService.RemoveTimer(_handles[i]);
+                    TimerService.Cancel(_handles[i]);
                 StopCaseMeasure();
                 AssertActiveCount(0, "unscaled remove left active timers");
             }
@@ -402,18 +402,18 @@ namespace Moirai.Atropos.Timer
             using (s_ControlMarker.Auto())
             {
                 ClearAllTimers();
-                ulong handle = TimerService.AddTimer(s_NoOpHandler, m_ControlDuration);
+                ulong handle = TimerService.Delay(m_ControlDuration, s_NoOpHandler);
                 RestartCaseMeasure();
                 for (int i = 0; i < m_LoopCount; i++)
                 {
-                    TimerService.Stop(handle);
+                    TimerService.Pause(handle);
                     TimerService.Resume(handle);
                 }
 
                 StopCaseMeasure();
                 AssertTrue(TimerService.IsRunning(handle), "timer is not running after stop/resume");
                 AssertTrue(TimerService.GetLeftTime(handle) > 0f, "timer left time was cleared by stop/resume");
-                TimerService.RemoveTimer(handle);
+                TimerService.Cancel(handle);
             }
         }
 
@@ -422,8 +422,8 @@ namespace Moirai.Atropos.Timer
             using (s_ControlMarker.Auto())
             {
                 ClearAllTimers();
-                ulong handle = TimerService.AddTimer(s_NoOpHandler, m_ControlDuration);
-                TimerService.Stop(handle);
+                ulong handle = TimerService.Delay(m_ControlDuration, s_NoOpHandler);
+                TimerService.Pause(handle);
                 RestartCaseMeasure();
                 for (int i = 0; i < m_LoopCount; i++)
                     TimerService.Restart(handle);
@@ -432,7 +432,7 @@ namespace Moirai.Atropos.Timer
                 AssertTrue(TimerService.IsRunning(handle), "timer is not running after restart");
                 float leftTime = TimerService.GetLeftTime(handle);
                 AssertTrue(leftTime > m_ControlDuration * 0.5f, "restart did not restore remaining time");
-                TimerService.RemoveTimer(handle);
+                TimerService.Cancel(handle);
             }
         }
 
@@ -441,7 +441,7 @@ namespace Moirai.Atropos.Timer
             using (s_ControlMarker.Auto())
             {
                 ClearAllTimers();
-                ulong handle = TimerService.AddTimer(s_NoOpHandler, m_ControlDuration);
+                ulong handle = TimerService.Delay(m_ControlDuration, s_NoOpHandler);
                 bool running = false;
                 float leftTime = 0f;
                 RestartCaseMeasure();
@@ -454,7 +454,7 @@ namespace Moirai.Atropos.Timer
                 StopCaseMeasure();
                 AssertTrue(running, "query hot loop saw timer as not running");
                 AssertTrue(leftTime > 0f, "query hot loop saw zero left time");
-                TimerService.RemoveTimer(handle);
+                TimerService.Cancel(handle);
             }
         }
 
@@ -474,14 +474,14 @@ namespace Moirai.Atropos.Timer
                     float delay = _wheelDelays[i & (_wheelDelays.Length - 1)];
                     bool isLoop = (i & 1) == 0;
                     bool isUnscaled = (i & 2) == 0;
-                    _handles[i] = TimerService.AddTimer(s_NoOpHandler, delay, isLoop, isUnscaled);
+                    _handles[i] = TimerService.Delay(delay, s_NoOpHandler, isLoop, isUnscaled);
                     AssertNotZero(_handles[i], "mixed wheel add returned invalid handle");
                 }
 
                 StopCaseMeasure();
                 AssertActiveCount(count, "mixed wheel insert active count mismatch");
                 for (int i = 0; i < count; i++)
-                    TimerService.RemoveTimer(_handles[i]);
+                    TimerService.Cancel(_handles[i]);
                 AssertActiveCount(0, "mixed wheel remove left active timers");
             }
         }
@@ -495,7 +495,7 @@ namespace Moirai.Atropos.Timer
                 GetStats(out _, out int capacityBefore, out _, out _);
                 RestartCaseMeasure();
                 for (int i = 0; i < count; i++)
-                    _handles[i] = TimerService.AddTimer(s_NoOpHandler, m_ControlDuration);
+                    _handles[i] = TimerService.Delay(m_ControlDuration, s_NoOpHandler);
                 StopCaseMeasure();
 
                 GetStats(out int activeCount, out int capacityAfter, out int peakActiveCount, out int freeCount);
@@ -506,7 +506,7 @@ namespace Moirai.Atropos.Timer
                 AssertTrue(freeCount >= 0, "page growth free count is invalid");
 
                 for (int i = 0; i < count; i++)
-                    TimerService.RemoveTimer(_handles[i]);
+                    TimerService.Cancel(_handles[i]);
                 AssertActiveCount(0, "page growth remove left active timers");
             }
         }
@@ -520,18 +520,18 @@ namespace Moirai.Atropos.Timer
             using (s_ControlMarker.Auto())
             {
                 ClearAllTimers();
-                ulong staleHandle = TimerService.AddTimer(s_NoOpHandler, m_ControlDuration);
-                TimerService.RemoveTimer(staleHandle);
+                ulong staleHandle = TimerService.Delay(m_ControlDuration, s_NoOpHandler);
+                TimerService.Cancel(staleHandle);
 
                 RestartCaseMeasure();
-                TimerService.Stop(0UL);
+                TimerService.Pause(0UL);
                 TimerService.Resume(0UL);
                 TimerService.Restart(0UL);
-                TimerService.RemoveTimer(0UL);
-                TimerService.Stop(staleHandle);
+                TimerService.Cancel(0UL);
+                TimerService.Pause(staleHandle);
                 TimerService.Resume(staleHandle);
                 TimerService.Restart(staleHandle);
-                TimerService.RemoveTimer(staleHandle);
+                TimerService.Cancel(staleHandle);
                 bool running = TimerService.IsRunning(staleHandle);
                 float leftTime = TimerService.GetLeftTime(staleHandle);
                 StopCaseMeasure();
@@ -546,8 +546,8 @@ namespace Moirai.Atropos.Timer
         {
             ClearAllTimers();
             RestartCaseMeasure();
-            ulong noArgsHandle = TimerService.AddTimer(null, m_ControlDuration);
-            ulong genericHandle = TimerService.AddTimer<BenchmarkArg>(null, _genericArg, m_ControlDuration);
+            ulong noArgsHandle = TimerService.Delay(m_ControlDuration, (Action)null);
+            ulong genericHandle = TimerService.Delay<BenchmarkArg>(m_ControlDuration, null, _genericArg);
             StopCaseMeasure();
 
             AssertEqual((int)noArgsHandle, 0, "null no-args callback produced a handle");
@@ -578,7 +578,7 @@ namespace Moirai.Atropos.Timer
                 int count = Math.Min(m_TimerCount, _handles.Length);
                 ClearAllTimers();
                 for (int i = 0; i < count; i++)
-                    _handles[i] = TimerService.AddTimer(s_NoOpHandler, 3600f, (i & 1) == 0, (i & 2) == 0);
+                    _handles[i] = TimerService.Delay(3600f, s_NoOpHandler, (i & 1) == 0, (i & 2) == 0);
 
                 RestartCaseMeasure();
                 TickService(m_TickLoopCount);
@@ -586,7 +586,7 @@ namespace Moirai.Atropos.Timer
 
                 AssertActiveCount(count, "pending tick changed active timer count");
                 for (int i = 0; i < count; i++)
-                    TimerService.RemoveTimer(_handles[i]);
+                    TimerService.Cancel(_handles[i]);
             }
         }
 
@@ -601,7 +601,7 @@ namespace Moirai.Atropos.Timer
                 int count = Math.Min(64, _handles.Length);
                 ClearAllTimers();
                 for (int i = 0; i < count; i++)
-                    _handles[i] = TimerService.AddTimer(s_NoOpHandler, m_ControlDuration);
+                    _handles[i] = TimerService.Delay(m_ControlDuration, s_NoOpHandler);
 
                 RestartCaseMeasure();
                 int activeCount = 0;
@@ -618,7 +618,7 @@ namespace Moirai.Atropos.Timer
                 AssertTrue(freeCount == poolCapacity - count, "statistics free count mismatch");
 
                 for (int i = 0; i < count; i++)
-                    TimerService.RemoveTimer(_handles[i]);
+                    TimerService.Cancel(_handles[i]);
             }
         }
 
@@ -629,7 +629,7 @@ namespace Moirai.Atropos.Timer
                 int count = Math.Min(64, _handles.Length);
                 ClearAllTimers();
                 for (int i = 0; i < count; i++)
-                    _handles[i] = TimerService.AddTimer(s_NoOpHandler, m_ControlDuration, i == 0, i == 1);
+                    _handles[i] = TimerService.Delay(m_ControlDuration, s_NoOpHandler, i == 0, i == 1);
 
                 EnsureInfoBuffer(count);
                 RestartCaseMeasure();
@@ -660,7 +660,7 @@ namespace Moirai.Atropos.Timer
                 AssertTrue(foundUnscaled, "debug buffer missed unscaled flag");
 
                 for (int i = 0; i < count; i++)
-                    TimerService.RemoveTimer(_handles[i]);
+                    TimerService.Cancel(_handles[i]);
             }
         }
 
@@ -671,14 +671,14 @@ namespace Moirai.Atropos.Timer
         private void RunHandleReuseAfterRemove()
         {
             ClearAllTimers();
-            ulong first = TimerService.AddTimer(s_NoOpHandler, m_ControlDuration);
-            TimerService.RemoveTimer(first);
-            ulong second = TimerService.AddTimer(s_NoOpHandler, m_ControlDuration);
+            ulong first = TimerService.Delay(m_ControlDuration, s_NoOpHandler);
+            TimerService.Cancel(first);
+            ulong second = TimerService.Delay(m_ControlDuration, s_NoOpHandler);
             AssertTrue(first != 0UL && second != 0UL, "handle reuse produced an invalid handle");
             AssertTrue(first != second, "removed handle was reused without version change");
             AssertTrue(!TimerService.IsRunning(first), "old handle stayed valid after reuse");
             AssertTrue(TimerService.IsRunning(second), "new handle is not running");
-            TimerService.RemoveTimer(second);
+            TimerService.Cancel(second);
         }
 
         #endregion
@@ -691,7 +691,7 @@ namespace Moirai.Atropos.Timer
             ClearAllTimers();
             s_CallbackCount = 0;
             for (int i = 0; i < count; i++)
-                _handles[i] = TimerService.AddTimer(s_CountHandler, m_FireDelay);
+                _handles[i] = TimerService.Delay(m_FireDelay, s_CountHandler);
 
             RestartCaseMeasure();
             yield return WaitForFire();
@@ -707,7 +707,7 @@ namespace Moirai.Atropos.Timer
             ClearAllTimers();
             s_CallbackCount = 0;
             for (int i = 0; i < count; i++)
-                _handles[i] = TimerService.AddTimer(s_CountHandler, m_FireDelay, true);
+                _handles[i] = TimerService.Delay(m_FireDelay, s_CountHandler, true);
 
             RestartCaseMeasure();
             yield return WaitForFire();
@@ -716,7 +716,7 @@ namespace Moirai.Atropos.Timer
             AssertTrue(s_CallbackCount >= count, "loop fire did not invoke callbacks");
             AssertActiveCount(count, "loop fire changed active timer count");
             for (int i = 0; i < count; i++)
-                TimerService.RemoveTimer(_handles[i]);
+                TimerService.Cancel(_handles[i]);
             AssertActiveCount(0, "loop fire remove left active timers");
         }
 
@@ -726,7 +726,7 @@ namespace Moirai.Atropos.Timer
             ClearAllTimers();
             _genericArg.Value = 0;
             for (int i = 0; i < count; i++)
-                _handles[i] = TimerService.AddTimer(s_GenericCountHandler, _genericArg, m_FireDelay);
+                _handles[i] = TimerService.Delay(m_FireDelay, s_GenericCountHandler, _genericArg);
 
             RestartCaseMeasure();
             yield return WaitForFire();
@@ -740,7 +740,7 @@ namespace Moirai.Atropos.Timer
         {
             ClearAllTimers();
             s_CallbackService = this;
-            s_CallbackHandle = TimerService.AddTimer(s_RemoveSelfHandler, m_FireDelay, true);
+            s_CallbackHandle = TimerService.Delay(m_FireDelay, s_RemoveSelfHandler, true);
             AssertNotZero(s_CallbackHandle, "remove-during-callback add returned invalid handle");
 
             RestartCaseMeasure();
@@ -772,7 +772,7 @@ namespace Moirai.Atropos.Timer
 
             for (int i = 0; i < count; i++)
             {
-                _handles[i] = TimerService.AddTimer(s_CountHandler, delay, isLoop, true);
+                _handles[i] = TimerService.Delay(delay, s_CountHandler, isLoop, true);
                 AssertNotZero(_handles[i], "burst add returned invalid handle");
             }
 
@@ -795,7 +795,7 @@ namespace Moirai.Atropos.Timer
                 TimerService.GetStatistics(out int activeAfter, out _, out _, out _);
                 AssertEqual(activeAfter, count, "burst loop tick changed active count");
                 for (int i = 0; i < count; i++)
-                    TimerService.RemoveTimer(_handles[i]);
+                    TimerService.Cancel(_handles[i]);
             }
             else
             {
@@ -839,7 +839,7 @@ namespace Moirai.Atropos.Timer
                     break;
 
                 for (int i = 0; i < count; i++)
-                    TimerService.RemoveTimer(_infoBuffer[i].TimerHandle);
+                    TimerService.Cancel(_infoBuffer[i].TimerHandle);
 
                 if (count < _infoBuffer.Length)
                     break;
@@ -936,7 +936,7 @@ namespace Moirai.Atropos.Timer
         private static void OnRemoveSelf()
         {
             if (s_CallbackService != null)
-                TimerService.RemoveTimer(s_CallbackHandle);
+                TimerService.Cancel(s_CallbackHandle);
         }
 
         private static void OnGeneric(BenchmarkArg arg)
