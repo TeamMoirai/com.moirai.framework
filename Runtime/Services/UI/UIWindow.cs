@@ -645,7 +645,7 @@ namespace Moirai.Atropos.UI
             IsHide = false;
             if (HideTimerId != 0UL)
             {
-                TimerService.RemoveTimer(HideTimerId);
+                TimerService.Cancel(HideTimerId);
                 HideTimerId = 0UL;
             }
         }

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Cysharp.Threading.Tasks;
@@ -595,7 +595,7 @@ namespace Moirai.Atropos.UI
             window.CancelHideToCloseTimer();
             window.Visible = false;
             window.IsHide = true;
-            window.HideTimerId = TimerService.AddTimer(window.Close, window.HideTimeToClose);
+            window.HideTimerId = TimerService.Delay(window.HideTimeToClose, window.Close);
 
             if (window.FullScreen)
             {

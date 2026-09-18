@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using Moirai.Atropos.Debugger;
 using Moirai.Atropos.Resource;
-using Moirai.Atropos.Schedulers;
+using Moirai.Atropos.Timer;
 using UnityEngine;
 using UnityEngine.Audio;
 
@@ -57,7 +57,7 @@ namespace Moirai.Atropos.Audio
             }
 
             // 加载音频设置，必须等一帧设置才能生效
-            Scheduler.WaitFrame(1, LoadSettings);
+            TimerService.WaitFrame(1, LoadSettings);
 
             DebuggerService.RegisterDebuggerWindow("Profiler/Audio", new AudioServiceDebuggerWindow());
         }

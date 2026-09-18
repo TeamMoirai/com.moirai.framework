@@ -6,7 +6,7 @@
 
 旧版 `GameApp` 将 `Update`/`FixedUpdate`/`LateUpdate` 订阅挂在隐藏宿主 `MainBehaviour`（`[UpdateDriver]`）实例事件上。该宿主在初始场景加载前可能被意外销毁，导致全部订阅丢失，服务 Tick 静默停摆。
 
-`Runtime/Core/Schedulers` 是 Timer/FrameCounter 子系统（Unreal TimerManager 风格），依赖场景 GameObject，且无通用 `IUpdateHandler` 注册面，**不能**作为游戏逻辑驱动。
+`Runtime/Services/Timer`（`TimerService`）是统一的计时子系统（四级时间轮 + 帧计时），提供 `Delay` / `WaitFrame` 等能力；它本身作为 `IUpdateHandler` / `IFixedUpdateHandler` / `ILateUpdateHandler` 订阅本驱动，由 PlayerLoop 按阶段推进，而非反向驱动游戏逻辑。
 
 ## 架构
 
@@ -64,7 +64,7 @@ GameApp.AddUpdateListener -= ... // RemoveUpdateListener
 |------|------|
 | `SubsystemRegistration` | 记录默认 PlayerLoop；Driver 标记 Shutdown |
 | `GameApp.Initialize`（AfterAssembliesLoaded） | `PlayerLoopDriver.Initialize()` 注入并注册内置 Tick |
-| `GameApp.Shutdown` / 退出 Play | 广播 Destroy → 清空注册表 → `SchedulerRunner.Shutdown` → 恢复默认 PlayerLoop |
+| `GameApp.Shutdown` / 退出 Play | 广播 Destroy → 清空注册表 → 恢复默认 PlayerLoop |
 | ECS 重置 PlayerLoop 后 | 调用 `PlayerLoopInjector.Reinject()` |
 
 ## DI（VContainer 等）

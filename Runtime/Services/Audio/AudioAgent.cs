@@ -2,7 +2,7 @@ using Moirai.Atropos.Resource;
 using System;
 using System.Threading;
 using Cysharp.Threading.Tasks;
-using Moirai.Atropos.Schedulers;
+using Moirai.Atropos.Timer;
 using UnityEngine;
 using UnityEngine.Audio;
 
@@ -42,7 +42,7 @@ namespace Moirai.Atropos.Audio
         private float _fadeOutDuration;
 
         private float _playDuration;
-        private SchedulerHandle _autoUnSoloOnEnd;
+        private ulong _autoUnSoloOnEnd;
 
         // ===== 热路径播放状态（从 AudioPlayRequest 解出，Update 高频读）=====
         private AudioPlayRequest _hot;
@@ -458,10 +458,10 @@ namespace Moirai.Atropos.Audio
                 _audioHandler?.StopFadeAudio(_currentHandle);
             }
 
-            if (_autoUnSoloOnEnd != default)
+            if (_autoUnSoloOnEnd != 0UL)
             {
                 _autoUnSoloOnEnd.Cancel();
-                _autoUnSoloOnEnd = default;
+                _autoUnSoloOnEnd = 0UL;
             }
 
             if (_cold != null)
@@ -518,7 +518,7 @@ namespace Moirai.Atropos.Audio
                 if (_autoUnSoloOnEndFlag)
                 {
                     EAudioTrack track = _soloTrack;
-                    _autoUnSoloOnEnd = Scheduler.Delay(_playDuration, () => MuteAudiosOnTrack(track, false));
+                    _autoUnSoloOnEnd = TimerService.Delay(_playDuration, () => MuteAudiosOnTrack(track, false));
                 }
             }
             else if (_soloAllTracks)
@@ -527,7 +527,7 @@ namespace Moirai.Atropos.Audio
                 source.mute = false;
                 if (_autoUnSoloOnEndFlag)
                 {
-                    _autoUnSoloOnEnd = Scheduler.Delay(_playDuration, () => MuteAllAudios(false));
+                    _autoUnSoloOnEnd = TimerService.Delay(_playDuration, () => MuteAllAudios(false));
                 }
             }
         }
@@ -777,10 +777,10 @@ namespace Moirai.Atropos.Audio
                     source.Stop();
                 }
 
-                if (_autoUnSoloOnEnd != default)
+                if (_autoUnSoloOnEnd != 0UL)
                 {
                     _autoUnSoloOnEnd.Cancel();
-                    _autoUnSoloOnEnd = default;
+                    _autoUnSoloOnEnd = 0UL;
                 }
 
                 EnterEndState();

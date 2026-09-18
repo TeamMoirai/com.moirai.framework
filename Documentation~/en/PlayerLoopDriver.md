@@ -6,7 +6,7 @@
 
 The previous `GameApp` stored `Update`/`FixedUpdate`/`LateUpdate` listeners on a hidden host `MainBehaviour` (`[UpdateDriver]`). That host could be destroyed before the initial scene load, silently dropping all subscriptions.
 
-`Runtime/Core/Schedulers` is a Timer/FrameCounter subsystem (Unreal TimerManager style). It depends on a scene GameObject and has no general `IUpdateHandler` registration surface — it **cannot** serve as the game logic driver.
+`Runtime/Services/Timer` (`TimerService`) is the unified timing subsystem (four-level timing wheel + frame timers), exposing `Delay` / `WaitFrame` and friends. It subscribes to this driver itself as an `IUpdateHandler` / `IFixedUpdateHandler` / `ILateUpdateHandler` and is advanced by the PlayerLoop per phase, rather than driving game logic in reverse.
 
 ## Architecture
 
@@ -61,7 +61,7 @@ GameApp.AddUpdateListener(OnUpdate);
 |------|------|
 | `SubsystemRegistration` | Capture default PlayerLoop; Driver marked Shutdown |
 | `GameApp.Initialize` (AfterAssembliesLoaded) | `PlayerLoopDriver.Initialize()` injects + registers builtin ticks |
-| `GameApp.Shutdown` / exit Play | Broadcast Destroy → clear registry → `SchedulerRunner.Shutdown` → restore default PlayerLoop |
+| `GameApp.Shutdown` / exit Play | Broadcast Destroy → clear registry → restore default PlayerLoop |
 | After ECS resets PlayerLoop | Call `PlayerLoopInjector.Reinject()` |
 
 ## DI (VContainer etc.)
