@@ -1,5 +1,7 @@
 using System;
 using System.Runtime.CompilerServices;
+using System.Threading;
+using Cysharp.Threading.Tasks;
 using Unity.IL2CPP.CompilerServices;
 using UnityEngine;
 
@@ -21,9 +23,16 @@ namespace Moirai.Atropos.Timer
     internal sealed class DefaultTimerHandler : TimerServiceHandler
     {
         private const int MIN_INITIAL_CAPACITY = 256;
+        private const int DEFAULT_WHEEL_CAPACITY = 1024;
+        private const int DEFAULT_FRAME_CAPACITY = 256;
 
         [Min(MIN_INITIAL_CAPACITY)]
-        [SerializeField] private int m_InitialCapacity = 1024;
+        [Tooltip("时间轮（Delay）引擎初始预热的槽位容量。")]
+        [SerializeField] private int m_WheelInitialCapacity = DEFAULT_WHEEL_CAPACITY;
+
+        [Min(MIN_INITIAL_CAPACITY)]
+        [Tooltip("帧计时（WaitFrame）引擎初始预热的槽位容量；通常远小于时间轮。")]
+        [SerializeField] private int m_FrameInitialCapacity = DEFAULT_FRAME_CAPACITY;
 
         private readonly WheelTimerEngine _wheel = new WheelTimerEngine();
         private readonly FrameTimerEngine _frame = new FrameTimerEngine();
@@ -31,15 +40,18 @@ namespace Moirai.Atropos.Timer
         // 泳道路由表：下标即 TimerLaneKinds.*，OnInit 构造，供句柄按位路由。
         private ITimerEngine[] _lanes;
 
+        // 跨引擎真实并发峰值：活跃总数仅在创建时上升，故每次创建后采样的最大值即真实峰值。
+        private int _peakActiveCount;
+
         protected override void OnInit()
         {
             _lanes = new ITimerEngine[TimerLaneKinds.Count];
             _lanes[TimerLaneKinds.Wheel] = _wheel;
             _lanes[TimerLaneKinds.Frame] = _frame;
+            _peakActiveCount = 0;
 
-            int capacity = Mathf.Max(MIN_INITIAL_CAPACITY, m_InitialCapacity);
-            _wheel.Init(capacity);
-            _frame.Init(capacity);
+            _wheel.Init(Mathf.Max(MIN_INITIAL_CAPACITY, m_WheelInitialCapacity));
+            _frame.Init(Mathf.Max(MIN_INITIAL_CAPACITY, m_FrameInitialCapacity));
         }
 
         protected override void OnShutdown()
@@ -75,43 +87,68 @@ namespace Moirai.Atropos.Timer
         internal override ulong Delay(float delaySeconds, Action onComplete, bool isLooped = false,
             bool ignoreTimeScale = false, TimerPhase phase = TimerPhase.Update)
         {
-            return _wheel.Delay(delaySeconds, onComplete, isLooped, ignoreTimeScale, phase);
+            ulong handle = _wheel.Delay(delaySeconds, onComplete, isLooped, ignoreTimeScale, phase);
+            SampleActivePeak();
+            return handle;
         }
 
         internal override ulong Delay<T>(float delaySeconds, Action<T> onComplete, T arg, bool isLooped = false,
             bool ignoreTimeScale = false, TimerPhase phase = TimerPhase.Update) where T : class
         {
-            return _wheel.Delay(delaySeconds, onComplete, arg, isLooped, ignoreTimeScale, phase);
+            ulong handle = _wheel.Delay(delaySeconds, onComplete, arg, isLooped, ignoreTimeScale, phase);
+            SampleActivePeak();
+            return handle;
         }
 
         internal override ulong Delay(float delaySeconds, Action onComplete, Action<float> onUpdate,
             bool isLooped = false, bool ignoreTimeScale = false, TimerPhase phase = TimerPhase.Update)
         {
-            return _wheel.Delay(delaySeconds, onComplete, onUpdate, isLooped, ignoreTimeScale, phase);
+            ulong handle = _wheel.Delay(delaySeconds, onComplete, onUpdate, isLooped, ignoreTimeScale, phase);
+            SampleActivePeak();
+            return handle;
         }
 
         internal override ulong DelayUnsafe(float delaySeconds, in TimerUnsafeBinding onComplete, bool isLooped = false,
             bool ignoreTimeScale = false, TimerPhase phase = TimerPhase.Update)
         {
-            return _wheel.DelayUnsafe(delaySeconds, onComplete, isLooped, ignoreTimeScale, phase);
+            ulong handle = _wheel.DelayUnsafe(delaySeconds, onComplete, isLooped, ignoreTimeScale, phase);
+            SampleActivePeak();
+            return handle;
         }
 
         internal override ulong WaitFrame(int frames, Action onComplete, bool isLooped = false,
             TimerPhase phase = TimerPhase.Update)
         {
-            return _frame.WaitFrame(frames, onComplete, isLooped, phase);
+            ulong handle = _frame.WaitFrame(frames, onComplete, isLooped, phase);
+            SampleActivePeak();
+            return handle;
         }
 
         internal override ulong WaitFrame(int frames, Action<int> onUpdate, bool isLooped = false,
             TimerPhase phase = TimerPhase.Update)
         {
-            return _frame.WaitFrame(frames, onUpdate, isLooped, phase);
+            ulong handle = _frame.WaitFrame(frames, onUpdate, isLooped, phase);
+            SampleActivePeak();
+            return handle;
         }
 
         internal override ulong WaitFrameUnsafe(int frames, in TimerUnsafeBinding onComplete, bool isLooped = false,
             TimerPhase phase = TimerPhase.Update)
         {
-            return _frame.WaitFrameUnsafe(frames, onComplete, isLooped, phase);
+            ulong handle = _frame.WaitFrameUnsafe(frames, onComplete, isLooped, phase);
+            SampleActivePeak();
+            return handle;
+        }
+
+        // 活跃总数只在创建后上升、释放时下降，故每次创建采样即可捕获真实并发峰值（避免两引擎峰值相加的高估）。
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void SampleActivePeak()
+        {
+            int total = _wheel.ActiveCount + _frame.ActiveCount;
+            if (total > _peakActiveCount)
+            {
+                _peakActiveCount = total;
+            }
         }
 
         #endregion
@@ -169,6 +206,12 @@ namespace Moirai.Atropos.Timer
             _frame.CancelAll();
         }
 
+        internal override UniTask WaitAsync(ulong timerHandle, CancellationToken cancellationToken = default)
+        {
+            ITimerEngine lane = Lane(timerHandle);
+            return lane != null ? lane.WaitAsync(timerHandle, cancellationToken) : UniTask.CompletedTask;
+        }
+
         internal override bool IsRunning(ulong timerHandle)
         {
             return Lane(timerHandle)?.IsRunning(timerHandle) ?? false;
@@ -183,6 +226,11 @@ namespace Moirai.Atropos.Timer
         internal override float GetLeftTime(ulong timerHandle)
         {
             return Lane(timerHandle)?.GetLeftTime(timerHandle) ?? 0f;
+        }
+
+        internal override int GetLeftFrames(ulong timerHandle)
+        {
+            return Lane(timerHandle)?.GetLeftFrames(timerHandle) ?? 0;
         }
 
         internal override float GetElapsed(ulong timerHandle)
@@ -202,11 +250,11 @@ namespace Moirai.Atropos.Timer
         internal override void GetStatistics(out int activeCount, out int poolCapacity, out int peakActiveCount,
             out int freeCount)
         {
-            _wheel.GetStatistics(out int wheelActive, out int wheelCapacity, out int wheelPeak, out int wheelFree);
-            _frame.GetStatistics(out int frameActive, out int frameCapacity, out int framePeak, out int frameFree);
+            _wheel.GetStatistics(out int wheelActive, out int wheelCapacity, out _, out int wheelFree);
+            _frame.GetStatistics(out int frameActive, out int frameCapacity, out _, out int frameFree);
             activeCount = wheelActive + frameActive;
             poolCapacity = wheelCapacity + frameCapacity;
-            peakActiveCount = wheelPeak + framePeak;
+            peakActiveCount = _peakActiveCount;
             freeCount = wheelFree + frameFree;
         }
 

@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
+using System.Threading;
+using Cysharp.Threading.Tasks;
 using static Moirai.Atropos.Timer.TimerHandlerTypes;
 using static Moirai.Atropos.Timer.TimerStates;
 using static Moirai.Atropos.Timer.TimerPool;
@@ -37,6 +39,8 @@ namespace Moirai.Atropos.Timer
             public readonly int[] FrameTargets = new int[PAGE_SIZE];
             public readonly int[] FrameListPositions = new int[PAGE_SIZE];
             public readonly int[] ActiveIndices = new int[PAGE_SIZE];
+            // 按槽位挂载的完成信号（仅 await 时惰性创建；释放时唤醒并清空）。
+            public readonly UniTaskCompletionSource[] WaitSignals = new UniTaskCompletionSource[PAGE_SIZE];
 #if UNITY_EDITOR
             public readonly double[] CreationTimes = new double[PAGE_SIZE];
 #endif
@@ -68,6 +72,9 @@ namespace Moirai.Atropos.Timer
         private List<ulong> _scratchUpdate;
         private List<ulong> _scratchFixed;
         private List<ulong> _scratchLate;
+        // 完成信号延迟唤醒队列 + 快照（在阶段 Tick 末尾排空，避免回调在释放调用栈内同步续跑）。
+        private List<UniTaskCompletionSource> _deferredSignals;
+        private List<UniTaskCompletionSource> _signalScratch;
 
         public void Init(int capacity)
         {
@@ -80,6 +87,8 @@ namespace Moirai.Atropos.Timer
             _scratchUpdate = new List<ulong>(64);
             _scratchFixed = new List<ulong>(64);
             _scratchLate = new List<ulong>(64);
+            _deferredSignals = new List<UniTaskCompletionSource>(16);
+            _signalScratch = new List<UniTaskCompletionSource>(16);
             _pageCount = 0;
             _slotCapacity = 0;
             _freeCount = 0;
@@ -87,21 +96,8 @@ namespace Moirai.Atropos.Timer
             _peakActiveCount = 0;
             _executingSlotIndex = INVALID_INDEX;
 
+            // 帧泳道按其自身（通常更小的）容量预热；超出部分仍按需 AddPage 扩容。
             Prewarm(NormalizeCapacity(capacity));
-        }
-
-        public void Shutdown()
-        {
-            ClearAll();
-            _pages = null;
-            _freeSlotPages = null;
-            _activeSlotPages = null;
-            _updateSlots = null;
-            _fixedSlots = null;
-            _lateSlots = null;
-            _scratchUpdate = null;
-            _scratchFixed = null;
-            _scratchLate = null;
         }
 
         private void Prewarm(int capacity)
@@ -116,6 +112,22 @@ namespace Moirai.Atropos.Timer
             {
                 AddPage();
             }
+        }
+
+        public void Shutdown()
+        {
+            ClearAll();
+            _pages = null;
+            _freeSlotPages = null;
+            _activeSlotPages = null;
+            _updateSlots = null;
+            _fixedSlots = null;
+            _lateSlots = null;
+            _scratchUpdate = null;
+            _scratchFixed = null;
+            _scratchLate = null;
+            _deferredSignals = null;
+            _signalScratch = null;
         }
 
         #region 注册 [REGISTER]
@@ -192,16 +204,19 @@ namespace Moirai.Atropos.Timer
         public void Tick()
         {
             ProcessFrameTimers(_updateSlots, _scratchUpdate);
+            DrainSignals();
         }
 
         public void FixedTick()
         {
             ProcessFrameTimers(_fixedSlots, _scratchFixed);
+            DrainSignals();
         }
 
         public void LateTick()
         {
             ProcessFrameTimers(_lateSlots, _scratchLate);
+            DrainSignals();
         }
 
         /// <summary>
@@ -364,6 +379,18 @@ namespace Moirai.Atropos.Timer
         {
             // 帧计时无“剩余秒数”语义。
             return 0f;
+        }
+
+        public int GetLeftFrames(ulong handle)
+        {
+            int slotIndex = GetSlotIndex(handle);
+            if (slotIndex < 0)
+            {
+                return 0;
+            }
+
+            int remaining = GetFrameRemaining(slotIndex);
+            return remaining > 0 ? remaining : 0;
         }
 
         public float GetElapsed(ulong handle)
@@ -537,7 +564,82 @@ namespace Moirai.Atropos.Timer
 
         #endregion
 
+        #region 等待信号 [WAIT SIGNAL]
+
+        public UniTask WaitAsync(ulong handle, CancellationToken cancellationToken)
+        {
+            int slotIndex = GetSlotIndex(handle);
+            if (slotIndex < 0)
+            {
+                return UniTask.CompletedTask; // 已结束 / 无效句柄
+            }
+
+            if (GetWaitSignal(slotIndex) != null)
+            {
+                // 同一句柄已有等待者：额外等待者退回轮询，避免覆盖首信号使其永不唤醒。
+                return UniTask.WaitUntil(() => IsDone(handle), cancellationToken: cancellationToken);
+            }
+
+            UniTaskCompletionSource source = new UniTaskCompletionSource();
+            SetWaitSignal(slotIndex, source);
+            return cancellationToken.CanBeCanceled
+                ? source.Task.AttachExternalCancellation(cancellationToken)
+                : source.Task;
+        }
+
+        private void SignalCompletion(int slotIndex)
+        {
+            UniTaskCompletionSource source = GetWaitSignal(slotIndex);
+            if (source == null)
+            {
+                return;
+            }
+
+            SetWaitSignal(slotIndex, null);
+            _deferredSignals.Add(source);
+        }
+
+        private void DrainSignals()
+        {
+            if (_deferredSignals.Count == 0)
+            {
+                return;
+            }
+
+            // 快照后排空：续跑回调可能再次挂载/触发信号，落在本帧或下帧排空均可。
+            _signalScratch.Clear();
+            for (int i = 0; i < _deferredSignals.Count; i++)
+            {
+                _signalScratch.Add(_deferredSignals[i]);
+            }
+
+            _deferredSignals.Clear();
+
+            for (int i = 0; i < _signalScratch.Count; i++)
+            {
+                _signalScratch[i].TrySetResult();
+            }
+
+            _signalScratch.Clear();
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private UniTaskCompletionSource GetWaitSignal(int slotIndex)
+        {
+            return GetPage(slotIndex).WaitSignals[GetOffset(slotIndex)];
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void SetWaitSignal(int slotIndex, UniTaskCompletionSource value)
+        {
+            GetPage(slotIndex).WaitSignals[GetOffset(slotIndex)] = value;
+        }
+
+        #endregion
+
         #region 统计 / 调试 [STATS & DEBUG]
+
+        public int ActiveCount => _activeCount;
 
         public void GetStatistics(out int activeCount, out int poolCapacity, out int peakActiveCount, out int freeCount)
         {
@@ -699,6 +801,7 @@ namespace Moirai.Atropos.Timer
             page.FrameTargets[offset] = 0;
             page.FrameListPositions[offset] = INVALID_INDEX;
             page.ActiveIndices[offset] = INVALID_INDEX;
+            page.WaitSignals[offset] = null;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -773,6 +876,9 @@ namespace Moirai.Atropos.Timer
 #endif
 
             // 句柄须在 SetHandle(0UL) 销毁前用于快照；executing 早返回前必须完成列表归属清理。
+            // 释放即唤醒等待者（完成 / 取消 / CancelAll 统一经此）；延后到 Tick 末尾排空，避免同步续跑重入。
+            SignalCompletion(slotIndex);
+
             SetHandle(slotIndex, 0UL);
 
             if (slotIndex == _executingSlotIndex)
