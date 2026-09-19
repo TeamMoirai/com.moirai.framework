@@ -89,7 +89,34 @@ namespace Moirai.Atropos.FrameLoop
                 UnityPlayerLoop.SetPlayerLoop(loop);
             }
 
-            s_Injected = true;
+            // 注入标志以循环实况为准：相位类型缺失（第三方重建循环）时置位会导致永久静默丢驱动
+            s_Injected = AllMarkersPresent(loop);
+            if (!s_Injected)
+            {
+                LogUtility.Warning(
+                    "PlayerLoopInjector: 注入后校验未在 PlayerLoop 中找到全部 Moirai 标记，" +
+                    "循环可能被第三方重建。确认重建完成后再调用 Reinject()。");
+            }
+        }
+
+        /// <summary>
+        /// BeforeSceneLoad 自愈校验：第三方若在 AfterAssembliesLoaded（同阶段晚于本框架）或
+        /// BeforeSceneLoad 早期基于默认循环重建 PlayerLoop，会抹掉 Moirai 标记——
+        /// 此处按循环实况补插，不信任注入标志位。
+        /// <para>未初始化（GameApp 未启动，如 EditMode）时不主动注入；
+        /// 若第三方重置发生在更晚时机（如 ECS 自定义 bootstrap 之后），仍需在重置完成后调用 <see cref="Reinject"/>。</para>
+        /// </summary>
+        [UnityEngine.RuntimeInitializeOnLoadMethod(UnityEngine.RuntimeInitializeLoadType.BeforeSceneLoad)]
+        private static void VerifyInjection()
+        {
+            if (!s_Injected) return;
+
+            PlayerLoopSystem loop = UnityPlayerLoop.GetCurrentPlayerLoop();
+            if (AllMarkersPresent(loop)) return;
+
+            LogUtility.Warning("PlayerLoopInjector: 检测到 PlayerLoop 被第三方重建导致 Moirai 标记丢失，已自动补插。");
+            s_Injected = false;
+            EnsureInjected();
         }
 
         /// <summary>
@@ -236,6 +263,29 @@ namespace Moirai.Atropos.FrameLoop
             {
                 if (list[i].type == markerType) return true;
             }
+            return false;
+        }
+
+        /// <summary>三个 Moirai 标记是否全部存在于给定循环中（注入完成度实况校验）。</summary>
+        private static bool AllMarkersPresent(PlayerLoopSystem loop)
+        {
+            return HasPhaseMarker(loop, typeof(global::UnityEngine.PlayerLoop.Update), typeof(MoiraiUpdate))
+                && HasPhaseMarker(loop, typeof(global::UnityEngine.PlayerLoop.FixedUpdate), typeof(MoiraiFixedUpdate))
+                && HasPhaseMarker(loop, typeof(global::UnityEngine.PlayerLoop.PreLateUpdate), typeof(MoiraiLateUpdate));
+        }
+
+        private static bool HasPhaseMarker(PlayerLoopSystem root, Type phaseType, Type markerType)
+        {
+            if (root.type == phaseType) return ContainsMarker(root.subSystemList, markerType);
+
+            PlayerLoopSystem[] children = root.subSystemList;
+            if (children == null) return false;
+
+            for (int i = 0; i < children.Length; i++)
+            {
+                if (HasPhaseMarker(children[i], phaseType, markerType)) return true;
+            }
+
             return false;
         }
     }

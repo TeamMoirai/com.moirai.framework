@@ -70,7 +70,8 @@ GameApp.RemoveUpdateListener(OnUpdate);
 | 时机 | 行为 |
 |------|------|
 | `SubsystemRegistration` | 记录默认 PlayerLoop；Driver 标记 Shutdown；`GameAppHost` 复位退出标记 |
-| `GameApp.Initialize`（AfterAssembliesLoaded） | `PlayerLoopDriver.Initialize()` 注入并注册内置 Tick，随后物化 `GameAppHost` |
+| `GameApp.Initialize`（AfterAssembliesLoaded） | `PlayerLoopDriver.Initialize()` 注入并注册内置 Tick，随后物化 `GameAppHost`；注入后按循环实况校验三标记，缺失则不置注入标志并告警 |
+| `BeforeSceneLoad` | 自愈校验：第三方（同阶段晚于本框架者）基于默认循环重建导致标记丢失时，按循环实况自动补插并告警 |
 | `GameApp.Shutdown` / 退出 Play | 广播 Destroy → 清空注册表 → 恢复默认 PlayerLoop → 销毁宿主 |
 | ECS 重置 PlayerLoop 后 | 调用 `PlayerLoopInjector.Reinject()` |
 
@@ -87,8 +88,8 @@ PlayerLoopDriver.Register(system);
 
 ## 兼容注意
 
-- **UniTask**：注入基于当前循环，不覆盖 UniTask 系统；退出 Play 恢复默认循环后由 UniTask 自行重新初始化。
-- **ECS/DOTS**：Entities 可能在 `BeforeSceneLoad` 重置 PlayerLoop，初始化完成后 `PlayerLoopInjector.Reinject()`。
+- **UniTask**：注入基于当前循环，不覆盖 UniTask 系统；退出 Play 恢复默认循环后由 UniTask 自行重新初始化。**注意**：`RestoreDefault` 恢复的是引擎默认循环，会连带移除 UniTask 注入——禁用域重载（DisableDomainReload）时退出 Play 不触发域重载，编辑模式下 UniTask 将停摆至下次域重载或再次进 Play。
+- **ECS/DOTS**：Entities 可能在 `BeforeSceneLoad` 重置 PlayerLoop——发生于自愈校验之前/早期的重建会被自动补插；若重置在校验之后（如自定义 bootstrap），初始化完成后 `PlayerLoopInjector.Reinject()`。
 - **ApplicationPause**：Unity 无纯 C# 事件，由 `GameAppHost.OnApplicationPause` 转发到 `PlayerLoopDriver.RaiseApplicationPause`；订阅存在静态表，宿主重建即恢复派发。
 - **Gizmos**：同理，`GameAppHost.OnDrawGizmos(Selected)` 转发到 `PlayerLoopDriver.RaiseDrawGizmos(Selected)`；仅编辑器有派发者，打包后表为空即无副作用。
 - **协程**：`GameApp.StartCoroutine` 经 `GameAppHost.Instance` 取用；宿主销毁只影响在跑的协程，不影响任何订阅。

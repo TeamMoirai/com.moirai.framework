@@ -68,7 +68,8 @@ GameApp.AddUpdateListener(OnUpdate);
 | Moment | Behavior |
 |------|------|
 | `SubsystemRegistration` | Capture default PlayerLoop; Driver marked Shutdown; `GameAppHost` clears its shutdown flag |
-| `GameApp.Initialize` (AfterAssembliesLoaded) | `PlayerLoopDriver.Initialize()` injects + registers builtin ticks, then materializes `GameAppHost` |
+| `GameApp.Initialize` (AfterAssembliesLoaded) | `PlayerLoopDriver.Initialize()` injects + registers builtin ticks, then materializes `GameAppHost`; injection is verified against the actual loop — if any marker is missing the injected flag stays false and a warning is logged |
+| `BeforeSceneLoad` | Self-heal: if a third party (same-phase but later) rebuilt the loop from default and wiped the markers, re-inserts them based on the live loop and logs a warning |
 | `GameApp.Shutdown` / exit Play | Broadcast Destroy → clear registry → restore default PlayerLoop → destroy host |
 | After ECS resets PlayerLoop | Call `PlayerLoopInjector.Reinject()` |
 
@@ -83,8 +84,8 @@ PlayerLoopDriver.Register(system);
 
 ## Compatibility
 
-- **UniTask**: injection bases on current loop and does not overwrite UniTask systems; restoring default on Play exit lets UniTask re-init next Play.
-- **ECS/DOTS**: call `PlayerLoopInjector.Reinject()` after Entities resets the loop.
+- **UniTask**: injection bases on current loop and does not overwrite UniTask systems; restoring default on Play exit lets UniTask re-init next Play. **Note**: `RestoreDefault` restores the engine default loop, which also removes UniTask's injection — with DisableDomainReload, exiting Play triggers no domain reload, so edit-mode UniTask stalls until the next reload or Play entry.
+- **ECS/DOTS**: Entities may reset the PlayerLoop at `BeforeSceneLoad` — rebuilds happening before/early relative to the self-heal check are re-inserted automatically; if the reset runs later (e.g. a custom bootstrap), call `PlayerLoopInjector.Reinject()` after initialization completes.
 - **ApplicationPause**: Unity exposes no pure C# event — `GameAppHost.OnApplicationPause` forwards to `PlayerLoopDriver.RaiseApplicationPause`. Subscriptions live in the static table, so rebuilding the host restores dispatch.
 - **Gizmos**: same pattern — `GameAppHost.OnDrawGizmos(Selected)` forwards to `PlayerLoopDriver.RaiseDrawGizmos(Selected)`. Only the editor has a dispatcher; in builds the table is never raised.
 - **Coroutines**: `GameApp.StartCoroutine` goes through `GameAppHost.Instance`; destroying the host only kills running coroutines, never subscriptions.
