@@ -116,7 +116,7 @@ public sealed class SaveMigratorV1ToV2 : ISaveMigrator
 
 - 版本相等短路；`文件版本 > 当前版本` → `UnsupportedVersion`（拒绝降级）；链缺失/歧义（同起始版本多条不同目标边）/迁移器异常 → `MigrationFailed`（经 `LoadFailed` 事件 `Migrate` 阶段观测）
 - **写入自愈**：任何读-改-写（块写入/组件块 upsert/块删除回写）触达旧版本档时先迁移再合并——任何落盘文件恒为当前版本，杜绝新形态块落入旧档后被迁移链误变换
-- **回写策略**：加载触发迁移成功后按 `m_MigrationWriteBack`（默认开）惰性回写（避免每次加载重跑迁移链）；关闭时迁移仅作用于内存，同文件同会话不重复迁移（会话级缓存），盘上保持旧版本
+- **回写策略**：加载触发迁移成功后按处理器的 `m_MigrationWriteBack`（默认开）惰性回写（避免每次加载重跑迁移链）；关闭时迁移仅作用于内存，同文件同会话不重复迁移（会话级缓存），盘上保持旧版本
 - **审计**：每个迁移步向 `SaveMetadata.MigrationHistory` 追加 `"{from}->{to}|{迁移器类型全名}|{UTC ISO-8601}"`（随回写持久化）
 - **显式迁移**：`SaveService.MigrateSave(fileName)` / `MigrateSaveAsync`——启动期批量修复旧档用；迁移成功**强制回写**（不受回写设置约束）；处理器未就绪返回 `HandlerNotReady`
 - 会话缓存失效：`RestoreBackup` 与删除类操作自动失效对应路径（或全量）的会话缓存
@@ -226,7 +226,7 @@ await SaveService.RestoreEntitiesAsync("slot1");
 
 ## 云存档一体（本地镜像 + 远端 KV）
 
-`CloudSaveStorageBackend`（存储后端插拔件，经 `m_StorageBackend` 配置）：本地文件镜像 + 远端 KV 双写，读按冲突策略裁决。远端 KV 语义抽象为 `CloudSaveKvStore`（[SerializeReference] 插拔件）——框架内置两个具体后端（**`RestCloudSaveKvStore`** 自定义 REST / **`UnityCloudSaveKvStore`** UGS 条件编译），项目亦可实现自定义后端。
+`CloudSaveStorageBackend`（存储后端插拔件，经处理器的 `m_StorageBackend` 配置）：本地文件镜像 + 远端 KV 双写，读按冲突策略裁决。远端 KV 语义抽象为 `CloudSaveKvStore`（[SerializeReference] 插拔件）——框架内置两个具体后端（**`RestCloudSaveKvStore`** 自定义 REST / **`UnityCloudSaveKvStore`** UGS 条件编译），项目亦可实现自定义后端。
 
 - **键规范**：云端键 = 相对存档数据根目录（`persistentDataPath/Data/`）的路径，`/` 分隔（如 `Save/slot1.sav`）——不携带本机目录结构，跨设备一致。
 - **错误语义**：远端不可达/失败/未登录一律抛异常，后端归一为**离线降级**（降级本地镜像直通并记告警）；缺档非错误（读 `null` / 存在性 `false` / 删除幂等）。
@@ -241,7 +241,7 @@ await SaveService.RestoreEntitiesAsync("slot1");
 ## 工具链（调试器与编辑器）
 
 - **游戏内调试器窗口** `Profiler/Save`（`SaveServiceDebuggerWindow`，`SaveService.OnInit` 自动注册）：管线状态（处理器/存储后端/压缩/默认后端/截图开关）、槽位清单与选中槽位详情（块表、元数据、坏块红色高亮、截图 sidecar 状态）。文件夹/槽位选择控件常驻，数据区 1s 节流重建。
-- **存档浏览器编辑器窗口**（`Window/Moirai/Save Browser`）：浏览 `persistentDataPath/Data/` 下文件夹与槽位；块表（键/版本/后端/大小/逐块错误）；未加密档内容预览（JSON 块原文美化 / KVT 块**结构化树预览**（嵌套对象/集合/映射缩进展开，解析失败回退十六进制采样）/ 其余后端十六进制采样）；备份/恢复备份/删除（含截图 sidecar 级联）/打开目录。编辑器经设置的存档处理器（含解密链与密钥提供方）+ 压缩提供方读取——加密档照常预览；密钥材料不匹配的档按坏块/不可读呈现。
+- **存档浏览器编辑器窗口**（`Window/Moirai/Save Browser`）：浏览 `persistentDataPath/Data/` 下文件夹与槽位；块表（键/版本/后端/大小/逐块错误）；未加密档内容预览（JSON 块原文美化 / KVT 块**结构化树预览**（嵌套对象/集合/映射缩进展开，解析失败回退十六进制采样）/ 其余后端十六进制采样）；备份/恢复备份/删除（含截图 sidecar 级联）/打开目录。编辑器经设置的存档处理器读取（解密链/存储后端/压缩配置与运行时一致）——加密档照常预览；密钥材料不匹配的档按坏块/不可读呈现。
 - **资产引用收集器**（`Tools/Moirai/Save/Collect Asset References into Catalog`）：扫描已打开场景的 SaveComponent，把资产引用字段当前引用的项目资产登记进 `SaveAssetCatalog`（定位串按文件名寻址约定推导，自定义寻址项目须复核；场景对象实例仅告警）——消除「漏登记 → 捕获写 Null」面。同一次扫描内同一资产只登记一次（本地去重集，不依赖目录延迟缓存）；有新增时自动 `InvalidateLookup` 并保存资产。
 - **SaveComponentEditor 补强**：字段勾选清单标注引用类别（场景引用 = GameObject/Component 派生字段，资产引用 = 其余 UnityEngine.Object 字段）并给出 Identity/Catalog 配置提示；每个绑定显示模式版本（SG 发射值优先 → `[SaveComponentSchema]` 声明 → 缺省 1）。
 
@@ -302,16 +302,24 @@ await SaveService.RestoreEntitiesAsync("slot1");
 
 | 字段 | 说明 |
 |---|---|
-| `m_SaveServiceHandler` | 存储管线处理器（PlainSaveHandler / AESEncryptedSaveHandler；密钥提供方内嵌在 AES 处理器上——空 = 回退 `StaticSaveKeyProvider.Default` 占位默认；可选 StaticSaveKeyProvider / PassphraseSaveKeyProvider / HKDFPerUserSaveKeyProvider） |
-| `m_StorageBackend` | 存储后端（IO 下沉目标，默认 FileSaveStorageBackend；置空回退文件后端；云存档选 `CloudSaveStorageBackend`——组合远端 KV 插拔件（内置 `RestCloudSaveKvStore` 自定义 REST / `UnityCloudSaveKvStore` UGS 条件编译）+ 冲突策略 + 自定义裁决器） |
-| `m_CompressionProvider` | 压缩提供方（空 = 不压缩；内置 GZipCompressionProvider） |
+| `m_SaveServiceHandler` | 存储管线处理器（PlainSaveHandler / AESEncryptedSaveHandler；存储后端/压缩提供方/迁移回写与密钥提供方均内嵌在处理器上配置——见下表） |
 | `m_DefaultBackend` | 默认序列化后端（未声明 `[SaveData]` 的块） |
 | `m_SaveFileExtension` | 存档文件扩展名（默认 `.sav`） |
-| `m_MigrationWriteBack` | 迁移回写（默认开）：加载触发迁移成功后惰性回写存档；关闭则迁移仅作用于当次加载的内存数据 |
 | `m_AssetCatalog` | 资产引用目录（SaveAssetCatalog SO）：无代码保存的资产引用字段经目录双向解析定位串；空 = 资产引用字段捕获恒写 Null |
 | `m_PrefabRegistry` | 预制体注册表（SavePrefabRegistry SO）：可持久化动态实体登记（稳定键 → ResourceService 定位串）；空 = `InstantiatePersistent` 不可用、实体生成记录恢复按未登记键跳过 |
 | `m_CaptureScreenshotOnSave` | 保存时截图（默认关）：`SaveBlockAsync`/`SaveComponentsAsync` 成功后自动捕获截图并镜像 sidecar 与元数据（仅运行态主线程生效） |
 | `m_ScreenshotMaxDimension` | 截图缩略图最长边（像素，保纵横比不放大，默认 256） |
+
+### 处理器内嵌配置（SaveServiceHandler）
+
+存储管线相关配置内聚于处理器实例（随处理器类型一并替换）：
+
+| 字段 | 说明 |
+|---|---|
+| `m_StorageBackend` | 存储后端（IO 下沉目标，默认 FileSaveStorageBackend；置空回退文件后端；云存档选 `CloudSaveStorageBackend`——组合远端 KV 插拔件（内置 `RestCloudSaveKvStore` 自定义 REST / `UnityCloudSaveKvStore` UGS 条件编译）+ 冲突策略 + 自定义裁决器） |
+| `m_CompressionProvider` | 压缩提供方（空 = 不压缩；内置 GZipCompressionProvider） |
+| `m_MigrationWriteBack` | 迁移回写（默认开）：加载触发迁移成功后惰性回写存档；关闭则迁移仅作用于当次加载的内存数据 |
+| `m_KeyProvider`（AES 处理器） | 密钥提供方（空 = 回退 `StaticSaveKeyProvider.Default` 占位默认；可选 StaticSaveKeyProvider / PassphraseSaveKeyProvider / HKDFPerUserSaveKeyProvider） |
 
 ## 依赖
 
