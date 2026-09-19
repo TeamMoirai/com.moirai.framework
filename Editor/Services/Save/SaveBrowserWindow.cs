@@ -423,8 +423,8 @@ namespace Moirai.Atropos.Editor.Save
                 }
             }
 
-            [ShowInInspector, FoldoutGroup("预览", true, 40f), HideLabel, ReadOnly, PropertySpace(6f, 0f)]
-            [TextArea(12, 28)]
+            [ShowInInspector, FoldoutGroup("预览", true, 40f), HideLabel, PropertySpace(6f, 0f)]
+            [TextAreaAdaptive(12, 28)]
             private string PreviewText => _previewText;
 
             [Button("复制"), ButtonGroup("预览操作", 45f), GUIColor(0.40f, 0.70f, 0.95f)]
