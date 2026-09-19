@@ -16,6 +16,8 @@ namespace Moirai.Atropos.FrameLoop
     /// 该阶段迭代结束后统一提交。</para>
     /// <para>DI 集成：将本类或包装服务注册进 VContainer 等容器；Handler 实现经构造注入依赖，
     /// 再由组合根调用 <see cref="Register(IUpdateHandler)"/>，驱动与对象创建解耦。</para>
+    /// <para><b>线程契约</b>：注册表无锁，注册/注销只允许主线程调用（越线程会 fail-fast 断言，
+    /// 而非静默丢订阅）。后台线程需先经 <c>MainThreadDispatcher.Post/Send</c> 回到主线程。</para>
     /// </summary>
     public static class PlayerLoopDriver
     {
@@ -52,6 +54,25 @@ namespace Moirai.Atropos.FrameLoop
         private static bool s_IsShutdown = true;
         private static bool s_LifecycleHooked;
 
+        /// <summary>
+        /// 注册表的主线程归属。0 表示尚未捕获（编辑模式测试、或 SubsystemRegistration 顺序未定），
+        /// 此时不判定——与 <see cref="GameServices.EnsureMainThread"/> 同一约定。
+        /// </summary>
+        private static int s_MainThreadId;
+
+        /// <summary>
+        /// 注册/注销只能发生在主线程：注册表是裸数组 + 无锁计数，越线程写入不会抛，
+        /// 只会静默丢订阅或让延迟缓冲在提交时读到半更新状态。与 SingletonMono / GameServices 一致 fail-fast。
+        /// </summary>
+        internal static void EnsureMainThread()
+        {
+            UnityEngine.Assertions.Assert.IsTrue(
+                s_MainThreadId == 0 ||
+                System.Threading.Thread.CurrentThread.ManagedThreadId == s_MainThreadId,
+                "PlayerLoopDriver 的注册表只能从主线程读写。" +
+                "后台线程请先经 MainThreadDispatcher.Post/Send 回到主线程再注册。");
+        }
+
         /// <summary>驱动器是否已关闭（Shutdown 后注册仍可写入，但 Drive 空转）。</summary>
         public static bool IsShutdown => s_IsShutdown;
 
@@ -82,6 +103,7 @@ namespace Moirai.Atropos.FrameLoop
         /// </summary>
         public static void Initialize()
         {
+            if (s_MainThreadId == 0) s_MainThreadId = System.Threading.Thread.CurrentThread.ManagedThreadId;
             PlayerLoopInjector.EnsureInjected();
             HookApplicationLifecycle();
             s_IsShutdown = false;
@@ -109,11 +131,12 @@ namespace Moirai.Atropos.FrameLoop
         }
 
         /// <summary>
-        /// 清空全部 Handler / 回调订阅，但不恢复 PlayerLoop、不广播 Destroy。
-        /// <para>仅由 <see cref="Shutdown"/> 调用。域重载下静态字段随域自然重置；关闭域重载时
-        /// 也无需在此清空——见 <see cref="ResetOnDomainReload"/> 的顺序说明。</para>
+        /// 清空全部 Handler / 回调订阅，但不广播 Destroy、不恢复 PlayerLoop。
+        /// <para>由 <see cref="Shutdown"/> 调用；域重载下静态字段随域自然复位，故
+        /// <see cref="ResetOnDomainReload"/> 有意不调它。做成 internal 是为了让测试能只复位注册表，
+        /// 不必连 <see cref="PlayerLoopInjector.RestoreDefault"/> 的全局 PlayerLoop 副作用一起触发。</para>
         /// </summary>
-        private static void ClearHandlers()
+        internal static void ClearHandlers()
         {
             s_Update.Clear();
             s_Fixed.Clear();
@@ -133,6 +156,18 @@ namespace Moirai.Atropos.FrameLoop
         }
 
         /// <summary>
+        /// 测试专用：复位注册表并设置活跃位，<b>不</b>触碰 PlayerLoop 注入与 Application 事件。
+        /// <para>EditMode 测试不能走 <see cref="Initialize"/>——它会 <c>SetPlayerLoop</c> 改写编辑器全局循环，
+        /// 而 <see cref="PlayerLoopInjector.RestoreDefault"/> 在 EditMode 下无从复原（默认循环只在
+        /// SubsystemRegistration 捕获）。故此处只切活跃位。</para>
+        /// </summary>
+        internal static void ResetForTests(bool active)
+        {
+            ClearHandlers();
+            s_IsShutdown = !active;
+        }
+
+        /// <summary>
         /// SubsystemRegistration：仅复位驱动开关。
         /// <para>不在此 ClearHandlers——同阶段 <c>RuntimeInitializeOnLoadMethod</c> 顺序未定义，
         /// 若此处清空可能抹掉已先注册的订阅。域重载会自然重置静态字段；
@@ -142,6 +177,7 @@ namespace Moirai.Atropos.FrameLoop
         private static void ResetOnDomainReload()
         {
             s_IsShutdown = true;
+            s_MainThreadId = System.Threading.Thread.CurrentThread.ManagedThreadId;
         }
 
         private static void HookApplicationLifecycle()
@@ -178,6 +214,7 @@ namespace Moirai.Atropos.FrameLoop
         public static void AddDestroyCallback(Action callback)
         {
             if (callback == null) return;
+            EnsureMainThread();
             s_DestroyCallbacks += callback;
         }
 
@@ -185,6 +222,7 @@ namespace Moirai.Atropos.FrameLoop
         public static void RemoveDestroyCallback(Action callback)
         {
             if (callback == null) return;
+            EnsureMainThread();
             s_DestroyCallbacks -= callback;
         }
 
@@ -192,6 +230,7 @@ namespace Moirai.Atropos.FrameLoop
         public static void AddDrawGizmosCallback(Action callback)
         {
             if (callback == null) return;
+            EnsureMainThread();
             s_DrawGizmosCallbacks += callback;
         }
 
@@ -199,6 +238,7 @@ namespace Moirai.Atropos.FrameLoop
         public static void RemoveDrawGizmosCallback(Action callback)
         {
             if (callback == null) return;
+            EnsureMainThread();
             s_DrawGizmosCallbacks -= callback;
         }
 
@@ -206,6 +246,7 @@ namespace Moirai.Atropos.FrameLoop
         public static void AddDrawGizmosSelectedCallback(Action callback)
         {
             if (callback == null) return;
+            EnsureMainThread();
             s_DrawGizmosSelectedCallbacks += callback;
         }
 
@@ -213,6 +254,7 @@ namespace Moirai.Atropos.FrameLoop
         public static void RemoveDrawGizmosSelectedCallback(Action callback)
         {
             if (callback == null) return;
+            EnsureMainThread();
             s_DrawGizmosSelectedCallbacks -= callback;
         }
 
@@ -220,6 +262,7 @@ namespace Moirai.Atropos.FrameLoop
         public static void AddApplicationPauseCallback(Action<bool> callback)
         {
             if (callback == null) return;
+            EnsureMainThread();
             s_ApplicationPauseCallbacks += callback;
         }
 
@@ -227,6 +270,7 @@ namespace Moirai.Atropos.FrameLoop
         public static void RemoveApplicationPauseCallback(Action<bool> callback)
         {
             if (callback == null) return;
+            EnsureMainThread();
             s_ApplicationPauseCallbacks -= callback;
         }
 
@@ -234,6 +278,7 @@ namespace Moirai.Atropos.FrameLoop
         public static void AddApplicationFocusCallback(Action<bool> callback)
         {
             if (callback == null) return;
+            EnsureMainThread();
             s_ApplicationFocusCallbacks += callback;
         }
 
@@ -241,6 +286,7 @@ namespace Moirai.Atropos.FrameLoop
         public static void RemoveApplicationFocusCallback(Action<bool> callback)
         {
             if (callback == null) return;
+            EnsureMainThread();
             s_ApplicationFocusCallbacks -= callback;
         }
 
@@ -248,6 +294,7 @@ namespace Moirai.Atropos.FrameLoop
         public static void AddApplicationQuitCallback(Action callback)
         {
             if (callback == null) return;
+            EnsureMainThread();
             s_ApplicationQuitCallbacks += callback;
         }
 
@@ -255,6 +302,7 @@ namespace Moirai.Atropos.FrameLoop
         public static void RemoveApplicationQuitCallback(Action callback)
         {
             if (callback == null) return;
+            EnsureMainThread();
             s_ApplicationQuitCallbacks -= callback;
         }
 
@@ -550,6 +598,7 @@ namespace Moirai.Atropos.FrameLoop
 
             public void Add(T handler)
             {
+                EnsureMainThread();
                 if (Contains(handler)) return;
 
                 if (handler is IPlayerLoopPriority)
@@ -572,6 +621,7 @@ namespace Moirai.Atropos.FrameLoop
 
             public void Remove(T handler)
             {
+                EnsureMainThread();
                 for (int i = 0; i < m_Count; i++)
                 {
                     if (!ReferenceEquals(m_Handlers[i], handler)) continue;
@@ -583,9 +633,17 @@ namespace Moirai.Atropos.FrameLoop
                 }
             }
 
-            public void AddPending(T handler) => m_PendingAdd.Add(handler);
+            public void AddPending(T handler)
+            {
+                EnsureMainThread();
+                m_PendingAdd.Add(handler);
+            }
 
-            public void RemovePending(T handler) => m_PendingRemove.Add(handler);
+            public void RemovePending(T handler)
+            {
+                EnsureMainThread();
+                m_PendingRemove.Add(handler);
+            }
 
             public void FlushPending()
             {
@@ -665,6 +723,7 @@ namespace Moirai.Atropos.FrameLoop
 
             public void Add(Action callback)
             {
+                EnsureMainThread();
                 if (Contains(callback)) return;
 
                 EnsureCapacity(m_Count + 1);
@@ -673,6 +732,7 @@ namespace Moirai.Atropos.FrameLoop
 
             public void Remove(Action callback)
             {
+                EnsureMainThread();
                 for (int i = 0; i < m_Count; i++)
                 {
                     if (m_Callbacks[i] != callback) continue;
@@ -683,9 +743,17 @@ namespace Moirai.Atropos.FrameLoop
                 }
             }
 
-            public void AddPending(Action callback) => m_PendingAdd.Add(callback);
+            public void AddPending(Action callback)
+            {
+                EnsureMainThread();
+                m_PendingAdd.Add(callback);
+            }
 
-            public void RemovePending(Action callback) => m_PendingRemove.Add(callback);
+            public void RemovePending(Action callback)
+            {
+                EnsureMainThread();
+                m_PendingRemove.Add(callback);
+            }
 
             public void FlushPending()
             {
