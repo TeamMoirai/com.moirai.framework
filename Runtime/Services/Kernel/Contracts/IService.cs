@@ -44,6 +44,10 @@ namespace Moirai.Atropos
 
     /// <summary>
     /// 服务核心契约。
+    /// <para><b>实现约束</b>：必须由 <see cref="ServiceBase"/>（纯 C#）或 <see cref="ServiceMono{TScope}"/>
+    /// （MonoBehaviour）派生——两者实现的 <c>IServiceLifecycle</c> 是容器驱动状态机的唯一入口。
+    /// 直接裸实现本接口的类型会在注册时被 <see cref="ServiceWorld.Register"/> 拒绝：
+    /// 其状态永远停在 <see cref="EServiceState.Created"/>，任何声明它为依赖的服务都过不了依赖校验。</para>
     /// <para>依赖通过 <c>[ServiceDependency]</c> 特性声明；世界初始化（<see cref="ServiceWorld.Initialize"/>）时
     /// 按依赖图拓扑排序驱动 <see cref="OnInit"/>——初始化顺序由声明决定，与注册顺序无关。</para>
     /// <para>缺失依赖与循环依赖在初始化期即抛 <see cref="GameException"/>（fail-fast）。</para>

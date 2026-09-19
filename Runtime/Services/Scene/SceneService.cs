@@ -10,7 +10,7 @@ namespace Moirai.Atropos.Scene
     /// <summary>
     /// 场景服务外观（Facade）。
     /// <para>统一的静态场景访问入口，通过替换 <see cref="Handler"/> 即可在不同场景加载后端之间零成本切换。</para>
-    /// <para>未显式设置处理器时，使用 <see cref="CreateDefaultHandler"/> 从 <see cref="SceneServiceSettings"/> 创建处理器实例。</para>
+    /// <para>未显式设置处理器时，懒加载优先经 <c>GetHandlerFromSettings</c> 从 <see cref="SceneServiceSettings"/> 解析；settings 未配置则回退 <see cref="CreateDefaultHandler"/>。</para>
     /// <para>Handler 属性由 <c>HandlerHostGenerator</c> 源生成器自动生成（线程安全懒加载）。</para>
     /// <para>错误契约：加载失败抛出 <see cref="GameException"/>；卸载失败以 <c>false</c> 返回值报告；服务未注册时查询降级返回默认值、加载静默无效（调用方须检查 <see cref="UnityEngine.SceneManagement.Scene.IsValid"/>）。</para>
     /// <para>生命周期事件（<see cref="MainSceneChanged"/> 等）在主线程同步触发，订阅者异常被隔离记录，不影响其他订阅者；服务关闭时静态事件会被清空。</para>
@@ -23,16 +23,20 @@ namespace Moirai.Atropos.Scene
         #region 生命周期 [LIFECYCLE]
 
         /// <summary>
-        /// 从 <see cref="SceneServiceSettings"/> 创建默认场景处理器。
-        /// <para>首行先确保服务已注册（<c>GameServices.EnsureRegistered</c>，幂等）——外观首次访问即完成世界注册。</para>
+        /// 创建默认场景处理器（settings 未配置时的代码兜底）。
         /// </summary>
         /// <returns>默认场景处理器实例。</returns>
-        /// <exception cref="InvalidOperationException">场景设置中的处理器配置为空（<c>[SerializeReference]</c> 引用被删除等）。</exception>
-        private static SceneServiceHandler CreateDefaultHandler()
+        internal static SceneServiceHandler CreateDefaultHandler() => new DefaultSceneHandler();
+
+        /// <summary>
+        /// 从 <see cref="SceneServiceSettings"/> 解析场景处理器。
+        /// <para>首行先确保服务已注册（<c>GameServices.EnsureRegistered</c>，幂等）——懒加载主路径（settings 已配置时 <see cref="CreateDefaultHandler"/> 被短路）首次访问即完成世界注册。</para>
+        /// </summary>
+        /// <returns>settings 中配置的处理器；未配置时返回 <c>null</c> 回退到 <see cref="CreateDefaultHandler"/>。</returns>
+        private static SceneServiceHandler GetHandlerFromSettings()
         {
             GameServices.EnsureRegistered<SceneService>();
-            var handler = SceneServiceSettings.SceneServiceHandler;
-            return handler != null ? handler : throw new InvalidOperationException("[SceneService] Scene handler configured in settings is null. Re-assign it in Project Settings.");
+            return SceneServiceSettings.SceneServiceHandler;
         }
 
         /// <inheritdoc />
@@ -40,7 +44,7 @@ namespace Moirai.Atropos.Scene
 
         /// <summary>
         /// 初始化场景服务。由容器在构建期调用。
-        /// <para>确保 <c>SceneService.Handler</c> 已赋值（触发 <see cref="CreateDefaultHandler"/> 懒加载）。</para>
+        /// <para>确保 <c>SceneService.Handler</c> 已赋值（触发 <c>Handler</c> 懒加载）。</para>
         /// </summary>
         public override void OnInit()
         {

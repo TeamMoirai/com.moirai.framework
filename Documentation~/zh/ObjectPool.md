@@ -60,7 +60,7 @@ Runtime/Services/ObjectPool/
 |---------|------|
 | `GameObjectPoolSource` | 统一来源键：资源地址 / 外部 Prefab；`string` / `GameObject` 隐式转换；`Group` 仅 Prefab 源建池生效 |
 | `GameObjectPoolService` | 静态外观（唯一入口）：`Spawn` / `SpawnAsync` / `SpawnPooled` / `SpawnPooledAsync` / `Despawn` / `WarmupAsync` / `LoadPrefab(Async)` / `Flush` / `FlushGroup` / `FlushAll` / `LoadCatalog` |
-| `PooledGameObject` | 纯 C# 租约（非 MonoBehaviour）：owner/slot/租期代系；`Spawn` / `SpawnAsync` / `Wrap` / `Dispose`；仅 Active 可包装 |
+| `PooledGameObject` | 纯 C# 租约（非 MonoBehaviour）：owner/slot/租期代系；`Spawn` / `SpawnAsync` / `Wrap` / `Dispose` / `Get(OrAdd)UserData` / `SetUserData` / `IsValid`；仅 Active 可包装 |
 | `Pooled<TComponent>` | 通用组件租约（服务 `SpawnPooled<T>` 的返回类型） |
 | `PooledComponent<T,TComponent>` | CRTP 组件租约基类，供 `PooledShot` 等自定义子类使用 |
 | `RuntimeGameObjectPool` | 单池运行时：分页 Slot（UserData）+ 侵入式 inactive 链 + 代系；Location / External Prefab |
@@ -155,7 +155,7 @@ GameObjectPoolService.Despawn(bullet);
 // —— 池化租约（using 自动回收，同一套 Spawn 动词）——
 using (PooledGameObject lease = GameObjectPoolService.SpawnPooled("Assets/Bundles/Prefabs/Bullet", parent))
 {
-    // lease.GameObject / lease.Transform
+    // lease.GameObject / lease.Transform / lease.IsValid
 }
 
 using (Pooled<ParticleSystem> ps = GameObjectPoolService.SpawnPooled<ParticleSystem>(vfxPrefab, parent))
@@ -163,10 +163,16 @@ using (Pooled<ParticleSystem> ps = GameObjectPoolService.SpawnPooled<ParticleSys
     ps.Component.Play();
 }
 
+// 等价写法：直接从租约类型 Spawn（服务 SpawnPooled 内部即走此路径）
+PooledGameObject direct = PooledGameObject.Spawn(vfxPrefab, parent);
+direct.Dispose();
+
 // Prefab 源异步与地址源同一签名
 PooledGameObject pooled = await PooledGameObject.SpawnAsync(vfxPrefab, parent, ct);
 pooled.Dispose(); // 等价 GameObjectPoolService.Despawn(pooled)
 ```
+
+租约完整用法（UserData、延迟回收、自定义子类）见 [租约：PooledGameObject / PooledComponent](#租约pooledgameobject--pooledcomponent)。
 
 ### 3. 可池化组件与预热
 
@@ -195,6 +201,99 @@ await GameObjectPoolService.WarmupAsync(vfxPrefab, 8, cancellationToken);
 ```
 
 ## 高级用法
+
+### 租约：PooledGameObject / PooledComponent
+
+租约是纯 C# 对象（非 MonoBehaviour），持有 `(pool, slot, generation)` 身份。`Dispose` 时按代系校验后自动回池；槽位被复用后旧租约必然失效（`IsValid == false`，`Dispose` 静默忽略）。
+
+#### 获取与回收
+
+```csharp
+// ① 服务外观（SpawnPooled / SpawnPooledAsync / SpawnPooled<T>）
+using (PooledGameObject lease = GameObjectPoolService.SpawnPooled(source, parent))
+{
+    GameObject go = lease.GameObject;
+    Transform tf = lease.Transform;
+    bool alive = lease.IsValid;     // 租期代系校验
+}                                   // 作用域结束自动 Dispose
+
+// ② 租约类型直发（与 ① 等价）
+using (PooledGameObject lease = PooledGameObject.Spawn(source, parent)) { /* ... */ }
+using (Pooled<ParticleSystem> ps = Pooled<ParticleSystem>.Spawn(vfxPrefab, parent))
+{
+    ps.Component.Play();            // 组件引用来自 Slot.UserData 驻留缓存
+}
+
+// ③ 包装已 Spawn 的 Active 实例（不触发新的 Spawn）
+GameObject raw = GameObjectPoolService.Spawn(source, parent);
+PooledGameObject wrapped = PooledGameObject.Wrap(raw);
+if (wrapped != null) wrapped.Dispose();   // 包装失败（非池化 / 非 Active）返回 null
+
+// ④ 手动 Dispose（线性代码可行；异常 / 提前 return / await 取消场景务必用 using 或 try/finally）
+var lease2 = PooledGameObject.Spawn(source, parent);
+try { /* ... */ }
+finally { lease2.Dispose(); }             // 重复 Dispose 安全
+```
+
+> **性能**：包装器本身经 `Internal_ObjectPool` 池化，稳态 0-Alloc。`Pooled<TComponent>.Component`
+> 首次租期经 `GetOrAddComponent` 解析后驻留在 `Slot.UserData`，同一 GameObject 槽位再次租出时零 `GetComponent`。
+> `UserData` 为单消费者槽位：被异种类型占用时组件缓存降级为非驻留（不覆盖原数据，dev 告警）。
+
+#### UserData（跨复用附着数据）
+
+```csharp
+using (var lease = Pooled<BulletView>.Spawn(source, parent))
+{
+    // 随 Slot 跨 Spawn/Despawn 保留，直到槽位被销毁
+    BulletRuntimeState state = lease.GetOrAddUserData<BulletRuntimeState>();
+    state.Reset(damage);
+
+    BulletRuntimeState existing = lease.GetUserData<BulletRuntimeState>(); // 可能为 null
+    lease.SetUserData(state);   // 覆盖；勿占用 PooledComponent 已使用的 ComponentCache 类型
+}
+```
+
+#### 自定义子类（CRTP + 延迟回收）
+
+通用 `Pooled<TComponent>` 适合无自定义逻辑的场景；需要自定义 `Init` / 组件解析 / 定时回收时继承 `PooledComponent<T, TComponent>`：
+
+```csharp
+public sealed class BulletLease : PooledComponent<BulletLease, BulletView>
+{
+    protected override void Init()
+    {
+        base.Init();                // 走 ResolveComponent，建立组件缓存
+        Component.Reset();
+    }
+
+    protected override void OnDispose()
+    {
+        // 回池前清理（勿在此访问已失效 GameObject）
+    }
+
+    /// <summary>命中后 2 秒自动回池（调度器驱动，帧末安全）。</summary>
+    public void AutoRelease() => Destroy(2f);   // Destroy 为 protected
+}
+
+// 用法与 Pooled<T> 一致
+using (var bullet = BulletLease.Spawn("Assets/Prefabs/Bullet", firePoint))
+{
+    bullet.Component.Fire();
+    bullet.AutoRelease();           // 延迟 2s 回池；using 提前结束会 Dispose 并取消该回调
+}
+```
+
+不用 `using`、仅依赖 `AutoRelease` 时，务必保证租约在触发前不被提前 `Dispose`（否则延迟句柄会被取消）。
+
+`PooledComponent` 与服务 API 的分工：
+
+| 需求 | 入口 |
+|------|------|
+| 只要实例、外部管理生命周期 | `GameObjectPoolService.Spawn` / `Despawn` |
+| 作用域自动回收 | `SpawnPooled` / `PooledGameObject.Spawn` |
+| 组件 + 作用域回收 + 组件缓存 | `SpawnPooled<T>` / `Pooled<T>.Spawn` |
+| 自定义 Init / 组件解析 / 延迟回收 | 继承 `PooledComponent<T, TComponent>` |
+| `TrySpawn` / 预热 / Flush / LoadCatalog | 仅 `GameObjectPoolService` |
 
 ### GameObject 池策略参考
 
@@ -240,22 +339,6 @@ int poolCount = ObjectPoolService.GetAllObjectPools(true, pools);   // true = �
 ```
 
 Debugger 窗口：`Profiler/Object Pool`（通用池）、`Profiler/GameObject Pool`（GO 池，含 hit/miss/peak 指标）。
-
-## 从旧 API 迁移
-
-| 旧（≤ 126df59 前） | 新 | 说明 |
-|--------------------|-----|------|
-| `ObjectPoolService`（GO 池语义） | `GameObjectPoolService` | 外观更名，GO 池全部 API 保持 |
-| `GameApp.ObjectPool` | `GameObjectPoolService` 静态外观 | 不再经 GameApp 访问 |
-| `IObjectPoolable` / `PoolSpawnContext` / `ObjectPoolHandle` | `IGameObjectPoolable` / `GameObjectPoolSpawnContext` / `GameObjectPoolHandle` | 类型改名 |
-| `IObjectPoolable.OnPooledDestroy` 等 | 同名，接口命名空间不变 | 组件代码只需改接口名 |
-| `ObjectPoolSetting` 组件 | `GameObjectPoolServiceSettings`（PoolConfig 字段） | 配置单源化到 Settings 资产 |
-| `GameObjectPoolManager.Get/Release` | `GameObjectPoolService.Spawn/Despawn` | Core 层 Manager 已删除，统一走服务 |
-| `GameObjectPoolManager.ReleasePool(key)` | `GameObjectPoolService.Flush(source)` | 按 `GameObjectPoolSource` 刷新 |
-| `Moirai.Atropos.Pool.PooledGameObject/PooledComponent` | `Moirai.Atropos.ObjectPool.PooledGameObject/PooledComponent` | 命名空间迁移，后端改为服务 |
-| `PooledGameObject.Get` / `PooledComponent.Instantiate` | `Spawn` / `SpawnAsync`（或服务 `SpawnPooled`） | 动词与服务对齐 |
-| `PoolKey` / `IPooledMetadata` | `GameObjectPoolSource` / `Slot.UserData` | 键与元数据机制替换 |
-| `Spawn(location)` / `Spawn(prefab)` 双重载 | 统一 `Spawn(GameObjectPoolSource)` | `string` / `GameObject` 隐式转换 |
 
 ## 注意事项
 

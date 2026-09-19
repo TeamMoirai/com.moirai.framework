@@ -2,8 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
-using Moirai.Atropos.Attributes;
-using Moirai.Atropos.Resource;
 using UnityEngine;
 
 namespace Moirai.Atropos.ObjectPool
@@ -26,9 +24,8 @@ namespace Moirai.Atropos.ObjectPool
 
         #region 字段 [FIELDS]
 
-        [Tooltip("池配置 ScriptableObject。为空时使用空配置（所有地址都会警告未注册）。")]
-        [Expand]
-        [SerializeField] private PoolConfigScriptableObject m_PoolConfig;
+        [Tooltip("池配置。为空时使用空配置（所有地址都会警告未注册）。")]
+        [SerializeField] private List<PoolEntry> m_PoolConfig = new List<PoolEntry>();
 
         // struct 哈希表/调度器必须存于可变字段（方法直接改写字段状态），禁止 readonly。
         [NonSerialized] private PoolMaintenanceScheduler _scheduler;
@@ -82,7 +79,20 @@ namespace Moirai.Atropos.ObjectPool
 
             Application.lowMemory += OnLowMemory;
 
-            if (m_PoolConfig != null) LoadCatalog(m_PoolConfig);
+            // 加载池配置（重建全部池）
+            if (m_PoolConfig != null)
+            {
+                ClearAllPools();
+                _catalog.Dispose();
+                
+                // 规范化所有条目
+                for (int i = 0; i < m_PoolConfig.Count; i++)
+                {
+                    m_PoolConfig[i]?.Normalize();
+                }
+                // 构建编译后的目录
+                _catalog = PoolCompiledCatalog.Build(m_PoolConfig);       
+            }
         }
 
         /// <summary>
@@ -338,36 +348,7 @@ namespace Moirai.Atropos.ObjectPool
         }
 
         #endregion
-
-        #region 目录 [CATALOG]
-
-        /// <summary>
-        /// 加载池配置（重建全部池）。
-        /// </summary>
-        /// <param name="config">配置 ScriptableObject；null 表示空配置。</param>
-        public override void LoadCatalog(PoolConfigScriptableObject config)
-        {
-            ClearAllPools();
-            _catalog.Dispose();
-            _catalog = config == null ? PoolCompiledCatalog.Empty() : config.BuildCatalog();
-        }
-
-        /// <summary>
-        /// 从资源地址加载池配置（重建全部池）。
-        /// <para>租约在目录编译完成后立即释放——编译产物不持有资产引用。</para>
-        /// </summary>
-        /// <param name="poolConfigPath">池配置资源地址。</param>
-        public override void LoadCatalog(string poolConfigPath)
-        {
-            ResourceAssetLease<PoolConfigScriptableObject> lease = ResourceService.LoadLease<PoolConfigScriptableObject>(poolConfigPath);
-            using (lease)
-            {
-                LoadCatalog(lease.Asset);
-            }
-        }
-
-        #endregion
-
+        
         #region 调试接口 [DEBUG INTERFACE]
 
         /// <summary>

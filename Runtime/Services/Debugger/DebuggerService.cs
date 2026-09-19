@@ -5,7 +5,7 @@ namespace Moirai.Atropos.Debugger
     /// <summary>
     /// 调试器服务外观（Facade）。
     /// <para>统一的静态调试器访问入口：窗口注册/检索/选中、激活开关、日志检索与自定义面板注册。</para>
-    /// <para>未显式设置处理器时，使用 <see cref="CreateDefaultHandler"/> 从 <see cref="DebuggerServiceSettings"/> 创建处理器实例；外观方法经 <c>s_Handler</c> 直接转发（未注册时静默降级为默认值——仅主动注册方可使用服务）。</para>
+    /// <para>未显式设置处理器时，懒加载优先经 <c>GetHandlerFromSettings</c> 从 <see cref="DebuggerServiceSettings"/> 解析；settings 未配置则回退 <see cref="CreateDefaultHandler"/>。外观方法经 <c>s_Handler</c> 直接转发（未注册时静默降级为默认值——仅主动注册方可使用服务）。</para>
     /// <para>Handler 属性由 <c>HandlerHostGenerator</c> 源生成器自动生成（线程安全懒加载）。</para>
     /// </summary>
     [HandlerHost(typeof(DebuggerServiceHandler))]
@@ -14,11 +14,17 @@ namespace Moirai.Atropos.Debugger
         #region 生命周期 [LIFECYCLE]
 
         /// <summary>
-        /// 从 <see cref="DebuggerServiceSettings"/> 创建默认调试器处理器。
-        /// <para>首行先确保服务已注册（<c>GameServices.EnsureRegistered</c>，幂等）——外观首次访问即完成世界注册。</para>
+        /// 创建默认调试器处理器（settings 未配置时的代码兜底）。
         /// </summary>
         /// <returns>默认调试器处理器实例。</returns>
-        private static DebuggerServiceHandler CreateDefaultHandler()
+        internal static DebuggerServiceHandler CreateDefaultHandler() => new DefaultDebuggerHandler();
+
+        /// <summary>
+        /// 从 <see cref="DebuggerServiceSettings"/> 解析调试器处理器。
+        /// <para>首行先确保服务已注册（<c>GameServices.EnsureRegistered</c>，幂等）——懒加载主路径（settings 已配置时 <see cref="CreateDefaultHandler"/> 被短路）首次访问即完成世界注册。</para>
+        /// </summary>
+        /// <returns>settings 中配置的处理器；未配置时返回 <c>null</c> 回退到 <see cref="CreateDefaultHandler"/>。</returns>
+        private static DebuggerServiceHandler GetHandlerFromSettings()
         {
             GameServices.EnsureRegistered<DebuggerService>();
             return DebuggerServiceSettings.DebuggerServiceHandler;
@@ -29,7 +35,7 @@ namespace Moirai.Atropos.Debugger
 
         /// <summary>
         /// 初始化调试器服务。由容器在构建期调用。
-        /// <para>确保 <c>DebuggerService.Handler</c> 已赋值（触发 <see cref="CreateDefaultHandler"/> 懒加载）。</para>
+        /// <para>确保 <c>DebuggerService.Handler</c> 已赋值（触发 <c>Handler</c> 懒加载）。</para>
         /// </summary>
         public override void OnInit()
         {

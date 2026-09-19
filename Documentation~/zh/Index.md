@@ -23,7 +23,7 @@
 | [Input](Input.md) | 多平台输入抽象：Input System / 旧版输入 / 移动端 UI 触控、按键提示 |
 | [Save](Save.md) | 可插拔存档系统：多数据块容器、四后端序列化、AES 加密、版本迁移、无代码组件保存、云同步 |
 | [Scene](Scene.md) | 场景管理：基于 YooAsset SceneHandle 的异步加载/激活/卸载 |
-| [Timer](Timer.md) | 四级时间轮计时器：版本化句柄、预热、统计信息 |
+| [Timer](Timer.md) | 双引擎计时器：四级时间轮（按秒）+ 帧计时（按帧）两条独立泳道、版本化泳道句柄、独立预热、真实并发峰值统计 |
 | [ObjectPool](ObjectPool.md) | 服务级对象池：单次/多次 Spawn 池、GameObject 池 |
 | [Debugger](Debugger.md) | 运行时调试器：可注册调试窗口、日志回放 |
 
@@ -33,7 +33,8 @@
 |------|------|
 | [Singleton](Singleton.md) | 单例系统：纯 C# / MonoBehaviour / 注册式单例基类家族 |
 | [MemoryPool](MemoryPool.md) | 零 GC 页式内存池：非托管元数据、EWMA 自适应水位线 |
-| [UpdateDriver](UpdateDriver.md) | Unity 生命周期代理：协程托管、帧更新注入、引擎事件注入 |
+| [GameApp](GameApp.md) | Unity 生命周期代理：协程托管、帧更新注入、引擎事件注入 |
+| [PlayerLoopDriver](PlayerLoopDriver.md) | 剥离 Mono 的 PlayerLoop 逻辑驱动：零分配 Handler、注入/恢复、编辑器可视化 |
 | [StringUtility](StringUtility.md) | 字符串格式化与构建：可插拔 Handler、池化 StringBuilder |
 | [JsonUtility](JsonUtility.md) | JSON 序列化/反序列化：可插拔 Handler、字节快速通路 |
 | [ObjectUtility](ObjectUtility.md) | 对象实例化/销毁：可插拔 Handler、联网感知 |

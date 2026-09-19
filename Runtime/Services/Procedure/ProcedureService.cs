@@ -11,7 +11,7 @@ namespace Moirai.Atropos.Procedure
     /// <summary>
     /// 流程服务外观（Facade）。
     /// <para>统一的静态流程访问入口，通过替换 <see cref="Handler"/> 即可切换流程状态机后端。</para>
-    /// <para>未显式设置处理器时，使用 <see cref="CreateDefaultHandler"/> 创建默认处理器实例。</para>
+    /// <para>未显式设置处理器时，懒加载优先经 <c>GetHandlerFromSettings</c> 从 <see cref="ProcedureServiceSettings"/> 解析；settings 未配置则回退 <see cref="CreateDefaultHandler"/>。</para>
     /// <para>Handler 属性由 <c>HandlerHostGenerator</c> 源生成器自动生成（线程安全懒加载）。</para>
     /// </summary>
     /// <remarks>
@@ -26,7 +26,7 @@ namespace Moirai.Atropos.Procedure
     /// <see cref="StartProcedure"/> / <see cref="ChangeState"/> 同样在未就绪时忽略并告警；
     /// <see cref="Initialize"/> / <see cref="RestartProcedure"/> 仅要求处理器在位（二者是引导/重建入口，
     /// 不依赖状态机已就绪）。后端直接调用仍会 fail-fast。</para>
-    /// <para><b>切换广播</b>：<see cref="ProcedureChanged"/> 在切换完成（新流程 OnEnter 返回）后同步触发，
+    /// <para><b>切换广播</b>：<see cref="onProcedureChanged"/> 在切换完成（新流程 OnEnter 返回）后同步触发，
     /// 回调异常被逐订阅者隔离；回调内禁止同步 <see cref="StartProcedure"/> / <see cref="ChangeState"/>
     /// （处理器在广播期置位，重入即抛 <see cref="GameException"/>；OnEnter/OnLeave 内的合法嵌套切换不受影响）。</para>
     /// </remarks>
@@ -34,8 +34,8 @@ namespace Moirai.Atropos.Procedure
     [HandlerHost(typeof(ProcedureServiceHandler))]
     public partial class ProcedureService : ServiceBase, IServiceTickable
     {
-        private static readonly ProcedureBase[] EmptyProcedures = new ProcedureBase[0];
-        private static readonly ProcedureTransitionRecord[] EmptyTransitions = new ProcedureTransitionRecord[0];
+        private static readonly ProcedureBase[] s_EmptyProcedures = new ProcedureBase[0];
+        private static readonly ProcedureTransitionRecord[] s_EmptyTransitions = new ProcedureTransitionRecord[0];
 
         /// <summary>Tick 懒加载重绑只告警一次（域重载后静态位自动复位，每个会话至多一次）。</summary>
         private static bool s_WarnedLazyRebind;
@@ -43,12 +43,17 @@ namespace Moirai.Atropos.Procedure
         #region 生命周期 [LIFECYCLE]
 
         /// <summary>
-        /// 创建默认流程处理器。
-        /// <para>首行先确保服务已注册（<c>GameServices.EnsureRegistered</c>，幂等）——外观首次访问即完成世界注册；
-        /// 处理器实例由 <see cref="ProcedureServiceSettings"/> 经 [SerializeReference] 注入（Inspector 可拔插替换）。</para>
+        /// 创建默认流程处理器（settings 未配置时的代码兜底）。
         /// </summary>
         /// <returns>默认流程处理器实例。</returns>
-        private static ProcedureServiceHandler CreateDefaultHandler()
+        internal static ProcedureServiceHandler CreateDefaultHandler() => new DefaultProcedureHandler();
+
+        /// <summary>
+        /// 从 <see cref="ProcedureServiceSettings"/> 解析流程处理器。
+        /// <para>首行先确保服务已注册（<c>GameServices.EnsureRegistered</c>，幂等）——懒加载主路径（settings 已配置时 <see cref="CreateDefaultHandler"/> 被短路）首次访问即完成世界注册。</para>
+        /// </summary>
+        /// <returns>settings 中配置的处理器；未配置时返回 <c>null</c> 回退到 <see cref="CreateDefaultHandler"/>。</returns>
+        private static ProcedureServiceHandler GetHandlerFromSettings()
         {
             GameServices.EnsureRegistered<ProcedureService>();
             return ProcedureServiceSettings.ProcedureServiceHandler;
@@ -59,7 +64,7 @@ namespace Moirai.Atropos.Procedure
 
         /// <summary>
         /// 初始化流程服务。由容器在构建期调用。
-        /// <para>确保 <c>ProcedureService.Handler</c> 已赋值（触发 <see cref="CreateDefaultHandler"/> 懒加载），
+        /// <para>确保 <c>ProcedureService.Handler</c> 已赋值（触发 <c>Handler</c> 懒加载），
         /// 并向游戏内调试器注册调试面板（依赖组合根先注册 <see cref="DebuggerService"/>——外观未就绪时静默跳过）。</para>
         /// </summary>
         public override void OnInit()
@@ -124,27 +129,27 @@ namespace Moirai.Atropos.Procedure
         /// <summary>
         /// 已注册的全部流程（未就绪时为空集）。
         /// </summary>
-        public static IReadOnlyCollection<ProcedureBase> Procedures => s_Handler?.Procedures ?? EmptyProcedures;
+        public static IReadOnlyCollection<ProcedureBase> Procedures => s_Handler?.Procedures ?? s_EmptyProcedures;
 
         /// <summary>
         /// 最近的流程切换历史（时间升序；未就绪时为空集）。
         /// </summary>
         public static IReadOnlyList<ProcedureTransitionRecord> TransitionHistory =>
-            s_Handler?.TransitionHistory ?? EmptyTransitions;
+            s_Handler?.TransitionHistory ?? s_EmptyTransitions;
 
         /// <summary>
         /// 流程切换广播。在切换完成（新流程 OnEnter 返回）后同步触发；启动切换 From 为 null。
         /// <para>关停切换不广播（仅记入 <see cref="TransitionHistory"/>）；回调异常被逐订阅者隔离，不会中断状态机。
         /// 回调内禁止同步 <see cref="StartProcedure"/> / <see cref="ChangeState"/>（会抛 <see cref="GameException"/>）。</para>
         /// </summary>
-        public static event Action<ProcedureTransitionRecord> ProcedureChanged;
+        public static event Action<ProcedureTransitionRecord> onProcedureChanged;
 
         /// <summary>
         /// 由 <see cref="ProcedureServiceHandler.RecordTransition"/> 调用的内部广播入口——逐订阅者隔离异常。
         /// </summary>
         internal static void Internal_RaiseProcedureChanged(in ProcedureTransitionRecord record)
         {
-            var handlers = ProcedureChanged;
+            var handlers = onProcedureChanged;
             if (handlers == null)
             {
                 return;

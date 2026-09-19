@@ -138,23 +138,7 @@ namespace Moirai.Atropos.ObjectPool
         public abstract void FlushAll();
 
         #endregion
-
-        #region 目录 [CATALOG]
-
-        /// <summary>
-        /// 加载池配置（重建全部池）。
-        /// </summary>
-        /// <param name="config">配置 ScriptableObject。</param>
-        public abstract void LoadCatalog(PoolConfigScriptableObject config);
-
-        /// <summary>
-        /// 从资源地址加载池配置（重建全部池）。
-        /// </summary>
-        /// <param name="poolConfigPath">池配置资源地址。</param>
-        public abstract void LoadCatalog(string poolConfigPath);
-
-        #endregion
-
+        
         #region 调试接口 [DEBUG INTERFACE]
 
         /// <summary>

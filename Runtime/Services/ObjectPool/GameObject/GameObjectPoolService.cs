@@ -9,7 +9,7 @@ namespace Moirai.Atropos.ObjectPool
     /// <summary>
     /// GameObject 池服务外观（Facade）。
     /// <para>统一的静态游戏对象池访问入口，通过替换 <see cref="Handler"/> 即可在不同对象池后端之间零成本切换。</para>
-    /// <para>未显式设置处理器时，使用 <see cref="CreateDefaultHandler"/> 从 <see cref="GameObjectPoolServiceSettings"/> 创建处理器实例。</para>
+    /// <para>未显式设置处理器时，懒加载优先经 <c>GetHandlerFromSettings</c> 从 <see cref="GameObjectPoolServiceSettings"/> 解析；settings 未配置则回退 <see cref="CreateDefaultHandler"/>。</para>
     /// <para>Handler 属性由 <c>HandlerHostGenerator</c> 源生成器自动生成（线程安全懒加载）。</para>
     /// <para>支持两种池化来源：资源地址（经 ResourceService 加载）、外部 Prefab 引用，经 <see cref="GameObjectPoolSource"/> 统一入口。</para>
     /// </summary>
@@ -21,11 +21,17 @@ namespace Moirai.Atropos.ObjectPool
         #region 生命周期 [LIFECYCLE]
 
         /// <summary>
-        /// 从 <see cref="GameObjectPoolServiceSettings"/> 创建默认游戏对象池处理器。
-        /// <para>首行先确保服务已注册（<c>GameServices.EnsureRegistered</c>，幂等）——外观首次访问即完成世界注册。</para>
+        /// 创建默认游戏对象池处理器（settings 未配置时的代码兜底）。
         /// </summary>
         /// <returns>默认游戏对象池处理器实例。</returns>
-        private static GameObjectPoolServiceHandler CreateDefaultHandler()
+        private static GameObjectPoolServiceHandler CreateDefaultHandler() => new DefaultGameObjectPoolHandler();
+
+        /// <summary>
+        /// 从 <see cref="GameObjectPoolServiceSettings"/> 解析游戏对象池处理器。
+        /// <para>首行先确保服务已注册（<c>GameServices.EnsureRegistered</c>，幂等）——懒加载主路径（settings 已配置时 <see cref="CreateDefaultHandler"/> 被短路）首次访问即完成世界注册。</para>
+        /// </summary>
+        /// <returns>settings 中配置的处理器；未配置时返回 <c>null</c> 回退到 <see cref="CreateDefaultHandler"/>。</returns>
+        private static GameObjectPoolServiceHandler GetHandlerFromSettings()
         {
             GameServices.EnsureRegistered<GameObjectPoolService>();
             return GameObjectPoolServiceSettings.GameObjectPoolServiceHandler;
@@ -331,21 +337,7 @@ namespace Moirai.Atropos.ObjectPool
         /// </summary>
         public static void FlushAll() =>
             s_Handler?.FlushAll();
-
-        /// <summary>
-        /// 加载池配置（重建全部池）。
-        /// </summary>
-        /// <param name="config">配置 ScriptableObject。</param>
-        public static void LoadCatalog(PoolConfigScriptableObject config) =>
-            s_Handler?.LoadCatalog(config);
-
-        /// <summary>
-        /// 从资源地址加载池配置（重建全部池）。
-        /// </summary>
-        /// <param name="poolConfigPath">池配置资源地址。</param>
-        public static void LoadCatalog(string poolConfigPath) =>
-            s_Handler?.LoadCatalog(poolConfigPath);
-
+        
         #endregion
 
         #region 私有方法 [PRIVATE METHODS]

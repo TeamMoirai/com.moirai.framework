@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using Moirai.Atropos.Debugger;
 using Moirai.Atropos.Resource;
-using Moirai.Atropos.Schedulers;
+using Moirai.Atropos.Timer;
 using UnityEngine;
 using UnityEngine.Audio;
 
@@ -11,7 +11,7 @@ namespace Moirai.Atropos.Audio
     /// <summary>
     /// 音效管理外观（Facade），为游戏提供统一的音效播放接口。
     /// <para>统一的静态音频访问入口，通过替换 <see cref="Handler"/> 即可在不同音频后端之间零成本切换。</para>
-    /// <para>未显式设置处理器时，使用 <see cref="CreateDefaultHandler"/> 从 <see cref="AudioServiceSettings"/> 创建处理器实例。</para>
+    /// <para>未显式设置处理器时，懒加载优先经 <c>GetHandlerFromSettings</c> 从 <see cref="AudioServiceSettings"/> 解析；settings 未配置则回退 <see cref="CreateDefaultHandler"/>。</para>
     /// <para>Handler 属性由 <c>HandlerHostGenerator</c> 源生成器自动生成（线程安全懒加载）。</para>
     /// <para>场景3D音效挂到场景物件、技能3D音效挂到技能特效上，并在 <see cref="AudioSource"/> 的Output上设置对应分类的 <see cref="AudioMixerGroup"/>。</para>
     /// </summary>
@@ -22,11 +22,17 @@ namespace Moirai.Atropos.Audio
         #region 生命周期 [LIFECYCLE]
 
         /// <summary>
-        /// 从 <see cref="AudioServiceSettings"/> 创建默认音频处理器。
-        /// <para>首行先确保服务已注册（<c>GameServices.EnsureRegistered</c>，幂等）——外观首次访问即完成世界注册。</para>
+        /// 创建默认音频处理器（settings 未配置时的代码兜底）。
         /// </summary>
         /// <returns>默认音频处理器实例。</returns>
-        private static AudioServiceHandler CreateDefaultHandler()
+        internal static AudioServiceHandler CreateDefaultHandler() => new UnityAudioHandler();
+
+        /// <summary>
+        /// 从 <see cref="AudioServiceSettings"/> 解析音频处理器。
+        /// <para>首行先确保服务已注册（<c>GameServices.EnsureRegistered</c>，幂等）——懒加载主路径（settings 已配置时 <see cref="CreateDefaultHandler"/> 被短路）首次访问即完成世界注册。</para>
+        /// </summary>
+        /// <returns>settings 中配置的处理器；未配置时返回 <c>null</c> 回退到 <see cref="CreateDefaultHandler"/>。</returns>
+        private static AudioServiceHandler GetHandlerFromSettings()
         {
             GameServices.EnsureRegistered<AudioService>();
             return AudioServiceSettings.AudioServiceHandler;
@@ -51,7 +57,7 @@ namespace Moirai.Atropos.Audio
             }
 
             // 加载音频设置，必须等一帧设置才能生效
-            Scheduler.WaitFrame(1, LoadSettings);
+            TimerService.WaitFrame(1, LoadSettings);
 
             DebuggerService.RegisterDebuggerWindow("Profiler/Audio", new AudioServiceDebuggerWindow());
         }

@@ -51,16 +51,14 @@ namespace GameLogic
         {
             for (int i = 0; i < m_PreLoadPrefabs.Length; i++)
             {
-                if (m_PreLoadPrefabs[i] == null)
+                if (string.IsNullOrEmpty(m_PreLoadPrefabs[i]))
                 {
                     LogUtility.Warning($"[{nameof(GameObjectPreLoader)}] {i} is null");
                     continue;
                 }
 
-                var lease = await ResourceService.LoadLeaseAsync<GameObject>(m_PreLoadPrefabs[i]);
-                var go = lease.Asset;
-                var obj = Instantiate(go);
-                obj.name = go.name;
+                var instance = await ResourceService.LoadGameObjectAsync(m_PreLoadPrefabs[i]);
+                if (instance != null) instance.name = instance.name.Replace("(Clone)", "");
             }
 
             Destroy(gameObject);

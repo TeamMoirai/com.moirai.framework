@@ -54,8 +54,8 @@ namespace Service.Kernel
             Assert.IsFalse(Tim.TimerService.IsValid);
             Assert.IsFalse(Tim.TimerService.IsRunning(123UL));
             Assert.AreEqual(0f, Tim.TimerService.GetLeftTime(123UL));
-            Assert.DoesNotThrow(() => Tim.TimerService.Stop(123UL));
-            Assert.DoesNotThrow(() => Tim.TimerService.RemoveTimer(123UL));
+            Assert.DoesNotThrow(() => Tim.TimerService.Pause(123UL));
+            Assert.DoesNotThrow(() => Tim.TimerService.Cancel(123UL));
         }
 
         [Test]

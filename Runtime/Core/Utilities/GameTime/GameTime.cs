@@ -65,7 +65,7 @@ namespace Moirai.Atropos
         public static float unscaledTime;
 
         /// <summary>
-        /// 采样一帧的时间。每帧由 <see cref="GameApp"/> 在 Tick 前调用，
+        /// 采样一帧的时间。每帧由 <see cref="FrameLoop.PlayerLoopDriver"/> 在各 Drive 阶段入口调用，
         /// 从当前 <see cref="Handler"/> 拉取本帧时间快照填充上方静态字段。
         /// </summary>
         public static void StartFrame()

@@ -1,35 +1,35 @@
-using Moirai.Atropos.Schedulers;
+using Moirai.Atropos.Timer;
 
 namespace Moirai.Atropos.Tasks
 {
     /// <summary>
-    /// 使用调度程序（<see cref="Scheduler"/>）的延迟任务，以便可以跟踪
+    /// 延迟任务（TimerService 驱动，可跟踪句柄）。
     /// </summary>
     public class DelayTask : PooledTaskBase<DelayTask>
     {
-        private SchedulerHandle _handle;
-        
+        private ulong _handle;
+
         [StackTraceFrame]
         public static unsafe DelayTask GetPooled(float delay)
         {
             var task = GetPooled();
-            task._handle = Scheduler.DelayUnsafe(delay, new SchedulerUnsafeBinding(task, &StopDelayTask));
+            task._handle = TimerService.DelayUnsafe(delay, new TimerUnsafeBinding(task, &StopDelayTask));
             return task;
         }
-        
+
         protected override void Init()
         {
             base.Init();
-            _handle = default;
+            _handle = 0UL;
         }
-        
+
         protected override void Reset()
         {
             base.Reset();
-            _handle.Dispose();
-            _handle = default;
+            _handle.Cancel();
+            _handle = 0UL;
         }
-        
+
         private static void StopDelayTask(object instance)
         {
             ((DelayTask)instance).Status = TaskStatus.Completed;

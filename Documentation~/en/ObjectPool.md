@@ -60,7 +60,7 @@ Namespace: `Moirai.Atropos.ObjectPool`
 |-----------------|-------------|
 | `GameObjectPoolSource` | Unified source key: location or external prefab; implicit from `string`/`GameObject`; `Group` applies only when a prefab pool is first created |
 | `GameObjectPoolService` | Static facade (single entry): `Spawn` / `SpawnAsync` / `SpawnPooled` / `SpawnPooledAsync` / `Despawn` / `WarmupAsync` / `LoadPrefab(Async)` / `Flush` / `FlushGroup` / `FlushAll` / `LoadCatalog` |
-| `PooledGameObject` | Pure C# lease (not MonoBehaviour): owner/slot/generation; `Spawn` / `SpawnAsync` / `Wrap` / `Dispose` |
+| `PooledGameObject` | Pure C# lease (not MonoBehaviour): owner/slot/generation; `Spawn` / `SpawnAsync` / `Wrap` / `Dispose` / `Get(OrAdd)UserData` / `SetUserData` / `IsValid`; only Active instances can be wrapped |
 | `Pooled<TComponent>` | Generic component lease (return type of service `SpawnPooled<T>`) |
 | `PooledComponent<T,TComponent>` | CRTP component lease base for custom subclasses (`PooledShot`, etc.) |
 | `RuntimeGameObjectPool` | Per-pool runtime: paged Slot (UserData) + intrusive inactive list + generation; Location / External Prefab |
@@ -151,12 +151,30 @@ GameObject fx = GameObjectPoolService.Spawn(vfxPrefab, parent);
 GameObject popup = await GameObjectPoolService.SpawnAsync("Assets/Bundles/UI/SettingsPopup", parent, cancellationToken);
 GameObject posed = GameObjectPoolService.Spawn(vfxPrefab, position, rotation, parent, useLocalPosition: false);
 
-// Spawn with component
-var lease = GameObjectPoolService.SpawnPooled<MeshRenderer>("Assets/Bundles/Props/Rock", parent);
-
-// Despawn (return to pool)
+// Raw instance — manual despawn
 GameObjectPoolService.Despawn(bullet);
+
+// Pooled lease — Dispose auto-returns (using recommended)
+using (PooledGameObject lease = GameObjectPoolService.SpawnPooled("Assets/Bundles/Prefabs/Bullet", parent))
+{
+    // lease.GameObject / lease.Transform / lease.IsValid
+}
+
+using (Pooled<ParticleSystem> ps = GameObjectPoolService.SpawnPooled<ParticleSystem>(vfxPrefab, parent))
+{
+    ps.Component.Play();
+}
+
+// Equivalent: spawn from the lease type itself
+PooledGameObject direct = PooledGameObject.Spawn(vfxPrefab, parent);
+direct.Dispose();
+
+// Async — same signature for location and prefab sources
+PooledGameObject pooled = await PooledGameObject.SpawnAsync(vfxPrefab, parent, ct);
+pooled.Dispose();   // == GameObjectPoolService.Despawn(pooled)
 ```
+
+Full lease usage (UserData, delayed release, custom subclasses): see [Leases: PooledGameObject / PooledComponent](#leases-pooledgameobject--pooledcomponent).
 
 ### 3. Poolable Components & Warmup
 
@@ -184,6 +202,105 @@ await GameObjectPoolService.WarmupAsync("Assets/Bundles/Prefabs/Bullet", 20, can
 ```
 
 ## Advanced
+
+### Leases: PooledGameObject / PooledComponent
+
+A lease is a pure C# object (not a MonoBehaviour) holding `(pool, slot, generation)` identity.
+`Dispose` returns the instance after a generation check; once the slot is reused, the old lease
+is guaranteed stale (`IsValid == false`, and `Dispose` becomes a silent no-op).
+
+#### Acquire & release
+
+```csharp
+// ① Service facade (SpawnPooled / SpawnPooledAsync / SpawnPooled<T>)
+using (PooledGameObject lease = GameObjectPoolService.SpawnPooled(source, parent))
+{
+    GameObject go = lease.GameObject;
+    Transform tf = lease.Transform;
+    bool alive = lease.IsValid;     // generation check
+}                                   // auto-Dispose at end of scope
+
+// ② Spawn from the lease type (equivalent to ①)
+using (PooledGameObject lease = PooledGameObject.Spawn(source, parent)) { /* ... */ }
+using (Pooled<ParticleSystem> ps = Pooled<ParticleSystem>.Spawn(vfxPrefab, parent))
+{
+    ps.Component.Play();            // component comes from Slot.UserData resident cache
+}
+
+// ③ Wrap an already-spawned Active instance (does not spawn again)
+GameObject raw = GameObjectPoolService.Spawn(source, parent);
+PooledGameObject wrapped = PooledGameObject.Wrap(raw);
+if (wrapped != null) wrapped.Dispose();   // Wrap returns null if not pooled / not Active
+
+// ④ Manual Dispose — fine on linear paths; use using / try-finally when
+//    exceptions, early returns, or await cancellation are possible
+var lease2 = PooledGameObject.Spawn(source, parent);
+try { /* ... */ }
+finally { lease2.Dispose(); }             // Dispose is idempotent
+```
+
+> **Performance**: wrappers are pooled via `Internal_ObjectPool` (steady-state 0-Alloc).
+> `Pooled<TComponent>.Component` is resolved once via `GetOrAddComponent` and then resident in
+> `Slot.UserData`; re-spawning the same GameObject slot costs zero `GetComponent` lookups.
+> `UserData` is a single-consumer slot: alien occupancy degrades the component cache to
+> non-resident (no overwrite; dev warning).
+
+#### UserData (data attached across reuse)
+
+```csharp
+using (var lease = Pooled<BulletView>.Spawn(source, parent))
+{
+    // Survives Spawn/Despawn on the same slot until the slot is destroyed
+    BulletRuntimeState state = lease.GetOrAddUserData<BulletRuntimeState>();
+    state.Reset(damage);
+
+    BulletRuntimeState existing = lease.GetUserData<BulletRuntimeState>(); // may be null
+    lease.SetUserData(state);   // overwrite; avoid occupying ComponentCache's type
+}
+```
+
+#### Custom subclasses (CRTP + delayed release)
+
+`Pooled<TComponent>` covers the no-custom-logic case. For custom `Init`, component resolution,
+or timed release, derive from `PooledComponent<T, TComponent>`:
+
+```csharp
+public sealed class BulletLease : PooledComponent<BulletLease, BulletView>
+{
+    protected override void Init()
+    {
+        base.Init();                // runs ResolveComponent, builds the component cache
+        Component.Reset();
+    }
+
+    protected override void OnDispose()
+    {
+        // pre-return cleanup (do not touch a stale GameObject here)
+    }
+
+    /// <summary>Auto-return 2s after hit (scheduler-driven, frame-end safe).</summary>
+    public void AutoRelease() => Destroy(2f);   // Destroy is protected
+}
+
+// Usage matches Pooled<T>
+using (var bullet = BulletLease.Spawn("Assets/Prefabs/Bullet", firePoint))
+{
+    bullet.Component.Fire();
+    bullet.AutoRelease();           // delayed 2s return; early Dispose cancels the scheduled handle
+}
+```
+
+When relying on `AutoRelease` without `using`, do not `Dispose` the lease early — that cancels the delayed handle.
+
+When to use which entry:
+
+| Need | Entry |
+|------|-------|
+| Raw instance, external lifecycle | `GameObjectPoolService.Spawn` / `Despawn` |
+| Scope-based auto-return | `SpawnPooled` / `PooledGameObject.Spawn` |
+| Component + scope return + component cache | `SpawnPooled<T>` / `Pooled<T>.Spawn` |
+| Custom Init / resolution / delayed release | Derive `PooledComponent<T, TComponent>` |
+| `TrySpawn` / warmup / Flush / LoadCatalog | `GameObjectPoolService` only |
 
 ### GameObject Pool Policies
 
@@ -228,21 +345,6 @@ int poolCount = ObjectPoolService.GetAllObjectPools(true, pools);   // true = so
 ```
 
 Debugger windows: `Profiler/Object Pool` (generic), `Profiler/GameObject Pool` (GO pool, with hit/miss/peak metrics).
-
-## Migration From Old API
-
-| Old (≤ before 126df59) | New | Notes |
-|------------------------|-----|-------|
-| `ObjectPoolService` (GO pool semantics) | `GameObjectPoolService` | Facade renamed; GO pool APIs unchanged |
-| `GameApp.ObjectPool` | `GameObjectPoolService` static facade | No longer accessed via GameApp |
-| `IObjectPoolable` / `PoolSpawnContext` / `ObjectPoolHandle` | `IGameObjectPoolable` / `GameObjectPoolSpawnContext` / `GameObjectPoolHandle` | Type renames |
-| `IObjectPoolable.OnPooledDestroy` etc. | Same names | Component code only changes the interface name |
-| `ObjectPoolSetting` component | `GameObjectPoolServiceSettings` (PoolConfig field) | Config single-sourced into the Settings asset |
-| `GameObjectPoolManager.Get/Release` | `GameObjectPoolService.Spawn/Despawn` | Core-layer Manager removed; unified on the service |
-| `GameObjectPoolManager.ReleasePool(key)` | `GameObjectPoolService.Flush(location/prefab)` | Flush by location or prefab |
-| `Moirai.Atropos.Pool.PooledGameObject/PooledComponent` | `Moirai.Atropos.ObjectPool.PooledGameObject/PooledComponent` | Namespace moved; backend is the service |
-| `PoolKey` / `IPooledMetadata` | `GameObjectPoolSource` / `Slot.UserData` | Key and metadata mechanisms replaced |
-| Dual `Spawn(location)` / `Spawn(prefab)` overloads | Single `Spawn(GameObjectPoolSource)` | Implicit conversion from `string`/`GameObject` |
 
 ## Notes
 

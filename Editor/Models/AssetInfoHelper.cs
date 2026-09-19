@@ -205,7 +205,7 @@ namespace Moirai.Atropos.Editor
 #if UNITY_6000_0_OR_NEWER
                 AssetDatabase.AssetPathExists(newPath)
 #else
-                AssetDatabase.LoadAssetAtPath<Object>(newPath) != null
+                AssetDatabase.LoadAssetAtPath<UObject>(newPath) != null
 #endif
                 )
             {

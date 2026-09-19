@@ -158,13 +158,13 @@ namespace GameProto.Config
             
             // Log.Info($"LoadSpriteByID {id} from {atlasConfig.Location}");
 
-            var atlas =
-// #if UNITY_WEBGL
-//             await ResourceService.LoadAssetAsync<SpriteAtlas>(atlasConfig.Location, packageName:atlasConfig.PackageName);
-// #else
-               ResourceService.LoadLease<SpriteAtlas>(atlasConfig.Location, packageName:atlasConfig.PackageName).Asset;
-// #endif
-            return atlas?.GetSprite(spriteConfig.SpriteName);
+            using var lease =
+#if UNITY_WEBGL
+                await ResourceService.LoadLeaseAsync<SpriteAtlas>(atlasConfig.Location, packageName: atlasConfig.PackageName);
+#else
+                ResourceService.LoadLease<SpriteAtlas>(atlasConfig.Location, packageName:atlasConfig.PackageName);
+#endif
+            return lease.Asset?.GetSprite(spriteConfig.SpriteName);
         }
 
         #endregion
