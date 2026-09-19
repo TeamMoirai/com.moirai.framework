@@ -331,7 +331,9 @@ namespace Service.Timer
         {
             int fired = 0;
             ulong handle = _handler.Delay(1f, () => fired++);
-            UniTask awaiter = handle.WaitAsync();
+            // 直接打 _handler 实例：handle.WaitAsync() 扩展走的是静态 TimerService.s_Handler，
+            // 单测里通常为 null → 退化成 CompletedTask，根本测不到信号路径。
+            UniTask awaiter = _handler.WaitAsync(handle);
 
             Advance(1.5);
 
@@ -345,7 +347,7 @@ namespace Service.Timer
         {
             int fired = 0;
             ulong handle = _handler.WaitFrame(3, () => fired++);
-            UniTask awaiter = handle.WaitAsync();
+            UniTask awaiter = _handler.WaitAsync(handle);
 
             FrameTick(3);
 
@@ -354,14 +356,30 @@ namespace Service.Timer
         }
 
         [Test]
+        public async Task WaitAsync_MultipleWaiters_SignalThenPollingBothResolve()
+        {
+            int fired = 0;
+            ulong handle = _handler.WaitFrame(2, () => fired++);
+            UniTask first = _handler.WaitAsync(handle);   // 首等待者：挂 UTS 完成信号
+            UniTask second = _handler.WaitAsync(handle);  // 次等待者：退回轮询
+
+            FrameTick(2);
+
+            await first;
+            await second;
+            Assert.AreEqual(1, fired);
+            Assert.IsTrue(_handler.IsDone(handle));
+        }
+
+        [Test]
         public async Task WaitAsync_AlreadyCompleted_ResolvesImmediately()
         {
             ulong handle = _handler.Delay(1f, () => { });
             _handler.Cancel(handle);
 
-            // 已结束句柄：直接完成，不再挂载信号。await 立即返回即证明同步完成。
-            var t = handle.WaitAsync();
-            await t;
+            // 已结束句柄：直接完成、不挂信号；await 立即返回即证明同步完成。
+            UniTask awaiter = _handler.WaitAsync(handle);
+            await awaiter;
             Assert.IsTrue(_handler.IsDone(handle));
         }
 
@@ -370,14 +388,22 @@ namespace Service.Timer
         {
             ulong handle = _handler.Delay(100f, () => { });
             using var cts = new CancellationTokenSource();
-            UniTask awaiter = handle.WaitAsync(cts.Token);
+            UniTask awaiter = _handler.WaitAsync(handle, cts.Token);
 
             cts.Cancel();
 
-            await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+            // 不依赖 NUnit ThrowsAsync 的跨版本返回差异，直接 await 并捕获。
+            bool canceled = false;
+            try
             {
                 await awaiter;
-            });
+            }
+            catch (OperationCanceledException)
+            {
+                canceled = true;
+            }
+
+            Assert.IsTrue(canceled, "取消 CancellationToken 应使 WaitAsync 抛 OperationCanceledException");
         }
 
         #endregion

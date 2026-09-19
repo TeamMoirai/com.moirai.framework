@@ -14,11 +14,11 @@ The public API is driven by `ulong` handles: `Delay` / `WaitFrame` / `Cancel` / 
 - Two timer forms: **time timers** (`Delay` family, run on the wheel by seconds) and **frame timers** (`WaitFrame` family, decrement frame by frame and never enter the wheel)
 - Trigger phase: `TimerPhase.Update / FixedUpdate / LateUpdate` — time timers expiring in Fixed/Late are deferred to the matching tick; frame timers advance within their own tick
 - Multiple callback forms: `Action` (no parameters), `Action<T>` (generic single parameter), `TimerUnsafeBinding` (`delegate*` function pointer, zero-allocation), and progress callbacks `Action<float>` (time 0..1) / `Action<int>` (frame count, 1-based)
-- Handle extensions: `handle.Cancel()` / `.Pause()` / `.Resume()` / `.IsDone()`, plus `await handle.WaitAsync()` (UniTask that polls until done)
+- Handle extensions: `handle.Cancel()` / `.Pause()` / `.Resume()` / `.IsDone()`, plus `await handle.WaitAsync()` (default backend is per-slot completion-signal driven, not per-frame polling)
 - Bulk operations: `PauseAll` / `ResumeAll` / `CancelAll`
 - Exception isolation: exceptions thrown by individual callbacks are only logged (Fatal level) and do not affect other timers or timing wheel advancement
 - Reentrancy safe: callbacks can safely call `Cancel` / `Pause` / `Restart` on themselves or other timers
-- Paged storage and prewarming: initial capacity is configured via `TimerServiceSettings` (default 1024, minimum 256, maximum 16384), expands in pages of 256, with a maximum capacity of approximately 1 million slots
+- Paged storage and prewarming: each lane prewarms on its own — timing wheel `m_WheelInitialCapacity` (default 1024) and frame `m_FrameInitialCapacity` (default 256, typically far smaller than the wheel), minimum 256, growing in pages of 256, per-lane ceiling of roughly 1 million slots
 
 ## Core Types
 
@@ -26,9 +26,9 @@ Namespace: `Moirai.Atropos.Timer`
 
 | Class/Interface | Description |
 |---------|------|
-| `TimerService` | Static facade (`[HandlerHost]`): `Delay` (four overloads), `DelayUnsafe`, `WaitFrame` (two overloads), `WaitFrameUnsafe`, `Pause` / `Resume` / `PauseAll` / `ResumeAll` / `Restart` / `Cancel` / `CancelAll`, `IsRunning` / `IsDone` / `GetLeftTime` / `GetElapsed` / `GetDuration`; debug APIs (`GetStatistics` / `GetAllTimers` / `GetStaleOneShotTimers`) live in partial `TimerService.Debug` |
+| `TimerService` | Static facade (`[HandlerHost]`): `Delay` (four overloads), `DelayUnsafe`, `WaitFrame` (two overloads), `WaitFrameUnsafe`, `Pause` / `Resume` / `PauseAll` / `ResumeAll` / `Restart` / `Cancel` / `CancelAll`, `IsRunning` / `IsDone` / `GetLeftTime` / `GetLeftFrames` / `GetElapsed` / `GetDuration`, `WaitAsync`; debug APIs (`GetStatistics` / `GetAllTimers` / `GetStaleOneShotTimers`) live in partial `TimerService.Debug` |
 | `TimerServiceHandler` | Timer backend handler abstract base class (inherits `FrameworkHandler`, contract members are `internal`), defines the backend contract invoked by the facade |
-| `DefaultTimerHandler` | Default implementation (four-level timing wheel + frame timing + phase dispatch, located under `Handler/`); initial capacity is configured by its serialized field `m_InitialCapacity` |
+| `DefaultTimerHandler` | Default implementation — a composite façade over two lanes (under `Handler/`): `WheelTimerEngine` (four-level timing wheel + progress + Fixed/Late deferral) and `FrameTimerEngine` (per-frame decrement), each with its own slot pool and lane-scoped handle namespace; per-lane prewarm capacity is configured by the serialized fields `m_WheelInitialCapacity` (default 1024) / `m_FrameInitialCapacity` (default 256) |
 | `TimerServiceSettings` | Framework settings, selects the timer backend implementation via `[ProviderDropdown]` |
 | `TimerPhase` | Trigger phase enum: `Update` (default) / `FixedUpdate` / `LateUpdate` |
 | `TimerUnsafeBinding` | Zero-allocation callback binding struct (function pointer preferred, `Action` compatible); used with `DelayUnsafe` / `WaitFrameUnsafe` |
@@ -105,7 +105,7 @@ ulong id = TimerService.Delay(1f, OnLogic, phase: TimerPhase.FixedUpdate);
 ### Awaiting in async code
 
 ```csharp
-// UniTask: await until the timer completes (polls IsDone internally); accepts a CancellationToken
+// UniTask: await until the timer completes (default backend is per-slot completion-signal driven — first waiter on a handle uses the signal, subsequent ones fall back to polling); accepts a CancellationToken
 await TimerService.Delay(3f, OnDone).WaitAsync(cancellationToken);
 ```
 
@@ -115,10 +115,11 @@ After a loop timer triggers, it is rescheduled based on "last trigger time + dur
 
 ### Capacity Configuration and Statistics
 
-The initial capacity is configured in the `TimerServiceSettings` asset (`DefaultTimerHandler.m_InitialCapacity`, default 1024, minimum 256, aligned by 256). It only takes effect when the service initializes; there is no runtime capacity reconfiguration.
+Per-lane prewarm capacity is configured on `DefaultTimerHandler`'s serialized fields (`m_WheelInitialCapacity` default 1024, `m_FrameInitialCapacity` default 256, minimum 256, aligned by 256). It only takes effect when the service initializes; there is no runtime capacity reconfiguration. Growth beyond the prewarm happens on demand via `AddPage`.
 
 ```csharp
 // Runtime statistics: active count, pool capacity, peak active count, free count
+// peakActiveCount is the true cross-lane concurrency peak (the composite samples the summed active count after each creation), not the sum of the two engines' peaks
 TimerService.GetStatistics(out int activeCount, out int poolCapacity,
                            out int peakActiveCount, out int freeCount);
 
@@ -165,7 +166,7 @@ Custom hosts can also hold independent view instances (`new TimerServiceDebugger
 - `Delay` / `WaitFrame` etc. return `0UL` to signal "not registered": the service is not ready (silent, see above), the callback is null, or the slot pool is exhausted (the latter two log a `LogUtility.Warning` from the engine, Editor-only; no logging overhead at runtime). Valid handles are never 0.
 - Slot reuse includes versioning: calling `Cancel` / `Pause` / `IsRunning` etc. on an invalid handle is a safe no-op or returns the default value.
 - `Cancel` is equivalent to a one-time natural expiration; both recycle the slot. Loop timers must be cancelled manually, otherwise they continue to trigger.
-- Frame timers always return `0` from `GetLeftTime`; read their progress via `GetElapsed` / `GetDuration` (in frames).
+- Frame timers always return `0` from `GetLeftTime` (no seconds semantics); read their remaining frames via `GetLeftFrames`, or via `GetElapsed` / `GetDuration` (in frames). Time timers return `0` from `GetLeftFrames`.
 - Callbacks execute synchronously on the main thread (in the matching phase `Tick`); do not perform blocking operations inside callbacks.
 - Time scaling only affects timers with `ignoreTimeScale: false`; choose the appropriate form when modifying `Time.timeScale`.
 - On hot paths, register timers with `DelayUnsafe` / `WaitFrameUnsafe` (function pointers) or cached method groups; avoid captured lambdas / closures that introduce allocations.

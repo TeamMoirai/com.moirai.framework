@@ -279,7 +279,7 @@ namespace Service.Timer
             _handler.WaitFrame(1, () =>
             {
                 aFired++;
-                bHandle.Cancel();
+                _handler.Cancel(bHandle);
             });
             bHandle = _handler.WaitFrame(2, () => bFired++);
             var cHandle = _handler.WaitFrame(2, () => cFired++);
