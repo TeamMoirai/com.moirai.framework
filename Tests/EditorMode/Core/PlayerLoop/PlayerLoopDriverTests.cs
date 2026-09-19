@@ -230,6 +230,8 @@ namespace Core.PlayerLoop
             // bomb 仍在槽内；关键是 after 立刻计入而非滞留缓冲
             Assert.AreEqual(2, PlayerLoopDriver.UpdateHandlerCount, "抛异常后注册必须同步生效");
 
+            // 摘掉炸弹才能看到 after 真被驱动：Handler 按注册序调用，bomb 在前会再次抛出并截断本阶段
+            PlayerLoopDriver.Unregister(bomb);
             PlayerLoopDriver.DriveUpdate();
             Assert.AreEqual(1, after.UpdateCalls);
         }
