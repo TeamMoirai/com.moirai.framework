@@ -241,7 +241,7 @@ await SaveService.RestoreEntitiesAsync("slot1");
 ## 工具链（调试器与编辑器）
 
 - **游戏内调试器窗口** `Profiler/Save`（`SaveServiceDebuggerWindow`，`SaveService.OnInit` 自动注册）：管线状态（处理器/存储后端/压缩/默认后端/截图开关）、槽位清单与选中槽位详情（块表、元数据、坏块红色高亮、截图 sidecar 状态）。文件夹/槽位选择控件常驻，数据区 1s 节流重建。
-- **存档浏览器编辑器窗口**（`Window/Moirai/Save Browser`）：浏览 `persistentDataPath/Data/` 下文件夹与槽位；块表（键/版本/后端/大小/逐块错误）；未加密档内容预览（JSON 块原文美化 / KVT 块**结构化树预览**（嵌套对象/集合/映射缩进展开，解析失败回退十六进制采样）/ 其余后端十六进制采样）；备份/恢复备份/删除（含截图 sidecar 级联）/打开目录。编辑器以明文处理器 + 设置的压缩提供方读取——加密档不可预览属预期。
+- **存档浏览器编辑器窗口**（`Window/Moirai/Save Browser`）：浏览 `persistentDataPath/Data/` 下文件夹与槽位；块表（键/版本/后端/大小/逐块错误）；未加密档内容预览（JSON 块原文美化 / KVT 块**结构化树预览**（嵌套对象/集合/映射缩进展开，解析失败回退十六进制采样）/ 其余后端十六进制采样）；备份/恢复备份/删除（含截图 sidecar 级联）/打开目录。编辑器经设置的存档处理器（含解密链与密钥提供方）+ 压缩提供方读取——加密档照常预览；密钥材料不匹配的档按坏块/不可读呈现。
 - **资产引用收集器**（`Tools/Moirai/Save/Collect Asset References into Catalog`）：扫描已打开场景的 SaveComponent，把资产引用字段当前引用的项目资产登记进 `SaveAssetCatalog`（定位串按文件名寻址约定推导，自定义寻址项目须复核；场景对象实例仅告警）——消除「漏登记 → 捕获写 Null」面。同一次扫描内同一资产只登记一次（本地去重集，不依赖目录延迟缓存）；有新增时自动 `InvalidateLookup` 并保存资产。
 - **SaveComponentEditor 补强**：字段勾选清单标注引用类别（场景引用 = GameObject/Component 派生字段，资产引用 = 其余 UnityEngine.Object 字段）并给出 Identity/Catalog 配置提示；每个绑定显示模式版本（SG 发射值优先 → `[SaveComponentSchema]` 声明 → 缺省 1）。
 

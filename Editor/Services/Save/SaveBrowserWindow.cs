@@ -537,7 +537,7 @@ namespace Moirai.Atropos.Editor.Save
             "排序：大小 ↑",
         };
 
-        private PlainSaveHandler _handler;
+        private SaveServiceHandler _handler;
         private readonly List<FolderData> _folders = new List<FolderData>();
         private SlotSortMode _sortMode = SlotSortMode.TimeDesc;
         private bool _autoRefresh;
@@ -575,10 +575,9 @@ namespace Moirai.Atropos.Editor.Save
         protected override void OnEnable()
         {
             base.OnEnable();
-            _handler = new PlainSaveHandler
-            {
-                _compression = SaveServiceSettings.CompressionProvider,
-            };
+            // 读取走设置配置的处理器（含解密链）——明文回退仅在未配置时兜底；加密档须用与运行时一致的密钥材料方能预览
+            _handler = SaveServiceSettings.SaveServiceHandler ?? SaveService.CreateDefaultHandler();
+            _handler._compression = SaveServiceSettings.CompressionProvider;
             _autoRefresh = SessionState.GetBool(SESSION_AUTO_REFRESH, false);
             _sortMode = (SlotSortMode)SessionState.GetInt(SESSION_SORT_MODE, (int)SlotSortMode.TimeDesc);
             _prettyJson = SessionState.GetBool(SESSION_PRETTY_JSON, true);
