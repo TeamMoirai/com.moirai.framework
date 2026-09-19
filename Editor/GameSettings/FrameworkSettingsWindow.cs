@@ -20,6 +20,29 @@ namespace Moirai.Atropos.Editor
     /// </summary>
     public class FrameworkSettingsWindow : OdinMenuEditorWindow
     {
+        #region 菜单 [MENU]
+
+        /// <summary>
+        /// 通过菜单打开窗口。
+        /// </summary>
+        [MenuItem("Tools/Framework Settings", false, -99999)]
+        public static void Open()
+        {
+            GetWindow<FrameworkSettingsWindow>().Show();
+        }
+
+        /// <summary>
+        /// 打开窗口并在侧边栏选中指定配置类型的条目（如 SaveServiceSettings）。
+        /// </summary>
+        public static void Open(Type settingsType)
+        {
+            var window = GetWindow<FrameworkSettingsWindow>();
+            window.Show();
+            window.SelectEntry(settingsType);
+        }
+
+        #endregion        
+        
         #region 常量 [CONSTANTS]
 
         private const float MENU_WIDTH = 252f;
@@ -189,20 +212,7 @@ namespace Moirai.Atropos.Editor
         private SettingEntry _toolbarEntry;
 
         #endregion
-
-        #region 菜单 [MENU]
-
-        /// <summary>
-        /// 通过菜单 Tools > Framework Settings 打开窗口。
-        /// </summary>
-        [MenuItem("Tools/Framework Settings", false, -99999)]
-        public static void Open()
-        {
-            GetWindow<FrameworkSettingsWindow>().Show();
-        }
-
-        #endregion
-
+        
         #region 生命周期 [LIFECYCLE]
 
         protected override void OnEnable()
@@ -213,8 +223,18 @@ namespace Moirai.Atropos.Editor
             base.OnEnable();
             // 此构建中基类 OnEnable/懒建路径都不会主动建树，需自行兜底；
             // 域重载早期 EditorStyles 未就绪时跳过（BuildMenuTree 内样式代码依赖它），由 OnImGUI 的排队重建接管
-            if (MenuTree == null && EditorStyles.label != null)
+            // 注意 EditorStyles.label 该阶段本身会抛 NRE（非返回 null），守卫须 try/catch 包裹
+            if (MenuTree == null && IsEditorStylesReady())
                 ForceMenuTreeRebuild();
+        }
+
+        /// <summary>
+        /// EditorStyles 是否已就绪。域重载早期访问 EditorStyles.label 会抛 NRE（而非返回 null），须捕获判定。
+        /// </summary>
+        private static bool IsEditorStylesReady()
+        {
+            try { return EditorStyles.label != null; }
+            catch (NullReferenceException) { return false; }
         }
 
         private void OnFocus()
@@ -270,7 +290,7 @@ namespace Moirai.Atropos.Editor
 
             // 侧边栏样式：条目名称加粗（含选中态）。
             // DefaultLabelStyle 内部访问 EditorStyles，域重载早期为 null，未就绪时跳过定制
-            if (EditorStyles.label != null)
+            if (IsEditorStylesReady())
             {
                 var menuStyle = tree.DefaultMenuStyle.Clone();
                 menuStyle.DefaultLabelStyle = new GUIStyle(menuStyle.DefaultLabelStyle) { fontStyle = FontStyle.Bold };
@@ -635,6 +655,41 @@ namespace Moirai.Atropos.Editor
                 && MenuTree != null)
             {
                 TrySelectMenuItemWithObject(entry.instance);
+            }
+        }
+
+        /// <summary>
+        /// 按配置类型在菜单树中选中对应条目（已创建匹配资产本体，未创建匹配创建页面）。
+        /// 树未就绪时（域重载早期）延迟到下一帧重试；编程式选中必须走 OdinMenuItem.Select，
+        /// TrySelectMenuItemWithObject 延迟到下一次 OnGUI 消费，窗口无焦点时不生效。
+        /// </summary>
+        private void SelectEntry(Type type)
+        {
+            if (type == null) return;
+
+            if (MenuTree == null)
+            {
+                EditorApplication.delayCall += () =>
+                {
+                    if (this != null) SelectEntry(type);
+                };
+                return;
+            }
+
+            foreach (var item in MenuTree.EnumerateTree())
+            {
+                bool match = item.Value switch
+                {
+                    ScriptableObject so => so.GetType() == type,
+                    MissingSettingPage page => page.Entry.type == type,
+                    _ => false,
+                };
+                if (!match) continue;
+
+                item.Select(false);
+                // AutoScrollOnSelectionChanged 已开启，选中即自动滚动到可见区域
+                Repaint();
+                return;
             }
         }
 

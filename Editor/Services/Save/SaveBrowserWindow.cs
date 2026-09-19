@@ -326,7 +326,7 @@ namespace Moirai.Atropos.Editor.Save
                 }
             }
 
-            [ShowInInspector, FoldoutGroup("元数据", true, 20f), LabelText("迁移明细"), ReadOnly, TextArea(2, 8), HideIf("HasNoMigrations")]
+            [ShowInInspector, FoldoutGroup("元数据", true, 20f), LabelText("迁移明细"), ReadOnly, HideIf("HasNoMigrations")]
             private string MigrationText
             {
                 get
@@ -341,7 +341,7 @@ namespace Moirai.Atropos.Editor.Save
                 }
             }
 
-            [ShowInInspector, FoldoutGroup("元数据", true, 20f), LabelText("自定义"), ReadOnly, TextArea(2, 8), HideIf("HasNoCustom")]
+            [ShowInInspector, FoldoutGroup("元数据", true, 20f), LabelText("自定义"), ReadOnly, HideIf("HasNoCustom")]
             private string CustomText
             {
                 get
@@ -423,7 +423,8 @@ namespace Moirai.Atropos.Editor.Save
                 }
             }
 
-            [ShowInInspector, FoldoutGroup("预览", true, 40f), HideLabel, ReadOnly, TextArea(12, 28), PropertySpace(6f, 0f)]
+            [ShowInInspector, FoldoutGroup("预览", true, 40f), HideLabel, ReadOnly, PropertySpace(6f, 0f)]
+            [TextArea(12, 28)]
             private string PreviewText => _previewText;
 
             [Button("复制"), ButtonGroup("预览操作", 45f), GUIColor(0.40f, 0.70f, 0.95f)]
@@ -528,12 +529,12 @@ namespace Moirai.Atropos.Editor.Save
 
         private static readonly string[] s_SortModeLabels =
         {
-            "时间 ↓",
-            "时间 ↑",
-            "名称 ↑",
-            "名称 ↓",
-            "大小 ↓",
-            "大小 ↑",
+            "排序：时间 ↓",
+            "排序：时间 ↑",
+            "排序：名称 ↑",
+            "排序：名称 ↓",
+            "排序：大小 ↓",
+            "排序：大小 ↑",
         };
 
         private PlainSaveHandler _handler;
@@ -898,8 +899,8 @@ namespace Moirai.Atropos.Editor.Save
                 SessionState.SetBool(SESSION_AUTO_REFRESH, _autoRefresh);
             }
 
-            GUILayout.Space(8);
-            EditorGUILayout.LabelField("排序", EditorStyles.miniLabel, GUILayout.Width(30));
+            GUILayout.Space(35);
+            // EditorGUILayout.LabelField("排序", EditorStyles.label, GUILayout.Width(30));
             int sortIndex = EditorGUILayout.Popup((int)_sortMode, s_SortModeLabels, EditorStyles.toolbarPopup, GUILayout.Width(92));
             if (sortIndex != (int)_sortMode)
             {
@@ -931,7 +932,7 @@ namespace Moirai.Atropos.Editor.Save
 
             if (GUILayout.Button("设置", EditorStyles.toolbarButton, GUILayout.Width(46)))
             {
-                EditorApplication.ExecuteMenuItem("Tools/Framework Settings");
+                FrameworkSettingsWindow.Open(typeof(SaveServiceSettings));
             }
 
             EditorGUILayout.EndHorizontal();
