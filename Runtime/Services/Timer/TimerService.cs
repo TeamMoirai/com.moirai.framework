@@ -8,7 +8,9 @@ namespace Moirai.Atropos.Timer
 {
     /// <summary>
     /// 计时器服务外观（Facade）——全框架统一的静态计时器访问入口。
-    /// <para>默认后端为四级时间轮 <see cref="DefaultTimerHandler"/>；可在 <see cref="TimerServiceSettings"/> 中替换实现。</para>
+    /// <para>默认后端 <see cref="DefaultTimerHandler"/> 是两条独立引擎泳道的复合外观：按秒的四级时间轮
+    /// （<c>Delay</c> 系列，缩放 / 非缩放各一轮）与按帧的帧计时（<c>WaitFrame</c> 系列），
+    /// 泳道号内嵌于句柄并按位路由；可在 <see cref="TimerServiceSettings"/> 中替换实现。</para>
     /// <para>公开 API：<c>Delay</c> / <c>DelayUnsafe</c> / <c>WaitFrame</c> / <c>WaitFrameUnsafe</c> /
     /// <c>Cancel</c> / <c>Pause</c> / <c>Resume</c> / <c>IsDone</c>。</para>
     /// <para>降级契约：全部外观 API 经 <c>s_Handler?.</c> 静默降级（未注册/未初始化时返回安全默认值），与全框架统一。</para>

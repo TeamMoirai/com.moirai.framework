@@ -131,9 +131,11 @@ DebuggerService.RegisterDebuggerWindow("Other/My", new MyWindow());
 既有 IMGUI 调试视图（`ServiceDebugView` 派生）零改动接入——`CreateView()` 默认经 `IMGUIContainer` 包装 `OnDraw()` 的 GUILayout 内容：
 
 ```csharp
-// 便捷注册（内部经 IMGUIDebuggerWindow 适配）
-DebuggerService.RegisterDebugView("Profiler/Timer Service", new TimerServiceDebugView());
+// 便捷注册（内部经 IMGUIDebuggerWindow 适配）——视图类型由调用方自备
+DebuggerService.RegisterDebugView("Profiler/My Service", new MyServiceDebugView());
 ```
+
+框架内置的服务面板**不**走这条路径：它们是实现 `IDebuggerWindow` 的原生 UI Toolkit 窗口（如 `TimerServiceDebuggerWindow`），由服务自身的 `OnInit` 经 `RegisterDebuggerWindow` 注册（见下节）。
 
 样式辅助统一收口 `DebuggerUI`（仅构建结构与挂 USS 类）：`CreateSection` / `CreateCard` / `CreateRow`（值区域点击复制，2/3 宽行重载）/ `CreateActionButton` / `CreateToggle` / `CreateFilterChip` / `CreateSlider` / `CreateReadOnlyMultilineText` / `StyleScrollView` 等；视觉样式（色板/尺寸/三态）统一定义于共享样式库「`Runtime/Services/Debugger/Resources/Debugger UI.uss`」（经「`Debugger UI Theme.tss`」挂载到 `DebuggerPanelSettings.themeStyleSheet`，悬停/按下/选中由 USS 伪类驱动）——与 [DebugUI](https://github.com/annulusgames/DebugUI) 共用同一主题结构；侧边栏组节点使用内置 `Foldout`（自带旋转箭头与内容折叠）。
 
@@ -143,7 +145,7 @@ DebuggerService.RegisterDebugView("Profiler/Timer Service", new TimerServiceDebu
 
 | 路径 | 视图（模块目录） | 内容 |
 |------|-----------------|------|
-| `Profiler/Timer` | `TimerServiceDebugView`（Timer 模块） | 活跃/容量/峰值统计与占用率、活跃计时器采样、僵尸一次性计时器检测（0.5s 节流） |
+| `Profiler/Timer` | `TimerServiceDebuggerWindow`（Timer 模块） | 活跃/容量/峰值统计与占用率、活跃计时器采样、僵尸一次性计时器检测（0.5s 节流） |
 | `Profiler/Resource` | `ResourceServiceDebugView`（Resource 模块） | 运行模式、已加载资产快照（状态/引用计数，0.5s 节流） |
 | `Profiler/Audio` | `AudioServiceDebugView`（Audio 模块） | 主音量与 Sfx/UI/Music/Voice 四轨音量/静音实时控制 |
 | `Profiler/Procedure` | `ProcedureServiceDebugView`（Procedure 模块） | 当前流程状态与持续时长（0.5s 节流） |

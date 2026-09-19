@@ -57,7 +57,7 @@
 
 ```csharp
 // 1. 业务代码通过静态外观访问框架服务
-TimerService.AddTimer(() => Debug.Log("1s"), 1f);
+TimerService.Delay(1f, () => Debug.Log("1s"));
 UIService.ShowUI<MainWindow>();
 ResourceService.LoadAsset<Sprite>("Assets/AssetRaw/UI/icon.png");
 
@@ -69,7 +69,7 @@ public class MyService : ServiceBase, IServiceTickable
 
     public override void OnInit()
     {
-        TimerService.AddTimer(() => { /* 依赖已就绪，直接使用静态外观 */ }, 1f);
+        TimerService.Delay(1f, () => { /* 依赖已就绪，直接使用静态外观 */ });
     }
 
     public override void OnShutdown() { }
@@ -133,7 +133,7 @@ public sealed class UIService : ServiceBase, IServiceTickable
     public override void OnInit()
     {
         // 走到此处时 ResourceService/TimerService 已初始化完毕
-        TimerService.AddTimer(() => { }, 1f);
+        TimerService.Delay(1f, () => { });
     }
 
     public override void OnShutdown() { }

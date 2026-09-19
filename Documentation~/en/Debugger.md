@@ -131,9 +131,11 @@ DebuggerService.RegisterDebuggerWindow("Other/My", new MyWindow());
 Existing IMGUI debug views (`ServiceDebugView` derivatives) integrate unchanged — the default `CreateView()` wraps the `OnDraw()` GUILayout content in an `IMGUIContainer`:
 
 ```csharp
-// Convenience registration (adapted via IMGUIDebuggerWindow internally)
-DebuggerService.RegisterDebugView("Profiler/Timer Service", new TimerServiceDebugView());
+// Convenience registration (adapted via IMGUIDebuggerWindow internally) — the view type is yours
+DebuggerService.RegisterDebugView("Profiler/My Service", new MyServiceDebugView());
 ```
+
+Framework built-in service panels do **not** take this path: they are native UI Toolkit windows implementing `IDebuggerWindow` (e.g. `TimerServiceDebuggerWindow`), registered by each service's own `OnInit` via `RegisterDebuggerWindow` (see the next section).
 
 Style helpers are centralized in `DebuggerUI` (structure building and USS class assignment only): `CreateSection` / `CreateCard` / `CreateRow` (value area copies on click, 2/3-wide row overload) / `CreateActionButton` / `CreateToggle` / `CreateFilterChip` / `CreateSlider` / `CreateReadOnlyMultilineText` / `StyleScrollView`, etc.; visual styles (palette / dimensions / interaction states) are defined in the shared style library `Runtime/Services/Debugger/Resources/Debugger UI.uss` (mounted to `DebuggerPanelSettings.themeStyleSheet` via `Debugger UI Theme.tss`, with hover/pressed/checked driven by USS pseudo-classes) — the theme structure is shared with [DebugUI](https://github.com/annulusgames/DebugUI); sidebar group nodes use the built-in `Foldout` (rotating arrow and content collapsing out of the box).
 
@@ -143,7 +145,7 @@ Each framework service module holds a native UI Toolkit debug view (implementing
 
 | Path | View (module folder) | Content |
 |------|----------------------|---------|
-| `Profiler/Timer` | `TimerServiceDebugView` (Timer module) | active/capacity/peak statistics with usage bars, active timer sample, stale one-shot detection (0.5s throttle) |
+| `Profiler/Timer` | `TimerServiceDebuggerWindow` (Timer module) | active/capacity/peak statistics with usage bars, active timer sample, stale one-shot detection (0.5s throttle) |
 | `Profiler/Resource` | `ResourceServiceDebugView` (Resource module) | play mode, loaded asset snapshot (state/ref counts, 0.5s throttle) |
 | `Profiler/Audio` | `AudioServiceDebugView` (Audio module) | master volume and Sfx/UI/Music/Voice track volume/mute live controls |
 | `Profiler/Procedure` | `ProcedureServiceDebugView` (Procedure module) | current procedure state and elapsed time (0.5s throttle) |
