@@ -14,11 +14,11 @@
 - 两种计时形态：**时间计时器**（`Delay` 系列，按秒走时间轮）与**帧计时器**（`WaitFrame` 系列，按帧逐帧递减，不进入时间轮）
 - 触发阶段：`TimerPhase.Update / FixedUpdate / LateUpdate`——时间计时器在 Fixed/Late 阶段到期会延后到对应 Tick 派发，帧计时器在各自 Tick 内推进
 - 多种回调形态：`Action`（无参）、`Action<T>`（泛型单参）、`TimerUnsafeBinding`（`delegate*` 函数指针零分配）、以及进度回调 `Action<float>`（时间 0..1）/ `Action<int>`（帧数，1 起）
-- 句柄扩展：`handle.Cancel()` / `.Pause()` / `.Resume()` / `.IsDone()`，以及 `await handle.WaitAsync()`（UniTask 轮询等待完成）
+- 句柄扩展：`handle.Cancel()` / `.Pause()` / `.Resume()` / `.IsDone()`，以及 `await handle.WaitAsync()`（默认后端按槽位完成信号驱动，非每帧轮询）
 - 批量操作：`PauseAll` / `ResumeAll` / `CancelAll`
 - 异常隔离：单个回调抛出的异常仅记录日志（Fatal 级），不影响其他计时器与时间轮推进
 - 重入安全：回调内部可安全调用 `Cancel` / `Pause` / `Restart` 操作自身或其他计时器
-- 分页存储与预热：初始容量经 `TimerServiceSettings` 配置（默认 1024、最小 256、上限 16384），按 256/页扩展，上限约 100 万槽位
+- 分页存储与预热：两泳道各自预热——时间轮 `m_WheelInitialCapacity`（默认 1024）、帧计时 `m_FrameInitialCapacity`（默认 256，通常远小于时间轮），最小 256、按 256/页对齐扩展，单泳道上限约 100 万槽位
 
 ## 核心类型
 
@@ -26,9 +26,9 @@
 
 | 类/接口 | 说明 |
 |---------|------|
-| `TimerService` | 静态外观（`[HandlerHost]`）：`Delay`（四个重载）、`DelayUnsafe`、`WaitFrame`（两个重载）、`WaitFrameUnsafe`、`Pause` / `Resume` / `PauseAll` / `ResumeAll` / `Restart` / `Cancel` / `CancelAll`、`IsRunning` / `IsDone` / `GetLeftTime` / `GetElapsed` / `GetDuration`；调试 API（`GetStatistics` / `GetAllTimers` / `GetStaleOneShotTimers`）位于 partial `TimerService.Debug` |
+| `TimerService` | 静态外观（`[HandlerHost]`）：`Delay`（四个重载）、`DelayUnsafe`、`WaitFrame`（两个重载）、`WaitFrameUnsafe`、`Pause` / `Resume` / `PauseAll` / `ResumeAll` / `Restart` / `Cancel` / `CancelAll`、`IsRunning` / `IsDone` / `GetLeftTime` / `GetLeftFrames` / `GetElapsed` / `GetDuration`、`WaitAsync`；调试 API（`GetStatistics` / `GetAllTimers` / `GetStaleOneShotTimers`）位于 partial `TimerService.Debug` |
 | `TimerServiceHandler` | 计时器后端处理器抽象基类（继承 `FrameworkHandler`，契约成员为 `internal`），定义外观调用的后端契约 |
-| `DefaultTimerHandler` | 默认实现（四级时间轮 + 帧计时 + 阶段触发，位于 `Handler/` 目录）；初始容量由自身序列化字段 `m_InitialCapacity` 配置 |
+| `DefaultTimerHandler` | 默认实现——双泳道复合外观（`Handler/` 目录）：`WheelTimerEngine`（四级时间轮 + 进度 + Fixed/Late 延后）与 `FrameTimerEngine`（按帧递减），各持独立槽位池与泳道化句柄命名空间；两泳道初始预热容量分别由序列化字段 `m_WheelInitialCapacity`（默认 1024）/ `m_FrameInitialCapacity`（默认 256）配置 |
 | `TimerServiceSettings` | 框架设置，`[ProviderDropdown]` 选择计时器后端实现 |
 | `TimerPhase` | 触发阶段枚举：`Update`（默认）/ `FixedUpdate` / `LateUpdate` |
 | `TimerUnsafeBinding` | 零分配回调绑定结构（函数指针优先，兼容 `Action`）；配 `DelayUnsafe` / `WaitFrameUnsafe` |
@@ -105,7 +105,7 @@ ulong id = TimerService.Delay(1f, OnLogic, phase: TimerPhase.FixedUpdate);
 ### 在协程 / async 中等待
 
 ```csharp
-// UniTask：等待计时器完成（内部轮询 IsDone），可传 CancellationToken
+// UniTask：等待计时器完成（默认后端按槽位完成信号驱动，同句柄首个 await 走信号、其余退回轮询），可传 CancellationToken
 await TimerService.Delay(3f, OnDone).WaitAsync(cancellationToken);
 ```
 
@@ -115,10 +115,11 @@ await TimerService.Delay(3f, OnDone).WaitAsync(cancellationToken);
 
 ### 容量配置与统计
 
-初始容量在 `TimerServiceSettings` 资产中配置（`DefaultTimerHandler.m_InitialCapacity`，默认 1024，最小 256，按 256 对齐），仅在服务初始化时生效，运行中不扩容配置。
+各泳道初始预热容量在 `DefaultTimerHandler` 的序列化字段上配置（`m_WheelInitialCapacity` 默认 1024、`m_FrameInitialCapacity` 默认 256，最小 256、按 256 对齐），仅在服务初始化时生效，运行中不再改配置；超出预热的部分按需 `AddPage` 扩容。
 
 ```csharp
 // 运行时统计：活跃数、池容量、峰值活跃数、空闲数
+// peakActiveCount 为跨两泳道的真实并发峰值（复合层每次创建后采样活跃和），非两引擎峰值之和
 TimerService.GetStatistics(out int activeCount, out int poolCapacity,
                            out int peakActiveCount, out int freeCount);
 
@@ -165,7 +166,7 @@ int staleCount = TimerService.GetStaleOneShotTimers(staleResults);
 - `Delay` / `WaitFrame` 等返回 `0UL` 表示未登记成功：服务未就绪（见上，静默）、回调为 null 或槽位耗尽（后两者由引擎记录 `LogUtility.Warning`，仅编辑器输出，运行时不产生日志开销）。有效句柄不会为 0。
 - 槽位复用带版本号：对已失效句柄调用 `Cancel` / `Pause` / `IsRunning` 等均为安全的空操作或返回默认值。
 - `Cancel` 与一次性的自然到期等价，均会回收槽位；循环计时器必须手动取消，否则持续触发。
-- 帧计时器的 `GetLeftTime` 恒返回 `0`；其剩余/已用信息请用 `GetElapsed` / `GetDuration`（单位为帧）读取。
+- 帧计时器的 `GetLeftTime` 恒返回 `0`（无秒语义）；剩余帧数用 `GetLeftFrames` 读取，或用 `GetElapsed` / `GetDuration`（单位为帧）。时间计时器的 `GetLeftFrames` 返回 `0`。
 - 回调在主线程（对应阶段的 `Tick`）中同步执行，不要在回调中做耗时阻塞操作。
 - 时间缩放只影响 `ignoreTimeScale: false` 的计时器；修改 `Time.timeScale` 前请按需选择形态。
 - 热路径注册计时器请使用 `DelayUnsafe` / `WaitFrameUnsafe`（函数指针）或缓存方法组，避免捕获 lambda / 闭包引入分配。

@@ -131,6 +131,9 @@ namespace Moirai.Atropos.Timer
         public void Shutdown()
         {
             ClearAll();
+            // 关停前必须同步排空：ClearAll 释放的槽位若挂着 awaiter，其信号已入队 _deferredSignals，
+            // 此处不 TrySetResult 就会随下面置空一起丢失，导致 await 方永久挂起。
+            DrainSignals();
             _pages = null;
             _freeSlotPages = null;
             _activeSlotPages = null;

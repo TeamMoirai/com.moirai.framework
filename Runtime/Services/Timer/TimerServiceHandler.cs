@@ -94,6 +94,11 @@ namespace Moirai.Atropos.Timer
         /// 等待计时器完成。默认实现为每帧轮询 <see cref="IsDone"/>（供不支持完成信号的自定义处理器兜底）；
         /// <see cref="DefaultTimerHandler"/> 覆写为按槽位完成信号驱动，避免每个 await 方的常驻轮询开销。
         /// </summary>
+        /// <remarks>
+        /// 信号实现下，每个槽位仅挂一个完成信号：同一句柄的**首个** await 走信号唤醒，
+        /// **后续** await 自动退回轮询（成本回到旧行为）。完成/取消在引擎本阶段 Tick 末尾统一唤醒；
+        /// <c>Shutdown</c> 时同步排空，避免 await 方永久挂起。
+        /// </remarks>
         internal virtual UniTask WaitAsync(ulong timerHandle, CancellationToken cancellationToken = default)
         {
             if (timerHandle == 0UL || IsDone(timerHandle))
