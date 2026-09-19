@@ -91,9 +91,12 @@ namespace Moirai.Atropos.Save
 
         /// <summary>
         /// 将实体表与全部活跃实体的差分块异步写入存档文件（主线程捕获，IO 在工作线程）。
-        /// <para>流程：预热模板基准（异步加载，避免捕获期卡顿）→ 逐实体差分捕获 → 清理陈旧实体块（档有而会话已移除）→ 合并写回。
+        /// <para>流程：预热模板基准（异步加载，避免捕获期卡顿）→ 逐实体差分捕获 → 增量判定 → 单趟合并写回。
         /// 失败抛出 <see cref="GameException"/>；处理器未就绪时抛 <see cref="GameException"/>（不静默丢档）。</para>
         /// <para>CarryForward 语义：保存仅 upsert 活跃实体，未访问场景与生成失败实体的块原样滞留。</para>
+        /// <para>增量语义：会话级脏跟踪 + 档写入时间守卫——实体表、差分载荷与档均未变化时零 IO 跳过（无事件）；
+        /// 有变化时经 <see cref="SaveServiceHandler.MergeRawBlocksAsync"/> 单趟合并（读档 → 迁移 → 删陈旧 → upsert → 写回），
+        /// 仅变化块触发 <c>BlockSaved</c> 事件；基准失效（首次保存/恢复后/档被外部改写）自动走全量合并（孤儿清理读档判定）。</para>
         /// </summary>
         /// <param name="fileName">文件名（自动追加配置的扩展名）。</param>
         /// <param name="folderName">文件夹名称。</param>
@@ -106,14 +109,24 @@ namespace Moirai.Atropos.Save
             List<SaveBlockEntry> entries = SaveEntityPersistence.CaptureEntityEntries(fileName, folderName);
             SaveServiceHandler.SavePaths paths = SaveServiceHandler.ResolveSavePaths(fileName, folderName);
 
-            Dictionary<string, byte[]> existingBlocks = await handler.ReadRawBlocksAsync(paths, cancellationToken);
-            List<string> staleKeys = SaveEntityPersistence.ComputeStaleEntityKeys(existingBlocks);
-            if (staleKeys.Count > 0)
+            if (SaveEntityPersistence.TrySkipEntitySave(paths, entries, handler, out List<SaveBlockEntry> dirtyEntries, out List<string> certainRemovals))
             {
-                await handler.DeleteRawBlocksAsync(paths, staleKeys, cancellationToken);
+                return;
             }
 
-            await handler.UpsertRawBlocksAsync(paths, entries, cancellationToken);
+            // 增量模式：确定删除集（会话判定，无需读档）；全量模式（基准失效）：全部 upsert + 孤儿清理读档判定
+            bool incremental = dirtyEntries != null;
+            List<SaveBlockEntry> additions = incremental ? dirtyEntries : entries;
+            List<string> removals = incremental ? certainRemovals : null;
+            System.Func<System.Collections.Generic.Dictionary<string, byte[]>, List<string>> removalResolver = incremental ? null : SaveEntityPersistence.StaleKeyResolver;
+
+            await handler.MergeRawBlocksAsync(paths, additions, removals, removalResolver, cancellationToken);
+
+            // merge 成功后回读档写入时间提交增量基准（下次保存的脏判定基准）
+            if (handler.TryGetSaveWriteTimeUtc(paths, out System.DateTime writeTimeUtc))
+            {
+                SaveEntityPersistence.CommitSavedState(paths, entries, writeTimeUtc);
+            }
         }
 
         /// <summary>
@@ -136,6 +149,14 @@ namespace Moirai.Atropos.Save
 
             SaveServiceHandler.SavePaths paths = SaveServiceHandler.ResolveSavePaths(fileName, folderName);
             Dictionary<string, byte[]> blocks = await s_Handler.ReadRawBlocksAsync(paths, cancellationToken);
+
+            // 读档续体经 RunOnThreadPool(configureAwait:false) 完成——可能停留在线程池；
+            // 恢复管线全程 Unity API（生成/销毁/变换写回/事件内联派发），须先切回主线程
+            if (!MainThreadDispatcher.IsMainThread)
+            {
+                await UniTask.SwitchToMainThread(cancellationToken);
+            }
+
             await SaveEntityPersistence.RestoreFromBlocksAsync(blocks, fileName, folderName, cancellationToken);
         }
 

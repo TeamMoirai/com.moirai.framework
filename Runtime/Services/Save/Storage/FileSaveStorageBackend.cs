@@ -62,7 +62,8 @@ namespace Moirai.Atropos.Save
         }
 
         /// <summary>
-        /// 查询目标文件的最后写入时间（文件系统元数据直查）。
+        /// 查询目标文件的最后写入时间（经 <see cref="FileInfo.Refresh()"/> 强制刷新元数据——
+        /// <see cref="File.GetLastWriteTimeUtc(string)"/> 在 Windows 上可能命中目录枚举缓存，写后立即读取会拿到滞后值，会话级增量守卫要求新鲜元数据）。
         /// </summary>
         /// <param name="filePath">文件完整路径。</param>
         /// <param name="writeTimeUtc">成功时的最后写入时间（UTC）。</param>
@@ -77,7 +78,9 @@ namespace Moirai.Atropos.Save
 
             try
             {
-                writeTimeUtc = File.GetLastWriteTimeUtc(filePath);
+                var info = new FileInfo(filePath);
+                info.Refresh();
+                writeTimeUtc = info.LastWriteTimeUtc;
                 return true;
             }
             catch (Exception)

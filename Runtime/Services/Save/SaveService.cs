@@ -339,6 +339,12 @@ namespace Moirai.Atropos.Save
             SaveServiceHandler.SavePaths paths = SaveServiceHandler.ResolveSavePaths(fileName, folderName);
             Dictionary<string, byte[]> blocks = await s_Handler.ReadRawBlocksAsync(paths, cancellationToken);
 
+            // 读档续体经 RunOnThreadPool(configureAwait:false) 完成——可能停留在线程池；组件字段写回触及 Unity 对象，须先切回主线程
+            if (!MainThreadDispatcher.IsMainThread)
+            {
+                await UniTask.SwitchToMainThread(cancellationToken);
+            }
+
             // 主线程写回组件字段（blocks 已在工作线程解析完毕；ref struct 读取器不可进 async 上下文，故收敛到独立方法）
             RestoreComponentsOnMainThread(components, blocks, fileName, folderName);
         }

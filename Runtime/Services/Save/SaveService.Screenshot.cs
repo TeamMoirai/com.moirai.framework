@@ -152,7 +152,14 @@ namespace Moirai.Atropos.Save
                 return;
             }
 
-            if (!Application.isPlaying || !MainThreadDispatcher.IsMainThread || !SaveServiceSettings.CaptureScreenshotOnSave)
+            // SaveBlock 管线 RunOnThreadPool(configureAwait:false) 后续体可能停留在线程池；
+            // Application.isPlaying / Settings / WaitForEndOfFrame / 屏幕捕获均要求主线程，须先切回
+            if (!MainThreadDispatcher.IsMainThread)
+            {
+                await UniTask.SwitchToMainThread();
+            }
+
+            if (!SaveServiceSettings.CaptureScreenshotOnSave)
             {
                 return;
             }
