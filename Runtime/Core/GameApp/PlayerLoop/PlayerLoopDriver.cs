@@ -62,15 +62,18 @@ namespace Moirai.Atropos.FrameLoop
 
         /// <summary>
         /// 注册/注销只能发生在主线程：注册表是裸数组 + 无锁计数，越线程写入不会抛，
-        /// 只会静默丢订阅或让延迟缓冲在提交时读到半更新状态。与 SingletonMono / GameServices 一致 fail-fast。
+        /// 只会静默丢订阅或让延迟缓冲在提交时读到半更新状态。与 GameServices 同一约定：
+        /// 断言仅编辑器 / 开发构建参与编译，发布构建方法体为空、被内联后零开销。
         /// </summary>
         internal static void EnsureMainThread()
         {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
             UnityEngine.Assertions.Assert.IsTrue(
                 s_MainThreadId == 0 ||
                 System.Threading.Thread.CurrentThread.ManagedThreadId == s_MainThreadId,
                 "PlayerLoopDriver 的注册表只能从主线程读写。" +
                 "后台线程请先经 MainThreadDispatcher.Post/Send 回到主线程再注册。");
+#endif
         }
 
         /// <summary>驱动器是否已关闭（Shutdown 后注册仍可写入，但 Drive 空转）。</summary>
@@ -581,7 +584,8 @@ namespace Moirai.Atropos.FrameLoop
 
         /// <summary>
         /// 单阶段的接口 Handler 注册表：紧凑数组 + 本阶段独立的延迟缓冲。
-        /// <para>实现 <see cref="IPlayerLoopPriority"/> 者按优先级稳定插入排序，其余按注册序追加。</para>
+        /// <para>数组恒按有效优先级升序（未实现 <see cref="IPlayerLoopPriority"/> 者计 0），同优先级维持注册序（稳定）；
+        /// 末位优先级允许直读追加时走 O(1) 快路，否则整表排序插入。</para>
         /// </summary>
         private sealed class HandlerSlot<T> where T : class
         {
@@ -601,22 +605,30 @@ namespace Moirai.Atropos.FrameLoop
                 EnsureMainThread();
                 if (Contains(handler)) return;
 
-                if (handler is IPlayerLoopPriority)
+                // 尾部追加仅在「追加后仍满足优先级升序」时合法：未实现 IPlayerLoopPriority 者有效优先级为 0，
+                // 若末位已是正优先级，直接追加会把它挤到正优先级之后，违背「数字小者先跑」——此时必须走排序插入。
+                if (m_Count == 0 || GetPriority(m_Handlers[m_Count - 1]) <= GetPriority(handler))
                 {
-                    m_SortBuffer.Clear();
-                    for (int i = 0; i < m_Count; i++) m_SortBuffer.Add(m_Handlers[i]);
-                    m_SortBuffer.Add(handler);
-                    SortByPriority(m_SortBuffer);
-
-                    EnsureCapacity(m_SortBuffer.Count);
-                    m_Count = m_SortBuffer.Count;
-                    for (int i = 0; i < m_Count; i++) m_Handlers[i] = m_SortBuffer[i];
-                    m_SortBuffer.Clear();
+                    EnsureCapacity(m_Count + 1);
+                    m_Handlers[m_Count++] = handler;
                     return;
                 }
 
-                EnsureCapacity(m_Count + 1);
-                m_Handlers[m_Count++] = handler;
+                InsertByPriority(handler);
+            }
+
+            /// <summary>把 <paramref name="handler"/> 并入后按优先级整表稳定排序，写回紧凑数组。</summary>
+            private void InsertByPriority(T handler)
+            {
+                m_SortBuffer.Clear();
+                for (int i = 0; i < m_Count; i++) m_SortBuffer.Add(m_Handlers[i]);
+                m_SortBuffer.Add(handler);
+                SortByPriority(m_SortBuffer);
+
+                EnsureCapacity(m_SortBuffer.Count);
+                m_Count = m_SortBuffer.Count;
+                for (int i = 0; i < m_Count; i++) m_Handlers[i] = m_SortBuffer[i];
+                m_SortBuffer.Clear();
             }
 
             public void Remove(T handler)
