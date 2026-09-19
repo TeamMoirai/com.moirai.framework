@@ -346,11 +346,11 @@ namespace Save
         }
 
         [Test]
-        public void Settings_StorageBackend_DefaultsToFileBackend()
+        public void Handler_StorageBackend_DefaultsToFileBackend()
         {
-            // 既有配置资产无 m_StorageBackend 字段——字段初始化器应兜出文件后端默认值（无需资产迁移）
-            Assert.IsNotNull(SaveServiceSettings.StorageBackend, "存储后端应有默认值");
-            Assert.IsInstanceOf<FileSaveStorageBackend>(SaveServiceSettings.StorageBackend);
+            // 存储后端配置内聚于处理器——既有配置资产未序列化该字段时，字段初始化器兜出文件后端默认值（无需资产迁移）
+            Assert.IsNotNull(SaveServiceSettings.SaveServiceHandler, "设置应配置存档处理器");
+            Assert.IsInstanceOf<FileSaveStorageBackend>(SaveServiceSettings.SaveServiceHandler.StorageBackend);
         }
 
         [Test]

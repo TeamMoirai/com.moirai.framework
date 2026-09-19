@@ -16,7 +16,7 @@ namespace Moirai.Atropos.Save
     /// （旧档无元数据块按版本 0 处理；形状未变可用空迁移器桥接 0→1）。</para>
     /// <para>审计：每次迁移步向槽位元数据 <see cref="SaveMetadata.MigrationHistory"/> 追加一条
     /// <c>"{起始}->{目标}|{迁移器类型全名}|{UTC ISO-8601}"</c> 记录（随迁移回写持久化）。</para>
-    /// <para>回写：迁移成功后由处理器按 <see cref="SaveServiceSettings.MigrationWriteBack"/> 惰性回写（默认开——避免每次加载重跑迁移链）；
+    /// <para>回写：迁移成功后由处理器按 <see cref="SaveServiceHandler.MigrationWriteBack"/> 惰性回写（默认开——避免每次加载重跑迁移链）；
     /// 同文件同会话的重复迁移经会话级缓存短路。注册表在启动期（主线程）写入、管线期（工作线程）只读快照。</para>
     /// </summary>
     public static class SaveMigrationManager

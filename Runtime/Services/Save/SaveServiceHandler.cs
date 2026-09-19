@@ -5,6 +5,7 @@ using System.IO;
 using System.Security.Cryptography;
 using System.Threading;
 using Cysharp.Threading.Tasks;
+using Sirenix.OdinInspector;
 using UnityEngine;
 
 namespace Moirai.Atropos.Save
@@ -53,40 +54,51 @@ namespace Moirai.Atropos.Save
         /// <summary>存档根路径覆盖点（仅供测试注入；非 null 时优先于 persistentDataPath）。</summary>
         [NonSerialized] internal static string s_OverrideBasePath;
 
-        /// <summary>存储后端（<see cref="OnInit"/> 在主线程从设置解析；标记 NonSerialized 避免序列化快照污染）。</summary>
-        [NonSerialized] private SaveStorageBackend _storage;
+        [Tooltip("存储后端：存档 IO 的下沉目标（默认本地文件；云存档等自定义后端继承 SaveStorageBackend 接入）。置空时回退本地文件后端。")]
+        [ProviderDropdown]
+        [SerializeReference] private SaveStorageBackend m_StorageBackend = new FileSaveStorageBackend();
+
+        [Tooltip("压缩提供方：容器字节在加密前压缩（空 = 不压缩）。写出档的文件头记录提供方 ID；自定义提供方须注册到 SaveCompressionRegistry 才能读回旧档。")]
+        [ProviderDropdown]
+        [SerializeReference] private SaveCompressionProvider m_CompressionProvider;
+
+        [Tooltip("迁移回写：加载触发版本迁移成功后将迁移结果惰性回写存档（默认开）。关闭时迁移仅作用于当次加载的内存数据，同文件同会话不重复迁移（经会话级缓存），但存档文件保持旧版本。")]
+        [SerializeField] private bool m_MigrationWriteBack = true;
 
         /// <summary>
-        /// 存储后端（未经容器初始化的直接实例回退共享文件后端——纯 .NET 无副作用，任意线程安全；
+        /// 存储后端（未配置时回退共享文件后端——纯 .NET 无副作用，任意线程安全；
         /// 严禁在核心管线惰性触达 <see cref="SaveServiceSettings"/>（Resources.Load 为 Unity 主线程 API，工作线程触达即崩）。
         /// </summary>
-        private SaveStorageBackend Storage => _storage ?? FileSaveStorageBackend.Default;
+        internal SaveStorageBackend StorageBackend => m_StorageBackend ?? FileSaveStorageBackend.Default;
 
-        /// <summary>压缩提供方（<c>null</c> = 不压缩；<see cref="OnInit"/> 在主线程从设置解析，测试可直接赋值注入——无状态纯 .NET，工作线程调用安全）。</summary>
-        [NonSerialized] internal ICompressionProvider _compression;
+        /// <summary>压缩提供方（<c>null</c> = 不压缩；无状态纯 .NET，工作线程调用安全）。</summary>
+        internal SaveCompressionProvider CompressionProvider
+        {
+            get => m_CompressionProvider;
+            set => m_CompressionProvider = value;
+        }
 
-        /// <summary>迁移回写开关（<see cref="OnInit"/> 在主线程从设置解析；测试可直接赋值注入——纯数据，工作线程读取安全；默认值与设置默认一致）。</summary>
-        [NonSerialized] internal bool _migrationWriteBack = true;
+        /// <summary>迁移回写开关（纯数据，工作线程读取安全）。</summary>
+        internal bool MigrationWriteBack
+        {
+            get => m_MigrationWriteBack;
+            set => m_MigrationWriteBack = value;
+        }
 
         #region 生命周期 [LIFECYCLE]
 
         /// <summary>
-        /// 初始化存档处理器。由容器在构建期调用（主线程：解析存储后端与压缩提供方，并后台清扫孤儿临时文件）。
+        /// 初始化存档处理器。由容器在构建期调用（主线程：校验存储后端配置，并后台清扫孤儿临时文件）。
         /// </summary>
         protected override void OnInit()
         {
-            SaveStorageBackend backend = SaveServiceSettings.StorageBackend;
-            if (backend == null)
+            if (m_StorageBackend == null)
             {
                 LogUtility.Warning("[SaveService] Storage backend is not configured, falling back to FileSaveStorageBackend.");
-                backend = FileSaveStorageBackend.Default;
             }
 
-            _storage = backend;
-            _compression = SaveServiceSettings.CompressionProvider;
-            _migrationWriteBack = SaveServiceSettings.MigrationWriteBack;
-
             // 后台清扫上次写入中断残留的孤儿临时文件；根目录须在主线程解析（persistentDataPath 为 Unity API）
+            SaveStorageBackend backend = StorageBackend;
             string rootDirectory = BuildDataRootDirectory();
             _ = UniTask.RunOnThreadPool(() => backend.CleanupOrphanTempFiles(rootDirectory), configureAwait: false);
         }
@@ -546,7 +558,7 @@ namespace Moirai.Atropos.Save
             if (remainingBlocks.Count == 0)
             {
                 // 删除最后一个块时整档移除——槽位同步消亡
-                Storage.DeleteFile(paths.SaveFilePath);
+                StorageBackend.DeleteFile(paths.SaveFilePath);
                 SaveService.RaiseSlotChanged(ESaveSlotChangeKind.Deleted, paths.FileName, paths.FolderName);
             }
             else
@@ -634,7 +646,7 @@ namespace Moirai.Atropos.Save
             bool existed;
             try
             {
-                SaveStorageBackend storage = Storage;
+                SaveStorageBackend storage = StorageBackend;
                 existed = storage.Exists(paths.SaveFilePath);
                 if (existed)
                 {
@@ -689,7 +701,7 @@ namespace Moirai.Atropos.Save
             bool existed;
             try
             {
-                SaveStorageBackend storage = Storage;
+                SaveStorageBackend storage = StorageBackend;
                 existed = storage.DirectoryExists(directoryPath);
                 if (existed)
                 {
@@ -731,7 +743,7 @@ namespace Moirai.Atropos.Save
             bool existed;
             try
             {
-                SaveStorageBackend storage = Storage;
+                SaveStorageBackend storage = StorageBackend;
                 existed = storage.DirectoryExists(rootDirectory);
                 if (existed)
                 {
@@ -776,7 +788,7 @@ namespace Moirai.Atropos.Save
             try
             {
                 await scope.WaitAsync(cancellationToken);
-                SaveStorageBackend storage = Storage;
+                SaveStorageBackend storage = StorageBackend;
                 existed = await UniTask.RunOnThreadPool(() =>
                 {
                     bool exists = storage.Exists(paths.SaveFilePath);
@@ -838,7 +850,7 @@ namespace Moirai.Atropos.Save
             try
             {
                 await scope.WaitAsync(cancellationToken);
-                SaveStorageBackend storage = Storage;
+                SaveStorageBackend storage = StorageBackend;
                 existed = await UniTask.RunOnThreadPool(() =>
                 {
                     bool exists = storage.DirectoryExists(directoryPath);
@@ -886,7 +898,7 @@ namespace Moirai.Atropos.Save
             try
             {
                 await scope.WaitAsync(cancellationToken);
-                SaveStorageBackend storage = Storage;
+                SaveStorageBackend storage = StorageBackend;
                 existed = await UniTask.RunOnThreadPool(() =>
                 {
                     bool exists = storage.DirectoryExists(rootDirectory);
@@ -919,7 +931,7 @@ namespace Moirai.Atropos.Save
             ValidateFolderName(folderName);
             string directoryPath = BuildFolderPath(folderName);
             string extension = SaveServiceSettings.SaveFileExtension;
-            SaveStorageBackend storage = Storage;
+            SaveStorageBackend storage = StorageBackend;
             return UniTask.RunOnThreadPool(() => storage.EnumerateFiles(directoryPath, extension), configureAwait: false, cancellationToken: cancellationToken);
         }
 
@@ -937,7 +949,7 @@ namespace Moirai.Atropos.Save
             {
                 try
                 {
-                    Storage.CreateBackup(paths.SaveFilePath);
+                    StorageBackend.CreateBackup(paths.SaveFilePath);
                 }
                 catch (GameException)
                 {
@@ -967,7 +979,7 @@ namespace Moirai.Atropos.Save
             {
                 try
                 {
-                    Storage.RestoreBackup(paths.SaveFilePath);
+                    StorageBackend.RestoreBackup(paths.SaveFilePath);
                 }
                 catch (GameException)
                 {
@@ -998,7 +1010,7 @@ namespace Moirai.Atropos.Save
         public bool FileExists(string fileName, string folderName = DEFAULT_FOLDER_NAME)
         {
             SavePaths paths = ResolveSavePaths(fileName, folderName);
-            return Storage.Exists(paths.SaveFilePath);
+            return StorageBackend.Exists(paths.SaveFilePath);
         }
 
         /// <summary>
@@ -1011,7 +1023,7 @@ namespace Moirai.Atropos.Save
             ValidateFolderName(folderName);
             string directoryPath = BuildFolderPath(folderName);
             string extension = SaveServiceSettings.SaveFileExtension;
-            return Storage.EnumerateFiles(directoryPath, extension);
+            return StorageBackend.EnumerateFiles(directoryPath, extension);
         }
 
         #endregion
@@ -1237,7 +1249,7 @@ namespace Moirai.Atropos.Save
 
                     if (mergedBlocks.Count == 0)
                     {
-                        Storage.DeleteFile(paths.SaveFilePath);
+                        StorageBackend.DeleteFile(paths.SaveFilePath);
                         SaveService.RaiseSlotChanged(ESaveSlotChangeKind.Deleted, paths.FileName, paths.FolderName);
                         return;
                     }
@@ -1330,7 +1342,7 @@ namespace Moirai.Atropos.Save
                     if (mergedBlocks.Count == 0)
                     {
                         // 全量移除——整档删除（对齐 DeleteRawBlocks 语义）
-                        Storage.DeleteFile(paths.SaveFilePath);
+                        StorageBackend.DeleteFile(paths.SaveFilePath);
                         SaveService.RaiseSlotChanged(ESaveSlotChangeKind.Deleted, paths.FileName, paths.FolderName);
                         return;
                     }
@@ -1375,7 +1387,7 @@ namespace Moirai.Atropos.Save
         /// <returns>文件存在返回 <c>true</c>。</returns>
         internal bool TryGetSaveWriteTimeUtc(SavePaths paths, out DateTime writeTimeUtc)
         {
-            return Storage.TryGetWriteTimeUtc(paths.SaveFilePath, out writeTimeUtc);
+            return StorageBackend.TryGetWriteTimeUtc(paths.SaveFilePath, out writeTimeUtc);
         }
 
         #endregion
@@ -1384,7 +1396,7 @@ namespace Moirai.Atropos.Save
 
         /// <summary>
         /// 显式迁移指定存档到当前数据版本（在调用线程执行，阻塞直至完成；仅限主线程）。
-        /// <para>显式调用即表达立即修复意图——迁移成功后强制回写（不受 <see cref="SaveServiceSettings.MigrationWriteBack"/> 约束）；
+        /// <para>显式调用即表达立即修复意图——迁移成功后强制回写（不受 <see cref="MigrationWriteBack"/> 约束）；
         /// 版本相等/迁移总线未激活为无操作。版本低于当前且迁移链缺失/失败返回 <see cref="SaveError.MigrationFailed"/>，高于当前返回 <see cref="SaveError.UnsupportedVersion"/>。</para>
         /// </summary>
         /// <param name="fileName">文件名（自动追加配置的扩展名）。</param>
@@ -1459,13 +1471,13 @@ namespace Moirai.Atropos.Save
         }
 
         /// <summary>
-        /// 读路径迁移前置（加载管线统一入口）：按需执行迁移链并按 <see cref="_migrationWriteBack"/> 惰性回写。
+        /// 读路径迁移前置（加载管线统一入口）：按需执行迁移链并按 <see cref="MigrationWriteBack"/> 惰性回写。
         /// <para>回写失败不阻断本次加载（内存数据已迁移；失败经日志与 <see cref="SaveService.SaveFailed"/> 事件观测，下一会话重试）。</para>
         /// </summary>
         /// <param name="paths">已解析的路径集合。</param>
         /// <param name="blocks">健康数据块列表（迁移后替换）。</param>
         /// <param name="blockErrors">坏块清单（元数据块损坏时迁移保守失败）。</param>
-        /// <param name="forceWriteBack">显式迁移调用的强制回写（绕过 <see cref="_migrationWriteBack"/> 设置）。</param>
+        /// <param name="forceWriteBack">显式迁移调用的强制回写（绕过 <see cref="MigrationWriteBack"/> 设置）。</param>
         /// <param name="cancellationToken">取消令牌。</param>
         /// <returns>错误码。</returns>
         private SaveError MigrateBlocksIfNeeded(SavePaths paths, ref List<SaveBlockEntry> blocks, List<SaveBlockError> blockErrors, bool forceWriteBack, CancellationToken cancellationToken)
@@ -1482,7 +1494,7 @@ namespace Moirai.Atropos.Save
             }
 
             blocks = migratedBlocks;
-            if (!forceWriteBack && !_migrationWriteBack)
+            if (!forceWriteBack && !m_MigrationWriteBack)
             {
                 return SaveError.None;
             }
@@ -1578,7 +1590,7 @@ namespace Moirai.Atropos.Save
         /// <param name="pngBytes">PNG 编码字节。</param>
         internal void WriteScreenshot(SavePaths paths, byte[] pngBytes)
         {
-            Storage.WriteAtomic(ResolveScreenshotPath(paths), pngBytes, CancellationToken.None);
+            StorageBackend.WriteAtomic(ResolveScreenshotPath(paths), pngBytes, CancellationToken.None);
         }
 
         /// <summary>
@@ -1590,7 +1602,7 @@ namespace Moirai.Atropos.Save
         /// <returns>写入完成的异步任务。</returns>
         internal UniTask WriteScreenshotAsync(SavePaths paths, byte[] pngBytes, CancellationToken cancellationToken)
         {
-            return Storage.WriteAtomicAsync(ResolveScreenshotPath(paths), pngBytes, cancellationToken);
+            return StorageBackend.WriteAtomicAsync(ResolveScreenshotPath(paths), pngBytes, cancellationToken);
         }
 
         /// <summary>
@@ -1599,7 +1611,7 @@ namespace Moirai.Atropos.Save
         /// <param name="paths">存档路径集合。</param>
         internal void DeleteScreenshot(SavePaths paths)
         {
-            Storage.DeleteFile(ResolveScreenshotPath(paths));
+            StorageBackend.DeleteFile(ResolveScreenshotPath(paths));
         }
 
         #endregion
@@ -1988,7 +2000,7 @@ namespace Moirai.Atropos.Save
         /// <param name="error">读失败错误码（仅用于日志上下文）。</param>
         private void QuarantineUnreadableSave(SavePaths paths, SaveError error)
         {
-            SaveError ioError = Storage.TryReadAllBytes(paths.SaveFilePath, out byte[] fileBytes);
+            SaveError ioError = StorageBackend.TryReadAllBytes(paths.SaveFilePath, out byte[] fileBytes);
             if (ioError != SaveError.None || fileBytes == null)
             {
                 LogUtility.Error("[SaveService] Unreadable save cannot be quarantined (raw read failed), path: {0}, readError: {1}, quarantineError: {2}.",
@@ -1999,7 +2011,7 @@ namespace Moirai.Atropos.Save
             string quarantinePath = paths.SaveFilePath + CorruptFileSuffix;
             try
             {
-                Storage.WriteAtomic(quarantinePath, fileBytes, CancellationToken.None);
+                StorageBackend.WriteAtomic(quarantinePath, fileBytes, CancellationToken.None);
                 LogUtility.Warning("[SaveService] Unreadable save quarantined before overwrite, path: {0} -> {1}, error: {2}.",
                     paths.SaveFilePath, quarantinePath, error);
             }
@@ -2023,7 +2035,7 @@ namespace Moirai.Atropos.Save
         {
             blocks = new List<SaveBlockEntry>();
             blockErrors = null;
-            SaveError ioError = Storage.TryOpenRead(paths.SaveFilePath, out Stream stream);
+            SaveError ioError = StorageBackend.TryOpenRead(paths.SaveFilePath, out Stream stream);
             if (ioError == SaveError.FileNotFound)
             {
                 // 缺档 = 空块集（正常业务流，不记录日志）
@@ -2386,14 +2398,14 @@ namespace Moirai.Atropos.Save
         {
             // 版本化激活时盖章当前数据版本（任何落盘文件均为当前版本——写入自愈封闭性）
             blocks = StampSaveVersionIfActive(blocks);
-            ICompressionProvider compression = _compression;
+            ICompressionProvider compression = m_CompressionProvider;
             uint flags = compression != null ? SaveFileHeader.FlagCompressed : 0u;
             uint compressionProviderId = compression?.ProviderId ?? 0u;
             ESaveFailureStage failureStage = ESaveFailureStage.StorageWrite;
             SaveError failureError = SaveError.IoFailed;
             try
             {
-                Storage.WriteAtomic(paths.SaveFilePath, stream =>
+                StorageBackend.WriteAtomic(paths.SaveFilePath, stream =>
                 {
                     // 占位头——载荷长度/CRC 在灌流完成后回填
                     long origin = stream.Position;

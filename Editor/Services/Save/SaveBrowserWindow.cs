@@ -575,9 +575,8 @@ namespace Moirai.Atropos.Editor.Save
         protected override void OnEnable()
         {
             base.OnEnable();
-            // 读取走设置配置的处理器（含解密链）——明文回退仅在未配置时兜底；加密档须用与运行时一致的密钥材料方能预览
-            _handler = SaveServiceSettings.SaveServiceHandler ?? SaveService.CreateDefaultHandler();
-            _handler._compression = SaveServiceSettings.CompressionProvider;
+            // 读取走设置配置的处理器（含解密链/存储后端/压缩配置，与运行时一致）——明文回退仅在未配置时兜底；加密档须用同一密钥材料方能预览
+            _handler = SaveServiceSettings.SaveServiceHandler ?? new PlainSaveHandler();
             _autoRefresh = SessionState.GetBool(SESSION_AUTO_REFRESH, false);
             _sortMode = (SlotSortMode)SessionState.GetInt(SESSION_SORT_MODE, (int)SlotSortMode.TimeDesc);
             _prettyJson = SessionState.GetBool(SESSION_PRETTY_JSON, true);
@@ -1587,8 +1586,9 @@ namespace Moirai.Atropos.Editor.Save
 
         private void UpdatePipelineText()
         {
-            string handlerName = SaveServiceSettings.SaveServiceHandler?.GetType().Name ?? "PlainSaveHandler";
-            string compression = SaveServiceSettings.CompressionProvider?.GetType().Name ?? "不压缩";
+            SaveServiceHandler handler = SaveServiceSettings.SaveServiceHandler;
+            string handlerName = handler?.GetType().Name ?? "PlainSaveHandler";
+            string compression = handler != null && handler.CompressionProvider != null ? handler.CompressionProvider.GetType().Name : "不压缩";
             string backend = SaveServiceSettings.DefaultBackend.ToString();
             string extension = SaveServiceSettings.SaveFileExtension;
             string root = SafeDetermineSavePath(string.Empty);
