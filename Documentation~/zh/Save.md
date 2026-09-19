@@ -13,6 +13,7 @@ SaveService（静态外观，写路径未就绪抛 GameException，读路径降�
 │     AESEncryptedSaveHandler AES-256-CBC + HMAC（encrypt-then-MAC），内嵌 [SerializeReference] 密钥提供方
 ├── 存储后端（[SerializeReference] 可切换，ISaveStorage + SaveStorageBackend）
 │     FileSaveStorageBackend  本地文件（临时文件 + Flush(true) + 原子替换，默认）
+│     CloudSaveStorageBackend 本地镜像 + 远端 KV 双写（远端插拔件内置 RestCloudSaveKvStore / UnityCloudSaveKvStore）
 ├── 转换链（顺序固定：Serialize → Compress? → Encrypt? → CRC）
 │     压缩：ICompressionProvider + SaveCompressionRegistry（GZip 内建 ID=1；未知 ID 读侧拒载）
 │     密钥：ISaveKeyProvider + SaveKeyProvider（内嵌于 AES 处理器；Static 静态口令默认 / Passphrase 运行期注入 / HkdfPerUser 按用户派生）
@@ -42,9 +43,10 @@ SaveService（静态外观，写路径未就绪抛 GameException，读路径降�
 - 文件头 offset 24-27 为压缩提供方 ID（0 = 未压缩）；未知 ID 判别为 `UnsupportedVersion`，标志位与 ID 不一致判别为 `Corrupted`
 - 密钥来源（`ISaveKeyProvider`）：静态口令 PBKDF2（`StaticSaveKeyProvider`，未配置时的占位默认）/ 运行期口令注入（`PassphraseSaveKeyProvider`，口令仅内存不落盘，未注入时读 `InvalidArgument`、写 fail-fast）/ HKDF-SHA256 按用户派生（`HKDFPerUserSaveKeyProvider`，多账号存档互相不可读）
 - 原子写入：临时文件 `xxx.sav.tmp-{guid}` → `Flush(true)` → `File.Replace`（经 `FileSaveStorageBackend`）；启动期后台清扫孤儿临时文件
+- 读写全链路流式：写侧经 `WriteAtomic(Action<Stream>)` 委托写（占位头 → CRC 写透传 → 加密/压缩链 → 容器段流直灌 → 回填真头，零整档缓冲）；读侧头 32B → CRC 增量 → 解密/解压链 → 256KB 段池拉取 → CRC 校验 → 容器 `ReadOnlySequence` 跨段解析（单段快路径直通跨度解析器）；AES 档读为两遍流式（第一遍流式 HMAC 预验——先验证后解密杜绝填充 oracle；冻结 rewind 后第二遍限长 [IV‖密文] 解密链，HMAC 尾留段外，任意时刻关闭安全）
 - 同文件读写经串行信号量排队（防并发读-改-写丢块）——串行门在 Handler 编排层，存储后端无感知
 - 删除全族（单档/文件夹/根目录清空，同步与异步版）持「根目录 → 文件夹 → 文件」分层门（固定序取门防死锁），与块级读写互斥——存在性判定与删除同临界区完成，杜绝删除后并发写入复活文件；合规性数据清除（`DeleteAllSaveFiles`）结果可靠
-- 存储层契约（`ISaveStorage`）：同步原语为契约核心（`Exists`/`TryReadAllBytes`/`WriteAtomic`/`DeleteFile`/`DeleteDirectory`/`EnumerateFiles`/`CreateBackup`/`RestoreBackup`），异步包装默认线程池卸载（真异步后端覆盖并声明 `Capabilities`）；读取错误分型返回、写入失败抛 `GameException`、删除幂等；实现必须纯 .NET（任意线程可调）
+- 存储层契约（`ISaveStorage`）：同步原语为契约核心（`Exists`/`TryReadAllBytes`/`WriteAtomic`/`DeleteFile`/`DeleteDirectory`/`EnumerateFiles`/`CreateBackup`/`RestoreBackup`）；流式原语下沉零整档缓冲 IO（`WriteAtomic(filePath, Action<Stream>)` 委托写——可寻址临时流内占位头→转换链→回填真头；`TryOpenRead` 可寻址只读流）；`TryGetWriteTimeUtc` 元数据查询支撑会话级增量守卫；异步包装默认线程池卸载（真异步后端覆盖并声明 `Capabilities`）；能力位含 `SyncReadsAuthoritative`（同步读是否权威——云后端 false，外观裸名同步读在非权威后端上记一次性告警引导改用异步 API）；读取错误分型返回、写入失败抛 `GameException`、删除幂等；实现必须纯 .NET（任意线程可调）
 
 ## 存档路径
 
@@ -194,6 +196,8 @@ await SaveService.RestoreEntitiesAsync("slot1");
 - **模板差分**：实体捕获与预制体模板基准（每稳定键会话级缓存一份基准 KVT）逐字段比对，**只写相对模板的变动字段**（嵌套对象递归差分；集合任一变动整条携带，元素级差分为 v2 范围）；恢复 = 实例化（天然模板默认值）+ 应用差分，存档增量最小化。基准不可用（预制体未登记/无根 SaveComponent）时退化为全量写入。
 - **块布局**：实体表 = 保留块 `__entities`（生成记录 EntityId/PrefabKey/SceneName/ParentId + 预置对象销毁 ID）；实体数据 = 每实体一个 `entity:{EntityId}` 块（实体组件块键由管线在激活前改写）。**组件存取 API 跳过 `entity:` 前缀块**——完整世界存取 = `SaveEntitiesAsync` + `SaveComponentsAsync`，恢复 = `RestoreEntitiesAsync` + `LoadComponentsAsync`（顺序：先实体后组件）。
 - **CarryForward 语义**：保存仅 upsert 活跃实体，未访问场景与生成失败实体的块原样滞留；绕过 `DestroyPersistent` 直接 `Object.Destroy` 的实体，其记录与块同样滞留（须走显式销毁移除）。恢复后会话生成/销毁表以档案状态整体替换。
+- **增量保存**：会话级脏跟踪（按档键控基准 = 实体表字节 + 逐实体差分载荷 + 档写入时间）——均未变化时零 IO 跳过（无事件）；有变化时单趟合并（读档 → 自愈迁移 → 删陈旧 → upsert → 原子写回）仅写脏块（仅变化块触发 `BlockSaved`）；基准失效（首次保存 / 恢复后 / 档被外部改写——写入时间守卫经 `FileInfo.Refresh` 新鲜元数据判定，防 NTFS 缓存滞后误判）保守走全量合并（孤儿清理由读档后解析）。
+- **线程归属**：实体/组件外观异步 API 的 IO 在工作线程，读档续体返回后先切回主线程再执行场景操作与字段写回（Unity API 恒主线程）。
 - **父子与场景落位**：生成记录的 ParentId（父级须挂 SaveObjectIdentity，否则父子关系不持久化并记告警）在恢复第二轮接线；SceneName 场景已加载则落位其中，否则落位活跃场景并记告警——**落位回落不改写场景归属**（生成表保持档案原 SceneName，下次会话场景加载时实体回到原场景，不漂移）。稳定 ID 查询走 `SaveEntityRegistry`——场景作用域表（场景卸载清扫）+ 全局作用域表（DontDestroyOnLoad 对象常驻）双表。
 - **恢复时序**：生成保持未激活直到差分块写回完成——Awake/OnEnable 即见最终父级与恢复后字段值（游戏逻辑须读档后状态时监听 `EntityRestored` 事件或在 Start 之后）。差分块损坏的实体记错误日志并按模板默认恢复（不阻断其它实体）。
 - **降级契约**：`InstantiatePersistent`/`DestroyPersistent` 不依赖存档处理器（注册表与资源服务可用即可），预制体键未登记/加载失败记错误日志返回 `null`；`SaveEntitiesAsync` 在处理器未就绪时抛 `GameException`；`RestoreEntitiesAsync` 静默降级为空任务。
@@ -204,7 +208,7 @@ await SaveService.RestoreEntitiesAsync("slot1");
 | `InstantiatePersistent(prefabKey, position, rotation, parent)` | 同步生成持久化实体（模板经 ResourceService 加载；失败返回 `null`） |
 | `InstantiatePersistentAsync(prefabKey, position, rotation, parent, ct)` | 异步生成（取消时返回 `null`） |
 | `DestroyPersistent(target)` | 销毁并登记语义（动态实体移表 / 预置对象记销毁表 / 无身份物体仅销毁） |
-| `SaveEntitiesAsync(fileName, folderName, ct)` | 写入实体表与全部活跃实体差分块（预热基准→差分捕获→清理陈旧块→原子合并；失败抛 `GameException`） |
+| `SaveEntitiesAsync(fileName, folderName, ct)` | 写入实体表与全部活跃实体差分块（预热基准→差分捕获→增量判定→单趟合并；零变化零 IO 跳过；失败抛 `GameException`） |
 | `RestoreEntitiesAsync(fileName, folderName, ct)` | 按档案状态整体重建实体（DestroyUnwanted→SpawnMissing→RestoreAll；逐只触发 `EntityRestored`） |
 
 ## 截图与元数据镜像
@@ -222,15 +226,17 @@ await SaveService.RestoreEntitiesAsync("slot1");
 
 ## 云存档一体（本地镜像 + 远端 KV）
 
-`CloudSaveStorageBackend`（存储后端插拔件，经 `m_StorageBackend` 配置）：本地文件镜像 + 远端 KV 双写，读按冲突策略裁决。远端 KV 语义抽象为 `CloudSaveKvStore`（[SerializeReference] 插拔件）——**具体云端后端（Unity Cloud Save / 自定义 REST 等）随项目接入**，框架只交付抽象 + 镜像/冲突管线。
+`CloudSaveStorageBackend`（存储后端插拔件，经 `m_StorageBackend` 配置）：本地文件镜像 + 远端 KV 双写，读按冲突策略裁决。远端 KV 语义抽象为 `CloudSaveKvStore`（[SerializeReference] 插拔件）——框架内置两个具体后端（**`RestCloudSaveKvStore`** 自定义 REST / **`UnityCloudSaveKvStore`** UGS 条件编译），项目亦可实现自定义后端。
 
 - **键规范**：云端键 = 相对存档数据根目录（`persistentDataPath/Data/`）的路径，`/` 分隔（如 `Save/slot1.sav`）——不携带本机目录结构，跨设备一致。
 - **错误语义**：远端不可达/失败/未登录一律抛异常，后端归一为**离线降级**（降级本地镜像直通并记告警）；缺档非错误（读 `null` / 存在性 `false` / 删除幂等）。
+- **REST 后端（`RestCloudSaveKvStore`）**：配置端点根地址 / 键前缀（多租户命名空间）/ 认证头 / 超时；认证值经代码注入的动态令牌提供方优先于静态配置（防密钥随设置资产入库）。REST 契约：`GET/HEAD/PUT/DELETE {baseUrl}/{keyPrefix}{key}`（路径段逐段 URL 转义；读 404 = 缺档）+ `GET {baseUrl}?prefix=` 枚举下推（JSON 信封 `[{"key","size","modified","revision"}]`，返回键须含键前缀——本端剥离并二次校验，前缀外键防御性跳过）。修订号双通道（`X-Save-Revision` 首选 / `ETag` 回退，均无 = 0 回退时间戳裁决）；远端时间戳 `Last-Modified` → 响应 `Date` 回退链；超时归一 `TimeoutException`、非约定状态码归一 `IOException`。HttpClient 纯 .NET 传输（任意线程可调；**WebGL 无 raw socket 不可用**，WebGL 项目选 UGS 或 UnityWebRequest 自定义后端）。
+- **UGS 后端（`UnityCloudSaveKvStore`）**：安装 `com.unity.services.cloudsave` 后经 versionDefine（`UNITY_CLOUD_SAVE_INSTALLED`）自动激活。前置 `UnityServices.InitializeAsync()` + 玩家登录（Authentication），未就绪抛异常走离线降级；缺档经 `CloudSaveException.Reason == NotFound` 判 null/false/幂等。Player Files API 承载（配额：每玩家 200 文件 / 1GB）；WriteLock 为 etag 语义字符串（非单调数值）——`WriteAsync` 恒返回 0，裁决走 `FileItem.Modified` 远端权威时间戳通道；SDK 不接收取消令牌（调用前协作式检查，已发出的请求无法中止）。
 - **写双发**：本地镜像原子提交后远端跟随；远端失败**不阻断本地提交**——记入待回传集合，下次远端操作成功时 backfill 重放（待传上传 / 待删单键 / 待删前缀，按序弹出，失败即停余项保留）。镜像独有回传有失败冷却（默认 30s，冷却期内读路径不重试，积压由 backfill 兜底）。
 - **枚举下推**：`EnumerateAsync(prefix, ct)` 前缀重载——默认实现全量枚举后客户端过滤；支持服务端前缀过滤的后端覆写即降低流量（槽位枚举与前缀删除均经此通道）。
 - **读裁决**（`ESaveSyncPolicy`）：`Latest` 新者优先 / `LocalWins` 本地权威 / `CloudWins` 云端权威 / `Custom` 逐键委托 `SaveSyncConflictResolver`（未配置回退 Latest 并记告警；裁决条目携带双方尺寸与修订号——枚举路径远端尺寸取清单 SizeBytes，不从空载荷推导）。**裁决去时钟化**：远端提供单调修订号（`CloudKvEntry.Version` > 0）时按版本号裁决——镜像已同步修订号记录于 `{file}.cloudver` sidecar，镜像脏判定用镜像与 sidecar 的本地 mtime 失配（同一本地时钟，客户端与远端时钟偏移不参与）；无版本号后端回退时间戳比较（下载已把远端权威时间戳转写镜像）。单侧存在时自动对齐另一侧（远端独有 → 下载刷新镜像并保留远端时间戳与版本；镜像独有 → 回传补传远端）。`WriteAsync` 返回远端分配的修订号（0 = 后端不提供版本号）。
 - **同步原语仅作用本地镜像**（同步裸名 API 不见远端；远端同步由异步 API 族驱动）；单槽备份（`.bak`）为本地概念不随云同步；目录级删除对远端按前缀尽力删除。
-- **能力声明**：`Capabilities.SupportsTrueAsyncIO = true`（远端网络 IO 为真异步）；WebGL 等平台同步读不可用的约束不适用于本后端——同步 API 只读本地镜像恒可用。
+- **能力声明**：`Capabilities.SupportsTrueAsyncIO = true`（远端网络 IO 为真异步）；`SyncReadsAuthoritative = false`（同步读非权威——同步原语只读本地镜像不见远端，外观裸名同步读在本后端上记一次性告警，引导改用异步 API 获取裁决结果）；WebGL 等平台同步读不可用的约束不适用于本后端——同步 API 只读本地镜像恒可用。
 
 ## 工具链（调试器与编辑器）
 
@@ -272,11 +278,12 @@ await SaveService.RestoreEntitiesAsync("slot1");
 | `GetSaveFiles(folderName)` / `GetSaveFilesAsync` | 槽位枚举（按时间倒序） |
 | `FileExists` / `DetermineSavePath` | 查询与路径 |
 | `DeleteSave` / `DeleteSaveFolder` / `DeleteAllSaveFiles`（+Async 对） | 删除（退避重试；单档删除级联截图 sidecar） |
+| `TryDeleteSave` / `TryDeleteSaveFolder` / `TryDeleteAllSaveFiles`（+Async 对） | 带存在性判别的删除（返回 bool——`true` = 存在并已删除；`false` = 目标本不存在或处理器未就绪，未发生删除；事件行为与 void 族一致） |
 | `CreateBackup` / `RestoreBackup` | 单槽 `.bak` 备份/恢复（原子替换） |
 
 ### 降级契约（处理器未就绪）
 
-写路径（`SaveBlock`/`SaveBlockAsync`/`SaveComponentsAsync`/`SaveEntitiesAsync`/`SaveMetadata`/`SaveMetadataAsync`）**抛 `GameException`**——不静默丢档；读返回 default；`TryLoad*` 返回 `Failure(HandlerNotReady)`；删除/枚举 no-op 或空数组。
+写路径（`SaveBlock`/`SaveBlockAsync`/`SaveComponentsAsync`/`SaveEntitiesAsync`/`SaveMetadata`/`SaveMetadataAsync`）**抛 `GameException`**——不静默丢档；读返回 default；`TryLoad*` 返回 `Failure(HandlerNotReady)`；删除/枚举 no-op 或空数组；`TryDelete*` 族返回 `false`。
 
 ### 事件（SaveService.Events）
 
@@ -296,7 +303,7 @@ await SaveService.RestoreEntitiesAsync("slot1");
 | 字段 | 说明 |
 |---|---|
 | `m_SaveServiceHandler` | 存储管线处理器（PlainSaveHandler / AESEncryptedSaveHandler；密钥提供方内嵌在 AES 处理器上——空 = 回退 `StaticSaveKeyProvider.Default` 占位默认；可选 StaticSaveKeyProvider / PassphraseSaveKeyProvider / HKDFPerUserSaveKeyProvider） |
-| `m_StorageBackend` | 存储后端（IO 下沉目标，默认 FileSaveStorageBackend；置空回退文件后端；云存档选 `CloudSaveStorageBackend`——组合远端 KV 插拔件 + 冲突策略 + 自定义裁决器） |
+| `m_StorageBackend` | 存储后端（IO 下沉目标，默认 FileSaveStorageBackend；置空回退文件后端；云存档选 `CloudSaveStorageBackend`——组合远端 KV 插拔件（内置 `RestCloudSaveKvStore` 自定义 REST / `UnityCloudSaveKvStore` UGS 条件编译）+ 冲突策略 + 自定义裁决器） |
 | `m_CompressionProvider` | 压缩提供方（空 = 不压缩；内置 GZipCompressionProvider） |
 | `m_DefaultBackend` | 默认序列化后端（未声明 `[SaveData]` 的块） |
 | `m_SaveFileExtension` | 存档文件扩展名（默认 `.sav`） |
@@ -313,6 +320,8 @@ await SaveService.RestoreEntitiesAsync("slot1");
 | MessagePack | 3.1.8 | NuGetForUnity 引入；运行时 DLL 自动引用，分析器 DLL 需 `RoslynAnalyzer` 标签 |
 | protobuf-net | 3.3.8 | 同上（+Core 内嵌 BuildTools SG） |
 | MemoryPack | 1.21.4 | 同上 |
+| Unity Cloud Save | 可选 | 安装 `com.unity.services.cloudsave` 后经 versionDefine（`UNITY_CLOUD_SAVE_INSTALLED`）激活 `UnityCloudSaveKvStore` |
+| LZ4（K4os.Compression.LZ4） | 预留 | versionDefine 槽位 `LZ4_INSTALLED` 已预留（安装 `org.nuget.k4os.compression.lz4` 激活）；压缩提供方实现待后续补全 |
 
 缺 DLL 时对应后端在 `SaveSerializerRegistry.GetRequired` fail-fast。
 
@@ -341,6 +350,8 @@ await SaveService.RestoreEntitiesAsync("slot1");
 | `SaveKvDifferTests` | 模板差分：标量/嵌套/集合/新增/类型漂移/体积收缩/坏档 |
 | `SaveEntityTableTests` | 实体表往返、空表、可空字段、未知记录容错 |
 | `SaveEntityPersistenceTests` | 动态实体闭环、差分、销毁标记、父子接线、EntityRestored |
+| `SaveEntityIncrementalTests` | 实体增量保存闭环：零变化跳过、仅脏块写回、销毁清陈旧、外部改写/恢复后走全量 |
+| `RestCloudSaveKvStoreTests` | REST 后端：读写往返（修订号/时间戳）、存在探测、幂等删除、前缀枚举、认证头优先级、远端失败/超时归一、ETag 回退 |
 | `SaveBuiltInCapturerTests` | Transform / Rigidbody / ParticleSystem 内置捕获器 |
 | `SaveScreenshotTests` | sidecar、缩略图、PNG 编码、元数据镜像、级联删除、非运行态降级 |
 | `SaveCloudStorageBackendTests` | 写双发、读策略矩阵、单侧对齐、离线降级、backfill 重放 |
