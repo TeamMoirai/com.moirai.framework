@@ -19,9 +19,10 @@ namespace Moirai.Atropos
         public virtual EServiceScopeKind Scope => EServiceScopeKind.App;
 
         /// <summary>
-        /// 当前生命周期状态（只读投影——唯一事实源在容器侧，由容器驱动转换）。
+        /// 当前生命周期状态（只读投影——唯一事实源在容器侧，由容器经 <see cref="IServiceLifecycle"/> 驱动转换；
+        /// 写入端口对本类之外的任何代码关闭）。
         /// </summary>
-        public EServiceState State { get; internal set; } = EServiceState.Created;
+        public EServiceState State { get; private set; } = EServiceState.Created;
 
         #endregion
 
@@ -34,21 +35,23 @@ namespace Moirai.Atropos
 
         #region IServiceLifecycle 实现 [RUNTIME LIFECYCLE]
 
-        void IServiceLifecycle.Initialize(ServiceWorld world, ServiceScope scope)
+        EServiceState IServiceLifecycle.StateInternal => State;
+
+        void IServiceLifecycle.Initialize()
         {
             if (State >= EServiceState.Initialized) return;
 
             OnInit();
-            State = EServiceState.Initialized;
-            world.InvokeRegistered(this, GetType(), scope.Kind);
+            // OnInit 期间可能被外部关闭（退出应用时 Dispose 打在初始化途中）：
+            // 无条件赋值会把 ShuttingDown/Disposed 盖回 Initialized，让已关闭的服务重新"就绪"
+            if (State == EServiceState.Created) State = EServiceState.Initialized;
         }
 
-        void IServiceLifecycle.Destroy(ServiceWorld world)
+        void IServiceLifecycle.Destroy()
         {
             if (State >= EServiceState.ShuttingDown) return;
 
             State = EServiceState.ShuttingDown;
-            world.InvokeShutdown(this);
             try { OnShutdown(); }
             catch (Exception ex) { LogUtility.Error(ex.ToString()); }
             State = EServiceState.Disposed;

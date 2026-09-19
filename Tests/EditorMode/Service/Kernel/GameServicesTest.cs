@@ -117,10 +117,9 @@ namespace Service.Kernel
             }
         }
 
-        // --- 可变静态配置的保存/恢复（防测试间状态泄漏） ---
+        // --- 可变配置的保存/恢复（防测试间状态泄漏） ---
 
         private EDuplicateContractPolicy _originalPolicy;
-        private int _originalTripThreshold;
 
         // --- 生命周期 ---
 
@@ -130,13 +129,11 @@ namespace Service.Kernel
             s_OrderLog.Clear();
             GameServices.Shutdown();
             _originalPolicy = GameServices.DuplicateContractPolicy;
-            _originalTripThreshold = ServiceScope.s_TickFailureTripThreshold;
         }
 
         [TearDown]
         public void TearDown()
         {
-            ServiceScope.s_TickFailureTripThreshold = _originalTripThreshold;
             GameServices.DuplicateContractPolicy = _originalPolicy;
 
             GameServices.Shutdown();
@@ -670,6 +667,46 @@ namespace Service.Kernel
         }
 
         [Test]
+        public void Interceptor_ExplicitContract_RegisteredEventReportsContractType()
+        {
+            var interceptor = new TestInterceptor();
+            GameServices.AddInterceptor(interceptor);
+
+            var svc = new DualContractService();
+            GameServices.RegisterService(EServiceScopeKind.App, typeof(IAlphaService), svc);
+            GameServices.RegisterService(EServiceScopeKind.App, typeof(IBetaService), svc);
+
+            CollectionAssert.IsEmpty(
+                FindEvents(interceptor, "Registered:"),
+                "待初始化阶段的附加契约不得提前上报 Registered（事件契约要求 OnInit 已执行）");
+
+            Init();
+
+            CollectionAssert.AreEquivalent(
+                new[] { "Registered:IAlphaService", "Registered:IBetaService" },
+                FindEvents(interceptor, "Registered:"),
+                "Registered 应按注册契约逐个上报");
+            Assert.AreEqual(1, svc.InitCount);
+        }
+
+        [Test]
+        public void Interceptor_RegisteringEventReportsContractType_NotImplType()
+        {
+            var interceptor = new TestInterceptor();
+            GameServices.AddInterceptor(interceptor);
+
+            GameServices.RegisterService(EServiceScopeKind.App, typeof(IAlphaService), new AlphaService());
+
+            CollectionAssert.Contains(FindEvents(interceptor, "Registering:"), "Registering:IAlphaService",
+                "Registering 应上报契约类型而非实现类型");
+        }
+
+        private static List<string> FindEvents(TestInterceptor interceptor, string prefix)
+        {
+            return interceptor.Events.FindAll(e => e.StartsWith(prefix, StringComparison.Ordinal));
+        }
+
+        [Test]
         public void Interceptor_ShutdownFlow_ShutdownBeforeServiceShutdown_UnregisteredAfter()
         {
             var interceptor = new TestInterceptor();
@@ -729,6 +766,64 @@ namespace Service.Kernel
 
             GameServices.RegisterService(EServiceScopeKind.App, new BetaService() as IBetaService);
             Assert.AreEqual(0, interceptor.Events.Count, "移除后不应再收到事件");
+        }
+
+        /// <summary>观察器型拦截器：四个非否决回调一律抛。</summary>
+        private sealed class ExplodingInterceptor : IServiceInterceptor
+        {
+            public void OnBeforeScopeTick(EServiceScopeKind scope, float elapseSeconds, float realElapseSeconds)
+                => throw new InvalidOperationException("sampler boom");
+
+            public void OnServiceRegistered(IService service, Type contractType, EServiceScopeKind scope)
+                => throw new InvalidOperationException("sampler boom");
+
+            public void OnServiceShutdown(IService service)
+                => throw new InvalidOperationException("sampler boom");
+
+            public void OnServiceUnregistered(IService service)
+                => throw new InvalidOperationException("sampler boom");
+        }
+
+        [Test]
+        public void Interceptor_ObserverExceptions_AreIsolatedAndDoNotBreakTheFrame()
+        {
+            // 观察器（采样/日志）缺陷不得拖垮游戏循环，也不得吃掉同轮其它拦截器的回调。
+            // 同等优先级下先加的排在前面——证人能收到事件即证明循环没有因抛者中断。
+            GameServices.AddInterceptor(new ExplodingInterceptor());
+            var witness = new TestInterceptor();
+            GameServices.AddInterceptor(witness);
+
+            var alpha = new AlphaService();
+            LogAssert.Expect(LogType.Error, new Regex(".*threw in OnServiceRegistered.*"));
+            Assert.DoesNotThrow(() => Register(alpha));
+            Assert.IsTrue(witness.Events.Contains("Registered:AlphaService"), "抛者之后的拦截器仍应被调用");
+
+            LogAssert.Expect(LogType.Error, new Regex(".*threw in OnBeforeScopeTick.*"));
+            Assert.DoesNotThrow(() => GameServices.Tick(0.1f, 0.1f));
+            Assert.AreEqual(1, alpha.TickCount, "拦截器异常不得影响被观察的服务");
+            CollectionAssert.Contains(witness.Events, "AfterTick:App", "帧边界应成对收尾");
+
+            LogAssert.Expect(LogType.Error, new Regex(".*threw in OnServiceShutdown.*"));
+            LogAssert.Expect(LogType.Error, new Regex(".*threw in OnServiceUnregistered.*"));
+            Assert.DoesNotThrow(() => GameServices.ShutdownContainer(EServiceScopeKind.App));
+            Assert.AreEqual(1, alpha.ShutdownCount, "关闭流程应完整走完");
+        }
+
+        private sealed class VetoInterceptor : IServiceInterceptor
+        {
+            public void OnServiceRegistering(IService service, Type contractType, EServiceScopeKind scope)
+                => throw new GameException("registration vetoed");
+        }
+
+        [Test]
+        public void Interceptor_RegisteringVeto_PropagatesAndLeavesRegistryClean()
+        {
+            // Registering 是唯一的否决通道：不被隔离，且抛出后注册表不留半注册条目
+            GameServices.AddInterceptor(new VetoInterceptor());
+
+            Assert.Throws<GameException>(
+                () => GameServices.RegisterService(EServiceScopeKind.App, new AlphaService()));
+            Assert.IsNull(GameServices.GetService<AlphaService>(), "否决后不得残留契约绑定");
         }
 
         // ═══════════════════════════════════════════════════════
@@ -815,6 +910,101 @@ namespace Service.Kernel
             Init();
             Assert.AreEqual(0, alpha.InitCount, "已注销的挂起服务不得再初始化");
             Assert.IsNull(GameServices.GetService<AlphaService>());
+        }
+
+        // ═══════════════════════════════════════════════════════
+        // 初始化期图变更拒绝测试 [MUTATION DURING INITIALIZATION]
+        // ═══════════════════════════════════════════════════════
+
+        private sealed class UnregisterDuringInitService : TestServiceBase, IAlphaService
+        {
+            public bool Rejected;
+
+            public override void OnInit()
+            {
+                base.OnInit();
+                try
+                {
+                    // 目标此刻仍在挂起图中（注册序 gate→beta，无依赖边）——若无守卫会被真的摘走
+                    GameServices.UnregisterService(EServiceScopeKind.App, typeof(IBetaService));
+                }
+                catch (GameException)
+                {
+                    Rejected = true;
+                }
+            }
+        }
+
+        [Test]
+        public void Unregister_DuringInitialization_IsRejected_AndTargetStillInitializes()
+        {
+            // 挂起图正被按索引推进的循环消费：中途摘除会让被注销者仍被 OnInit（且无 OnShutdown）、
+            // 其后服务因索引位移被跳过——必须 fail-fast 而非静默损坏
+            var gate = new UnregisterDuringInitService();
+            var beta = new BetaService();
+            GameServices.RegisterService(EServiceScopeKind.App, gate as IAlphaService);
+            GameServices.RegisterService(EServiceScopeKind.App, beta as IBetaService);
+
+            Init();
+
+            Assert.IsTrue(gate.Rejected, "初始化期注销应被拒绝");
+            Assert.AreEqual(1, beta.InitCount, "未获批的注销不得真的摘走目标");
+            Assert.AreSame(beta, GameServices.GetRequiredService<IBetaService>());
+        }
+
+        private sealed class ShutdownScopeDuringInitService : TestServiceBase, IAlphaService
+        {
+            public bool Rejected;
+
+            public override void OnInit()
+            {
+                base.OnInit();
+                try
+                {
+                    GameServices.ShutdownContainer(EServiceScopeKind.Scene);
+                }
+                catch (GameException)
+                {
+                    Rejected = true;
+                }
+            }
+        }
+
+        [Test]
+        public void ShutdownContainer_DuringInitialization_IsRejected()
+        {
+            // 否则被销毁作用域的服务会留在挂起图里当幽灵拓扑节点，稍后被重新 OnInit
+            var gate = new ShutdownScopeDuringInitService();
+            GameServices.RegisterService(EServiceScopeKind.App, gate as IAlphaService);
+
+            Init();
+
+            Assert.IsTrue(gate.Rejected, "初始化期关闭作用域应被拒绝");
+            Assert.IsFalse(GameServices.HasScene, "被拒的关闭不得创建或销毁任何作用域");
+        }
+
+        private sealed class SelfShutdownOnInitService : TestServiceBase, IAlphaService
+        {
+            public override void OnInit()
+            {
+                base.OnInit();
+                GameServices.Shutdown();
+            }
+        }
+
+        [Test]
+        public void Dispose_DuringInitialization_DoesNotClaimInitialized()
+        {
+            // OnInitAsync 等待期间退出应用是同一条路径：销毁态必须压过已初始化态
+            var world = GameServices.Default;
+            var svc = new SelfShutdownOnInitService();
+            GameServices.RegisterService(EServiceScopeKind.App, svc as IAlphaService);
+
+            Assert.DoesNotThrow(() => world.Initialize());
+            Assert.IsFalse(world.IsInitialized, "途中被 Dispose 的世界不得宣告已初始化");
+            Assert.AreEqual(EServiceState.Disposed, svc.State,
+                "OnInit 途中已被关闭，转换回来时不得把 Disposed 盖回 Initialized");
+            Assert.Throws<GameException>(() => world.Register(EServiceScopeKind.App, new BetaService()));
         }
 
         // ═══════════════════════════════════════════════════════
@@ -1057,6 +1247,29 @@ namespace Service.Kernel
             Assert.AreEqual(1, svc.ShutdownCount, "同实例多契约只关闭一次");
         }
 
+        [Test]
+        public void MultiContract_UnregisterOneContract_BeforeInitialize_RemovesWholeService()
+        {
+            // 注销粒度是服务而非契约（与运行时注销路径同语义）：
+            // 只摘单契约会让实例残留在挂起图里，Initialize 会对已注销服务再驱动 OnInit，
+            // 而条目已删导致激活序不记录——OnShutdown 永远丢失。
+            var svc = new DualContractService();
+            GameServices.RegisterService(EServiceScopeKind.App, typeof(IAlphaService), svc);
+            GameServices.RegisterService(EServiceScopeKind.App, typeof(IBetaService), svc);
+
+            Assert.IsTrue(GameServices.UnregisterService(EServiceScopeKind.App, typeof(IAlphaService)),
+                "待初始化服务应按契约注销");
+
+            Init();
+            Assert.AreEqual(0, svc.InitCount, "已注销的挂起服务不得被初始化复活");
+
+            Assert.IsNull(GameServices.GetService<IAlphaService>());
+            Assert.IsNull(GameServices.GetService<IBetaService>(), "剩余契约随服务一并失效");
+
+            GameServices.ShutdownContainer(EServiceScopeKind.App);
+            Assert.AreEqual(0, svc.ShutdownCount, "未初始化的服务不应残留关闭回调");
+        }
+
         private sealed class BindOnTickService : TestServiceBase, IAlphaService, IDepTargetService
         {
             public override int Priority => 10;
@@ -1255,6 +1468,62 @@ namespace Service.Kernel
         }
 
         // ═══════════════════════════════════════════════════════
+        // 注册约束测试 [REGISTRATION CONSTRAINTS]
+        // ═══════════════════════════════════════════════════════
+
+        /// <summary>裸实现 IService：无容器可驱动的状态机。</summary>
+        private sealed class RawContractService : IService
+        {
+            public int Priority => 0;
+            public EServiceScopeKind Scope => EServiceScopeKind.App;
+            public void OnInit() { }
+            public void OnShutdown() { }
+        }
+
+        [Test]
+        public void Register_BareIService_Rejected()
+        {
+            // 裸实现的 State 永远停在 Created，声明它为依赖的服务过不了 IsServiceReady——注册期即拒
+            Assert.Throws<GameException>(
+                () => GameServices.RegisterService(EServiceScopeKind.App, new RawContractService()),
+                "裸 IService 实现应在注册时被拒绝，而非静默永不就绪");
+            Assert.IsFalse(GameServices.HasApp, "拒绝不得留下半注册的作用域状态");
+        }
+
+        /// <summary>
+        /// MonoBehaviour + Gizmo 能力的服务。
+        /// <para>刻意<b>不加</b> <c>ExecuteAlways</c>：EditMode 下 AddComponent 不触发 Awake，
+        /// 才不会被 <see cref="ServiceMono{TScope}"/> 的自动注册抢跑掉本用例要验的守卫。</para>
+        /// </summary>
+        private sealed class MonoGizmoService : ServiceMono<AppScope>, IServiceGizmoDrawable
+        {
+            public override void OnInit() { }
+            public override void OnShutdown() { }
+            public void OnDrawGizmos() { }
+        }
+
+        [Test]
+        public void Register_MonoBehaviourGizmoDrawable_Rejected()
+        {
+            var go = new GameObject("MonoGizmoService");
+            try
+            {
+                var mono = go.AddComponent<MonoGizmoService>();
+
+                // Unity 对 MonoBehaviour 的 OnDrawGizmos 魔法方法无条件驱动，再进容器轮询列表即双重绘制
+                var ex = Assert.Throws<GameException>(
+                    () => GameServices.RegisterService(EServiceScopeKind.App, mono),
+                    "Mono 服务不得实现 IServiceGizmoDrawable");
+                StringAssert.Contains(nameof(IServiceGizmoDrawable), ex.Message);
+                Assert.AreEqual(EServiceState.Created, mono.State, "被拒的注册不得留下生命周期副作用");
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(go);
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════
         // Tick 异常分级策略测试 [TICK EXCEPTION POLICY TESTS]
         // ═══════════════════════════════════════════════════════
 
@@ -1355,7 +1624,8 @@ namespace Service.Kernel
         [Test]
         public void Tick_ConsecutiveFailures_TripsAfterThreshold_StopsPolling()
         {
-            ServiceScope.s_TickFailureTripThreshold = 3;
+            // 阈值是世界级配置：默认世界随 TearDown 的 Shutdown 一起丢弃，无需恢复
+            GameServices.Default.TickFailureTripThreshold = 3;
 
             var thrower = new CountingThrowService();
             var healthy = new HealthyBeta();

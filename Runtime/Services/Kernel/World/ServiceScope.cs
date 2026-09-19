@@ -84,18 +84,8 @@ namespace Moirai.Atropos
                 false;
 #endif
 
-        // ── Tick 异常熔断：同一服务在同一轮询类别连续失败达到阈值即摘出对应轮询列表并汇总告警一次 ──
-
-        /// <summary>
-        /// 连续失败熔断默认阈值。
-        /// </summary>
-        internal const int DEFAULT_TICK_TRIP_THRESHOLD = 300;
-
-        /// <summary>
-        /// 连续失败熔断阈值：同一服务在同一轮询类别连续异常达到该次数即被摘除出对应轮询列表。
-        /// 运行时可调（测试与运维调优）；重新注册服务即完全重置。
-        /// </summary>
-        internal static int s_TickFailureTripThreshold = DEFAULT_TICK_TRIP_THRESHOLD;
+        // ── Tick 异常熔断：同一服务在同一轮询类别连续失败达到阈值即摘出对应轮询列表并汇总告警一次。
+        // 阈值是世界级配置，见 ServiceWorld.TickFailureTripThreshold。──
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
         // Stopwatch 时间戳 → 毫秒换算系数（轮询耗时统计专用）
@@ -154,19 +144,24 @@ namespace Moirai.Atropos
         /// 两阶段第二阶段（逐服务）：补齐轮询列表并驱动 OnInit。由世界按拓扑序调用。
         /// <para>OnInit 成功完成后记录进激活序（<see cref="_activationOrder"/>）——
         /// 作用域关闭按逆激活序执行；初始化抛异常的服务不进入激活序，销毁时归入未激活桶兜底关闭。</para>
+        /// <para><c>OnServiceRegistered</c> 在此按条目已挂载的<b>契约句柄</b>逐个发出（每契约一次）：
+        /// 服务侧只知道自己派生的实现类型，由它上报会让 Registering/Registered 两个事件的契约参数不成对。</para>
         /// </summary>
         internal void ActivateService(IService service)
         {
             ActivateTickables(service);
 
-            if (service is IServiceLifecycle lifecycle)
-                lifecycle.Initialize(_world, this);
+            ((IServiceLifecycle)service).Initialize();
 
             if (_entriesByService.TryGetValue(service, out var entry) && !entry.ActivationRecorded)
             {
                 entry.ActivationRecorded = true;
                 _entriesByService[service] = entry;
                 _activationOrder.Add(service);
+
+                var handles = entry.ContractHandles;
+                for (int i = 0; i < handles.Length; i++)
+                    _world.InvokeRegistered(service, Type.GetTypeFromHandle(handles[i]), Kind);
             }
         }
 
@@ -263,8 +258,7 @@ namespace Moirai.Atropos
 
             var service = _servicesByContract[serviceType.TypeHandle];
 
-            if (service is IServiceLifecycle lifecycle)
-                lifecycle.Destroy(_world);
+            DestroyService(service);
 
             if (_entriesByService.TryGetValue(service, out var entry))
                 RemoveServiceInternal(service, entry);
@@ -325,6 +319,9 @@ namespace Moirai.Atropos
 
         /// <summary>
         /// 附加契约句柄到既有条目（立即路径与延迟 flush 共用）。
+        /// <para>新契约的 <c>OnServiceRegistered</c> 仅在服务已激活时立即发出；
+        /// 待初始化阶段的附加契约推迟到 <see cref="ActivateService"/> 按全部句柄统一发，
+        /// 以保持"Registered 时 OnInit 必已执行"的事件契约。</para>
         /// </summary>
         private void AttachContractCore(IService service, Type contractType)
         {
@@ -340,7 +337,9 @@ namespace Moirai.Atropos
             _world.AddBinding(this, newHandles[oldHandles.Length], service);
 
             _entriesByService[service] = entry;
-            _world.InvokeRegistered(service, contractType, Kind);
+
+            if (entry.ActivationRecorded)
+                _world.InvokeRegistered(service, contractType, Kind);
         }
 
         private void RegisterInternal(IService service, Type[] contractTypes, bool activateTickables)
@@ -360,7 +359,18 @@ namespace Moirai.Atropos
                     throw new GameException(StringUtility.Format(
                         "MonoBehaviour service '{0}' cannot implement IServiceLateTickable. " +
                         "Use Unity's LateUpdate() instead.", service.GetType().FullName));
+                // Gizmo 同理：Unity 对任意 MonoBehaviour 的 OnDrawGizmos 魔法方法无条件反射调用，
+                // 再进本容器的轮询列表就是编辑器下双重绘制
+                if (service is IServiceGizmoDrawable)
+                    throw new GameException(StringUtility.Format(
+                        "MonoBehaviour service '{0}' cannot implement IServiceGizmoDrawable. " +
+                        "Unity already drives OnDrawGizmos() on the component; the container would draw it twice.",
+                        service.GetType().FullName));
             }
+
+            // 否决通道：Registering 必须在任何注册表写入之前发——抛出后不留半注册状态，
+            // 与附加契约路径（BindAdditionalContractRuntime 先通知后 Attach）保持同一顺序。
+            _world.InvokeRegistering(service, contractTypes[0], Kind);
 
             var handles = new RuntimeTypeHandle[contractTypes.Length];
             for (int i = 0; i < contractTypes.Length; i++)
@@ -385,8 +395,6 @@ namespace Moirai.Atropos
 
             if (activateTickables)
                 ActivateTickables(service);
-
-            _world.InvokeRegistering(service, contractTypes[0], Kind);
         }
 
         /// <summary>
@@ -628,7 +636,7 @@ namespace Moirai.Atropos
 
             _entriesByService[service] = entry;
 
-            if (failures < s_TickFailureTripThreshold) return false;
+            if (failures < _world.TickFailureTripThreshold) return false;
 
             TripFromPollList(service, entry, category, methodName, failures);
             return true;
@@ -660,7 +668,7 @@ namespace Moirai.Atropos
 
             LogUtility.Warning(
                 "Service '{0}' was removed from {1} polling after {2} consecutive failures (trip threshold {3}).",
-                service.GetType().FullName, methodName, failures, s_TickFailureTripThreshold);
+                service.GetType().FullName, methodName, failures, _world.TickFailureTripThreshold);
         }
 
         /// <summary>
@@ -776,8 +784,7 @@ namespace Moirai.Atropos
                             if (!_servicesByContract.TryGetValue(change.ContractType.TypeHandle, out var service))
                                 continue;
 
-                            if (service is IServiceLifecycle lifecycle)
-                                lifecycle.Destroy(_world);
+                            DestroyService(service);
 
                             if (_entriesByService.TryGetValue(service, out var entry))
                                 RemoveServiceInternal(service, entry);
@@ -801,24 +808,28 @@ namespace Moirai.Atropos
         private bool _isDisposing;
 
         /// <summary>
-        /// 关闭单个服务：生命周期驱动统一走 <see cref="IServiceLifecycle.Destroy"/>（状态机唯一路径），
-        /// 本方法仅负责注册表清理。
+        /// 关闭驱动的唯一入口：容器先发 <see cref="IServiceInterceptor.OnServiceShutdown"/>（横切归容器），
+        /// 再交 <see cref="IServiceLifecycle.Destroy"/> 走状态转换。
+        /// <para>前置状态判定只挡住常规重复调用；拦截器在回调里同步再关同一服务时事件会重发一次，
+        /// 但 <c>Destroy</c> 自身的幂等守卫保证 <c>OnShutdown</c> 仍只执行一次。</para>
+        /// </summary>
+        private void DestroyService(IService service)
+        {
+            if (GameServices.GetState(service) >= EServiceState.ShuttingDown) return;
+
+            _world.InvokeShutdown(service);
+            ((IServiceLifecycle)service).Destroy();
+        }
+
+        /// <summary>
+        /// 关闭单个服务：生命周期驱动统一走 <see cref="DestroyService"/>（状态机唯一路径，
+        /// 注册期已由 <see cref="ServiceWorld.Register"/> 保证），本方法仅负责注册表清理。
         /// </summary>
         private void ShutdownService(IService service)
         {
             if (!_entriesByService.TryGetValue(service, out var entry)) return;
 
-            if (service is IServiceLifecycle lifecycle)
-            {
-                lifecycle.Destroy(_world);
-            }
-            else
-            {
-                // 非生命周期服务（裸 IService 实现）：无状态机，直接回调
-                _world.InvokeShutdown(service);
-                try { service.OnShutdown(); }
-                catch (Exception ex) { LogUtility.Error(ex.ToString()); }
-            }
+            DestroyService(service);
 
             // 整体销毁时跳过逐项列表移除（由 DisposeInternal 统一 Clear），
             // 但注册表和 entries 必须逐项清理——否则作用域关闭后仍能解析到已关闭的服务
