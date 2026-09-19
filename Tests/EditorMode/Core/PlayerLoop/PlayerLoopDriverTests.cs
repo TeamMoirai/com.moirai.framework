@@ -254,6 +254,20 @@ namespace Core.PlayerLoop
         }
 
         [Test]
+        public void NormalHandler_AfterPositivePriority_StillRunsFirst()
+        {
+            // 未实现 IPlayerLoopPriority 者有效优先级为 0：即便注册更晚，也必须排在正优先级者之前。
+            // 旧实现把非优先级对象无条件尾部追加，此处正是它翻车的方向。
+            var order = new List<string>();
+            PlayerLoopDriver.Register(new PriorityProbe("late", order, 5));
+            PlayerLoopDriver.Register(new Probe("normal", order));
+
+            PlayerLoopDriver.DriveUpdate();
+
+            Assert.AreEqual(new[] { "normal", "late" }, order.ToArray(), "数字小者先跑，与注册先后无关");
+        }
+
+        [Test]
         public void SamePriority_KeepsRegistrationOrder()
         {
             var order = new List<string>();
@@ -355,6 +369,44 @@ namespace Core.PlayerLoop
             Assert.AreEqual(0, PlayerLoopDriver.UpdateHandlerCount);
             Assert.AreEqual(0, PlayerLoopDriver.UpdateCallbackCount);
             Assert.IsFalse(PlayerLoopDriver.IsShutdown, "清注册表不应改变驱动活跃位");
+        }
+
+        #endregion
+
+        #region 线程契约 [THREAD AFFINITY]
+
+        [Test]
+        public void Register_FromBackgroundThread_FailsFast()
+        {
+            // 判据依赖 s_MainThreadId：SubsystemRegistration 钩子通常已捕获；万一为 0（顺序未定）
+            // 就反射补上，避免用例被"未捕获即放行"的分支静默跳过。
+            var field = typeof(PlayerLoopDriver).GetField("s_MainThreadId",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+            Assert.IsNotNull(field, "s_MainThreadId 已更名，请同步本用例");
+            if ((int)field.GetValue(null) == 0)
+            {
+                field.SetValue(null, System.Threading.Thread.CurrentThread.ManagedThreadId);
+            }
+
+            Exception caught = null;
+            var thread = new System.Threading.Thread(() =>
+            {
+                try
+                {
+                    PlayerLoopDriver.Register(new Probe("off-thread"));
+                }
+                catch (Exception exception)
+                {
+                    caught = exception;
+                }
+            });
+            thread.IsBackground = true;
+            thread.Start();
+            thread.Join();
+
+            Assert.IsNotNull(caught,
+                "后台线程注册必须 fail-fast：注册表是裸数组 + 无锁计数，越线程写入只会静默丢订阅");
+            Assert.AreEqual(0, PlayerLoopDriver.UpdateHandlerCount, "被拒绝的注册不应留下痕迹");
         }
 
         #endregion

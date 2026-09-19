@@ -13,6 +13,7 @@ namespace Service.Timer
     public class DefaultTimerHandlerTests
     {
         private DefaultTimerHandler _handler;
+        private GameTimeHandler _originalGameTimeHandler;
         private double _now;
         private double _unscaledNow;
         private int _fired;
@@ -39,6 +40,8 @@ namespace Service.Timer
             _now = 100.0;
             _unscaledNow = 50.0;
             _fired = 0;
+            // 记下夹具进入时的全局时钟后端，TearDown 原样归还（GameTime.Handler 是进程级 static）。
+            _originalGameTimeHandler = GameTime.Handler;
             GameTime.Handler = new VirtualClockHandler(() => _now, () => _unscaledNow);
             _handler = new DefaultTimerHandler();
             _handler.Internal_Init();
@@ -49,7 +52,7 @@ namespace Service.Timer
         {
             _handler.Internal_Shutdown();
             _handler = null;
-            GameTime.Handler = new DefaultGameTimeHandler();
+            GameTime.Handler = _originalGameTimeHandler;
         }
 
         private void Fire() => _fired++;
