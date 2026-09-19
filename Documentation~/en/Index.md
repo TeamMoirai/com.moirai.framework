@@ -23,7 +23,7 @@ Welcome to Moirai Framework. This documentation set covers every functional serv
 | [Input](Input.md) | Multi-platform input abstraction: Input System / Legacy Input / Mobile UI touch, button prompts |
 | [Save](Save.md) | Pluggable save system: multi-block container, 4 serialization backends, AES encryption, version migration, codeless component saving, cloud sync |
 | [Scene](Scene.md) | Scene management: async load/activate/unload based on YooAsset SceneHandle |
-| [Timer](Timer.md) | 4-level time wheel timer: versioned handles, prewarming, statistics |
+| [Timer](Timer.md) | Dual-engine timer: four-level timing wheel (seconds) + frame counter (frames) as two independent lanes, versioned lane-scoped handles, per-lane prewarming, true concurrency peak statistics |
 | [ObjectPool](ObjectPool.md) | Service-level object pool: single/multi-spawn pools, GameObject pool |
 | [Debugger](Debugger.md) | Runtime debugger: registerable debug windows, log replay |
 
@@ -33,7 +33,8 @@ Welcome to Moirai Framework. This documentation set covers every functional serv
 |----------|-------------|
 | [Singleton](Singleton.md) | Singleton system: pure C# / MonoBehaviour / registration-based singleton base classes |
 | [MemoryPool](MemoryPool.md) | Zero-GC paged memory pool: unmanaged metadata, EWMA adaptive watermarks |
-| [UpdateDriver](UpdateDriver.md) | Unity lifecycle proxy: coroutine hosting, frame update injection, engine event injection |
+| [GameApp](GameApp.md) | Unity lifecycle proxy: coroutine hosting, frame update injection, engine event injection |
+| [PlayerLoopDriver](PlayerLoopDriver.md) | Mono-free PlayerLoop logic driver: zero-alloc handlers, inject/restore, editor visualization |
 | [StringUtility](StringUtility.md) | String formatting and building: pluggable Handler, pooled StringBuilder |
 | [JsonUtility](JsonUtility.md) | JSON serialization/deserialization: pluggable Handler, byte fast path |
 | [ObjectUtility](ObjectUtility.md) | Object instantiation/destruction: pluggable Handler, network-aware |

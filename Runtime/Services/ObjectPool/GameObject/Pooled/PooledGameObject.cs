@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using Moirai.Atropos.Pool;
-using Moirai.Atropos.Schedulers;
+using Moirai.Atropos.Timer;
 using UnityEngine;
 #if R3_INSTALLED
 using Moirai.Atropos.R3;
@@ -30,7 +30,7 @@ namespace Moirai.Atropos.ObjectPool
         #region 字段 [FIELDS]
 
         private readonly List<IDisposable> _disposables = new List<IDisposable>();
-        private List<SchedulerHandle> _schedulerHandles;
+        private List<ulong> _timerHandles;
 
         private RuntimeGameObjectPool _owner;
         private int _slotIndex = -1;
@@ -161,8 +161,8 @@ namespace Moirai.Atropos.ObjectPool
         {
             if (t > 0f)
             {
-                // 函数指针绑定零分配——与旧 Core 包装器一致，不走 Action 装箱。
-                AddScheduler(Scheduler.DelayUnsafe(t, new SchedulerUnsafeBinding(this, &Dispose_Imp)));
+                // 函数指针绑定零分配——TimerUnsafeBinding，不走 Action 装箱。
+                AddTimerHandle(TimerService.DelayUnsafe(t, new TimerUnsafeBinding(this, &Dispose_Imp)));
             }
             else
             {
@@ -233,13 +233,14 @@ namespace Moirai.Atropos.ObjectPool
         }
 
         /// <summary>
-        /// 记录调度器句柄，Dispose 时自动取消。
+        /// 记录计时器句柄，Dispose 时自动取消。
         /// </summary>
-        /// <param name="handle">调度器句柄。</param>
-        protected void AddScheduler(SchedulerHandle handle)
+        /// <param name="handle">计时器句柄。</param>
+        protected void AddTimerHandle(ulong handle)
         {
-            _schedulerHandles ??= new List<SchedulerHandle>(4);
-            _schedulerHandles.Add(handle);
+            if (handle == 0UL) return;
+            _timerHandles ??= new List<ulong>(4);
+            _timerHandles.Add(handle);
         }
 
         /// <summary>
@@ -291,17 +292,17 @@ namespace Moirai.Atropos.ObjectPool
 
             _disposables.Clear();
 
-            if (_schedulerHandles == null)
+            if (_timerHandles == null)
             {
                 return;
             }
 
-            for (int i = 0; i < _schedulerHandles.Count; i++)
+            for (int i = 0; i < _timerHandles.Count; i++)
             {
-                _schedulerHandles[i].Cancel();
+                _timerHandles[i].Cancel();
             }
 
-            _schedulerHandles.Clear();
+            _timerHandles.Clear();
         }
 
         #endregion

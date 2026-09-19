@@ -8,7 +8,7 @@ namespace Moirai.Atropos.ConfigTable
     /// <summary>
     /// 配置表服务外观（Facade）。
     /// <para>统一的静态配置表访问入口，通过替换 <see cref="Handler"/> 即可在不同配置表后端之间零成本切换。</para>
-    /// <para>未显式设置处理器时，使用 <see cref="CreateDefaultHandler"/> 从 <see cref="ConfigTableServiceSettings"/> 创建处理器实例。</para>
+    /// <para>未显式设置处理器时，懒加载优先经 <c>GetHandlerFromSettings</c> 从 <see cref="ConfigTableServiceSettings"/> 解析；settings 未配置则回退 <see cref="CreateDefaultHandler"/>。</para>
     /// <para>Handler 属性由 <c>HandlerHostGenerator</c> 源生成器自动生成（线程安全懒加载）。</para>
     /// </summary>
     [HandlerHost(typeof(ConfigTableServiceHandler))]
@@ -17,11 +17,17 @@ namespace Moirai.Atropos.ConfigTable
         #region 生命周期 [LIFECYCLE]
 
         /// <summary>
-        /// 从 <see cref="ConfigTableServiceSettings"/> 创建默认配置表处理器。
-        /// <para>首行先确保服务已注册（<c>GameServices.EnsureRegistered</c>，幂等）——外观首次访问即完成世界注册。</para>
+        /// 创建默认配置表处理器（settings 未配置时的代码兜底）。
         /// </summary>
         /// <returns>默认配置表处理器实例。</returns>
-        private static ConfigTableServiceHandler CreateDefaultHandler()
+        internal static ConfigTableServiceHandler CreateDefaultHandler() => new DefaultConfigTableHandler();
+
+        /// <summary>
+        /// 从 <see cref="ConfigTableServiceSettings"/> 解析配置表处理器。
+        /// <para>首行先确保服务已注册（<c>GameServices.EnsureRegistered</c>，幂等）——懒加载主路径（settings 已配置时 <see cref="CreateDefaultHandler"/> 被短路）首次访问即完成世界注册。</para>
+        /// </summary>
+        /// <returns>settings 中配置的处理器；未配置时返回 <c>null</c> 回退到 <see cref="CreateDefaultHandler"/>。</returns>
+        private static ConfigTableServiceHandler GetHandlerFromSettings()
         {
             GameServices.EnsureRegistered<ConfigTableService>();
             return ConfigTableServiceSettings.ConfigTableServiceHandler;

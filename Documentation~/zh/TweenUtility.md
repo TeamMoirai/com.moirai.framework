@@ -137,4 +137,4 @@ TweenUtility.Handler = new LitMotionHandler();
 - `Custom(object, ...)` 零分配重载配合 static lambda 使用，避免泛型闭包分配
 
 ---
-[« 返回文档索引](Index.md) · [主 README](../../README.md) · [UI](UI.md) · [UpdateDriver](UpdateDriver.md)
+[« 返回文档索引](Index.md) · [主 README](../../README.md) · [UI](UI.md) · [GameApp](GameApp.md)

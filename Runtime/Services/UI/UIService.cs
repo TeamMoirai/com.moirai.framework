@@ -11,7 +11,7 @@ namespace Moirai.Atropos.UI
     /// <summary>
     /// UI服务外观（Facade）。
     /// <para>统一的静态 UI 访问入口，通过替换 <see cref="Handler"/> 即可在不同 UI 后端之间零成本切换。</para>
-    /// <para>未显式设置处理器时，使用 <see cref="CreateDefaultHandler"/> 从 <see cref="UIServiceSettings"/> 创建处理器实例。</para>
+    /// <para>未显式设置处理器时，懒加载优先经 <c>GetHandlerFromSettings</c> 从 <see cref="UIServiceSettings"/> 解析；settings 未配置则回退 <see cref="CreateDefaultHandler"/>。</para>
     /// <para>Handler 属性由 <c>HandlerHostGenerator</c> 源生成器自动生成（线程安全懒加载）。</para>
     /// </summary>
     [HandlerHost(typeof(UIServiceHandler))]
@@ -21,11 +21,17 @@ namespace Moirai.Atropos.UI
         #region 生命周期 [LIFECYCLE]
 
         /// <summary>
-        /// 从 <see cref="UIServiceSettings"/> 创建默认 UI 处理器。
-        /// <para>首行先确保服务已注册（<c>GameServices.EnsureRegistered</c>，幂等）——外观首次访问即完成世界注册。</para>
+        /// 创建默认 UI 处理器（settings 未配置时的代码兜底）。
         /// </summary>
         /// <returns>默认 UI 处理器实例。</returns>
-        private static UIServiceHandler CreateDefaultHandler()
+        internal static UIServiceHandler CreateDefaultHandler() => new UGUIHandler();
+
+        /// <summary>
+        /// 从 <see cref="UIServiceSettings"/> 解析 UI 处理器。
+        /// <para>首行先确保服务已注册（<c>GameServices.EnsureRegistered</c>，幂等）——懒加载主路径（settings 已配置时 <see cref="CreateDefaultHandler"/> 被短路）首次访问即完成世界注册。</para>
+        /// </summary>
+        /// <returns>settings 中配置的处理器；未配置时返回 <c>null</c> 回退到 <see cref="CreateDefaultHandler"/>。</returns>
+        private static UIServiceHandler GetHandlerFromSettings()
         {
             GameServices.EnsureRegistered<UIService>();
             return UIServiceSettings.UIServiceHandler;
@@ -36,7 +42,7 @@ namespace Moirai.Atropos.UI
 
         /// <summary>
         /// 初始化 UI 服务。由容器在构建期调用。
-        /// <para>确保 <c>UIService.Handler</c> 已赋值（触发 <see cref="CreateDefaultHandler"/> 懒加载）。</para>
+        /// <para>确保 <c>UIService.Handler</c> 已赋值（触发 <c>Handler</c> 懒加载）。</para>
         /// </summary>
         public override void OnInit()
         {

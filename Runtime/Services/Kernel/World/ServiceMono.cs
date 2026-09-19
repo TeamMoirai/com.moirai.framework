@@ -6,12 +6,13 @@ namespace Moirai.Atropos
     /// <summary>
     /// MonoBehaviour 服务基类。Awake 自动注册到指定作用域，OnDestroy 自动注销。
     /// <para>适用于需要 Unity 生命周期（Update/FixedUpdate/LateUpdate/碰撞/协程）的 Gameplay 层服务。</para>
-    /// <para>不可实现 <see cref="IServiceTickable"/> 等 Tick 接口——Mono 服务由 Unity 自身生命周期驱动。</para>
+    /// <para>不可实现 <see cref="IServiceTickable"/> 等轮询接口（含 <see cref="IServiceGizmoDrawable"/>）
+    /// ——Mono 服务由 Unity 自身生命周期驱动，注册时由 <see cref="ServiceScope"/> 拒绝。</para>
     /// <para>运行时延迟解析统一走 <see cref="GameServices.GetRequiredService{T}"/> / <see cref="GameServices.TryGetService{T}"/>。</para>
     /// <para>重复注册自动销毁 GameObject（同契约幂等）。</para>
     /// </summary>
     /// <typeparam name="TScope">作用域标记类型。</typeparam>
-    public abstract class ServiceMono<TScope> : MonoBehaviour, IService, IServiceLifecycle, ServiceMonoMarker
+    public abstract class ServiceMono<TScope> : MonoBehaviour, IService, IServiceLifecycle
         where TScope : IServiceScope, new()
     {
         /// <summary>
@@ -20,9 +21,10 @@ namespace Moirai.Atropos
         [NonSerialized] private bool _registeredToScope;
 
         /// <summary>
-        /// 当前生命周期状态（只读投影——由容器驱动转换）。
+        /// 当前生命周期状态（只读投影——由容器经 <see cref="IServiceLifecycle"/> 驱动转换；
+        /// 写入端口对本类之外的任何代码关闭）。
         /// </summary>
-        public EServiceState State { get; internal set; } = EServiceState.Created;
+        public EServiceState State { get; private set; } = EServiceState.Created;
 
         /// <summary>
         /// 轮询优先级（降序，高优先先 Tick）。Mono 服务不参与容器 Tick，此属性仅用于诊断。
@@ -50,32 +52,26 @@ namespace Moirai.Atropos
 
         #region IServiceLifecycle 实现 [RUNTIME LIFECYCLE]
 
-        void IServiceLifecycle.Initialize(ServiceWorld world, ServiceScope scope)
+        EServiceState IServiceLifecycle.StateInternal => State;
+
+        void IServiceLifecycle.Initialize()
         {
             if (State >= EServiceState.Initialized) return;
 
             OnInit();
-            State = EServiceState.Initialized;
-            world.InvokeRegistered(this, GetType(), scope.Kind);
+            // OnInit 期间可能被外部关闭（注销/Dispose 打在 Awake 触发的注册途中）：不得盖回 Initialized
+            if (State == EServiceState.Created) State = EServiceState.Initialized;
         }
 
-        void IServiceLifecycle.Destroy(ServiceWorld world)
+        void IServiceLifecycle.Destroy()
         {
             if (State >= EServiceState.ShuttingDown) return;
 
             State = EServiceState.ShuttingDown;
-            world.InvokeShutdown(this);
             try { OnShutdown(); }
             catch (Exception ex) { LogUtility.Error(ex.ToString()); }
             State = EServiceState.Disposed;
         }
-
-        #endregion
-
-        #region ServiceMonoMarker 实现 [STATE MARKER]
-
-        EServiceState ServiceMonoMarker.GetStateInternal() => State;
-        void ServiceMonoMarker.SetStateInternal(EServiceState state) => State = state;
 
         #endregion
 

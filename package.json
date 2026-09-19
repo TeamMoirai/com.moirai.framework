@@ -30,7 +30,7 @@
     "name": "Team Moirai",
     "url": "https://github.com/TeamMoirai"
   },
-  "changelogUrl": "https://github.com/TeamMoirai/com.moirai.framework/releases",
+  "changelogUrl": "https://github.com/TeamMoirai/com.moirai.framework/blob/master/CHANGELOG.md",
   "documentationUrl": "https://github.com/TeamMoirai/com.moirai.framework#readme",
   "samples": [
     {

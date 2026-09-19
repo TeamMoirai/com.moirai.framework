@@ -11,7 +11,7 @@ namespace Moirai.Atropos.Audio
     {
         [InfoBox("默认使用内置音频后端。可替换为自定义音频后端。", InfoMessageType.None)]
         [ProviderDropdown]
-        [SerializeReference] private AudioServiceHandler m_AudioServiceHandler = new UnityAudioHandler();
+        [SerializeReference] private AudioServiceHandler m_AudioServiceHandler = AudioService.CreateDefaultHandler();
         /// <summary>音频处理器（后端）。</summary>
         public static AudioServiceHandler AudioServiceHandler => Instance.m_AudioServiceHandler;
 
@@ -49,23 +49,23 @@ namespace Moirai.Atropos.Audio
         {
             // 从 Resources 中读取默认 AudioMixer
             m_AudioMixer = Resources.Load<AudioMixer>("AudioMixer");
-
-            if (m_AudioMixer == null) return;
-
-            // 仅保留能映射到 EAudioTrack 的混音组，避免嵌套组（如 Player SFX）挤占音轨造成重复
-            var audioMixerGroups = m_AudioMixer.FindMatchingGroups("Master/");
-            var configs = new System.Collections.Generic.List<AudioGroupConfig>(audioMixerGroups.Length);
-            for (int i = 0; i < audioMixerGroups.Length; i++)
+            if (m_AudioMixer != null)
             {
-                if (!Enum.TryParse<EAudioTrack>(audioMixerGroups[i].name, out var audioTrack)) continue;
+                // 仅保留能映射到 EAudioTrack 的混音组，避免嵌套组（如 Player SFX）挤占音轨造成重复
+                var audioMixerGroups = m_AudioMixer.FindMatchingGroups("Master/");
+                var configs = new System.Collections.Generic.List<AudioGroupConfig>(audioMixerGroups.Length);
+                for (int i = 0; i < audioMixerGroups.Length; i++)
+                {
+                    if (!Enum.TryParse<EAudioTrack>(audioMixerGroups[i].name, out var audioTrack)) continue;
 
-                var config = new AudioGroupConfig();
-                config.AudioMixerGroup = audioMixerGroups[i];
-                config.AudioTrack = audioTrack;
-                configs.Add(config);
+                    var config = new AudioGroupConfig();
+                    config.AudioMixerGroup = audioMixerGroups[i];
+                    config.AudioTrack = audioTrack;
+                    configs.Add(config);
+                }
+
+                m_AudioGroupConfigs = configs.ToArray();
             }
-
-            m_AudioGroupConfigs = configs.ToArray();
         }
 
 #endif

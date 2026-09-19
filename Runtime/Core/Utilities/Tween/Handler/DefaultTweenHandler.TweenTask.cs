@@ -179,7 +179,7 @@ namespace Moirai.Atropos
             #region 更新循环 [UPDATE LOOP]
 
             /// <summary>
-            /// 每帧调用（UpdateDriver 注入），驱动所有活跃 tween。
+            /// 每帧调用（PlayerLoopDriver 注入），驱动所有活跃 tween。
             /// </summary>
             internal static void Update()
             {

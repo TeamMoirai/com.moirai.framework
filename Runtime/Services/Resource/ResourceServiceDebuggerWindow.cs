@@ -41,7 +41,7 @@ namespace Moirai.Atropos.Resource
         /// <inheritdoc />
         protected override void BuildWindow(VisualElement root)
         {
-            if (!ResourceService.IsValid)
+            if (!ResourceService.IsInitialized)
             {
                 root.Add(DebuggerUI.CreateSectionTitle("Resource Service"));
                 root.Add(DebuggerUI.CreateHintLabel("资源服务未就绪（需进入运行时并完成初始化）。"));

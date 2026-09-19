@@ -14,7 +14,7 @@ namespace Moirai.Atropos.Procedure
     /// 基类的 <c>OnInitAsync</c> / <c>OnShutdownAsync</c> 不会被流程服务 await——需要异步就绪的后端
     /// 应在 <see cref="FrameworkHandler.OnInit"/> 内自管（如启动内部异步任务并在就绪前拒绝服务调用）。</para>
     /// <para><b>切换广播契约</b>：后端须在每次切换完成（<c>OnEnter</c> 返回后）调用
-    /// <see cref="RecordTransition"/>——历史记录与 <see cref="ProcedureService.ProcedureChanged"/> 广播由基类统一承载；
+    /// <see cref="RecordTransition"/>——历史记录与 <see cref="ProcedureService.onProcedureChanged"/> 广播由基类统一承载；
     /// 关停切换（To 为 null）仅记入历史，不广播。广播期间 <see cref="IsBroadcastingTransition"/> 为 true，
     /// 后端 <c>StartProcedure</c>/<c>ChangeState</c> 须拒绝重入（抛 <see cref="GameException"/>）——
     /// OnEnter/OnLeave 内的嵌套切换发生在记录之前，不受该标志影响。</para>
@@ -64,7 +64,7 @@ namespace Moirai.Atropos.Procedure
         public IReadOnlyList<ProcedureTransitionRecord> TransitionHistory => TransitionHistoryList;
 
         /// <summary>
-        /// 是否正在广播 <see cref="ProcedureService.ProcedureChanged"/>。
+        /// 是否正在广播 <see cref="ProcedureService.onProcedureChanged"/>。
         /// <para>为 true 时后端须拒绝 <c>StartProcedure</c>/<c>ChangeState</c> 重入——
         /// 切换深度上限只防 OnEnter/OnLeave 环，拦不住事件回调内的同步切换（每次广播深度均已归零）。</para>
         /// </summary>

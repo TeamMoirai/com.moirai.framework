@@ -7,7 +7,7 @@ namespace Moirai.Atropos.Input
     /// <summary>
     /// 输入服务外观（Facade）。
     /// <para>统一的静态输入访问入口，通过替换 <see cref="Handler"/> 即可在不同输入后端之间零成本切换。</para>
-    /// <para>未显式设置处理器时，使用 <see cref="CreateDefaultHandler"/> 从 <see cref="InputServiceSettings"/> 创建处理器实例。</para>
+    /// <para>未显式设置处理器时，懒加载优先经 <c>GetHandlerFromSettings</c> 从 <see cref="InputServiceSettings"/> 解析；settings 未配置则回退 <see cref="CreateDefaultHandler"/>。</para>
     /// <para>Handler 属性由 <c>HandlerHostGenerator</c> 源生成器自动生成（线程安全懒加载）。</para>
     /// <para>降级契约：全部外观 API 经 <c>s_Handler?.</c> 静默降级（未注册/未初始化时返回安全默认值），
     /// 与 Audio/Resource 等服务一致。</para>
@@ -20,11 +20,26 @@ namespace Moirai.Atropos.Input
         #region 生命周期 [LIFECYCLE]
 
         /// <summary>
-        /// 从 <see cref="InputServiceSettings"/> 创建默认输入处理器。
-        /// <para>首行先确保服务已注册（<c>GameServices.EnsureRegistered</c>，幂等）——外观首次访问即完成世界注册。</para>
+        /// 创建默认输入处理器（settings 未配置时的代码兜底，按编译符号选择输入后端）。
         /// </summary>
-        /// <returns>默认输入处理器实例。</returns>
-        private static InputServiceHandler CreateDefaultHandler()
+        /// <returns>默认输入处理器实例；无可用输入后端时返回 <c>null</c>。</returns>
+        internal static InputServiceHandler CreateDefaultHandler()
+        {
+#if ENABLE_INPUT_SYSTEM
+            return new UnityInputSystemHandler();
+#elif ENABLE_LEGACY_INPUT_MANAGER
+            return new UnityInputManagerHandler();
+#else
+            return null;
+#endif
+        }
+
+        /// <summary>
+        /// 从 <see cref="InputServiceSettings"/> 解析输入处理器。
+        /// <para>首行先确保服务已注册（<c>GameServices.EnsureRegistered</c>，幂等）——懒加载主路径（settings 已配置时 <see cref="CreateDefaultHandler"/> 被短路）首次访问即完成世界注册。</para>
+        /// </summary>
+        /// <returns>settings 中配置的处理器；未配置时返回 <c>null</c> 回退到 <see cref="CreateDefaultHandler"/>。</returns>
+        private static InputServiceHandler GetHandlerFromSettings()
         {
             GameServices.EnsureRegistered<InputService>();
             return InputServiceSettings.InputServiceHandler;
@@ -35,7 +50,7 @@ namespace Moirai.Atropos.Input
 
         /// <summary>
         /// 初始化输入服务。由 <see cref="GameAppSettings.Initiation"/> 调用。
-        /// <para>确保 <c>InputService.Handler</c> 已赋值（触发 <see cref="CreateDefaultHandler"/> 懒加载），
+        /// <para>确保 <c>InputService.Handler</c> 已赋值（触发 <c>Handler</c> 懒加载），
         /// 然后订阅全局事件。</para>
         /// </summary>
         public override void OnInit()

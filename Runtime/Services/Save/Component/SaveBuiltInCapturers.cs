@@ -164,7 +164,13 @@ namespace Moirai.Atropos.Save
             writer.BeginNestedObject(ComponentType.FullName, enabledCount);
             if (mask.IsEnabled(0))
             {
-                writer.WriteVector3(LinearVelocityKey, self.linearVelocity);
+                writer.WriteVector3(LinearVelocityKey, 
+#if UNITY_2023_3_0 || UNITY_2023_3_OR_NEWER
+                    self.linearVelocity
+#else
+                    self.velocity
+#endif
+                );
             }
 
             if (mask.IsEnabled(1))
@@ -185,7 +191,12 @@ namespace Moirai.Atropos.Save
                 // 运动学刚体跳过速度写回（无物理意义且引擎不支持）
                 if (!isKinematic && SaveBuiltInCapturers.KeyEquals(key, LinearVelocityKey) && mask.IsEnabled(0) && type == ESaveKvType.Vector3)
                 {
-                    self.linearVelocity = reader.ReadVector3();
+#if UNITY_2023_3_0 || UNITY_2023_3_OR_NEWER
+                    self.linearVelocity
+#else
+                    self.velocity
+#endif
+                        = reader.ReadVector3();
                     continue;
                 }
 

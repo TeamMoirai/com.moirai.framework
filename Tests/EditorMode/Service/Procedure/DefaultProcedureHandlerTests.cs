@@ -335,8 +335,8 @@ namespace Service.Procedure
                 fired++;
                 lastRecord = record;
             };
-            ProcedureService.ProcedureChanged += throwingSubscriber;
-            ProcedureService.ProcedureChanged += countingSubscriber;
+            ProcedureService.onProcedureChanged += throwingSubscriber;
+            ProcedureService.onProcedureChanged += countingSubscriber;
 
             try
             {
@@ -367,8 +367,8 @@ namespace Service.Procedure
             }
             finally
             {
-                ProcedureService.ProcedureChanged -= throwingSubscriber;
-                ProcedureService.ProcedureChanged -= countingSubscriber;
+                ProcedureService.onProcedureChanged -= throwingSubscriber;
+                ProcedureService.onProcedureChanged -= countingSubscriber;
                 handler.Internal_Shutdown();
                 s_ProcedureHandlerField.SetValue(null, savedHandler);
             }
@@ -492,11 +492,11 @@ namespace Service.Procedure
             Action<ProcedureTransitionRecord> reentrant = null;
             reentrant = _ =>
             {
-                ProcedureService.ProcedureChanged -= reentrant;
+                ProcedureService.onProcedureChanged -= reentrant;
                 Assert.Throws<GameException>(() => _handler.ChangeState(typeof(ProbeB)));
                 Assert.Throws<GameException>(() => _handler.StartProcedure(typeof(ProbeB)));
             };
-            ProcedureService.ProcedureChanged += reentrant;
+            ProcedureService.onProcedureChanged += reentrant;
 
             try
             {
@@ -510,7 +510,7 @@ namespace Service.Procedure
             }
             finally
             {
-                ProcedureService.ProcedureChanged -= reentrant;
+                ProcedureService.onProcedureChanged -= reentrant;
             }
         }
 
@@ -526,10 +526,10 @@ namespace Service.Procedure
             Action<ProcedureTransitionRecord> reentrant = null;
             reentrant = _ =>
             {
-                ProcedureService.ProcedureChanged -= reentrant;
+                ProcedureService.onProcedureChanged -= reentrant;
                 ProcedureService.ChangeState(typeof(ProbeB));
             };
-            ProcedureService.ProcedureChanged += reentrant;
+            ProcedureService.onProcedureChanged += reentrant;
 
             try
             {
@@ -545,7 +545,7 @@ namespace Service.Procedure
             }
             finally
             {
-                ProcedureService.ProcedureChanged -= reentrant;
+                ProcedureService.onProcedureChanged -= reentrant;
                 handler.Internal_Shutdown();
                 s_ProcedureHandlerField.SetValue(null, savedHandler);
             }
