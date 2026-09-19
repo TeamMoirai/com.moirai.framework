@@ -10,7 +10,8 @@ namespace Moirai.Atropos
     /// 静态服务管理外观——默认 <see cref="ServiceWorld"/> 实例的投影。
     /// <para>全部操作转发到 <see cref="Default"/> 世界；需要隔离世界的场景（测试并行/沙盒）直接
     /// <c>new ServiceWorld()</c>，不触碰本类。</para>
-    /// <para><b>线程契约</b>：所有公共方法仅限 Unity 主线程调用。
+    /// <para><b>线程契约</b>：所有公共方法仅限 Unity 主线程调用，由 <see cref="EnsureMainThread"/>
+    /// 在编辑器/开发构建断言（发布构建被内联为无操作）。
     /// 后台线程请通过 <c>MainThreadDispatcher.Post(Action)</c> / <c>MainThreadDispatcher.Send(Action)</c> 切回。</para>
     /// </summary>
     public static partial class GameServices
@@ -54,13 +55,22 @@ namespace Moirai.Atropos
             s_MainThreadId = System.Threading.Thread.CurrentThread.ManagedThreadId;
         }
 
+        /// <summary>
+        /// 主线程亲和断言。仅编辑器/开发构建参与编译——发布构建方法体为空、被内联后零开销
+        /// （不依赖 <see cref="UnityEngine.Assertions.Assert"/> 自身是否被裁剪）。
+        /// <para><c>s_MainThreadId == 0</c> 是"捕获钩子尚未运行"的启动窗口（SubsystemRegistration 之前的
+        /// 其它程序集静态构造），此窗口内放行：不采纳线程号以免把后台线程误认成主线程，
+        /// 真正的捕获仍由 <see cref="CaptureMainThreadId"/> 在钩子内完成。</para>
+        /// </summary>
         internal static void EnsureMainThread()
         {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
             Assert.IsTrue(
                 s_MainThreadId == 0 ||
                 System.Threading.Thread.CurrentThread.ManagedThreadId == s_MainThreadId,
                 "GameServices must only be used from the main thread. " +
                 "From a background thread/callback, wrap the call with MainThreadDispatcher.Post/Send.");
+#endif
         }
 
         #endregion
@@ -277,6 +287,7 @@ namespace Moirai.Atropos
         /// </summary>
         public static T GetRequiredService<T>() where T : class
         {
+            EnsureMainThread();
             if (s_World != null && s_World.TryGet(out T service)) return service;
             throw new GameException(StringUtility.Format(
                 "Service '{0}' was not found in any active scope.", typeof(T).FullName));
@@ -287,6 +298,7 @@ namespace Moirai.Atropos
         /// </summary>
         public static T GetService<T>() where T : class
         {
+            EnsureMainThread();
             return s_World != null && s_World.TryGet(out T service) ? service : null;
         }
 
@@ -295,6 +307,7 @@ namespace Moirai.Atropos
         /// </summary>
         public static bool TryGetService<T>(out T service) where T : class
         {
+            EnsureMainThread();
             if (s_World != null && s_World.TryGet(out service)) return true;
             service = null;
             return false;
@@ -305,43 +318,39 @@ namespace Moirai.Atropos
         #region 轮询驱动 [TICK DRIVERS]
 
         public static void Tick(float elapseSeconds, float realElapseSeconds)
-            => s_World?.Tick(elapseSeconds, realElapseSeconds);
+        {
+            EnsureMainThread();
+            s_World?.Tick(elapseSeconds, realElapseSeconds);
+        }
 
         public static void FixedTick(float elapseSeconds, float realElapseSeconds)
-            => s_World?.FixedTick(elapseSeconds, realElapseSeconds);
+        {
+            EnsureMainThread();
+            s_World?.FixedTick(elapseSeconds, realElapseSeconds);
+        }
 
         public static void LateTick(float elapseSeconds, float realElapseSeconds)
-            => s_World?.LateTick(elapseSeconds, realElapseSeconds);
+        {
+            EnsureMainThread();
+            s_World?.LateTick(elapseSeconds, realElapseSeconds);
+        }
 
         public static void DrawGizmos()
-            => s_World?.DrawGizmos();
+        {
+            EnsureMainThread();
+            s_World?.DrawGizmos();
+        }
 
         #endregion
 
         #region 状态辅助 [STATE HELPERS]
 
-        internal static void SetState(IService service, EServiceState state)
-        {
-            if (service is ServiceBase sb) sb.State = state;
-            else if (service is ServiceMonoMarker sm) sm.SetStateInternal(state);
-        }
-
         internal static EServiceState GetState(IService service)
         {
-            if (service is ServiceBase sb) return sb.State;
-            if (service is ServiceMonoMarker sm) return sm.GetStateInternal();
-            return EServiceState.Created;
+            // 注册门（ServiceWorld.Register）以同一类型条件放行，入图服务必然可读
+            return service is IServiceLifecycle lifecycle ? lifecycle.StateInternal : EServiceState.Created;
         }
 
         #endregion
-    }
-
-    /// <summary>
-    /// ServiceMono 状态访问标记（避免泛型基类反射——GameServices.GetState/SetState 零反射直读）。
-    /// </summary>
-    internal interface ServiceMonoMarker
-    {
-        EServiceState GetStateInternal();
-        void SetStateInternal(EServiceState state);
     }
 }

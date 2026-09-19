@@ -11,7 +11,9 @@ namespace Moirai.Atropos
     /// 查找（跨作用域 3 槽内联，Gameplay &gt; Scene &gt; App）→ 轮询（固定序扁平直驱）→ 销毁（严格逆拓扑）。
     /// <para><b>可实例化</b>：<c>new ServiceWorld()</c> 构造隔离世界（测试并行/沙盒场景）；
     /// 进程默认世界经 <see cref="GameServices"/> 静态投影访问。</para>
-    /// <para><b>线程契约</b>：所有方法仅限 Unity 主线程调用。</para>
+    /// <para><b>线程契约</b>：默认世界的调用一律经 <see cref="GameServices"/> 投影，那边在编辑器/开发构建
+    /// 断言主线程。本类自身<b>不做</b>线程断言——可实例化世界的一个既定用途就是并行测试，
+    /// 把它钉死在 Unity 主线程上会让这个场景不可用。</para>
     /// </summary>
     public sealed class ServiceWorld : IDisposable
     {
@@ -36,6 +38,9 @@ namespace Moirai.Atropos
 
         // 待初始化契约 → 服务（含多契约绑定；Initialize 时据此构建拓扑索引）
         private readonly Dictionary<Type, IService> _pendingContracts = new Dictionary<Type, IService>();
+
+        // UntrackPending 的批量摘键暂存（字典枚举期间不可改写自身）
+        private readonly List<Type> _pendingContractScratch = new List<Type>();
 
         // 拦截器（实例级——隔离世界互不干扰）
         private readonly List<IServiceInterceptor> _interceptors = new List<IServiceInterceptor>();
@@ -85,6 +90,24 @@ namespace Moirai.Atropos
         {
             get => _duplicateContractPolicy;
             set => _duplicateContractPolicy = value;
+        }
+
+        /// <summary>
+        /// 连续失败熔断默认阈值。
+        /// </summary>
+        internal const int DEFAULT_TICK_TRIP_THRESHOLD = 300;
+
+        private int _tickFailureTripThreshold = DEFAULT_TICK_TRIP_THRESHOLD;
+
+        /// <summary>
+        /// 轮询异常熔断阈值：同一服务在同一轮询类别连续异常达到该次数即被摘出对应轮询列表。
+        /// <para>世界级配置——隔离世界（并行测试/沙盒）各持一份，互不污染。
+        /// 重新注册服务即完全重置该服务的计数。</para>
+        /// </summary>
+        internal int TickFailureTripThreshold
+        {
+            get => _tickFailureTripThreshold;
+            set => _tickFailureTripThreshold = value;
         }
 
         #endregion
@@ -152,6 +175,9 @@ namespace Moirai.Atropos
             _interceptors.Remove(interceptor);
         }
 
+        // 拦截器是横切观察者（日志、性能采样），其异常一律就地记录、不向宿主与被观察的服务传播：
+        // 一个坏掉的采样器不该让整帧轮询或一次关闭流程半途而废，也不该吃掉其它拦截器的回调。
+        // 唯一例外是 OnServiceRegistering——那是公开的否决通道，抛出即拒绝本次注册。
         internal void InvokeRegistering(IService service, Type contractType, EServiceScopeKind scope)
         {
             if (_interceptors.Count == 0) return;
@@ -162,20 +188,60 @@ namespace Moirai.Atropos
         internal void InvokeRegistered(IService service, Type contractType, EServiceScopeKind scope)
         {
             for (int i = 0; i < _interceptors.Count; i++)
-                _interceptors[i].OnServiceRegistered(service, contractType, scope);
+            {
+                var interceptor = _interceptors[i];
+                try { interceptor.OnServiceRegistered(service, contractType, scope); }
+                catch (Exception ex) { LogInterceptorFailure(interceptor, nameof(IServiceInterceptor.OnServiceRegistered), ex); }
+            }
         }
 
         internal void InvokeUnregistered(IService service)
         {
             for (int i = 0; i < _interceptors.Count; i++)
-                _interceptors[i].OnServiceUnregistered(service);
+            {
+                var interceptor = _interceptors[i];
+                try { interceptor.OnServiceUnregistered(service); }
+                catch (Exception ex) { LogInterceptorFailure(interceptor, nameof(IServiceInterceptor.OnServiceUnregistered), ex); }
+            }
         }
 
         internal void InvokeShutdown(IService service)
         {
             if (_interceptors.Count == 0) return;
             for (int i = 0; i < _interceptors.Count; i++)
-                _interceptors[i].OnServiceShutdown(service);
+            {
+                var interceptor = _interceptors[i];
+                try { interceptor.OnServiceShutdown(service); }
+                catch (Exception ex) { LogInterceptorFailure(interceptor, nameof(IServiceInterceptor.OnServiceShutdown), ex); }
+            }
+        }
+
+        // 帧边界通知单独成方法：把异常边界留在小方法内，Tick 本体不带 try/catch。
+
+        internal void InvokeBeforeScopeTick(EServiceScopeKind kind, float elapseSeconds, float realElapseSeconds)
+        {
+            for (int i = 0; i < _interceptors.Count; i++)
+            {
+                var interceptor = _interceptors[i];
+                try { interceptor.OnBeforeScopeTick(kind, elapseSeconds, realElapseSeconds); }
+                catch (Exception ex) { LogInterceptorFailure(interceptor, nameof(IServiceInterceptor.OnBeforeScopeTick), ex); }
+            }
+        }
+
+        internal void InvokeAfterScopeTick(EServiceScopeKind kind, float elapseSeconds, float realElapseSeconds)
+        {
+            for (int i = 0; i < _interceptors.Count; i++)
+            {
+                var interceptor = _interceptors[i];
+                try { interceptor.OnAfterScopeTick(kind, elapseSeconds, realElapseSeconds); }
+                catch (Exception ex) { LogInterceptorFailure(interceptor, nameof(IServiceInterceptor.OnAfterScopeTick), ex); }
+            }
+        }
+
+        private static void LogInterceptorFailure(IServiceInterceptor interceptor, string hook, Exception ex)
+        {
+            LogUtility.Error("Service interceptor '{0}' threw in {1}; the failure is isolated and does not reach the observed services:\n{2}",
+                interceptor.GetType().FullName, hook, ex);
         }
 
         #endregion
@@ -220,6 +286,14 @@ namespace Moirai.Atropos
         {
             if (contractType == null) throw new ArgumentNullException(nameof(contractType));
             if (service == null) throw new ArgumentNullException(nameof(service));
+            if (service is not IServiceLifecycle)
+            {
+                throw new GameException(StringUtility.Format(
+                    "Service '{0}' cannot be registered: a bare IService implementation has no container-driven " +
+                    "state machine, so it can never be reported as ready and its dependents would fail dependency " +
+                    "validation. Derive it from ServiceBase (pure C#) or ServiceMono<TScope> (MonoBehaviour).",
+                    service.GetType().FullName));
+            }
             if (_disposed)
                 throw new GameException("ServiceWorld has been disposed; registration is rejected.");
 
@@ -266,6 +340,9 @@ namespace Moirai.Atropos
         /// <summary>
         /// 运行时注销并关闭指定作用域中的单个服务。
         /// <para>触发 <c>OnShutdown</c> 并从注册表移除；注销后可重新以同契约注册全新实例。</para>
+        /// <para>初始化进行中（<see cref="IsInitializing"/>）禁止：此时图正在被按索引推进的循环消费，
+        /// 摘除会让被注销的服务仍持局部引用而被 <c>OnInit</c>（且因条目已删不记激活序 → 无 <c>OnShutdown</c>），
+        /// 并让后续服务的索引位移而被跳过。与"异步服务禁止运行时注册"同为 fail-fast 策略。</para>
         /// </summary>
         public bool Unregister(
             EServiceScopeKind scope,
@@ -273,6 +350,7 @@ namespace Moirai.Atropos
             EDeferMode deferMode = EDeferMode.Defer)
         {
             if (contractType == null) throw new ArgumentNullException(nameof(contractType));
+            EnsureNotInitializing("unregister a service");
             if (!TryGetScope(scope, out var targetScope)) return false;
 
             // 待初始化服务被注销：从挂起图移除（不驱动任何生命周期）
@@ -400,17 +478,23 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 从挂起图移除指定契约对应的服务。返回该服务是否处于待初始化状态。
+        /// 从挂起图移除指定契约所属的服务。返回该服务是否处于待初始化状态。
+        /// <para>摘除粒度是<b>服务</b>而非契约——与运行时注销路径同语义（<c>ServiceScope.UnregisterDeferred</c>
+        /// 按条目一次性摘掉该实例的全部契约句柄）。只摘单契约会让实例残留在 <c>_pendingInit</c> 中，
+        /// 后续 Initialize 会对已注销的服务再驱动 OnInit，且因条目已删而不记录激活序（OnShutdown 丢失）。</para>
         /// </summary>
         private bool UntrackPending(Type contractType)
         {
             if (!_pendingContracts.Remove(contractType, out IService service)) return false;
 
-            // 该服务还有其他挂起契约时保留在 _pendingInit（以剩余契约为拓扑节点）
+            _pendingContractScratch.Clear();
             foreach (var pair in _pendingContracts)
             {
-                if (ReferenceEquals(pair.Value, service)) return true;
+                if (ReferenceEquals(pair.Value, service)) _pendingContractScratch.Add(pair.Key);
             }
+            for (int i = 0; i < _pendingContractScratch.Count; i++)
+                _pendingContracts.Remove(_pendingContractScratch[i]);
+            _pendingContractScratch.Clear();
 
             for (int i = 0; i < _pendingInit.Count; i++)
             {
@@ -525,11 +609,27 @@ namespace Moirai.Atropos
                 scope.ActivateService(service);
         }
 
+        /// <summary>
+        /// 初始化期图变更拦截（注销 / 关闭作用域共用）。
+        /// <para>挂起图正被按索引推进的循环消费：中途摘除会让被注销的服务因局部引用仍被 <c>OnInit</c>
+        /// （条目已删 → 不记激活序 → <c>OnShutdown</c> 丢失），并让其后服务的索引位移而被跳过。
+        /// 与其静默损坏，不如 fail-fast。</para>
+        /// </summary>
+        private void EnsureNotInitializing(string action)
+        {
+            if (!_initializing) return;
+
+            throw new GameException(StringUtility.Format(
+                "Cannot {0} while the world is initializing. Do it after Initialize/InitializeAsync completes.",
+                action));
+        }
+
         private void CompleteInitialization()
         {
             _pendingInit.Clear();
             _pendingContracts.Clear();
-            _initialized = true;
+            // 初始化途中被 Dispose（如 OnInitAsync 等待期间退出应用）：保持已销毁态，不再宣告已初始化
+            if (!_disposed) _initialized = true;
         }
 
         #endregion
@@ -617,18 +717,12 @@ namespace Moirai.Atropos
                 if (scope == null || scope.IsDisposed) continue;
 
                 if (notify)
-                {
-                    for (int k = 0; k < _interceptors.Count; k++)
-                        _interceptors[k].OnBeforeScopeTick(scope.Kind, elapseSeconds, realElapseSeconds);
-                }
+                    InvokeBeforeScopeTick(scope.Kind, elapseSeconds, realElapseSeconds);
 
                 scope.Tick(elapseSeconds, realElapseSeconds);
 
                 if (notify)
-                {
-                    for (int k = 0; k < _interceptors.Count; k++)
-                        _interceptors[k].OnAfterScopeTick(scope.Kind, elapseSeconds, realElapseSeconds);
-                }
+                    InvokeAfterScopeTick(scope.Kind, elapseSeconds, realElapseSeconds);
             }
         }
 
@@ -677,9 +771,12 @@ namespace Moirai.Atropos
 
         /// <summary>
         /// 关闭指定作用域。服务按逆初始化序（依赖方先）关闭。
+        /// <para>初始化进行中禁止（同 <see cref="Unregister"/>）：作用域销毁后其服务仍留在挂起图里，
+        /// 会成为幽灵拓扑节点并被重新 <c>OnInit</c>。</para>
         /// </summary>
         public void ShutdownScope(EServiceScopeKind kind)
         {
+            EnsureNotInitializing("shut down a scope");
             if (TryGetScope(kind, out var scope))
             {
                 scope.Dispose();
@@ -692,6 +789,7 @@ namespace Moirai.Atropos
         /// </summary>
         public async UniTask ShutdownScopeAsync(EServiceScopeKind kind)
         {
+            EnsureNotInitializing("shut down a scope");
             if (TryGetScope(kind, out var scope))
             {
                 await scope.DisposeAsync();
