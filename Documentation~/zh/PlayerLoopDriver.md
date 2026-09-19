@@ -52,6 +52,9 @@ GameApp.AddUpdateListener(OnUpdate);
 GameApp.RemoveUpdateListener(OnUpdate);
 ```
 
+> 一个类同时实现多个阶段接口时，`Register(handler)` 会因三重载二义性编译不过：用 `RegisterAll(handler)`
+> 一次注册其实现的全部阶段，或显式转型 `Register((ILateUpdateHandler)handler)` 只注册某一阶段。
+
 ## 零分配契约
 
 `DriveUpdate` / `DriveFixedUpdate` / `DriveLateUpdate` 及所有 Handler 实现：
@@ -59,6 +62,7 @@ GameApp.RemoveUpdateListener(OnUpdate);
 - 使用 `for` 循环，禁止 LINQ / 闭包 / 字符串拼接
 - 驱动中注册/注销进入**所属阶段各自**的延迟缓冲，该阶段迭代结束后提交；跨阶段注册互不串台
 - 订阅方抛异常时由 `finally` 复位 driving 标记并提交缓冲，不会永久滞留
+- **线程契约**：注册表无锁，注册/注销仅允许主线程（越线程 fail-fast 断言，而非静默丢订阅）；后台线程先经 `MainThreadDispatcher.Post/Send` 回主线程
 - Profiler Marker：`PlayerLoopDriver.Update` 等
 
 ## 生命周期

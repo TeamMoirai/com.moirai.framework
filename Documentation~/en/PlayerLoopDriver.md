@@ -49,6 +49,10 @@ PlayerLoopDriver.Register(new MySystem());
 GameApp.AddUpdateListener(OnUpdate);
 ```
 
+> A type implementing several stage interfaces makes `Register(handler)` an ambiguous-overload
+> compile error: use `RegisterAll(handler)` for every implemented stage, or cast to target one —
+> `Register((ILateUpdateHandler)handler)`.
+
 ## Zero-Allocation Contract
 
 `DriveUpdate` / `DriveFixedUpdate` / `DriveLateUpdate` and all handler implementations:
@@ -56,6 +60,7 @@ GameApp.AddUpdateListener(OnUpdate);
 - `for` loops only; no LINQ / closures / string concat
 - Register/unregister during drive is deferred into the pending buffer **of that stage**, committed when the stage finishes; cross-stage registrations never leak into each other
 - A throwing subscriber cannot wedge the driving flag: `finally` resets it and commits the buffers
+- **Thread contract**: the registries are lock-free, so register/unregister is main-thread only (fail-fast assert rather than silently dropping a subscription); background threads must hop through `MainThreadDispatcher.Post/Send`
 - Profiler markers: `PlayerLoopDriver.Update`, etc.
 
 ## Lifecycle
