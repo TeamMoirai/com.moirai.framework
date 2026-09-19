@@ -57,7 +57,7 @@ Namespace: `Moirai.Atropos`
 
 ```csharp
 // 1. Business code accesses framework services via static facades
-TimerService.AddTimer(() => Debug.Log("1s"), 1f);
+TimerService.Delay(1f, () => Debug.Log("1s"));
 UIService.ShowUI<MainWindow>();
 ResourceService.LoadAsset<Sprite>("Assets/AssetRaw/UI/icon.png");
 
@@ -69,7 +69,7 @@ public class MyService : ServiceBase, IServiceTickable
 
     public override void OnInit()
     {
-        TimerService.AddTimer(() => { /* dependencies ready — use static facades directly */ }, 1f);
+        TimerService.Delay(1f, () => { /* dependencies ready — use static facades directly */ });
     }
 
     public override void OnShutdown() { }
@@ -133,7 +133,7 @@ public sealed class UIService : ServiceBase, IServiceTickable
     public override void OnInit()
     {
         // By the time we get here, ResourceService/TimerService are fully initialized
-        TimerService.AddTimer(() => { }, 1f);
+        TimerService.Delay(1f, () => { });
     }
 
     public override void OnShutdown() { }

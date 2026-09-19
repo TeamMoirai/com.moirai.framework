@@ -23,7 +23,7 @@ Welcome to Moirai Framework. This documentation set covers every functional serv
 | [Input](Input.md) | Multi-platform input abstraction: Input System / Legacy Input / Mobile UI touch, button prompts |
 | [Save](Save.md) | Pluggable save system: multi-block container, 4 serialization backends, AES encryption, version migration, codeless component saving, cloud sync |
 | [Scene](Scene.md) | Scene management: async load/activate/unload based on YooAsset SceneHandle |
-| [Timer](Timer.md) | 4-level time wheel timer: versioned handles, prewarming, statistics |
+| [Timer](Timer.md) | Dual-engine timer: four-level timing wheel (seconds) + frame counter (frames) as two independent lanes, versioned lane-scoped handles, per-lane prewarming, true concurrency peak statistics |
 | [ObjectPool](ObjectPool.md) | Service-level object pool: single/multi-spawn pools, GameObject pool |
 | [Debugger](Debugger.md) | Runtime debugger: registerable debug windows, log replay |
 
