@@ -14,7 +14,7 @@ namespace Save
     /// <summary>
     /// V3-P2 压缩转换链测试：GZip 往返、压+加组合、旧档（无压缩位）兼容读、
     /// 文件头 CompressionProviderId 分型（未知 ID / 标志位不一致）、注册表契约。
-    /// <para>压缩注入经 internal 字段 <c>_compression</c>（测试程序集在 InternalsVisibleTo 白名单内），不触达全局配置。</para>
+    /// <para>压缩注入经 internal 属性 <c>CompressionProvider</c>（测试程序集在 InternalsVisibleTo 白名单内），不触达全局配置。</para>
     /// <para>错误日志断言经 <see cref="LogUtility.OnMessageLogged"/> 事件捕获（Handler 无关）；
     /// DefaultLogHandler 同步链路下另补 <c>LogAssert.Expect</c> 消除 UTF 的未预期日志拦截。</para>
     /// </summary>
@@ -206,7 +206,7 @@ namespace Save
         [Test]
         public void Compressed_SaveBlock_RoundTrips()
         {
-            _handler._compression = GZipCompressionProvider.Shared;
+            _handler.CompressionProvider = GZipCompressionProvider.Shared;
             var paths = Paths("slot");
             var data = new SaveData { Gold = 1234, PlayerName = new string('M', 512) };
 
@@ -232,7 +232,7 @@ namespace Save
             var compressedPaths = Paths("compressed");
 
             _handler.SaveBlockCore(plainPaths, SaveServiceHandler.MAIN_BLOCK_KEY, data, ESaveBackend.Json, 1, CancellationToken.None);
-            _handler._compression = GZipCompressionProvider.Shared;
+            _handler.CompressionProvider = GZipCompressionProvider.Shared;
             _handler.SaveBlockCore(compressedPaths, SaveServiceHandler.MAIN_BLOCK_KEY, data, ESaveBackend.Json, 1, CancellationToken.None);
 
             long plainSize = new FileInfo(plainPaths.SaveFilePath).Length;
@@ -252,7 +252,7 @@ namespace Save
             Assert.AreEqual(0u, header.Flags & SaveFileHeader.FlagCompressed, "旧档不应置压缩标志位");
             Assert.AreEqual(0u, header.CompressionProviderId);
 
-            _handler._compression = GZipCompressionProvider.Shared;
+            _handler.CompressionProvider = GZipCompressionProvider.Shared;
             SaveError error = _handler.TryLoadBlockCore<SaveData>(paths, SaveServiceHandler.MAIN_BLOCK_KEY, out SaveData loaded);
             Assert.AreEqual(SaveError.None, error, "未压缩旧档在开启压缩后必须可读");
             Assert.AreEqual(42, loaded.Gold);
@@ -263,7 +263,7 @@ namespace Save
         {
             // 压 + 加组合：压缩在加密前、解压在解密后（顺序固定）
             var handler = CreateHandler("compress-then-encrypt");
-            handler._compression = GZipCompressionProvider.Shared;
+            handler.CompressionProvider = GZipCompressionProvider.Shared;
             var paths = Paths("combo");
             var data = new SaveData { Gold = 7, PlayerName = new string('E', 256) };
 
@@ -300,7 +300,7 @@ namespace Save
         [Test]
         public void TryLoad_UnknownCompressionProviderId_ReturnsUnsupportedVersion()
         {
-            _handler._compression = GZipCompressionProvider.Shared;
+            _handler.CompressionProvider = GZipCompressionProvider.Shared;
             var paths = Paths("slot");
             _handler.SaveBlockCore(paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 1, PlayerName = "x" }, ESaveBackend.Json, 1, CancellationToken.None);
 
@@ -317,7 +317,7 @@ namespace Save
         [Test]
         public void TryLoad_FlagSetButIdZero_ReturnsCorrupted()
         {
-            _handler._compression = GZipCompressionProvider.Shared;
+            _handler.CompressionProvider = GZipCompressionProvider.Shared;
             var paths = Paths("slot");
             _handler.SaveBlockCore(paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 1, PlayerName = "x" }, ESaveBackend.Json, 1, CancellationToken.None);
 
@@ -346,7 +346,7 @@ namespace Save
         [Test]
         public void TryLoad_CorruptedGzipPayload_ReturnsCorrupted()
         {
-            _handler._compression = GZipCompressionProvider.Shared;
+            _handler.CompressionProvider = GZipCompressionProvider.Shared;
             var paths = Paths("slot");
             _handler.SaveBlockCore(paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 1, PlayerName = "x" }, ESaveBackend.Json, 1, CancellationToken.None);
 

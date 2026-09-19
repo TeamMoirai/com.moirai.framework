@@ -46,9 +46,10 @@ namespace Moirai.Atropos.Save
             }
 
             VisualElement pipelineCard = AddSection(root, "管线 [PIPELINE]");
-            AddRow(pipelineCard, "存储管线 [Handler]", SaveServiceSettings.SaveServiceHandler != null ? SaveServiceSettings.SaveServiceHandler.GetType().Name : "null");
-            AddRow(pipelineCard, "存储后端 [Storage]", SaveServiceSettings.StorageBackend != null ? SaveServiceSettings.StorageBackend.GetType().Name : "null");
-            AddRow(pipelineCard, "压缩 [Compression]", SaveServiceSettings.CompressionProvider != null ? SaveServiceSettings.CompressionProvider.GetType().Name : "不压缩");
+            SaveServiceHandler handler = SaveServiceSettings.SaveServiceHandler;
+            AddRow(pipelineCard, "存储管线 [Handler]", handler != null ? handler.GetType().Name : "null");
+            AddRow(pipelineCard, "存储后端 [Storage]", handler != null ? handler.StorageBackend.GetType().Name : "null");
+            AddRow(pipelineCard, "压缩 [Compression]", handler != null && handler.CompressionProvider != null ? handler.CompressionProvider.GetType().Name : "不压缩");
             AddRow(pipelineCard, "默认序列化后端 [Default Backend]", SaveServiceSettings.DefaultBackend.ToString());
             AddRow(pipelineCard, "保存时截图 [Screenshot On Save]", SaveServiceSettings.CaptureScreenshotOnSave.ToString());
 

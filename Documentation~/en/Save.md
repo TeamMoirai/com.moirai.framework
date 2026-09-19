@@ -116,7 +116,7 @@ public sealed class SaveMigratorV1ToV2 : ISaveMigrator
 
 - Equal versions short-circuit; `file version > current version` → `UnsupportedVersion` (downgrade rejected); missing/ambiguous chain (multiple edges from one version to different targets)/migrator exceptions → `MigrationFailed` (observable via the `LoadFailed` event at stage `Migrate`)
 - **Write-time healing**: any read-modify-write (block save/component upsert/block delete write-back) reaching an old-version file migrates it before merging — every file on disk is always at the current version, so new-shape blocks can never land in an old file and get re-transformed by the chain
-- **Write-back policy**: after a load-triggered migration, the result is lazily written back per `m_MigrationWriteBack` (default on — avoids re-running the chain on every load); when off, migration applies to memory only, a session-level cache prevents re-running for the same file in the session, and the file stays at its old version
+- **Write-back policy**: after a load-triggered migration, the result is lazily written back per the handler's `m_MigrationWriteBack` (default on — avoids re-running the chain on every load); when off, migration applies to memory only, a session-level cache prevents re-running for the same file in the session, and the file stays at its old version
 - **Audit**: every migration step appends `"{from}->{to}|{migrator type full name}|{UTC ISO-8601}"` to `SaveMetadata.MigrationHistory` (persisted with write-back)
 - **Explicit migration**: `SaveService.MigrateSave(fileName)` / `MigrateSaveAsync` — for batch-healing old saves at startup; a successful migration **forces write-back** (regardless of the write-back setting); returns `HandlerNotReady` when the handler is not ready
 - Session-cache invalidation: `RestoreBackup` and delete operations invalidate the per-path (or whole) session cache automatically
@@ -226,7 +226,7 @@ Save-slot thumbnail pipeline: capture the screen at end of frame (`ScreenCapture
 
 ## Cloud Saves (local mirror + remote KV)
 
-`CloudSaveStorageBackend` (storage backend plug-in, configured via `m_StorageBackend`): local file mirror + remote KV dual-write, with policy-arbitrated reads. The remote KV semantics are abstracted as `CloudSaveKvStore` ([SerializeReference] plug-in) — the framework ships two concrete backends (**`RestCloudSaveKvStore`** custom REST / **`UnityCloudSaveKvStore`** UGS conditional compilation), and projects may implement their own.
+`CloudSaveStorageBackend` (storage backend plug-in, configured via the handler's `m_StorageBackend`): local file mirror + remote KV dual-write, with policy-arbitrated reads. The remote KV semantics are abstracted as `CloudSaveKvStore` ([SerializeReference] plug-in) — the framework ships two concrete backends (**`RestCloudSaveKvStore`** custom REST / **`UnityCloudSaveKvStore`** UGS conditional compilation), and projects may implement their own.
 
 - **Key spec**: cloud key = path relative to the save data root (`persistentDataPath/Data/`), `/`-separated (e.g. `Save/slot1.sav`) — no machine-local directory structure, consistent across devices.
 - **Error semantics**: unreachable/failed/logged-out remote calls throw; the backend normalizes to **offline degradation** (local mirror passthrough + warning). Missing keys are not errors (read `null` / exists `false` / idempotent delete).
@@ -241,7 +241,7 @@ Save-slot thumbnail pipeline: capture the screen at end of frame (`ScreenCapture
 ## Tooling (debugger & editor)
 
 - **In-game debugger window** `Profiler/Save` (`SaveServiceDebuggerWindow`, auto-registered by `SaveService.OnInit`): pipeline state (handler/storage backend/compression/default backend/screenshot toggle), slot list and selected-slot details (block table, metadata, corrupted blocks highlighted in red, screenshot sidecar state). Folder/slot selectors stay resident; the data region rebuilds on a 1s throttle.
-- **Save browser editor window** (`Window/Moirai/Save Browser`): browses folders and slots under `persistentDataPath/Data/`; block table (key/version/backend/size/per-block errors); content preview for unencrypted saves (pretty-printed raw JSON blocks / **structured tree preview** of KVT blocks — nested objects, collections and maps expanded with indentation, falling back to a hex sample when parsing fails / hex sample for other backends); backup/restore-backup/delete (with screenshot sidecar cascade)/reveal-in-finder. The editor reads with a plaintext handler plus the configured compression provider — encrypted saves are intentionally not previewable.
+- **Save browser editor window** (`Window/Moirai/Save Browser`): browses folders and slots under `persistentDataPath/Data/`; block table (key/version/backend/size/per-block errors); content preview for unencrypted saves (pretty-printed raw JSON blocks / **structured tree preview** of KVT blocks — nested objects, collections and maps expanded with indentation, falling back to a hex sample when parsing fails / hex sample for other backends); backup/restore-backup/delete (with screenshot sidecar cascade)/reveal-in-finder. The editor reads through the configured save handler (decryption chain, storage backend and compression configuration identical to runtime) — encrypted saves preview normally; saves written with mismatched key material surface as corrupted/unreadable.
 - **Asset reference collector** (`Tools/Moirai/Save/Collect Asset References into Catalog`): scans SaveComponents in open scenes and registers the project assets currently referenced by asset-reference fields into `SaveAssetCatalog` (locations derive from the file-name addressing convention — review them in projects with custom addressing; scene-object instances are only warned about) — closing the "unregistered → silently writes null" gap. Within a single scan each asset is registered at most once (local seen-set, independent of the lazily built catalog cache); on any addition the collector calls `InvalidateLookup` and saves the asset.
 - **SaveComponentEditor enhancements**: field checkboxes annotate reference kinds (scene reference = GameObject/Component-derived fields; asset reference = other UnityEngine.Object fields) with Identity/Catalog configuration hints; each binding shows its schema version (SG-emitted value → `[SaveComponentSchema]` declaration → default 1).
 
@@ -302,16 +302,24 @@ Static events (default zero-overhead channel) + `EventManager` bridge events (`S
 
 | Field | Description |
 |---|---|
-| `m_SaveServiceHandler` | Storage pipeline handler (PlainSaveHandler / AESEncryptedSaveHandler; the key provider is nested on the AES handler — empty falls back to `StaticSaveKeyProvider.Default` placeholders; alternatives: StaticSaveKeyProvider / PassphraseSaveKeyProvider / HKDFPerUserSaveKeyProvider) |
-| `m_StorageBackend` | Storage backend (IO sink, default FileSaveStorageBackend; empty falls back to the file backend; for cloud saves pick `CloudSaveStorageBackend` — composes the remote KV plug-in (built-in `RestCloudSaveKvStore` custom REST / `UnityCloudSaveKvStore` UGS conditional compilation) + sync policy + custom resolver) |
-| `m_CompressionProvider` | Compression provider (empty = no compression; built-in GZipCompressionProvider) |
+| `m_SaveServiceHandler` | Storage pipeline handler (PlainSaveHandler / AESEncryptedSaveHandler; storage backend / compression provider / migration write-back and the key provider are all configured on the handler — see the table below) |
 | `m_DefaultBackend` | Default serialization backend (blocks without `[SaveData]`) |
 | `m_SaveFileExtension` | Save file extension (default `.sav`) |
-| `m_MigrationWriteBack` | Migration write-back (default on): lazily persists load-triggered migrations; when off, migration applies to in-memory data of that load only |
 | `m_AssetCatalog` | Asset reference catalog (SaveAssetCatalog SO): no-code asset reference fields resolve locations two-way through the catalog; empty = asset reference fields always capture Null |
 | `m_PrefabRegistry` | Prefab registry (SavePrefabRegistry SO): persistable dynamic entities (stable key → ResourceService location); empty = `InstantiatePersistent` unavailable and saved spawn records skip as unregistered |
 | `m_CaptureScreenshotOnSave` | Screenshot on save (default off): `SaveBlockAsync`/`SaveComponentsAsync` capture automatically after success and mirror the sidecar + metadata (playing main thread only) |
 | `m_ScreenshotMaxDimension` | Screenshot thumbnail longest edge (pixels, aspect-preserving, never upscales; default 256) |
+
+### Handler-nested configuration (SaveServiceHandler)
+
+Storage-pipeline configuration is cohesive with the handler instance (replaced together with the handler type):
+
+| Field | Description |
+|---|---|
+| `m_StorageBackend` | Storage backend (IO sink, default FileSaveStorageBackend; empty falls back to the file backend; for cloud saves pick `CloudSaveStorageBackend` — composes the remote KV plug-in (built-in `RestCloudSaveKvStore` custom REST / `UnityCloudSaveKvStore` UGS conditional compilation) + sync policy + custom resolver) |
+| `m_CompressionProvider` | Compression provider (empty = no compression; built-in GZipCompressionProvider) |
+| `m_MigrationWriteBack` | Migration write-back (default on): lazily persists load-triggered migrations; when off, migration applies to in-memory data of that load only |
+| `m_KeyProvider` (AES handler) | Key provider (empty falls back to `StaticSaveKeyProvider.Default` placeholders; alternatives: StaticSaveKeyProvider / PassphraseSaveKeyProvider / HKDFPerUserSaveKeyProvider) |
 
 ## Dependencies
 

@@ -54,7 +54,7 @@ namespace Moirai.Atropos.Save
                 return;
             }
 
-            SaveStorageBackend storage = SaveServiceSettings.StorageBackend;
+            SaveStorageBackend storage = s_Handler.StorageBackend;
             if (storage == null || storage.Capabilities.SyncReadsAuthoritative)
             {
                 return;

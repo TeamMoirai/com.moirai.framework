@@ -717,7 +717,7 @@ namespace Save
             WriteSlotAtVersion("slot", new ProfileData { Gold = 8 }, 1);
             SaveMigrationManager.Register(new RenameGoldMigrator());
             SaveMigrationManager.CurrentVersion = 2;
-            _handler._migrationWriteBack = false;
+            _handler.MigrationWriteBack = false;
 
             SaveError error = _handler.TryLoadBlockCore<ProfileDataV2>(Paths("slot"), "profile", out ProfileDataV2 loaded);
             Assert.AreEqual(SaveError.None, error);
@@ -773,7 +773,7 @@ namespace Save
             WriteSlotAtVersion("slot", new ProfileData { Gold = 4 }, 1);
             SaveMigrationManager.Register(new RenameGoldMigrator());
             SaveMigrationManager.CurrentVersion = 2;
-            _handler._migrationWriteBack = false; // 显式调用强制回写，不受设置约束
+            _handler.MigrationWriteBack = false; // 显式调用强制回写，不受配置约束
 
             SaveError error = _handler.MigrateSave("slot", TestFolder);
 
