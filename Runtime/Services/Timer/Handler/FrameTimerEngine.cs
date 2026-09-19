@@ -116,6 +116,11 @@ namespace Moirai.Atropos.Timer
 
         public void Shutdown()
         {
+            if (_pages == null)
+            {
+                return; // 幂等：未 Init 或已关停时，下面的排空 / 清理都无从下手（列表已被置空）
+            }
+
             ClearAll();
             // 关停前必须同步排空：ClearAll 释放的槽位若挂着 awaiter，其信号已入队 _deferredSignals，
             // 此处不 TrySetResult 就会随下面置空一起丢失，导致 await 方永久挂起。
@@ -131,14 +136,29 @@ namespace Moirai.Atropos.Timer
             _scratchLate = null;
             _deferredSignals = null;
             _signalScratch = null;
+
+            // 计数一并归零：GetSlotIndex 的第一道范围判定与 AcquireSlot 都只看计数，
+            // 残留非零会让关停后的过期句柄穿过判定、去解引用已置空的页数组（NRE 而非按无效句柄降级）。
+            _pageCount = 0;
+            _slotCapacity = 0;
+            _freeCount = 0;
+            _activeCount = 0;
+            _executingSlotIndex = INVALID_INDEX;
         }
 
         #region 注册 [REGISTER]
 
         internal ulong WaitFrame(int frames, Action onComplete, bool isLooped, TimerPhase phase)
         {
-            if (onComplete == null || frames <= 0)
+            if (onComplete == null)
             {
+                WarnScheduleFailed("onComplete is null.");
+                return 0UL;
+            }
+
+            if (frames <= 0)
+            {
+                WarnScheduleFailed($"frames must be greater than 0 (got {frames}).");
                 return 0UL;
             }
 
@@ -147,8 +167,15 @@ namespace Moirai.Atropos.Timer
 
         internal ulong WaitFrame(int frames, Action<int> onUpdate, bool isLooped, TimerPhase phase)
         {
-            if (onUpdate == null || frames <= 0)
+            if (onUpdate == null)
             {
+                WarnScheduleFailed("onUpdate is null.");
+                return 0UL;
+            }
+
+            if (frames <= 0)
+            {
+                WarnScheduleFailed($"frames must be greater than 0 (got {frames}).");
                 return 0UL;
             }
 
@@ -157,8 +184,15 @@ namespace Moirai.Atropos.Timer
 
         internal unsafe ulong WaitFrameUnsafe(int frames, in TimerUnsafeBinding onComplete, bool isLooped, TimerPhase phase)
         {
-            if (!onComplete.IsValid() || frames <= 0)
+            if (!onComplete.IsValid())
             {
+                WarnScheduleFailed("unsafe binding is invalid.");
+                return 0UL;
+            }
+
+            if (frames <= 0)
+            {
+                WarnScheduleFailed($"frames must be greater than 0 (got {frames}).");
                 return 0UL;
             }
 
@@ -171,6 +205,7 @@ namespace Moirai.Atropos.Timer
             int slotIndex = AcquireSlot();
             if (slotIndex < 0)
             {
+                WarnScheduleFailed("no available timer slot.");
                 return 0UL;
             }
 
@@ -565,6 +600,13 @@ namespace Moirai.Atropos.Timer
             }
         }
 
+        /// <summary>调度失败诊断：整条调用（含实参求值）在非编辑器构建下被编译器摘除。</summary>
+        [System.Diagnostics.Conditional("UNITY_EDITOR")]
+        private static void WarnScheduleFailed(string reason)
+        {
+            LogUtility.Warning("[Timer] Schedule failed: {0}", reason);
+        }
+
         #endregion
 
         #region 等待信号 [WAIT SIGNAL]
@@ -731,6 +773,11 @@ namespace Moirai.Atropos.Timer
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private int AcquireSlot()
         {
+            if (_pages == null)
+            {
+                return INVALID_INDEX; // 已关停：不能再 AddPage 扩页，按「无可用槽位」降级为 0 句柄
+            }
+
             if (_freeCount <= 0)
             {
                 AddPage();
