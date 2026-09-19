@@ -1,4 +1,6 @@
 using System;
+using System.Threading;
+using Cysharp.Threading.Tasks;
 
 namespace Moirai.Atropos.Timer
 {
@@ -67,6 +69,9 @@ namespace Moirai.Atropos.Timer
         /// <summary>剩余秒数（帧计时器返回 0）。</summary>
         internal abstract float GetLeftTime(ulong timerHandle);
 
+        /// <summary>剩余帧数（时间计时器返回 0）。默认 0，供仅支持秒的自定义处理器继承。</summary>
+        internal virtual int GetLeftFrames(ulong timerHandle) => 0;
+
         /// <summary>是否已结束（完成 / 取消 / 无效）。</summary>
         internal abstract bool IsDone(ulong timerHandle);
 
@@ -84,6 +89,20 @@ namespace Moirai.Atropos.Timer
 
         /// <summary>取消全部计时器。</summary>
         internal abstract void CancelAll();
+
+        /// <summary>
+        /// 等待计时器完成。默认实现为每帧轮询 <see cref="IsDone"/>（供不支持完成信号的自定义处理器兜底）；
+        /// <see cref="DefaultTimerHandler"/> 覆写为按槽位完成信号驱动，避免每个 await 方的常驻轮询开销。
+        /// </summary>
+        internal virtual UniTask WaitAsync(ulong timerHandle, CancellationToken cancellationToken = default)
+        {
+            if (timerHandle == 0UL || IsDone(timerHandle))
+            {
+                return UniTask.CompletedTask;
+            }
+
+            return UniTask.WaitUntil(() => IsDone(timerHandle), cancellationToken: cancellationToken);
+        }
 
         /// <summary>获取计时器统计信息。</summary>
         internal abstract void GetStatistics(out int activeCount, out int poolCapacity, out int peakActiveCount, out int freeCount);

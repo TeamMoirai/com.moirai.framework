@@ -1,5 +1,7 @@
 using System;
 using System.Runtime.CompilerServices;
+using System.Threading;
+using Cysharp.Threading.Tasks;
 
 namespace Moirai.Atropos.Timer
 {
@@ -176,15 +178,24 @@ namespace Moirai.Atropos.Timer
 
         void CancelAll();
 
+        /// <summary>等待该句柄完成：按槽位挂载完成信号（在计时器释放时唤醒），已结束则立即完成。</summary>
+        UniTask WaitAsync(ulong handle, CancellationToken cancellationToken);
+
         bool IsRunning(ulong handle);
 
         bool IsDone(ulong handle);
 
         float GetLeftTime(ulong handle);
 
+        /// <summary>剩余帧数：帧引擎返回剩余帧，时间轮引擎返回 0。</summary>
+        int GetLeftFrames(ulong handle);
+
         float GetElapsed(ulong handle);
 
         float GetDuration(ulong handle);
+
+        /// <summary>当前活跃计时器数（供复合层采样真实并发峰值）。</summary>
+        int ActiveCount { get; }
 
         void GetStatistics(out int activeCount, out int poolCapacity, out int peakActiveCount, out int freeCount);
 

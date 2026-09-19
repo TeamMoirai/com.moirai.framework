@@ -135,6 +135,9 @@ namespace Moirai.Atropos.Timer
         /// <summary>剩余秒数（帧计时器返回 0）。</summary>
         public static float GetLeftTime(ulong timerHandle) => s_Handler?.GetLeftTime(timerHandle) ?? 0f;
 
+        /// <summary>剩余帧数（时间计时器返回 0）。</summary>
+        public static int GetLeftFrames(ulong timerHandle) => s_Handler?.GetLeftFrames(timerHandle) ?? 0;
+
         /// <summary>是否已结束（完成 / 取消 / 无效）。</summary>
         public static bool IsDone(ulong timerHandle) => s_Handler?.IsDone(timerHandle) ?? true;
         
@@ -156,6 +159,10 @@ namespace Moirai.Atropos.Timer
         /// <summary>取消全部计时器。</summary>
         public static void CancelAll() => s_Handler?.CancelAll();
 
+        /// <summary>等待计时器完成（默认后端为按槽位完成信号驱动，非每帧轮询）。</summary>
+        public static UniTask WaitAsync(ulong timerHandle, CancellationToken cancellationToken = default) =>
+            s_Handler?.WaitAsync(timerHandle, cancellationToken) ?? UniTask.CompletedTask;
+
         #endregion
     }
 
@@ -173,6 +180,12 @@ namespace Moirai.Atropos.Timer
         /// <summary>句柄是否已结束。</summary>
         public static bool IsDone(this ulong timerHandle) => TimerService.IsDone(timerHandle);
 
+        /// <summary>剩余秒数（帧计时器返回 0）。</summary>
+        public static float GetLeftTime(this ulong timerHandle) => TimerService.GetLeftTime(timerHandle);
+
+        /// <summary>剩余帧数（时间计时器返回 0）。</summary>
+        public static int GetLeftFrames(this ulong timerHandle) => TimerService.GetLeftFrames(timerHandle);
+
         /// <summary>暂停。</summary>
         public static void Pause(this ulong timerHandle)
         {
@@ -185,15 +198,8 @@ namespace Moirai.Atropos.Timer
             if (timerHandle != 0UL) TimerService.Resume(timerHandle);
         }
 
-        /// <summary>等待计时器完成（轮询 <see cref="TimerService.IsDone"/>）。</summary>
+        /// <summary>等待计时器完成（按槽位完成信号驱动）。</summary>
         public static UniTask WaitAsync(this ulong timerHandle, CancellationToken cancellationToken = default)
-        {
-            if (timerHandle == 0UL || TimerService.IsDone(timerHandle))
-            {
-                return UniTask.CompletedTask;
-            }
-
-            return UniTask.WaitUntil(() => TimerService.IsDone(timerHandle), cancellationToken: cancellationToken);
-        }
+            => TimerService.WaitAsync(timerHandle, cancellationToken);
     }
 }
