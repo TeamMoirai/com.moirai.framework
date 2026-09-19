@@ -25,6 +25,10 @@ namespace Moirai.Atropos.Timer
         private const int WHEEL_MAX_LEVEL = WHEEL_LEVEL_COUNT - 1;
         private const int WHEEL_BUCKET_COUNT = WHEEL_SIZE * WHEEL_LEVEL_COUNT;
         private const int MAX_WHEEL_TICKS_PER_FRAME = 64;
+        // 延后触发列表的槽位归属位（仅本泳道用）：以位判定替代 List.Contains 的线性去重，
+        // 并让释放路径上的线性摘除只对真正在列的槽位发生。随快照排空一并清除，故循环计时器可再次入列。
+        private const byte STATE_DEFERRED_FIXED = 1 << 6;
+        private const byte STATE_DEFERRED_LATE = 1 << 7;
 #if UNITY_EDITOR
         private const double STALE_ONE_SHOT_SECONDS = 300d;
 #endif
@@ -46,6 +50,8 @@ namespace Moirai.Atropos.Timer
             public readonly int[] QueueNextIndices = new int[PAGE_SIZE];
             public readonly int[] QueuePrevIndices = new int[PAGE_SIZE];
             public readonly int[] ActiveIndices = new int[PAGE_SIZE];
+            // 进度列表下标（支持 O(1) swap-remove，语义同帧泳道的 FrameListPositions）。
+            public readonly int[] ProgressPositions = new int[PAGE_SIZE];
             public readonly Action[] NoArgsHandlers = new Action[PAGE_SIZE];
             public readonly TimerGenericInvoker[] GenericInvokers = new TimerGenericInvoker[PAGE_SIZE];
             public readonly object[] GenericHandlers = new object[PAGE_SIZE];
@@ -65,6 +71,7 @@ namespace Moirai.Atropos.Timer
                     QueueNextIndices[i] = INVALID_INDEX;
                     QueuePrevIndices[i] = INVALID_INDEX;
                     ActiveIndices[i] = INVALID_INDEX;
+                    ProgressPositions[i] = INVALID_INDEX;
                 }
             }
         }
@@ -130,6 +137,11 @@ namespace Moirai.Atropos.Timer
 
         public void Shutdown()
         {
+            if (_pages == null)
+            {
+                return; // 幂等：未 Init 或已关停时，下面的排空 / 清理都无从下手（列表已被置空）
+            }
+
             ClearAll();
             // 关停前必须同步排空：ClearAll 释放的槽位若挂着 awaiter，其信号已入队 _deferredSignals，
             // 此处不 TrySetResult 就会随下面置空一起丢失，导致 await 方永久挂起。
@@ -148,6 +160,14 @@ namespace Moirai.Atropos.Timer
             _fireScratch = null;
             _deferredSignals = null;
             _signalScratch = null;
+
+            // 计数一并归零：GetSlotIndex 的第一道范围判定与 AcquireSlot 都只看计数，
+            // 残留非零会让关停后的过期句柄穿过判定、去解引用已置空的页数组（NRE 而非按无效句柄降级）。
+            _pageCount = 0;
+            _slotCapacity = 0;
+            _freeCount = 0;
+            _activeCount = 0;
+            _executingSlotIndex = INVALID_INDEX;
         }
 
         private void Prewarm(int capacity)
@@ -170,18 +190,14 @@ namespace Moirai.Atropos.Timer
         {
             if (onComplete == null)
             {
-#if UNITY_EDITOR
                 WarnScheduleFailed("onComplete is null.");
-#endif
                 return 0UL;
             }
 
             int slotIndex = AcquireSlot();
             if (slotIndex < 0)
             {
-#if UNITY_EDITOR
                 WarnScheduleFailed("no available timer slot.");
-#endif
                 return 0UL;
             }
 
@@ -198,18 +214,14 @@ namespace Moirai.Atropos.Timer
         {
             if (onComplete == null)
             {
-#if UNITY_EDITOR
                 WarnScheduleFailed("onComplete is null.");
-#endif
                 return 0UL;
             }
 
             int slotIndex = AcquireSlot();
             if (slotIndex < 0)
             {
-#if UNITY_EDITOR
                 WarnScheduleFailed("no available timer slot.");
-#endif
                 return 0UL;
             }
 
@@ -228,12 +240,14 @@ namespace Moirai.Atropos.Timer
         {
             if (onComplete == null && onUpdate == null)
             {
+                WarnScheduleFailed("both onComplete and onUpdate are null.");
                 return 0UL;
             }
 
             int slotIndex = AcquireSlot();
             if (slotIndex < 0)
             {
+                WarnScheduleFailed("no available timer slot.");
                 return 0UL;
             }
 
@@ -246,7 +260,7 @@ namespace Moirai.Atropos.Timer
             {
                 SetProgressHandler(slotIndex, onUpdate);
                 SetState(slotIndex, STATE_PROGRESS);
-                _progressSlots.Add(slotIndex);
+                AddProgressSlot(slotIndex);
             }
 
             AddToQueue(slotIndex, ignoreTimeScale);
@@ -258,12 +272,14 @@ namespace Moirai.Atropos.Timer
         {
             if (!onComplete.IsValid())
             {
+                WarnScheduleFailed("unsafe binding is invalid.");
                 return 0UL;
             }
 
             int slotIndex = AcquireSlot();
             if (slotIndex < 0)
             {
+                WarnScheduleFailed("no available timer slot.");
                 return 0UL;
             }
 
@@ -288,13 +304,13 @@ namespace Moirai.Atropos.Timer
 
         public void FixedTick()
         {
-            DrainDeferredFires(_deferredFixedFire);
+            DrainDeferredFires(_deferredFixedFire, STATE_DEFERRED_FIXED);
             DrainSignals();
         }
 
         public void LateTick()
         {
-            DrainDeferredFires(_deferredLateFire);
+            DrainDeferredFires(_deferredLateFire, STATE_DEFERRED_LATE);
             DrainSignals();
         }
 
@@ -369,20 +385,43 @@ namespace Moirai.Atropos.Timer
             _progressScratch.Clear();
         }
 
+        private void AddProgressSlot(int slotIndex)
+        {
+            SetProgressPosition(slotIndex, _progressSlots.Count);
+            _progressSlots.Add(slotIndex);
+        }
+
+        /// <summary>按槽位记录的列表下标做 swap-remove，O(1) 且顺序无关（进度以快照迭代）。</summary>
         private void RemoveProgressSlot(int slotIndex)
         {
-            for (int i = 0; i < _progressSlots.Count; i++)
+            int pos = GetProgressPosition(slotIndex);
+            if (pos < 0)
             {
-                if (_progressSlots[i] != slotIndex)
-                {
-                    continue;
-                }
-
-                int last = _progressSlots.Count - 1;
-                _progressSlots[i] = _progressSlots[last];
-                _progressSlots.RemoveAt(last);
                 return;
             }
+
+            int last = _progressSlots.Count - 1;
+            if (pos != last)
+            {
+                int moved = _progressSlots[last];
+                _progressSlots[pos] = moved;
+                SetProgressPosition(moved, pos);
+            }
+
+            _progressSlots.RemoveAt(last);
+            SetProgressPosition(slotIndex, INVALID_INDEX);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private int GetProgressPosition(int slotIndex)
+        {
+            return GetPage(slotIndex).ProgressPositions[GetOffset(slotIndex)];
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void SetProgressPosition(int slotIndex, int value)
+        {
+            GetPage(slotIndex).ProgressPositions[GetOffset(slotIndex)] = value;
         }
 
         #endregion
@@ -401,30 +440,32 @@ namespace Moirai.Atropos.Timer
             byte phase = GetPhase(slotIndex);
             if (phase == (byte)TimerPhase.FixedUpdate)
             {
-                ulong handle = GetHandle(slotIndex);
-                if (!_deferredFixedFire.Contains(handle))
-                {
-                    _deferredFixedFire.Add(handle);
-                }
-
+                AddDeferredFire(_deferredFixedFire, slotIndex, STATE_DEFERRED_FIXED);
                 return;
             }
 
             if (phase == (byte)TimerPhase.LateUpdate)
             {
-                ulong handle = GetHandle(slotIndex);
-                if (!_deferredLateFire.Contains(handle))
-                {
-                    _deferredLateFire.Add(handle);
-                }
-
+                AddDeferredFire(_deferredLateFire, slotIndex, STATE_DEFERRED_LATE);
                 return;
             }
 
             FireTimeTimer(slotIndex, currentTime);
         }
 
-        private void DrainDeferredFires(List<ulong> list)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void AddDeferredFire(List<ulong> list, int slotIndex, byte deferredBit)
+        {
+            if ((GetState(slotIndex) & deferredBit) != 0)
+            {
+                return; // 归属位即去重判据，无需 List.Contains 的线性扫描
+            }
+
+            SetState(slotIndex, deferredBit);
+            list.Add(GetHandle(slotIndex));
+        }
+
+        private void DrainDeferredFires(List<ulong> list, byte deferredBit)
         {
             if (list.Count == 0)
             {
@@ -445,8 +486,11 @@ namespace Moirai.Atropos.Timer
                 int slotIndex = GetSlotIndex(_fireScratch[i]);
                 if (slotIndex < 0)
                 {
-                    continue;
+                    continue; // 已被释放或槽位被复用（版本不符）；归属位随 ReleaseSlot 一并清过
                 }
+
+                // 出列即失归属：本帧之后该计时器（尤其循环型）需能再次入列。
+                ClearState(slotIndex, deferredBit);
 
                 byte state = GetState(slotIndex);
                 if ((state & (STATE_ACTIVE | STATE_RUNNING)) != (STATE_ACTIVE | STATE_RUNNING))
@@ -748,13 +792,12 @@ namespace Moirai.Atropos.Timer
             }
         }
 
-#if UNITY_EDITOR
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        /// <summary>调度失败诊断：整条调用（含实参求值）在非编辑器构建下被编译器摘除。</summary>
+        [System.Diagnostics.Conditional("UNITY_EDITOR")]
         private static void WarnScheduleFailed(string reason)
         {
             LogUtility.Warning("[Timer] Schedule failed: {0}", reason);
         }
-#endif
 
         #endregion
 
@@ -1135,6 +1178,11 @@ namespace Moirai.Atropos.Timer
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private int AcquireSlot()
         {
+            if (_pages == null)
+            {
+                return INVALID_INDEX; // 已关停：不能再 AddPage 扩页，按「无可用槽位」降级为 0 句柄
+            }
+
             if (_freeCount <= 0)
             {
                 AddPage();
@@ -1202,6 +1250,7 @@ namespace Moirai.Atropos.Timer
             page.QueueNextIndices[offset] = INVALID_INDEX;
             page.QueuePrevIndices[offset] = INVALID_INDEX;
             page.ActiveIndices[offset] = INVALID_INDEX;
+            page.ProgressPositions[offset] = INVALID_INDEX;
             page.HandlerTypes[offset] = HANDLER_NONE;
             page.NoArgsHandlers[offset] = null;
             page.GenericInvokers[offset] = null;
@@ -1300,7 +1349,7 @@ namespace Moirai.Atropos.Timer
             // 列表归属清理必须在 executing 早返回之前完成——否则自取消的槽位会从列表丢失。
             // 句柄须在 SetHandle(0UL) 销毁前取出：延迟触发列表以句柄为键。
             RemoveProgressSlot(slotIndex);
-            RemoveDeferredRef(GetHandle(slotIndex));
+            RemoveDeferredRef(slotIndex, GetHandle(slotIndex));
 
             // 释放即唤醒等待者（完成 / 取消 / CancelAll 统一经此）；延后到 Tick 末尾排空，避免同步续跑重入。
             SignalCompletion(slotIndex);
@@ -1317,15 +1366,26 @@ namespace Moirai.Atropos.Timer
             SetPagedInt(_freeSlotPages, _freeCount++, slotIndex);
         }
 
-        private void RemoveDeferredRef(ulong handle)
+        /// <summary>从两条延后触发列表摘除本槽位；不在列的槽位（绝大多数）一次位判即返回。</summary>
+        private void RemoveDeferredRef(int slotIndex, ulong handle)
         {
-            if (handle == 0UL)
+            byte deferred = (byte)(GetState(slotIndex) & (STATE_DEFERRED_FIXED | STATE_DEFERRED_LATE));
+            if (deferred == 0)
             {
                 return;
             }
 
-            RemoveFromHandleList(_deferredFixedFire, handle);
-            RemoveFromHandleList(_deferredLateFire, handle);
+            if ((deferred & STATE_DEFERRED_FIXED) != 0)
+            {
+                RemoveFromHandleList(_deferredFixedFire, handle);
+            }
+
+            if ((deferred & STATE_DEFERRED_LATE) != 0)
+            {
+                RemoveFromHandleList(_deferredLateFire, handle);
+            }
+
+            ClearState(slotIndex, STATE_DEFERRED_FIXED | STATE_DEFERRED_LATE);
         }
 
         private static void RemoveFromHandleList(List<ulong> list, ulong value)

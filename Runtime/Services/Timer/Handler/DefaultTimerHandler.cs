@@ -58,24 +58,41 @@ namespace Moirai.Atropos.Timer
         {
             _wheel.Shutdown();
             _frame.Shutdown();
+            // 摘掉路由表：Lane() 见 null 即整体降级，句柄操作不再进入已关停的引擎。
+            _lanes = null;
         }
 
         #region 阶段驱动 [PHASE TICK]
 
         internal override void Tick(float elapseSeconds, float realElapseSeconds)
         {
+            if (_lanes == null)
+            {
+                return;
+            }
+
             _wheel.Tick();
             _frame.Tick();
         }
 
         internal override void FixedTick(float elapseSeconds, float realElapseSeconds)
         {
+            if (_lanes == null)
+            {
+                return;
+            }
+
             _wheel.FixedTick();
             _frame.FixedTick();
         }
 
         internal override void LateTick(float elapseSeconds, float realElapseSeconds)
         {
+            if (_lanes == null)
+            {
+                return;
+            }
+
             _wheel.LateTick();
             _frame.LateTick();
         }
@@ -190,18 +207,33 @@ namespace Moirai.Atropos.Timer
 
         internal override void PauseAll()
         {
+            if (_lanes == null)
+            {
+                return;
+            }
+
             _wheel.PauseAll();
             _frame.PauseAll();
         }
 
         internal override void ResumeAll()
         {
+            if (_lanes == null)
+            {
+                return;
+            }
+
             _wheel.ResumeAll();
             _frame.ResumeAll();
         }
 
         internal override void CancelAll()
         {
+            if (_lanes == null)
+            {
+                return;
+            }
+
             _wheel.CancelAll();
             _frame.CancelAll();
         }
