@@ -28,7 +28,8 @@ namespace Moirai.Atropos.FrameLoop
     }
 
     /// <summary>
-    /// 可选：驱动顺序优先级。数值越小越先执行；未实现时按注册序执行。
+    /// 可选：驱动顺序优先级。数值越小越先执行；未实现者一律按优先级 0 参与排序，
+    /// 与同优先级者之间维持注册序（稳定）。
     /// </summary>
     public interface IPlayerLoopPriority
     {
