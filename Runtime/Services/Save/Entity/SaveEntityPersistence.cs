@@ -42,6 +42,27 @@ namespace Moirai.Atropos.Save
         /// <summary>模板基准缓存（prefabKey → 基准 KVT；会话级——预制体内容在会话内不变）。</summary>
         private static readonly Dictionary<string, byte[]> s_TemplateBaselines = new Dictionary<string, byte[]>(StringComparer.Ordinal);
 
+        /// <summary>增量保存基准表（按档键控 <c>folderName/fileName</c> → 上次保存状态；会话级——进程重启自然清空走全量）。</summary>
+        private static readonly Dictionary<string, LastSavedState> s_LastSavedStates = new Dictionary<string, LastSavedState>(StringComparer.Ordinal);
+
+        /// <summary>陈旧块键解析器（全量合并的读档后删除集委托——静态方法组缓存，免每次委托分配）。</summary>
+        internal static readonly Func<Dictionary<string, byte[]>, List<string>> StaleKeyResolver = ComputeStaleEntityKeys;
+
+        /// <summary>
+        /// 上次保存状态（增量判定基准：实体表字节 + 逐实体差分字节 + 档写入时间）。
+        /// </summary>
+        private sealed class LastSavedState
+        {
+            /// <summary>实体表块基准字节。</summary>
+            internal byte[] TableBytes;
+
+            /// <summary>逐实体差分基准（entityId → 差分载荷）。</summary>
+            internal Dictionary<string, byte[]> DiffPayloads;
+
+            /// <summary>保存完成后的档写入时间（外部删档/改写守卫）。</summary>
+            internal DateTime FileWriteTimeUtc;
+        }
+
         /// <summary>未激活临时父物体（阻断 Awake：先注入 ID/块键，就位后再激活注册）。</summary>
         private static GameObject s_Staging;
 
@@ -70,6 +91,7 @@ namespace Moirai.Atropos.Save
             s_DestroyedIds.Clear();
             s_DestroyedIdSet.Clear();
             s_TemplateBaselines.Clear();
+            s_LastSavedStates.Clear();
             if (s_Staging != null)
             {
                 DestroyObject(s_Staging);
@@ -535,6 +557,108 @@ namespace Moirai.Atropos.Save
             return staleKeys;
         }
 
+        /// <summary>
+        /// 增量保存判定（会话级脏跟踪 + 档写入时间守卫）：存在有效基准且档未被外部改写时，
+        /// 逐实体比对比分载荷与实体表字节——零变化返回 <c>true</c>（调用方零 IO 跳过，替代三趟 IO 的整档读改写）。
+        /// <para>基准失效（无记录/档缺失/写入时间失配）返回 <c>false</c> 且 <paramref name="dirtyEntries"/> 为 <c>null</c>——
+        /// 调用方按全量模式合并（全部条目 upsert + 孤儿清理由 <see cref="StaleKeyResolver"/> 读档判定）。</para>
+        /// </summary>
+        /// <param name="paths">已解析的路径集合。</param>
+        /// <param name="entries">本次捕获的全部实体条目（末位恒为实体表块）。</param>
+        /// <param name="handler">存档处理器（档写入时间查询）。</param>
+        /// <param name="dirtyEntries">需写回的变化条目（跳过/全量模式为 <c>null</c>；增量模式含变化差分块与变化的实体表块）。</param>
+        /// <param name="certainRemovals">会话内确定的删除块键（上次在册 − 当前在册；全量模式为 <c>null</c>）。</param>
+        /// <returns><c>true</c> = 零变化且档未被外部改写（跳过保存）；<c>false</c> = 需要写回。</returns>
+        internal static bool TrySkipEntitySave(SaveServiceHandler.SavePaths paths, List<SaveBlockEntry> entries, SaveServiceHandler handler, out List<SaveBlockEntry> dirtyEntries, out List<string> certainRemovals)
+        {
+            dirtyEntries = null;
+            certainRemovals = null;
+            if (!s_LastSavedStates.TryGetValue(BuildStateKey(paths), out LastSavedState state))
+            {
+                return false;
+            }
+
+            // 档写入时间守卫：档缺失或被外部改写（删除重建/备份回滚/云下载刷新镜像）即基准失效——保守走全量
+            if (!handler.TryGetSaveWriteTimeUtc(paths, out DateTime writeTimeUtc) || writeTimeUtc != state.FileWriteTimeUtc)
+            {
+                return false;
+            }
+
+            byte[] tableBytes = entries[entries.Count - 1].Bytes;
+            bool tableChanged = !tableBytes.AsSpan().SequenceEqual(state.TableBytes);
+
+            dirtyEntries = new List<SaveBlockEntry>();
+            for (int i = 0; i < entries.Count - 1; i++)
+            {
+                SaveBlockEntry entry = entries[i];
+                string entityId = entry.Key.Substring(ENTITY_BLOCK_KEY_PREFIX.Length);
+                if (!state.DiffPayloads.TryGetValue(entityId, out byte[] lastPayload) || !entry.Bytes.AsSpan().SequenceEqual(lastPayload))
+                {
+                    dirtyEntries.Add(entry);
+                }
+            }
+
+            foreach (KeyValuePair<string, byte[]> pair in state.DiffPayloads)
+            {
+                if (!s_SpawnIds.Contains(pair.Key))
+                {
+                    (certainRemovals ??= new List<string>()).Add(BuildEntityBlockKey(pair.Key));
+                }
+            }
+
+            if (tableChanged)
+            {
+                dirtyEntries.Add(entries[entries.Count - 1]);
+            }
+
+            if (dirtyEntries.Count == 0 && certainRemovals == null)
+            {
+                dirtyEntries = null;
+                return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// 提交本次保存为增量基准（merge 成功后调用——下次保存的脏判定基准；基准字节直引条目缓冲，捕获产物不再变更）。
+        /// </summary>
+        /// <param name="paths">已解析的路径集合。</param>
+        /// <param name="entries">本次保存的全部实体条目（末位恒为实体表块）。</param>
+        /// <param name="fileWriteTimeUtc">保存完成后的档写入时间（守卫基准）。</param>
+        internal static void CommitSavedState(SaveServiceHandler.SavePaths paths, List<SaveBlockEntry> entries, DateTime fileWriteTimeUtc)
+        {
+            var state = new LastSavedState
+            {
+                TableBytes = entries[entries.Count - 1].Bytes,
+                DiffPayloads = new Dictionary<string, byte[]>(StringComparer.Ordinal),
+                FileWriteTimeUtc = fileWriteTimeUtc,
+            };
+            for (int i = 0; i < entries.Count - 1; i++)
+            {
+                string entityId = entries[i].Key.Substring(ENTITY_BLOCK_KEY_PREFIX.Length);
+                state.DiffPayloads[entityId] = entries[i].Bytes;
+            }
+
+            s_LastSavedStates[BuildStateKey(paths)] = state;
+        }
+
+        /// <summary>
+        /// 失效全部增量基准（恢复管线替换会话状态后调用——下次保存走全量，对齐恢复前行为）。
+        /// </summary>
+        internal static void InvalidateSavedStates()
+        {
+            s_LastSavedStates.Clear();
+        }
+
+        /// <summary>
+        /// 构造增量基准键（folderName/fileName——同档同名文件夹唯一键控）。
+        /// </summary>
+        private static string BuildStateKey(SaveServiceHandler.SavePaths paths)
+        {
+            return StringUtility.Concat(paths.FolderName, "/", paths.FileName);
+        }
+
         #endregion
 
         #region 恢复 [RESTORE]
@@ -651,6 +775,9 @@ namespace Moirai.Atropos.Save
                     s_DestroyedIds.Add(fileDestroyed[i]);
                 }
             }
+
+            // 恢复替换会话状态——增量基准全部失效（下次保存走全量，与恢复前写回行为对齐）
+            InvalidateSavedStates();
         }
 
         /// <summary>
