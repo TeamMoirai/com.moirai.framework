@@ -17,6 +17,7 @@ namespace Service.Timer
     public class DefaultTimerHandlerArchitectureTests
     {
         private DefaultTimerHandler _handler;
+        private GameTimeHandler _originalGameTimeHandler;
         private double _now;
         private double _unscaledNow;
 
@@ -41,6 +42,9 @@ namespace Service.Timer
         {
             _now = 1000.0;
             _unscaledNow = 1000.0;
+            // 记下夹具进入时的全局时钟后端，TearDown 原样归还——覆盖成 DefaultGameTimeHandler
+            // 会把别的用例依赖的实现改掉（GameTime.Handler 是进程级 static）。
+            _originalGameTimeHandler = GameTime.Handler;
             GameTime.Handler = new VirtualClockHandler(() => _now, () => _unscaledNow);
             _handler = new DefaultTimerHandler();
             _handler.Internal_Init();
@@ -51,7 +55,7 @@ namespace Service.Timer
         {
             _handler.Internal_Shutdown();
             _handler = null;
-            GameTime.Handler = new DefaultGameTimeHandler();
+            GameTime.Handler = _originalGameTimeHandler;
         }
 
         /// <summary>推进缩放与非缩放时钟（默认二者同步）并按 50ms 步进驱动 Update Tick。</summary>
@@ -404,6 +408,158 @@ namespace Service.Timer
             }
 
             Assert.IsTrue(canceled, "取消 CancellationToken 应使 WaitAsync 抛 OperationCanceledException");
+        }
+
+        #endregion
+
+        #region 关停安全 & 泳道独立预热
+
+        [Test]
+        public void Shutdown_ThenHandleAndScheduleOperations_DegradeSafely()
+        {
+            ulong wheelHandle = _handler.Delay(100f, () => { });
+            ulong frameHandle = _handler.WaitFrame(100, () => { });
+            Assert.IsFalse(_handler.IsDone(wheelHandle));
+            Assert.IsFalse(_handler.IsDone(frameHandle));
+
+            _handler.Internal_Shutdown();
+
+            // 关停后不得抛：句柄一律按"已结束"降级，新注册返回 0 句柄，阶段驱动与 All 系列为空操作。
+            Assert.IsTrue(_handler.IsDone(wheelHandle));
+            Assert.IsTrue(_handler.IsDone(frameHandle));
+            Assert.IsFalse(_handler.IsRunning(wheelHandle));
+            Assert.AreEqual(0, _handler.GetLeftFrames(frameHandle));
+            Assert.AreEqual(0f, _handler.GetLeftTime(wheelHandle));
+            Assert.AreEqual(0UL, _handler.Delay(1f, () => { }));
+            Assert.AreEqual(0UL, _handler.WaitFrame(1, () => { }));
+
+            Assert.DoesNotThrow(() =>
+            {
+                _handler.Pause(wheelHandle);
+                _handler.Resume(frameHandle);
+                _handler.Restart(wheelHandle);
+                _handler.Cancel(frameHandle);
+                _handler.PauseAll();
+                _handler.ResumeAll();
+                _handler.CancelAll();
+                _handler.Tick(0.05f, 0.05f);
+                _handler.FixedTick(0.05f, 0.05f);
+                _handler.LateTick(0.05f, 0.05f);
+                _handler.WaitAsync(wheelHandle).GetAwaiter().GetResult();
+            });
+
+            _handler.GetStatistics(out int activeCount, out int poolCapacity, out _, out int freeCount);
+            Assert.AreEqual(0, activeCount);
+            Assert.AreEqual(0, poolCapacity, "关停后池容量计数须归零，否则过期句柄会穿过范围判定撞进已置空的页数组");
+            Assert.AreEqual(0, freeCount);
+        }
+
+        [Test]
+        public void EngineShutdown_Twice_IsIdempotent()
+        {
+            var wheel = new WheelTimerEngine();
+            var frame = new FrameTimerEngine();
+            wheel.Init(256);
+            frame.Init(256);
+            Assert.AreNotEqual(0UL, wheel.Delay(100f, () => { }, false, false, TimerPhase.Update));
+            Assert.AreNotEqual(0UL, frame.WaitFrame(100, () => { }, false, TimerPhase.Update));
+
+            wheel.Shutdown();
+            frame.Shutdown();
+
+            Assert.DoesNotThrow(() =>
+            {
+                wheel.Shutdown();
+                frame.Shutdown();
+            });
+        }
+
+        [Test]
+        public void PerLanePrewarm_UsesItsOwnConfiguredCapacity()
+        {
+            // 两泳道各按自身容量预热：时间轮 1024 / 帧计时 256，不共享单一初始容量。
+            var wheel = new WheelTimerEngine();
+            var frame = new FrameTimerEngine();
+            wheel.Init(1024);
+            frame.Init(256);
+
+            wheel.GetStatistics(out _, out int wheelCapacity, out _, out _);
+            frame.GetStatistics(out _, out int frameCapacity, out _, out _);
+
+            Assert.AreEqual(1024, wheelCapacity);
+            Assert.AreEqual(256, frameCapacity);
+
+            wheel.Shutdown();
+            frame.Shutdown();
+        }
+
+        #endregion
+
+        #region 延后列表与进度列表归属
+
+        [Test]
+        public void FixedAndLateLoopTimers_Retrigger_AcrossFrames()
+        {
+            // 延后触发列表的归属位必须随排空清除，否则循环型 Fixed/Late 计时器只会触发一次。
+            int fixedFired = 0;
+            int lateFired = 0;
+            ulong fixedHandle = _handler.Delay(0.05f, () => fixedFired++, isLooped: true, phase: TimerPhase.FixedUpdate);
+            ulong lateHandle = _handler.Delay(0.05f, () => lateFired++, isLooped: true, phase: TimerPhase.LateUpdate);
+
+            for (int round = 0; round < 3; round++)
+            {
+                Advance(0.05);
+                _handler.FixedTick(0.05f, 0.05f);
+                _handler.LateTick(0.05f, 0.05f);
+            }
+
+            Assert.GreaterOrEqual(fixedFired, 2, "Fixed 循环计时器应跨帧重复延后触发");
+            Assert.GreaterOrEqual(lateFired, 2, "Late 循环计时器应跨帧重复延后触发");
+
+            _handler.Cancel(fixedHandle);
+            _handler.Cancel(lateHandle);
+        }
+
+        [Test]
+        public void FixedLoopTimer_RestartedWhileDeferred_KeepsRetriggering()
+        {
+            // 延后窗口内 Restart：归属位必须在排空时清掉，否则循环型此后永远再不入列。
+            int fired = 0;
+            ulong handle = _handler.Delay(0.05f, () => fired++, isLooped: true, phase: TimerPhase.FixedUpdate);
+
+            Advance(0.05); // 到期入延后列，尚未 FixedTick
+            _handler.Restart(handle);
+            _handler.FixedTick(0.05f, 0.05f);
+
+            int afterFirstDrain = fired;
+            for (int round = 0; round < 2; round++)
+            {
+                Advance(0.1);
+                _handler.FixedTick(0.05f, 0.05f);
+            }
+
+            Assert.Greater(fired, afterFirstDrain, "归属位滞留会令循环型 Fixed 计时器不再触发");
+            _handler.Cancel(handle);
+        }
+
+        [Test]
+        public void ProgressTimers_CancelMiddle_KeepsRemaining()
+        {
+            // 进度列表按槽位记录下标做 swap-remove：摘除中间项后，被前移项的下标须同步修正。
+            int a = 0;
+            int b = 0;
+            int c = 0;
+            _handler.Delay(100f, () => { }, (Action<float>)(ratio => a++));
+            ulong middle = _handler.Delay(100f, () => { }, (Action<float>)(ratio => b++));
+            _handler.Delay(100f, () => { }, (Action<float>)(ratio => c++));
+
+            _handler.Cancel(middle);
+
+            Advance(0.2);
+
+            Assert.Greater(a, 0, "首项进度回调应持续收到");
+            Assert.Greater(c, 0, "尾项进度回调不应因中间项被摘除而丢失");
+            Assert.AreEqual(0, b, "已取消的中间项不应再收到回调");
         }
 
         #endregion
