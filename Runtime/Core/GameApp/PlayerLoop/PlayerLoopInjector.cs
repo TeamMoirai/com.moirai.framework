@@ -7,9 +7,8 @@ namespace Moirai.Atropos
 {
     /// <summary>
     /// 将 <see cref="PlayerLoopDriver"/> 的 Drive 回调注入 Unity PlayerLoop。
-    /// <para>注入时基于当前 PlayerLoop，保留 UniTask / 第三方已插入的系统。</para>
-    /// <para>在 <c>SubsystemRegistration</c> 记录默认循环，供 <see cref="RestoreDefault"/> 显式复原；
-    /// 关闭流程走 <see cref="RemoveMoiraiSystems"/>，只摘自己、不动别人的注入。</para>
+    /// <para>注入与复原都只针对本框架的三个标记：注入基于当前 PlayerLoop，不覆盖 UniTask /
+    /// 第三方已插入的系统；<see cref="RestoreDefault"/> 也只逐项摘掉自己，不把整条引擎默认循环盖回去。</para>
     /// <para>ECS/DOTS 若在 <c>AfterSceneLoad</c> 之前（含 <c>BeforeSceneLoad</c>）重置 PlayerLoop，由
     /// <c>VerifyInjection</c>（<c>AfterSceneLoad</c>）按循环实况自动补插；更晚的重建在完成后调用
     /// <see cref="Reinject"/>。</para>
@@ -29,21 +28,17 @@ namespace Moirai.Atropos
         private static PlayerLoopSystem.UpdateFunction s_FixedUpdateDelegate;
         private static PlayerLoopSystem.UpdateFunction s_LateUpdateDelegate;
 
-        private static bool s_HasDefaultLoop;
-        private static PlayerLoopSystem s_DefaultLoop;
         private static bool s_Injected;
 
         /// <summary>是否已注入 Moirai PlayerLoop 系统。</summary>
         public static bool IsInjected => s_Injected;
 
         /// <summary>
-        /// 在域注册阶段记录默认 PlayerLoop，并缓存 Drive 委托（避免注入时分配）。
+        /// 在域注册阶段复位注入标志（禁用域重载时上一局 Play 的值会残留），并缓存 Drive 委托（避免注入时分配）。
         /// </summary>
         [UnityEngine.RuntimeInitializeOnLoadMethod(UnityEngine.RuntimeInitializeLoadType.SubsystemRegistration)]
-        private static void CaptureDefaultPlayerLoop()
+        private static void ResetInjectionState()
         {
-            s_DefaultLoop = UnityPlayerLoop.GetDefaultPlayerLoop();
-            s_HasDefaultLoop = true;
             s_Injected = false;
 
             s_UpdateDelegate ??= OnUpdateDrive;
@@ -135,25 +130,11 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 恢复域注册时记录的默认 PlayerLoop，并标记未注入。
-        /// <para><b>破坏性：会连带移除 UniTask 等全部第三方注入</b>，而它们不会自行重新注入。
-        /// 框架关闭流程已改用 <see cref="RemoveMoiraiSystems"/>；本方法留给调试窗的显式复原按钮，
-        /// 以及"确认循环已被第三方污染到无法逐项清理"的场合。</para>
+        /// 复原到「本框架未注入」的状态：仅逐项移除 Moirai 自身系统，保留 UniTask 等其它第三方注入。
+        /// <para>关闭流程即走这里：进程可能还要继续跑若干帧（重启场景、退出流程中的异步存档落盘），
+        /// 这些依赖第三方 Pump——它们不会自行重新注入，被整条循环盖掉的瞬间其 <c>await</c> 就永不续跑。</para>
         /// </summary>
         public static void RestoreDefault()
-        {
-            if (!s_HasDefaultLoop) return;
-
-            UnityPlayerLoop.SetPlayerLoop(s_DefaultLoop);
-            s_Injected = false;
-        }
-
-        /// <summary>
-        /// 仅移除 Moirai 自身系统，保留 UniTask 等其它第三方注入。
-        /// <para>关闭流程的默认选择：进程可能还要继续跑若干帧（重启场景、退出流程中的异步存档落盘），
-        /// 这些依赖第三方 Pump，不能因为它们已经"该退了"就把整条循环拆掉。</para>
-        /// </summary>
-        public static void RemoveMoiraiSystems()
         {
             PlayerLoopSystem loop = UnityPlayerLoop.GetCurrentPlayerLoop();
             bool changed = RemoveSystem(ref loop, typeof(MoiraiUpdate));

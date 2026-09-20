@@ -13,7 +13,7 @@ The previous `GameApp` stored `Update`/`FixedUpdate`/`LateUpdate` listeners on *
 | Component | Responsibility |
 |------|------|
 | `internal PlayerLoopDriver` (`Moirai.Atropos`) | Zero-alloc static registry + Drive entry points; framework-internal |
-| `internal PlayerLoopInjector` (`Moirai.Atropos`) | Inject/remove Unity `PlayerLoopSystem` entries |
+| `internal PlayerLoopInjector` (`Moirai.Atropos`) | Injects/restores Unity `PlayerLoopSystem` entries — in both directions it touches only our three markers |
 | `IUpdateHandler` / `IFixedUpdateHandler` / `ILateUpdateHandler` | Interface handlers (recommended, DI-friendly), registered via `GameApp.AddXxxHandler` |
 | `IPlayerLoopPriority` | Optional drive order (lower runs first) |
 | `GameApp` static facade | **The only public entry**: `AddUpdateListener` for Action hooks, `AddXxxHandler` / `AddFrameHandler` for interface handlers; holds no MonoBehaviour |
@@ -25,7 +25,7 @@ Injection points:
 - Start of `PlayerLoop.FixedUpdate` → Framework FixedUpdate
 - End of `PlayerLoop.PreLateUpdate` → Framework LateUpdate (after MonoBehaviour.LateUpdate)
 
-Injection uses the **current** PlayerLoop so UniTask and other systems are preserved. The default loop captured at `SubsystemRegistration` exists only for the debug window's explicit `RestoreDefault`; shutdown uses `RemoveMoiraiSystems()` and takes just our three markers out.
+Both injection and restoration touch only our three markers: injection bases on `GetCurrentPlayerLoop()` so UniTask and other systems stay in place, and `RestoreDefault()` takes our markers out item by item — it does **not** paste the engine default loop back over everything, which would also tear down third-party pumps that never re-inject themselves. `SubsystemRegistration` only resets the injected flag and caches the Drive delegates.
 
 Each Drive entry samples the frame clock with `GameTime.StartFrame()` before invoking handlers and then callbacks — **both subscription kinds read the same frame**.
 
@@ -97,10 +97,10 @@ An `IUpdateHandler` implemented on a destroyed `MonoBehaviour` throws `MissingRe
 
 | Moment | Behavior |
 |------|------|
-| `SubsystemRegistration` | Capture default PlayerLoop; Driver marked Shutdown; `GameAppHost` clears its shutdown flag |
+| `SubsystemRegistration` | Resets the injected flag and caches the Drive delegates; Driver marked Shutdown; `GameAppHost` clears its shutdown flag |
 | `GameApp.Initialize` (`BeforeSceneLoad`) | `PlayerLoopDriver.Initialize()` injects + installs the built-in core hooks, then materializes `GameAppHost`; injection is verified against the actual loop — if any marker is missing the injected flag stays false and a warning is logged |
 | `AfterSceneLoad` | Self-heal: if a third party rebuilt the loop from default at or before `BeforeSceneLoad` (including same-phase but later than this framework) and wiped the markers, re-inserts them based on the live loop and logs a warning. **The phase must not move earlier than the injection point** — injection happens at `BeforeSceneLoad`, and before it `s_Injected` is always false, so the guard's first line returns and the check never runs |
-| `GameApp.Shutdown` / exit Play | Broadcast Destroy → clear registry → `RemoveMoiraiSystems()` takes only our three markers → destroy host. No longer `RestoreDefault`s the whole loop |
+| `GameApp.Shutdown` / exit Play | Broadcast Destroy → clear registry → `RestoreDefault()` takes our three markers out item by item (third-party injections stay as they were) → destroy host |
 | After ECS resets PlayerLoop | Rebuilds up to `AfterSceneLoad` are re-inserted by the self-heal; later ones (e.g. at the end of a custom bootstrap) need `PlayerLoopInjector.Reinject()` after they complete |
 
 ## DI (VContainer etc.)
@@ -117,7 +117,7 @@ Unregister with `GameApp.RemoveUpdateHandler(system)`, or `GameApp.AddFrameHandl
 
 ## Compatibility
 
-- **UniTask**: injection bases on the current loop and never overwrites UniTask's systems. Shutdown goes through `RemoveMoiraiSystems()`, so UniTask's injection **survives intact** and its `await` continuations still resume after the framework closes — the exit path's async save flush and the debug window's `Shutdown (Restart)` (which calls `LoadScene` right after `GameApp.Shutdown()`) both depend on this. This slot used to call `RestoreDefault`, which pasted the engine default loop back over everything, removing UniTask's pump — and UniTask does not re-inject itself; with DisableDomainReload it also left edit-mode UniTask stalled until the next domain reload. Use the debug window's `RestoreDefault` button when you genuinely want the whole loop back.
+- **UniTask**: injection bases on the current loop and never overwrites UniTask's systems. Shutdown goes through `RestoreDefault()`, so UniTask's injection **survives intact** and its `await` continuations still resume after the framework closes — the exit path's async save flush and the debug window's `Shutdown (Restart)` (which calls `LoadScene` right after `GameApp.Shutdown()`) both depend on this. A project that wants the engine default loop back pastes it itself with `PlayerLoop.SetPlayerLoop(PlayerLoop.GetDefaultPlayerLoop())`, keeping in mind that UniTask's pump does not come back along with it.
 - **ECS/DOTS**: Entities may reset the PlayerLoop at `BeforeSceneLoad` — rebuilds happening before/early relative to the self-heal check are re-inserted automatically; if the reset runs later (e.g. a custom bootstrap), call `PlayerLoopInjector.Reinject()` after initialization completes.
 - **ApplicationPause**: Unity exposes no pure C# event — `GameAppHost.OnApplicationPause` forwards to `PlayerLoopDriver.RaiseApplicationPause`. Subscriptions live in the static table, so rebuilding the host restores dispatch.
 - **Gizmos**: same pattern — `GameAppHost.OnDrawGizmos(Selected)` forwards to `PlayerLoopDriver.RaiseDrawGizmos(Selected)`. Only the editor has a dispatcher; in builds the table is never raised.
@@ -125,11 +125,13 @@ Unregister with `GameApp.RemoveUpdateHandler(system)`, or `GameApp.AddFrameHandl
 
 ## Editor Debugging
 
-Menu **Window → PlayerLoop Debugger**:
+Menu **Window → PlayerLoop Debugger** (an Odin window):
 
-- Recursive dump of the current PlayerLoop with Moirai markers `<< Moirai`
-- Handler/callback counts per stage
-- Buttons: Ensure Injected / Reinject / Restore Default
+- **Status**: markers found vs `IsInjected`, whether the driver is `Shutdown` or `Driving`, and `GameTime` next to the engine `Time` — if the frame numbers stop tracking each other, the driver is not running
+- **Stage table**: whether each of Update / FixedUpdate / LateUpdate still has its marker in the loop (including its index inside the parent phase list), plus the handler and callback counts
+- **Loop tree**: collapsible, filterable by type name, and a markers-only view. Moirai markers render green; a third-party pump (has a delegate, is not ours — UniTask and friends) renders blue, since keeping those is exactly what the shutdown path is for. `Locate Moirai` expands the three injection points in one click
+- **Buttons**: Refresh / Ensure Injected / Reinject / Restore Default, mapping one-to-one onto `PlayerLoopInjector`; `Restore Default` is the same call the shutdown path makes (our markers only)
+- **Auto refresh**: re-scans the loop on a configurable interval
 
 ---
 [« Documentation Index](Index.md) · [GameApp](GameApp.md)

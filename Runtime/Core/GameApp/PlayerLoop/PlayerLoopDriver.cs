@@ -170,18 +170,17 @@ namespace Moirai.Atropos
             ClearHandlers();
             UnhookApplicationLifecycle();
 
-            // 只摘自己，不用 RestoreDefault：后者把引擎默认循环整个盖回去，会连带移除 UniTask 等
-            // 第三方注入。而 Shutdown 并不总意味着进程结束——GameApp.Shutdown 之后可能还要
-            // LoadScene 重启（调试器 OperationsWindow 的 Shutdown (Restart)），或正在退出流程中
-            // 等待异步存档落盘。这些时刻失去 Pump，await 就永不续跑。
-            PlayerLoopInjector.RemoveMoiraiSystems();
+            // 只摘本框架的三个标记，第三方注入原样保留：Shutdown 并不总意味着进程结束——GameApp.Shutdown
+            // 之后可能还要 LoadScene 重启（调试器 OperationsWindow 的 Shutdown (Restart)），或正在退出流程中
+            // 等待异步存档落盘。而 UniTask 等第三方 Pump 不会自行重新注入，这些时刻没了 Pump，await 就永不续跑。
+            PlayerLoopInjector.RestoreDefault();
         }
 
         /// <summary>
-        /// 清空全部 Handler / 回调订阅，但不广播 Destroy、不恢复 PlayerLoop。
+        /// 清空全部 Handler / 回调订阅，但不广播 Destroy、不动 PlayerLoop。
         /// <para>由 <see cref="Shutdown"/> 调用；域重载下静态字段随域自然复位，故
         /// <see cref="ResetOnDomainReload"/> 有意不调它。做成 internal 是为了让测试能只复位注册表，
-        /// 不必连 <see cref="PlayerLoopInjector.RestoreDefault"/> 的全局 PlayerLoop 副作用一起触发。</para>
+        /// 不必连 <see cref="PlayerLoopInjector.RestoreDefault"/> 的 <c>SetPlayerLoop</c> 一起触发。</para>
         /// </summary>
         internal static void ClearHandlers()
         {
@@ -208,9 +207,9 @@ namespace Moirai.Atropos
 
         /// <summary>
         /// 测试专用：复位注册表并设置活跃位，<b>不</b>触碰 PlayerLoop 注入与 Application 事件。
-        /// <para>EditMode 测试不能走 <see cref="Initialize"/>——它会 <c>SetPlayerLoop</c> 改写编辑器全局循环，
-        /// 而 <see cref="PlayerLoopInjector.RestoreDefault"/> 在 EditMode 下无从复原（默认循环只在
-        /// SubsystemRegistration 捕获）。故此处只切活跃位。</para>
+        /// <para>EditMode 测试不能走 <see cref="Initialize"/>——它会 <c>SetPlayerLoop</c> 把 Drive 挂进
+        /// 编辑器自己的循环，此后每条用例都在编辑模式的真实帧里被驱动，测试之间也随之互相污染。
+        /// 故此处只切活跃位。</para>
         /// </summary>
         internal static void ResetForTests(bool active)
         {
