@@ -20,21 +20,13 @@ namespace GameProto.Config
     {
         #region 初始化 [INITIALIZE]
 
-        private static bool s_Registered = false;
-        /// <summary>
-        /// 注册配置表实例。
-        /// </summary>
-        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
 #if UNITY_EDITOR
-        [UnityEditor.InitializeOnLoadMethod]
-#endif
-        private static void Initialize()
+        [UnityEditor.Callbacks.DidReloadScripts]
+        private static void OnDidReloadScripts()
         {
-            if (s_Registered) return;
-            
-            ConfigTableService.Handler = new LubanHandler();
-            s_Registered = true;
+            ConfigTableServiceSettings.RegisterHandler<LubanHandler>();
         }
+#endif
 
         #endregion
 
@@ -111,7 +103,7 @@ namespace GameProto.Config
             // {
             //     str += $"{item.Key}[{item.Value.Count}]: {string.Join(",", item.Value)}\n";
             // }
-            // LogUtility.Info($"AllLocalizedStrings:\n{str}");
+            // LogUtility.Info("AllLocalizedStrings:\n{0}", str);
         }
 
         #endregion
@@ -124,7 +116,7 @@ namespace GameProto.Config
 
             if (!Tables.TbUIWindow.DataMap.TryGetValue(id, out var uiWindowConfig))
             {
-                LogUtility.Warning($"UI ID[{id}] is invalid.");
+                LogUtility.Warning("UI ID[{0}] is invalid.", id);
                 return string.Empty;
             }
             
@@ -146,18 +138,18 @@ namespace GameProto.Config
 
             if (!Tables.TbSprite.DataMap.TryGetValue(id, out var spriteConfig))
             {
-                LogUtility.Warning($"Sprite ID[{id}] is invalid.");
+                LogUtility.Warning("Sprite ID[{0}] is invalid.", id);
                 return null;
             }
             
             if (!Tables.TbSpriteAtlas.DataMap.TryGetValue(spriteConfig.SpriteAtlasId, out var atlasConfig))
             {
-                LogUtility.Warning($"SpriteAtlasId ID[{id}] is invalid.");
+                LogUtility.Warning("SpriteAtlasId ID[{0}] is invalid.", id);
                 return null;
             }
             
-            // Log.Info($"LoadSpriteByID {id} from {atlasConfig.Location}");
-
+            // LogUtility.Info("LoadSpriteByID {0} from {1}", id, atlasConfig.Location);
+            
             using var lease =
 #if UNITY_WEBGL
                 await ResourceService.LoadLeaseAsync<SpriteAtlas>(atlasConfig.Location, packageName: atlasConfig.PackageName);
