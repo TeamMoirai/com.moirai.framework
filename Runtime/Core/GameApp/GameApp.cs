@@ -13,12 +13,50 @@ namespace Moirai.Atropos
     /// </summary>
     public partial class GameApp
     {
+        #region 订阅句柄 [SUBSCRIPTION]
+
+        /// <summary>
+        /// <see cref="GameApp"/> 各类订阅的可注销句柄。
+        /// <para>存在的理由：注册表按<b>委托相等</b>比较来注销，而 lambda 每次求值都是新的委托实例——
+        /// <c>AddUpdateListener(() =&gt; Foo())</c> 之后重写一个同样体的 lambda 去 Remove 是摘不掉的，
+        /// 订阅连同闭包捕获的对象会一直留到 <see cref="Shutdown"/>。句柄在注册时就攥住那个确切实例，
+        /// 因此 lambda 也能干净注销。</para>
+        /// <para>非线程安全；只在主线程创建与释放。框架已 <see cref="Shutdown"/> 后 Dispose 是空操作
+        /// （注册表已被清空）。</para>
+        /// </summary>
+        public sealed class Subscription : IDisposable
+        {
+            private Action m_DisposeAction;
+
+            internal Subscription(Action disposeAction)
+            {
+                m_DisposeAction = disposeAction;
+            }
+
+            /// <summary>是否仍处于订阅状态（未 Dispose 过）。</summary>
+            public bool IsSubscribed => m_DisposeAction != null;
+
+            /// <summary>注销订阅。幂等——重复调用安全。</summary>
+            public void Dispose()
+            {
+                Action dispose = m_DisposeAction;
+                if (dispose == null) return;
+
+                m_DisposeAction = null;
+                dispose();
+            }
+        }
+
+        #endregion
+
         #region 属性 [PROPERTIES]
 
         // 运行态与配置态分离：GameAppSettings 的 m_* 字段只作开机默认值（由 Initiation 推给引擎一次），
         // 运行期不再回写。往资产里写运行时值有两个后果：Resources 下的共享 ScriptableObject 在编辑器里
         // 跨 Play 会话残留；且 IsGamePaused 这类判据读到的是配置意图而非引擎实况。
         // 播种点取引擎当前值（见 Initialize 里的 SeedRuntimeFromEngine），因此本类运行期不再解引用配置资产。
+        // 这五个字段承载的是**引擎状态的门面**而非框架存活状态：IsShutdown 之后照样可读写、不抛，写入即刻
+        // 作用于引擎，并在下一次 Initialize 时被重新播种成基线——关闭后调它们不会丢，只是改的是实况本身。
         private static int s_FrameRate;
         private static float s_GameSpeed = 1f;
         private static bool s_RunInBackground;
@@ -126,6 +164,14 @@ namespace Moirai.Atropos
         /// <summary>
         /// 关闭游戏框架。幂等——重复调用安全。
         /// 统一入口：编辑器退出 Play 模式与 ApplicationQuit 均通过此方法清理。
+        /// <para>关闭会把未配对完的暂停一并退掉（<see cref="PauseGame"/> 的计数归零并回放
+        /// <see cref="GameSpeed"/>）——留着会让关闭后的若干帧一直跑在 <c>timeScale = 0</c> 上，
+        /// 且下一次 <see cref="Initialize"/> 会从被冻结的引擎实况播种出 <c>GameSpeed = 0</c>，
+        /// 而 <see cref="ResumeGame"/> 在计数 0 是空操作，届时没有任何 API 能把速度救回来。</para>
+        /// <para>关闭后的运行态属性（<see cref="FrameRate"/> / <see cref="GameSpeed"/> /
+        /// <see cref="RunInBackground"/> / <see cref="NeverSleep"/> / <see cref="IsGamePaused"/>）
+        /// 仍可读写且不抛：它们是引擎状态的门面，不依赖框架存活，写入即刻生效并成为下一轮启动的基线。
+        /// 帧订阅与协程不在此列——注册表已清空、宿主已释放，订阅不会被驱动，协程可能拿不到宿主。</para>
         /// </summary>
         internal static void Shutdown()
         {
@@ -133,6 +179,13 @@ namespace Moirai.Atropos
 
             LogUtility.Info("GameApp Shutdown");
             IsShutdown = true;
+
+            // 放在最前：下面的清理与关闭后的续跑帧（重启场景 / 退出期异步落盘）都不该跑在冻结的时钟上
+            if (s_PauseDepth > 0)
+            {
+                s_PauseDepth = 0;
+                Time.timeScale = s_GameSpeed;
+            }
 
 #if UNITY_EDITOR
             UnityEditor.EditorApplication.playModeStateChanged -= HandlePlayModeStateChanged;
@@ -199,12 +252,23 @@ namespace Moirai.Atropos
         /// <summary>
         /// 启动全局协程。
         /// </summary>
+        /// <param name="routine">协程枚举器；<c>null</c> 时静默返回 <c>null</c>。</param>
+        /// <returns>协程句柄；宿主不可用（框架已关闭，或处于退出窗口）时为 <c>null</c> 并告警。</returns>
         public static Coroutine StartCoroutine(IEnumerator routine)
         {
             if (routine == null) return null;
 
             GameAppHost host = GameAppHost.Instance;
-            return host != null ? host.StartCoroutine(routine) : null;
+            if (host == null)
+            {
+                // 与「参数为空」区分开：宿主取不到意味着协程根本没跑，而调用方拿到的只是无声的 null
+                LogUtility.Warning(
+                    "GameApp.StartCoroutine: {0} 未启动——GameAppHost 不可用（框架已 Shutdown 或处于退出窗口）。",
+                    routine.GetType().FullName);
+                return null;
+            }
+
+            return host.StartCoroutine(routine);
         }
 
         /// <summary>
@@ -245,29 +309,42 @@ namespace Moirai.Atropos
         /// <summary>
         /// 添加帧更新事件。订阅写入 <see cref="PlayerLoopDriver"/> 静态表，宿主销毁不丢失。
         /// </summary>
-        public static void AddUpdateListener(Action action)
+        /// <param name="action">帧回调；<c>null</c> 时不注册并返回 <c>null</c>。</param>
+        /// <returns>可用于注销的句柄（同参数重复注册会被驱动去重，任一持有句柄 Dispose 即注销该唯一登记）。
+        /// 用 lambda 注册时**只能**靠本句柄注销——<see cref="RemoveUpdateListener"/> 按委托相等比较，
+        /// 再写一个同样体的 lambda 是新实例，摘不掉。</returns>
+        public static Subscription AddUpdateListener(Action action)
         {
+            if (action == null) return null;
+
             PlayerLoopDriver.AddUpdateCallback(action);
+            return new Subscription(() => PlayerLoopDriver.RemoveUpdateCallback(action));
         }
 
         /// <summary>
-        /// 添加物理帧更新事件。
+        /// 添加物理帧更新事件。语义同 <see cref="AddUpdateListener"/>。
         /// </summary>
-        public static void AddFixedUpdateListener(Action action)
+        public static Subscription AddFixedUpdateListener(Action action)
         {
+            if (action == null) return null;
+
             PlayerLoopDriver.AddFixedUpdateCallback(action);
+            return new Subscription(() => PlayerLoopDriver.RemoveFixedUpdateCallback(action));
         }
 
         /// <summary>
-        /// 添加Late帧更新事件。
+        /// 添加Late帧更新事件。语义同 <see cref="AddUpdateListener"/>。
         /// </summary>
-        public static void AddLateUpdateListener(Action action)
+        public static Subscription AddLateUpdateListener(Action action)
         {
+            if (action == null) return null;
+
             PlayerLoopDriver.AddLateUpdateCallback(action);
+            return new Subscription(() => PlayerLoopDriver.RemoveLateUpdateCallback(action));
         }
 
         /// <summary>
-        /// 移除帧更新事件。
+        /// 移除帧更新事件。仅对能取回同一委托实例的注册有效（方法组、缓存于字段的委托）。
         /// </summary>
         public static void RemoveUpdateListener(Action action)
         {
@@ -275,7 +352,7 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 移除物理帧更新事件。
+        /// 移除物理帧更新事件。有效性同 <see cref="RemoveUpdateListener"/>。
         /// </summary>
         public static void RemoveFixedUpdateListener(Action action)
         {
@@ -283,7 +360,7 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 移除Late帧更新事件。
+        /// 移除Late帧更新事件。有效性同 <see cref="RemoveUpdateListener"/>。
         /// </summary>
         public static void RemoveLateUpdateListener(Action action)
         {
@@ -364,13 +441,17 @@ namespace Moirai.Atropos
         /// <summary>
         /// 注册Destroy事件。在 <see cref="Shutdown"/> 时广播。
         /// </summary>
-        public static void AddDestroyListener(Action action)
+        /// <returns>可用于注销的句柄；<paramref name="action"/> 为 <c>null</c> 时返回 <c>null</c>。</returns>
+        public static Subscription AddDestroyListener(Action action)
         {
+            if (action == null) return null;
+
             PlayerLoopDriver.AddDestroyCallback(action);
+            return new Subscription(() => PlayerLoopDriver.RemoveDestroyCallback(action));
         }
 
         /// <summary>
-        /// 反注册Destroy事件。
+        /// 反注册Destroy事件。仅对能取回同一委托实例的注册有效。
         /// </summary>
         public static void RemoveDestroyListener(Action action)
         {
@@ -381,14 +462,18 @@ namespace Moirai.Atropos
         /// 注册OnDrawGizmos事件（仅编辑器）。
         /// <para>订阅写入 <see cref="PlayerLoopDriver"/> 静态表，宿主销毁不丢失；此处只确保派发者存在。</para>
         /// </summary>
-        public static void AddOnDrawGizmosListener(Action action)
+        /// <returns>可用于注销的句柄；<paramref name="action"/> 为 <c>null</c> 时返回 <c>null</c>。</returns>
+        public static Subscription AddOnDrawGizmosListener(Action action)
         {
+            if (action == null) return null;
+
             PlayerLoopDriver.AddDrawGizmosCallback(action);
             GameAppHost.Bootstrap();
+            return new Subscription(() => PlayerLoopDriver.RemoveDrawGizmosCallback(action));
         }
 
         /// <summary>
-        /// 反注册OnDrawGizmos事件。
+        /// 反注册OnDrawGizmos事件。仅对能取回同一委托实例的注册有效。
         /// </summary>
         public static void RemoveOnDrawGizmosListener(Action action)
         {
@@ -396,16 +481,19 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 注册OnDrawGizmosSelected事件（仅编辑器）。
+        /// 注册OnDrawGizmosSelected事件（仅编辑器）。语义同 <see cref="AddOnDrawGizmosListener"/>。
         /// </summary>
-        public static void AddOnDrawGizmosSelectedListener(Action action)
+        public static Subscription AddOnDrawGizmosSelectedListener(Action action)
         {
+            if (action == null) return null;
+
             PlayerLoopDriver.AddDrawGizmosSelectedCallback(action);
             GameAppHost.Bootstrap();
+            return new Subscription(() => PlayerLoopDriver.RemoveDrawGizmosSelectedCallback(action));
         }
 
         /// <summary>
-        /// 反注册OnDrawGizmosSelected事件。
+        /// 反注册OnDrawGizmosSelected事件。仅对能取回同一委托实例的注册有效。
         /// </summary>
         public static void RemoveOnDrawGizmosSelectedListener(Action action)
         {
@@ -416,14 +504,20 @@ namespace Moirai.Atropos
         /// 注册OnApplicationPause事件。
         /// <para>暂停回调只能由 MonoBehaviour 消息派发，故注册时一并物化 <see cref="GameAppHost"/>。</para>
         /// </summary>
-        public static void AddOnApplicationPauseListener(Action<bool> action)
+        /// <returns>可用于注销的句柄；<paramref name="action"/> 为 <c>null</c> 时返回 <c>null</c>。
+        /// 这类回调用 lambda 的情形最多，而 <see cref="RemoveOnApplicationPauseListener"/> 摘不掉
+        /// 事后重写的 lambda——注销请持本句柄。</returns>
+        public static Subscription AddOnApplicationPauseListener(Action<bool> action)
         {
+            if (action == null) return null;
+
             PlayerLoopDriver.AddApplicationPauseCallback(action);
             GameAppHost.Bootstrap();
+            return new Subscription(() => PlayerLoopDriver.RemoveApplicationPauseCallback(action));
         }
 
         /// <summary>
-        /// 反注册OnApplicationPause事件。
+        /// 反注册OnApplicationPause事件。仅对能取回同一委托实例的注册有效。
         /// </summary>
         public static void RemoveOnApplicationPauseListener(Action<bool> action)
         {

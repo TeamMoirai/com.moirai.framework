@@ -63,7 +63,7 @@ GameApp.AddDestroyListener(OnShutdown);
 
 ## 注意事项
 
-- 监听器持有强引用，务必成对 `Add`/`Remove`；`Shutdown` 时 Driver 统一清空。
+- 监听器持有强引用，务必注销；`Shutdown` 时 Driver 统一清空。注销优先持 `Add*Listener` 返回的 `GameApp.Subscription` 并 `Dispose()`——`Remove*Listener(Action)` 按委托相等比较，**事后重写一个同样体的 lambda 摘不掉**（那是新的委托实例），订阅会连闭包一起留到 `Shutdown`。
 - Gizmos API 仅编辑器有派发者；订阅写入 Driver 静态表，注册本身在打包后也无害。
 - 请勿手动销毁 `[GameAppHost]`；销毁后经 `Instance` 惰性重建，届时只恢复派发，订阅从未丢失。
 - 后台线程调用 `GameApp.StartCoroutine` 等会经 `SingletonMono<T>.Instance` 抛出：宿主必须先在主线程物化（`GameApp.Initialize` 已保证）。

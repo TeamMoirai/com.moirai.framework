@@ -15,24 +15,34 @@ namespace Moirai.Atropos
         // ReSharper disable once InconsistentNaming
         public static TSetting LoadSettingSO<TSetting>(string settingPath, Action<TSetting> onNewAsset = null) where TSetting : ScriptableObject
         {
-            #region 保证配置文件唯一
+            #region 检出重复配置（只报告，不代删）
 
             string[] guids = AssetDatabase.FindAssets($"t:{typeof(TSetting).Name}");
 
             bool hasSetting = false;
+            string duplicatePaths = null;
             foreach (string guid in guids)
             {
                 string assetPath = AssetDatabase.GUIDToAssetPath(guid);
                 if (assetPath != settingPath)
                 {
-                    Debug.LogWarning($"删除不正确的配置路径：{assetPath}");
-                    AssetDatabase.DeleteAsset(assetPath);
-                    AssetDatabase.DeleteAsset(assetPath + ".meta");
+                    duplicatePaths = duplicatePaths == null ? assetPath : duplicatePaths + "、" + assetPath;
                 }
-                else if (!hasSetting)
+                else
                 {
                     hasSetting = true;
                 }
+            }
+
+            // 本方法是"读一次配置"的公共入口，
+            // 在其中静默删用户资产不可接受：同名类型存两份合法用法不少（分平台、A/B、包内默认 + 项目覆盖），删掉任何一份都是丢工作。
+            // 真实风险如实报出来即可——打包后 Resources.Load 在多份之间取哪一份不由路径决定。
+            if (duplicatePaths != null)
+            {
+                Debug.LogError(
+                    $"{typeof(TSetting).Name} 存在多份资产。期望路径：{settingPath}；另有：{duplicatePaths}。" +
+                    "打包时 Resources.Load 取到哪一份不确定，请自行确认并保留唯一副本" +
+                    "（本方法不会代你删除任何资产）。");
             }
 
             if (hasSetting)

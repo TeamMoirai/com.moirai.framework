@@ -61,7 +61,7 @@ GameApp.AddDestroyListener(OnShutdown);
 
 ## Notes
 
-- Listeners hold strong references — always pair Add/Remove; Shutdown clears the Driver.
+- Listeners hold strong references — always unregister; `Shutdown` clears the Driver. Prefer keeping the `GameApp.Subscription` returned by `Add*Listener` and calling `Dispose()`: `Remove*Listener(Action)` compares by delegate equality, so **a freshly written lambda with the same body will not remove it** (that is a new delegate instance) and the subscription — closure captures included — survives until `Shutdown`.
 - Gizmos APIs only have a dispatcher in the editor; subscriptions still go to the Driver's static table, so registering in a build is harmless.
 - Do not manually destroy `[GameAppHost]`; it is lazily rebuilt through `Instance`, which restores dispatch only — subscriptions were never lost.
 - Calling `GameApp.StartCoroutine` from a background thread throws via `SingletonMono<T>.Instance`: the host must be materialized on the main thread first (`GameApp.Initialize` guarantees this).
