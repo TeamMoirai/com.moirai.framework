@@ -73,7 +73,7 @@ namespace Moirai.Atropos
         /// <summary>
         /// 游戏设置初始化
         /// </summary>
-        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterAssembliesLoaded)]
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         private static void Initiation()
         {
             // 系统设置
