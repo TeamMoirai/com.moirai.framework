@@ -79,17 +79,15 @@ namespace Moirai.Atropos
 #>
     }
 
-    public abstract partial class StringHandler
+    /// <summary>
+    /// 格式化方法（partial）。由 T4 模板统一生成，确保与 <see cref="StringUtility"/> 的 Format 重载保持同步。
+    /// </summary>
+    public partial interface IStringBuilder
     {
         /// <summary>
-        /// 格式化方法（partial）。由 T4 模板统一生成，确保与 <see cref="StringUtility"/> 的 Format 重载保持同步。
+        /// 格式化字符串并返回结果。
         /// </summary>
-        public partial interface IStringBuilder
-        {
-            /// <summary>
-            /// 格式化字符串并返回结果。
-            /// </summary>
-            string Format(string format);
+        string Format(string format);
 
 <#
     for (int n = 1; n <= 16; n++)
@@ -97,14 +95,13 @@ namespace Moirai.Atropos
         string tp = "<" + string.Join(", ", Enumerable.Range(1, n).Select(i => "T" + i)) + ">";
         string fp = "string format, " + string.Join(", ", Enumerable.Range(1, n).Select(i => "T" + i + " arg" + i));
 #>
-            /// <summary>
-            /// 格式化字符串并返回结果。
-            /// </summary>
-            string Format<#= tp #>(<#= fp #>);
+        /// <summary>
+        /// 格式化字符串并返回结果。
+        /// </summary>
+        string Format<#= tp #>(<#= fp #>);
 
 <#
     }
 #>
-        }
     }
 }
