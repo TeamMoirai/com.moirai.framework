@@ -6,17 +6,17 @@
 
 The previous `GameApp` stored `Update`/`FixedUpdate`/`LateUpdate` listeners on **instance events** of a hidden Mono host. That host could be destroyed before the initial scene load, silently dropping all subscriptions.
 
-`Runtime/Services/Timer` (`TimerService`) is the unified timing subsystem (four-level timing wheel + frame timers), exposing `Delay` / `WaitFrame` and friends. It is advanced through `IServiceTickable` by `GameServices.Tick`, which is itself registered as an Update callback on this driver. `IUpdateHandler` targets game-side systems and DI composition roots — do not confuse the two paths.
+`Runtime/Services/Timer` (`TimerService`) is the unified timing subsystem (four-level timing wheel + frame timers), exposing `Delay` / `WaitFrame` and friends. It is advanced through `IServiceTickable` by `GameServices.Tick`, which itself is installed as this driver's Update **core hook** (runs ahead of every user subscriber and is never tripped out). `IUpdateHandler` targets game-side systems and DI composition roots — do not confuse the two paths.
 
 ## Architecture
 
 | Component | Responsibility |
 |------|------|
-| `Moirai.Atropos.FrameLoop.PlayerLoopDriver` | Zero-alloc static registry + Drive entry points |
-| `Moirai.Atropos.FrameLoop.PlayerLoopInjector` | Inject/restore Unity `PlayerLoopSystem` |
-| `IUpdateHandler` / `IFixedUpdateHandler` / `ILateUpdateHandler` | Interface handlers (recommended, DI-friendly) |
+| `internal PlayerLoopDriver` (`Moirai.Atropos`) | Zero-alloc static registry + Drive entry points; framework-internal |
+| `internal PlayerLoopInjector` (`Moirai.Atropos`) | Inject/remove Unity `PlayerLoopSystem` entries |
+| `IUpdateHandler` / `IFixedUpdateHandler` / `ILateUpdateHandler` | Interface handlers (recommended, DI-friendly), registered via `GameApp.AddXxxHandler` |
 | `IPlayerLoopPriority` | Optional drive order (lower runs first) |
-| `GameApp` static APIs | Compatibility facade forwarding to Driver; holds no MonoBehaviour |
+| `GameApp` static facade | **The only public entry**: `AddUpdateListener` for Action hooks, `AddXxxHandler` / `AddFrameHandler` for interface handlers; holds no MonoBehaviour |
 | `GameAppHost` | The single lightweight Mono host: coroutines / Gizmos / ApplicationPause, forwarding only |
 
 Injection points:
@@ -32,8 +32,10 @@ Each Drive entry samples the frame clock with `GameTime.StartFrame()` before inv
 ## Quick Start
 
 ```csharp
-using Moirai.Atropos.FrameLoop;
+using Moirai.Atropos;
 
+// Interface style: carries state, takes constructor-injected dependencies,
+// and can pin its position in the stage via IPlayerLoopPriority
 public sealed class MySystem : IUpdateHandler
 {
     public void Update(float deltaTime, float unscaledDeltaTime)
@@ -42,16 +44,24 @@ public sealed class MySystem : IUpdateHandler
     }
 }
 
-PlayerLoopDriver.Initialize();
-PlayerLoopDriver.Register(new MySystem());
+// Register from game code / the composition root
+GameApp.AddUpdateHandler(mySystem);
+GameApp.RemoveUpdateHandler(mySystem);
 
-// Compatibility API
+// A class implementing several stage interfaces at once
+GameApp.AddFrameHandler(myMultiStageSystem);
+
+// Stateless one-off hooks
 GameApp.AddUpdateListener(OnUpdate);
+GameApp.RemoveUpdateListener(OnUpdate);
 ```
 
-> A type implementing several stage interfaces makes `Register(handler)` an ambiguous-overload
-> compile error: use `RegisterAll(handler)` for every implemented stage, or cast to target one —
-> `Register((ILateUpdateHandler)handler)`.
+> `PlayerLoopDriver` itself is **internal**: the registries, the `Raise*` engine-event forwarders and the
+> `ResetForTests` seam are not part of the public surface. Game code goes through the `GameApp` facade above.
+> Assemblies inside the framework (or on its `InternalsVisibleTo` list) may call `PlayerLoopDriver.Register`
+> directly — it is a three-way overload, so passing a multi-stage object fails to compile as ambiguous and
+> needs `RegisterAll(handler)` or an explicit cast `Register((ILateUpdateHandler)handler)`.
+> The facade's `AddXxxHandler` methods have distinct parameter types and never hit that.
 
 ## Zero-Allocation Contract
 
@@ -99,8 +109,11 @@ Register handler implementations as services; after composition root `Initialize
 
 ```csharp
 var system = container.Resolve<MySystem>();
-PlayerLoopDriver.Register(system);
+GameApp.AddUpdateHandler(system);
 ```
+
+Unregister with `GameApp.RemoveUpdateHandler(system)`, or `GameApp.AddFrameHandler` /
+`RemoveFrameHandler` for a class implementing several stage interfaces.
 
 ## Compatibility
 

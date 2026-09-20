@@ -298,6 +298,73 @@ namespace Moirai.Atropos
 
         #endregion
 
+        #region 注入帧逻辑 Handler [INJECT FRAME HANDLER]
+
+        /// <summary>
+        /// 订阅帧逻辑到 Update 阶段（接口式）。
+        /// <para>与 <see cref="AddUpdateListener(Action)"/> 的分工：Action 适合无状态的零散挂钩；
+        /// Handler 适合携带状态、经构造注入依赖、并需要指定阶段内顺序的系统——
+        /// 实现 <see cref="IPlayerLoopPriority"/> 即可控制先后（数值小者先跑，未实现计 0）。</para>
+        /// <para>同一实例重复注册忽略；驱动中调用延迟到本阶段迭代结束后提交。注销必须成对，
+        /// 注册表持强引用。热路径禁止堆分配，详见 <c>IUpdateHandler</c>。</para>
+        /// </summary>
+        public static void AddUpdateHandler(IUpdateHandler handler)
+        {
+            PlayerLoopDriver.Register(handler);
+        }
+
+        /// <summary>反注册 Update 阶段 Handler。</summary>
+        public static void RemoveUpdateHandler(IUpdateHandler handler)
+        {
+            PlayerLoopDriver.Unregister(handler);
+        }
+
+        /// <summary>订阅帧逻辑到 FixedUpdate 阶段。语义同 <see cref="AddUpdateHandler"/>。</summary>
+        public static void AddFixedUpdateHandler(IFixedUpdateHandler handler)
+        {
+            PlayerLoopDriver.Register(handler);
+        }
+
+        /// <summary>反注册 FixedUpdate 阶段 Handler。</summary>
+        public static void RemoveFixedUpdateHandler(IFixedUpdateHandler handler)
+        {
+            PlayerLoopDriver.Unregister(handler);
+        }
+
+        /// <summary>
+        /// 订阅帧逻辑到 LateUpdate 阶段（注入于 PreLateUpdate 末尾，晚于 MonoBehaviour.LateUpdate）。
+        /// 语义同 <see cref="AddUpdateHandler"/>。
+        /// </summary>
+        public static void AddLateUpdateHandler(ILateUpdateHandler handler)
+        {
+            PlayerLoopDriver.Register(handler);
+        }
+
+        /// <summary>反注册 LateUpdate 阶段 Handler。</summary>
+        public static void RemoveLateUpdateHandler(ILateUpdateHandler handler)
+        {
+            PlayerLoopDriver.Unregister(handler);
+        }
+
+        /// <summary>
+        /// 把对象注册到它<b>实现的每一个</b>帧阶段（Update / FixedUpdate / LateUpdate）。
+        /// <para>多阶段系统的便利入口。只需登记某一阶段时用 <c>AddXxxHandler</c>——它们按参数类型
+        /// 各自唯一，传一个三接口全实现的对象进去也不会像驱动内部的同名 <c>Register</c> 三重载那样
+        /// 需要显式转型。</para>
+        /// </summary>
+        public static void AddFrameHandler(object handler)
+        {
+            PlayerLoopDriver.RegisterAll(handler);
+        }
+
+        /// <summary>从其曾注册的全部帧阶段注销。语义同 <see cref="AddFrameHandler"/> 的逆。</summary>
+        public static void RemoveFrameHandler(object handler)
+        {
+            PlayerLoopDriver.UnregisterAll(handler);
+        }
+
+        #endregion
+
         #region Unity 事件注入 [UNITY EVENTS INJECT]
 
         /// <summary>
@@ -424,8 +491,8 @@ namespace Moirai.Atropos
         private static void FixedTick()
         {
             if (IsShutdown) return;
-
-            GameServices.FixedTick(GameTime.deltaTime, GameTime.unscaledDeltaTime);
+            
+            GameServices.FixedTick(GameTime.fixedDeltaTime, GameTime.unscaledDeltaTime);
         }
 
         private static void LateTick()

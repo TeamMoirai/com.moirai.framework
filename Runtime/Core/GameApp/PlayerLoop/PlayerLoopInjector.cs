@@ -10,7 +10,9 @@ namespace Moirai.Atropos
     /// <para>注入时基于当前 PlayerLoop，保留 UniTask / 第三方已插入的系统。</para>
     /// <para>在 <c>SubsystemRegistration</c> 记录默认循环，供 <see cref="RestoreDefault"/> 显式复原；
     /// 关闭流程走 <see cref="RemoveMoiraiSystems"/>，只摘自己、不动别人的注入。</para>
-    /// <para>ECS/DOTS 若在 BeforeSceneLoad 重置 PlayerLoop，初始化完成后调用 <see cref="Reinject"/>。</para>
+    /// <para>ECS/DOTS 若在 <c>AfterSceneLoad</c> 之前（含 <c>BeforeSceneLoad</c>）重置 PlayerLoop，由
+    /// <c>VerifyInjection</c>（<c>AfterSceneLoad</c>）按循环实况自动补插；更晚的重建在完成后调用
+    /// <see cref="Reinject"/>。</para>
     /// </summary>
     internal static class PlayerLoopInjector
     {

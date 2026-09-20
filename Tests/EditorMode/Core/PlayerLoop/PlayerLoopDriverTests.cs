@@ -553,6 +553,66 @@ namespace Core.PlayerLoop
 
         #endregion
 
+        #region 公开门面 [PUBLIC FACADE]
+
+        [Test]
+        public void GameAppAddFrameHandler_DrivesEveryImplementedStage()
+        {
+            var probe = new AllStagesProbe();
+            GameApp.AddFrameHandler(probe);
+
+            Assert.AreEqual(1, PlayerLoopDriver.UpdateHandlerCount);
+            Assert.AreEqual(1, PlayerLoopDriver.FixedUpdateHandlerCount);
+            Assert.AreEqual(1, PlayerLoopDriver.LateUpdateHandlerCount);
+
+            PlayerLoopDriver.DriveUpdate();
+            PlayerLoopDriver.DriveFixedUpdate();
+            PlayerLoopDriver.DriveLateUpdate();
+
+            Assert.AreEqual(1, probe.UpdateCalls);
+            Assert.AreEqual(1, probe.FixedCalls);
+            Assert.AreEqual(1, probe.LateCalls);
+
+            GameApp.RemoveFrameHandler(probe);
+            Assert.AreEqual(0, PlayerLoopDriver.UpdateHandlerCount);
+            Assert.AreEqual(0, PlayerLoopDriver.FixedUpdateHandlerCount);
+            Assert.AreEqual(0, PlayerLoopDriver.LateUpdateHandlerCount);
+        }
+
+        [Test]
+        public void GameAppPerStageHandler_TakesMultiStageObjectWithoutCast()
+        {
+            // 门面按参数类型各自唯一，多阶段对象登记单阶段不必像驱动的同名 Register 三重载那样显式转型
+            var multi = new AllStagesProbe();
+            GameApp.AddLateUpdateHandler(multi);
+
+            Assert.AreEqual(1, PlayerLoopDriver.LateUpdateHandlerCount);
+            Assert.AreEqual(0, PlayerLoopDriver.UpdateHandlerCount, "单阶段注册不得被升级进其它阶段");
+            Assert.AreEqual(0, PlayerLoopDriver.FixedUpdateHandlerCount);
+
+            PlayerLoopDriver.DriveLateUpdate();
+            Assert.AreEqual(1, multi.LateCalls);
+            Assert.AreEqual(0, multi.UpdateCalls);
+
+            GameApp.RemoveLateUpdateHandler(multi);
+            Assert.AreEqual(0, PlayerLoopDriver.LateUpdateHandlerCount);
+        }
+
+        [Test]
+        public void GameAppHandler_ParticipatesInPriorityOrdering()
+        {
+            // 门面转发到的就是同一张注册表，优先级排序必须一致生效
+            var order = new List<string>();
+            GameApp.AddUpdateHandler(new PriorityProbe("late", order, 5));
+            GameApp.AddUpdateHandler(new Probe("normal", order));
+
+            PlayerLoopDriver.DriveUpdate();
+
+            Assert.AreEqual(new[] { "normal", "late" }, order.ToArray());
+        }
+
+        #endregion
+
         #region 启动相位 [BOOT PHASING]
 
         // 刻意用显式名次表而非 enum 底层整数：断言依赖的是「执行先后」这一语义，

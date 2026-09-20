@@ -4,7 +4,7 @@
 
 ## 架构变更（重要）
 
-帧逻辑订阅已从 MonoBehaviour 宿主迁移到 **`PlayerLoopDriver`**（`Runtime/Core/GameApp/PlayerLoop`，命名空间 `Moirai.Atropos.FrameLoop`）：
+帧逻辑订阅已从 MonoBehaviour 宿主迁移到 **`PlayerLoopDriver`**（`Runtime/Core/GameApp/PlayerLoop`，命名空间 `Moirai.Atropos`，类型为 `internal`，游戏侧经 `GameApp` 门面使用）：
 
 - 订阅存储在 **静态注册表**，不挂在任何 GameObject 上
 - 场景切换、宿主被意外销毁 **不会丢失** `Update`/`FixedUpdate`/`LateUpdate`/`Destroy`/`Gizmos`/`Pause` 订阅
@@ -17,7 +17,7 @@
 ## 核心特性
 
 - 协程托管：`GameApp.StartCoroutine` / `StopCoroutine` / `StopAllCoroutines`
-- 帧更新注入：`GameApp.AddUpdateListener` 等 API **同步**写入 `PlayerLoopDriver`（不再 `UniTask.Yield` 延迟挂载）
+- 帧更新注入：`GameApp.AddUpdateListener`（Action）与 `GameApp.AddUpdateHandler` / `AddFrameHandler`（接口式，支持 `IPlayerLoopPriority`）均 **同步** 写入驱动注册表（不再 `UniTask.Yield` 延迟挂载）
 - Unity 事件：`AddDestroyListener`（Shutdown 时广播）、`AddOnApplicationPauseListener`、Gizmos 相关
 - 关闭即清理：`GameApp.Shutdown` 清空 Driver 注册表、摘除本框架的 PlayerLoop 系统（保留 UniTask 等第三方注入）并释放宿主
 
@@ -41,8 +41,13 @@ GameApp.RemoveUpdateListener(OnUpdate);
 
 void OnUpdate() { /* 每帧；禁止堆分配 */ }
 
-// 接口方式（推荐）
-PlayerLoopDriver.Register(myUpdateHandler);
+// 接口方式（推荐：可携带状态、DI 注入依赖、用 IPlayerLoopPriority 指定顺序）
+GameApp.AddUpdateHandler(myUpdateHandler);
+GameApp.RemoveUpdateHandler(myUpdateHandler);
+
+// 一个类实现多个阶段接口时，一次登记全部阶段
+GameApp.AddFrameHandler(myMultiStageSystem);
+GameApp.RemoveFrameHandler(myMultiStageSystem);
 
 // 协程
 Coroutine co = GameApp.StartCoroutine(SomeRoutine());
@@ -54,7 +59,7 @@ GameApp.AddDestroyListener(OnShutdown);
 
 ## 注册时机
 
-`Add*Listener` / `PlayerLoopDriver.Register` 均为 **同步** 写入静态表，任意初始化阶段调用均安全（含 `SubsystemRegistration`）；真正驱动从 PlayerLoop 注入后的帧开始。
+`Add*Listener` / `Add*Handler` / `AddFrameHandler` 均为 **同步** 写入静态表，任意初始化阶段调用均安全（含 `SubsystemRegistration`）；真正驱动从 PlayerLoop 注入后的帧开始。
 
 ## 注意事项
 

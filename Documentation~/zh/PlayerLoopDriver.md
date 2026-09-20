@@ -6,17 +6,17 @@
 
 旧版 `GameApp` 把 `Update`/`FixedUpdate`/`LateUpdate` 订阅挂在隐藏 Mono 宿主的**实例事件**上。该宿主在初始场景加载前可能被意外销毁，导致全部订阅丢失，服务 Tick 静默停摆。
 
-`Runtime/Services/Timer`（`TimerService`）是统一的计时子系统（四级时间轮 + 帧计时），提供 `Delay` / `WaitFrame` 等能力；它经 `IServiceTickable` 由 `GameServices.Tick` 推进，而 `GameServices.Tick` 本身注册在本驱动的 Update 回调上。`IUpdateHandler` 面向游戏侧系统与 DI 组合根，二者不要混用。
+`Runtime/Services/Timer`（`TimerService`）是统一的计时子系统（四级时间轮 + 帧计时），提供 `Delay` / `WaitFrame` 等能力；它经 `IServiceTickable` 由 `GameServices.Tick` 推进，而 `GameServices.Tick` 本身装配在本驱动的 Update **核心钩子**上（先于全部用户订户，且不参与熔断）。`IUpdateHandler` 面向游戏侧系统与 DI 组合根，二者不要混用。
 
 ## 架构
 
 | 组件 | 职责 |
 |------|------|
-| `Moirai.Atropos.FrameLoop.PlayerLoopDriver` | 零分配静态注册表 + Drive 入口 |
-| `Moirai.Atropos.FrameLoop.PlayerLoopInjector` | 注入/恢复 Unity `PlayerLoopSystem` |
-| `IUpdateHandler` / `IFixedUpdateHandler` / `ILateUpdateHandler` | 接口式逻辑处理器（推荐，DI 友好） |
+| `internal PlayerLoopDriver`（`Moirai.Atropos`） | 零分配静态注册表 + Drive 入口；框架内部，不对外 |
+| `internal PlayerLoopInjector`（`Moirai.Atropos`） | 注入/移除 Unity `PlayerLoopSystem` |
+| `IUpdateHandler` / `IFixedUpdateHandler` / `ILateUpdateHandler` | 接口式逻辑处理器（推荐，DI 友好），经 `GameApp.AddXxxHandler` 注册 |
 | `IPlayerLoopPriority` | 可选驱动顺序（数值小者先执行） |
-| `GameApp` 静态 API | 兼容层：`AddUpdateListener` 等转发到 Driver，自身不含 MonoBehaviour |
+| `GameApp` 静态外观 | **对外唯一入口**：`AddUpdateListener` 等 Action 订阅 + `AddXxxHandler` / `AddFrameHandler` 接口订阅，自身不含 MonoBehaviour |
 | `GameAppHost` | 唯一的轻量 Mono 宿主：协程 / Gizmos / ApplicationPause，只做转发 |
 
 注入点：
@@ -32,9 +32,9 @@
 ## 快速上手
 
 ```csharp
-using Moirai.Atropos.FrameLoop;
+using Moirai.Atropos;
 
-// 接口方式（推荐：DI 注入依赖后注册）
+// 接口方式：可携带状态、经 DI 注入依赖，并可用 IPlayerLoopPriority 指定阶段内顺序
 public sealed class MySystem : IUpdateHandler
 {
     public void Update(float deltaTime, float unscaledDeltaTime)
@@ -43,17 +43,23 @@ public sealed class MySystem : IUpdateHandler
     }
 }
 
-// 组合根中
-PlayerLoopDriver.Initialize();
-PlayerLoopDriver.Register(new MySystem());
+// 游戏侧 / 组合根中注册
+GameApp.AddUpdateHandler(mySystem);
+GameApp.RemoveUpdateHandler(mySystem);
 
-// 或兼容 API
+// 一个类实现多个阶段接口时，一次登记其实现的全部阶段
+GameApp.AddFrameHandler(myMultiStageSystem);
+
+// 无状态的零散挂钩
 GameApp.AddUpdateListener(OnUpdate);
 GameApp.RemoveUpdateListener(OnUpdate);
 ```
 
-> 一个类同时实现多个阶段接口时，`Register(handler)` 会因三重载二义性编译不过：用 `RegisterAll(handler)`
-> 一次注册其实现的全部阶段，或显式转型 `Register((ILateUpdateHandler)handler)` 只注册某一阶段。
+> `PlayerLoopDriver` 本身是 **internal**：注册表、`Raise*` 引擎事件转发、`ResetForTests` 一类测试接缝都不对外，
+> 游戏侧一律走上面的 `GameApp` 门面。框架内部（含 `InternalsVisibleTo` 白名单程序集）可直接用
+> `PlayerLoopDriver.Register` —— 它是同名三重载，传一个多阶段对象会因二义性编译不过，
+> 需 `RegisterAll(handler)` 或显式转型 `Register((ILateUpdateHandler)handler)`；
+> 门面的 `AddXxxHandler` 按参数类型各自唯一，没有这个问题。
 
 ## 零分配契约
 
@@ -101,10 +107,11 @@ GameApp.RemoveUpdateListener(OnUpdate);
 
 ```csharp
 var system = container.Resolve<MySystem>();
-PlayerLoopDriver.Register(system);
+GameApp.AddUpdateHandler(system);
 ```
 
-驱动与对象创建解耦；注销 `Unregister(system)`。
+驱动与对象创建解耦；注销走 `GameApp.RemoveUpdateHandler(system)`，多阶段系统用
+`GameApp.AddFrameHandler` / `RemoveFrameHandler`。
 
 ## 兼容注意
 

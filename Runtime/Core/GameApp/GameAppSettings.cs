@@ -26,49 +26,38 @@ namespace Moirai.Atropos
 
         [BoxGroup(HELPER_GROUP), DisableInPlayMode]
         [ProviderDropdown]
-        [SerializeReference] private StringHandler m_StringHandler;
+        [SerializeReference] private StringHandler m_StringHandler = StringUtility.CreateDefaultHandler();
         internal static StringHandler StringHandler => Instance.m_StringHandler;
 
         [BoxGroup(HELPER_GROUP), DisableInPlayMode]
         [ProviderDropdown]
-        [SerializeReference] private VersionHandler m_VersionHandler;
+        [SerializeReference] private VersionHandler m_VersionHandler = VersionUtility.CreateDefaultHandler();
         internal static VersionHandler VersionHandler => Instance.m_VersionHandler;
 
         [BoxGroup(HELPER_GROUP), DisableInPlayMode]
         [ProviderDropdown]
-        [SerializeReference] private SettingHandler m_SettingHandler;
+        [SerializeReference] private SettingHandler m_SettingHandler = SettingUtility.CreateDefaultHandler();
         internal static SettingHandler SettingHandler => Instance.m_SettingHandler;
 
         [BoxGroup(HELPER_GROUP), DisableInPlayMode]
         [ProviderDropdown]
-        [SerializeReference] private LogHandler m_LogHandler;
+        [SerializeReference] private LogHandler m_LogHandler = LogUtility.CreateDefaultHandler();
         internal static LogHandler LogHandler => Instance.m_LogHandler;
 
         [BoxGroup(HELPER_GROUP), DisableInPlayMode]
         [ProviderDropdown]
-        [SerializeReference] private ObjectHandler m_ObjectHandler;
+        [SerializeReference] private ObjectHandler m_ObjectHandler = ObjectUtility.CreateDefaultHandler();
         internal static ObjectHandler ObjectHandler => Instance.m_ObjectHandler;
 
         [BoxGroup(HELPER_GROUP), DisableInPlayMode]
         [ProviderDropdown]
-        [SerializeReference] private JsonHandler m_JsonHandler;
+        [SerializeReference] private JsonHandler m_JsonHandler = JsonUtility.CreateDefaultHandler();
         internal static JsonHandler JsonHandler => Instance.m_JsonHandler;
 
         [BoxGroup(HELPER_GROUP), DisableInPlayMode]
         [ProviderDropdown]
-        [SerializeReference] private TweenHandler m_TweenHandler;
+        [SerializeReference] private TweenHandler m_TweenHandler = TweenUtility.CreateDefaultHandler();
         internal static TweenHandler TweenHandler => Instance.m_TweenHandler;
-
-        private void Reset()
-        {
-            m_StringHandler = StringUtility.CreateDefaultHandler();
-            m_VersionHandler = VersionUtility.CreateDefaultHandler();
-            m_SettingHandler = SettingUtility.CreateDefaultHandler();
-            m_LogHandler = LogUtility.CreateDefaultHandler();
-            m_ObjectHandler = ObjectUtility.CreateDefaultHandler();
-            m_JsonHandler = JsonUtility.CreateDefaultHandler();
-            m_TweenHandler = TweenUtility.CreateDefaultHandler();
-        }
 
         /// <summary>
         /// 游戏设置初始化

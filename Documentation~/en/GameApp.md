@@ -4,7 +4,7 @@
 
 ## Architecture Change (Important)
 
-Frame subscriptions moved from a MonoBehaviour host to **`PlayerLoopDriver`** (`Runtime/Core/GameApp/PlayerLoop`, namespace `Moirai.Atropos.FrameLoop`):
+Frame subscriptions moved from a MonoBehaviour host to **`PlayerLoopDriver`** (`Runtime/Core/GameApp/PlayerLoop`, namespace `Moirai.Atropos`, type is `internal` — game code reaches it through the `GameApp` facade):
 
 - Subscriptions live in a **static registry**, not on any GameObject
 - Scene loads / unexpected host destruction **do not lose** `Update`/`FixedUpdate`/`LateUpdate`/`Destroy`/`Gizmos`/`Pause` listeners
@@ -17,7 +17,7 @@ See [PlayerLoopDriver](PlayerLoopDriver.md) for details.
 ## Core Features
 
 - Coroutine hosting: `GameApp.StartCoroutine` / `StopCoroutine` / `StopAllCoroutines`
-- Frame updates: `GameApp.AddUpdateListener` APIs write **synchronously** into `PlayerLoopDriver` (no `UniTask.Yield` deferral)
+- Frame updates: `GameApp.AddUpdateListener` (Action) plus `GameApp.AddUpdateHandler` / `AddFrameHandler` (interface handlers, `IPlayerLoopPriority` aware) all write **synchronously** into the driver's registries (no `UniTask.Yield` deferral)
 - Unity events: `AddDestroyListener` (broadcast on Shutdown), `AddOnApplicationPauseListener`, Gizmos APIs
 - Clean shutdown: `GameApp.Shutdown` clears the Driver registry, removes this framework's PlayerLoop systems (UniTask and other third-party injections stay) and releases the host
 
@@ -39,9 +39,13 @@ GameApp.AddFixedUpdateListener(OnFixedUpdate);
 GameApp.AddLateUpdateListener(OnLateUpdate);
 GameApp.RemoveUpdateListener(OnUpdate);
 
-// Interface style (recommended)
-using Moirai.Atropos.FrameLoop;
-PlayerLoopDriver.Register(myUpdateHandler);
+// Interface style (recommended): carries state, DI-injected, orderable via IPlayerLoopPriority
+GameApp.AddUpdateHandler(myUpdateHandler);
+GameApp.RemoveUpdateHandler(myUpdateHandler);
+
+// A class implementing several stage interfaces, registered in one call
+GameApp.AddFrameHandler(myMultiStageSystem);
+GameApp.RemoveFrameHandler(myMultiStageSystem);
 
 // Coroutines
 Coroutine co = GameApp.StartCoroutine(SomeRoutine());
@@ -53,7 +57,7 @@ GameApp.AddDestroyListener(OnShutdown);
 
 ## Registration Timing
 
-`Add*Listener` / `PlayerLoopDriver.Register` write **synchronously** into static tables and are safe at any init stage (including `SubsystemRegistration`). Driving starts after PlayerLoop injection.
+`Add*Listener` / `Add*Handler` / `AddFrameHandler` write **synchronously** into static tables and are safe at any init stage (including `SubsystemRegistration`). Driving starts after PlayerLoop injection.
 
 ## Notes
 
