@@ -19,7 +19,7 @@ See [PlayerLoopDriver](PlayerLoopDriver.md) for details.
 - Coroutine hosting: `GameApp.StartCoroutine` / `StopCoroutine` / `StopAllCoroutines`
 - Frame updates: `GameApp.AddUpdateListener` APIs write **synchronously** into `PlayerLoopDriver` (no `UniTask.Yield` deferral)
 - Unity events: `AddDestroyListener` (broadcast on Shutdown), `AddOnApplicationPauseListener`, Gizmos APIs
-- Clean shutdown: `GameApp.Shutdown` clears the Driver registry, restores the default PlayerLoop and releases the host
+- Clean shutdown: `GameApp.Shutdown` clears the Driver registry, removes this framework's PlayerLoop systems (UniTask and other third-party injections stay) and releases the host
 
 ## Core Types
 
@@ -61,7 +61,7 @@ GameApp.AddDestroyListener(OnShutdown);
 - Gizmos APIs only have a dispatcher in the editor; subscriptions still go to the Driver's static table, so registering in a build is harmless.
 - Do not manually destroy `[GameAppHost]`; it is lazily rebuilt through `Instance`, which restores dispatch only — subscriptions were never lost.
 - Calling `GameApp.StartCoroutine` from a background thread throws via `SingletonMono<T>.Instance`: the host must be materialized on the main thread first (`GameApp.Initialize` guarantees this).
-- Exiting Play restores the default PlayerLoop (removes UniTask injection too); each library re-inits on the next Play.
+- Exiting Play removes only the three PlayerLoop systems this framework injected; UniTask and other third-party injections are left intact. Re-entering Play re-injects via `GameApp.Initialize`.
 
 ---
 [« Documentation Index](Index.md) · [PlayerLoopDriver](PlayerLoopDriver.md) · [Core](Core.md)

@@ -8,7 +8,8 @@ namespace Moirai.Atropos
     /// <summary>
     /// 将 <see cref="PlayerLoopDriver"/> 的 Drive 回调注入 Unity PlayerLoop。
     /// <para>注入时基于当前 PlayerLoop，保留 UniTask / 第三方已插入的系统。</para>
-    /// <para>在 <c>SubsystemRegistration</c> 记录默认循环；Shutdown / 域重载时恢复，避免编辑器状态污染。</para>
+    /// <para>在 <c>SubsystemRegistration</c> 记录默认循环，供 <see cref="RestoreDefault"/> 显式复原；
+    /// 关闭流程走 <see cref="RemoveMoiraiSystems"/>，只摘自己、不动别人的注入。</para>
     /// <para>ECS/DOTS 若在 BeforeSceneLoad 重置 PlayerLoop，初始化完成后调用 <see cref="Reinject"/>。</para>
     /// </summary>
     internal static class PlayerLoopInjector
@@ -133,7 +134,9 @@ namespace Moirai.Atropos
 
         /// <summary>
         /// 恢复域注册时记录的默认 PlayerLoop，并标记未注入。
-        /// <para>会移除 UniTask 等第三方注入——仅在退出 Play / Shutdown 时调用。</para>
+        /// <para><b>破坏性：会连带移除 UniTask 等全部第三方注入</b>，而它们不会自行重新注入。
+        /// 框架关闭流程已改用 <see cref="RemoveMoiraiSystems"/>；本方法留给调试窗的显式复原按钮，
+        /// 以及"确认循环已被第三方污染到无法逐项清理"的场合。</para>
         /// </summary>
         public static void RestoreDefault()
         {
@@ -144,7 +147,9 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 仅移除 Moirai 自身系统，保留其它第三方注入（需精细协调时使用）。
+        /// 仅移除 Moirai 自身系统，保留 UniTask 等其它第三方注入。
+        /// <para>关闭流程的默认选择：进程可能还要继续跑若干帧（重启场景、退出流程中的异步存档落盘），
+        /// 这些依赖第三方 Pump，不能因为它们已经"该退了"就把整条循环拆掉。</para>
         /// </summary>
         public static void RemoveMoiraiSystems()
         {

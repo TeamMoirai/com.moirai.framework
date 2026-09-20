@@ -116,7 +116,8 @@ namespace Moirai.Atropos
 
             SceneManager.sceneUnloaded -= OnSceneUnloaded;
 
-            // Destroy 订阅由 PlayerLoopDriver.Shutdown 广播并清空；随后恢复默认 PlayerLoop
+            // Destroy 订阅由 PlayerLoopDriver.Shutdown 广播并清空；随后只摘除本框架的 PlayerLoop 系统，
+            // UniTask 等第三方注入保留——关闭后进程可能还要跑若干帧（重启场景 / 退出期异步落盘）
             UnregisterBuiltinDrivers();
             PlayerLoopDriver.Shutdown();
 

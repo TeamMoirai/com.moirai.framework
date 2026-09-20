@@ -19,7 +19,7 @@
 - 协程托管：`GameApp.StartCoroutine` / `StopCoroutine` / `StopAllCoroutines`
 - 帧更新注入：`GameApp.AddUpdateListener` 等 API **同步**写入 `PlayerLoopDriver`（不再 `UniTask.Yield` 延迟挂载）
 - Unity 事件：`AddDestroyListener`（Shutdown 时广播）、`AddOnApplicationPauseListener`、Gizmos 相关
-- 关闭即清理：`GameApp.Shutdown` 清空 Driver 注册表、恢复默认 PlayerLoop 并释放宿主
+- 关闭即清理：`GameApp.Shutdown` 清空 Driver 注册表、摘除本框架的 PlayerLoop 系统（保留 UniTask 等第三方注入）并释放宿主
 
 ## 核心类型
 
@@ -62,7 +62,7 @@ GameApp.AddDestroyListener(OnShutdown);
 - Gizmos API 仅编辑器有派发者；订阅写入 Driver 静态表，注册本身在打包后也无害。
 - 请勿手动销毁 `[GameAppHost]`；销毁后经 `Instance` 惰性重建，届时只恢复派发，订阅从未丢失。
 - 后台线程调用 `GameApp.StartCoroutine` 等会经 `SingletonMono<T>.Instance` 抛出：宿主必须先在主线程物化（`GameApp.Initialize` 已保证）。
-- 退出 Play 时会恢复默认 PlayerLoop（含移除 UniTask 注入）；再次进入 Play 由各库重新初始化。
+- 退出 Play 时只摘除本框架注入的三个 PlayerLoop 系统，UniTask 等第三方注入原样保留；再次进入 Play 由 `GameApp.Initialize` 重新注入。
 
 ---
 [« 返回文档索引](Index.md) · [PlayerLoopDriver](PlayerLoopDriver.md) · [Core](Core.md)

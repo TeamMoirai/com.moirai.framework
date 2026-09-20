@@ -153,7 +153,7 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 关闭驱动器：触发 Destroy 订阅、清空全部 Handler/回调、恢复默认 PlayerLoop。
+        /// 关闭驱动器：触发 Destroy 订阅、清空全部 Handler/回调、摘除本框架的 PlayerLoop 系统。
         /// <para>幂等——重复调用安全。编辑器退出 Play 与应用退出均走此路径。</para>
         /// </summary>
         public static void Shutdown()
@@ -170,7 +170,11 @@ namespace Moirai.Atropos
             ClearHandlers();
             UnhookApplicationLifecycle();
 
-            PlayerLoopInjector.RestoreDefault();
+            // 只摘自己，不用 RestoreDefault：后者把引擎默认循环整个盖回去，会连带移除 UniTask 等
+            // 第三方注入。而 Shutdown 并不总意味着进程结束——GameApp.Shutdown 之后可能还要
+            // LoadScene 重启（调试器 OperationsWindow 的 Shutdown (Restart)），或正在退出流程中
+            // 等待异步存档落盘。这些时刻失去 Pump，await 就永不续跑。
+            PlayerLoopInjector.RemoveMoiraiSystems();
         }
 
         /// <summary>

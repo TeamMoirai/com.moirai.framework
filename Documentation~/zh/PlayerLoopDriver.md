@@ -25,7 +25,7 @@
 - `PlayerLoop.FixedUpdate` 开头 → Framework FixedUpdate
 - `PlayerLoop.PreLateUpdate` 末尾 → Framework LateUpdate（晚于 MonoBehaviour.LateUpdate）
 
-注入时基于 `GetCurrentPlayerLoop()`，保留 UniTask 等第三方系统。`SubsystemRegistration` 记录默认循环，Shutdown 时恢复。
+注入时基于 `GetCurrentPlayerLoop()`，保留 UniTask 等第三方系统。`SubsystemRegistration` 记录默认循环，仅供调试窗 `RestoreDefault` 显式复原；关闭流程用 `RemoveMoiraiSystems()` 只摘本框架的三个标记。
 
 每个 Drive 入口先调用 `GameTime.StartFrame()` 采样本帧时间快照，再依次驱动接口 Handler 与 Action 回调——**两类订阅读到的是同一帧的值**。
 
@@ -92,7 +92,7 @@ GameApp.RemoveUpdateListener(OnUpdate);
 | `SubsystemRegistration` | 记录默认 PlayerLoop；Driver 标记 Shutdown；`GameAppHost` 复位退出标记 |
 | `GameApp.Initialize`（`BeforeSceneLoad`） | `PlayerLoopDriver.Initialize()` 注入并装配内置核心钩子，随后物化 `GameAppHost`；注入后按循环实况校验三标记，缺失则不置注入标志并告警 |
 | `AfterSceneLoad` | 自愈校验：第三方（`BeforeSceneLoad` 及其之前，含同阶段晚于本框架者）基于默认循环重建导致标记丢失时，按循环实况自动补插并告警。**相位不可提前到 `BeforeSceneLoad` 或更早**——注入发生在 `BeforeSceneLoad`，早于它时 `s_Injected` 恒为 false，首行判定即返回，校验永不执行 |
-| `GameApp.Shutdown` / 退出 Play | 广播 Destroy → 清空注册表 → 恢复默认 PlayerLoop → 销毁宿主 |
+| `GameApp.Shutdown` / 退出 Play | 广播 Destroy → 清空注册表 → `RemoveMoiraiSystems()` 只摘本框架三个标记 → 销毁宿主。**不再** `RestoreDefault` 整条循环 |
 | ECS 重置 PlayerLoop 后 | 发生于 `AfterSceneLoad` 之前的重建由自愈校验补插；更晚的重建（如自定义 bootstrap 末尾）需在那之后调用 `PlayerLoopInjector.Reinject()` |
 
 ## DI（VContainer 等）
@@ -108,7 +108,7 @@ PlayerLoopDriver.Register(system);
 
 ## 兼容注意
 
-- **UniTask**：注入基于当前循环，不覆盖 UniTask 系统；退出 Play 恢复默认循环后由 UniTask 自行重新初始化。**注意**：`RestoreDefault` 恢复的是引擎默认循环，会连带移除 UniTask 注入——禁用域重载（DisableDomainReload）时退出 Play 不触发域重载，编辑模式下 UniTask 将停摆至下次域重载或再次进 Play。
+- **UniTask**：注入基于当前循环，不覆盖 UniTask 系统。关闭走 `RemoveMoiraiSystems()`，UniTask 的注入**原样保留**，其 `await` 在框架关闭后仍能续跑——退出流程里的异步存档、调试器的 `Shutdown (Restart)`（`GameApp.Shutdown()` 之后接着 `LoadScene`）都依赖这一点。过去这里用 `RestoreDefault`，会把整条引擎默认循环盖回去、连带拆掉 UniTask 的 Pump 且它不会自行重新注入；禁用域重载时退出 Play 还会让编辑模式的 UniTask 停摆到下次域重载。确需复原整条循环时用调试窗的 `RestoreDefault` 按钮，属显式操作。
 - **ECS/DOTS**：Entities 可能在 `BeforeSceneLoad` 重置 PlayerLoop——发生于自愈校验之前/早期的重建会被自动补插；若重置在校验之后（如自定义 bootstrap），初始化完成后 `PlayerLoopInjector.Reinject()`。
 - **ApplicationPause**：Unity 无纯 C# 事件，由 `GameAppHost.OnApplicationPause` 转发到 `PlayerLoopDriver.RaiseApplicationPause`；订阅存在静态表，宿主重建即恢复派发。
 - **Gizmos**：同理，`GameAppHost.OnDrawGizmos(Selected)` 转发到 `PlayerLoopDriver.RaiseDrawGizmos(Selected)`；仅编辑器有派发者，打包后表为空即无副作用。
