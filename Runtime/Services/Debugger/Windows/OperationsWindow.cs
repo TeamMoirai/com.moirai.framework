@@ -64,13 +64,15 @@ namespace Moirai.Atropos.Debugger
             VisualElement row = new VisualElement();
             row.AddToClassList("dbg-slider-row");
 
-            Label label = new Label(StringUtility.Format("Time Scale: {0:F2}", Time.timeScale));
+            // 走 GameApp 门面而非直接写 Time.timeScale：绕开门面会让 GameApp.GameSpeed /
+            // IsGamePaused 与引擎实况分叉，调试面板自己就是那个分叉源
+            Label label = new Label(StringUtility.Format("Time Scale: {0:F2}", GameApp.GameSpeed));
             label.AddToClassList("dbg-slider-row__title");
             label.style.minWidth = 140f;
 
-            Slider slider = DebuggerUI.CreateSlider(0f, 4f, Time.timeScale, value =>
+            Slider slider = DebuggerUI.CreateSlider(0f, 4f, GameApp.GameSpeed, value =>
             {
-                Time.timeScale = value;
+                GameApp.GameSpeed = value;
                 label.text = StringUtility.Format("Time Scale: {0:F2}", value);
             });
 

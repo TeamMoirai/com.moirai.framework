@@ -15,6 +15,16 @@ namespace Moirai.Atropos
     {
         #region 属性 [PROPERTIES]
 
+        // 运行态与配置态分离：GameAppSettings 的 m_* 字段只作开机默认值（由 Initiation 推给引擎一次），
+        // 运行期不再回写。往资产里写运行时值有两个后果：Resources 下的共享 ScriptableObject 在编辑器里
+        // 跨 Play 会话残留；且 IsGamePaused 这类判据读到的是配置意图而非引擎实况。
+        // 播种点取引擎当前值（见 Initialize 里的 SeedRuntimeFromEngine），因此本类运行期不再解引用配置资产。
+        private static int s_FrameRate;
+        private static float s_GameSpeed = 1f;
+        private static bool s_RunInBackground;
+        private static bool s_NeverSleep;
+        private static int s_PauseDepth;
+
         /// <summary>
         /// 获取游戏是否已关闭。
         /// </summary>
@@ -25,36 +35,48 @@ namespace Moirai.Atropos
         /// </summary>
         public static int FrameRate
         {
-            get => GameAppSettings.Instance.m_FrameRate;
-            set => Application.targetFrameRate = GameAppSettings.Instance.m_FrameRate = value;
+            get => s_FrameRate;
+            set => Application.targetFrameRate = s_FrameRate = value;
         }
 
         /// <summary>
-        /// 获取或设置游戏速度。
+        /// 获取或设置<b>期望的</b>游戏速度（映射到 <c>Time.timeScale</c>）。
+        /// <para>处于暂停（<see cref="IsGamePaused"/>）时，写入只更新"解除暂停后回到的目标值"，
+        /// <c>Time.timeScale</c> 保持 0——暂停优先于速度设定。要判定时间是否真的冻结，
+        /// 读 <c>GameSpeed &lt;= 0</c> 或引擎的 <c>Time.timeScale</c>，不要读 <see cref="IsGamePaused"/>。</para>
         /// </summary>
         public static float GameSpeed
         {
-            get => GameAppSettings.Instance.m_GameSpeed;
-            set => Time.timeScale = GameAppSettings.Instance.m_GameSpeed = value >= 0f ? value : 0f;
+            get => s_GameSpeed;
+            set
+            {
+                s_GameSpeed = value >= 0f ? value : 0f;
+
+                // 暂停中只记下期望值，等 ResumeGame 把计数降到 0 时再生效
+                if (s_PauseDepth == 0) Time.timeScale = s_GameSpeed;
+            }
         }
 
         /// <summary>
-        /// 获取游戏是否暂停。
+        /// 获取游戏是否被暂停，即 <see cref="PauseGame"/> 的引用计数是否非零。
+        /// <para><b>语义变更</b>：旧实现是 <c>GameSpeed &lt;= 0</c>，把"有人请求暂停"和
+        /// "速度被调到 0"混为一谈，导致 <see cref="ResumeGame"/> 在后者情形下恢复一个陈旧值。
+        /// 现在两者解耦：慢放到 0 不算暂停。</para>
         /// </summary>
-        public static bool IsGamePaused => GameAppSettings.Instance.m_GameSpeed <= 0f;
+        public static bool IsGamePaused => s_PauseDepth > 0;
 
         /// <summary>
-        /// 获取是否正常游戏速度。
+        /// 获取是否正常游戏速度（期望值约等于 1，容差 0.01）。暂停不影响本判定。
         /// </summary>
-        public static bool IsNormalGameSpeed => Math.Abs(GameAppSettings.Instance.m_GameSpeed - 1f) < 0.01f;
+        public static bool IsNormalGameSpeed => System.Math.Abs(s_GameSpeed - 1f) < 0.01f;
 
         /// <summary>
         /// 获取或设置是否允许后台运行。
         /// </summary>
         public static bool RunInBackground
         {
-            get => GameAppSettings.Instance.m_RunInBackground;
-            set => Application.runInBackground = GameAppSettings.Instance.m_RunInBackground = value;
+            get => s_RunInBackground;
+            set => Application.runInBackground = s_RunInBackground = value;
         }
 
         /// <summary>
@@ -62,10 +84,10 @@ namespace Moirai.Atropos
         /// </summary>
         public static bool NeverSleep
         {
-            get => GameAppSettings.Instance.m_NeverSleep;
+            get => s_NeverSleep;
             set
             {
-                GameAppSettings.Instance.m_NeverSleep = value;
+                s_NeverSleep = value;
                 Screen.sleepTimeout = value ? SleepTimeout.NeverSleep : SleepTimeout.SystemSetting;
             }
         }
@@ -80,6 +102,8 @@ namespace Moirai.Atropos
 
             LogUtility.Info("GameApp Active");
             IsShutdown = false;
+
+            SeedRuntimeFromEngine();
 
 #if UNITY_EDITOR
             UnityEditor.EditorApplication.playModeStateChanged += HandlePlayModeStateChanged;
@@ -132,31 +156,34 @@ namespace Moirai.Atropos
 
         #region 公共 API [PUBLIC API]
 
-        private static float s_GameSpeedBeforePause = 1f;
-
         /// <summary>
-        /// 暂停游戏。
+        /// 暂停游戏。引用计数式：多个来源各自 <see cref="PauseGame"/> 时，须各自
+        /// <see cref="ResumeGame"/> 才真正恢复（例如"弹窗暂停"叠加"切后台暂停"）。
+        /// <para>计数 0→1 时把 <c>Time.timeScale</c> 压到 0；已在暂停中则只加计数。
+        /// 期望速度保存在 <see cref="GameSpeed"/> 中，暂停期间的写入只会更新恢复目标。</para>
         /// </summary>
         public static void PauseGame()
         {
-            if (IsGamePaused) return;
+            if (s_PauseDepth == 0) Time.timeScale = 0f;
 
-            s_GameSpeedBeforePause = GameSpeed;
-            GameSpeed = 0f;
+            s_PauseDepth++;
         }
 
         /// <summary>
-        /// 恢复游戏。
+        /// 恢复游戏，<see cref="PauseGame"/> 的逆操作；计数归零才真正回速。
+        /// <para>计数已为 0 时是空操作——不会把 <c>Time.timeScale</c> 拉回某个陈旧值（旧实现的
+        /// <c>s_GameSpeedBeforePause</c> 正是这么坏的：直接用 <c>GameSpeed = 0</c> 冻结过一局之后，
+        /// <see cref="ResumeGame"/> 会恢复成初值而非实况）。</para>
         /// </summary>
         public static void ResumeGame()
         {
-            if (!IsGamePaused) return;
+            if (s_PauseDepth == 0) return;
 
-            GameSpeed = s_GameSpeedBeforePause;
+            if (--s_PauseDepth == 0) Time.timeScale = s_GameSpeed;
         }
 
         /// <summary>
-        /// 重置为正常游戏速度。
+        /// 重置为正常游戏速度。暂停中调用只更新恢复目标，不会顺手解除暂停。
         /// </summary>
         public static void ResetGameSpeed()
         {
@@ -439,6 +466,19 @@ namespace Moirai.Atropos
         #endregion
 
         #region 私有方法 [PRIVATE METHODS]
+
+        /// <summary>
+        /// 用引擎实况播种运行态。配置资产的默认值已由 <c>GameAppSettings.Initiation</c> 推给引擎，
+        /// 这里从引擎回读而非直读资产——本类运行期因此不再解引用可能加载失败的设置资产。
+        /// </summary>
+        private static void SeedRuntimeFromEngine()
+        {
+            s_FrameRate = Application.targetFrameRate;
+            s_GameSpeed = Time.timeScale;
+            s_RunInBackground = Application.runInBackground;
+            s_NeverSleep = Screen.sleepTimeout == SleepTimeout.NeverSleep;
+            s_PauseDepth = 0;
+        }
 
         private static void RegisterBuiltinDrivers()
         {
