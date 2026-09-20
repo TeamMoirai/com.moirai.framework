@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using System.Text.RegularExpressions;
 using Moirai.Atropos;
 using NUnit.Framework;
@@ -548,6 +549,52 @@ namespace Core.PlayerLoop
             Assert.IsNotNull(caught,
                 "后台线程注册必须 fail-fast：注册表是裸数组 + 无锁计数，越线程写入只会静默丢订阅");
             Assert.AreEqual(0, PlayerLoopDriver.UpdateHandlerCount, "被拒绝的注册不应留下痕迹");
+        }
+
+        #endregion
+
+        #region 启动相位 [BOOT PHASING]
+
+        // 刻意用显式名次表而非 enum 底层整数：断言依赖的是「执行先后」这一语义，
+        // 而 Unity 未承诺 RuntimeInitializeLoadType 的数值单调递增。
+        private static readonly RuntimeInitializeLoadType[] PHASE_ORDER =
+        {
+            RuntimeInitializeLoadType.SubsystemRegistration,
+            RuntimeInitializeLoadType.AfterAssembliesLoaded,
+            RuntimeInitializeLoadType.BeforeSceneLoad,
+            RuntimeInitializeLoadType.AfterSceneLoad,
+        };
+
+        private static int PhaseRank(RuntimeInitializeLoadType phase)
+        {
+            int rank = Array.IndexOf(PHASE_ORDER, phase);
+            Assert.AreNotEqual(-1, rank, $"未登记的名次相位 {phase}，请同步 PHASE_ORDER");
+            return rank;
+        }
+
+        private static RuntimeInitializeLoadType LoadPhase(Type owner, string methodName)
+        {
+            MethodInfo method = owner.GetMethod(methodName,
+                BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Public);
+            Assert.IsNotNull(method, $"{owner.Name}.{methodName} 已更名或被移除，请同步本用例");
+
+            var attribute = method.GetCustomAttribute<RuntimeInitializeOnLoadMethodAttribute>();
+            Assert.IsNotNull(attribute, $"{owner.Name}.{methodName} 应挂 [RuntimeInitializeOnLoadMethod]");
+            return attribute.loadType;
+        }
+
+        [Test]
+        public void SelfHealCheck_RunsStrictlyAfterInjectionPhase()
+        {
+            // 回归：VerifyInjection 曾挂 AfterAssembliesLoaded，而注入发生在 Initiation 的
+            // BeforeSceneLoad。早于注入点时 s_Injected 恒为 false、首行即 return，
+            // 自愈校验一次也没执行过——第三方在 BeforeSceneLoad 重建 PlayerLoop 导致的
+            // 标记丢失无人补插，整框架静默不 Tick，且这个缺陷无法从运行期日志看出。
+            RuntimeInitializeLoadType injection = LoadPhase(typeof(GameAppSettings), "Initiation");
+            RuntimeInitializeLoadType selfHeal = LoadPhase(typeof(PlayerLoopInjector), "VerifyInjection");
+
+            Assert.Greater(PhaseRank(selfHeal), PhaseRank(injection),
+                "自愈校验必须严格晚于注入点，否则它是死代码");
         }
 
         #endregion

@@ -90,10 +90,10 @@ GameApp.RemoveUpdateListener(OnUpdate);
 | 时机 | 行为 |
 |------|------|
 | `SubsystemRegistration` | 记录默认 PlayerLoop；Driver 标记 Shutdown；`GameAppHost` 复位退出标记 |
-| `GameApp.Initialize`（AfterAssembliesLoaded） | `PlayerLoopDriver.Initialize()` 注入并注册内置 Tick，随后物化 `GameAppHost`；注入后按循环实况校验三标记，缺失则不置注入标志并告警 |
-| `BeforeSceneLoad` | 自愈校验：第三方（同阶段晚于本框架者）基于默认循环重建导致标记丢失时，按循环实况自动补插并告警 |
+| `GameApp.Initialize`（`BeforeSceneLoad`） | `PlayerLoopDriver.Initialize()` 注入并装配内置核心钩子，随后物化 `GameAppHost`；注入后按循环实况校验三标记，缺失则不置注入标志并告警 |
+| `AfterSceneLoad` | 自愈校验：第三方（`BeforeSceneLoad` 及其之前，含同阶段晚于本框架者）基于默认循环重建导致标记丢失时，按循环实况自动补插并告警。**相位不可提前到 `BeforeSceneLoad` 或更早**——注入发生在 `BeforeSceneLoad`，早于它时 `s_Injected` 恒为 false，首行判定即返回，校验永不执行 |
 | `GameApp.Shutdown` / 退出 Play | 广播 Destroy → 清空注册表 → 恢复默认 PlayerLoop → 销毁宿主 |
-| ECS 重置 PlayerLoop 后 | 调用 `PlayerLoopInjector.Reinject()` |
+| ECS 重置 PlayerLoop 后 | 发生于 `AfterSceneLoad` 之前的重建由自愈校验补插；更晚的重建（如自定义 bootstrap 末尾）需在那之后调用 `PlayerLoopInjector.Reinject()` |
 
 ## DI（VContainer 等）
 

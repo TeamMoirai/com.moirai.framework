@@ -101,17 +101,15 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// BeforeSceneLoad 自愈校验：第三方若在 AfterAssembliesLoaded（同阶段晚于本框架）或
-        /// BeforeSceneLoad 早期基于默认循环重建 PlayerLoop，会抹掉 Moirai 标记——
+        /// AfterSceneLoad 自愈校验：第三方若基于默认循环重建 PlayerLoop，会抹掉 Moirai 标记——
         /// 此处按循环实况补插，不信任注入标志位。
-        /// <para>未初始化（GameApp 未启动，如 EditMode）时不主动注入；
-        /// 若第三方重置发生在更晚时机（如 ECS 自定义 bootstrap 之后），仍需在重置完成后调用 <see cref="Reinject"/>。</para>
+        /// <para><b>相位必须严格晚于注入点</b>（<c>GameAppSettings.Initiation</c> 的
+        /// <c>BeforeSceneLoad</c>）：挂在那之前时 <c>s_Injected</c> 恒为 false，首行判定即返回，
+        /// 本方法一次也不会执行。</para>
+        /// <para>未初始化（GameApp 未启动，如 EditMode）时不主动注入；若第三方重置发生在
+        /// AfterSceneLoad 之后（如自定义 bootstrap 末尾），仍需在重置完成后调用 <see cref="Reinject"/>。</para>
         /// </summary>
-#if UNITY_2020_1_OR_NEWER
-        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterAssembliesLoaded)]
-#else
-		[RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
-#endif
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void VerifyInjection()
         {
             if (!s_Injected) return;

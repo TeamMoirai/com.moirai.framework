@@ -88,10 +88,10 @@ An `IUpdateHandler` implemented on a destroyed `MonoBehaviour` throws `MissingRe
 | Moment | Behavior |
 |------|------|
 | `SubsystemRegistration` | Capture default PlayerLoop; Driver marked Shutdown; `GameAppHost` clears its shutdown flag |
-| `GameApp.Initialize` (AfterAssembliesLoaded) | `PlayerLoopDriver.Initialize()` injects + registers builtin ticks, then materializes `GameAppHost`; injection is verified against the actual loop — if any marker is missing the injected flag stays false and a warning is logged |
-| `BeforeSceneLoad` | Self-heal: if a third party (same-phase but later) rebuilt the loop from default and wiped the markers, re-inserts them based on the live loop and logs a warning |
+| `GameApp.Initialize` (`BeforeSceneLoad`) | `PlayerLoopDriver.Initialize()` injects + installs the built-in core hooks, then materializes `GameAppHost`; injection is verified against the actual loop — if any marker is missing the injected flag stays false and a warning is logged |
+| `AfterSceneLoad` | Self-heal: if a third party rebuilt the loop from default at or before `BeforeSceneLoad` (including same-phase but later than this framework) and wiped the markers, re-inserts them based on the live loop and logs a warning. **The phase must not move earlier than the injection point** — injection happens at `BeforeSceneLoad`, and before it `s_Injected` is always false, so the guard's first line returns and the check never runs |
 | `GameApp.Shutdown` / exit Play | Broadcast Destroy → clear registry → restore default PlayerLoop → destroy host |
-| After ECS resets PlayerLoop | Call `PlayerLoopInjector.Reinject()` |
+| After ECS resets PlayerLoop | Rebuilds up to `AfterSceneLoad` are re-inserted by the self-heal; later ones (e.g. at the end of a custom bootstrap) need `PlayerLoopInjector.Reinject()` after they complete |
 
 ## DI (VContainer etc.)
 

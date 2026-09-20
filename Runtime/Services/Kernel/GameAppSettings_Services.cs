@@ -24,7 +24,7 @@ namespace Moirai.Atropos
         /// <para>② <see cref="ServiceWorld.InitializeAsync"/> 提交两阶段构建的第二阶段；</para>
         /// <para>调试器依赖：各服务 OnInit 经 <see cref="DebuggerService"/> 注册调试面板——
         /// 需要调试面板的服务应声明 <c>[ServiceDependency(typeof(DebuggerService))]</c> 以保证拓扑序。</para>
-        /// <para>由 <see cref="GameAppSettings.Initiation"/> 在 <c>AfterAssembliesLoaded</c> 阶段调用。</para>
+        /// <para>由 <see cref="GameAppSettings.Initiation"/> 在 <c>BeforeSceneLoad</c> 阶段调用。</para>
         /// </summary>
         private static partial UniTaskVoid InitializeAppServices()
         {
