@@ -48,6 +48,8 @@
 - **`GameApp.IsGamePaused` 改为"暂停请求计数非零"**：旧实现等价于 `GameSpeed <= 0f`。解耦后把速度调到 0（慢放、定格）**不再算暂停**。要判"时间是否真被冻结"请读 `GameSpeed <= 0f` 或引擎的 `Time.timeScale`。包内唯一消费方是调试面板，它同时另有一行显示 `GameSpeed`，语义不丢。
 - **`GameApp.PauseGame` / `ResumeGame` 改为引用计数**：多个来源各自暂停（弹窗 + 切后台 + 剧情过场）时须各自恢复，最后一个 `ResumeGame` 才真正回速；计数已为 0 时 `ResumeGame` 是空操作。暂停期间写 `GameSpeed` 只更新恢复目标、`Time.timeScale` 保持 0，`ResumeGame` 归零时重放该期望值。`ResetGameSpeed` 只改目标，不会顺手解除暂停。
 - **`GameApp` 四个运行期开关不再写回配置资产**：`FrameRate` / `GameSpeed` / `RunInBackground` / `NeverSleep` 的 getter 现返回 `GameApp` 自有字段（`Initialize` 时从引擎实况播种），`GameAppSettings.m_*` 退化为纯开机默认值。编辑器下 `GameApp.FrameRate = 60` 之类调用不会再让那份 Resources 资产跨 Play 会话变脏；已存在的资产文件无需重新导入（字段与序列化布局未动）。
+- **`GameTime` 六项帧快照由 public 字段收为 `{ get; private set; }` 属性**：`time` / `deltaTime` / `unscaledDeltaTime` / `fixedDeltaTime` / `frameCount` / `unscaledTime` 此前是可全局写入的裸字段，任何代码都能改写本帧 `deltaTime`，而写入方本就只有 `StartFrame`。成员名维持 Unity `Time.*` 的小写风格不变——改名会打破「换 `Handler` 即换时间源、调用方零改动」的外观契约。字段转属性对源码兼容（读取写法不变），仅对 `ref`/`out` 传参与按字段名反射不兼容：全工程（框架、同级各包含 `InternalsVisibleTo` 白名单内的 Clotho / Lachesis、`Assets/`、以及 `Templates~`）实测零处此类用法。
+- **`GameTime.frameCount` 类型 `float` → `int`**：float 尾数仅 24 位，超过 16,777,216 帧后计数无法精确表示（120fps 下约 39 小时连续运行即失真）。上游 `GameTimeHandler.FrameCount` 本来就是 `int`，旧声明是纯粹的类型错误。全工程零处读取该成员，改动无波及。
 
 ### Fixed
 
@@ -82,7 +84,8 @@
 
 ### Removed
 
-- **`Moirai.Atropos.Schedulers` 命名空间整体删除**：`Scheduler` / `SchedulerHandle` / `SchedulerUnsafeBinding` / `SchedulerUnsafeBinding<T>` / `SchedulerExtensions`（含 `WaitAsync`）/ `TickFrame`，以及 `IScheduled` 接口、`SchedulerRunner` 组件、`FrameCounter` / `Timer` / `SchedulerRegistry` 等模型，连同 `Editor/Schedulers/` 的调度器调试窗口。迁移映射：按秒延时 → `TimerService.Delay`；按帧等待 → `TimerService.WaitFrame`；逐帧订阅 → `PlayerLoopDriver.Register(IUpdateHandler)` 或 `AddUpdateCallback`；等待完成 → `TimerService.WaitAsync`；零分配函数指针绑定 → `TimerUnsafeBinding` 配 `DelayUnsafe` / `WaitFrameUnsafe`。
+- **`GameApp` 的按名字协程重载**：`StartCoroutine(string)`、`StartCoroutine(string, object)`、`StopCoroutine(string)`。Unity 的按名字启动是「在挂载该方法的 MonoBehaviour 上查找同名协程方法」，而这三条重载实际驱动的是 `GameAppHost`——该类 `internal sealed`、不含任何 `IEnumerator` 方法，也不允许派生。因此传任何方法名都必然在 Unity 侧报 `Coroutine ... could not be found` 并返回 null，是**永远不可能工作**的公开 API（1.0.2 里 `GameApp` 自身还是 MonoBehaviour 时尚可命中，`9264f17c` 剥离 Mono 后就成了死口）。全工程实测零调用方（框架、同级各包含 IVT 白名单内的 Clotho / Lachesis、`Assets/`、`Templates~`），直接删除，**不留 `[Obsolete]` 别名**——留着也只是让调用点晚一步失败并继续占用重载解析位。按 `IEnumerator` 与 `Coroutine` 句柄的四条重载不受影响。
+- **`Moirai.Atropos.Schedulers` 命名空间整体删除**：`Scheduler` / `SchedulerHandle` / `SchedulerUnsafeBinding` / `SchedulerUnsafeBinding<T>` / `SchedulerExtensions`（含 `WaitAsync`）/ `TickFrame`，以及 `IScheduled` 接口、`SchedulerRunner` 组件、`FrameCounter` / `Timer` / `SchedulerRegistry` 等模型，连同 `Editor/Schedulers/` 的调度器调试窗口。迁移映射：按秒延时 → `TimerService.Delay`；按帧等待 → `TimerService.WaitFrame`；逐帧订阅 → `GameApp.AddUpdateHandler(IUpdateHandler)` / `AddFrameHandler`，或 `GameApp.AddUpdateListener`；等待完成 → `TimerService.WaitAsync`；零分配函数指针绑定 → `TimerUnsafeBinding` 配 `DelayUnsafe` / `WaitFrameUnsafe`。
 
 ### Deprecated
 

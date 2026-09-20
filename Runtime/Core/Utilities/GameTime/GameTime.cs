@@ -33,40 +33,49 @@ namespace Moirai.Atropos
 
         #region 公共 API [PUBLIC API]
 
-        /// <summary>
-        /// 此帧开始时的时间（只读）。
-        /// </summary>
-        public static float time;
+        // 六项快照一律 { get; private set; }：本类的写入方只有 StartFrame，留成 public 可写字段
+        // 等于允许任意代码改写全局 deltaTime，且编译期无从追查来源。
+        // 成员名保持 Unity Time.* 的小写风格（而非 C# 大写字母约定）：GameTime 是可替换时间源的
+        // 调用方外观，改名会连带打破「换 Handler 即换时间源、调用方零改动」这一契约。
 
         /// <summary>
-        /// 从上一帧到当前帧的间隔（秒）（只读）。
+        /// 此帧开始时的时间。
         /// </summary>
-        public static float deltaTime;
+        public static float time { get; private set; }
 
         /// <summary>
-        /// timeScale从上一帧到当前帧的独立时间间隔（以秒为单位）（只读）。
+        /// 从上一帧到当前帧的间隔（秒）。
         /// </summary>
-        public static float unscaledDeltaTime;
+        public static float deltaTime { get; private set; }
+
+        /// <summary>
+        /// timeScale 从上一帧到当前帧的独立时间间隔（以秒为单位）。
+        /// </summary>
+        public static float unscaledDeltaTime { get; private set; }
 
         /// <summary>
         /// 执行物理和其他固定帧速率更新的时间间隔（以秒为单位）。
-        /// <remarks>如MonoBehavior的MonoBehaviour.FixedUpdate。</remarks>
+        /// <para>如 MonoBehaviour.FixedUpdate 所使用的步长。</para>
         /// </summary>
-        public static float fixedDeltaTime;
+        public static float fixedDeltaTime { get; private set; }
 
         /// <summary>
-        /// 自游戏开始以来的总帧数（只读）。
+        /// 自游戏开始以来的总帧数。
         /// </summary>
-        public static float frameCount;
+        /// <remarks>
+        /// 类型为 <see cref="int"/> 而非旧声明的 <c>float</c>：float 尾数只有 24 位，
+        /// 超过 16,777,216 帧后无法精确表示计数（120fps 下约 39 小时连续运行）。
+        /// </remarks>
+        public static int frameCount { get; private set; }
 
         /// <summary>
-        /// timeScale此帧的独立时间（只读）。这是自游戏开始以来的时间（以秒为单位）。
+        /// timeScale 此帧的独立时间（以秒为单位），即自游戏开始以来的非缩放时间。
         /// </summary>
-        public static float unscaledTime;
+        public static float unscaledTime { get; private set; }
 
         /// <summary>
         /// 采样一帧的时间。每帧由 <see cref="PlayerLoopDriver"/> 在各 Drive 阶段入口调用，
-        /// 从当前 <see cref="Handler"/> 拉取本帧时间快照填充上方静态字段。
+        /// 从当前 <see cref="Handler"/> 拉取本帧时间快照填充上方静态属性。
         /// </summary>
         public static void StartFrame()
         {

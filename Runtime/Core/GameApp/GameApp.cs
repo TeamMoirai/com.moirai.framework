@@ -199,45 +199,12 @@ namespace Moirai.Atropos
         /// <summary>
         /// 启动全局协程。
         /// </summary>
-        public static Coroutine StartCoroutine(string methodName)
-        {
-            if (string.IsNullOrEmpty(methodName)) return null;
-
-            GameAppHost host = GameAppHost.Instance;
-            return host != null ? host.StartCoroutine(methodName) : null;
-        }
-
-        /// <summary>
-        /// 启动全局协程。
-        /// </summary>
         public static Coroutine StartCoroutine(IEnumerator routine)
         {
             if (routine == null) return null;
 
             GameAppHost host = GameAppHost.Instance;
             return host != null ? host.StartCoroutine(routine) : null;
-        }
-
-        /// <summary>
-        /// 启动全局协程。
-        /// </summary>
-        public static Coroutine StartCoroutine(string methodName, object value)
-        {
-            if (string.IsNullOrEmpty(methodName)) return null;
-
-            GameAppHost host = GameAppHost.Instance;
-            return host != null ? host.StartCoroutine(methodName, value) : null;
-        }
-
-        /// <summary>
-        /// 停止全局协程。
-        /// </summary>
-        public static void StopCoroutine(string methodName)
-        {
-            if (string.IsNullOrEmpty(methodName)) return;
-
-            GameAppHost host = GameAppHost.TryGetInstance();
-            host?.StopCoroutine(methodName);
         }
 
         /// <summary>
