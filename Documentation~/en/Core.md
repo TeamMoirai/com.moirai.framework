@@ -50,7 +50,7 @@ Namespace: `Moirai.Atropos`
 | `FrameworkHandler` | Handler base class (`[Serializable]`): idempotent `Internal_Init`/`Internal_Shutdown` + sync/async lifecycle callbacks; base of all XxxHandler classes |
 | `ServiceScopeOrder` | Scope constant table (App=-10000, Scene=-5000, Gameplay=0); **the container never consumes it** — scope order comes from the fixed slots, polling order from `IService.Priority` |
 | `ServicePriorityOrder` | Framework built-in service polling priority constants (all ≤ -1000, banded separately from business services) |
-| `GameApp` | Static facade entry point (no MonoBehaviour): initialized by `GameAppSettings.Initiation` at `AfterAssembliesLoaded`, registers its builtin Tick on `PlayerLoopDriver` to drive `GameServices.Tick` every frame, and calls `GameServices.Shutdown` on `Shutdown`; coroutines/Gizmos/Pause delegate to `GameAppHost` |
+| `GameApp` | Static facade entry point (no MonoBehaviour): initialized by `GameAppSettings.Initiation` at `BeforeSceneLoad`, installs the builtin core hooks on `PlayerLoopDriver` to drive `GameServices.Tick` every frame, and calls `GameServices.Shutdown` on `Shutdown`; coroutines/Gizmos/Pause delegate to `GameAppHost` |
 | `GameAppMessageEvent` / `EMessageEventType` | Namespace `Moirai.Atropos.Events`, framework-level pooled events (focus/unfocus/quit, SDK callbacks) |
 
 ## Quick Start
@@ -172,7 +172,7 @@ The single entry for dynamic service lookup is the `GameServices` static facade 
 
 ### Composition Root and Built-in Service Registration
 
-The framework's composition root: `GameAppSettings.InitializeAppServices()` (called at the `AfterAssembliesLoaded` stage) registers all chain services **in any order**, then commits the second phase once:
+The framework's composition root: `GameAppSettings.InitializeAppServices()` (called at the `BeforeSceneLoad` stage) registers all chain services **in any order**, then commits the second phase once:
 
 ```csharp
 GameServices.RegisterService(EServiceScopeKind.App, new DebuggerService());

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
 
@@ -36,7 +36,7 @@ namespace Moirai.Atropos.UI
         #region 生命周期 [LIFECYCLE]
 
         /// <summary>
-        /// 处理器初始化。此阶段（AfterAssembliesLoaded）场景尚未加载，初始化延迟到首个 Update tick。
+        /// 处理器初始化。此阶段（BeforeSceneLoad）场景尚未加载，初始化延迟到首个 Update tick。
         /// </summary>
         protected override void OnInit()
         {

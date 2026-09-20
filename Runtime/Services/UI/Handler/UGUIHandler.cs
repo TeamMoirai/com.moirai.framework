@@ -50,7 +50,7 @@ namespace Moirai.Atropos.UI
             _uiStack.Clear();
             _cache.Clear();
 
-            // 此阶段（AfterAssembliesLoaded）场景尚未加载，初始化延迟到首个 Update tick。
+            // 此阶段（BeforeSceneLoad）场景尚未加载，初始化延迟到首个 Update tick。
             MainThreadDispatcher.Post(() =>
             {
                 var uiRoot = GameObject.Find("UIRoot");
