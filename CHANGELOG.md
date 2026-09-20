@@ -63,6 +63,7 @@
 - **`PlayerLoopDriver.EnsureMainThread` 未随内核一并门控**：内核版已包进 `#if UNITY_EDITOR || DEVELOPMENT_BUILD`，驱动器版仍在 20 个注册/注销入口无条件编译断言，与「发布构建下断言不参与编译、零开销」的记载不符。现补齐同一约定。
 - **`Timer` 时间轮的延后触发列表与进度列表存在线性扫描**：Fixed/Late 入列用 `List<ulong>.Contains` 去重、释放用线性摘除，进度列表亦线性移除——同帧大量 Fixed/Late 或带进度计时器到期即 O(N²)。现延后列表改以槽位归属位（`1 << 6` / `1 << 7`）作去重判据、并在快照排空时清除（否则循环型只会触发一次），不在列的槽位一次位判即返回；进度列表按帧泳道同法记录列表下标，做 O(1) swap-remove。
 - **`Documentation~/zh|en/Core.md` 与代码脱节**（双语同步修正）：`IService.Shutdown()` 实为 `OnShutdown()`（含示例，照抄不能编译）；异步关闭顺序是逆激活序而非逆注册序；拦截器表列出不存在的 `OnServiceTick`；引用已删除的 `RegisterWithDependencies` 与不属于组合根的 `ProcedureServiceSettings.StartProcedure`；内置服务计数 11/12 实为 13；`ServiceScopeOrder` 其实不被容器消费；依赖校验时机仍是两阶段之前的旧描述。
+- **`FrameworkSettings<T>.Instance` 加载失败时栈溢出**：资产缺失的**打包分支**原先调 `LogUtility.Error`，而 `LogUtility.Handler` 的懒加载要经 `GetHandlerFromSettings()` → `GameAppSettings.LogHandler` 回读**同一个**设置资产——此刻 `s_Instance` 仍为 null，于是"报错说资产缺失"这一步再次进入本 getter 无限递归（`StackOverflowException` 不可捕获，进程直接被带走）。编辑器分支走 `LoadSettingSO`，其中本就用裸 `Debug.*`，故编辑器下从不复现、也从未被发现；触发与否还取决于 `LogUtility` 是否已被更早的钩子解析过，表现为偶发。现改裸 `Debug.LogError`，并在类型注释中写明该路径禁用可插拔日志链路的约束。
 
 ### Removed
 

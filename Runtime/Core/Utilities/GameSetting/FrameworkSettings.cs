@@ -37,6 +37,12 @@ namespace Moirai.Atropos
     /// 框架设置基类。提供统一的元数据查询、类型注册和实例加载。
     /// 所有框架设置 ScriptableObject 应继承此类。
     /// </summary>
+    /// <remarks>
+    /// <para><b>本类的加载路径禁止使用 <c>LogUtility</c></b>：各 Utility 的 Handler 懒加载会经
+    /// <c>GetHandlerFromSettings()</c> 回读本设置资产，而 <c>s_Instance</c> 在加载完成前恒为 null，
+    /// 于是"报错说资产缺失"这一步会再次进入本 getter 并无限递归（StackOverflow，不可捕获）。
+    /// 加载失败只能走 <c>Debug.LogError</c>。</para>
+    /// </remarks>
     public abstract partial class FrameworkSettings<T> : ScriptableObject where T : FrameworkSettings<T>
     {
         private static T s_Instance;
@@ -66,7 +72,7 @@ namespace Moirai.Atropos
 #if UNITY_EDITOR
                     s_Instance = LoadSettingSO<T>(filePath);
 #else
-                    LogUtility.Error($"Could not find {type.Name} at path '{filePath}'!");
+                    Debug.LogError($"Could not find {type.Name} at path '{filePath}'!");
 #endif
                 }
                 return s_Instance;
