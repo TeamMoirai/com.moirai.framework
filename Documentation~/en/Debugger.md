@@ -150,7 +150,7 @@ Each framework service module holds a native UI Toolkit debug view (implementing
 | `Profiler/Audio` | `AudioServiceDebugView` (Audio module) | master volume and Sfx/UI/Music/Voice track volume/mute live controls |
 | `Profiler/Procedure` | `ProcedureServiceDebugView` (Procedure module) | current procedure state and elapsed time (0.5s throttle) |
 | `Profiler/Localization` | `LocalizationServiceDebugView` (Localization module) | current language display and one-click switching (1s throttle) |
-| `Other/Game Settings` | `GameAppInformationWindow` (Debugger built-in) | frame rate / game speed live controls (0x-8x presets), local settings key-value list with save/clear |
+| `Other/Game Settings` | `GameAppInformationWindow` (Debugger built-in) | frame rate / game speed live controls (0x Freeze ~ 8x presets), pause request depth and time-frozen indicator, local settings key-value list with save/clear |
 
 The fixed pattern for adding a service debug panel:
 

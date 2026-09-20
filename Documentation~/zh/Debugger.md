@@ -150,7 +150,7 @@ DebuggerService.RegisterDebugView("Profiler/My Service", new MyServiceDebugView(
 | `Profiler/Audio` | `AudioServiceDebugView`（Audio 模块） | 主音量与 Sfx/UI/Music/Voice 四轨音量/静音实时控制 |
 | `Profiler/Procedure` | `ProcedureServiceDebugView`（Procedure 模块） | 当前流程状态与持续时长（0.5s 节流） |
 | `Profiler/Localization` | `LocalizationServiceDebugView`（Localization 模块） | 当前语言展示与一键切换（1s 节流） |
-| `Other/Game Settings` | `GameAppInformationWindow`（Debugger 内置） | 目标帧率/游戏速度实时控制（预设 0x-8x）、本地设置键值清单与保存/清除 |
+| `Other/Game Settings` | `GameAppInformationWindow`（Debugger 内置） | 目标帧率/游戏速度实时控制（预设 0x 定格 ~ 8x）、暂停请求深度与时间冻结指示、本地设置键值清单与保存/清除 |
 
 新增服务调试面板的固定模式：
 

@@ -19,7 +19,8 @@
 - 协程托管：`GameApp.StartCoroutine` / `StopCoroutine` / `StopAllCoroutines`
 - 帧更新注入：`GameApp.AddUpdateListener`（Action）与 `GameApp.AddUpdateHandler` / `AddFrameHandler`（接口式，支持 `IPlayerLoopPriority`）均 **同步** 写入驱动注册表（不再 `UniTask.Yield` 延迟挂载）
 - Unity 事件：`AddDestroyListener`（Shutdown 时广播）、`AddOnApplicationPauseListener`、Gizmos 相关
-- 关闭即清理：`GameApp.Shutdown` 清空 Driver 注册表、摘除本框架的 PlayerLoop 系统（保留 UniTask 等第三方注入）并释放宿主
+- 运行态开关：`FrameRate` / `GameSpeed` / `RunInBackground` / `NeverSleep` 承载引擎实况（`GameAppSettings` 只作开机默认值），暂停是引用计数的 `PauseGame` / `ResumeGame`，详见[暂停与速度语义](#暂停与速度语义)
+- 关闭即清理：`GameApp.Shutdown` 清空 Driver 注册表、摘除本框架的 PlayerLoop 系统（保留 UniTask 等第三方注入）、退掉未配对完的暂停并释放宿主
 
 ## 核心类型
 
@@ -60,6 +61,46 @@ GameApp.AddDestroyListener(OnShutdown);
 ## 注册时机
 
 `Add*Listener` / `Add*Handler` / `AddFrameHandler` 均为 **同步** 写入静态表，任意初始化阶段调用均安全（含 `SubsystemRegistration`）；真正驱动从 PlayerLoop 注入后的帧开始。
+
+## 运行态与配置分离
+
+`GameAppSettings` 的 `m_FrameRate` / `m_GameSpeed` / `m_RunInBackground` / `m_NeverSleep` **只是开机默认值**：
+
+1. `GameAppSettings.Initiation`（`BeforeSceneLoad`）把资产值推给引擎一次
+2. `GameApp.Initialize` 随即用 `SeedRuntimeFromEngine` 从**引擎实况**回读，播种进 `GameApp` 自有的静态字段
+3. 之后 `FrameRate` / `GameSpeed` / `RunInBackground` / `NeverSleep` 的读写只碰这些字段与引擎，**不再解引用、也不再回写配置资产**
+
+因此编辑器里 `GameApp.FrameRate = 60` 不会让 Resources 下那份共享 ScriptableObject 跨 Play 会话变脏；判据读的也是实况而非配置意图。
+
+## 暂停与速度语义
+
+`GameSpeed` 是**期望速度**这一唯一真相（映射 `Time.timeScale`）；`PauseGame` 是**引用计数**，两者解耦：
+
+| 调用 | 行为 |
+|------|------|
+| `PauseGame()` | 计数 +1；仅在 0→1 时把 `Time.timeScale` 压到 0 |
+| `ResumeGame()` | 计数 -1；**归零**才把 `Time.timeScale` 回放为当前的 `GameSpeed`。计数已为 0 时是**空操作**，不会拉回任何初值 |
+| `GameSpeed = v`（暂停中） | 只更新恢复目标，`timeScale` 保持 0——**暂停优先于速度设定**；负值按 0 处理 |
+| `ResetGameSpeed()` | 把期望速度归 1；暂停中调用**不会**顺手解除暂停 |
+
+弹窗 + 切后台 + 剧情过场各自 `PauseGame` 时须各自 `ResumeGame`，最后一个 `ResumeGame` 才真正回速。
+
+**要判什么就读什么**（1.0.2 的 `IsGamePaused` 等价于 `GameSpeed <= 0`，现已解耦）：
+
+| 想知道 | 读 |
+|--------|-----|
+| 有没有人请求暂停 | `GameApp.IsGamePaused`（计数非零；**调到 0 速定格不算暂停**） |
+| 时间是否真的停着 | `Time.timeScale <= 0f`（或 `GameApp.GameSpeed <= 0f`） |
+| 暂停了几层 | `GameApp.PauseDepth`（框架内部，调试面板 `Other/Game Settings` 用它显示深度） |
+
+## 关闭后的运行态契约
+
+`GameApp.Shutdown`（幂等）会把**未配对完的暂停一并退掉**：计数归零并回放 `GameSpeed`。留着会有两个后果——关闭后仍要跑的若干帧（重启场景 / 退出期异步落盘）一直冻结在 `timeScale = 0`，且下一次 `Initialize` 会从被冻结的引擎实况播种出 `GameSpeed = 0`，而 `ResumeGame` 在计数 0 是空操作，届时没有任何 API 能把速度救回来。
+
+关闭之后：
+
+- **运行态属性照常可用**：`FrameRate` / `GameSpeed` / `RunInBackground` / `NeverSleep` / `IsGamePaused` / `PauseGame` / `ResumeGame` 不判 `IsShutdown`，读写不抛——它们是引擎状态的门面，不依赖框架存活，写入即刻作用于引擎，并在下一次 `Initialize` 时被重新播种成基线
+- **帧订阅与协程不保证**：注册表已清空、宿主已释放，`Add*Listener` / `Add*Handler` 登记了也不会被驱动，`StartCoroutine` 可能拿不到宿主（返回 `null` 并告警）
 
 ## 注意事项
 

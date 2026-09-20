@@ -104,6 +104,12 @@ namespace Moirai.Atropos
         public static bool IsGamePaused => s_PauseDepth > 0;
 
         /// <summary>
+        /// 获取当前的暂停请求层数（<see cref="PauseGame"/> 加一、<see cref="ResumeGame"/> 减一）。
+        /// <para>只给调试面板定位"哪一层没配对 Resume"用；判暂停请读 <see cref="IsGamePaused"/>。</para>
+        /// </summary>
+        internal static int PauseDepth => s_PauseDepth;
+
+        /// <summary>
         /// 获取是否正常游戏速度（期望值约等于 1，容差 0.01）。暂停不影响本判定。
         /// </summary>
         public static bool IsNormalGameSpeed => System.Math.Abs(s_GameSpeed - 1f) < 0.01f;

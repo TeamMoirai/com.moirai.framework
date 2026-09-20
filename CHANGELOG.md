@@ -24,6 +24,8 @@
 - `Tests/EditorMode/Service/Timer/DefaultTimerHandlerArchitectureTests.cs` 增补：关停后句柄操作与再注册的降级契约、引擎级 `Shutdown` 双关停幂等、两泳道各自预热容量、循环型 Fixed/Late 跨帧再触发、进度列表中间项摘除不影响其余项。
 - `Tests/EditorMode/Core/PlayerLoop/PlayerLoopDriverTests.cs` 增补：正优先级之后注册普通 Handler 的执行顺序、后台线程注册 fail-fast（`s_MainThreadId` 未被钩子捕获时由用例反射补齐，避免断言被"未捕获即放行"分支静默跳过）。
 - `GameApp` 帧订阅门面：`AddUpdateHandler` / `AddFixedUpdateHandler` / `AddLateUpdateHandler`（及各自 `Remove*`）承接 `IUpdateHandler` 三契约，`AddFrameHandler` / `RemoveFrameHandler` 一次登记对象所实现的全部阶段。门面按参数类型分名，多阶段对象传进去不会有驱动内部那种同名三重载二义性。
+- `Tests/EditorMode/Core/RuntimeState/GameAppRuntimeStateTests.cs`：`GameApp` 运行态契约测试——嵌套暂停须各自恢复且只有最后一层回速、叠加暂停不改写恢复目标、计数 0 时 `ResumeGame` 空操作、`GameSpeed = 0` 定格后 Pause/Resume 不弹回 1（`s_GameSpeedBeforePause` 那类陈旧值的结构性消除）、暂停中写速度只更新目标、负速夹到 0、`ResetGameSpeed` 不解暂停、关闭态运行态 API 仍直达引擎。全部只走 public 门面，不反射私有计数。首条用例是 `Time.timeScale` 在编辑模式下的可回放性前置断言（含 >1 档，夹住即说明 1.5x~8x 预设与回放断言都不成立），它红时其余用例的判据即退化成空壳。
+- `GameApp.PauseDepth`（internal）：暴露暂停请求层数，供调试面板定位"哪一层没配对 `ResumeGame`"。
 
 ### Changed
 
@@ -84,6 +86,8 @@
 - **启动相位与心跳装配的文档残留**（双语/代码注释同步）：`Core.md`（zh/en）仍写 `GameAppSettings.Initiation` / `InitializeAppServices` 在 `AfterAssembliesLoaded`（实为 `BeforeSceneLoad`），`GameApp` 条目仍写「注册内置 Tick」（已迁核心钩子）；`PlayerLoopDriver.md` 仍写 `GameServices.Tick`「注册在 Update 回调上」；`UGUIHandler` / `UIServiceHandler` 注释与 `PlayerLoopInjector` 类头 ECS 说明仍沿用旧相位或旧自愈契约。一并改为与代码一致。规范层写明：驱动/内核轮询循环内的 per-subscriber try/catch 属有意隔离，是对「热路径严禁 try-catch」的显式例外。
 - **`FrameworkSettings.LoadSettingSO` 在只读路径上删用户资产**：`GameAppSettings.Instance` 第一次被读到，就可能触发它把 AssetDatabase 里**所有路径不符的同类型资产**逐个 `AssetDatabase.DeleteAsset`（并额外对 `路径 + ".meta"` 再删一次，而 `DeleteAsset` 本就连带删 meta）。同名类型存多份的合法用法不少（分平台、A/B、包内默认 + 项目覆盖），在"读一次配置"里静默删文件属于丢工作。现改为**只报告不动手**：聚合出一条 `Debug.LogError` 列出期望路径与全部多余副本，并仍确定性地加载期望路径那份。真实风险如实告知——打包时 `Resources.Load` 在多份之间取哪一份不由路径决定，但该取舍交还给用户。
 - **`GameApp.StartCoroutine` 宿主不可用时静默返回 null**：调用方拿到 null 无从区分"参数为空"与"框架已 Shutdown / 处于退出窗口所以协程根本没跑"，后者是本该立刻看见的状态误用。现后者额外告警并带协程枚举器的类型名；参数为 `null` 仍静默（属调用方显式契约）。
+- **`GameApp.Shutdown` 不把未配对完的暂停退干净**：`PauseGame` 的计数与压到 0 的 `Time.timeScale` 会跨过关停留下。后果有两层：关闭后仍要跑的若干帧（调试面板 `Shutdown (Restart)` 之后紧接 `LoadScene`、退出期的异步落盘）一直冻结在 0 速；更坏的是下一次 `Initialize` 的 `SeedRuntimeFromEngine` 会从这份被冻结的引擎实况播种出 `GameSpeed = 0`，而 `ResumeGame` 在计数 0 是空操作——此后没有任何 API 能把速度救回来（改引用计数之前反而绕开了这条）。现 `Shutdown` 归零计数并回放 `GameSpeed`。同时把关闭后的契约写明（`Shutdown` 注释 + `GameApp.md` 双语新增「运行态与配置分离」「暂停与速度语义」「关闭后的运行态契约」三节）：运行态属性与 `PauseGame` / `ResumeGame` 不判 `IsShutdown`、不抛，它们是引擎状态的门面，写入即刻生效并成为下一轮启动的基线；帧订阅与协程不在此列（注册表已清空、宿主已释放）。
+- **调试面板把"定格"与"已暂停"挤在同一行**：`Other/Game Settings` 只有一行 `游戏是否暂停 [Is Paused]`，而暂停与速度解耦之后按 0x 预设会得到 `False` + 画面静止，读起来像面板坏了。现拆成「暂停请求（含 `GameApp.PauseDepth` 层数）」与「时间冻结（读 `Time.timeScale`）」两行，`0x` 预设按钮改名 `0x Freeze`（`Debugger.md` 双语同步）。
 
 ### Removed
 

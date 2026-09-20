@@ -1,4 +1,5 @@
 using System;
+using UnityEngine;
 using UnityEngine.UIElements;
 
 namespace Moirai.Atropos.Debugger
@@ -12,7 +13,9 @@ namespace Moirai.Atropos.Debugger
         #region 常量 [CONSTANTS]
 
         private static readonly float[] s_GameSpeedPresets = { 0f, 0.01f, 0.1f, 0.25f, 0.5f, 1f, 1.5f, 2f, 4f, 8f };
-        private static readonly string[] s_GameSpeedLabels = { "0x", "0.01x", "0.1x", "0.25x", "0.5x", "1x", "1.5x", "2x", "4x", "8x" };
+
+        // 0x 是"定格"而不是"暂停"：它只把期望速度调到 0，IsGamePaused 仍为 false
+        private static readonly string[] s_GameSpeedLabels = { "0x Freeze", "0.01x", "0.1x", "0.25x", "0.5x", "1x", "1.5x", "2x", "4x", "8x" };
 
         private const int MIN_FRAME_RATE = 1;
         private const int MAX_FRAME_RATE = 300;
@@ -47,7 +50,11 @@ namespace Moirai.Atropos.Debugger
         {
             VisualElement card = AddSection(root, "运行时控制 [RUNTIME CONTROLS]");
 
-            AddRow(card, "游戏是否暂停 [Is Paused]", GameApp.IsGamePaused.ToString());
+            // 暂停与冻结是两件事，只给一行必然被误读：前者是 PauseGame 的引用计数，后者是引擎实况
+            AddRow(card, "暂停请求 [Is Paused]",
+                GameApp.IsGamePaused ? StringUtility.Format("Yes (depth {0})", GameApp.PauseDepth) : "No");
+            AddRow(card, "时间冻结 [Time Frozen]", Time.timeScale <= 0f ? "Frozen" : "Running");
+
             AddRow(card, "框架运行状态 [Framework]", GameApp.IsShutdown ? "Shutdown" : "Active");
 
             card.Add(BuildFrameRateRow());
