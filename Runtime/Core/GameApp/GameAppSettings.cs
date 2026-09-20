@@ -9,17 +9,17 @@ namespace Moirai.Atropos
     {
         [DisableInPlayMode]
         [Range(1, 300)]
-        [SerializeField] internal int m_FrameRate = 120;
+        [SerializeField] private int m_FrameRate = 120;
 
         [DisableInPlayMode]
         [Range(0f, 8f)]
-        [SerializeField] internal float m_GameSpeed = 1f;
+        [SerializeField] private float m_GameSpeed = 1f;
 
         [DisableInPlayMode]
-        [SerializeField] internal bool m_RunInBackground = true;
+        [SerializeField] private bool m_RunInBackground = true;
 
         [DisableInPlayMode]
-        [SerializeField] internal bool m_NeverSleep = true;
+        [SerializeField] private bool m_NeverSleep = true;
 
         /// <!-- Utilities -->
         private const string HELPER_GROUP = "框架工具 [Global Utilities]";
@@ -74,14 +74,13 @@ namespace Moirai.Atropos
             Application.runInBackground = Instance.m_RunInBackground;
             Screen.sleepTimeout = Instance.m_NeverSleep ? SleepTimeout.NeverSleep : SleepTimeout.SystemSetting;
 
-            GameApp.Initialize();
-            // 组合根：App 作用域服务创建、构建与流程启动
-            InitializeAppServices().Forget();
-
-            LogUtility.Info("Game Version: {0} ({1})", VersionUtility.GameVersion, VersionUtility.InternalGameVersion);
-            LogUtility.Info("Unity Version: {0}", Application.unityVersion);
+            if (GameApp.AutoBoot) GameApp.Boot();
         }
 
-        private static partial UniTaskVoid InitializeAppServices();
+        /// <summary>
+        /// 组合根：注册内置 App 服务并驱动世界初始化。由 <see cref="GameApp.Boot"/> 调用，
+        /// internal 而非 private 是为让启动入口收敛在 GameApp 一处（项目经 <c>AutoBoot</c> 可推迟到那时机）。
+        /// </summary>
+        internal static partial UniTaskVoid InitializeAppServices();
     }
 }
