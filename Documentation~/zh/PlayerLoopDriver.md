@@ -61,9 +61,29 @@ GameApp.RemoveUpdateListener(OnUpdate);
 
 - 使用 `for` 循环，禁止 LINQ / 闭包 / 字符串拼接
 - 驱动中注册/注销进入**所属阶段各自**的延迟缓冲，该阶段迭代结束后提交；跨阶段注册互不串台
-- 订阅方抛异常时由 `finally` 复位 driving 标记并提交缓冲，不会永久滞留
+- 订阅方抛异常时由 `finally` 复位 driving 标记并提交缓冲，不会永久滞留（异常本身的处置见下节）
 - **线程契约**：注册表无锁，注册/注销仅允许主线程（越线程 fail-fast 断言，而非静默丢订阅）；后台线程先经 `MainThreadDispatcher.Post/Send` 回主线程
 - Profiler Marker：`PlayerLoopDriver.Update` 等
+
+## 异常处置
+
+订户异常按**编译期分级**处置，与内核 `ServiceScope` 同一约定（`RETHROW_TICK_EXCEPTIONS`）：
+
+| 构建 | 行为 |
+|------|------|
+| 编辑器 / 开发构建 | `Error` 级记录完整栈后**上抛**——缺陷第一时间暴露，不做静默降级 |
+| 发布构建 | `Error` 级记录后**隔离续跑**——单个订户不截断同阶段其余订户 |
+
+连续失败熔断在两档构建下都生效：同一订户在同一阶段**连续**异常达到 `FailureTripThreshold`（默认 300，约 120fps 下 2.5 秒）即被摘出该阶段并 `Warning` 一次——开发构建是先摘除、当帧仍上抛，故熔断在编辑器里也观察得到。成功一次即归零计数，故间歇性故障不会被累计成熔断；重新注册完全重置。
+
+两处豁免，确保订户级故障永远无法反过来禁用框架自身：
+
+- **核心钩子**（`SetCoreUpdateCallback` 等）：`GameServices.Tick/FixedTick/LateTick` 走这里，先于全部用户订户执行，且**永不参与熔断**。框架自身的心跳若能被熔断摘除，一个项目订户的连抛就会让整层服务静默停摆且无恢复路径。核心钩子仍按上表分级处置（开发期上抛、发布期隔离）。
+- **关闭 / 销毁广播**（`AddApplicationQuitCallback`、`AddDestroyCallback`）：逐项调用（`GetInvocationList` 有分配，故只用于一次性广播），单项异常不阻止其余项，且**开发构建也不上抛**——这些回调的职责就是清理，截断等于静默漏掉后续每一项的释放动作。
+
+其余 Unity 事件表（`focusChanged`、pause、gizmos）仍是裸多播调用：某一项抛出会截断该次广播中排在后面的订户。
+
+`IUpdateHandler` 实现若是已 `Destroy` 的 `MonoBehaviour`，调用即抛 `MissingReferenceException`；`Drive` 的 `null` 判定只覆盖被摘除的槽位，不替代 Unity 的伪造 null 检查——请在 `OnDestroy` 里显式 `Unregister`。
 
 ## 生命周期
 

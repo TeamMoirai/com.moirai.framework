@@ -374,9 +374,10 @@ namespace Moirai.Atropos
 
         private static void RegisterBuiltinDrivers()
         {
-            PlayerLoopDriver.AddUpdateCallback(Tick);
-            PlayerLoopDriver.AddFixedUpdateCallback(FixedTick);
-            PlayerLoopDriver.AddLateUpdateCallback(LateTick);
+            // 三段心跳走核心钩子而非用户回调表：先于全部项目订户执行，且不会被订户的连续异常熔断连带摘除
+            PlayerLoopDriver.SetCoreUpdateCallback(Tick);
+            PlayerLoopDriver.SetCoreFixedUpdateCallback(FixedTick);
+            PlayerLoopDriver.SetCoreLateUpdateCallback(LateTick);
             PlayerLoopDriver.AddDrawGizmosCallback(DrawGizmos);
             PlayerLoopDriver.AddApplicationFocusCallback(ApplicationFocus);
             PlayerLoopDriver.AddApplicationQuitCallback(ApplicationQuit);
@@ -384,9 +385,9 @@ namespace Moirai.Atropos
 
         private static void UnregisterBuiltinDrivers()
         {
-            PlayerLoopDriver.RemoveUpdateCallback(Tick);
-            PlayerLoopDriver.RemoveFixedUpdateCallback(FixedTick);
-            PlayerLoopDriver.RemoveLateUpdateCallback(LateTick);
+            PlayerLoopDriver.SetCoreUpdateCallback(null);
+            PlayerLoopDriver.SetCoreFixedUpdateCallback(null);
+            PlayerLoopDriver.SetCoreLateUpdateCallback(null);
             PlayerLoopDriver.RemoveDrawGizmosCallback(DrawGizmos);
             PlayerLoopDriver.RemoveApplicationFocusCallback(ApplicationFocus);
             PlayerLoopDriver.RemoveApplicationQuitCallback(ApplicationQuit);

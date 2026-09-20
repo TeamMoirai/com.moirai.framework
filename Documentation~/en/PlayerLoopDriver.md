@@ -59,9 +59,29 @@ GameApp.AddUpdateListener(OnUpdate);
 
 - `for` loops only; no LINQ / closures / string concat
 - Register/unregister during drive is deferred into the pending buffer **of that stage**, committed when the stage finishes; cross-stage registrations never leak into each other
-- A throwing subscriber cannot wedge the driving flag: `finally` resets it and commits the buffers
+- A throwing subscriber cannot wedge the driving flag: `finally` resets it and commits the buffers (how the exception itself is handled is covered in the next section)
 - **Thread contract**: the registries are lock-free, so register/unregister is main-thread only (fail-fast assert rather than silently dropping a subscription); background threads must hop through `MainThreadDispatcher.Post/Send`
 - Profiler markers: `PlayerLoopDriver.Update`, etc.
+
+## Exception Handling
+
+Subscriber exceptions are graded at **compile time**, following the same contract as the kernel's `ServiceScope.RETHROW_TICK_EXCEPTIONS`:
+
+| Build | Behavior |
+|------|------|
+| Editor / development | Logged at `Error` with full stack, then **rethrown** — surface the defect, never degrade silently |
+| Release | Logged at `Error`, then **isolated** — one subscriber cannot truncate the rest of its stage |
+
+Consecutive-failure tripping applies in **both** tiers: a subscriber that throws `FailureTripThreshold` times **in a row** in one stage (default 300, about 2.5 s at 120 fps) is removed from that stage and a single `Warning` is emitted — in development builds it is removed first and the exception still rethrows that frame, so the trip is observable in the editor. One success resets the counter, so an intermittent fault never accumulates into a trip; re-registering resets it completely.
+
+Two exemptions, so that subscriber-level failures can never disable the framework itself:
+
+- **Core hooks** (`SetCoreUpdateCallback`, …): `GameServices.Tick/FixedTick/LateTick` live here and run ahead of every user subscriber, and they are **never tripped out**. If the framework's own heartbeat could be removed by tripping, one project subscriber's repeated throws would stall the whole service layer with no way back. Core hooks still follow the build tier above (rethrow in development, isolated in release).
+- **Quit / destroy broadcasts** (`AddApplicationQuitCallback`, `AddDestroyCallback`): invoked item by item (`GetInvocationList` allocates, so this is reserved for one-shot broadcasts). A throwing item cannot block the rest, and these do **not** rethrow even in development builds — their only job is cleanup, so truncation means every later release action is silently skipped.
+
+The remaining Unity-event tables (`focusChanged`, pause, gizmos) are still plain multicast invokes: a throwing subscriber truncates the later subscribers of that one broadcast.
+
+An `IUpdateHandler` implemented on a destroyed `MonoBehaviour` throws `MissingReferenceException` on invocation: `Drive`'s null check only covers emptied slots, not Unity's fake-null. Unregister explicitly from `OnDestroy`.
 
 ## Lifecycle
 

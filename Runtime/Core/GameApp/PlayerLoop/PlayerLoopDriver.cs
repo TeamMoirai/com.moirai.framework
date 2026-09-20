@@ -14,6 +14,10 @@ namespace Moirai.Atropos
     /// <see cref="DriveLateUpdate"/> 及所有 <see cref="IUpdateHandler"/> 实现的热路径不得产生堆分配：
     /// 使用 for 循环、禁止 LINQ/闭包/字符串拼接。驱动中的注册/注销进入<b>所属阶段各自的</b>延迟缓冲，
     /// 该阶段迭代结束后统一提交。</para>
+    /// <para><b>异常处置</b>：订户异常按编译期分级——开发构建记录后上抛（第一时间暴露），
+    /// 发布构建隔离续跑（单个订户不截断同阶段其余订户），且同一订户连续失败达
+    /// <see cref="FailureTripThreshold"/> 即被熔断摘出。核心钩子与关闭/销毁广播不参与截断，
+    /// 详见 <see cref="SetCoreUpdateCallback"/> 与 <see cref="InvokeAllQuarantined"/>。</para>
     /// <para>DI 集成：将本类或包装服务注册进 VContainer 等容器；Handler 实现经构造注入依赖，
     /// 再由组合根调用 <see cref="Register(IUpdateHandler)"/>，驱动与对象创建解耦。</para>
     /// <para><b>线程契约</b>：注册表无锁，注册/注销只允许主线程调用（越线程会 fail-fast 断言，
@@ -25,6 +29,24 @@ namespace Moirai.Atropos
 
         private const int INITIAL_CAPACITY = 32;
 
+        /// <summary>
+        /// 订阅异常分级策略：开发期记录后上抛（缺陷第一时间暴露），发布期隔离续跑（单个订户不拖垮整阶段）。
+        /// <para>与内核 <c>ServiceScope.RETHROW_TICK_EXCEPTIONS</c> 同一约定。<b>两处需同步修改</b>——
+        /// 本类属 <c>Runtime/Core</c>，不引用 <c>Runtime/Services</c> 的常量以免逆向依赖。</para>
+        /// <para><c>const</c> 门控：JIT 裁掉死分支，发布构建零运行时成本。</para>
+        /// </summary>
+        private const bool RETHROW_SUBSCRIBER_EXCEPTIONS =
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            true;
+#else
+            false;
+#endif
+
+        /// <summary>
+        /// 连续失败熔断默认阈值。与 <c>ServiceWorld.DEFAULT_TICK_TRIP_THRESHOLD</c> 同值（同上，不跨层引用）。
+        /// </summary>
+        private const int DEFAULT_FAILURE_TRIP_THRESHOLD = 300;
+
         private static readonly ProfilerMarker s_UpdateMarker = new ProfilerMarker("PlayerLoopDriver.Update");
         private static readonly ProfilerMarker s_FixedUpdateMarker = new ProfilerMarker("PlayerLoopDriver.FixedUpdate");
         private static readonly ProfilerMarker s_LateUpdateMarker = new ProfilerMarker("PlayerLoopDriver.LateUpdate");
@@ -33,14 +55,32 @@ namespace Moirai.Atropos
 
         #region 状态 [STATE]
 
-        // 每阶段一条独立注册表：接口 Handler 与 Action 回调各一份，延迟缓冲同样按阶段隔离
-        private static readonly HandlerSlot<IUpdateHandler> s_Update = new HandlerSlot<IUpdateHandler>();
-        private static readonly HandlerSlot<IFixedUpdateHandler> s_Fixed = new HandlerSlot<IFixedUpdateHandler>();
-        private static readonly HandlerSlot<ILateUpdateHandler> s_Late = new HandlerSlot<ILateUpdateHandler>();
+        // 每阶段一条独立注册表：接口 Handler 与 Action 回调各一份，延迟缓冲同样按阶段隔离。
+        // 阶段方法名各异（Update / FixedUpdate / LateUpdate），故以不可变 invoker 委托参数化——
+        // 静态初始化时创建一次，隔离/熔断逻辑因此只需写一份。
+        private static readonly HandlerSlot<IUpdateHandler> s_Update =
+            new HandlerSlot<IUpdateHandler>((h, a, b) => h.Update(a, b), "Update");
+        private static readonly HandlerSlot<IFixedUpdateHandler> s_Fixed =
+            new HandlerSlot<IFixedUpdateHandler>((h, a, b) => h.FixedUpdate(a, b), "FixedUpdate");
+        private static readonly HandlerSlot<ILateUpdateHandler> s_Late =
+            new HandlerSlot<ILateUpdateHandler>((h, a, b) => h.LateUpdate(a, b), "LateUpdate");
 
-        private static readonly CallbackSlot s_UpdateCallback = new CallbackSlot();
-        private static readonly CallbackSlot s_FixedCallback = new CallbackSlot();
-        private static readonly CallbackSlot s_LateCallback = new CallbackSlot();
+        private static readonly CallbackSlot s_UpdateCallback = new CallbackSlot("Update");
+        private static readonly CallbackSlot s_FixedCallback = new CallbackSlot("FixedUpdate");
+        private static readonly CallbackSlot s_LateCallback = new CallbackSlot("LateUpdate");
+
+        // 核心钩子：先于全部用户订户执行、不参与熔断。框架自身的服务层心跳若被某个项目订户的
+        // 连续异常连带摘除，后果是整层停摆且无从恢复，故它与用户订户分表存放。
+        private static Action s_CoreUpdate;
+        private static Action s_CoreFixedUpdate;
+        private static Action s_CoreLateUpdate;
+
+        /// <summary>
+        /// 连续失败熔断阈值：同一订户在同一阶段连续异常达到该次数即被摘出该阶段。
+        /// <para>与 <c>ServiceWorld.TickFailureTripThreshold</c> 同构，供测试调低以在编辑器下驱动熔断路径
+        /// （开发构建会先上抛，非上抛分支在编辑器中不可达）。</para>
+        /// </summary>
+        internal static int FailureTripThreshold { get; set; } = DEFAULT_FAILURE_TRIP_THRESHOLD;
 
         // Unity 生命周期事件表：非帧阶段，低频且无热路径要求，直接用多播委托
         private static Action s_DestroyCallbacks;
@@ -125,7 +165,7 @@ namespace Moirai.Atropos
             // 先广播 Destroy，再清空订阅（与 GameApp 语义一致）
             Action destroy = s_DestroyCallbacks;
             s_DestroyCallbacks = null;
-            destroy?.Invoke();
+            InvokeAllQuarantined(destroy, "Destroy");
 
             ClearHandlers();
             UnhookApplicationLifecycle();
@@ -147,6 +187,10 @@ namespace Moirai.Atropos
             s_UpdateCallback.Clear();
             s_FixedCallback.Clear();
             s_LateCallback.Clear();
+
+            s_CoreUpdate = null;
+            s_CoreFixedUpdate = null;
+            s_CoreLateUpdate = null;
 
             s_DestroyCallbacks = null;
             s_DrawGizmosCallbacks = null;
@@ -201,7 +245,7 @@ namespace Moirai.Atropos
 
         private static void OnApplicationQuit()
         {
-            s_ApplicationQuitCallbacks?.Invoke();
+            InvokeAllQuarantined(s_ApplicationQuitCallbacks, "ApplicationQuit");
         }
 
         private static void OnApplicationFocusChanged(bool hasFocus)
@@ -325,6 +369,15 @@ namespace Moirai.Atropos
         public static void RaiseApplicationPause(bool pauseStatus)
         {
             s_ApplicationPauseCallbacks?.Invoke(pauseStatus);
+        }
+
+        /// <summary>
+        /// 广播 ApplicationQuit。生产路径由 <see cref="Application.quitting"/> 触发，
+        /// internal 是给测试留的接缝——关闭广播无法从测试侧唤起引擎事件。
+        /// </summary>
+        internal static void RaiseApplicationQuit()
+        {
+            OnApplicationQuit();
         }
 
         #endregion
@@ -453,6 +506,52 @@ namespace Moirai.Atropos
 
         #endregion
 
+        #region 核心钩子 [CORE HOOKS]
+
+        /// <summary>
+        /// 设置 Update 阶段核心钩子（覆盖式，传 null 清除）。
+        /// <para>核心钩子先于本阶段全部用户订户执行，且<b>不参与熔断</b>：组合根心跳
+        /// （<c>GameServices.Tick</c>）若因某个项目订户的连续异常被连带摘出，后果是整层服务
+        /// 静默停摆且无恢复路径。由 <see cref="GameApp"/> 装配。</para>
+        /// </summary>
+        internal static void SetCoreUpdateCallback(Action callback)
+        {
+            EnsureMainThread();
+            s_CoreUpdate = callback;
+        }
+
+        /// <summary>设置 FixedUpdate 阶段核心钩子。语义同 <see cref="SetCoreUpdateCallback"/>。</summary>
+        internal static void SetCoreFixedUpdateCallback(Action callback)
+        {
+            EnsureMainThread();
+            s_CoreFixedUpdate = callback;
+        }
+
+        /// <summary>设置 LateUpdate 阶段核心钩子。语义同 <see cref="SetCoreUpdateCallback"/>。</summary>
+        internal static void SetCoreLateUpdateCallback(Action callback)
+        {
+            EnsureMainThread();
+            s_CoreLateUpdate = callback;
+        }
+
+        /// <summary>调用核心钩子：按分级策略处置异常，但永不熔断。</summary>
+        private static void InvokeCore(Action core, string stageName)
+        {
+            if (core == null) return;
+
+            try
+            {
+                core();
+            }
+            catch (Exception exception)
+            {
+                LogUtility.Error("PlayerLoop {0} core hook threw: {1}", stageName, exception);
+                if (RETHROW_SUBSCRIBER_EXCEPTIONS) throw;
+            }
+        }
+
+        #endregion
+
         #region 驱动 [DRIVE]
 
         /// <summary>PlayerLoop Update 阶段入口（由 <see cref="PlayerLoopInjector"/> 调用）。</summary>
@@ -470,19 +569,9 @@ namespace Moirai.Atropos
                     float dt = GameTime.deltaTime;
                     float udt = GameTime.unscaledDeltaTime;
 
-                    IUpdateHandler[] handlers = s_Update.Handlers;
-                    int handlerCount = s_Update.Count;
-                    for (int i = 0; i < handlerCount; i++)
-                    {
-                        handlers[i]?.Update(dt, udt);
-                    }
-
-                    Action[] callbacks = s_UpdateCallback.Handlers;
-                    int callbackCount = s_UpdateCallback.Count;
-                    for (int i = 0; i < callbackCount; i++)
-                    {
-                        callbacks[i]?.Invoke();
-                    }
+                    InvokeCore(s_CoreUpdate, "Update");
+                    s_Update.Drive(dt, udt);
+                    s_UpdateCallback.Drive();
                 }
             }
             finally
@@ -508,19 +597,9 @@ namespace Moirai.Atropos
                     float fdt = GameTime.fixedDeltaTime;
                     float udt = GameTime.unscaledDeltaTime;
 
-                    IFixedUpdateHandler[] handlers = s_Fixed.Handlers;
-                    int handlerCount = s_Fixed.Count;
-                    for (int i = 0; i < handlerCount; i++)
-                    {
-                        handlers[i]?.FixedUpdate(fdt, udt);
-                    }
-
-                    Action[] callbacks = s_FixedCallback.Handlers;
-                    int callbackCount = s_FixedCallback.Count;
-                    for (int i = 0; i < callbackCount; i++)
-                    {
-                        callbacks[i]?.Invoke();
-                    }
+                    InvokeCore(s_CoreFixedUpdate, "FixedUpdate");
+                    s_Fixed.Drive(fdt, udt);
+                    s_FixedCallback.Drive();
                 }
             }
             finally
@@ -545,19 +624,9 @@ namespace Moirai.Atropos
                     float dt = GameTime.deltaTime;
                     float udt = GameTime.unscaledDeltaTime;
 
-                    ILateUpdateHandler[] handlers = s_Late.Handlers;
-                    int handlerCount = s_Late.Count;
-                    for (int i = 0; i < handlerCount; i++)
-                    {
-                        handlers[i]?.LateUpdate(dt, udt);
-                    }
-
-                    Action[] callbacks = s_LateCallback.Handlers;
-                    int callbackCount = s_LateCallback.Count;
-                    for (int i = 0; i < callbackCount; i++)
-                    {
-                        callbacks[i]?.Invoke();
-                    }
+                    InvokeCore(s_CoreLateUpdate, "LateUpdate");
+                    s_Late.Drive(dt, udt);
+                    s_LateCallback.Drive();
                 }
             }
             finally
@@ -578,27 +647,127 @@ namespace Moirai.Atropos
             s_LateCallback.FlushPending();
         }
 
+        /// <summary>
+        /// 逐项调用多播回调：单项异常不截断其余项。
+        /// <para>只用于关闭 / 销毁这类<b>一次性清理广播</b>——它们的职责就是清理，截断等于静默漏掉
+        /// 后续每一项的释放动作（存档、句柄、订阅退订）。故开发构建也不上抛，异常按 Error 级带栈记录。</para>
+        /// <para><see cref="Delegate.GetInvocationList"/> 每次调用有分配，因此<b>不得</b>用于帧热路径。</para>
+        /// </summary>
+        private static void InvokeAllQuarantined(Action callbacks, string stageName)
+        {
+            if (callbacks == null) return;
+
+            Delegate[] invocations = callbacks.GetInvocationList();
+            for (int i = 0; i < invocations.Length; i++)
+            {
+                try
+                {
+                    ((Action)invocations[i])();
+                }
+                catch (Exception exception)
+                {
+                    LogUtility.Error("PlayerLoop {0} callback threw: {1}", stageName, exception);
+                }
+            }
+        }
+
         #endregion
 
         #region 阶段注册表 [SLOTS]
 
         /// <summary>
-        /// 单阶段的接口 Handler 注册表：紧凑数组 + 本阶段独立的延迟缓冲。
+        /// 单阶段的接口 Handler 注册表：紧凑数组 + 本阶段独立的延迟缓冲 + 本阶段独立的失败计数。
         /// <para>数组恒按有效优先级升序（未实现 <see cref="IPlayerLoopPriority"/> 者计 0），同优先级维持注册序（稳定）；
         /// 末位优先级允许直读追加时走 O(1) 快路，否则整表排序插入。</para>
+        /// <para>阶段方法名各异，故由构造期注入不可变 invoker——异常隔离与熔断因此只需实现一份。</para>
         /// </summary>
         private sealed class HandlerSlot<T> where T : class
         {
+            private readonly Action<T, float, float> m_Invoker;
+            private readonly string m_StageName;
             private T[] m_Handlers = new T[INITIAL_CAPACITY];
             private int m_Count;
             private readonly List<T> m_PendingAdd = new List<T>(INITIAL_CAPACITY);
             private readonly List<T> m_PendingRemove = new List<T>(INITIAL_CAPACITY);
             private readonly List<T> m_SortBuffer = new List<T>(INITIAL_CAPACITY);
 
-            /// <summary>底层数组：Drive 热路径在循环外读取一次。</summary>
-            public T[] Handlers => m_Handlers;
+            // 连续失败计数懒建：健康路径下 m_HasFailures 恒 false，每订户每帧只多读一个 bool
+            private bool m_HasFailures;
+            private Dictionary<T, int> m_Failures;
+
+            public HandlerSlot(Action<T, float, float> invoker, string stageName)
+            {
+                m_Invoker = invoker;
+                m_StageName = stageName;
+            }
 
             public int Count => m_Count;
+
+            /// <summary>
+            /// 驱动本阶段全部订户：逐个隔离异常，同一订户连续失败达阈值即熔断摘出。
+            /// <para>热路径零分配——<c>try</c> 本身不产生堆分配，只有抛出路径走日志与计数。
+            /// 保留 <c>null</c> 判定：订户若在迭代中被 <see cref="Clear"/> 清空，本帧余下槽位即为空。</para>
+            /// </summary>
+            public void Drive(float arg1, float arg2)
+            {
+                T[] handlers = m_Handlers;
+                int count = m_Count;
+                // 局部变量阻断编译期可达性折叠——避免 throw 之后的熔断索引补偿触发 CS0162（零运行时差异）
+                bool rethrow = RETHROW_SUBSCRIBER_EXCEPTIONS;
+
+                for (int i = 0; i < count; i++)
+                {
+                    T handler = handlers[i];
+                    if (handler == null) continue;
+
+                    try
+                    {
+                        m_Invoker(handler, arg1, arg2);
+                        ResetFailuresIfAny(handler);
+                    }
+                    catch (Exception exception)
+                    {
+                        LogUtility.Error("PlayerLoop {0} handler threw: {1}", m_StageName, exception);
+                        bool tripped = RecordFailure(handler);
+                        if (rethrow) throw;
+                        // Remove 保序搬移：后继元素左移一位，故回退索引以免跳过，并收缩本地计数
+                        if (tripped)
+                        {
+                            i--;
+                            count--;
+                        }
+                    }
+                }
+            }
+
+            /// <summary>记一次失败；达阈值则把该订户摘出本阶段并告警一次。重新注册即完全重置计数。</summary>
+            private bool RecordFailure(T handler)
+            {
+                m_HasFailures = true;
+                m_Failures ??= new Dictionary<T, int>(INITIAL_CAPACITY);
+
+                int failures = m_Failures.TryGetValue(handler, out int previous) ? previous + 1 : 1;
+                m_Failures[handler] = failures;
+                if (failures < FailureTripThreshold) return false;
+
+                Remove(handler);
+                m_Failures.Remove(handler);
+                LogUtility.Warning(
+                    "PlayerLoop {0} handler '{1}' was removed after {2} consecutive failures (threshold {3}).",
+                    m_StageName, handler.GetType().FullName, failures, FailureTripThreshold);
+                return true;
+            }
+
+            private void ResetFailuresIfAny(T handler)
+            {
+                if (!m_HasFailures) return;
+
+                if (m_Failures != null &&
+                    m_Failures.TryGetValue(handler, out int recorded) && recorded != 0)
+                {
+                    m_Failures[handler] = 0;
+                }
+            }
 
             public void Add(T handler)
             {
@@ -678,6 +847,8 @@ namespace Moirai.Atropos
                 m_PendingAdd.Clear();
                 m_PendingRemove.Clear();
                 m_SortBuffer.Clear();
+                m_HasFailures = false;
+                m_Failures = null;
             }
 
             private bool Contains(T handler)
@@ -724,14 +895,81 @@ namespace Moirai.Atropos
         /// <summary>单阶段的 Action 回调注册表（语义同 <see cref="HandlerSlot{T}"/>，无优先级）。</summary>
         private sealed class CallbackSlot
         {
+            private readonly string m_StageName;
             private Action[] m_Callbacks = new Action[INITIAL_CAPACITY];
             private int m_Count;
             private readonly List<Action> m_PendingAdd = new List<Action>(INITIAL_CAPACITY);
             private readonly List<Action> m_PendingRemove = new List<Action>(INITIAL_CAPACITY);
 
-            public Action[] Handlers => m_Callbacks;
+            private bool m_HasFailures;
+            private Dictionary<Action, int> m_Failures;
+
+            public CallbackSlot(string stageName)
+            {
+                m_StageName = stageName;
+            }
 
             public int Count => m_Count;
+
+            /// <summary>驱动本阶段全部回调：隔离与熔断语义同 <see cref="HandlerSlot{T}.Drive"/>。</summary>
+            public void Drive()
+            {
+                Action[] callbacks = m_Callbacks;
+                int count = m_Count;
+                bool rethrow = RETHROW_SUBSCRIBER_EXCEPTIONS;
+
+                for (int i = 0; i < count; i++)
+                {
+                    Action callback = callbacks[i];
+                    if (callback == null) continue;
+
+                    try
+                    {
+                        callback();
+                        ResetFailuresIfAny(callback);
+                    }
+                    catch (Exception exception)
+                    {
+                        LogUtility.Error("PlayerLoop {0} callback threw: {1}", m_StageName, exception);
+                        bool tripped = RecordFailure(callback);
+                        if (rethrow) throw;
+                        if (tripped)
+                        {
+                            i--;
+                            count--;
+                        }
+                    }
+                }
+            }
+
+            private bool RecordFailure(Action callback)
+            {
+                m_HasFailures = true;
+                m_Failures ??= new Dictionary<Action, int>(INITIAL_CAPACITY);
+
+                int failures = m_Failures.TryGetValue(callback, out int previous) ? previous + 1 : 1;
+                m_Failures[callback] = failures;
+                if (failures < FailureTripThreshold) return false;
+
+                Remove(callback);
+                m_Failures.Remove(callback);
+                LogUtility.Warning(
+                    "PlayerLoop {0} callback '{1}.{2}' was removed after {3} consecutive failures (threshold {4}).",
+                    m_StageName, callback.Method.DeclaringType, callback.Method.Name,
+                    failures, FailureTripThreshold);
+                return true;
+            }
+
+            private void ResetFailuresIfAny(Action callback)
+            {
+                if (!m_HasFailures) return;
+
+                if (m_Failures != null &&
+                    m_Failures.TryGetValue(callback, out int recorded) && recorded != 0)
+                {
+                    m_Failures[callback] = 0;
+                }
+            }
 
             public void Add(Action callback)
             {
@@ -786,6 +1024,8 @@ namespace Moirai.Atropos
                 Array.Clear(m_Callbacks, 0, m_Callbacks.Length);
                 m_PendingAdd.Clear();
                 m_PendingRemove.Clear();
+                m_HasFailures = false;
+                m_Failures = null;
             }
 
             private bool Contains(Action callback)

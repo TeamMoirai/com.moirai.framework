@@ -43,6 +43,7 @@
 - **`Timer` 公开 API 改名（破坏性）**：`AddTimer` / `AddTimer<T>` / `Stop`（暂停语义）/ `RemoveTimer` → `Delay` / `Delay<T>` / `Pause` / `Cancel`。**不提供 `[Obsolete]` 别名**——旧 `AddTimer(Action callback, float time)` 与新 `Delay(float delaySeconds, Action onComplete)` 的实参顺序相反，别名无法纯转发。`Resume` / `Restart` / `IsRunning` / `GetLeftTime` 的名称与语义不变。
 - **`Timer.WaitAsync` 由每帧轮询改为按槽位完成信号驱动**：完成 / 取消在引擎本阶段 `Tick` 末尾统一排空唤醒，避免 await 续跑在槽位释放调用栈内同步重入；`Shutdown` 时同步排空，防止 awaiter 永久挂起。同一句柄只有首个 await 走信号，后续 await 退回轮询（成本回到旧行为）。
 - **`Timer` 统计的并发峰值改为跨泳道真实值**：`GetStatistics` 的 `peakActiveCount` 由复合层在每次创建后采样「两泳道活跃数之和」的最大值，不再等于两引擎各自峰值相加（那是高估）。
+- **`GameApp` 三段心跳改走核心钩子**：`Tick` / `FixedTick` / `LateTick` 从用户 Action 回调表迁至 `PlayerLoopDriver.SetCore*Callback`，先于本阶段全部用户订户执行且永不参与熔断。此前它们落在无优先级的 `AddUpdateCallback` 表里，执行位置取决于注册时机——比 `GameApp.Initialize` 更早注册的项目订户一旦持续抛出，整层服务的轮询就被连带截断。
 
 ### Fixed
 
@@ -64,6 +65,9 @@
 - **`Timer` 时间轮的延后触发列表与进度列表存在线性扫描**：Fixed/Late 入列用 `List<ulong>.Contains` 去重、释放用线性摘除，进度列表亦线性移除——同帧大量 Fixed/Late 或带进度计时器到期即 O(N²)。现延后列表改以槽位归属位（`1 << 6` / `1 << 7`）作去重判据、并在快照排空时清除（否则循环型只会触发一次），不在列的槽位一次位判即返回；进度列表按帧泳道同法记录列表下标，做 O(1) swap-remove。
 - **`Documentation~/zh|en/Core.md` 与代码脱节**（双语同步修正）：`IService.Shutdown()` 实为 `OnShutdown()`（含示例，照抄不能编译）；异步关闭顺序是逆激活序而非逆注册序；拦截器表列出不存在的 `OnServiceTick`；引用已删除的 `RegisterWithDependencies` 与不属于组合根的 `ProcedureServiceSettings.StartProcedure`；内置服务计数 11/12 实为 13；`ServiceScopeOrder` 其实不被容器消费；依赖校验时机仍是两阶段之前的旧描述。
 - **`FrameworkSettings<T>.Instance` 加载失败时栈溢出**：资产缺失的**打包分支**原先调 `LogUtility.Error`，而 `LogUtility.Handler` 的懒加载要经 `GetHandlerFromSettings()` → `GameAppSettings.LogHandler` 回读**同一个**设置资产——此刻 `s_Instance` 仍为 null，于是"报错说资产缺失"这一步再次进入本 getter 无限递归（`StackOverflowException` 不可捕获，进程直接被带走）。编辑器分支走 `LoadSettingSO`，其中本就用裸 `Debug.*`，故编辑器下从不复现、也从未被发现；触发与否还取决于 `LogUtility` 是否已被更早的钩子解析过，表现为偶发。现改裸 `Debug.LogError`，并在类型注释中写明该路径禁用可插拔日志链路的约束。
+- **`PlayerLoopDriver` 订户异常截断整阶段，并能永久冻结服务层心跳**：三个 `Drive*` 只有 `finally`、没有隔离，一个订户抛出后同阶段其余订户与全部 Action 回调当帧不再执行。内核早有逐服务 `try/catch` + `TickFailureTripThreshold` 熔断，这条防御线在上一层断掉了。现按内核同一约定分级（开发期 `Error` 记录后上抛、发布期隔离续跑），并按 `FailureTripThreshold`（默认 300，与内核同值）做连续失败熔断摘出——成功一次即归零，间歇性故障不会被累计成熔断；两档构建下都摘除，故熔断在编辑器亦观察得到。核心钩子永不熔断；`ApplicationQuit` / `Destroy` 两类一次性清理广播改为逐项调用且开发构建也不上抛（截断清理等于漏掉后续每一项的释放动作）。`focusChanged` / pause / gizmos 三张表仍是裸多播调用，单项抛出会截断其后的订户（已记入文档，未改）。既有 `PlayerLoopDriverTests` 断言的行为不变。
+- **已 `Destroy` 的 `MonoBehaviour` 型 Handler 抛 `MissingReferenceException` 未被挡**（只记文档，未改代码）：`Drive` 原先的 `handlers[i]?.` 与改用显式 `null` 判定后一样，走的都是 C# 引用比较而非 Unity 的伪造 null 重载，挡不住已销毁组件——须在 `OnDestroy` 里自行 `Unregister`。
+- **启动链对配置资产缺失仍无守卫**（本轮有意未采纳）：`GameAppSettings.Initiation` 直接解引用 `Instance.m_FrameRate`，资产缺失时 NRE 中断这个 `[RuntimeInitializeOnLoadMethod]`——PlayerLoop 不注入、服务组合根不执行；`GameAppSettings` 七个处理器出口写成 `Instance.m_XHandler`，其抛出会穿过 `GetHandlerFromSettings() ?? CreateDefaultHandler()` 兜底链（`??` 不吞异常），使日志/字符串等 Utility 连退回代码默认值的机会都没有。上一条栈溢出已修（`caf44d0c`），故当前表现是打印一行 `Could not find GameAppSettings at path '...'` 加一段 NRE 栈，而非进程直接被带走。
 
 ### Removed
 

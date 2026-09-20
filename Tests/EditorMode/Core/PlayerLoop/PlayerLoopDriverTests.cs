@@ -1,7 +1,10 @@
 using System;
 using System.Collections.Generic;
+using System.Text.RegularExpressions;
 using Moirai.Atropos;
 using NUnit.Framework;
+using UnityEngine;
+using UnityEngine.TestTools;
 
 namespace Core.PlayerLoop
 {
@@ -82,10 +85,12 @@ namespace Core.PlayerLoop
             public int Calls;
             public Action Other;
             public bool RemoveOtherNextCall;
+            public Exception ThrowOnRun;
 
             public void Run()
             {
                 Calls++;
+                if (ThrowOnRun != null) throw ThrowOnRun;
                 if (!RemoveOtherNextCall) return;
                 RemoveOtherNextCall = false;
                 PlayerLoopDriver.RemoveUpdateCallback(Other);
@@ -96,6 +101,7 @@ namespace Core.PlayerLoop
 
         private VirtualClock _clock;
         private GameTimeHandler _originalClock;
+        private int _originalTripThreshold;
 
         [SetUp]
         public void SetUp()
@@ -103,12 +109,15 @@ namespace Core.PlayerLoop
             _originalClock = GameTime.Handler;
             _clock = new VirtualClock();
             GameTime.Handler = _clock;
+            // 熔断阈值是驱动器级静态配置，不随 ResetForTests 复位——用例改它必须自行还原
+            _originalTripThreshold = PlayerLoopDriver.FailureTripThreshold;
             PlayerLoopDriver.ResetForTests(true);
         }
 
         [TearDown]
         public void TearDown()
         {
+            PlayerLoopDriver.FailureTripThreshold = _originalTripThreshold;
             PlayerLoopDriver.ResetForTests(false);
             GameTime.Handler = _originalClock ?? new DefaultGameTimeHandler();
         }
@@ -235,6 +244,134 @@ namespace Core.PlayerLoop
             Assert.AreEqual(1, after.UpdateCalls);
         }
 
+        [Test]
+        public void UpdateHandler_ConsecutiveFailures_TripsAfterThreshold_StopsDriving()
+        {
+            // 回归：驱动器层没有隔离时，一个故障订户每帧截断整阶段且永不退出
+            PlayerLoopDriver.FailureTripThreshold = 3;
+
+            var bomb = new Probe("bomb") { ThrowOnUpdate = new InvalidOperationException("boom") };
+            var healthy = new Probe("healthy");
+            PlayerLoopDriver.Register(bomb);
+            PlayerLoopDriver.Register(healthy);
+
+            for (int frame = 1; frame <= 3; frame++)
+            {
+                // 开发构建按分级策略记录后上抛；第 3 次失败先熔断摘除再抛
+                LogAssert.Expect(LogType.Error, new Regex("handler threw"));
+                if (frame == 3) LogAssert.Expect(LogType.Warning, new Regex("was removed after"));
+                Assert.Throws<InvalidOperationException>(() => PlayerLoopDriver.DriveUpdate());
+            }
+
+            Assert.AreEqual(1, PlayerLoopDriver.UpdateHandlerCount, "只摘故障者，健康者必须留下");
+            Assert.DoesNotThrow(() => PlayerLoopDriver.DriveUpdate());
+            Assert.AreEqual(3, bomb.UpdateCalls, "熔断后不应有第 4 次尝试");
+            Assert.AreEqual(1, healthy.UpdateCalls, "健康者应在故障者被摘除后的那一帧恢复驱动");
+        }
+
+        [Test]
+        public void UpdateCallback_ConsecutiveFailures_TripsAfterThreshold_StopsDriving()
+        {
+            PlayerLoopDriver.FailureTripThreshold = 2;
+
+            var bomb = new CallbackProbe { ThrowOnRun = new InvalidOperationException("boom") };
+            var healthy = new CallbackProbe();
+            PlayerLoopDriver.AddUpdateCallback(bomb.Run);
+            PlayerLoopDriver.AddUpdateCallback(healthy.Run);
+
+            for (int frame = 1; frame <= 2; frame++)
+            {
+                LogAssert.Expect(LogType.Error, new Regex("callback threw"));
+                if (frame == 2) LogAssert.Expect(LogType.Warning, new Regex("was removed after"));
+                Assert.Throws<InvalidOperationException>(() => PlayerLoopDriver.DriveUpdate());
+            }
+
+            Assert.AreEqual(1, PlayerLoopDriver.UpdateCallbackCount);
+            PlayerLoopDriver.DriveUpdate();
+            Assert.AreEqual(2, bomb.Calls, "熔断后不再被调用");
+            Assert.AreEqual(1, healthy.Calls, "健康者应在熔断后恢复");
+        }
+
+        [Test]
+        public void HandlerSuccessBetweenFailures_ResetsConsecutiveCount()
+        {
+            // 熔断判据是「连续」失败：间歇性故障每帧仍被驱动，不能被累计成熔断
+            PlayerLoopDriver.FailureTripThreshold = 3;
+            var bomb = new Probe("bomb") { ThrowOnUpdate = new InvalidOperationException("boom") };
+            PlayerLoopDriver.Register(bomb);
+
+            for (int frame = 1; frame <= 2; frame++)
+            {
+                LogAssert.Expect(LogType.Error, new Regex("handler threw"));
+                Assert.Throws<InvalidOperationException>(() => PlayerLoopDriver.DriveUpdate());
+            }
+
+            bomb.ThrowOnUpdate = null;
+            PlayerLoopDriver.DriveUpdate();
+
+            bomb.ThrowOnUpdate = new InvalidOperationException("boom");
+            for (int frame = 1; frame <= 2; frame++)
+            {
+                LogAssert.Expect(LogType.Error, new Regex("handler threw"));
+                Assert.Throws<InvalidOperationException>(() => PlayerLoopDriver.DriveUpdate());
+            }
+
+            Assert.AreEqual(1, PlayerLoopDriver.UpdateHandlerCount, "成功一次即归零，2+2 次失败不应触发阈值 3");
+        }
+
+        [Test]
+        public void CoreUpdateCallback_RunsBeforeUserCallbacks()
+        {
+            // 回归：服务层心跳曾挤在用户回调表里，与该表的注册序绑定，可能被项目订户排到后面
+            var order = new List<string>();
+            PlayerLoopDriver.AddUpdateCallback(() => order.Add("user"));
+            PlayerLoopDriver.SetCoreUpdateCallback(() => order.Add("core"));
+
+            PlayerLoopDriver.DriveUpdate();
+
+            Assert.AreEqual(new[] { "core", "user" }, order.ToArray());
+        }
+
+        [Test]
+        public void CoreUpdateCallback_IsNeverTripped()
+        {
+            // 核心钩子若参与熔断，项目订户的连抛会把整层服务心跳永久摘除且无恢复路径
+            PlayerLoopDriver.FailureTripThreshold = 2;
+            int calls = 0;
+            PlayerLoopDriver.SetCoreUpdateCallback(() =>
+            {
+                calls++;
+                throw new InvalidOperationException("core boom");
+            });
+
+            for (int frame = 1; frame <= 5; frame++)
+            {
+                LogAssert.Expect(LogType.Error, new Regex("core hook threw"));
+                Assert.Throws<InvalidOperationException>(() => PlayerLoopDriver.DriveUpdate());
+            }
+
+            Assert.AreEqual(5, calls);
+        }
+
+        [Test]
+        public void ApplicationQuitBroadcast_WhenOneThrows_OthersStillRun()
+        {
+            // 关闭广播的职责就是清理，截断等于静默漏掉后续每一项的释放动作，故开发期也不上抛
+            LogAssert.Expect(LogType.Error, new Regex("ApplicationQuit callback threw"));
+
+            var order = new List<string>();
+            PlayerLoopDriver.AddApplicationQuitCallback(() =>
+            {
+                order.Add("first");
+                throw new InvalidOperationException("boom");
+            });
+            PlayerLoopDriver.AddApplicationQuitCallback(() => order.Add("second"));
+
+            Assert.DoesNotThrow(() => PlayerLoopDriver.RaiseApplicationQuit());
+
+            Assert.AreEqual(new[] { "first", "second" }, order.ToArray());
+        }
+
         #endregion
 
         #region 优先级与注册序 [PRIORITY]
@@ -359,15 +496,20 @@ namespace Core.PlayerLoop
         [Test]
         public void ClearHandlers_DropsEveryStageButKeepsDriverActive()
         {
+            int coreCalls = 0;
             PlayerLoopDriver.Register(new Probe("h"));
             PlayerLoopDriver.AddUpdateCallback(() => { });
             PlayerLoopDriver.AddDrawGizmosCallback(() => { });
+            PlayerLoopDriver.SetCoreUpdateCallback(() => coreCalls++);
 
             PlayerLoopDriver.ClearHandlers();
 
             Assert.AreEqual(0, PlayerLoopDriver.UpdateHandlerCount);
             Assert.AreEqual(0, PlayerLoopDriver.UpdateCallbackCount);
             Assert.IsFalse(PlayerLoopDriver.IsShutdown, "清注册表不应改变驱动活跃位");
+
+            PlayerLoopDriver.DriveUpdate();
+            Assert.AreEqual(0, coreCalls, "核心钩子属注册表的一部分，应一并清空（否则跨会话留残钩子）");
         }
 
         #endregion
