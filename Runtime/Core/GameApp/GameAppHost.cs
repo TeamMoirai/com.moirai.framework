@@ -1,4 +1,3 @@
-using Moirai.Atropos.FrameLoop;
 using UnityEngine;
 
 namespace Moirai.Atropos
@@ -35,6 +34,14 @@ namespace Moirai.Atropos
             GameAppHost host = s_Instance;
             if (host != null) Destroy(host.gameObject);
         }
+        
+        /// <inheritdoc/>
+        protected override void OnInit()
+        {
+            base.OnInit();
+
+            gameObject.name = HOST_OBJECT_NAME;
+        }
 
         /// <summary>
         /// SubsystemRegistration：复位基类退出标记。
@@ -45,16 +52,8 @@ namespace Moirai.Atropos
         private static void ResetStatics()
         {
             s_ShuttingDown = false;
-        }
-
-        /// <inheritdoc/>
-        protected override void OnInit()
-        {
-            base.OnInit();
-
-            gameObject.name = HOST_OBJECT_NAME;
-        }
-
+        }        
+        
         #region 引擎方法 [UNITY METHODS]
 
         /// <summary>Unity 无纯 C# 的暂停事件，只能由宿主转发到静态表。</summary>

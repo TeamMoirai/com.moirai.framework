@@ -1,8 +1,9 @@
 using System;
+using UnityEngine;
 using UnityEngine.LowLevel;
 using UnityPlayerLoop = UnityEngine.LowLevel.PlayerLoop;
 
-namespace Moirai.Atropos.FrameLoop
+namespace Moirai.Atropos
 {
     /// <summary>
     /// 将 <see cref="PlayerLoopDriver"/> 的 Drive 回调注入 Unity PlayerLoop。
@@ -10,7 +11,7 @@ namespace Moirai.Atropos.FrameLoop
     /// <para>在 <c>SubsystemRegistration</c> 记录默认循环；Shutdown / 域重载时恢复，避免编辑器状态污染。</para>
     /// <para>ECS/DOTS 若在 BeforeSceneLoad 重置 PlayerLoop，初始化完成后调用 <see cref="Reinject"/>。</para>
     /// </summary>
-    public static class PlayerLoopInjector
+    internal static class PlayerLoopInjector
     {
         /// <summary>Moirai Update 注入点标记类型。</summary>
         public sealed class MoiraiUpdate { }
@@ -106,7 +107,11 @@ namespace Moirai.Atropos.FrameLoop
         /// <para>未初始化（GameApp 未启动，如 EditMode）时不主动注入；
         /// 若第三方重置发生在更晚时机（如 ECS 自定义 bootstrap 之后），仍需在重置完成后调用 <see cref="Reinject"/>。</para>
         /// </summary>
-        [UnityEngine.RuntimeInitializeOnLoadMethod(UnityEngine.RuntimeInitializeLoadType.BeforeSceneLoad)]
+#if UNITY_2020_1_OR_NEWER
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterAssembliesLoaded)]
+#else
+		[RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+#endif
         private static void VerifyInjection()
         {
             if (!s_Injected) return;

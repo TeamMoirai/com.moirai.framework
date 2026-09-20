@@ -1,7 +1,6 @@
 using System;
 using System.Collections;
 using Moirai.Atropos.Events;
-using Moirai.Atropos.FrameLoop;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 

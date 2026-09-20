@@ -1,4 +1,4 @@
-namespace Moirai.Atropos.FrameLoop
+namespace Moirai.Atropos
 {
     /// <summary>
     /// PlayerLoop Update 阶段逻辑处理器。实现类在 <see cref="PlayerLoopDriver"/> 注册后每帧驱动。

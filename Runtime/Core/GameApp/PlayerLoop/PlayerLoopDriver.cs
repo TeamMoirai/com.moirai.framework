@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using Unity.Profiling;
 using UnityEngine;
 
-namespace Moirai.Atropos.FrameLoop
+namespace Moirai.Atropos
 {
     /// <summary>
     /// 剥离 MonoBehaviour 的游戏逻辑驱动器：由 Unity PlayerLoop 直接回调。
@@ -19,7 +19,7 @@ namespace Moirai.Atropos.FrameLoop
     /// <para><b>线程契约</b>：注册表无锁，注册/注销只允许主线程调用（越线程会 fail-fast 断言，
     /// 而非静默丢订阅）。后台线程需先经 <c>MainThreadDispatcher.Post/Send</c> 回到主线程。</para>
     /// </summary>
-    public static class PlayerLoopDriver
+    internal static class PlayerLoopDriver
     {
         #region 常量与标记 [CONSTANTS]
 
