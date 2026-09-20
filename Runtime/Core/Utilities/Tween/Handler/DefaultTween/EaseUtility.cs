@@ -1,5 +1,4 @@
 using Unity.Burst;
-using Unity.Mathematics;
 using static Unity.Mathematics.math;
 
 namespace Moirai.Atropos

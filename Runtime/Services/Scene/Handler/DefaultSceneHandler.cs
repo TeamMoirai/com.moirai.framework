@@ -22,7 +22,7 @@ namespace Moirai.Atropos.Scene
     /// <para>由 <see cref="SceneServiceSettings"/> 序列化配置，可替换为自定义场景加载后端。</para>
     /// </summary>
     [Serializable]
-    public sealed class DefaultSceneHandler : SceneServiceHandler
+    internal sealed class DefaultSceneHandler : SceneServiceHandler
     {
         /// <summary>
         /// 场景登记簿——主/子场景登记、在途防重入与短名索引的唯一状态源。

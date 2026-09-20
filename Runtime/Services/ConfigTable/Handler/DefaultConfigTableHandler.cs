@@ -10,7 +10,7 @@ namespace Moirai.Atropos.ConfigTable
     /// 默认配置表处理器。未安装游戏侧生成代码时的兜底实现（记录错误并返回空结果）。
     /// </summary>
     [Serializable]
-    public sealed class DefaultConfigTableHandler : ConfigTableServiceHandler
+    internal sealed class DefaultConfigTableHandler : ConfigTableServiceHandler
     {
         /// <summary>
         /// 从配置表获取所有多语言文本。

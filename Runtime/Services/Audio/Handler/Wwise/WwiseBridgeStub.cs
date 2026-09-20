@@ -7,7 +7,7 @@ namespace Moirai.Atropos.Audio.Wwise
     /// <summary>
     /// Wwise 桥接桩——无 <c>WWISE_INSTALLED</c> 时可跑通 Handler 生命周期与压测。
     /// </summary>
-    public sealed class WwiseBridgeStub : IAudioMiddlewareBridge
+    internal sealed class WwiseBridgeStub : IAudioMiddlewareBridge
     {
         private struct StubInstance
         {

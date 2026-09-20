@@ -17,7 +17,7 @@ namespace Moirai.Atropos
     /// - 优先级: Cache > Pool > new StringBuilder
     /// </remarks>
     [Serializable]
-    public sealed class DefaultStringHandler : StringHandler
+    internal sealed class DefaultStringHandler : StringHandler
     {
         // StringBuilderCache: ThreadStatic 单槽缓存（优先）
         [ThreadStatic] // 每个静态类型字段对于每一个线程都是唯一的

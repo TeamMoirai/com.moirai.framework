@@ -4,7 +4,7 @@ using PrimeTween;
 
 namespace Moirai.Atropos
 {
-    public sealed partial class PrimeTweenHandler
+    internal sealed partial class PrimeTweenHandler
     {
         // 缓存Sequence的字典，键为Sequence的ID，值为Sequence对象
         private static readonly Dictionary<long, Sequence> s_CacheSequenceDic = new Dictionary<long, Sequence>();

@@ -11,7 +11,7 @@ namespace Moirai.Atropos
     /// 统一经 <see cref="GameTimeHandler.ScaledNow"/>/<see cref="GameTimeHandler.UnscaledNow"/> 双精度入口。</para>
     /// </summary>
     [Serializable]
-    public sealed class DefaultGameTimeHandler : GameTimeHandler
+    internal sealed class DefaultGameTimeHandler : GameTimeHandler
     {
         /// <inheritdoc/>
         public override double ScaledNow => Time.timeAsDouble;

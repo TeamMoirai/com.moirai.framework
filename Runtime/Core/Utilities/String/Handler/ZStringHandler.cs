@@ -13,7 +13,7 @@ namespace Moirai.Atropos
     /// <para>适配器池化实现 0GC。</para>
     /// </remarks>
     [Serializable]
-    public sealed class ZStringHandler : StringHandler
+    internal sealed class ZStringHandler : StringHandler
     {
         // 适配器池（0GC 关键）
         private static readonly Stack<ZStringBuilder> s_AdapterPool = new Stack<ZStringBuilder>();

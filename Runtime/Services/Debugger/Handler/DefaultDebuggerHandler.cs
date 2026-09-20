@@ -10,7 +10,7 @@ namespace Moirai.Atropos.Debugger
     /// <para><see cref="DebuggerServiceHandler"/> 的内置实现：持有窗口注册表与日志捕获器，按激活策略解析悬浮入口可见性，并在首个 Tick 懒建运行时宿主（<see cref="DebuggerRuntimeHost"/>，纯运行时构建的 UIDocument，无资产依赖）。</para>
     /// </summary>
     [Serializable]
-    public sealed class DefaultDebuggerHandler : DebuggerServiceHandler
+    internal sealed class DefaultDebuggerHandler : DebuggerServiceHandler
     {
         #region 字段 [FIELDS]
 

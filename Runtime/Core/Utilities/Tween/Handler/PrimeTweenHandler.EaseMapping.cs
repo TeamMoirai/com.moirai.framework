@@ -4,7 +4,7 @@ using PrimeTween;
 
 namespace Moirai.Atropos
 {
-    public static class PrimeTweenMapping
+    internal static class PrimeTweenMapping
     {
         /// <summary>
         /// 将 <see cref="TweenUtility.EEase"/> 枚举转换为PrimeTween的Ease枚举。

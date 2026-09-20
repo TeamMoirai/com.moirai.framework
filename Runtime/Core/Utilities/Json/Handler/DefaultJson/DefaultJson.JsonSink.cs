@@ -45,13 +45,13 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 字符串 Sink（基于池化 <see cref="StringHandler.IStringBuilder"/>）。
+        /// 字符串 Sink（基于池化 <see cref="IStringBuilder"/>）。
         /// </summary>
         internal struct CharSink : IJsonSink
         {
-            private readonly StringHandler.IStringBuilder _sb;
+            private readonly IStringBuilder _sb;
 
-            public CharSink(StringHandler.IStringBuilder sb)
+            public CharSink(IStringBuilder sb)
             {
                 _sb = sb;
             }
@@ -179,7 +179,7 @@ namespace Moirai.Atropos
             }
 
             /// <summary>零分配写入 \uXXXX 转义（栈上十六进制，对齐 Utf8Sink.WriteHex4）。</summary>
-            private static void AppendUnicodeEscape(StringHandler.IStringBuilder sb, char c)
+            private static void AppendUnicodeEscape(IStringBuilder sb, char c)
             {
                 sb.Append("\\u");
                 Span<char> hex = stackalloc char[4];

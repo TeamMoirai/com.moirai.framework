@@ -11,7 +11,7 @@ namespace Moirai.Atropos.Audio.Wwise
     /// <para>3D 发声体：按实例租用池化 GameObject（Wwise 持续跟发射体位置，单发射体会让并发 3D 串位）。
     /// 位置在 PostEvent 时固定；持续跟随需业务侧自行挂点/驱动位置。</para>
     /// </summary>
-    public sealed class WwiseBridgeNative : IAudioMiddlewareBridge
+    internal sealed class WwiseBridgeNative : IAudioMiddlewareBridge
     {
         /// <summary>非立即停止时使用的短淡出（毫秒）。Middleware 层通常先做音量 Fade 再 immediate Stop。</summary>
         private const uint NON_IMMEDIATE_STOP_MS = 250u;

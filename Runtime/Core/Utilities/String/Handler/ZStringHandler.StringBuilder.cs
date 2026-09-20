@@ -8,7 +8,7 @@ namespace Moirai.Atropos
     /// ZString 字符串构建器适配器。<br />
     /// 包装 <see cref="Cysharp.Text.Utf16ValueStringBuilder"/>，提供零分配的字符串操作。
     /// </summary>
-    public sealed class ZStringBuilder : StringHandler.IStringBuilder
+    internal sealed class ZStringBuilder : IStringBuilder
     {
         internal Utf16ValueStringBuilder builder;
         internal bool disposed;
@@ -50,7 +50,7 @@ namespace Moirai.Atropos
             return result;
         }
 
-        public StringHandler.IStringBuilder Clear()
+        public IStringBuilder Clear()
         {
             builder.Clear();
             return this;
@@ -63,133 +63,133 @@ namespace Moirai.Atropos
 
         #region 追加 [APPEND]
 
-        public StringHandler.IStringBuilder Append(string value)
+        public IStringBuilder Append(string value)
         {
             builder.Append(value);
             return this;
         }
 
-        public StringHandler.IStringBuilder Append(char value)
+        public IStringBuilder Append(char value)
         {
             builder.Append(value);
             return this;
         }
 
-        public StringHandler.IStringBuilder Append(char value, int repeatCount)
+        public IStringBuilder Append(char value, int repeatCount)
         {
             builder.Append(value, repeatCount);
             return this;
         }
 
-        public StringHandler.IStringBuilder Append(int value)
+        public IStringBuilder Append(int value)
         {
             builder.Append(value);
             return this;
         }
 
-        public StringHandler.IStringBuilder Append(long value)
+        public IStringBuilder Append(long value)
         {
             builder.Append(value);
             return this;
         }
 
-        public StringHandler.IStringBuilder Append(float value)
+        public IStringBuilder Append(float value)
         {
             builder.Append(value);
             return this;
         }
 
-        public StringHandler.IStringBuilder Append(double value)
+        public IStringBuilder Append(double value)
         {
             builder.Append(value);
             return this;
         }
 
-        public StringHandler.IStringBuilder Append(bool value)
+        public IStringBuilder Append(bool value)
         {
             builder.Append(value);
             return this;
         }
 
-        public StringHandler.IStringBuilder Append(ReadOnlySpan<char> value)
+        public IStringBuilder Append(ReadOnlySpan<char> value)
         {
             builder.Append(value);
             return this;
         }
 
-        public StringHandler.IStringBuilder Append(string value, int startIndex, int count)
+        public IStringBuilder Append(string value, int startIndex, int count)
         {
             builder.Append(value, startIndex, count);
             return this;
         }
         
-        public StringHandler.IStringBuilder AppendLine()
+        public IStringBuilder AppendLine()
         {
             builder.AppendLine();
             return this;
         }
 
-        public StringHandler.IStringBuilder AppendLine(string value)
+        public IStringBuilder AppendLine(string value)
         {
             builder.AppendLine(value);
             return this;
         }
 
-        public StringHandler.IStringBuilder Append(char[] value)
+        public IStringBuilder Append(char[] value)
         {
             if (value != null) builder.Append(value);
             return this;
         }
 
-        public StringHandler.IStringBuilder Append(char[] value, int startIndex, int charCount)
+        public IStringBuilder Append(char[] value, int startIndex, int charCount)
         {
             builder.Append(value, startIndex, charCount);
             return this;
         }
 
-        public StringHandler.IStringBuilder Append(object value)
+        public IStringBuilder Append(object value)
         {
             if (value != null) builder.Append(value.ToString());
             return this;
         }
 
-        public StringHandler.IStringBuilder Append(uint value)
+        public IStringBuilder Append(uint value)
         {
             builder.Append(value);
             return this;
         }
 
-        public StringHandler.IStringBuilder Append(ulong value)
+        public IStringBuilder Append(ulong value)
         {
             builder.Append(value);
             return this;
         }
 
-        public StringHandler.IStringBuilder Append(byte value)
+        public IStringBuilder Append(byte value)
         {
             builder.Append(value);
             return this;
         }
 
-        public StringHandler.IStringBuilder Append(short value)
+        public IStringBuilder Append(short value)
         {
             builder.Append(value);
             return this;
         }
 
-        public StringHandler.IStringBuilder Append(decimal value)
+        public IStringBuilder Append(decimal value)
         {
             builder.Append(value);
             return this;
         }
 
-        public StringHandler.IStringBuilder AppendLine(char value)
+        public IStringBuilder AppendLine(char value)
         {
             builder.AppendLine(value);
             return this;
         }
 
-        public StringHandler.IStringBuilder AppendLine(ReadOnlySpan<char> value)
+        public IStringBuilder AppendLine(ReadOnlySpan<char> value)
         {
             builder.AppendLine(value);
             return this;
@@ -414,13 +414,13 @@ namespace Moirai.Atropos
 
         #region 插入 [INSERT]
 
-        public StringHandler.IStringBuilder Insert(int index, string value)
+        public IStringBuilder Insert(int index, string value)
         {
             builder.Insert(index, value);
             return this;
         }
 
-        public StringHandler.IStringBuilder Insert(int index, char value)
+        public IStringBuilder Insert(int index, char value)
         {
             // 零分配：走 ReadOnlySpan<char> 重载，避免 value.ToString() 分配
             Span<char> buffer = stackalloc char[1];
@@ -429,7 +429,7 @@ namespace Moirai.Atropos
             return this;
         }
 
-        public StringHandler.IStringBuilder Insert(int index, string value, int count)
+        public IStringBuilder Insert(int index, string value, int count)
         {
             builder.Insert(index, value, count);
             return this;
@@ -439,7 +439,7 @@ namespace Moirai.Atropos
 
         #region 移除 [REMOVE]
 
-        public StringHandler.IStringBuilder Remove(int startIndex, int length)
+        public IStringBuilder Remove(int startIndex, int length)
         {
             builder.Remove(startIndex, length);
             return this;
@@ -449,25 +449,25 @@ namespace Moirai.Atropos
 
         #region 替换 [REPLACE]
 
-        public StringHandler.IStringBuilder Replace(char oldChar, char newChar)
+        public IStringBuilder Replace(char oldChar, char newChar)
         {
             builder.Replace(oldChar, newChar);
             return this;
         }
 
-        public StringHandler.IStringBuilder Replace(char oldChar, char newChar, int startIndex, int count)
+        public IStringBuilder Replace(char oldChar, char newChar, int startIndex, int count)
         {
             builder.Replace(oldChar, newChar, startIndex, count);
             return this;
         }
 
-        public StringHandler.IStringBuilder Replace(string oldValue, string newValue)
+        public IStringBuilder Replace(string oldValue, string newValue)
         {
             builder.Replace(oldValue, newValue);
             return this;
         }
 
-        public StringHandler.IStringBuilder Replace(string oldValue, string newValue, int startIndex, int count)
+        public IStringBuilder Replace(string oldValue, string newValue, int startIndex, int count)
         {
             // ZString 的 Utf16ValueStringBuilder.Replace(span, span, int, int) 在区间内命中且扫描因区间耗尽退出时，
             // 会丢弃 endIndex 之后的尾部（与 System.Text.StringBuilder 语义不一致），此处逐命中 Remove+Insert 对齐标准语义。

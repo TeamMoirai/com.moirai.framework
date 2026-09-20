@@ -6,7 +6,7 @@ namespace Moirai.Atropos.Serilog
     /// <summary>
     /// Serilog 日志器扩展：为日志附加 Unity 上下文对象与标签。
     /// </summary>
-    public static class LoggerExtensions
+    internal static class LoggerExtensions
     {
         /// <summary>
         /// 为日志添加 <see cref="UnityEngine.Object"/> 上下文。

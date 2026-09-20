@@ -15,7 +15,7 @@ namespace Moirai.Atropos
     /// 默认使用全局 <see cref="Serilog.Log.Logger"/>，请在启动阶段自行配置 sink。</para>
     /// </summary>
     [Serializable]
-    public sealed class SerilogHandler : LogHandler
+    internal sealed class SerilogHandler : LogHandler
     {
         [NonSerialized] private ILogger _logger;
 

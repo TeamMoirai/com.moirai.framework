@@ -14,7 +14,7 @@ namespace Moirai.Atropos.Serilog
     /// <summary>
     /// Serilog 接收器配置扩展：提供将日志事件写入 Unity 原生日志系统的 <c>Unity3D</c> 扩展方法。
     /// </summary>
-    public static class UnitySinkExtensions
+    internal static class UnitySinkExtensions
     {
         /// <summary>
         /// 默认输出模板：级别 + 消息 + 异常（不包含时间戳占位符，Unity Console 自带时间列）。

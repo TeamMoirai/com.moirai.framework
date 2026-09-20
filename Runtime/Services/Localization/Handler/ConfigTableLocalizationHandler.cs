@@ -9,7 +9,7 @@ namespace Moirai.Atropos.Localization
     /// <para>从 <see cref="ConfigTableService"/> 加载的多语言配置表获取语言列表与字符串字典。</para>
     /// </summary>
     [Serializable]
-    public class ConfigTableLocalizationHandler : LocalizationServiceHandler
+    internal class ConfigTableLocalizationHandler : LocalizationServiceHandler
     {
         /// <summary>
         /// 从配置表加载本地化数据源。

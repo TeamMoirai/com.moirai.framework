@@ -11,7 +11,7 @@ namespace Moirai.Atropos
     /// Newtonsoft Json 函数集处理器。
     /// </summary>
     [Serializable]
-    public sealed class NewtonsoftJsonHandler : JsonHandler
+    internal sealed class NewtonsoftJsonHandler : JsonHandler
     {
         [Tooltip("序列化的最大深度")]
         [SerializeField] private int m_MaxDepth = 25;

@@ -7,7 +7,7 @@ namespace Moirai.Atropos.Audio.Fmod
     /// <summary>
     /// FMOD 桥接桩——无 <c>FMOD_INSTALLED</c> 时可跑通 Handler 生命周期与压测。
     /// </summary>
-    public sealed class FmodBridgeStub : IAudioMiddlewareBridge
+    internal sealed class FmodBridgeStub : IAudioMiddlewareBridge
     {
         private struct StubInstance
         {

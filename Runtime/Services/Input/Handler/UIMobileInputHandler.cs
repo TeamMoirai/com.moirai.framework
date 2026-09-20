@@ -18,7 +18,7 @@ namespace Moirai.Atropos.Input
     /// </remarks>
     /// </summary>
     [Serializable]
-    public sealed class UIMobileInputHandler : InputServiceHandler
+    internal sealed class UIMobileInputHandler : InputServiceHandler
     {
         // 状态组合语义（Enabled/Lock/PreventUI/UIModal）——组合持有，压制态自动清零虚拟按键
         private readonly InputStateMachine _state = new InputStateMachine();

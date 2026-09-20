@@ -7,7 +7,7 @@ namespace Moirai.Atropos
     /// 提供 JSON 序列化和反序列化
     /// </summary>
     [Serializable]
-    public sealed class DefaultJsonHandler : JsonHandler, IBufferJsonHandler
+    internal sealed class DefaultJsonHandler : JsonHandler, IBufferJsonHandler
     {
         [Tooltip("序列化的最大深度（超限成员软截断并警告，不抛错）")]
         [SerializeField] private int m_MaxDepth = 64;

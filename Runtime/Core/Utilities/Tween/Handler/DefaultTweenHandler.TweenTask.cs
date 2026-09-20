@@ -6,7 +6,7 @@ using UnityEngine;
 
 namespace Moirai.Atropos
 {
-    public sealed partial class DefaultTweenHandler
+    internal sealed partial class DefaultTweenHandler
     {
         /// <summary>
         /// Tween 核心更新循环。结构体数组 + 版本号ID，稳态 0 GC。

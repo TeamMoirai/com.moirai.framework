@@ -13,21 +13,21 @@ namespace Moirai.Atropos.Audio
         [ProviderDropdown]
         [SerializeReference] private AudioServiceHandler m_AudioServiceHandler = AudioService.CreateDefaultHandler();
         /// <summary>音频处理器（后端）。</summary>
-        public static AudioServiceHandler AudioServiceHandler => Instance.m_AudioServiceHandler;
+        internal static AudioServiceHandler AudioServiceHandler => Instance.m_AudioServiceHandler;
 
         [Tooltip("如果不配置 AudioGroupConfigs，则会从 AudioMixer 读取音轨配置")]
         [SerializeField] private AudioMixer m_AudioMixer;
         /// <summary>音频混音器</summary>
-        public static AudioMixer AudioMixer => Instance.m_AudioMixer;
+        internal static AudioMixer AudioMixer => Instance.m_AudioMixer;
 
         [SerializeField] private AudioGroupConfig[] m_AudioGroupConfigs;
         /// <summary>音轨配置</summary>
-        public static AudioGroupConfig[] AudioGroupConfigs => Instance.m_AudioGroupConfigs;
+        internal static AudioGroupConfig[] AudioGroupConfigs => Instance.m_AudioGroupConfigs;
 
         [Tooltip("混音快照配置：状态 → AudioMixerSnapshot 映射；Priority < 0 使用内置默认优先级")]
         [SerializeField] private AudioMixSnapshotEntry[] m_MixSnapshots;
         /// <summary>混音快照配置</summary>
-        public static AudioMixSnapshotEntry[] MixSnapshots => Instance.m_MixSnapshots;
+        internal static AudioMixSnapshotEntry[] MixSnapshots => Instance.m_MixSnapshots;
 
         // AudioAgentHostPool Bootstrap
         [Header("池预热引导 [Pool Bootstrap]")]
@@ -35,13 +35,13 @@ namespace Moirai.Atropos.Audio
         [Tooltip("是否在服务 OnInit 时预热 AudioAgent 宿主栈池")]
         [SerializeField] private bool m_WarmupAudioHostPool = true;
         /// <summary>是否预热宿主栈池。</summary>
-        public static bool WarmupAudioHostPool => Instance.m_WarmupAudioHostPool;
+        internal static bool WarmupAudioHostPool => Instance.m_WarmupAudioHostPool;
 
         [Tooltip("AudioAgent 宿主栈池预热数量")]
         [ShowIf(nameof(m_WarmupAudioHostPool))]
         [SerializeField] private int m_AudioHostWarmupCount = 8;
         /// <summary>宿主栈池预热数量。</summary>
-        public static int AudioHostWarmupCount => Instance.m_AudioHostWarmupCount;
+        internal static int AudioHostWarmupCount => Instance.m_AudioHostWarmupCount;
 
 #if UNITY_EDITOR
 

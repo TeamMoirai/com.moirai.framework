@@ -38,7 +38,7 @@ namespace Moirai.Atropos.Audio
         /// <param name="handler">音频处理器</param>
         /// <param name="audioGroupConfig">音频轨道组配置。</param>
         /// <exception cref="ArgumentNullException">handler 或 audioGroupConfig 为 null。</exception>
-        public AudioCategory(AudioServiceHandler handler, AudioGroupConfig audioGroupConfig)
+        internal AudioCategory(AudioServiceHandler handler, AudioGroupConfig audioGroupConfig)
         {
             // Fail-Fast：配置缺失时构造期即抛，避免后续 NRE 链
             if (handler == null) throw new ArgumentNullException(nameof(handler));

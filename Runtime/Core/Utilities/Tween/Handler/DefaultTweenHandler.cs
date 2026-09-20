@@ -21,7 +21,7 @@ namespace Moirai.Atropos
     /// <para>单例状态机：所有实例共享 <see cref="TweenTask"/> 静态状态，运行期仅应存在一个活跃实例。</para>
     /// </summary>
     [Serializable]
-    public sealed partial class DefaultTweenHandler : TweenHandler
+    internal sealed partial class DefaultTweenHandler : TweenHandler
     {
         #region 生命周期 [LIFECYCLE]
 

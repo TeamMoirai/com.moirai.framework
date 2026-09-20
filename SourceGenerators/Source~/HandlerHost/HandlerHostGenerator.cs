@@ -107,7 +107,7 @@ namespace Moirai.Atropos.SourceGenerators
             sb.AppendLine("        }");
             sb.AppendLine();
 
-            sb.AppendLine($"        public static {info.HandlerTypeName} Handler");
+            sb.AppendLine($"        internal static {info.HandlerTypeName} Handler");
             sb.AppendLine("        {");
             sb.AppendLine("            get");
             sb.AppendLine("            {");

@@ -19,7 +19,7 @@ namespace Moirai.Atropos.Resource
     /// <para>仅信息查询与真实缓存维护为可用行为；所有分发资源句柄或伪造成功语义的成员统一抛出 <see cref="GameException"/> fail-fast，禁止静默 no-op 掩盖误配置。</para>
     /// </summary>
     [Serializable]
-    public sealed class AddressableHandler : ResourceServiceHandler
+    internal sealed class AddressableHandler : ResourceServiceHandler
     {
         #region 基础属性 [BASE PROPERTIES]
 

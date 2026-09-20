@@ -12,7 +12,7 @@ namespace Moirai.Atropos.Save
     /// </summary>
     [Serializable]
     // ReSharper disable once InconsistentNaming
-    public class AESEncryptedSaveHandler : SaveServiceHandler
+    internal class AESEncryptedSaveHandler : SaveServiceHandler
     {
         [NonSerialized] private SaveEncryptor _encryptor;
 

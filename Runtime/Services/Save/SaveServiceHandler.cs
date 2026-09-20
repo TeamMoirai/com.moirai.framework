@@ -5,7 +5,6 @@ using System.IO;
 using System.Security.Cryptography;
 using System.Threading;
 using Cysharp.Threading.Tasks;
-using Sirenix.OdinInspector;
 using UnityEngine;
 
 namespace Moirai.Atropos.Save

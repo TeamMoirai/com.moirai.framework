@@ -17,7 +17,7 @@ namespace Moirai.Atropos.Audio
     /// 与 <see cref="Middleware.MiddlewareAudioHandler"/> 共享同一套语义。</para>
     /// </summary>
     [Serializable]
-    public sealed class UnityAudioHandler : AudioServiceHandler, IAudioFadeTarget
+    internal sealed class UnityAudioHandler : AudioServiceHandler, IAudioFadeTarget
     {
         [NonSerialized] private AudioGroupConfig[] _audioGroupConfigs;
         [NonSerialized] private bool _unityAudioDisabled;

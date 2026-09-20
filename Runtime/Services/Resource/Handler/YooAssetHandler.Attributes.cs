@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace Moirai.Atropos.Resource
 {
-    public sealed partial class YooAssetHandler
+    partial class YooAssetHandler
     {
         /// <summary>
         /// 为 <see cref="string"/> 类型资源包裹名字段提供 YooAsset 收集器包裹下拉菜单。<br />

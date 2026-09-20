@@ -12,7 +12,7 @@ namespace Moirai.Atropos.Procedure
     /// 中间流程可能未走 OnLeave，历史记录以最外层完成态为准（每条记录的 To 即广播时刻的当前流程）。</para>
     /// </summary>
     [Serializable]
-    public sealed class DefaultProcedureHandler : ProcedureServiceHandler
+    internal sealed class DefaultProcedureHandler : ProcedureServiceHandler
     {
         /// <summary>单次调用栈内允许的最大切换深度（合法嵌套远低于此值，超出即判定为流程环）。</summary>
         private const int MaxTransitionDepth = 16;

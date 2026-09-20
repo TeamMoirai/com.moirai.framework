@@ -13,7 +13,7 @@ namespace Moirai.Atropos
     /// <para>由 asmdef 版本定义 ZLOGGER_INSTALLED 自动启用；默认创建输出到 Unity Console 的 logger 工厂。</para>
     /// </summary>
     [Serializable]
-    public sealed class ZLoggerHandler : LogHandler
+    internal sealed class ZLoggerHandler : LogHandler
     {
         [NonSerialized] private ILoggerFactory _factory;
         [NonSerialized] private ILogger _logger;

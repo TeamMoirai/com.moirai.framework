@@ -12,7 +12,7 @@ namespace Moirai.Atropos.ObjectPool
     /// </summary>
     [Serializable]
     [UnityEngine.Scripting.Preserve]
-    public sealed class DefaultObjectPoolHandler : ObjectPoolServiceHandler
+    internal sealed class DefaultObjectPoolHandler : ObjectPoolServiceHandler
     {
         #region 常量 [CONSTANTS]
 

@@ -3,7 +3,7 @@
 namespace Moirai.Atropos.Resource
 {
     // ReSharper disable once ClassNeverInstantiated.Global
-    public sealed partial class YooAssetHandler
+    partial class YooAssetHandler
     {
         #region 字段 [FIELDS]
 

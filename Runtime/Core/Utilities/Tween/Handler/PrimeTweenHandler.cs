@@ -13,7 +13,7 @@ namespace Moirai.Atropos
     /// 基于 PrimeTween 实现的补间动画处理器。
     /// </summary>
     [Serializable]
-    public sealed partial class PrimeTweenHandler : TweenHandler
+    internal sealed partial class PrimeTweenHandler : TweenHandler
     {
         #region 字段 [FIELDS]
 

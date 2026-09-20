@@ -17,7 +17,7 @@ namespace Moirai.Atropos.Input
     /// 需要上下文隔离的项目请使用 Input System 后端。</para>
     /// </remarks>
     [Serializable]
-    public sealed class UnityInputManagerHandler : InputServiceHandler
+    internal sealed class UnityInputManagerHandler : InputServiceHandler
     {
         private struct Vector2Action
         {

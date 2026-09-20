@@ -15,7 +15,7 @@ namespace Moirai.Atropos.Debugger
         /// <summary>
         /// 获取调试器激活策略。
         /// </summary>
-        public static DebuggerActiveWindowType ActiveWindowType => Instance.m_ActiveWindowType;
+        internal static DebuggerActiveWindowType ActiveWindowType => Instance.m_ActiveWindowType;
         
         [InfoBox("默认使用内置 UI Toolkit 调试器。可替换为自定义调试器后端。", InfoMessageType.None)]
         [ProviderDropdown]
@@ -23,6 +23,6 @@ namespace Moirai.Atropos.Debugger
         /// <summary>
         /// 获取调试器处理器。
         /// </summary>
-        public static DebuggerServiceHandler DebuggerServiceHandler => Instance.m_DebuggerServiceHandler;
+        internal static DebuggerServiceHandler DebuggerServiceHandler => Instance.m_DebuggerServiceHandler;
     }
 }

@@ -7,7 +7,7 @@ namespace Moirai.Atropos.Save
     /// <para>编辑器调试与可信存储场景使用；上线建议切换 <see cref="AESEncryptedSaveHandler"/>。</para>
     /// </summary>
     [Serializable]
-    public class PlainSaveHandler : SaveServiceHandler
+    internal class PlainSaveHandler : SaveServiceHandler
     {
     }
 }

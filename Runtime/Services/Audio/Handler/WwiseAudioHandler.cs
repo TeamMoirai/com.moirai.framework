@@ -8,7 +8,7 @@ namespace Moirai.Atropos.Audio.Wwise
     /// <para>未定义 <c>WWISE_INSTALLED</c> 时使用 <see cref="WwiseBridgeStub"/>。</para>
     /// </summary>
     [Serializable]
-    public sealed class WwiseAudioHandler : MiddlewareAudioHandler
+    internal sealed class WwiseAudioHandler : MiddlewareAudioHandler
     {
         /// <inheritdoc />
         protected override IAudioMiddlewareBridge CreateDefaultBridge()

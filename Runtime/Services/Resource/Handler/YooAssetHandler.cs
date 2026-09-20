@@ -19,7 +19,7 @@ namespace Moirai.Atropos.Resource
     /// </summary>
     // ReSharper disable once ClassNeverInstantiated.Global
     [Serializable]
-    public sealed partial class YooAssetHandler : ResourceServiceHandler
+    internal sealed partial class YooAssetHandler : ResourceServiceHandler
     {
         #region 基础属性 [BASE PROPERTIES]
 

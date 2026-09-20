@@ -737,7 +737,7 @@ namespace Moirai.Atropos
             /// <summary>反转义（\uXXXX、标准转义对、代理对自然保留）。仅在含转义时分配。</summary>
             private string Unescape(ReadOnlySpan<char> input)
             {
-                StringHandler.IStringBuilder sb = StringUtility.CreateStringBuilder(input.Length);
+                IStringBuilder sb = StringUtility.CreateStringBuilder(input.Length);
                 try
                 {
                     for (int i = 0; i < input.Length; i++)
@@ -1580,7 +1580,7 @@ namespace Moirai.Atropos
             /// <summary>反转义（标准转义对、\uXXXX；原始段手动解码 UTF8，无效序列 → U+FFFD）。ASCII 快路径直取。</summary>
             private string UnescapeBytes(ReadOnlySpan<byte> input)
             {
-                StringHandler.IStringBuilder sb = StringUtility.CreateStringBuilder(input.Length);
+                IStringBuilder sb = StringUtility.CreateStringBuilder(input.Length);
                 try
                 {
                     int i = 0;
@@ -1648,7 +1648,7 @@ namespace Moirai.Atropos
                 }
             }
 
-            private static void AppendRuneAsUtf16(StringHandler.IStringBuilder sb, uint rune)
+            private static void AppendRuneAsUtf16(IStringBuilder sb, uint rune)
             {
                 if (rune <= 0xFFFF)
                 {

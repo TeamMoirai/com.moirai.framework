@@ -16,7 +16,7 @@ namespace Moirai.Atropos
     /// 每个方法内联构建器链，使用 state-based Bind 避免闭包分配。
     /// </summary>
     [Serializable]
-    public sealed class LitMotionHandler : TweenHandler
+    internal sealed class LitMotionHandler : TweenHandler
     {
         #region 字段 [FIELDS]
 

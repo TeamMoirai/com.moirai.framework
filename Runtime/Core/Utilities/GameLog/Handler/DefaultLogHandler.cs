@@ -9,7 +9,7 @@ namespace Moirai.Atropos
     /// <para>日志仅记录、不抛异常：Fatal 等级以错误形式输出，流程是否中断由调用方自行决定。</para>
     /// </summary>
     [Serializable]
-    public sealed class DefaultLogHandler : LogHandler
+    internal sealed class DefaultLogHandler : LogHandler
     {
         /// <summary>
         /// 打印游戏日志，异常对象由 Unity Console 的 Exception 通道输出。

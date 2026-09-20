@@ -289,7 +289,7 @@ namespace Moirai.Atropos.Save
         {
             string baseUrl = Normalize(m_BaseUrl);
             string keyPrefix = Normalize(m_KeyPrefix);
-            StringHandler.IStringBuilder builder = StringUtility.CreateStringBuilder(baseUrl.Length + keyPrefix.Length + key.Length + 8);
+            IStringBuilder builder = StringUtility.CreateStringBuilder(baseUrl.Length + keyPrefix.Length + key.Length + 8);
             builder.Append(baseUrl.TrimEnd('/'));
             builder.Append('/');
             AppendEscapedPath(builder, keyPrefix);
@@ -300,7 +300,7 @@ namespace Moirai.Atropos.Save
         /// <summary>
         /// 逐段转义追加路径（空段跳过——前缀可空；键内的 <c>/</c> 保留为路径分隔符）。
         /// </summary>
-        private static void AppendEscapedPath(StringHandler.IStringBuilder builder, string path)
+        private static void AppendEscapedPath(IStringBuilder builder, string path)
         {
             int segmentStart = 0;
             for (int i = 0; i <= path.Length; i++)

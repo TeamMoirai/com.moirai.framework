@@ -14,7 +14,7 @@ namespace Moirai.Atropos.UI
     /// <para>通过 <see cref="UIServiceSettings.UIServiceHandler"/> 序列化配置，可替换为自定义 UI 后端。</para>
     /// </summary>
     [Serializable]
-    public sealed class UGUIHandler : UIServiceHandler
+    internal sealed class UGUIHandler : UIServiceHandler
     {
         // 核心字段
         [NonSerialized] private Transform _instanceRoot = null; // UI根节点变换组件

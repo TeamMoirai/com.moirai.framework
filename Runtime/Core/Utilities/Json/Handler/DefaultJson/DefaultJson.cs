@@ -74,7 +74,7 @@ namespace Moirai.Atropos
         public static string ToJson(object obj, bool removeNulls = true, bool readable = false)
         {
             LoopGuard.Begin();
-            StringHandler.IStringBuilder sb = StringUtility.CreateStringBuilder();
+            IStringBuilder sb = StringUtility.CreateStringBuilder();
             try
             {
                 var sink = new CharSink(sb);

@@ -12,7 +12,7 @@ namespace Moirai.Atropos.Serilog
     /// <summary>
     /// 将 Serilog 日志事件转发到 Unity 原生日志系统（<see cref="UnityEngine.ILogger"/>）的接收器。
     /// </summary>
-    public sealed class Unity3DLogEventSink : ILogEventSink
+    internal sealed class Unity3DLogEventSink : ILogEventSink
     {
         /// <summary>
         /// 日志事件文本格式化器。

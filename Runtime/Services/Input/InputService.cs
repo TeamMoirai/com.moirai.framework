@@ -124,6 +124,11 @@ namespace Moirai.Atropos.Input
             }
         }
 
+        /// <summary>
+        /// 获取当前输入处理器
+        /// </summary>
+        public static InputServiceHandler CurrentHandler => s_Handler;
+
         #endregion
 
         #region 输入查询 [INPUT QUERIES]

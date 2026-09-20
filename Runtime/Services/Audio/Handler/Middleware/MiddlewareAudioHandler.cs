@@ -17,7 +17,7 @@ namespace Moirai.Atropos.Audio.Middleware
     /// <para>不支持项：InitialDelay / PlaybackDuration / Solo（中间件事件由工程侧编排）。</para>
     /// </summary>
     [Serializable]
-    public abstract class MiddlewareAudioHandler : AudioServiceHandler, IAudioFadeTarget
+    internal abstract class MiddlewareAudioHandler : AudioServiceHandler, IAudioFadeTarget
     {
         #region 声部 [VOICE]
 

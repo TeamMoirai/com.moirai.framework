@@ -8,7 +8,7 @@ namespace Moirai.Atropos.Audio.Fmod
     /// <para>未定义 <c>FMOD_INSTALLED</c> 时使用 <see cref="FmodBridgeStub"/>。</para>
     /// </summary>
     [Serializable]
-    public sealed class FmodAudioHandler : MiddlewareAudioHandler
+    internal sealed class FmodAudioHandler : MiddlewareAudioHandler
     {
         /// <inheritdoc />
         protected override IAudioMiddlewareBridge CreateDefaultBridge()

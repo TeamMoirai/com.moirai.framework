@@ -15,7 +15,7 @@ namespace Moirai.Atropos
     /// 仅作为配置记录，实际生效需在 LogSettings 中设置。</para>
     /// </summary>
     [Serializable]
-    public sealed class UnityLoggingHandler : LogHandler
+    internal sealed class UnityLoggingHandler : LogHandler
     {
         /// <inheritdoc/>
         protected override void OnInit()

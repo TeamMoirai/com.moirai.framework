@@ -4,7 +4,7 @@ using LitMotion;
 
 namespace Moirai.Atropos
 {
-    public static class LitMotionEaseMapping
+    internal static class LitMotionEaseMapping
     {
         public static Ease ToLitMotionEase(this TweenUtility.EEase ease)
         {

@@ -6,7 +6,7 @@ namespace Moirai.Atropos.Resource
     /// <summary>
     /// <see cref="YooAssetHandler"/> 的场景加载部分——场景经 YooAsset 资源管线加载，产出 <see cref="ResourceSceneHandle"/> 适配句柄。
     /// </summary>
-    public sealed partial class YooAssetHandler
+    partial class YooAssetHandler
     {
         /// <inheritdoc />
         public override ResourceSceneHandle LoadSceneAsync(string location, LoadSceneMode sceneMode, bool suspendLoad, uint priority, string packageName = "")

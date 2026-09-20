@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace Moirai.Atropos
 {
-    public sealed partial class DefaultTweenHandler
+    internal sealed partial class DefaultTweenHandler
     {
         /// <summary>
         /// Tween 操作类型标记。

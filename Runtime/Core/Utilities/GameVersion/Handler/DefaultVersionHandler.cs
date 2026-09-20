@@ -8,7 +8,7 @@ namespace Moirai.Atropos
     /// 默认版本号处理器。
     /// </summary>
     [Serializable]
-    public sealed class DefaultVersionHandler : VersionHandler
+    internal sealed class DefaultVersionHandler : VersionHandler
     {
         public override string GameVersion => "Ver." + Application.version;
         

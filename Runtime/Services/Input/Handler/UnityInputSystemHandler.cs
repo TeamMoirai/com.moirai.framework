@@ -17,7 +17,7 @@ namespace Moirai.Atropos.Input
     /// 不受上下文压制（仅受 Enabled 全局门控）。鼠标查询不参与门控（无源设备本就降级为默认值）。</para>
     /// </summary>
     [Serializable]
-    public sealed class UnityInputSystemHandler : InputServiceHandler
+    internal sealed class UnityInputSystemHandler : InputServiceHandler
     {
         [Tooltip("留空使用 Edit > Project Settings > Input System Package 中的设置。")]
         [SerializeField] private InputActionAsset m_InputActions;

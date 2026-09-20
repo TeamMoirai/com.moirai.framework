@@ -12,7 +12,7 @@ namespace Moirai.Atropos
     /// </summary>
     // ReSharper disable once ClassNeverInstantiated.Global
     [Serializable]
-    public sealed class PhotonFusionObjectHandler : ObjectHandler
+    internal sealed class PhotonFusionObjectHandler : ObjectHandler
     {
 
         #region 变量 [VARIABLES]

@@ -8,7 +8,7 @@ namespace Moirai.Atropos.Audio.Fmod
     /// <summary>
     /// 真实 FMOD.Studio 桥接。需导入 FMOD Unity 插件并定义 <c>FMOD_INSTALLED</c>。
     /// </summary>
-    public sealed class FmodBridgeNative : IAudioMiddlewareBridge
+    internal sealed class FmodBridgeNative : IAudioMiddlewareBridge
     {
         public bool Initialize(Transform instanceRoot)
         {

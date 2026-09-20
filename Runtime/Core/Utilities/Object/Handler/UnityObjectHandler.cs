@@ -9,7 +9,7 @@ namespace Moirai.Atropos
     /// </summary>
     // ReSharper disable once ClassNeverInstantiated.Global
     [Serializable]
-    public sealed class UnityObjectHandler : ObjectHandler
+    internal sealed class UnityObjectHandler : ObjectHandler
     {
         public override T InstantiateObject<T>(T original, bool playerOwned = false, bool allowNetworked = true)
         {
