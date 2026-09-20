@@ -1,7 +1,5 @@
 using System;
 using System.Linq;
-using System.Threading;
-using Cysharp.Threading.Tasks;
 using UnityEngine;
 
 namespace Moirai.Atropos.Procedure
@@ -18,64 +16,11 @@ namespace Moirai.Atropos.Procedure
 
         [HideInInspector]
         [SerializeField] private string[] m_AvailableProcedureTypeNames = null;
+        internal static string[] AvailableProcedureTypeNames => Instance.m_AvailableProcedureTypeNames;
 
         [HideInInspector]
         [SerializeField] private string m_EntranceProcedureTypeName = null;
-
-        /// <summary>
-        /// 启动流程（引导入口，失败 fail-fast）。
-        /// <para>流程服务未注册、类型解析失败或入口流程无效时抛出 <see cref="GameException"/>——
-        /// 启动链配置错误属发布级缺陷，静默吞掉会让玩家面对永久黑屏；异常经 <c>Forget()</c> 转为
-        /// <c>UniTaskScheduler.UnobservedTaskException</c> 输出错误日志，调用方不应捕获吞掉。</para>
-        /// </summary>
-        /// <param name="cancellationToken">取消令牌（由 <see cref="ProcedureStarter"/> 传入宿主销毁令牌，
-        /// 避免退出播放/应用后让帧续体撞上域拆除）。</param>
-        public static async UniTask StartProcedure(CancellationToken cancellationToken = default)
-        {
-            if (!ProcedureService.IsValid)
-            {
-                throw new GameException(
-                    "ProcedureService is not registered when StartProcedure is called — " +
-                    "ensure GameApp has initialized the service world before ProcedureStarter awakes.");
-            }
-
-            ProcedureBase[] procedures = new ProcedureBase[Instance.m_AvailableProcedureTypeNames.Length];
-            ProcedureBase entranceProcedure = null;
-            for (int i = 0; i < Instance.m_AvailableProcedureTypeNames.Length; i++)
-            {
-                Type procedureType = AssemblyUtility.GetType(Instance.m_AvailableProcedureTypeNames[i]);
-                if (procedureType == null)
-                {
-                    throw new GameException(StringUtility.Format(
-                        "Can not find procedure type '{0}'.", Instance.m_AvailableProcedureTypeNames[i]));
-                }
-
-                procedures[i] = (ProcedureBase)Activator.CreateInstance(procedureType);
-                if (procedures[i] == null)
-                {
-                    throw new GameException(StringUtility.Format(
-                        "Can not create procedure instance '{0}'.", Instance.m_AvailableProcedureTypeNames[i]));
-                }
-
-                if (Instance.m_EntranceProcedureTypeName == Instance.m_AvailableProcedureTypeNames[i])
-                {
-                    entranceProcedure = procedures[i];
-                }
-            }
-
-            if (entranceProcedure == null)
-            {
-                throw new GameException("Entrance procedure is invalid.");
-            }
-
-            ProcedureService.Initialize(procedures);
-
-            // 让出一帧：流程 OnInit 内按框架约定经 MainThreadDispatcher 排队的场景对象访问在下一帧执行，
-            // 须等其落地后再进入首个流程的 OnEnter
-            await UniTask.Yield(cancellationToken);
-
-            ProcedureService.StartProcedure(entranceProcedure.GetType());
-        }
+        internal static string EntranceProcedureTypeName => Instance.m_EntranceProcedureTypeName;
 
 #if UNITY_EDITOR
 
