@@ -40,6 +40,10 @@ namespace Moirai.Atropos.Audio
         public const float FADEOUT_DEFAULT_DURATION = 0.2f;
         private float _fadeOutDuration;
 
+        // 暂停时挂起的斜坡状态与暂停起点：Unpause 据此回到原状态并把斜坡整体后移
+        private EAudioAgentRuntimeState _stateBeforePause = EAudioAgentRuntimeState.Playing;
+        private float _pausedAt;
+
         private float _playDuration;
         private ulong _autoUnSoloOnEnd;
 
@@ -736,24 +740,38 @@ namespace Moirai.Atropos.Audio
         }
 
         /// <summary>
-        /// 暂停音频代理辅助器。
+        /// 暂停音频代理辅助器。淡入/淡出中的音量斜坡一并挂起，恢复后从暂停处继续。
         /// </summary>
         public void Pause()
         {
             if (!IsPlaying) return;
 
+            var state = _audioAgentRuntimeState;
+            if (state != EAudioAgentRuntimeState.Playing &&
+                state != EAudioAgentRuntimeState.FadingIn &&
+                state != EAudioAgentRuntimeState.FadingOut)
+            {
+                return;
+            }
+
+            _stateBeforePause = state;
+            _pausedAt = GameTime.unscaledTime;
             _audioAgentRuntimeState = EAudioAgentRuntimeState.Pausing;
             AudioResource.Pause();
         }
 
         /// <summary>
-        /// 取消暂停音频代理辅助器。
+        /// 取消暂停音频代理辅助器：回到暂停前的状态（含淡入/淡出），并把斜坡起点整体后移暂停时长。
+        /// <para>若一律回到 Playing，暂停一段正在淡出的音会把它复活成满音量常播。</para>
         /// </summary>
         public void Unpause()
         {
             if (_audioAgentRuntimeState != EAudioAgentRuntimeState.Pausing) return;
 
-            _audioAgentRuntimeState = EAudioAgentRuntimeState.Playing;
+            float pausedSeconds = GameTime.unscaledTime - _pausedAt;
+            _fadeInAt += pausedSeconds;
+            _fadeOutStartTime += pausedSeconds;
+            _audioAgentRuntimeState = _stateBeforePause;
             AudioResource.UnPause();
         }
 

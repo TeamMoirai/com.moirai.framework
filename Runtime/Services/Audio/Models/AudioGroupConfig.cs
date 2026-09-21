@@ -147,7 +147,7 @@ namespace Moirai.Atropos.Audio
         }
 
         /// <summary>
-        /// 移除设置
+        /// 移除设置：回到 <see cref="m_DefaultVolume"/> 与取消静音（与 <see cref="LoadSettings"/> 的缺省回落一致）。
         /// </summary>
         public void RemoveSetting()
         {
@@ -156,7 +156,7 @@ namespace Moirai.Atropos.Audio
             SettingUtility.RemoveSetting(_volumeSettingKey);
 
             _isMuted = false;
-            _volume = 1f;
+            _volume = m_DefaultVolume;
             ApplyTrackVolume();
         }
 
