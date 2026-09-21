@@ -1007,7 +1007,9 @@ namespace Moirai.Atropos.ObjectPool
                 int retain = Mathf.Max(_rule.MinIdle, _retainTarget);
                 if (_inactiveHead >= 0 && _totalCount > retain)
                 {
-                    due = _rule.Policy == EPoolPolicy.Fixed
+                    // 与执行侧 ShouldTrimHead 用同一判据：Fixed 或已超软容量即刻排到期。
+                    // 否则 Burst/Gradual 池的超额修剪只能等空闲期满才醒，那条超额分支基本走不到。
+                    due = _rule.Policy == EPoolPolicy.Fixed || _totalCount > _rule.SoftCapacity
                         ? now
                         : _storage.GetSlotRef(_inactiveHead).LastReleaseTime + _rule.IdleSeconds;
                 }

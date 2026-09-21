@@ -1,4 +1,4 @@
-using System.Threading;
+﻿using System.Threading;
 using System.Text.RegularExpressions;
 using Cysharp.Threading.Tasks;
 using Moirai.Atropos.ObjectPool;
@@ -947,6 +947,27 @@ namespace Service.GameObjectPool
 
             Assert.AreSame(survivor, reused, "survivor must stay reachable on the chain");
             Assert.AreEqual(1, pool.TotalCount);
+        }
+
+        [Test]
+        public void RefreshMaintenance_OverSoftCapacity_WakesAtOnceInsteadOfWaitingForIdle()
+        {
+            // 600s 空闲期 + 软容量 2：造一个"早已放回、但空闲期远未到期"的超额态。
+            RuntimeGameObjectPool pool = CreatePool(EPoolPolicy.Burst, minIdle: 0, softCapacity: 2,
+                hardCapacity: 8, idleSeconds: 600f);
+            GameObject a = SpawnOne(pool);
+            GameObject b = SpawnOne(pool);
+            GameObject c = SpawnOne(pool);
+            DespawnOne(pool, a);
+            DespawnOne(pool, b);
+            DespawnOne(pool, c);
+
+            // 回归：调度侧原先只认 Fixed，超额（_totalCount > SoftCapacity）要白等一个空闲周期，
+            // 而执行侧 ShouldTrimHead 早已允许按超软容量直接剪——判据对不上，那条分支几乎走不到。
+            Assert.LessOrEqual(pool.NextMaintenanceAt, Time.time, "超软容量应立即排到期，不等 IdleSeconds 期满");
+
+            pool.ExecuteMaintenance(Time.time, false);
+            Assert.Less(pool.TotalCount, 3, "本轮唤醒就要真的回收超额实例");
         }
 
         [Test]
