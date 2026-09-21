@@ -711,25 +711,25 @@ namespace Moirai.Atropos
         /// </summary>
         private sealed class HandlerSlot<T> where T : class
         {
-            private readonly Action<T, float, float> m_Invoker;
-            private readonly string m_StageName;
-            private T[] m_Handlers = new T[INITIAL_CAPACITY];
-            private int m_Count;
-            private readonly List<T> m_PendingAdd = new List<T>(INITIAL_CAPACITY);
-            private readonly List<T> m_PendingRemove = new List<T>(INITIAL_CAPACITY);
-            private readonly List<T> m_SortBuffer = new List<T>(INITIAL_CAPACITY);
+            private readonly Action<T, float, float> _invoker;
+            private readonly string _stageName;
+            private T[] _handlers = new T[INITIAL_CAPACITY];
+            private int _count;
+            private readonly List<T> _pendingAdd = new List<T>(INITIAL_CAPACITY);
+            private readonly List<T> _pendingRemove = new List<T>(INITIAL_CAPACITY);
+            private readonly List<T> _sortBuffer = new List<T>(INITIAL_CAPACITY);
 
-            // 连续失败计数懒建：健康路径下 m_HasFailures 恒 false，每订户每帧只多读一个 bool
-            private bool m_HasFailures;
-            private Dictionary<T, int> m_Failures;
+            // 连续失败计数懒建：健康路径下 _hasFailures 恒 false，每订户每帧只多读一个 bool
+            private bool _hasFailures;
+            private Dictionary<T, int> _failures;
 
             public HandlerSlot(Action<T, float, float> invoker, string stageName)
             {
-                m_Invoker = invoker;
-                m_StageName = stageName;
+                _invoker = invoker;
+                _stageName = stageName;
             }
 
-            public int Count => m_Count;
+            public int Count => _count;
 
             /// <summary>
             /// 驱动本阶段全部订户：逐个隔离异常，同一订户连续失败达阈值即熔断摘出。
@@ -738,8 +738,8 @@ namespace Moirai.Atropos
             /// </summary>
             public void Drive(float arg1, float arg2)
             {
-                T[] handlers = m_Handlers;
-                int count = m_Count;
+                T[] handlers = _handlers;
+                int count = _count;
                 // 局部变量阻断编译期可达性折叠——避免 throw 之后的熔断索引补偿触发 CS0162（零运行时差异）
                 bool rethrow = RETHROW_SUBSCRIBER_EXCEPTIONS;
 
@@ -750,12 +750,12 @@ namespace Moirai.Atropos
 
                     try
                     {
-                        m_Invoker(handler, arg1, arg2);
+                        _invoker(handler, arg1, arg2);
                         ResetFailuresIfAny(handler);
                     }
                     catch (Exception exception)
                     {
-                        LogUtility.Error("PlayerLoop {0} handler threw: {1}", m_StageName, exception);
+                        LogUtility.Error("PlayerLoop {0} handler threw: {1}", _stageName, exception);
                         bool tripped = RecordFailure(handler);
                         if (rethrow) throw;
                         // Remove 保序搬移：后继元素左移一位，故回退索引以免跳过，并收缩本地计数
@@ -771,29 +771,29 @@ namespace Moirai.Atropos
             /// <summary>记一次失败；达阈值则把该订户摘出本阶段并告警一次。重新注册即完全重置计数。</summary>
             private bool RecordFailure(T handler)
             {
-                m_HasFailures = true;
-                m_Failures ??= new Dictionary<T, int>(INITIAL_CAPACITY);
+                _hasFailures = true;
+                _failures ??= new Dictionary<T, int>(INITIAL_CAPACITY);
 
-                int failures = m_Failures.TryGetValue(handler, out int previous) ? previous + 1 : 1;
-                m_Failures[handler] = failures;
+                int failures = _failures.TryGetValue(handler, out int previous) ? previous + 1 : 1;
+                _failures[handler] = failures;
                 if (failures < FailureTripThreshold) return false;
 
                 // Remove 内部会一并清除失败计数条目
                 Remove(handler);
                 LogUtility.Warning(
                     "PlayerLoop {0} handler '{1}' was removed after {2} consecutive failures (threshold {3}).",
-                    m_StageName, handler.GetType().FullName, failures, FailureTripThreshold);
+                    _stageName, handler.GetType().FullName, failures, FailureTripThreshold);
                 return true;
             }
 
             private void ResetFailuresIfAny(T handler)
             {
-                if (!m_HasFailures) return;
+                if (!_hasFailures) return;
 
-                if (m_Failures != null &&
-                    m_Failures.TryGetValue(handler, out int recorded) && recorded != 0)
+                if (_failures != null &&
+                    _failures.TryGetValue(handler, out int recorded) && recorded != 0)
                 {
-                    m_Failures[handler] = 0;
+                    _failures[handler] = 0;
                 }
             }
 
@@ -804,10 +804,10 @@ namespace Moirai.Atropos
 
                 // 尾部追加仅在「追加后仍满足优先级升序」时合法：未实现 IPlayerLoopPriority 者有效优先级为 0，
                 // 若末位已是正优先级，直接追加会把它挤到正优先级之后，违背「数字小者先跑」——此时必须走排序插入。
-                if (m_Count == 0 || GetPriority(m_Handlers[m_Count - 1]) <= GetPriority(handler))
+                if (_count == 0 || GetPriority(_handlers[_count - 1]) <= GetPriority(handler))
                 {
-                    EnsureCapacity(m_Count + 1);
-                    m_Handlers[m_Count++] = handler;
+                    EnsureCapacity(_count + 1);
+                    _handlers[_count++] = handler;
                     return;
                 }
 
@@ -817,15 +817,15 @@ namespace Moirai.Atropos
             /// <summary>把 <paramref name="handler"/> 并入后按优先级整表稳定排序，写回紧凑数组。</summary>
             private void InsertByPriority(T handler)
             {
-                m_SortBuffer.Clear();
-                for (int i = 0; i < m_Count; i++) m_SortBuffer.Add(m_Handlers[i]);
-                m_SortBuffer.Add(handler);
-                SortByPriority(m_SortBuffer);
+                _sortBuffer.Clear();
+                for (int i = 0; i < _count; i++) _sortBuffer.Add(_handlers[i]);
+                _sortBuffer.Add(handler);
+                SortByPriority(_sortBuffer);
 
-                EnsureCapacity(m_SortBuffer.Count);
-                m_Count = m_SortBuffer.Count;
-                for (int i = 0; i < m_Count; i++) m_Handlers[i] = m_SortBuffer[i];
-                m_SortBuffer.Clear();
+                EnsureCapacity(_sortBuffer.Count);
+                _count = _sortBuffer.Count;
+                for (int i = 0; i < _count; i++) _handlers[i] = _sortBuffer[i];
+                _sortBuffer.Clear();
             }
 
             public void Remove(T handler)
@@ -833,15 +833,15 @@ namespace Moirai.Atropos
                 EnsureMainThread();
 
                 // 注销即抹除失败计数：重新注册从 0 计起，且字典不再对已注销订户持强引用
-                m_Failures?.Remove(handler);
+                _failures?.Remove(handler);
 
-                for (int i = 0; i < m_Count; i++)
+                for (int i = 0; i < _count; i++)
                 {
-                    if (!ReferenceEquals(m_Handlers[i], handler)) continue;
+                    if (!ReferenceEquals(_handlers[i], handler)) continue;
 
                     // 尾部前移，保持相对顺序
-                    for (int j = i; j < m_Count - 1; j++) m_Handlers[j] = m_Handlers[j + 1];
-                    m_Handlers[--m_Count] = null;
+                    for (int j = i; j < _count - 1; j++) _handlers[j] = _handlers[j + 1];
+                    _handlers[--_count] = null;
                     return;
                 }
             }
@@ -852,15 +852,15 @@ namespace Moirai.Atropos
 
                 // 同帧 add↔remove 对消（后调用者生效）：撤销未提交的注销；
                 // 若本体未激活，仅撤销还不够——仍需排队注册
-                for (int i = 0; i < m_PendingRemove.Count; i++)
+                for (int i = 0; i < _pendingRemove.Count; i++)
                 {
-                    if (!ReferenceEquals(m_PendingRemove[i], handler)) continue;
+                    if (!ReferenceEquals(_pendingRemove[i], handler)) continue;
 
-                    m_PendingRemove.RemoveAt(i);
-                    if (!Contains(handler)) m_PendingAdd.Add(handler);
+                    _pendingRemove.RemoveAt(i);
+                    if (!Contains(handler)) _pendingAdd.Add(handler);
                     return;
                 }
-                m_PendingAdd.Add(handler);
+                _pendingAdd.Add(handler);
             }
 
             public void RemovePending(T handler)
@@ -868,58 +868,58 @@ namespace Moirai.Atropos
                 EnsureMainThread();
 
                 // 对消同上：撤销未提交的注册；若本体已激活，仍需排队注销
-                for (int i = 0; i < m_PendingAdd.Count; i++)
+                for (int i = 0; i < _pendingAdd.Count; i++)
                 {
-                    if (!ReferenceEquals(m_PendingAdd[i], handler)) continue;
+                    if (!ReferenceEquals(_pendingAdd[i], handler)) continue;
 
-                    m_PendingAdd.RemoveAt(i);
-                    if (Contains(handler)) m_PendingRemove.Add(handler);
+                    _pendingAdd.RemoveAt(i);
+                    if (Contains(handler)) _pendingRemove.Add(handler);
                     return;
                 }
-                m_PendingRemove.Add(handler);
+                _pendingRemove.Add(handler);
             }
 
             public void FlushPending()
             {
-                int remove = m_PendingRemove.Count;
-                int add = m_PendingAdd.Count;
+                int remove = _pendingRemove.Count;
+                int add = _pendingAdd.Count;
                 if (remove == 0 && add == 0) return;
 
                 // 先注销后注册：对消已保证同帧反向操作不进缓冲，此处仅按「移除再添加」序提交残余项
-                for (int i = 0; i < remove; i++) Remove(m_PendingRemove[i]);
-                m_PendingRemove.Clear();
+                for (int i = 0; i < remove; i++) Remove(_pendingRemove[i]);
+                _pendingRemove.Clear();
 
-                for (int i = 0; i < add; i++) Add(m_PendingAdd[i]);
-                m_PendingAdd.Clear();
+                for (int i = 0; i < add; i++) Add(_pendingAdd[i]);
+                _pendingAdd.Clear();
             }
 
             public void Clear()
             {
-                m_Count = 0;
-                Array.Clear(m_Handlers, 0, m_Handlers.Length);
-                m_PendingAdd.Clear();
-                m_PendingRemove.Clear();
-                m_SortBuffer.Clear();
-                m_HasFailures = false;
-                m_Failures = null;
+                _count = 0;
+                Array.Clear(_handlers, 0, _handlers.Length);
+                _pendingAdd.Clear();
+                _pendingRemove.Clear();
+                _sortBuffer.Clear();
+                _hasFailures = false;
+                _failures = null;
             }
 
             private bool Contains(T handler)
             {
-                for (int i = 0; i < m_Count; i++)
+                for (int i = 0; i < _count; i++)
                 {
-                    if (ReferenceEquals(m_Handlers[i], handler)) return true;
+                    if (ReferenceEquals(_handlers[i], handler)) return true;
                 }
                 return false;
             }
 
             private void EnsureCapacity(int required)
             {
-                if (required <= m_Handlers.Length) return;
+                if (required <= _handlers.Length) return;
 
-                int capacity = m_Handlers.Length;
+                int capacity = _handlers.Length;
                 while (capacity < required) capacity *= 2;
-                Array.Resize(ref m_Handlers, capacity);
+                Array.Resize(ref _handlers, capacity);
             }
 
             private static void SortByPriority(List<T> list)
@@ -948,27 +948,27 @@ namespace Moirai.Atropos
         /// <summary>单阶段的 Action 回调注册表（语义同 <see cref="HandlerSlot{T}"/>，无优先级）。</summary>
         private sealed class CallbackSlot
         {
-            private readonly string m_StageName;
-            private Action[] m_Callbacks = new Action[INITIAL_CAPACITY];
-            private int m_Count;
-            private readonly List<Action> m_PendingAdd = new List<Action>(INITIAL_CAPACITY);
-            private readonly List<Action> m_PendingRemove = new List<Action>(INITIAL_CAPACITY);
+            private readonly string _stageName;
+            private Action[] _callbacks = new Action[INITIAL_CAPACITY];
+            private int _count;
+            private readonly List<Action> _pendingAdd = new List<Action>(INITIAL_CAPACITY);
+            private readonly List<Action> _pendingRemove = new List<Action>(INITIAL_CAPACITY);
 
-            private bool m_HasFailures;
-            private Dictionary<Action, int> m_Failures;
+            private bool _hasFailures;
+            private Dictionary<Action, int> _failures;
 
             public CallbackSlot(string stageName)
             {
-                m_StageName = stageName;
+                _stageName = stageName;
             }
 
-            public int Count => m_Count;
+            public int Count => _count;
 
             /// <summary>驱动本阶段全部回调：隔离与熔断语义同 <see cref="HandlerSlot{T}.Drive"/>。</summary>
             public void Drive()
             {
-                Action[] callbacks = m_Callbacks;
-                int count = m_Count;
+                Action[] callbacks = _callbacks;
+                int count = _count;
                 bool rethrow = RETHROW_SUBSCRIBER_EXCEPTIONS;
 
                 for (int i = 0; i < count; i++)
@@ -983,7 +983,7 @@ namespace Moirai.Atropos
                     }
                     catch (Exception exception)
                     {
-                        LogUtility.Error("PlayerLoop {0} callback threw: {1}", m_StageName, exception);
+                        LogUtility.Error("PlayerLoop {0} callback threw: {1}", _stageName, exception);
                         bool tripped = RecordFailure(callback);
                         if (rethrow) throw;
                         if (tripped)
@@ -997,30 +997,30 @@ namespace Moirai.Atropos
 
             private bool RecordFailure(Action callback)
             {
-                m_HasFailures = true;
-                m_Failures ??= new Dictionary<Action, int>(INITIAL_CAPACITY);
+                _hasFailures = true;
+                _failures ??= new Dictionary<Action, int>(INITIAL_CAPACITY);
 
-                int failures = m_Failures.TryGetValue(callback, out int previous) ? previous + 1 : 1;
-                m_Failures[callback] = failures;
+                int failures = _failures.TryGetValue(callback, out int previous) ? previous + 1 : 1;
+                _failures[callback] = failures;
                 if (failures < FailureTripThreshold) return false;
 
                 // Remove 内部会一并清除失败计数条目
                 Remove(callback);
                 LogUtility.Warning(
                     "PlayerLoop {0} callback '{1}.{2}' was removed after {3} consecutive failures (threshold {4}).",
-                    m_StageName, callback.Method.DeclaringType, callback.Method.Name,
+                    _stageName, callback.Method.DeclaringType, callback.Method.Name,
                     failures, FailureTripThreshold);
                 return true;
             }
 
             private void ResetFailuresIfAny(Action callback)
             {
-                if (!m_HasFailures) return;
+                if (!_hasFailures) return;
 
-                if (m_Failures != null &&
-                    m_Failures.TryGetValue(callback, out int recorded) && recorded != 0)
+                if (_failures != null &&
+                    _failures.TryGetValue(callback, out int recorded) && recorded != 0)
                 {
-                    m_Failures[callback] = 0;
+                    _failures[callback] = 0;
                 }
             }
 
@@ -1029,8 +1029,8 @@ namespace Moirai.Atropos
                 EnsureMainThread();
                 if (Contains(callback)) return;
 
-                EnsureCapacity(m_Count + 1);
-                m_Callbacks[m_Count++] = callback;
+                EnsureCapacity(_count + 1);
+                _callbacks[_count++] = callback;
             }
 
             public void Remove(Action callback)
@@ -1038,14 +1038,14 @@ namespace Moirai.Atropos
                 EnsureMainThread();
 
                 // 注销即抹除失败计数：重新注册从 0 计起，且字典不再对已注销订户持强引用
-                m_Failures?.Remove(callback);
+                _failures?.Remove(callback);
 
-                for (int i = 0; i < m_Count; i++)
+                for (int i = 0; i < _count; i++)
                 {
-                    if (m_Callbacks[i] != callback) continue;
+                    if (_callbacks[i] != callback) continue;
 
-                    for (int j = i; j < m_Count - 1; j++) m_Callbacks[j] = m_Callbacks[j + 1];
-                    m_Callbacks[--m_Count] = null;
+                    for (int j = i; j < _count - 1; j++) _callbacks[j] = _callbacks[j + 1];
+                    _callbacks[--_count] = null;
                     return;
                 }
             }
@@ -1056,15 +1056,15 @@ namespace Moirai.Atropos
 
                 // 同帧 add↔remove 对消（后调用者生效）：撤销未提交的注销；
                 // 若本体未激活，仅撤销还不够——仍需排队注册
-                for (int i = 0; i < m_PendingRemove.Count; i++)
+                for (int i = 0; i < _pendingRemove.Count; i++)
                 {
-                    if (m_PendingRemove[i] != callback) continue;
+                    if (_pendingRemove[i] != callback) continue;
 
-                    m_PendingRemove.RemoveAt(i);
-                    if (!Contains(callback)) m_PendingAdd.Add(callback);
+                    _pendingRemove.RemoveAt(i);
+                    if (!Contains(callback)) _pendingAdd.Add(callback);
                     return;
                 }
-                m_PendingAdd.Add(callback);
+                _pendingAdd.Add(callback);
             }
 
             public void RemovePending(Action callback)
@@ -1072,56 +1072,56 @@ namespace Moirai.Atropos
                 EnsureMainThread();
 
                 // 对消同上：撤销未提交的注册；若本体已激活，仍需排队注销
-                for (int i = 0; i < m_PendingAdd.Count; i++)
+                for (int i = 0; i < _pendingAdd.Count; i++)
                 {
-                    if (m_PendingAdd[i] != callback) continue;
+                    if (_pendingAdd[i] != callback) continue;
 
-                    m_PendingAdd.RemoveAt(i);
-                    if (Contains(callback)) m_PendingRemove.Add(callback);
+                    _pendingAdd.RemoveAt(i);
+                    if (Contains(callback)) _pendingRemove.Add(callback);
                     return;
                 }
-                m_PendingRemove.Add(callback);
+                _pendingRemove.Add(callback);
             }
 
             public void FlushPending()
             {
-                int remove = m_PendingRemove.Count;
-                int add = m_PendingAdd.Count;
+                int remove = _pendingRemove.Count;
+                int add = _pendingAdd.Count;
                 if (remove == 0 && add == 0) return;
 
-                for (int i = 0; i < remove; i++) Remove(m_PendingRemove[i]);
-                m_PendingRemove.Clear();
+                for (int i = 0; i < remove; i++) Remove(_pendingRemove[i]);
+                _pendingRemove.Clear();
 
-                for (int i = 0; i < add; i++) Add(m_PendingAdd[i]);
-                m_PendingAdd.Clear();
+                for (int i = 0; i < add; i++) Add(_pendingAdd[i]);
+                _pendingAdd.Clear();
             }
 
             public void Clear()
             {
-                m_Count = 0;
-                Array.Clear(m_Callbacks, 0, m_Callbacks.Length);
-                m_PendingAdd.Clear();
-                m_PendingRemove.Clear();
-                m_HasFailures = false;
-                m_Failures = null;
+                _count = 0;
+                Array.Clear(_callbacks, 0, _callbacks.Length);
+                _pendingAdd.Clear();
+                _pendingRemove.Clear();
+                _hasFailures = false;
+                _failures = null;
             }
 
             private bool Contains(Action callback)
             {
-                for (int i = 0; i < m_Count; i++)
+                for (int i = 0; i < _count; i++)
                 {
-                    if (m_Callbacks[i] == callback) return true;
+                    if (_callbacks[i] == callback) return true;
                 }
                 return false;
             }
 
             private void EnsureCapacity(int required)
             {
-                if (required <= m_Callbacks.Length) return;
+                if (required <= _callbacks.Length) return;
 
-                int capacity = m_Callbacks.Length;
+                int capacity = _callbacks.Length;
                 while (capacity < required) capacity *= 2;
-                Array.Resize(ref m_Callbacks, capacity);
+                Array.Resize(ref _callbacks, capacity);
             }
         }
 

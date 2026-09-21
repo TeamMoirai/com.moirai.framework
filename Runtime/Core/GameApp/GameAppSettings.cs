@@ -4,6 +4,11 @@ using UnityEngine;
 
 namespace Moirai.Atropos
 {
+    /// <summary>
+    /// 框架基础设置：帧率 / 游戏速度 / 后台运行 / 休眠的开机默认值，以及各 Utility 的可拔插 Handler 配置。
+    /// <para>m_* 字段仅作开机默认值，由 <c>Initiation</c> 推给引擎一次；运行期读写经 <see cref="GameApp"/>
+    /// 的运行态属性进行，不回写本资产。</para>
+    /// </summary>
     [FrameworkSetting("[框架]基础配置", "框架基础设置", int.MinValue)]
     public sealed partial class GameAppSettings : FrameworkSettings<GameAppSettings>
     {

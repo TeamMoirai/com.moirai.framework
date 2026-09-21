@@ -26,23 +26,23 @@ namespace Moirai.Atropos
         /// </summary>
         public sealed class Subscription : IDisposable
         {
-            private Action m_DisposeAction;
+            private Action _disposeAction;
 
             internal Subscription(Action disposeAction)
             {
-                m_DisposeAction = disposeAction;
+                _disposeAction = disposeAction;
             }
 
             /// <summary>是否仍处于订阅状态（未 Dispose 过）。</summary>
-            public bool IsSubscribed => m_DisposeAction != null;
+            public bool IsSubscribed => _disposeAction != null;
 
             /// <summary>注销订阅。幂等——重复调用安全。</summary>
             public void Dispose()
             {
-                Action dispose = m_DisposeAction;
+                Action dispose = _disposeAction;
                 if (dispose == null) return;
 
-                m_DisposeAction = null;
+                _disposeAction = null;
                 dispose();
             }
         }
@@ -112,7 +112,7 @@ namespace Moirai.Atropos
         /// <summary>
         /// 获取是否正常游戏速度（期望值约等于 1，容差 0.01）。暂停不影响本判定。
         /// </summary>
-        public static bool IsNormalGameSpeed => System.Math.Abs(s_GameSpeed - 1f) < 0.01f;
+        public static bool IsNormalGameSpeed => Mathf.Abs(s_GameSpeed - 1f) < 0.01f;
 
         /// <summary>
         /// 获取或设置是否允许后台运行。
