@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Cysharp.Threading.Tasks;
 using Moirai.Atropos.Debugger;
+using Moirai.Atropos.Input;
 using Moirai.Atropos.Timer;
 using UnityEngine;
 using UnityEngine.UI;
@@ -49,7 +50,11 @@ namespace Moirai.Atropos.UI
             // 正确性锚点：复用实例重入 Init 时必须先归零运行时状态，释放归属 OnShutdown。
             _uiStack.Clear();
             _cache.Clear();
-            InteractionLease.Reset();
+            // 堆栈归零与全局压制位归零同事务：上一轮未交还的持有者在此清位
+            if (InteractionLease.Reset())
+            {
+                InputService.PreventInteractionUI = false;
+            }
 
             // 此阶段（BeforeSceneLoad）场景尚未加载，初始化延迟到首个 Update tick。
             MainThreadDispatcher.Post(() =>
@@ -121,7 +126,11 @@ namespace Moirai.Atropos.UI
 
             _uiStack.Clear();
             _cache.Clear();
-            InteractionLease.Reset();
+            // CloseAll 之后窗口已无从交还（外观侧 s_Handler 已摘除），持有的压制位在此一并清掉
+            if (InteractionLease.Reset())
+            {
+                InputService.PreventInteractionUI = false;
+            }
             _instanceRoot = null;
             _uiCamera = null;
         }

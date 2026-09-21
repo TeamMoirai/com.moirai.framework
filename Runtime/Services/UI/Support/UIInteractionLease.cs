@@ -38,9 +38,13 @@ namespace Moirai.Atropos.UI
         /// <summary>
         /// 清空归属。与窗口堆栈一同归零的场合使用（处理器重入初始化、关闭）。
         /// </summary>
-        internal void Reset()
+        /// <returns>丢弃了仍持有压制的归属时返回 true——调用方须同事务清掉全局压制位，
+        /// 否则该位再没有合法的清除者；无归属可丢弃时返回 false，不得借机清别人的压制。</returns>
+        internal bool Reset()
         {
+            bool hadHolder = _holder != null;
             _holder = null;
+            return hadHolder;
         }
     }
 }
