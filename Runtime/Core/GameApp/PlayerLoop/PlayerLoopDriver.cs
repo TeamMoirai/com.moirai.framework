@@ -75,12 +75,18 @@ namespace Moirai.Atropos
         private static Action s_CoreFixedUpdate;
         private static Action s_CoreLateUpdate;
 
+        private static int s_FailureTripThreshold = DEFAULT_FAILURE_TRIP_THRESHOLD;
+
         /// <summary>
         /// 连续失败熔断阈值：同一订户在同一阶段连续异常达到该次数即被摘出该阶段。
         /// <para>与 <c>ServiceWorld.TickFailureTripThreshold</c> 同构，供测试调低以在编辑器下驱动熔断路径
-        /// （开发构建会先上抛，非上抛分支在编辑器中不可达）。</para>
+        /// （开发构建会先上抛，非上抛分支在编辑器中不可达）。下限钳制为 1——0 或负值会令订户首次失败即熔断。</para>
         /// </summary>
-        internal static int FailureTripThreshold { get; set; } = DEFAULT_FAILURE_TRIP_THRESHOLD;
+        internal static int FailureTripThreshold
+        {
+            get => s_FailureTripThreshold;
+            set => s_FailureTripThreshold = value >= 1 ? value : 1;
+        }
 
         // Unity 生命周期事件表：非帧阶段，低频且无热路径要求，直接用多播委托
         private static Action s_DestroyCallbacks;
@@ -772,8 +778,8 @@ namespace Moirai.Atropos
                 m_Failures[handler] = failures;
                 if (failures < FailureTripThreshold) return false;
 
+                // Remove 内部会一并清除失败计数条目
                 Remove(handler);
-                m_Failures.Remove(handler);
                 LogUtility.Warning(
                     "PlayerLoop {0} handler '{1}' was removed after {2} consecutive failures (threshold {3}).",
                     m_StageName, handler.GetType().FullName, failures, FailureTripThreshold);
@@ -825,6 +831,10 @@ namespace Moirai.Atropos
             public void Remove(T handler)
             {
                 EnsureMainThread();
+
+                // 注销即抹除失败计数：重新注册从 0 计起，且字典不再对已注销订户持强引用
+                m_Failures?.Remove(handler);
+
                 for (int i = 0; i < m_Count; i++)
                 {
                     if (!ReferenceEquals(m_Handlers[i], handler)) continue;
@@ -839,12 +849,33 @@ namespace Moirai.Atropos
             public void AddPending(T handler)
             {
                 EnsureMainThread();
+
+                // 同帧 add↔remove 对消（后调用者生效）：撤销未提交的注销；
+                // 若本体未激活，仅撤销还不够——仍需排队注册
+                for (int i = 0; i < m_PendingRemove.Count; i++)
+                {
+                    if (!ReferenceEquals(m_PendingRemove[i], handler)) continue;
+
+                    m_PendingRemove.RemoveAt(i);
+                    if (!Contains(handler)) m_PendingAdd.Add(handler);
+                    return;
+                }
                 m_PendingAdd.Add(handler);
             }
 
             public void RemovePending(T handler)
             {
                 EnsureMainThread();
+
+                // 对消同上：撤销未提交的注册；若本体已激活，仍需排队注销
+                for (int i = 0; i < m_PendingAdd.Count; i++)
+                {
+                    if (!ReferenceEquals(m_PendingAdd[i], handler)) continue;
+
+                    m_PendingAdd.RemoveAt(i);
+                    if (Contains(handler)) m_PendingRemove.Add(handler);
+                    return;
+                }
                 m_PendingRemove.Add(handler);
             }
 
@@ -854,7 +885,7 @@ namespace Moirai.Atropos
                 int add = m_PendingAdd.Count;
                 if (remove == 0 && add == 0) return;
 
-                // 先注销后注册：同阶段内同帧「移除再添加」按调用序生效
+                // 先注销后注册：对消已保证同帧反向操作不进缓冲，此处仅按「移除再添加」序提交残余项
                 for (int i = 0; i < remove; i++) Remove(m_PendingRemove[i]);
                 m_PendingRemove.Clear();
 
@@ -973,8 +1004,8 @@ namespace Moirai.Atropos
                 m_Failures[callback] = failures;
                 if (failures < FailureTripThreshold) return false;
 
+                // Remove 内部会一并清除失败计数条目
                 Remove(callback);
-                m_Failures.Remove(callback);
                 LogUtility.Warning(
                     "PlayerLoop {0} callback '{1}.{2}' was removed after {3} consecutive failures (threshold {4}).",
                     m_StageName, callback.Method.DeclaringType, callback.Method.Name,
@@ -1005,6 +1036,10 @@ namespace Moirai.Atropos
             public void Remove(Action callback)
             {
                 EnsureMainThread();
+
+                // 注销即抹除失败计数：重新注册从 0 计起，且字典不再对已注销订户持强引用
+                m_Failures?.Remove(callback);
+
                 for (int i = 0; i < m_Count; i++)
                 {
                     if (m_Callbacks[i] != callback) continue;
@@ -1018,12 +1053,33 @@ namespace Moirai.Atropos
             public void AddPending(Action callback)
             {
                 EnsureMainThread();
+
+                // 同帧 add↔remove 对消（后调用者生效）：撤销未提交的注销；
+                // 若本体未激活，仅撤销还不够——仍需排队注册
+                for (int i = 0; i < m_PendingRemove.Count; i++)
+                {
+                    if (m_PendingRemove[i] != callback) continue;
+
+                    m_PendingRemove.RemoveAt(i);
+                    if (!Contains(callback)) m_PendingAdd.Add(callback);
+                    return;
+                }
                 m_PendingAdd.Add(callback);
             }
 
             public void RemovePending(Action callback)
             {
                 EnsureMainThread();
+
+                // 对消同上：撤销未提交的注册；若本体已激活，仍需排队注销
+                for (int i = 0; i < m_PendingAdd.Count; i++)
+                {
+                    if (m_PendingAdd[i] != callback) continue;
+
+                    m_PendingAdd.RemoveAt(i);
+                    if (Contains(callback)) m_PendingRemove.Add(callback);
+                    return;
+                }
                 m_PendingRemove.Add(callback);
             }
 

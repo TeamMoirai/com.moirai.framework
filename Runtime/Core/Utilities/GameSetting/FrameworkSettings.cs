@@ -72,7 +72,10 @@ namespace Moirai.Atropos
 #if UNITY_EDITOR
                     s_Instance = LoadSettingSO<T>(filePath);
 #else
-                    Debug.LogError($"Could not find {type.Name} at path '{filePath}'!");
+                    // Player 构建缺资产不得返回 null——下游（如 GameAppSettings.Initiation）会随即 NRE，
+                    // 且每次访问都会重复 Resources.Load。兜底为代码默认值实例并缓存：报错一次、按默认值继续跑。
+                    Debug.LogError($"Could not find {type.Name} at path '{filePath}'! Falling back to code defaults.");
+                    s_Instance = CreateInstance<T>();
 #endif
                 }
                 return s_Instance;
