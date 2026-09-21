@@ -16,19 +16,19 @@ namespace Moirai.Atropos.ConfigTable
             private set => Instance.m_ConfigTableServiceHandler = value;
         }
 
+#if UNITY_EDITOR
         /// <summary>
-        /// 注册 ConfigTableServiceHandler
+        /// 编辑器注入自定义实现
         /// </summary>
         /// <typeparam name="T"></typeparam>
-        public static void RegisterHandler<T>() where T : ConfigTableServiceHandler, new()
+        public static void InjectConfigTableHandler<T>() where T : ConfigTableServiceHandler, new()
         {
             if (ConfigTableServiceHandler is null or DefaultConfigTableHandler)
             {
                 ConfigTableServiceHandler = new T();
-#if UNITY_EDITOR
                 UnityEditor.EditorUtility.SetDirty(Instance);
-#endif
             }
         }
+#endif
     }
 }

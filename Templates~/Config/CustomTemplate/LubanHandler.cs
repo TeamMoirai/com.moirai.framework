@@ -24,7 +24,7 @@ namespace GameProto.Config
         [UnityEditor.Callbacks.DidReloadScripts]
         private static void OnDidReloadScripts()
         {
-            ConfigTableServiceSettings.RegisterHandler<LubanHandler>();
+            ConfigTableServiceSettings.InjectConfigTableHandler<LubanHandler>();
         }
 #endif
 
