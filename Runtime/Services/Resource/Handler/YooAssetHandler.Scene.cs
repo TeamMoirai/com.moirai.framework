@@ -1,5 +1,4 @@
 using UnityEngine.SceneManagement;
-using YooAsset;
 
 namespace Moirai.Atropos.Resource
 {

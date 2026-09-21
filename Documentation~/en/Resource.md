@@ -4,7 +4,7 @@
 
 The Resource service (`ResourceService`) provides a business-oriented wrapper around [YooAsset](https://github.com/tuyoogame/YooAsset). The module has been fully refactored to use the **Lease/Binding architecture**: resources are managed through generation-validated slot handles (`ResourceLeaseHandle`) and typed leases (`ResourceAssetLease<T>`), while UI/render components can be bound declaratively via `ResourceOwner` + `IResourceBindingService`. Access via the `ResourceService` static facade.
 
-The internal engine uses **paged slot arrays** (`AssetSlot[][]`, `LeaseSlot[][]`, `BindingSlot[][]`, `OwnerSlot[][]`) with generation validation, **custom zero-GC hash maps** (`ResourceUlongIntMap` with Murmur finalizer, `ResourceIndexMap<TKey,TValue>`), and a **timer-wheel** expiry system (idle buckets + keep-alive buckets, O(1) per-frame processing). Loading dedup is handled via pooled `LoadingOperationState` objects. Frame-drive orchestration (config injection, timer-wheel advancement, unload scheduling, GC throttling, low-memory response) is wired automatically with the service lifecycle through the `ResourceService.Drive*` partial; the editor play mode can still be switched via EditorPrefs.
+The internal engine uses **paged slot arrays** (`AssetSlot[][]`, `LeaseSlot[][]`, `BindingSlot[][]`, `OwnerSlot[][]`) with generation validation, **custom zero-GC hash maps** (`ResourceUlongIntMap` with Murmur finalizer, `ResourceIndexMap<TKey,TValue>`), and a **timer-wheel** expiry system (idle buckets + keep-alive buckets, O(1) per-frame processing). Loading dedup is handled via pooled `LoadingOperationState` objects. Frame-drive orchestration (config injection, timer-wheel advancement, destroyed-slot reclaim sweep, unload scheduling, GC throttling, low-memory response) is wired automatically with the service lifecycle through the `ResourceService.Drive*` partial; the editor play mode can still be switched via EditorPrefs.
 
 ## Core Features
 
@@ -13,7 +13,7 @@ The internal engine uses **paged slot arrays** (`AssetSlot[][]`, `LeaseSlot[][]`
 - **Extension methods:** `Image.SetSprite(location)`, `SpriteRenderer.SetSprite(location)`, `Image.SetSubSprite(location, spriteName)`, `Image/SpriteRenderer/MeshRenderer.SetMaterial(location)`, `MeshRenderer.SetSharedMaterial(location)` — all auto-manage lifecycle via the binding system.
 - **Async binding safety:** Version-checked binding requests prevent stale async results from overwriting newer bindings.
 - Four play modes: `EditorSimulateMode` (editor simulation), `OfflinePlayMode` (standalone), `HostPlayMode` (online hot update), `WebPlayMode` (WebGL, supports WeChat Mini Game file system)
-- **Timer-wheel expiry:** Idle assets (refcount = 0) are released after `IdleAssetExpireTime` seconds. Keep-alive leases extend the lifetime temporarily. `ProcessKeepAlive` processes both queues in O(1) per frame.
+- **Timer-wheel expiry:** Idle assets (refcount = 0) are released after `IdleAssetExpireTime` seconds, or immediately when the idle record count exceeds `IdleAssetCapacity` (the longest-idle record goes first). Keep-alive leases extend the lifetime temporarily. `ProcessResourceMaintenance` processes both queues in O(1) per frame and rotates a reclaim sweep over destroyed owners/bindings.
 - **Loading dedup:** Concurrent loads of the same address share a single `LoadingOperationState` (pooled `MemoryObject`), with waiter tracking and cancellation support.
 - Asset encryption: `EncryptionType.FileOffSet` (32-byte offset) and `EncryptionType.FileStream` (XOR stream encryption), with web-side decryption implementation
 - Hot update download: Request remote manifest version, update manifest, create downloader, and clear cache files, all available
@@ -40,11 +40,12 @@ Namespace: `Moirai.Atropos.Resource`
 
 | Class/Interface | Description |
 |---------|------|
-| `ResourceService` | Static facade (`[HandlerHost]`) defining all APIs for loading, leasing, binding, unloading, and package operations; all static methods/properties forward through the `Handler` property (fail-fast: lazily initialized when not ready, throws if the default factory is missing, never silently degrades). `internal` partial split: main logic / Records (slot system + timer-wheel) / Cache (capacity & legacy bridging) / Services |
-| `ResourceService.Driver` | Facade partial: wired automatically on `OnInit` (Settings/UpdateSettings single-source injection + frame-drive registration); hosts `DriveTick` timer-wheel advancement and unload/GC scheduling |
+| `ResourceService` | Static facade (`[HandlerHost]`) defining all APIs for loading, leasing, binding, unloading, and package operations; all static methods/properties forward through the `Handler` property (fail-fast: lazily initialized when not ready, throws if the default factory is missing, never silently degrades). Configuration is injected in `OnInit`; the per-frame driver (timer-wheel advancement, unload scheduling, GC throttling, destroyed-slot reclaim) runs in `Tick` |
+| `YooAssetHandler` | Default backend, `partial` split by responsibility: main (base properties, unload scheduling, asset info queries, legacy API) / Records (paged slot & lease system) / Loading (load core & dedup) / Expiry (timer-wheel expiry, idle capacity eviction, record release) / Keys (packed-key codec & resource-name registry) / Initialization (package init, manifest update, download adapters) / Cache (capacity & warmup) / Scene (scene loading) |
+| `ResourceBindingService` | Binding service implementation (`internal sealed`), `partial` split by responsibility: main (owner/target registration, release, slot snapshots) / Bindings (binding registration & component application) / Async (async binding safety, request reservation and generation checks) / Maintenance (shutdown, reset, destroyed-slot reclaim) / Slots (paged slot allocation) |
 | `ResourceServiceHandler` | Handler abstract base class defining the backend contract; default implementation `YooAssetHandler` (plus experimental `AddressableHandler`) |
 | `IResourceBindingService` | Declarative resource-component binding service interface, accessed via `ResourceService.BindingService` |
-| `ResourceOwner` | MonoBehaviour component (`[DisallowMultipleComponent]`), auto-releases all bindings on `OnDestroy`. Provides `ReleaseBindings()`, `ReleaseBindingsInHierarchy(root)`, `EnsureFor(target, bindingService)`. |
+| `ResourceOwner` | MonoBehaviour component (`[DisallowMultipleComponent]`), auto-releases all bindings on `OnDestroy`. Provides `ReleaseBindings()`, `ReleaseBindingsInHierarchy(root)`, `EnsureFor(target, bindingService)`. Hierarchy release borrows its scan buffer from a pool (nested calls from a parent's teardown cannot clobber it), and a single owner throwing is recorded without truncating the rest, rethrown aggregated at the end. |
 | `ResourceBindingExtensions` | Static extension class: `Image/SpriteRenderer.SetSprite`, `Image/SpriteRenderer.SetSubSprite`, `Image/SpriteRenderer/MeshRenderer.SetMaterial`, `MeshRenderer.SetSharedMaterial` |
 | `ResourceBindingTypes` | Binding-related enums and interfaces: `ResourceBindStatus`, `ResourceBindingOptions`, `ResourceBindingSlotType` |
 | `EResourceHasAssetResult` | Asset existence check result (three-value semantics): `NotExist` (not found) / `AssetOnline` (exists but needs remote download) / `AssetOnDisk` (exists and available on disk) |
@@ -124,6 +125,11 @@ meshRenderer.SetMaterial("Assets/AssetRaw/Mat/skin.mat", isAsync: true);
 
 When a `SetSprite`/`SetMaterial` extension method is first called on a component, a `ResourceOwner` is automatically added to the GameObject (if not present) and registered with the binding service. On `OnDestroy`, `ResourceOwner` releases all bindings automatically.
 
+Two boundaries are worth knowing:
+
+- **Destroyed-state backstop:** scene teardown and play-mode exit can skip `OnDestroy`, leaving the owner slot and its leases pinned. The per-frame maintenance entry rotates a budgeted sweep that force-reclaims slots whose component is fake-null (destroyed on the engine side, still referenced in C#).
+- **Shutdown vs reset:** `Shutdown()` is terminal — after draining it stays closed and every later registration returns `ServiceShutdown` (the slot pages are gone, so admitting writes would target a null table). Force-unloading all assets uses `Reset()`, which drains the same way and then reopens the instance. Both paths isolate exceptions per slot so one failure cannot truncate the round.
+
 ### Legacy API (still works, marked `[Obsolete]`)
 
 ```csharp
@@ -190,8 +196,9 @@ Two circular bucket arrays (256 buckets each) drive O(1) per-frame expiry:
 
 - **Idle buckets:** When an asset's refcount reaches zero, it enters an idle bucket scheduled to expire after `IdleAssetExpireTime` seconds.
 - **Keep-alive buckets:** When a lease is released with `KeepAliveOnRelease` option, the asset's keep-alive refcount is incremented and scheduled to expire after `IdleAssetExpireTime` seconds.
+- **Capacity cap:** When idle records exceed `IdleAssetCapacity`, the one with the earliest expiry tick (i.e. idle the longest) is released immediately, without waiting for its expiry; lowering the cap takes effect at once.
 
-`ProcessKeepAlive(unscaledTime, maxProcessCount)` is called every frame by the facade's `DriveTick` and processes both queues, releasing assets whose expiry tick has passed.
+`ProcessResourceMaintenance(unscaledTime, maxProcessCount)` is called every frame by the facade, processing both queues and releasing assets whose expiry tick has passed; capacity-driven eviction runs after the wheel walk, so removing records never skips the rest of a bucket during the same frame.
 
 ### Loading Dedup
 
@@ -344,6 +351,7 @@ Configured in the `ResourceServiceSettings` (Framework settings asset) or via `R
 | `BindingSlotCapacity` | 128 | Binding slot preallocation (BindingSlot pages). |
 | `RegisteredTargetCapacity` | 128 | Registered target preallocation. |
 | `IdleAssetExpireTime` | 60s | Seconds before idle (refcount=0) assets are released. |
+| `IdleAssetCapacity` | 256 | Max idle asset records kept; over the cap the longest-idle record is released immediately, 0 keeps none. |
 | `ExpireProcessCountPerFrame` | 16 | Max expiry items processed per frame. |
 | `ExpireProcessCountWhenUnloading` | 256 | Max expiry items processed during unload. |
 
@@ -371,7 +379,7 @@ Batch query for asset record states. Returns the number of entries written. Each
 | `void UnloadUnusedAssets(bool force)` | `force=true`: ignores idle expire time, immediately processes keep-alive queue and releases all unused records. |
 | `void ForceUnloadAllAssets()` | Force unload all assets on all packages (not supported on WebGL — prints warning). |
 | `void ForceUnloadUnusedAssets(bool performGCCollect)` | Triggers the driver's force-unload path (optionally with GC.Collect). |
-| `void ProcessKeepAlive(float unscaledTime, int maxProcessCount)` | Per-frame timer-wheel expiry processing (idle + keep-alive buckets). **internal**, called by `ResourceService.DriveTick()` internally. |
+| `void ProcessResourceMaintenance(float unscaledTime, int maxProcessCount)` | Per-frame resource maintenance: timer-wheel expiry (idle + keep-alive buckets), idle capacity eviction, destroyed-slot reclaim sweep. **internal**, called by `ResourceService.Tick()`. |
 
 ## Configuration and Extensions
 

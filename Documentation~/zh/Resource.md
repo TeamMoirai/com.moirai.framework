@@ -4,7 +4,7 @@
 
 Resource 服务（`ResourceService`）对 [YooAsset](https://github.com/tuyoogame/YooAsset) 做了面向业务的封装。模块已全面重构为 **Lease/Binding 架构**：资源通过 generation 校验的槽位句柄（`ResourceLeaseHandle`）和类型化租约（`ResourceAssetLease<T>`）管理，UI/渲染组件可通过 `ResourceOwner` + `IResourceBindingService` 进行声明式绑定。通过 `ResourceService` 静态外观访问。
 
-内部引擎使用**分页槽位数组**（`AssetSlot[][]`、`LeaseSlot[][]`、`BindingSlot[][]`、`OwnerSlot[][]`）配合 generation 校验、**自研零 GC 哈希映射**（`ResourceUlongIntMap`，Murmur 终结器混合；`ResourceIndexMap<TKey,TValue>`）、以及**时间轮**过期系统（idle 桶 + keep-alive 桶，每帧 O(1) 处理）。加载去重通过池化的 `LoadingOperationState` 对象实现。帧驱动编排（配置注入、时间轮推进、卸载调度、GC 节流、低内存响应）由 `ResourceService.Drive*` partial 随服务生命周期自动接线，编辑器下的播放模式可通过 EditorPrefs 切换。
+内部引擎使用**分页槽位数组**（`AssetSlot[][]`、`LeaseSlot[][]`、`BindingSlot[][]`、`OwnerSlot[][]`）配合 generation 校验、**自研零 GC 哈希映射**（`ResourceUlongIntMap`，Murmur 终结器混合；`ResourceIndexMap<TKey,TValue>`）、以及**时间轮**过期系统（idle 桶 + keep-alive 桶，每帧 O(1) 处理）。加载去重通过池化的 `LoadingOperationState` 对象实现。帧驱动编排（配置注入、时间轮推进、销毁态槽位回收、卸载调度、GC 节流、低内存响应）由 `ResourceService.Drive*` partial 随服务生命周期自动接线，编辑器下的播放模式可通过 EditorPrefs 切换。
 
 ## 核心特性
 
@@ -13,7 +13,7 @@ Resource 服务（`ResourceService`）对 [YooAsset](https://github.com/tuyoogam
 - **扩展方法：** `Image.SetSprite(location)`、`SpriteRenderer.SetSprite(location)`、`Image.SetSubSprite(location, spriteName)`、`Image/SpriteRenderer/MeshRenderer.SetMaterial(location)`、`MeshRenderer.SetSharedMaterial(location)` —— 全部通过绑定系统自动管理生命周期。
 - **异步绑定安全：** 版本校验的绑定请求防止过期异步结果覆盖较新的绑定。
 - 四种播放模式：`EditorSimulateMode`（编辑器模拟）、`OfflinePlayMode`（单机）、`HostPlayMode`（联机热更）、`WebPlayMode`（WebGL，支持微信小游戏文件系统）
-- **时间轮过期：** 空闲资源（引用计数 = 0）在 `IdleAssetExpireTime` 秒后被释放。Keep-alive 租约可临时延长生命周期。`ProcessKeepAlive` 每帧以 O(1) 复杂度处理两个队列。
+- **时间轮过期：** 空闲资源（引用计数 = 0）在 `IdleAssetExpireTime` 秒后被释放，或由 `IdleAssetCapacity` 超容时立即淘汰最长空闲者。Keep-alive 租约可临时延长生命周期。`ProcessResourceMaintenance` 每帧以 O(1) 复杂度处理两个队列，并轮转回收销毁态所有者/绑定槽位。
 - **加载去重：** 同地址并发加载共享同一个 `LoadingOperationState`（池化 `MemoryObject`），支持等待者计数与取消。
 - 资源加密：`EncryptionType.FileOffSet`（32 字节偏移）与 `EncryptionType.FileStream`（XOR 流加密），附带 Web 端解密实现
 - 热更下载：请求远端清单版本、更新 Manifest、创建下载器、清理缓存文件一应俱全
@@ -40,11 +40,12 @@ Resource 服务（`ResourceService`）对 [YooAsset](https://github.com/tuyoogam
 
 | 类/接口 | 说明 |
 |---------|------|
-| `ResourceService` | 静态外观（`[HandlerHost]`），定义加载、租约、绑定、卸载、包操作全部 API；全部静态方法/属性经 `Handler` 属性转发（fail-fast：未就绪时按需初始化，工厂缺失时抛异常，不静默降级）。`internal` partial 拆分：主逻辑 / Records（槽位系统 + 时间轮）/ Cache（容量与遗留桥接）/ Services |
-| `ResourceService.Driver` | 外观 partial：随 `OnInit` 自动接线（Settings/UpdateSettings 单源注入 + 帧驱动注册），承载 `DriveTick` 时间轮推进与卸载/GC 调度 |
+| `ResourceService` | 静态外观（`[HandlerHost]`），定义加载、租约、绑定、卸载、包操作全部 API；全部静态方法/属性经 `Handler` 属性转发（fail-fast：未就绪时按需初始化，工厂缺失时抛异常，不静默降级）。配置注入在 `OnInit` 接线，每帧驱动（时间轮推进 / 卸载调度 / GC 节流 / 销毁态回收）在 `Tick` 推进 |
+| `YooAssetHandler` | 默认后端，`partial` 按职责拆分：主文件（基础属性、卸载调度、资产信息查询、遗留 API）/ Records（分页槽位与租约系统）/ Loading（加载核心与去重）/ Expiry（时间轮过期、空闲容量淘汰与记录释放）/ Keys（packed key 编解码与资源名称注册表）/ Initialization（包初始化、清单更新与下载适配）/ Cache（容量与预热）/ Scene（场景加载） |
+| `ResourceBindingService` | 绑定服务实现（`internal sealed`），`partial` 按职责拆分：主文件（所有者与目标注册、释放、槽位快照）/ Bindings（绑定注册与组件应用）/ Async（异步绑定安全的预约与代次判定）/ Maintenance（关停、重置与销毁态回收）/ Slots（分页槽位借还） |
 | `ResourceServiceHandler` | 处理器抽象基类，定义后端契约；默认实现 `YooAssetHandler`（另有实验性 `AddressableHandler`） |
 | `IResourceBindingService` | 声明式资源-组件绑定服务接口，经 `ResourceService.BindingService` 访问 |
-| `ResourceOwner` | MonoBehaviour 组件（`[DisallowMultipleComponent]`），`OnDestroy` 时自动释放所有绑定。提供 `ReleaseBindings()`、`ReleaseBindingsInHierarchy(root)`、`EnsureFor(target, bindingService)`。 |
+| `ResourceOwner` | MonoBehaviour 组件（`[DisallowMultipleComponent]`），`OnDestroy` 时自动释放所有绑定。提供 `ReleaseBindings()`、`ReleaseBindingsInHierarchy(root)`、`EnsureFor(target, bindingService)`。层级释放按借还取用扫描缓冲（父辈销毁触发的嵌套调用互不踩踏），单个所有者抛出只记账不截断同层级其余项，末尾汇总重抛。 |
 | `ResourceBindingExtensions` | 静态扩展类：`Image/SpriteRenderer.SetSprite`、`Image/SpriteRenderer.SetSubSprite`、`Image/SpriteRenderer/MeshRenderer.SetMaterial`、`MeshRenderer.SetSharedMaterial` |
 | `ResourceBindingTypes` | 绑定相关枚举与接口：`ResourceBindStatus`、`ResourceBindingOptions`、`ResourceBindingSlotType` |
 | `EResourceHasAssetResult` | 资源存在性检查结果（三值语义）：`NotExist`（不存在）/ `AssetOnline`（存在但需从远端下载）/ `AssetOnDisk`（存在且已在磁盘） |
@@ -124,6 +125,11 @@ meshRenderer.SetMaterial("Assets/AssetRaw/Mat/skin.mat", isAsync: true);
 
 当首次对某组件调用 `SetSprite`/`SetMaterial` 扩展方法时，会自动在 GameObject 上添加 `ResourceOwner`（如未存在）并注册到绑定服务。`OnDestroy` 时 `ResourceOwner` 自动释放所有绑定。
 
+两点收口值得注意：
+
+- **销毁态兜底：** 场景卸载、退出播放等场合 `OnDestroy` 未必跑得到，此时所有者槽位连同其租约会一直占着。每帧维护入口按配额轮转查验槽位，把"组件已被引擎销毁（fake null）但槽位仍活跃"的所有者与目标已销毁的绑定强制回收。
+- **关停与重置分界：** `Shutdown()` 是终态——排空后保持关闭位，之后的注册一律 `ServiceShutdown`（槽位页已整体释放，放行即写空表）；强制回收全部资源走 `Reset()`，排空同一套但完成后放行。两条路径都逐槽隔离异常，一项抛出不截断同轮其余项。
+
 ### 遗留 API（仍可用，标记 `[Obsolete]`）
 
 ```csharp
@@ -188,8 +194,9 @@ ResourceService.UnloadAsset(icon);
 
 - **Idle 桶：** 当资产引用计数归零时，进入 idle 桶，计划在 `IdleAssetExpireTime` 秒后过期。
 - **Keep-alive 桶：** 当租约以 `KeepAliveOnRelease` 选项释放时，资产的 keep-alive 引用计数递增，计划在 `IdleAssetExpireTime` 秒后过期。
+- **容量上限：** 空闲记录数超过 `IdleAssetCapacity` 时，过期刻度最早（即最长空闲）的记录被立即释放，不必等到期；调小上限同样立刻生效。淘汰排在轮盘走查之后，避免走查途中摘除节点导致整桶被跳过。
 
-`ProcessKeepAlive(unscaledTime, maxProcessCount)` 由外观 `DriveTick` 每帧调用，处理两个队列中已过期的资产。
+`ProcessResourceMaintenance(unscaledTime, maxProcessCount)` 由外观每帧调用，处理两个队列中已过期的资产，收尾时按 `IdleAssetCapacity` 淘汰超容的空闲记录。同一入口还驱动绑定服务的销毁态轮转扫描（见「资源绑定」）。
 
 ### 加载去重
 
@@ -342,6 +349,7 @@ public sealed class ResourceOwner : MonoBehaviour
 | `BindingSlotCapacity` | 128 | 绑定槽位预热容量（BindingSlot 页）。 |
 | `RegisteredTargetCapacity` | 128 | 已注册目标预热容量。 |
 | `IdleAssetExpireTime` | 60s | 无引用资源句柄空闲过期秒数。 |
+| `IdleAssetCapacity` | 256 | 空闲资源记录容量上限；超出即淘汰最长空闲者，0 表示不留空闲记录。 |
 | `ExpireProcessCountPerFrame` | 16 | 每帧过期处理最大数量。 |
 | `ExpireProcessCountWhenUnloading` | 256 | 卸载时过期处理最大数量。 |
 
@@ -369,7 +377,7 @@ int GetAssetInfos(ResourceAssetInfo[] results, int startIndex, int maxCount);
 | `void UnloadUnusedAssets(bool force)` | `force=true`：忽略空闲过期时间，立即处理 keep-alive 队列并释放所有无用记录。 |
 | `void ForceUnloadAllAssets()` | 强制卸载所有包上的所有资产（WebGL 不支持 —— 仅打印警告）。 |
 | `void ForceUnloadUnusedAssets(bool performGCCollect)` | 触发驱动器的强制卸载路径（可选 GC.Collect）。 |
-| `void ProcessKeepAlive(float unscaledTime, int maxProcessCount)` | 每帧时间轮过期处理（idle + keep-alive 桶）。**internal**，由 `ResourceService.DriveTick()` 内部调用。 |
+| `void ProcessResourceMaintenance(float unscaledTime, int maxProcessCount)` | 每帧资源维护：时间轮过期处理（idle + keep-alive 桶）+ 空闲容量淘汰 + 销毁态槽位回收。**internal**，由 `ResourceService.Tick()` 内部调用。 |
 
 ## 配置与扩展
 
