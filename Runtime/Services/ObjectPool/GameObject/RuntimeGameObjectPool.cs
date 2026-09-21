@@ -1088,7 +1088,16 @@ namespace Moirai.Atropos.ObjectPool
         {
             for (int i = 0; i < slot.PoolableCount; i++)
             {
-                slot.Poolables[i].OnPooledDestroy();
+                try
+                {
+                    slot.Poolables[i].OnPooledDestroy();
+                }
+                catch (Exception exception)
+                {
+                    // 隔离粒度必须是"逐个池件"：调用点那一圈 try/catch 会让第一个池件抛出后，
+                    // 同实例上其余池件永远收不到 OnPooledDestroy，它们各自持有的资源/租约就地泄漏。
+                    LogUtility.Fatal(exception);
+                }
             }
         }
 

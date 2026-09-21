@@ -950,6 +950,36 @@ namespace Service.GameObjectPool
         }
 
         [Test]
+        public void PooledDestroy_FirstPoolableThrows_SecondPoolableOnSameInstanceStillNotified()
+        {
+            _loader.Prefab.AddComponent<FaultyPoolable>();
+            _loader.Prefab.AddComponent<FaultyPoolable>();
+            RuntimeGameObjectPool pool = CreatePool();
+            GameObject instance = SpawnOne(pool);
+            DespawnOne(pool, instance);
+
+            FaultyPoolable[] poolables = instance.GetComponents<FaultyPoolable>();
+            Assert.AreEqual(2, poolables.Length, "前置条件：同一实例挂两个池件");
+            poolables[0].ThrowOnPooledDestroy = true;
+
+            LogAssert.ignoreFailingMessages = true;
+            try
+            {
+                Assert.DoesNotThrow(() => pool.ExecuteMaintenance(Time.time, true));
+            }
+            finally
+            {
+                LogAssert.ignoreFailingMessages = false;
+                poolables[0].ThrowOnPooledDestroy = false;
+            }
+
+            Assert.AreEqual(1, poolables[0].PooledDestroyCount);
+            // 回归：隔离粒度原本是"整圈回调"，第一个池件抛出就吃掉了同实例其余池件的 OnPooledDestroy，
+            // 它们各自持有的资源/租约就此泄漏——隔离必须在逐个池件这一层。
+            Assert.AreEqual(1, poolables[1].PooledDestroyCount, "同实例的其余池件必须照常收到 OnPooledDestroy");
+        }
+
+        [Test]
         public void Maintenance_PooledDestroyThrows_TrimContinuesAndPoolStaysScheduled()
         {
             _loader.Prefab.AddComponent<FaultyPoolable>();

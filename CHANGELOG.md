@@ -1,4 +1,4 @@
-# Changelog
+﻿# Changelog
 
 本项目的所有重要变更都会记录在此文件中。
 
@@ -113,6 +113,10 @@
 - **`Despawn(T obj)` 只认目标键不认对象**：`_targetMap` 按 `obj.Target` 命中槽位后直接 `DespawnSlot(idx)`，而槽位会被回收复用、映射随之指向新对象——拿着陈旧引用就会替**别人**的对象扣 `SpawnCount` 并回调它的 `OnDespawn`。现在按槽内 `Obj` 做一次引用相等校验后再归还（不引入 `ObjectBase` 反向指针，公共基类不加字段）。
 - **`PoolCatalog` 的规则次序随构建漂移**：`Array.Sort` 不稳定，同优先级条目在 Mono / IL2CPP 之间会编出不同顺序，而下游两件事都吃这个顺序——`exactMap` 的"字面量先到先得"与规则下标 `i`（即 glob 匹配优先级）。改为排下标数组并以原序兜底平局，同一份目录在任何运行时都编出同一张表。
 - **池关闭流程可被单个坏对象整体截断**：处理器 `OnShutdown` 倒序定长遍历 `_pools` 且无隔离——`Shutdown` 会逐项回调 `obj.Release(true)`，回调里注销其它池会让数组左移、越界下标读到失效槽位或把同一个池关两次，一个对象抛出则其余池永不关闭。现在越界/空槽跳过、逐池隔离；`ReleaseAllUnused` 补上 `ReleaseUnused` 同款的访问上限（空闲链被改出环时不至于卡帧）；`_isShuttingDown` 期间 `Spawn` 系列按"无可复用对象"降级，不再从即将归还 ArrayPool 的存储里取对象。
+
+- **配置过期时间的池会把预热对象当"无限空闲"首轮剪光**：注册路径把槽位 `LastUseTime` 写死为 `0f`，而"是否记龄"的判据恰好是 `TrackLastUseTime => _expireTime < float.MaxValue`——于是过期扫描（`LastUseTime <= now - expireTime`）对从未使用过的预热实例恒成立，`_capacity` 与预热在第一次唤醒时就作废。现注册时按当前时刻记龄（未配过期时间的池仍留 0，不引入无意义读数）。
+- **池关停可被自身回调重入，导致槽位存储二次归还**：`Shutdown()` 逐项回调 `obj.Release(true)`，回调里销毁本池会再次进入 `Shutdown`——`_storage.ReturnStorage()` 会把页数组再归还一次 ArrayPool（此后两个池可能拿到同一份页 = 跨池槽位错用），或在已置 null 的页数组上 NRE。现补重入守卫（只做幂等，不改成永久 disposed：池实例仍可被重新 `Init` 复用）。
+- **同一实例上第一个池件抛出会吃掉其余池件的 `OnPooledDestroy`**：异常隔离原先落在调用点（整圈回调一圈 try/catch），于是实例上第 2..N 个 `IGameObjectPoolable` 永远收不到销毁通知，它们各自持有的资源与租约就地泄漏。现隔离粒度下沉到逐个池件。
 
 ### Removed
 

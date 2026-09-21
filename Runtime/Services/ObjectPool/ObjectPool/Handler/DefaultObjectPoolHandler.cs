@@ -539,7 +539,9 @@ namespace Moirai.Atropos.ObjectPool
                 slot = default;
                 slot.Obj = obj;
                 slot.SpawnCount = spawned ? 1 : 0;
-                slot.LastUseTime = 0f;
+                // 未跟踪过期时留 0；一旦跟踪就必须落在"现在"——否则注册但从未使用的槽位
+                // 在过期判据（LastUseTime <= now - expireTime）下等于"无限空闲"，预热实例会被首轮唤醒全部剪掉。
+                slot.LastUseTime = TrackLastUseTime ? Time.realtimeSinceStartup : 0f;
                 slot.PrevAvailable = -1;
                 slot.NextAvailable = -1;
                 slot.PrevUnused = -1;
@@ -831,6 +833,14 @@ namespace Moirai.Atropos.ObjectPool
 
             internal override void Shutdown()
             {
+                if (_isShuttingDown)
+                {
+                    // 重入守卫：Shutdown 会逐项回调 obj.Release(true)，回调里再销毁本池就会二次走到
+                    // _storage.ReturnStorage()——页数组已置 null 且 _pageCount 未复位，要么 NRE，
+                    // 要么把同一份数组再归还一次 ArrayPool（之后两个池会拿到同一页 = 跨池槽位错用）。
+                    return;
+                }
+
                 _isShuttingDown = true;
                 int slotCount = _storage.SlotCount;
                 for (int i = 0; i < slotCount; i++)

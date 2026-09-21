@@ -520,6 +520,24 @@ namespace Service.ObjectPool
         }
 
         [Test]
+        public void ExecuteMaintenance_RegisteredButNeverUsed_KeepsObject()
+        {
+            DefaultObjectPoolHandler handler = CreateHandler();
+            IObjectPool<TestObject> pool = handler.GetOrCreatePool<TestObject>(
+                new ObjectPoolCreateOptions(expireTime: 10f));
+            TestObject a = new TestObject(new object());
+            pool.Register(a, false);
+
+            // 回归：注册路径曾把 LastUseTime 写成 0，而"是否记龄"恰好在配了过期时间时为真——
+            // 从未使用过的预热对象因此在过期判据下等于"无限空闲"，首轮唤醒即被整批剪掉，预热与容量白设。
+            ObjectPoolBase poolBase = GetPoolBase(handler);
+            poolBase.ExecuteMaintenance(UnityEngine.Time.realtimeSinceStartup, false);
+
+            Assert.IsFalse(a.Released, "刚注册、从未使用的对象不得按过期释放");
+            Assert.AreEqual(1, pool.Count);
+        }
+
+        [Test]
         public void ExecuteMaintenance_BeforeExpiry_KeepsUnused()
         {
             DefaultObjectPoolHandler handler = CreateHandler();
