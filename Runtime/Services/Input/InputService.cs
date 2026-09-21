@@ -249,11 +249,11 @@ namespace Moirai.Atropos.Input
             bool hasFocus;
             switch (evt.EventType)
             {
-                case EMessageEventType.NotApplicationFocus:
+                case GameAppMessageEvent.EEventType.NotApplicationFocus:
                     hasFocus = false;
                     break;
 
-                case EMessageEventType.ApplicationFocus:
+                case GameAppMessageEvent.EEventType.ApplicationFocus:
                     hasFocus = true;
                     break;
 
