@@ -34,11 +34,11 @@ namespace Service.Resource
         }
 
         [Test]
-        public void ProcessKeepAlive_EmptyState_DoesNotThrow()
+        public void ProcessResourceMaintenance_EmptyState_DoesNotThrow()
         {
             var handler = new YooAssetHandler();
 
-            Assert.DoesNotThrow(() => handler.ProcessKeepAlive(1234f, 16));
+            Assert.DoesNotThrow(() => handler.ProcessResourceMaintenance(1234f, 16));
         }
 
         [Test]
@@ -90,7 +90,7 @@ namespace Service.Resource
             var handler = new YooAssetHandler();
 
             ResourceLeaseHandle lease = RunToCompletion(
-                handler.AcquireSubAssetsBindingAsync("atlas_key", "__moirai_missing_pkg__",
+                () => handler.AcquireSubAssetsBindingAsync("atlas_key", "__moirai_missing_pkg__",
                     default(EResourceLeaseOption), default));
 
             Assert.IsFalse(lease.IsValid);
@@ -105,21 +105,23 @@ namespace Service.Resource
             var handler = new YooAssetHandler();
 
             ResourceLeaseHandle lease = RunToCompletion(
-                handler.AcquirePrefabSourceLeaseAsync("prefab_key", "__moirai_missing_pkg__", default));
+                () => handler.AcquirePrefabSourceLeaseAsync("prefab_key", "__moirai_missing_pkg__", default));
 
             Assert.IsFalse(lease.IsValid);
             Assert.AreEqual(0, LoadingOperationCount(handler));
         }
 
-        private static ResourceLeaseHandle RunToCompletion(UniTask<ResourceLeaseHandle> task)
+        private static ResourceLeaseHandle RunToCompletion(System.Func<UniTask<ResourceLeaseHandle>> start)
         {
-            // FailLoading 现在会把真实异常经 LogUtility.Error 打出来；本用例不关心日志内容，屏蔽预期错误。
+            // FailLoading 会把真实异常经 LogUtility.Error 打出来；本用例不关心日志内容，屏蔽预期错误。
+            // 任务必须由工厂在这里创建：async 方法在首个 await 之前同步跑完整条失败路径，
+            // 写成实参就会在置位前打出 [Error]，被 Unity 记成本轮意外日志。
             bool previous = LogAssert.ignoreFailingMessages;
             LogAssert.ignoreFailingMessages = true;
             try
             {
                 // 未初始化后端下整条赢家路径在任何 await 之前同步抛出并被 catch，任务同步完成，无需 PlayerLoop。
-                return task.GetAwaiter().GetResult();
+                return start().GetAwaiter().GetResult();
             }
             finally
             {

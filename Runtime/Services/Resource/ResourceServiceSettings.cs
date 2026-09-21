@@ -116,6 +116,13 @@ namespace Moirai.Atropos.Resource
         /// <summary>无引用资源句柄空闲过期秒数。</summary>
         public static float IdleAssetExpireTime => Instance.m_IdleAssetExpireTime;
 
+        [Tooltip("空闲资源记录的容量上限，超出即淘汰最长空闲的那条；0 表示不留空闲记录")]
+        [LabelText("空闲资源记录容量上限")]
+        [MinValue(0)]
+        [SerializeField] private int m_IdleAssetCapacity = 256;
+        /// <summary>空闲资源记录容量上限。</summary>
+        public static int IdleAssetCapacity => Instance.m_IdleAssetCapacity;
+
         #endregion
     }
 }

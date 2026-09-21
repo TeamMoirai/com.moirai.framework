@@ -719,7 +719,7 @@ namespace Moirai.Atropos.Resource
             _assetInfoMap.Clear();
             foreach (var package in PackageMap.Values)
             {
-                if (package is { InitializeStatus: EOperationStatus.Succeeded })
+                if (package is { InitializeStatus: EOperationStatus.Succeeded, PackageValid: true })
                 {
                     _unloadUnusedAssetsOperations.Add(package.UnloadUnusedAssetsAsync());
                 }
@@ -750,14 +750,15 @@ namespace Moirai.Atropos.Resource
             }
             else
             {
-                _bindingService.Shutdown();
+                // 这里是"清空后继续用同一实例"，走 Reset 而非终态 Shutdown。
+                _bindingService.Reset();
             }
 
             ForceReleaseAllAssetRecords();
             WarmupBindingRecords();
             foreach (var package in PackageMap.Values)
             {
-                if (package is { InitializeStatus: EOperationStatus.Succeeded })
+                if (package is { InitializeStatus: EOperationStatus.Succeeded, PackageValid: true })
                 {
                     _unloadAllAssetsOperations.Add(package.UnloadAllAssetsAsync());
                 }
@@ -1030,9 +1031,18 @@ namespace Moirai.Atropos.Resource
                 return null;
             }
 
+            uint unloadGeneration = _assetUnloadGeneration;
             GameObject instance = UObject.Instantiate(prefab, parent);
-            if (instance == null)
+
+            // 实例化会派发 Awake，其中可以重入强制回收/关停：
+            // 此时 prefab 记录可能已被释放，租约不得再挂到清空过的绑定服务上。
+            if (instance == null || _isDestroying || unloadGeneration != _assetUnloadGeneration)
             {
+                if (instance != null)
+                {
+                    UObject.Destroy(instance);
+                }
+
                 Release(prefabLease);
                 return null;
             }
@@ -1083,9 +1093,25 @@ namespace Moirai.Atropos.Resource
                 return null;
             }
 
-            GameObject instance = UObject.Instantiate(prefab, parent);
-            if (instance == null)
+            // 父节点可能在等待期间被销毁：fake null 的 Transform 直接交给 Instantiate 会抛。
+            if (!ReferenceEquals(parent, null) && parent == null)
             {
+                Release(prefabLease);
+                return null;
+            }
+
+            uint unloadGeneration = _assetUnloadGeneration;
+            GameObject instance = UObject.Instantiate(prefab, parent);
+
+            // 实例化会派发 Awake，其中可以重入强制回收/关停：
+            // 此时 prefab 记录可能已被释放，租约不得再挂到清空过的绑定服务上。
+            if (instance == null || _isDestroying || unloadGeneration != _assetUnloadGeneration)
+            {
+                if (instance != null)
+                {
+                    UObject.Destroy(instance);
+                }
+
                 Release(prefabLease);
                 return null;
             }

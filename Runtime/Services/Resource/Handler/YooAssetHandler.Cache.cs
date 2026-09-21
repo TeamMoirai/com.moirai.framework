@@ -13,6 +13,7 @@ namespace Moirai.Atropos.Resource
         private int _bindingSlotCapacity = 128;
         private int _registeredTargetCapacity = 128;
         private float _idleAssetExpireTime = 60f;
+        private int _idleAssetCapacity = 256;
 
         #endregion
 
@@ -78,6 +79,17 @@ namespace Moirai.Atropos.Resource
         {
             get => _idleAssetExpireTime;
             set => _idleAssetExpireTime = value < 0f ? 0f : value;
+        }
+
+        /// <inheritdoc />
+        public override int IdleAssetCapacity
+        {
+            get => _idleAssetCapacity;
+            set
+            {
+                _idleAssetCapacity = value < 0 ? 0 : value;
+                TrimIdleAssetCapacity();
+            }
         }
 
         #endregion

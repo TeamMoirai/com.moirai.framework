@@ -128,6 +128,7 @@ namespace Moirai.Atropos.Resource
         [NonSerialized] private int _lastKeepAliveProcessTick = -1;
         [NonSerialized] private int _lastIdleProcessTick = -1;
         [NonSerialized] private int _unusedAssetCandidateCount;
+        [NonSerialized] private bool _idleCapacityTrimPending;
 
         // 资源名称注册表（package/location/type → ID）
         [NonSerialized] private string[] _resourcePackagesById;
@@ -1324,18 +1325,80 @@ namespace Moirai.Atropos.Resource
 
         #region 过期回收 [EXPIRY & RECYCLING]
 
-        internal override void ProcessKeepAlive(float unscaledTime, int maxCount)
+        internal override void ProcessResourceMaintenance(float unscaledTime, int maxCount)
         {
-            if ((_keepAliveBuckets == null && _idleBuckets == null) || maxCount <= 0)
+            // 销毁态兜底回收先于预算判定：没有到期记录可处理时，被销毁对象的槽位照样要收。
+            _bindingService?.ProcessDestroyedObjects();
+
+            if ((_keepAliveBuckets != null || _idleBuckets != null) && maxCount > 0)
+            {
+                int currentTick = ToKeepAliveTick(unscaledTime);
+                int processed = ProcessDueKeepAliveBuckets(currentTick, maxCount);
+                if (processed < maxCount)
+                {
+                    ProcessDueIdleBuckets(currentTick, maxCount - processed);
+                }
+            }
+
+            // 容量淘汰排在轮盘走查之后：走查途中同步摘除会让已捕获的 next 指针失效、整桶被跳过。
+            if (_idleCapacityTrimPending)
+            {
+                TrimIdleAssetCapacity();
+            }
+        }
+
+        /// <summary>
+        /// 把空闲记录数压回 <c>IdleAssetCapacity</c> 以内：每轮淘汰过期刻度最早（即最长空闲）的一条。
+        /// </summary>
+        private void TrimIdleAssetCapacity()
+        {
+            _idleCapacityTrimPending = false;
+
+            if (_unusedAssetCandidates == null)
             {
                 return;
             }
 
-            int currentTick = ToKeepAliveTick(unscaledTime);
-            int processed = ProcessDueKeepAliveBuckets(currentTick, maxCount);
-            if (processed < maxCount)
+            while (_unusedAssetCandidateCount > _idleAssetCapacity)
             {
-                ProcessDueIdleBuckets(currentTick, maxCount - processed);
+                int candidateCount = _unusedAssetCandidateCount;
+                int victimIndex = -1;
+                int victimExpireTick = int.MaxValue;
+
+                for (int i = 0; i < candidateCount; i++)
+                {
+                    int assetId = _unusedAssetCandidates[i];
+                    if (!IsValidAssetId(assetId))
+                    {
+                        continue;
+                    }
+
+                    ref AssetSlot slot = ref GetAssetSlotRef(assetId);
+                    if (slot.ExpireQueueKind != 2 || slot.IdleExpireTick >= victimExpireTick)
+                    {
+                        continue;
+                    }
+
+                    victimExpireTick = slot.IdleExpireTick;
+                    victimIndex = i;
+                }
+
+                if (victimIndex < 0)
+                {
+                    return;
+                }
+
+                int victimId = _unusedAssetCandidates[victimIndex];
+                ref AssetSlot victim = ref GetAssetSlotRef(victimId);
+                uint victimGeneration = victim.Generation;
+                victim.IdleReleaseRequested = 1;
+                ReleaseAssetStorage(victimId, victimGeneration);
+
+                if (_unusedAssetCandidateCount >= candidateCount)
+                {
+                    // 仍被引用而未能释放：留给到期轮盘，不在此原地打转。
+                    return;
+                }
             }
         }
 
@@ -1653,6 +1716,11 @@ namespace Moirai.Atropos.Resource
                 slot.IdleReleaseRequested = 0;
                 AddUnusedAssetCandidate(assetId, ref slot);
                 EnterIdle(assetId, ref slot);
+
+                if (_unusedAssetCandidateCount > _idleAssetCapacity)
+                {
+                    _idleCapacityTrimPending = true;
+                }
             }
             else if (slot.ExpireQueueKind == 2)
             {

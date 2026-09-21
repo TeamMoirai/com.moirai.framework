@@ -371,6 +371,12 @@ namespace Moirai.Atropos.Resource
         /// </summary>
         public abstract float IdleAssetExpireTime { get; set; }
 
+        /// <summary>
+        /// 空闲资源记录容量上限：无引用记录数超过该值时，等待过期最久（即最长空闲）的记录立即释放，
+        /// 不必等到 <see cref="IdleAssetExpireTime"/> 到期。取 0 表示不留任何空闲记录。
+        /// </summary>
+        public abstract int IdleAssetCapacity { get; set; }
+
         #endregion
 
         #region 预热 [WARMUP]
@@ -478,9 +484,9 @@ namespace Moirai.Atropos.Resource
         #region 过期回收 [EXPIRY & RECYCLING]
 
         /// <summary>
-        /// 每帧过期处理。
+        /// 每帧资源维护：空闲/保活到期回收 + 销毁态所有者与绑定的兜底回收。
         /// </summary>
-        internal abstract void ProcessKeepAlive(float unscaledTime, int maxCount);
+        internal abstract void ProcessResourceMaintenance(float unscaledTime, int maxCount);
 
         /// <summary>
         /// 释放全部未使用资源记录。

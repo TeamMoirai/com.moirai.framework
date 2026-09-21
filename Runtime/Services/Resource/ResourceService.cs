@@ -71,6 +71,7 @@ namespace Moirai.Atropos.Resource
             s_Handler.BindingSlotCapacity = ResourceServiceSettings.BindingSlotCapacity;
             s_Handler.RegisteredTargetCapacity = ResourceServiceSettings.RegisteredTargetCapacity;
             s_Handler.IdleAssetExpireTime = ResourceServiceSettings.IdleAssetExpireTime;
+            s_Handler.IdleAssetCapacity = ResourceServiceSettings.IdleAssetCapacity;
             s_Handler.SetForceUnloadUnusedAssetsAction(RequestForceUnloadUnusedAssets);
 
             // 初始化后端（创建默认包与绑定服务）
@@ -126,7 +127,7 @@ namespace Moirai.Atropos.Resource
                 maxInterval);
 
             int expireProcessCount = ResolveExpireProcessCount(shouldUnloadUnusedAssets, expirePerFrame, expireWhenUnloading);
-            s_Handler.ProcessKeepAlive(Time.unscaledTime, expireProcessCount);
+            s_Handler.ProcessResourceMaintenance(Time.unscaledTime, expireProcessCount);
 
             s_LastUnloadElapsedSeconds += Time.unscaledDeltaTime;
             s_LastGCCollectElapsedSeconds += Time.unscaledDeltaTime;
@@ -397,6 +398,20 @@ namespace Moirai.Atropos.Resource
             {
                 if (s_Handler == null) return;
                 s_Handler.IdleAssetExpireTime = value;
+            }
+        }
+
+        /// <summary>
+        /// 空闲资源记录容量上限：超过即淘汰最长空闲者，不必等到 <see cref="IdleAssetExpireTime"/> 到期。
+        /// <para>调小该值会立即释放多余的空闲记录。</para>
+        /// </summary>
+        public static int IdleAssetCapacity
+        {
+            get => s_Handler?.IdleAssetCapacity ?? 0;
+            set
+            {
+                if (s_Handler == null) return;
+                s_Handler.IdleAssetCapacity = value;
             }
         }
 

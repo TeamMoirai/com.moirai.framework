@@ -412,6 +412,9 @@ namespace Moirai.Atropos.Resource
         /// <inheritdoc />
         public override float IdleAssetExpireTime { get; set; }
 
+        /// <inheritdoc />
+        public override int IdleAssetCapacity { get; set; }
+
         #endregion
 
         #region 预热 [WARMUP]
@@ -551,8 +554,10 @@ namespace Moirai.Atropos.Resource
         #region 过期回收 [EXPIRY & RECYCLING]
 
         /// <inheritdoc />
-        internal override void ProcessKeepAlive(float unscaledTime, int maxCount)
+        internal override void ProcessResourceMaintenance(float unscaledTime, int maxCount)
         {
+            // 本后端不做记录级过期，但绑定槽位的销毁态回收与资源后端无关。
+            _bindingService?.ProcessDestroyedObjects();
         }
 
         /// <inheritdoc />

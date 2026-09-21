@@ -12,7 +12,6 @@ namespace Moirai.Atropos.Resource
     {
         private readonly string _defaultHostPrefix;
         private readonly string _fallbackHostPrefix;
-        private readonly string[] _urls;
 
         public RemoteService(string defaultHostServer, string fallbackHostServer)
         {
@@ -20,18 +19,18 @@ namespace Moirai.Atropos.Resource
             _fallbackHostPrefix = string.IsNullOrEmpty(fallbackHostServer)
                 ? null
                 : NormalizeHostPrefix(fallbackHostServer);
-            _urls = _fallbackHostPrefix == null ? new string[1] : new string[2];
         }
 
+        /// <remarks>
+        /// 返回的列表会被下载操作跨帧持有并在重试时二次读取，因此每次调用必须给出独立数组：
+        /// 并发下载下复用同一字段会让在途操作读到后一个文件的 URL。
+        /// </remarks>
         IReadOnlyList<string> IRemoteService.GetRemoteUrls(string fileName)
         {
-            _urls[0] = StringUtility.Concat(_defaultHostPrefix, fileName);
-            if (_fallbackHostPrefix != null)
-            {
-                _urls[1] = StringUtility.Concat(_fallbackHostPrefix, fileName);
-            }
-
-            return _urls;
+            string primaryUrl = StringUtility.Concat(_defaultHostPrefix, fileName);
+            return _fallbackHostPrefix == null
+                ? new[] { primaryUrl }
+                : new[] { primaryUrl, StringUtility.Concat(_fallbackHostPrefix, fileName) };
         }
 
         private static string NormalizeHostPrefix(string hostServer)
