@@ -109,6 +109,11 @@
 - **内存池 `TickAll` 的交换移除会挪错槽位**：`handle.Tick` 内的淘汰回调可以把本池就地摘出活跃数组（`OnEvict` → 注销 / 停止调度），数组随即左移；循环此后仍按旧下标做交换移除，被挪动的那个池 `ActiveIndex` 与实际位置失真，之后永久不再被 Tick。现移除前先确认句柄仍在原位且 `ActiveIndex` 自洽。
 - **音频同步加载不作废在途异步续体**：`_loadGeneration` 只在异步分支自增，同步加载与 `AssetHandlePool` 命中路径都不作废旧续体——上一首的异步加载完成后仍会通过世代校验，把 clip 播到已经换曲的 agent 上，并用当前路径把过期句柄塞进 `AssetHandlePool`，让后续命中直接拿到错资源。现提交新加载决策前统一 `InvalidateAsyncLoad`（顺带修掉原先只 `Dispose` 不 `Cancel` 的 CTS 泄漏）。
 
+- **`Spawn<T>` / `SpawnAsync<T>` 取不到组件时把实例丢在场景里**：预制体没挂 `T` 时，前一步已经发出的 `GameObject` 只被 `GetComponent` 判空就返回 `null`——调用方连实例引用都拿不到，谁都 `Despawn` 不了它，池的 `_activeCount` 与活跃链就此虚高一格。现在取不到组件即归还要池。
+- **`Despawn(T obj)` 只认目标键不认对象**：`_targetMap` 按 `obj.Target` 命中槽位后直接 `DespawnSlot(idx)`，而槽位会被回收复用、映射随之指向新对象——拿着陈旧引用就会替**别人**的对象扣 `SpawnCount` 并回调它的 `OnDespawn`。现在按槽内 `Obj` 做一次引用相等校验后再归还（不引入 `ObjectBase` 反向指针，公共基类不加字段）。
+- **`PoolCatalog` 的规则次序随构建漂移**：`Array.Sort` 不稳定，同优先级条目在 Mono / IL2CPP 之间会编出不同顺序，而下游两件事都吃这个顺序——`exactMap` 的"字面量先到先得"与规则下标 `i`（即 glob 匹配优先级）。改为排下标数组并以原序兜底平局，同一份目录在任何运行时都编出同一张表。
+- **池关闭流程可被单个坏对象整体截断**：处理器 `OnShutdown` 倒序定长遍历 `_pools` 且无隔离——`Shutdown` 会逐项回调 `obj.Release(true)`，回调里注销其它池会让数组左移、越界下标读到失效槽位或把同一个池关两次，一个对象抛出则其余池永不关闭。现在越界/空槽跳过、逐池隔离；`ReleaseAllUnused` 补上 `ReleaseUnused` 同款的访问上限（空闲链被改出环时不至于卡帧）；`_isShuttingDown` 期间 `Spawn` 系列按"无可复用对象"降级，不再从即将归还 ArrayPool 的存储里取对象。
+
 ### Removed
 
 - **`TimerServiceBenchmark` 移出 `Runtime`**：原 `Runtime/Services/Timer/Benchmark/`（968 行 `public sealed class : MonoBehaviour` + `[AddComponentMenu("Moirai/Timer Benchmark")]`）随运行时程序集编进玩家构建，而全仓（Runtime / Editor / Tests / `Templates~` / 文档）零引用。现移到 `Tests/EditorMode/Service/Timer/`，与 `MemoryPool`、`ObjectPool` 的既有基准同处 `UNITY_INCLUDE_TESTS` 门控之下。同批删除 `YooAssetHandler` 中从未接线的 `AssetInfoSlot` 分页缓存结构（三个字段全仓无读写，伴随常驻 CS0414 告警；AssetInfo 实际由该处理器内的字典缓存承载）。
