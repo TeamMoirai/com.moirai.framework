@@ -22,7 +22,8 @@ namespace Moirai.Atropos
         // --- 服务存储 ---
 
         private readonly ServiceWorld _world;
-        private readonly Dictionary<RuntimeTypeHandle, IService> _servicesByContract = new Dictionary<RuntimeTypeHandle, IService>();
+        private readonly Dictionary<RuntimeTypeHandle, IService> _servicesByContract =
+            new Dictionary<RuntimeTypeHandle, IService>(ContractHandleComparer.Instance);
         private readonly Dictionary<IService, ServiceEntry> _entriesByService = new Dictionary<IService, ServiceEntry>(ReferenceComparer<IService>.Instance);
         private readonly List<IService> _registrationOrder = new List<IService>();
 

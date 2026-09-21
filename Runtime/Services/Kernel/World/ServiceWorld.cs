@@ -31,7 +31,8 @@ namespace Moirai.Atropos
         // 跨作用域统一契约解析表：RuntimeTypeHandle → CrossScopeBindings（值类型 3 槽内联）
         // 与 ServiceScope._servicesByContract 的关系：本表是跨作用域视图，作用域表是同作用域 O(1) 视图——
         // 由容器统一维护（AddBinding/RemoveBinding），调用方不可见第二写入点。
-        private readonly Dictionary<RuntimeTypeHandle, CrossScopeBindings> _bindingsByContract = new();
+        private readonly Dictionary<RuntimeTypeHandle, CrossScopeBindings> _bindingsByContract =
+            new Dictionary<RuntimeTypeHandle, CrossScopeBindings>(ContractHandleComparer.Instance);
 
         // 待初始化服务（两阶段：Register 入图后挂起，Initialize 拓扑排序统一驱动）
         private readonly List<IService> _pendingInit = new List<IService>();
