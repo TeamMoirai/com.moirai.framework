@@ -1,4 +1,5 @@
 #if WWISE_INSTALLED
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using Moirai.Atropos.Audio.Middleware;
@@ -10,8 +11,13 @@ namespace Moirai.Atropos.Audio.Wwise
     /// <para>约定：事件路径用 Wwise 事件名（如 Sfx/Hit）；总线 RTPC/Volume 用 bus:/ 前缀映射。</para>
     /// <para>3D 发声体：按实例租用池化 GameObject（Wwise 持续跟发射体位置，单发射体会让并发 3D 串位）。
     /// 位置在 PostEvent 时固定；持续跟随需业务侧自行挂点/驱动位置。</para>
+    /// <para>能力接口：<see cref="IAudioMiddlewareBankControl"/>（SoundBank）与 <see cref="IAudioMiddlewareRtpcControl"/>（RTPC）。</para>
     /// </summary>
-    internal sealed class WwiseBridgeNative : IAudioMiddlewareBridge
+    /// <remarks>
+    /// 本文件可能在无 Wwise SDK 的机器上审阅/合并，无法本地编译核对；整文件受 <c>WWISE_INSTALLED</c> 编译保护，
+    /// 调用的标准 Wwise Unity API 为 <c>AkSoundEngine.LoadBank</c> / <c>UnloadBank</c> / <c>SetRTPCValue</c>。
+    /// </remarks>
+    internal sealed class WwiseBridgeNative : IAudioMiddlewareBridge, IAudioMiddlewareBankControl, IAudioMiddlewareRtpcControl
     {
         /// <summary>非立即停止时使用的短淡出（毫秒）。Middleware 层通常先做音量 Fade 再 immediate Stop。</summary>
         private const uint NON_IMMEDIATE_STOP_MS = 250u;
@@ -23,6 +29,13 @@ namespace Moirai.Atropos.Audio.Wwise
         private readonly Stack<GameObject> _idleEmitters = new Stack<GameObject>(8);
         private readonly List<ulong> _finishedScratch = new List<ulong>(8);
         private readonly HashSet<ulong> _pausedInstances = new HashSet<ulong>();
+
+        /// <summary>已加载的 SoundBank（幂等门；键为调用方传入的 bankPath/bank 名）。</summary>
+        private readonly HashSet<string> _loadedBanks = new HashSet<string>(StringComparer.Ordinal);
+
+        /// <summary>bank 名 → Wwise bankID，卸载时用；与 <see cref="_loadedBanks"/> 同步维护。</summary>
+        private readonly Dictionary<string, uint> _bankIds = new Dictionary<string, uint>(StringComparer.Ordinal);
+
         private ulong _nextHandle = 1UL;
         private Transform _emitterRoot;
 
@@ -56,6 +69,8 @@ namespace Moirai.Atropos.Audio.Wwise
             _handleToEmitter.Clear();
             _handleToPlayingId.Clear();
             _pausedInstances.Clear();
+            _loadedBanks.Clear();
+            _bankIds.Clear();
 
             if (_emitterRoot != null)
             {
@@ -154,6 +169,76 @@ namespace Moirai.Atropos.Audio.Wwise
 
         public string GetEventPathFromClip(AudioClip clip)
             => clip == null || string.IsNullOrEmpty(clip.name) ? null : clip.name;
+
+        #region 声音库与实时参数 [BANK / RTPC]
+
+        /// <inheritdoc />
+        /// <remarks>
+        /// 走 <c>AkSoundEngine.LoadBank(name, out bankID)</c>。已加载或失败返回 false（幂等，二次加载不再触达 SDK）。
+        /// </remarks>
+        public bool LoadBank(string bankPath)
+        {
+            if (string.IsNullOrEmpty(bankPath) || !_loadedBanks.Add(bankPath)) return false;
+
+            // 无 Wwise SDK 的机器无法编译核对；本段受 WWISE_INSTALLED 保护
+            AKRESULT result = AkSoundEngine.LoadBank(bankPath, out uint bankId);
+            if (result != AKRESULT.AK_Success)
+            {
+                _loadedBanks.Remove(bankPath);
+                return false;
+            }
+
+            _bankIds[bankPath] = bankId;
+            return true;
+        }
+
+        /// <inheritdoc />
+        /// <remarks>
+        /// 走 <c>AkSoundEngine.UnloadBank(bankID, IntPtr.Zero)</c>（按名加载，内存池由 Wwise 自管）。
+        /// 未加载或失败返回 false；卸载失败时保留记账以便重试。
+        /// </remarks>
+        public bool UnloadBank(string bankPath)
+        {
+            if (string.IsNullOrEmpty(bankPath) || !_loadedBanks.Contains(bankPath)) return false;
+
+            if (!_bankIds.TryGetValue(bankPath, out uint bankId))
+            {
+                _loadedBanks.Remove(bankPath);
+                return false;
+            }
+
+            // 无 Wwise SDK 的机器无法编译核对；本段受 WWISE_INSTALLED 保护
+            if (AkSoundEngine.UnloadBank(bankId, IntPtr.Zero) != AKRESULT.AK_Success) return false;
+
+            _bankIds.Remove(bankPath);
+            _loadedBanks.Remove(bankPath);
+            return true;
+        }
+
+        /// <inheritdoc />
+        /// <remarks>
+        /// <paramref name="instanceId"/> 非 0 且能映射到池化发射体时，按 GameObject 作用域写 RTPC
+        /// （复用 <c>_handleToEmitter</c>）；否则写全局 RTPC。映射不到的已结束实例直接忽略。
+        /// </remarks>
+        public void SetRtpc(string name, float value, ulong instanceId)
+        {
+            if (string.IsNullOrEmpty(name)) return;
+
+            if (instanceId != 0UL)
+            {
+                // 无 Wwise SDK 的机器无法编译核对；本段受 WWISE_INSTALLED 保护
+                if (_handleToEmitter.TryGetValue(instanceId, out var emitter) && emitter != null)
+                {
+                    AkSoundEngine.SetRTPCValue(name, value, emitter);
+                }
+
+                return;
+            }
+
+            AkSoundEngine.SetRTPCValue(name, value);
+        }
+
+        #endregion 声音库与实时参数 [BANK / RTPC]
 
         private GameObject RentEmitter(Vector3? position3D)
         {
