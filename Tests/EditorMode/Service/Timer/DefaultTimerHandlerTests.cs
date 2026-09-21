@@ -222,6 +222,85 @@ namespace Service.Timer
             Assert.AreEqual(0, active, "一次性计时器触发后应全部释放");
         }
 
+        #region 时钟污染 [CLOCK ANOMALY]
+
+        /// <summary>把虚拟时钟打成指定读数推一帧，再恢复到 <paramref name="restoreTo"/>。</summary>
+        private void TickWithPollutedClock(double polluted, double restoreTo)
+        {
+            _now = polluted;
+            _handler.Tick(0.05f, 0.05f);
+            _now = restoreTo;
+        }
+
+        [Test]
+        public void InfinityClockFrame_WheelKeepsOriginalSchedule()
+        {
+            // 回归：正无穷读数经饱和换算把游标推到 MAX_TICK，此后每帧最多追 64 tick 等于时间轮冻结，
+            // 与修前 NaN 溢出到 long.MinValue 同构——异常帧必须整体不推进。
+            var timer = _handler.Delay(2f, Fire);
+            Advance(1.0);
+            Assert.AreEqual(0, _fired);
+
+            TickWithPollutedClock(double.PositiveInfinity, 101.0);
+
+            Advance(1.5);
+            Assert.AreEqual(1, _fired, "单帧正无穷时钟之后，计时器仍应按原触发时间到期");
+            Assert.IsTrue(_handler.IsDone(timer));
+        }
+
+        [Test]
+        public void NegativeClockFrame_DoesNotDragCursorToZero()
+        {
+            // 负读数（含负无穷）经饱和换算得 0，收尾那句无条件写回会把游标从数十万拽回 1，
+            // 已入列计时器的 DueTicks 于是变成够不着的大数——异常读数一律不得动游标。
+            var timer = _handler.Delay(2f, Fire);
+            Advance(1.0);
+
+            TickWithPollutedClock(-1.0, 101.0);
+
+            Advance(1.5);
+            Assert.AreEqual(1, _fired, "负的时钟读数不得把计时器打回起点重等完整延时");
+            Assert.IsTrue(_handler.IsDone(timer));
+        }
+
+        [Test]
+        public void Resume_DuringUnusableClock_KeepsRemainingTime()
+        {
+            var timer = _handler.Delay(2f, Fire);
+            Advance(1.0); // 剩 1 秒
+            _handler.Pause(timer);
+
+            _now = double.PositiveInfinity;
+            _handler.Resume(timer);
+            Assert.IsFalse(_handler.IsRunning(timer), "时钟不可用时应整体拒绝 Resume，而不是写入非有限触发时间");
+
+            _now = 101.0;
+            _handler.Resume(timer);
+            Assert.IsTrue(_handler.IsRunning(timer));
+
+            Advance(0.6);
+            Assert.AreEqual(0, _fired);
+            Advance(0.9);
+            Assert.AreEqual(1, _fired, "被拒绝的 Resume 不应损坏计时器，剩余时间仍是暂停时那 1 秒");
+        }
+
+        [Test]
+        public void Restart_DuringUnusableClock_KeepsOriginalSchedule()
+        {
+            var timer = _handler.Delay(2f, Fire);
+            Advance(1.5); // 原触发 102
+
+            _now = double.PositiveInfinity;
+            _handler.Restart(timer);
+            _now = 101.5;
+
+            Advance(1.0);
+            Assert.AreEqual(1, _fired, "污染时钟下的 Restart 应被拒绝，而不是把计时器永久打飞");
+            Assert.IsTrue(_handler.IsDone(timer));
+        }
+
+        #endregion
+
         #region 帧计时 [WAIT FRAME]
 
         /// <summary>逐帧驱动 Update 阶段（不推进虚拟时钟——只推进帧计数）。</summary>
@@ -341,6 +420,90 @@ namespace Service.Timer
             TickFrames(4);
             Assert.AreEqual(2, fired, "2 帧循环计时 4 帧内应触发 2 次");
             Assert.IsTrue(_handler.IsRunning(handle), "循环帧计时应持续运行");
+        }
+
+        [Test]
+        public void WaitFrame_ProgressCancelsSelf_ReusedSlotNotCompletedEarly()
+        {
+            // 回归：进度回调不标记 executing，回调内自取消会立即回收槽位，同帧新建的帧计时器正是复用该索引的接手者。
+            int newFired = 0;
+            ulong newHandle = 0UL;
+            ulong handle = 0UL;
+            handle = _handler.WaitFrame(2, (Action<int>)(frame =>
+            {
+                if (frame != 2)
+                {
+                    return;
+                }
+
+                _handler.Cancel(handle);
+                newHandle = _handler.WaitFrame(3, () => newFired++);
+            }));
+
+            TickFrames(2);
+            Assert.AreEqual(0, newFired, "前一个计时器的完成回调不得打到复用槽位的新计时器");
+            Assert.IsTrue(_handler.IsRunning(newHandle));
+
+            TickFrames(3);
+            Assert.AreEqual(1, newFired, "新计时器应在自己的第 3 帧完成");
+        }
+
+        [Test]
+        public void WaitFrame_ProgressRestartsSelf_NotCompletedInSameFrame()
+        {
+            // 回归：Restart 原地重置剩余帧且不动句柄版本，按句柄重认领仍成立——完成判定必须回读剩余帧数。
+            int reported = 0;
+            bool restarted = false;
+            ulong handle = 0UL;
+            handle = _handler.WaitFrame(2, (Action<int>)(frame =>
+            {
+                reported++;
+                if (frame == 2 && !restarted)
+                {
+                    restarted = true;
+                    _handler.Restart(handle);
+                }
+            }));
+
+            TickFrames(2);
+            Assert.AreEqual(2, reported);
+            Assert.IsTrue(_handler.IsRunning(handle), "回调内重启不应被同一帧的完成判定抹掉");
+            Assert.AreEqual(2, _handler.GetLeftFrames(handle), "重启后应回到完整帧数");
+
+            TickFrames(2);
+            Assert.AreEqual(4, reported, "重启的那一轮应照常逐帧推进");
+            Assert.IsTrue(_handler.IsDone(handle), "不再重启的那一轮应正常完成并释放");
+        }
+
+        [Test]
+        public void WaitFrame_ProgressPausesSelf_DefersCompletionUntilResumed()
+        {
+            // 回归：Pause 同样原地改状态、句柄不变，最后一帧的进度回调里暂停必须挡住本轮完成。
+            int reported = 0;
+            bool paused = false;
+            ulong handle = 0UL;
+            handle = _handler.WaitFrame(2, (Action<int>)(frame =>
+            {
+                reported++;
+                if (frame == 2 && !paused)
+                {
+                    paused = true;
+                    _handler.Pause(handle);
+                }
+            }));
+
+            TickFrames(2);
+            Assert.AreEqual(2, reported);
+            Assert.IsFalse(_handler.IsRunning(handle), "回调内暂停应生效");
+            Assert.IsFalse(_handler.IsDone(handle), "暂停中的计时器不应被完成回调释放");
+
+            TickFrames(3);
+            Assert.AreEqual(2, reported, "暂停期间不应推进");
+
+            _handler.Resume(handle);
+            TickFrames(1);
+            Assert.AreEqual(3, reported);
+            Assert.IsTrue(_handler.IsDone(handle), "恢复后剩余帧耗尽即完成");
         }
 
         #endregion

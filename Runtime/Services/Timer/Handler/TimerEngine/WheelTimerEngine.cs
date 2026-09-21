@@ -540,11 +540,11 @@ namespace Moirai.Atropos.Timer
             {
                 FreeReleasedExecutingSlot(slotIndex);
                 RemoveProgressSlot(slotIndex);
-                _executingSlotIndex = INVALID_INDEX;
+                ClearExecutingMark(slotIndex);
                 return;
             }
 
-            _executingSlotIndex = INVALID_INDEX;
+            ClearExecutingMark(slotIndex);
 
             if ((state & STATE_ACTIVE) == 0 || GetQueueIndex(slotIndex) >= 0)
             {
@@ -565,12 +565,26 @@ namespace Moirai.Atropos.Timer
             RemoveProgressSlot(slotIndex);
         }
 
+        /// <summary>
+        /// 回收执行标记：仅当标记仍属于本槽时才清。回调内嵌套触发时，内层不得抹掉外层的标记
+        /// （与 <c>FrameTimerEngine.InvokeComplete</c> 同形）。
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void ClearExecutingMark(int slotIndex)
+        {
+            if (_executingSlotIndex == slotIndex)
+            {
+                _executingSlotIndex = INVALID_INDEX;
+            }
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void RescheduleLoop(int slotIndex, double currentTime)
         {
             double duration = GetDuration(slotIndex);
             double triggerTime = GetTriggerTime(slotIndex) + duration;
-            if (triggerTime <= currentTime)
+            // 时钟不可用时宁可留着已过的有限触发时间（下帧即再触发），也不写非有限值：那会让循环计时器永久出局。
+            if (triggerTime <= currentTime && IsUsableClockTime(currentTime))
             {
                 triggerTime = currentTime + duration;
             }
@@ -615,13 +629,20 @@ namespace Moirai.Atropos.Timer
             }
 
             bool isUnscaled = IsUnscaled(slotIndex);
+            double currentTime = GetCurrentTime(isUnscaled);
+            if (!IsUsableClockTime(currentTime))
+            {
+                WarnScheduleFailed("clock time is not usable, resume skipped.");
+                return; // 保持暂停原状：非有限触发时间会让该计时器永远够不到
+            }
+
             double delay = GetRemainingTime(slotIndex);
             if (delay <= MINIMUM_DELAY_SECONDS)
             {
                 delay = MINIMUM_DELAY_SECONDS;
             }
 
-            SetTriggerTime(slotIndex, GetCurrentTime(isUnscaled) + delay);
+            SetTriggerTime(slotIndex, currentTime + delay);
             SetRemainingTime(slotIndex, 0d);
             SetState(slotIndex, STATE_RUNNING);
             AddToQueue(slotIndex, isUnscaled);
@@ -636,12 +657,19 @@ namespace Moirai.Atropos.Timer
             }
 
             bool isUnscaled = IsUnscaled(slotIndex);
+            double currentTime = GetCurrentTime(isUnscaled);
+            if (!IsUsableClockTime(currentTime))
+            {
+                WarnScheduleFailed("clock time is not usable, restart skipped.");
+                return; // 先验后改：一旦出列却写进非有限触发时间，计时器就再也回不来
+            }
+
             if (GetQueueIndex(slotIndex) >= 0)
             {
                 RemoveFromQueue(slotIndex, isUnscaled);
             }
 
-            SetTriggerTime(slotIndex, GetCurrentTime(isUnscaled) + GetDuration(slotIndex));
+            SetTriggerTime(slotIndex, currentTime + GetDuration(slotIndex));
             SetRemainingTime(slotIndex, 0d);
             SetState(slotIndex, STATE_RUNNING);
             AddToQueue(slotIndex, isUnscaled);
@@ -996,12 +1024,17 @@ namespace Moirai.Atropos.Timer
 
         private void AdvanceQueue(bool isUnscaled, double currentTime)
         {
-            if (double.IsNaN(currentTime))
+            if (!IsUsableClockTime(currentTime))
             {
-                return; // 时钟被污染：本帧整体不推进。饱和换算会把游标压到 0，之后每帧最多追 64 tick，等于把已运行的秒数再等一遍
+                return; // 时钟被污染：本帧整体不推进。饱和换算会把游标压到 0 或推到 MAX_TICK，之后每帧最多追 64 tick，等于把已运行的秒数再等一遍
             }
 
             long currentTick = TimeToTickFloor(currentTime);
+            if (currentTick >= MAX_TICK)
+            {
+                return; // 有限但大到触顶的读数同样按异常帧处理：游标推到 MAX_TICK 等于时间轮报废
+            }
+
             long cursorTick = GetCurrentWheelTick(isUnscaled);
             int tickBudget = MAX_WHEEL_TICKS_PER_FRAME;
             while (cursorTick <= currentTick && tickBudget > 0 && GetQueueCount(isUnscaled) > 0)
@@ -1018,6 +1051,8 @@ namespace Moirai.Atropos.Timer
                 return;
             }
 
+            // 时钟回退（换时钟后端 / 回放）时游标跟着落回：已入列计时器的绝对 DueTicks 本就无从修复，
+            // 但这里绝不允许停住——游标悬在高处而队列永不空，会把整轮连同新排的计时器一起永久卡死。
             SetCurrentWheelTick(isUnscaled, cursorTick <= currentTick ? cursorTick : currentTick + 1L);
         }
 
@@ -1537,6 +1572,16 @@ namespace Moirai.Atropos.Timer
             }
 
             return true;
+        }
+
+        /// <summary>
+        /// 校验时钟读数可用：NaN / ±∞ / 负值都会让触发时间与轮游标一起溢出。异常帧既不推进轮，
+        /// 也不刷新槽位的触发时间；注册路径上的非有限延时由 <see cref="IsSchedulableDelay"/> 拦在占用槽位之前。
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static bool IsUsableClockTime(double time)
+        {
+            return time >= 0d && time < double.PositiveInfinity;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

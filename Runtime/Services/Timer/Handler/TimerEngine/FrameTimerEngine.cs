@@ -306,7 +306,9 @@ namespace Moirai.Atropos.Timer
                     continue;
                 }
 
-                if (remaining > 0)
+                // 同一句柄也可能被回调原地改写（Restart 重置剩余帧、Pause 摘掉运行位）：句柄没变而语义已变，
+                // 完成判定必须回读，不能沿用回调前算出的 remaining。回调内暂停则把完成顺延到恢复后的那一帧。
+                if (GetFrameRemaining(slotIndex) > 0 || (GetState(slotIndex) & STATE_RUNNING) == 0)
                 {
                     continue;
                 }
