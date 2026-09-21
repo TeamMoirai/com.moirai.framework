@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using UnityEngine;
 using UnityEngine.Audio;
 
@@ -81,7 +82,7 @@ namespace Moirai.Atropos.Audio
             => _middlewareTransition = handler;
 
         /// <summary>
-        /// 从 AudioMixer 自动扫描名为状态名的 Snapshot。
+        /// 从 AudioMixer 自动扫描名为状态名的 Snapshot（仅铺出空条目；引用请用 <see cref="TryBindSnapshotsByName"/>）。
         /// </summary>
         public void BindFromMixer(AudioMixer mixer)
         {
@@ -93,7 +94,7 @@ namespace Moirai.Atropos.Audio
             for (int i = 0; i < states.Length; i++)
             {
                 string name = states[i].ToString();
-                // AudioMixer.FindMatchingGroups 不找 Snapshot；用 Resources/反射不便，改为可配置数组
+                // AudioMixer.FindMatchingGroups 不找 Snapshot；引用经 TryBindSnapshotsByName 反射补齐
                 list.Add(new SnapshotEntry
                 {
                     State = states[i],
@@ -103,6 +104,125 @@ namespace Moirai.Atropos.Audio
             }
 
             m_Entries = list.ToArray();
+        }
+
+        /// <summary>
+        /// 在 Snapshot 名列表中按状态名求索引（纯逻辑，便于单测）。
+        /// <para>精确序数匹配优先；未命中再忽略大小写。未命中返回 -1。</para>
+        /// </summary>
+        internal static int ResolveSnapshotIndex(string[] snapshotNames, EMixSnapshot state)
+        {
+            if (snapshotNames == null || snapshotNames.Length == 0) return -1;
+
+            string name = state.ToString();
+            int ignoreCase = -1;
+            for (int i = 0; i < snapshotNames.Length; i++)
+            {
+                string candidate = snapshotNames[i];
+                if (string.IsNullOrEmpty(candidate)) continue;
+                if (string.Equals(candidate, name, StringComparison.Ordinal)) return i;
+                if (ignoreCase < 0 && string.Equals(candidate, name, StringComparison.OrdinalIgnoreCase))
+                {
+                    ignoreCase = i;
+                }
+            }
+
+            return ignoreCase;
+        }
+
+        /// <summary>
+        /// 读取 AudioMixer 内全部 Snapshot（反射 <c>m_Snapshots</c>；编辑器下 SerializedObject 回退）。
+        /// </summary>
+        internal static AudioMixerSnapshot[] CollectMixerSnapshots(AudioMixer mixer)
+        {
+            if (mixer == null) return Array.Empty<AudioMixerSnapshot>();
+
+            var field = typeof(AudioMixer).GetField("m_Snapshots",
+                BindingFlags.NonPublic | BindingFlags.Instance);
+            if (field != null && field.GetValue(mixer) is AudioMixerSnapshot[] reflected && reflected.Length > 0)
+            {
+                return reflected;
+            }
+
+#if UNITY_EDITOR
+            var so = new UnityEditor.SerializedObject(mixer);
+            var prop = so.FindProperty("m_Snapshots");
+            if (prop != null && prop.isArray && prop.arraySize > 0)
+            {
+                var list = new List<AudioMixerSnapshot>(prop.arraySize);
+                for (int i = 0; i < prop.arraySize; i++)
+                {
+                    if (prop.GetArrayElementAtIndex(i).objectReferenceValue is AudioMixerSnapshot snap)
+                    {
+                        list.Add(snap);
+                    }
+                }
+
+                if (list.Count > 0) return list.ToArray();
+            }
+#endif
+
+            return Array.Empty<AudioMixerSnapshot>();
+        }
+
+        /// <summary>
+        /// 按 Snapshot 名与 <see cref="EMixSnapshot"/> 自动绑定（一键绑定）。
+        /// <para>仅填充当前 <see cref="SnapshotEntry.Snapshot"/> 为空的条目——Settings 手工映射始终优先。</para>
+        /// </summary>
+        /// <returns>本次成功绑定的数量。</returns>
+        public int TryBindSnapshotsByName(AudioMixer mixer)
+        {
+            if (mixer == null) return 0;
+            m_Mixer = mixer;
+
+            var snapshots = CollectMixerSnapshots(mixer);
+            if (snapshots.Length == 0)
+            {
+                WarnUnboundAfterAutoBind();
+                return 0;
+            }
+
+            var names = new string[snapshots.Length];
+            for (int i = 0; i < snapshots.Length; i++)
+            {
+                names[i] = snapshots[i] != null ? snapshots[i].name : null;
+            }
+
+            var states = (EMixSnapshot[])Enum.GetValues(typeof(EMixSnapshot));
+            int bound = 0;
+            for (int s = 0; s < states.Length; s++)
+            {
+                var state = states[s];
+                // 手工映射（Settings 非空 Snapshot）优先，不覆盖
+                if (FindSnapshot(state) != null) continue;
+
+                int index = ResolveSnapshotIndex(names, state);
+                if (index < 0 || snapshots[index] == null) continue;
+
+                SetSnapshot(state, snapshots[index]);
+                bound++;
+            }
+
+            WarnUnboundAfterAutoBind();
+            return bound;
+        }
+
+        /// <summary>
+        /// 自动绑定后仍无 Snapshot 的状态告警一次（Default 例外：回 Mixer 默认态属正常）。
+        /// </summary>
+        private void WarnUnboundAfterAutoBind()
+        {
+            var states = (EMixSnapshot[])Enum.GetValues(typeof(EMixSnapshot));
+            for (int i = 0; i < states.Length; i++)
+            {
+                var state = states[i];
+                if (state == EMixSnapshot.Default) continue;
+                if (FindSnapshot(state) != null) continue;
+
+                AudioWarnOnce.Warning($"mix.auto-bind-missing:{state}",
+                    "[AudioMix] 自动绑定后状态 {0} 仍无 AudioMixerSnapshot（Mixer 内需有同名 Snapshot，或在 AudioServiceSettings.MixSnapshots 手工映射）。",
+                    state);
+            }
         }
 
         private static float DefaultPriority(EMixSnapshot state) => state switch
@@ -232,11 +352,27 @@ namespace Moirai.Atropos.Audio
 
         /// <summary>
         /// 初始化状态机（OnInit 时由 AudioService 调用，或游戏侧手动）。
+        /// <para>顺序：铺空条目 → Settings 手工映射优先写入 → 空缺按名自动绑定；Default 固定回落 Mixer 默认态。</para>
         /// </summary>
         public static void Initialize(AudioMixer mixer)
         {
             s_StateMachine = new AudioMixStateMachine();
             s_StateMachine.BindFromMixer(mixer);
+
+            // Settings 非空 Snapshot 先落地（手工映射 = 覆盖）；无配置资产时跳过
+            var entries = AudioServiceSettings.MixSnapshots;
+            if (entries != null)
+            {
+                for (int i = 0; i < entries.Length; i++)
+                {
+                    var entry = entries[i];
+                    if (entry == null || entry.Snapshot == null) continue;
+                    s_StateMachine.SetSnapshot(entry.State, entry.Snapshot, entry.Priority);
+                }
+            }
+
+            // Settings 未覆盖的空条目按名自动绑定
+            s_StateMachine.TryBindSnapshotsByName(mixer);
             s_StateMachine.SetSnapshot(EMixSnapshot.Default, null, 0f);
         }
 

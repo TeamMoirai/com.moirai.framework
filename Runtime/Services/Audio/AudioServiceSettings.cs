@@ -24,10 +24,65 @@ namespace Moirai.Atropos.Audio
         /// <summary>音轨配置</summary>
         internal static AudioGroupConfig[] AudioGroupConfigs => Instance.m_AudioGroupConfigs;
 
-        [Tooltip("混音快照配置：状态 → AudioMixerSnapshot 映射；Priority < 0 使用内置默认优先级")]
+        [Tooltip("混音快照配置：状态 → AudioMixerSnapshot 映射；Priority < 0 使用内置默认优先级。空 Snapshot 可由「从 Mixer 重建」按名自动补齐，手工非空映射优先")]
         [SerializeField] private AudioMixSnapshotEntry[] m_MixSnapshots;
         /// <summary>混音快照配置</summary>
         internal static AudioMixSnapshotEntry[] MixSnapshots => Instance.m_MixSnapshots;
+
+        /// <summary>
+        /// 从 AudioMixer 按名重建 MixSnapshots 映射（一键绑定）。
+        /// <para>已有非空 Snapshot 的手工映射保留；仅补齐空缺并铺全状态。</para>
+        /// </summary>
+        [ContextMenu("从 Mixer 重建混音快照映射")]
+        [Button("从 Mixer 重建混音快照映射")]
+        public void RebuildFromMixer()
+        {
+            var mixer = m_AudioMixer;
+            if (mixer == null)
+            {
+                LogUtility.Warning("[AudioServiceSettings] 未配置 AudioMixer，无法重建混音快照映射。");
+                return;
+            }
+
+            var snapshots = AudioMixStateMachine.CollectMixerSnapshots(mixer);
+            var names = new string[snapshots.Length];
+            for (int i = 0; i < snapshots.Length; i++)
+            {
+                names[i] = snapshots[i] != null ? snapshots[i].name : null;
+            }
+
+            var states = (EMixSnapshot[])Enum.GetValues(typeof(EMixSnapshot));
+            var existing = m_MixSnapshots ?? Array.Empty<AudioMixSnapshotEntry>();
+            var list = new System.Collections.Generic.List<AudioMixSnapshotEntry>(states.Length);
+
+            for (int s = 0; s < states.Length; s++)
+            {
+                var state = states[s];
+                AudioMixSnapshotEntry kept = null;
+                for (int e = 0; e < existing.Length; e++)
+                {
+                    if (existing[e] != null && existing[e].State == state)
+                    {
+                        kept = existing[e];
+                        break;
+                    }
+                }
+
+                var entry = kept ?? new AudioMixSnapshotEntry { State = state };
+                if (entry.Snapshot == null)
+                {
+                    int index = AudioMixStateMachine.ResolveSnapshotIndex(names, state);
+                    if (index >= 0) entry.Snapshot = snapshots[index];
+                }
+
+                list.Add(entry);
+            }
+
+            m_MixSnapshots = list.ToArray();
+#if UNITY_EDITOR
+            UnityEditor.EditorUtility.SetDirty(this);
+#endif
+        }
 
         [Header("自动 Ducking [Auto Ducking]")]
         [Tooltip("Voice 音轨有声在播时自动切到 Dialogue 快照，播完自动回落。需先在 MixSnapshots 里注册 Dialogue 快照，否则切换为空操作。")]

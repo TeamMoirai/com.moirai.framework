@@ -247,6 +247,9 @@ namespace Moirai.Atropos.Audio
         /// <inheritdoc />
         public override void Tick(float elapseSeconds, float realElapseSeconds)
         {
+            // 首帧后关闭阻塞加载窗口
+            AudioBlockingLoadGate.Close();
+
             var categories = _audioCategories;
             if (categories == null) return;
 
@@ -317,6 +320,7 @@ namespace Moirai.Atropos.Audio
         {
             if (_unityAudioDisabled) return;
 
+            AudioBlockingLoadGate.Open();
             CleanAudioPool();
             AudioVoiceDucking.Reset();
 
@@ -565,6 +569,15 @@ namespace Moirai.Atropos.Audio
         public override ulong Play(string path, in AudioPlayOptions options, bool bAsync, bool bInPool)
         {
             if (_unityAudioDisabled || IsTrackPaused(options.AudioTrack)) return 0UL;
+
+            // 物理隔离：启动窗口关闭后阻塞加载强制改异步，防止运行时 IO 卡主线程
+            if (!bAsync && !AudioBlockingLoadGate.IsOpen)
+            {
+                AudioWarnOnce.Warning(
+                    "blocking-play",
+                    "[AudioService] Play(path, bAsync:false) 在启动窗口关闭后被强制改异步；请用 Preload 做启动期同步加载。");
+                bAsync = true;
+            }
 
             AudioCategory category = FindCategory(options.AudioTrack);
             if (category == null)

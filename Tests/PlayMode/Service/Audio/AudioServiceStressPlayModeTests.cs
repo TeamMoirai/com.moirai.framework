@@ -276,5 +276,56 @@ namespace Service.Audio
             AudioAgentHostPool.Clear();
             yield return null;
         }
+
+        [UnityTest]
+        public IEnumerator MiddlewareVoicePool_BurstPlayStop_ReturnsToSteadyState()
+        {
+            var stub = new FmodBridgeStub();
+            var handler = new FmodAudioHandler();
+            handler.SetBridge(stub);
+            typeof(MiddlewareAudioHandler)
+                .GetMethod("OnInit", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
+                .Invoke(handler, null);
+
+            const int BURST = 32;
+
+            // 第一轮：租满 → 全停归还
+            var handles = new List<ulong>(BURST);
+            for (int i = 0; i < BURST; i++)
+            {
+                var request = new AudioPlayRequest(70000 + i, 1f, 1f, EAudioTrack.Sfx, 128,
+                    AudioPlayFlags.DoNotAutoRecycle);
+                ulong h = handler.Play("event:/VoicePool/Hit", request, null);
+                if (h != 0UL) handles.Add(h);
+            }
+
+            Assert.AreEqual(handles.Count, handler.ActiveHandleCount, "播放中句柄数应与成功播放数一致");
+
+            handler.StopAll(0f);
+            yield return null;
+            handler.Tick(0.016f, 0.016f);
+
+            Assert.AreEqual(0, handler.ActiveHandleCount, "StopAll 后句柄应清空");
+            int steady = handler.VoicePoolCount;
+            Assert.GreaterOrEqual(steady, handles.Count, "归还后 Voice 应全部回到池");
+
+            // 第二轮：同规模再打一轮，池应回到同一稳态（不无界分配）
+            handles.Clear();
+            for (int i = 0; i < BURST; i++)
+            {
+                var request = new AudioPlayRequest(71000 + i, 1f, 1f, EAudioTrack.Sfx, 128,
+                    AudioPlayFlags.DoNotAutoRecycle);
+                ulong h = handler.Play("event:/VoicePool/Hit", request, null);
+                if (h != 0UL) handles.Add(h);
+            }
+
+            handler.StopAll(0f);
+            yield return null;
+            handler.Tick(0.016f, 0.016f);
+
+            Assert.AreEqual(0, handler.ActiveHandleCount);
+            Assert.AreEqual(steady, handler.VoicePoolCount,
+                "burst play/stop 后 Voice 池应回到稳态，不无界增长");
+        }
     }
 }

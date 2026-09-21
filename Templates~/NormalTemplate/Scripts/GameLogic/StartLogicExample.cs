@@ -1,4 +1,4 @@
-﻿using Cysharp.Threading.Tasks;
+using Cysharp.Threading.Tasks;
 using Moirai.Atropos;
 using GameLogic.UI;
 using Moirai.Atropos.Audio;
@@ -34,7 +34,7 @@ namespace GameLogic
             UIService.CloseUI<StartScreen>("StartScreen");
             
             // 播放音频
-            var coinsHandle = AudioService.Play("Assets/AssetRaw/Default/Audio/Coins.wav", EAudioTrack.Sfx, Vector3.zero, loop:true);
+            var coinsHandle = AudioService.Play("Assets/AssetRaw/Default/Audio/Coins.wav", AudioPlayOptions.CreateLooping(EAudioTrack.Sfx));
             await UniTask.Delay(5 * 1000);
             AudioService.Stop(coinsHandle);
         }

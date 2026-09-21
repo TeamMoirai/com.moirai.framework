@@ -313,8 +313,10 @@ namespace Moirai.Atropos.Audio
             s_Handler?.Play(clip, request, cold) ?? 0UL;
 
         /// <summary>
-        /// 播放音频。
+        /// 播放音频（传统巨型签名重载，仅为兼容保留）。
         /// </summary>
+        /// <remarks>内部转发到 <see cref="AudioPlayOptions"/> 路径；新代码请用参数对象。</remarks>
+        [Obsolete("使用 Play(AudioClip, in AudioPlayOptions) 或 Play(AudioClip, in AudioPlayRequest, AudioPlayColdParams)", false)]
         public static ulong Play(AudioClip clip, EAudioTrack track, Vector3 location,
             bool loop = false,
             float volume = 1, int id = 0, bool fade = false, float fadeInitialVolume = 0, float fadeDuration = 1,
@@ -336,14 +338,13 @@ namespace Moirai.Atropos.Audio
         {
             if (s_Handler == null) return 0UL;
 
-            return s_Handler.Play(clip, track, location,
-                loop, volume, id, fade, fadeInitialVolume, fadeDuration, fadeTweenEase, persistent,
-                recycleAudioSource, audioGroup, pitch, panStereo, spatialBlend, soloSingleTrack, soloAllTracks,
-                autoUnSoloOnEnd, bypassEffects, bypassListenerEffects, bypassReverbZones, priority, reverbZoneMix,
-                dopplerLevel, spread, rolloffMode, minDistance, maxDistance, doNotAutoRecycleIfNotDonePlaying,
-                playbackTime, playbackDuration, attachToTransform, useSpreadCurve, spreadCurve,
-                useCustomRolloffCurve, customRolloffCurve, useSpatialBlendCurve, spatialBlendCurve,
-                useReverbZoneMixCurve, reverbZoneMixCurve, initialDelay);
+            return s_Handler.Play(clip, AudioServiceHandler.BuildOptions(track, location, loop, volume, id, fade,
+                fadeInitialVolume, fadeDuration, fadeTweenEase, persistent, recycleAudioSource, audioGroup, pitch,
+                panStereo, spatialBlend, soloSingleTrack, soloAllTracks, autoUnSoloOnEnd, bypassEffects,
+                bypassListenerEffects, bypassReverbZones, priority, reverbZoneMix, dopplerLevel, spread, rolloffMode,
+                minDistance, maxDistance, doNotAutoRecycleIfNotDonePlaying, playbackTime, playbackDuration,
+                attachToTransform, useSpreadCurve, spreadCurve, useCustomRolloffCurve, customRolloffCurve,
+                useSpatialBlendCurve, spatialBlendCurve, useReverbZoneMixCurve, reverbZoneMixCurve, initialDelay));
         }
 
         /// <summary>
@@ -354,10 +355,11 @@ namespace Moirai.Atropos.Audio
             s_Handler?.Play(path, options, bAsync, bInPool) ?? 0UL;
 
         /// <summary>
-        /// 播放音频。
+        /// 播放音频（传统巨型签名重载，仅为兼容保留）。
         /// </summary>
-        /// <remarks>传统巨型签名重载，仅为兼容保留；默认值与各工厂方法/契约对齐（DoNotAutoRecycle 为 true）。
+        /// <remarks>内部转发到 <see cref="AudioPlayOptions"/> 路径；默认值与各工厂方法/契约对齐（DoNotAutoRecycle 为 true）。
         /// 默认异步加载；同步加载（<paramref name="bAsync"/>=false）会阻塞主线程，仅限启动期/预加载场景使用。</remarks>
+        [Obsolete("使用 Play(AudioClip, in AudioPlayOptions) 或 Play(AudioClip, in AudioPlayRequest, AudioPlayColdParams)", false)]
         public static ulong Play(string path, EAudioTrack track, Vector3 location, bool bAsync = true, bool bInPool = false,
             bool loop = false, float volume = 1.0f, int id = 0,
             bool fade = false, float fadeInitialVolume = 0f, float fadeDuration = 1f, TweenEase fadeTweenEase = default,
@@ -379,14 +381,14 @@ namespace Moirai.Atropos.Audio
         {
             if (s_Handler == null) return 0UL;
 
-            return s_Handler.Play(path, track, location, bAsync, bInPool,
-                loop, volume, id, fade, fadeInitialVolume, fadeDuration, fadeTweenEase, persistent,
-                recycleAudioSource, audioGroup, pitch, panStereo, spatialBlend, soloSingleTrack, soloAllTracks,
-                autoUnSoloOnEnd, bypassEffects, bypassListenerEffects, bypassReverbZones, priority, reverbZoneMix,
-                dopplerLevel, spread, rolloffMode, minDistance, maxDistance, doNotAutoRecycleIfNotDonePlaying,
-                playbackTime, playbackDuration, attachToTransform, useSpreadCurve, spreadCurve,
-                useCustomRolloffCurve, customRolloffCurve, useSpatialBlendCurve, spatialBlendCurve,
-                useReverbZoneMixCurve, reverbZoneMixCurve, initialDelay);
+            return s_Handler.Play(path, AudioServiceHandler.BuildOptions(track, location, loop, volume, id, fade,
+                fadeInitialVolume, fadeDuration, fadeTweenEase, persistent, recycleAudioSource, audioGroup, pitch,
+                panStereo, spatialBlend, soloSingleTrack, soloAllTracks, autoUnSoloOnEnd, bypassEffects,
+                bypassListenerEffects, bypassReverbZones, priority, reverbZoneMix, dopplerLevel, spread, rolloffMode,
+                minDistance, maxDistance, doNotAutoRecycleIfNotDonePlaying, playbackTime, playbackDuration,
+                attachToTransform, useSpreadCurve, spreadCurve, useCustomRolloffCurve, customRolloffCurve,
+                useSpatialBlendCurve, spatialBlendCurve, useReverbZoneMixCurve, reverbZoneMixCurve, initialDelay),
+                bAsync, bInPool);
         }
 
         #endregion 播放音频 [PLAY AUDIO]

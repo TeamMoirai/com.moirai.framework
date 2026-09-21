@@ -177,9 +177,10 @@ namespace Moirai.Atropos.Audio
         public abstract ulong Play(AudioClip clip, in AudioPlayRequest request, AudioPlayColdParams cold);
 
         /// <summary>
-        /// 播放音频（传统巨型签名重载——虚拟转发到 <see cref="AudioPlayOptions"/> 版本，新代码请用参数对象）。
+        /// 播放音频（传统巨型签名重载——虚拟转发到 <see cref="AudioPlayOptions"/> 版本，仅为兼容保留）。
         /// </summary>
         /// <remarks>默认值与各工厂方法/契约对齐：<c>doNotAutoRecycleIfNotDonePlaying</c> 为 true。</remarks>
+        [Obsolete("使用 Play(AudioClip, in AudioPlayOptions) 或 Play(AudioClip, in AudioPlayRequest, AudioPlayColdParams)", false)]
         public virtual ulong Play(AudioClip clip, EAudioTrack track, Vector3 location,
             bool loop = false,
             float volume = 1, int id = 0, bool fade = false, float fadeInitialVolume = 0, float fadeDuration = 1,
@@ -216,9 +217,10 @@ namespace Moirai.Atropos.Audio
         public abstract ulong Play(string path, in AudioPlayOptions options, bool bAsync = true, bool bInPool = false);
 
         /// <summary>
-        /// 播放音频（传统巨型签名重载——虚拟转发到 <see cref="AudioPlayOptions"/> 版本，新代码请用参数对象）。
+        /// 播放音频（传统巨型签名重载——虚拟转发到 <see cref="AudioPlayOptions"/> 版本，仅为兼容保留）。
         /// </summary>
         /// <remarks>默认值与各工厂方法/契约对齐：<c>doNotAutoRecycleIfNotDonePlaying</c> 为 true，<paramref name="bAsync"/> 为 true。</remarks>
+        [Obsolete("使用 Play(AudioClip, in AudioPlayOptions) 或 Play(AudioClip, in AudioPlayRequest, AudioPlayColdParams)", false)]
         public virtual ulong Play(string path, EAudioTrack track, Vector3 location, bool bAsync = true, bool bInPool = false,
             bool loop = false, float volume = 1.0f, int id = 0,
             bool fade = false, float fadeInitialVolume = 0f, float fadeDuration = 1f, TweenEase fadeTweenEase = default,

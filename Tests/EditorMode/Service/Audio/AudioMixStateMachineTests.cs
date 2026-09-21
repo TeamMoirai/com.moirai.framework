@@ -120,5 +120,59 @@ namespace Service.Audio
             Assert.IsTrue(Request(EMixSnapshot.Muffled));
             Assert.AreEqual(EMixSnapshot.Muffled, _machine.Current);
         }
+
+        #region 自动绑定命名 [AUTO BIND NAMING]
+
+        [Test]
+        public void ResolveSnapshotIndex_ExactOrdinalName_Matches()
+        {
+            var names = new[] { "Default", "Paused", "Dialogue", "Cinematic", "Muffled", "LowHealth" };
+
+            Assert.AreEqual(0, AudioMixStateMachine.ResolveSnapshotIndex(names, EMixSnapshot.Default));
+            Assert.AreEqual(2, AudioMixStateMachine.ResolveSnapshotIndex(names, EMixSnapshot.Dialogue));
+            Assert.AreEqual(5, AudioMixStateMachine.ResolveSnapshotIndex(names, EMixSnapshot.LowHealth));
+        }
+
+        [Test]
+        public void ResolveSnapshotIndex_IgnoreCase_FallbackMatches()
+        {
+            var names = new[] { "default", "PAUSED", "dialogue" };
+
+            Assert.AreEqual(0, AudioMixStateMachine.ResolveSnapshotIndex(names, EMixSnapshot.Default));
+            Assert.AreEqual(1, AudioMixStateMachine.ResolveSnapshotIndex(names, EMixSnapshot.Paused));
+            Assert.AreEqual(2, AudioMixStateMachine.ResolveSnapshotIndex(names, EMixSnapshot.Dialogue));
+        }
+
+        [Test]
+        public void ResolveSnapshotIndex_ExactBeatsIgnoreCase()
+        {
+            var names = new[] { "DIALOGUE", "Dialogue" };
+
+            Assert.AreEqual(1, AudioMixStateMachine.ResolveSnapshotIndex(names, EMixSnapshot.Dialogue),
+                "精确序数命中应优先于忽略大小写命中");
+        }
+
+        [Test]
+        public void ResolveSnapshotIndex_MissingOrNullNames_ReturnsMinusOne()
+        {
+            Assert.AreEqual(-1, AudioMixStateMachine.ResolveSnapshotIndex(null, EMixSnapshot.Paused));
+            Assert.AreEqual(-1, AudioMixStateMachine.ResolveSnapshotIndex(System.Array.Empty<string>(), EMixSnapshot.Paused));
+            Assert.AreEqual(-1, AudioMixStateMachine.ResolveSnapshotIndex(new[] { "Other", null, "" }, EMixSnapshot.Paused));
+        }
+
+        [Test]
+        public void TryBindSnapshotsByName_NullMixer_IsNoOp()
+        {
+            int bound = _machine.TryBindSnapshotsByName(null);
+            Assert.AreEqual(0, bound);
+        }
+
+        [Test]
+        public void CollectMixerSnapshots_NullMixer_ReturnsEmpty()
+        {
+            Assert.IsEmpty(AudioMixStateMachine.CollectMixerSnapshots(null));
+        }
+
+        #endregion 自动绑定命名 [AUTO BIND NAMING]
     }
 }
