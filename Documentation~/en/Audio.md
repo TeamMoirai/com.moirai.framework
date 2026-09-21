@@ -15,6 +15,7 @@ Runtime/Services/Audio/
 ├── Handler/
 │   ├── AudioHandleRegistry.cs                 # Shared handle registry (handle gen / user-ID map / list pool)
 │   ├── AudioFadeScheduler.cs                  # Shared fade scheduler (voices + bus pseudo-handles)
+│   ├── AudioClipCache.cs                      # Clip lease cache (LRU + TTL + Pin + lowMemory)
 │   ├── UnityAudioHandler.cs                   # Default Unity backend
 │   ├── Middleware/
 │   │   ├── IAudioMiddlewareBridge.cs          # Shared FMOD/Wwise bridge
@@ -26,6 +27,7 @@ Runtime/Services/Audio/
 ├── Mix/ AudioMixStateMachine.cs               # Mix snapshot state machine
 ├── Spatial/ AudioOcclusionHrtf.cs             # Occlusion + HRTF
 ├── Models/  AudioPlayRequest / ColdParams / Options / AssetData / GroupConfig
+│          AudioCachePolicy / AudioClipCacheEntry / AudioLoadRequest
 └── Support/ BackgroundMusic / SettingsWidget
 ```
 
@@ -37,7 +39,7 @@ Runtime/Services/Audio/
 - **`UnityAudioHandler`**: Default Unity `AudioSource`/`AudioMixer` backend
 - **`MiddlewareAudioHandler`**: Shared FMOD/Wwise base (handles, fades, buses, layering)
 - **`FmodAudioHandler` / `WwiseAudioHandler`**: Thin wrappers; only implement `CreateDefaultBridge()`
-- **`AudioServiceSettings`**: Backend selection, mixer/track config, mix snapshot mapping, host pool warmup
+- **`AudioServiceSettings`**: Backend selection, mixer/track config, mix snapshot mapping, host pool warmup, clip cache limits
 
 ### Swappable backends & scripting defines
 
@@ -59,6 +61,7 @@ Select `FmodAudioHandler` / `WwiseAudioHandler` in `AudioServiceSettings`. Bridg
 - Mix snapshot state machine with priority + crossfade
 - `AudioOcclusionHrtf`: ray occlusion → lowpass; optional HRTF spatial blend
 - Host pool: Internal stack pool reuses `AudioSource` hosts
+- Clip cache: one shared lease per address, refcounted with LRU/TTL/Pin eviction and `lowMemory` cleanup
 
 ## Core Types
 
@@ -73,7 +76,9 @@ Namespace: `Moirai.Atropos.Audio` (middleware under `.Fmod` / `.Wwise` / `.Middl
 | `FmodAudioHandler` / `WwiseAudioHandler` | FMOD / Wwise thin wrappers |
 | `AudioPlayRequest` | 16-byte hot request |
 | `AudioPlayColdParams` | Cold params (location, curves, bypass); pooled |
-| `AudioPlayOptions` | Compatibility facade; `ToRequest()` / `FromOptions()` |
+| `AudioPlayOptions` | Compatibility facade; `ToRequest()` / `FromOptions()`; `CachePolicy` decides lease retention |
+| `AudioCachePolicy` | `Default` (from settings) / `None` (drop after use) / `Ttl` (keep until expiry) / `Pin` (resident) |
+| `AudioClipCache` | Unity backend clip lease cache (internal); `AssetHandlePool` is its read-only view |
 | `AudioMixStateMachine` / `EMixSnapshot` | Mix snapshot state machine |
 | `AudioOcclusionHrtf` | Occlusion + HRTF component |
 | `AudioAgentHostPool` | Internal host stack pool (warmed up from settings in OnInit) |
@@ -104,6 +109,28 @@ AudioService.ResetMixSnapshot(0.5f);
 
 Add `FMOD_INSTALLED` or `WWISE_INSTALLED` in Scripting Define Symbols, import the plugin, and switch the Handler in `AudioServiceSettings`. Event paths: FMOD `event:/Name`; Wwise event name; buses `bus:/Music`, etc.
 
+### Clip cache & preload
+
+All `Play(path, ...)` loading goes through `AudioClipCache`: one resource lease per address service-wide, taken by reference across agents and only released or kept once the last user stops.
+
+```csharp
+// Resident preload (startup / before a cutscene): Pin skips LRU/TTL
+AudioService.Preload("Audio/BGM/MainTheme");
+AudioService.PreloadAsync("Audio/Voice/Intro", AudioCachePolicy.Ttl, ok => { /* ... */ });
+
+// Drop after use: one-shot long audio
+var options = AudioPlayOptions.Create(EAudioTrack.Voice);
+options.CachePolicy = AudioCachePolicy.None;
+AudioService.Play("Audio/Voice/OneShot", options);
+
+AudioService.UnloadClipCache("Audio/BGM/MainTheme");   // Pin needs force: true
+AudioService.ClearClipCache(force: true);
+```
+
+- Eviction requires "no references, not loading, no waiters". `force` only relaxes the Pin and waiter gates — a playing or fading-out reference is never released (the `AudioSource` would keep an unloaded clip).
+- At `ClipCacheCapacity` the least-recently-used unreferenced entry goes first; if everything is pinned or in use a new address is refused (`Play` returns `0UL`) instead of growing without bound. TTL (`ClipCacheTtl`, `0` disables) is swept in the service `Tick`, and `Application.lowMemory` triggers one non-forced pass.
+- `PutInAudioPool` / `RemoveClipFromPool` / `CleanAudioPool` and `AssetHandlePool` remain as compatibility entry points, mapping to `Preload(Pin)` / `Unload(force)` / `ClearClipCache(force)`; `bInPool: true` means "keep at least by TTL".
+
 ### Mix snapshots
 
 Priorities: Default 0; Muffled/LowHealth 2; Paused/Dialogue 3; Cinematic 4. Lower cannot interrupt higher unless `force: true`. Unity uses `AudioMixerSnapshot.TransitionTo`; middleware uses `SetMiddlewareTransitionHandler`. Snapshot mapping (state → `AudioMixerSnapshot` + optional priority) is configured in `AudioServiceSettings.MixSnapshots` and auto-registered in `OnInit`; otherwise call `AudioMixService.RegisterSnapshot` manually.
@@ -125,6 +152,8 @@ Configure `WarmupAudioHostPool` and `AudioHostWarmupCount` in `AudioServiceSetti
 - No-channel warnings are throttled per track (3 s) as Warning  
 - Manual fades and snapshot transitions advance via service `Tick`  
 - Path-based `Play(path, ...)` loads asynchronously by default (`bAsync = true`); synchronous loading blocks the main thread — reserve it for startup/preload scenarios  
+- Path playback always uses the clip cache (default policy `Ttl`); set `AudioPlayOptions.CachePolicy = None` for rare one-shots you want released immediately  
+- `AssetHandlePool` is now a read-only view over the clip cache; never dispose the leases it exposes  
 - Natural-end timing uses unscaled real time (`AudioSource` is not affected by `timeScale`): at `timeScale = 0` a non-looping voice still finishes in real time and auto-releases its handle  
 - `Stop(handle, fadeout)` and `FadeAudio(handle, ...)` take over the same handle's volume exclusively (the later call cancels the former) — do not stack them  
 - Scene load auto `StopAllButPersistent`; set `Persistent = true` for cross-scene audio  

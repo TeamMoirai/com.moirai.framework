@@ -15,6 +15,7 @@ Runtime/Services/Audio/
 ├── Handler/
 │   ├── AudioHandleRegistry.cs                 # 共享句柄注册表（句柄生成/用户 ID 映射/列表池）
 │   ├── AudioFadeScheduler.cs                  # 共享音量过渡调度器（声部 + 总线伪句柄）
+│   ├── AudioClipCache.cs                      # Clip 租约缓存（LRU + TTL + Pin + lowMemory）
 │   ├── UnityAudioHandler.cs                   # 默认 Unity 后端
 │   ├── Middleware/
 │   │   ├── IAudioMiddlewareBridge.cs          # FMOD/Wwise 共用桥接
@@ -26,6 +27,7 @@ Runtime/Services/Audio/
 ├── Mix/ AudioMixStateMachine.cs               # 混音快照状态机
 ├── Spatial/ AudioOcclusionHrtf.cs             # 遮挡 + HRTF
 ├── Models/  AudioPlayRequest / ColdParams / Options / AssetData / GroupConfig
+│          AudioCachePolicy / AudioClipCacheEntry / AudioLoadRequest
 └── Support/ BackgroundMusic / SettingsWidget
 ```
 
@@ -37,7 +39,8 @@ Runtime/Services/Audio/
 - **`UnityAudioHandler`**：默认 Unity `AudioSource`/`AudioMixer` 后端
 - **`MiddlewareAudioHandler`**：FMOD / Wwise 共用基类（句柄、Fade、总线、分层）
 - **`FmodAudioHandler` / `WwiseAudioHandler`**：薄封装，仅提供 `CreateDefaultBridge()`
-- **`AudioServiceSettings`**：选择后端、配置 Mixer 与 `AudioGroupConfig[]`、混音快照映射、可选宿主池预热
+- **`AudioServiceSettings`**：选择后端、配置 Mixer 与 `AudioGroupConfig[]`、混音快照映射、可选宿主池预热与 Clip 缓存档位
+- **`AudioClipCache`**：Unity 后端路径播放的资源真相源（同地址共享一条租约，LRU/TTL/Pin 驱逐）
 
 ### 可替换后端与预编译宏
 
@@ -59,6 +62,7 @@ Runtime/Services/Audio/
 - 混音快照状态机：`EMixSnapshot` 优先级切换 + 交叉淡变
 - 空间化：`AudioOcclusionHrtf` 射线遮挡 → 低通；可选 HRTF `spatialBlend`
 - 宿主池：`AudioAgentHostPool` 内部栈池复用 AudioSource 宿主
+- Clip 缓存：路径播放同地址共享一条租约，引用计数 + LRU/TTL/Pin 驱逐 + `lowMemory` 自动清理
 
 ## 核心类型
 
@@ -73,7 +77,9 @@ Runtime/Services/Audio/
 | `FmodAudioHandler` / `WwiseAudioHandler` | FMOD / Wwise 薄封装 |
 | `AudioPlayRequest` | 16B 热路径请求（Id/Volume/Pitch/Track/Priority/Flags） |
 | `AudioPlayColdParams` | 冷路径：位置、曲线、旁通、淡入、Rolloff（池化） |
-| `AudioPlayOptions` | 完整兼容门面；`ToRequest()` / `FromOptions()` 拆分 |
+| `AudioPlayOptions` | 完整兼容门面；`ToRequest()` / `FromOptions()` 拆分；`CachePolicy` 决定 clip 留池策略 |
+| `AudioCachePolicy` | Clip 缓存策略：`Default`（取设置）/ `None`（用完即弃）/ `Ttl`（留池到期驱逐）/ `Pin`（常驻） |
+| `AudioClipCache` | Unity 后端 Clip 租约缓存（内部）；`AssetHandlePool` 是其只读视图 |
 | `AudioMixStateMachine` / `EMixSnapshot` | 混音快照状态机 |
 | `AudioOcclusionHrtf` | 遮挡 + HRTF 组件 |
 | `AudioAgentHostPool` | 宿主内部栈池（OnInit 按配置预热） |
@@ -114,6 +120,30 @@ AudioService.Stop(h2, fadeoutDuration: 0.2f);
 // 事件路径约定：FMOD = event:/Name；Wwise = 事件名；总线 bus:/Music 等
 ```
 
+### Clip 缓存与预加载
+
+`Play(path, ...)` 的加载统一经 `AudioClipCache`：同一地址全服务只持有一条资源租约，多个声部按引用取用，最后一个使用者停播后才按策略决定留池或释放。
+
+```csharp
+// 常驻预热（启动期/过场前）：Pin 条目不参与 LRU/TTL
+AudioService.Preload("Audio/BGM/MainTheme");
+AudioService.PreloadAsync("Audio/Voice/Intro", AudioCachePolicy.Ttl, ok => { /* ... */ });
+
+// 用完即弃（一次性长音频）：引用归零立即释放租约
+var options = AudioPlayOptions.Create(EAudioTrack.Voice);
+options.CachePolicy = AudioCachePolicy.None;
+AudioService.Play("Audio/Voice/OneShot", options);
+
+// 回收：只清不留池的过期项由服务 Tick 自动完成，以下是显式手段
+AudioService.UnloadClipCache("Audio/BGM/MainTheme");        // Pin 条目需 force: true
+AudioService.ClearClipCache(force: true);                   // 连 Pin 一并清
+```
+
+- 驱逐门槛是「无人引用且不在加载中且无等待者」；`force` 只放宽 Pin 与等待者两道，**在播/淡出中的引用一律拒绝释放**（否则 AudioSource 会拿到已卸载的 clip）。
+- 条目数达到 `ClipCacheCapacity` 时，最久未用的无引用条目先出局；若全部为 Pin 或全部在用，新地址直接判负（`Play` 返回 `0UL`）而不是无限增长。
+- `Application.lowMemory` 触发一次非强制清理（Pin 与在播不受影响）。
+- `PutInAudioPool` / `RemoveClipFromPool` / `CleanAudioPool` 与 `AssetHandlePool` 保留为兼容入口，语义分别映射为 `Preload(Pin)` / `Unload(force)` / `ClearClipCache(force)`；`bInPool: true` 等价于「至少按 TTL 留池」。
+
 ### 混音快照
 
 | 状态 | 默认优先级 |
@@ -138,6 +168,7 @@ AudioService.Stop(h2, fadeoutDuration: 0.2f);
 - AudioMixer 分组需暴露 `{分组名}Volume` 参数；`MixerValuesMultiplier` 默认 20  
 - `AudioGroupConfig.MaxChannel` / `CanExpand` 控制通道；扩展受 `HARD_CHANNEL_CAP` 限制  
 - 主音量走 `AudioListener.volume`；音轨走 Mixer 参数  
+- `ClipCacheCapacity`（默认 128）/ `ClipCacheTtl`（默认 30 秒，`0` 关闭按时间驱逐）/ `DefaultClipCachePolicy`（默认 `Ttl`）三项在 `AudioServiceSettings` 的「Clip 缓存」组内配置，`Initialize` 时下发给缓存  
 
 ## 注意事项
 
@@ -148,6 +179,8 @@ AudioService.Stop(h2, fadeoutDuration: 0.2f);
 - 无可用通道的告警按轨节流（3 秒）降级为 Warning  
 - 手动 `FadeAudio` / 快照过渡依赖服务 `Tick` 推进  
 - 路径播放 `Play(path, ...)` 默认异步加载（`bAsync = true`）；同步加载阻塞主线程，仅限启动期/预加载显式使用  
+- 路径播放一律经 Clip 缓存，默认策略 `Ttl`：一次性的冷门音效想「用完立刻卸载」请显式设 `AudioPlayOptions.CachePolicy = None`  
+- `AssetHandlePool` 现在是 `AudioClipCache` 的只读视图，值由缓存持有——外部只可枚举观测，不要 Dispose 其中的租约  
 - 自然结束计时按未缩放真实时间推进（`AudioSource` 不受 `timeScale` 影响）：`timeScale = 0` 时非循环音仍会真实播完并自动释放句柄  
 - `Stop(handle, fadeout)` 与 `FadeAudio(handle, ...)` 互斥接管同句柄音量（后调用者取消前者），请勿混用叠加  
 - 加载新场景自动 `StopAllButPersistent`；跨场景音频设 `Persistent = true`  
