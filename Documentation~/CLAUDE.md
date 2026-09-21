@@ -113,6 +113,22 @@ Unity AAA 生产级 C# 编码规范（强制执行）。**Why:** 用户要求所
 3. 实施修复
 4. 使用 `/test` 验证修复
 
+### 验证：让开着的编辑器自己跑测试
+
+`Client/Temp/UnityLockfile` 在时 batchmode 打不开同一工程，而"改完要证据"不该每次都等人去点 Test Runner。
+`Tests/EditorMode/TestRequestRunner.cs` 在测试程序集里轮询 `Client/Temp/MoiraiTestRequest.json`：
+出现请求就按过滤器执行一轮，把逐格进度与结果回写。协议是单向文件，调用方只轮询：
+
+```json
+{"id":"<唯一串>","mode":"EditMode","output":"<绝对路径>/report.txt",
+ "assemblies":["Moirai.Atropos.Tests.EditorMode"],"tests":["<命名空间.类名.方法名>", "..."]}
+```
+
+产物：`report.txt`（`run <id> | passed N | failed N | skipped N | 耗时`，后附逐格失败详情）、`report.txt.progress`
+（正在跑的用例全名，可判卡死）、`report.txt.done`（内容是请求里的 `id`）。**必须自带唯一 `id` 并只认配对的
+`.done`**，否则会把上一轮的旧报告当成这次的结论。前提是该程序集已编译过一次且编辑器有过一次 `update`
+（焦点切过去即可，通常在几秒内）；正在编译、正在导入、正在播放时不接新单。
+
 ### 3. 代码优化
 1. 使用 `/optimize` 分析性能
 2. 识别瓶颈
