@@ -81,6 +81,8 @@ MemoryPool 系统为纯 C# 对象（非 GameObject）提供高性能池化。它
 
 在 `AutoTrimNativeMetadataFrames`（默认 18000 帧 ≈ 5 分钟）完全空闲后，池释放其非托管页元数据以最小化内存占用。
 
+页元数据走 `Marshal.AllocHGlobal`，属进程堆，而静态字段只活在当前域里。Unity 编辑器热重载不触发 `AppDomain.DomainUnload`，所以包内另有一条 Editor 侧收口：脚本重载与编辑器退出前调用 `MemoryPoolRegistry.TryReleaseAllNativeMetadataForTeardown()`。确有对象在外时它**返回 false 且不回收**（那时释放会让下一次归还往已释放内存里写），只打一句告警——这份泄漏留给本次编辑器会话，比制造野指针划算。页存储 `T[]` 与对象本身不跨域存活，因此漏的只有元数据。
+
 ## 核心类型
 
 命名空间：`Moirai.Atropos`

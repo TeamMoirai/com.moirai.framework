@@ -174,6 +174,37 @@ namespace Moirai.Atropos
             ForceReleaseAllNativeMetadata();
         }
 
+        /// <summary>
+        /// 域卸载 / 脚本重载前的收口：确认没有任何对象在外后释放全部非托管页元数据。
+        /// <para>页元数据走 <c>AllocHGlobal</c>，那是进程堆——静态字段只活在当前域里。Unity 编辑器脚本重载
+        /// 并不走 <see cref="AppDomain.DomainUnload"/>，静态字段一复位那些指针就永久失联，每热重载一次就漏一份。
+        /// 页存储与对象数组本体在静态构造前就已退役（不跨域存活），所以漏的只有元数据。</para>
+        /// </summary>
+        /// <returns>确有对象在外时返回 <see langword="false"/> 并且什么都不释放——
+        /// 此时回收元数据等于让下一次归还往已释放内存里写；交给空闲修剪与下一次显式清账即可。</returns>
+        internal static bool TryReleaseAllNativeMetadataForTeardown()
+        {
+            MemoryPoolHandle[] handles = s_HandleValues;
+            MemoryPoolInfo info = default;
+            for (int i = 0; i < handles.Length; i++)
+            {
+                if (handles[i] == null)
+                {
+                    continue;
+                }
+
+                info = default;
+                handles[i].GetInfo(ref info);
+                if (info.UsingCount != 0)
+                {
+                    return false;
+                }
+            }
+
+            ForceReleaseAllNativeMetadata();
+            return true;
+        }
+
         #endregion
 
         #region Native 资源管理 [NATIVE RESOURCE MANAGEMENT]

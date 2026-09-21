@@ -81,6 +81,8 @@ When `ClearAll()` is called while objects are still leased, pages are marked as 
 
 After `AutoTrimNativeMetadataFrames` (default 18000 frames ≈ 5 minutes) of complete idleness, the pool releases its unmanaged page metadata to minimize memory footprint.
 
+Page metadata lives in `Marshal.AllocHGlobal`, i.e. the process heap, while static fields only live inside the current domain. Unity's editor script reload does not raise `AppDomain.DomainUnload`, so the package adds an editor-side sweep: `MemoryPoolRegistry.TryReleaseAllNativeMetadataForTeardown()` runs on `AssemblyReloadEvents.beforeAssemblyReload` and on `EditorApplication.quitting`. If anything is still leased it **returns false and frees nothing** (releasing metadata then would make the next return write into freed memory) and logs one actionable warning — that leak stays with the editor session, which is a better trade than a dangling pointer. Page arrays and the objects themselves do not survive a domain reload, so metadata is all that can leak.
+
 ## Core Types
 
 Namespace: `Moirai.Atropos`
