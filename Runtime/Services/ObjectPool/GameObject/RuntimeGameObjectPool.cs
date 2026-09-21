@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
@@ -69,6 +69,9 @@ namespace Moirai.Atropos.ObjectPool
         private Transform _root;
         private float _nextMaintenanceAt;
         private int _maintenanceFailureCount;
+        // 关停标志：Shutdown 会把槽位页归还 ArrayPool，挂起中的异步续体（SpawnAsync / WarmupAsync）
+        // 若在其后复跑，写的就是可能已被他池复用的内存，故一切异步入口续跑前必须先问它。
+        private bool _isShuttingDown;
 
         private PoolSlotStorage<Slot> _storage;
 
@@ -239,6 +242,12 @@ namespace Moirai.Atropos.ObjectPool
                 return null;
             }
 
+            // 等预制体期间池可能已被关停（槽位页已归还 ArrayPool）：只能按"取不到对象"降级，不能再碰存储。
+            if (_isShuttingDown)
+            {
+                return null;
+            }
+
             return SpawnPrepared(parent);
         }
 
@@ -260,7 +269,8 @@ namespace Moirai.Atropos.ObjectPool
 
             int createdThisFrame = 0;
             float frameStart = Time.realtimeSinceStartup;
-            while (_inactiveCount < target && _totalCount < _rule.HardCapacity)
+            // 关停判据挂在循环条件上：Yield 之后每次续跑都会先过它，池已 Shutdown 就绝不再建实例。
+            while (!_isShuttingDown && _inactiveCount < target && _totalCount < _rule.HardCapacity)
             {
                 int slotIndex = CreateTrackedInstance();
                 if (slotIndex < 0)
@@ -278,7 +288,11 @@ namespace Moirai.Atropos.ObjectPool
                 }
             }
 
-            RefreshMaintenance();
+            // 已关停的池不得再把自己挂回调度堆（调度项会带着已归还的存储被唤醒）。
+            if (!_isShuttingDown)
+            {
+                RefreshMaintenance();
+            }
         }
 
         #endregion
@@ -524,6 +538,7 @@ namespace Moirai.Atropos.ObjectPool
         /// </summary>
         public void Shutdown()
         {
+            _isShuttingDown = true;
             // 先摘调度：_prefabSource.Shutdown() 一旦抛出，池不该还留在调度堆上等着被唤醒。
             _scheduler.Remove(this);
             _prefabSource.Shutdown();
@@ -742,7 +757,29 @@ namespace Moirai.Atropos.ObjectPool
             }
 
             GameObjectPoolSpawnContext context = new GameObjectPoolSpawnContext(_location, _rule.Group, parent, (uint)Time.frameCount);
-            InvokeOnSpawn(ref slot, in context);
+            try
+            {
+                InvokeOnSpawn(ref slot, in context);
+            }
+            catch
+            {
+                // 回调抛出时调用方拿不到实例引用：不回滚就变成一个谁都无法归还的活跃对象，
+                // _activeCount 与活跃链一起虚高。回滚后原样上抛，不改变对调用方的异常契约。
+                // 回调自己已把本槽释放/归还时（State 已非 Active）不能再回滚，否则同一槽位会二次挂进空闲链。
+                if (slot.State == SlotState.Active)
+                {
+                    _activeCount--;
+                    if (slot.Instance != null && slot.Instance.activeSelf)
+                    {
+                        slot.Instance.SetActive(false);
+                    }
+
+                    ParkInactive(slotIndex);
+                    RefreshMaintenance();
+                }
+
+                throw;
+            }
         }
 
         private void ReleaseTrackedInstance(int slotIndex)
