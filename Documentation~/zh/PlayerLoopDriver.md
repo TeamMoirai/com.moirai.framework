@@ -66,7 +66,7 @@ GameApp.RemoveUpdateListener(OnUpdate);
 `DriveUpdate` / `DriveFixedUpdate` / `DriveLateUpdate` 及所有 Handler 实现：
 
 - 使用 `for` 循环，禁止 LINQ / 闭包 / 字符串拼接
-- 驱动中注册/注销进入**所属阶段各自**的延迟缓冲，该阶段迭代结束后提交；跨阶段注册互不串台
+- 驱动中注册/注销进入**所属阶段各自**的延迟缓冲，该阶段迭代结束后提交；跨阶段注册互不串台。同帧对同一对象的注册/注销按**后调用者生效**对消（含「已激活对象先注册再注销」这种冗余序列，注销仍会生效）
 - 订阅方抛异常时由 `finally` 复位 driving 标记并提交缓冲，不会永久滞留（异常本身的处置见下节）
 - **线程契约**：注册表无锁，注册/注销仅允许主线程（越线程 fail-fast 断言，而非静默丢订阅）；后台线程先经 `MainThreadDispatcher.Post/Send` 回主线程
 - Profiler Marker：`PlayerLoopDriver.Update` 等
@@ -80,14 +80,14 @@ GameApp.RemoveUpdateListener(OnUpdate);
 | 编辑器 / 开发构建 | `Error` 级记录完整栈后**上抛**——缺陷第一时间暴露，不做静默降级 |
 | 发布构建 | `Error` 级记录后**隔离续跑**——单个订户不截断同阶段其余订户 |
 
-连续失败熔断在两档构建下都生效：同一订户在同一阶段**连续**异常达到 `FailureTripThreshold`（默认 300，约 120fps 下 2.5 秒）即被摘出该阶段并 `Warning` 一次——开发构建是先摘除、当帧仍上抛，故熔断在编辑器里也观察得到。成功一次即归零计数，故间歇性故障不会被累计成熔断；重新注册完全重置。
+连续失败熔断在两档构建下都生效：同一订户在同一阶段**连续**异常达到 `FailureTripThreshold`（默认 300，约 120fps 下 2.5 秒；赋值下限钳制为 1）即被摘出该阶段并 `Warning` 一次——开发构建是先摘除、当帧仍上抛，故熔断在编辑器里也观察得到。成功一次即归零计数，故间歇性故障不会被累计成熔断；注销即抹除该订户的失败计数，重新注册完全重置。
 
 两处豁免，确保订户级故障永远无法反过来禁用框架自身：
 
 - **核心钩子**（`SetCoreUpdateCallback` 等）：`GameServices.Tick/FixedTick/LateTick` 走这里，先于全部用户订户执行，且**永不参与熔断**。框架自身的心跳若能被熔断摘除，一个项目订户的连抛就会让整层服务静默停摆且无恢复路径。核心钩子仍按上表分级处置（开发期上抛、发布期隔离）。
-- **关闭 / 销毁广播**（`AddApplicationQuitCallback`、`AddDestroyCallback`）：逐项调用（`GetInvocationList` 有分配，故只用于一次性广播），单项异常不阻止其余项，且**开发构建也不上抛**——这些回调的职责就是清理，截断等于静默漏掉后续每一项的释放动作。
+- **关闭 / 销毁与生命周期广播**（`AddApplicationQuitCallback`、`AddDestroyCallback`、`focusChanged`、`ApplicationPause`）：逐项调用（`GetInvocationList` 有分配，故只用于低频事件），单项异常不阻止其余项，且**开发构建也不上抛**——清理与切后台存档这类回调被截断等于静默漏掉后续每一项的响应。
 
-其余 Unity 事件表（`focusChanged`、pause、gizmos）仍是裸多播调用：某一项抛出会截断该次广播中排在后面的订户。
+其余 Unity 事件表（gizmos）仍是裸多播调用：仅编辑器派发，某一项抛出会截断该次广播中排在后面的订户。
 
 `IUpdateHandler` 实现若是已 `Destroy` 的 `MonoBehaviour`，调用即抛 `MissingReferenceException`；`Drive` 的 `null` 判定只覆盖被摘除的槽位，不替代 Unity 的伪造 null 检查——请在 `OnDestroy` 里显式 `Unregister`。
 
@@ -98,7 +98,7 @@ GameApp.RemoveUpdateListener(OnUpdate);
 | `SubsystemRegistration` | 复位注入标志、缓存 Drive 委托；Driver 标记 Shutdown；`GameAppHost` 复位退出标记 |
 | `GameApp.Initialize`（`BeforeSceneLoad`） | `PlayerLoopDriver.Initialize()` 注入并装配内置核心钩子，随后物化 `GameAppHost`；注入后按循环实况校验三标记，缺失则不置注入标志并告警 |
 | `AfterSceneLoad` | 自愈校验：第三方（`BeforeSceneLoad` 及其之前，含同阶段晚于本框架者）基于默认循环重建导致标记丢失时，按循环实况自动补插并告警。**相位不可提前到 `BeforeSceneLoad` 或更早**——注入发生在 `BeforeSceneLoad`，早于它时 `s_Injected` 恒为 false，首行判定即返回，校验永不执行 |
-| `GameApp.Shutdown` / 退出 Play | 广播 Destroy → 清空注册表 → `RestoreDefault()` 逐项摘掉本框架三个标记（第三方注入原样保留）→ 销毁宿主 |
+| `GameApp.Shutdown` / 退出 Play | 广播 Destroy → 清空注册表 → `RestoreDefault()` 逐项摘掉本框架三个标记（第三方注入原样保留）→ 销毁宿主（应用退出流程除外：退出期引擎随场景 teardown 自行销毁，跳过主动 Destroy） |
 | ECS 重置 PlayerLoop 后 | 发生于 `AfterSceneLoad` 之前的重建由自愈校验补插；更晚的重建（如自定义 bootstrap 末尾）需在那之后调用 `PlayerLoopInjector.Reinject()` |
 
 ## DI（VContainer 等）
