@@ -607,6 +607,10 @@ namespace Moirai.Atropos.Audio
             {
                 if (!string.IsNullOrEmpty(path))
                 {
+                    // 同步分支与缓存命中同样要作废在途续体：不自增世代时，旧一代的加载完成
+                    // 会通过校验回来把上一首播到本 agent 上，并用当前路径把过期句柄塞进 AssetHandlePool。
+                    InvalidateAsyncLoad();
+
                     if (bInPool && _audioHandler.AssetHandlePool.TryGetValue(path, out var operationHandleObj))
                     {
                         OnAssetLoadComplete(operationHandleObj);
@@ -616,8 +620,7 @@ namespace Moirai.Atropos.Audio
                     if (bAsync)
                     {
                         _audioAgentRuntimeState = EAudioAgentRuntimeState.Loading;
-                        int generation = ++_loadGeneration;
-                        _loadCts?.Dispose();
+                        int generation = _loadGeneration;
                         _loadCts = new CancellationTokenSource();
                         LoadLeaseAsyncInternal(path, generation, _loadCts.Token).Forget();
                     }
