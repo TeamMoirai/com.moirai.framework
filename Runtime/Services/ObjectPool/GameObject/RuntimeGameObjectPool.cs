@@ -497,7 +497,16 @@ namespace Moirai.Atropos.ObjectPool
                     continue;
                 }
 
-                InvokeOnPooledDestroy(ref slot);
+                try
+                {
+                    InvokeOnPooledDestroy(ref slot);
+                }
+                catch (Exception exception)
+                {
+                    // 有意隔离：关停里单个池件的回调抛出，不得让整池其余实例躲过销毁
+                    LogUtility.Fatal(exception);
+                }
+
                 GameObject instance = slot.Instance;
                 _registry?.Unregister(instance);
                 if (instance != null)
@@ -691,8 +700,19 @@ namespace Moirai.Atropos.ObjectPool
 
             _despawnCount++;
             _activeCount = Mathf.Max(0, _activeCount - 1);
-            InvokeOnDespawn(ref slot);
-            if (slot.Instance.activeSelf)
+            try
+            {
+                InvokeOnDespawn(ref slot);
+            }
+            catch (Exception exception)
+            {
+                // 有意隔离：OnDespawn 属于拆除路径，抛出也必须走完隐藏与入链，
+                // 否则实例停在 Active 态、既不回 inactive 链也不再被维护回收。
+                LogUtility.Fatal(exception);
+            }
+
+            // 回调可能已把实例销毁（Unity 假空），此处必须重新判定再访问 activeSelf。
+            if (slot.Instance != null && slot.Instance.activeSelf)
             {
                 slot.Instance.SetActive(false);
             }
@@ -765,18 +785,25 @@ namespace Moirai.Atropos.ObjectPool
                 _activeCount = Mathf.Max(0, _activeCount - 1);
             }
 
-            InvokeOnPooledDestroy(ref slot);
-            GameObject instance = slot.Instance;
-            _registry?.Unregister(instance);
-            if (instance != null)
+            try
             {
-                PoolDestroyUtility.Destroy(instance);
+                InvokeOnPooledDestroy(ref slot);
             }
+            finally
+            {
+                // 拆除必须走完：回调抛出也不能让实例躲过销毁、槽位永久占着索引与计数。
+                GameObject instance = slot.Instance;
+                _registry?.Unregister(instance);
+                if (instance != null)
+                {
+                    PoolDestroyUtility.Destroy(instance);
+                }
 
-            ClearSlot(ref slot);
-            _storage.FreeSlot(slotIndex);
-            _totalCount = Mathf.Max(0, _totalCount - 1);
-            _destroyCount++;
+                ClearSlot(ref slot);
+                _storage.FreeSlot(slotIndex);
+                _totalCount = Mathf.Max(0, _totalCount - 1);
+                _destroyCount++;
+            }
         }
 
         private void RemoveDestroyedSlot(int slotIndex)
@@ -788,13 +815,20 @@ namespace Moirai.Atropos.ObjectPool
                 _activeCount = Mathf.Max(0, _activeCount - 1);
             }
 
-            InvokeOnPooledDestroy(ref slot);
-            _registry?.Unregister(slot.Instance);
-            ClearSlot(ref slot);
-            _storage.FreeSlot(slotIndex);
-            _totalCount = Mathf.Max(0, _totalCount - 1);
-            _destroyCount++;
-            RefreshMaintenance();
+            try
+            {
+                InvokeOnPooledDestroy(ref slot);
+            }
+            finally
+            {
+                // 僵尸槽位也要完成摘除与归还，否则清扫本身成为新的泄漏源。
+                _registry?.Unregister(slot.Instance);
+                ClearSlot(ref slot);
+                _storage.FreeSlot(slotIndex);
+                _totalCount = Mathf.Max(0, _totalCount - 1);
+                _destroyCount++;
+                RefreshMaintenance();
+            }
         }
 
         private void SweepDestroyedInstances()

@@ -146,7 +146,16 @@ namespace Moirai.Atropos.ObjectPool
                 IPoolMaintenanceItem item = _heap[0].Item;
                 RemoveAt(0);
                 executed++;
-                item.ExecuteMaintenance(now, false);
+                try
+                {
+                    item.ExecuteMaintenance(now, false);
+                }
+                catch (Exception exception)
+                {
+                    // 有意隔离：一个池的维护抛出不得截断本轮其余到期池。
+                    // 先 RemoveAt 再回调，正是为了让异常路径下堆里已不再持有该 item，不会反复重试同一个坏池。
+                    LogUtility.Fatal(exception);
+                }
             }
         }
 

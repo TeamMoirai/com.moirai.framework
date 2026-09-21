@@ -771,8 +771,18 @@ namespace Moirai.Atropos.ObjectPool
                         continue;
                     }
 
-                    slot.Obj.Release(true);
-                    RecycleObject(slot.Obj);
+                    T shutdownObj = slot.Obj;
+                    try
+                    {
+                        shutdownObj.Release(true);
+                    }
+                    catch (Exception exception)
+                    {
+                        // 有意隔离：单个对象的 Release 抛出不跳过其余对象，否则后半池永远不回收
+                        LogUtility.Fatal(exception);
+                    }
+
+                    RecycleObject(shutdownObj);
                     slot.Obj = null;
                     slot.SetAlive(false);
                 }
@@ -941,19 +951,27 @@ namespace Moirai.Atropos.ObjectPool
 
                 _targetMap.Remove(obj.Target);
 
-                obj.Release(false);
-                RecycleObject(obj);
+                try
+                {
+                    obj.Release(false);
+                }
+                finally
+                {
+                    // 用户回调抛出时也不能把槽位停在「已摘链、未归还」的半释放状态：
+                    // _targetMap 条目已删，槽位再也回不到自由栈，等于永久漏一格。
+                    RecycleObject(obj);
 
-                slot.Obj = null;
-                slot.SetAlive(false);
-                slot.SpawnCount = 0;
-                slot.PrevAvailable = -1;
-                slot.NextAvailable = -1;
-                slot.PrevUnused = -1;
-                slot.NextUnused = -1;
-                slot.PrevAll = -1;
-                slot.NextAll = -1;
-                _storage.FreeSlot(idx);
+                    slot.Obj = null;
+                    slot.SetAlive(false);
+                    slot.SpawnCount = 0;
+                    slot.PrevAvailable = -1;
+                    slot.NextAvailable = -1;
+                    slot.PrevUnused = -1;
+                    slot.NextUnused = -1;
+                    slot.PrevAll = -1;
+                    slot.NextAll = -1;
+                    _storage.FreeSlot(idx);
+                }
             }
 
             private bool EnsureRegisterCapacity()
