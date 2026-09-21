@@ -253,7 +253,7 @@ namespace Moirai.Atropos
 
         private static void OnApplicationFocusChanged(bool hasFocus)
         {
-            s_ApplicationFocusCallbacks?.Invoke(hasFocus);
+            InvokeAllQuarantined(s_ApplicationFocusCallbacks, hasFocus, "ApplicationFocus");
         }
 
         #endregion
@@ -371,7 +371,7 @@ namespace Moirai.Atropos
         /// <summary>广播 ApplicationPause（由宿主 OnApplicationPause 转发）。</summary>
         public static void RaiseApplicationPause(bool pauseStatus)
         {
-            s_ApplicationPauseCallbacks?.Invoke(pauseStatus);
+            InvokeAllQuarantined(s_ApplicationPauseCallbacks, pauseStatus, "ApplicationPause");
         }
 
         /// <summary>
@@ -652,8 +652,8 @@ namespace Moirai.Atropos
 
         /// <summary>
         /// 逐项调用多播回调：单项异常不截断其余项。
-        /// <para>只用于关闭 / 销毁这类<b>一次性清理广播</b>——它们的职责就是清理，截断等于静默漏掉
-        /// 后续每一项的释放动作（存档、句柄、订阅退订）。故开发构建也不上抛，异常按 Error 级带栈记录。</para>
+        /// <para>用于关闭 / 销毁广播与 Focus / Pause 这类<b>低频生命周期事件</b>——截断等于静默漏掉
+        /// 后续每一项的响应（释放动作、切后台存档）。故开发构建也不上抛，异常按 Error 级带栈记录。</para>
         /// <para><see cref="Delegate.GetInvocationList"/> 每次调用有分配，因此<b>不得</b>用于帧热路径。</para>
         /// </summary>
         private static void InvokeAllQuarantined(Action callbacks, string stageName)
@@ -666,6 +666,25 @@ namespace Moirai.Atropos
                 try
                 {
                     ((Action)invocations[i])();
+                }
+                catch (Exception exception)
+                {
+                    LogUtility.Error("PlayerLoop {0} callback threw: {1}", stageName, exception);
+                }
+            }
+        }
+
+        /// <summary>带布尔负载的 <see cref="InvokeAllQuarantined(Action, string)"/> 重载（Focus / Pause）。</summary>
+        private static void InvokeAllQuarantined(Action<bool> callbacks, bool arg, string stageName)
+        {
+            if (callbacks == null) return;
+
+            Delegate[] invocations = callbacks.GetInvocationList();
+            for (int i = 0; i < invocations.Length; i++)
+            {
+                try
+                {
+                    ((Action<bool>)invocations[i])(arg);
                 }
                 catch (Exception exception)
                 {
