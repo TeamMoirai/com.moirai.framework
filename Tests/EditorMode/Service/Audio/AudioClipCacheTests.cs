@@ -401,5 +401,36 @@ namespace Moirai.Atropos.Tests.EditorMode.Audio
         }
 
         #endregion 卸载与关停 [UNLOAD & SHUTDOWN]
+
+        #region 条目复用 [ENTRY RECYCLING]
+
+        [Test]
+        public void StaleCompletion_AfterEntryRecycled_CannotTouchTheNewOwner()
+        {
+            // 条目对象归还全局池后会被下一个缓存复用；在途回调抓着的是旧身份，
+            // 既不能污染新主人的状态，自带的租约也必须当场归还。
+            var first = new AudioCacheTestSupport(capacity: 4);
+            first.ManualAsync = true;
+            first.Cache.PreloadAsync(A, AudioCachePolicy.Ttl, null);
+            Assert.AreEqual(1, first.PendingCount);
+
+            first.Dispose();
+
+            var second = new AudioCacheTestSupport(capacity: 4);
+            Assert.IsTrue(second.Cache.Preload(A, AudioCachePolicy.Ttl));
+            int entriesBefore = second.Cache.Count;
+
+            first.CompleteNext();
+
+            Assert.AreEqual(0, first.LiveHandles, "迟到回调自带的租约必须当场归还");
+            Assert.AreEqual(entriesBefore, second.Cache.Count, "迟到回调不得改变另一个缓存的条目");
+            Assert.AreEqual(1, second.LiveHandles, "新主人的租约不该被动过");
+            Assert.IsTrue(second.Entry(A).IsLoaded);
+            second.CheckInvariants();
+
+            second.Dispose();
+        }
+
+        #endregion 条目复用 [ENTRY RECYCLING]
     }
 }
