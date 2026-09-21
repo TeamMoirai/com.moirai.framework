@@ -554,5 +554,27 @@ namespace Moirai.Atropos.Audio
         public static void ClearClipCache(bool force = false) => s_Handler?.ClearClipCache(force);
 
         #endregion 资源池 [ASSET POOL]
+
+        #region 中间件接入面 [AUTHORING APIS]
+
+        /// <summary>
+        /// 加载声音库（FMOD/Wwise）。
+        /// </summary>
+        /// <returns>后端或桥接不支持、以及加载失败都返回 <c>false</c>。</returns>
+        public static bool LoadBank(string bankPath) => s_Handler?.LoadBank(bankPath) ?? false;
+
+        /// <summary>卸载声音库（语义同 <see cref="LoadBank"/>）。</summary>
+        public static bool UnloadBank(string bankPath) => s_Handler?.UnloadBank(bankPath) ?? false;
+
+        /// <summary>
+        /// 设置实时参数（FMOD event parameter / Wwise RTPC），如 <c>SetRtpc("PlayerHealth", 0.2f)</c>。
+        /// </summary>
+        /// <remarks>Unity 后端无概念，为空操作。</remarks>
+        /// <param name="name">参数名。</param>
+        /// <param name="value">参数值（线性，量纲由音效师在工程里定义）。</param>
+        /// <param name="handle">播放句柄；<c>0</c> 表示工程/全局参数。</param>
+        public static void SetRtpc(string name, float value, ulong handle = 0UL) => s_Handler?.SetRtpc(name, value, handle);
+
+        #endregion 中间件接入面 [AUTHORING APIS]
     }
 }

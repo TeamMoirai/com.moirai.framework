@@ -53,6 +53,24 @@ Runtime/Services/Audio/
 
 在 `AudioServiceSettings` 的 Handler 下拉中选择 `FmodAudioHandler` / `WwiseAudioHandler` 即可切换；桥接契约为 `IAudioMiddlewareBridge`（Play/Stop/Pause/Bus/IsPlaying）。
 
+#### 事件映射表
+
+中间件后端默认按 `clip.name` 推导事件路径（FMOD 为 `event:/<name>`）。事件由音效师命名、clip 只是占位引用时，这条隐性约定会静默推导错路径，因此在 Handler 上配一张显式映射表：
+
+- 在 Inspector 里给 `FmodAudioHandler` / `WwiseAudioHandler` 的「事件映射表」加条目：`Clip` + `EventPath`。
+- 命中映射直接用；未命中才回落到按名推导，并就该 clip **提示一次** Warning。
+- 运行期改过配置后调 `InvalidateEventMap()` 重建缓存（代码里配表时也用它）。
+- `Play(string eventPath, …)` 一律按事件路径直发，不经映射表。
+
+#### 声音库与实时参数
+
+`AudioService.LoadBank(path)` / `UnloadBank(path)` / `SetRtpc(name, value[, handle])` 已进后端契约：
+
+- Unity 后端无概念，`LoadBank` 返回 `false`、`SetRtpc` 空操作。
+- 中间件后端按**能力接口**探测（`IAudioMiddlewareBankControl` / `IAudioMiddlewareRtpcControl`），桥接没实现该能力时提示一次并安全降级——刻意不做进 `IAudioMiddlewareBridge` 主接口，否则未实现它的真 SDK 桥在定义 `FMOD_INSTALLED` 时会直接编译不过。
+- `SetRtpc` 的 `handle` 传 0 表示工程/全局参数，传播放句柄则作用于该实例。
+- 现有 `FmodBridgeNative` / `WwiseBridgeNative` **尚未实现**这两个能力（本机无插件、无法编译验证），装上 SDK 后按上面的接口补即可，框架侧不需要再改。
+
 ## 核心特性
 
 - 五轨内置 `EAudioTrack`：Sfx / UI / Music / Voice / Ambience

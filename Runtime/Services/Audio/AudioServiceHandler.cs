@@ -121,6 +121,33 @@ namespace Moirai.Atropos.Audio
 
         #endregion 服务方法 [SERVICE METHOD]
 
+        #region 中间件接入面 [AUTHORING APIS]
+
+        /// <summary>
+        /// 加载声音库（FMOD Studio bank / Wwise SoundBank）。
+        /// </summary>
+        /// <remarks>仅中间件后端且桥接具备该能力时有效；Unity 后端无概念，返回 <c>false</c>。</remarks>
+        public virtual bool LoadBank(string bankPath) => false;
+
+        /// <summary>
+        /// 卸载声音库。
+        /// </summary>
+        /// <remarks>语义同 <see cref="LoadBank"/>。</remarks>
+        public virtual bool UnloadBank(string bankPath) => false;
+
+        /// <summary>
+        /// 设置实时参数（FMOD event parameter / Wwise RTPC）。
+        /// </summary>
+        /// <remarks>
+        /// 仅中间件后端且桥接具备该能力时生效；Unity 后端无概念（空操作）。
+        /// <paramref name="handle"/> 为 0 时作用于工程/全局参数，否则作用于该句柄对应的实例。
+        /// </remarks>
+        public virtual void SetRtpc(string name, float value, ulong handle = 0UL)
+        {
+        }
+
+        #endregion 中间件接入面 [AUTHORING APIS]
+
         #region 播放音频 [PLAY AUDIO]
 
         /// <summary>

@@ -62,6 +62,12 @@ namespace Moirai.Atropos.Audio.Middleware
         [NonSerialized] private bool[] _trackMutes;
         [NonSerialized] private bool[] _pausedTracks;
 
+        [Header("事件映射表 [Event Map]")]
+        [Tooltip("AudioClip → 事件路径。命中即用，不再按 clip.name 推导；未命中回落到推导并提示一次。")]
+        [SerializeField] private AudioEventMapping[] m_EventMappings = Array.Empty<AudioEventMapping>();
+        [NonSerialized] private Dictionary<AudioClip, string> _eventByClip;
+        [NonSerialized] private HashSet<string> _derivedPathWarned;
+
         /// <summary>默认总线路径，按 EAudioTrack 索引。</summary>
         private static readonly string[] s_DefaultBusPaths =
         {
@@ -392,7 +398,141 @@ namespace Moirai.Atropos.Audio.Middleware
             => PlayEventPath(eventPath, request, cold);
 
         private ulong PlayWithRequest(AudioClip clip, in AudioPlayRequest request, AudioPlayColdParams cold)
-            => PlayEventPath(_bridge?.GetEventPathFromClip(clip), request, cold);
+            => PlayEventPath(ResolveEventPath(clip), request, cold);
+
+        /// <summary>
+        /// 解析 clip 对应的事件路径：先查 <see cref="AudioEventMapping"/> 映射表，未命中才回落到
+        /// 桥接按 <c>clip.name</c> 推导（并就该 clip 提示一次——事件名与 clip 名不一致时静默推导出错最难查）。
+        /// </summary>
+        private string ResolveEventPath(AudioClip clip)
+        {
+            if (clip == null) return null;
+
+            var map = EnsureEventMap();
+            if (map != null && map.TryGetValue(clip, out var mapped) && !string.IsNullOrEmpty(mapped))
+            {
+                return mapped;
+            }
+
+            string derived = _bridge != null ? _bridge.GetEventPathFromClip(clip) : null;
+            if (string.IsNullOrEmpty(derived)) return null;
+
+            _derivedPathWarned ??= new HashSet<string>(StringComparer.Ordinal);
+            if (_derivedPathWarned.Add(clip.name))
+            {
+                LogUtility.Warning(
+                    "[Audio] 事件路径由 clip.name 推导为 {0}；若与音效师的事件名不一致，请在后端的事件映射表里显式登记。", derived);
+            }
+
+            return derived;
+        }
+
+        private Dictionary<AudioClip, string> EnsureEventMap()
+        {
+            if (_eventByClip != null) return _eventByClip;
+            if (m_EventMappings == null || m_EventMappings.Length == 0) return null;
+
+            var map = new Dictionary<AudioClip, string>(m_EventMappings.Length);
+            for (int i = 0; i < m_EventMappings.Length; i++)
+            {
+                var entry = m_EventMappings[i];
+                if (entry == null || entry.Clip == null || string.IsNullOrEmpty(entry.EventPath)) continue;
+
+                if (map.ContainsKey(entry.Clip))
+                {
+                    LogUtility.Warning("[Audio] 事件映射表里 {0} 重复登记，采用先出现的一条。", entry.Clip.name);
+                    continue;
+                }
+
+                map.Add(entry.Clip, entry.EventPath);
+            }
+
+            _eventByClip = map;
+            return map;
+        }
+
+        /// <summary>映射表变更后需重建缓存（编辑器/热更里改配置时调用）。</summary>
+        public void InvalidateEventMap()
+        {
+            _eventByClip = null;
+            _derivedPathWarned = null;
+        }
+
+        /// <summary>
+        /// 运行期整体替换事件映射表（读自音效侧导表/配置时使用），并作废已建好的索引。
+        /// </summary>
+        /// <remarks>会覆盖 Inspector 上配置的条目；传入 null 等价于清空。</remarks>
+        public void SetEventMappings(AudioEventMapping[] mappings)
+        {
+            m_EventMappings = mappings ?? Array.Empty<AudioEventMapping>();
+            InvalidateEventMap();
+        }
+
+        #region 音效师接入面 [AUTHORING APIS]
+
+        [NonSerialized] private bool _bankApiWarned;
+        [NonSerialized] private bool _rtpcApiWarned;
+
+        /// <inheritdoc />
+        /// <remarks>需要桥接实现 <see cref="IAudioMiddlewareBankControl"/>；未实现时提示一次并返回 false。</remarks>
+        public override bool LoadBank(string bankPath)
+        {
+            if (string.IsNullOrEmpty(bankPath) || _bridge == null) return false;
+
+            if (_bridge is not IAudioMiddlewareBankControl banks)
+            {
+                WarnOnce(ref _bankApiWarned, nameof(IAudioMiddlewareBankControl));
+                return false;
+            }
+
+            return banks.LoadBank(bankPath);
+        }
+
+        /// <inheritdoc />
+        public override bool UnloadBank(string bankPath)
+        {
+            if (string.IsNullOrEmpty(bankPath) || _bridge == null) return false;
+
+            if (_bridge is not IAudioMiddlewareBankControl banks)
+            {
+                WarnOnce(ref _bankApiWarned, nameof(IAudioMiddlewareBankControl));
+                return false;
+            }
+
+            return banks.UnloadBank(bankPath);
+        }
+
+        /// <inheritdoc />
+        /// <remarks><paramref name="handle"/> 为 0 时作用于工程/全局参数，否则定位到该句柄的原生实例。</remarks>
+        public override void SetRtpc(string name, float value, ulong handle = 0UL)
+        {
+            if (string.IsNullOrEmpty(name) || _bridge == null) return;
+
+            if (_bridge is not IAudioMiddlewareRtpcControl rtpc)
+            {
+                WarnOnce(ref _rtpcApiWarned, nameof(IAudioMiddlewareRtpcControl));
+                return;
+            }
+
+            ulong instanceId = 0UL;
+            if (handle != 0UL)
+            {
+                if (!_handles.TryGet(handle, out var voice)) return;
+                instanceId = voice.InstanceId;
+            }
+
+            rtpc.SetRtpc(name, value, instanceId);
+        }
+
+        private static void WarnOnce(ref bool warned, string capability)
+        {
+            if (warned) return;
+            warned = true;
+            LogUtility.Warning(
+                "[Audio] 当前桥接未实现 {0}，相关调用为空操作。换用支持的桥接，或在真 SDK 桥里补上该能力。", capability);
+        }
+
+        #endregion 音效师接入面 [AUTHORING APIS]
 
         private ulong PlayEventPath(string eventPath, in AudioPlayRequest request, AudioPlayColdParams cold)
         {

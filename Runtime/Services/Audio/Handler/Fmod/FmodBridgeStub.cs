@@ -7,7 +7,7 @@ namespace Moirai.Atropos.Audio.Fmod
     /// <summary>
     /// FMOD 桥接桩——无 <c>FMOD_INSTALLED</c> 时可跑通 Handler 生命周期与压测。
     /// </summary>
-    internal sealed class FmodBridgeStub : IAudioMiddlewareBridge
+    internal sealed class FmodBridgeStub : IAudioMiddlewareBridge, IAudioMiddlewareBankControl, IAudioMiddlewareRtpcControl
     {
         private struct StubInstance
         {
@@ -104,5 +104,35 @@ namespace Moirai.Atropos.Audio.Fmod
 
         public string GetEventPathFromClip(AudioClip clip)
             => clip == null || string.IsNullOrEmpty(clip.name) ? null : "event:/" + clip.name;
+
+        // ===== 可选能力：声音库与实时参数（桩用于跑通契约与断言）=====
+
+        /// <summary>已加载的声音库。</summary>
+        public readonly System.Collections.Generic.HashSet<string> Banks =
+            new System.Collections.Generic.HashSet<string>(StringComparer.Ordinal);
+
+        /// <summary>已设置的参数值；全局作用域按参数名，实例作用域带 "实例ID:" 前缀。</summary>
+        public readonly System.Collections.Generic.Dictionary<string, float> RtpcValues =
+            new System.Collections.Generic.Dictionary<string, float>(StringComparer.Ordinal);
+
+        public int BankLoadCount { get; private set; }
+        public int RtpcCount { get; private set; }
+
+        public bool LoadBank(string bankPath)
+        {
+            if (string.IsNullOrEmpty(bankPath) || !Banks.Add(bankPath)) return false;
+            BankLoadCount++;
+            return true;
+        }
+
+        public bool UnloadBank(string bankPath)
+            => !string.IsNullOrEmpty(bankPath) && Banks.Remove(bankPath);
+
+        public void SetRtpc(string name, float value, ulong instanceId)
+        {
+            if (string.IsNullOrEmpty(name)) return;
+            RtpcValues[instanceId == 0UL ? name : instanceId + ":" + name] = value;
+            RtpcCount++;
+        }
     }
 }

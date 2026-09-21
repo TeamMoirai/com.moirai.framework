@@ -9,6 +9,8 @@
 
 ### Added
 
+- **`Audio`：中间件接入面（事件映射表 + 声音库/实时参数）**：中间件后端原本只能按 `clip.name` 推导事件路径（FMOD 拼 `event:/`、Wwise 拼 `wwise:/`），而事件由音效师命名、clip 只是占位引用，命名不一致时静默推导出错路径、表现为「播不出声」且无从排查。现 Handler 上可配 `AudioEventMapping[]`（clip → 事件路径，Inspector 或 `SetEventMappings` 代码灌入，改配置后 `InvalidateEventMap` 重建索引），命中即用、未命中才回落到按名推导并对该 clip 提示一次 Warning；`Play(eventPath, …)` 路径直发不经映射。另补 `AudioService.LoadBank` / `UnloadBank` / `SetRtpc(name, value[, handle])`（handle 为 0 表示工程/全局参数）进 `AudioServiceHandler` 契约，Unity 后端无概念一律 false/空操作；中间件按**能力接口** `IAudioMiddlewareBankControl` / `IAudioMiddlewareRtpcControl` 探测，桥接未实现时提示一次并安全降级——刻意不加进 `IAudioMiddlewareBridge` 主接口，否则未实现它的真 SDK 桥在定义 `FMOD_INSTALLED` / `WWISE_INSTALLED` 时直接编译不过。两个 Stub 桥已实现能力用于跑通契约；`FmodBridgeNative` / `WwiseBridgeNative` **未补**真 SDK 调用（本机无插件、无法编译验证），装上 SDK 后按接口补齐即可，框架侧无需再改。详见 `Audio.md` 双语「事件映射表」「声音库与实时参数」。
+
 - **`Audio`：Voice 驱动的自动 Ducking（`AudioVoiceDucking`）**：叙事游戏的对白压低背景音此前要游戏侧手写台词起止，而按「播放 +1 / 结束 -1」计数一旦漏减就永久压低混音。现改为各后端**实算**该音轨是否还有活跃声部（Unity 扫 `AudioCategory` 的 Agent 空闲位，中间件扫句柄表里 `Playing` 的 Voice），由 `Tick` 驱动 `Evaluate`，加载中与淡出中同样算在播，漏一帧下一帧自愈。与快照状态机的优先级协同：被更高优先级挡下时不记为生效（演出中不会被对白抢走混音），回落只在仍占着 `Dialogue` 时发生且回到 duck 前那一层而非硬写 `Default`。开关在 `AudioServiceSettings.AutoDuckingOnVoice`（默认关闭，需先注册 `Dialogue` 快照），关掉当帧即归还。新增 `AudioServiceHandler.HasActiveAudioOn` 内部契约成员；补 `Tests/EditorMode/Service/Audio/AudioMixStateMachineTests.cs` 10 格锁住这套打断/回落契约（duck 完全寄生其上）。详见 `Audio.md` 双语「自动 Ducking」。
 
 - `Tests/EditorMode/Service/Timer/DefaultTimerHandlerTests.cs` 增补：时钟污染与回调内改写句柄的回归 7 格——正无穷单帧不冻结时间轮、负读数不把游标拽回起点、时钟不可用时 `Resume` / `Restart` 整体拒绝而不损坏计时器、帧计时器进度回调内自取消后槽位复用者不被误完成、回调内 `Restart` 不被同帧完成判定抹掉、回调内 `Pause` 把完成顺延到恢复后的那一帧。

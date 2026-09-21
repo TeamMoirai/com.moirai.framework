@@ -52,6 +52,24 @@ Runtime/Services/Audio/
 
 Select `FmodAudioHandler` / `WwiseAudioHandler` in `AudioServiceSettings`. Bridge contract: `IAudioMiddlewareBridge`.
 
+#### Event map
+
+Middleware backends derive the event path from `clip.name` (FMOD: `event:/<name>`). When the designer names events independently and the clip is only a placeholder, that implicit convention silently produces wrong paths — so the handler carries an explicit map:
+
+- Add `Clip` + `EventPath` entries under “Event Map” on `FmodAudioHandler` / `WwiseAudioHandler` in the Inspector.
+- A hit is used directly; a miss falls back to name derivation and emits a **one-time** warning for that clip.
+- Call `InvalidateEventMap()` after changing the configuration at runtime (also the entry point for code-driven maps).
+- `Play(string eventPath, …)` always sends the path as-is and bypasses the map.
+
+#### Banks and live parameters
+
+`AudioService.LoadBank(path)` / `UnloadBank(path)` / `SetRtpc(name, value[, handle])` are part of the backend contract:
+
+- The Unity backend has no such concept: `LoadBank` returns `false`, `SetRtpc` is a no-op.
+- Middleware backends probe **capability interfaces** (`IAudioMiddlewareBankControl` / `IAudioMiddlewareRtpcControl`); a bridge without the capability warns once and degrades safely. They are deliberately *not* members of `IAudioMiddlewareBridge` — that would make every real SDK bridge that doesn't implement them fail to compile the moment `FMOD_INSTALLED` / `WWISE_INSTALLED` is defined.
+- `handle` 0 addresses a project/global parameter; a playback handle addresses that instance.
+- `FmodBridgeNative` / `WwiseBridgeNative` do **not** implement these capabilities yet (no plugin installed locally, so SDK calls cannot be compiled or verified). Implement them against the interfaces above once the SDK is present; nothing on the framework side needs to change.
+
 ## Core Features
 
 - Five tracks: Sfx / UI / Music / Voice / Ambience

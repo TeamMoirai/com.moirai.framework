@@ -7,7 +7,7 @@ namespace Moirai.Atropos.Audio.Wwise
     /// <summary>
     /// Wwise 桥接桩——无 <c>WWISE_INSTALLED</c> 时可跑通 Handler 生命周期与压测。
     /// </summary>
-    internal sealed class WwiseBridgeStub : IAudioMiddlewareBridge
+    internal sealed class WwiseBridgeStub : IAudioMiddlewareBridge, IAudioMiddlewareBankControl, IAudioMiddlewareRtpcControl
     {
         private struct StubInstance
         {
@@ -104,5 +104,35 @@ namespace Moirai.Atropos.Audio.Wwise
 
         public string GetEventPathFromClip(AudioClip clip)
             => clip == null || string.IsNullOrEmpty(clip.name) ? null : "wwise:/" + clip.name;
+
+        // ===== 可选能力：SoundBank 与 RTPC（桩用于跑通契约与断言）=====
+
+        /// <summary>已加载的 SoundBank。</summary>
+        public readonly System.Collections.Generic.HashSet<string> Banks =
+            new System.Collections.Generic.HashSet<string>(StringComparer.Ordinal);
+
+        /// <summary>已设置的 RTPC 值；全局作用域按参数名，实例作用域带 "实例ID:" 前缀。</summary>
+        public readonly System.Collections.Generic.Dictionary<string, float> RtpcValues =
+            new System.Collections.Generic.Dictionary<string, float>(StringComparer.Ordinal);
+
+        public int BankLoadCount { get; private set; }
+        public int RtpcCount { get; private set; }
+
+        public bool LoadBank(string bankPath)
+        {
+            if (string.IsNullOrEmpty(bankPath) || !Banks.Add(bankPath)) return false;
+            BankLoadCount++;
+            return true;
+        }
+
+        public bool UnloadBank(string bankPath)
+            => !string.IsNullOrEmpty(bankPath) && Banks.Remove(bankPath);
+
+        public void SetRtpc(string name, float value, ulong instanceId)
+        {
+            if (string.IsNullOrEmpty(name)) return;
+            RtpcValues[instanceId == 0UL ? name : instanceId + ":" + name] = value;
+            RtpcCount++;
+        }
     }
 }
