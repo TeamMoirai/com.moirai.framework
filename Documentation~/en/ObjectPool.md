@@ -1,4 +1,4 @@
-# ObjectPool Service
+﻿# ObjectPool Service
 
 > Generic pool + GameObject specialization, shared kernel + dual facades in a single module.
 > The shared kernel provides paged slot storage, open-addressing hashes and a min-heap maintenance scheduler; two facades serve arbitrary CLR objects and Unity GameObjects respectively.
@@ -36,7 +36,7 @@ Runtime/Services/ObjectPool/
     └── Pooled/                     # IDisposable thin wrappers (PooledGameObject / PooledComponent)
 ```
 
-Both pools share the same maintenance semantics: each Tick processes only due pools (min-heap, O(log n)) within a 1ms per-frame budget;
+Both pools share the same maintenance semantics: each Tick processes only due pools (min-heap, O(log n)) within a 1ms per-frame budget; maintenance runs in two phases — collect, then dispatch — so **each pool is maintained at most once per frame**, items re-scheduled during a wake-up wait for the next Tick, and any residue left by the budget stays in the work set and is dispatched next Tick rather than dropped;
 on low memory each Handler subscribes to `Application.lowMemory` and shrinks fully.
 
 ## Core Types

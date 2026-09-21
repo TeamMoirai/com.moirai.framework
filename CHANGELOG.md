@@ -59,7 +59,8 @@
 - **`GameTime.frameCount` 类型 `float` → `int`**：float 尾数仅 24 位，超过 16,777,216 帧后计数无法精确表示（120fps 下约 39 小时连续运行即失真）。上游 `GameTimeHandler.FrameCount` 本来就是 `int`，旧声明是纯粹的类型错误。全工程零处读取该成员，改动无波及。
 - **`GameApp` 七个 `Add*Listener` 现返回 `GameApp.Subscription`（`IDisposable`）**：`AddUpdateListener` / `AddFixedUpdateListener` / `AddLateUpdateListener` / `AddDestroyListener` / `AddOnDrawGizmosListener(Selected)` / `AddOnApplicationPauseListener`。句柄攥住注册时那个**确切委托实例**，因此 lambda 订阅也能干净注销——此前 `Remove*Listener(Action)` 按委托相等比较，事后重写一个同样体的 lambda 是新实例，摘不掉，订阅连同闭包捕获的对象一路留到 `Shutdown`。返回类型由 `void` 变为引用类型对既有调用点源码兼容（语句式调用丢弃返回值即可），包内与 `Assets/` 的现有调用全是语句式。**注意**：帧回调表会去重（同委托重复注册只登记一次，任一持有句柄 `Dispose` 即注销该登记），而 Destroy / Gizmos / Pause 这类多播表不去重（`+=` 两次则需 `Dispose` 两次）。既有 `Remove*Listener(Action)` 全部保留。
 
-### Fixed
+- **池维护调度改为"采集 / 派发"两段式**：`PoolMaintenanceScheduler.ProcessDue` 先前是一次内联走查——摘堆、执行、再回到堆顶，因此一个池若在自己的维护里以 `due <= now` 重排（GameObject 池 Fixed/Burst 超额修剪路径正是如此），同一帧可被连续唤醒多轮到预算或 1024 次上界耗尽。现采集段一次性弹出全部到期项组成本轮工作集，派发段按预算逐项执行：**每帧每池至多维护一次**，本轮新排的到期项顺延下一次调用；派发未跑完（预算或上界耗尽）时残留项留在工作集里跨调用续派（FIFO 不饿死），`Remove`/`Clear` 会同步摘除尚未派发的残留项，池被关闭后不会再被派发。对外新增只读诊断面 `PendingCount`（`Count` 语义不变，仍为堆内待维护数量）。
+
 
 - **`GameApp.AddOnApplicationPauseListener` 单独使用时永不触发**：此前只有宿主因协程 / Gizmos 等原因被创建后才会挂上 Pause 转发。
 - **订阅方抛异常会永久卡死驱动器**：`Drive*` 缺少 `finally`，异常路径下 `s_IsDriving` 残留为 `true`，此后所有注册滞留在延迟缓冲且当帧不提交。

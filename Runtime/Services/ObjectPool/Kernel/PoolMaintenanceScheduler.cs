@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Runtime.CompilerServices;
 using UnityEngine;
 
@@ -27,7 +27,11 @@ namespace Moirai.Atropos.ObjectPool
     /// 共享池维护调度器：最小堆到期唤醒 + 帧预算防卡顿。
     /// <para>仅负责"按到期时间唤醒"——到期项回调 <see cref="IPoolMaintenanceItem.ExecuteMaintenance"/>（非低内存）；
     /// 低内存全量维护由服务方自行遍历池执行，不经此调度器。</para>
-    /// <para>项在执行中可重新调度自身（含到期时间早于当前时刻的"立即再醒"），帧预算保证单帧最坏 1ms。</para>
+    /// <para>每次调用分两段：采集段一次性弹出堆内全部到期项进工作集，派发段按帧预算与迭代上界逐项执行。
+    /// 因此<b>本轮只处理进入本轮时已到期的项</b>——项在执行中重新调度自身（含 due &lt;= now 的"立即再醒"）
+    /// 一律顺延到下一次调用，单帧每池至多维护一次。</para>
+    /// <para>派发未跑完工作集（预算或上界耗尽）时，剩余项留在工作集里由后续调用续派，FIFO 不饿死；
+    /// 续派前被 <see cref="Remove"/> 或 <see cref="Clear"/> 摘除的项不会再去执行。</para>
     /// </summary>
     internal sealed class PoolMaintenanceScheduler
     {
@@ -59,14 +63,26 @@ namespace Moirai.Atropos.ObjectPool
         private MaintenanceNode[] _heap = new MaintenanceNode[INITIAL_HEAP_CAPACITY];
         private int _count;
 
+        // 本轮工作集：采集段写入、派发段消费。_pendingIndex 之前是已派发部分，
+        // 一轮彻底排空后两者一并归零，故常态下无搬移成本。
+        private IPoolMaintenanceItem[] _pending = new IPoolMaintenanceItem[INITIAL_HEAP_CAPACITY];
+        private int _pendingCount;
+        private int _pendingIndex;
+        private bool _processing;
+
         #endregion
 
         #region 属性 [PROPERTIES]
 
         /// <summary>
-        /// 获取当前待维护项数量。
+        /// 获取堆内待维护项数量（不含本轮工作集中尚未派发的残留项，见 <see cref="PendingCount"/>）。
         /// </summary>
         public int Count => _count;
+
+        /// <summary>
+        /// 获取本轮工作集中尚未派发的残留项数量（预算或迭代上界耗尽时跨调用续派）。
+        /// </summary>
+        public int PendingCount => _pendingCount - _pendingIndex;
 
         #endregion
 
@@ -111,53 +127,72 @@ namespace Moirai.Atropos.ObjectPool
             int heapIndex = item.MaintenanceHeapIndex;
             if (heapIndex < 0 || heapIndex >= _count || !ReferenceEquals(_heap[heapIndex].Item, item))
             {
+                // 索引为 -1 有两种可能：确实未调度，或已被本轮采集进工作集（采集即出堆、索引同被复位）。
+                // 因此工作集的摘除必须无条件执行，不能只挂在堆移除之后。
                 item.MaintenanceHeapIndex = -1;
+                PurgePending(item);
                 return;
             }
 
             RemoveAt(heapIndex);
+            PurgePending(item);
         }
 
         /// <summary>
-        /// 处理所有到期项（帧预算内），逐项回调 <see cref="IPoolMaintenanceItem.ExecuteMaintenance"/>。
+        /// 处理到期项：先采集本轮工作集，再在帧预算与迭代上界内逐项派发；残留项留待下一次调用续派。
         /// </summary>
         /// <param name="now">当前调度时钟。</param>
         public void ProcessDue(float now)
         {
-            if (_count == 0)
+            if (_processing)
+            {
+                // 重入：维护回调里再驱动调度器时，工作集与游标只允许外层推进，
+                // 否则会并发改写同一份缓冲（表现为漏派或同项本轮二次执行）。
+                return;
+            }
+
+            if (_count == 0 && PendingCount == 0)
             {
                 return;
             }
 
-            float frameStart = Time.realtimeSinceStartup;
-            int executed = 0;
-            while (_count > 0 && executed < MAX_EXECUTIONS_PER_TICK)
+            _processing = true;
+            try
             {
-                if (_heap[0].DueTime > now)
-                {
-                    return;
-                }
+                CollectDue(now);
 
-                if (Time.realtimeSinceStartup - frameStart >= FRAME_BUDGET_SECONDS)
+                float frameStart = Time.realtimeSinceStartup;
+                int executed = 0;
+                while (_pendingIndex < _pendingCount && executed < MAX_EXECUTIONS_PER_TICK)
                 {
-                    return;
-                }
+                    // 预算检查放在取项之前：残留项必须留在工作集里，不能弹出来了却不派发。
+                    if (Time.realtimeSinceStartup - frameStart >= FRAME_BUDGET_SECONDS)
+                    {
+                        break;
+                    }
 
-                IPoolMaintenanceItem item = _heap[0].Item;
-                RemoveAt(0);
-                executed++;
-                try
-                {
-                    item.ExecuteMaintenance(now, false);
+                    IPoolMaintenanceItem item = _pending[_pendingIndex];
+                    _pending[_pendingIndex] = null;
+                    _pendingIndex++;
+                    executed++;
+
+                    try
+                    {
+                        item.ExecuteMaintenance(now, false);
+                    }
+                    catch (Exception exception)
+                    {
+                        // 最后一道防线：一个池的维护抛出不得截断本轮其余到期池。
+                        // 采集阶段已出堆，抛出项不会被本轮重试；池若在 finally 里重排自己，
+                        // 按各自退避策略于下一次调用再醒——维护是槽位泄漏的唯一回收通道，彻底摘出比热重投更糟。
+                        LogUtility.Fatal(exception);
+                    }
                 }
-                catch (Exception exception)
-                {
-                    // 最后一道防线：一个池的维护抛出不得截断本轮其余到期池。
-                    // 先 RemoveAt 再回调，是让未自带重排的维护项不会被反复重试同一个坏池占满帧预算。
-                    // 注意：池自身若在 finally 里重排自己（现两个池实现都这么做），坏池仍会按各自的
-                    // 退避策略回来——这是有意的，维护是槽位泄漏的唯一回收通道，彻底摘出比热重投更糟。
-                    LogUtility.Fatal(exception);
-                }
+            }
+            finally
+            {
+                _processing = false;
+                ResetPendingWindow();
             }
         }
 
@@ -173,6 +208,82 @@ namespace Moirai.Atropos.ObjectPool
             }
 
             _count = 0;
+
+            for (int i = _pendingIndex; i < _pendingCount; i++)
+            {
+                _pending[i] = null;
+            }
+
+            _pendingCount = 0;
+            _pendingIndex = 0;
+        }
+
+        #endregion
+
+        #region 私有方法 — 工作集 [PRIVATE PENDING WINDOW]
+
+        /// <summary>
+        /// 采集段：一次性弹出堆内全部到期项进本轮工作集（残留项保持在前面，按 FIFO 续派）。
+        /// </summary>
+        private void CollectDue(float now)
+        {
+            while (_count > 0 && _heap[0].DueTime <= now)
+            {
+                IPoolMaintenanceItem item = _heap[0].Item;
+                RemoveAt(0);
+                AppendPending(item);
+            }
+        }
+
+        private void AppendPending(IPoolMaintenanceItem item)
+        {
+            if (_pendingCount == _pending.Length)
+            {
+                Array.Resize(ref _pending, _pending.Length << 1);
+            }
+
+            _pending[_pendingCount++] = item;
+        }
+
+        /// <summary>
+        /// 从本轮工作集的未派发区间摘除一项（池被关闭或注销时，残留项不得再被执行）。
+        /// </summary>
+        private void PurgePending(IPoolMaintenanceItem item)
+        {
+            for (int i = _pendingIndex; i < _pendingCount; i++)
+            {
+                if (!ReferenceEquals(_pending[i], item))
+                {
+                    continue;
+                }
+
+                for (int shift = i; shift < _pendingCount - 1; shift++)
+                {
+                    _pending[shift] = _pending[shift + 1];
+                }
+
+                _pending[--_pendingCount] = null;
+                return;
+            }
+        }
+
+        /// <summary>
+        /// 工作集排空后归零窗口，避免每次派发都搬移数组。
+        /// </summary>
+        private void ResetPendingWindow()
+        {
+            if (_pendingIndex < _pendingCount)
+            {
+                return;
+            }
+
+            for (int i = 0; i < _pendingCount; i++)
+            {
+                _pending[i] = null;
+            }
+
+            _pendingCount = 0;
+            _pendingIndex = 0;
         }
 
         #endregion

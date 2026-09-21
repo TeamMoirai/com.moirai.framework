@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using Moirai.Atropos.ObjectPool;
 using NUnit.Framework;
@@ -61,6 +61,29 @@ namespace Service.ObjectPool
         }
 
         /// <summary>抛出后仍在 finally 里重排自己——真实池的维护边界就是这个形状。</summary>
+        /// <summary>执行时摘除另一个维护项——用于验证"已采集但未派发"的项被摘除后不再执行。</summary>
+        private sealed class RemovingItem : IPoolMaintenanceItem
+        {
+            private readonly PoolMaintenanceScheduler _scheduler;
+            private readonly IPoolMaintenanceItem _victim;
+
+            public RemovingItem(PoolMaintenanceScheduler scheduler, IPoolMaintenanceItem victim)
+            {
+                _scheduler = scheduler;
+                _victim = victim;
+            }
+
+            public int MaintenanceHeapIndex { get; set; } = -1;
+
+            public int ExecutionCount { get; private set; }
+
+            public void ExecuteMaintenance(float now, bool lowMemory)
+            {
+                ExecutionCount++;
+                _scheduler.Remove(_victim);
+            }
+        }
+
         private sealed class ThrowingRescheduleItem : IPoolMaintenanceItem
         {
             private readonly PoolMaintenanceScheduler _scheduler;
@@ -263,9 +286,33 @@ namespace Service.ObjectPool
             scheduler.ProcessDue(10f);
 
             // 立即重排（due == now）必须被迭代上界截断（时钟冻结环境亦安全），不得无限循环。
-            Assert.GreaterOrEqual(item.ExecutionCount, 1);
-            Assert.LessOrEqual(item.ExecutionCount, 1024);
+            Assert.AreEqual(1, item.ExecutionCount, "本轮只处理进入本轮时已到期的项，同帧重排不得二次执行");
             Assert.AreEqual(1, scheduler.Count, "item stays scheduled for next frame");
+            Assert.AreEqual(0, scheduler.PendingCount, "工作集应在派发完后归零");
+
+            scheduler.ProcessDue(10f);
+            Assert.AreEqual(2, item.ExecutionCount, "重排项在下一次调用里续跑");
+            Assert.AreEqual(1, scheduler.Count);
+        }
+
+        [Test]
+        public void ProcessDue_PendingItemRemovedByEarlierItem_IsNotExecuted()
+        {
+            PoolMaintenanceScheduler scheduler = new PoolMaintenanceScheduler();
+            FakeItem victim = new FakeItem();
+            RemovingItem remover = new RemovingItem(scheduler, victim);
+
+            // 两项同轮到期（采集段一起出堆进工作集），remover 排在前面先派发。
+            scheduler.Schedule(remover, 10f);
+            scheduler.Schedule(victim, 20f);
+
+            scheduler.ProcessDue(100f);
+
+            Assert.AreEqual(1, remover.ExecutionCount);
+            Assert.AreEqual(0, victim.Executions.Count, "采集后被摘除（池已关闭/注销）的项不得再去执行");
+            Assert.AreEqual(0, scheduler.Count);
+            Assert.AreEqual(0, scheduler.PendingCount);
+            Assert.AreEqual(-1, victim.MaintenanceHeapIndex);
         }
 
         #endregion
@@ -294,7 +341,7 @@ namespace Service.ObjectPool
                 // 必须循环排空，不能断言"一次调用走完本轮"：ProcessDue 有 1ms 墙钟预算，
                 // 而抛出那一格的 Fatal（Editor 里连栈一起落日志）单独就可能吃满它，
                 // 其余到期项因此被推迟到下一次调用——那是预算的本意，不是隔离失效。
-                for (int i = 0; i < 8 && scheduler.Count > 0; i++)
+                for (int i = 0; i < 8 && (scheduler.Count > 0 || scheduler.PendingCount > 0); i++)
                 {
                     scheduler.ProcessDue(100f);
                 }

@@ -1,4 +1,4 @@
-# ObjectPool 对象池服务
+﻿# ObjectPool 对象池服务
 
 > 通用池 + GameObject 特化、共享内核 + 双外观的单模块对象池架构。
 > 共享内核提供分页槽位存储、开放寻址哈希与最小堆维护调度；两个外观分别面向任意 CLR 对象与 Unity GameObject。
@@ -36,7 +36,7 @@ Runtime/Services/ObjectPool/
     └── Pooled/                     # IDisposable 薄包装（PooledGameObject / PooledComponent）
 ```
 
-两池共用同一维护调度器语义：每帧 Tick 仅处理到期池（最小堆 O(log n)），单帧维护预算 1ms；
+两池共用同一维护调度器语义：每帧 Tick 仅处理到期池（最小堆 O(log n)），单帧维护预算 1ms；维护分"采集 / 派发"两段——本轮工作集在派发前一次性采集，故**每池每帧至多维护一次**，维护中重排的到期项顺延下一次 Tick；预算耗尽时残留项留在工作集里续派，不会丢失；
 低内存时由各 Handler 订阅 `Application.lowMemory` 全量收缩。
 
 ## 核心类型
