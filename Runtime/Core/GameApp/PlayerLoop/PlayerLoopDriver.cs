@@ -30,9 +30,7 @@ namespace Moirai.Atropos
         private const int INITIAL_CAPACITY = 32;
 
         /// <summary>
-        /// 订阅异常分级策略：开发期记录后上抛（缺陷第一时间暴露），发布期隔离续跑（单个订户不拖垮整阶段）。
-        /// <para>开发期记录后上抛，发布期隔离续跑。
-        /// 本类属 <c>Runtime/Core</c>，不引用 <c>Runtime/Services</c> 的常量以免逆向依赖。</para>
+        /// 订阅异常分级策略：开发期 Fatal 后上抛（缺陷第一时间暴露），发布期隔离续跑（单个订户不拖垮整阶段）。
         /// <para><c>const</c> 门控：JIT 裁掉死分支，发布构建零运行时成本。</para>
         /// </summary>
         private const bool RETHROW_SUBSCRIBER_EXCEPTIONS =
@@ -554,7 +552,7 @@ namespace Moirai.Atropos
             }
             catch (Exception exception)
             {
-                LogUtility.Error("PlayerLoop {0} core hook threw: {1}", stageName, exception);
+                LogUtility.Fatal("PlayerLoop {0} core hook threw: {1}", stageName, exception);
                 if (RETHROW_SUBSCRIBER_EXCEPTIONS) throw;
             }
         }
@@ -755,7 +753,7 @@ namespace Moirai.Atropos
                     }
                     catch (Exception exception)
                     {
-                        LogUtility.Error("PlayerLoop {0} handler threw: {1}", _stageName, exception);
+                        LogUtility.Fatal("PlayerLoop {0} handler threw: {1}", _stageName, exception);
                         bool tripped = RecordFailure(handler);
                         if (rethrow) throw;
                         // Remove 保序搬移：后继元素左移一位，故回退索引以免跳过，并收缩本地计数
@@ -983,7 +981,7 @@ namespace Moirai.Atropos
                     }
                     catch (Exception exception)
                     {
-                        LogUtility.Error("PlayerLoop {0} callback threw: {1}", _stageName, exception);
+                        LogUtility.Fatal("PlayerLoop {0} callback threw: {1}", _stageName, exception);
                         bool tripped = RecordFailure(callback);
                         if (rethrow) throw;
                         if (tripped)

@@ -7,7 +7,7 @@ using Debug = UnityEngine.Debug;
 namespace Moirai.Atropos.Events
 {
     /// <summary>
-    /// 事件派发链异常分级策略：开发期 <see cref="LogUtility.Error(System.Exception, UnityEngine.Object)"/> 后上抛，发布期隔离续跑。
+    /// 事件派发链异常分级策略：开发期 <see cref="LogUtility.Fatal(System.Exception, UnityEngine.Object)"/> 后上抛，发布期隔离续跑。
     /// <para><c>const</c> 门控：JIT 裁掉死分支，发布构建零运行时成本。深度计数（<c>m_IsInvoking</c>）与引用计数归还在 <c>finally</c> 中无条件执行，与本开关无关。</para>
     /// </summary>
     internal static class EventDispatchPolicy
@@ -237,8 +237,8 @@ namespace Moirai.Atropos.Events
                     }
                     catch (Exception exception)
                     {
-                        // 开发期 Error 后上抛，发布期隔离续跑（单条事件失败不截断本队列其余事件）。
-                        LogUtility.Error("EventDispatcher ProcessEvent threw: {0}", exception);
+                        // 开发期 Fatal 后上抛，发布期隔离续跑（单条事件失败不截断本队列其余事件）。
+                        LogUtility.Fatal("EventDispatcher ProcessEvent threw: {0}", exception);
                         if (EventDispatchPolicy.RETHROW_DISPATCH_EXCEPTIONS) throw;
                     }
                     finally
@@ -262,7 +262,7 @@ namespace Moirai.Atropos.Events
                     }
                     catch (Exception exception)
                     {
-                        LogUtility.Error("EventDispatcher leftover Dispose threw: {0}", exception);
+                        LogUtility.Fatal("EventDispatcher leftover Dispose threw: {0}", exception);
                     }
                 }
                 s_EventQueuePool.Release(queueToProcess);

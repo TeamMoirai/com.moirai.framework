@@ -259,8 +259,8 @@ var my = GameServices.GetRequiredService<MyService>();
 
 | 构建 | 行为 |
 |------|------|
-| `UNITY_EDITOR` / `DEVELOPMENT_BUILD` | `LogUtility.Error` 记录后**上抛**（fail-fast，缺陷第一时间暴露） |
-| 发布构建 | `Error` 记录后**隔离续跑**（单订户/单回调/单事件不拖垮同轮其余项） |
+| `UNITY_EDITOR` / `DEVELOPMENT_BUILD` | `LogUtility.Fatal` 记录后**上抛**（fail-fast，缺陷第一时间暴露） |
+| 发布构建 | `Fatal` 记录后**隔离续跑**（单订户/单回调/单事件不拖垮同轮其余项） |
 
 声明位置：
 
@@ -345,7 +345,7 @@ ProcedureLaunch → ProcedureSplash → ProcedureInitPackage → ProcedureInitRe
 
 ### Events — 事件系统
 
-移植自 Unity UIElements 的池化冒泡事件系统。回调/派发异常按架构节 **[订阅/派发异常分级约定](#%E8%AE%A2%E9%98%85%E6%B4%BE%E5%8F%91%E5%BC%82%E5%B8%B8%E5%88%86%E7%BA%A7%E7%BA%A6%E5%AE%9A)** 处理（开发期 Error 后上抛，发布期隔离续跑；`m_IsInvoking` 与引用计数在 `finally` 中无条件恢复）。
+移植自 Unity UIElements 的池化冒泡事件系统。回调/派发异常按架构节 **[订阅/派发异常分级约定](#%E8%AE%A2%E9%98%85%E6%B4%BE%E5%8F%91%E5%BC%82%E5%B8%B8%E5%88%86%E7%BA%A7%E7%BA%A6%E5%AE%9A)** 处理（开发期 Fatal 后上抛，发布期隔离续跑；`m_IsInvoking` 与引用计数在 `finally` 中无条件恢复）。
 
 ```csharp
 // 注册事件

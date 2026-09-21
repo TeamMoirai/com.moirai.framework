@@ -450,8 +450,8 @@ namespace Moirai.Atropos.Events
                     }
                     catch (Exception exception)
                     {
-                        // 开发期 Error 后上抛，发布期隔离续跑；finally 仍会恢复 m_IsInvoking，与是否上抛无关。
-                        LogUtility.Error("Event callback threw: {0}", exception);
+                        // 开发期 Fatal 后上抛，发布期隔离续跑；finally 仍会恢复 m_IsInvoking，与是否上抛无关。
+                        LogUtility.Fatal("Event callback threw: {0}", exception);
                         if (EventDispatchPolicy.RETHROW_DISPATCH_EXCEPTIONS) throw;
                     }
                 }

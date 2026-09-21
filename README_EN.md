@@ -252,8 +252,8 @@ Hot-path **subscriber / callback / dispatch** failures use one tiering policy (t
 
 | Build | Behavior |
 |-------|----------|
-| `UNITY_EDITOR` / `DEVELOPMENT_BUILD` | `LogUtility.Error` then **rethrow** (fail-fast) |
-| Release | `Error` then **isolate and continue** (one subscriber/callback/event does not abort the rest of the round) |
+| `UNITY_EDITOR` / `DEVELOPMENT_BUILD` | `LogUtility.Fatal` then **rethrow** (fail-fast) |
+| Release | `Fatal` then **isolate and continue** (one subscriber/callback/event does not abort the rest of the round) |
 
 Declaration sites:
 
@@ -338,7 +338,7 @@ Each service has its own documentation (located in `Documentation~/en/`), coveri
 
 ### Events — Event System
 
-Pooled bubbling event system ported from Unity UIElements. Callback/dispatch exceptions follow **[Subscriber/Dispatch Exception Tiering](#subscriberdispatch-exception-tiering)** under Architecture (Error + rethrow in development builds; isolate in release; `m_IsInvoking` and refcounts always restored in `finally`).
+Pooled bubbling event system ported from Unity UIElements. Callback/dispatch exceptions follow **[Subscriber/Dispatch Exception Tiering](#subscriberdispatch-exception-tiering)** under Architecture (Fatal + rethrow in development builds; isolate in release; `m_IsInvoking` and refcounts always restored in `finally`).
 
 ```csharp
 // Register event

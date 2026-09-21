@@ -88,9 +88,9 @@ namespace Moirai.Atropos.Events
                 }
                 catch (Exception exception)
                 {
-                    // 开发期 Error 后上抛，发布期隔离续跑。无论是否上抛，下面的 finally 都会 Dispose 归还入队时的 Acquire；
+                    // 开发期 Fatal 后上抛，发布期隔离续跑。无论是否上抛，下面的 finally 都会 Dispose 归还入队时的 Acquire；
                     // 开发期上抛则本轮剩余事件留在队列，下一轮再排空。
-                    LogUtility.Error("EventCoordinator dispatch threw: {0}", exception);
+                    LogUtility.Fatal("EventCoordinator dispatch threw: {0}", exception);
                     if (EventDispatchPolicy.RETHROW_DISPATCH_EXCEPTIONS) throw;
                 }
                 finally
