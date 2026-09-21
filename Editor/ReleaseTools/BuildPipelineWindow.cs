@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using Sirenix.OdinInspector.Editor;
 using UnityEditor;
 using UnityEditor.UIElements;
 using UnityEngine;
@@ -10,8 +11,11 @@ using UnityEngine.UIElements;
 namespace Moirai.Atropos.Editor
 {
     /// <summary>
-    /// 打包工具窗口。仿 Unity 6 Build Profiles：左侧预设列表 + 右侧配置详情，UI Toolkit 实现。
-    /// 配置字段绘制由 <see cref="BuildConfigEditor"/> 负责（与 Inspector 共用），本窗口只负责预设管理与构建执行。
+    /// 打包工具窗口。仿 Unity 6 Build Profiles：左侧预设列表 + 右侧配置详情，UI Toolkit 布局。
+    /// <para>配置字段绘制由窗口内嵌的 Odin PropertyTree 负责（<see cref="BuildConfig"/> 上的 Odin 特性驱动；
+    /// BuildConfig 位于编辑器程序集，Odin 默认编辑器不接管该类，必须显式建树绘制）。本窗口只负责预设管理与构建执行。</para>
+    /// <para>注意：不要继承 OdinEditorWindow——本窗口自身无 Odin 成员可绘，OdinEditorWindow 会向根元素
+    /// 注入一个不可见但参与布局的空属性树 IMGUIContainer（挤占窗口高度），且无法可靠隐藏（Odin 会复显）。</para>
     /// </summary>
     public class BuildPipelineWindow : EditorWindow
     {
@@ -28,7 +32,8 @@ namespace Moirai.Atropos.Editor
 
         private BuildConfig _config;
         private string _selectedGUID;
-        private UnityEditor.Editor _configEditor;
+        private SerializedObject _configSerializedObject;
+        private PropertyTree _configTree;
 
         // 左侧
         private ListView _listView;
@@ -41,7 +46,7 @@ namespace Moirai.Atropos.Editor
 
         // 日志
         private readonly List<string> _buildLogs = new List<string>();
-        private Foldout _logFoldout;
+        private Label _logTitleLabel;
         private ScrollView _logScroll;
 
         [MenuItem("Tools/Build/打包工具窗口", false, 30)]
@@ -64,7 +69,7 @@ namespace Moirai.Atropos.Editor
         private void OnDisable()
         {
             EditorApplication.projectChanged -= OnProjectChanged;
-            DestroyConfigEditor();
+            DisposeConfigTree();
         }
 
         private void OnProjectChanged()
@@ -83,6 +88,7 @@ namespace Moirai.Atropos.Editor
             root.Clear();
 
             var split = new TwoPaneSplitView(0, 220, TwoPaneSplitViewOrientation.Horizontal);
+            split.style.flexGrow = 1;
             root.Add(split);
 
             split.Add(BuildLeftPane());
@@ -171,8 +177,11 @@ namespace Moirai.Atropos.Editor
 
         private VisualElement BuildRightPane()
         {
-            var right = new ScrollView(ScrollViewMode.Vertical);
-            right.style.flexGrow = 1;
+            // 右侧面板 = 上部滚动区（预设详情） + 下部固定 Console 日志组
+            var right = new VisualElement { style = { flexGrow = 1 } };
+
+            var scroll = new ScrollView(ScrollViewMode.Vertical) { style = { flexGrow = 1 } };
+            right.Add(scroll);
 
             // 空提示
             _emptyHint = new Label("请在左侧选择或创建一个 BuildConfig 预设")
@@ -185,19 +194,20 @@ namespace Moirai.Atropos.Editor
                     unityTextAlign = TextAnchor.MiddleCenter,
                 }
             };
-            right.Add(_emptyHint);
+            scroll.Add(_emptyHint);
 
             _detailRoot = new VisualElement();
-            right.Add(_detailRoot);
+            scroll.Add(_detailRoot);
 
             BuildHeader(_detailRoot);
 
-            // BuildConfig 字段绘制交由 BuildConfigEditor（与 Inspector 共用）
+            // BuildConfig 字段绘制由窗口内嵌的 Odin PropertyTree 负责
             _configEditorContainer = new VisualElement();
             _detailRoot.Add(_configEditorContainer);
 
             BuildActionButtons(_detailRoot);
-            BuildLogSection(_detailRoot);
+
+            BuildLogSection(right);
 
             return right;
         }
@@ -258,22 +268,58 @@ namespace Moirai.Atropos.Editor
             parent.Add(fullBtn);
         }
 
+        /// <summary>
+        /// 底部固定 Console 日志组：不参与右侧滚动区，始终可见。
+        /// </summary>
         private void BuildLogSection(VisualElement parent)
         {
-            _logFoldout = new Foldout { text = "构建日志 (0)", tooltip = "构建过程的日志输出", value = false };
+            var console = new VisualElement
+            {
+                style =
+                {
+                    height = 200,
+                    flexShrink = 0,
+                    borderTopWidth = 1,
+                    borderTopColor = new Color(0f, 0f, 0f, 0.4f),
+                    backgroundColor = new Color(0f, 0f, 0f, 0.15f),
+                }
+            };
 
+            var titleRow = new VisualElement
+            {
+                style =
+                {
+                    flexDirection = FlexDirection.Row,
+                    alignItems = Align.Center,
+                    marginTop = 4,
+                    marginBottom = 2,
+                    paddingLeft = 4,
+                    paddingRight = 4,
+                }
+            };
+            _logTitleLabel = new Label("构建日志 (0)")
+            {
+                tooltip = "构建过程的日志输出",
+                style = { unityFontStyleAndWeight = FontStyle.Bold, flexGrow = 1 }
+            };
             var clearBtn = new Button(() =>
             {
                 _buildLogs.Clear();
                 RebuildLogUI();
-            }) { text = "清空日志" };
-            clearBtn.style.height = 22;
+            }) { text = "清空" };
+            clearBtn.style.width = 50;
+            clearBtn.style.height = 20;
+            titleRow.Add(_logTitleLabel);
+            titleRow.Add(clearBtn);
+            console.Add(titleRow);
 
-            _logScroll = new ScrollView(ScrollViewMode.Vertical) { style = { height = 150 } };
+            _logScroll = new ScrollView(ScrollViewMode.Vertical)
+            {
+                style = { flexGrow = 1, paddingLeft = 4, paddingRight = 4 }
+            };
+            console.Add(_logScroll);
 
-            _logFoldout.Add(clearBtn);
-            _logFoldout.Add(_logScroll);
-            parent.Add(_logFoldout);
+            parent.Add(console);
         }
 
         #endregion
@@ -377,7 +423,7 @@ namespace Moirai.Atropos.Editor
         {
             _config = config;
 
-            DestroyConfigEditor();
+            DisposeConfigTree();
             _configEditorContainer.Clear();
 
             _detailRoot.style.display = config != null ? DisplayStyle.Flex : DisplayStyle.None;
@@ -387,19 +433,26 @@ namespace Moirai.Atropos.Editor
 
             _presetNameLabel.text = $"当前预设: {config.name}";
 
-            _configEditor = UnityEditor.Editor.CreateEditor(config);
-            var inspector = _configEditor.CreateInspectorGUI();
-            if (inspector != null)
-                _configEditorContainer.Add(inspector);
+            // 显式创建 Odin PropertyTree（绑定 SerializedObject，撤销/脏标记由树处理），经 IMGUIContainer 托管嵌入 UITK 布局
+            _configSerializedObject = new SerializedObject(config);
+            _configTree = PropertyTree.Create(_configSerializedObject);
+            _configEditorContainer.Add(new IMGUIContainer(DrawConfigTree));
         }
 
-        private void DestroyConfigEditor()
+        /// <summary>
+        /// IMGUIContainer 回调：绘制当前预设的 Odin 属性树。
+        /// </summary>
+        private void DrawConfigTree()
         {
-            if (_configEditor != null)
-            {
-                DestroyImmediate(_configEditor);
-                _configEditor = null;
-            }
+            _configTree?.Draw();
+        }
+
+        private void DisposeConfigTree()
+        {
+            _configTree?.Dispose();
+            _configTree = null;
+            _configSerializedObject?.Dispose();
+            _configSerializedObject = null;
         }
 
         private void ClearSelection()
@@ -568,7 +621,6 @@ namespace Moirai.Atropos.Editor
                 Application.logMessageReceived -= OnBuildLogReceived;
             }
 
-            _logFoldout.value = true;
         }
 
         private void ExecuteBuildPlayerOnly()
@@ -600,7 +652,6 @@ namespace Moirai.Atropos.Editor
                 Application.logMessageReceived -= OnBuildLogReceived;
             }
 
-            _logFoldout.value = true;
         }
 
         private void OnBuildLogReceived(string condition, string stackTrace, LogType type)
@@ -627,14 +678,14 @@ namespace Moirai.Atropos.Editor
 
             var label = new Label(entry) { style = { whiteSpace = WhiteSpace.Normal } };
             _logScroll.Add(label);
-            _logFoldout.text = $"构建日志 ({_buildLogs.Count})";
+            _logTitleLabel.text = $"构建日志 ({_buildLogs.Count})";
             _logScroll.schedule.Execute(() => _logScroll.scrollOffset = new Vector2(0, float.MaxValue));
         }
 
         private void RebuildLogUI()
         {
             _logScroll.Clear();
-            _logFoldout.text = $"构建日志 ({_buildLogs.Count})";
+            _logTitleLabel.text = $"构建日志 ({_buildLogs.Count})";
         }
 
         #endregion
