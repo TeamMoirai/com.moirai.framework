@@ -1,7 +1,4 @@
-using Moirai.Atropos.Resource;
 using System;
-using System.Threading;
-using Cysharp.Threading.Tasks;
 using Moirai.Atropos.Timer;
 using UnityEngine;
 using UnityEngine.Audio;
@@ -16,22 +13,24 @@ namespace Moirai.Atropos.Audio
     public class AudioAgent : IAudioVoiceRef
     {
         private AudioServiceHandler _audioHandler;
-        private ResourceServiceHandler _resourceService;
         private AudioAssetData _audioAssetData;
+        private AudioClipCache _clipCache;
 
+        // ===== Clip 缓存取用 —— 租约与条目归缓存，声部只持引用、等待者节点与世代 =====
+        private AudioClipCacheEntry _clipCacheEntry;
+        private AudioLoadRequest _loadRequest;
         private string _currentPath;
+        private AudioCachePolicy _cachePolicy;
         private Transform _transform;
-        private bool _inPool;
 
         // ===== 排队加载 — 字段复用，零分配 =====
         private string _pendingPath;
         private bool _pendingAsync;
-        private bool _pendingInPool;
+        private AudioCachePolicy _pendingPolicy;
         private bool _hasPendingLoad;
 
-        // ===== 异步世代 — 防止复用后串 clip =====
+        // ===== 加载世代 — 防止复用后串 clip =====
         private int _loadGeneration;
-        private CancellationTokenSource _loadCts;
 
         // ===== 句柄绑定 =====
         private ulong _currentHandle;
@@ -196,33 +195,30 @@ namespace Moirai.Atropos.Audio
         // 绑定/解绑已收敛至 AudioHandleRegistry.Bind/Release（IAudioVoiceRef.BoundHandle 单点写入）
 
         /// <summary>
-        /// 中止进行中的异步加载并递增世代，使迟到的回调失效。
+        /// 作废在途加载：递增世代（迟到的缓存回调据此落空）、注销挂起请求、归还缓存引用。
         /// </summary>
         private void InvalidateAsyncLoad()
         {
             _loadGeneration++;
-
-            if (_loadCts != null)
-            {
-                if (!_loadCts.IsCancellationRequested)
-                {
-                    try
-                    {
-                        _loadCts.Cancel();
-                    }
-                    catch (ObjectDisposedException)
-                    {
-                        // already disposed
-                    }
-                }
-
-                _loadCts.Dispose();
-                _loadCts = null;
-            }
+            CancelPendingLoad();
+            ReleaseClipCacheEntry();
         }
 
         /// <summary>
-        /// 进入 End 状态：取消异步、通知 Handler 自动释放句柄。
+        /// 摘除本声部在条目挂起队列上的等待者。完成回调派发时 <see cref="_loadRequest"/> 已先行清空，
+        /// 因此这里只会摘到「声部主动停播/换曲」时仍在途的请求，不会二次归还。
+        /// </summary>
+        private void CancelPendingLoad()
+        {
+            var request = _loadRequest;
+            if (request == null) return;
+
+            _loadRequest = null;
+            _clipCache?.CancelLoadRequest(request);
+        }
+
+        /// <summary>
+        /// 进入 End 状态：取消在途加载、释放 Clip 缓存引用、通知 Handler 自动释放句柄。
         /// </summary>
         private void EnterEndState()
         {
@@ -241,6 +237,18 @@ namespace Moirai.Atropos.Audio
             _audioHandler?.OnAgentPlaybackEnded(this);
         }
 
+        /// <summary>
+        /// 归还在播 clip 的缓存引用；策略为 None 时条目随之释放租约。
+        /// </summary>
+        private void ReleaseClipCacheEntry()
+        {
+            var entry = _clipCacheEntry;
+            if (entry == null) return;
+
+            _clipCacheEntry = null;
+            _clipCache?.Release(entry);
+        }
+
         #endregion 句柄绑定 [HANDLE BINDING]
 
         #region 服务方法 [SERVICE METHOD]
@@ -254,7 +262,7 @@ namespace Moirai.Atropos.Audio
         {
             // 必须绑定创建它的 Handler，不能读全局 AudioService.Handler（隔离实例/测试会串）
             _audioHandler = audioCategory.Handler;
-            _resourceService = ResourceService.Handler;
+            _clipCache = (_audioHandler as UnityAudioHandler)?.ClipCache;
 
             string groupName = audioCategory.AudioMixerGroup != null
                 ? audioCategory.AudioMixerGroup.name
@@ -343,16 +351,17 @@ namespace Moirai.Atropos.Audio
                 float elapsed = GameTime.unscaledTime - _fadeOutStartTime;
                 if (elapsed >= _fadeOutDuration)
                 {
+                    // 排队请求必须先取走：Stop() → EnterEndState() 会清掉 _hasPendingLoad 与 _pendingPath
+                    bool hasQueuedLoad = _hasPendingLoad;
+                    string path = _pendingPath;
+                    bool bAsync = _pendingAsync;
+                    AudioCachePolicy policy = _pendingPolicy;
+
                     Stop();
 
-                    if (_hasPendingLoad)
+                    if (hasQueuedLoad)
                     {
-                        string path = _pendingPath;
-                        bool bAsync = _pendingAsync;
-                        bool bInPool = _pendingInPool;
-                        _hasPendingLoad = false;
-                        _pendingPath = null;
-                        Load(path, default, bAsync, bInPool, restoreHotState: true);
+                        LoadInternal(path, bAsync, policy);
                     }
                 }
                 else
@@ -556,28 +565,33 @@ namespace Moirai.Atropos.Audio
         }
 
         /// <summary>
-        /// 加载音频代理辅助器。
+        /// 加载音频代理辅助器（完整 Options 兼容层）。
         /// </summary>
         /// <param name="path">资源路径。</param>
-        /// <param name="options">音频播放选项设置（restoreHotState 为 true 时忽略）。</param>
+        /// <param name="options">音频播放选项设置（<see cref="AudioPlayOptions.CachePolicy"/> 决定 clip 留池策略）。</param>
         /// <param name="bAsync">是否异步加载。</param>
-        /// <param name="bInPool">是否缓存已加载资源。</param>
-        /// <param name="restoreHotState">排队重载时是否跳过 options 覆盖。</param>
-        public void Load(string path, in AudioPlayOptions options, bool bAsync, bool bInPool = false, bool restoreHotState = false)
+        /// <param name="bInPool">兼容旧签名：为 true 时至少按 TTL 留池，覆盖 settings 里的「不缓存」默认。</param>
+        public void Load(string path, in AudioPlayOptions options, bool bAsync, bool bInPool = false)
         {
-            if (!restoreHotState)
-            {
-                LoadWithRequest(path, options.ToRequest(), AudioPlayColdParams.FromOptions(options), bAsync, bInPool);
-                return;
-            }
+            LoadWithRequest(path, options.ToRequest(), AudioPlayColdParams.FromOptions(options), bAsync,
+                ResolveCachePolicy(options.CachePolicy, bInPool));
+        }
 
-            LoadInternal(path, bAsync, bInPool);
+        /// <summary>
+        /// 旧 <c>bInPool</c> 布尔位与新 <see cref="AudioCachePolicy"/> 的合并点：
+        /// 显式策略优先，未指定时 <c>bInPool</c> 保证「至少留池」。
+        /// </summary>
+        private static AudioCachePolicy ResolveCachePolicy(AudioCachePolicy policy, bool bInPool)
+        {
+            if (policy != AudioCachePolicy.Default) return policy;
+            return bInPool ? AudioCachePolicy.Ttl : AudioCachePolicy.Default;
         }
 
         /// <summary>
         /// 16B 热请求 + 冷参数路径加载。
         /// </summary>
-        internal void LoadWithRequest(string path, in AudioPlayRequest request, AudioPlayColdParams cold, bool bAsync, bool bInPool)
+        internal void LoadWithRequest(string path, in AudioPlayRequest request, AudioPlayColdParams cold, bool bAsync,
+            AudioCachePolicy cachePolicy)
         {
             CaptureHotState(request, cold);
             if (_cold != null && !ReferenceEquals(_cold, cold))
@@ -586,7 +600,7 @@ namespace Moirai.Atropos.Audio
             }
 
             _cold = cold;
-            LoadInternal(path, bAsync, bInPool);
+            LoadInternal(path, bAsync, cachePolicy);
         }
 
         /// <summary>
@@ -597,45 +611,43 @@ namespace Moirai.Atropos.Audio
             Load(path, options, bAsync, bInPool);
         }
 
-        private void LoadInternal(string path, bool bAsync, bool bInPool)
+        private void LoadInternal(string path, bool bAsync, AudioCachePolicy cachePolicy)
         {
-            _inPool = bInPool;
+            _cachePolicy = cachePolicy;
             _currentPath = path;
 
+            // Loading 与空闲一样可直接改靶：InvalidateAsyncLoad 会把本声部的等待者从条目上摘掉，
+            // 在途加载留给其它声部继续用。若改挂到 _hasPendingLoad，本次结果回来后会被排队路径重复起播。
             if (_audioAgentRuntimeState == EAudioAgentRuntimeState.None ||
-                _audioAgentRuntimeState == EAudioAgentRuntimeState.End)
+                _audioAgentRuntimeState == EAudioAgentRuntimeState.End ||
+                _audioAgentRuntimeState == EAudioAgentRuntimeState.Loading)
             {
-                if (!string.IsNullOrEmpty(path))
+                if (string.IsNullOrEmpty(path)) return;
+
+                // 换曲即作废上一首的在途请求与缓存引用：不作废世代时，旧一代的加载完成会通过校验回来，
+                // 把上一首播到已经换曲的声部上。
+                InvalidateAsyncLoad();
+
+                if (_clipCache == null)
                 {
-                    // 同步分支与缓存命中同样要作废在途续体：不自增世代时，旧一代的加载完成
-                    // 会通过校验回来把上一首播到本 agent 上，并用当前路径把过期句柄塞进 AssetHandlePool。
-                    InvalidateAsyncLoad();
+                    LogUtility.Error("[AudioAgent] Handler {0} provides no clip cache; path playback is unavailable.",
+                        _audioHandler?.GetType().Name);
+                    EnterEndState();
+                    return;
+                }
 
-                    if (bInPool && _audioHandler.AssetHandlePool.TryGetValue(path, out var operationHandleObj))
-                    {
-                        OnAssetLoadComplete(operationHandleObj);
-                        return;
-                    }
-
-                    if (bAsync)
-                    {
-                        _audioAgentRuntimeState = EAudioAgentRuntimeState.Loading;
-                        int generation = _loadGeneration;
-                        _loadCts = new CancellationTokenSource();
-                        LoadLeaseAsyncInternal(path, generation, _loadCts.Token).Forget();
-                    }
-                    else
-                    {
-                        var lease = _resourceService.LoadLease<AudioClip>(path);
-                        OnAssetLoadComplete(lease);
-                    }
+                // 命中已缓存条目时 RequestClip 会同步回调 OnClipReady，故必须先置 Loading
+                _audioAgentRuntimeState = EAudioAgentRuntimeState.Loading;
+                if (!_clipCache.RequestClip(path, bAsync, cachePolicy, this, _loadGeneration))
+                {
+                    EnterEndState();
                 }
             }
             else
             {
                 _pendingPath = path;
                 _pendingAsync = bAsync;
-                _pendingInPool = bInPool;
+                _pendingPolicy = cachePolicy;
                 _hasPendingLoad = true;
 
                 if (_audioAgentRuntimeState == EAudioAgentRuntimeState.Playing ||
@@ -643,122 +655,55 @@ namespace Moirai.Atropos.Audio
                 {
                     Stop(fadeoutDuration: FADEOUT_DEFAULT_DURATION);
                 }
+
+                // 源已自行停播时 Stop() 不会走淡出而是直接收口，EnterEndState 顺带清空排队——
+                // 此时按新路径立刻重开，否则这次改靶会被静默丢弃。
+                if (_audioAgentRuntimeState == EAudioAgentRuntimeState.End)
+                {
+                    LoadInternal(path, bAsync, cachePolicy);
+                }
             }
         }
 
         /// <summary>
-        /// 资源加载完成。
+        /// clip 就绪（缓存回调）。世代或状态不符说明本声部已换曲/已停播，拒绝并让缓存照常留池。
         /// </summary>
-        private void OnAssetLoadComplete(object handleObj)
+        /// <returns>已接管并起播返回 true。</returns>
+        internal bool OnClipReady(AudioClipCacheEntry entry, int generation)
         {
-            if (handleObj != null && _inPool && !string.IsNullOrEmpty(_currentPath))
+            if (_audioAgentRuntimeState != EAudioAgentRuntimeState.Loading || generation != _loadGeneration) return false;
+
+            _loadRequest = null;
+            _clipCacheEntry = entry;
+            _clipCache.Retain(entry);
+
+            // 兼容视图：句柄包装仍指向本次播放的租约，但 InPool=true 让 Dealloc 不再 Dispose（租约归缓存）
+            if (_audioAssetData != null)
             {
-                _audioHandler.AssetHandlePool.TryAdd(_currentPath, handleObj);
+                AudioAssetData.Dealloc(_audioAssetData);
             }
 
-            if (_hasPendingLoad)
-            {
-                if (!_inPool && handleObj != null)
-                {
-                    ReleaseLeaseObject(handleObj);
-                }
+            _audioAssetData = AudioAssetData.Alloc(entry.Lease, true);
 
-                _audioAgentRuntimeState = EAudioAgentRuntimeState.End;
-                string path = _pendingPath;
-                bool bAsync = _pendingAsync;
-                bool bInPool = _pendingInPool;
-                _hasPendingLoad = false;
-                _pendingPath = null;
-                Load(path, default, bAsync, bInPool, restoreHotState: true);
-                return;
-            }
-
-            if (handleObj != null)
-            {
-                if (_audioAssetData != null)
-                {
-                    AudioAssetData.Dealloc(_audioAssetData);
-                    _audioAssetData = null;
-                }
-
-                _audioAssetData = AudioAssetData.Alloc(handleObj, _inPool);
-
-                if (TryGetLeaseClip(handleObj, out var clip))
-                {
-                    BeginPlayback(clip);
-                }
-                else
-                {
-                    EnterEndState();
-                }
-            }
-            else
-            {
-                EnterEndState();
-            }
+            BeginPlayback(entry.Clip);
+            return true;
         }
 
         /// <summary>
-        /// 异步加载音频租约（世代校验 + CancellationToken）。
+        /// clip 加载失败（缓存回调）。仅本声部仍在这次加载的世代上时才收口。
         /// </summary>
-        private async UniTaskVoid LoadLeaseAsyncInternal(string path, int generation, CancellationToken cancellationToken)
+        internal void OnClipLoadFailed(int generation)
         {
-            object lease = null;
-            try
-            {
-                var result = await _resourceService.LoadLeaseAsync<AudioClip>(path, cancellationToken);
-                lease = result;
-            }
-            catch (OperationCanceledException)
-            {
-                return;
-            }
-            catch (Exception e)
-            {
-                if (generation == _loadGeneration)
-                {
-                    LogUtility.Error("[AudioAgent] Async load failed: {0}", e.Message);
-                    EnterEndState();
-                }
+            if (_audioAgentRuntimeState != EAudioAgentRuntimeState.Loading || generation != _loadGeneration) return;
 
-                return;
-            }
-
-            if (generation != _loadGeneration || cancellationToken.IsCancellationRequested)
-            {
-                ReleaseLeaseObject(lease);
-                return;
-            }
-
-            OnAssetLoadComplete(lease);
+            _loadRequest = null;
+            EnterEndState();
         }
 
-        private static bool TryGetLeaseClip(object handleObj, out AudioClip clip)
-        {
-            switch (handleObj)
-            {
-                case ResourceAssetLease<AudioClip> typedLease:
-                    clip = typedLease.Asset;
-                    return clip != null;
-                case YooAsset.AssetHandle nativeHandle when nativeHandle.AssetObject is AudioClip audioClip:
-                    clip = audioClip;
-                    return true;
-                default:
-                    clip = null;
-                    return false;
-            }
-        }
-
-        private static bool ReleaseLeaseObject(object handleObj)
-        {
-            if (handleObj is IDisposable disposable)
-            {
-                disposable.Dispose();
-                return true;
-            }
-
-            return false;
-        }
+        /// <summary>
+        /// 登记本声部的挂起等待者，供停播/换曲时原地注销。
+        /// </summary>
+        internal void SetLoadRequest(AudioLoadRequest request) => _loadRequest = request;
 
         /// <summary>
         /// 停止播放音频代理辅助器。

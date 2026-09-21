@@ -59,6 +59,11 @@ namespace Moirai.Atropos.Audio
         [SerializeField] private bool m_DoNotAutoRecycleIfNotDonePlaying;
         public bool DoNotAutoRecycleIfNotDonePlaying { get => m_DoNotAutoRecycleIfNotDonePlaying; internal set => m_DoNotAutoRecycleIfNotDonePlaying = value; }
 
+        [Header("缓存 [Clip Cache]")]
+        [Tooltip("路径播放的 Clip 缓存策略；Default 回落到服务设置")]
+        [SerializeField] private AudioCachePolicy m_CachePolicy;
+        public AudioCachePolicy CachePolicy { get => m_CachePolicy; set => m_CachePolicy = value; }
+
         // 时间
         [Header("时间 [Time]")]
         [Tooltip("播放前的延迟(以秒为单位)")]

@@ -801,6 +801,31 @@ namespace Moirai.Atropos.Audio.Middleware
         /// <inheritdoc />
         public override void CleanAudioPool() => AssetHandlePool.Clear();
 
+        /// <inheritdoc />
+        /// <remarks>中间件无 clip 租约；仅登记键值占位。</remarks>
+        public override bool Preload(string address, AudioCachePolicy policy = AudioCachePolicy.Pin)
+        {
+            if (string.IsNullOrEmpty(address)) return false;
+            AssetHandlePool[address] = address;
+            return true;
+        }
+
+        /// <inheritdoc />
+        public override void PreloadAsync(string address, AudioCachePolicy policy, Action<bool> completed = null)
+        {
+            completed?.Invoke(Preload(address, policy));
+        }
+
+        /// <inheritdoc />
+        public override bool UnloadClipCache(string address, bool force = false)
+        {
+            if (string.IsNullOrEmpty(address)) return false;
+            return AssetHandlePool.Remove(address);
+        }
+
+        /// <inheritdoc />
+        public override void ClearClipCache(bool force = false) => AssetHandlePool.Clear();
+
         #endregion 资源池 [ASSET POOL]
 
         #region 事件 [EVENTS]

@@ -537,6 +537,22 @@ namespace Moirai.Atropos.Audio
         /// </summary>
         public static void CleanAudioPool() => s_Handler?.CleanAudioPool();
 
+        /// <summary>预加载地址（默认 Pin 常驻；Lease 保留 + 缓存）。</summary>
+        public static bool Preload(string address, AudioCachePolicy policy = AudioCachePolicy.Pin) =>
+            s_Handler?.Preload(address, policy) ?? false;
+
+        /// <summary>异步预加载地址。</summary>
+        public static void PreloadAsync(string address, AudioCachePolicy policy = AudioCachePolicy.Pin,
+            Action<bool> completed = null) =>
+            s_Handler?.PreloadAsync(address, policy, completed);
+
+        /// <summary>卸载地址缓存（force=true 忽略引用计数）。</summary>
+        public static bool UnloadClipCache(string address, bool force = false) =>
+            s_Handler?.UnloadClipCache(address, force) ?? false;
+
+        /// <summary>清空 Clip 缓存（force=true 连 Pin 一并清）。</summary>
+        public static void ClearClipCache(bool force = false) => s_Handler?.ClearClipCache(force);
+
         #endregion 资源池 [ASSET POOL]
     }
 }

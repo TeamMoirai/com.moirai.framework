@@ -43,6 +43,23 @@ namespace Moirai.Atropos.Audio
         /// <summary>宿主栈池预热数量。</summary>
         internal static int AudioHostWarmupCount => Instance.m_AudioHostWarmupCount;
 
+        // AudioClip 缓存（Lease + LRU + TTL + Pin）
+        [Header("Clip 缓存 [Clip Cache]")]
+        [Tooltip("Clip 缓存最大条目数（超出后从 LRU 驱逐无引用条目）")]
+        [SerializeField, Min(1)] private int m_ClipCacheCapacity = AudioClipCache.DefaultCapacity;
+        /// <summary>Clip 缓存容量。</summary>
+        internal static int ClipCacheCapacity => Instance.m_ClipCacheCapacity;
+
+        [Tooltip("用后缓存 TTL（秒）；0 表示不按时间驱逐")]
+        [SerializeField, Min(0f)] private float m_ClipCacheTtl = AudioClipCache.DefaultTtl;
+        /// <summary>Clip 缓存 TTL 秒数。</summary>
+        internal static float ClipCacheTtl => Instance.m_ClipCacheTtl;
+
+        [Tooltip("路径播放默认缓存策略（None=用完即弃，Ttl=用后缓存，Pin=常驻）")]
+        [SerializeField] private AudioCachePolicy m_DefaultClipCachePolicy = AudioCachePolicy.Ttl;
+        /// <summary>默认 Clip 缓存策略。</summary>
+        internal static AudioCachePolicy DefaultClipCachePolicy => Instance.m_DefaultClipCachePolicy;
+
 #if UNITY_EDITOR
 
         private void Reset()

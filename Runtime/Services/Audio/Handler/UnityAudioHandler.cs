@@ -32,6 +32,8 @@ namespace Moirai.Atropos.Audio
         [NonSerialized] private readonly AudioHandleRegistry<AudioAgent> _handles = new AudioHandleRegistry<AudioAgent>();
         // 音量过渡调度器（声部 + Master/音轨总线伪句柄共用）
         [NonSerialized] private readonly AudioFadeScheduler _fades = new AudioFadeScheduler();
+        // Clip 缓存（Lease + LRU + TTL + Pin + lowMemory）——路径播放单一真相源
+        [NonSerialized] private readonly AudioClipCache _clipCache = new AudioClipCache();
 
         [NonSerialized] private AudioMixer _audioMixer;
         /// <inheritdoc />
@@ -41,8 +43,12 @@ namespace Moirai.Atropos.Audio
         /// <inheritdoc />
         public override Transform InstanceRoot { get => _instanceRoot; set => _instanceRoot = value; }
 
+        /// <summary>Clip 缓存（Agent 路径加载经此取租约）。</summary>
+        internal AudioClipCache ClipCache => _clipCache;
+
         /// <inheritdoc />
-        public override Dictionary<string, object> AssetHandlePool { get; } = new Dictionary<string, object>();
+        /// <remarks>兼容视图：由 <see cref="AudioClipCache"/> 暴露的已加载池条目，外部请勿直接改写。</remarks>
+        public override Dictionary<string, object> AssetHandlePool => _clipCache.PoolView;
 
         #region 音轨状态 [TRACK STATUS]
 
@@ -204,6 +210,7 @@ namespace Moirai.Atropos.Audio
 
             StopAll(fadeoutDuration: 0f);
             CleanAudioPool();
+            _clipCache.Dispose();
             _fades.Clear();
             _handles.Clear();
 
@@ -240,6 +247,7 @@ namespace Moirai.Atropos.Audio
                 categories[i]?.Update(realElapseSeconds);
             }
 
+            _clipCache.Tick();
             _fades.Update(GameTime.unscaledTime, this);
         }
 
@@ -313,6 +321,13 @@ namespace Moirai.Atropos.Audio
             {
                 _audioMixer = AudioServiceSettings.AudioMixer;
             }
+
+            // Clip 缓存：容量/TTL/默认策略来自 Settings
+            _clipCache.Configure(
+                ResourceService.Handler,
+                AudioServiceSettings.ClipCacheCapacity,
+                AudioServiceSettings.ClipCacheTtl,
+                AudioServiceSettings.DefaultClipCachePolicy);
 
             _audioGroupConfigs = audioGroupConfigs;
             if (_audioGroupConfigs == null)
@@ -963,6 +978,7 @@ namespace Moirai.Atropos.Audio
         #region 资源池 [ASSET POOL]
 
         /// <inheritdoc />
+        /// <remarks>兼容旧 API：预加载 = Pin 常驻进 Clip 缓存。</remarks>
         public override void PutInAudioPool(List<string> list)
         {
             if (_unityAudioDisabled || list == null) return;
@@ -970,10 +986,9 @@ namespace Moirai.Atropos.Audio
             for (int i = 0; i < list.Count; i++)
             {
                 string path = list[i];
-                if (!string.IsNullOrEmpty(path) && !AssetHandlePool.ContainsKey(path))
+                if (!string.IsNullOrEmpty(path))
                 {
-                    var lease = ResourceService.LoadLease<AudioClip>(path);
-                    AssetHandlePool.Add(path, lease);
+                    _clipCache.Preload(path, AudioCachePolicy.Pin);
                 }
             }
         }
@@ -985,12 +1000,7 @@ namespace Moirai.Atropos.Audio
 
             for (int i = 0; i < list.Count; i++)
             {
-                string path = list[i];
-                if (AssetHandlePool.TryGetValue(path, out var handleObj))
-                {
-                    ReleaseHandleObject(handleObj);
-                    AssetHandlePool.Remove(path);
-                }
+                _clipCache.Unload(list[i], force: true);
             }
         }
 
@@ -998,21 +1008,34 @@ namespace Moirai.Atropos.Audio
         public override void CleanAudioPool()
         {
             if (_unityAudioDisabled) return;
-
-            foreach (var dic in AssetHandlePool)
-            {
-                ReleaseHandleObject(dic.Value);
-            }
-
-            AssetHandlePool.Clear();
+            _clipCache.ClearCache(force: true);
         }
 
-        private static void ReleaseHandleObject(object handleObj)
+        /// <inheritdoc />
+        public override bool Preload(string address, AudioCachePolicy policy = AudioCachePolicy.Pin)
+            => !_unityAudioDisabled && _clipCache.Preload(address, policy);
+
+        /// <inheritdoc />
+        public override void PreloadAsync(string address, AudioCachePolicy policy, Action<bool> completed = null)
         {
-            if (handleObj is IDisposable disposable)
+            if (_unityAudioDisabled)
             {
-                disposable.Dispose();
+                completed?.Invoke(false);
+                return;
             }
+
+            _clipCache.PreloadAsync(address, policy, completed);
+        }
+
+        /// <inheritdoc />
+        public override bool UnloadClipCache(string address, bool force = false)
+            => !_unityAudioDisabled && _clipCache.Unload(address, force);
+
+        /// <inheritdoc />
+        public override void ClearClipCache(bool force = false)
+        {
+            if (_unityAudioDisabled) return;
+            _clipCache.ClearCache(force);
         }
 
         #endregion 资源池 [ASSET POOL]
