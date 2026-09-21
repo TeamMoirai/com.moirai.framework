@@ -75,7 +75,7 @@ namespace Moirai.Atropos
 
         private const int MISSING_INDEX = -1;
 
-        // ── Tick 异常分级策略：开发期 fail-fast（记录后上抛，第一时间暴露缺陷），发布期隔离续跑（单服务故障不拖垮整帧）──
+        // ── Tick 异常分级：开发期 Error 后上抛（第一时间暴露缺陷），发布期隔离续跑（单服务故障不拖垮整帧）──
         // const 门控：JIT 裁剪死分支，Release 零运行时成本。
         internal const bool RETHROW_TICK_EXCEPTIONS =
 #if UNITY_EDITOR || DEVELOPMENT_BUILD

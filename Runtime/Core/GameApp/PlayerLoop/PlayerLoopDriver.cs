@@ -31,7 +31,7 @@ namespace Moirai.Atropos
 
         /// <summary>
         /// 订阅异常分级策略：开发期记录后上抛（缺陷第一时间暴露），发布期隔离续跑（单个订户不拖垮整阶段）。
-        /// <para>与内核 <c>ServiceScope.RETHROW_TICK_EXCEPTIONS</c> 同一约定。<b>两处需同步修改</b>——
+        /// <para>开发期记录后上抛，发布期隔离续跑。
         /// 本类属 <c>Runtime/Core</c>，不引用 <c>Runtime/Services</c> 的常量以免逆向依赖。</para>
         /// <para><c>const</c> 门控：JIT 裁掉死分支，发布构建零运行时成本。</para>
         /// </summary>

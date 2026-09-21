@@ -446,12 +446,13 @@ namespace Moirai.Atropos.Events
 
                     try
                     {
-                        // 有意隔离：单个回调抛出不得截断同阶段其余回调（与 PlayerLoopDriver/ServiceScope 的隔离策略一致）。
                         callback.Invoke(evt, propagationPhase);
                     }
                     catch (Exception exception)
                     {
-                        LogUtility.Fatal(exception);
+                        // 开发期 Error 后上抛，发布期隔离续跑；finally 仍会恢复 m_IsInvoking，与是否上抛无关。
+                        LogUtility.Error("Event callback threw: {0}", exception);
+                        if (EventDispatchPolicy.RETHROW_DISPATCH_EXCEPTIONS) throw;
                     }
                 }
             }

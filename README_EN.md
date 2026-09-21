@@ -51,6 +51,7 @@ Moirai Framework
     - [Quick Tips](#quick-tips)
 - [Architecture](#architecture)
   - [Service System](#service-system)
+  - [Subscriber/Dispatch Exception Tiering](#subscriberdispatch-exception-tiering)
   - [Startup Flow](#startup-flow)
 - [Core Services](#core-services)
 - [Core Tools](#core-tools)
@@ -245,6 +246,36 @@ var my = GameServices.GetRequiredService<MyService>();
 
 > See **[Core Service System documentation](Documentation~/en/Core.md)** for details (custom services, scope shadowing, cross-service dependencies)
 
+### Subscriber/Dispatch Exception Tiering
+
+Hot-path **subscriber / callback / dispatch** failures use one tiering policy (three `const` declarations that must stay in sync; assembly boundaries prevent cross-referencing):
+
+| Build | Behavior |
+|-------|----------|
+| `UNITY_EDITOR` / `DEVELOPMENT_BUILD` | `LogUtility.Error` then **rethrow** (fail-fast) |
+| Release | `Error` then **isolate and continue** (one subscriber/callback/event does not abort the rest of the round) |
+
+Declaration sites:
+
+| Constant | File | Scope |
+|----------|------|-------|
+| `PlayerLoopDriver.RETHROW_SUBSCRIBER_EXCEPTIONS` | `Runtime/Core/GameApp/PlayerLoop/PlayerLoopDriver.cs` | Frame handlers / core-hook path |
+| `ServiceScope.RETHROW_TICK_EXCEPTIONS` | `Runtime/Services/Kernel/World/ServiceScope.cs` | Service ticks / interceptors (except veto channel `OnServiceRegistering`: throwing rejects registration and is never isolated) |
+| `EventDispatchPolicy.RETHROW_DISPATCH_EXCEPTIONS` | `Runtime/Core/Events/Models/EventDispatcher.cs` | Event callbacks, `ProcessEvent`, coordinator drain |
+
+**Hygiene independent of the tier (always in `finally`):**
+
+- `PlayerLoopDriver.s_IsDriving`, event registry `m_IsInvoking` — leaked flags must not survive exceptions or registration/dispatch silently dies
+- Queue `Acquire`/`Dispose` pairing and pool return — leftovers after an aborted drain must each `Dispose` then empty the queue before pool release
+- `ServiceScope._isIterating` and pending-change flush
+
+**Explicit exceptions (always isolate; not RETHROW-tiered):**
+
+- `PlayerLoopDriver.InvokeAllQuarantined`: low-frequency lifecycle broadcasts (`ApplicationQuit` / `Destroy` / Focus / Pause) — truncation skips later release/save work
+- `ProcessEventQueue` leftover `Dispose`: post-failure resource hygiene, not business-exception policy
+
+When changing any of the three constants, update **all three sites + this section + CHANGELOG** together.
+
 ### Startup Flow
 
 `Main/Procedure/` defines the complete startup chain:
@@ -307,7 +338,7 @@ Each service has its own documentation (located in `Documentation~/en/`), coveri
 
 ### Events — Event System
 
-Pooled bubbling event system ported from Unity UIElements.
+Pooled bubbling event system ported from Unity UIElements. Callback/dispatch exceptions follow **[Subscriber/Dispatch Exception Tiering](#subscriberdispatch-exception-tiering)** under Architecture (Error + rethrow in development builds; isolate in release; `m_IsInvoking` and refcounts always restored in `finally`).
 
 ```csharp
 // Register event

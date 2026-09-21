@@ -6,6 +6,20 @@ using Debug = UnityEngine.Debug;
 
 namespace Moirai.Atropos.Events
 {
+    /// <summary>
+    /// 事件派发链异常分级策略：开发期 <see cref="LogUtility.Error(System.Exception, UnityEngine.Object)"/> 后上抛，发布期隔离续跑。
+    /// <para><c>const</c> 门控：JIT 裁掉死分支，发布构建零运行时成本。深度计数（<c>m_IsInvoking</c>）与引用计数归还在 <c>finally</c> 中无条件执行，与本开关无关。</para>
+    /// </summary>
+    internal static class EventDispatchPolicy
+    {
+        internal const bool RETHROW_DISPATCH_EXCEPTIONS =
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            true;
+#else
+            false;
+#endif
+    }
+
     public enum DispatchMode
     {
         /// <summary>
@@ -221,6 +235,12 @@ namespace Moirai.Atropos.Events
                     {
                         ProcessEvent(evt, coordinator);
                     }
+                    catch (Exception exception)
+                    {
+                        // 开发期 Error 后上抛，发布期隔离续跑（单条事件失败不截断本队列其余事件）。
+                        LogUtility.Error("EventDispatcher ProcessEvent threw: {0}", exception);
+                        if (EventDispatchPolicy.RETHROW_DISPATCH_EXCEPTIONS) throw;
+                    }
                     finally
                     {
                         // 在将事件放入队列时平衡 Acquire。
@@ -231,7 +251,8 @@ namespace Moirai.Atropos.Events
             finally
             {
                 ProcessingEvents = false;
-                // 异常会中断上面的 while；残留记录必须逐个归还引用计数，否则脏队列被池再取走时会在之后的任意时刻重放，且事件永久滞留池外。
+                // 上抛/异常会中断上面的 while；残留记录必须逐个归还引用计数，否则脏队列被池再取走时会在之后的任意时刻重放，且事件永久滞留池外。
+                // 此处是失败后的资源卫生，不参与 RETHROW 分级：无论开发期是否上抛，都必须把残留事件 Dispose 掉并清空队列再回池。
                 while (queueToProcess.Count > 0)
                 {
                     EventBase leftover = queueToProcess.Dequeue().m_Event;
@@ -241,7 +262,7 @@ namespace Moirai.Atropos.Events
                     }
                     catch (Exception exception)
                     {
-                        LogUtility.Fatal(exception);
+                        LogUtility.Error("EventDispatcher leftover Dispose threw: {0}", exception);
                     }
                 }
                 s_EventQueuePool.Release(queueToProcess);

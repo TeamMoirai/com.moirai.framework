@@ -51,6 +51,7 @@ Moirai Framework
     - [快捷功能](#%E5%BF%AB%E6%8D%B7%E5%8A%9F%E8%83%BD)
 - [🏗️ 架构](#-%E6%9E%B6%E6%9E%84)
   - [服务系统](#%E6%9C%8D%E5%8A%A1%E7%B3%BB%E7%BB%9F)
+  - [订阅/派发异常分级约定](#%E8%AE%A2%E9%98%85%E6%B4%BE%E5%8F%91%E5%BC%82%E5%B8%B8%E5%88%86%E7%BA%A7%E7%BA%A6%E5%AE%9A)
   - [启动流程](#%E5%90%AF%E5%8A%A8%E6%B5%81%E7%A8%8B)
 - [📦 功能服务](#-%E5%8A%9F%E8%83%BD%E6%9C%8D%E5%8A%A1)
 - [🧰 核心工具](#-%E6%A0%B8%E5%BF%83%E5%B7%A5%E5%85%B7)
@@ -252,6 +253,36 @@ var my = GameServices.GetRequiredService<MyService>();
 
 > 📖 详细用法（自定义服务、作用域遮蔽、跨服务依赖）见 **[Core 服务系统文档](Documentation~/zh/Core.md)**
 
+### 订阅/派发异常分级约定
+
+热路径上「订户 / 回调 / 派发」抛异常时，框架采用**同一套分级策略**（三处 `const` 各自声明、**需同步修改**，因程序集边界不互相引用）：
+
+| 构建 | 行为 |
+|------|------|
+| `UNITY_EDITOR` / `DEVELOPMENT_BUILD` | `LogUtility.Error` 记录后**上抛**（fail-fast，缺陷第一时间暴露） |
+| 发布构建 | `Error` 记录后**隔离续跑**（单订户/单回调/单事件不拖垮同轮其余项） |
+
+声明位置：
+
+| 常量 | 文件 | 范围 |
+|------|------|------|
+| `PlayerLoopDriver.RETHROW_SUBSCRIBER_EXCEPTIONS` | `Runtime/Core/GameApp/PlayerLoop/PlayerLoopDriver.cs` | 帧订阅 Handler / 核心钩子旁路 |
+| `ServiceScope.RETHROW_TICK_EXCEPTIONS` | `Runtime/Services/Kernel/World/ServiceScope.cs` | 服务 Tick / 拦截器（否决通道 `OnServiceRegistering` 除外：抛出即拒绝注册，不被隔离） |
+| `EventDispatchPolicy.RETHROW_DISPATCH_EXCEPTIONS` | `Runtime/Core/Events/Models/EventDispatcher.cs` | 事件回调、`ProcessEvent`、协调器排空 |
+
+**与分级无关的硬性卫生（`finally` 无条件执行）：**
+
+- `PlayerLoopDriver` 的 `s_IsDriving`、事件注册表的 `m_IsInvoking` — 异常不得泄漏标记，否则注册/派发会静默失效
+- 事件队列 / 协调器队列的 `Acquire`/`Dispose` 配对与池回收入 — 异常中断后残留事件必须逐个 `Dispose` 再清空队列回池
+- `ServiceScope` 的 `_isIterating` 与 pending 变更冲刷
+
+**明确例外（无条件隔离，不参与 RETHROW）：**
+
+- `PlayerLoopDriver.InvokeAllQuarantined`：`ApplicationQuit` / `Destroy` / Focus / Pause 等低频生命周期广播 — 截断等于漏掉后续释放/存档
+- 事件队列 `ProcessEventQueue` 的 leftover `Dispose`：失败后的资源卫生，不按业务异常分级
+
+改其中任一常量的语义或级别时，**三处 + 本节约定 + CHANGELOG** 一并更新。
+
 ### 启动流程
 
 `Main/Procedure/` 定义了完整的启动链：
@@ -314,7 +345,7 @@ ProcedureLaunch → ProcedureSplash → ProcedureInitPackage → ProcedureInitRe
 
 ### Events — 事件系统
 
-移植自 Unity UIElements 的池化冒泡事件系统。
+移植自 Unity UIElements 的池化冒泡事件系统。回调/派发异常按架构节 **[订阅/派发异常分级约定](#%E8%AE%A2%E9%98%85%E6%B4%BE%E5%8F%91%E5%BC%82%E5%B8%B8%E5%88%86%E7%BA%A7%E7%BA%A6%E5%AE%9A)** 处理（开发期 Error 后上抛，发布期隔离续跑；`m_IsInvoking` 与引用计数在 `finally` 中无条件恢复）。
 
 ```csharp
 // 注册事件
