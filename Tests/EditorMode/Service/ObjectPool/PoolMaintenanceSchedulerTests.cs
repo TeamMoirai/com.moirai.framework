@@ -289,13 +289,23 @@ namespace Service.ObjectPool
             try
             {
                 Assert.DoesNotThrow(() => scheduler.ProcessDue(100f));
+                Assert.AreEqual(1, poison.ExecutionCount, "抛出项当场出堆");
+
+                // 必须循环排空，不能断言"一次调用走完本轮"：ProcessDue 有 1ms 墙钟预算，
+                // 而抛出那一格的 Fatal（Editor 里连栈一起落日志）单独就可能吃满它，
+                // 其余到期项因此被推迟到下一次调用——那是预算的本意，不是隔离失效。
+                for (int i = 0; i < 8 && scheduler.Count > 0; i++)
+                {
+                    scheduler.ProcessDue(100f);
+                }
             }
             finally
             {
                 LogAssert.ignoreFailingMessages = false;
             }
 
-            Assert.AreEqual(1, poison.ExecutionCount);
+            Assert.AreEqual(0, scheduler.Count, "due queue must drain");
+            Assert.AreEqual(1, poison.ExecutionCount, "dequeued poison must not come back");
             Assert.AreEqual(1, second.Executions.Count, "a poisoned pool must not truncate the due round");
             Assert.AreEqual(1, third.Executions.Count);
         }
