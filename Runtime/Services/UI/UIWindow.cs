@@ -28,6 +28,8 @@ namespace Moirai.Atropos.UI
         private GraphicRaycaster[] _childRaycaster;
         private Action<UIWindow> _prepareCallback;
         private SetUISafeFitHelper _setUISafeFitHelper;
+        // 打开/关闭交接代次：只有最后一轮 InternalClose 的主人可以解锁交互与隐藏窗口
+        private uint _closeLifetime;
 
         protected CancellationTokenSource _cts;
 
@@ -344,6 +346,12 @@ namespace Moirai.Atropos.UI
         /// </summary>
         internal void InternalCreate()
         {
+            // 缓存实例重开时 _isCreate 仍为 true，上一轮关闭的动画续体可能还挂在路上：
+            // 先作废其代次并掐掉动画，再交还交互锁定状态，交给本次打开流程重新决策。
+            _closeLifetime++;
+            CancelCts();
+            UnlockInteraction();
+
             if (_isCreate == false)
             {
                 _isCreate = true;
@@ -446,10 +454,10 @@ namespace Moirai.Atropos.UI
         protected internal virtual void InternalClose()
         {
             OnClose();
-            InternalCloseAsync().Forget();
+            InternalCloseAsync(++_closeLifetime).Forget();
         }
 
-        private async UniTaskVoid InternalCloseAsync()
+        private async UniTaskVoid InternalCloseAsync(uint lifetime)
         {
             CancelCts();
             _cts = new CancellationTokenSource();
@@ -464,7 +472,11 @@ namespace Moirai.Atropos.UI
             UnlockInteraction();
 
             CancelCts();
-            gameObject.SetActive(false);
+            // 代次已被重开/销毁接管时，可见性归那一方管：此处再 SetActive(false) 会把栈顶活窗口打成不可见
+            if (lifetime == _closeLifetime)
+            {
+                gameObject.SetActive(false);
+            }
         }
 
         protected internal void InternalDestroy(bool isShutDown = false)
