@@ -277,7 +277,15 @@ namespace Moirai.Atropos.ObjectPool
             float now = Time.realtimeSinceStartup;
             for (int i = 0; i < _poolCount; i++)
             {
-                _pools[i].ExecuteMaintenance(now, true);
+                try
+                {
+                    _pools[i].ExecuteMaintenance(now, true);
+                }
+                catch (Exception exception)
+                {
+                    // 有意隔离：池 A 的低内存维护抛出不该让 B..Z 全部躲过收缩。
+                    LogUtility.Fatal(exception);
+                }
             }
         }
 
@@ -699,24 +707,40 @@ namespace Moirai.Atropos.ObjectPool
             public override void ReleaseAllUnused()
             {
                 int released = 0;
-                int current = _unusedHead;
-                while (current >= 0)
+                try
                 {
-                    int next = _storage.GetSlotRef(current).NextUnused;
-                    if (CanReleaseSlot(ref _storage.GetSlotRef(current)))
+                    int current = _unusedHead;
+                    while (current >= 0)
                     {
-                        ReleaseSlot(current);
-                        released++;
+                        // 后继先取：ReleaseSlot 会把该槽位摘链并复位指针。
+                        int next = _storage.GetSlotRef(current).NextUnused;
+                        if (CanReleaseSlot(ref _storage.GetSlotRef(current)))
+                        {
+                            try
+                            {
+                                ReleaseSlot(current);
+                                released++;
+                            }
+                            catch (Exception exception)
+                            {
+                                // 有意隔离：一个对象的 Release 抛出不得中止本轮其余空闲对象的释放。
+                                // 槽位的摘链与归还已由 ReleaseSlot 的 finally 结清。
+                                LogUtility.Fatal(exception);
+                            }
+                        }
+
+                        current = next;
                     }
 
-                    current = next;
+                    _pendingReleaseCount = 0;
                 }
-
-                _pendingReleaseCount = 0;
-                RefreshMaintenance();
-                if (released > 0)
+                finally
                 {
-                    ValidateState();
+                    RefreshMaintenance();
+                    if (released > 0)
+                    {
+                        ValidateState();
+                    }
                 }
             }
 
@@ -737,26 +761,32 @@ namespace Moirai.Atropos.ObjectPool
                     return;
                 }
 
-                // 超容持续达到间隔 → 标记超出部分待释放（"连续超容"计时，回落即重置）。
-                if (_overCapacitySince >= 0f && now - _overCapacitySince >= _autoReleaseInterval)
+                try
                 {
-                    _overCapacitySince = now;
-                    MarkRelease(Count - _capacity);
-                }
+                    // 超容持续达到间隔 → 标记超出部分待释放（"连续超容"计时，回落即重置）。
+                    if (_overCapacitySince >= 0f && now - _overCapacitySince >= _autoReleaseInterval)
+                    {
+                        _overCapacitySince = now;
+                        MarkRelease(Count - _capacity);
+                    }
 
-                if (_pendingReleaseCount > 0)
-                {
-                    // 预算钳制到待释放数——待释放计数是"需要"而非"可以"，超发会多杀对象。
-                    int releaseBudget = Math.Min(RELEASES_PER_WAKE, _pendingReleaseCount);
-                    int released = ReleaseUnused(releaseBudget, false, float.MinValue);
-                    _pendingReleaseCount = Math.Max(0, _pendingReleaseCount - released);
+                    if (_pendingReleaseCount > 0)
+                    {
+                        // 预算钳制到待释放数——待释放计数是"需要"而非"可以"，超发会多杀对象。
+                        int releaseBudget = Math.Min(RELEASES_PER_WAKE, _pendingReleaseCount);
+                        int released = ReleaseUnused(releaseBudget, false, float.MinValue);
+                        _pendingReleaseCount = Math.Max(0, _pendingReleaseCount - released);
+                    }
+                    else if (_expireTime < float.MaxValue && _unusedCount > 0)
+                    {
+                        ReleaseUnused(RELEASES_PER_WAKE, true, now - _expireTime);
+                    }
                 }
-                else if (_expireTime < float.MaxValue && _unusedCount > 0)
+                finally
                 {
-                    ReleaseUnused(RELEASES_PER_WAKE, true, now - _expireTime);
+                    // 必达：半途抛出不能把池从调度堆上摘走——那之后待释放余额再无执行者。
+                    RefreshMaintenance();
                 }
-
-                RefreshMaintenance();
             }
 
             internal override void Shutdown()
@@ -782,9 +812,21 @@ namespace Moirai.Atropos.ObjectPool
                         LogUtility.Fatal(exception);
                     }
 
-                    RecycleObject(shutdownObj);
-                    slot.Obj = null;
-                    slot.SetAlive(false);
+                    // 放在 catch 之后而非之内：Release 抛出时对象仍要回 MemoryPool，否则漏一格句柄。
+                    try
+                    {
+                        RecycleObject(shutdownObj);
+                    }
+                    catch (Exception exception)
+                    {
+                        // 有意隔离：回池自身抛出同样不得中止整池拆除。
+                        LogUtility.Fatal(exception);
+                    }
+                    finally
+                    {
+                        slot.Obj = null;
+                        slot.SetAlive(false);
+                    }
                 }
 
                 _scheduler.Remove(this);
@@ -1021,8 +1063,17 @@ namespace Moirai.Atropos.ObjectPool
 
                     if (CanReleaseSlot(ref slot))
                     {
-                        ReleaseSlot(current);
-                        released++;
+                        try
+                        {
+                            ReleaseSlot(current);
+                            released++;
+                        }
+                        catch (Exception exception)
+                        {
+                            // 有意隔离：抛出时不计入 released，待释放余额因此在下次唤醒重试——
+                            // 宁可少杀，也不要因为半路抛出把整批预算一次性记成已释放。
+                            LogUtility.Fatal(exception);
+                        }
                     }
 
                     current = next;

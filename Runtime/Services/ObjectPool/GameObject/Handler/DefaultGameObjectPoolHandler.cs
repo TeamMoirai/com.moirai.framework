@@ -693,7 +693,15 @@ namespace Moirai.Atropos.ObjectPool
             float now = Time.time;
             for (int i = 0; i < _poolCount; i++)
             {
-                _pools[i]?.ExecuteMaintenance(now, true);
+                try
+                {
+                    _pools[i]?.ExecuteMaintenance(now, true);
+                }
+                catch (Exception exception)
+                {
+                    // 有意隔离：池 A 的低内存维护抛出不该让 B..Z 全部躲过收缩。
+                    LogUtility.Fatal(exception);
+                }
             }
         }
 

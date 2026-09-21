@@ -152,8 +152,10 @@ namespace Moirai.Atropos.ObjectPool
                 }
                 catch (Exception exception)
                 {
-                    // 有意隔离：一个池的维护抛出不得截断本轮其余到期池。
-                    // 先 RemoveAt 再回调，正是为了让异常路径下堆里已不再持有该 item，不会反复重试同一个坏池。
+                    // 最后一道防线：一个池的维护抛出不得截断本轮其余到期池。
+                    // 先 RemoveAt 再回调，是让未自带重排的维护项不会被反复重试同一个坏池占满帧预算。
+                    // 注意：池自身若在 finally 里重排自己（现两个池实现都这么做），坏池仍会按各自的
+                    // 退避策略回来——这是有意的，维护是槽位泄漏的唯一回收通道，彻底摘出比热重投更糟。
                     LogUtility.Fatal(exception);
                 }
             }

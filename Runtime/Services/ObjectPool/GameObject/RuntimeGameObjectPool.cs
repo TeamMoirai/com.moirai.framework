@@ -28,6 +28,16 @@ namespace Moirai.Atropos.ObjectPool
         /// </summary>
         private const float ZOMBIE_SWEEP_SECONDS = 30f;
 
+        /// <summary>
+        /// 维护故障退避基准秒数——按下限与上限夹住 <c>基准 × 连续失败次数</c>。
+        /// <para>用户回调已在各批处理循环内逐项隔离，能逃到维护边界的都是框架自身缺陷；
+        /// 退避只为阻止 <c>due == now</c> 的池每帧重投刷满日志与帧预算，不做彻底摘出——
+        /// 维护是槽位泄漏的唯一回收通道，停摆比热重投更糟。</para>
+        /// </summary>
+        private const float MAINTENANCE_FAULT_BACKOFF_SECONDS = 5f;
+
+        private const float MAINTENANCE_FAULT_BACKOFF_MAX_SECONDS = 60f;
+
         #endregion
 
         #region 结构体 [STRUCTS]
@@ -58,6 +68,7 @@ namespace Moirai.Atropos.ObjectPool
         private string _location;
         private Transform _root;
         private float _nextMaintenanceAt;
+        private int _maintenanceFailureCount;
 
         private PoolSlotStorage<Slot> _storage;
 
@@ -187,6 +198,7 @@ namespace Moirai.Atropos.ObjectPool
             _root = inactiveRoot;
             _retainTarget = rule.MinIdle;
             _nextMaintenanceAt = float.MaxValue;
+            _maintenanceFailureCount = 0;
             _inactiveHead = -1;
             _inactiveTail = -1;
             _storage.Initialize();
@@ -449,23 +461,50 @@ namespace Moirai.Atropos.ObjectPool
         /// <param name="lowMemory">是否为低内存强制维护。</param>
         public void ExecuteMaintenance(float now, bool lowMemory)
         {
-            SweepDestroyedInstances();
-            PoolRecyclePlan plan = PoolPolicyPlanner.Plan(in _rule, _totalCount, lowMemory);
-            _retainTarget = Mathf.Clamp(plan.RetainTarget, _rule.MinIdle, _rule.HardCapacity);
-
-            int budget = Mathf.Max(1, plan.TrimBudget);
-            while (_inactiveHead >= 0 && budget > 0 && ShouldTrimHead(now, in plan))
+            try
             {
-                DestroyTrackedInstance(_inactiveHead);
-                budget--;
-            }
+                SweepDestroyedInstances();
+                PoolRecyclePlan plan = PoolPolicyPlanner.Plan(in _rule, _totalCount, lowMemory);
+                _retainTarget = Mathf.Clamp(plan.RetainTarget, _rule.MinIdle, _rule.HardCapacity);
 
-            if (_prefabSource.IsReady && _totalCount == 0 && plan.UnloadPrefab && !_prefabSource.IsExternal)
+                int budget = Mathf.Max(1, plan.TrimBudget);
+                while (_inactiveHead >= 0 && budget > 0 && ShouldTrimHead(now, in plan))
+                {
+                    // 预算先扣：抛出若发生在摘链之前，后扣会让本轮原地打转。
+                    budget--;
+                    try
+                    {
+                        DestroyTrackedInstance(_inactiveHead);
+                    }
+                    catch (Exception exception)
+                    {
+                        // 有意隔离：单个实例的 OnPooledDestroy 抛出不得截断本轮其余裁剪。
+                        // 该槽位的销毁与归还已由 DestroyTrackedInstance 的 finally 结清。
+                        LogUtility.Fatal(exception);
+                    }
+                }
+
+                if (_prefabSource.IsReady && _totalCount == 0 && plan.UnloadPrefab && !_prefabSource.IsExternal)
+                {
+                    _prefabSource.UnloadIfOwned();
+                }
+
+                _maintenanceFailureCount = 0;
+            }
+            catch (Exception exception)
             {
-                _prefabSource.UnloadIfOwned();
+                // 能逃到这里的不再是用户回调（那些都在循环里逐项隔离了），而是框架自身缺陷。
+                // 带上池身份再报一次：调度器那一层的日志只能给出异常，指不出是哪个池在退化。
+                _maintenanceFailureCount++;
+                LogUtility.Fatal(
+                    "[GameObjectPool] Maintenance faulted (consecutive {0}), next wake backed off. Rule:{1}, Location:{2}\n{3}",
+                    _maintenanceFailureCount, _rule.EntryName, _location, exception);
             }
-
-            RefreshMaintenance();
+            finally
+            {
+                // 必达：本轮半途抛出绝不能让池从调度堆上消失——那会让泄漏再无回收通道。
+                RefreshMaintenance();
+            }
         }
 
         /// <summary>
@@ -485,47 +524,66 @@ namespace Moirai.Atropos.ObjectPool
         /// </summary>
         public void Shutdown()
         {
-            _prefabSource.Shutdown();
+            // 先摘调度：_prefabSource.Shutdown() 一旦抛出，池不该还留在调度堆上等着被唤醒。
             _scheduler.Remove(this);
+            _prefabSource.Shutdown();
 
-            int slotCount = _storage.SlotCount;
-            for (int i = 0; i < slotCount; i++)
+            try
             {
-                ref Slot slot = ref _storage.GetSlotRef(i);
-                if (slot.State == SlotState.Free && slot.Instance == null)
+                int slotCount = _storage.SlotCount;
+                for (int i = 0; i < slotCount; i++)
                 {
-                    continue;
-                }
+                    ref Slot slot = ref _storage.GetSlotRef(i);
+                    if (slot.State == SlotState.Free && slot.Instance == null)
+                    {
+                        continue;
+                    }
 
-                try
-                {
-                    InvokeOnPooledDestroy(ref slot);
-                }
-                catch (Exception exception)
-                {
-                    // 有意隔离：关停里单个池件的回调抛出，不得让整池其余实例躲过销毁
-                    LogUtility.Fatal(exception);
-                }
+                    try
+                    {
+                        InvokeOnPooledDestroy(ref slot);
+                    }
+                    catch (Exception exception)
+                    {
+                        // 有意隔离：关停里单个池件的回调抛出，不得让整池其余实例躲过销毁
+                        LogUtility.Fatal(exception);
+                    }
 
-                GameObject instance = slot.Instance;
-                _registry?.Unregister(instance);
-                if (instance != null)
-                {
-                    PoolDestroyUtility.Destroy(instance);
+                    try
+                    {
+                        GameObject instance = slot.Instance;
+                        _registry?.Unregister(instance);
+                        if (instance != null)
+                        {
+                            PoolDestroyUtility.Destroy(instance);
+                        }
+                    }
+                    catch (Exception exception)
+                    {
+                        // 有意隔离：注销/销毁自身抛出同样不得中止整池拆除。
+                        LogUtility.Fatal(exception);
+                    }
+                    finally
+                    {
+                        // 账目必达：漏掉 ClearSlot 会把该槽位租用的 Poolables 数组永远留在数组池外
+                        // （ReturnStorage 只兜未清的槽位，与这里配对而非重复归还）。
+                        ClearSlot(ref slot);
+                        _destroyCount++;
+                    }
                 }
-
-                ClearSlot(ref slot);
-                _destroyCount++;
             }
+            finally
+            {
+                _inactiveHead = -1;
+                _inactiveTail = -1;
+                _activeCount = 0;
+                _inactiveCount = 0;
+                _totalCount = 0;
+                _maintenanceFailureCount = 0;
 
-            _inactiveHead = -1;
-            _inactiveTail = -1;
-            _activeCount = 0;
-            _inactiveCount = 0;
-            _totalCount = 0;
-
-            // 页数组立即归还，不依赖后续 MemoryPool.Clear 配对。
-            ReturnStorage();
+                // 页数组立即归还，不依赖后续 MemoryPool.Clear 配对。
+                ReturnStorage();
+            }
         }
 
         #endregion
@@ -593,6 +651,7 @@ namespace Moirai.Atropos.ObjectPool
             _location = null;
             _root = null;
             _nextMaintenanceAt = float.MaxValue;
+            _maintenanceFailureCount = 0;
             _inactiveHead = -1;
             _inactiveTail = -1;
             _activeCount = 0;
@@ -624,7 +683,10 @@ namespace Moirai.Atropos.ObjectPool
                 // Sticky 池可能长期不排维护：外部 Destroy 的槽位在此惰性清扫。
                 if (_storage.GetSlotRef(slotIndex).Instance == null)
                 {
-                    RemoveDestroyedSlot(slotIndex);
+                    // 槽位已由上面的弹出摘链，且 State 仍是 Inactive：再走 RemoveDestroyedSlot
+                    // 会对同一槽位二次 RemoveFromInactive，此时 Prev/Next 已被置 -1，
+                    // 会把 _inactiveHead/_inactiveTail 一起抹平、_inactiveCount 多减一次。
+                    ClearDestroyedSlot(slotIndex);
                     slotIndex = -1;
                     continue;
                 }
@@ -711,8 +773,17 @@ namespace Moirai.Atropos.ObjectPool
                 LogUtility.Fatal(exception);
             }
 
-            // 回调可能已把实例销毁（Unity 假空），此处必须重新判定再访问 activeSelf。
-            if (slot.Instance != null && slot.Instance.activeSelf)
+            if (slot.Instance == null)
+            {
+                // 实例已在 OnDespawn 里同步销毁（EditMode 的 DestroyImmediate、或用户直接 DestroyImmediate）：
+                // 绝不能入 inactive 链——槽位会停在 Inactive 却不在链上，trim 与 SpawnPrepared 的惰性清扫
+                // 都看不见它，日后它作为僵尸被摘除时还会以 Prev/Next 均为 -1 走一遍 RemoveFromInactive，
+                // 把整条 inactive 链的头尾指针抹平。摘链与 _activeCount 本方法已结清，故走 ClearDestroyedSlot。
+                ClearDestroyedSlot(slotIndex);
+                return;
+            }
+
+            if (slot.Instance.activeSelf)
             {
                 slot.Instance.SetActive(false);
             }
@@ -815,6 +886,15 @@ namespace Moirai.Atropos.ObjectPool
                 _activeCount = Mathf.Max(0, _activeCount - 1);
             }
 
+            ClearDestroyedSlot(slotIndex);
+        }
+
+        /// <summary>
+        /// 销毁实例已失效的槽位的收尾摘除。调用方须自行完成 inactive 摘链与 <c>_activeCount</c> 扣减。
+        /// </summary>
+        private void ClearDestroyedSlot(int slotIndex)
+        {
+            ref Slot slot = ref _storage.GetSlotRef(slotIndex);
             try
             {
                 InvokeOnPooledDestroy(ref slot);
@@ -843,7 +923,16 @@ namespace Moirai.Atropos.ObjectPool
                     LogUtility.Warning("[GameObjectPool] Pooled object destroyed outside pool. Rule:{0}, Location:{1}",
                         _rule.EntryName, _location);
 #endif
-                    RemoveDestroyedSlot(i);
+                    try
+                    {
+                        RemoveDestroyedSlot(i);
+                    }
+                    catch (Exception exception)
+                    {
+                        // 有意隔离：一个僵尸槽位的 OnPooledDestroy 抛出不得中止本轮其余槽位的清扫。
+                        // 槽位自身的账已由 ClearDestroyedSlot 的 finally 结清。
+                        LogUtility.Fatal(exception);
+                    }
                 }
             }
         }
@@ -896,6 +985,15 @@ namespace Moirai.Atropos.ObjectPool
             if (due >= float.MaxValue && _totalCount > 0)
             {
                 due = now + ZOMBIE_SWEEP_SECONDS;
+            }
+
+            // 故障退避：连续失败线性放大重排间隔，钳在上限内。
+            // 只在已排到事时生效——due 仍是 MaxValue 说明本轮无事可做，不必为此造一个周期性唤醒。
+            if (_maintenanceFailureCount > 0 && due < float.MaxValue)
+            {
+                float backoff = Mathf.Min(MAINTENANCE_FAULT_BACKOFF_SECONDS * _maintenanceFailureCount,
+                    MAINTENANCE_FAULT_BACKOFF_MAX_SECONDS);
+                due = Mathf.Max(due, now + backoff);
             }
 
             ScheduleMaintenance(due);
