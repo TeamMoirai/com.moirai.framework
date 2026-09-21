@@ -1,8 +1,10 @@
 using System.Threading;
+using System.Text.RegularExpressions;
 using Cysharp.Threading.Tasks;
 using Moirai.Atropos.ObjectPool;
 using NUnit.Framework;
 using UnityEngine;
+using UnityEngine.TestTools;
 using Mp = Moirai.Atropos.MemoryPool;
 
 namespace Service.GameObjectPool
@@ -20,6 +22,7 @@ namespace Service.GameObjectPool
             public GameObject Prefab;
             public int LoadCount;
             public int UnloadCount;
+            public System.Exception UnloadException;
 
             public FakePrefabLoader()
             {
@@ -41,6 +44,47 @@ namespace Service.GameObjectPool
             public void UnloadPrefab(GameObject prefab)
             {
                 UnloadCount++;
+                if (UnloadException != null)
+                {
+                    throw UnloadException;
+                }
+            }
+        }
+
+        /// <summary>
+        /// 可故障池件：抛出开关按实例逐个设置，不用静态位以免跨用例、跨并行域串味。
+        /// </summary>
+        private sealed class FaultyPoolable : MonoBehaviour, IGameObjectPoolable
+        {
+            public int SpawnCount;
+            public int DespawnCount;
+            public int PooledDestroyCount;
+            public bool ThrowOnDespawn;
+            public bool ThrowOnPooledDestroy;
+            public System.Action OnDespawned;
+
+            public void OnSpawn(in GameObjectPoolSpawnContext context)
+            {
+                SpawnCount++;
+            }
+
+            public void OnDespawn()
+            {
+                DespawnCount++;
+                OnDespawned?.Invoke();
+                if (ThrowOnDespawn)
+                {
+                    throw new System.InvalidOperationException("OnDespawn boom");
+                }
+            }
+
+            public void OnPooledDestroy()
+            {
+                PooledDestroyCount++;
+                if (ThrowOnPooledDestroy)
+                {
+                    throw new System.InvalidOperationException("OnPooledDestroy boom");
+                }
             }
         }
 
@@ -857,6 +901,184 @@ namespace Service.GameObjectPool
 
             long after = System.GC.GetAllocatedBytesForCurrentThread();
             Assert.LessOrEqual(after - before, 0L, "warm spawn/despawn roundtrip must be zero GC");
+        }
+
+        #endregion
+
+        #region 异常隔离与拆除收口 [FAULT ISOLATION]
+
+        [Test]
+        public void Despawn_InstanceDestroyedInOnDespawn_ReclaimsSlotWithoutThrowing()
+        {
+            _loader.Prefab.AddComponent<FaultyPoolable>();
+            RuntimeGameObjectPool pool = CreatePool();
+            GameObject instance = SpawnOne(pool);
+            FaultyPoolable poolable = instance.GetComponent<FaultyPoolable>();
+            poolable.OnDespawned = () => Object.DestroyImmediate(instance);
+
+            // 回归：ParkInactive 曾无条件对已销毁实例的 Transform 调 SetParent。
+            Assert.DoesNotThrow(() => DespawnOne(pool, instance));
+
+            Assert.AreEqual(1, poolable.DespawnCount);
+            Assert.AreEqual(1, poolable.PooledDestroyCount, "self-destroyed instance must still get teardown");
+            Assert.AreEqual(0, pool.TotalCount);
+            Assert.AreEqual(0, pool.ActiveCount);
+            Assert.AreEqual(0, pool.InactiveCount);
+            Assert.IsFalse(_registry.TryResolve(instance, out _, out _), "registry entry must be dropped");
+        }
+
+        [Test]
+        public void Despawn_InstanceDestroyedInOnDespawn_KeepsInactiveChainReachable()
+        {
+            _loader.Prefab.AddComponent<FaultyPoolable>();
+            RuntimeGameObjectPool pool = CreatePool();
+            GameObject survivor = SpawnOne(pool);
+            GameObject selfDestructive = SpawnOne(pool);
+            selfDestructive.GetComponent<FaultyPoolable>().OnDespawned =
+                () => Object.DestroyImmediate(selfDestructive);
+
+            DespawnOne(pool, survivor);
+            DespawnOne(pool, selfDestructive);
+
+            Assert.AreEqual(1, pool.TotalCount);
+            Assert.AreEqual(1, pool.InactiveCount, "the destroyed instance must not occupy a slot");
+
+            GameObject reused = pool.Spawn(null);
+
+            Assert.AreSame(survivor, reused, "survivor must stay reachable on the chain");
+            Assert.AreEqual(1, pool.TotalCount);
+        }
+
+        [Test]
+        public void Maintenance_PooledDestroyThrows_TrimContinuesAndPoolStaysScheduled()
+        {
+            _loader.Prefab.AddComponent<FaultyPoolable>();
+            RuntimeGameObjectPool pool = CreatePool();
+            GameObject first = SpawnOne(pool);
+            GameObject second = SpawnOne(pool);
+            SpawnOne(pool);
+            FaultyPoolable firstPoolable = first.GetComponent<FaultyPoolable>();
+            FaultyPoolable secondPoolable = second.GetComponent<FaultyPoolable>();
+            firstPoolable.ThrowOnPooledDestroy = true;
+            secondPoolable.ThrowOnPooledDestroy = true;
+            DespawnOne(pool, first);
+            DespawnOne(pool, second);
+
+            LogAssert.ignoreFailingMessages = true;
+            try
+            {
+                Assert.DoesNotThrow(() => pool.ExecuteMaintenance(Time.time, true));
+            }
+            finally
+            {
+                LogAssert.ignoreFailingMessages = false;
+                firstPoolable.ThrowOnPooledDestroy = false;
+                secondPoolable.ThrowOnPooledDestroy = false;
+            }
+
+            Assert.AreEqual(1, firstPoolable.PooledDestroyCount);
+            Assert.AreEqual(1, secondPoolable.PooledDestroyCount, "poisoned trim must not stop at the first slot");
+            Assert.AreEqual(1, pool.TotalCount, "only the still-active instance survives");
+            // 回归：RefreshMaintenance 曾在末尾裸调用，抛出即让池从调度堆上无声消失。
+            Assert.AreEqual(1, _scheduler.Count, "pool must reschedule itself despite the fault");
+            Assert.GreaterOrEqual(pool.MaintenanceHeapIndex, 0);
+            Assert.Less(pool.NextMaintenanceAt, float.MaxValue);
+        }
+
+        [Test]
+        public void Maintenance_FrameworkFault_IsLoggedWithPoolIdentityAndDoesNotEscape()
+        {
+            RuntimeGameObjectPool pool = CreatePool();
+            GameObject instance = SpawnOne(pool);
+            DespawnOne(pool, instance);
+            _loader.UnloadException = new System.InvalidOperationException("unload boom");
+
+            // 用户回调已在循环里逐项隔离，能逃到维护边界的只剩框架自身缺陷：
+            // 必须带池身份显式报出来（此前只有调度器一层裸 Fatal，指不出是哪个池在退化）。
+            LogAssert.Expect(LogType.Error, new Regex("Maintenance faulted"));
+            Assert.DoesNotThrow(() => pool.ExecuteMaintenance(Time.time, true));
+
+            Assert.AreEqual(1, _loader.UnloadCount);
+            _loader.UnloadException = null;
+        }
+
+        [Test]
+        public void Shutdown_PooledDestroyThrows_EveryInstanceStillTornDown()
+        {
+            _loader.Prefab.AddComponent<FaultyPoolable>();
+            RuntimeGameObjectPool pool = CreatePool();
+            GameObject poisoned = SpawnOne(pool);
+            GameObject other = SpawnOne(pool);
+            // 组件引用必须在关停前取：实例销毁后再 GetComponent 会打在假空对象上。
+            FaultyPoolable poisonedPoolable = poisoned.GetComponent<FaultyPoolable>();
+            FaultyPoolable otherPoolable = other.GetComponent<FaultyPoolable>();
+            poisonedPoolable.ThrowOnPooledDestroy = true;
+
+            LogAssert.ignoreFailingMessages = true;
+            try
+            {
+                pool.Shutdown();
+            }
+            finally
+            {
+                LogAssert.ignoreFailingMessages = false;
+                _pool = null; // 已拆除，别让 TearDown 再关一次
+            }
+
+            Assert.AreEqual(1, poisonedPoolable.PooledDestroyCount);
+            Assert.AreEqual(1, otherPoolable.PooledDestroyCount,
+                "one poisoned teardown must not spare the rest of the pool");
+            Assert.IsTrue(poisoned == null && other == null, "both instances destroyed");
+            Assert.AreEqual(0, pool.TotalCount);
+        }
+
+        [Test]
+        public void Sticky_LazySweep_OfDestroyedTail_KeepsRemainingChainIntact()
+        {
+            RuntimeGameObjectPool pool = CreatePool(policy: EPoolPolicy.Sticky);
+            GameObject survivor = SpawnOne(pool);
+            GameObject destroyed = SpawnOne(pool);
+            DespawnOne(pool, survivor);
+            DespawnOne(pool, destroyed);
+
+            Object.DestroyImmediate(destroyed);
+            GameObject reused = pool.Spawn(null);
+
+            // 回归：弹出尾部后惰性清扫曾对同一槽位二次 RemoveFromInactive，
+            // 以 Prev/Next 均为 -1 的假象把 _inactiveHead/_inactiveTail 一起抹平。
+            Assert.AreSame(survivor, reused, "cleaning a destroyed tail must not orphan the rest of the chain");
+            Assert.AreEqual(1, pool.TotalCount);
+            Assert.AreEqual(0, pool.InactiveCount);
+        }
+
+        [Test]
+        public void ProcessDue_PoisonedMaintenance_PoolIsNotLostFromTheScheduler()
+        {
+            _loader.Prefab.AddComponent<FaultyPoolable>();
+            // Fixed 策略的到期时间恒为 now，ProcessDue 必定把它弹出并回调。
+            RuntimeGameObjectPool pool = CreatePool(policy: EPoolPolicy.Fixed);
+            GameObject instance = SpawnOne(pool);
+            SpawnOne(pool); // 留一个在借实例：全清空时池会转为「无事可排期」，那样断言不到重排
+            FaultyPoolable poolable = instance.GetComponent<FaultyPoolable>();
+            poolable.ThrowOnPooledDestroy = true;
+            DespawnOne(pool, instance);
+
+            LogAssert.ignoreFailingMessages = true;
+            try
+            {
+                _scheduler.ProcessDue(Time.time);
+            }
+            finally
+            {
+                LogAssert.ignoreFailingMessages = false;
+                poolable.ThrowOnPooledDestroy = false;
+            }
+
+            Assert.AreEqual(1, pool.TotalCount, "poisoned trim must still complete");
+            // 回归：ProcessDue 先 RemoveAt 再回调，而抛出的那一轮曾跳过末尾的 RefreshMaintenance
+            // ——池从此掉出调度堆，直到业务侧再碰它才重新排期（Sticky 池连僵尸兜底一并停摆）。
+            Assert.AreEqual(1, _scheduler.Count, "a faulted maintenance must not cost the pool its slot");
+            Assert.GreaterOrEqual(pool.MaintenanceHeapIndex, 0);
         }
 
         #endregion

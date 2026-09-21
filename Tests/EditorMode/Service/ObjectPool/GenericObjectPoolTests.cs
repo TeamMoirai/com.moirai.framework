@@ -75,6 +75,36 @@ namespace Service.ObjectPool
             }
         }
 
+        private sealed class FaultyReleaseObject : ObjectBase
+        {
+            public bool Released;
+            public bool ReleaseWasShutdown;
+            public bool ThrowOnRelease;
+
+            public FaultyReleaseObject()
+            {
+            }
+
+            public FaultyReleaseObject(object target)
+            {
+                Initialize(target);
+            }
+
+            protected internal override void Release(bool isShutdown)
+            {
+                Released = true;
+                ReleaseWasShutdown = isShutdown;
+                if (ThrowOnRelease)
+                {
+                    throw new System.InvalidOperationException("Release boom");
+                }
+            }
+
+            public override void Clear()
+            {
+            }
+        }
+
         #endregion
 
         #region 基础设施 [INFRASTRUCTURE]
@@ -634,6 +664,90 @@ namespace Service.ObjectPool
 
             Assert.AreEqual(0, pool.Count);
             Assert.IsTrue(a.Released);
+        }
+
+        #endregion
+
+        #region 异常隔离 [FAULT ISOLATION]
+
+        [Test]
+        public void ReleaseAllUnused_OneReleaseThrows_RestOfUnusedChainStillReleased()
+        {
+            DefaultObjectPoolHandler handler = CreateHandler();
+            IObjectPool<FaultyReleaseObject> pool = handler.GetOrCreatePool<FaultyReleaseObject>(default);
+            FaultyReleaseObject poison = new FaultyReleaseObject(new object());
+            FaultyReleaseObject other = new FaultyReleaseObject(new object());
+            pool.Register(poison, false);
+            pool.Register(other, false);
+            poison.ThrowOnRelease = true;
+
+            LogAssert.ignoreFailingMessages = true;
+            try
+            {
+                Assert.DoesNotThrow(() => pool.ReleaseAllUnused());
+            }
+            finally
+            {
+                LogAssert.ignoreFailingMessages = false;
+            }
+
+            Assert.IsTrue(poison.Released);
+            Assert.IsTrue(other.Released, "a poisoned Release must not spare the rest of the unused chain");
+            Assert.AreEqual(0, pool.Count);
+        }
+
+        [Test]
+        public void ReleaseAllUnused_ReleaseThrows_SlotAndTargetMapReturnToUsableState()
+        {
+            DefaultObjectPoolHandler handler = CreateHandler();
+            IObjectPool<FaultyReleaseObject> pool = handler.GetOrCreatePool<FaultyReleaseObject>(default);
+            object target = new object();
+            FaultyReleaseObject poison = new FaultyReleaseObject(target);
+            pool.Register(poison, false);
+            poison.ThrowOnRelease = true;
+
+            LogAssert.ignoreFailingMessages = true;
+            try
+            {
+                pool.ReleaseAllUnused();
+            }
+            finally
+            {
+                LogAssert.ignoreFailingMessages = false;
+            }
+
+            // 回归：ReleaseSlot 曾停在「已摘链、_targetMap 已删、未归还自由栈」的半释放状态。
+            Assert.AreEqual(0, pool.Count, "slot must be back on the free stack");
+            Assert.IsTrue(pool.Register(new FaultyReleaseObject(target), false),
+                "target key must be gone from _targetMap so it can register again");
+        }
+
+        [Test]
+        public void Shutdown_OneReleaseThrows_EveryOtherObjectStillReleased()
+        {
+            DefaultObjectPoolHandler handler = CreateHandler();
+            IObjectPool<FaultyReleaseObject> pool = handler.GetOrCreatePool<FaultyReleaseObject>(default);
+            FaultyReleaseObject poison = new FaultyReleaseObject(new object());
+            FaultyReleaseObject other = new FaultyReleaseObject(new object());
+            pool.Register(poison, false);
+            pool.Register(other, false);
+            poison.ThrowOnRelease = true;
+
+            LogAssert.ignoreFailingMessages = true;
+            bool destroyed;
+            try
+            {
+                destroyed = handler.DestroyObjectPool<FaultyReleaseObject>("");
+            }
+            finally
+            {
+                LogAssert.ignoreFailingMessages = false;
+            }
+
+            Assert.IsTrue(destroyed);
+            Assert.IsTrue(poison.ReleaseWasShutdown);
+            Assert.IsTrue(other.ReleaseWasShutdown, "one poisoned Release must not skip the tail of the pool");
+            Assert.AreEqual(0, handler.Count);
         }
 
         #endregion

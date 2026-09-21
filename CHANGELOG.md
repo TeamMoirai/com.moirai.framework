@@ -28,6 +28,7 @@
 - **`GameApp` 启动控制面**（`Runtime/Core/GameApp/GameApp.Boot.cs`，与 `GameApp.cs` 同一 partial）：`AutoBoot`（默认 `true`，置 `false` 把启动时机交回项目——自建闪屏、启动失败兜底 UI，或装载完热更程序集再拉起服务；须在 `AfterAssembliesLoaded` 或更早设置）、`Boot()`（公开手动启动入口，幂等，`Shutdown` 后可再次启动）、`ServicesComposing`（组合根扩展点）、`BootFailed`（组合根异常上报）。此前 `GameApp.Initialize`/`Shutdown` 全为 internal、包内 `[RuntimeInitializeOnLoadMethod]` 无条件自动启动，项目既无法推迟也无法接管，更无法往组合根里加自己的 App 服务（只能改包内文件或走 `.asmref`，而后者与 Luban 配置管线存在装配循环禁忌）。现在内置服务注册完、世界初始化**之前**触发 `ServicesComposing`，在此注册的服务与内置服务同等参与依赖拓扑排序。`GameAppSettings.InitializeAppServices` 随之由 `private` 放为 `internal`（启动入口收敛到 `GameApp.Boot` 一处）。
 - `Tests/EditorMode/Core/RuntimeState/GameAppRuntimeStateTests.cs`：`GameApp` 运行态契约测试——嵌套暂停须各自恢复且只有最后一层回速、叠加暂停不改写恢复目标、计数 0 时 `ResumeGame` 空操作、`GameSpeed = 0` 定格后 Pause/Resume 不弹回 1（`s_GameSpeedBeforePause` 那类陈旧值的结构性消除）、暂停中写速度只更新目标、负速夹到 0、`ResetGameSpeed` 不解暂停、关闭态运行态 API 仍直达引擎。全部只走 public 门面，不反射私有计数。首条用例是 `Time.timeScale` 在编辑模式下的可回放性前置断言（含 >1 档，夹住即说明 1.5x~8x 预设与回放断言都不成立），它红时其余用例的判据即退化成空壳。
 - `GameApp.PauseDepth`（internal）：暴露暂停请求层数，供调试面板定位"哪一层没配对 `ResumeGame`"。
+- **对象池异常路径回归 13 格**（`PoolMaintenanceSchedulerTests` 3 格 + `GameObjectPoolTests` 7 格 + `GenericObjectPoolTests` 3 格，锁住上面两条 Fixed 收口）：调度器侧毒项不截断本轮其余到期项、抛出项不被重试、抛出后自行重排的项不掉堆；GameObject 池侧 `OnDespawn` 内 `DestroyImmediate` 自身不再炸在 `ParkInactive`、其槽位被完整回收且不影响同链其余实例、`OnPooledDestroy` 抛出时整批 trim 仍走完且池保留排期、框架级缺陷（预制体卸载抛）带池身份显式上报且不外泄、`Shutdown` 单件投毒不放过其余实例、Sticky 池尾部僵尸清扫不再抹平 inactive 链头尾；通用池侧 `Release` 抛出不会放过未用链其余对象、槽位与 `_targetMap` 回到可用态（同 target 可再注册）、关停单件投毒不跳过池尾。
 
 ### Changed
 

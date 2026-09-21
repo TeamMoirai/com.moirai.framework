@@ -1,6 +1,8 @@
+using System;
 using System.Collections.Generic;
 using Moirai.Atropos.ObjectPool;
 using NUnit.Framework;
+using UnityEngine.TestTools;
 
 namespace Service.ObjectPool
 {
@@ -42,6 +44,49 @@ namespace Service.ObjectPool
             {
                 ExecutionCount++;
                 _scheduler.Schedule(this, now + _interval);
+            }
+        }
+
+        private sealed class ThrowingItem : IPoolMaintenanceItem
+        {
+            public int MaintenanceHeapIndex { get; set; } = -1;
+
+            public int ExecutionCount { get; private set; }
+
+            public void ExecuteMaintenance(float now, bool lowMemory)
+            {
+                ExecutionCount++;
+                throw new InvalidOperationException("maintenance boom");
+            }
+        }
+
+        /// <summary>抛出后仍在 finally 里重排自己——真实池的维护边界就是这个形状。</summary>
+        private sealed class ThrowingRescheduleItem : IPoolMaintenanceItem
+        {
+            private readonly PoolMaintenanceScheduler _scheduler;
+            private readonly float _interval;
+
+            public ThrowingRescheduleItem(PoolMaintenanceScheduler scheduler, float interval)
+            {
+                _scheduler = scheduler;
+                _interval = interval;
+            }
+
+            public int MaintenanceHeapIndex { get; set; } = -1;
+
+            public int ExecutionCount { get; private set; }
+
+            public void ExecuteMaintenance(float now, bool lowMemory)
+            {
+                ExecutionCount++;
+                try
+                {
+                    throw new InvalidOperationException("maintenance boom");
+                }
+                finally
+                {
+                    _scheduler.Schedule(this, now + _interval);
+                }
             }
         }
 
@@ -221,6 +266,85 @@ namespace Service.ObjectPool
             Assert.GreaterOrEqual(item.ExecutionCount, 1);
             Assert.LessOrEqual(item.ExecutionCount, 1024);
             Assert.AreEqual(1, scheduler.Count, "item stays scheduled for next frame");
+        }
+
+        #endregion
+
+        #region 异常隔离 [FAULT ISOLATION]
+
+        [Test]
+        public void ProcessDue_PoisonItemThrows_RemainingDueItemsStillExecute()
+        {
+            PoolMaintenanceScheduler scheduler = new PoolMaintenanceScheduler();
+            ThrowingItem poison = new ThrowingItem();
+            FakeItem second = new FakeItem();
+            FakeItem third = new FakeItem();
+
+            // 毒项排最早，确保它先执行、抛在其余到期项之前。
+            scheduler.Schedule(second, 20f);
+            scheduler.Schedule(third, 30f);
+            scheduler.Schedule(poison, 10f);
+
+            LogAssert.ignoreFailingMessages = true;
+            try
+            {
+                Assert.DoesNotThrow(() => scheduler.ProcessDue(100f));
+            }
+            finally
+            {
+                LogAssert.ignoreFailingMessages = false;
+            }
+
+            Assert.AreEqual(1, poison.ExecutionCount);
+            Assert.AreEqual(1, second.Executions.Count, "a poisoned pool must not truncate the due round");
+            Assert.AreEqual(1, third.Executions.Count);
+        }
+
+        [Test]
+        public void ProcessDue_PoisonItemThrows_IsDequeuedAndNotRetriedThisRound()
+        {
+            PoolMaintenanceScheduler scheduler = new PoolMaintenanceScheduler();
+            ThrowingItem poison = new ThrowingItem();
+            scheduler.Schedule(poison, 10f);
+
+            LogAssert.ignoreFailingMessages = true;
+            try
+            {
+                scheduler.ProcessDue(100f);
+                scheduler.ProcessDue(100f);
+            }
+            finally
+            {
+                LogAssert.ignoreFailingMessages = false;
+            }
+
+            Assert.AreEqual(1, poison.ExecutionCount, "not re-scheduled → not retried");
+            Assert.AreEqual(-1, poison.MaintenanceHeapIndex);
+            Assert.AreEqual(0, scheduler.Count);
+        }
+
+        [Test]
+        public void ProcessDue_PoisonItemThatReschedulesItself_KeepsItsScheduling()
+        {
+            PoolMaintenanceScheduler scheduler = new PoolMaintenanceScheduler();
+            ThrowingRescheduleItem item = new ThrowingRescheduleItem(scheduler, 10f);
+            scheduler.Schedule(item, 10f);
+
+            LogAssert.ignoreFailingMessages = true;
+            try
+            {
+                scheduler.ProcessDue(10f);
+            }
+            finally
+            {
+                LogAssert.ignoreFailingMessages = false;
+            }
+
+            // 抛出 + 自行重排：调度权必须还在（真实池的维护边界就是这个形状），
+            // 且同轮不得因为重排而重复执行（due 在未来）。
+            Assert.AreEqual(1, item.ExecutionCount);
+            Assert.AreEqual(1, scheduler.Count, "self-rescheduling fault must not cost the item its slot");
+            Assert.GreaterOrEqual(item.MaintenanceHeapIndex, 0);
         }
 
         #endregion
