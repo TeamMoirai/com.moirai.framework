@@ -680,6 +680,10 @@ namespace Moirai.Atropos.ObjectPool
             _expandCount = 0;
             _destroyCount = 0;
             _peakActive = 0;
+            // 回收再用的池必须解开关停判定：本对象经 MemoryPool.Acquire/Release 循环使用
+            // （见 DefaultGameObjectPoolHandler），残留 true 会让复用池的 SpawnAsync 永久返回 null、
+            // WarmupAsync 永不挂调度，且第二次 Shutdown 被自身重入守卫吞掉——同步 Spawn 照常，故极隐蔽。
+            _isShuttingDown = false;
             // 代系计数在池对象 CLR 生命期内单调递增，避免回收再用时与陈旧租约碰撞。
         }
 

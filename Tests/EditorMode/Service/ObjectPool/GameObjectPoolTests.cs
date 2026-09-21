@@ -96,6 +96,7 @@ namespace Service.GameObjectPool
         private FakePrefabLoader _loader;
         private Transform _root;
         private RuntimeGameObjectPool _pool;
+        private PoolCompiledRule _lastRule;
         private PooledInstanceRegistry _registry;
 
         [SetUp]
@@ -144,6 +145,7 @@ namespace Service.GameObjectPool
                 0, "TestEntry", PoolEntry.DEFAULT_GROUP, "Assets/Test/Fake",
                 policy, minIdle, softCapacity, hardCapacity, idleSeconds, unloadPrefab, 0,
                 PoolGlobMatcher.Compile("Assets/Test/Fake"));
+            _lastRule = rule;
             _pool = new RuntimeGameObjectPool();
             _pool.Initialize(_scheduler, rule, "Assets/Test/Fake", _loader, _root, _registry);
             return _pool;
@@ -947,6 +949,28 @@ namespace Service.GameObjectPool
 
             Assert.AreSame(survivor, reused, "survivor must stay reachable on the chain");
             Assert.AreEqual(1, pool.TotalCount);
+        }
+
+        [Test]
+        public void RecycledPool_AfterClear_StillServesAsyncSpawnAndShutdown()
+        {
+            // 池对象是 MemoryObject：DefaultGameObjectPoolHandler 经 MemoryPool.Acquire/Release 循环使用它，
+            // Clear() 里漏掉任何一条状态都会让"第二个住进这块内存的池"带着旧状态跑。
+            RuntimeGameObjectPool pool = CreatePool();
+            GameObject first = SpawnOne(pool);
+            DespawnOne(pool, first);
+            pool.Shutdown();
+            Assert.AreEqual(0, pool.TotalCount, "前置条件：关停销毁全部实例");
+
+            pool.Clear();
+            pool.Initialize(_scheduler, _lastRule, "Assets/Test/Fake", _loader, _root, _registry);
+
+            Assert.AreEqual(0, pool.TotalCount, "Clear() 后复用池不得带着上一轮的实例计数");
+            GameObject second = pool.SpawnAsync(null, default).GetAwaiter().GetResult();
+            Assert.NotNull(second, "复用池的异步取用不得被残留的关停判定掐掉");
+
+            pool.Shutdown();
+            Assert.AreEqual(0, pool.TotalCount, "复用池的第二次关停不得被重入守卫吞掉");
         }
 
         [Test]
