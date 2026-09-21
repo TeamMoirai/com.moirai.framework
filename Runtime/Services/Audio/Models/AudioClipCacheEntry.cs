@@ -14,7 +14,7 @@ namespace Moirai.Atropos.Audio
         public ulong Version;
         public CancellationTokenSource Cancellation;
         public string Address;
-        public object Lease;
+        public AudioClipLease Lease;
         public AudioClip Clip;
         public AudioLoadRequest PendingHead;
         public AudioLoadRequest PendingTail;
@@ -32,7 +32,7 @@ namespace Moirai.Atropos.Audio
 
         public bool Pinned => CachePolicy == AudioCachePolicy.Pin;
         public bool CacheAfterUse => CachePolicy is AudioCachePolicy.Ttl or AudioCachePolicy.Pin;
-        public bool IsLoaded => Clip != null && Lease != null && !Loading;
+        public bool IsLoaded => Clip != null && Lease.IsValid && !Loading;
 
         public void Initialize(AudioClipCache owner, string address, int addressHash, AudioCachePolicy cachePolicy)
         {
@@ -89,20 +89,13 @@ namespace Moirai.Atropos.Audio
             Owner = null;
             if (Loading)
             {
-                try
-                {
-                    Cancellation?.Cancel();
-                }
-                catch
-                {
-                    // ignore
-                }
+                Cancellation?.Cancel();
             }
 
             Cancellation?.Dispose();
             Cancellation = null;
-            ReleaseLeaseObject(Lease);
-            Lease = null;
+            Lease.Release();
+            Lease = default;
             Address = null;
             Clip = null;
             // 条目被丢弃时仍挂着等待者：正常路径已由缓存统一通知，此处兜底归还，避免请求节点脱离池
@@ -127,30 +120,6 @@ namespace Moirai.Atropos.Audio
             Loading = false;
             InLru = false;
             LastUseTime = 0f;
-        }
-
-        private static void ReleaseLeaseObject(object handleObj)
-        {
-            if (handleObj is IDisposable disposable)
-            {
-                disposable.Dispose();
-            }
-        }
-
-        public static bool TryGetClip(object handleObj, out AudioClip clip)
-        {
-            switch (handleObj)
-            {
-                case ResourceAssetLease<AudioClip> typedLease:
-                    clip = typedLease.Asset;
-                    return clip != null;
-                case YooAsset.AssetHandle nativeHandle when nativeHandle.AssetObject is AudioClip audioClip:
-                    clip = audioClip;
-                    return true;
-                default:
-                    clip = null;
-                    return false;
-            }
         }
     }
 }

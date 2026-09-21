@@ -1,8 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Threading;
-using Cysharp.Threading.Tasks;
-using Moirai.Atropos.Resource;
 using UnityEngine;
 
 namespace Moirai.Atropos.Audio
@@ -30,7 +28,7 @@ namespace Moirai.Atropos.Audio
         private AudioClipCacheEntry _lruTail;
         private AudioClipCacheEntry _allHead;
         private AudioClipCacheEntry _allTail;
-        private ResourceServiceHandler _resourceService;
+        private IAudioClipLeaseSource _source;
         private int _capacity = DefaultCapacity;
         private float _ttl = DefaultTtl;
         private AudioCachePolicy _defaultPolicy = AudioCachePolicy.Ttl;
@@ -39,6 +37,12 @@ namespace Moirai.Atropos.Audio
 
         /// <summary>当前缓存条目数。</summary>
         public int Count => _entries.Count;
+
+        /// <summary>All 链头：诊断/调试面板遍历入口。</summary>
+        public AudioClipCacheEntry FirstEntry => _allHead;
+
+        /// <summary>LRU 链头：最久未用的可驱逐条目（驱逐与 TTL 都从头开始）。</summary>
+        public AudioClipCacheEntry FirstLruEntry => _lruHead;
 
         /// <summary>容量上限。</summary>
         public int Capacity => _capacity;
@@ -80,11 +84,11 @@ namespace Moirai.Atropos.Audio
         }
 
         /// <summary>
-        /// 应用配置并注册 lowMemory 回调。<see cref="UnityAudioHandler"/> 每次 Initialize 调用。
+        /// 应用租约来源与容量/TTL/默认策略，并注册 lowMemory 回调。<see cref="UnityAudioHandler"/> 每次 Initialize 调用。
         /// </summary>
-        public void Configure(ResourceServiceHandler resourceService, int capacity, float ttl, AudioCachePolicy defaultPolicy)
+        public void Configure(IAudioClipLeaseSource source, int capacity, float ttl, AudioCachePolicy defaultPolicy)
         {
-            _resourceService = resourceService;
+            _source = source;
             _capacity = Mathf.Max(1, capacity);
             _ttl = Mathf.Max(0f, ttl);
             _defaultPolicy = NormalizeDefaultPolicy(defaultPolicy);
@@ -107,7 +111,7 @@ namespace Moirai.Atropos.Audio
             }
 
             PoolView.Clear();
-            _resourceService = null;
+            _source = null;
         }
 
         /// <summary>把 <see cref="AudioCachePolicy.Default"/> 解析为配置的默认策略。</summary>
@@ -155,7 +159,7 @@ namespace Moirai.Atropos.Audio
         /// <returns>已就绪或加载已受理返回 true；地址无效、满载或后端不可用返回 false。</returns>
         public bool RequestClip(string address, bool async, AudioCachePolicy policy, AudioAgent agent, int generation)
         {
-            if (agent == null || string.IsNullOrEmpty(address) || _resourceService == null || _disposed)
+            if (agent == null || string.IsNullOrEmpty(address) || _source == null || _disposed)
             {
                 return false;
             }
@@ -181,7 +185,13 @@ namespace Moirai.Atropos.Audio
             entry.AddPending(request);
             agent.SetLoadRequest(request);
 
-            return !entry.Loading || BeginLoad(entry, async);
+            if (entry.Loading)
+            {
+                // 同地址已有在途加载：只排队等待，绝不二次向后端取租约
+                return true;
+            }
+
+            return BeginLoad(entry, async);
         }
 
         /// <summary>
@@ -339,7 +349,7 @@ namespace Moirai.Atropos.Audio
         private bool TryPreparePreload(string address, AudioCachePolicy policy, out AudioClipCacheEntry entry)
         {
             entry = null;
-            if (string.IsNullOrEmpty(address) || _resourceService == null || _disposed) return false;
+            if (string.IsNullOrEmpty(address) || _source == null || _disposed) return false;
 
             var resolved = ResolvePolicy(policy);
             entry = GetOrCreate(address, resolved);
@@ -390,82 +400,62 @@ namespace Moirai.Atropos.Audio
         {
             RemoveFromLru(entry);
             entry.Loading = true;
+            ulong version = entry.Version;
 
             if (async)
             {
                 entry.Cancellation ??= new CancellationTokenSource();
-                BeginLoadAsync(entry, entry.Version, entry.Cancellation.Token).Forget();
+                // 回调携带 entry 引用：迟到的完成由 version 与 _entries 身份校验拦下
+                _source.AcquireAsync(entry.Address, entry.Cancellation.Token,
+                    lease => OnLoadCompleted(entry, version, lease));
                 return true;
             }
 
-            ResourceAssetLease<AudioClip> lease;
+            AudioClipLease lease = default;
             try
             {
-                lease = _resourceService.LoadLease<AudioClip>(entry.Address);
+                if (!_source.TryAcquire(entry.Address, out lease) || !lease.IsValid)
+                {
+                    lease.Release();
+                    OnLoadCompleted(entry, version, default);
+                    return false;
+                }
             }
             catch (Exception e)
             {
-                // 不外抛：失败已按返回 false + 等待者回调通知，抛出会把调用方声部永久卡在 Loading
-                LogUtility.Error("[AudioClipCache] Sync load of '{0}' failed: {1}", entry.Address, e.Message);
-                OnLoadCompleted(entry, entry.Version, null);
+                // 不外抛：失败按返回 false + 等待者回调通知，抛出会把调用方声部永久卡在 Loading
+                lease.Release();
+                LogUtility.Error("[AudioClipCache] Sync lease of '{0}' failed: {1}", entry.Address, e.Message);
+                OnLoadCompleted(entry, version, default);
                 return false;
             }
 
-            return OnLoadCompleted(entry, entry.Version, lease);
+            return OnLoadCompleted(entry, version, lease);
         }
 
-        private async UniTaskVoid BeginLoadAsync(AudioClipCacheEntry entry, ulong version, CancellationToken cancellationToken)
+        private bool OnLoadCompleted(AudioClipCacheEntry entry, ulong version, AudioClipLease lease)
         {
-            ResourceAssetLease<AudioClip> lease;
-            try
-            {
-                lease = await _resourceService.LoadLeaseAsync<AudioClip>(entry.Address, cancellationToken);
-            }
-            catch (OperationCanceledException)
-            {
-                return;
-            }
-            catch (Exception e)
-            {
-                if (entry.Version == version)
-                {
-                    LogUtility.Error("[AudioClipCache] Async load of '{0}' failed: {1}", entry.Address, e.Message);
-                    OnLoadCompleted(entry, version, null);
-                }
-
-                return;
-            }
-
-            if (cancellationToken.IsCancellationRequested)
-            {
-                lease.Dispose();
-                return;
-            }
-
-            OnLoadCompleted(entry, version, lease);
-        }
-
-        private bool OnLoadCompleted(AudioClipCacheEntry entry, ulong version, object lease)
-        {
-            // 世代/身份校验：条目已被驱逐或已复用为另一地址时，本次结果作废并归还租约
-            if (entry.Version != version ||
+            // 世代/身份校验：条目已被驱逐或已复用为另一地址时，本次结果作废并归还租约。
+            // Address 判空必须前置——关停路径上条目已 Clear()，用它查字典会抛 ArgumentNullException。
+            if (entry.Address == null ||
+                entry.Version != version ||
                 !_entries.TryGetValue(entry.Address, out var current) ||
                 !ReferenceEquals(current, entry))
             {
-                ReleaseLeaseObject(lease);
+                lease.Release();
                 return false;
             }
 
             entry.Loading = false;
-            bool success = AudioClipCacheEntry.TryGetClip(lease, out var clip) && clip != null;
+            bool success = lease.IsValid;
             if (!success)
             {
-                ReleaseLeaseObject(lease);
+                lease.Release();
             }
 
-            ReleaseLeaseObject(entry.Lease);
-            entry.Lease = success ? lease : null;
-            entry.Clip = success ? clip : null;
+            entry.Lease.Release();
+            entry.Lease = success ? lease : default;
+            entry.Clip = success ? lease.Clip : null;
 
             // 派发期间自持一份引用：等待者回调里的请求/卸载不能中途把本条目挤成负引用或被驱逐
             Retain(entry);
@@ -582,7 +572,10 @@ namespace Moirai.Atropos.Audio
             CompletePreloads(callbacks, false);
         }
 
-        /// <summary>把留池条目投影到 <c>AssetHandlePool</c> 兼容视图（只读语义，值由缓存持有）。</summary>
+        /// <summary>
+        /// 把留池条目投影到 <c>AssetHandlePool</c> 兼容视图。值是 <see cref="AudioClipLease"/> 的装箱副本，
+        /// 只能用于枚举观测——租约本体仍由缓存持有，外部无法经视图释放它。
+        /// </summary>
         private void SyncPoolView(AudioClipCacheEntry entry)
         {
             if (entry?.Address == null) return;
@@ -662,14 +655,6 @@ namespace Moirai.Atropos.Audio
             if (!_lowMemoryRegistered) return;
             Application.lowMemory -= OnLowMemory;
             _lowMemoryRegistered = false;
-        }
-
-        private static void ReleaseLeaseObject(object handleObj)
-        {
-            if (handleObj is IDisposable disposable)
-            {
-                disposable.Dispose();
-            }
         }
     }
 }

@@ -322,9 +322,9 @@ namespace Moirai.Atropos.Audio
                 _audioMixer = AudioServiceSettings.AudioMixer;
             }
 
-            // Clip 缓存：容量/TTL/默认策略来自 Settings
+            // Clip 缓存：容量/TTL/默认策略来自 Settings，租约来源经窄接缝转发到资源后端
             _clipCache.Configure(
-                ResourceService.Handler,
+                new ResourceClipLeaseSource(),
                 AudioServiceSettings.ClipCacheCapacity,
                 AudioServiceSettings.ClipCacheTtl,
                 AudioServiceSettings.DefaultClipCachePolicy);
