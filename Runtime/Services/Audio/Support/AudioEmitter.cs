@@ -12,6 +12,12 @@ namespace Moirai.Atropos.Audio
         private const int GizmoCircleSegments = 64;
         private const int GizmoLatitudeCount = 3;
 
+        /// <summary>无 Listener 时的重找间隔（秒）。</summary>
+        private const float ListenerSearchIntervalSeconds = 0.5f;
+
+        /// <summary>起播失败后的重试间隔（秒），避免满载时每帧空打。</summary>
+        private const float StartRetryIntervalSeconds = 0.25f;
+
         private enum EClipMode
         {
             Address = 0,
@@ -54,6 +60,9 @@ namespace Moirai.Atropos.Audio
         private Transform _cachedTransform;
         private ulong _handle;
         private bool _insideTriggerRange;
+        private AudioListener _listener;
+        private float _nextListenerSearchAt;
+        private float _nextStartAttemptAt;
 
         /// <summary>当前服务句柄（0 = 未在播）。</summary>
         public ulong Handle => _handle;
@@ -78,7 +87,17 @@ namespace Moirai.Atropos.Audio
             bool playing = IsPlaying;
             if (!playing && !_insideTriggerRange && !HasPlayableAsset()) return;
 
-            Vector3 listenerPos = AudioListenerPosition();
+            // 没有可用 Listener 时不能按"距离无穷远"处理：那会让一批场景音效被一次配置疏漏永久停掉
+            // （且此后每帧重判并静默 StopPlayback）。当作仍在范围内，只报一次。
+            if (!TryGetListenerPosition(out Vector3 listenerPos))
+            {
+                AudioWarnOnce.Warning("emitter:no-listener",
+                    "[AudioEmitter] 场景内没有启用的 AudioListener，触发半径判定暂时跳过（不停播）。");
+                _insideTriggerRange = true;
+                TryStartPlaybackThrottled();
+                return;
+            }
+
             Vector3 offset = listenerPos - _cachedTransform.position;
             float range = playing ? m_TriggerRange + m_TriggerHysteresis : m_TriggerRange;
 
@@ -87,7 +106,7 @@ namespace Moirai.Atropos.Audio
                 if (!_insideTriggerRange || (m_Loop && !playing))
                 {
                     _insideTriggerRange = true;
-                    StartPlayback();
+                    TryStartPlaybackThrottled();
                 }
             }
             else
@@ -95,6 +114,39 @@ namespace Moirai.Atropos.Audio
                 _insideTriggerRange = false;
                 StopPlayback();
             }
+        }
+
+        /// <summary>
+        /// 循环音在拿不到通道（满载/音轨暂停）时不能每帧重试，这里限一个重试节拍。
+        /// </summary>
+        private void TryStartPlaybackThrottled()
+        {
+            float now = Time.unscaledTime;
+            if (now < _nextStartAttemptAt) return;
+
+            _nextStartAttemptAt = now + StartRetryIntervalSeconds;
+            StartPlayback();
+        }
+
+        /// <summary>
+        /// 取 Listener 位置：命中后缓存，未命中时限流重找（旧实现每个发射器每帧做一次全局类型扫描）。
+        /// </summary>
+        private bool TryGetListenerPosition(out Vector3 position)
+        {
+            if (_listener == null && Time.unscaledTime >= _nextListenerSearchAt)
+            {
+                _nextListenerSearchAt = Time.unscaledTime + ListenerSearchIntervalSeconds;
+                _listener = Object.FindFirstObjectByType<AudioListener>();
+            }
+
+            if (_listener == null || !_listener.enabled || !_listener.gameObject.activeInHierarchy)
+            {
+                position = Vector3.zero;
+                return false;
+            }
+
+            position = _listener.transform.position;
+            return true;
         }
 
         private void OnDisable()
@@ -108,12 +160,6 @@ namespace Moirai.Atropos.Audio
 
         /// <summary>手动停止（可淡出）。</summary>
         public void Stop() => StopPlayback();
-
-        private static Vector3 AudioListenerPosition()
-        {
-            var listener = Object.FindFirstObjectByType<AudioListener>();
-            return listener != null ? listener.transform.position : Vector3.zero;
-        }
 
         private void StartPlayback()
         {

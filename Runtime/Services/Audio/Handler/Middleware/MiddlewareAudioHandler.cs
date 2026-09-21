@@ -349,7 +349,8 @@ namespace Moirai.Atropos.Audio.Middleware
         /// <inheritdoc />
         public override void Tick(float elapseSeconds, float realElapseSeconds)
         {
-            AudioBlockingLoadGate.Close();
+            // 不碰 AudioBlockingLoadGate：该门禁强制点在 Unity 后端的路径 Play 上，
+            // 中间件按事件路径即时下发、没有同步资源加载可拦，调 Close/Open 只会给出一个并不存在的保证。
             if (_bridge == null) return;
             _bridge.Update(Time.unscaledDeltaTime);
             _fades.Update(GameTime.unscaledTime, this);
@@ -441,7 +442,6 @@ namespace Moirai.Atropos.Audio.Middleware
         /// <inheritdoc />
         public override void Restart()
         {
-            AudioBlockingLoadGate.Open();
             StopAll(0f);
             CleanAudioPool();
             AudioVoiceDucking.Reset();

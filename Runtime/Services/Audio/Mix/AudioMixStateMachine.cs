@@ -239,7 +239,11 @@ namespace Moirai.Atropos.Audio
         /// <summary>
         /// 请求切换到目标状态。低优先级无法打断高优先级（除非 force）。
         /// </summary>
-        /// <returns>是否发生切换。</returns>
+        /// <returns>
+        /// <c>true</c> 当且仅当过渡**真的施加到了混音上**（Mixer 快照或中间件回调）。
+        /// <para>没施加就不改 <see cref="Current"/>：否则一个从未生效的状态会一直挡着后续低优先级请求，
+        /// 并让自动 Ducking 误记"这层混音是我借走的"。</para>
+        /// </returns>
         public bool Request(EMixSnapshot target, float blendSeconds = -1f, bool force = false)
         {
             if (target == _current) return false;
@@ -248,7 +252,8 @@ namespace Moirai.Atropos.Audio
             if (!force && targetPriority < _currentPriority) return false;
 
             float blend = blendSeconds >= 0f ? blendSeconds : m_DefaultBlendSeconds;
-            Apply(target, blend);
+            if (!TryApply(target, blend)) return false;
+
             _current = target;
             _currentPriority = targetPriority;
             return true;
@@ -272,39 +277,49 @@ namespace Moirai.Atropos.Audio
             return DefaultPriority(state);
         }
 
-        private void Apply(EMixSnapshot target, float blendSeconds)
+        /// <summary>
+        /// 把目标状态真的施加到混音上：中间件回调优先，其次 Mixer 快照。
+        /// </summary>
+        /// <returns>真的施加了返回 true；没有任何可施加的对象时返回 false（调用方不得改状态记账）。</returns>
+        private bool TryApply(EMixSnapshot target, float blendSeconds)
         {
             // 中间件优先
             if (_middlewareTransition != null)
             {
                 _middlewareTransition(target, blendSeconds);
-                return;
+                return true;
             }
 
             if (m_Mixer == null)
             {
-                if (target != EMixSnapshot.Default)
-                {
-                    // 自动 Ducking 会按台词反复请求，这里必须按状态去重，否则每次进对白都刷一条
-                    AudioWarnOnce.Warning($"mix.no-mixer:{target}",
-                        "[AudioMix] Mixer 未绑定且无中间件过渡回调，状态 {0} 的切换为无操作。", target);
-                }
-
-                return;
+                // 自动 Ducking 会按台词反复请求，这里必须按状态去重，否则每次进对白都刷一条
+                AudioWarnOnce.Warning($"mix.no-mixer:{target}",
+                    "[AudioMix] Mixer 未绑定且无中间件过渡回调，状态 {0} 无法施加，切换被拒绝。", target);
+                return false;
             }
 
             AudioMixerSnapshot snap = FindSnapshot(target);
             if (snap != null)
             {
                 snap.TransitionTo(Mathf.Max(0.01f, blendSeconds));
+                return true;
             }
-            else if (target != EMixSnapshot.Default)
+
+            if (target != EMixSnapshot.Default)
             {
-                // Default 无 Snapshot 属正常（回到 Mixer 默认状态）；其余状态缺失视为配置遗漏，按状态报一次
+                // 状态缺失视为配置遗漏，按状态报一次
                 AudioWarnOnce.Warning($"mix.no-snapshot:{target}",
-                    "[AudioMix] 状态 {0} 未注册 AudioMixerSnapshot（见 AudioServiceSettings.MixSnapshots），切换为无操作。",
+                    "[AudioMix] 状态 {0} 未注册 AudioMixerSnapshot（见 AudioServiceSettings.MixSnapshots 或按名自动绑定），切换被拒绝。",
                     target);
+                return false;
             }
+
+            // 回 Default 在 Unity 里同样需要一个可 TransitionTo 的快照；缺它就等于回不去，
+            // 必须显式报出来——否则 Ducking 压低混音后再也抬不回来，且没人知道为什么。
+            AudioWarnOnce.Warning("mix.no-snapshot:Default",
+                "[AudioMix] 无 Default 快照可回落：请在 Mixer 里建一个名为 Default 的 Snapshot（会被按名自动绑定），" +
+                "或在 AudioServiceSettings.MixSnapshots 显式登记。");
+            return false;
         }
 
         private AudioMixerSnapshot FindSnapshot(EMixSnapshot state)
@@ -352,7 +367,7 @@ namespace Moirai.Atropos.Audio
 
         /// <summary>
         /// 初始化状态机（OnInit 时由 AudioService 调用，或游戏侧手动）。
-        /// <para>顺序：铺空条目 → Settings 手工映射优先写入 → 空缺按名自动绑定；Default 固定回落 Mixer 默认态。</para>
+        /// <para>顺序：铺空条目 → Settings 手工映射优先写入 → 空缺按名自动绑定；已配置的条目一律不被覆盖。</para>
         /// </summary>
         public static void Initialize(AudioMixer mixer)
         {
@@ -371,9 +386,9 @@ namespace Moirai.Atropos.Audio
                 }
             }
 
-            // Settings 未覆盖的空条目按名自动绑定
+            // Settings 未覆盖的空条目按名自动绑定（含 Default：Mixer 里名为 Default 的快照会被绑上，
+            // 那是"回落"唯一真正可施加的目标）。这里不得再无条件清空 Default——那会抹掉作者刚配好的行。
             s_StateMachine.TryBindSnapshotsByName(mixer);
-            s_StateMachine.SetSnapshot(EMixSnapshot.Default, null, 0f);
         }
 
         /// <summary>

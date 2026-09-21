@@ -32,8 +32,16 @@ namespace Moirai.Atropos.Audio
 
             if (want)
             {
+                // 已经停在 Dialogue 上（含上一轮因无 Default 快照而回落失败）：认领这层占用。
+                // 不认领的话 Request 会因"目标即当前状态"返回 false，duck 从此不再记账、也再也不会回落。
+                if (AudioMixService.Current == EMixSnapshot.Dialogue)
+                {
+                    _ducked = true;
+                    return;
+                }
+
                 _beforeDuck = AudioMixService.Current;
-                // Request 在优先级不足时返回 false：此时不记为已 duck，回落也不做
+                // Request 在优先级不足或无法施加时返回 false：此时不记为已 duck，回落也不做
                 _ducked = AudioMixService.Request(EMixSnapshot.Dialogue, DuckBlendSeconds);
                 return;
             }
@@ -56,7 +64,13 @@ namespace Moirai.Atropos.Audio
             if (AudioMixService.Current != EMixSnapshot.Dialogue) return;
 
             // 回落必然是降优先级（Default 为 0），force 是这里的语义：归还自己借走的那一层
-            AudioMixService.Request(_beforeDuck, DuckBlendSeconds, force: true);
+            var target = _beforeDuck == EMixSnapshot.Dialogue ? EMixSnapshot.Default : _beforeDuck;
+            if (AudioMixService.Request(target, DuckBlendSeconds, force: true)) return;
+
+            // 回不去（多为缺 Default 快照）：状态机保持 Dialogue，下次有声部活跃时会重新认领
+            AudioWarnOnce.Warning("ducking:restore-refused",
+                "[AudioDucking] 无法从 Dialogue 回落到 {0}：混音将继续压低，直到能施加回落为止（见 AudioMix 的同名告警）。",
+                target);
         }
 
         /// <summary>duck 进/出的交叉淡变时长（秒）。</summary>

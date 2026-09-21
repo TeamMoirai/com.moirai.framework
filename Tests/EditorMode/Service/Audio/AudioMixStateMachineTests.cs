@@ -1,5 +1,6 @@
 using Moirai.Atropos.Audio;
 using NUnit.Framework;
+using UnityEngine.TestTools;
 
 namespace Service.Audio
 {
@@ -12,16 +13,45 @@ namespace Service.Audio
     public class AudioMixStateMachineTests
     {
         private AudioMixStateMachine _machine;
+        private readonly System.Collections.Generic.List<EMixSnapshot> _applied =
+            new System.Collections.Generic.List<EMixSnapshot>();
 
         [SetUp]
         public void SetUp()
         {
             _machine = new AudioMixStateMachine();
-            // mixer 传 null 只为铺出各状态的内置默认优先级；无快照时切换仅推进状态
+            // 铺出各状态的内置默认优先级；mixer 传 null 意味着"无 Mixer 可施加"
             _machine.BindFromMixer(null);
+
+            // Request 只有在真的能施加时才返回 true（无 Mixer 又无施加通道一律拒绝），
+            // 所以优先级/回落类用例必须挂上施加通道——这里复用生产就有的中间件回调接缝。
+            _applied.Clear();
+            _machine.SetMiddlewareTransitionHandler((state, _) => _applied.Add(state));
         }
 
         private bool Request(EMixSnapshot target, bool force = false) => _machine.Request(target, 0.1f, force);
+
+        [Test]
+        public void Request_IsRefused_WhenNothingCanApply()
+        {
+            // 无 Mixer、无施加通道：既不该改状态，也不该让调用方以为"混音是我借走的"
+            var bare = new AudioMixStateMachine();
+            bare.BindFromMixer(null);
+
+            LogAssert.ignoreFailingMessages = true;
+            bool accepted;
+            try
+            {
+                accepted = bare.Request(EMixSnapshot.Dialogue, 0.1f);
+            }
+            finally
+            {
+                LogAssert.ignoreFailingMessages = false;
+            }
+
+            Assert.IsFalse(accepted, "什么都施加不了时不得算成功");
+            Assert.AreEqual(EMixSnapshot.Default, bare.Current, "未施加的切换不该推进状态记账");
+        }
 
         [Test]
         public void InitialState_IsDefault()
@@ -54,6 +84,8 @@ namespace Service.Audio
             Assert.IsFalse(Request(EMixSnapshot.Dialogue));
             Assert.IsFalse(Request(EMixSnapshot.Muffled));
             Assert.AreEqual(EMixSnapshot.Cinematic, _machine.Current);
+            Assert.AreEqual(1, _applied.Count, "被优先级挡下的请求不得施加到混音上");
+            Assert.AreEqual(EMixSnapshot.Cinematic, _applied[0]);
         }
 
         [Test]
@@ -111,14 +143,6 @@ namespace Service.Audio
 
             Assert.AreEqual(EMixSnapshot.Dialogue, seen, "中间件回调应收到目标状态");
             Assert.AreEqual(0.1f, blend, 0.0001f, "交叉淡变时长应透传给中间件");
-        }
-
-        [Test]
-        public void StateAdvancesEvenWithoutSnapshot_WhenMixerMissing()
-        {
-            // 无 Mixer 无快照时切换是空操作，但状态记账仍推进：上层据此判断「是否还轮到自己」
-            Assert.IsTrue(Request(EMixSnapshot.Muffled));
-            Assert.AreEqual(EMixSnapshot.Muffled, _machine.Current);
         }
 
         #region 自动绑定命名 [AUTO BIND NAMING]
