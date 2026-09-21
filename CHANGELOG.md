@@ -5,7 +5,7 @@
 格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [SemVer](https://semver.org/lang/zh-CN/)。
 已发布版本的完整对比见 [GitHub Releases](https://github.com/TeamMoirai/com.moirai.framework/releases)。
 
-## [Unreleased]
+## [1.1.0] - 2026-09-21
 
 ### Added
 
@@ -102,15 +102,3 @@
 ### Deprecated
 
 - 无。
-
-## [1.0.2] - 2026-09-12
-
-见 [1.0.2 发布页](https://github.com/TeamMoirai/com.moirai.framework/releases/tag/1.0.2)。
-
-## [1.0.1] - 2026-09-01
-
-见 [1.0.1 发布页](https://github.com/TeamMoirai/com.moirai.framework/releases/tag/1.0.1)。
-
-## [1.0.0] - 2026-08-20
-
-首个正式版本。见 [1.0.0 发布页](https://github.com/TeamMoirai/com.moirai.framework/releases/tag/1.0.0)。
