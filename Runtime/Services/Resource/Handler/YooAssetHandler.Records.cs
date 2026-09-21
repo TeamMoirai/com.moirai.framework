@@ -94,14 +94,6 @@ namespace Moirai.Atropos.Resource
             public int NextFree;
         }
 
-        private struct AssetInfoSlot
-        {
-            public ulong Key;
-            public AssetInfo AssetInfo;
-            public byte State;
-            public int NextFree;
-        }
-
         #endregion
 
         #region 字段 [FIELDS]
@@ -122,11 +114,6 @@ namespace Moirai.Atropos.Resource
         [NonSerialized] private LoadingOperationSlot[][] _loadingOperationSlotPages;
         [NonSerialized] private int _loadingOperationSlotNextIndex;
         [NonSerialized] private int _loadingOperationSlotFreeHead = -1;
-
-        // AssetInfo 缓存分页数组
-        [NonSerialized] private AssetInfoSlot[][] _assetInfoSlotPages;
-        [NonSerialized] private int _assetInfoSlotNextIndex;
-        [NonSerialized] private int _assetInfoSlotFreeHead = -1;
 
         // 索引映射
         [NonSerialized] private readonly ResourceUlongIntMap _assetRecordsByKey = new ResourceUlongIntMap();
