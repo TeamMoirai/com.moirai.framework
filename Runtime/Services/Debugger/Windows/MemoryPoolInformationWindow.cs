@@ -178,19 +178,24 @@ namespace Moirai.Atropos.Debugger
             bool lowUtil = pageCapacity > 0 && utilPercent < 50;
             bool longIdle = info.IdleFrames > MemoryPool.ShortDecayStartFrames;
             bool highMissRate = info.AcquireCount > 0 && info.MissRate > 0.1f;
+            // 上限已顶到：配了 LiveLimit 又正好停在那条线上，就是漏还的现场而不是巧合。
+            bool liveLimitReached = info.LiveLimit > 0 && info.UsingCount >= info.LiveLimit;
 
             string className = _showFullClassName ? info.Type.FullName : info.Type.Name;
-            string entry = StringUtility.Format("Unused {0} | Using {1} | Acquire {2} | Release {3} | Miss {4} | Reserve {5} | Idle {6} | Pages {7} | Util {8}%",
-                info.UnusedCount, info.UsingCount, info.AcquireCount, info.ReleaseCount, info.MissCount, info.TargetFreeReserve, info.IdleFrames, pageCapacity, utilPercent);
+            string entry = StringUtility.Format(
+                "Unused {0} | Using {1} (max {2}) | Acquire {3} | Release {4} | Miss {5} | Reserve {6} | Idle {7} | Pages {8} | Util {9}%{10}",
+                info.UnusedCount, info.UsingCount, info.MaxUsingCount, info.AcquireCount, info.ReleaseCount,
+                info.MissCount, info.TargetFreeReserve, info.IdleFrames, pageCapacity, utilPercent,
+                info.LiveLimit > 0 ? StringUtility.Format(" | Limit {0}", info.LiveLimit) : string.Empty);
 
             VisualElement row = DebuggerUI.CreateRow(className, entry);
-            if (highMissRate || lowUtil || longIdle)
+            if (liveLimitReached || highMissRate || lowUtil || longIdle)
             {
                 // 值按钮自身即文本元素（Button:TextElement）——按严重度挂语义类着色
                 Button valueButton = row.Q<Button>();
                 if (valueButton != null)
                 {
-                    valueButton.AddToClassList(highMissRate ? "dbg-text--danger" : "dbg-text--warning");
+                    valueButton.AddToClassList(liveLimitReached || highMissRate ? "dbg-text--danger" : "dbg-text--warning");
                 }
             }
 

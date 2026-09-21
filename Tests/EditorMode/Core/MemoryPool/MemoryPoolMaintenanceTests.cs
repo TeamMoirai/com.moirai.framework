@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Moirai.Atropos;
 using NUnit.Framework;
+using UnityEngine.TestTools;
 using Mp = Moirai.Atropos.MemoryPool;
 
 namespace Core.MemoryPool
@@ -114,13 +115,16 @@ namespace Core.MemoryPool
             Assert.AreEqual(0, Info<PoolItem>().UsingCount);
         }
 
-        [TestCase(EMemoryPoolPhase.Boot, 32)]
-        [TestCase(EMemoryPoolPhase.Loading, 32)]
-        [TestCase(EMemoryPoolPhase.Gameplay, 2)]
-        [TestCase(EMemoryPoolPhase.Background, 8)]
-        [TestCase(EMemoryPoolPhase.LowMemory, 0)]
-        public void ExplicitAddUsesPhaseBudget(EMemoryPoolPhase phase, int budget)
+        // 阶段名按字符串传入：枚举本体在 public / internal 之间摇摆过，
+        // 而 public 测试方法把类型写进签名会让整套测试程序集随那次改动一起编不过（CS0051）。
+        [TestCase("Boot", 32)]
+        [TestCase("Loading", 32)]
+        [TestCase("Gameplay", 2)]
+        [TestCase("Background", 8)]
+        [TestCase("LowMemory", 0)]
+        public void ExplicitAddUsesPhaseBudget(string phaseName, int budget)
         {
+            EMemoryPoolPhase phase = (EMemoryPoolPhase)Enum.Parse(typeof(EMemoryPoolPhase), phaseName);
             MemoryPoolRegistry.Phase = phase;
             MemoryPool<PoolItem>.Add(100);
             Assert.AreEqual(budget, Info<PoolItem>().UnusedCount, $"{phase} 阶段单次 Add 建超了预算");
@@ -405,7 +409,19 @@ namespace Core.MemoryPool
                 MemoryPool<ColdItem<MemoryPoolMaintenanceTests>>.Acquire());
             MemoryPoolRegistry.Phase = EMemoryPoolPhase.LowMemory;
 
-            AggregateException error = Assert.Throws<AggregateException>(() => Tick());
+            // TickAll 边界收口后会先打一条 Fatal 再按分级上抛，EditMode 下那条日志要放行，
+            // 否则"异常确实被隔离并上报"这件事会被判成"用例产生了意外错误日志"。
+            LogAssert.ignoreFailingMessages = true;
+            AggregateException error;
+            try
+            {
+                error = Assert.Throws<AggregateException>(() => Tick());
+            }
+            finally
+            {
+                LogAssert.ignoreFailingMessages = false;
+            }
+
             Assert.AreEqual(0, Info<ColdItem<MemoryPoolMaintenanceTests>>().UnusedCount, "别的池抛出后本轮不再维护");
             Assert.AreEqual(0, Info<PoolItem>().UnusedCount);
             Assert.AreEqual(0, Info<OtherItem>().UnusedCount);

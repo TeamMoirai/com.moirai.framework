@@ -50,6 +50,22 @@ namespace Moirai.Atropos
         /// </summary>
         public static int DefaultHardFreeReserveLimit = 512;
 
+        /// <summary>
+        /// 正式构建是否仍保留主线程守卫，默认关闭。
+        /// <para>编辑器与开发构建本来就一直在守卫下，这个开关只影响正式包：QA / soak 构建把它打开，
+        /// 跨线程取还会被当场判出，而不是把非托管页元数据改坏之后，再以随机崩溃或数据错乱的形式回来。</para>
+        /// <para>代价是每个取还动作多读一个静态布尔并比较一次线程 id，只用于排查期，不建议长期开着上生产。</para>
+        /// </summary>
+        public static bool VerifyMainThreadInRelease;
+
+        /// <summary>
+        /// 存活（在外）对象数量上限的全局默认值，0 表示不限制。
+        /// <para>池的硬上限约束的是"空闲缓存"，不是"总量"——<c>Acquire</c> 未命中即构造、永不失败，
+        /// 所以业务漏还一只就是永久少一只。开启本上限后，越界会带池身份限流上报（开发期直接抛出）。</para>
+        /// <para>新池在静态构造时取该默认值，之后可按类型用 <see cref="SetLiveLimit{T}"/> 覆盖。</para>
+        /// </summary>
+        public static int DefaultLiveLimit;
+
         #endregion
 
         #region 属性 [PROPERTIES]
@@ -226,6 +242,26 @@ namespace Moirai.Atropos
             MemoryPoolRegistry.SetCapacityAll(softCapacity, hardCapacity);
             DefaultSoftFreeReserveLimit = softCapacity;
             DefaultHardFreeReserveLimit = hardCapacity;
+        }
+
+        /// <summary>
+        /// 设置指定类型内存池的存活（在外）对象数量上限，0 表示不限制。
+        /// </summary>
+        /// <typeparam name="T">内存对象类型。</typeparam>
+        /// <param name="limit">存活上限。</param>
+        public static void SetLiveLimit<T>(int limit) where T : MemoryObject, new()
+        {
+            MemoryPool<T>.SetLiveLimit(limit);
+        }
+
+        /// <summary>
+        /// 设置指定类型内存池的存活（在外）对象数量上限，0 表示不限制。
+        /// </summary>
+        /// <param name="memoryType">内存对象类型。</param>
+        /// <param name="limit">存活上限。</param>
+        public static void SetLiveLimit(Type memoryType, int limit)
+        {
+            MemoryPoolRegistry.SetLiveLimit(memoryType, limit);
         }
 
         /// <summary>

@@ -18,6 +18,8 @@ namespace Moirai.Atropos
         private int _releaseCount;
         private int _createCount;
         private int _missCount;
+        private int _maxUsingCount;
+        private int _liveLimit;
         private int _targetFreeReserve;
         private int _maxCapacity;
         private int _idleFrames;
@@ -68,6 +70,18 @@ namespace Moirai.Atropos
         public float MissRate => _acquireCount > 0 ? (float)_missCount / _acquireCount : 0f;
 
         /// <summary>
+        /// 获取自上次 <see cref="MemoryPool.ResetAllStats"/> 以来同时在外的对象数量峰值。
+        /// <para>与 <see cref="UsingCount"/> 一起看才是漏还证据：只用在外数量是瞬时值，取还抖动的池也会短暂冲高；
+        /// 高水位单调不降，跨小时只增不减即说明有引用没回来。</para>
+        /// </summary>
+        public int MaxUsingCount => _maxUsingCount;
+
+        /// <summary>
+        /// 获取该池的存活（在外）对象数量上限，0 表示不限制。
+        /// </summary>
+        public int LiveLimit => _liveLimit;
+
+        /// <summary>
         /// 获取目标空闲缓存数量。
         /// </summary>
         public int TargetFreeReserve => _targetFreeReserve;
@@ -95,6 +109,7 @@ namespace Moirai.Atropos
         internal void Set(Type type, int unusedCount, int usingCount,
             int acquireCount, int releaseCount, int createCount,
             int missCount,
+            int maxUsingCount, int liveLimit,
             int targetFreeReserve, int maxCapacity,
             int idleFrames, int pageCapacity)
         {
@@ -105,6 +120,8 @@ namespace Moirai.Atropos
             _releaseCount = releaseCount;
             _createCount = createCount;
             _missCount = missCount;
+            _maxUsingCount = maxUsingCount;
+            _liveLimit = liveLimit;
             _targetFreeReserve = targetFreeReserve;
             _maxCapacity = maxCapacity;
             _idleFrames = idleFrames;

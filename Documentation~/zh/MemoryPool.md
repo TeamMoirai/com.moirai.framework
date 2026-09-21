@@ -30,6 +30,26 @@ MemoryPool 系统为纯 C# 对象（非 GameObject）提供高性能池化。它
 - `PendingGrowth` — 显式 `Add()` 尚未落地的待建数量（驱动立即增长；取用未命中不再记债，改为当场构造并按在用量抬升水位）
 - `IdleFrames` — 自上次活动以来的空闲帧数（驱动衰减）
 
+### 存活上限与漏还可见性
+
+硬容量只约束**空闲缓存**，不约束总量：`Acquire` 未命中即构造、永不失败，所以业务漏还一只就永久少一只——表现是缓慢上涨的 OOM，而不是当场报错。三条配套：
+
+- `MemoryPoolInfo.UsingCount` 是瞬时在外量，`MaxUsingCount` 是自上次 `ResetAllStats` 以来的峰值。跨小时只增不减即说明有引用没回来；`ResetStats` 把峰值按当前在外量重起，不会把正在漏的池洗成干净。
+- `MemoryPool<T>.SetLiveLimit(n)` / `MemoryPool.SetLiveLimit(type, n)`（0 表示不限制，默认不限制）给"漏还"装一个可发现的边界：越界时带池身份限流上报（默认 300 帧一条），开发期先报后抛。发布版**不拒绝发放**——拒绝会让已经开跑的演出当场断，也修不了调用方的漏还。全局默认值在 `MemoryPoolSetting` 的 Inspector 上。
+- `MemoryPoolRegistry.ValidateAll()` 与 `MemoryPool<T>.ValidateStructure()` 是只读的结构自检：走查两条页链表，与页内计数、全局计数、前后指针、标志位交叉核对，返回带池身份的失配描述（健康时返回 `null`）。页链表换来 O(1) 摘挂，代价是一次漏挂/漏摘会让后续索引落到已释放内存上——那种失配平时不响。QA / 开发构建里在关键节点（关卡结束、场景卸载、加载完成）各调一次，就能把"随机崩溃"变成"当场说出哪个页的哪条链断了"。它只读但会分配字符串，别放进每帧。
+
+### 线程守卫与故障分级
+
+池不是线程安全的，全部结构都假定主线程独占。守卫分三档：
+
+| 场景 | 行为 |
+|------|------|
+| 编辑器 / 开发构建 | 每个取还动作校验线程 id，跨线程立即抛 `InvalidOperationException`（消息带 owner/current 线程 id） |
+| 正式构建（默认） | 守卫关闭，只保留一次静态布尔读；主线程 id 仍在 `SubsystemRegistration` 就固化 |
+| QA / soak 构建 | `MemoryPoolSetting.VerifyMainThreadInRelease` 打开后，正式构建也常驻校验——跨线程改坏非托管元数据不会当场报错，而是几周后以随机崩溃回来，排查期值这点开销 |
+
+维护路径的异常按房内 `RETHROW_*` 同一约定分级：`TickAll` 是每帧边界，开发期合并报一条带失败数量的 Fatal 后上抛，发布期只上报不外溢（没有业务能接住更新派发里的异常）；池内批量路径（整批修剪、页退役）始终逐项隔离走完再上报，一个坏 `OnEvict()` 不截断其余对象。单轮最多列出 16 条回调异常，其余合并成一条汇总——无上限收集等于在"内存紧张正在修剪"的那一刻攒 GC 毛刺。
+
 ### 阶段驱动预算
 
 `MemoryPoolRegistry.Phase` 控制每次 Tick 的增长和驱逐预算：
@@ -73,7 +93,7 @@ MemoryPool 系统为纯 C# 对象（非 GameObject）提供高性能池化。它
 | `MemoryObject` | 池化对象抽象基类：`Clear()` 方法用于状态重置 |
 | `IPoolEvictable` | 可选接口：对象被驱逐（非正常归还）时调用 `OnEvict()` |
 | `MemoryPoolHandle` | 缓存句柄，用于动态类型查找：`Acquire()`、`Release()` |
-| `MemoryPoolInfo` | 快照结构体：`UnusedCount`、`UsingCount`、`AcquireCount`、`MissCount`、`MissRate` 等 |
+| `MemoryPoolInfo` | 快照结构体：`UnusedCount`、`UsingCount`、`MaxUsingCount`、`LiveLimit`、`AcquireCount`、`MissCount`、`MissRate` 等 |
 | `EMemoryPoolPhase` | 枚举：`Boot`、`Loading`、`Gameplay`、`Background`、`LowMemory` |
 | `MemoryPoolSetting` | MonoBehaviour：Inspector 可配置的衰减计时器和容量限制 |
 
@@ -169,7 +189,7 @@ MemoryPoolRegistry.PoolStatsUpdated += infos =>
 };
 ```
 
-Debugger 窗口（如已启用）显示所有池的列：Unused、Using、Acquire、Release、Miss、Reserve、Idle、Pages、Util%。
+Debugger 窗口（如已启用）显示所有池的列：Unused、Using（含 max 高水位）、Acquire、Release、Miss、Reserve、Idle、Pages、Util%，配了 `LiveLimit` 时追加 Limit 一栏；顶到上限或高未命中率会标红。
 
 ## Inspector 设置
 
@@ -184,6 +204,8 @@ Debugger 窗口（如已启用）显示所有池的列：Unused、Using、Acquir
 | `m_AutoTrimNativeMetadataFrames` | 18000 | 空闲多少帧后自动释放 Native 元数据（@60fps ≈ 5分钟） |
 | `m_SoftFreeReserveLimit` | 128 | 默认空闲缓存软上限 |
 | `m_HardFreeReserveLimit` | 512 | 默认空闲缓存硬上限（超限触发驱逐） |
+| `m_VerifyMainThreadInRelease` | false | 正式构建也常驻主线程守卫（QA / soak 包打开） |
+| `m_DefaultLiveLimit` | 0 | 存活（在外）对象数量上限的全局默认值，0 表示不限制 |
 
 ---
 [« 返回文档索引](Index.md) · [主 README](../../README.md) · [ObjectPool](ObjectPool.md) · [Core](Core.md)

@@ -37,6 +37,11 @@ namespace Moirai.Atropos
         private const int PageFlagInEmptyList = 1 << 1;
         private const int PageFlagTombstone = 1 << 2;
 
+        /// <summary>
+        /// 存活上限告警的限流间隔（帧）。越界往往一炸就是整段演出，逐次打日志会把 Console 与上报通道刷爆。
+        /// </summary>
+        private const int LiveLimitWarnIntervalFrames = 300;
+
         #endregion
 
         #region 结构体 [STRUCTS]
@@ -93,10 +98,14 @@ namespace Moirai.Atropos
         private static int s_ReleasedPageCount;
 
         private static int s_InUse;
+        private static int s_MaxInUse;
         private static int s_FreeCount;
         private static int s_CreatedCount;
         private static int s_MissCount;
         private static int s_PendingGrowth;
+        private static int s_LiveLimit = MemoryPool.DefaultLiveLimit;
+        private static int s_LiveLimitBreaches;
+        private static int s_LastLiveLimitWarnFrame = InvalidIndex;
         private static int s_AcquireCount;
         private static int s_ReleaseCount;
         private static int s_AcquireThisFrame;
@@ -125,7 +134,9 @@ namespace Moirai.Atropos
                 clearNativeMetadata: ClearAllNativeMetadata,
                 add: Add,
                 setCapacity: SetCapacity,
+                setLiveLimit: SetLiveLimit,
                 getInfo: GetInfo,
+                validate: ValidateStructure,
                 tick: Tick,
                 shrink: Shrink,
                 compact: Compact,
@@ -171,6 +182,11 @@ namespace Moirai.Atropos
         {
             MemoryPoolRegistry.AssertMainThread();
             ThrowIfInPoolCallback("Acquire");
+            if (s_LiveLimit > 0 && s_InUse >= s_LiveLimit)
+            {
+                ReportLiveLimitBreached();
+            }
+
             if (!TryAcquireFree(out T item))
             {
                 s_MissCount++;
@@ -180,6 +196,11 @@ namespace Moirai.Atropos
             s_AcquireCount++;
             s_AcquireThisFrame++;
             s_InUse++;
+            if (s_InUse > s_MaxInUse)
+            {
+                s_MaxInUse = s_InUse;
+            }
+
             if (s_InUse > s_TargetFreeReserve)
             {
                 s_TargetFreeReserve = Clamp(s_InUse, MinKeep, s_SoftFreeReserveLimit);
@@ -187,6 +208,45 @@ namespace Moirai.Atropos
 
             MemoryPoolRegistry.ScheduleTick(s_Handle);
             return item;
+        }
+
+        /// <summary>
+        /// 设置存活（在外）对象数量上限，0 表示不限制。
+        /// <para>池的硬上限只约束空闲缓存，不约束总量——未命中即构造、<c>Acquire</c> 永不失败，
+        /// 所以业务漏还一只就永久少一只，表现为缓慢上涨的 OOM 而不是当场报错。本上限是给"漏还"这件事
+        /// 装一个可发现的边界：越界时带池身份限流上报，开发期直接抛出。</para>
+        /// </summary>
+        /// <param name="limit">存活上限，负数按 0（不限制）处理。</param>
+        public static void SetLiveLimit(int limit)
+        {
+            MemoryPoolRegistry.AssertMainThread();
+            ThrowIfInPoolCallback("SetLiveLimit");
+            s_LiveLimit = Math.Max(0, limit);
+            s_LiveLimitBreaches = 0;
+            s_LastLiveLimitWarnFrame = InvalidIndex;
+        }
+
+        /// <summary>
+        /// 上报存活上限越界。开发期抛出（漏还要第一时间被人看见，而不是等正式包 OOM）；
+        /// 发布版限流打 Fatal 后照常发放——在这里拒绝取用会让已经开跑的演出当场断，
+        /// 比多几只对象更糟，且拒绝发放也修不了调用方的漏还。
+        /// </summary>
+        private static void ReportLiveLimitBreached()
+        {
+            s_LiveLimitBreaches++;
+            bool rethrow = MemoryPoolRegistry.RETHROW_POOL_EXCEPTIONS;
+            if (!rethrow && MemoryPoolRegistry.CurrentFrame - s_LastLiveLimitWarnFrame < LiveLimitWarnIntervalFrames)
+            {
+                return;
+            }
+
+            s_LastLiveLimitWarnFrame = MemoryPoolRegistry.CurrentFrame;
+            string detail = $"[MemoryPool<{typeof(T).Name}>] Live lease limit breached: limit={s_LiveLimit}, using={s_InUse}, breaches={s_LiveLimitBreaches}, created={s_CreatedCount}. 取还没配对，先查持有方有没有归还。";
+            LogUtility.Fatal(detail);
+            if (rethrow)
+            {
+                throw new InvalidOperationException($"MemoryPool<{typeof(T).Name}>: {detail}");
+            }
         }
 
         /// <summary>
@@ -328,6 +388,8 @@ namespace Moirai.Atropos
             s_ReleaseCount = 0;
             s_CreatedCount = 0;
             s_MissCount = 0;
+            // 高水位按"当前在外量"重新起算：清零会让正在漏还的池看起来干净。
+            s_MaxInUse = s_InUse;
             s_AcquireThisFrame = 0;
             s_ReleaseThisFrame = 0;
             s_AcquireRateEwma = 0f;
@@ -358,6 +420,7 @@ namespace Moirai.Atropos
                 s_AcquireCount, s_ReleaseCount,
                 s_CreatedCount,
                 s_MissCount,
+                s_MaxInUse, s_LiveLimit,
                 s_TargetFreeReserve, s_HardFreeReserveLimit,
                 s_IdleFrames, Math.Max(0, s_PageCount - s_ReleasedPageCount) * PageSize);
         }
@@ -1078,6 +1141,188 @@ namespace Moirai.Atropos
 
         #endregion
 
+        #region 结构自检 [STRUCTURE VALIDATION]
+
+        /// <summary>
+        /// 结构自检：走查空闲链与空槽链，与页计数、全局计数、链表指针和标志位交叉核对。
+        /// <para>页链表换来的是 O(1) 摘挂，代价是一次漏挂/漏摘就会让后面的索引落到已释放内存上——
+        /// 那种失配平时不响，只在某条特定路径上以随机崩溃或数据错乱的形式回来。QA / 开发构建里在关键节点
+        /// （关卡结束、场景卸载、加载完成）调一次，就能把"随机崩溃"变成"当场说出哪个页的哪条链断了"。</para>
+        /// <para>本方法只读不改，且会为拼错误文案分配字符串——不要放进热路径或每帧调用。</para>
+        /// </summary>
+        /// <returns>一切自洽返回 <see langword="null"/>；否则返回首个失配的可读描述。</returns>
+        public static string ValidateStructure()
+        {
+            MemoryPoolRegistry.AssertMainThread();
+            int freeTotal = 0;
+            int leasedTotal = 0;
+            int linkedFreePages = 0;
+            int expectedFreeListPages = 0;
+
+            for (int pageIndex = 0; pageIndex < s_PageCount; pageIndex++)
+            {
+                ref PageHeader page = ref s_PageHeaders[pageIndex];
+                bool storageReleased = s_ObjectPages[pageIndex] == null;
+                bool tombstone = (page.Flags & PageFlagTombstone) != 0;
+                bool inFreeList = (page.Flags & PageFlagInFreeList) != 0;
+                bool inEmptyList = (page.Flags & PageFlagInEmptyList) != 0;
+
+                if (storageReleased)
+                {
+                    if (page.FreeCount != 0 || page.LeasedCount != 0)
+                    {
+                        return $"页 {pageIndex} 存储已释放但计数未清零（Free={page.FreeCount}, Leased={page.LeasedCount}）";
+                    }
+
+                    if (inFreeList || inEmptyList)
+                    {
+                        return $"页 {pageIndex} 存储已释放却仍挂在链表上（Flags={page.Flags}）";
+                    }
+
+                    continue;
+                }
+
+                if (inFreeList != (page.FreeCount > 0))
+                {
+                    return $"页 {pageIndex} 空闲标志与计数失配（Flags={page.Flags}, Free={page.FreeCount}）";
+                }
+
+                if (inEmptyList && (page.EmptyCount <= 0 || tombstone))
+                {
+                    return $"页 {pageIndex} 不该在空槽链上却仍挂着（Flags={page.Flags}, Empty={page.EmptyCount}, Tombstone={tombstone}）";
+                }
+
+                if (inFreeList)
+                {
+                    linkedFreePages++;
+                }
+
+                if (page.FreeCount > 0)
+                {
+                    expectedFreeListPages++;
+                }
+
+                leasedTotal += page.LeasedCount;
+                freeTotal += page.FreeCount;
+
+                string slotsError = ValidateSlotChain(pageIndex, page.FreeHead, SlotStateFree, "空闲");
+                if (slotsError != null)
+                {
+                    return slotsError;
+                }
+
+                if (!tombstone)
+                {
+                    slotsError = ValidateSlotChain(pageIndex, page.EmptyHead, SlotStateEmpty, "空槽");
+                    if (slotsError != null)
+                    {
+                        return slotsError;
+                    }
+                }
+            }
+
+            if (freeTotal != s_FreeCount)
+            {
+                return $"全局空闲计数失真：页内合计 {freeTotal}，s_FreeCount {s_FreeCount}";
+            }
+
+            if (leasedTotal != s_InUse)
+            {
+                return $"全局在外计数失真：页内合计 {leasedTotal}，s_InUse {s_InUse}";
+            }
+
+            if (linkedFreePages != expectedFreeListPages)
+            {
+                return $"空闲页链表与实际有空闲槽的页数不符：挂链 {linkedFreePages}，应为 {expectedFreeListPages}（漏挂会让空闲对象再也取不到，多挂会索引到无空闲槽的页）";
+            }
+
+            string listError = ValidatePageList(s_FreePageHead, true);
+            if (listError != null)
+            {
+                return listError;
+            }
+
+            return ValidatePageList(s_EmptyPageHead, false);
+        }
+
+        /// <summary>
+        /// 走一页内的槽位链：索引必须落在页内、状态必须一致、长度不得超过页大小（超出即说明链上成环）。
+        /// </summary>
+        private static string ValidateSlotChain(int pageIndex, int slotIndex, byte expectedState, string label)
+        {
+            int walked = 0;
+            while (slotIndex >= 0)
+            {
+                if ((uint)slotIndex >= PageSize)
+                {
+                    return $"页 {pageIndex} 的{label}链槽位越界：{slotIndex}";
+                }
+
+                if (++walked > PageSize)
+                {
+                    return $"页 {pageIndex} 的{label}链成环（走查超过 {PageSize} 个槽位）";
+                }
+
+                ref SlotMeta slot = ref s_SlotMetas[GetSlotMetaIndex(pageIndex, slotIndex)];
+                if (slot.State != expectedState)
+                {
+                    return $"页 {pageIndex} 槽 {slotIndex} 在{label}链上但状态为 {slot.State}（应为 {expectedState}）";
+                }
+
+                if (expectedState == SlotStateFree && s_ObjectPages[pageIndex][slotIndex] == null)
+                {
+                    return $"页 {pageIndex} 槽 {slotIndex} 在空闲链上却不持有对象";
+                }
+
+                slotIndex = slot.Next;
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// 走一条页链表：前后指针必须互指，且不能成环。
+        /// </summary>
+        private static string ValidatePageList(int head, bool free)
+        {
+            string label = free ? "空闲" : "空槽";
+            int walked = 0;
+            int previous = InvalidIndex;
+            int pageIndex = head;
+            while (pageIndex >= 0)
+            {
+                if ((uint)pageIndex >= (uint)s_PageCount)
+                {
+                    return $"{label}页链表节点越界：{pageIndex}（页总数 {s_PageCount}）";
+                }
+
+                if (++walked > s_PageCount)
+                {
+                    return $"{label}页链表成环（走查超过 {s_PageCount} 个节点）";
+                }
+
+                ref PageHeader page = ref s_PageHeaders[pageIndex];
+                ref PageLink link = ref (free ? ref page.FreeLink : ref page.EmptyLink);
+                if (link.Previous != previous)
+                {
+                    return $"{label}页链表在页 {pageIndex} 处前指针失真：记录 {link.Previous}，实际应为 {previous}";
+                }
+
+                bool flagged = (page.Flags & (free ? PageFlagInFreeList : PageFlagInEmptyList)) != 0;
+                if (!flagged)
+                {
+                    return $"{label}页链表包含未挂链标记的页 {pageIndex}";
+                }
+
+                previous = pageIndex;
+                pageIndex = link.Next;
+            }
+
+            return null;
+        }
+
+        #endregion
+
         #region 回调 [CALLBACKS]
 
         private static void InvokeClear(T item)
@@ -1242,11 +1487,9 @@ namespace Moirai.Atropos
 
         private static void CollectException(ref List<Exception> exceptions, Exception exception)
         {
-            if (exception != null)
-            {
-                exceptions ??= new List<Exception>();
-                exceptions.Add(exception);
-            }
+            // 采集上限由注册表统一定义：池内批量路径与全局批量路径必须同进同退，
+            // 否则"最多攒多少条"会变成两处各自演化的常数。
+            MemoryPoolRegistry.AddCollected(ref exceptions, exception);
         }
 
         private static Exception CreateException(List<Exception> exceptions)

@@ -65,6 +65,17 @@ namespace Moirai.Atropos
         [Tooltip("默认空闲缓存硬上限。释放对象时超过该值会直接驱逐。")]
         [SerializeField] private int m_HardFreeReserveLimit = 512;
 
+        [Header("上线排查设置 [Release Diagnostics Settings]")]
+        [Tooltip("正式构建也保留主线程守卫。编辑器与开发构建本来就一直在守卫下；\n" +
+                 "QA / soak 包打开后跨线程取还会当场报错，而不是把非托管页元数据改坏后以随机崩溃回来。\n" +
+                 "代价是每个取还动作多一次线程 id 比较，正式包建议关闭。")]
+        [SerializeField] private bool m_VerifyMainThreadInRelease = false;
+
+        [Tooltip("存活（在外）对象数量上限的全局默认值，0 表示不限制。\n" +
+                 "硬上限只约束空闲缓存、不约束总量：漏还一只就永久少一只，表现为缓慢上涨的 OOM。\n" +
+                 "开启后越界会带池身份限流上报，开发期直接抛出。")]
+        [SerializeField] private int m_DefaultLiveLimit = 0;
+
         [NonSerialized] private EMemoryPoolPhase _previousPhase = EMemoryPoolPhase.Gameplay;
 
         #endregion
@@ -86,6 +97,9 @@ namespace Moirai.Atropos
             MemoryPool.ZeroFreeReserveStartFrames = Instance.m_ZeroFreeReserveStartFrames;
             MemoryPool.AutoTrimNativeMetadataFrames = Instance.m_AutoTrimNativeMetadataFrames;
             MemoryPool.SetDefaultCapacity(Instance.m_SoftFreeReserveLimit, Instance.m_HardFreeReserveLimit);
+            MemoryPool.VerifyMainThreadInRelease = Instance.m_VerifyMainThreadInRelease;
+            MemoryPool.DefaultLiveLimit = Instance.m_DefaultLiveLimit;
+            MemoryPoolRegistry.RefreshThreadGuard();
             MemoryPoolRegistry.Phase = EMemoryPoolPhase.Boot;
 
             Application.lowMemory += OnLowMemory;
@@ -145,6 +159,7 @@ namespace Moirai.Atropos
                 : Mathf.Max(Instance.m_ZeroFreeReserveStartFrames, Instance.m_AutoTrimNativeMetadataFrames);
             Instance.m_SoftFreeReserveLimit = Mathf.Max(MemoryPool.MINIMUM_FREE_RESERVE_LIMIT, Instance.m_SoftFreeReserveLimit);
             Instance.m_HardFreeReserveLimit = Mathf.Max(Instance.m_SoftFreeReserveLimit, Instance.m_HardFreeReserveLimit);
+            Instance.m_DefaultLiveLimit = Mathf.Max(0, Instance.m_DefaultLiveLimit);
         }
 
         #endregion

@@ -13,6 +13,29 @@ namespace Moirai.Atropos
     /// </summary>
     public static class MemoryPoolRegistry
     {
+        #region 常量 [CONSTANTS]
+
+        /// <summary>
+        /// 内存池故障分级门控，与 <c>EventDispatchPolicy.RETHROW_DISPATCH_EXCEPTIONS</c>、
+        /// <c>ServiceScope.RETHROW_TICK_EXCEPTIONS</c> 同一约定：开发期原样上抛第一时间暴露缺陷，
+        /// 发布期只在边界合并上报让游戏继续跑。<c>const</c> 门控让死分支被裁掉，发布版零运行时成本。
+        /// <para>改这个判据要连同上面两处一起改，房内约定不一致比统一用错更糟。</para>
+        /// </summary>
+        internal const bool RETHROW_POOL_EXCEPTIONS =
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            true;
+#else
+            false;
+#endif
+
+        /// <summary>
+        /// 单轮批量维护最多收集多少条回调异常。整批对象的 <c>OnEvict()</c> 都在抛时，
+        /// 无上限收集本身就是在"内存紧张、正在修剪"的那一刻攒出一次 GC 毛刺，因此超出部分只留一条汇总。
+        /// </summary>
+        internal const int MaxCollectedCallbackExceptions = 16;
+
+        #endregion
+
         #region 内部句柄 [INTERNAL HANDLE]
 
         internal sealed class MemoryPoolHandle
@@ -24,6 +47,7 @@ namespace Moirai.Atropos
             public delegate void CapacityHandler(int softCapacity, int hardCapacity);
             public delegate bool TickHandler(int value);
             public delegate void GetInfoHandler(ref MemoryPoolInfo info);
+            public delegate string ValidateHandler();
 
             public readonly int PoolId;
             public readonly AcquireHandler Acquire;
@@ -32,7 +56,9 @@ namespace Moirai.Atropos
             public readonly ClearHandler ClearNativeMetadata;
             public readonly IntHandler Add;
             public readonly CapacityHandler SetCapacity;
+            public readonly IntHandler SetLiveLimit;
             public readonly GetInfoHandler GetInfo;
+            public readonly ValidateHandler Validate;
             public readonly TickHandler Tick;
             public readonly IntHandler Shrink;
             public readonly ClearHandler Compact;
@@ -47,7 +73,9 @@ namespace Moirai.Atropos
                 ClearHandler clearNativeMetadata,
                 IntHandler add,
                 CapacityHandler setCapacity,
+                IntHandler setLiveLimit,
                 GetInfoHandler getInfo,
+                ValidateHandler validate,
                 TickHandler tick,
                 IntHandler shrink,
                 ClearHandler compact,
@@ -61,7 +89,9 @@ namespace Moirai.Atropos
                 ClearNativeMetadata = clearNativeMetadata;
                 Add = add;
                 SetCapacity = setCapacity;
+                SetLiveLimit = setLiveLimit;
                 GetInfo = getInfo;
+                Validate = validate;
                 Tick = tick;
                 Shrink = shrink;
                 Compact = compact;
@@ -175,19 +205,45 @@ namespace Moirai.Atropos
 
         #region 主线程断言 [MAIN THREAD ASSERT]
 
-        [System.Diagnostics.Conditional("UNITY_EDITOR")]
-        [System.Diagnostics.Conditional("DEVELOPMENT_BUILD")]
+        /// <summary>
+        /// 当前是否执行主线程校验。
+        /// <para>编辑器与开发构建恒开。正式构建默认关——但调用点不再被 <c>[Conditional]</c> 整条裁掉，
+        /// 因为 QA / soak 构建需要能在跑起来之后打开它：跨线程取还不会当场报错，而是把非托管页元数据
+        /// 与侵入式链表改坏，几周后以随机崩溃或数据错乱的形式回来，那时已经查不到是谁在别的线程动的手。</para>
+        /// <para>关着时的成本是每个取还动作读一个静态布尔并分支一次。</para>
+        /// </summary>
+        private static bool s_ThreadGuardActive = true;
+
+        /// <summary>
+        /// 按编译期分级与 <see cref="MemoryPool.VerifyMainThreadInRelease"/> 刷新线程守卫，
+        /// 由 <c>MemoryPoolSetting</c> 在初始化时调用。
+        /// </summary>
+        internal static void RefreshThreadGuard()
+        {
+            s_ThreadGuardActive = RETHROW_POOL_EXCEPTIONS || MemoryPool.VerifyMainThreadInRelease;
+        }
+
         internal static void AssertMainThread()
         {
+            if (!s_ThreadGuardActive)
+            {
+                return;
+            }
+
             int currentThreadId = Thread.CurrentThread.ManagedThreadId;
             if (s_MainThreadId == 0)
             {
+                // 只在没有任何运行期初始化介入时兜底认领（EditMode 测试、纯编辑器工具路径）。
+                // 正式构建里 MemoryPoolSetting 在 SubsystemRegistration 就写死了主线程 id，走不到这里，
+                // 否则某个后台线程抢先访问池就会把自己认成主线程，之后真正的 main thread 反而全被拒。
                 s_MainThreadId = currentThreadId;
+                return;
             }
 
             if (s_MainThreadId != currentThreadId)
             {
-                throw new InvalidOperationException("MemoryPool must be used from the Unity main thread.");
+                throw new InvalidOperationException(
+                    $"MemoryPool must be used from the Unity main thread (owner thread {s_MainThreadId}, current thread {currentThreadId}).");
             }
         }
 
@@ -455,6 +511,79 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
+        /// 设置指定类型内存池的存活（在外）对象数量上限，0 表示不限制。
+        /// <para>硬容量只约束空闲缓存、不约束总量，所以这个上限是给"业务漏还"装的可发现边界：
+        /// 越界时带池身份上报，开发期直接抛出。</para>
+        /// </summary>
+        /// <param name="type">内存对象类型。</param>
+        /// <param name="limit">存活上限，负数按 0（不限制）处理。</param>
+        public static void SetLiveLimit(Type type, int limit)
+        {
+            AssertMainThread();
+            GetOrCreateHandle(type).SetLiveLimit(limit);
+        }
+
+        /// <summary>
+        /// 逐个池做结构自检（走查页链表并与计数交叉核对），把所有失配汇总成一条可读描述。
+        /// <para>只读不改，且会分配字符串：给开发 / QA 构建在关键节点（关卡结束、场景卸载、加载完成）
+        /// 或自动化冒烟流程里调用，不要放进每帧。自检过程中任何意外都会被收进报告，本身不外抛。</para>
+        /// </summary>
+        /// <returns>一切自洽返回 <see langword="null"/>；否则返回带池身份的问题清单。</returns>
+        public static string ValidateAll()
+        {
+            AssertMainThread();
+            ThrowIfInCallback();
+            MemoryPoolHandle[] handles = s_HandleValues;
+            string report = null;
+            for (int i = 0; i < handles.Length; i++)
+            {
+                MemoryPoolHandle handle = handles[i];
+                if (handle == null)
+                {
+                    continue;
+                }
+
+                string error;
+                try
+                {
+                    error = handle.Validate();
+                }
+                catch (Exception exception)
+                {
+                    error = $"自检自身抛出 {exception.GetType().Name}: {exception.Message}";
+                }
+
+                if (string.IsNullOrEmpty(error))
+                {
+                    continue;
+                }
+
+                if (report != null)
+                {
+                    report += "\n";
+                }
+
+                report += $"{ReadPoolType(handle)}: {error}";
+            }
+
+            return report;
+        }
+
+        private static string ReadPoolType(MemoryPoolHandle handle)
+        {
+            try
+            {
+                MemoryPoolInfo info = default;
+                handle.GetInfo(ref info);
+                return info.Type == null ? "<unknown>" : info.Type.FullName;
+            }
+            catch (Exception exception)
+            {
+                return $"<读取身份失败 {exception.GetType().Name}>";
+            }
+        }
+
+        /// <summary>
         /// 设置所有内存池容量。
         /// </summary>
         /// <param name="softCapacity">软容量上限。</param>
@@ -541,8 +670,7 @@ namespace Moirai.Atropos
                 }
                 catch (Exception exception)
                 {
-                    exceptions ??= new List<Exception>();
-                    exceptions.Add(exception);
+                    AddCollected(ref exceptions, exception);
                 }
 
                 // Tick 内的淘汰回调可以把本池就地摘出活跃数组（OnEvict → 注销/停止调度），
@@ -554,7 +682,7 @@ namespace Moirai.Atropos
             }
 
             FirePoolStatsUpdated();
-            Rethrow(exceptions);
+            ReportMaintenanceFault(exceptions);
         }
 
         /// <summary>
@@ -809,6 +937,33 @@ namespace Moirai.Atropos
             }
         }
 
+        /// <summary>
+        /// 收集一条批量维护期间产生的异常，超出 <see cref="MaxCollectedCallbackExceptions"/> 后只留一条汇总。
+        /// 池自己的批量路径（页退役、整批修剪）也走这里，保证"上限"只有一处定义。
+        /// </summary>
+        internal static void AddCollected(ref List<Exception> exceptions, Exception exception)
+        {
+            if (exception == null)
+            {
+                return;
+            }
+
+            exceptions ??= new List<Exception>();
+            if (exceptions.Count < MaxCollectedCallbackExceptions)
+            {
+                exceptions.Add(exception);
+                return;
+            }
+
+            if (exceptions.Count == MaxCollectedCallbackExceptions)
+            {
+                // 只占一格说明"后面还有"，不再为省略的条数逐个分配包装对象。
+                exceptions.Add(new AggregateException(
+                    $"回调失败过多，单轮最多列出 {MaxCollectedCallbackExceptions} 条，其余已省略；本格是第一条被省略的原始异常。",
+                    exception));
+            }
+        }
+
         private static void CollectException(ref List<Exception> exceptions, MemoryPoolHandle.ClearHandler action)
         {
             if (action == null)
@@ -822,20 +977,53 @@ namespace Moirai.Atropos
             }
             catch (Exception exception)
             {
-                exceptions ??= new List<Exception>();
-                exceptions.Add(exception);
+                AddCollected(ref exceptions, exception);
             }
         }
 
+        private static Exception CreateException(List<Exception> exceptions)
+        {
+            if (exceptions == null)
+            {
+                return null;
+            }
+
+            return exceptions.Count == 1 ? exceptions[0] : new AggregateException(exceptions);
+        }
+
         private static void Rethrow(List<Exception> exceptions)
+        {
+            Exception exception = CreateException(exceptions);
+            if (exception != null)
+            {
+                ExceptionDispatchInfo.Capture(exception).Throw();
+            }
+        }
+
+        /// <summary>
+        /// 每帧维护边界的故障收口：合并成一条带失败数量的 Fatal，然后按分级决定是否上抛。
+        /// <para>这里与 <see cref="ClearAll"/> 之类的显式调用不同——TickAll 由 <c>GameApp</c> 的更新派发驱动，
+        /// 没有业务能接住它，发布版外溢只会每帧刷一条栈；而一个池的坏回调已经在池内逐项隔离过了，
+        /// 能逃到这里的都是框架级缺陷，必须留下带身份的记录。</para>
+        /// </summary>
+        private static void ReportMaintenanceFault(List<Exception> exceptions)
         {
             if (exceptions == null)
             {
                 return;
             }
 
-            Exception exception = exceptions.Count == 1 ? exceptions[0] : new AggregateException(exceptions);
-            ExceptionDispatchInfo.Capture(exception).Throw();
+            int collected = exceptions.Count;
+            bool capped = collected > MaxCollectedCallbackExceptions;
+            Exception fault = CreateException(exceptions);
+            LogUtility.Fatal(
+                capped
+                    ? $"[MemoryPool] Maintenance faulted during TickAll: {MaxCollectedCallbackExceptions}+ 个池失败（最多列出 {MaxCollectedCallbackExceptions} 条，其余省略）。"
+                    : $"[MemoryPool] Maintenance faulted during TickAll: {collected} 个池失败。");
+            if (RETHROW_POOL_EXCEPTIONS)
+            {
+                ExceptionDispatchInfo.Capture(fault).Throw();
+            }
         }
 
         #endregion
