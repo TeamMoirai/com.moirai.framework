@@ -952,6 +952,46 @@ namespace Service.GameObjectPool
         }
 
         [Test]
+        public void NormalizeLocation_RawPathWithExtension_StopsAllocatingAfterFirst()
+        {
+            DefaultGameObjectPoolHandler handler = new DefaultGameObjectPoolHandler();
+            const string raw = "Assets/UI/Hero.prefab";
+
+            string first = handler.NormalizeLocationCached(raw);
+            Assert.AreEqual("Assets/UI/Hero", first);
+
+            string later = null;
+            long before = System.GC.GetAllocatedBytesForCurrentThread();
+            for (int i = 0; i < 256; i++)
+            {
+                later = handler.NormalizeLocationCached(raw);
+            }
+            long after = System.GC.GetAllocatedBytesForCurrentThread();
+
+            Assert.AreEqual("Assets/UI/Hero", later);
+            Assert.AreEqual(0, after - before,
+                "取池热路径每次都要归一化地址；扩展名剥离必然产生字符串，必须复用首次结果");
+        }
+
+        [Test]
+        public void NormalizeLocation_IdentityResult_IsNotCached()
+        {
+            DefaultGameObjectPoolHandler handler = new DefaultGameObjectPoolHandler();
+            const string clean = "Assets/UI/Hero";
+
+            long before = System.GC.GetAllocatedBytesForCurrentThread();
+            string same = null;
+            for (int i = 0; i < 256; i++)
+            {
+                same = handler.NormalizeLocationCached(clean);
+            }
+            long after = System.GC.GetAllocatedBytesForCurrentThread();
+
+            Assert.AreSame(clean, same, "无需改写时原样返回，不该产生新字符串");
+            Assert.AreEqual(0, after - before, "零分配的结果不进取池备忘表，免得白白留住字符串");
+        }
+
+        [Test]
         public void RecycledPool_AfterClear_StillServesAsyncSpawnAndShutdown()
         {
             // 池对象是 MemoryObject：DefaultGameObjectPoolHandler 经 MemoryPool.Acquire/Release 循环使用它，

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
@@ -18,6 +18,10 @@ namespace Moirai.Atropos.ObjectPool
         #region 常量 [CONSTANTS]
 
         private const int INITIAL_POOL_CAPACITY = 8;
+
+        // 归一化备忘表上界：超限即整表清空（不维护 LRU）——地址集合天然很小，
+        // 真撞上动态拼接的路径洪流时，宁可重来也不无界留住字符串。
+        private const int NORMALIZED_LOCATION_CACHE_LIMIT = 256;
         private const int INITIAL_GROUP_ROOT_CAPACITY = 4;
 
         #endregion
@@ -31,6 +35,9 @@ namespace Moirai.Atropos.ObjectPool
         [NonSerialized] private PoolMaintenanceScheduler _scheduler;
         [NonSerialized] private readonly IPrefabLoader _loader = new ResourcePrefabLoader();
         [NonSerialized] private readonly List<GameObjectPoolSnapshot> _debugSnapshots = new List<GameObjectPoolSnapshot>(16);
+        // 取池热路径的归一化结果备忘：只登记"确实改写过"的地址（扩展名剥离必然产生一次 Substring），
+        // 原样返回的输入本就零分配，不入表以免白白留住字符串。主线程访问，与相邻哈希表同一约定。
+        [NonSerialized] private Dictionary<string, string> _normalizedLocations;
         [NonSerialized] private StringOpenHashMap _unregisteredWarned;
         [NonSerialized] private StringOpenHashMap _unhandledDespawnWarned;
         [NonSerialized] private StringOpenHashMap _groupRootMap;
@@ -114,6 +121,8 @@ namespace Moirai.Atropos.ObjectPool
                 _containerRoot = null;
             }
 
+            _normalizedLocations?.Clear();
+            _normalizedLocations = null;
             _poolByLocation.Dispose();
             _poolByPrefab.Dispose();
             _unregisteredWarned.Dispose();
@@ -483,9 +492,45 @@ namespace Moirai.Atropos.ObjectPool
             return ResolvePool(source.Location);
         }
 
+        /// <summary>
+        /// 取池地址的归一化：先按原样命中池表（与 <see cref="FindPool"/> 同一快路），未命中再走带备忘的归一化。
+        /// 已注册成原样键的池因此完全不碰字符串改写。
+        /// </summary>
+        internal string NormalizeLocationCached(string location)
+        {
+            if (location == null)
+            {
+                return null;
+            }
+
+            if (!string.IsNullOrEmpty(location) && _poolByLocation.ContainsKey(location))
+            {
+                return location;
+            }
+
+            if (_normalizedLocations != null && _normalizedLocations.TryGetValue(location, out string cached))
+            {
+                return cached;
+            }
+
+            string normalized = PoolEntry.NormalizeLocation(location);
+            if (!ReferenceEquals(normalized, location))
+            {
+                _normalizedLocations ??= new Dictionary<string, string>(64);
+                if (_normalizedLocations.Count >= NORMALIZED_LOCATION_CACHE_LIMIT)
+                {
+                    _normalizedLocations.Clear();
+                }
+
+                _normalizedLocations[location] = normalized;
+            }
+
+            return normalized;
+        }
+
         private RuntimeGameObjectPool ResolvePool(string location)
         {
-            string normalized = PoolEntry.NormalizeLocation(location);
+            string normalized = NormalizeLocationCached(location);
             if (string.IsNullOrEmpty(normalized))
             {
                 return null;
@@ -546,7 +591,7 @@ namespace Moirai.Atropos.ObjectPool
                 return _pools[rawIndex];
             }
 
-            string normalized = PoolEntry.NormalizeLocation(location);
+            string normalized = NormalizeLocationCached(location);
             return !string.IsNullOrEmpty(normalized) && _poolByLocation.TryGetValue(normalized, out int poolIndex)
                 ? _pools[poolIndex]
                 : null;
