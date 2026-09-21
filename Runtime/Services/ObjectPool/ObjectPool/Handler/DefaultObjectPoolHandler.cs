@@ -589,6 +589,13 @@ namespace Moirai.Atropos.ObjectPool
             /// <returns>对象；无可复用对象返回 null。</returns>
             public T Spawn(string name)
             {
+                if (_isShuttingDown)
+                {
+                    // 关停进行中：槽位存储即将归还 ArrayPool，此刻取出的对象既还得回去也保证不了归属
+                    // （回收路径由 Shutdown 自己的 obj.Release(true) 走完）。按"无可复用对象"降级。
+                    return null;
+                }
+
                 if (name == null)
                 {
                     name = string.Empty;
