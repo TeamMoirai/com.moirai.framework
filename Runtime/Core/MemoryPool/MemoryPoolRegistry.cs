@@ -550,6 +550,14 @@ namespace Moirai.Atropos
                     continue;
                 }
 
+                // Tick 内的淘汰回调可以把本池就地摘出活跃数组（OnEvict → 注销/停止调度），
+                // 数组此时已左移：再做交换移除会挪错槽位，让别的池 ActiveIndex 失真、从此不再被 Tick。
+                if (handle.ActiveIndex != i || !ReferenceEquals(s_ActivePools[i], handle))
+                {
+                    i++;
+                    continue;
+                }
+
                 int lastIndex = --s_ActiveCount;
                 MemoryPoolHandle last = s_ActivePools[lastIndex];
                 s_ActivePools[lastIndex] = null;
