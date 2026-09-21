@@ -4,7 +4,7 @@ using Moirai.Atropos.Save;
 using NUnit.Framework;
 using UnityEngine;
 
-namespace Save
+namespace Service.Save
 {
     /// <summary>
     /// KVT 元素级记录测试：序列/映射/嵌套对象元素的写入-读取往返、null 元素、类型不符跳过、缓冲区边界回归。

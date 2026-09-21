@@ -5,7 +5,7 @@ using Moirai.Atropos;
 using Moirai.Atropos.Save;
 using NUnit.Framework;
 
-namespace Save
+namespace Service.Save
 {
     /// <summary>
     /// <see cref="FileSaveStorageBackend"/> 存储层契约测试（V3-P1 存储抽象下沉回归）：

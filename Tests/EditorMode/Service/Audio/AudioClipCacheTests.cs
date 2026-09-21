@@ -3,7 +3,7 @@ using Moirai.Atropos.Audio;
 using NUnit.Framework;
 using UnityEngine.TestTools;
 
-namespace Moirai.Atropos.Tests.EditorMode.Audio
+namespace Service.Audio
 {
     /// <summary>
     /// <see cref="AudioClipCache"/> 语义回归：单飞加载、引用计数、LRU/TTL/Pin 驱逐、容量上界、

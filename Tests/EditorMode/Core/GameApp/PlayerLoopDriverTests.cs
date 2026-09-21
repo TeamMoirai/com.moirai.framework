@@ -6,8 +6,9 @@ using Moirai.Atropos;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
+using App = Moirai.Atropos.GameApp;
 
-namespace Core.PlayerLoop
+namespace Core.GameApp
 {
     /// <summary>
     /// <see cref="PlayerLoopDriver"/> 的架构验收测试：帧时钟同帧采样、延迟缓冲按阶段隔离、
@@ -675,7 +676,7 @@ namespace Core.PlayerLoop
         public void GameAppAddFrameHandler_DrivesEveryImplementedStage()
         {
             var probe = new AllStagesProbe();
-            GameApp.AddFrameHandler(probe);
+            App.AddFrameHandler(probe);
 
             Assert.AreEqual(1, PlayerLoopDriver.UpdateHandlerCount);
             Assert.AreEqual(1, PlayerLoopDriver.FixedUpdateHandlerCount);
@@ -689,7 +690,7 @@ namespace Core.PlayerLoop
             Assert.AreEqual(1, probe.FixedCalls);
             Assert.AreEqual(1, probe.LateCalls);
 
-            GameApp.RemoveFrameHandler(probe);
+            App.RemoveFrameHandler(probe);
             Assert.AreEqual(0, PlayerLoopDriver.UpdateHandlerCount);
             Assert.AreEqual(0, PlayerLoopDriver.FixedUpdateHandlerCount);
             Assert.AreEqual(0, PlayerLoopDriver.LateUpdateHandlerCount);
@@ -700,7 +701,7 @@ namespace Core.PlayerLoop
         {
             // 门面按参数类型各自唯一，多阶段对象登记单阶段不必像驱动的同名 Register 三重载那样显式转型
             var multi = new AllStagesProbe();
-            GameApp.AddLateUpdateHandler(multi);
+            App.AddLateUpdateHandler(multi);
 
             Assert.AreEqual(1, PlayerLoopDriver.LateUpdateHandlerCount);
             Assert.AreEqual(0, PlayerLoopDriver.UpdateHandlerCount, "单阶段注册不得被升级进其它阶段");
@@ -710,7 +711,7 @@ namespace Core.PlayerLoop
             Assert.AreEqual(1, multi.LateCalls);
             Assert.AreEqual(0, multi.UpdateCalls);
 
-            GameApp.RemoveLateUpdateHandler(multi);
+            App.RemoveLateUpdateHandler(multi);
             Assert.AreEqual(0, PlayerLoopDriver.LateUpdateHandlerCount);
         }
 
@@ -719,8 +720,8 @@ namespace Core.PlayerLoop
         {
             // 门面转发到的就是同一张注册表，优先级排序必须一致生效
             var order = new List<string>();
-            GameApp.AddUpdateHandler(new PriorityProbe("late", order, 5));
-            GameApp.AddUpdateHandler(new Probe("normal", order));
+            App.AddUpdateHandler(new PriorityProbe("late", order, 5));
+            App.AddUpdateHandler(new Probe("normal", order));
 
             PlayerLoopDriver.DriveUpdate();
 

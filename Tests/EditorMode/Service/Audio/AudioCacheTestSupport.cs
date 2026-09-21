@@ -4,7 +4,7 @@ using Moirai.Atropos.Audio;
 using NUnit.Framework;
 using UnityEngine;
 
-namespace Moirai.Atropos.Tests.EditorMode.Audio
+namespace Service.Audio
 {
     /// <summary>
     /// Clip 缓存测试台：可控的 <see cref="IAudioClipLeaseSource"/> 假件 + 台账不变量断言。

@@ -9,7 +9,7 @@ using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
 
-namespace Save
+namespace Service.Save
 {
     /// <summary>
     /// V3-P2 压缩转换链测试：GZip 往返、压+加组合、旧档（无压缩位）兼容读、

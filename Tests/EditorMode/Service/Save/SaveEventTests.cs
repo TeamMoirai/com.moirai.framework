@@ -11,7 +11,7 @@ using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
 
-namespace Save
+namespace Service.Save
 {
     /// <summary>
     /// V3-P4 事件 API 测试：静态事件触发时机/次数/参数、失败事件阶段分型、后台线程派发主线程化、进度批次判定。

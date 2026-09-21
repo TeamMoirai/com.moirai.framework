@@ -9,7 +9,7 @@ using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
 
-namespace Save
+namespace Service.Save
 {
     /// <summary>
     /// V3-P2 密钥提供方测试：静态密钥（V2 语义等价）、口令注入、HKDF 按用户派生，

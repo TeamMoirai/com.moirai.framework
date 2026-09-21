@@ -1,8 +1,9 @@
 using Moirai.Atropos;
 using NUnit.Framework;
 using UnityEngine;
+using App = Moirai.Atropos.GameApp;
 
-namespace Core.RuntimeState
+namespace Core.GameApp
 {
     /// <summary>
     /// <see cref="GameApp"/> 运行态契约测试：暂停引用计数（<c>PauseGame</c> / <c>ResumeGame</c> /
@@ -24,20 +25,20 @@ namespace Core.RuntimeState
         [SetUp]
         public void SetUp()
         {
-            _originalGameSpeed = GameApp.GameSpeed;
+            _originalGameSpeed = App.GameSpeed;
             _originalTimeScale = Time.timeScale;
 
             // 复位到确定基线：计数 0、期望速度 1。编辑模式下 Initialize 从不运行，静态字段本该是
             // 声明时的初值，但仍显式复位——同域内的其它用例或上一轮的残留都可能改过它。
-            while (GameApp.IsGamePaused) GameApp.ResumeGame();
-            GameApp.GameSpeed = 1f;
+            while (App.IsGamePaused) App.ResumeGame();
+            App.GameSpeed = 1f;
         }
 
         [TearDown]
         public void TearDown()
         {
-            while (GameApp.IsGamePaused) GameApp.ResumeGame();
-            GameApp.GameSpeed = _originalGameSpeed;
+            while (App.IsGamePaused) App.ResumeGame();
+            App.GameSpeed = _originalGameSpeed;
 
             // 门面只保证「未暂停时 timeScale == GameSpeed」；实况可能被绕过门面的写入分叉过，
             // 故时间戳单独还原，恢复进夹具时的原样
@@ -68,28 +69,28 @@ namespace Core.RuntimeState
         [Test]
         public void PauseGame_FromIdle_FreezesTimeScaleAndMarksPaused()
         {
-            GameApp.PauseGame();
+            App.PauseGame();
 
-            Assert.IsTrue(GameApp.IsGamePaused);
+            Assert.IsTrue(App.IsGamePaused);
             Assert.AreEqual(0f, Time.timeScale, Tolerance);
         }
 
         [Test]
         public void PauseGame_NestedSources_OnlyLastResumeRestoresSpeed()
         {
-            GameApp.PauseGame(); // 弹窗
-            GameApp.PauseGame(); // 切后台
-            GameApp.PauseGame(); // 剧情过场
+            App.PauseGame(); // 弹窗
+            App.PauseGame(); // 切后台
+            App.PauseGame(); // 剧情过场
 
-            GameApp.ResumeGame();
-            GameApp.ResumeGame();
+            App.ResumeGame();
+            App.ResumeGame();
 
-            Assert.IsTrue(GameApp.IsGamePaused, "还有一层未配对");
+            Assert.IsTrue(App.IsGamePaused, "还有一层未配对");
             Assert.AreEqual(0f, Time.timeScale, Tolerance, "前两层 Resume 不该回速");
 
-            GameApp.ResumeGame();
+            App.ResumeGame();
 
-            Assert.IsFalse(GameApp.IsGamePaused);
+            Assert.IsFalse(App.IsGamePaused);
             Assert.AreEqual(1f, Time.timeScale, Tolerance);
         }
 
@@ -97,31 +98,31 @@ namespace Core.RuntimeState
         public void PauseGame_WhilePaused_KeepsResumeTargetIntact()
         {
             // 回归：旧实现另存 s_GameSpeedBeforePause，第二层暂停会拿初值把用户设定盖掉
-            GameApp.PauseGame();
-            GameApp.GameSpeed = 0.5f;
+            App.PauseGame();
+            App.GameSpeed = 0.5f;
 
-            GameApp.PauseGame();
+            App.PauseGame();
 
-            Assert.AreEqual(0.5f, GameApp.GameSpeed, Tolerance, "叠加暂停不该改写期望速度");
+            Assert.AreEqual(0.5f, App.GameSpeed, Tolerance, "叠加暂停不该改写期望速度");
 
-            GameApp.ResumeGame();
-            Assert.IsTrue(GameApp.IsGamePaused, "还剩一层");
+            App.ResumeGame();
+            Assert.IsTrue(App.IsGamePaused, "还剩一层");
             Assert.AreEqual(0f, Time.timeScale, Tolerance);
 
-            GameApp.ResumeGame();
+            App.ResumeGame();
             Assert.AreEqual(0.5f, Time.timeScale, Tolerance, "最后一层才重放 0.5x");
         }
 
         [Test]
         public void ResumeGame_AtZeroDepth_IsNoOp()
         {
-            GameApp.GameSpeed = 0.5f;
+            App.GameSpeed = 0.5f;
 
-            GameApp.ResumeGame();
-            GameApp.ResumeGame();
+            App.ResumeGame();
+            App.ResumeGame();
 
-            Assert.IsFalse(GameApp.IsGamePaused);
-            Assert.AreEqual(0.5f, GameApp.GameSpeed, Tolerance);
+            Assert.IsFalse(App.IsGamePaused);
+            Assert.AreEqual(0.5f, App.GameSpeed, Tolerance);
             Assert.AreEqual(0.5f, Time.timeScale, Tolerance, "计数已 0 时不该把速度拉回任何初值");
         }
 
@@ -130,13 +131,13 @@ namespace Core.RuntimeState
         {
             // 回归：先用 GameSpeed = 0 定格一局，再 Pause/Resume 一来一回，
             // 旧实现把速度弹回 s_GameSpeedBeforePause 的初值 1，画面突然动起来
-            GameApp.GameSpeed = 0f;
-            Assert.IsFalse(GameApp.IsGamePaused, "调到 0 速是慢放/定格，不算暂停请求");
+            App.GameSpeed = 0f;
+            Assert.IsFalse(App.IsGamePaused, "调到 0 速是慢放/定格，不算暂停请求");
 
-            GameApp.PauseGame();
-            GameApp.ResumeGame();
+            App.PauseGame();
+            App.ResumeGame();
 
-            Assert.AreEqual(0f, GameApp.GameSpeed, Tolerance);
+            Assert.AreEqual(0f, App.GameSpeed, Tolerance);
             Assert.AreEqual(0f, Time.timeScale, Tolerance, "重放的是实况期望速度，不是 1");
         }
 
@@ -147,39 +148,39 @@ namespace Core.RuntimeState
         [Test]
         public void GameSpeed_WhilePaused_UpdatesTargetWithoutTouchingEngine()
         {
-            GameApp.PauseGame();
+            App.PauseGame();
 
-            GameApp.GameSpeed = 8f;
+            App.GameSpeed = 8f;
 
-            Assert.AreEqual(8f, GameApp.GameSpeed, Tolerance, "期望速度即时可读");
+            Assert.AreEqual(8f, App.GameSpeed, Tolerance, "期望速度即时可读");
             Assert.AreEqual(0f, Time.timeScale, Tolerance, "暂停优先于速度设定");
 
-            GameApp.ResumeGame();
+            App.ResumeGame();
             Assert.AreEqual(8f, Time.timeScale, Tolerance, "计数归零时重放暂停期间的写入");
         }
 
         [Test]
         public void GameSpeed_Negative_IsClampedToZero()
         {
-            GameApp.GameSpeed = -3f;
+            App.GameSpeed = -3f;
 
-            Assert.AreEqual(0f, GameApp.GameSpeed, Tolerance, "负速度按 0 处理");
+            Assert.AreEqual(0f, App.GameSpeed, Tolerance, "负速度按 0 处理");
             Assert.AreEqual(0f, Time.timeScale, Tolerance, "负值不该塞给引擎");
         }
 
         [Test]
         public void ResetGameSpeed_WhilePaused_UpdatesTargetWithoutResuming()
         {
-            GameApp.GameSpeed = 0.25f;
-            GameApp.PauseGame();
+            App.GameSpeed = 0.25f;
+            App.PauseGame();
 
-            GameApp.ResetGameSpeed();
+            App.ResetGameSpeed();
 
-            Assert.IsTrue(GameApp.IsGamePaused, "重置速度不该顺手解除暂停");
-            Assert.IsTrue(GameApp.IsNormalGameSpeed);
+            Assert.IsTrue(App.IsGamePaused, "重置速度不该顺手解除暂停");
+            Assert.IsTrue(App.IsNormalGameSpeed);
             Assert.AreEqual(0f, Time.timeScale, Tolerance);
 
-            GameApp.ResumeGame();
+            App.ResumeGame();
             Assert.AreEqual(1f, Time.timeScale, Tolerance);
         }
 
@@ -193,15 +194,15 @@ namespace Core.RuntimeState
             // 编辑模式下 Initialize 永不运行（唯一调用点是 play 态的 GameAppSettings.Initiation），
             // 此刻正是关闭态。运行态属性不判 IsShutdown：它是引擎状态的门面而非框架状态，
             // 关闭后调用不抛、立即作用于引擎，并在下一次 Initialize 时被重新播种成基线
-            // （契约见 GameApp.Shutdown 的注释与 GameApp.md「运行态与暂停」一节）。
-            Assert.IsTrue(GameApp.IsShutdown, "本用例的前提是框架未启动");
+            // （契约见 App.Shutdown 的注释与 App.md「运行态与暂停」一节）。
+            Assert.IsTrue(App.IsShutdown, "本用例的前提是框架未启动");
 
-            GameApp.PauseGame();
-            Assert.IsTrue(GameApp.IsGamePaused);
+            App.PauseGame();
+            Assert.IsTrue(App.IsGamePaused);
             Assert.AreEqual(0f, Time.timeScale, Tolerance);
 
-            GameApp.ResumeGame();
-            Assert.IsFalse(GameApp.IsGamePaused);
+            App.ResumeGame();
+            Assert.IsFalse(App.IsGamePaused);
             Assert.AreEqual(1f, Time.timeScale, Tolerance);
         }
 

@@ -7,7 +7,7 @@ using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
 
-namespace Save
+namespace Service.Save
 {
     /// <summary>
     /// 场景对象身份与实体注册表测试：注册/注销/反查、空 ID 拒注册、重复 ID 首到先得、销毁后反查失效、Resolve 解析。

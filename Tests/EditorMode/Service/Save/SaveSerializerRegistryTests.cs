@@ -3,7 +3,7 @@ using Moirai.Atropos;
 using Moirai.Atropos.Save;
 using NUnit.Framework;
 
-namespace Save
+namespace Service.Save
 {
     /// <summary>
     /// 序列化后端注册表开放注册测试：注册校验（null/重复/保留标识）、注销语义、内置后端保留。

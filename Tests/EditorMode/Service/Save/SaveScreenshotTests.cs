@@ -9,7 +9,7 @@ using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
 
-namespace Save
+namespace Service.Save
 {
     /// <summary>
     /// V3-P8 截图与元数据镜像测试：sidecar 命名、缩略图尺寸计算、盒式降采样、PNG 编码回读、

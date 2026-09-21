@@ -7,7 +7,7 @@ using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
 
-namespace Save
+namespace Service.Save
 {
     /// <summary>
     /// SaveHost SG v2 捕获器测试：集合（List/Dictionary/Stack/数组）、嵌套 [SaveData] 数据类、

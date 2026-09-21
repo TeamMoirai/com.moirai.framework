@@ -7,7 +7,7 @@ using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
 
-namespace Save
+namespace Service.Save
 {
     /// <summary>
     /// 资产引用目录测试：双向查找、类型不匹配未命中、重复条目首到先得、无效条目跳过、编辑器期查找表失效重建、

@@ -1,7 +1,7 @@
 using Moirai.Atropos.Audio;
 using NUnit.Framework;
 
-namespace Moirai.Atropos.Tests.EditorMode.Audio
+namespace Service.Audio
 {
     /// <summary>
     /// <see cref="AudioMixStateMachine"/> 的优先级与回落契约。

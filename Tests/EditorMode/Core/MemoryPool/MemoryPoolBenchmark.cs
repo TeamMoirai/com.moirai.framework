@@ -5,7 +5,7 @@ using Moirai.Atropos;
 using NUnit.Framework;
 using Mp = Moirai.Atropos.MemoryPool;
 
-namespace Service.MemoryPool
+namespace Core.MemoryPool
 {
     public class MemoryPoolBenchmark
     {

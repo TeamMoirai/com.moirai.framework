@@ -8,7 +8,7 @@ using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
 
-namespace Singleton
+namespace Core.Singleton
 {
     /// <summary>
     /// <see cref="Singleton{T}"/> 纯 C# 单例的 EditMode 单元测试。

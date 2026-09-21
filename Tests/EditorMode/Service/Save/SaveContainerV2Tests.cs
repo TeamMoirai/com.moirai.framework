@@ -9,7 +9,7 @@ using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
 
-namespace Save
+namespace Service.Save
 {
     /// <summary>
     /// V3-P3 容器 v2 Handler 级测试：逐块 CRC32 部分恢复（头 CRC 重算放行后坏块隔离）、

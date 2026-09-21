@@ -16,7 +16,7 @@ using NewSceneMode = UnityEditor.SceneManagement.NewSceneMode;
 using NewSceneSetup = UnityEditor.SceneManagement.NewSceneSetup;
 using OpenSceneMode = UnityEditor.SceneManagement.OpenSceneMode;
 
-namespace Save
+namespace Service.Save
 {
     /// <summary>
     /// V3-P0 硬化回归测试：TransformPath 全路径撞键、文件头未知标志位拒载、并发门互斥与惰性回收。
@@ -234,7 +234,7 @@ namespace Save
         public void ResolveSceneNamespace_UntitledActiveScene_FallsBackToName()
         {
             // EditMode 测试活跃场景为未保存场景（无资产路径）——命名空间回退场景名
-            Scene active = SceneManager.GetActiveScene();
+            UnityEngine.SceneManagement.Scene active = SceneManager.GetActiveScene();
             Assert.AreEqual(string.Empty, active.path, "测试活跃场景应为未保存场景");
             Assert.AreEqual(active.name ?? string.Empty, SaveComponent.ResolveSceneNamespace(active), "未保存场景命名空间回退场景名");
         }
@@ -251,7 +251,7 @@ namespace Save
             // 新建空场景（成为活跃场景）→ 保存为资产（盖章场景资产路径）——EditMode 下 NewScene(Additive) 要求
             // 活跃场景已保存，本流程规避该前置条件；收尾恢复未保存空场景，消除夹具内测试顺序耦合
             string scenePath = "Assets/save-ns-test-scene.unity";
-            Scene created = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            UnityEngine.SceneManagement.Scene created = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
             try
             {
                 EditorSceneManager.SaveScene(created, scenePath);
