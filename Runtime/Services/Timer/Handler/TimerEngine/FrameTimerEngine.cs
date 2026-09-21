@@ -299,6 +299,13 @@ namespace Moirai.Atropos.Timer
                 SetFrameRemaining(slotIndex, remaining);
                 InvokeFrameProgress(slotIndex, target - remaining);
 
+                // 进度回调可取消 / 自释放本槽（此处未标记 executing，槽会被立即回收），同帧新建的计时器还可能复用该索引：
+                // 必须按句柄重新认领，否则下面的完成回调会打到新占用者身上。
+                if (GetSlotIndex(scratch[k]) != slotIndex)
+                {
+                    continue;
+                }
+
                 if (remaining > 0)
                 {
                     continue;

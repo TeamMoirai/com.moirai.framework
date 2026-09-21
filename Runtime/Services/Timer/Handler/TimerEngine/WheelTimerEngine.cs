@@ -18,6 +18,9 @@ namespace Moirai.Atropos.Timer
     {
         private const double TICKS_PER_SECOND = 1000d;
         private const double MINIMUM_DELAY_SECONDS = 0.000001d;
+        // tick 换算的饱和上限。(long)double 越界是未定义行为（x64 产出 long.MinValue），
+        // 游标一旦落到 MinValue，每帧最多追 64 tick 的时间轮相当于永久冻结，故一律饱和而不是让它溢出。
+        private const long MAX_TICK = long.MaxValue / 4;
         private const int WHEEL_SHIFT = 8;
         private const int WHEEL_SIZE = 1 << WHEEL_SHIFT;
         private const int WHEEL_MASK = WHEEL_SIZE - 1;
@@ -194,6 +197,11 @@ namespace Moirai.Atropos.Timer
                 return 0UL;
             }
 
+            if (!IsSchedulableDelay(delaySeconds))
+            {
+                return 0UL;
+            }
+
             int slotIndex = AcquireSlot();
             if (slotIndex < 0)
             {
@@ -215,6 +223,11 @@ namespace Moirai.Atropos.Timer
             if (onComplete == null)
             {
                 WarnScheduleFailed("onComplete is null.");
+                return 0UL;
+            }
+
+            if (!IsSchedulableDelay(delaySeconds))
+            {
                 return 0UL;
             }
 
@@ -241,6 +254,11 @@ namespace Moirai.Atropos.Timer
             if (onComplete == null && onUpdate == null)
             {
                 WarnScheduleFailed("both onComplete and onUpdate are null.");
+                return 0UL;
+            }
+
+            if (!IsSchedulableDelay(delaySeconds))
+            {
                 return 0UL;
             }
 
@@ -273,6 +291,11 @@ namespace Moirai.Atropos.Timer
             if (!onComplete.IsValid())
             {
                 WarnScheduleFailed("unsafe binding is invalid.");
+                return 0UL;
+            }
+
+            if (!IsSchedulableDelay(delaySeconds))
+            {
                 return 0UL;
             }
 
@@ -715,16 +738,6 @@ namespace Moirai.Atropos.Timer
 
         #region 完成回调派发 [COMPLETE INVOCATION]
 
-        private unsafe void InvokeComplete(int slotIndex)
-        {
-            _executingSlotIndex = slotIndex;
-            InvokeCompleteBody(slotIndex);
-            if (_executingSlotIndex == slotIndex)
-            {
-                _executingSlotIndex = INVALID_INDEX;
-            }
-        }
-
         private unsafe void InvokeCompleteBody(int slotIndex)
         {
             try
@@ -983,6 +996,11 @@ namespace Moirai.Atropos.Timer
 
         private void AdvanceQueue(bool isUnscaled, double currentTime)
         {
+            if (double.IsNaN(currentTime))
+            {
+                return; // 时钟被污染：本帧整体不推进。饱和换算会把游标压到 0，之后每帧最多追 64 tick，等于把已运行的秒数再等一遍
+            }
+
             long currentTick = TimeToTickFloor(currentTime);
             long cursorTick = GetCurrentWheelTick(isUnscaled);
             int tickBudget = MAX_WHEEL_TICKS_PER_FRAME;
@@ -1473,19 +1491,52 @@ namespace Moirai.Atropos.Timer
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static long TimeToTickFloor(double time)
         {
-            return (long)(time * TICKS_PER_SECOND);
+            return ToTick(time * TICKS_PER_SECOND, false);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static long TimeToTickCeiling(double time)
         {
-            return (long)Math.Ceiling(time * TICKS_PER_SECOND);
+            return ToTick(time * TICKS_PER_SECOND, true);
+        }
+
+        /// <summary>
+        /// 把 tick 数饱和到 [0, MAX_TICK]：直接强转溢出成的负数会把轮游标打到
+        /// long.MinValue，此后每帧最多追 64 tick 等于时间轮永久冻结。
+        /// </summary>
+        private static long ToTick(double ticks, bool ceiling)
+        {
+            if (!(ticks > 0d)) // 一并挡住 NaN 与负数
+            {
+                return 0L;
+            }
+
+            if (ticks >= (double)MAX_TICK) // 正无穷走这里
+            {
+                return MAX_TICK;
+            }
+
+            return ceiling ? (long)Math.Ceiling(ticks) : (long)ticks;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static double NormalizeDelay(float delay)
         {
             return delay > MINIMUM_DELAY_SECONDS ? delay : MINIMUM_DELAY_SECONDS;
+        }
+
+        /// <summary>
+        /// 校验延时可排期：非有限值会让触发时间与轮游标溢出，必须在占用槽位之前拒绝。
+        /// </summary>
+        private static bool IsSchedulableDelay(float delaySeconds)
+        {
+            if (float.IsNaN(delaySeconds) || float.IsInfinity(delaySeconds))
+            {
+                WarnScheduleFailed("delaySeconds is not a finite number.");
+                return false;
+            }
+
+            return true;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
