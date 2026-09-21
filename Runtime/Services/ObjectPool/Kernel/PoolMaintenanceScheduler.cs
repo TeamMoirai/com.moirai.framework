@@ -46,6 +46,10 @@ namespace Moirai.Atropos.ObjectPool
 
         private const int INITIAL_HEAP_CAPACITY = 8;
 
+        // 维护项的"已在本轮工作集里"标记：堆只认 >= 0 的索引，负值一律视为不在堆上，
+        // 因此可以借这个槽位做 O(1) 去重——防止残留项被别的回调重排后在同一轮里派发两次。
+        private const int PENDING_MARK = -2;
+
         #endregion
 
         #region 结构体 [STRUCTS]
@@ -127,9 +131,13 @@ namespace Moirai.Atropos.ObjectPool
             int heapIndex = item.MaintenanceHeapIndex;
             if (heapIndex < 0 || heapIndex >= _count || !ReferenceEquals(_heap[heapIndex].Item, item))
             {
-                // 索引为 -1 有两种可能：确实未调度，或已被本轮采集进工作集（采集即出堆、索引同被复位）。
-                // 因此工作集的摘除必须无条件执行，不能只挂在堆移除之后。
-                item.MaintenanceHeapIndex = -1;
+                // 索引为负有两种可能：确实未调度，或已被本轮采集进工作集（采集即出堆）。
+                // 工作集的摘除必须无条件执行，不能只挂在堆移除之后；-2 是"在窗口里"的凭据，别顺手抹平。
+                if (item.MaintenanceHeapIndex != PENDING_MARK)
+                {
+                    item.MaintenanceHeapIndex = -1; // 陈旧正索引自愈
+                }
+
                 PurgePending(item);
                 return;
             }
@@ -175,6 +183,8 @@ namespace Moirai.Atropos.ObjectPool
                     _pending[_pendingIndex] = null;
                     _pendingIndex++;
                     executed++;
+                    // 交还给"不在堆上"的常态：项若在执行中重排自己，Schedule 会按新索引入堆。
+                    item.MaintenanceHeapIndex = -1;
 
                     try
                     {
@@ -231,6 +241,13 @@ namespace Moirai.Atropos.ObjectPool
             {
                 IPoolMaintenanceItem item = _heap[0].Item;
                 RemoveAt(0);
+                if (item.MaintenanceHeapIndex == PENDING_MARK)
+                {
+                    // 上一轮残留还没派发，本轮不再重复收录（同一轮每池至多一次）。
+                    continue;
+                }
+
+                item.MaintenanceHeapIndex = PENDING_MARK;
                 AppendPending(item);
             }
         }
@@ -263,6 +280,7 @@ namespace Moirai.Atropos.ObjectPool
                 }
 
                 _pending[--_pendingCount] = null;
+                item.MaintenanceHeapIndex = -1;
                 return;
             }
         }

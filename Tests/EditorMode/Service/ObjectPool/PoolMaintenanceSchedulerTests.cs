@@ -84,6 +84,31 @@ namespace Service.ObjectPool
             }
         }
 
+        /// <summary>执行时把另一个维护项重排到"当前时刻"——用于验证已在工作集里的项不会本轮二次收录。</summary>
+        private sealed class ReschedulingOtherItem : IPoolMaintenanceItem
+        {
+            private readonly PoolMaintenanceScheduler _scheduler;
+            private readonly IPoolMaintenanceItem _other;
+            private readonly float _dueTime;
+
+            public ReschedulingOtherItem(PoolMaintenanceScheduler scheduler, IPoolMaintenanceItem other, float dueTime)
+            {
+                _scheduler = scheduler;
+                _other = other;
+                _dueTime = dueTime;
+            }
+
+            public int MaintenanceHeapIndex { get; set; } = -1;
+
+            public int ExecutionCount { get; private set; }
+
+            public void ExecuteMaintenance(float now, bool lowMemory)
+            {
+                ExecutionCount++;
+                _scheduler.Schedule(_other, _dueTime);
+            }
+        }
+
         private sealed class ThrowingRescheduleItem : IPoolMaintenanceItem
         {
             private readonly PoolMaintenanceScheduler _scheduler;
@@ -355,6 +380,28 @@ namespace Service.ObjectPool
             Assert.AreEqual(1, poison.ExecutionCount, "dequeued poison must not come back");
             Assert.AreEqual(1, second.Executions.Count, "a poisoned pool must not truncate the due round");
             Assert.AreEqual(1, third.Executions.Count);
+        }
+
+        [Test]
+        public void ProcessDue_PendingItemRescheduledByEarlierItem_StillExecutesOnceThisRound()
+        {
+            PoolMaintenanceScheduler scheduler = new PoolMaintenanceScheduler();
+            FakeItem victim = new FakeItem();
+            ReschedulingOtherItem driver = new ReschedulingOtherItem(scheduler, victim, 100f);
+
+            // 两项同轮到期 → 一起进工作集；driver 派发时又把 victim 重排成"立即到期"。
+            scheduler.Schedule(driver, 10f);
+            scheduler.Schedule(victim, 20f);
+
+            scheduler.ProcessDue(100f);
+
+            Assert.AreEqual(1, driver.ExecutionCount);
+            Assert.AreEqual(1, victim.Executions.Count, "残留项被重排后也不得在同一轮二次收录");
+            Assert.AreEqual(1, scheduler.Count, "重排的 victim 留在堆里等下一次调用");
+            Assert.AreEqual(0, scheduler.PendingCount);
+
+            scheduler.ProcessDue(100f);
+            Assert.AreEqual(2, victim.Executions.Count, "下一次调用续跑重排项");
         }
 
         [Test]
