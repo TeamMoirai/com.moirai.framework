@@ -26,23 +26,23 @@ namespace Moirai.Atropos
         /// </summary>
         public sealed class Subscription : IDisposable
         {
-            private Action m_DisposeAction;
+            private Action _disposeAction;
 
             internal Subscription(Action disposeAction)
             {
-                m_DisposeAction = disposeAction;
+                _disposeAction = disposeAction;
             }
 
             /// <summary>是否仍处于订阅状态（未 Dispose 过）。</summary>
-            public bool IsSubscribed => m_DisposeAction != null;
+            public bool IsSubscribed => _disposeAction != null;
 
             /// <summary>注销订阅。幂等——重复调用安全。</summary>
             public void Dispose()
             {
-                Action dispose = m_DisposeAction;
+                Action dispose = _disposeAction;
                 if (dispose == null) return;
 
-                m_DisposeAction = null;
+                _disposeAction = null;
                 dispose();
             }
         }
@@ -112,7 +112,7 @@ namespace Moirai.Atropos
         /// <summary>
         /// 获取是否正常游戏速度（期望值约等于 1，容差 0.01）。暂停不影响本判定。
         /// </summary>
-        public static bool IsNormalGameSpeed => System.Math.Abs(s_GameSpeed - 1f) < 0.01f;
+        public static bool IsNormalGameSpeed => Mathf.Abs(s_GameSpeed - 1f) < 0.01f;
 
         /// <summary>
         /// 获取或设置是否允许后台运行。
@@ -179,7 +179,10 @@ namespace Moirai.Atropos
         /// 仍可读写且不抛：它们是引擎状态的门面，不依赖框架存活，写入即刻生效并成为下一轮启动的基线。
         /// 帧订阅与协程不在此列——注册表已清空、宿主已释放，订阅不会被驱动，协程可能拿不到宿主。</para>
         /// </summary>
-        internal static void Shutdown()
+        /// <param name="quitting">是否处于应用退出流程。退出期引擎会随场景 teardown 自行销毁宿主，
+        /// 此时跳过 <see cref="GameAppHost.Release"/> 的主动 <c>Destroy</c>（退出期 Destroy 不受支持，
+        /// 且销毁本就会发生）。</param>
+        internal static void Shutdown(bool quitting = false)
         {
             if (IsShutdown) return;
 
@@ -205,7 +208,7 @@ namespace Moirai.Atropos
             PlayerLoopDriver.Shutdown();
 
             GameServices.Shutdown();
-            GameAppHost.Release();
+            if (!quitting) GameAppHost.Release();
 
             // 释放缓存的从进程的非托管内存中分配的内存。
             MarshalUtility.FreeCachedHGlobal();
@@ -618,7 +621,7 @@ namespace Moirai.Atropos
         private static void ApplicationQuit()
         {
             GameAppMessageEvent.ApplicationQuit();
-            Shutdown();
+            Shutdown(quitting: true);
         }
 
         private static void DrawGizmos()

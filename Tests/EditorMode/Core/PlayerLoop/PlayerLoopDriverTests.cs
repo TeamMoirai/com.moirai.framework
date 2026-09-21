@@ -222,6 +222,81 @@ namespace Core.PlayerLoop
             Assert.AreEqual(1, PlayerLoopDriver.UpdateCallbackCount);
         }
 
+        [Test]
+        public void PendingAddThenRemove_OnInactiveHandler_LeavesUnregistered()
+        {
+            // 回归：旧实现先移除后添加地提交缓冲，同帧「注册再注销」被错误落为已注册
+            var probe = new Probe("h");
+            var trigger = new Probe("trigger");
+            trigger.DuringUpdate = () =>
+            {
+                PlayerLoopDriver.Register(probe);
+                PlayerLoopDriver.Unregister(probe);
+            };
+
+            PlayerLoopDriver.Register(trigger);
+            PlayerLoopDriver.DriveUpdate();
+
+            Assert.AreEqual(1, PlayerLoopDriver.UpdateHandlerCount, "后调用者生效：只剩 trigger，probe 不得注册");
+        }
+
+        [Test]
+        public void PendingRemoveThenAdd_OnActiveHandler_KeepsRegistration()
+        {
+            var probe = new Probe("h");
+            var trigger = new Probe("trigger");
+            trigger.DuringUpdate = () =>
+            {
+                PlayerLoopDriver.Unregister(probe);
+                PlayerLoopDriver.Register(probe);
+            };
+
+            PlayerLoopDriver.Register(trigger);
+            PlayerLoopDriver.Register(probe);
+            PlayerLoopDriver.DriveUpdate();
+
+            Assert.AreEqual(2, PlayerLoopDriver.UpdateHandlerCount, "后调用者生效：注销再注册应保持注册");
+            PlayerLoopDriver.DriveUpdate();
+            Assert.AreEqual(2, probe.UpdateCalls, "两帧均被驱动：注册从未失效");
+        }
+
+        [Test]
+        public void PendingAddThenRemove_OnActiveHandler_Removes()
+        {
+            // 已激活者同帧「注册再注销」：冗余注册被对消后仍须把注销提交进去
+            var probe = new Probe("h");
+            var trigger = new Probe("trigger");
+            trigger.DuringUpdate = () =>
+            {
+                PlayerLoopDriver.Register(probe);
+                PlayerLoopDriver.Unregister(probe);
+            };
+
+            PlayerLoopDriver.Register(trigger);
+            PlayerLoopDriver.Register(probe);
+            PlayerLoopDriver.DriveUpdate();
+
+            Assert.AreEqual(1, PlayerLoopDriver.UpdateHandlerCount, "后调用者生效：probe 应被注销");
+        }
+
+        [Test]
+        public void PendingAddThenRemove_OnInactiveCallback_LeavesUnregistered()
+        {
+            int calls = 0;
+            System.Action cb = () => calls++;
+            var triggerAction = new System.Action(() =>
+            {
+                PlayerLoopDriver.AddUpdateCallback(cb);
+                PlayerLoopDriver.RemoveUpdateCallback(cb);
+            });
+
+            PlayerLoopDriver.AddUpdateCallback(triggerAction);
+            PlayerLoopDriver.DriveUpdate();
+
+            Assert.AreEqual(1, PlayerLoopDriver.UpdateCallbackCount, "后调用者生效：只剩 triggerAction");
+            Assert.AreEqual(0, calls, "cb 不得被驱动");
+        }
+
         #endregion
 
         #region 异常安全 [EXCEPTION SAFETY]
@@ -232,6 +307,7 @@ namespace Core.PlayerLoop
             // 回归：缺少 finally 时 s_IsDriving 永久为 true，之后的注册全滞留缓冲且当帧不提交
             var bomb = new Probe("bomb") { ThrowOnUpdate = new InvalidOperationException("boom") };
             PlayerLoopDriver.Register(bomb);
+            LogAssert.Expect(LogType.Error, new Regex("handler threw"));
             Assert.Throws<InvalidOperationException>(() => PlayerLoopDriver.DriveUpdate());
 
             var after = new Probe("after");
@@ -371,6 +447,46 @@ namespace Core.PlayerLoop
             Assert.DoesNotThrow(() => PlayerLoopDriver.RaiseApplicationQuit());
 
             Assert.AreEqual(new[] { "first", "second" }, order.ToArray());
+        }
+
+        [Test]
+        public void ApplicationPauseBroadcast_WhenOneThrows_OthersStillRun()
+        {
+            // 回归：Pause 多播曾直发不隔离，前序订户抛异常会静默截断后续订户（切后台存档链）
+            LogAssert.Expect(LogType.Error, new Regex("ApplicationPause callback threw"));
+
+            var order = new List<string>();
+            PlayerLoopDriver.AddApplicationPauseCallback(_ =>
+            {
+                order.Add("first");
+                throw new InvalidOperationException("boom");
+            });
+            PlayerLoopDriver.AddApplicationPauseCallback(_ => order.Add("second"));
+
+            Assert.DoesNotThrow(() => PlayerLoopDriver.RaiseApplicationPause(true));
+
+            Assert.AreEqual(new[] { "first", "second" }, order.ToArray());
+        }
+
+        [Test]
+        public void ReRegisteredHandler_FailureCountStartsFresh()
+        {
+            // 回归：失败计数曾不随注销清除——注销重注册后首次失败即被误熔断
+            PlayerLoopDriver.FailureTripThreshold = 2;
+
+            var bomb = new Probe("bomb") { ThrowOnUpdate = new InvalidOperationException("boom") };
+            PlayerLoopDriver.Register(bomb);
+
+            LogAssert.Expect(LogType.Error, new Regex("handler threw"));
+            Assert.Throws<InvalidOperationException>(() => PlayerLoopDriver.DriveUpdate());
+
+            PlayerLoopDriver.Unregister(bomb);
+            PlayerLoopDriver.Register(bomb);
+
+            LogAssert.Expect(LogType.Error, new Regex("handler threw"));
+            Assert.Throws<InvalidOperationException>(() => PlayerLoopDriver.DriveUpdate());
+
+            Assert.AreEqual(1, PlayerLoopDriver.UpdateHandlerCount, "重注册后计数从 0 计起，首次失败不应熔断");
         }
 
         #endregion

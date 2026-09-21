@@ -32,11 +32,13 @@ namespace Moirai.Atropos
             if (!IsShutdown) return false;
 
             Initialize();
-            // 组合根：App 作用域服务创建与构建（异步第二阶段，失败经 BootFailed 上报）
-            GameAppSettings.InitializeAppServices().Forget();
 
+            // 版本信息在装配启动前输出：组合根是异步的，日志时序表达的是「开始装配」而非「装配完成」
             LogUtility.Info("Game Version: {0} ({1})", VersionUtility.GameVersion, VersionUtility.InternalGameVersion);
             LogUtility.Info("Unity Version: {0}", Application.unityVersion);
+
+            // 组合根：App 作用域服务创建与构建（异步第二阶段，失败经 BootFailed 上报）
+            GameAppSettings.InitializeAppServices().Forget();
             return true;
         }
 

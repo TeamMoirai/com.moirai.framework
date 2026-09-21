@@ -20,7 +20,7 @@
 - 帧更新注入：`GameApp.AddUpdateListener`（Action）与 `GameApp.AddUpdateHandler` / `AddFrameHandler`（接口式，支持 `IPlayerLoopPriority`）均 **同步** 写入驱动注册表（不再 `UniTask.Yield` 延迟挂载）
 - Unity 事件：`AddDestroyListener`（Shutdown 时广播）、`AddOnApplicationPauseListener`、Gizmos 相关
 - 运行态开关：`FrameRate` / `GameSpeed` / `RunInBackground` / `NeverSleep` 承载引擎实况（`GameAppSettings` 只作开机默认值），暂停是引用计数的 `PauseGame` / `ResumeGame`，详见[暂停与速度语义](#暂停与速度语义)
-- 关闭即清理：`GameApp.Shutdown` 清空 Driver 注册表、摘除本框架的 PlayerLoop 系统（保留 UniTask 等第三方注入）、退掉未配对完的暂停并释放宿主
+- 关闭即清理：`GameApp.Shutdown` 清空 Driver 注册表、摘除本框架的 PlayerLoop 系统（保留 UniTask 等第三方注入）、退掉未配对完的暂停并释放宿主（应用退出路径除外：退出期引擎随场景 teardown 自行销毁宿主，跳过主动 Destroy）
 
 ## 核心类型
 
