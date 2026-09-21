@@ -157,7 +157,20 @@ namespace Moirai.Atropos.ObjectPool
         public override T Spawn<T>(GameObjectPoolSource source, Transform parent)
         {
             GameObject instance = Spawn(source, parent);
-            return instance == null ? null : instance.GetComponent<T>();
+            if (instance == null)
+            {
+                return null;
+            }
+
+            T component = instance.GetComponent<T>();
+            if (component == null)
+            {
+                // 实例已经算发出去了：不归还就变成一个谁也 Despawn 不到的活跃对象（调用方只拿到 null，
+                // 连 GameObject 引用都没有），池的 _activeCount 也随之虚高。
+                Despawn(instance);
+            }
+
+            return component;
         }
 
         /// <summary>
@@ -197,7 +210,19 @@ namespace Moirai.Atropos.ObjectPool
         public override async UniTask<T> SpawnAsync<T>(GameObjectPoolSource source, Transform parent, CancellationToken cancellationToken)
         {
             GameObject instance = await SpawnAsync(source, parent, cancellationToken);
-            return instance == null ? null : instance.GetComponent<T>();
+            if (instance == null)
+            {
+                return default;
+            }
+
+            T component = instance.GetComponent<T>();
+            if (component == null)
+            {
+                // 同同步路径：取不到组件也要把实例还池，否则它永久滞留在活跃计数里。
+                Despawn(instance);
+            }
+
+            return component;
         }
 
         #endregion

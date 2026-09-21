@@ -65,7 +65,23 @@ namespace Moirai.Atropos.ObjectPool
 
             for (int i = _poolCount - 1; i >= 0; i--)
             {
-                _pools[i].Shutdown();
+                // Shutdown 会逐项回调 obj.Release(true)，其中可能注销其它池（_pools 左移、_poolCount 收缩）：
+                // 越过当前计数的下标只能按空槽跳过，否则会读到失效槽位并把同一个池再关一次。
+                ObjectPoolBase pool = i < _poolCount ? _pools[i] : null;
+                if (pool == null)
+                {
+                    continue;
+                }
+
+                try
+                {
+                    pool.Shutdown();
+                }
+                catch (Exception exception)
+                {
+                    // 有意隔离：单个池关闭抛出不得让其余池永不关闭（对象回收、存储归还都在里面）。
+                    LogUtility.Fatal(exception);
+                }
             }
 
             _scheduler.Clear();
@@ -640,6 +656,19 @@ namespace Moirai.Atropos.ObjectPool
                     return;
                 }
 
+                // 目标键命中 ≠ 命中的就是这个对象：槽位会被回收复用，_targetMap 条目随之指向新对象。
+                // 拿着陈旧引用直接按槽位 Despawn，会替别人的对象扣 SpawnCount 并回调它的 OnDespawn。
+                if (!ReferenceEquals(_storage.GetSlotRef(idx).Obj, obj))
+                {
+                    if (!_isShuttingDown)
+                    {
+                        LogUtility.Error("Object '{0}' does not own the slot its target maps to in pool '{1}'.",
+                            obj.Name, Name);
+                    }
+
+                    return;
+                }
+
                 DespawnSlot(idx);
             }
 
@@ -710,7 +739,11 @@ namespace Moirai.Atropos.ObjectPool
                 try
                 {
                     int current = _unusedHead;
-                    while (current >= 0)
+                    // 与 ReleaseUnused 同样带上访问上限：ReleaseSlot 会回调 obj.Release，回调里可以再入链/摘链，
+                    // 链表一旦被改出环，无界走查就是当帧卡死；上限把这种损坏降级为"本轮少释放一些"。
+                    int visited = 0;
+                    int limit = _unusedCount;
+                    while (current >= 0 && visited++ < limit)
                     {
                         // 后继先取：ReleaseSlot 会把该槽位摘链并复位指针。
                         int next = _storage.GetSlotRef(current).NextUnused;

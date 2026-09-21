@@ -298,15 +298,28 @@ namespace Moirai.Atropos.ObjectPool
                 normalized[write++] = entry;
             }
 
-            Array.Sort(normalized, PoolEntry.CompareByPriority);
+            // Array.Sort 不稳定：同优先级规则的真实顺序会随运行时与输入次序漂移，而下面两件事都吃这个顺序——
+            // exactMap 的"字面量先到先得"与规则下标 i（即匹配优先级）。改排下标数组并以原序兜底平局，
+            // 让同一份目录在任何构建里都编出同一张表。
+            int[] order = new int[normalized.Length];
+            for (int i = 0; i < order.Length; i++)
+            {
+                order[i] = i;
+            }
+
+            Array.Sort(order, (left, right) =>
+            {
+                int compare = PoolEntry.CompareByPriority(normalized[left], normalized[right]);
+                return compare != 0 ? compare : left.CompareTo(right);
+            });
 
             PoolCompiledRule[] rules = new PoolCompiledRule[normalized.Length];
             int[] globIndices = new int[normalized.Length];
             StringOpenHashMap exactMap = new StringOpenHashMap(normalized.Length);
             int globCount = 0;
-            for (int i = 0; i < normalized.Length; i++)
+            for (int i = 0; i < order.Length; i++)
             {
-                PoolCompiledRule rule = PoolCompiledRule.FromEntry(normalized[i], i);
+                PoolCompiledRule rule = PoolCompiledRule.FromEntry(normalized[order[i]], i);
                 rules[i] = rule;
                 if (rule.IsLiteralPattern && !exactMap.ContainsKey(rule.Pattern))
                 {
