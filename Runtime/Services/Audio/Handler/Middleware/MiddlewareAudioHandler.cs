@@ -264,6 +264,7 @@ namespace Moirai.Atropos.Audio.Middleware
             if (!Application.isPlaying) return;
 
             StopAll(0f);
+            AudioVoiceDucking.Reset();
             _fades.Clear();
             _pendingStopAt.Clear();
             _handles.Clear();
@@ -282,6 +283,21 @@ namespace Moirai.Atropos.Audio.Middleware
             _fades.Update(GameTime.unscaledTime, this);
             ProcessPendingStops();
             ReleaseFinishedOneshots();
+            AudioVoiceDucking.Evaluate(this);
+        }
+
+        /// <summary>
+        /// 音轨上是否有仍在播/暂停中的声部（句柄表实算，不另设计数器）。
+        /// </summary>
+        internal override bool HasActiveAudioOn(EAudioTrack track)
+        {
+            foreach (var kv in _handles.Map)
+            {
+                var voice = kv.Value;
+                if (voice != null && voice.Playing && voice.Track == track) return true;
+            }
+
+            return false;
         }
 
         private void ProcessPendingStops()
@@ -347,6 +363,7 @@ namespace Moirai.Atropos.Audio.Middleware
         {
             StopAll(0f);
             CleanAudioPool();
+            AudioVoiceDucking.Reset();
             _fades.Clear();
             _pendingStopAt.Clear();
             _handles.Clear();

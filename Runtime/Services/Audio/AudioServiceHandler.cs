@@ -114,6 +114,11 @@ namespace Moirai.Atropos.Audio
         {
         }
 
+        /// <summary>
+        /// 指定音轨上当前是否有声部处于活跃（加载/播放/淡入淡出/暂停）。自动 Ducking 用；默认无概念返回 false。
+        /// </summary>
+        internal virtual bool HasActiveAudioOn(EAudioTrack track) => false;
+
         #endregion 服务方法 [SERVICE METHOD]
 
         #region 播放音频 [PLAY AUDIO]

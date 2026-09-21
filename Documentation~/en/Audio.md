@@ -25,6 +25,7 @@ Runtime/Services/Audio/
 │   ├── Wwise/ WwiseBridgeStub|Native
 │   └── WwiseAudioHandler.cs
 ├── Mix/ AudioMixStateMachine.cs               # Mix snapshot state machine
+│      AudioVoiceDucking.cs                    # Voice-driven auto ducking
 ├── Spatial/ AudioOcclusionHrtf.cs             # Occlusion + HRTF
 ├── Models/  AudioPlayRequest / ColdParams / Options / AssetData / GroupConfig
 │          AudioCachePolicy / AudioClipCacheEntry / AudioLoadRequest
@@ -62,6 +63,7 @@ Select `FmodAudioHandler` / `WwiseAudioHandler` in `AudioServiceSettings`. Bridg
 - `AudioOcclusionHrtf`: ray occlusion → lowpass; optional HRTF spatial blend
 - Host pool: Internal stack pool reuses `AudioSource` hosts
 - Clip cache: one shared lease per address, refcounted with LRU/TTL/Pin eviction and `lowMemory` cleanup
+- Auto ducking: while any Voice voice is active the mix requests `Dialogue`, then hands back the layer it borrowed
 
 ## Core Types
 
@@ -134,6 +136,15 @@ AudioService.ClearClipCache(force: true);
 ### Mix snapshots
 
 Priorities: Default 0; Muffled/LowHealth 2; Paused/Dialogue 3; Cinematic 4. Lower cannot interrupt higher unless `force: true`. Unity uses `AudioMixerSnapshot.TransitionTo`; middleware uses `SetMiddlewareTransitionHandler`. Snapshot mapping (state → `AudioMixerSnapshot` + optional priority) is configured in `AudioServiceSettings.MixSnapshots` and auto-registered in `OnInit`; otherwise call `AudioMixService.RegisterSnapshot` manually.
+
+### Auto ducking
+
+With `AudioServiceSettings.AutoDuckingOnVoice` (off by default), any active voice on the Voice track requests `EMixSnapshot.Dialogue`, and the mix is handed back once the track goes quiet — no per-line bookkeeping in game code:
+
+- Activity is computed by each backend (Unity scans the track's agents, middleware scans `Playing` voices) rather than counted on play/end: a missed decrement would duck the mix forever.
+- Driven from the backend `Tick`, so loading and fading-out voices count as active; turning the setting off releases a held duck on that same frame.
+- Coexists with snapshot priorities: when a higher-priority state (e.g. Cinematic) owns the mix the duck request is refused **and not recorded as taken**, so narration never steals the mix back mid-cutscene. The release only runs while the duck still owns `Dialogue`, and returns to the state captured before ducking rather than a hardcoded `Default`.
+- Requires a `Dialogue` `AudioMixerSnapshot` in `MixSnapshots`; without it the switch is a no-op (single warning) — it looks inert, not broken.
 
 ### Occlusion / HRTF
 

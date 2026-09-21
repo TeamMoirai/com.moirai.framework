@@ -211,6 +211,7 @@ namespace Moirai.Atropos.Audio
             StopAll(fadeoutDuration: 0f);
             CleanAudioPool();
             _clipCache.Dispose();
+            AudioVoiceDucking.Reset();
             _fades.Clear();
             _handles.Clear();
 
@@ -249,6 +250,24 @@ namespace Moirai.Atropos.Audio
 
             _clipCache.Tick();
             _fades.Update(GameTime.unscaledTime, this);
+            AudioVoiceDucking.Evaluate(this);
+        }
+
+        /// <summary>
+        /// 音轨上是否有 Agent 未回空闲（含加载中与淡出中——它们马上或仍在出声）。
+        /// </summary>
+        internal override bool HasActiveAudioOn(EAudioTrack track)
+        {
+            var agents = FindCategory(track)?.AudioAgents;
+            if (agents == null) return false;
+
+            for (int i = 0; i < agents.Count; i++)
+            {
+                var agent = agents[i];
+                if (agent != null && !agent.IsFree) return true;
+            }
+
+            return false;
         }
 
         /// <inheritdoc />
@@ -257,6 +276,7 @@ namespace Moirai.Atropos.Audio
             if (_unityAudioDisabled) return;
 
             CleanAudioPool();
+            AudioVoiceDucking.Reset();
 
             foreach (var category in AudioCategories)
             {

@@ -25,6 +25,7 @@ Runtime/Services/Audio/
 │   ├── Wwise/ WwiseBridgeStub|Native
 │   └── WwiseAudioHandler.cs
 ├── Mix/ AudioMixStateMachine.cs               # 混音快照状态机
+│      AudioVoiceDucking.cs                    # Voice 驱动的自动 Ducking
 ├── Spatial/ AudioOcclusionHrtf.cs             # 遮挡 + HRTF
 ├── Models/  AudioPlayRequest / ColdParams / Options / AssetData / GroupConfig
 │          AudioCachePolicy / AudioClipCacheEntry / AudioLoadRequest
@@ -61,6 +62,7 @@ Runtime/Services/Audio/
 - 16 字节热请求 `AudioPlayRequest` + 池化冷参 `AudioPlayColdParams`
 - 混音快照状态机：`EMixSnapshot` 优先级切换 + 交叉淡变
 - 空间化：`AudioOcclusionHrtf` 射线遮挡 → 低通；可选 HRTF `spatialBlend`
+- 自动 Ducking：Voice 有音在播时切 `Dialogue` 快照，播完自动归还借走的那一层
 - 宿主池：`AudioAgentHostPool` 内部栈池复用 AudioSource 宿主
 - Clip 缓存：路径播放同地址共享一条租约，引用计数 + LRU/TTL/Pin 驱逐 + `lowMemory` 自动清理
 
@@ -155,6 +157,21 @@ AudioService.ClearClipCache(force: true);                   // 连 Pin 一并清
 
 低优先级不可打断高优先级（`force: true` 可破）。Unity 后端驱动 `AudioMixerSnapshot.TransitionTo`；中间件经 `SetMiddlewareTransitionHandler` 回调。快照映射（状态 → `AudioMixerSnapshot` + 可选优先级）在 `AudioServiceSettings` 的 `MixSnapshots` 中配置，`OnInit` 自动注册；未配置时需手动 `AudioMixService.RegisterSnapshot`。
 
+### 自动 Ducking
+
+`AudioServiceSettings.AutoDuckingOnVoice`（默认关闭）打开后，Voice 音轨只要有声部活跃就请求 `EMixSnapshot.Dialogue`，全部播完再回落，无需游戏侧手写台词起止：
+
+- 判定按各后端实算（Unity 扫该轨 Agent 是否空闲，中间件扫句柄表里 `Playing` 的声部），不做播放/结束计数——计数漏减一次就会永久压低混音。
+- 由后端 `Tick` 驱动，因此淡出中、加载中都算「在播」；开关被关掉时当帧就把挂着的 duck 落回去。
+- 与快照优先级协同：已有更高优先级状态（如 Cinematic）占着混音时，duck 请求被挡下且**不记为生效**，因此不会在演出中途把混音抢回来；回落只在仍由 duck 占着 `Dialogue` 时才做，并回到 duck 之前的状态而不是硬写 `Default`。
+- 前置条件：`MixSnapshots` 里注册了 `Dialogue` 的 `AudioMixerSnapshot`。缺失时切换是空操作（一次性 Warning），表现为「开了没效果」而不是报错。
+
+```csharp
+// 游戏侧一般不需要手写；要显式压低混音仍可直接请求
+AudioService.RequestMixSnapshot(EMixSnapshot.Dialogue, 0.25f);
+AudioService.ResetMixSnapshot(0.25f);
+```
+
 ### 遮挡 / HRTF
 
 场景挂 `AudioOcclusionHrtf`（挂在 Listener 旁）：定时射线检测活跃声源，写 `AudioLowPassFilter`，可选推高 `spatialBlend`。
@@ -169,6 +186,7 @@ AudioService.ClearClipCache(force: true);                   // 连 Pin 一并清
 - `AudioGroupConfig.MaxChannel` / `CanExpand` 控制通道；扩展受 `HARD_CHANNEL_CAP` 限制  
 - 主音量走 `AudioListener.volume`；音轨走 Mixer 参数  
 - `ClipCacheCapacity`（默认 128）/ `ClipCacheTtl`（默认 30 秒，`0` 关闭按时间驱逐）/ `DefaultClipCachePolicy`（默认 `Ttl`）三项在 `AudioServiceSettings` 的「Clip 缓存」组内配置，`Initialize` 时下发给缓存  
+- `AutoDuckingOnVoice`（默认关闭）在「自动 Ducking」组内；开启前先在 `MixSnapshots` 注册 `Dialogue` 快照  
 
 ## 注意事项
 

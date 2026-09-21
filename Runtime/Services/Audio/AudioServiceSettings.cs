@@ -29,6 +29,12 @@ namespace Moirai.Atropos.Audio
         /// <summary>混音快照配置</summary>
         internal static AudioMixSnapshotEntry[] MixSnapshots => Instance.m_MixSnapshots;
 
+        [Header("自动 Ducking [Auto Ducking]")]
+        [Tooltip("Voice 音轨有声在播时自动切到 Dialogue 快照，播完自动回落。需先在 MixSnapshots 里注册 Dialogue 快照，否则切换为空操作。")]
+        [SerializeField] private bool m_AutoDuckingOnVoice;
+        /// <summary>是否启用 Voice 驱动的自动 Ducking。</summary>
+        internal static bool AutoDuckingOnVoice => Instance.m_AutoDuckingOnVoice;
+
         // AudioAgentHostPool Bootstrap
         [Header("池预热引导 [Pool Bootstrap]")]
         

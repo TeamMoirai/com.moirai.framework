@@ -9,6 +9,8 @@
 
 ### Added
 
+- **`Audio`：Voice 驱动的自动 Ducking（`AudioVoiceDucking`）**：叙事游戏的对白压低背景音此前要游戏侧手写台词起止，而按「播放 +1 / 结束 -1」计数一旦漏减就永久压低混音。现改为各后端**实算**该音轨是否还有活跃声部（Unity 扫 `AudioCategory` 的 Agent 空闲位，中间件扫句柄表里 `Playing` 的 Voice），由 `Tick` 驱动 `Evaluate`，加载中与淡出中同样算在播，漏一帧下一帧自愈。与快照状态机的优先级协同：被更高优先级挡下时不记为生效（演出中不会被对白抢走混音），回落只在仍占着 `Dialogue` 时发生且回到 duck 前那一层而非硬写 `Default`。开关在 `AudioServiceSettings.AutoDuckingOnVoice`（默认关闭，需先注册 `Dialogue` 快照），关掉当帧即归还。新增 `AudioServiceHandler.HasActiveAudioOn` 内部契约成员；补 `Tests/EditorMode/Service/Audio/AudioMixStateMachineTests.cs` 10 格锁住这套打断/回落契约（duck 完全寄生其上）。详见 `Audio.md` 双语「自动 Ducking」。
+
 - `Tests/EditorMode/Service/Timer/DefaultTimerHandlerTests.cs` 增补：时钟污染与回调内改写句柄的回归 7 格——正无穷单帧不冻结时间轮、负读数不把游标拽回起点、时钟不可用时 `Resume` / `Restart` 整体拒绝而不损坏计时器、帧计时器进度回调内自取消后槽位复用者不被误完成、回调内 `Restart` 不被同帧完成判定抹掉、回调内 `Pause` 把完成顺延到恢复后的那一帧。
 - **对象池异常路径回归 13 格**（`PoolMaintenanceSchedulerTests` 3 格 + `GameObjectPoolTests` 7 格 + `GenericObjectPoolTests` 3 格，锁住上面两条 Fixed 收口）：调度器侧毒项不截断本轮其余到期项、抛出项不被重试、抛出后自行重排的项不掉堆；GameObject 池侧 `OnDespawn` 内 `DestroyImmediate` 自身不再炸在 `ParkInactive`、其槽位被完整回收且不影响同链其余实例、`OnPooledDestroy` 抛出时整批 trim 仍走完且池保留排期、框架级缺陷（预制体卸载抛）带池身份显式上报且不外泄、`Shutdown` 单件投毒不放过其余实例、Sticky 池尾部僵尸清扫不再抹平 inactive 链头尾；通用池侧 `Release` 抛出不会放过未用链其余对象、槽位与 `_targetMap` 回到可用态（同 target 可再注册）、关停单件投毒不跳过池尾。
 - **`Resource`：空闲资源记录容量上限 `IdleAssetCapacity`（默认 256）**：`IdleAssetExpireTime` 只按时间回收，两处卸载都不触发的场景里，一批资源失去引用后仍按秒数占着内存与后端句柄。现空闲记录数超过上限即由最长空闲（过期刻度最早）的那条立即释放，不等到期；setter 调小同样当场生效，`0` 表示不留空闲记录（引用归零即释放）。淘汰排在时间轮走查之后——走查途中同步摘节点会让已捕获的 `next` 指针失效、整桶被跳过。接进 `ResourceServiceHandler` 契约（`AddressableHandler` 无记录级回收，仅持档位）、`ResourceServiceSettings` 与 `ResourceService` 门面。
