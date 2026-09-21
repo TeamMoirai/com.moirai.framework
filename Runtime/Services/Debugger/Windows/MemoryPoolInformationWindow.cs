@@ -24,6 +24,8 @@ namespace Moirai.Atropos.Debugger
         private VisualElement _dynamicRoot;
         private Button _countButton;
         private Button _phaseButton;
+        private Button _benchmarkResultButton;
+        private BenchmarkReport _benchmarkReport;
         private float _countdown;
         private bool _showFullClassName;
 
@@ -43,11 +45,59 @@ namespace Moirai.Atropos.Debugger
             toggleRow.Add(DebuggerUI.CreateToggle("Show Full Class Name", _showFullClassName, value => _showFullClassName = value));
             summaryCard.Add(toggleRow);
 
+            BuildBenchmarkSection(root);
+
             _dynamicRoot = new VisualElement();
             _dynamicRoot.style.flexDirection = FlexDirection.Column;
             root.Add(_dynamicRoot);
 
             Refresh();
+        }
+
+        /// <summary>
+        /// 基准区：Run 同步跑 <see cref="MemoryPoolBenchmarkRunner"/>（会短暂时卡主线程），Export 落 XML。
+        /// 状态行按钮引用跨轮询存活（轮询只重建清单区）。
+        /// </summary>
+        private void BuildBenchmarkSection(VisualElement root)
+        {
+            VisualElement card = AddSection(root, "MemoryPool Benchmark");
+
+            VisualElement toolbar = DebuggerUI.CreateToolbarRow();
+            toolbar.Add(DebuggerUI.CreateActionButton("Run Benchmark", OnRunBenchmark, DebuggerUI.EButtonStyle.Positive));
+            toolbar.Add(DebuggerUI.CreateActionButton("Export XML", OnExportBenchmarkXml));
+            card.Add(toolbar);
+
+            AddRow(card, "Result", _benchmarkReport == null ? "未运行" : DescribeReport(), out _benchmarkResultButton);
+        }
+
+        private void OnRunBenchmark()
+        {
+            _benchmarkReport = MemoryPoolBenchmarkRunner.Run();
+            if (_benchmarkResultButton != null)
+            {
+                _benchmarkResultButton.text = DescribeReport();
+            }
+        }
+
+        private void OnExportBenchmarkXml()
+        {
+            if (_benchmarkReport == null)
+            {
+                Debug.LogWarning("[MemoryPoolBenchmark] 请先 Run Benchmark 再导出");
+                return;
+            }
+
+            string path = _benchmarkReport.ResolveXmlPath();
+            _benchmarkReport.WriteXml(path);
+            if (_benchmarkResultButton != null)
+            {
+                _benchmarkResultButton.text = $"已导出 {path}";
+            }
+        }
+
+        private string DescribeReport()
+        {
+            return StringUtility.Format("cases {0} | total {1} ms", _benchmarkReport.CaseCount, _benchmarkReport.TotalMs);
         }
 
         /// <inheritdoc />
