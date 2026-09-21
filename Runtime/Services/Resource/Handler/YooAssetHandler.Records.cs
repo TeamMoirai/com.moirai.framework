@@ -413,7 +413,8 @@ namespace Moirai.Atropos.Resource
                     subHandle = GetSubAssetsHandleAsync(location, normalizedPackageName);
                     if (subHandle == null)
                     {
-                        FailLoading(loadingKey, NewLoadingFailure("SubAssets", location, normalizedPackageName));
+                        FailLoading(loadingKey, NewLoadingFailure("SubAssets", location, normalizedPackageName),
+                            ELogLevel.Warning);
                         return ResourceLeaseHandle.Invalid;
                     }
 
@@ -449,7 +450,7 @@ namespace Moirai.Atropos.Resource
                             : null;
                         DisposeSubAssetsHandle(subHandle);
                         subHandle = null;
-                        FailLoading(loadingKey, failure);
+                        FailLoading(loadingKey, failure, ELogLevel.Warning);
                         return ResourceLeaseHandle.Invalid;
                     }
 
@@ -621,7 +622,7 @@ namespace Moirai.Atropos.Resource
                             : NewLoadingFailure("Asset", location, normalizedPackageName);
                         DisposeHandle(handle);
                         handle = null;
-                        FailLoading(loadingKey, failure);
+                        FailLoading(loadingKey, failure, ELogLevel.Warning);
                         return null;
                     }
 
@@ -693,7 +694,8 @@ namespace Moirai.Atropos.Resource
                     handle = GetHandleAsync(location, assetType, packageName: packageName, priority: priority);
                     if (handle == null)
                     {
-                        FailLoading(loadingKey, NewLoadingFailure("Asset", location, normalizedPackageName));
+                        FailLoading(loadingKey, NewLoadingFailure("Asset", location, normalizedPackageName),
+                            ELogLevel.Warning);
                         return null;
                     }
 
@@ -732,7 +734,7 @@ namespace Moirai.Atropos.Resource
                             handle.Error);
                         DisposeHandle(handle);
                         handle = null;
-                        FailLoading(loadingKey, failure);
+                        FailLoading(loadingKey, failure, ELogLevel.Warning);
                         return null;
                     }
 
@@ -872,12 +874,21 @@ namespace Moirai.Atropos.Resource
             ReleaseLoadingOperationIfReady(loadingOperation);
         }
 
-        private void FailLoading(ulong assetObjectKey, Exception exception)
+        private void FailLoading(ulong assetObjectKey, Exception exception,
+            ELogLevel level = ELogLevel.Error)
         {
             if (exception != null)
             {
                 // 失败原因若在此被丢弃，等待方只会拿到 null 且日志里查不到加载为什么失败。
-                LogUtility.Error(exception);
+                // 分级对齐 RETHROW 约定：可预期的资源加载失败降为 Warning，意外异常仍以 Error 留痕。
+                if (level == ELogLevel.Warning)
+                {
+                    LogUtility.Warning(exception);
+                }
+                else
+                {
+                    LogUtility.Error(exception);
+                }
             }
 
             if (!TryRemoveLoadingOperation(assetObjectKey, out LoadingOperationState loadingOperation))
