@@ -143,6 +143,9 @@ namespace Moirai.Atropos.Audio
         /// <returns>可用代理；无法分配时返回 null。</returns>
         public AudioAgent GetAvailableAgent(bool doNotAutoRecycleIfNotDonePlaying, int priority = 128, bool persistent = false)
         {
+            // 所有 Unity 侧播放都要经此取通道，是句柄绑定与通道表变更的唯一收口点
+            AudioMainThread.AssertMainThread(nameof(GetAvailableAgent));
+
             var agents = AudioAgents;
             int freeChannel = -1;
             int stealChannel = -1;

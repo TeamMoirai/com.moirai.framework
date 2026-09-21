@@ -31,10 +31,15 @@ namespace Moirai.Atropos.Audio
         public abstract Transform InstanceRoot { get; set; }
 
         /// <summary>
-        /// 资源句柄池，用于缓存资源系统的已加载音频资源（后端原生句柄的 object 包装）。
+        /// 已缓存音频资源的只读视图（后端原生句柄/租约的 object 包装）。
         /// </summary>
-        /// <remarks>中间件后端仅作键值占位，不持有真实资源句柄。</remarks>
-        public abstract Dictionary<string, object> AssetHandlePool { get; }
+        /// <remarks>
+        /// 条目的增删与租约释放由服务内部配对管理（<see cref="PutInAudioPool"/> / <see cref="RemoveClipFromPool"/> /
+        /// <see cref="CleanAudioPool"/>，以及 Clip 缓存自身的驱逐与卸载），因此这里只给只读形态：
+        /// 外部若直接从字典里摘走一项，租约就脱离了引用计数，等于一条没人会释放的后端引用。
+        /// <para>中间件后端仅作键值占位，不持有真实资源句柄。</para>
+        /// </remarks>
+        public abstract IReadOnlyDictionary<string, object> AssetHandlePool { get; }
 
         #endregion 处理器属性 [HANDLER PROPERTIES]
 
@@ -115,9 +120,20 @@ namespace Moirai.Atropos.Audio
         }
 
         /// <summary>
-        /// 指定音轨上当前是否有声部处于活跃（加载/播放/淡入淡出/暂停）。自动 Ducking 用；默认无概念返回 false。
+        /// 音轨上是否有声部处于活跃（加载/播放/淡入淡出/暂停）。自动 Ducking 用；默认无概念返回 false。
         /// </summary>
         internal virtual bool HasActiveAudioOn(EAudioTrack track) => false;
+
+        /// <summary>
+        /// 应用前后台切换（<c>OnApplicationPause</c>）。<paramref name="paused"/> 为 true 表示进入后台。
+        /// </summary>
+        /// <remarks>
+        /// 刻意不接 <c>OnApplicationFocus</c>：桌面端切窗口不应静音，移动端的挂起信号只有 Pause 可靠。
+        /// <para>默认空实现：Unity 后端冻结 <see cref="AudioListener"/>；中间件后端由其自身挂起策略处理。</para>
+        /// </remarks>
+        public virtual void OnApplicationPaused(bool paused)
+        {
+        }
 
         #endregion 服务方法 [SERVICE METHOD]
 

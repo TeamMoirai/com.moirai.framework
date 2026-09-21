@@ -165,7 +165,9 @@ namespace Moirai.Atropos.Audio
             {
                 if (target != EMixSnapshot.Default)
                 {
-                    LogUtility.Warning("[AudioMix] Mixer 未绑定且无中间件过渡回调，状态 {0} 的切换为无操作。", target);
+                    // 自动 Ducking 会按台词反复请求，这里必须按状态去重，否则每次进对白都刷一条
+                    AudioWarnOnce.Warning($"mix.no-mixer:{target}",
+                        "[AudioMix] Mixer 未绑定且无中间件过渡回调，状态 {0} 的切换为无操作。", target);
                 }
 
                 return;
@@ -178,8 +180,10 @@ namespace Moirai.Atropos.Audio
             }
             else if (target != EMixSnapshot.Default)
             {
-                // Default 无 Snapshot 属正常（回到 Mixer 默认状态）；其余状态缺失视为配置遗漏
-                LogUtility.Warning("[AudioMix] 状态 {0} 未注册 AudioMixerSnapshot（见 AudioServiceSettings.MixSnapshots），切换为无操作。", target);
+                // Default 无 Snapshot 属正常（回到 Mixer 默认状态）；其余状态缺失视为配置遗漏，按状态报一次
+                AudioWarnOnce.Warning($"mix.no-snapshot:{target}",
+                    "[AudioMix] 状态 {0} 未注册 AudioMixerSnapshot（见 AudioServiceSettings.MixSnapshots），切换为无操作。",
+                    target);
             }
         }
 

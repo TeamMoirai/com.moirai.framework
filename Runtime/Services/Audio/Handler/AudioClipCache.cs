@@ -19,10 +19,18 @@ namespace Moirai.Atropos.Audio
         public const int DefaultCapacity = 128;
         public const float DefaultTtl = 30f;
 
+        /// <summary>加载失败后该地址的冷却时长（秒）。防住一个写错的事件地址被高频触发时每次重穿资源层。</summary>
+        public const float FailureCooldownSeconds = 5f;
+
         private readonly Dictionary<string, AudioClipCacheEntry> _entries = new Dictionary<string, AudioClipCacheEntry>(64);
+
+        /// <summary>失败过的地址 → 冷却截止时刻（<c>Time.realtimeSinceStartup</c> 口径）。</summary>
+        private readonly Dictionary<string, float> _failedUntil = new Dictionary<string, float>(8);
 
         /// <summary>池可见视图（已加载且留池的条目）——兼容 <c>AssetHandlePool</c> 只读 API。</summary>
         public readonly Dictionary<string, object> PoolView = new Dictionary<string, object>(32);
+
+        private readonly System.Collections.ObjectModel.ReadOnlyDictionary<string, object> _poolView;
 
         private AudioClipCacheEntry _lruHead;
         private AudioClipCacheEntry _lruTail;
@@ -31,12 +39,24 @@ namespace Moirai.Atropos.Audio
         private IAudioClipLeaseSource _source;
         private int _capacity = DefaultCapacity;
         private float _ttl = DefaultTtl;
+        private float _failureCooldown = FailureCooldownSeconds;
         private AudioCachePolicy _defaultPolicy = AudioCachePolicy.Ttl;
         private bool _lowMemoryRegistered;
         private bool _disposed;
 
+        public AudioClipCache()
+        {
+            _poolView = new System.Collections.ObjectModel.ReadOnlyDictionary<string, object>(PoolView);
+        }
+
         /// <summary>当前缓存条目数。</summary>
         public int Count => _entries.Count;
+
+        /// <summary>失败冷却中的地址数（诊断用）。</summary>
+        public int FailedAddressCount => _failedUntil.Count;
+
+        /// <summary>留池视图的只读形态：外部拿不到可写的字典，也就无法把缓存持有的租约从记账里摘掉。</summary>
+        public System.Collections.Generic.IReadOnlyDictionary<string, object> PoolReadOnly => _poolView;
 
         /// <summary>All 链头：诊断/调试面板遍历入口。</summary>
         public AudioClipCacheEntry FirstEntry => _allHead;
@@ -86,12 +106,17 @@ namespace Moirai.Atropos.Audio
         /// <summary>
         /// 应用租约来源与容量/TTL/默认策略，并注册 lowMemory 回调。<see cref="UnityAudioHandler"/> 每次 Initialize 调用。
         /// </summary>
-        public void Configure(IAudioClipLeaseSource source, int capacity, float ttl, AudioCachePolicy defaultPolicy)
+        /// <param name="failureCooldownSeconds">失败地址的冷却秒数；<c>0</c> 关闭负缓存（每次都真去试）。</param>
+        public void Configure(IAudioClipLeaseSource source, int capacity, float ttl, AudioCachePolicy defaultPolicy,
+            float failureCooldownSeconds = FailureCooldownSeconds)
         {
             _source = source;
             _capacity = Mathf.Max(1, capacity);
             _ttl = Mathf.Max(0f, ttl);
+            _failureCooldown = Mathf.Max(0f, failureCooldownSeconds);
             _defaultPolicy = NormalizeDefaultPolicy(defaultPolicy);
+            // 重启/换后端后失败冷却不再继承上一轮——地址表可能刚被修好
+            _failedUntil.Clear();
             // 关停后同一处理器实例可被重新初始化（Restart / 测试复用），否则缓存会永久失活
             _disposed = false;
             RegisterLowMemory();
@@ -111,6 +136,7 @@ namespace Moirai.Atropos.Audio
             }
 
             PoolView.Clear();
+            _failedUntil.Clear();
             _source = null;
         }
 
@@ -132,6 +158,33 @@ namespace Moirai.Atropos.Audio
                 _ => AudioCachePolicy.Ttl,
             };
         }
+
+        /// <summary>
+        /// 地址是否处于加载失败冷却中。冷却内不再向后端取租约，也不挂等待者——
+        /// 否则一个写错的事件地址每次触发播放都会完整穿一遍资源层（加载→失败→摘条目）。
+        /// </summary>
+        public bool IsFailureCoolingDown(string address)
+        {
+            if (_failureCooldown <= 0f) return false;
+            if (string.IsNullOrEmpty(address) || !_failedUntil.TryGetValue(address, out var until)) return false;
+            if (Time.realtimeSinceStartup < until) return true;
+
+            _failedUntil.Remove(address);
+            return false;
+        }
+
+        private void RememberFailure(string address)
+        {
+            if (_failureCooldown <= 0f) return;
+
+            // 上限用容量本身兜住：错误地址理论上无上限（每条玩法数据都可能写错一个字符串），
+            // 不能让这个冷却字典长成第二个泄漏源。到顶就整表重来，最坏是提前允许重试一次。
+            if (_failedUntil.Count >= _capacity) _failedUntil.Clear();
+            _failedUntil[address] = Time.realtimeSinceStartup + _failureCooldown;
+        }
+
+        /// <summary>清空失败冷却（服务重启/显式重置时调用）。</summary>
+        public void ClearFailureCooldowns() => _failedUntil.Clear();
 
         /// <summary>路径是否已在缓存中加载完成。</summary>
         public bool TryGetLoaded(string address, out AudioClipCacheEntry entry)
@@ -159,7 +212,14 @@ namespace Moirai.Atropos.Audio
         /// <returns>已就绪或加载已受理返回 true；地址无效、满载或后端不可用返回 false。</returns>
         public bool RequestClip(string address, bool async, AudioCachePolicy policy, AudioAgent agent, int generation)
         {
+            AudioMainThread.AssertMainThread(nameof(RequestClip));
+
             if (agent == null || string.IsNullOrEmpty(address) || _source == null || _disposed)
+            {
+                return false;
+            }
+
+            if (IsFailureCoolingDown(address))
             {
                 return false;
             }
@@ -263,10 +323,13 @@ namespace Moirai.Atropos.Audio
         /// </summary>
         public bool Unload(string address, bool force = false)
         {
+            AudioMainThread.AssertMainThread(nameof(Unload));
+
             if (string.IsNullOrEmpty(address) || !_entries.TryGetValue(address, out var entry)) return false;
             if (entry.RefCount != 0 || entry.Loading) return false;
             if (!force && (entry.Pinned || entry.PendingHead != null)) return false;
 
+            _failedUntil.Remove(address);
             RemoveEntry(entry);
             return true;
         }
@@ -274,8 +337,11 @@ namespace Moirai.Atropos.Audio
         /// <summary>
         /// 清空缓存。<paramref name="force"/> 连 Pin 一并清；在播引用始终不清。
         /// </summary>
+        /// <remarks>force 同时清掉失败冷却：这是「配置改完了、重来一遍」的显式入口。</remarks>
         public void ClearCache(bool force = false)
         {
+            AudioMainThread.AssertMainThread(nameof(ClearCache));
+
             var entry = _allHead;
             while (entry != null)
             {
@@ -287,6 +353,8 @@ namespace Moirai.Atropos.Audio
 
                 entry = next;
             }
+
+            if (force) _failedUntil.Clear();
         }
 
         /// <summary>Tick：TTL 驱逐（只扫 LRU 头，无引用且过期的连续淘汰）。</summary>
@@ -348,8 +416,15 @@ namespace Moirai.Atropos.Audio
 
         private bool TryPreparePreload(string address, AudioCachePolicy policy, out AudioClipCacheEntry entry)
         {
+            AudioMainThread.AssertMainThread(nameof(Preload));
+
             entry = null;
             if (string.IsNullOrEmpty(address) || _source == null || _disposed) return false;
+
+            if (IsFailureCoolingDown(address))
+            {
+                return false;
+            }
 
             var resolved = ResolvePolicy(policy);
             entry = GetOrCreate(address, resolved);
@@ -435,6 +510,19 @@ namespace Moirai.Atropos.Audio
 
         private bool OnLoadCompleted(AudioClipCacheEntry entry, ulong version, AudioClipLease lease)
         {
+            if (!AudioMainThread.IsMainThread)
+            {
+                // 兜底：租约来源若不在主线程回调（未来的纯后台后端，或误加 ConfigureAwait(false)），
+                // 把结果转投主线程；投不出去（调度器已停机）就当场归还租约。
+                // 绝不在后台线程动 LRU/All 链与引用计数——那类问题线上表现为偶发错音，几乎无法归因。
+                if (MainThreadDispatcher.TryPost(() => OnLoadCompleted(entry, version, lease))) return false;
+
+                lease.Release();
+                AudioWarnOnce.Error("cache.offthread-completion",
+                    "[AudioClipCache] 加载完成回调来自非主线程，且主线程调度器已停机；租约已就地归还。");
+                return false;
+            }
+
             // 世代/身份校验：条目已被驱逐或已复用为另一地址时，本次结果作废并归还租约。
             // Address 判空必须前置——关停路径上条目已 Clear()，用它查字典会抛 ArgumentNullException。
             if (entry.Address == null ||
@@ -451,6 +539,7 @@ namespace Moirai.Atropos.Audio
             if (!success)
             {
                 lease.Release();
+                RememberFailure(entry.Address);
             }
 
             entry.Lease.Release();

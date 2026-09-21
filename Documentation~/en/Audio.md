@@ -30,6 +30,7 @@ Runtime/Services/Audio/
 ├── Models/  AudioPlayRequest / ColdParams / Options / AssetData / GroupConfig
 │          AudioCachePolicy / AudioClipCacheEntry / AudioLoadRequest
 └── Support/ BackgroundMusic / SettingsWidget
+           AudioMainThread / AudioFault / AudioWarnOnce   # main-thread assert, backed-off fault reporting, deduped warnings
 ```
 
 ## Architecture (HandlerHost + Strategy)
@@ -182,7 +183,11 @@ Configure `WarmupAudioHostPool` and `AudioHostWarmupCount` in `AudioServiceSetti
 - Manual fades and snapshot transitions advance via service `Tick`  
 - Path-based `Play(path, ...)` loads asynchronously by default (`bAsync = true`); synchronous loading blocks the main thread — reserve it for startup/preload scenarios  
 - Path playback always uses the clip cache (default policy `Ttl`); set `AudioPlayOptions.CachePolicy = None` for rare one-shots you want released immediately  
-- `AssetHandlePool` is now a read-only view over the clip cache; never dispose the leases it exposes  
+- Failed addresses enter a 5-second cooldown (`failureCooldownSeconds` in `Configure`, `0` disables) — otherwise a mistyped event path that is triggered often re-enters the resource layer every time. `ClearClipCache(force: true)` resets the cooldowns too  
+- Play entry points assert the main thread in development builds (the handle table and the cache's LRU/refcount have no cross-thread protection); from a worker thread, hop via `MainThreadDispatcher.Post`. If a lease source ever calls back off-thread, the cache marshals the result and, if marshalling is impossible, releases the lease and reports instead of mutating structures cross-thread  
+- The service `Tick` isolates faults inside Audio: a throw is reported with backoff (no repeat for 5s per site) and never removes Audio from polling nor freezes other services that frame  
+- Backgrounding freezes `AudioListener.pause` (each `AudioSource` keeps its position) and foregrounding restores it; `OnApplicationFocus` is deliberately not observed (desktop alt-tab must not mute). Shutting down while backgrounded still unfreezes  
+- `AssetHandlePool` is now a read-only view over the clip cache (the contract member is typed `IReadOnlyDictionary`): leases are owned by the cache, so external code can neither rewrite the ledger nor dispose a lease  
 - Natural-end timing uses unscaled real time (`AudioSource` is not affected by `timeScale`): at `timeScale = 0` a non-looping voice still finishes in real time and auto-releases its handle  
 - `Stop(handle, fadeout)` and `FadeAudio(handle, ...)` take over the same handle's volume exclusively (the later call cancels the former) — do not stack them  
 - Scene load auto `StopAllButPersistent`; set `Persistent = true` for cross-scene audio  

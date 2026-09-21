@@ -432,5 +432,70 @@ namespace Service.Audio
         }
 
         #endregion 条目复用 [ENTRY RECYCLING]
+
+        #region 失败冷却 [FAILURE COOLDOWN]
+
+        [Test]
+        public void FailedLoad_CoolsDownAndRefusesImmediateRetry()
+        {
+            _fixture = new AudioCacheTestSupport(capacity: 4, failureCooldown: 60f);
+            _fixture.FailLoads = true;
+
+            Assert.IsFalse(_fixture.Cache.Preload(A));
+            Assert.AreEqual(1, _fixture.LoadCount(A));
+
+            // 地址表修好了也不立刻生效：冷却内不再向后端取，避免高频触发的错地址每次重穿资源层
+            _fixture.FailLoads = false;
+            Assert.IsFalse(_fixture.Cache.Preload(A));
+
+            Assert.AreEqual(1, _fixture.LoadCount(A), "冷却内不得再次向后端发起加载");
+            Assert.AreEqual(0, _fixture.LiveHandles);
+            Assert.AreEqual(1, _fixture.Cache.FailedAddressCount);
+        }
+
+        [Test]
+        public void FailureCooldown_ExpiresAndAllowsRetry()
+        {
+            _fixture = new AudioCacheTestSupport(capacity: 4, failureCooldown: 0.1f);
+            _fixture.FailLoads = true;
+            Assert.IsFalse(_fixture.Cache.Preload(A));
+
+            Thread.Sleep(200);
+            _fixture.FailLoads = false;
+
+            Assert.IsTrue(_fixture.Cache.Preload(A), "冷却到期后应允许重试");
+            Assert.AreEqual(2, _fixture.LoadCount(A));
+            Assert.AreEqual(1, _fixture.LiveHandles);
+            Assert.AreEqual(0, _fixture.Cache.FailedAddressCount, "成功后不该再留冷却记录");
+        }
+
+        [Test]
+        public void FailureCooldown_ZeroDisablesNegativeCache()
+        {
+            _fixture = new AudioCacheTestSupport(capacity: 4, failureCooldown: 0f);
+            _fixture.FailLoads = true;
+
+            Assert.IsFalse(_fixture.Cache.Preload(A));
+            Assert.IsFalse(_fixture.Cache.Preload(A));
+
+            Assert.AreEqual(2, _fixture.LoadCount(A), "冷却为 0 时每次都真去试");
+            Assert.AreEqual(0, _fixture.Cache.FailedAddressCount);
+        }
+
+        [Test]
+        public void ClearCacheForce_ResetsFailureCooldown()
+        {
+            _fixture = new AudioCacheTestSupport(capacity: 4, failureCooldown: 60f);
+            _fixture.FailLoads = true;
+            Assert.IsFalse(_fixture.Cache.Preload(A));
+
+            _fixture.Cache.ClearCache(force: true);
+            _fixture.FailLoads = false;
+
+            Assert.IsTrue(_fixture.Cache.Preload(A), "force 清理应一并重置失败冷却");
+            Assert.AreEqual(2, _fixture.LoadCount(A));
+        }
+
+        #endregion 失败冷却 [FAILURE COOLDOWN]
     }
 }

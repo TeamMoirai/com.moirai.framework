@@ -121,7 +121,17 @@ namespace Moirai.Atropos.Audio.Middleware
         }
 
         /// <inheritdoc />
-        public override Dictionary<string, object> AssetHandlePool { get; } = new Dictionary<string, object>();
+        /// <summary>占位表：中间件按事件路径播放，不需要 clip 租约，这里只保留“已登记”的键集合。</summary>
+        private readonly Dictionary<string, object> _assetHandles = new Dictionary<string, object>();
+        private System.Collections.ObjectModel.ReadOnlyDictionary<string, object> _assetHandlesView;
+
+        /// <inheritdoc />
+        /// <remarks>
+        /// 返回包装而非底表：裸 <c>Dictionary</c> 虽以 <c>IReadOnlyDictionary</c> 出现，仍可被 cast 回去改写，
+        /// 而包装类型 cast 不回 <c>Dictionary</c>，占位表的外部可写面就此关闭。
+        /// </remarks>
+        public override IReadOnlyDictionary<string, object> AssetHandlePool
+            => _assetHandlesView ??= new System.Collections.ObjectModel.ReadOnlyDictionary<string, object>(_assetHandles);
 
         /// <inheritdoc />
         public override AudioCategory[] AudioCategories => Array.Empty<AudioCategory>();
@@ -289,7 +299,15 @@ namespace Moirai.Atropos.Audio.Middleware
             _fades.Update(GameTime.unscaledTime, this);
             ProcessPendingStops();
             ReleaseFinishedOneshots();
-            AudioVoiceDucking.Evaluate(this);
+
+            try
+            {
+                AudioVoiceDucking.Evaluate(this);
+            }
+            catch (Exception e)
+            {
+                AudioFault.Report($"{nameof(MiddlewareAudioHandler)}.{nameof(Tick)}:ducking", e);
+            }
         }
 
         /// <summary>
@@ -536,6 +554,10 @@ namespace Moirai.Atropos.Audio.Middleware
 
         private ulong PlayEventPath(string eventPath, in AudioPlayRequest request, AudioPlayColdParams cold)
         {
+            // 声部表与句柄注册表无跨线程保护：后台线程里回调 Play 不会立刻崩，
+            // 而是留下偶发错音/失联句柄这类线上无法归因的症状，所以开发期直接断言。
+            AudioMainThread.AssertMainThread(nameof(PlayEventPath));
+
             if (_backendFailed || _bridge == null || string.IsNullOrEmpty(eventPath))
             {
                 AudioPlayColdParamsPool.Release(cold);
@@ -938,9 +960,9 @@ namespace Moirai.Atropos.Audio.Middleware
             for (int i = 0; i < list.Count; i++)
             {
                 string path = list[i];
-                if (!string.IsNullOrEmpty(path) && !AssetHandlePool.ContainsKey(path))
+                if (!string.IsNullOrEmpty(path) && !_assetHandles.ContainsKey(path))
                 {
-                    AssetHandlePool.Add(path, path);
+                    _assetHandles.Add(path, path);
                 }
             }
         }
@@ -951,19 +973,19 @@ namespace Moirai.Atropos.Audio.Middleware
             if (list == null) return;
             for (int i = 0; i < list.Count; i++)
             {
-                AssetHandlePool.Remove(list[i]);
+                _assetHandles.Remove(list[i]);
             }
         }
 
         /// <inheritdoc />
-        public override void CleanAudioPool() => AssetHandlePool.Clear();
+        public override void CleanAudioPool() => _assetHandles.Clear();
 
         /// <inheritdoc />
         /// <remarks>中间件无 clip 租约；仅登记键值占位。</remarks>
         public override bool Preload(string address, AudioCachePolicy policy = AudioCachePolicy.Pin)
         {
             if (string.IsNullOrEmpty(address)) return false;
-            AssetHandlePool[address] = address;
+            _assetHandles[address] = address;
             return true;
         }
 
@@ -977,11 +999,11 @@ namespace Moirai.Atropos.Audio.Middleware
         public override bool UnloadClipCache(string address, bool force = false)
         {
             if (string.IsNullOrEmpty(address)) return false;
-            return AssetHandlePool.Remove(address);
+            return _assetHandles.Remove(address);
         }
 
         /// <inheritdoc />
-        public override void ClearClipCache(bool force = false) => AssetHandlePool.Clear();
+        public override void ClearClipCache(bool force = false) => _assetHandles.Clear();
 
         #endregion 资源池 [ASSET POOL]
 

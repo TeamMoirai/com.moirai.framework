@@ -19,6 +19,9 @@ namespace Moirai.Atropos.Audio
     [ServiceDependency(typeof(DebuggerService), typeof(ResourceService))]
     public partial class AudioService : ServiceBase, IServiceTickable
     {
+        /// <summary>前后台切换订阅句柄（注销只能靠它，lambda 事后摘不掉）。</summary>
+        private static GameApp.Subscription s_PauseSubscription;
+
         #region 生命周期 [LIFECYCLE]
 
         /// <summary>
@@ -60,6 +63,25 @@ namespace Moirai.Atropos.Audio
             TimerService.WaitFrame(1, LoadSettings);
 
             DebuggerService.RegisterDebuggerWindow("Profiler/Audio", new AudioServiceDebuggerWindow());
+
+            // 移动端只有 OnApplicationPause 可靠（Focus 在桌面切窗时也会触发，不应据此静音）
+            s_PauseSubscription ??= GameApp.AddOnApplicationPauseListener(HandleApplicationPause);
+        }
+
+        /// <summary>
+        /// 前后台切换：转发给当前后端。订阅在 <see cref="OnInit"/> 建立、<see cref="OnShutdown"/> 注销，
+        /// 生命周期与 <see cref="AudioListener"/> 的挂起状态一致。
+        /// </summary>
+        private static void HandleApplicationPause(bool paused)
+        {
+            try
+            {
+                s_Handler?.OnApplicationPaused(paused);
+            }
+            catch (Exception e)
+            {
+                AudioFault.Report($"{nameof(HandleApplicationPause)}", e);
+            }
         }
 
         /// <summary>
@@ -69,18 +91,42 @@ namespace Moirai.Atropos.Audio
         {
             DebuggerService.UnregisterDebuggerWindow("Profiler/Audio");
 
+            s_PauseSubscription?.Dispose();
+            s_PauseSubscription = null;
+
             AudioMixService.Shutdown();
 
             var handler = s_Handler;
             s_Handler = null;
             handler?.Internal_Shutdown();
+
+            // 诊断状态跟着服务一起归零，避免重启后首帧异常被上一轮的退避窗口吞掉
+            AudioFault.Reset();
+            AudioWarnOnce.Reset();
         }
 
         /// <summary>
         /// 容器 Tick 驱动——转发到处理器轮询音轨与手动过渡。
         /// </summary>
-        public void Tick(float elapseSeconds, float realElapseSeconds) =>
-            s_Handler?.Tick(elapseSeconds, realElapseSeconds);
+        /// <remarks>
+        /// 隔离必须在音频内部做：容器的 tick 保护在开发构建下是「记录后重新抛出并打断整轮 tick」，
+        /// 一条音的异常于是会连带冻住同帧的输入/UI/存档。发布构建下容器只会隔离本服务，
+        /// 这里的退避上报保证两种构建行为一致，且不会因为持续抛异常而刷屏。
+        /// </remarks>
+        public void Tick(float elapseSeconds, float realElapseSeconds)
+        {
+            var handler = s_Handler;
+            if (handler == null) return;
+
+            try
+            {
+                handler.Tick(elapseSeconds, realElapseSeconds);
+            }
+            catch (Exception e)
+            {
+                AudioFault.Report($"{nameof(AudioService)}.{nameof(Tick)}", e);
+            }
+        }
 
         #endregion
 

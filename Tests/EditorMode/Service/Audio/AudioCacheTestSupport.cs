@@ -17,10 +17,11 @@ namespace Service.Audio
         private readonly Queue<PendingLoad> _pending = new Queue<PendingLoad>();
 
         public AudioCacheTestSupport(int capacity = 128, float ttl = 30f,
-            AudioCachePolicy defaultPolicy = AudioCachePolicy.Ttl)
+            AudioCachePolicy defaultPolicy = AudioCachePolicy.Ttl,
+            float failureCooldown = AudioClipCache.FailureCooldownSeconds)
         {
             Cache = new AudioClipCache();
-            Cache.Configure(this, capacity, ttl, defaultPolicy);
+            Cache.Configure(this, capacity, ttl, defaultPolicy, failureCooldown);
         }
 
         /// <summary>被测缓存。</summary>

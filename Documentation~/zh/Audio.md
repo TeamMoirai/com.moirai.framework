@@ -30,6 +30,7 @@ Runtime/Services/Audio/
 ├── Models/  AudioPlayRequest / ColdParams / Options / AssetData / GroupConfig
 │          AudioCachePolicy / AudioClipCacheEntry / AudioLoadRequest
 └── Support/ BackgroundMusic / SettingsWidget
+           AudioMainThread / AudioFault / AudioWarnOnce      # 主线程断言、退避式异常上报、按 key 去重告警
 ```
 
 ## 架构（HandlerHost + 策略）
@@ -216,7 +217,11 @@ AudioService.ResetMixSnapshot(0.25f);
 - 手动 `FadeAudio` / 快照过渡依赖服务 `Tick` 推进  
 - 路径播放 `Play(path, ...)` 默认异步加载（`bAsync = true`）；同步加载阻塞主线程，仅限启动期/预加载显式使用  
 - 路径播放一律经 Clip 缓存，默认策略 `Ttl`：一次性的冷门音效想「用完立刻卸载」请显式设 `AudioPlayOptions.CachePolicy = None`  
-- `AssetHandlePool` 现在是 `AudioClipCache` 的只读视图，值由缓存持有——外部只可枚举观测，不要 Dispose 其中的租约  
+- 加载失败的地址进入 5 秒冷却（`Configure` 的 `failureCooldownSeconds` 可调，`0` 关闭）：否则一个写错的事件地址被高频触发时会每次都重穿资源层。`ClearClipCache(force: true)` 会连冷却一起重置  
+- 播放入口只在开发构建断言主线程（句柄表与缓存的 LRU/引用计数无跨线程保护）；后台线程里请经 `MainThreadDispatcher.Post` 转投。租约来源若从非主线程回调，缓存会转投主线程处理，转投失败则就地归还租约并报错，绝不跨线程改结构  
+- 服务 `Tick` 在音频内部做故障隔离：某处抛异常只会被退避上报（同位置 5 秒内不重复打印），不会把音频踢出轮询，也不会连带冻住同帧的其它服务  
+- 切后台时冻结 `AudioListener.pause`（保留各 `AudioSource` 播放位置），回前台解冻；不订阅 `OnApplicationFocus`（桌面切窗不应静音）。在后台被关停也会补一次解冻，不留全局静音状态  
+- `AssetHandlePool` 现在是 Clip 缓存的只读视图（契约成员类型为 `IReadOnlyDictionary`）：租约由缓存持有，外部既改不动记账也释放不了租约  
 - 自然结束计时按未缩放真实时间推进（`AudioSource` 不受 `timeScale` 影响）：`timeScale = 0` 时非循环音仍会真实播完并自动释放句柄  
 - `Stop(handle, fadeout)` 与 `FadeAudio(handle, ...)` 互斥接管同句柄音量（后调用者取消前者），请勿混用叠加  
 - 加载新场景自动 `StopAllButPersistent`；跨场景音频设 `Persistent = true`  

@@ -40,6 +40,8 @@ namespace Moirai.Atropos.Audio
         public override AudioMixer AudioMixer => _audioMixer;
 
         [NonSerialized] private Transform _instanceRoot;
+        // 是否由本后端把 AudioListener 挂起：关停时必须解冻，否则带着后台状态退出会留下全局静音
+        [NonSerialized] private bool _pausedByFramework;
         /// <inheritdoc />
         public override Transform InstanceRoot { get => _instanceRoot; set => _instanceRoot = value; }
 
@@ -47,8 +49,8 @@ namespace Moirai.Atropos.Audio
         internal AudioClipCache ClipCache => _clipCache;
 
         /// <inheritdoc />
-        /// <remarks>兼容视图：由 <see cref="AudioClipCache"/> 暴露的已加载池条目，外部请勿直接改写。</remarks>
-        public override Dictionary<string, object> AssetHandlePool => _clipCache.PoolView;
+        /// <remarks>Clip 缓存的只读投影；租约由缓存持有，外部无法经此视图改写记账或释放租约。</remarks>
+        public override IReadOnlyDictionary<string, object> AssetHandlePool => _clipCache.PoolReadOnly;
 
         #region 音轨状态 [TRACK STATUS]
 
@@ -212,6 +214,13 @@ namespace Moirai.Atropos.Audio
             CleanAudioPool();
             _clipCache.Dispose();
             AudioVoiceDucking.Reset();
+
+            // 在后台被退出/关停时要把解冻补上，否则 AudioListener.pause=true 会留给下一个场景或编辑器会话
+            if (_pausedByFramework)
+            {
+                AudioListener.pause = false;
+                _pausedByFramework = false;
+            }
             _fades.Clear();
             _handles.Clear();
 
@@ -248,9 +257,42 @@ namespace Moirai.Atropos.Audio
                 categories[i]?.Update(realElapseSeconds);
             }
 
-            _clipCache.Tick();
             _fades.Update(GameTime.unscaledTime, this);
-            AudioVoiceDucking.Evaluate(this);
+
+            // 两个清扫型子系统单独隔离：缓存 TTL 扫描或 ducking 判定抛一次，不该带走在播声部的推进
+            try
+            {
+                _clipCache.Tick();
+            }
+            catch (Exception e)
+            {
+                AudioFault.Report($"{nameof(UnityAudioHandler)}.{nameof(Tick)}:clipCache", e);
+            }
+
+            try
+            {
+                AudioVoiceDucking.Evaluate(this);
+            }
+            catch (Exception e)
+            {
+                AudioFault.Report($"{nameof(UnityAudioHandler)}.{nameof(Tick)}:ducking", e);
+            }
+        }
+
+        /// <summary>
+        /// 前后台切换：冻结/解冻 <see cref="AudioListener"/>，保留各 <see cref="AudioSource"/> 的播放位置。
+        /// </summary>
+        /// <remarks>
+        /// 不用 <c>StopAllButPersistent</c>：后台回来时 BGM/环境音应当从断点继续，而不是被重起或静音。
+        /// <para>淡入淡出按未缩放真实时间推进，因此挂起期间开始的斜坡在恢复时会直接落到目标音量——
+        /// 与"真实时间已经过去"一致，不做补帧。</para>
+        /// </remarks>
+        public override void OnApplicationPaused(bool paused)
+        {
+            if (_unityAudioDisabled) return;
+
+            AudioListener.pause = paused;
+            _pausedByFramework = paused;
         }
 
         /// <summary>
@@ -340,6 +382,15 @@ namespace Moirai.Atropos.Audio
             if (_audioMixer == null)
             {
                 _audioMixer = AudioServiceSettings.AudioMixer;
+            }
+
+            // 缺 Mixer 不是致命错误（主音量仍走 AudioListener.volume），但音轨音量与静音
+            // 全靠 Mixer 上暴露的 {组名}Volume 参数，缺了就是滑杆拉到底也没声音变化——必须显式报一次
+            if (_audioMixer == null)
+            {
+                AudioWarnOnce.Error("unity.mixer-missing",
+                    "[AudioService] 未配置 AudioMixer（AudioServiceSettings.AudioMixer 为空）。" +
+                    "音轨音量/静音与混音快照将静默无效，仅主音轨 AudioListener.volume 可用。");
             }
 
             // Clip 缓存：容量/TTL/默认策略来自 Settings，租约来源经窄接缝转发到资源后端
