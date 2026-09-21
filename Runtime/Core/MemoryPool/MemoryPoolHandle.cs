@@ -33,12 +33,6 @@ namespace Moirai.Atropos
             get => _handle;
         }
 
-        internal int PoolId
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _handle != null ? _handle.PoolId : 0;
-        }
-
         /// <summary>
         /// 从内存池获取内存对象。
         /// </summary>

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.ExceptionServices;
@@ -25,7 +26,6 @@ namespace Moirai.Atropos
             public delegate void GetInfoHandler(ref MemoryPoolInfo info);
 
             public readonly int PoolId;
-            public readonly Type MemoryType;
             public readonly AcquireHandler Acquire;
             public readonly ReleaseHandler Release;
             public readonly ClearHandler Clear;
@@ -39,10 +39,8 @@ namespace Moirai.Atropos
             public readonly ClearHandler TrimNativeMetadata;
             public readonly ClearHandler ResetStats;
             public int ActiveIndex = -1;
-            public bool ActiveQueueDebt;
 
             public MemoryPoolHandle(
-                Type memoryType,
                 AcquireHandler acquire,
                 ReleaseHandler release,
                 ClearHandler clear,
@@ -57,7 +55,6 @@ namespace Moirai.Atropos
                 ClearHandler resetStats)
             {
                 PoolId = ++s_NextPoolId;
-                MemoryType = memoryType;
                 Acquire = acquire;
                 Release = release;
                 Clear = clear;
@@ -87,8 +84,8 @@ namespace Moirai.Atropos
         private static int s_ActiveCount;
         private static int s_NextPoolId;
         private static EMemoryPoolPhase s_Phase = EMemoryPoolPhase.Gameplay;
-        private static bool s_HasActiveQueueDebt;
         private static int s_MainThreadId;
+        private static int s_CallbackDepth;
         private static MemoryPoolInfo[] s_StatsBuffer = Array.Empty<MemoryPoolInfo>();
 
         #endregion
@@ -131,12 +128,15 @@ namespace Moirai.Atropos
 
         #region 初始化 [INITIALIZATION]
 
+        static MemoryPoolRegistry()
+        {
+            AppDomain.CurrentDomain.DomainUnload += ReleaseNativeOnDomainUnload;
+        }
+
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         private static void InitializeMainThreadOnLoad()
         {
             s_MainThreadId = Thread.CurrentThread.ManagedThreadId;
-            AppDomain.CurrentDomain.DomainUnload -= ReleaseNativeOnDomainUnload;
-            AppDomain.CurrentDomain.DomainUnload += ReleaseNativeOnDomainUnload;
         }
 
         private static void ReleaseNativeOnDomainUnload(object sender, EventArgs e)
@@ -150,11 +150,6 @@ namespace Moirai.Atropos
 
         internal static void RegisterNativeReleaser(Action releaser)
         {
-            if (releaser == null)
-            {
-                return;
-            }
-
             if (s_NativeReleaserCount == s_NativeReleasers.Length)
             {
                 int newLength = s_NativeReleasers.Length == 0 ? 16 : s_NativeReleasers.Length << 1;
@@ -239,45 +234,25 @@ namespace Moirai.Atropos
         internal static void Register(Type type, MemoryPoolHandle handle)
         {
             AddOrUpdateHandle(type.TypeHandle.Value, handle);
+            ReserveActiveCapacity(s_HandleCount);
         }
 
         internal static void ScheduleTick(MemoryPoolHandle handle)
         {
-            if (handle == null)
-            {
-                return;
-            }
-
             if (handle.ActiveIndex >= 0)
             {
-                handle.ActiveQueueDebt = false;
-                return;
-            }
-
-            if (s_ActiveCount == s_ActivePools.Length)
-            {
-                handle.ActiveQueueDebt = true;
-                s_HasActiveQueueDebt = true;
                 return;
             }
 
             handle.ActiveIndex = s_ActiveCount;
-            handle.ActiveQueueDebt = false;
             s_ActivePools[s_ActiveCount++] = handle;
         }
 
         internal static void UnscheduleTick(MemoryPoolHandle handle)
         {
-            if (handle == null)
-            {
-                return;
-            }
-
-            handle.ActiveQueueDebt = false;
             int index = handle.ActiveIndex;
-            if (index < 0 || index >= s_ActiveCount)
+            if (index < 0)
             {
-                handle.ActiveIndex = -1;
                 return;
             }
 
@@ -331,14 +306,13 @@ namespace Moirai.Atropos
                 return;
             }
 
-            MemoryPoolHandle handle = GetOwnerHandle(memory);
-            if (handle.PoolId == memory.PoolId)
+            MemoryPoolHandle handle = memory.OwnerHandle.Inner;
+            if (handle == null)
             {
-                handle.Release(memory);
-                return;
+                throw new InvalidOperationException("Memory object has no owner pool.");
             }
 
-            throw new InvalidOperationException("MemoryPool.Release(MemoryObject) rejected an object without a valid owner pool.");
+            handle.Release(memory);
         }
 
         /// <summary>
@@ -382,14 +356,15 @@ namespace Moirai.Atropos
         public static void ClearAll()
         {
             AssertMainThread();
-            Exception exception = null;
-            for (int i = 0; i < s_HandleValues.Length; i++)
+            ThrowIfInCallback();
+            List<Exception> exceptions = null;
+            MemoryPoolHandle[] handles = s_HandleValues;
+            for (int i = 0; i < handles.Length; i++)
             {
-                CaptureFirstException(ref exception, s_HandleValues[i]?.Clear);
+                CollectException(ref exceptions, handles[i]?.Clear);
             }
 
-            ClearActiveScheduleState();
-            Rethrow(exception);
+            Rethrow(exceptions);
         }
 
         /// <summary>
@@ -398,13 +373,15 @@ namespace Moirai.Atropos
         public static void CompactAll()
         {
             AssertMainThread();
-            Exception exception = null;
-            for (int i = 0; i < s_HandleValues.Length; i++)
+            ThrowIfInCallback();
+            List<Exception> exceptions = null;
+            MemoryPoolHandle[] handles = s_HandleValues;
+            for (int i = 0; i < handles.Length; i++)
             {
-                CaptureFirstException(ref exception, s_HandleValues[i]?.Compact);
+                CollectException(ref exceptions, handles[i]?.Compact);
             }
 
-            Rethrow(exception);
+            Rethrow(exceptions);
         }
 
         /// <summary>
@@ -413,13 +390,15 @@ namespace Moirai.Atropos
         public static void TrimAllNativeMetadata()
         {
             AssertMainThread();
-            Exception exception = null;
-            for (int i = 0; i < s_HandleValues.Length; i++)
+            ThrowIfInCallback();
+            List<Exception> exceptions = null;
+            MemoryPoolHandle[] handles = s_HandleValues;
+            for (int i = 0; i < handles.Length; i++)
             {
-                CaptureFirstException(ref exception, s_HandleValues[i]?.TrimNativeMetadata);
+                CollectException(ref exceptions, handles[i]?.TrimNativeMetadata);
             }
 
-            Rethrow(exception);
+            Rethrow(exceptions);
         }
 
         /// <summary>
@@ -428,6 +407,7 @@ namespace Moirai.Atropos
         public static void ResetAllStats()
         {
             AssertMainThread();
+            ThrowIfInCallback();
             for (int i = 0; i < s_HandleValues.Length; i++)
             {
                 s_HandleValues[i]?.ResetStats();
@@ -440,14 +420,15 @@ namespace Moirai.Atropos
         public static void ClearAllNativeMetadata()
         {
             AssertMainThread();
-            Exception exception = null;
-            for (int i = 0; i < s_HandleValues.Length; i++)
+            ThrowIfInCallback();
+            List<Exception> exceptions = null;
+            MemoryPoolHandle[] handles = s_HandleValues;
+            for (int i = 0; i < handles.Length; i++)
             {
-                CaptureFirstException(ref exception, s_HandleValues[i]?.ClearNativeMetadata);
+                CollectException(ref exceptions, handles[i]?.ClearNativeMetadata);
             }
 
-            ClearActiveScheduleState();
-            Rethrow(exception);
+            Rethrow(exceptions);
         }
 
         /// <summary>
@@ -481,6 +462,7 @@ namespace Moirai.Atropos
         public static void SetCapacityAll(int softCapacity, int hardCapacity)
         {
             AssertMainThread();
+            ThrowIfInCallback();
             for (int i = 0; i < s_HandleValues.Length; i++)
             {
                 s_HandleValues[i]?.SetCapacity(softCapacity, hardCapacity);
@@ -525,6 +507,11 @@ namespace Moirai.Atropos
         public static void RemoveFromType(Type type, int count)
         {
             AssertMainThread();
+            if (count <= 0)
+            {
+                return;
+            }
+
             MemoryPoolHandle handle = GetOrCreateHandle(type);
             MemoryPoolInfo info = default;
             handle.GetInfo(ref info);
@@ -538,41 +525,36 @@ namespace Moirai.Atropos
         public static void TickAll(int frameCount)
         {
             AssertMainThread();
+            ThrowIfInCallback();
             CurrentFrame = frameCount;
-            ProcessActiveQueueDebt();
+            List<Exception> exceptions = null;
             int i = 0;
             while (i < s_ActiveCount)
             {
                 MemoryPoolHandle handle = s_ActivePools[i];
-                if (handle.Tick(frameCount))
+                try
                 {
-                    i++;
-                    continue;
+                    if (!handle.Tick(frameCount))
+                    {
+                        UnscheduleTick(handle);
+                    }
+                }
+                catch (Exception exception)
+                {
+                    exceptions ??= new List<Exception>();
+                    exceptions.Add(exception);
                 }
 
                 // Tick 内的淘汰回调可以把本池就地摘出活跃数组（OnEvict → 注销/停止调度），
-                // 数组此时已左移：再做交换移除会挪错槽位，让别的池 ActiveIndex 失真、从此不再被 Tick。
-                if (handle.ActiveIndex != i || !ReferenceEquals(s_ActivePools[i], handle))
+                // 数组此时已左移：槽位被后面的池顶上，必须原地重跑该槽位而不是前进。
+                if (i < s_ActiveCount && ReferenceEquals(s_ActivePools[i], handle))
                 {
                     i++;
-                    continue;
-                }
-
-                int lastIndex = --s_ActiveCount;
-                MemoryPoolHandle last = s_ActivePools[lastIndex];
-                s_ActivePools[lastIndex] = null;
-                handle.ActiveIndex = -1;
-
-                if (i != lastIndex)
-                {
-                    s_ActivePools[i] = last;
-                    last.ActiveIndex = i;
                 }
             }
 
-            ProcessActiveQueueDebt();
-
             FirePoolStatsUpdated();
+            Rethrow(exceptions);
         }
 
         /// <summary>
@@ -633,53 +615,7 @@ namespace Moirai.Atropos
 
         #region 内部方法 [INTERNAL METHODS]
 
-        private static void ProcessActiveQueueDebt()
-        {
-            if (!s_HasActiveQueueDebt)
-            {
-                return;
-            }
-
-            EnsureActiveCapacity(s_ActiveCount + CountDebtPools());
-            s_HasActiveQueueDebt = false;
-            for (int i = 0; i < s_HandleValues.Length; i++)
-            {
-                MemoryPoolHandle handle = s_HandleValues[i];
-                if (handle == null)
-                {
-                    continue;
-                }
-
-                if (!handle.ActiveQueueDebt || handle.ActiveIndex >= 0)
-                {
-                    continue;
-                }
-
-                handle.ActiveQueueDebt = false;
-                ScheduleTick(handle);
-                if (handle.ActiveQueueDebt)
-                {
-                    s_HasActiveQueueDebt = true;
-                }
-            }
-        }
-
-        private static int CountDebtPools()
-        {
-            int count = 0;
-            for (int i = 0; i < s_HandleValues.Length; i++)
-            {
-                MemoryPoolHandle handle = s_HandleValues[i];
-                if (handle != null && handle.ActiveQueueDebt && handle.ActiveIndex < 0)
-                {
-                    count++;
-                }
-            }
-
-            return count;
-        }
-
-        private static void EnsureActiveCapacity(int required)
+        private static void ReserveActiveCapacity(int required)
         {
             if (s_ActivePools.Length >= required)
             {
@@ -812,29 +748,8 @@ namespace Moirai.Atropos
 #endif
         }
 
-        private static MemoryPoolHandle GetOwnerHandle(MemoryObject memory)
-        {
-            MemoryPoolHandle handle = memory.OwnerHandle.IsValid ? memory.OwnerHandle.Inner : null;
-            if (handle == null)
-            {
-                throw new InvalidOperationException("Memory object has no owner pool.");
-            }
-
-            if (handle.PoolId != memory.PoolId)
-            {
-                throw new InvalidOperationException("Memory object owner pool mismatch.");
-            }
-
-            return handle;
-        }
-
         private static void ValidateMemoryObjectType(Type type)
         {
-            if (type == null)
-            {
-                throw new ArgumentNullException(nameof(type));
-            }
-
             if (!type.IsClass)
             {
                 throw new InvalidOperationException($"MemoryPool: Type '{type.FullName}' must be a class.");
@@ -863,33 +778,38 @@ namespace Moirai.Atropos
 
         private static void ClearActiveScheduleState()
         {
-            for (int i = 0; i < s_HandleValues.Length; i++)
-            {
-                MemoryPoolHandle handle = s_HandleValues[i];
-                if (handle == null)
-                {
-                    continue;
-                }
-
-                handle.ActiveIndex = -1;
-                handle.ActiveQueueDebt = false;
-            }
-
             for (int i = 0; i < s_ActiveCount; i++)
             {
-                MemoryPoolHandle handle = s_ActivePools[i];
-                if (handle != null)
-                {
-                    handle.ActiveIndex = -1;
-                }
+                s_ActivePools[i].ActiveIndex = -1;
             }
 
             Array.Clear(s_ActivePools, 0, s_ActiveCount);
             s_ActiveCount = 0;
-            s_HasActiveQueueDebt = false;
         }
 
-        private static void CaptureFirstException(ref Exception first, MemoryPoolHandle.ClearHandler action)
+        internal static void BeginCallback()
+        {
+            s_CallbackDepth++;
+        }
+
+        internal static void EndCallback()
+        {
+            s_CallbackDepth--;
+        }
+
+        /// <summary>
+        /// 池回调（构造 / Clear / OnEvict）期间禁止全局维护入口重入：
+        /// 这类调用会跨过当前持有页元数据引用的池，把底下的非托管数组换掉。
+        /// </summary>
+        private static void ThrowIfInCallback()
+        {
+            if (s_CallbackDepth != 0)
+            {
+                throw new InvalidOperationException("Global memory pool maintenance is not allowed during a pool callback.");
+            }
+        }
+
+        private static void CollectException(ref List<Exception> exceptions, MemoryPoolHandle.ClearHandler action)
         {
             if (action == null)
             {
@@ -902,19 +822,20 @@ namespace Moirai.Atropos
             }
             catch (Exception exception)
             {
-                if (first == null)
-                {
-                    first = exception;
-                }
+                exceptions ??= new List<Exception>();
+                exceptions.Add(exception);
             }
         }
 
-        private static void Rethrow(Exception exception)
+        private static void Rethrow(List<Exception> exceptions)
         {
-            if (exception != null)
+            if (exceptions == null)
             {
-                ExceptionDispatchInfo.Capture(exception).Throw();
+                return;
             }
+
+            Exception exception = exceptions.Count == 1 ? exceptions[0] : new AggregateException(exceptions);
+            ExceptionDispatchInfo.Capture(exception).Throw();
         }
 
         #endregion

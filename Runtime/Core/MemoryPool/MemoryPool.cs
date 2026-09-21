@@ -151,6 +151,11 @@ namespace Moirai.Atropos
         /// <param name="count">移除数量。</param>
         public static void Remove<T>(int count) where T : MemoryObject, new()
         {
+            if (count <= 0)
+            {
+                return;
+            }
+
             int target = MemoryPool<T>.UnusedCount - count;
             MemoryPool<T>.Shrink(target);
         }
@@ -218,9 +223,9 @@ namespace Moirai.Atropos
         {
             softCapacity = Math.Max(softCapacity, MINIMUM_FREE_RESERVE_LIMIT);
             hardCapacity = Math.Max(hardCapacity, softCapacity);
+            MemoryPoolRegistry.SetCapacityAll(softCapacity, hardCapacity);
             DefaultSoftFreeReserveLimit = softCapacity;
             DefaultHardFreeReserveLimit = hardCapacity;
-            MemoryPoolRegistry.SetCapacityAll(softCapacity, hardCapacity);
         }
 
         /// <summary>

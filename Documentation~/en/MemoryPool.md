@@ -20,14 +20,14 @@ If your object inherits `MemoryObject` and needs simple acquire/release semantic
 
 ### Page-Based Slot Allocation
 
-Each type `T` gets its own `MemoryPool<T>` with 32-slot pages. Pages are allocated on demand and recycled when fully empty. Slot metadata (state, generation, free-list links) is stored in unmanaged memory (`Marshal.AllocHGlobal`), avoiding GC overhead.
+Each type `T` gets its own `MemoryPool<T>` with 32-slot pages. Pages are allocated on demand and recycled when fully empty. Slot metadata (state, generation, free-list links) is stored in unmanaged memory (`Marshal.AllocHGlobal`), avoiding GC overhead. Pages themselves are threaded on two intrusive doubly-linked lists (free-page list and empty-slot page list); linking and unlinking happen at the 0↔1 boundaries of a page's counters, so acquiring, trimming and recycling an emptied slot are all O(1).
 
 ### EWMA Adaptive Watermarks
 
 The pool tracks acquire rate and burst patterns using Exponentially Weighted Moving Average (EWMA). The target free reserve is adjusted each tick based on:
 - `AcquireRateEwma` — smoothed acquire rate per frame
 - `BurstEwma` — smoothed burst size (acquire - release delta)
-- `MissDebt` — outstanding miss count (drives immediate growth)
+- `PendingGrowth` — objects requested by an explicit `Add()` that have not been built yet (drives immediate growth; a miss on `Acquire` no longer accrues debt — the object is built on the spot and the watermark follows the in-use count)
 - `IdleFrames` — frames since last activity (drives decay)
 
 ### Phase-Driven Budgets
@@ -41,6 +41,17 @@ The `MemoryPoolRegistry.Phase` controls per-tick growth and eviction budgets:
 | `Gameplay` | 2 | 2 | Normal gameplay |
 | `Background` | 8 | 16 | App lost focus |
 | `LowMemory` | 0 | 32 | System low-memory warning |
+
+Besides widening the evict budget, `LowMemory` also zeroes the target free reserve outright, so the very next tick drains the free list.
+
+### Restrictions During Callbacks
+
+An object's constructor, `Clear()` and `OnEvict()` run in a "pool callback" context. While inside one:
+
+- you may not call these entries of the **same type's** pool: `Acquire` / `Release` / `Add` / `Shrink` / `Compact` / `SetCapacity` / `ClearAll` / `TrimNativeMetadata` / `ResetStats` — they throw `InvalidOperationException`. Cross-type acquire/release is still allowed (`MemoryPool<Other>.Acquire()`); only the read-only `UnusedCount` is unrestricted;
+- you may not call the **global maintenance entries** (`MemoryPool.ClearAll` / `CompactAll` / `TrimAllNativeMetadata` / `ClearAllNativeMetadata` / `ResetAllStats` / `SetCapacityAll` / `MemoryPoolRegistry.TickAll`) — they also throw, because they can reallocate the very unmanaged page-header array the in-flight release is holding by `ref`.
+
+If a callback needs to trigger follow-up work, queue it and consume it after the callback returns.
 
 ### Tombstone Pages
 

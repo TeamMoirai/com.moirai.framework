@@ -106,7 +106,6 @@ namespace Moirai.Atropos
             Application.lowMemory -= OnLowMemory;
             Application.focusChanged -= OnFocusChanged;
 
-            MemoryPoolRegistry.TrimAllNativeMetadata();
             MemoryPoolRegistry.ClearAll();
         }
 

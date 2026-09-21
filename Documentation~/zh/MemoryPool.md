@@ -20,14 +20,14 @@ MemoryPool 系统为纯 C# 对象（非 GameObject）提供高性能池化。它
 
 ### 页式槽位分配
 
-每个类型 `T` 拥有独立的 `MemoryPool<T>`，使用 32 槽位的页。页按需分配，完全空闲时回收。槽元数据（状态、代次、空闲链表）存储在非托管内存中（`Marshal.AllocHGlobal`），避免 GC 开销。
+每个类型 `T` 拥有独立的 `MemoryPool<T>`，使用 32 槽位的页。页按需分配，完全空闲时回收。槽元数据（状态、代次、空闲链表）存储在非托管内存中（`Marshal.AllocHGlobal`），避免 GC 开销。页自身由两条侵入式双向链表串起（空闲页链与空槽页链），挂链/摘链发生在页内计数 0↔1 的边界，因此取用、修剪、回收腾空槽都是 O(1)。
 
 ### EWMA 自适应水位线
 
 池通过指数加权移动平均（EWMA）跟踪获取率和突发模式。目标空闲缓存在每次 Tick 时根据以下因素调整：
 - `AcquireRateEwma` — 平滑后的每帧获取率
 - `BurstEwma` — 平滑后的突发大小（获取 - 归还差值）
-- `MissDebt` — 未偿还的未命中计数（驱动立即增长）
+- `PendingGrowth` — 显式 `Add()` 尚未落地的待建数量（驱动立即增长；取用未命中不再记债，改为当场构造并按在用量抬升水位）
 - `IdleFrames` — 自上次活动以来的空闲帧数（驱动衰减）
 
 ### 阶段驱动预算
@@ -41,6 +41,17 @@ MemoryPool 系统为纯 C# 对象（非 GameObject）提供高性能池化。它
 | `Gameplay` | 2 | 2 | 正常游戏 |
 | `Background` | 8 | 16 | 应用失去焦点 |
 | `LowMemory` | 0 | 32 | 系统低内存警告 |
+
+`LowMemory` 除放大驱逐预算外，还会把目标空闲水位直接归零，因此本轮 Tick 就能把空闲链剪空。
+
+### 回调期限制
+
+对象的构造函数、`Clear()` 与 `OnEvict()` 运行在"池回调"上下文里，其间：
+
+- 不得再调用**同一类型**池的这些入口：`Acquire` / `Release` / `Add` / `Shrink` / `Compact` / `SetCapacity` / `ClearAll` / `TrimNativeMetadata` / `ResetStats`，会抛 `InvalidOperationException`；跨类型取还仍然允许（`MemoryPool<Other>.Acquire()`），只有只读的 `UnusedCount` 不受限；
+- 不得调用**全局维护入口**（`MemoryPool.ClearAll` / `CompactAll` / `TrimAllNativeMetadata` / `ClearAllNativeMetadata` / `ResetAllStats` / `SetCapacityAll` / `MemoryPoolRegistry.TickAll`），同样抛 `InvalidOperationException`——这类调用会回收并重新分配正被当前归还流程以 `ref` 引用的非托管页头数组。
+
+需要"归还时顺带清理别的对象"这类联动，请把动作排到回调之后（例如记进自己的待处理列表，或在下一帧的常规流程里消费）。
 
 ### Tombstone 页
 

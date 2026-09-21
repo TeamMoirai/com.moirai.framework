@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using Moirai.Atropos;
 using NUnit.Framework;
@@ -76,6 +77,75 @@ namespace Service.MemoryPool
                 if (ThrowOnEvict)
                 {
                     throw new InvalidOperationException("evict failed");
+                }
+            }
+        }
+
+        // 独占给"坏回调整批隔离"用例：与 ThrowingEvictMemory 分开，避免跨用例互相开关。
+        private sealed class BatchEvictMemory : MemoryObject, IPoolEvictable
+        {
+            public static bool ThrowOnEvict;
+            public static int EvictCount;
+
+            public override void Clear() { }
+
+            public void OnEvict()
+            {
+                EvictCount++;
+                if (ThrowOnEvict)
+                {
+                    throw new InvalidOperationException("evict failed");
+                }
+            }
+        }
+
+        // 构造函数自取用：护栏缺失时嵌套会无限递归，用静态深度上限兜住，避免打崩测试宿主。
+        private sealed class ReentrantCtorMemory : MemoryObject
+        {
+            public static bool Guard;
+            private static int s_depth;
+
+            public ReentrantCtorMemory()
+            {
+                if (!Guard)
+                {
+                    return;
+                }
+
+                if (++s_depth > 6)
+                {
+                    s_depth = 0;
+                    Guard = false;
+                    throw new InvalidOperationException("构造期自取用未被拦截");
+                }
+
+                try
+                {
+                    Mp.Acquire<ReentrantCtorMemory>();
+                }
+                finally
+                {
+                    s_depth--;
+                }
+            }
+
+            public override void Clear() { }
+        }
+
+        // Clear() 里驱动全局维护入口：1 = MemoryPool.ClearAll，2 = MemoryPoolRegistry.TickAll。
+        private sealed class ReentrantGlobalMemory : MemoryObject
+        {
+            public static int Mode;
+
+            public override void Clear()
+            {
+                if (Mode == 1)
+                {
+                    Mp.ClearAll();
+                }
+                else if (Mode == 2)
+                {
+                    MemoryPoolRegistry.TickAll(4000001);
                 }
             }
         }
@@ -179,6 +249,36 @@ namespace Service.MemoryPool
             for (int i = 0; i < maxFrames && MemoryPool<T>.UnusedCount < count; i++)
             {
                 MemoryPoolRegistry.TickAll(startFrame + i);
+            }
+        }
+
+        /// <summary>
+        /// 空闲链一致性走查：按上报的空闲量取光后，再取一次只可能来自新建。
+        /// 计数量得出、链却走不完（或多走得出对象）都会在这里暴露，且不会越界触碰非托管元数据。
+        /// </summary>
+        private void DrainCheckMatchesUnusedCount<T>(string label) where T : MemoryObject, new()
+        {
+            int unused = MemoryPool<T>.UnusedCount;
+            int createBefore = GetInfo(typeof(T)).CreateCount;
+            List<T> acquired = new List<T>(unused + 1);
+            try
+            {
+                for (int i = 0; i < unused; i++)
+                {
+                    acquired.Add(Mp.Acquire<T>());
+                }
+
+                acquired.Add(Mp.Acquire<T>());
+                Assert.AreEqual(1, GetInfo(typeof(T)).CreateCount - createBefore,
+                    $"{label}: 空闲量 {unused} 与空闲链可走查长度不一致");
+                Assert.AreEqual(0, MemoryPool<T>.UnusedCount, $"{label}: 取光空闲链后仍有空闲计数");
+            }
+            finally
+            {
+                for (int i = 0; i < acquired.Count; i++)
+                {
+                    Mp.Release(acquired[i]);
+                }
             }
         }
 
@@ -788,6 +888,227 @@ namespace Service.MemoryPool
                 Mp.UnscheduleIdleFrames = prevUnschedule;
                 MemoryPool<BenchMemory>.ClearAll();
             }
+        }
+
+        #endregion
+
+        #region 1o. 页链表与批量异常隔离 [PAGE LIST & BATCH FAULT ISOLATION]
+
+        [Test]
+        public void FreeListLengthMatchesUnusedCount_AfterChurn()
+        {
+            MemoryPool<BenchMemory>.ClearAll();
+            MemoryPool<BenchMemory>.SetCapacity(96, 256);
+            WarmPool<BenchMemory>(96);
+            DrainCheckMatchesUnusedCount<BenchMemory>("预热后");
+
+            // 跨页来回取还：头页被抽空时要摘链，回补时要重新挂链。
+            Random random = new Random(20260921);
+            List<BenchMemory> held = new List<BenchMemory>();
+            try
+            {
+                for (int round = 0; round < 600; round++)
+                {
+                    int k = random.Next(100);
+                    if (k < 55 || held.Count == 0)
+                    {
+                        held.Add(Mp.Acquire<BenchMemory>());
+                    }
+                    else
+                    {
+                        int index = random.Next(held.Count);
+                        Mp.Release(held[index]);
+                        held[index] = held[held.Count - 1];
+                        held.RemoveAt(held.Count - 1);
+                    }
+
+                    if ((round & 31) == 31)
+                    {
+                        MemoryPoolRegistry.TickAll(52000 + round);
+                    }
+                }
+            }
+            finally
+            {
+                for (int i = 0; i < held.Count; i++)
+                {
+                    Mp.Release(held[i]);
+                }
+            }
+
+            MemoryPoolRegistry.TickAll(53000);
+            DrainCheckMatchesUnusedCount<BenchMemory>("走查后");
+        }
+
+        [Test]
+        public void EvictExceptionBatch_EvictsRemainingObjects()
+        {
+            const int count = 40;
+            BatchEvictMemory.ThrowOnEvict = false;
+            BatchEvictMemory.EvictCount = 0;
+            MemoryPool<BatchEvictMemory>.ClearAll();
+            MemoryPool<BatchEvictMemory>.SetCapacity(count, count << 3);
+            BatchEvictMemory[] items = new BatchEvictMemory[count];
+            for (int i = 0; i < count; i++)
+            {
+                items[i] = Mp.Acquire<BatchEvictMemory>();
+            }
+
+            for (int i = 0; i < count; i++)
+            {
+                Mp.Release(items[i]);
+            }
+
+            Assert.AreEqual(count, MemoryPool<BatchEvictMemory>.UnusedCount, "未先填满空闲量");
+            try
+            {
+                BatchEvictMemory.ThrowOnEvict = true;
+                AggregateException aggregate = Assert.Throws<AggregateException>(
+                    () => MemoryPool<BatchEvictMemory>.Shrink(0), "驱逐异常提前打断了整批修剪");
+                Assert.AreEqual(count, aggregate.InnerExceptions.Count, "坏回调之间互相顶掉了");
+            }
+            finally
+            {
+                BatchEvictMemory.ThrowOnEvict = false;
+            }
+
+            Assert.AreEqual(0, MemoryPool<BatchEvictMemory>.UnusedCount, "抛出后仍有空闲对象留在链上");
+            Assert.AreEqual(0, GetInfo(typeof(BatchEvictMemory)).UsingCount, "抛出后 in-use 计数虚高");
+            Assert.AreEqual(count, BatchEvictMemory.EvictCount, "OnEvict 未对每个对象都走完");
+
+            // 隔离后池子必须还能正常取还，而不是留着半截链表。
+            for (int i = 0; i < count; i++)
+            {
+                items[i] = Mp.Acquire<BatchEvictMemory>();
+            }
+
+            for (int i = 0; i < count; i++)
+            {
+                Mp.Release(items[i]);
+            }
+
+            Assert.AreEqual(count, MemoryPool<BatchEvictMemory>.UnusedCount, "抛出后空闲链不可再用");
+            MemoryPool<BatchEvictMemory>.ClearAll();
+        }
+
+        [Test]
+        public void LowMemoryPhaseClearsExistingReserve()
+        {
+            EMemoryPoolPhase previous = MemoryPoolRegistry.Phase;
+            try
+            {
+                MemoryPool<BenchMemory>.ClearAll();
+                MemoryPool<BenchMemory>.SetCapacity(64, 128);
+                MemoryPoolRegistry.Phase = EMemoryPoolPhase.Loading;
+                WarmPool<BenchMemory>(64);
+                Assert.AreEqual(64, MemoryPool<BenchMemory>.UnusedCount, "未先建立空闲储备");
+
+                MemoryPoolRegistry.Phase = EMemoryPoolPhase.LowMemory;
+                for (int frame = 0; frame < 12; frame++)
+                {
+                    MemoryPoolRegistry.TickAll(62000 + frame);
+                }
+
+                Assert.AreEqual(0, MemoryPool<BenchMemory>.UnusedCount, "低内存阶段仍保住原水位");
+            }
+            finally
+            {
+                MemoryPoolRegistry.Phase = previous;
+                MemoryPool<BenchMemory>.ClearAll();
+            }
+        }
+
+        #endregion
+
+        #region 1p. 回调护栏 [CALLBACK GUARDS]
+
+        /// <summary>
+        /// 沿 InnerException / AggregateException 链查找关键字：护栏抛出的原始异常常被
+        /// 调用方包一层（Clear() failed），个别运行时还会在构造失败外面再套一层，只看顶层消息会误判。
+        /// </summary>
+        private static bool MentionsInChain(Exception exception, string fragment, int depth = 0)
+        {
+            if (exception == null || depth > 8)
+            {
+                return false;
+            }
+
+            if (exception.Message != null && exception.Message.Contains(fragment))
+            {
+                return true;
+            }
+
+            if (exception is AggregateException aggregate)
+            {
+                for (int i = 0; i < aggregate.InnerExceptions.Count; i++)
+                {
+                    if (MentionsInChain(aggregate.InnerExceptions[i], fragment, depth + 1))
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            return MentionsInChain(exception.InnerException, fragment, depth + 1);
+        }
+
+        [Test]
+        public void GlobalMaintenanceRejectedInsidePoolCallback()
+        {
+            ReentrantGlobalMemory item = Mp.Acquire<ReentrantGlobalMemory>();
+            try
+            {
+                ReentrantGlobalMemory.Mode = 1;
+                Exception onClearAll = Assert.Throws<InvalidOperationException>(
+                    () => Mp.Release(item), "Clear() 内可重入全局 ClearAll");
+                Assert.IsTrue(MentionsInChain(onClearAll, "Global memory pool maintenance"),
+                    "全局 ClearAll 未按回调护栏拒绝");
+
+                ReentrantGlobalMemory.Mode = 2;
+                Exception onTickAll = Assert.Throws<InvalidOperationException>(
+                    () => Mp.Release(item), "Clear() 内可重入全局 TickAll");
+                Assert.IsTrue(MentionsInChain(onTickAll, "Global memory pool maintenance"),
+                    "全局 TickAll 未按回调护栏拒绝");
+            }
+            finally
+            {
+                ReentrantGlobalMemory.Mode = 0;
+                Mp.Release(item);
+            }
+
+            MemoryPoolInfo info = GetInfo(typeof(ReentrantGlobalMemory));
+            Assert.AreEqual(0, info.UsingCount, "护栏拒绝后对象没能归还");
+        }
+
+        [Test]
+        public void ConstructorRunsInsideCallbackGuard()
+        {
+            MemoryPool<ReentrantCtorMemory>.ClearAll();
+            int createBefore = GetInfo(typeof(ReentrantCtorMemory)).CreateCount;
+            ReentrantCtorMemory.Guard = true;
+            Exception exception = null;
+            try
+            {
+                Mp.Acquire<ReentrantCtorMemory>();
+            }
+            catch (Exception caught)
+            {
+                exception = caught;
+            }
+            finally
+            {
+                ReentrantCtorMemory.Guard = false;
+            }
+
+            Assert.IsNotNull(exception, "构造函数内可自取用本类型");
+            Assert.IsTrue(MentionsInChain(exception, "not allowed during construction"),
+                "构造期自取用的报错不是护栏发出的：" + (exception == null ? "" : exception.Message));
+
+            // 构造失败不能留下幽灵租约：计数在对象真的到手之后才动。
+            MemoryPoolInfo info = GetInfo(typeof(ReentrantCtorMemory));
+            Assert.AreEqual(0, info.UsingCount, "构造失败泄漏了 in-use 计数");
+            Assert.AreEqual(createBefore, info.CreateCount, "构造失败仍记了创建数");
+            DrainCheckMatchesUnusedCount<ReentrantCtorMemory>("构造失败后");
         }
 
         #endregion
