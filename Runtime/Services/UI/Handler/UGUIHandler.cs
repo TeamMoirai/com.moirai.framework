@@ -49,6 +49,7 @@ namespace Moirai.Atropos.UI
             // 正确性锚点：复用实例重入 Init 时必须先归零运行时状态，释放归属 OnShutdown。
             _uiStack.Clear();
             _cache.Clear();
+            InteractionLease.Reset();
 
             // 此阶段（BeforeSceneLoad）场景尚未加载，初始化延迟到首个 Update tick。
             MainThreadDispatcher.Post(() =>
@@ -120,6 +121,7 @@ namespace Moirai.Atropos.UI
 
             _uiStack.Clear();
             _cache.Clear();
+            InteractionLease.Reset();
             _instanceRoot = null;
             _uiCamera = null;
         }

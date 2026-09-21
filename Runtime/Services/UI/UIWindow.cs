@@ -28,8 +28,8 @@ namespace Moirai.Atropos.UI
         private GraphicRaycaster[] _childRaycaster;
         private Action<UIWindow> _prepareCallback;
         private SetUISafeFitHelper _setUISafeFitHelper;
-        // 打开/关闭交接代次：只有最后一轮 InternalClose 的主人可以解锁交互与隐藏窗口
-        private uint _closeLifetime;
+        // 交互/可见性交接代次：每次状态转移（打开/关闭/重开/销毁）递增，只有最新一轮的续体可以交还交互锁与隐藏窗口
+        private uint _interactionLifetime;
 
         protected CancellationTokenSource _cts;
 
@@ -346,9 +346,9 @@ namespace Moirai.Atropos.UI
         /// </summary>
         internal void InternalCreate()
         {
-            // 缓存实例重开时 _isCreate 仍为 true，上一轮关闭的动画续体可能还挂在路上：
+            // 缓存实例重开时 _isCreate 仍为 true，上一轮的动画续体可能还挂在路上：
             // 先作废其代次并掐掉动画，再交还交互锁定状态，交给本次打开流程重新决策。
-            _closeLifetime++;
+            _interactionLifetime++;
             CancelCts();
             UnlockInteraction();
 
@@ -454,7 +454,7 @@ namespace Moirai.Atropos.UI
         protected internal virtual void InternalClose()
         {
             OnClose();
-            InternalCloseAsync(++_closeLifetime).Forget();
+            InternalCloseAsync(++_interactionLifetime).Forget();
         }
 
         private async UniTaskVoid InternalCloseAsync(uint lifetime)
@@ -469,14 +469,15 @@ namespace Moirai.Atropos.UI
 
             if (IsDestroyed) return;
 
+            // 交还锁与隐藏都是本轮转移的特权：代次被重开/销毁/新一轮动画接管后，
+            // 子类动画若没观察 token 走到这里，继续执行会拆掉别人持有的锁、把刚重开的窗口重新隐藏。
+            // 被取消的那一轮其锁已由接管方（InternalCreate/InternalDestroy）交还。
+            if (lifetime != _interactionLifetime) return;
+
             UnlockInteraction();
 
             CancelCts();
-            // 代次已被重开/销毁接管时，可见性归那一方管：此处再 SetActive(false) 会把栈顶活窗口打成不可见
-            if (lifetime == _closeLifetime)
-            {
-                gameObject.SetActive(false);
-            }
+            gameObject.SetActive(false);
         }
 
         protected internal void InternalDestroy(bool isShutDown = false)
@@ -497,7 +498,8 @@ namespace Moirai.Atropos.UI
 
             OnDestroy();
 
-            // 清理交互状态
+            // 清理交互状态：代次先行作废，在途的打开/关闭续体不得再交还锁或隐藏
+            _interactionLifetime++;
             CancelCts();
             UnlockInteraction();
 
@@ -569,7 +571,7 @@ namespace Moirai.Atropos.UI
         private void LockInteraction()
         {
             Interactable = false;
-            if (UIService.IsModal(this))
+            if (UIService.AcquireModalInteraction(this))
             {
                 InputService.PreventInteractionUI = true;
             }
@@ -578,7 +580,8 @@ namespace Moirai.Atropos.UI
         private void UnlockInteraction()
         {
             Interactable = true;
-            if (UIService.IsModal(this))
+            // 压制位归别人持有时只交还本窗口的交互，不清全局
+            if (UIService.ReleaseModalInteraction(this))
             {
                 InputService.PreventInteractionUI = false;
             }
@@ -623,6 +626,8 @@ namespace Moirai.Atropos.UI
         {
             if (UIService.GetTopWindow() != this) return;
 
+            // 与关闭续体共用同一套代次协议；非栈顶的早退排在递增之前，不会作废他人在跑的动画
+            var lifetime = ++_interactionLifetime;
             CancelCts();
             _cts = new CancellationTokenSource();
 
@@ -636,6 +641,9 @@ namespace Moirai.Atropos.UI
             catch (OperationCanceledException) { return; }
 
             if (IsDestroyed) return;
+
+            // 被后续转移接管时，交互锁由那一方交还
+            if (lifetime != _interactionLifetime) return;
 
             UnlockInteraction();
         }

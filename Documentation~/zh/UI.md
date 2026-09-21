@@ -127,7 +127,7 @@ AdjustIconNum<HeroItemWidget>(_items, count, parentTrans, prefab);
 
 ### 开关动画与交互锁
 
-窗口默认内置 0.5 秒打开 / 0.25 秒关闭的等待，可重写替换为动画播放；动画期间窗口自动锁定交互，模态窗口还会联动输入服务（`InputService.PreventInteractionUI`）：
+窗口默认内置 0.5 秒打开 / 0.25 秒关闭的等待，可重写替换为动画播放；动画期间窗口自动锁定交互，模态窗口还会联动输入服务（`InputService.PreventInteractionUI`）。交还只发生在**当轮**转移：全局压制位按归属仲裁（`UIInteractionLease`）仅由最后持有者清除，被重开/销毁接管的旧动画续体不再解锁也不再隐藏，因此重写的动画无需自行判断是否已被接管：
 
 ```csharp
 protected override async UniTask OpenAnimation()

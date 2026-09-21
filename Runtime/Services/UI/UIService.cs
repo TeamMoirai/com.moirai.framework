@@ -179,6 +179,21 @@ namespace Moirai.Atropos.UI
         public static bool IsModal(UIWindow window) =>
             s_Handler?.IsModal(window) ?? false;
 
+        /// <summary>
+        /// 申请模态动画期间的 UI 交互压制。
+        /// </summary>
+        /// <returns>调用方应当置位压制时返回 true；非模态窗口恒为 false。</returns>
+        /// <remarks>压制位本身是无归属的全局布尔，仲裁见 <see cref="UIInteractionLease"/>。</remarks>
+        internal static bool AcquireModalInteraction(UIWindow window) =>
+            s_Handler != null && s_Handler.InteractionLease.Acquire(window, IsModal(window));
+
+        /// <summary>
+        /// 交还模态动画期间的 UI 交互压制。
+        /// </summary>
+        /// <returns>调用方是当前持有者、可以清除压制位时返回 true；压制归别人持有时返回 false。</returns>
+        internal static bool ReleaseModalInteraction(UIWindow window) =>
+            s_Handler != null && s_Handler.InteractionLease.Release(window);
+
         #endregion
 
         #region 显示窗口 [SHOW WINDOW]

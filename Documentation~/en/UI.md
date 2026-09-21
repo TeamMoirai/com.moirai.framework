@@ -127,7 +127,7 @@ AdjustIconNum<HeroItemWidget>(_items, count, parentTrans, prefab);
 
 ### Open/Close Animation and Interaction Lock
 
-Windows have a built-in default 0.5-second open / 0.25-second close wait time, which can be overridden with custom animations. During animation, the window automatically locks interaction, and modal windows also coordinate with the input service (`InputService.PreventInteractionUI`):
+Windows have a built-in default 0.5-second open / 0.25-second close wait time, which can be overridden with custom animations. During animation, the window automatically locks interaction, and modal windows also coordinate with the input service (`InputService.PreventInteractionUI`). The hand-back happens in the *current* transition: the global suppression flag is cleared only by its recorded owner (`UIInteractionLease`), and an animation continuation superseded by a reopen/destroy neither unlocks nor hides the window, so an overridden animation does not need to detect being taken over itself:
 
 ```csharp
 protected override async UniTask OpenAnimation()

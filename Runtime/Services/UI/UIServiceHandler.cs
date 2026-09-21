@@ -33,6 +33,11 @@ namespace Moirai.Atropos.UI
                                                         window.WindowLayer == (int)UILayer.Popup ||
                                                         window.WindowLayer == (int)UILayer.System;
 
+        /// <summary>
+        /// 模态动画期间交互压制的归属仲裁。每个后端实例一份，与窗口堆栈同生命周期。
+        /// </summary>
+        internal UIInteractionLease InteractionLease { get; } = new UIInteractionLease();
+
         #region 生命周期 [LIFECYCLE]
 
         /// <summary>
