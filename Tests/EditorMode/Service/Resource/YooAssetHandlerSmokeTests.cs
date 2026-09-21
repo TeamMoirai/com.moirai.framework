@@ -1,6 +1,9 @@
+using System.Reflection;
+using Cysharp.Threading.Tasks;
 using Moirai.Atropos.Resource;
 using NUnit.Framework;
 using UnityEngine;
+using UnityEngine.TestTools;
 
 namespace Service.Resource
 {
@@ -76,6 +79,60 @@ namespace Service.Resource
                 Assert.IsTrue(field.IsDefined(typeof(System.NonSerializedAttribute), inherit: false),
                     "field {0} must stay [NonSerialized]; serialized runtime arrays deserialize as non-null empty arrays.", name);
             }
+        }
+
+        [Test]
+        public void AcquireSubAssetsBinding_UninitializedPackage_FailsClosedWithoutPoisoningDedupSlot()
+        {
+            // 后端缺失时 GetSubAssetsHandleAsync 在 TryBeginLoading 预留去重槽之后同步抛出。
+            // 修复前异常直接逃逸、去重槽停在 IsDone=false 永久中毒（同图集后续并发绑定会空转）；
+            // 修复后必须按契约吞成 Invalid，且把去重槽闭环回池。
+            var handler = new YooAssetHandler();
+
+            ResourceLeaseHandle lease = RunToCompletion(
+                handler.AcquireSubAssetsBindingAsync("atlas_key", "__moirai_missing_pkg__",
+                    default(EResourceLeaseOption), default));
+
+            Assert.IsFalse(lease.IsValid);
+            Assert.AreEqual(0, LoadingOperationCount(handler),
+                "去重槽必须在赢家路径抛异常后闭环，否则同图集后续并发绑定会在 WaitForLoadingAsync 里永久空转。");
+        }
+
+        [Test]
+        public void AcquirePrefabSourceLease_UninitializedPackage_FailsClosedWithoutPoisoningDedupSlot()
+        {
+            // 主资源异步路径与子资源共用同一去重槽机制，同样锁死"异常/取消不留中毒槽"。
+            var handler = new YooAssetHandler();
+
+            ResourceLeaseHandle lease = RunToCompletion(
+                handler.AcquirePrefabSourceLeaseAsync("prefab_key", "__moirai_missing_pkg__", default));
+
+            Assert.IsFalse(lease.IsValid);
+            Assert.AreEqual(0, LoadingOperationCount(handler));
+        }
+
+        private static ResourceLeaseHandle RunToCompletion(UniTask<ResourceLeaseHandle> task)
+        {
+            // FailLoading 现在会把真实异常经 LogUtility.Error 打出来；本用例不关心日志内容，屏蔽预期错误。
+            bool previous = LogAssert.ignoreFailingMessages;
+            LogAssert.ignoreFailingMessages = true;
+            try
+            {
+                // 未初始化后端下整条赢家路径在任何 await 之前同步抛出并被 catch，任务同步完成，无需 PlayerLoop。
+                return task.GetAwaiter().GetResult();
+            }
+            finally
+            {
+                LogAssert.ignoreFailingMessages = previous;
+            }
+        }
+
+        private static int LoadingOperationCount(YooAssetHandler handler)
+        {
+            var field = typeof(YooAssetHandler).GetField("_assetLoadingOperationByKey",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.IsNotNull(field, "去重表字段 _assetLoadingOperationByKey 未找到。");
+            return ((ResourceUlongIntMap)field.GetValue(handler)).Count;
         }
     }
 }
