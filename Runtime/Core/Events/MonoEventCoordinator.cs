@@ -77,11 +77,19 @@ namespace Moirai.Atropos.Events
         private void DrainQueue(MonoDispatchType monoDispatchType)
         {
             var queue = GetDispatchQueue(monoDispatchType);
-            foreach (var evt in queue)
+            // 只消费进入本轮时已排队的数量：派发期间新入队的事件留到下一轮，队列不会边枚举边被修改。
+            var pendingCount = queue.Count;
+            for (var i = 0; i < pendingCount; i++)
             {
+                var evt = queue.Dequeue();
                 try
                 {
                     EventDispatcher.Dispatch(evt, this, DispatchMode.Queued);
+                }
+                catch (Exception exception)
+                {
+                    // 有意隔离：单个事件派发失败不得截断本轮其余事件，也不得跳过下面的 Dispose 归还引用计数。
+                    LogUtility.Fatal(exception);
                 }
                 finally
                 {
@@ -89,7 +97,6 @@ namespace Moirai.Atropos.Events
                     evt.Dispose();
                 }
             }
-            queue.Clear();
             Refresh();
         }
         

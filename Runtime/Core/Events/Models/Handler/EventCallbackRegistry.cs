@@ -100,8 +100,8 @@ namespace Moirai.Atropos.Events
         public EventCallbackList(EventCallbackList source)
         {
             m_List = new List<EventCallbackFunctorBase>(source.m_List);
-            TrickleDownCallbackCount = 0;
-            BubbleUpCallbackCount = 0;
+            TrickleDownCallbackCount = source.TrickleDownCallbackCount;
+            BubbleUpCallbackCount = source.BubbleUpCallbackCount;
         }
 
         /// <summary>
@@ -429,32 +429,47 @@ namespace Moirai.Atropos.Events
             }
 
             m_IsInvoking++;
-            var requiresIncludeDisabledPolicy = evt.SkipDisabledElements && evt.CurrentTarget is IBehaviourScope ve && !ve.Behaviour.isActiveAndEnabled;
-            for (var i = 0; i < m_Callbacks.Count; i++)
+            try
             {
-                if (evt.IsImmediatePropagationStopped)
-                    break;
-
-                if (requiresIncludeDisabledPolicy &&
-                    m_Callbacks[i].InvokePolicy != InvokePolicy.IncludeDisabled)
+                var requiresIncludeDisabledPolicy = evt.SkipDisabledElements && evt.CurrentTarget is IBehaviourScope ve && !ve.Behaviour.isActiveAndEnabled;
+                for (var i = 0; i < m_Callbacks.Count; i++)
                 {
-                    continue;
+                    if (evt.IsImmediatePropagationStopped)
+                        break;
+
+                    var callback = m_Callbacks[i];
+                    if (requiresIncludeDisabledPolicy &&
+                        callback.InvokePolicy != InvokePolicy.IncludeDisabled)
+                    {
+                        continue;
+                    }
+
+                    try
+                    {
+                        // 有意隔离：单个回调抛出不得截断同阶段其余回调（与 PlayerLoopDriver/ServiceScope 的隔离策略一致）。
+                        callback.Invoke(evt, propagationPhase);
+                    }
+                    catch (Exception exception)
+                    {
+                        LogUtility.Fatal(exception);
+                    }
                 }
-
-                m_Callbacks[i].Invoke(evt, propagationPhase);
             }
-
-            m_IsInvoking--;
-
-            if (m_IsInvoking == 0)
+            finally
             {
-                // 若回调在调用期间被修改，则在此应用这些修改。
-                if (m_TemporaryCallbacks != null)
+                // m_IsInvoking 一旦泄漏为正，注册/注销会永久写进 m_TemporaryCallbacks 而派发只读 m_Callbacks，事件系统将静默失效。
+                m_IsInvoking--;
+
+                if (m_IsInvoking == 0)
                 {
-                    ReleaseCallbackList(m_Callbacks);
-                    m_Callbacks = GetCallbackList(m_TemporaryCallbacks);
-                    ReleaseCallbackList(m_TemporaryCallbacks);
-                    m_TemporaryCallbacks = null;
+                    // 若回调在调用期间被修改，则在此应用这些修改。
+                    if (m_TemporaryCallbacks != null)
+                    {
+                        ReleaseCallbackList(m_Callbacks);
+                        m_Callbacks = GetCallbackList(m_TemporaryCallbacks);
+                        ReleaseCallbackList(m_TemporaryCallbacks);
+                        m_TemporaryCallbacks = null;
+                    }
                 }
             }
         }

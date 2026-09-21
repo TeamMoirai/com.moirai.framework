@@ -231,6 +231,19 @@ namespace Moirai.Atropos.Events
             finally
             {
                 ProcessingEvents = false;
+                // 异常会中断上面的 while；残留记录必须逐个归还引用计数，否则脏队列被池再取走时会在之后的任意时刻重放，且事件永久滞留池外。
+                while (queueToProcess.Count > 0)
+                {
+                    EventBase leftover = queueToProcess.Dequeue().m_Event;
+                    try
+                    {
+                        leftover?.Dispose();
+                    }
+                    catch (Exception exception)
+                    {
+                        LogUtility.Fatal(exception);
+                    }
+                }
                 s_EventQueuePool.Release(queueToProcess);
             }
         }
