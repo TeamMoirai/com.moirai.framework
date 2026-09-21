@@ -42,6 +42,60 @@ namespace Moirai.Atropos.Audio.Middleware
                 get => Handle;
                 set => Handle = value;
             }
+
+            /// <summary>归还池前复位全部字段，避免脏状态随复用泄漏。</summary>
+            public void Reset()
+            {
+                Handle = 0UL;
+                InstanceId = 0UL;
+                UserId = 0;
+                EventPath = null;
+                CurrentVolume = 1f;
+                Loop = false;
+                Persistent = false;
+                Priority = 128;
+                Track = default;
+                Paused = false;
+                Playing = false;
+            }
+        }
+
+        /// <summary>Voice 栈池——Play 热路径零分配（Rent/Return）。</summary>
+        [NonSerialized] private readonly Stack<Voice> _voicePool = new Stack<Voice>(16);
+
+        /// <summary>Voice 池当前缓存数量（诊断用，类似句柄注册表 Count）。</summary>
+        internal int VoicePoolCount => _voicePool.Count;
+
+        /// <summary>当前注册句柄数（诊断用）。</summary>
+        internal int ActiveHandleCount => _handles.Count;
+
+        private Voice RentVoice()
+        {
+            while (_voicePool.Count > 0)
+            {
+                var voice = _voicePool.Pop();
+                if (voice != null) return voice;
+            }
+
+            return new Voice();
+        }
+
+        private void ReturnVoice(Voice voice)
+        {
+            if (voice == null) return;
+            voice.Reset();
+            _voicePool.Push(voice);
+        }
+
+        /// <summary>卸绑全部句柄并把 Voice 归还池（关停/重启共用）。</summary>
+        private void ReleaseAllVoicesToPool()
+        {
+            foreach (var voice in _handles.Map.Values)
+            {
+                ReturnVoice(voice);
+            }
+
+            _handles.Clear();
         }
 
         #endregion 声部 [VOICE]
@@ -283,7 +337,8 @@ namespace Moirai.Atropos.Audio.Middleware
             AudioVoiceDucking.Reset();
             _fades.Clear();
             _pendingStopAt.Clear();
-            _handles.Clear();
+            ReleaseAllVoicesToPool();
+            _voicePool.Clear();
 
             _bridge?.Shutdown();
             _bridge = null;
@@ -294,6 +349,7 @@ namespace Moirai.Atropos.Audio.Middleware
         /// <inheritdoc />
         public override void Tick(float elapseSeconds, float realElapseSeconds)
         {
+            AudioBlockingLoadGate.Close();
             if (_bridge == null) return;
             _bridge.Update(Time.unscaledDeltaTime);
             _fades.Update(GameTime.unscaledTime, this);
@@ -385,12 +441,14 @@ namespace Moirai.Atropos.Audio.Middleware
         /// <inheritdoc />
         public override void Restart()
         {
+            AudioBlockingLoadGate.Open();
             StopAll(0f);
             CleanAudioPool();
             AudioVoiceDucking.Reset();
             _fades.Clear();
             _pendingStopAt.Clear();
-            _handles.Clear();
+            ReleaseAllVoicesToPool();
+            _voicePool.Clear();
         }
 
         #endregion 服务方法 [SERVICE METHOD]
@@ -583,19 +641,17 @@ namespace Moirai.Atropos.Audio.Middleware
 
             ulong handle = _handles.NextHandle();
 
-            var voice = new Voice
-            {
-                Handle = handle,
-                InstanceId = instanceId,
-                UserId = request.Id,
-                EventPath = eventPath,
-                CurrentVolume = request.FadeInOnPlay ? fadeInFrom : request.Volume,
-                Loop = request.Loop,
-                Persistent = request.Persistent,
-                Priority = request.Priority,
-                Track = request.Track,
-                Playing = true,
-            };
+            var voice = RentVoice();
+            voice.Handle = handle;
+            voice.InstanceId = instanceId;
+            voice.UserId = request.Id;
+            voice.EventPath = eventPath;
+            voice.CurrentVolume = request.FadeInOnPlay ? fadeInFrom : request.Volume;
+            voice.Loop = request.Loop;
+            voice.Persistent = request.Persistent;
+            voice.Priority = request.Priority;
+            voice.Track = request.Track;
+            voice.Playing = true;
 
             _handles.Bind(handle, voice);
             _handles.RegisterUser(request.Id, handle);
@@ -698,7 +754,12 @@ namespace Moirai.Atropos.Audio.Middleware
         {
             if (handle == 0UL) return;
 
-            _handles.Release(handle, out _);
+            if (_handles.Release(handle, out var voice))
+            {
+                // Registry.Release 已清 BoundHandle；这里复位后入池，保证 IAudioVoiceRef 绑定语义不外泄
+                ReturnVoice(voice);
+            }
+
             _fades.Stop(handle);
             _pendingStopAt.Remove(handle);
         }
