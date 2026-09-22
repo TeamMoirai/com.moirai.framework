@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
+using Moirai.Atropos.ConfigTable;
 using UnityEngine;
 
 namespace Moirai.Atropos.Localization
@@ -75,15 +76,21 @@ namespace Moirai.Atropos.Localization
         /// </list>
         public static string Localize(string format)
         {
-            // todo 编辑器预览
-            if (!Application.isPlaying) return format;
-
             if (string.IsNullOrEmpty(format)) return format;
 
-            if (!IsValid)
+            var playing = Application.isPlaying;
+            if (playing)
             {
-                if (!s_HasLoggedWarning) LogUtility.Warning("{0} not initialized!", nameof(LocalizationService));
-                s_HasLoggedWarning = true;
+                if (!IsValid)
+                {
+                    if (!s_HasLoggedWarning) LogUtility.Warning("{0} not initialized!", nameof(LocalizationService));
+                    s_HasLoggedWarning = true;
+                    return format;
+                }
+            }
+            else if (GetEditorPreviewStore() == null)
+            {
+                // 编辑器预览取不到数据（表未生成等）时原样返回，失败日志已在预览侧限流
                 return format;
             }
 
@@ -96,13 +103,14 @@ namespace Moirai.Atropos.Localization
 
                 try
                 {
-                    if (!Has(textId))
+                    var has = playing ? Has(textId) : EditorPreviewHasText(textId);
+                    if (!has)
                     {
-                        if (Application.isPlaying) LogUtility.Warning("Text ID: {0}({1}) not available.", textId, match.Groups[1].Value);
+                        if (playing) LogUtility.Warning("Text ID: {0}({1}) not available.", textId, match.Groups[1].Value);
                         continue;
                     }
 
-                    string replacement = GetTextFromId(textId);
+                    string replacement = playing ? GetTextFromId(textId) : ResolveForEditorPreview(textId);
                     // LogUtility.Info("Resolving localization for ID: {0}({1})", textId, replacement);
                     format = format.Replace(match.Value, replacement);
                 }
@@ -181,5 +189,153 @@ namespace Moirai.Atropos.Localization
             
             return s_LoadedLanguage.Contains(target) ? target : defaultLanguage;
         }
+
+        #region 编辑器预览 [EDITOR PREVIEW]
+
+        private static LocalizationStore s_PreviewStore;
+        // 缓存键 = 当时的编辑器语言；语言变了就重取
+        private static string s_PreviewLanguageSetting;
+        // 预览数据取不到时只认一次，Inspector 每帧重绘不能每帧刷一条 Error
+        private static bool s_PreviewFailed;
+
+        /// <summary>
+        /// 丢弃编辑器预览缓存。改了编辑器语言、或重新转表之后调用。
+        /// </summary>
+        public static void InvalidateEditorPreview()
+        {
+            s_PreviewStore = null;
+            s_PreviewLanguageSetting = null;
+            s_PreviewFailed = false;
+        }
+
+        /// <summary>编辑器预览是否已就绪（非播放态、且表数据取到了）。</summary>
+        public static bool IsEditorPreviewAvailable => GetEditorPreviewStore() != null;
+
+        /// <summary>
+        /// 编辑器预览用的语言：Inspector 里设的编辑器语言优先，未设或该语言不在表内时取表内的英语列，再退到首列。
+        /// </summary>
+        public static Language EditorPreviewLanguage
+        {
+            get
+            {
+                var store = GetEditorPreviewStore();
+                var index = GetPreviewLanguageIndex(store);
+                return index < 0 ? defaultLanguage : store.Batch.Languages[index];
+            }
+        }
+
+        /// <summary>编辑器预览：ID 是否存在于表内。</summary>
+        public static bool EditorPreviewHasText(string id)
+        {
+            var store = GetEditorPreviewStore();
+            return store != null && store.HasKey(id);
+        }
+
+        /// <summary>
+        /// 编辑器预览解析：非播放态直读配置表出译文，取不到时原样返回 ID。
+        /// </summary>
+        /// <remarks>预览刻意<strong>不</strong>套用回退链：某格缺译时编辑器里直接露出 ID，
+        /// 正是策划要看见的信息（运行期仍按回退链兜底，两者语义不同是有意为之）。</remarks>
+        public static string ResolveForEditorPreview(string id)
+        {
+            var store = GetEditorPreviewStore();
+            if (store == null || string.IsNullOrEmpty(id)) return id;
+
+            var index = GetPreviewLanguageIndex(store);
+            var text = store.Resolve(id, index < 0 ? null : store.Batch.Languages[index], index, null, null);
+            return text ?? id;
+        }
+
+        /// <summary>编辑器预览用的语言列下标（预览不可用时为 -1）。</summary>
+        public static int EditorPreviewLanguageIndex => GetPreviewLanguageIndex(GetEditorPreviewStore());
+
+        private static int GetPreviewLanguageIndex(LocalizationStore store)
+        {
+            if (store == null) return -1;
+
+            var languages = store.Batch.Languages;
+#if UNITY_EDITOR
+            if (TryGetBuiltInLanguage(LocalizationServiceSettings.EditorLanguage, out var preferred))
+            {
+                var preferredIndex = store.IndexOf(preferred);
+                if (preferredIndex >= 0) return preferredIndex;
+            }
+#endif
+            var fallbackIndex = store.IndexOf(defaultLanguage);
+            return fallbackIndex >= 0 ? fallbackIndex : (languages.Length > 0 ? 0 : -1);
+        }
+
+        /// <summary>
+        /// 取（并按需重建）编辑器预览用的存储。
+        /// </summary>
+        /// <remarks>播放态恒返回 <c>null</c>：预览只服务非播放态的 Inspector/Scene，运行期只允许一条数据路径。</remarks>
+        private static LocalizationStore GetEditorPreviewStore()
+        {
+#if UNITY_EDITOR
+            if (Application.isPlaying) return null;
+
+            var languageSetting = LocalizationServiceSettings.EditorLanguage;
+            if (s_PreviewLanguageSetting != languageSetting)
+            {
+                s_PreviewStore = null;
+                s_PreviewFailed = false;
+                s_PreviewLanguageSetting = languageSetting;
+            }
+
+            if (s_PreviewStore != null || s_PreviewFailed) return s_PreviewStore;
+
+            try
+            {
+                var strings = ConfigTableService.GetLocalizedStringsForEditorPreview();
+                var codes = ConfigTableService.GetLocalizationLanguageCodesForEditorPreview();
+                if (strings == null || strings.Count == 0 || codes == null || codes.Count == 0)
+                {
+                    s_PreviewFailed = true;
+                    LogUtility.Warning("Localization preview unavailable: generate config table first.");
+                    return null;
+                }
+
+                var languages = new List<Language>(codes.Count);
+                for (var i = 0; i < codes.Count; i++)
+                {
+                    if (TryGetBuiltInLanguage(codes[i], out var language) && !languages.Contains(language))
+                    {
+                        languages.Add(language);
+                    }
+                }
+
+                if (languages.Count == 0)
+                {
+                    s_PreviewFailed = true;
+                    LogUtility.Error("Localization preview unavailable: table languages [{0}] are none of them built-in Name/Code.",
+                        string.Join(", ", codes));
+                    return null;
+                }
+
+                var store = new LocalizationStore();
+                if (!store.TryApply(new LocalizationTextBatch(languages.ToArray(), strings, "editor-preview"), out var rejectedKey))
+                {
+                    s_PreviewFailed = true;
+                    LogUtility.Error("Localization preview unavailable: entry '{0}' column count mismatches {1} languages.",
+                        rejectedKey, languages.Count);
+                    return null;
+                }
+
+                s_PreviewStore = store;
+                return store;
+            }
+            catch (Exception ex)
+            {
+                // 预览面在 Inspector 的重绘路径上，任何一次抛出都会打断编辑器；失败即静默降级为显示 ID
+                s_PreviewFailed = true;
+                LogUtility.Error(ex);
+                return null;
+            }
+#else
+            return null;
+#endif
+        }
+
+        #endregion
     }
 }

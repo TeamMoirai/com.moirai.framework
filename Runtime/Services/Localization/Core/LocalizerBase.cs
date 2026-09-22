@@ -34,5 +34,31 @@ namespace Moirai.Atropos.Localization
 		/// 本地化目标组件。
 		/// </summary>
 		internal abstract void Localize();
+
+#if UNITY_EDITOR
+		/// <summary>
+		/// Inspector 预览用的可读文本（当前 ID 解析出的译文 / 资源名）。
+		/// </summary>
+		/// <remarks>只在编辑器里跑，取不到数据时返回 <c>null</c> 由绘制侧退化为显示 ID。
+		/// 刻意<strong>不</strong>把预览写回目标组件：那会把场景标脏并留下"忘了还原"的错文案。</remarks>
+		internal virtual string GetPreviewDescriptor() => null;
+
+		/// <summary>资源 ID 注入型本地化器的预览：点明该 ID 在表内的文本（图/音按该地址异步加载）。</summary>
+		internal static string DescribeResourceIdPreview(string id)
+		{
+			if (string.IsNullOrEmpty(id)) return null;
+
+			return LocalizationService.EditorPreviewHasText(id)
+				? $"{id} → {LocalizationService.ResolveForEditorPreview(id)}（资源模式：注入器按该 ID 异步加载）"
+				: $"<{id}> 表内无此 ID";
+		}
+
+		/// <summary>按语言索引注入的数组在该下标上的元素概况——"新增语言后数组没补齐"这类错位只能在编辑器里先看见。</summary>
+		internal static string DescribeIndexedElement<T>(T[] items, int index) where T : UnityEngine.Object
+		{
+			if (items == null || (uint)index >= (uint)items.Length) return "缺项";
+			return items[index] == null ? "空引用" : items[index].name;
+		}
+#endif
 	}
 }

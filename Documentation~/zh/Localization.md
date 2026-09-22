@@ -137,7 +137,57 @@ IEnumerator routine = translator.TranslateAsync(request,
 - `ToLanguage(str, onlySupported)` 中 `onlySupported` 为 `true` 时，未注册语言会回落到默认语言 English（`LocalizationService.defaultLanguage`）；需要区分「写错了」与「就是要默认语言」时用 `TryGetBuiltInLanguage`
 - 编辑器非运行模式下 `TextLocalizer.ChangeID` / `ImageLocalizer.ChangeID` 直接返回 `false`（Timeline 预览待实现），`LocalizationService.Localize` 也会原样返回
 - `ImageLocalizer` / `AudioLocalizer` 的数组是按语言索引注入的，配表新增语言后需同步补齐数组元素
-- 全部语言列常驻内存。是否到了必须按语言拆包的程度不要凭感觉：看游戏内调试器 `Profiler/Localization` 的「数据规模」一栏（词条数、语言数、译文总字符数即常驻下限），或读 `LocalizationService.EntryCount` / `LoadedLanguageCount` / `TotalTextLength`
+- 全部语言列常驻内存。是否到了必须按语言拆包的程度不要凭感觉：看游戏内调试器 `Profiler/Localization` 的「数据规模」一栏（词条数、语言数、译文总字符数即常驻下限），或读 `LocalizationService.EntryCount` / `LoadedLanguageCount` / `ResidentChars`
+
+## 运行时覆盖（热改文案）
+
+不改表、不重出包的前提下覆盖某语言的若干词条（运营改错译、QA 强改、远程补丁走同一条路）：
+
+```csharp
+LocalizationService.SetStringOverlay("remote-ops", Language.English, new[]
+{
+    new KeyValuePair<string, string>("UI.Shop.Title", "Market"),
+});
+LocalizationService.ClearStringOverlay("remote-ops");   // 按来源撤销，不动其它来源
+```
+
+- 叠加语义：只替换指定语言下的指定 key，**未覆盖的词条照旧取表内译文**；值为空或仅空白等同于「不覆盖」
+- 覆盖层参与**每一次**语言尝试（含回退链）：热改了英语，缺译回退到英语时拿到的也是改后那版
+- 同名 `sourceId` 即同一层，后注册的层优先；层数与来源在调试面板「数据规模」可见
+- 覆盖层**不跨服务关闭存活**，也不会被换批/重加载清空——它是叠在表数据之上的一层，不是替代品
+
+## 编辑器内预览（不进 Play）
+
+`TextLocalizer` / `ImageLocalizer` / `AudioLocalizer` 的 Inspector 在 ID 字段下方显示「译文预览」一行，数据来自配置表在编辑器下的**直读**路径（`ConfigTableServiceHandler.GetLocalizedStringsForEditorPreview`），不经资源系统、不需要进 Play：
+
+- 文本类显示解析后的译文；表内没有该 ID 时点明「表内无此 ID」
+- 图/音类显示预览语言、将要取用的数组下标，以及该下标上的元素（`缺项` / `空引用` / 资源名）——「新增语言后数组没补齐」这类错位在这里当场能看见，不必等运行时
+- 语言取 Inspector 里的「编辑器语言」；未设置或该语言不在表内时取英语列，再退到首列
+- 预览**不写回**目标组件（不标脏场景、不留「忘了还原」的错文案），也不套用回退链：某格缺译时预览直接露 ID，那正是策划要看见的信息
+- 重新转表或改了编辑器语言后，预览缓存自动随语言键失效；需要手动丢弃时调 `LocalizationService.InvalidateEditorPreview()`
+
+## 带参取文（不装箱路径）
+
+```csharp
+string price = LocalizationService.GetTextFromId("UI.Common.CreditPrice", 120);   // 单参，走 StringUtility.Format
+string line  = LocalizationService.GetTextFromId("Log.Buy.Confirmed", item, count, total);  // 三参
+```
+
+- arity 1~4 有专用重载，底层是 `StringUtility.Format<T…>`：装了 ZString（`ZSTRING_INSTALLED`）时不建 `object[]`、不装箱值类型
+- 未装 ZString 时 `StringUtility` 退化到 `StringBuilder.AppendFormat`，**那条路径仍会装箱**——「不装箱」是以装了 ZString 为前提的
+- 参数超过 4 个请改用 `GetTextFromId(id, params object[])`，并把那条文案考虑拆成两条 key
+- 表内占位符与参数不匹配时退化为未格式化原文并只报一次 Error，不会把异常抛到查询上
+
+## 句柄式订阅语言变更
+
+```csharp
+private IDisposable _subscription;
+
+private void OnEnable() => _subscription = LocalizationService.SubscribeLanguageChanged(Refresh);
+private void OnDisable() => _subscription?.Dispose();
+```
+
+与静态 `OnLanguageChanged` 在同一次派发里触发（时序契约一致：全部 Localizer 重注入之后），区别是句柄 `Dispose` 即摘除、且**服务关闭时框架统一作废**——静态事件那条路上忘了注销的订阅者会跨关服、跨会话继续被调用。
 
 ---
 [« 返回文档索引](Index.md) · [主 README](../../README.md) · [ConfigTable](ConfigTable.md)

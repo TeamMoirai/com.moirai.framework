@@ -34,6 +34,21 @@ namespace Moirai.Atropos.Localization
 			}
 		}
 
+#if UNITY_EDITOR
+		internal override string GetPreviewDescriptor()
+		{
+			if (!string.IsNullOrEmpty(localizedTextID)) return DescribeResourceIdPreview(localizedTextID);
+
+			var index = LocalizationService.EditorPreviewLanguageIndex;
+			if (index < 0) return null;
+
+			return $"[{LocalizationService.EditorPreviewLanguage.Name}] 索引 {index} → " +
+			       $"sprites: {DescribeIndexedElement(sprites, index)} / " +
+			       $"textures: {DescribeIndexedElement(textures, index)} / " +
+			       $"texture2Ds: {DescribeIndexedElement(texture2Ds, index)}";
+		}
+#endif
+
 		internal override void Localize()
 		{
 			if (_injector == null)

@@ -25,6 +25,8 @@ namespace Moirai.Atropos.Localization
                 if (Instance.m_EditorLanguage == value) return;
 
                 Instance.m_EditorLanguage = value;
+                // 预览缓存以编辑器语言为键，切换即作废；播放态下的服务侧切换照旧走 ChangeLanguage
+                LocalizationService.InvalidateEditorPreview();
                 LocalizationService.ChangeLanguage(value);
             }
         }

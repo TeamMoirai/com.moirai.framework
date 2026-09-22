@@ -7,10 +7,10 @@ namespace Moirai.Atropos.Localization
 {
     /// <summary>
     /// 本地化处理器抽象基类（策略模式抽象策略）。
-    /// <para>承载语言管理、语言切换、缺译回退、文本查询与本地化器注册等运行时逻辑。</para>
-    /// <para>多语言数据在首次访问时一次性全量加载，各语言列随词条常驻内存；
-    /// 按语言拆分懒加载为后续优化项，词条量增大后再实施
-    /// （常驻规模可经 <see cref="TotalTextLength"/> 在调试面板上量化判断）。</para>
+    /// <para>承载语言管理、语言切换、缺译回退、运行时覆盖与文本查询；词条存储与取值解析落在
+    /// <see cref="LocalizationStore"/>，与编辑器预览共用同一套解析路径。</para>
+    /// <para>多语言数据在首次访问时一次性全量加载，各语言列随词条常驻内存；按语言拆分懒加载为
+    /// 门槛触发项，规模可经 <see cref="ResidentChars"/> 或调试面板量化判断后再实施。</para>
     /// </summary>
     [Serializable]
     public abstract class LocalizationServiceHandler : FrameworkHandler
@@ -20,6 +20,11 @@ namespace Moirai.Atropos.Localization
         [Tooltip("缺译回退顺序，填语言 Code（如 en、zh-Hans）。当前语言缺译时按此顺序取译文；留空表示缺译直接返回 key。")]
         [SerializeField] private string[] m_FallbackLanguageCodes = { "en" };
 
+        // 本地化器列表
+        [NonSerialized] private readonly List<LocalizerBase> _localizers = new List<LocalizerBase>();
+        // 句柄式订阅表——静态事件那条路上"忘了注销"是唯一没人收口的泄漏，这里在关服时统一作废
+        [NonSerialized] private readonly List<LanguageChangeSubscription> _subscriptions = new List<LanguageChangeSubscription>();
+        [NonSerialized] private LocalizationStore _store;
         [NonSerialized] private Language _currentLanguage;
         // 当前本地化语言设置来自
         [NonSerialized] private string _settingSource;
@@ -29,17 +34,15 @@ namespace Moirai.Atropos.Localization
         [NonSerialized] private bool _hasLoggedLoadError;
         // 格式化失败日志只打一次（占位符与参数不匹配属表内缺陷，逐条刷屏会淹没日志）
         [NonSerialized] private bool _hasLoggedFormatError;
-        // 当前语言在 LanguageList 中的下标：查询热路径用，省去每次线性扫语言表
+        // 当前语言在批内的列下标：查询热路径用，省去每次线性扫语言表
         [NonSerialized] private int _currentLanguageIndex = -1;
         // 切换中标记：本地化器注入回调里再切语言会打乱快照与事件顺序，直接拦下
         [NonSerialized] private bool _isSwitching;
-        // 回退链解析后的语言与其在 LanguageList 中的下标
+        // 回退链解析后的语言与其列下标
         [NonSerialized] private Language[] _fallbackChain = Array.Empty<Language>();
         [NonSerialized] private int[] _fallbackIndices = Array.Empty<int>();
         // 不存在的语言只在切换时警告一次
         [NonSerialized] private HashSet<Language> _warnedUnavailableLanguages;
-        // 所有语言列的译文总字符数（加载期统计一次，供常驻规模估算）
-        [NonSerialized] private int _totalTextLength;
 
         /// <summary>
         /// 当前使用的本地化语言
@@ -92,7 +95,7 @@ namespace Moirai.Atropos.Localization
             get
             {
                 EnsureLocalizedStringsLoaded();
-                return LocalizedStrings?.Count ?? 0;
+                return Store.EntryCount;
             }
         }
 
@@ -102,7 +105,7 @@ namespace Moirai.Atropos.Localization
             get
             {
                 EnsureLocalizedStringsLoaded();
-                return LanguageList?.Count ?? 0;
+                return Store.LanguageCount;
             }
         }
 
@@ -111,29 +114,24 @@ namespace Moirai.Atropos.Localization
         /// </summary>
         /// <remarks>UTF-16 下每字符 2 字节，是常驻译文的<b>下限</b>估算（不含字符串对象头与字典开销），
         /// 用于判断是否到了必须按语言拆包加载的量级。</remarks>
-        public int TotalTextLength
+        public long ResidentChars
         {
             get
             {
                 EnsureLocalizedStringsLoaded();
-                return _totalTextLength;
+                return Store.ResidentChars;
             }
         }
-
-        // 本地化器列表
-        [NonSerialized] private readonly List<LocalizerBase> _localizers = new List<LocalizerBase>();
-
-        /// <summary>已加载的语言列表</summary>
-        protected List<Language> LanguageList { get; private set; } = new List<Language>();
-
-        /// <summary>本地化字符串字典</summary>
-        protected Dictionary<string, List<string>> LocalizedStrings { get; private set; } = new Dictionary<string, List<string>>();
 
         /// <summary>
         /// 当语言改变时调用。
         /// </summary>
-        /// <remarks>在全部本地化器重注入<em>之后</em>触发，回调内查询文本即已是新语言。</remarks>
+        /// <remarks>在全部本地化器重注入<em>之后</em>触发，回调内查询文本即已是新语言。
+        /// 需要「关服自动摘除」的订阅请用 <see cref="SubscribeLanguageChanged"/>。</remarks>
         public event Action<Language> OnLanguageChanged;
+
+        /// <summary>存储与解析引擎。延迟创建：处理器会被 Settings 以 SerializeReference 还原，构造器不一定跑。</summary>
+        private LocalizationStore Store => _store ??= new LocalizationStore();
 
         protected override void OnShutdown()
         {
@@ -147,28 +145,56 @@ namespace Moirai.Atropos.Localization
             _fallbackChain = Array.Empty<Language>();
             _fallbackIndices = Array.Empty<int>();
             _warnedUnavailableLanguages = null;
-            _totalTextLength = 0;
             _localizers.Clear();
+
+            if (_subscriptions.Count > 0)
+            {
+                var snapshot = _subscriptions.ToArray();
+                _subscriptions.Clear();
+                foreach (var subscription in snapshot)
+                {
+                    subscription?.Invalidate();
+                }
+            }
+
+            // 存储连同覆盖层一起丢弃——覆盖层不跨关服存活，否则热改文案会串进下一次会话
+            _store?.Clear();
+            _store = null;
+        }
+
+        #region 数据源 [DATA SOURCE]
+
+        /// <summary>
+        /// 加载一批本地化词条（<b>推荐扩展点</b>）。
+        /// <para>批自带语言头，列下标顺序即 <see cref="LocalizationTextBatch.Languages"/> 的顺序，
+        /// 因此不再依赖「语言取自全局注册表、列序取自反射字段声明序」这类跨文件隐含约定。</para>
+        /// </summary>
+        internal virtual LocalizationTextBatch LoadLocalizedTextBatch()
+        {
+            var (languages, strings) = LoadLocalizedData();
+            return new LocalizationTextBatch(languages, strings, "legacy");
         }
 
         /// <summary>
-        /// 加载本地化数据源。
+        /// 加载本地化数据源（兼容扩展点）。
+        /// <para>改用 <see cref="LoadLocalizedTextBatch"/> 的实现无需再管本方法；保留是为了不打断存量处理器。</para>
         /// </summary>
         /// <returns>语言列表与本地化字符串字典。</returns>
-        protected abstract (List<Language> languages, Dictionary<string, List<string>> strings) LoadLocalizedData();
+        protected virtual (List<Language> languages, Dictionary<string, List<string>> strings) LoadLocalizedData()
+            => (new List<Language>(), new Dictionary<string, List<string>>());
 
         /// <summary>
         /// 懒式加载本地化数据源并解析当前语言。
         /// <para>数据加载依赖资源服务（配置表），服务注册期资源尚未就绪；
         /// 首次访问多语言 API 时资源必然已加载完成，故推迟到调用点执行。</para>
-        /// <para>解析结果为空（语言列表为空）视为数据未就绪，不置成功标记，下次访问自动重试。</para>
+        /// <para>批为空或列数失配都视为数据未就绪，不置成功标记，下次访问自动重试。</para>
         /// </summary>
         private void EnsureLocalizedStringsLoaded()
         {
             if (_dataLoaded) return;
 
             LoadLocalizedStrings();
-            if (LanguageList.Count == 0) return;
+            if (Store.LanguageCount == 0) return;
 
             _dataLoaded = true;
             ResolveFallbackChain();
@@ -177,34 +203,23 @@ namespace Moirai.Atropos.Localization
         }
 
         /// <summary>
-        /// 解析首启语言：检测链结果优先，不在发行语言表里时按回退链、再按表头兜底。
-        /// <para>检测链给出的语言完全可能没随包发行（中文系统跑只出英日两语的包）。
-        /// 早退会让 <see cref="_currentLanguage"/> 停在 null，于是<b>每一条</b>查询都露出 key——
-        /// 首启必须落在一个真实存在的语言上。</para>
-        /// </summary>
-        private Language ResolveInitialLanguage()
-        {
-            var list = LanguageList;
-            var detected = CurrentLanguage;
-            for (var i = 0; i < list.Count; i++)
-            {
-                if (list[i] == detected) return list[i];
-            }
-
-            var fallbackIndices = _fallbackIndices;
-            if (fallbackIndices.Length > 0) return list[fallbackIndices[0]];
-
-            return list[0];
-        }
-
-        /// <summary>
-        /// 从数据源加载本地化字符串到内存。
+        /// 从数据源取一批词条并换入存储。
         /// </summary>
         private void LoadLocalizedStrings()
         {
-            (LanguageList, LocalizedStrings) = LoadLocalizedData();
+            LocalizationTextBatch batch;
+            try
+            {
+                batch = LoadLocalizedTextBatch();
+            }
+            catch (Exception ex)
+            {
+                // 数据源抛异常（表没生成、反射目标改名等）不该把异常打进每一次查询
+                LogUtility.Error(ex);
+                batch = null;
+            }
 
-            if (LanguageList.Count == 0 || LocalizedStrings == null)
+            if (batch == null || batch.Languages.Length == 0)
             {
                 // 数据未就绪时每次查询都会重试进入此处，错误日志只打一次
                 if (!_hasLoggedLoadError)
@@ -215,38 +230,25 @@ namespace Moirai.Atropos.Localization
                 return;
             }
 
-            // 校验词条的语言列数与语言列表一致：下标错位会表现为"显示错误语言"而非报错，必须在加载期拦下
-            // 失败时清空数据，避免半损坏状态被 Ensure 标记为已加载
-            var totalTextLength = 0;
-            foreach (var pair in LocalizedStrings)
+            if (Store.TryApply(batch, out var rejectedKey))
             {
-                if (pair.Value.Count != LanguageList.Count)
-                {
-                    if (!_hasLoggedLoadError)
-                    {
-                        _hasLoggedLoadError = true;
-                        LogUtility.Error("Localized strings '{0}' has {1} language columns, but {2} languages are registered.",
-                            pair.Key, pair.Value.Count, LanguageList.Count);
-                    }
-
-                    LanguageList = new List<Language>();
-                    LocalizedStrings = new Dictionary<string, List<string>>();
-                    _totalTextLength = 0;
-                    return;
-                }
-
-                for (var i = 0; i < pair.Value.Count; i++)
-                {
-                    totalTextLength += pair.Value[i]?.Length ?? 0;
-                }
+                LogUtility.Info("Load Localized Text Success! [{0}] {1} entries x {2} languages",
+                    batch.SourceId, batch.Strings.Count, batch.Languages.Length);
+                return;
             }
 
-            _totalTextLength = totalTextLength;
-            LogUtility.Info("Load Localized Text Success!");
+            // 语言列数与语言数失配会表现为"显示错误语言"而非报错，必须在加载期整批拦下；
+            // 拒载时保留上一份可用快照——换批失败不该把本来能显示的文案一起抹掉
+            if (!_hasLoggedLoadError)
+            {
+                _hasLoggedLoadError = true;
+                LogUtility.Error("Localized strings '{0}' from source '{1}' has a column count that mismatches the {2} declared languages; the whole batch is rejected.",
+                    rejectedKey, batch.SourceId, batch.Languages.Length);
+            }
         }
 
         /// <summary>
-        /// 解析回退链配置：把语言 Code 换成 <see cref="LanguageList"/> 中真实存在的语言与其下标。
+        /// 解析回退链配置：把语言 Code 换成批内真实存在的语言与其列下标。
         /// <para>识别不了的语言 Code 会被剔除并警告——静默落到默认语言会让配置错误一路带到上线。</para>
         /// </summary>
         private void ResolveFallbackChain()
@@ -268,7 +270,7 @@ namespace Moirai.Atropos.Localization
                     continue;
                 }
 
-                var index = LanguageList.FindIndex(s => s == language);
+                var index = Store.IndexOf(language);
                 if (index == -1)
                 {
                     LogUtility.Warning("Fallback language {0} is not present in the localized data, skipped.", language);
@@ -284,6 +286,27 @@ namespace Moirai.Atropos.Localization
             _fallbackChain = chain.ToArray();
             _fallbackIndices = indices.ToArray();
         }
+
+        /// <summary>
+        /// 解析首启语言：检测链结果优先，不在批内时按回退链、再按语言表首项兜底。
+        /// <para>检测链给出的语言完全可能没随包发行（中文系统跑只出英日两语的包）。
+        /// 早退会让 <see cref="_currentLanguage"/> 停在 null，于是<b>每一条</b>查询都露出 ID——
+        /// 首启必须落在一个真实存在的语言上。</para>
+        /// </summary>
+        private Language ResolveInitialLanguage()
+        {
+            var detectedIndex = Store.IndexOf(CurrentLanguage);
+            if (detectedIndex >= 0) return Store.LanguageAt(detectedIndex);
+
+            var fallbackIndices = _fallbackIndices;
+            if (fallbackIndices.Length > 0) return Store.LanguageAt(fallbackIndices[0]);
+
+            return Store.LanguageAt(0);
+        }
+
+        #endregion
+
+        #region 语言切换 [LANGUAGE SWITCH]
 
         /// <summary>
         /// 更改当前语言。
@@ -307,7 +330,7 @@ namespace Moirai.Atropos.Localization
 
             EnsureLocalizedStringsLoaded();
 
-            if (LanguageList.Count == 0)
+            if (Store.LanguageCount == 0)
             {
                 LogUtility.Error("No language available!");
                 return;
@@ -315,7 +338,7 @@ namespace Moirai.Atropos.Localization
 
             if (_currentLanguage == language) return;
 
-            var languageIndex = IndexOfLanguage(language);
+            var languageIndex = Store.IndexOf(language);
             if (languageIndex == -1)
             {
                 WarnLanguageUnavailable(language);
@@ -325,7 +348,7 @@ namespace Moirai.Atropos.Localization
             _isSwitching = true;
             try
             {
-                _currentLanguage = LanguageList[languageIndex];
+                _currentLanguage = Store.LanguageAt(languageIndex);
                 _currentLanguageIndex = languageIndex;
 
                 // 先重注入再抛事件：订阅者在 OnLanguageChanged 回调里取文本必须已拿到新语言。
@@ -345,7 +368,7 @@ namespace Moirai.Atropos.Localization
                     }
                 }
 
-                OnLanguageChanged?.Invoke(_currentLanguage);
+                RaiseLanguageChanged(_currentLanguage);
 
                 if (persist) SettingUtility.SetString(GameConstant.Setting.LANGUAGE, _currentLanguage.Code);
                 LogUtility.Info($"Change the language: {_currentLanguage}{(logSource ? $"(by {_settingSource})" : "")}");
@@ -353,6 +376,30 @@ namespace Moirai.Atropos.Localization
             finally
             {
                 _isSwitching = false;
+            }
+        }
+
+        private void RaiseLanguageChanged(Language language)
+        {
+            OnLanguageChanged?.Invoke(language);
+
+            if (_subscriptions.Count == 0) return;
+
+            // 与本地化器同等待遇：快照遍历 + 单个订阅者抛异常不牵连同一次派发的其余订阅者
+            var snapshot = _subscriptions.ToArray();
+            foreach (var subscription in snapshot)
+            {
+                var callback = subscription?.Callback;
+                if (callback == null) continue;
+
+                try
+                {
+                    callback(language);
+                }
+                catch (Exception ex)
+                {
+                    LogUtility.Error(ex);
+                }
             }
         }
 
@@ -370,13 +417,14 @@ namespace Moirai.Atropos.Localization
         public void ChangeLanguage(int index)
         {
             EnsureLocalizedStringsLoaded();
-            if (index < 0 || index >= LanguageList.Count)
+            var count = Store.LanguageCount;
+            if (index < 0 || index >= count)
             {
-                LogUtility.Error("Language index {0} out of range [0, {1}).", index, LanguageList.Count);
+                LogUtility.Error("Language index {0} out of range [0, {1}).", index, count);
                 return;
             }
 
-            ChangeLanguage(LanguageList[index]);
+            ChangeLanguage(Store.LanguageAt(index));
         }
 
         /// <summary>
@@ -386,15 +434,16 @@ namespace Moirai.Atropos.Localization
         public string ActivatePreviousLanguage()
         {
             EnsureLocalizedStringsLoaded();
-            if (LanguageList.Count == 0)
+            var count = Store.LanguageCount;
+            if (count == 0)
             {
                 LogUtility.Error("No language available!");
                 return null;
             }
 
-            var prevIndex = (int)Mathf.Repeat(CurrentLanguageIndex - 1, LanguageList.Count);
-            ChangeLanguage(LanguageList[prevIndex]);
-            return LanguageList[prevIndex].Name;
+            var prevIndex = (int)Mathf.Repeat(CurrentLanguageIndex - 1, count);
+            ChangeLanguage(Store.LanguageAt(prevIndex));
+            return Store.LanguageAt(prevIndex).Name;
         }
 
         /// <summary>
@@ -404,35 +453,16 @@ namespace Moirai.Atropos.Localization
         public string ActivateNextLanguage()
         {
             EnsureLocalizedStringsLoaded();
-            if (LanguageList.Count == 0)
+            var count = Store.LanguageCount;
+            if (count == 0)
             {
                 LogUtility.Error("No language available!");
                 return null;
             }
 
-            var nextIndex = (int)Mathf.Repeat(CurrentLanguageIndex + 1, LanguageList.Count);
-            ChangeLanguage(LanguageList[nextIndex]);
-            return LanguageList[nextIndex].Name;
-        }
-
-        /// <summary>
-        /// 取语言在 <see cref="LanguageList"/> 中的下标，未收录时为 -1。
-        /// </summary>
-        /// <remarks>当前语言走缓存下标，其余语言（显式跨语言查询）才线性扫表。</remarks>
-        private int IndexOfLanguage(Language language)
-        {
-            if (language == null) return -1;
-            if (_currentLanguage != null && language == _currentLanguage) return _currentLanguageIndex;
-
-            var list = LanguageList;
-            if (list == null) return -1;
-
-            for (var i = 0; i < list.Count; i++)
-            {
-                if (language == list[i]) return i;
-            }
-
-            return -1;
+            var nextIndex = (int)Mathf.Repeat(CurrentLanguageIndex + 1, count);
+            ChangeLanguage(Store.LanguageAt(nextIndex));
+            return Store.LanguageAt(nextIndex).Name;
         }
 
         private void WarnLanguageUnavailable(Language language)
@@ -441,6 +471,30 @@ namespace Moirai.Atropos.Localization
             if (!_warnedUnavailableLanguages.Add(language)) return;
 
             LogUtility.Warning("Language {0} is not available.", language);
+        }
+
+        #endregion
+
+        #region 订阅与本地化器 [SUBSCRIPTIONS & LOCALIZERS]
+
+        /// <summary>
+        /// 以句柄订阅语言变更。
+        /// <para>与 <see cref="OnLanguageChanged"/> 在同一次派发里触发、时序契约一致（重注入之后）；
+        /// 区别是句柄 <c>Dispose</c> 即摘除，且<b>关服时框架统一作废</b>。</para>
+        /// </summary>
+        public IDisposable SubscribeLanguageChanged(Action<Language> callback)
+        {
+            if (callback == null) return LanguageChangeSubscription.Completed;
+
+            var subscription = new LanguageChangeSubscription(this, callback);
+            _subscriptions.Add(subscription);
+            return subscription;
+        }
+
+        internal void Unsubscribe(LanguageChangeSubscription subscription)
+        {
+            var index = _subscriptions.IndexOf(subscription);
+            if (index >= 0) _subscriptions.RemoveAt(index);
         }
 
         /// <summary>
@@ -453,14 +507,18 @@ namespace Moirai.Atropos.Localization
         /// </summary>
         public void RemoveLocalizer(LocalizerBase localizer) => _localizers.Remove(localizer);
 
+        #endregion
+
+        #region 文本查询 [TEXT QUERIES]
+
         /// <summary>
         /// 检查当前数据库是否有指定的文本 ID。
         /// </summary>
-        /// <remarks>只断言词条存在，不代表当前语言已有译文（缺译时仍会命中回退链或返回 ID）。</remarks>
+        /// <remarks>只断言词条存在，不代表当前语言已有译文（缺译时仍会命中覆盖层、回退链或返回 ID）。</remarks>
         public bool Has(string id)
         {
             EnsureLocalizedStringsLoaded();
-            return !string.IsNullOrEmpty(id) && LocalizedStrings?.ContainsKey(id) == true;
+            return Store.HasKey(id);
         }
 
         /// <summary>
@@ -471,7 +529,101 @@ namespace Moirai.Atropos.Localization
         public string GetTextFromId(string id, params object[] p)
         {
             EnsureLocalizedStringsLoaded();
-            return ResolveText(_currentLanguage, id, p);
+
+            var text = ResolveRaw(id, _currentLanguage);
+            if (text == null) return id;
+            if (p is not { Length: > 0 }) return text;
+
+            try
+            {
+                return string.Format(text, p);
+            }
+            catch (FormatException)
+            {
+                LogFormatError(id, text, p.Length);
+                return text;
+            }
+        }
+
+        /// <summary>
+        /// 根据文本 ID 获取带一个格式化参数的本地化字符串。
+        /// </summary>
+        /// <remarks>走 <see cref="StringUtility.Format{T1}(string,T1)"/>：装了 ZString 时不装箱、不建参数数组；
+        /// 未装 ZString 时退化到 <c>StringBuilder.AppendFormat</c>，那条路径仍会装箱。
+        /// 参数超过 4 个的文案请改用 <see cref="GetTextFromId(string,object[])"/>，并考虑把它拆成两条 ID。</remarks>
+        public string GetTextFromId<T1>(string id, T1 arg1)
+        {
+            EnsureLocalizedStringsLoaded();
+
+            var text = ResolveRaw(id, _currentLanguage);
+            if (text == null) return id;
+
+            try
+            {
+                return StringUtility.Format(text, arg1);
+            }
+            catch (FormatException)
+            {
+                LogFormatError(id, text, 1);
+                return text;
+            }
+        }
+
+        /// <summary>根据文本 ID 获取带两个格式化参数的本地化字符串（装箱边界说明见 <see cref="GetTextFromId{T1}(string,T1)"/>）。</summary>
+        public string GetTextFromId<T1, T2>(string id, T1 arg1, T2 arg2)
+        {
+            EnsureLocalizedStringsLoaded();
+
+            var text = ResolveRaw(id, _currentLanguage);
+            if (text == null) return id;
+
+            try
+            {
+                return StringUtility.Format(text, arg1, arg2);
+            }
+            catch (FormatException)
+            {
+                LogFormatError(id, text, 2);
+                return text;
+            }
+        }
+
+        /// <summary>根据文本 ID 获取带三个格式化参数的本地化字符串（装箱边界说明见 <see cref="GetTextFromId{T1}(string,T1)"/>）。</summary>
+        public string GetTextFromId<T1, T2, T3>(string id, T1 arg1, T2 arg2, T3 arg3)
+        {
+            EnsureLocalizedStringsLoaded();
+
+            var text = ResolveRaw(id, _currentLanguage);
+            if (text == null) return id;
+
+            try
+            {
+                return StringUtility.Format(text, arg1, arg2, arg3);
+            }
+            catch (FormatException)
+            {
+                LogFormatError(id, text, 3);
+                return text;
+            }
+        }
+
+        /// <summary>根据文本 ID 获取带四个格式化参数的本地化字符串（装箱边界说明见 <see cref="GetTextFromId{T1}(string,T1)"/>）。</summary>
+        public string GetTextFromId<T1, T2, T3, T4>(string id, T1 arg1, T2 arg2, T3 arg3, T4 arg4)
+        {
+            EnsureLocalizedStringsLoaded();
+
+            var text = ResolveRaw(id, _currentLanguage);
+            if (text == null) return id;
+
+            try
+            {
+                return StringUtility.Format(text, arg1, arg2, arg3, arg4);
+            }
+            catch (FormatException)
+            {
+                LogFormatError(id, text, 4);
+                return text;
+            }
         }
 
         /// <summary>
@@ -483,67 +635,40 @@ namespace Moirai.Atropos.Localization
         public string GetTextFromIdLanguage(string id, Language language, params object[] p)
         {
             EnsureLocalizedStringsLoaded();
-            return ResolveText(language ?? _currentLanguage, id, p);
-        }
 
-        /// <summary>
-        /// 按「指定语言 → 回退链 → ID 原文」解析译文。调用方须已确保数据加载完成。
-        /// </summary>
-        private string ResolveText(Language language, string id, object[] args)
-        {
-            var strings = LocalizedStrings;
-            // 词条不存在时无列可回退，直接露出 ID
-            if (strings == null || string.IsNullOrEmpty(id) || !strings.TryGetValue(id, out var texts)) return id;
-
-            var languageIndex = IndexOfLanguage(language);
-            var text = SelectText(texts, languageIndex);
-            if (text != null) return Format(id, text, args);
-
-            var fallbackIndices = _fallbackIndices;
-            for (var i = 0; i < fallbackIndices.Length; i++)
-            {
-                text = SelectText(texts, fallbackIndices[i]);
-                if (text != null) return Format(id, text, args);
-            }
-
-            // 全链缺译：返回 ID 而非空白，保证 UI 上看得见键名以便定位
-            return id;
-        }
-
-        /// <summary>
-        /// 取指定下标的译文；下标越界或译文为空/仅空白时视为缺译，返回 <c>null</c>。
-        /// </summary>
-        private static string SelectText(List<string> texts, int index)
-        {
-            if ((uint)index >= (uint)texts.Count) return null;
-
-            var text = texts[index];
-            return string.IsNullOrWhiteSpace(text) ? null : text;
-        }
-
-        /// <summary>
-        /// 套用格式化参数；表内占位符与参数不匹配时退化为未格式化原文。
-        /// </summary>
-        private string Format(string id, string text, object[] args)
-        {
-            if (args is not { Length: > 0 }) return text;
+            var text = ResolveRaw(id, language ?? _currentLanguage);
+            if (text == null) return id;
+            if (p is not { Length: > 0 }) return text;
 
             try
             {
-                return string.Format(text, args);
+                return string.Format(text, p);
             }
             catch (FormatException)
             {
-                // 一条文案写坏占位符不该把整块界面的查询抛出去，日志同样只打一次
-                if (!_hasLoggedFormatError)
-                {
-                    _hasLoggedFormatError = true;
-                    LogUtility.Error("Localized text '{0}' has invalid placeholders for {1} argument(s): \"{2}\"",
-                        id, args.Length, text);
-                }
-
+                LogFormatError(id, text, p.Length);
                 return text;
             }
+        }
+
+        /// <summary>
+        /// 按「覆盖层 → 指定语言 → 回退链」取原始译文；全链缺译时返回 <c>null</c>。调用方须已确保数据加载完成。
+        /// </summary>
+        private string ResolveRaw(string id, Language language)
+        {
+            // ID 为空、或词条整个不存在时无列可回退，一律由调用方露出 ID
+            if (string.IsNullOrEmpty(id)) return null;
+
+            return Store.Resolve(id, language, Store.IndexOf(language), _fallbackChain, _fallbackIndices);
+        }
+
+        private void LogFormatError(string id, string text, int argCount)
+        {
+            // 一条文案写坏占位符不该把整块界面的查询抛出去，日志同样只打一次
+            if (_hasLoggedFormatError) return;
+
+            _hasLoggedFormatError = true;
+            LogUtility.Error("Localized text '{0}' has invalid placeholders for {1} argument(s): \"{2}\"", id, argCount, text);
         }
 
         /// <summary>
@@ -554,11 +679,12 @@ namespace Moirai.Atropos.Localization
             EnsureLocalizedStringsLoaded();
 
             var dict = new Dictionary<string, string>();
-            if (LocalizedStrings == null || string.IsNullOrEmpty(id) || !LocalizedStrings.ContainsKey(id)) return dict;
+            if (string.IsNullOrEmpty(id) || !Store.HasKey(id)) return dict;
 
-            foreach (var language in LanguageList)
+            for (var i = 0; i < Store.LanguageCount; i++)
             {
-                var text = GetTextFromIdLanguage(id, language);
+                var language = Store.LanguageAt(i);
+                var text = ResolveRaw(id, language) ?? id;
                 dict.Add(language.Name, text);
             }
 
@@ -571,7 +697,89 @@ namespace Moirai.Atropos.Localization
         public List<string> GetAllIds()
         {
             EnsureLocalizedStringsLoaded();
-            return LocalizedStrings?.Keys.ToList() ?? new List<string>();
+            return Store.Batch.Strings.Keys.ToList();
+        }
+
+        #endregion
+
+        #region 运行时覆盖 [RUNTIME OVERLAY]
+
+        /// <summary>
+        /// 覆盖指定语言下的一批词条（运营热改文案、QA 强改、远程补丁走同一条路）。
+        /// <para>叠加语义：未覆盖的词条仍取批内译文，值为空/仅空白等同于「不覆盖」；
+        /// 覆盖层不会被换批动作清空，也不会跨关服存活。同名来源即同一层，按 key 合并。</para>
+        /// </summary>
+        /// <param name="sourceId">来源标识（诊断用，如 remote-ops / qa-force）。</param>
+        /// <param name="language">被覆盖的语言；不在当前批内时忽略。</param>
+        /// <param name="entries">key → 新译文。</param>
+        /// <returns>该来源层累计的覆盖条数；参数不合法或语言未收录时为 -1。</returns>
+        public int SetStringOverlay(string sourceId, Language language, IEnumerable<KeyValuePair<string, string>> entries)
+        {
+            EnsureLocalizedStringsLoaded();
+
+            if (string.IsNullOrEmpty(sourceId) || entries == null || Store.IndexOf(language) == -1) return -1;
+
+            return Store.SetOverlay(sourceId, language, entries);
+        }
+
+        /// <summary>撤掉某个来源的全部覆盖；返回是否确实存在该层。</summary>
+        public bool ClearStringOverlay(string sourceId) => !string.IsNullOrEmpty(sourceId) && Store.ClearOverlay(sourceId);
+
+        /// <summary>撤掉全部覆盖层。</summary>
+        public void ClearAllStringOverlays() => Store.ClearAllOverlays();
+
+        /// <summary>已登记的覆盖层数量。</summary>
+        public int StringOverlayLayerCount
+        {
+            get
+            {
+                EnsureLocalizedStringsLoaded();
+                return Store.OverlayLayerCount;
+            }
+        }
+
+        #endregion
+    }
+
+    /// <summary>
+    /// <see cref="LocalizationServiceHandler.SubscribeLanguageChanged"/> 的订阅句柄。
+    /// <para>Dispose 幂等；处理器关服时由框架统一作废，此后 Dispose 只是空操作。</para>
+    /// </summary>
+    public sealed class LanguageChangeSubscription : IDisposable
+    {
+        internal static readonly LanguageChangeSubscription Completed = new LanguageChangeSubscription();
+
+        private LocalizationServiceHandler _handler;
+        private Action<Language> _callback;
+
+        internal Action<Language> Callback => _callback;
+
+        private LanguageChangeSubscription()
+        {
+        }
+
+        internal LanguageChangeSubscription(LocalizationServiceHandler handler, Action<Language> callback)
+        {
+            _handler = handler;
+            _callback = callback;
+        }
+
+        /// <summary>是否仍在订阅表中（未 Dispose 且处理器未关服）。</summary>
+        public bool IsSubscribed => _handler != null;
+
+        internal void Invalidate()
+        {
+            _handler = null;
+            _callback = null;
+        }
+
+        public void Dispose()
+        {
+            var handler = _handler;
+            if (handler == null) return;
+
+            Invalidate();
+            handler.Unsubscribe(this);
         }
     }
 }

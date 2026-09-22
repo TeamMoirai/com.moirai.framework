@@ -340,11 +340,11 @@ namespace Service.Localization
             {
                 ["ui.title"] = new List<string> { "Title" },
             };
-            LogAssert.Expect(LogType.Error, new Regex("has 1 language columns, but 2 languages are registered"));
+            LogAssert.Expect(LogType.Error, new Regex("column count that mismatches the 2 declared languages"));
 
             Assert.AreEqual("ui.title", _handler.GetTextFromId("ui.title"));
             Assert.AreEqual(0, _handler.LanguageCount);
-            Assert.AreEqual(0, _handler.TotalTextLength, "半损坏数据不得留下可读的规模统计");
+            Assert.AreEqual(0, _handler.ResidentChars, "半损坏数据不得留下可读的规模统计");
         }
 
         [Test]
@@ -362,7 +362,7 @@ namespace Service.Localization
             Assert.AreEqual(0, _handler.EntryCount);
             Assert.AreEqual(-1, _handler.CurrentLanguageIndex);
             Assert.AreEqual(0, _handler.FallbackChain.Count);
-            Assert.AreEqual(0, _handler.TotalTextLength);
+            Assert.AreEqual(0, _handler.ResidentChars);
         }
 
         [Test]
@@ -372,7 +372,246 @@ namespace Service.Localization
 
             Assert.AreEqual(1, _handler.EntryCount);
             Assert.AreEqual(2, _handler.LanguageCount);
-            Assert.AreEqual("Title".Length + "标题".Length, _handler.TotalTextLength);
+            Assert.AreEqual("Title".Length + "标题".Length, _handler.ResidentChars);
+        }
+
+        #endregion
+
+        #region 运行时覆盖 [OVERLAY]
+
+        [Test]
+        public void Overlay_WinsOverTableText()
+        {
+            LoadStrings("ui.title", "Title", "标题");
+            _handler.ChangeLanguage(English);
+
+            Assert.AreEqual(1, _handler.SetStringOverlay("remote-ops", English,
+                new[] { new KeyValuePair<string, string>("ui.title", "Title!") }));
+            Assert.AreEqual("Title!", _handler.GetTextFromId("ui.title"));
+        }
+
+        [Test]
+        public void Overlay_IsPerLanguageAndAppliesOnFallbackStepToo()
+        {
+            LoadStrings("ui.title", "Title", null);
+            _handler.ChangeLanguage(Chinese);
+
+            // 覆盖英语列：中文缺译回退到英语时，拿到的也必须是覆盖后的那版
+            _handler.SetStringOverlay("remote-ops", English, new[] { new KeyValuePair<string, string>("ui.title", "Title!") });
+            Assert.AreEqual("Title!", _handler.GetTextFromId("ui.title"));
+
+            // 覆盖只落在被指定的语言上，不越界污染另一列
+            _handler.SetStringOverlay("qa-force", Chinese, new[] { new KeyValuePair<string, string>("ui.title", "标题QA") });
+            Assert.AreEqual("标题QA", _handler.GetTextFromId("ui.title"));
+        }
+
+        [Test]
+        public void Overlay_EmptyValueIsNotAnOverride()
+        {
+            LoadStrings("ui.title", "Title", "标题");
+            _handler.ChangeLanguage(English);
+
+            _handler.SetStringOverlay("remote-ops", English, new[] { new KeyValuePair<string, string>("ui.title", "   ") });
+
+            Assert.AreEqual("Title", _handler.GetTextFromId("ui.title"));
+        }
+
+        [Test]
+        public void Overlay_ClearBySource_LeavesOtherSourcesAlone()
+        {
+            LoadStrings("ui.title", "Title", "标题");
+            _handler.ChangeLanguage(English);
+            _handler.SetStringOverlay("remote-ops", English, new[] { new KeyValuePair<string, string>("ui.title", "A") });
+            _handler.SetStringOverlay("qa-force", English, new[] { new KeyValuePair<string, string>("ui.title", "B") });
+
+            // 后注册的一层优先
+            Assert.AreEqual("B", _handler.GetTextFromId("ui.title"));
+            Assert.AreEqual(2, _handler.StringOverlayLayerCount);
+
+            Assert.IsTrue(_handler.ClearStringOverlay("qa-force"));
+            Assert.AreEqual("A", _handler.GetTextFromId("ui.title"));
+            Assert.IsFalse(_handler.ClearStringOverlay("qa-force"));
+
+            _handler.ClearAllStringOverlays();
+            Assert.AreEqual("Title", _handler.GetTextFromId("ui.title"));
+            Assert.AreEqual(0, _handler.StringOverlayLayerCount);
+        }
+
+        [Test]
+        public void Overlay_RejectsLanguageAbsentFromBatch()
+        {
+            LoadStrings("ui.title", "Title", "标题");
+
+            Assert.AreEqual(-1, _handler.SetStringOverlay("remote-ops", Japanese,
+                new[] { new KeyValuePair<string, string>("ui.title", "X") }));
+            Assert.AreEqual(0, _handler.StringOverlayLayerCount);
+        }
+
+        [Test]
+        public void Overlay_DoesNotOutliveShutdown()
+        {
+            LoadStrings("ui.title", "Title", "标题");
+            _handler.ChangeLanguage(English);
+            _handler.SetStringOverlay("remote-ops", English, new[] { new KeyValuePair<string, string>("ui.title", "Title!") });
+            Assert.AreEqual("Title!", _handler.GetTextFromId("ui.title"));
+
+            _handler.Internal_Shutdown();
+            _handler.Internal_Init();
+
+            // 关服后热改内容不得串进下一次会话（此时数据源仍是同一批，只有覆盖层被丢弃）
+            Assert.AreEqual(0, _handler.StringOverlayLayerCount);
+            Assert.AreEqual("Title", _handler.GetTextFromId("ui.title"));
+        }
+
+        #endregion
+
+        #region 不装箱格式化 [TYPED FORMAT]
+
+        [Test]
+        public void TypedOverloads_FormatByArity()
+        {
+            // 一批四键：批只会被加载一次（后改数据源不会生效，要重取得 Shutdown+Init），
+            // 所以四种 arity 必须落在同一批数据上验
+            _handler.Languages = new List<Language> { English, Chinese };
+            _handler.Strings = new Dictionary<string, List<string>>
+            {
+                ["fmt.a"] = new List<string> { "A:{0}", "甲:{0}" },
+                ["fmt.b"] = new List<string> { "B:{0}/{1}", null },
+                ["fmt.c"] = new List<string> { "C:{0}/{1}/{2}", null },
+                ["fmt.d"] = new List<string> { "D:{0}/{1}/{2}/{3}", null },
+            };
+            _handler.ChangeLanguage(English);
+
+            Assert.AreEqual("A:1", _handler.GetTextFromId("fmt.a", 1));
+            Assert.AreEqual("B:1/2", _handler.GetTextFromId("fmt.b", 1, 2));
+            Assert.AreEqual("C:1/2/3", _handler.GetTextFromId("fmt.c", 1, 2, 3));
+            Assert.AreEqual("D:1/2/3/4", _handler.GetTextFromId("fmt.d", 1, 2, 3, 4));
+            Assert.AreEqual("甲:7", _handler.GetTextFromIdLanguage("fmt.a", Chinese, 7));
+        }
+
+        [Test]
+        public void TypedOverloads_MissingKeyReturnsKey_AndBadPlaceholderDoesNotThrow()
+        {
+            LoadStrings("fmt.a", "A:{0} and {1}", null);
+            _handler.ChangeLanguage(English);
+            LogAssert.Expect(LogType.Error, new Regex("invalid placeholders for 1 argument"));
+
+            Assert.AreEqual("A:{0} and {1}", _handler.GetTextFromId("fmt.a", 1));
+            Assert.AreEqual("nope", _handler.GetTextFromId<int>("nope", 1));
+        }
+
+        [Test]
+        public void TypedOverloads_ResolveFallbackChainToo()
+        {
+            LoadStrings("fmt.a", "A:{0}", null);
+            _handler.ChangeLanguage(Chinese);
+
+            Assert.AreEqual("A:7", _handler.GetTextFromId("fmt.a", 7));
+        }
+
+        #endregion
+
+        #region 句柄订阅 [SUBSCRIPTION]
+
+        [Test]
+        public void SubscribeLanguageChanged_FiresWithEvent_AndStopsOnDispose()
+        {
+            LoadStrings("ui.title", "Title", "标题");
+            var target = OtherLoadedLanguage();   // 先把首启那一轮切换走完再挂订阅，否则派发计数里混着首启那次
+            var order = new List<string>();
+            var handle = _handler.SubscribeLanguageChanged(language => order.Add("Handle"));
+            _handler.OnLanguageChanged += language => order.Add("Event");
+
+            _handler.ChangeLanguage(target);
+            CollectionAssert.AreEquivalent(new[] { "Event", "Handle" }, order, "静态事件与句柄订阅应在同一次派发里各命中一次");
+
+            order.Clear();
+            handle.Dispose();
+            _handler.ChangeLanguage(OtherLoadedLanguage());
+            CollectionAssert.AreEqual(new[] { "Event" }, order);
+        }
+
+        [Test]
+        public void SubscribeLanguageChanged_InvalidatedOnShutdown()
+        {
+            LoadStrings("ui.title", "Title", "标题");
+            var subscription = (LanguageChangeSubscription)_handler.SubscribeLanguageChanged(_ => { });
+
+            Assert.IsTrue(subscription.IsSubscribed);
+            _handler.Internal_Shutdown();
+            Assert.IsFalse(subscription.IsSubscribed);
+
+            // 作废之后再 Dispose 只是空操作，不该抛也不该碰到已释放的表
+            Assert.DoesNotThrow(() => subscription.Dispose());
+        }
+
+        [Test]
+        public void SubscribeLanguageChanged_ThrowingSubscriberDoesNotBlockOthers()
+        {
+            LoadStrings("ui.title", "Title", "标题");
+            var target = OtherLoadedLanguage();   // 先走完首启那一轮，否则一次派发会算成两次
+            var second = new List<string>();
+            LogAssert.Expect(LogType.Error, new Regex("probe subscriber failed"));
+
+            _handler.SubscribeLanguageChanged(_ => throw new InvalidOperationException("probe subscriber failed"));
+            _handler.SubscribeLanguageChanged(language => second.Add(language.Name));
+
+            _handler.ChangeLanguage(target);
+
+            Assert.AreEqual(1, second.Count, "抛出异常的订阅者不得挡掉同一次派发里的其余订阅者");
+        }
+
+        #endregion
+
+        #region 数据交付契约 [BATCH CONTRACT]
+
+        [Test]
+        public void Batch_DefinesColumnOrder_NotTheGlobalLanguageRegistry()
+        {
+            // 语言头随批自报：列序与注册先后无关，也不必再靠"先取词条才会填注册表"的求值顺序
+            _handler.Languages = new List<Language> { Chinese, English };
+            _handler.Strings = new Dictionary<string, List<string>>
+            {
+                ["ui.title"] = new List<string> { "标题", "Title" },
+            };
+            _handler.ChangeLanguage(English);
+
+            Assert.AreEqual(1, _handler.CurrentLanguageIndex);
+            Assert.AreEqual("Title", _handler.GetTextFromId("ui.title"));
+        }
+
+        [Test]
+        public void Store_RejectsBadBatchAndKeepsLastGoodSnapshot()
+        {
+            var store = new LocalizationStore();
+            var good = new LocalizationTextBatch(new[] { English },
+                new Dictionary<string, List<string>> { ["k"] = new List<string> { "T" } }, "test");
+            Assert.IsTrue(store.TryApply(good, out _));
+
+            var bad = new LocalizationTextBatch(new[] { English, Chinese },
+                new Dictionary<string, List<string>> { ["k"] = new List<string> { "T" } }, "test");
+
+            Assert.IsFalse(store.TryApply(bad, out var rejectedKey));
+            Assert.AreEqual("k", rejectedKey);
+            // 换批失败不该把本来能显示的文案一起抹掉
+            Assert.AreEqual(1, store.EntryCount);
+            Assert.AreEqual(1, store.LanguageCount);
+            Assert.AreEqual("T", store.Resolve("k", English, 0, null, null));
+        }
+
+        [Test]
+        public void Store_ReportsResidentCharsAndRejectsEmptyBatch()
+        {
+            var store = new LocalizationStore();
+
+            Assert.IsFalse(store.TryApply(LocalizationTextBatch.Empty, out _));
+            Assert.AreEqual(0, store.EntryCount);
+
+            var batch = new LocalizationTextBatch(new[] { English, Chinese },
+                new Dictionary<string, List<string>> { ["k"] = new List<string> { "Title", "标题" } }, "test");
+            Assert.IsTrue(store.TryApply(batch, out _));
+            Assert.AreEqual("Title".Length + "标题".Length, batch.ResidentChars);
+            Assert.AreEqual("test", batch.SourceId);
         }
 
         #endregion

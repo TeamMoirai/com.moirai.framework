@@ -140,7 +140,57 @@ IEnumerator routine = translator.TranslateAsync(request,
 - In `ToLanguage(str, onlySupported)`, when `onlySupported` is `true`, unregistered languages fall back to the default language English (`LocalizationService.defaultLanguage`); use `TryGetBuiltInLanguage` to tell "typo" apart from "I do want the default"
 - In the editor's non-play mode, `TextLocalizer.ChangeID` / `ImageLocalizer.ChangeID` directly return `false` (Timeline preview pending implementation), and `LocalizationService.Localize` also returns the input as-is
 - The arrays of `ImageLocalizer` / `AudioLocalizer` are injected by language index; after adding a new language to the config table, array elements must be supplemented accordingly
-- All language columns stay resident in memory. Don't guess whether it is time to split packs per language: read the "DATA FOOTPRINT" section of the in-game debugger (`Profiler/Localization`) — entry count, language count and total text length (a lower bound on the resident size) — or `LocalizationService.EntryCount` / `LoadedLanguageCount` / `TotalTextLength`
+- All language columns stay resident in memory. Don't guess whether it is time to split packs per language: read the "DATA FOOTPRINT" section of the in-game debugger (`Profiler/Localization`) — entry count, language count and total text length (a lower bound on the resident size) — or `LocalizationService.EntryCount` / `LoadedLanguageCount` / `ResidentChars`
+
+## Runtime Overlay (live text patching)
+
+Override entries for one language without touching the table or shipping a new build (ops fixing a mistranslation, QA forcing a string, remote patch):
+
+```csharp
+LocalizationService.SetStringOverlay("remote-ops", Language.English, new[]
+{
+    new KeyValuePair<string, string>("UI.Shop.Title", "Market"),
+});
+LocalizationService.ClearStringOverlay("remote-ops");   // drops this source only
+```
+
+- Additive: only the given keys of the given language are replaced, everything else still comes from the table; an empty/whitespace value means "not an override"
+- The overlay participates in **every** language attempt, fallback included — patching English also changes what a missing French entry resolves to via the fallback chain
+- The same `sourceId` is the same layer, and the last registered layer wins; layer count and sources show up in the debugger panel
+- An overlay never survives a service shutdown, and is not cleared by a table reload — it sits on top of the table data rather than replacing it
+
+## Editor Preview (no Play required)
+
+`TextLocalizer` / `ImageLocalizer` / `AudioLocalizer` show a "Preview" row under the ID field in the inspector, fed by the config table's **direct editor read** (`ConfigTableServiceHandler.GetLocalizedStringsForEditorPreview`) — no resource system, no play mode:
+
+- Text localizers show the resolved translation, or "no such ID in table"
+- Image/audio localizers show the preview language, the array index that would be used and what sits at it (`missing` / `null reference` / asset name) — which is exactly how "the arrays were not extended after adding a language" gets caught before runtime
+- Language is the inspector's editor language; when unset or not shipped it falls back to the English column, then the first one
+- The preview is **not** written back into the target component (no dirty scenes, no forgotten restores) and deliberately skips the fallback chain: a blank cell showing its ID in the editor is information for the designer
+- Cache invalidates when the editor language changes; call `LocalizationService.InvalidateEditorPreview()` after a re-export
+
+## Formatted Queries (boxing-free path)
+
+```csharp
+string price = LocalizationService.GetTextFromId("UI.Common.CreditPrice", 120);            // one arg
+string line  = LocalizationService.GetTextFromId("Log.Buy.Confirmed", item, count, total);  // three args
+```
+
+- Arity 1–4 have dedicated overloads backed by `StringUtility.Format<T…>`: with ZString installed (`ZSTRING_INSTALLED`) they allocate no `object[]` and box no value types
+- Without ZString, `StringUtility` falls back to `StringBuilder.AppendFormat`, **which still boxes** — "boxing-free" is conditional on ZString being installed
+- Beyond four arguments use `GetTextFromId(id, params object[])` and consider splitting that entry into two keys
+- A malformed placeholder in the table degrades to the unformatted source text and logs one Error instead of throwing out of the query
+
+## Handle-based Language Subscription
+
+```csharp
+private IDisposable _subscription;
+
+private void OnEnable() => _subscription = LocalizationService.SubscribeLanguageChanged(Refresh);
+private void OnDisable() => _subscription?.Dispose();
+```
+
+Dispatched in the same pass as the static `OnLanguageChanged` (same ordering contract: after every Localizer has been re-injected), but `Dispose` removes it immediately and **a service shutdown invalidates every handle** — the static event path has no such cleanup, so a forgotten `-=` keeps firing across shutdowns and sessions.
 
 ---
 [« Documentation Index](Index.md) · [Main README](../../README_EN.md) · [ConfigTable](ConfigTable.md)

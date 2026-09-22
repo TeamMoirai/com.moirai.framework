@@ -37,6 +37,17 @@ namespace Moirai.Atropos.Localization
 
 		internal override void Localize() => Apply(m_TextId);
 
+#if UNITY_EDITOR
+		internal override string GetPreviewDescriptor()
+		{
+			if (string.IsNullOrEmpty(m_TextId)) return null;
+
+			return LocalizationService.EditorPreviewHasText(m_TextId)
+				? LocalizationService.ResolveForEditorPreview(m_TextId)
+				: $"<{m_TextId}> 表内无此 ID";
+		}
+#endif
+
 		public bool ChangeID(string textId)
 		{
 			if (string.IsNullOrEmpty(textId)) return false;
@@ -53,13 +64,11 @@ namespace Moirai.Atropos.Localization
 			if (string.IsNullOrEmpty(textId)) return false;
 
 #if UNITY_EDITOR
-			// Timeline 预览
+			// 非播放态不把译文写回目标组件（会标脏场景并留下"忘了还原"的错文案）；
+			// 编辑器预览改由 Inspector 侧的 LocalizerPreviewEditor 出字，Timeline 预览另议。
 			if (!Application.isPlaying)
 			{
 				return false;
-				// todo 编辑器预览
-				// GameApp.Localization.LoadInEditor();
-				// Prepare();
 			}
 #endif
 

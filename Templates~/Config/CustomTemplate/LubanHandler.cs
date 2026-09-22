@@ -33,6 +33,8 @@ namespace GameProto.Config
         #region 处理多语言 [LOCALIZATION]
 
         private Dictionary<string, List<string>> _allLocalizedStrings;
+        private string[] _localizationLanguageCodes;
+
         public override Dictionary<string, List<string>> GetAllLocalizedStrings()
         {
             if (_allLocalizedStrings == null)
@@ -41,6 +43,20 @@ namespace GameProto.Config
             }
 
             return _allLocalizedStrings;
+        }
+
+        /// <summary>
+        /// 自报本表提供的语言：顺序即 <see cref="GetAllLocalizedStrings"/> 里每条形文本的列顺序。
+        /// <para>框架据此校验列数并解析缺译回退链，不再依赖「向全局注册表注册语言」这一副作用。</para>
+        /// </summary>
+        public override IReadOnlyList<string> GetLocalizationLanguageCodes()
+        {
+            if (_localizationLanguageCodes == null)
+            {
+                ResolveLocalization();
+            }
+
+            return _localizationLanguageCodes ?? Array.Empty<string>();
         }
 
         /// <summary>

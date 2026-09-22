@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using Moirai.Atropos.ConfigTable;
 using Moirai.Atropos.Debugger;
 using UnityEngine;
 
@@ -13,8 +12,7 @@ namespace Moirai.Atropos.Localization
     /// <para>降级契约：全部外观 API 经 <c>s_Handler?.</c> 静默降级（未注册/未初始化时返回安全默认值），与全框架统一。</para>
     /// <para>Handler 属性由 <c>HandlerHostGenerator</c> 源生成器自动生成（线程安全懒加载）。</para>
     /// </summary>
-    [AutoRegisterService]
-    [ServiceDependency(typeof(DebuggerService), typeof(ConfigTableService))]
+    [ServiceDependency(typeof(DebuggerService))]
     [HandlerHost(typeof(LocalizationServiceHandler))]
     public partial class LocalizationService : ServiceBase
     {
@@ -45,9 +43,6 @@ namespace Moirai.Atropos.Localization
         /// <para>确保 <c>LocalizationService.Handler</c> 已赋值（触发 <c>Handler</c> 懒加载），
         /// 订阅处理器语言变更事件用于静态事件转发，
         /// 并向游戏内调试器注册调试面板（依赖组合根先注册 <see cref="DebuggerService"/>——外观未就绪时静默跳过）。</para>
-        /// <para>依赖 <see cref="ConfigTableService"/>：默认数据源（<see cref="ConfigTableLocalizationHandler"/>）
-        /// 从配置表读取语言列表与字符串字典，处理器懒加载即可能触发首次读表——该依赖必须显式声明，
-        /// 否则初始化序会退化为注册序（历史故障：本地化先于配置表/资源服务初始化，首次读表失败）。</para>
         /// </summary>
         public override void OnInit()
         {
@@ -103,7 +98,10 @@ namespace Moirai.Atropos.Localization
         /// </summary>
         /// <remarks>UTF-16 每字符 2 字节，不含字符串对象头与字典开销。
         /// 用于判断是否已到必须按语言拆包加载的量级。</remarks>
-        public static int TotalTextLength => s_Handler?.TotalTextLength ?? 0;
+        public static long ResidentChars => s_Handler?.ResidentChars ?? 0;
+
+        /// <summary>已登记的运行时覆盖层数量。</summary>
+        public static int StringOverlayLayerCount => s_Handler?.StringOverlayLayerCount ?? 0;
 
         #endregion
 
@@ -215,6 +213,24 @@ namespace Moirai.Atropos.Localization
             s_Handler?.GetTextFromId(id, p) ?? id;
 
         /// <summary>
+        /// 根据文本 ID 获取带一个格式化参数的本地化字符串（不装箱路径，见处理器同名重载的说明）。
+        /// </summary>
+        public static string GetTextFromId<T1>(string id, T1 arg1) =>
+            s_Handler?.GetTextFromId(id, arg1) ?? id;
+
+        /// <summary>根据文本 ID 获取带两个格式化参数的本地化字符串（不装箱路径，见 <see cref="GetTextFromId{T1}(string,T1)"/>）。</summary>
+        public static string GetTextFromId<T1, T2>(string id, T1 arg1, T2 arg2) =>
+            s_Handler?.GetTextFromId(id, arg1, arg2) ?? id;
+
+        /// <summary>根据文本 ID 获取带三个格式化参数的本地化字符串（不装箱路径，见 <see cref="GetTextFromId{T1}(string,T1)"/>）。</summary>
+        public static string GetTextFromId<T1, T2, T3>(string id, T1 arg1, T2 arg2, T3 arg3) =>
+            s_Handler?.GetTextFromId(id, arg1, arg2, arg3) ?? id;
+
+        /// <summary>根据文本 ID 获取带四个格式化参数的本地化字符串（不装箱路径，见 <see cref="GetTextFromId{T1}(string,T1)"/>）。</summary>
+        public static string GetTextFromId<T1, T2, T3, T4>(string id, T1 arg1, T2 arg2, T3 arg3, T4 arg4) =>
+            s_Handler?.GetTextFromId(id, arg1, arg2, arg3, arg4) ?? id;
+
+        /// <summary>
         /// 根据文本 ID 和指定语言获取本地化字符串（未就绪时返回 id 原文）。
         /// </summary>
         /// <param name="id">文本 ID</param>
@@ -247,6 +263,35 @@ namespace Moirai.Atropos.Localization
         /// 移除本地化器。
         /// </summary>
         public static void RemoveLocalizer(LocalizerBase localizer) => s_Handler?.RemoveLocalizer(localizer);
+
+        #endregion
+
+        #region 订阅与运行时覆盖 [SUBSCRIPTION & OVERLAY]
+
+        /// <summary>
+        /// 以句柄订阅语言变更（与 <see cref="OnLanguageChanged"/> 同一次派发，但 Dispose 即摘除、关服自动作废）。
+        /// </summary>
+        /// <returns>订阅句柄；服务未就绪时返回一个立即可 Dispose 的空句柄。</returns>
+        public static IDisposable SubscribeLanguageChanged(Action<Language> callback) =>
+            s_Handler?.SubscribeLanguageChanged(callback) ?? LanguageChangeSubscription.Completed;
+
+        /// <summary>
+        /// 覆盖指定语言下的一批词条（运营热改文案、QA 强改、远程补丁走同一条路）。
+        /// <para>叠加语义：未覆盖的词条仍取批内译文，空/仅空白值等同于不覆盖；
+        /// 覆盖层不跨服务关闭存活。</para>
+        /// </summary>
+        /// <param name="sourceId">来源标识（诊断用，同名即同一层）。</param>
+        /// <param name="language">被覆盖的语言。</param>
+        /// <param name="entries">key → 新译文。</param>
+        /// <returns>该层累计覆盖条数；服务未就绪、参数不合法或语言未收录时为 -1。</returns>
+        public static int SetStringOverlay(string sourceId, Language language, IEnumerable<KeyValuePair<string, string>> entries) =>
+            s_Handler?.SetStringOverlay(sourceId, language, entries) ?? -1;
+
+        /// <summary>撤掉某个来源的全部覆盖（未就绪时为 false）。</summary>
+        public static bool ClearStringOverlay(string sourceId) => s_Handler?.ClearStringOverlay(sourceId) ?? false;
+
+        /// <summary>撤掉全部覆盖层。</summary>
+        public static void ClearAllStringOverlays() => s_Handler?.ClearAllStringOverlays();
 
         #endregion
     }

@@ -12,14 +12,34 @@ namespace Moirai.Atropos.Localization
     internal class ConfigTableLocalizationHandler : LocalizationServiceHandler
     {
         /// <summary>
-        /// 从配置表加载本地化数据源。
+        /// 从配置表加载一批词条：语言由表自报，列序即自报顺序。
         /// </summary>
-        protected override (List<Language> languages, Dictionary<string, List<string>> strings) LoadLocalizedData()
+        internal override LocalizationTextBatch LoadLocalizedTextBatch()
         {
-            // 必须先取多语言字符串：数据源（如 LubanHandler）在首次解析字符串时才注册可用语言，
-            // 元组字面量从左到右求值，若先取语言列表会捕获到空集合。
             var strings = ConfigTableService.GetAllLocalizedStrings();
-            return (LocalizationService.GetAllAvailableLanguages(), strings);
+            var languages = ResolveLanguages(ConfigTableService.GetLocalizationLanguageCodes());
+            return new LocalizationTextBatch(languages, strings, "config-table");
+        }
+
+        /// <summary>
+        /// 优先采用配置表自报的语言；自报缺失或全部认不出（例如项目自定义语言不在内置表里）时
+        /// 回落到全局语言注册表，保持存量处理器的行为。
+        /// </summary>
+        private static List<Language> ResolveLanguages(IReadOnlyList<string> codes)
+        {
+            if (codes == null || codes.Count == 0) return LocalizationService.GetAllAvailableLanguages();
+
+            var languages = new List<Language>(codes.Count);
+            for (var i = 0; i < codes.Count; i++)
+            {
+                if (LocalizationService.TryGetBuiltInLanguage(codes[i], out var language) && !languages.Contains(language))
+                {
+                    languages.Add(language);
+                }
+            }
+
+            // 认不出的 Code 不静默丢弃后凑出个短列——交给处理器的列数校验，让它在加载期就响
+            return languages.Count > 0 ? languages : LocalizationService.GetAllAvailableLanguages();
         }
     }
 }
