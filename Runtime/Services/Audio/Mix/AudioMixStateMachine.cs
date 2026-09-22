@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Reflection;
 using UnityEngine;
 using UnityEngine.Audio;
 
@@ -69,8 +68,6 @@ namespace Moirai.Atropos.Audio
         [SerializeField] private float m_DefaultBlendSeconds = 0.35f;
 
         private EMixSnapshot _current = EMixSnapshot.Default;
-        private static System.Reflection.FieldInfo s_SnapshotsField;
-        private static bool s_SnapshotsFieldResolved;
         private float _currentPriority;
         private Action<EMixSnapshot, float> _middlewareTransition;
 
@@ -96,7 +93,7 @@ namespace Moirai.Atropos.Audio
             for (int i = 0; i < states.Length; i++)
             {
                 string name = states[i].ToString();
-                // AudioMixer.FindMatchingGroups 不找 Snapshot；引用经 TryBindSnapshotsByName 反射补齐
+                // AudioMixer.FindMatchingGroups 不找 Snapshot；引用经 TryBindSnapshotsByName 按名补齐
                 list.Add(new SnapshotEntry
                 {
                     State = states[i],
@@ -109,78 +106,13 @@ namespace Moirai.Atropos.Audio
         }
 
         /// <summary>
-        /// 在 Snapshot 名列表中按状态名求索引（纯逻辑，便于单测）。
-        /// <para>精确序数匹配优先；未命中再忽略大小写。未命中返回 -1。</para>
+        /// 按状态名向 Mixer 求 Snapshot（Unity 公开的 <c>AudioMixer.FindSnapshot</c>，名字须精确匹配）。
+        /// <para>不做忽略大小写：忽略大小写要先能枚举 Snapshot，而 Unity 没有公开枚举接口——
+        /// <c>m_Snapshots</c> 只存在于编辑器侧的 AudioMixerController，运行时 AudioMixer 上没有这个字段，
+        /// 反射与 SerializedObject 两条回退都取不到东西。</para>
         /// </summary>
-        internal static int ResolveSnapshotIndex(string[] snapshotNames, EMixSnapshot state)
-        {
-            if (snapshotNames == null || snapshotNames.Length == 0) return -1;
-
-            string name = state.ToString();
-            int ignoreCase = -1;
-            for (int i = 0; i < snapshotNames.Length; i++)
-            {
-                string candidate = snapshotNames[i];
-                if (string.IsNullOrEmpty(candidate)) continue;
-                if (string.Equals(candidate, name, StringComparison.Ordinal)) return i;
-                if (ignoreCase < 0 && string.Equals(candidate, name, StringComparison.OrdinalIgnoreCase))
-                {
-                    ignoreCase = i;
-                }
-            }
-
-            return ignoreCase;
-        }
-
-        /// <summary>
-        /// 读取 AudioMixer 内全部 Snapshot（反射 <c>m_Snapshots</c>；编辑器下 SerializedObject 回退）。
-        /// </summary>
-        /// <remarks>返回**副本**：反射拿到的是 Mixer 内部的活数组，调用方一次写入就会改坏资产侧的快照表。
-        /// <c>FieldInfo</c> 只解析一次，避免每次绑定都走一遍反射查询。</remarks>
-        internal static AudioMixerSnapshot[] CollectMixerSnapshots(AudioMixer mixer)
-        {
-            if (mixer == null) return Array.Empty<AudioMixerSnapshot>();
-
-            if (!s_SnapshotsFieldResolved)
-            {
-                s_SnapshotsField = typeof(AudioMixer).GetField("m_Snapshots",
-                    BindingFlags.NonPublic | BindingFlags.Instance);
-                s_SnapshotsFieldResolved = true;
-            }
-
-            if (s_SnapshotsField != null && s_SnapshotsField.GetValue(mixer) is AudioMixerSnapshot[] reflected && reflected.Length > 0)
-            {
-                return (AudioMixerSnapshot[])reflected.Clone();
-            }
-
-#if UNITY_EDITOR
-            var so = new UnityEditor.SerializedObject(mixer);
-            var prop = so.FindProperty("m_Snapshots");
-            if (prop != null && prop.isArray && prop.arraySize > 0)
-            {
-                var list = new List<AudioMixerSnapshot>(prop.arraySize);
-                for (int i = 0; i < prop.arraySize; i++)
-                {
-                    if (prop.GetArrayElementAtIndex(i).objectReferenceValue is AudioMixerSnapshot snap)
-                    {
-                        list.Add(snap);
-                    }
-                }
-
-                if (list.Count > 0) return list.ToArray();
-            }
-#else
-            // 只有编辑器路径能兜住反射失败：真机上字段改名会静默变成"一个都绑不上"，必须留话
-            if (s_SnapshotsField == null)
-            {
-                AudioWarnOnce.Error("mix.snapshots-field-missing",
-                    "[AudioMix] 反射 AudioMixer.m_Snapshots 失败（Unity 内部字段可能已改名），按名自动绑定不可用；" +
-                    "请在 AudioServiceSettings.MixSnapshots 里手工映射。");
-            }
-#endif
-
-            return Array.Empty<AudioMixerSnapshot>();
-        }
+        internal static AudioMixerSnapshot FindMixerSnapshot(AudioMixer mixer, EMixSnapshot state)
+            => mixer != null ? mixer.FindSnapshot(state.ToString()) : null;
 
         /// <summary>
         /// 按 Snapshot 名与 <see cref="EMixSnapshot"/> 自动绑定（一键绑定）。
@@ -192,19 +124,6 @@ namespace Moirai.Atropos.Audio
             if (mixer == null) return 0;
             m_Mixer = mixer;
 
-            var snapshots = CollectMixerSnapshots(mixer);
-            if (snapshots.Length == 0)
-            {
-                WarnUnboundAfterAutoBind();
-                return 0;
-            }
-
-            var names = new string[snapshots.Length];
-            for (int i = 0; i < snapshots.Length; i++)
-            {
-                names[i] = snapshots[i] != null ? snapshots[i].name : null;
-            }
-
             var states = (EMixSnapshot[])Enum.GetValues(typeof(EMixSnapshot));
             int bound = 0;
             for (int s = 0; s < states.Length; s++)
@@ -213,10 +132,10 @@ namespace Moirai.Atropos.Audio
                 // 手工映射（Settings 非空 Snapshot）优先，不覆盖
                 if (FindSnapshot(state) != null) continue;
 
-                int index = ResolveSnapshotIndex(names, state);
-                if (index < 0 || snapshots[index] == null) continue;
+                var snapshot = FindMixerSnapshot(mixer, state);
+                if (snapshot == null) continue;
 
-                SetSnapshot(state, snapshots[index]);
+                SetSnapshot(state, snapshot);
                 bound++;
             }
 

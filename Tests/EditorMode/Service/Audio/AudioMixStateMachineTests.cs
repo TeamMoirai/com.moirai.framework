@@ -145,44 +145,10 @@ namespace Service.Audio
             Assert.AreEqual(0.1f, blend, 0.0001f, "交叉淡变时长应透传给中间件");
         }
 
-        #region 自动绑定命名 [AUTO BIND NAMING]
+        #region 自动绑定 [AUTO BIND]
 
-        [Test]
-        public void ResolveSnapshotIndex_ExactOrdinalName_Matches()
-        {
-            var names = new[] { "Default", "Paused", "Dialogue", "Cinematic", "Muffled", "LowHealth" };
-
-            Assert.AreEqual(0, AudioMixStateMachine.ResolveSnapshotIndex(names, EMixSnapshot.Default));
-            Assert.AreEqual(2, AudioMixStateMachine.ResolveSnapshotIndex(names, EMixSnapshot.Dialogue));
-            Assert.AreEqual(5, AudioMixStateMachine.ResolveSnapshotIndex(names, EMixSnapshot.LowHealth));
-        }
-
-        [Test]
-        public void ResolveSnapshotIndex_IgnoreCase_FallbackMatches()
-        {
-            var names = new[] { "default", "PAUSED", "dialogue" };
-
-            Assert.AreEqual(0, AudioMixStateMachine.ResolveSnapshotIndex(names, EMixSnapshot.Default));
-            Assert.AreEqual(1, AudioMixStateMachine.ResolveSnapshotIndex(names, EMixSnapshot.Paused));
-            Assert.AreEqual(2, AudioMixStateMachine.ResolveSnapshotIndex(names, EMixSnapshot.Dialogue));
-        }
-
-        [Test]
-        public void ResolveSnapshotIndex_ExactBeatsIgnoreCase()
-        {
-            var names = new[] { "DIALOGUE", "Dialogue" };
-
-            Assert.AreEqual(1, AudioMixStateMachine.ResolveSnapshotIndex(names, EMixSnapshot.Dialogue),
-                "精确序数命中应优先于忽略大小写命中");
-        }
-
-        [Test]
-        public void ResolveSnapshotIndex_MissingOrNullNames_ReturnsMinusOne()
-        {
-            Assert.AreEqual(-1, AudioMixStateMachine.ResolveSnapshotIndex(null, EMixSnapshot.Paused));
-            Assert.AreEqual(-1, AudioMixStateMachine.ResolveSnapshotIndex(System.Array.Empty<string>(), EMixSnapshot.Paused));
-            Assert.AreEqual(-1, AudioMixStateMachine.ResolveSnapshotIndex(new[] { "Other", null, "" }, EMixSnapshot.Paused));
-        }
+        // 名字匹配已交回 Unity 公开的 AudioMixer.FindSnapshot（本地既无 Snapshot 枚举接口，
+        // 也没有可注入的假 Mixer），故此处只保留空引用守卫这一格。
 
         [Test]
         public void TryBindSnapshotsByName_NullMixer_IsNoOp()
@@ -192,11 +158,11 @@ namespace Service.Audio
         }
 
         [Test]
-        public void CollectMixerSnapshots_NullMixer_ReturnsEmpty()
+        public void FindMixerSnapshot_NullMixer_ReturnsNull()
         {
-            Assert.IsEmpty(AudioMixStateMachine.CollectMixerSnapshots(null));
+            Assert.IsNull(AudioMixStateMachine.FindMixerSnapshot(null, EMixSnapshot.Dialogue));
         }
 
-        #endregion 自动绑定命名 [AUTO BIND NAMING]
+        #endregion 自动绑定 [AUTO BIND]
     }
 }

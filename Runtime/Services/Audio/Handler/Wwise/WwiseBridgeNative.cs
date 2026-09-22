@@ -30,10 +30,7 @@ namespace Moirai.Atropos.Audio.Wwise
         private readonly List<ulong> _finishedScratch = new List<ulong>(8);
         private readonly HashSet<ulong> _pausedInstances = new HashSet<ulong>();
 
-        /// <summary>已加载的 SoundBank（幂等门；键为调用方传入的 bankPath/bank 名）。</summary>
-        private readonly HashSet<string> _loadedBanks = new HashSet<string>(StringComparer.Ordinal);
-
-        /// <summary>bank 名 → Wwise bankID，卸载时用；与 <see cref="_loadedBanks"/> 同步维护。</summary>
+        /// <summary>bank 名 → Wwise bankID（键存在即已加载：幂等门兼卸载用 ID）。</summary>
         private readonly Dictionary<string, uint> _bankIds = new Dictionary<string, uint>(StringComparer.Ordinal);
 
         private ulong _nextHandle = 1UL;
@@ -69,7 +66,6 @@ namespace Moirai.Atropos.Audio.Wwise
             _handleToEmitter.Clear();
             _handleToPlayingId.Clear();
             _pausedInstances.Clear();
-            _loadedBanks.Clear();
             _bankIds.Clear();
 
             if (_emitterRoot != null)
@@ -178,15 +174,11 @@ namespace Moirai.Atropos.Audio.Wwise
         /// </remarks>
         public bool LoadBank(string bankPath)
         {
-            if (string.IsNullOrEmpty(bankPath) || !_loadedBanks.Add(bankPath)) return false;
+            if (string.IsNullOrEmpty(bankPath) || _bankIds.ContainsKey(bankPath)) return false;
 
             // 无 Wwise SDK 的机器无法编译核对；本段受 WWISE_INSTALLED 保护
             AKRESULT result = AkSoundEngine.LoadBank(bankPath, out uint bankId);
-            if (result != AKRESULT.AK_Success)
-            {
-                _loadedBanks.Remove(bankPath);
-                return false;
-            }
+            if (result != AKRESULT.AK_Success) return false;
 
             _bankIds[bankPath] = bankId;
             return true;
@@ -199,26 +191,20 @@ namespace Moirai.Atropos.Audio.Wwise
         /// </remarks>
         public bool UnloadBank(string bankPath)
         {
-            if (string.IsNullOrEmpty(bankPath) || !_loadedBanks.Contains(bankPath)) return false;
-
-            if (!_bankIds.TryGetValue(bankPath, out uint bankId))
-            {
-                _loadedBanks.Remove(bankPath);
-                return false;
-            }
+            if (string.IsNullOrEmpty(bankPath) || !_bankIds.TryGetValue(bankPath, out uint bankId)) return false;
 
             // 无 Wwise SDK 的机器无法编译核对；本段受 WWISE_INSTALLED 保护
             if (AkSoundEngine.UnloadBank(bankId, IntPtr.Zero) != AKRESULT.AK_Success) return false;
 
             _bankIds.Remove(bankPath);
-            _loadedBanks.Remove(bankPath);
             return true;
         }
 
         /// <inheritdoc />
         /// <remarks>
-        /// <paramref name="instanceId"/> 非 0 且能映射到池化发射体时，按 GameObject 作用域写 RTPC
-        /// （复用 <c>_handleToEmitter</c>）；否则写全局 RTPC。映射不到的已结束实例直接忽略。
+        /// <paramref name="instanceId"/> 非 0 时按 playingID 作用域写 RTPC，与 <c>PlayEvent</c>/
+        /// <c>SetInstanceVolume</c> 同一作用域——GameObject 域与 playingID 域在 Wwise 里是两份独立存储，
+        /// 混用会让事件侧读不到本接口写入的值。映射不到的已结束实例直接忽略。
         /// </remarks>
         public void SetRtpc(string name, float value, ulong instanceId)
         {
@@ -227,9 +213,9 @@ namespace Moirai.Atropos.Audio.Wwise
             if (instanceId != 0UL)
             {
                 // 无 Wwise SDK 的机器无法编译核对；本段受 WWISE_INSTALLED 保护
-                if (_handleToEmitter.TryGetValue(instanceId, out var emitter) && emitter != null)
+                if (_handleToPlayingId.TryGetValue(instanceId, out var playingId))
                 {
-                    AkSoundEngine.SetRTPCValue(name, value, emitter);
+                    AkSoundEngine.SetRTPCValue(name, value, playingId);
                 }
 
                 return;

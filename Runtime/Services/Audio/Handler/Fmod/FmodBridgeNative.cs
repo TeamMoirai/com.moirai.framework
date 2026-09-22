@@ -17,10 +17,7 @@ namespace Moirai.Atropos.Audio.Fmod
     /// </remarks>
     internal sealed class FmodBridgeNative : IAudioMiddlewareBridge, IAudioMiddlewareBankControl, IAudioMiddlewareRtpcControl
     {
-        /// <summary>已加载的 Studio bank（幂等门；键为调用方传入的 bankPath）。</summary>
-        private readonly HashSet<string> _loadedBanks = new HashSet<string>(StringComparer.Ordinal);
-
-        /// <summary>bankPath → 原生 Bank 句柄，卸载时用；与 <see cref="_loadedBanks"/> 同步维护。</summary>
+        /// <summary>bankPath → 原生 Bank 句柄（键存在即已加载：幂等门兼卸载用句柄）。</summary>
         private readonly Dictionary<string, FMOD.Studio.Bank> _bankHandles =
             new Dictionary<string, FMOD.Studio.Bank>(StringComparer.Ordinal);
 
@@ -39,7 +36,6 @@ namespace Moirai.Atropos.Audio.Fmod
             }
 
             _bankHandles.Clear();
-            _loadedBanks.Clear();
             FMODUnity.RuntimeManager.StudioSystem.flushCommands();
         }
 
@@ -128,31 +124,30 @@ namespace Moirai.Atropos.Audio.Fmod
 
         /// <inheritdoc />
         /// <remarks>
-        /// 形态像文件路径时走 <c>StudioSystem.loadBankFile</c>；短名走 <c>RuntimeManager.LoadBank</c>（StreamingAssets）。
+        /// 形态像文件路径时走 <c>StudioSystem.loadBankFile</c>；短名走 <c>RuntimeManager.LoadBank</c>（StreamingAssets，
+        /// <c>loadSamples: true</c>——与 PlayEvent 即发即用对齐，否则 sample 未载入时首播会静默失败）。
         /// 已加载或失败返回 false（幂等，二次加载不再触达 SDK）。
         /// </remarks>
         public bool LoadBank(string bankPath)
         {
-            if (string.IsNullOrEmpty(bankPath) || !_loadedBanks.Add(bankPath)) return false;
+            if (string.IsNullOrEmpty(bankPath) || _bankHandles.ContainsKey(bankPath)) return false;
 
+            bool ok;
             FMOD.Studio.Bank bank;
-            FMOD.RESULT result;
             if (IsPathLike(bankPath))
             {
-                result = FMODUnity.RuntimeManager.StudioSystem.loadBankFile(
+                var result = FMODUnity.RuntimeManager.StudioSystem.loadBankFile(
                     bankPath, FMOD.Studio.LOAD_BANK_FLAGS.NORMAL, out bank);
+                ok = result == FMOD.RESULT.OK && bank.isValid();
             }
             else
             {
-                bank = FMODUnity.RuntimeManager.LoadBank(bankPath, false);
-                result = bank.isValid() ? FMOD.RESULT.OK : FMOD.RESULT.ERR_EVENT_NOTFOUND;
+                // loadSamples: true 与即发即用模型对齐；旧写法 false 会在首播时因 sample 未载入而无声
+                bank = FMODUnity.RuntimeManager.LoadBank(bankPath, true);
+                ok = bank.isValid();
             }
 
-            if (result != FMOD.RESULT.OK || !bank.isValid())
-            {
-                _loadedBanks.Remove(bankPath);
-                return false;
-            }
+            if (!ok) return false;
 
             _bankHandles[bankPath] = bank;
             return true;
@@ -162,19 +157,17 @@ namespace Moirai.Atropos.Audio.Fmod
         /// <remarks>未加载或 <c>Bank.unload</c> 失败返回 false；卸载失败时保留记账以便重试。</remarks>
         public bool UnloadBank(string bankPath)
         {
-            if (string.IsNullOrEmpty(bankPath) || !_loadedBanks.Contains(bankPath)) return false;
+            if (string.IsNullOrEmpty(bankPath) || !_bankHandles.TryGetValue(bankPath, out var bank)) return false;
 
-            if (!_bankHandles.TryGetValue(bankPath, out var bank) || !bank.isValid())
+            if (!bank.isValid())
             {
                 _bankHandles.Remove(bankPath);
-                _loadedBanks.Remove(bankPath);
                 return false;
             }
 
             if (bank.unload() != FMOD.RESULT.OK) return false;
 
             _bankHandles.Remove(bankPath);
-            _loadedBanks.Remove(bankPath);
             return true;
         }
 

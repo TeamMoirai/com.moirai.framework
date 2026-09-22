@@ -71,13 +71,7 @@ namespace Moirai.Atropos.Audio.Middleware
 
         private Voice RentVoice()
         {
-            while (_voicePool.Count > 0)
-            {
-                var voice = _voicePool.Pop();
-                if (voice != null) return voice;
-            }
-
-            return new Voice();
+            return _voicePool.Count > 0 ? _voicePool.Pop() : new Voice();
         }
 
         private void ReturnVoice(Voice voice)

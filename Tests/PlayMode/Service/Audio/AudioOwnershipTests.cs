@@ -77,11 +77,8 @@ namespace Service.Audio
                 return entry;
             }
 
-            public void Dispose()
-            {
-                Cache.Dispose();
-                _pending.Clear();
-            }
+            /// <remarks>队列必须活过 Dispose：本夹具的迟到续体用例正是要在关停后再放行它。</remarks>
+            public void Dispose() => Cache.Dispose();
 
             private void Bump(string address)
             {

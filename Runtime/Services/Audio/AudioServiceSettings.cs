@@ -51,13 +51,6 @@ namespace Moirai.Atropos.Audio
                 return 0;
             }
 
-            var snapshots = AudioMixStateMachine.CollectMixerSnapshots(mixer);
-            var names = new string[snapshots.Length];
-            for (int i = 0; i < snapshots.Length; i++)
-            {
-                names[i] = snapshots[i] != null ? snapshots[i].name : null;
-            }
-
             var states = (EMixSnapshot[])Enum.GetValues(typeof(EMixSnapshot));
             var existing = m_MixSnapshots ?? Array.Empty<AudioMixSnapshotEntry>();
 
@@ -97,12 +90,8 @@ namespace Moirai.Atropos.Audio
                 var entry = kept ?? new AudioMixSnapshotEntry { State = state };
                 if (entry.Snapshot == null)
                 {
-                    int index = AudioMixStateMachine.ResolveSnapshotIndex(names, state);
-                    if (index >= 0)
-                    {
-                        entry.Snapshot = snapshots[index];
-                        filled++;
-                    }
+                    entry.Snapshot = AudioMixStateMachine.FindMixerSnapshot(mixer, state);
+                    if (entry.Snapshot != null) filled++;
                 }
 
                 list.Add(entry);

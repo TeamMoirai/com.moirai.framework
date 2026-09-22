@@ -188,11 +188,14 @@ namespace Service.Audio
                 options.DoNotAutoRecycleIfNotDonePlaying = false;
 
                 var handles = new List<ulong>(256);
+                int played = 0;
                 for (int i = 0; i < 200; i++)
                 {
                     ulong handle = _handler.Play(clip, options);
-                    if (handle != 0UL) handles.Add(handle);
-                    if (handles.Count > 0 && (i & 1) == 1)
+                    if (handle == 0UL) continue;
+                    played++;
+                    handles.Add(handle);
+                    if ((i & 1) == 1)
                     {
                         _handler.Stop(handles[handles.Count - 1], 0f);
                         handles.RemoveAt(handles.Count - 1);
@@ -201,6 +204,8 @@ namespace Service.Audio
 
                 for (int i = 0; i < handles.Count; i++) _handler.Stop(handles[i], 0f);
                 _handler.Tick(0f, 0.016f);
+                // 起播全 0 时下面的注册表断言会 0==0 恒绿，先确认本格真的绑定并释放过句柄
+                Assert.Greater(played, 0, "起播全部失败时本格没有验证任何释放路径");
 
                 var registryField = typeof(UnityAudioHandler)
                     .GetField("_handles", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
