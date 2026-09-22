@@ -116,13 +116,7 @@ namespace Moirai.Atropos
             }
 
             // Fisher–Yates：弹出顺序是袋口(高下标)往 0 走，洗完整表后各位置等概率
-            for (int i = count - 1; i > 0; i--)
-            {
-                int j = UnityEngine.Random.Range(0, i + 1);
-                T tmp = _round[i];
-                _round[i] = _round[j];
-                _round[j] = tmp;
-            }
+            ShuffleUtility.Shuffle(_round, count);
 
             // 只处理袋口那一处的冲突：挪到随机非袋口位即可消掉换手连点，
             // 且不像"本轮排除上一手"那样把项挤到固定末位、也不缩短轮长。
@@ -130,7 +124,7 @@ namespace Moirai.Atropos
             if (_hasCurrentItem && count > 1 &&
                 EqualityComparer<T>.Default.Equals(_round[count - 1], _currentItem))
             {
-                int k = UnityEngine.Random.Range(0, count - 1);
+                int k = RandomUtility.NextInt(count - 1);
                 T tmp = _round[count - 1];
                 _round[count - 1] = _round[k];
                 _round[k] = tmp;

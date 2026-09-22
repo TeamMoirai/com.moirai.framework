@@ -1,54 +1,27 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
-using System.Threading;
 
 namespace Moirai.Atropos.Collections
 {
     /// <summary>
     /// 为 <see cref="IReadOnlyList{T}"/> 提供洗牌与随机采样扩展。
-    /// 所有方法均线程安全（每个线程独立随机数生成器）。
+    /// 所有方法均线程安全（随机源走 <see cref="RandomUtility"/> 的每线程流，且可统一播种复现）。
     /// </summary>
     public static class ShufflingExtension
     {
-        [ThreadStatic]
-        private static Random s_Rng;
-
-        private static Random Rng
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
-            {
-                if (s_Rng == null)
-                {
-                    // 种子组合：Guid 哈希 + 线程ID（进一步提高随机性）
-                    int seed = Guid.NewGuid().GetHashCode()
-                               ^ Thread.CurrentThread.ManagedThreadId;
-                    s_Rng = new Random(seed);
-                }
-                return s_Rng;
-            }
-        }
-
         /// <summary>
         /// 原地洗牌（Fisher–Yates 算法），修改原列表顺序。
         /// </summary>
         /// <typeparam name="T">元素类型</typeparam>
         /// <param name="list">待洗牌列表，不能为 null</param>
         /// <exception cref="ArgumentNullException">list 为 null</exception>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void Shuffle<T>(this IList<T> list)
         {
             if (list == null) throw new ArgumentNullException(nameof(list));
 
-            for (int i = list.Count - 1; i > 0; i--)
-            {
-                int j = Rng.Next(i + 1);
-
-                // 手动交换，避免 tuple 解构开销（Mono 旧版本 Unity 2021- 不保证优化）
-                T temp = list[i];
-                list[i] = list[j];
-                list[j] = temp;
-            }
+            ShuffleUtility.Shuffle(list, list.Count);
         }
 
         /// <summary>
@@ -63,7 +36,7 @@ namespace Moirai.Atropos.Collections
             if (list == null) throw new ArgumentNullException(nameof(list));
 
             var copy = new List<T>(list);
-            copy.Shuffle();
+            ShuffleUtility.Shuffle(copy, copy.Count);
             return copy;
         }
 
@@ -81,7 +54,7 @@ namespace Moirai.Atropos.Collections
             if (list == null) throw new ArgumentNullException(nameof(list));
             if (list.Count == 0) throw new InvalidOperationException("Cannot get random element from empty list.");
 
-            return list[Rng.Next(list.Count)];
+            return list[RandomUtility.NextInt(list.Count)];
         }
 
         /// <summary>
@@ -98,17 +71,8 @@ namespace Moirai.Atropos.Collections
 
             // --- 快速路径 ---
             if (count == 0 || n == 0) return new List<T>();
-            if (count == 1)
-            {
-                var single = new List<T>(1) { list[Rng.Next(n)] };
-                return single;
-            }
-            if (count >= n)
-            {
-                var full = new List<T>(list);
-                full.Shuffle();
-                return full;
-            }
+            if (count == 1) return new List<T>(1) { list[RandomUtility.NextInt(n)] };
+            if (count >= n) return list.Shuffled();
 
             // --- 自适应路径选择 ---
             //
@@ -136,8 +100,6 @@ namespace Moirai.Atropos.Collections
         /// <remarks>内部实现 — 拒绝采样（小 count 适用）</remarks>
         private static List<T> SampleByRejection<T>(IReadOnlyList<T> list, int n, int count)
         {
-            var rng = Rng;
-
             var selected = new HashSet<int>();
             var result = new List<T>(count);
 
@@ -148,7 +110,7 @@ namespace Moirai.Atropos.Collections
                 // 当 count ≪ n 时碰撞概率 ≈ count/n → 趋近于 0
                 do
                 {
-                    idx = rng.Next(n);
+                    idx = RandomUtility.NextInt(n);
                 } while (!selected.Add(idx));
 
                 result.Add(list[idx]);
@@ -164,21 +126,14 @@ namespace Moirai.Atropos.Collections
         /// <remarks>内部实现 — 部分 Fisher-Yates（大 count 适用）</remarks>
         private static List<T> SampleByPartialShuffle<T>(IReadOnlyList<T> list, int n, int count)
         {
-            var rng = Rng;
             var indices = new int[n];
-
             for (int i = 0; i < n; i++) indices[i] = i;
+
+            ShuffleUtility.DrawIndices(indices, count);
 
             var result = new List<T>(count);
             for (int i = 0; i < count; i++)
             {
-                int j = rng.Next(i, n);
-
-                // 手动交换，避免 tuple 解构开销（Mono 旧版本 Unity 2021- 不保证优化）
-                int tmp = indices[i];
-                indices[i] = indices[j];
-                indices[j] = tmp;
-
                 result.Add(list[indices[i]]);
             }
 

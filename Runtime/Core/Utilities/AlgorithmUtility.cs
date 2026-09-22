@@ -556,16 +556,16 @@ namespace Moirai.Atropos
         /// <summary>
         /// Fisher–Yates shuffle 洗牌算法
         /// </summary>
+        /// <param name="array">待洗牌列表</param>
+        /// <param name="randomSeed">洗牌种子：同一种子必得同一顺序，且不影响全局随机流</param>
         public static void Shuffle<T>(IList<T> array, int randomSeed)
         {
-         var random = new Random(randomSeed);
-         for (int i = array.Count - 1; i > 0; i--)
-         {
-             int randomIndex = random.Next(0, i + 1);
+            if (array == null) throw new ArgumentNullException(nameof(array));
 
-             // 交换元素位置
-             (array[i], array[randomIndex]) = (array[randomIndex], array[i]);
-         }
+            // 旧实现每次 new Random(seed) 并走元组交换；现改走统一原语，
+            // 种子语义不变（局部流，扰动不到别处的取值）
+            var rng = RandomUtility.CreateSeeded(unchecked((ulong)randomSeed));
+            ShuffleUtility.Shuffle(array, array.Count, ref rng);
         }
 
         /// <summary>
