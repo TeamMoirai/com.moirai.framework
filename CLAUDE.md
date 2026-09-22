@@ -163,14 +163,14 @@ Project/
 出现请求就按过滤器执行一轮，把逐格进度与结果回写。协议是单向文件，调用方只轮询：
 
 ```json
-{"id":"<唯一串>","mode":"EditMode","output":"<绝对路径>/report.txt",
+{"id":"<唯一串>","mode":"EditMode","output":"<绝对路径>/report.txt","timeoutSeconds":180,
  "assemblies":["Moirai.Atropos.Tests.EditorMode"],"tests":["<命名空间.类名.方法名>", "..."]}
 ```
 
 产物：`report.txt`（`run <id> | passed N | failed N | skipped N | 耗时`，后附逐格失败详情）、`report.txt.progress`
-（正在跑的用例全名，可判卡死）、`report.txt.done`（内容是请求里的 `id`）。**必须自带唯一 `id` 并只认配对的
+（正在跑的用例全名，可判卡死；收口时删除）、`report.txt.done`（内容是请求里的 `id`）。**必须自带唯一 `id` 并只认配对的
 `.done`**，否则会把上一轮的旧报告当成这次的结论。前提是该程序集已编译过一次且编辑器有过一次 `update`
-（焦点切过去即可，通常在几秒内）；正在编译、正在导入时不接新单。`mode` 支持 `EditMode`/`PlayMode`；PlayMode 进出场的域重载由驱动落盘 `Temp/MoiraiTestRunState.json` 自动续跑。
+（焦点切过去即可，通常在几秒内）；正在编译、正在导入时不接新单。`mode` 支持 `EditMode`/`PlayMode`；PlayMode 进出场的域重载由驱动落盘 `Temp/MoiraiTestRunState.json` 自动续跑。可选 `timeoutSeconds` 是墙钟上限（秒，`0`/缺省不限时，编译、导入与域重载的等待计入），超时按 ABORTED 收口；`assemblies` 与 `tests` 均为空的请求会被直接拒绝收口——空过滤器会让 Test Runner 重跑上一次的选择集。
 
 ### 3. 代码优化
 1. 使用 `/optimize` 分析性能
