@@ -695,7 +695,7 @@ namespace Moirai.Atropos.Audio.Middleware
                 return 0UL;
             }
 
-            _handles.RegisterUser(handle);
+            _handles.RegisterUser(handle, request.Id);
 
             if (request.FadeInOnPlay && fadeInDuration > 0f)
             {

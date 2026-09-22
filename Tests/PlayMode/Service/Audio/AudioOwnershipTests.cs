@@ -268,12 +268,12 @@ namespace Service.Audio
             var voice = new TestVoice { UserId = 7 };
 
             ulong oldHandle = registry.Bind(voice);
-            registry.RegisterUser(oldHandle);
+            registry.RegisterUser(oldHandle, 7);
 
             // 同声部重绑：Bind 先整体卸掉旧句柄再占新槽
             ulong newHandle = registry.Bind(voice);
             Assert.AreNotEqual(oldHandle, newHandle, "代次必须前进，槽位复用也不得吐回同一个句柄");
-            registry.RegisterUser(newHandle);
+            registry.RegisterUser(newHandle, 7);
 
             Assert.IsFalse(registry.IsRegistered(oldHandle), "旧句柄必须已卸绑");
             Assert.IsFalse(registry.TryGet(oldHandle, out _), "旧身份不得再解析到声部");

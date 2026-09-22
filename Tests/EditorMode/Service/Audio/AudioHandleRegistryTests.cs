@@ -39,7 +39,7 @@ namespace Service.Audio
             var registry = new AudioHandleRegistry<TestVoice>();
             var voice = new TestVoice { UserId = 7 };
             ulong handle = registry.Bind(voice);
-            registry.RegisterUser(handle);
+            registry.RegisterUser(handle, 42);
 
             Assert.IsTrue(registry.Release(handle, out var released));
             Assert.AreSame(voice, released);
@@ -55,10 +55,10 @@ namespace Service.Audio
             var voice = new TestVoice { UserId = 7 };
 
             ulong oldHandle = registry.Bind(voice);
-            registry.RegisterUser(oldHandle);
+            registry.RegisterUser(oldHandle, 7);
 
             ulong newHandle = registry.Bind(voice);
-            registry.RegisterUser(newHandle);
+            registry.RegisterUser(newHandle, 7);
 
             Assert.IsFalse(registry.IsRegistered(oldHandle), "重绑前旧句柄必须被卸绑");
             Assert.IsTrue(registry.IsRegistered(newHandle));
@@ -102,8 +102,8 @@ namespace Service.Audio
             var voice = new TestVoice { UserId = 42 };
             ulong handle = registry.Bind(voice);
 
-            Assert.IsTrue(registry.RegisterUser(handle));
-            Assert.IsFalse(registry.RegisterUser(handle), "重复登记不得再次入链——同 ID 链会自环");
+            Assert.IsTrue(registry.RegisterUser(handle, 42));
+            Assert.IsFalse(registry.RegisterUser(handle, 42), "重复登记不得再次入链——同 ID 链会自环");
 
             int visited = 0;
             registry.ForEachHandleByUser(42, _ => visited++);
@@ -117,9 +117,9 @@ namespace Service.Audio
             ulong h1 = registry.Bind(new TestVoice { UserId = 42 });
             ulong h2 = registry.Bind(new TestVoice { UserId = 42 });
             ulong h3 = registry.Bind(new TestVoice { UserId = 42 });
-            registry.RegisterUser(h1);
-            registry.RegisterUser(h2);
-            registry.RegisterUser(h3);
+            registry.RegisterUser(h1, 42);
+            registry.RegisterUser(h2, 42);
+            registry.RegisterUser(h3, 42);
 
             int visited = 0;
             registry.ForEachHandleByUser(42, handle =>
@@ -138,8 +138,8 @@ namespace Service.Audio
             var registry = new AudioHandleRegistry<TestVoice>();
             ulong mine = registry.Bind(new TestVoice { UserId = 100 });
             ulong other = registry.Bind(new TestVoice { UserId = 101 });
-            registry.RegisterUser(mine);
-            registry.RegisterUser(other);
+            registry.RegisterUser(mine, 100);
+            registry.RegisterUser(other, 101);
 
             int visited = 0;
             registry.ForEachHandleByUser(100, _ => visited++);
@@ -152,8 +152,8 @@ namespace Service.Audio
             var registry = new AudioHandleRegistry<TestVoice>();
             ulong keep = registry.Bind(new TestVoice { UserId = 1 });
             ulong drop = registry.Bind(new TestVoice { UserId = 2 });
-            registry.RegisterUser(keep);
-            registry.RegisterUser(drop);
+            registry.RegisterUser(keep, 1);
+            registry.RegisterUser(drop, 1);
             registry.Release(drop, out _);
 
             int seen = 0;
@@ -176,7 +176,7 @@ namespace Service.Audio
             var registry = new AudioHandleRegistry<TestVoice>();
             var voice = new TestVoice { UserId = 5 };
             ulong handle = registry.Bind(voice);
-            registry.RegisterUser(handle);
+            registry.RegisterUser(handle, 42);
 
             registry.Clear();
 
@@ -199,7 +199,7 @@ namespace Service.Audio
                 var voice = new TestVoice { UserId = i % 7 };
                 ulong handle = registry.Bind(voice);
                 Assert.AreNotEqual(0UL, handle);
-                registry.RegisterUser(handle);
+                registry.RegisterUser(handle, i % 7);
                 handles.Add(handle);
                 voices.Add(voice);
             }

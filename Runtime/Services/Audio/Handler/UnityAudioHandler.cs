@@ -511,7 +511,7 @@ namespace Moirai.Atropos.Audio
             // 立即失败时 EnterEndState → OnAgentPlaybackEnded 能命中映射
             ulong handle = _handles.Bind(audioAgent);
             if (handle == 0UL) return 0UL;
-            _handles.RegisterUser(handle);
+            _handles.RegisterUser(handle, options.ID);
 
             var request = options.ToRequest();
             var cold = AudioPlayColdParams.FromOptions(options);
@@ -559,7 +559,7 @@ namespace Moirai.Atropos.Audio
                 AudioPlayColdParamsPool.Release(cold);
                 return 0UL;
             }
-            _handles.RegisterUser(handle);
+            _handles.RegisterUser(handle, request.Id);
             audioAgent.PlayWithRequest(clip, request, cold);
 
             if (audioAgent.IsFree && audioAgent.CurrentHandle == 0UL)
@@ -602,7 +602,7 @@ namespace Moirai.Atropos.Audio
 
             ulong handle = _handles.Bind(audioAgent);
             if (handle == 0UL) return 0UL;
-            _handles.RegisterUser(handle);
+            _handles.RegisterUser(handle, options.ID);
             audioAgent.LoadWithOptions(path, options, bAsync, bInPool);
 
             // 同步加载失败会立刻 End 并自动释放
