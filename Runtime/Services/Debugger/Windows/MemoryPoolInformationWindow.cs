@@ -67,7 +67,7 @@ namespace Moirai.Atropos.Debugger
             toolbar.Add(DebuggerUI.CreateActionButton("Export XML", OnExportBenchmarkXml));
             card.Add(toolbar);
 
-            AddRow(card, "Result", _benchmarkReport == null ? "未运行" : DescribeReport(), out _benchmarkResultButton);
+            AddRow(card, "Result", _benchmarkReport == null ? "Not run" : DescribeReport(), out _benchmarkResultButton);
         }
 
         private void OnRunBenchmark()
@@ -91,7 +91,7 @@ namespace Moirai.Atropos.Debugger
             _benchmarkReport.WriteXml(path);
             if (_benchmarkResultButton != null)
             {
-                _benchmarkResultButton.text = $"已导出 {path}";
+                _benchmarkResultButton.text = $"Exported {path}";
             }
         }
 

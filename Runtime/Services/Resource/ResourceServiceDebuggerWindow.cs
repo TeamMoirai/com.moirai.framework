@@ -44,36 +44,36 @@ namespace Moirai.Atropos.Resource
             if (!ResourceService.IsInitialized)
             {
                 root.Add(DebuggerUI.CreateSectionTitle("Resource Service"));
-                root.Add(DebuggerUI.CreateHintLabel("资源服务未就绪（需进入运行时并完成初始化）。"));
+                root.Add(DebuggerUI.CreateHintLabel("Resource service not ready (enter Play Mode and finish initialization)."));
                 return;
             }
 
-            VisualElement summaryCard = AddSection(root, "运行状态 [RUNTIME STATE]");
-            AddRow(summaryCard, "运行模式 [Play Mode]", ResourceService.PlayMode.ToString());
-            AddRow(summaryCard, "运行时可更新 [Updatable While Playing]", ResourceService.UpdatableWhilePlaying.ToString());
+            VisualElement summaryCard = AddSection(root, "RUNTIME STATE");
+            AddRow(summaryCard, "Play Mode", ResourceService.PlayMode.ToString());
+            AddRow(summaryCard, "Updatable While Playing", ResourceService.UpdatableWhilePlaying.ToString());
 
-            VisualElement assetCard = AddSection(root, "已加载资产采样 [LOADED ASSET SAMPLE]");
+            VisualElement assetCard = AddSection(root, "LOADED ASSET SAMPLE");
             int count = ResourceService.GetAssetInfos(_infoBuffer, 0, SAMPLE_COUNT);
             if (count <= 0)
             {
-                assetCard.Add(DebuggerUI.CreateHintLabel("当前无已加载资产。"));
+                assetCard.Add(DebuggerUI.CreateHintLabel("No assets currently loaded."));
                 return;
             }
 
             if (count >= SAMPLE_COUNT)
             {
-                assetCard.Add(DebuggerUI.CreateHintLabel(StringUtility.Format("仅显示前 {0} 条（可能截断）。", SAMPLE_COUNT)));
+                assetCard.Add(DebuggerUI.CreateHintLabel(StringUtility.Format("Showing first {0} entries (may be truncated).", SAMPLE_COUNT)));
             }
             else
             {
-                assetCard.Add(DebuggerUI.CreateHintLabel(StringUtility.Format("共 {0} 条。", count)));
+                assetCard.Add(DebuggerUI.CreateHintLabel(StringUtility.Format("{0} entries.", count)));
             }
 
             for (int i = 0; i < count; i++)
             {
                 ref ResourceAssetInfo info = ref _infoBuffer[i];
                 string title = StringUtility.Format("[{0}] {1}", info.State, info.Location);
-                string value = StringUtility.Format("{0} | 直接引用 {1} | 绑定 {2} | 保持 {3}",
+                string value = StringUtility.Format("{0} | Direct {1} | Binding {2} | KeepAlive {3}",
                     info.TypeName, info.DirectRefCount, info.BindingRefCount, info.KeepAliveRefCount);
                 AddRow(assetCard, title, value, ASSET_TITLE_RATIO);
             }

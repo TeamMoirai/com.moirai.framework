@@ -36,7 +36,7 @@ namespace Moirai.Atropos.Debugger
         /// <summary>
         /// 服务未就绪时显示的提示文案。
         /// </summary>
-        protected virtual string NotReadyMessage => "服务未就绪（需进入运行时并完成初始化）。";
+        protected virtual string NotReadyMessage => "Service not ready (enter Play Mode and finish initialization).";
 
         #endregion
 

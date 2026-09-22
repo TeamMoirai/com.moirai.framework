@@ -41,20 +41,20 @@ namespace Moirai.Atropos.Save
             if (!SaveService.IsValid)
             {
                 root.Add(DebuggerUI.CreateSectionTitle("Save Service"));
-                root.Add(DebuggerUI.CreateHintLabel("存档服务未就绪（需进入运行时并完成初始化）。"));
+                root.Add(DebuggerUI.CreateHintLabel("Save service not ready (enter Play Mode and finish initialization)."));
                 return;
             }
 
-            VisualElement pipelineCard = AddSection(root, "管线 [PIPELINE]");
+            VisualElement pipelineCard = AddSection(root, "PIPELINE");
             SaveServiceHandler handler = SaveServiceSettings.SaveServiceHandler;
-            AddRow(pipelineCard, "存储管线 [Handler]", handler != null ? handler.GetType().Name : "null");
-            AddRow(pipelineCard, "存储后端 [Storage]", handler != null ? handler.StorageBackend.GetType().Name : "null");
-            AddRow(pipelineCard, "压缩 [Compression]", handler != null && handler.CompressionProvider != null ? handler.CompressionProvider.GetType().Name : "不压缩");
-            AddRow(pipelineCard, "默认序列化后端 [Default Backend]", SaveServiceSettings.DefaultBackend.ToString());
-            AddRow(pipelineCard, "保存时截图 [Screenshot On Save]", SaveServiceSettings.CaptureScreenshotOnSave.ToString());
+            AddRow(pipelineCard, "Handler", handler != null ? handler.GetType().Name : "null");
+            AddRow(pipelineCard, "Storage", handler != null ? handler.StorageBackend.GetType().Name : "null");
+            AddRow(pipelineCard, "Compression", handler != null && handler.CompressionProvider != null ? handler.CompressionProvider.GetType().Name : "None");
+            AddRow(pipelineCard, "Default Backend", SaveServiceSettings.DefaultBackend.ToString());
+            AddRow(pipelineCard, "Screenshot On Save", SaveServiceSettings.CaptureScreenshotOnSave.ToString());
 
-            VisualElement controlCard = AddSection(root, "槽位选择 [SELECTION]");
-            _folderField = new DropdownField("文件夹 [Folder]");
+            VisualElement controlCard = AddSection(root, "SELECTION");
+            _folderField = new DropdownField("Folder");
             _folderField.RegisterValueChangedCallback(_ =>
             {
                 _selectedFileName = null;
@@ -63,7 +63,7 @@ namespace Moirai.Atropos.Save
             });
             controlCard.Add(_folderField);
 
-            _slotField = new DropdownField("槽位 [Slot]");
+            _slotField = new DropdownField("Slot");
             _slotField.RegisterValueChangedCallback(evt =>
             {
                 _selectedFileName = evt.newValue;
@@ -71,7 +71,7 @@ namespace Moirai.Atropos.Save
             });
             controlCard.Add(_slotField);
 
-            VisualElement dataCard = AddSection(root, "槽位详情 [DETAIL]");
+            VisualElement dataCard = AddSection(root, "DETAIL");
             _dataRoot = dataCard;
 
             RefreshFolderChoices();
@@ -187,7 +187,7 @@ namespace Moirai.Atropos.Save
             _dataRoot.Clear();
             if (string.IsNullOrEmpty(_selectedFileName))
             {
-                _dataRoot.Add(DebuggerUI.CreateHintLabel("当前文件夹无存档槽位。"));
+                _dataRoot.Add(DebuggerUI.CreateHintLabel("No save slots in the current folder."));
                 return;
             }
 
@@ -198,8 +198,8 @@ namespace Moirai.Atropos.Save
             {
                 if (string.Equals(files[i].FileName, _selectedFileName, StringComparison.Ordinal))
                 {
-                    AddRow(_dataRoot, "大小 [Size]", StringUtility.Format("{0} B", files[i].SizeBytes));
-                    AddRow(_dataRoot, "最后写入 [Last Write]", files[i].LastWriteTimeUtc.ToString("yyyy-MM-dd HH:mm:ss") + " UTC");
+                    AddRow(_dataRoot, "Size", StringUtility.Format("{0} B", files[i].SizeBytes));
+                    AddRow(_dataRoot, "Last Write", files[i].LastWriteTimeUtc.ToString("yyyy-MM-dd HH:mm:ss") + " UTC");
                     break;
                 }
             }
@@ -208,23 +208,23 @@ namespace Moirai.Atropos.Save
             string screenshotPath = string.IsNullOrEmpty(directoryPath)
                 ? null
                 : Path.Combine(directoryPath, SaveScreenshotUtility.DetermineScreenshotFileName(_selectedFileName));
-            AddRow(_dataRoot, "截图 sidecar [Screenshot]", screenshotPath != null && File.Exists(screenshotPath) ? "有" : "无");
+            AddRow(_dataRoot, "Screenshot Sidecar", screenshotPath != null && File.Exists(screenshotPath) ? "Yes" : "No");
 
             SaveResult<SaveMetadata> metadataResult = SaveService.TryLoadMetadata(_selectedFileName, folderName);
             if (metadataResult.IsSuccess)
             {
                 SaveMetadata metadata = metadataResult.Data;
-                AddRow(_dataRoot, "游戏版本 [Game Version]", metadata.GameVersion ?? "-");
-                AddRow(_dataRoot, "存档数据版本 [Save Version]", metadata.SaveVersion.ToString());
-                AddRow(_dataRoot, "场景 [Scene]", metadata.SceneName ?? "-");
-                AddRow(_dataRoot, "游玩时长 [Play Time]", metadata.PlayTimeTicks > 0L ? new TimeSpan(metadata.PlayTimeTicks).ToString() : "-");
-                AddRow(_dataRoot, "迁移历史 [Migrations]", metadata.MigrationHistory != null ? metadata.MigrationHistory.Count.ToString() : "0");
+                AddRow(_dataRoot, "Game Version", metadata.GameVersion ?? "-");
+                AddRow(_dataRoot, "Save Version", metadata.SaveVersion.ToString());
+                AddRow(_dataRoot, "Scene", metadata.SceneName ?? "-");
+                AddRow(_dataRoot, "Play Time", metadata.PlayTimeTicks > 0L ? new TimeSpan(metadata.PlayTimeTicks).ToString() : "-");
+                AddRow(_dataRoot, "Migrations", metadata.MigrationHistory != null ? metadata.MigrationHistory.Count.ToString() : "0");
             }
 
             SaveBlockInfo[] blocks = SaveService.GetBlockInfos(_selectedFileName, folderName);
             if (blocks.Length == 0)
             {
-                _dataRoot.Add(DebuggerUI.CreateHintLabel("无数据块（或整档损坏/未就绪）。"));
+                _dataRoot.Add(DebuggerUI.CreateHintLabel("No data blocks (or the file is corrupt / not ready)."));
                 return;
             }
 
@@ -234,10 +234,10 @@ namespace Moirai.Atropos.Save
                 if (block.Error != SaveError.None)
                 {
                     // 坏块可视化：键不可读时以序号占位；结构性坏块元信息为零值仅报错误码
-                    string title = block.Key ?? StringUtility.Format("<坏块 #{0}>", i);
+                    string title = block.Key ?? StringUtility.Format("<Corrupt block #{0}>", i);
                     string content = block.HasMetadata
                         ? StringUtility.Format("{0} | v{1} | {2} B | {3}", block.Backend, block.DataVersion, block.SizeBytes, block.Error)
-                        : StringUtility.Format("结构不可读 | {0}", block.Error);
+                        : StringUtility.Format("Structure unreadable | {0}", block.Error);
                     VisualElement row = DebuggerUI.CreateRow(title, content, BLOCK_TITLE_RATIO);
                     row.AddToClassList("dbg-text--danger");
                     _dataRoot.Add(row);

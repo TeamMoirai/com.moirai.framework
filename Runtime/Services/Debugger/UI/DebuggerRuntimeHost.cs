@@ -1137,7 +1137,7 @@ namespace Moirai.Atropos.Debugger
             IDebuggerWindow selectedWindow = _registry.SelectedWindow;
             if (selectedWindow == null)
             {
-                _contentHost.Add(DebuggerUI.CreateHintLabel("无已注册窗口——经 DebuggerService.RegisterDebuggerWindow 注册。"));
+                _contentHost.Add(DebuggerUI.CreateHintLabel("No registered windows — register via DebuggerService.RegisterDebuggerWindow."));
                 return;
             }
 

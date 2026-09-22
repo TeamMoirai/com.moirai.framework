@@ -50,22 +50,22 @@ namespace Moirai.Atropos.Procedure
             if (!ProcedureService.IsValid)
             {
                 root.Add(DebuggerUI.CreateSectionTitle("Procedure Service"));
-                root.Add(DebuggerUI.CreateHintLabel("流程服务未就绪（需进入运行时并完成初始化）。"));
+                root.Add(DebuggerUI.CreateHintLabel("Procedure service not ready (enter Play Mode and finish initialization)."));
                 return;
             }
 
             // ① 当前流程（常驻卡，轮询仅更新值文本）
-            VisualElement currentCard = AddSection(root, "当前流程 [CURRENT PROCEDURE]");
-            AddRow(currentCard, "当前流程 [Procedure]", "-", out _currentProcedureValue);
-            AddRow(currentCard, "持续时长 [Elapsed]", "-", out _currentElapsedValue);
+            VisualElement currentCard = AddSection(root, "CURRENT PROCEDURE");
+            AddRow(currentCard, "Procedure", "-", out _currentProcedureValue);
+            AddRow(currentCard, "Elapsed", "-", out _currentElapsedValue);
 
             // ② 已注册流程（常驻卡 + 内部动态区，值按钮点击强制切换）
-            VisualElement listCard = AddSection(root, "已注册流程 [REGISTERED PROCEDURES]");
+            VisualElement listCard = AddSection(root, "REGISTERED PROCEDURES");
             _listRoot = new VisualElement();
             listCard.Add(_listRoot);
 
             // ③ 切换历史（纯展示行，随轮询重建）
-            VisualElement historyCard = AddSection(root, "切换历史 [TRANSITION HISTORY]");
+            VisualElement historyCard = AddSection(root, "TRANSITION HISTORY");
             _historyRoot = new VisualElement();
             historyCard.Add(_historyRoot);
 
@@ -150,12 +150,12 @@ namespace Moirai.Atropos.Procedure
             if (ProcedureService.IsStateReady)
             {
                 ProcedureBase current = ProcedureService.CurrentProcedure;
-                _currentProcedureValue.text = current != null ? current.GetType().Name : "（未启动）";
+                _currentProcedureValue.text = current != null ? current.GetType().Name : "(Not started)";
                 _currentElapsedValue.text = StringUtility.Format("{0:F2}s", ProcedureService.CurrentProcedureTime);
             }
             else
             {
-                _currentProcedureValue.text = "（未初始化）";
+                _currentProcedureValue.text = "(Not initialized)";
                 _currentElapsedValue.text = "-";
             }
         }
@@ -171,7 +171,7 @@ namespace Moirai.Atropos.Procedure
             IReadOnlyCollection<ProcedureBase> registered = ProcedureService.Procedures;
             if (registered.Count == 0)
             {
-                _listRoot.Add(DebuggerUI.CreateHintLabel("流程集为空（状态机未初始化）。"));
+                _listRoot.Add(DebuggerUI.CreateHintLabel("Procedure set is empty (state machine not initialized)."));
                 return;
             }
 
@@ -197,7 +197,7 @@ namespace Moirai.Atropos.Procedure
             {
                 if (index < _listRowValues.Count)
                 {
-                    _listRowValues[index].text = ReferenceEquals(procedure, current) ? "● 当前" : "切换 ▶";
+                    _listRowValues[index].text = ReferenceEquals(procedure, current) ? "● Current" : "Switch ▶";
                 }
 
                 index++;
@@ -214,7 +214,7 @@ namespace Moirai.Atropos.Procedure
             IReadOnlyList<ProcedureTransitionRecord> history = ProcedureService.TransitionHistory;
             if (history.Count == 0)
             {
-                _historyRoot.Add(DebuggerUI.CreateHintLabel("暂无切换记录。"));
+                _historyRoot.Add(DebuggerUI.CreateHintLabel("No transitions recorded yet."));
                 return;
             }
 
@@ -222,8 +222,8 @@ namespace Moirai.Atropos.Procedure
             for (int i = history.Count - 1; i >= firstIndex; i--)
             {
                 ProcedureTransitionRecord record = history[i];
-                string fromName = record.From != null ? record.From.GetType().Name : "(启动)";
-                string toName = record.To != null ? record.To.GetType().Name : "(关停)";
+                string fromName = record.From != null ? record.From.GetType().Name : "(Startup)";
+                string toName = record.To != null ? record.To.GetType().Name : "(Shutdown)";
                 AddRow(_historyRoot,
                     StringUtility.Format("#{0} {1}", i + 1, record.Kind),
                     StringUtility.Format("{0} → {1} ({2:F2}s)", fromName, toName, record.FromElapsed));

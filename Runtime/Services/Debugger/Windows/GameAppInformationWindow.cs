@@ -48,14 +48,14 @@ namespace Moirai.Atropos.Debugger
 
         private void BuildRuntimeControls(VisualElement root)
         {
-            VisualElement card = AddSection(root, "运行时控制 [RUNTIME CONTROLS]");
+            VisualElement card = AddSection(root, "RUNTIME CONTROLS");
 
             // 暂停与冻结是两件事，只给一行必然被误读：前者是 PauseGame 的引用计数，后者是引擎实况
-            AddRow(card, "暂停请求 [Is Paused]",
+            AddRow(card, "Is Paused",
                 GameApp.IsGamePaused ? StringUtility.Format("Yes (depth {0})", GameApp.PauseDepth) : "No");
-            AddRow(card, "时间冻结 [Time Frozen]", Time.timeScale <= 0f ? "Frozen" : "Running");
+            AddRow(card, "Time Frozen", Time.timeScale <= 0f ? "Frozen" : "Running");
 
-            AddRow(card, "框架运行状态 [Framework]", GameApp.IsShutdown ? "Shutdown" : "Active");
+            AddRow(card, "Framework", GameApp.IsShutdown ? "Shutdown" : "Active");
 
             card.Add(BuildFrameRateRow());
             card.Add(BuildGameSpeedRow());
@@ -76,7 +76,7 @@ namespace Moirai.Atropos.Debugger
 
         private void BuildSettingStore(VisualElement root)
         {
-            VisualElement card = AddSection(root, "本地设置 [SETTING STORE]");
+            VisualElement card = AddSection(root, "SETTING STORE");
             int count = SettingUtility.Count;
             if (count < 0)
             {
@@ -84,7 +84,7 @@ namespace Moirai.Atropos.Debugger
                 return;
             }
 
-            AddRow(card, "设置项数量 [Count]", count.ToString());
+            AddRow(card, "Count", count.ToString());
             if (count > 0)
             {
                 string[] settingNames = SettingUtility.GetAllSettingNames();
@@ -110,7 +110,7 @@ namespace Moirai.Atropos.Debugger
 
         private static VisualElement BuildFrameRateRow()
         {
-            VisualElement row = NewSliderRow("目标帧率 [Frame Rate]");
+            VisualElement row = NewSliderRow("Frame Rate");
 
             SliderInt slider = new SliderInt(MIN_FRAME_RATE, MAX_FRAME_RATE)
             {
@@ -134,7 +134,7 @@ namespace Moirai.Atropos.Debugger
 
         private static VisualElement BuildGameSpeedRow()
         {
-            VisualElement row = NewSliderRow("游戏速度 [Game Speed]");
+            VisualElement row = NewSliderRow("Game Speed");
 
             // 默认主题滑条（与目标帧率行同款外观）——自绘样式曾与默认主题不一致
             Slider slider = new Slider(0f, 8f)

@@ -41,7 +41,7 @@ namespace Moirai.Atropos.Debugger
             AddRow(card, "Gyroscope Present", (UnityEngine.InputSystem.Gyroscope.current != null).ToString());
             AddRow(card, "Magnetic Field Sensor Present", (MagneticFieldSensor.current != null).ToString());
 #else
-            AddRow(card, "Input System 未启用", "项目需启用 Input System 包后查看输入信息。");
+            AddRow(card, "Input System Not Enabled", "Enable the Input System package to view input information.");
 #endif
         }
 
@@ -82,7 +82,7 @@ namespace Moirai.Atropos.Debugger
                     touches[i].pressure.ReadValue()));
             }
 #else
-            AddRow(card, "Input System 未启用", "项目需启用 Input System 包后查看触摸信息。");
+            AddRow(card, "Input System Not Enabled", "Enable the Input System package to view touch information.");
 #endif
         }
 
@@ -185,7 +185,7 @@ namespace Moirai.Atropos.Debugger
 
             AddRow(card, "Enabled", sensor.enabled.ToString());
             AddRow(card, "Magnetic Field (µT)", sensor.magneticField.ReadValue().ToString("F4"));
-            AddRow(card, "Heading", "Input System 未提供罗盘朝向角（仅原始磁场强度）");
+            AddRow(card, "Heading", "Input System does not provide compass heading (raw magnetic field only)");
 
             VisualElement buttonRow = DebuggerUI.CreateToolbarRow();
             buttonRow.Add(DebuggerUI.CreateActionButton("Enable", () =>

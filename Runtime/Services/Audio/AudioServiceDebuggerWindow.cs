@@ -19,24 +19,24 @@ namespace Moirai.Atropos.Audio
             if (!AudioService.IsValid)
             {
                 root.Add(DebuggerUI.CreateSectionTitle("Audio Service"));
-                root.Add(DebuggerUI.CreateHintLabel("音频服务未就绪（需进入运行时并完成初始化）。"));
+                root.Add(DebuggerUI.CreateHintLabel("Audio service not ready (enter Play Mode and finish initialization)."));
                 return;
             }
 
-            VisualElement masterCard = AddSection(root, "主音量 [MASTER VOLUME]");
+            VisualElement masterCard = AddSection(root, "MASTER VOLUME");
             AddMasterControls(masterCard);
 
-            VisualElement trackCard = AddSection(root, "音轨 [TRACKS]");
+            VisualElement trackCard = AddSection(root, "TRACKS");
             var values = (EAudioTrack[])Enum.GetValues(typeof(EAudioTrack));
             for (int i = 0; i < values.Length; i++)
             {
                 AddTrackControls(trackCard, values[i]);
             }
 
-            VisualElement cacheCard = AddSection(root, "Clip 缓存 [CLIP CACHE]");
+            VisualElement cacheCard = AddSection(root, "CLIP CACHE");
             AddCacheControls(cacheCard);
 
-            VisualElement settingsCard = AddSection(root, "设置 [SETTINGS]");
+            VisualElement settingsCard = AddSection(root, "SETTINGS");
             VisualElement settingsRow = DebuggerUI.CreateToolbarRow();
             settingsRow.Add(DebuggerUI.CreateToolbarButton("Save Settings", () => AudioService.SetSettings(), DebuggerUI.EButtonStyle.Positive));
             settingsCard.Add(settingsRow);
@@ -55,39 +55,39 @@ namespace Moirai.Atropos.Audio
             AudioClipCache cache = AudioService.ClipCacheForDiagnostics;
             if (cache == null)
             {
-                card.Add(DebuggerUI.CreateHintLabel("当前后端不持有 clip 租约（中间件按事件路径播放）。"));
-                card.Add(DebuggerUI.CreateHintLabel(StringUtility.Format("混音快照 {0}", AudioMixService.Current)));
+                card.Add(DebuggerUI.CreateHintLabel("Current backend holds no clip leases (middleware plays through the event path)."));
+                card.Add(DebuggerUI.CreateHintLabel(StringUtility.Format("Mix snapshot {0}", AudioMixService.Current)));
                 return;
             }
 
             card.Add(DebuggerUI.CreateHintLabel(StringUtility.Format(
-                "条目 {0}/{1} · 在途 {2} · 常驻 {3} · 失败冷却 {4} · TTL {5:0.#}s · 默认策略 {6}",
+                "Entries {0}/{1} · Loading {2} · Pinned {3} · Failed cooldown {4} · TTL {5:0.#}s · Default policy {6}",
                 cache.Count, cache.Capacity, cache.LoadingCount, cache.PinnedCount,
                 cache.FailedAddressCount, cache.Ttl, cache.DefaultPolicy)));
             card.Add(DebuggerUI.CreateHintLabel(StringUtility.Format(
-                "留池可见 {0} 条 · 混音快照 {1} · Ducking {2}",
+                "Pooled visible {0} · Mix snapshot {1} · Ducking {2}",
                 cache.PoolReadOnly.Count, AudioMixService.Current,
-                AudioVoiceDucking.IsDucking ? "占用 Dialogue" : "未占用")));
+                AudioVoiceDucking.IsDucking ? "Dialogue taken" : "Not taken")));
 
             const int MaxEntryRows = 8;
             int shown = 0;
             for (var entry = cache.FirstEntry; entry != null && shown < MaxEntryRows; entry = entry.AllNext)
             {
                 float idle = Time.realtimeSinceStartup - entry.LastUseTime;
-                card.Add(DebuggerUI.CreateHintLabel(StringUtility.Format("  {0}  ref {1} · {2} · {3} · {4:0.0}s 前",
+                card.Add(DebuggerUI.CreateHintLabel(StringUtility.Format("  {0}  ref {1} · {2} · {3} · {4:0.0}s ago",
                     entry.Address, entry.RefCount, entry.CachePolicy,
-                    entry.Loading ? "加载中" : (entry.IsLoaded ? "已加载" : "空"), idle)));
+                    entry.Loading ? "Loading" : (entry.IsLoaded ? "Loaded" : "Empty"), idle)));
                 shown++;
             }
 
             if (cache.Count > MaxEntryRows)
             {
-                card.Add(DebuggerUI.CreateHintLabel(StringUtility.Format("  …另有 {0} 条未显示", cache.Count - MaxEntryRows)));
+                card.Add(DebuggerUI.CreateHintLabel(StringUtility.Format("  …{0} more not shown", cache.Count - MaxEntryRows)));
             }
 
             VisualElement row = DebuggerUI.CreateToolbarRow();
-            row.Add(DebuggerUI.CreateToolbarButton("清空缓存(保留在播)", () => AudioService.ClearClipCache(false)));
-            row.Add(DebuggerUI.CreateToolbarButton("强制清空", () => AudioService.ClearClipCache(true), DebuggerUI.EButtonStyle.Danger));
+            row.Add(DebuggerUI.CreateToolbarButton("Clear Cache (Keep Playing)", () => AudioService.ClearClipCache(false)));
+            row.Add(DebuggerUI.CreateToolbarButton("Force Clear", () => AudioService.ClearClipCache(true), DebuggerUI.EButtonStyle.Danger));
             card.Add(row);
         }
 
