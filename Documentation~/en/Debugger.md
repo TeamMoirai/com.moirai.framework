@@ -198,7 +198,7 @@ Custom popups and any OnGUI context can also call `view.OnDraw()` directly.
 - The floating entry snaps to the nearest screen edge after a drag; layout persists via `SettingUtility`, and the header Reset button restores defaults
 - Console filter state (severities + scroll lock) also persists; see `Constant.Debug` for the keys
 - `LogNode`s returned by `GetRecentLogs` are pooled and owned by the capture — read-only, do not retain (nodes are recycled after ring eviction)
-- The service is opt-in (the composition root registers `DebuggerService` manually); facade calls silently degrade when unregistered (log queries return empty, registrations are no-ops)
+- The service is opt-in (the composition root registers `DebuggerService` via the `[AutoRegisterService]` generated list); facade calls silently degrade when unregistered (log queries return empty, registrations are no-ops)
 
 ## Migrating from the Old IMGUI DebuggerComp
 

@@ -198,7 +198,7 @@ DebuggerService.RegisterDebugView("My/IMGUI View", new MyIMGUIDebugView());
 - 悬浮入口拖拽松手后自动吸附最近屏幕边缘；布局经 `SettingUtility` 持久化，标题栏 Reset 按钮还原默认
 - 控制台筛选状态（分级 + 锁定滚动）同样持久化，键见 `Constant.Debug`
 - `GetRecentLogs` 返回的 `LogNode` 为池化对象，由捕获器持有——仅读取，勿长期保存（环形淘汰后结点被复用）
-- 服务为 opt-in 注册（组合根手动注册 `DebuggerService`），未注册时外观调用静默降级（日志检索返回空、注册不生效）
+- 服务为 opt-in 注册（组合根经 `[AutoRegisterService]` 生成清单注册 `DebuggerService`），未注册时外观调用静默降级（日志检索返回空、注册不生效）
 
 ## 从旧版迁移（IMGUI DebuggerComp）
 
