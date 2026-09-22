@@ -241,8 +241,14 @@ namespace Service.Audio
             }
 
             Assert.AreEqual(8, _fixture.Cache.Count);
-            Assert.IsFalse(_fixture.Cache.Preload("Audio/Sfx/Overflow", AudioCachePolicy.Pin),
-                "到上限且 Pin 不可驱逐时新地址判负，而不是把槽表撑破");
+
+            // 第 9 条不该判负：A/B 是 Ttl 且无人引用，按 LRU 腾位是设计行为，
+            // "全 Pin / 全在用"才拒（见 Capacity_AllPinned_RefusesNewAddressInsteadOfGrowing）
+            Assert.IsTrue(_fixture.Cache.Preload("Audio/Sfx/Overflow", AudioCachePolicy.Pin),
+                "满载但有可驱逐项时按 LRU 驱逐腾位，而不是直接判负");
+            Assert.AreEqual(8, _fixture.Cache.Count, "腾位后规模仍钉在上限");
+            Assert.IsFalse(_fixture.Cache.TryGetEntry(A, out _), "被换出的必须是最久未用的那条");
+            Assert.AreEqual(8, _fixture.LiveHandles, "换出即归还租约，槽表不能变成第二份引用");
             _fixture.CheckInvariants();
         }
 
