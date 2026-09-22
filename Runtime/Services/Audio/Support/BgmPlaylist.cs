@@ -54,8 +54,9 @@ namespace Moirai.Atropos.Audio
         [SerializeField] private bool m_Crossfade = true;
         [SerializeField, Min(0f)] private float m_CrossfadeSeconds = 1f;
 
+        private readonly ShuffleIndexBag _shuffleBag = new ShuffleIndexBag();
+
         private int _index = -1;
-        private int _lastShuffleIndex = -1;
         private ulong _handle;
         private bool _playing;
         private int _id;
@@ -136,10 +137,11 @@ namespace Moirai.Atropos.Audio
             if (_playing) AudioService.StopByID(_id, 0f);
         }
 
-        /// <summary>从列表开头播放。</summary>
+        /// <summary>从列表开头播放（Shuffle 重新洗一轮）。</summary>
         public void PlayFromStart()
         {
             _index = -1;
+            _shuffleBag.Reset();
             PlayNextInternal();
         }
 
@@ -176,11 +178,22 @@ namespace Moirai.Atropos.Audio
 
             if (_index < 0)
             {
-                _index = m_Order == EOrderMode.Shuffle ? NextShuffleIndex() : 0;
+                _index = m_Order == EOrderMode.Shuffle ? _shuffleBag.Next(m_Tracks.Count) : 0;
             }
             else if (m_LoopMode == ELoopMode.LoopSingle)
             {
                 // 单曲循环：下标不变
+            }
+            else if (m_Order == EOrderMode.Shuffle)
+            {
+                // Shuffle 不走顺序下标回绕（否则随机落到末位会只播一首就收尾）：袋空即本轮播完
+                if (_shuffleBag.Remaining == 0 && m_LoopMode == ELoopMode.None)
+                {
+                    Stop();
+                    return;
+                }
+
+                _index = _shuffleBag.Next(m_Tracks.Count);
             }
             else
             {
@@ -196,26 +209,10 @@ namespace Moirai.Atropos.Audio
                     next = 0;
                 }
 
-                _index = m_Order == EOrderMode.Shuffle ? NextShuffleIndex() : next;
+                _index = next;
             }
 
             StartTrack(m_Tracks[_index]);
-        }
-
-        private int NextShuffleIndex()
-        {
-            if (m_Tracks.Count <= 1) return 0;
-
-            int candidate;
-            int guard = 0;
-            do
-            {
-                candidate = UnityEngine.Random.Range(0, m_Tracks.Count);
-                guard++;
-            } while (candidate == _lastShuffleIndex && guard < 8);
-
-            _lastShuffleIndex = candidate;
-            return candidate;
         }
 
         private void StartTrack(AudioClip clip)

@@ -87,7 +87,7 @@ namespace Moirai.Atropos.Audio.Middleware
             _voicePool.Push(voice);
         }
 
-        /// <summary>卸绑全部句柄并把 Voice 归还池（关停/重启共用）。</summary>
+        /// <summary>卸绑全部句柄并把 Voice 归还池（Reset 字段防脏状态随复用泄漏）。</summary>
         private void ReleaseAllVoicesToPool()
         {
             foreach (var voice in _handles.Map.Values)
@@ -337,6 +337,7 @@ namespace Moirai.Atropos.Audio.Middleware
             AudioVoiceDucking.Reset();
             _fades.Clear();
             _pendingStopAt.Clear();
+            // 终态关停：Reset 后丢弃池（实例不再复用），避免留下无主缓存
             ReleaseAllVoicesToPool();
             _voicePool.Clear();
 
@@ -447,8 +448,8 @@ namespace Moirai.Atropos.Audio.Middleware
             AudioVoiceDucking.Reset();
             _fades.Clear();
             _pendingStopAt.Clear();
+            // 可复用重置：归还池供热复用，刻意不 Clear
             ReleaseAllVoicesToPool();
-            _voicePool.Clear();
         }
 
         #endregion 服务方法 [SERVICE METHOD]

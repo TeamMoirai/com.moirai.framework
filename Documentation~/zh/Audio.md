@@ -226,6 +226,7 @@ AudioService.ResetMixSnapshot(0.25f);
 - `Stop(handle, fadeout)` 与 `FadeAudio(handle, ...)` 互斥接管同句柄音量（后调用者取消前者），请勿混用叠加  
 - 加载新场景自动 `StopAllButPersistent`；跨场景音频设 `Persistent = true`  
 - 句柄由服务自动释放，无需（也不应长期）手动 `ReleaseHandle`  
+- 游戏内调试器 `Profiler/Audio` 除音量/音轨控制外，还显示 Clip 缓存条目/容量、在途、常驻、失败冷却、当前混音快照与 Ducking 占用，并提供清空缓存按钮——排查"音效没出来"先看这里  
 - 冷路径 API（`PlayFade` / `StopByID`）允许 lambda；热路径用 16B `AudioPlayRequest`
 
 ---

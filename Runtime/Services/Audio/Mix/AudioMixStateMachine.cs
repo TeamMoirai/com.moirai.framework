@@ -69,6 +69,8 @@ namespace Moirai.Atropos.Audio
         [SerializeField] private float m_DefaultBlendSeconds = 0.35f;
 
         private EMixSnapshot _current = EMixSnapshot.Default;
+        private static System.Reflection.FieldInfo s_SnapshotsField;
+        private static bool s_SnapshotsFieldResolved;
         private float _currentPriority;
         private Action<EMixSnapshot, float> _middlewareTransition;
 
@@ -133,15 +135,22 @@ namespace Moirai.Atropos.Audio
         /// <summary>
         /// 读取 AudioMixer 内全部 Snapshot（反射 <c>m_Snapshots</c>；编辑器下 SerializedObject 回退）。
         /// </summary>
+        /// <remarks>返回**副本**：反射拿到的是 Mixer 内部的活数组，调用方一次写入就会改坏资产侧的快照表。
+        /// <c>FieldInfo</c> 只解析一次，避免每次绑定都走一遍反射查询。</remarks>
         internal static AudioMixerSnapshot[] CollectMixerSnapshots(AudioMixer mixer)
         {
             if (mixer == null) return Array.Empty<AudioMixerSnapshot>();
 
-            var field = typeof(AudioMixer).GetField("m_Snapshots",
-                BindingFlags.NonPublic | BindingFlags.Instance);
-            if (field != null && field.GetValue(mixer) is AudioMixerSnapshot[] reflected && reflected.Length > 0)
+            if (!s_SnapshotsFieldResolved)
             {
-                return reflected;
+                s_SnapshotsField = typeof(AudioMixer).GetField("m_Snapshots",
+                    BindingFlags.NonPublic | BindingFlags.Instance);
+                s_SnapshotsFieldResolved = true;
+            }
+
+            if (s_SnapshotsField != null && s_SnapshotsField.GetValue(mixer) is AudioMixerSnapshot[] reflected && reflected.Length > 0)
+            {
+                return (AudioMixerSnapshot[])reflected.Clone();
             }
 
 #if UNITY_EDITOR
@@ -159,6 +168,14 @@ namespace Moirai.Atropos.Audio
                 }
 
                 if (list.Count > 0) return list.ToArray();
+            }
+#else
+            // 只有编辑器路径能兜住反射失败：真机上字段改名会静默变成"一个都绑不上"，必须留话
+            if (s_SnapshotsField == null)
+            {
+                AudioWarnOnce.Error("mix.snapshots-field-missing",
+                    "[AudioMix] 反射 AudioMixer.m_Snapshots 失败（Unity 内部字段可能已改名），按名自动绑定不可用；" +
+                    "请在 AudioServiceSettings.MixSnapshots 里手工映射。");
             }
 #endif
 

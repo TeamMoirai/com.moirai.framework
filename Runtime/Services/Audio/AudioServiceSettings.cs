@@ -35,13 +35,20 @@ namespace Moirai.Atropos.Audio
         /// </summary>
         [ContextMenu("从 Mixer 重建混音快照映射")]
         [Button("从 Mixer 重建混音快照映射")]
-        public void RebuildFromMixer()
+        public void RebuildFromMixer() => RebuildMixSnapshotsFromMixer();
+
+        /// <summary>
+        /// 重建映射并回报结果：服务已在跑时顺带把新映射登记进状态机，避免"改了配置但当前会话毫无变化"。
+        /// </summary>
+        /// <returns>本次由自动绑定补齐的条目数；<c>0</c> 表示 Mixer 里没有可按名对上的快照。</returns>
+        public int RebuildMixSnapshotsFromMixer()
         {
             var mixer = m_AudioMixer;
             if (mixer == null)
             {
-                LogUtility.Warning("[AudioServiceSettings] 未配置 AudioMixer，无法重建混音快照映射。");
-                return;
+                AudioWarnOnce.Warning("settings:rebuild-no-mixer",
+                    "[AudioServiceSettings] 未配置 AudioMixer，无法重建混音快照映射。");
+                return 0;
             }
 
             var snapshots = AudioMixStateMachine.CollectMixerSnapshots(mixer);
@@ -53,7 +60,26 @@ namespace Moirai.Atropos.Audio
 
             var states = (EMixSnapshot[])Enum.GetValues(typeof(EMixSnapshot));
             var existing = m_MixSnapshots ?? Array.Empty<AudioMixSnapshotEntry>();
+
+            // 重复 State 原先是"首个胜出、其余静默丢弃"——资产里真有重复时必须说出来，
+            // 否则音效师改了后一行却毫无效果，且无从归因。
+            int duplicates = 0;
+            for (int a = 0; a < existing.Length; a++)
+            {
+                for (int b = a + 1; b < existing.Length; b++)
+                {
+                    if (existing[a] != null && existing[b] != null && existing[a].State == existing[b].State) duplicates++;
+                }
+            }
+
+            if (duplicates > 0)
+            {
+                AudioWarnOnce.Warning("settings:mix-snapshot-duplicate",
+                    "[AudioServiceSettings] MixSnapshots 里有 {0} 处重复 State，重建时每个状态只保留第一条。", duplicates);
+            }
+
             var list = new System.Collections.Generic.List<AudioMixSnapshotEntry>(states.Length);
+            int filled = 0;
 
             for (int s = 0; s < states.Length; s++)
             {
@@ -72,7 +98,11 @@ namespace Moirai.Atropos.Audio
                 if (entry.Snapshot == null)
                 {
                     int index = AudioMixStateMachine.ResolveSnapshotIndex(names, state);
-                    if (index >= 0) entry.Snapshot = snapshots[index];
+                    if (index >= 0)
+                    {
+                        entry.Snapshot = snapshots[index];
+                        filled++;
+                    }
                 }
 
                 list.Add(entry);
@@ -82,6 +112,20 @@ namespace Moirai.Atropos.Audio
 #if UNITY_EDITOR
             UnityEditor.EditorUtility.SetDirty(this);
 #endif
+            // 运行期改动要当场进状态机；服务未初始化时 AudioMixService 自行跳过
+            for (int i = 0; i < list.Count; i++)
+            {
+                var entry = list[i];
+                if (entry.Snapshot != null) AudioMixService.RegisterSnapshot(entry.State, entry.Snapshot, entry.Priority);
+            }
+
+            if (filled == 0)
+            {
+                AudioWarnOnce.Warning("settings:rebuild-nothing-bound",
+                    "[AudioServiceSettings] Mixer 里没有与 EMixSnapshot 同名的 Snapshot，自动绑定为 0；请改快照名或手工映射。");
+            }
+
+            return filled;
         }
 
         [Header("自动 Ducking [Auto Ducking]")]

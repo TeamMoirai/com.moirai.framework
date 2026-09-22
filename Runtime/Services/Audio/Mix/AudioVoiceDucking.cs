@@ -49,6 +49,9 @@ namespace Moirai.Atropos.Audio
             Release();
         }
 
+        /// <summary>当前是否由本组件占用着 Dialogue（诊断用）。</summary>
+        public static bool IsDucking => _ducked;
+
         /// <summary>清空 duck 记账（服务重启/关停时调用）。</summary>
         public static void Reset()
         {

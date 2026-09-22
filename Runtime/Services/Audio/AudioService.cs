@@ -156,6 +156,11 @@ namespace Moirai.Atropos.Audio
         /// </summary>
         public static IReadOnlyDictionary<string, object> AssetHandlePool => s_Handler?.AssetHandlePool;
 
+        /// <summary>
+        /// Clip 缓存本体（仅同程序集：调试面板取诊断计数用）。中间件后端返回 <c>null</c>。
+        /// </summary>
+        internal static AudioClipCache ClipCacheForDiagnostics => (s_Handler as UnityAudioHandler)?.ClipCache;
+
         #endregion
 
         #region 音轨状态 [TRACK STATUS]

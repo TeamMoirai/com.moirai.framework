@@ -33,6 +33,9 @@ namespace Moirai.Atropos.Audio
                 AddTrackControls(trackCard, values[i]);
             }
 
+            VisualElement cacheCard = AddSection(root, "Clip 缓存 [CLIP CACHE]");
+            AddCacheControls(cacheCard);
+
             VisualElement settingsCard = AddSection(root, "设置 [SETTINGS]");
             VisualElement settingsRow = DebuggerUI.CreateToolbarRow();
             settingsRow.Add(DebuggerUI.CreateToolbarButton("Save Settings", () => AudioService.SetSettings(), DebuggerUI.EButtonStyle.Positive));
@@ -42,6 +45,51 @@ namespace Moirai.Atropos.Audio
         #endregion
 
         #region 私有 [PRIVATE]
+
+        /// <summary>
+        /// Clip 缓存与 Ducking 概览。这些计数此前没有任何运行期读者，而线上"音效没出来"的第一嫌疑
+        /// 恰恰是缓存满载判负、地址在失败冷却、或快照没绑上——不显示就等于看不到。
+        /// </summary>
+        private static void AddCacheControls(VisualElement card)
+        {
+            AudioClipCache cache = AudioService.ClipCacheForDiagnostics;
+            if (cache == null)
+            {
+                card.Add(DebuggerUI.CreateHintLabel("当前后端不持有 clip 租约（中间件按事件路径播放）。"));
+                card.Add(DebuggerUI.CreateHintLabel(StringUtility.Format("混音快照 {0}", AudioMixService.Current)));
+                return;
+            }
+
+            card.Add(DebuggerUI.CreateHintLabel(StringUtility.Format(
+                "条目 {0}/{1} · 在途 {2} · 常驻 {3} · 失败冷却 {4} · TTL {5:0.#}s · 默认策略 {6}",
+                cache.Count, cache.Capacity, cache.LoadingCount, cache.PinnedCount,
+                cache.FailedAddressCount, cache.Ttl, cache.DefaultPolicy)));
+            card.Add(DebuggerUI.CreateHintLabel(StringUtility.Format(
+                "留池可见 {0} 条 · 混音快照 {1} · Ducking {2}",
+                cache.PoolReadOnly.Count, AudioMixService.Current,
+                AudioVoiceDucking.IsDucking ? "占用 Dialogue" : "未占用")));
+
+            const int MaxEntryRows = 8;
+            int shown = 0;
+            for (var entry = cache.FirstEntry; entry != null && shown < MaxEntryRows; entry = entry.AllNext)
+            {
+                float idle = Time.realtimeSinceStartup - entry.LastUseTime;
+                card.Add(DebuggerUI.CreateHintLabel(StringUtility.Format("  {0}  ref {1} · {2} · {3} · {4:0.0}s 前",
+                    entry.Address, entry.RefCount, entry.CachePolicy,
+                    entry.Loading ? "加载中" : (entry.IsLoaded ? "已加载" : "空"), idle)));
+                shown++;
+            }
+
+            if (cache.Count > MaxEntryRows)
+            {
+                card.Add(DebuggerUI.CreateHintLabel(StringUtility.Format("  …另有 {0} 条未显示", cache.Count - MaxEntryRows)));
+            }
+
+            VisualElement row = DebuggerUI.CreateToolbarRow();
+            row.Add(DebuggerUI.CreateToolbarButton("清空缓存(保留在播)", () => AudioService.ClearClipCache(false)));
+            row.Add(DebuggerUI.CreateToolbarButton("强制清空", () => AudioService.ClearClipCache(true), DebuggerUI.EButtonStyle.Danger));
+            card.Add(row);
+        }
 
         private void AddMasterControls(VisualElement card)
         {
