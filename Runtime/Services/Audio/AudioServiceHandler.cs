@@ -14,8 +14,8 @@ namespace Moirai.Atropos.Audio
     /// <para>2. <see cref="MasterVolume"/> getter 始终返回未静音的设置值（静音只影响实际输出）；</para>
     /// <para>3. 主音量与音轨音量都是线性 <c>0..1</c>，且夹取只发生在契约入口一次——
     /// 曾经 Unity 侧允许 0..10 而中间件落总线时偷偷 Clamp01，同一份设置换后端上限就从 10 变 1；</para>
-    /// <para>3. Master/音轨 Fade 经共享 <see cref="AudioFadeScheduler"/> 驱动，带缓动且可中途停止；</para>
-    /// <para>4. 句柄生命周期与用户 ID 映射由共享 <see cref="AudioHandleRegistry{TVoice}"/> 保证。</para>
+    /// <para>4. Master/音轨 Fade 经共享 <see cref="AudioFadeScheduler"/> 驱动，带缓动且可中途停止；</para>
+    /// <para>5. 句柄生命周期与用户 ID 映射由共享 <see cref="AudioHandleRegistry{TVoice}"/> 保证。</para>
     /// <para>Unity 专属成员（中间件后端返回 null/空操作）见各成员 remarks；中间件不支持 InitialDelay / PlaybackDuration / Solo。</para>
     /// </summary>
     [Serializable]
@@ -443,24 +443,65 @@ namespace Moirai.Atropos.Audio
         #region 过渡 [FADES]
 
         /// <summary>
-        /// 在指定的持续时间内，淡入 Master 音轨到最终音量
+        /// 音量过渡调度器（声部句柄与 Master/音轨总线伪句柄共用）。
+        /// <para>放在基类不是图省事：两个后端的总线过渡族此前逐字相同，只把"落到哪儿"经
+        /// <see cref="IAudioFadeTarget.ApplyFade"/> 分派出去。同一段编排写两遍，就是下一处分歧的产地。</para>
+        /// <para><c>internal</c> 而非 <c>protected</c>：调度器是内部类型，而本契约是 public——
+        /// 既然后端只允许框架内替换，就不该为"外部也能派生"这条不存在的需求把内部件抬成 public。</para>
         /// </summary>
-        public abstract void FadeMasterTrack(float duration, float initialVolume = 0f, float finalVolume = 1f, TweenEase tweenEase = default);
+        [NonSerialized] internal readonly AudioFadeScheduler _fades = new AudioFadeScheduler();
 
         /// <summary>
-        /// 停止 Master 音轨上所有当前的淡化（Fade）
+        /// 在指定的持续时间内，淡入 Master 音轨到最终音量。
         /// </summary>
-        public abstract void StopFadeMasterTrack();
+        /// <remarks>时长为 0 等价于直接赋值；总线伪句柄与声部句柄共用同一张调度表。</remarks>
+        public virtual void FadeMasterTrack(float duration, float initialVolume = 0f, float finalVolume = 1f, TweenEase tweenEase = default)
+        {
+            if (duration <= 0f) { MasterVolume = finalVolume; return; }
+
+            _fades.Stop(AudioFadeScheduler.MASTER_FADE_HANDLE);
+            _fades.Add(new AudioFadeState
+            {
+                Handle = AudioFadeScheduler.MASTER_FADE_HANDLE,
+                StartTime = GameTime.unscaledTime,
+                Duration = duration,
+                StartVolume = initialVolume,
+                EndVolume = finalVolume,
+                Ease = tweenEase,
+            });
+        }
 
         /// <summary>
-        /// 在指定的持续时间内，淡入整个音轨到最终音量
+        /// 停止 Master 音轨上所有当前的淡化（Fade）。
         /// </summary>
-        public abstract void FadeTrack(EAudioTrack track, float duration, float initialVolume = 0f, float finalVolume = 1f, TweenEase tweenEase = default);
+        /// <remarks>只撤过渡，不还原已写出去的音量——停在哪儿就是哪儿。</remarks>
+        public virtual void StopFadeMasterTrack() => _fades.Stop(AudioFadeScheduler.MASTER_FADE_HANDLE);
 
         /// <summary>
-        /// 停止指定音轨上所有当前的淡化（Fade）
+        /// 在指定的持续时间内，淡入整个音轨到最终音量。
         /// </summary>
-        public abstract void StopFadeTrack(EAudioTrack track);
+        public virtual void FadeTrack(EAudioTrack track, float duration, float initialVolume = 0f, float finalVolume = 1f, TweenEase tweenEase = default)
+        {
+            if (duration <= 0f) { SetTrackVolume(track, finalVolume); return; }
+
+            ulong fadeHandle = AudioFadeScheduler.TrackFadeHandle((int)track);
+            _fades.Stop(fadeHandle);
+            _fades.Add(new AudioFadeState
+            {
+                Handle = fadeHandle,
+                StartTime = GameTime.unscaledTime,
+                Duration = duration,
+                StartVolume = initialVolume,
+                EndVolume = finalVolume,
+                Ease = tweenEase,
+            });
+        }
+
+        /// <summary>
+        /// 停止指定音轨上所有当前的淡化（Fade）。
+        /// </summary>
+        public virtual void StopFadeTrack(EAudioTrack track)
+            => _fades.Stop(AudioFadeScheduler.TrackFadeHandle((int)track));
 
         /// <summary>
         /// 对指定句柄的音频进行音量过渡。
@@ -469,14 +510,14 @@ namespace Moirai.Atropos.Audio
         public abstract void FadeAudio(ulong handle, float duration, float initialVolume, float finalVolume, TweenEase tweenEase);
 
         /// <summary>
-        /// 停止指定句柄音频上所有当前的淡化（Fade）
+        /// 停止指定句柄音频上所有当前的淡化（Fade）。
         /// </summary>
-        public abstract void StopFadeAudio(ulong handle);
+        public virtual void StopFadeAudio(ulong handle) => _fades.Stop(handle);
 
         /// <summary>
-        /// 检查指定句柄的音频是否正在过渡中
+        /// 检查指定句柄的音频是否正在过渡中。
         /// </summary>
-        public abstract bool SoundIsFadingOut(ulong handle);
+        public virtual bool SoundIsFadingOut(ulong handle) => _fades.IsFading(handle);
 
         /// <summary>
         /// 对匹配用户 ID 的全部句柄执行淡入/音量过渡（零 lambda 分配）。

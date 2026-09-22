@@ -109,8 +109,6 @@ namespace Moirai.Atropos.Audio.Middleware
 
         // 服务句柄注册表（句柄生成、句柄→Voice、用户 ID 映射、列表池）
         [NonSerialized] private readonly AudioHandleRegistry<Voice> _handles = new AudioHandleRegistry<Voice>();
-        // 音量过渡调度器（声部 + Master/音轨总线伪句柄共用）
-        [NonSerialized] private readonly AudioFadeScheduler _fades = new AudioFadeScheduler();
         [NonSerialized] private readonly Dictionary<ulong, float> _pendingStopAt = new Dictionary<ulong, float>(8);
         // 批量控制与 Tick 回收共用的句柄暂存：先收集再改表，避免遍历中释放句柄；复用以免每帧分配。
         // 用点之间不得嵌套（ReleaseHandle/FadeAudio 都不会再取它，成立）。
@@ -948,48 +946,6 @@ namespace Moirai.Atropos.Audio.Middleware
         #region 过渡 [FADES]
 
         /// <inheritdoc />
-        public override void FadeMasterTrack(float duration, float initialVolume, float finalVolume, TweenEase tweenEase)
-        {
-            if (duration <= 0f) { MasterVolume = finalVolume; return; }
-
-            _fades.Stop(AudioFadeScheduler.MASTER_FADE_HANDLE);
-            _fades.Add(new AudioFadeState
-            {
-                Handle = AudioFadeScheduler.MASTER_FADE_HANDLE,
-                StartTime = GameTime.unscaledTime,
-                Duration = duration,
-                StartVolume = initialVolume,
-                EndVolume = finalVolume,
-                Ease = tweenEase,
-            });
-        }
-
-        /// <inheritdoc />
-        public override void StopFadeMasterTrack() => _fades.Stop(AudioFadeScheduler.MASTER_FADE_HANDLE);
-
-        /// <inheritdoc />
-        public override void FadeTrack(EAudioTrack track, float duration, float initialVolume, float finalVolume, TweenEase tweenEase)
-        {
-            if (duration <= 0f) { SetTrackVolume(track, finalVolume); return; }
-
-            ulong fadeHandle = AudioFadeScheduler.TrackFadeHandle((int)track);
-            _fades.Stop(fadeHandle);
-            _fades.Add(new AudioFadeState
-            {
-                Handle = fadeHandle,
-                StartTime = GameTime.unscaledTime,
-                Duration = duration,
-                StartVolume = initialVolume,
-                EndVolume = finalVolume,
-                Ease = tweenEase,
-            });
-        }
-
-        /// <inheritdoc />
-        public override void StopFadeTrack(EAudioTrack track)
-            => _fades.Stop(AudioFadeScheduler.TrackFadeHandle((int)track));
-
-        /// <inheritdoc />
         public override void FadeAudio(ulong handle, float duration, float initialVolume, float finalVolume, TweenEase tweenEase)
         {
             if (duration <= 0f)
@@ -1009,12 +965,6 @@ namespace Moirai.Atropos.Audio.Middleware
                 Ease = tweenEase,
             });
         }
-
-        /// <inheritdoc />
-        public override void StopFadeAudio(ulong handle) => _fades.Stop(handle);
-
-        /// <inheritdoc />
-        public override bool SoundIsFadingOut(ulong handle) => _fades.IsFading(handle);
 
         /// <inheritdoc />
         public override void PlayFadeByID(int id, float duration, float finalVolume, TweenEase ease)

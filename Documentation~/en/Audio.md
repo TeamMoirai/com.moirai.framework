@@ -36,10 +36,10 @@ Runtime/Services/Audio/
 ## Architecture (HandlerHost + Strategy)
 
 - **`AudioService`**: Static facade; depends on `DebuggerService`, `ResourceService`
-- **`AudioServiceHandler`**: Backend contract (`StopByID`, 16-byte `Play`, virtual `OnAgentPlaybackEnded`)
+- **`AudioServiceHandler`**: Backend contract (`StopByID`, 16-byte `Play`, virtual `OnAgentPlaybackEnded`). Master/track bus fades are **implemented here** (the contract owns the `AudioFadeScheduler` and lands values through `IAudioFadeTarget.ApplyFade`); a backend only has to say where a volume goes
 - **`AudioHandleRegistry<TVoice>` / `AudioFadeScheduler`**: Shared handle registry and fade scheduling for both backends (bus fades use high-segment pseudo-handles)
 - **`UnityAudioHandler`**: Default Unity `AudioSource`/`AudioMixer` backend
-- **`MiddlewareAudioHandler`**: Shared FMOD/Wwise base (handles, fades, buses, layering)
+- **`MiddlewareAudioHandler`**: Shared FMOD/Wwise base (handles, voice fades, buses, layering)
 - **`FmodAudioHandler` / `WwiseAudioHandler`**: Thin wrappers; only implement `CreateDefaultBridge()`
 - **`AudioServiceSettings`**: Backend selection, mixer/track config, mix snapshot mapping, host pool warmup, clip cache limits
 
@@ -211,6 +211,7 @@ Configure `WarmupAudioHostPool` and `AudioHostWarmupCount` in `AudioServiceSetti
 - Backgrounding freezes `AudioListener.pause` (each `AudioSource` keeps its position) and foregrounding restores it; `OnApplicationFocus` is deliberately not observed (desktop alt-tab must not mute). Shutting down while backgrounded still unfreezes  
 - `AssetHandlePool` is now a read-only view over the clip cache (the contract member is typed `IReadOnlyDictionary`): leases are owned by the cache, so external code can neither rewrite the ledger nor dispose a lease  
 - Natural-end timing uses unscaled real time (`AudioSource` is not affected by `timeScale`): at `timeScale = 0` a non-looping voice still finishes in real time and auto-releases its handle  
+- Master/track fades are implemented by the contract base class (one code path for both backends): `duration <= 0` means assign immediately and schedule nothing; `StopFadeMasterTrack` / `StopFadeTrack` **cancel the fade without restoring volume already written** — wherever it stopped is where it stays; re-requesting a fade on the same bus replaces the pending one rather than stacking it  
 - `Stop(handle, fadeout)` and `FadeAudio(handle, ...)` take over the same handle's volume exclusively (the later call cancels the former) — do not stack them  
 - Scene load auto `StopAllButPersistent`; set `Persistent = true` for cross-scene audio  
 - Handles are auto-released; do not rely on long-lived manual `ReleaseHandle`  

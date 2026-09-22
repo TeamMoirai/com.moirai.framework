@@ -36,10 +36,10 @@ Runtime/Services/Audio/
 ## 架构（HandlerHost + 策略）
 
 - **`AudioService`**：静态外观，依赖 `DebuggerService`、`ResourceService`
-- **`AudioServiceHandler`**：后端抽象契约（含 `StopByID`、16B 热请求 `Play`、`OnAgentPlaybackEnded` 虚回调）
+- **`AudioServiceHandler`**：后端抽象契约（含 `StopByID`、16B 热请求 `Play`、`OnAgentPlaybackEnded` 虚回调）。Master/音轨总线过渡由本契约**直接实现**（持 `AudioFadeScheduler`，落到 `IAudioFadeTarget.ApplyFade`），后端只需实现"音量写到哪儿"
 - **`AudioHandleRegistry<TVoice>` / `AudioFadeScheduler`**：Unity 与中间件后端共享的句柄注册与过渡调度（总线 Fade 用高位段伪句柄）
 - **`UnityAudioHandler`**：默认 Unity `AudioSource`/`AudioMixer` 后端
-- **`MiddlewareAudioHandler`**：FMOD / Wwise 共用基类（句柄、Fade、总线、分层）
+- **`MiddlewareAudioHandler`**：FMOD / Wwise 共用基类（句柄、声部 Fade、总线、分层）
 - **`FmodAudioHandler` / `WwiseAudioHandler`**：薄封装，仅提供 `CreateDefaultBridge()`
 - **`AudioServiceSettings`**：选择后端、配置 Mixer 与 `AudioGroupConfig[]`、混音快照映射、可选宿主池预热与 Clip 缓存档位
 - **`AudioClipCache`**：Unity 后端路径播放的资源真相源（同地址共享一条租约，LRU/TTL/Pin 驱逐）
@@ -237,6 +237,7 @@ AudioService.ResetMixSnapshot(0.25f);
 - 各工厂方法与重载的 `DoNotAutoRecycle` 默认统一为 true（不抢占未播完的通道）  
 - 无可用通道的告警按轨节流（3 秒）降级为 Warning  
 - 手动 `FadeAudio` / 快照过渡依赖服务 `Tick` 推进  
+- Master / 音轨过渡由契约基类实现（两后端同一条路）：`duration <= 0` 等价于直接赋值且不排过渡；`StopFadeMasterTrack` / `StopFadeTrack` **只撤过渡、不还原已写出去的音量**（停在哪儿就是哪儿）；对同一总线重复请求过渡是顶掉前一条而非叠加  
 - 路径播放 `Play(path, ...)` 默认异步加载（`bAsync = true`）；同步加载阻塞主线程，仅限启动期/预加载显式使用  
 - 路径播放一律经 Clip 缓存，默认策略 `Ttl`：一次性的冷门音效想「用完立刻卸载」请显式设 `AudioPlayOptions.CachePolicy = None`  
 - 加载失败的地址进入 5 秒冷却（`Configure` 的 `failureCooldownSeconds` 可调，`0` 关闭）：否则一个写错的事件地址被高频触发时会每次都重穿资源层。`ClearClipCache(force: true)` 会连冷却一起重置  
