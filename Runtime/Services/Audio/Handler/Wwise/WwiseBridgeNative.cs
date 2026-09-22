@@ -170,18 +170,26 @@ namespace Moirai.Atropos.Audio.Wwise
 
         /// <inheritdoc />
         /// <remarks>
-        /// 走 <c>AkSoundEngine.LoadBank(name, out bankID)</c>。已加载或失败返回 false（幂等，二次加载不再触达 SDK）。
+        /// 走 <c>AkSoundEngine.LoadBank(name, out bankID)</c>。<c>AK_BankAlreadyLoaded</c>（含插件启动时自行
+        /// 加载的 Init/General 库）归为 <see cref="EAudioBankLoadResult.AlreadyLoaded"/>，其余非成功码归为
+        /// <see cref="EAudioBankLoadResult.Failed"/>；只有成功才记账，失败保留可重试。
         /// </remarks>
-        public bool LoadBank(string bankPath)
+        public EAudioBankLoadResult LoadBank(string bankPath)
         {
-            if (string.IsNullOrEmpty(bankPath) || _bankIds.ContainsKey(bankPath)) return false;
+            if (string.IsNullOrEmpty(bankPath)) return EAudioBankLoadResult.Failed;
+            if (_bankIds.ContainsKey(bankPath)) return EAudioBankLoadResult.AlreadyLoaded;
 
             // 无 Wwise SDK 的机器无法编译核对；本段受 WWISE_INSTALLED 保护
             AKRESULT result = AkSoundEngine.LoadBank(bankPath, out uint bankId);
-            if (result != AKRESULT.AK_Success) return false;
+            if (result != AKRESULT.AK_Success)
+            {
+                return result == AKRESULT.AK_BankAlreadyLoaded
+                    ? EAudioBankLoadResult.AlreadyLoaded
+                    : EAudioBankLoadResult.Failed;
+            }
 
             _bankIds[bankPath] = bankId;
-            return true;
+            return EAudioBankLoadResult.Loaded;
         }
 
         /// <inheritdoc />

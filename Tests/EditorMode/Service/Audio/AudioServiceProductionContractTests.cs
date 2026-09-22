@@ -13,10 +13,34 @@ namespace Service.Audio
         #region 通道硬上限 [CHANNEL CAP]
 
         [Test]
-        public void AudioCategory_HardChannelCap_IsBounded()
+        public void AudioGroupConfig_ChannelCeiling_IsBoundedAndPerTrack()
         {
-            Assert.GreaterOrEqual(AudioCategory.HARD_CHANNEL_CAP, 8);
-            Assert.LessOrEqual(AudioCategory.HARD_CHANNEL_CAP, 128);
+            // 上限写死时主机/移动无法各取所需，故必须按音轨配置且有界
+            var config = new AudioGroupConfig();
+            Assert.AreEqual(AudioGroupConfig.HARD_CHANNEL_CEILING_DEFAULT, config.MaxChannelCeiling,
+                "未配置（含改前老资产缺字段）必须落到历史值 32");
+
+            SetCeiling(config, 64);
+            Assert.AreEqual(64, config.MaxChannelCeiling);
+
+            SetCeiling(config, 0);
+            Assert.AreEqual(AudioGroupConfig.HARD_CHANNEL_CEILING_DEFAULT, config.MaxChannelCeiling,
+                "写坏成 0 不得把扩展直接锁死");
+
+            SetCeiling(config, -1);
+            Assert.AreEqual(AudioGroupConfig.HARD_CHANNEL_CEILING_DEFAULT, config.MaxChannelCeiling);
+
+            SetCeiling(config, 4096);
+            Assert.AreEqual(AudioGroupConfig.HARD_CHANNEL_CEILING_MAX, config.MaxChannelCeiling,
+                "越界一律削到天花板，不做静默放大");
+        }
+
+        private static void SetCeiling(AudioGroupConfig config, int value)
+        {
+            typeof(AudioGroupConfig)
+                .GetField("m_MaxChannelCeiling", System.Reflection.BindingFlags.Instance
+                    | System.Reflection.BindingFlags.NonPublic)
+                .SetValue(config, value);
         }
 
         #endregion 通道硬上限 [CHANNEL CAP]

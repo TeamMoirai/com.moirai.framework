@@ -1,10 +1,12 @@
 using System;
 using System.Reflection;
+using System.Text.RegularExpressions;
 using Moirai.Atropos.Audio;
 using Moirai.Atropos.Audio.Fmod;
 using Moirai.Atropos.Audio.Middleware;
 using Moirai.Atropos.Audio.Wwise;
 using NUnit.Framework;
+using UnityEngine.TestTools;
 
 namespace Service.Audio
 {
@@ -19,21 +21,22 @@ namespace Service.Audio
         #region Stub 契约 [STUB CONTRACT]
 
         [Test]
-        public void FmodStub_LoadBank_EmptyOrNull_ReturnsFalse()
+        public void FmodStub_LoadBank_EmptyOrNull_ReturnsFailed()
         {
             var stub = new FmodBridgeStub();
-            Assert.IsFalse(stub.LoadBank(null));
-            Assert.IsFalse(stub.LoadBank(string.Empty));
+            Assert.AreEqual(EAudioBankLoadResult.Failed, stub.LoadBank(null));
+            Assert.AreEqual(EAudioBankLoadResult.Failed, stub.LoadBank(string.Empty));
             Assert.AreEqual(0, stub.BankLoadCount);
             Assert.AreEqual(0, stub.Banks.Count);
         }
 
         [Test]
-        public void FmodStub_LoadBank_Idempotent_SecondReturnsFalse()
+        public void FmodStub_LoadBank_Idempotent_SecondIsAlreadyLoaded()
         {
             var stub = new FmodBridgeStub();
-            Assert.IsTrue(stub.LoadBank("Master"));
-            Assert.IsFalse(stub.LoadBank("Master"), "已加载再 Load 必须 false");
+            Assert.AreEqual(EAudioBankLoadResult.Loaded, stub.LoadBank("Master"));
+            Assert.AreEqual(EAudioBankLoadResult.AlreadyLoaded, stub.LoadBank("Master"),
+                "幂等命中必须与真失败分得开——它会被上层判成「正常」，不该进告警");
             Assert.AreEqual(1, stub.BankLoadCount);
             Assert.IsTrue(stub.Banks.Contains("Master"));
         }
@@ -51,7 +54,7 @@ namespace Service.Audio
         public void FmodStub_UnloadBank_Loaded_ReturnsTrueThenFalse()
         {
             var stub = new FmodBridgeStub();
-            Assert.IsTrue(stub.LoadBank("Master"));
+            Assert.AreEqual(EAudioBankLoadResult.Loaded, stub.LoadBank("Master"));
             Assert.IsTrue(stub.UnloadBank("Master"));
             Assert.IsFalse(stub.UnloadBank("Master"), "卸载后再次 Unload 必须 false");
             Assert.IsFalse(stub.Banks.Contains("Master"));
@@ -83,10 +86,10 @@ namespace Service.Audio
         public void WwiseStub_LoadUnloadBank_ContractMatchesFmod()
         {
             var stub = new WwiseBridgeStub();
-            Assert.IsFalse(stub.LoadBank(null));
-            Assert.IsFalse(stub.LoadBank(string.Empty));
-            Assert.IsTrue(stub.LoadBank("Init"));
-            Assert.IsFalse(stub.LoadBank("Init"), "已加载再 Load 必须 false");
+            Assert.AreEqual(EAudioBankLoadResult.Failed, stub.LoadBank(null));
+            Assert.AreEqual(EAudioBankLoadResult.Failed, stub.LoadBank(string.Empty));
+            Assert.AreEqual(EAudioBankLoadResult.Loaded, stub.LoadBank("Init"));
+            Assert.AreEqual(EAudioBankLoadResult.AlreadyLoaded, stub.LoadBank("Init"), "已加载再 Load 必须算幂等命中");
             Assert.IsTrue(stub.UnloadBank("Init"));
             Assert.IsFalse(stub.UnloadBank("Init"));
             Assert.AreEqual(1, stub.BankLoadCount);
@@ -265,8 +268,8 @@ namespace Service.Audio
             }
         }
 
-        /// <summary>仅实现主桥接口的假件——验证能力探测安全降级。</summary>
-        private sealed class BridgeWithoutCapabilities : IAudioMiddlewareBridge
+        /// <summary>仅实现主桥接口的假件——验证能力探测安全降级，也是能力子类化的底座。</summary>
+        private class BridgeWithoutCapabilities : IAudioMiddlewareBridge
         {
             public bool Initialize(UnityEngine.Transform instanceRoot) => true;
             public void Shutdown() { }
@@ -282,5 +285,68 @@ namespace Service.Audio
         }
 
         #endregion Handler 外观派发 [HANDLER FACADE DISPATCH]
+
+        #region 加载失败可归因 [LOAD FAILURE DIAGNOSIS]
+
+        /// <summary>可编排加载结果、并统计触达次数的假桥。</summary>
+        private sealed class ControllableBankBridge : BridgeWithoutCapabilities, IAudioMiddlewareBankControl
+        {
+            public EAudioBankLoadResult NextResult = EAudioBankLoadResult.Loaded;
+            public int LoadCalls;
+
+            public EAudioBankLoadResult LoadBank(string bankPath)
+            {
+                LoadCalls++;
+                return NextResult;
+            }
+
+            public bool UnloadBank(string bankPath) => true;
+        }
+
+        [Test]
+        public void MiddlewareHandler_LoadBank_Failed_WarnsOncePerPath()
+        {
+            AudioWarnOnce.Reset();
+            var bridge = new ControllableBankBridge { NextResult = EAudioBankLoadResult.Failed };
+            var handler = new FmodAudioHandler();
+            handler.SetBridge(bridge);
+
+            LogAssert.Expect(UnityEngine.LogType.Warning, new Regex("声音库 .*Bank_Boss 加载失败"));
+            Assert.IsFalse(handler.LoadBank("Bank_Boss"), "失败必须返回 false");
+            Assert.IsFalse(handler.LoadBank("Bank_Boss"));
+            Assert.IsFalse(handler.LoadBank("Bank_Boss"));
+
+            // 三条断言只配了一次 LogAssert.Expect：再多落一条 Warning 就会以「意外日志」失败
+            Assert.AreEqual(3, bridge.LoadCalls, "告警去重不得顺手把重试也拦掉——桥仍要被问到");
+        }
+
+        [Test]
+        public void MiddlewareHandler_LoadBank_AlreadyLoaded_StaysSilent()
+        {
+            AudioWarnOnce.Reset();
+            var bridge = new ControllableBankBridge { NextResult = EAudioBankLoadResult.AlreadyLoaded };
+            var handler = new FmodAudioHandler();
+            handler.SetBridge(bridge);
+
+            // 幂等命中（含插件启动时自行加载的 master/Init 库）是正常路径：报出来就会把真失败淹成噪音
+            Assert.IsFalse(handler.LoadBank("Master"));
+            Assert.IsFalse(handler.LoadBank("Master"));
+            Assert.AreEqual(2, bridge.LoadCalls);
+        }
+
+        [Test]
+        public void MiddlewareHandler_LoadBank_EmptyPath_DoesNotTouchBridge()
+        {
+            AudioWarnOnce.Reset();
+            var bridge = new ControllableBankBridge { NextResult = EAudioBankLoadResult.Failed };
+            var handler = new FmodAudioHandler();
+            handler.SetBridge(bridge);
+
+            Assert.IsFalse(handler.LoadBank(null));
+            Assert.IsFalse(handler.LoadBank(string.Empty));
+            Assert.AreEqual(0, bridge.LoadCalls, "空路径在外观层短路，不该占用失败告警的额度");
+        }
+
+        #endregion 加载失败可归因 [LOAD FAILURE DIAGNOSIS]
     }
 }

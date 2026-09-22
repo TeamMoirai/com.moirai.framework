@@ -126,31 +126,38 @@ namespace Moirai.Atropos.Audio.Fmod
         /// <remarks>
         /// 形态像文件路径时走 <c>StudioSystem.loadBankFile</c>；短名走 <c>RuntimeManager.LoadBank</c>（StreamingAssets，
         /// <c>loadSamples: true</c>——与 PlayEvent 即发即用对齐，否则 sample 未载入时首播会静默失败）。
-        /// 已加载或失败返回 false（幂等，二次加载不再触达 SDK）。
+        /// 幂等命中返回 <see cref="EAudioBankLoadResult.AlreadyLoaded"/>（本桥记账命中，或 SDK 报
+        /// <c>ERR_ALREADY_LOADED</c>）；<c>ERR_ALREADY_LOADED</c> 之外的一切失败归为
+        /// <see cref="EAudioBankLoadResult.Failed"/>。
         /// </remarks>
-        public bool LoadBank(string bankPath)
+        public EAudioBankLoadResult LoadBank(string bankPath)
         {
-            if (string.IsNullOrEmpty(bankPath) || _bankHandles.ContainsKey(bankPath)) return false;
+            if (string.IsNullOrEmpty(bankPath)) return EAudioBankLoadResult.Failed;
+            if (_bankHandles.ContainsKey(bankPath)) return EAudioBankLoadResult.AlreadyLoaded;
 
-            bool ok;
+            var result = FMOD.RESULT.OK;
             FMOD.Studio.Bank bank;
             if (IsPathLike(bankPath))
             {
-                var result = FMODUnity.RuntimeManager.StudioSystem.loadBankFile(
+                result = FMODUnity.RuntimeManager.StudioSystem.loadBankFile(
                     bankPath, FMOD.Studio.LOAD_BANK_FLAGS.NORMAL, out bank);
-                ok = result == FMOD.RESULT.OK && bank.isValid();
             }
             else
             {
                 // loadSamples: true 与即发即用模型对齐；旧写法 false 会在首播时因 sample 未载入而无声
                 bank = FMODUnity.RuntimeManager.LoadBank(bankPath, true);
-                ok = bank.isValid();
             }
 
-            if (!ok) return false;
+            // 短名分支的 result 恒为 OK，判定等价于只看句柄；文件分支则要求返回码也干净
+            if (result == FMOD.RESULT.OK && bank.isValid())
+            {
+                _bankHandles[bankPath] = bank;
+                return EAudioBankLoadResult.Loaded;
+            }
 
-            _bankHandles[bankPath] = bank;
-            return true;
+            return result == FMOD.RESULT.ERR_ALREADY_LOADED
+                ? EAudioBankLoadResult.AlreadyLoaded
+                : EAudioBankLoadResult.Failed;
         }
 
         /// <inheritdoc />

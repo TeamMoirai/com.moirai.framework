@@ -32,7 +32,7 @@ namespace Moirai.Atropos.Audio
         public static bool Warning(string key, string format, params object[] args)
         {
             if (!ShouldLog(key)) return false;
-            LogUtility.Warning(format, args);
+            LogUtility.Warning(Compose(format, args));
             return true;
         }
 
@@ -40,9 +40,18 @@ namespace Moirai.Atropos.Audio
         public static bool Error(string key, string format, params object[] args)
         {
             if (!ShouldLog(key)) return false;
-            LogUtility.Error(format, args);
+            LogUtility.Error(Compose(format, args));
             return true;
         }
+
+        /// <summary>
+        /// 先把占位符拼成成品串再交给日志层。
+        /// <para><c>LogUtility</c> 只有 <c>Warning&lt;T1&gt;(format, arg1, …)</c> 这类定长泛型重载、
+        /// 没有 <c>params object[]</c>：直接把 <c>args</c> 整个当**一个** T1 参数递出去，
+        /// <c>{0}</c> 打成 "System.Object[]"，整条告警的关键信息（地址/库名/数量）全部丢失。</para>
+        /// </summary>
+        private static string Compose(string format, object[] args)
+            => args == null || args.Length == 0 ? format : string.Format(format, args);
 
         private static bool ShouldLog(string key)
         {

@@ -9,8 +9,12 @@ namespace Moirai.Atropos.Audio.Middleware
     /// </summary>
     internal interface IAudioMiddlewareBankControl
     {
-        /// <summary>加载声音库；已加载或失败返回 false。</summary>
-        bool LoadBank(string bankPath);
+        /// <summary>
+        /// 加载声音库。幂等命中（含 SDK/插件启动时自行加载的 master/Init 库）与真失败必须分得开，
+        /// 所以返回 <see cref="EAudioBankLoadResult"/> 三态而不是 <c>bool</c>——只有 <see cref="EAudioBankLoadResult.Failed"/>
+        /// 才会被上层记一次告警。
+        /// </summary>
+        EAudioBankLoadResult LoadBank(string bankPath);
 
         /// <summary>卸载声音库；未加载或失败返回 false。</summary>
         bool UnloadBank(string bankPath);

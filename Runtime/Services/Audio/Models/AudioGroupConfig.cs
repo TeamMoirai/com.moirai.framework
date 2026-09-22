@@ -29,10 +29,22 @@ namespace Moirai.Atropos.Audio
         [Tooltip("否可以扩展（按需创建新的音频源）")]
         [SerializeField] private bool m_CanExpand;
 
+        [Tooltip("扩展的通道硬上限（仅 CanExpand 生效）：按平台预算分轨设置，非法值回落到默认 32")]
+        [SerializeField, Min(1)] private int m_MaxChannelCeiling = HARD_CHANNEL_CEILING_DEFAULT;
+
         // 最小音量
         public const float MINIMAL_VOLUME = 0.0001f;
         // 最大音量
         public const float MAXIMAL_VOLUME = 10f;
+
+        /// <summary>扩展硬上限的缺省值——保持与历史上写死的 32 一致。</summary>
+        public const int HARD_CHANNEL_CEILING_DEFAULT = 32;
+
+        /// <summary>
+        /// 扩展硬上限的绝对天花板：这条轨道上限本身就是「别把通道数跑飞」的保险，
+        /// 所以配置再大也不越过它（主机要更多声部应改的是 <see cref="MaxChannel"/>，不是把保险拆掉）。
+        /// </summary>
+        public const int HARD_CHANNEL_CEILING_MAX = 128;
 
         private bool _isMuted;
         private float _volume;
@@ -123,6 +135,15 @@ namespace Moirai.Atropos.Audio
         /// 当没有可用的Agent时，是否可拓展
         /// </summary>
         public bool CanExpand => m_CanExpand;
+
+        /// <summary>
+        /// 扩展的通道硬上限：只约束 <see cref="CanExpand"/> 的按需增长，不约束 <see cref="MaxChannel"/> 的预置槽位。
+        /// </summary>
+        /// <remarks>非正数（老资产缺字段、YAML 手改坏）回落到 <see cref="HARD_CHANNEL_CEILING_DEFAULT"/>，
+        /// 过大值削到 <see cref="HARD_CHANNEL_CEILING_MAX"/>——宁可按缺省跑，也不让一个写坏的数把保险拆掉。</remarks>
+        public int MaxChannelCeiling => m_MaxChannelCeiling > 0
+            ? Mathf.Min(m_MaxChannelCeiling, HARD_CHANNEL_CEILING_MAX)
+            : HARD_CHANNEL_CEILING_DEFAULT;
 
         /// <summary>
         /// 写入设置

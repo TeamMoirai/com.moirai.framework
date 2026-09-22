@@ -118,11 +118,13 @@ namespace Moirai.Atropos.Audio.Fmod
         public int BankLoadCount { get; private set; }
         public int RtpcCount { get; private set; }
 
-        public bool LoadBank(string bankPath)
+        public EAudioBankLoadResult LoadBank(string bankPath)
         {
-            if (string.IsNullOrEmpty(bankPath) || !Banks.Add(bankPath)) return false;
+            if (string.IsNullOrEmpty(bankPath)) return EAudioBankLoadResult.Failed;
+            if (!Banks.Add(bankPath)) return EAudioBankLoadResult.AlreadyLoaded;
+
             BankLoadCount++;
-            return true;
+            return EAudioBankLoadResult.Loaded;
         }
 
         public bool UnloadBank(string bankPath)

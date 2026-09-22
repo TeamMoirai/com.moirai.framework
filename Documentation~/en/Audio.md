@@ -59,6 +59,7 @@ Middleware backends derive the event path from `clip.name` (FMOD: `event:/<name>
 
 - Add `Clip` + `EventPath` entries under “Event Map” on `FmodAudioHandler` / `WwiseAudioHandler` in the Inspector.
 - A hit is used directly; a miss falls back to name derivation and emits a **one-time** warning for that clip.
+- Counting resolves through the same path: `CurrentlyPlayingCount(clip)` consults the map too, otherwise mapped clips would always report 0.
 - Call `InvalidateEventMap()` after changing the configuration at runtime (also the entry point for code-driven maps).
 - `Play(string eventPath, …)` always sends the path as-is and bypasses the map.
 
@@ -69,12 +70,13 @@ Middleware backends derive the event path from `clip.name` (FMOD: `event:/<name>
 - The Unity backend has no such concept: `LoadBank` returns `false`, `SetRtpc` is a no-op.
 - Middleware backends probe **capability interfaces** (`IAudioMiddlewareBankControl` / `IAudioMiddlewareRtpcControl`); a bridge without the capability warns once and degrades safely. They are deliberately *not* members of `IAudioMiddlewareBridge` — that would make every real SDK bridge that doesn't implement them fail to compile the moment `FMOD_INSTALLED` / `WWISE_INSTALLED` is defined.
 - `handle` 0 addresses a project/global parameter; a playback handle addresses that instance.
-- `FmodBridgeNative` / `WwiseBridgeNative` do **not** implement these capabilities yet (no plugin installed locally, so SDK calls cannot be compiled or verified). Implement them against the interfaces above once the SDK is present; nothing on the framework side needs to change.
+- `FmodBridgeNative` / `WwiseBridgeNative` now carry implementations against these interfaces, but they **cannot be compiled on a machine without the plugin**: define the macro, pass the compile gate, then re-run the bridge contract tests against the real SDK.
+- At the bridge level `LoadBank` is **tri-state** (`Loaded` / `AlreadyLoaded` / `Failed`): an idempotent hit and a master/Init bank the plugin loaded itself are both normal, so only `Failed` produces a one-time warning per bank name. The facade `AudioService.LoadBank` stays `bool` and returns `true` only when this call actually completed the load.
 
 ## Core Features
 
 - Five tracks: Sfx / UI / Music / Voice / Ambience
-- Agent pool + priority voice stealing + `HARD_CHANNEL_CAP` (32)
+- Agent pool + priority voice stealing + per-track expansion ceiling (`AudioGroupConfig.MaxChannelCeiling`, 32 by default)
 - Auto handle release on stop/end via `OnAgentPlaybackEnded`
 - Layered BGM: different IDs coexist; `StopByID(id)` replaces only that layer
 - 16-byte hot request `AudioPlayRequest` + pooled cold params `AudioPlayColdParams`
@@ -129,6 +131,24 @@ AudioService.ResetMixSnapshot(0.5f);
 ### Middleware backends
 
 Add `FMOD_INSTALLED` or `WWISE_INSTALLED` in Scripting Define Symbols, import the plugin, and switch the Handler in `AudioServiceSettings`. Event paths: FMOD `event:/Name`; Wwise event name; buses `bus:/Music`, etc.
+
+#### Shipping conventions
+
+Conventions that must be pinned down before release — a change on either side (audio project or code) has to be mirrored:
+
+- **Event naming**: `Play(clip, …)` relies on the event map; a missing entry falls back to deriving from `clip.name`. Mismatched names are the number one source of silently wrong/absent audio, so every production clip must be registered explicitly. `Play(eventPath, …)` sends the path as-is and bypasses the map.
+- **Buses**: the framework writes linear volume to `bus:/{EAudioTrack}` and `bus:/Master`. Renaming a bus on the project side silently detaches that track; the Wwise bridge maps buses to RTPCs (`bus:/Music` → `MusicVolume`), so those plus every `SetRtpc` name form a list that ships with the build.
+- **Bank order**: on a scene change the fixed order is `LoadBank(next)` → `StopAllButPersistent(fade)` → `UnloadBank(prev)`. Only `UnloadBank` returning `true` means it actually released; compare memory snapshots against `true` results.
+- **Stop semantics**: fades are driven by the framework writing instance volume down to 0 and then `StopInstance(immediate: true)`. The `immediate: false` branch has no production caller today — verify it separately against the real SDK, and note that an implementation must not release/reclaim the emitter while the tail is still fading.
+
+#### When initialization fails
+
+If `IAudioMiddlewareBridge.Initialize` returns `false`, the backend disables audio as a whole and logs one Error: the bridge reference is dropped, so from then on `Play` returns `0`, Bank/RTPC calls are no-ops, and `Tick` returns immediately — nothing ever reaches a native engine that did not come up.
+
+- No fallback to the Stub: it is not in the build at all when the real SDK was configured.
+- No fallback to the Unity backend: it needs clip assets and Mixer groups that a middleware project does not carry, so the result would be half-audible rather than silent.
+- No retry: `Restart()` does not reopen the native engine (that would double-`Init` a healthy backend); recovery means restarting the process.
+- There is no separate "is audio alive" query: check whether `Play` returned `0`, which is constant in the disabled state and never spams the log.
 
 ### Clip cache & preload
 

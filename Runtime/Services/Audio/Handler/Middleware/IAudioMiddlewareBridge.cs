@@ -23,7 +23,16 @@ namespace Moirai.Atropos.Audio.Middleware
         /// <remarks><paramref name="loop"/> 为尽力生效：FMOD 桥支持运行时设置循环模式；Wwise 桥忽略该参数（循环由 Wwise 工程侧事件配置）。</remarks>
         ulong PlayEvent(string eventPath, float volume, float pitch, bool loop, Vector3? position3D);
 
-        /// <summary>停止实例。</summary>
+        /// <summary>
+        /// 停止实例。
+        /// </summary>
+        /// <remarks>
+        /// <paramref name="immediate"/> 为 <c>false</c> 时要求「带尾音地停」：实现里不得紧接着做
+        /// 会立刻终止播放的收尾动作（FMOD 的 <c>EventInstance.release()</c>、Wwise 的发射体回收/停用），
+        /// 否则淡出被掐掉、听感与 immediate 无差别。
+        /// <para>当前 <c>MiddlewareAudioHandler</c> 一律传 <c>true</c>（淡出由上层先走音量 Fade 到 0 再立即停），
+        /// 所以该分支尚未被生产路径覆盖——接真 SDK 时按上线门槛 G1 单独验一次，别默认它可用。</para>
+        /// </remarks>
         void StopInstance(ulong instanceId, bool immediate);
 
         /// <summary>暂停/恢复。</summary>

@@ -8,7 +8,7 @@ namespace Moirai.Atropos.Audio.Editor
     {
         public override float GetPropertyHeight(SerializedProperty property, GUIContent label)
         {
-            return EditorGUIUtility.singleLineHeight * 5 + 10f;
+            return EditorGUIUtility.singleLineHeight * 6 + 10f;
         }
         
         public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
@@ -26,6 +26,7 @@ namespace Moirai.Atropos.Audio.Editor
             var mixerMultiProp = property.FindPropertyRelative("m_MixerValuesMultiplier");
             var maxChannelProp = property.FindPropertyRelative("m_MaxChannel");
             var canExpandProp = property.FindPropertyRelative("m_CanExpand");
+            var ceilingProp = property.FindPropertyRelative("m_MaxChannelCeiling");
             
             // 计算布局
             position.y += 10f;
@@ -40,6 +41,7 @@ namespace Moirai.Atropos.Audio.Editor
             Rect mixerMultiRect = new Rect(position.x, position.y + (lineHeight + spacing)*2, position.width, lineHeight);
             Rect channelRect = new Rect(position.x, position.y + (lineHeight + spacing)*3, position.width/2, lineHeight);
             Rect expandRect = new Rect(position.x + position.width/2 + spacing, position.y + (lineHeight + spacing)*3, position.width/2 - spacing, lineHeight);
+            Rect ceilingRect = new Rect(position.x, position.y + (lineHeight + spacing)*4, position.width, lineHeight);
             
             // 绘制字段
             EditorGUI.PropertyField(trackRect, trackProp, GUIContent.none);
@@ -55,6 +57,11 @@ namespace Moirai.Atropos.Audio.Editor
             EditorGUI.PropertyField(mixerMultiRect, mixerMultiProp);
             EditorGUI.PropertyField(channelRect, maxChannelProp);
             EditorGUI.PropertyField(expandRect, canExpandProp);
+            // 上限只在可扩展时生效，藏起来免得音效师改了个不动的数
+            using (new EditorGUI.DisabledScope(!canExpandProp.boolValue))
+            {
+                EditorGUI.PropertyField(ceilingRect, ceilingProp);
+            }
             
             EditorGUI.EndProperty();
         }

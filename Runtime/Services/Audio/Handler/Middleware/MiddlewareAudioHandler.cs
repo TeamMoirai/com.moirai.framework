@@ -96,13 +96,15 @@ namespace Moirai.Atropos.Audio.Middleware
 
         [NonSerialized] private IAudioMiddlewareBridge _bridge;
         [NonSerialized] private Transform _instanceRoot;
-        [NonSerialized] private bool _backendFailed;
 
         // 服务句柄注册表（句柄生成、句柄→Voice、用户 ID 映射、列表池）
         [NonSerialized] private readonly AudioHandleRegistry<Voice> _handles = new AudioHandleRegistry<Voice>();
         // 音量过渡调度器（声部 + Master/音轨总线伪句柄共用）
         [NonSerialized] private readonly AudioFadeScheduler _fades = new AudioFadeScheduler();
         [NonSerialized] private readonly Dictionary<ulong, float> _pendingStopAt = new Dictionary<ulong, float>(8);
+        // 批量控制与 Tick 回收共用的句柄暂存：先收集再改表，避免遍历中释放句柄；复用以免每帧分配。
+        // 用点之间不得嵌套（ReleaseHandle/FadeAudio 都不会再取它，成立）。
+        [NonSerialized] private readonly List<ulong> _handleScratch = new List<ulong>(16);
 
         [NonSerialized] private float _masterVolume = 1f;
         [NonSerialized] private bool _masterMute;
@@ -311,15 +313,22 @@ namespace Moirai.Atropos.Audio.Middleware
                 UnityEngine.Object.DontDestroyOnLoad(_instanceRoot);
             }
 
-            _backendFailed = !_bridge.Initialize(_instanceRoot);
-            if (_backendFailed)
+            if (_bridge.Initialize(_instanceRoot))
             {
-                LogUtility.Error("[MiddlewareAudio] Bridge initialize failed.");
+                EnsureTrackArrays();
+                SceneManager.sceneLoaded += OnSceneLoaded;
                 return;
             }
 
-            EnsureTrackArrays();
-            SceneManager.sceneLoaded += OnSceneLoaded;
+            // 上线门槛 G5 的回退决策：原生引擎没起来就整体禁用，不留「半初始化」状态。
+            // 留着引用等于让 Tick 的 Update/IsPlaying/StopInstance 与总线音量、Bank 写入继续打到未初始化的
+            // 原生层——那是无 SDK 机器上跑不出来、线上无法归因的崩溃面。丢引用后各处的判空分支自动退化成
+            // 静默 no-op（Play 返回 0、Bank/RTPC 空操作、Shutdown 不再触达），既不刷屏也不卡主线程。
+            // 恢复只在重启进程时发生：本方法不做重试，Restart 也不重开引擎，避免健康后端被二次 Init。
+            LogUtility.Error(
+                "[MiddlewareAudio] 桥接初始化失败，本次运行音频已禁用（Play 返回 0、Bank/RTPC 空操作）。" +
+                "请检查 SDK 插件是否导入、*_INSTALLED 宏与 Handler 选择是否成对配置。");
+            _bridge = null;
         }
 
         /// <inheritdoc />
@@ -380,21 +389,17 @@ namespace Moirai.Atropos.Audio.Middleware
         {
             if (_pendingStopAt.Count == 0) return;
 
-            List<ulong> done = null;
             float now = GameTime.unscaledTime;
+            _handleScratch.Clear();
             foreach (var kv in _pendingStopAt)
             {
-                if (now >= kv.Value)
-                {
-                    done ??= new List<ulong>(4);
-                    done.Add(kv.Key);
-                }
+                if (now >= kv.Value) _handleScratch.Add(kv.Key);
             }
 
-            if (done == null) return;
-            for (int i = 0; i < done.Count; i++)
+            if (_handleScratch.Count == 0) return;
+            for (int i = 0; i < _handleScratch.Count; i++)
             {
-                ulong handle = done[i];
+                ulong handle = _handleScratch[i];
                 _pendingStopAt.Remove(handle);
                 if (_handles.TryGet(handle, out var voice))
                 {
@@ -404,25 +409,25 @@ namespace Moirai.Atropos.Audio.Middleware
 
                 ReleaseHandle(handle);
             }
+
+            _handleScratch.Clear();
         }
 
         private void ReleaseFinishedOneshots()
         {
-            List<ulong> dead = null;
+            _handleScratch.Clear();
             foreach (var kv in _handles.Map)
             {
                 var voice = kv.Value;
                 // 暂停中的 oneshot 不算播完（否则 Pause 后下一帧即被误回收）
                 if (!voice.Playing || voice.Paused || voice.Loop) continue;
                 if (_bridge != null && _bridge.IsPlaying(voice.InstanceId)) continue;
-                dead ??= new List<ulong>(4);
-                dead.Add(kv.Key);
+                _handleScratch.Add(kv.Key);
             }
 
-            if (dead == null) return;
-            for (int i = 0; i < dead.Count; i++)
+            for (int i = 0; i < _handleScratch.Count; i++)
             {
-                ulong handle = dead[i];
+                ulong handle = _handleScratch[i];
                 // 通知桥接清实例映射/发射体（oneshot 自然结束不会走 Stop）
                 if (_handles.TryGet(handle, out var voice))
                 {
@@ -432,6 +437,8 @@ namespace Moirai.Atropos.Audio.Middleware
 
                 ReleaseHandle(handle);
             }
+
+            _handleScratch.Clear();
         }
 
         /// <inheritdoc />
@@ -545,7 +552,12 @@ namespace Moirai.Atropos.Audio.Middleware
         [NonSerialized] private bool _rtpcApiWarned;
 
         /// <inheritdoc />
-        /// <remarks>需要桥接实现 <see cref="IAudioMiddlewareBankControl"/>；未实现时提示一次并返回 false。</remarks>
+        /// <remarks>
+        /// 需要桥接实现 <see cref="IAudioMiddlewareBankControl"/>；未实现时提示一次并返回 false。
+        /// 只有 <see cref="EAudioBankLoadResult.Failed"/> 才告警（同一库一次）——幂等命中与「插件启动时
+        /// 自行加载过的 master/Init 库」都是正常路径，报出来只会把真失败淹成噪音。
+        /// 返回 <c>true</c> 仅表示本次调用真的完成了加载。
+        /// </remarks>
         public override bool LoadBank(string bankPath)
         {
             if (string.IsNullOrEmpty(bankPath) || _bridge == null) return false;
@@ -556,7 +568,18 @@ namespace Moirai.Atropos.Audio.Middleware
                 return false;
             }
 
-            return banks.LoadBank(bankPath);
+            switch (banks.LoadBank(bankPath))
+            {
+                case EAudioBankLoadResult.Loaded:
+                    return true;
+                case EAudioBankLoadResult.AlreadyLoaded:
+                    return false;
+                default:
+                    AudioWarnOnce.Warning($"bank:load-failed:{bankPath}",
+                        "[Audio] 声音库 {0} 加载失败（路径写错、文件未随包，或引擎未就绪）。该库内的事件在加载成功前不会出声。",
+                        bankPath);
+                    return false;
+            }
         }
 
         /// <inheritdoc />
@@ -611,7 +634,7 @@ namespace Moirai.Atropos.Audio.Middleware
             // 而是留下偶发错音/失联句柄这类线上无法归因的症状，所以开发期直接断言。
             AudioMainThread.AssertMainThread(nameof(PlayEventPath));
 
-            if (_backendFailed || _bridge == null || string.IsNullOrEmpty(eventPath))
+            if (_bridge == null || string.IsNullOrEmpty(eventPath))
             {
                 AudioPlayColdParamsPool.Release(cold);
                 return 0UL;
@@ -632,7 +655,14 @@ namespace Moirai.Atropos.Audio.Middleware
             AudioPlayColdParamsPool.Release(cold);
 
             ulong instanceId = _bridge.PlayEvent(eventPath, request.Volume, request.Pitch, request.Loop, pos);
-            if (instanceId == 0UL) return 0UL;
+            if (instanceId == 0UL)
+            {
+                // SDK 侧播放失败只给一个 0，不留痕就等于线上「这个音效偶尔不响」永远无从归因：
+                // 路径写错、所在声音库没加载、工程声部到达上限三类原因都落在这里。
+                AudioWarnOnce.Warning($"event:play-failed:{eventPath}",
+                    "[Audio] 事件 {0} 播放失败（路径写错、所在声音库未加载，或工程声部已到上限）。", eventPath);
+                return 0UL;
+            }
 
             ulong handle = _handles.NextHandle();
 
@@ -720,9 +750,13 @@ namespace Moirai.Atropos.Audio.Middleware
             => _handles.ForEachHandleByUser(id, action);
 
         /// <inheritdoc />
+        /// <remarks>
+        /// 走与 <c>Play(clip, …)</c> 同一条事件路径解析（映射表优先、回落按名推导）：
+        /// 直接用桥的推导会把命中映射表的 clip 恒判成 0。
+        /// </remarks>
         public override int CurrentlyPlayingCount(AudioClip clip)
         {
-            string path = _bridge?.GetEventPathFromClip(clip);
+            string path = ResolveEventPath(clip);
             if (string.IsNullOrEmpty(path)) return 0;
 
             int count = 0;
@@ -800,19 +834,18 @@ namespace Moirai.Atropos.Audio.Middleware
         /// <inheritdoc />
         public override void StopTrack(EAudioTrack track, float fadeoutDuration = 0f)
         {
-            List<ulong> toStop = null;
+            _handleScratch.Clear();
             foreach (var kv in _handles.Map)
             {
-                if (kv.Value.Track != track) continue;
-                toStop ??= new List<ulong>(8);
-                toStop.Add(kv.Key);
+                if (kv.Value.Track == track) _handleScratch.Add(kv.Key);
             }
 
-            if (toStop == null) return;
-            for (int i = 0; i < toStop.Count; i++)
+            for (int i = 0; i < _handleScratch.Count; i++)
             {
-                Stop(toStop[i], fadeoutDuration);
+                Stop(_handleScratch[i], fadeoutDuration);
             }
+
+            _handleScratch.Clear();
         }
 
         #endregion 音轨控制 [TRACK CONTROLS]
@@ -834,54 +867,54 @@ namespace Moirai.Atropos.Audio.Middleware
         /// <inheritdoc />
         public override void StopAll(float fadeoutDuration = 0f)
         {
-            List<ulong> all = null;
+            _handleScratch.Clear();
             foreach (var kv in _handles.Map)
             {
-                all ??= new List<ulong>(_handles.Map.Count);
-                all.Add(kv.Key);
+                _handleScratch.Add(kv.Key);
             }
 
-            if (all == null) return;
-            for (int i = 0; i < all.Count; i++)
+            for (int i = 0; i < _handleScratch.Count; i++)
             {
-                Stop(all[i], fadeoutDuration);
+                Stop(_handleScratch[i], fadeoutDuration);
             }
+
+            _handleScratch.Clear();
         }
 
         /// <inheritdoc />
         public override void StopAllButPersistent(float fadeoutDuration = 0f)
         {
-            List<ulong> all = null;
+            _handleScratch.Clear();
             foreach (var kv in _handles.Map)
             {
                 if (kv.Value.Persistent) continue;
-                all ??= new List<ulong>(8);
-                all.Add(kv.Key);
+                _handleScratch.Add(kv.Key);
             }
 
-            if (all == null) return;
-            for (int i = 0; i < all.Count; i++)
+            for (int i = 0; i < _handleScratch.Count; i++)
             {
-                Stop(all[i], fadeoutDuration);
+                Stop(_handleScratch[i], fadeoutDuration);
             }
+
+            _handleScratch.Clear();
         }
 
         /// <inheritdoc />
         public override void StopAllLooping(float fadeoutDuration = 0f)
         {
-            List<ulong> all = null;
+            _handleScratch.Clear();
             foreach (var kv in _handles.Map)
             {
                 if (!kv.Value.Loop) continue;
-                all ??= new List<ulong>(8);
-                all.Add(kv.Key);
+                _handleScratch.Add(kv.Key);
             }
 
-            if (all == null) return;
-            for (int i = 0; i < all.Count; i++)
+            for (int i = 0; i < _handleScratch.Count; i++)
             {
-                Stop(all[i], fadeoutDuration);
+                Stop(_handleScratch[i], fadeoutDuration);
             }
+
+            _handleScratch.Clear();
         }
 
         /// <inheritdoc />

@@ -60,6 +60,7 @@ Runtime/Services/Audio/
 
 - 在 Inspector 里给 `FmodAudioHandler` / `WwiseAudioHandler` 的「事件映射表」加条目：`Clip` + `EventPath`。
 - 命中映射直接用；未命中才回落到按名推导，并就该 clip **提示一次** Warning。
+- 计数与播放同一条解析路径：`CurrentlyPlayingCount(clip)` 也先查映射表，否则命中映射的 clip 会恒查到 0。
 - 运行期改过配置后调 `InvalidateEventMap()` 重建缓存（代码里配表时也用它）。
 - `Play(string eventPath, …)` 一律按事件路径直发，不经映射表。
 
@@ -70,12 +71,13 @@ Runtime/Services/Audio/
 - Unity 后端无概念，`LoadBank` 返回 `false`、`SetRtpc` 空操作。
 - 中间件后端按**能力接口**探测（`IAudioMiddlewareBankControl` / `IAudioMiddlewareRtpcControl`），桥接没实现该能力时提示一次并安全降级——刻意不做进 `IAudioMiddlewareBridge` 主接口，否则未实现它的真 SDK 桥在定义 `FMOD_INSTALLED` 时会直接编译不过。
 - `SetRtpc` 的 `handle` 传 0 表示工程/全局参数，传播放句柄则作用于该实例。
-- 现有 `FmodBridgeNative` / `WwiseBridgeNative` **尚未实现**这两个能力（本机无插件、无法编译验证），装上 SDK 后按上面的接口补即可，框架侧不需要再改。
+- `FmodBridgeNative` / `WwiseBridgeNative` 已按这两个接口写好实现，但**在无 SDK 的机器上无法编译核对**：装完插件必须先过编译（G0），再按真 SDK 契约复测（G1）。
+- `LoadBank` 在桥侧是**三态**（`Loaded` / `AlreadyLoaded` / `Failed`）：幂等命中与「插件启动时自行加载的 master/Init 库」都属正常，只有 `Failed` 会让外观层就该库名提示一次；外观 `AudioService.LoadBank` 仍是 `bool`，只在真的完成加载时返回 `true`。
 
 ## 核心特性
 
 - 五轨内置 `EAudioTrack`：Sfx / UI / Music / Voice / Ambience
-- 代理池 + Priority Voice Stealing + `HARD_CHANNEL_CAP`（32）
+- 代理池 + Priority Voice Stealing + 按音轨可配的扩展硬上限（`AudioGroupConfig.MaxChannelCeiling`，缺省 32）
 - 句柄自动释放：`Stop`/结束时由 `OnAgentPlaybackEnded` 清映射，避免旧句柄别名
 - 分层 BGM：不同 ID 可共播；`StopByID(id)` 只替换本层
 - 16 字节热请求 `AudioPlayRequest` + 池化冷参 `AudioPlayColdParams`
@@ -141,6 +143,24 @@ AudioService.Stop(h2, fadeoutDuration: 0.2f);
 // 事件路径约定：FMOD = event:/Name；Wwise = 事件名；总线 bus:/Music 等
 ```
 
+#### 生产约定
+
+发行前必须钉死的几条跨侧约定（音效工程与代码任一侧改动都要同步）：
+
+- **事件命名**：`Play(clip, …)` 依赖映射表，映射表缺项时按 `clip.name` 推导（FMOD 前缀 `event:/`、Wwise 取裸名）。事件名与 clip 名不一致是**静默**播错/不播的头号来源，因此生产内容必须逐条登记进「事件映射表」，不依赖推导；按事件路径直发的 `Play(eventPath, …)` 不经表，调用约定由游戏侧规范约束。
+- **总线**：框架按 `bus:/{EAudioTrack}` 下发线性音量，Master 走 `bus:/Master`。工程侧改名即等于该轨失控；Wwise 桥把总线映射成 RTPC（`bus:/Music` → `MusicVolume`），这批 RTPC 与 `SetRtpc` 用的参数名一起构成需要随包交付的**名单**，任一侧改名都要对表。
+- **Bank 装卸顺序**：切场景固定为 `LoadBank(next)` → `StopAllButPersistent(fade)` → `UnloadBank(prev)`；`UnloadBank` 只在返回 `true` 时才算真的释放，返回 `false` 表示「没记账 / SDK 拒绝」，内存快照比对以 `true` 为准。
+- **停止语义**：淡出由框架先写音量 Fade 到 0 再 `StopInstance(immediate: true)`；`immediate: false` 分支目前无生产调用方，接真 SDK 时按 G1 单独验（实现侧不得在淡出还没走完时就 release/回收发射体）。
+
+#### 初始化失败的回退
+
+`IAudioMiddlewareBridge.Initialize` 返回 `false` 时，后端把音频**整体禁用**并落一条 Error：桥引用被丢弃，此后 `Play` 返回 `0`、Bank/RTPC 空操作、`Tick` 直接返回，不会有任何一次调用打到未初始化的原生引擎。
+
+- 不做「自动回落到 Stub」：Stub 在发行构建里根本不存在（宏未定义时编进来的就是它，而真 SDK 失败时它并不在包里）。
+- 不做「回落到 Unity 后端」：Unity 后端要 clip 资产与 Mixer 分组，与中间件工程共用一套事件/音量数据，回落结果必然是半响不响。
+- 不做重试：`Restart()` 不重开原生引擎，避免健康后端被二次 `Init`；恢复只在重启进程时发生。
+- 框架不另开「音频是否可用」的查询面：游戏侧要判，就看 `Play` 是否为 `0` 句柄（禁用态下恒为 `0`，且不会刷屏）。
+
 ### Clip 缓存与预加载
 
 `Play(path, ...)` 的加载统一经 `AudioClipCache`：同一地址全服务只持有一条资源租约，多个声部按引用取用，最后一个使用者停播后才按策略决定留池或释放。
@@ -202,7 +222,7 @@ AudioService.ResetMixSnapshot(0.25f);
 ## 配置说明
 
 - AudioMixer 分组需暴露 `{分组名}Volume` 参数；`MixerValuesMultiplier` 默认 20  
-- `AudioGroupConfig.MaxChannel` / `CanExpand` 控制通道；扩展受 `HARD_CHANNEL_CAP` 限制  
+- `AudioGroupConfig.MaxChannel` / `CanExpand` 控制通道；扩展受同一条轨的 `MaxChannelCeiling` 限制（缺省 32、绝对上限 128，按平台预算分轨配；预置槽位不受它约束）  
 - 主音量走 `AudioListener.volume`；音轨走 Mixer 参数  
 - `ClipCacheCapacity`（默认 128）/ `ClipCacheTtl`（默认 30 秒，`0` 关闭按时间驱逐）/ `DefaultClipCachePolicy`（默认 `Ttl`）三项在 `AudioServiceSettings` 的「Clip 缓存」组内配置，`Initialize` 时下发给缓存  
 - `AutoDuckingOnVoice`（默认关闭）在「自动 Ducking」组内；开启前先在 `MixSnapshots` 注册 `Dialogue` 快照  

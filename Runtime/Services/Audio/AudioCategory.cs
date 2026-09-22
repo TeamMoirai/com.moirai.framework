@@ -21,11 +21,6 @@ namespace Moirai.Atropos.Audio
         private float _lastNoChannelLogAt;
 
         /// <summary>
-        /// 扩展硬上限，防止 CanExpand 时通道无界增长。
-        /// </summary>
-        public const int HARD_CHANNEL_CAP = 32;
-
-        /// <summary>
         /// 所属音频处理器（Agent 绑定用，勿用全局 AudioService.Handler）。
         /// </summary>
         internal AudioServiceHandler Handler => _handler;
@@ -182,7 +177,9 @@ namespace Moirai.Atropos.Audio
 
             int selected = freeChannel >= 0 ? freeChannel : stealChannel;
 
-            if (selected < 0 && _audioGroupConfig.CanExpand && agents.Count < HARD_CHANNEL_CAP)
+            // 扩展上限按轨取（AudioGroupConfig.MaxChannelCeiling）：写死一个数时移动端偏高、主机端偏保守
+            if (selected < 0 && _audioGroupConfig.CanExpand
+                             && agents.Count < _audioGroupConfig.MaxChannelCeiling)
             {
                 selected = agents.Count;
                 agents.Add(null);
