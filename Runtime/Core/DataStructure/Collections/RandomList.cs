@@ -9,9 +9,10 @@ namespace Moirai.Atropos.Collections
         private readonly List<T> _items;
         
         private readonly List<double> _weights;
-        
-        private readonly System.Random _random;
-        
+
+        // 每个实例一条独立流：种子从框架统一随机源派生，于是整表可随 RandomUtility.Reseed 复现
+        private RandomSource _random;
+
         private T _lastSelected;
         
         // 值类型装箱后与 null 比较恒为 true，无法用 _lastSelected != null 判定"尚未选择"，必须用显式标志
@@ -25,14 +26,14 @@ namespace Moirai.Atropos.Collections
         {
             _items = new List<T>(capacity);
             _weights = new List<double>(capacity);
-            _random = new System.Random();
+            _random = RandomUtility.CreateSeeded(RandomUtility.NextUInt32());
         }
         
         public RandomList()
         {
             _items = new List<T>();
             _weights = new List<double>();
-            _random = new System.Random();
+            _random = RandomUtility.CreateSeeded(RandomUtility.NextUInt32());
         }
         
         public void Add(T item, double weight = 1)

@@ -9,8 +9,6 @@ namespace Moirai.Atropos
     /// </summary>
     public static class AlgorithmUtility
     {
-        static Random random = new Random(Guid.NewGuid().GetHashCode());
-
         /// <summary>
         /// 快速排序：降序
         /// </summary>
@@ -328,67 +326,70 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 生成指定长度的int整数
+        /// 生成至多 <paramref name="length"/> 位十进制、且落在 [<paramref name="minValue"/>, <paramref name="maxValue"/>] 内的随机整数。
         /// </summary>
-        /// <param name="length">数值长度</param>
-        /// <param name="minValue">随机取值最小区间</param>
-        /// <param name="maxValue">随机取值最大区间</param>
+        /// <param name="length">位数（含前导零，即可表达 [0, 10^length) ）</param>
+        /// <param name="minValue">下界（含；负数会被抬到 0，因为位数表达不出负值）</param>
+        /// <param name="maxValue">上界（含）</param>
         /// <returns>生成的int整数</returns>
+        /// <exception cref="ArgumentException">位数能表达的值与区间无交集时抛出，而不是原地空转</exception>
         public static int RandomRange(int length, int minValue, int maxValue)
         {
-         if (minValue >= maxValue)
-             throw new ArgumentNullException("RandomRange : minValue is greater than or equal to maxValue");
-         string buffer = "0123456789"; // 随机字符中也可以为汉字（任意）
-         StringBuilder strbuilder = new StringBuilder();
-         int range = buffer.Length;
-         int resultValue = 0;
-         do
-         {
-             for (int i = 0; i < length; i++)
-             {
-                 strbuilder.Append(buffer.Substring(random.Next(range), 1));
-             }
+            if (length <= 0)
+                throw new ArgumentOutOfRangeException(nameof(length), length, "位数必须为正");
+            if (minValue > maxValue)
+                throw new ArgumentOutOfRangeException(nameof(maxValue), maxValue, "上界不得小于下界");
 
-             resultValue = Int32.Parse(strbuilder.ToString());
-         } while (resultValue > maxValue || resultValue < minValue);
+            // 旧实现是"拼一个 length 位数字串，落不进 [min,max] 就整串重拼"：允许前导零，
+            // 所以它能表达的值就是 [0, 10^length)，而该集合与 [min,max] 无交时（length=1 配
+            // [100,200]、或 min<0）那个 do-while 永远转不完，每轮还白造一个 StringBuilder。
+            // 现直接在同一个取值域上等概率取一次；域为空就报错而不是空转。
+            long cap = 1;
+            for (int i = 0; i < length; i++)
+            {
+                cap *= 10;
+                if (cap > int.MaxValue)
+                {
+                    cap = int.MaxValue;
+                    break;
+                }
+            }
 
-         return resultValue;
+            if (cap < int.MaxValue) cap -= 1;
+
+            long lower = Math.Max(minValue, 0);
+            long upper = Math.Min(maxValue, cap);
+            if (lower > upper)
+                throw new ArgumentException($"不存在长度 {length} 位且落在 [{minValue}, {maxValue}] 内的随机数");
+
+            return (int)RandomUtility.NextLong(lower, upper + 1);
         }
 
         /// <summary>
         /// 随机在范围内生成一个int
         /// </summary>
-        /// <param name="minValue">随机取值最小区间</param>
-        /// <param name="maxValue">随机取值最大区间</param>
+        /// <param name="minValue">随机取值最小区间（含）</param>
+        /// <param name="maxValue">随机取值最大区间（不含）</param>
         /// <returns>生成的int整数</returns>
         public static int RandomRange(int minValue, int maxValue)
         {
-         if (minValue >= maxValue)
-             throw new ArgumentNullException("RandomRange : minValue is greater than or equal to maxValue");
-         int seed = Guid.NewGuid().GetHashCode();
-         Random random = new Random(seed);
-         int result = random.Next(minValue, maxValue);
-         return result;
+         // 旧实现每次调用都 new 一个 Random（Guid 播种），既白造对象又扰动不到全局流；
+         // min == max 现在返回该值而不是抛，与其它 RandomUtility 取值口径一致。
+         return RandomUtility.NextInt(minValue, maxValue);
         }
 
         /// <summary>
         /// 随机在范围内生成一个long
         /// </summary>
-        /// <param name="minValue">随机取值最小区间</param>
-        /// <param name="maxValue">随机取值最大区间</param>
+        /// <param name="minValue">随机取值最小区间（含）</param>
+        /// <param name="maxValue">随机取值最大区间（不含，与 int 版同口径）</param>
         /// <returns>生成的long</returns>
         public static long RandomRange(long minValue, long maxValue)
         {
-         if (minValue >= maxValue)
-             throw new ArgumentNullException("RandomRange : minValue is greater than or equal to maxValue");
-         byte[] buf = new byte[8];
-         random.NextBytes(buf);
-         long longRand = BitConverter.ToInt64(buf, 0);
-         // 计算随机值范围
-         long range = maxValue - minValue + 1;
-         // 将随机值映射到指定范围内
-         long result = (long)Math.Floor(longRand / (double)long.MaxValue * range) + minValue;
-         return result;
+         // 旧实现是 NextBytes 拼一个可能为负的 long，再按 double 缩放进区间：
+         // 负值会把结果顶到 minValue 以下（真能越界），double 也只有 53 位精度。
+         // 上界口径同时由"含"改为"不含"，与 int 版和框架其余取值统一。
+         return RandomUtility.NextLong(minValue, maxValue);
         }
 
         /// <summary>
@@ -397,7 +398,7 @@ namespace Moirai.Atropos
         /// <returns>随机数</returns>
         public static double RandomDouble()
         {
-         return random.NextDouble();
+         return RandomUtility.NextDouble();
         }
 
         /// <summary>
@@ -462,10 +463,8 @@ namespace Moirai.Atropos
         /// </summary>
         public static double AverageRandom(double minValue, double maxValue)
         {
-         int min = (int)(minValue * 10000);
-         int max = (int)(maxValue * 10000);
-         int result = random.Next(min, max);
-         return result / 10000.0;
+         // 旧实现把值量化到 1e-4 步长，且 maxValue * 10000 超出 int 时会静默取乱数
+         return minValue + (maxValue - minValue) * RandomUtility.NextDouble();
         }
 
         /// <summary>
@@ -501,7 +500,7 @@ namespace Moirai.Atropos
         /// <returns> 1或-1</returns>
         public static int OneOrMinusOne()
         {
-         return random.Next(0, 2) * 2 - 1;
+         return RandomUtility.NextInt(2) * 2 - 1;
         }
 
         /// <summary>
@@ -547,8 +546,8 @@ namespace Moirai.Atropos
         /// <returns>随机数</returns>
         public static double NextGauss(double mean, double stdDev)
         {
-         double u1 = 1.0 - random.NextDouble();
-         double u2 = 1.0 - random.NextDouble();
+         double u1 = 1.0 - RandomUtility.NextDouble();
+         double u2 = 1.0 - RandomUtility.NextDouble();
          double randStdNormal = Math.Sqrt(-2.0 * Math.Log(u1)) * Math.Sin(2.0 * Math.PI * u2);
          return mean + stdDev * randStdNormal;
         }
