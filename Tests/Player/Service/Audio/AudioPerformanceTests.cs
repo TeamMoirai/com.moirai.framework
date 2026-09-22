@@ -8,8 +8,13 @@ namespace Service.Audio
 {
     /// <summary>
     /// 热路径 0-GC 验收：稳态 Play / 音量 / IsPlaying / Stop、空闲 Tick、按 ID 遍历均不得分配。
+    /// <para><b>玩家专用</b>：托管分配计数器在 Unity 编辑器 Mono 下不推进（本机实测 64MB 分配仍报 0），
+    /// 零分配断言在编辑器里会无条件成立，故本夹具住在 <c>Moirai.Atropos.Tests.Player</c>
+    /// （<c>UNITY_INCLUDE_TESTS</c> + <c>!UNITY_EDITOR</c>），只随玩家构建的测试运行执行；
+    /// 编辑器套件里不再出现（既不假绿也不假跳）。</para>
     /// <para>自建隔离：反射 OnInit <see cref="UnityAudioHandler"/>，不依赖 GameEntry。</para>
-    /// <para>测量口径见 <see cref="AllocationCapture.MeasureManaged"/>（预热一次丢弃后计数）。</para>
+    /// <para>测量口径见 <see cref="AllocationCapture.MeasureManaged"/>（预热一次丢弃后计数）；
+    /// 计数器仍不可用的运行时（个别 IL2CPP 配置）整组按 Ignore 收口——"测不出分配"不等于"没有分配"。</para>
     /// </summary>
     [TestFixture]
     [Category("Performance")]

@@ -9,6 +9,7 @@ using Unity.IL2CPP.CompilerServices;
 [assembly: InternalsVisibleTo("Moirai.Atropos.Editor")]
 [assembly: InternalsVisibleTo("Moirai.Atropos.Tests.EditorMode")]
 [assembly: InternalsVisibleTo("Moirai.Atropos.Tests.PlayMode")]
+[assembly: InternalsVisibleTo("Moirai.Atropos.Tests.Player")]
 [assembly: InternalsVisibleTo("Moirai.Clotho")]
 [assembly: InternalsVisibleTo("Moirai.Lachesis")]
 

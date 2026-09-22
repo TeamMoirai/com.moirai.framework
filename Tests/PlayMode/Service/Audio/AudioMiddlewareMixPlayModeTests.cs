@@ -49,10 +49,23 @@ namespace Service.Audio
             Assert.IsTrue(wwise.IsStopped(h2));
         }
 
+        /// <summary>
+        /// 建一台可施加的混音状态机：<see cref="AudioMixStateMachine.Request"/> 只在过渡**真的施加到混音上**时才返回
+        /// true，既无 Mixer 又无施加通道一律拒绝并保持 <see cref="AudioMixStateMachine.Current"/> 不变。
+        /// 因此优先级/回落语义要可观测，必须挂上生产就有的中间件过渡接缝（与 EditorMode 的
+        /// <c>AudioMixStateMachineTests</c> 同一口径）。
+        /// </summary>
+        private static AudioMixStateMachine CreateMixMachine()
+        {
+            var machine = new AudioMixStateMachine();
+            machine.SetMiddlewareTransitionHandler((state, blendSeconds) => { });
+            return machine;
+        }
+
         [Test]
         public void MixStateMachine_PriorityBlocksLowerInterrupt()
         {
-            var machine = new AudioMixStateMachine();
+            var machine = CreateMixMachine();
             // Cinematic priority 默认 4 > Dialogue 3
             Assert.IsTrue(machine.Request(EMixSnapshot.Cinematic));
             Assert.AreEqual(EMixSnapshot.Cinematic, machine.Current);
@@ -69,7 +82,7 @@ namespace Service.Audio
         [Test]
         public void MixStateMachine_SameOrHigherPrioritySwitches()
         {
-            var machine = new AudioMixStateMachine();
+            var machine = CreateMixMachine();
             Assert.IsTrue(machine.Request(EMixSnapshot.Dialogue));
             Assert.IsTrue(machine.Request(EMixSnapshot.Paused)); // 同级 3
             Assert.AreEqual(EMixSnapshot.Paused, machine.Current);

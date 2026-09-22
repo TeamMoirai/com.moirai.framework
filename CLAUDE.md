@@ -117,7 +117,7 @@ Project/
 - **partial 拆文件**：`Xxx.<职责>.cs`，职责名是首字母大写的单个英文名词（`.Core`/`.Slots`/`.Maintenance`/`.Bindings`/`.Async`/`.IO`，在仓 66 个）；拆文件不破坏"一文件一顶层类型"。
 - **通用后缀**：静态工具 `XxxUtility`（单数）、扩展方法 `XxxExtensions`、账本 `XxxRegistry`、缓存 `XxxCache`、调度 `XxxScheduler`/`XxxStateMachine`、调试器面板 `XxxServiceDebuggerWindow`。
 - **键名常量**：Mixer 参数与设置键按 `<域>_<对象>_<属性>` 全大写（`AUDIO_MASTER_VOLUME`、`GRAPHICS_FULLSCREEN_MODE`）；存档 schema 字段是 `PascalCase` + `Key` 后缀（`LocalPositionKey`、`SpawnsKey`）。两套并存是历史，改到哪个文件就跟哪个，不新造第三种。
-- **程序集与命名空间**：本包自带 asmdef 为 `Moirai.Atropos`、`Moirai.Atropos.Editor`、`Moirai.Atropos.Tests.EditorMode`/`.PlayMode`/`.Player`（`Templates~` 下的 `GameLib`/`GameLogic`/`GameProto` 是工程侧模板，不属本包）。其中 `.Player` 是**玩家专用**测试程序集（`defineConstraints: ["UNITY_INCLUDE_TESTS", "!UNITY_EDITOR"]`）：编辑器里根本不编译，只随玩家构建的测试运行执行，且只引用玩家安全的程序集（`UnityEngine.TestRunner` + `Moirai.Atropos`）——`UnityEditor.TestRunner` 是 Editor-only，非编辑器程序集一旦引用它，玩家目标编译直接报 `can't add reference to ... as it is an editor-only assembly`（`.PlayMode` 套件正因此进不了玩家）。运行期与编辑器代码一律 `namespace Moirai.Atropos[.<Module>[.<Sub>]]`；测试用与被测模块对齐的**短命名空间**（`Service.Audio`、`Core.Events`、`Core.MemoryPool`），不带 `Moirai` 根——这正是 `CheckNamespace` 降级要护住的写法。
+- **程序集与命名空间**：本包自带 asmdef 为 `Moirai.Atropos`、`Moirai.Atropos.Editor`、`Moirai.Atropos.Tests.EditorMode`/`.PlayMode`/`.Player`（`Templates~` 下的 `GameLib`/`GameLogic`/`GameProto` 是工程侧模板，不属本包）。其中 `.Player` 是**玩家专用**测试程序集（`defineConstraints: ["UNITY_INCLUDE_TESTS", "!UNITY_EDITOR"]`）：编辑器里根本不编译，只随玩家构建的测试运行执行，且只引用玩家安全的程序集（`UnityEngine.TestRunner` + `Moirai.Atropos`），不引 Editor-only 的 `UnityEditor.TestRunner`（按"玩家侧只依赖玩家安全程序集"收窄；2026-09-22 实测引用它**并未**硬阻断玩家构建——`.PlayMode` 原样打进 IL2CPP 测试玩家时也进了包，故此处不写"引用即报错"）。运行期与编辑器代码一律 `namespace Moirai.Atropos[.<Module>[.<Sub>]]`；测试用与被测模块对齐的**短命名空间**（`Service.Audio`、`Core.Events`、`Core.MemoryPool`），不带 `Moirai` 根——这正是 `CheckNamespace` 降级要护住的写法。
 - **测试**：类 `<被测>Tests`（`AudioClipCacheTests`）、基准 `<被测>Benchmark`（一律 `[Explicit]`，不随常规套件跑）、夹具 `XxxTestSupport`/`XxxTestHost`/`MemoryPoolFixture`（派生式基座）。方法名 `场景_条件_期望` 三段式（`RetainRelease_CycleAllocatesZeroBytes`、`PauseGame_NestedSources_OnlyLastResumeRestoresSpeed`）。异常断言沿 `InnerException`/`AggregateException` 链判定，不用 `Assert.Throws<T>` 硬匹配（泛型 `new T()` 实走 `Activator.CreateInstance<T>()`，原始异常会被包装）。
 
 **冲突怎么判**：DotSettings 与代码打架时以 DotSettings 为准（它是门禁，也是评审依据）；表里没写、仓内已成词汇的那一档（`Handler`/`Bridge`/`Registry`/`Support`）按仓库现状走。两类冲突都不许用 `// ReSharper disable` 或规则抑制绕过——要改先改规则，再改代码。
@@ -178,9 +178,19 @@ Project/
 域重载后驱动按作业 guid 精确判活（不认窗口手动跑），判活不可用也有强制收口宽限——调用方永不会等不到 `.done`。
 
 **玩家专用用例跑不了这条桥**：桥住在编辑器里，而 `Moirai.Atropos.Tests.Player` 在编辑器下不编译（`!UNITY_EDITOR`），
-桥的 `assemblies` 过滤器找不到它。这类用例（音频热路径 0-GC 验收——托管分配计数器只在玩家里推进）必须在
-Test Runner 窗口的 PlayMode 页签用 `Run all in Player`（或 batchmode `-runTests -testPlatform PlayMode`，构建需带
-`BuildOptions.IncludeTestAssemblies`）执行，结论以玩家侧报告为准；编辑器套件里它们既不出现也不假跳。
+桥的 `assemblies` 过滤器找不到它。这类用例（音频热路径 0-GC 验收——托管分配计数器只在玩家里推进）只能用
+**Test Runner 窗口的 PlayMode 页签 → `Run all in Player`**（可用搜索框把范围缩到目标夹具），结论以玩家侧报告为准；
+编辑器套件里它们既不出现也不假跳。
+
+**玩家侧测试为什么只能从窗口发起**（2026-09-22 实测，别自己 `BuildPipeline.BuildPlayer` 搭测试玩家）：① 玩家里的测试
+入口不是 `-runTests` 参数，而是**构建期注入的引导场景**——编辑器侧 `CreateBootstrapSceneTask` 建一个挂着
+`PlaymodeTestsController`（internal，`Code-based tests runner`）的 `Assets/InitTestScene<guid>.unity` 并把它作为构建场景，
+控制器在 `Start()` 里跑测试；手搓玩家没有这个场景，`-runTests` 什么也不会发生。② 玩家**自己不写结果 XML**：运行时侧
+没有 `-testResults` 解析，结果经 `RemoteTestResultSender` 走 PlayerConnection 回传编辑器，由编辑器落盘。所以
+"独立玩家 + 命令行"这条路根本不存在。③ 项目侧前置：玩家默认自动启动框架（`GameApp.AutoBoot` 默认 true →
+`GameAppSettings.Initiation` 里 `if (GameApp.AutoBoot) GameApp.Boot()`），测试玩家跑的是空场景，启动链会停在
+`UGUIHandler.OnInit` 的 `[FAT] UIRoot not found!`（实测：带不带 `-runTests` 都停在同一行，测试运行永远轮不到）——
+故 `Tests/Player/PlayerTestBootstrap.cs` 在 `AfterAssembliesLoaded` 把 `GameApp.AutoBoot` 置 false，玩家成为干净测试宿主。
 
 ### 3. 代码优化
 1. 使用 `/optimize` 分析性能

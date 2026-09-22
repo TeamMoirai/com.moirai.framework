@@ -34,6 +34,12 @@ namespace Service.Audio
                 .GetMethod("OnInit", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
             init.Invoke(_handler, null);
 
+            // 状态机只在过渡真的能施加时才推进状态：测试环境的项目 Mixer 未必带 Dialogue/Default 快照，
+            // 缺快照时 Ducking 的请求会被正当拒绝、Current 永远停在 Default，端到端断言便无从观测。
+            // 这里挂上生产就有的中间件过渡接缝（只记账、不碰真实混音），让切/回落语义可验证。
+            // 必须在 OnInit 之后：OnInit 会经 AudioMixService.Initialize 重建状态机。
+            AudioMixService.SetMiddlewareTransitionHandler((state, blendSeconds) => { });
+
             // 打开自动 Ducking（Settings 可能在测试环境无资产实例——用反射强写）
             _prevDucking = ReadDuckingEnabled();
             ForceDuckingEnabled(true);
@@ -45,6 +51,7 @@ namespace Service.Audio
         public void TearDown()
         {
             AudioVoiceDucking.Reset();
+            AudioMixService.SetMiddlewareTransitionHandler(null);
             ForceDuckingEnabled(_prevDucking);
             _handler?.StopAll(0f);
             if (_root != null) UnityEngine.Object.Destroy(_root);

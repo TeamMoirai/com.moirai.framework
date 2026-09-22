@@ -146,10 +146,10 @@ namespace Service.Audio
             Assert.IsTrue(agent.AudioResource.volume < 0.99f, "淡出应已压低音量");
 
             _handler.Pause(handle);
-            yield return Advance(0.35f); // 比剩余淡出时长还久
+            yield return Advance(0.35f); // 暂停期间斜坡冻结，这段时间不计入淡出进度
 
             _handler.Unpause(handle);
-            yield return Advance(0.25f);
+            yield return Advance(0.5f); // 剩余淡出 0.38s，必须留足余量才能观察到"走完并停播"
 
             // 旧实现恢复成 Playing：一条正在淡出的音会复活成满音量常播
             Assert.IsFalse(agent.IsPlaying, "淡出恢复后应走完并停播，而不是回到常播");
