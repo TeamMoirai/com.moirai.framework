@@ -15,6 +15,8 @@ namespace Service.Audio
     {
         private readonly Dictionary<string, int> _loads = new Dictionary<string, int>();
         private readonly Queue<PendingLoad> _pending = new Queue<PendingLoad>();
+        private readonly Queue<AudioClipLease> _preparedLeases = new Queue<AudioClipLease>();
+        private readonly Queue<TestLease> _recycledHandles = new Queue<TestLease>();
 
         public AudioCacheTestSupport(int capacity = 128, float ttl = 30f,
             AudioCachePolicy defaultPolicy = AudioCachePolicy.Ttl,
@@ -35,6 +37,12 @@ namespace Service.Audio
 
         /// <summary>true 时异步加载不立即回调，改由 <see cref="CompleteNext"/> 放行。</summary>
         public bool ManualAsync;
+
+        /// <summary>
+        /// true 时归还的句柄重新投入使用。只给基准用例用：它把循环长度与预建租约数解耦，
+        /// 否则几万轮驱逐会先造出几万条 <see cref="AudioClip"/>。身份比对类用例必须保持 false。
+        /// </summary>
+        public bool RecycleLeases;
 
         /// <summary>挂起中的异步加载数。</summary>
         public int PendingCount => _pending.Count;
@@ -101,11 +109,30 @@ namespace Service.Audio
             _loads[address] = count + 1;
         }
 
-        private AudioClipLease MakeLease()
+        /// <summary>
+        /// 预建若干租约：分配类用例借此把"测试台自己的 new"挡在被测窗口之外，
+        /// 否则量到的是夹具开销而不是产码开销。
+        /// </summary>
+        public void PrepareLeases(int count)
         {
-            // AudioClip 不是 ScriptableObject，只能用 Create 工厂造一个空载波（1ms 单声道）用于身份比对
+            for (int i = 0; i < count; i++) _preparedLeases.Enqueue(CreateLease());
+        }
+
+        private AudioClipLease MakeLease()
+            => _preparedLeases.Count > 0 ? _preparedLeases.Dequeue() : CreateLease();
+
+        private AudioClipLease CreateLease()
+        {
+            if (_recycledHandles.Count > 0)
+            {
+                var reused = _recycledHandles.Dequeue();
+                reused.Rearm();
+                return new AudioClipLease(reused.Clip, reused);
+            }
+
+            // AudioClip 不是 ScriptableObject，只能用 Create 工厂造一个空载波（1 采样单声道）用于身份比对
             var clip = AudioClip.Create("test-clip", 1, 1, 44100, false);
-            return new AudioClipLease(clip, new TestLease(this));
+            return new AudioClipLease(clip, new TestLease(this, clip));
         }
 
         private readonly struct PendingLoad
@@ -125,17 +152,29 @@ namespace Service.Audio
             private readonly AudioCacheTestSupport _owner;
             private bool _disposed;
 
-            public TestLease(AudioCacheTestSupport owner)
+            public TestLease(AudioCacheTestSupport owner, AudioClip clip)
             {
                 _owner = owner;
+                Clip = clip;
                 owner.LiveHandles++;
             }
+
+            public AudioClip Clip { get; }
 
             public void Dispose()
             {
                 if (_disposed) return;
                 _disposed = true;
                 _owner.LiveHandles--;
+                if (_owner.RecycleLeases) _owner._recycledHandles.Enqueue(this);
+            }
+
+            /// <summary>重新投入使用；未归还就复用说明句柄被复制到了两处，直接抛而不是静默错账。</summary>
+            public void Rearm()
+            {
+                if (!_disposed) throw new InvalidOperationException("租约尚未归还即重新投入使用。");
+                _disposed = false;
+                _owner.LiveHandles++;
             }
         }
 

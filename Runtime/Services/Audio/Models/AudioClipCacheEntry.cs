@@ -15,6 +15,13 @@ namespace Moirai.Atropos.Audio
         public CancellationTokenSource Cancellation;
         public string Address;
         public AudioClipLease Lease;
+
+        /// <summary>
+        /// <see cref="Lease"/> 的**一次性装箱副本**，专供 <c>AssetHandlePool</c> 只读视图使用。
+        /// <para>视图每次刷新若直接写 <see cref="Lease"/>，就会在每次取用/归还的热点上重复装箱；
+        /// 这里让装箱只发生在租约换手的那一次。</para>
+        /// </summary>
+        public object LeaseBoxed;
         public AudioClip Clip;
         public AudioLoadRequest PendingHead;
         public AudioLoadRequest PendingTail;
@@ -96,6 +103,7 @@ namespace Moirai.Atropos.Audio
             Cancellation = null;
             Lease.Release();
             Lease = default;
+            LeaseBoxed = null;
             Address = null;
             Clip = null;
             // 条目被丢弃时仍挂着等待者：正常路径已由缓存统一通知，此处兜底归还，避免请求节点脱离池

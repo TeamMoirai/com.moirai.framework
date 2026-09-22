@@ -544,6 +544,8 @@ namespace Moirai.Atropos.Audio
 
             entry.Lease.Release();
             entry.Lease = success ? lease : default;
+            // 只在租约换手时装箱一次；留池视图的每次刷新复用这个引用
+            entry.LeaseBoxed = success ? (object)lease : null;
             entry.Clip = success ? lease.Clip : null;
 
             // 派发期间自持一份引用：等待者回调里的请求/卸载不能中途把本条目挤成负引用或被驱逐
@@ -671,7 +673,7 @@ namespace Moirai.Atropos.Audio
 
             if (entry.IsLoaded && (entry.Pinned || entry.CacheAfterUse))
             {
-                PoolView[entry.Address] = entry.Lease;
+                PoolView[entry.Address] = entry.LeaseBoxed;
             }
             else
             {
