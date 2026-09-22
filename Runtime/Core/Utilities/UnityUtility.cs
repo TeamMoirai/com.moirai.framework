@@ -554,7 +554,7 @@ namespace Moirai.Atropos
         {
             if (radius < 0)
                 radius = 0;
-            var rndPtr = UnityEngine.Random.insideUnitCircle * radius;
+            var rndPtr = MathsUtility.RandomPointInsideUnitCircle() * radius;
             var rndPos = rndPtr + center;
             return rndPos;
         }
@@ -572,8 +572,8 @@ namespace Moirai.Atropos
                 miniRadius = 0;
             if (maxRadius < miniRadius)
                 maxRadius = miniRadius;
-            var randomRadius = UnityEngine.Random.Range(miniRadius, maxRadius);
-            var rndPtr = UnityEngine.Random.insideUnitCircle * randomRadius;
+            var randomRadius = RandomUtility.NextFloat(miniRadius, maxRadius);
+            var rndPtr = MathsUtility.RandomPointInsideUnitCircle() * randomRadius;
             var rndPos = rndPtr + center;
             return rndPos;
         }
@@ -588,7 +588,7 @@ namespace Moirai.Atropos
         {
             if (radius < 0)
                 radius = 0;
-            var rndPtr = UnityEngine.Random.insideUnitSphere * radius;
+            var rndPtr = MathsUtility.RandomPointInsideUnitSphere() * radius;
             var rndPos = rndPtr + center;
             return rndPos;
         }
@@ -606,8 +606,8 @@ namespace Moirai.Atropos
                 miniRadius = 0;
             if (maxRadius < miniRadius)
                 maxRadius = miniRadius;
-            var randomRadius = UnityEngine.Random.Range(miniRadius, maxRadius);
-            var rndPtr = UnityEngine.Random.insideUnitSphere * randomRadius;
+            var randomRadius = RandomUtility.NextFloat(miniRadius, maxRadius);
+            var rndPtr = MathsUtility.RandomPointInsideUnitSphere() * randomRadius;
             var rndPos = rndPtr + center;
             return rndPos;
         }

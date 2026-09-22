@@ -15,10 +15,10 @@ namespace Moirai.Atropos
         {
             Color c = new Color()
             {
-                r = UnityEngine.Random.Range(min.r, max.r),
-                g = UnityEngine.Random.Range(min.g, max.g),
-                b = UnityEngine.Random.Range(min.b, max.b),
-                a = UnityEngine.Random.Range(min.a, max.a)
+                r = RandomUtility.NextFloat(min.r, max.r),
+                g = RandomUtility.NextFloat(min.g, max.g),
+                b = RandomUtility.NextFloat(min.b, max.b),
+                a = RandomUtility.NextFloat(min.a, max.a)
             };
 
             return c;

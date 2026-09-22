@@ -4,7 +4,6 @@ using Sirenix.OdinInspector;
 using UnityEngine;
 using UnityEngine.Audio;
 using UnityEngine.Serialization;
-using Random = UnityEngine.Random;
 
 namespace Moirai.Atropos.Audio
 {
@@ -313,8 +312,8 @@ namespace Moirai.Atropos.Audio
 
             if (_sfx == null) return;
 
-            float volume = Random.Range(m_MinVolume, m_MaxVolume);
-            float pitch = Random.Range(m_MinPitch, m_MaxPitch);
+            float volume = RandomUtility.NextFloat(m_MinVolume, m_MaxVolume);
+            float pitch = RandomUtility.NextFloat(m_MinPitch, m_MaxPitch);
 
             AudioPlayOptions options = new AudioPlayOptions
             {
@@ -381,7 +380,7 @@ namespace Moirai.Atropos.Audio
                 }
                 else
                 {
-                    newIndex = Random.Range(0, m_RandomAudio.Length);
+                    newIndex = RandomUtility.NextInt(0, m_RandomAudio.Length);
                 }
             }
             else

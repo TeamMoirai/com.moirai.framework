@@ -319,8 +319,8 @@ namespace Moirai.Atropos
         /// <param name="maximum">x，y 的最大值</param>
         public static Vector2 RandomVector2(Vector2 minimum, Vector2 maximum)
         {
-            return new Vector2(UnityEngine.Random.Range(minimum.x, maximum.x),
-                                             UnityEngine.Random.Range(minimum.y, maximum.y));
+            return new Vector2(RandomUtility.NextFloat(minimum.x, maximum.x),
+                                             RandomUtility.NextFloat(minimum.y, maximum.y));
         }
 
         /// <summary>
@@ -331,9 +331,41 @@ namespace Moirai.Atropos
         /// <param name="maximum">x，y，z 的最大值</param>
         public static Vector3 RandomVector3(Vector3 minimum, Vector3 maximum)
         {
-            return new Vector3(UnityEngine.Random.Range(minimum.x, maximum.x),
-                                             UnityEngine.Random.Range(minimum.y, maximum.y),
-                                             UnityEngine.Random.Range(minimum.z, maximum.z));
+            return new Vector3(RandomUtility.NextFloat(minimum.x, maximum.x),
+                                             RandomUtility.NextFloat(minimum.y, maximum.y),
+                                             RandomUtility.NextFloat(minimum.z, maximum.z));
+        }
+
+        /// <summary>
+        /// 单位圆内的均匀随机点（面积均匀）。
+        /// </summary>
+        /// <remarks>半径必须取 sqrt(u)；直接取 u 会让点往圆心堆。</remarks>
+        public static Vector2 RandomPointInsideUnitCircle()
+        {
+            float r = Mathf.Sqrt(RandomUtility.NextFloat());
+            float a = RandomUtility.NextFloat(0f, Mathf.PI * 2f);
+            return new Vector2(r * Mathf.Cos(a), r * Mathf.Sin(a));
+        }
+
+        /// <summary>
+        /// 单位球面上的均匀随机点。
+        /// </summary>
+        /// <remarks>z 取 [-1,1] 均匀而非"方向取高斯再归一"，两者同分布但这条更便宜。</remarks>
+        public static Vector3 RandomPointOnUnitSphere()
+        {
+            float z = RandomUtility.NextFloat(-1f, 1f);
+            float a = RandomUtility.NextFloat(0f, Mathf.PI * 2f);
+            float r = Mathf.Sqrt(Mathf.Max(0f, 1f - z * z));
+            return new Vector3(r * Mathf.Cos(a), r * Mathf.Sin(a), z);
+        }
+
+        /// <summary>
+        /// 单位球体内的均匀随机点（体积均匀）。
+        /// </summary>
+        public static Vector3 RandomPointInsideUnitSphere()
+        {
+            // 半径取 cbrt(u) 才体积均匀
+            return RandomPointOnUnitSphere() * Mathf.Pow(RandomUtility.NextFloat(), 1f / 3f);
         }
 
         /// <summary>
@@ -343,7 +375,8 @@ namespace Moirai.Atropos
         /// <returns></returns>
         public static Vector2 RandomPointOnCircle(float circleRadius)
         {
-	        return UnityEngine.Random.insideUnitCircle.normalized * circleRadius;
+	        float angle = RandomUtility.NextFloat(0f, Mathf.PI * 2f);
+	        return new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * circleRadius;
         }
 
         /// <summary>
@@ -353,7 +386,7 @@ namespace Moirai.Atropos
         /// <returns></returns>
         public static Vector3 RandomPointOnSphere(float sphereRadius)
         {
-	        return UnityEngine.Random.onUnitSphere * sphereRadius;
+	        return RandomPointOnUnitSphere() * sphereRadius;
         }
 
         /// <summary>
@@ -516,7 +549,7 @@ namespace Moirai.Atropos
 		/// <param name="numberOfSides">骰子的面数</param>
 		public static int RollADice(int numberOfSides)
 		{
-			return (UnityEngine.Random.Range(1, numberOfSides + 1));
+			return RandomUtility.NextInt(1, numberOfSides + 1);
 		}
 
 		/// <summary>
@@ -526,7 +559,8 @@ namespace Moirai.Atropos
 		/// <param name="percent">几率的百分比</param>
 		public static bool Chance(int percent)
 		{
-			return (UnityEngine.Random.Range(0, 100) <= percent);
+			// 旧写法 Range(0,100) <= percent 实际给出的成功率是 (percent+1)%
+			return RandomUtility.NextInt(0, 100) < percent;
 		}
 
 		/// <summary>
@@ -686,9 +720,9 @@ namespace Moirai.Atropos
         /// <returns></returns>
         public static int RandomNumber(int lower, int upper)
         {        
-	        System.Random random = new System.Random();
-	        int value = random.Next(lower, upper);
-	        return value;
+            // 旧实现每次调用都 new System.Random()：种子取自时钟，同一 tick 内的两次调用会
+            // 拿到完全相同的"随机数"，还每调一次白造一个对象
+            return RandomUtility.NextInt(lower, upper);
         }
 	}
 }

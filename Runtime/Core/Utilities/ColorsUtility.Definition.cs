@@ -304,7 +304,7 @@ namespace Moirai.Atropos
 
         public static Color RandomColor()
         {
-            int random = Random.Range(0, 140);
+            int random = RandomUtility.NextInt(0, 140);
             return GetColor((EColor)random);
         }
 
