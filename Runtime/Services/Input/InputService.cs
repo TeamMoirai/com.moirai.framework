@@ -14,6 +14,7 @@ namespace Moirai.Atropos.Input
     /// </summary>
     // 依赖说明：经 EventManager 订阅 UIServiceEvent + 读 UIService.CurrentModal——事件驱动软依赖，
     // 不做 [ServiceDependency] 硬声明（UI 侧对 Input 是静态调用硬依赖，双向硬声明会构成拓扑环）。
+    [AutoRegisterService]
     [HandlerHost(typeof(InputServiceHandler))]
     public partial class InputService : ServiceBase
     {

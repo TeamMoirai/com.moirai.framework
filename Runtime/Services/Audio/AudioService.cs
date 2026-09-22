@@ -15,6 +15,7 @@ namespace Moirai.Atropos.Audio
     /// <para>Handler 属性由 <c>HandlerHostGenerator</c> 源生成器自动生成（线程安全懒加载）。</para>
     /// <para>场景3D音效挂到场景物件、技能3D音效挂到技能特效上，并在 <see cref="AudioSource"/> 的Output上设置对应分类的 <see cref="AudioMixerGroup"/>。</para>
     /// </summary>
+    [AutoRegisterService]
     [HandlerHost(typeof(AudioServiceHandler))]
     [ServiceDependency(typeof(DebuggerService), typeof(ResourceService))]
     public partial class AudioService : ServiceBase, IServiceTickable

@@ -13,6 +13,7 @@ namespace Moirai.Atropos.ObjectPool
     /// <para>Handler 属性由 <c>HandlerHostGenerator</c> 源生成器自动生成（线程安全懒加载）。</para>
     /// <para>支持两种池化来源：资源地址（经 ResourceService 加载）、外部 Prefab 引用，经 <see cref="GameObjectPoolSource"/> 统一入口。</para>
     /// </summary>
+    [AutoRegisterService]
     [HandlerHost(typeof(GameObjectPoolServiceHandler))]
     [ServiceDependency(typeof(DebuggerService), typeof(ResourceService))]
     [UnityEngine.Scripting.Preserve]

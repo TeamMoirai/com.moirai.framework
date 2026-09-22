@@ -172,17 +172,15 @@ public class BattleService : ServiceBase
 
 ### 组合根与内置服务注册
 
-框架组合根：`GameAppSettings.InitializeAppServices()`（`BeforeSceneLoad` 阶段调用）**无序**注册全部链上服务，随后一次提交第二阶段：
+框架组合根：`GameAppSettings.InitializeAppServices()`（`BeforeSceneLoad` 阶段调用）注册全部内置 App 服务，随后一次提交第二阶段：
 
 ```csharp
-GameServices.RegisterService(EServiceScopeKind.App, new DebuggerService());
-GameServices.RegisterService(EServiceScopeKind.App, new ResourceService());
-GameServices.RegisterService(EServiceScopeKind.App, new TimerService());
-// ……其余内置服务同样仅注册，顺序无关
-await GameServices.Default.InitializeAsync();   // 按 [ServiceDependency] 拓扑序统一驱动 OnInit
+// 注册清单由 BuiltinServiceRegistrationGenerator 按服务类上的 [AutoRegisterService] 标记生成
+BuiltinServiceRegistration.RegisterAll(GameServices.Default);   // 仅入图，顺序无关
+await GameServices.Default.InitializeAsync();                    // 按 [ServiceDependency] 拓扑序统一驱动 OnInit
 ```
 
-服务实例仅由手动注册创建，`[ServiceDependency]` 声明在世界初始化的拓扑排序期校验并排序（缺失依赖 fail-fast，与注册顺序无关）。全部 13 个内置服务都由组合根显式注册；各服务外观的 `CreateDefaultHandler` 首行仍调用 `GameServices.EnsureRegistered<T>()` 作兜底——组合根尚未跑到就被访问服务时也能完成注册（关闭态会被显式阻断，见「懒加载自动注册」）。自定义服务的后端实现可在对应 `XxxSettings` 的 Inspector 中通过 Provider 下拉框替换。
+内置服务经服务类上的 `[AutoRegisterService]` 特性进入注册清单：源生成器收集标记类型并生成程序集级 `BuiltinServiceRegistration.RegisterAll(ServiceWorld)`（实例由生成代码经无参构造创建；目标非法——未实现 `IService`、抽象/泛型、缺可访问无参构造、作用域越界——编译期 MIRAI203/204/205 报错）。`[ServiceDependency]` 声明在世界初始化的拓扑排序期校验并排序（缺失依赖 fail-fast，与注册顺序无关）。各服务外观的 `CreateDefaultHandler` 首行仍调用 `GameServices.EnsureRegistered<T>()` 作兜底——组合根尚未跑到就被访问服务时也能完成注册（关闭态会被显式阻断，见「懒加载自动注册」）。自定义服务的后端实现可在对应 `XxxSettings` 的 Inspector 中通过 Provider 下拉框替换。
 
 ### 处理器异步生命周期 [HANDLER ASYNC LIFECYCLE]
 

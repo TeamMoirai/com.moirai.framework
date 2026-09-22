@@ -12,6 +12,7 @@ namespace Moirai.Atropos.Localization
     /// <para>降级契约：全部外观 API 经 <c>s_Handler?.</c> 静默降级（未注册/未初始化时返回安全默认值），与全框架统一。</para>
     /// <para>Handler 属性由 <c>HandlerHostGenerator</c> 源生成器自动生成（线程安全懒加载）。</para>
     /// </summary>
+    [AutoRegisterService]
     [ServiceDependency(typeof(DebuggerService))]
     [HandlerHost(typeof(LocalizationServiceHandler))]
     public partial class LocalizationService : ServiceBase

@@ -30,6 +30,7 @@ namespace Moirai.Atropos.Procedure
     /// 回调异常被逐订阅者隔离；回调内禁止同步 <see cref="StartProcedure"/> / <see cref="ChangeState"/>
     /// （处理器在广播期置位，重入即抛 <see cref="GameException"/>；OnEnter/OnLeave 内的合法嵌套切换不受影响）。</para>
     /// </remarks>
+    [AutoRegisterService]
     [ServiceDependency(typeof(DebuggerService), typeof(ResourceService), typeof(UIService), typeof(LocalizationService), typeof(TimerService))]
     [HandlerHost(typeof(ProcedureServiceHandler))]
     public partial class ProcedureService : ServiceBase, IServiceTickable

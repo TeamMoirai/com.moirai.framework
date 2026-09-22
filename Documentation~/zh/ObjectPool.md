@@ -10,10 +10,8 @@
 | `ObjectPoolService` | 任意 `ObjectBase` 派生对象（数据包、连接、指令…） | `Type + 池名` | 纯 C# 对象复用 |
 | `GameObjectPoolService` | Unity GameObject（Prefab 实例） | 资源地址 / 外部 Prefab 引用 | 子弹、特效、UI 弹窗 |
 
-> ⚠️ **两个服务均为 opt-in 注册**：不在 `ProcedureService` 依赖链中，组合根默认不注册。
-> 外观调用一律经 `Handler` 属性转发（fail-fast，未就绪时按需初始化并自动注册——首次外观访问即完成世界注册，`Tick` 驱动的维护随之生效）。
-> 也可显式启用：`GameServices.RegisterService(EServiceScopeKind.App, new ObjectPoolService())`
-> （显式注册做依赖校验；GameObjectPoolService 依赖 ResourceService，须先行注册）。
+> 两个服务均为内置 App 服务：标记 `[AutoRegisterService]`，组合根经生成清单自动注册
+> （`GameObjectPoolService` 经 `[ServiceDependency]` 依赖 `ResourceService`，拓扑初始化自动保证顺序）。
 
 ## 架构
 

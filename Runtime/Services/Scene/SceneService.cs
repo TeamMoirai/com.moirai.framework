@@ -16,6 +16,7 @@ namespace Moirai.Atropos.Scene
     /// <para>生命周期事件（<see cref="MainSceneChanged"/> 等）在主线程同步触发，订阅者异常被隔离记录，不影响其他订阅者；服务关闭时静态事件会被清空。</para>
     /// <para>场景短名须尽量全局唯一：短名碰撞时按名查询/激活/卸载可能解析到错误对象（后注册者覆盖，详见处理器日志）。</para>
     /// </summary>
+    [AutoRegisterService]
     [HandlerHost(typeof(SceneServiceHandler))]
     [ServiceDependency(typeof(ResourceService))]
     public partial class SceneService : ServiceBase

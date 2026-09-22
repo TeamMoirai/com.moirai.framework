@@ -10,10 +10,8 @@ The service is split into two independent facades; choose by pooled object type:
 | `ObjectPoolService` | Any `ObjectBase` derived object (data packets, connections, commands…) | `Type + pool name` | Pure C# object reuse |
 | `GameObjectPoolService` | Unity GameObject (Prefab instances) | Asset location / external Prefab reference | Bullets, VFX, UI popups |
 
-> ⚠️ **Both services are opt-in**: they are NOT in the `ProcedureService` dependency chain and are not registered by the composition root by default.
-> Facade calls always forward through the `Handler` property (fail-fast, lazily initialized on first use with automatic world registration — the first facade access completes registration, and `Tick`-driven maintenance takes effect immediately).
-> Alternatively, enable explicitly: `GameServices.RegisterService(EServiceScopeKind.App, new ObjectPoolService())`
-> (explicit registration performs dependency validation; GameObjectPoolService depends on ResourceService, which must be registered first).
+> Both services are built-in App services: marked `[AutoRegisterService]` and auto-registered by the composition root via the generated list
+> (`GameObjectPoolService` depends on `ResourceService` via `[ServiceDependency]`; topological initialization guarantees the ordering).
 
 ## Architecture
 
