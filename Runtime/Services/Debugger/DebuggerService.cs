@@ -8,6 +8,7 @@ namespace Moirai.Atropos.Debugger
     /// <para>未显式设置处理器时，懒加载优先经 <c>GetHandlerFromSettings</c> 从 <see cref="DebuggerServiceSettings"/> 解析；settings 未配置则回退 <see cref="CreateDefaultHandler"/>。外观方法经 <c>s_Handler</c> 直接转发（未注册时静默降级为默认值——仅主动注册方可使用服务）。</para>
     /// <para>Handler 属性由 <c>HandlerHostGenerator</c> 源生成器自动生成（线程安全懒加载）。</para>
     /// </summary>
+    [AutoRegisterService]
     [HandlerHost(typeof(DebuggerServiceHandler))]
     public partial class DebuggerService : ServiceBase, IServiceTickable
     {

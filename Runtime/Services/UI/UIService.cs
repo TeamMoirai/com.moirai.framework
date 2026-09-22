@@ -14,6 +14,7 @@ namespace Moirai.Atropos.UI
     /// <para>未显式设置处理器时，懒加载优先经 <c>GetHandlerFromSettings</c> 从 <see cref="UIServiceSettings"/> 解析；settings 未配置则回退 <see cref="CreateDefaultHandler"/>。</para>
     /// <para>Handler 属性由 <c>HandlerHostGenerator</c> 源生成器自动生成（线程安全懒加载）。</para>
     /// </summary>
+    [AutoRegisterService]
     [HandlerHost(typeof(UIServiceHandler))]
     [ServiceDependency(typeof(DebuggerService), typeof(ResourceService), typeof(TimerService), typeof(InputService))]
     public sealed partial class UIService : ServiceBase, IServiceTickable
