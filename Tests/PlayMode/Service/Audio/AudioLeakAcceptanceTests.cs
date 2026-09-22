@@ -108,7 +108,10 @@ namespace Service.Audio
         [Test]
         public void MixedChurn_PreloadUnloadClear_LeavesZeroLiveHandles()
         {
-            using var fixture = new LeaseFixture(16, 30f, AudioCachePolicy.Ttl);
+            // TTL 缩到 20ms，好让 case 5 的驱逐分支在这一轮里真能走到（原来给 30s，单帧内永不到期，那条分支不可达）。
+            // 到期行为的确定性断言在 AudioClipCacheTests.Ttl_ExpiresIdleEntry_AndTouchRenews，这里不重复断言时延。
+            using var fixture = new LeaseFixture(16, 0.02f, AudioCachePolicy.Ttl);
+            int preloaded = 0;
             var random = new System.Random(20260922);
             string[] addresses = new string[24];
             for (int i = 0; i < addresses.Length; i++) addresses[i] = "Audio/Sfx/" + i;
@@ -119,7 +122,7 @@ namespace Service.Audio
                 switch (step % 6)
                 {
                     case 0:
-                        fixture.Cache.Preload(address, (AudioCachePolicy)random.Next(1, 4));
+                        if (fixture.Cache.Preload(address, (AudioCachePolicy)random.Next(1, 4))) preloaded++;
                         break;
                     case 1:
                         fixture.Cache.Unload(address, force: random.Next(4) == 0);
@@ -144,6 +147,7 @@ namespace Service.Audio
             }
 
             fixture.Cache.ClearCache(force: true);
+            Assert.Greater(preloaded, 0, "4096 步里一次预载都没成功过，本就没有混洗可验");
             Assert.AreEqual(0, fixture.Cache.Count, "force 清理后缓存条目应为 0");
             Assert.AreEqual(0, fixture.LiveHandles, "所有租约必须归还");
         }
@@ -165,16 +169,20 @@ namespace Service.Audio
             Assert.AreEqual(0, fixture.LiveHandles);
         }
 
+        /// <summary>
+        /// 空地址必须直接判负且不产生条目与租约。
+        /// <para>名字里的「冷却 / force 重置」不在这里验：那四格在 AudioClipCacheTests
+        /// （FailedLoad_ / FailureCooldown_Expires / FailureCooldown_Zero / ClearCacheForce_），
+        /// 本夹具的 TryAcquire 从不失败，抄一份只会得到一格永不调用失败路径的假覆盖。</para>
+        /// </summary>
         [Test]
-        public void FailureCooldown_ThenForceClear_ResetsAndAllowsRetry()
+        public void Preload_NullOrEmptyAddress_FailsWithoutEntryOrLease()
         {
             using var fixture = new LeaseFixture();
-            // 失败路径：TryAcquire 返回 false 时应进冷却且不泄漏
-            // 这里用空地址/预载后 Clear 验证 force 会清掉冷却
             Assert.IsFalse(fixture.Cache.Preload(null));
             Assert.IsFalse(fixture.Cache.Preload(string.Empty));
-            fixture.Cache.ClearCache(force: true);
-            Assert.AreEqual(0, fixture.LiveHandles);
+            Assert.AreEqual(0, fixture.Cache.Count, "空地址不该留下条目");
+            Assert.AreEqual(0, fixture.LiveHandles, "空地址不该产生租约");
         }
 
         [Test]

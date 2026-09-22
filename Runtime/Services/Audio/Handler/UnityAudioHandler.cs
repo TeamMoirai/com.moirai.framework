@@ -318,9 +318,10 @@ namespace Moirai.Atropos.Audio
         /// <inheritdoc />
         public override void Restart()
         {
+            // 窗口重开要在 disabled 提前返回之前：停过一轮音频再启用时，启动期的同步加载才不会被误判成运行期而改异步
+            AudioBlockingLoadGate.Open();
             if (_unityAudioDisabled) return;
 
-            AudioBlockingLoadGate.Open();
             CleanAudioPool();
             AudioVoiceDucking.Reset();
 
