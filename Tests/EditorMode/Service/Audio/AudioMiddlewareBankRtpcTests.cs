@@ -241,17 +241,12 @@ namespace Service.Audio
         [Test]
         public void AudioService_LoadBank_UnloadBank_SetRtpc_DispatchesToHandler()
         {
-            // Handler getter 会懒加载、setter 拒收 null：用 s_Handler 字段做无副作用换入换出
-            // （同 PreventInputOnEnableTests 约定，测试程序集在 InternalsVisibleTo 白名单内）
-            FieldInfo sHandler = typeof(AudioService).GetField(
-                "s_Handler", BindingFlags.NonPublic | BindingFlags.Static);
-            Assert.IsNotNull(sHandler, "HandlerHost 生成的 s_Handler 字段应存在");
-
-            object previous = sHandler.GetValue(null);
+            // 走生成器发的内部接缝做无副作用换入换出：getter 会懒加载、setter 会 Internal_Init 且拒收 null
+            AudioServiceHandler previous = AudioService.Internal_PeekHandler();
             var stub = new WwiseBridgeStub();
             var handler = new WwiseAudioHandler();
             handler.SetBridge(stub);
-            sHandler.SetValue(null, handler);
+            AudioService.Internal_UseHandler(handler);
             try
             {
                 Assert.IsTrue(AudioService.LoadBank("Init"));
@@ -264,7 +259,7 @@ namespace Service.Audio
             }
             finally
             {
-                sHandler.SetValue(null, previous);
+                AudioService.Internal_UseHandler(previous);
             }
         }
 

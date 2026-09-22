@@ -181,6 +181,18 @@ namespace Moirai.Atropos.SourceGenerators
             sb.AppendLine("                }");
             sb.AppendLine("            }");
             sb.AppendLine("        }");
+
+            // 无损换入换出的接缝：公开 setter 会 Internal_Init 且拒收 null，
+            // 于是「降级到空处理器」与「测试里临时换后端」只能反射私有字段——那是运行期才炸的耦合。
+            sb.AppendLine();
+            sb.AppendLine("        /// <summary>读当前处理器：不触发懒加载，也不产生任何副作用。</summary>");
+            sb.AppendLine($"        internal static {info.HandlerTypeName} Internal_PeekHandler() => s_Handler;");
+            sb.AppendLine();
+            sb.AppendLine("        /// <summary>");
+            sb.AppendLine("        /// 换入处理器并返回原值，允许传 null；不调用 <c>Internal_Init</c> 也不关停原处理器。");
+            sb.AppendLine("        /// <para>框架内部门面与测试用它做无损换入换出，用完请把原值换回去。</para>");
+            sb.AppendLine("        /// </summary>");
+            sb.AppendLine($"        internal static {info.HandlerTypeName} Internal_UseHandler({info.HandlerTypeName} next) => Interlocked.Exchange(ref s_Handler, next);");
             sb.AppendLine("    }");
             sb.AppendLine("}");
 
