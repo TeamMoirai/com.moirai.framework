@@ -288,11 +288,36 @@ namespace Moirai.Atropos.Localization
             {
                 var strings = ConfigTableService.GetLocalizedStringsForEditorPreview();
                 var codes = ConfigTableService.GetLocalizationLanguageCodesForEditorPreview();
-                if (strings == null || strings.Count == 0 || codes == null || codes.Count == 0)
+                if (strings == null || strings.Count == 0)
                 {
                     s_PreviewFailed = true;
                     LogUtility.Warning("Localization preview unavailable: generate config table first.");
                     return null;
+                }
+
+                // 未自报语言时回落到全局注册表：直读词条这条路径本身就会顺带把语言注册进来
+                // （生成侧的 Luban 处理器要到下次转表才会带出自报接口，此处不留窗口）
+                if (codes == null || codes.Count == 0)
+                {
+                    var registered = GetAllAvailableLanguages();
+                    if (registered.Count == 0)
+                    {
+                        s_PreviewFailed = true;
+                        LogUtility.Warning("Localization preview unavailable: no language registered by the table.");
+                        return null;
+                    }
+
+                    var fallbackStore = new LocalizationStore();
+                    if (!fallbackStore.TryApply(new LocalizationTextBatch(registered, strings, "editor-preview"), out var fallbackKey))
+                    {
+                        s_PreviewFailed = true;
+                        LogUtility.Error("Localization preview unavailable: entry '{0}' column count mismatches {1} languages.",
+                            fallbackKey, registered.Count);
+                        return null;
+                    }
+
+                    s_PreviewStore = fallbackStore;
+                    return s_PreviewStore;
                 }
 
                 var languages = new List<Language>(codes.Count);
