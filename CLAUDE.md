@@ -62,7 +62,7 @@ Project/
 
 ## 编码规范
 
-Unity AAA 生产级 C# 编码规范（强制执行）。**Why:** 用户要求所有 Unity C# 系统编写、优化、重构时严格按照此规范执行，确保 AAA 商业化代码质量。**How to apply:** 所有 Unity C# 代码编写任务均以下述规范为基线。
+生产级 C# 编码规范（强制执行）。**Why:** 用户要求所有 Unity C# 系统编写、优化、重构时严格按照此规范执行，确保 AAA 商业化代码质量。**How to apply:** 所有 Unity C# 代码编写任务均以下述规范为基线。
 
 - **核心原则：** 性能即特性（热路径 0-Alloc，帧预算内完成）；确定性（避免反射/动态生成，确保 IL2CPP 一致）；可读性即维护性；Fail-Fast（Editor 断言优先，Runtime 防御性检查）。
 - **命名：** 命名空间 Pascal（{Org}.{Product}.{Module}）；类/结构体/接口 PascalCase；公有属性 Auto-Property；序列化私有字段 m_PascalCase（强制）；非序列化私有字段 _camelCase（强制）；静态私有字段 s_PascalCase（强制）；方法/事件 PascalCase；局部变量/参数 camelCase；常量 ALL_UPPER（强制）；静态只读 PascalCase。字段前缀区分：m_=序列化、_=非序列化、s_=静态，杜绝 this. 冗余。var 仅当右侧类型明确时使用。Allman 大括号，4 空格缩进。
@@ -146,7 +146,6 @@ Unity AAA 生产级 C# 编码规范（强制执行）。**Why:** 用户要求所
 
 ### 开发工具
 - **Odin Inspector** - 编辑器增强
-- **DOTween** - 动画系统
 - **TextMesh Pro** - 文本渲染
 
 ## 注意事项
