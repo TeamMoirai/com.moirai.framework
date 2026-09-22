@@ -117,7 +117,7 @@ Project/
 - **partial 拆文件**：`Xxx.<职责>.cs`，职责名是首字母大写的单个英文名词（`.Core`/`.Slots`/`.Maintenance`/`.Bindings`/`.Async`/`.IO`，在仓 66 个）；拆文件不破坏"一文件一顶层类型"。
 - **通用后缀**：静态工具 `XxxUtility`（单数）、扩展方法 `XxxExtensions`、账本 `XxxRegistry`、缓存 `XxxCache`、调度 `XxxScheduler`/`XxxStateMachine`、调试器面板 `XxxServiceDebuggerWindow`。
 - **键名常量**：Mixer 参数与设置键按 `<域>_<对象>_<属性>` 全大写（`AUDIO_MASTER_VOLUME`、`GRAPHICS_FULLSCREEN_MODE`）；存档 schema 字段是 `PascalCase` + `Key` 后缀（`LocalPositionKey`、`SpawnsKey`）。两套并存是历史，改到哪个文件就跟哪个，不新造第三种。
-- **程序集与命名空间**：本包自带 asmdef 为 `Moirai.Atropos`、`Moirai.Atropos.Editor`、`Moirai.Atropos.Tests.EditorMode`/`.PlayMode`（`Templates~` 下的 `GameLib`/`GameLogic`/`GameProto` 是工程侧模板，不属本包）。运行期与编辑器代码一律 `namespace Moirai.Atropos[.<Module>[.<Sub>]]`；测试用与被测模块对齐的**短命名空间**（`Service.Audio`、`Core.Events`、`Core.MemoryPool`），不带 `Moirai` 根——这正是 `CheckNamespace` 降级要护住的写法。
+- **程序集与命名空间**：本包自带 asmdef 为 `Moirai.Atropos`、`Moirai.Atropos.Editor`、`Moirai.Atropos.Tests.EditorMode`/`.PlayMode`/`.Player`（`Templates~` 下的 `GameLib`/`GameLogic`/`GameProto` 是工程侧模板，不属本包）。其中 `.Player` 是**玩家专用**测试程序集（`defineConstraints: ["UNITY_INCLUDE_TESTS", "!UNITY_EDITOR"]`）：编辑器里根本不编译，只随玩家构建的测试运行执行，且只引用玩家安全的程序集（`UnityEngine.TestRunner` + `Moirai.Atropos`）——`UnityEditor.TestRunner` 是 Editor-only，非编辑器程序集一旦引用它，玩家目标编译直接报 `can't add reference to ... as it is an editor-only assembly`（`.PlayMode` 套件正因此进不了玩家）。运行期与编辑器代码一律 `namespace Moirai.Atropos[.<Module>[.<Sub>]]`；测试用与被测模块对齐的**短命名空间**（`Service.Audio`、`Core.Events`、`Core.MemoryPool`），不带 `Moirai` 根——这正是 `CheckNamespace` 降级要护住的写法。
 - **测试**：类 `<被测>Tests`（`AudioClipCacheTests`）、基准 `<被测>Benchmark`（一律 `[Explicit]`，不随常规套件跑）、夹具 `XxxTestSupport`/`XxxTestHost`/`MemoryPoolFixture`（派生式基座）。方法名 `场景_条件_期望` 三段式（`RetainRelease_CycleAllocatesZeroBytes`、`PauseGame_NestedSources_OnlyLastResumeRestoresSpeed`）。异常断言沿 `InnerException`/`AggregateException` 链判定，不用 `Assert.Throws<T>` 硬匹配（泛型 `new T()` 实走 `Activator.CreateInstance<T>()`，原始异常会被包装）。
 
 **冲突怎么判**：DotSettings 与代码打架时以 DotSettings 为准（它是门禁，也是评审依据）；表里没写、仓内已成词汇的那一档（`Handler`/`Bridge`/`Registry`/`Support`）按仓库现状走。两类冲突都不许用 `// ReSharper disable` 或规则抑制绕过——要改先改规则，再改代码。
@@ -170,7 +170,17 @@ Project/
 产物：`report.txt`（`run <id> | passed N | failed N | skipped N | 耗时`，后附逐格失败详情）、`report.txt.progress`
 （正在跑的用例全名，可判卡死；收口时删除）、`report.txt.done`（内容是请求里的 `id`）。**必须自带唯一 `id` 并只认配对的
 `.done`**，否则会把上一轮的旧报告当成这次的结论。前提是该程序集已编译过一次且编辑器有过一次 `update`
-（焦点切过去即可，通常在几秒内）；正在编译、正在导入时不接新单。`mode` 支持 `EditMode`/`PlayMode`；PlayMode 进出场的域重载由驱动落盘 `Temp/MoiraiTestRunState.json` 自动续跑。可选 `timeoutSeconds` 是墙钟上限（秒，`0`/缺省不限时，编译、导入与域重载的等待计入），超时按 ABORTED 收口；`assemblies` 与 `tests` 均为空的请求会被直接拒绝收口——空过滤器会让 Test Runner 重跑上一次的选择集。
+（焦点切过去即可，通常在几秒内）；正在编译、正在导入、正在切 PlayMode 或编辑器里有任意 run 在跑（含窗口手动发起）时不接新单——请求文件留着，空闲后自动消费。`mode` 支持 `EditMode`/`PlayMode`；PlayMode 进出场的域重载由驱动落盘 `Temp/MoiraiTestRunState.json` 自动续跑。可选 `timeoutSeconds` 是墙钟上限（秒，`0`/缺省不限时，编译、导入与域重载的等待计入），超时按 ABORTED 收口并尽力取消 Test Runner 作业；ABORTED 报告（超时/孤儿单/执行失败）附带已收集的 `collected passed/failed/skipped` 与墙钟时长，已跑完的格子不白跑；`assemblies` 与 `tests` 均为空的请求会被直接拒绝收口——空过滤器会让 Test Runner 重跑上一次的选择集。
+
+**取消在途单**：往 `Client/Temp/MoiraiTestRequest.cancel.json` 写要取消的请求 `id`（裸文本或 `{"id":"..."}` 均可），
+驱动匹配在途单即删除文件并经 `TestRunnerApi.CancelTestRun` 取消作业；UTF 取消后不再送达 RunFinished，
+受理即由驱动收口（ABORTED 格式，附已收集计数）；拒绝受理才等 RunFinished 自然收口。
+域重载后驱动按作业 guid 精确判活（不认窗口手动跑），判活不可用也有强制收口宽限——调用方永不会等不到 `.done`。
+
+**玩家专用用例跑不了这条桥**：桥住在编辑器里，而 `Moirai.Atropos.Tests.Player` 在编辑器下不编译（`!UNITY_EDITOR`），
+桥的 `assemblies` 过滤器找不到它。这类用例（音频热路径 0-GC 验收——托管分配计数器只在玩家里推进）必须在
+Test Runner 窗口的 PlayMode 页签用 `Run all in Player`（或 batchmode `-runTests -testPlatform PlayMode`，构建需带
+`BuildOptions.IncludeTestAssemblies`）执行，结论以玩家侧报告为准；编辑器套件里它们既不出现也不假跳。
 
 ### 3. 代码优化
 1. 使用 `/optimize` 分析性能
