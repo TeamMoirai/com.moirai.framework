@@ -23,15 +23,6 @@ namespace Moirai.Atropos
         public static string FormatToSysFilePath(string path) => FormatUNCPath(path);
         
         /// <summary>
-        /// 获取当前绝对路径
-        /// </summary>
-        /// <returns>path</returns>
-        public static string ApplicationPath()
-        {
-            return System.IO.Path.GetFullPath(".");
-        }
-        
-        /// <summary>
         /// 获取沙盒路径。
         /// </summary>
         /// <param name="filePath">路径。</param>

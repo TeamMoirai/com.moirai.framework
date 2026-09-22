@@ -55,8 +55,9 @@ namespace Moirai.Atropos
                 ? StringUtility.GetString(sb => sb.Append(TimestampPrefix).Append(message))
                 : message;
 
-            _logger.Write(ToSerilogLevel(logLevel), exception, "{Message}", formatted);
-        }
+            // 仅在带上下文时派生 logger：WithUnityObject 每次都会新建包装器，热路径不必白配。
+            var logger = context != null ? _logger.WithUnityObject(context) : _logger;
+            logger.Write(ToSerilogLevel(logLevel), exception, "{Message}", formatted);        }
 
         private static LogEventLevel ToSerilogLevel(ELogLevel logLevel)
         {

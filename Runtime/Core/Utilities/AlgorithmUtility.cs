@@ -307,23 +307,6 @@ namespace Moirai.Atropos
          return -1;
         }
 
-        /// <summary>
-        /// 将一个int数组转换为顺序的整数;
-        /// 若数组中存在负值，则默认将负值取绝对值
-        /// </summary>
-        /// <param name="array">传入的数组</param>
-        /// <returns>转换成整数后的int</returns>
-        public static int ConvertIntArrayToInt(int[] array)
-        {
-         int result = 0;
-         int length = array.Length;
-         for (int i = 0; i < length; i++)
-         {
-             result += Convert.ToInt32((Math.Abs(array[i]) * Math.Pow(10, length - 1 - i)));
-         }
-
-         return result;
-        }
 
         /// <summary>
         /// 生成至多 <paramref name="length"/> 位十进制、且落在 [<paramref name="minValue"/>, <paramref name="maxValue"/>] 内的随机整数。
@@ -567,24 +550,6 @@ namespace Moirai.Atropos
             ShuffleUtility.Shuffle(array, array.Count, ref rng);
         }
 
-        /// <summary>
-        /// 是否是奇数
-        /// </summary>
-        /// <param name="value">检测的值</param>
-        /// <returns>是否是奇数</returns>
-        public static bool IsOdd(long value)
-        {
-         return !Convert.ToBoolean(value & 0x1);
-        }
 
-        /// <summary>
-        /// 是否是偶数
-        /// </summary>
-        /// <param name="value">检测的值</param>
-        /// <returns>是否是偶数</returns>
-        public static bool IsEven(long value)
-        {
-         return Convert.ToBoolean(value & 0x1);
-        }
     }
 }

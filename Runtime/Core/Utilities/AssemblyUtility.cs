@@ -96,22 +96,6 @@ namespace Moirai.Atropos
             return null;
         }
 
-        /// <summary>
-        /// 获取已加载的程序集中的指定类型（接口或基类）的所有实现类/子类名称。
-        /// </summary>
-        /// <param name="typeBase">指定接口或基类类型</param>
-        /// <returns>所有实现类/子类的完整名称列表</returns>
-        public static List<string> GetRuntimeTypeNames(Type typeBase)
-        {
-            var runtimeTypes = GetRuntimeTypes(typeBase);
-            List<string> results = new List<string>();
-            foreach (var t in runtimeTypes)
-            {
-                results.Add(t.FullName);
-            }
-
-            return results;
-        }
 
         /// <summary>
         /// 获取已加载的程序集中的指定类型（接口或基类）的所有实现类/子类。

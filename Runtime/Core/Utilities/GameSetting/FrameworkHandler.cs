@@ -1,14 +1,15 @@
 ﻿using System;
-using Cysharp.Threading.Tasks;
 
 namespace Moirai.Atropos
 {
     /// <summary>
     /// 框架处理器基类。所有策略模式处理器（LogHandler、JsonHandler等）继承此类。
-    /// <para>生命周期：<see cref="Internal_Init"/> → <see cref="OnInit"/> → <see cref="Internal_InitAsync"/> → <see cref="OnInitAsync"/>
-    /// → 运行期 → <see cref="Internal_ShutdownAsync"/> → <see cref="OnShutdownAsync"/> → <see cref="Internal_Shutdown"/> → <see cref="OnShutdown"/>。</para>
-    /// <para>由 <c>HandlerHostGenerator</c> 生成的 <c>Handler</c> 属性 setter 自动调用 <see cref="Internal_Init"/>。
-    /// 异步初始化由 <see cref="GameAppSettings.Initiation"/> 在 <see cref="Internal_Init"/> 之后显式 await。</para>
+    /// <para>生命周期：<see cref="Internal_Init"/> → <see cref="OnInit"/> → 运行期 →
+    /// <see cref="Internal_Shutdown"/> → <see cref="OnShutdown"/>。</para>
+    /// <para>由 <c>HandlerHostGenerator</c> 生成的 <c>Handler</c> 属性 setter 自动调用 <see cref="Internal_Init"/>，
+    /// 替换后端时对旧实例调用 <see cref="Internal_Shutdown"/>。</para>
+    /// <para>本基类只有同步生命周期。需要异步初始化的对象走 Kernel 的 <c>IService.OnInitAsync</c>，
+    /// 那条链路由服务世界接线；处理器挂异步钩子不会被调用。</para>
     /// </summary>
     [Serializable]
     public abstract class FrameworkHandler
@@ -59,45 +60,6 @@ namespace Moirai.Atropos
         protected virtual void OnShutdown()
         {
         }
-
-        #endregion
-
-        #region 异步生命周期 [ASYNC LIFECYCLE]
-
-        /// <summary>
-        /// 异步初始化处理器。由 <see cref="GameAppSettings.Initiation"/> 在 <see cref="Internal_Init"/> 之后显式 await。
-        /// <para>用于资源异步加载、网络连接初始化、配置表加载等场景。</para>
-        /// </summary>
-        internal async UniTask Internal_InitAsync()
-        {
-            if (!_initialized) return;
-
-            await OnInitAsync();
-        }
-
-        /// <summary>
-        /// 异步关闭处理器。
-        /// </summary>
-        internal async UniTask Internal_ShutdownAsync()
-        {
-            if (!_initialized) return;
-
-            await OnShutdownAsync();
-        }
-
-        /// <summary>
-        /// 异步初始化回调。在同步 <see cref="OnInit"/> 之后执行。
-        /// <para>默认实现立即完成。需要异步初始化的处理器覆写此方法。</para>
-        /// </summary>
-        protected virtual UniTask OnInitAsync()
-            => UniTask.CompletedTask;
-
-        /// <summary>
-        /// 异步关闭回调。在同步 <see cref="OnShutdown"/> 之前执行。
-        /// <para>默认实现立即完成。需要异步关闭的处理器覆写此方法。</para>
-        /// </summary>
-        protected virtual UniTask OnShutdownAsync()
-            => UniTask.CompletedTask;
 
         #endregion
     }

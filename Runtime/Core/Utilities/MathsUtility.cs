@@ -28,7 +28,6 @@ namespace Moirai.Atropos
 	        return velocity;
         }
         
-
         /// <summary>
         /// 将 float 弹向目标值（类似弹簧效果） 
         /// </summary>
@@ -250,16 +249,6 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 将浮点数四舍五入到最接近的半值：1、1.5、2、2.5 等
-        /// </summary>
-        /// <param name="a"></param>
-        /// <returns></returns>
-        public static float RoundToNearestHalf(float a)
-        {
-            return a = a - (a % 0.5f);
-        }
-
-        /// <summary>
         /// 转向目标（2D）
         /// </summary>
         /// <param name="direction"></param>
@@ -268,47 +257,6 @@ namespace Moirai.Atropos
         {
 	        var angle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg;
 	        return Quaternion.AngleAxis(angle, Vector3.forward);
-        }
-        
-        /// <summary>
-        /// 将 Vector3 转换为 Vector2
-        /// </summary>
-        /// <returns></returns>
-        /// <param name="target">要转换的 Vector3</param>
-        public static Vector2 Vector3ToVector2(Vector3 target) 
-		{
-			return new Vector2(target.x, target.y);
-		}
-
-		/// <summary>
-		/// 将 Vector2 转换为 z 为 0 的 Vector3
-		/// </summary>
-		/// <returns></returns>
-		/// <param name="target">要转换的 Vector2</param>
-		public static Vector3 Vector2ToVector3(Vector2 target) 
-		{
-			return new Vector3(target.x, target.y, 0);
-		}
-
-		/// <summary>
-		/// 将 Vector2 转换为指定 z 的 Vector3
-		/// </summary>
-		/// <returns></returns>
-		/// <param name="target">要转换的 Vector2</param>
-		/// <param name="newZValue">新的 Z 值</param>
-		public static Vector3 Vector2ToVector3(Vector2 target, float newZValue) 
-		{
-			return new Vector3(target.x, target.y, newZValue);
-		}
-
-		/// <summary>
-		/// 将 Vector3 的所有值进行四舍五入
-		/// </summary>
-		/// <returns>.</returns>
-		/// <param name="vector"></param>
-		public static Vector3 RoundVector3(Vector3 vector)
-		{
-			return new Vector3(Mathf.Round(vector.x), Mathf.Round(vector.y), Mathf.Round(vector.z));
         }
 
         /// <summary>
@@ -562,41 +510,6 @@ namespace Moirai.Atropos
 			// 旧写法 Range(0,100) <= percent 实际给出的成功率是 (percent+1)%
 			return RandomUtility.NextInt(0, 100) < percent;
 		}
-
-		/// <summary>
-		/// 从“from”移动到“to”的指定量，并返回加值结果
-		/// </summary>
-		/// <param name="from">A 点</param>
-		/// <param name="to">B 点</param>
-		/// <param name="amount">加值</param>
-		public static float Approach(float from, float to, float amount)
-		{
-			if (Mathf.Approximately(from, to))
-			{
-				return from;
-			}
-			
-			if (from < to)
-			{
-				from += amount;
-				if (from > to)
-				{
-					return to;
-				}
-			}
-			
-			if (from > to)
-			{
-				from -= amount;
-				if (from < to)
-				{
-					return to;
-				}
-			}
-			
-			return from;
-		}
-		
 		
 		/// <summary>
 		/// 将区间 [A，B] 中的值 x 重新映射到区间 [C，D] 中的值（所占各自区间的比例相同）
@@ -631,19 +544,7 @@ namespace Moirai.Atropos
             }
             return Mathf.Clamp(angle, minimumAngle, maximumAngle);
         }
-
-        public static float RoundToDecimal(float value, int numberOfDecimals)
-        {
-	        if (numberOfDecimals <= 0)
-	        {
-		        return Mathf.Round(value);
-	        }
-	        else
-	        {
-		        return Mathf.Round(value * 10f * numberOfDecimals) / (10f * numberOfDecimals);
-	        }
-        }
-
+        
         /// <summary>
         /// 将传入参数的值四舍五入到参数数组中最接近的值
         /// </summary>

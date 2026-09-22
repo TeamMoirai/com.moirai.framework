@@ -6,7 +6,7 @@ namespace Moirai.Atropos.Serilog
 {
     /// <summary>
     /// 将 Unity 上下文对象（<see cref="UnityEngine.Object"/>）写入日志事件属性的增强器。
-    /// <para>经 <see cref="LoggerExtensions.ForContext"/> 附加上下文后，<see cref="Unity3DLogEventSink"/> 输出时 Unity Console 可点击日志定位到该对象。</para>
+    /// <para>经 <see cref="LoggerExtensions.WithUnityObject"/> 附加上下文后，<see cref="Unity3DLogEventSink"/> 输出时 Unity Console 可点击日志定位到该对象。</para>
     /// </summary>
     internal sealed class UnityObjectEnricher : ILogEventEnricher
     {

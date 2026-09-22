@@ -495,18 +495,14 @@ hp.BindTo(hpSlider);  // Slider auto-syncs
 | `MarshalUtility` | Unmanaged memory operations |
 | `MaterialUtility` | Material utilities |
 | `MathsUtility` | Math utilities (with Unity.Mathematics integration) |
-| `NetUtility` | Network utilities |
 | `ObjectUtility` | Object instantiation/destruction, networked-aware, [docs](Documentation~/en/ObjectUtility.md) |
 | `PathUtility` | Path utilities |
-| `ProgramUtility` | Program utilities |
-| `ReflectionUtility` | Reflection utilities (with serialized field traversal) |
+| `ReflectionUtility` | Reflection utilities |
 | `StringUtility` | String formatting and building, three usage modes, [docs](Documentation~/en/StringUtility.md) |
-| `TimeUtility` | Time utilities |
 | `ToolRegistry` | Component registry |
 | `TweenUtility` | Tween system (with Bezier paths), pluggable engine, [docs](Documentation~/en/TweenUtility.md) |
 | `UniParallel` | UniTask parallel task collector (await all) |
 | `UnityUtility` | Unity common utilities |
-| `XmlUtility` | XML utilities |
 | `ZipWrapper` | Compression/decompression wrapper |
 
 ---

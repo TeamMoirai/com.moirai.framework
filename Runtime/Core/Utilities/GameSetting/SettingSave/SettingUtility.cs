@@ -25,11 +25,6 @@ namespace Moirai.Atropos
         #region 公共 API [PUBLIC API]
 
         /// <summary>
-        /// 当前用户标识（用于生成用户隔离的存储键）。
-        /// </summary>
-        private static string s_UserId = "";
-
-        /// <summary>
         /// 获取游戏配置项数量。
         /// </summary>
         public static int Count => Handler.Count;
@@ -279,59 +274,6 @@ namespace Moirai.Atropos
 
             Handler.SetString(settingName, value);
         }
-
-        // 用户隔离支持方法 ---------------------------
-
-        /// <summary>
-        /// 生成用户隔离的复合键（格式：userId_key）。
-        /// </summary>
-        private static string GetUserKey(string key) => string.IsNullOrEmpty(key) ? key : $"{s_UserId}_{key}";
-
-        /// <summary>
-        /// 设置当前用户ID（用于键隔离）。
-        /// </summary>
-        /// <param name="id">用户唯一标识。</param>
-        public static void SetUserId(string id) => s_UserId = id;
-
-        /// <summary>
-        /// 设置用户隔离的整数值。
-        /// </summary>
-        public static void SetUserInt(string key, int value) => SetInt(GetUserKey(key), value);
-
-        /// <summary>
-        /// 获取用户隔离的整数值。
-        /// </summary>
-        public static int GetUserInt(string key, int defaultValue) => GetInt(GetUserKey(key), defaultValue);
-
-        /// <summary>
-        /// 设置用户隔离的浮点数值。
-        /// </summary>
-        public static void SetUserFloat(string key, float value) => SetFloat(GetUserKey(key), value);
-
-        /// <summary>
-        /// 获取用户隔离的浮点数值。
-        /// </summary>
-        public static float GetUserFloat(string key, float defaultValue) => GetFloat(GetUserKey(key), defaultValue);
-
-        /// <summary>
-        /// 设置用户隔离的布尔值。
-        /// </summary>
-        public static void SetUserBool(string key, bool value) => SetBool(GetUserKey(key), value);
-
-        /// <summary>
-        /// 获取用户隔离的布尔值。
-        /// </summary>
-        public static bool GetUserBool(string key, bool defaultValue) => GetBool(GetUserKey(key), defaultValue);
-
-        /// <summary>
-        /// 设置用户隔离的字符串值。
-        /// </summary>
-        public static void SetUserString(string key, string value) => SetString(GetUserKey(key), value);
-
-        /// <summary>
-        /// 获取用户隔离的字符串值。
-        /// </summary>
-        public static string GetUserString(string key, string defaultValue) => GetString(GetUserKey(key), defaultValue);
 
         #endregion
     }

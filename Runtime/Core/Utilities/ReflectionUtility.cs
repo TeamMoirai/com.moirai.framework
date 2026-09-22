@@ -246,22 +246,6 @@ namespace Moirai.Atropos
             return property.GetValue(obj);
         }
 
-        /// <summary>
-        /// 获取非实例对象属性。
-        /// </summary>
-        /// <param name="type">类型。</param>
-        /// <param name="propertyName">属性名。</param>
-        /// <returns>属性值。</returns>
-        public static object GetNonInstancePropertyValue(Type type, string propertyName)
-        {
-            var property = type.GetProperty(propertyName, BindingFlags.Public | BindingFlags.Static | BindingFlags.NonPublic);
-            if (property == null)
-            {
-                throw new NullReferenceException($"Type : {type} can not find property: {propertyName} !");
-            }
-
-            return property.GetValue(null);
-        }
 
         /// <summary>
         /// 获取属性。
@@ -308,50 +292,6 @@ namespace Moirai.Atropos
             return field.GetValue(obj);
         }
 
-        /// <summary>
-        /// 获取接口实现的最高级类型
-        /// </summary>
-        /// <param name="derivedType">派生类</param>
-        /// <param name="interfaceType">接口基类</param>
-        /// <returns>最高实现的类类型</returns>
-        public static Type GetInterfaceHighestImplementedType(Type derivedType, Type interfaceType)
-        {
-            if (derivedType == null)
-            {
-                throw new ArgumentNullException($"DerivedType is invalid !");
-
-            }
-
-            if (interfaceType == null)
-            {
-                throw new ArgumentNullException($"InterfaceType is invalid !");
-            }
-
-            if (!interfaceType.IsInterface)
-            {
-                throw new ArgumentException($"{interfaceType} is not interface !");
-            }
-
-            if (!interfaceType.IsAssignableFrom(derivedType))
-            {
-                throw new NotImplementedException($"{derivedType} is not inherit from {interfaceType} !");
-            }
-
-            Type type = derivedType;
-            while (type.BaseType != null)
-            {
-                var currentType = type.BaseType;
-                if (interfaceType.IsAssignableFrom(currentType))
-                {
-                    type = currentType;
-                }
-                else
-                    break;
-            }
-
-            return type;
-        }
-        
         /// <summary>
         /// 获取类Type类型中的所有字段名.
         /// </summary>
@@ -406,37 +346,8 @@ namespace Moirai.Atropos
             return properties.Select(f => f.Name).ToArray();
         }
 
-        /// <summary>
-        /// 获取Type类型中所有字段名称与字段类型的映射。
-        /// </summary>
-        /// <param name="type">type类型。</param>
-        /// <returns>名称与类型的映射。</returns>
-        public static IDictionary<string, Type> GetTypeFieldsNameAndTypeMapping(Type type)
-        {
-            var fields = type.GetFields(BindingFlags.Public | BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Static);
-            return fields.ToDictionary(f => f.Name, t => t.FieldType);
-        }
 
-        /// <summary>
-        /// 获取Type类型中所有属性名称与字段类型的映射。
-        /// </summary>
-        /// <param name="type">type类型。</param>
-        /// <returns>名称与类型的映射。</returns>
-        public static IDictionary<string, Type> GetTypePropertyNameAndTypeMapping(Type type)
-        {
-            var properties = type.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Static);
-            return properties.ToDictionary(f => f.Name, t => t.PropertyType);
-        }
         
-        /// <summary>
-        /// 检测是否是引用类型
-        /// </summary>
-        /// <param name="obj">传入的对象</param>
-        /// <returns>是否是引用类型</returns>
-        public static bool IsReferenceType(object obj)
-        {
-            return !obj.GetType().IsValueType;
-        }
         
         /// <summary>
         /// 将一个对象上的字段值赋予到另一个对象上名字相同的字段上
@@ -514,27 +425,6 @@ namespace Moirai.Atropos
             }
         }
 
-        /// <summary>
-        /// 遍历实例对象上的所有属性
-        /// </summary>
-        /// <param name="type">实例对象类型</param>
-        /// <param name="obj">实例对象</param>
-        /// <param name="handler">遍历到一条字段执行的方法</param>
-        public static void TraverseInstanceAllProperties(Type type, object obj, Action<string, object> handler)
-        {
-            if (type == null)
-                throw new ArgumentNullException($"type is invalid");
-            if (obj == null)
-                throw new ArgumentNullException($"obj is invalid");
-            if (handler == null)
-                throw new ArgumentNullException($"handler is invalid");
-            var properties = type.GetProperties(BindingFlags.NonPublic | BindingFlags.Instance |
-                                                BindingFlags.Public | BindingFlags.Static);
-            foreach (var p in properties)
-            {
-                handler.Invoke(p.Name, p.GetValue(obj));
-            }
-        }
 
         /// <summary>
         /// 遍历type类型上的非对象字段
