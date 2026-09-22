@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Moirai.Atropos.ConfigTable;
 using Moirai.Atropos.Debugger;
 using UnityEngine;
 
@@ -12,7 +13,8 @@ namespace Moirai.Atropos.Localization
     /// <para>降级契约：全部外观 API 经 <c>s_Handler?.</c> 静默降级（未注册/未初始化时返回安全默认值），与全框架统一。</para>
     /// <para>Handler 属性由 <c>HandlerHostGenerator</c> 源生成器自动生成（线程安全懒加载）。</para>
     /// </summary>
-    [ServiceDependency(typeof(DebuggerService))]
+    [AutoRegisterService]
+    [ServiceDependency(typeof(DebuggerService), typeof(ConfigTableService))]
     [HandlerHost(typeof(LocalizationServiceHandler))]
     public partial class LocalizationService : ServiceBase
     {
@@ -43,6 +45,9 @@ namespace Moirai.Atropos.Localization
         /// <para>确保 <c>LocalizationService.Handler</c> 已赋值（触发 <c>Handler</c> 懒加载），
         /// 订阅处理器语言变更事件用于静态事件转发，
         /// 并向游戏内调试器注册调试面板（依赖组合根先注册 <see cref="DebuggerService"/>——外观未就绪时静默跳过）。</para>
+        /// <para>依赖 <see cref="ConfigTableService"/>：默认数据源（<see cref="ConfigTableLocalizationHandler"/>）
+        /// 从配置表读取语言列表与字符串字典，处理器懒加载即可能触发首次读表——该依赖必须显式声明，
+        /// 否则初始化序会退化为注册序（历史故障：本地化先于配置表/资源服务初始化，首次读表失败）。</para>
         /// </summary>
         public override void OnInit()
         {
