@@ -24,6 +24,9 @@ namespace Moirai.Atropos.Audio.Middleware
         private sealed class Voice : IAudioVoiceRef
         {
             public ulong Handle;
+
+            /// <summary>句柄注册表槽位（-1 = 未注册）；只由注册表写，随 Reset 归位以免复用时带着旧下标。</summary>
+            public int Slot = -1;
             public ulong InstanceId;
             public int UserId;
             public string EventPath;
@@ -43,10 +46,17 @@ namespace Moirai.Atropos.Audio.Middleware
                 set => Handle = value;
             }
 
+            int IAudioVoiceRef.VoiceSlot
+            {
+                get => Slot;
+                set => Slot = value;
+            }
+
             /// <summary>归还池前复位全部字段，避免脏状态随复用泄漏。</summary>
             public void Reset()
             {
                 Handle = 0UL;
+                Slot = -1;
                 InstanceId = 0UL;
                 UserId = 0;
                 EventPath = null;
@@ -84,9 +94,9 @@ namespace Moirai.Atropos.Audio.Middleware
         /// <summary>卸绑全部句柄并把 Voice 归还池（Reset 字段防脏状态随复用泄漏）。</summary>
         private void ReleaseAllVoicesToPool()
         {
-            foreach (var voice in _handles.Map.Values)
+            foreach (var slot in _handles.Slots)
             {
-                ReturnVoice(voice);
+                ReturnVoice(slot.Voice);
             }
 
             _handles.Clear();
@@ -376,9 +386,9 @@ namespace Moirai.Atropos.Audio.Middleware
         /// </summary>
         internal override bool HasActiveAudioOn(EAudioTrack track)
         {
-            foreach (var kv in _handles.Map)
+            foreach (var slot in _handles.Slots)
             {
-                var voice = kv.Value;
+                var voice = slot.Voice;
                 if (voice != null && voice.Playing && voice.Track == track) return true;
             }
 
@@ -391,9 +401,9 @@ namespace Moirai.Atropos.Audio.Middleware
 
             float now = GameTime.unscaledTime;
             _handleScratch.Clear();
-            foreach (var kv in _pendingStopAt)
+            foreach (var pending in _pendingStopAt)
             {
-                if (now >= kv.Value) _handleScratch.Add(kv.Key);
+                if (now >= pending.Value) _handleScratch.Add(pending.Key);
             }
 
             if (_handleScratch.Count == 0) return;
@@ -416,13 +426,13 @@ namespace Moirai.Atropos.Audio.Middleware
         private void ReleaseFinishedOneshots()
         {
             _handleScratch.Clear();
-            foreach (var kv in _handles.Map)
+            foreach (var slot in _handles.Slots)
             {
-                var voice = kv.Value;
+                var voice = slot.Voice;
                 // 暂停中的 oneshot 不算播完（否则 Pause 后下一帧即被误回收）
                 if (!voice.Playing || voice.Paused || voice.Loop) continue;
                 if (_bridge != null && _bridge.IsPlaying(voice.InstanceId)) continue;
-                _handleScratch.Add(kv.Key);
+                _handleScratch.Add(slot.Handle);
             }
 
             for (int i = 0; i < _handleScratch.Count; i++)
@@ -664,10 +674,7 @@ namespace Moirai.Atropos.Audio.Middleware
                 return 0UL;
             }
 
-            ulong handle = _handles.NextHandle();
-
             var voice = RentVoice();
-            voice.Handle = handle;
             voice.InstanceId = instanceId;
             voice.UserId = request.Id;
             voice.EventPath = eventPath;
@@ -678,8 +685,17 @@ namespace Moirai.Atropos.Audio.Middleware
             voice.Track = request.Track;
             voice.Playing = true;
 
-            _handles.Bind(handle, voice);
-            _handles.RegisterUser(request.Id, handle);
+            // 句柄由注册表分配（低 20 位槽、高位代次），声部侧句柄与槽位都由 Bind 单点写
+            ulong handle = _handles.Bind(voice);
+            if (handle == 0UL)
+            {
+                // 槽位用尽（2^20 只并发声部）：这一声宁可不出，也不留一只没有记账的实例
+                _bridge.StopInstance(instanceId, true);
+                ReturnVoice(voice);
+                return 0UL;
+            }
+
+            _handles.RegisterUser(handle);
 
             if (request.FadeInOnPlay && fadeInDuration > 0f)
             {
@@ -760,9 +776,9 @@ namespace Moirai.Atropos.Audio.Middleware
             if (string.IsNullOrEmpty(path)) return 0;
 
             int count = 0;
-            foreach (var kv in _handles.Map)
+            foreach (var slot in _handles.Slots)
             {
-                if (kv.Value.Playing && kv.Value.EventPath == path) count++;
+                if (slot.Voice.Playing && slot.Voice.EventPath == path) count++;
             }
 
             return count;
@@ -804,9 +820,9 @@ namespace Moirai.Atropos.Audio.Middleware
             int index = (int)track;
             if (index >= 0 && index < _pausedTracks.Length) _pausedTracks[index] = true;
 
-            foreach (var kv in _handles.Map)
+            foreach (var slot in _handles.Slots)
             {
-                if (kv.Value.Track == track) Pause(kv.Key);
+                if (slot.Voice.Track == track) Pause(slot.Handle);
             }
         }
 
@@ -817,9 +833,9 @@ namespace Moirai.Atropos.Audio.Middleware
             int index = (int)track;
             if (index >= 0 && index < _pausedTracks.Length) _pausedTracks[index] = false;
 
-            foreach (var kv in _handles.Map)
+            foreach (var slot in _handles.Slots)
             {
-                if (kv.Value.Track == track) Unpause(kv.Key);
+                if (slot.Voice.Track == track) Unpause(slot.Handle);
             }
         }
 
@@ -835,9 +851,9 @@ namespace Moirai.Atropos.Audio.Middleware
         public override void StopTrack(EAudioTrack track, float fadeoutDuration = 0f)
         {
             _handleScratch.Clear();
-            foreach (var kv in _handles.Map)
+            foreach (var slot in _handles.Slots)
             {
-                if (kv.Value.Track == track) _handleScratch.Add(kv.Key);
+                if (slot.Voice.Track == track) _handleScratch.Add(slot.Handle);
             }
 
             for (int i = 0; i < _handleScratch.Count; i++)
@@ -855,22 +871,22 @@ namespace Moirai.Atropos.Audio.Middleware
         /// <inheritdoc />
         public override void PauseAll()
         {
-            foreach (var kv in _handles.Map) Pause(kv.Key);
+            foreach (var slot in _handles.Slots) Pause(slot.Handle);
         }
 
         /// <inheritdoc />
         public override void UnpauseAll()
         {
-            foreach (var kv in _handles.Map) Unpause(kv.Key);
+            foreach (var slot in _handles.Slots) Unpause(slot.Handle);
         }
 
         /// <inheritdoc />
         public override void StopAll(float fadeoutDuration = 0f)
         {
             _handleScratch.Clear();
-            foreach (var kv in _handles.Map)
+            foreach (var slot in _handles.Slots)
             {
-                _handleScratch.Add(kv.Key);
+                _handleScratch.Add(slot.Handle);
             }
 
             for (int i = 0; i < _handleScratch.Count; i++)
@@ -885,10 +901,10 @@ namespace Moirai.Atropos.Audio.Middleware
         public override void StopAllButPersistent(float fadeoutDuration = 0f)
         {
             _handleScratch.Clear();
-            foreach (var kv in _handles.Map)
+            foreach (var slot in _handles.Slots)
             {
-                if (kv.Value.Persistent) continue;
-                _handleScratch.Add(kv.Key);
+                if (slot.Voice.Persistent) continue;
+                _handleScratch.Add(slot.Handle);
             }
 
             for (int i = 0; i < _handleScratch.Count; i++)
@@ -903,10 +919,10 @@ namespace Moirai.Atropos.Audio.Middleware
         public override void StopAllLooping(float fadeoutDuration = 0f)
         {
             _handleScratch.Clear();
-            foreach (var kv in _handles.Map)
+            foreach (var slot in _handles.Slots)
             {
-                if (!kv.Value.Loop) continue;
-                _handleScratch.Add(kv.Key);
+                if (!slot.Voice.Loop) continue;
+                _handleScratch.Add(slot.Handle);
             }
 
             for (int i = 0; i < _handleScratch.Count; i++)

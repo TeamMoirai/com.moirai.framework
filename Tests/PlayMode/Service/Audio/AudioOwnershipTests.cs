@@ -118,6 +118,7 @@ namespace Service.Audio
         {
             public int UserId { get; set; }
             public ulong BoundHandle { get; set; }
+            public int VoiceSlot { get; set; } = -1;
         }
 
         /// <summary>
@@ -266,15 +267,13 @@ namespace Service.Audio
             var registry = new AudioHandleRegistry<TestVoice>();
             var voice = new TestVoice { UserId = 7 };
 
-            ulong oldHandle = registry.NextHandle();
-            registry.Bind(oldHandle, voice);
-            registry.RegisterUser(7, oldHandle);
+            ulong oldHandle = registry.Bind(voice);
+            registry.RegisterUser(oldHandle);
 
-            ulong newHandle = registry.NextHandle();
-            Assert.AreNotEqual(oldHandle, newHandle, "生成器必须吐出不同句柄");
-
-            registry.Bind(newHandle, voice);
-            registry.RegisterUser(7, newHandle);
+            // 同声部重绑：Bind 先整体卸掉旧句柄再占新槽
+            ulong newHandle = registry.Bind(voice);
+            Assert.AreNotEqual(oldHandle, newHandle, "代次必须前进，槽位复用也不得吐回同一个句柄");
+            registry.RegisterUser(newHandle);
 
             Assert.IsFalse(registry.IsRegistered(oldHandle), "旧句柄必须已卸绑");
             Assert.IsFalse(registry.TryGet(oldHandle, out _), "旧身份不得再解析到声部");

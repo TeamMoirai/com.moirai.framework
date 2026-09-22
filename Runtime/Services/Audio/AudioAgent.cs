@@ -35,6 +35,9 @@ namespace Moirai.Atropos.Audio
         // ===== 句柄绑定 =====
         private ulong _currentHandle;
 
+        // 句柄注册表槽位（-1 = 未注册）；由 AudioHandleRegistry.Bind/Release 单点写
+        private int _voiceSlot = -1;
+
         private float _fadeInAt;
         private float _fadeOutStartTime;
         public const float FADEOUT_DEFAULT_DURATION = 0.2f;
@@ -190,6 +193,13 @@ namespace Moirai.Atropos.Audio
         {
             get => _currentHandle;
             set => _currentHandle = value;
+        }
+
+        /// <summary>注册表槽位（由注册表单点写入；-1 表示未注册）。</summary>
+        int IAudioVoiceRef.VoiceSlot
+        {
+            get => _voiceSlot;
+            set => _voiceSlot = value;
         }
 
         #endregion 句柄注册表契约 [HANDLE REGISTRY CONTRACT]

@@ -507,12 +507,11 @@ namespace Moirai.Atropos.Audio
             // 换播前释放旧句柄，防止别名
             ReleaseAgentHandle(audioAgent);
 
-            ulong handle = _handles.NextHandle();
-
-            // 先登记再播放：注册表 Bind 单点写入 Agent 侧句柄；
+            // 先登记再播放：注册表 Bind 单点写入 Agent 侧句柄与槽位；
             // 立即失败时 EnterEndState → OnAgentPlaybackEnded 能命中映射
-            _handles.Bind(handle, audioAgent);
-            _handles.RegisterUser(options.ID, handle);
+            ulong handle = _handles.Bind(audioAgent);
+            if (handle == 0UL) return 0UL;
+            _handles.RegisterUser(handle);
 
             var request = options.ToRequest();
             var cold = AudioPlayColdParams.FromOptions(options);
@@ -553,9 +552,14 @@ namespace Moirai.Atropos.Audio
 
             ReleaseAgentHandle(audioAgent);
 
-            ulong handle = _handles.NextHandle();
-            _handles.Bind(handle, audioAgent);
-            _handles.RegisterUser(request.Id, handle);
+            ulong handle = _handles.Bind(audioAgent);
+            if (handle == 0UL)
+            {
+                // 还没交给 Agent，冷参归我们收
+                AudioPlayColdParamsPool.Release(cold);
+                return 0UL;
+            }
+            _handles.RegisterUser(handle);
             audioAgent.PlayWithRequest(clip, request, cold);
 
             if (audioAgent.IsFree && audioAgent.CurrentHandle == 0UL)
@@ -596,9 +600,9 @@ namespace Moirai.Atropos.Audio
 
             ReleaseAgentHandle(audioAgent);
 
-            ulong handle = _handles.NextHandle();
-            _handles.Bind(handle, audioAgent);
-            _handles.RegisterUser(options.ID, handle);
+            ulong handle = _handles.Bind(audioAgent);
+            if (handle == 0UL) return 0UL;
+            _handles.RegisterUser(handle);
             audioAgent.LoadWithOptions(path, options, bAsync, bInPool);
 
             // 同步加载失败会立刻 End 并自动释放
