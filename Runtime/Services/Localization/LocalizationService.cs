@@ -61,6 +61,7 @@ namespace Moirai.Atropos.Localization
 
             if (handler != null) handler.OnLanguageChanged -= OnLanguageChanged;
             OnLanguageChanged = null;
+            ResetOneShotLogs();
         }
 
         #endregion
@@ -76,6 +77,28 @@ namespace Moirai.Atropos.Localization
         /// 当前语言索引（未就绪时为 -1）。
         /// </summary>
         public static int CurrentLanguageIndex => s_Handler?.CurrentLanguageIndex ?? -1;
+
+        /// <summary>
+        /// 缺译回退链（未就绪时为空）。
+        /// </summary>
+        public static IReadOnlyList<Language> FallbackChain => s_Handler?.FallbackChain ?? Array.Empty<Language>();
+
+        #endregion
+
+        #region 诊断 [DIAGNOSTICS]
+
+        /// <summary>已加载词条数（未就绪时为 0）。</summary>
+        public static int EntryCount => s_Handler?.EntryCount ?? 0;
+
+        /// <summary>已加载语言数（未就绪时为 0）。</summary>
+        public static int LoadedLanguageCount => s_Handler?.LanguageCount ?? 0;
+
+        /// <summary>
+        /// 全部语言列的译文总字符数——常驻译文的规模下限（未就绪时为 0）。
+        /// </summary>
+        /// <remarks>UTF-16 每字符 2 字节，不含字符串对象头与字典开销。
+        /// 用于判断是否已到必须按语言拆包加载的量级。</remarks>
+        public static int TotalTextLength => s_Handler?.TotalTextLength ?? 0;
 
         #endregion
 

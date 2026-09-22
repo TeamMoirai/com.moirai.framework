@@ -2,16 +2,17 @@
 
 > Multilingual service based on Luban configuration tables, supporting automatic injection and inline parsing of text, images, audio, and Timeline.
 
-The `Localization` service is accessed via the `LocalizationService` static facade. It lazily loads all localized strings from the Luban configuration table (via `ConfigTableService` from [ConfigTable](ConfigTable.md)) and registers available languages on the first access to any multilingual API. The language is determined by priority: "command-line argument -> editor setting -> local存档 -> system language". When switching languages, it triggers `OnLanguageChanged` and automatically re-injects all registered `LocalizerBase` components. In addition to retrieving text by ID, `LocalizationHelper.ResolveLocalizedStrings` supports inline parsing of `{l10n:ID}` / `{i18n:ID}` / `{g11n:ID}` placeholders in any string.
+The `Localization` service is accessed via the `LocalizationService` static facade. It lazily loads all localized strings from the Luban configuration table (via `ConfigTableService` from [ConfigTable](ConfigTable.md)) and registers available languages on the first access to any multilingual API. The language is determined by priority: "command-line argument -> editor setting -> saved setting -> system language". When switching languages, it re-injects all registered `LocalizerBase` components and only then raises `OnLanguageChanged`. In addition to retrieving text by ID, `LocalizationService.Localize` supports inline parsing of `{l10n:ID}` / `{i18n:ID}` / `{g11n:ID}` placeholders in any string.
 
 ## Core Features
 
-- `Language` object: carries `Name` (enum name), `Code` (ISO-639-1), `DisplayName` (localized display name), includes full `SystemLanguage` support and supports custom languages
-- Language detection priority: command-line `-force-language` -> editor `AppSettings.EditorLanguage` -> `SettingUtility`存档 -> `Application.systemLanguage` (falls back to Simplified Chinese when Chinese is not distinguished between Simplified/Traditional)
-- Text querying: `GetTextFromId` (supports `string.Format` parameters), `GetTextFromIdLanguage`, `GetDictionaryFromId` (retrieves all languages), `GetAllIds`
-- Inline parsing: `ResolveLocalizedStrings` replaces `{l10n:ID}`, `{i18n:ID}`, `{g11n:ID}` with localized entries
+- `Language` object: carries `Name` (enum name), `Code` (ISO-639-1), `DisplayName` (localized display name), includes full `SystemLanguage` support and supports custom languages; built-in entries and `BuiltinLanguages` are shared instances rather than rebuilt on each access
+- Language detection priority: command-line `-force-language` -> editor `AppSettings.EditorLanguage` -> `SettingUtility` saved setting -> `Application.systemLanguage` (falls back to Simplified Chinese when Chinese is not distinguished between Simplified/Traditional). When the detected language is not part of the loaded entries, the fallback chain and then the first loaded language take over, so the UI never stays stuck on raw keys
+- Text querying: `GetTextFromId` (supports `string.Format` parameters), `GetTextFromIdLanguage` (pass `null` for the current language), `GetDictionaryFromId` (retrieves all languages), `GetAllIds`
+- Missing-translation fallback: when the current language's entry is empty or whitespace-only, text is taken in `FallbackLanguageCodes` order; the ID is returned only when the whole chain is empty (see "Missing-Translation Fallback")
+- Inline parsing: `LocalizationService.Localize` replaces `{l10n:ID}`, `{i18n:ID}`, `{g11n:ID}` with localized entries
 - Component injection: `TextLocalizer` (TextMesh / UGUI Text / TMP_Text), `ImageLocalizer` (Image / RawImage / SpriteRenderer / Renderer material), `AudioLocalizer` (AudioSource)
-- Auto-refresh on language switch: All `LocalizerBase` instances are uniformly re-injected when `ChangeLanguage` is called
+- Auto-refresh on language switch: all `LocalizerBase` instances are re-injected on `ChangeLanguage` (snapshot iteration with per-instance fault isolation) before the event is raised
 - Timeline support: `TextLocalizerTrack` + `TextLocalizerPlayableAsset` switches text IDs on Timeline clips
 - Google Translate integration: `GoogleTranslator` calls Google Cloud Translation v2 API to assist with translating configuration tables
 
@@ -21,9 +22,9 @@ Namespace: `Moirai.Atropos.Localization`
 
 | Class/Interface | Description |
 |----------------|-------------|
-| `LocalizationService` | Static facade (`[HandlerHost]`) responsible for loading config table text, language switching, and Localizer management; the `OnLanguageChanged` event is exposed directly on the facade |
-| `Language` | Language class (`IEquatable<Language>`): `Name`, `Code`, `DisplayName`, `BuiltinLanguages`, supports conversion to/from `SystemLanguage` |
-| `LocalizationHelper` | Static helper class: `ResolveLocalizedStrings`, `RegisterLanguageMap`, `GetAllAvailableLanguages`, `ToLanguage` |
+| `LocalizationService` | Static facade (`[HandlerHost]`) responsible for loading config table text, language switching, and Localizer management; the `OnLanguageChanged` event is exposed directly on the facade; `RegisterLanguageMap` / `GetAllAvailableLanguages` / `ToLanguage` / `Localize` live on the same class's partial implementation |
+| `Language` | Language class (`IEquatable<Language>`, compared by `Code`): `Name`, `Code`, `DisplayName`, `BuiltinLanguages`, supports conversion to/from `SystemLanguage`; built-in entries are shared read-only instances |
+| `LocalizationServiceHandler` | Abstract handler base class: querying with fallback resolution, language switching, localizer registration; `FallbackLanguageCodes` configures the fallback order |
 | `LocalizerBase` | Abstract base class for localizers (MonoBehaviour): `Prepare` gets the target component reference, `Localize` performs injection |
 | `IInjector` | Injector interface: `Inject<T1, T2>(localizedData, localizer)` |
 | `TextLocalizer` | Text localizer, automatically discovers TextMesh / Text / TMP_Text and injects text |
@@ -47,13 +48,15 @@ LocalizationService.ChangeLanguage("English");
 // Localized data is lazily loaded: it is automatically loaded from config tables on the first call
 // to any query/switch API — no manual initialization required
 
-// Get localized string by text ID (returns the ID as-is if untranslated or ID does not exist)
+// Get localized string by text ID (falls back along the chain when this language is untranslated;
+// the ID is returned as-is only when the whole chain is empty or the ID does not exist)
 string title = LocalizationService.GetTextFromId("main_title");
 
-// With string.Format parameters
+// With string.Format parameters (a malformed placeholder in the table degrades to the raw text
+// instead of throwing)
 string welcome = LocalizationService.GetTextFromId("welcome_player", "Moirai");
 
-// Get text for a specific language / get all language translations for an ID
+// Get text for a specific language / get all language translations for an ID (null = current language)
 string english = LocalizationService.GetTextFromIdLanguage("main_title", Language.English);
 Dictionary<string, string> all = LocalizationService.GetDictionaryFromId("main_title");
 
@@ -78,8 +81,23 @@ string prev = LocalizationService.ActivatePreviousLanguage();
 Markers like `{l10n:ID}`, `{i18n:ID}`, `{g11n:ID}` in any string will be replaced with the corresponding localized text, suitable for config table text composition:
 
 ```csharp
-string hint = LocalizationHelper.ResolveLocalizedStrings("Press {l10n:btn_confirm} to continue");
+string hint = LocalizationService.Localize("Press {l10n:btn_confirm} to continue");
 ```
+
+### Missing-Translation Fallback
+
+Queries resolve as "current language -> fallback chain -> ID". An entry that is empty or whitespace-only counts as untranslated, so leaving a cell blank in the table means "hand it to the chain" — no extra check on the code side.
+
+The order is configured on the handler (the Localization entry under `Tools/Settings`, or assigned in code) and takes language `Code` values:
+
+```csharp
+// Defaults to { "en" }; set it empty to disable fallback — missing translations then expose the key
+LocalizationServiceSettings.LocalizationServiceHandler.FallbackLanguageCodes = new[] { "en", "zh-Hans" };
+```
+
+- Codes that cannot be resolved, or that are not part of the loaded entries, are dropped with a warning instead of silently becoming the default language
+- The first language picked at startup follows the same chain when the detected language is not shipped with these entries
+- Inspect the effective chain via `LocalizationService.FallbackChain`, or in the in-game debugger under `Profiler/Localization`
 
 ### Subscribing to Language Switching
 
@@ -87,7 +105,9 @@ string hint = LocalizationHelper.ResolveLocalizedStrings("Press {l10n:btn_confir
 LocalizationService.OnLanguageChanged += language =>
 {
     Debug.Log($"Language switched: {language.DisplayName}");
-    // Manually refresh content not managed by LocalizerBase
+    // Raised after every LocalizerBase has been re-injected and the current language is updated,
+    // so queries here already return the new language; refresh non-LocalizerBase content here
+    titleText.text = LocalizationService.GetTextFromId("main_title");
 };
 ```
 
@@ -113,12 +133,14 @@ IEnumerator routine = translator.TranslateAsync(request,
 
 ## Notes
 
-- Localization data comes from Luban configuration tables: must generate and export tables in `Tools/Settings/ConfigTableSettings` first, otherwise loading fails with "Failed to load localized text, generate config first!"
+- Localization data comes from Luban configuration tables: must generate and export tables in `Tools/Settings/ConfigTableSettings` first, otherwise loading fails with "Failed to load localized text, generate config first!" (logged once; while not ready every query returns the raw ID)
 - Localized data is lazily initialized: no resources are loaded during service registration (`OnInit`); data is loaded from config tables on the first access to any multilingual API (query/switch) — by then the `Resource` service is guaranteed to be ready
-- The list of available languages comes from field registration of `LocalizedBean` in the config table (`LocalizationHelper.RegisterLanguageMap`); calling `ChangeLanguage` with an unregistered language will throw `KeyNotFoundException`
-- In `ToLanguage(str, onlySupported)`, when `onlySupported` is `true`, unregistered languages fall back to the default language English (`LocalizationHelper.defaultLanguage`)
-- In the editor's non-play mode, `TextLocalizer.ChangeID` / `ImageLocalizer.ChangeID` directly return `false` (Timeline preview pending implementation), and `ResolveLocalizedStrings` also returns the input as-is
+- The list of available languages comes from field registration of `LocalizationBean` in the config table (`LocalizationService.RegisterLanguageMap`); calling `ChangeLanguage` with an unregistered language keeps the current language and warns once per language rather than throwing
+- A mismatch between an entry's language column count and the registered language count marks the dataset corrupt: **the whole batch is refused** and an error is logged (a shifted index only shows up as "the wrong language is displayed", never as an error, which is exactly why nothing is loaded)
+- In `ToLanguage(str, onlySupported)`, when `onlySupported` is `true`, unregistered languages fall back to the default language English (`LocalizationService.defaultLanguage`); use `TryGetBuiltInLanguage` to tell "typo" apart from "I do want the default"
+- In the editor's non-play mode, `TextLocalizer.ChangeID` / `ImageLocalizer.ChangeID` directly return `false` (Timeline preview pending implementation), and `LocalizationService.Localize` also returns the input as-is
 - The arrays of `ImageLocalizer` / `AudioLocalizer` are injected by language index; after adding a new language to the config table, array elements must be supplemented accordingly
+- All language columns stay resident in memory. Don't guess whether it is time to split packs per language: read the "DATA FOOTPRINT" section of the in-game debugger (`Profiler/Localization`) — entry count, language count and total text length (a lower bound on the resident size) — or `LocalizationService.EntryCount` / `LoadedLanguageCount` / `TotalTextLength`
 
 ---
 [« Documentation Index](Index.md) · [Main README](../../README_EN.md) · [ConfigTable](ConfigTable.md)

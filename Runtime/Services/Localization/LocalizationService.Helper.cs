@@ -17,10 +17,42 @@ namespace Moirai.Atropos.Localization
         // 已加载的语言
         private static readonly HashSet<Language> s_LoadedLanguage = new HashSet<Language>();
 
-        // 所有内置语言
-        private static readonly Dictionary<string, Language> s_AllBuildInLanguageMap = Language.BuiltinLanguages.ToDictionary(_ => _.Name.ToLower(), _ => _);
+        // 所有内置语言（Name / Code，忽略大小写直接命中，省掉每次查询的 ToLower 分配）
+        private static readonly Dictionary<string, Language> s_AllBuildInLanguageMap =
+            Language.BuiltinLanguages.ToDictionary(_ => _.Name, _ => _, StringComparer.OrdinalIgnoreCase);
         // 所有内置语言代码
-        private static readonly Dictionary<string, Language> s_AllBuildInLanguageCodeMap = Language.BuiltinLanguages.ToDictionary(_ => _.Code.ToLower(), _ => _);
+        private static readonly Dictionary<string, Language> s_AllBuildInLanguageCodeMap =
+            Language.BuiltinLanguages.ToDictionary(_ => _.Code, _ => _, StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// 复位一次性日志闸门。
+        /// </summary>
+        /// <remarks>
+        /// <para>刻意不清 <see cref="s_LoadedLanguage"/>：可用语言是数据源解析词条时的副作用
+        /// （见 <c>LubanHandler.ResolveLocalization</c>），而词条字典在配置表侧是缓存且从不失效的。
+        /// 关服时清掉注册表，重开局就不会再有任何地方重新注册语言，结果是整套本地化静默失效。</para>
+        /// <para>只复位日志闸门：编辑器关闭域重载时 <c>static</c> 跨会话存活，
+        /// 否则"未初始化"这类一次性警告在第二次会话里彻底哑火。</para>
+        /// </remarks>
+        internal static void ResetOneShotLogs()
+        {
+            s_HasLoggedWarning = false;
+        }
+
+        /// <summary>
+        /// 按 Name 或 Code 精确解析内置语言，不做默认语言兜底。
+        /// </summary>
+        /// <remarks>供配置项校验使用：<see cref="ToLanguage"/> 对无法识别的输入静默回落默认语言，
+        /// 会把写错的语言代码当成合法配置放过。</remarks>
+        internal static bool TryGetBuiltInLanguage(string str, out Language language)
+        {
+            language = null;
+            if (string.IsNullOrEmpty(str)) return false;
+
+            // 内置语言的 Name 与 Code 互不重叠，两种写法都能唯一命中
+            return s_AllBuildInLanguageCodeMap.TryGetValue(str, out language)
+                   || s_AllBuildInLanguageMap.TryGetValue(str, out language);
+        }
 
         private static bool s_HasLoggedWarning;
 
@@ -93,10 +125,9 @@ namespace Moirai.Atropos.Localization
         {
             if (string.IsNullOrEmpty(str))
             {
-                str = defaultLanguage.Name.ToLower();
+                str = defaultLanguage.Name;
             }
 
-            str = str.ToLower();
             var language = Language.Unspecified;
             if (s_AllBuildInLanguageMap.TryGetValue(str, out var foundByName))
             {
@@ -124,7 +155,7 @@ namespace Moirai.Atropos.Localization
         /// </summary>
         /// <param name="str"></param>
         /// <param name="onlySupported">是否只获取支持的语言，<c>false</c>表示仅根据设置获取语言，不关心本地化是否支持</param>
-        /// <returns></returns>
+        /// <returns>无法识别或未收录时为 <see cref="defaultLanguage"/></returns>
         public static Language ToLanguage(string str, bool onlySupported)
         {
             // 处理边界条件：str 为空或 null
@@ -133,7 +164,6 @@ namespace Moirai.Atropos.Localization
                 return defaultLanguage;
             }
             
-            str = str.ToLower();
             Language target = defaultLanguage;
             // 尝试从语言代码映射中获取语言
             if (s_AllBuildInLanguageCodeMap.TryGetValue(str, out var langFromCode))

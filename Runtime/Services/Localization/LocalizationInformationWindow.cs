@@ -6,7 +6,8 @@ namespace Moirai.Atropos.Localization
 {
     /// <summary>
     /// 本地化服务调试视图（原生 UI Toolkit，经 <see cref="LocalizationService.OnInit"/> 注册进游戏内调试器 "Profiler/Localization"）。
-    /// <para>展示当前语言并支持点击切换可用语言，按 1s 节流重建。</para>
+    /// <para>展示当前语言、缺译回退链与常驻词条规模，支持点击切换可用语言，按 1s 节流重建。</para>
+    /// <para>常驻规模一栏是"是否需要按语言拆包加载"的量化判据，不要凭感觉决定。</para>
     /// </summary>
     public sealed class LocalizationInformationWindow : PollingDebuggerWindowBase
     {
@@ -43,6 +44,14 @@ namespace Moirai.Atropos.Localization
             Language current = LocalizationService.CurrentLanguage;
             AddRow(card, "语言 [Language]", current != null ? current.Name : "<未设置>");
             AddRow(card, "索引 [Index]", LocalizationService.CurrentLanguageIndex.ToString());
+            AddRow(card, "回退链 [Fallback]", DescribeFallback());
+
+            VisualElement dataCard = AddSection(root, "数据规模 [DATA FOOTPRINT]");
+            AddRow(dataCard, "词条数 [Entries]", LocalizationService.EntryCount.ToString());
+            AddRow(dataCard, "语言数 [Languages]", LocalizationService.LoadedLanguageCount.ToString());
+            // 常驻下限：UTF-16 每字符 2 字节，未计字符串对象头与字典开销
+            int characters = LocalizationService.TotalTextLength;
+            AddRow(dataCard, "译文总字符 [Chars]", $"{characters:N0} (≈ {characters * 2 / 1024:N0} KB 下限)");
 
             VisualElement switchCard = AddSection(root, "切换语言 [SWITCH LANGUAGE]");
             _languages.Clear();
@@ -66,6 +75,13 @@ namespace Moirai.Atropos.Localization
             }
 
             switchCard.Add(row);
+        }
+
+        private string DescribeFallback()
+        {
+            var chain = LocalizationService.FallbackChain;
+            // Language.ToString() 即 Name
+            return chain == null || chain.Count == 0 ? "<未启用>" : string.Join(" → ", chain);
         }
 
         #endregion
