@@ -61,11 +61,27 @@ namespace Service.Audio
 
             Assert.AreEqual(0, bag.Remaining);
 
-            // 重洗时排除上一首 → 袋内 2 个；弹出 1 个后剩 1
+            // 轮长恒等于曲目数：重洗后弹出 1 首，剩 n-1
             int next = bag.Next(3);
             Assert.GreaterOrEqual(next, 0);
             Assert.Less(next, 3);
-            Assert.AreEqual(1, bag.Remaining, "重洗（排除上一首）并弹出后剩 n-2");
+            Assert.AreEqual(2, bag.Remaining, "重洗并弹出后剩 n-1");
+        }
+
+        [Test]
+        public void AcrossRounds_NeverRepeatsBackToBack()
+        {
+            // 回归锚点：旧 ShuffleBag<T> 在换手处把刚播过的那首留在可取区，n=2 时每换一次手必连点
+            var bag = new ShuffleIndexBag();
+            const int trackCount = 2;
+
+            int prev = bag.Next(trackCount);
+            for (int i = 1; i < 500; i++)
+            {
+                int cur = bag.Next(trackCount);
+                Assert.AreNotEqual(prev, cur, $"第 {i} 手与上一手相同（换手连点）");
+                prev = cur;
+            }
         }
 
         [Test]
