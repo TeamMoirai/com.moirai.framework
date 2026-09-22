@@ -43,10 +43,22 @@ namespace Core.Events
 
             // 开发构建下回调异常会 Error 后上抛，发布构建下就地隔离——两种策略都不允许留下泄漏的派发深度，
             // 因此这里只要求"抛过异常的注册表还能继续工作"，不对上抛与否作断言。
+            // 抛异常的回调不注销而是关掉开关：上抛策略会让派发在抛出点中断，留着它会让后续用例拿到裸异常而不是断言失败。
+            bool faultArmed = true;
+            int faultHits = 0;
+            EventCallback<ProbeEvent> fault = _ =>
+            {
+                if (!faultArmed)
+                    return;
+
+                faultHits++;
+                throw new Exception("probe callback failure");
+            };
+            registry.RegisterCallback(fault);
+
             LogAssert.ignoreFailingMessages = true;
             try
             {
-                registry.RegisterCallback<ProbeEvent>(_ => throw new Exception("probe callback failure"));
                 using var throwing = ProbeEvent.Take();
                 try
                 {
@@ -62,6 +74,10 @@ namespace Core.Events
                 LogAssert.ignoreFailingMessages = false;
             }
 
+            Assert.AreEqual(1, faultHits, "前置条件：故障回调必须确实被派发过，否则下面的断言没有意义");
+
+            faultArmed = false;
+
             int laterHits = 0;
             EventCallback<ProbeEvent> later = _ => laterHits++;
             registry.RegisterCallback(later);
@@ -71,7 +87,7 @@ namespace Core.Events
                 registry.InvokeCallbacks(evt, PropagationPhase.AtTarget);
             }
 
-            Assert.AreEqual(1, laterHits, "抛过异常之后新注册的回调仍必须被派发");
+            Assert.AreEqual(1, laterHits, "抛过异常之后新注册的回调仍必须被派发（m_IsInvoking 泄漏即在此暴露）");
 
             registry.UnregisterCallback(later);
 
