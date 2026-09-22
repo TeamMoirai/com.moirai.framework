@@ -47,7 +47,7 @@ namespace Service.Audio
             Assert.AreEqual(1, _fixture.LiveHandles, "一条地址只应持有一条租约");
             Assert.AreEqual(1, _fixture.Cache.Count);
             Assert.IsTrue(_fixture.Entry(A).IsLoaded);
-            Assert.AreEqual(1, _fixture.Cache.PoolView.Count, "留池条目应投影到 AssetHandlePool 视图");
+            Assert.AreEqual(1, _fixture.Cache.PoolReadOnly.Count, "留池条目应投影到 AssetHandlePool 视图");
             _fixture.CheckInvariants();
         }
 
@@ -71,7 +71,7 @@ namespace Service.Audio
             Assert.AreEqual(1, _fixture.LoadCount(A));
             Assert.AreEqual(0, _fixture.Cache.Count);
             Assert.AreEqual(0, _fixture.LiveHandles, "None 策略不得把租约留在缓存里");
-            Assert.AreEqual(0, _fixture.Cache.PoolView.Count);
+            Assert.AreEqual(0, _fixture.Cache.PoolReadOnly.Count);
         }
 
         [Test]
@@ -214,6 +214,52 @@ namespace Service.Audio
 
             Assert.AreEqual(0, entry.RefCount, "重复归还不得把引用计数打成负数");
             Assert.IsTrue(_fixture.Cache.TryGetEntry(A, out _));
+            _fixture.CheckInvariants();
+        }
+
+        [Test]
+        public void CapacityGrowth_ReSeatsLiveEntries_WithoutDroppingAny()
+        {
+            _fixture = new AudioCacheTestSupport(capacity: 2);
+            Assert.IsTrue(_fixture.Cache.Preload(A, AudioCachePolicy.Ttl));
+            Assert.IsTrue(_fixture.Cache.Preload(B, AudioCachePolicy.Ttl));
+            Assert.AreEqual(2, _fixture.Cache.Count);
+
+            // Configure 每次后端初始化都会重跑（重启、热改设置、测试复用同一实例都会走到）
+            _fixture.Cache.Configure(_fixture, 8, 30f, AudioCachePolicy.Ttl, 5f);
+
+            Assert.AreEqual(2, _fixture.Cache.Count, "换表不得丢条目");
+            Assert.AreEqual(2, _fixture.LiveHandles, "换表不得动租约");
+            Assert.IsTrue(_fixture.Cache.TryGetLoaded(A, out _), "A 必须还能按地址查到");
+            Assert.IsTrue(_fixture.Cache.TryGetLoaded(B, out _), "B 必须还能按地址查到");
+            _fixture.CheckInvariants();
+
+            // 新容量当场生效：还能再收 6 条，第 9 条判负
+            for (int i = 0; i < 6; i++)
+            {
+                Assert.IsTrue(_fixture.Cache.Preload("Audio/Sfx/Extra" + i, AudioCachePolicy.Pin));
+            }
+
+            Assert.AreEqual(8, _fixture.Cache.Count);
+            Assert.IsFalse(_fixture.Cache.Preload("Audio/Sfx/Overflow", AudioCachePolicy.Pin),
+                "到上限且 Pin 不可驱逐时新地址判负，而不是把槽表撑破");
+            _fixture.CheckInvariants();
+        }
+
+        [Test]
+        public void Capacity_ShrinkBelowLiveCount_KeepsEveryLiveEntry()
+        {
+            _fixture = new AudioCacheTestSupport(capacity: 4);
+            Assert.IsTrue(_fixture.Cache.Preload(A, AudioCachePolicy.Pin));
+            Assert.IsTrue(_fixture.Cache.Preload(B, AudioCachePolicy.Pin));
+
+            // 配置改小：静默丢条目会连带把仍被引用的租约丢掉，宁可让这一轮容量比配置大
+            _fixture.Cache.Configure(_fixture, 1, 30f, AudioCachePolicy.Ttl, 5f);
+
+            Assert.AreEqual(2, _fixture.Cache.Count);
+            Assert.AreEqual(2, _fixture.LiveHandles);
+            Assert.IsTrue(_fixture.Cache.TryGetEntry(A, out _));
+            Assert.IsTrue(_fixture.Cache.TryGetEntry(B, out _));
             _fixture.CheckInvariants();
         }
 
@@ -361,7 +407,7 @@ namespace Service.Audio
 
             Assert.AreEqual(0, _fixture.Cache.Count);
             Assert.AreEqual(0, _fixture.LiveHandles);
-            Assert.AreEqual(0, _fixture.Cache.PoolView.Count);
+            Assert.AreEqual(0, _fixture.Cache.PoolReadOnly.Count);
         }
 
         [Test]

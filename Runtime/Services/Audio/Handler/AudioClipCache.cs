@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Threading;
 using UnityEngine;
@@ -22,20 +23,23 @@ namespace Moirai.Atropos.Audio
         /// <summary>加载失败后该地址的冷却时长（秒）。防住一个写错的事件地址被高频触发时每次重穿资源层。</summary>
         public const float FailureCooldownSeconds = 5f;
 
-        private readonly Dictionary<string, AudioClipCacheEntry> _entries = new Dictionary<string, AudioClipCacheEntry>(64);
-
         /// <summary>失败过的地址 → 冷却截止时刻（<c>Time.realtimeSinceStartup</c> 口径）。</summary>
         private readonly Dictionary<string, float> _failedUntil = new Dictionary<string, float>(8);
 
-        /// <summary>池可见视图（已加载且留池的条目）——兼容 <c>AssetHandlePool</c> 只读 API。</summary>
-        public readonly Dictionary<string, object> PoolView = new Dictionary<string, object>(32);
-
-        private readonly System.Collections.ObjectModel.ReadOnlyDictionary<string, object> _poolView;
+        // 地址 → 条目的开址定长槽表。取代原先的 Dictionary<string, AudioClipCacheEntry>：
+        // 播放/停播/驱逐全走这张表，而字典只会长大不会缩，"条目数有上限"约束的是表外的世界。
+        private AudioClipCacheEntry[] _slots;
+        private int[] _freeSlots;
+        private int[] _buckets;
+        private int _freeCount;
+        private int _bucketMask;
+        private int _count;
 
         private AudioClipCacheEntry _lruHead;
         private AudioClipCacheEntry _lruTail;
         private AudioClipCacheEntry _allHead;
         private AudioClipCacheEntry _allTail;
+        private IReadOnlyDictionary<string, object> _poolView;
         private IAudioClipLeaseSource _source;
         private int _capacity = DefaultCapacity;
         private float _ttl = DefaultTtl;
@@ -44,19 +48,19 @@ namespace Moirai.Atropos.Audio
         private bool _lowMemoryRegistered;
         private bool _disposed;
 
-        public AudioClipCache()
-        {
-            _poolView = new System.Collections.ObjectModel.ReadOnlyDictionary<string, object>(PoolView);
-        }
-
         /// <summary>当前缓存条目数。</summary>
-        public int Count => _entries.Count;
+        public int Count => _count;
 
         /// <summary>失败冷却中的地址数（诊断用）。</summary>
         public int FailedAddressCount => _failedUntil.Count;
 
-        /// <summary>留池视图的只读形态：外部拿不到可写的字典，也就无法把缓存持有的租约从记账里摘掉。</summary>
-        public System.Collections.Generic.IReadOnlyDictionary<string, object> PoolReadOnly => _poolView;
+        /// <summary>
+        /// 留池视图（已加载且留池的条目）——兼容 <c>AssetHandlePool</c> 只读 API。
+        /// <para>它是槽表的**计算视图**而不是镜像表：缓存只在租约换手处装箱一次都不做，
+        /// 因为除调试面板外无人枚举它，而把它维护成第二份字典等于在每次取用/归还的热点上
+        /// 追加一次写入与一套必须与主表同步的状态。</para>
+        /// </summary>
+        public IReadOnlyDictionary<string, object> PoolReadOnly => _poolView ??= new PoolViewProxy(this);
 
         /// <summary>All 链头：诊断/调试面板遍历入口。</summary>
         public AudioClipCacheEntry FirstEntry => _allHead;
@@ -112,6 +116,7 @@ namespace Moirai.Atropos.Audio
         {
             _source = source;
             _capacity = Mathf.Max(1, capacity);
+            EnsureTables();
             _ttl = Mathf.Max(0f, ttl);
             _failureCooldown = Mathf.Max(0f, failureCooldownSeconds);
             _defaultPolicy = NormalizeDefaultPolicy(defaultPolicy);
@@ -135,7 +140,6 @@ namespace Moirai.Atropos.Audio
                 RemoveEntry(_allHead, ignoreRefCount: true);
             }
 
-            PoolView.Clear();
             _failedUntil.Clear();
             _source = null;
         }
@@ -190,7 +194,7 @@ namespace Moirai.Atropos.Audio
         public bool TryGetLoaded(string address, out AudioClipCacheEntry entry)
         {
             entry = null;
-            if (string.IsNullOrEmpty(address) || !_entries.TryGetValue(address, out var e)) return false;
+            if (!TryFindEntry(address, out var e)) return false;
             if (!e.IsLoaded) return false;
             entry = e;
             return true;
@@ -199,9 +203,7 @@ namespace Moirai.Atropos.Audio
         /// <summary>获取条目（不引用计数，仅查询/诊断用）。</summary>
         public bool TryGetEntry(string address, out AudioClipCacheEntry entry)
         {
-            entry = null;
-            if (string.IsNullOrEmpty(address)) return false;
-            return _entries.TryGetValue(address, out entry);
+            return TryFindEntry(address, out entry);
         }
 
         /// <summary>
@@ -325,7 +327,7 @@ namespace Moirai.Atropos.Audio
         {
             AudioMainThread.AssertMainThread(nameof(Unload));
 
-            if (string.IsNullOrEmpty(address) || !_entries.TryGetValue(address, out var entry)) return false;
+            if (!TryFindEntry(address, out var entry)) return false;
             if (entry.RefCount != 0 || entry.Loading) return false;
             if (!force && (entry.Pinned || entry.PendingHead != null)) return false;
 
@@ -400,8 +402,6 @@ namespace Moirai.Atropos.Audio
             {
                 AddToLruTail(entry);
             }
-
-            SyncPoolView(entry);
         }
 
         /// <summary>低内存：清非 Pin、无引用缓存。</summary>
@@ -432,24 +432,187 @@ namespace Moirai.Atropos.Audio
 
             UpgradePolicy(entry, resolved);
             Touch(entry);
-            SyncPoolView(entry);
             return true;
         }
 
         private AudioClipCacheEntry GetOrCreate(string address, AudioCachePolicy policy)
         {
-            if (_entries.TryGetValue(address, out var existing)) return existing;
+            int hash = HashAddress(address);
+            if (TryFindEntry(address, hash, out var existing)) return existing;
 
             // 满载：先淘汰最久未用的无引用条目；全 Pin/全占用则拒绝新地址（宁可漏播，不可无界驻留）
-            if (_entries.Count >= _capacity && _lruHead == null) return null;
-            if (_entries.Count >= _capacity) RemoveEntry(_lruHead);
+            int slotIndex = AcquireSlot();
+            if (slotIndex < 0) return null;
 
             var entry = MemoryPool.Acquire<AudioClipCacheEntry>();
-            entry.Initialize(this, address, address.GetHashCode() & 0x7fffffff, policy);
-            _entries[address] = entry;
+            entry.Initialize(this, address, hash, policy);
+            entry.SlotIndex = slotIndex;
+            _slots[slotIndex] = entry;
+            AddToTable(entry);
             AddToAllList(entry);
             return entry;
         }
+
+        #region 槽表 [SLOT TABLE]
+
+        /// <summary>
+        /// 按容量铺定长槽表与 2 倍容量的开址桶。
+        /// <para>用定长数组而不是 <c>Dictionary</c>：地址哈希、桶增长与 rehash 全部落在播放与驱逐的路径上，
+        /// 而 Dictionary 只会长大不会缩——一个"条目数有上限"的缓存配一份无上限的桶表，上界是纸面的。</para>
+        /// <para><c>Configure</c> 每次后端初始化都会重跑，容量改小于现存条目数时抬回现存数：
+        /// 静默丢条目会连带把仍被声部引用的租约一起丢掉，比"这一轮容量比配置大"严重得多。</para>
+        /// </summary>
+        private void EnsureTables()
+        {
+            if (_slots != null && _slots.Length == _capacity) return;
+            if (_capacity < _count) _capacity = _count;
+            if (_slots == null || _count == 0)
+            {
+                AllocateTables();
+                return;
+            }
+
+            RehashExistingIntoNewTables();
+        }
+
+        private void AllocateTables()
+        {
+            _slots = new AudioClipCacheEntry[_capacity];
+            _freeSlots = new int[_capacity];
+            _freeCount = _capacity;
+            for (int i = 0; i < _capacity; i++)
+            {
+                // 栈式自由表：低槽位先出，冷启动时条目分布可复现
+                _freeSlots[i] = _capacity - 1 - i;
+            }
+
+            int bucketCount = Mathf.Max(16, NextPowerOfTwo(_capacity << 1));
+            _buckets = new int[bucketCount];
+            for (int i = 0; i < bucketCount; i++) _buckets[i] = -1;
+            _bucketMask = bucketCount - 1;
+            _count = 0;
+        }
+
+        /// <summary>
+        /// 容量变更时把现存条目重新落进新表。走 All 链而不是旧桶：
+        /// All/LRU 两条链与槽位无关，换表期间保持完整，因此不需要任何临时数组。
+        /// </summary>
+        private void RehashExistingIntoNewTables()
+        {
+            AllocateTables();
+            for (var entry = _allHead; entry != null; entry = entry.AllNext)
+            {
+                entry.SlotIndex = _freeSlots[--_freeCount];
+                _slots[entry.SlotIndex] = entry;
+                AddToTable(entry);
+            }
+        }
+
+        /// <summary>取一只空槽；满载时先驱逐 LRU 头，全 Pin/全占用则返回 -1（新地址判负）。</summary>
+        private int AcquireSlot()
+        {
+            if (_freeCount > 0) return _freeSlots[--_freeCount];
+            if (_lruHead == null) return -1;
+
+            RemoveEntry(_lruHead);
+            return _freeCount > 0 ? _freeSlots[--_freeCount] : -1;
+        }
+
+        private static int HashAddress(string address)
+        {
+            unchecked
+            {
+                // djb2：不取 string.GetHashCode——它按进程随机化，同一份包两次启动的桶分布都不一样，
+                // 复现线上"某个地址总在冲突链尾"这类问题时需要对齐的分布。
+                int hash = 5381;
+                for (int i = 0; i < address.Length; i++) hash = ((hash << 5) + hash) ^ address[i];
+                return hash & 0x7fffffff;
+            }
+        }
+
+        private static int NextPowerOfTwo(int value)
+        {
+            value--;
+            value |= value >> 1;
+            value |= value >> 2;
+            value |= value >> 4;
+            value |= value >> 8;
+            value |= value >> 16;
+            return value + 1;
+        }
+
+        private bool TryFindEntry(string address, out AudioClipCacheEntry entry)
+            => TryFindEntry(address, HashAddress(address), out entry);
+
+        /// <summary>桶内按侵入式索引链走查；地址比较走 Ordinal。</summary>
+        private bool TryFindEntry(string address, int hash, out AudioClipCacheEntry entry)
+        {
+            entry = null;
+            if (_buckets == null || string.IsNullOrEmpty(address)) return false;
+
+            int slotIndex = _buckets[hash & _bucketMask];
+            while (slotIndex >= 0)
+            {
+                var current = _slots[slotIndex];
+                if (current.AddressHash == hash && string.Equals(current.Address, address, StringComparison.Ordinal))
+                {
+                    entry = current;
+                    return true;
+                }
+
+                slotIndex = current.HashNextIndex;
+            }
+
+            return false;
+        }
+
+        private void AddToTable(AudioClipCacheEntry entry)
+        {
+            int bucket = entry.AddressHash & _bucketMask;
+            entry.HashNextIndex = _buckets[bucket];
+            _buckets[bucket] = entry.SlotIndex;
+            _count++;
+        }
+
+        /// <summary>摘除索引链。槽位由调用方归还，因此这里只负责链与计数。</summary>
+        private void RemoveFromTable(AudioClipCacheEntry entry)
+        {
+            int bucket = entry.AddressHash & _bucketMask;
+            int currentIndex = _buckets[bucket];
+            int previousIndex = -1;
+            while (currentIndex >= 0)
+            {
+                var current = _slots[currentIndex];
+                if (ReferenceEquals(current, entry))
+                {
+                    if (previousIndex < 0) _buckets[bucket] = current.HashNextIndex;
+                    else _slots[previousIndex].HashNextIndex = current.HashNextIndex;
+
+                    current.HashNextIndex = -1;
+                    _count--;
+                    return;
+                }
+
+                previousIndex = currentIndex;
+                currentIndex = current.HashNextIndex;
+            }
+        }
+
+        private void ReleaseSlot(AudioClipCacheEntry entry)
+        {
+            int slotIndex = entry.SlotIndex;
+            if (slotIndex < 0) return;
+
+            _slots[slotIndex] = null;
+            _freeSlots[_freeCount++] = slotIndex;
+            entry.SlotIndex = -1;
+        }
+
+        /// <summary>该条目是否留在池里（已加载 + 留池策略或 Pin）——<see cref="PoolViewProxy"/> 的可见性判据。</summary>
+        internal static bool IsPoolVisible(AudioClipCacheEntry entry)
+            => entry != null && entry.Address != null && entry.IsLoaded && (entry.Pinned || entry.CacheAfterUse);
+
+        #endregion 槽表 [SLOT TABLE]
 
         /// <summary>策略只升不降：Pin 永不被降级，None 不会把已缓存的条目改成不缓存。</summary>
         private void UpgradePolicy(AudioClipCacheEntry entry, AudioCachePolicy policy)
@@ -461,7 +624,6 @@ namespace Moirai.Atropos.Audio
             {
                 entry.CachePolicy = AudioCachePolicy.Pin;
                 RemoveFromLru(entry);
-                SyncPoolView(entry);
                 return;
             }
 
@@ -480,7 +642,7 @@ namespace Moirai.Atropos.Audio
             if (async)
             {
                 entry.Cancellation ??= new CancellationTokenSource();
-                // 回调携带 entry 引用：迟到的完成由 version 与 _entries 身份校验拦下
+                // 回调携带 entry 引用：迟到的完成由 version 与槽位身份校验拦下
                 _source.AcquireAsync(entry.Address, entry.Cancellation.Token,
                     lease => OnLoadCompleted(entry, version, lease));
                 return true;
@@ -523,12 +685,10 @@ namespace Moirai.Atropos.Audio
                 return false;
             }
 
-            // 世代/身份校验：条目已被驱逐或已复用为另一地址时，本次结果作废并归还租约。
-            // Address 判空必须前置——关停路径上条目已 Clear()，用它查字典会抛 ArgumentNullException。
-            if (entry.Address == null ||
-                entry.Version != version ||
-                !_entries.TryGetValue(entry.Address, out var current) ||
-                !ReferenceEquals(current, entry))
+            // 世代/身份校验：条目已被驱逐、或槽位已复用给另一地址时，本次结果作废并归还租约。
+            // 走槽位而不是地址：迟到续体本来就不该再有一次字符串哈希与查表。
+            if (entry.SlotIndex < 0 || entry.Version != version ||
+                !ReferenceEquals(_slots[entry.SlotIndex], entry))
             {
                 lease.Release();
                 return false;
@@ -544,8 +704,6 @@ namespace Moirai.Atropos.Audio
 
             entry.Lease.Release();
             entry.Lease = success ? lease : default;
-            // 只在租约换手时装箱一次；留池视图的每次刷新复用这个引用
-            entry.LeaseBoxed = success ? (object)lease : null;
             entry.Clip = success ? lease.Clip : null;
 
             // 派发期间自持一份引用：等待者回调里的请求/卸载不能中途把本条目挤成负引用或被驱逐
@@ -553,7 +711,6 @@ namespace Moirai.Atropos.Audio
             AudioLoadRequest callbacks = CompletePending(entry, success);
             Release(entry);
             CompletePreloads(callbacks, success);
-            SyncPoolView(entry);
 
             if (!success && CanEvict(entry))
             {
@@ -653,10 +810,10 @@ namespace Moirai.Atropos.Audio
                 }
             }
 
-            _entries.Remove(entry.Address);
+            RemoveFromTable(entry);
             RemoveFromLru(entry);
             RemoveFromAllList(entry);
-            PoolView.Remove(entry.Address);
+            ReleaseSlot(entry);
 
             AudioLoadRequest callbacks = CompletePending(entry, false);
             MemoryPool.Release(entry);
@@ -664,20 +821,85 @@ namespace Moirai.Atropos.Audio
         }
 
         /// <summary>
-        /// 把留池条目投影到 <c>AssetHandlePool</c> 兼容视图。值是 <see cref="AudioClipLease"/> 的装箱副本，
-        /// 只能用于枚举观测——租约本体仍由缓存持有，外部无法经视图释放它。
+        /// 留池视图的只读实现：每次读都从槽表现算。
+        /// <para>刻意不做成维护型的镜像表——枚举它只有调试面板一路，代价是每次枚举分配一份快照，
+        /// 而镜像表的代价是每次取用/归还/驱逐都要多写一份状态并与主表保持一致。</para>
         /// </summary>
-        private void SyncPoolView(AudioClipCacheEntry entry)
+        private sealed class PoolViewProxy : IReadOnlyDictionary<string, object>
         {
-            if (entry?.Address == null) return;
+            private readonly AudioClipCache _cache;
 
-            if (entry.IsLoaded && (entry.Pinned || entry.CacheAfterUse))
+            public PoolViewProxy(AudioClipCache cache) => _cache = cache;
+
+            public int Count
             {
-                PoolView[entry.Address] = entry.LeaseBoxed;
+                get
+                {
+                    int count = 0;
+                    for (var entry = _cache._allHead; entry != null; entry = entry.AllNext)
+                    {
+                        if (IsPoolVisible(entry)) count++;
+                    }
+
+                    return count;
+                }
             }
-            else
+
+            public IEnumerable<string> Keys => SnapshotAddresses();
+
+            public IEnumerable<object> Values => SnapshotLeases();
+
+            public bool ContainsKey(string address)
+                => _cache.TryFindEntry(address, out var entry) && IsPoolVisible(entry);
+
+            public bool TryGetValue(string address, out object value)
             {
-                PoolView.Remove(entry.Address);
+                value = null;
+                if (!_cache.TryFindEntry(address, out var entry) || !IsPoolVisible(entry)) return false;
+                value = entry.Lease;
+                return true;
+            }
+
+            public object this[string address]
+                => TryGetValue(address, out var value) ? value : throw new KeyNotFoundException(address);
+
+            /// <summary>枚举即快照：先摘出地址串，避免调用方在枚举里卸载条目把链走断。</summary>
+            public IEnumerator<KeyValuePair<string, object>> GetEnumerator()
+            {
+                var addresses = SnapshotAddresses();
+                var leases = SnapshotLeases();
+                for (int i = 0; i < addresses.Length; i++)
+                {
+                    yield return new KeyValuePair<string, object>(addresses[i], leases[i]);
+                }
+            }
+
+            IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+
+            private string[] SnapshotAddresses()
+            {
+                var result = new string[Count];
+                int index = 0;
+                for (var entry = _cache._allHead; entry != null; entry = entry.AllNext)
+                {
+                    if (!IsPoolVisible(entry)) continue;
+                    if (index < result.Length) result[index++] = entry.Address;
+                }
+
+                return result;
+            }
+
+            private object[] SnapshotLeases()
+            {
+                var result = new object[Count];
+                int index = 0;
+                for (var entry = _cache._allHead; entry != null; entry = entry.AllNext)
+                {
+                    if (!IsPoolVisible(entry)) continue;
+                    if (index < result.Length) result[index++] = entry.Lease;
+                }
+
+                return result;
             }
         }
 

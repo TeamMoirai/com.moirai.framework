@@ -170,6 +170,8 @@ AudioService.ClearClipCache(force: true);
 
 - Eviction requires "no references, not loading, no waiters". `force` only relaxes the Pin and waiter gates — a playing or fading-out reference is never released (the `AudioSource` would keep an unloaded clip).
 - At `ClipCacheCapacity` the least-recently-used unreferenced entry goes first; if everything is pinned or in use a new address is refused (`Play` returns `0UL`) instead of growing without bound. TTL (`ClipCacheTtl`, `0` disables) is swept in the service `Tick`, and `Application.lowMemory` triggers one non-forced pass.
+- The address table is a **fixed slot array + open addressing + intrusive index chains**, not a `Dictionary`: acquire/release/evict all walk it, so a dictionary's on-demand growth and rehash spike can't land on a playback frame. Raising the capacity re-seats live entries into the new tables along the All chain, with no temporary array. Address hashing is ordinal djb2 rather than `string.GetHashCode`, which is randomized per process — two runs of the same build get different bucket distributions and a production collision chain becomes unreproducible.
+- `AssetHandlePool` / `PoolReadOnly` is a **computed projection**, not a mirrored table: the cache keeps no second dictionary and writes nothing extra on acquire/release (a missed sync is exactly the "still in the view, gone from the cache" phantom). The price is one snapshot allocation per enumeration — that path only serves the debugger panel.
 - `PutInAudioPool` / `RemoveClipFromPool` / `CleanAudioPool` and `AssetHandlePool` remain as compatibility entry points, mapping to `Preload(Pin)` / `Unload(force)` / `ClearClipCache(force)`; `bInPool: true` means "keep at least by TTL".
 
 ### Mix snapshots

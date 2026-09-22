@@ -15,13 +15,6 @@ namespace Moirai.Atropos.Audio
         public CancellationTokenSource Cancellation;
         public string Address;
         public AudioClipLease Lease;
-
-        /// <summary>
-        /// <see cref="Lease"/> 的**一次性装箱副本**，专供 <c>AssetHandlePool</c> 只读视图使用。
-        /// <para>视图每次刷新若直接写 <see cref="Lease"/>，就会在每次取用/归还的热点上重复装箱；
-        /// 这里让装箱只发生在租约换手的那一次。</para>
-        /// </summary>
-        public object LeaseBoxed;
         public AudioClip Clip;
         public AudioLoadRequest PendingHead;
         public AudioLoadRequest PendingTail;
@@ -29,8 +22,15 @@ namespace Moirai.Atropos.Audio
         public AudioClipCacheEntry LruNext;
         public AudioClipCacheEntry AllPrev;
         public AudioClipCacheEntry AllNext;
+
+        /// <summary>开址桶链的下一只槽位下标；-1 表示链尾。<see cref="AudioClipCache"/> 单点维护。</summary>
         public int HashNextIndex = -1;
+
+        /// <summary>所在槽位下标；-1 表示已脱离槽表（驱逐或归还）。</summary>
+        public int SlotIndex = -1;
         public int RefCount;
+
+        /// <summary>地址的 Ordinal djb2 哈希（不是 <c>string.GetHashCode</c>——那个按进程随机化，桶分布不可复现）。</summary>
         public int AddressHash;
         public AudioCachePolicy CachePolicy;
         public bool Loading;
@@ -103,7 +103,6 @@ namespace Moirai.Atropos.Audio
             Cancellation = null;
             Lease.Release();
             Lease = default;
-            LeaseBoxed = null;
             Address = null;
             Clip = null;
             // 条目被丢弃时仍挂着等待者：正常路径已由缓存统一通知，此处兜底归还，避免请求节点脱离池
@@ -122,6 +121,7 @@ namespace Moirai.Atropos.Audio
             AllPrev = null;
             AllNext = null;
             HashNextIndex = -1;
+            SlotIndex = -1;
             RefCount = 0;
             AddressHash = 0;
             CachePolicy = AudioCachePolicy.Default;
