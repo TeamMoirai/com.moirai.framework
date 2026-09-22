@@ -12,6 +12,8 @@ namespace Moirai.Atropos.Audio
     /// <para>跨后端语义约定（Unity / 中间件保持一致）：</para>
     /// <para>1. 暂停的音轨会拦截新播放（<see cref="Play"/> 直接返回 0）；</para>
     /// <para>2. <see cref="MasterVolume"/> getter 始终返回未静音的设置值（静音只影响实际输出）；</para>
+    /// <para>3. 主音量与音轨音量都是线性 <c>0..1</c>，且夹取只发生在契约入口一次——
+    /// 曾经 Unity 侧允许 0..10 而中间件落总线时偷偷 Clamp01，同一份设置换后端上限就从 10 变 1；</para>
     /// <para>3. Master/音轨 Fade 经共享 <see cref="AudioFadeScheduler"/> 驱动，带缓动且可中途停止；</para>
     /// <para>4. 句柄生命周期与用户 ID 映射由共享 <see cref="AudioHandleRegistry{TVoice}"/> 保证。</para>
     /// <para>Unity 专属成员（中间件后端返回 null/空操作）见各成员 remarks；中间件不支持 InitialDelay / PlaybackDuration / Solo。</para>
@@ -54,7 +56,8 @@ namespace Moirai.Atropos.Audio
         /// <summary>
         /// 主音轨（总音量）音量。
         /// </summary>
-        /// <remarks>0-1</remarks>
+        /// <remarks>线性 <c>0..1</c>（1 = 满刻度）；越界值在 setter 处夹取，getter 报回的就是实际生效值。
+        /// 该值域对 Unity 与中间件后端一致。</remarks>
         public abstract float MasterVolume { get; set; }
 
         /// <summary>
@@ -78,12 +81,12 @@ namespace Moirai.Atropos.Audio
         public abstract void RemoveMasterSetting();
 
         /// <summary>
-        /// 获取指定音轨的音量。
+        /// 获取指定音轨的音量（线性 <c>0..1</c>）。
         /// </summary>
         public abstract float GetTrackVolume(EAudioTrack track);
 
         /// <summary>
-        /// 设置指定音轨的音量。
+        /// 设置指定音轨的音量，线性 <c>0..1</c>；越界在入口夹取，不静默改变语义。
         /// </summary>
         public abstract void SetTrackVolume(EAudioTrack track, float volume);
 

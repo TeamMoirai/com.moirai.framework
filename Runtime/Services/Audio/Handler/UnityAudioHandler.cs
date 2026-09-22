@@ -73,12 +73,20 @@ namespace Moirai.Atropos.Audio
             }
             set
             {
-                if (_unityAudioDisabled || Mathf.Approximately(_volume, value))
+                if (_unityAudioDisabled)
                 {
                     return;
                 }
 
-                _volume = value;
+                // 值域统一在线性 0..1（与中间件后端同一条线）：夹取发生在这里而不是等到写 AudioListener 时，
+                // getter 才因此始终能报回"实际生效的那个值"
+                float volume = Mathf.Clamp01(value);
+                if (Mathf.Approximately(_volume, volume))
+                {
+                    return;
+                }
+
+                _volume = volume;
                 ApplyMasterVolume();
             }
         }
@@ -136,11 +144,11 @@ namespace Moirai.Atropos.Audio
         }
 
         /// <summary>
-        /// 应用主音轨（总音量）音量。
+        /// 应用主音轨（总音量）音量。<see cref="MasterVolume"/> 的 setter 已保证 0..1，这里不再二次夹取。
         /// </summary>
         private void ApplyMasterVolume()
         {
-            AudioListener.volume = _isMuted ? 0f : Mathf.Clamp(_volume, 0f, 1f);
+            AudioListener.volume = _isMuted ? 0f : _volume;
         }
 
         /// <inheritdoc />

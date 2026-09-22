@@ -16,7 +16,7 @@ namespace Moirai.Atropos.Audio
         [Tooltip("所属音轨")]
         [SerializeField] private AudioMixerGroup m_AudioMixerGroup;
 
-        [Tooltip("默认音量")]
+        [Tooltip("默认音量（线性 0~1，1 = 0dB）")]
         [Range(0, MAXIMAL_VOLUME)]
         [SerializeField] private float m_DefaultVolume = 1f;
 
@@ -32,10 +32,17 @@ namespace Moirai.Atropos.Audio
         [Tooltip("扩展的通道硬上限（仅 CanExpand 生效）：按平台预算分轨设置，非法值回落到默认 32")]
         [SerializeField, Min(1)] private int m_MaxChannelCeiling = HARD_CHANNEL_CEILING_DEFAULT;
 
-        // 最小音量
+        // 最小音量：0 会走进 log10 而 -∞，用 -80dB 作为可表达的最底（与静音写 -80 的旧值同一条线）
         public const float MINIMAL_VOLUME = 0.0001f;
-        // 最大音量
-        public const float MAXIMAL_VOLUME = 10f;
+
+        /// <summary>
+        /// 音量值域上限，<c>1</c>（线性增益，1 = 0dB 满刻度）。
+        /// <para>这里过去是 <c>10</c>（≈ +20dB 提升），但只有 Unity 后端真拿得到：中间件把同一个值落到总线前
+        /// <c>Clamp01</c>，于是"同一份设置换后端，音轨上限从 10 变 1"。契约统一成线性 0..1 之后，
+        /// 想要工程侧留提升余量，请改 Mixer 分组的暴露参数或 <c>m_MixerValuesMultiplier</c>，
+        /// 而不是让对外契约在不同后端下值域不一致。</para>
+        /// </summary>
+        public const float MAXIMAL_VOLUME = 1f;
 
         /// <summary>扩展硬上限的缺省值——保持与历史上写死的 32 一致。</summary>
         public const int HARD_CHANNEL_CEILING_DEFAULT = 32;
@@ -111,17 +118,21 @@ namespace Moirai.Atropos.Audio
         }
 
         /// <summary>
-        /// 当前音轨的音量
+        /// 当前音轨的音量，线性 <c>0..1</c>。
         /// </summary>
-        /// <remarks>0 ~ <see cref="MAXIMAL_VOLUME"/></remarks>
+        /// <remarks>夹取放在 setter 而不是只放在写 Mixer 的那一刻：<c>Volume</c> 是对外可读的，
+        /// 让存着的值越界就会让 getter 报回一个契约外的数（旧写法正是如此，2.5 能原样读回来）。
+        /// 0 保留为 0（写 Mixer 时才换算成 <see cref="MINIMAL_VOLUME"/> 对应的 -80dB），
+        /// 这样 UI 拉到 0 再读回来仍是 0。</remarks>
         public float Volume
         {
             get => _volume;
             set
             {
-                if (Mathf.Approximately(_volume, value)) return;
+                float volume = Mathf.Clamp01(value);
+                if (Mathf.Approximately(_volume, volume)) return;
 
-                _volume = value;
+                _volume = volume;
                 ApplyTrackVolume();
             }
         }
@@ -162,7 +173,8 @@ namespace Moirai.Atropos.Audio
         {
             EnsureCachedKeys();
             _isMuted = SettingUtility.GetBool(_muteSettingKey, false);
-            _volume = SettingUtility.GetFloat(_volumeSettingKey, m_DefaultVolume);
+            // 存量值可能写于上限还是 10 的年代：Volume 是对外可读的，读回来就得在契约值域内
+            _volume = Mathf.Clamp01(SettingUtility.GetFloat(_volumeSettingKey, m_DefaultVolume));
 
             ApplyTrackVolume();
         }
@@ -177,7 +189,7 @@ namespace Moirai.Atropos.Audio
             SettingUtility.RemoveSetting(_volumeSettingKey);
 
             _isMuted = false;
-            _volume = m_DefaultVolume;
+            _volume = Mathf.Clamp01(m_DefaultVolume);
             ApplyTrackVolume();
         }
 

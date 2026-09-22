@@ -224,7 +224,7 @@ namespace Moirai.Atropos.Audio.Middleware
         }
 
         private void ApplyMasterVolume()
-            => _bridge?.SetBusVolume("bus:/Master", _masterMute ? 0f : Mathf.Clamp01(_masterVolume));
+            => _bridge?.SetBusVolume("bus:/Master", _masterMute ? 0f : _masterVolume);
 
         /// <inheritdoc />
         public override void SetMasterSettings()
@@ -237,7 +237,8 @@ namespace Moirai.Atropos.Audio.Middleware
         public override void LoadMasterSettings()
         {
             _masterMute = SettingUtility.GetBool(GameConstant.Setting.AUDIO_MASTER_MUTED, false);
-            _masterVolume = SettingUtility.GetFloat(GameConstant.Setting.AUDIO_MASTER_VOLUME, 1f);
+            // 存量值可能写于上限还是 10 的年代，读回来先落到契约值域
+            _masterVolume = Mathf.Clamp01(SettingUtility.GetFloat(GameConstant.Setting.AUDIO_MASTER_VOLUME, 1f));
             ApplyMasterVolume();
 
             EnsureTrackArrays();
@@ -246,8 +247,8 @@ namespace Moirai.Atropos.Audio.Middleware
                 var track = (EAudioTrack)i;
                 _trackMutes[i] = SettingUtility.GetBool(
                     StringUtility.Format(GameConstant.Setting.AUDIO_GROUP_MUTED, track), false);
-                _trackVolumes[i] = SettingUtility.GetFloat(
-                    StringUtility.Format(GameConstant.Setting.AUDIO_GROUP_VOLUME, track), 1f);
+                _trackVolumes[i] = Mathf.Clamp01(SettingUtility.GetFloat(
+                    StringUtility.Format(GameConstant.Setting.AUDIO_GROUP_VOLUME, track), 1f));
                 ApplyTrackBus(track);
             }
         }
@@ -302,7 +303,9 @@ namespace Moirai.Atropos.Audio.Middleware
         {
             EnsureTrackArrays();
             int index = (int)track;
-            float v = _trackMutes[index] ? 0f : Mathf.Clamp01(_trackVolumes[index]);
+            // 存的就是 0..1（SetTrackVolume 夹过一次），这里不再偷偷夹第二遍：
+            // 上一版正是这个二次夹取让"Unity 能给到 10、中间件只能到 1"的分歧隐身了
+            float v = _trackMutes[index] ? 0f : _trackVolumes[index];
             _bridge?.SetBusVolume(GetBusPath(track), v);
         }
 
