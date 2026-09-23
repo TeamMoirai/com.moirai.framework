@@ -94,16 +94,12 @@ namespace Moirai.Atropos.Resource
             {
                 _bindingIndexByOwnerSlot.Clear();
                 _ownerIndexByGameObjectId.Clear();
-                _ownerByTargetComponentId.Clear();
                 _ownerPages = null;
                 _bindingPages = null;
-                _registeredTargetPages = null;
                 _ownerNextIndex = 0;
                 _bindingNextIndex = 0;
-                _registeredTargetNextIndex = 0;
                 _ownerFreeHead = -1;
                 _bindingFreeHead = -1;
-                _registeredTargetFreeHead = -1;
                 _ownerSweepCursor = 0;
                 _bindingSweepCursor = 0;
             }

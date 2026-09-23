@@ -29,7 +29,7 @@ namespace Moirai.Atropos.Resource
             ownerGeneration = ownerSlot.Generation;
             targetComponentId = UnityObjectId.Get(target);
             targetGameObjectId = UnityObjectId.Get(target.gameObject);
-            slotKey = new BindingSlotKey(targetComponentId, slotType, 0);
+            slotKey = new BindingSlotKey(targetComponentId, slotType);
             OwnerSlotKey ownerSlotKey = new OwnerSlotKey(ownerId, slotKey);
             if (!_bindingIndexByOwnerSlot.TryGetValue(ownerSlotKey, out int bindingIndex))
             {

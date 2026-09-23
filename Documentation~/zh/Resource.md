@@ -34,7 +34,7 @@ Resource 服务（`ResourceService`）对 [YooAsset](https://github.com/tuyoogam
 | `ResourceAssetState` | 枚举：`Released / Loading / Active / KeepAlive / Idle` |
 | `ResourceAssetInfo` | 诊断快照结构体：LoadKeyId、Package、Location、TypeName、Kind、State、DirectRefCount、LegacyDirectRefCount、BindingRefCount、KeepAliveRefCount、RefCountTotal、IdleExpireIn 等 |
 | `ResourceBindingInfo` | 绑定诊断快照结构体：Active、BindingIndex、OwnerId、TargetComponentId、Lease、Version、SlotType、HasAppliedAsset 等 |
-| `ResourceOwnerInfo` | 所有者诊断快照结构体：Active、OwnerIndex、OwnerId、GameObjectId、Generation、BindingCount、RegisteredTargetCount |
+| `ResourceOwnerInfo` | 所有者诊断快照结构体：Active、OwnerIndex、OwnerId、GameObjectId、Generation、BindingCount |
 
 ### 服务接口与组件
 
@@ -45,7 +45,7 @@ Resource 服务（`ResourceService`）对 [YooAsset](https://github.com/tuyoogam
 | `ResourceBindingService` | 绑定服务实现（`internal sealed`），`partial` 按职责拆分：主文件（所有者与目标注册、释放、槽位快照）/ Bindings（绑定注册与组件应用）/ Async（异步绑定安全的预约与代次判定）/ Maintenance（关停、重置与销毁态回收）/ Slots（分页槽位借还） |
 | `ResourceServiceHandler` | 处理器抽象基类，定义后端契约；默认实现 `YooAssetHandler`（另有实验性 `AddressableHandler`） |
 | `IResourceBindingService` | 声明式资源-组件绑定服务接口，经 `ResourceService.BindingService` 访问 |
-| `ResourceOwner` | MonoBehaviour 组件（`[DisallowMultipleComponent]`），`OnDestroy` 时自动释放所有绑定。提供 `ReleaseBindings()`、`ReleaseBindingsInHierarchy(root)`、`EnsureFor(target, bindingService)`。层级释放按借还取用扫描缓冲（父辈销毁触发的嵌套调用互不踩踏），单个所有者抛出只记账不截断同层级其余项，末尾汇总重抛。 |
+| `ResourceOwner` | MonoBehaviour 组件（`[DisallowMultipleComponent]`），`OnDestroy` 时自动释放所有绑定。提供 `ReleaseBindings()`、`EnsureFor(target, bindingService)`。单个所有者抛出只记账不截断其余绑定，末尾汇总重抛。 |
 | `ResourceBindingExtensions` | 静态扩展类：`Image/SpriteRenderer.SetSprite`、`Image/SpriteRenderer.SetSubSprite`、`Image/SpriteRenderer/MeshRenderer.SetMaterial`、`MeshRenderer.SetSharedMaterial` |
 | `ResourceBindingTypes` | 绑定相关枚举与接口：`ResourceBindStatus`、`ResourceBindingOptions`、`ResourceBindingSlotType` |
 | `EResourceHasAssetResult` | 资源存在性检查结果（三值语义）：`NotExist`（不存在）/ `AssetOnline`（存在但需从远端下载）/ `AssetOnDisk`（存在且已在磁盘） |
@@ -253,7 +253,6 @@ public readonly struct ResourceKey
 |--------|------|
 | `ResourceLeaseHandle AcquireDirect(ResourceKey key)` | 同步获取直接租约。失败返回 `Invalid`。 |
 | `UniTask<ResourceLeaseHandle> AcquireDirectAsync(ResourceKey key, CancellationToken)` | 异步获取直接租约。 |
-| `bool TryAcquireDirect(ResourceKey key, out ResourceLeaseHandle handle)` | 尝试获取变体。 |
 | `void Release(ResourceLeaseHandle handle)` | 释放租约（递减引用计数）。 |
 | `ResourceAssetLease<T> LoadLease<T>(ResourceKey key)` | 同步加载并返回类型化租约。 |
 | `ResourceAssetLease<T> LoadLease<T>(string location, string packageName = "")` | 按地址同步加载并返回类型化租约。 |
@@ -277,9 +276,6 @@ public sealed class ResourceOwner : MonoBehaviour
 
     public ResourceBindStatus ReleaseBindings(); // 释放此所有者上的所有绑定
 
-    // 释放层级中所有 ResourceOwner 的绑定
-    public static int ReleaseBindingsInHierarchy(GameObject root);
-
     // 确保目标组件的 GameObject 上存在 ResourceOwner
     public static ResourceOwner EnsureFor(Component target, IResourceBindingService bindingService);
 
@@ -294,9 +290,7 @@ public sealed class ResourceOwner : MonoBehaviour
 | `ResourceBindStatus RegisterOwner(ResourceOwner owner)` | 注册所有者。 |
 | `ResourceBindStatus ReleaseOwner(ResourceOwner owner)` | 释放所有者及其所有绑定。 |
 | `ResourceBindStatus ReleaseOwner(int ownerId, uint generation)` | 按 ID + generation 释放。 |
-| `void Warmup(int ownerCapacity, int bindingCapacity, int registeredTargetCapacity)` | 预分配绑定数据结构。 |
-| `ResourceBindStatus RegisterTarget(ResourceOwner, Component)` | 注册目标组件用于跟踪。 |
-| `ResourceBindStatus UnregisterTarget(ResourceOwner, Component)` | 注销目标组件。 |
+| `void Warmup(int ownerCapacity, int bindingCapacity)` | 预分配绑定数据结构。 |
 | `ResourceBindStatus BindSprite(ResourceOwner, Image, ResourceKey, options)` | 绑定精灵到 Image。 |
 | `ResourceBindStatus BindSprite(ResourceOwner, SpriteRenderer, ResourceKey, options)` | 绑定精灵到 SpriteRenderer。 |
 | `UniTask<ResourceBindStatus> BindSubSpriteAsync(ResourceOwner, Image, ResourceKey atlasKey, string spriteName, options, CancellationToken)` | 异步从图集绑定子精灵。 |
@@ -347,7 +341,6 @@ public sealed class ResourceOwner : MonoBehaviour
 | `AssetLeaseCapacity` | 128 | 租约槽位预热容量（LeaseSlot 页）。 |
 | `BindingOwnerCapacity` | 64 | 绑定所有者预热容量（OwnerSlot 页）。 |
 | `BindingSlotCapacity` | 128 | 绑定槽位预热容量（BindingSlot 页）。 |
-| `RegisteredTargetCapacity` | 128 | 已注册目标预热容量。 |
 | `IdleAssetExpireTime` | 60s | 无引用资源句柄空闲过期秒数。 |
 | `IdleAssetCapacity` | 256 | 空闲资源记录容量上限；超出即淘汰最长空闲者，0 表示不留空闲记录。 |
 | `ExpireProcessCountPerFrame` | 16 | 每帧过期处理最大数量。 |

@@ -103,19 +103,6 @@ namespace Service.Resource
         }
 
         [Test]
-        public void TryAcquireDirect_ThrowsGameExceptionInsteadOfSilentFalse()
-        {
-            // out 参数也是形参：反射 Invoke 的 args 数组必须提供等长槽位。
-            object[] args = new object[] { new ResourceKey("UI/Heart"), null };
-
-            if (InvokeExpectingFailFast("TryAcquireDirect", "TryAcquireDirect", args))
-            {
-                var handle = (ResourceLeaseHandle)args[1];
-                Assert.IsFalse(handle.IsValid, "out handle must be invalid pre-throw assignment.");
-            }
-        }
-
-        [Test]
         public void Release_ThrowsGameException()
         {
             InvokeExpectingFailFast("Release", "Release", ResourceLeaseHandle.Invalid);

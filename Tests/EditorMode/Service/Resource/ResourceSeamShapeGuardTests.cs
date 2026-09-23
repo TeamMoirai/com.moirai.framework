@@ -13,8 +13,9 @@ namespace Service.Resource
     /// </summary>
     public sealed class ResourceSeamShapeGuardTests
     {
-        // 2026-09-23 基线：20 个抽象属性 + 54 个抽象方法；其中 11 个 internal abstract；6 个 [Obsolete]。
-        private const int BaselineAbstractMembers = 74;
+        // 2026-09-23 基线：19 个抽象属性 + 53 个抽象方法；其中 11 个 internal abstract；6 个 [Obsolete]。
+        // 起点是 20/54=74，随批次 4 删掉 RegisteredTargetCapacity 与 TryAcquireDirect 收到 19/53=72。
+        private const int BaselineAbstractMembers = 72;
         private const int BaselineInternalAbstractMembers = 11;
         private const int BaselineObsoleteMembers = 6;
 

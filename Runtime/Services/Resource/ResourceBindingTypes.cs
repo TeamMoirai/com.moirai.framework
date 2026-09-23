@@ -158,24 +158,7 @@ namespace Moirai.Atropos.Resource
         /// </summary>
         /// <param name="ownerCapacity">所有者容量。</param>
         /// <param name="bindingCapacity">绑定容量。</param>
-        /// <param name="registeredTargetCapacity">已注册目标容量。</param>
-        void Warmup(int ownerCapacity, int bindingCapacity, int registeredTargetCapacity);
-
-        /// <summary>
-        /// 注册目标组件。
-        /// </summary>
-        /// <param name="owner">资源所有者。</param>
-        /// <param name="target">目标组件。</param>
-        /// <returns>绑定结果状态。</returns>
-        EResourceBindStatus RegisterTarget(ResourceOwner owner, Component target);
-
-        /// <summary>
-        /// 注销目标组件。
-        /// </summary>
-        /// <param name="owner">资源所有者。</param>
-        /// <param name="target">目标组件。</param>
-        /// <returns>绑定结果状态。</returns>
-        EResourceBindStatus UnregisterTarget(ResourceOwner owner, Component target);
+        void Warmup(int ownerCapacity, int bindingCapacity);
 
         /// <summary>
         /// 绑定精灵到 Image。

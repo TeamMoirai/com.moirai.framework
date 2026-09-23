@@ -213,13 +213,6 @@ namespace Moirai.Atropos.Resource
         }
 
         /// <inheritdoc />
-        public override bool TryAcquireDirect(ResourceKey key, out ResourceLeaseHandle handle)
-        {
-            handle = AcquireDirect(key);
-            return handle.IsValid;
-        }
-
-        /// <inheritdoc />
         public override void Release(ResourceLeaseHandle handle)
         {
             if (!TryGetLeaseSlotIndex(handle, out int leaseIndex))

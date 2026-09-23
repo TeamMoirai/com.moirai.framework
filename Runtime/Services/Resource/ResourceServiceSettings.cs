@@ -113,11 +113,6 @@ namespace Moirai.Atropos.Resource
         /// <summary>绑定槽位预热容量。</summary>
         public static int BindingSlotCapacity => Instance.m_BindingSlotCapacity;
 
-        [LabelText("已注册目标预热容量")]
-        [SerializeField] private int m_RegisteredTargetCapacity = 128;
-        /// <summary>已注册目标预热容量。</summary>
-        public static int RegisteredTargetCapacity => Instance.m_RegisteredTargetCapacity;
-
         [LabelText("无引用资源句柄空闲过期时间(秒)")]
         [SerializeField] private float m_IdleAssetExpireTime = 60f;
         /// <summary>无引用资源句柄空闲过期秒数。</summary>

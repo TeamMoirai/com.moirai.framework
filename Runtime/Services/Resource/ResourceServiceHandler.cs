@@ -362,11 +362,6 @@ namespace Moirai.Atropos.Resource
         public abstract int BindingSlotCapacity { get; set; }
 
         /// <summary>
-        /// 已注册目标预热容量。
-        /// </summary>
-        public abstract int RegisteredTargetCapacity { get; set; }
-
-        /// <summary>
         /// 无引用资源句柄空闲过期秒数。
         /// </summary>
         public abstract float IdleAssetExpireTime { get; set; }
@@ -399,11 +394,6 @@ namespace Moirai.Atropos.Resource
         /// 异步获取一个直接资源租约。
         /// </summary>
         public abstract UniTask<ResourceLeaseHandle> AcquireDirectAsync(ResourceKey key, CancellationToken cancellationToken = default);
-
-        /// <summary>
-        /// 尝试使用显式资源 Key 获取一个直接资源租约。
-        /// </summary>
-        public abstract bool TryAcquireDirect(ResourceKey key, out ResourceLeaseHandle handle);
 
         /// <summary>
         /// 释放一个显式资源租约。

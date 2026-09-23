@@ -34,7 +34,7 @@ Namespace: `Moirai.Atropos.Resource`
 | `ResourceAssetState` | Enum: `Released / Loading / Active / KeepAlive / Idle` |
 | `ResourceAssetInfo` | Diagnostic snapshot struct: LoadKeyId, Package, Location, TypeName, Kind, State, DirectRefCount, LegacyDirectRefCount, BindingRefCount, KeepAliveRefCount, RefCountTotal, IdleExpireIn, etc. |
 | `ResourceBindingInfo` | Diagnostic snapshot struct for bindings: Active, BindingIndex, OwnerId, TargetComponentId, Lease, Version, SlotType, HasAppliedAsset, etc. |
-| `ResourceOwnerInfo` | Diagnostic snapshot struct for owners: Active, OwnerIndex, OwnerId, GameObjectId, Generation, BindingCount, RegisteredTargetCount. |
+| `ResourceOwnerInfo` | Diagnostic snapshot struct for owners: Active, OwnerIndex, OwnerId, GameObjectId, Generation, BindingCount. |
 
 ### Service Interfaces & Components
 
@@ -45,7 +45,7 @@ Namespace: `Moirai.Atropos.Resource`
 | `ResourceBindingService` | Binding service implementation (`internal sealed`), `partial` split by responsibility: main (owner/target registration, release, slot snapshots) / Bindings (binding registration & component application) / Async (async binding safety, request reservation and generation checks) / Maintenance (shutdown, reset, destroyed-slot reclaim) / Slots (paged slot allocation) |
 | `ResourceServiceHandler` | Handler abstract base class defining the backend contract; default implementation `YooAssetHandler` (plus experimental `AddressableHandler`) |
 | `IResourceBindingService` | Declarative resource-component binding service interface, accessed via `ResourceService.BindingService` |
-| `ResourceOwner` | MonoBehaviour component (`[DisallowMultipleComponent]`), auto-releases all bindings on `OnDestroy`. Provides `ReleaseBindings()`, `ReleaseBindingsInHierarchy(root)`, `EnsureFor(target, bindingService)`. Hierarchy release borrows its scan buffer from a pool (nested calls from a parent's teardown cannot clobber it), and a single owner throwing is recorded without truncating the rest, rethrown aggregated at the end. |
+| `ResourceOwner` | MonoBehaviour component (`[DisallowMultipleComponent]`), auto-releases all bindings on `OnDestroy`. Provides `ReleaseBindings()` and `EnsureFor(target, bindingService)`. A single binding owner throwing is recorded without truncating the rest, rethrown aggregated at the end. |
 | `ResourceBindingExtensions` | Static extension class: `Image/SpriteRenderer.SetSprite`, `Image/SpriteRenderer.SetSubSprite`, `Image/SpriteRenderer/MeshRenderer.SetMaterial`, `MeshRenderer.SetSharedMaterial` |
 | `ResourceBindingTypes` | Binding-related enums and interfaces: `ResourceBindStatus`, `ResourceBindingOptions`, `ResourceBindingSlotType` |
 | `EResourceHasAssetResult` | Asset existence check result (three-value semantics): `NotExist` (not found) / `AssetOnline` (exists but needs remote download) / `AssetOnDisk` (exists and available on disk) |
@@ -255,7 +255,6 @@ public readonly struct ResourceKey
 |--------|-------------|
 | `ResourceLeaseHandle AcquireDirect(ResourceKey key)` | Synchronously acquire a direct lease. Returns `Invalid` on failure. |
 | `UniTask<ResourceLeaseHandle> AcquireDirectAsync(ResourceKey key, CancellationToken)` | Asynchronously acquire a direct lease. |
-| `bool TryAcquireDirect(ResourceKey key, out ResourceLeaseHandle handle)` | Try-acquire variant. |
 | `void Release(ResourceLeaseHandle handle)` | Release a lease (decrements ref count). |
 | `ResourceAssetLease<T> LoadLease<T>(ResourceKey key)` | Synchronously load and return a typed lease. |
 | `ResourceAssetLease<T> LoadLease<T>(string location, string packageName = "")` | Synchronously load and return a typed lease by location. |
@@ -279,9 +278,6 @@ public sealed class ResourceOwner : MonoBehaviour
 
     public ResourceBindStatus ReleaseBindings(); // Release all bindings on this owner
 
-    // Release all ResourceOwner bindings in a hierarchy
-    public static int ReleaseBindingsInHierarchy(GameObject root);
-
     // Ensure a ResourceOwner exists on the target component's GameObject
     public static ResourceOwner EnsureFor(Component target, IResourceBindingService bindingService);
 
@@ -296,9 +292,7 @@ public sealed class ResourceOwner : MonoBehaviour
 | `ResourceBindStatus RegisterOwner(ResourceOwner owner)` | Register an owner. |
 | `ResourceBindStatus ReleaseOwner(ResourceOwner owner)` | Release an owner and all its bindings. |
 | `ResourceBindStatus ReleaseOwner(int ownerId, uint generation)` | Release by ID + generation. |
-| `void Warmup(int ownerCapacity, int bindingCapacity, int registeredTargetCapacity)` | Preallocate binding data structures. |
-| `ResourceBindStatus RegisterTarget(ResourceOwner, Component)` | Register a target component for tracking. |
-| `ResourceBindStatus UnregisterTarget(ResourceOwner, Component)` | Unregister a target component. |
+| `void Warmup(int ownerCapacity, int bindingCapacity)` | Preallocate binding data structures. |
 | `ResourceBindStatus BindSprite(ResourceOwner, Image, ResourceKey, options)` | Bind a sprite to an Image. |
 | `ResourceBindStatus BindSprite(ResourceOwner, SpriteRenderer, ResourceKey, options)` | Bind a sprite to a SpriteRenderer. |
 | `UniTask<ResourceBindStatus> BindSubSpriteAsync(ResourceOwner, Image, ResourceKey atlasKey, string spriteName, options, CancellationToken)` | Async bind a sub-sprite from an atlas. |
@@ -349,7 +343,6 @@ Configured in the `ResourceServiceSettings` (Framework settings asset) or via `R
 | `AssetLeaseCapacity` | 128 | Lease slot preallocation (LeaseSlot pages). |
 | `BindingOwnerCapacity` | 64 | Binding owner preallocation (OwnerSlot pages). |
 | `BindingSlotCapacity` | 128 | Binding slot preallocation (BindingSlot pages). |
-| `RegisteredTargetCapacity` | 128 | Registered target preallocation. |
 | `IdleAssetExpireTime` | 60s | Seconds before idle (refcount=0) assets are released. |
 | `IdleAssetCapacity` | 256 | Max idle asset records kept; over the cap the longest-idle record is released immediately, 0 keeps none. |
 | `ExpireProcessCountPerFrame` | 16 | Max expiry items processed per frame. |

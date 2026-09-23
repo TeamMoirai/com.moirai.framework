@@ -407,9 +407,6 @@ namespace Moirai.Atropos.Resource
         public override int BindingSlotCapacity { get; set; }
 
         /// <inheritdoc />
-        public override int RegisteredTargetCapacity { get; set; }
-
-        /// <inheritdoc />
         public override float IdleAssetExpireTime { get; set; }
 
         /// <inheritdoc />
@@ -448,13 +445,6 @@ namespace Moirai.Atropos.Resource
         /// <inheritdoc />
         public override UniTask<ResourceLeaseHandle> AcquireDirectAsync(ResourceKey key, CancellationToken cancellationToken = default)
         {
-            throw CreateNotSupported();
-        }
-
-        /// <inheritdoc />
-        public override bool TryAcquireDirect(ResourceKey key, out ResourceLeaseHandle handle)
-        {
-            handle = ResourceLeaseHandle.Invalid;
             throw CreateNotSupported();
         }
 

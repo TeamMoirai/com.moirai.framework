@@ -77,7 +77,6 @@ namespace Moirai.Atropos.Resource
             s_Handler.AssetLeaseCapacity = ResourceServiceSettings.AssetLeaseCapacity;
             s_Handler.BindingOwnerCapacity = ResourceServiceSettings.BindingOwnerCapacity;
             s_Handler.BindingSlotCapacity = ResourceServiceSettings.BindingSlotCapacity;
-            s_Handler.RegisteredTargetCapacity = ResourceServiceSettings.RegisteredTargetCapacity;
             s_Handler.IdleAssetExpireTime = ResourceServiceSettings.IdleAssetExpireTime;
             s_Handler.IdleAssetCapacity = ResourceServiceSettings.IdleAssetCapacity;
             s_Handler.SetForceUnloadUnusedAssetsAction(RequestForceUnloadUnusedAssets);
@@ -385,19 +384,6 @@ namespace Moirai.Atropos.Resource
         }
 
         /// <summary>
-        /// 已注册目标预热容量。
-        /// </summary>
-        public static int RegisteredTargetCapacity
-        {
-            get => s_Handler?.RegisteredTargetCapacity ?? 0;
-            set
-            {
-                if (s_Handler == null) return;
-                s_Handler.RegisteredTargetCapacity = value;
-            }
-        }
-
-        /// <summary>
         /// 无引用资源句柄进入 Idle 后的过期秒数。
         /// </summary>
         public static float IdleAssetExpireTime
@@ -470,20 +456,6 @@ namespace Moirai.Atropos.Resource
         /// </summary>
         public static UniTask<ResourceLeaseHandle> AcquireDirectAsync(ResourceKey key, CancellationToken cancellationToken = default) =>
             RequireHandler().AcquireDirectAsync(key, cancellationToken);
-
-        /// <summary>
-        /// 尝试使用显式资源 Key 获取一个直接资源租约。
-        /// </summary>
-        public static bool TryAcquireDirect(ResourceKey key, out ResourceLeaseHandle handle)
-        {
-            if (s_Handler == null)
-            {
-                handle = ResourceLeaseHandle.Invalid;
-                return false;
-            }
-
-            return s_Handler.TryAcquireDirect(key, out handle);
-        }
 
         /// <summary>
         /// 释放一个显式资源租约。

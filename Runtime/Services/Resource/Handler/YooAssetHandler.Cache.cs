@@ -11,7 +11,6 @@ namespace Moirai.Atropos.Resource
         private int _assetLeaseCapacity = 128;
         private int _bindingOwnerCapacity = 64;
         private int _bindingSlotCapacity = 128;
-        private int _registeredTargetCapacity = 128;
         private float _idleAssetExpireTime = 60f;
         private int _idleAssetCapacity = 256;
 
@@ -64,17 +63,6 @@ namespace Moirai.Atropos.Resource
         }
 
         /// <inheritdoc />
-        public override int RegisteredTargetCapacity
-        {
-            get => _registeredTargetCapacity;
-            set
-            {
-                _registeredTargetCapacity = value > 0 ? value : 0;
-                WarmupBindingRecords();
-            }
-        }
-
-        /// <inheritdoc />
         public override float IdleAssetExpireTime
         {
             get => _idleAssetExpireTime;
@@ -117,7 +105,7 @@ namespace Moirai.Atropos.Resource
 
         private void WarmupBindingRecords()
         {
-            _bindingService?.Warmup(_bindingOwnerCapacity, _bindingSlotCapacity, _registeredTargetCapacity);
+            _bindingService?.Warmup(_bindingOwnerCapacity, _bindingSlotCapacity);
             ResourceOwner.WarmupReleaseBuffer(_bindingOwnerCapacity);
         }
 

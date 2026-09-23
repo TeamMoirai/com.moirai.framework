@@ -3,7 +3,7 @@ using System;
 namespace Moirai.Atropos.Resource
 {
     /// <summary>
-    /// 分页槽位分配——Owner / Binding / RegisteredTarget 三类页表的借用、归还与页构造。
+    /// 分页槽位分配——Owner / Binding 两类页表的借用、归还与页构造。
     /// </summary>
     partial class ResourceBindingService
     {
@@ -32,7 +32,6 @@ namespace Moirai.Atropos.Resource
             slot = default;
             slot.Generation = generation;
             slot.BindingHead = -1;
-            slot.RegisteredTargetHead = -1;
             slot.NextFree = -1;
             return index;
         }
@@ -80,36 +79,6 @@ namespace Moirai.Atropos.Resource
             _bindingFreeHead = index;
         }
 
-        private int AllocateRegisteredTargetSlot()
-        {
-            int index;
-            if (_registeredTargetFreeHead >= 0)
-            {
-                index = _registeredTargetFreeHead;
-                ref RegisteredTargetSlot free = ref GetRegisteredTargetSlotRef(index);
-                _registeredTargetFreeHead = free.NextFree;
-            }
-            else
-            {
-                index = _registeredTargetNextIndex++;
-                EnsureRegisteredTargetPage(index);
-            }
-
-            ref RegisteredTargetSlot slot = ref GetRegisteredTargetSlotRef(index);
-            slot = default;
-            slot.NextByOwner = -1;
-            slot.NextFree = -1;
-            return index;
-        }
-
-        private void FreeRegisteredTargetSlot(int index)
-        {
-            ref RegisteredTargetSlot slot = ref GetRegisteredTargetSlotRef(index);
-            slot = default;
-            slot.NextFree = _registeredTargetFreeHead;
-            _registeredTargetFreeHead = index;
-        }
-
         private bool IsValidOwnerIndex(int index)
         {
             return index >= 0 && index < _ownerNextIndex && _ownerPages != null &&
@@ -124,11 +93,6 @@ namespace Moirai.Atropos.Resource
         private ref BindingSlot GetBindingSlotRef(int index)
         {
             return ref _bindingPages[index >> PAGE_BITS][index & PAGE_MASK];
-        }
-
-        private ref RegisteredTargetSlot GetRegisteredTargetSlotRef(int index)
-        {
-            return ref _registeredTargetPages[index >> PAGE_BITS][index & PAGE_MASK];
         }
 
         private void EnsureOwnerPage(int index)
@@ -164,25 +128,6 @@ namespace Moirai.Atropos.Resource
             if (_bindingPages[page] == null)
             {
                 _bindingPages[page] = new BindingSlot[PAGE_SIZE];
-            }
-        }
-
-        private void EnsureRegisteredTargetPage(int index)
-        {
-            int page = index >> PAGE_BITS;
-            if (_registeredTargetPages == null)
-            {
-                _registeredTargetPages = new RegisteredTargetSlot[Math.Max(4, page + 1)][];
-            }
-            else if (page >= _registeredTargetPages.Length)
-            {
-                System.Array.Resize(ref _registeredTargetPages,
-                    Math.Max(page + 1, _registeredTargetPages.Length << 1));
-            }
-
-            if (_registeredTargetPages[page] == null)
-            {
-                _registeredTargetPages[page] = new RegisteredTargetSlot[PAGE_SIZE];
             }
         }
     }

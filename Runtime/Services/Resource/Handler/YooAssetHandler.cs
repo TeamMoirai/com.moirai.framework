@@ -441,20 +441,9 @@ namespace Moirai.Atropos.Resource
         #endregion
         #region 句柄获取 [HANDLE ACCESS]
 
-        private AssetHandle GetHandleSync<T>(string location, string packageName = "") where T : UObject
-        {
-            return GetHandleSync(location, typeof(T), packageName);
-        }
-
         private AssetHandle GetHandleSync(string location, Type assetType, string packageName = "")
         {
             return GetPackageOrThrow(packageName).LoadAssetSync(location, assetType);
-        }
-
-        private AssetHandle GetHandleAsync<T>(string location, string packageName = "", uint priority = 0)
-            where T : UObject
-        {
-            return GetHandleAsync(location, typeof(T), packageName, priority);
         }
 
         private AssetHandle GetHandleAsync(string location, Type assetType, string packageName = "",

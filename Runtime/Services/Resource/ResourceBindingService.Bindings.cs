@@ -326,7 +326,7 @@ namespace Moirai.Atropos.Resource
         public EResourceBindStatus BindSharedMaterial(ResourceOwner owner, Renderer renderer, ResourceKey key,
             EResourceBindingOption options = EResourceBindingOption.None)
         {
-            return BindMaterialInternal(owner, renderer, key, false, options, 0, default, false);
+            return BindMaterialInternal(owner, renderer, key, false, options);
         }
 
         /// <inheritdoc />
@@ -341,7 +341,7 @@ namespace Moirai.Atropos.Resource
         public EResourceBindStatus BindMaterialInstance(ResourceOwner owner, Renderer renderer, ResourceKey key,
             EResourceBindingOption options = EResourceBindingOption.None)
         {
-            return BindMaterialInternal(owner, renderer, key, true, options, 0, default, false);
+            return BindMaterialInternal(owner, renderer, key, true, options);
         }
 
         /// <inheritdoc />
@@ -367,7 +367,7 @@ namespace Moirai.Atropos.Resource
 
             ref OwnerSlot ownerSlot = ref GetOwnerSlotRef(ownerIndex);
             BindingSlotKey slotKey = new BindingSlotKey(ownerSlot.GameObjectId,
-                EResourceBindingSlotType.PrefabSource, 0);
+                EResourceBindingSlotType.PrefabSource);
             OwnerSlotKey key = new OwnerSlotKey(ownerSlot.OwnerId, slotKey);
             if (!_bindingIndexByOwnerSlot.TryGetValue(key, out int bindingIndex))
             {
@@ -390,7 +390,6 @@ namespace Moirai.Atropos.Resource
             binding.AppliedAsset = prefabSource;
             binding.RuntimeObject = null;
             binding.AssetId = _handler.TryGetLeaseAssetId(lease, out int assetId) ? assetId : -1;
-            binding.ViewKeyId = 0;
             binding.Lease = lease;
             binding.SlotType = EResourceBindingSlotType.PrefabSource;
             binding.Flags = (byte)EResourceBindingOption.KeepAliveOnRelease;
@@ -404,6 +403,7 @@ namespace Moirai.Atropos.Resource
             return EResourceBindStatus.Success;
         }
 
+        // 5 参重载是清扫测试造绑定数据的接缝，生产路径一律走下面的完整重载。
         internal EResourceBindStatus RegisterSpriteSource(ResourceOwner owner, Component target,
             ResourceLeaseHandle lease, Sprite sprite, EResourceBindingSlotType slotType)
         {
@@ -431,7 +431,7 @@ namespace Moirai.Atropos.Resource
             }
 
             ref OwnerSlot ownerSlot = ref GetOwnerSlotRef(ownerIndex);
-            BindingSlotKey slotKey = new BindingSlotKey(UnityObjectId.Get(target), slotType, 0);
+            BindingSlotKey slotKey = new BindingSlotKey(UnityObjectId.Get(target), slotType);
             OwnerSlotKey ownerSlotKey = new OwnerSlotKey(ownerSlot.OwnerId, slotKey);
             if (!_bindingIndexByOwnerSlot.TryGetValue(ownerSlotKey, out int bindingIndex))
             {
@@ -454,7 +454,6 @@ namespace Moirai.Atropos.Resource
             binding.AppliedAsset = sprite;
             binding.RuntimeObject = null;
             binding.AssetId = _handler.TryGetLeaseAssetId(lease, out int assetId) ? assetId : -1;
-            binding.ViewKeyId = 0;
             binding.Lease = lease;
             binding.SlotType = slotType;
             binding.Flags = (byte)options;
@@ -481,14 +480,6 @@ namespace Moirai.Atropos.Resource
             return EResourceBindStatus.Success;
         }
 
-        internal EResourceBindStatus RegisterMaterialSource(ResourceOwner owner, Component target,
-            ResourceLeaseHandle lease, Material appliedMaterial, Material runtimeMaterial,
-            EResourceBindingSlotType slotType)
-        {
-            return RegisterMaterialSource(owner, target, lease, appliedMaterial, runtimeMaterial, slotType,
-                EResourceBindingOption.None, 0);
-        }
-
         private EResourceBindStatus RegisterMaterialSource(ResourceOwner owner, Component target,
             ResourceLeaseHandle lease, Material appliedMaterial, Material runtimeMaterial,
             EResourceBindingSlotType slotType, EResourceBindingOption options, uint reservedVersion)
@@ -510,7 +501,7 @@ namespace Moirai.Atropos.Resource
             }
 
             ref OwnerSlot ownerSlot = ref GetOwnerSlotRef(ownerIndex);
-            BindingSlotKey slotKey = new BindingSlotKey(UnityObjectId.Get(target), slotType, 0);
+            BindingSlotKey slotKey = new BindingSlotKey(UnityObjectId.Get(target), slotType);
             OwnerSlotKey ownerSlotKey = new OwnerSlotKey(ownerSlot.OwnerId, slotKey);
             if (!_bindingIndexByOwnerSlot.TryGetValue(ownerSlotKey, out int bindingIndex))
             {
@@ -534,7 +525,6 @@ namespace Moirai.Atropos.Resource
             binding.AppliedAsset = appliedMaterial;
             binding.RuntimeObject = runtimeMaterial;
             binding.AssetId = _handler.TryGetLeaseAssetId(lease, out int assetId) ? assetId : -1;
-            binding.ViewKeyId = 0;
             binding.Lease = lease;
             binding.SlotType = slotType;
             binding.Flags = (byte)options;
@@ -566,8 +556,7 @@ namespace Moirai.Atropos.Resource
         #region 材质绑定内部 [MATERIAL BIND INTERNALS]
 
         private EResourceBindStatus BindMaterialInternal(ResourceOwner owner, Renderer renderer, ResourceKey key,
-            bool createRuntimeInstance, EResourceBindingOption options, uint reservedVersion,
-            BindingSlotKey _, bool isAsync)
+            bool createRuntimeInstance, EResourceBindingOption options)
         {
             EResourceBindStatus status = EnsureOwner(owner, out int _);
             if (status != EResourceBindStatus.Success)
@@ -776,7 +765,6 @@ namespace Moirai.Atropos.Resource
             binding.RuntimeObject = null;
             binding.Lease = ResourceLeaseHandle.Invalid;
             binding.AssetId = 0;
-            binding.ViewKeyId = 0;
             binding.Flags = 0;
 
             if (lease.IsValid)
@@ -865,54 +853,6 @@ namespace Moirai.Atropos.Resource
                         owner.BindingCount--;
                     }
 
-                    return;
-                }
-
-                previous = current;
-                current = next;
-            }
-        }
-
-        private void RemoveRegisteredTargetSlot(int ownerId, uint ownerGeneration, ulong targetComponentId)
-        {
-            int ownerIndex = ownerId - 1;
-            if (!IsValidOwnerIndex(ownerIndex))
-            {
-                return;
-            }
-
-            ref OwnerSlot owner = ref GetOwnerSlotRef(ownerIndex);
-            if (owner.State != 1 || owner.Generation != ownerGeneration)
-            {
-                return;
-            }
-
-            int previous = -1;
-            int current = owner.RegisteredTargetHead;
-            while (current >= 0)
-            {
-                ref RegisteredTargetSlot target = ref GetRegisteredTargetSlotRef(current);
-                int next = target.NextByOwner;
-                if (target.TargetComponentId == targetComponentId &&
-                    target.OwnerId == ownerId &&
-                    target.OwnerGeneration == ownerGeneration)
-                {
-                    if (previous >= 0)
-                    {
-                        ref RegisteredTargetSlot prevTarget = ref GetRegisteredTargetSlotRef(previous);
-                        prevTarget.NextByOwner = next;
-                    }
-                    else
-                    {
-                        owner.RegisteredTargetHead = next;
-                    }
-
-                    if (owner.RegisteredTargetCount > 0)
-                    {
-                        owner.RegisteredTargetCount--;
-                    }
-
-                    FreeRegisteredTargetSlot(current);
                     return;
                 }
 
