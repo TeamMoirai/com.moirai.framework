@@ -37,6 +37,12 @@ namespace Moirai.Atropos.Resource
         StaleOwner = 4,
 
         /// <summary>
+        /// 请求已被调用方取消。与"加载失败"分道：取消是调用方主动要的结果，
+        /// 按失败处理会让上层把它当成后端故障去重试或告警。
+        /// </summary>
+        Cancelled = 5,
+
+        /// <summary>
         /// 加载失败。
         /// </summary>
         LoadFailed = 6,
@@ -50,11 +56,6 @@ namespace Moirai.Atropos.Resource
         /// 服务已关闭。
         /// </summary>
         ServiceShutdown = 8,
-
-        /// <summary>
-        /// 未实现。
-        /// </summary>
-        NotImplemented = 9,
     }
 
     /// <summary>

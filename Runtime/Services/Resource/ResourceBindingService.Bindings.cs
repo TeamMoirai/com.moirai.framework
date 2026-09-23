@@ -144,9 +144,21 @@ namespace Moirai.Atropos.Resource
                 return reserveStatus;
             }
 
-            ResourceLeaseHandle newLease = await _handler.AcquireSubAssetsBindingAsync(
-                atlasKey.Location, atlasKey.PackageName,
-                ToLeaseOptions(options), cancellationToken);
+            // 取用抛出时必须先取消预约位：后端未实现该异步能力时无条件抛（见 AddressableHandler），
+            // 而抛出的预约位形状是"有目标、有版本号、无租约无资源"——除所有者释放外无人再收它。
+            ResourceLeaseHandle newLease;
+            try
+            {
+                newLease = await _handler.AcquireSubAssetsBindingAsync(
+                    atlasKey.Location, atlasKey.PackageName,
+                    ToLeaseOptions(options), cancellationToken);
+            }
+            catch
+            {
+                CancelReservedBindingRequest(ownerId, ownerGeneration, slotKey, requestVersion);
+                throw;
+            }
+
             if (!newLease.IsValid)
             {
                 CancelReservedBindingRequest(ownerId, ownerGeneration, slotKey, requestVersion);
@@ -175,7 +187,7 @@ namespace Moirai.Atropos.Resource
                 _handler.Release(newLease);
                 CancelReservedBindingRequest(ownerId, ownerGeneration, slotKey, requestVersion);
                 return cancellationToken.IsCancellationRequested
-                    ? EResourceBindStatus.LoadFailed
+                    ? EResourceBindStatus.Cancelled
                     : EResourceBindStatus.StaleOwner;
             }
 
@@ -257,7 +269,16 @@ namespace Moirai.Atropos.Resource
             ResourceKey materialKey = key.AssetType == null
                 ? new ResourceKey(key.Location, key.PackageName, typeof(Material), EResourceAssetKind.Material)
                 : key;
-            ResourceLeaseHandle newLease = await _handler.AcquireBindingAsync(materialKey, cancellationToken);
+            ResourceLeaseHandle newLease;
+            try
+            {
+                newLease = await _handler.AcquireBindingAsync(materialKey, cancellationToken);
+            }
+            catch
+            {
+                CancelReservedBindingRequest(ownerId, ownerGeneration, slotKey, requestVersion);
+                throw;
+            }
             if (!newLease.IsValid)
             {
                 CancelReservedBindingRequest(ownerId, ownerGeneration, slotKey, requestVersion);
@@ -286,7 +307,7 @@ namespace Moirai.Atropos.Resource
                 _handler.Release(newLease);
                 CancelReservedBindingRequest(ownerId, ownerGeneration, slotKey, requestVersion);
                 return cancellationToken.IsCancellationRequested
-                    ? EResourceBindStatus.LoadFailed
+                    ? EResourceBindStatus.Cancelled
                     : EResourceBindStatus.StaleOwner;
             }
 
@@ -643,7 +664,16 @@ namespace Moirai.Atropos.Resource
             ResourceKey materialKey = key.AssetType == null
                 ? new ResourceKey(key.Location, key.PackageName, typeof(Material), EResourceAssetKind.Material)
                 : key;
-            ResourceLeaseHandle newLease = await _handler.AcquireBindingAsync(materialKey, cancellationToken);
+            ResourceLeaseHandle newLease;
+            try
+            {
+                newLease = await _handler.AcquireBindingAsync(materialKey, cancellationToken);
+            }
+            catch
+            {
+                CancelReservedBindingRequest(ownerId, ownerGeneration, slotKey, requestVersion);
+                throw;
+            }
             if (!newLease.IsValid)
             {
                 CancelReservedBindingRequest(ownerId, ownerGeneration, slotKey, requestVersion);
@@ -672,7 +702,7 @@ namespace Moirai.Atropos.Resource
                 _handler.Release(newLease);
                 CancelReservedBindingRequest(ownerId, ownerGeneration, slotKey, requestVersion);
                 return cancellationToken.IsCancellationRequested
-                    ? EResourceBindStatus.LoadFailed
+                    ? EResourceBindStatus.Cancelled
                     : EResourceBindStatus.StaleOwner;
             }
 

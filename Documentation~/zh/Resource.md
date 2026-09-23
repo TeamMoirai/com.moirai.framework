@@ -311,7 +311,7 @@ public sealed class ResourceOwner : MonoBehaviour
 
 ### ResourceBindStatus
 
-枚举值：`Success / InvalidKey / MissingOwner / MissingTarget / StaleOwner / LoadFailed / ApplyFailed / ServiceShutdown / NotImplemented`
+枚举值：`Success / InvalidKey / MissingOwner / MissingTarget / StaleOwner / Cancelled / LoadFailed / ApplyFailed / ServiceShutdown`
 
 ### ResourceBindingOptions
 

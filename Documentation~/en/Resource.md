@@ -313,7 +313,7 @@ public sealed class ResourceOwner : MonoBehaviour
 
 ### ResourceBindStatus
 
-Enum values: `Success / InvalidKey / MissingOwner / MissingTarget / StaleOwner / LoadFailed / ApplyFailed / ServiceShutdown / NotImplemented`
+Enum values: `Success / InvalidKey / MissingOwner / MissingTarget / StaleOwner / Cancelled / LoadFailed / ApplyFailed / ServiceShutdown`
 
 ### ResourceBindingOptions
 

@@ -114,6 +114,18 @@ namespace Moirai.Atropos.Resource
         private static void CollectException(ref List<Exception> exceptions, Exception exception)
         {
             exceptions ??= new List<Exception>();
+            // 摊平一层：内层收尾已把单条异常包成 AggregateException 上抛，外层再整只收进来
+            // 就成了 AggregateException(AggregateException(...))，排查时要 Flatten() 才看得到根因。
+            if (exception is AggregateException aggregate)
+            {
+                for (int i = 0; i < aggregate.InnerExceptions.Count; i++)
+                {
+                    exceptions.Add(aggregate.InnerExceptions[i]);
+                }
+
+                return;
+            }
+
             exceptions.Add(exception);
         }
 
