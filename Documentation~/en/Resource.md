@@ -15,7 +15,7 @@ The internal engine uses **paged slot arrays** (`AssetSlot[][]`, `LeaseSlot[][]`
 - Four play modes: `EditorSimulateMode` (editor simulation), `OfflinePlayMode` (standalone), `HostPlayMode` (online hot update), `WebPlayMode` (WebGL, supports WeChat Mini Game file system)
 - **Timer-wheel expiry:** Idle assets (refcount = 0) are released after `IdleAssetExpireTime` seconds, or immediately when the idle record count exceeds `IdleAssetCapacity` (the longest-idle record goes first). Keep-alive leases extend the lifetime temporarily. `ProcessResourceMaintenance` processes both queues in O(1) per frame and rotates a reclaim sweep over destroyed owners/bindings.
 - **Loading dedup:** Concurrent loads of the same address share a single `LoadingOperationState` (pooled `MemoryObject`), with waiter tracking and cancellation support.
-- Asset encryption: `EncryptionType.FileOffSet` (32-byte offset) and `EncryptionType.FileStream` (XOR stream encryption), with web-side decryption implementation
+- Asset encryption: `YooAssetEncryptorHandler` 的 `FileOffsetEncryptorHandler` (32-byte offset) and `FileStreamEncryptorHandler` (XOR stream encryption), with web-side decryption implementation
 - Hot update download: Request remote manifest version, update manifest, create downloader, and clear cache files, all available
 
 ## Core Types
@@ -29,8 +29,8 @@ Namespace: `Moirai.Atropos.Resource`
 | `ResourceLeaseHandle` | Generation-validated slot handle (`readonly struct`) for safe resource references. Fields: `Index`, `Generation`. Static `Invalid` represents an invalid handle. `IsValid` checks validity. |
 | `ResourceAssetLease<T>` | Typed lease (`struct`, implements `IDisposable`) that holds a resource object and auto-releases on `Dispose`. Supports `using` statements. Fields: `Asset`, `Handle`, `IsValid`. |
 | `ResourceKey` | `readonly struct` describing resource location, package, type, and kind. Factory method `ResourceKey.Asset<T>(location, packageName)` creates a typed key. `HasResolvedIds` checks internal ID resolution. |
-| `ResourceAssetKind` | Enum: `Unknown / Asset / Sprite / Material / Prefab / SubAssets` |
-| `ResourceAssetState` | Enum: `Released / Loading / Active / KeepAlive / Idle` |
+| `EResourceAssetKind` | Enum: `Unknown / Asset / Sprite / Material / Prefab / SubAssets` |
+| `EResourceAssetState` | Enum: `Released / Loading / Active / KeepAlive / Idle` |
 | `ResourceAssetInfo` | Diagnostic snapshot struct: LoadKeyId, Package, Location, TypeName, Kind, State, DirectRefCount, BindingRefCount, KeepAliveRefCount, RefCountTotal, IdleExpireIn, etc. |
 | `ResourceBindingInfo` | Diagnostic snapshot struct for bindings: Active, BindingIndex, OwnerId, TargetComponentId, Lease, Version, SlotType, HasAppliedAsset, etc. |
 | `ResourceOwnerInfo` | Diagnostic snapshot struct for owners: Active, OwnerIndex, OwnerId, GameObjectId, Generation, BindingCount. |
@@ -40,18 +40,18 @@ Namespace: `Moirai.Atropos.Resource`
 | Class/Interface | Description |
 |---------|------|
 | `ResourceService` | Static facade (`[HandlerHost]`) defining all APIs for loading, leasing, binding, unloading, and package operations; all static methods/properties forward through the `Handler` property (fail-fast: lazily initialized when not ready, throws if the default factory is missing, never silently degrades). Configuration is injected in `OnInit`; the per-frame driver (timer-wheel advancement, unload scheduling, GC throttling, destroyed-slot reclaim) runs in `Tick` |
-| `YooAssetHandler` | Default backend, `partial` split by responsibility: main (base properties, unload scheduling, asset info queries, prefab instantiation) / Records (paged slot & lease system) / Loading (load core & dedup) / Expiry (timer-wheel expiry, idle capacity eviction, record release) / Keys (packed-key codec & resource-name registry) / Initialization (package init, manifest update, download adapters) / Cache (capacity & warmup) / Scene (scene loading) |
+| `YooAssetHandler` | Default backend, `partial` split by responsibility: main (base properties, unload scheduling, asset info queries, prefab instantiation) / Records (paged slot & lease system) / Loading (load core & dedup) / Expiry (timer-wheel expiry, idle capacity eviction, record release) / Keys (packed-key codec & resource-name registry) / Initialization (package init, manifest update, download adapters) / Cache (capacity & warmup) / Scene (scene loading) / Attributes (editor-only `CollectorPackageDropdown`) |
 | `ResourceBindingService` | Binding service implementation (`internal sealed`), `partial` split by responsibility: main (owner registration, release, slot snapshots) / Bindings (binding registration & component application) / Async (async binding safety, request reservation and generation checks) / Maintenance (shutdown, reset, destroyed-slot reclaim) / Slots (paged slot allocation) |
 | `ResourceServiceHandler` | Handler abstract base class defining the backend contract; default implementation `YooAssetHandler` (plus experimental `AddressableHandler`) |
 | `IResourceBindingService` | Declarative resource-component binding service interface, accessed via `ResourceService.BindingService` |
 | `ResourceOwner` | MonoBehaviour component (`[DisallowMultipleComponent]`), auto-releases all bindings on `OnDestroy`. Provides `ReleaseBindings()` and `EnsureFor(target, bindingService)`. A single binding owner throwing is recorded without truncating the rest, rethrown aggregated at the end. |
-| `ResourceBindingExtensions` | Static extension class: `Image/SpriteRenderer.SetSprite`, `Image/SpriteRenderer.SetSubSprite`, `Image/SpriteRenderer/MeshRenderer.SetMaterial`, `MeshRenderer.SetSharedMaterial` |
-| `ResourceBindingTypes` | Binding-related enums and interfaces: `ResourceBindStatus`, `ResourceBindingOptions`, `ResourceBindingSlotType` |
+| `ResourceBindingExtension` | Static extension class: `Image/SpriteRenderer.SetSprite`, `Image/SpriteRenderer.SetSubSprite`, `Image/SpriteRenderer/MeshRenderer.SetMaterial`, `MeshRenderer.SetSharedMaterial` |
+| `ResourceBindingService` | Binding-related enums and interfaces: `EResourceBindStatus`, `EResourceBindingOptions`, `EResourceBindingSlotType` |
 | `EResourceHasAssetResult` | Asset existence check result (three-value semantics): `NotExist` (not found) / `AssetOnline` (exists but needs remote download) / `AssetOnDisk` (exists and available on disk) |
-| `EncryptionType` | Encryption method enum: `None / FileOffSet / FileStream` |
-| `FileStreamEncryption` / `FileOffsetEncryption` | Build-side encryption services (implement YooAsset `IEncryptionServices`) |
-| `FileStreamDecryption` / `FileOffsetDecryption` and Web variants | Runtime decryption services (implement `IDecryptionServices` / `IWebDecryptionServices`) |
-| `RemoteServices` | Remote resource address query service (internal), concatenates primary/backup URLs |
+| `YooAssetEncryptorHandler` | 加密配置的抽象基类（`[SerializeReference]` 挂在 `YooAssetHandler` 上）：`CreateEncryptor()` 供打包侧、`CreateDecryptor()` 供运行侧；内置 `FileOffset*` 与 `FileStream*` 两套实现，打包侧与运行侧必须选同一套 |
+| `FileStreamEncryptor` / `FileOffsetEncryptor` | Build-side encryption services (implement YooAsset `IEncryptionServices`) |
+| `FileStreamDecryptor` / `FileOffsetDecryptor` and Web variants | Runtime decryption services (implement `IDecryptionServices` / `IWebDecryptionServices`) |
+| `RemoteService` | Remote resource address query service (internal), concatenates primary/backup URLs |
 | `ResourceUlongIntMap` | Custom open-addressing `ulong→int` hash map with Murmur finalizer, SoA layout, zero GC on hot path (internal) |
 | `ResourceIndexMap<TKey,TValue>` | Generic open-addressing hash map using struct keys/values, zero GC hot path (internal) |
 | `LoadingOperationState` | Pooled `MemoryObject` for async loading dedup: tracks AssetHandle/SubAssetsHandle, waiter count, completion state (internal) |
@@ -170,7 +170,7 @@ Two circular bucket arrays (256 buckets each) drive O(1) per-frame expiry:
 - **Keep-alive buckets:** When a lease is released with `KeepAliveOnRelease` option, the asset's keep-alive refcount is incremented and scheduled to expire after `IdleAssetExpireTime` seconds.
 - **Capacity cap:** When idle records exceed `IdleAssetCapacity`, the one with the earliest expiry tick (i.e. idle the longest) is released immediately, without waiting for its expiry; lowering the cap takes effect at once.
 
-`ProcessResourceMaintenance(unscaledTime, maxProcessCount)` is called every frame by the facade, processing both queues and releasing assets whose expiry tick has passed; capacity-driven eviction runs after the wheel walk, so removing records never skips the rest of a bucket during the same frame.
+`ProcessResourceMaintenance(unscaledTime, expireBudget, destroySweepBudget)` is called every frame by the facade, processing both queues and releasing assets whose expiry tick has passed; capacity-driven eviction runs after the wheel walk, so removing records never skips the rest of a bucket during the same frame.
 
 ### Loading Dedup
 
@@ -210,11 +210,11 @@ public readonly struct ResourceKey
     public readonly string PackageName;
     public readonly string Location;
     public readonly Type AssetType;
-    public readonly ResourceAssetKind AssetKind;
+    public readonly EResourceAssetKind AssetKind;
     public bool HasResolvedIds { get; }
 
     public ResourceKey(string location, string packageName = "", Type assetType = null,
-        ResourceAssetKind assetKind = ResourceAssetKind.Unknown);
+        EResourceAssetKind assetKind = EResourceAssetKind.Unknown);
 
     // Factory: creates a typed key for asset loading
     public static ResourceKey Asset<T>(string location, string packageName = "") where T : UnityEngine.Object;
@@ -248,7 +248,7 @@ public sealed class ResourceOwner : MonoBehaviour
     public uint Generation { get; }
     public bool IsRegistered { get; }
 
-    public ResourceBindStatus ReleaseBindings(); // Release all bindings on this owner
+    public EResourceBindStatus ReleaseBindings(); // Release all bindings on this owner
 
     // Ensure a ResourceOwner exists on the target component's GameObject
     public static ResourceOwner EnsureFor(Component target, IResourceBindingService bindingService);
@@ -261,31 +261,31 @@ public sealed class ResourceOwner : MonoBehaviour
 
 | Method | Description |
 |--------|-------------|
-| `ResourceBindStatus RegisterOwner(ResourceOwner owner)` | Register an owner. |
-| `ResourceBindStatus ReleaseOwner(ResourceOwner owner)` | Release an owner and all its bindings. |
-| `ResourceBindStatus ReleaseOwner(int ownerId, uint generation)` | Release by ID + generation. |
+| `EResourceBindStatus RegisterOwner(ResourceOwner owner)` | Register an owner. |
+| `EResourceBindStatus ReleaseOwner(ResourceOwner owner)` | Release an owner and all its bindings. |
+| `EResourceBindStatus ReleaseOwner(int ownerId, uint generation)` | Release by ID + generation. |
 | `void Warmup(int ownerCapacity, int bindingCapacity)` | Preallocate binding data structures. |
-| `ResourceBindStatus BindSprite(ResourceOwner, Image, ResourceKey, options)` | Bind a sprite to an Image. |
-| `ResourceBindStatus BindSprite(ResourceOwner, SpriteRenderer, ResourceKey, options)` | Bind a sprite to a SpriteRenderer. |
-| `UniTask<ResourceBindStatus> BindSubSpriteAsync(ResourceOwner, Image, ResourceKey atlasKey, string spriteName, options, CancellationToken)` | Async bind a sub-sprite from an atlas. |
-| `ResourceBindStatus BindImageMaterial(ResourceOwner, Image, ResourceKey, options)` | Bind a material to an Image. |
-| `UniTask<ResourceBindStatus> BindImageMaterialAsync(ResourceOwner, Image, ResourceKey, options, CancellationToken)` | Async bind a material to an Image. |
-| `ResourceBindStatus BindSharedMaterial(ResourceOwner, Renderer, ResourceKey, options)` | Bind shared material to a Renderer. |
-| `UniTask<ResourceBindStatus> BindSharedMaterialAsync(ResourceOwner, Renderer, ResourceKey, options, CancellationToken)` | Async bind shared material. |
-| `ResourceBindStatus BindMaterialInstance(ResourceOwner, Renderer, ResourceKey, options)` | Bind material instance (runtime copy) to a Renderer. |
-| `UniTask<ResourceBindStatus> BindMaterialInstanceAsync(ResourceOwner, Renderer, ResourceKey, options, CancellationToken)` | Async bind material instance. |
+| `EResourceBindStatus BindSprite(ResourceOwner, Image, ResourceKey, options)` | Bind a sprite to an Image. |
+| `EResourceBindStatus BindSprite(ResourceOwner, SpriteRenderer, ResourceKey, options)` | Bind a sprite to a SpriteRenderer. |
+| `UniTask<EResourceBindStatus> BindSubSpriteAsync(ResourceOwner, Image, ResourceKey atlasKey, string spriteName, options, CancellationToken)` | Async bind a sub-sprite from an atlas. |
+| `EResourceBindStatus BindImageMaterial(ResourceOwner, Image, ResourceKey, options)` | Bind a material to an Image. |
+| `UniTask<EResourceBindStatus> BindImageMaterialAsync(ResourceOwner, Image, ResourceKey, options, CancellationToken)` | Async bind a material to an Image. |
+| `EResourceBindStatus BindSharedMaterial(ResourceOwner, Renderer, ResourceKey, options)` | Bind shared material to a Renderer. |
+| `UniTask<EResourceBindStatus> BindSharedMaterialAsync(ResourceOwner, Renderer, ResourceKey, options, CancellationToken)` | Async bind shared material. |
+| `EResourceBindStatus BindMaterialInstance(ResourceOwner, Renderer, ResourceKey, options)` | Bind material instance (runtime copy) to a Renderer. |
+| `UniTask<EResourceBindStatus> BindMaterialInstanceAsync(ResourceOwner, Renderer, ResourceKey, options, CancellationToken)` | Async bind material instance. |
 | `int GetOwnerInfos(ResourceOwnerInfo[], int, int)` | Diagnostic: batch query owner states. |
 | `int GetBindingInfos(ResourceBindingInfo[], int, int)` | Diagnostic: batch query binding states. |
 
-### ResourceBindStatus
+### EResourceBindStatus
 
 Enum values: `Success / InvalidKey / MissingOwner / MissingTarget / StaleOwner / Cancelled / LoadFailed / ApplyFailed / ServiceShutdown`
 
-### ResourceBindingOptions
+### EResourceBindingOptions
 
 Flags enum: `None / KeepAliveOnRelease / SetNativeSize`
 
-### Extension Methods (ResourceBindingExtensions)
+### Extension Methods (ResourceBindingExtension)
 
 | Extension | Description |
 |-----------|-------------|
@@ -344,7 +344,7 @@ Batch query for asset record states. Returns the number of entries written. Each
 | `void UnloadUnusedAssets(bool force)` | `force=true`: ignores idle expire time, immediately processes keep-alive queue and releases all unused records. |
 | `void ForceUnloadAllAssets()` | Force unload all assets on all packages (not supported on WebGL — prints warning). |
 | `void ForceUnloadUnusedAssets(bool performGCCollect)` | Triggers the driver's force-unload path (optionally with GC.Collect). |
-| `void ProcessResourceMaintenance(float unscaledTime, int maxProcessCount)` | Per-frame resource maintenance: timer-wheel expiry (idle + keep-alive buckets), idle capacity eviction, destroyed-slot reclaim sweep. **internal**, called by `ResourceService.Tick()`. |
+| `void ProcessResourceMaintenance(float unscaledTime, int expireBudget, int destroySweepBudget)` | Per-frame resource maintenance: timer-wheel expiry (idle + keep-alive buckets), idle capacity eviction, destroyed-slot reclaim sweep. **internal**, called by `ResourceService.Tick()`. |
 
 ## Configuration and Extensions
 
@@ -353,7 +353,7 @@ Batch query for asset record states. Returns the number of entries written. Each
 Configured on the Handler (`YooAssetHandler`) serialized fields of the `ResourceServiceSettings` asset in the editor (can also be switched via the menu `YooAsset/Editor PlayMode`; editor settings take precedence over serialized values; on device, `EditorSimulateMode` automatically falls back to `OfflinePlayMode`):
 
 - `PlayMode`: Four play modes, determines whether `InitPackage` uses simulated build, built-in file system, cache file system, or web file system
-- `EncryptionType`: `None / FileOffSet / FileStream`, the runtime creates the corresponding decryption service based on this
+- Encryption is decided by the `[SerializeReference]` `YooAssetHandler.EncryptorHandler` setting (no encryption when unset); the runtime creates the matching decryptor from it. The build-side and runtime-side handlers must be the same pair.
 - `PackageName`: Default resource package name (default `DefaultPackage`); for multi-package projects, use the `packageName` parameter in each API to specify other packages
 
 The following runtime configuration properties are promoted to the abstract contract, readable and writable on both the facade and the handler (the handler's serialized fields are the default source):
@@ -387,7 +387,7 @@ bool succeed2 = await ResourceService.InitPackageAsync("OtherPackage", "https://
 // Online mode: request remote version -> update manifest -> create downloader -> download
 var op = await ResourceService.RequestPackageVersionAsync();
 ResourceService.PackageVersion = op.PackageVersion;
-await ResourceService.UpdatePackageManifestAsync(ResourceService.PackageVersion);
+await ResourceService.LoadPackageManifestAsync(ResourceService.PackageVersion);
 var downloader = ResourceService.CreateResourceDownloader();   // then poll the downloader
 
 // Download size query: pending bytes for a location (for remaining-download UI; throws GameException on invalid location/package)
@@ -396,7 +396,7 @@ bool needRemote = ResourceService.IsNeedDownloadFromRemote("Assets/AssetRaw/UI/l
 
 // Remote address and cache cleanup
 ResourceService.SetRemoteServicesUrl("https://cdn.example.com/res", "https://backup.example.com/res");
-ResourceService.ClearCacheFilesAsync();            // clear unused cache files
+ResourceService.ClearCacheAsync(EResourceClearMode.ClearUnusedBundleFiles);            // clear unused cache files
 ResourceService.ClearAllBundleFiles();             // clear sandbox path
 ```
 
@@ -422,7 +422,7 @@ using var lease = ResourceService.LoadLeaseAsync<GameObject>("path").GetAwaiter(
 - **Prefab instantiation:** `LoadGameObject` / `LoadGameObjectAsync` return an instantiated copy whose prefab source lease is held by the instance's `ResourceOwner`; `Destroy`-ing the instance releases the lease. Do not destroy the source prefab object itself, and do not treat the instance as a shared resource you own.
 - **Async cancellation:** `LoadLeaseAsync<T>` returns an invalid lease (`IsValid` is `false`, `Asset` is `null`) and releases its internal handle when cancelled (via `cancellationToken`); the caller must check for it. `LoadGameObjectAsync` likewise returns `null` when cancelled.
 - The WebGL platform does not support `ForceUnloadAllAssets`; calling it will only print a warning.
-- The build-side encryption method (`FileStreamEncryption`, etc.) must match the runtime decryption side. The XOR key for `BundleStream` is a fixed constant (`KEY = 64`), intended only to prevent direct reading.
+- The build-side encryption method (`FileStreamEncryptor`, etc.) must match the runtime decryption side. The XOR key for `BundleStream` is a fixed constant (`KEY = 64`), intended only to prevent direct reading.
 - `GetAssetInfo` caches results for the default package in a dictionary. After switching manifests (hot update completed), call `UnloadUnusedAssets()` first to get the latest information (this clears the cache).
 - On low memory, the system callback `GameApp.OnLowMemory` triggers `ForceUnloadUnusedAssets(true)`, followed by `Resources.UnloadUnusedAssets` and `GC.Collect`.
 
