@@ -116,6 +116,7 @@ namespace Moirai.Atropos.Resource
             bool useSystem = ResourceServiceSettings.UseSystemUnloadUnusedAssets;
             int expirePerFrame = ResourceServiceSettings.ExpireProcessCountPerFrame;
             int expireWhenUnloading = ResourceServiceSettings.ExpireProcessCountWhenUnloading;
+            int destroySweepBudget = ResourceServiceSettings.DestroySweepBudget;
             float minGCInterval = ResourceServiceSettings.MinGCCollectInterval;
 
             bool operationInFlight = s_AsyncOperation != null;
@@ -128,7 +129,7 @@ namespace Moirai.Atropos.Resource
                 maxInterval);
 
             int expireProcessCount = ResolveExpireProcessCount(shouldUnloadUnusedAssets, expirePerFrame, expireWhenUnloading);
-            s_Handler.ProcessResourceMaintenance(Time.unscaledTime, expireProcessCount);
+            s_Handler.ProcessResourceMaintenance(Time.unscaledTime, expireProcessCount, destroySweepBudget);
 
             s_LastUnloadElapsedSeconds += Time.unscaledDeltaTime;
             s_LastGCCollectElapsedSeconds += Time.unscaledDeltaTime;

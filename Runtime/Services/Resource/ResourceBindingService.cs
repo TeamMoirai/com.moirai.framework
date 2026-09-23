@@ -23,9 +23,6 @@ namespace Moirai.Atropos.Resource
 
         private const int PAGE_MASK = PAGE_SIZE - 1;
 
-        // 每帧销毁态轮转扫描的槽位配额
-        private const int DESTROYED_SWEEP_BUDGET = 64;
-
         #endregion
         #region 结构体 [STRUCTS]
 

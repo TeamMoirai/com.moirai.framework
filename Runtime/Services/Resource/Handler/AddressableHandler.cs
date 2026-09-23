@@ -554,10 +554,10 @@ namespace Moirai.Atropos.Resource
         #region 过期回收 [EXPIRY & RECYCLING]
 
         /// <inheritdoc />
-        internal override void ProcessResourceMaintenance(float unscaledTime, int maxCount)
+        internal override void ProcessResourceMaintenance(float unscaledTime, int expireBudget, int destroySweepBudget)
         {
             // 本后端不做记录级过期，但绑定槽位的销毁态回收与资源后端无关。
-            _bindingService?.ProcessDestroyedObjects();
+            _bindingService?.ProcessDestroyedObjects(destroySweepBudget);
         }
 
         /// <inheritdoc />

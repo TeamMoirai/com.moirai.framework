@@ -38,7 +38,7 @@ namespace Service.Resource
         {
             var handler = new YooAssetHandler();
 
-            Assert.DoesNotThrow(() => handler.ProcessResourceMaintenance(1234f, 16));
+            Assert.DoesNotThrow(() => handler.ProcessResourceMaintenance(1234f, 16, 64));
         }
 
         [Test]

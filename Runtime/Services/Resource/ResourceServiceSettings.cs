@@ -80,6 +80,13 @@ namespace Moirai.Atropos.Resource
         /// <summary>卸载时过期处理数量。</summary>
         public static int ExpireProcessCountWhenUnloading => Instance.m_ExpireProcessCountWhenUnloading;
 
+        [LabelText("销毁态轮转每帧查验数量")]
+        [Tooltip("兜底回收每帧各查验多少个所有者槽位与绑定槽位。场景卸载与退出播放时 OnDestroy 的销毁派发会被截断，" +
+                 "这些槽位连同其租约只能靠本配额轮转回收；调小会让回收延迟到 ceil(槽位数/配额) 帧，期间资源无法卸载。")]
+        [SerializeField] private int m_DestroySweepBudget = 64;
+        /// <summary>销毁态兜底回收每帧查验的槽位数量（所有者与绑定各一份）。</summary>
+        public static int DestroySweepBudget => Instance.m_DestroySweepBudget;
+
         #endregion
 
         #region 记录与租约 [RECORDS AND LEASE]

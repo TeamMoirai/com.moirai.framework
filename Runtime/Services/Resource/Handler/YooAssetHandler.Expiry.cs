@@ -8,18 +8,18 @@ namespace Moirai.Atropos.Resource
     /// </summary>
     partial class YooAssetHandler
     {
-        internal override void ProcessResourceMaintenance(float unscaledTime, int maxCount)
+        internal override void ProcessResourceMaintenance(float unscaledTime, int expireBudget, int destroySweepBudget)
         {
             // 销毁态兜底回收先于预算判定：没有到期记录可处理时，被销毁对象的槽位照样要收。
-            _bindingService?.ProcessDestroyedObjects();
+            _bindingService?.ProcessDestroyedObjects(destroySweepBudget);
 
-            if ((_keepAliveBuckets != null || _idleBuckets != null) && maxCount > 0)
+            if ((_keepAliveBuckets != null || _idleBuckets != null) && expireBudget > 0)
             {
                 int currentTick = ToKeepAliveTick(unscaledTime);
-                int processed = ProcessDueKeepAliveBuckets(currentTick, maxCount);
-                if (processed < maxCount)
+                int processed = ProcessDueKeepAliveBuckets(currentTick, expireBudget);
+                if (processed < expireBudget)
                 {
-                    ProcessDueIdleBuckets(currentTick, maxCount - processed);
+                    ProcessDueIdleBuckets(currentTick, expireBudget - processed);
                 }
             }
 

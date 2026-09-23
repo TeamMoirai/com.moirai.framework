@@ -486,7 +486,11 @@ namespace Moirai.Atropos.Resource
         /// <summary>
         /// 每帧资源维护：空闲/保活到期回收 + 销毁态所有者与绑定的兜底回收。
         /// </summary>
-        internal abstract void ProcessResourceMaintenance(float unscaledTime, int maxCount);
+        /// <param name="unscaledTime">本帧的无缩放时间。</param>
+        /// <param name="expireBudget">本轮可处理的到期记录数上限。</param>
+        /// <param name="destroySweepBudget">销毁态轮转每帧查验的槽位数（所有者与绑定各一份）。
+        /// 它与 <paramref name="expireBudget"/> 是两件事，分开传：合成一个预算会让到期记录多的帧饿死销毁回收。</param>
+        internal abstract void ProcessResourceMaintenance(float unscaledTime, int expireBudget, int destroySweepBudget);
 
         /// <summary>
         /// 释放全部未使用资源记录。

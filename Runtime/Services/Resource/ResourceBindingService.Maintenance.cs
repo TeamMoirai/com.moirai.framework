@@ -144,8 +144,9 @@ namespace Moirai.Atropos.Resource
         /// 按预算轮转扫描所有者与绑定槽位，回收"Unity 对象已销毁、但 <c>OnDestroy</c> 没把账收走"的那部分。
         /// <para>典型现场是场景卸载与退出播放：销毁派发被截断后，槽位连同其租约会一路留到进程结束。</para>
         /// </summary>
-        /// <param name="budget">本帧两类槽位各可查验的数量。</param>
-        internal void ProcessDestroyedObjects(int budget = DESTROYED_SWEEP_BUDGET)
+        /// <param name="budget">本帧两类槽位各可查验的数量。刻意不给默认值：调用方一律显式传，
+        /// 才能让"这个配额没人调"在编译期就暴露出来，而不是悄悄沿用一个常量。</param>
+        internal void ProcessDestroyedObjects(int budget)
         {
             if (_isShutdown || budget <= 0 || _ownerPages == null)
             {
