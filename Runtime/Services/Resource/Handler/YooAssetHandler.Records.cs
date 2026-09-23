@@ -165,7 +165,6 @@ namespace Moirai.Atropos.Resource
             string normalizedPackageName = NormalizePackageName(typedKey.PackageName);
             EResourceAssetKind assetKind = NormalizeAssetKind(typedKey.AssetType, typedKey.AssetKind);
             Type assetType = NormalizeAssetType(typedKey.AssetType, assetKind);
-            ulong loadingKey = GetLoadingOperationKey(typedKey.Location, normalizedPackageName, assetType, assetKind);
 
             UObject asset = GetOrLoadAsset(typedKey.Location, assetType, assetKind, normalizedPackageName);
             if (asset == null)
@@ -879,6 +878,9 @@ namespace Moirai.Atropos.Resource
             int total = _assetSlotNextIndex;
             int written = 0;
             int index = startIndex;
+            // 刻度在行循环之外取一次：每行一趟 managed→native 时钟调用，64 行就是 64 趟，
+            // 而同一次快照里所有行的"还剩多久过期"本该对着同一个当下算。
+            int currentTick = ToKeepAliveTick(Time.unscaledTime);
             while (index < total && written < maxCount)
             {
                 ref AssetSlot slot = ref GetAssetSlotRef(index);
@@ -902,7 +904,6 @@ namespace Moirai.Atropos.Resource
                 info.KeepAliveRefCount = slot.KeepAliveRefCount;
                 info.RefCountTotal = slot.DirectRefCount + slot.LegacyDirectRefCount +
                     slot.BindingRefCount + slot.KeepAliveRefCount;
-                int currentTick = ToKeepAliveTick(Time.unscaledTime);
                 info.KeepAliveExpireIn = slot.KeepAliveRefCount > 0
                     ? Math.Max(0, slot.KeepAliveExpireTick - currentTick)
                     : 0;

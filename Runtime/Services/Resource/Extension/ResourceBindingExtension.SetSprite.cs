@@ -137,9 +137,9 @@ namespace Moirai.Atropos.Resource
             }
 
             ResourceOwner owner = ResourceOwner.EnsureFor(image, bindingService);
-            bindingService.BindSubSpriteAsync(owner, image,
+            FireAndForget(bindingService.BindSubSpriteAsync(owner, image,
                 new ResourceKey(location, string.Empty, typeof(Sprite), EResourceAssetKind.SubAssets),
-                spriteName, options, cancellationToken).Forget();
+                spriteName, options, cancellationToken));
         }
 
         /// <summary>
@@ -177,9 +177,9 @@ namespace Moirai.Atropos.Resource
             }
 
             ResourceOwner owner = ResourceOwner.EnsureFor(spriteRenderer, bindingService);
-            bindingService.BindSubSpriteAsync(owner, spriteRenderer,
+            FireAndForget(bindingService.BindSubSpriteAsync(owner, spriteRenderer,
                 new ResourceKey(location, string.Empty, typeof(Sprite), EResourceAssetKind.SubAssets),
-                spriteName, options, cancellationToken).Forget();
+                spriteName, options, cancellationToken));
         }
 
         #endregion

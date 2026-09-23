@@ -45,8 +45,8 @@ namespace Moirai.Atropos.Resource
             ResourceOwner owner = EnsureOwner(bindingService, image);
             if (isAsync)
             {
-                bindingService.BindImageMaterialAsync(owner, image, MaterialKey(location, packageName), options)
-                    .Forget();
+                FireAndForget(bindingService.BindImageMaterialAsync(owner, image,
+                    MaterialKey(location, packageName), options));
                 return;
             }
 
@@ -90,8 +90,8 @@ namespace Moirai.Atropos.Resource
             ResourceOwner owner = EnsureOwner(bindingService, spriteRenderer);
             if (isAsync)
             {
-                bindingService.BindSharedMaterialAsync(owner, spriteRenderer, MaterialKey(location, packageName),
-                    options).Forget();
+                FireAndForget(bindingService.BindSharedMaterialAsync(owner, spriteRenderer,
+                    MaterialKey(location, packageName), options));
                 return;
             }
 
@@ -140,13 +140,13 @@ namespace Moirai.Atropos.Resource
             {
                 if (needInstance)
                 {
-                    bindingService.BindMaterialInstanceAsync(owner, meshRenderer,
-                        MaterialKey(location, packageName), options).Forget();
+                    FireAndForget(bindingService.BindMaterialInstanceAsync(owner, meshRenderer,
+                        MaterialKey(location, packageName), options));
                 }
                 else
                 {
-                    bindingService.BindSharedMaterialAsync(owner, meshRenderer,
-                        MaterialKey(location, packageName), options).Forget();
+                    FireAndForget(bindingService.BindSharedMaterialAsync(owner, meshRenderer,
+                        MaterialKey(location, packageName), options));
                 }
 
                 return;
@@ -201,8 +201,8 @@ namespace Moirai.Atropos.Resource
             ResourceOwner owner = EnsureOwner(bindingService, meshRenderer);
             if (isAsync)
             {
-                bindingService.BindSharedMaterialAsync(owner, meshRenderer, MaterialKey(location, packageName),
-                    options).Forget();
+                FireAndForget(bindingService.BindSharedMaterialAsync(owner, meshRenderer,
+                    MaterialKey(location, packageName), options));
                 return;
             }
 
