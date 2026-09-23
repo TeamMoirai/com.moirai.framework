@@ -27,6 +27,11 @@ namespace Moirai.Atropos.Resource
         private readonly ResourceNameRegistry<Type> _typeNames =
             new ResourceNameRegistry<Type>(ResourceKeyCodec.RESOURCE_KEY_TYPE_MAX, null);
 
+        // 卸载世代与销毁标记：判"这条记录、这次在途加载还作不作数"的依据。语义上归内核，
+        // 写它的仍是 handler 的生命周期（初始化、强卸载、关停）。
+        internal bool IsDestroying;
+        internal uint UnloadGeneration = 1;
+
         internal ResourceRecordKernel(Func<string> defaultPackageName)
         {
             _defaultPackageName = defaultPackageName;

@@ -70,8 +70,6 @@ namespace Moirai.Atropos.Resource
 
         #region 字段 [FIELDS]
 
-        [NonSerialized] private bool _isDestroying;
-
         // 资源记录分页数组
         [NonSerialized] private AssetSlot[][] _assetSlotPages;
         [NonSerialized] private int _assetSlotNextIndex;
@@ -109,7 +107,6 @@ namespace Moirai.Atropos.Resource
 
         // 加载键自增
         [NonSerialized] private int _loadKeyNextId = 1;
-        [NonSerialized] private uint _assetUnloadGeneration = 1;
 
         #endregion
 

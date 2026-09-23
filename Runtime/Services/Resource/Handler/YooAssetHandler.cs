@@ -250,7 +250,7 @@ namespace Moirai.Atropos.Resource
 
             unchecked
             {
-                _assetUnloadGeneration++;
+                Kernel.UnloadGeneration++;
             }
 
             ShutdownLoadingOperations();
@@ -500,12 +500,12 @@ namespace Moirai.Atropos.Resource
                 return null;
             }
 
-            uint unloadGeneration = _assetUnloadGeneration;
+            uint unloadGeneration = Kernel.UnloadGeneration;
             GameObject instance = UObject.Instantiate(prefab, parent);
 
             // 实例化会派发 Awake，其中可以重入强制回收/关停：
             // 此时 prefab 记录可能已被释放，租约不得再挂到清空过的绑定服务上。
-            if (instance == null || _isDestroying || unloadGeneration != _assetUnloadGeneration)
+            if (instance == null || Kernel.IsDestroying || unloadGeneration != Kernel.UnloadGeneration)
             {
                 if (instance != null)
                 {
@@ -569,12 +569,12 @@ namespace Moirai.Atropos.Resource
                 return null;
             }
 
-            uint unloadGeneration = _assetUnloadGeneration;
+            uint unloadGeneration = Kernel.UnloadGeneration;
             GameObject instance = UObject.Instantiate(prefab, parent);
 
             // 实例化会派发 Awake，其中可以重入强制回收/关停：
             // 此时 prefab 记录可能已被释放，租约不得再挂到清空过的绑定服务上。
-            if (instance == null || _isDestroying || unloadGeneration != _assetUnloadGeneration)
+            if (instance == null || Kernel.IsDestroying || unloadGeneration != Kernel.UnloadGeneration)
             {
                 if (instance != null)
                 {

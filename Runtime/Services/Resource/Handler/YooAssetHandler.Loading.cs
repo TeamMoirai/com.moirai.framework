@@ -25,7 +25,7 @@ namespace Moirai.Atropos.Resource
 
             while (true)
             {
-                if (_isDestroying)
+                if (Kernel.IsDestroying)
                 {
                     return null;
                 }
@@ -54,7 +54,7 @@ namespace Moirai.Atropos.Resource
                         : null;
                 }
 
-                int loadGeneration = unchecked((int)_assetUnloadGeneration);
+                int loadGeneration = unchecked((int)Kernel.UnloadGeneration);
                 AssetHandle handle = null;
                 try
                 {
@@ -109,7 +109,7 @@ namespace Moirai.Atropos.Resource
                     return null;
                 }
 
-                if (_isDestroying)
+                if (Kernel.IsDestroying)
                 {
                     return null;
                 }
@@ -130,7 +130,7 @@ namespace Moirai.Atropos.Resource
                     continue;
                 }
 
-                int loadGeneration = unchecked((int)_assetUnloadGeneration);
+                int loadGeneration = unchecked((int)Kernel.UnloadGeneration);
                 AssetHandle handle = null;
                 try
                 {
@@ -186,7 +186,7 @@ namespace Moirai.Atropos.Resource
                         return null;
                     }
 
-                    if (_isDestroying)
+                    if (Kernel.IsDestroying)
                     {
                         DisposeHandle(handle);
                         handle = null;
@@ -240,7 +240,7 @@ namespace Moirai.Atropos.Resource
 
             while (true)
             {
-                if (cancellationToken.IsCancellationRequested || _isDestroying)
+                if (cancellationToken.IsCancellationRequested || Kernel.IsDestroying)
                 {
                     return ResourceLeaseHandle.Invalid;
                 }
@@ -261,7 +261,7 @@ namespace Moirai.Atropos.Resource
                     continue;
                 }
 
-                int loadGeneration = unchecked((int)_assetUnloadGeneration);
+                int loadGeneration = unchecked((int)Kernel.UnloadGeneration);
                 SubAssetsHandle subHandle = null;
                 try
                 {
@@ -402,7 +402,7 @@ namespace Moirai.Atropos.Resource
             {
                 while (!loadingOperation.IsDone)
                 {
-                    if (cancellationToken.IsCancellationRequested || _isDestroying)
+                    if (cancellationToken.IsCancellationRequested || Kernel.IsDestroying)
                     {
                         return false;
                     }
@@ -525,7 +525,7 @@ namespace Moirai.Atropos.Resource
 
         private bool IsLoadingStateCurrent(int loadGeneration)
         {
-            return !_isDestroying && loadGeneration == unchecked((int)_assetUnloadGeneration);
+            return !Kernel.IsDestroying && loadGeneration == unchecked((int)Kernel.UnloadGeneration);
         }
 
         private bool ShouldAbortLoadingAfterCallerCancellation(ulong assetObjectKey,
