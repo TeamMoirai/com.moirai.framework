@@ -19,29 +19,6 @@ namespace Moirai.Atropos.Resource
         private const int RECORD_PAGE_MASK = RECORD_PAGE_SIZE - 1;
         private const int IDLE_BUCKET_COUNT = 256;
         private const int KEEP_ALIVE_BUCKET_COUNT = 256;
-
-        #region packed key 位域常量 [PACKED KEY BIT FIELDS]
-
-        private const int RESOURCE_KEY_HANDLE_BITS = 4;
-        private const int RESOURCE_KEY_ASSET_KIND_BITS = 4;
-        private const int RESOURCE_KEY_TYPE_BITS = 12;
-        private const int RESOURCE_KEY_LOCATION_BITS = 32;
-        private const int RESOURCE_KEY_PACKAGE_BITS = 12;
-
-        private const int RESOURCE_KEY_HANDLE_SHIFT = 0;
-        private const int RESOURCE_KEY_ASSET_KIND_SHIFT = RESOURCE_KEY_HANDLE_SHIFT + RESOURCE_KEY_HANDLE_BITS;
-        private const int RESOURCE_KEY_TYPE_SHIFT = RESOURCE_KEY_ASSET_KIND_SHIFT + RESOURCE_KEY_ASSET_KIND_BITS;
-        private const int RESOURCE_KEY_LOCATION_SHIFT = RESOURCE_KEY_TYPE_SHIFT + RESOURCE_KEY_TYPE_BITS;
-        private const int RESOURCE_KEY_PACKAGE_SHIFT = RESOURCE_KEY_LOCATION_SHIFT + RESOURCE_KEY_LOCATION_BITS;
-
-        private const int RESOURCE_KEY_PACKAGE_MAX = (1 << RESOURCE_KEY_PACKAGE_BITS) - 1;
-        private const int RESOURCE_KEY_LOCATION_MAX = int.MaxValue;
-        private const int RESOURCE_KEY_TYPE_MAX = (1 << RESOURCE_KEY_TYPE_BITS) - 1;
-        private const int RESOURCE_KEY_ASSET_KIND_MAX = (1 << RESOURCE_KEY_ASSET_KIND_BITS) - 1;
-        private const int RESOURCE_KEY_HANDLE_MAX = (1 << RESOURCE_KEY_HANDLE_BITS) - 1;
-
-        #endregion
-
         #endregion
 
         #region Slot 结构体 [SLOT STRUCTS]
@@ -128,11 +105,11 @@ namespace Moirai.Atropos.Resource
         // 仍是 readonly + 字段初始化器，与原字典/栈同款——[SerializeReference] 构造时初始化器会执行，
         // 而注册表内部那些数组与计数表属于一个不标 [Serializable] 的类，整棵子树天然不参与序列化。
         [NonSerialized] private readonly ResourceNameRegistry<string> _packageNames =
-            new ResourceNameRegistry<string>(RESOURCE_KEY_PACKAGE_MAX, string.Empty);
+            new ResourceNameRegistry<string>(ResourceKeyCodec.RESOURCE_KEY_PACKAGE_MAX, string.Empty);
         [NonSerialized] private readonly ResourceNameRegistry<string> _locationNames =
-            new ResourceNameRegistry<string>(RESOURCE_KEY_LOCATION_MAX, string.Empty);
+            new ResourceNameRegistry<string>(ResourceKeyCodec.RESOURCE_KEY_LOCATION_MAX, string.Empty);
         [NonSerialized] private readonly ResourceNameRegistry<Type> _typeNames =
-            new ResourceNameRegistry<Type>(RESOURCE_KEY_TYPE_MAX, null);
+            new ResourceNameRegistry<Type>(ResourceKeyCodec.RESOURCE_KEY_TYPE_MAX, null);
 
         // 加载键自增
         [NonSerialized] private int _loadKeyNextId = 1;
@@ -183,8 +160,8 @@ namespace Moirai.Atropos.Resource
         private int GetOrCreateAssetRecord(string packageName, string location, Type assetType,
             EResourceAssetKind assetKind, EResourceHandleKind handleKind, UObject asset, object assetHandle)
         {
-            assetKind = NormalizeAssetKind(assetType, assetKind);
-            assetType = NormalizeAssetType(assetType, assetKind);
+            assetKind = ResourceKeyCodec.NormalizeAssetKind(assetType, assetKind);
+            assetType = ResourceKeyCodec.NormalizeAssetType(assetType, assetKind);
             string normalizedPackageName = NormalizePackageName(packageName);
             ulong key = GetAssetRecordKey(normalizedPackageName, location, assetType, assetKind, handleKind);
             if (_assetRecordsByKey.TryGetValue(key, out int existingId) && IsValidAssetId(existingId))
@@ -352,9 +329,9 @@ namespace Moirai.Atropos.Resource
 
                 ref ResourceAssetInfo info = ref results[written];
                 info.LoadKeyId = slot.LoadKeyId;
-                info.Package = GetPackageNameById(UnpackPackageId(slot.Key));
-                info.Location = GetLocationNameById(UnpackLocationId(slot.Key));
-                Type assetType = GetAssetTypeById(UnpackTypeId(slot.Key));
+                info.Package = GetPackageNameById(ResourceKeyCodec.UnpackPackageId(slot.Key));
+                info.Location = GetLocationNameById(ResourceKeyCodec.UnpackLocationId(slot.Key));
+                Type assetType = GetAssetTypeById(ResourceKeyCodec.UnpackTypeId(slot.Key));
                 info.TypeName = assetType != null ? assetType.Name : string.Empty;
                 info.Kind = slot.AssetKind;
                 info.State = slot.State;

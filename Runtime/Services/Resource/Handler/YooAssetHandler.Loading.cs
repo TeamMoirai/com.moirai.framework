@@ -19,8 +19,8 @@ namespace Moirai.Atropos.Resource
             string packageName)
         {
             string normalizedPackageName = NormalizePackageName(packageName);
-            assetKind = NormalizeAssetKind(assetType, assetKind);
-            assetType = NormalizeAssetType(assetType, assetKind);
+            assetKind = ResourceKeyCodec.NormalizeAssetKind(assetType, assetKind);
+            assetType = ResourceKeyCodec.NormalizeAssetType(assetType, assetKind);
             ulong loadingKey = GetLoadingOperationKey(location, normalizedPackageName, assetType, assetKind);
 
             while (true)
@@ -99,8 +99,8 @@ namespace Moirai.Atropos.Resource
             uint priority = 0, CancellationToken cancellationToken = default)
         {
             string normalizedPackageName = NormalizePackageName(packageName);
-            assetKind = NormalizeAssetKind(assetType, assetKind);
-            assetType = NormalizeAssetType(assetType, assetKind);
+            assetKind = ResourceKeyCodec.NormalizeAssetKind(assetType, assetKind);
+            assetType = ResourceKeyCodec.NormalizeAssetType(assetType, assetKind);
 
             while (true)
             {

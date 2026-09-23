@@ -1,54 +1,16 @@
-using System;
-using System.Collections.Generic;
-using UnityEngine;
+﻿using System;
 using UObject = UnityEngine.Object;
 
 namespace Moirai.Atropos.Resource
 {
     /// <summary>
-    /// 键与名称注册表——packed key 位域编解码，以及三条名称轴的取 id / 计数转交。
-    /// <para>本文件只做"编解码 + 归一化"，登记与引用计数本身已并入 <see cref="ResourceNameRegistry{TValue}"/>；
-    /// 三轴的 id 上限即 packed key 给该轴留的位宽上限，越界必抛而非静默截断——截断会让两条不同资源
-    /// 编出同一个键。</para>
+    /// 键与名称注册表——三条名称轴的取 id / 计数转交，以及包名归一。
+    /// <para>位域怎么排、越界怎么拦在 <see cref="ResourceKeyCodec"/>；登记与引用计数本身在
+    /// <see cref="ResourceNameRegistry{TValue}"/>。本文件只剩把两者接起来的那几行转发。</para>
     /// </summary>
     partial class YooAssetHandler
     {
-        #region Packed Key 编解码 [PACKED KEY ENCODE/DECODE]
-
-        private static ulong PackResourceKey(int packageId, int locationId, int typeId,
-            EResourceAssetKind assetKind, EResourceHandleKind handleKind)
-        {
-            if (packageId <= 0 || locationId <= 0 || typeId <= 0 ||
-                packageId > RESOURCE_KEY_PACKAGE_MAX ||
-                locationId > RESOURCE_KEY_LOCATION_MAX ||
-                typeId > RESOURCE_KEY_TYPE_MAX ||
-                (uint)assetKind > RESOURCE_KEY_ASSET_KIND_MAX ||
-                (uint)handleKind > RESOURCE_KEY_HANDLE_MAX)
-            {
-                throw new GameException("Resource key id range exceeded.");
-            }
-
-            return ((ulong)(uint)packageId << RESOURCE_KEY_PACKAGE_SHIFT) |
-                   ((ulong)(uint)locationId << RESOURCE_KEY_LOCATION_SHIFT) |
-                   ((ulong)(uint)typeId << RESOURCE_KEY_TYPE_SHIFT) |
-                   ((ulong)(byte)assetKind << RESOURCE_KEY_ASSET_KIND_SHIFT) |
-                   ((ulong)(byte)handleKind << RESOURCE_KEY_HANDLE_SHIFT);
-        }
-
-        private static int UnpackPackageId(ulong key)
-        {
-            return (int)((key >> RESOURCE_KEY_PACKAGE_SHIFT) & RESOURCE_KEY_PACKAGE_MAX);
-        }
-
-        private static int UnpackLocationId(ulong key)
-        {
-            return (int)((key >> RESOURCE_KEY_LOCATION_SHIFT) & RESOURCE_KEY_LOCATION_MAX);
-        }
-
-        private static int UnpackTypeId(ulong key)
-        {
-            return (int)((key >> RESOURCE_KEY_TYPE_SHIFT) & RESOURCE_KEY_TYPE_MAX);
-        }
+        #region 取键 [KEY BUILDING]
 
         private ulong GetAssetRecordKey(string packageName, string location, Type assetType,
             EResourceAssetKind assetKind, EResourceHandleKind handleKind)
@@ -56,7 +18,7 @@ namespace Moirai.Atropos.Resource
             int packageId = GetOrAddPackageId(packageName);
             int locationId = GetOrAddLocationId(location);
             int typeId = GetOrAddTypeId(assetType);
-            return PackResourceKey(packageId, locationId, typeId, assetKind, handleKind);
+            return ResourceKeyCodec.Pack(packageId, locationId, typeId, assetKind, handleKind);
         }
 
         private ulong GetLoadingOperationKey(string location, string packageName, Type assetType,
@@ -65,7 +27,7 @@ namespace Moirai.Atropos.Resource
             int packageId = GetOrAddPackageId(packageName);
             int locationId = GetOrAddLocationId(location);
             int typeId = GetOrAddTypeId(assetType);
-            return PackResourceKey(packageId, locationId, typeId, assetKind, EResourceHandleKind.AssetHandle);
+            return ResourceKeyCodec.Pack(packageId, locationId, typeId, assetKind, EResourceHandleKind.AssetHandle);
         }
 
         /// <summary>
@@ -75,8 +37,8 @@ namespace Moirai.Atropos.Resource
             EResourceAssetKind assetKind, EResourceHandleKind handleKind, out ulong key)
         {
             key = 0;
-            assetKind = NormalizeAssetKind(assetType, assetKind);
-            assetType = NormalizeAssetType(assetType, assetKind);
+            assetKind = ResourceKeyCodec.NormalizeAssetKind(assetType, assetKind);
+            assetType = ResourceKeyCodec.NormalizeAssetType(assetType, assetKind);
             if (!_packageNames.TryGetId(NormalizePackageName(packageName), out int packageId) ||
                 !_locationNames.TryGetId(location ?? string.Empty, out int locationId) ||
                 !_typeNames.TryGetId(assetType, out int typeId))
@@ -84,7 +46,7 @@ namespace Moirai.Atropos.Resource
                 return false;
             }
 
-            key = PackResourceKey(packageId, locationId, typeId, assetKind, handleKind);
+            key = ResourceKeyCodec.Pack(packageId, locationId, typeId, assetKind, handleKind);
             return true;
         }
 
@@ -109,17 +71,17 @@ namespace Moirai.Atropos.Resource
         /// <summary>记录一条资源建立时，把它用到的三个名字各计一次。</summary>
         private void RetainResourceKey(ulong key)
         {
-            _packageNames.Retain(UnpackPackageId(key));
-            _locationNames.Retain(UnpackLocationId(key));
-            _typeNames.Retain(UnpackTypeId(key));
+            _packageNames.Retain(ResourceKeyCodec.UnpackPackageId(key));
+            _locationNames.Retain(ResourceKeyCodec.UnpackLocationId(key));
+            _typeNames.Retain(ResourceKeyCodec.UnpackTypeId(key));
         }
 
         /// <summary>记录释放时反向减数；减到零的那条轴把名字摘掉并把 id 还回空闲栈。</summary>
         private void ReleaseResourceKey(ulong key)
         {
-            _packageNames.Release(UnpackPackageId(key));
-            _locationNames.Release(UnpackLocationId(key));
-            _typeNames.Release(UnpackTypeId(key));
+            _packageNames.Release(ResourceKeyCodec.UnpackPackageId(key));
+            _locationNames.Release(ResourceKeyCodec.UnpackLocationId(key));
+            _typeNames.Release(ResourceKeyCodec.UnpackTypeId(key));
         }
 
         /// <summary>整表清空前逐键减数（如后端整体重置），不减则名字与 id 永久滞留。</summary>
@@ -137,9 +99,9 @@ namespace Moirai.Atropos.Resource
             // 刻意不是 ReleaseResourceKey 的别名：整表清空时只该减数，
             // 摘字典与回收 id 在那些随后一并作废的表上是白做，而且会在遍历另一张表的键时
             // 反向改动本表的字典。原实现就是两条分开的路，合并注册表时不能顺手并掉。
-            _packageNames.DecrementOnly(UnpackPackageId(key));
-            _locationNames.DecrementOnly(UnpackLocationId(key));
-            _typeNames.DecrementOnly(UnpackTypeId(key));
+            _packageNames.DecrementOnly(ResourceKeyCodec.UnpackPackageId(key));
+            _locationNames.DecrementOnly(ResourceKeyCodec.UnpackLocationId(key));
+            _typeNames.DecrementOnly(ResourceKeyCodec.UnpackTypeId(key));
         }
 
         #endregion
@@ -148,56 +110,6 @@ namespace Moirai.Atropos.Resource
         private string NormalizePackageName(string packageName)
         {
             return string.IsNullOrEmpty(packageName) ? DefaultPackageName : packageName;
-        }
-
-        private static EResourceAssetKind NormalizeAssetKind(Type assetType, EResourceAssetKind assetKind)
-        {
-            return assetKind == EResourceAssetKind.Unknown ? InferAssetKind(assetType) : assetKind;
-        }
-
-        private static Type NormalizeAssetType(Type assetType, EResourceAssetKind assetKind)
-        {
-            if (assetKind == EResourceAssetKind.Sprite)
-            {
-                return typeof(Sprite);
-            }
-
-            if (assetKind == EResourceAssetKind.Material)
-            {
-                return typeof(Material);
-            }
-
-            if (assetKind == EResourceAssetKind.Prefab)
-            {
-                return typeof(GameObject);
-            }
-
-            if (assetKind == EResourceAssetKind.SubAssets)
-            {
-                return typeof(Sprite);
-            }
-
-            return assetType ?? typeof(UObject);
-        }
-
-        private static EResourceAssetKind InferAssetKind(Type assetType)
-        {
-            if (assetType == typeof(Sprite))
-            {
-                return EResourceAssetKind.Sprite;
-            }
-
-            if (assetType == typeof(Material))
-            {
-                return EResourceAssetKind.Material;
-            }
-
-            if (assetType == typeof(GameObject))
-            {
-                return EResourceAssetKind.Prefab;
-            }
-
-            return EResourceAssetKind.Asset;
         }
 
         #endregion

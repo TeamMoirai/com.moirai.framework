@@ -17,12 +17,12 @@ namespace Moirai.Atropos.Resource
         public override ResourceLeaseHandle AcquireDirect(ResourceKey key)
         {
             ResourceKey typedKey = key.AssetType == null && !key.HasResolvedIds
-                ? new ResourceKey(key.Location, key.PackageName, typeof(UObject), InferAssetKind(typeof(UObject)))
+                ? new ResourceKey(key.Location, key.PackageName, typeof(UObject), ResourceKeyCodec.InferAssetKind(typeof(UObject)))
                 : key;
 
             string normalizedPackageName = NormalizePackageName(typedKey.PackageName);
-            EResourceAssetKind assetKind = NormalizeAssetKind(typedKey.AssetType, typedKey.AssetKind);
-            Type assetType = NormalizeAssetType(typedKey.AssetType, assetKind);
+            EResourceAssetKind assetKind = ResourceKeyCodec.NormalizeAssetKind(typedKey.AssetType, typedKey.AssetKind);
+            Type assetType = ResourceKeyCodec.NormalizeAssetType(typedKey.AssetType, assetKind);
 
             UObject asset = GetOrLoadAsset(typedKey.Location, assetType, assetKind, normalizedPackageName);
             if (asset == null)
@@ -45,12 +45,12 @@ namespace Moirai.Atropos.Resource
             CancellationToken cancellationToken = default)
         {
             ResourceKey typedKey = key.AssetType == null && !key.HasResolvedIds
-                ? new ResourceKey(key.Location, key.PackageName, typeof(UObject), InferAssetKind(typeof(UObject)))
+                ? new ResourceKey(key.Location, key.PackageName, typeof(UObject), ResourceKeyCodec.InferAssetKind(typeof(UObject)))
                 : key;
 
             string normalizedPackageName = NormalizePackageName(typedKey.PackageName);
-            EResourceAssetKind assetKind = NormalizeAssetKind(typedKey.AssetType, typedKey.AssetKind);
-            Type assetType = NormalizeAssetType(typedKey.AssetType, assetKind);
+            EResourceAssetKind assetKind = ResourceKeyCodec.NormalizeAssetKind(typedKey.AssetType, typedKey.AssetKind);
+            Type assetType = ResourceKeyCodec.NormalizeAssetType(typedKey.AssetType, assetKind);
             ulong loadingKey = GetLoadingOperationKey(typedKey.Location, normalizedPackageName, assetType, assetKind);
 
             UObject asset = await GetOrLoadAssetAsync(typedKey.Location, assetType, assetKind, normalizedPackageName,
@@ -117,7 +117,7 @@ namespace Moirai.Atropos.Resource
         public override ResourceAssetLease<T> LoadLease<T>(ResourceKey key)
         {
             ResourceKey typedKey = key.AssetType == null && !key.HasResolvedIds
-                ? new ResourceKey(key.Location, key.PackageName, typeof(T), InferAssetKind(typeof(T)))
+                ? new ResourceKey(key.Location, key.PackageName, typeof(T), ResourceKeyCodec.InferAssetKind(typeof(T)))
                 : key;
             ResourceLeaseHandle handle = AcquireDirect(typedKey);
             if (!handle.IsValid)
@@ -137,7 +137,7 @@ namespace Moirai.Atropos.Resource
         /// <inheritdoc />
         public override ResourceAssetLease<T> LoadLease<T>(string location, string packageName = "")
         {
-            return LoadLease<T>(new ResourceKey(location, packageName, typeof(T), InferAssetKind(typeof(T))));
+            return LoadLease<T>(new ResourceKey(location, packageName, typeof(T), ResourceKeyCodec.InferAssetKind(typeof(T))));
         }
 
         /// <inheritdoc />
@@ -145,7 +145,7 @@ namespace Moirai.Atropos.Resource
             CancellationToken cancellationToken = default)
         {
             ResourceKey typedKey = key.AssetType == null && !key.HasResolvedIds
-                ? new ResourceKey(key.Location, key.PackageName, typeof(T), InferAssetKind(typeof(T)))
+                ? new ResourceKey(key.Location, key.PackageName, typeof(T), ResourceKeyCodec.InferAssetKind(typeof(T)))
                 : key;
             ResourceLeaseHandle handle = await AcquireDirectAsync(typedKey, cancellationToken);
             if (!handle.IsValid)
@@ -173,7 +173,7 @@ namespace Moirai.Atropos.Resource
             CancellationToken cancellationToken = default, string packageName = "")
         {
             return LoadLeaseAsync<T>(
-                new ResourceKey(location, packageName, typeof(T), InferAssetKind(typeof(T))), cancellationToken);
+                new ResourceKey(location, packageName, typeof(T), ResourceKeyCodec.InferAssetKind(typeof(T))), cancellationToken);
         }
 
         /// <inheritdoc />
