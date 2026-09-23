@@ -346,7 +346,7 @@ Directory: `Tests/EditorMode/Service/Save/`
 | `FileSaveStorageBackendTests` | Atomic writes, idempotent deletes, exact-filter listing, backup/restore, capabilities |
 | `SaveCompressionTests` | GZip round-trips, compress+encrypt combos, uncompressed reads, header classification, registry |
 | `SaveKeyProviderTests` | Static derivation, passphrase injection, HKDF per-user isolation |
-| `AesEncryptedSaveHandlerTests` | Full crypto chain |
+| `AESEncryptedSaveHandlerTests` | Full crypto chain |
 | `SaveEncryptorTests` | AES/HMAC machinery |
 | `SaveMigrationAndBackendTests` | Four-backend round-trips, block-level migration cascades |
 | `SaveMigrationBusTests` | Version chains, rename/retype, whole-block transform, write-back toggle, audit, write-time healing, explicit migration |

@@ -8,11 +8,11 @@ UI 服务（`Moirai.Atropos.UI`）将界面抽象为纯 C# 类的 `UIWindow` / `
 
 UI 服务采用与框架其他服务一致的 HandlerHost 零反射架构：
 
-- **`UIService`**：静态外观（`[HandlerHost(typeof(UIServiceHandler))]` + `[ServiceDependency(typeof(ResourceService), typeof(TimerService))]`），全部公共成员为静态方法/属性，经 `Handler` 属性转发（fail-fast：未就绪时按需初始化，工厂缺失时抛异常，不静默降级；源生成器生成线程安全懒加载属性）
+- **`UIService`**：静态外观（`[AutoRegisterService]` + `[HandlerHost(typeof(UIServiceHandler))]` + `[ServiceDependency(typeof(DebuggerService), typeof(ResourceService), typeof(TimerService), typeof(InputService))]`），全部公共成员为静态方法/属性，经 `Handler` 属性转发（fail-fast：未就绪时按需初始化，工厂缺失时抛异常，不静默降级；源生成器生成线程安全懒加载属性）
 - **`UIServiceHandler`**：可序列化抽象基类（继承 `FrameworkHandler`），定义外观调用的后端契约
 - **`UGUIHandler`**：默认实现（位于 `Handler/` 目录），承载窗口栈管理、层级排序、资源加载等核心逻辑；替换自定义后端无需改动调用方
 - **`UIServiceSettings`**：框架设置（菜单「UI设置」），通过 `[ProviderDropdown]` + `[SerializeReference]` 选择 UI 后端实现
-- 服务注册由依赖链自动拉起（`ProcedureService` → … → `UIService`），也可手动 `GameServices.RegisterService(EServiceScopeKind.App, new UIService())`
+- 服务标记 `[AutoRegisterService]`，由组合根经生成的内置服务清单自动注册（App 作用域，`[ServiceDependency]` 拓扑序保证初始化先后），也可手动 `GameServices.RegisterService(EServiceScopeKind.App, new UIService())`
 
 ## 核心特性
 
@@ -30,7 +30,7 @@ UI 服务采用与框架其他服务一致的 HandlerHost 零反射架构：
 
 | 类/接口 | 说明 |
 |---------|------|
-| `Moirai.Atropos.UI.UIService` | UI 服务静态外观（`[HandlerHost]`），打开/关闭/隐藏/查询等全部静态 API；静态属性 `IsValid`、`UIRoot`、`UICamera`、`CurrentModal`、`Resource` |
+| `Moirai.Atropos.UI.UIService` | UI 服务静态外观（`[HandlerHost]`），打开/关闭/隐藏/查询等全部静态 API；静态属性 `UIRoot`、`UICamera`、`CurrentModal` |
 | `Moirai.Atropos.UI.UIServiceHandler` | UI 后端处理器抽象基类（继承 `FrameworkHandler`），定义外观调用的完整后端契约 |
 | `Moirai.Atropos.UI.UGUIHandler` | 默认 UI 后端实现（位于 `Handler/` 目录），窗口栈管理、深度排序、可见性控制核心逻辑 |
 | `Moirai.Atropos.UI.UIServiceSettings` | 框架设置，`[ProviderDropdown]` 选择 UI 后端实现 |
@@ -41,7 +41,6 @@ UI 服务采用与框架其他服务一致的 HandlerHost 零反射架构：
 | `Moirai.Atropos.UI.UILayer` | UI 层级枚举：`Bottom=0`、`UI=1`、`Popup=2`、`Tips=3`、`System=4` |
 | `Moirai.Atropos.UI.UIServiceEvent` | 窗口打开/关闭事件（`Shown` / `Closed`），经 `EventManager` 派发 |
 | `Moirai.Atropos.UI.UIServiceHelper` | 交互辅助：`IsInteractionBlockedByModal`、`IsUIObjectInteractable` |
-| `Moirai.Atropos.UI.IUIResourceLoader` | UI 资源加载器接口，默认实现 `UIResourceLoader` 走资源服务 |
 | `Moirai.Atropos.UI.UIBindComponent` | Window/Widget 组件绑定 MonoBehaviour 基类 |
 | `Moirai.Atropos.UI.ErrorLogger` | 运行时异常捕获器，异常时弹出 `LogUI` 窗口 |
 | `Moirai.Atropos.UI.Adapter.AdapterBase` | 布局适配器抽象基类（`Moirai.Atropos.UI.Adapter` 命名空间） |
@@ -78,7 +77,7 @@ public class MainWindow : UIWindow
 UIService.ShowUI<MainWindow>();
 
 // 异步打开，可携带自定义参数（窗口内以 UserData / Params 读取）
-UIService.ShowUIAsync<MainWindow>(userData: 1001);
+UIService.ShowUIAsync<MainWindow>(userData: new object[] { 1001 });
 
 // 异步打开并等待加载完成（超时 60 秒）
 UIWindow window = await UIService.ShowUIAsyncAwait<MainWindow>();
@@ -144,7 +143,7 @@ protected override async UniTask OpenAnimation()
 
 ### 运行时错误窗口
 
-当调试器配置（`DebuggerComp.ActiveWindowType`）判定不启用错误日志时，服务会注册 `ErrorLogger` 捕获 `LogType.Exception`，自动弹出内置 `LogUI` 窗口（`[Window(UILayer.System, fromResources:true)]`，预制体位于服务 `Resources/LogUI.prefab`）逐条查看异常堆栈。
+当调试器配置（`DebuggerService.ActiveWindowType`）判定不启用错误日志时，服务会注册 `ErrorLogger` 捕获 `LogType.Exception`，自动弹出内置 `LogUI` 窗口（`[Window(UILayer.System, fromResources:true)]`，预制体位于服务 `Resources/LogUI.prefab`）逐条查看异常堆栈。
 
 ### 编辑器绑定代码生成
 

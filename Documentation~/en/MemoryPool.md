@@ -46,7 +46,7 @@ The pool is not thread safe; every structure assumes exclusive main-thread acces
 |---|---|
 | Editor / development build | Every acquire/release validates the thread id and throws `InvalidOperationException` immediately (message carries owner and current thread ids). |
 | Release build (default) | Guard off — one static boolean read per operation; the main thread id is still pinned at `SubsystemRegistration`. |
-| QA / soak build | Turn on `MemoryPoolSetting.VerifyMainThreadInRelease` to keep validating in a release build. Cross-thread damage to unmanaged page metadata does not fail at the time it happens — it comes back weeks later as a random crash, which is worth the check while you are hunting. |
+| QA / soak build | Turn on `MemoryPoolSetting.m_VerifyMainThreadInRelease` to keep validating in a release build. Cross-thread damage to unmanaged page metadata does not fail at the time it happens — it comes back weeks later as a random crash, which is worth the check while you are hunting. |
 
 Maintenance faults follow the framework-wide `RETHROW_*` convention: `TickAll` is the per-frame boundary, so development builds log one merged Fatal with the failure count and rethrow, while release builds log and contain it (nothing in game code can catch an exception escaping update dispatch). Inside a pool, batch paths (whole-batch trim, page retirement) always finish the batch item by item and report at the end — one bad `OnEvict()` cannot truncate the rest. A single round lists at most 16 callback exceptions and merges the remainder into one summary entry, because unbounded collection allocates exactly while memory pressure is being relieved.
 
@@ -97,7 +97,7 @@ Namespace: `Moirai.Atropos`
 | `MemoryPoolHandle` | Cached handle for dynamic type lookup: `Acquire()`, `Release()` |
 | `MemoryPoolInfo` | Snapshot struct: `UnusedCount`, `UsingCount`, `MaxUsingCount`, `LiveLimit`, `AcquireCount`, `MissCount`, `MissRate`, etc. |
 | `EMemoryPoolPhase` | Enum: `Boot`, `Loading`, `Gameplay`, `Background`, `LowMemory` |
-| `MemoryPoolSetting` | MonoBehaviour: Inspector-configurable decay timers and capacity limits |
+| `MemoryPoolSetting` | ScriptableObject framework setting: Inspector-configurable decay timers and capacity limits |
 
 ## Quick Start
 
@@ -155,7 +155,7 @@ MemoryPool.SetCapacity<DamageEvent>(softCapacity: 128, hardCapacity: 512);
 
 ## Phase Integration
 
-The `MemoryPoolSetting` MonoBehaviour drives `MemoryPoolRegistry.TickAll()` every frame and handles system events:
+The `MemoryPoolSetting` framework setting (a `ScriptableObject`) drives `MemoryPoolRegistry.TickAll()` every frame via `GameApp.AddUpdateListener` and handles system events:
 
 - `Application.lowMemory` → switches to `LowMemory` phase, calls `CompactAll()`, restores previous phase
 - `Application.focusChanged` → switches to `Background` phase when unfocused, restores when refocused
@@ -181,7 +181,7 @@ for (int i = 0; i < actual; i++)
 Subscribe to per-frame stats updates (zero cost when unsubscribed):
 
 ```csharp
-MemoryPoolRegistry.PoolStatsUpdated += infos =>
+MemoryPoolRegistry.OnPoolStatsUpdated += infos =>
 {
     foreach (var info in infos)
     {

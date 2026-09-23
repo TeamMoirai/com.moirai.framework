@@ -3,7 +3,7 @@ Moirai Framework
 
 [![Unity Version](https://img.shields.io/badge/Unity-2022.3%2B-blue.svg)](https://unity3d.com/)
 [![openupm](https://img.shields.io/npm/v/com.moirai.framework?label=openupm&registry_uri=https://package.openupm.com)](https://openupm.com/packages/com.moirai.framework/)
-[![License](https://img.shields.io/github/license/TeamMoirai/com.moirai.framework)](LICENSE)
+[![License](https://img.shields.io/github/license/TeamMoirai/com.moirai.framework)](LICENSE.txt)
 [![Issues](https://img.shields.io/github/issues/TeamMoirai/com.moirai.framework)](https://github.com/TeamMoirai/com.moirai.framework/issues)
 [![Last Commit](https://img.shields.io/github/last-commit/TeamMoirai/com.moirai.framework)](https://github.com/TeamMoirai/com.moirai.framework)
 [![Top Language](https://img.shields.io/github/languages/top/TeamMoirai/com.moirai.framework)](https://github.com/TeamMoirai/com.moirai.framework)
@@ -104,7 +104,7 @@ Moirai Framework
       ```
       <img src="Documentation~\.src\quick-start-1.png" alt="quick-start-scoped-registries" />
    
-   - 克隆 `install` 分支至工程目录（Assets/...）：
+   - 克隆 `installer` 分支至工程目录（Assets/...）：
 
       ```bash
       git clone --branch installer --single-branch https://github.com/TeamMoirai/com.moirai.framework.git Scripts/Installer
@@ -133,7 +133,7 @@ Moirai Framework
 
     <img src="Documentation~\.src\quick-start-2-package-detail.png" alt="quick-start-package-detail" />
 
-3. <a id="manual-import"></a>手动复制 `工程根目录/Library/PackageCach/com.moirai.framework@xxx/Templates~/` 下 **@Requirements** 文件夹内的所有内容到 **工程根目录/Assets** 目录。
+3. <a id="manual-import"></a>手动复制 `工程根目录/Library/PackageCache/com.moirai.framework@xxx/Templates~/` 下 **@Requirements** 文件夹内的所有内容到 **工程根目录/Assets** 目录。
 
     （可选）根据需要选择同目录下合适的模板复制到工程，一般选择 **NormalTemplate** 即可。
 
@@ -164,23 +164,23 @@ Moirai Framework
 
 ##### 配置表服务
 
-   - 选择 `Tools/Settings/ConfigTableSettings` ，点击 `生成 Config 到指定目录`。
+   - 在 `Tools/Framework Settings` 窗口选择 `[框架]Luban 配置`，点击 `生成 Config 到指定目录`。
    - 初次生成时，导出前先执行 **build-luban** 编译或者自行导入 Luban至配置表根目录。
-   - 如果移动配置表目录，则需要在  `Tools/Settings/ConfigTableSettings` 手动更新——`重定向 Config 目录`
+   - 如果移动配置表目录，则需要在  `Tools/Framework Settings` 的 `[框架]Luban 配置` 手动更新——`重定向 Config 目录`
 
 ---
 
 #### 快捷功能
 
 1. **编辑器模式运行**
-   - 选择顶部菜单栏 `YooAsset/Editor PlayMode` 编辑器下的模拟模式
+   - 在 `Tools/Framework Settings` 的 `[服务]资源设置` 中将 `PlayMode` 设为 `EditorSimulate`（编辑器下的模拟模式，默认值）
    - 点击 `Play` 开始运行
 2. **打包运行**（热更新流程）
    - 运行菜单 `HybridCLR/Install...` 安装 HybridCLR
    - 运行菜单 `HybridCLR/Define Symbols/Enable HybridCLR` 开启热更新
    - 运行菜单 `HybridCLR/Generate/All` 进行必要的生成操作
-   - 运行菜单 `HybridCLR/Build/BuildAssets And CopyTo AssemblyPath` 生成热更新 DLL
-   - 运行菜单 `YooAsset/AssetBundle Builder` 构建 AB
+   - 运行菜单 `HybridCLR/Build/BuildAssets And CopyTo AssemblyTextAssetPath` 生成热更新 DLL
+   - 运行菜单 `YooAsset/Bundle Builder` 构建 AB
    - 打开 Build Settings，点击 Build And Run
 
 > 💡 **提示**: 遇到问题请查看 [HybridCLR 常见错误](https://hybridclr.doc.code-philosophy.com/docs/help/commonerrors)
@@ -236,7 +236,7 @@ com.moirai.framework/
 
 ```csharp
 // 服务访问 — 各服务提供静态外观（HandlerHost 源生成），内部懒加载
-ResourceService.LoadAsset<Sprite>("Assets/AssetRaw/UI/icon.png");
+ResourceService.LoadLease<Sprite>("Assets/AssetRaw/UI/icon.png");
 UIService.ShowUI<MainWindow>();
 TimerService.Delay(1f, () => Debug.Log("1s"));
 
@@ -285,7 +285,7 @@ var my = GameServices.GetRequiredService<MyService>();
 
 ### 启动流程
 
-`Main/Procedure/` 定义了完整的启动链：
+`Scripts/GameBase/Procedure/` 定义了完整的启动链：
 
 ```
 ProcedureLaunch → ProcedureSplash → ProcedureInitPackage → ProcedureInitResources
@@ -293,7 +293,7 @@ ProcedureLaunch → ProcedureSplash → ProcedureInitPackage → ProcedureInitRe
 → ProcedureClearCache → ProcedureLoadAssembly → ProcedurePreload → ProcedurePrepare4Entrance
 ```
 
-每个阶段均为独立的 `ProcedureBase` 状态，可通过 `ProcedureSettings`（ScriptableObject）自定义。
+每个阶段均为独立的 `ProcedureBase` 状态，可通过 `ProcedureServiceSettings`（ScriptableObject）自定义。
 
 > 📖 详见 **[Procedure 服务文档](Documentation~/zh/Procedure.md)**
 
@@ -340,7 +340,7 @@ ProcedureLaunch → ProcedureSplash → ProcedureInitPackage → ProcedureInitRe
 | `LayerAttribute` | Layer 选择器 |
 | `TagAttribute` | Tag 选择器 |
 | `ResourcePathAttribute` | 资源路径选择器 |
-| `HelperDropdownAttribute` | 引用/类型下拉选择（支持 [SerializeReference] 字段和 string 类型名字段） |
+| `ProviderDropdownAttribute` | 引用/类型下拉选择（支持 [SerializeReference] 字段和 string 类型名字段） |
 | `OdinExtends/*` | Odin 扩展（条件分组、帮助信息、内联按钮等） |
 
 ### Events — 事件系统
@@ -388,7 +388,7 @@ LogUtility.Warning("资源加载失败: {0}", path);
 LogUtility.Error("严重错误!");
 ```
 
-- 运行时级别过滤：`LogHandler.MinimumLevel`（`ELogLevel`：Verbose / Debug / Info / Warning / Error / Exception）
+- 运行时级别过滤：`LogHandler.MinimumLevel`（`ELogLevel`：Verbose / Debug / Info / Warning / Error / Fatal）
 - 可插拔输出后端：Default / Serilog / ZLogger / UnityLogging（com.unity.logging）
 - T4 模板生成格式化重载（`LogUtility.LogMethods.tt`），支持结构化上下文与消息事件回调
 - 拦截 Unity 原生 `Debug.Log` 统一走框架日志管线
@@ -448,7 +448,7 @@ var player = ToolRegistry.GetComponent<PlayerController>();
 集成 [Obfuz](https://github.com/nicenightcc/Obfuz) 代码混淆框架，在程序集加载后自动初始化加密虚拟机。
 
 - 条件编译：需同时开启 `OBFUZ_INSTALLED` 和 `ENABLE_OBFUZ` 宏
-- 支持静态密钥加密（`StaticEncryptionScope`）
+- 支持静态密钥加密（`DefaultStaticEncryptionScope`）
 - 自动加载密钥资源（`Resources/Obfuz/defaultStaticSecretKey`）
 
 ### DataStructure — 数据结构
@@ -479,7 +479,7 @@ myButton.OnClickAsObservable()
 
 // ReactiveProperty ↔ UGUI 双向绑定
 var hp = new ReactiveProperty<int>(100);
-hp.BindTo(hpSlider);  // Slider 自动同步
+hpSlider.BindProperty(hp, unRegister);  // Slider 自动同步
 ```
 
 ### Utility — 工具集
@@ -510,7 +510,6 @@ hp.BindTo(hpSlider);  // Slider 自动同步
 | `TweenUtility` | 缓动系统（含贝塞尔路径），可插拔引擎，[文档](Documentation~/zh/TweenUtility.md) |
 | `UniParallel` | UniTask 并行任务收集器（等待全部完成） |
 | `UnityUtility` | Unity 通用工具 |
-| `ZipWrapper` | 压缩解压封装 |
 
 ---
 
@@ -527,7 +526,7 @@ hp.BindTo(hpSlider);  // Slider 自动同步
 | Game Settings | 音频组、流程设置、更新设置编辑器（`Tools/Framework Settings`） |
 | HybridCLR | 热更新 DLL 构建命令 |
 | Inspector | Asset/Core 组件自定义 Inspector |
-| Luban Tools | Luban 配置表生成（`Tools/Settings/ConfigTableSettings`） |
+| Luban Tools | Luban 配置表生成（`Tools/Config/Luban 转表`） |
 | Maintenance | 清理空文件夹、查找丢失脚本、预制体查找器、分组选择、锁定 Inspector |
 | Reference Finder | 资源依赖/引用树视图（`Tools/资产相关/查找资产引用`） |
 | Release Tools | 构建流水线窗口、一键打包 Android/iOS/Window/AssetBundle（`Tools/Build`） |
@@ -535,8 +534,8 @@ hp.BindTo(hpSlider);  // Slider 自动同步
 | Tween | 缓动属性绘制器 |
 | UI Service | UI 绑定代码自动生成（`GameObject/ScriptGenerator/生成绑定代码`）、组件 Inspector |
 | Input Service | 输入动作配置编辑器、按键图标集合编辑器 |
-| Save Service | 存档浏览器（`Window/Moirai/Save Browser`）、无代码保存组件编辑器 |
-| Utility | 命令行读取、日志重定向、EditorScriptableSingleton、Shell 调用等 |
+| Save Service | 存档浏览器（`Tools/Moirai/Save/Save Browser`）、无代码保存组件编辑器 |
+| Utility | 命令行读取、Shell 调用等 |
 | YooAsset | 构建缓存清理、内置目录/补丁包工具、自定义构建管线、Shader 变体收集 |
 
 ---

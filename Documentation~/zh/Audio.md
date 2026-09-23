@@ -28,8 +28,8 @@ Runtime/Services/Audio/
 │      AudioVoiceDucking.cs                    # Voice 驱动的自动 Ducking
 ├── Spatial/ AudioOcclusionHrtf.cs             # 遮挡 + HRTF
 ├── Models/  AudioPlayRequest / ColdParams / Options / AssetData / GroupConfig
-│          AudioCachePolicy / AudioClipCacheEntry / AudioLoadRequest
-└── Support/ BackgroundMusic / SettingsWidget
+│          EAudioCachePolicy / AudioClipCacheEntry / AudioLoadRequest
+└── Support/ BackgroundMusic / AudioSettingsWidget
            AudioMainThread / AudioFault / AudioWarnOnce      # 主线程断言、退避式异常上报、按 key 去重告警
 ```
 
@@ -101,7 +101,7 @@ Runtime/Services/Audio/
 | `AudioPlayRequest` | 16B 热路径请求（Id/Volume/Pitch/Track/Priority/Flags） |
 | `AudioPlayColdParams` | 冷路径：位置、曲线、旁通、淡入、Rolloff（池化） |
 | `AudioPlayOptions` | 完整兼容门面；`ToRequest()` / `FromOptions()` 拆分；`CachePolicy` 决定 clip 留池策略 |
-| `AudioCachePolicy` | Clip 缓存策略：`Default`（取设置）/ `None`（用完即弃）/ `Ttl`（留池到期驱逐）/ `Pin`（常驻） |
+| `EAudioCachePolicy` | Clip 缓存策略：`Default`（取设置）/ `None`（用完即弃）/ `Ttl`（留池到期驱逐）/ `Pin`（常驻） |
 | `AudioClipCache` | Unity 后端 Clip 租约缓存（内部）；`AssetHandlePool` 是其只读视图 |
 | `AudioMixStateMachine` / `EMixSnapshot` | 混音快照状态机 |
 | `AudioOcclusionHrtf` | 遮挡 + HRTF 组件 |
@@ -168,11 +168,11 @@ AudioService.Stop(h2, fadeoutDuration: 0.2f);
 ```csharp
 // 常驻预热（启动期/过场前）：Pin 条目不参与 LRU/TTL
 AudioService.Preload("Audio/BGM/MainTheme");
-AudioService.PreloadAsync("Audio/Voice/Intro", AudioCachePolicy.Ttl, ok => { /* ... */ });
+AudioService.PreloadAsync("Audio/Voice/Intro", EAudioCachePolicy.Ttl, ok => { /* ... */ });
 
 // 用完即弃（一次性长音频）：引用归零立即释放租约
 var options = AudioPlayOptions.Create(EAudioTrack.Voice);
-options.CachePolicy = AudioCachePolicy.None;
+options.CachePolicy = EAudioCachePolicy.None;
 AudioService.Play("Audio/Voice/OneShot", options);
 
 // 回收：只清不留池的过期项由服务 Tick 自动完成，以下是显式手段
@@ -223,7 +223,7 @@ AudioService.ResetMixSnapshot(0.25f);
 
 ## 配置说明
 
-- AudioMixer 分组需暴露 `{分组名}Volume` 参数；`MixerValuesMultiplier` 默认 20  
+- AudioMixer 分组需暴露 `{分组名}Volume` 参数；`m_MixerValuesMultiplier` 默认 20  
 - `AudioGroupConfig.MaxChannel` / `CanExpand` 控制通道；扩展受同一条轨的 `MaxChannelCeiling` 限制（缺省 32、绝对上限 128，按平台预算分轨配；预置槽位不受它约束）  
 - 主音量走 `AudioListener.volume`；音轨走 Mixer 参数  
 - `ClipCacheCapacity`（默认 128）/ `ClipCacheTtl`（默认 30 秒，`0` 关闭按时间驱逐）/ `DefaultClipCachePolicy`（默认 `Ttl`）三项在 `AudioServiceSettings` 的「Clip 缓存」组内配置，`Initialize` 时下发给缓存  
@@ -248,7 +248,7 @@ AudioService.ResetMixSnapshot(0.25f);
 - 切后台时冻结 `AudioListener.pause`（保留各 `AudioSource` 播放位置），回前台解冻；不订阅 `OnApplicationFocus`（桌面切窗不应静音）。在后台被关停也会补一次解冻，不留全局静音状态  
 - `AssetHandlePool` 现在是 Clip 缓存的只读视图（契约成员类型为 `IReadOnlyDictionary`）：租约由缓存持有，外部既改不动记账也释放不了租约  
 - 自然结束计时按未缩放真实时间推进（`AudioSource` 不受 `timeScale` 影响）：`timeScale = 0` 时非循环音仍会真实播完并自动释放句柄  
-- `Stop(handle, fadeout)` 与 `FadeAudio(handle, ...)` 互斥接管同句柄音量（后调用者取消前者），请勿混用叠加  
+- `Stop(handle, fadeoutDuration)` 与 `FadeAudio(handle, ...)` 互斥接管同句柄音量（后调用者取消前者），请勿混用叠加  
 - 加载新场景自动 `StopAllButPersistent`；跨场景音频设 `Persistent = true`  
 - 句柄由服务自动释放，无需（也不应长期）手动 `ReleaseHandle`  
 - 游戏内调试器 `Profiler/Audio` 除音量/音轨控制外，还显示 Clip 缓存条目/容量、在途、常驻、失败冷却、当前混音快照与 Ducking 占用，并提供清空缓存按钮——排查"音效没出来"先看这里  

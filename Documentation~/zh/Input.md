@@ -84,7 +84,7 @@ InputService.Enabled = false;                // 全局禁用（重置所有输�
 
 ### InputActionsConfiguration 与代码生成
 
-通过 `Create Asset → Moirai Framework/Input/InputActions Config` 创建配置资产，登记按键组（`m_ActionsGroup`）与各类型动作名数组，配合编辑器生成强类型访问代码（与 Input System 的 Generate Class 功能类似）。
+通过 `Create Asset → Moirai/Input/InputActions Config` 创建配置资产，登记按键组（`m_ActionsGroup`）与各类型动作名数组，配合编辑器生成强类型访问代码（与 Input System 的 Generate Class 功能类似）。
 
 序列化动作值结构体可直接嵌入组件，逐帧更新状态：
 
@@ -122,8 +122,8 @@ Sprite device = InputDevicePromptSystem.GetDeviceSprite(spriteName);
 
 配置资产：
 
-- `GlyphMap`（`Moirai Framework/Input/Glyph Map`）：单个设备的动作绑定路径到图标映射
-- `GlyphCollection`（`Moirai Framework/Input/Glyph Collection`）：同一主题多设备字形集合，含未连接/未绑定/无效动作时的兜底图标
+- `GlyphMap`（`Moirai/Input/Glyph Map`）：单个设备的动作绑定路径到图标映射
+- `GlyphCollection`（`Moirai/Input/Glyph Collection`）：同一主题多设备字形集合，含未连接/未绑定/无效动作时的兜底图标
 - `InputSystemDevicePromptSettings`（框架设置）：登记 InputActionAsset、字形集合、默认设备优先级、平台覆盖与富文本标签
 
 通过 Package Manager 导入示例 `Samples~/InputSystem Action Prompts`（含 Xelu Prompts 图标集、示例场景与字体）可快速上手。

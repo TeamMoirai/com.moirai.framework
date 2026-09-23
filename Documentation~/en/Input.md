@@ -84,7 +84,7 @@ InputService.Enabled = false;                // Global disable (resets all input
 
 ### InputActionsConfiguration and Code Generation
 
-Create a configuration asset via `Create Asset -> Moirai Framework/Input/InputActions Config`, register action groups (`m_ActionsGroup`) and action name arrays of each type, and use the editor to generate strongly-typed access code (similar to Input System's Generate Class feature).
+Create a configuration asset via `Create Asset -> Moirai/Input/InputActions Config`, register action groups (`m_ActionsGroup`) and action name arrays of each type, and use the editor to generate strongly-typed access code (similar to Input System's Generate Class feature).
 
 Serializable action value structs can be embedded directly in components for per-frame state updates:
 
@@ -122,8 +122,8 @@ Sprite device = InputDevicePromptSystem.GetDeviceSprite(spriteName);
 
 Configuration assets:
 
-- `GlyphMap` (`Moirai Framework/Input/Glyph Map`): Maps action binding paths to icons for a single device
-- `GlyphCollection` (`Moirai Framework/Input/Glyph Collection`): Multi-device glyph collection for the same theme, with fallback icons for unbound/invalid actions
+- `GlyphMap` (`Moirai/Input/Glyph Map`): Maps action binding paths to icons for a single device
+- `GlyphCollection` (`Moirai/Input/Glyph Collection`): Multi-device glyph collection for the same theme, with fallback icons for unbound/invalid actions
 - `InputSystemDevicePromptSettings` (Framework Settings): Registers InputActionAsset, glyph collection, default device priority, platform overrides, and rich text tags
 
 Import the sample `Samples~/InputSystem Action Prompts` via Package Manager (includes Xelu Prompts icon set, sample scene, and font) to get started quickly.

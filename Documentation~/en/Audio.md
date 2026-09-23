@@ -28,8 +28,8 @@ Runtime/Services/Audio/
 │      AudioVoiceDucking.cs                    # Voice-driven auto ducking
 ├── Spatial/ AudioOcclusionHrtf.cs             # Occlusion + HRTF
 ├── Models/  AudioPlayRequest / ColdParams / Options / AssetData / GroupConfig
-│          AudioCachePolicy / AudioClipCacheEntry / AudioLoadRequest
-└── Support/ BackgroundMusic / SettingsWidget
+│          EAudioCachePolicy / AudioClipCacheEntry / AudioLoadRequest
+└── Support/ BackgroundMusic / AudioSettingsWidget
            AudioMainThread / AudioFault / AudioWarnOnce   # main-thread assert, backed-off fault reporting, deduped warnings
 ```
 
@@ -100,7 +100,7 @@ Namespace: `Moirai.Atropos.Audio` (middleware under `.Fmod` / `.Wwise` / `.Middl
 | `AudioPlayRequest` | 16-byte hot request |
 | `AudioPlayColdParams` | Cold params (location, curves, bypass); pooled |
 | `AudioPlayOptions` | Compatibility facade; `ToRequest()` / `FromOptions()`; `CachePolicy` decides lease retention |
-| `AudioCachePolicy` | `Default` (from settings) / `None` (drop after use) / `Ttl` (keep until expiry) / `Pin` (resident) |
+| `EAudioCachePolicy` | `Default` (from settings) / `None` (drop after use) / `Ttl` (keep until expiry) / `Pin` (resident) |
 | `AudioClipCache` | Unity backend clip lease cache (internal); `AssetHandlePool` is its read-only view |
 | `AudioMixStateMachine` / `EMixSnapshot` | Mix snapshot state machine |
 | `AudioOcclusionHrtf` | Occlusion + HRTF component |
@@ -157,11 +157,11 @@ All `Play(path, ...)` loading goes through `AudioClipCache`: one resource lease 
 ```csharp
 // Resident preload (startup / before a cutscene): Pin skips LRU/TTL
 AudioService.Preload("Audio/BGM/MainTheme");
-AudioService.PreloadAsync("Audio/Voice/Intro", AudioCachePolicy.Ttl, ok => { /* ... */ });
+AudioService.PreloadAsync("Audio/Voice/Intro", EAudioCachePolicy.Ttl, ok => { /* ... */ });
 
 // Drop after use: one-shot long audio
 var options = AudioPlayOptions.Create(EAudioTrack.Voice);
-options.CachePolicy = AudioCachePolicy.None;
+options.CachePolicy = EAudioCachePolicy.None;
 AudioService.Play("Audio/Voice/OneShot", options);
 
 AudioService.UnloadClipCache("Audio/BGM/MainTheme");   // Pin needs force: true
@@ -195,6 +195,14 @@ Add `AudioOcclusionHrtf` next to the listener: raycasts active sources, drives `
 
 Configure `WarmupAudioHostPool` and `AudioHostWarmupCount` in `AudioServiceSettings`; `AudioService.OnInit` warms the pool under `InstanceRoot` after the handler is ready. Idle hosts live under a `[Warmup]` node (sibling of each `Audio Category - *`); `AudioAgent` re-parents a host to its category and renames it (e.g. `SFX - 0`) on acquire, and returns it under `[Warmup]` on release. Without warmup, hosts are created on demand and the `[Warmup]` node is created on first release.
 
+## Configuration
+
+- Mixer groups must expose a `{group name}Volume` parameter; `m_MixerValuesMultiplier` defaults to 20
+- `AudioGroupConfig.MaxChannel` / `CanExpand` drive the channels; expansion is capped by the same track's `MaxChannelCeiling` (32 by default, absolute ceiling 128 — budget it per track per platform; preset slots are not bound by it)
+- Master volume goes through `AudioListener.volume`; track volume goes through Mixer parameters
+- `ClipCacheCapacity` (128 by default) / `ClipCacheTtl` (30 seconds, `0` turns time-based eviction off) / `DefaultClipCachePolicy` (`Ttl`) live in the "Clip cache" group of `AudioServiceSettings` and are handed to the cache during `Initialize`
+- `AutoDuckingOnVoice` (off by default) is in the "Auto Ducking" group; register a `Dialogue` snapshot in `MixSnapshots` before switching it on
+
 ## Notes
 
 - `Play` returns `0UL` on failure (no channel, unconfigured track, paused track, backend not initialized)  
@@ -214,7 +222,7 @@ Configure `WarmupAudioHostPool` and `AudioHostWarmupCount` in `AudioServiceSetti
 - `AssetHandlePool` is now a read-only view over the clip cache (the contract member is typed `IReadOnlyDictionary`): leases are owned by the cache, so external code can neither rewrite the ledger nor dispose a lease  
 - Natural-end timing uses unscaled real time (`AudioSource` is not affected by `timeScale`): at `timeScale = 0` a non-looping voice still finishes in real time and auto-releases its handle  
 - Master/track fades are implemented by the contract base class (one code path for both backends): `duration <= 0` means assign immediately and schedule nothing; `StopFadeMasterTrack` / `StopFadeTrack` **cancel the fade without restoring volume already written** — wherever it stopped is where it stays; re-requesting a fade on the same bus replaces the pending one rather than stacking it  
-- `Stop(handle, fadeout)` and `FadeAudio(handle, ...)` take over the same handle's volume exclusively (the later call cancels the former) — do not stack them  
+- `Stop(handle, fadeoutDuration)` and `FadeAudio(handle, ...)` take over the same handle's volume exclusively (the later call cancels the former) — do not stack them  
 - Scene load auto `StopAllButPersistent`; set `Persistent = true` for cross-scene audio  
 - Handles are auto-released; do not rely on long-lived manual `ReleaseHandle`  
 - The in-game debugger's `Profiler/Audio` panel now also shows clip cache entries/capacity, in-flight loads, pinned count, failure cooldowns, the current mix snapshot and ducking ownership, plus cache-clear buttons — check it first when "a sound didn't play"  

@@ -9,7 +9,7 @@ Debugger 服务由 `DebuggerService` 静态外观负责窗口注册表与轮询�
 - **UI Toolkit 渲染**：脱离 IMGUI 逐帧重绘——`ListView` 虚拟化日志列表（makeItem/bindItem 仅渲染可视行），信息窗口按 0.25s 节流重建
 - **Console 日志台**：分级过滤芯片（增量计数，零遍历刷新）、日志搜索、锁定滚动、堆栈详情与一键复制
 - **信息窗口**：System / Environment / Screen / Graphics / Input（Input System 设备与传感器）/ Scene / Time / Quality / Path
-- **Profiler 窗口**：Summary、Memory Summary、Memory 明细（All / Texture / Mesh / Material / Shader / AnimationClip / AudioClip / Font / TextAsset / ScriptableObject）、Object Pool / GameObject Pool / Memory Pool、Service System（服务容器诊断）
+- **Profiler 窗口**：Summary、Memory Summary、Memory 明细（All / Texture / Mesh / Material / Shader / AnimationClip / AudioClip / Font / TextAsset / ScriptableObject）、Object Pool / GameObject Pool / Memory Pool、Service Kernel（服务容器诊断）
 - **服务调试面板**：Timer / Resource / Audio / Procedure / Localization 各服务模块自带的调试视图，经服务 OnInit 自动注册（见「服务调试面板」章节）
 - **游戏应用设置**：目标帧率/游戏速度实时控制与本地设置键值清单（`Other/Game Settings`，原 GameAppEditor 整合）
 - **常驻统计 HUD**：FPS / Tris / Batches / DrawCall / SetPass / Mono / Alloc / GfxDrv（`ProfilerRecorder` 按需启停 + 0.25s 节流）
@@ -32,7 +32,7 @@ Debugger 服务由 `DebuggerService` 静态外观负责窗口注册表与轮询�
 | `IDebuggerWindow` | 窗口接口：`Initialize(params object[])` / `Shutdown()` / `OnEnter()` / `OnLeave()` / `OnUpdate(float, float)` / **`CreateView()` → `VisualElement`** |
 | `DebuggerWindowRegistry` | 窗口注册表（纯数据）：扁平字典 O(1) 检索 + 路径树导航模型（`DebuggerWindowNode`），结构版本号驱动侧边栏重建 |
 | `DebuggerLogCapture` | 日志捕获器：线程安全入队 + 主线程 `Drain()` 排空的池化环形缓冲；增量分级计数 + 内容版本号 |
-| `LogNode` | 池化日志结点：`LogTime` / `LogFrameCount` / `LogType` / `LogMessage` / `StackTrack` |
+| `LogNode` | 池化日志结点：`LogTime` / `LogFrameCount` / `LogType` / `LogMessage` / `StackTrace` |
 | `DebuggerRuntimeHost` | 运行时宿主（MonoBehaviour）：运行时构建 PanelSettings/UIDocument、悬浮 FPS 入口、主窗口 chrome、布局持久化、OS 回退字体（含 CJK）；单例 `Instance` |
 | `DebuggerStatsOverlay` | 常驻统计 HUD（`ProfilerRecorder` + StringBuilder 复用，稳态零分配） |
 | `DebugPanelBuilder` | 流式面板构建器：`AddLabel` / `AddSection` / `AddFoldout` / `AddButton` / `AddToggle` / `AddSlider` / `AddIntSlider` / `AddReadOnlyField` / `AddProgressBar` |
@@ -41,7 +41,7 @@ Debugger 服务由 `DebuggerService` 静态外观负责窗口注册表与轮询�
 | `Constant.Debug` | 布局与控制台筛选的设置键常量 |
 | `CommandLineUtility` | 静态工具类：`GetShowDebugger()` 读取 `-showdebugger` 强制开启参数 |
 | `ServiceDebugView` | IMGUI 调试视图抽象基类（实现 `IDebuggerWindow`）：`Title` / `IsReady` / `OnDrawContent()`（GUILayout）+ 默认 `CreateView()`（`IMGUIContainer` 嵌入 UI Toolkit 面板）——游戏侧快速 IMGUI 视图的兼容扩展路径（框架内置面板均为原生 UI Toolkit） |
-| `Windows/*` | 内置窗口实现：`ConsoleWindow`、`*InformationWindow`、`RuntimeMemorySummaryWindow`、`RuntimeMemoryInformationWindow<T>`、`*PoolInformationWindow`、`ServiceSystemInformationWindow`、`OperationsWindow`、`SettingsWindow` 等 |
+| `Windows/*` | 内置窗口实现：`ConsoleWindow`、`*InformationWindow`、`RuntimeMemorySummaryWindow`、`RuntimeMemoryInformationWindow<T>`、`MemoryPoolInformationWindow`、`ServiceKernelDebuggerWindow`、`OperationsWindow`、`SettingsWindow` 等 |
 
 ## 快速上手
 
@@ -72,7 +72,7 @@ foreach (LogNode node in logs)
 {
     UnityEngine.LogType type = node.LogType;
     string message = node.LogMessage;
-    string stack = node.StackTrack;
+    string stack = node.StackTrace;
 }
 ```
 
@@ -146,16 +146,16 @@ DebuggerService.RegisterDebugView("Profiler/My Service", new MyServiceDebugView(
 | 路径 | 视图（模块目录） | 内容 |
 |------|-----------------|------|
 | `Profiler/Timer` | `TimerServiceDebuggerWindow`（Timer 模块） | 活跃/容量/峰值统计与占用率、活跃计时器采样、僵尸一次性计时器检测（0.5s 节流） |
-| `Profiler/Resource` | `ResourceServiceDebugView`（Resource 模块） | 运行模式、已加载资产快照（状态/引用计数，0.5s 节流） |
-| `Profiler/Audio` | `AudioServiceDebugView`（Audio 模块） | 主音量与 Sfx/UI/Music/Voice 四轨音量/静音实时控制 |
-| `Profiler/Procedure` | `ProcedureServiceDebugView`（Procedure 模块） | 当前流程状态与持续时长（0.5s 节流） |
-| `Profiler/Localization` | `LocalizationServiceDebugView`（Localization 模块） | 当前语言展示与一键切换（1s 节流） |
+| `Profiler/Resource` | `ResourceServiceDebuggerWindow`（Resource 模块） | 运行模式、已加载资产快照（状态/引用计数，0.5s 节流） |
+| `Profiler/Audio` | `AudioServiceDebuggerWindow`（Audio 模块） | 主音量与五条音轨的音量/静音实时控制 |
+| `Profiler/Procedure` | `ProcedureServiceDebuggerWindow`（Procedure 模块） | 当前流程状态与持续时长（0.5s 节流） |
+| `Profiler/Localization` | `LocalizationInformationWindow`（Localization 模块） | 当前语言展示与一键切换（1s 节流） |
 | `Other/Game Settings` | `GameAppInformationWindow`（Debugger 内置） | 目标帧率/游戏速度实时控制（预设 0x 定格 ~ 8x）、暂停请求深度与时间冻结指示、本地设置键值清单与保存/清除 |
 
 新增服务调试面板的固定模式：
 
 ```csharp
-// 1) 视图类放在服务模块自己的目录下（如 Runtime/Services/Audio/AudioServiceDebugView.cs），
+// 1) 视图类放在服务模块自己的目录下（如 Runtime/Services/Audio/AudioServiceDebuggerWindow.cs），
 //    继承 PollingDebuggerWindowBase（数据型）或 ScrollableDebuggerWindowBase（控制型），内容经 DebuggerUI 主题化辅助构建；
 // 2) 服务 OnInit 末尾注册（组合根已保证 DebuggerService 先行——外观未就绪时静默跳过）：
 public override void OnInit()
@@ -192,7 +192,7 @@ DebuggerService.RegisterDebugView("My/IMGUI View", new MyIMGUIDebugView());
 
 ## 注意事项
 
-- 内置窗口（28 个）由 `DefaultDebuggerHandler.OnInit` 注册，自定义窗口请在服务初始化后注册；`RegisterDebuggerWindow` 的路径不能为空 / 不能与已注册窗口或目录冲突，否则抛出 `GameException`
+- 内置窗口（27 个）由 `DefaultDebuggerHandler.OnInit` 注册，自定义窗口请在服务初始化后注册；`RegisterDebuggerWindow` 的路径不能为空 / 不能与已注册窗口或目录冲突，否则抛出 `GameException`
 - 运行时面板**必须携带主题**：宿主从包内 `Resources/DebuggerPanelSettings.asset` 克隆（内嵌 `UnityDefaultRuntimeTheme` 引用）——`ScriptableObject.CreateInstance<PanelSettings>()` 在 Play 模式下 `themeStyleSheet` 为 null，全部内置控件将失去基础 USS（布局完全错位）
 - MonoBehaviour 字段初始化器中禁止创建 `VisualElement`（UnityException）——一律在构建方法内创建
 - 悬浮入口拖拽松手后自动吸附最近屏幕边缘；布局经 `SettingUtility` 持久化，标题栏 Reset 按钮还原默认

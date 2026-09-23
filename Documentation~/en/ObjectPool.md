@@ -22,9 +22,10 @@ Runtime/Services/ObjectPool/
 │   ├── PoolMaintenanceScheduler # Shared min-heap maintenance scheduler (1ms frame budget)
 │   ├── OpenHashMap<K> / ReferenceOpenHashMap / StringOpenHashMap  # Open-addressing zero-alloc hashes
 │   └── SlotArrayPool<T>        # Bucketed array pool by length
-├── ObjectPoolService.cs    # Generic pool static facade ([HandlerHost])
-├── ObjectBase.cs           # Pooled object base (OnSpawn/OnDespawn/Release contract)
-├── IObjectPool.cs          # Generic pool contract
+├── ObjectPool/             # Generic pool
+│   ├── ObjectPoolService.cs    # Generic pool static facade ([HandlerHost])
+│   ├── ObjectBase.cs           # Pooled object base (OnSpawn/OnDespawn/Release contract)
+│   └── IObjectPool.cs          # Generic pool contract
 └── GameObject/             # GameObject specialization
     ├── GameObjectPoolService.cs    # GO pool static facade ([HandlerHost] + ServiceDependency(Resource))
     ├── RuntimeGameObjectPool.cs    # Per-pool runtime (generation handle + policy; Location / External Prefab sources)
@@ -57,15 +58,15 @@ Namespace: `Moirai.Atropos.ObjectPool`
 | Class/Interface | Description |
 |-----------------|-------------|
 | `GameObjectPoolSource` | Unified source key: location or external prefab; implicit from `string`/`GameObject`; `Group` applies only when a prefab pool is first created |
-| `GameObjectPoolService` | Static facade (single entry): `Spawn` / `SpawnAsync` / `SpawnPooled` / `SpawnPooledAsync` / `Despawn` / `WarmupAsync` / `LoadPrefab(Async)` / `Flush` / `FlushGroup` / `FlushAll` / `LoadCatalog` |
+| `GameObjectPoolService` | Static facade (single entry): `Spawn` / `SpawnAsync` / `SpawnPooled` / `SpawnPooledAsync` / `Despawn` / `WarmupAsync` / `LoadPrefab(Async)` / `Flush` / `FlushGroup` / `FlushAll` |
 | `PooledGameObject` | Pure C# lease (not MonoBehaviour): owner/slot/generation; `Spawn` / `SpawnAsync` / `Wrap` / `Dispose` / `Get(OrAdd)UserData` / `SetUserData` / `IsValid`; only Active instances can be wrapped |
 | `Pooled<TComponent>` | Generic component lease (return type of service `SpawnPooled<T>`) |
-| `PooledComponent<T,TComponent>` | CRTP component lease base for custom subclasses (`PooledShot`, etc.) |
+| `PooledComponent<T,TComponent>` | CRTP component lease base for custom subclasses |
 | `RuntimeGameObjectPool` | Per-pool runtime: paged Slot (UserData) + intrusive inactive list + generation; Location / External Prefab |
 | `PooledInstanceRegistry` | Zero-alloc instance → (pool,slot) reverse map; generation lives on Slot |
 | `IGameObjectPoolable` | Pooled component interface: `OnSpawn(in GameObjectPoolSpawnContext)` / `OnDespawn` / `OnPooledDestroy` |
 | `EPoolPolicy` | Recycle policy: `Fixed` (trim on excess) / `Burst` (trim after idle timeout) / `Sticky` (no proactive trim) |
-| `PoolEntry` / `PoolConfigScriptableObject` | Serializable config entries and config asset (supports Glob: `*`, `**`, `?`) |
+| `PoolEntry` | Serializable config entry (listed in the default handler's pool config field; supports Glob: `*`, `**`, `?`) |
 | `PoolCompiledCatalog` | Compiled rule catalog: exact + Glob matching |
 | `IPrefabLoader` | Prefab loading abstraction; default `ResourcePrefabLoader` uses `ResourceService.LoadLease` leases for ref-counting |
 
@@ -121,7 +122,7 @@ sharedPool.Despawn(fx);             // SpawnCount--; reusable again when zero
 
 ### 2. GameObject Pool
 
-Configure a `PoolConfigScriptableObject` (Create > Moirai > PoolConfig):
+Pool entries live in the default handler's pool config list (`Tools > Framework Settings > [服务]游戏对象池设置`):
 
 ```csharp
 new PoolEntry
@@ -139,8 +140,8 @@ new PoolEntry
 };
 ```
 
-> Config can be provided via `GameObjectPoolServiceSettings` (assign the PoolConfig asset in the Inspector; auto-loaded on service init),
-> or at runtime via `GameObjectPoolService.LoadCatalog(config)` / `LoadCatalog(location)` for hot swap (rebuilds all pools).
+> Config is serialized on the pool handler chosen in `GameObjectPoolServiceSettings` (its pool config list),
+> and the handler compiles it into a `PoolCompiledCatalog` and rebuilds all pools on init.
 
 ```csharp
 // string / GameObject implicitly convert to GameObjectPoolSource
@@ -298,7 +299,7 @@ When to use which entry:
 | Scope-based auto-return | `SpawnPooled` / `PooledGameObject.Spawn` |
 | Component + scope return + component cache | `SpawnPooled<T>` / `Pooled<T>.Spawn` |
 | Custom Init / resolution / delayed release | Derive `PooledComponent<T, TComponent>` |
-| `TrySpawn` / warmup / Flush / LoadCatalog | `GameObjectPoolService` only |
+| `TrySpawn` / warmup / Flush | `GameObjectPoolService` only |
 
 ### GameObject Pool Policies
 
@@ -359,7 +360,7 @@ Debugger windows: `Profiler/Object Pool` (generic), `Profiler/GameObject Pool` (
 - `default(GameObjectPoolSource)` is an invalid source; do not write `Spawn(null)` (ambiguous implicits — compile error).
 - **Zombie-slot self-heal**: hitting the hard capacity sweeps externally destroyed slots before retrying the allocation; pools with live instances but no due maintenance (Sticky / all-active) run a fallback sweep every 30s with a warning, so reclaiming externally destroyed instances is bounded and no longer depends on Flush / low memory.
 - Maintenance is driven by `GameServices.Tick` (min-heap due wakeups, 1ms per-frame budget). Sticky pools lazily reclaim externally destroyed slots on the next Spawn.
-- Low memory: both pool Handlers subscribe to `Application.lowMemory` and shrink fully; `GameApp.OnLowMemory` only drives the resource layer unload.
+- Low memory: both pool Handlers subscribe to `Application.lowMemory` and shrink fully; the resource layer unload is driven by `ResourceService`'s own `OnLowMemory`.
 
 ---
 [« Documentation Index](Index.md) · [Main README](../../README_EN.md) · [MemoryPool](MemoryPool.md) · [Resource](Resource.md)

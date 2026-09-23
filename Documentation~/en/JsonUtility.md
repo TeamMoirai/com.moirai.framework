@@ -46,9 +46,6 @@ byte[] bytes = JsonUtility.ToJsonBytes(playerData);
 // Deserialize from bytes
 var data = JsonUtility.ToObject<PlayerData>(bytes);
 
-// Overwrite existing object
-JsonUtility.FromJsonOverwrite(json, existingObject);
-
 // Format JSON string
 string formatted = JsonUtility.FormatJson(json);
 ```
@@ -96,7 +93,7 @@ JsonUtility.Handler = new DefaultJsonHandler();
 - Setting `Handler` to null throws `ArgumentNullException`; assigning a new value automatically calls `Internal_Shutdown()` on the old handler and `Internal_Init()` on the new handler
 - By default, types derived from `UnityEngine.Object` (GameObject/Component/Sprite/Texture/Material, etc.) and `UnityEvent` are not serialized; reflection-based serialization would reach native-side objects
 - By default, properties must have both getter and setter (a round-trip symmetry contract); get-only computed properties are automatically excluded
-- `FromJsonOverwrite` deserializes JSON data onto an existing object, overwriting its current data
+- `JsonHandler.FromJsonOverwrite` deserializes JSON data onto an existing object, overwriting its current data
 
 ---
 [« Documentation Index](Index.md) · [Main README](../../README_EN.md) · [StringUtility](StringUtility.md) · [Save](Save.md)

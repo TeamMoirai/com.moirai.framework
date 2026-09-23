@@ -46,7 +46,7 @@ MemoryPool 系统为纯 C# 对象（非 GameObject）提供高性能池化。它
 |------|------|
 | 编辑器 / 开发构建 | 每个取还动作校验线程 id，跨线程立即抛 `InvalidOperationException`（消息带 owner/current 线程 id） |
 | 正式构建（默认） | 守卫关闭，只保留一次静态布尔读；主线程 id 仍在 `SubsystemRegistration` 就固化 |
-| QA / soak 构建 | `MemoryPoolSetting.VerifyMainThreadInRelease` 打开后，正式构建也常驻校验——跨线程改坏非托管元数据不会当场报错，而是几周后以随机崩溃回来，排查期值这点开销 |
+| QA / soak 构建 | `MemoryPoolSetting.m_VerifyMainThreadInRelease` 打开后，正式构建也常驻校验——跨线程改坏非托管元数据不会当场报错，而是几周后以随机崩溃回来，排查期值这点开销 |
 
 维护路径的异常按房内 `RETHROW_*` 同一约定分级：`TickAll` 是每帧边界，开发期合并报一条带失败数量的 Fatal 后上抛，发布期只上报不外溢（没有业务能接住更新派发里的异常）；池内批量路径（整批修剪、页退役）始终逐项隔离走完再上报，一个坏 `OnEvict()` 不截断其余对象。单轮最多列出 16 条回调异常，其余合并成一条汇总——无上限收集等于在"内存紧张正在修剪"的那一刻攒 GC 毛刺。
 
@@ -97,7 +97,7 @@ MemoryPool 系统为纯 C# 对象（非 GameObject）提供高性能池化。它
 | `MemoryPoolHandle` | 缓存句柄，用于动态类型查找：`Acquire()`、`Release()` |
 | `MemoryPoolInfo` | 快照结构体：`UnusedCount`、`UsingCount`、`MaxUsingCount`、`LiveLimit`、`AcquireCount`、`MissCount`、`MissRate` 等 |
 | `EMemoryPoolPhase` | 枚举：`Boot`、`Loading`、`Gameplay`、`Background`、`LowMemory` |
-| `MemoryPoolSetting` | MonoBehaviour：Inspector 可配置的衰减计时器和容量限制 |
+| `MemoryPoolSetting` | ScriptableObject 框架设置：Inspector 可配置的衰减计时器和容量限制 |
 
 ## 快速上手
 
@@ -155,7 +155,7 @@ MemoryPool.SetCapacity<DamageEvent>(softCapacity: 128, hardCapacity: 512);
 
 ## 阶段集成
 
-`MemoryPoolSetting` MonoBehaviour 每帧驱动 `MemoryPoolRegistry.TickAll()` 并处理系统事件：
+`MemoryPoolSetting`（ScriptableObject 框架设置）经 `GameApp.AddUpdateListener` 每帧驱动 `MemoryPoolRegistry.TickAll()` 并处理系统事件：
 
 - `Application.lowMemory` → 切换到 `LowMemory` 阶段，调用 `CompactAll()`，恢复原阶段
 - `Application.focusChanged` → 失焦时切换到 `Background` 阶段，获焦时恢复
@@ -181,7 +181,7 @@ for (int i = 0; i < actual; i++)
 订阅每帧统计更新（未订阅时零开销）：
 
 ```csharp
-MemoryPoolRegistry.PoolStatsUpdated += infos =>
+MemoryPoolRegistry.OnPoolStatsUpdated += infos =>
 {
     foreach (var info in infos)
     {

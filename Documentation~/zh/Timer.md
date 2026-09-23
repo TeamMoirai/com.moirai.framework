@@ -153,7 +153,7 @@ int staleCount = TimerService.GetStaleOneShotTimers(staleResults);
 
 ### 实现要点
 
-- 数据按 256 槽分页存放于多个并行数组（`TimerPage`），避免大数组 LOH 压力；
+- 数据按 256 槽分页存放于多个并行数组（`WheelPage` / `FramePage`），避免大数组 LOH 压力；
 - 每帧 `Update` 中分两条时间轮各推进，单帧每轮最多消耗 64 个 tick 预算，防止长卡顿后雪崩；
 - 高层级桶到期后逐级级联（cascade）到低层级，查找仅为槽位索引运算；
 - 帧计时器独立于时间轮，按阶段存放于并行帧列表，借助每槽位置表实现 O(1) 交换删除；派发以**句柄快照**迭代，规避回调内释放/槽位复用的重入风险；
