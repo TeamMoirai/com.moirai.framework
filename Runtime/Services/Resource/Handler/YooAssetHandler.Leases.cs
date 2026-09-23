@@ -20,7 +20,7 @@ namespace Moirai.Atropos.Resource
                 ? new ResourceKey(key.Location, key.PackageName, typeof(UObject), ResourceKeyCodec.InferAssetKind(typeof(UObject)))
                 : key;
 
-            string normalizedPackageName = NormalizePackageName(typedKey.PackageName);
+            string normalizedPackageName = Kernel.NormalizePackageName(typedKey.PackageName);
             EResourceAssetKind assetKind = ResourceKeyCodec.NormalizeAssetKind(typedKey.AssetType, typedKey.AssetKind);
             Type assetType = ResourceKeyCodec.NormalizeAssetType(typedKey.AssetType, assetKind);
 
@@ -30,7 +30,7 @@ namespace Moirai.Atropos.Resource
                 return ResourceLeaseHandle.Invalid;
             }
 
-            ulong recordKey = GetAssetRecordKey(normalizedPackageName, typedKey.Location, assetType, assetKind,
+            ulong recordKey = Kernel.GetAssetRecordKey(normalizedPackageName, typedKey.Location, assetType, assetKind,
                 EResourceHandleKind.AssetHandle);
             if (!_assetRecordsByKey.TryGetValue(recordKey, out int assetId) || !IsValidAssetId(assetId))
             {
@@ -48,10 +48,10 @@ namespace Moirai.Atropos.Resource
                 ? new ResourceKey(key.Location, key.PackageName, typeof(UObject), ResourceKeyCodec.InferAssetKind(typeof(UObject)))
                 : key;
 
-            string normalizedPackageName = NormalizePackageName(typedKey.PackageName);
+            string normalizedPackageName = Kernel.NormalizePackageName(typedKey.PackageName);
             EResourceAssetKind assetKind = ResourceKeyCodec.NormalizeAssetKind(typedKey.AssetType, typedKey.AssetKind);
             Type assetType = ResourceKeyCodec.NormalizeAssetType(typedKey.AssetType, assetKind);
-            ulong loadingKey = GetLoadingOperationKey(typedKey.Location, normalizedPackageName, assetType, assetKind);
+            ulong loadingKey = Kernel.GetLoadingOperationKey(typedKey.Location, normalizedPackageName, assetType, assetKind);
 
             UObject asset = await GetOrLoadAssetAsync(typedKey.Location, assetType, assetKind, normalizedPackageName,
                 loadingKey, cancellationToken: cancellationToken);
@@ -60,7 +60,7 @@ namespace Moirai.Atropos.Resource
                 return ResourceLeaseHandle.Invalid;
             }
 
-            ulong recordKey = GetAssetRecordKey(normalizedPackageName, typedKey.Location, assetType, assetKind,
+            ulong recordKey = Kernel.GetAssetRecordKey(normalizedPackageName, typedKey.Location, assetType, assetKind,
                 EResourceHandleKind.AssetHandle);
             if (!_assetRecordsByKey.TryGetValue(recordKey, out int assetId) || !IsValidAssetId(assetId))
             {
@@ -278,8 +278,8 @@ namespace Moirai.Atropos.Resource
                 return ResourceLeaseHandle.Invalid;
             }
 
-            string normalizedPackageName = NormalizePackageName(packageName);
-            ulong loadingKey = GetLoadingOperationKey(location, normalizedPackageName, typeof(GameObject),
+            string normalizedPackageName = Kernel.NormalizePackageName(packageName);
+            ulong loadingKey = Kernel.GetLoadingOperationKey(location, normalizedPackageName, typeof(GameObject),
                 EResourceAssetKind.Prefab);
             UObject asset = await GetOrLoadAssetAsync(location, typeof(GameObject), EResourceAssetKind.Prefab,
                 normalizedPackageName, loadingKey, cancellationToken: cancellationToken);
@@ -288,7 +288,7 @@ namespace Moirai.Atropos.Resource
                 return ResourceLeaseHandle.Invalid;
             }
 
-            ulong key = GetAssetRecordKey(normalizedPackageName, location, typeof(GameObject),
+            ulong key = Kernel.GetAssetRecordKey(normalizedPackageName, location, typeof(GameObject),
                 EResourceAssetKind.Prefab, EResourceHandleKind.AssetHandle);
             if (!_assetRecordsByKey.TryGetValue(key, out int assetId) || !IsValidAssetId(assetId))
             {

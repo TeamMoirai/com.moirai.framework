@@ -318,7 +318,7 @@ namespace Moirai.Atropos.Resource
                 FreeAssetSlot(i);
             }
 
-            ReleaseAllResourceKeysFromMap(_assetRecordsByKey);
+            Kernel.ReleaseAllResourceKeysFromMap(_assetRecordsByKey);
             _assetRecordsByKey.Clear();
             _assetRecordByLoadKeyId.Clear();
             _unusedAssetCandidateCount = 0;
@@ -351,7 +351,7 @@ namespace Moirai.Atropos.Resource
             DisposeAssetSlotHandle(ref slot);
             ulong key = slot.Key;
             _assetRecordsByKey.Remove(key);
-            ReleaseResourceKey(key);
+            Kernel.ReleaseResourceKey(key);
             if (slot.LoadKeyId > 0)
             {
                 _assetRecordByLoadKeyId.Remove((ulong)slot.LoadKeyId);

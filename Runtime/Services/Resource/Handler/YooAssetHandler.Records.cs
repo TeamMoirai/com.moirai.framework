@@ -101,15 +101,11 @@ namespace Moirai.Atropos.Resource
         [NonSerialized] private int _unusedAssetCandidateCount;
         [NonSerialized] private bool _idleCapacityTrimPending;
 
-        // 资源名称注册表（package/location/type → ID）：三条轴共用 ResourceNameRegistry 一份实现。
-        // 仍是 readonly + 字段初始化器，与原字典/栈同款——[SerializeReference] 构造时初始化器会执行，
-        // 而注册表内部那些数组与计数表属于一个不标 [Serializable] 的类，整棵子树天然不参与序列化。
-        [NonSerialized] private readonly ResourceNameRegistry<string> _packageNames =
-            new ResourceNameRegistry<string>(ResourceKeyCodec.RESOURCE_KEY_PACKAGE_MAX, string.Empty);
-        [NonSerialized] private readonly ResourceNameRegistry<string> _locationNames =
-            new ResourceNameRegistry<string>(ResourceKeyCodec.RESOURCE_KEY_LOCATION_MAX, string.Empty);
-        [NonSerialized] private readonly ResourceNameRegistry<Type> _typeNames =
-            new ResourceNameRegistry<Type>(ResourceKeyCodec.RESOURCE_KEY_TYPE_MAX, null);
+        // 键空间已搬进 ResourceRecordKernel。这里刻意不用字段初始化器建：[SerializeReference]
+        // 反序列化出来的实例上没有初始化器可依赖，故首次取用时才建（Kernel 属性）。
+        [NonSerialized] private ResourceRecordKernel _kernel;
+
+        private ResourceRecordKernel Kernel => _kernel ??= new ResourceRecordKernel(() => DefaultPackageName);
 
         // 加载键自增
         [NonSerialized] private int _loadKeyNextId = 1;
@@ -162,8 +158,8 @@ namespace Moirai.Atropos.Resource
         {
             assetKind = ResourceKeyCodec.NormalizeAssetKind(assetType, assetKind);
             assetType = ResourceKeyCodec.NormalizeAssetType(assetType, assetKind);
-            string normalizedPackageName = NormalizePackageName(packageName);
-            ulong key = GetAssetRecordKey(normalizedPackageName, location, assetType, assetKind, handleKind);
+            string normalizedPackageName = Kernel.NormalizePackageName(packageName);
+            ulong key = Kernel.GetAssetRecordKey(normalizedPackageName, location, assetType, assetKind, handleKind);
             if (_assetRecordsByKey.TryGetValue(key, out int existingId) && IsValidAssetId(existingId))
             {
                 ref AssetSlot existing = ref GetAssetSlotRef(existingId);
@@ -203,7 +199,7 @@ namespace Moirai.Atropos.Resource
             slot.UnusedCandidateIndex = -1;
             slot.State = EResourceAssetState.Idle;
             _assetRecordsByKey.Set(key, assetId);
-            RetainResourceKey(key);
+            Kernel.RetainResourceKey(key);
             _assetRecordByLoadKeyId.Set((ulong)slot.LoadKeyId, assetId);
             UpdateAssetStateAndIdleQueue(assetId, ref slot);
             return assetId;
@@ -211,8 +207,8 @@ namespace Moirai.Atropos.Resource
 
         private int GetOrCreateSubAssetsRecord(string packageName, string location, object subAssetsHandle)
         {
-            string normalizedPackageName = NormalizePackageName(packageName);
-            ulong key = GetAssetRecordKey(normalizedPackageName, location, typeof(Sprite),
+            string normalizedPackageName = Kernel.NormalizePackageName(packageName);
+            ulong key = Kernel.GetAssetRecordKey(normalizedPackageName, location, typeof(Sprite),
                 EResourceAssetKind.SubAssets, EResourceHandleKind.SubAssetsHandle);
             if (_assetRecordsByKey.TryGetValue(key, out int existingId) && IsValidAssetId(existingId))
             {
@@ -247,7 +243,7 @@ namespace Moirai.Atropos.Resource
             slot.UnusedCandidateIndex = -1;
             slot.State = EResourceAssetState.Idle;
             _assetRecordsByKey.Set(key, assetId);
-            RetainResourceKey(key);
+            Kernel.RetainResourceKey(key);
             _assetRecordByLoadKeyId.Set((ulong)slot.LoadKeyId, assetId);
             UpdateAssetStateAndIdleQueue(assetId, ref slot);
             return assetId;
@@ -256,7 +252,7 @@ namespace Moirai.Atropos.Resource
         private bool TryGetCachedSubAssetsRecord(string normalizedPackageName, string location, out int assetId)
         {
             assetId = -1;
-            ulong key = GetAssetRecordKey(normalizedPackageName, location, typeof(Sprite),
+            ulong key = Kernel.GetAssetRecordKey(normalizedPackageName, location, typeof(Sprite),
                 EResourceAssetKind.SubAssets, EResourceHandleKind.SubAssetsHandle);
             if (!_assetRecordsByKey.TryGetValue(key, out int existingId) || !IsValidAssetId(existingId))
             {
@@ -279,7 +275,7 @@ namespace Moirai.Atropos.Resource
         {
             assetId = -1;
             asset = null;
-            if (!TryGetResourceKey(packageName, location, assetType, assetKind, handleKind, out ulong key))
+            if (!Kernel.TryGetResourceKey(packageName, location, assetType, assetKind, handleKind, out ulong key))
             {
                 return false;
             }
@@ -329,9 +325,9 @@ namespace Moirai.Atropos.Resource
 
                 ref ResourceAssetInfo info = ref results[written];
                 info.LoadKeyId = slot.LoadKeyId;
-                info.Package = GetPackageNameById(ResourceKeyCodec.UnpackPackageId(slot.Key));
-                info.Location = GetLocationNameById(ResourceKeyCodec.UnpackLocationId(slot.Key));
-                Type assetType = GetAssetTypeById(ResourceKeyCodec.UnpackTypeId(slot.Key));
+                info.Package = Kernel.GetPackageNameById(ResourceKeyCodec.UnpackPackageId(slot.Key));
+                info.Location = Kernel.GetLocationNameById(ResourceKeyCodec.UnpackLocationId(slot.Key));
+                Type assetType = Kernel.GetAssetTypeById(ResourceKeyCodec.UnpackTypeId(slot.Key));
                 info.TypeName = assetType != null ? assetType.Name : string.Empty;
                 info.Kind = slot.AssetKind;
                 info.State = slot.State;

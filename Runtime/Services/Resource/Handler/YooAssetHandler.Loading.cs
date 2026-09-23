@@ -18,10 +18,10 @@ namespace Moirai.Atropos.Resource
         private UObject GetOrLoadAsset(string location, Type assetType, EResourceAssetKind assetKind,
             string packageName)
         {
-            string normalizedPackageName = NormalizePackageName(packageName);
+            string normalizedPackageName = Kernel.NormalizePackageName(packageName);
             assetKind = ResourceKeyCodec.NormalizeAssetKind(assetType, assetKind);
             assetType = ResourceKeyCodec.NormalizeAssetType(assetType, assetKind);
-            ulong loadingKey = GetLoadingOperationKey(location, normalizedPackageName, assetType, assetKind);
+            ulong loadingKey = Kernel.GetLoadingOperationKey(location, normalizedPackageName, assetType, assetKind);
 
             while (true)
             {
@@ -98,7 +98,7 @@ namespace Moirai.Atropos.Resource
             EResourceAssetKind assetKind, string packageName, ulong loadingKey,
             uint priority = 0, CancellationToken cancellationToken = default)
         {
-            string normalizedPackageName = NormalizePackageName(packageName);
+            string normalizedPackageName = Kernel.NormalizePackageName(packageName);
             assetKind = ResourceKeyCodec.NormalizeAssetKind(assetType, assetKind);
             assetType = ResourceKeyCodec.NormalizeAssetType(assetType, assetKind);
 
@@ -234,8 +234,8 @@ namespace Moirai.Atropos.Resource
                 return ResourceLeaseHandle.Invalid;
             }
 
-            string normalizedPackageName = NormalizePackageName(packageName);
-            ulong loadingKey = GetLoadingOperationKey(location, normalizedPackageName, typeof(Sprite),
+            string normalizedPackageName = Kernel.NormalizePackageName(packageName);
+            ulong loadingKey = Kernel.GetLoadingOperationKey(location, normalizedPackageName, typeof(Sprite),
                 EResourceAssetKind.SubAssets);
 
             while (true)
@@ -367,7 +367,7 @@ namespace Moirai.Atropos.Resource
             _assetLoadingOperationByKey.Set(assetObjectKey, slotIndex);
             if (!keyAlreadyRetained)
             {
-                RetainResourceKey(assetObjectKey);
+                Kernel.RetainResourceKey(assetObjectKey);
             }
 
             return true;
@@ -506,13 +506,13 @@ namespace Moirai.Atropos.Resource
             if (slot.State != 1 || slot.Key != assetObjectKey || slot.Operation == null)
             {
                 _assetLoadingOperationByKey.Remove(assetObjectKey);
-                ReleaseResourceKey(assetObjectKey);
+                Kernel.ReleaseResourceKey(assetObjectKey);
                 return false;
             }
 
             loadingOperation = slot.Operation;
             _assetLoadingOperationByKey.Remove(assetObjectKey);
-            ReleaseResourceKey(assetObjectKey);
+            Kernel.ReleaseResourceKey(assetObjectKey);
             FreeLoadingOperationSlot(slotIndex);
             return true;
         }
@@ -565,7 +565,7 @@ namespace Moirai.Atropos.Resource
                 ClearLoadingOperationSlot(ref slot);
             }
 
-            ReleaseAllResourceKeysFromMap(_assetLoadingOperationByKey);
+            Kernel.ReleaseAllResourceKeysFromMap(_assetLoadingOperationByKey);
             _assetLoadingOperationByKey.Clear();
             _loadingOperationSlotPages = null;
             _loadingOperationSlotNextIndex = 0;
