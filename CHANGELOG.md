@@ -59,6 +59,10 @@
 
 ### Changed
 
+- **`Resource`：绑定层改握一条八字节的租约接缝，后端第一次可 mock（记账内核抽取的前置）**：`ResourceBindingService` 此前构造时拿的是 `ResourceServiceHandler`——74 个抽象成员的后端全契约，而它实际调用只有八个（`Release` 27 处、`TryGetLeaseAsset` 6 处、`AcquireBinding` 4 处，其余四个各 1–3 处）。后果是处理器构造并驱动绑定服务、绑定服务又回调处理器的内部成员，两边既不能单独构造也不能替换：所有绑定层测试只能 `new ResourceBindingService(new YooAssetHandler())`，靠那个裸实例"恰好未初始化"来凑确定性。现在新增 `internal interface IResourceLeaseSource`（八成员），绑定服务的构造参数与字段都换成它。
+  接缝本身**一个成员都没加也没减**（基线仍是 66 个抽象成员、其中 11 个 `internal abstract`）：那六个 `internal abstract` 无法直接实现接口——接口实现必须是 public——所以由抽象基类以显式实现转发承接，可见性一字未改。等记账内核落地后改由内核实现这八个，那六个 `internal abstract` 才真正从接缝上消失，届时卫星 asmdef 才可能靠 `versionDefines` 整体排除 Addressables 而不留悬空引用。
+  这条接缝当即换回一件本来测不到的事：`ResourceBindingServiceLeaseSourceTests` 用假接缝**直接断言**销毁态回收真的归还了租约（`ReleaseCalls == 1`，且归还的正是登记时那条句柄）——在此之前该性质只能在未初始化的裸后端上由"槽位被收走"间接代理，因为裸后端根本没有可观测的引用计数。同批另断言重绑只还上一条租约。先例是音频侧同样的 `IAudioClipLeaseSource` 收口。
+
 - **`Resource`：绑定路径两处与调用者多少无关的浪费收掉；其余"热路径优化"按事实降级**：核实绑定层存活面时发现，`SetSprite`/`SetSubSprite`/`SetMaterial`/`SetSharedMaterial` 这 16 个扩展重载与 `BindingService` 直接调用在本工程**零消费者**（搜到的 `SetSprite(` 命中全是游戏侧自己的同名方法），绑定层唯一活路径是 `LoadGameObjectAsync` 建出的 Owner + PrefabSource 绑定，而它全工程只有一处调用、在预加载步骤里。据此把本批分两类。
   **照修**（与有没有热点无关，是正确性）：`RegisterSpriteSource` 与 `RegisterMaterialSource` 各自把**同一个** `UnityObjectId.Get(target)` 算了两遍（一次拼槽位键、一次写 `TargetComponentId`），每趟一趟 managed→native 往返，取进局部变量后每个注册少一趟；`BindSubSpriteAsync(Image)` 原本是 `async` + `await` 去转发一个本来就是 `UniTask` 的结果，而它的 `SpriteRenderer` 孪生是直接转发——语义完全相同，前者每次多垫一个状态机，现统一为转发。刻意**不**动 `IsBindingRequestCurrent` 里再取一次 id 的那处：它在比对"这个对象还是不是当初那个"，是校验不是冗余。
   **降级/不做**：同址重绑的 no-op 短路要依赖内核暴露一个非驻留的按键解析，随批次 7 一并要，本批不硬凑；材质实例复用会改变"两个所有者共用同一源材质却需要不同实例属性"的语义，且绑的是零调用者的路径；`GetComponent<ResourceOwner>` 缓存属同一层的设计改动。`ResourceOwner.EnsureFor` 与 `ResourceBindingExtension.EnsureOwner` 的合并（后者缺 null 守卫）留在扩展层那一批——本包按组织签名发行，外部消费者可能在用，与本工程是否调用无关。

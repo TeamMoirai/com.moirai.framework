@@ -106,7 +106,7 @@ namespace Moirai.Atropos.Resource
         #endregion
         #region 字段 [FIELDS]
 
-        private readonly ResourceServiceHandler _handler;
+        private readonly IResourceLeaseSource _leaseSource;
 
         private OwnerSlot[][] _ownerPages;
 
@@ -136,10 +136,12 @@ namespace Moirai.Atropos.Resource
         /// <summary>
         /// 创建资源绑定服务。
         /// </summary>
-        /// <param name="handler">资源处理器。</param>
-        public ResourceBindingService(ResourceServiceHandler handler)
+        /// <param name="leaseSource">租约提供方。刻意不收 <see cref="ResourceServiceHandler"/>：
+        /// 绑定层用到的后端能力只有 <see cref="IResourceLeaseSource"/> 那八个成员，握整个后端契约
+        /// 会让本服务与后端互相构造、互相驱动，两边都无法单独测试或替换。</param>
+        public ResourceBindingService(IResourceLeaseSource leaseSource)
         {
-            _handler = handler;
+            _leaseSource = leaseSource;
         }
 
         #endregion
