@@ -59,7 +59,7 @@ namespace Moirai.Atropos
         public static string ProjectName => Instance.m_ProjectName;
 
         [Header("自动同步 [HybridCLRGlobalSettings]")]
-        [SerializeField] private List<string> m_HotUpdateAssemblies = new List<string>() { "GameLib.dll", "GameLogic.dll", "GameProto.dll" };
+        [SerializeField] private List<string> m_HotUpdateAssemblies = new List<string>() { "Moirai.GameLib.dll", "Moirai.GameLogic.dll", "Moirai.GameProto.dll" };
         /// <summary>热更新 dll</summary>
         public static List<string> HotUpdateAssemblies => Instance.m_HotUpdateAssemblies;
 
@@ -69,11 +69,11 @@ namespace Moirai.Atropos
         public static List<string> AOTMetaAssemblies => Instance.m_AOTMetaAssemblies;
 
         [Tooltip("主业务逻辑 dll")]
-        [SerializeField] private string m_LogicMainDllName = "GameLogic.dll";
+        [SerializeField] private string m_LogicMainDllName = "Moirai.GameLogic.dll";
         /// <summary>主业务逻辑 dll</summary>
         public static string LogicMainDllName => Instance.m_LogicMainDllName;
 
-        [SerializeField] private string m_EntranceClass = "GameLogic.HotfixEntry";
+        [SerializeField] private string m_EntranceClass = "Moirai.GameLogic.HotfixEntry";
         /// <summary>主业务逻辑入口类</summary>
         public static string EntranceClass => Instance.m_EntranceClass;
         [SerializeField] private string m_EntranceMethod = "Entrance";

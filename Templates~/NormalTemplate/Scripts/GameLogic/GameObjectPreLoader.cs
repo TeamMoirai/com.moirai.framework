@@ -6,7 +6,7 @@ using Moirai.Atropos.Resource;
 using Sirenix.OdinInspector;
 using UnityEngine;
 
-namespace GameLogic
+namespace Moirai.GameLogic
 {
     /// <summary>
     /// 预加载游戏对象

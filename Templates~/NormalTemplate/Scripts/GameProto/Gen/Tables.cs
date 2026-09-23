@@ -9,7 +9,7 @@
 
 using Luban;
 
-namespace GameProto.Config
+namespace Moirai.GameProto.Config
 {
 	public partial class Tables
 	{

@@ -6,12 +6,12 @@ using Cysharp.Threading.Tasks;
 using Moirai.Atropos;
 using Moirai.Atropos.ConfigTable;
 using Moirai.Atropos.Localization;
-using GameProto.Config.L10n;
+using Moirai.GameProto.Config.L10n;
 using UnityEngine;
 using UnityEngine.U2D;
 using Moirai.Atropos.Resource;
 
-namespace GameProto.Config
+namespace Moirai.GameProto.Config
 {
     /// <summary>
     /// 游戏配置表助手。

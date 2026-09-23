@@ -8,7 +8,7 @@ using Moirai.Atropos.Procedure;
 using Obfuz;
 #endif
 
-namespace GameLogic
+namespace Moirai.GameLogic
 {
     /// <summary>
     /// 进入主流程事件，单次流程。

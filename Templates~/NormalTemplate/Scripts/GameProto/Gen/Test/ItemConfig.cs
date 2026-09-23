@@ -10,7 +10,7 @@
 using Luban;
 
 
-namespace GameProto.Config.Test
+namespace Moirai.GameProto.Config.Test
 {
 	public sealed partial class ItemConfig : Luban.BeanBase
 	{

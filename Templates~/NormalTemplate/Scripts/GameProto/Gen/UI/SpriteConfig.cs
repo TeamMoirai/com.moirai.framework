@@ -10,7 +10,7 @@
 using Luban;
 
 
-namespace GameProto.Config.UI
+namespace Moirai.GameProto.Config.UI
 {
 	public sealed partial class SpriteConfig : Luban.BeanBase
 	{

@@ -10,7 +10,7 @@
 using Luban;
 
 
-namespace GameProto.Config.L10n
+namespace Moirai.GameProto.Config.L10n
 {
 	/// <summary>
 	/// 多语言配置
@@ -28,7 +28,7 @@ namespace GameProto.Config.L10n
 			for(int n = _buf.ReadSize() ; n > 0 ; --n)
 			{
 				L10n.LocalizedStringsConfig _v;
-				_v = global::GameProto.Config.L10n.LocalizedStringsConfig.DeserializeLocalizedStringsConfig(_buf);
+				_v = global::Moirai.GameProto.Config.L10n.LocalizedStringsConfig.DeserializeLocalizedStringsConfig(_buf);
 				_dataList.Add(_v);
 				_dataMap.Add(_v.Key, _v);
 			}

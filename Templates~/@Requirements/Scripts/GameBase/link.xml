@@ -1,0 +1,3 @@
+<linker>
+  <assembly fullname="Moirai.Main" preserve="all"/>
+</linker>

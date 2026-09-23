@@ -1,4 +1,4 @@
-﻿#if !UNITY_EDITOR && !UNITY_6000_0_OR_NEWER && !TUANJIE_1_0_OR_NEWER
+﻿#if !UNITY_EDITOR && (!UNITY_6000_0_OR_NEWER || !TUANJIE_1_0_OR_NEWER)
 using UnityEngine;
 using UnityEngine.Rendering;
 

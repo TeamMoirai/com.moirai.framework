@@ -10,7 +10,7 @@
 using Luban;
 
 
-namespace GameProto.Config.UI
+namespace Moirai.GameProto.Config.UI
 {
 	/// <summary>
 	/// UI图集配置
@@ -28,7 +28,7 @@ namespace GameProto.Config.UI
 			for(int n = _buf.ReadSize() ; n > 0 ; --n)
 			{
 				UI.SpriteAtlasConfig _v;
-				_v = global::GameProto.Config.UI.SpriteAtlasConfig.DeserializeSpriteAtlasConfig(_buf);
+				_v = global::Moirai.GameProto.Config.UI.SpriteAtlasConfig.DeserializeSpriteAtlasConfig(_buf);
 				_dataList.Add(_v);
 				_dataMap.Add(_v.Id, _v);
 			}

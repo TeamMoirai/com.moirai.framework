@@ -10,7 +10,7 @@
 using Luban;
 
 
-namespace GameProto.Config.L10n
+namespace Moirai.GameProto.Config.L10n
 {
 	/// <summary>
 	/// 支持的多语言

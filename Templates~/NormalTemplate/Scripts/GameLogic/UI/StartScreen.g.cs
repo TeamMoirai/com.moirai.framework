@@ -11,7 +11,7 @@ using UnityEngine;
 using Moirai.Atropos;
 using Moirai.Atropos.UI;
 
-namespace GameLogic.UI
+namespace Moirai.GameLogic.UI
 {
     [DisallowMultipleComponent]
 	public partial class StartScreenBinder : UIBindComponent

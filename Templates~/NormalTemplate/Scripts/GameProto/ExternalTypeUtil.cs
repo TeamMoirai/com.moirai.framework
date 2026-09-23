@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace GameProto.Config
+namespace Moirai.GameProto.Config
 {
     public static class ExternalTypeUtil
     {

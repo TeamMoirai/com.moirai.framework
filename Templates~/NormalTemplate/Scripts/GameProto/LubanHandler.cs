@@ -6,12 +6,12 @@ using Cysharp.Threading.Tasks;
 using Moirai.Atropos;
 using Moirai.Atropos.ConfigTable;
 using Moirai.Atropos.Localization;
-using GameProto.Config.L10n;
+using Moirai.GameProto.Config.L10n;
 using UnityEngine;
 using UnityEngine.U2D;
 using Moirai.Atropos.Resource;
 
-namespace GameProto.Config
+namespace Moirai.GameProto.Config
 {
     /// <summary>
     /// 游戏配置表助手。
@@ -20,21 +20,13 @@ namespace GameProto.Config
     {
         #region 初始化 [INITIALIZE]
 
-        private static bool s_Registered = false;
-        /// <summary>
-        /// 注册配置表实例。
-        /// </summary>
-        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
 #if UNITY_EDITOR
-        [UnityEditor.InitializeOnLoadMethod]
-#endif
-        private static void Initialize()
+        [UnityEditor.Callbacks.DidReloadScripts]
+        private static void OnDidReloadScripts()
         {
-            if (s_Registered) return;
-            
-            ConfigTableService.Handler = new LubanHandler();
-            s_Registered = true;
+            ConfigTableServiceSettings.InjectConfigTableHandler<LubanHandler>();
         }
+#endif
 
         #endregion
 
@@ -49,6 +41,21 @@ namespace GameProto.Config
             }
 
             return _allLocalizedStrings;
+        }
+        
+        private string[] _localizationLanguageCodes;
+        /// <summary>
+        /// 自报本表提供的语言：顺序即 <see cref="GetAllLocalizedStrings"/> 里每条形文本的列顺序。
+        /// <para>框架据此校验列数并解析缺译回退链，不再依赖「向全局注册表注册语言」这一副作用。</para>
+        /// </summary>
+        public override IReadOnlyList<string> GetLocalizationLanguageCodes()
+        {
+            if (_localizationLanguageCodes == null)
+            {
+                ResolveLocalization();
+            }
+
+            return _localizationLanguageCodes ?? Array.Empty<string>();
         }
 
         /// <summary>
@@ -67,14 +74,18 @@ namespace GameProto.Config
             // 获取所有公共实例字段
             FieldInfo[] fields = type.GetFields(BindingFlags.Public | BindingFlags.Instance);
 
+            _localizationLanguageCodes = new string[fields.Length];
             // 注册所有可用的多语言
-            foreach (var field in fields)
+            for (int i = 0; i < fields.Length; i++)
             {
-                LocalizationService.RegisterLanguageMap(field.Name);
+                _localizationLanguageCodes[i] = LocalizationService.ToLanguage(fields[i].Name, false).Code;
+                LocalizationService.RegisterLanguageMap(fields[i].Name);
             }
 
             // 处理所有多语言数据
-            _allLocalizedStrings = new Dictionary<string, List<string>>();
+            // 先构建到局部变量：读表失败（如资源未就绪）时不留下"已解析"的空字典，
+            // 否则 GetAllLocalizedStrings 永远返回空集合、且不再重试
+            var localizedStrings = new Dictionary<string, List<string>>();
             foreach (var data in Tables.TbLocalizedStrings.DataList)
             {
                 foreach (FieldInfo field in fields)
@@ -90,17 +101,19 @@ namespace GameProto.Config
                         // 输出字段名称和值
                         // Debug.Log($"[{key}] Field Name: {field.Name}, Value: {fieldValue}");
 
-                        if (_allLocalizedStrings.ContainsKey(key))
+                        if (localizedStrings.ContainsKey(key))
                         {
-                            _allLocalizedStrings[key].Add(fieldValue);
+                            localizedStrings[key].Add(fieldValue);
                         }
                         else
                         {
-                            _allLocalizedStrings.Add(key, new List<string> { fieldValue });
+                            localizedStrings.Add(key, new List<string> { fieldValue });
                         }
                     }
                 }
             }
+
+            _allLocalizedStrings = localizedStrings;
 
             LogUtility.Info("<color=yellow>\u25b2\u25b2\u25b2\u25b2 " +
                             "Resolve LocalizationBean Done!" +
@@ -111,7 +124,7 @@ namespace GameProto.Config
             // {
             //     str += $"{item.Key}[{item.Value.Count}]: {string.Join(",", item.Value)}\n";
             // }
-            // LogUtility.Info($"AllLocalizedStrings:\n{str}");
+            // LogUtility.Info("AllLocalizedStrings:\n{0}", str);
         }
 
         #endregion
@@ -124,7 +137,7 @@ namespace GameProto.Config
 
             if (!Tables.TbUIWindow.DataMap.TryGetValue(id, out var uiWindowConfig))
             {
-                LogUtility.Warning($"UI ID[{id}] is invalid.");
+                LogUtility.Warning("UI ID[{0}] is invalid.", id);
                 return string.Empty;
             }
             
@@ -146,25 +159,25 @@ namespace GameProto.Config
 
             if (!Tables.TbSprite.DataMap.TryGetValue(id, out var spriteConfig))
             {
-                LogUtility.Warning($"Sprite ID[{id}] is invalid.");
+                LogUtility.Warning("Sprite ID[{0}] is invalid.", id);
                 return null;
             }
             
             if (!Tables.TbSpriteAtlas.DataMap.TryGetValue(spriteConfig.SpriteAtlasId, out var atlasConfig))
             {
-                LogUtility.Warning($"SpriteAtlasId ID[{id}] is invalid.");
+                LogUtility.Warning("SpriteAtlasId ID[{0}] is invalid.", id);
                 return null;
             }
             
-            // Log.Info($"LoadSpriteByID {id} from {atlasConfig.Location}");
-
-            var atlas =
-// #if UNITY_WEBGL
-//             await ResourceService.LoadAssetAsync<SpriteAtlas>(atlasConfig.Location, packageName:atlasConfig.PackageName);
-// #else
-               ResourceService.LoadLease<SpriteAtlas>(atlasConfig.Location, packageName:atlasConfig.PackageName).Asset;
-// #endif
-            return atlas?.GetSprite(spriteConfig.SpriteName);
+            // LogUtility.Info("LoadSpriteByID {0} from {1}", id, atlasConfig.Location);
+            
+            using var lease =
+#if UNITY_WEBGL
+                await ResourceService.LoadLeaseAsync<SpriteAtlas>(atlasConfig.Location, packageName: atlasConfig.PackageName);
+#else
+                ResourceService.LoadLease<SpriteAtlas>(atlasConfig.Location, packageName:atlasConfig.PackageName);
+#endif
+            return lease.Asset?.GetSprite(spriteConfig.SpriteName);
         }
 
         #endregion

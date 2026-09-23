@@ -1,6 +1,6 @@
 {
-    "name": "GameLib",
-    "rootNamespace": "",
+    "name": "Moirai.GameLib",
+    "rootNamespace": "Moirai.GameLib",
     "references": [],
     "includePlatforms": [],
     "excludePlatforms": [],

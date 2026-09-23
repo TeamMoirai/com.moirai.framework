@@ -10,14 +10,14 @@
 using Luban;
 
 
-namespace GameProto.Config.L10n
+namespace Moirai.GameProto.Config.L10n
 {
 	public sealed partial class LocalizedStringsConfig : Luban.BeanBase
 	{
 		public LocalizedStringsConfig(ByteBuf _buf) 
 		{
 			Key = _buf.ReadString();
-			FormattedStrings = global::GameProto.Config.L10n.LocalizationBean.DeserializeLocalizationBean(_buf);
+			FormattedStrings = global::Moirai.GameProto.Config.L10n.LocalizationBean.DeserializeLocalizationBean(_buf);
 		}
 
 		public static LocalizedStringsConfig DeserializeLocalizedStringsConfig(ByteBuf _buf)

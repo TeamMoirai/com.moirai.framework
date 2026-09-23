@@ -10,7 +10,7 @@
 using Luban;
 
 
-namespace GameProto.Config.Test
+namespace Moirai.GameProto.Config.Test
 {
 	/// <summary>
 	/// 道具配置
@@ -28,7 +28,7 @@ namespace GameProto.Config.Test
 			for(int n = _buf.ReadSize() ; n > 0 ; --n)
 			{
 				Test.ItemConfig _v;
-				_v = global::GameProto.Config.Test.ItemConfig.DeserializeItemConfig(_buf);
+				_v = global::Moirai.GameProto.Config.Test.ItemConfig.DeserializeItemConfig(_buf);
 				_dataList.Add(_v);
 				_dataMap.Add(_v.Id, _v);
 			}

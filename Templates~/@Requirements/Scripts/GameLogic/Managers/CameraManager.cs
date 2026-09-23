@@ -2,7 +2,7 @@ using Moirai.Atropos;
 using Sirenix.OdinInspector;
 using UnityEngine;
 
-namespace GameLogic
+namespace Moirai.GameLogic
 {
     public class CameraManager : SingletonMono_Persistent<CameraManager>
     {

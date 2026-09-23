@@ -1,6 +1,6 @@
 {
-    "name": "GameLogic",
-    "rootNamespace": "GameLogic",
+    "name": "Moirai.GameLogic",
+    "rootNamespace": "Moirai.GameLogic",
     "references": [
         "GUID:24c092aee38482f4e80715eaa8148782",
         "GUID:cbb0d51b565003841ae81cdbaf747114",
