@@ -93,17 +93,19 @@ namespace Moirai.Atropos.Resource
         }
 
         /// <inheritdoc />
-        public async UniTask<EResourceBindStatus> BindSubSpriteAsync(ResourceOwner owner, Image image,
+        public UniTask<EResourceBindStatus> BindSubSpriteAsync(ResourceOwner owner, Image image,
             ResourceKey atlasKey, string spriteName, EResourceBindingOption options = EResourceBindingOption.None,
             CancellationToken cancellationToken = default)
         {
             if (image == null)
             {
-                return EResourceBindStatus.MissingTarget;
+                return UniTask.FromResult(EResourceBindStatus.MissingTarget);
             }
 
             // SetNativeSize 由 RegisterSpriteSource 统一处理。
-            return await BindSubSpriteSourceAsync(owner, image, atlasKey, spriteName,
+            // 与 SpriteRenderer 孪生一致直接转发：这里的 async/await 只是多垫一层状态机，
+            // 底下返回的本来就是 UniTask。
+            return BindSubSpriteSourceAsync(owner, image, atlasKey, spriteName,
                 EResourceBindingSlotType.SubSprite, options, cancellationToken);
         }
 
@@ -431,7 +433,9 @@ namespace Moirai.Atropos.Resource
             }
 
             ref OwnerSlot ownerSlot = ref GetOwnerSlotRef(ownerIndex);
-            BindingSlotKey slotKey = new BindingSlotKey(UnityObjectId.Get(target), slotType);
+            // 同一个目标的组件 id 原先在这里和下面各算一次，每次都是一趟 managed→native 往返。
+            ulong targetComponentId = UnityObjectId.Get(target);
+            BindingSlotKey slotKey = new BindingSlotKey(targetComponentId, slotType);
             OwnerSlotKey ownerSlotKey = new OwnerSlotKey(ownerSlot.OwnerId, slotKey);
             if (!_bindingIndexByOwnerSlot.TryGetValue(ownerSlotKey, out int bindingIndex))
             {
@@ -448,7 +452,7 @@ namespace Moirai.Atropos.Resource
             binding.SlotKey = slotKey;
             binding.OwnerId = ownerSlot.OwnerId;
             binding.TargetGameObjectId = UnityObjectId.Get(target.gameObject);
-            binding.TargetComponentId = UnityObjectId.Get(target);
+            binding.TargetComponentId = targetComponentId;
             binding.OwnerGeneration = ownerSlot.Generation;
             binding.Target = target;
             binding.AppliedAsset = sprite;
@@ -501,7 +505,9 @@ namespace Moirai.Atropos.Resource
             }
 
             ref OwnerSlot ownerSlot = ref GetOwnerSlotRef(ownerIndex);
-            BindingSlotKey slotKey = new BindingSlotKey(UnityObjectId.Get(target), slotType);
+            // 同 RegisterSpriteSource：目标组件 id 原本在此与下面各算一次。
+            ulong targetComponentId = UnityObjectId.Get(target);
+            BindingSlotKey slotKey = new BindingSlotKey(targetComponentId, slotType);
             OwnerSlotKey ownerSlotKey = new OwnerSlotKey(ownerSlot.OwnerId, slotKey);
             if (!_bindingIndexByOwnerSlot.TryGetValue(ownerSlotKey, out int bindingIndex))
             {
@@ -519,7 +525,7 @@ namespace Moirai.Atropos.Resource
             binding.SlotKey = slotKey;
             binding.OwnerId = ownerSlot.OwnerId;
             binding.TargetGameObjectId = UnityObjectId.Get(target.gameObject);
-            binding.TargetComponentId = UnityObjectId.Get(target);
+            binding.TargetComponentId = targetComponentId;
             binding.OwnerGeneration = ownerSlot.Generation;
             binding.Target = target;
             binding.AppliedAsset = appliedMaterial;
