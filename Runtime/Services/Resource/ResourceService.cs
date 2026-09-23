@@ -11,6 +11,13 @@ namespace Moirai.Atropos.Resource
     /// <para>统一的静态资源访问入口，通过替换 <see cref="Handler"/> 即可在不同资源后端之间零成本切换。</para>
     /// <para>未显式设置处理器时，懒加载优先经 <c>GetHandlerFromSettings</c> 从 <see cref="ResourceServiceSettings"/> 解析；settings 未配置则回退 <see cref="CreateDefaultHandler"/>。</para>
     /// <para>Handler 属性由 <c>HandlerHostGenerator</c> 源生成器自动生成（线程安全懒加载）。</para>
+    /// <para>服务未就绪（未注册/未初始化）时的表现按读写分界：<b>写成员</b>走 <c>RequireHandler()</c> 抛
+    /// <see cref="GameException"/>——租约取用与归还、预热、卸载、实例化、低内存接线等一律 fail-fast，
+    /// 因为静默丢一条 <c>Release</c> 就是永久泄漏、静默返回一条默认租约会被读成"资源不存在"，
+    /// 两种都把"服务没起来"伪装成别的问题。<b>读成员</b>保留 <c>s_Handler?…??默认值</c> 的降级——
+    /// <c>HasAsset</c> 在未就绪时报 <c>NotExist</c>、<c>IsLocationValid</c> 报 false 是诚实的，
+    /// 而调试面板与启动早期的一次状态读取不该把启动本身变成异常现场。
+    /// 例外：<see cref="LoadSceneAsync"/> 的 null 是其消费者依赖的既定契约，本批不动。</para>
     /// </summary>
     [AutoRegisterService]
     [HandlerHost(typeof(ResourceServiceHandler))]
@@ -421,7 +428,7 @@ namespace Moirai.Atropos.Resource
         /// 预热资源记录。
         /// </summary>
         public static void WarmupResourceRecords(int assetCapacity, int leaseCapacity, int unityObjectIndexCapacity) =>
-            s_Handler?.WarmupResourceRecords(assetCapacity, leaseCapacity, unityObjectIndexCapacity);
+            RequireHandler().WarmupResourceRecords(assetCapacity, leaseCapacity, unityObjectIndexCapacity);
 
         /// <summary>
         /// 批量获取资源信息。
@@ -456,14 +463,13 @@ namespace Moirai.Atropos.Resource
         /// <summary>
         /// 使用显式资源 Key 获取一个直接资源租约。
         /// </summary>
-        public static ResourceLeaseHandle AcquireDirect(ResourceKey key) =>
-            s_Handler?.AcquireDirect(key) ?? ResourceLeaseHandle.Invalid;
+        public static ResourceLeaseHandle AcquireDirect(ResourceKey key) => RequireHandler().AcquireDirect(key);
 
         /// <summary>
         /// 异步获取一个直接资源租约。
         /// </summary>
         public static UniTask<ResourceLeaseHandle> AcquireDirectAsync(ResourceKey key, CancellationToken cancellationToken = default) =>
-            s_Handler?.AcquireDirectAsync(key, cancellationToken) ?? UniTask.FromResult(ResourceLeaseHandle.Invalid);
+            RequireHandler().AcquireDirectAsync(key, cancellationToken);
 
         /// <summary>
         /// 尝试使用显式资源 Key 获取一个直接资源租约。
@@ -482,31 +488,31 @@ namespace Moirai.Atropos.Resource
         /// <summary>
         /// 释放一个显式资源租约。
         /// </summary>
-        public static void Release(ResourceLeaseHandle handle) => s_Handler?.Release(handle);
+        public static void Release(ResourceLeaseHandle handle) => RequireHandler().Release(handle);
 
         /// <summary>
         /// 同步加载资源并返回资源租约。调用方必须在不再使用资源时调用 Dispose 释放租约。
         /// </summary>
         public static ResourceAssetLease<T> LoadLease<T>(ResourceKey key) where T : UnityEngine.Object =>
-            s_Handler?.LoadLease<T>(key) ?? default;
+            RequireHandler().LoadLease<T>(key);
 
         /// <summary>
         /// 同步加载资源并返回资源租约。调用方必须在不再使用资源时调用 Dispose 释放租约。
         /// </summary>
         public static ResourceAssetLease<T> LoadLease<T>(string location, string packageName = "") where T : UnityEngine.Object =>
-            s_Handler?.LoadLease<T>(location, packageName) ?? default;
+            RequireHandler().LoadLease<T>(location, packageName);
 
         /// <summary>
         /// 异步加载资源并返回资源租约。调用方必须在不再使用资源时调用 Dispose 释放租约。
         /// </summary>
         public static UniTask<ResourceAssetLease<T>> LoadLeaseAsync<T>(ResourceKey key, CancellationToken cancellationToken = default) where T : UnityEngine.Object =>
-            s_Handler?.LoadLeaseAsync<T>(key, cancellationToken) ?? UniTask.FromResult<ResourceAssetLease<T>>(default);
+            RequireHandler().LoadLeaseAsync<T>(key, cancellationToken);
 
         /// <summary>
         /// 异步加载资源并返回资源租约。调用方必须在不再使用资源时调用 Dispose 释放租约。
         /// </summary>
         public static UniTask<ResourceAssetLease<T>> LoadLeaseAsync<T>(string location, CancellationToken cancellationToken = default, string packageName = "") where T : UnityEngine.Object =>
-            s_Handler?.LoadLeaseAsync<T>(location, cancellationToken, packageName) ?? UniTask.FromResult<ResourceAssetLease<T>>(default);
+            RequireHandler().LoadLeaseAsync<T>(location, cancellationToken, packageName);
 
         /// <summary>
         /// 尝试从资源租约中读取 Unity 资源对象。
@@ -599,22 +605,22 @@ namespace Moirai.Atropos.Resource
         /// <summary>
         /// 资源回收（卸载引用计数为零的资源）。
         /// </summary>
-        public static void UnloadUnusedAssets() => s_Handler?.UnloadUnusedAssets();
+        public static void UnloadUnusedAssets() => RequireHandler().UnloadUnusedAssets();
 
         /// <summary>
         /// 资源回收。
         /// </summary>
-        public static void UnloadUnusedAssets(bool force) => s_Handler?.UnloadUnusedAssets(force);
+        public static void UnloadUnusedAssets(bool force) => RequireHandler().UnloadUnusedAssets(force);
 
         /// <summary>
         /// 强制回收所有资源。
         /// </summary>
-        public static void ForceUnloadAllAssets() => s_Handler?.ForceUnloadAllAssets();
+        public static void ForceUnloadAllAssets() => RequireHandler().ForceUnloadAllAssets();
 
         /// <summary>
         /// 强制执行释放未被使用的资源。
         /// </summary>
-        public static void ForceUnloadUnusedAssets(bool performGCCollect) => s_Handler?.ForceUnloadUnusedAssets(performGCCollect);
+        public static void ForceUnloadUnusedAssets(bool performGCCollect) => RequireHandler().ForceUnloadUnusedAssets(performGCCollect);
 
         /// <summary>
         /// 检查资源是否存在。
@@ -670,7 +676,7 @@ namespace Moirai.Atropos.Resource
         /// 低内存回调保护。
         /// </summary>
         public static void SetForceUnloadUnusedAssetsAction(Action<bool> action) =>
-            s_Handler?.SetForceUnloadUnusedAssetsAction(action);
+            RequireHandler().SetForceUnloadUnusedAssetsAction(action);
 
         /// <summary>
         /// 请求强制执行释放未被使用的资源。
@@ -704,13 +710,13 @@ namespace Moirai.Atropos.Resource
         /// 同步加载游戏物体并实例化。
         /// </summary>
         public static GameObject LoadGameObject(string location, Transform parent = null, string packageName = "") =>
-            s_Handler?.LoadGameObject(location, parent, packageName);
+            RequireHandler().LoadGameObject(location, parent, packageName);
 
         /// <summary>
         /// 异步加载游戏物体并实例化。
         /// </summary>
         public static UniTask<GameObject> LoadGameObjectAsync(string location, Transform parent = null, CancellationToken cancellationToken = default, string packageName = "") =>
-            s_Handler?.LoadGameObjectAsync(location, parent, cancellationToken, packageName) ?? UniTask.FromResult<GameObject>(null);
+            RequireHandler().LoadGameObjectAsync(location, parent, cancellationToken, packageName);
 
         #endregion
 
