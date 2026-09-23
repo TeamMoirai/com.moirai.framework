@@ -20,7 +20,6 @@ namespace Moirai.Atropos.Resource
         private const int RECORD_PAGE_MASK = RECORD_PAGE_SIZE - 1;
         private const int IDLE_BUCKET_COUNT = 256;
         private const int KEEP_ALIVE_BUCKET_COUNT = 256;
-        private const float PROGRESS_CALLBACK_THRESHOLD = 0.01f;
 
         #region packed key 位域常量 [PACKED KEY BIT FIELDS]
 
@@ -53,13 +52,11 @@ namespace Moirai.Atropos.Resource
             public ulong Key;
             public int LoadKeyId;
             public UObject Asset;
-            public ulong AssetInstanceId;
             public AssetHandle AssetHandle;
             public SubAssetsHandle SubAssetsHandle;
             public EResourceAssetKind AssetKind;
             public EResourceHandleKind HandleKind;
             public int DirectRefCount;
-            public int LegacyDirectRefCount;
             public int BindingRefCount;
             public int KeepAliveRefCount;
             public uint Generation;
@@ -72,7 +69,6 @@ namespace Moirai.Atropos.Resource
             public int IdleExpireTick;
             public int KeepAliveExpireTick;
             public int UnusedCandidateIndex;
-            public int NextByUnityObject;
             public int NextFree;
         }
 
@@ -118,7 +114,6 @@ namespace Moirai.Atropos.Resource
         // 索引映射
         [NonSerialized] private readonly ResourceUlongIntMap _assetRecordsByKey = new ResourceUlongIntMap();
         [NonSerialized] private readonly ResourceUlongIntMap _assetRecordByLoadKeyId = new ResourceUlongIntMap();
-        [NonSerialized] private readonly ResourceUlongIntMap _assetRecordHeadByUnityObjectId = new ResourceUlongIntMap();
         [NonSerialized] private readonly ResourceUlongIntMap _assetLoadingOperationByKey = new ResourceUlongIntMap();
 
         // 过期队列
@@ -608,8 +603,6 @@ namespace Moirai.Atropos.Resource
                 if (existing.Asset == null && asset != null)
                 {
                     existing.Asset = asset;
-                    existing.AssetInstanceId = UnityObjectId.Get(asset);
-                    LinkAssetByUnityObject(existingId, ref existing);
                 }
 
                 if (assetHandle != null)
@@ -634,11 +627,9 @@ namespace Moirai.Atropos.Resource
             slot.Key = key;
             slot.LoadKeyId = AllocateLoadKeyId();
             slot.Asset = asset;
-            slot.AssetInstanceId = UnityObjectId.Get(asset);
             slot.AssetHandle = assetHandle;
             slot.AssetKind = assetKind;
             slot.HandleKind = handleKind;
-            slot.NextByUnityObject = -1;
             slot.ExpireQueuePrev = -1;
             slot.ExpireQueueNext = -1;
             slot.NextFree = -1;
@@ -647,7 +638,6 @@ namespace Moirai.Atropos.Resource
             _assetRecordsByKey.Set(key, assetId);
             RetainResourceKey(key);
             _assetRecordByLoadKeyId.Set((ulong)slot.LoadKeyId, assetId);
-            LinkAssetByUnityObject(assetId, ref slot);
             UpdateAssetStateAndIdleQueue(assetId, ref slot);
             return assetId;
         }
@@ -681,11 +671,9 @@ namespace Moirai.Atropos.Resource
             slot.Key = key;
             slot.LoadKeyId = AllocateLoadKeyId();
             slot.Asset = null;
-            slot.AssetInstanceId = 0;
             slot.SubAssetsHandle = subAssetsHandle;
             slot.AssetKind = EResourceAssetKind.SubAssets;
             slot.HandleKind = EResourceHandleKind.SubAssetsHandle;
-            slot.NextByUnityObject = -1;
             slot.ExpireQueuePrev = -1;
             slot.ExpireQueueNext = -1;
             slot.NextFree = -1;
@@ -748,117 +736,6 @@ namespace Moirai.Atropos.Resource
         }
 
         #endregion
-        #region Legacy 桥接 [LEGACY BRIDGING]
-
-        private bool TryAddLegacyDirectRef(int assetId, uint generation)
-        {
-            if (!IsValidAssetId(assetId))
-            {
-                return false;
-            }
-
-            ref AssetSlot slot = ref GetAssetSlotRef(assetId);
-            if (slot.Generation != generation || slot.State == EResourceAssetState.Released)
-            {
-                return false;
-            }
-
-            slot.LegacyDirectRefCount++;
-            UpdateAssetStateAndIdleQueue(assetId, ref slot);
-            return true;
-        }
-
-        private bool TryAddLegacyDirectRefByKey(string packageName, string location, Type assetType, UObject asset)
-        {
-            EResourceAssetKind assetKind = InferAssetKind(assetType);
-            assetType = NormalizeAssetType(assetType, assetKind);
-            ulong key = GetAssetRecordKey(packageName, location, assetType, assetKind,
-                EResourceHandleKind.AssetHandle);
-            if (_assetRecordsByKey.TryGetValue(key, out int assetId) && IsValidAssetId(assetId))
-            {
-                ref AssetSlot slot = ref GetAssetSlotRef(assetId);
-                return TryAddLegacyDirectRef(assetId, slot.Generation);
-            }
-
-            return TryAddLegacyDirectRefByAsset(asset);
-        }
-
-        private bool TryAddLegacyDirectRefByAsset(UObject asset)
-        {
-            if (asset == null)
-            {
-                return false;
-            }
-
-            ulong instanceId = UnityObjectId.Get(asset);
-            if (!_assetRecordHeadByUnityObjectId.TryGetValue(instanceId, out int current))
-            {
-                return false;
-            }
-
-            int matchedAssetId = -1;
-            while (current >= 0)
-            {
-                ref AssetSlot slot = ref GetAssetSlotRef(current);
-                int next = slot.NextByUnityObject;
-                if (slot.AssetInstanceId == instanceId && slot.State != EResourceAssetState.Released)
-                {
-                    matchedAssetId = current;
-                    break;
-                }
-
-                current = next;
-            }
-
-            if (matchedAssetId < 0)
-            {
-                return false;
-            }
-
-            ref AssetSlot matched = ref GetAssetSlotRef(matchedAssetId);
-            return TryAddLegacyDirectRef(matchedAssetId, matched.Generation);
-        }
-
-        private bool TryReleaseLegacyDirectByAsset(object asset)
-        {
-            if (asset is not UObject unityObject)
-            {
-                return false;
-            }
-
-            ulong instanceId = UnityObjectId.Get(unityObject);
-            if (!_assetRecordHeadByUnityObjectId.TryGetValue(instanceId, out int current))
-            {
-                return false;
-            }
-
-            int matchedAssetId = -1;
-            while (current >= 0)
-            {
-                ref AssetSlot slot = ref GetAssetSlotRef(current);
-                int next = slot.NextByUnityObject;
-                if (slot.AssetInstanceId == instanceId && slot.LegacyDirectRefCount > 0 &&
-                    slot.State != EResourceAssetState.Released)
-                {
-                    matchedAssetId = current;
-                    break;
-                }
-
-                current = next;
-            }
-
-            if (matchedAssetId < 0)
-            {
-                return false;
-            }
-
-            ref AssetSlot matched = ref GetAssetSlotRef(matchedAssetId);
-            matched.LegacyDirectRefCount--;
-            UpdateAssetStateAndIdleQueue(matchedAssetId, ref matched);
-            return true;
-        }
-
-        #endregion
         #region 诊断 [DIAGNOSTICS]
 
         public override int GetAssetInfos(ResourceAssetInfo[] results, int startIndex, int maxCount)
@@ -892,11 +769,9 @@ namespace Moirai.Atropos.Resource
                 info.Kind = slot.AssetKind;
                 info.State = slot.State;
                 info.DirectRefCount = slot.DirectRefCount;
-                info.LegacyDirectRefCount = slot.LegacyDirectRefCount;
                 info.BindingRefCount = slot.BindingRefCount;
                 info.KeepAliveRefCount = slot.KeepAliveRefCount;
-                info.RefCountTotal = slot.DirectRefCount + slot.LegacyDirectRefCount +
-                    slot.BindingRefCount + slot.KeepAliveRefCount;
+                info.RefCountTotal = slot.DirectRefCount + slot.BindingRefCount + slot.KeepAliveRefCount;
                 info.KeepAliveExpireIn = slot.KeepAliveRefCount > 0
                     ? Math.Max(0, slot.KeepAliveExpireTick - currentTick)
                     : 0;
@@ -968,63 +843,6 @@ namespace Moirai.Atropos.Resource
             return id;
         }
 
-        private void LinkAssetByUnityObject(int assetId, ref AssetSlot slot)
-        {
-            if (slot.AssetInstanceId == 0)
-            {
-                return;
-            }
-
-            if (_assetRecordHeadByUnityObjectId.TryGetValue(slot.AssetInstanceId, out int head))
-            {
-                slot.NextByUnityObject = head;
-            }
-            else
-            {
-                slot.NextByUnityObject = -1;
-            }
-
-            _assetRecordHeadByUnityObjectId.Set(slot.AssetInstanceId, assetId);
-        }
-
-        private void UnlinkAssetByUnityObject(int assetId, ref AssetSlot slot)
-        {
-            ulong instanceId = slot.AssetInstanceId;
-            if (instanceId == 0 || !_assetRecordHeadByUnityObjectId.TryGetValue(instanceId, out int current))
-            {
-                return;
-            }
-
-            int previous = -1;
-            while (current >= 0)
-            {
-                ref AssetSlot currentSlot = ref GetAssetSlotRef(current);
-                int next = currentSlot.NextByUnityObject;
-                if (current == assetId)
-                {
-                    if (previous >= 0)
-                    {
-                        ref AssetSlot previousSlot = ref GetAssetSlotRef(previous);
-                        previousSlot.NextByUnityObject = next;
-                    }
-                    else if (next >= 0)
-                    {
-                        _assetRecordHeadByUnityObjectId.Set(instanceId, next);
-                    }
-                    else
-                    {
-                        _assetRecordHeadByUnityObjectId.Remove(instanceId);
-                    }
-
-                    currentSlot.NextByUnityObject = -1;
-                    return;
-                }
-
-                previous = current;
-                current = next;
-            }
-        }
-
         private ResourceOwner EnsureResourceOwner(GameObject root)
         {
             ResourceOwner owner = root.GetComponent<ResourceOwner>();
@@ -1042,7 +860,6 @@ namespace Moirai.Atropos.Resource
             uint generation = slot.Generation;
             slot = default;
             slot.Generation = preserveGeneration ? generation : 0;
-            slot.NextByUnityObject = -1;
             slot.NextFree = -1;
             slot.ExpireQueuePrev = -1;
             slot.ExpireQueueNext = -1;
@@ -1087,7 +904,6 @@ namespace Moirai.Atropos.Resource
 
             slot = default;
             slot.Generation = generation;
-            slot.NextByUnityObject = -1;
             slot.NextFree = -1;
             slot.ExpireQueuePrev = -1;
             slot.ExpireQueueNext = -1;

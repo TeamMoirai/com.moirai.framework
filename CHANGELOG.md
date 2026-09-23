@@ -166,6 +166,12 @@
 
 ### Removed
 
+- **`Resource`：`[Obsolete]` 遗留加载族整族删除，连带它下面那条最容易漏的引用计数轴**（−462 行）。删的不只是六个门面成员，而是它们独有的一整套记账：
+  ① **门面与接缝**：`LoadAsset<T>(location, packageName)`、`LoadAsset<T>(location, Action<T>, packageName)`、`LoadAssetAsync<T>(…)`、回调式 `LoadAssetAsync` 两个重载、`UnloadAsset(object)` 六件套，连同 `ResourceServiceHandler` 上对应的六个抽象成员——接缝抽象成员 72 → 66，`[Obsolete]` 成员 6 → 0。`ResourceCallbacks.cs` 整个文件（`LoadAssetCallbacks` / `ELoadResourceStatus` / 三个委托类型）与其测试文件一并删除。
+  ② **`LegacyDirectRefCount` 这条计数轴**。它是四份引用计数里唯一"只能靠配对调用归还"的一份：记录要靠 `AssetInstanceId` 反查才能找到，于是 `AssetSlot` 为此专门带了一个 `ulong AssetInstanceId` 字段、一条 `NextByUnityObject` 侵入式链、以及第四张 `_assetRecordHeadByUnityObjectId` 索引表，`GetOrCreateAssetRecord` 与 `ReleaseAssetStorage`、`ForceReleaseAllAssetRecords` 三处都得维护它。这套东西的存在让"忘了调 `UnloadAsset`"变成一个**无法从后端补救**的状态：`HasNoResourceRefs` 永远为假，两座过期轮盘谁都收不掉那条记录。同级包那 7 处调用点里有 5 处正是这个形状（缓存资源却从不配对卸载）。删掉轴之后 `AssetSlot` 少三个字段（含一个 ulong），`HasNoResourceRefs` 与 `UpdateAssetState` 各少一项相加，`RefCountTotal` 同步少一项。
+  ③ **随之不可达的进度轮询泵**：`GetOrLoadAssetAsync` 尾部两个参数（`loadAssetUpdateCallback` / `userData`）、`StartProgressTask`、`InvokeProgress` 与 `PROGRESS_CALLBACK_THRESHOLD`。全仓唯一一处传非空回调的就是被删的 `YooAssetHandler.LoadAssetAsync`，删掉之后这条泵永久走不到——留着它等于在加载主路径上挂一个"每次冷加载都要 `.Forget()` 一个 `async UniTaskVoid`"的分配点，而它服务的是已经不存在的调用方。
+  **破坏性**：`WarmupResourceRecords` 的第三个参数 `unityObjectIndexCapacity` 失去所指对象（就是上面那张 by-UnityObject 索引表），签名收为 `(int assetCapacity, int leaseCapacity)`；`ResourceAssetInfo.LegacyDirectRefCount` 诊断字段移除。**迁移**：`LoadAsset<T>` → `LoadLease<T>` / `LoadLeaseAsync<T>` 取 `ResourceAssetLease<T>`（读 `.Asset`，`Dispose` 或 `using` 归还），**不再需要成对卸载**；底层可用 `AcquireDirect` / `Release`。工程内 7 处调用点已随本次删除前置迁完。
+
 - **`Resource` 的死码四组：`RegisteredTarget` 整套子系统、两个恒零数据维度、`TryAcquireDirect`、`ReleaseBindingsInHierarchy`**（共 −467 行）：
   ① `IResourceBindingService.RegisterTarget` / `UnregisterTarget` 的调用方为**零**（包内、`Templates~`、`Client/Assets/`、五个兄弟包全域 grep），可它后面拖着一整条第三页表——`RegisteredTargetSlot` 结构体、独立的分页与自由栈、第五张索引表 `_ownerByTargetComponentId`、`RemoveRegisteredTargetSlot` 的摘链、`Internal_ReleaseOwner` 里的收尾遍历、设置项 `RegisteredTargetCapacity`（含 `Client/Assets/.../ResourceServiceSettings.asset` 里那一行）、接缝抽象属性、外观属性、`ResourceOwnerInfo.RegisteredTargetCount` 诊断字段。顺带解决 D6 的诱惑：那张 `_ownerByTargetComponentId` 表本就是"跨所有者目标仲裁"的半成品，活着只会诱导后来人去接线（仲裁会改动全局 UI 的拆除顺序，那是功能不是缺陷），删了就没这个念头；两所有者绑同一组件的"后写赢"语义写进双语 `Resource.md`。
   ② `BindingSlotKey.SubIndex` 与 `BindingSlot.ViewKeyId` 在每个构造点都写 `0`（前者还参与 `Equals`/`GetHashCode`），一并从 `ResourceBindingInfo` 的诊断面去掉。**没动** `ResourceKey.ViewKeyId`——那是另一个类型的同名字段，参与打包键。

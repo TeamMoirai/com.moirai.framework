@@ -17,7 +17,6 @@ The internal engine uses **paged slot arrays** (`AssetSlot[][]`, `LeaseSlot[][]`
 - **Loading dedup:** Concurrent loads of the same address share a single `LoadingOperationState` (pooled `MemoryObject`), with waiter tracking and cancellation support.
 - Asset encryption: `EncryptionType.FileOffSet` (32-byte offset) and `EncryptionType.FileStream` (XOR stream encryption), with web-side decryption implementation
 - Hot update download: Request remote manifest version, update manifest, create downloader, and clear cache files, all available
-- **Legacy API (still works):** `LoadAsset<T>` / `LoadAssetAsync<T>` / `UnloadAsset` / callback-style `LoadAssetAsync` are preserved and internally bridged to the lease system via legacy direct ref counting. Marked `[Obsolete]`.
 
 ## Core Types
 
@@ -32,7 +31,7 @@ Namespace: `Moirai.Atropos.Resource`
 | `ResourceKey` | `readonly struct` describing resource location, package, type, and kind. Factory method `ResourceKey.Asset<T>(location, packageName)` creates a typed key. `HasResolvedIds` checks internal ID resolution. |
 | `ResourceAssetKind` | Enum: `Unknown / Asset / Sprite / Material / Prefab / SubAssets` |
 | `ResourceAssetState` | Enum: `Released / Loading / Active / KeepAlive / Idle` |
-| `ResourceAssetInfo` | Diagnostic snapshot struct: LoadKeyId, Package, Location, TypeName, Kind, State, DirectRefCount, LegacyDirectRefCount, BindingRefCount, KeepAliveRefCount, RefCountTotal, IdleExpireIn, etc. |
+| `ResourceAssetInfo` | Diagnostic snapshot struct: LoadKeyId, Package, Location, TypeName, Kind, State, DirectRefCount, BindingRefCount, KeepAliveRefCount, RefCountTotal, IdleExpireIn, etc. |
 | `ResourceBindingInfo` | Diagnostic snapshot struct for bindings: Active, BindingIndex, OwnerId, TargetComponentId, Lease, Version, SlotType, HasAppliedAsset, etc. |
 | `ResourceOwnerInfo` | Diagnostic snapshot struct for owners: Active, OwnerIndex, OwnerId, GameObjectId, Generation, BindingCount. |
 
@@ -41,16 +40,14 @@ Namespace: `Moirai.Atropos.Resource`
 | Class/Interface | Description |
 |---------|------|
 | `ResourceService` | Static facade (`[HandlerHost]`) defining all APIs for loading, leasing, binding, unloading, and package operations; all static methods/properties forward through the `Handler` property (fail-fast: lazily initialized when not ready, throws if the default factory is missing, never silently degrades). Configuration is injected in `OnInit`; the per-frame driver (timer-wheel advancement, unload scheduling, GC throttling, destroyed-slot reclaim) runs in `Tick` |
-| `YooAssetHandler` | Default backend, `partial` split by responsibility: main (base properties, unload scheduling, asset info queries, legacy API) / Records (paged slot & lease system) / Loading (load core & dedup) / Expiry (timer-wheel expiry, idle capacity eviction, record release) / Keys (packed-key codec & resource-name registry) / Initialization (package init, manifest update, download adapters) / Cache (capacity & warmup) / Scene (scene loading) |
-| `ResourceBindingService` | Binding service implementation (`internal sealed`), `partial` split by responsibility: main (owner/target registration, release, slot snapshots) / Bindings (binding registration & component application) / Async (async binding safety, request reservation and generation checks) / Maintenance (shutdown, reset, destroyed-slot reclaim) / Slots (paged slot allocation) |
+| `YooAssetHandler` | Default backend, `partial` split by responsibility: main (base properties, unload scheduling, asset info queries, prefab instantiation) / Records (paged slot & lease system) / Loading (load core & dedup) / Expiry (timer-wheel expiry, idle capacity eviction, record release) / Keys (packed-key codec & resource-name registry) / Initialization (package init, manifest update, download adapters) / Cache (capacity & warmup) / Scene (scene loading) |
+| `ResourceBindingService` | Binding service implementation (`internal sealed`), `partial` split by responsibility: main (owner registration, release, slot snapshots) / Bindings (binding registration & component application) / Async (async binding safety, request reservation and generation checks) / Maintenance (shutdown, reset, destroyed-slot reclaim) / Slots (paged slot allocation) |
 | `ResourceServiceHandler` | Handler abstract base class defining the backend contract; default implementation `YooAssetHandler` (plus experimental `AddressableHandler`) |
 | `IResourceBindingService` | Declarative resource-component binding service interface, accessed via `ResourceService.BindingService` |
 | `ResourceOwner` | MonoBehaviour component (`[DisallowMultipleComponent]`), auto-releases all bindings on `OnDestroy`. Provides `ReleaseBindings()` and `EnsureFor(target, bindingService)`. A single binding owner throwing is recorded without truncating the rest, rethrown aggregated at the end. |
 | `ResourceBindingExtensions` | Static extension class: `Image/SpriteRenderer.SetSprite`, `Image/SpriteRenderer.SetSubSprite`, `Image/SpriteRenderer/MeshRenderer.SetMaterial`, `MeshRenderer.SetSharedMaterial` |
 | `ResourceBindingTypes` | Binding-related enums and interfaces: `ResourceBindStatus`, `ResourceBindingOptions`, `ResourceBindingSlotType` |
 | `EResourceHasAssetResult` | Asset existence check result (three-value semantics): `NotExist` (not found) / `AssetOnline` (exists but needs remote download) / `AssetOnDisk` (exists and available on disk) |
-| `ELoadResourceStatus` | Legacy callback load status enum: `Success / NotExist / NotReady / DependencyError / TypeError / AssetError` |
-| `LoadAssetCallbacks` | Legacy callback load function set: `LoadAssetSuccessCallback` (required) / `LoadAssetFailureCallback` / `LoadAssetUpdateCallback` properties; four constructor overloads, null success throws `GameException` |
 | `EncryptionType` | Encryption method enum: `None / FileOffSet / FileStream` |
 | `FileStreamEncryption` / `FileOffsetEncryption` | Build-side encryption services (implement YooAsset `IEncryptionServices`) |
 | `FileStreamDecryption` / `FileOffsetDecryption` and Web variants | Runtime decryption services (implement `IDecryptionServices` / `IWebDecryptionServices`) |
@@ -101,7 +98,7 @@ ResourceService.Release(handle2);
 
 ### Binding API (recommended)
 
-Declarative binding via extension methods — no manual `UnloadAsset` needed:
+Declarative binding via extension methods — bindings are released together with their owning `ResourceOwner`, with no manual release step at all:
 
 ```csharp
 // Set sprite on Image (auto-managed: releases old binding, binds new one)
@@ -130,43 +127,18 @@ Two boundaries are worth knowing:
 - **Destroyed-state backstop:** scene teardown and play-mode exit can skip `OnDestroy`, leaving the owner slot and its leases pinned. The per-frame maintenance entry rotates a budgeted sweep that force-reclaims slots whose component is fake-null (destroyed on the engine side, still referenced in C#).
 - **Shutdown vs reset:** `Shutdown()` is terminal — after draining it stays closed and every later registration returns `ServiceShutdown` (the slot pages are gone, so admitting writes would target a null table). Force-unloading all assets uses `Reset()`, which drains the same way and then reopens the instance. Both paths isolate exceptions per slot so one failure cannot truncate the round.
 
-### Legacy API (still works, marked `[Obsolete]`)
+### Prefab Instantiation
 
 ```csharp
-// Synchronous loading (internally bridged to lease system via legacy direct ref counting;
-// must pair with UnloadAsset after a successful return)
-Sprite icon = ResourceService.LoadAsset<Sprite>("Assets/AssetRaw/UI/icon.png");
-
-// Asynchronous loading (UniTask, supports CancellationToken; must pair with UnloadAsset)
-var cts = new CancellationTokenSource();
-Texture2D tex = await ResourceService.LoadAssetAsync<Texture2D>(
-    "Assets/AssetRaw/UI/atlas.png", cts.Token);
-
-// Callback-style async loading (callback set: success required, failure/update optional;
-// failure always reports NotReady)
-ResourceService.LoadAssetAsync(
-    "Assets/AssetRaw/UI/atlas.png", typeof(Texture2D), 0,
-    new LoadAssetCallbacks(
-        (name, asset, duration, userData) => { /* success */ },
-        (name, status, error, userData) => { /* failure */ },
-        (name, progress, userData) => { /* progress */ }),
-    userData: null);
-
-// Callback set constructed standalone (four constructor overloads; null success throws GameException)
-var callbacks = new LoadAssetCallbacks(OnLoadSuccess, OnLoadFailure);
-
-// Asynchronous instantiation: reference is automatically released on Destroy
+// Asynchronous instantiation: destroying the instance returns the prefab source lease automatically
 GameObject hero = await ResourceService.LoadGameObjectAsync(
     "Assets/AssetRaw/Prefabs/Hero.prefab", parent);
 
 // Synchronous instantiation
 GameObject go = ResourceService.LoadGameObject("Assets/AssetRaw/Prefabs/Item.prefab", parent);
-
-// Unload manually loaded resources (decrements legacy direct ref count)
-ResourceService.UnloadAsset(icon);
 ```
 
-> **Note:** `LoadGameObject` / `LoadGameObjectAsync` are **not** obsolete — they use the new lease system internally (via `AcquirePrefabSourceLease`) and attach a `ResourceOwner` to the instance for automatic cleanup. New code should always prefer the Lease API: `LoadLease<T>` / `LoadLeaseAsync<T>` replace manual LoadAsset/UnloadAsset pairing with explicit ownership.
+> **Note:** `LoadGameObject` / `LoadGameObjectAsync` return an **instantiated copy** — internally they take a prefab source lease via `AcquirePrefabSourceLease` and bind it to a `ResourceOwner` attached to the instance. `Destroy`-ing the instance releases that lease; the caller does not own the prefab source, so do not destroy the source prefab object itself. When you need to control the resource lifetime yourself, use the Lease API instead: `LoadLease<T>` / `LoadLeaseAsync<T>` carry the reference through explicit ownership, with no manual pairing step.
 
 ## Architecture
 
@@ -351,7 +323,7 @@ Configured in the `ResourceServiceSettings` (Framework settings asset) or via `R
 ### WarmupResourceRecords
 
 ```csharp
-void WarmupResourceRecords(int assetCapacity, int leaseCapacity, int unityObjectIndexCapacity);
+void WarmupResourceRecords(int assetCapacity, int leaseCapacity);
 ```
 
 Preallocates internal data structures (slot pages, index maps) to avoid runtime resizing. Called automatically when capacity properties are set.
@@ -362,7 +334,7 @@ Preallocates internal data structures (slot pages, index maps) to avoid runtime 
 int GetAssetInfos(ResourceAssetInfo[] results, int startIndex, int maxCount);
 ```
 
-Batch query for asset record states. Returns the number of entries written. Each `ResourceAssetInfo` includes package, location, type, kind, state, ref counts (direct/legacy/binding/keep-alive), and expiry info.
+Batch query for asset record states. Returns the number of entries written. Each `ResourceAssetInfo` includes package, location, type, kind, state, ref counts (direct/binding/keep-alive), and expiry info.
 
 ## Unload API
 
@@ -447,8 +419,8 @@ using var lease = ResourceService.LoadLeaseAsync<GameObject>("path").GetAwaiter(
 
 - **Lease API:** `ResourceAssetLease<T>` is a `struct` — always `Dispose` it (use `using` statement). After Dispose, `IsValid` returns `false` and `Asset` is `null`.
 - **Binding API:** `SetSprite`/`SetMaterial` extension methods auto-add a `ResourceOwner` to the target's GameObject if not present. All bindings are released when the GameObject is destroyed.
-- **Legacy API:** `LoadAsset<T>` / `LoadGameObject` return pooled shared objects; do not `Destroy` them directly. Use `UnloadAsset` to return the reference. `LoadGameObject`/`LoadGameObjectAsync` use the lease system internally and attach `ResourceOwner` for auto-cleanup.
-- `LoadAssetAsync<T>` returns `null` and releases the internal handle when cancelled (via `cancellationToken`); the caller must check for null.
+- **Prefab instantiation:** `LoadGameObject` / `LoadGameObjectAsync` return an instantiated copy whose prefab source lease is held by the instance's `ResourceOwner`; `Destroy`-ing the instance releases the lease. Do not destroy the source prefab object itself, and do not treat the instance as a shared resource you own.
+- **Async cancellation:** `LoadLeaseAsync<T>` returns an invalid lease (`IsValid` is `false`, `Asset` is `null`) and releases its internal handle when cancelled (via `cancellationToken`); the caller must check for it. `LoadGameObjectAsync` likewise returns `null` when cancelled.
 - The WebGL platform does not support `ForceUnloadAllAssets`; calling it will only print a warning.
 - The build-side encryption method (`FileStreamEncryption`, etc.) must match the runtime decryption side. The XOR key for `BundleStream` is a fixed constant (`KEY = 64`), intended only to prevent direct reading.
 - `GetAssetInfo` caches results for the default package in a dictionary. After switching manifests (hot update completed), call `UnloadUnusedAssets()` first to get the latest information (this clears the cache).

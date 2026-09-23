@@ -56,7 +56,7 @@ namespace Service.Resource
         {
             var handler = new YooAssetHandler();
 
-            Assert.DoesNotThrow(() => handler.WarmupResourceRecords(8, 8, 8));
+            Assert.DoesNotThrow(() => handler.WarmupResourceRecords(8, 8));
             Assert.DoesNotThrow(() => handler.ForceReleaseAllAssetRecords());
         }
 

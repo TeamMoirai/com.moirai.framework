@@ -13,11 +13,12 @@ namespace Service.Resource
     /// </summary>
     public sealed class ResourceSeamShapeGuardTests
     {
-        // 2026-09-23 基线：19 个抽象属性 + 53 个抽象方法；其中 11 个 internal abstract；6 个 [Obsolete]。
-        // 起点是 20/54=74，随批次 4 删掉 RegisteredTargetCapacity 与 TryAcquireDirect 收到 19/53=72。
-        private const int BaselineAbstractMembers = 72;
+        // 2026-09-23 基线：19 个抽象属性 + 47 个抽象方法；其中 11 个 internal abstract；0 个 [Obsolete]。
+        // 起点 20/54=74；删 RegisteredTargetCapacity 与 TryAcquireDirect → 72；
+        // 再删遗留加载族 6 个抽象方法 → 19/47=66，且 [Obsolete] 随之清零。
+        private const int BaselineAbstractMembers = 66;
         private const int BaselineInternalAbstractMembers = 11;
-        private const int BaselineObsoleteMembers = 6;
+        private const int BaselineObsoleteMembers = 0;
 
         private const BindingFlags Declared = BindingFlags.Public | BindingFlags.NonPublic |
             BindingFlags.Instance | BindingFlags.DeclaredOnly;
@@ -46,7 +47,7 @@ namespace Service.Resource
         }
 
         /// <summary>
-        /// 仍挂着 [Obsolete] 的成员数停在基线上。
+        /// 仍挂着 [Obsolete] 的成员数停在基线上（遗留加载族删除后应为 0，防止新债挂个 [Obsolete] 就留下）。
         /// </summary>
         [Test]
         public void Seam_ObsoleteMemberCount_MatchesRecordedBaseline()

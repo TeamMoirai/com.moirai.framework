@@ -367,11 +367,6 @@ namespace Moirai.Atropos.Resource
         public int DirectRefCount;
 
         /// <summary>
-        /// 遗留直接引用计数。
-        /// </summary>
-        public int LegacyDirectRefCount;
-
-        /// <summary>
         /// 绑定引用计数。
         /// </summary>
         public int BindingRefCount;

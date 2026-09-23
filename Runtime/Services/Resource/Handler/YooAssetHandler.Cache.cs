@@ -25,7 +25,7 @@ namespace Moirai.Atropos.Resource
             set
             {
                 _assetRecordCapacity = value > 0 ? value : 0;
-                WarmupResourceRecords(_assetRecordCapacity, _assetLeaseCapacity, _assetRecordCapacity);
+                WarmupResourceRecords(_assetRecordCapacity, _assetLeaseCapacity);
             }
         }
 
@@ -36,7 +36,7 @@ namespace Moirai.Atropos.Resource
             set
             {
                 _assetLeaseCapacity = value > 0 ? value : 0;
-                WarmupResourceRecords(_assetRecordCapacity, _assetLeaseCapacity, _assetRecordCapacity);
+                WarmupResourceRecords(_assetRecordCapacity, _assetLeaseCapacity);
             }
         }
 
@@ -85,11 +85,10 @@ namespace Moirai.Atropos.Resource
         #region 预热 [WARMUP]
 
         /// <inheritdoc />
-        public override void WarmupResourceRecords(int assetCapacity, int leaseCapacity, int unityObjectIndexCapacity)
+        public override void WarmupResourceRecords(int assetCapacity, int leaseCapacity)
         {
             _assetRecordsByKey.EnsureCapacity(assetCapacity);
             _assetRecordByLoadKeyId.EnsureCapacity(assetCapacity);
-            _assetRecordHeadByUnityObjectId.EnsureCapacity(unityObjectIndexCapacity);
             _assetLoadingOperationByKey.EnsureCapacity(assetCapacity);
 
             if (assetCapacity > 0)
@@ -111,15 +110,5 @@ namespace Moirai.Atropos.Resource
 
         #endregion
 
-        #region 资源卸载 [ASSET UNLOAD]
-
-        /// <inheritdoc />
-        [Obsolete("Use ResourceAssetLease<T> or Binding instead of LoadAsset/UnloadAsset.")]
-        public override void UnloadAsset(object asset)
-        {
-            TryReleaseLegacyDirectByAsset(asset);
-        }
-
-        #endregion
     }
 }

@@ -353,44 +353,6 @@ namespace Moirai.Atropos.Resource
 
         #endregion
 
-        #region 遗留 API [LEGACY API]
-
-        /// <inheritdoc />
-        [Obsolete("Use LoadLease<T> for explicit ownership.")]
-        public override T LoadAsset<T>(string location, string packageName = "")
-        {
-            throw CreateNotSupported();
-        }
-
-        /// <inheritdoc />
-        [Obsolete("Use LoadLeaseAsync<T> for explicit ownership.")]
-        public override UniTask LoadAsset<T>(string location, Action<T> callback, string packageName = "")
-        {
-            throw CreateNotSupported();
-        }
-
-        /// <inheritdoc />
-        [Obsolete("Use LoadLeaseAsync<T> for explicit ownership.")]
-        public override UniTask<T> LoadAssetAsync<T>(string location, CancellationToken cancellationToken = default, string packageName = "")
-        {
-            throw CreateNotSupported();
-        }
-
-        /// <inheritdoc />
-        [Obsolete("Use LoadLeaseAsync<T> for explicit ownership.")]
-        public override UniTask LoadAssetAsync(string location, Type assetType, int priority, LoadAssetCallbacks loadAssetCallbacks, object userData, string packageName = "")
-        {
-            throw CreateNotSupported();
-        }
-
-        /// <inheritdoc />
-        [Obsolete("Use LoadLeaseAsync<T> for explicit ownership.")]
-        public override UniTask LoadAssetAsync(string location, int priority, LoadAssetCallbacks loadAssetCallbacks, object userData, string packageName = "")
-        {
-            throw CreateNotSupported();
-        }
-
-        #endregion
 
         #region 容量属性 [CAPACITY PROPERTIES]
 
@@ -417,22 +379,12 @@ namespace Moirai.Atropos.Resource
         #region 预热 [WARMUP]
 
         /// <inheritdoc />
-        public override void WarmupResourceRecords(int assetCapacity, int leaseCapacity, int unityObjectIndexCapacity)
+        public override void WarmupResourceRecords(int assetCapacity, int leaseCapacity)
         {
         }
 
         #endregion
 
-        #region 资源卸载 [ASSET UNLOAD]
-
-        /// <inheritdoc />
-        [Obsolete("Use ResourceAssetLease<T> or Binding instead of LoadAsset/UnloadAsset.")]
-        public override void UnloadAsset(object asset)
-        {
-            throw CreateNotSupported();
-        }
-
-        #endregion
 
         #region 公共 Lease API [PUBLIC LEASE API]
 

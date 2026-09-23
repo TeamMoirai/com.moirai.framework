@@ -17,7 +17,6 @@ Resource 服务（`ResourceService`）对 [YooAsset](https://github.com/tuyoogam
 - **加载去重：** 同地址并发加载共享同一个 `LoadingOperationState`（池化 `MemoryObject`），支持等待者计数与取消。
 - 资源加密：`EncryptionType.FileOffSet`（32 字节偏移）与 `EncryptionType.FileStream`（XOR 流加密），附带 Web 端解密实现
 - 热更下载：请求远端清单版本、更新 Manifest、创建下载器、清理缓存文件一应俱全
-- **遗留 API（仍可用）：** `LoadAsset<T>` / `LoadAssetAsync<T>` / `UnloadAsset` / 回调式 `LoadAssetAsync` 保留并内部桥接到租约系统（通过遗留直接引用计数）。标记为 `[Obsolete]`。
 
 ## 核心类型
 
@@ -32,7 +31,7 @@ Resource 服务（`ResourceService`）对 [YooAsset](https://github.com/tuyoogam
 | `ResourceKey` | `readonly struct`，描述资源位置、包名、类型和种类。工厂方法 `ResourceKey.Asset<T>(location, packageName)` 创建类型化键。`HasResolvedIds` 检查内部 ID 解析状态。 |
 | `ResourceAssetKind` | 枚举：`Unknown / Asset / Sprite / Material / Prefab / SubAssets` |
 | `ResourceAssetState` | 枚举：`Released / Loading / Active / KeepAlive / Idle` |
-| `ResourceAssetInfo` | 诊断快照结构体：LoadKeyId、Package、Location、TypeName、Kind、State、DirectRefCount、LegacyDirectRefCount、BindingRefCount、KeepAliveRefCount、RefCountTotal、IdleExpireIn 等 |
+| `ResourceAssetInfo` | 诊断快照结构体：LoadKeyId、Package、Location、TypeName、Kind、State、DirectRefCount、BindingRefCount、KeepAliveRefCount、RefCountTotal、IdleExpireIn 等 |
 | `ResourceBindingInfo` | 绑定诊断快照结构体：Active、BindingIndex、OwnerId、TargetComponentId、Lease、Version、SlotType、HasAppliedAsset 等 |
 | `ResourceOwnerInfo` | 所有者诊断快照结构体：Active、OwnerIndex、OwnerId、GameObjectId、Generation、BindingCount |
 
@@ -41,16 +40,14 @@ Resource 服务（`ResourceService`）对 [YooAsset](https://github.com/tuyoogam
 | 类/接口 | 说明 |
 |---------|------|
 | `ResourceService` | 静态外观（`[HandlerHost]`），定义加载、租约、绑定、卸载、包操作全部 API；全部静态方法/属性经 `Handler` 属性转发（fail-fast：未就绪时按需初始化，工厂缺失时抛异常，不静默降级）。配置注入在 `OnInit` 接线，每帧驱动（时间轮推进 / 卸载调度 / GC 节流 / 销毁态回收）在 `Tick` 推进 |
-| `YooAssetHandler` | 默认后端，`partial` 按职责拆分：主文件（基础属性、卸载调度、资产信息查询、遗留 API）/ Records（分页槽位与租约系统）/ Loading（加载核心与去重）/ Expiry（时间轮过期、空闲容量淘汰与记录释放）/ Keys（packed key 编解码与资源名称注册表）/ Initialization（包初始化、清单更新与下载适配）/ Cache（容量与预热）/ Scene（场景加载） |
-| `ResourceBindingService` | 绑定服务实现（`internal sealed`），`partial` 按职责拆分：主文件（所有者与目标注册、释放、槽位快照）/ Bindings（绑定注册与组件应用）/ Async（异步绑定安全的预约与代次判定）/ Maintenance（关停、重置与销毁态回收）/ Slots（分页槽位借还） |
+| `YooAssetHandler` | 默认后端，`partial` 按职责拆分：主文件（基础属性、卸载调度、资产信息查询、预制体实例化）/ Records（分页槽位与租约系统）/ Loading（加载核心与去重）/ Expiry（时间轮过期、空闲容量淘汰与记录释放）/ Keys（packed key 编解码与资源名称注册表）/ Initialization（包初始化、清单更新与下载适配）/ Cache（容量与预热）/ Scene（场景加载） |
+| `ResourceBindingService` | 绑定服务实现（`internal sealed`），`partial` 按职责拆分：主文件（所有者注册、释放、槽位快照）/ Bindings（绑定注册与组件应用）/ Async（异步绑定安全的预约与代次判定）/ Maintenance（关停、重置与销毁态回收）/ Slots（分页槽位借还） |
 | `ResourceServiceHandler` | 处理器抽象基类，定义后端契约；默认实现 `YooAssetHandler`（另有实验性 `AddressableHandler`） |
 | `IResourceBindingService` | 声明式资源-组件绑定服务接口，经 `ResourceService.BindingService` 访问 |
 | `ResourceOwner` | MonoBehaviour 组件（`[DisallowMultipleComponent]`），`OnDestroy` 时自动释放所有绑定。提供 `ReleaseBindings()`、`EnsureFor(target, bindingService)`。单个所有者抛出只记账不截断其余绑定，末尾汇总重抛。 |
 | `ResourceBindingExtensions` | 静态扩展类：`Image/SpriteRenderer.SetSprite`、`Image/SpriteRenderer.SetSubSprite`、`Image/SpriteRenderer/MeshRenderer.SetMaterial`、`MeshRenderer.SetSharedMaterial` |
 | `ResourceBindingTypes` | 绑定相关枚举与接口：`ResourceBindStatus`、`ResourceBindingOptions`、`ResourceBindingSlotType` |
 | `EResourceHasAssetResult` | 资源存在性检查结果（三值语义）：`NotExist`（不存在）/ `AssetOnline`（存在但需从远端下载）/ `AssetOnDisk`（存在且已在磁盘） |
-| `ELoadResourceStatus` | 遗留回调加载状态枚举：`Success / NotExist / NotReady / DependencyError / TypeError / AssetError` |
-| `LoadAssetCallbacks` | 遗留回调加载函数集：`LoadAssetSuccessCallback`（必填）/ `LoadAssetFailureCallback` / `LoadAssetUpdateCallback` 三属性；四个构造重载，success 为 null 抛 `GameException` |
 | `EncryptionType` | 加密方式枚举：`None / FileOffSet / FileStream` |
 | `FileStreamEncryption` / `FileOffsetEncryption` | 打包侧加密服务（实现 YooAsset `IEncryptionServices`） |
 | `FileStreamDecryption` / `FileOffsetDecryption` 及 Web 变体 | 运行时解密服务（实现 `IDecryptionServices` / `IWebDecryptionServices`） |
@@ -101,7 +98,7 @@ ResourceService.Release(handle2);
 
 ### Binding API（推荐）
 
-通过扩展方法进行声明式绑定 —— 无需手动 `UnloadAsset`：
+通过扩展方法进行声明式绑定 —— 绑定随所属 `ResourceOwner` 一起释放，没有任何手动归还步骤：
 
 ```csharp
 // 为 Image 设置精灵（自动管理：释放旧绑定，绑定新资源）
@@ -130,41 +127,18 @@ meshRenderer.SetMaterial("Assets/AssetRaw/Mat/skin.mat", isAsync: true);
 - **销毁态兜底：** 场景卸载、退出播放等场合 `OnDestroy` 未必跑得到，此时所有者槽位连同其租约会一直占着。每帧维护入口按配额轮转查验槽位，把"组件已被引擎销毁（fake null）但槽位仍活跃"的所有者与目标已销毁的绑定强制回收。
 - **关停与重置分界：** `Shutdown()` 是终态——排空后保持关闭位，之后的注册一律 `ServiceShutdown`（槽位页已整体释放，放行即写空表）；强制回收全部资源走 `Reset()`，排空同一套但完成后放行。两条路径都逐槽隔离异常，一项抛出不截断同轮其余项。
 
-### 遗留 API（仍可用，标记 `[Obsolete]`）
+### 预制体实例化
 
 ```csharp
-// 同步加载（内部通过遗留直接引用计数桥接到租约系统；成功返回后必须成对 UnloadAsset）
-Sprite icon = ResourceService.LoadAsset<Sprite>("Assets/AssetRaw/UI/icon.png");
-
-// 异步加载（UniTask，支持 CancellationToken 取消；成功返回后必须成对 UnloadAsset）
-var cts = new CancellationTokenSource();
-Texture2D tex = await ResourceService.LoadAssetAsync<Texture2D>(
-    "Assets/AssetRaw/UI/atlas.png", cts.Token);
-
-// 回调式异步加载（回调函数集：success 必填，failure/update 可选；失败固定上报 NotReady）
-ResourceService.LoadAssetAsync(
-    "Assets/AssetRaw/UI/atlas.png", typeof(Texture2D), 0,
-    new LoadAssetCallbacks(
-        (name, asset, duration, userData) => { /* 成功 */ },
-        (name, status, error, userData) => { /* 失败 */ },
-        (name, progress, userData) => { /* 进度 */ }),
-    userData: null);
-
-// 回调函数集独立构造（四个构造重载；success 为 null 抛 GameException）
-var callbacks = new LoadAssetCallbacks(OnLoadSuccess, OnLoadFailure);
-
-// 异步实例化：Destroy 时自动卸载引用
+// 异步实例化：销毁实例即自动归还预制体源租约
 GameObject hero = await ResourceService.LoadGameObjectAsync(
     "Assets/AssetRaw/Prefabs/Hero.prefab", parent);
 
 // 同步实例化
 GameObject go = ResourceService.LoadGameObject("Assets/AssetRaw/Prefabs/Item.prefab", parent);
-
-// 卸载手动加载的资源（递减遗留直接引用计数）
-ResourceService.UnloadAsset(icon);
 ```
 
-> **注意：** `LoadGameObject` / `LoadGameObjectAsync` **未**被标记为过时 —— 它们内部使用新租约系统（通过 `AcquirePrefabSourceLease`），并在实例上挂载 `ResourceOwner` 实现自动清理。新代码一律优先使用 Lease API：`LoadLease<T>` / `LoadLeaseAsync<T>` 以显式所有权取代 LoadAsset/UnloadAsset 手工配对。
+> **说明：** `LoadGameObject` / `LoadGameObjectAsync` 返回的是**实例化副本** —— 它们内部经 `AcquirePrefabSourceLease` 取得预制体源租约，并在实例上挂载 `ResourceOwner` 绑定该租约。`Destroy` 实例即自动归还源租约；调用方不持有预制体源，因此不要销毁源预制体对象本身。需要自行掌握资源生命周期时改用 Lease API：`LoadLease<T>` / `LoadLeaseAsync<T>` 以显式所有权承担引用，不存在手工配对释放的步骤。
 
 ## 架构
 
@@ -349,7 +323,7 @@ public sealed class ResourceOwner : MonoBehaviour
 ### WarmupResourceRecords
 
 ```csharp
-void WarmupResourceRecords(int assetCapacity, int leaseCapacity, int unityObjectIndexCapacity);
+void WarmupResourceRecords(int assetCapacity, int leaseCapacity);
 ```
 
 预分配内部数据结构（槽位页、索引映射），避免运行时扩容。设置容量属性时自动调用。
@@ -360,7 +334,7 @@ void WarmupResourceRecords(int assetCapacity, int leaseCapacity, int unityObject
 int GetAssetInfos(ResourceAssetInfo[] results, int startIndex, int maxCount);
 ```
 
-批量查询资源记录状态。返回实际写入数量。每个 `ResourceAssetInfo` 包含包名、位置、类型、种类、状态、引用计数（直接/遗留/绑定/keep-alive）及过期信息。
+批量查询资源记录状态。返回实际写入数量。每个 `ResourceAssetInfo` 包含包名、位置、类型、种类、状态、引用计数（直接/绑定/keep-alive）及过期信息。
 
 ## 卸载 API
 
@@ -443,8 +417,8 @@ using var lease = ResourceService.LoadLeaseAsync<GameObject>("path").GetAwaiter(
 - **Addressables 后端（实验性）：** `AddressableHandler` 仅信息查询与真实缓存维护可用；租约/绑定/实例化/版本与下载器等能力缺失成员统一抛出 `GameException`（fail-fast），不会静默返回 Invalid 或空结果。生产环境请使用 `YooAssetHandler`。
 - **Lease API：** `ResourceAssetLease<T>` 是 `struct` —— 务必调用 `Dispose`（使用 `using` 语句）。Dispose 后 `IsValid` 返回 `false`，`Asset` 为 `null`。
 - **Binding API：** `SetSprite`/`SetMaterial` 扩展方法在目标 GameObject 上不存在 `ResourceOwner` 时自动添加。GameObject 销毁时所有绑定自动释放。
-- **遗留 API：** `LoadAsset<T>` / `LoadGameObject` 返回的是池化共享对象，不要直接 `Destroy`；需要销毁请用 `UnloadAsset` 归还引用。`LoadGameObject`/`LoadGameObjectAsync` 内部使用租约系统并挂载 `ResourceOwner` 实现自动清理。
-- `LoadAssetAsync<T>` 被取消（`cancellationToken` 触发）时返回 `null` 并释放内部句柄，调用方需判空。
+- **预制体实例化：** `LoadGameObject` / `LoadGameObjectAsync` 返回的是实例化副本，预制体源租约挂在实例的 `ResourceOwner` 上；`Destroy` 实例即归还租约，不要销毁源预制体对象本身，也不要把实例当成自己持有的共享资源。
+- **异步取消：** `LoadLeaseAsync<T>` 被取消（`cancellationToken` 触发）时返回无效租约（`IsValid` 为 `false`、`Asset` 为 `null`）并释放内部句柄，调用方需判空；`LoadGameObjectAsync` 被取消时同样返回 `null`。
 - WebGL 平台不支持 `ForceUnloadAllAssets`，调用只会打印警告。
 - 加密方式的打包侧（`FileStreamEncryption` 等）与运行时解密侧需一致，`BundleStream` 的 XOR 密钥为固定常量（`KEY = 64`），仅作防直读用途。
 - `GetAssetInfo` 对默认包结果做了字典缓存，切换清单（热更完成）后如需最新信息请先调用 `UnloadUnusedAssets()`（会清空缓存）。

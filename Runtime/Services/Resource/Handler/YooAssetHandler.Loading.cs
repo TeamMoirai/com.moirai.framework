@@ -96,8 +96,7 @@ namespace Moirai.Atropos.Resource
 
         private async UniTask<UObject> GetOrLoadAssetAsync(string location, Type assetType,
             EResourceAssetKind assetKind, string packageName, ulong loadingKey,
-            uint priority = 0, CancellationToken cancellationToken = default,
-            LoadAssetUpdateCallback loadAssetUpdateCallback = null, object userData = null)
+            uint priority = 0, CancellationToken cancellationToken = default)
         {
             string normalizedPackageName = NormalizePackageName(packageName);
             assetKind = NormalizeAssetKind(assetType, assetKind);
@@ -150,7 +149,6 @@ namespace Moirai.Atropos.Resource
                     }
 
                     AttachLoadingAssetHandle(loadingKey, handle);
-                    StartProgressTask(location, handle, loadAssetUpdateCallback, userData, cancellationToken);
                     bool callerCancellationRequested = false;
                     if (!handle.IsDone)
                     {
@@ -458,45 +456,6 @@ namespace Moirai.Atropos.Resource
             _loadingOperationSlotPages = null;
             _loadingOperationSlotNextIndex = 0;
             _loadingOperationSlotFreeHead = -1;
-        }
-
-        private void StartProgressTask(string location, AssetHandle handle,
-            LoadAssetUpdateCallback loadAssetUpdateCallback, object userData, CancellationToken cancellationToken)
-        {
-            if (loadAssetUpdateCallback != null && handle is { IsValid: true, IsDone: false })
-            {
-                InvokeProgress(location, handle, loadAssetUpdateCallback, userData, cancellationToken).Forget();
-            }
-        }
-
-        private async UniTaskVoid InvokeProgress(string location, AssetHandle assetHandle,
-            LoadAssetUpdateCallback loadAssetUpdateCallback, object userData, CancellationToken cancellationToken)
-        {
-            if (loadAssetUpdateCallback != null)
-            {
-                float lastReportedProgress = -1f;
-                while (assetHandle is { IsValid: true, IsDone: false })
-                {
-                    if (cancellationToken.IsCancellationRequested)
-                    {
-                        return;
-                    }
-
-                    await UniTask.Yield();
-                    float progress = assetHandle.Progress;
-                    if (lastReportedProgress < 0f || progress - lastReportedProgress >= PROGRESS_CALLBACK_THRESHOLD)
-                    {
-                        lastReportedProgress = progress;
-                        loadAssetUpdateCallback.Invoke(location, progress, userData);
-                    }
-                }
-
-                if (!cancellationToken.IsCancellationRequested && assetHandle is { IsValid: true } &&
-                    lastReportedProgress < 1f)
-                {
-                    loadAssetUpdateCallback.Invoke(location, 1f, userData);
-                }
-            }
         }
 
         private SubAssetsHandle GetSubAssetsHandleAsync(string location, string packageName)

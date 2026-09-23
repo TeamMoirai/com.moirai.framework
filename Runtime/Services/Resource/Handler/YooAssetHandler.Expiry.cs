@@ -314,7 +314,6 @@ namespace Moirai.Atropos.Resource
                 RemoveFromExpiryQueue(i, ref slot);
                 RemoveUnusedAssetCandidate(i, ref slot);
                 DisposeAssetSlotHandle(ref slot);
-                UnlinkAssetByUnityObject(i, ref slot);
                 ClearAssetSlot(ref slot, preserveGeneration: true);
                 FreeAssetSlot(i);
             }
@@ -322,7 +321,6 @@ namespace Moirai.Atropos.Resource
             ReleaseAllResourceKeysFromMap(_assetRecordsByKey);
             _assetRecordsByKey.Clear();
             _assetRecordByLoadKeyId.Clear();
-            _assetRecordHeadByUnityObjectId.Clear();
             _unusedAssetCandidateCount = 0;
 
             _leaseSlotNextIndex = 0;
@@ -351,7 +349,6 @@ namespace Moirai.Atropos.Resource
             RemoveFromExpiryQueue(assetId, ref slot);
             RemoveUnusedAssetCandidate(assetId, ref slot);
             DisposeAssetSlotHandle(ref slot);
-            UnlinkAssetByUnityObject(assetId, ref slot);
             ulong key = slot.Key;
             _assetRecordsByKey.Remove(key);
             ReleaseResourceKey(key);
@@ -367,7 +364,6 @@ namespace Moirai.Atropos.Resource
         private static bool HasNoResourceRefs(ref AssetSlot slot)
         {
             return slot.DirectRefCount == 0 &&
-                   slot.LegacyDirectRefCount == 0 &&
                    slot.BindingRefCount == 0 &&
                    slot.KeepAliveRefCount == 0;
         }
@@ -380,7 +376,7 @@ namespace Moirai.Atropos.Resource
                 return;
             }
 
-            if (slot.DirectRefCount + slot.LegacyDirectRefCount + slot.BindingRefCount > 0)
+            if (slot.DirectRefCount + slot.BindingRefCount > 0)
             {
                 slot.State = EResourceAssetState.Active;
                 return;

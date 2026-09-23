@@ -29,74 +29,6 @@ namespace Service.Resource
         }
 
         [Test]
-        public void LoadAssetGeneric_ThrowsGameException()
-        {
-            object instance = CreateInstance();
-            if (instance == null)
-            {
-                Assert.Ignore("AddressableHandler is not compiled (ADDRESSABLES_INSTALLED undefined).");
-                return;
-            }
-
-            MethodInfo closedMethod = FindGenericMethod(instance.GetType(), "LoadAsset", m =>
-                m.GetParameters().Length == 2 && m.GetParameters()[0].ParameterType == typeof(string));
-
-            if (closedMethod == null)
-            {
-                Assert.Ignore("public generic LoadAsset<T>(string, string) not found.");
-                return;
-            }
-
-            var exception = Assert.Throws<TargetInvocationException>(
-                () => closedMethod.Invoke(instance, new object[] { "UI/Heart", string.Empty }));
-            Assert.IsInstanceOf<GameException>(exception.InnerException);
-            StringAssert.Contains(MessageFragment, exception.InnerException.Message);
-        }
-
-        [Test]
-        public void LoadAssetAsyncGeneric_ThrowsGameException()
-        {
-            object instance = CreateInstance();
-            if (instance == null)
-            {
-                Assert.Ignore("AddressableHandler is not compiled (ADDRESSABLES_INSTALLED undefined).");
-                return;
-            }
-
-            MethodInfo closedMethod = FindGenericMethod(instance.GetType(), "LoadAssetAsync", m =>
-                m.GetParameters().Length == 3 && m.GetParameters()[0].ParameterType == typeof(string));
-
-            if (closedMethod == null)
-            {
-                Assert.Ignore("public generic LoadAssetAsync<T>(string, CancellationToken, string) not found.");
-                return;
-            }
-
-            var exception = Assert.Throws<TargetInvocationException>(
-                () => closedMethod.Invoke(instance, new object[] { "UI/Heart", default(System.Threading.CancellationToken), string.Empty }));
-            Assert.IsInstanceOf<GameException>(exception.InnerException);
-            StringAssert.Contains(MessageFragment, exception.InnerException.Message);
-        }
-
-        [Test]
-        public void LoadAssetAsyncWithType_ThrowsGameException()
-        {
-            var callbacks = new LoadAssetCallbacks((name, asset, duration, userData) => { });
-            InvokeExpectingFailFast("LoadAssetAsync", "LoadAssetAsync",
-                new[] { typeof(string), typeof(Type), typeof(int), typeof(LoadAssetCallbacks), typeof(object), typeof(string) },
-                "UI/Heart", typeof(UnityEngine.Object), 0, callbacks, null, string.Empty);
-        }
-
-        [Test]
-        public void LoadAssetAsyncWithPriority_ThrowsGameException()
-        {
-            var callbacks = new LoadAssetCallbacks((name, asset, duration, userData) => { });
-            InvokeExpectingFailFast("LoadAssetAsync", "LoadAssetAsync",
-                new[] { typeof(string), typeof(int), typeof(LoadAssetCallbacks), typeof(object), typeof(string) },
-                "UI/Heart", 0, callbacks, null, string.Empty);
-        }
-
-        [Test]
         public void AcquireDirect_ThrowsGameException()
         {
             InvokeExpectingFailFast("AcquireDirect", "AcquireDirect", new ResourceKey("UI/Heart"));
@@ -152,12 +84,6 @@ namespace Service.Resource
         public void LoadGameObject_ThrowsGameException()
         {
             InvokeExpectingFailFast("LoadGameObject", "LoadGameObject", "UI/Heart", null, string.Empty);
-        }
-
-        [Test]
-        public void UnloadAsset_ThrowsGameException()
-        {
-            InvokeExpectingFailFast("UnloadAsset", "UnloadAsset", new object());
         }
 
         [Test]

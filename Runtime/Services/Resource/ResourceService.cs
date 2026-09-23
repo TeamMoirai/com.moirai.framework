@@ -413,8 +413,8 @@ namespace Moirai.Atropos.Resource
         /// <summary>
         /// 预热资源记录。
         /// </summary>
-        public static void WarmupResourceRecords(int assetCapacity, int leaseCapacity, int unityObjectIndexCapacity) =>
-            RequireHandler().WarmupResourceRecords(assetCapacity, leaseCapacity, unityObjectIndexCapacity);
+        public static void WarmupResourceRecords(int assetCapacity, int leaseCapacity) =>
+            RequireHandler().WarmupResourceRecords(assetCapacity, leaseCapacity);
 
         /// <summary>
         /// 批量获取资源信息。
@@ -502,75 +502,6 @@ namespace Moirai.Atropos.Resource
 
         #endregion
 
-        #region 遗留 API [LEGACY API]
-
-        /// <summary>
-        /// 同步加载资源。每次成功调用后，调用方必须在不再使用时成对调用 <see cref="UnloadAsset"/>。
-        /// </summary>
-        /// <param name="location">资源的定位地址。</param>
-        /// <param name="packageName">指定资源包的名称。不传使用默认资源包。</param>
-        /// <typeparam name="T">要加载资源的类型。</typeparam>
-        /// <returns>资源实例。</returns>
-        [Obsolete("Use LoadLease<T> for explicit ownership.")]
-        public static T LoadAsset<T>(string location, string packageName = "") where T : UnityEngine.Object =>
-            s_Handler?.LoadAsset<T>(location, packageName);
-
-        /// <summary>
-        /// 异步加载资源。每次成功回调资源后，调用方必须在不再使用时成对调用 <see cref="UnloadAsset"/>。
-        /// </summary>
-        /// <param name="location">资源的定位地址。</param>
-        /// <param name="callback">回调函数。</param>
-        /// <param name="packageName">指定资源包的名称。不传使用默认资源包。</param>
-        /// <typeparam name="T">要加载资源的类型。</typeparam>
-        [Obsolete("Use LoadLeaseAsync<T> for explicit ownership.")]
-        public static UniTask LoadAsset<T>(string location, Action<T> callback, string packageName = "") where T : UnityEngine.Object =>
-            s_Handler?.LoadAsset(location, callback, packageName) ?? UniTask.CompletedTask;
-
-        /// <summary>
-        /// 异步加载资源。每次成功返回资源后，调用方必须在不再使用时成对调用 <see cref="UnloadAsset"/>。
-        /// </summary>
-        /// <param name="location">资源定位地址。</param>
-        /// <param name="cancellationToken">取消操作 Token。</param>
-        /// <param name="packageName">指定资源包的名称。不传使用默认资源包。</param>
-        /// <typeparam name="T">要加载资源的类型。</typeparam>
-        /// <returns>异步资源实例。</returns>
-        [Obsolete("Use LoadLeaseAsync<T> for explicit ownership.")]
-        public static UniTask<T> LoadAssetAsync<T>(string location, CancellationToken cancellationToken = default, string packageName = "") where T : UnityEngine.Object =>
-            s_Handler?.LoadAssetAsync<T>(location, cancellationToken, packageName) ?? UniTask.FromResult<T>(null);
-
-        /// <summary>
-        /// 异步加载资源。
-        /// </summary>
-        /// <param name="location">资源的定位地址。</param>
-        /// <param name="assetType">要加载的资源类型。</param>
-        /// <param name="priority">加载资源的优先级。</param>
-        /// <param name="loadAssetCallbacks">加载资源回调函数集。</param>
-        /// <param name="userData">用户自定义数据。</param>
-        /// <param name="packageName">指定资源包的名称。不传使用默认资源包。</param>
-        [Obsolete("Use LoadLeaseAsync<T> for explicit ownership.")]
-        public static UniTask LoadAssetAsync(string location, Type assetType, int priority, LoadAssetCallbacks loadAssetCallbacks, object userData, string packageName = "") =>
-            s_Handler?.LoadAssetAsync(location, assetType, priority, loadAssetCallbacks, userData, packageName) ?? UniTask.CompletedTask;
-
-        /// <summary>
-        /// 异步加载资源。
-        /// </summary>
-        /// <param name="location">资源的定位地址。</param>
-        /// <param name="priority">加载资源的优先级。</param>
-        /// <param name="loadAssetCallbacks">加载资源回调函数集。</param>
-        /// <param name="userData">用户自定义数据。</param>
-        /// <param name="packageName">指定资源包的名称。不传使用默认资源包。</param>
-        [Obsolete("Use LoadLeaseAsync<T> for explicit ownership.")]
-        public static UniTask LoadAssetAsync(string location, int priority, LoadAssetCallbacks loadAssetCallbacks, object userData, string packageName = "") =>
-            s_Handler?.LoadAssetAsync(location, priority, loadAssetCallbacks, userData, packageName) ?? UniTask.CompletedTask;
-
-        /// <summary>
-        /// 卸载资源。
-        /// </summary>
-        /// <param name="asset">要卸载的资源。每次成功调用直接返回资源的 LoadAsset 接口后，都需要成对调用一次。</param>
-        [Obsolete("Use ResourceAssetLease<T> or Binding instead of LoadAsset/UnloadAsset.")]
-        public static void UnloadAsset(object asset) => s_Handler?.UnloadAsset(asset);
-
-        #endregion
 
         #region 资源回收 [ASSET RECYCLING]
 

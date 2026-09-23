@@ -16,73 +16,86 @@ namespace Service.Resource
     {
         private const BindingFlags StaticPublic = BindingFlags.Public | BindingFlags.Static;
 
-        #region 遗留 API [LEGACY API]
+        #region 租约 API 与已删成员 [LEASE API AND REMOVED MEMBERS]
 
+        /// <summary>
+        /// 租约一族必须都在，且不带 [Obsolete]——它们是遗留加载族的唯一替代。
+        /// </summary>
         [Test]
-        public void Legacy_LoadAsset_GenericClass_HasObsoleteAttribute()
+        public void LeaseApi_Families_PresentAndNotObsolete()
         {
-            MethodInfo method = GetFacadeMethod("LoadAsset", m => m.IsGenericMethod &&
-                m.GetParameters().Length == 2 && m.GetParameters()[0].ParameterType == typeof(string));
+            string[] families = {
+                "LoadLease", "LoadLeaseAsync", "AcquireDirect", "AcquireDirectAsync",
+                "Release", "TryGetLeaseAsset", "LoadGameObject", "LoadGameObjectAsync",
+            };
+            MethodInfo[] methods = typeof(ResourceService).GetMethods(StaticPublic);
 
-            Assert.IsNotNull(method, "Facade LoadAsset<T>(string, string) missing.");
-            AssertHasObsolete(method);
-            ParameterInfo[] parameters = method.GetParameters();
-            Assert.AreEqual("packageName", parameters[1].Name);
-            Assert.IsTrue(parameters[1].HasDefaultValue, "packageName must be optional.");
-        }
-
-        [Test]
-        public void Legacy_LoadAssetWithCallback_GenericClass_HasObsoleteAttribute()
-        {
-            MethodInfo method = GetFacadeMethod("LoadAsset", m => m.IsGenericMethod &&
-                m.GetParameters().Length == 3 && m.GetParameters()[0].ParameterType == typeof(string));
-
-            Assert.IsNotNull(method, "Facade LoadAsset<T>(string, Action<T>, string) missing.");
-            AssertHasObsolete(method);
-            Assert.AreEqual(typeof(Action<>).MakeGenericType(method.GetGenericArguments()[0]),
-                method.GetParameters()[1].ParameterType);
-        }
-
-        [Test]
-        public void Legacy_LoadAssetAsync_GenericClass_HasObsoleteAttribute()
-        {
-            MethodInfo method = GetFacadeMethod("LoadAssetAsync", m => m.IsGenericMethod);
-
-            Assert.IsNotNull(method, "Facade LoadAssetAsync<T>(string, CancellationToken, string) missing.");
-            AssertHasObsolete(method);
-            ParameterInfo[] parameters = method.GetParameters();
-            Assert.AreEqual(3, parameters.Length);
-            Assert.AreEqual("cancellationToken", parameters[1].Name);
-        }
-
-        [Test]
-        public void Legacy_LoadAssetAsyncCallbackFamily_BothOverloads_HasObsoleteAttribute()
-        {
-            MethodInfo withAssetType = GetFacadeMethod("LoadAssetAsync", m => !m.IsGenericMethod &&
-                m.GetParameters().Length == 6 && m.GetParameters()[1].ParameterType == typeof(Type));
-
-            Assert.IsNotNull(withAssetType, "Facade LoadAssetAsync(location, Type, priority, callbacks, userData, packageName) missing.");
-            AssertHasObsolete(withAssetType);
-
-            MethodInfo withoutAssetType = GetFacadeMethod("LoadAssetAsync", m => !m.IsGenericMethod &&
-                m.GetParameters().Length == 5);
-
-            Assert.IsNotNull(withoutAssetType, "Facade LoadAssetAsync(location, priority, callbacks, userData, packageName) missing.");
-            AssertHasObsolete(withoutAssetType);
-
-            foreach (var method in new[] { withAssetType, withoutAssetType })
+            foreach (string name in families)
             {
-                Assert.AreEqual(typeof(LoadAssetCallbacks), method.GetParameters().First(p => p.ParameterType == typeof(LoadAssetCallbacks)).ParameterType);
+                int found = 0;
+                foreach (MethodInfo method in methods)
+                {
+                    if (method.Name != name)
+                    {
+                        continue;
+                    }
+
+                    found++;
+                    Assert.IsNull(method.GetCustomAttribute<ObsoleteAttribute>(),
+                        "{0} 是现行 API，不得挂 [Obsolete]。");
+                }
+
+                Assert.IsTrue(found > 0, "Facade {0} 缺失。", name);
             }
         }
 
+        /// <summary>
+        /// 遗留加载族已删除，缺席本身要被钉住——否则一次误加回来就再没人知道它是死的。
+        /// </summary>
         [Test]
-        public void Legacy_UnloadAsset_HasObsoleteAttribute()
+        public void Removed_LegacyLoadFamily_IsAbsent()
         {
-            MethodInfo method = typeof(ResourceService).GetMethod("UnloadAsset", StaticPublic);
+            foreach (string name in new[] { "LoadAsset", "LoadAssetAsync", "UnloadAsset" })
+            {
+                Assert.IsNull(typeof(ResourceService).GetMethod(name, StaticPublic),
+                    "Facade {0} 应已删除（改用 LoadLease/LoadLeaseAsync + 租约）。", name);
+                Assert.IsNull(typeof(ResourceServiceHandler).GetMethod(name),
+                    "Handler {0} 应已删除。", name);
+            }
 
-            Assert.IsNotNull(method, "Facade UnloadAsset(object) missing.");
-            AssertHasObsolete(method);
+            Assert.IsNull(typeof(ResourceService).GetMethod("TryAcquireDirect", StaticPublic),
+                "Facade TryAcquireDirect 应已删除（AcquireDirect 失败本就返回 Invalid）。");
+            MethodInfo warmup = typeof(ResourceService).GetMethod("WarmupResourceRecords", StaticPublic);
+            Assert.IsNotNull(warmup, "Facade WarmupResourceRecords 缺失。");
+            Assert.AreEqual(2, warmup.GetParameters().Length,
+                "第三个参数 unityObjectIndexCapacity 随 by-UnityObject 索引一起删除了。");
+        }
+
+        /// <summary>
+        /// 随遗留族一起消失的类型不得复活。
+        /// </summary>
+        [Test]
+        public void Removed_CallbackTypes_AreAbsent()
+        {
+            foreach (string name in new[] { "LoadAssetCallbacks", "ELoadResourceStatus", "LoadAssetUpdateCallback" })
+            {
+                Assert.IsNull(typeof(ResourceService).Assembly.GetType("Moirai.Atropos.Resource." + name),
+                    "类型 {0} 应随遗留加载族一并删除。", name);
+            }
+        }
+
+        /// <summary>
+        /// 绑定状态枚举形状：值不得重编号，取消与加载失败必须分家。
+        /// </summary>
+        [Test]
+        public void BindStatusEnum_Shape_NoRenumberAndCancelSeparated()
+        {
+            CollectionAssert.AreEqual(
+                new[] { "Success", "InvalidKey", "MissingOwner", "MissingTarget", "StaleOwner",
+                        "Cancelled", "LoadFailed", "ApplyFailed", "ServiceShutdown" },
+                Enum.GetNames(typeof(EResourceBindStatus)));
+            Assert.AreEqual(5, (int)EResourceBindStatus.Cancelled, "Cancelled 必须占 4/6 之间的空位，不得重编号。");
+            Assert.AreEqual(6, (int)EResourceBindStatus.LoadFailed);
         }
 
         #endregion
@@ -182,13 +195,6 @@ namespace Service.Resource
         {
             return typeof(ResourceService).GetMethods(StaticPublic)
                 .FirstOrDefault(m => m.Name == name && predicate(m));
-        }
-
-        private static void AssertHasObsolete(MethodInfo method)
-        {
-            var attribute = method.GetCustomAttribute<ObsoleteAttribute>();
-            Assert.IsNotNull(attribute, "{0} must be marked [Obsolete].", method.Name);
-            StringAssert.Contains("Lease", attribute.Message);
         }
 
         #endregion
