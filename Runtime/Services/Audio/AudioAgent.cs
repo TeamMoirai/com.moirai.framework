@@ -20,13 +20,13 @@ namespace Moirai.Atropos.Audio
         private AudioClipCacheEntry _clipCacheEntry;
         private AudioLoadRequest _loadRequest;
         private string _currentPath;
-        private AudioCachePolicy _cachePolicy;
+        private EAudioCachePolicy _cachePolicy;
         private Transform _transform;
 
         // ===== 排队加载 — 字段复用，零分配 =====
         private string _pendingPath;
         private bool _pendingAsync;
-        private AudioCachePolicy _pendingPolicy;
+        private EAudioCachePolicy _pendingPolicy;
         private bool _hasPendingLoad;
 
         // ===== 加载世代 — 防止复用后串 clip =====
@@ -369,7 +369,7 @@ namespace Moirai.Atropos.Audio
                     bool hasQueuedLoad = _hasPendingLoad;
                     string path = _pendingPath;
                     bool bAsync = _pendingAsync;
-                    AudioCachePolicy policy = _pendingPolicy;
+                    EAudioCachePolicy policy = _pendingPolicy;
 
                     Stop();
 
@@ -592,20 +592,20 @@ namespace Moirai.Atropos.Audio
         }
 
         /// <summary>
-        /// 旧 <c>bInPool</c> 布尔位与新 <see cref="AudioCachePolicy"/> 的合并点：
+        /// 旧 <c>bInPool</c> 布尔位与新 <see cref="EAudioCachePolicy"/> 的合并点：
         /// 显式策略优先，未指定时 <c>bInPool</c> 保证「至少留池」。
         /// </summary>
-        private static AudioCachePolicy ResolveCachePolicy(AudioCachePolicy policy, bool bInPool)
+        private static EAudioCachePolicy ResolveCachePolicy(EAudioCachePolicy policy, bool bInPool)
         {
-            if (policy != AudioCachePolicy.Default) return policy;
-            return bInPool ? AudioCachePolicy.Ttl : AudioCachePolicy.Default;
+            if (policy != EAudioCachePolicy.Default) return policy;
+            return bInPool ? EAudioCachePolicy.Ttl : EAudioCachePolicy.Default;
         }
 
         /// <summary>
         /// 16B 热请求 + 冷参数路径加载。
         /// </summary>
         internal void LoadWithRequest(string path, in AudioPlayRequest request, AudioPlayColdParams cold, bool bAsync,
-            AudioCachePolicy cachePolicy)
+            EAudioCachePolicy cachePolicy)
         {
             CaptureHotState(request, cold);
             if (_cold != null && !ReferenceEquals(_cold, cold))
@@ -625,7 +625,7 @@ namespace Moirai.Atropos.Audio
             Load(path, options, bAsync, bInPool);
         }
 
-        private void LoadInternal(string path, bool bAsync, AudioCachePolicy cachePolicy)
+        private void LoadInternal(string path, bool bAsync, EAudioCachePolicy cachePolicy)
         {
             _cachePolicy = cachePolicy;
             _currentPath = path;

@@ -64,9 +64,9 @@ namespace Service.Audio
         [Test]
         public void CacheHit_PreloadAllocatesZeroBytes()
         {
-            Assert.IsTrue(_fixture.Cache.Preload(A, AudioCachePolicy.Ttl));
+            Assert.IsTrue(_fixture.Cache.Preload(A, EAudioCachePolicy.Ttl));
 
-            long bytes = MeasureAllocatedBytes(() => _fixture.Cache.Preload(A, AudioCachePolicy.Ttl), out bool supported);
+            long bytes = MeasureAllocatedBytes(() => _fixture.Cache.Preload(A, EAudioCachePolicy.Ttl), out bool supported);
             if (!supported) Assert.Ignore("当前运行时无法观测托管分配（IL2CPP?）");
 
             Assert.AreEqual(0L, bytes, "已加载条目的重复取用不应产生任何托管分配");
@@ -75,7 +75,7 @@ namespace Service.Audio
         [Test]
         public void RetainRelease_CycleAllocatesZeroBytes()
         {
-            _fixture.Cache.Preload(A, AudioCachePolicy.Ttl);
+            _fixture.Cache.Preload(A, EAudioCachePolicy.Ttl);
             var entry = _fixture.Entry(A);
 
             long bytes = MeasureAllocatedBytes(() =>
@@ -91,8 +91,8 @@ namespace Service.Audio
         [Test]
         public void Tick_WithNothingExpiredAllocatesZeroBytes()
         {
-            _fixture.Cache.Preload(A, AudioCachePolicy.Ttl);
-            _fixture.Cache.Preload(B, AudioCachePolicy.Ttl);
+            _fixture.Cache.Preload(A, EAudioCachePolicy.Ttl);
+            _fixture.Cache.Preload(B, EAudioCachePolicy.Ttl);
 
             long bytes = MeasureAllocatedBytes(() => _fixture.Cache.Tick(), out bool supported);
             if (!supported) Assert.Ignore("当前运行时无法观测托管分配（IL2CPP?）");
@@ -104,14 +104,14 @@ namespace Service.Audio
         public void EvictionAtCapacity_AllocatesZeroBytes()
         {
             _fixture = new AudioCacheTestSupport(capacity: 2, ttl: 30f);
-            _fixture.Cache.Preload(A, AudioCachePolicy.Ttl);
-            _fixture.Cache.Preload(B, AudioCachePolicy.Ttl);
+            _fixture.Cache.Preload(A, EAudioCachePolicy.Ttl);
+            _fixture.Cache.Preload(B, EAudioCachePolicy.Ttl);
             _fixture.PrepareLeases(8);
 
             // 稳态：C 进来挤掉一个、再被清掉，反复走驱逐路径
             long bytes = MeasureAllocatedBytes(() =>
             {
-                _fixture.Cache.Preload("Audio/Sfx/Coin", AudioCachePolicy.Ttl);
+                _fixture.Cache.Preload("Audio/Sfx/Coin", EAudioCachePolicy.Ttl);
                 _fixture.Cache.Unload("Audio/Sfx/Coin", force: true);
             }, out bool supported);
             if (!supported) Assert.Ignore("当前运行时无法观测托管分配（IL2CPP?）");
@@ -146,17 +146,17 @@ namespace Service.Audio
         [Test]
         public void PoolView_IsComputedProjection_LeavesNoStaleEntry()
         {
-            Assert.IsTrue(_fixture.Cache.Preload(A, AudioCachePolicy.Ttl));
+            Assert.IsTrue(_fixture.Cache.Preload(A, EAudioCachePolicy.Ttl));
             Assert.IsTrue(_fixture.Cache.PoolReadOnly.ContainsKey(A));
             Assert.AreEqual(1, _fixture.Cache.PoolReadOnly.Count);
 
             var entry = _fixture.Entry(A);
 
             // 三个曾经各要刷一次镜像表的热点：命中取用、停播归还、策略抬升
-            Assert.IsTrue(_fixture.Cache.Preload(A, AudioCachePolicy.Ttl));
+            Assert.IsTrue(_fixture.Cache.Preload(A, EAudioCachePolicy.Ttl));
             _fixture.Cache.Retain(entry);
             _fixture.Cache.Release(entry);
-            Assert.IsTrue(_fixture.Cache.Preload(A, AudioCachePolicy.Pin));
+            Assert.IsTrue(_fixture.Cache.Preload(A, EAudioCachePolicy.Pin));
             Assert.AreEqual(1, _fixture.Cache.PoolReadOnly.Count, "热点上不该改变视图规模");
 
             Assert.IsTrue(_fixture.Cache.PoolReadOnly.TryGetValue(A, out object value));
@@ -175,8 +175,8 @@ namespace Service.Audio
         [Test]
         public void PoolView_EnumerateWhileUnloading_DoesNotThrow()
         {
-            Assert.IsTrue(_fixture.Cache.Preload(A, AudioCachePolicy.Pin));
-            Assert.IsTrue(_fixture.Cache.Preload(B, AudioCachePolicy.Pin));
+            Assert.IsTrue(_fixture.Cache.Preload(A, EAudioCachePolicy.Pin));
+            Assert.IsTrue(_fixture.Cache.Preload(B, EAudioCachePolicy.Pin));
 
             var seen = new System.Collections.Generic.List<string>();
             foreach (var kv in _fixture.Cache.PoolReadOnly)

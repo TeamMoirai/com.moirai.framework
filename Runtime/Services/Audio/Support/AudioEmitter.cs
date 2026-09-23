@@ -33,7 +33,7 @@ namespace Moirai.Atropos.Audio
         [SerializeField] private bool m_Loop = true;
         [SerializeField, Range(0f, 2f)] private float m_Volume = 1f;
         [SerializeField] private bool m_Async = true;
-        [SerializeField] private AudioCachePolicy m_CachePolicy = AudioCachePolicy.Ttl;
+        [SerializeField] private EAudioCachePolicy m_CachePolicy = EAudioCachePolicy.Ttl;
         [SerializeField] private bool m_StopWithFadeout = true;
         [SerializeField] private int m_UserId;
 

@@ -31,7 +31,7 @@ namespace Service.Audio
             private readonly Queue<Action<AudioClipLease>> _pending = new Queue<Action<AudioClipLease>>();
             private int _liveHandles;
 
-            public LeaseFixture(int capacity = 16, float ttl = 30f, AudioCachePolicy policy = AudioCachePolicy.Ttl)
+            public LeaseFixture(int capacity = 16, float ttl = 30f, EAudioCachePolicy policy = EAudioCachePolicy.Ttl)
             {
                 Cache = new AudioClipCache();
                 Cache.Configure(this, capacity, ttl, policy);
@@ -128,7 +128,7 @@ namespace Service.Audio
         public void SharedAddress_TwoPlays_ShareOneLease_RefCountTracksConsumers()
         {
             using var f = new LeaseFixture();
-            Assert.IsTrue(f.Cache.Preload(A, AudioCachePolicy.Ttl), "预加载应成功");
+            Assert.IsTrue(f.Cache.Preload(A, EAudioCachePolicy.Ttl), "预加载应成功");
 
             var entry = f.Entry(A);
             Assert.AreEqual(1, f.LoadCount(A), "同地址只应向后端取一次租约");
@@ -161,14 +161,14 @@ namespace Service.Audio
         {
             var first = new LeaseFixture(capacity: 4);
             first.ManualAsync = true;
-            first.Cache.PreloadAsync(A, AudioCachePolicy.Ttl, null);
+            first.Cache.PreloadAsync(A, EAudioCachePolicy.Ttl, null);
             Assert.AreEqual(1, first.PendingCount);
 
             // 关停把条目还给全局池；下一缓存会复用同一实例
             first.Dispose();
 
             var second = new LeaseFixture(capacity: 4);
-            Assert.IsTrue(second.Cache.Preload(A, AudioCachePolicy.Ttl));
+            Assert.IsTrue(second.Cache.Preload(A, EAudioCachePolicy.Ttl));
             int entriesBefore = second.Cache.Count;
             int liveBefore = second.LiveHandles;
             var expected = second.Entry(A).Clip;
@@ -193,7 +193,7 @@ namespace Service.Audio
         {
             var f = new LeaseFixture(capacity: 2);
             f.ManualAsync = true;
-            f.Cache.PreloadAsync(A, AudioCachePolicy.Ttl, null);
+            f.Cache.PreloadAsync(A, EAudioCachePolicy.Ttl, null);
             Assert.AreEqual(1, f.PendingCount);
             Assert.AreEqual(1, f.Cache.Count);
 
@@ -214,7 +214,7 @@ namespace Service.Audio
         public void StopEnd_ReleasesCacheRetain_TtlEntryRefCountReturnsToZero()
         {
             using var f = new LeaseFixture();
-            Assert.IsTrue(f.Cache.Preload(A, AudioCachePolicy.Ttl));
+            Assert.IsTrue(f.Cache.Preload(A, EAudioCachePolicy.Ttl));
             var entry = f.Entry(A);
 
             // 模拟播放：OnClipReady 路径的 Retain
@@ -239,13 +239,13 @@ namespace Service.Audio
         [Test]
         public void StopEnd_NonePolicy_DropsEntryAndReturnsLease()
         {
-            using var f = new LeaseFixture(policy: AudioCachePolicy.None);
-            Assert.IsTrue(f.Cache.Preload(A, AudioCachePolicy.None));
+            using var f = new LeaseFixture(policy: EAudioCachePolicy.None);
+            Assert.IsTrue(f.Cache.Preload(A, EAudioCachePolicy.None));
             // None + 无引用：加载完成即回收（预加载不构成引用）
             Assert.AreEqual(0, f.Cache.Count);
             Assert.AreEqual(0, f.LiveHandles);
 
-            f.Cache.Preload(A, AudioCachePolicy.Ttl);
+            f.Cache.Preload(A, EAudioCachePolicy.Ttl);
             var entry = f.Entry(A);
             f.Cache.Retain(entry);
             Assert.AreEqual(1, entry.RefCount);

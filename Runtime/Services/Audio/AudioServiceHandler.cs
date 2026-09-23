@@ -21,7 +21,7 @@ namespace Moirai.Atropos.Audio
     /// <para>Unity 专属成员（中间件后端返回 null/空操作）见各成员 remarks；中间件不支持 InitialDelay / PlaybackDuration / Solo。</para>
     /// </summary>
     [Serializable]
-    public abstract class AudioServiceHandler : FrameworkHandler
+    internal abstract class AudioServiceHandler : FrameworkHandler
     {
         #region 处理器属性 [HANDLER PROPERTIES]
 
@@ -604,10 +604,10 @@ namespace Moirai.Atropos.Audio
 
         /// <summary>预加载地址（策略默认 Pin 常驻）。</summary>
         /// <returns>已加载完成返回 true；加载中或失败返回 false。</returns>
-        public abstract bool Preload(string address, AudioCachePolicy policy = AudioCachePolicy.Pin);
+        public abstract bool Preload(string address, EAudioCachePolicy policy = EAudioCachePolicy.Pin);
 
         /// <summary>异步预加载地址。</summary>
-        public abstract void PreloadAsync(string address, AudioCachePolicy policy, Action<bool> completed = null);
+        public abstract void PreloadAsync(string address, EAudioCachePolicy policy, Action<bool> completed = null);
 
         /// <summary>卸载地址缓存。force=true 时忽略引用计数。</summary>
         public abstract bool UnloadClipCache(string address, bool force = false);

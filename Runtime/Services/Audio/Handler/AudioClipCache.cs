@@ -44,7 +44,7 @@ namespace Moirai.Atropos.Audio
         private int _capacity = DefaultCapacity;
         private float _ttl = DefaultTtl;
         private float _failureCooldown = FailureCooldownSeconds;
-        private AudioCachePolicy _defaultPolicy = AudioCachePolicy.Ttl;
+        private EAudioCachePolicy _defaultPolicy = EAudioCachePolicy.Ttl;
         private bool _lowMemoryRegistered;
         private bool _disposed;
 
@@ -75,7 +75,7 @@ namespace Moirai.Atropos.Audio
         public float Ttl => _ttl;
 
         /// <summary>默认策略。</summary>
-        public AudioCachePolicy DefaultPolicy => _defaultPolicy;
+        public EAudioCachePolicy DefaultPolicy => _defaultPolicy;
 
         /// <summary>进行中的加载数（诊断用，按需遍历）。</summary>
         public int LoadingCount
@@ -111,7 +111,7 @@ namespace Moirai.Atropos.Audio
         /// 应用租约来源与容量/TTL/默认策略，并注册 lowMemory 回调。<see cref="UnityAudioHandler"/> 每次 Initialize 调用。
         /// </summary>
         /// <param name="failureCooldownSeconds">失败地址的冷却秒数；<c>0</c> 关闭负缓存（每次都真去试）。</param>
-        public void Configure(IAudioClipLeaseSource source, int capacity, float ttl, AudioCachePolicy defaultPolicy,
+        public void Configure(IAudioClipLeaseSource source, int capacity, float ttl, EAudioCachePolicy defaultPolicy,
             float failureCooldownSeconds = FailureCooldownSeconds)
         {
             _source = source;
@@ -144,22 +144,22 @@ namespace Moirai.Atropos.Audio
             _source = null;
         }
 
-        /// <summary>把 <see cref="AudioCachePolicy.Default"/> 解析为配置的默认策略。</summary>
-        public AudioCachePolicy ResolvePolicy(AudioCachePolicy policy)
+        /// <summary>把 <see cref="EAudioCachePolicy.Default"/> 解析为配置的默认策略。</summary>
+        public EAudioCachePolicy ResolvePolicy(EAudioCachePolicy policy)
         {
             return policy switch
             {
-                AudioCachePolicy.None or AudioCachePolicy.Ttl or AudioCachePolicy.Pin => policy,
+                EAudioCachePolicy.None or EAudioCachePolicy.Ttl or EAudioCachePolicy.Pin => policy,
                 _ => _defaultPolicy,
             };
         }
 
-        private static AudioCachePolicy NormalizeDefaultPolicy(AudioCachePolicy policy)
+        private static EAudioCachePolicy NormalizeDefaultPolicy(EAudioCachePolicy policy)
         {
             return policy switch
             {
-                AudioCachePolicy.None or AudioCachePolicy.Ttl or AudioCachePolicy.Pin => policy,
-                _ => AudioCachePolicy.Ttl,
+                EAudioCachePolicy.None or EAudioCachePolicy.Ttl or EAudioCachePolicy.Pin => policy,
+                _ => EAudioCachePolicy.Ttl,
             };
         }
 
@@ -212,7 +212,7 @@ namespace Moirai.Atropos.Audio
         /// </summary>
         /// <param name="generation">声部加载世代；完成回调与之不符时落空（声部已换曲/已停播）。</param>
         /// <returns>已就绪或加载已受理返回 true；地址无效、满载或后端不可用返回 false。</returns>
-        public bool RequestClip(string address, bool async, AudioCachePolicy policy, AudioAgent agent, int generation)
+        public bool RequestClip(string address, bool async, EAudioCachePolicy policy, AudioAgent agent, int generation)
         {
             AudioMainThread.AssertMainThread(nameof(RequestClip));
 
@@ -260,7 +260,7 @@ namespace Moirai.Atropos.Audio
         /// 预加载（同步）：<paramref name="policy"/> 为 Default 时取配置默认策略。
         /// </summary>
         /// <returns>已加载完成返回 true；加载中、满载或失败返回 false。</returns>
-        public bool Preload(string address, AudioCachePolicy policy = AudioCachePolicy.Pin)
+        public bool Preload(string address, EAudioCachePolicy policy = EAudioCachePolicy.Pin)
         {
             if (!TryPreparePreload(address, policy, out var entry))
             {
@@ -275,7 +275,7 @@ namespace Moirai.Atropos.Audio
         /// <summary>
         /// 预加载（异步）：完成时回调 <paramref name="completed"/>；同地址多次调用会共享一次加载。
         /// </summary>
-        public void PreloadAsync(string address, AudioCachePolicy policy, Action<bool> completed = null)
+        public void PreloadAsync(string address, EAudioCachePolicy policy, Action<bool> completed = null)
         {
             if (!TryPreparePreload(address, policy, out var entry))
             {
@@ -414,7 +414,7 @@ namespace Moirai.Atropos.Audio
         private static bool CanEvict(AudioClipCacheEntry entry)
             => entry.RefCount == 0 && !entry.Loading && entry.PendingHead == null;
 
-        private bool TryPreparePreload(string address, AudioCachePolicy policy, out AudioClipCacheEntry entry)
+        private bool TryPreparePreload(string address, EAudioCachePolicy policy, out AudioClipCacheEntry entry)
         {
             AudioMainThread.AssertMainThread(nameof(Preload));
 
@@ -435,7 +435,7 @@ namespace Moirai.Atropos.Audio
             return true;
         }
 
-        private AudioClipCacheEntry GetOrCreate(string address, AudioCachePolicy policy)
+        private AudioClipCacheEntry GetOrCreate(string address, EAudioCachePolicy policy)
         {
             int hash = HashAddress(address);
             if (TryFindEntry(address, hash, out var existing)) return existing;
@@ -615,21 +615,21 @@ namespace Moirai.Atropos.Audio
         #endregion 槽表 [SLOT TABLE]
 
         /// <summary>策略只升不降：Pin 永不被降级，None 不会把已缓存的条目改成不缓存。</summary>
-        private void UpgradePolicy(AudioClipCacheEntry entry, AudioCachePolicy policy)
+        private void UpgradePolicy(AudioClipCacheEntry entry, EAudioCachePolicy policy)
         {
-            if (policy == AudioCachePolicy.None) return;
-            if (entry.CachePolicy == AudioCachePolicy.Pin) return;
+            if (policy == EAudioCachePolicy.None) return;
+            if (entry.CachePolicy == EAudioCachePolicy.Pin) return;
 
-            if (policy == AudioCachePolicy.Pin)
+            if (policy == EAudioCachePolicy.Pin)
             {
-                entry.CachePolicy = AudioCachePolicy.Pin;
+                entry.CachePolicy = EAudioCachePolicy.Pin;
                 RemoveFromLru(entry);
                 return;
             }
 
-            if (entry.CachePolicy == AudioCachePolicy.None)
+            if (entry.CachePolicy == EAudioCachePolicy.None)
             {
-                entry.CachePolicy = AudioCachePolicy.Ttl;
+                entry.CachePolicy = EAudioCachePolicy.Ttl;
             }
         }
 

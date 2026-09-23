@@ -32,16 +32,16 @@ namespace Moirai.Atropos.Audio
 
         /// <summary>地址的 Ordinal djb2 哈希（不是 <c>string.GetHashCode</c>——那个按进程随机化，桶分布不可复现）。</summary>
         public int AddressHash;
-        public AudioCachePolicy CachePolicy;
+        public EAudioCachePolicy CachePolicy;
         public bool Loading;
         public bool InLru;
         public float LastUseTime;
 
-        public bool Pinned => CachePolicy == AudioCachePolicy.Pin;
-        public bool CacheAfterUse => CachePolicy is AudioCachePolicy.Ttl or AudioCachePolicy.Pin;
+        public bool Pinned => CachePolicy == EAudioCachePolicy.Pin;
+        public bool CacheAfterUse => CachePolicy is EAudioCachePolicy.Ttl or EAudioCachePolicy.Pin;
         public bool IsLoaded => Clip != null && Lease.IsValid && !Loading;
 
-        public void Initialize(AudioClipCache owner, string address, int addressHash, AudioCachePolicy cachePolicy)
+        public void Initialize(AudioClipCache owner, string address, int addressHash, EAudioCachePolicy cachePolicy)
         {
             Version++;
             Owner = owner;
@@ -124,7 +124,7 @@ namespace Moirai.Atropos.Audio
             SlotIndex = -1;
             RefCount = 0;
             AddressHash = 0;
-            CachePolicy = AudioCachePolicy.Default;
+            CachePolicy = EAudioCachePolicy.Default;
             Loading = false;
             InLru = false;
             LastUseTime = 0f;

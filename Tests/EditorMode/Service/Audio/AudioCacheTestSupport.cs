@@ -19,7 +19,7 @@ namespace Service.Audio
         private readonly Queue<TestLease> _recycledHandles = new Queue<TestLease>();
 
         public AudioCacheTestSupport(int capacity = 128, float ttl = 30f,
-            AudioCachePolicy defaultPolicy = AudioCachePolicy.Ttl,
+            EAudioCachePolicy defaultPolicy = EAudioCachePolicy.Ttl,
             float failureCooldown = AudioClipCache.FailureCooldownSeconds)
         {
             Cache = new AudioClipCache();

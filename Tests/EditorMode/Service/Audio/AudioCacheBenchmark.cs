@@ -54,9 +54,9 @@ namespace Service.Audio
         {
             const string address = "Audio/Sfx/Bench";
             using var fixture = new AudioCacheTestSupport(capacity: FullEntries, ttl: 600f);
-            Assert.IsTrue(fixture.Cache.Preload(address, AudioCachePolicy.Ttl));
+            Assert.IsTrue(fixture.Cache.Preload(address, EAudioCachePolicy.Ttl));
 
-            double ns = Measure(() => fixture.Cache.Preload(address, AudioCachePolicy.Ttl), HitCalls);
+            double ns = Measure(() => fixture.Cache.Preload(address, EAudioCachePolicy.Ttl), HitCalls);
             Report(nameof(CacheHit_PreloadWithinBudget), ns, HitBudgetNs, HitCalls);
 
             Assert.AreEqual(1, fixture.Cache.Count, "重复取用同地址不得扩表");
@@ -70,7 +70,7 @@ namespace Service.Audio
             using var fixture = new AudioCacheTestSupport(capacity: FullEntries, ttl: 600f);
             for (int i = 0; i < FullEntries; i++)
             {
-                Assert.IsTrue(fixture.Cache.Preload("Audio/Sfx/Bench" + i, AudioCachePolicy.Ttl));
+                Assert.IsTrue(fixture.Cache.Preload("Audio/Sfx/Bench" + i, EAudioCachePolicy.Ttl));
             }
 
             double ns = Measure(fixture.Cache.Tick, IdleTickCalls);
@@ -97,14 +97,14 @@ namespace Service.Audio
             // 轮转的地址数远大于容量：填满之后每一发都必然挤掉一个 LRU 头
             for (int i = 0; i < EvictAddressPool; i++)
             {
-                Assert.IsTrue(fixture.Cache.Preload(addresses[i], AudioCachePolicy.Ttl),
+                Assert.IsTrue(fixture.Cache.Preload(addresses[i], EAudioCachePolicy.Ttl),
                     $"第 {i} 发预载应成功；走到满载拒绝说明测的是拒绝路径而不是驱逐链路");
             }
 
             Assert.AreEqual(EvictCapacity, fixture.Cache.Count, "填满后驻留数应等于容量");
 
             int slot = 0;
-            double ns = Measure(() => fixture.Cache.Preload(addresses[slot++ % EvictAddressPool], AudioCachePolicy.Ttl),
+            double ns = Measure(() => fixture.Cache.Preload(addresses[slot++ % EvictAddressPool], EAudioCachePolicy.Ttl),
                 EvictCalls);
             Report(nameof(EvictionAtCapacity_WithinBudget), ns, EvictBudgetNs, EvictCalls);
 

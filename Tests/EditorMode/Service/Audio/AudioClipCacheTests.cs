@@ -66,7 +66,7 @@ namespace Service.Audio
         public void Preload_NonePolicy_LoadsThenDropsImmediately()
         {
             // None 的语义是「用完即弃」，而预加载本身不构成引用：加载完成即无人在用，条目当场回收
-            Assert.IsTrue(_fixture.Cache.Preload(A, AudioCachePolicy.None));
+            Assert.IsTrue(_fixture.Cache.Preload(A, EAudioCachePolicy.None));
 
             Assert.AreEqual(1, _fixture.LoadCount(A));
             Assert.AreEqual(0, _fixture.Cache.Count);
@@ -81,8 +81,8 @@ namespace Service.Audio
 
             bool first = false;
             bool second = false;
-            _fixture.Cache.PreloadAsync(A, AudioCachePolicy.Pin, ok => first = ok);
-            _fixture.Cache.PreloadAsync(A, AudioCachePolicy.Pin, ok => second = ok);
+            _fixture.Cache.PreloadAsync(A, EAudioCachePolicy.Pin, ok => first = ok);
+            _fixture.Cache.PreloadAsync(A, EAudioCachePolicy.Pin, ok => second = ok);
 
             Assert.AreEqual(1, _fixture.LoadCount(A), "同地址并发请求应合并为一次加载");
             Assert.AreEqual(1, _fixture.Cache.LoadingCount);
@@ -105,7 +105,7 @@ namespace Service.Audio
             _fixture.ManualAsync = true;
             int calls = 0;
             bool last = true;
-            _fixture.Cache.PreloadAsync(A, AudioCachePolicy.Ttl, ok =>
+            _fixture.Cache.PreloadAsync(A, EAudioCachePolicy.Ttl, ok =>
             {
                 calls++;
                 last = ok;
@@ -146,8 +146,8 @@ namespace Service.Audio
             var first = new AudioAgent();
             var second = new AudioAgent();
 
-            Assert.IsTrue(_fixture.Cache.RequestClip(A, true, AudioCachePolicy.Ttl, first, first.LoadGeneration));
-            Assert.IsTrue(_fixture.Cache.RequestClip(A, true, AudioCachePolicy.Ttl, second, second.LoadGeneration));
+            Assert.IsTrue(_fixture.Cache.RequestClip(A, true, EAudioCachePolicy.Ttl, first, first.LoadGeneration));
+            Assert.IsTrue(_fixture.Cache.RequestClip(A, true, EAudioCachePolicy.Ttl, second, second.LoadGeneration));
 
             Assert.AreEqual(1, _fixture.LoadCount(A), "同地址多个声部只该向后端取一次租约");
             Assert.AreEqual(1, _fixture.Cache.LoadingCount);
@@ -163,8 +163,8 @@ namespace Service.Audio
         [Test]
         public void RequestClip_NullAgentOrAddress_IsRefused()
         {
-            Assert.IsFalse(_fixture.Cache.RequestClip(A, true, AudioCachePolicy.Ttl, null, 1));
-            Assert.IsFalse(_fixture.Cache.RequestClip(string.Empty, true, AudioCachePolicy.Ttl, new AudioAgent(), 1));
+            Assert.IsFalse(_fixture.Cache.RequestClip(A, true, EAudioCachePolicy.Ttl, null, 1));
+            Assert.IsFalse(_fixture.Cache.RequestClip(string.Empty, true, EAudioCachePolicy.Ttl, new AudioAgent(), 1));
             Assert.AreEqual(0, _fixture.Cache.Count);
             Assert.AreEqual(0, _fixture.LiveHandles);
         }
@@ -176,7 +176,7 @@ namespace Service.Audio
         [Test]
         public void RetainedEntry_SurvivesNonForcedClearAndTtl()
         {
-            _fixture.Cache.Preload(A, AudioCachePolicy.Ttl);
+            _fixture.Cache.Preload(A, EAudioCachePolicy.Ttl);
             var entry = _fixture.Entry(A);
             _fixture.Cache.Retain(entry);
 
@@ -197,7 +197,7 @@ namespace Service.Audio
         [Test]
         public void Release_BelowZero_KeepsLedgerAndIsReported()
         {
-            _fixture.Cache.Preload(A, AudioCachePolicy.Pin);
+            _fixture.Cache.Preload(A, EAudioCachePolicy.Pin);
             var entry = _fixture.Entry(A);
             _fixture.Cache.Retain(entry);
             _fixture.Cache.Release(entry);
@@ -221,12 +221,12 @@ namespace Service.Audio
         public void CapacityGrowth_ReSeatsLiveEntries_WithoutDroppingAny()
         {
             _fixture = new AudioCacheTestSupport(capacity: 2);
-            Assert.IsTrue(_fixture.Cache.Preload(A, AudioCachePolicy.Ttl));
-            Assert.IsTrue(_fixture.Cache.Preload(B, AudioCachePolicy.Ttl));
+            Assert.IsTrue(_fixture.Cache.Preload(A, EAudioCachePolicy.Ttl));
+            Assert.IsTrue(_fixture.Cache.Preload(B, EAudioCachePolicy.Ttl));
             Assert.AreEqual(2, _fixture.Cache.Count);
 
             // Configure 每次后端初始化都会重跑（重启、热改设置、测试复用同一实例都会走到）
-            _fixture.Cache.Configure(_fixture, 8, 30f, AudioCachePolicy.Ttl, 5f);
+            _fixture.Cache.Configure(_fixture, 8, 30f, EAudioCachePolicy.Ttl, 5f);
 
             Assert.AreEqual(2, _fixture.Cache.Count, "换表不得丢条目");
             Assert.AreEqual(2, _fixture.LiveHandles, "换表不得动租约");
@@ -237,14 +237,14 @@ namespace Service.Audio
             // 新容量当场生效：还能再收 6 条，第 9 条判负
             for (int i = 0; i < 6; i++)
             {
-                Assert.IsTrue(_fixture.Cache.Preload("Audio/Sfx/Extra" + i, AudioCachePolicy.Pin));
+                Assert.IsTrue(_fixture.Cache.Preload("Audio/Sfx/Extra" + i, EAudioCachePolicy.Pin));
             }
 
             Assert.AreEqual(8, _fixture.Cache.Count);
 
             // 第 9 条不该判负：A/B 是 Ttl 且无人引用，按 LRU 腾位是设计行为，
             // "全 Pin / 全在用"才拒（见 Capacity_AllPinned_RefusesNewAddressInsteadOfGrowing）
-            Assert.IsTrue(_fixture.Cache.Preload("Audio/Sfx/Overflow", AudioCachePolicy.Pin),
+            Assert.IsTrue(_fixture.Cache.Preload("Audio/Sfx/Overflow", EAudioCachePolicy.Pin),
                 "满载但有可驱逐项时按 LRU 驱逐腾位，而不是直接判负");
             Assert.AreEqual(8, _fixture.Cache.Count, "腾位后规模仍钉在上限");
             Assert.IsFalse(_fixture.Cache.TryGetEntry(A, out _), "被换出的必须是最久未用的那条");
@@ -256,11 +256,11 @@ namespace Service.Audio
         public void Capacity_ShrinkBelowLiveCount_KeepsEveryLiveEntry()
         {
             _fixture = new AudioCacheTestSupport(capacity: 4);
-            Assert.IsTrue(_fixture.Cache.Preload(A, AudioCachePolicy.Pin));
-            Assert.IsTrue(_fixture.Cache.Preload(B, AudioCachePolicy.Pin));
+            Assert.IsTrue(_fixture.Cache.Preload(A, EAudioCachePolicy.Pin));
+            Assert.IsTrue(_fixture.Cache.Preload(B, EAudioCachePolicy.Pin));
 
             // 配置改小：静默丢条目会连带把仍被引用的租约丢掉，宁可让这一轮容量比配置大
-            _fixture.Cache.Configure(_fixture, 1, 30f, AudioCachePolicy.Ttl, 5f);
+            _fixture.Cache.Configure(_fixture, 1, 30f, EAudioCachePolicy.Ttl, 5f);
 
             Assert.AreEqual(2, _fixture.Cache.Count);
             Assert.AreEqual(2, _fixture.LiveHandles);
@@ -275,10 +275,10 @@ namespace Service.Audio
             _fixture = new AudioCacheTestSupport(capacity: 2);
 
             // Preload 默认 Pin（常驻、不参与驱逐），这里要的是「用后留池但可被挤掉」的 Ttl
-            _fixture.Cache.Preload(A, AudioCachePolicy.Ttl);
-            _fixture.Cache.Preload(B, AudioCachePolicy.Ttl);
-            _fixture.Cache.Preload(A, AudioCachePolicy.Ttl); // A 被再次取用，B 成为最久未用
-            _fixture.Cache.Preload(C, AudioCachePolicy.Ttl);
+            _fixture.Cache.Preload(A, EAudioCachePolicy.Ttl);
+            _fixture.Cache.Preload(B, EAudioCachePolicy.Ttl);
+            _fixture.Cache.Preload(A, EAudioCachePolicy.Ttl); // A 被再次取用，B 成为最久未用
+            _fixture.Cache.Preload(C, EAudioCachePolicy.Ttl);
 
             Assert.IsTrue(_fixture.Cache.TryGetEntry(A, out _), "A 刚被取用，不该被驱逐");
             Assert.IsFalse(_fixture.Cache.TryGetEntry(B, out _), "B 应作为最久未用被驱逐");
@@ -293,9 +293,9 @@ namespace Service.Audio
         {
             _fixture = new AudioCacheTestSupport(capacity: 2);
 
-            Assert.IsTrue(_fixture.Cache.Preload(A, AudioCachePolicy.Pin));
-            Assert.IsTrue(_fixture.Cache.Preload(B, AudioCachePolicy.Pin));
-            Assert.IsFalse(_fixture.Cache.Preload(C, AudioCachePolicy.Pin), "满载且无可驱逐对象时应判负");
+            Assert.IsTrue(_fixture.Cache.Preload(A, EAudioCachePolicy.Pin));
+            Assert.IsTrue(_fixture.Cache.Preload(B, EAudioCachePolicy.Pin));
+            Assert.IsFalse(_fixture.Cache.Preload(C, EAudioCachePolicy.Pin), "满载且无可驱逐对象时应判负");
 
             Assert.AreEqual(2, _fixture.Cache.Count, "不得为超载地址扩到容量之外");
             Assert.AreEqual(0, _fixture.LoadCount(C), "判负的地址不应真的去取资源");
@@ -306,14 +306,14 @@ namespace Service.Audio
         [Test]
         public void UpgradePolicy_PinWinsAndNeverDowngrades()
         {
-            _fixture.Cache.Preload(A, AudioCachePolicy.None);
-            _fixture.Cache.Preload(A, AudioCachePolicy.Ttl);
+            _fixture.Cache.Preload(A, EAudioCachePolicy.None);
+            _fixture.Cache.Preload(A, EAudioCachePolicy.Ttl);
             Assert.IsFalse(_fixture.Entry(A).Pinned);
 
-            _fixture.Cache.Preload(A, AudioCachePolicy.Pin);
+            _fixture.Cache.Preload(A, EAudioCachePolicy.Pin);
             Assert.IsTrue(_fixture.Entry(A).Pinned);
 
-            _fixture.Cache.Preload(A, AudioCachePolicy.None);
+            _fixture.Cache.Preload(A, EAudioCachePolicy.None);
             Assert.IsTrue(_fixture.Entry(A).Pinned, "策略只升不降：None 不得摘掉 Pin");
         }
 
@@ -327,12 +327,12 @@ namespace Service.Audio
             const float ttl = 0.25f;
             _fixture = new AudioCacheTestSupport(capacity: 8, ttl: ttl);
 
-            _fixture.Cache.Preload(A, AudioCachePolicy.Ttl);
+            _fixture.Cache.Preload(A, EAudioCachePolicy.Ttl);
             Thread.Sleep(80);
             _fixture.Cache.Tick();
             Assert.IsTrue(_fixture.Cache.TryGetEntry(A, out _), "未过期的条目不该被回收");
 
-            _fixture.Cache.Preload(A, AudioCachePolicy.Ttl); // 续期
+            _fixture.Cache.Preload(A, EAudioCachePolicy.Ttl); // 续期
             Thread.Sleep(120);
             _fixture.Cache.Tick();
             Assert.IsTrue(_fixture.Cache.TryGetEntry(A, out _), "续期后 TTL 应重新计时");
@@ -360,9 +360,9 @@ namespace Service.Audio
         [Test]
         public void LowMemory_ClearsIdleTtl_KeepsPinnedAndInUse()
         {
-            _fixture.Cache.Preload(A, AudioCachePolicy.Ttl);
-            _fixture.Cache.Preload(B, AudioCachePolicy.Pin);
-            _fixture.Cache.Preload(C, AudioCachePolicy.Ttl);
+            _fixture.Cache.Preload(A, EAudioCachePolicy.Ttl);
+            _fixture.Cache.Preload(B, EAudioCachePolicy.Pin);
+            _fixture.Cache.Preload(C, EAudioCachePolicy.Ttl);
             var inUse = _fixture.Entry(C);
             _fixture.Cache.Retain(inUse);
 
@@ -382,7 +382,7 @@ namespace Service.Audio
         [Test]
         public void Unload_PinnedNeedsForce_InUseNeedsRelease()
         {
-            _fixture.Cache.Preload(A, AudioCachePolicy.Pin);
+            _fixture.Cache.Preload(A, EAudioCachePolicy.Pin);
 
             Assert.IsFalse(_fixture.Cache.Unload(A), "Pin 条目非 force 不卸");
 
@@ -400,8 +400,8 @@ namespace Service.Audio
         [Test]
         public void ClearCache_NonForced_KeepsPinned()
         {
-            _fixture.Cache.Preload(A, AudioCachePolicy.Ttl);
-            _fixture.Cache.Preload(B, AudioCachePolicy.Pin);
+            _fixture.Cache.Preload(A, EAudioCachePolicy.Ttl);
+            _fixture.Cache.Preload(B, EAudioCachePolicy.Pin);
 
             _fixture.Cache.ClearCache();
 
@@ -420,7 +420,7 @@ namespace Service.Audio
         public void LateCompletion_AfterShutdown_ReleasesLeaseWithoutResurrecting()
         {
             _fixture.ManualAsync = true;
-            _fixture.Cache.PreloadAsync(A, AudioCachePolicy.Ttl, null);
+            _fixture.Cache.PreloadAsync(A, EAudioCachePolicy.Ttl, null);
             Assert.AreEqual(1, _fixture.PendingCount);
 
             _fixture.Dispose();
@@ -438,7 +438,7 @@ namespace Service.Audio
         [Test]
         public void Dispose_ReleasesEveryLiveHandle()
         {
-            _fixture.Cache.Preload(A, AudioCachePolicy.Pin);
+            _fixture.Cache.Preload(A, EAudioCachePolicy.Pin);
             _fixture.Cache.Preload(B);
             var inUse = _fixture.Entry(B);
             _fixture.Cache.Retain(inUse);
@@ -463,13 +463,13 @@ namespace Service.Audio
             // 既不能污染新主人的状态，自带的租约也必须当场归还。
             var first = new AudioCacheTestSupport(capacity: 4);
             first.ManualAsync = true;
-            first.Cache.PreloadAsync(A, AudioCachePolicy.Ttl, null);
+            first.Cache.PreloadAsync(A, EAudioCachePolicy.Ttl, null);
             Assert.AreEqual(1, first.PendingCount);
 
             first.Dispose();
 
             var second = new AudioCacheTestSupport(capacity: 4);
-            Assert.IsTrue(second.Cache.Preload(A, AudioCachePolicy.Ttl));
+            Assert.IsTrue(second.Cache.Preload(A, EAudioCachePolicy.Ttl));
             int entriesBefore = second.Cache.Count;
 
             first.CompleteNext();

@@ -61,8 +61,8 @@ namespace Moirai.Atropos.Audio
 
         [Header("缓存 [Clip Cache]")]
         [Tooltip("路径播放的 Clip 缓存策略；Default 回落到服务设置")]
-        [SerializeField] private AudioCachePolicy m_CachePolicy;
-        public AudioCachePolicy CachePolicy { get => m_CachePolicy; set => m_CachePolicy = value; }
+        [SerializeField] private EAudioCachePolicy m_CachePolicy;
+        public EAudioCachePolicy CachePolicy { get => m_CachePolicy; set => m_CachePolicy = value; }
 
         // 时间
         [Header("时间 [Time]")]

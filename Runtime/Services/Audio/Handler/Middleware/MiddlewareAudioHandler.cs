@@ -1051,7 +1051,7 @@ namespace Moirai.Atropos.Audio.Middleware
 
         /// <inheritdoc />
         /// <remarks>中间件无 clip 租约；仅登记键值占位。</remarks>
-        public override bool Preload(string address, AudioCachePolicy policy = AudioCachePolicy.Pin)
+        public override bool Preload(string address, EAudioCachePolicy policy = EAudioCachePolicy.Pin)
         {
             if (string.IsNullOrEmpty(address)) return false;
             _assetHandles[address] = address;
@@ -1059,7 +1059,7 @@ namespace Moirai.Atropos.Audio.Middleware
         }
 
         /// <inheritdoc />
-        public override void PreloadAsync(string address, AudioCachePolicy policy, Action<bool> completed = null)
+        public override void PreloadAsync(string address, EAudioCachePolicy policy, Action<bool> completed = null)
         {
             completed?.Invoke(Preload(address, policy));
         }

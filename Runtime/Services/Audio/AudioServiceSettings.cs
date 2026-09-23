@@ -150,9 +150,9 @@ namespace Moirai.Atropos.Audio
         internal static float ClipCacheTtl => Instance.m_ClipCacheTtl;
 
         [Tooltip("路径播放默认缓存策略（None=用完即弃，Ttl=用后缓存，Pin=常驻）")]
-        [SerializeField] private AudioCachePolicy m_DefaultClipCachePolicy = AudioCachePolicy.Ttl;
+        [SerializeField] private EAudioCachePolicy m_DefaultClipCachePolicy = EAudioCachePolicy.Ttl;
         /// <summary>默认 Clip 缓存策略。</summary>
-        internal static AudioCachePolicy DefaultClipCachePolicy => Instance.m_DefaultClipCachePolicy;
+        internal static EAudioCachePolicy DefaultClipCachePolicy => Instance.m_DefaultClipCachePolicy;
 
 #if UNITY_EDITOR
 

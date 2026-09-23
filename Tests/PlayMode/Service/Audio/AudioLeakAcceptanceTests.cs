@@ -19,7 +19,7 @@ namespace Service.Audio
         {
             private int _liveHandles;
 
-            public LeaseFixture(int capacity = 32, float ttl = 30f, AudioCachePolicy policy = AudioCachePolicy.Ttl)
+            public LeaseFixture(int capacity = 32, float ttl = 30f, EAudioCachePolicy policy = EAudioCachePolicy.Ttl)
             {
                 Cache = new AudioClipCache();
                 Cache.Configure(this, capacity, ttl, policy);
@@ -110,7 +110,7 @@ namespace Service.Audio
         {
             // TTL 缩到 20ms，好让 case 5 的驱逐分支在这一轮里真能走到（原来给 30s，单帧内永不到期，那条分支不可达）。
             // 到期行为的确定性断言在 AudioClipCacheTests.Ttl_ExpiresIdleEntry_AndTouchRenews，这里不重复断言时延。
-            using var fixture = new LeaseFixture(16, 0.02f, AudioCachePolicy.Ttl);
+            using var fixture = new LeaseFixture(16, 0.02f, EAudioCachePolicy.Ttl);
             int preloaded = 0;
             var random = new System.Random(20260922);
             string[] addresses = new string[24];
@@ -122,7 +122,7 @@ namespace Service.Audio
                 switch (step % 6)
                 {
                     case 0:
-                        if (fixture.Cache.Preload(address, (AudioCachePolicy)random.Next(1, 4))) preloaded++;
+                        if (fixture.Cache.Preload(address, (EAudioCachePolicy)random.Next(1, 4))) preloaded++;
                         break;
                     case 1:
                         fixture.Cache.Unload(address, force: random.Next(4) == 0);
@@ -156,7 +156,7 @@ namespace Service.Audio
         public void SharedAddress_ManyRetains_SingleLease_AllReleased_LeavesZero()
         {
             using var fixture = new LeaseFixture();
-            Assert.IsTrue(fixture.Cache.Preload("Audio/Sfx/Shared", AudioCachePolicy.Ttl));
+            Assert.IsTrue(fixture.Cache.Preload("Audio/Sfx/Shared", EAudioCachePolicy.Ttl));
             var entry = fixture.Cache.EntryRef("Audio/Sfx/Shared");
             int before = fixture.LiveHandles;
             Assert.AreEqual(1, before, "共享地址只应持有一份租约");
@@ -233,8 +233,8 @@ namespace Service.Audio
         public void ClearCacheForce_DropsPinnedAndEmptiesPoolView()
         {
             using var fixture = new LeaseFixture();
-            fixture.Cache.Preload("Audio/Sfx/PinA", AudioCachePolicy.Pin);
-            fixture.Cache.Preload("Audio/Sfx/TtlB", AudioCachePolicy.Ttl);
+            fixture.Cache.Preload("Audio/Sfx/PinA", EAudioCachePolicy.Pin);
+            fixture.Cache.Preload("Audio/Sfx/TtlB", EAudioCachePolicy.Ttl);
             Assert.Greater(fixture.Cache.Count, 0);
 
             fixture.Cache.ClearCache(force: true);

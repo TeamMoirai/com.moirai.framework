@@ -592,11 +592,11 @@ namespace Moirai.Atropos.Audio
         public static void CleanAudioPool() => s_Handler?.CleanAudioPool();
 
         /// <summary>预加载地址（默认 Pin 常驻；Lease 保留 + 缓存）。</summary>
-        public static bool Preload(string address, AudioCachePolicy policy = AudioCachePolicy.Pin) =>
+        public static bool Preload(string address, EAudioCachePolicy policy = EAudioCachePolicy.Pin) =>
             s_Handler?.Preload(address, policy) ?? false;
 
         /// <summary>异步预加载地址。</summary>
-        public static void PreloadAsync(string address, AudioCachePolicy policy = AudioCachePolicy.Pin,
+        public static void PreloadAsync(string address, EAudioCachePolicy policy = EAudioCachePolicy.Pin,
             Action<bool> completed = null) =>
             s_Handler?.PreloadAsync(address, policy, completed);
 

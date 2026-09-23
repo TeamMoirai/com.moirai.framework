@@ -1017,7 +1017,7 @@ namespace Moirai.Atropos.Audio
                 string path = list[i];
                 if (!string.IsNullOrEmpty(path))
                 {
-                    _clipCache.Preload(path, AudioCachePolicy.Pin);
+                    _clipCache.Preload(path, EAudioCachePolicy.Pin);
                 }
             }
         }
@@ -1041,11 +1041,11 @@ namespace Moirai.Atropos.Audio
         }
 
         /// <inheritdoc />
-        public override bool Preload(string address, AudioCachePolicy policy = AudioCachePolicy.Pin)
+        public override bool Preload(string address, EAudioCachePolicy policy = EAudioCachePolicy.Pin)
             => !_unityAudioDisabled && _clipCache.Preload(address, policy);
 
         /// <inheritdoc />
-        public override void PreloadAsync(string address, AudioCachePolicy policy, Action<bool> completed = null)
+        public override void PreloadAsync(string address, EAudioCachePolicy policy, Action<bool> completed = null)
         {
             if (_unityAudioDisabled)
             {
