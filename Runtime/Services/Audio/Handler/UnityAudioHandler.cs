@@ -51,6 +51,12 @@ namespace Moirai.Atropos.Audio
 
         #region 音轨状态 [TRACK STATUS]
 
+        /// <inheritdoc />
+        /// <remarks>就是 <c>unityAudioDisabled</c> 本身。该字段只在 <c>#if UNITY_EDITOR</c> 内被赋值，
+        /// 所以玩家构建里这条恒 false——它表达的是"开发者在编辑器菜单里关了音频"，不是设备故障。
+        /// 其余 27 处 <c>_unityAudioDisabled</c> 短路仍直读字段：同文件里两种拼法并存比绕一层钩子更好读。</remarks>
+        internal override bool IsBackendInert => _unityAudioDisabled;
+
         [NonSerialized] private AudioCategory[] _audioCategories;
         /// <inheritdoc />
         public override AudioCategory[] AudioCategories => _audioCategories;

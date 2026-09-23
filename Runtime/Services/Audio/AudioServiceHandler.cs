@@ -15,7 +15,9 @@ namespace Moirai.Atropos.Audio
     /// <para>3. 主音量与音轨音量都是线性 <c>0..1</c>，且夹取只发生在契约入口一次——
     /// 曾经 Unity 侧允许 0..10 而中间件落总线时偷偷 Clamp01，同一份设置换后端上限就从 10 变 1；</para>
     /// <para>4. Master/音轨 Fade 经共享 <see cref="AudioFadeScheduler"/> 驱动，带缓动且可中途停止；</para>
-    /// <para>5. 句柄生命周期与用户 ID 映射由共享 <see cref="AudioHandleRegistry{TVoice}"/> 保证。</para>
+    /// <para>5. 句柄生命周期与用户 ID 映射由共享 <see cref="AudioHandleRegistry{TVoice}"/> 保证；</para>
+    /// <para>6. 后端整体失效时（<see cref="IsBackendInert"/>）音量面读作 0、写作无效——两后端同一个口径，
+    /// 不允许出现"报着一个音量却完全听不见"的第三种状态。</para>
     /// <para>Unity 专属成员（中间件后端返回 null/空操作）见各成员 remarks；中间件不支持 InitialDelay / PlaybackDuration / Solo。</para>
     /// </summary>
     [Serializable]
@@ -46,6 +48,22 @@ namespace Moirai.Atropos.Audio
         #endregion 处理器属性 [HANDLER PROPERTIES]
 
         #region 音轨状态 [TRACK STATUS]
+
+        /// <summary>
+        /// 后端整体失效（音频引擎不可用）时的统一口径：<b>音量面读作 0、写作无效</b>，
+        /// 且不入库、不落总线；播放与批量控制同样静默 no-op。
+        /// <para>两个后端都有这个状态，只是原来各叫各的：Unity 侧是
+        /// <c>AudioSettings.unityAudioDisabled</c>（反射读一次，<c>#if UNITY_EDITOR</c> 内，
+        /// 所以玩家构建里恒为 false——它表示"开发者在编辑器菜单里关了音频"，不是设备故障）；
+        /// 中间件侧是"桥接 <c>Initialize</c> 返回 false"，按上线门槛 G5 整体禁用、运行期不自愈。</para>
+        /// <para>刻意与"<c>_bridge</c> 还没建起来"区分开：未初始化是启动过程中间态，那段时间的
+        /// getter 必须照实报设置值，否则设置面板在初始化前打开会把滑杆显示成 0、用户一动就把 0 写回并持久化。
+        /// 只有"初始化明确失败"才算 inert。</para>
+        /// <para>为什么要把这个直觉命名：新后端只要漏判 getter，就留下第三种状态——
+        /// "报着一个音量，却一点声音都没有"，而那恰恰是最无法归因的线上症状。</para>
+        /// <para><c>internal</c> 而非 <c>protected</c>：契约是 public 的，后端只允许框架内替换。</para>
+        /// </summary>
+        internal virtual bool IsBackendInert => false;
 
         /// <summary>
         /// 所有音轨。
@@ -486,9 +504,12 @@ namespace Moirai.Atropos.Audio
         /// <summary>
         /// 在指定的持续时间内，淡入 Master 音轨到最终音量。
         /// </summary>
-        /// <remarks>时长为 0 等价于直接赋值；总线伪句柄与声部句柄共用同一张调度表。</remarks>
+        /// <remarks>时长为 0 等价于直接赋值；总线伪句柄与声部句柄共用同一张调度表。
+        /// 后端 inert 时不排过渡——排了也不会响，却让 <see cref="SoundIsFadingOut"/> 报真，
+        /// 那是"报着一个音量却完全听不见"的同一种假象。</remarks>
         public virtual void FadeMasterTrack(float duration, float initialVolume = 0f, float finalVolume = 1f, TweenEase tweenEase = default)
         {
+            if (IsBackendInert) return;
             if (duration <= 0f) { MasterVolume = finalVolume; return; }
 
             _fades.Stop(AudioFadeScheduler.MASTER_FADE_HANDLE);
@@ -514,6 +535,7 @@ namespace Moirai.Atropos.Audio
         /// </summary>
         public virtual void FadeTrack(EAudioTrack track, float duration, float initialVolume = 0f, float finalVolume = 1f, TweenEase tweenEase = default)
         {
+            if (IsBackendInert) return;
             if (duration <= 0f) { SetTrackVolume(track, finalVolume); return; }
 
             ulong fadeHandle = AudioFadeScheduler.TrackFadeHandle((int)track);

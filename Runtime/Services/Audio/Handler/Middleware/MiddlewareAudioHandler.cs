@@ -198,13 +198,24 @@ namespace Moirai.Atropos.Audio.Middleware
 
         #region 音轨状态 [TRACK STATUS]
 
+        // 引擎明确初始化失败过一次（见 OnInit 的 G5 回退）。刻意不等于"_bridge 为 null"：
+        // 未初始化是启动中间态，那段时间 getter 必须照实报设置值，否则设置面板在初始化前打开
+        // 会把滑杆显示成 0、用户一动就把 0 写回并持久化。
+        [NonSerialized] private bool _engineUnavailable;
+
+        /// <inheritdoc />
+        /// <remarks>桥接 <c>Initialize</c> 返回 false 即整体禁用，且本次运行内不自愈（恢复要重启进程）。</remarks>
+        internal override bool IsBackendInert => _engineUnavailable;
+
         /// <inheritdoc />
         public override float MasterVolume
         {
-            // 与 Unity 后端语义一致：静音只影响实际总线输出，getter 始终返回设置值
-            get => _masterVolume;
+            // 与 Unity 后端语义一致：静音只影响实际总线输出，getter 始终返回设置值；
+            // 但后端 inert 时整个音量面读 0 写无效（见 AudioServiceHandler.IsBackendInert）
+            get => _engineUnavailable ? 0f : _masterVolume;
             set
             {
+                if (_engineUnavailable) return;
                 _masterVolume = Mathf.Clamp01(value);
                 ApplyMasterVolume();
             }
@@ -213,9 +224,10 @@ namespace Moirai.Atropos.Audio.Middleware
         /// <inheritdoc />
         public override bool MasterMute
         {
-            get => _masterMute;
+            get => !_engineUnavailable && _masterMute;
             set
             {
+                if (_engineUnavailable) return;
                 _masterMute = value;
                 ApplyMasterVolume();
             }
@@ -264,6 +276,7 @@ namespace Moirai.Atropos.Audio.Middleware
         /// <inheritdoc />
         public override float GetTrackVolume(EAudioTrack track)
         {
+            if (_engineUnavailable) return 0f;
             EnsureTrackArrays();
             int index = (int)track;
             return index >= 0 && index < _trackVolumes.Length ? _trackVolumes[index] : 1f;
@@ -272,6 +285,7 @@ namespace Moirai.Atropos.Audio.Middleware
         /// <inheritdoc />
         public override void SetTrackVolume(EAudioTrack track, float volume)
         {
+            if (_engineUnavailable) return;
             EnsureTrackArrays();
             int index = (int)track;
             if (index < 0 || index >= _trackVolumes.Length) return;
@@ -282,6 +296,7 @@ namespace Moirai.Atropos.Audio.Middleware
         /// <inheritdoc />
         public override bool GetTrackMute(EAudioTrack track)
         {
+            if (_engineUnavailable) return false;
             EnsureTrackArrays();
             int index = (int)track;
             return index >= 0 && index < _trackMutes.Length && _trackMutes[index];
@@ -290,6 +305,7 @@ namespace Moirai.Atropos.Audio.Middleware
         /// <inheritdoc />
         public override void SetTrackMute(EAudioTrack track, bool mute)
         {
+            if (_engineUnavailable) return;
             EnsureTrackArrays();
             int index = (int)track;
             if (index < 0 || index >= _trackMutes.Length) return;
@@ -340,6 +356,9 @@ namespace Moirai.Atropos.Audio.Middleware
                 "[MiddlewareAudio] 桥接初始化失败，本次运行音频已禁用（Play 返回 0、Bank/RTPC 空操作）。" +
                 "请检查 SDK 插件是否导入、*_INSTALLED 宏与 Handler 选择是否成对配置。");
             _bridge = null;
+            // 音量面随之转 inert：getter 报 0、写入无效。不立这个位，面板就会在引擎已死时
+            // 继续显示"音乐 80%"——而玩家什么也听不见，且这条症状线上无法归因。
+            _engineUnavailable = true;
         }
 
         /// <inheritdoc />

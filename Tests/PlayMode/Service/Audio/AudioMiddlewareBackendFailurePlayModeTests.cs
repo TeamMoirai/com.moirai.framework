@@ -142,5 +142,43 @@ namespace Service.Audio
 
             if (root != null) UnityEngine.Object.Destroy(root.gameObject);
         }
+
+        /// <summary>
+        /// 禁用态下的音量面：读作 0、写作无效、且不排总线过渡。
+        /// <para>补这一件是因为"引擎已死"与"音量是 80%"此前可以同时成立——设置面板照旧显示音量、
+        /// 照旧接受拖动，而玩家什么也听不见；这正是线上无法归因的那类症状。
+        /// 契约第 6 条（<c>IsBackendInert</c>）把它定成两后端共同的口径，Unity 侧一直就是这么做的。</para>
+        /// </summary>
+        [Test]
+        public void Init_Failed_VolumeSurfaceReadsZeroAndIgnoresWrites()
+        {
+            var dead = new DeadBridge();
+            var handler = new FmodAudioHandler();
+            handler.SetBridge(dead);
+
+            LogAssert.Expect(UnityEngine.LogType.Error, new System.Text.RegularExpressions.Regex("桥接初始化失败"));
+            Invoke(handler, "OnInit");
+            Transform root = handler.InstanceRoot;
+
+            Assert.AreEqual(0f, handler.MasterVolume, "引擎已死却报着一个音量，就是无法归因的那种假象");
+            Assert.AreEqual(0f, handler.GetTrackVolume(EAudioTrack.Music));
+            Assert.IsFalse(handler.GetTrackMute(EAudioTrack.Music));
+
+            handler.MasterVolume = 0.8f;
+            handler.SetTrackVolume(EAudioTrack.Music, 0.8f);
+            Assert.AreEqual(0f, handler.MasterVolume, "禁用态的写入不得留下「写过一次」的状态");
+            Assert.AreEqual(0f, handler.GetTrackVolume(EAudioTrack.Music));
+
+            // 总线过渡由契约实现：inert 时不该排程，否则 SoundIsFadingOut 会报真而实际无声
+            handler.FadeMasterTrack(2f, 0f, 1f);
+            handler.FadeTrack(EAudioTrack.Music, 2f, 0f, 1f);
+            Assert.IsFalse(handler._fades.IsFading(AudioFadeScheduler.MASTER_FADE_HANDLE));
+            Assert.IsFalse(handler._fades.IsFading(AudioFadeScheduler.TrackFadeHandle((int)EAudioTrack.Music)));
+            Assert.IsFalse(handler.SoundIsFadingOut(AudioFadeScheduler.MASTER_FADE_HANDLE));
+
+            Assert.IsEmpty(dead.Touched, "音量面转 inert 后仍不得触达原生桥：" + string.Join(", ", dead.Touched.Keys));
+
+            if (root != null) UnityEngine.Object.Destroy(root.gameObject);
+        }
     }
 }

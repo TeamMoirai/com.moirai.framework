@@ -66,6 +66,25 @@ namespace Service.Audio
             }
         }
 
+        /// <summary>
+        /// 「还没初始化」不等于「后端 inert」：桥接尚未建立的启动窗口里，音量面必须照实报设置值。
+        /// <para>钉这一格是因为最省事的 inert 写法是 <c>_bridge == null</c>，而那会在玩家构建里
+        /// 造出一条真实损坏路径：初始化完成前设置面板被打开，滑杆全读成 0，用户一动就把 0 写回并持久化。
+        /// 只有"初始化明确失败"才该转 inert（见 <see cref="AudioServiceHandler.IsBackendInert"/>）。</para>
+        /// </summary>
+        [Test]
+        public void NotYetInitializedBackend_StillReportsItsSettings()
+        {
+            var noBridge = new FmodAudioHandler();
+
+            noBridge.MasterVolume = 0.8f;
+            noBridge.SetTrackVolume(EAudioTrack.Music, 0.6f);
+
+            Assert.AreEqual(0.8f, noBridge.MasterVolume, 1e-4f,
+                "桥接未建立就被当成 inert，会把启动期的设置面板全读成 0");
+            Assert.AreEqual(0.6f, noBridge.GetTrackVolume(EAudioTrack.Music), 1e-4f);
+        }
+
         [Test]
         public void Mute_KeepsTheSetterValue_OnBothBackends()
         {

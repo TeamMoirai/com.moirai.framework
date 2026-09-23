@@ -233,6 +233,7 @@ AudioService.ResetMixSnapshot(0.25f);
 
 - `Play` 返回 `0UL` 表示失败（无通道、音轨未配置、音轨暂停中、后端未初始化等）  
 - 暂停的音轨会拦截新播放；`MasterVolume` getter 始终返回未静音的设置值（两后端语义一致）  
+- 后端整体失效时音量面统一读 0、写无效：Unity 侧指编辑器菜单关掉的音频（`AudioSettings.unityAudioDisabled`，玩家构建恒为 false），中间件侧指桥接 `Initialize` 明确失败（本次运行不自愈，恢复要重启进程）。**「桥接还没建起来」不算失效**——启动中间态里 getter 必须照实报设置值，否则初始化完成前打开设置面板会把滑杆读成 0，用户一动就把 0 写回并持久化。禁用态下 `FadeMasterTrack` / `FadeTrack` 也不排程（`SoundIsFadingOut` 因此不会报着一个正在进行的、永远不会响的过渡）  
 - 音轨暂停标记由契约持有（`_pausedTracks`），但**数组的建立与释放仍按后端各自的时机**：Unity 侧在后端 `Initialize` 之前调 `PauseTrack` 不会记上（也不报错），关停后标记全部作废。要在启动期就静音某条音轨，请配 `AudioServiceSettings` 而不是等 `PauseTrack`  
 - 中间件后端 `GetAgentByHandle` / `ForEachAgentByID` 返回空——无 Unity `AudioSource` Agent，请用句柄 API；不支持 InitialDelay / PlaybackDuration / Solo  
 - 各工厂方法与重载的 `DoNotAutoRecycle` 默认统一为 true（不抢占未播完的通道）  
