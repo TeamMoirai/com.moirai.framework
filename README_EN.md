@@ -70,6 +70,7 @@ Moirai Framework
   - [Extensions/R3 — Reactive Extensions](#extensionsr3--reactive-extensions)
   - [Utility — Utilities](#utility--utilities)
 - [Editor Tools](#editor-tools)
+- [🧪 Testing Conventions](#-testing-conventions)
 - [Recommended Project Structure](#recommended-project-structure)
 - [Contributing & Support](#contributing--support)
   - [Ecosystem Dependencies](#ecosystem-dependencies)
@@ -530,6 +531,29 @@ hpSlider.BindProperty(hp, unRegister);  // Slider auto-syncs
 | Save Service | Save browser (`Tools/Moirai/Save/Save Browser`), codeless save component editor |
 | Utility | Command-line reader, Shell helper, etc. |
 | YooAsset | Build cache cleanup, builtin catalog/patch package tools, custom build pipeline, Shader variant collection |
+
+---
+
+## 🧪 Testing Conventions
+
+**Reach internal state through `internal`, not reflection.** When a test needs to read or write an object's internal state, do not fetch the member by reflection — change its accessibility from `private` to `internal` instead. `Runtime/AssemblyInfo.cs` already declares `InternalsVisibleTo` for `Moirai.Atropos.Editor` and for all three test assemblies (`.Tests.EditorMode` / `.Tests.PlayMode` / `.Tests.Player`), so `internal` members are visible to tests without any reflection.
+
+```csharp
+// ✗ Reflecting into a private serialized field: renaming the field raises no compile error,
+//    the test only blows up at run time when GetField returns null
+typeof(AudioGroupConfig)
+    .GetField("m_MaxChannelCeiling", BindingFlags.Instance | BindingFlags.NonPublic)
+    .SetValue(config, 4096);
+
+// ✓ Widen the member by one level and let the test assign it plainly
+[SerializeField, Min(1)] internal int m_MaxChannelCeiling = HARD_CHANNEL_CEILING_DEFAULT;
+// ...
+config.m_MaxChannelCeiling = 4096;
+```
+
+- **Serialized fields included**: `internal` does not affect Unity serialization (`[SerializeField]` does not require `private`), and the naming prefix still follows the private family — `m_` / `s_` / `_`.
+- **Do not widen a field that already has a narrow seam**: swapping a service handler goes through the generated `XxxService.Internal_PeekHandler()` / `Internal_UseHandler(next)` from `HandlerHostGenerator` (see `Tests/PlayMode/Service/Audio/AudioServiceTestHost.cs` in action); `s_Handler` stays `private`.
+- **Reflection keeps two legitimate jobs**: walking the API shape and asserting member annotations for contract guards (`ResourceSeamShapeGuardTests`, `ResourceMethodSetContractTests`, `YooAssetHandlerSmokeTests.RuntimeArrayFields_AreNonSerialized`), and invoking Unity lifecycle callbacks (`Awake` / `OnEnable` / `OnInit`). Neither reads or writes one specific private member.
 
 ---
 

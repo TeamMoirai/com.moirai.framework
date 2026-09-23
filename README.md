@@ -70,6 +70,7 @@ Moirai Framework
   - [Extensions/R3 — 响应式扩展](#extensionsr3--%E5%93%8D%E5%BA%94%E5%BC%8F%E6%89%A9%E5%B1%95)
   - [Utility — 工具集](#utility--%E5%B7%A5%E5%85%B7%E9%9B%86)
 - [🛠️ 编辑器工具](#-%E7%BC%96%E8%BE%91%E5%99%A8%E5%B7%A5%E5%85%B7)
+- [🧪 测试约定](#-%E6%B5%8B%E8%AF%95%E7%BA%A6%E5%AE%9A)
 - [📁 推荐项目结构](#-%E6%8E%A8%E8%8D%90%E9%A1%B9%E7%9B%AE%E7%BB%93%E6%9E%84)
 - [🤝 贡献与支持](#-%E8%B4%A1%E7%8C%AE%E4%B8%8E%E6%94%AF%E6%8C%81)
   - [🌟 生态依赖](#-%E7%94%9F%E6%80%81%E4%BE%9D%E8%B5%96)
@@ -537,6 +538,28 @@ hpSlider.BindProperty(hp, unRegister);  // Slider 自动同步
 | Save Service | 存档浏览器（`Tools/Moirai/Save/Save Browser`）、无代码保存组件编辑器 |
 | Utility | 命令行读取、Shell 调用等 |
 | YooAsset | 构建缓存清理、内置目录/补丁包工具、自定义构建管线、Shader 变体收集 |
+
+---
+
+## 🧪 测试约定
+
+**内部状态走 internal，不走反射。** 测试要读或写被测对象的内部状态时，**不用反射取字段/属性**，而是把该成员的访问级别从 `private` 改成 `internal`。本包 `Runtime/AssemblyInfo.cs` 已给 `Moirai.Atropos.Editor` 与三个测试程序集（`.Tests.EditorMode` / `.Tests.PlayMode` / `.Tests.Player`）声明了 `InternalsVisibleTo`，`internal` 成员对测试天然可见。
+
+```csharp
+// ✗ 反射写私有序列化字段：字段改名不会编译报错，测试要到运行期 GetField 返回 null 才炸
+typeof(AudioGroupConfig)
+    .GetField("m_MaxChannelCeiling", BindingFlags.Instance | BindingFlags.NonPublic)
+    .SetValue(config, 4096);
+
+// ✓ 成员开一档可见性，测试按普通字段读写
+[SerializeField, Min(1)] internal int m_MaxChannelCeiling = HARD_CHANNEL_CEILING_DEFAULT;
+// ...
+config.m_MaxChannelCeiling = 4096;
+```
+
+- **序列化字段同样适用**：`internal` 不影响 Unity 序列化（`[SerializeField]` 不要求 `private`），命名前缀仍按 `m_` / `s_` / `_` 的私有家族口径走。
+- **已有窄接缝的不放开字段**：换入/换出服务处理器一律走 `HandlerHostGenerator` 生成的 `XxxService.Internal_PeekHandler()` / `Internal_UseHandler(next)`（用法见 `Tests/PlayMode/Service/Audio/AudioServiceTestHost.cs`），`s_Handler` 保持 `private`。
+- **反射仍用于两件事**：遍历 API 形状、断成员标注来做契约守卫（`ResourceSeamShapeGuardTests`、`ResourceMethodSetContractTests`、`YooAssetHandlerSmokeTests.RuntimeArrayFields_AreNonSerialized`），以及唤起 Unity 生命周期回调（`Awake` / `OnEnable` / `OnInit`）。这两类都不是读写某个具体私有成员。
 
 ---
 
