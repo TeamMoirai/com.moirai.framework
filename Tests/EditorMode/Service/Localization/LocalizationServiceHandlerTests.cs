@@ -65,7 +65,6 @@ namespace Service.Localization
         {
             // 检测链给出的语言完全可能没进这批词条（中文系统跑只出英日的包）。
             // 此时必须兜到回退链/表头，而不是把当前语言停在表外——那会让每一条查询都露 key
-            LocalizationService.RegisterLanguageMap(Chinese.Name);
             _handler.Languages = new List<Language> { English, Japanese };
             _handler.Strings = new Dictionary<string, List<string>>
             {
@@ -615,6 +614,41 @@ namespace Service.Localization
             Assert.AreEqual("test", batch.SourceId);
         }
 
+        [Test]
+        public void ConfigTableHandler_WithoutSelfReportedLanguages_RejectsBatchAndKeepsRetryable()
+        {
+            // 语言必须随表自报：EditMode 下 ConfigTableService 降级（无处理器），codes 为空 →
+            // 整批拒载、保持未就绪可重试，不再回落任何全局注册表
+            var handler = new ConfigTableLocalizationHandler { FallbackLanguageCodes = new[] { "en" } };
+            handler.Internal_Init();
+
+            try
+            {
+                LogAssert.Expect(LogType.Error, new Regex("generate config first"));
+
+                Assert.AreEqual("ui.title", handler.GetTextFromId("ui.title"));
+                Assert.AreEqual("ui.title", handler.GetTextFromId("ui.title"), "拒载后必须保持重试语义而非哑死");
+                Assert.AreEqual(0, handler.EntryCount);
+                Assert.AreEqual(0, handler.LoadedLanguages.Count);
+            }
+            finally
+            {
+                handler.Internal_Shutdown();
+            }
+        }
+
+        [Test]
+        public void ResolveLanguages_UnknownCodesBecomeCustomLanguagesInOrder()
+        {
+            // 项目自定义语言（不在内置表）随表发行：按自定义语言直通且列序不被重排
+            var languages = LocalizationService.ResolveLanguages(new[] { "zh-Hans", "Klingon" });
+
+            Assert.AreEqual(2, languages.Count);
+            Assert.AreSame(Language.ChineseSimplified, languages[0]);
+            Assert.IsTrue(languages[1].Custom);
+            Assert.AreEqual("Klingon", languages[1].Code);
+        }
+
         #endregion
 
         #region 加载失败闸门 [LOAD FAILURE GATES]
@@ -867,7 +901,7 @@ namespace Service.Localization
         }
     }
 
-    /// <summary>桩本地化数据源——按生产约定在解析词条的同时注册可用语言。</summary>
+    /// <summary>桩本地化数据源——语言经返回元组随批自报（语言头与词条同源同序）。</summary>
     internal sealed class L10nProbeHandler : LocalizationServiceHandler
     {
         public List<Language> Languages = new List<Language>();
@@ -879,11 +913,6 @@ namespace Service.Localization
         {
             LoadCallCount++;
             if (ThrowOnLoad != null) throw ThrowOnLoad;
-
-            foreach (var language in Languages)
-            {
-                LocalizationService.RegisterLanguageMap(language.Name);
-            }
 
             return (Languages, Strings);
         }

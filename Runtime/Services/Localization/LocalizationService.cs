@@ -101,6 +101,12 @@ namespace Moirai.Atropos.Localization
         public static int LoadedLanguageCount => s_Handler?.LanguageCount ?? 0;
 
         /// <summary>
+        /// 当前批内收录的语言（列序即批内列下标顺序；未就绪时为空）。
+        /// <para>语言真相源唯一：语言头随批自报，不存在第二份全局注册表。</para>
+        /// </summary>
+        public static IReadOnlyList<Language> LoadedLanguages => s_Handler?.LoadedLanguages ?? Array.Empty<Language>();
+
+        /// <summary>
         /// 全部语言列的译文总字符数——常驻译文的规模下限（未就绪时为 0）。
         /// </summary>
         /// <remarks>UTF-16 每字符 2 字节，不含字符串对象头与字典开销。

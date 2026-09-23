@@ -63,6 +63,25 @@ namespace Moirai.Atropos.Localization
             }
         }
 
+        /// <summary>数据是否已加载完成（<c>ToLanguage</c> 的「支持性」判定在未加载时退化为身份解析）。</summary>
+        internal bool IsDataLoaded => _dataLoaded;
+
+        /// <summary>语言是否在当前批内（调用方须已确认数据加载完成，见 <see cref="IsDataLoaded"/>）。</summary>
+        internal bool IsLanguageAvailable(Language language) => language != null && Store.IndexOf(language) >= 0;
+
+        /// <summary>
+        /// 当前批内收录的语言（列序即批内列下标顺序；数据未就绪时为空）。
+        /// <para>语言真相源唯一：语言头随批自报，不存在第二份全局注册表。</para>
+        /// </summary>
+        public IReadOnlyList<Language> LoadedLanguages
+        {
+            get
+            {
+                EnsureLocalizedStringsLoaded();
+                return Store.Batch.Languages;
+            }
+        }
+
         /// <summary>
         /// 缺译回退链（不含当前语言，按 <see cref="m_FallbackLanguageCodes"/> 配置顺序）。
         /// <para>访问会触发数据加载；配置了不可用的语言时按序剔除。</para>

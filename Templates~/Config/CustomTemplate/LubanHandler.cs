@@ -75,37 +75,41 @@ namespace GameProto.Config
             // 获取所有公共实例字段
             FieldInfo[] fields = type.GetFields(BindingFlags.Public | BindingFlags.Instance);
 
-            // 注册所有可用的多语言
+            // 语言列序与词条列序同源：同一过滤枚举产出语言自报与字符串列，任何一侧都不单独求序。
+            // 自报内容即字段名（内置语言 Name，框架内置/自定义语言均按列序直通）
+            var languageFields = new List<FieldInfo>(fields.Length);
             foreach (var field in fields)
             {
-                LocalizationService.RegisterLanguageMap(field.Name);
+                if (field.IsInitOnly && field.FieldType == typeof(string)) languageFields.Add(field);
+            }
+
+            _localizationLanguageCodes = new string[languageFields.Count];
+            for (int i = 0; i < languageFields.Count; i++)
+            {
+                _localizationLanguageCodes[i] = languageFields[i].Name;
             }
 
             // 处理所有多语言数据
             _allLocalizedStrings = new Dictionary<string, List<string>>();
             foreach (var data in Tables.TbLocalizedStrings.DataList)
             {
-                foreach (FieldInfo field in fields)
+                foreach (FieldInfo field in languageFields)
                 {
-                    // 检查字段是否为 readonly 并且类型为 string
-                    if (field.IsInitOnly && field.FieldType == typeof(string))
+                    // 获取多语言的 Key
+                    string key = data.Key;
+                    // 获取多语言的字段值
+                    string fieldValue = (string)field.GetValue(data.FormattedStrings);
+
+                    // 输出字段名称和值
+                    // Debug.Log($"[{key}] Field Name: {field.Name}, Value: {fieldValue}");
+
+                    if (_allLocalizedStrings.ContainsKey(key))
                     {
-                        // 获取多语言的 Key
-                        string key = data.Key;
-                        // 获取多语言的字段值
-                        string fieldValue = (string)field.GetValue(data.FormattedStrings);
-
-                        // 输出字段名称和值
-                        // Debug.Log($"[{key}] Field Name: {field.Name}, Value: {fieldValue}");
-
-                        if (_allLocalizedStrings.ContainsKey(key))
-                        {
-                            _allLocalizedStrings[key].Add(fieldValue);
-                        }
-                        else
-                        {
-                            _allLocalizedStrings.Add(key, new List<string> { fieldValue });
-                        }
+                        _allLocalizedStrings[key].Add(fieldValue);
+                    }
+                    else
+                    {
+                        _allLocalizedStrings.Add(key, new List<string> { fieldValue });
                     }
                 }
             }
