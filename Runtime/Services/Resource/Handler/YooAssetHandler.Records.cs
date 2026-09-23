@@ -125,22 +125,15 @@ namespace Moirai.Atropos.Resource
         [NonSerialized] private int _unusedAssetCandidateCount;
         [NonSerialized] private bool _idleCapacityTrimPending;
 
-        // 资源名称注册表（package/location/type → ID）
-        [NonSerialized] private string[] _resourcePackagesById;
-        [NonSerialized] private string[] _resourceLocationsById;
-        [NonSerialized] private Type[] _resourceTypesById;
-        [NonSerialized] private int[] _resourcePackageRefCounts;
-        [NonSerialized] private int[] _resourceLocationRefCounts;
-        [NonSerialized] private int[] _resourceTypeRefCounts;
-        [NonSerialized] private readonly Dictionary<string, int> _resourcePackageIds = new Dictionary<string, int>();
-        [NonSerialized] private readonly Dictionary<string, int> _resourceLocationIds = new Dictionary<string, int>();
-        [NonSerialized] private readonly Dictionary<Type, int> _resourceTypeIds = new Dictionary<Type, int>();
-        [NonSerialized] private int _nextPackageId = 1;
-        [NonSerialized] private int _nextLocationId = 1;
-        [NonSerialized] private int _nextTypeId = 1;
-        [NonSerialized] private readonly Stack<int> _freePackageIds = new Stack<int>();
-        [NonSerialized] private readonly Stack<int> _freeLocationIds = new Stack<int>();
-        [NonSerialized] private readonly Stack<int> _freeTypeIds = new Stack<int>();
+        // 资源名称注册表（package/location/type → ID）：三条轴共用 ResourceNameRegistry 一份实现。
+        // 仍是 readonly + 字段初始化器，与原字典/栈同款——[SerializeReference] 构造时初始化器会执行，
+        // 而注册表内部那些数组与计数表属于一个不标 [Serializable] 的类，整棵子树天然不参与序列化。
+        [NonSerialized] private readonly ResourceNameRegistry<string> _packageNames =
+            new ResourceNameRegistry<string>(RESOURCE_KEY_PACKAGE_MAX, string.Empty);
+        [NonSerialized] private readonly ResourceNameRegistry<string> _locationNames =
+            new ResourceNameRegistry<string>(RESOURCE_KEY_LOCATION_MAX, string.Empty);
+        [NonSerialized] private readonly ResourceNameRegistry<Type> _typeNames =
+            new ResourceNameRegistry<Type>(RESOURCE_KEY_TYPE_MAX, null);
 
         // 加载键自增
         [NonSerialized] private int _loadKeyNextId = 1;

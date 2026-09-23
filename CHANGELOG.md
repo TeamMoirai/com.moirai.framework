@@ -1,4 +1,4 @@
-# Changelog
+# C# Changelog
 
 本项目的所有重要变更都会记录在此文件中。
 
@@ -58,6 +58,10 @@
 - **`TestRequestRunner` 判活/取消/收口对齐调试桥作业句柄**：`Execute` 返回的作业 guid 落进运行态，孤儿单判活优先按 `IsRunning(guid)` 只认本单（窗口手动跑不再拖住判定），探针缺失降级「任意 run 在跑」、判活完全不可用再给 30s 扩展宽限后强制收口——调用方永不会等不到 `.done`（旧实现探针拿不到就把孤儿判定永久放行）；超时/孤儿单/执行失败的 ABORTED 报告附带已收集的 `collected passed/failed/skipped` 与墙钟时长（旧实现直接丢账，中途被打断的一轮只剩一句 ABORTED）；新增取消通道 `Temp/MoiraiTestRequest.cancel.json`（内容=请求 id，裸文本或 `{"id":...}` 均可），匹配在途单即 `TestRunnerApi.CancelTestRun` 取消——UTF 取消受理后清空任务管线、不再送达 RunFinished（RunFinishedInvocationEvent 被 Canceled 模式跳过，等它收口是死等），受理即由驱动收口并交付已收集计数，拒绝受理才等自然收口；超时收口从「作业继续后台跑完」改为尽力取消作业；接单门补「有任意 run 在跑不接新单」（ICallbacks 无法归因到具体 run，窗口手动跑与本驱动并发会把结果串进同一份账）；`TestStarted` 不再为套件/程序集节点落进度；启动时清理同输出路径的陈旧 `.done`/`.error`；`Execute` 未返回 guid 视为未启动即收口。文件协议向后兼容，取消文件是唯一新增产物。
 
 ### Changed
+
+- **`Resource`：packed key 的三条名称轴合成一份注册表实现（15 字段 → 3）**：package / location / type 三条轴的“登记—计数—归零回收 id”此前是同一套逻辑手写三遍，摊在 15 个字段、三份 `GetOrAdd`、三份 `Release`、两份 `Ensure` 上。三份拷贝真正的风险不是行数而是漂移：任何一处改了分配或释放顺序而另两处没跟上，表现是某条轴的 id 被提前回收，而 packed key 仍能查出一条**已经换主**的记录——既不抛异常，也不会被现有用例抓到。现在收为 `ResourceNameRegistry<TValue>`（`internal sealed`，三实例）。
+  零分配是硬约束，因此刻意避开三种写法：不实现任何接口（接口约束会让 struct 实参装箱）、不暴露 `IEnumerable<T>` 或 `foreach` 枚举、比较器用默认而非 `IEqualityComparer<T>` 字段（`string`/`Type` 的默认比较即序数/引用语义，与原实现逐字一致）。注册表内部的数组与计数表属于一个不标 `[Serializable]` 的类，整棵子树天然不参与序列化——比原来散着的 6 个 `[NonSerialized]` 数组少一个可被 `[SerializeReference]` 反序列化改写的表面。
+  **合并过程中拦下一处真实行为差异**：`ReleaseResourceKeyNoTrim` 原本只做减数，**不摘字典、也不回收 id**（整表清空时逐条回收既是白做，又会在遍历另一张表的键时反向改动本表字典），一度被我接到会回收的那条上。现在注册表显式分列 `Release` 与 `DecrementOnly` 两个操作，各配一格用例钉住——这类“看着一样其实不同”的分岔正是三份拷贝合并时最典型的事故点。同批用例另钉“非驻留查询不烧 id”“miss 值按轴不同（字符串轴回 `string.Empty`、类型轴回 null）”“超出位宽必抛而非截断（截断会让两条资源编出同一个键）”。
 
 - **`Resource`：绑定层改握一条八字节的租约接缝，后端第一次可 mock（记账内核抽取的前置）**：`ResourceBindingService` 此前构造时拿的是 `ResourceServiceHandler`——74 个抽象成员的后端全契约，而它实际调用只有八个（`Release` 27 处、`TryGetLeaseAsset` 6 处、`AcquireBinding` 4 处，其余四个各 1–3 处）。后果是处理器构造并驱动绑定服务、绑定服务又回调处理器的内部成员，两边既不能单独构造也不能替换：所有绑定层测试只能 `new ResourceBindingService(new YooAssetHandler())`，靠那个裸实例"恰好未初始化"来凑确定性。现在新增 `internal interface IResourceLeaseSource`（八成员），绑定服务的构造参数与字段都换成它。
   接缝本身**一个成员都没加也没减**（基线仍是 66 个抽象成员、其中 11 个 `internal abstract`）：那六个 `internal abstract` 无法直接实现接口——接口实现必须是 public——所以由抽象基类以显式实现转发承接，可见性一字未改。等记账内核落地后改由内核实现这八个，那六个 `internal abstract` 才真正从接缝上消失，届时卫星 asmdef 才可能靠 `versionDefines` 整体排除 Addressables 而不留悬空引用。

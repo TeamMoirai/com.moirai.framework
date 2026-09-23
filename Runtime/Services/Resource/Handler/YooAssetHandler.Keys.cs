@@ -1,11 +1,15 @@
-﻿using System;
+using System;
+using System.Collections.Generic;
 using UnityEngine;
 using UObject = UnityEngine.Object;
 
 namespace Moirai.Atropos.Resource
 {
     /// <summary>
-    /// 键与名称注册表——packed key 位域编解码、package / location / type 计数字典与归一化。
+    /// 键与名称注册表——packed key 位域编解码，以及三条名称轴的取 id / 计数转交。
+    /// <para>本文件只做"编解码 + 归一化"，登记与引用计数本身已并入 <see cref="ResourceNameRegistry{TValue}"/>；
+    /// 三轴的 id 上限即 packed key 给该轴留的位宽上限，越界必抛而非静默截断——截断会让两条不同资源
+    /// 编出同一个键。</para>
     /// </summary>
     partial class YooAssetHandler
     {
@@ -64,15 +68,18 @@ namespace Moirai.Atropos.Resource
             return PackResourceKey(packageId, locationId, typeId, assetKind, EResourceHandleKind.AssetHandle);
         }
 
+        /// <summary>
+        /// 非驻留取键：三条轴都已登记才拼得出键，任一轴缺席即返回 false 且不登记任何 id。
+        /// </summary>
         private bool TryGetResourceKey(string packageName, string location, Type assetType,
             EResourceAssetKind assetKind, EResourceHandleKind handleKind, out ulong key)
         {
             key = 0;
             assetKind = NormalizeAssetKind(assetType, assetKind);
             assetType = NormalizeAssetType(assetType, assetKind);
-            if (!_resourcePackageIds.TryGetValue(NormalizePackageName(packageName), out int packageId) ||
-                !_resourceLocationIds.TryGetValue(location ?? string.Empty, out int locationId) ||
-                !_resourceTypeIds.TryGetValue(assetType, out int typeId))
+            if (!_packageNames.TryGetId(NormalizePackageName(packageName), out int packageId) ||
+                !_locationNames.TryGetId(location ?? string.Empty, out int locationId) ||
+                !_typeNames.TryGetId(assetType, out int typeId))
             {
                 return false;
             }
@@ -81,133 +88,41 @@ namespace Moirai.Atropos.Resource
             return true;
         }
 
-        private int GetOrAddPackageId(string packageName)
-        {
-            packageName = NormalizePackageName(packageName);
-            if (_resourcePackageIds.TryGetValue(packageName, out int id))
-            {
-                return id;
-            }
+        #endregion
+        #region 三条名称轴 [NAME AXES]
 
-            id = AllocateResourceId(ref _nextPackageId, RESOURCE_KEY_PACKAGE_MAX, _freePackageIds);
-            _resourcePackageIds.Add(packageName, id);
-            EnsureResourceNameSlot(ref _resourcePackagesById, ref _resourcePackageRefCounts, id);
-            _resourcePackagesById[id] = packageName;
-            return id;
-        }
+        private int GetOrAddPackageId(string packageName) =>
+            _packageNames.GetOrAdd(NormalizePackageName(packageName));
 
-        private int GetOrAddLocationId(string location)
-        {
-            location ??= string.Empty;
-            if (_resourceLocationIds.TryGetValue(location, out int id))
-            {
-                return id;
-            }
+        private int GetOrAddLocationId(string location) =>
+            _locationNames.GetOrAdd(location ?? string.Empty);
 
-            id = AllocateResourceId(ref _nextLocationId, RESOURCE_KEY_LOCATION_MAX, _freeLocationIds);
-            _resourceLocationIds.Add(location, id);
-            EnsureResourceNameSlot(ref _resourceLocationsById, ref _resourceLocationRefCounts, id);
-            _resourceLocationsById[id] = location;
-            return id;
-        }
+        private int GetOrAddTypeId(Type assetType) =>
+            _typeNames.GetOrAdd(assetType ?? typeof(UObject));
 
-        private int GetOrAddTypeId(Type assetType)
-        {
-            assetType ??= typeof(UObject);
-            if (_resourceTypeIds.TryGetValue(assetType, out int id))
-            {
-                return id;
-            }
+        private string GetPackageNameById(int id) => _packageNames.GetValue(id);
 
-            id = AllocateResourceId(ref _nextTypeId, RESOURCE_KEY_TYPE_MAX, _freeTypeIds);
-            _resourceTypeIds.Add(assetType, id);
-            EnsureResourceTypeSlot(id);
-            _resourceTypesById[id] = assetType;
-            return id;
-        }
+        private string GetLocationNameById(int id) => _locationNames.GetValue(id);
 
-        private static int AllocateResourceId(ref int nextId, int maxId, System.Collections.Generic.Stack<int> freeIds)
-        {
-            while (freeIds != null && freeIds.Count > 0)
-            {
-                int freeId = freeIds.Pop();
-                if (freeId > 0 && freeId <= maxId)
-                {
-                    return freeId;
-                }
-            }
+        private Type GetAssetTypeById(int id) => _typeNames.GetValue(id);
 
-            if (nextId <= 0 || nextId > maxId)
-            {
-                throw new GameException("Resource key id range exceeded.");
-            }
-
-            return nextId++;
-        }
-
-        private static void EnsureResourceNameSlot(ref string[] values, ref int[] refCounts, int id)
-        {
-            EnsureResourceArray(ref values, id);
-            EnsureResourceArray(ref refCounts, id);
-        }
-
-        private void EnsureResourceTypeSlot(int id)
-        {
-            EnsureResourceArray(ref _resourceTypesById, id);
-            EnsureResourceArray(ref _resourceTypeRefCounts, id);
-        }
-
-        private static void EnsureResourceArray<T>(ref T[] array, int index)
-        {
-            if (array == null)
-            {
-                array = new T[Math.Max(16, index + 1)];
-                return;
-            }
-
-            if (index < array.Length)
-            {
-                return;
-            }
-
-            Array.Resize(ref array, Math.Max(index + 1, array.Length << 1));
-        }
-
-        private string GetPackageNameById(int id)
-        {
-            return _resourcePackagesById != null && id > 0 && id < _resourcePackagesById.Length
-                ? _resourcePackagesById[id]
-                : string.Empty;
-        }
-
-        private string GetLocationNameById(int id)
-        {
-            return _resourceLocationsById != null && id > 0 && id < _resourceLocationsById.Length
-                ? _resourceLocationsById[id]
-                : string.Empty;
-        }
-
-        private Type GetAssetTypeById(int id)
-        {
-            return _resourceTypesById != null && id > 0 && id < _resourceTypesById.Length
-                ? _resourceTypesById[id]
-                : null;
-        }
-
+        /// <summary>记录一条资源建立时，把它用到的三个名字各计一次。</summary>
         private void RetainResourceKey(ulong key)
         {
-            IncrementResourceRef(_resourcePackageRefCounts, UnpackPackageId(key));
-            IncrementResourceRef(_resourceLocationRefCounts, UnpackLocationId(key));
-            IncrementResourceRef(_resourceTypeRefCounts, UnpackTypeId(key));
+            _packageNames.Retain(UnpackPackageId(key));
+            _locationNames.Retain(UnpackLocationId(key));
+            _typeNames.Retain(UnpackTypeId(key));
         }
 
+        /// <summary>记录释放时反向减数；减到零的那条轴把名字摘掉并把 id 还回空闲栈。</summary>
         private void ReleaseResourceKey(ulong key)
         {
-            ReleasePackageId(UnpackPackageId(key));
-            ReleaseLocationId(UnpackLocationId(key));
-            ReleaseTypeId(UnpackTypeId(key));
+            _packageNames.Release(UnpackPackageId(key));
+            _locationNames.Release(UnpackLocationId(key));
+            _typeNames.Release(UnpackTypeId(key));
         }
 
+        /// <summary>整表清空前逐键减数（如后端整体重置），不减则名字与 id 永久滞留。</summary>
         private void ReleaseAllResourceKeysFromMap(ResourceUlongIntMap map)
         {
             // 方法组缓存为实例委托字段，避免冷路径批量清理时逐次 new Action 分配。
@@ -215,83 +130,20 @@ namespace Moirai.Atropos.Resource
             map.ForEachKey(_releaseResourceKeysNoTrimCache);
         }
 
-        private Action<ulong> _releaseResourceKeysNoTrimCache;
+        [NonSerialized] private Action<ulong> _releaseResourceKeysNoTrimCache;
 
         private void ReleaseResourceKeyNoTrim(ulong key)
         {
-            DecrementResourceRef(_resourcePackageRefCounts, UnpackPackageId(key));
-            DecrementResourceRef(_resourceLocationRefCounts, UnpackLocationId(key));
-            DecrementResourceRef(_resourceTypeRefCounts, UnpackTypeId(key));
+            // 刻意不是 ReleaseResourceKey 的别名：整表清空时只该减数，
+            // 摘字典与回收 id 在那些随后一并作废的表上是白做，而且会在遍历另一张表的键时
+            // 反向改动本表的字典。原实现就是两条分开的路，合并注册表时不能顺手并掉。
+            _packageNames.DecrementOnly(UnpackPackageId(key));
+            _locationNames.DecrementOnly(UnpackLocationId(key));
+            _typeNames.DecrementOnly(UnpackTypeId(key));
         }
 
-        private void ReleasePackageId(int id)
-        {
-            if (!DecrementResourceRef(_resourcePackageRefCounts, id))
-            {
-                return;
-            }
-
-            string value = id < _resourcePackagesById.Length ? _resourcePackagesById[id] : null;
-            if (value != null)
-            {
-                _resourcePackageIds.Remove(value);
-                _resourcePackagesById[id] = null;
-                _freePackageIds.Push(id);
-            }
-        }
-
-        private void ReleaseLocationId(int id)
-        {
-            if (!DecrementResourceRef(_resourceLocationRefCounts, id))
-            {
-                return;
-            }
-
-            string value = id < _resourceLocationsById.Length ? _resourceLocationsById[id] : null;
-            if (value != null)
-            {
-                _resourceLocationIds.Remove(value);
-                _resourceLocationsById[id] = null;
-                _freeLocationIds.Push(id);
-            }
-        }
-
-        private void ReleaseTypeId(int id)
-        {
-            if (!DecrementResourceRef(_resourceTypeRefCounts, id))
-            {
-                return;
-            }
-
-            Type value = id < _resourceTypesById.Length ? _resourceTypesById[id] : null;
-            if (value != null)
-            {
-                _resourceTypeIds.Remove(value);
-                _resourceTypesById[id] = null;
-                _freeTypeIds.Push(id);
-            }
-        }
-
-        private static void IncrementResourceRef(int[] refCounts, int id)
-        {
-            if (refCounts == null || id <= 0 || id >= refCounts.Length)
-            {
-                return;
-            }
-
-            refCounts[id]++;
-        }
-
-        private static bool DecrementResourceRef(int[] refCounts, int id)
-        {
-            if (refCounts == null || id <= 0 || id >= refCounts.Length || refCounts[id] <= 0)
-            {
-                return false;
-            }
-
-            refCounts[id]--;
-            return refCounts[id] == 0;
-        }
+        #endregion
+        #region 归一化 [NORMALIZE]
 
         private string NormalizePackageName(string packageName)
         {
