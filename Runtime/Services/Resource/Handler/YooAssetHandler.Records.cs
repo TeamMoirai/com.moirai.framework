@@ -14,9 +14,6 @@ namespace Moirai.Atropos.Resource
     {
         #region 常量 [CONSTANTS]
 
-        private const int RECORD_PAGE_BITS = 8;
-        private const int RECORD_PAGE_SIZE = 1 << RECORD_PAGE_BITS;
-        private const int RECORD_PAGE_MASK = RECORD_PAGE_SIZE - 1;
         private const int IDLE_BUCKET_COUNT = 256;
         private const int KEEP_ALIVE_BUCKET_COUNT = 256;
         #endregion
@@ -58,14 +55,6 @@ namespace Moirai.Atropos.Resource
             public int NextFree;
         }
 
-        private struct LoadingOperationSlot
-        {
-            public ulong Key;
-            public LoadingOperationState Operation;
-            public byte State;
-            public int NextFree;
-        }
-
         #endregion
 
         #region 字段 [FIELDS]
@@ -81,14 +70,10 @@ namespace Moirai.Atropos.Resource
         [NonSerialized] private int _leaseSlotFreeHead = -1;
 
         // 加载操作分页数组
-        [NonSerialized] private LoadingOperationSlot[][] _loadingOperationSlotPages;
-        [NonSerialized] private int _loadingOperationSlotNextIndex;
-        [NonSerialized] private int _loadingOperationSlotFreeHead = -1;
 
         // 索引映射
         [NonSerialized] private readonly ResourceUlongIntMap _assetRecordsByKey = new ResourceUlongIntMap();
         [NonSerialized] private readonly ResourceUlongIntMap _assetRecordByLoadKeyId = new ResourceUlongIntMap();
-        [NonSerialized] private readonly ResourceUlongIntMap _assetLoadingOperationByKey = new ResourceUlongIntMap();
 
         // 过期队列
         [NonSerialized] private int[] _idleBuckets;
@@ -104,6 +89,8 @@ namespace Moirai.Atropos.Resource
         [NonSerialized] private ResourceRecordKernel _kernel;
 
         private ResourceRecordKernel Kernel => _kernel ??= new ResourceRecordKernel(() => DefaultPackageName);
+
+        internal int LoadingOperationCount => Kernel.LoadingOperationCount;
 
         // 加载键自增
         [NonSerialized] private int _loadKeyNextId = 1;
@@ -399,14 +386,6 @@ namespace Moirai.Atropos.Resource
             slot.State = EResourceAssetState.Released;
         }
 
-        private static void ClearLoadingOperationSlot(ref LoadingOperationSlot slot)
-        {
-            slot.Key = 0;
-            slot.Operation = null;
-            slot.State = 0;
-            slot.NextFree = -1;
-        }
-
         #endregion
 
         #region 分页 Slot 分配 [PAGED SLOT ALLOCATION]
@@ -491,35 +470,6 @@ namespace Moirai.Atropos.Resource
             _leaseSlotFreeHead = index;
         }
 
-        private int AllocateLoadingOperationSlot()
-        {
-            int index;
-            if (_loadingOperationSlotFreeHead >= 0)
-            {
-                index = _loadingOperationSlotFreeHead;
-                ref LoadingOperationSlot freeSlot = ref GetLoadingOperationSlotRef(index);
-                _loadingOperationSlotFreeHead = freeSlot.NextFree;
-            }
-            else
-            {
-                index = _loadingOperationSlotNextIndex++;
-                EnsureLoadingOperationSlotPage(index);
-            }
-
-            ref LoadingOperationSlot slot = ref GetLoadingOperationSlotRef(index);
-            slot = default;
-            slot.NextFree = -1;
-            return index;
-        }
-
-        private void FreeLoadingOperationSlot(int index)
-        {
-            ref LoadingOperationSlot slot = ref GetLoadingOperationSlotRef(index);
-            ClearLoadingOperationSlot(ref slot);
-            slot.NextFree = _loadingOperationSlotFreeHead;
-            _loadingOperationSlotFreeHead = index;
-        }
-
         private bool TryGetLeaseSlotIndex(ResourceLeaseHandle handle, out int leaseIndex)
         {
             leaseIndex = handle.Index;
@@ -552,29 +502,19 @@ namespace Moirai.Atropos.Resource
             return leaseId >= 0 && leaseId < _leaseSlotNextIndex && _leaseSlotPages != null;
         }
 
-        private bool IsValidLoadingOperationSlotId(int index)
-        {
-            return index >= 0 && index < _loadingOperationSlotNextIndex && _loadingOperationSlotPages != null;
-        }
-
         private ref AssetSlot GetAssetSlotRef(int index)
         {
-            return ref _assetSlotPages[index >> RECORD_PAGE_BITS][index & RECORD_PAGE_MASK];
+            return ref _assetSlotPages[index >> ResourceRecordKernel.RECORD_PAGE_BITS][index & ResourceRecordKernel.RECORD_PAGE_MASK];
         }
 
         private ref LeaseSlot GetLeaseSlotRef(int index)
         {
-            return ref _leaseSlotPages[index >> RECORD_PAGE_BITS][index & RECORD_PAGE_MASK];
-        }
-
-        private ref LoadingOperationSlot GetLoadingOperationSlotRef(int index)
-        {
-            return ref _loadingOperationSlotPages[index >> RECORD_PAGE_BITS][index & RECORD_PAGE_MASK];
+            return ref _leaseSlotPages[index >> ResourceRecordKernel.RECORD_PAGE_BITS][index & ResourceRecordKernel.RECORD_PAGE_MASK];
         }
 
         private void EnsureAssetSlotPage(int index)
         {
-            int pageIndex = index >> RECORD_PAGE_BITS;
+            int pageIndex = index >> ResourceRecordKernel.RECORD_PAGE_BITS;
             if (_assetSlotPages == null)
             {
                 _assetSlotPages = new AssetSlot[Math.Max(4, pageIndex + 1)][];
@@ -586,13 +526,13 @@ namespace Moirai.Atropos.Resource
 
             if (_assetSlotPages[pageIndex] == null)
             {
-                _assetSlotPages[pageIndex] = new AssetSlot[RECORD_PAGE_SIZE];
+                _assetSlotPages[pageIndex] = new AssetSlot[ResourceRecordKernel.RECORD_PAGE_SIZE];
             }
         }
 
         private void EnsureLeaseSlotPage(int index)
         {
-            int pageIndex = index >> RECORD_PAGE_BITS;
+            int pageIndex = index >> ResourceRecordKernel.RECORD_PAGE_BITS;
             if (_leaseSlotPages == null)
             {
                 _leaseSlotPages = new LeaseSlot[Math.Max(4, pageIndex + 1)][];
@@ -604,26 +544,7 @@ namespace Moirai.Atropos.Resource
 
             if (_leaseSlotPages[pageIndex] == null)
             {
-                _leaseSlotPages[pageIndex] = new LeaseSlot[RECORD_PAGE_SIZE];
-            }
-        }
-
-        private void EnsureLoadingOperationSlotPage(int index)
-        {
-            int pageIndex = index >> RECORD_PAGE_BITS;
-            if (_loadingOperationSlotPages == null)
-            {
-                _loadingOperationSlotPages = new LoadingOperationSlot[Math.Max(4, pageIndex + 1)][];
-            }
-            else if (pageIndex >= _loadingOperationSlotPages.Length)
-            {
-                Array.Resize(ref _loadingOperationSlotPages,
-                    Math.Max(pageIndex + 1, _loadingOperationSlotPages.Length << 1));
-            }
-
-            if (_loadingOperationSlotPages[pageIndex] == null)
-            {
-                _loadingOperationSlotPages[pageIndex] = new LoadingOperationSlot[RECORD_PAGE_SIZE];
+                _leaseSlotPages[pageIndex] = new LeaseSlot[ResourceRecordKernel.RECORD_PAGE_SIZE];
             }
         }
 

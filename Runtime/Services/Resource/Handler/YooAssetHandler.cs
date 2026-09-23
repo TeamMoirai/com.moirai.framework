@@ -253,7 +253,7 @@ namespace Moirai.Atropos.Resource
                 Kernel.UnloadGeneration++;
             }
 
-            ShutdownLoadingOperations();
+            Kernel.ShutdownLoadingOperations();
             if (_bindingService == null)
             {
                 _bindingService = new ResourceBindingService(this);

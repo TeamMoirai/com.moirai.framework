@@ -153,7 +153,7 @@ namespace Moirai.Atropos.Resource
             Kernel.IsDestroying = true;
             Kernel.UnloadGeneration++;
             _bindingService?.Shutdown();
-            ShutdownLoadingOperations();
+            Kernel.ShutdownLoadingOperations();
             ForceReleaseAllAssetRecords();
             _packageInitTasks.Clear();
             _packageInitOperations.Clear();

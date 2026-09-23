@@ -89,7 +89,7 @@ namespace Moirai.Atropos.Resource
         {
             _assetRecordsByKey.EnsureCapacity(assetCapacity);
             _assetRecordByLoadKeyId.EnsureCapacity(assetCapacity);
-            _assetLoadingOperationByKey.EnsureCapacity(assetCapacity);
+            Kernel.EnsureLoadingOperationCapacity(assetCapacity);
 
             if (assetCapacity > 0)
             {

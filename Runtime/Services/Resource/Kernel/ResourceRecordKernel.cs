@@ -14,8 +14,14 @@ namespace Moirai.Atropos.Resource
     /// 所以按 <see cref="Func{TResult}"/> 注入、每次活读。后端算子（校验与释放原生句柄）之后要搬进来时
     /// 再立接口，为一根线立一个类型不值。</para>
     /// </summary>
-    internal sealed class ResourceRecordKernel
+    internal sealed partial class ResourceRecordKernel
     {
+        // 三套分页 slot 数组共用的页布局：一页 256 槽、按位取页号与页内下标。
+        // 另外两座 arena（资产记录 / 租约）仍在 handler 里，它们这里按类型名取用本组常量。
+        internal const int RECORD_PAGE_BITS = 8;
+        internal const int RECORD_PAGE_SIZE = 1 << RECORD_PAGE_BITS;
+        internal const int RECORD_PAGE_MASK = RECORD_PAGE_SIZE - 1;
+
         private readonly Func<string> _defaultPackageName;
 
         // 三条轴各一份注册表。id 上限即该轴在 packed key 里分到的位宽上限，越界必抛而非截断。
@@ -31,6 +37,90 @@ namespace Moirai.Atropos.Resource
         // 写它的仍是 handler 的生命周期（初始化、强卸载、关停）。
         internal bool IsDestroying;
         internal uint UnloadGeneration = 1;
+
+        // 在途加载去重：一座 arena + 一张 packed key -> 槽号的开地址表。
+        // [NonSerialized] 逐字段保留（与 handler 侧运行时数组同一口径）：托管引用序列化对私有
+        // 字段的处理不在我实测过的范围内，这里省一对标注不值得拿序列化边界去赌。
+        [NonSerialized] private LoadingOperationSlot[][] _loadingOperationSlotPages;
+        [NonSerialized] private int _loadingOperationSlotNextIndex;
+        [NonSerialized] private int _loadingOperationSlotFreeHead = -1;
+        private readonly ResourceUlongIntMap _assetLoadingOperationByKey = new ResourceUlongIntMap();
+
+        internal void EnsureLoadingOperationCapacity(int capacity)
+        {
+            _assetLoadingOperationByKey.EnsureCapacity(capacity);
+        }
+
+        /// <summary>在途去重槽数量——测试观测点，读数经它而不是反射进字段。</summary>
+        internal int LoadingOperationCount => _assetLoadingOperationByKey.Count;
+
+        private struct LoadingOperationSlot
+        {
+            public ulong Key;
+            public LoadingOperationState Operation;
+            public byte State;
+            public int NextFree;
+        }
+        private int AllocateLoadingOperationSlot()
+        {
+            int index;
+            if (_loadingOperationSlotFreeHead >= 0)
+            {
+                index = _loadingOperationSlotFreeHead;
+                ref LoadingOperationSlot freeSlot = ref GetLoadingOperationSlotRef(index);
+                _loadingOperationSlotFreeHead = freeSlot.NextFree;
+            }
+            else
+            {
+                index = _loadingOperationSlotNextIndex++;
+                EnsureLoadingOperationSlotPage(index);
+            }
+
+            ref LoadingOperationSlot slot = ref GetLoadingOperationSlotRef(index);
+            slot = default;
+            slot.NextFree = -1;
+            return index;
+        }
+        private void FreeLoadingOperationSlot(int index)
+        {
+            ref LoadingOperationSlot slot = ref GetLoadingOperationSlotRef(index);
+            ClearLoadingOperationSlot(ref slot);
+            slot.NextFree = _loadingOperationSlotFreeHead;
+            _loadingOperationSlotFreeHead = index;
+        }
+        private static void ClearLoadingOperationSlot(ref LoadingOperationSlot slot)
+        {
+            slot.Key = 0;
+            slot.Operation = null;
+            slot.State = 0;
+            slot.NextFree = -1;
+        }
+        private bool IsValidLoadingOperationSlotId(int index)
+        {
+            return index >= 0 && index < _loadingOperationSlotNextIndex && _loadingOperationSlotPages != null;
+        }
+        private ref LoadingOperationSlot GetLoadingOperationSlotRef(int index)
+        {
+            return ref _loadingOperationSlotPages[index >> RECORD_PAGE_BITS][index & RECORD_PAGE_MASK];
+        }
+        private void EnsureLoadingOperationSlotPage(int index)
+        {
+            int pageIndex = index >> RECORD_PAGE_BITS;
+            if (_loadingOperationSlotPages == null)
+            {
+                _loadingOperationSlotPages = new LoadingOperationSlot[Math.Max(4, pageIndex + 1)][];
+            }
+            else if (pageIndex >= _loadingOperationSlotPages.Length)
+            {
+                Array.Resize(ref _loadingOperationSlotPages,
+                    Math.Max(pageIndex + 1, _loadingOperationSlotPages.Length << 1));
+            }
+
+            if (_loadingOperationSlotPages[pageIndex] == null)
+            {
+                _loadingOperationSlotPages[pageIndex] = new LoadingOperationSlot[RECORD_PAGE_SIZE];
+            }
+        }
 
         internal ResourceRecordKernel(Func<string> defaultPackageName)
         {
@@ -78,6 +168,7 @@ namespace Moirai.Atropos.Resource
         }
 
         #endregion
+        
         #region 三条名称轴 [NAME AXES]
 
         private int GetOrAddPackageId(string packageName) =>
@@ -132,6 +223,7 @@ namespace Moirai.Atropos.Resource
         }
 
         #endregion
+        
         #region 归一化 [NORMALIZE]
 
         internal string NormalizePackageName(string packageName)

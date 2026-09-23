@@ -66,19 +66,13 @@ namespace Service.Resource
             // [SerializeReference] 反序列化会把未标注的数组字段还原为非 null 空数组（Length=0），
             // 使判空守卫失效（曾导致过期轮询 IOOR 错误风暴）。修复为运行时数组全部 [NonSerialized]
             // + 使用点长度校验懒重建，NormalizeDeserializedArrays 已随之移除——本用例锁定该序列化边界契约。
-            var type = typeof(YooAssetHandler);
-            var fields = new[]
-            {
-                "_idleBuckets", "_keepAliveBuckets", "_unusedAssetCandidates",
-                "_assetSlotPages", "_leaseSlotPages", "_loadingOperationSlotPages",
-            };
-            foreach (var name in fields)
-            {
-                var field = type.GetField(name, System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
-                Assert.IsNotNull(field, "field {0} not found.", name);
-                Assert.IsTrue(field.IsDefined(typeof(System.NonSerializedAttribute), inherit: false),
-                    "field {0} must stay [NonSerialized]; serialized runtime arrays deserialize as non-null empty arrays.", name);
-            }
+            AssertNonSerialized(typeof(YooAssetHandler), "_idleBuckets");
+            AssertNonSerialized(typeof(YooAssetHandler), "_keepAliveBuckets");
+            AssertNonSerialized(typeof(YooAssetHandler), "_unusedAssetCandidates");
+            AssertNonSerialized(typeof(YooAssetHandler), "_assetSlotPages");
+            AssertNonSerialized(typeof(YooAssetHandler), "_leaseSlotPages");
+            // 这座 arena 已随去重槽搬进内核，契约跟着走。
+            AssertNonSerialized(typeof(ResourceRecordKernel), "_loadingOperationSlotPages");
         }
 
         [Test]
@@ -94,7 +88,7 @@ namespace Service.Resource
                     default(EResourceLeaseOption), default));
 
             Assert.IsFalse(lease.IsValid);
-            Assert.AreEqual(0, LoadingOperationCount(handler),
+            Assert.AreEqual(0, handler.LoadingOperationCount,
                 "去重槽必须在赢家路径抛异常后闭环，否则同图集后续并发绑定会在 WaitForLoadingAsync 里永久空转。");
         }
 
@@ -108,7 +102,7 @@ namespace Service.Resource
                 () => handler.AcquirePrefabSourceLeaseAsync("prefab_key", "__moirai_missing_pkg__", default));
 
             Assert.IsFalse(lease.IsValid);
-            Assert.AreEqual(0, LoadingOperationCount(handler));
+            Assert.AreEqual(0, handler.LoadingOperationCount);
         }
 
         private static ResourceLeaseHandle RunToCompletion(System.Func<UniTask<ResourceLeaseHandle>> start)
@@ -129,12 +123,14 @@ namespace Service.Resource
             }
         }
 
-        private static int LoadingOperationCount(YooAssetHandler handler)
+        private static void AssertNonSerialized(System.Type owner, string name)
         {
-            var field = typeof(YooAssetHandler).GetField("_assetLoadingOperationByKey",
-                BindingFlags.Instance | BindingFlags.NonPublic);
-            Assert.IsNotNull(field, "去重表字段 _assetLoadingOperationByKey 未找到。");
-            return ((ResourceUlongIntMap)field.GetValue(handler)).Count;
+            // 这条断的是"属性/字段上有什么标注"，除反射别无他法；读数类的探针一律走 internal 成员。
+            var field = owner.GetField(name, BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.IsNotNull(field, "{0}.{1} 未找到——字段被改名或搬走时这条契约要跟着走。", owner.Name, name);
+            Assert.IsTrue(field.IsDefined(typeof(System.NonSerializedAttribute), inherit: false),
+                "{0}.{1} 必须保持 [NonSerialized]：序列化的运行时数组会被还原成非 null 空数组，判空守卫当场失效。",
+                owner.Name, name);
         }
     }
 }

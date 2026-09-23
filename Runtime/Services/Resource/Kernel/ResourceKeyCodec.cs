@@ -34,6 +34,7 @@ namespace Moirai.Atropos.Resource
         internal const int RESOURCE_KEY_HANDLE_MAX = (1 << RESOURCE_KEY_HANDLE_BITS) - 1;
 
         #endregion
+        
         #region 编解码 [ENCODE/DECODE]
 
         internal static ulong Pack(int packageId, int locationId, int typeId,
@@ -72,6 +73,7 @@ namespace Moirai.Atropos.Resource
         }
 
         #endregion
+        
         #region 归一化 [NORMALIZE]
 
         internal static EResourceAssetKind NormalizeAssetKind(Type assetType, EResourceAssetKind assetKind)
