@@ -6,21 +6,30 @@ namespace Moirai.Atropos.Audio
     /// <summary>
     /// AudioSource 宿主对象池——始终使用内部栈池复用运行时创建的空 GameObject + AudioSource。
     /// <para>扩展通道时不反复 <c>new GameObject</c>/<c>Destroy</c>；归还即失活入栈。</para>
+    /// <para>闲置宿主统一挂在 <c>[Warmup]</c> 节点下，与各音轨 Category 实例区分。</para>
     /// </summary>
     internal static class AudioAgentHostPool
     {
-        private static readonly Stack<AudioSource> s_Stack = new Stack<AudioSource>(16);
+        private static Transform s_PoolRoot;
+        private const string POOL_ROOT_NAME = "[Warmup]";
 
+        private static readonly Stack<AudioSource> s_Stack = new Stack<AudioSource>(16);
         /// <summary>
-        /// 预热内部栈池。
+        /// 当前栈池缓存数量（诊断用）。
+        /// </summary>
+        public static int StackCount => s_Stack.Count;
+        
+        /// <summary>
+        /// 预热内部栈池（闲置宿主置于 <c>[Warmup]</c> 下）。
         /// </summary>
         public static void Warmup(Transform parent, int count)
         {
+            EnsurePoolRoot(parent);
             if (count <= 0) return;
 
             for (int i = 0; i < count; i++)
             {
-                var source = CreateHost(parent);
+                var source = CreateHost(s_PoolRoot);
                 source.gameObject.SetActive(false);
                 s_Stack.Push(source);
             }
@@ -70,7 +79,7 @@ namespace Moirai.Atropos.Audio
         }
 
         /// <summary>
-        /// 归还宿主（失活入栈）。
+        /// 归还宿主（失活入栈，挂回 <c>[Warmup]</c>）。
         /// </summary>
         public static void Release(AudioSource source)
         {
@@ -78,12 +87,22 @@ namespace Moirai.Atropos.Audio
 
             source.Stop();
             source.clip = null;
+
+            // 未预热时按需建根：Category.InstanceRoot 的父级即 Handler.InstanceRoot
+            if (s_PoolRoot == null)
+            {
+                var current = source.transform.parent;
+                EnsurePoolRoot(current != null ? current.parent : null);
+            }
+
+            source.transform.SetParent(s_PoolRoot, false);
+            source.transform.localPosition = Vector3.zero;
             source.gameObject.SetActive(false);
             s_Stack.Push(source);
         }
 
         /// <summary>
-        /// 清空栈池并销毁全部缓存宿主。
+        /// 清空栈池并销毁全部缓存宿主（含 <c>[Warmup]</c> 根节点）。
         /// </summary>
         public static void Clear()
         {
@@ -95,12 +114,26 @@ namespace Moirai.Atropos.Audio
                     Object.Destroy(source.gameObject);
                 }
             }
+
+            if (s_PoolRoot != null)
+            {
+                Object.Destroy(s_PoolRoot.gameObject);
+                s_PoolRoot = null;
+            }
         }
 
-        /// <summary>
-        /// 当前栈池缓存数量（诊断用）。
-        /// </summary>
-        public static int StackCount => s_Stack.Count;
+        private static void EnsurePoolRoot(Transform parent)
+        {
+            if (s_PoolRoot != null) return;
+
+            var go = new GameObject(POOL_ROOT_NAME);
+            if (parent != null)
+            {
+                go.transform.SetParent(parent, false);
+            }
+
+            s_PoolRoot = go.transform;
+        }
 
         private static AudioSource CreateHost(Transform parent)
         {

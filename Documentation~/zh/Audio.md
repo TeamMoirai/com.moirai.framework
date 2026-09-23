@@ -84,7 +84,7 @@ Runtime/Services/Audio/
 - 混音快照状态机：`EMixSnapshot` 优先级切换 + 交叉淡变
 - 空间化：`AudioOcclusionHrtf` 射线遮挡 → 低通；可选 HRTF `spatialBlend`
 - 自动 Ducking：Voice 有音在播时切 `Dialogue` 快照，播完自动归还借走的那一层
-- 宿主池：`AudioAgentHostPool` 内部栈池复用 AudioSource 宿主
+- 宿主池：`AudioAgentHostPool` 内部栈池复用 AudioSource 宿主；闲置宿主挂在 `[Warmup]` 下
 - Clip 缓存：路径播放同地址共享一条租约，引用计数 + LRU/TTL/Pin 驱逐 + `lowMemory` 自动清理
 
 ## 核心类型
@@ -105,7 +105,7 @@ Runtime/Services/Audio/
 | `AudioClipCache` | Unity 后端 Clip 租约缓存（内部）；`AssetHandlePool` 是其只读视图 |
 | `AudioMixStateMachine` / `EMixSnapshot` | 混音快照状态机 |
 | `AudioOcclusionHrtf` | 遮挡 + HRTF 组件 |
-| `AudioAgentHostPool` | 宿主内部栈池（OnInit 按配置预热） |
+| `AudioAgentHostPool` | 宿主内部栈池（OnInit 按配置预热；闲置宿主在 `[Warmup]` 节点下） |
 | `BackgroundMusic` | 分层 BGM 组件（同 ID 替换，异 ID 共存） |
 
 ## 快速上手
@@ -219,7 +219,7 @@ AudioService.ResetMixSnapshot(0.25f);
 
 ### 宿主栈池预热
 
-`AudioServiceSettings` 中配置 `WarmupAudioHostPool` 与 `AudioHostWarmupCount`；`AudioService.OnInit` 在 Handler 就绪后向 `InstanceRoot` 预热。未启用时按需创建并入栈复用。
+`AudioServiceSettings` 中配置 `WarmupAudioHostPool` 与 `AudioHostWarmupCount`；`AudioService.OnInit` 在 Handler 就绪后向 `InstanceRoot` 预热。闲置宿主统一挂在 `[Warmup]` 节点下（与各 `Audio Category - *` 平级），被 `AudioAgent` 取用时再挂到对应 Category 并改名为 `SFX - 0` 这类实例名；归还时失活挂回 `[Warmup]`。未启用预热时按需创建并在首次归还时建 `[Warmup]` 入栈复用。
 
 ## 配置说明
 

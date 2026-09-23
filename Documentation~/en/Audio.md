@@ -104,7 +104,7 @@ Namespace: `Moirai.Atropos.Audio` (middleware under `.Fmod` / `.Wwise` / `.Middl
 | `AudioClipCache` | Unity backend clip lease cache (internal); `AssetHandlePool` is its read-only view |
 | `AudioMixStateMachine` / `EMixSnapshot` | Mix snapshot state machine |
 | `AudioOcclusionHrtf` | Occlusion + HRTF component |
-| `AudioAgentHostPool` | Internal host stack pool (warmed up from settings in OnInit) |
+| `AudioAgentHostPool` | Internal host stack pool (warmed up from settings in OnInit; idle hosts under `[Warmup]`) |
 | `BackgroundMusic` | Layered BGM (same ID replaces, other IDs persist) |
 
 ## Quick Start
@@ -193,7 +193,7 @@ Add `AudioOcclusionHrtf` next to the listener: raycasts active sources, drives `
 
 ### Host stack warmup
 
-Configure `WarmupAudioHostPool` and `AudioHostWarmupCount` in `AudioServiceSettings`; `AudioService.OnInit` warms the pool under `InstanceRoot` after the handler is ready. Without warmup, hosts are created on demand and reused from the stack.
+Configure `WarmupAudioHostPool` and `AudioHostWarmupCount` in `AudioServiceSettings`; `AudioService.OnInit` warms the pool under `InstanceRoot` after the handler is ready. Idle hosts live under a `[Warmup]` node (sibling of each `Audio Category - *`); `AudioAgent` re-parents a host to its category and renames it (e.g. `SFX - 0`) on acquire, and returns it under `[Warmup]` on release. Without warmup, hosts are created on demand and the `[Warmup]` node is created on first release.
 
 ## Notes
 
