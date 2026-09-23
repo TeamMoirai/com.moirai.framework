@@ -200,6 +200,13 @@ namespace Moirai.Atropos.Localization
         /// <returns>激活的语言名称（未就绪时为 null）</returns>
         public static string ActivateNextLanguage() => s_Handler?.ActivateNextLanguage();
 
+        /// <summary>
+        /// 强制重载本地化词条（配置表热更、远程词库下发后调用；未就绪时为 no-op）。
+        /// <para>重载失败（数据源未就绪/整批拒载）保留上一份可用快照；成功换批后自动重注入全部本地化器并广播语言变更——
+        /// 语言未变也会广播，词条内容可能已更新。覆盖层按契约不被换批清空。</para>
+        /// </summary>
+        public static void ReloadTexts() => s_Handler?.ReloadTexts();
+
         #endregion
 
         #region 文本查询 [TEXT QUERIES]

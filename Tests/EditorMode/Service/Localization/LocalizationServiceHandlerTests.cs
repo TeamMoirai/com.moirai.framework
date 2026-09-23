@@ -616,6 +616,95 @@ namespace Service.Localization
 
         #endregion
 
+        #region 加载失败闸门 [LOAD FAILURE GATES]
+
+        [Test]
+        public void LoadThrowing_LogsOnlyOnceAcrossQueries()
+        {
+            // 数据源抛异常必须与空批同待遇：表未就绪期间每个 localizer/查询都在重试，无闸门即异常堆栈风暴
+            // 注：LogUtility.Error(ex) 经 DefaultLogHandler 以 LogType.Error 渲染（异常文本内嵌）
+            _handler.ThrowOnLoad = new InvalidOperationException("probe tables not ready");
+            LogAssert.Expect(LogType.Error, new Regex("probe tables not ready"));
+
+            Assert.AreEqual("ui.title", _handler.GetTextFromId("ui.title"));
+            Assert.AreEqual("ui.title", _handler.GetTextFromId("ui.title"));
+            Assert.AreEqual("ui.title", _handler.GetTextFromId("ui.title"));
+            Assert.GreaterOrEqual(_handler.LoadCallCount, 1, "未就绪时应保持重试语义");
+        }
+
+        [Test]
+        public void NoLanguage_LogsOnlyOnceAcrossSwitchAttempts()
+        {
+            LogAssert.Expect(LogType.Error, new Regex("generate config first"));
+            LogAssert.Expect(LogType.Error, new Regex("No language available"));
+
+            _handler.ChangeLanguage(English);
+            _handler.ChangeLanguage(Chinese);
+            Assert.IsNull(_handler.ActivateNextLanguage());
+            Assert.IsNull(_handler.ActivatePreviousLanguage());
+        }
+
+        #endregion
+
+        #region 数据重载 [RELOAD]
+
+        [Test]
+        public void ReloadTexts_SwapsBatch()
+        {
+            LoadStrings("ui.title", "Title", "标题");
+            _handler.ChangeLanguage(English);
+            Assert.AreEqual("Title", _handler.GetTextFromId("ui.title"));
+
+            _handler.Strings["ui.title"] = new List<string> { "TitleV2", "标题V2" };
+            _handler.ReloadTexts();
+
+            Assert.AreEqual("TitleV2", _handler.GetTextFromId("ui.title"));
+            Assert.AreEqual(2, _handler.LoadCallCount);
+        }
+
+        [Test]
+        public void ReloadTexts_WhenSourceBroken_KeepsPreviousSnapshot()
+        {
+            LoadStrings("ui.title", "Title", "标题");
+            _handler.ChangeLanguage(English);
+
+            _handler.ThrowOnLoad = new InvalidOperationException("probe hotfix corrupted");
+            LogAssert.Expect(LogType.Error, new Regex("probe hotfix corrupted"));
+            _handler.ReloadTexts();
+
+            Assert.AreEqual("Title", _handler.GetTextFromId("ui.title"), "重载失败必须保留上一份可用快照");
+            Assert.AreEqual(English, _handler.CurrentLanguage);
+        }
+
+        [Test]
+        public void ReloadTexts_SameLanguage_ReinjectsAndRaisesEvent()
+        {
+            // 语言未变时 ChangeLanguage 早退，但词条内容可能已更新——重载必须强制重注入并广播
+            LoadStrings("ui.title", "Title", "标题");
+            _handler.ChangeLanguage(English);
+            var container = new GameObject(nameof(ReloadTexts_SameLanguage_ReinjectsAndRaisesEvent));
+            var localizer = container.AddComponent<L10nProbeLocalizer>();
+
+            try
+            {
+                _handler.AddLocalizer(localizer);
+                var eventCount = 0;
+                _handler.OnLanguageChanged += _ => eventCount++;
+                var localizeBefore = localizer.LocalizeCount;
+
+                _handler.ReloadTexts();
+
+                Assert.Greater(localizer.LocalizeCount, localizeBefore, "语言未变也必须强制重注入");
+                Assert.AreEqual(1, eventCount, "语言未变也必须广播一次，订阅方才拿得到新文案");
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(container);
+            }
+        }
+
+        #endregion
+
         #region 语言解析 [LANGUAGE RESOLUTION]
 
         [Test]
@@ -687,10 +776,13 @@ namespace Service.Localization
         public List<Language> Languages = new List<Language>();
         public Dictionary<string, List<string>> Strings = new Dictionary<string, List<string>>();
         public int LoadCallCount;
+        public Exception ThrowOnLoad;
 
         protected override (List<Language> languages, Dictionary<string, List<string>> strings) LoadLocalizedData()
         {
             LoadCallCount++;
+            if (ThrowOnLoad != null) throw ThrowOnLoad;
+
             foreach (var language in Languages)
             {
                 LocalizationService.RegisterLanguageMap(language.Name);
