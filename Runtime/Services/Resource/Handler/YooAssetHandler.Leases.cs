@@ -32,12 +32,12 @@ namespace Moirai.Atropos.Resource
 
             ulong recordKey = Kernel.GetAssetRecordKey(normalizedPackageName, typedKey.Location, assetType, assetKind,
                 EResourceHandleKind.AssetHandle);
-            if (!_assetRecordsByKey.TryGetValue(recordKey, out int assetId) || !IsValidAssetId(assetId))
+            if (!Kernel.TryGetRecordId(recordKey, out int assetId) || !Kernel.IsValidAssetId(assetId))
             {
                 return ResourceLeaseHandle.Invalid;
             }
 
-            return AcquireLease(assetId, EResourceLeaseKind.Direct, EResourceLeaseOption.None);
+            return Kernel.AcquireLease(assetId, EResourceLeaseKind.Direct, EResourceLeaseOption.None);
         }
 
         /// <inheritdoc />
@@ -62,55 +62,12 @@ namespace Moirai.Atropos.Resource
 
             ulong recordKey = Kernel.GetAssetRecordKey(normalizedPackageName, typedKey.Location, assetType, assetKind,
                 EResourceHandleKind.AssetHandle);
-            if (!_assetRecordsByKey.TryGetValue(recordKey, out int assetId) || !IsValidAssetId(assetId))
+            if (!Kernel.TryGetRecordId(recordKey, out int assetId) || !Kernel.IsValidAssetId(assetId))
             {
                 return ResourceLeaseHandle.Invalid;
             }
 
-            return AcquireLease(assetId, EResourceLeaseKind.Direct, EResourceLeaseOption.None);
-        }
-
-        /// <inheritdoc />
-        public override void Release(ResourceLeaseHandle handle)
-        {
-            if (!TryGetLeaseSlotIndex(handle, out int leaseIndex))
-            {
-                return;
-            }
-
-            ref LeaseSlot lease = ref GetLeaseSlotRef(leaseIndex);
-            int assetId = lease.AssetId;
-            EResourceLeaseOption options = (EResourceLeaseOption)lease.Flags;
-            lease.State = EResourceLeaseState.Released;
-
-            if (lease.Kind == EResourceLeaseKind.Binding)
-            {
-                ref AssetSlot asset = ref GetAssetSlotRef(assetId);
-                if (asset.BindingRefCount > 0)
-                {
-                    asset.BindingRefCount--;
-                }
-            }
-            else
-            {
-                ref AssetSlot asset = ref GetAssetSlotRef(assetId);
-                if (asset.DirectRefCount > 0)
-                {
-                    asset.DirectRefCount--;
-                }
-            }
-
-            if ((options & EResourceLeaseOption.KeepAliveOnRelease) != 0)
-            {
-                ref AssetSlot kaAsset = ref GetAssetSlotRef(assetId);
-                kaAsset.KeepAliveRefCount++;
-                kaAsset.KeepAliveExpireTick = ToKeepAliveTick(Time.unscaledTime) +
-                    Mathf.Max(0, Mathf.CeilToInt(_idleAssetExpireTime));
-                AddToKeepAliveBucket(assetId, ref kaAsset);
-            }
-
-            UpdateAssetStateAndIdleQueue(assetId, ref GetAssetSlotRef(assetId));
-            FreeLeaseSlot(leaseIndex);
+            return Kernel.AcquireLease(assetId, EResourceLeaseKind.Direct, EResourceLeaseOption.None);
         }
 
         /// <inheritdoc />
@@ -125,9 +82,9 @@ namespace Moirai.Atropos.Resource
                 return default;
             }
 
-            if (!TryGetLeaseAsset(handle, out UObject asset) || asset is not T typedAsset)
+            if (!Kernel.TryGetLeaseAsset(handle, out UObject asset) || asset is not T typedAsset)
             {
-                Release(handle);
+                Kernel.Release(handle);
                 return default;
             }
 
@@ -155,13 +112,13 @@ namespace Moirai.Atropos.Resource
 
             if (cancellationToken.IsCancellationRequested)
             {
-                Release(handle);
+                Kernel.Release(handle);
                 return default;
             }
 
-            if (!TryGetLeaseAsset(handle, out UObject asset) || asset is not T typedAsset)
+            if (!Kernel.TryGetLeaseAsset(handle, out UObject asset) || asset is not T typedAsset)
             {
-                Release(handle);
+                Kernel.Release(handle);
                 return default;
             }
 
@@ -177,33 +134,39 @@ namespace Moirai.Atropos.Resource
         }
 
         /// <inheritdoc />
+        public override void Release(ResourceLeaseHandle handle)
+        {
+            Kernel.Release(handle);
+        }
+
+        /// <inheritdoc />
         public override bool TryGetLeaseAsset(ResourceLeaseHandle handle, out UObject asset)
         {
-            asset = null;
-            if (!TryGetLeaseSlotIndex(handle, out int leaseIndex))
-            {
-                return false;
-            }
-
-            ref LeaseSlot lease = ref GetLeaseSlotRef(leaseIndex);
-            if (!IsValidAssetId(lease.AssetId))
-            {
-                return false;
-            }
-
-            ref AssetSlot slot = ref GetAssetSlotRef(lease.AssetId);
-            if (slot.State == EResourceAssetState.Released || slot.Asset == null)
-            {
-                return false;
-            }
-
-            asset = slot.Asset;
-            return true;
+            return Kernel.TryGetLeaseAsset(handle, out asset);
         }
 
         #endregion
 
         #region 内部 Lease 方法 [INTERNAL LEASE METHODS]
+
+        /// <inheritdoc />
+        internal override bool TryGetSubSpriteAsset(ResourceLeaseHandle handle, string spriteName,
+            out Sprite sprite)
+        {
+            return Kernel.TryGetSubSpriteAsset(handle, spriteName, out sprite);
+        }
+
+        /// <inheritdoc />
+        internal override bool TryGetLeaseAssetId(ResourceLeaseHandle handle, out int assetId)
+        {
+            return Kernel.TryGetLeaseAssetId(handle, out assetId);
+        }
+
+        /// <inheritdoc />
+        internal override void SetLeaseOptions(ResourceLeaseHandle handle, EResourceLeaseOption options)
+        {
+            Kernel.SetLeaseOptions(handle, options);
+        }
 
         internal override ResourceLeaseHandle AcquireBinding(ResourceKey key)
         {
@@ -214,54 +177,6 @@ namespace Moirai.Atropos.Resource
             CancellationToken cancellationToken)
         {
             return AcquireDirectAsync(key, cancellationToken);
-        }
-
-        internal override bool TryGetSubSpriteAsset(ResourceLeaseHandle handle, string spriteName, out Sprite sprite)
-        {
-            sprite = null;
-            if (!TryGetLeaseSlotIndex(handle, out int leaseIndex))
-            {
-                return false;
-            }
-
-            ref LeaseSlot lease = ref GetLeaseSlotRef(leaseIndex);
-            if (!IsValidAssetId(lease.AssetId))
-            {
-                return false;
-            }
-
-            ref AssetSlot slot = ref GetAssetSlotRef(lease.AssetId);
-            if (slot.State == EResourceAssetState.Released || !IsHandleValid(slot.RawHandle))
-            {
-                return false;
-            }
-
-            sprite = GetSubSprite(slot.RawHandle, spriteName);
-            return sprite != null;
-        }
-
-        internal override bool TryGetLeaseAssetId(ResourceLeaseHandle handle, out int assetId)
-        {
-            assetId = -1;
-            if (!TryGetLeaseSlotIndex(handle, out int leaseIndex))
-            {
-                return false;
-            }
-
-            ref LeaseSlot lease = ref GetLeaseSlotRef(leaseIndex);
-            assetId = lease.AssetId;
-            return IsValidAssetId(assetId);
-        }
-
-        internal override void SetLeaseOptions(ResourceLeaseHandle handle, EResourceLeaseOption options)
-        {
-            if (!TryGetLeaseSlotIndex(handle, out int leaseIndex))
-            {
-                return;
-            }
-
-            ref LeaseSlot lease = ref GetLeaseSlotRef(leaseIndex);
-            lease.Flags = (byte)options;
         }
 
         internal override ResourceLeaseHandle AcquirePrefabSourceLease(string location, string packageName)
@@ -290,12 +205,12 @@ namespace Moirai.Atropos.Resource
 
             ulong key = Kernel.GetAssetRecordKey(normalizedPackageName, location, typeof(GameObject),
                 EResourceAssetKind.Prefab, EResourceHandleKind.AssetHandle);
-            if (!_assetRecordsByKey.TryGetValue(key, out int assetId) || !IsValidAssetId(assetId))
+            if (!Kernel.TryGetRecordId(key, out int assetId) || !Kernel.IsValidAssetId(assetId))
             {
                 return ResourceLeaseHandle.Invalid;
             }
 
-            return AcquireLease(assetId, EResourceLeaseKind.Direct, EResourceLeaseOption.None);
+            return Kernel.AcquireLease(assetId, EResourceLeaseKind.Direct, EResourceLeaseOption.None);
         }
 
         #endregion

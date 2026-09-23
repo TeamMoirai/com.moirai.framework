@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using UObject = UnityEngine.Object;
 
 namespace Moirai.Atropos.Resource
@@ -22,7 +22,10 @@ namespace Moirai.Atropos.Resource
         internal const int RECORD_PAGE_SIZE = 1 << RECORD_PAGE_BITS;
         internal const int RECORD_PAGE_MASK = RECORD_PAGE_SIZE - 1;
 
+        private readonly IResourceRecordKernelHost _host;
         private readonly Func<string> _defaultPackageName;
+
+        private IResourceRecordKernelHost Host => _host;
 
         // 三条轴各一份注册表。id 上限即该轴在 packed key 里分到的位宽上限，越界必抛而非截断。
         // 本类不标 [Serializable]，注册表内部那些数组与计数表天然整棵子树不参与序列化。
@@ -45,6 +48,18 @@ namespace Moirai.Atropos.Resource
         [NonSerialized] private int _loadingOperationSlotNextIndex;
         [NonSerialized] private int _loadingOperationSlotFreeHead = -1;
         private readonly ResourceUlongIntMap _assetLoadingOperationByKey = new ResourceUlongIntMap();
+
+        /// <summary>按 packed key 查记录槽号。不新增登记——查不到就是没有。</summary>
+        internal bool TryGetRecordId(ulong key, out int assetId)
+        {
+            return _assetRecordsByKey.TryGetValue(key, out assetId) && IsValidAssetId(assetId);
+        }
+
+        internal void EnsureRecordCapacity(int capacity)
+        {
+            _assetRecordsByKey.EnsureCapacity(capacity);
+            _assetRecordByLoadKeyId.EnsureCapacity(capacity);
+        }
 
         internal void EnsureLoadingOperationCapacity(int capacity)
         {
@@ -122,8 +137,9 @@ namespace Moirai.Atropos.Resource
             }
         }
 
-        internal ResourceRecordKernel(Func<string> defaultPackageName)
+        internal ResourceRecordKernel(IResourceRecordKernelHost host, Func<string> defaultPackageName)
         {
+            _host = host;
             _defaultPackageName = defaultPackageName;
         }
 

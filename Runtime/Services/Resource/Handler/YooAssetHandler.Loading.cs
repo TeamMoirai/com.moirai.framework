@@ -30,7 +30,7 @@ namespace Moirai.Atropos.Resource
                     return null;
                 }
 
-                if (TryGetCachedAssetRecord(normalizedPackageName, location, assetType, assetKind,
+                if (Kernel.TryGetCachedAssetRecord(normalizedPackageName, location, assetType, assetKind,
                         EResourceHandleKind.AssetHandle, out _, out UObject cachedAsset))
                 {
                     return cachedAsset;
@@ -46,9 +46,9 @@ namespace Moirai.Atropos.Resource
                         return null;
                     }
 
-                    GetOrCreateAssetRecord(normalizedPackageName, location, assetType, assetKind,
+                    Kernel.GetOrCreateAssetRecord(normalizedPackageName, location, assetType, assetKind,
                         EResourceHandleKind.AssetHandle, joinHandle.AssetObject, joinHandle);
-                    return TryGetCachedAssetRecord(normalizedPackageName, location, assetType, assetKind,
+                    return Kernel.TryGetCachedAssetRecord(normalizedPackageName, location, assetType, assetKind,
                         EResourceHandleKind.AssetHandle, out _, out cachedAsset)
                         ? cachedAsset
                         : null;
@@ -77,7 +77,7 @@ namespace Moirai.Atropos.Resource
                     }
 
                     UObject loadedAsset = handle.AssetObject;
-                    GetOrCreateAssetRecord(normalizedPackageName, location, assetType, assetKind,
+                    Kernel.GetOrCreateAssetRecord(normalizedPackageName, location, assetType, assetKind,
                         EResourceHandleKind.AssetHandle, handle.AssetObject, handle);
                     handle = null; // 所有权已移交记录，异常兜底不得再 dispose
                     Kernel.CompleteLoading(loadingKey);
@@ -114,7 +114,7 @@ namespace Moirai.Atropos.Resource
                     return null;
                 }
 
-                if (TryGetCachedAssetRecord(normalizedPackageName, location, assetType, assetKind,
+                if (Kernel.TryGetCachedAssetRecord(normalizedPackageName, location, assetType, assetKind,
                         EResourceHandleKind.AssetHandle, out _, out UObject cachedAsset))
                 {
                     return cachedAsset;
@@ -194,7 +194,7 @@ namespace Moirai.Atropos.Resource
                         return null;
                     }
 
-                    GetOrCreateAssetRecord(normalizedPackageName, location, assetType, assetKind,
+                    Kernel.GetOrCreateAssetRecord(normalizedPackageName, location, assetType, assetKind,
                         EResourceHandleKind.AssetHandle, handle.AssetObject, handle);
                     handle = null; // 所有权已移交记录，异常兜底不得再 dispose
                     Kernel.CompleteLoading(loadingKey);
@@ -203,7 +203,7 @@ namespace Moirai.Atropos.Resource
                         return null;
                     }
 
-                    return TryGetCachedAssetRecord(normalizedPackageName, location, assetType, assetKind,
+                    return Kernel.TryGetCachedAssetRecord(normalizedPackageName, location, assetType, assetKind,
                             EResourceHandleKind.AssetHandle, out _, out cachedAsset)
                         ? cachedAsset
                         : null;
@@ -245,9 +245,9 @@ namespace Moirai.Atropos.Resource
                     return ResourceLeaseHandle.Invalid;
                 }
 
-                if (TryGetCachedSubAssetsRecord(normalizedPackageName, location, out int cachedAssetId))
+                if (Kernel.TryGetCachedSubAssetsRecord(normalizedPackageName, location, out int cachedAssetId))
                 {
-                    return AcquireLease(cachedAssetId, EResourceLeaseKind.Binding, options);
+                    return Kernel.AcquireLease(cachedAssetId, EResourceLeaseKind.Binding, options);
                 }
 
                 if (!Kernel.TryBeginLoading(loadingKey))
@@ -315,12 +315,12 @@ namespace Moirai.Atropos.Resource
                         return ResourceLeaseHandle.Invalid;
                     }
 
-                    int assetId = GetOrCreateSubAssetsRecord(normalizedPackageName, location, subHandle);
+                    int assetId = Kernel.GetOrCreateSubAssetsRecord(normalizedPackageName, location, subHandle);
                     subHandle = null; // 所有权已移交记录，异常兜底不得再 dispose
                     Kernel.CompleteLoading(loadingKey);
                     return callerCancellationRequested
                         ? ResourceLeaseHandle.Invalid
-                        : AcquireLease(assetId, EResourceLeaseKind.Binding, options);
+                        : Kernel.AcquireLease(assetId, EResourceLeaseKind.Binding, options);
                 }
                 catch (OperationCanceledException)
                 {

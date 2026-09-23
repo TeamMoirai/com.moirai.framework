@@ -19,7 +19,7 @@ namespace Moirai.Atropos.Resource
     /// </summary>
     // ReSharper disable once ClassNeverInstantiated.Global
     [Serializable]
-    internal sealed partial class YooAssetHandler : ResourceServiceHandler
+    internal sealed partial class YooAssetHandler : ResourceServiceHandler, IResourceRecordKernelHost
     {
         #region 基础属性 [BASE PROPERTIES]
 
@@ -452,12 +452,12 @@ namespace Moirai.Atropos.Resource
             return GetPackageOrThrow(packageName).LoadAssetAsync(location, assetType, priority);
         }
 
-        private static bool IsHandleValid(object handle)
+        private bool IsHandleValid(object handle)
         {
             return handle is HandleBase { IsValid: true };
         }
 
-        private static void DisposeHandle(object handle)
+        private void DisposeHandle(object handle)
         {
             if (handle is HandleBase { IsValid: true } valid)
             {
@@ -465,10 +465,18 @@ namespace Moirai.Atropos.Resource
             }
         }
 
-        private static Sprite GetSubSprite(object handle, string spriteName)
+        private Sprite GetSubSprite(object handle, string spriteName)
         {
             return (handle as SubAssetsHandle)?.GetSubAssetObject<Sprite>(spriteName);
         }
+
+        // 接口成员要 public 才能隐式实现；这三个算子是 handler 的内部件，故显式接线。
+        bool IResourceRecordKernelHost.IsHandleValid(object handle) => IsHandleValid(handle);
+
+        void IResourceRecordKernelHost.DisposeHandle(object handle) => DisposeHandle(handle);
+
+        Sprite IResourceRecordKernelHost.GetSubSprite(object handle, string spriteName) =>
+            GetSubSprite(handle, spriteName);
 
         #endregion
         #region 资源加载 [ASSET LOADING]
@@ -493,10 +501,10 @@ namespace Moirai.Atropos.Resource
                 return null;
             }
 
-            if (!TryGetLeaseAsset(prefabLease, out UObject prefabObject) ||
+            if (!Kernel.TryGetLeaseAsset(prefabLease, out UObject prefabObject) ||
                 prefabObject is not GameObject prefab)
             {
-                Release(prefabLease);
+                Kernel.Release(prefabLease);
                 return null;
             }
 
@@ -512,7 +520,7 @@ namespace Moirai.Atropos.Resource
                     UObject.Destroy(instance);
                 }
 
-                Release(prefabLease);
+                Kernel.Release(prefabLease);
                 return null;
             }
 
@@ -521,7 +529,7 @@ namespace Moirai.Atropos.Resource
             if (bindStatus != EResourceBindStatus.Success)
             {
                 UObject.Destroy(instance);
-                Release(prefabLease);
+                Kernel.Release(prefabLease);
                 return null;
             }
 
@@ -551,21 +559,21 @@ namespace Moirai.Atropos.Resource
 
             if (cancellationToken.IsCancellationRequested)
             {
-                Release(prefabLease);
+                Kernel.Release(prefabLease);
                 return null;
             }
 
-            if (!TryGetLeaseAsset(prefabLease, out UObject prefabObject) ||
+            if (!Kernel.TryGetLeaseAsset(prefabLease, out UObject prefabObject) ||
                 prefabObject is not GameObject prefab)
             {
-                Release(prefabLease);
+                Kernel.Release(prefabLease);
                 return null;
             }
 
             // 父节点可能在等待期间被销毁：fake null 的 Transform 直接交给 Instantiate 会抛。
             if (!ReferenceEquals(parent, null) && parent == null)
             {
-                Release(prefabLease);
+                Kernel.Release(prefabLease);
                 return null;
             }
 
@@ -581,7 +589,7 @@ namespace Moirai.Atropos.Resource
                     UObject.Destroy(instance);
                 }
 
-                Release(prefabLease);
+                Kernel.Release(prefabLease);
                 return null;
             }
 
@@ -590,7 +598,7 @@ namespace Moirai.Atropos.Resource
             if (bindStatus != EResourceBindStatus.Success)
             {
                 UObject.Destroy(instance);
-                Release(prefabLease);
+                Kernel.Release(prefabLease);
                 return null;
             }
 
