@@ -816,14 +816,9 @@ namespace Service.Save
         }
 
         /// <summary>
-        /// 经反射设置生成的私有静态 s_Handler（生成的 Handler 属性 setter 拒绝 null）。
+        /// 经生成的 <c>Internal_UseHandler</c> 直设外观处理器（Handler 属性 setter 拒绝 null）。
         /// </summary>
-        private static void SetFacadeHandler(object value)
-        {
-            typeof(SaveService)
-                .GetField("s_Handler", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)
-                .SetValue(null, value);
-        }
+        private static void SetFacadeHandler(SaveServiceHandler value) => SaveService.Internal_UseHandler(value);
 
         #endregion
 

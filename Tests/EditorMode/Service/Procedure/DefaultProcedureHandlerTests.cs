@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Reflection;
 using System.Text.RegularExpressions;
 using Moirai.Atropos;
 using Moirai.Atropos.Procedure;
@@ -316,15 +315,13 @@ namespace Service.Procedure
 
         #region 外观级 [FACADE]
 
-        // s_Handler 为生成代码中的 private static 字段；经反射存取以实现与执行顺序无关的静态态隔离，
+        // 经生成的 Internal_PeekHandler / Internal_UseHandler 存取，实现与执行顺序无关的静态态隔离，
         // 避免直接赋值 Handler 后无法复原未就绪态而破坏 ServiceContractTests 的降级契约断言
-        private static readonly FieldInfo s_ProcedureHandlerField =
-            typeof(ProcedureService).GetField("s_Handler", BindingFlags.NonPublic | BindingFlags.Static);
 
         [Test]
         public void Facade_ProcedureChanged_BroadcastsAndIsolatesSubscriberExceptions()
         {
-            object savedHandler = s_ProcedureHandlerField.GetValue(null);
+            var savedHandler = ProcedureService.Internal_PeekHandler();
             var handler = new DefaultProcedureHandler();
             int fired = 0;
             ProcedureTransitionRecord lastRecord = default;
@@ -370,19 +367,19 @@ namespace Service.Procedure
                 ProcedureService.onProcedureChanged -= throwingSubscriber;
                 ProcedureService.onProcedureChanged -= countingSubscriber;
                 handler.Internal_Shutdown();
-                s_ProcedureHandlerField.SetValue(null, savedHandler);
+                ProcedureService.Internal_UseHandler(savedHandler);
             }
         }
 
         [Test]
         public void Facade_Mutators_DegradeWithWarningWhenNotReady()
         {
-            object savedHandler = s_ProcedureHandlerField.GetValue(null);
+            var savedHandler = ProcedureService.Internal_PeekHandler();
 
             try
             {
                 // 强制未就绪态——变更类 API 须告警忽略而非抛异常（查询类静默降级契约由 ServiceContractTests 锁定）
-                s_ProcedureHandlerField.SetValue(null, null);
+                ProcedureService.Internal_UseHandler(null);
                 Assert.IsFalse(ProcedureService.IsValid);
 
                 Assert.DoesNotThrow(() => ProcedureService.Initialize(_a, _b));
@@ -393,14 +390,14 @@ namespace Service.Procedure
             }
             finally
             {
-                s_ProcedureHandlerField.SetValue(null, savedHandler);
+                ProcedureService.Internal_UseHandler(savedHandler);
             }
         }
 
         [Test]
         public void Facade_Queries_SilentDegradeWhenHandlerPresentButStateNotReady()
         {
-            object savedHandler = s_ProcedureHandlerField.GetValue(null);
+            var savedHandler = ProcedureService.Internal_PeekHandler();
             var handler = new DefaultProcedureHandler();
 
             try
@@ -421,14 +418,14 @@ namespace Service.Procedure
             finally
             {
                 handler.Internal_Shutdown();
-                s_ProcedureHandlerField.SetValue(null, savedHandler);
+                ProcedureService.Internal_UseHandler(savedHandler);
             }
         }
 
         [Test]
         public void Facade_StartAndChange_IgnoreWhenStateNotReady_ButInitializeStillBootstraps()
         {
-            object savedHandler = s_ProcedureHandlerField.GetValue(null);
+            var savedHandler = ProcedureService.Internal_PeekHandler();
             var handler = new DefaultProcedureHandler();
 
             try
@@ -458,14 +455,14 @@ namespace Service.Procedure
             finally
             {
                 handler.Internal_Shutdown();
-                s_ProcedureHandlerField.SetValue(null, savedHandler);
+                ProcedureService.Internal_UseHandler(savedHandler);
             }
         }
 
         [Test]
         public void Facade_RestartProcedure_WorksWhenHandlerPresentButStateNotReady()
         {
-            object savedHandler = s_ProcedureHandlerField.GetValue(null);
+            var savedHandler = ProcedureService.Internal_PeekHandler();
             var handler = new DefaultProcedureHandler();
 
             try
@@ -482,7 +479,7 @@ namespace Service.Procedure
             finally
             {
                 handler.Internal_Shutdown();
-                s_ProcedureHandlerField.SetValue(null, savedHandler);
+                ProcedureService.Internal_UseHandler(savedHandler);
             }
         }
 
@@ -517,7 +514,7 @@ namespace Service.Procedure
         [Test]
         public void Facade_ChangeState_InsideProcedureChanged_IsolatedAndKeepsCurrent()
         {
-            object savedHandler = s_ProcedureHandlerField.GetValue(null);
+            var savedHandler = ProcedureService.Internal_PeekHandler();
             var handler = new DefaultProcedureHandler();
             var a = new ProbeA();
             var b = new ProbeB();
@@ -547,7 +544,7 @@ namespace Service.Procedure
             {
                 ProcedureService.onProcedureChanged -= reentrant;
                 handler.Internal_Shutdown();
-                s_ProcedureHandlerField.SetValue(null, savedHandler);
+                ProcedureService.Internal_UseHandler(savedHandler);
             }
         }
 

@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Reflection;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -566,14 +565,9 @@ namespace Service.Save
         #region 便捷映射与降级 [FACADE QUICK MAP / DEGRADATION]
 
         /// <summary>
-        /// 经反射设置生成的私有静态 s_Handler（生成的 Handler 属性 setter 拒绝 null，降级契约测试需要 null 态）。
+        /// 经生成的 <c>Internal_UseHandler</c> 直设外观处理器（Handler 属性 setter 拒绝 null，降级契约测试需要 null 态）。
         /// </summary>
-        private static void SetHandler(object value)
-        {
-            typeof(SaveService)
-                .GetField("s_Handler", BindingFlags.NonPublic | BindingFlags.Static)
-                .SetValue(null, value);
-        }
+        private static void SetHandler(SaveServiceHandler value) => SaveService.Internal_UseHandler(value);
 
         [Test]
         public void Facade_QuickSave_MapsToMainBlock()

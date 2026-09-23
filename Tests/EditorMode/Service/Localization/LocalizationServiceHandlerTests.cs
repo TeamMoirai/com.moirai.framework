@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Reflection;
 using System.Text.RegularExpressions;
 using Moirai.Atropos.Localization;
 using NUnit.Framework;
@@ -742,18 +741,13 @@ namespace Service.Localization
 
         #region 外观注册挂起 [FACADE PENDING]
 
-        // 外观静态状态跨用例共享：用反射快照/复位 s_Handler，保证 ServiceContractTests 的降级断言不受影响
-        private static readonly FieldInfo s_FacadeHandlerField =
-            typeof(LocalizationService).GetField("s_Handler", BindingFlags.Static | BindingFlags.NonPublic);
-
-        private static readonly FieldInfo s_HandlerLocalizersField =
-            typeof(LocalizationServiceHandler).GetField("_localizers", BindingFlags.Instance | BindingFlags.NonPublic);
+        // 外观静态状态跨用例共享：经生成的 Internal_PeekHandler / Internal_UseHandler 快照与复位，
+        // 保证 ServiceContractTests 的降级断言不受执行顺序影响
 
         private int CountRegistrationOf(LocalizerBase localizer)
         {
-            var list = (List<LocalizerBase>)s_HandlerLocalizersField.GetValue(_handler);
             var count = 0;
-            foreach (var item in list)
+            foreach (var item in _handler._localizers)
             {
                 if (ReferenceEquals(item, localizer)) count++;
             }
@@ -765,8 +759,7 @@ namespace Service.Localization
         public void AddLocalizer_BeforeHandlerReady_PendsAndReplaysOnce()
         {
             // 场景物体的 Awake 可能早于世界初始化：注册先挂起，就绪后回放且仅回放一次
-            var original = s_FacadeHandlerField.GetValue(null);
-            s_FacadeHandlerField.SetValue(null, null);
+            var original = LocalizationService.Internal_UseHandler(null);
             var container = new GameObject(nameof(AddLocalizer_BeforeHandlerReady_PendsAndReplaysOnce));
             var localizer = container.AddComponent<L10nProbeLocalizer>();
 
@@ -775,14 +768,14 @@ namespace Service.Localization
                 LocalizationService.AddLocalizer(localizer);
                 LocalizationService.AddLocalizer(localizer); // 重复注册不得重复入队
 
-                s_FacadeHandlerField.SetValue(null, _handler);
+                LocalizationService.Internal_UseHandler(_handler);
                 LocalizationService.ReplayPendingLocalizers();
 
                 Assert.AreEqual(1, CountRegistrationOf(localizer), "挂起注册应回放一次且仅一次");
             }
             finally
             {
-                s_FacadeHandlerField.SetValue(null, original);
+                LocalizationService.Internal_UseHandler(original);
                 _handler.RemoveLocalizer(localizer);
                 UnityEngine.Object.DestroyImmediate(container);
             }
@@ -791,8 +784,7 @@ namespace Service.Localization
         [Test]
         public void RemoveLocalizer_BeforeReplay_CancelsPendingRegistration()
         {
-            var original = s_FacadeHandlerField.GetValue(null);
-            s_FacadeHandlerField.SetValue(null, null);
+            var original = LocalizationService.Internal_UseHandler(null);
             var container = new GameObject(nameof(RemoveLocalizer_BeforeReplay_CancelsPendingRegistration));
             var localizer = container.AddComponent<L10nProbeLocalizer>();
 
@@ -801,14 +793,14 @@ namespace Service.Localization
                 LocalizationService.AddLocalizer(localizer);
                 LocalizationService.RemoveLocalizer(localizer); // 尚在挂起即取消
 
-                s_FacadeHandlerField.SetValue(null, _handler);
+                LocalizationService.Internal_UseHandler(_handler);
                 LocalizationService.ReplayPendingLocalizers();
 
                 Assert.AreEqual(0, CountRegistrationOf(localizer), "已取消的挂起注册不得回放进处理器");
             }
             finally
             {
-                s_FacadeHandlerField.SetValue(null, original);
+                LocalizationService.Internal_UseHandler(original);
                 UnityEngine.Object.DestroyImmediate(container);
             }
         }

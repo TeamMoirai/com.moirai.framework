@@ -21,7 +21,7 @@ namespace Moirai.Atropos.Localization
         [SerializeField] private string[] m_FallbackLanguageCodes = { "en" };
 
         // 本地化器列表
-        [NonSerialized] private readonly List<LocalizerBase> _localizers = new List<LocalizerBase>();
+        [NonSerialized] internal readonly List<LocalizerBase> _localizers = new List<LocalizerBase>();
         // 句柄式订阅表——静态事件那条路上"忘了注销"是唯一没人收口的泄漏，这里在关服时统一作废
         [NonSerialized] private readonly List<LanguageChangeSubscription> _subscriptions = new List<LanguageChangeSubscription>();
         [NonSerialized] private LocalizationStore _store;
