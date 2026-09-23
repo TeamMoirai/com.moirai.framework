@@ -307,14 +307,9 @@ namespace Service.Save
         #region 描述符 [DESCRIPTOR]
 
         /// <summary>
-        /// 经反射设置生成的私有静态 s_Handler（生成的 Handler 属性 setter 拒绝 null）。
+        /// 经生成的 <c>Internal_UseHandler</c> 直设外观处理器（Handler 属性 setter 拒绝 null）。
         /// </summary>
-        private static void SetHandler(object value)
-        {
-            typeof(SaveService)
-                .GetField("s_Handler", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)
-                .SetValue(null, value);
-        }
+        private static void SetHandler(SaveServiceHandler value) => SaveService.Internal_UseHandler(value);
 
         [Test]
         public void Descriptor_AttributeOverridesSettingsBackend()

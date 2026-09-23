@@ -20,17 +20,12 @@ namespace Service.Input
 
         private readonly List<GameObject> _objects = new List<GameObject>();
         private UIMobileInputHandler _handler;
-        private object _savedHandler;
-        private FieldInfo _s_HandlerField;
+        private InputServiceHandler _savedHandler;
 
         [SetUp]
         public void SetUp()
         {
-            _s_HandlerField = typeof(InputService).GetField("s_Handler",
-                BindingFlags.NonPublic | BindingFlags.Static);
-            Assert.IsNotNull(_s_HandlerField, "HandlerHost 生成的 s_Handler 字段应存在");
-
-            _savedHandler = _s_HandlerField.GetValue(null);
+            _savedHandler = InputService.Internal_PeekHandler();
             _handler = new UIMobileInputHandler();
             InputService.Handler = _handler;
         }
@@ -50,7 +45,7 @@ namespace Service.Input
                 _handler = null;
             }
 
-            _s_HandlerField.SetValue(null, _savedHandler);
+            InputService.Internal_UseHandler(_savedHandler);
         }
 
         private PreventInputOnEnable CreateComponent(bool lockPlayer, bool preventUi)

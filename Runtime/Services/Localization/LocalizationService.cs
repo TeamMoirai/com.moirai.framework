@@ -52,6 +52,7 @@ namespace Moirai.Atropos.Localization
         public override void OnInit()
         {
             Handler.OnLanguageChanged += OnLanguageChanged;
+            ReplayPendingLocalizers();
             DebuggerService.RegisterDebuggerWindow("Profiler/Localization", new LocalizationInformationWindow());
         }
 
@@ -66,6 +67,7 @@ namespace Moirai.Atropos.Localization
 
             if (handler != null) handler.OnLanguageChanged -= OnLanguageChanged;
             OnLanguageChanged = null;
+            s_PendingLocalizers = null;
             ResetOneShotLogs();
         }
 
@@ -97,6 +99,12 @@ namespace Moirai.Atropos.Localization
 
         /// <summary>已加载语言数（未就绪时为 0）。</summary>
         public static int LoadedLanguageCount => s_Handler?.LanguageCount ?? 0;
+
+        /// <summary>
+        /// 当前批内收录的语言（列序即批内列下标顺序；未就绪时为空）。
+        /// <para>语言真相源唯一：语言头随批自报，不存在第二份全局注册表。</para>
+        /// </summary>
+        public static IReadOnlyList<Language> LoadedLanguages => s_Handler?.LoadedLanguages ?? Array.Empty<Language>();
 
         /// <summary>
         /// 全部语言列的译文总字符数——常驻译文的规模下限（未就绪时为 0）。
@@ -200,6 +208,13 @@ namespace Moirai.Atropos.Localization
         /// <returns>激活的语言名称（未就绪时为 null）</returns>
         public static string ActivateNextLanguage() => s_Handler?.ActivateNextLanguage();
 
+        /// <summary>
+        /// 强制重载本地化词条（配置表热更、远程词库下发后调用；未就绪时为 no-op）。
+        /// <para>重载失败（数据源未就绪/整批拒载）保留上一份可用快照；成功换批后自动重注入全部本地化器并广播语言变更——
+        /// 语言未变也会广播，词条内容可能已更新。覆盖层按契约不被换批清空。</para>
+        /// </summary>
+        public static void ReloadTexts() => s_Handler?.ReloadTexts();
+
         #endregion
 
         #region 文本查询 [TEXT QUERIES]
@@ -259,15 +274,60 @@ namespace Moirai.Atropos.Localization
 
         #region 本地化器 [LOCALIZERS]
 
+        // 服务就绪前注册的本地化器挂起队列：场景物体的 Awake 可能早于世界初始化，
+        // 走 s_Handler?. 静默降级会让它永久不本地化且无重试——先挂起，OnInit 回灌。
+        // 懒建且回灌即弃，稳态（服务就绪后）不留存、零开销
+        private static List<LocalizerBase> s_PendingLocalizers;
+
         /// <summary>
         /// 添加本地化器。
+        /// <para>服务未就绪时入挂起队列（去重），<see cref="OnInit"/> 回灌；就绪后直发处理器。</para>
         /// </summary>
-        public static void AddLocalizer(LocalizerBase localizer) => s_Handler?.AddLocalizer(localizer);
+        public static void AddLocalizer(LocalizerBase localizer)
+        {
+            if (localizer == null) return;
+
+            var handler = s_Handler;
+            if (handler != null)
+            {
+                handler.AddLocalizer(localizer);
+                return;
+            }
+
+            s_PendingLocalizers ??= new List<LocalizerBase>(4);
+            if (!s_PendingLocalizers.Contains(localizer)) s_PendingLocalizers.Add(localizer);
+        }
 
         /// <summary>
         /// 移除本地化器。
+        /// <para>命中挂起队列即取消尚未回灌的注册；否则委派处理器摘除。</para>
         /// </summary>
-        public static void RemoveLocalizer(LocalizerBase localizer) => s_Handler?.RemoveLocalizer(localizer);
+        public static void RemoveLocalizer(LocalizerBase localizer)
+        {
+            if (localizer == null) return;
+            if (s_PendingLocalizers != null && s_PendingLocalizers.Remove(localizer)) return;
+
+            s_Handler?.RemoveLocalizer(localizer);
+        }
+
+        /// <summary>
+        /// 回灌挂起队列中的本地化器（<see cref="OnInit"/> 内调用；处理器未就绪时保留队列不丢注册）。
+        /// </summary>
+        internal static void ReplayPendingLocalizers()
+        {
+            var pending = s_PendingLocalizers;
+            if (pending == null || pending.Count == 0) return;
+
+            var handler = s_Handler;
+            if (handler == null) return;
+
+            s_PendingLocalizers = null;
+            for (var i = 0; i < pending.Count; i++)
+            {
+                if (pending[i] == null) continue;
+                handler.AddLocalizer(pending[i]);
+            }
+        }
 
         #endregion
 

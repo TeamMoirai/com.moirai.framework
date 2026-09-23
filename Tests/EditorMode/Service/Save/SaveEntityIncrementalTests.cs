@@ -2,7 +2,6 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
-using System.Reflection;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Cysharp.Threading.Tasks;
@@ -159,12 +158,9 @@ namespace Service.Save
         }
 
         /// <summary>
-        /// 直设外观处理器字段（生成的 Handler 属性 setter 拒绝 null，降级注入走反射）。
+        /// 直设外观处理器（生成的 Handler 属性 setter 拒绝 null，降级注入走 <c>Internal_UseHandler</c>）。
         /// </summary>
-        private static void SetFacadeHandler(SaveServiceHandler handler)
-        {
-            typeof(SaveService).GetField("s_Handler", BindingFlags.NonPublic | BindingFlags.Static).SetValue(null, handler);
-        }
+        private static void SetFacadeHandler(SaveServiceHandler handler) => SaveService.Internal_UseHandler(handler);
 
         /// <summary>
         /// 主线程等待异步任务完成（逐帧 yield 保持编辑器泵——工作线程入队的事件/日志在主线程派发窗口内到达；

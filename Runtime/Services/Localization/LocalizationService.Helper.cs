@@ -14,9 +14,6 @@ namespace Moirai.Atropos.Localization
     {
         /// <summary>不存在时的默认语言</summary>
         public static readonly Language defaultLanguage = Language.English;
-        
-        // 已加载的语言
-        private static readonly HashSet<Language> s_LoadedLanguage = new HashSet<Language>();
 
         // 所有内置语言（Name / Code，忽略大小写直接命中，省掉每次查询的 ToLower 分配）
         private static readonly Dictionary<string, Language> s_AllBuildInLanguageMap =
@@ -28,13 +25,8 @@ namespace Moirai.Atropos.Localization
         /// <summary>
         /// 复位一次性日志闸门。
         /// </summary>
-        /// <remarks>
-        /// <para>刻意不清 <see cref="s_LoadedLanguage"/>：可用语言是数据源解析词条时的副作用
-        /// （见 <c>LubanHandler.ResolveLocalization</c>），而词条字典在配置表侧是缓存且从不失效的。
-        /// 关服时清掉注册表，重开局就不会再有任何地方重新注册语言，结果是整套本地化静默失效。</para>
-        /// <para>只复位日志闸门：编辑器关闭域重载时 <c>static</c> 跨会话存活，
-        /// 否则"未初始化"这类一次性警告在第二次会话里彻底哑火。</para>
-        /// </remarks>
+        /// <remarks>只复位日志闸门：编辑器关闭域重载时 <c>static</c> 跨会话存活，
+        /// 否则"未初始化"这类一次性警告在第二次会话里彻底哑火。</remarks>
         internal static void ResetOneShotLogs()
         {
             s_HasLoggedWarning = false;
@@ -126,44 +118,44 @@ namespace Moirai.Atropos.Localization
         #endregion
 
         /// <summary>
-        /// 注册可用的多语言
+        /// 把自报语言代码序列解析为语言序列，列序即输入序。
+        /// <para>内置语言按 Name/Code 命中；认不出的代码按自定义语言直通（<see cref="Language"/> 相等性按 Code，
+        /// 自定义实例与同 Code 的内置实例等价，项目自定义语言无需改框架即可随表发行）。</para>
+        /// <para>本方法是语言列序的<strong>唯一</strong>解析入口——运行期处理与编辑器预览共用，不存在第二份语言真相源。</para>
         /// </summary>
-        /// <param name="str"></param>
-        public static void RegisterLanguageMap(string str)
+        internal static List<Language> ResolveLanguages(IReadOnlyList<string> codes)
         {
-            if (string.IsNullOrEmpty(str))
+            var languages = new List<Language>(codes?.Count ?? 0);
+            if (codes == null) return languages;
+
+            for (var i = 0; i < codes.Count; i++)
             {
-                str = defaultLanguage.Name;
+                var code = codes[i];
+                if (string.IsNullOrEmpty(code)) continue;
+
+                if (TryGetBuiltInLanguage(code, out var language))
+                {
+                    if (!languages.Contains(language)) languages.Add(language);
+                }
+                else
+                {
+                    var custom = new Language(code, code);
+                    if (!languages.Contains(custom)) languages.Add(custom);
+                }
             }
 
-            var language = Language.Unspecified;
-            if (s_AllBuildInLanguageMap.TryGetValue(str, out var foundByName))
-            {
-                language = foundByName;
-            }
-            else if (s_AllBuildInLanguageCodeMap.TryGetValue(str, out var foundByCode))
-            {
-                language = foundByCode;
-            }
-            
-            if (language != Language.Unspecified && s_LoadedLanguage.Add(language))
-            {
-                LogUtility.Info("Registered language[{0}]: {1}",s_LoadedLanguage.Count , language);
-            }
+            return languages;
         }
 
         /// <summary>
-        /// 获取所用可用的多语言
-        /// </summary>
-        /// <returns></returns>
-        public static List<Language> GetAllAvailableLanguages() => s_LoadedLanguage.ToList();
-        
-        /// <summary>
         /// 根据 名称/Code 获取语言。
         /// </summary>
-        /// <param name="str"></param>
-        /// <param name="onlySupported">是否只获取支持的语言，<c>false</c>表示仅根据设置获取语言，不关心本地化是否支持</param>
-        /// <returns>无法识别或未收录时为 <see cref="defaultLanguage"/></returns>
+        /// <param name="str">语言 Name 或 Code（不区分大小写）</param>
+        /// <param name="onlySupported">是否只获取当前批内收录的语言</param>
+        /// <returns>无法识别的输入、或 <paramref name="onlySupported"/> 为真且语言不在批内时为 <see cref="defaultLanguage"/></returns>
+        /// <remarks>「是否支持」的唯一真相源是已加载的语言批（全局注册表已删）：批未就绪时退化为身份解析
+        /// 直接放行，可用性由切换方在加载完成后校验（<c>ChangeLanguage</c> 有一次性告警）——
+        /// 不再出现"数据没加载就把 zh-Hans 静默落成默认英语"的双源歧义。</remarks>
         public static Language ToLanguage(string str, bool onlySupported)
         {
             // 处理边界条件：str 为空或 null
@@ -171,14 +163,14 @@ namespace Moirai.Atropos.Localization
             {
                 return defaultLanguage;
             }
-            
+
             Language target = defaultLanguage;
             // 尝试从语言代码映射中获取语言
             if (s_AllBuildInLanguageCodeMap.TryGetValue(str, out var langFromCode))
             {
                 target = langFromCode;
             }
-            
+
             // 尝试从语言名称映射中获取语言
             if (s_AllBuildInLanguageMap.TryGetValue(str, out var langFromName))
             {
@@ -186,8 +178,11 @@ namespace Moirai.Atropos.Localization
             }
 
             if (!onlySupported) return target;
-            
-            return s_LoadedLanguage.Contains(target) ? target : defaultLanguage;
+
+            var handler = s_Handler;
+            if (handler == null || !handler.IsDataLoaded) return target;
+
+            return handler.IsLanguageAvailable(target) ? target : defaultLanguage;
         }
 
         #region 编辑器预览 [EDITOR PREVIEW]
@@ -295,45 +290,19 @@ namespace Moirai.Atropos.Localization
                     return null;
                 }
 
-                // 未自报语言时回落到全局注册表：直读词条这条路径本身就会顺带把语言注册进来
-                // （生成侧的 Luban 处理器要到下次转表才会带出自报接口，此处不留窗口）
+                // 语言必须随表自报：未自报即预览不可用，不再回落任何全局注册表
                 if (codes == null || codes.Count == 0)
                 {
-                    var registered = GetAllAvailableLanguages();
-                    if (registered.Count == 0)
-                    {
-                        s_PreviewFailed = true;
-                        LogUtility.Warning("Localization preview unavailable: no language registered by the table.");
-                        return null;
-                    }
-
-                    var fallbackStore = new LocalizationStore();
-                    if (!fallbackStore.TryApply(new LocalizationTextBatch(registered, strings, "editor-preview"), out var fallbackKey))
-                    {
-                        s_PreviewFailed = true;
-                        LogUtility.Error("Localization preview unavailable: entry '{0}' column count mismatches {1} languages.",
-                            fallbackKey, registered.Count);
-                        return null;
-                    }
-
-                    s_PreviewStore = fallbackStore;
-                    return s_PreviewStore;
+                    s_PreviewFailed = true;
+                    LogUtility.Warning("Localization preview unavailable: the table does not self-report its languages.");
+                    return null;
                 }
 
-                var languages = new List<Language>(codes.Count);
-                for (var i = 0; i < codes.Count; i++)
-                {
-                    if (TryGetBuiltInLanguage(codes[i], out var language) && !languages.Contains(language))
-                    {
-                        languages.Add(language);
-                    }
-                }
-
+                var languages = ResolveLanguages(codes);
                 if (languages.Count == 0)
                 {
                     s_PreviewFailed = true;
-                    LogUtility.Error("Localization preview unavailable: table languages [{0}] are none of them built-in Name/Code.",
-                        string.Join(", ", codes));
+                    LogUtility.Error("Localization preview unavailable: table language codes are all empty.");
                     return null;
                 }
 

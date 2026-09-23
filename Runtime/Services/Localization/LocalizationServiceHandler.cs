@@ -21,7 +21,7 @@ namespace Moirai.Atropos.Localization
         [SerializeField] private string[] m_FallbackLanguageCodes = { "en" };
 
         // 本地化器列表
-        [NonSerialized] private readonly List<LocalizerBase> _localizers = new List<LocalizerBase>();
+        [NonSerialized] internal readonly List<LocalizerBase> _localizers = new List<LocalizerBase>();
         // 句柄式订阅表——静态事件那条路上"忘了注销"是唯一没人收口的泄漏，这里在关服时统一作废
         [NonSerialized] private readonly List<LanguageChangeSubscription> _subscriptions = new List<LanguageChangeSubscription>();
         [NonSerialized] private LocalizationStore _store;
@@ -32,6 +32,8 @@ namespace Moirai.Atropos.Localization
         [NonSerialized] private bool _dataLoaded;
         // 数据加载失败日志只打一次（数据未就绪时每次查询都会重试加载，避免刷屏）
         [NonSerialized] private bool _hasLoggedLoadError;
+        // "无可用语言"日志只打一次（ChangeLanguage 与 Activate 系列共一只闸门，成功加载后复位）
+        [NonSerialized] private bool _hasLoggedNoLanguage;
         // 格式化失败日志只打一次（占位符与参数不匹配属表内缺陷，逐条刷屏会淹没日志）
         [NonSerialized] private bool _hasLoggedFormatError;
         // 当前语言在批内的列下标：查询热路径用，省去每次线性扫语言表
@@ -58,6 +60,25 @@ namespace Moirai.Atropos.Localization
             {
                 EnsureLocalizedStringsLoaded();
                 return _currentLanguageIndex;
+            }
+        }
+
+        /// <summary>数据是否已加载完成（<c>ToLanguage</c> 的「支持性」判定在未加载时退化为身份解析）。</summary>
+        internal bool IsDataLoaded => _dataLoaded;
+
+        /// <summary>语言是否在当前批内（调用方须已确认数据加载完成，见 <see cref="IsDataLoaded"/>）。</summary>
+        internal bool IsLanguageAvailable(Language language) => language != null && Store.IndexOf(language) >= 0;
+
+        /// <summary>
+        /// 当前批内收录的语言（列序即批内列下标顺序；数据未就绪时为空）。
+        /// <para>语言真相源唯一：语言头随批自报，不存在第二份全局注册表。</para>
+        /// </summary>
+        public IReadOnlyList<Language> LoadedLanguages
+        {
+            get
+            {
+                EnsureLocalizedStringsLoaded();
+                return Store.Batch.Languages;
             }
         }
 
@@ -139,6 +160,7 @@ namespace Moirai.Atropos.Localization
             _settingSource = string.Empty;
             _dataLoaded = false;
             _hasLoggedLoadError = false;
+            _hasLoggedNoLanguage = false;
             _hasLoggedFormatError = false;
             _currentLanguageIndex = -1;
             _isSwitching = false;
@@ -240,6 +262,9 @@ namespace Moirai.Atropos.Localization
 
             if (Store.TryApply(batch, out var rejectedKey))
             {
+                // 成功即复位闸门：之后再次失败（热更包损坏等）仍应能上报，而不是永久哑火
+                _hasLoggedLoadError = false;
+                _hasLoggedNoLanguage = false;
                 LogUtility.Info("Load Localized Text Success! [{0}] {1} entries x {2} languages",
                     batch.SourceId, batch.Strings.Count, batch.Languages.Length);
                 return;
@@ -253,6 +278,51 @@ namespace Moirai.Atropos.Localization
                 LogUtility.Error("Localized strings '{0}' from source '{1}' has a column count that mismatches the {2} declared languages; the whole batch is rejected.",
                     rejectedKey, batch.SourceId, batch.Languages.Length);
             }
+        }
+
+        /// <summary>
+        /// 强制重载本地化词条（配置表热更、远程词库下发后调用）。
+        /// <para>不走 <see cref="EnsureLocalizedStringsLoaded"/>：它能区分「从未加载」与「已加载」，
+        /// 但分不出「旧快照还在」与「重载成功」——引用比较换入前后的批快照，
+        /// 失败的热更才不会触发一次假的语言变更广播。</para>
+        /// <para>未换入新快照时一切保持不动（旧快照、当前语言、已显示文案）；
+        /// 换入后当前语言仍在批内则强制重注入并广播（语言未变但词条可能已更新），
+        /// 不在批内则按检测/回退/表首项兜底重选。覆盖层按契约不被换批清空。</para>
+        /// </summary>
+        public void ReloadTexts()
+        {
+            if (_isSwitching)
+            {
+                // 与嵌套 ChangeLanguage 同理：注入回调里重载会打乱快照与事件顺序
+                LogUtility.Error("ReloadTexts is ignored: a language switch is already in progress.");
+                return;
+            }
+
+            var previousBatch = Store.Batch;
+            LoadLocalizedStrings();
+            if (Store.LanguageCount == 0)
+            {
+                // 从未成功加载过：维持未就绪，后续查询继续走懒加载重试
+                _dataLoaded = false;
+                return;
+            }
+
+            _dataLoaded = true;
+            if (ReferenceEquals(Store.Batch, previousBatch)) return;
+
+            ResolveFallbackChain();
+
+            var currentIndex = Store.IndexOf(_currentLanguage);
+            if (currentIndex < 0)
+            {
+                // 当前语言不在新批内（热更砍掉了语言）：重选走完整 ChangeLanguage 流程
+                ChangeLanguage(ResolveInitialLanguage(), true, false);
+                return;
+            }
+
+            _currentLanguageIndex = currentIndex;
+            ReinjectLocalizers();
+            RaiseLanguageChanged(_currentLanguage);
         }
 
         /// <summary>
@@ -340,7 +410,7 @@ namespace Moirai.Atropos.Localization
 
             if (Store.LanguageCount == 0)
             {
-                LogUtility.Error("No language available!");
+                LogNoLanguageOnce();
                 return;
             }
 
@@ -359,23 +429,7 @@ namespace Moirai.Atropos.Localization
                 _currentLanguage = Store.LanguageAt(languageIndex);
                 _currentLanguageIndex = languageIndex;
 
-                // 先重注入再抛事件：订阅者在 OnLanguageChanged 回调里取文本必须已拿到新语言。
-                // 快照遍历 + 异常隔离，单个本地化器失败不影响其余，也防注入期间销毁导致的集合变更
-                var snapshot = _localizers.ToArray();
-                foreach (var localizer in snapshot)
-                {
-                    if (localizer == null) continue;
-
-                    try
-                    {
-                        localizer.Localize();
-                    }
-                    catch (Exception ex)
-                    {
-                        LogUtility.Error(ex);
-                    }
-                }
-
+                ReinjectLocalizers();
                 RaiseLanguageChanged(_currentLanguage);
 
                 if (persist) SettingUtility.SetString(GameConstant.Setting.LANGUAGE, _currentLanguage.Code);
@@ -385,6 +439,36 @@ namespace Moirai.Atropos.Localization
             {
                 _isSwitching = false;
             }
+        }
+
+        /// <summary>
+        /// 重注入全部本地化器。先重注入再抛事件：订阅者在 OnLanguageChanged 回调里取文本必须已拿到新语言。
+        /// 快照遍历 + 异常隔离，单个本地化器失败不影响其余，也防注入期间销毁导致的集合变更。
+        /// </summary>
+        private void ReinjectLocalizers()
+        {
+            var snapshot = _localizers.ToArray();
+            foreach (var localizer in snapshot)
+            {
+                if (localizer == null) continue;
+
+                try
+                {
+                    localizer.Localize();
+                }
+                catch (Exception ex)
+                {
+                    LogUtility.Error(ex);
+                }
+            }
+        }
+
+        private void LogNoLanguageOnce()
+        {
+            if (_hasLoggedNoLanguage) return;
+
+            _hasLoggedNoLanguage = true;
+            LogUtility.Error("No language available!");
         }
 
         private void RaiseLanguageChanged(Language language)
@@ -445,7 +529,7 @@ namespace Moirai.Atropos.Localization
             var count = Store.LanguageCount;
             if (count == 0)
             {
-                LogUtility.Error("No language available!");
+                LogNoLanguageOnce();
                 return null;
             }
 
@@ -464,7 +548,7 @@ namespace Moirai.Atropos.Localization
             var count = Store.LanguageCount;
             if (count == 0)
             {
-                LogUtility.Error("No language available!");
+                LogNoLanguageOnce();
                 return null;
             }
 
@@ -506,9 +590,14 @@ namespace Moirai.Atropos.Localization
         }
 
         /// <summary>
-        /// 添加本地化器
+        /// 添加本地化器（幂等去重：重复注册同一实例不得产生第二次重注入）。
         /// </summary>
-        public void AddLocalizer(LocalizerBase localizer) => _localizers.Add(localizer);
+        public void AddLocalizer(LocalizerBase localizer)
+        {
+            if (localizer == null || _localizers.Contains(localizer)) return;
+
+            _localizers.Add(localizer);
+        }
 
         /// <summary>
         /// 移除本地化器

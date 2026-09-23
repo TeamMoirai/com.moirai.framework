@@ -64,7 +64,6 @@ namespace Service.Localization
         {
             // 检测链给出的语言完全可能没进这批词条（中文系统跑只出英日的包）。
             // 此时必须兜到回退链/表头，而不是把当前语言停在表外——那会让每一条查询都露 key
-            LocalizationService.RegisterLanguageMap(Chinese.Name);
             _handler.Languages = new List<Language> { English, Japanese };
             _handler.Strings = new Dictionary<string, List<string>>
             {
@@ -628,6 +627,219 @@ namespace Service.Localization
             Assert.AreEqual("test", batch.SourceId);
         }
 
+        [Test]
+        public void ConfigTableHandler_WithoutSelfReportedLanguages_RejectsBatchAndKeepsRetryable()
+        {
+            // 语言必须随表自报：EditMode 下 ConfigTableService 降级（无处理器），codes 为空 →
+            // 整批拒载、保持未就绪可重试，不再回落任何全局注册表
+            var handler = new ConfigTableLocalizationHandler { FallbackLanguageCodes = new[] { "en" } };
+            handler.Internal_Init();
+
+            try
+            {
+                LogAssert.Expect(LogType.Error, new Regex("generate config first"));
+
+                Assert.AreEqual("ui.title", handler.GetTextFromId("ui.title"));
+                Assert.AreEqual("ui.title", handler.GetTextFromId("ui.title"), "拒载后必须保持重试语义而非哑死");
+                Assert.AreEqual(0, handler.EntryCount);
+                Assert.AreEqual(0, handler.LoadedLanguages.Count);
+            }
+            finally
+            {
+                handler.Internal_Shutdown();
+            }
+        }
+
+        [Test]
+        public void ResolveLanguages_UnknownCodesBecomeCustomLanguagesInOrder()
+        {
+            // 项目自定义语言（不在内置表）随表发行：按自定义语言直通且列序不被重排
+            var languages = LocalizationService.ResolveLanguages(new[] { "zh-Hans", "Klingon" });
+
+            Assert.AreEqual(2, languages.Count);
+            Assert.AreSame(Language.ChineseSimplified, languages[0]);
+            Assert.IsTrue(languages[1].Custom);
+            Assert.AreEqual("Klingon", languages[1].Code);
+        }
+
+        #endregion
+
+        #region 加载失败闸门 [LOAD FAILURE GATES]
+
+        [Test]
+        public void LoadThrowing_LogsOnlyOnceAcrossQueries()
+        {
+            // 数据源抛异常必须与空批同待遇：表未就绪期间每个 localizer/查询都在重试，无闸门即异常堆栈风暴
+            // 注：LogUtility.Error(ex) 经 DefaultLogHandler 以 LogType.Error 渲染（异常文本内嵌）
+            _handler.ThrowOnLoad = new InvalidOperationException("probe tables not ready");
+            LogAssert.Expect(LogType.Error, new Regex("probe tables not ready"));
+
+            Assert.AreEqual("ui.title", _handler.GetTextFromId("ui.title"));
+            Assert.AreEqual("ui.title", _handler.GetTextFromId("ui.title"));
+            Assert.AreEqual("ui.title", _handler.GetTextFromId("ui.title"));
+            Assert.GreaterOrEqual(_handler.LoadCallCount, 1, "未就绪时应保持重试语义");
+        }
+
+        [Test]
+        public void NoLanguage_LogsOnlyOnceAcrossSwitchAttempts()
+        {
+            LogAssert.Expect(LogType.Error, new Regex("generate config first"));
+            LogAssert.Expect(LogType.Error, new Regex("No language available"));
+
+            _handler.ChangeLanguage(English);
+            _handler.ChangeLanguage(Chinese);
+            Assert.IsNull(_handler.ActivateNextLanguage());
+            Assert.IsNull(_handler.ActivatePreviousLanguage());
+        }
+
+        #endregion
+
+        #region 数据重载 [RELOAD]
+
+        [Test]
+        public void ReloadTexts_SwapsBatch()
+        {
+            LoadStrings("ui.title", "Title", "标题");
+            _handler.ChangeLanguage(English);
+            Assert.AreEqual("Title", _handler.GetTextFromId("ui.title"));
+
+            _handler.Strings["ui.title"] = new List<string> { "TitleV2", "标题V2" };
+            _handler.ReloadTexts();
+
+            Assert.AreEqual("TitleV2", _handler.GetTextFromId("ui.title"));
+            Assert.AreEqual(2, _handler.LoadCallCount);
+        }
+
+        [Test]
+        public void ReloadTexts_WhenSourceBroken_KeepsPreviousSnapshot()
+        {
+            LoadStrings("ui.title", "Title", "标题");
+            _handler.ChangeLanguage(English);
+
+            _handler.ThrowOnLoad = new InvalidOperationException("probe hotfix corrupted");
+            LogAssert.Expect(LogType.Error, new Regex("probe hotfix corrupted"));
+            _handler.ReloadTexts();
+
+            Assert.AreEqual("Title", _handler.GetTextFromId("ui.title"), "重载失败必须保留上一份可用快照");
+            Assert.AreEqual(English, _handler.CurrentLanguage);
+        }
+
+        [Test]
+        public void ReloadTexts_SameLanguage_ReinjectsAndRaisesEvent()
+        {
+            // 语言未变时 ChangeLanguage 早退，但词条内容可能已更新——重载必须强制重注入并广播
+            LoadStrings("ui.title", "Title", "标题");
+            _handler.ChangeLanguage(English);
+            var container = new GameObject(nameof(ReloadTexts_SameLanguage_ReinjectsAndRaisesEvent));
+            var localizer = container.AddComponent<L10nProbeLocalizer>();
+
+            try
+            {
+                _handler.AddLocalizer(localizer);
+                var eventCount = 0;
+                _handler.OnLanguageChanged += _ => eventCount++;
+                var localizeBefore = localizer.LocalizeCount;
+
+                _handler.ReloadTexts();
+
+                Assert.Greater(localizer.LocalizeCount, localizeBefore, "语言未变也必须强制重注入");
+                Assert.AreEqual(1, eventCount, "语言未变也必须广播一次，订阅方才拿得到新文案");
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(container);
+            }
+        }
+
+        #endregion
+
+        #region 外观注册挂起 [FACADE PENDING]
+
+        // 外观静态状态跨用例共享：经生成的 Internal_PeekHandler / Internal_UseHandler 快照与复位，
+        // 保证 ServiceContractTests 的降级断言不受执行顺序影响
+
+        private int CountRegistrationOf(LocalizerBase localizer)
+        {
+            var count = 0;
+            foreach (var item in _handler._localizers)
+            {
+                if (ReferenceEquals(item, localizer)) count++;
+            }
+
+            return count;
+        }
+
+        [Test]
+        public void AddLocalizer_BeforeHandlerReady_PendsAndReplaysOnce()
+        {
+            // 场景物体的 Awake 可能早于世界初始化：注册先挂起，就绪后回放且仅回放一次
+            var original = LocalizationService.Internal_UseHandler(null);
+            var container = new GameObject(nameof(AddLocalizer_BeforeHandlerReady_PendsAndReplaysOnce));
+            var localizer = container.AddComponent<L10nProbeLocalizer>();
+
+            try
+            {
+                LocalizationService.AddLocalizer(localizer);
+                LocalizationService.AddLocalizer(localizer); // 重复注册不得重复入队
+
+                LocalizationService.Internal_UseHandler(_handler);
+                LocalizationService.ReplayPendingLocalizers();
+
+                Assert.AreEqual(1, CountRegistrationOf(localizer), "挂起注册应回放一次且仅一次");
+            }
+            finally
+            {
+                LocalizationService.Internal_UseHandler(original);
+                _handler.RemoveLocalizer(localizer);
+                UnityEngine.Object.DestroyImmediate(container);
+            }
+        }
+
+        [Test]
+        public void RemoveLocalizer_BeforeReplay_CancelsPendingRegistration()
+        {
+            var original = LocalizationService.Internal_UseHandler(null);
+            var container = new GameObject(nameof(RemoveLocalizer_BeforeReplay_CancelsPendingRegistration));
+            var localizer = container.AddComponent<L10nProbeLocalizer>();
+
+            try
+            {
+                LocalizationService.AddLocalizer(localizer);
+                LocalizationService.RemoveLocalizer(localizer); // 尚在挂起即取消
+
+                LocalizationService.Internal_UseHandler(_handler);
+                LocalizationService.ReplayPendingLocalizers();
+
+                Assert.AreEqual(0, CountRegistrationOf(localizer), "已取消的挂起注册不得回放进处理器");
+            }
+            finally
+            {
+                LocalizationService.Internal_UseHandler(original);
+                UnityEngine.Object.DestroyImmediate(container);
+            }
+        }
+
+        [Test]
+        public void AddLocalizer_SameInstanceTwice_RegistersOnce()
+        {
+            var container = new GameObject(nameof(AddLocalizer_SameInstanceTwice_RegistersOnce));
+            var localizer = container.AddComponent<L10nProbeLocalizer>();
+
+            try
+            {
+                _handler.AddLocalizer(localizer);
+                _handler.AddLocalizer(localizer);
+                _handler.AddLocalizer(null); // 空引用直接忽略
+
+                Assert.AreEqual(1, CountRegistrationOf(localizer));
+            }
+            finally
+            {
+                _handler.RemoveLocalizer(localizer);
+                UnityEngine.Object.DestroyImmediate(container);
+            }
+        }
+
         #endregion
 
         #region 语言解析 [LANGUAGE RESOLUTION]
@@ -695,7 +907,7 @@ namespace Service.Localization
         }
     }
 
-    /// <summary>桩本地化数据源——按生产约定在解析词条的同时注册可用语言。</summary>
+    /// <summary>桩本地化数据源——语言经返回元组随批自报（语言头与词条同源同序）。</summary>
     internal sealed class L10nProbeHandler : LocalizationServiceHandler
     {
         public List<Language> Languages = new List<Language>();
@@ -708,11 +920,6 @@ namespace Service.Localization
         {
             LoadCallCount++;
             if (ThrowOnLoad != null) throw ThrowOnLoad;
-
-            foreach (var language in Languages)
-            {
-                LocalizationService.RegisterLanguageMap(language.Name);
-            }
 
             return (Languages, Strings);
         }

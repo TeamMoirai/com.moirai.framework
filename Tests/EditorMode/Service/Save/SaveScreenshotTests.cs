@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Reflection;
 using System.Text.RegularExpressions;
 using Moirai.Atropos;
 using Moirai.Atropos.Save;
@@ -75,12 +74,9 @@ namespace Service.Save
         private void OnScreenshotCaptured(SaveScreenshotArgs args) => _screenshotEvents.Add(args);
 
         /// <summary>
-        /// 直设外观处理器字段（生成的 Handler 属性 setter 拒绝 null，降级注入走反射）。
+        /// 直设外观处理器（生成的 Handler 属性 setter 拒绝 null，降级注入走 <c>Internal_UseHandler</c>）。
         /// </summary>
-        private static void SetFacadeHandler(SaveServiceHandler handler)
-        {
-            typeof(SaveService).GetField("s_Handler", BindingFlags.NonPublic | BindingFlags.Static).SetValue(null, handler);
-        }
+        private static void SetFacadeHandler(SaveServiceHandler handler) => SaveService.Internal_UseHandler(handler);
 
         /// <summary>
         /// 为随后一条 Warning 日志声明 UTF 预期（仅 DefaultLogHandler 同步链路下 UTF 可见）。

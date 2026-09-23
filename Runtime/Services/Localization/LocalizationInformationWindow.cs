@@ -56,7 +56,7 @@ namespace Moirai.Atropos.Localization
 
             VisualElement switchCard = AddSection(root, "SWITCH LANGUAGE");
             _languages.Clear();
-            _languages.AddRange(LocalizationService.GetAllAvailableLanguages());
+            _languages.AddRange(LocalizationService.LoadedLanguages);
             if (_languages.Count == 0)
             {
                 switchCard.Add(DebuggerUI.CreateHintLabel("No available languages (localization data not loaded)."));

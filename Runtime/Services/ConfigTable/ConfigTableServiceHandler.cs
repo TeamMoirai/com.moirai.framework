@@ -24,8 +24,8 @@ namespace Moirai.Atropos.ConfigTable
         /// </summary>
         /// <remarks>
         /// 顺序必须与 <see cref="GetAllLocalizedStrings"/> 里每条文本的列顺序一致——本地化侧据此校验列数、
-        /// 并按此解析回退链，从此不再依赖「向全局注册表注册语言」这一副作用与它的求值顺序。
-        /// 返回空表示未自报（存量项目行为），此时本地化侧回落全局注册表。
+        /// 并按此解析回退链。<b>语言必须随表自报</b>：返回空时本地化侧以「数据未就绪」整批拒载并保持重试，
+        /// 不存在可回落的全局注册表（双真相源已删）。认不出的 Code 会按自定义语言直通，列序不被重排。
         /// </remarks>
         public abstract IReadOnlyList<string> GetLocalizationLanguageCodes();
 

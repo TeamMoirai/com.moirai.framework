@@ -33,6 +33,8 @@ namespace Moirai.GameProto.Config
         #region 处理多语言 [LOCALIZATION]
 
         private Dictionary<string, List<string>> _allLocalizedStrings;
+        private string[] _localizationLanguageCodes;
+
         public override Dictionary<string, List<string>> GetAllLocalizedStrings()
         {
             if (_allLocalizedStrings == null)
@@ -43,7 +45,7 @@ namespace Moirai.GameProto.Config
             return _allLocalizedStrings;
         }
         
-        private string[] _localizationLanguageCodes;
+
         /// <summary>
         /// 自报本表提供的语言：顺序即 <see cref="GetAllLocalizedStrings"/> 里每条形文本的列顺序。
         /// <para>框架据此校验列数并解析缺译回退链，不再依赖「向全局注册表注册语言」这一副作用。</para>
@@ -74,12 +76,18 @@ namespace Moirai.GameProto.Config
             // 获取所有公共实例字段
             FieldInfo[] fields = type.GetFields(BindingFlags.Public | BindingFlags.Instance);
 
-            _localizationLanguageCodes = new string[fields.Length];
-            // 注册所有可用的多语言
-            for (int i = 0; i < fields.Length; i++)
+            // 语言列序与词条列序同源：同一过滤枚举产出语言自报与字符串列，任何一侧都不单独求序。
+            // 自报内容即字段名（内置语言 Name，框架内置/自定义语言均按列序直通）
+            var languageFields = new List<FieldInfo>(fields.Length);
+            foreach (var field in fields)
             {
-                _localizationLanguageCodes[i] = LocalizationService.ToLanguage(fields[i].Name, false).Code;
-                LocalizationService.RegisterLanguageMap(fields[i].Name);
+                if (field.IsInitOnly && field.FieldType == typeof(string)) languageFields.Add(field);
+            }
+
+            _localizationLanguageCodes = new string[languageFields.Count];
+            for (int i = 0; i < languageFields.Count; i++)
+            {
+                _localizationLanguageCodes[i] = languageFields[i].Name;
             }
 
             // 处理所有多语言数据
@@ -88,27 +96,23 @@ namespace Moirai.GameProto.Config
             var localizedStrings = new Dictionary<string, List<string>>();
             foreach (var data in Tables.TbLocalizedStrings.DataList)
             {
-                foreach (FieldInfo field in fields)
+                foreach (FieldInfo field in languageFields)
                 {
-                    // 检查字段是否为 readonly 并且类型为 string
-                    if (field.IsInitOnly && field.FieldType == typeof(string))
+                    // 获取多语言的 Key
+                    string key = data.Key;
+                    // 获取多语言的字段值
+                    string fieldValue = (string)field.GetValue(data.FormattedStrings);
+
+                    // 输出字段名称和值
+                    // Debug.Log($"[{key}] Field Name: {field.Name}, Value: {fieldValue}");
+
+                    if (localizedStrings.ContainsKey(key))
                     {
-                        // 获取多语言的 Key
-                        string key = data.Key;
-                        // 获取多语言的字段值
-                        string fieldValue = (string)field.GetValue(data.FormattedStrings);
-
-                        // 输出字段名称和值
-                        // Debug.Log($"[{key}] Field Name: {field.Name}, Value: {fieldValue}");
-
-                        if (localizedStrings.ContainsKey(key))
-                        {
-                            localizedStrings[key].Add(fieldValue);
-                        }
-                        else
-                        {
-                            localizedStrings.Add(key, new List<string> { fieldValue });
-                        }
+                        localizedStrings[key].Add(fieldValue);
+                    }
+                    else
+                    {
+                        localizedStrings.Add(key, new List<string> { fieldValue });
                     }
                 }
             }
