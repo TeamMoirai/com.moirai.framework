@@ -199,6 +199,7 @@ Configure `WarmupAudioHostPool` and `AudioHostWarmupCount` in `AudioServiceSetti
 
 - `Play` returns `0UL` on failure (no channel, unconfigured track, paused track, backend not initialized)  
 - Paused tracks block new plays; `MasterVolume` getter always returns the unmuted setting value (consistent across backends)  
+- The per-track pause flags are owned by the contract, but **allocation and reset stay on each backend's own schedule**: on the Unity side a `PauseTrack` before the backend's `Initialize` is silently dropped, and `OnShutdown` voids every flag. To have a track muted from boot, configure `AudioServiceSettings` rather than relying on `PauseTrack`  
 - Middleware backends return null for `GetAgentByHandle` / `ForEachAgentByID` — use handle APIs; InitialDelay / PlaybackDuration / Solo are unsupported  
 - `DoNotAutoRecycle` defaults to true consistently across factories and overloads  
 - No-channel warnings are throttled per track (3 s) as Warning  

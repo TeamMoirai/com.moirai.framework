@@ -233,6 +233,7 @@ AudioService.ResetMixSnapshot(0.25f);
 
 - `Play` 返回 `0UL` 表示失败（无通道、音轨未配置、音轨暂停中、后端未初始化等）  
 - 暂停的音轨会拦截新播放；`MasterVolume` getter 始终返回未静音的设置值（两后端语义一致）  
+- 音轨暂停标记由契约持有（`_pausedTracks`），但**数组的建立与释放仍按后端各自的时机**：Unity 侧在后端 `Initialize` 之前调 `PauseTrack` 不会记上（也不报错），关停后标记全部作废。要在启动期就静音某条音轨，请配 `AudioServiceSettings` 而不是等 `PauseTrack`  
 - 中间件后端 `GetAgentByHandle` / `ForEachAgentByID` 返回空——无 Unity `AudioSource` Agent，请用句柄 API；不支持 InitialDelay / PlaybackDuration / Solo  
 - 各工厂方法与重载的 `DoNotAutoRecycle` 默认统一为 true（不抢占未播完的通道）  
 - 无可用通道的告警按轨节流（3 秒）降级为 Warning  

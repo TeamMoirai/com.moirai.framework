@@ -22,8 +22,7 @@ namespace Moirai.Atropos.Audio
         [NonSerialized] private AudioGroupConfig[] _audioGroupConfigs;
         [NonSerialized] private bool _unityAudioDisabled;
 
-        // 音轨暂停状态（数组索引 = (int)EAudioTrack）
-        [NonSerialized] private bool[] _pausedTracks;
+        // 音轨暂停标记 _pausedTracks 已上移到契约（数组仍在这里的 Initialize/OnShutdown 建与散）
         // 音轨 -> Category 缓存，O(1) 数组直接访问
         [NonSerialized] private AudioCategory[] _categoryCache;
         // 音轨 -> AudioGroupConfig 缓存，O(1) 数组直接访问
@@ -821,13 +820,7 @@ namespace Moirai.Atropos.Audio
         {
             if (_unityAudioDisabled) return;
 
-            if (_pausedTracks != null)
-            {
-                int index = (int)track;
-                if (index >= 0 && index < _pausedTracks.Length)
-                    _pausedTracks[index] = true;
-            }
-
+            SetTrackPaused(track, true);
             FindCategory(track)?.PauseAll();
         }
 
@@ -836,13 +829,7 @@ namespace Moirai.Atropos.Audio
         {
             if (_unityAudioDisabled) return;
 
-            if (_pausedTracks != null)
-            {
-                int index = (int)track;
-                if (index >= 0 && index < _pausedTracks.Length)
-                    _pausedTracks[index] = false;
-            }
-
+            SetTrackPaused(track, false);
             FindCategory(track)?.UnpauseAll();
         }
 
@@ -855,17 +842,6 @@ namespace Moirai.Atropos.Audio
             if (_unityAudioDisabled) return;
 
             FindCategory(track)?.StopAll(fadeoutDuration);
-        }
-
-        /// <summary>
-        /// 音轨是否处于暂停态。暂停轨会同时拦截新播放（与中间件后端语义一致）。
-        /// </summary>
-        private bool IsTrackPaused(EAudioTrack track)
-        {
-            if (_pausedTracks == null) return false;
-
-            int index = (int)track;
-            return index >= 0 && index < _pausedTracks.Length && _pausedTracks[index];
         }
 
         #endregion 音轨控制 [TRACK CONTROLS]

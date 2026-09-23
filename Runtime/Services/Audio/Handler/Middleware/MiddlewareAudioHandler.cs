@@ -118,7 +118,7 @@ namespace Moirai.Atropos.Audio.Middleware
         [NonSerialized] private bool _masterMute;
         [NonSerialized] private float[] _trackVolumes;
         [NonSerialized] private bool[] _trackMutes;
-        [NonSerialized] private bool[] _pausedTracks;
+        // 音轨暂停标记 _pausedTracks 已上移到契约（数组仍在这里的 EnsureTrackArrays 懒建）
 
         [Header("事件映射表 [Event Map]")]
         [Tooltip("AudioClip → 事件路径。命中即用，不再按 clip.name 推导；未命中回落到推导并提示一次。")]
@@ -818,8 +818,7 @@ namespace Moirai.Atropos.Audio.Middleware
         public override void PauseTrack(EAudioTrack track)
         {
             EnsureTrackArrays();
-            int index = (int)track;
-            if (index >= 0 && index < _pausedTracks.Length) _pausedTracks[index] = true;
+            SetTrackPaused(track, true);
 
             foreach (var slot in _handles.Slots)
             {
@@ -831,8 +830,7 @@ namespace Moirai.Atropos.Audio.Middleware
         public override void UnpauseTrack(EAudioTrack track)
         {
             EnsureTrackArrays();
-            int index = (int)track;
-            if (index >= 0 && index < _pausedTracks.Length) _pausedTracks[index] = false;
+            SetTrackPaused(track, false);
 
             foreach (var slot in _handles.Slots)
             {
@@ -844,8 +842,7 @@ namespace Moirai.Atropos.Audio.Middleware
         public override bool IsPaused(EAudioTrack track)
         {
             EnsureTrackArrays();
-            int index = (int)track;
-            return index >= 0 && index < _pausedTracks.Length && _pausedTracks[index];
+            return IsTrackPaused(track);
         }
 
         /// <inheritdoc />
@@ -857,12 +854,7 @@ namespace Moirai.Atropos.Audio.Middleware
                 if (slot.Voice.Track == track) _handleScratch.Add(slot.Handle);
             }
 
-            for (int i = 0; i < _handleScratch.Count; i++)
-            {
-                Stop(_handleScratch[i], fadeoutDuration);
-            }
-
-            _handleScratch.Clear();
+            StopCollected(fadeoutDuration);
         }
 
         #endregion 音轨控制 [TRACK CONTROLS]
@@ -890,12 +882,7 @@ namespace Moirai.Atropos.Audio.Middleware
                 _handleScratch.Add(slot.Handle);
             }
 
-            for (int i = 0; i < _handleScratch.Count; i++)
-            {
-                Stop(_handleScratch[i], fadeoutDuration);
-            }
-
-            _handleScratch.Clear();
+            StopCollected(fadeoutDuration);
         }
 
         /// <inheritdoc />
@@ -904,16 +891,10 @@ namespace Moirai.Atropos.Audio.Middleware
             _handleScratch.Clear();
             foreach (var slot in _handles.Slots)
             {
-                if (slot.Voice.Persistent) continue;
-                _handleScratch.Add(slot.Handle);
+                if (!slot.Voice.Persistent) _handleScratch.Add(slot.Handle);
             }
 
-            for (int i = 0; i < _handleScratch.Count; i++)
-            {
-                Stop(_handleScratch[i], fadeoutDuration);
-            }
-
-            _handleScratch.Clear();
+            StopCollected(fadeoutDuration);
         }
 
         /// <inheritdoc />
@@ -922,16 +903,10 @@ namespace Moirai.Atropos.Audio.Middleware
             _handleScratch.Clear();
             foreach (var slot in _handles.Slots)
             {
-                if (!slot.Voice.Loop) continue;
-                _handleScratch.Add(slot.Handle);
+                if (slot.Voice.Loop) _handleScratch.Add(slot.Handle);
             }
 
-            for (int i = 0; i < _handleScratch.Count; i++)
-            {
-                Stop(_handleScratch[i], fadeoutDuration);
-            }
-
-            _handleScratch.Clear();
+            StopCollected(fadeoutDuration);
         }
 
         /// <inheritdoc />
@@ -939,6 +914,23 @@ namespace Moirai.Atropos.Audio.Middleware
         {
             // 冷路径：设置面板/分层替换，lambda 分配可忽略
             _handles.ForEachHandleByUser(id, handle => Stop(handle, fadeoutDuration));
+        }
+
+        /// <summary>
+        /// 把 <see cref="_handleScratch"/> 里已收集好的句柄逐条停掉并清空。
+        /// <para>收 / 停必须分成两趟：<see cref="Stop"/> 会当场解绑句柄，边枚举槽表边停会跳元素。
+        /// 这个"先攒进共用暂存、再统一停"的形状原本在四个批量入口里各写一遍（含两次 Clear），
+        /// 而暂存是共享的——收完忘了清、或在停的趟里又去取它，都是能悄悄长出来的坏形。
+        /// 现在半边走这一个方法，暂存的取用规矩就只剩一处需要守。</para>
+        /// </summary>
+        private void StopCollected(float fadeoutDuration)
+        {
+            for (int i = 0; i < _handleScratch.Count; i++)
+            {
+                Stop(_handleScratch[i], fadeoutDuration);
+            }
+
+            _handleScratch.Clear();
         }
 
         #endregion 所有音频控制 [ALL AUDIO CONTROLS]

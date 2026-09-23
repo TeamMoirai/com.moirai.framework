@@ -385,6 +385,38 @@ namespace Moirai.Atropos.Audio
         #region 音轨控制 [TRACK CONTROLS]
 
         /// <summary>
+        /// 音轨暂停标记（按 <see cref="EAudioTrack"/> 下标索引），契约第 1 条"暂停的音轨拦截新播放"的唯一真相源。
+        /// <para>两后端此前各自声明一份同名数组、各写一遍"取数组 + 判空 + 判界"，六个现场三份逻辑——
+        /// 这类同名异处的状态正是跨后端语义分歧的产地（音量值域那条就是这么长出来的）。</para>
+        /// <para>但**分配与释放仍留在各后端自己的时机**：Unity 在 <c>Initialize</c> 建、<c>OnShutdown</c> 置 null，
+        /// 中间件经 <c>EnsureTrackArrays</c> 懒建。"未分配即视为未暂停"（含 Unity 初始化前调 <c>PauseTrack</c>
+        /// 会被忘掉这条）两边都有调用侧依赖，收进基类顺手改成懒分配就是行为改动，不该混在重构里。</para>
+        /// </summary>
+        [NonSerialized] internal bool[] _pausedTracks;
+
+        /// <summary>
+        /// 置位/复位音轨暂停标记。数组尚未分配或下标越界一律忽略——与两后端原来的写法同语义。
+        /// </summary>
+        internal void SetTrackPaused(EAudioTrack track, bool paused)
+        {
+            var flags = _pausedTracks;
+            if (flags == null) return;
+
+            int index = (int)track;
+            if (index >= 0 && index < flags.Length) flags[index] = paused;
+        }
+
+        /// <summary>
+        /// 音轨是否被标记为暂停。数组未分配或下标越界按未暂停处理。
+        /// </summary>
+        internal bool IsTrackPaused(EAudioTrack track)
+        {
+            var flags = _pausedTracks;
+            int index = (int)track;
+            return flags != null && index >= 0 && index < flags.Length && flags[index];
+        }
+
+        /// <summary>
         /// 暂停某类音频的播放。
         /// </summary>
         public abstract void PauseTrack(EAudioTrack track);
