@@ -226,6 +226,120 @@ namespace Moirai.Atropos.Resource
             }
         }
 
+        internal override async UniTask<ResourceLeaseHandle> AcquireSubAssetsBindingAsync(string location,
+            string packageName, EResourceLeaseOption options, CancellationToken cancellationToken)
+        {
+            if (string.IsNullOrEmpty(location))
+            {
+                return ResourceLeaseHandle.Invalid;
+            }
+
+            string normalizedPackageName = NormalizePackageName(packageName);
+            ulong loadingKey = GetLoadingOperationKey(location, normalizedPackageName, typeof(Sprite),
+                EResourceAssetKind.SubAssets);
+
+            while (true)
+            {
+                if (cancellationToken.IsCancellationRequested || _isDestroying)
+                {
+                    return ResourceLeaseHandle.Invalid;
+                }
+
+                if (TryGetCachedSubAssetsRecord(normalizedPackageName, location, out int cachedAssetId))
+                {
+                    return AcquireLease(cachedAssetId, EResourceLeaseKind.Binding, options);
+                }
+
+                if (!TryBeginLoading(loadingKey))
+                {
+                    // 同一图集并发绑定：并入赢家的加载，不再各自发起一次 SubAssets 请求
+                    if (!await WaitForLoadingAsync(loadingKey, cancellationToken))
+                    {
+                        return ResourceLeaseHandle.Invalid;
+                    }
+
+                    continue;
+                }
+
+                int loadGeneration = unchecked((int)_assetUnloadGeneration);
+                SubAssetsHandle subHandle = null;
+                try
+                {
+                    if (!IsLoadingStateCurrent(loadGeneration))
+                    {
+                        FailLoading(loadingKey, null);
+                        return ResourceLeaseHandle.Invalid;
+                    }
+
+                    subHandle = GetSubAssetsHandleAsync(location, normalizedPackageName);
+                    if (subHandle == null)
+                    {
+                        FailLoading(loadingKey, NewLoadingFailure("SubAssets", location, normalizedPackageName),
+                            ELogLevel.Warning);
+                        return ResourceLeaseHandle.Invalid;
+                    }
+
+                    AttachLoadingSubAssetsHandle(loadingKey, subHandle);
+                    bool callerCancellationRequested = false;
+                    if (!subHandle.IsDone)
+                    {
+                        await subHandle.ToUniTask(cancellationToken: cancellationToken);
+                    }
+
+                    if (cancellationToken.IsCancellationRequested)
+                    {
+                        callerCancellationRequested = true;
+                    }
+
+                    if (!IsLoadingStateCurrent(loadGeneration))
+                    {
+                        // 强卸载/关停已发生：句柄原样交回，绝不写进已 Dispose 的 Package
+                        DisposeHandle(subHandle);
+                        subHandle = null;
+                        FailLoading(loadingKey, null);
+                        return ResourceLeaseHandle.Invalid;
+                    }
+
+                    bool abortedByCallerCancellation = ShouldAbortLoadingAfterCallerCancellation(loadingKey,
+                        cancellationToken, ref callerCancellationRequested);
+                    bool loadFailed = !subHandle.IsValid || subHandle.Status == EOperationStatus.Failed;
+                    if (abortedByCallerCancellation || loadFailed)
+                    {
+                        Exception failure = !abortedByCallerCancellation && loadFailed
+                            ? NewLoadingFailure("SubAssets", location, normalizedPackageName, subHandle.Status,
+                                subHandle.Error)
+                            : null;
+                        DisposeHandle(subHandle);
+                        subHandle = null;
+                        FailLoading(loadingKey, failure, ELogLevel.Warning);
+                        return ResourceLeaseHandle.Invalid;
+                    }
+
+                    int assetId = GetOrCreateSubAssetsRecord(normalizedPackageName, location, subHandle);
+                    subHandle = null; // 所有权已移交记录，异常兜底不得再 dispose
+                    CompleteLoading(loadingKey);
+                    return callerCancellationRequested
+                        ? ResourceLeaseHandle.Invalid
+                        : AcquireLease(assetId, EResourceLeaseKind.Binding, options);
+                }
+                catch (OperationCanceledException)
+                {
+                    // 取消是本 API 的正常出口（契约返回 Invalid，不抛出），但已预留的去重槽必须闭环失败，
+                    // 否则同图集后续并发绑定会在 WaitForLoadingAsync 里空转到各自超时/关停。
+                    DisposeHandle(subHandle);
+                    FailLoading(loadingKey, null);
+                    return ResourceLeaseHandle.Invalid;
+                }
+                catch (Exception ex)
+                {
+                    DisposeHandle(subHandle);
+                    FailLoading(loadingKey, new GameException(StringUtility.Format(
+                        "Resource SubAssets load threw. Location:{0} Package:{1}", location, normalizedPackageName), ex));
+                    return ResourceLeaseHandle.Invalid;
+                }
+            }
+        }
+
         private bool TryBeginLoading(ulong assetObjectKey)
         {
             bool keyAlreadyRetained = false;

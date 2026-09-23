@@ -58,6 +58,7 @@
 - `Resource` 的绑定服务只握 internal `IResourceLeaseSource`（八个成员），不再拿后端全契约：后端与绑定服务第一次能各自构造，绑定层测试第一次能 mock 后端。接缝的抽象成员基线由 `ResourceSeamShapeGuardTests` 钉在 66（19 个抽象属性 + 47 个抽象方法，其中 11 个 `internal abstract`、0 个 `[Obsolete]`）。
 - `Resource` 的 packed key 三条名称轴合成一份 `ResourceNameRegistry` 实现，15 个字段收为 3，登记与回收只剩一条路径；`Release` 与 `DecrementOnly` 刻意分开（整表清空时逐条回收既白做，也会在遍历一张表时反向改动另一张表）。
 - `Resource` 的绑定路径少两趟与调用者数量无关的开销：注册路径省掉重复的原生 id 往返，异步子精灵绑定的两个孪生成员统一为直接转发。
+- `Resource` 的记录槽与后端断开第一根线：`AssetSlot` 的两个具名句柄字段合成一个 `object RawHandle`（YooAsset 句柄是引用类型，存进去不装箱），取用只剩 `IsHandleValid` / `DisposeHandle` / `GetSubSprite` 三个操作；图集加载流程随之由 `Records` 移到 `Loading`。`Records` / `Keys` / `Expiry` 三个文件里已无一个后端类型名。
 - ⚠ 每帧维护入口 `ProcessKeepAlive` 更名 `ProcessResourceMaintenance(float unscaledTime, int expireBudget, int destroySweepBudget)`。到期与销毁两条预算刻意不合并：到期记录多的帧不该饿死销毁回收。`ProcessDestroyedObjects` 的默认参删除，让漏传在编译期报出来。
 - `Resource` 的 `ResourceBindingService.Shutdown` 拆为终态关停与可复用重置；外观写成员改走 `RequireHandler()`，未就绪不再伪装成"资源不存在"。
 - ⚠ 运行期随机全面改走 `RandomUtility`，`UnityEngine.Random` 退出 `Runtime`；`AlgorithmUtility.RandomRange(long, long)` 的上界口径由"含"改"不含"。

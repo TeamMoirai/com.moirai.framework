@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
-using YooAsset;
 using UObject = UnityEngine.Object;
 
 namespace Moirai.Atropos.Resource
@@ -52,8 +51,8 @@ namespace Moirai.Atropos.Resource
             public ulong Key;
             public int LoadKeyId;
             public UObject Asset;
-            public AssetHandle AssetHandle;
-            public SubAssetsHandle SubAssetsHandle;
+            // 后端原生句柄只能是引用类型，存进 object 不产生装箱；本文件一律经 IsHandleValid / DisposeHandle / GetSubSprite 取用。
+            public object RawHandle;
             public EResourceAssetKind AssetKind;
             public EResourceHandleKind HandleKind;
             public int DirectRefCount;
@@ -346,120 +345,6 @@ namespace Moirai.Atropos.Resource
             return AcquireDirectAsync(key, cancellationToken);
         }
 
-        internal override async UniTask<ResourceLeaseHandle> AcquireSubAssetsBindingAsync(string location,
-            string packageName, EResourceLeaseOption options, CancellationToken cancellationToken)
-        {
-            if (string.IsNullOrEmpty(location))
-            {
-                return ResourceLeaseHandle.Invalid;
-            }
-
-            string normalizedPackageName = NormalizePackageName(packageName);
-            ulong loadingKey = GetLoadingOperationKey(location, normalizedPackageName, typeof(Sprite),
-                EResourceAssetKind.SubAssets);
-
-            while (true)
-            {
-                if (cancellationToken.IsCancellationRequested || _isDestroying)
-                {
-                    return ResourceLeaseHandle.Invalid;
-                }
-
-                if (TryGetCachedSubAssetsRecord(normalizedPackageName, location, out int cachedAssetId))
-                {
-                    return AcquireLease(cachedAssetId, EResourceLeaseKind.Binding, options);
-                }
-
-                if (!TryBeginLoading(loadingKey))
-                {
-                    // 同一图集并发绑定：并入赢家的加载，不再各自发起一次 SubAssets 请求
-                    if (!await WaitForLoadingAsync(loadingKey, cancellationToken))
-                    {
-                        return ResourceLeaseHandle.Invalid;
-                    }
-
-                    continue;
-                }
-
-                int loadGeneration = unchecked((int)_assetUnloadGeneration);
-                SubAssetsHandle subHandle = null;
-                try
-                {
-                    if (!IsLoadingStateCurrent(loadGeneration))
-                    {
-                        FailLoading(loadingKey, null);
-                        return ResourceLeaseHandle.Invalid;
-                    }
-
-                    subHandle = GetSubAssetsHandleAsync(location, normalizedPackageName);
-                    if (subHandle == null)
-                    {
-                        FailLoading(loadingKey, NewLoadingFailure("SubAssets", location, normalizedPackageName),
-                            ELogLevel.Warning);
-                        return ResourceLeaseHandle.Invalid;
-                    }
-
-                    AttachLoadingSubAssetsHandle(loadingKey, subHandle);
-                    bool callerCancellationRequested = false;
-                    if (!subHandle.IsDone)
-                    {
-                        await subHandle.ToUniTask(cancellationToken: cancellationToken);
-                    }
-
-                    if (cancellationToken.IsCancellationRequested)
-                    {
-                        callerCancellationRequested = true;
-                    }
-
-                    if (!IsLoadingStateCurrent(loadGeneration))
-                    {
-                        // 强卸载/关停已发生：句柄原样交回，绝不写进已 Dispose 的 Package
-                        DisposeSubAssetsHandle(subHandle);
-                        subHandle = null;
-                        FailLoading(loadingKey, null);
-                        return ResourceLeaseHandle.Invalid;
-                    }
-
-                    bool abortedByCallerCancellation = ShouldAbortLoadingAfterCallerCancellation(loadingKey,
-                        cancellationToken, ref callerCancellationRequested);
-                    bool loadFailed = !subHandle.IsValid || subHandle.Status == EOperationStatus.Failed;
-                    if (abortedByCallerCancellation || loadFailed)
-                    {
-                        Exception failure = !abortedByCallerCancellation && loadFailed
-                            ? NewLoadingFailure("SubAssets", location, normalizedPackageName, subHandle.Status,
-                                subHandle.Error)
-                            : null;
-                        DisposeSubAssetsHandle(subHandle);
-                        subHandle = null;
-                        FailLoading(loadingKey, failure, ELogLevel.Warning);
-                        return ResourceLeaseHandle.Invalid;
-                    }
-
-                    int assetId = GetOrCreateSubAssetsRecord(normalizedPackageName, location, subHandle);
-                    subHandle = null; // 所有权已移交记录，异常兜底不得再 dispose
-                    CompleteLoading(loadingKey);
-                    return callerCancellationRequested
-                        ? ResourceLeaseHandle.Invalid
-                        : AcquireLease(assetId, EResourceLeaseKind.Binding, options);
-                }
-                catch (OperationCanceledException)
-                {
-                    // 取消是本 API 的正常出口（契约返回 Invalid，不抛出），但已预留的去重槽必须闭环失败，
-                    // 否则同图集后续并发绑定会在 WaitForLoadingAsync 里空转到各自超时/关停。
-                    DisposeSubAssetsHandle(subHandle);
-                    FailLoading(loadingKey, null);
-                    return ResourceLeaseHandle.Invalid;
-                }
-                catch (Exception ex)
-                {
-                    DisposeSubAssetsHandle(subHandle);
-                    FailLoading(loadingKey, new GameException(StringUtility.Format(
-                        "Resource SubAssets load threw. Location:{0} Package:{1}", location, normalizedPackageName), ex));
-                    return ResourceLeaseHandle.Invalid;
-                }
-            }
-        }
-
         internal override bool TryGetSubSpriteAsset(ResourceLeaseHandle handle, string spriteName, out Sprite sprite)
         {
             sprite = null;
@@ -475,12 +360,12 @@ namespace Moirai.Atropos.Resource
             }
 
             ref AssetSlot slot = ref GetAssetSlotRef(lease.AssetId);
-            if (slot.State == EResourceAssetState.Released || !IsSubAssetsHandleValid(slot.SubAssetsHandle))
+            if (slot.State == EResourceAssetState.Released || !IsHandleValid(slot.RawHandle))
             {
                 return false;
             }
 
-            sprite = slot.SubAssetsHandle.GetSubAssetObject<Sprite>(spriteName);
+            sprite = GetSubSprite(slot.RawHandle, spriteName);
             return sprite != null;
         }
 
@@ -584,7 +469,7 @@ namespace Moirai.Atropos.Resource
         }
 
         private int GetOrCreateAssetRecord(string packageName, string location, Type assetType,
-            EResourceAssetKind assetKind, EResourceHandleKind handleKind, UObject asset, AssetHandle assetHandle)
+            EResourceAssetKind assetKind, EResourceHandleKind handleKind, UObject asset, object assetHandle)
         {
             assetKind = NormalizeAssetKind(assetType, assetKind);
             assetType = NormalizeAssetType(assetType, assetKind);
@@ -600,12 +485,12 @@ namespace Moirai.Atropos.Resource
 
                 if (assetHandle != null)
                 {
-                    if (existing.AssetHandle == null || !existing.AssetHandle.IsValid)
+                    if (!IsHandleValid(existing.RawHandle))
                     {
-                        existing.AssetHandle = assetHandle;
+                        existing.RawHandle = assetHandle;
                         existing.HandleKind = handleKind;
                     }
-                    else if (!ReferenceEquals(existing.AssetHandle, assetHandle))
+                    else if (!ReferenceEquals(existing.RawHandle, assetHandle))
                     {
                         DisposeHandle(assetHandle);
                     }
@@ -620,7 +505,7 @@ namespace Moirai.Atropos.Resource
             slot.Key = key;
             slot.LoadKeyId = AllocateLoadKeyId();
             slot.Asset = asset;
-            slot.AssetHandle = assetHandle;
+            slot.RawHandle = assetHandle;
             slot.AssetKind = assetKind;
             slot.HandleKind = handleKind;
             slot.ExpireQueuePrev = -1;
@@ -635,7 +520,7 @@ namespace Moirai.Atropos.Resource
             return assetId;
         }
 
-        private int GetOrCreateSubAssetsRecord(string packageName, string location, SubAssetsHandle subAssetsHandle)
+        private int GetOrCreateSubAssetsRecord(string packageName, string location, object subAssetsHandle)
         {
             string normalizedPackageName = NormalizePackageName(packageName);
             ulong key = GetAssetRecordKey(normalizedPackageName, location, typeof(Sprite),
@@ -643,16 +528,16 @@ namespace Moirai.Atropos.Resource
             if (_assetRecordsByKey.TryGetValue(key, out int existingId) && IsValidAssetId(existingId))
             {
                 ref AssetSlot existing = ref GetAssetSlotRef(existingId);
-                if (!IsSubAssetsHandleValid(existing.SubAssetsHandle) &&
-                    IsSubAssetsHandleValid(subAssetsHandle))
+                if (!IsHandleValid(existing.RawHandle) &&
+                    IsHandleValid(subAssetsHandle))
                 {
-                    existing.SubAssetsHandle = subAssetsHandle;
+                    existing.RawHandle = subAssetsHandle;
                     existing.HandleKind = EResourceHandleKind.SubAssetsHandle;
                 }
-                else if (IsSubAssetsHandleValid(subAssetsHandle) &&
-                         !ReferenceEquals(existing.SubAssetsHandle, subAssetsHandle))
+                else if (IsHandleValid(subAssetsHandle) &&
+                         !ReferenceEquals(existing.RawHandle, subAssetsHandle))
                 {
-                    DisposeSubAssetsHandle(subAssetsHandle);
+                    DisposeHandle(subAssetsHandle);
                 }
 
                 UpdateAssetStateAndIdleQueue(existingId, ref existing);
@@ -664,7 +549,7 @@ namespace Moirai.Atropos.Resource
             slot.Key = key;
             slot.LoadKeyId = AllocateLoadKeyId();
             slot.Asset = null;
-            slot.SubAssetsHandle = subAssetsHandle;
+            slot.RawHandle = subAssetsHandle;
             slot.AssetKind = EResourceAssetKind.SubAssets;
             slot.HandleKind = EResourceHandleKind.SubAssetsHandle;
             slot.ExpireQueuePrev = -1;
@@ -691,7 +576,7 @@ namespace Moirai.Atropos.Resource
 
             // 子资源记录的 Asset 恒为 null（图集在 SubAssetsHandle 里），不能复用 TryGetCachedAssetRecord 的判定。
             ref AssetSlot slot = ref GetAssetSlotRef(existingId);
-            if (slot.State == EResourceAssetState.Released || !IsSubAssetsHandleValid(slot.SubAssetsHandle))
+            if (slot.State == EResourceAssetState.Released || !IsHandleValid(slot.RawHandle))
             {
                 return false;
             }
@@ -786,42 +671,13 @@ namespace Moirai.Atropos.Resource
 
         private static bool IsSlotHandleValid(ref AssetSlot slot)
         {
-            return slot.HandleKind == EResourceHandleKind.SubAssetsHandle
-                ? IsSubAssetsHandleValid(slot.SubAssetsHandle)
-                : slot.AssetHandle is { IsValid: true };
-        }
-
-        private static bool IsSubAssetsHandleValid(SubAssetsHandle handle)
-        {
-            return handle != null && handle.IsValid;
-        }
-
-        private static void DisposeSubAssetsHandle(SubAssetsHandle handle)
-        {
-            if (IsSubAssetsHandleValid(handle))
-            {
-                handle.Dispose();
-            }
-        }
-
-        private static void DisposeHandle(AssetHandle handle)
-        {
-            if (handle is { IsValid: true })
-            {
-                handle.Dispose();
-            }
+            return IsHandleValid(slot.RawHandle);
         }
 
         private void DisposeAssetSlotHandle(ref AssetSlot slot)
         {
-            AssetHandle handle = slot.AssetHandle;
-            if (handle is { IsValid: true })
-            {
-                handle.Dispose();
-            }
-
-            DisposeSubAssetsHandle(slot.SubAssetsHandle);
-            slot.AssetHandle = null;
+            DisposeHandle(slot.RawHandle);
+            slot.RawHandle = null;
             slot.State = EResourceAssetState.Released;
         }
 

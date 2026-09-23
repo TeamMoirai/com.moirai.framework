@@ -452,6 +452,24 @@ namespace Moirai.Atropos.Resource
             return GetPackageOrThrow(packageName).LoadAssetAsync(location, assetType, priority);
         }
 
+        private static bool IsHandleValid(object handle)
+        {
+            return handle is HandleBase { IsValid: true };
+        }
+
+        private static void DisposeHandle(object handle)
+        {
+            if (handle is HandleBase { IsValid: true } valid)
+            {
+                valid.Dispose();
+            }
+        }
+
+        private static Sprite GetSubSprite(object handle, string spriteName)
+        {
+            return (handle as SubAssetsHandle)?.GetSubAssetObject<Sprite>(spriteName);
+        }
+
         #endregion
         #region 资源加载 [ASSET LOADING]
 
