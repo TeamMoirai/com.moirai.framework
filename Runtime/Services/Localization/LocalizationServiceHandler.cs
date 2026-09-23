@@ -569,9 +569,14 @@ namespace Moirai.Atropos.Localization
         }
 
         /// <summary>
-        /// 添加本地化器
+        /// 添加本地化器（幂等去重：重复注册同一实例不得产生第二次重注入）。
         /// </summary>
-        public void AddLocalizer(LocalizerBase localizer) => _localizers.Add(localizer);
+        public void AddLocalizer(LocalizerBase localizer)
+        {
+            if (localizer == null || _localizers.Contains(localizer)) return;
+
+            _localizers.Add(localizer);
+        }
 
         /// <summary>
         /// 移除本地化器

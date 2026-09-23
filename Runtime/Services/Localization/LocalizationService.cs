@@ -52,6 +52,7 @@ namespace Moirai.Atropos.Localization
         public override void OnInit()
         {
             Handler.OnLanguageChanged += OnLanguageChanged;
+            ReplayPendingLocalizers();
             DebuggerService.RegisterDebuggerWindow("Profiler/Localization", new LocalizationInformationWindow());
         }
 
@@ -66,6 +67,7 @@ namespace Moirai.Atropos.Localization
 
             if (handler != null) handler.OnLanguageChanged -= OnLanguageChanged;
             OnLanguageChanged = null;
+            s_PendingLocalizers = null;
             ResetOneShotLogs();
         }
 
@@ -266,15 +268,60 @@ namespace Moirai.Atropos.Localization
 
         #region 本地化器 [LOCALIZERS]
 
+        // 服务就绪前注册的本地化器挂起队列：场景物体的 Awake 可能早于世界初始化，
+        // 走 s_Handler?. 静默降级会让它永久不本地化且无重试——先挂起，OnInit 回灌。
+        // 懒建且回灌即弃，稳态（服务就绪后）不留存、零开销
+        private static List<LocalizerBase> s_PendingLocalizers;
+
         /// <summary>
         /// 添加本地化器。
+        /// <para>服务未就绪时入挂起队列（去重），<see cref="OnInit"/> 回灌；就绪后直发处理器。</para>
         /// </summary>
-        public static void AddLocalizer(LocalizerBase localizer) => s_Handler?.AddLocalizer(localizer);
+        public static void AddLocalizer(LocalizerBase localizer)
+        {
+            if (localizer == null) return;
+
+            var handler = s_Handler;
+            if (handler != null)
+            {
+                handler.AddLocalizer(localizer);
+                return;
+            }
+
+            s_PendingLocalizers ??= new List<LocalizerBase>(4);
+            if (!s_PendingLocalizers.Contains(localizer)) s_PendingLocalizers.Add(localizer);
+        }
 
         /// <summary>
         /// 移除本地化器。
+        /// <para>命中挂起队列即取消尚未回灌的注册；否则委派处理器摘除。</para>
         /// </summary>
-        public static void RemoveLocalizer(LocalizerBase localizer) => s_Handler?.RemoveLocalizer(localizer);
+        public static void RemoveLocalizer(LocalizerBase localizer)
+        {
+            if (localizer == null) return;
+            if (s_PendingLocalizers != null && s_PendingLocalizers.Remove(localizer)) return;
+
+            s_Handler?.RemoveLocalizer(localizer);
+        }
+
+        /// <summary>
+        /// 回灌挂起队列中的本地化器（<see cref="OnInit"/> 内调用；处理器未就绪时保留队列不丢注册）。
+        /// </summary>
+        internal static void ReplayPendingLocalizers()
+        {
+            var pending = s_PendingLocalizers;
+            if (pending == null || pending.Count == 0) return;
+
+            var handler = s_Handler;
+            if (handler == null) return;
+
+            s_PendingLocalizers = null;
+            for (var i = 0; i < pending.Count; i++)
+            {
+                if (pending[i] == null) continue;
+                handler.AddLocalizer(pending[i]);
+            }
+        }
 
         #endregion
 
