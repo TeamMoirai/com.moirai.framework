@@ -11,6 +11,10 @@ namespace Moirai.Atropos.Resource
         [BoxGroup(BASE_GROUP)]
         [LabelText("资源运行模式")]
         [SerializeField] private EResourcePlayMode m_PlayMode = EResourcePlayMode.EditorSimulate;
+#if !UNITY_EDITOR
+        // 玩家构建里这条替换只发生一次，标志位无需跨域重载复位：进程内本来就是单次判定。
+        private static bool s_OfflineFallbackReported;
+#endif
         /// <summary>
         /// 资源运行模式（非编辑器下 EditorSimulate 自动回退为 OfflinePlay）。
         /// </summary>
@@ -21,6 +25,19 @@ namespace Moirai.Atropos.Resource
 #if !UNITY_EDITOR
                 if (Instance.m_PlayMode == EResourcePlayMode.EditorSimulate)
                 {
+                    // EditorSimulate 只在编辑器里有意义，玩家构建里它只能整体退回离线。
+                    // 但"退回离线"等于关掉全部远程热更，而此前它一行日志都不打：
+                    // 该远程拉包的包就这么整包离线发行，而 OnInit 那行 Run Mode 读到的
+                    // 恰恰是被改写之后的值，运维看不出资产里原本写了什么。
+                    if (!s_OfflineFallbackReported)
+                    {
+                        s_OfflineFallbackReported = true;
+                        LogUtility.Error("ResourceServiceSettings.m_PlayMode is EditorSimulate, which only exists in the " +
+                            "editor; falling back to OfflinePlay for this player build, so NO remote resource will be " +
+                            "fetched. Set it to HostPlay/WebPlay in " +
+                            "Assets/Settings/Framework/Resources/ResourceServiceSettings.asset to enable hot update.");
+                    }
+
                     Instance.m_PlayMode = EResourcePlayMode.OfflinePlay;
                 }
 #endif
