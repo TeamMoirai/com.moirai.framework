@@ -1,5 +1,4 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Text.RegularExpressions;
@@ -348,8 +347,7 @@ namespace Service.Save
             gate.Wait();
             SaveFileGate.Leave(paths.SaveFilePath, gate, acquired: true);
 
-            IDictionary table = GateTable();
-            Assert.IsFalse(table.Contains(paths.SaveFilePath), "最后一个占用者离开后表项应惰性回收");
+            Assert.IsFalse(SaveFileGate.s_Gates.ContainsKey(paths.SaveFilePath), "最后一个占用者离开后表项应惰性回收");
         }
 
         [Test]
@@ -360,7 +358,7 @@ namespace Service.Save
             SemaphoreSlim gate = SaveFileGate.Enter(paths.SaveFilePath);
             SaveFileGate.Leave(paths.SaveFilePath, gate, acquired: false);
 
-            Assert.IsFalse(GateTable().Contains(paths.SaveFilePath), "等门期取消不得泄漏门表项");
+            Assert.IsFalse(SaveFileGate.s_Gates.ContainsKey(paths.SaveFilePath), "等门期取消不得泄漏门表项");
         }
 
         [Test]
@@ -373,10 +371,10 @@ namespace Service.Save
 
             gate1.Wait();
             SaveFileGate.Leave(paths.SaveFilePath, gate1, acquired: true);
-            Assert.IsTrue(GateTable().Contains(paths.SaveFilePath), "仍有占用者时表项不得回收");
+            Assert.IsTrue(SaveFileGate.s_Gates.ContainsKey(paths.SaveFilePath), "仍有占用者时表项不得回收");
 
             SaveFileGate.Leave(paths.SaveFilePath, gate2, acquired: false);
-            Assert.IsFalse(GateTable().Contains(paths.SaveFilePath));
+            Assert.IsFalse(SaveFileGate.s_Gates.ContainsKey(paths.SaveFilePath));
         }
 
         [Test]
@@ -485,16 +483,6 @@ namespace Service.Save
             Assert.IsNull(failure, failure?.Message);
             Assert.IsTrue(completed);
             Assert.IsFalse(_handler.FileExists("gate-root-slot", TestFolder), "门释放后根目录清空应完成");
-        }
-
-        /// <summary>
-        /// 反射读取门表（惰性回收断言用）。
-        /// </summary>
-        private static IDictionary GateTable()
-        {
-            var field = typeof(SaveFileGate).GetField("s_Gates", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic);
-            Assert.IsNotNull(field, "SaveFileGate.s_Gates 字段应存在");
-            return (IDictionary)field.GetValue(null);
         }
 
         #endregion

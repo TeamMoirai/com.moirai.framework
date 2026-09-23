@@ -56,15 +56,11 @@ namespace Core.Singleton
             ResetStaticState();
         }
 
-        /// <summary>反射清空静态实例并重置计数（跨用例隔离）。</summary>
+        /// <summary>清空静态实例并重置计数（跨用例隔离）。</summary>
         private static void ResetStaticState()
         {
-            typeof(Singleton<CountingSingleton>)
-                .GetField("s_Instance", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)
-                ?.SetValue(null, null);
-            typeof(Singleton<PlainSingleton>)
-                .GetField("s_Instance", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)
-                ?.SetValue(null, null);
+            Singleton<CountingSingleton>.s_Instance = null;
+            Singleton<PlainSingleton>.s_Instance = null;
             CountingSingleton.InitCount = 0;
             CountingSingleton.ShutdownCount = 0;
             CountingSingleton.RecursiveSelf = null;

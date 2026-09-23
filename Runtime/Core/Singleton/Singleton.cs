@@ -27,7 +27,7 @@ namespace Moirai.Atropos
         #region 静态状态 [Static State]
 
         /// <summary>当前单例实例（volatile：后台线程经 <see cref="Instance"/> 访问的原子快速路径）。</summary>
-        private static volatile T s_Instance;
+        internal static volatile T s_Instance;
 
         /// <summary>创建/释放互斥锁（每个封闭泛型类型独立一份）。</summary>
         // ReSharper disable once StaticMemberInGenericType

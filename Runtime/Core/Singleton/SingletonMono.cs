@@ -42,14 +42,14 @@ namespace Moirai.Atropos
         #region 静态状态 [Static State]
 
         /// <summary>当前单例实例（volatile：后台线程访问的原子快速路径）。</summary>
-        protected static volatile T s_Instance;
+        protected internal static volatile T s_Instance;
 
         /// <summary>物化互斥锁（每个封闭泛型类型独立一份）。</summary>
         // ReSharper disable once StaticMemberInGenericType
         protected static readonly object s_Locker = new object();
 
         /// <summary>退出窗口标记：应用退出/播放停止期间为 true，Instance 拒绝物化并返回 null。</summary>
-        protected static volatile bool s_ShuttingDown;
+        protected internal static volatile bool s_ShuttingDown;
 
         /// <summary>初始化此单例的单调序号（多实例竞争时的仲裁依据——同帧 Time.time 并列不失效）。</summary>
         protected long _initializationOrdinal;

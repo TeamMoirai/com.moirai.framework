@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Reflection;
 using Moirai.Atropos;
 using NUnit.Framework;
 using UnityEngine.TestTools;
@@ -136,10 +135,8 @@ namespace Core.MemoryPool
             WarmChurn();
             Assert.IsNull(MemoryPool<PoolItem>.ValidateStructure());
 
-            FieldInfo freeCount = typeof(MemoryPool<PoolItem>).GetField("s_FreeCount", BindingFlags.NonPublic | BindingFlags.Static);
-            Assert.IsNotNull(freeCount, "产码改了字段名，自检用例要同步");
-            int real = (int)freeCount.GetValue(null);
-            freeCount.SetValue(null, real + 5);
+            int real = MemoryPool<PoolItem>.s_FreeCount;
+            MemoryPool<PoolItem>.s_FreeCount = real + 5;
             try
             {
                 string error = MemoryPool<PoolItem>.ValidateStructure();
@@ -152,7 +149,7 @@ namespace Core.MemoryPool
             }
             finally
             {
-                freeCount.SetValue(null, real);
+                MemoryPool<PoolItem>.s_FreeCount = real;
             }
 
             Assert.IsNull(MemoryPool<PoolItem>.ValidateStructure(), "还原后仍报错，说明自检读到的是脏状态");

@@ -1314,16 +1314,7 @@ namespace Service.Kernel
 
         // ─── GameApp 关闭态测试工具（EditMode 下 GameApp 未 Initialize，IsShutdown 恒为 true） ───
 
-        private static void SetGameAppActive(bool active)
-        {
-            // GameApp.IsShutdown 已改为 public static 自动属性（private set）——反射写 setter
-            var property = typeof(GameApp).GetProperty("IsShutdown",
-                System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
-            Assert.IsNotNull(property, "GameApp.IsShutdown 属性变更，需同步本测试");
-            var setter = property.GetSetMethod(true);
-            Assert.IsNotNull(setter, "GameApp.IsShutdown 缺少 setter（含私有）");
-            setter.Invoke(null, new object[] { !active });
-        }
+        private static void SetGameAppActive(bool active) => GameApp.IsShutdown = !active;
 
         [Test]
         public void EnsureRegistered_WhenGameAppShutDown_ThrowsAndBlocksRevival()

@@ -35,12 +35,6 @@ namespace Core.Singleton
         /// <summary>专用于后台线程 fail-fast 探测的独立类型（避免与其他用例共享静态状态）。</summary>
         private class BackgroundProbeSingleton : SingletonMono<BackgroundProbeSingleton> { }
 
-        private static readonly FieldInfo InstanceField = typeof(SingletonMono<TestSingletonMono>)
-            .GetField("s_Instance", BindingFlags.NonPublic | BindingFlags.Static);
-
-        private static readonly FieldInfo ShuttingDownField = typeof(SingletonMono<TestSingletonMono>)
-            .GetField("s_ShuttingDown", BindingFlags.NonPublic | BindingFlags.Static);
-
         private static readonly MethodInfo AwakeMethod = typeof(SingletonMono<TestSingletonMono>)
             .GetMethod("Awake", BindingFlags.NonPublic | BindingFlags.Instance);
 
@@ -69,14 +63,12 @@ namespace Core.Singleton
         /// <summary>重置静态状态并销毁测试期间创建的对象（跨用例隔离）。</summary>
         private static void ResetStaticState()
         {
-            InstanceField.SetValue(null, null);
-            ShuttingDownField.SetValue(null, false);
+            SingletonMono<TestSingletonMono>.s_Instance = null;
+            SingletonMono<TestSingletonMono>.s_ShuttingDown = false;
             TestSingletonMono.InitCount = 0;
             TestSingletonMono.ShutdownCount = 0;
 
-            typeof(SingletonMono<BackgroundProbeSingleton>)
-                .GetField("s_Instance", BindingFlags.NonPublic | BindingFlags.Static)
-                .SetValue(null, null);
+            SingletonMono<BackgroundProbeSingleton>.s_Instance = null;
         }
 
         /// <summary>创建挂载测试单例的 GameObject（编辑模式下回调不自动触发）。</summary>
@@ -117,7 +109,7 @@ namespace Core.Singleton
             InvokeAwake(instance);
             Assert.IsTrue(TestSingletonMono.IsValid);
 
-            ShuttingDownField.SetValue(null, true);
+            SingletonMono<TestSingletonMono>.s_ShuttingDown = true;
 
             Assert.IsNull(TestSingletonMono.Instance, "退出窗口期 Instance 应返回 null");
             Assert.IsFalse(TestSingletonMono.IsValid, "退出窗口期 IsValid 应为 false");
@@ -208,7 +200,7 @@ namespace Core.Singleton
 
             Assert.IsFalse(TestSingletonMono.IsValid, "销毁后实例应被清空");
             Assert.AreEqual(1, TestSingletonMono.ShutdownCount);
-            Assert.IsTrue((bool)ShuttingDownField.GetValue(null),
+            Assert.IsTrue(SingletonMono<TestSingletonMono>.s_ShuttingDown,
                 "编辑模式销毁后退出标记应保持 true（无播放会话复位它）");
             Assert.IsNull(TestSingletonMono.Instance, "退出窗口应阻止重新物化");
         }
@@ -216,7 +208,7 @@ namespace Core.Singleton
         [Test]
         public void Awake_DuringShutdownWindow_IsIgnored()
         {
-            ShuttingDownField.SetValue(null, true);
+            SingletonMono<TestSingletonMono>.s_ShuttingDown = true;
             TestSingletonMono instance = CreateSingletonGameObject();
 
             InvokeAwake(instance);
@@ -231,10 +223,10 @@ namespace Core.Singleton
             TestSingletonMono instance = CreateSingletonGameObject();
             InvokeAwake(instance);
             InvokeOnDestroy(instance);
-            Assert.IsTrue((bool)ShuttingDownField.GetValue(null));
+            Assert.IsTrue(SingletonMono<TestSingletonMono>.s_ShuttingDown);
 
             // 复活前提是退出标记先被复位（域重载自动清空静态 / 参照 MainThreadDispatcher.ResetStatics 钩子）
-            ShuttingDownField.SetValue(null, false);
+            SingletonMono<TestSingletonMono>.s_ShuttingDown = false;
             TestSingletonMono revived = CreateSingletonGameObject();
             InvokeAwake(revived);
 

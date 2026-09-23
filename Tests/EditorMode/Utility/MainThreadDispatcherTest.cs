@@ -335,11 +335,8 @@ namespace Utility
         {
             LogAssert.Expect(LogType.Warning, new Regex("coroutine dropped"));
 
-            // 反射置位基类退出标记，模拟应用退出窗口（s_ShuttingDown=true → Instance getter 返回 null）
-            var field = typeof(SingletonMono<MainThreadDispatcher>).GetField("s_ShuttingDown",
-                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
-            Assert.NotNull(field, "基类应声明 s_ShuttingDown 静态字段");
-            field.SetValue(null, true);
+            // 置位基类退出标记，模拟应用退出窗口（s_ShuttingDown=true → Instance getter 返回 null）
+            SingletonMono<MainThreadDispatcher>.s_ShuttingDown = true;
 
             int started = 0;
             IEnumerator DummyRoutine()

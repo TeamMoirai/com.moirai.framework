@@ -102,7 +102,7 @@ namespace Moirai.Atropos
         /// 注册表的主线程归属。0 表示尚未捕获（编辑模式测试、或 SubsystemRegistration 顺序未定），
         /// 此时不判定——与 <see cref="GameServices.EnsureMainThread"/> 同一约定。
         /// </summary>
-        private static int s_MainThreadId;
+        internal static int s_MainThreadId;
 
         /// <summary>
         /// 注册/注销只能发生在主线程：注册表是裸数组 + 无锁计数，越线程写入不会抛，

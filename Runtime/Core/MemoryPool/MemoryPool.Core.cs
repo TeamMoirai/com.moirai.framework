@@ -99,7 +99,7 @@ namespace Moirai.Atropos
 
         private static int s_InUse;
         private static int s_MaxInUse;
-        private static int s_FreeCount;
+        internal static int s_FreeCount;
         private static int s_CreatedCount;
         private static int s_MissCount;
         private static int s_PendingGrowth;

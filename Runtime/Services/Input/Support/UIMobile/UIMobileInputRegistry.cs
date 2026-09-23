@@ -116,7 +116,7 @@ namespace Moirai.Atropos.Input
 
 #if UNITY_EDITOR
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        private static void ResetStaticsForDomainReloadDisabled()
+        internal static void ResetStaticsForDomainReloadDisabled()
         {
             s_Buttons.Clear();
             s_Axes.Clear();

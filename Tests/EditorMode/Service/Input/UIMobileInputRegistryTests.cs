@@ -33,12 +33,7 @@ namespace Service.Input
             ClearRegistry();
         }
 
-        private static void ClearRegistry()
-        {
-            typeof(UIMobileInputRegistry)
-                .GetMethod("ResetStaticsForDomainReloadDisabled", BindingFlags.NonPublic | BindingFlags.Static)
-                ?.Invoke(null, null);
-        }
+        private static void ClearRegistry() => UIMobileInputRegistry.ResetStaticsForDomainReloadDisabled();
 
         private GameObject Track(GameObject go)
         {

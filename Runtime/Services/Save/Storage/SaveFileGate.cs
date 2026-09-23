@@ -12,7 +12,7 @@ namespace Moirai.Atropos.Save
     internal static class SaveFileGate
     {
         /// <summary>门表项：串行信号量 + 占用计数（持门者与等门者总数）。</summary>
-        private sealed class GateEntry
+        internal sealed class GateEntry
         {
             /// <summary>串行信号量。</summary>
             internal readonly SemaphoreSlim Semaphore = new SemaphoreSlim(1, 1);
@@ -25,7 +25,7 @@ namespace Moirai.Atropos.Save
         private static readonly object s_Lock = new object();
 
         /// <summary>路径 → 门表项。</summary>
-        private static readonly Dictionary<string, GateEntry> s_Gates = new Dictionary<string, GateEntry>(System.StringComparer.Ordinal);
+        internal static readonly Dictionary<string, GateEntry> s_Gates = new Dictionary<string, GateEntry>(System.StringComparer.Ordinal);
 
         /// <summary>
         /// 取门并登记占用（幂等；必须与 <see cref="Leave"/> 配对，等门期取消也要 Leave）。

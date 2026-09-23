@@ -66,7 +66,7 @@ namespace Moirai.Atropos
         /// <summary>
         /// 获取游戏是否已关闭。
         /// </summary>
-        public static bool IsShutdown { get; private set; } = true;
+        public static bool IsShutdown { get; internal set; } = true;
 
         /// <summary>
         /// 获取或设置游戏帧率。

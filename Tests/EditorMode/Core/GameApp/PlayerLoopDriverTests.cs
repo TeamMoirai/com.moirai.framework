@@ -638,13 +638,10 @@ namespace Core.GameApp
         public void Register_FromBackgroundThread_FailsFast()
         {
             // 判据依赖 s_MainThreadId：SubsystemRegistration 钩子通常已捕获；万一为 0（顺序未定）
-            // 就反射补上，避免用例被"未捕获即放行"的分支静默跳过。
-            var field = typeof(PlayerLoopDriver).GetField("s_MainThreadId",
-                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
-            Assert.IsNotNull(field, "s_MainThreadId 已更名，请同步本用例");
-            if ((int)field.GetValue(null) == 0)
+            // 就补上，避免用例被"未捕获即放行"的分支静默跳过。
+            if (PlayerLoopDriver.s_MainThreadId == 0)
             {
-                field.SetValue(null, System.Threading.Thread.CurrentThread.ManagedThreadId);
+                PlayerLoopDriver.s_MainThreadId = System.Threading.Thread.CurrentThread.ManagedThreadId;
             }
 
             Exception caught = null;
