@@ -177,14 +177,12 @@ namespace Moirai.Atropos.Resource
 
                 int index = _bindingSweepCursor++;
                 ref BindingSlot binding = ref GetBindingSlotRef(index);
+                // 判据只有一条：目标是否已销毁。已释放的槽位 Target 为空，天然到不了下面。
+                // 刻意不再附加"有没有租约/资源"那层判据——异步预约留下的槽位正是
+                // "有目标、有版本号、无租约无资源"的形状，按那个形状跳过它就永远轮不到回收，
+                // 只在所有者释放时才走掉；而它占着 _bindingIndexByOwnerSlot 里的一条映射与一个版本号。
                 if (!IsDestroyed(binding.Target))
                 {
-                    continue;
-                }
-
-                if (!binding.Lease.IsValid && binding.AppliedAsset == null && binding.RuntimeObject == null)
-                {
-                    // 空槽或尚未落地的预约位，没有需要回收的东西
                     continue;
                 }
 
@@ -195,11 +193,16 @@ namespace Moirai.Atropos.Resource
                 try
                 {
                     ClearAndReleaseBinding(ref binding);
-                    ReleaseDestroyedBinding(index, ownerId, ownerGeneration, slotKey);
                 }
                 catch (Exception exception)
                 {
                     CollectException(ref exceptions, exception);
+                }
+                finally
+                {
+                    // 摘槽位是无条件项，不能被清理那一步的抛出截断：游标在判定之前就已推进，
+                    // 漏摘一回，下一圈就撞回同一个槽位、再抛一次，直到进程结束。
+                    ReleaseDestroyedBinding(index, ownerId, ownerGeneration, slotKey);
                 }
             }
 

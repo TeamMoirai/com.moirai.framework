@@ -731,16 +731,15 @@ namespace Moirai.Atropos.Resource
 
         private void ClearAndReleaseBinding(ref BindingSlot binding)
         {
-            ClearKnownComponentSlot(ref binding);
-            if (binding.RuntimeObject != null)
-            {
-                UObject.Destroy(binding.RuntimeObject);
-            }
-
-            if (binding.Lease.IsValid)
-            {
-                _handler.Release(binding.Lease);
-            }
+            // 记账先于表现：租约归还与槽位清空必须无条件完成，组件槽位清理则是尽力而为的一项。
+            // 后者要在"引擎已销毁但托管引用仍在"的组件上读原生属性（SpriteRenderer.sprite 等），
+            // 必然抛 MissingReferenceException——而那恰恰是本路径的正常现场，
+            // 让它排在归还之前，赔进去的就是一条永不归还的租约。
+            Component target = binding.Target;
+            UObject appliedAsset = binding.AppliedAsset;
+            UObject runtimeObject = binding.RuntimeObject;
+            EResourceBindingSlotType slotType = binding.SlotType;
+            ResourceLeaseHandle lease = binding.Lease;
 
             binding.Target = null;
             binding.AppliedAsset = null;
@@ -749,39 +748,61 @@ namespace Moirai.Atropos.Resource
             binding.AssetId = 0;
             binding.ViewKeyId = 0;
             binding.Flags = 0;
+
+            if (lease.IsValid)
+            {
+                _handler.Release(lease);
+            }
+
+            if (runtimeObject != null)
+            {
+                UObject.Destroy(runtimeObject);
+            }
+
+            // 目标已销毁时这一步必定抛出：槽位与租约上面已经收干净，不能再被它截断，也不该向外透——
+            // 对已销毁对象清组件槽位本来就没有任何可成之事，它的失败不值一条异常。
+            try
+            {
+                ClearKnownComponentSlot(target, appliedAsset, runtimeObject, slotType);
+            }
+            catch (System.Exception)
+            {
+                // 刻意不记日志：销毁态回收是常规路径，每帧逐条打只会把日志淹掉。
+            }
         }
 
-        private static void ClearKnownComponentSlot(ref BindingSlot binding)
+        private static void ClearKnownComponentSlot(Component target, UObject appliedAsset,
+            UObject runtimeObject, EResourceBindingSlotType slotType)
         {
-            switch (binding.SlotType)
+            switch (slotType)
             {
                 case EResourceBindingSlotType.ImageSprite:
                 case EResourceBindingSlotType.SubSprite:
-                    if (binding.Target is Image image && image.sprite == binding.AppliedAsset)
+                    if (target is Image image && image.sprite == appliedAsset)
                     {
                         image.sprite = null;
                     }
                     break;
                 case EResourceBindingSlotType.SpriteRendererSprite:
-                    if (binding.Target is SpriteRenderer sr && sr.sprite == binding.AppliedAsset)
+                    if (target is SpriteRenderer sr && sr.sprite == appliedAsset)
                     {
                         sr.sprite = null;
                     }
                     break;
                 case EResourceBindingSlotType.ImageMaterial:
-                    if (binding.Target is Image img && img.material == binding.AppliedAsset)
+                    if (target is Image img && img.material == appliedAsset)
                     {
                         img.material = null;
                     }
                     break;
                 case EResourceBindingSlotType.RendererSharedMaterial:
-                    if (binding.Target is Renderer r && r.sharedMaterial == binding.AppliedAsset)
+                    if (target is Renderer r && r.sharedMaterial == appliedAsset)
                     {
                         r.sharedMaterial = null;
                     }
                     break;
                 case EResourceBindingSlotType.RendererMaterialInstance:
-                    if (binding.Target is Renderer rr && rr.sharedMaterial == binding.RuntimeObject)
+                    if (target is Renderer rr && rr.sharedMaterial == runtimeObject)
                     {
                         rr.sharedMaterial = null;
                     }
