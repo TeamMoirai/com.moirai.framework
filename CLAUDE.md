@@ -16,26 +16,27 @@
 ## 项目结构
 
 ```
-Project/
-├── Packages/
-│   ├── com.moirai.framework/     # 核心框架
-│   │   ├── Runtime/              # 运行时代码
-│   │   │   ├── Core/             # 核心系统
-│   │   │   └── Modules/          # 功能服务
-│   │   ├── Editor/               # 编辑器代码
-│   │   └── Tests/                # 测试代码
-│   ├── Plugins/                  # 第三方插件
-│   └── Settings/                 # 项目设置
-├── Packages/                     # Unity 包
-└── ProjectSettings/              # 项目配置
+com.moirai.framework/
+├── Runtime/                  # 运行时代码（Moirai.Atropos.asmdef）
+│   ├── Core/                 # 核心系统，不依赖服务层
+│   └── Services/             # 各功能服务
+├── Editor/                   # 编辑器代码
+├── Tests/                    # EditorMode / PlayMode / Player 三套测试
+├── SourceGenerators/         # HandlerHost 等代码生成器
+├── Documentation~/           # 模块文档，zh / en 双语成对维护
+├── Samples~/                 # 示例（InputSystem Action Prompts）
+├── Templates~/               # 代码生成模板
+└── Plugins/                  # 第三方插件
 ```
+
+（`~` 后缀的目录 Unity 不导入包内；工程另在 `Client/` 下，与包分开归属。）
 
 ## 核心服务
 
 ### Runtime Services
 - **AudioService** - 音频管理
+- **ConfigTableService** - 配置表（Luban）读写与本地化表查询
 - **DebuggerService** - 调试工具
-- **FsmService** - 有限状态机
 - **InputService** - 输入系统
 - **LocalizationService** - 本地化
 - **ObjectPoolService** - 通用对象池（任意 ObjectBase 派生对象，opt-in 注册）
@@ -47,18 +48,22 @@ Project/
 - **TimerService** - 定时器
 - **UIService** - UI 框架
 
+服务注册与生命周期由 `Runtime/Services/Kernel`（`GameServices` / `ServiceScope` / `ServiceBase`）承接。
+
 ### Core 系统
-- **Attributes** - 自定义特性
+- **Attributes** - 自定义特性（`[HandlerHost]`、`BooleanButtonAttribute` 等）
+- **Constant** / **Models** - 常量与共享数据模型
+- **DataStructure** - 数据结构
 - **Events** - 事件系统
-- **Extension** - 扩展方法
-- **GameConfig** - 游戏配置
-- **GameLog** - 日志系统
-- **MemoryPool** - 内存池
-- **Pool** - 通用池
+- **Extensions** - 扩展方法
+- **GameApp** - 启动、帧驱动与运行期开关
+- **GameException** - 框架异常约定
+- **GameProfiler** - 性能采样
+- **MemoryPool** / **Pool** - 内存池与通用池
 - **Singleton** - 单例模式
 - **Tasks** - 任务系统
-- **Tween** - 缓动系统
-- **Utility** - 工具类
+- **Obfuz** - 混淆虚拟机初始化（`OBFUZ_INSTALLED && ENABLE_OBFUZ` 门控）
+- **Utilities** - 工具类（算法、随机、JSON、Tween、日志 `LogUtility` 等）
 
 ## 编码规范
 
@@ -198,6 +203,13 @@ Project/
 3. 实施优化
 4. 使用 `/review` 验证优化
 
+### 4. 提交时的文档与 CHANGELOG
+
+- `CHANGELOG.md` 按**后覆盖**维护：一条只写当前仍然成立的净结果。加了又删的开关、改到一半的命名、逐轮刷新的测试格数与成员计数、当时判为"不采纳"的观察一律不立条目；同一件事被后续提交推翻时，改掉或删掉原条目，不要再追加一条把它推翻。
+- 诊断过程与被删改的来龙去脉写进 commit message，不写进 CHANGELOG。破坏性变更前置 ⚠ 并给出迁移口径。
+- 版本号不在手上改：`package.json` 的 `version` 由发布自动化写入，CHANGELOG 只在发布时把 `[Unreleased]` 定名为版本段。
+- `Documentation~/zh` 与 `Documentation~/en` 是成对副本，接口改动必须双语同步；文档里的类名、成员名与菜单路径要对着代码核真名——`E` 前缀、单复数这类差别会让照文档写出的代码直接编译不过。
+
 ## 依赖项
 
 ### 核心依赖
@@ -235,7 +247,7 @@ A: 使用 `/fix-bug` 命令分析和修复问题。
 
 ## 相关资源
 
-- [Moirai Framework GitHub](https://github.com/Lx34r/com.moirai.framework)
+- [Moirai Framework GitHub](https://github.com/TeamMoirai/com.moirai.framework)
 - [YooAsset 文档](https://www.yooasset.com/)
 - [HybridCLR 文档](https://hybridclr.doc.code-philosophy.com/)
 - [Luban 文档](https://focus-creative-games.github.io/luban-doc/)

@@ -97,9 +97,8 @@ var instance = Instantiate(prefab);
 Destroy(instance);
 
 // 新代码
-var handle = await ResourceManager.LoadAssetAsync<GameObject>("path");
-var instance = handle.InstantiateAsync();
-handle.Release();
+var instance = await ResourceService.LoadGameObjectAsync("UI/MainMenu");
+// 生命周期绑定到 ResourceOwner 上时，租约随 Owner 一起回收；手动取用则显式 Release
 ```
 
 ### 4. UI 系统迁移
@@ -112,12 +111,15 @@ public class OldUI : MonoBehaviour
 }
 
 // 新代码
-[UIForm]
-public class NewUI : UIFormLogic
+[Window(UILayer.UI, "UI/NewUI")]
+public class NewUI : UIWindow
 {
-    protected override void OnOpen() { }
+    protected override void OnCreate() { }      // 实例化后一次
+    protected override void OnRefresh() { }     // 每次打开
     protected override void OnClose() { }
 }
+
+// 打开：UIService.ShowUIAsync<NewUI>();  关闭：UIService.CloseUI<NewUI>();
 ```
 
 ## 版本迁移指南
