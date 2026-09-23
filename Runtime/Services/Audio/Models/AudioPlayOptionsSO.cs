@@ -272,7 +272,6 @@ namespace Moirai.Atropos.Audio
         [NonSerialized] private ShuffleBag<int> _randomUniqueShuffleBag;
         [NonSerialized] private int _randomUniqueShuffleBagSourceLength = -1;
         [NonSerialized] private ulong _lastPlayHandle;
-        [NonSerialized] private AudioClip _sfx;
 
         public void Play(Vector3 location)
         {
@@ -280,37 +279,37 @@ namespace Moirai.Atropos.Audio
 
             var audioService = AudioService.Handler;
 
-            if (_sfx != null)
+            // 先选出本次候选 clip 再做重播/并发检查——检查若先于选曲执行，
+            // 随机曲集下作用的是上一曲而非即将播放的候选，并发上限会被错误放行或错误拦截。
+            // m_RandomAudio 在 CreateInstance 路径下可为 null（未走序列化初始化），按空数组处理。
+            AudioClip clip = null;
+            if (m_RandomAudio != null && m_RandomAudio.Length > 0)
             {
-                if (m_DoNotPlayIfClipAlreadyPlaying)
+                clip = PickRandomClip();
+            }
+
+            if (clip == null)
+            {
+                clip = m_Audio;
+            }
+
+            if (clip == null) return;
+
+            if (m_DoNotPlayIfClipAlreadyPlaying)
+            {
+                if (_lastPlayHandle != 0 && audioService != null && audioService.IsPlaying(_lastPlayHandle))
                 {
-                    if (_lastPlayHandle != 0 && audioService != null && audioService.IsPlaying(_lastPlayHandle))
-                    {
-                        return;
-                    }
+                    return;
                 }
+            }
 
-                if (m_MaximumConcurrentInstances >= 0)
+            if (m_MaximumConcurrentInstances >= 0)
+            {
+                if (audioService != null && audioService.CurrentlyPlayingCount(clip) >= m_MaximumConcurrentInstances)
                 {
-                    if (audioService != null && audioService.CurrentlyPlayingCount(_sfx) >= m_MaximumConcurrentInstances)
-                    {
-                        return;
-                    }
+                    return;
                 }
             }
-
-            _sfx = null;
-            if (m_RandomAudio.Length > 0)
-            {
-                _sfx = PickRandomClip();
-            }
-
-            if (_sfx == null)
-            {
-                _sfx = m_Audio;
-            }
-
-            if (_sfx == null) return;
 
             float volume = RandomUtility.NextFloat(m_MinVolume, m_MaxVolume);
             float pitch = RandomUtility.NextFloat(m_MinPitch, m_MaxPitch);
@@ -320,6 +319,9 @@ namespace Moirai.Atropos.Audio
                 Location = location,
                 Volume = volume,
                 Pitch = pitch,
+
+                PlaybackTime = RandomUtility.NextFloat(m_PlaybackTime.x, m_PlaybackTime.y),
+                PlaybackDuration = RandomUtility.NextFloat(m_PlaybackDuration.x, m_PlaybackDuration.y),
 
                 AudioTrack = m_AudioTrack,
                 ID = m_ID,
@@ -359,8 +361,13 @@ namespace Moirai.Atropos.Audio
                 SpreadCurve = m_SpreadCurve,
             };
 
-            _lastPlayHandle = AudioService.Play(_sfx, options);
-            _lastPlayTimestamp = Time.unscaledTime;
+            ulong handle = AudioService.Play(clip, options);
+            if (handle != 0)
+            {
+                // 句柄只跟随成功播放——失败（0）保留旧句柄，重播检查语义不被一次失败清空。
+                _lastPlayHandle = handle;
+                _lastPlayTimestamp = Time.unscaledTime;
+            }
         }
 
         /// <summary>
