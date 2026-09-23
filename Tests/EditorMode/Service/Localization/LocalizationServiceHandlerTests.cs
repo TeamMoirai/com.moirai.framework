@@ -332,6 +332,20 @@ namespace Service.Localization
         }
 
         [Test]
+        public void DataSourceThrows_ReportsCauseInsteadOfMissingConfig()
+        {
+            // 读表抛异常≠没生成配置：兜底语会把排查方向整个带偏
+            _handler.ThrowOnLoad = new InvalidOperationException("table read failed");
+            // Expect 只配一条：既锁住真因可见，也锁住"不随每次查询重播异常"——多落一条按意外日志判负
+            LogAssert.Expect(LogType.Error, new Regex("table read failed"));
+
+            var attempts = _handler.LoadCallCount;
+            Assert.AreEqual("ui.title", _handler.GetTextFromId("ui.title"));
+            Assert.AreEqual("ui.title", _handler.GetTextFromId("ui.title"));
+            Assert.GreaterOrEqual(_handler.LoadCallCount - attempts, 2, "取数失败不置已加载标记，每次查询继续重试");
+        }
+
+        [Test]
         public void ColumnCountMismatch_RejectsWholeDataset()
         {
             // 语言列数错位表现为"显示了别的语言"而不是报错，必须在加载期整批拦下
@@ -687,10 +701,14 @@ namespace Service.Localization
         public List<Language> Languages = new List<Language>();
         public Dictionary<string, List<string>> Strings = new Dictionary<string, List<string>>();
         public int LoadCallCount;
+        /// <summary>非空即在本次取数时抛出，用于走数据源失败的回路。</summary>
+        public Exception ThrowOnLoad;
 
         protected override (List<Language> languages, Dictionary<string, List<string>> strings) LoadLocalizedData()
         {
             LoadCallCount++;
+            if (ThrowOnLoad != null) throw ThrowOnLoad;
+
             foreach (var language in Languages)
             {
                 LocalizationService.RegisterLanguageMap(language.Name);

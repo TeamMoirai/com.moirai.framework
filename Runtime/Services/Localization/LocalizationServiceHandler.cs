@@ -208,25 +208,33 @@ namespace Moirai.Atropos.Localization
         private void LoadLocalizedStrings()
         {
             LocalizationTextBatch batch;
+            Exception sourceError = null;
             try
             {
                 batch = LoadLocalizedTextBatch();
             }
             catch (Exception ex)
             {
-                // 数据源抛异常（表没生成、反射目标改名等）不该把异常打进每一次查询
-                LogUtility.Error(ex);
+                // 异常留住不外抛（否则每次查询都抛一遍），交给下面的统一出口只报一次
                 batch = null;
+                sourceError = ex;
             }
 
             if (batch == null || batch.Languages.Length == 0)
             {
                 // 数据未就绪时每次查询都会重试进入此处，错误日志只打一次
-                if (!_hasLoggedLoadError)
+                if (_hasLoggedLoadError) return;
+                _hasLoggedLoadError = true;
+
+                // 取数抛了异常时不得念"先生成配置"：那会把一次读表失败说成配表缺失，
+                // 真因反倒无人看。异常连堆栈一并落进这条日志
+                if (sourceError != null)
                 {
-                    _hasLoggedLoadError = true;
-                    LogUtility.Error("Failed to load localized text, generate config first!");
+                    LogUtility.Error("Failed to load localized text from {0}: {1}", GetType().Name, sourceError);
+                    return;
                 }
+
+                LogUtility.Error("Failed to load localized text, generate config first!");
                 return;
             }
 

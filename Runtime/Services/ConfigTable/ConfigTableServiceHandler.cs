@@ -27,7 +27,7 @@ namespace Moirai.Atropos.ConfigTable
         /// 并按此解析回退链，从此不再依赖「向全局注册表注册语言」这一副作用与它的求值顺序。
         /// 返回空表示未自报（存量项目行为），此时本地化侧回落全局注册表。
         /// </remarks>
-        public virtual IReadOnlyList<string> GetLocalizationLanguageCodes() => Array.Empty<string>();
+        public abstract IReadOnlyList<string> GetLocalizationLanguageCodes();
 
         /// <summary>
         /// 根据 ID 从配置表加载图标。

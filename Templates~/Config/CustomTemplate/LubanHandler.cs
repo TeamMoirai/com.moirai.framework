@@ -33,8 +33,6 @@ namespace GameProto.Config
         #region 处理多语言 [LOCALIZATION]
 
         private Dictionary<string, List<string>> _allLocalizedStrings;
-        private string[] _localizationLanguageCodes;
-
         public override Dictionary<string, List<string>> GetAllLocalizedStrings()
         {
             if (_allLocalizedStrings == null)
@@ -44,7 +42,8 @@ namespace GameProto.Config
 
             return _allLocalizedStrings;
         }
-
+        
+        private string[] _localizationLanguageCodes;
         /// <summary>
         /// 自报本表提供的语言：顺序即 <see cref="GetAllLocalizedStrings"/> 里每条形文本的列顺序。
         /// <para>框架据此校验列数并解析缺译回退链，不再依赖「向全局注册表注册语言」这一副作用。</para>
@@ -75,14 +74,18 @@ namespace GameProto.Config
             // 获取所有公共实例字段
             FieldInfo[] fields = type.GetFields(BindingFlags.Public | BindingFlags.Instance);
 
+            _localizationLanguageCodes = new string[fields.Length];
             // 注册所有可用的多语言
-            foreach (var field in fields)
+            for (int i = 0; i < fields.Length; i++)
             {
-                LocalizationService.RegisterLanguageMap(field.Name);
+                _localizationLanguageCodes[i] = LocalizationService.ToLanguage(fields[i].Name, false).Code;
+                LocalizationService.RegisterLanguageMap(fields[i].Name);
             }
 
             // 处理所有多语言数据
-            _allLocalizedStrings = new Dictionary<string, List<string>>();
+            // 先构建到局部变量：读表失败（如资源未就绪）时不留下"已解析"的空字典，
+            // 否则 GetAllLocalizedStrings 永远返回空集合、且不再重试
+            var localizedStrings = new Dictionary<string, List<string>>();
             foreach (var data in Tables.TbLocalizedStrings.DataList)
             {
                 foreach (FieldInfo field in fields)
@@ -98,17 +101,19 @@ namespace GameProto.Config
                         // 输出字段名称和值
                         // Debug.Log($"[{key}] Field Name: {field.Name}, Value: {fieldValue}");
 
-                        if (_allLocalizedStrings.ContainsKey(key))
+                        if (localizedStrings.ContainsKey(key))
                         {
-                            _allLocalizedStrings[key].Add(fieldValue);
+                            localizedStrings[key].Add(fieldValue);
                         }
                         else
                         {
-                            _allLocalizedStrings.Add(key, new List<string> { fieldValue });
+                            localizedStrings.Add(key, new List<string> { fieldValue });
                         }
                     }
                 }
             }
+
+            _allLocalizedStrings = localizedStrings;
 
             LogUtility.Info("<color=yellow>\u25b2\u25b2\u25b2\u25b2 " +
                             "Resolve LocalizationBean Done!" +

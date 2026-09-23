@@ -21,6 +21,12 @@ namespace Moirai.Atropos.ConfigTable
             return null;
         }
 
+        public override IReadOnlyList<string> GetLocalizationLanguageCodes()
+        {
+            LogUtility.Error("Generate Config first!");
+            return Array.Empty<string>();
+        }
+
         /// <summary>
         /// 根据 ID 从配置表加载图标。
         /// </summary>
