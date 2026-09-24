@@ -11,7 +11,19 @@ namespace Moirai.Atropos.Resource
     /// </summary>
     internal sealed partial class ResourceRecordStore
     {
-        internal void TrimIdleAssetCapacity()
+        // 一趟容量淘汰最多摘掉几条。挑受害者是整表扫（候选表无序、又不是轮盘序），
+        // 而外层的 while 会一路摘到不超限为止，所以不设上限就是每受害者 O(n) 的一帧突发：
+        // 空闲记录 300 条、容量从 256 调到 8，那是一帧里 292×300 次槽位读。
+        // 上限只限制"这一帧做多少"，不改变淘汰次序——没做完就把请求位留着，下一帧接着摘。
+        private const int IDLE_TRIM_VICTIMS_PER_PASS = 8;
+
+        /// <summary>容量被调小后请求一次淘汰：不当场做，交给下一帧的维护走查。</summary>
+        internal void RequestIdleCapacityTrim()
+        {
+            _idleCapacityTrimPending = true;
+        }
+
+        internal void TrimIdleAssetCapacity(int maxVictims)
         {
             _idleCapacityTrimPending = false;
 
@@ -20,8 +32,15 @@ namespace Moirai.Atropos.Resource
                 return;
             }
 
-            while (_unusedAssetCandidateCount > Host.IdleAssetCapacity)
+            for (int trimmed = 0; _unusedAssetCandidateCount > Host.IdleAssetCapacity; trimmed++)
             {
+                if (trimmed >= maxVictims)
+                {
+                    // 预算用尽而非摘完：把请求位留回，下一帧继续，否则会静默停在超限状态。
+                    _idleCapacityTrimPending = true;
+                    return;
+                }
+
                 int candidateCount = _unusedAssetCandidateCount;
                 int victimIndex = -1;
                 int victimExpireTick = int.MaxValue;
@@ -575,7 +594,7 @@ namespace Moirai.Atropos.Resource
             // 容量淘汰排在轮盘走查之后：走查途中同步摘除会让已捕获的 next 指针失效、整桶被跳过。
             if (_idleCapacityTrimPending)
             {
-                TrimIdleAssetCapacity();
+                TrimIdleAssetCapacity(IDLE_TRIM_VICTIMS_PER_PASS);
             }
         }
 

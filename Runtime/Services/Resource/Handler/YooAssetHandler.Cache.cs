@@ -76,7 +76,8 @@ namespace Moirai.Atropos.Resource
             set
             {
                 _idleAssetCapacity = value < 0 ? 0 : value;
-                Store.TrimIdleAssetCapacity();
+                // 不当场淘汰：那等于把一次 O(n) 突发挂在一次属性赋值上。
+                Store.RequestIdleCapacityTrim();
             }
         }
 
