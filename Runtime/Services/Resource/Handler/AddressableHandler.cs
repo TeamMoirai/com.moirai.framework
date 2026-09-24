@@ -85,18 +85,6 @@ namespace Moirai.Atropos.Resource
 
         #region 初始化 [INITIALIZATION]
 
-        /// <inheritdoc />
-        public override UniTask<ResourcePackageInitResult> InitPackage(string packageName, bool needInitManifest = false)
-        {
-            throw CreateNotSupported();
-        }
-
-        /// <inheritdoc />
-        public override UniTask<bool> InitPackageAsync(string packageName = "", string hostServerURL = "", string fallbackHostServerURL = "")
-        {
-            throw CreateNotSupported();
-        }
-
         #endregion
 
         #region 包管理 [PACKAGE MANAGEMENT]
@@ -225,37 +213,12 @@ namespace Moirai.Atropos.Resource
             return default;
         }
 
-        /// <inheritdoc />
-        public override EResourceHasAssetResult HasAsset(string location, string packageName = "")
-        {
-            if (string.IsNullOrEmpty(location))
-            {
-                return EResourceHasAssetResult.NotExist;
-            }
-
-            return Addressables.ResourceLocators != null && Addressables.ResourceLocators.Any()
-                ? EResourceHasAssetResult.AssetOnDisk
-                : EResourceHasAssetResult.NotExist;
-        }
-
-        /// <inheritdoc />
-        public override bool IsLocationValid(string location, string packageName = "")
-        {
-            return !string.IsNullOrEmpty(location);
-        }
-
         #endregion
 
         #region 资源加载 [ASSET LOADING]
 
         /// <inheritdoc />
         public override GameObject LoadGameObject(string location, Transform parent = null, string packageName = "")
-        {
-            throw CreateNotSupported();
-        }
-
-        /// <inheritdoc />
-        public override UniTask<GameObject> LoadGameObjectAsync(string location, Transform parent = null, CancellationToken cancellationToken = default, string packageName = "")
         {
             throw CreateNotSupported();
         }
