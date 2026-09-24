@@ -9,9 +9,12 @@ using Debug = UnityEngine.Debug;
 namespace Moirai.Atropos.Timer
 {
     /// <summary>
-    /// 计时器性能基准。
+    /// 计时器性能基准（**非自动基准**）。
     /// <para>测量 TimerService 静态外观（四级时间轮）的 Add/Remove 热路径、控制操作、时间轮插入、
     /// Tick 开销、调试 API、句柄复用、以及 Play Mode 下的回调触发与突发批量处理。</para>
+    /// <para><b>它不是 NUnit 用例，不参与测试套件</b>——本类型没有 <c>[Test]</c>/<c>[UnityTest]</c>，
+    /// Test Runner 不会执行它，也不需要 <c>[Explicit]</c>（那是给 NUnit 基准用的）。自动套件里的基准见
+    /// 各模块目录下的 <c>XxxBenchmark</c>（一律 <c>[Explicit]</c>）。</para>
     /// <para>使用方法：挂载到场景 GameObject → Inspector 右键 Run Timer Benchmark，
     /// 或菜单 Window/Moirai/Timer Benchmark 创建实例并自动运行。</para>
     /// </summary>

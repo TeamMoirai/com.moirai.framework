@@ -18,16 +18,16 @@ namespace Moirai.Atropos.Audio
 
         [Tooltip("默认音量（线性 0~1，1 = 0dB）")]
         [Range(0, MAXIMAL_VOLUME)]
-        [SerializeField] private float m_DefaultVolume = 1f;
+        [SerializeField] internal float m_DefaultVolume = 1f;
 
         [Tooltip("将归一化音量值转换为混音器值时要的系数（分贝转换）")]
         [SerializeField] private float m_MixerValuesMultiplier = 20f;
 
         [Tooltip("可同时播放的最大数量")]
-        [SerializeField] private int m_MaxChannel = 3;
+        [SerializeField] internal int m_MaxChannel = 3;
 
         [Tooltip("否可以扩展（按需创建新的音频源）")]
-        [SerializeField] private bool m_CanExpand;
+        [SerializeField] internal bool m_CanExpand;
 
         [Tooltip("扩展的通道硬上限（仅 CanExpand 生效）：按平台预算分轨设置，非法值回落到默认 32")]
         [SerializeField, Min(1)] internal int m_MaxChannelCeiling = HARD_CHANNEL_CEILING_DEFAULT;

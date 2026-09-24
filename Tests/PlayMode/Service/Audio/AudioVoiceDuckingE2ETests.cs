@@ -75,19 +75,10 @@ namespace Service.Audio
 
         private static void ForceDuckingEnabled(bool enabled)
         {
-            var field = typeof(AudioServiceSettings)
-                .GetField("m_AutoDuckingOnVoice",
-                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
-            if (field == null) return;
+            AudioServiceSettings instance = FrameworkSettings<AudioServiceSettings>.Instance;
+            if (instance == null) return;
 
-            var instanceProp = typeof(FrameworkSettings<AudioServiceSettings>)
-                .GetProperty("Instance",
-                    System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public);
-            object instance = instanceProp?.GetValue(null);
-            if (instance != null)
-            {
-                field.SetValue(instance, enabled);
-            }
+            instance.m_AutoDuckingOnVoice = enabled;
         }
 
         [UnityTest]

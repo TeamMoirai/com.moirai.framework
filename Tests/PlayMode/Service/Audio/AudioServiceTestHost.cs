@@ -1,5 +1,4 @@
 using System;
-using System.Reflection;
 using Moirai.Atropos.Audio;
 using NUnit.Framework;
 
@@ -13,9 +12,6 @@ namespace Service.Audio
     /// </summary>
     internal sealed class AudioServiceTestHost : IDisposable
     {
-        private static readonly MethodInfo s_InitializeMethod = typeof(UnityAudioHandler).GetMethod(
-            "Initialize", BindingFlags.Instance | BindingFlags.NonPublic);
-
         private readonly AudioServiceHandler _previousHandler;
         private bool _disposed;
 
@@ -24,8 +20,6 @@ namespace Service.Audio
         /// <summary>构造后立即可播；配置建不出来会 Fail，不会静默跳过。</summary>
         public AudioServiceTestHost(params EAudioTrack[] tracks)
         {
-            Assert.IsNotNull(s_InitializeMethod, "UnityAudioHandler.Initialize 应存在");
-
             if (tracks == null || tracks.Length == 0)
             {
                 tracks = new[]
@@ -41,7 +35,7 @@ namespace Service.Audio
             }
 
             Handler = new UnityAudioHandler();
-            s_InitializeMethod.Invoke(Handler, new object[] { null, null, configs });
+            Handler.Initialize(null, null, configs);
 
             var categories = Handler.AudioCategories;
             Assert.IsNotNull(categories, "最小配置初始化后 AudioCategories 不得为 null");
@@ -75,17 +69,10 @@ namespace Service.Audio
                 AudioTrack = track,
             };
 
-            SetPrivateField(config, "m_MaxChannel", 8);
-            SetPrivateField(config, "m_CanExpand", true);
-            SetPrivateField(config, "m_DefaultVolume", 1f);
+            config.m_MaxChannel = 8;
+            config.m_CanExpand = true;
+            config.m_DefaultVolume = 1f;
             return config;
-        }
-
-        private static void SetPrivateField(object target, string name, object value)
-        {
-            var field = target.GetType().GetField(name, BindingFlags.Instance | BindingFlags.NonPublic);
-            Assert.IsNotNull(field, $"{target.GetType().Name}.{name} 字段应存在");
-            field.SetValue(target, value);
         }
     }
 }

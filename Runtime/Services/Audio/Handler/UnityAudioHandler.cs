@@ -28,7 +28,7 @@ namespace Moirai.Atropos.Audio
         // 音轨 -> AudioGroupConfig 缓存，O(1) 数组直接访问
         [NonSerialized] private AudioGroupConfig[] _configCache;
         // 服务句柄注册表（句柄生成、句柄→Agent、用户 ID 映射、列表池）
-        [NonSerialized] private readonly AudioHandleRegistry<AudioAgent> _handles = new AudioHandleRegistry<AudioAgent>();
+        [NonSerialized] internal readonly AudioHandleRegistry<AudioAgent> _handles = new AudioHandleRegistry<AudioAgent>();
         // Clip 缓存（Lease + LRU + TTL + Pin + lowMemory）——路径播放单一真相源
         [NonSerialized] private readonly AudioClipCache _clipCache = new AudioClipCache();
 
@@ -363,7 +363,7 @@ namespace Moirai.Atropos.Audio
         /// <summary>
         /// 初始化音频服务。
         /// </summary>
-        private void Initialize(Transform instanceRoot = null, AudioMixer audioMixer = null, AudioGroupConfig[] audioGroupConfigs = null)
+        internal void Initialize(Transform instanceRoot = null, AudioMixer audioMixer = null, AudioGroupConfig[] audioGroupConfigs = null)
         {
             _instanceRoot = instanceRoot;
             if (_instanceRoot == null)
