@@ -19,7 +19,7 @@ namespace Moirai.Atropos.Resource
     /// </summary>
     // ReSharper disable once ClassNeverInstantiated.Global
     [Serializable]
-    internal sealed partial class YooAssetHandler : ResourceServiceHandler, IResourceRecordKernelHost
+    internal sealed partial class YooAssetHandler : ResourceServiceHandler, IResourceRecordHost
     {
         #region 基础属性 [BASE PROPERTIES]
 
@@ -250,10 +250,10 @@ namespace Moirai.Atropos.Resource
 
             unchecked
             {
-                Kernel.UnloadGeneration++;
+                Store.UnloadGeneration++;
             }
 
-            Kernel.ShutdownLoadingOperations();
+            Store.ShutdownLoadingOperations();
             if (_bindingService == null)
             {
                 _bindingService = new ResourceBindingService(this);
@@ -471,11 +471,11 @@ namespace Moirai.Atropos.Resource
         }
 
         // 接口成员要 public 才能隐式实现；这三个算子是 handler 的内部件，故显式接线。
-        bool IResourceRecordKernelHost.IsHandleValid(object handle) => IsHandleValid(handle);
+        bool IResourceRecordHost.IsHandleValid(object handle) => IsHandleValid(handle);
 
-        void IResourceRecordKernelHost.DisposeHandle(object handle) => DisposeHandle(handle);
+        void IResourceRecordHost.DisposeHandle(object handle) => DisposeHandle(handle);
 
-        Sprite IResourceRecordKernelHost.GetSubSprite(object handle, string spriteName) =>
+        Sprite IResourceRecordHost.GetSubSprite(object handle, string spriteName) =>
             GetSubSprite(handle, spriteName);
 
         #endregion
@@ -501,26 +501,26 @@ namespace Moirai.Atropos.Resource
                 return null;
             }
 
-            if (!Kernel.TryGetLeaseAsset(prefabLease, out UObject prefabObject) ||
+            if (!Store.TryGetLeaseAsset(prefabLease, out UObject prefabObject) ||
                 prefabObject is not GameObject prefab)
             {
-                Kernel.Release(prefabLease);
+                Store.Release(prefabLease);
                 return null;
             }
 
-            uint unloadGeneration = Kernel.UnloadGeneration;
+            uint unloadGeneration = Store.UnloadGeneration;
             GameObject instance = UObject.Instantiate(prefab, parent);
 
             // 实例化会派发 Awake，其中可以重入强制回收/关停：
             // 此时 prefab 记录可能已被释放，租约不得再挂到清空过的绑定服务上。
-            if (instance == null || Kernel.IsDestroying || unloadGeneration != Kernel.UnloadGeneration)
+            if (instance == null || Store.IsDestroying || unloadGeneration != Store.UnloadGeneration)
             {
                 if (instance != null)
                 {
                     UObject.Destroy(instance);
                 }
 
-                Kernel.Release(prefabLease);
+                Store.Release(prefabLease);
                 return null;
             }
 
@@ -529,7 +529,7 @@ namespace Moirai.Atropos.Resource
             if (bindStatus != EResourceBindStatus.Success)
             {
                 UObject.Destroy(instance);
-                Kernel.Release(prefabLease);
+                Store.Release(prefabLease);
                 return null;
             }
 
@@ -559,37 +559,37 @@ namespace Moirai.Atropos.Resource
 
             if (cancellationToken.IsCancellationRequested)
             {
-                Kernel.Release(prefabLease);
+                Store.Release(prefabLease);
                 return null;
             }
 
-            if (!Kernel.TryGetLeaseAsset(prefabLease, out UObject prefabObject) ||
+            if (!Store.TryGetLeaseAsset(prefabLease, out UObject prefabObject) ||
                 prefabObject is not GameObject prefab)
             {
-                Kernel.Release(prefabLease);
+                Store.Release(prefabLease);
                 return null;
             }
 
             // 父节点可能在等待期间被销毁：fake null 的 Transform 直接交给 Instantiate 会抛。
             if (!ReferenceEquals(parent, null) && parent == null)
             {
-                Kernel.Release(prefabLease);
+                Store.Release(prefabLease);
                 return null;
             }
 
-            uint unloadGeneration = Kernel.UnloadGeneration;
+            uint unloadGeneration = Store.UnloadGeneration;
             GameObject instance = UObject.Instantiate(prefab, parent);
 
             // 实例化会派发 Awake，其中可以重入强制回收/关停：
             // 此时 prefab 记录可能已被释放，租约不得再挂到清空过的绑定服务上。
-            if (instance == null || Kernel.IsDestroying || unloadGeneration != Kernel.UnloadGeneration)
+            if (instance == null || Store.IsDestroying || unloadGeneration != Store.UnloadGeneration)
             {
                 if (instance != null)
                 {
                     UObject.Destroy(instance);
                 }
 
-                Kernel.Release(prefabLease);
+                Store.Release(prefabLease);
                 return null;
             }
 
@@ -598,7 +598,7 @@ namespace Moirai.Atropos.Resource
             if (bindStatus != EResourceBindStatus.Success)
             {
                 UObject.Destroy(instance);
-                Kernel.Release(prefabLease);
+                Store.Release(prefabLease);
                 return null;
             }
 

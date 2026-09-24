@@ -7,7 +7,7 @@ namespace Moirai.Atropos.Resource
     /// <para>句柄在内核里以 <see cref="object"/> 存放（后端句柄都是引用类型，不装箱），本接口负责
     /// 校验、释放与按名取子精灵；配置三项刻意走属性活读而不是构造时传值，因为它们在运行期可写。</para>
     /// </summary>
-    internal interface IResourceRecordKernelHost
+    internal interface IResourceRecordHost
     {
         bool IsHandleValid(object handle);
 

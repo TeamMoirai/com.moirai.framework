@@ -6,10 +6,10 @@ namespace Moirai.Atropos.Resource
 {
     /// <summary>
     /// 资源记录内核的记录侧——带代际校验的资产槽、分页 arena、两条索引表与诊断快照。
-    /// <para>与后端的全部牵连收在 <see cref="IResourceRecordKernelHost"/>：三个原生句柄算子
+    /// <para>与后端的全部牵连收在 <see cref="IResourceRecordHost"/>：三个原生句柄算子
     /// 与三个配置读数。本分部不出现任何后端类型名。</para>
     /// </summary>
-    internal sealed partial class ResourceRecordKernel
+    internal sealed partial class ResourceRecordStore
     {
         #region 常量 [CONSTANTS]
 
@@ -446,17 +446,17 @@ namespace Moirai.Atropos.Resource
 
         private ref AssetSlot GetAssetSlotRef(int index)
         {
-            return ref _assetSlotPages[index >> ResourceRecordKernel.RECORD_PAGE_BITS][index & ResourceRecordKernel.RECORD_PAGE_MASK];
+            return ref _assetSlotPages[index >> ResourceRecordStore.RECORD_PAGE_BITS][index & ResourceRecordStore.RECORD_PAGE_MASK];
         }
 
         private ref LeaseSlot GetLeaseSlotRef(int index)
         {
-            return ref _leaseSlotPages[index >> ResourceRecordKernel.RECORD_PAGE_BITS][index & ResourceRecordKernel.RECORD_PAGE_MASK];
+            return ref _leaseSlotPages[index >> ResourceRecordStore.RECORD_PAGE_BITS][index & ResourceRecordStore.RECORD_PAGE_MASK];
         }
 
         internal void EnsureAssetSlotPage(int index)
         {
-            int pageIndex = index >> ResourceRecordKernel.RECORD_PAGE_BITS;
+            int pageIndex = index >> ResourceRecordStore.RECORD_PAGE_BITS;
             if (_assetSlotPages == null)
             {
                 _assetSlotPages = new AssetSlot[Math.Max(4, pageIndex + 1)][];
@@ -468,13 +468,13 @@ namespace Moirai.Atropos.Resource
 
             if (_assetSlotPages[pageIndex] == null)
             {
-                _assetSlotPages[pageIndex] = new AssetSlot[ResourceRecordKernel.RECORD_PAGE_SIZE];
+                _assetSlotPages[pageIndex] = new AssetSlot[ResourceRecordStore.RECORD_PAGE_SIZE];
             }
         }
 
         internal void EnsureLeaseSlotPage(int index)
         {
-            int pageIndex = index >> ResourceRecordKernel.RECORD_PAGE_BITS;
+            int pageIndex = index >> ResourceRecordStore.RECORD_PAGE_BITS;
             if (_leaseSlotPages == null)
             {
                 _leaseSlotPages = new LeaseSlot[Math.Max(4, pageIndex + 1)][];
@@ -486,7 +486,7 @@ namespace Moirai.Atropos.Resource
 
             if (_leaseSlotPages[pageIndex] == null)
             {
-                _leaseSlotPages[pageIndex] = new LeaseSlot[ResourceRecordKernel.RECORD_PAGE_SIZE];
+                _leaseSlotPages[pageIndex] = new LeaseSlot[ResourceRecordStore.RECORD_PAGE_SIZE];
             }
         }
 

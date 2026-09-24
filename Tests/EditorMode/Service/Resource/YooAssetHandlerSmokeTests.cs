@@ -72,7 +72,7 @@ namespace Service.Resource
             AssertNonSerialized(typeof(YooAssetHandler), "_assetSlotPages");
             AssertNonSerialized(typeof(YooAssetHandler), "_leaseSlotPages");
             // 这座 arena 已随去重槽搬进内核，契约跟着走。
-            AssertNonSerialized(typeof(ResourceRecordKernel), "_loadingOperationSlotPages");
+            AssertNonSerialized(typeof(ResourceRecordStore), "_loadingOperationSlotPages");
         }
 
         [Test]

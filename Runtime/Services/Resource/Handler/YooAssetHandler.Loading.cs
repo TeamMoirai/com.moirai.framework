@@ -18,25 +18,25 @@ namespace Moirai.Atropos.Resource
         private UObject GetOrLoadAsset(string location, Type assetType, EResourceAssetKind assetKind,
             string packageName)
         {
-            string normalizedPackageName = Kernel.NormalizePackageName(packageName);
+            string normalizedPackageName = Store.NormalizePackageName(packageName);
             assetKind = ResourceKeyCodec.NormalizeAssetKind(assetType, assetKind);
             assetType = ResourceKeyCodec.NormalizeAssetType(assetType, assetKind);
-            ulong loadingKey = Kernel.GetLoadingOperationKey(location, normalizedPackageName, assetType, assetKind);
+            ulong loadingKey = Store.GetLoadingOperationKey(location, normalizedPackageName, assetType, assetKind);
 
             while (true)
             {
-                if (Kernel.IsDestroying)
+                if (Store.IsDestroying)
                 {
                     return null;
                 }
 
-                if (Kernel.TryGetCachedAssetRecord(normalizedPackageName, location, assetType, assetKind,
+                if (Store.TryGetCachedAssetRecord(normalizedPackageName, location, assetType, assetKind,
                         EResourceHandleKind.AssetHandle, out _, out UObject cachedAsset))
                 {
                     return cachedAsset;
                 }
 
-                if (!Kernel.TryBeginLoading(loadingKey))
+                if (!Store.TryBeginLoading(loadingKey))
                 {
                     AssetHandle joinHandle = GetHandleSync(location, assetType, packageName);
                     if (joinHandle == null || joinHandle.AssetObject == null ||
@@ -46,21 +46,21 @@ namespace Moirai.Atropos.Resource
                         return null;
                     }
 
-                    Kernel.GetOrCreateAssetRecord(normalizedPackageName, location, assetType, assetKind,
+                    Store.GetOrCreateAssetRecord(normalizedPackageName, location, assetType, assetKind,
                         EResourceHandleKind.AssetHandle, joinHandle.AssetObject, joinHandle);
-                    return Kernel.TryGetCachedAssetRecord(normalizedPackageName, location, assetType, assetKind,
+                    return Store.TryGetCachedAssetRecord(normalizedPackageName, location, assetType, assetKind,
                         EResourceHandleKind.AssetHandle, out _, out cachedAsset)
                         ? cachedAsset
                         : null;
                 }
 
-                int loadGeneration = unchecked((int)Kernel.UnloadGeneration);
+                int loadGeneration = unchecked((int)Store.UnloadGeneration);
                 AssetHandle handle = null;
                 try
                 {
-                    if (!Kernel.IsLoadingStateCurrent(loadGeneration))
+                    if (!Store.IsLoadingStateCurrent(loadGeneration))
                     {
-                        Kernel.FailLoading(loadingKey, null);
+                        Store.FailLoading(loadingKey, null);
                         return null;
                     }
 
@@ -72,21 +72,21 @@ namespace Moirai.Atropos.Resource
                             : NewLoadingFailure("Asset", location, normalizedPackageName);
                         DisposeHandle(handle);
                         handle = null;
-                        Kernel.FailLoading(loadingKey, failure, ELogLevel.Warning);
+                        Store.FailLoading(loadingKey, failure, ELogLevel.Warning);
                         return null;
                     }
 
                     UObject loadedAsset = handle.AssetObject;
-                    Kernel.GetOrCreateAssetRecord(normalizedPackageName, location, assetType, assetKind,
+                    Store.GetOrCreateAssetRecord(normalizedPackageName, location, assetType, assetKind,
                         EResourceHandleKind.AssetHandle, handle.AssetObject, handle);
                     handle = null; // 所有权已移交记录，异常兜底不得再 dispose
-                    Kernel.CompleteLoading(loadingKey);
+                    Store.CompleteLoading(loadingKey);
                     return loadedAsset;
                 }
                 catch (Exception ex)
                 {
                     DisposeHandle(handle);
-                    Kernel.FailLoading(loadingKey, new GameException(StringUtility.Format(
+                    Store.FailLoading(loadingKey, new GameException(StringUtility.Format(
                         "Resource Asset sync load threw. Location:{0} Package:{1} Type:{2}", location,
                         normalizedPackageName, assetType), ex));
                     return null;
@@ -98,7 +98,7 @@ namespace Moirai.Atropos.Resource
             EResourceAssetKind assetKind, string packageName, ulong loadingKey,
             uint priority = 0, CancellationToken cancellationToken = default)
         {
-            string normalizedPackageName = Kernel.NormalizePackageName(packageName);
+            string normalizedPackageName = Store.NormalizePackageName(packageName);
             assetKind = ResourceKeyCodec.NormalizeAssetKind(assetType, assetKind);
             assetType = ResourceKeyCodec.NormalizeAssetType(assetType, assetKind);
 
@@ -109,20 +109,20 @@ namespace Moirai.Atropos.Resource
                     return null;
                 }
 
-                if (Kernel.IsDestroying)
+                if (Store.IsDestroying)
                 {
                     return null;
                 }
 
-                if (Kernel.TryGetCachedAssetRecord(normalizedPackageName, location, assetType, assetKind,
+                if (Store.TryGetCachedAssetRecord(normalizedPackageName, location, assetType, assetKind,
                         EResourceHandleKind.AssetHandle, out _, out UObject cachedAsset))
                 {
                     return cachedAsset;
                 }
 
-                if (!Kernel.TryBeginLoading(loadingKey))
+                if (!Store.TryBeginLoading(loadingKey))
                 {
-                    if (!await Kernel.WaitForLoadingAsync(loadingKey, cancellationToken))
+                    if (!await Store.WaitForLoadingAsync(loadingKey, cancellationToken))
                     {
                         return null;
                     }
@@ -130,20 +130,20 @@ namespace Moirai.Atropos.Resource
                     continue;
                 }
 
-                int loadGeneration = unchecked((int)Kernel.UnloadGeneration);
+                int loadGeneration = unchecked((int)Store.UnloadGeneration);
                 AssetHandle handle = null;
                 try
                 {
-                    if (!Kernel.IsLoadingStateCurrent(loadGeneration))
+                    if (!Store.IsLoadingStateCurrent(loadGeneration))
                     {
-                        Kernel.FailLoading(loadingKey, null);
+                        Store.FailLoading(loadingKey, null);
                         return null;
                     }
 
                     handle = GetHandleAsync(location, assetType, packageName: packageName, priority: priority);
                     if (handle == null)
                     {
-                        Kernel.FailLoading(loadingKey, NewLoadingFailure("Asset", location, normalizedPackageName),
+                        Store.FailLoading(loadingKey, NewLoadingFailure("Asset", location, normalizedPackageName),
                             ELogLevel.Warning);
                         return null;
                     }
@@ -160,19 +160,19 @@ namespace Moirai.Atropos.Resource
                         callerCancellationRequested = true;
                     }
 
-                    if (!Kernel.IsLoadingStateCurrent(loadGeneration))
+                    if (!Store.IsLoadingStateCurrent(loadGeneration))
                     {
                         DisposeHandle(handle);
                         handle = null;
-                        Kernel.FailLoading(loadingKey, null);
+                        Store.FailLoading(loadingKey, null);
                         return null;
                     }
 
-                    if (Kernel.ShouldAbortLoadingAfterCallerCancellation(loadingKey, cancellationToken, ref callerCancellationRequested))
+                    if (Store.ShouldAbortLoadingAfterCallerCancellation(loadingKey, cancellationToken, ref callerCancellationRequested))
                     {
                         DisposeHandle(handle);
                         handle = null;
-                        Kernel.FailLoading(loadingKey, null);
+                        Store.FailLoading(loadingKey, null);
                         return null;
                     }
 
@@ -182,28 +182,28 @@ namespace Moirai.Atropos.Resource
                             handle.Error);
                         DisposeHandle(handle);
                         handle = null;
-                        Kernel.FailLoading(loadingKey, failure, ELogLevel.Warning);
+                        Store.FailLoading(loadingKey, failure, ELogLevel.Warning);
                         return null;
                     }
 
-                    if (Kernel.IsDestroying)
+                    if (Store.IsDestroying)
                     {
                         DisposeHandle(handle);
                         handle = null;
-                        Kernel.FailLoading(loadingKey, null);
+                        Store.FailLoading(loadingKey, null);
                         return null;
                     }
 
-                    Kernel.GetOrCreateAssetRecord(normalizedPackageName, location, assetType, assetKind,
+                    Store.GetOrCreateAssetRecord(normalizedPackageName, location, assetType, assetKind,
                         EResourceHandleKind.AssetHandle, handle.AssetObject, handle);
                     handle = null; // 所有权已移交记录，异常兜底不得再 dispose
-                    Kernel.CompleteLoading(loadingKey);
+                    Store.CompleteLoading(loadingKey);
                     if (callerCancellationRequested)
                     {
                         return null;
                     }
 
-                    return Kernel.TryGetCachedAssetRecord(normalizedPackageName, location, assetType, assetKind,
+                    return Store.TryGetCachedAssetRecord(normalizedPackageName, location, assetType, assetKind,
                             EResourceHandleKind.AssetHandle, out _, out cachedAsset)
                         ? cachedAsset
                         : null;
@@ -212,13 +212,13 @@ namespace Moirai.Atropos.Resource
                 {
                     // 取消按契约吞成 null；去重槽必须闭环失败，否则同资源后续并发加载会在 WaitForLoadingAsync 里空转。
                     DisposeHandle(handle);
-                    Kernel.FailLoading(loadingKey, null);
+                    Store.FailLoading(loadingKey, null);
                     return null;
                 }
                 catch (Exception ex)
                 {
                     DisposeHandle(handle);
-                    Kernel.FailLoading(loadingKey, new GameException(StringUtility.Format(
+                    Store.FailLoading(loadingKey, new GameException(StringUtility.Format(
                         "Resource Asset load threw. Location:{0} Package:{1} Type:{2}", location, normalizedPackageName,
                         assetType), ex));
                     return null;
@@ -234,26 +234,26 @@ namespace Moirai.Atropos.Resource
                 return ResourceLeaseHandle.Invalid;
             }
 
-            string normalizedPackageName = Kernel.NormalizePackageName(packageName);
-            ulong loadingKey = Kernel.GetLoadingOperationKey(location, normalizedPackageName, typeof(Sprite),
+            string normalizedPackageName = Store.NormalizePackageName(packageName);
+            ulong loadingKey = Store.GetLoadingOperationKey(location, normalizedPackageName, typeof(Sprite),
                 EResourceAssetKind.SubAssets);
 
             while (true)
             {
-                if (cancellationToken.IsCancellationRequested || Kernel.IsDestroying)
+                if (cancellationToken.IsCancellationRequested || Store.IsDestroying)
                 {
                     return ResourceLeaseHandle.Invalid;
                 }
 
-                if (Kernel.TryGetCachedSubAssetsRecord(normalizedPackageName, location, out int cachedAssetId))
+                if (Store.TryGetCachedSubAssetsRecord(normalizedPackageName, location, out int cachedAssetId))
                 {
-                    return Kernel.AcquireLease(cachedAssetId, EResourceLeaseKind.Binding, options);
+                    return Store.AcquireLease(cachedAssetId, EResourceLeaseKind.Binding, options);
                 }
 
-                if (!Kernel.TryBeginLoading(loadingKey))
+                if (!Store.TryBeginLoading(loadingKey))
                 {
                     // 同一图集并发绑定：并入赢家的加载，不再各自发起一次 SubAssets 请求
-                    if (!await Kernel.WaitForLoadingAsync(loadingKey, cancellationToken))
+                    if (!await Store.WaitForLoadingAsync(loadingKey, cancellationToken))
                     {
                         return ResourceLeaseHandle.Invalid;
                     }
@@ -261,20 +261,20 @@ namespace Moirai.Atropos.Resource
                     continue;
                 }
 
-                int loadGeneration = unchecked((int)Kernel.UnloadGeneration);
+                int loadGeneration = unchecked((int)Store.UnloadGeneration);
                 SubAssetsHandle subHandle = null;
                 try
                 {
-                    if (!Kernel.IsLoadingStateCurrent(loadGeneration))
+                    if (!Store.IsLoadingStateCurrent(loadGeneration))
                     {
-                        Kernel.FailLoading(loadingKey, null);
+                        Store.FailLoading(loadingKey, null);
                         return ResourceLeaseHandle.Invalid;
                     }
 
                     subHandle = GetSubAssetsHandleAsync(location, normalizedPackageName);
                     if (subHandle == null)
                     {
-                        Kernel.FailLoading(loadingKey, NewLoadingFailure("SubAssets", location, normalizedPackageName),
+                        Store.FailLoading(loadingKey, NewLoadingFailure("SubAssets", location, normalizedPackageName),
                             ELogLevel.Warning);
                         return ResourceLeaseHandle.Invalid;
                     }
@@ -291,16 +291,16 @@ namespace Moirai.Atropos.Resource
                         callerCancellationRequested = true;
                     }
 
-                    if (!Kernel.IsLoadingStateCurrent(loadGeneration))
+                    if (!Store.IsLoadingStateCurrent(loadGeneration))
                     {
                         // 强卸载/关停已发生：句柄原样交回，绝不写进已 Dispose 的 Package
                         DisposeHandle(subHandle);
                         subHandle = null;
-                        Kernel.FailLoading(loadingKey, null);
+                        Store.FailLoading(loadingKey, null);
                         return ResourceLeaseHandle.Invalid;
                     }
 
-                    bool abortedByCallerCancellation = Kernel.ShouldAbortLoadingAfterCallerCancellation(loadingKey,
+                    bool abortedByCallerCancellation = Store.ShouldAbortLoadingAfterCallerCancellation(loadingKey,
                         cancellationToken, ref callerCancellationRequested);
                     bool loadFailed = !subHandle.IsValid || subHandle.Status == EOperationStatus.Failed;
                     if (abortedByCallerCancellation || loadFailed)
@@ -311,29 +311,29 @@ namespace Moirai.Atropos.Resource
                             : null;
                         DisposeHandle(subHandle);
                         subHandle = null;
-                        Kernel.FailLoading(loadingKey, failure, ELogLevel.Warning);
+                        Store.FailLoading(loadingKey, failure, ELogLevel.Warning);
                         return ResourceLeaseHandle.Invalid;
                     }
 
-                    int assetId = Kernel.GetOrCreateSubAssetsRecord(normalizedPackageName, location, subHandle);
+                    int assetId = Store.GetOrCreateSubAssetsRecord(normalizedPackageName, location, subHandle);
                     subHandle = null; // 所有权已移交记录，异常兜底不得再 dispose
-                    Kernel.CompleteLoading(loadingKey);
+                    Store.CompleteLoading(loadingKey);
                     return callerCancellationRequested
                         ? ResourceLeaseHandle.Invalid
-                        : Kernel.AcquireLease(assetId, EResourceLeaseKind.Binding, options);
+                        : Store.AcquireLease(assetId, EResourceLeaseKind.Binding, options);
                 }
                 catch (OperationCanceledException)
                 {
                     // 取消是本 API 的正常出口（契约返回 Invalid，不抛出），但已预留的去重槽必须闭环失败，
                     // 否则同图集后续并发绑定会在 WaitForLoadingAsync 里空转到各自超时/关停。
                     DisposeHandle(subHandle);
-                    Kernel.FailLoading(loadingKey, null);
+                    Store.FailLoading(loadingKey, null);
                     return ResourceLeaseHandle.Invalid;
                 }
                 catch (Exception ex)
                 {
                     DisposeHandle(subHandle);
-                    Kernel.FailLoading(loadingKey, new GameException(StringUtility.Format(
+                    Store.FailLoading(loadingKey, new GameException(StringUtility.Format(
                         "Resource SubAssets load threw. Location:{0} Package:{1}", location, normalizedPackageName), ex));
                     return ResourceLeaseHandle.Invalid;
                 }
@@ -342,7 +342,7 @@ namespace Moirai.Atropos.Resource
 
         private void AttachLoadingAssetHandle(ulong assetObjectKey, AssetHandle handle)
         {
-            if (Kernel.TryGetLoadingOperation(assetObjectKey, out LoadingOperationState loadingOperation))
+            if (Store.TryGetLoadingOperation(assetObjectKey, out LoadingOperationState loadingOperation))
             {
                 loadingOperation.AssetHandle = handle;
             }
@@ -350,7 +350,7 @@ namespace Moirai.Atropos.Resource
 
         private void AttachLoadingSubAssetsHandle(ulong assetObjectKey, SubAssetsHandle handle)
         {
-            if (Kernel.TryGetLoadingOperation(assetObjectKey, out LoadingOperationState loadingOperation))
+            if (Store.TryGetLoadingOperation(assetObjectKey, out LoadingOperationState loadingOperation))
             {
                 loadingOperation.SubAssetsHandle = handle;
             }

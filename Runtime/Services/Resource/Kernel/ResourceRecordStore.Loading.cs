@@ -9,7 +9,7 @@ namespace Moirai.Atropos.Resource
     /// <para>排队与成败只认计数，句柄本身由具体后端解释：本文件因此不出现任何后端类型，
     /// 把句柄写进槽的两个 Attach 留在后端侧。</para>
     /// </summary>
-    internal sealed partial class ResourceRecordKernel
+    internal sealed partial class ResourceRecordStore
     {
         internal bool TryBeginLoading(ulong assetObjectKey)
         {

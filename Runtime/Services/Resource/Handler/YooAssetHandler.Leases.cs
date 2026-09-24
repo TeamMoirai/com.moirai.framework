@@ -20,7 +20,7 @@ namespace Moirai.Atropos.Resource
                 ? new ResourceKey(key.Location, key.PackageName, typeof(UObject), ResourceKeyCodec.InferAssetKind(typeof(UObject)))
                 : key;
 
-            string normalizedPackageName = Kernel.NormalizePackageName(typedKey.PackageName);
+            string normalizedPackageName = Store.NormalizePackageName(typedKey.PackageName);
             EResourceAssetKind assetKind = ResourceKeyCodec.NormalizeAssetKind(typedKey.AssetType, typedKey.AssetKind);
             Type assetType = ResourceKeyCodec.NormalizeAssetType(typedKey.AssetType, assetKind);
 
@@ -30,14 +30,14 @@ namespace Moirai.Atropos.Resource
                 return ResourceLeaseHandle.Invalid;
             }
 
-            ulong recordKey = Kernel.GetAssetRecordKey(normalizedPackageName, typedKey.Location, assetType, assetKind,
+            ulong recordKey = Store.GetAssetRecordKey(normalizedPackageName, typedKey.Location, assetType, assetKind,
                 EResourceHandleKind.AssetHandle);
-            if (!Kernel.TryGetRecordId(recordKey, out int assetId) || !Kernel.IsValidAssetId(assetId))
+            if (!Store.TryGetRecordId(recordKey, out int assetId) || !Store.IsValidAssetId(assetId))
             {
                 return ResourceLeaseHandle.Invalid;
             }
 
-            return Kernel.AcquireLease(assetId, EResourceLeaseKind.Direct, EResourceLeaseOption.None);
+            return Store.AcquireLease(assetId, EResourceLeaseKind.Direct, EResourceLeaseOption.None);
         }
 
         /// <inheritdoc />
@@ -48,10 +48,10 @@ namespace Moirai.Atropos.Resource
                 ? new ResourceKey(key.Location, key.PackageName, typeof(UObject), ResourceKeyCodec.InferAssetKind(typeof(UObject)))
                 : key;
 
-            string normalizedPackageName = Kernel.NormalizePackageName(typedKey.PackageName);
+            string normalizedPackageName = Store.NormalizePackageName(typedKey.PackageName);
             EResourceAssetKind assetKind = ResourceKeyCodec.NormalizeAssetKind(typedKey.AssetType, typedKey.AssetKind);
             Type assetType = ResourceKeyCodec.NormalizeAssetType(typedKey.AssetType, assetKind);
-            ulong loadingKey = Kernel.GetLoadingOperationKey(typedKey.Location, normalizedPackageName, assetType, assetKind);
+            ulong loadingKey = Store.GetLoadingOperationKey(typedKey.Location, normalizedPackageName, assetType, assetKind);
 
             UObject asset = await GetOrLoadAssetAsync(typedKey.Location, assetType, assetKind, normalizedPackageName,
                 loadingKey, cancellationToken: cancellationToken);
@@ -60,14 +60,14 @@ namespace Moirai.Atropos.Resource
                 return ResourceLeaseHandle.Invalid;
             }
 
-            ulong recordKey = Kernel.GetAssetRecordKey(normalizedPackageName, typedKey.Location, assetType, assetKind,
+            ulong recordKey = Store.GetAssetRecordKey(normalizedPackageName, typedKey.Location, assetType, assetKind,
                 EResourceHandleKind.AssetHandle);
-            if (!Kernel.TryGetRecordId(recordKey, out int assetId) || !Kernel.IsValidAssetId(assetId))
+            if (!Store.TryGetRecordId(recordKey, out int assetId) || !Store.IsValidAssetId(assetId))
             {
                 return ResourceLeaseHandle.Invalid;
             }
 
-            return Kernel.AcquireLease(assetId, EResourceLeaseKind.Direct, EResourceLeaseOption.None);
+            return Store.AcquireLease(assetId, EResourceLeaseKind.Direct, EResourceLeaseOption.None);
         }
 
         /// <inheritdoc />
@@ -82,9 +82,9 @@ namespace Moirai.Atropos.Resource
                 return default;
             }
 
-            if (!Kernel.TryGetLeaseAsset(handle, out UObject asset) || asset is not T typedAsset)
+            if (!Store.TryGetLeaseAsset(handle, out UObject asset) || asset is not T typedAsset)
             {
-                Kernel.Release(handle);
+                Store.Release(handle);
                 return default;
             }
 
@@ -112,13 +112,13 @@ namespace Moirai.Atropos.Resource
 
             if (cancellationToken.IsCancellationRequested)
             {
-                Kernel.Release(handle);
+                Store.Release(handle);
                 return default;
             }
 
-            if (!Kernel.TryGetLeaseAsset(handle, out UObject asset) || asset is not T typedAsset)
+            if (!Store.TryGetLeaseAsset(handle, out UObject asset) || asset is not T typedAsset)
             {
-                Kernel.Release(handle);
+                Store.Release(handle);
                 return default;
             }
 
@@ -136,13 +136,13 @@ namespace Moirai.Atropos.Resource
         /// <inheritdoc />
         public override void Release(ResourceLeaseHandle handle)
         {
-            Kernel.Release(handle);
+            Store.Release(handle);
         }
 
         /// <inheritdoc />
         public override bool TryGetLeaseAsset(ResourceLeaseHandle handle, out UObject asset)
         {
-            return Kernel.TryGetLeaseAsset(handle, out asset);
+            return Store.TryGetLeaseAsset(handle, out asset);
         }
 
         #endregion
@@ -153,19 +153,19 @@ namespace Moirai.Atropos.Resource
         internal override bool TryGetSubSpriteAsset(ResourceLeaseHandle handle, string spriteName,
             out Sprite sprite)
         {
-            return Kernel.TryGetSubSpriteAsset(handle, spriteName, out sprite);
+            return Store.TryGetSubSpriteAsset(handle, spriteName, out sprite);
         }
 
         /// <inheritdoc />
         internal override bool TryGetLeaseAssetId(ResourceLeaseHandle handle, out int assetId)
         {
-            return Kernel.TryGetLeaseAssetId(handle, out assetId);
+            return Store.TryGetLeaseAssetId(handle, out assetId);
         }
 
         /// <inheritdoc />
         internal override void SetLeaseOptions(ResourceLeaseHandle handle, EResourceLeaseOption options)
         {
-            Kernel.SetLeaseOptions(handle, options);
+            Store.SetLeaseOptions(handle, options);
         }
 
         internal override ResourceLeaseHandle AcquireBinding(ResourceKey key)
@@ -193,8 +193,8 @@ namespace Moirai.Atropos.Resource
                 return ResourceLeaseHandle.Invalid;
             }
 
-            string normalizedPackageName = Kernel.NormalizePackageName(packageName);
-            ulong loadingKey = Kernel.GetLoadingOperationKey(location, normalizedPackageName, typeof(GameObject),
+            string normalizedPackageName = Store.NormalizePackageName(packageName);
+            ulong loadingKey = Store.GetLoadingOperationKey(location, normalizedPackageName, typeof(GameObject),
                 EResourceAssetKind.Prefab);
             UObject asset = await GetOrLoadAssetAsync(location, typeof(GameObject), EResourceAssetKind.Prefab,
                 normalizedPackageName, loadingKey, cancellationToken: cancellationToken);
@@ -203,14 +203,14 @@ namespace Moirai.Atropos.Resource
                 return ResourceLeaseHandle.Invalid;
             }
 
-            ulong key = Kernel.GetAssetRecordKey(normalizedPackageName, location, typeof(GameObject),
+            ulong key = Store.GetAssetRecordKey(normalizedPackageName, location, typeof(GameObject),
                 EResourceAssetKind.Prefab, EResourceHandleKind.AssetHandle);
-            if (!Kernel.TryGetRecordId(key, out int assetId) || !Kernel.IsValidAssetId(assetId))
+            if (!Store.TryGetRecordId(key, out int assetId) || !Store.IsValidAssetId(assetId))
             {
                 return ResourceLeaseHandle.Invalid;
             }
 
-            return Kernel.AcquireLease(assetId, EResourceLeaseKind.Direct, EResourceLeaseOption.None);
+            return Store.AcquireLease(assetId, EResourceLeaseKind.Direct, EResourceLeaseOption.None);
         }
 
         #endregion

@@ -8,7 +8,7 @@ namespace Moirai.Atropos.Resource
     /// <para><c>Release</c> 刻意与 <c>AcquireLease</c> 同分部：一次归还必须同时完成
     /// "槽位回收 + 计数增减 + 入轮/出轮"，中间不容外部代码插手。</para>
     /// </summary>
-    internal sealed partial class ResourceRecordKernel
+    internal sealed partial class ResourceRecordStore
     {
         internal ResourceLeaseHandle AcquireLease(int assetId, EResourceLeaseKind leaseKind,
             EResourceLeaseOption options)

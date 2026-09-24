@@ -14,7 +14,7 @@ namespace Moirai.Atropos.Resource
     /// 所以按 <see cref="Func{TResult}"/> 注入、每次活读。后端算子（校验与释放原生句柄）之后要搬进来时
     /// 再立接口，为一根线立一个类型不值。</para>
     /// </summary>
-    internal sealed partial class ResourceRecordKernel
+    internal sealed partial class ResourceRecordStore
     {
         // 三套分页 slot 数组共用的页布局：一页 256 槽、按位取页号与页内下标。
         // 另外两座 arena（资产记录 / 租约）仍在 handler 里，它们这里按类型名取用本组常量。
@@ -22,10 +22,10 @@ namespace Moirai.Atropos.Resource
         internal const int RECORD_PAGE_SIZE = 1 << RECORD_PAGE_BITS;
         internal const int RECORD_PAGE_MASK = RECORD_PAGE_SIZE - 1;
 
-        private readonly IResourceRecordKernelHost _host;
+        private readonly IResourceRecordHost _host;
         private readonly Func<string> _defaultPackageName;
 
-        private IResourceRecordKernelHost Host => _host;
+        private IResourceRecordHost Host => _host;
 
         // 三条轴各一份注册表。id 上限即该轴在 packed key 里分到的位宽上限，越界必抛而非截断。
         // 本类不标 [Serializable]，注册表内部那些数组与计数表天然整棵子树不参与序列化。
@@ -137,7 +137,7 @@ namespace Moirai.Atropos.Resource
             }
         }
 
-        internal ResourceRecordKernel(IResourceRecordKernelHost host, Func<string> defaultPackageName)
+        internal ResourceRecordStore(IResourceRecordHost host, Func<string> defaultPackageName)
         {
             _host = host;
             _defaultPackageName = defaultPackageName;

@@ -76,7 +76,7 @@ namespace Moirai.Atropos.Resource
             set
             {
                 _idleAssetCapacity = value < 0 ? 0 : value;
-                Kernel.TrimIdleAssetCapacity();
+                Store.TrimIdleAssetCapacity();
             }
         }
 
@@ -87,17 +87,17 @@ namespace Moirai.Atropos.Resource
         /// <inheritdoc />
         public override void WarmupResourceRecords(int assetCapacity, int leaseCapacity)
         {
-            Kernel.EnsureRecordCapacity(assetCapacity);
-            Kernel.EnsureLoadingOperationCapacity(assetCapacity);
+            Store.EnsureRecordCapacity(assetCapacity);
+            Store.EnsureLoadingOperationCapacity(assetCapacity);
 
             if (assetCapacity > 0)
             {
-                Kernel.EnsureAssetSlotPage(assetCapacity - 1);
+                Store.EnsureAssetSlotPage(assetCapacity - 1);
             }
 
             if (leaseCapacity > 0)
             {
-                Kernel.EnsureLeaseSlotPage(leaseCapacity - 1);
+                Store.EnsureLeaseSlotPage(leaseCapacity - 1);
             }
         }
 

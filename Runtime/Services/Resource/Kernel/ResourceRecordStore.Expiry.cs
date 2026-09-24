@@ -9,7 +9,7 @@ namespace Moirai.Atropos.Resource
     /// <para>摘链一律按槽里存下的桶号走、绝不从当前 tick 反推，走查途中不得同步摘除；
     /// 这两条各记过一次真实事故，改前先读方法上的注释。</para>
     /// </summary>
-    internal sealed partial class ResourceRecordKernel
+    internal sealed partial class ResourceRecordStore
     {
         internal void TrimIdleAssetCapacity()
         {

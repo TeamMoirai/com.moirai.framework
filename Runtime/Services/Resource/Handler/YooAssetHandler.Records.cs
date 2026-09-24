@@ -6,15 +6,15 @@ namespace Moirai.Atropos.Resource
 {
     /// <summary>
     /// 记录内核的宿主侧——内核句柄的懒建、几个接缝转发，以及属于表现层的 ResourceOwner 登记。
-    /// <para>记账实现全在 <see cref="ResourceRecordKernel"/>；这里每多一行，就说明内核的接缝还差一度。</para>
+    /// <para>记账实现全在 <see cref="ResourceRecordStore"/>；这里每多一行，就说明内核的接缝还差一度。</para>
     /// </summary>
     partial class YooAssetHandler
     {
-        [NonSerialized] private ResourceRecordKernel _kernel;
+        [NonSerialized] private ResourceRecordStore _store;
 
-        private ResourceRecordKernel Kernel => _kernel ??= new ResourceRecordKernel(this, () => DefaultPackageName);
+        private ResourceRecordStore Store => _store ??= new ResourceRecordStore(this, () => DefaultPackageName);
 
-        internal int LoadingOperationCount => Kernel.LoadingOperationCount;
+        internal int LoadingOperationCount => Store.LoadingOperationCount;
 
         private ResourceOwner EnsureResourceOwner(GameObject root)
         {
@@ -30,7 +30,7 @@ namespace Moirai.Atropos.Resource
 
         /// <inheritdoc />
         public override int GetAssetInfos(ResourceAssetInfo[] results, int startIndex, int maxCount) =>
-            Kernel.GetAssetInfos(results, startIndex, maxCount);
+            Store.GetAssetInfos(results, startIndex, maxCount);
 
         /// <inheritdoc />
         internal override void ProcessResourceMaintenance(float unscaledTime, int expireBudget, int destroySweepBudget)
@@ -38,13 +38,13 @@ namespace Moirai.Atropos.Resource
             // 销毁态兜底回收先于预算判定，也先于内核的到期走查：没有到期记录可处理时，
             // 被销毁对象的槽位照样要收——这条顺序是这段代码存在的理由，别调换。
             _bindingService?.ProcessDestroyedObjects(destroySweepBudget);
-            Kernel.ProcessResourceMaintenance(unscaledTime, expireBudget);
+            Store.ProcessResourceMaintenance(unscaledTime, expireBudget);
         }
 
         /// <inheritdoc />
-        internal override int ReleaseAllUnusedAssetRecords() => Kernel.ReleaseAllUnusedAssetRecords();
+        internal override int ReleaseAllUnusedAssetRecords() => Store.ReleaseAllUnusedAssetRecords();
 
         /// <inheritdoc />
-        internal override void ForceReleaseAllAssetRecords() => Kernel.ForceReleaseAllAssetRecords();
+        internal override void ForceReleaseAllAssetRecords() => Store.ForceReleaseAllAssetRecords();
     }
 }
