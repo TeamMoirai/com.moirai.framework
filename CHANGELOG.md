@@ -166,6 +166,7 @@
 - 测试里的字段反射改为 `internal` 直接访问；`SingletonMono.m_Replaceable` / `_initializationOrdinal` 取 `protected internal` 以保留派生类可见性；`MiddlewareAudioHandler` 新增 `Internal_PeekDefaultBridge()` 接缝。
 - 同批放宽为 `internal` 的成员：`ObjectBase._target`、`SaveServiceSettings.m_AssetCatalog`、`AudioGroupConfig` 的 `m_DefaultVolume` / `m_MaxChannel` / `m_CanExpand` / `m_MaxChannelCeiling`、`AudioServiceSettings.m_AutoDuckingOnVoice`、`AudioEmitter.m_Clip` / `_handle`、`BgmPlaylist.m_Tracks` / `m_PlayOnStart` / `_handle`、`UnityAudioHandler._handles` / `Initialize`、`InputButton` 与 `InputAxes` 的 `m_ActionName`、`PreventInputOnEnable` 的两个勾选字段、`UnityInputSystemHandler.m_InputActions`。
 - `TimerServiceBenchmark` 标注为非自动基准（MonoBehaviour + 菜单驱动，不参与测试套件）。
+- UTF 预期判定内聚到测试助手 `UtfLogExpect`（`Tests/EditorMode/Support/UtfLogExpect.cs`）：原先 17 个用例文件各自携带 `#if UNITY_LOGGING_INSTALLED` 包住「当前处理器对 UTF 是否可见」的判定（共 20 处），现收在一处，用例侧只写 `UtfLogExpect.Error()` / `UtfLogExpect.Warning()`。测试程序集保留 `com.unity.logging` → `UNITY_LOGGING_INSTALLED` 的版本宏，但全仓只有该助手依赖它。
 
 ### Fixed
 

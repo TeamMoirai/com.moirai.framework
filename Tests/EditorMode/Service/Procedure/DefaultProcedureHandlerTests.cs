@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
-using System.Text.RegularExpressions;
 using Moirai.Atropos;
 using Moirai.Atropos.Procedure;
+using Moirai.Atropos.Tests.EditorMode;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
@@ -553,17 +553,11 @@ namespace Service.Procedure
         #region 异常容错 [EXCEPTION RESILIENCE]
 
         /// <summary>
-        /// 为随后一条 Error 日志声明 UTF 预期（黑名单：<c>UnityLoggingHandler</c> 直写 ConsoleWindow
-        /// 不经 Debug 通路，声明期望反报「预期未出现」；与 Save 测试同约定）。
+        /// 为随后一条 Error 日志声明 UTF 预期（判定收在 <see cref="UtfLogExpect"/>：当前处理器对 UTF 不可见时不声明）。
         /// </summary>
         private static void ExpectErrorLogForUtf()
         {
-#if UNITY_LOGGING_INSTALLED
-            if (LogUtility.Handler is not UnityLoggingHandler)
-#endif
-            {
-                LogAssert.Expect(LogType.Error, new Regex(".*"));
-            }
+            UtfLogExpect.Error();
         }
 
         [Test]

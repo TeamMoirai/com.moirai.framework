@@ -2,14 +2,13 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using System.Text.RegularExpressions;
 using Cysharp.Threading.Tasks;
 using Moirai.Atropos;
 using Moirai.Atropos.ConfigTable;
 using Moirai.Atropos.Resource;
+using Moirai.Atropos.Tests.EditorMode;
 using NUnit.Framework;
 using UnityEngine;
-using UnityEngine.TestTools;
 
 namespace Service.ConfigTable
 {
@@ -271,8 +270,8 @@ namespace Service.ConfigTable
 
         /// <summary>
         /// 经 <see cref="LogUtility.OnMessageLogged"/> 捕获日志内容（Handler 无关的唯一稳定通道）。
-        /// <para>同时按黑名单声明一条 UTF 预期：默认后端走 LogUtility.Error，若当前 Handler 对 UTF 可见
-        /// （DefaultLogHandler/ZLoggerHandler），不声明会把测试判成"未处理日志"而红。</para>
+        /// <para>同时经 <see cref="UtfLogExpect"/> 声明一条 UTF 预期：默认后端走 LogUtility.Error，
+        /// 当前 Handler 对 UTF 可见时不声明会把测试判成"未处理日志"而红。</para>
         /// </summary>
         private sealed class LogCapture : IDisposable
         {
@@ -280,10 +279,7 @@ namespace Service.ConfigTable
 
             public LogCapture()
             {
-                if (LogUtility.Handler is not UnityLoggingHandler)
-                {
-                    LogAssert.Expect(LogType.Error, new Regex(".*"));
-                }
+                UtfLogExpect.Error();
 
                 LogUtility.OnMessageLogged += OnLogged;
             }

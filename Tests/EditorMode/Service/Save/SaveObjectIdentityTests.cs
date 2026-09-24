@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
-using System.Text.RegularExpressions;
 using Moirai.Atropos;
 using Moirai.Atropos.Save;
+using Moirai.Atropos.Tests.EditorMode;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
@@ -12,7 +12,7 @@ namespace Service.Save
     /// <summary>
     /// 场景对象身份与实体注册表测试：注册/注销/反查、空 ID 拒注册、重复 ID 首到先得、销毁后反查失效、Resolve 解析。
     /// <para>告警断言经 <see cref="LogUtility.OnMessageLogged"/> 事件捕获（Handler 无关）；
-    /// UTF 可见链路另补 <c>LogAssert.Expect</c>（黑名单：is not UnityLoggingHandler）。</para>
+    /// UTF 可见链路的 <c>LogAssert.Expect</c> 由 <see cref="UtfLogExpect"/> 统一声明。</para>
     /// </summary>
     public class SaveObjectIdentityTests
     {
@@ -52,12 +52,7 @@ namespace Service.Save
         /// </summary>
         private static void ExpectWarningLogForUtf()
         {
-#if UNITY_LOGGING_INSTALLED
-            if (LogUtility.Handler is not UnityLoggingHandler)
-#endif
-            {
-                LogAssert.Expect(LogType.Warning, new Regex(".*"));
-            }
+            UtfLogExpect.Warning();
         }
 
         /// <summary>

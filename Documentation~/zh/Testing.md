@@ -195,7 +195,8 @@ public abstract class XxxFixture
 
 - **内容断言一律走内部事件** `LogUtility.OnMessageLogged`——它与 Handler 无关，是唯一稳定的断言通道。
 - **`LogAssert.Expect` 只承担"消除未处理日志"的职责，正则一律用 `".*"`**，不要在正则里耦合 Handler 的渲染前缀（`[ERR]`/`[FAT]` 三字符前缀与文档里的 `[ERROR]`/`FATAL` 不一致，会成批假红）。
-- 需要按 Handler 分支时，**用黑名单**：`LogUtility.Handler is not UnityLoggingHandler`。**不要用 `is DefaultLogHandler` 白名单**——出现第三种 Handler 时会漏网。
+- **消除未处理日志一律经 `UtfLogExpect.Error()` / `UtfLogExpect.Warning()`**（`Tests/EditorMode/Support/UtfLogExpect.cs`）：处理器可见性的判定收在那一处，用例侧不写 `#if`、不提处理器类型。**不要**在用例里自己写 `LogAssert.Expect` 加处理器判定——那会把「未装 com.unity.logging 的工程里 `UnityLoggingHandler` 根本不存在」扩散成每处一个 `#if`。
+  - 测试程序集因此保留 `com.unity.logging` → `UNITY_LOGGING_INSTALLED` 的 `versionDefines`：全仓只有 `UtfLogExpect` 一处需要该宏，别在别处再依赖它。
 
 ## 0-GC 验收（L3）
 
@@ -357,7 +358,7 @@ CI 侧由 `.github/workflows/coverage.yaml` 执行同一套：插桩跑一轮 Ed
 | EditMode 用例报 `DontDestroyOnLoad` 异常 | EditMode 不允许 | 加 `Application.isPlaying` 守卫 |
 | EditMode 用例里 `Awake` 没跑 | EditMode 不执行生命周期 | 提供 `EnsureActivated` 幂等兜底 |
 | `Time.frameCount` 不推进 | EditMode 无帧 | 自带帧号游标 |
-| `LogAssert` 报 "Expected log did not appear" | 当前 Handler 是 `UnityLoggingHandler`（不可见） | 用黑名单 `is not UnityLoggingHandler` |
+| `LogAssert` 报 "Expected log did not appear" | 当前 Handler 是 `UnityLoggingHandler`（不可见） | 经 `UtfLogExpect` 声明（判定已内聚，别自己再加判定） |
 | 大量用例突然报 CS0246/CS0426 | 测试里用了裸限定名，撞全局命名空间或 `UnityEngine` 类型 | 改 `using` 别名 |
 | 0-GC 断言"通过"但实际在分配 | 编辑器计量器恒 0 | 能力探测 + `Assert.Ignore`；真验证走 L3 |
 | `Assert.ThrowsAsync<T>` 类型不匹配 | `TaskCanceledException` 精确类型 | `task.GetAwaiter().GetResult()` |

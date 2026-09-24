@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
-using System.Text.RegularExpressions;
 using Moirai.Atropos;
 using Moirai.Atropos.Save;
+using Moirai.Atropos.Tests.EditorMode;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
@@ -13,7 +13,7 @@ namespace Service.Save
     /// 资产引用目录测试：双向查找、类型不匹配未命中、重复条目首到先得、无效条目跳过、编辑器期查找表失效重建、
     /// 程序化改条目后的 <see cref="SaveAssetCatalog.InvalidateLookup"/> 契约。
     /// <para>告警断言经 <see cref="LogUtility.OnMessageLogged"/> 事件捕获（Handler 无关）；
-    /// UTF 可见链路另补 <c>LogAssert.Expect</c>（黑名单：is not UnityLoggingHandler）。</para>
+    /// UTF 可见链路的 <c>LogAssert.Expect</c> 由 <see cref="UtfLogExpect"/> 统一声明。</para>
     /// </summary>
     public class SaveAssetCatalogTests
     {
@@ -58,12 +58,7 @@ namespace Service.Save
         /// </summary>
         private static void ExpectWarningLogForUtf()
         {
-#if UNITY_LOGGING_INSTALLED
-            if (LogUtility.Handler is not UnityLoggingHandler)
-#endif
-            {
-                LogAssert.Expect(LogType.Warning, new Regex(".*"));
-            }
+            UtfLogExpect.Warning();
         }
 
         /// <summary>

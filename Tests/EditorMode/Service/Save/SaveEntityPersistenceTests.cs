@@ -1,11 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
-using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Cysharp.Threading.Tasks;
 using Moirai.Atropos;
 using Moirai.Atropos.Save;
+using Moirai.Atropos.Tests.EditorMode;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -18,8 +18,8 @@ namespace Service.Save
     /// 动态实体持久化闭环测试：生成（注入 ID/块键/命名规整）→ 差分捕获（体积与内容）→ 销毁标记 →
     /// 恢复（原 ID/字段值/模板默认/父子接线/EntityRestored 事件）→ 陈旧块清理 → 加载失败降级。
     /// <para>模板加载器注入假实现（绕开 ResourceService/EditMode 限制）；模板源保持未激活避免 Awake 注册污染。
-    /// 告警/错误断言经 <see cref="LogUtility.OnMessageLogged"/> 事件捕获（Handler 无关）；UTF 可见链路另补
-    /// <c>LogAssert.Expect</c>（黑名单：is not UnityLoggingHandler）。</para>
+    /// 告警/错误断言经 <see cref="LogUtility.OnMessageLogged"/> 事件捕获（Handler 无关）；
+    /// UTF 可见链路的 <c>LogAssert.Expect</c> 由 <see cref="UtfLogExpect"/> 统一声明。</para>
     /// </summary>
     public partial class SaveEntityPersistenceTests
     {
@@ -136,12 +136,7 @@ namespace Service.Save
         /// </summary>
         private static void ExpectErrorLogForUtf()
         {
-#if UNITY_LOGGING_INSTALLED
-            if (LogUtility.Handler is not UnityLoggingHandler)
-#endif
-            {
-                LogAssert.Expect(LogType.Error, new Regex(".*"));
-            }
+            UtfLogExpect.Error();
         }
 
         /// <summary>

@@ -183,7 +183,7 @@ com.moirai.framework/
 
 - 内容断言一律走 `LogUtility.OnMessageLogged`（Handler 无关，唯一稳定通道）。
 - `LogAssert.Expect` 的正则一律 `".*"`，只承担消除未处理日志的职责，不耦合 Handler 的渲染前缀。
-- 按 Handler 分支**用黑名单** `LogUtility.Handler is not UnityLoggingHandler`；禁用 `is DefaultLogHandler` 白名单（第三种 Handler 会漏网）。
+- **消除未处理日志一律经 `UtfLogExpect.Error()` / `UtfLogExpect.Warning()`**（`Tests/EditorMode/Support/UtfLogExpect.cs`）：处理器可见性判定收在那一处，用例侧不写 `#if`、不提处理器类型。不要在用例里自写 `LogAssert.Expect` + 处理器判定（未装 com.unity.logging 的工程里 `UnityLoggingHandler` 不存在，会逼出每处一个 `#if`）。
 
 ### 基准
 

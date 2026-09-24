@@ -2,11 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
-using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Moirai.Atropos;
 using Moirai.Atropos.Save;
+using Moirai.Atropos.Tests.EditorMode;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
@@ -103,12 +103,7 @@ namespace Service.Save
         /// </summary>
         private static void ExpectErrorLogForUtf()
         {
-#if UNITY_LOGGING_INSTALLED
-            if (LogUtility.Handler is not UnityLoggingHandler)
-#endif
-            {
-                LogAssert.Expect(LogType.Error, new Regex(".*"));
-            }
+            UtfLogExpect.Error();
         }
 
         /// <summary>
@@ -116,12 +111,7 @@ namespace Service.Save
         /// </summary>
         private static void ExpectWarningLogForUtf()
         {
-#if UNITY_LOGGING_INSTALLED
-            if (LogUtility.Handler is not UnityLoggingHandler)
-#endif
-            {
-                LogAssert.Expect(LogType.Warning, new Regex(".*"));
-            }
+            UtfLogExpect.Warning();
         }
 
         /// <summary>

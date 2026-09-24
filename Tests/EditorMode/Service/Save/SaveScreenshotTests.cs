@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Text.RegularExpressions;
 using Moirai.Atropos;
 using Moirai.Atropos.Save;
+using Moirai.Atropos.Tests.EditorMode;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
@@ -83,12 +83,7 @@ namespace Service.Save
         /// </summary>
         private static void ExpectWarningLogForUtf()
         {
-#if UNITY_LOGGING_INSTALLED
-            if (LogUtility.Handler is not UnityLoggingHandler)
-#endif
-            {
-                LogAssert.Expect(LogType.Warning, new Regex(".*"));
-            }
+            UtfLogExpect.Warning();
         }
 
         #region 命名 [NAMING]

@@ -195,7 +195,8 @@ Therefore:
 
 - **Assert content through the internal event** `LogUtility.OnMessageLogged` — it is Handler-independent and the only stable assertion channel.
 - **`LogAssert.Expect` only serves to silence unhandled logs; always use the regex `".*"`** and never couple the regex to a Handler's rendering prefix (`[ERR]`/`[FAT]` three-character prefixes differ from the `[ERROR]`/`FATAL` in docs and cause bulk false reds).
-- When branching by Handler, **use a blacklist**: `LogUtility.Handler is not UnityLoggingHandler`. **Do not use an `is DefaultLogHandler` whitelist** — a third Handler would slip through.
+- **Always silence unhandled logs through `UtfLogExpect.Error()` / `UtfLogExpect.Warning()`** (`Tests/EditorMode/Support/UtfLogExpect.cs`): the handler-visibility judgement lives there, so a case carries no `#if` and never names a handler type. Do **not** hand-roll `LogAssert.Expect` plus a handler check inside a case — that spreads "`UnityLoggingHandler` does not exist at all without com.unity.logging" into one `#if` per site.
+  - The test assembly therefore keeps its `com.unity.logging` → `UNITY_LOGGING_INSTALLED` `versionDefines` entry: `UtfLogExpect` is the only place in the repository that needs that macro — do not rely on it anywhere else.
 
 ## Zero-GC acceptance (L3)
 
@@ -359,7 +360,7 @@ Inside an editor script, use `ScriptableObject.CreateInstance<TestRunnerApi>()` 
 | EditMode case throws `DontDestroyOnLoad` | Not allowed in EditMode | Guard with `Application.isPlaying` |
 | `Awake` did not run in an EditMode case | EditMode does not run lifecycle | Provide an idempotent `EnsureActivated` fallback |
 | `Time.frameCount` does not advance | No frames in EditMode | Carry your own frame cursor |
-| `LogAssert` reports "Expected log did not appear" | Active Handler is `UnityLoggingHandler` (invisible) | Use the blacklist `is not UnityLoggingHandler` |
+| `LogAssert` reports "Expected log did not appear" | Active Handler is `UnityLoggingHandler` (invisible) | Declare via `UtfLogExpect` (the judgement is centralised — do not add your own) |
 | Many cases suddenly fail with CS0246/CS0426 | Bare qualified names in tests colliding with the global namespace or `UnityEngine` types | Switch to `using` aliases |
 | Zero-GC assertions "pass" while actually allocating | The editor meter is a constant 0 | Capability probe + `Assert.Ignore`; real verification is L3 |
 | `Assert.ThrowsAsync<T>` type mismatch | Exact `TaskCanceledException` type | `task.GetAwaiter().GetResult()` |
