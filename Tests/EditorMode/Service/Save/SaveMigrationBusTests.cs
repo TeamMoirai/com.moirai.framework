@@ -318,7 +318,9 @@ namespace Service.Save
 
         private static void ExpectErrorLogForUtf()
         {
+#if UNITY_LOGGING_INSTALLED
             if (LogUtility.Handler is not UnityLoggingHandler)
+#endif
             {
                 LogAssert.Expect(LogType.Error, new Regex(".*"));
             }
@@ -326,7 +328,9 @@ namespace Service.Save
 
         private static void ExpectWarningLogForUtf()
         {
+#if UNITY_LOGGING_INSTALLED
             if (LogUtility.Handler is not UnityLoggingHandler)
+#endif
             {
                 LogAssert.Expect(LogType.Warning, new Regex(".*"));
             }
