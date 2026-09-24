@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Linq;
 using System.Reflection;
 using Cysharp.Threading.Tasks;
@@ -182,9 +182,52 @@ namespace Service.Resource
         }
 
         /// <summary>
-        /// 初始化结果对象形状：包名 + 操作句柄 + 由句柄派生的只读 <c>Succeed</c>。
+        /// 返回 <see cref="IResourceOperation"/> 的 Handler 方法冻结在存量名单：新成员一律 <c>UniTask</c>，
+        /// 不得再引入轮询句柄（<c>LoadPackageManifestAsync</c> 的改名/适配留到下个 API 窗口）。
         /// </summary>
         [Test]
+        public void Handler_IResourceOperationReturns_FrozenAllowlist()
+        {
+            var returning = new System.Collections.Generic.List<string>();
+            foreach (MethodInfo method in typeof(ResourceServiceHandler).GetMethods(
+                         BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly))
+            {
+                if (!method.IsSpecialName && method.ReturnType == typeof(IResourceOperation))
+                {
+                    returning.Add(method.Name);
+                }
+            }
+
+            Assert.AreEqual(1, returning.Count,
+                "返回 IResourceOperation 的 Handler 方法应冻结为 1 个（LoadPackageManifestAsync），新成员一律 UniTask。");
+            Assert.AreEqual("LoadPackageManifestAsync", returning[0]);
+        }
+
+        /// <summary>
+        /// 返回 <see cref="IResourceOperation"/> 的 Handler 方法冻结为存量名单：新成员一律走 UniTask，
+        /// 不得再引入轮询句柄（改名/适配留到下个 API 窗口，这里只锁不再涨）。
+        /// </summary>
+        [Test]
+        public void Handler_IResourceOperation_Returns_FrozenAllowlist()
+        {
+            string[] allowed = { "LoadPackageManifestAsync" };
+            var returning = new System.Collections.Generic.List<string>();
+            foreach (MethodInfo method in typeof(ResourceServiceHandler).GetMethods(
+                         BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly))
+            {
+                if (method.IsSpecialName || method.ReturnType != typeof(IResourceOperation))
+                {
+                    continue;
+                }
+
+                returning.Add(method.Name);
+            }
+
+            CollectionAssert.AreEquivalent(allowed, returning,
+                "Handler 上返回 IResourceOperation 的方法名单变了。新成员请返回 UniTask；" +
+                "存量 LoadPackageManifestAsync 的改名/适配留到下个 API 窗口。");
+        }
+
         public void ResourcePackageInitResult_Shape()
         {
             Type type = typeof(ResourcePackageInitResult);
