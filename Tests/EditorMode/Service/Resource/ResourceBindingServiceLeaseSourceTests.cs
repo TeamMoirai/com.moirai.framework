@@ -108,52 +108,5 @@ namespace Service.Resource
             _assets.Add(sprite);
             return sprite;
         }
-
-        /// <summary>
-        /// 八字节的假接缝：只记调用，不做任何真实记账。
-        /// </summary>
-        private sealed class StubLeaseSource : IResourceLeaseSource
-        {
-            private readonly List<ResourceLeaseHandle> _released = new List<ResourceLeaseHandle>();
-
-            public IReadOnlyList<ResourceLeaseHandle> Released => _released;
-
-            public int ReleaseCalls => _released.Count;
-
-            public int SetOptionsCalls;
-
-            public ResourceLeaseHandle AcquireBinding(ResourceKey key) => new ResourceLeaseHandle(1, 1);
-
-            public UniTask<ResourceLeaseHandle> AcquireBindingAsync(ResourceKey key,
-                System.Threading.CancellationToken cancellationToken) =>
-                UniTask.FromResult(new ResourceLeaseHandle(1, 1));
-
-            public UniTask<ResourceLeaseHandle> AcquireSubAssetsBindingAsync(string location, string packageName,
-                EResourceLeaseOption options, System.Threading.CancellationToken cancellationToken) =>
-                UniTask.FromResult(new ResourceLeaseHandle(1, 1));
-
-            public bool TryGetSubSpriteAsset(ResourceLeaseHandle handle, string spriteName, out Sprite sprite)
-            {
-                sprite = null;
-                return false;
-            }
-
-            public bool TryGetLeaseAsset(ResourceLeaseHandle handle, out Object asset)
-            {
-                asset = null;
-                return handle.IsValid;
-            }
-
-            public bool TryGetLeaseAssetId(ResourceLeaseHandle handle, out int assetId)
-            {
-                assetId = 42;
-                return true;
-            }
-
-            public void SetLeaseOptions(ResourceLeaseHandle handle, EResourceLeaseOption options) =>
-                SetOptionsCalls++;
-
-            public void Release(ResourceLeaseHandle handle) => _released.Add(handle);
-        }
     }
 }

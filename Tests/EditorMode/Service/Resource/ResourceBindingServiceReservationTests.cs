@@ -12,15 +12,12 @@ namespace Service.Resource
     /// 前提是其目标已被销毁；目标还活着时它谁也不会来收，只在所有者释放时才走掉——
     /// 期间一直占着 <c>_bindingIndexByOwnerSlot</c> 的一条映射与一个版本号，
     /// 而同一个 (所有者, 组件, 槽位类型) 再绑就会撞上这个版本号。</para>
-    /// <para>抛出错位取的是 Addressables 后端：它对子资源绑定无条件抛
-    /// （fail-fast 契约，见 <c>AddressableHandlerFailFastTests</c>），因此这条窗口是现成可复现的。
-    /// 该后端类型按名字跨程序集发现，测试程序集不直接引用它——它在测试侧的 <c>versionDefines</c>
-    /// 里根本没有定义，直接引用会让整份用例在没装 Addressables 的工程里静默编译为空。</para>
+    /// <para>抛出错位取的是 <see cref="StubLeaseSource"/> 上那个开关，不是某座真实后端：这条窗口要的是
+    /// "取用抛出"这个行为，后端哪天补上或改掉都不该把它一起带走。Addressables 后端早先正是现成的抛出源，
+    /// 异步子资源绑定接通之后它就不抛了。</para>
     /// </summary>
     public sealed class ResourceBindingServiceReservationTests
     {
-        private const string AddressableHandlerTypeName = "Moirai.Atropos.Resource.AddressableHandler";
-
         private readonly List<GameObject> _spawned = new List<GameObject>();
 
         [TearDown]
@@ -44,24 +41,12 @@ namespace Service.Resource
         [Test]
         public void BindSubSpriteAsync_WhenAcquireThrows_CancelsReservation()
         {
-            ResourceServiceHandler backend = CreateAddressableHandler();
-            if (backend == null)
-            {
-                Assert.Ignore("Addressables 未安装，没有会抛出的后端可用。");
-            }
+            var bindings = new ResourceBindingService(new StubLeaseSource { SubAssetsAcquireThrows = true });
+            SpriteRenderer target = CreateTarget("reservation", out ResourceOwner owner);
 
-            var bindings = new ResourceBindingService(backend);
-            GameObject gameObject = new GameObject("reservation");
-            _spawned.Add(gameObject);
-            ResourceOwner owner = gameObject.AddComponent<ResourceOwner>();
-            SpriteRenderer target = gameObject.AddComponent<SpriteRenderer>();
+            bool threw = TryBind(bindings.BindSubSpriteAsync(owner, target, AtlasKey, "icon"));
 
-            ResourceKey atlasKey = new ResourceKey("atlas/sheet", string.Empty, typeof(Sprite),
-                EResourceAssetKind.Sprite);
-
-            bool threw = TryBind(bindings.BindSubSpriteAsync(owner, target, atlasKey, "icon"));
-
-            Assert.IsTrue(threw, "前置不成立：该后端应在取用子资源绑定时抛出");
+            Assert.IsTrue(threw, "前置不成立：假接缝的取用开关没生效");
             Assert.AreEqual(0, ActiveBindingCount(bindings),
                 "取用抛出后预约位仍留在表里——它占着索引映射与版本号，除所有者释放外无人再收");
         }
@@ -72,26 +57,14 @@ namespace Service.Resource
         [Test]
         public void BindSubSpriteAsync_AfterThrowingAcquire_LeavesNoMappedKey()
         {
-            ResourceServiceHandler backend = CreateAddressableHandler();
-            if (backend == null)
-            {
-                Assert.Ignore("Addressables 未安装，没有会抛出的后端可用。");
-            }
+            var bindings = new ResourceBindingService(new StubLeaseSource { SubAssetsAcquireThrows = true });
+            SpriteRenderer target = CreateTarget("reservation-rebind", out ResourceOwner owner);
 
-            var bindings = new ResourceBindingService(backend);
-            GameObject gameObject = new GameObject("reservation-rebind");
-            _spawned.Add(gameObject);
-            ResourceOwner owner = gameObject.AddComponent<ResourceOwner>();
-            SpriteRenderer target = gameObject.AddComponent<SpriteRenderer>();
-
-            ResourceKey atlasKey = new ResourceKey("atlas/sheet", string.Empty, typeof(Sprite),
-                EResourceAssetKind.Sprite);
-
-            TryBind(bindings.BindSubSpriteAsync(owner, target, atlasKey, "icon"));
+            TryBind(bindings.BindSubSpriteAsync(owner, target, AtlasKey, "icon"));
 
             // 再绑一次：走到同一个 (所有者, 组件, 槽位类型) 键上，若上一次的预约还在，
             // 这次就落在残留槽位上，Version 会累加而不是重新从 1 开始。
-            TryBind(bindings.BindSubSpriteAsync(owner, target, atlasKey, "icon"));
+            TryBind(bindings.BindSubSpriteAsync(owner, target, AtlasKey, "icon"));
 
             ResourceBindingInfo[] infos = new ResourceBindingInfo[16];
             int total = bindings.GetBindingInfos(infos, 0, infos.Length);
@@ -104,9 +77,20 @@ namespace Service.Resource
             }
         }
 
+        private static ResourceKey AtlasKey => new ResourceKey("atlas/sheet", string.Empty, typeof(Sprite),
+            EResourceAssetKind.Sprite);
+
+        private SpriteRenderer CreateTarget(string name, out ResourceOwner owner)
+        {
+            GameObject gameObject = new GameObject(name);
+            _spawned.Add(gameObject);
+            owner = gameObject.AddComponent<ResourceOwner>();
+            return gameObject.AddComponent<SpriteRenderer>();
+        }
+
         /// <summary>
         /// 驱动一次异步绑定，返回它是否抛出。
-        /// <para>抛出发生在首个 await 之前（该后端的成员不是 async，调用即抛），
+        /// <para>抛出发生在首个 await 之前（假接缝的成员不是 async，调用即抛），
         /// 但外层是 async 方法，异常被收进 UniTask、在取结果时才重抛。</para>
         /// </summary>
         private static bool TryBind(UniTask<EResourceBindStatus> bind)
@@ -120,20 +104,6 @@ namespace Service.Resource
             {
                 return true;
             }
-        }
-
-        private static ResourceServiceHandler CreateAddressableHandler()
-        {
-            foreach (var assembly in System.AppDomain.CurrentDomain.GetAssemblies())
-            {
-                System.Type type = assembly.GetType(AddressableHandlerTypeName, false);
-                if (type != null && !type.IsAbstract)
-                {
-                    return (ResourceServiceHandler)System.Activator.CreateInstance(type);
-                }
-            }
-
-            return null;
         }
 
         private static int ActiveBindingCount(ResourceBindingService bindings)

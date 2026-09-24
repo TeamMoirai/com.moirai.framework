@@ -567,7 +567,8 @@ namespace Moirai.Atropos.Resource
         private static GameException CreateNotSupported([CallerMemberName] string api = null)
         {
             return new GameException(StringUtility.Format(
-                "[AddressableHandler] {0} is not implemented. This backend is experimental: lease/binding ownership is provided by YooAssetHandler.",
+                "[AddressableHandler] {0} is not implemented. This experimental backend covers the async lease/binding " +
+                "families only; use the async counterpart or YooAssetHandler.",
                 api ?? "API"));
         }
 
