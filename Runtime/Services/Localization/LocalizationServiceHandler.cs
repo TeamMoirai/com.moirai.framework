@@ -767,7 +767,9 @@ namespace Moirai.Atropos.Localization
             // ID 为空、或词条整个不存在时无列可回退，一律由调用方露出 ID
             if (string.IsNullOrEmpty(id)) return null;
 
-            return Store.Resolve(id, language, Store.IndexOf(language), _fallbackChain, _fallbackIndices);
+            // 当前语言的列下标已在切换时缓存——查询热路径不再每次线性扫语言表（回退链同样是预解析下标）
+            var index = language == _currentLanguage ? _currentLanguageIndex : Store.IndexOf(language);
+            return Store.Resolve(id, language, index, _fallbackChain, _fallbackIndices);
         }
 
         private void LogFormatError(string id, string text, int argCount)
@@ -780,7 +782,7 @@ namespace Moirai.Atropos.Localization
         }
 
         /// <summary>
-        /// 获取包含指定 ID 的所有语言的字符串字典。
+        /// 获取包含指定 ID 的所有语言的字符串字典（键为语言 Name；同名语言重复时后者覆盖前者，不再抛异常）。
         /// </summary>
         public Dictionary<string, string> GetDictionaryFromId(string id)
         {
@@ -793,7 +795,7 @@ namespace Moirai.Atropos.Localization
             {
                 var language = Store.LanguageAt(i);
                 var text = ResolveRaw(id, language) ?? id;
-                dict.Add(language.Name, text);
+                dict[language.Name] = text;
             }
 
             return dict;

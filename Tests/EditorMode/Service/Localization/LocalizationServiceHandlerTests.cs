@@ -209,6 +209,83 @@ namespace Service.Localization
 
         #endregion
 
+        #region 标记替换引擎 [MARKER ENGINE]
+
+        private static string ProbeResolve(string id) =>
+            id switch
+            {
+                "title" => "标题",
+                "name" => "名字",
+                "NAME" => "名字", // ID 大小写保留：解析方仍按原始大小写匹配
+                "empty" => "",
+                _ => null,
+            };
+
+        [Test]
+        public void LocalizeCore_NoMarker_ReturnsSameInstanceWithoutAlloc()
+        {
+            var input = "plain text without markers";
+            Assert.AreSame(input, LocalizationService.LocalizeCore(input, ProbeResolve));
+        }
+
+        [Test]
+        public void LocalizeCore_ReplacesMarkersAcrossFamiliesAndCase()
+        {
+            var result = LocalizationService.LocalizeCore(
+                "A {l10n:title} B {i18n:NAME} C {G11n:title} D", ProbeResolve);
+            Assert.AreEqual("A 标题 B 名字 C 标题 D", result);
+        }
+
+        [Test]
+        public void LocalizeCore_UnknownMarker_StaysVerbatim()
+        {
+            var input = "X {l10n:missing} Y";
+            Assert.AreSame(input, LocalizationService.LocalizeCore(input, ProbeResolve), "未解析标记原样保留且直返原串");
+        }
+
+        [Test]
+        public void LocalizeCore_TrimsIdWhitespace()
+        {
+            var result = LocalizationService.LocalizeCore("{l10n:  title  }", ProbeResolve);
+            Assert.AreEqual("标题", result);
+        }
+
+        [Test]
+        public void LocalizeCore_UnterminatedMarker_StaysVerbatim()
+        {
+            var input = "a {l10n:title b";
+            Assert.AreSame(input, LocalizationService.LocalizeCore(input, ProbeResolve));
+        }
+
+        [Test]
+        public void LocalizeCore_DuplicateMarkers_BothReplacedOnce()
+        {
+            var result = LocalizationService.LocalizeCore("{l10n:title} and {l10n:title}", ProbeResolve);
+            Assert.AreEqual("标题 and 标题", result);
+        }
+
+        [Test]
+        public void LocalizeCore_EmptyTranslation_ReplacesWithEmpty()
+        {
+            // 译文为空字符串是合法解析结果（与"未解析"不同），标记位应被抹掉
+            var result = LocalizationService.LocalizeCore("[{l10n:empty}]", ProbeResolve);
+            Assert.AreEqual("[]", result);
+        }
+
+        [Test]
+        public void ResolveRaw_CurrentLanguage_UsesCachedIndex()
+        {
+            // 快路径：当前语言查询不再线性扫语言表（行为等价由全夹具锁，这里钉死快路径结果）
+            LoadStrings("ui.title", "Title", "标题");
+            var target = OtherLoadedLanguage();
+            _handler.ChangeLanguage(target);
+
+            var expected = target == English ? "Title" : "标题";
+            Assert.AreEqual(expected, _handler.GetTextFromId("ui.title"));
+        }
+
+        #endregion
+
         #region 切换语义 [LANGUAGE SWITCH]
 
         [Test]

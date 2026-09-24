@@ -4,7 +4,8 @@ namespace Moirai.Atropos.Localization
 {
 	/// <summary>
 	/// 组件查找器。
-	/// <para>按泛型参数声明顺序在指定 <see cref="MonoBehaviour"/> 所在对象上查找组件，返回第一个匹配的组件。</para>
+	/// <para>按泛型参数声明顺序在指定 <see cref="MonoBehaviour"/> 所在对象上查找组件，返回第一个匹配的组件。
+	/// 每个候选类型一次 <c>TryGetComponent</c> 命中即返（旧实现对命中类型查两次）。</para>
 	/// </summary>
 	public static class ComponentFinder
 	{
@@ -17,12 +18,7 @@ namespace Moirai.Atropos.Localization
 		public static Component Find<T1>(MonoBehaviour behaviour)
 			where T1 : Component
 		{
-			if (behaviour.GetComponent<T1>())
-			{
-				return behaviour.GetComponent<T1>();
-			}
-
-			return null;
+			return behaviour.TryGetComponent(out T1 component) ? component : null;
 		}
 
 		/// <summary>
@@ -36,17 +32,12 @@ namespace Moirai.Atropos.Localization
 			where T1 : Component
 			where T2 : Component
 		{
-			if (behaviour.GetComponent<T1>())
+			if (behaviour.TryGetComponent(out T1 first))
 			{
-				return behaviour.GetComponent<T1>();
+				return first;
 			}
 
-			if (behaviour.GetComponent<T2>())
-			{
-				return behaviour.GetComponent<T2>();
-			}
-
-			return null;
+			return behaviour.TryGetComponent(out T2 second) ? second : null;
 		}
 
 		/// <summary>
@@ -62,22 +53,17 @@ namespace Moirai.Atropos.Localization
 			where T2 : Component
 			where T3 : Component
 		{
-			if (behaviour.GetComponent<T1>())
+			if (behaviour.TryGetComponent(out T1 first))
 			{
-				return behaviour.GetComponent<T1>();
+				return first;
 			}
 
-			if (behaviour.GetComponent<T2>())
+			if (behaviour.TryGetComponent(out T2 second))
 			{
-				return behaviour.GetComponent<T2>();
+				return second;
 			}
 
-			if (behaviour.GetComponent<T3>())
-			{
-				return behaviour.GetComponent<T3>();
-			}
-
-			return null;
+			return behaviour.TryGetComponent(out T3 third) ? third : null;
 		}
 
 		/// <summary>
@@ -95,27 +81,22 @@ namespace Moirai.Atropos.Localization
 			where T3 : Component
 			where T4 : Component
 		{
-			if (behaviour.GetComponent<T1>())
+			if (behaviour.TryGetComponent(out T1 first))
 			{
-				return behaviour.GetComponent<T1>();
+				return first;
 			}
 
-			if (behaviour.GetComponent<T2>())
+			if (behaviour.TryGetComponent(out T2 second))
 			{
-				return behaviour.GetComponent<T2>();
+				return second;
 			}
 
-			if (behaviour.GetComponent<T3>())
+			if (behaviour.TryGetComponent(out T3 third))
 			{
-				return behaviour.GetComponent<T3>();
+				return third;
 			}
 
-			if (behaviour.GetComponent<T4>())
-			{
-				return behaviour.GetComponent<T4>();
-			}
-
-			return null;
+			return behaviour.TryGetComponent(out T4 fourth) ? fourth : null;
 		}
 	}
 }

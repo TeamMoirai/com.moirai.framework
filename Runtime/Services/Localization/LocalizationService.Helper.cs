@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text.RegularExpressions;
 using Moirai.Atropos.ConfigTable;
 using UnityEngine;
 
@@ -51,13 +50,15 @@ namespace Moirai.Atropos.Localization
 
         #region 版本 3 [VERSION 3]
 
-        // 预编译正则表达式
-        // 使用正则表达式匹配 {l10n:...} 或 {i18n:...} 或 {g11n:...}
-        // (l10n|i18n|g11n) 是第一个捕获组，匹配标签类型。
-        // (.*?) 是第二个捕获组，匹配文本 ID。
-        private static readonly Regex s_LocalizedRegex = new Regex(@"\{(l10n|i18n|g11n):(.*?)\}", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        // 运行期/编辑器预览两条数据路径的解析器方法组（静态缓存，Localize 每调用零委托分配）
+        private static readonly Func<string, string> s_RuntimeResolver = ResolveForRuntime;
+        private static readonly Func<string, string> s_PreviewResolver = ResolveForPreview;
+
         /// <summary>
-        /// 返回一个本地化字符串，将 <b>{l10n:ID}</b>/<b>{i18n:ID}</b>/<b>{g11n:ID}</b> 替换为本地化条目
+        /// 返回一个本地化字符串，将 <b>{l10n:ID}</b>/<b>{i18n:ID}</b>/<b>{g11n:ID}</b> 替换为本地化条目。
+        /// <para>单遍扫描、无正则：无标记时零分配直返原串；有标记时经池化构建器一次拼装，
+        /// 替代旧实现「每次 MatchCollection + 逐标记整串 Replace」的分配链（UILabel 高频消费）。</para>
+        /// <para>未解析的标记（ID 不存在/解析失败）原样保留，与旧实现一致。</para>
         /// </summary>
         /// <param name="format">使用格式更新的字符串</param>
         /// <returns></returns>
@@ -86,33 +87,137 @@ namespace Moirai.Atropos.Localization
                 return format;
             }
 
-            var matches = s_LocalizedRegex.Matches(format);
-            if (matches.Count == 0) return format;
+            return LocalizeCore(format, playing ? s_RuntimeResolver : s_PreviewResolver);
+        }
 
-            foreach (Match match in matches)
+        /// <summary>
+        /// 标记替换引擎：单遍扫描 <c>{l10n:…}</c>/<c>{i18n:…}</c>/<c>{g11n:…}</c>（前缀大小写不敏感），
+        /// 命中后由 <paramref name="resolver"/> 解析 ID（两端空白裁剪、大小写保留）。
+        /// </summary>
+        /// <param name="format">原始字符串。</param>
+        /// <param name="resolver">ID → 译文；返回 <c>null</c> 表示未解析，该标记原样保留（告警由解析方负责）。</param>
+        /// <returns>无标记或全部标记未解析时返回原串（同一实例）；否则返回拼装结果。</returns>
+        internal static string LocalizeCore(string format, Func<string, string> resolver)
+        {
+            if (string.IsNullOrEmpty(format)) return format;
+
+            IStringBuilder builder = null;
+            var cursor = 0;
+            var replaced = false;
+            while (cursor < format.Length)
             {
-                string textId = match.Groups[2].Value.Trim(); // LocalizedRegex 的第二个捕获组专门用于匹配文本 ID。
+                var open = format.IndexOf('{', cursor);
+                if (open < 0) break;
 
-                try
+                if (!TryReadMarker(format, open, out var idStart, out var idEnd, out var markerEnd))
                 {
-                    var has = playing ? Has(textId) : EditorPreviewHasText(textId);
-                    if (!has)
-                    {
-                        if (playing) LogUtility.Warning("Text ID: {0}({1}) not available.", textId, match.Groups[1].Value);
-                        continue;
-                    }
+                    cursor = open + 1;
+                    continue;
+                }
 
-                    string replacement = playing ? GetTextFromId(textId) : ResolveForEditorPreview(textId);
-                    // LogUtility.Info("Resolving localization for ID: {0}({1})", textId, replacement);
-                    format = format.Replace(match.Value, replacement);
-                }
-                catch (Exception ex)
+                // ID 两端空白裁剪（对齐旧实现的 Trim 语义），不分配
+                while (idStart < idEnd && char.IsWhiteSpace(format[idStart])) idStart++;
+                while (idEnd > idStart && char.IsWhiteSpace(format[idEnd - 1])) idEnd--;
+                var textId = format.Substring(idStart, idEnd - idStart);
+
+                var replacement = resolver(textId);
+
+                // 首个有效标记才建构建器：无标记/全未解析的输入零分配直返原串
+                builder ??= StringUtility.CreateStringBuilder(format.Length);
+                builder.Append(format, cursor, open - cursor);
+                if (replacement != null)
                 {
-                    LogUtility.Fatal("Failed to resolve localization for ID: {0}. Error: {1}", textId, ex);
+                    builder.Append(replacement);
+                    replaced = true;
                 }
+                else
+                {
+                    builder.Append(format, open, markerEnd - open);
+                }
+
+                cursor = markerEnd;
             }
 
-            return format;
+            if (builder == null) return format;
+
+            builder.Append(format, cursor, format.Length - cursor);
+            if (!replaced)
+            {
+                builder.Dispose();
+                return format;
+            }
+
+            return builder.ToStringAndDispose();
+        }
+
+        /// <summary>识别「{x1nn:…}」标记（前缀大小写不敏感）；命中时给出 ID 区间（未裁剪）与整段标记的结束下标。</summary>
+        private static bool TryReadMarker(string format, int openIndex, out int idStart, out int idEnd, out int markerEnd)
+        {
+            idStart = 0;
+            idEnd = 0;
+            markerEnd = 0;
+
+            var prefixStart = openIndex + 1;
+            if (!IsMarkerPrefix(format, prefixStart, "l10n")
+                && !IsMarkerPrefix(format, prefixStart, "i18n")
+                && !IsMarkerPrefix(format, prefixStart, "g11n"))
+            {
+                return false;
+            }
+
+            var i = prefixStart + 4;
+            if (i >= format.Length || format[i] != ':') return false;
+
+            i++;
+            var close = format.IndexOf('}', i);
+            if (close < 0) return false;
+
+            idStart = i;
+            idEnd = close;
+            markerEnd = close + 1;
+            return true;
+        }
+
+        /// <summary>从下标处比较小写前缀（位或小写化只对 A-Z 生效，数字/符号位或后对照不产生误命中）。</summary>
+        private static bool IsMarkerPrefix(string value, int offset, string lowerPrefix)
+        {
+            if (offset + lowerPrefix.Length > value.Length) return false;
+
+            for (var i = 0; i < lowerPrefix.Length; i++)
+            {
+                if ((value[offset + i] | 0x20) != lowerPrefix[i]) return false;
+            }
+
+            return true;
+        }
+
+        private static string ResolveForRuntime(string textId)
+        {
+            try
+            {
+                if (Has(textId)) return GetTextFromId(textId);
+
+                LogUtility.Warning("Text ID: {0} not available.", textId);
+                return null;
+            }
+            catch (Exception ex)
+            {
+                LogUtility.Fatal("Failed to resolve localization for ID: {0}. Error: {1}", textId, ex);
+                return null;
+            }
+        }
+
+        private static string ResolveForPreview(string textId)
+        {
+            try
+            {
+                return EditorPreviewHasText(textId) ? ResolveForEditorPreview(textId) : null;
+            }
+            catch (Exception ex)
+            {
+                LogUtility.Fatal("Failed to resolve localization for ID: {0}. Error: {1}", textId, ex);
+                return null;
+            }
         }
 
         #endregion
