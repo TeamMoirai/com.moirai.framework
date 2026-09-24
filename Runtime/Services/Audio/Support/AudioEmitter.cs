@@ -28,7 +28,7 @@ namespace Moirai.Atropos.Audio
         [SerializeField] private EAudioTrack m_AudioTrack = EAudioTrack.Ambience;
         [SerializeField] private EClipMode m_ClipMode = EClipMode.Clip;
         [SerializeField] private string m_Address = string.Empty;
-        [SerializeField] private AudioClip m_Clip;
+        [SerializeField] internal AudioClip m_Clip;
         [SerializeField] private bool m_PlayOnEnable = true;
         [SerializeField] private bool m_Loop = true;
         [SerializeField, Range(0f, 2f)] private float m_Volume = 1f;
@@ -58,7 +58,7 @@ namespace Moirai.Atropos.Audio
         [SerializeField] private Color m_MaxDistanceColor = new Color(1f, 0.45f, 0.05f, 0.9f);
 
         private Transform _cachedTransform;
-        private ulong _handle;
+        internal ulong _handle;
         private bool _insideTriggerRange;
         private AudioListener _listener;
         private float _nextListenerSearchAt;

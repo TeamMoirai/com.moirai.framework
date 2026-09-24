@@ -40,7 +40,7 @@ namespace Moirai.Atropos.Audio
         }
 
         [Header("曲目 [Playlist]")]
-        [SerializeField] private List<AudioClip> m_Tracks = new List<AudioClip>();
+        [SerializeField] internal List<AudioClip> m_Tracks = new List<AudioClip>();
         [SerializeField] private EOrderMode m_Order = EOrderMode.Sequential;
         [SerializeField] private ELoopMode m_LoopMode = ELoopMode.LoopList;
 
@@ -48,7 +48,7 @@ namespace Moirai.Atropos.Audio
         [Tooltip("分层 ID：0 = 按实例自动分配。显式填相同 ID 会让多个播放列表互相停掉对方的音乐。")]
         [SerializeField] private int m_ID = AutoId;
         [SerializeField, Range(0f, 2f)] private float m_Volume = 1f;
-        [SerializeField] private bool m_PlayOnStart = true;
+        [SerializeField] internal bool m_PlayOnStart = true;
 
         [Header("跨曲淡切 [Crossfade]")]
         [SerializeField] private bool m_Crossfade = true;
@@ -57,7 +57,7 @@ namespace Moirai.Atropos.Audio
         private readonly ShuffleIndexBag _shuffleBag = new ShuffleIndexBag();
 
         private int _index = -1;
-        private ulong _handle;
+        internal ulong _handle;
         private bool _playing;
         private int _id;
 

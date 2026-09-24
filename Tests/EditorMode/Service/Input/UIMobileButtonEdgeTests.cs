@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Reflection;
 using Moirai.Atropos.Input;
 using NUnit.Framework;
 using UnityEngine;
@@ -48,8 +47,7 @@ namespace Service.Input
             var go = new GameObject("btn-" + actionName);
             _objects.Add(go);
             var button = go.AddComponent<InputButton>();
-            var field = typeof(InputButton).GetField("m_ActionName", BindingFlags.NonPublic | BindingFlags.Instance);
-            field.SetValue(button, actionName);
+            button.m_ActionName = actionName;
             UIMobileInputRegistry.Register(button);
             return button;
         }
@@ -167,8 +165,7 @@ namespace Service.Input
             var axesGo = new GameObject("axes");
             _objects.Add(axesGo);
             var axes = axesGo.AddComponent<InputAxes>();
-            typeof(InputAxes).GetField("m_ActionName", BindingFlags.NonPublic | BindingFlags.Instance)
-                .SetValue(axes, "Move");
+            axes.m_ActionName = "Move";
             UIMobileInputRegistry.Register(axes);
 
             button.Press(Time.frameCount);

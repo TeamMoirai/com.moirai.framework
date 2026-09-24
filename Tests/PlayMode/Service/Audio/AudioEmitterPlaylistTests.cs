@@ -49,11 +49,8 @@ namespace Service.Audio
             go.transform.SetParent(_root.transform, false);
             var emitter = go.AddComponent<AudioEmitter>();
 
-            // 通过序列化字段注入 clip（测试环境无 Inspector）
-            var clipField = typeof(AudioEmitter).GetField("m_Clip",
-                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
-            Assert.IsNotNull(clipField, "AudioEmitter.m_Clip 字段应存在");
-            clipField.SetValue(emitter, _clip);
+            // 通过序列化字段注入 clip（测试环境无 Inspector；字段为 internal，直接赋值）
+            emitter.m_Clip = _clip;
 
             emitter.Play();
             yield return null;
@@ -73,30 +70,18 @@ namespace Service.Audio
             go.transform.SetParent(_root.transform, false);
             var playlist = go.AddComponent<BgmPlaylist>();
 
-            var tracksField = typeof(BgmPlaylist).GetField("m_Tracks",
-                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
-            Assert.IsNotNull(tracksField, "BgmPlaylist.m_Tracks 字段应存在");
-            var list = (System.Collections.Generic.List<AudioClip>)tracksField.GetValue(playlist);
-            list.Add(_clip);
-            list.Add(_clip);
-
-            var playOnStart = typeof(BgmPlaylist).GetField("m_PlayOnStart",
-                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
-            Assert.IsNotNull(playOnStart, "BgmPlaylist.m_PlayOnStart 字段应存在");
-            playOnStart.SetValue(playlist, false);
+            playlist.m_Tracks.Add(_clip);
+            playlist.m_Tracks.Add(_clip);
+            playlist.m_PlayOnStart = false;
 
             playlist.PlayIndex(0);
             yield return null;
-            ulong first = (ulong)typeof(BgmPlaylist)
-                .GetField("_handle", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
-                .GetValue(playlist);
+            ulong first = playlist._handle;
             Assert.AreNotEqual(0UL, first);
 
             playlist.PlayIndex(1);
             yield return null;
-            ulong second = (ulong)typeof(BgmPlaylist)
-                .GetField("_handle", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
-                .GetValue(playlist);
+            ulong second = playlist._handle;
             Assert.AreNotEqual(0UL, second);
             Assert.AreNotEqual(first, second, "切歌应产生新句柄（同 ID 替换）");
 

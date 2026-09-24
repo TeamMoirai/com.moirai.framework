@@ -39,6 +39,7 @@ Welcome to Moirai Framework. This documentation set covers every functional serv
 | [JsonUtility](JsonUtility.md) | JSON serialization/deserialization: pluggable Handler, byte fast path |
 | [ObjectUtility](ObjectUtility.md) | Object instantiation/destruction: pluggable Handler, network-aware |
 | [TweenUtility](TweenUtility.md) | Tween animation: pluggable engines (built-in/PrimeTween/LitMotion), unified ease parameter |
+| [Testing](Testing.md) | Test specification: layer assignment, case conventions, run channels, coverage gates, release exit criteria |
 
 ---
 

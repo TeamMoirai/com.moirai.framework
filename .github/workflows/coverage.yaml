@@ -1,0 +1,80 @@
+﻿# 覆盖率门禁。
+#
+# 触发：仅 pull_request。
+#
+# 与 tests.yaml 同样的约束：本仓库是 UPM 包，测试必须在宿主 Unity 工程里跑，
+# 所以 checkout 拉的是宿主工程仓库（HOST_REPOSITORY）。
+#
+# 流程：插桩跑一轮 EditMode（覆盖全部运行时代码）→ 用 Tests/Coverage/coverage-gate.ps1
+# 按分级阈值判定。阈值口径见 Tests/Coverage/README.md 与 Documentation~/zh/Testing.md。
+#
+# 注意：这一轮会打开 ENABLE_CODE_COVERAGE 并全量重编译，比普通测试轮慢得多（首次冷编译尤甚），
+# 因此单独成一个 workflow，不与 tests.yaml 合并。
+
+name: Coverage
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+
+concurrency:
+  group: coverage-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  HOST_REPOSITORY: TeamMoirai/Client
+  HOST_REF: master
+  # 只统计运行时代码：Editor 工具与代码生成器不计入测试行覆盖率，
+  # 测试程序集自身与生成代码同样排除。
+  # 必须写成单行：YAML 的折叠标量会把换行折成空格，破坏分号分隔的选项串。
+  COVERAGE_OPTIONS: "generateAdditionalMetrics;generateHtmlReport;generateBadgeReport;generateAdditionalReports;assemblyFilters:+Moirai.Atropos,-Moirai.Atropos.Editor,-Moirai.Atropos.Tests.*,-Moirai.Atropos.SourceGenerators.*,-*.Generated"
+
+jobs:
+  coverage:
+    name: EditMode with coverage
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - name: Checkout host project (with submodules)
+        uses: TeamMoirai/GitHubActions/.github/actions/checkout@master
+        with:
+          repository: ${{ env.HOST_REPOSITORY }}
+          ref: ${{ env.HOST_REF }}
+          token: ${{ secrets.HOST_REPO_TOKEN }}
+          submodules: recursive
+          lfs: true
+          fetch-depth: 1
+
+      - name: Run EditMode tests with coverage
+        id: tests
+        uses: game-ci/unity-test-runner@v4
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        with:
+          unityVersion: auto
+          projectPath: .
+          testMode: EditMode
+          coverageOptions: ${{ env.COVERAGE_OPTIONS }}
+          artifactsPath: TestResults/Coverage
+          githubToken: ${{ secrets.GITHUB_TOKEN }}
+          checkName: Coverage Test Results
+
+      # 不加 -Strict：命名空间前缀到模块的映射尚未对着真实报告核过，
+      # 先把阈值当硬门、把「某模块没有行」当提示。核过之后加上 -Strict。
+      - name: Enforce coverage thresholds
+        shell: pwsh
+        run: |
+          ./Packages/com.moirai.framework/Tests/Coverage/coverage-gate.ps1 -CoverageXmlPath TestResults/Coverage
+
+      - name: Upload coverage report
+        if: always()
+        uses: TeamMoirai/GitHubActions/.github/actions/upload-artifact@master
+        with:
+          name: coverage-report
+          path: TestResults/Coverage

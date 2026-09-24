@@ -152,12 +152,8 @@ namespace Service.Audio
 
         private static object CreateDefaultBridge(Type handlerType)
         {
-            var handler = Activator.CreateInstance(handlerType);
-            MethodInfo factory = handlerType.GetMethod(
-                "CreateDefaultBridge",
-                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-            Assert.IsNotNull(factory, $"{handlerType.Name}.CreateDefaultBridge 应存在");
-            return factory.Invoke(handler, null);
+            var handler = (MiddlewareAudioHandler)Activator.CreateInstance(handlerType);
+            return handler.Internal_PeekDefaultBridge();
         }
 
         #endregion 能力接口实现 [CAPABILITY INTERFACES]

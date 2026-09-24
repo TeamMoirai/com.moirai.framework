@@ -35,7 +35,7 @@ namespace Moirai.Atropos
         [BoxGroup(SINGLETON_GROUP)]
         [Tooltip("最新创建的实例作为单例，销毁旧实例。\n适用于局部有更新的单例，eg：背景音乐")]
         [DisableInPlayMode]
-        [SerializeField] protected bool m_Replaceable;
+        [SerializeField] protected internal bool m_Replaceable;
 
         #endregion
 
@@ -52,7 +52,7 @@ namespace Moirai.Atropos
         protected internal static volatile bool s_ShuttingDown;
 
         /// <summary>初始化此单例的单调序号（多实例竞争时的仲裁依据——同帧 Time.time 并列不失效）。</summary>
-        protected long _initializationOrdinal;
+        protected internal long _initializationOrdinal;
 
         /// <summary>序号分配器（每封闭泛型类型独立递增）。</summary>
         // ReSharper disable once StaticMemberInGenericType

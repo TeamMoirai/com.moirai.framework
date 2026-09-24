@@ -215,13 +215,7 @@ namespace Service.Audio
                 // 起播全 0 时下面的注册表断言会 0==0 恒绿，先确认本格真的绑定并释放过句柄
                 Assert.Greater(played, 0, "起播全部失败时本格没有验证任何释放路径");
 
-                var registryField = typeof(UnityAudioHandler)
-                    .GetField("_handles", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
-                Assert.IsNotNull(registryField);
-                var registry = registryField.GetValue(_handler);
-                var countProp = registry.GetType().GetProperty("Count");
-                Assert.IsNotNull(countProp);
-                Assert.AreEqual(0, (int)countProp.GetValue(registry), "句柄注册表必须清空");
+                Assert.AreEqual(0, _handler._handles.Count, "句柄注册表必须清空");
             }
             finally
             {

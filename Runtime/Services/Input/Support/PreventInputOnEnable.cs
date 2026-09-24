@@ -12,9 +12,9 @@ namespace Moirai.Atropos.Input
     public sealed class PreventInputOnEnable : MonoBehaviour
     {
         [Tooltip("禁止角色控制器移动")]
-        [SerializeField] private bool m_LockPlayerController = false;
+        [SerializeField] internal bool m_LockPlayerController = false;
         [Tooltip("禁止交互UI")]
-        [SerializeField] private bool m_PreventInteractionUI = false;
+        [SerializeField] internal bool m_PreventInteractionUI = false;
 
         // 所有权标记：仅恢复自己实际修改过的标志，避免未启用的选项在 OnDisable 时把其他系统设置的值误清
         private bool _ownedLockPlayerController;

@@ -20,7 +20,7 @@ namespace Moirai.Atropos.Input
     internal sealed class UnityInputSystemHandler : InputServiceHandler
     {
         [Tooltip("留空使用 Edit > Project Settings > Input System Package 中的设置。")]
-        [SerializeField] private InputActionAsset m_InputActions;
+        [SerializeField] internal InputActionAsset m_InputActions;
 
         [Header("上下文压制 [Context Suppression]")]
         [Tooltip("玩家上下文动作 Map 名——玩家压制（锁定/模态/禁用）时整体禁用。")]

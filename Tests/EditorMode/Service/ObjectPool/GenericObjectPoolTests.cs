@@ -226,9 +226,7 @@ namespace Service.ObjectPool
             DefaultObjectPoolHandler handler = CreateHandler();
             IObjectPool<TestObject> pool = handler.GetOrCreatePool<TestObject>(default);
             TestObject obj = new TestObject(new object());
-            typeof(ObjectBase)
-                .GetField("_target", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
-                ?.SetValue(obj, null);
+            obj._target = null;
             LogAssert.Expect(LogType.Error, new System.Text.RegularExpressions.Regex(".*"));
 
             bool registered = pool.Register(obj, false);

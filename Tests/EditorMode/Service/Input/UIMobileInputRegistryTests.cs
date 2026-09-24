@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Reflection;
 using Moirai.Atropos.Input;
 using NUnit.Framework;
 using UnityEngine;
@@ -41,12 +40,9 @@ namespace Service.Input
             return go;
         }
 
-        private static void SetActionName(Component component, string actionName)
-        {
-            var field = component.GetType().GetField("m_ActionName", BindingFlags.NonPublic | BindingFlags.Instance);
-            Assert.IsNotNull(field, "InputButton/InputAxes 应存在 m_ActionName 序列化字段");
-            field.SetValue(component, actionName);
-        }
+        private static void SetActionName(InputButton button, string actionName) => button.m_ActionName = actionName;
+
+        private static void SetActionName(InputAxes axes, string actionName) => axes.m_ActionName = actionName;
 
         private InputButton CreateButton(string actionName)
         {

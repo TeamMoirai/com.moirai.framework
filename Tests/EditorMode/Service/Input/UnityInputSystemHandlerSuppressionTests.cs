@@ -1,5 +1,4 @@
 #if ENABLE_INPUT_SYSTEM
-using System.Reflection;
 using Moirai.Atropos.Input;
 using NUnit.Framework;
 using UnityEngine;
@@ -32,9 +31,7 @@ namespace Service.Input
             _asset.AddActionMap(_uiMap);
 
             _handler = new UnityInputSystemHandler();
-            typeof(UnityInputSystemHandler)
-                .GetField("m_InputActions", BindingFlags.NonPublic | BindingFlags.Instance)
-                .SetValue(_handler, _asset);
+            _handler.m_InputActions = _asset;
 
             _handler.Internal_Init();
         }

@@ -39,6 +39,7 @@
 | [JsonUtility](JsonUtility.md) | JSON 序列化/反序列化：可插拔 Handler、字节快速通路 |
 | [ObjectUtility](ObjectUtility.md) | 对象实例化/销毁：可插拔 Handler、联网感知 |
 | [TweenUtility](TweenUtility.md) | 缓动动画：可插拔引擎（自研/PrimeTween/LitMotion）、统一缓动参数 |
+| [Testing](Testing.md) | 测试规范：分层归属、用例规范、运行通道、覆盖率门禁、发布出口准则 |
 
 ---
 

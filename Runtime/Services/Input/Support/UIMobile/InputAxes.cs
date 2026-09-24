@@ -15,7 +15,7 @@ namespace Moirai.Atropos.Input
         // [SerializeField] private MobileInput m_HorizontalAxisMobileInput = null;
         // [SerializeField] private MobileInput m_VerticalAxisMobileInput = null;
 
-        [SerializeField] private string m_ActionName = "";
+        [SerializeField] internal string m_ActionName = "";
 
         // 属性处理
         [Header("属性处理 [Handles properties]")]
