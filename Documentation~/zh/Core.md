@@ -51,7 +51,7 @@
 | `ServiceScopeOrder` | 作用域常量表（App=-10000, Scene=-5000, Gameplay=0）；**容器不消费它**——作用域顺序由固定槽位决定，轮询顺序由 `IService.Priority` 决定 |
 | `ServicePriorityOrder` | 框架内置服务轮询优先级常量（全部 ≤ -1000，与业务服务分带） |
 | `GameApp` | 静态外观入口（不含 MonoBehaviour）：由 `GameAppSettings.Initiation` 在 `BeforeSceneLoad` 初始化，向 `PlayerLoopDriver` 装配内置核心钩子以按帧驱动 `GameServices.Tick`，`Shutdown` 时调用 `GameServices.Shutdown`；协程/Gizmos/Pause 委托 `GameAppHost` |
-| `GameAppMessageEvent` / `EMessageEventType` | 命名空间 `Moirai.Atropos.Events`，框架级池化事件（对焦/失焦/退出、SDK 回调） |
+| `GameAppMessageEvent`（嵌套 `EEventType`） | 命名空间 `Moirai.Atropos.Events`，框架级池化事件（对焦/失焦/退出）；枚举只承载框架自身产生的通知，SDK 登录/支付等业务回调由项目层各自定义 `EventBase<T>` 负载 |
 
 ## 快速上手
 

@@ -3,262 +3,211 @@
 本项目的所有重要变更都会记录在此文件中。
 
 格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [SemVer](https://semver.org/lang/zh-CN/)。
-已发布版本的完整对比见 [GitHub Releases](https://github.com/TeamMoirai/com.moirai.framework/releases)。
+
+本文件按**后覆盖**维护，且**只有 `[Unreleased]` 一段**：这里只记尚未发布的净结果，发版时该段定名后移到 [GitHub Releases](https://github.com/TeamMoirai/com.moirai.framework/releases)，文件本身清空重写，不留已发布的 release notes。被后续变更推翻的中间态（加了又删的开关、改到一半的命名、逐轮刷新的测试格数与成员计数、当时判为"不采纳"的观察）也不留条目——同一件事被推翻时改掉或删掉原条目，不要再追加一条把它推翻。改动为什么这样做的完整推演在 commit message 里。
+
+标记 ⚠ 的是破坏性变更。
+
+排版约定：`###` 是变更类型，段内用 `####` 按模块分组；一条只说一个事实，一条里的分号与句号就是拆分线；同一主题的多个事实用缩进子条并列，不把它们挤进一句。
 
 ## [Unreleased]
 
-### Added
-
-- **`Audio`：主音量与音轨音量统一为线性 0..1（破坏性，跨后端语义收敛）**：Unity 侧允许 0..10（经 `log10(v) * MixerValuesMultiplier` 换算成 db），中间件侧存同样的 0..10 却在写总线前 `Mathf.Clamp01` —— 同一份 `AudioServiceSettings` 把后端从 Unity 换成 FMOD/Wwise，音轨音量上限就从 10 悄悄变成 1。而且 Unity 侧 `AudioGroupConfig.Volume` 的 setter **根本不夹取**（只在写 Mixer 那一刻夹），所以 `GetTrackVolume` 能把 2.5 原样报回一个契约外的数。现在：① 契约（`AudioServiceHandler.MasterVolume` / `Get-SetTrackVolume`）明确写成线性 0..1；② 夹取只发生在契约入口一次（setter 与设置读回各一处），落总线/Mixer 时不再二次夹取——那层"偷偷再夹一次"正是分歧的藏身处；③ `AudioGroupConfig.MAXIMAL_VOLUME` 由 10 收到 1，`Volume` setter 夹取但保留"0 原样存、写 Mixer 时才换算成 -80dB"，因此 UI 拉到 0 再读回来仍是 0。要留提升余量请改 Mixer 分组的暴露参数或 `m_MixerValuesMultiplier`，而不是让对外值域随后端变。**迁移**：工程内 4 条音轨的 `m_DefaultVolume` 实测均为 1，无存量值受影响；持久化过的 >1 旧值在 `LoadSettings` 读回时夹到 1（不报错、不静默放大）。配套 `AudioVolumeParityTests` 3 格做**跨后端对拍**（同一输入两侧 getter 同值、中间件落到总线的数必须等于 getter 报回的数、静音不得改设置值），这类分歧只有对拍能防止再长回来。
-
-- **`HandlerHost` 生成器多发无损换入接缝 `Internal_PeekHandler()` / `Internal_UseHandler(next)`**：生成的 `Handler` 属性 setter 会先 `Internal_Init` 新处理器、再关停旧的，且拒收 `null`——于是"测降级路径（外观处理器为空时全部成员静默不动作）"与"测试里临时换个假后端且不想触发真实初始化"两类正当需求没有合法出口，全仓 8 个测试文件（`Audio` / `Input` / `Save` / `Procedure`）最后都走到同一个动作：**反射生成的私有字段 `s_Handler`**。那等于把"字段叫什么"变成跨程序集的隐式契约——生成器改个名就是成片运行期红，编译期一点动静都没有。现由生成器对全部 `[HandlerHost]` 类型多发两个 `internal static` 成员：`Internal_PeekHandler()` 读当前值、不触发懒加载；`Internal_UseHandler(next)` 以 `Interlocked.Exchange` 换入并返回原值，允许 `null`，不 `Init` 也不 `Shutdown`。本轮先迁音频侧两处（`AudioServiceTestHost`、`AudioMiddlewareBankRtpcTests`）验证接缝可用，其余 `Input` / `Save` / `Procedure` / `Localization` 侧的反射点随后一并收口，全仓现存零处反射 `s_Handler`；`LocalizationServiceHandler._localizers` 同理由 private 放开为 internal，供测试直查注册幂等性而非反射读私有字段。入库的 `SourceGenerators/HandlerHost.dll` 已随源码重建。
-- **框架统一随机源 `RandomSource` / `RandomUtility` 与洗牌原语 `ShuffleUtility`**：框架里的随机数此前分三口——`AlgorithmUtility` 全类共享一个 `static System.Random`（`System.Random` 非线程安全，且永远无法播种）、`ShufflingExtension` 的 `[ThreadStatic] System.Random`（线程安全但不吃任何种子）、以及 `UnityEngine.Random`（只认 `Random.InitState`，离开主线程不可用）。合起来的结果是"给我一段可复现的随机序列"在框架里没有任何一条路能走通，而录像回放、冒烟用例复现与故障对照都需要它。现补：① `RandomSource`——xoshiro128\*\* 值语义流（周期 2^128、零分配、任意线程可用），种子经 splitmix64 展开以免相近种子产出相近流；全零是 xoshiro 的不动点，故 `default` 出来的结构体在首次取值时自愈重新播种（否则整条流永远吐 0 且毫不报错）。有界取值一律走带拒绝的 Lemire 乘移而非取模，`bound` 不整除 2^32 时不留模偏置；`NextLong` 走"按位长取数 + 拒绝"，`[long.MinValue, long.MaxValue)` 这种全域跨度也不溢出。② `RandomUtility` 门面——每线程一条流（线程 id 混入派生，故同种子下两条线程不会给出同一串数），`Reseed` 带代数计数（只比种子值的写法会让"重播同一种子"续在旧进度上，复现当场失效），不播种时初始种子取进程熵。③ `ShuffleUtility`——就地洗牌与"抽 k 个不重复"的部分洗牌各留一份实现，随机源以 `ref RandomSource` 注入：走全局流用 `SharedStream()`，要"同种子同结果"自备 `CreateSeeded`。配套用例 `RandomSourceTest` 12 格、`RandomUtilityTest` 8 格、`ShufflingExtensionTest` 9 格、`AlgorithmUtilityRandomTest` 13 格、`MathsUtilityRandomTest` 10 格。
-
-- **`MathsUtility` 补单位圆/单位球三个自采 sampler**：`RandomPointInsideUnitCircle`（面积均匀，半径取 `sqrt(u)`）、`RandomPointOnUnitSphere`（`z` 取 `[-1,1]` 均匀）、`RandomPointInsideUnitSphere`（体积均匀，半径取 `cbrt(u)`）。少那一步开根会让点往圆心堆，且肉眼看不出来，故各配一条期望值断言把关：`E|p|` 圆内 2/3、球内 3/4、球面 `z` 方差 1/3。
-
-- **`Localization`：缺译回退链、首启语言兜底与常驻规模可观测（按商业化上线标准审阅后的 P0 采纳项）**：多语言侧原本只有「当前语言这一列」一条路——该列留空就直接把 `UI.Shop.Title` 这样的 key 印到界面上，玩家看得见、策划看不见，而发行前不可能每个语种都零缺译。现在查询按「当前语言 → 回退链 → ID 原文」解析，回退顺序配在处理器 `FallbackLanguageCodes`（默认 `{ "en" }`，置空即回到旧行为），**译文为空或仅空白即视为缺译**，表里留空就等于交给回退链，调用侧不必再判一次。配置刻意用语言 Code 字符串数组而非 `Language[]`：`Language` 没有无参构造，Unity 序列化器还原不了数组元素，写成 `Language[]` 会是「Inspector 里看着对、跑起来全空」。认不出的 Code、以及没随这批词条发行的 Code，一律剔除并告警而不是静默折成默认语言——后者会把配置错误一路放过到上线。配套 `Tests/EditorMode/Service/Localization/LocalizationServiceHandlerTests.cs` 25 格（回退命中、仅空白算缺译、全链缺译露 key、关掉回退保持旧行为、错 Code 被剔除、首启兜底、事件时序、重入拦截、故障本地化器隔离、格式化退化、列数失配整批拒载、关停复位、`Language` 共享实例与 `SystemLanguage` 双向转换）。详见 `Localization.md` 双语「缺译回退」，含事件时序契约与数据规模判据。
-
-- **`Localization`：运行时覆盖层、句柄式订阅、不装箱取文与编辑器内预览（对照另一实现后的 P0 采纳项）**：① **覆盖层**——不改表、不重出包就能换掉某语言的若干词条（运营改错译、QA 强改、远程补丁是同一条路）：`SetStringOverlay(sourceId, language, entries)` / `ClearStringOverlay` / `ClearAllStringOverlays`，同名来源即同一层、后注册者优先，层数与来源进调试面板「数据规模」段。语义刻意与"整表替换"相反：**只替换指定语言下的指定 key，未覆盖的照旧取表内译文**，空/仅空白值算「不覆盖」而非「覆盖成空」，换批不清空覆盖层，而覆盖层不跨关服存活（否则热改内容会串进下一次会话）。覆盖参与**每一次**语言尝试（含回退链），否则热改了英语、缺译的法语回退过去仍拿旧版，是半生效的覆盖。② **句柄式订阅** `SubscribeLanguageChanged`：与静态事件同一次派发、同一时序契约，但 `Dispose` 即摘、`OnShutdown` 由框架统一作废——静态事件那条路上"忘了 `-=`"是唯一没人收口的跨会话泄漏。③ **arity 1~4 的 `GetTextFromId<T…>` 重载**直落仓内既有的 `StringUtility.Format<T1…T16>`（装了 ZString 时不建 `object[]`、不装箱值类型），`params object[]` 保留给动态场景；只做 4 阶，超过 4 个占位符的文案按"该拆 key"处理。④ **编辑器内译文预览**：三个 Localizer 的 Inspector 在 ID 字段下方显示解析后的译文／将要取用的数组下标与该下标上的元素（`缺项`/`空引用`/资源名），数据走 `ConfigTableServiceHandler.GetLocalizedStringsForEditorPreview` 的编辑器直读路径——**不引入第二份 JSON 中间源**（中间源迟早与真表漂移，届时编辑器里的"对"不再等于运行期的"对"），不经资源系统、不需要进 Play。预览不写回目标组件（不标脏场景）、且不套回退链（某格缺译时预览直接露 ID，那正是策划要看见的信息）。⑤ 新增 `Tests/EditorMode/Service/Localization` 覆盖层 6 格、typed 阶梯 3 格、句柄订阅 3 格、批契约 3 格。详见 `Localization.md` 双语新增「运行时覆盖」「编辑器内预览」「带参取文」「句柄式订阅」四节。
-
-- **`Audio`：中间件接入面的失败可归因（上线门槛 G2-2 / G5）**：此前"声音库没加载成功"和"事件播不出"都是**静默**的——`LoadBank` 返回 `false`、`Play` 返回 `0` 句柄，不带一行日志，而这两类恰恰是音效师改错命名后唯一能在线上出现的表现，且无从归因。现在：① `AudioService.LoadBank` 只在桥返回 `Failed` 时按库名提示一次 Warning（`AudioWarnOnce`，与缺 Mixer/缺快照同一去重口径），② `Play` 拿到实例 id 为 0 时按事件路径提示一次（路径写错、所在库未加载、工程声部到顶三类原因都落在同一个 0 上，消息里一并列出），③ 空路径在外观层短路，不占用失败告警的额度。刻意**不**给"已加载"报信：`LoadBank` 的幂等命中与插件启动时自行加载的 master/Init 库都属正常路径，按 `false` 告警等于每次冷启动必刷一条假告警，真失败会被淹在里面——为此桥侧改成三态返回（见 Changed）。配套 `Tests/EditorMode/Service/Audio/AudioMiddlewareEventMapTests.cs` 5 格（映射命中/回落推导提示一次/换表立即作废索引/播放失败提示一次/`CurrentlyPlayingCount` 与播放同源）、`AudioMiddlewareBankRtpcTests` 增 3 格（失败去重但请求不去重、`AlreadyLoaded` 保持静默、空路径不触达桥），告警去重靠 `LogAssert.Expect` 只配一条来锁——多落一条即以"意外日志"判负。文档双语补「生产约定」（事件命名、总线与 RTPC 名单、Bank 装卸顺序、停止语义）与「初始化失败的回退」两节。
-
-- **`Audio`：可观测性与快照绑定的三项收口**：① 游戏内调试器 `Profiler/Audio` 新增「Clip 缓存」段——条目/容量、在途、常驻、失败冷却数、TTL 与默认策略、留池可见数、当前混音快照与 Ducking 占用，外加按地址列出前 8 条（引用数/策略/加载态/距今闲置秒数）与两个清缓存按钮。此前 `AudioClipCache` 的 `Count/LoadingCount/PinnedCount/FailedAddressCount` **零运行期读者**，而线上"某声音效没出来"的第一嫌疑恰是满载判负、地址在冷却、快照没绑上，看不到等于查不了。② `CollectMixerSnapshots` 改为返回**副本**并只解析一次 `FieldInfo`：反射拿到的是 `AudioMixer` 内部的活数组，调用方一次写入就会改坏资产侧快照表；真机（无 SerializedObject 回退）反射失败时不再是静默空表，而是报一次"字段可能改名，请手工映射"。③ `AudioServiceSettings.RebuildFromMixer` 拆出 `RebuildMixSnapshotsFromMixer()` 回报绑定数（0 时提示"没有与 EMixSnapshot 同名的快照"），重复 State 行由"首个胜出、其余静默丢弃"改为告警，且服务在跑时把新映射当场登记进状态机（旧实现改完配置当前会话毫无变化）。
-
-- **`Audio`：Clip 缓存热路径的 CPU 预算基准（`AudioCacheBenchmark`，3 格 `[Explicit]`）**：与 `KernelBenchmark`、`GenericObjectPoolBenchmark` 同一范式（NUnit `[Explicit]` 而非 `MonoBehaviour`，不进常规回归、按名执行），量单次调用的纳秒数：已加载条目重复 `Preload`（预算 1200ns）、TTL 未到期的空闲 `Tick`（350ns）、用 4 倍于容量的轮转地址持续挤入新地址的满载驱逐链路（6000ns）。补这一件是因为 `AudioClipCache` 的取用/归还挂在每次播放与停播上，而"条目数正常"与"开销正常"是两件事——LRU 退化成整表走查照样能全绿，调试面板上也只看得见条目数。口径：预热固定轮数后按**固定调用次数**计时（固定时长会让慢机器只跑很少的次数，样本量差异直接进结论），每进程重复三轮取最快一轮（同一份代码进程间能差到 2 倍，取最小值才跨改动可比），数值两条通道并报：逐条经 `Debug.Log` 打 `CPU,用例,次数,纳秒,limit=预算`（与 PlayMode 的 `AudioCpuRegressionTests` 同前缀，便于 grep；`TestContext` 的输出不落编辑器日志，跨会话取不到），一轮跑完再由 `[OneTimeTearDown]` 整批追加到导出文件（`MOIRAI_AUDIO_BENCH_FILE` 覆盖路径，缺省系统临时目录）；预算放在实测上沿的 3~6 倍，抓的是数量级退化而不是 30% 慢爬。夹具侧另开 `RecycleLeases` 让归还的租约重新投入使用——否则几万轮驱逐会先造出几万条 `AudioClip`，量到的是测试台自己的开销。
-
-- **`Audio`：商业化上线收口六项（前后台、线程、故障隔离、配置校验、只读池视图、失败负缓存）**：
-  ① 切后台冻结——新增 `AudioServiceHandler.OnApplicationPaused` 契约成员，`AudioService.OnInit` 经 `GameApp.AddOnApplicationPauseListener` 订阅、`OnShutdown` 注销，Unity 后端冻 `AudioListener.pause`（保留各 `AudioSource` 播放位置，不用 `StopAllButPersistent` 以免回来重起 BGM），并记录是自己冻的、关停时补解冻，避免"在后台被退出"把 `AudioListener.pause=true` 留给下一个会话；刻意不接 `OnApplicationFocus`（桌面切窗不该静音）。
-  ② 主线程不变量——新增 `AudioMainThread`（与 `GameServices.EnsureMainThread` / `MemoryPoolRegistry.AssertMainThread` 同约定的 `[Conditional]` 断言），打在 `AudioCategory.GetAvailableAgent`、`MiddlewareAudioHandler.PlayEventPath` 与 Clip 缓存各变更入口；`OnLoadCompleted` 另加发布版兜底：来源从非主线程回调时经 `MainThreadDispatcher.TryPost` 转投，转投不动（调度器已停机）就当场归还租约并报错，绝不跨线程改 LRU/引用计数。
-  ③ Tick 故障隔离——`AudioService.Tick` 内自捕获（容器侧开发构建是"记录后重抛并打断整轮 tick"，一条音的异常会连带冻住同帧输入/UI/存档），缓存 TTL 扫描与 ducking 判定各自单独隔离；新增 `AudioFault` 做退避上报（同位置 5 秒内不重复打印、累计吞掉次数），策略是退避而非熔断，不把音频踢出轮询。
-  ④ 配置校验——缺 `AudioMixer` 原先完全静默（音轨音量/静音全靠 Mixer 暴露参数，滑杆拉到底没反应），现报一次 Error；缺 `AudioMixerSnapshot` 原先每次请求一条 Warning（开 ducking 后每句台词刷一次），新增 `AudioWarnOnce` 按 key 去重（含 `[RuntimeInitializeOnLoadMethod]` 自清，兼容关闭 Domain Reload）。
-  ⑤ **破坏性**：`AudioServiceHandler.AssetHandlePool` 契约成员类型由 `Dictionary<string, object>` 改为 `IReadOnlyDictionary<string, object>`，Unity 后端返回缓存的包装视图、中间件返回自建包装——裸 `Dictionary` 以只读接口出现仍可被 cast 回去改写，而改写会让租约脱离引用计数成为无人释放的后端引用；曾这样写的外部代码现在编译失败，迁移为只读枚举或改用 `UnloadClipCache`/`ClearClipCache`。
-  ⑥ 失败地址负缓存——`AudioClipCache` 记录加载失败的地址并冷却 5 秒（`Configure` 新增 `failureCooldownSeconds` 参数，`0` 关闭），高频触发的错地址不再每次重穿资源层；`ClearCache(force: true)`、`Unload`、`Configure` 与冷却到期都可恢复重试，冷却表以容量为上限自我截断以免变成第二个泄漏源。
-  配套 `AudioClipCacheTests` 增至 26 格（新增失败冷却 4 格：立即拒绝、到期重试、`0` 关闭、force 重置）。
-
-- **`Audio`：中间件接入面（事件映射表 + 声音库/实时参数）**：中间件后端原本只能按 `clip.name` 推导事件路径（FMOD 拼 `event:/`、Wwise 拼 `wwise:/`），而事件由音效师命名、clip 只是占位引用，命名不一致时静默推导出错路径、表现为「播不出声」且无从排查。现 Handler 上可配 `AudioEventMapping[]`（clip → 事件路径，Inspector 或 `SetEventMappings` 代码灌入，改配置后 `InvalidateEventMap` 重建索引），命中即用、未命中才回落到按名推导并对该 clip 提示一次 Warning；`Play(eventPath, …)` 路径直发不经映射。另补 `AudioService.LoadBank` / `UnloadBank` / `SetRtpc(name, value[, handle])`（handle 为 0 表示工程/全局参数）进 `AudioServiceHandler` 契约，Unity 后端无概念一律 false/空操作；中间件按**能力接口** `IAudioMiddlewareBankControl` / `IAudioMiddlewareRtpcControl` 探测，桥接未实现时提示一次并安全降级——刻意不加进 `IAudioMiddlewareBridge` 主接口，否则未实现它的真 SDK 桥在定义 `FMOD_INSTALLED` / `WWISE_INSTALLED` 时直接编译不过。两个 Stub 桥已实现能力用于跑通契约；`FmodBridgeNative` / `WwiseBridgeNative` **已补**标准 SDK 调用（`RuntimeManager.LoadBank` / `StudioSystem.loadBankFile` / `Bank.unload` / `setParameterByName`，以及 `AkSoundEngine.LoadBank` / `UnloadBank` / `SetRTPCValue`），整文件受 `FMOD_INSTALLED` / `WWISE_INSTALLED` 编译保护——本机无插件、无法本地编译核对，装上 SDK 后需做一次编译与 Bank 加载冒烟验证，框架侧无需再改。详见 `Audio.md` 双语「事件映射表」「声音库与实时参数」。
-
-- **`Audio`：Voice 驱动的自动 Ducking（`AudioVoiceDucking`）**：叙事游戏的对白压低背景音此前要游戏侧手写台词起止，而按「播放 +1 / 结束 -1」计数一旦漏减就永久压低混音。现改为各后端**实算**该音轨是否还有活跃声部（Unity 扫 `AudioCategory` 的 Agent 空闲位，中间件扫句柄表里 `Playing` 的 Voice），由 `Tick` 驱动 `Evaluate`，加载中与淡出中同样算在播，漏一帧下一帧自愈。与快照状态机的优先级协同：被更高优先级挡下时不记为生效（演出中不会被对白抢走混音），回落只在仍占着 `Dialogue` 时发生且回到 duck 前那一层而非硬写 `Default`。开关在 `AudioServiceSettings.AutoDuckingOnVoice`（默认关闭，需先注册 `Dialogue` 快照），关掉当帧即归还。新增 `AudioServiceHandler.HasActiveAudioOn` 内部契约成员；补 `Tests/EditorMode/Service/Audio/AudioMixStateMachineTests.cs` 10 格锁住这套打断/回落契约（duck 完全寄生其上）。详见 `Audio.md` 双语「自动 Ducking」。
-
-- `Tests/EditorMode/Service/Timer/DefaultTimerHandlerTests.cs` 增补：时钟污染与回调内改写句柄的回归 7 格——正无穷单帧不冻结时间轮、负读数不把游标拽回起点、时钟不可用时 `Resume` / `Restart` 整体拒绝而不损坏计时器、帧计时器进度回调内自取消后槽位复用者不被误完成、回调内 `Restart` 不被同帧完成判定抹掉、回调内 `Pause` 把完成顺延到恢复后的那一帧。
-- **对象池异常路径回归 13 格**（`PoolMaintenanceSchedulerTests` 3 格 + `GameObjectPoolTests` 7 格 + `GenericObjectPoolTests` 3 格，锁住上面两条 Fixed 收口）：调度器侧毒项不截断本轮其余到期项、抛出项不被重试、抛出后自行重排的项不掉堆；GameObject 池侧 `OnDespawn` 内 `DestroyImmediate` 自身不再炸在 `ParkInactive`、其槽位被完整回收且不影响同链其余实例、`OnPooledDestroy` 抛出时整批 trim 仍走完且池保留排期、框架级缺陷（预制体卸载抛）带池身份显式上报且不外泄、`Shutdown` 单件投毒不放过其余实例、Sticky 池尾部僵尸清扫不再抹平 inactive 链头尾；通用池侧 `Release` 抛出不会放过未用链其余对象、槽位与 `_targetMap` 回到可用态（同 target 可再注册）、关停单件投毒不跳过池尾。
-- **`Resource`：空闲资源记录容量上限 `IdleAssetCapacity`（默认 256）**：`IdleAssetExpireTime` 只按时间回收，两处卸载都不触发的场景里，一批资源失去引用后仍按秒数占着内存与后端句柄。现空闲记录数超过上限即由最长空闲（过期刻度最早）的那条立即释放，不等到期；setter 调小同样当场生效，`0` 表示不留空闲记录（引用归零即释放）。淘汰排在时间轮走查之后——走查途中同步摘节点会让已捕获的 `next` 指针失效、整桶被跳过。接进 `ResourceServiceHandler` 契约（`AddressableHandler` 无记录级回收，仅持档位）、`ResourceServiceSettings` 与 `ResourceService` 门面。
-- **`Resource`：销毁态槽位兜底回收**：`ResourceOwner` 的注销全押在 `OnDestroy` 上，而场景卸载与退出播放会截断这条派发——所有者槽位连同其绑定租约就此长留，只有同索引被复用时才会被覆盖。每帧维护入口新增按配额轮转的扫描（每次 64 槽位、游标跨调用推进），把"组件已被引擎销毁（fake null）而槽位仍活跃"的所有者、以及目标已销毁的绑定强制摘除，逐槽隔离异常。
-- **`Tests/EditorMode/Service/Resource/ResourceBindingServiceLifecycleTests.cs`：关停/重置与销毁态回收回归 6 格**：终态关停后注册与释放一律 `ServiceShutdown` 且槽位排空、`Reset` 后同一实例重新可用、组件销毁后的槽位被轮转扫描收回、存活所有者不被误摘、配额为 1 时三轮走完三个销毁态槽位、终态关停后扫描为空操作。
-- **`Audio`：Clip 缓存的租约接缝与回归 22 格**：缓存原先直接握 `ResourceServiceHandler`，既没法在 EditMode 里驱动（该抽象有 75 个成员），也让「谁持有租约」这件事散进类型开关。现收成窄接缝 `IAudioClipLeaseSource`（`TryAcquire` / `AcquireAsync` + `AudioClipLease`），生产实现 `ResourceClipLeaseSource` 转发到资源后端，与 `IAudioMiddlewareBridge` 同构；`AudioClipCache.Configure` 改收该接口。据此补 `Tests/EditorMode/Service/Audio/AudioClipCacheTests.cs` + `AudioCacheTestSupport.cs`（受控租约假件 + 遍历 All/LRU 双链的台账断言）22 格，覆盖单飞合并、引用计数门、LRU 驱逐顺序、满载全 Pin 判负、TTL 续期与到期、lowMemory 分层保留、force 不越在播引用、关停后迟到回调、条目被下个缓存复用后旧回调不得越主；过程中查出并修掉 `RequestClip` 里 `return !entry.Loading || BeginLoad(...)` 的短路——声部路径的加载因此从未被发起过。
-- **`Audio`：路径播放接入 Clip 租约缓存（`AudioClipCache`）**：`AssetHandlePool` 只在 `bInPool=true` 时参与命中且只增不减——除 `CleanAudioPool` 外没有任何淘汰，同地址并发请求各自 `LoadLease` 一条租约、`TryAdd` 失败的那条又被标成"池内"而永不再 `Dispose`，默认 `bInPool=false` 则每次播放都重新加载一遍。现由 `AudioClipCache` 充当路径播放的唯一真相源：同地址共享一条租约 + 引用计数，只有"无引用、不在加载、无等待者"的条目可被驱逐；`ClipCacheCapacity`（默认 128）满时先淘汰最久未用的无引用条目，全 Pin 或全在用时新地址直接判负而不是无界增长；`ClipCacheTtl`（默认 30 秒，`0` 关闭）随服务 `Tick` 清理；`Application.lowMemory` 触发一次非强制回收。策略经 `AudioPlayOptions.CachePolicy`（`None`/`Ttl`/`Pin`，只升不降）指定，新增 `AudioService.Preload` / `PreloadAsync` / `UnloadClipCache` / `ClearClipCache` 契约成员，`PutInAudioPool` / `RemoveClipFromPool` / `CleanAudioPool` 与 `AssetHandlePool` 收为其上的兼容视图（后者变为只读投影，租约值由缓存持有）。声部等待者改用池化节点 `AudioLoadRequest` 挂在条目队列上、停播换曲即原地注销（挂闭包回调的写法会在声部已换曲之后仍把上一首播回本声部），`force` 卸载只放宽 Pin 与等待者两道门槛、在播引用一律拒绝释放；顺带修掉淡出中改靶被 `EnterEndState` 清空排队而静默丢播、以及在途改靶事后二次起播两处。详见 `Audio.md` 双语「Clip 缓存与预加载」。
-
-- **`MemoryPool` 回归夹具基座 + 30 格用例**（`Tests/EditorMode/Core/MemoryPool/`：`MemoryPoolTestFixtures.cs` 基座与可编排对象、`MemoryPoolOwnershipTests.cs` 归属 12 格、`MemoryPoolMaintenanceTests.cs` 维护 15 格、基座自检 1 格）：池是类型级全局单例、进程内所有夹具共用同一份状态，而既有两套用例各自手工 `ClearAll` 复位——一个用例漏还一只对象，下一个用例读到的 `UsingCount` 就虚高一格，`ClearAll` 又纠正不了（在外的对象本就该活着），于是表现为"单独跑绿、整套跑红"。现统一走 `PoolFixture`：`Use<T>()` 在用例开始前断言该类型零残留租约并复位容量与统计，`Tick(n)` 自带递增帧号（EditMode 下 `Time.frameCount` 不推进，照传会让整段 Tick 分支被同帧判据跳过），`TearDown` 逐类型复查账目、清空内容并还原全局旋钮，任一不合账即以 `AggregateException` 报在本用例自己头上。用例覆盖面：归属侧（跨池/二次/无主归还拒绝、句柄与 Type 入口保持同一身份、`Clear()` 抛出后租约可重试、构造失败不占槽不计账、工作线程拒绝、31/32/33/4097 突发溢出只驱逐已归还者、两万步随机生命周期逐帧对账）与维护侧（五阶段 `Add` 预算逐格精确、`Add(int.MaxValue)` 不溢出、撤销待建增长、低内存按预算剪空且不伤在外租约、空闲到点释放非托管页并停排期、带租约修剪不误伤、仅剩一页有租约时其余空页全部退役、300 轮页退役+复用后空闲量仍可被完整走查、100 个类型同时排期一个不漏、坏 `OnEvict` 不截断整批修剪且异常全部上报、全局维护在池回调内被拒且不留半截副作用）。断异常一律沿 `InnerException` / `AggregateException` 链判定而非 `Assert.Throws<T>` 精确匹配：泛型参数上的 `new T()` 实走 `Activator.CreateInstance<T>()`，构造函数抛出的原始异常会被包成 `TargetInvocationException`，按类型硬匹配会随运行时失真；`ConstructorItem` 另加递归封顶，护栏一旦缺失时报红而不是把宿主打崩。
-
-- **`MemoryPool` 的漏还可见性与结构自检**：`MemoryPoolInfo` 增加 `MaxUsingCount`（自上次 `ResetAllStats` 以来的在外峰值，`ResetStats` 按当前在外量重起，不会把正在漏的池洗成干净）与 `LiveLimit`；新增 `MemoryPool<T>.SetLiveLimit(int)` / `MemoryPool.SetLiveLimit(Type, int)`（0 表示不限制，默认不限制，`MemoryPoolSetting.m_DefaultLiveLimit` 给全局默认）——越界时带池身份限流上报（默认 300 帧一条），开发期先报后抛，发布版仍照常发放（拒绝发放只会把已经开跑的演出当场打断，也修不了调用方的漏还）。`MemoryPool<T>.ValidateStructure()` 与 `MemoryPoolRegistry.ValidateAll()` 是只读结构自检：走查两条页链表并与页计数、全局计数、前后指针、标志位交叉核对，健康时返回 `null`，失配时返回带池身份的描述——页链表换来 O(1) 摘挂，代价是一次漏挂/漏摘会让后续索引落到已释放内存上，那种失配平时不响，只以随机崩溃或数据错乱的形式回来。Debugger 窗口同步：`Using` 后附 `max` 高水位、配了上限时追加 `Limit` 一栏，顶到上限的池标红。
-
-- **`Tests/EditorMode/TestRequestRunner.cs`：让开着的编辑器自己跑 Test Runner**（跨域重载续跑：运行态落盘 `Temp/MoiraiTestRunState.json`，每次域加载重注册回调，PlayMode 进出场也能收齐结果）：`UnityLockfile` 被占时 batchmode 打不开同一工程，于是"改完要证据"只能等人去点 Test Runner，一晚上来回三四次。现在往 `Client/Temp/MoiraiTestRequest.json` 投一条 `{id, mode, output, assemblies[], tests[]}`，测试程序集里的轮询器就执行一轮并回写 `report.txt`（计数 + 逐格失败详情）、`.progress`（正在跑的用例全名）、`.done`（回显请求 `id`）。调用方必须自带唯一 id 且只认配对的 `.done`，否则会把上一轮的旧报告当成本轮结论；正在编译/导入/播放时不接新单。只存在于测试程序集（`UNITY_INCLUDE_TESTS` 门控的调试桥），不进玩家包，也不替代发布流程里的自动化测试；`mode` 支持 `EditMode`/`PlayMode`。落地当天即自证：`Core.MemoryPool` 全套 75 格 1.16s 全绿。
-- **`TestRequestRunner` 对齐调试桥作业模式的可靠性重构**：请求消费改为「先改名后读取」（`Temp/MoiraiTestRequest.consuming.json` 作消费标记——原先「读完再删」在删除失败时会留下完整请求文件、下一帧把同一单重复执行；启动时清理崩溃残留）；新增可选 `timeoutSeconds` 墙钟上限（`0`/缺省不限时，编译、导入与域重载的等待计入，超时 ABORTED 收口并清理 `.progress`；Test Runner 作业本身不可取消、可能仍在后台跑完，结果不再计入）；`assemblies` 与 `tests` 均空的请求直接拒绝收口（空过滤器会让 Test Runner 重跑上一次的选择集——看似成功，实则文不对题）；`IsRunActive` 反射探针在类型加载时缓存为 `Func<bool>` 委托（孤儿单判活按帧轮询不再每帧反射查方法）；`beforeAssemblyReload` 兜底落盘运行态；`Cancelled` 结果计入 skipped 而非 failed（失败态变体宽匹配原则的补全）；缺 `output` 的请求显式报错丢弃。
-- **`TestRequestRunner` 判活/取消/收口对齐调试桥作业句柄**：`Execute` 返回的作业 guid 落进运行态，孤儿单判活优先按 `IsRunning(guid)` 只认本单（窗口手动跑不再拖住判定），探针缺失降级「任意 run 在跑」、判活完全不可用再给 30s 扩展宽限后强制收口——调用方永不会等不到 `.done`（旧实现探针拿不到就把孤儿判定永久放行）；超时/孤儿单/执行失败的 ABORTED 报告附带已收集的 `collected passed/failed/skipped` 与墙钟时长（旧实现直接丢账，中途被打断的一轮只剩一句 ABORTED）；新增取消通道 `Temp/MoiraiTestRequest.cancel.json`（内容=请求 id，裸文本或 `{"id":...}` 均可），匹配在途单即 `TestRunnerApi.CancelTestRun` 取消——UTF 取消受理后清空任务管线、不再送达 RunFinished（RunFinishedInvocationEvent 被 Canceled 模式跳过，等它收口是死等），受理即由驱动收口并交付已收集计数，拒绝受理才等自然收口；超时收口从「作业继续后台跑完」改为尽力取消作业；接单门补「有任意 run 在跑不接新单」（ICallbacks 无法归因到具体 run，窗口手动跑与本驱动并发会把结果串进同一份账）；`TestStarted` 不再为套件/程序集节点落进度；启动时清理同输出路径的陈旧 `.done`/`.error`；`Execute` 未返回 guid 视为未启动即收口。文件协议向后兼容，取消文件是唯一新增产物。
-
-### Changed
-
-- **测试夹具的静态态复位退出反射：8 处框架成员放开访问级别**：上一轮收口 `s_Handler` 之后，测试里剩下的反射几乎同一个形状——按字符串取框架的私有静态（`Singleton<T>.s_Instance`、`SingletonMono<T>.s_Instance` / `s_ShuttingDown`、`MemoryPool<T>.s_FreeCount`、`PlayerLoopDriver.s_MainThreadId`、`SaveFileGate.s_Gates`、`UIMobileInputRegistry.ResetStaticsForDomainReloadDisabled`、`GameApp.IsShutdown` 的私有 setter），用来在用例之间复位共享状态，或造出"退出窗口 / 计数失配"这类只能从内部下手的现场。这些成员名同样是跨程序集的隐式契约，而且好几处配着"字段改名请同步本用例"的 `Assert.IsNotNull` 哨兵——那正是编译期本可以免费提供的保证，所以按访问级别放开而不是留着反射：private→internal；`SingletonMono<T>` 那两个由 `protected` 改 `protected internal`（外部派生类的既有读法不变，只是白名单程序集也拿得到）；`SaveFileGate.GateEntry` 连带放开以匹配字段类型的可见性；`GameApp.IsShutdown` 由 `private set` 改 `internal set`。换的是取用方式，**行为零改动**（volatile 写还是那个写，复位时机与原实现逐字对齐），9 个测试文件去掉 `GetField` / `GetMethod` / `GetSetMethod`，两处 `using` 随之无用。同批**没**动的两类反射各自需要先定一件事：按名字反射 `protected OnInit` / `OnShutdown`（现成的 `Internal_Init()` 会连带置 `_initialized`，与这批夹具要的"只跑回调、不置位、故关停也短路"不等价，机械替换会改到关停路径）、以及绕过 Inspector 写 `[SerializeField]`（那是正当用法，不是待收口的耦合）。
-
-- **`Audio`：跨后端第 6 条语义——后端整体失效时的音量面统一为「读 0 写无效」**：两个后端都有"引擎整个不可用"的状态，但一直各叫各的名字，也没人把它写成契约。Unity 侧是 `AudioSettings.unityAudioDisabled`（反射读一次，且整段包在 `#if UNITY_EDITOR` 里——所以玩家构建里恒为 false，它表示"开发者在编辑器菜单里关了音频"，不是设备故障），35 处短路都判它；中间件侧是"桥接 `Initialize` 返回 false 即整体禁用"（上线门槛 G5 的回退决策，运行期不自愈），但**音量面不在那批短路里**：引擎已经死了，`MasterVolume` / `GetTrackVolume` 照旧报着 0.8、设置面板照旧显示"音乐 80%"、照旧接受拖动并持久化，而玩家什么也听不见——恰恰是最无法归因的那类线上症状。现在契约新增 `IsBackendInert`（`internal virtual`，与 `_fades` 同一口径：契约是 public 而后端只允许框架内替换），文档化为第 6 条跨后端约定，中间件按它把 `MasterVolume` / `MasterMute` / `Get-SetTrackVolume` / `Get-SetTrackMute` 八处一并收口（inert 时 getter 报 0、setter 直接忽略，与 Unity 同形）。**顺带补上基类总线过渡的同一处漏口**：`FadeMasterTrack` / `FadeTrack` 在 inert 时不再排程——排了也不会响，却让 `SoundIsFadingOut` 报真，属于同一种假象（撤过渡与查询不受影响，否则在途状态会漏在那里没人收）。**两条刻意不做**：① 不把 `_bridge == null` 当 inert——未初始化是启动中间态，那样会在玩家构建里造出一条真实的损坏路径（初始化完成前面板打开 → 滑杆全读 0 → 用户一动就把 0 写回并持久化）；只有初始化明确失败才转 inert，新增 `NotYetInitializedBackend_StillReportsItsSettings` 钉住这条，将来谁图省事改写这个谓词会当场红。② 不动 Unity 侧任何行为（按定调保持现状），也不把其余 27 处 `_unityAudioDisabled` 改成绕钩子——同文件里两种拼法并存比多一层间接更好读。**行为变更只落在中间件的初始化失败分支**。配套 `Init_Failed_VolumeSurfaceReadsZeroAndIgnoresWrites` 1 格（禁用态音量面读 0、写入不留下状态、总线过渡不排程、且全程不触达原生桥）。
-
-- **`Audio`：音轨暂停标记收归契约，中间件批量停播的"收—停"两趟只留一处**：上一轮量出来的结论是**停/暂停族并不是跨后端重复**——Unity 走 `AudioCategory`/`AudioAgent`（引擎侧，批量族根本不经句柄表），中间件走句柄槽表，两边的结构差异是真的，硬抽"共享停止策略"等于发明一层新抽象，那是收窄契约（S3）的活，不是删重复（S2）的活。所以这一刀只删两处确实同文的东西：① **`_pausedTracks` 标记数组**——两后端各自声明一份同名数组、各写一遍"取数组 + 判空 + 判界"，六个现场三份逻辑，而契约第 1 条"暂停的音轨拦截新播放"整个压在这份状态上：状态有两个所有者，规则就有两份实现。现在数组与 `SetTrackPaused` / `IsTrackPaused` 归 `AudioServiceHandler`，**分配与释放仍留在各后端自己的时机**（Unity 在 `Initialize` 建、`OnShutdown` 置 null，中间件经 `EnsureTrackArrays` 懒建）——"未分配即视为未暂停"（含"初始化前调 `PauseTrack` 会被忘掉"）两边都有调用侧依赖，顺手改成基类懒分配就是行为变更，不该混进重构。② **中间件的四个批量停播**（`StopAll` / `StopAllButPersistent` / `StopAllLooping` / `StopTrack`）各自带着完整的"清空暂存 → 收集 → 逐条停 → 再清空"十行，其中那只 `_handleScratch` 是**与 Tick 回收共用**的可变缓冲（分两趟是因为 `Stop` 会当场解绑句柄，边枚举边停会跳元素）——同一个取用规矩复写四遍，收完忘清或在停的趟里再取它都是能悄悄长出来的坏形。现在收口成 `StopCollected(fadeoutDuration)` 一处。配套 `Tests/EditorMode/Service/Audio/AudioTrackPauseFlagTests.cs` 4 格：标记按音轨逐个生效不串味、越界下标忽略且不越界写、Unity 侧未分配时"暂停请求被忘掉"这条被钉住（改懒分配当场红），以及**中间件侧的"暂停拦播放"**——契约第 1 条此前只有 Unity 的 `AudioPausePlayModeTests` 证过，写着两后端一致却只测了一边。
-- **`Audio`：总线过渡族上移到契约基类，两后端各删约 50 行**：`FadeMasterTrack` / `StopFadeMasterTrack` / `FadeTrack` / `StopFadeTrack` / `StopFadeAudio` / `SoundIsFadingOut` 此前在 `UnityAudioHandler` 与 `MiddlewareAudioHandler` 里**逐字相同**——连 `AudioFadeScheduler` 那只在两个类里各声明一遍的私有字段也一样，差异只在"音量最终写到哪儿"，而那一处差异本就已经经 `IAudioFadeTarget.ApplyFade` 分派出去了。同一段编排写两遍的意义就是制造下一处分歧：音量值域那一条（Unity 允许 0..10、中间件落总线时偷夹到 1）就是这么长出来的，而它恰好在相邻的 `FadeMasterTrack` 里有一份同文实现——两份拷贝里改一份、留一份，编译器不会拦。现在调度器由 `AudioServiceHandler` 持有（`internal readonly`，不是 `protected`——调度器是内部类型而契约是 public，后端只允许框架内替换，不该为"外部也能派生"这条不存在的需求把内部件抬成 public），这六个总线过渡的实现落在基类，后端保留 `FadeAudio` / `PlayFadeByID` / `StopFadeByID`（这三条要看声部，是真的后端逻辑）——**契约的抽象成员由 56 降到 50**，派生一个后端的成本随之下降，且新后端不可能再"忘了实现 `StopFadeTrack`"——原来那六个漏实现是编译错误，如今继承到的默认行为与两个已上线后端一致。**行为零改动**（对拍过逐字相同的原文），对外可见的唯一差别是：这六个成员现在可以被 `override` 而不必被实现。顺带补 `Tests/EditorMode/Service/Audio/AudioBusFadeParityTests.cs` 6 格——这族 API 此前**零直接覆盖**（全套测试里只有 `SoundIsFadingOut` 被声部淡出用例路过），"逐字相同"是我比对出来的结论，没有用例就没有人保证它继续相同。用例直接推契约上的过渡表（测试程序集在 `InternalsVisibleTo` 白名单内）而不等真实帧边界，因此不依赖 `GameTime.unscaledTime` 是否被驱动：零时长当场赋值且不排程、到位写终值并让位、停止只撤过渡不还原已写出的音量、重复请求顶掉前一条而非叠两条、多音轨过渡各走各的伪句柄与总线、以及**过渡表按实例不跨处理器共享**（调度器现在住在基类，一旦有人为省事把它改成 `static`，两个后端会互顶对方的过渡——而热切换后端时两者同时存活是常态）。
-- **`Audio`：热路径 0-GC 验收移入玩家专用测试程序集 `Moirai.Atropos.Tests.Player`（新增 asmdef）**：编辑器套件里那 6 格此前是**假绿**——`GC.GetAllocatedBytesForCurrentThread` 在 Unity 编辑器 Mono 下不推进（实测：主线程一次 64MB 且被真实读写的分配，前后差仍为 0；`ProfilerRecorder` 的 `GC.Alloc` 也不随已知分配变化），"稳态零分配"断言于是无条件成立，唯一还站着的哨兵是 `MeasureManaged_DetectsKnownAllocation` 校准格（它一直红着，正是它把这件事抖出来的）。现在测量台（`AllocationCapture`）与用例（`AudioPerformanceTests`）同住新程序集 `Tests/Player/`：`defineConstraints: ["UNITY_INCLUDE_TESTS", "!UNITY_EDITOR"]`，编辑器里根本不编译，只随玩家构建的测试运行执行；引用面同时收窄到玩家安全程序集（`UnityEngine.TestRunner` + `Moirai.Atropos`），**刻意不引 `UnityEditor.TestRunner`**（Editor-only，玩家侧只依赖玩家安全程序集；实测引用它**并未**硬阻断玩家构建——`.PlayMode` 原样打进 IL2CPP 测试玩家时也进了包，故不写"引用即报错"）。归属已三方核对：`CompilationPipeline.GetAssemblies` 的 `Editor` 不含 / `Player` 含 / `PlayerWithoutTestAssemblies` 正确排除，IL2CPP 测试玩家的 `ScriptingAssemblies.json` 列出该程序集、`global-metadata.dat` 命中其类型。测量台补能力探测：计数器仍不可用的运行时（个别 IL2CPP 配置）整组 `Assert.Ignore` 并落 `MANAGED_ALLOC,<name>,unavailable`——"测不出分配"不等于"没有分配"。编辑器侧音频 PlayMode 套件由 57 格降为 51 格（0 failed / 0 skipped，不留假跳），玩家侧那 6 格才是这层验收的真门禁；跑法见 `CLAUDE.md`「验证：让开着的编辑器自己跑测试」。同批补 `Tests/Player/PlayerTestBootstrap.cs`：玩家默认自动启动框架（`GameApp.AutoBoot` → `GameAppSettings.Initiation`），测试玩家跑空场景会停在 `UGUIHandler.OnInit` 的 `[FAT] UIRoot not found!`（实测带不带 `-runTests` 都停在同一行，测试运行永远轮不到），故在 `AfterAssembliesLoaded` 把 `AutoBoot` 置 false，玩家成为干净测试宿主（本程序集不进生产包）。玩家侧测试**只能从 Test Runner 窗口的 `Run all in Player` 发起**：玩家里的测试入口是构建期注入的引导场景（编辑器侧 `CreateBootstrapSceneTask` 建挂 `PlaymodeTestsController` 的 `Assets/InitTestScene<guid>.unity`），`-runTests` 单独用无效；且玩家不写结果 XML（结果经 `RemoteTestResultSender` 回传编辑器落盘），手搓 `BuildPipeline.BuildPlayer` 的玩家既跑不了也报不出。
-
-- **`Audio`：句柄表去掉全部字典，句柄改打包值（代次 + 槽号）**：`AudioHandleRegistry` 此前是 `Dictionary<ulong, TVoice>` + `Dictionary<int, List<ulong>>` 加一只 `List<ulong>` 池，而它是每次播放、每次停播、以及每帧多处扫描都要走的表——中间件后端一处就枚举 `Map` 12 次。现在整表是"一只声部数组 + 三条 int 数组 + 一只桶数组"：句柄打包成 `(generation << 20) | (slot + 1)`，解析退化为一次数组下标 + 一次代次比对；用户 ID 索引走开址头表（key → 链头槽号）+ 每槽一条同 ID 链，`StopByID` 那类批量遍历不再复制快照列表（改成"先摘 next 再回调"，回调里解绑当前条不会跳过后续元素）。**登记必须显式传 ID**：`RegisterUser(handle, userId)` 而不是读声部的 `IAudioVoiceRef.UserId`——Unity 侧 `AudioAgent.ID` 要到 `PlayWithRequest` / `LoadWithOptions` 内部才赋值，而登记得发生在播放之前（同步失败要能当场摘掉），那时声部上还是上一轮的 ID；槽位上另记一份登记的 key，卸绑按记着的 key 摘链，不拿声部当前值反推。**破坏性两条**：① `IAudioVoiceRef` 多一个 `VoiceSlot` 成员，外部若自行实现该接口需补（包内实现只有 `AudioAgent` 与中间件的私有 Voice，都是本仓自己维护）；② **句柄值不再是 1、2、3 这样的小数**，变成七位数——句柄对游戏侧一直是 opaque 值（判 0、存变量、传回 Stop），功能不变，但会出现在日志与 Bug 单里，习惯肉眼看句柄的人需要知道这一点。随之收掉的还有 `Map` 这个"把可变 Dictionary 直接交给调用方"的口子，换成结构体枚举器 `Slots`（foreach 零装箱）。测试：`AudioHandleRegistryTests` 由 6 格改写成 11 格——`NextHandle` 那格原先钉的是"等于 1、2、3"这种实现细节，换成钉调用方真正依赖的性质：句柄非零、代次必前进、**槽位复用后旧句柄必须判假**、同 ID 重复登记不自链接成环、扩容后旧句柄仍可解析、`Clear` 抹净声部侧状态。实测：音频 EditMode 107 格全绿、PlayMode 47 格全绿（其中 4 格正是这套新表把上一版未接通的同 ID 链与 `Clear` 空引用逼出来的），`AudioCacheBenchmark` 三条 393.3 / 1726.2 / 52.2 ns，仍在 1200 / 6000 / 350 预算内。
-
-- **`Audio`：Clip 缓存的寻址表换成定长开址槽表，留池视图改为现算投影**：`AudioClipCache` 原先用 `Dictionary<string, AudioClipCacheEntry>` 寻址，旁边还挂着两份字典（失败冷却、`PoolView` 镜像视图）。条目本身是 `MemoryObject`、LRU/All 都是侵入式链，整套结构本就为零分配设计，唯独寻址这一环走托管字典：① 取用/归还/驱逐每次都要哈希一遍地址串，而 `string.GetHashCode` 按进程随机化——同一份包两次启动桶分布都不一样，线上"某个地址总落在冲突链尾"根本复现不了（条目上 `AddressHash` 与 `HashNextIndex` 两只字段早就是为开址表准备的，只是那张表一直没接上）；② 字典只会长大不会缩，"条目数不超过 `ClipCacheCapacity`"约束的是表外的世界，扩容与 rehash 尖峰恰好落在播放那一帧；③ `PoolView` 作为第二份必须同步的表，每次取用/归还/抬升策略/驱逐都要多写一笔，漏掉任一处同步就是"视图里还在、缓存里已无"的残影，为躲重复装箱还得在条目上挂一只 `LeaseBoxed`。现在：地址走 Ordinal djb2 + 2 倍容量桶数组 + 槽索引链 + 栈式自由表，取不到槽才驱逐 LRU 头、仍取不到就判负（语义与旧实现一致）；**驱逐会跑等待者完成回调，所以槽位必须在回调结束之后才摘取**——提前攥住的那只会被回调里的插入占走，两个条目落进同一槽；迟到续体的身份校验改按 `SlotIndex` 比对，不再为一次判假多哈希一次字符串；容量变更（`Configure` 每次后端初始化都重跑）按 All 链把现存条目原地重落新表，配小了就抬到现存数——静默丢条目会连带把仍被声部引用的租约一起丢掉。`AssetHandlePool` / `PoolReadOnly` 变成槽表的计算视图：缓存内不再有镜像字典与装箱副本，代价是枚举每次分配一份快照（这条只有调试面板在用，且快照顺带修掉"边枚举边卸载"打断枚举的老问题）。**破坏性**只一处：外部若把 `AudioClipCache.PoolView` 当可写字典用会编译失败，而它本就不该可写。补 `CapacityGrowth_ReSeatsLiveEntries_WithoutDroppingAny` 与 `Capacity_ShrinkBelowLiveCount_KeepsEveryLiveEntry` 锁重落表和"配小不丢条目"；`PoolView_Refresh_ReusesTheSameBoxedLease` 的装箱判据已无对象，改写为 `PoolView_IsComputedProjection_LeavesNoStaleEntry` + `PoolView_EnumerateWhileUnloading_DoesNotThrow`（残影在新结构下不可表达）。详见 `Audio.md` 双语「Clip 缓存与预加载」。
-
-- **框架随机全面改走 `RandomUtility`，`UnityEngine.Random` 退出运行期（破坏性）**：Runtime 里最后 20 行 `UnityEngine.Random` 调用（`MathsUtility` 的向量/圆/球/骰子/概率、`UnityUtility` 的圆内球内取点、`ColorsUtility.RandomColor`、`ColorExtensions.RandomColor`、`AudioPlayOptionsSO` 的音量/音调/随机 clip 下界）全部换源。**行为变化**：这些取值不再受 `Random.InitState` 支配——靠 `InitState` 做随机构图对照的老流程要改投 `RandomUtility.Reseed`，框架随机与 Unity 引擎自带随机（粒子、物理抖动）就此分家。`ShufflingExtension` 的随机源同步由 `[ThreadStatic] System.Random` 换成 `RandomUtility`（线程安全不变，多了可播种），四处 Fisher-Yates 副本（`Shuffle`、`SampleByPartialShuffle`、`AlgorithmUtility.Shuffle`、`ShuffleBag.Refill`）收敛到 `ShuffleUtility` 的两条循环。`AudioPlayOptionsSO` 的 `using Random = UnityEngine.Random` 别名删除。
-- **`AlgorithmUtility.RandomRange(long, long)` 上界口径由"含"改为"不含"（破坏性）**：与 int 版及框架其余取值统一。旧实现另有第二个问题——把 `NextBytes` 拼出的**可能为负**的 long 按 double 缩放进区间，结果能掉到 `minValue` 以下（真能越界），且 `double` 只有 53 位精度。依赖旧含上界语义的调用方需自行 +1。
-
-- **`Audio`：桥侧 `LoadBank` 由 `bool` 改三态、通道扩展上限由写死改为按轨可配、Tick 侧不再每轮造列表**：① `IAudioMiddlewareBankControl.LoadBank` 现返回 `EAudioBankLoadResult`（`Loaded` / `AlreadyLoaded` / `Failed`）——三态只有桥侧判得出来（FMOD 看 `ERR_ALREADY_LOADED`、Wwise 看 `AK_BankAlreadyLoaded`、以及各自的本桥记账表），而上层要区分"幂等命中"与"真失败"才决定报不报警，`bool` 表达不了；外观 `AudioService.LoadBank` 仍是 `bool` 且只在真的完成加载时为 `true`，既有调用与契约口径不变。能力接口是 `internal`，实现方只有本包与测试程序集，两个 Stub 与两个 Native 桥同步改（`*_INSTALLED` 那两个文件本机无 SDK 无法编译核对，装完插件先过 G0 编译门）。② **破坏性**：`AudioCategory.HARD_CHANNEL_CAP`（`public const int = 32`）移除，扩展上限改为 `AudioGroupConfig.MaxChannelCeiling` 按音轨配置——写死一个数时主机与移动只能共用同一档（移动偏高、主机偏保守），而"上线前应可配"是硬要求；缺省仍是 32（改前的资产没有这个字段，取字段初始化值），配成非正数回落 32、超过 128 削顶，且只约束 `CanExpand` 的按需增长、不约束 `MaxChannel` 的预置槽位。③ `MiddlewareAudioHandler` 的 `ProcessPendingStops` / `ReleaseFinishedOneshots` 与 `StopAll*` / `StopTrack` 共用一只 `_handleScratch`，不再每轮 `new List<ulong>`：前两条每帧都跑，32 声部满负荷时等于把"突发播放后停声"挂成了常驻分配源。④ `IAudioMiddlewareBridge.StopInstance` 的 `immediate: false` 补上契约文字（实现侧不得在尾音走完前 release / 回收发射体）并注明该分支当前无生产调用方——Handler 一律先写音量 Fade 到 0 再传 `true`，接真 SDK 时按 G1 单验，别默认它可用。
-
-- **`ShuffleBag<T>` 接管洗牌袋的轮次策略，音频侧 `ShuffleIndexBag` 收敛为适配器**：`Runtime/Services/Audio/Support/ShuffleIndexBag.cs` 原先自带一套 Fisher–Yates 加「重洗排除上一首」，而框架的 `ShuffleBag<T>` 本就是同用途的公开工具（`AudioPlayOptionsSO` 已在用），两份算法各自演化、只有音频那份带正确的换手处理。现算法本体统一进 `ShuffleBag<T>`（权重表与本轮工作袋分离，对外新增 `Remaining` / `Reset()` / `Clear()` / `CurrentItem`），`ShuffleIndexBag` 只留「按下标建袋 + 曲目数变化即重建」这段音频专属适配——`BgmPlaylist` 依赖的 `Remaining == 0` 收尾判据不变。口径变化：重洗不再排除上一首，轮长由「首轮 n、其后 n-1」恒定为 n，因此 `ShuffleIndexBagTests` 里重洗后的 `Remaining` 断言由 n-2 改 n-1；换来的是每轮覆盖严格等于曲目表。RNG 与 Fisher–Yates 的三处口径统一（`ShufflingExtension` 走 ThreadStatic `System.Random`、`AlgorithmUtility.Shuffle` 每次 `new Random(seed)`、音频走 `UnityEngine.Random`）不在本批，单独处理。
-- **`Localization`：词条交付改由「批」自带语言头，存储与解析搬进 `LocalizationStore`**：旧形状是 `protected abstract LoadLocalizedData()` 返回 `(List<Language>, Dictionary<string, List<string>>)`，语言列表取自 `LocalizationService.RegisterLanguageMap` 维护的一张**静态表**，而那张表只在数据源解析词条时被顺带填满——`ConfigTableLocalizationHandler` 里因此留着一条"元组从左到右求值，先取语言会拿到空集合"的注释，而列序正确性完全押在"反射字段声明序 == 注册序"这个跨文件隐含约定上（错位只会表现为显示了别的语言，不会报错）。现在：① 新增 `LocalizationTextBatch`（语言头 + key→列 + SourceId + 常驻字符数）与 `internal virtual LoadLocalizedTextBatch()` 作为推荐扩展点，旧 `LoadLocalizedData()` 降级为 `protected virtual` 并由默认实现桥成批——**存量处理器零改**；② 语言自报走新增的 `ConfigTableServiceHandler.GetLocalizationLanguageCodes()`（`virtual`，默认空＝未自报，此时回落静态注册表保持旧行为），模板 `LubanHandler` 已按 bean 字段名实现它；③ 列数与语言数失配时**整批拒载且保留上一份可用快照**（原先会把数据清空，等于换批失败连带把能显示的文案也抹掉），报错点名 key 与来源；④ 取值解析、覆盖层、下标缓存统一收进 `LocalizationStore`，运行期与编辑器预览共用同一套解析（预览只是换一批数据源，不该有第二份取值逻辑）。破坏面：处理器上 `protected LanguageList` / `protected LocalizedStrings` 两个存储属性移除（改为经批读取，仓内与模板均无外部读者）；诊断项 `TotalTextLength`（int）更名 `ResidentChars` 并改 `long`——它本来就是"全部语言列的字符总数"，量大时会溢出 int。另把 `RegisterLanguageMap` 的静态表降级为显示/检测元数据用途：它已不再决定可发行语言，也就不再是"关服不敢清表"的那个耦合（清空会让重开局的本地化静默全空，这条约束记在 `ResetOneShotLogs` 上）。
-
-- **`Localization`：语言切换的事件时序、查询热路径与若干静默行为收口**：① `OnLanguageChanged` 改为在**全部 `LocalizerBase` 重注入完成之后**才触发（原先先发事件再重注入，订阅者在回调里取到的仍是旧语言，只能自己再排一帧去刷），且切换期间本地化器回调内再调 `ChangeLanguage` 会被拦下报错——嵌套切换会让快照与事件顺序双双失效。② 内置 `Language` 条目与 `BuiltinLanguages` 由「每次访问 `new` 一遍」改为共享只读实例（`Language.English` 原先一次分配 1 个对象、`BuiltinLanguages` 一次约 45 个；`(Language)SystemLanguage.X` 这一下转换就要重建整张表），`SystemLanguage` 双向转换改走静态字典。③ 查询不再每次线性扫语言表：当前语言下标在切换时算好并缓存。④ `ToLanguage` / `RegisterLanguageMap` 改用 `OrdinalIgnoreCase` 字典，去掉每次调用的 `ToLower()` 分配，大小写不敏感的匹配语义不变。⑤ 传入未注册语言的 Warning 由「每次查询一条」收敛为每种语言一次。⑥ `GetTextFromIdLanguage(id, null, …)` 明确为「取当前语言」。行为兼容：`GetAllLocalizedStrings` 的列模型、同步 API 签名与「未就绪返回 key 原文」的降级契约均不变；缺 `FallbackLanguageCodes` 配置的老 Settings 资产按默认 `{ "en" }` 生效（这是本次唯一刻意改变默认行为的一处，理由见 Added）。
-
-- **`Audio`：桥侧 `LoadBank` 由 `bool` 改三态、通道扩展上限由写死改为按轨可配、Tick 侧不再每轮造列表**：① `IAudioMiddlewareBankControl.LoadBank` 现返回 `EAudioBankLoadResult`（`Loaded` / `AlreadyLoaded` / `Failed`）——三态在桥侧才判得出来（FMOD 看 `ERR_ALREADY_LOADED`、Wwise 看 `AK_BankAlreadyLoaded`、本桥各自的记账表），而上层需要区分"幂等命中"与"真失败"才能决定要不要报，`bool` 表达不了这件事；外观 `AudioService.LoadBank` 仍是 `bool` 且只在真的完成加载时返回 `true`，既有调用与契约口径不变。能力接口是 `internal`，实现方只有本包与测试程序集，两个 Stub 与两个 Native 桥同步改（`*_INSTALLED` 下需装 SDK 后过一遍编译）。② **破坏性**：`AudioCategory.HARD_CHANNEL_CAP`（`public const int = 32`）移除，扩展上限改为 `AudioGroupConfig.MaxChannelCeiling` 按音轨配置——上限写死时主机与移动只能共用一个数（移动偏高、主机偏保守），而"上线前应可配"是硬要求；缺省仍是 32（老资产没有该字段即取缺省），配成非正数回落 32、超过 128 削顶，且只约束 `CanExpand` 的按需增长，不约束 `MaxChannel` 的预置槽位。③ `MiddlewareAudioHandler` 的 `ProcessPendingStops` / `ReleaseFinishedOneshots` 与 `StopAll*` / `StopTrack` 共用一只 `_handleScratch`，不再每轮 `new List<ulong>`：前两条每帧都跑，32 声部满负荷时等于把"突发播放后停声"这件事挂成了常驻分配源。④ `IAudioMiddlewareBridge.StopInstance` 的 `immediate: false` 补上契约文字（实现侧不得在尾音走完前 release / 回收发射体），并注明该分支当前无生产调用方——Handler 一律先写音量 Fade 到 0 再传 `true`，接真 SDK 时按 G1 单验，别默认它可用。
-
-- **主线程守卫不再随正式构建整条消失，维护异常按房内 `RETHROW_*` 约定分级**：`MemoryPoolRegistry.AssertMainThread` 原带 `[Conditional("UNITY_EDITOR")]` / `[Conditional("DEVELOPMENT_BUILD")]`，正式包里连调用点都不存在——跨线程取还是把非托管页元数据与侵入式链表改坏，几周后才以随机崩溃回来，那时查不到是谁在别的线程动的手。现改为运行期一次静态布尔判定：编辑器与开发构建恒开，正式构建默认关，QA / soak 包可用 `MemoryPoolSetting.VerifyMainThreadInRelease` 打开；报错消息带上 owner/current 两个线程 id。主线程 id 的兜底认领（`s_MainThreadId == 0` 时首个访问者当主线程）保留但注明边界：它只为没有运行期初始化介入的宿主（EditMode 测试、纯编辑器工具）存在，正式构建里 `SubsystemRegistration` 已经固化，否则某个后台线程抢先访问池就会把自己认成主线程、把真正的 main thread 全部拒掉。
-- **`TickAll` 每帧边界的故障收口 + 单轮异常采集上限**：TickAll 由 `GameApp` 更新派发驱动，没有业务能接住它抛出的异常，原先"聚合一堆再上抛"在发布版等于每帧刷一条栈。现开发期合并报一条带失败池数的 Fatal 后按分级上抛，发布期只上报并就地收住；`ClearAll` / `CompactAll` 这类显式调用仍原样上抛给调用方。单轮批量维护最多列出 16 条回调异常，其余合并成一条汇总——无上限收集等于在"内存紧张、正在修剪"的那一刻攒出一次 GC 毛刺；上限只削"列出来多少条"，不削"办完多少事"，整批对象仍逐个驱逐走完（隔离语义与之前一致）。
-
-- **`MemoryPool<T>` 的页调度改为侵入式双向链表**：空闲页与空槽页原先存在两条环形队列里，配页世代号与"债务位"——队列容量与页数组同步，写满时 `EnqueuePage` 只把该页标成债务并丢弃这次入队，靠每帧 `ProcessDirtyQueues(8)` 从头走查页表补挂；出队侧 `TryDequeueValidPage` 又靠世代号静默跳过失效项，于是取用一个空闲页可能先空转若干圈废项。现页头自带 `FreeLink` / `EmptyLink` 两个指针，空闲量 0→1 时挂链、1→0 时摘链，取用 / 修剪 / 回收腾空槽都是 O(1)，`PageHandle` 队列、`QueueGeneration`、两处债务游标与 `ProcessDirtyQueues` 一并删除，池不再需要"债务补偿"这类隐性成本。活跃池调度表同理：注册时按句柄数预留容量（`ReserveActiveCapacity`），`ScheduleTick` 不再有"装不下的排期"，`ActiveQueueDebt` 与 `ProcessActiveQueueDebt` 随之移除；`DomainUnload` 的释放钩子也从 `SubsystemRegistration` 回调挪进静态构造（那里本来就只跑一次，且是真正的第一次使用点）。增长信号由 `s_MissDebt`（未命中债务，会被帧预算整笔作废）换成 `s_PendingGrowth`（仅由显式 `Add` 发起的待建量），取用未命中改为即时构造并按在用量抬升水位，`Add` 的两处累加用 `long` 夹取上限以免 `int` 相加溢出。
-- **池维护调度改为"采集 / 派发"两段式**：`PoolMaintenanceScheduler.ProcessDue` 先前是一次内联走查——摘堆、执行、再回到堆顶，因此一个池若在自己的维护里以 `due <= now` 重排（GameObject 池 Fixed/Burst 超额修剪路径正是如此），同一帧可被连续唤醒多轮到预算或 1024 次上界耗尽。现采集段一次性弹出全部到期项组成本轮工作集，派发段按预算逐项执行：**每帧每池至多维护一次**，本轮新排的到期项顺延下一次调用；派发未跑完（预算或上界耗尽）时残留项留在工作集里跨调用续派（FIFO 不饿死），`Remove`/`Clear` 会同步摘除尚未派发的残留项，池被关闭后不会再被派发。对外新增只读诊断面 `PendingCount`（`Count` 语义不变，仍为堆内待维护数量）。
-- **每帧维护入口 `ProcessKeepAlive` 更名 `ProcessResourceMaintenance`**：该入口现在同时承担时间轮过期、空闲容量淘汰与销毁态槽位回收，旧名只描述了其中一条链。`internal abstract` 成员，两后端覆写与 `ResourceService.Tick` 调用点同步更名。
-- **`ResourceBindingService.Shutdown` 拆为终态关停与可复用重置**：原 `Shutdown()` 在排空末尾把关闭位复位，等于对仍持有该实例引用的调用方宣告"服务可用"——而此时槽位页已整体置 null、其 handler 的 `OnShutdown` 也已走完，再注册就是在已销毁的后端上建页取租约；`ForceUnloadAllAssets`（要复用同一实例）与服务关停（要彻底关闭）两条语义相反的路径原本共用这一个方法。现 `Shutdown()` 保持关闭，此后注册/绑定/释放一律 `ServiceShutdown`；`Reset()` 排空同一套但完成后放行，强制回收全部资源改走它。两条路径的逐所有者、逐绑定释放补上异常隔离与汇总重抛：原先任一处 `ClearAndReleaseBinding` 抛出即中止整轮，其余所有者的槽位与租约永不回收，抛出的那个所有者还停在"链已摘一半"的状态。`Internal_ReleaseOwner` 内部的绑定链遍历同样逐条隔离，单条绑定抛出不再截断同一所有者剩余的绑定。
-- **两个大类按职责拆成 partial 文件（纯搬移，无行为变化）**：`ResourceBindingService.cs`（1989 行）拆为主文件（所有者与目标注册、槽位快照）/ `Bindings`（绑定注册与组件应用）/ `Async`（预约与代次判定）/ `Maintenance`（关停、重置、销毁态回收）/ `Slots`（分页槽位借还）；`YooAssetHandler` 的 `Records.cs`（2798 行）拆出 `Loading`（加载核心与去重、进度回调）、`Expiry`（时间轮走查、空闲容量淘汰、记录释放）、`Keys`（packed key 编解码与资源名称注册表），主文件（1264 行）拆出 `Initialization`（包初始化、清单更新、下载与缓存清理适配）。拆分后单文件最大 1303 行，与既有 `Cache` / `Scene` / `Attributes` 部件同一命名口径。
-
-### Fixed
-
-- **`Localization`：数据源抛异常被"先生成配置"顶替，读表缺陷念成配表缺失**：`LoadLocalizedStrings()` 给数据源套上 try/catch 之后，任何取数异常都折成一条 `Failed to load localized text, generate config first!`——而这句话原本只表示"语言数为 0"。实际现场里表是生成的、语言也注册上了（`English` / `ChineseSimplified`），失败是数据源内部一次 NRE，可排查者看到的却是"去转表"，方向被整个带偏；同时那条异常**不**受一次性日志闸门约束，每查一次重播一遍。现在异常与空批共用同一条出口：整段只落一次，消息里带上处理器类型与异常本体（含堆栈），"先生成配置"退回它原本的语义——数据源没抛异常却拿不到任何语言。新增 `LocalizationServiceHandlerTests.DataSourceThrows_ReportsCauseInsteadOfMissingConfig`：`LogAssert.Expect` 刻意只配一条，兜底语混进来、或异常随重试重播，都按意外日志判负。
-
-- **`Audio`：PlayMode 套件 4 格红格收口（陈旧期望与算错账，非实现缺陷）**：① `AudioMiddlewareMixPlayModeTests` 的两格优先级用例还停在旧契约上——`AudioMixStateMachine.Request` 自「只在这真的施加到混音上时才返回 true 并推进 `Current`」改版起，裸 `new AudioMixStateMachine()`（无 Mixer、无施加通道）必然被拒；EditMode 的 `AudioMixStateMachineTests` 当天已按此口径挂上中间件过渡接缝，PlayMode 这份重复用例漏跟。② `AudioVoiceDuckingE2ETests` 的端到端同因：测试环境项目 Mixer 未必带 Dialogue/Default 快照，Ducking 请求被正当拒绝、`Current` 恒停 `Default`。补施加通道后，同夹具另两格（`HighPrioritySnapshot_OwnedByElsewhere_DuckDoesNotSteal` 原为 `Assert.Ignore`、`ToggleOff_MidDuck_RestoresMix` 断言恒真）也从空转变成真实断言。③ `AudioPausePlayModeTests.PauseDuringFadeOut_ResumesFadeInsteadOfResurrecting` 算错账：淡出 0.5s、暂停前已走 0.12s、暂停冻结斜坡，恢复后只剩 0.38s 却只推进 0.25s，断言必然假红（实现本身正确：`Unpause` 把 `_fadeOutStartTime` 后移暂停时长，续走淡出而非复活成常播）。音频 PlayMode 套件现为 51 格 0 failed / 0 skipped。
-
-- **Serilog 后端把日志上下文整个丢掉**：`LogHandler.Log` 的 `context` 参数在三个后端里只有 `DefaultLogHandler` 真的传给 `UnityEngine.Logger.LogFormat`，`SerilogHandler` 收下后根本不引用它——于是文档承诺的"Console 点击可定位到该对象"在换掉日志后端后静默失效。链路其实早就铺好：`Unity3DLogEventSink` 会读 `%_DO_NOT_USE_UNITY_ID_DO_NOT_USE%` 与标签两个 key，`UnityObjectEnricher`/`UnityTagEnricher` 负责写，缺的只是中间那一环。现由 `SerilogHandler.Log` 在 `context != null` 时派生一次带上下文的 logger（为空则不派生，避开热路径上白建包装器）。**同批改掉一个必踩的坑**：那个扩展原先叫 `LoggerExtensions.ForContext(this ILogger, UnityEngine.Object)`，而 Serilog 自己的 `ILogger.ForContext<TProperty>` 是**实例**重载——按 C# 重载解析规则实例方法永远优先于扩展方法，所以写成 `_logger.ForContext(obj)` 只会绑定到泛型那个、按类型名生成一个属性，sink 侧取不到 key，看起来"接上了"实际依旧失效。改名 `WithUnityObject`（与 `WithUnityTag` 对齐）后不存在歧义。`ZLoggerHandler` 同样不消费 `context`，但其日志管线没有等价的 enricher 概念，本批不动。
-
-- **`AlgorithmUtility` 随机面与 `MathsUtility` 概率取值的四处静默缺陷**：① 全类共享一个 `System.Random` 实例（`System.Random` 非线程安全，两线程同时 `Next()` 会踩坏其内部状态），且该实例永远无法播种。② `RandomRange(length, min, max)` 原为"拼一个 length 位数字串，落不进区间就整串重拼"：`length=1` 配 `[100,200]` 时该集合为空、循环出不来（每轮还白造一个 `StringBuilder`），`min<0` 同样死循环，`length≥10` 时 `Int32.Parse` 直接抛 `FormatException`——现改为在"位数能表达的值域 ∩ 区间"上直接取一次，空集抛 `ArgumentException` 而不是空转。③ `RandomRange(min, max)` 每次调用 `new Random(Guid)`（白造对象），`min == max` 抛的还是 `ArgumentNullException`；现走统一流且 `min == max` 返回该值。④ `AverageRandom` 乘 10000 取整再除回，任何结果的第 5 位小数恒为 0，且 `maxValue * 10000` 溢出 int 时静默取乱数。另修 `MathsUtility` 两处：`Chance(percent)` 旧写法 `Range(0,100) <= percent` 让 0% 也有 1% 成功率（对既有数值是整体 +1% 偏置，现端点精确）；`RandomNumber` 每次 `new System.Random()`，种子取自时钟，同一 tick 内的两次调用给出完全相同的"随机数"。`EncryptionUtility.CreateValidateCode` 刻意**不**改接——验证码要的是不可预测，那里用 CSPRNG 播种是对的。
-
-- **`Audio`：`AudioWarnOnce` 带参告警整条打成 `System.Object[]`**：`LogUtility` 只有 `Warning<T1>(format, arg1, …)` 这类定长泛型重载、**没有** `params object[]`，而 `AudioWarnOnce.Warning(key, format, args)` 把 `args` 数组整个当**一个** T1 递出去，于是 `{0}` 被替换成数组的 `ToString()`——地址、库名、条数这些唯一能定位问题的字段全丢，只剩一句查不出对象的空话。这条缺陷早就在线上了：`AudioServiceSettings` 的「MixSnapshots 有 N 处重复 State」报出来是 `System.Object[] 处重复`，只是没人拿正则断言过它。现在 `AudioWarnOnce` 自己先把占位符拼成成品串再交给日志层（告警按 key 去重、每 key 至多一条，冷路径上这一次 `string.Format` 可以忽略）。新加的 Bank / 事件失败两格用例把正则里带上库名与事件路径，替换不生效就当场红。
-- **`Audio`：`CurrentlyPlayingCount` 绕过事件映射表，命中映射的 clip 恒查到 0**：中间件后端解析事件路径有一条映射表（`AudioEventMapping`，命中即用、未命中才按 `clip.name` 推导），但计数走的是 `_bridge.GetEventPathFromClip(clip)` 这条**只推导**的旁路：只要某个 clip 登记过映射（正是音效师工作流要求的生产形态），比对用的字符串就与在播音的 `EventPath` 永不相等，表现为"明明在播却报 0"，而 ducking 与玩法逻辑读的就是这个数。现与 `Play(clip, …)` 共用 `ResolveEventPath`，顺带继承"未命中才推导 + 提示一次"。
-
-- **`ShuffleBag<T>` 换手必连点、本轮中途 `Add` 倒拨轮次、空袋取用越界**：① 旧 `Pick()` 在本轮取空时直接返回 `_contents[0]` 并把游标拨回袋尾，而那个下标仍落在下一手的取值域里——刚取出的对象在换手处重新可取，n 项袋子每换一次轮有 `1/(n-1)` 概率连续两次给出同一项（两项时是 100%）。`AudioPlayOptionsSO` 的 Random Unique 音效列表走的正是这条路径，症状为"同一句脚步声连着响两遍"，且轮数越多越难复现。现改为整表重洗后只把撞上上一手的**袋口**项挪到随机非袋口位：相邻重复实测为 0，每轮覆盖仍严格等于权重表，袋首袋尾都不被固定死（`ShuffleIndexBag` 旧法的"本轮排除上一首"覆盖得住但轮长缩成 n-1，而"沉到袋底"会让上一手那项永远占据袋尾——两条都加了断言挡在回归里）。② `Add(item, quantity)` 旧实现顺手把游标设成 `Size - 1`，等于在本轮中途追加时把已取出的项全部放回可取区，"一轮不重复"当场失效；现只写权重表，新项自下一轮生效。③ 权重表为空时 `Pick()` 越界抛 `ArgumentOutOfRangeException`，现返回 default。④ 补上轮次可观测面 `Remaining`：旧实现没有任何"本轮是否耗尽"的信号，`BgmPlaylist` 的 `LoopMode.None` 只能靠下标回绕猜收尾。新增 `Tests/EditorMode/DataStructure/ShuffleBagTest.cs` 10 格，`ShuffleIndexBagTests` 补两项袋子严格交替的换手回归。
-- **`Localization`：首查询把 key 当译文返回、检测语言没发行时整套界面露 key、占位符写坏把查询抛出**：① `GetTextFromId` 里语言是**实参**（`GetTextFromIdLanguage(id, _currentLanguage, …)`），而 `_currentLanguage` 要到该方法内部的懒加载跑完才有值——实参早在加载前就求值成了 `null`，于是**服务起来之后的第一条查询必然命中「语言为 null → 下标 -1 → 返回 id」**，界面第一帧显示的是 key，下一次查询才正常。现改由「确保加载」之后再取当前语言，`LocalizationServiceHandlerTests.FirstQuery_ReturnsTranslationInsteadOfKey` 锁死。② 检测链给出的语言完全可能没随这批词条发行（中文系统跑只出英日两语的包）：旧写法是 `ChangeLanguage(检测语言)`，找不到就打一行 "Language … is not available" 后**原语言不变**，也就是 `_currentLanguage` 永远停在 `null`，此后**每一条**查询都露 key 且每查一次刷一条 Warning。现按「检测语言 → 回退链首项 → 语言表首项」兜底，首启一定落在一个真实存在的语言上。③ 译文里的占位符与参数对不上（漏写 `{1}`、文案里出现裸 `{`）时，`string.Format` 的 `FormatException` 原先直接从查询里抛出去，一条写坏的文案打断整块界面；现退化为「返回未格式化的原文」并只报一次 Error（表内缺陷，逐条刷等于把真问题淹掉）。④ 词条语言列数与注册语言数失配时依旧整批拒载，但拒载同时把已统计的常驻规模清零，避免调试面板按半损坏数据读数。
-
-- **`Audio`：中间件后端初始化失败后仍在每帧驱动那个没起来的引擎**：`OnInit` 里 `_bridge.Initialize()` 返回 `false` 时只置了一个 `_backendFailed` 位、再把 Error 落盘，**桥引用仍然留着**——而该位只有 `PlayEventPath` 一处读者。于是失败之后：`Tick` 每帧照旧调 `Update` / `IsPlaying` / `StopInstance`，`LoadMasterSettings` 与音量设置照旧调 `SetBusVolume`，`LoadBank` / `SetRtpc` 照旧走能力接口，`OnShutdown` 照旧调 `Shutdown`，全部打到未初始化的原生层。Stub 桥把这些都吞成空操作，所以契约与压测全绿；真 SDK 下这是本机复现不了、线上归不了因的崩溃面（Wwise 未初始化时 `GetSourcePlayPosition` / `SetRTPCValue` 还会顺带刷每帧错误日志）。现失败即丢桥引用、按"本次运行音频禁用"收口：各处既有的 `_bridge` 判空自动退化成静默 no-op，不需要在每个调用点各补一道守卫，也不留"半初始化"这种谁都没核对过的中间态。回退策略同时写进设计（双语「初始化失败的回退」）：不回落 Stub（发行构建里它根本不在包内）、不回落 Unity 后端（缺 clip 与 Mixer 分组，结果只会是半响不响）、不重试（`Restart` 不重开原生引擎，避免健康后端被二次 `Init`），恢复只在重启进程时发生。配套 `Tests/PlayMode/Service/Audio/AudioMiddlewareBackendFailurePlayModeTests.cs` 2 格，用一只记账假桥断言"除 `Initialize` 外任一成员触达数为 0"。
-- **`Audio`：`CurrentlyPlayingCount` 绕过事件映射表，命中映射的 clip 恒查到 0**：中间件后端的路径解析有一条映射表（`AudioEventMapping`，命中即用、未命中才按 `clip.name` 推导），但计数走的是 `_bridge.GetEventPathFromClip(clip)` 这条**只推导**的旁路：只要某个 clip 登记过映射（正是音效师工作流要求的生产形态），计数比对的字符串与在播音的 `EventPath` 就永不相等，表现为"明明在播却报 0"，而 Ducking/玩法逻辑读的就是这个数。现与 `Play(clip, …)` 共用 `ResolveEventPath`，顺带继承它的"未命中才推导 + 提示一次"。
-
-- **`Audio`：留池视图每次刷新都重新装箱一次租约**：`AudioClipCache` 的 `PoolView` 是 `AssetHandlePool` 的兼容视图、值类型为 `object`，旧写法在每个同步点直接 `PoolView[entry.Address] = entry.Lease`，于是每次刷新都装箱一只新的 `AudioClipLease`——同步点是 `TryPreparePreload`（每次缓存命中）、`Release`（每次停播归还）、`UpgradePolicy`（每次策略抬升）与 `OnLoadCompleted`，等于把兼容视图这笔"冷"开销挂在了每次播放/停播上。现条目上带一份 `LeaseBoxed`，只在租约换手那一次装箱，视图刷新复用同一引用，`Reset` 时置 null。配套 `Tests/EditorMode/Service/Audio/AudioClipCacheAllocationTests.cs` 6 格：命中重复预载、一次 `Retain`/`Release`、无可驱逐项的 `Tick`、失败冷却查询四路按 `GC.GetAllocatedBytesForCurrentThread` 记 0 字节；满载驱逐+卸载一路按 256B 上限记，锁的是"单次开销不随表规模增长"而不是"机器无关"。口径上先做一次"必然分配"的能力探测，探不到即 `Assert.Ignore`——绝不把"测不出分配"当成"没有分配"；编辑器内实测到 Unity 的 Mono 下这笔计数器同样不推进（四格一律 Ignore），故补第 6 格 `PoolView_Refresh_ReusesTheSameBoxedLease` 用结构判据锁同一缺陷（视图里的装箱副本必须始终是同一只，不吃计数器就能在编辑器里红）。反向验证过：把刷新改回每次重新装箱，`CacheHit`/`RetainRelease` 两格报 `Expected 0 But was 32`、结构格报"不是同一只"。`AudioCacheTestSupport` 另加 `PrepareLeases(int)`，把夹具自己的 `new` 挡在被测窗口之外。
-
-- **测试自证两处：派发用例里残留的故障回调、反射注入不判空**：`EventCallbackRegistryDispatchTests` 原先用 `RegisterCallback<ProbeEvent>(_ => throw ...)` 把一只永远抛出的回调注册进注册表且从不注销，于是后半段"抛过异常之后新注册的回调仍必须被派发"量的其实是那只残留回调在当期异常策略下的表现——开发构建的上抛会让派发在它身上中断，断言随之失手，而它从头到尾没测到 `m_IsInvoking` 是否复位。现把故障回调换成带 `faultArmed` 开关的具名委托：先 `Assert.AreEqual(1, faultHits)` 确认故障确实被派发过（否则整条断言是空转），再关掉开关让它留在表里但不再抛出——"派发深度计数真的恢复了"这才落到被测对象上。上一条记录里那"1 失败（失败格在 `Core.Events` 派发用例）"正是此处。同批把 `AudioEmitterPlaylistTests` 三处反射注入序列化字段（`AudioEmitter.m_Clip`、`BgmPlaylist.m_Tracks`、`m_PlayOnStart`）补上 `Assert.IsNotNull(field, …)`：字段改名时 `FieldInfo` 为 null 只会以 `NullReferenceException` 收场，报不出断的是哪条契约。
-
-- **`Audio`：评审遗留五项**：① CHANGELOG 曾写 `FmodBridgeNative` / `WwiseBridgeNative` **未补**真 SDK 调用，而同批合并里已实现 `LoadBank`/`UnloadBank`/`SetRtpc`——文档与代码互相打架，集成方会误判桥不可用；改为「已补标准 SDK 调用、待装 SDK 编译冒烟」。② `BgmPlaylist` Shuffle 收尾误用顺序下标回绕（`_index+1 >= Count` 判停），随机落到末位时只播一首就 `Stop()`；改为洗牌袋 `ShuffleIndexBag`（一轮全覆盖不重复、袋空即收尾、LoopList 自动重洗），补 EditMode 7 格。③ `MiddlewareAudioHandler` 的 `Restart` 归还 Voice 后立刻 `_voicePool.Clear()`，热复用归还全部白做；Shutdown 终态丢弃池、Restart 仅归还供热复用。④ FMOD 短名 `LoadBank(..., loadSamples: false)` 会让首播因 sample 未载入而无声，失败时还伪造 `ERR_EVENT_NOTFOUND`；改为 `loadSamples: true` 并去掉误导错误码。两侧 Bridge 的 `HashSet`+`Dictionary` 双记账收敛为单 `Dictionary`。⑤ PlayMode 关键路径（`AudioEmitterPlaylistTests`）在 Settings 未配置时 `Assert.Ignore`，CI 可「全绿零覆盖」，且 `AudioService.s_Handler` 从未换入导致 `AudioService.Play` 静默空转；新增 `AudioServiceTestHost`（最小 `AudioGroupConfig` + 换入 `s_Handler`），关键格改 Fail 不再 Ignore，并附夹具哨兵格。
-- **`Audio`：上线门禁收口**：① `BgmPlaylist` 分层 ID 默认写死 10001 且四处走 `StopByID` —— 同场景两个播放列表（城镇+战斗、环境+剧情）会互相静默停掉对方的音乐；现默认 0 表示按实例自动分配，显式 ID 冲突时告警并改派，空曲目与"取不到通道"两处静默收口改为 warn-once。② `AudioEmitter` 缺 `AudioListener` 时按 `Vector3.zero` 参与距离判定 —— 一次配置疏漏就让整批场景音永久停播且此后每帧重判；现按「仍在范围内」处理并只报一次，Listener 查找改为命中缓存 + 0.5 秒限流重找（旧实现是每发射器每帧一次全局类型扫描），满载重播加 0.25 秒节拍。③ `AudioMixService.Initialize` 末尾无条件 `SetSnapshot(Default, null, 0f)` 会抹掉作者配置或按名绑定到的 Default 行（连优先级一起），已删除。④ `AudioMixStateMachine.Request` 此前不论过渡是否真的施加都返回 true 并推进 `_current` —— 一个从未生效的状态会长期挡住后续低优先级请求，并让自动 Ducking 误记「这层混音是我借走的」；改为 `TryApply` 回报是否施加，未施加即拒绝且不改记账，Ducking 在混音已停于 Dialogue 时认领占用、回落被拒时显式告警。⑤ 同步加载门禁的强制点只在 Unity 后端（中间件按事件路径即时下发、无同步资源加载可拦），移除 `MiddlewareAudioHandler` 里形同虚设的 Close/Open，作用域写进门禁文档。`AudioMixStateMachineTests` 改经施加通道断言优先级与回落并补「无处施加即拒绝」1 格；本轮经 `TestRequestRunner` 在开着的编辑器内真跑 EditMode 程序集：1599 通过 / 1 失败（失败格在 `Core.Events` 派发用例，与音频无关）。
-- **`Audio`：暂停会丢弃进行中的音量斜坡**：`AudioAgent.Pause()` 无条件把状态改写成 `Pausing`，`Unpause()` 又一律还原成 `Playing`——淡入中的声部恢复后停在暂停处的音量不再爬升；正在淡出的声部恢复后复活成满音量常播（自然结束计时仍按整段时长算，等于一条该停却没停的音）。现记录暂停前的状态与暂停时刻，`Unpause` 回到原状态并把淡入/淡出起点整体后移暂停时长。补 `Tests/PlayMode/Service/Audio/AudioPausePlayModeTests.cs` 6 格：斜坡冻结与续爬、淡出不复活、播放位置保持、音轨暂停拦截新播放、`PauseAll` 不留僵尸、暂停中可 `Stop`。
-- **`Audio`：`AudioGroupConfig.RemoveSetting` 的回落音量写死 1**：`LoadSettings` 缺省回落 `m_DefaultVolume`，移除设置却硬编码 `1f`——默认音量非 1 的音轨在「恢复默认」后被抬到满量。现统一回落到 `m_DefaultVolume`。
-- **`Timer` 时间轮被污染的时间输入打穿**：`GameTime.Handler.ScaledNow` 是 double，一帧 `NaN` 就让 tick 换算的 `(long)` 强转溢出成 `long.MinValue`，`±∞` 与负读数则分别饱和到上限与 `0`，而 `AdvanceQueue` 收尾无条件把游标写成 `currentTick + 1`——游标因此被打到两端极值，此后每帧最多追 64 tick，等于把已经运行的秒数重新等一遍；队列为空的污染帧还会把游标推到饱和上限，而 `AddToQueue` 的钳制只单向抬高 `dueTick`，于是那一帧之后登记的计时器即便时钟恢复也永远够不到。现换算统一饱和到 `[0, MAX_TICK]`、非有限延时在占用槽位前拒绝，`NaN / ±∞ / 负值 / 触顶读数` 一律判为异常帧（整帧不推进且游标不动），`Resume` / `Restart` / 循环重排在写触发时间前校验同一判据（与注册路径对称），拒绝时保持原状态并在编辑器告警。合法读数把基准换小（换时钟后端、回放）时仍让游标跟随时钟落回：已入列计时器的绝对 `DueTicks` 本就无从修复，而把游标钉在原处会让队列永不排空、整轮连同新排计时器一起报废。
-- **`Timer` 帧计时器在进度回调后沿用回调前的剩余帧数**：进度回调不标记 executing，回调内取消/自释放的槽位会被立即回收，同帧新建的计时器正是该索引的接手者；而按句柄重认领只挡住"槽位换了主人"，挡不住"同一句柄被原地改写"——`Restart` 重置剩余帧后仍被同一帧判完成并连带释放，`Pause` 在最后一帧的进度回调里等于空操作。现重认领之后再回读 `STATE_RUNNING` 与剩余帧数：回调内重启不再被抹掉，回调内暂停把完成顺延到恢复后的那一帧。
-- **`Timer` 两泳道回收 executing 标记的形式不一致**：帧泳道的 `InvokeComplete` 只在标记仍属于本槽时才清空，时间轮的 `FireTimeTimer` 却在两个出口无条件清——一旦回调内嵌套触发，内层就抹掉外层标记，外层回调内的自取消因此走立即回收而非 `STATE_RELEASE_PENDING`，其派发栈随后读到已释放（甚至可能被复用）的槽位。现统一为条件清空。
-- **事件派发链缺 `finally` / 异常策略与热路径订阅不一致**：`EventCallbackRegistry.InvokeCallbacks` 缺少 `finally`，任一回调抛异常会使 `m_IsInvoking` 永久为正，此后注册/注销只写进 `m_TemporaryCallbacks` 而派发仍读 `m_Callbacks`，事件系统整体静默失效；`EventCallbackList` 拷贝构造漏设阶段计数会破坏冒泡/下探计数不变量；`MonoEventCoordinator.DrainQueue` 的 `foreach` + 事后 `Clear` 在派发中入队时会修改枚举集合，异常路径还会双重 `Dispose` / 脏队列回池；`EventDispatcher.ProcessEventQueue` 异常中断后残留记录未归还引用计数，脏队列被池再取走时会在之后的任意时刻重放，且事件永久滞留池外。现补齐：单回调 `try/catch` + 外层 `finally` 恢复深度计数；拷贝构造拷贝阶段计数；协调器按入队快照 `Dequeue` 消费；派发队列残留逐个 `Dispose` 再回池。异常分级——开发期（`UNITY_EDITOR || DEVELOPMENT_BUILD`）`Fatal` 后上抛，发布期隔离续跑（`EventDispatchPolicy.RETHROW_DISPATCH_EXCEPTIONS`，与两处 `RETHROW_*` 常量同一约定、需同步修改；上抛路径日志统一 `LogUtility.Fatal`）；`m_IsInvoking` 与引用计数归还在 `finally` 中无条件执行，与是否上抛无关。
-- **一帧污染的时间输入即永久冻结时间轮**：`GameTime.ScaledNow` / `UnscaledNow` 是 `double` 且可由后端（含测试替身）提供，而 `TimeToTickFloor` / `TimeToTickCeiling` 直接 `(long)` 强转——溢出与 `NaN` 在 x64 上产出 `long.MinValue`，轮游标一旦被写到该值，`MAX_WHEEL_TICKS_PER_FRAME = 64` 的追赶预算意味着要跑约 1e15 帧才回得来，等价于时间轮永久停摆。`float.PositiveInfinity` 的延时代谢同样溢出，只是被 `dueTick < currentTick` 兜回"下一帧立即触发"，语义完全反过来。现换算统一饱和到 `[0, MAX_TICK]`，`NaN` 时钟帧整体不推进，非有限延时在占用槽位前即拒绝并告警（`Delay` / `Delay<T>` / 带进度重载 / `DelayUnsafe` 一致，详见 `Timer.md` 双语）。
-- **帧计时器把完成回调打到复用槽位的新计时器上**：`ProcessFrameTimers` 在 `InvokeFrameProgress`（用户进度回调）之后继续使用原始 `slotIndex`。进度回调里自取消 / 释放本槽时该槽会被立即回收（`InvokeFrameProgress` 不置 `_executingSlotIndex`，走不到 `STATE_RELEASE_PENDING` 分支），同帧新建的计时器又能复用同一索引——于是 `InvokeComplete` 与末尾的 `ReleaseSlot` 全部作用在新占位者身上。现按句柄重新认领后才继续。
-- **子资源（图集）绑定绕开加载去重与卸载代次**：`AcquireSubAssetsBindingAsync` 从不登记 `TryBeginLoading`，因此去重表与 `_assetUnloadGeneration` 对这条路径完全不生效——并发绑定同一图集会各发一次 `SubAssets` 请求（败者句柄随后被丢弃），强卸载 / 关停之后仍会向已 `Dispose` 的 Package 写记录并发出 lease。现按主资源路径同形处理：缓存命中 → 并入赢家等待 → 代次校验 → 取消者不抢走他人加载。
-- **加载等待者计数不归还、失败原因被丢弃**：`WaitForLoadingAsync` 的 `AddWaiter` 与两条 `RemoveWaiter` 不在 `try/finally` 两侧，等待方异常退出即让 `WaiterCount` 永久为正——去重槽连同它持有的 `AssetHandle` 再也回不了池，而 map 条目已先摘除，泄漏是无声的。`FailLoading(key, exception)` 也从不使用传入的异常，等待方只拿到 `null` 且日志里查不到加载为什么失败。
-- **缓存窗口重开后被上一轮关闭动画重新隐藏**：缓存实例关闭时 `_isCreate` 保持 `true`，重开走 `InternalCreate` → `InternalRefresh(true)` → `SetInteractWaiter`，而它第一句就是 `if (GetTopWindow() != this) return`——非栈顶窗口直接返回，既没取消也没有接管，于是在途关闭动画的尾部会把刚重开的窗口 `SetActive(false)` 重新隐藏，并顺手交还不属于它的交互锁。现关闭/重开/销毁统一走交接代次，旧续体凭代次判定放弃解锁与隐藏。
-- **一个坏回调整片池维护与拆除截断**：`PoolMaintenanceScheduler.ProcessDue` 逐项回调 `ExecuteMaintenance` 无隔离，一个池抛出即中止本轮到期队列（其余到期池当轮全部得不到维护），并沿着 `PlayerLoopDriver` 阶段向上扩散；`DestroyTrackedInstance` / `RemoveDestroyedSlot` 里 `OnPooledDestroy` 抛出会让实例躲过销毁、槽位永久占着索引与 `_totalCount`；`DefaultObjectPoolHandler.ReleaseSlot` 停在「已摘链、`_targetMap` 已删、未归还自由栈」的半释放状态。现拆除路径以 `finally` 完成回收，调度与关停逐项隔离上报。
-- **池维护的逐项隔离只做到调度器那一层**（上一条的收口）：`ProcessDue` 隔离了，池自己的维护循环没有。`RuntimeGameObjectPool.ExecuteMaintenance` 的 trim 与僵尸清扫、`DefaultObjectPoolHandler` 的 `ReleaseUnused` / `ReleaseAllUnused`、两套 handler 的 `OnLowMemory` 多池遍历、以及 `Shutdown` 里回调之后那段无保护的注销/销毁正文，任一处抛出仍会截断当轮剩余工作；且 `RefreshMaintenance` 是各方法末尾的裸调用——配合 `ProcessDue` 先 `RemoveAt` 的写法，抛出的池会从调度堆上**无声消失**，直到业务侧再碰它才重新排期（Sticky 池连 30 秒僵尸兜底一并停摆）。现上述循环一律逐项 `try/catch`，`RefreshMaintenance` 移进 `finally`，并在维护边界记录连续失败次数、按下限 5s／上限 60s 线性退避重排——不再彻底摘出，维护是槽位泄漏的唯一回收通道，停摆比热重投更糟。
-- **`OnDespawn` 内销毁实例会让 inactive 链头尾指针被抹平**：`ReleaseTrackedInstance` 只把 `activeSelf` 的判定补成了假空安全，`ParkInactive` 仍无条件对已销毁实例的 `Transform` 调 `SetParent`——EditMode 的 `PoolDestroyUtility` 走 `DestroyImmediate`、或用户在 `OnDespawn` 里 `DestroyImmediate` 时当场抛出。此时槽位已写 `State = Inactive` 却没走到 `AddToInactiveTail`，成为一个 trim 与 `SpawnPrepared` 惰性清扫都看不见的幽灵；它日后作为僵尸被摘除时，`RemoveFromInactive` 会以 `Prev/Next` 均为 `-1` 的假象把 `_inactiveHead`、`_inactiveTail` 一起置 `-1` 并多减一次 `_inactiveCount`，**整条在链的实例从此孤儿化**。同一形态的二次摘链在 `SpawnPrepared` 里已经存在：它先 `RemoveFromInactive` 弹出尾部，再对该槽位调 `RemoveDestroyedSlot`（内部又摘一次链），因此任何 Sticky 池只要尾部实例被外部 `Destroy` 过就会当场断链。现拆出「调用方自备摘链与 `_activeCount` 账」的 `ClearDestroyedSlot`，两条路径各自配对。
-- **内存池 `TickAll` 的交换移除会挪错槽位**：`handle.Tick` 内的淘汰回调可以把本池就地摘出活跃数组（`OnEvict` → 注销 / 停止调度），数组随即左移；循环此后仍按旧下标做交换移除，被挪动的那个池 `ActiveIndex` 与实际位置失真，之后永久不再被 Tick。现移除前先确认句柄仍在原位且 `ActiveIndex` 自洽。
-- **音频同步加载不作废在途异步续体**：`_loadGeneration` 只在异步分支自增，同步加载与 `AssetHandlePool` 命中路径都不作废旧续体——上一首的异步加载完成后仍会通过世代校验，把 clip 播到已经换曲的 agent 上，并用当前路径把过期句柄塞进 `AssetHandlePool`，让后续命中直接拿到错资源。现提交新加载决策前统一 `InvalidateAsyncLoad`（顺带修掉原先只 `Dispose` 不 `Cancel` 的 CTS 泄漏）。
-- **`Spawn<T>` / `SpawnAsync<T>` 取不到组件时把实例丢在场景里**：预制体没挂 `T` 时，前一步已经发出的 `GameObject` 只被 `GetComponent` 判空就返回 `null`——调用方连实例引用都拿不到，谁都 `Despawn` 不了它，池的 `_activeCount` 与活跃链就此虚高一格。现在取不到组件即归还要池。
-- **`Despawn(T obj)` 只认目标键不认对象**：`_targetMap` 按 `obj.Target` 命中槽位后直接 `DespawnSlot(idx)`，而槽位会被回收复用、映射随之指向新对象——拿着陈旧引用就会替**别人**的对象扣 `SpawnCount` 并回调它的 `OnDespawn`。现在按槽内 `Obj` 做一次引用相等校验后再归还（不引入 `ObjectBase` 反向指针，公共基类不加字段）。
-- **`PoolCatalog` 的规则次序随构建漂移**：`Array.Sort` 不稳定，同优先级条目在 Mono / IL2CPP 之间会编出不同顺序，而下游两件事都吃这个顺序——`exactMap` 的"字面量先到先得"与规则下标 `i`（即 glob 匹配优先级）。改为排下标数组并以原序兜底平局，同一份目录在任何运行时都编出同一张表。
-- **池关闭流程可被单个坏对象整体截断**：处理器 `OnShutdown` 倒序定长遍历 `_pools` 且无隔离——`Shutdown` 会逐项回调 `obj.Release(true)`，回调里注销其它池会让数组左移、越界下标读到失效槽位或把同一个池关两次，一个对象抛出则其余池永不关闭。现在越界/空槽跳过、逐池隔离；`ReleaseAllUnused` 补上 `ReleaseUnused` 同款的访问上限（空闲链被改出环时不至于卡帧）；`_isShuttingDown` 期间 `Spawn` 系列按"无可复用对象"降级，不再从即将归还 ArrayPool 的存储里取对象。
-- **配置过期时间的池会把预热对象当"无限空闲"首轮剪光**：注册路径把槽位 `LastUseTime` 写死为 `0f`，而"是否记龄"的判据恰好是 `TrackLastUseTime => _expireTime < float.MaxValue`——于是过期扫描（`LastUseTime <= now - expireTime`）对从未使用过的预热实例恒成立，`_capacity` 与预热在第一次唤醒时就作废。现注册时按当前时刻记龄（未配过期时间的池仍留 0，不引入无意义读数）。
-- **池关停可被自身回调重入，导致槽位存储二次归还**：`Shutdown()` 逐项回调 `obj.Release(true)`，回调里销毁本池会再次进入 `Shutdown`——`_storage.ReturnStorage()` 会把页数组再归还一次 ArrayPool（此后两个池可能拿到同一份页 = 跨池槽位错用），或在已置 null 的页数组上 NRE。现补重入守卫（只做幂等，不改成永久 disposed：池实例仍可被重新 `Init` 复用）。
-- **同一实例上第一个池件抛出会吃掉其余池件的 `OnPooledDestroy`**：异常隔离原先落在调用点（整圈回调一圈 try/catch），于是实例上第 2..N 个 `IGameObjectPoolable` 永远收不到销毁通知，它们各自持有的资源与租约就地泄漏。现隔离粒度下沉到逐个池件。
-- **池回调内可重入全局维护，把正在被引用的非托管页数组换掉**：`MemoryPool<T>.ReleaseLeased` 在调用用户 `Clear()` / `OnEvict()` 的整个期间持有 `ref PageHeader` 与 `ref SlotMeta`——两者直接指向 `AllocHGlobal` 出来的页头/槽位数组元素；而回调里当时可以调 `MemoryPool.ClearAll()` / `CompactAll()` / `TrimAllNativeMetadata()` / `MemoryPoolRegistry.TickAll()`，这些路径都会走到 `ResetNativeStorage` → `FreeUnmanaged` + 重新分配，于是栈上那两个 `ref` 指向已释放内存，回调返回后对页计数的写入是 use-after-free。现 `MemoryPoolRegistry` 维护回调深度（`BeginCallback` / `EndCallback`，对象的 `new T()` 也算），所有全局维护入口先 `ThrowIfInCallback`；`MemoryPool<T>` 侧的护栏同时扩到 `Add` / `Shrink` / `Compact` / `SetCapacity` / `ResetStats`，报错文案一并把"构造期"列进不允许的时段。
-- **内存池整批修剪被首个坏回调截断**：`ProcessEvict` 每摘一个空闲对象就立刻 `Rethrow`，一个 `OnEvict()` 抛出即中止本轮，其余已在超水位之外的空闲对象留到下一帧的预算再来一遍；`ClearAllCore` 与 `TombstonePage` 又只记住第一个异常（`CaptureFirstException`），后面几个池件的失败无声。现逐项收集、整批走完后再上抛（单个原样、多个合成 `AggregateException`），与 `PoolMaintenanceScheduler` 那条"坏回调不得截断本轮其余到期项"的池层既定策略同形。
-- **补做延迟 Native 释放时会留下悬空空闲槽**：`ClearAll` 在仍有对象在外时把释放请求挂成 `s_PendingClearNativeMetadata`；`TryCompletePendingNativeMetadataClear` 在最后一只归还时无条件重跑一遍 `ClearAllCore()` 再释放页数组——若这段时间里另有对象被归还（空闲量重新非零，例如墓碑期回来的引用），被释放的正是仍挂在空闲链上的那些对象所在页，链表头此后读到的是已释放内存。现仅当 `s_InUse == 0` 且 `s_FreeCount == 0` 才释放元数据并摘掉排期。
-- **构造函数抛出会留下幽灵 in-use 计数**：`Acquire` 先 `s_InUse++` 再去占槽并 `new T()`，`T` 的构造函数一抛，这次取用就永久算作在外——`ClearAll` 因此永远进不了"无外借"分支、Native 元数据永不释放，`TrimNativeMetadata` 也被 `s_InUse != 0` 长期挡住。现计数改到对象真的到手之后才动，构造本身也在回调护栏内执行。
-- **`Remove` / `RemoveFromType` 传 0 或负数会让池反向增长**：目标量按 `UnusedCount - count` 算，`count` 为负时目标高于现有空闲量，`Shrink` 又照该值抬升目标水位，于是"移除 -8 个"变成"补建 8 个"。现两处统一 `count <= 0` 直接返回。
-- **`LowMemory` 阶段不清空闲储备**：`UpdateWatermarks` 从不看 `Phase`，低内存告警时目标水位仍按 EWMA 抬着，改的只是驱逐预算大小，池会立刻被填回来。现 `Phase == LowMemory`（或空闲已达 `ZeroFreeReserveStartFrames`）直接把目标水位归零并返回，本轮驱逐即可剪空空闲链。
-- **`MemoryPoolHandle` 的池标识是死码**：`Registry` 侧的 `MemoryType` 字段与公开句柄的 `PoolId` 全仓零读取，`Release(MemoryObject)` 里 `GetOwnerHandle` 的 `handle.PoolId == memory.PoolId` 更是恒真（句柄本就取自 `memory.OwnerHandle`）。现随 `Release` 直接改取 `memory.OwnerHandle.Inner` 一并删除，跨池误归还的拒绝仍由 `MemoryPool<T>.ValidateForRelease` 的池号与世代校验负责。
-
-- **`RemoteService.GetRemoteUrls` 复用同一个字段数组**：`_urls` 在构造期按"有无备用地址"定长，此后每次调用就地覆写并返回同一份 `IReadOnlyList`。YooAsset 把它当作 `candidateUrls` 存进入队操作并跨帧持有（下载失败按候选逐个重试），并发下载时后一个文件的调用会改写前一个在途操作的候选表——重试打到别的文件的 URL 上，报错现场与真凶隔着一整条下载队列。现每次调用返回独立数组。
-- **卸载操作不校验包是否仍有有效清单**：`UnloadUnusedAssets` / `ForceUnloadAllAssets` 的筛选只看 `InitializeStatus == Succeeded`，而清单被销毁或从未真正装载成功的包仍停在该状态（YooAsset 的 `PackageValid` 读的正是 `ActiveManifest` 是否在场）。向它发起卸载只会拿到一个空转或失败的操作，还被记进在途表挡住后续卸载。现补 `PackageValid` 判据。
-- **`ReleaseBindingsInHierarchy` 的共用缓冲被嵌套释放踩掉**：层级扫描用一条静态 `List<ResourceOwner>`，而 `GetComponentsInChildren` 先清空再填充——回调里任何一次嵌套（父节点销毁连带子节点、或业务在自己的释放回调里再调本方法）都会把外层正在遍历的列表换成另一棵子树，外层此后读到的是别人的槽位，结尾的 `Clear()` 又把内层刚填的结果一并抹掉；同一条循环里单个所有者抛出还会跳过其余所有者的释放。现缓冲按栈借还（每层各取一份、异常路径也归还），逐所有者隔离异常并汇总重抛。
-- **`LoadGameObject` / `LoadGameObjectAsync` 不防实例化期间的回收与关停**：`Instantiate` 会派发 `Awake`，其中可以重入 `ForceUnloadAllAssets` 或服务关停；返回后原代码只判 `instance == null`，于是把已被强制释放的 prefab 租约注册进刚排空的绑定服务，产出的实例从此没人能回收它的源租约。现实例化前捕获卸载代际，实例化后连同 `_isDestroying` 一起校验，命中即销毁实例并归还租约。异步路径另补一处：等待期间父节点被销毁时，fake null 的 `Transform` 直接交给 `Instantiate` 会抛，现先归还租约再返回 `null`。
-- **编辑器脚本重载会漏掉整份非托管页元数据**：`MemoryPool<T>` 的页头与槽位数组走 `AllocHGlobal`（进程堆），而静态字段只活在当前域里；Unity 编辑器热重载并不触发 `AppDomain.DomainUnload`，静态字段一复位那些指针就永久失联——每热重载一次漏一份，编辑器长时间进进出出只见水位不见回落。原先唯一的释放钩子因此形同虚设。现补 `MemoryPoolRegistry.TryReleaseAllNativeMetadataForTeardown()`，由 Editor 侧在 `AssemblyReloadEvents.beforeAssemblyReload` 与 `EditorApplication.quitting` 收口；**确有对象在外时拒绝回收**（那时释放元数据等于让下一次归还往已释放内存里写），只留一句可操作的告警。页存储 `T[]` 与对象本身不跨域存活，所以漏的只有元数据。
-
-### Removed
-
-- **`AlgorithmUtility` 的正态分布两件套**：`RandomNormalDistribution(miu, sigma, min, max)` 与它唯一的调用对象 `NormalDistributionProbability(x, miu, sigma)`，两者全仓零调用者、零用例（`NextGauss` 有测试覆盖且已接 `RandomUtility`，是框架里唯一在用的正态采样器）。删除而非修好的理由是后者**名实不符**：它写的是 `1/(x·√(2π)·σ)·exp(-(ln x - miu)²/2σ²)`，即**对数**正态的密度，不是正态——于是 `RandomNormalDistribution(0, 1, -3, 3)` 这种最自然的调用会撞上 `1/0` 与 `Math.Log(0) = -∞` 得 NaN，且那个 `do/while` 是无界重采样、"峰值"取 `f(miu)` 对数正态下也不成立（其众数是 `exp(miu-σ²)`），配置稍不对就空转。要真正需要截断正态时按正态密度重写，比留着一条看着像对的东西强。
-
-- **`Runtime/Core/Utilities` 上线前精简：5 个整类加一批零引用成员，约 1.2k 行**：按"是否存在调用者"逐成员核对（比对范围为框架其余部分 + 9 个同级 `com.moirai.*` 包 + `Assets`，并对 `Templates~`、文档、字符串反射单独复查；`link.xml` 是整程序集保留，不涉及逐成员裁剪）。① **整类零消费者**：`TimeUtility`（382 行）、`ReflectionUtility.SerializedFields`（303 行）、`NetUtility`（188 行）、`XmlUtility`（118 行）、`ProgramUtility`（54 行）。中英 README 的工具表已同步，`ReflectionUtility` 一行去掉"含序列化字段遍历"。② **`FrameworkHandler` 的异步生命周期四件套**（`Internal_InitAsync`/`Internal_ShutdownAsync`/`OnInitAsync`/`OnShutdownAsync`）：`HandlerHostGenerator` 生成的 setter 只调同步那对，`GameAppSettings.Initiation` 是 `void` 也 await 不了，且无任何处理器覆写——类注释却写着"由 `Initiation` 显式 await"。异步初始化统一走 Kernel 的 `IService.OnInitAsync`，那条是真接线的；注释同步改正，基类的 `Cysharp.Threading.Tasks` 引用一并去掉。③ **散在各类的零引用成员**：`UnityUtility` 18（截图转 Sprite 三件、`DrawCircle`/`DrawEllipse` 六个平面变体、`IsPointContainedInEllipse*` 三件、双线性缩放两件等）、`MathsUtility` 7、`SettingUtility` 的用户隔离整段（`Get/SetUser*` 八件，连带私有的 `GetUserKey` 与 `s_UserId`）、`ReflectionUtility` 6、`AlgorithmUtility` 3、`ColorsUtility` 2（`FlatGradient`/`SimpleGradient`）、`EaseUtility.Extensions.Async` 2、`AssemblyUtility` 1、`PathUtility` 1。Utilities 目录由 33 个 `.cs` 收到 28 个。
-  **刻意保留的判例**（下次别顺手清）：扩展方法宿主类的类型名（`PrimeTweenMapping`、`UnitySinkExtensions` 等，其成员在用而类名天然零引用）；后端处理器具体类型（`PlayerPrefsSettingHandler`、`NewtonsoftJsonHandler`、`PhotonFusionObjectHandler`，经 `[HandlerHost]`/`[SerializeReference]` 绑定而非代码引用）；特性与回调型成员（`JsonUtility.Attributes` 的 `PreSerialization`/`PostDeserialize`、Odin 按钮字段 `GenerateAnimationCurvesButton`）；以及**设置层的对外集成面**——`GraphicsSettings.Set*Settings`、`ScreenOrchestrator.RequestRefreshRate`、`UpdateSettings.BuildAddress`、`ReflectionUtility.GetFieldValue` 虽在本仓零引用，但本仓不含设置界面，这些正是项目侧要调的入口，且 `GetFieldValue` 一删就把 `Get/SetFieldValue` 与 `Get/SetPropertyValue` 的对称面挖缺；`EncryptionUtility.CreateValidateCode` 亦属此前随机源改造时**刻意**留在 CSPRNG 一侧的（验证码要不可预测，与可复现的 `RandomUtility` 正相反）。**两项未纳入本批**：① ~~`AlgorithmUtility`/`MathsUtility`/`UnityUtility` 里与随机相关的 12 个成员~~ —— 复查后更正：这 12 个**不是孤儿**。随机源落地那批为其中 10 个补了用例（`AlgorithmUtilityRandomTest`、`MathsUtilityRandomTest`），它们是有意保留、有测试覆盖的对外采样器；真正零调用零用例的只有 `RandomNormalDistribution` 与 `NormalDistributionProbability` 两件，已随本条删除（见下）；② `EncryptionUtility` 的 AES/MD5/SHA1 门面，以及 `ConverterUtility`/`FileUtility.IO` 的 `BinaryFormatter`、Base64 与 `Write*File` 影子 API——本批一度删净并过了四套程序集编译，随后被一次按路径的并发回退抹回 HEAD，现仍为原样。其中 `FileUtility.ReadFormattedBinary`（对任意传入路径做反序列化，是一条远程执行面）与 `EncryptionUtility.Generate8BytesAESKey`（8 字节并非合法 AES 密钥长度）属上线该收的安全与正确性项，需单独一轮确认后再动。
-
-- **`TimerServiceBenchmark` 移出 `Runtime`**：原 `Runtime/Services/Timer/Benchmark/`（968 行 `public sealed class : MonoBehaviour` + `[AddComponentMenu("Moirai/Timer Benchmark")]`）随运行时程序集编进玩家构建，而全仓（Runtime / Editor / Tests / `Templates~` / 文档）零引用。现移到 `Tests/EditorMode/Service/Timer/`，与 `MemoryPool`、`ObjectPool` 的既有基准同处 `UNITY_INCLUDE_TESTS` 门控之下。同批删除 `YooAssetHandler` 中从未接线的 `AssetInfoSlot` 分页缓存结构（三个字段全仓无读写，伴随常驻 CS0414 告警；AssetInfo 实际由该处理器内的字典缓存承载）。
-
-### Deprecated
-
-- 无。
-
-## [1.1.0] - 2026-09-21
+1.1.0 之后的全部变更。
 
 ### Added
 
-- `PlayerLoopDriver`：`OnDrawGizmos` / `OnDrawGizmosSelected` 静态事件表，Gizmos 订阅从宿主实例事件迁出，宿主销毁不再丢订阅。
-- `GameAppHost`：框架唯一的轻量 MonoBehaviour 宿主（`SingletonMono_Persistent`），承接协程与 `OnDrawGizmos(Selected)` / `OnApplicationPause` 三类只能在 MonoBehaviour 上派发的消息，统一转发到 `PlayerLoopDriver` 静态表。
-- `PlayerLoopDriver` 注册/注销接入主线程 fail-fast 断言，并在类型文档中写明线程契约。
-- `Tests/EditorMode/Core/PlayerLoop/PlayerLoopDriverTests.cs`：驱动架构验收测试。
-- `IServiceLifecycle` 新增 `StateInternal` 只读口，使"能否被注册"与"能否被读到状态"成为同一个类型判据（此前两处各写一遍分支、已经漂移）。
-- `Tests/EditorMode/Service/Kernel/GameServicesTest.cs`：内核审阅缺陷回归 10 格——多契约部分注销、`Registered` 契约粒度、观察器异常隔离、否决通道不留痕迹、裸 `IService` 与 Mono+Gizmo 注册拒绝、初始化期注销/关作用域拒绝、途中 Dispose 不宣告已初始化。
-- `Timer`：按帧计时公开面 `WaitFrame`（完成回调 / 每帧累计帧数两种重载）与 `WaitFrameUnsafe`——1.0.2 的 `Timer` 只有按秒计时，帧等待此前只能靠已删除的 `Schedulers`。
-- `Timer`：`WaitAsync(handle, CancellationToken)`，等待指定计时器完成；由已删除的 `SchedulerHandle.WaitAsync` 扩展接管。
-- `Timer`：零分配函数指针绑定 `TimerUnsafeBinding` 与 `DelayUnsafe`（自已删除的 `SchedulerUnsafeBinding` 迁入），并新增 `TimerPhase` 枚举（`TimerTypes.cs`）用于选择触发阶段。
-- `Timer`：`GetLeftFrames` / `GetElapsed` / `GetDuration` / `IsDone` / `IsPaused` / `PauseAll` / `ResumeAll` / `CancelAll`，以及 `ulong` 句柄扩展方法。
-- `Timer`：两泳道各自独立的预热容量——`m_WheelInitialCapacity`（默认 1024）与 `m_FrameInitialCapacity`（默认 256），取代原单字段 `m_InitialCapacity`。
-- `Tests/EditorMode/Service/Timer/DefaultTimerHandlerArchitectureTests.cs`：双引擎架构验收测试——泳道句柄互不串台、槽位复用 ABA、Fixed/Late 延后触发、Unsafe 绑定、进度比值、跨泳道真实并发峰值、`WaitAsync` 完成/取消/已完成/多等待者。
-- `Tests/EditorMode/Service/Timer/DefaultTimerHandlerArchitectureTests.cs` 增补：关停后句柄操作与再注册的降级契约、引擎级 `Shutdown` 双关停幂等、两泳道各自预热容量、循环型 Fixed/Late 跨帧再触发、进度列表中间项摘除不影响其余项。
-- `Tests/EditorMode/Core/PlayerLoop/PlayerLoopDriverTests.cs` 增补：正优先级之后注册普通 Handler 的执行顺序、后台线程注册 fail-fast（`s_MainThreadId` 未被钩子捕获时由用例反射补齐，避免断言被"未捕获即放行"分支静默跳过）。
-- `GameApp` 帧订阅门面：`AddUpdateHandler` / `AddFixedUpdateHandler` / `AddLateUpdateHandler`（及各自 `Remove*`）承接 `IUpdateHandler` 三契约，`AddFrameHandler` / `RemoveFrameHandler` 一次登记对象所实现的全部阶段。门面按参数类型分名，多阶段对象传进去不会有驱动内部那种同名三重载二义性。
-- **`GameApp` 启动控制面**（`Runtime/Core/GameApp/GameApp.Boot.cs`，与 `GameApp.cs` 同一 partial）：`AutoBoot`（默认 `true`，置 `false` 把启动时机交回项目——自建闪屏、启动失败兜底 UI，或装载完热更程序集再拉起服务；须在 `AfterAssembliesLoaded` 或更早设置）、`Boot()`（公开手动启动入口，幂等，`Shutdown` 后可再次启动）、`ServicesComposing`（组合根扩展点）、`BootFailed`（组合根异常上报）。此前 `GameApp.Initialize`/`Shutdown` 全为 internal、包内 `[RuntimeInitializeOnLoadMethod]` 无条件自动启动，项目既无法推迟也无法接管，更无法往组合根里加自己的 App 服务（只能改包内文件或走 `.asmref`，而后者与 Luban 配置管线存在装配循环禁忌）。现在内置服务注册完、世界初始化**之前**触发 `ServicesComposing`，在此注册的服务与内置服务同等参与依赖拓扑排序。`GameAppSettings.InitializeAppServices` 随之由 `private` 放为 `internal`（启动入口收敛到 `GameApp.Boot` 一处）。
-- `Tests/EditorMode/Core/RuntimeState/GameAppRuntimeStateTests.cs`：`GameApp` 运行态契约测试——嵌套暂停须各自恢复且只有最后一层回速、叠加暂停不改写恢复目标、计数 0 时 `ResumeGame` 空操作、`GameSpeed = 0` 定格后 Pause/Resume 不弹回 1（`s_GameSpeedBeforePause` 那类陈旧值的结构性消除）、暂停中写速度只更新目标、负速夹到 0、`ResetGameSpeed` 不解暂停、关闭态运行态 API 仍直达引擎。全部只走 public 门面，不反射私有计数。首条用例是 `Time.timeScale` 在编辑模式下的可回放性前置断言（含 >1 档，夹住即说明 1.5x~8x 预设与回放断言都不成立），它红时其余用例的判据即退化成空壳。
-- `GameApp.PauseDepth`（internal）：暴露暂停请求层数，供调试面板定位"哪一层没配对 `ResumeGame`"。
+#### `Audio`
+
+- 中间件接入面：
+  - clip → 事件的映射表：事件路径由配置给出，不再从 `clip.name` 推导 FMOD 的 `event:/` 与 Wwise 的 `wwise:/` 前缀。
+  - 声音库加载结果三态 `EAudioBankLoadResult`。
+  - 实时参数绑定。
+- 通道扩展上限由写死常量改为按轨可配的 `MaxChannelCeiling`。
+- Clip 租约缓存 `AudioClipCache`：
+  - 按地址播放经窄接缝 `IAudioClipLeaseSource` 取还资源租约。
+  - 策略 `EAudioCachePolicy`（`Default` / `None` / `Ttl` / `Pin`）。
+  - 加载失败带负冷却。
+  - 留池视图 `PoolReadOnly` 是只读投影。
+- Voice 驱动的自动 Ducking `AudioVoiceDucking`：各后端实算音轨上的活跃声部数，不再有"播放 +1 / 结束 -1"漏减之后混音被永久压低。
+- 中间件失败可归因：声音库加载失败与事件播不出各报一条可定位告警，不再静默返回 `false` / `0` 句柄。
+- 上线收口四项：切后台冻结（`AudioServiceHandler.OnApplicationPaused`）、主线程不变量 `AudioMainThread`、`AudioService.Tick` 分段故障隔离、缺 `AudioMixer` / `AudioMixerSnapshot` 的启动期校验。
+- 游戏内调试器 `Profiler/Audio` 的「Clip 缓存」段：条目/容量、在途、常驻、失败冷却数、TTL 与默认策略、留池可见数、当前混音快照与 Ducking 占用。
+
+#### `Localization`
+
+- 缺译回退链 `FallbackLanguageCodes` 与首启语言兜底：当前语言该列留空不再把 `UI.Shop.Title` 这样的 key 直接印到界面上。
+- 常驻规模以 `ResidentChars` 可观测。
+- 运行时覆盖层 `SetStringOverlay`（按来源摘除）：不改表、不重出包就能换掉某语言的若干词条。
+- 句柄式语言变更订阅、不装箱取文、编辑器内预览。
+
+#### `Resource`
+
+- 空闲资源记录容量上限 `IdleAssetCapacity`（默认 256），与 `IdleAssetExpireTime` 一起挡住长时间运行下的记录堆积。
+- 销毁态槽位兜底回收：`ResourceOwner` 的注销原本全押在 `OnDestroy` 上，场景卸载与关停路径上的槽位会永久占住租约。
+  - 每帧查验数量由 `ResourceServiceSettings.DestroySweepBudget`（默认 64）给出。
+
+#### `Kernel` 与工具面
+
+- 统一随机源 `RandomSource` / `RandomUtility`（可复现，不再全类共享一个 `System.Random`）。
+- 洗牌原语 `ShuffleUtility`、轮次策略 `ShuffleBag<T>`（音频侧 `ShuffleIndexBag` 收敛为它的适配器）。
+- `MathsUtility` 的 `RandomPointInsideUnitCircle` / `RandomPointOnUnitSphere` / `RandomPointInsideUnitSphere`。
+- `MemoryPoolInfo.MaxUsingCount` 与结构自检，使"漏还"在数据上看得见。
+
+#### 接缝与测试基座
+
+- `HandlerHost` 生成器多发无损换入接缝 `Internal_PeekHandler()` / `Internal_UseHandler(next)`：测试换入换出处理器不再反射私有字段，框架成员也不为此放宽访问级别。
+- `Tests/EditorMode/TestRequestRunner.cs` 让开着的编辑器自己跑 Test Runner（跨域重载续跑、请求先改名后读取、作业句柄判活与取消）。
+- 玩家专用测试程序集 `Moirai.Atropos.Tests.Player` 承载热路径 0-GC 验收。
+- 回归补齐：
+  - 内存池夹具基座
+  - 对象池异常路径
+  - 时间轮时钟污染（`WheelTimerClockPoisonTests`）
+  - 后端接缝形状基线（`ResourceSeamShapeGuardTests`）
+- Clip 缓存热路径的 CPU 预算基准 `AudioCacheBenchmark`（3 格 `[Explicit]`，与 `KernelBenchmark` 同一范式，量的是单次调用的纳秒数而不是条目数）。
 
 ### Changed
 
-- **`GameApp` 不再含任何 MonoBehaviour 成员**：1.0.2 里嵌套的 `GameApp.MainBehaviour` 宿主（连同 `s_Entity` / `s_Behaviour`）被移除，协程与引擎事件一律经 `GameAppHost`。
-- **宿主 GameObject 改名**（相对已发布的 1.0.2）：`[UpdateDriver]` → `[GameAppHost]`。
-- **帧时钟采样时点**：`GameTime.StartFrame()` 上移到 `DriveUpdate` / `DriveFixedUpdate` / `DriveLateUpdate` 各阶段入口。此前接口 `IUpdateHandler` 读到的是上一帧的 `deltaTime`（采样排在回调循环之后），现在 Handler 与 Action 回调读到同一帧的快照。
-- **驱动中注册/注销的延迟缓冲按阶段隔离**：此前 `AddLateUpdateCallback` 在驱动中被调用会被兜底注册成 Update 回调；`Register(单阶段接口)` 在驱动中被调用会被"升级"注册进该对象实现的其余阶段。
-- `PlayerLoopDriver` 内部：六份按阶段复制的注册表（数组 + 计数 + 延迟缓冲 + 容量增长 + 去重 + 注销搬移）收敛为 `HandlerSlot<T>` / `CallbackSlot`，三份插入排序合一；同一收敛也消除了"新增一个阶段就得复制一遍"的出错面。
-- **`PlayerLoopInjector.RestoreDefault()` 换语义：由「把整条引擎默认循环盖回去」改为「逐项摘掉本框架三个标记」**，并接管 `RemoveMoiraiSystems()` 的名字（后者删除，`SubsystemRegistration` 的默认循环快照一并删除）。旧语义会连带盖掉 UniTask 等第三方注入，而它们不会自行重新注入——名字听着是安全收尾、实际拆别人的 Pump，两个相近名并存就是误用现场。现在 `GameApp.Shutdown` 与调试窗按钮走同一实现。注入器是 `internal`（仅 `InternalsVisibleTo` 白名单可见），不构成对外 API 破坏；确需整条复原的项目自己调 `PlayerLoop.SetPlayerLoop(PlayerLoop.GetDefaultPlayerLoop())`。
-- **`PlayerLoopDebuggerWindow` 重写为 Odin 窗口**（`OdinEditorWindow`）：原来那一大块文本 dump 换成状态区（标记在位数与 `IsInjected`、驱动 `Shutdown`/`Driving`、`GameTime` 与引擎 `Time` 双时钟对照）、三阶段统计表（注入点是否仍在循环里 + Handler/回调计数）、可折叠可过滤的循环树（Moirai 绿、"有委托却不是 Moirai"的第三方 Pump 蓝、`Locate Moirai` 一键展开三处注入点、自动刷新间隔可设并按 `SessionState` 记忆）。
-- **服务必须派生 `ServiceBase` 或 `ServiceMono<TScope>`**：裸实现 `IService` 的类型在 `ServiceWorld.Register` 处即抛 `GameException`。此前会被正常接受，但其状态永远读不到 `Initialized`，任何声明它为依赖的服务在运行时注册时都会误报"依赖未初始化"。
-- **初始化进行中的 `UnregisterService` / `ShutdownContainer` 改为 fail-fast**：挂起图正被按索引推进的循环消费，中途摘除属于静默损坏（见 Fixed），不存在需要保留的合法用法；等 `Initialize`/`InitializeAsync` 返回后再做。
-- **拦截器异常处置分级**：除 `OnServiceRegistering`（唯一的否决通道，抛出即拒绝注册且不被隔离）外，其余回调异常一律由容器记录为 Error 并继续——观察器缺陷不再打断整帧轮询，也不吃掉同轮其它拦截器的回调。
-- **`OnServiceRegistered` 的粒度与参数**：改由容器按注册契约逐个发出（一实例绑 N 契约收 N 次），`contractType` 是注册契约而非实现类型；待初始化阶段附加的契约不再早于 `OnInit` 上报。`OnServiceShutdown` 时机不变，但此刻服务状态仍为 `Initialized`（转换在回调返回后）。
-- **主线程断言真正门控**：`EnsureMainThread` 包进 `#if UNITY_EDITOR || DEVELOPMENT_BUILD`，并接入查找（`GetService` / `GetRequiredService` / `TryGetService`）与轮询入口。发布构建下断言不参与编译、被内联为零开销——此前依赖 `UnityEngine.Assertions.Assert` 是否被裁剪，文档"发布版零开销"并无依据。隔离世界 `ServiceWorld` 明确不断言（并行测试是它的既定用途）。
-- **Tick 熔断阈值改由世界持有**：`ServiceScope.s_TickFailureTripThreshold`（进程级 static）→ `ServiceWorld.TickFailureTripThreshold`（世界级），与 `DuplicateContractPolicy` 同构；隔离世界各持一份，并行测试不再互相污染。仍为框架内部可调，不对外暴露。
-- **`State` 写入端收紧**：`ServiceBase.State` / `ServiceMono<TScope>.State` 由 `internal set` 收为 `private set`，生命周期转换只剩 `IServiceLifecycle` 一处（编译器强制）。随之删除零调用者的 `GameServices.SetState` 与 `ServiceMonoMarker` 标记接口。
-- **注销粒度明确为服务而非契约**：多契约实例注销任一契约即整体摘出作用域，其余契约随之失效（此前两阶段语义不一致）。
-- **`Timer` 处理器拆为两条独立引擎泳道**：`DefaultTimerHandler` 现为 `WheelTimerEngine`（按秒，四级时间轮，缩放 / 非缩放各一轮）与 `FrameTimerEngine`（按帧递减）的复合外观，两引擎各持独立分页槽位池与句柄命名空间、互不知晓，因此引擎内部不存在任何跨后端分支。句柄位布局 `[版本(32b) | 泳道(3b) | 槽位+1(21b)]`：泳道号内嵌于句柄，外观按位路由，外来泳道的句柄一律解析失败并安全降级（fail-closed）。
-- **`Timer` 公开 API 改名（破坏性）**：`AddTimer` / `AddTimer<T>` / `Stop`（暂停语义）/ `RemoveTimer` → `Delay` / `Delay<T>` / `Pause` / `Cancel`。**不提供 `[Obsolete]` 别名**——旧 `AddTimer(Action callback, float time)` 与新 `Delay(float delaySeconds, Action onComplete)` 的实参顺序相反，别名无法纯转发。`Resume` / `Restart` / `IsRunning` / `GetLeftTime` 的名称与语义不变。
-- **`Timer.WaitAsync` 由每帧轮询改为按槽位完成信号驱动**：完成 / 取消在引擎本阶段 `Tick` 末尾统一排空唤醒，避免 await 续跑在槽位释放调用栈内同步重入；`Shutdown` 时同步排空，防止 awaiter 永久挂起。同一句柄只有首个 await 走信号，后续 await 退回轮询（成本回到旧行为）。
-- **`Timer` 统计的并发峰值改为跨泳道真实值**：`GetStatistics` 的 `peakActiveCount` 由复合层在每次创建后采样「两泳道活跃数之和」的最大值，不再等于两引擎各自峰值相加（那是高估）。
-- **`GameApp` 三段心跳改走核心钩子**：`Tick` / `FixedTick` / `LateTick` 从用户 Action 回调表迁至 `PlayerLoopDriver.SetCore*Callback`，先于本阶段全部用户订户执行且永不参与熔断。此前它们落在无优先级的 `AddUpdateCallback` 表里，执行位置取决于注册时机——比 `GameApp.Initialize` 更早注册的项目订户一旦持续抛出，整层服务的轮询就被连带截断。
-- **`GameApp.IsGamePaused` 改为"暂停请求计数非零"**：旧实现等价于 `GameSpeed <= 0f`。解耦后把速度调到 0（慢放、定格）**不再算暂停**。要判"时间是否真被冻结"请读 `GameSpeed <= 0f` 或引擎的 `Time.timeScale`。包内唯一消费方是调试面板，它同时另有一行显示 `GameSpeed`，语义不丢。
-- **`GameApp.PauseGame` / `ResumeGame` 改为引用计数**：多个来源各自暂停（弹窗 + 切后台 + 剧情过场）时须各自恢复，最后一个 `ResumeGame` 才真正回速；计数已为 0 时 `ResumeGame` 是空操作。暂停期间写 `GameSpeed` 只更新恢复目标、`Time.timeScale` 保持 0，`ResumeGame` 归零时重放该期望值。`ResetGameSpeed` 只改目标，不会顺手解除暂停。
-- **`GameApp` 四个运行期开关不再写回配置资产**：`FrameRate` / `GameSpeed` / `RunInBackground` / `NeverSleep` 的 getter 现返回 `GameApp` 自有字段（`Initialize` 时从引擎实况播种），`GameAppSettings.m_*` 退化为纯开机默认值。编辑器下 `GameApp.FrameRate = 60` 之类调用不会再让那份 Resources 资产跨 Play 会话变脏；已存在的资产文件无需重新导入（字段与序列化布局未动）。
-- **`GameTime` 六项帧快照由 public 字段收为 `{ get; private set; }` 属性**：`time` / `deltaTime` / `unscaledDeltaTime` / `fixedDeltaTime` / `frameCount` / `unscaledTime` 此前是可全局写入的裸字段，任何代码都能改写本帧 `deltaTime`，而写入方本就只有 `StartFrame`。成员名维持 Unity `Time.*` 的小写风格不变——改名会打破「换 `Handler` 即换时间源、调用方零改动」的外观契约。字段转属性对源码兼容（读取写法不变），仅对 `ref`/`out` 传参与按字段名反射不兼容：全工程（框架、同级各包含 `InternalsVisibleTo` 白名单内的 Clotho / Lachesis、`Assets/`、以及 `Templates~`）实测零处此类用法。
-- **`GameTime.frameCount` 类型 `float` → `int`**：float 尾数仅 24 位，超过 16,777,216 帧后计数无法精确表示（120fps 下约 39 小时连续运行即失真）。上游 `GameTimeHandler.FrameCount` 本来就是 `int`，旧声明是纯粹的类型错误。全工程零处读取该成员，改动无波及。
-- **`GameApp` 七个 `Add*Listener` 现返回 `GameApp.Subscription`（`IDisposable`）**：`AddUpdateListener` / `AddFixedUpdateListener` / `AddLateUpdateListener` / `AddDestroyListener` / `AddOnDrawGizmosListener(Selected)` / `AddOnApplicationPauseListener`。句柄攥住注册时那个**确切委托实例**，因此 lambda 订阅也能干净注销——此前 `Remove*Listener(Action)` 按委托相等比较，事后重写一个同样体的 lambda 是新实例，摘不掉，订阅连同闭包捕获的对象一路留到 `Shutdown`。返回类型由 `void` 变为引用类型对既有调用点源码兼容（语句式调用丢弃返回值即可），包内与 `Assets/` 的现有调用全是语句式。**注意**：帧回调表会去重（同委托重复注册只登记一次，任一持有句柄 `Dispose` 即注销该登记），而 Destroy / Gizmos / Pause 这类多播表不去重（`+=` 两次则需 `Dispose` 两次）。既有 `Remove*Listener(Action)` 全部保留。
+#### `Audio`
+
+- ⚠ **音量值域统一为线性 0..1**（主音量与音轨音量）：
+  - Unity 侧原先允许 0..10（写 Mixer 时按 `log10(v) * MixerValuesMultiplier` 换算），中间件侧存同样的 0..10 却在落总线前 `Mathf.Clamp01`——同一份 `AudioServiceSettings` 换后端就把上限从 10 变成 1。
+  - 现在契约写成 0..1，`AudioGroupConfig.MAXIMAL_VOLUME` 为 1，夹取只在契约入口发生一次。
+  - **迁移**：工程内音轨的 `m_DefaultVolume` 实测均为 1，不受影响；持久化过的 >1 旧值在 `LoadSettings` 读回时夹到 1。
+- 跨后端契约第 6 条：后端整体失效（`IsBackendInert`）时音量面统一为读 0、写无效。
+- 总线过渡族（`FadeMasterTrack` / `StopFade` 等）与音轨暂停标记上移到契约基类，两后端各删约 50 行。
+- 桥侧 `LoadBank` 由 `bool` 改三态，Tick 侧不再每轮造临时集合。
+- `AudioHandleRegistry` 去掉全部字典，句柄改打包值（代次 + 槽号）。
+- Clip 缓存的寻址表换定长开址槽表。
+
+#### `Resource`
+
+- 绑定服务只握 internal `IResourceLeaseSource`（八个成员），不再拿后端全契约：后端与绑定服务第一次能各自构造，绑定层测试第一次能 mock 后端。
+  - 接缝的抽象成员基线由 `ResourceSeamShapeGuardTests` 钉在 66（19 个抽象属性 + 47 个抽象方法，其中 11 个 `internal abstract`、0 个 `[Obsolete]`）。
+- packed key 三条名称轴合成一份 `ResourceNameRegistry` 实现，15 个字段收为 3，登记与回收只剩一条路径。
+  - `Release` 与 `DecrementOnly` 刻意分开：整表清空时逐条回收既白做，也会在遍历一张表时反向改动另一张表。
+- 绑定路径少两趟与调用者数量无关的开销：注册路径省掉重复的原生 id 往返，异步子精灵绑定的两个孪生成员统一为直接转发。
+- 记录槽与后端断开第一根线：
+  - `AssetSlot` 的两个具名句柄字段合成一个 `object RawHandle`（YooAsset 句柄是引用类型，存进去不装箱），取用只剩 `IsHandleValid` / `DisposeHandle` / `GetSubSprite` 三个操作。
+  - 图集加载流程随之由 `Records` 移到 `Loading`。
+  - `Records` / `Keys` / `Expiry` 三个文件里已无一个后端类型名。
+- 记账内核成形为 `ResourceRecordStore`（`Runtime/Services/Resource/Kernel/`，由后端持有）：记录槽、租约、两条索引表、在途去重与两座时间轮整体搬出 `YooAssetHandler`，后端与内核之间只剩一面 `IResourceRecordHost`——三个原生句柄算子加三个配置读数。`YooAssetHandler.Keys.cs` / `Expiry.cs` 随之退役。
+- 缓存命中不再为"已经完成的结果"造异步状态机：`GetOrLoadAssetAsync` 与 `AcquireSubAssetsBindingAsync` 剥成同步前缀 + 在途段，命中路径直接 `UniTask.FromResult`。
+- ⚠ 每帧维护入口 `ProcessKeepAlive` 更名 `ProcessResourceMaintenance(float unscaledTime, int expireBudget, int destroySweepBudget)`。
+  - 到期与销毁两条预算刻意不合并：到期记录多的帧不该饿死销毁回收。
+  - `ProcessDestroyedObjects` 的默认参删除，让漏传在编译期报出来。
+- `ResourceBindingService.Shutdown` 拆为终态关停与可复用重置。
+- 外观写成员改走 `RequireHandler()`，未就绪不再伪装成"资源不存在"。
+
+#### `Kernel` 与工具面
+
+- ⚠ 运行期随机全面改走 `RandomUtility`，`UnityEngine.Random` 退出 `Runtime`。
+- ⚠ `AlgorithmUtility.RandomRange(long, long)` 的上界口径由"含"改"不含"。
+
+#### `Localization`
+
+- 词条交付改由「批」自带语言头，存储与解析搬进 `LocalizationStore`。
+- 全局语言注册表删除，可用语言随表自报（`ConfigTableService.GetLocalizationLanguageCodes`）。
+- 语言切换的事件时序与查询热路径一并收口。
+
+#### 池与内存
+
+- `MemoryPool<T>` 的页调度改侵入式双向链表。
+- 池维护调度改"采集 / 派发"两段式。
+- 主线程守卫不再随正式构建整条消失，池维护异常按房内 `RETHROW_*` 约定分级。
+- `TickAll` 在每帧边界自收口并带单轮异常采集上限——一条音的异常不再连带冻住同帧的输入、UI 与存档。
+
+#### `GameApp` 事件
+
+- `GameAppMessageEvent` 的专用事件枚举内聚进 `EEventType`。
 
 ### Fixed
 
-- **`GameApp.AddOnApplicationPauseListener` 单独使用时永不触发**：此前只有宿主因协程 / Gizmos 等原因被创建后才会挂上 Pause 转发。
-- **订阅方抛异常会永久卡死驱动器**：`Drive*` 缺少 `finally`，异常路径下 `s_IsDriving` 残留为 `true`，此后所有注册滞留在延迟缓冲且当帧不提交。
-- **多契约服务在世界初始化前注销单个契约会复活该服务**：`ServiceWorld.UntrackPending` 只摘一个契约键、`ServiceScope.UnregisterDeferred` 却按条目摘掉实例的全部句柄，实例因此残留在挂起图里。随后 `Initialize` 会对这个"已注销"的服务再驱动一次 `OnInit`，而条目已删导致不记激活序——`OnShutdown` 永不执行，`OnInit` 拿到的资源泄漏。
-- **`OnServiceRegistered` 上报的是实现类型**：事件由服务自身经 `IServiceLifecycle` 发出，只知道自己 `GetType()`，于是以接口为契约注册时拦截器收到成对不上的 `Registering(IFace)` → `Registered(Impl)`；同一实例再绑其他契约时又会在 `OnInit` 之前提前收到 `Registered`。
-- **拦截器异常打断轮询帧**：`OnBeforeScopeTick` 抛出会让 `ServiceWorld.Tick` 直接失败，该作用域本帧的 `scope.Tick` 与后续作用域全部不执行；`OnServiceRegistered` / `OnServiceShutdown` / `OnServiceUnregistered` 同样能把初始化与关闭流程半途打断。
-- **否决注册后残留半注册条目**：`OnServiceRegistering` 原先在契约句柄写入注册表之后才发出，拦截器抛异常"拒绝注册"时绑定已经留下，且与附加契约路径（先通知后写入）顺序相反。
-- **MonoBehaviour 服务可实现 `IServiceGizmoDrawable`**：注册守卫只挡三类 Tick，Gizmo 漏网。Unity 对组件上的 `OnDrawGizmos` 魔法方法是无条件调用的，容器再驱动一次即编辑器下双份绘制。
-- **`OnInit` 途中被关闭会被重新判为就绪**：转换在 `OnInit()` 返回后无条件 `State = Initialized`，把外部 Dispose 路径推进的 `ShuttingDown`/`Disposed` 盖回去，已关闭的服务重新被 `IsServiceReady` 判为就绪。
-- **初始化进行中注销服务 / 关闭作用域静默损坏挂起图**：被注销者因循环持有局部引用仍被 `OnInit`（且不记激活序 → 永不 `OnShutdown`），其余服务因 `List` 摘除的索引位移被跳过；被关闭作用域的服务则留成幽灵拓扑节点，稍后被重新初始化。现统一 fail-fast（见 Changed）。
-- **世界在初始化途中被 Dispose 后仍宣告已初始化**：`CompleteInitialization` 无条件置 `_initialized`，与被置位的 `_disposed` 并存。
-- **`Timer` 文档与代码脱节**（双语同步修正）：`Timer.md` 声称旧名「以 `[Obsolete]` 别名保留」而代码中一个都不存在（且 `AddTimerUnsafe` 从未存在于代码），照此写代码会编译失败；`Core.md` 三处示例仍调用已移除的 `TimerService.AddTimer(...)` 且实参顺序与新 `Delay` 相反；`Debugger.md` 的 Timer 面板引用不存在的 `TimerServiceDebugView`（实为 `TimerServiceDebuggerWindow`，注册路径 `Profiler/Timer`）；`Index.md` 与 `TimerService` 类型注释仍只描述「四级时间轮」单引擎，未体现双泳道。
-- **`Timer` 关停后使用句柄或再注册会抛 `NullReferenceException`**：`Shutdown` 只置空页数组，未清 `_slotCapacity` / `_freeCount` / `_pageCount`，于是过期句柄穿过 `GetSlotIndex` 的首道范围判定、去解引用已置空的 `_pages`；`AcquireSlot` 同样在残留 `_freeCount` 下直读空的自由栈，故"关停后再 `Delay`"也是抛而非返回 0 句柄。现计数随 `Shutdown` 归零、`AcquireSlot` 见已关停即按"无槽位"降级，`DefaultTimerHandler` 另在 `OnShutdown` 摘掉泳道路由表并让三类 `Tick` 与 `PauseAll` / `ResumeAll` / `CancelAll` 整体空转；`Shutdown` 自身亦幂等（重复调用、未 `Init` 即调用均安全）。经服务门面（`s_Handler` 先置空）的路径本来安全，受影响的是自持 handler 引用的测试与自定义宿主。
-- **`PlayerLoopDriver` 优先级插入不对称**：非 `IPlayerLoopPriority` 对象被无条件尾部追加，故 `Register(Priority = 5)` 之后再注册的普通 Handler 会跑到 +5 之后，违背「数字小者先跑」。现按有效优先级（未实现者计 0）判定：仅当追加后仍满足升序才走 O(1) 尾部追加，否则整表稳定排序插入。
-- **`Timer` 调度失败诊断不对称**：只有 `Delay(Action)` 与 `Delay<T>` 两个重载在编辑器下告警，带进度的 `Delay`、`DelayUnsafe` 以及帧泳道全部重载（含 `frames <= 0` 与槽位耗尽）静默返 0 句柄。现两引擎统一为 `[Conditional("UNITY_EDITOR")]` 告警——发布构建连整条调用与实参求值一并摘除，运行期零开销。
-- **`PlayerLoopDriver.EnsureMainThread` 未随内核一并门控**：内核版已包进 `#if UNITY_EDITOR || DEVELOPMENT_BUILD`，驱动器版仍在 20 个注册/注销入口无条件编译断言，与「发布构建下断言不参与编译、零开销」的记载不符。现补齐同一约定。
-- **`Timer` 时间轮的延后触发列表与进度列表存在线性扫描**：Fixed/Late 入列用 `List<ulong>.Contains` 去重、释放用线性摘除，进度列表亦线性移除——同帧大量 Fixed/Late 或带进度计时器到期即 O(N²)。现延后列表改以槽位归属位（`1 << 6` / `1 << 7`）作去重判据、并在快照排空时清除（否则循环型只会触发一次），不在列的槽位一次位判即返回；进度列表按帧泳道同法记录列表下标，做 O(1) swap-remove。
-- **`Documentation~/zh|en/Core.md` 与代码脱节**（双语同步修正）：`IService.Shutdown()` 实为 `OnShutdown()`（含示例，照抄不能编译）；异步关闭顺序是逆激活序而非逆注册序；拦截器表列出不存在的 `OnServiceTick`；引用已删除的 `RegisterWithDependencies` 与不属于组合根的 `ProcedureServiceSettings.StartProcedure`；内置服务计数 11/12 实为 13；`ServiceScopeOrder` 其实不被容器消费；依赖校验时机仍是两阶段之前的旧描述。
-- **`FrameworkSettings<T>.Instance` 加载失败时栈溢出**：资产缺失的**打包分支**原先调 `LogUtility.Error`，而 `LogUtility.Handler` 的懒加载要经 `GetHandlerFromSettings()` → `GameAppSettings.LogHandler` 回读**同一个**设置资产——此刻 `s_Instance` 仍为 null，于是"报错说资产缺失"这一步再次进入本 getter 无限递归（`StackOverflowException` 不可捕获，进程直接被带走）。编辑器分支走 `LoadSettingSO`，其中本就用裸 `Debug.*`，故编辑器下从不复现、也从未被发现；触发与否还取决于 `LogUtility` 是否已被更早的钩子解析过，表现为偶发。现改裸 `Debug.LogError`，并在类型注释中写明该路径禁用可插拔日志链路的约束。
-- **`PlayerLoopDriver` 订户异常截断整阶段，并能永久冻结服务层心跳**：三个 `Drive*` 只有 `finally`、没有隔离，一个订户抛出后同阶段其余订户与全部 Action 回调当帧不再执行。内核早有逐服务 `try/catch` + `TickFailureTripThreshold` 熔断，这条防御线在上一层断掉了。现按内核同一约定分级（开发期 `Error` 记录后上抛、发布期隔离续跑），并按 `FailureTripThreshold`（默认 300，与内核同值）做连续失败熔断摘出——成功一次即归零，间歇性故障不会被累计成熔断；两档构建下都摘除，故熔断在编辑器亦观察得到。核心钩子永不熔断；`ApplicationQuit` / `Destroy` 两类一次性清理广播改为逐项调用且开发构建也不上抛（截断清理等于漏掉后续每一项的释放动作）。`focusChanged` / pause / gizmos 三张表仍是裸多播调用，单项抛出会截断其后的订户（已记入文档，未改）。既有 `PlayerLoopDriverTests` 断言的行为不变。
-- **已 `Destroy` 的 `MonoBehaviour` 型 Handler 抛 `MissingReferenceException` 未被挡**（只记文档，未改代码）：`Drive` 原先的 `handlers[i]?.` 与改用显式 `null` 判定后一样，走的都是 C# 引用比较而非 Unity 的伪造 null 重载，挡不住已销毁组件——须在 `OnDestroy` 里自行 `Unregister`。
-- **启动链对配置资产缺失仍无守卫**（本轮有意未采纳）：`GameAppSettings.Initiation` 直接解引用 `Instance.m_FrameRate`，资产缺失时 NRE 中断这个 `[RuntimeInitializeOnLoadMethod]`——PlayerLoop 不注入、服务组合根不执行；`GameAppSettings` 七个处理器出口写成 `Instance.m_XHandler`，其抛出会穿过 `GetHandlerFromSettings() ?? CreateDefaultHandler()` 兜底链（`??` 不吞异常），使日志/字符串等 Utility 连退回代码默认值的机会都没有。上一条栈溢出已修（`caf44d0c`），故当前表现是打印一行 `Could not find GameAppSettings at path '...'` 加一段 NRE 栈，而非进程直接被带走。
-- **`PlayerLoop` 注入的自愈校验从未执行过一次**：`VerifyInjection` 挂在 `AfterAssembliesLoaded` 且首行即 `if (!s_Injected) return;`，而唯一置位方 `EnsureInjected()` 只在 `GameAppSettings.Initiation`（`BeforeSceneLoad`）内被调用——校验严格早于注入点，每次启动都在"尚未注入"的状态下直接返回，补插与告警一次也没跑过。于是第三方（Entities 等）在 `BeforeSceneLoad` 基于默认循环重建 PlayerLoop、抹掉三个 Moirai 标记时，`s_Injected` 仍为 true 且永不重试，整框架静默不 Tick，运行期不留任何线索（这恰是该校验本该防住的场景）。现校验改挂 `AfterSceneLoad`，覆盖 `BeforeSceneLoad` 及其之前的重建；更晚的重建仍按文档在完成后调 `PlayerLoopInjector.Reinject()`。随之删掉最低 2022.3 下恒真的 `#if UNITY_2020_1_OR_NEWER` 死分支，并修正把两个相位写反的记载（`GameAppSettings_Services` 注释与本文件文档，双语）。新增 `SelfHealCheck_RunsStrictlyAfterInjectionPhase`：反射取两者的 `[RuntimeInitializeOnLoadMethod]` 相位并断言"自愈必须严格晚于注入"——正是此前被破坏的那条不变量。
-- **`GameApp.Shutdown` 把整条 PlayerLoop 盖回引擎默认，连带拆掉 UniTask**：`PlayerLoopDriver.Shutdown` 收尾调的是 `RestoreDefault()`，而 UniTask 的 `PlayerLoopHelper` 只注入一次、不会自行回来——默认循环一盖回去，它排队的 `await` 就永不续跑。问题在于 `Shutdown` 并不总意味着进程结束：调试器 `OperationsWindow` 的 `Shutdown (Restart)` 是 `GameApp.Shutdown()` 之后紧接 `LoadScene(0)`，`Shutdown (None)` 则是关掉框架继续跑，两者都会让 UniTask 在本次会话余下时间里永久报废。退出流程同理——`GameServices` 自己写明优雅退出应在 `OnApplicationQuit` 之前走 `ShutdownAsync()`，而那条链路上的 await 只要晚于 `Shutdown` 一步，它依赖的 Pump 就已经被我们自己拆掉了。现改为逐项摘除：只摘本框架的三个标记，第三方注入原样保留。顺带解掉文档中记作已知妥协的「禁用域重载时退出 Play 会让编辑模式 UniTask 停摆到下次域重载」。
-- **文档推荐的帧订阅 API 对外根本不可调用**：`PlayerLoopDriver` 是 `internal`（`InternalsVisibleTo` 只开放 Editor / 两个测试程序集 / `Moirai.Clotho` / `Moirai.Lachesis`），而 zh|en 的 `GameApp.md` 与 `PlayerLoopDriver.md` 一路把 `PlayerLoopDriver.Register(...)` 当作"接口方式（推荐）"展示，示例里的 `using Moirai.Atropos.FrameLoop;` 更是照抄即编译失败——仓库中根本不存在该命名空间，实际是 `Moirai.Atropos`。判据：三个 public 契约 `IUpdateHandler` / `IFixedUpdateHandler` / `ILateUpdateHandler` 连同 `IPlayerLoopPriority`，在 Runtime 与 Editor 的引用数均为 **0**（只有测试在用），说明 internal 是疏漏而非边界设计。现补 `GameApp` 门面转发（见 Added），驱动保持 internal——它还带着 `Raise*` 引擎事件伪造口与 `ResetForTests`、`FailureTripThreshold` 这类不该外露的接缝，转 public 的代价大于收益。文档四处改用可达 API、标明驱动为框架内部实现，`GameTime` 上一处悬空 `<see cref="FrameLoop.PlayerLoopDriver"/>` 一并修正。新增三个用例锁定门面转发（多阶段登记、单阶段不被升级、优先级一致生效）。
-- **`GameApp` 把运行期设定回写进配置资产，且暂停判据读的是配置字段**：`FrameRate` / `GameSpeed` / `RunInBackground` / `NeverSleep` 四个 setter 形如 `Application.x = GameAppSettings.Instance.m_x = value`，把运行时值写进 Resources 下那份共享 ScriptableObject——打包后无所谓，编辑器里则跨 Play 会话残留（ScriptableObject 的修改不随域重载还原）。更要紧的是 `IsGamePaused => m_GameSpeed <= 0f` 读的是**配置字段**而非 `Time.timeScale`：只要有人绕过 setter（调试器 `OperationsWindow` 的 timeScale 滑块就是），字段与引擎实况立刻分叉，`PauseGame()` 判"没在暂停"而覆盖用户设定、`ResumeGame()` 判"已暂停"而恢复成陈旧值。现四个属性改由 `GameApp` 自有静态字段承载运行态，`GameApp.Initialize` 从**引擎实况**播种（`SeedRuntimeFromEngine`，不回读资产），资产只作开机默认值；`GameApp.cs` 运行期因此不再解引用 `GameAppSettings.Instance`——顺带少了几处「启动链判空」未落守卫下的 NRE 点。调试器滑块改走 `GameApp.GameSpeed`。
-- **`ResumeGame()` 恢复到陈旧值**：`s_GameSpeedBeforePause`（初值 1f）只在"此前未暂停"时记录，于是先用 `GameSpeed = 0f` 冻结一局、再 `PauseGame`/`ResumeGame` 一来一回，速度就被弹回 1 而非实况。现删除该字段——`GameSpeed` 自身即"期望速度"这一唯一真相，恢复就是重放它，结构上不存在陈旧值可言。
-- **`GameApp.FixedTick` 误传帧间隔给服务层**：核心钩子路径上 `GameServices.FixedTick` 收到的是 `GameTime.deltaTime`，而同一阶段的 `IFixedUpdateHandler` 收到的是 `GameTime.fixedDeltaTime`——物理步长与帧间隔混用，固定步长场景下服务轮询时间语义不一致。现改为 `fixedDeltaTime`，与 Handler 层对齐。
-- **启动相位与心跳装配的文档残留**（双语/代码注释同步）：`Core.md`（zh/en）仍写 `GameAppSettings.Initiation` / `InitializeAppServices` 在 `AfterAssembliesLoaded`（实为 `BeforeSceneLoad`），`GameApp` 条目仍写「注册内置 Tick」（已迁核心钩子）；`PlayerLoopDriver.md` 仍写 `GameServices.Tick`「注册在 Update 回调上」；`UGUIHandler` / `UIServiceHandler` 注释与 `PlayerLoopInjector` 类头 ECS 说明仍沿用旧相位或旧自愈契约。一并改为与代码一致。规范层写明：驱动/内核轮询循环内的 per-subscriber try/catch 属有意隔离，是对「热路径严禁 try-catch」的显式例外。
-- **`FrameworkSettings.LoadSettingSO` 在只读路径上删用户资产**：`GameAppSettings.Instance` 第一次被读到，就可能触发它把 AssetDatabase 里**所有路径不符的同类型资产**逐个 `AssetDatabase.DeleteAsset`（并额外对 `路径 + ".meta"` 再删一次，而 `DeleteAsset` 本就连带删 meta）。同名类型存多份的合法用法不少（分平台、A/B、包内默认 + 项目覆盖），在"读一次配置"里静默删文件属于丢工作。现改为**只报告不动手**：聚合出一条 `Debug.LogError` 列出期望路径与全部多余副本，并仍确定性地加载期望路径那份。真实风险如实告知——打包时 `Resources.Load` 在多份之间取哪一份不由路径决定，但该取舍交还给用户。
-- **`GameApp.StartCoroutine` 宿主不可用时静默返回 null**：调用方拿到 null 无从区分"参数为空"与"框架已 Shutdown / 处于退出窗口所以协程根本没跑"，后者是本该立刻看见的状态误用。现后者额外告警并带协程枚举器的类型名；参数为 `null` 仍静默（属调用方显式契约）。
-- **组合根异常在发布构建被无声吞掉，启动失败只剩黑屏**：`GameAppSettings.Initiation` 以 `InitializeAppServices().Forget()` 驱动组合根，而 UniTask 的 `Forget()`（未传 `propagateExceptions`）在发布构建不重抛、只按配置记录——服务注册或 `InitializeAsync` 抛出的异常因此可能整条不留痕迹，且没有任何钩子能让项目感知。现组合根内部 `try/catch`：先以 Error 级带栈记录，再触发 `GameApp.BootFailed` 供项目挂崩溃上报与兜底 UI。`GameApp.ServicesComposing` 的订阅也逐个隔离，单个项目模块缺陷不会吃掉其余模块与内置服务的装配。
-- **`GameApp.Shutdown` 不把未配对完的暂停退干净**：`PauseGame` 的计数与压到 0 的 `Time.timeScale` 会跨过关停留下。后果有两层：关闭后仍要跑的若干帧（调试面板 `Shutdown (Restart)` 之后紧接 `LoadScene`、退出期的异步落盘）一直冻结在 0 速；更坏的是下一次 `Initialize` 的 `SeedRuntimeFromEngine` 会从这份被冻结的引擎实况播种出 `GameSpeed = 0`，而 `ResumeGame` 在计数 0 是空操作——此后没有任何 API 能把速度救回来（改引用计数之前反而绕开了这条）。现 `Shutdown` 归零计数并回放 `GameSpeed`。同时把关闭后的契约写明（`Shutdown` 注释 + `GameApp.md` 双语新增「运行态与配置分离」「暂停与速度语义」「关闭后的运行态契约」三节）：运行态属性与 `PauseGame` / `ResumeGame` 不判 `IsShutdown`、不抛，它们是引擎状态的门面，写入即刻生效并成为下一轮启动的基线；帧订阅与协程不在此列（注册表已清空、宿主已释放）。
-- **调试面板把"定格"与"已暂停"挤在同一行**：`Other/Game Settings` 只有一行 `游戏是否暂停 [Is Paused]`，而暂停与速度解耦之后按 0x 预设会得到 `False` + 画面静止，读起来像面板坏了。现拆成「暂停请求（含 `GameApp.PauseDepth` 层数）」与「时间冻结（读 `Time.timeScale`）」两行，`0x` 预设按钮改名 `0x Freeze`（`Debugger.md` 双语同步）。
+#### `Resource`
+
+- 玩家构建里 `EditorSimulate` 的入库设置退回离线模式，从整片沉默改为启动时报一次 Error；三项"配了但永不参与决策"的设置同样各报一次。
+- 发起即忘的绑定把抛出整个吞掉（扩展层 7 处 `Binding….Async().Forget()`），"没反应"查不出原因；现在失败原因进日志。
+- 销毁态轮转的扫描被组件清理的抛出截断，租约永久泄漏且每帧重复抛异常：改为先记账后清理。
+- 异步绑定在"取用租约"一步抛出时把预约位永久留在表里，现已回收。
+- 调用方取消不再冒充"加载失败"：`EResourceBindStatus.Cancelled` 与加载失败分道，上层能判要不要重试。
+- 子资源（图集）绑定绕开加载去重与卸载代次。
+- `WaitForLoadingAsync` 的等待者计数不归还、失败原因被丢弃。
+- `LoadGameObject` / `LoadGameObjectAsync` 不防实例化期间的回收与关停。
+- `UnloadUnusedAssets` / `ForceUnloadAllAssets` 不校验包是否仍有有效清单。
+- 精灵绑定族的四个入口把资源包写死成空串（材质族早已透传），DLC 包里的精灵绑不上：`SetSprite` / `SetSubSprite` 全部 8 个重载补上末位可选 `packageName`，留空即走默认包，既有调用行为不变。
+- `RemoteService.GetRemoteUrls` 把内部字段数组直接交给调用方。
+- `ResourceOwner.ReleaseBindingsInHierarchy` 的共用缓冲被嵌套释放踩掉。
+
+#### `Audio`
+
+- `CurrentlyPlayingCount` 绕过事件映射表，命中映射的 clip 恒查到 0。
+- 中间件后端初始化失败后仍在每帧驱动那个没起来的引擎。
+- `AudioWarnOnce` 的带参告警整条打成 `System.Object[]`（`LogUtility` 缺格式化重载）。
+- 留池视图每次刷新重新装箱一次租约。
+- 暂停会丢弃进行中的音量斜坡。
+- `AudioGroupConfig.RemoveSetting` 的回落音量写死 1。
+- 同步加载不作废在途异步续体（`_loadGeneration` 原先只在异步分支自增）。
+- 上线门禁收口：`BgmPlaylist` 的分层 ID 写死、四处 `StopByID` 误停他轨等。
+- `BgmPlaylist` 的 Shuffle 收尾误用顺序下标回绕（`_index + 1 >= Count` 判停），随机落到末位时只播一首就 `Stop()`；现走洗牌袋，一轮全覆盖不重复。
+- `MiddlewareAudioHandler.Restart` 归还声部后立刻清空声部池，热复用全部白做；现只在终态关停时丢弃。
+- FMOD 短名 `LoadBank(..., loadSamples: false)` 让首播因样本未载入而无声，失败时还伪造 `ERR_EVENT_NOTFOUND`；改 `loadSamples: true` 并去掉误导的错误码。
+
+#### `Localization`
+
+- 数据源抛异常被"先生成配置"顶替，读表缺陷被念成配表缺失。
+- 首次查询把 key 当译文返回。
+- 检测语言未发行时整套界面露 key。
+- 占位符写坏把查询抛出。
+
+#### 池与内存
+
+- 池的关停、维护、逐项回调与整批修剪改为逐项隔离：单个坏回调不再截断整批，也不再吃掉同一实例上其余池件的 `OnPooledDestroy`。
+- 池回调内可重入全局维护会换掉正在被引用的非托管页数组，现已封住。
+- 关停重入导致槽位存储二次归还，现已封住。
+- `MemoryPool<T>.TickAll` 的交换移除会挪错槽位。
+- 构造函数抛出留下幽灵 in-use 计数。
+- `Remove` / `RemoveFromType` 传 0 或负数会让池反向增长。
+- `LowMemory` 阶段不清空闲储备。
+- 补做延迟 Native 释放时留悬空空闲槽。
+- `MemoryPoolHandle` 的池标识是死码。
+- 配置过期时间的池把预热对象当"无限空闲"首轮剪光。
+- `OnDespawn` 内销毁实例会抹平 inactive 链的头尾指针。
+- 编辑器脚本重载漏掉整份非托管页元数据。
+- `Spawn<T>` / `SpawnAsync<T>` 取不到组件时把实例丢在场景里。
+- `Despawn(T obj)` 只认目标键不认对象。
+- `PoolCatalog` 的规则次序随构建漂移（`Array.Sort` 不稳定）。
+
+#### `Timer`
+
+- 时间轮被污染的时间输入（NaN / Infinity / 溢出）打穿并永久冻结，恢复与重启路径的取值校验补齐。
+- 帧计时器在进度回调后沿用回调前的剩余帧数，并把完成回调打到复用槽位的新计时器上。
+- 两条泳道回收 executing 标记的形式统一。
+
+#### 其余
+
+- 事件派发链缺 `finally`：订户异常截断整条派发，热路径订阅与异常策略不一致。
+- `AlgorithmUtility` 随机面与 `MathsUtility` 概率取值的四处静默缺陷：
+  - `RandomRange(length, min, max)` 在 `length = 1` 配 `[100, 200]` 或 `min < 0` 时取不到值只能空转、`length >= 10` 时 `Int32.Parse` 直接抛 `FormatException`——现改为在"位数可表达的值域 ∩ 区间"上取一次，空集抛 `ArgumentException`。
+  - `RandomRange(min, max)` 每次 `new Random(Guid)`，且 `min == max` 抛的是 `ArgumentNullException`。
+  - `AverageRandom` 乘 10000 取整使第 5 位小数恒为 0、溢出时静默取乱数。
+  - `MathsUtility.Chance(percent)` 的 `Range(0, 100) <= percent` 让 0% 也有 1% 成功率（对既有数值是整体 +1% 偏置）。
+- `ShuffleBag<T>` 三处：换手必连点（本轮最后一手必撞上轮最后一手）、本轮中途 `Add` 倒拨轮次、空袋取用越界。
+- Serilog 后端把日志上下文整个丢掉（`LogHandler.Log` 的 `context` 参数只有一个后端透传）。
+- 缓存窗口重开后被上一轮的关闭动画重新隐藏（`_isCreate` 保持 `true`）。
+- 测试自证两处：派发用例里残留的故障回调、反射注入不判空。
 
 ### Removed
 
-- **`GameApp` 的按名字协程重载**：`StartCoroutine(string)`、`StartCoroutine(string, object)`、`StopCoroutine(string)`。Unity 的按名字启动是「在挂载该方法的 MonoBehaviour 上查找同名协程方法」，而这三条重载实际驱动的是 `GameAppHost`——该类 `internal sealed`、不含任何 `IEnumerator` 方法，也不允许派生。因此传任何方法名都必然在 Unity 侧报 `Coroutine ... could not be found` 并返回 null，是**永远不可能工作**的公开 API（1.0.2 里 `GameApp` 自身还是 MonoBehaviour 时尚可命中，`9264f17c` 剥离 Mono 后就成了死口）。全工程实测零调用方（框架、同级各包含 IVT 白名单内的 Clotho / Lachesis、`Assets/`、`Templates~`），直接删除，**不留 `[Obsolete]` 别名**——留着也只是让调用点晚一步失败并继续占用重载解析位。按 `IEnumerator` 与 `Coroutine` 句柄的四条重载不受影响。
-- **`EMessageEventType` 的十个 SDK 业务码**：`SDKOnInitSuccess` / `SDKOnInitFail` / `SDKOnLoginSuccess` / `SDKOnLoginFail` / `SDKOnSwitchAccountSuccess` / `SDKOnLogoutSuccess` / `SDKOnPaySuccess` / `SDKOnPayFail` / `SDKOnPayCancel` / `SDKOnExitSuccess`（`10004`–`10013`）。SDK 登录、支付、切号是项目层语义，写在 `Runtime/Core` 里意味着每接一个新渠道都要回头改框架核心并重排号段。全工程实测零引用（实际被消费的只有 `ApplicationFocus` / `NotApplicationFocus`，由 `InputService` 用于失焦时压输入）。`10000`–`10003` 保留且数值不变（显式整数，不存在重排），并在枚举文档中写明该号段为框架保留、业务事件请各自定义 `EventBase<T>` 负载类型投递。
-- **`Moirai.Atropos.Schedulers` 命名空间整体删除**：`Scheduler` / `SchedulerHandle` / `SchedulerUnsafeBinding` / `SchedulerUnsafeBinding<T>` / `SchedulerExtensions`（含 `WaitAsync`）/ `TickFrame`，以及 `IScheduled` 接口、`SchedulerRunner` 组件、`FrameCounter` / `Timer` / `SchedulerRegistry` 等模型，连同 `Editor/Schedulers/` 的调度器调试窗口。迁移映射：按秒延时 → `TimerService.Delay`；按帧等待 → `TimerService.WaitFrame`；逐帧订阅 → `GameApp.AddUpdateHandler(IUpdateHandler)` / `AddFrameHandler`，或 `GameApp.AddUpdateListener`；等待完成 → `TimerService.WaitAsync`；零分配函数指针绑定 → `TimerUnsafeBinding` 配 `DelayUnsafe` / `WaitFrameUnsafe`。
+#### `Resource`
 
-### Deprecated
+- ⚠ `[Obsolete]` 遗留加载族整族删除，连带它下面那条无法补救的引用计数轴。
+  - **迁移**：一次性加载走 `ResourceService` 的现役成员，带生命周期的取用走 `ResourceBindingService` 与绑定扩展。
+- 死码：`RegisteredTarget` 整套子系统、两个恒零的数据维度、`TryAcquireDirect`。
 
-- 无。
+#### `Runtime/Core/Utilities`
+
+- 上线前精简：五个整类与一批零引用成员约 1.2k 行（`TimeUtility` / `NetUtility` / `XmlUtility` / `ProgramUtility` 等）。
+- `AlgorithmUtility` 的正态分布两件套随之删除。
+
+#### `Timer`
+
+- `TimerServiceBenchmark` 移出 `Runtime`，落 `Tests/EditorMode/Service/Timer/`。

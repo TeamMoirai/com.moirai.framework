@@ -1,97 +1,56 @@
 # 创建新 UI
 
-在 Moirai Framework 的 UIService 中创建新的 UI 界面。
+在 Moirai Framework 的 UI 服务中新建一个窗口（`UIWindow`）或控件（`UIWidget`）。
 
 ## 参数
-- $UI_NAME: UI 名称（如：MainMenu、SettingsPanel、BattleHUD）
+- $UI_NAME: UI 名称（如 `MainMenu`、`SettingsPanel`、`BattleHUD`）
 
-## 任务
+## 落地位置
 
-1. **分析 UI 需求**：理解 UI 的功能和布局
+UI 脚本住在游戏侧程序集，不在框架包内：
 
-2. **创建 UI 目录结构**：
-   ```
-   Assets/MoiraiFramework/Runtime/Services/UIService/
-   ├── Forms/
-   │   └── {UI_NAME}Form.cs      # UI 表单类
-   └── Components/                # UI 组件（如需要）
+```
+<游戏程序集>/UI/
+├── Windows/<UI_NAME>.cs          # 派生 UIWindow
+└── Widgets/<Name>Widget.cs       # 派生 UIWidget（按需）
+Assets/.../UI/Prefabs/<UI_NAME>.prefab
+```
 
-   Assets/资源/UI/
-   ├── Prefabs/
-   │   └── {UI_NAME}.prefab      # UI 预制体
-   └── Textures/                  # UI 纹理
-   ```
+## 窗口骨架
 
-3. **生成 UI 表单代码**：
-   - 继承 `UIForm` 或 `UIFormLogic`
-   - 实现 UI 生命周期方法
-   - 使用 `[UIForm]` 特性标记
+```csharp
+using Moirai.Atropos.UI;
 
-4. **UI 表单模板**：
-   ```csharp
-   using Moirai.Runtime.Services.UIService;
+[Window(UILayer.UI, "UI/<UI_NAME>")]             // 层级 + 资源地址；fromResources: true 时走 Resources
+public class <UI_NAME> : UIWindow
+{
+    protected override void OnCreate() { }               // 实例化后一次
+    protected override void BindMemberProperty() { }     // 接收绑定生成器写回的字段
+    protected override void RegisterEvent() { }
+    protected override void UnregisterEvent() { }
+    protected override void OnRefresh() { }              // 每次打开时
+    protected override void OnUpdate() { }               // 全屏窗口的逐帧逻辑
+    protected override void OnClose() { }
+}
+```
 
-   namespace Moirai.Runtime.Services.UIService.Forms
-   {
-       [UIForm]
-       public class {UI_NAME}Form : UIFormLogic
-       {
-           // UI 组件引用
-           private Button _startButton;
-           private Text _titleText;
+生命周期方法名以 `Runtime/Services/UI/UIBase.cs` 与 `UIWindow.cs` 为准——框架里没有 `UIForm` / `UIFormLogic` 这一族，也没有 `[UIForm]` 特性。
 
-           protected override void OnInit()
-           {
-               base.OnInit();
-               // 绑定 UI 组件
-               _startButton = GetButton("StartButton");
-               _titleText = GetText("TitleText");
+## 打开与关闭
 
-               // 注册点击事件
-               _startButton.onClick.AddListener(OnStartClick);
-           }
+```csharp
+UIService.ShowUIAsync<<UI_NAME>>(userData: args);
+var window = await UIService.ShowUIAsyncAwait<<UI_NAME>>();
 
-           protected override void OnOpen()
-           {
-               base.OnOpen();
-               // UI 打开时逻辑
-           }
+UIService.HideUI<<UI_NAME>>();     // 隐藏但保留实例
+UIService.CloseUI<<UI_NAME>>();    // 关闭，是否留缓存实例由 WindowAttribute 决定
+```
 
-           protected override void OnClose()
-           {
-               base.OnClose();
-               // UI 关闭时逻辑
-           }
+## 要点
 
-           protected override void OnUpdate()
-           {
-               base.OnUpdate();
-               // UI 更新逻辑
-           }
+- `[Window]` 决定层级（`Bottom=0` / `UI=1` / `Popup=2` / `Tips=3` / `System=4`）、是否全屏、自动隐藏与缓存时长；查询走 `UIService.HasWindow<T>` / `GetWindow<T>` / `GetTopWindow()`。
+- 组件引用不手写 `transform.Find`：在层级里挂 `UIBindComponent`，用右键菜单 `GameObject/ScriptGenerator/生成绑定代码` 生成字段，值在 `BindMemberProperty()` 里落地（发射器实现见 `Editor/Services/UI/Helper/UICodeEmitter.cs`）。
+- 模态与交互压制读 `UIService.CurrentModal` / `IsBlockedByModal(GameObject)`，不要另立一套"锁屏"标志。
+- 动到 UI 公开面时同步 `Documentation~/zh|en/UI.md` 与 `CHANGELOG.md`，口径见 `CLAUDE.md` 的「提交时的文档与 CHANGELOG」。
 
-           private void OnStartClick()
-           {
-               // 按钮点击处理
-           }
-       }
-   }
-   ```
-
-5. **创建 UI 组件**（如需要）：
-   - 自定义 UI 组件
-   - 数据绑定组件
-   - 动画组件
-
-6. **配置 UI 资源**：
-   - 创建 UI 预制体
-   - 配置 UI 资源路径
-   - 设置 UI 层级
-
-## 注意事项
-- 使用框架的 UI 资源管理
-- 遵循 UI 的命名规范
-- 考虑 UI 的性能优化（对象池、懒加载）
-- 支持多分辨率适配
-- 使用框架的事件系统进行 UI 间通信
-
-请告诉我您要创建什么 UI，我会帮您生成完整的代码。
+请告诉我要创建什么界面，我按上面的形状生成窗口类与预制体侧的绑定清单。

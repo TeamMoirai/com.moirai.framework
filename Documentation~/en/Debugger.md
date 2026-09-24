@@ -9,7 +9,7 @@ The Debugger service exposes window registration and polling through the static 
 - **UI Toolkit rendering**: no IMGUI per-frame redraw — the console uses a virtualized `ListView` (makeItem/bindItem render visible rows only); info windows rebuild on a 0.25s throttle
 - **Console**: severity filter chips (incremental counters, zero-scan refresh), log search, scroll lock, stack detail with one-click copy
 - **Info windows**: System / Environment / Screen / Graphics / Input (Input System devices & sensors) / Scene / Time / Quality / Path
-- **Profiler windows**: Summary, Memory Summary, Memory details (All / Texture / Mesh / Material / Shader / AnimationClip / AudioClip / Font / TextAsset / ScriptableObject), Object Pool / GameObject Pool / Memory Pool, Service System (service container diagnostics)
+- **Profiler windows**: Summary, Memory Summary, Memory details (All / Texture / Mesh / Material / Shader / AnimationClip / AudioClip / Font / TextAsset / ScriptableObject), Object Pool / GameObject Pool / Memory Pool, Service Kernel (service container diagnostics)
 - **Service debug panels**: Timer / Resource / Audio / Procedure / Localization — per-module debug views auto-registered by each service's OnInit (see the "Service Debug Panels" section)
 - **Game app settings**: frame rate / game speed live controls and the local settings key-value list (`Other/Game Settings`, integrating the former GameAppEditor)
 - **Stats HUD**: FPS / Tris / Batches / DrawCall / SetPass / Mono / Alloc / GfxDrv (`ProfilerRecorder` started on demand + 0.25s throttle)
@@ -32,7 +32,7 @@ Namespace: `Moirai.Atropos.Debugger`
 | `IDebuggerWindow` | Window interface: `Initialize(params object[])` / `Shutdown()` / `OnEnter()` / `OnLeave()` / `OnUpdate(float, float)` / **`CreateView()` → `VisualElement`** |
 | `DebuggerWindowRegistry` | Window registry (pure data): flat dictionary with O(1) lookup + path-tree navigation model (`DebuggerWindowNode`); a structural version number drives sidebar rebuilds |
 | `DebuggerLogCapture` | Log capture: thread-safe enqueue + main-thread `Drain()` into a pooled ring buffer; incremental severity counters + content version |
-| `LogNode` | Pooled log node: `LogTime` / `LogFrameCount` / `LogType` / `LogMessage` / `StackTrack` |
+| `LogNode` | Pooled log node: `LogTime` / `LogFrameCount` / `LogType` / `LogMessage` / `StackTrace` |
 | `DebuggerRuntimeHost` | Runtime host (MonoBehaviour): constructs PanelSettings/UIDocument at runtime, floating FPS entry, main window chrome, layout persistence, OS fallback font (CJK-capable); singleton `Instance` |
 | `DebuggerStatsOverlay` | Always-on stats HUD (`ProfilerRecorder` + StringBuilder reuse, zero steady-state allocation) |
 | `DebugPanelBuilder` | Fluent panel builder: `AddLabel` / `AddSection` / `AddFoldout` / `AddButton` / `AddToggle` / `AddSlider` / `AddIntSlider` / `AddReadOnlyField` / `AddProgressBar` |
@@ -41,7 +41,7 @@ Namespace: `Moirai.Atropos.Debugger`
 | `Constant.Debug` | Setting key constants for layout and console filters |
 | `CommandLineUtility` | Static utility: `GetShowDebugger()` reads the `-showdebugger` force-on argument |
 | `ServiceDebugView` | IMGUI debug view abstract base (implements `IDebuggerWindow`): `Title` / `IsReady` / `OnDrawContent()` (GUILayout) + default `CreateView()` (wraps the content in an `IMGUIContainer`) — a compat extension path for quick game-side IMGUI views (all framework built-in panels are native UI Toolkit) |
-| `Windows/*` | Built-in windows: `ConsoleWindow`, `*InformationWindow`, `RuntimeMemorySummaryWindow`, `RuntimeMemoryInformationWindow<T>`, `*PoolInformationWindow`, `ServiceSystemInformationWindow`, `OperationsWindow`, `SettingsWindow`, etc. |
+| `Windows/*` | Built-in windows: `ConsoleWindow`, `*InformationWindow`, `RuntimeMemorySummaryWindow`, `RuntimeMemoryInformationWindow<T>`, `MemoryPoolInformationWindow`, `ServiceKernelDebuggerWindow`, `OperationsWindow`, `SettingsWindow`, etc. |
 
 ## Quick Start
 
@@ -72,7 +72,7 @@ foreach (LogNode node in logs)
 {
     UnityEngine.LogType type = node.LogType;
     string message = node.LogMessage;
-    string stack = node.StackTrack;
+    string stack = node.StackTrace;
 }
 ```
 
@@ -146,16 +146,16 @@ Each framework service module holds a native UI Toolkit debug view (implementing
 | Path | View (module folder) | Content |
 |------|----------------------|---------|
 | `Profiler/Timer` | `TimerServiceDebuggerWindow` (Timer module) | active/capacity/peak statistics with usage bars, active timer sample, stale one-shot detection (0.5s throttle) |
-| `Profiler/Resource` | `ResourceServiceDebugView` (Resource module) | play mode, loaded asset snapshot (state/ref counts, 0.5s throttle) |
-| `Profiler/Audio` | `AudioServiceDebugView` (Audio module) | master volume and Sfx/UI/Music/Voice track volume/mute live controls |
-| `Profiler/Procedure` | `ProcedureServiceDebugView` (Procedure module) | current procedure state and elapsed time (0.5s throttle) |
-| `Profiler/Localization` | `LocalizationServiceDebugView` (Localization module) | current language display and one-click switching (1s throttle) |
+| `Profiler/Resource` | `ResourceServiceDebuggerWindow` (Resource module) | play mode, loaded asset snapshot (state/ref counts, 0.5s throttle) |
+| `Profiler/Audio` | `AudioServiceDebuggerWindow` (Audio module) | master volume and the five tracks' volume/mute live controls |
+| `Profiler/Procedure` | `ProcedureServiceDebuggerWindow` (Procedure module) | current procedure state and elapsed time (0.5s throttle) |
+| `Profiler/Localization` | `LocalizationInformationWindow` (Localization module) | current language display and one-click switching (1s throttle) |
 | `Other/Game Settings` | `GameAppInformationWindow` (Debugger built-in) | frame rate / game speed live controls (0x Freeze ~ 8x presets), pause request depth and time-frozen indicator, local settings key-value list with save/clear |
 
 The fixed pattern for adding a service debug panel:
 
 ```csharp
-// 1) Place the view class in the service module's own folder (e.g. Runtime/Services/Audio/AudioServiceDebugView.cs),
+// 1) Place the view class in the service module's own folder (e.g. Runtime/Services/Audio/AudioServiceDebuggerWindow.cs),
 //    inheriting PollingDebuggerWindowBase (data-driven) or ScrollableDebuggerWindowBase (control-driven), content themed via DebuggerUI helpers;
 // 2) Register at the end of the service's OnInit (the composition root guarantees DebuggerService is registered first — silently skipped when the facade isn't ready):
 public override void OnInit()
@@ -192,7 +192,7 @@ Custom popups and any OnGUI context can also call `view.OnDraw()` directly.
 
 ## Notes
 
-- The 28 built-in windows are registered by `DefaultDebuggerHandler.OnInit`; register custom windows after service initialization. `RegisterDebuggerWindow` paths must be non-empty and must not collide with registered windows or directories, otherwise a `GameException` is thrown
+- The 27 built-in windows are registered by `DefaultDebuggerHandler.OnInit`; register custom windows after service initialization. `RegisterDebuggerWindow` paths must be non-empty and must not collide with registered windows or directories, otherwise a `GameException` is thrown
 - The runtime panel **must carry a theme**: the host clones the in-package `Resources/DebuggerPanelSettings.asset` (with `UnityDefaultRuntimeTheme` embedded) — `ScriptableObject.CreateInstance<PanelSettings>()` yields a null `themeStyleSheet` in Play Mode, leaving all built-in controls without base USS (completely broken layout)
 - Never create `VisualElement`s in MonoBehaviour field initializers (UnityException) — always create them inside build methods
 - The floating entry snaps to the nearest screen edge after a drag; layout persists via `SettingUtility`, and the header Reset button restores defaults

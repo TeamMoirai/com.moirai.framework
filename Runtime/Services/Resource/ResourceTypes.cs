@@ -367,11 +367,6 @@ namespace Moirai.Atropos.Resource
         public int DirectRefCount;
 
         /// <summary>
-        /// 遗留直接引用计数。
-        /// </summary>
-        public int LegacyDirectRefCount;
-
-        /// <summary>
         /// 绑定引用计数。
         /// </summary>
         public int BindingRefCount;
@@ -458,11 +453,6 @@ namespace Moirai.Atropos.Resource
         public int AssetId;
 
         /// <summary>
-        /// 视图键 ID。
-        /// </summary>
-        public int ViewKeyId;
-
-        /// <summary>
         /// 租约句柄。
         /// </summary>
         public ResourceLeaseHandle Lease;
@@ -471,11 +461,6 @@ namespace Moirai.Atropos.Resource
         /// 版本号。
         /// </summary>
         public uint Version;
-
-        /// <summary>
-        /// 子索引。
-        /// </summary>
-        public ushort SubIndex;
 
         /// <summary>
         /// 槽位类型。
@@ -534,11 +519,6 @@ namespace Moirai.Atropos.Resource
         /// 绑定数量。
         /// </summary>
         public int BindingCount;
-
-        /// <summary>
-        /// 已注册目标数量。
-        /// </summary>
-        public int RegisteredTargetCount;
 
         /// <summary>
         /// 是否有所有者对象。

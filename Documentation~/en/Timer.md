@@ -153,7 +153,7 @@ Custom hosts can also hold independent view instances (`new TimerServiceDebugger
 
 ### Implementation Highlights
 
-- Data is stored in pages of 256 slots across multiple parallel arrays (`TimerPage`), avoiding LOH pressure from large arrays
+- Data is stored in pages of 256 slots across multiple parallel arrays (`WheelPage` / `FramePage`), avoiding LOH pressure from large arrays
 - Each frame's `Update` advances both timing wheels independently, with a budget of at most 64 ticks per wheel per frame to prevent snowballing after long hitches
 - High-level bucket expiration cascades down to lower levels; lookup is purely slot index arithmetic
 - Frame timers live outside the timing wheel in per-phase parallel lists, using a per-slot position table for O(1) swap-remove; dispatch iterates over **handle snapshots**, avoiding the reentrancy risk of in-callback releases and slot reuse

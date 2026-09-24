@@ -126,7 +126,7 @@ namespace Moirai.Atropos.Resource
         {
             // 恢复 Shutdown→Initialize 循环复用契约：处理器实例来自资产 [SerializeReference]，
             // 容器重启后"重新创建"拿到的仍是同一实例，必须复位关闭标志。
-            _isDestroying = false;
+            Store.IsDestroying = false;
 
             // 初始化资源系统
             YooAssets.Initialize(new YooAssetLogger());
@@ -150,10 +150,10 @@ namespace Moirai.Atropos.Resource
         /// </summary>
         protected override void OnShutdown()
         {
-            _isDestroying = true;
-            _assetUnloadGeneration++;
+            Store.IsDestroying = true;
+            Store.UnloadGeneration++;
             _bindingService?.Shutdown();
-            ShutdownLoadingOperations();
+            Store.ShutdownLoadingOperations();
             ForceReleaseAllAssetRecords();
             _packageInitTasks.Clear();
             _packageInitOperations.Clear();
@@ -535,7 +535,7 @@ namespace Moirai.Atropos.Resource
                 return;
             }
 
-            while (!_isDestroying && !operation.IsDone)
+            while (!Store.IsDestroying && !operation.IsDone)
             {
                 await UniTask.Yield();
             }

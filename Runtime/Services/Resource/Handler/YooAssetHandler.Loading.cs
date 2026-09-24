@@ -18,25 +18,25 @@ namespace Moirai.Atropos.Resource
         private UObject GetOrLoadAsset(string location, Type assetType, EResourceAssetKind assetKind,
             string packageName)
         {
-            string normalizedPackageName = NormalizePackageName(packageName);
-            assetKind = NormalizeAssetKind(assetType, assetKind);
-            assetType = NormalizeAssetType(assetType, assetKind);
-            ulong loadingKey = GetLoadingOperationKey(location, normalizedPackageName, assetType, assetKind);
+            string normalizedPackageName = Store.NormalizePackageName(packageName);
+            assetKind = ResourceKeyCodec.NormalizeAssetKind(assetType, assetKind);
+            assetType = ResourceKeyCodec.NormalizeAssetType(assetType, assetKind);
+            ulong loadingKey = Store.GetLoadingOperationKey(location, normalizedPackageName, assetType, assetKind);
 
             while (true)
             {
-                if (_isDestroying)
+                if (Store.IsDestroying)
                 {
                     return null;
                 }
 
-                if (TryGetCachedAssetRecord(normalizedPackageName, location, assetType, assetKind,
+                if (Store.TryGetCachedAssetRecord(normalizedPackageName, location, assetType, assetKind,
                         EResourceHandleKind.AssetHandle, out _, out UObject cachedAsset))
                 {
                     return cachedAsset;
                 }
 
-                if (!TryBeginLoading(loadingKey))
+                if (!Store.TryBeginLoading(loadingKey))
                 {
                     AssetHandle joinHandle = GetHandleSync(location, assetType, packageName);
                     if (joinHandle == null || joinHandle.AssetObject == null ||
@@ -46,21 +46,21 @@ namespace Moirai.Atropos.Resource
                         return null;
                     }
 
-                    GetOrCreateAssetRecord(normalizedPackageName, location, assetType, assetKind,
+                    Store.GetOrCreateAssetRecord(normalizedPackageName, location, assetType, assetKind,
                         EResourceHandleKind.AssetHandle, joinHandle.AssetObject, joinHandle);
-                    return TryGetCachedAssetRecord(normalizedPackageName, location, assetType, assetKind,
+                    return Store.TryGetCachedAssetRecord(normalizedPackageName, location, assetType, assetKind,
                         EResourceHandleKind.AssetHandle, out _, out cachedAsset)
                         ? cachedAsset
                         : null;
                 }
 
-                int loadGeneration = unchecked((int)_assetUnloadGeneration);
+                int loadGeneration = unchecked((int)Store.UnloadGeneration);
                 AssetHandle handle = null;
                 try
                 {
-                    if (!IsLoadingStateCurrent(loadGeneration))
+                    if (!Store.IsLoadingStateCurrent(loadGeneration))
                     {
-                        FailLoading(loadingKey, null);
+                        Store.FailLoading(loadingKey, null);
                         return null;
                     }
 
@@ -72,21 +72,21 @@ namespace Moirai.Atropos.Resource
                             : NewLoadingFailure("Asset", location, normalizedPackageName);
                         DisposeHandle(handle);
                         handle = null;
-                        FailLoading(loadingKey, failure, ELogLevel.Warning);
+                        Store.FailLoading(loadingKey, failure, ELogLevel.Warning);
                         return null;
                     }
 
                     UObject loadedAsset = handle.AssetObject;
-                    GetOrCreateAssetRecord(normalizedPackageName, location, assetType, assetKind,
+                    Store.GetOrCreateAssetRecord(normalizedPackageName, location, assetType, assetKind,
                         EResourceHandleKind.AssetHandle, handle.AssetObject, handle);
                     handle = null; // 所有权已移交记录，异常兜底不得再 dispose
-                    CompleteLoading(loadingKey);
+                    Store.CompleteLoading(loadingKey);
                     return loadedAsset;
                 }
                 catch (Exception ex)
                 {
                     DisposeHandle(handle);
-                    FailLoading(loadingKey, new GameException(StringUtility.Format(
+                    Store.FailLoading(loadingKey, new GameException(StringUtility.Format(
                         "Resource Asset sync load threw. Location:{0} Package:{1} Type:{2}", location,
                         normalizedPackageName, assetType), ex));
                     return null;
@@ -94,15 +94,35 @@ namespace Moirai.Atropos.Resource
             }
         }
 
-        private async UniTask<UObject> GetOrLoadAssetAsync(string location, Type assetType,
+        // 命中路径不进 async：取消/关停/缓存三条判定本来就在首个 await 之前同步跑完，
+        // 但方法体一旦标 async，命中也要为"已经完成的结果"造一趟状态机。剥成同步前缀 + 在途段。
+        private UniTask<UObject> GetOrLoadAssetAsync(string location, Type assetType,
             EResourceAssetKind assetKind, string packageName, ulong loadingKey,
-            uint priority = 0, CancellationToken cancellationToken = default,
-            LoadAssetUpdateCallback loadAssetUpdateCallback = null, object userData = null)
+            uint priority = 0, CancellationToken cancellationToken = default)
         {
-            string normalizedPackageName = NormalizePackageName(packageName);
-            assetKind = NormalizeAssetKind(assetType, assetKind);
-            assetType = NormalizeAssetType(assetType, assetKind);
+            string normalizedPackageName = Store.NormalizePackageName(packageName);
+            assetKind = ResourceKeyCodec.NormalizeAssetKind(assetType, assetKind);
+            assetType = ResourceKeyCodec.NormalizeAssetType(assetType, assetKind);
 
+            if (cancellationToken.IsCancellationRequested || Store.IsDestroying)
+            {
+                return UniTask.FromResult<UObject>(null);
+            }
+
+            if (Store.TryGetCachedAssetRecord(normalizedPackageName, location, assetType, assetKind,
+                    EResourceHandleKind.AssetHandle, out _, out UObject cachedAsset))
+            {
+                return UniTask.FromResult(cachedAsset);
+            }
+
+            return GetOrLoadAssetPendingAsync(location, assetType, assetKind, normalizedPackageName, loadingKey,
+                priority, cancellationToken);
+        }
+
+        private async UniTask<UObject> GetOrLoadAssetPendingAsync(string location, Type assetType,
+            EResourceAssetKind assetKind, string normalizedPackageName, ulong loadingKey,
+            uint priority, CancellationToken cancellationToken)
+        {
             while (true)
             {
                 if (cancellationToken.IsCancellationRequested)
@@ -110,20 +130,20 @@ namespace Moirai.Atropos.Resource
                     return null;
                 }
 
-                if (_isDestroying)
+                if (Store.IsDestroying)
                 {
                     return null;
                 }
 
-                if (TryGetCachedAssetRecord(normalizedPackageName, location, assetType, assetKind,
+                if (Store.TryGetCachedAssetRecord(normalizedPackageName, location, assetType, assetKind,
                         EResourceHandleKind.AssetHandle, out _, out UObject cachedAsset))
                 {
                     return cachedAsset;
                 }
 
-                if (!TryBeginLoading(loadingKey))
+                if (!Store.TryBeginLoading(loadingKey))
                 {
-                    if (!await WaitForLoadingAsync(loadingKey, cancellationToken))
+                    if (!await Store.WaitForLoadingAsync(loadingKey, cancellationToken))
                     {
                         return null;
                     }
@@ -131,26 +151,25 @@ namespace Moirai.Atropos.Resource
                     continue;
                 }
 
-                int loadGeneration = unchecked((int)_assetUnloadGeneration);
+                int loadGeneration = unchecked((int)Store.UnloadGeneration);
                 AssetHandle handle = null;
                 try
                 {
-                    if (!IsLoadingStateCurrent(loadGeneration))
+                    if (!Store.IsLoadingStateCurrent(loadGeneration))
                     {
-                        FailLoading(loadingKey, null);
+                        Store.FailLoading(loadingKey, null);
                         return null;
                     }
 
-                    handle = GetHandleAsync(location, assetType, packageName: packageName, priority: priority);
+                    handle = GetHandleAsync(location, assetType, packageName: normalizedPackageName, priority: priority);
                     if (handle == null)
                     {
-                        FailLoading(loadingKey, NewLoadingFailure("Asset", location, normalizedPackageName),
+                        Store.FailLoading(loadingKey, NewLoadingFailure("Asset", location, normalizedPackageName),
                             ELogLevel.Warning);
                         return null;
                     }
 
                     AttachLoadingAssetHandle(loadingKey, handle);
-                    StartProgressTask(location, handle, loadAssetUpdateCallback, userData, cancellationToken);
                     bool callerCancellationRequested = false;
                     if (!handle.IsDone)
                     {
@@ -162,19 +181,19 @@ namespace Moirai.Atropos.Resource
                         callerCancellationRequested = true;
                     }
 
-                    if (!IsLoadingStateCurrent(loadGeneration))
+                    if (!Store.IsLoadingStateCurrent(loadGeneration))
                     {
                         DisposeHandle(handle);
                         handle = null;
-                        FailLoading(loadingKey, null);
+                        Store.FailLoading(loadingKey, null);
                         return null;
                     }
 
-                    if (ShouldAbortLoadingAfterCallerCancellation(loadingKey, cancellationToken, ref callerCancellationRequested))
+                    if (Store.ShouldAbortLoadingAfterCallerCancellation(loadingKey, cancellationToken, ref callerCancellationRequested))
                     {
                         DisposeHandle(handle);
                         handle = null;
-                        FailLoading(loadingKey, null);
+                        Store.FailLoading(loadingKey, null);
                         return null;
                     }
 
@@ -184,28 +203,28 @@ namespace Moirai.Atropos.Resource
                             handle.Error);
                         DisposeHandle(handle);
                         handle = null;
-                        FailLoading(loadingKey, failure, ELogLevel.Warning);
+                        Store.FailLoading(loadingKey, failure, ELogLevel.Warning);
                         return null;
                     }
 
-                    if (_isDestroying)
+                    if (Store.IsDestroying)
                     {
                         DisposeHandle(handle);
                         handle = null;
-                        FailLoading(loadingKey, null);
+                        Store.FailLoading(loadingKey, null);
                         return null;
                     }
 
-                    GetOrCreateAssetRecord(normalizedPackageName, location, assetType, assetKind,
+                    Store.GetOrCreateAssetRecord(normalizedPackageName, location, assetType, assetKind,
                         EResourceHandleKind.AssetHandle, handle.AssetObject, handle);
                     handle = null; // 所有权已移交记录，异常兜底不得再 dispose
-                    CompleteLoading(loadingKey);
+                    Store.CompleteLoading(loadingKey);
                     if (callerCancellationRequested)
                     {
                         return null;
                     }
 
-                    return TryGetCachedAssetRecord(normalizedPackageName, location, assetType, assetKind,
+                    return Store.TryGetCachedAssetRecord(normalizedPackageName, location, assetType, assetKind,
                             EResourceHandleKind.AssetHandle, out _, out cachedAsset)
                         ? cachedAsset
                         : null;
@@ -214,13 +233,13 @@ namespace Moirai.Atropos.Resource
                 {
                     // 取消按契约吞成 null；去重槽必须闭环失败，否则同资源后续并发加载会在 WaitForLoadingAsync 里空转。
                     DisposeHandle(handle);
-                    FailLoading(loadingKey, null);
+                    Store.FailLoading(loadingKey, null);
                     return null;
                 }
                 catch (Exception ex)
                 {
                     DisposeHandle(handle);
-                    FailLoading(loadingKey, new GameException(StringUtility.Format(
+                    Store.FailLoading(loadingKey, new GameException(StringUtility.Format(
                         "Resource Asset load threw. Location:{0} Package:{1} Type:{2}", location, normalizedPackageName,
                         assetType), ex));
                     return null;
@@ -228,42 +247,143 @@ namespace Moirai.Atropos.Resource
             }
         }
 
-        private bool TryBeginLoading(ulong assetObjectKey)
+        // 图集命中时整条路径没有任何可等的东西，却仍要为已完成的结果造一趟状态机；
+        // 这条入口是 SetSubSprite 绑定的热路径，所以同步前缀剥在这里。
+        internal override UniTask<ResourceLeaseHandle> AcquireSubAssetsBindingAsync(string location,
+            string packageName, EResourceLeaseOption options, CancellationToken cancellationToken)
         {
-            bool keyAlreadyRetained = false;
-            if (_assetLoadingOperationByKey.TryGetValue(assetObjectKey, out int existingSlotIndex))
+            if (string.IsNullOrEmpty(location))
             {
-                if (IsValidLoadingOperationSlotId(existingSlotIndex))
+                return UniTask.FromResult(ResourceLeaseHandle.Invalid);
+            }
+
+            string normalizedPackageName = Store.NormalizePackageName(packageName);
+            ulong loadingKey = Store.GetLoadingOperationKey(location, normalizedPackageName, typeof(Sprite),
+                EResourceAssetKind.SubAssets);
+
+            if (cancellationToken.IsCancellationRequested || Store.IsDestroying)
+            {
+                return UniTask.FromResult(ResourceLeaseHandle.Invalid);
+            }
+
+            if (Store.TryGetCachedSubAssetsRecord(normalizedPackageName, location, out int cachedAssetId))
+            {
+                return UniTask.FromResult(Store.AcquireLease(cachedAssetId, EResourceLeaseKind.Binding, options));
+            }
+
+            return AcquireSubAssetsPendingAsync(location, normalizedPackageName, loadingKey, options,
+                cancellationToken);
+        }
+
+        private async UniTask<ResourceLeaseHandle> AcquireSubAssetsPendingAsync(string location,
+            string normalizedPackageName, ulong loadingKey, EResourceLeaseOption options,
+            CancellationToken cancellationToken)
+        {
+            while (true)
+            {
+                if (cancellationToken.IsCancellationRequested || Store.IsDestroying)
                 {
-                    ref LoadingOperationSlot existingSlot = ref GetLoadingOperationSlotRef(existingSlotIndex);
-                    if (existingSlot.State == 1 && existingSlot.Key == assetObjectKey &&
-                        existingSlot.Operation != null)
-                    {
-                        return false;
-                    }
+                    return ResourceLeaseHandle.Invalid;
                 }
 
-                _assetLoadingOperationByKey.Remove(assetObjectKey);
-                keyAlreadyRetained = true;
-            }
+                if (Store.TryGetCachedSubAssetsRecord(normalizedPackageName, location, out int cachedAssetId))
+                {
+                    return Store.AcquireLease(cachedAssetId, EResourceLeaseKind.Binding, options);
+                }
 
-            int slotIndex = AllocateLoadingOperationSlot();
-            ref LoadingOperationSlot slot = ref GetLoadingOperationSlotRef(slotIndex);
-            slot.Key = assetObjectKey;
-            slot.Operation = MemoryPool.Acquire<LoadingOperationState>();
-            slot.State = 1;
-            _assetLoadingOperationByKey.Set(assetObjectKey, slotIndex);
-            if (!keyAlreadyRetained)
-            {
-                RetainResourceKey(assetObjectKey);
-            }
+                if (!Store.TryBeginLoading(loadingKey))
+                {
+                    // 同一图集并发绑定：并入赢家的加载，不再各自发起一次 SubAssets 请求
+                    if (!await Store.WaitForLoadingAsync(loadingKey, cancellationToken))
+                    {
+                        return ResourceLeaseHandle.Invalid;
+                    }
 
-            return true;
+                    continue;
+                }
+
+                int loadGeneration = unchecked((int)Store.UnloadGeneration);
+                SubAssetsHandle subHandle = null;
+                try
+                {
+                    if (!Store.IsLoadingStateCurrent(loadGeneration))
+                    {
+                        Store.FailLoading(loadingKey, null);
+                        return ResourceLeaseHandle.Invalid;
+                    }
+
+                    subHandle = GetSubAssetsHandleAsync(location, normalizedPackageName);
+                    if (subHandle == null)
+                    {
+                        Store.FailLoading(loadingKey, NewLoadingFailure("SubAssets", location, normalizedPackageName),
+                            ELogLevel.Warning);
+                        return ResourceLeaseHandle.Invalid;
+                    }
+
+                    AttachLoadingSubAssetsHandle(loadingKey, subHandle);
+                    bool callerCancellationRequested = false;
+                    if (!subHandle.IsDone)
+                    {
+                        await subHandle.ToUniTask(cancellationToken: cancellationToken);
+                    }
+
+                    if (cancellationToken.IsCancellationRequested)
+                    {
+                        callerCancellationRequested = true;
+                    }
+
+                    if (!Store.IsLoadingStateCurrent(loadGeneration))
+                    {
+                        // 强卸载/关停已发生：句柄原样交回，绝不写进已 Dispose 的 Package
+                        DisposeHandle(subHandle);
+                        subHandle = null;
+                        Store.FailLoading(loadingKey, null);
+                        return ResourceLeaseHandle.Invalid;
+                    }
+
+                    bool abortedByCallerCancellation = Store.ShouldAbortLoadingAfterCallerCancellation(loadingKey,
+                        cancellationToken, ref callerCancellationRequested);
+                    bool loadFailed = !subHandle.IsValid || subHandle.Status == EOperationStatus.Failed;
+                    if (abortedByCallerCancellation || loadFailed)
+                    {
+                        Exception failure = !abortedByCallerCancellation && loadFailed
+                            ? NewLoadingFailure("SubAssets", location, normalizedPackageName, subHandle.Status,
+                                subHandle.Error)
+                            : null;
+                        DisposeHandle(subHandle);
+                        subHandle = null;
+                        Store.FailLoading(loadingKey, failure, ELogLevel.Warning);
+                        return ResourceLeaseHandle.Invalid;
+                    }
+
+                    int assetId = Store.GetOrCreateSubAssetsRecord(normalizedPackageName, location, subHandle);
+                    subHandle = null; // 所有权已移交记录，异常兜底不得再 dispose
+                    Store.CompleteLoading(loadingKey);
+                    return callerCancellationRequested
+                        ? ResourceLeaseHandle.Invalid
+                        : Store.AcquireLease(assetId, EResourceLeaseKind.Binding, options);
+                }
+                catch (OperationCanceledException)
+                {
+                    // 取消是本 API 的正常出口（契约返回 Invalid，不抛出），但已预留的去重槽必须闭环失败，
+                    // 否则同图集后续并发绑定会在 WaitForLoadingAsync 里空转到各自超时/关停。
+                    DisposeHandle(subHandle);
+                    Store.FailLoading(loadingKey, null);
+                    return ResourceLeaseHandle.Invalid;
+                }
+                catch (Exception ex)
+                {
+                    DisposeHandle(subHandle);
+                    Store.FailLoading(loadingKey, new GameException(StringUtility.Format(
+                        "Resource SubAssets load threw. Location:{0} Package:{1}", location, normalizedPackageName), ex));
+                    return ResourceLeaseHandle.Invalid;
+                }
+            }
         }
 
         private void AttachLoadingAssetHandle(ulong assetObjectKey, AssetHandle handle)
         {
-            if (TryGetLoadingOperation(assetObjectKey, out LoadingOperationState loadingOperation))
+            if (Store.TryGetLoadingOperation(assetObjectKey, out LoadingOperationState loadingOperation))
             {
                 loadingOperation.AssetHandle = handle;
             }
@@ -271,80 +391,10 @@ namespace Moirai.Atropos.Resource
 
         private void AttachLoadingSubAssetsHandle(ulong assetObjectKey, SubAssetsHandle handle)
         {
-            if (TryGetLoadingOperation(assetObjectKey, out LoadingOperationState loadingOperation))
+            if (Store.TryGetLoadingOperation(assetObjectKey, out LoadingOperationState loadingOperation))
             {
                 loadingOperation.SubAssetsHandle = handle;
             }
-        }
-
-        private async UniTask<bool> WaitForLoadingAsync(ulong assetObjectKey,
-            CancellationToken cancellationToken = default)
-        {
-            if (!TryGetLoadingOperation(assetObjectKey, out LoadingOperationState loadingOperation))
-            {
-                return true;
-            }
-
-            loadingOperation.AddWaiter();
-            try
-            {
-                while (!loadingOperation.IsDone)
-                {
-                    if (cancellationToken.IsCancellationRequested || _isDestroying)
-                    {
-                        return false;
-                    }
-
-                    await UniTask.Yield();
-                }
-
-                return loadingOperation.Succeeded;
-            }
-            finally
-            {
-                // 等待者计数一旦泄漏，去重槽连同它持有的 AssetHandle 再也回不了池（map 条目已先摘除，泄漏是无声的）。
-                loadingOperation.RemoveWaiter();
-                ReleaseLoadingOperationIfReady(loadingOperation);
-            }
-        }
-
-        private void CompleteLoading(ulong assetObjectKey)
-        {
-            if (!TryRemoveLoadingOperation(assetObjectKey, out LoadingOperationState loadingOperation))
-            {
-                return;
-            }
-
-            loadingOperation.Complete(true);
-            loadingOperation.RequestRelease();
-            ReleaseLoadingOperationIfReady(loadingOperation);
-        }
-
-        private void FailLoading(ulong assetObjectKey, Exception exception,
-            ELogLevel level = ELogLevel.Error)
-        {
-            if (exception != null)
-            {
-                // 失败原因若在此被丢弃，等待方只会拿到 null 且日志里查不到加载为什么失败。
-                // 分级对齐 RETHROW 约定：可预期的资源加载失败降为 Warning，意外异常仍以 Error 留痕。
-                if (level == ELogLevel.Warning)
-                {
-                    LogUtility.Warning(exception);
-                }
-                else
-                {
-                    LogUtility.Error(exception);
-                }
-            }
-
-            if (!TryRemoveLoadingOperation(assetObjectKey, out LoadingOperationState loadingOperation))
-            {
-                return;
-            }
-
-            loadingOperation.Complete(false);
-            loadingOperation.RequestRelease();
-            ReleaseLoadingOperationIfReady(loadingOperation);
         }
 
         private static GameException NewLoadingFailure(string operation, string location, string packageName)
@@ -360,143 +410,6 @@ namespace Moirai.Atropos.Resource
             return new GameException(StringUtility.Format(
                 "Resource {0} load failed. Location:{1} Package:{2} Status:{3} Error:{4}",
                 operation, location, packageName, status.ToString(), error ?? string.Empty));
-        }
-
-        private bool TryGetLoadingOperation(ulong assetObjectKey, out LoadingOperationState loadingOperation)
-        {
-            loadingOperation = null;
-            if (!_assetLoadingOperationByKey.TryGetValue(assetObjectKey, out int slotIndex) ||
-                !IsValidLoadingOperationSlotId(slotIndex))
-            {
-                return false;
-            }
-
-            ref LoadingOperationSlot slot = ref GetLoadingOperationSlotRef(slotIndex);
-            if (slot.State != 1 || slot.Key != assetObjectKey || slot.Operation == null)
-            {
-                return false;
-            }
-
-            loadingOperation = slot.Operation;
-            return true;
-        }
-
-        private bool TryRemoveLoadingOperation(ulong assetObjectKey, out LoadingOperationState loadingOperation)
-        {
-            loadingOperation = null;
-            if (!_assetLoadingOperationByKey.TryGetValue(assetObjectKey, out int slotIndex) ||
-                !IsValidLoadingOperationSlotId(slotIndex))
-            {
-                return false;
-            }
-
-            ref LoadingOperationSlot slot = ref GetLoadingOperationSlotRef(slotIndex);
-            if (slot.State != 1 || slot.Key != assetObjectKey || slot.Operation == null)
-            {
-                _assetLoadingOperationByKey.Remove(assetObjectKey);
-                ReleaseResourceKey(assetObjectKey);
-                return false;
-            }
-
-            loadingOperation = slot.Operation;
-            _assetLoadingOperationByKey.Remove(assetObjectKey);
-            ReleaseResourceKey(assetObjectKey);
-            FreeLoadingOperationSlot(slotIndex);
-            return true;
-        }
-
-        private bool HasLoadingWaiters(ulong assetObjectKey)
-        {
-            return TryGetLoadingOperation(assetObjectKey, out LoadingOperationState loadingOperation) &&
-                   loadingOperation.WaiterCount > 0;
-        }
-
-        private bool IsLoadingStateCurrent(int loadGeneration)
-        {
-            return !_isDestroying && loadGeneration == unchecked((int)_assetUnloadGeneration);
-        }
-
-        private bool ShouldAbortLoadingAfterCallerCancellation(ulong assetObjectKey,
-            CancellationToken cancellationToken, ref bool callerCancellationRequested)
-        {
-            if (cancellationToken.IsCancellationRequested)
-            {
-                callerCancellationRequested = true;
-            }
-
-            return callerCancellationRequested && !HasLoadingWaiters(assetObjectKey);
-        }
-
-        private static void ReleaseLoadingOperationIfReady(LoadingOperationState loadingOperation)
-        {
-            if (loadingOperation is { ReleaseRequested: true, WaiterCount: 0 })
-            {
-                MemoryPool.Release(loadingOperation);
-            }
-        }
-
-        private void ShutdownLoadingOperations()
-        {
-            int total = _loadingOperationSlotNextIndex;
-            for (int i = 0; i < total; i++)
-            {
-                ref LoadingOperationSlot slot = ref GetLoadingOperationSlotRef(i);
-                if (slot.State != 1 || slot.Operation == null)
-                {
-                    continue;
-                }
-
-                LoadingOperationState loadingOperation = slot.Operation;
-                loadingOperation.Complete(false);
-                loadingOperation.RequestRelease();
-                ReleaseLoadingOperationIfReady(loadingOperation);
-                ClearLoadingOperationSlot(ref slot);
-            }
-
-            ReleaseAllResourceKeysFromMap(_assetLoadingOperationByKey);
-            _assetLoadingOperationByKey.Clear();
-            _loadingOperationSlotPages = null;
-            _loadingOperationSlotNextIndex = 0;
-            _loadingOperationSlotFreeHead = -1;
-        }
-
-        private void StartProgressTask(string location, AssetHandle handle,
-            LoadAssetUpdateCallback loadAssetUpdateCallback, object userData, CancellationToken cancellationToken)
-        {
-            if (loadAssetUpdateCallback != null && handle is { IsValid: true, IsDone: false })
-            {
-                InvokeProgress(location, handle, loadAssetUpdateCallback, userData, cancellationToken).Forget();
-            }
-        }
-
-        private async UniTaskVoid InvokeProgress(string location, AssetHandle assetHandle,
-            LoadAssetUpdateCallback loadAssetUpdateCallback, object userData, CancellationToken cancellationToken)
-        {
-            if (loadAssetUpdateCallback != null)
-            {
-                float lastReportedProgress = -1f;
-                while (assetHandle is { IsValid: true, IsDone: false })
-                {
-                    if (cancellationToken.IsCancellationRequested)
-                    {
-                        return;
-                    }
-
-                    await UniTask.Yield();
-                    float progress = assetHandle.Progress;
-                    if (lastReportedProgress < 0f || progress - lastReportedProgress >= PROGRESS_CALLBACK_THRESHOLD)
-                    {
-                        lastReportedProgress = progress;
-                        loadAssetUpdateCallback.Invoke(location, progress, userData);
-                    }
-                }
-
-                if (!cancellationToken.IsCancellationRequested && assetHandle is { IsValid: true } &&
-                    lastReportedProgress < 1f)
-                {
-                    loadAssetUpdateCallback.Invoke(location, 1f, userData);
-                }
-            }
         }
 
         private SubAssetsHandle GetSubAssetsHandleAsync(string location, string packageName)

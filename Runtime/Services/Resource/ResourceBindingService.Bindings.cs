@@ -31,21 +31,21 @@ namespace Moirai.Atropos.Resource
             ResourceKey spriteKey = key.AssetType == null
                 ? new ResourceKey(key.Location, key.PackageName, typeof(Sprite), EResourceAssetKind.Sprite)
                 : key;
-            ResourceLeaseHandle newLease = _handler.AcquireBinding(spriteKey);
+            ResourceLeaseHandle newLease = _leaseSource.AcquireBinding(spriteKey);
             if (!newLease.IsValid)
             {
                 return EResourceBindStatus.LoadFailed;
             }
 
-            if (!_handler.TryGetLeaseAsset(newLease, out UObject asset) || asset is not Sprite sprite)
+            if (!_leaseSource.TryGetLeaseAsset(newLease, out UObject asset) || asset is not Sprite sprite)
             {
-                _handler.Release(newLease);
+                _leaseSource.Release(newLease);
                 return EResourceBindStatus.LoadFailed;
             }
 
             if (!ApplySprite(image, sprite))
             {
-                _handler.Release(newLease);
+                _leaseSource.Release(newLease);
                 return EResourceBindStatus.ApplyFailed;
             }
 
@@ -70,21 +70,21 @@ namespace Moirai.Atropos.Resource
             ResourceKey spriteKey = key.AssetType == null
                 ? new ResourceKey(key.Location, key.PackageName, typeof(Sprite), EResourceAssetKind.Sprite)
                 : key;
-            ResourceLeaseHandle newLease = _handler.AcquireBinding(spriteKey);
+            ResourceLeaseHandle newLease = _leaseSource.AcquireBinding(spriteKey);
             if (!newLease.IsValid)
             {
                 return EResourceBindStatus.LoadFailed;
             }
 
-            if (!_handler.TryGetLeaseAsset(newLease, out UObject asset) || asset is not Sprite sprite)
+            if (!_leaseSource.TryGetLeaseAsset(newLease, out UObject asset) || asset is not Sprite sprite)
             {
-                _handler.Release(newLease);
+                _leaseSource.Release(newLease);
                 return EResourceBindStatus.LoadFailed;
             }
 
             if (!ApplySprite(spriteRenderer, sprite))
             {
-                _handler.Release(newLease);
+                _leaseSource.Release(newLease);
                 return EResourceBindStatus.ApplyFailed;
             }
 
@@ -93,17 +93,19 @@ namespace Moirai.Atropos.Resource
         }
 
         /// <inheritdoc />
-        public async UniTask<EResourceBindStatus> BindSubSpriteAsync(ResourceOwner owner, Image image,
+        public UniTask<EResourceBindStatus> BindSubSpriteAsync(ResourceOwner owner, Image image,
             ResourceKey atlasKey, string spriteName, EResourceBindingOption options = EResourceBindingOption.None,
             CancellationToken cancellationToken = default)
         {
             if (image == null)
             {
-                return EResourceBindStatus.MissingTarget;
+                return UniTask.FromResult(EResourceBindStatus.MissingTarget);
             }
 
             // SetNativeSize 由 RegisterSpriteSource 统一处理。
-            return await BindSubSpriteSourceAsync(owner, image, atlasKey, spriteName,
+            // 与 SpriteRenderer 孪生一致直接转发：这里的 async/await 只是多垫一层状态机，
+            // 底下返回的本来就是 UniTask。
+            return BindSubSpriteSourceAsync(owner, image, atlasKey, spriteName,
                 EResourceBindingSlotType.SubSprite, options, cancellationToken);
         }
 
@@ -144,9 +146,21 @@ namespace Moirai.Atropos.Resource
                 return reserveStatus;
             }
 
-            ResourceLeaseHandle newLease = await _handler.AcquireSubAssetsBindingAsync(
-                atlasKey.Location, atlasKey.PackageName,
-                ToLeaseOptions(options), cancellationToken);
+            // 取用抛出时必须先取消预约位：后端未实现该异步能力时无条件抛（见 AddressableHandler），
+            // 而抛出的预约位形状是"有目标、有版本号、无租约无资源"——除所有者释放外无人再收它。
+            ResourceLeaseHandle newLease;
+            try
+            {
+                newLease = await _leaseSource.AcquireSubAssetsBindingAsync(
+                    atlasKey.Location, atlasKey.PackageName,
+                    ToLeaseOptions(options), cancellationToken);
+            }
+            catch
+            {
+                CancelReservedBindingRequest(ownerId, ownerGeneration, slotKey, requestVersion);
+                throw;
+            }
+
             if (!newLease.IsValid)
             {
                 CancelReservedBindingRequest(ownerId, ownerGeneration, slotKey, requestVersion);
@@ -156,14 +170,14 @@ namespace Moirai.Atropos.Resource
             if (!IsBindingRequestCurrent(ownerId, ownerGeneration, targetComponentId, targetGameObjectId,
                     slotKey, requestVersion, target))
             {
-                _handler.Release(newLease);
+                _leaseSource.Release(newLease);
                 CancelReservedBindingRequest(ownerId, ownerGeneration, slotKey, requestVersion);
                 return EResourceBindStatus.StaleOwner;
             }
 
-            if (!_handler.TryGetSubSpriteAsset(newLease, spriteName, out Sprite sprite))
+            if (!_leaseSource.TryGetSubSpriteAsset(newLease, spriteName, out Sprite sprite))
             {
-                _handler.Release(newLease);
+                _leaseSource.Release(newLease);
                 CancelReservedBindingRequest(ownerId, ownerGeneration, slotKey, requestVersion);
                 return EResourceBindStatus.LoadFailed;
             }
@@ -172,16 +186,16 @@ namespace Moirai.Atropos.Resource
                 !IsBindingRequestCurrent(ownerId, ownerGeneration, targetComponentId, targetGameObjectId,
                     slotKey, requestVersion, target))
             {
-                _handler.Release(newLease);
+                _leaseSource.Release(newLease);
                 CancelReservedBindingRequest(ownerId, ownerGeneration, slotKey, requestVersion);
                 return cancellationToken.IsCancellationRequested
-                    ? EResourceBindStatus.LoadFailed
+                    ? EResourceBindStatus.Cancelled
                     : EResourceBindStatus.StaleOwner;
             }
 
             if (!ApplySprite(target, sprite))
             {
-                _handler.Release(newLease);
+                _leaseSource.Release(newLease);
                 CancelReservedBindingRequest(ownerId, ownerGeneration, slotKey, requestVersion);
                 return EResourceBindStatus.ApplyFailed;
             }
@@ -207,21 +221,21 @@ namespace Moirai.Atropos.Resource
             ResourceKey materialKey = key.AssetType == null
                 ? new ResourceKey(key.Location, key.PackageName, typeof(Material), EResourceAssetKind.Material)
                 : key;
-            ResourceLeaseHandle newLease = _handler.AcquireBinding(materialKey);
+            ResourceLeaseHandle newLease = _leaseSource.AcquireBinding(materialKey);
             if (!newLease.IsValid)
             {
                 return EResourceBindStatus.LoadFailed;
             }
 
-            if (!_handler.TryGetLeaseAsset(newLease, out UObject asset) || asset is not Material mat)
+            if (!_leaseSource.TryGetLeaseAsset(newLease, out UObject asset) || asset is not Material mat)
             {
-                _handler.Release(newLease);
+                _leaseSource.Release(newLease);
                 return EResourceBindStatus.LoadFailed;
             }
 
             if (!ApplyMaterial(image, mat))
             {
-                _handler.Release(newLease);
+                _leaseSource.Release(newLease);
                 return EResourceBindStatus.ApplyFailed;
             }
 
@@ -257,7 +271,16 @@ namespace Moirai.Atropos.Resource
             ResourceKey materialKey = key.AssetType == null
                 ? new ResourceKey(key.Location, key.PackageName, typeof(Material), EResourceAssetKind.Material)
                 : key;
-            ResourceLeaseHandle newLease = await _handler.AcquireBindingAsync(materialKey, cancellationToken);
+            ResourceLeaseHandle newLease;
+            try
+            {
+                newLease = await _leaseSource.AcquireBindingAsync(materialKey, cancellationToken);
+            }
+            catch
+            {
+                CancelReservedBindingRequest(ownerId, ownerGeneration, slotKey, requestVersion);
+                throw;
+            }
             if (!newLease.IsValid)
             {
                 CancelReservedBindingRequest(ownerId, ownerGeneration, slotKey, requestVersion);
@@ -267,14 +290,14 @@ namespace Moirai.Atropos.Resource
             if (!IsBindingRequestCurrent(ownerId, ownerGeneration, targetComponentId, targetGameObjectId,
                     slotKey, requestVersion, image))
             {
-                _handler.Release(newLease);
+                _leaseSource.Release(newLease);
                 CancelReservedBindingRequest(ownerId, ownerGeneration, slotKey, requestVersion);
                 return EResourceBindStatus.StaleOwner;
             }
 
-            if (!_handler.TryGetLeaseAsset(newLease, out UObject asset) || asset is not Material mat)
+            if (!_leaseSource.TryGetLeaseAsset(newLease, out UObject asset) || asset is not Material mat)
             {
-                _handler.Release(newLease);
+                _leaseSource.Release(newLease);
                 CancelReservedBindingRequest(ownerId, ownerGeneration, slotKey, requestVersion);
                 return EResourceBindStatus.LoadFailed;
             }
@@ -283,16 +306,16 @@ namespace Moirai.Atropos.Resource
                 !IsBindingRequestCurrent(ownerId, ownerGeneration, targetComponentId, targetGameObjectId,
                     slotKey, requestVersion, image))
             {
-                _handler.Release(newLease);
+                _leaseSource.Release(newLease);
                 CancelReservedBindingRequest(ownerId, ownerGeneration, slotKey, requestVersion);
                 return cancellationToken.IsCancellationRequested
-                    ? EResourceBindStatus.LoadFailed
+                    ? EResourceBindStatus.Cancelled
                     : EResourceBindStatus.StaleOwner;
             }
 
             if (!ApplyMaterial(image, mat))
             {
-                _handler.Release(newLease);
+                _leaseSource.Release(newLease);
                 CancelReservedBindingRequest(ownerId, ownerGeneration, slotKey, requestVersion);
                 return EResourceBindStatus.ApplyFailed;
             }
@@ -305,7 +328,7 @@ namespace Moirai.Atropos.Resource
         public EResourceBindStatus BindSharedMaterial(ResourceOwner owner, Renderer renderer, ResourceKey key,
             EResourceBindingOption options = EResourceBindingOption.None)
         {
-            return BindMaterialInternal(owner, renderer, key, false, options, 0, default, false);
+            return BindMaterialInternal(owner, renderer, key, false, options);
         }
 
         /// <inheritdoc />
@@ -320,7 +343,7 @@ namespace Moirai.Atropos.Resource
         public EResourceBindStatus BindMaterialInstance(ResourceOwner owner, Renderer renderer, ResourceKey key,
             EResourceBindingOption options = EResourceBindingOption.None)
         {
-            return BindMaterialInternal(owner, renderer, key, true, options, 0, default, false);
+            return BindMaterialInternal(owner, renderer, key, true, options);
         }
 
         /// <inheritdoc />
@@ -346,7 +369,7 @@ namespace Moirai.Atropos.Resource
 
             ref OwnerSlot ownerSlot = ref GetOwnerSlotRef(ownerIndex);
             BindingSlotKey slotKey = new BindingSlotKey(ownerSlot.GameObjectId,
-                EResourceBindingSlotType.PrefabSource, 0);
+                EResourceBindingSlotType.PrefabSource);
             OwnerSlotKey key = new OwnerSlotKey(ownerSlot.OwnerId, slotKey);
             if (!_bindingIndexByOwnerSlot.TryGetValue(key, out int bindingIndex))
             {
@@ -368,21 +391,21 @@ namespace Moirai.Atropos.Resource
             binding.Target = owner;
             binding.AppliedAsset = prefabSource;
             binding.RuntimeObject = null;
-            binding.AssetId = _handler.TryGetLeaseAssetId(lease, out int assetId) ? assetId : -1;
-            binding.ViewKeyId = 0;
+            binding.AssetId = _leaseSource.TryGetLeaseAssetId(lease, out int assetId) ? assetId : -1;
             binding.Lease = lease;
             binding.SlotType = EResourceBindingSlotType.PrefabSource;
             binding.Flags = (byte)EResourceBindingOption.KeepAliveOnRelease;
-            _handler.SetLeaseOptions(lease, EResourceLeaseOption.KeepAliveOnRelease);
+            _leaseSource.SetLeaseOptions(lease, EResourceLeaseOption.KeepAliveOnRelease);
             binding.Version++;
             if (oldLease.IsValid)
             {
-                _handler.Release(oldLease);
+                _leaseSource.Release(oldLease);
             }
 
             return EResourceBindStatus.Success;
         }
 
+        // 5 参重载是清扫测试造绑定数据的接缝，生产路径一律走下面的完整重载。
         internal EResourceBindStatus RegisterSpriteSource(ResourceOwner owner, Component target,
             ResourceLeaseHandle lease, Sprite sprite, EResourceBindingSlotType slotType)
         {
@@ -410,7 +433,9 @@ namespace Moirai.Atropos.Resource
             }
 
             ref OwnerSlot ownerSlot = ref GetOwnerSlotRef(ownerIndex);
-            BindingSlotKey slotKey = new BindingSlotKey(UnityObjectId.Get(target), slotType, 0);
+            // 同一个目标的组件 id 原先在这里和下面各算一次，每次都是一趟 managed→native 往返。
+            ulong targetComponentId = UnityObjectId.Get(target);
+            BindingSlotKey slotKey = new BindingSlotKey(targetComponentId, slotType);
             OwnerSlotKey ownerSlotKey = new OwnerSlotKey(ownerSlot.OwnerId, slotKey);
             if (!_bindingIndexByOwnerSlot.TryGetValue(ownerSlotKey, out int bindingIndex))
             {
@@ -427,17 +452,16 @@ namespace Moirai.Atropos.Resource
             binding.SlotKey = slotKey;
             binding.OwnerId = ownerSlot.OwnerId;
             binding.TargetGameObjectId = UnityObjectId.Get(target.gameObject);
-            binding.TargetComponentId = UnityObjectId.Get(target);
+            binding.TargetComponentId = targetComponentId;
             binding.OwnerGeneration = ownerSlot.Generation;
             binding.Target = target;
             binding.AppliedAsset = sprite;
             binding.RuntimeObject = null;
-            binding.AssetId = _handler.TryGetLeaseAssetId(lease, out int assetId) ? assetId : -1;
-            binding.ViewKeyId = 0;
+            binding.AssetId = _leaseSource.TryGetLeaseAssetId(lease, out int assetId) ? assetId : -1;
             binding.Lease = lease;
             binding.SlotType = slotType;
             binding.Flags = (byte)options;
-            _handler.SetLeaseOptions(lease, ToLeaseOptions(options));
+            _leaseSource.SetLeaseOptions(lease, ToLeaseOptions(options));
             if (reservedVersion != 0 && binding.Version == reservedVersion)
             {
                 binding.Version = reservedVersion;
@@ -449,7 +473,7 @@ namespace Moirai.Atropos.Resource
 
             if (oldLease.IsValid)
             {
-                _handler.Release(oldLease);
+                _leaseSource.Release(oldLease);
             }
 
             if ((options & EResourceBindingOption.SetNativeSize) != 0 && target is Image img)
@@ -458,14 +482,6 @@ namespace Moirai.Atropos.Resource
             }
 
             return EResourceBindStatus.Success;
-        }
-
-        internal EResourceBindStatus RegisterMaterialSource(ResourceOwner owner, Component target,
-            ResourceLeaseHandle lease, Material appliedMaterial, Material runtimeMaterial,
-            EResourceBindingSlotType slotType)
-        {
-            return RegisterMaterialSource(owner, target, lease, appliedMaterial, runtimeMaterial, slotType,
-                EResourceBindingOption.None, 0);
         }
 
         private EResourceBindStatus RegisterMaterialSource(ResourceOwner owner, Component target,
@@ -489,7 +505,9 @@ namespace Moirai.Atropos.Resource
             }
 
             ref OwnerSlot ownerSlot = ref GetOwnerSlotRef(ownerIndex);
-            BindingSlotKey slotKey = new BindingSlotKey(UnityObjectId.Get(target), slotType, 0);
+            // 同 RegisterSpriteSource：目标组件 id 原本在此与下面各算一次。
+            ulong targetComponentId = UnityObjectId.Get(target);
+            BindingSlotKey slotKey = new BindingSlotKey(targetComponentId, slotType);
             OwnerSlotKey ownerSlotKey = new OwnerSlotKey(ownerSlot.OwnerId, slotKey);
             if (!_bindingIndexByOwnerSlot.TryGetValue(ownerSlotKey, out int bindingIndex))
             {
@@ -507,17 +525,16 @@ namespace Moirai.Atropos.Resource
             binding.SlotKey = slotKey;
             binding.OwnerId = ownerSlot.OwnerId;
             binding.TargetGameObjectId = UnityObjectId.Get(target.gameObject);
-            binding.TargetComponentId = UnityObjectId.Get(target);
+            binding.TargetComponentId = targetComponentId;
             binding.OwnerGeneration = ownerSlot.Generation;
             binding.Target = target;
             binding.AppliedAsset = appliedMaterial;
             binding.RuntimeObject = runtimeMaterial;
-            binding.AssetId = _handler.TryGetLeaseAssetId(lease, out int assetId) ? assetId : -1;
-            binding.ViewKeyId = 0;
+            binding.AssetId = _leaseSource.TryGetLeaseAssetId(lease, out int assetId) ? assetId : -1;
             binding.Lease = lease;
             binding.SlotType = slotType;
             binding.Flags = (byte)options;
-            _handler.SetLeaseOptions(lease, ToLeaseOptions(options));
+            _leaseSource.SetLeaseOptions(lease, ToLeaseOptions(options));
             if (reservedVersion != 0 && binding.Version == reservedVersion)
             {
                 binding.Version = reservedVersion;
@@ -534,7 +551,7 @@ namespace Moirai.Atropos.Resource
 
             if (oldLease.IsValid)
             {
-                _handler.Release(oldLease);
+                _leaseSource.Release(oldLease);
             }
 
             return EResourceBindStatus.Success;
@@ -545,8 +562,7 @@ namespace Moirai.Atropos.Resource
         #region 材质绑定内部 [MATERIAL BIND INTERNALS]
 
         private EResourceBindStatus BindMaterialInternal(ResourceOwner owner, Renderer renderer, ResourceKey key,
-            bool createRuntimeInstance, EResourceBindingOption options, uint reservedVersion,
-            BindingSlotKey _, bool isAsync)
+            bool createRuntimeInstance, EResourceBindingOption options)
         {
             EResourceBindStatus status = EnsureOwner(owner, out int _);
             if (status != EResourceBindStatus.Success)
@@ -562,15 +578,15 @@ namespace Moirai.Atropos.Resource
             ResourceKey materialKey = key.AssetType == null
                 ? new ResourceKey(key.Location, key.PackageName, typeof(Material), EResourceAssetKind.Material)
                 : key;
-            ResourceLeaseHandle newLease = _handler.AcquireBinding(materialKey);
+            ResourceLeaseHandle newLease = _leaseSource.AcquireBinding(materialKey);
             if (!newLease.IsValid)
             {
                 return EResourceBindStatus.LoadFailed;
             }
 
-            if (!_handler.TryGetLeaseAsset(newLease, out UObject asset) || asset is not Material sourceMat)
+            if (!_leaseSource.TryGetLeaseAsset(newLease, out UObject asset) || asset is not Material sourceMat)
             {
-                _handler.Release(newLease);
+                _leaseSource.Release(newLease);
                 return EResourceBindStatus.LoadFailed;
             }
 
@@ -593,7 +609,7 @@ namespace Moirai.Atropos.Resource
                     UObject.Destroy(runtimeMaterial);
                 }
 
-                _handler.Release(newLease);
+                _leaseSource.Release(newLease);
                 return EResourceBindStatus.ApplyFailed;
             }
 
@@ -607,7 +623,7 @@ namespace Moirai.Atropos.Resource
                     UObject.Destroy(runtimeMaterial);
                 }
 
-                _handler.Release(newLease);
+                _leaseSource.Release(newLease);
             }
 
             return registerStatus;
@@ -643,7 +659,16 @@ namespace Moirai.Atropos.Resource
             ResourceKey materialKey = key.AssetType == null
                 ? new ResourceKey(key.Location, key.PackageName, typeof(Material), EResourceAssetKind.Material)
                 : key;
-            ResourceLeaseHandle newLease = await _handler.AcquireBindingAsync(materialKey, cancellationToken);
+            ResourceLeaseHandle newLease;
+            try
+            {
+                newLease = await _leaseSource.AcquireBindingAsync(materialKey, cancellationToken);
+            }
+            catch
+            {
+                CancelReservedBindingRequest(ownerId, ownerGeneration, slotKey, requestVersion);
+                throw;
+            }
             if (!newLease.IsValid)
             {
                 CancelReservedBindingRequest(ownerId, ownerGeneration, slotKey, requestVersion);
@@ -653,14 +678,14 @@ namespace Moirai.Atropos.Resource
             if (!IsBindingRequestCurrent(ownerId, ownerGeneration, targetComponentId, targetGameObjectId,
                     slotKey, requestVersion, renderer))
             {
-                _handler.Release(newLease);
+                _leaseSource.Release(newLease);
                 CancelReservedBindingRequest(ownerId, ownerGeneration, slotKey, requestVersion);
                 return EResourceBindStatus.StaleOwner;
             }
 
-            if (!_handler.TryGetLeaseAsset(newLease, out UObject asset) || asset is not Material sourceMat)
+            if (!_leaseSource.TryGetLeaseAsset(newLease, out UObject asset) || asset is not Material sourceMat)
             {
-                _handler.Release(newLease);
+                _leaseSource.Release(newLease);
                 CancelReservedBindingRequest(ownerId, ownerGeneration, slotKey, requestVersion);
                 return EResourceBindStatus.LoadFailed;
             }
@@ -669,10 +694,10 @@ namespace Moirai.Atropos.Resource
                 !IsBindingRequestCurrent(ownerId, ownerGeneration, targetComponentId, targetGameObjectId,
                     slotKey, requestVersion, renderer))
             {
-                _handler.Release(newLease);
+                _leaseSource.Release(newLease);
                 CancelReservedBindingRequest(ownerId, ownerGeneration, slotKey, requestVersion);
                 return cancellationToken.IsCancellationRequested
-                    ? EResourceBindStatus.LoadFailed
+                    ? EResourceBindStatus.Cancelled
                     : EResourceBindStatus.StaleOwner;
             }
 
@@ -692,7 +717,7 @@ namespace Moirai.Atropos.Resource
                     UObject.Destroy(runtimeMaterial);
                 }
 
-                _handler.Release(newLease);
+                _leaseSource.Release(newLease);
                 CancelReservedBindingRequest(ownerId, ownerGeneration, slotKey, requestVersion);
                 return EResourceBindStatus.StaleOwner;
             }
@@ -704,7 +729,7 @@ namespace Moirai.Atropos.Resource
                     UObject.Destroy(runtimeMaterial);
                 }
 
-                _handler.Release(newLease);
+                _leaseSource.Release(newLease);
                 CancelReservedBindingRequest(ownerId, ownerGeneration, slotKey, requestVersion);
                 return EResourceBindStatus.ApplyFailed;
             }
@@ -719,7 +744,7 @@ namespace Moirai.Atropos.Resource
                     UObject.Destroy(runtimeMaterial);
                 }
 
-                _handler.Release(newLease);
+                _leaseSource.Release(newLease);
             }
 
             return registerStatus;
@@ -731,57 +756,77 @@ namespace Moirai.Atropos.Resource
 
         private void ClearAndReleaseBinding(ref BindingSlot binding)
         {
-            ClearKnownComponentSlot(ref binding);
-            if (binding.RuntimeObject != null)
-            {
-                UObject.Destroy(binding.RuntimeObject);
-            }
-
-            if (binding.Lease.IsValid)
-            {
-                _handler.Release(binding.Lease);
-            }
+            // 记账先于表现：租约归还与槽位清空必须无条件完成，组件槽位清理则是尽力而为的一项。
+            // 后者要在"引擎已销毁但托管引用仍在"的组件上读原生属性（SpriteRenderer.sprite 等），
+            // 必然抛 MissingReferenceException——而那恰恰是本路径的正常现场，
+            // 让它排在归还之前，赔进去的就是一条永不归还的租约。
+            Component target = binding.Target;
+            UObject appliedAsset = binding.AppliedAsset;
+            UObject runtimeObject = binding.RuntimeObject;
+            EResourceBindingSlotType slotType = binding.SlotType;
+            ResourceLeaseHandle lease = binding.Lease;
 
             binding.Target = null;
             binding.AppliedAsset = null;
             binding.RuntimeObject = null;
             binding.Lease = ResourceLeaseHandle.Invalid;
             binding.AssetId = 0;
-            binding.ViewKeyId = 0;
             binding.Flags = 0;
+
+            if (lease.IsValid)
+            {
+                _leaseSource.Release(lease);
+            }
+
+            if (runtimeObject != null)
+            {
+                UObject.Destroy(runtimeObject);
+            }
+
+            // 目标已销毁时这一步必定抛出：槽位与租约上面已经收干净，不能再被它截断，也不该向外透——
+            // 对已销毁对象清组件槽位本来就没有任何可成之事，它的失败不值一条异常。
+            try
+            {
+                ClearKnownComponentSlot(target, appliedAsset, runtimeObject, slotType);
+            }
+            catch (System.Exception)
+            {
+                // 刻意不记日志：销毁态回收是常规路径，每帧逐条打只会把日志淹掉。
+            }
         }
 
-        private static void ClearKnownComponentSlot(ref BindingSlot binding)
+        private static void ClearKnownComponentSlot(Component target, UObject appliedAsset,
+            UObject runtimeObject, EResourceBindingSlotType slotType)
         {
-            switch (binding.SlotType)
+            switch (slotType)
             {
                 case EResourceBindingSlotType.ImageSprite:
                 case EResourceBindingSlotType.SubSprite:
-                    if (binding.Target is Image image && image.sprite == binding.AppliedAsset)
+                    if (target is Image image && image.sprite == appliedAsset)
                     {
                         image.sprite = null;
                     }
                     break;
                 case EResourceBindingSlotType.SpriteRendererSprite:
-                    if (binding.Target is SpriteRenderer sr && sr.sprite == binding.AppliedAsset)
+                    if (target is SpriteRenderer sr && sr.sprite == appliedAsset)
                     {
                         sr.sprite = null;
                     }
                     break;
                 case EResourceBindingSlotType.ImageMaterial:
-                    if (binding.Target is Image img && img.material == binding.AppliedAsset)
+                    if (target is Image img && img.material == appliedAsset)
                     {
                         img.material = null;
                     }
                     break;
                 case EResourceBindingSlotType.RendererSharedMaterial:
-                    if (binding.Target is Renderer r && r.sharedMaterial == binding.AppliedAsset)
+                    if (target is Renderer r && r.sharedMaterial == appliedAsset)
                     {
                         r.sharedMaterial = null;
                     }
                     break;
                 case EResourceBindingSlotType.RendererMaterialInstance:
-                    if (binding.Target is Renderer rr && rr.sharedMaterial == binding.RuntimeObject)
+                    if (target is Renderer rr && rr.sharedMaterial == runtimeObject)
                     {
                         rr.sharedMaterial = null;
                     }
@@ -814,54 +859,6 @@ namespace Moirai.Atropos.Resource
                         owner.BindingCount--;
                     }
 
-                    return;
-                }
-
-                previous = current;
-                current = next;
-            }
-        }
-
-        private void RemoveRegisteredTargetSlot(int ownerId, uint ownerGeneration, ulong targetComponentId)
-        {
-            int ownerIndex = ownerId - 1;
-            if (!IsValidOwnerIndex(ownerIndex))
-            {
-                return;
-            }
-
-            ref OwnerSlot owner = ref GetOwnerSlotRef(ownerIndex);
-            if (owner.State != 1 || owner.Generation != ownerGeneration)
-            {
-                return;
-            }
-
-            int previous = -1;
-            int current = owner.RegisteredTargetHead;
-            while (current >= 0)
-            {
-                ref RegisteredTargetSlot target = ref GetRegisteredTargetSlotRef(current);
-                int next = target.NextByOwner;
-                if (target.TargetComponentId == targetComponentId &&
-                    target.OwnerId == ownerId &&
-                    target.OwnerGeneration == ownerGeneration)
-                {
-                    if (previous >= 0)
-                    {
-                        ref RegisteredTargetSlot prevTarget = ref GetRegisteredTargetSlotRef(previous);
-                        prevTarget.NextByOwner = next;
-                    }
-                    else
-                    {
-                        owner.RegisteredTargetHead = next;
-                    }
-
-                    if (owner.RegisteredTargetCount > 0)
-                    {
-                        owner.RegisteredTargetCount--;
-                    }
-
-                    FreeRegisteredTargetSlot(current);
                     return;
                 }
 

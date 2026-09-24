@@ -11,6 +11,13 @@ namespace Moirai.Atropos.Resource
     /// <para>统一的静态资源访问入口，通过替换 <see cref="Handler"/> 即可在不同资源后端之间零成本切换。</para>
     /// <para>未显式设置处理器时，懒加载优先经 <c>GetHandlerFromSettings</c> 从 <see cref="ResourceServiceSettings"/> 解析；settings 未配置则回退 <see cref="CreateDefaultHandler"/>。</para>
     /// <para>Handler 属性由 <c>HandlerHostGenerator</c> 源生成器自动生成（线程安全懒加载）。</para>
+    /// <para>服务未就绪（未注册/未初始化）时的表现按读写分界：<b>写成员</b>走 <c>RequireHandler()</c> 抛
+    /// <see cref="GameException"/>——租约取用与归还、预热、卸载、实例化、低内存接线等一律 fail-fast，
+    /// 因为静默丢一条 <c>Release</c> 就是永久泄漏、静默返回一条默认租约会被读成"资源不存在"，
+    /// 两种都把"服务没起来"伪装成别的问题。<b>读成员</b>保留 <c>s_Handler?…??默认值</c> 的降级——
+    /// <c>HasAsset</c> 在未就绪时报 <c>NotExist</c>、<c>IsLocationValid</c> 报 false 是诚实的，
+    /// 而调试面板与启动早期的一次状态读取不该把启动本身变成异常现场。
+    /// 例外：<see cref="LoadSceneAsync"/> 的 null 是其消费者依赖的既定契约，本批不动。</para>
     /// </summary>
     [AutoRegisterService]
     [HandlerHost(typeof(ResourceServiceHandler))]
@@ -70,18 +77,56 @@ namespace Moirai.Atropos.Resource
             s_Handler.AssetLeaseCapacity = ResourceServiceSettings.AssetLeaseCapacity;
             s_Handler.BindingOwnerCapacity = ResourceServiceSettings.BindingOwnerCapacity;
             s_Handler.BindingSlotCapacity = ResourceServiceSettings.BindingSlotCapacity;
-            s_Handler.RegisteredTargetCapacity = ResourceServiceSettings.RegisteredTargetCapacity;
             s_Handler.IdleAssetExpireTime = ResourceServiceSettings.IdleAssetExpireTime;
             s_Handler.IdleAssetCapacity = ResourceServiceSettings.IdleAssetCapacity;
             s_Handler.SetForceUnloadUnusedAssetsAction(RequestForceUnloadUnusedAssets);
 
             // 初始化后端（创建默认包与绑定服务）
             s_Handler.Initialize();
+            WarnOnSuspiciousSettings();
             LogUtility.Info("ResourceService Run Mode：{0}", ResourceServiceSettings.PlayMode);
 
             Application.lowMemory += OnLowMemory;
 
             DebuggerService.RegisterDebuggerWindow("Profiler/Resource", new ResourceServiceDebuggerWindow());
+        }
+
+        /// <summary>
+        /// 配置自检——只报不改。挑出来的三项有一个共同形状：值配错了不会崩，
+        /// 也不会报错，只是那个设置项**永远不参与决策**，而它在 Inspector 里照样看得见、
+        /// 在版本库里照样能 diff。沉默的代价是它会带着一个从未被读取的值一路发到发行版，
+        /// 排查时人人都以为调过它了。刻意不动任何值：夹取会掩盖配置错误，
+        /// 而这些值本身都合法，只是相互之间的关系不成立。
+        /// </summary>
+        private static void WarnOnSuspiciousSettings()
+        {
+            int perFrame = ResourceServiceSettings.ExpireProcessCountPerFrame;
+            int whenUnloading = ResourceServiceSettings.ExpireProcessCountWhenUnloading;
+            // 帧驱动取二者较大值：卸载档配得比每帧还小，就永远被每帧值顶掉。
+            if (whenUnloading < perFrame)
+            {
+                LogUtility.Warning("ExpireProcessCountWhenUnloading ({0}) is below ExpireProcessCountPerFrame ({1}): " +
+                    "the unload-time budget never takes effect, because the frame drive keeps the larger of the two.",
+                    whenUnloading, perFrame);
+            }
+
+            // 销毁态回收完全依赖这条轮转配额：非正数意味着它一帧都不跑。
+            int sweepBudget = ResourceServiceSettings.DestroySweepBudget;
+            if (sweepBudget <= 0)
+            {
+                LogUtility.Warning("DestroySweepBudget is {0}: the destroyed owner/binding sweep never runs, so leases held " +
+                    "by objects whose OnDestroy was truncated are never reclaimed. Keep it at or above 1.", sweepBudget);
+            }
+
+            // 过期刻度按秒落进 256 格时间轮：超过一整圈的存活期不会提前释放，但会被跳过、
+            // 直到轮盘绕回来才重新遇到——表现为释放延迟最多整整一圈，而没有任何异常。
+            float expireTime = ResourceServiceSettings.IdleAssetExpireTime;
+            if (expireTime > 255f)
+            {
+                LogUtility.Warning("IdleAssetExpireTime ({0}s) is longer than the 256-bucket expiry wheel spans (255 ticks): " +
+                    "entries are skipped until the wheel wraps around once, so release is late by up to a full lap. " +
+                    "Keep it at or below 255.", expireTime);
+            }
         }
 
         /// <summary>
@@ -116,6 +161,7 @@ namespace Moirai.Atropos.Resource
             bool useSystem = ResourceServiceSettings.UseSystemUnloadUnusedAssets;
             int expirePerFrame = ResourceServiceSettings.ExpireProcessCountPerFrame;
             int expireWhenUnloading = ResourceServiceSettings.ExpireProcessCountWhenUnloading;
+            int destroySweepBudget = ResourceServiceSettings.DestroySweepBudget;
             float minGCInterval = ResourceServiceSettings.MinGCCollectInterval;
 
             bool operationInFlight = s_AsyncOperation != null;
@@ -128,7 +174,7 @@ namespace Moirai.Atropos.Resource
                 maxInterval);
 
             int expireProcessCount = ResolveExpireProcessCount(shouldUnloadUnusedAssets, expirePerFrame, expireWhenUnloading);
-            s_Handler.ProcessResourceMaintenance(Time.unscaledTime, expireProcessCount);
+            s_Handler.ProcessResourceMaintenance(Time.unscaledTime, expireProcessCount, destroySweepBudget);
 
             s_LastUnloadElapsedSeconds += Time.unscaledDeltaTime;
             s_LastGCCollectElapsedSeconds += Time.unscaledDeltaTime;
@@ -377,19 +423,6 @@ namespace Moirai.Atropos.Resource
         }
 
         /// <summary>
-        /// 已注册目标预热容量。
-        /// </summary>
-        public static int RegisteredTargetCapacity
-        {
-            get => s_Handler?.RegisteredTargetCapacity ?? 0;
-            set
-            {
-                if (s_Handler == null) return;
-                s_Handler.RegisteredTargetCapacity = value;
-            }
-        }
-
-        /// <summary>
         /// 无引用资源句柄进入 Idle 后的过期秒数。
         /// </summary>
         public static float IdleAssetExpireTime
@@ -419,8 +452,8 @@ namespace Moirai.Atropos.Resource
         /// <summary>
         /// 预热资源记录。
         /// </summary>
-        public static void WarmupResourceRecords(int assetCapacity, int leaseCapacity, int unityObjectIndexCapacity) =>
-            s_Handler?.WarmupResourceRecords(assetCapacity, leaseCapacity, unityObjectIndexCapacity);
+        public static void WarmupResourceRecords(int assetCapacity, int leaseCapacity) =>
+            RequireHandler().WarmupResourceRecords(assetCapacity, leaseCapacity);
 
         /// <summary>
         /// 批量获取资源信息。
@@ -455,57 +488,42 @@ namespace Moirai.Atropos.Resource
         /// <summary>
         /// 使用显式资源 Key 获取一个直接资源租约。
         /// </summary>
-        public static ResourceLeaseHandle AcquireDirect(ResourceKey key) =>
-            s_Handler?.AcquireDirect(key) ?? ResourceLeaseHandle.Invalid;
+        public static ResourceLeaseHandle AcquireDirect(ResourceKey key) => RequireHandler().AcquireDirect(key);
 
         /// <summary>
         /// 异步获取一个直接资源租约。
         /// </summary>
         public static UniTask<ResourceLeaseHandle> AcquireDirectAsync(ResourceKey key, CancellationToken cancellationToken = default) =>
-            s_Handler?.AcquireDirectAsync(key, cancellationToken) ?? UniTask.FromResult(ResourceLeaseHandle.Invalid);
-
-        /// <summary>
-        /// 尝试使用显式资源 Key 获取一个直接资源租约。
-        /// </summary>
-        public static bool TryAcquireDirect(ResourceKey key, out ResourceLeaseHandle handle)
-        {
-            if (s_Handler == null)
-            {
-                handle = ResourceLeaseHandle.Invalid;
-                return false;
-            }
-
-            return s_Handler.TryAcquireDirect(key, out handle);
-        }
+            RequireHandler().AcquireDirectAsync(key, cancellationToken);
 
         /// <summary>
         /// 释放一个显式资源租约。
         /// </summary>
-        public static void Release(ResourceLeaseHandle handle) => s_Handler?.Release(handle);
+        public static void Release(ResourceLeaseHandle handle) => RequireHandler().Release(handle);
 
         /// <summary>
         /// 同步加载资源并返回资源租约。调用方必须在不再使用资源时调用 Dispose 释放租约。
         /// </summary>
         public static ResourceAssetLease<T> LoadLease<T>(ResourceKey key) where T : UnityEngine.Object =>
-            s_Handler?.LoadLease<T>(key) ?? default;
+            RequireHandler().LoadLease<T>(key);
 
         /// <summary>
         /// 同步加载资源并返回资源租约。调用方必须在不再使用资源时调用 Dispose 释放租约。
         /// </summary>
         public static ResourceAssetLease<T> LoadLease<T>(string location, string packageName = "") where T : UnityEngine.Object =>
-            s_Handler?.LoadLease<T>(location, packageName) ?? default;
+            RequireHandler().LoadLease<T>(location, packageName);
 
         /// <summary>
         /// 异步加载资源并返回资源租约。调用方必须在不再使用资源时调用 Dispose 释放租约。
         /// </summary>
         public static UniTask<ResourceAssetLease<T>> LoadLeaseAsync<T>(ResourceKey key, CancellationToken cancellationToken = default) where T : UnityEngine.Object =>
-            s_Handler?.LoadLeaseAsync<T>(key, cancellationToken) ?? UniTask.FromResult<ResourceAssetLease<T>>(default);
+            RequireHandler().LoadLeaseAsync<T>(key, cancellationToken);
 
         /// <summary>
         /// 异步加载资源并返回资源租约。调用方必须在不再使用资源时调用 Dispose 释放租约。
         /// </summary>
         public static UniTask<ResourceAssetLease<T>> LoadLeaseAsync<T>(string location, CancellationToken cancellationToken = default, string packageName = "") where T : UnityEngine.Object =>
-            s_Handler?.LoadLeaseAsync<T>(location, cancellationToken, packageName) ?? UniTask.FromResult<ResourceAssetLease<T>>(default);
+            RequireHandler().LoadLeaseAsync<T>(location, cancellationToken, packageName);
 
         /// <summary>
         /// 尝试从资源租约中读取 Unity 资源对象。
@@ -523,97 +541,28 @@ namespace Moirai.Atropos.Resource
 
         #endregion
 
-        #region 遗留 API [LEGACY API]
-
-        /// <summary>
-        /// 同步加载资源。每次成功调用后，调用方必须在不再使用时成对调用 <see cref="UnloadAsset"/>。
-        /// </summary>
-        /// <param name="location">资源的定位地址。</param>
-        /// <param name="packageName">指定资源包的名称。不传使用默认资源包。</param>
-        /// <typeparam name="T">要加载资源的类型。</typeparam>
-        /// <returns>资源实例。</returns>
-        [Obsolete("Use LoadLease<T> for explicit ownership.")]
-        public static T LoadAsset<T>(string location, string packageName = "") where T : UnityEngine.Object =>
-            s_Handler?.LoadAsset<T>(location, packageName);
-
-        /// <summary>
-        /// 异步加载资源。每次成功回调资源后，调用方必须在不再使用时成对调用 <see cref="UnloadAsset"/>。
-        /// </summary>
-        /// <param name="location">资源的定位地址。</param>
-        /// <param name="callback">回调函数。</param>
-        /// <param name="packageName">指定资源包的名称。不传使用默认资源包。</param>
-        /// <typeparam name="T">要加载资源的类型。</typeparam>
-        [Obsolete("Use LoadLeaseAsync<T> for explicit ownership.")]
-        public static UniTask LoadAsset<T>(string location, Action<T> callback, string packageName = "") where T : UnityEngine.Object =>
-            s_Handler?.LoadAsset(location, callback, packageName) ?? UniTask.CompletedTask;
-
-        /// <summary>
-        /// 异步加载资源。每次成功返回资源后，调用方必须在不再使用时成对调用 <see cref="UnloadAsset"/>。
-        /// </summary>
-        /// <param name="location">资源定位地址。</param>
-        /// <param name="cancellationToken">取消操作 Token。</param>
-        /// <param name="packageName">指定资源包的名称。不传使用默认资源包。</param>
-        /// <typeparam name="T">要加载资源的类型。</typeparam>
-        /// <returns>异步资源实例。</returns>
-        [Obsolete("Use LoadLeaseAsync<T> for explicit ownership.")]
-        public static UniTask<T> LoadAssetAsync<T>(string location, CancellationToken cancellationToken = default, string packageName = "") where T : UnityEngine.Object =>
-            s_Handler?.LoadAssetAsync<T>(location, cancellationToken, packageName) ?? UniTask.FromResult<T>(null);
-
-        /// <summary>
-        /// 异步加载资源。
-        /// </summary>
-        /// <param name="location">资源的定位地址。</param>
-        /// <param name="assetType">要加载的资源类型。</param>
-        /// <param name="priority">加载资源的优先级。</param>
-        /// <param name="loadAssetCallbacks">加载资源回调函数集。</param>
-        /// <param name="userData">用户自定义数据。</param>
-        /// <param name="packageName">指定资源包的名称。不传使用默认资源包。</param>
-        [Obsolete("Use LoadLeaseAsync<T> for explicit ownership.")]
-        public static UniTask LoadAssetAsync(string location, Type assetType, int priority, LoadAssetCallbacks loadAssetCallbacks, object userData, string packageName = "") =>
-            s_Handler?.LoadAssetAsync(location, assetType, priority, loadAssetCallbacks, userData, packageName) ?? UniTask.CompletedTask;
-
-        /// <summary>
-        /// 异步加载资源。
-        /// </summary>
-        /// <param name="location">资源的定位地址。</param>
-        /// <param name="priority">加载资源的优先级。</param>
-        /// <param name="loadAssetCallbacks">加载资源回调函数集。</param>
-        /// <param name="userData">用户自定义数据。</param>
-        /// <param name="packageName">指定资源包的名称。不传使用默认资源包。</param>
-        [Obsolete("Use LoadLeaseAsync<T> for explicit ownership.")]
-        public static UniTask LoadAssetAsync(string location, int priority, LoadAssetCallbacks loadAssetCallbacks, object userData, string packageName = "") =>
-            s_Handler?.LoadAssetAsync(location, priority, loadAssetCallbacks, userData, packageName) ?? UniTask.CompletedTask;
-
-        /// <summary>
-        /// 卸载资源。
-        /// </summary>
-        /// <param name="asset">要卸载的资源。每次成功调用直接返回资源的 LoadAsset 接口后，都需要成对调用一次。</param>
-        [Obsolete("Use ResourceAssetLease<T> or Binding instead of LoadAsset/UnloadAsset.")]
-        public static void UnloadAsset(object asset) => s_Handler?.UnloadAsset(asset);
-
-        #endregion
 
         #region 资源回收 [ASSET RECYCLING]
 
         /// <summary>
         /// 资源回收（卸载引用计数为零的资源）。
         /// </summary>
-        public static void UnloadUnusedAssets() => s_Handler?.UnloadUnusedAssets();
+        public static void UnloadUnusedAssets() => RequireHandler().UnloadUnusedAssets();
 
         /// <summary>
         /// 资源回收。
         /// </summary>
-        public static void UnloadUnusedAssets(bool force) => s_Handler?.UnloadUnusedAssets(force);
+        public static void UnloadUnusedAssets(bool force) => RequireHandler().UnloadUnusedAssets(force);
 
         /// <summary>
         /// 强制回收所有资源。
         /// </summary>
-        public static void ForceUnloadAllAssets() => s_Handler?.ForceUnloadAllAssets();
+        public static void ForceUnloadAllAssets() => RequireHandler().ForceUnloadAllAssets();
 
         /// <summary>
         /// 强制执行释放未被使用的资源。
         /// </summary>
-        public static void ForceUnloadUnusedAssets(bool performGCCollect) => s_Handler?.ForceUnloadUnusedAssets(performGCCollect);
+        public static void ForceUnloadUnusedAssets(bool performGCCollect) => RequireHandler().ForceUnloadUnusedAssets(performGCCollect);
 
         /// <summary>
         /// 检查资源是否存在。
@@ -669,7 +618,7 @@ namespace Moirai.Atropos.Resource
         /// 低内存回调保护。
         /// </summary>
         public static void SetForceUnloadUnusedAssetsAction(Action<bool> action) =>
-            s_Handler?.SetForceUnloadUnusedAssetsAction(action);
+            RequireHandler().SetForceUnloadUnusedAssetsAction(action);
 
         /// <summary>
         /// 请求强制执行释放未被使用的资源。
@@ -703,13 +652,13 @@ namespace Moirai.Atropos.Resource
         /// 同步加载游戏物体并实例化。
         /// </summary>
         public static GameObject LoadGameObject(string location, Transform parent = null, string packageName = "") =>
-            s_Handler?.LoadGameObject(location, parent, packageName);
+            RequireHandler().LoadGameObject(location, parent, packageName);
 
         /// <summary>
         /// 异步加载游戏物体并实例化。
         /// </summary>
         public static UniTask<GameObject> LoadGameObjectAsync(string location, Transform parent = null, CancellationToken cancellationToken = default, string packageName = "") =>
-            s_Handler?.LoadGameObjectAsync(location, parent, cancellationToken, packageName) ?? UniTask.FromResult<GameObject>(null);
+            RequireHandler().LoadGameObjectAsync(location, parent, cancellationToken, packageName);
 
         #endregion
 

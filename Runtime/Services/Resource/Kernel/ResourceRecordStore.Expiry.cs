@@ -1,39 +1,29 @@
-﻿using System;
+using System;
 using UnityEngine;
+using UObject = UnityEngine.Object;
 
 namespace Moirai.Atropos.Resource
 {
     /// <summary>
-    /// 过期回收——时间轮走查、空闲容量淘汰与资源记录释放。
+    /// 资源记录内核的过期侧——两座侵入式时间轮（KeepAlive / Idle）、未用候选表与容量淘汰。
+    /// <para>摘链一律按槽里存下的桶号走、绝不从当前 tick 反推，走查途中不得同步摘除；
+    /// 这两条各记过一次真实事故，改前先读方法上的注释。</para>
     /// </summary>
-    partial class YooAssetHandler
+    internal sealed partial class ResourceRecordStore
     {
-        internal override void ProcessResourceMaintenance(float unscaledTime, int maxCount)
+        // 一趟容量淘汰最多摘掉几条。挑受害者是整表扫（候选表无序、又不是轮盘序），
+        // 而外层的 while 会一路摘到不超限为止，所以不设上限就是每受害者 O(n) 的一帧突发：
+        // 空闲记录 300 条、容量从 256 调到 8，那是一帧里 292×300 次槽位读。
+        // 上限只限制"这一帧做多少"，不改变淘汰次序——没做完就把请求位留着，下一帧接着摘。
+        private const int IDLE_TRIM_VICTIMS_PER_PASS = 8;
+
+        /// <summary>容量被调小后请求一次淘汰：不当场做，交给下一帧的维护走查。</summary>
+        internal void RequestIdleCapacityTrim()
         {
-            // 销毁态兜底回收先于预算判定：没有到期记录可处理时，被销毁对象的槽位照样要收。
-            _bindingService?.ProcessDestroyedObjects();
-
-            if ((_keepAliveBuckets != null || _idleBuckets != null) && maxCount > 0)
-            {
-                int currentTick = ToKeepAliveTick(unscaledTime);
-                int processed = ProcessDueKeepAliveBuckets(currentTick, maxCount);
-                if (processed < maxCount)
-                {
-                    ProcessDueIdleBuckets(currentTick, maxCount - processed);
-                }
-            }
-
-            // 容量淘汰排在轮盘走查之后：走查途中同步摘除会让已捕获的 next 指针失效、整桶被跳过。
-            if (_idleCapacityTrimPending)
-            {
-                TrimIdleAssetCapacity();
-            }
+            _idleCapacityTrimPending = true;
         }
 
-        /// <summary>
-        /// 把空闲记录数压回 <c>IdleAssetCapacity</c> 以内：每轮淘汰过期刻度最早（即最长空闲）的一条。
-        /// </summary>
-        private void TrimIdleAssetCapacity()
+        internal void TrimIdleAssetCapacity(int maxVictims)
         {
             _idleCapacityTrimPending = false;
 
@@ -42,8 +32,15 @@ namespace Moirai.Atropos.Resource
                 return;
             }
 
-            while (_unusedAssetCandidateCount > _idleAssetCapacity)
+            for (int trimmed = 0; _unusedAssetCandidateCount > Host.IdleAssetCapacity; trimmed++)
             {
+                if (trimmed >= maxVictims)
+                {
+                    // 预算用尽而非摘完：把请求位留回，下一帧继续，否则会静默停在超限状态。
+                    _idleCapacityTrimPending = true;
+                    return;
+                }
+
                 int candidateCount = _unusedAssetCandidateCount;
                 int victimIndex = -1;
                 int victimExpireTick = int.MaxValue;
@@ -257,78 +254,6 @@ namespace Moirai.Atropos.Resource
             return processed;
         }
 
-        internal override int ReleaseAllUnusedAssetRecords()
-        {
-            int releasedCount = 0;
-            int index = 0;
-            while (index < _unusedAssetCandidateCount)
-            {
-                int assetId = _unusedAssetCandidates[index];
-                if (!IsValidAssetId(assetId))
-                {
-                    RemoveUnusedAssetCandidateAt(index);
-                    continue;
-                }
-
-                ref AssetSlot slot = ref GetAssetSlotRef(assetId);
-                if (slot.Generation == 0 || slot.State == EResourceAssetState.Released ||
-                    !IsSlotHandleValid(ref slot))
-                {
-                    RemoveUnusedAssetCandidateAt(index);
-                    continue;
-                }
-
-                if (!HasNoResourceRefs(ref slot))
-                {
-                    RemoveUnusedAssetCandidate(assetId, ref slot);
-                    continue;
-                }
-
-                slot.IdleReleaseRequested = 1;
-                uint generation = slot.Generation;
-                int previousCandidateCount = _unusedAssetCandidateCount;
-                ReleaseAssetStorage(assetId, generation);
-                if (_unusedAssetCandidateCount == previousCandidateCount && index < _unusedAssetCandidateCount &&
-                    _unusedAssetCandidates[index] == assetId)
-                {
-                    RemoveUnusedAssetCandidateAt(index);
-                }
-
-                releasedCount++;
-            }
-
-            return releasedCount;
-        }
-
-        internal override void ForceReleaseAllAssetRecords()
-        {
-            int total = _assetSlotNextIndex;
-            for (int i = 0; i < total; i++)
-            {
-                ref AssetSlot slot = ref GetAssetSlotRef(i);
-                if (slot.Generation == 0 || slot.State == EResourceAssetState.Released)
-                {
-                    continue;
-                }
-
-                RemoveFromExpiryQueue(i, ref slot);
-                RemoveUnusedAssetCandidate(i, ref slot);
-                DisposeAssetSlotHandle(ref slot);
-                UnlinkAssetByUnityObject(i, ref slot);
-                ClearAssetSlot(ref slot, preserveGeneration: true);
-                FreeAssetSlot(i);
-            }
-
-            ReleaseAllResourceKeysFromMap(_assetRecordsByKey);
-            _assetRecordsByKey.Clear();
-            _assetRecordByLoadKeyId.Clear();
-            _assetRecordHeadByUnityObjectId.Clear();
-            _unusedAssetCandidateCount = 0;
-
-            _leaseSlotNextIndex = 0;
-            _leaseSlotFreeHead = -1;
-        }
-
         private void ReleaseAssetStorage(int assetId, uint generation)
         {
             if (!IsValidAssetId(assetId))
@@ -351,7 +276,6 @@ namespace Moirai.Atropos.Resource
             RemoveFromExpiryQueue(assetId, ref slot);
             RemoveUnusedAssetCandidate(assetId, ref slot);
             DisposeAssetSlotHandle(ref slot);
-            UnlinkAssetByUnityObject(assetId, ref slot);
             ulong key = slot.Key;
             _assetRecordsByKey.Remove(key);
             ReleaseResourceKey(key);
@@ -367,7 +291,6 @@ namespace Moirai.Atropos.Resource
         private static bool HasNoResourceRefs(ref AssetSlot slot)
         {
             return slot.DirectRefCount == 0 &&
-                   slot.LegacyDirectRefCount == 0 &&
                    slot.BindingRefCount == 0 &&
                    slot.KeepAliveRefCount == 0;
         }
@@ -380,7 +303,7 @@ namespace Moirai.Atropos.Resource
                 return;
             }
 
-            if (slot.DirectRefCount + slot.LegacyDirectRefCount + slot.BindingRefCount > 0)
+            if (slot.DirectRefCount + slot.BindingRefCount > 0)
             {
                 slot.State = EResourceAssetState.Active;
                 return;
@@ -400,7 +323,7 @@ namespace Moirai.Atropos.Resource
                 AddUnusedAssetCandidate(assetId, ref slot);
                 EnterIdle(assetId, ref slot);
 
-                if (_unusedAssetCandidateCount > _idleAssetCapacity)
+                if (_unusedAssetCandidateCount > Host.IdleAssetCapacity)
                 {
                     _idleCapacityTrimPending = true;
                 }
@@ -424,7 +347,7 @@ namespace Moirai.Atropos.Resource
                 return;
             }
 
-            int expireTick = ToKeepAliveTick(Time.unscaledTime) + Mathf.Max(0, Mathf.CeilToInt(_idleAssetExpireTime));
+            int expireTick = ToKeepAliveTick(Time.unscaledTime) + Mathf.Max(0, Mathf.CeilToInt(Host.IdleAssetExpireTime));
             if (slot.ExpireQueueKind == 2 && slot.IdleExpireTick == expireTick)
             {
                 return;
@@ -586,7 +509,7 @@ namespace Moirai.Atropos.Resource
 
             if (_unusedAssetCandidates == null)
             {
-                _unusedAssetCandidates = new int[Math.Max(16, _assetRecordCapacity)];
+                _unusedAssetCandidates = new int[Math.Max(16, Host.AssetRecordCapacity)];
             }
             else if (_unusedAssetCandidateCount >= _unusedAssetCandidates.Length)
             {
@@ -655,6 +578,94 @@ namespace Moirai.Atropos.Resource
         private static int ToKeepAliveTick(float unscaledTime)
         {
             return Mathf.Max(0, Mathf.FloorToInt(unscaledTime));
+        }
+        internal void ProcessResourceMaintenance(float unscaledTime, int expireBudget)
+        {
+            if ((_keepAliveBuckets != null || _idleBuckets != null) && expireBudget > 0)
+            {
+                int currentTick = ToKeepAliveTick(unscaledTime);
+                int processed = ProcessDueKeepAliveBuckets(currentTick, expireBudget);
+                if (processed < expireBudget)
+                {
+                    ProcessDueIdleBuckets(currentTick, expireBudget - processed);
+                }
+            }
+
+            // 容量淘汰排在轮盘走查之后：走查途中同步摘除会让已捕获的 next 指针失效、整桶被跳过。
+            if (_idleCapacityTrimPending)
+            {
+                TrimIdleAssetCapacity(IDLE_TRIM_VICTIMS_PER_PASS);
+            }
+        }
+
+        internal int ReleaseAllUnusedAssetRecords()
+        {
+            int releasedCount = 0;
+            int index = 0;
+            while (index < _unusedAssetCandidateCount)
+            {
+                int assetId = _unusedAssetCandidates[index];
+                if (!IsValidAssetId(assetId))
+                {
+                    RemoveUnusedAssetCandidateAt(index);
+                    continue;
+                }
+
+                ref AssetSlot slot = ref GetAssetSlotRef(assetId);
+                if (slot.Generation == 0 || slot.State == EResourceAssetState.Released ||
+                    !IsSlotHandleValid(ref slot))
+                {
+                    RemoveUnusedAssetCandidateAt(index);
+                    continue;
+                }
+
+                if (!HasNoResourceRefs(ref slot))
+                {
+                    RemoveUnusedAssetCandidate(assetId, ref slot);
+                    continue;
+                }
+
+                slot.IdleReleaseRequested = 1;
+                uint generation = slot.Generation;
+                int previousCandidateCount = _unusedAssetCandidateCount;
+                ReleaseAssetStorage(assetId, generation);
+                if (_unusedAssetCandidateCount == previousCandidateCount && index < _unusedAssetCandidateCount &&
+                    _unusedAssetCandidates[index] == assetId)
+                {
+                    RemoveUnusedAssetCandidateAt(index);
+                }
+
+                releasedCount++;
+            }
+
+            return releasedCount;
+        }
+
+        internal void ForceReleaseAllAssetRecords()
+        {
+            int total = _assetSlotNextIndex;
+            for (int i = 0; i < total; i++)
+            {
+                ref AssetSlot slot = ref GetAssetSlotRef(i);
+                if (slot.Generation == 0 || slot.State == EResourceAssetState.Released)
+                {
+                    continue;
+                }
+
+                RemoveFromExpiryQueue(i, ref slot);
+                RemoveUnusedAssetCandidate(i, ref slot);
+                DisposeAssetSlotHandle(ref slot);
+                ClearAssetSlot(ref slot, preserveGeneration: true);
+                FreeAssetSlot(i);
+            }
+
+            ReleaseAllResourceKeysFromMap(_assetRecordsByKey);
+            _assetRecordsByKey.Clear();
+            _assetRecordByLoadKeyId.Clear();
+            _unusedAssetCandidateCount = 0;
+
+            _leaseSlotNextIndex = 0;
+            _leaseSlotFreeHead = -1;
         }
     }
 }

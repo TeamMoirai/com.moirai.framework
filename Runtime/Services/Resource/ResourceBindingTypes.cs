@@ -37,6 +37,12 @@ namespace Moirai.Atropos.Resource
         StaleOwner = 4,
 
         /// <summary>
+        /// 请求已被调用方取消。与"加载失败"分道：取消是调用方主动要的结果，
+        /// 按失败处理会让上层把它当成后端故障去重试或告警。
+        /// </summary>
+        Cancelled = 5,
+
+        /// <summary>
         /// 加载失败。
         /// </summary>
         LoadFailed = 6,
@@ -50,11 +56,6 @@ namespace Moirai.Atropos.Resource
         /// 服务已关闭。
         /// </summary>
         ServiceShutdown = 8,
-
-        /// <summary>
-        /// 未实现。
-        /// </summary>
-        NotImplemented = 9,
     }
 
     /// <summary>
@@ -157,24 +158,7 @@ namespace Moirai.Atropos.Resource
         /// </summary>
         /// <param name="ownerCapacity">所有者容量。</param>
         /// <param name="bindingCapacity">绑定容量。</param>
-        /// <param name="registeredTargetCapacity">已注册目标容量。</param>
-        void Warmup(int ownerCapacity, int bindingCapacity, int registeredTargetCapacity);
-
-        /// <summary>
-        /// 注册目标组件。
-        /// </summary>
-        /// <param name="owner">资源所有者。</param>
-        /// <param name="target">目标组件。</param>
-        /// <returns>绑定结果状态。</returns>
-        EResourceBindStatus RegisterTarget(ResourceOwner owner, Component target);
-
-        /// <summary>
-        /// 注销目标组件。
-        /// </summary>
-        /// <param name="owner">资源所有者。</param>
-        /// <param name="target">目标组件。</param>
-        /// <returns>绑定结果状态。</returns>
-        EResourceBindStatus UnregisterTarget(ResourceOwner owner, Component target);
+        void Warmup(int ownerCapacity, int bindingCapacity);
 
         /// <summary>
         /// 绑定精灵到 Image。

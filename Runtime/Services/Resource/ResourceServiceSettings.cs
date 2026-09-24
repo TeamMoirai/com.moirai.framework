@@ -11,8 +11,15 @@ namespace Moirai.Atropos.Resource
         [BoxGroup(BASE_GROUP)]
         [LabelText("资源运行模式")]
         [SerializeField] private EResourcePlayMode m_PlayMode = EResourcePlayMode.EditorSimulate;
+#if !UNITY_EDITOR
+        // getter 不回写资产值，所以"EditorSimulate 要归一"这个判定每次读取都会走到；
+        // 本标志只保证那条 Error 打一次。进程内单次判定即可，无需跨域重载复位。
+        private static bool s_OfflineFallbackReported;
+#endif
         /// <summary>
-        /// 资源运行模式（非编辑器下 EditorSimulate 自动回退为 OfflinePlay）。
+        /// 资源运行模式。玩家构建里 <see cref="EResourcePlayMode.EditorSimulate"/> 只在本属性的
+        /// **读取结果**上归一为 <see cref="EResourcePlayMode.OfflinePlay"/>，资产里配置的原值保持不变
+        /// （要看配置原值，读检视面板或另存一份）；归一会在首次读取时打一次 Error。
         /// </summary>
         public static EResourcePlayMode PlayMode
         {
@@ -21,7 +28,23 @@ namespace Moirai.Atropos.Resource
 #if !UNITY_EDITOR
                 if (Instance.m_PlayMode == EResourcePlayMode.EditorSimulate)
                 {
-                    Instance.m_PlayMode = EResourcePlayMode.OfflinePlay;
+                    // EditorSimulate 只在编辑器里有意义，玩家构建里它只能整体退回离线。
+                    // 但"退回离线"等于关掉全部远程热更，而此前它一行日志都不打：
+                    // 该远程拉包的包就这么整包离线发行，而 OnInit 那行 Run Mode 读到的
+                    // 恰恰是被改写之后的值，运维看不出资产里原本写了什么。
+                    if (!s_OfflineFallbackReported)
+                    {
+                        s_OfflineFallbackReported = true;
+                        LogUtility.Error("ResourceServiceSettings.m_PlayMode is EditorSimulate, which only exists in the " +
+                            "editor; falling back to OfflinePlay for this player build, so NO remote resource will be " +
+                            "fetched. Set it to HostPlay/WebPlay in " +
+                            "Assets/Settings/Framework/Resources/ResourceServiceSettings.asset to enable hot update.");
+                    }
+
+                    // 只在读取处归一，不回写 Instance.m_PlayMode：那等于让一次 getter
+                    // 悄悄改掉一份共享的 ScriptableObject 实例，把"运维本该发现的配置错误"
+                    // 洗成一份看起来本来就对的资产。
+                    return EResourcePlayMode.OfflinePlay;
                 }
 #endif
                 return Instance.m_PlayMode;
@@ -80,6 +103,13 @@ namespace Moirai.Atropos.Resource
         /// <summary>卸载时过期处理数量。</summary>
         public static int ExpireProcessCountWhenUnloading => Instance.m_ExpireProcessCountWhenUnloading;
 
+        [LabelText("销毁态轮转每帧查验数量")]
+        [Tooltip("兜底回收每帧各查验多少个所有者槽位与绑定槽位。场景卸载与退出播放时 OnDestroy 的销毁派发会被截断，" +
+                 "这些槽位连同其租约只能靠本配额轮转回收；调小会让回收延迟到 ceil(槽位数/配额) 帧，期间资源无法卸载。")]
+        [SerializeField] private int m_DestroySweepBudget = 64;
+        /// <summary>销毁态兜底回收每帧查验的槽位数量（所有者与绑定各一份）。</summary>
+        public static int DestroySweepBudget => Instance.m_DestroySweepBudget;
+
         #endregion
 
         #region 记录与租约 [RECORDS AND LEASE]
@@ -105,11 +135,6 @@ namespace Moirai.Atropos.Resource
         [SerializeField] private int m_BindingSlotCapacity = 128;
         /// <summary>绑定槽位预热容量。</summary>
         public static int BindingSlotCapacity => Instance.m_BindingSlotCapacity;
-
-        [LabelText("已注册目标预热容量")]
-        [SerializeField] private int m_RegisteredTargetCapacity = 128;
-        /// <summary>已注册目标预热容量。</summary>
-        public static int RegisteredTargetCapacity => Instance.m_RegisteredTargetCapacity;
 
         [LabelText("无引用资源句柄空闲过期时间(秒)")]
         [SerializeField] private float m_IdleAssetExpireTime = 60f;

@@ -51,7 +51,7 @@ Namespace: `Moirai.Atropos`
 | `ServiceScopeOrder` | Scope constant table (App=-10000, Scene=-5000, Gameplay=0); **the container never consumes it** — scope order comes from the fixed slots, polling order from `IService.Priority` |
 | `ServicePriorityOrder` | Framework built-in service polling priority constants (all ≤ -1000, banded separately from business services) |
 | `GameApp` | Static facade entry point (no MonoBehaviour): initialized by `GameAppSettings.Initiation` at `BeforeSceneLoad`, installs the builtin core hooks on `PlayerLoopDriver` to drive `GameServices.Tick` every frame, and calls `GameServices.Shutdown` on `Shutdown`; coroutines/Gizmos/Pause delegate to `GameAppHost` |
-| `GameAppMessageEvent` / `EMessageEventType` | Namespace `Moirai.Atropos.Events`, framework-level pooled events (focus/unfocus/quit, SDK callbacks) |
+| `GameAppMessageEvent` (nested `EEventType`) | Namespace `Moirai.Atropos.Events`, framework-level pooled events (focus/unfocus/quit); the enum carries only notifications the framework itself raises — SDK login/payment/etc. callbacks are project-layer types deriving `EventBase<T>` |
 
 ## Quick Start
 

@@ -2,12 +2,12 @@
 
 > 基于 Luban 配置表的多语言服务，支持文本、图片、音频与 Timeline 的自动注入和内联解析。
 
-`Localization` 服务通过 `LocalizationService` 静态外观访问，首次访问多语言 API 时从 Luban 配置表（经 [ConfigTable](ConfigTable.md) 的 `ConfigTableService`）懒式加载全部本地化字符串并注册可用语言。语言按「命令行参数 → 编辑器设置 → 本地存档 → 系统语言」的优先级决定，切换语言时会重新注入所有已注册的 `LocalizerBase` 组件，随后触发 `OnLanguageChanged`。除按 ID 取文本外，`LocalizationService.Localize` 还支持在任意字符串中内联解析 `{l10n:ID}` / `{i18n:ID}` / `{g11n:ID}` 占位符。
+`Localization` 服务通过 `LocalizationService` 静态外观访问，首次访问多语言 API 时从 Luban 配置表（经 [ConfigTable](ConfigTable.md) 的 `ConfigTableService`）懒式加载全部本地化字符串，可用语言随表自报。语言按「命令行参数 → 编辑器设置 → 本地存档 → 系统语言」的优先级决定，切换语言时会重新注入所有已注册的 `LocalizerBase` 组件，随后触发 `OnLanguageChanged`。除按 ID 取文本外，`LocalizationService.Localize` 还支持在任意字符串中内联解析 `{l10n:ID}` / `{i18n:ID}` / `{g11n:ID}` 占位符。
 
 ## 核心特性
 
 - `Language` 语言对象：携带 `Name`（枚举名）、`Code`（ISO-639-1）、`DisplayName`（本地显示名），内置 `SystemLanguage` 全量语言并支持自定义语言；内置语言与 `BuiltinLanguages` 为共享实例，不在访问时重建
-- 语言检测优先级：命令行 `-force-language` → 编辑器 `AppSettings.EditorLanguage` → `SettingUtility` 存档 → `Application.systemLanguage`（中文未区分简繁时回落简体）；检测出的语言没进这批词条时，按回退链、再按语言表首项兜底，不会让整套界面停留在露 key 状态
+- 语言检测优先级：命令行 `-force-language` → 编辑器 `LocalizationServiceSettings.EditorLanguage` → `SettingUtility` 存档 → `Application.systemLanguage`（中文未区分简繁时回落简体）；检测出的语言没进这批词条时，按回退链、再按语言表首项兜底，不会让整套界面停留在露 key 状态
 - 文本查询：`GetTextFromId`（支持 `string.Format` 参数）、`GetTextFromIdLanguage`（语言传 `null` 即当前语言）、`GetDictionaryFromId`（取全部语言）、`GetAllIds`
 - 缺译回退链：当前语言该词条为空或仅空白时，按 `FallbackLanguageCodes` 配置的顺序继续取译文，全链缺译才返回 ID（详见「缺译回退」）
 - 内联解析：`LocalizationService.Localize` 将 `{l10n:ID}`、`{i18n:ID}`、`{g11n:ID}` 替换为本地化条目
@@ -22,7 +22,7 @@
 
 | 类/接口 | 说明 |
 |---------|------|
-| `LocalizationService` | 静态外观（`[HandlerHost]`），负责加载配表文本、语言切换与 Localizer 管理；`OnLanguageChanged` 事件由外观直接暴露；`RegisterLanguageMap` / `GetAllAvailableLanguages` / `ToLanguage` / `Localize` 住在同一类的分部实现中 |
+| `LocalizationService` | 静态外观（`[HandlerHost]`），负责加载配表文本、语言切换与 Localizer 管理；`OnLanguageChanged` 事件由外观直接暴露；`ToLanguage` / `Localize` / `ResolveLanguages` 与编辑器预览 API 住在同一类的分部实现（`LocalizationService.Helper`）中 |
 | `Language` | 语言类（`IEquatable<Language>`，按 `Code` 比较）：`Name`、`Code`、`DisplayName`、`BuiltinLanguages`，支持与 `SystemLanguage` 互转；内置条目为共享只读实例 |
 | `LocalizationServiceHandler` | 处理器抽象基类：查询与回退链解析、语言切换、本地化器注册；`FallbackLanguageCodes` 配置回退顺序 |
 | `LocalizerBase` | 本地化器抽象基类（MonoBehaviour）：`Prepare` 获取目标组件引用，`Localize` 执行注入 |
@@ -37,7 +37,7 @@
 | `GoogleTranslator` | Google Cloud Translation v2 封装：`TranslateAsync`（协程）与 `Translate`（同步，编辑器用） |
 | `GoogleTranslateRequest` / `GoogleTranslateResponse` | 翻译请求/响应数据类（`Source`、`Target`、`Text`） |
 | `ComponentFinder` | 静态工具：按泛型顺序在 GameObject 上查找组件 |
-| `CommandLineUtility` | 命令行解析（`-force-language`），见 `Runtime/Core/Utility` 同名类的分部定义 |
+| `CommandLineUtility` | 命令行解析（`-force-language`），见 `Runtime/Core/Utilities` 同名类的分部定义 |
 
 ## 快速上手
 
@@ -85,7 +85,7 @@ string hint = LocalizationService.Localize("按 {l10n:btn_confirm} 继续");
 
 查询按「当前语言 → 回退链 → ID 原文」解析。译文为空或仅空白即视为缺译，因此表里留空就是「交给回退链」，不需要程序侧再判一次。
 
-回退顺序配在处理器上（`Tools/Settings` 的本地化条目，或代码赋值），填语言 `Code`：
+回退顺序配在处理器上（`Tools/Framework Settings` 的「[服务]本地化设置」条目，或代码赋值），填语言 `Code`：
 
 ```csharp
 // 默认 { "en" }；置空即关闭回退——缺译直接露 key
@@ -111,7 +111,7 @@ LocalizationService.OnLanguageChanged += language =>
 ### 组件注入
 
 - 文本：在挂有 `TextMesh`、UGUI `Text` 或 `TMP_Text` 的物体上添加 `TextLocalizer`， Inspector 中填写 `m_TextId`；运行中可调用 `ChangeID(string textId)` 动态换文案，`Clear()` 清空
-- 图片：`ImageLocalizer` 按发现顺序作用于 Image / RawImage / SpriteRenderer / Renderer；`sprites` / `textures` / `texture2Ds` 数组元素须与语言注册顺序一致（按 `CurrentLanguageIndex` 索引），`Renderer` 走材质属性（默认 `_MainTex`，可用 `propertyName` 指定）
+- 图片：`ImageLocalizer` 按发现顺序作用于 Image / RawImage / SpriteRenderer / Renderer；`sprites` / `textures` / `texture2Ds` 数组元素须与表自报的语言列序一致（按 `CurrentLanguageIndex` 索引），`Renderer` 走材质属性（默认 `_MainTex`，可用 `propertyName` 指定）
 - 音频：`AudioLocalizer` 将 `clips[CurrentLanguageIndex]` 注入 AudioSource
 
 ### Timeline 本地化
@@ -130,12 +130,12 @@ IEnumerator routine = translator.TranslateAsync(request,
 
 ## 注意事项
 
-- 本地化数据来自 Luban 配置表：必须先在 `Tools/Settings/ConfigTableSettings` 中生成并转表，否则加载失败并提示 "Failed to load localized text, generate config first!"（该错误只打一次，未就绪期间每次查询都返回 ID 原文）
+- 本地化数据来自 Luban 配置表：必须先在 `Tools/Framework Settings` 的 `LubanSettings`（「[框架]Luban 配置」）中生成并转表，否则加载失败并提示 "Failed to load localized text, generate config first!"（该错误只打一次，未就绪期间每次查询都返回 ID 原文）
 - 本地化数据为懒式初始化：服务注册期（`OnInit`）不加载任何资源，首次访问多语言 API（查询/切换）时才从配置表加载——届时 `Resource` 服务必然已就绪
-- 可用语言列表来自配表中 `LocalizationBean` 的字段注册（`LocalizationService.RegisterLanguageMap`）；`ChangeLanguage` 传入未注册语言时保持原语言不变并告警（每种语言只警告一次），不抛异常
-- 词条的语言列数与注册语言数不一致会被判为数据损坏：**整批数据拒载**并报错（下标错位只会表现为「显示了别的语言」，不会报错，所以宁可不加载）
-- `ToLanguage(str, onlySupported)` 中 `onlySupported` 为 `true` 时，未注册语言会回落到默认语言 English（`LocalizationService.defaultLanguage`）；需要区分「写错了」与「就是要默认语言」时用 `TryGetBuiltInLanguage`
-- 编辑器非运行模式下 `TextLocalizer.ChangeID` / `ImageLocalizer.ChangeID` 直接返回 `false`（Timeline 预览待实现），`LocalizationService.Localize` 也会原样返回
+- 可用语言由配表自报：生成侧 `LubanHandler` 反射 `LocalizationBean` 的语言列，经 `ConfigTableServiceHandler.GetLocalizationLanguageCodes()` 交给框架解析（`LocalizationService.ResolveLanguages`），不存在可回落的全局语言注册表。`ChangeLanguage` 传入未收录语言时保持原语言不变并告警（每种语言只警告一次），不抛异常
+- 词条的语言列数与自报语言数不一致会被判为数据损坏：**整批数据拒载**并报错（下标错位只会表现为「显示了别的语言」，不会报错，所以宁可不加载）
+- `ToLanguage(str, onlySupported)` 中 `onlySupported` 为 `true` 时，未收录进当前批的语言会回落到默认语言 English（`LocalizationService.defaultLanguage`）；需要区分「写错了」与「就是要默认语言」时用 `TryGetBuiltInLanguage`
+- 编辑器非运行模式下 `TextLocalizer.ChangeID` / `ImageLocalizer.ChangeID` 直接返回 `false`（Timeline 预览待实现）；`LocalizationService.Localize` 在非运行模式走编辑器预览直读，取不到预览数据时才原样返回
 - `ImageLocalizer` / `AudioLocalizer` 的数组是按语言索引注入的，配表新增语言后需同步补齐数组元素
 - 全部语言列常驻内存。是否到了必须按语言拆包的程度不要凭感觉：看游戏内调试器 `Profiler/Localization` 的「数据规模」一栏（词条数、语言数、译文总字符数即常驻下限），或读 `LocalizationService.EntryCount` / `LoadedLanguageCount` / `ResidentChars`
 

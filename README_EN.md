@@ -3,7 +3,7 @@ Moirai Framework
 
 [![Unity Version](https://img.shields.io/badge/Unity-2022.3%2B-blue.svg)](https://unity3d.com/)
 [![openupm](https://img.shields.io/npm/v/com.moirai.framework?label=openupm&registry_uri=https://package.openupm.com)](https://openupm.com/packages/com.moirai.framework/)
-[![License](https://img.shields.io/github/license/TeamMoirai/com.moirai.framework)](LICENSE)
+[![License](https://img.shields.io/github/license/TeamMoirai/com.moirai.framework)](LICENSE.txt)
 [![Issues](https://img.shields.io/github/issues/TeamMoirai/com.moirai.framework)](https://github.com/TeamMoirai/com.moirai.framework/issues)
 [![Last Commit](https://img.shields.io/github/last-commit/TeamMoirai/com.moirai.framework)](https://github.com/TeamMoirai/com.moirai.framework)
 [![Top Language](https://img.shields.io/github/languages/top/TeamMoirai/com.moirai.framework)](https://github.com/TeamMoirai/com.moirai.framework)
@@ -70,6 +70,7 @@ Moirai Framework
   - [Extensions/R3 — Reactive Extensions](#extensionsr3--reactive-extensions)
   - [Utility — Utilities](#utility--utilities)
 - [Editor Tools](#editor-tools)
+- [🧪 Testing Conventions](#-testing-conventions)
 - [Recommended Project Structure](#recommended-project-structure)
 - [Contributing & Support](#contributing--support)
   - [Ecosystem Dependencies](#ecosystem-dependencies)
@@ -101,7 +102,7 @@ Moirai Framework
       ```
       <img src="Documentation~\.src\quick-start-1.png" alt="quick-start-scoped-registries" />
 
-   - Clone the `install` branch to your project directory (Assets/...):
+   - Clone the `installer` branch to your project directory (Assets/...):
 
       ```bash
       git clone --branch installer --single-branch https://github.com/TeamMoirai/com.moirai.framework.git Scripts/Installer
@@ -129,7 +130,7 @@ Moirai Framework
 
     <img src="Documentation~\.src\quick-start-2-package-detail.png" alt="quick-start-package-detail" />
 
-3. <a id="manual-import"></a>Manually copy all contents from the **@Requirements** folder under `ProjectRoot/Library/PackageCach/com.moirai.framework@xxx/Templates~/` to the **ProjectRoot/Assets** directory.
+3. <a id="manual-import"></a>Manually copy all contents from the **@Requirements** folder under `ProjectRoot/Library/PackageCache/com.moirai.framework@xxx/Templates~/` to the **ProjectRoot/Assets** directory.
 
     (Optional) Copy an appropriate template from the same directory into the project as needed; generally, choose **NormalTemplate**.
 
@@ -156,24 +157,24 @@ Add `Scenes/main.unity` to the build:
 
 ##### Config Table Service
 
-- Select `Tools/Settings/ConfigTableSettings`, click `Generate Config to Target Directory`
+- In `Tools/Framework Settings`, open `[框架]Luban 配置` and click `生成 Config 到指定目录`
 - When generating for the first time, before exporting, first run the **build-luban** compilation or manually import Luban to the config table root directory
-- If the config table directory is moved, you need to manually update it in `Tools/Settings/ConfigTableSettings` — Redirect Config Directory
+- If the config table directory is moved, you need to manually update it in `Tools/Framework Settings` — `[框架]Luban 配置` → `重定向 Config 目录`
 
 ---
 
 #### Quick Tips
 
 1. **Editor Play Mode**
-   - Select `YooAsset/Editor PlayMode` from the top menu bar for editor simulation mode
+   - In `Tools/Framework Settings` → `[服务]资源设置`, set `PlayMode` to `EditorSimulate` (editor simulation mode, the default)
    - Click `Play` to start running
 
 2. **Build & Run** (Hot Update Workflow)
    - Run menu `HybridCLR/Install...` to install HybridCLR
    - Run menu `HybridCLR/Define Symbols/Enable HybridCLR` to enable hot updates
    - Run menu `HybridCLR/Generate/All` for necessary code generation
-   - Run menu `HybridCLR/Build/BuildAssets And CopyTo AssemblyPath` to build the hot update DLL
-   - Run menu `YooAsset/AssetBundle Builder` to build AssetBundles
+   - Run menu `HybridCLR/Build/BuildAssets And CopyTo AssemblyTextAssetPath` to build the hot update DLL
+   - Run menu `YooAsset/Bundle Builder` to build AssetBundles
    - Open Build Settings and click Build And Run
 
 > **Tip**: For issues, see [HybridCLR Common Errors](https://hybridclr.doc.code-philosophy.com/docs/help/commonerrors)
@@ -229,7 +230,7 @@ The framework uses a **service-oriented architecture** where all subsystems are 
 
 ```csharp
 // Service access — each service provides a static facade (HandlerHost generated), lazy-loaded internally
-ResourceService.LoadAsset<Sprite>("Assets/AssetRaw/UI/icon.png");
+ResourceService.LoadLease<Sprite>("Assets/AssetRaw/UI/icon.png");
 UIService.ShowUI<MainWindow>();
 TimerService.Delay(1f, () => Debug.Log("1s"));
 
@@ -278,7 +279,7 @@ When changing any of the three constants, update **all three sites + this sectio
 
 ### Startup Flow
 
-`Main/Procedure/` defines the complete startup chain:
+`Scripts/GameBase/Procedure/` defines the complete startup chain:
 
 ```
 ProcedureLaunch → ProcedureSplash → ProcedureInitPackage → ProcedureInitResources
@@ -286,7 +287,7 @@ ProcedureLaunch → ProcedureSplash → ProcedureInitPackage → ProcedureInitRe
 → ProcedureClearCache → ProcedureLoadAssembly → ProcedurePreload → ProcedurePrepare4Entrance
 ```
 
-Each stage is an independent `ProcedureBase` state, customizable via `ProcedureSettings` (ScriptableObject).
+Each stage is an independent `ProcedureBase` state, customizable via `ProcedureServiceSettings` (ScriptableObject).
 
 > See **[Procedure service documentation](Documentation~/en/Procedure.md)** for details
 
@@ -333,7 +334,7 @@ Each service has its own documentation (located in `Documentation~/en/`), coveri
 | `LayerAttribute` | Layer selector |
 | `TagAttribute` | Tag selector |
 | `ResourcePathAttribute` | Resource path selector |
-| `HelperDropdownAttribute` | Reference/type dropdown (supports [SerializeReference] fields and string type-name fields) |
+| `ProviderDropdownAttribute` | Reference/type dropdown (supports [SerializeReference] fields and string type-name fields) |
 | `OdinExtends/*` | Odin extensions (condition groups, help info, inline buttons, etc.) |
 
 ### Events — Event System
@@ -381,7 +382,7 @@ LogUtility.Warning("Asset load failed: {0}", path);
 LogUtility.Error("Critical error!");
 ```
 
-- Runtime level filtering: `LogHandler.MinimumLevel` (`ELogLevel`: Verbose / Debug / Info / Warning / Error / Exception)
+- Runtime level filtering: `LogHandler.MinimumLevel` (`ELogLevel`: Verbose / Debug / Info / Warning / Error / Fatal)
 - Pluggable output backends: Default / Serilog / ZLogger / UnityLogging (com.unity.logging)
 - T4-template generated formatting overloads (`LogUtility.LogMethods.tt`), with structured context and message-event callbacks
 - Intercepts native Unity `Debug.Log` and routes it through the framework logging pipeline
@@ -441,7 +442,7 @@ var player = ToolRegistry.GetComponent<PlayerController>();
 Integrated with the [Obfuz](https://github.com/nicenightcc/Obfuz) code obfuscation framework, auto-initializes encryption virtual machine after assembly load.
 
 - Conditional compilation: requires both `OBFUZ_INSTALLED` and `ENABLE_OBFUZ` macros
-- Supports static key encryption (`StaticEncryptionScope`)
+- Supports static key encryption (`DefaultStaticEncryptionScope`)
 - Auto-loads key resource (`Resources/Obfuz/defaultStaticSecretKey`)
 
 ### DataStructure — Data Structures
@@ -472,7 +473,7 @@ myButton.OnClickAsObservable()
 
 // ReactiveProperty ↔ UGUI two-way binding
 var hp = new ReactiveProperty<int>(100);
-hp.BindTo(hpSlider);  // Slider auto-syncs
+hpSlider.BindProperty(hp, unRegister);  // Slider auto-syncs
 ```
 
 ### Utility — Utilities
@@ -503,7 +504,6 @@ hp.BindTo(hpSlider);  // Slider auto-syncs
 | `TweenUtility` | Tween system (with Bezier paths), pluggable engine, [docs](Documentation~/en/TweenUtility.md) |
 | `UniParallel` | UniTask parallel task collector (await all) |
 | `UnityUtility` | Unity common utilities |
-| `ZipWrapper` | Compression/decompression wrapper |
 
 ---
 
@@ -520,17 +520,40 @@ hp.BindTo(hpSlider);  // Slider auto-syncs
 | Game Settings | Audio group, procedure settings, update settings editor (`Tools/Framework Settings`) |
 | HybridCLR | Hot update DLL build commands |
 | Inspector | Asset/Core component custom inspectors |
-| Luban Tools | Luban config table generation (`Tools/Settings/ConfigTableSettings`) |
+| Luban Tools | Luban config table generation (`Tools/Config/Luban 转表`) |
 | Maintenance | Clean empty folders, find missing scripts, prefab finder, group selection, lock Inspector |
 | Reference Finder | Asset dependency/reference tree view (`Tools/资产相关/查找资产引用`) |
 | Release Tools | Build pipeline window, one-click build Android/iOS/Window/AssetBundle (`Tools/Build`) |
 | Tasks Editor | Task runner editor |
 | Tween | Easing property drawer |
-| UI Service | UI binding code auto-generation (`GameObject/ScriptGenerator/Generate Binding Code`), component Inspector |
+| UI Service | UI binding code auto-generation (`GameObject/ScriptGenerator/生成绑定代码`), component Inspector |
 | Input Service | Input action config editor, button icon collection editor |
-| Save Service | Save browser (`Window/Moirai/Save Browser`), codeless save component editor |
-| Utility | Command-line reader, log redirection, EditorScriptableSingleton, Shell helper, etc. |
+| Save Service | Save browser (`Tools/Moirai/Save/Save Browser`), codeless save component editor |
+| Utility | Command-line reader, Shell helper, etc. |
 | YooAsset | Build cache cleanup, builtin catalog/patch package tools, custom build pipeline, Shader variant collection |
+
+---
+
+## 🧪 Testing Conventions
+
+**Reach internal state through `internal`, not reflection.** When a test needs to read or write an object's internal state, do not fetch the member by reflection — change its accessibility from `private` to `internal` instead. `Runtime/AssemblyInfo.cs` already declares `InternalsVisibleTo` for `Moirai.Atropos.Editor` and for all three test assemblies (`.Tests.EditorMode` / `.Tests.PlayMode` / `.Tests.Player`), so `internal` members are visible to tests without any reflection.
+
+```csharp
+// ✗ Reflecting into a private serialized field: renaming the field raises no compile error,
+//    the test only blows up at run time when GetField returns null
+typeof(AudioGroupConfig)
+    .GetField("m_MaxChannelCeiling", BindingFlags.Instance | BindingFlags.NonPublic)
+    .SetValue(config, 4096);
+
+// ✓ Widen the member by one level and let the test assign it plainly
+[SerializeField, Min(1)] internal int m_MaxChannelCeiling = HARD_CHANNEL_CEILING_DEFAULT;
+// ...
+config.m_MaxChannelCeiling = 4096;
+```
+
+- **Serialized fields included**: `internal` does not affect Unity serialization (`[SerializeField]` does not require `private`), and the naming prefix still follows the private family — `m_` / `s_` / `_`.
+- **Do not widen a field that already has a narrow seam**: swapping a service handler goes through the generated `XxxService.Internal_PeekHandler()` / `Internal_UseHandler(next)` from `HandlerHostGenerator` (see `Tests/PlayMode/Service/Audio/AudioServiceTestHost.cs` in action); `s_Handler` stays `private`.
+- **Reflection keeps two legitimate jobs**: walking the API shape and asserting member annotations for contract guards (`ResourceSeamShapeGuardTests`, `ResourceMethodSetContractTests`, `YooAssetHandlerSmokeTests.RuntimeArrayFields_AreNonSerialized`), and invoking Unity lifecycle callbacks (`Awake` / `OnEnable` / `OnInit`). Neither reads or writes one specific private member.
 
 ---
 

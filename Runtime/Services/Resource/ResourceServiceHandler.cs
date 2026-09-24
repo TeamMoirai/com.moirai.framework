@@ -8,13 +8,53 @@ using UObject = UnityEngine.Object;
 namespace Moirai.Atropos.Resource
 {
     /// <summary>
+    /// 租约取用与归还的窄接缝——绑定层所需的全部后端能力，恰好八个成员。
+    /// <para>之所以单独存在：绑定层此前握的是 <see cref="ResourceServiceHandler"/>，那是 74 个抽象成员
+    /// 的后端全契约，而它实际调用的只有这里这 8 个（其中 27 处是 <see cref="Release"/>）。
+    /// 收口之前处理器构造并驱动绑定服务、绑定服务又回调处理器的内部成员，两边都既不能单独构造也不能
+    /// mock——测试只能拿一个真后端裸实例，靠它"未初始化"来凑确定性。收窄之后一条 8 成员的接缝
+    /// 就能假造，且后端实现者面对的能力面第一次是可枚举的。</para>
+    /// <para>由 <see cref="ResourceServiceHandler"/> 以显式实现转发承接：其中六个成员是
+    /// <c>internal abstract</c>，而接口实现必须是 public，直接实现编不过；转发是唯一既不改它们
+    /// 的可见性、又不给接缝增加成员的做法。等记账内核落地后改由内核实现，这六个
+    /// <c>internal abstract</c> 才真正从接缝上消失。</para>
+    /// </summary>
+    internal interface IResourceLeaseSource
+    {
+        /// <summary>同步取用一个直接租约；失败返回 <see cref="ResourceLeaseHandle.Invalid"/>。</summary>
+        ResourceLeaseHandle AcquireBinding(ResourceKey key);
+
+        /// <summary>异步取用一个直接租约。</summary>
+        UniTask<ResourceLeaseHandle> AcquireBindingAsync(ResourceKey key, CancellationToken cancellationToken);
+
+        /// <summary>异步取用整张子资源图集的租约，具体精灵再按名索取。</summary>
+        UniTask<ResourceLeaseHandle> AcquireSubAssetsBindingAsync(string location, string packageName,
+            EResourceLeaseOption options, CancellationToken cancellationToken);
+
+        /// <summary>从子资源图集租约里按名取出一个精灵。</summary>
+        bool TryGetSubSpriteAsset(ResourceLeaseHandle handle, string spriteName, out Sprite sprite);
+
+        /// <summary>取出租约指向的资源对象。</summary>
+        bool TryGetLeaseAsset(ResourceLeaseHandle handle, out UObject asset);
+
+        /// <summary>取出租约指向的记录 id，仅用于诊断。</summary>
+        bool TryGetLeaseAssetId(ResourceLeaseHandle handle, out int assetId);
+
+        /// <summary>登记取用时的租约选项（如释放后转保活）。</summary>
+        void SetLeaseOptions(ResourceLeaseHandle handle, EResourceLeaseOption options);
+
+        /// <summary>归还租约。<b>必须无条件完成</b>——静默丢掉一条就是永久泄漏。</summary>
+        void Release(ResourceLeaseHandle handle);
+    }
+
+    /// <summary>
     /// 资源管理器处理器抽象基类（策略模式抽象策略）——定义通用资源加载、缓存、租约与绑定契约。
     /// <para>框架通用，不依赖具体资源系统（YooAsset、Addressable 等）；
     /// 由具体后端（如 <see cref="YooAssetHandler"/>、<see cref="AddressableHandler"/>）实现。</para>
     /// <para>由 <see cref="ResourceServiceSettings"/> 序列化配置，<see cref="ResourceService"/> 外观转发调用。</para>
     /// </summary>
     [Serializable]
-    public abstract class ResourceServiceHandler : FrameworkHandler
+    public abstract class ResourceServiceHandler : FrameworkHandler, IResourceLeaseSource
     {
         #region 基础属性 [BASE PROPERTIES]
 
@@ -274,70 +314,6 @@ namespace Moirai.Atropos.Resource
 
         #endregion
 
-        #region 遗留 API [LEGACY API]
-
-        /// <summary>
-        /// 同步加载资源。每次成功调用后，调用方必须在不再使用时成对调用 <see cref="UnloadAsset"/>。
-        /// </summary>
-        /// <param name="location">资源的定位地址。</param>
-        /// <param name="packageName">指定资源包的名称。不传使用默认资源包。</param>
-        /// <typeparam name="T">要加载资源的类型。</typeparam>
-        /// <returns>资源实例。</returns>
-        [Obsolete("Use LoadLease<T> for explicit ownership.")]
-        public abstract T LoadAsset<T>(string location, string packageName = "") where T : UObject;
-
-        /// <summary>
-        /// 异步加载资源。每次成功回调资源后，调用方必须在不再使用时成对调用 <see cref="UnloadAsset"/>。
-        /// </summary>
-        /// <param name="location">资源的定位地址。</param>
-        /// <param name="callback">回调函数。</param>
-        /// <param name="packageName">指定资源包的名称。不传使用默认资源包。</param>
-        /// <typeparam name="T">要加载资源的类型。</typeparam>
-        [Obsolete("Use LoadLeaseAsync<T> for explicit ownership.")]
-        public abstract UniTask LoadAsset<T>(string location, Action<T> callback, string packageName = "") where T : UObject;
-
-        /// <summary>
-        /// 异步加载资源。每次成功返回资源后，调用方必须在不再使用时成对调用 <see cref="UnloadAsset"/>。
-        /// </summary>
-        /// <param name="location">资源定位地址。</param>
-        /// <param name="cancellationToken">取消操作 Token。</param>
-        /// <param name="packageName">指定资源包的名称。不传使用默认资源包。</param>
-        /// <typeparam name="T">要加载资源的类型。</typeparam>
-        /// <returns>异步资源实例。</returns>
-        [Obsolete("Use LoadLeaseAsync<T> for explicit ownership.")]
-        public abstract UniTask<T> LoadAssetAsync<T>(string location, CancellationToken cancellationToken = default, string packageName = "") where T : UObject;
-
-        /// <summary>
-        /// 异步加载资源。
-        /// </summary>
-        /// <param name="location">资源的定位地址。</param>
-        /// <param name="assetType">要加载的资源类型。</param>
-        /// <param name="priority">加载资源的优先级。</param>
-        /// <param name="loadAssetCallbacks">加载资源回调函数集。</param>
-        /// <param name="userData">用户自定义数据。</param>
-        /// <param name="packageName">指定资源包的名称。不传使用默认资源包。</param>
-        [Obsolete("Use LoadLeaseAsync<T> for explicit ownership.")]
-        public abstract UniTask LoadAssetAsync(string location, Type assetType, int priority, LoadAssetCallbacks loadAssetCallbacks, object userData, string packageName = "");
-
-        /// <summary>
-        /// 异步加载资源。
-        /// </summary>
-        /// <param name="location">资源的定位地址。</param>
-        /// <param name="priority">加载资源的优先级。</param>
-        /// <param name="loadAssetCallbacks">加载资源回调函数集。</param>
-        /// <param name="userData">用户自定义数据。</param>
-        /// <param name="packageName">指定资源包的名称。不传使用默认资源包。</param>
-        [Obsolete("Use LoadLeaseAsync<T> for explicit ownership.")]
-        public abstract UniTask LoadAssetAsync(string location, int priority, LoadAssetCallbacks loadAssetCallbacks, object userData, string packageName = "");
-
-        /// <summary>
-        /// 卸载资源。
-        /// </summary>
-        /// <param name="asset">要卸载的资源。每次成功调用直接返回资源的 LoadAsset 接口后，都需要成对调用一次。</param>
-        [Obsolete("Use ResourceAssetLease<T> or Binding instead of LoadAsset/UnloadAsset.")]
-        public abstract void UnloadAsset(object asset);
-
-        #endregion
 
         #region 容量属性 [CAPACITY PROPERTIES]
 
@@ -362,11 +338,6 @@ namespace Moirai.Atropos.Resource
         public abstract int BindingSlotCapacity { get; set; }
 
         /// <summary>
-        /// 已注册目标预热容量。
-        /// </summary>
-        public abstract int RegisteredTargetCapacity { get; set; }
-
-        /// <summary>
         /// 无引用资源句柄空闲过期秒数。
         /// </summary>
         public abstract float IdleAssetExpireTime { get; set; }
@@ -384,7 +355,7 @@ namespace Moirai.Atropos.Resource
         /// <summary>
         /// 预热资源记录。
         /// </summary>
-        public abstract void WarmupResourceRecords(int assetCapacity, int leaseCapacity, int unityObjectIndexCapacity);
+        public abstract void WarmupResourceRecords(int assetCapacity, int leaseCapacity);
 
         #endregion
 
@@ -399,11 +370,6 @@ namespace Moirai.Atropos.Resource
         /// 异步获取一个直接资源租约。
         /// </summary>
         public abstract UniTask<ResourceLeaseHandle> AcquireDirectAsync(ResourceKey key, CancellationToken cancellationToken = default);
-
-        /// <summary>
-        /// 尝试使用显式资源 Key 获取一个直接资源租约。
-        /// </summary>
-        public abstract bool TryAcquireDirect(ResourceKey key, out ResourceLeaseHandle handle);
 
         /// <summary>
         /// 释放一个显式资源租约。
@@ -479,6 +445,31 @@ namespace Moirai.Atropos.Resource
         /// </summary>
         internal abstract UniTask<ResourceLeaseHandle> AcquirePrefabSourceLeaseAsync(string location, string packageName, CancellationToken cancellationToken);
 
+
+        // ---- IResourceLeaseSource 承接 ----
+        // 六个 internal abstract 成员无法直接实现接口（接口实现必须 public），故显式转发：
+        // 可见性一字未改、接缝成员数也没涨。Release / TryGetLeaseAsset 本来就是 public，
+        // 由其抽象声明直接满足接口，不在此重复。
+
+        ResourceLeaseHandle IResourceLeaseSource.AcquireBinding(ResourceKey key) =>
+            AcquireBinding(key);
+
+        UniTask<ResourceLeaseHandle> IResourceLeaseSource.AcquireBindingAsync(ResourceKey key,
+            CancellationToken cancellationToken) => AcquireBindingAsync(key, cancellationToken);
+
+        UniTask<ResourceLeaseHandle> IResourceLeaseSource.AcquireSubAssetsBindingAsync(string location,
+            string packageName, EResourceLeaseOption options, CancellationToken cancellationToken) =>
+            AcquireSubAssetsBindingAsync(location, packageName, options, cancellationToken);
+
+        bool IResourceLeaseSource.TryGetSubSpriteAsset(ResourceLeaseHandle handle, string spriteName,
+            out Sprite sprite) => TryGetSubSpriteAsset(handle, spriteName, out sprite);
+
+        bool IResourceLeaseSource.TryGetLeaseAssetId(ResourceLeaseHandle handle, out int assetId) =>
+            TryGetLeaseAssetId(handle, out assetId);
+
+        void IResourceLeaseSource.SetLeaseOptions(ResourceLeaseHandle handle, EResourceLeaseOption options) =>
+            SetLeaseOptions(handle, options);
+
         #endregion
 
         #region 过期回收 [EXPIRY & RECYCLING]
@@ -486,7 +477,11 @@ namespace Moirai.Atropos.Resource
         /// <summary>
         /// 每帧资源维护：空闲/保活到期回收 + 销毁态所有者与绑定的兜底回收。
         /// </summary>
-        internal abstract void ProcessResourceMaintenance(float unscaledTime, int maxCount);
+        /// <param name="unscaledTime">本帧的无缩放时间。</param>
+        /// <param name="expireBudget">本轮可处理的到期记录数上限。</param>
+        /// <param name="destroySweepBudget">销毁态轮转每帧查验的槽位数（所有者与绑定各一份）。
+        /// 它与 <paramref name="expireBudget"/> 是两件事，分开传：合成一个预算会让到期记录多的帧饿死销毁回收。</param>
+        internal abstract void ProcessResourceMaintenance(float unscaledTime, int expireBudget, int destroySweepBudget);
 
         /// <summary>
         /// 释放全部未使用资源记录。

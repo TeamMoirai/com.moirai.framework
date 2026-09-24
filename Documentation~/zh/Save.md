@@ -346,7 +346,7 @@ await SaveService.RestoreEntitiesAsync("slot1");
 | `FileSaveStorageBackendTests` | 原子写、幂等删除、精确枚举、备份恢复、能力自描述 |
 | `SaveCompressionTests` | GZip 往返、压+加组合、未压缩档兼容读、头部分型、注册表 |
 | `SaveKeyProviderTests` | 静态派生、口令注入、HKDF 按用户隔离 |
-| `AesEncryptedSaveHandlerTests` | 加密全链路 |
+| `AESEncryptedSaveHandlerTests` | 加密全链路 |
 | `SaveEncryptorTests` | AES/HMAC 机件 |
 | `SaveMigrationAndBackendTests` | 四后端往返、块级版本迁移级联 |
 | `SaveMigrationBusTests` | 版本链、改名改型、整块变换、回写开关、审计、写入自愈、显式迁移 |

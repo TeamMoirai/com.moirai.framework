@@ -94,16 +94,12 @@ namespace Moirai.Atropos.Resource
             {
                 _bindingIndexByOwnerSlot.Clear();
                 _ownerIndexByGameObjectId.Clear();
-                _ownerByTargetComponentId.Clear();
                 _ownerPages = null;
                 _bindingPages = null;
-                _registeredTargetPages = null;
                 _ownerNextIndex = 0;
                 _bindingNextIndex = 0;
-                _registeredTargetNextIndex = 0;
                 _ownerFreeHead = -1;
                 _bindingFreeHead = -1;
-                _registeredTargetFreeHead = -1;
                 _ownerSweepCursor = 0;
                 _bindingSweepCursor = 0;
             }
@@ -114,6 +110,18 @@ namespace Moirai.Atropos.Resource
         private static void CollectException(ref List<Exception> exceptions, Exception exception)
         {
             exceptions ??= new List<Exception>();
+            // 摊平一层：内层收尾已把单条异常包成 AggregateException 上抛，外层再整只收进来
+            // 就成了 AggregateException(AggregateException(...))，排查时要 Flatten() 才看得到根因。
+            if (exception is AggregateException aggregate)
+            {
+                for (int i = 0; i < aggregate.InnerExceptions.Count; i++)
+                {
+                    exceptions.Add(aggregate.InnerExceptions[i]);
+                }
+
+                return;
+            }
+
             exceptions.Add(exception);
         }
 
@@ -132,8 +140,9 @@ namespace Moirai.Atropos.Resource
         /// 按预算轮转扫描所有者与绑定槽位，回收"Unity 对象已销毁、但 <c>OnDestroy</c> 没把账收走"的那部分。
         /// <para>典型现场是场景卸载与退出播放：销毁派发被截断后，槽位连同其租约会一路留到进程结束。</para>
         /// </summary>
-        /// <param name="budget">本帧两类槽位各可查验的数量。</param>
-        internal void ProcessDestroyedObjects(int budget = DESTROYED_SWEEP_BUDGET)
+        /// <param name="budget">本帧两类槽位各可查验的数量。刻意不给默认值：调用方一律显式传，
+        /// 才能让"这个配额没人调"在编译期就暴露出来，而不是悄悄沿用一个常量。</param>
+        internal void ProcessDestroyedObjects(int budget)
         {
             if (_isShutdown || budget <= 0 || _ownerPages == null)
             {
@@ -177,14 +186,12 @@ namespace Moirai.Atropos.Resource
 
                 int index = _bindingSweepCursor++;
                 ref BindingSlot binding = ref GetBindingSlotRef(index);
+                // 判据只有一条：目标是否已销毁。已释放的槽位 Target 为空，天然到不了下面。
+                // 刻意不再附加"有没有租约/资源"那层判据——异步预约留下的槽位正是
+                // "有目标、有版本号、无租约无资源"的形状，按那个形状跳过它就永远轮不到回收，
+                // 只在所有者释放时才走掉；而它占着 _bindingIndexByOwnerSlot 里的一条映射与一个版本号。
                 if (!IsDestroyed(binding.Target))
                 {
-                    continue;
-                }
-
-                if (!binding.Lease.IsValid && binding.AppliedAsset == null && binding.RuntimeObject == null)
-                {
-                    // 空槽或尚未落地的预约位，没有需要回收的东西
                     continue;
                 }
 
@@ -195,11 +202,16 @@ namespace Moirai.Atropos.Resource
                 try
                 {
                     ClearAndReleaseBinding(ref binding);
-                    ReleaseDestroyedBinding(index, ownerId, ownerGeneration, slotKey);
                 }
                 catch (Exception exception)
                 {
                     CollectException(ref exceptions, exception);
+                }
+                finally
+                {
+                    // 摘槽位是无条件项，不能被清理那一步的抛出截断：游标在判定之前就已推进，
+                    // 漏摘一回，下一圈就撞回同一个槽位、再抛一次，直到进程结束。
+                    ReleaseDestroyedBinding(index, ownerId, ownerGeneration, slotKey);
                 }
             }
 

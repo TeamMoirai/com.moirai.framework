@@ -28,6 +28,9 @@ public class {EVENT_NAME}EventArgs : EventArgs
 ```
 
 ### 3. 创建事件管理器
+
+> 包内的事件一律走第 6 节的池化派发（`EventBase<T>` + `EventManager`），不要在这里另立一条总线；本节只用于包外的纯 C# 场景。
+
 ```csharp
 // 事件管理器
 public static class {EVENT_NAME}Event
@@ -96,17 +99,30 @@ public class SomeClass
 
 ### 6. 事件总线集成（可选）
 ```csharp
-// 使用框架的事件总线
-public class {EVENT_NAME}Event : IEvent
+// 池化事件：派生 EventBase<T>，构造与派发收在静态入口里（框架里没有 IEvent / EventSystem）
+public interface I{MODULE}Event { }                 // 标记接口，供按类别过滤订阅
+
+public class {EVENT_NAME}Event : EventBase<{EVENT_NAME}Event>, I{MODULE}Event
 {
-    // 事件数据
+    public {PAYLOAD_TYPE} Payload { get; private set; }
+
+    private static {EVENT_NAME}Event GetPooled({PAYLOAD_TYPE} payload)
+    {
+        var evt = GetPooled();
+        evt.Payload = payload;
+        return evt;
+    }
+
+    public static void Trigger({PAYLOAD_TYPE} payload)
+    {
+        using var evt = GetPooled(payload);
+        EventManager.SendEvent(evt);
+    }
 }
 
-// 注册事件
-EventSystem.Instance.Subscribe<{EVENT_NAME}Event>(On{EVENT_NAME});
-
-// 触发事件
-EventSystem.Instance.Publish(new {EVENT_NAME}Event(/* 数据 */));
+// 订阅与退订
+EventManager.RegisterCallback<{EVENT_NAME}Event>(On{EVENT_NAME});
+EventManager.UnregisterCallback<{EVENT_NAME}Event>(On{EVENT_NAME});
 ```
 
 ## 事件设计原则

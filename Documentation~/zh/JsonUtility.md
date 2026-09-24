@@ -46,9 +46,6 @@ byte[] bytes = JsonUtility.ToJsonBytes(playerData);
 // 从字节反序列化
 var data = JsonUtility.ToObject<PlayerData>(bytes);
 
-// 覆盖现有对象
-JsonUtility.FromJsonOverwrite(json, existingObject);
-
 // 格式化 JSON 字符串
 string formatted = JsonUtility.FormatJson(json);
 ```
@@ -96,7 +93,7 @@ JsonUtility.Handler = new DefaultJsonHandler();
 - `Handler` 赋 null 抛出 `ArgumentNullException`；赋新值时自动调用旧 handler 的 `Internal_Shutdown()` 和新 handler 的 `Internal_Init()`
 - 默认不序列化 `UnityEngine.Object` 派生类型（GameObject/Component/Sprite/Texture/Material 等）和 `UnityEvent`，反射式序列化会触达原生侧对象
 - 默认要求属性同时具备 get/set（读写兼备的往返对称契约），get-only 计算属性自动排除
-- `FromJsonOverwrite` 将 JSON 数据反序列化到现有对象上并覆盖现有数据
+- `JsonHandler.FromJsonOverwrite` 将 JSON 数据反序列化到现有对象上并覆盖现有数据
 
 ---
 [« 返回文档索引](Index.md) · [主 README](../../README.md) · [StringUtility](StringUtility.md) · [Save](Save.md)

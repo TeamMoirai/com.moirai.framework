@@ -353,44 +353,6 @@ namespace Moirai.Atropos.Resource
 
         #endregion
 
-        #region 遗留 API [LEGACY API]
-
-        /// <inheritdoc />
-        [Obsolete("Use LoadLease<T> for explicit ownership.")]
-        public override T LoadAsset<T>(string location, string packageName = "")
-        {
-            throw CreateNotSupported();
-        }
-
-        /// <inheritdoc />
-        [Obsolete("Use LoadLeaseAsync<T> for explicit ownership.")]
-        public override UniTask LoadAsset<T>(string location, Action<T> callback, string packageName = "")
-        {
-            throw CreateNotSupported();
-        }
-
-        /// <inheritdoc />
-        [Obsolete("Use LoadLeaseAsync<T> for explicit ownership.")]
-        public override UniTask<T> LoadAssetAsync<T>(string location, CancellationToken cancellationToken = default, string packageName = "")
-        {
-            throw CreateNotSupported();
-        }
-
-        /// <inheritdoc />
-        [Obsolete("Use LoadLeaseAsync<T> for explicit ownership.")]
-        public override UniTask LoadAssetAsync(string location, Type assetType, int priority, LoadAssetCallbacks loadAssetCallbacks, object userData, string packageName = "")
-        {
-            throw CreateNotSupported();
-        }
-
-        /// <inheritdoc />
-        [Obsolete("Use LoadLeaseAsync<T> for explicit ownership.")]
-        public override UniTask LoadAssetAsync(string location, int priority, LoadAssetCallbacks loadAssetCallbacks, object userData, string packageName = "")
-        {
-            throw CreateNotSupported();
-        }
-
-        #endregion
 
         #region 容量属性 [CAPACITY PROPERTIES]
 
@@ -407,9 +369,6 @@ namespace Moirai.Atropos.Resource
         public override int BindingSlotCapacity { get; set; }
 
         /// <inheritdoc />
-        public override int RegisteredTargetCapacity { get; set; }
-
-        /// <inheritdoc />
         public override float IdleAssetExpireTime { get; set; }
 
         /// <inheritdoc />
@@ -420,22 +379,12 @@ namespace Moirai.Atropos.Resource
         #region 预热 [WARMUP]
 
         /// <inheritdoc />
-        public override void WarmupResourceRecords(int assetCapacity, int leaseCapacity, int unityObjectIndexCapacity)
+        public override void WarmupResourceRecords(int assetCapacity, int leaseCapacity)
         {
         }
 
         #endregion
 
-        #region 资源卸载 [ASSET UNLOAD]
-
-        /// <inheritdoc />
-        [Obsolete("Use ResourceAssetLease<T> or Binding instead of LoadAsset/UnloadAsset.")]
-        public override void UnloadAsset(object asset)
-        {
-            throw CreateNotSupported();
-        }
-
-        #endregion
 
         #region 公共 Lease API [PUBLIC LEASE API]
 
@@ -448,13 +397,6 @@ namespace Moirai.Atropos.Resource
         /// <inheritdoc />
         public override UniTask<ResourceLeaseHandle> AcquireDirectAsync(ResourceKey key, CancellationToken cancellationToken = default)
         {
-            throw CreateNotSupported();
-        }
-
-        /// <inheritdoc />
-        public override bool TryAcquireDirect(ResourceKey key, out ResourceLeaseHandle handle)
-        {
-            handle = ResourceLeaseHandle.Invalid;
             throw CreateNotSupported();
         }
 
@@ -554,10 +496,10 @@ namespace Moirai.Atropos.Resource
         #region 过期回收 [EXPIRY & RECYCLING]
 
         /// <inheritdoc />
-        internal override void ProcessResourceMaintenance(float unscaledTime, int maxCount)
+        internal override void ProcessResourceMaintenance(float unscaledTime, int expireBudget, int destroySweepBudget)
         {
             // 本后端不做记录级过期，但绑定槽位的销毁态回收与资源后端无关。
-            _bindingService?.ProcessDestroyedObjects();
+            _bindingService?.ProcessDestroyedObjects(destroySweepBudget);
         }
 
         /// <inheritdoc />

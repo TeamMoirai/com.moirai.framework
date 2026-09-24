@@ -22,9 +22,10 @@ Runtime/Services/ObjectPool/
 │   ├── PoolMaintenanceScheduler # 共享最小堆维护调度（1ms 帧预算）
 │   ├── OpenHashMap<K> / ReferenceOpenHashMap / StringOpenHashMap  # 开放寻址零分配哈希
 │   └── SlotArrayPool<T>        # 按长度分桶的数组池
-├── ObjectPoolService.cs    # 通用池静态外观（[HandlerHost]）
-├── ObjectBase.cs           # 池化对象基类（OnSpawn/OnDespawn/Release 契约）
-├── IObjectPool.cs          # 通用池契约
+├── ObjectPool/             # 通用池
+│   ├── ObjectPoolService.cs    # 通用池静态外观（[HandlerHost]）
+│   ├── ObjectBase.cs           # 池化对象基类（OnSpawn/OnDespawn/Release 契约）
+│   └── IObjectPool.cs          # 通用池契约
 └── GameObject/             # GameObject 特化
     ├── GameObjectPoolService.cs    # GO 池静态外观（[HandlerHost] + ServiceDependency(Resource)）
     ├── RuntimeGameObjectPool.cs    # 单池运行时（代系句柄 + 策略裁剪；Location / External Prefab）
@@ -57,15 +58,15 @@ Runtime/Services/ObjectPool/
 | 类/接口 | 说明 |
 |---------|------|
 | `GameObjectPoolSource` | 统一来源键：资源地址 / 外部 Prefab；`string` / `GameObject` 隐式转换；`Group` 仅 Prefab 源建池生效 |
-| `GameObjectPoolService` | 静态外观（唯一入口）：`Spawn` / `SpawnAsync` / `SpawnPooled` / `SpawnPooledAsync` / `Despawn` / `WarmupAsync` / `LoadPrefab(Async)` / `Flush` / `FlushGroup` / `FlushAll` / `LoadCatalog` |
+| `GameObjectPoolService` | 静态外观（唯一入口）：`Spawn` / `SpawnAsync` / `SpawnPooled` / `SpawnPooledAsync` / `Despawn` / `WarmupAsync` / `LoadPrefab(Async)` / `Flush` / `FlushGroup` / `FlushAll` |
 | `PooledGameObject` | 纯 C# 租约（非 MonoBehaviour）：owner/slot/租期代系；`Spawn` / `SpawnAsync` / `Wrap` / `Dispose` / `Get(OrAdd)UserData` / `SetUserData` / `IsValid`；仅 Active 可包装 |
 | `Pooled<TComponent>` | 通用组件租约（服务 `SpawnPooled<T>` 的返回类型） |
-| `PooledComponent<T,TComponent>` | CRTP 组件租约基类，供 `PooledShot` 等自定义子类使用 |
+| `PooledComponent<T,TComponent>` | CRTP 组件租约基类，供自定义子类继承使用 |
 | `RuntimeGameObjectPool` | 单池运行时：分页 Slot（UserData）+ 侵入式 inactive 链 + 代系；Location / External Prefab |
 | `PooledInstanceRegistry` | 实例 → (pool,slot) 零分配反向映射；代系由 Slot 独占 |
 | `IGameObjectPoolable` | 池化组件接口：`OnSpawn(in GameObjectPoolSpawnContext)` / `OnDespawn` / `OnPooledDestroy` |
 | `EPoolPolicy` | 回收策略：`Fixed`（超限即裁剪）/ `Burst`（空闲超时裁剪）/ `Sticky`（不主动回收） |
-| `PoolEntry` / `PoolConfigScriptableObject` | 可序列化配置条目与配置资产（支持 Glob：`*`、`**`、`?`） |
+| `PoolEntry` | 可序列化配置条目（列在默认处理器的 `池配置` 字段上；支持 Glob：`*`、`**`、`?`） |
 | `PoolCompiledCatalog` | 编译后规则目录：精确匹配 + Glob 匹配 |
 | `IPrefabLoader` | 预制体加载抽象；默认 `ResourcePrefabLoader` 基于 `ResourceService.LoadLease` 租约制引用计数 |
 
@@ -121,7 +122,7 @@ sharedPool.Despawn(fx);             // SpawnCount--，归零后回到可复用�
 
 ### 2. GameObject 池
 
-配置 `PoolConfigScriptableObject`（Create > Moirai > PoolConfig）：
+池条目配在默认处理器的 `池配置` 列表上（`Tools > Framework Settings > [服务]游戏对象池设置`）：
 
 ```csharp
 new PoolEntry
@@ -139,8 +140,8 @@ new PoolEntry
 };
 ```
 
-> 配置可走 `GameObjectPoolServiceSettings`（Inspector 指定 PoolConfig 资产，服务初始化时自动加载），
-> 或运行时 `GameObjectPoolService.LoadCatalog(config)` / `LoadCatalog(资源地址)` 热切换（重建全部池）。
+> 配置经 `GameObjectPoolServiceSettings` 序列化在选择的游戏对象池处理器上（`池配置` 列表），
+> 处理器初始化时编译为 `PoolCompiledCatalog` 并重建全部池。
 
 ```csharp
 // —— 原始实例（手动 Despawn；string / GameObject 均隐式转为 GameObjectPoolSource）——
@@ -291,7 +292,7 @@ using (var bullet = BulletLease.Spawn("Assets/Prefabs/Bullet", firePoint))
 | 作用域自动回收 | `SpawnPooled` / `PooledGameObject.Spawn` |
 | 组件 + 作用域回收 + 组件缓存 | `SpawnPooled<T>` / `Pooled<T>.Spawn` |
 | 自定义 Init / 组件解析 / 延迟回收 | 继承 `PooledComponent<T, TComponent>` |
-| `TrySpawn` / 预热 / Flush / LoadCatalog | 仅 `GameObjectPoolService` |
+| `TrySpawn` / 预热 / Flush | 仅 `GameObjectPoolService` |
 
 ### GameObject 池策略参考
 
@@ -353,7 +354,7 @@ Debugger 窗口：`Profiler/Object Pool`（通用池）、`Profiler/GameObject P
 - `default(GameObjectPoolSource)` 为无效源；不要写 `Spawn(null)`（两个隐式算子歧义，编译失败）。空源请用 `default`。
 - **僵尸槽位自愈**：Spawn 撞硬容量时先清扫外部销毁的槽位再重试分配；仍有实例但无自发到期维护的池（Sticky / 全活跃）按 30s 周期兜底清扫并告警，外部 Destroy 的回收有上界，不再依赖 Flush / 低内存。
 - 维护由 `GameServices.Tick` 驱动（最小堆到期唤醒，单帧 1ms 预算）— 无独立 MonoBehaviour Update 循环。Sticky 池不排维护时，外部 Destroy 的槽位在下次 Spawn 惰性清扫。
-- 低内存：两池 Handler 各自订阅 `Application.lowMemory` 全量收缩；`GameApp.OnLowMemory` 仅驱动资源层卸载。
+- 低内存：两池 Handler 各自订阅 `Application.lowMemory` 全量收缩；资源层卸载由 `ResourceService` 自身的 `OnLowMemory` 驱动。
 
 ---
 [« 返回文档索引](Index.md) · [主 README](../../README.md) · [MemoryPool](MemoryPool.md) · [Resource](Resource.md)

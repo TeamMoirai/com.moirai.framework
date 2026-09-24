@@ -16,13 +16,14 @@ namespace Moirai.Atropos.Resource
         /// <param name="location">资源定位地址。</param>
         /// <param name="setNativeSize">是否设置原始尺寸。</param>
         /// <param name="cancellationToken">取消令牌。</param>
+        /// <param name="packageName">资源包名称；留空走默认包，DLC 包里的精灵要显式给出。</param>
         public static void SetSprite(this Image image, string location, bool setNativeSize = false,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken = default, string packageName = "")
         {
             EResourceBindingOption options = setNativeSize
                 ? EResourceBindingOption.SetNativeSize
                 : EResourceBindingOption.None;
-            SetSprite(image, location, options, cancellationToken);
+            SetSprite(image, location, options, cancellationToken, packageName);
         }
 
         /// <summary>
@@ -32,8 +33,9 @@ namespace Moirai.Atropos.Resource
         /// <param name="location">资源定位地址。</param>
         /// <param name="options">绑定选项。</param>
         /// <param name="cancellationToken">取消令牌。</param>
+        /// <param name="packageName">资源包名称；留空走默认包，DLC 包里的精灵要显式给出。</param>
         public static void SetSprite(this Image image, string location, EResourceBindingOption options,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken = default, string packageName = "")
         {
             if (image == null || cancellationToken.IsCancellationRequested)
             {
@@ -46,7 +48,7 @@ namespace Moirai.Atropos.Resource
             }
 
             ResourceOwner owner = ResourceOwner.EnsureFor(image, bindingService);
-            bindingService.BindSprite(owner, image, SpriteKey(location), options);
+            bindingService.BindSprite(owner, image, SpriteKey(location, packageName), options);
         }
 
         #endregion
@@ -59,10 +61,11 @@ namespace Moirai.Atropos.Resource
         /// <param name="spriteRenderer">目标 SpriteRenderer。</param>
         /// <param name="location">资源定位地址。</param>
         /// <param name="cancellationToken">取消令牌。</param>
+        /// <param name="packageName">资源包名称；留空走默认包，DLC 包里的精灵要显式给出。</param>
         public static void SetSprite(this SpriteRenderer spriteRenderer, string location,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken = default, string packageName = "")
         {
-            SetSprite(spriteRenderer, location, EResourceBindingOption.None, cancellationToken);
+            SetSprite(spriteRenderer, location, EResourceBindingOption.None, cancellationToken, packageName);
         }
 
         /// <summary>
@@ -72,8 +75,9 @@ namespace Moirai.Atropos.Resource
         /// <param name="location">资源定位地址。</param>
         /// <param name="options">绑定选项。</param>
         /// <param name="cancellationToken">取消令牌。</param>
+        /// <param name="packageName">资源包名称；留空走默认包，DLC 包里的精灵要显式给出。</param>
         public static void SetSprite(this SpriteRenderer spriteRenderer, string location,
-            EResourceBindingOption options, CancellationToken cancellationToken = default)
+            EResourceBindingOption options, CancellationToken cancellationToken = default, string packageName = "")
         {
             if (spriteRenderer == null || cancellationToken.IsCancellationRequested)
             {
@@ -86,13 +90,14 @@ namespace Moirai.Atropos.Resource
             }
 
             ResourceOwner owner = ResourceOwner.EnsureFor(spriteRenderer, bindingService);
-            bindingService.BindSprite(owner, spriteRenderer, SpriteKey(location), options);
+            bindingService.BindSprite(owner, spriteRenderer, SpriteKey(location, packageName), options);
         }
 
-        private static ResourceKey SpriteKey(string location)
-        {
-            return new ResourceKey(location, string.Empty, typeof(Sprite), EResourceAssetKind.Sprite);
-        }
+        private static ResourceKey SpriteKey(string location, string packageName) =>
+            new ResourceKey(location, packageName, typeof(Sprite), EResourceAssetKind.Sprite);
+
+        private static ResourceKey SubAssetsKey(string location, string packageName) =>
+            new ResourceKey(location, packageName, typeof(Sprite), EResourceAssetKind.SubAssets);
 
         #endregion
 
@@ -106,13 +111,14 @@ namespace Moirai.Atropos.Resource
         /// <param name="spriteName">精灵名称。</param>
         /// <param name="setNativeSize">是否设置原始尺寸。</param>
         /// <param name="cancellationToken">取消令牌。</param>
+        /// <param name="packageName">资源包名称；留空走默认包，DLC 包里的精灵要显式给出。</param>
         public static void SetSubSprite(this Image image, string location, string spriteName,
-            bool setNativeSize = false, CancellationToken cancellationToken = default)
+            bool setNativeSize = false, CancellationToken cancellationToken = default, string packageName = "")
         {
             EResourceBindingOption options = setNativeSize
                 ? EResourceBindingOption.SetNativeSize
                 : EResourceBindingOption.None;
-            SetSubSprite(image, location, spriteName, options, cancellationToken);
+            SetSubSprite(image, location, spriteName, options, cancellationToken, packageName);
         }
 
         /// <summary>
@@ -123,8 +129,9 @@ namespace Moirai.Atropos.Resource
         /// <param name="spriteName">精灵名称。</param>
         /// <param name="options">绑定选项。</param>
         /// <param name="cancellationToken">取消令牌。</param>
+        /// <param name="packageName">资源包名称；留空走默认包，DLC 包里的精灵要显式给出。</param>
         public static void SetSubSprite(this Image image, string location, string spriteName,
-            EResourceBindingOption options, CancellationToken cancellationToken = default)
+            EResourceBindingOption options, CancellationToken cancellationToken = default, string packageName = "")
         {
             if (image == null || cancellationToken.IsCancellationRequested)
             {
@@ -137,9 +144,8 @@ namespace Moirai.Atropos.Resource
             }
 
             ResourceOwner owner = ResourceOwner.EnsureFor(image, bindingService);
-            bindingService.BindSubSpriteAsync(owner, image,
-                new ResourceKey(location, string.Empty, typeof(Sprite), EResourceAssetKind.SubAssets),
-                spriteName, options, cancellationToken).Forget();
+            FireAndForget(bindingService.BindSubSpriteAsync(owner, image,
+                SubAssetsKey(location, packageName), spriteName, options, cancellationToken));
         }
 
         /// <summary>
@@ -149,10 +155,11 @@ namespace Moirai.Atropos.Resource
         /// <param name="location">图集资源定位地址。</param>
         /// <param name="spriteName">精灵名称。</param>
         /// <param name="cancellationToken">取消令牌。</param>
+        /// <param name="packageName">资源包名称；留空走默认包，DLC 包里的精灵要显式给出。</param>
         public static void SetSubSprite(this SpriteRenderer spriteRenderer, string location, string spriteName,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken = default, string packageName = "")
         {
-            SetSubSprite(spriteRenderer, location, spriteName, EResourceBindingOption.None, cancellationToken);
+            SetSubSprite(spriteRenderer, location, spriteName, EResourceBindingOption.None, cancellationToken, packageName);
         }
 
         /// <summary>
@@ -163,8 +170,9 @@ namespace Moirai.Atropos.Resource
         /// <param name="spriteName">精灵名称。</param>
         /// <param name="options">绑定选项。</param>
         /// <param name="cancellationToken">取消令牌。</param>
+        /// <param name="packageName">资源包名称；留空走默认包，DLC 包里的精灵要显式给出。</param>
         public static void SetSubSprite(this SpriteRenderer spriteRenderer, string location, string spriteName,
-            EResourceBindingOption options, CancellationToken cancellationToken = default)
+            EResourceBindingOption options, CancellationToken cancellationToken = default, string packageName = "")
         {
             if (spriteRenderer == null || cancellationToken.IsCancellationRequested)
             {
@@ -177,9 +185,8 @@ namespace Moirai.Atropos.Resource
             }
 
             ResourceOwner owner = ResourceOwner.EnsureFor(spriteRenderer, bindingService);
-            bindingService.BindSubSpriteAsync(owner, spriteRenderer,
-                new ResourceKey(location, string.Empty, typeof(Sprite), EResourceAssetKind.SubAssets),
-                spriteName, options, cancellationToken).Forget();
+            FireAndForget(bindingService.BindSubSpriteAsync(owner, spriteRenderer,
+                SubAssetsKey(location, packageName), spriteName, options, cancellationToken));
         }
 
         #endregion

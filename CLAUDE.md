@@ -16,26 +16,27 @@
 ## 项目结构
 
 ```
-Project/
-├── Packages/
-│   ├── com.moirai.framework/     # 核心框架
-│   │   ├── Runtime/              # 运行时代码
-│   │   │   ├── Core/             # 核心系统
-│   │   │   └── Modules/          # 功能服务
-│   │   ├── Editor/               # 编辑器代码
-│   │   └── Tests/                # 测试代码
-│   ├── Plugins/                  # 第三方插件
-│   └── Settings/                 # 项目设置
-├── Packages/                     # Unity 包
-└── ProjectSettings/              # 项目配置
+com.moirai.framework/
+├── Runtime/                  # 运行时代码（Moirai.Atropos.asmdef）
+│   ├── Core/                 # 核心系统，不依赖服务层
+│   └── Services/             # 各功能服务
+├── Editor/                   # 编辑器代码
+├── Tests/                    # EditorMode / PlayMode / Player 三套测试
+├── SourceGenerators/         # HandlerHost 等代码生成器
+├── Documentation~/           # 模块文档，zh / en 双语成对维护
+├── Samples~/                 # 示例（InputSystem Action Prompts）
+├── Templates~/               # 代码生成模板
+└── Plugins/                  # 第三方插件
 ```
+
+（`~` 后缀的目录 Unity 不导入包内；工程另在 `Client/` 下，与包分开归属。）
 
 ## 核心服务
 
 ### Runtime Services
 - **AudioService** - 音频管理
+- **ConfigTableService** - 配置表（Luban）读写与本地化表查询
 - **DebuggerService** - 调试工具
-- **FsmService** - 有限状态机
 - **InputService** - 输入系统
 - **LocalizationService** - 本地化
 - **ObjectPoolService** - 通用对象池（任意 ObjectBase 派生对象，opt-in 注册）
@@ -47,18 +48,22 @@ Project/
 - **TimerService** - 定时器
 - **UIService** - UI 框架
 
+服务注册与生命周期由 `Runtime/Services/Kernel`（`GameServices` / `ServiceScope` / `ServiceBase`）承接。
+
 ### Core 系统
-- **Attributes** - 自定义特性
+- **Attributes** - 自定义特性（`[HandlerHost]`、`BooleanButtonAttribute` 等）
+- **Constant** / **Models** - 常量与共享数据模型
+- **DataStructure** - 数据结构
 - **Events** - 事件系统
-- **Extension** - 扩展方法
-- **GameConfig** - 游戏配置
-- **GameLog** - 日志系统
-- **MemoryPool** - 内存池
-- **Pool** - 通用池
+- **Extensions** - 扩展方法
+- **GameApp** - 启动、帧驱动与运行期开关
+- **GameException** - 框架异常约定
+- **GameProfiler** - 性能采样
+- **MemoryPool** / **Pool** - 内存池与通用池
 - **Singleton** - 单例模式
 - **Tasks** - 任务系统
-- **Tween** - 缓动系统
-- **Utility** - 工具类
+- **Obfuz** - 混淆虚拟机初始化（`OBFUZ_INSTALLED && ENABLE_OBFUZ` 门控）
+- **Utilities** - 工具类（算法、随机、JSON、Tween、日志 `LogUtility` 等）
 
 ## 编码规范
 
@@ -76,8 +81,9 @@ Project/
 - **异常与错误处理：** 禁止 try-catch 做逻辑控制；热路径严禁 try-catch（**例外**：`PlayerLoopDriver.HandlerSlot/CallbackSlot.Drive` 与内核 `ServiceScope` 轮询循环内的 per-subscriber try/catch 属有意隔离——订阅/服务抛出不得截断同阶段其余项；异常本身仍按分级上抛或隔离，不吞）；用 Debug.Assert/Assert.IsTrue（仅 Editor）；非热路径公共 API 做参数校验抛 ArgumentException；异常不吞——要么处理要么上抛。
 - **代码组织：** 一文件一顶层类；类/接口/公有方法/枚举必须 &lt;summary&gt;（内容独占行）；严禁 TODO 入主干；#region 用于小范围分组（双语标签），严禁大段折叠掩盖 SRP 违例（违反则拆类）；asmdef 最小化依赖、禁止循环引用。
 - **AOT/IL2CPP 兼容：** 禁止 Reflection.Emit/动态代码生成；反射仅限序列化/编辑器，运行时避免；泛型 AOT 预编译缺失时需预生成元数据或用非泛型路径；Type/enum 缓存为静态只读字段避免反复 GetType。
+- **测试可见性（强制）：** 测试不得用反射读写字段/属性（`GetField("m_…", BindingFlags.NonPublic)`）——需要触达的成员把访问级别 `private`→`internal`，`Runtime/AssemblyInfo.cs` 已对 `Moirai.Atropos.Editor` 与三个测试程序集（`.Tests.EditorMode`/`.Tests.PlayMode`/`.Tests.Player`）开了 `InternalsVisibleTo`。反射把字段名变成测试依赖：改名不报编译错，只在运行期 `GetField` 返回 null 后 NRE；`internal` 由编译器把关。序列化字段改 `internal` 不影响 Unity 序列化（`[SerializeField]` 不要求 `private`），前缀仍走 `m_`/`s_`/`_` 私有家族口径。反射只留两类正当用途：遍历 API 形状与断成员标注做契约守卫（`ResourceSeamShapeGuardTests`、`ResourceMethodSetContractTests`、`YooAssetHandlerSmokeTests.RuntimeArrayFields_AreNonSerialized`——这类只能反射，别当违例删掉）、唤起 Unity 生命周期回调（`Awake`/`OnEnable`/`OnInit`）。已有窄接缝的成员不为此放开字段：换处理器走生成的 `Internal_PeekHandler()`/`Internal_UseHandler(next)`，`s_Handler` 保持 `private`。
 - **工具链与质量门：** 启用 Roslyn Analyzers；.editorconfig indent_size=4；提交前通过 ZeroAlloc 性能测试；PR 须通过编译 + Analyzer + 测试三重门。
-- **执行等级：** Mandatory（违反打回：命名前缀、0-Alloc、防装箱、AOT 兼容）/ Prefer（性能敏感区必须，非热路径可放宽：Span/unsafe/池化/线程安全）/ Reference（逐步优化遗留）。
+- **执行等级：** Mandatory（违反打回：命名前缀、0-Alloc、防装箱、AOT 兼容、测试可见性）/ Prefer（性能敏感区必须，非热路径可放宽：Span/unsafe/池化/线程安全）/ Reference（逐步优化遗留）。
 
 ### 命名规范
 
@@ -198,6 +204,13 @@ Project/
 3. 实施优化
 4. 使用 `/review` 验证优化
 
+### 4. 提交时的文档与 CHANGELOG
+
+- `CHANGELOG.md` **只有 `[Unreleased]` 一段**：已发布的内容不留在文件里，发版时把该段定名移到 GitHub Releases 后清空重写。版本号与 `package.json` 的 `version` 由发布自动化写入，不在手上改。
+- `CHANGELOG.md` 按**后覆盖**维护：一条只写当前仍然成立的净结果。加了又删的开关、改到一半的命名、逐轮刷新的测试格数与成员计数、当时判为"不采纳"的观察一律不立条目；同一件事被后续提交推翻时，改掉或删掉原条目，不要再追加一条把它推翻。
+- 诊断过程与被删改的来龙去脉写进 commit message，不写进 CHANGELOG。破坏性变更前置 ⚠ 并给出迁移口径。
+- `Documentation~/zh` 与 `Documentation~/en` 是成对副本，接口改动必须双语同步；文档里的类名、成员名与菜单路径要对着代码核真名——`E` 前缀、单复数这类差别会让照文档写出的代码直接编译不过。
+
 ## 依赖项
 
 ### 核心依赖
@@ -235,7 +248,7 @@ A: 使用 `/fix-bug` 命令分析和修复问题。
 
 ## 相关资源
 
-- [Moirai Framework GitHub](https://github.com/Lx34r/com.moirai.framework)
+- [Moirai Framework GitHub](https://github.com/TeamMoirai/com.moirai.framework)
 - [YooAsset 文档](https://www.yooasset.com/)
 - [HybridCLR 文档](https://hybridclr.doc.code-philosophy.com/)
 - [Luban 文档](https://focus-creative-games.github.io/luban-doc/)

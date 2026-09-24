@@ -19,7 +19,7 @@ namespace Moirai.Atropos.Resource
     /// </summary>
     // ReSharper disable once ClassNeverInstantiated.Global
     [Serializable]
-    internal sealed partial class YooAssetHandler : ResourceServiceHandler
+    internal sealed partial class YooAssetHandler : ResourceServiceHandler, IResourceRecordHost
     {
         #region 基础属性 [BASE PROPERTIES]
 
@@ -250,10 +250,10 @@ namespace Moirai.Atropos.Resource
 
             unchecked
             {
-                _assetUnloadGeneration++;
+                Store.UnloadGeneration++;
             }
 
-            ShutdownLoadingOperations();
+            Store.ShutdownLoadingOperations();
             if (_bindingService == null)
             {
                 _bindingService = new ResourceBindingService(this);
@@ -441,20 +441,9 @@ namespace Moirai.Atropos.Resource
         #endregion
         #region 句柄获取 [HANDLE ACCESS]
 
-        private AssetHandle GetHandleSync<T>(string location, string packageName = "") where T : UObject
-        {
-            return GetHandleSync(location, typeof(T), packageName);
-        }
-
         private AssetHandle GetHandleSync(string location, Type assetType, string packageName = "")
         {
             return GetPackageOrThrow(packageName).LoadAssetSync(location, assetType);
-        }
-
-        private AssetHandle GetHandleAsync<T>(string location, string packageName = "", uint priority = 0)
-            where T : UObject
-        {
-            return GetHandleAsync(location, typeof(T), packageName, priority);
         }
 
         private AssetHandle GetHandleAsync(string location, Type assetType, string packageName = "",
@@ -462,6 +451,32 @@ namespace Moirai.Atropos.Resource
         {
             return GetPackageOrThrow(packageName).LoadAssetAsync(location, assetType, priority);
         }
+
+        private bool IsHandleValid(object handle)
+        {
+            return handle is HandleBase { IsValid: true };
+        }
+
+        private void DisposeHandle(object handle)
+        {
+            if (handle is HandleBase { IsValid: true } valid)
+            {
+                valid.Dispose();
+            }
+        }
+
+        private Sprite GetSubSprite(object handle, string spriteName)
+        {
+            return (handle as SubAssetsHandle)?.GetSubAssetObject<Sprite>(spriteName);
+        }
+
+        // 接口成员要 public 才能隐式实现；这三个算子是 handler 的内部件，故显式接线。
+        bool IResourceRecordHost.IsHandleValid(object handle) => IsHandleValid(handle);
+
+        void IResourceRecordHost.DisposeHandle(object handle) => DisposeHandle(handle);
+
+        Sprite IResourceRecordHost.GetSubSprite(object handle, string spriteName) =>
+            GetSubSprite(handle, spriteName);
 
         #endregion
         #region 资源加载 [ASSET LOADING]
@@ -486,26 +501,26 @@ namespace Moirai.Atropos.Resource
                 return null;
             }
 
-            if (!TryGetLeaseAsset(prefabLease, out UObject prefabObject) ||
+            if (!Store.TryGetLeaseAsset(prefabLease, out UObject prefabObject) ||
                 prefabObject is not GameObject prefab)
             {
-                Release(prefabLease);
+                Store.Release(prefabLease);
                 return null;
             }
 
-            uint unloadGeneration = _assetUnloadGeneration;
+            uint unloadGeneration = Store.UnloadGeneration;
             GameObject instance = UObject.Instantiate(prefab, parent);
 
             // 实例化会派发 Awake，其中可以重入强制回收/关停：
             // 此时 prefab 记录可能已被释放，租约不得再挂到清空过的绑定服务上。
-            if (instance == null || _isDestroying || unloadGeneration != _assetUnloadGeneration)
+            if (instance == null || Store.IsDestroying || unloadGeneration != Store.UnloadGeneration)
             {
                 if (instance != null)
                 {
                     UObject.Destroy(instance);
                 }
 
-                Release(prefabLease);
+                Store.Release(prefabLease);
                 return null;
             }
 
@@ -514,7 +529,7 @@ namespace Moirai.Atropos.Resource
             if (bindStatus != EResourceBindStatus.Success)
             {
                 UObject.Destroy(instance);
-                Release(prefabLease);
+                Store.Release(prefabLease);
                 return null;
             }
 
@@ -544,37 +559,37 @@ namespace Moirai.Atropos.Resource
 
             if (cancellationToken.IsCancellationRequested)
             {
-                Release(prefabLease);
+                Store.Release(prefabLease);
                 return null;
             }
 
-            if (!TryGetLeaseAsset(prefabLease, out UObject prefabObject) ||
+            if (!Store.TryGetLeaseAsset(prefabLease, out UObject prefabObject) ||
                 prefabObject is not GameObject prefab)
             {
-                Release(prefabLease);
+                Store.Release(prefabLease);
                 return null;
             }
 
             // 父节点可能在等待期间被销毁：fake null 的 Transform 直接交给 Instantiate 会抛。
             if (!ReferenceEquals(parent, null) && parent == null)
             {
-                Release(prefabLease);
+                Store.Release(prefabLease);
                 return null;
             }
 
-            uint unloadGeneration = _assetUnloadGeneration;
+            uint unloadGeneration = Store.UnloadGeneration;
             GameObject instance = UObject.Instantiate(prefab, parent);
 
             // 实例化会派发 Awake，其中可以重入强制回收/关停：
             // 此时 prefab 记录可能已被释放，租约不得再挂到清空过的绑定服务上。
-            if (instance == null || _isDestroying || unloadGeneration != _assetUnloadGeneration)
+            if (instance == null || Store.IsDestroying || unloadGeneration != Store.UnloadGeneration)
             {
                 if (instance != null)
                 {
                     UObject.Destroy(instance);
                 }
 
-                Release(prefabLease);
+                Store.Release(prefabLease);
                 return null;
             }
 
@@ -583,140 +598,11 @@ namespace Moirai.Atropos.Resource
             if (bindStatus != EResourceBindStatus.Success)
             {
                 UObject.Destroy(instance);
-                Release(prefabLease);
+                Store.Release(prefabLease);
                 return null;
             }
 
             return instance;
-        }
-
-        private static uint NormalizePriority(int priority)
-        {
-            return (uint)Math.Max(0, priority);
-        }
-
-        #endregion
-        #region 遗留 API [LEGACY API]
-
-        /// <inheritdoc />
-        [Obsolete("Use LoadLease<T> for explicit ownership.")]
-        public override T LoadAsset<T>(string location, string packageName = "")
-        {
-            if (string.IsNullOrEmpty(location))
-            {
-                throw new GameException("Asset name is invalid.");
-            }
-
-            Type assetType = typeof(T);
-            EResourceAssetKind assetKind = InferAssetKind(assetType);
-            string normalizedPackageName = NormalizePackageName(packageName);
-            if (TryGetCachedAssetRecord(normalizedPackageName, location, assetType, assetKind,
-                    EResourceHandleKind.AssetHandle, out int cachedAssetId, out UObject cachedAsset))
-            {
-                ref AssetSlot cachedSlot = ref GetAssetSlotRef(cachedAssetId);
-                TryAddLegacyDirectRef(cachedAssetId, cachedSlot.Generation);
-                return cachedAsset as T;
-            }
-
-            UObject asset = GetOrLoadAsset(location, assetType, assetKind, normalizedPackageName);
-            if (asset == null)
-            {
-                return null;
-            }
-
-            ulong recordKey = GetAssetRecordKey(normalizedPackageName, location, assetType, assetKind,
-                EResourceHandleKind.AssetHandle);
-            if (_assetRecordsByKey.TryGetValue(recordKey, out int assetId) && IsValidAssetId(assetId))
-            {
-                ref AssetSlot slot = ref GetAssetSlotRef(assetId);
-                TryAddLegacyDirectRef(assetId, slot.Generation);
-            }
-
-            return asset as T;
-        }
-
-        /// <inheritdoc />
-        [Obsolete("Use LoadLeaseAsync<T> for explicit ownership.")]
-        public override async UniTask LoadAsset<T>(string location, Action<T> callback, string packageName = "")
-        {
-            if (string.IsNullOrEmpty(location))
-            {
-                LogUtility.Error("Asset name is invalid.");
-                return;
-            }
-
-            Type assetType = typeof(T);
-            EResourceAssetKind assetKind = InferAssetKind(assetType);
-            ulong assetLoadingKey = GetLoadingOperationKey(location, packageName, assetType, assetKind);
-            UObject asset = await GetOrLoadAssetAsync(location, assetType, assetKind, packageName, assetLoadingKey);
-            if (asset != null)
-            {
-                TryAddLegacyDirectRefByKey(packageName, location, assetType, asset);
-            }
-
-            callback?.Invoke(asset as T);
-        }
-
-        /// <inheritdoc />
-        [Obsolete("Use LoadLeaseAsync<T> for explicit ownership.")]
-        public override async UniTask<T> LoadAssetAsync<T>(string location, CancellationToken cancellationToken = default, string packageName = "")
-        {
-            if (string.IsNullOrEmpty(location))
-            {
-                throw new GameException("Asset name is invalid.");
-            }
-
-            Type assetType = typeof(T);
-            EResourceAssetKind assetKind = InferAssetKind(assetType);
-            ulong assetLoadingKey = GetLoadingOperationKey(location, packageName, assetType, assetKind);
-            UObject asset = await GetOrLoadAssetAsync(location, assetType, assetKind, packageName, assetLoadingKey,
-                cancellationToken: cancellationToken);
-            if (asset != null)
-            {
-                TryAddLegacyDirectRefByKey(packageName, location, assetType, asset);
-            }
-
-            return asset as T;
-        }
-
-        /// <inheritdoc />
-        [Obsolete("Use LoadLeaseAsync<T> for explicit ownership.")]
-        public override async UniTask LoadAssetAsync(string location, Type assetType, int priority, LoadAssetCallbacks loadAssetCallbacks, object userData, string packageName = "")
-        {
-            if (string.IsNullOrEmpty(location))
-            {
-                throw new GameException("Asset name is invalid.");
-            }
-
-            if (loadAssetCallbacks == null)
-            {
-                throw new GameException("Load asset callbacks is invalid.");
-            }
-
-            assetType ??= typeof(UObject);
-            EResourceAssetKind assetKind = InferAssetKind(assetType);
-            ulong assetLoadingKey = GetLoadingOperationKey(location, packageName, assetType, assetKind);
-            float duration = Time.time;
-            UObject asset = await GetOrLoadAssetAsync(location, assetType, assetKind, packageName, assetLoadingKey,
-                NormalizePriority(priority), default, loadAssetCallbacks.LoadAssetUpdateCallback, userData);
-
-            if (asset == null)
-            {
-                string errorMessage = StringUtility.Format("Can not load asset '{0}'.", location);
-                loadAssetCallbacks.LoadAssetFailureCallback?.Invoke(location, ELoadResourceStatus.NotReady, errorMessage, userData);
-                return;
-            }
-
-            TryAddLegacyDirectRefByKey(packageName, location, assetType, asset);
-            loadAssetCallbacks.LoadAssetSuccessCallback?.Invoke(location, asset, Time.time - duration, userData);
-        }
-
-        /// <inheritdoc />
-        [Obsolete("Use LoadLeaseAsync<T> for explicit ownership.")]
-        public override async UniTask LoadAssetAsync(string location, int priority, LoadAssetCallbacks loadAssetCallbacks, object userData, string packageName = "")
-        {
-            Type assetType = typeof(UObject);
-            await LoadAssetAsync(location, assetType, priority, loadAssetCallbacks, userData, packageName);
         }
 
         #endregion

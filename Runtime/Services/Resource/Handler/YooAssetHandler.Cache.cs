@@ -11,7 +11,6 @@ namespace Moirai.Atropos.Resource
         private int _assetLeaseCapacity = 128;
         private int _bindingOwnerCapacity = 64;
         private int _bindingSlotCapacity = 128;
-        private int _registeredTargetCapacity = 128;
         private float _idleAssetExpireTime = 60f;
         private int _idleAssetCapacity = 256;
 
@@ -26,7 +25,7 @@ namespace Moirai.Atropos.Resource
             set
             {
                 _assetRecordCapacity = value > 0 ? value : 0;
-                WarmupResourceRecords(_assetRecordCapacity, _assetLeaseCapacity, _assetRecordCapacity);
+                WarmupResourceRecords(_assetRecordCapacity, _assetLeaseCapacity);
             }
         }
 
@@ -37,7 +36,7 @@ namespace Moirai.Atropos.Resource
             set
             {
                 _assetLeaseCapacity = value > 0 ? value : 0;
-                WarmupResourceRecords(_assetRecordCapacity, _assetLeaseCapacity, _assetRecordCapacity);
+                WarmupResourceRecords(_assetRecordCapacity, _assetLeaseCapacity);
             }
         }
 
@@ -64,17 +63,6 @@ namespace Moirai.Atropos.Resource
         }
 
         /// <inheritdoc />
-        public override int RegisteredTargetCapacity
-        {
-            get => _registeredTargetCapacity;
-            set
-            {
-                _registeredTargetCapacity = value > 0 ? value : 0;
-                WarmupBindingRecords();
-            }
-        }
-
-        /// <inheritdoc />
         public override float IdleAssetExpireTime
         {
             get => _idleAssetExpireTime;
@@ -88,7 +76,8 @@ namespace Moirai.Atropos.Resource
             set
             {
                 _idleAssetCapacity = value < 0 ? 0 : value;
-                TrimIdleAssetCapacity();
+                // 不当场淘汰：那等于把一次 O(n) 突发挂在一次属性赋值上。
+                Store.RequestIdleCapacityTrim();
             }
         }
 
@@ -97,41 +86,29 @@ namespace Moirai.Atropos.Resource
         #region 预热 [WARMUP]
 
         /// <inheritdoc />
-        public override void WarmupResourceRecords(int assetCapacity, int leaseCapacity, int unityObjectIndexCapacity)
+        public override void WarmupResourceRecords(int assetCapacity, int leaseCapacity)
         {
-            _assetRecordsByKey.EnsureCapacity(assetCapacity);
-            _assetRecordByLoadKeyId.EnsureCapacity(assetCapacity);
-            _assetRecordHeadByUnityObjectId.EnsureCapacity(unityObjectIndexCapacity);
-            _assetLoadingOperationByKey.EnsureCapacity(assetCapacity);
+            Store.EnsureRecordCapacity(assetCapacity);
+            Store.EnsureLoadingOperationCapacity(assetCapacity);
 
             if (assetCapacity > 0)
             {
-                EnsureAssetSlotPage(assetCapacity - 1);
+                Store.EnsureAssetSlotPage(assetCapacity - 1);
             }
 
             if (leaseCapacity > 0)
             {
-                EnsureLeaseSlotPage(leaseCapacity - 1);
+                Store.EnsureLeaseSlotPage(leaseCapacity - 1);
             }
         }
 
         private void WarmupBindingRecords()
         {
-            _bindingService?.Warmup(_bindingOwnerCapacity, _bindingSlotCapacity, _registeredTargetCapacity);
+            _bindingService?.Warmup(_bindingOwnerCapacity, _bindingSlotCapacity);
             ResourceOwner.WarmupReleaseBuffer(_bindingOwnerCapacity);
         }
 
         #endregion
 
-        #region 资源卸载 [ASSET UNLOAD]
-
-        /// <inheritdoc />
-        [Obsolete("Use ResourceAssetLease<T> or Binding instead of LoadAsset/UnloadAsset.")]
-        public override void UnloadAsset(object asset)
-        {
-            TryReleaseLegacyDirectByAsset(asset);
-        }
-
-        #endregion
     }
 }
