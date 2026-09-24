@@ -391,7 +391,7 @@ bool succeed = await ResourceService.TryInitializePackageAsync();
 bool succeed2 = await ResourceService.TryInitializePackageAsync("OtherPackage", "https://cdn.example.com/res");
 
 // 联机模式：请求远端版本 -> 更新清单 -> 创建下载器 -> 下载
-var op = await ResourceService.RequestPackageVersionAsync();
+var op = await ResourceService.RequestPackageVersion();
 ResourceService.PackageVersion = op.PackageVersion;
 await ResourceService.LoadPackageManifestAsync(ResourceService.PackageVersion);
 var downloader = ResourceService.CreateResourceDownloader();   // 之后轮询 downloader
@@ -402,7 +402,7 @@ bool needRemote = ResourceService.IsNeedDownloadFromRemote("Assets/AssetRaw/UI/l
 
 // 远端地址与缓存清理
 ResourceService.SetRemoteServicesUrl("https://cdn.example.com/res", "https://backup.example.com/res");
-ResourceService.ClearCacheAsync(EResourceClearMode.ClearUnusedBundleFiles);            // 清理未使用的缓存文件
+ResourceService.StartClearCache(EResourceClearMode.ClearUnusedBundleFiles);            // 清理未使用的缓存文件
 ResourceService.ClearAllBundleFiles();             // 清空沙盒路径
 ```
 
@@ -438,7 +438,7 @@ using var lease = ResourceService.LoadLeaseAsync<GameObject>("path").GetAwaiter(
 ## 注意事项
 
 - **Addressables 后端（实验性）：** `AddressableHandler` 与 `YooAssetHandler` 共用同一套记录内核（`ResourceRecordStore`），异步租约 / 绑定 / 预制体实例化 / 图集子精灵 / 场景加载 / 缓存维护与低内存回收均已对齐。未安装 `com.unity.addressables` 时整层由 asmdef 的 `versionDefines`（宏 `ADDRESSABLES_INSTALLED`）连同文件级 `#if` 一起剔除，**不拆独立程序集**——内核类型是 `Moirai.Atropos` 的 `internal`，拆出去只会逼出一行 `InternalsVisibleTo`，换不到任何东西。
-- **Addressables 的同步族与下载族抛错：** `LoadLease<T>` / `AcquireDirect` / `AcquireBinding` / `AcquirePrefabSourceLease` / 同步 `LoadGameObject` 一律抛 `GameException`——Addressables 没有同步加载 API，返回 `null` 只会把错误推到后面的空引用上。`RequestPackageVersionAsync` / `LoadPackageManifestAsync` / `CreateResourceDownloader` / `GetDownloadSize` 同理：它的更新流程是 Check→Update 两步式，`DownloadStatus` 也没有 `TotalDownloadCount` 与 `FailedFiles` 的对应项。
+- **Addressables 的同步族与下载族抛错：** `LoadLease<T>` / `AcquireDirect` / `AcquireBinding` / `AcquirePrefabSourceLease` / 同步 `LoadGameObject` 一律抛 `GameException`——Addressables 没有同步加载 API，返回 `null` 只会把错误推到后面的空引用上。`RequestPackageVersion` / `LoadPackageManifestAsync` / `CreateResourceDownloader` / `GetDownloadSize` 同理：它的更新流程是 Check→Update 两步式，`DownloadStatus` 也没有 `TotalDownloadCount` 与 `FailedFiles` 的对应项。
 - **Addressables 的降级查询：** `IsNeedDownloadFromRemote` 恒为 `false`、`GetPackageVersion` 恒为空串、`GetAssetInfo` 恒为 `default`、按标签的 `GetAssetInfos` 恒为空数组（对应能力只有异步版本，或 `IResourceLocation` 根本不带标签与体积）。`HasAsset` 只要地址可定位就报 `AssetOnDisk`，区分不出"需远端下载"（`AssetOnline` 永不出现）；图集子精灵仅支持 `SpriteAtlas` 形态的地址。非强制档的 `UnloadUnusedAssets()` 在这一后端不做任何事（YooAsset 那一档推进的是 bundle 卸载操作，没有对应物），强制档与低内存回收走的是记录释放。生产环境请使用 `YooAssetHandler`。
 - **Lease API：** `ResourceAssetLease<T>` 是 `struct` —— 务必调用 `Dispose`（使用 `using` 语句）。Dispose 后 `IsValid` 返回 `false`，`Asset` 为 `null`。
 - **Binding API：** `SetSprite`/`SetMaterial` 扩展方法在目标 GameObject 上不存在 `ResourceOwner` 时自动添加。GameObject 销毁时所有绑定自动释放。

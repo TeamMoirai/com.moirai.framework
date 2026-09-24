@@ -52,6 +52,46 @@ namespace Moirai.Atropos.Resource
             return RegisterSpriteSource(owner, image, newLease, sprite, EResourceBindingSlotType.ImageSprite, options, 0);
         }
 
+        /// <summary>
+        /// 只读缓存绑定 Image 精灵：资源未加载则返回 <see cref="EResourceBindStatus.LoadFailed"/>，绝不触发后端加载。
+        /// </summary>
+        public EResourceBindStatus TryBindSpriteCached(ResourceOwner owner, Image image, ResourceKey key,
+            EResourceBindingOption options = EResourceBindingOption.None)
+        {
+            EResourceBindStatus status = EnsureOwner(owner, out int _);
+            if (status != EResourceBindStatus.Success)
+            {
+                return status;
+            }
+
+            if (image == null)
+            {
+                return EResourceBindStatus.MissingTarget;
+            }
+
+            ResourceKey spriteKey = key.AssetType == null
+                ? new ResourceKey(key.Location, key.PackageName, typeof(Sprite), EResourceAssetKind.Sprite)
+                : key;
+            if (!_leaseSource.TryAcquireBindingCached(spriteKey, out ResourceLeaseHandle newLease) || !newLease.IsValid)
+            {
+                return EResourceBindStatus.LoadFailed;
+            }
+
+            if (!_leaseSource.TryGetLeaseAsset(newLease, out UObject asset) || asset is not Sprite sprite)
+            {
+                _leaseSource.Release(newLease);
+                return EResourceBindStatus.LoadFailed;
+            }
+
+            if (!ApplySprite(image, sprite))
+            {
+                _leaseSource.Release(newLease);
+                return EResourceBindStatus.ApplyFailed;
+            }
+
+            return RegisterSpriteSource(owner, image, newLease, sprite, EResourceBindingSlotType.ImageSprite, options, 0);
+        }
+
         /// <inheritdoc />
         public EResourceBindStatus BindSprite(ResourceOwner owner, SpriteRenderer spriteRenderer, ResourceKey key,
             EResourceBindingOption options = EResourceBindingOption.None)

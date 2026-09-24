@@ -72,7 +72,7 @@ namespace Service.Resource
         [Test]
         public void RequestPackageVersion_ThrowsGameException()
         {
-            InvokeExpectingFailFast("RequestPackageVersionAsync", false, 60, string.Empty);
+            InvokeExpectingFailFast("RequestPackageVersion", false, 60, string.Empty);
         }
 
         [Test]

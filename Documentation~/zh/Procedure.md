@@ -101,7 +101,7 @@ ProcedureLaunch -> ProcedureSplash -> ProcedureInitPackage -> ProcedureInitResou
 -> ProcedureClearCache -> ProcedureLoadAssembly -> ProcedurePreload -> ProcedurePrepare4Entrance
 ```
 
-其中 `ProcedureInitResources` 演示了与 Resource 服务的配合：调用 `ResourceService.RequestPackageVersionAsync()` 获取远端清单版本、写入 `ResourceService.PackageVersion` 后用 `ResourceService.LoadPackageManifestAsync(packageVersion)` 更新清单，再按播放模式（`EResourcePlayMode.HostPlay` / `WebGLPlay`、是否 `ResourceService.UpdatableWhilePlaying`）决定走下载流程还是直接预加载。
+其中 `ProcedureInitResources` 演示了与 Resource 服务的配合：调用 `ResourceService.RequestPackageVersion()` 获取远端清单版本、写入 `ResourceService.PackageVersion` 后用 `ResourceService.LoadPackageManifestAsync(packageVersion)` 更新清单，再按播放模式（`EResourcePlayMode.HostPlay` / `WebGLPlay`、是否 `ResourceService.UpdatableWhilePlaying`）决定走下载流程还是直接预加载。
 
 ### 重启流程
 

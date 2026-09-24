@@ -22,6 +22,9 @@ namespace Moirai.Atropos.Resource
         /// <summary>同步取用一个直接租约；失败返回 <see cref="ResourceLeaseHandle.Invalid"/>。</summary>
         ResourceLeaseHandle AcquireBinding(ResourceKey key);
 
+        /// <summary>只读缓存取用：已加载则租约，未命中返回 false 且不发起加载。</summary>
+        bool TryAcquireBindingCached(ResourceKey key, out ResourceLeaseHandle handle);
+
         /// <summary>异步取用一个直接租约。</summary>
         UniTask<ResourceLeaseHandle> AcquireBindingAsync(ResourceKey key, CancellationToken cancellationToken);
 
@@ -183,7 +186,7 @@ namespace Moirai.Atropos.Resource
         /// <summary>
         /// 异步请求最新包版本。
         /// </summary>
-        public abstract ResourcePackageVersionResult RequestPackageVersionAsync(bool appendTimeTicks = false, int timeout = 60, string customPackageName = "");
+        public abstract ResourcePackageVersionResult RequestPackageVersion(bool appendTimeTicks = false, int timeout = 60, string customPackageName = "");
 
         /// <summary>
         /// 设置远程资源服务器地址。
@@ -203,7 +206,7 @@ namespace Moirai.Atropos.Resource
         /// <summary>
         /// 清理缓存文件。
         /// </summary>
-        public abstract ResourceClearCacheResult ClearCacheAsync(EResourceClearMode clearMode, string customPackageName = "");
+        public abstract ResourceClearCacheResult StartClearCache(EResourceClearMode clearMode, string customPackageName = "");
 
         /// <summary>
         /// 清理所有缓存文件（沙盒路径）。
@@ -412,6 +415,11 @@ namespace Moirai.Atropos.Resource
         /// 获取绑定资源租约。
         /// </summary>
         public abstract ResourceLeaseHandle AcquireBinding(ResourceKey key);
+
+        /// <summary>
+        /// 只读缓存取用绑定租约——未命中不发起后端加载（列表滑动等热路径用）。
+        /// </summary>
+        public abstract bool TryAcquireBindingCached(ResourceKey key, out ResourceLeaseHandle handle);
 
         /// <summary>
         /// 异步获取绑定资源租约。

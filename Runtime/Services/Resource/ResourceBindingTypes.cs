@@ -179,6 +179,10 @@ namespace Moirai.Atropos.Resource
         /// <param name="key">资源标识键。</param>
         /// <param name="options">绑定选项。</param>
         /// <returns>绑定结果状态。</returns>
+        /// <summary>只读缓存绑定 Image 精灵；未加载则 LoadFailed，不触发后端加载。</summary>
+        EResourceBindStatus TryBindSpriteCached(ResourceOwner owner, Image image, ResourceKey key,
+            EResourceBindingOption options = EResourceBindingOption.None);
+
         EResourceBindStatus BindSprite(ResourceOwner owner, SpriteRenderer spriteRenderer, ResourceKey key,
             EResourceBindingOption options = EResourceBindingOption.None);
 

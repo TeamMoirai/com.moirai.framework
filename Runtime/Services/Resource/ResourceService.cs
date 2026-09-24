@@ -658,8 +658,8 @@ namespace Moirai.Atropos.Resource
         /// <summary>
         /// 异步更新最新包的版本。
         /// </summary>
-        public static ResourcePackageVersionResult RequestPackageVersionAsync(bool appendTimeTicks = false, int timeout = 60, string customPackageName = "") =>
-            s_Handler?.RequestPackageVersionAsync(appendTimeTicks, timeout, customPackageName);
+        public static ResourcePackageVersionResult RequestPackageVersion(bool appendTimeTicks = false, int timeout = 60, string customPackageName = "") =>
+            s_Handler?.RequestPackageVersion(appendTimeTicks, timeout, customPackageName);
 
         /// <summary>
         /// 设置远程服务 URL。
@@ -682,8 +682,8 @@ namespace Moirai.Atropos.Resource
         /// <summary>
         /// 清理包裹未使用的缓存文件。
         /// </summary>
-        public static ResourceClearCacheResult ClearCacheAsync(EResourceClearMode clearMode, string customPackageName = "") =>
-            s_Handler?.ClearCacheAsync(clearMode, customPackageName);
+        public static ResourceClearCacheResult StartClearCache(EResourceClearMode clearMode, string customPackageName = "") =>
+            s_Handler?.StartClearCache(clearMode, customPackageName);
 
         /// <summary>
         /// 清理沙盒路径。

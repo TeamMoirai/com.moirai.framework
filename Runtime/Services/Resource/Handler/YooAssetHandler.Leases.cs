@@ -173,6 +173,27 @@ namespace Moirai.Atropos.Resource
             return AcquireDirect(key);
         }
 
+        public override bool TryAcquireBindingCached(ResourceKey key, out ResourceLeaseHandle handle)
+        {
+            handle = ResourceLeaseHandle.Invalid;
+            ResourceKey typedKey = key.AssetType == null && !key.HasResolvedIds
+                ? new ResourceKey(key.Location, key.PackageName, typeof(UObject), ResourceKeyCodec.InferAssetKind(typeof(UObject)))
+                : key;
+
+            string normalizedPackageName = Store.NormalizePackageName(typedKey.PackageName);
+            EResourceAssetKind assetKind = ResourceKeyCodec.NormalizeAssetKind(typedKey.AssetType, typedKey.AssetKind);
+            Type assetType = ResourceKeyCodec.NormalizeAssetType(typedKey.AssetType, assetKind);
+            ulong recordKey = Store.GetAssetRecordKey(normalizedPackageName, typedKey.Location, assetType, assetKind,
+                EResourceHandleKind.AssetHandle);
+            if (!Store.TryGetCachedAssetRecordByKey(recordKey, out int assetId, out _))
+            {
+                return false;
+            }
+
+            handle = Store.AcquireLease(assetId, EResourceLeaseKind.Binding, EResourceLeaseOption.None);
+            return handle.IsValid;
+        }
+
         public override UniTask<ResourceLeaseHandle> AcquireBindingAsync(ResourceKey key,
             CancellationToken cancellationToken)
         {

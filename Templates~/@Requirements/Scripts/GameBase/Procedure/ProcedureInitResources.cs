@@ -74,7 +74,7 @@ namespace Moirai.Main
             LauncherMgr.ShowUI<LoadUpdateUI>(LoadText.Instance.Label_UpdateManifest);
 
             // 1. 获取资源清单的版本信息
-            var operation1 = ResourceService.RequestPackageVersionAsync();
+            var operation1 = ResourceService.RequestPackageVersion();
             while (operation1?.Operation != null && !operation1.Operation.IsDone)
             {
                 yield return null;

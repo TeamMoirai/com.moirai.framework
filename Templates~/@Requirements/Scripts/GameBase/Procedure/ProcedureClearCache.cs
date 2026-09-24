@@ -18,7 +18,7 @@ namespace Moirai.Main
             LauncherMgr.ShowUI<LoadUpdateUI>(LoadText.Instance.Label_ClearCache);
 
             var options = EResourceClearMode.ClearUnusedBundleFiles;
-            var operation = ResourceService.ClearCacheAsync(options);
+            var operation = ResourceService.StartClearCache(options);
             GameApp.StartCoroutine(WaitClearCacheComplete(operation));
         }
 

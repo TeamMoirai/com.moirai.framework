@@ -392,7 +392,7 @@ bool succeed = await ResourceService.TryInitializePackageAsync();
 bool succeed2 = await ResourceService.TryInitializePackageAsync("OtherPackage", "https://cdn.example.com/res");
 
 // Online mode: request remote version -> update manifest -> create downloader -> download
-var op = await ResourceService.RequestPackageVersionAsync();
+var op = await ResourceService.RequestPackageVersion();
 ResourceService.PackageVersion = op.PackageVersion;
 await ResourceService.LoadPackageManifestAsync(ResourceService.PackageVersion);
 var downloader = ResourceService.CreateResourceDownloader();   // then poll the downloader
@@ -403,7 +403,7 @@ bool needRemote = ResourceService.IsNeedDownloadFromRemote("Assets/AssetRaw/UI/l
 
 // Remote address and cache cleanup
 ResourceService.SetRemoteServicesUrl("https://cdn.example.com/res", "https://backup.example.com/res");
-ResourceService.ClearCacheAsync(EResourceClearMode.ClearUnusedBundleFiles);            // clear unused cache files
+ResourceService.StartClearCache(EResourceClearMode.ClearUnusedBundleFiles);            // clear unused cache files
 ResourceService.ClearAllBundleFiles();             // clear sandbox path
 ```
 
@@ -439,7 +439,7 @@ Deliberately no runtime clamping: clamping rewrites a configuration mistake into
 ## Notes
 
 - **Addressables backend (experimental):** `AddressableHandler` shares the same record kernel as `YooAssetHandler` (`ResourceRecordStore`); the async lease / binding / prefab instantiation / atlas sub-sprite / scene loading / cache maintenance and low-memory release families are all at parity. When `com.unity.addressables` is not installed the whole layer drops out via the asmdef `versionDefines` macro `ADDRESSABLES_INSTALLED` plus file-level `#if` — it is deliberately **not** split into its own assembly, because the kernel types are `internal` to `Moirai.Atropos` and a satellite assembly would only buy a line of `InternalsVisibleTo`.
-- **Addressables sync and download families throw:** `LoadLease<T>` / `AcquireDirect` / `AcquireBinding` / `AcquirePrefabSourceLease` / the synchronous `LoadGameObject` all raise `GameException` — Addressables has no synchronous load API, and returning `null` would just move the failure to the next null dereference. Same for `RequestPackageVersionAsync` / `LoadPackageManifestAsync` / `CreateResourceDownloader` / `GetDownloadSize`: its update flow is a two-step Check→Update, and `DownloadStatus` has no counterpart for `TotalDownloadCount` or `FailedFiles`.
+- **Addressables sync and download families throw:** `LoadLease<T>` / `AcquireDirect` / `AcquireBinding` / `AcquirePrefabSourceLease` / the synchronous `LoadGameObject` all raise `GameException` — Addressables has no synchronous load API, and returning `null` would just move the failure to the next null dereference. Same for `RequestPackageVersion` / `LoadPackageManifestAsync` / `CreateResourceDownloader` / `GetDownloadSize`: its update flow is a two-step Check→Update, and `DownloadStatus` has no counterpart for `TotalDownloadCount` or `FailedFiles`.
 - **Addressables degraded queries:** `IsNeedDownloadFromRemote` always returns `false`, `GetPackageVersion` always returns an empty string, `GetAssetInfo` always returns `default`, and the tag-based `GetAssetInfos` always returns an empty array (the matching capability is async-only, or `IResourceLocation` simply carries no tags or size). `HasAsset` reports `AssetOnDisk` for any locatable address and cannot tell "cached" from "needs remote download" (`AssetOnline` never occurs); atlas sub-sprites only support addresses that resolve to a `SpriteAtlas`. The non-forced `UnloadUnusedAssets()` does nothing on this backend (on YooAsset that overload drives bundle unload operations, which have no counterpart), while the forced overload and the low-memory callback go through record release. Use `YooAssetHandler` in production.
 
 - **Lease API:** `ResourceAssetLease<T>` is a `struct` — always `Dispose` it (use `using` statement). After Dispose, `IsValid` returns `false` and `Asset` is `null`.

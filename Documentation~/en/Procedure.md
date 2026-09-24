@@ -101,7 +101,7 @@ ProcedureLaunch -> ProcedureSplash -> ProcedureInitPackage -> ProcedureInitResou
 -> ProcedureClearCache -> ProcedureLoadAssembly -> ProcedurePreload -> ProcedurePrepare4Entrance
 ```
 
-`ProcedureInitResources` demonstrates integration with the Resource service: it calls `ResourceService.RequestPackageVersionAsync()` to get the remote manifest version, stores it in `ResourceService.PackageVersion`, then calls `ResourceService.LoadPackageManifestAsync(packageVersion)` to update the manifest, and then decides whether to proceed with the download flow or directly preload based on the play mode (`EResourcePlayMode.HostPlay` / `WebGLPlay`, whether `ResourceService.UpdatableWhilePlaying` is enabled).
+`ProcedureInitResources` demonstrates integration with the Resource service: it calls `ResourceService.RequestPackageVersion()` to get the remote manifest version, stores it in `ResourceService.PackageVersion`, then calls `ResourceService.LoadPackageManifestAsync(packageVersion)` to update the manifest, and then decides whether to proceed with the download flow or directly preload based on the play mode (`EResourcePlayMode.HostPlay` / `WebGLPlay`, whether `ResourceService.UpdatableWhilePlaying` is enabled).
 
 ### Restarting Procedures
 

@@ -99,7 +99,7 @@ namespace Moirai.Atropos.Resource
         }
 
         /// <inheritdoc />
-        public override ResourcePackageVersionResult RequestPackageVersionAsync(bool appendTimeTicks = false, int timeout = 60, string customPackageName = "")
+        public override ResourcePackageVersionResult RequestPackageVersion(bool appendTimeTicks = false, int timeout = 60, string customPackageName = "")
         {
             throw CreateNotSupported();
         }
@@ -124,7 +124,7 @@ namespace Moirai.Atropos.Resource
         }
 
         /// <inheritdoc />
-        public override ResourceClearCacheResult ClearCacheAsync(EResourceClearMode clearMode, string customPackageName = "")
+        public override ResourceClearCacheResult StartClearCache(EResourceClearMode clearMode, string customPackageName = "")
         {
             Addressables.ClearResourceLocators();
             if (clearMode == EResourceClearMode.ClearAllBundleFiles)
@@ -490,6 +490,22 @@ namespace Moirai.Atropos.Resource
         public override ResourceLeaseHandle AcquireBinding(ResourceKey key)
         {
             throw CreateNotSupported();
+        }
+
+        public override bool TryAcquireBindingCached(ResourceKey key, out ResourceLeaseHandle handle)
+        {
+            // Addressables 无同步加载；cache-only 只读已落地记录，未命中直接 false。
+            handle = ResourceLeaseHandle.Invalid;
+            EResourceAssetKind assetKind = ResourceKeyCodec.NormalizeAssetKind(key.AssetType, key.AssetKind);
+            if (!Store.TryGetCachedAssetRecord(Store.NormalizePackageName(key.PackageName), key.Location,
+                    key.AssetType ?? typeof(UObject), assetKind,
+                    EResourceHandleKind.AssetHandle, out int assetId, out _))
+            {
+                return false;
+            }
+
+            handle = Store.AcquireLease(assetId, EResourceLeaseKind.Binding, EResourceLeaseOption.None);
+            return handle.IsValid;
         }
 
         /// <inheritdoc />

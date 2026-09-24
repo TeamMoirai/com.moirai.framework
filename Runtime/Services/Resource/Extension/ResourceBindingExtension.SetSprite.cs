@@ -1,4 +1,4 @@
-﻿using System.Threading;
+using System.Threading;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.UI;
@@ -17,6 +17,23 @@ namespace Moirai.Atropos.Resource
         /// <param name="setNativeSize">是否设置原始尺寸。</param>
         /// <param name="cancellationToken">取消令牌。</param>
         /// <param name="packageName">资源包名称；留空走默认包，DLC 包里的精灵要显式给出。</param>
+        /// <summary>只读缓存设置 Image 精灵：未加载返回 false，不触发后端加载。</summary>
+        public static bool TrySetSprite(this Image image, string location, bool setNativeSize = false,
+            string packageName = "")
+        {
+            if (image == null)
+            {
+                return false;
+            }
+
+            ResourceOwner owner = EnsureOwner(image);
+            var key = new ResourceKey(location, packageName, typeof(Sprite), EResourceAssetKind.Sprite);
+            EResourceBindingOption options = setNativeSize ? EResourceBindingOption.SetNativeSize : EResourceBindingOption.None;
+            return ResourceService.BindingService != null &&
+                   ResourceService.BindingService.TryBindSpriteCached(owner, image, key, options) ==
+                   EResourceBindStatus.Success;
+        }
+
         public static void SetSprite(this Image image, string location, bool setNativeSize = false,
             CancellationToken cancellationToken = default, string packageName = "")
         {

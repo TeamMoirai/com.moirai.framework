@@ -443,7 +443,7 @@ namespace Moirai.Atropos.Resource
         }
 
         /// <inheritdoc />
-        public override ResourcePackageVersionResult RequestPackageVersionAsync(bool appendTimeTicks = false, int timeout = 60, string customPackageName = "")
+        public override ResourcePackageVersionResult RequestPackageVersion(bool appendTimeTicks = false, int timeout = 60, string customPackageName = "")
         {
             var package = GetPackageOrThrow(customPackageName);
             var options = new RequestPackageVersionOptions(appendTimeTicks, timeout);
@@ -481,7 +481,7 @@ namespace Moirai.Atropos.Resource
         }
 
         /// <inheritdoc />
-        public override ResourceClearCacheResult ClearCacheAsync(EResourceClearMode clearMode, string customPackageName = "")
+        public override ResourceClearCacheResult StartClearCache(EResourceClearMode clearMode, string customPackageName = "")
         {
             var package = GetPackageOrThrow(customPackageName);
             var options = ToYooAssetClearOptions(clearMode);
@@ -509,7 +509,7 @@ namespace Moirai.Atropos.Resource
         /// <inheritdoc />
         public override void ClearAllBundleFiles(string customPackageName = "")
         {
-            ClearCacheAsync(EResourceClearMode.ClearAllBundleFiles, customPackageName);
+            StartClearCache(EResourceClearMode.ClearAllBundleFiles, customPackageName);
         }
 
         private ResourcePackage GetPackageOrThrow(string packageName)

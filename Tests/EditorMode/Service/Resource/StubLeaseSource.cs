@@ -30,6 +30,12 @@ namespace Service.Resource
 
         public ResourceLeaseHandle AcquireBinding(ResourceKey key) => new ResourceLeaseHandle(1, 1);
 
+        public bool TryAcquireBindingCached(ResourceKey key, out ResourceLeaseHandle handle)
+        {
+            handle = ResourceLeaseHandle.Invalid;
+            return false;
+        }
+
         public UniTask<ResourceLeaseHandle> AcquireBindingAsync(ResourceKey key,
             CancellationToken cancellationToken) =>
             UniTask.FromResult(new ResourceLeaseHandle(1, 1));
