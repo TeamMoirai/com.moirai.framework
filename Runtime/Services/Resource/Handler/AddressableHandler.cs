@@ -16,10 +16,10 @@ namespace Moirai.Atropos.Resource
     /// <summary>
     /// <para>基于 Unity Addressables 的资源处理器实现（实验性）。</para>
     /// <para><see cref="ResourceServiceHandler"/> 的 Addressables 后端实现，与 <see cref="YooAssetHandler"/> 共用
-    /// <see cref="ResourceRecordStore"/> 记录内核：异步租约 / 绑定 / 预制体实例化 / 图集子精灵 / 场景加载 / 缓存维护都是对等实现。</para>
+    /// <see cref="ResourceRecordStore"/> 记录内核：异步租约 / 绑定 / 预制体实例化 / 图集子精灵 / 场景加载 / 缓存维护与低内存回收都是对等实现。</para>
     /// <para>Addressables 既没有同步加载 API，也没有两步式 Check→Update 的下载器对应面，因此同步取用族与下载族成员统一抛出
     /// <see cref="GameException"/> fail-fast，禁止静默 no-op 掩盖误配置；只有异步版本可答的查询
-    /// （<c>IsNeedDownloadFromRemote</c> / <c>GetAssetInfo</c> / 按标签的 <c>GetAssetInfos</c>）退化为恒定值。</para>
+    /// （<c>IsNeedDownloadFromRemote</c> / <c>GetPackageVersion</c> / <c>GetAssetInfo</c> / 按标签的 <c>GetAssetInfos</c>）退化为恒定值。</para>
     /// </summary>
     [Serializable]
     internal sealed partial class AddressableHandler : ResourceServiceHandler
@@ -153,21 +153,35 @@ namespace Moirai.Atropos.Resource
         /// <inheritdoc />
         public override void OnLowMemory()
         {
+            // 这份委托由 ResourceService 初始化时登记进来（RequestForceUnloadUnusedAssets）。
+            // 吞掉它等于把 Application.lowMemory 这条链在这一后端上悄悄剪断：调用方照旧返回，
+            // 只是再没有人在内存吃紧时请求强制回收。
+            _forceUnloadUnusedAssetsAction?.Invoke(true);
         }
+
+        private Action<bool> _forceUnloadUnusedAssetsAction;
 
         /// <inheritdoc />
         public override void SetForceUnloadUnusedAssetsAction(Action<bool> action)
         {
+            _forceUnloadUnusedAssetsAction = action;
         }
 
         /// <inheritdoc />
         public override void UnloadUnusedAssets()
         {
+            UnloadUnusedAssets(false);
         }
 
         /// <inheritdoc />
         public override void UnloadUnusedAssets(bool force)
         {
+            // 非强制档在 YooAsset 侧推进的是 bundle 卸载操作，Addressables 没有对应物；
+            // 能对上的是"强制档还掉引用计数为零的记录"，所以只接这一半。
+            if (force)
+            {
+                ReleaseAllUnusedAssetRecords();
+            }
         }
 
         /// <inheritdoc />

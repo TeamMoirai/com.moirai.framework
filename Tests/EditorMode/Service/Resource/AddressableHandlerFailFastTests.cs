@@ -7,10 +7,11 @@ using NUnit.Framework;
 namespace Service.Resource
 {
     /// <summary>
-    /// AddressableHandler fail-fast 契约测试：实验性后端的能力缺失必须以 GameException 暴露，
-    /// 禁止退回静默 no-op。运行时符号随 ADDRESSABLES_INSTALLED 条件编译存在，用反射定位并断言；
+    /// AddressableHandler 的契约测试：实验性后端的能力缺失必须以 GameException 暴露，
+    /// 禁止退回静默 no-op；已经接上的那条链（低内存回收委托）则必须真的走通。
+    /// 运行时符号随 ADDRESSABLES_INSTALLED 条件编译存在，用反射定位并断言；
     /// 未安装 Addressables 的环境下整组忽略。
-    /// <para>这里只钉"哪些成员仍然抛"。接通了的成员（异步取用族、初始化、释放）不在此列——
+    /// <para>这里只钉"哪些成员仍然抛"与"哪些委托必须落地"。接通了的取用族不在此列——
     /// 它们的正解是真的返回值，拿反射断言"不抛"等于什么都不断。</para>
     /// </summary>
     public sealed class AddressableHandlerFailFastTests
@@ -84,6 +85,35 @@ namespace Service.Resource
         public void CreateResourceDownloader_ThrowsGameException()
         {
             InvokeExpectingFailFast("CreateResourceDownloader", string.Empty);
+        }
+
+        /// <summary>
+        /// 低内存这条链必须是通的：登记进去的强制回收委托要真的被调用，且以 force=true 调用。
+        /// <para>这一对成员原本都是空方法体，于是 <c>Application.lowMemory</c> 到了这座后端什么也不做，
+        /// 而调用方看到的行为是"成功返回"——静默 no-op 里最典型的一种。</para>
+        /// </summary>
+        [Test]
+        public void OnLowMemory_InvokesRegisteredForceUnloadAction()
+        {
+            object instance = CreateInstance();
+            if (instance == null)
+            {
+                Assert.Ignore("AddressableHandler is not compiled (ADDRESSABLES_INSTALLED undefined).");
+                return;
+            }
+
+            int invokedWith = -1;
+            Action<bool> action = performGCCollect => invokedWith = performGCCollect ? 1 : 0;
+
+            MethodInfo setter = FindMethod(instance.GetType(), "SetForceUnloadUnusedAssetsAction");
+            MethodInfo onLowMemory = FindMethod(instance.GetType(), "OnLowMemory");
+            Assert.IsNotNull(setter, "SetForceUnloadUnusedAssetsAction not found on handler.");
+            Assert.IsNotNull(onLowMemory, "OnLowMemory not found on handler.");
+
+            setter.Invoke(instance, new object[] { action });
+            onLowMemory.Invoke(instance, null);
+
+            Assert.AreEqual(1, invokedWith, "委托未被调用：这条后端把 Application.lowMemory 吞了");
         }
 
         private static object CreateInstance()
