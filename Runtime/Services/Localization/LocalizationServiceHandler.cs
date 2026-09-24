@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using Cysharp.Threading.Tasks;
 using UnityEngine;
 
 namespace Moirai.Atropos.Localization
@@ -56,6 +57,9 @@ namespace Moirai.Atropos.Localization
         [NonSerialized] private bool _hasLoggedMissingCap;
         // 格式化文化：跟随当前游戏语言（数字/日期分隔符与文案语言一致），语言切换时重解析；解析失败回落不变文化
         [NonSerialized] private CultureInfo _formatCulture;
+        // 异步预加载在途标记：在途期间同步懒加载按未就绪降级（查询返回 ID 原文），并发 LoadAsync 共享同一任务
+        [NonSerialized] private bool _isAsyncLoading;
+        [NonSerialized] private UniTask _pendingLoadAsync;
 
         /// <summary>缺译追踪集合的最大容量。</summary>
         private const int MAX_TRACKED_MISSING_KEYS = 256;
@@ -215,6 +219,8 @@ namespace Moirai.Atropos.Localization
             _missingKeyEvents = 0;
             _hasLoggedMissingCap = false;
             _formatCulture = null;
+            _isAsyncLoading = false;
+            _pendingLoadAsync = default;
             _localizers.Clear();
 
             if (_subscriptions.Count > 0)
@@ -254,18 +260,131 @@ namespace Moirai.Atropos.Localization
             => (new List<Language>(), new Dictionary<string, List<string>>());
 
         /// <summary>
+        /// 异步加载本地化词条（<b>异步扩展点</b>）。
+        /// <para>默认实现直接包装同步批加载（<see cref="LoadLocalizedTextBatch"/>），
+        /// 大数据源（远程词库、分通道流式表）应覆写为真正的异步实现。</para>
+        /// </summary>
+        internal virtual UniTask<LocalizationTextBatch> LoadLocalizedTextBatchAsync()
+            => UniTask.FromResult(LoadLocalizedTextBatch());
+
+        /// <summary>
+        /// 异步确保本地化数据已加载（启动期预热的推荐入口）。
+        /// <para>幂等 + 在途去重：并发调用共享同一任务；已加载时立即完成。
+        /// 完成后与同步首载走同一条语言解析 + 重注入 + 广播路径。</para>
+        /// </summary>
+        public UniTask LoadAsync()
+        {
+            if (_dataLoaded) return UniTask.CompletedTask;
+            if (_isAsyncLoading) return _pendingLoadAsync;
+
+            _isAsyncLoading = true;
+            // Preserve 语义：并发调用方共享并各自等待同一任务——UniTask 默认禁止二次等待
+            _pendingLoadAsync = LoadAsyncCore().Preserve();
+            return _pendingLoadAsync;
+        }
+
+        /// <summary>异步加载期间是否仍在途（诊断用，不触发任何加载）。</summary>
+        internal bool IsLoading => _isAsyncLoading;
+
+        /// <summary>
+        /// 异步加载核心：取批、换入、语言解析与首启切换。
+        /// </summary>
+        private async UniTask LoadAsyncCore()
+        {
+            try
+            {
+                if (SupportsPerLanguageLoad)
+                {
+                    // 列模式无"整批"可取：让出一帧后装语言头，列按需装载
+                    await UniTask.Yield();
+                    EnsurePerLanguageHeaderLoaded();
+                }
+                else
+                {
+                    LocalizationTextBatch batch;
+                    Exception sourceError = null;
+                    try
+                    {
+                        batch = await LoadLocalizedTextBatchAsync();
+                    }
+                    catch (Exception ex)
+                    {
+                        // 与同步路径同一约定：异常不外抛，交统一出口只报一次
+                        batch = null;
+                        sourceError = ex;
+                    }
+
+                    // 加载在途时处理器被关服：结果一律丢弃，不得把批写进下一次会话的新存储
+                    if (!IsInitialized) return;
+
+                    ApplyLoadedBatch(batch, sourceError);
+                }
+            }
+            finally
+            {
+                _isAsyncLoading = false;
+                _pendingLoadAsync = default;
+            }
+
+            if (Store.LanguageCount == 0) return;
+
+            CompleteLoad();
+        }
+
+        /// <summary>
+        /// 声明本处理器支持按语言列加载（<b>可选契约</b>）。
+        /// <para>默认 <c>false</c>：整批加载、全语言列常驻。数据源可按语言单独取列时覆写为
+        /// <c>true</c> 并实现 <see cref="LoadLanguageHeader"/> 与 <see cref="LoadLanguageColumn"/>——
+        /// 常驻即降为「语言头 + 当前语言列 + 回退链列」，切换语言时按需装载目标列。
+        /// 是否值得启用按 <see cref="ResidentChars"/> 量级判断，不凭感觉。</para>
+        /// </summary>
+        protected virtual bool SupportsPerLanguageLoad => false;
+
+        /// <summary>
+        /// 取语言头（可用语言与其列序；<b>按语言列模式必须实现</b>）。
+        /// </summary>
+        /// <returns>可用语言列表；<c>null</c>/空表示未就绪（保持重试，与整批空批同语义）。</returns>
+        protected virtual IReadOnlyList<Language> LoadLanguageHeader() => null;
+
+        /// <summary>
+        /// 取单一语言列：<b>按语言列模式必须实现</b>。
+        /// </summary>
+        /// <param name="language">目标语言（来自语言头）。</param>
+        /// <returns>key → 译文；返回 <c>null</c> 视为加载失败（下次访问重试），
+        /// 空字典视为「已加载的空列」（语言在头内但暂无词条，不再重试）。</returns>
+        protected virtual Dictionary<string, string> LoadLanguageColumn(Language language) => null;
+
+        /// <summary>
         /// 懒式加载本地化数据源并解析当前语言。
         /// <para>数据加载依赖资源服务（配置表），服务注册期资源尚未就绪；
         /// 首次访问多语言 API 时资源必然已加载完成，故推迟到调用点执行。</para>
-        /// <para>批为空或列数失配都视为数据未就绪，不置成功标记，下次访问自动重试。</para>
+        /// <para>批为空或列数失配都视为数据未就绪，不置成功标记，下次访问自动重试；
+        /// 异步预加载在途期间不抢跑——查询按未就绪降级（返回 ID 原文），避免同源两路并发加载。</para>
         /// </summary>
         private void EnsureLocalizedStringsLoaded()
         {
-            if (_dataLoaded) return;
+            if (_dataLoaded || _isAsyncLoading) return;
 
-            LoadLocalizedStrings();
+            if (SupportsPerLanguageLoad)
+            {
+                EnsurePerLanguageHeaderLoaded();
+            }
+            else
+            {
+                LoadLocalizedStrings();
+            }
+
             if (Store.LanguageCount == 0) return;
 
+            CompleteLoad();
+        }
+
+        /// <summary>
+        /// 数据就绪后的统一收口：置已载标记、解析回退链、落实语言切换意图/首启检测。
+        /// <para>同步懒加载、异步预加载、按语言列模式共用——保证三条路径的语言解析与持久化语义完全一致。</para>
+        /// </summary>
+        private void CompleteLoad()
+        {
             _dataLoaded = true;
             ResolveFallbackChain();
             // 未就绪期间记录的切换意图优先于首启检测链（该意图来自显式 ChangeLanguage，按用户切换语义持久化）；
@@ -273,6 +392,56 @@ namespace Moirai.Atropos.Localization
             var pending = _pendingLanguage;
             _pendingLanguage = null;
             ChangeLanguage(pending ?? ResolveInitialLanguage(), true, pending != null);
+        }
+
+        /// <summary>
+        /// 装载按语言列模式的语言头（幂等；头为空保持重试，错误只报一次）。
+        /// </summary>
+        private void EnsurePerLanguageHeaderLoaded()
+        {
+            if (Store.LanguageCount > 0) return;
+
+            IReadOnlyList<Language> header = null;
+            Exception error = null;
+            try
+            {
+                header = LoadLanguageHeader();
+            }
+            catch (Exception ex)
+            {
+                error = ex;
+            }
+
+            if (header == null || header.Count == 0)
+            {
+                if (!_hasLoggedLoadError)
+                {
+                    _hasLoggedLoadError = true;
+                    if (error != null)
+                    {
+                        LogUtility.Error("Failed to load localization language header from {0}: {1}", GetType().Name, error);
+                    }
+                    else
+                    {
+                        LogUtility.Error("Failed to load localization language header, generate config first!");
+                    }
+                }
+
+                return;
+            }
+
+            _hasLoggedLoadError = false;
+            _hasLoggedNoLanguage = false;
+
+            // 头去重（重复语言只留首个——列下标按首现序）
+            var languages = new List<Language>(header.Count);
+            for (var i = 0; i < header.Count; i++)
+            {
+                if (header[i] != null && !languages.Contains(header[i])) languages.Add(header[i]);
+            }
+
+            Store.BeginSparse(languages.ToArray());
+            LogUtility.Info("Localization language header loaded ({0} languages, per-language mode).", languages.Count);
         }
 
         /// <summary>
@@ -293,6 +462,15 @@ namespace Moirai.Atropos.Localization
                 sourceError = ex;
             }
 
+            ApplyLoadedBatch(batch, sourceError);
+        }
+
+        /// <summary>
+        /// 把取到的批（或取数异常）换入存储。
+        /// <para>同步懒加载与异步预加载共用的统一出口：异常只报一次、成功复位闸门、列数失调整批拒载并保留旧快照。</para>
+        /// </summary>
+        private void ApplyLoadedBatch(LocalizationTextBatch batch, Exception sourceError)
+        {
             if (batch == null || batch.Languages.Length == 0)
             {
                 // 数据未就绪时每次查询都会重试进入此处，错误日志只打一次
@@ -349,6 +527,12 @@ namespace Moirai.Atropos.Localization
                 return;
             }
 
+            if (SupportsPerLanguageLoad)
+            {
+                ReloadPerLanguageTexts();
+                return;
+            }
+
             var previousGeneration = Store.Generation;
             LoadLocalizedStrings();
             if (Store.LanguageCount == 0)
@@ -362,16 +546,82 @@ namespace Moirai.Atropos.Localization
             if (Store.Generation == previousGeneration) return;
 
             ResolveFallbackChain();
+            ReapplyCurrentLanguageAfterReload();
+        }
 
+        /// <summary>
+        /// 换批后落实当前语言：仍在批内则强制重注入并广播（语言未变词条可能已更新），
+        /// 不在批内（热更砍掉了语言）则按检测/回退/表首项兜底重选。
+        /// </summary>
+        private void ReapplyCurrentLanguageAfterReload()
+        {
             var currentIndex = Store.IndexOf(_currentLanguage);
             if (currentIndex < 0)
             {
-                // 当前语言不在新批内（热更砍掉了语言）：重选走完整 ChangeLanguage 流程
                 ChangeLanguage(ResolveInitialLanguage(), true, false);
                 return;
             }
 
             _currentLanguageIndex = currentIndex;
+            ReinjectLocalizers();
+            RaiseLanguageChanged(_currentLanguage);
+        }
+
+        /// <summary>
+        /// 按语言列模式的热重载：重取语言头与列缓存。
+        /// <para>头取不到时保留旧快照（与整批拒载同语义）；头变更后当前语言不在新头内则按兜底重选。
+        /// 覆盖层按契约不被重载清空。</para>
+        /// </summary>
+        private void ReloadPerLanguageTexts()
+        {
+            IReadOnlyList<Language> header = null;
+            Exception error = null;
+            try
+            {
+                header = LoadLanguageHeader();
+            }
+            catch (Exception ex)
+            {
+                error = ex;
+            }
+
+            if (header == null || header.Count == 0)
+            {
+                // 头坏了不把旧文案一起抹掉；错误只报一次
+                if (!_hasLoggedLoadError)
+                {
+                    _hasLoggedLoadError = true;
+                    LogUtility.Error("Failed to reload localization language header{0}; keeping the previous snapshot.", error != null ? ": " + error : " (source returned no data)");
+                }
+
+                return;
+            }
+
+            Store.ClearData();
+
+            var languages = new List<Language>(header.Count);
+            for (var i = 0; i < header.Count; i++)
+            {
+                if (header[i] != null && !languages.Contains(header[i])) languages.Add(header[i]);
+            }
+
+            Store.BeginSparse(languages.ToArray());
+
+            _dataLoaded = true;
+            ResolveFallbackChain();
+
+            var currentIndex = Store.IndexOf(_currentLanguage);
+            if (currentIndex < 0)
+            {
+                // 当前语言被热更砍掉：走完整切换流程重选（列装载含在其中）
+                ChangeLanguage(ResolveInitialLanguage(), true, false);
+                return;
+            }
+
+            _currentLanguageIndex = currentIndex;
+            // 目标列必须先装上再重注入：列装载失败宁可不切广播也不能让界面整屏露 key
+            if (!EnsureSwitchColumnsLoaded(currentIndex)) return;
+
             ReinjectLocalizers();
             RaiseLanguageChanged(_currentLanguage);
         }
@@ -477,6 +727,8 @@ namespace Moirai.Atropos.Localization
                 return;
             }
 
+            if (SupportsPerLanguageLoad && !EnsureSwitchColumnsLoaded(languageIndex)) return;
+
             _isSwitching = true;
             try
             {
@@ -494,6 +746,67 @@ namespace Moirai.Atropos.Localization
             {
                 _isSwitching = false;
             }
+        }
+
+        /// <summary>
+        /// 按语言列模式切换前置：装载目标语言列 + 回退链列。
+        /// </summary>
+        /// <returns>目标列装载成功；目标列加载失败（或可重试的缺源）时拒绝切换并保持当前语言。</returns>
+        private bool EnsureSwitchColumnsLoaded(int targetIndex)
+        {
+            if (!EnsureColumnLoaded(targetIndex, true)) return false;
+
+            for (var i = 0; i < _fallbackIndices.Length; i++)
+            {
+                EnsureColumnLoaded(_fallbackIndices[i], false);
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// 幂等装载一种语言的列。
+        /// </summary>
+        /// <param name="index">语言头内列下标。</param>
+        /// <param name="required">目标列为 <c>true</c>（失败拒绝切换）；回退列为 <c>false</c>（失败跳过，下次再试）。</param>
+        private bool EnsureColumnLoaded(int index, bool required)
+        {
+            if (Store.IsColumnLoaded(index)) return true;
+
+            var language = Store.LanguageAt(index);
+            Dictionary<string, string> column = null;
+            Exception error = null;
+            try
+            {
+                column = LoadLanguageColumn(language);
+            }
+            catch (Exception ex)
+            {
+                error = ex;
+            }
+
+            if (column == null)
+            {
+                // 加载失败不标记——下次访问自然重试；错误日志只报一次（与整批同源）
+                if (!_hasLoggedLoadError)
+                {
+                    _hasLoggedLoadError = true;
+                    if (error != null)
+                    {
+                        LogUtility.Error("Failed to load localized column for {0}: {1}", language, error);
+                    }
+                    else
+                    {
+                        LogUtility.Error("Failed to load localized column for {0} (source returned no data).", language);
+                    }
+                }
+
+                return !required;
+            }
+
+            _hasLoggedLoadError = false;
+            Store.ApplyColumn(index, column);
+            return true;
         }
 
         /// <summary>
@@ -889,9 +1202,18 @@ namespace Moirai.Atropos.Localization
         /// <summary>
         /// 获取包含指定 ID 的所有语言的字符串字典（键为语言 Name；同名语言重复时后者覆盖前者，不再抛异常）。
         /// </summary>
+        /// <remarks>按语言列模式下会先按需装载全部语言列——这是「全语言」语义的必要代价，热路径请勿使用。</remarks>
         public Dictionary<string, string> GetDictionaryFromId(string id)
         {
             EnsureLocalizedStringsLoaded();
+
+            if (SupportsPerLanguageLoad)
+            {
+                for (var i = 0; i < Store.LanguageCount; i++)
+                {
+                    EnsureColumnLoaded(i, required: false);
+                }
+            }
 
             var dict = new Dictionary<string, string>();
             if (string.IsNullOrEmpty(id) || !Store.HasKey(id)) return dict;

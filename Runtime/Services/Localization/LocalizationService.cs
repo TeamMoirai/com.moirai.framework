@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Cysharp.Threading.Tasks;
 using Moirai.Atropos.ConfigTable;
 using Moirai.Atropos.Debugger;
 using UnityEngine;
@@ -220,6 +221,13 @@ namespace Moirai.Atropos.Localization
         /// 语言未变也会广播，词条内容可能已更新。覆盖层按契约不被换批清空。</para>
         /// </summary>
         public static void ReloadTexts() => s_Handler?.ReloadTexts();
+
+        /// <summary>
+        /// 异步预加载本地化数据（启动期推荐调用，避免首查询承担整表展开的帧尖峰）。
+        /// <para>幂等 + 在途去重：并发调用共享同一任务；已加载或处理器未就绪时立即完成。
+        /// 加载在途期间同步查询按「未就绪」降级（返回 ID 原文），完成后自动重注入全部本地化器。</para>
+        /// </summary>
+        public static UniTask PreloadAsync() => s_Handler?.LoadAsync() ?? UniTask.CompletedTask;
 
         #endregion
 

@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using System;
+using Cysharp.Threading.Tasks;
 using Moirai.Atropos.ConfigTable;
 
 namespace Moirai.Atropos.Localization
@@ -22,6 +23,16 @@ namespace Moirai.Atropos.Localization
             var strings = ConfigTableService.GetAllLocalizedStrings();
             var languages = LocalizationService.ResolveLanguages(ConfigTableService.GetLocalizationLanguageCodes());
             return new LocalizationTextBatch(languages, strings, "config-table");
+        }
+
+        /// <summary>
+        /// 异步批加载：表字节已随资源服务预加载完毕，读表本身为纯内存展开；
+        /// 让出一帧，避免整表展开压在调用方的首查询帧上。
+        /// </summary>
+        internal override async UniTask<LocalizationTextBatch> LoadLocalizedTextBatchAsync()
+        {
+            await UniTask.Yield();
+            return LoadLocalizedTextBatch();
         }
     }
 }
