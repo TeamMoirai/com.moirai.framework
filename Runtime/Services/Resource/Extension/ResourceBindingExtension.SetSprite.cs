@@ -26,12 +26,16 @@ namespace Moirai.Atropos.Resource
                 return false;
             }
 
-            ResourceOwner owner = EnsureOwner(image);
+            IResourceBindingService bindingService = ResourceService.BindingService;
+            if (bindingService == null)
+            {
+                return false;
+            }
+
+            ResourceOwner owner = ResourceOwner.EnsureFor(image, bindingService);
             var key = new ResourceKey(location, packageName, typeof(Sprite), EResourceAssetKind.Sprite);
             EResourceBindingOption options = setNativeSize ? EResourceBindingOption.SetNativeSize : EResourceBindingOption.None;
-            return ResourceService.BindingService != null &&
-                   ResourceService.BindingService.TryBindSpriteCached(owner, image, key, options) ==
-                   EResourceBindStatus.Success;
+            return bindingService.TryBindSpriteCached(owner, image, key, options) == EResourceBindStatus.Success;
         }
 
         public static void SetSprite(this Image image, string location, bool setNativeSize = false,
