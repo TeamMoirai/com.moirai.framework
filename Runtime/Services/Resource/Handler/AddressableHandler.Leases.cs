@@ -5,6 +5,7 @@ using Cysharp.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.AddressableAssets;
 using UnityEngine.ResourceManagement.AsyncOperations;
+using UnityEngine.U2D;
 using UObject = UnityEngine.Object;
 
 namespace Moirai.Atropos.Resource
@@ -43,11 +44,17 @@ namespace Moirai.Atropos.Resource
         }
 
         /// <inheritdoc />
-        /// <remarks>图集（子资源）句柄还没接：那条路径整体走 <see cref="CreateNotSupported"/>，
-        /// 所以本方法当前的唯一调用方拿不到非空结果——不是静默降级，是该入口尚未实现。</remarks>
+        /// <remarks>只有图集形态的记录（<see cref="SpriteAtlas"/>）有子精灵可取；单资产句柄返回 null
+        /// 是正解，不是降级。按名取用走 <c>SpriteAtlas.GetSprite</c>——本机 6000.3 的 CoreModule 里
+        /// 并没有 <c>TryGetSprite</c>（那串只出现在 TextCore 模块的另一套类型上），别照着记忆写。</remarks>
         Sprite IResourceRecordHost.GetSubSprite(object handle, string spriteName)
         {
-            return null;
+            if (string.IsNullOrEmpty(spriteName) || !(handle is AddressableHandleRef<SpriteAtlas> atlasRef))
+            {
+                return null;
+            }
+
+            return atlasRef.GetSprite(spriteName);
         }
 
         // 三个配置读数不再另写一遍显式实现：容量属性本来就是 public 的 get/set，
@@ -80,6 +87,20 @@ namespace Moirai.Atropos.Resource
 
             /// <summary>释放标记自己扛：不依赖 <c>IsValid()</c> 在 Release 之后是否转 false。</summary>
             public bool IsValid => !_released && _handle.IsValid();
+
+            /// <summary>
+            /// 图集形态下按名取子精灵；其余 TObject 恒 null。用 as 判定而不是再开一种包装，
+            /// 因为内核只认 IAddressableHandleRef，多一种包装就得在宿主里多一处分支。
+            /// </summary>
+            internal Sprite GetSprite(string spriteName)
+            {
+                if (_released || !_handle.IsValid())
+                {
+                    return null;
+                }
+
+                return (_handle.Result as SpriteAtlas)?.GetSprite(spriteName);
+            }
 
             public void Release()
             {
@@ -263,6 +284,150 @@ namespace Moirai.Atropos.Resource
 
             return Store.AcquireLease(assetId, leaseKind, options);
         }
+
+        #region 图集取用 [SUB-ASSET ACQUIRE]
+
+        /// <summary>
+        /// 按图集地址取子精灵的租约。Addressables 没有"一个地址拿全部子资产"的公开 API
+        /// （<c>LoadAllAssetsAsync</c> 只在 AssetBundle 层），所以这里对齐 YooAsset 的形态：
+        /// 一条地址加载 <see cref="SpriteAtlas"/>，按名取用留给记录句柄，一次加载多次取。
+        /// </summary>
+        private UniTask<ResourceLeaseHandle> AcquireSubAssetsAsync(string location, string packageName,
+            EResourceLeaseOption options, CancellationToken cancellationToken)
+        {
+            if (string.IsNullOrEmpty(location))
+            {
+                return UniTask.FromResult(ResourceLeaseHandle.Invalid);
+            }
+
+            string normalizedPackageName = Store.NormalizePackageName(packageName);
+            ulong loadingKey = Store.GetLoadingOperationKey(location, normalizedPackageName, typeof(Sprite),
+                EResourceAssetKind.SubAssets);
+
+            if (cancellationToken.IsCancellationRequested || Store.IsDestroying)
+            {
+                return UniTask.FromResult(ResourceLeaseHandle.Invalid);
+            }
+
+            if (Store.TryGetCachedSubAssetsRecord(normalizedPackageName, location, out int cachedAssetId))
+            {
+                return UniTask.FromResult(Store.AcquireLease(cachedAssetId, EResourceLeaseKind.Binding, options));
+            }
+
+            return AcquireSubAssetsPendingAsync(location, normalizedPackageName, loadingKey, options,
+                cancellationToken);
+        }
+
+        private async UniTask<ResourceLeaseHandle> AcquireSubAssetsPendingAsync(string location,
+            string normalizedPackageName, ulong loadingKey, EResourceLeaseOption options,
+            CancellationToken cancellationToken)
+        {
+            while (true)
+            {
+                if (cancellationToken.IsCancellationRequested || Store.IsDestroying)
+                {
+                    return ResourceLeaseHandle.Invalid;
+                }
+
+                if (Store.TryGetCachedSubAssetsRecord(normalizedPackageName, location, out int cachedAssetId))
+                {
+                    return Store.AcquireLease(cachedAssetId, EResourceLeaseKind.Binding, options);
+                }
+
+                if (!Store.TryBeginLoading(loadingKey))
+                {
+                    // 同一图集并发绑定：并入赢家的加载，不再各自发起一次请求
+                    if (!await Store.WaitForLoadingAsync(loadingKey, cancellationToken))
+                    {
+                        return ResourceLeaseHandle.Invalid;
+                    }
+
+                    continue;
+                }
+
+                int loadGeneration = unchecked((int)Store.UnloadGeneration);
+                IAddressableHandleRef handleRef = null;
+                try
+                {
+                    if (!Store.IsLoadingStateCurrent(loadGeneration))
+                    {
+                        Store.FailLoading(loadingKey, null);
+                        return ResourceLeaseHandle.Invalid;
+                    }
+
+                    var handle = Addressables.LoadAssetAsync<SpriteAtlas>(location);
+                    handleRef = new AddressableHandleRef<SpriteAtlas>(handle);
+                    if (!handle.IsValid())
+                    {
+                        handleRef.Release();
+                        Store.FailLoading(loadingKey, NewLoadingFailure(location, normalizedPackageName),
+                            ELogLevel.Warning);
+                        return ResourceLeaseHandle.Invalid;
+                    }
+
+                    bool callerCancellationRequested = false;
+                    if (!handle.IsDone)
+                    {
+                        await handle.ToUniTask(cancellationToken: cancellationToken);
+                    }
+
+                    if (cancellationToken.IsCancellationRequested)
+                    {
+                        callerCancellationRequested = true;
+                    }
+
+                    if (!Store.IsLoadingStateCurrent(loadGeneration))
+                    {
+                        handleRef.Release();
+                        Store.FailLoading(loadingKey, null);
+                        return ResourceLeaseHandle.Invalid;
+                    }
+
+                    bool abortedByCallerCancellation = Store.ShouldAbortLoadingAfterCallerCancellation(loadingKey,
+                        cancellationToken, ref callerCancellationRequested);
+                    bool loadFailed = handle.Status != AsyncOperationStatus.Succeeded;
+                    if (abortedByCallerCancellation || loadFailed)
+                    {
+                        Exception failure = !abortedByCallerCancellation && loadFailed
+                            ? NewLoadingFailure(location, normalizedPackageName, handle.OperationException)
+                            : null;
+                        handleRef.Release();
+                        Store.FailLoading(loadingKey, failure, ELogLevel.Warning);
+                        return ResourceLeaseHandle.Invalid;
+                    }
+
+                    if (handle.Result == null)
+                    {
+                        handleRef.Release();
+                        Store.FailLoading(loadingKey, NewLoadingFailure(location, normalizedPackageName),
+                            ELogLevel.Warning);
+                        return ResourceLeaseHandle.Invalid;
+                    }
+
+                    int assetId = Store.GetOrCreateSubAssetsRecord(normalizedPackageName, location, handleRef);
+                    handleRef = null; // 所有权已移交记录，异常兜底不得再释放
+                    Store.CompleteLoading(loadingKey);
+                    return callerCancellationRequested
+                        ? ResourceLeaseHandle.Invalid
+                        : Store.AcquireLease(assetId, EResourceLeaseKind.Binding, options);
+                }
+                catch (OperationCanceledException)
+                {
+                    handleRef?.Release();
+                    Store.FailLoading(loadingKey, null);
+                    return ResourceLeaseHandle.Invalid;
+                }
+                catch (Exception ex)
+                {
+                    handleRef?.Release();
+                    Store.FailLoading(loadingKey, new GameException(StringUtility.Format(
+                        "Resource SubAssets load threw. Location:{0} Package:{1}", location, normalizedPackageName), ex));
+                    return ResourceLeaseHandle.Invalid;
+                }
+            }
+        }
+
+        #endregion
 
         private static GameException NewLoadingFailure(string location, string packageName)
         {

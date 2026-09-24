@@ -523,14 +523,13 @@ namespace Moirai.Atropos.Resource
         /// <inheritdoc />
         internal override UniTask<ResourceLeaseHandle> AcquireSubAssetsBindingAsync(string location, string packageName, EResourceLeaseOption options, CancellationToken cancellationToken)
         {
-            throw CreateNotSupported();
+            return AcquireSubAssetsAsync(location, packageName, options, cancellationToken);
         }
 
         /// <inheritdoc />
         internal override bool TryGetSubSpriteAsset(ResourceLeaseHandle handle, string spriteName, out Sprite sprite)
         {
-            sprite = null;
-            throw CreateNotSupported();
+            return Store.TryGetSubSpriteAsset(handle, spriteName, out sprite);
         }
 
         /// <inheritdoc />
