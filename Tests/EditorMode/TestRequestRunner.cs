@@ -53,6 +53,13 @@ namespace Moirai.Atropos.Tests.EditorMode
         private const string MARKER = "MOIRAI-TEST-RUN";
 
         /// <summary>
+        /// 「本进程已经收过哪一单」的记号，落在 <c>SessionState</c>（进程级、跨域重载保留）。
+        /// 一单可能同时活在两个域里：旧域拆走前还在跑自己的 <c>Poll</c>，新域已经在续跑同一份状态。
+        /// 谁先收口谁算，后到的必须整块沉默——见 <see cref="AlreadyFinished"/>。
+        /// </summary>
+        private const string FINISHED_KEY = "Moirai.TestRequestRunner.Finished";
+
+        /// <summary>
         /// 域重载后给 <c>ResumeRunningJobs</c> 留下的认领窗口；超时仍无在途作业则判孤儿单。
         /// </summary>
         private const double ORPHAN_GRACE_SECONDS = 2.0;
@@ -230,6 +237,15 @@ namespace Moirai.Atropos.Tests.EditorMode
             s_CallbacksRegistered = true;
         }
 
+        /// <summary>
+        /// 这一单是否已在本进程收过口。请求 <c>id</c> 按协议唯一，所以按 id 比对不需要清理，也不会误伤下一单。
+        /// </summary>
+        private static bool AlreadyFinished(string id)
+        {
+            return !string.IsNullOrEmpty(id) &&
+                string.Equals(SessionState.GetString(FINISHED_KEY, string.Empty), id, StringComparison.Ordinal);
+        }
+
         private static void RestoreState()
         {
             if (!File.Exists(STATE_PATH)) return;
@@ -238,6 +254,15 @@ namespace Moirai.Atropos.Tests.EditorMode
             {
                 s_State = UnityEngine.JsonUtility.FromJson<RunState>(File.ReadAllText(STATE_PATH));
                 if (s_State != null && string.IsNullOrEmpty(s_State.output))
+                {
+                    s_State = null;
+                    TryDelete(STATE_PATH);
+                    return;
+                }
+
+                // 收过口的单还会在盘上留一份运行态（拆走的旧域会把它重写回去），领养它就会把已交付的
+                // 正当报告改写成 ABORTED，并且在自己的超时/孤儿判定走完之前拒接一切新单。
+                if (s_State != null && AlreadyFinished(s_State.id))
                 {
                     s_State = null;
                     TryDelete(STATE_PATH);
@@ -256,7 +281,7 @@ namespace Moirai.Atropos.Tests.EditorMode
 
         private static void PersistState()
         {
-            if (s_State == null) return;
+            if (s_State == null || AlreadyFinished(s_State.id)) return;
             WriteRaw(STATE_PATH, UnityEngine.JsonUtility.ToJson(s_State));
         }
 
@@ -466,6 +491,15 @@ namespace Moirai.Atropos.Tests.EditorMode
             s_State = null;
             s_RestoredAt = -1d;
             TryDelete(STATE_PATH);
+
+            if (AlreadyFinished(state.id))
+            {
+                // 另一个域已经收过这一单：结论已经交付，再落笔就是把正当报告改写成 ABORTED。
+                // 对方在此之后又重写回来的运行态，由下一次 RestoreState 按同一判据拒领养
+                return;
+            }
+
+            SessionState.SetString(FINISHED_KEY, state.id ?? string.Empty);
 
             StringBuilder report = new StringBuilder();
             report.Append("run ").Append(state.id ?? string.Empty);
