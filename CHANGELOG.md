@@ -141,6 +141,7 @@
 - `WaitForLoadingAsync` 的等待者计数不归还、失败原因被丢弃。
 - `LoadGameObject` / `LoadGameObjectAsync` 不防实例化期间的回收与关停。
 - `UnloadUnusedAssets` / `ForceUnloadAllAssets` 不校验包是否仍有有效清单。
+- YooAsset 后端的实例状态与 YooAssets 的静态表不同一条命：同域重启（容器重启、或关掉脚本域重载进 Play）时 `[SerializeReference]` 里那份处理器原封不动，`Initialize()` 却直接抛 `YooAssets is already initialized`；即使不抛，`PackageMap` 里的 `ResourcePackage` 也全是孤儿，而 `InitPackage` 的快路径恰恰按它的 `InitializeStatus` 判"这个包已就绪"。现在 `Initialize()` 先走一次 `ResetReloadUnsafeState()`：静态已初始化就先 `Destroy`，随后清包表、`AssetInfo` 缓存与两本包初始化字典。
 - Addressables 后端把 `Application.lowMemory` 这条链整个吞掉：`SetForceUnloadUnusedAssetsAction` 丢掉委托、`OnLowMemory` 是空方法体，内存吃紧时既不收记录也不请求系统回收，而调用方看到的是"正常返回"。现按 YooAsset 的形状接上，`AddressableHandlerFailFastTests` 钉住委托真的以 force=true 被调用。
   - 同处的强制档 `UnloadUnusedAssets(true)` 同样空转，现在走记录释放；非强制档刻意仍为空——那一档在 YooAsset 侧推进 bundle 卸载操作，本后端没有对应物。
 - 精灵绑定族的四个入口把资源包写死成空串（材质族早已透传），DLC 包里的精灵绑不上：`SetSprite` / `SetSubSprite` 全部 8 个重载补上末位可选 `packageName`，留空即走默认包，既有调用行为不变。
