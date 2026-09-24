@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Cysharp.Threading.Tasks;
 using Moirai.Atropos;
 using Moirai.Atropos.Resource;
@@ -26,7 +26,7 @@ namespace Moirai.Main
         {
             try
             {
-                var initializationOperation = await ResourceService.InitPackage(ResourceService.DefaultPackageName,
+                var initializationOperation = await ResourceService.InitializePackageAsync(ResourceService.DefaultPackageName,
                     ResourceService.PlayMode == EResourcePlayMode.OfflinePlay);
 
                 if (initializationOperation != null && initializationOperation.Succeed)

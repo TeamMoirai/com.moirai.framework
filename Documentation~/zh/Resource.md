@@ -358,7 +358,7 @@ int GetAssetInfos(ResourceAssetInfo[] results, int startIndex, int maxCount);
 
 编辑器中在 `ResourceServiceSettings` 资产的 Handler（YooAssetHandler）序列化字段上配置，也可用菜单 `YooAsset/Editor PlayMode` 切换（编辑器设置优先于序列化值；真机下 `EditorSimulateMode` 自动降级为 `OfflinePlayMode`）：
 
-- `PlayMode`：四种播放模式，决定 `InitPackage` 走模拟构建、内置文件系统、缓存文件系统还是 Web 文件系统
+- `PlayMode`：四种播放模式，决定 `InitializePackageAsync` 走模拟构建、内置文件系统、缓存文件系统还是 Web 文件系统
 - 加密方式由 `YooAssetHandler.EncryptorHandler` 这个 `[SerializeReference]` 配置决定（不配即为无加密），运行时据此创建对应解密服务
 - `PackageName`：默认资源包名（默认 `DefaultPackage`），多包项目通过各 API 的 `packageName` 参数指定其它包
 
@@ -381,13 +381,14 @@ int GetAssetInfos(ResourceAssetInfo[] results, int startIndex, int maxCount);
 
 ```csharp
 // 初始化指定资源包（needInitMainFest: true 时顺带请求并更新清单，单机 OtherPackage 场景）
-await ResourceService.InitPackage("DefaultPackage");
+await ResourceService.InitializePackageAsync("DefaultPackage", needInitManifest: true);
 
-// 仅初始化包（不更新清单），并发去重/幂等语义与 InitPackage 一致；
+// 布尔薄壳：可写远程地址，不更新清单，收成成败布尔；
+// 并发去重/幂等语义与 InitializePackageAsync 一致；
 // hostServerURL/fallbackHostServerURL 非空时写入 HostServerURL/FallbackHostServerURL；
 // HostPlay/WebPlay 模式下两属性均为空时抛 GameException（fail-fast）。
-bool succeed = await ResourceService.InitPackageAsync();
-bool succeed2 = await ResourceService.InitPackageAsync("OtherPackage", "https://cdn.example.com/res");
+bool succeed = await ResourceService.TryInitializePackageAsync();
+bool succeed2 = await ResourceService.TryInitializePackageAsync("OtherPackage", "https://cdn.example.com/res");
 
 // 联机模式：请求远端版本 -> 更新清单 -> 创建下载器 -> 下载
 var op = await ResourceService.RequestPackageVersionAsync();

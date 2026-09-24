@@ -21,7 +21,7 @@ namespace Moirai.Atropos.Resource
         #region 初始化 [INITIALIZATION]
 
         /// <inheritdoc />
-        public override async UniTask<ResourcePackageInitResult> InitPackage(string packageName, bool needInitManifest = false)
+        public override async UniTask<ResourcePackageInitResult> InitializePackageAsync(string packageName, bool needInitManifest = false)
         {
             string targetPackage = string.IsNullOrEmpty(packageName) ? DefaultPackageName : packageName;
             // autoReleaseHandle: false —— 目录句柄一释放，ResourceLocators 就空了，
@@ -36,10 +36,10 @@ namespace Moirai.Atropos.Resource
         }
 
         /// <inheritdoc />
-        public override async UniTask<bool> InitPackageAsync(string packageName = "", string hostServerURL = "",
+        public override async UniTask<bool> TryInitializePackageAsync(string packageName = "", string hostServerURL = "",
             string fallbackHostServerURL = "")
         {
-            ResourcePackageInitResult result = await InitPackage(packageName);
+            ResourcePackageInitResult result = await InitializePackageAsync(packageName);
             return result != null && result.Succeed;
         }
 

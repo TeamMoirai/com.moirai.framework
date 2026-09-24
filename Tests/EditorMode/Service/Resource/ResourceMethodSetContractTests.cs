@@ -9,7 +9,7 @@ namespace Service.Resource
 {
     /// <summary>
     /// ResourceService 方法集契约测试：锁定外观公开面，防止后续重构悄然漂移。
-    /// 含 legacy 族 Obsolete 特性、运行时配置属性读写、InitPackageAsync 签名、
+    /// 含 legacy 族 Obsolete 特性、运行时配置属性读写、InitializePackageAsync/TryInitializePackageAsync 签名、
     /// HasAsset 三值语义四类断言。
     /// </summary>
     public sealed class ResourceMethodSetContractTests
@@ -137,11 +137,11 @@ namespace Service.Resource
         #region 包初始化 [PACKAGE INITIALIZATION]
 
         [Test]
-        public void InitPackageAsync_Signature()
+        public void InitializePackageAsync_Signature()
         {
-            MethodInfo method = typeof(ResourceService).GetMethod("InitPackageAsync", StaticPublic);
+            MethodInfo method = typeof(ResourceService).GetMethod("InitializePackageAsync", StaticPublic);
 
-            Assert.IsNotNull(method, "Facade InitPackageAsync missing.");
+            Assert.IsNotNull(method, "Facade InitializePackageAsync missing.");
             Assert.AreEqual(typeof(UniTask<bool>), method.ReturnType, "return type must be UniTask<bool>.");
 
             ParameterInfo[] parameters = method.GetParameters();
@@ -153,11 +153,11 @@ namespace Service.Resource
         }
 
         [Test]
-        public void InitPackageAsync_HandlerAbstract_Exists()
+        public void InitializePackageAsync_HandlerAbstract_Exists()
         {
-            MethodInfo method = typeof(ResourceServiceHandler).GetMethod("InitPackageAsync");
+            MethodInfo method = typeof(ResourceServiceHandler).GetMethod("InitializePackageAsync");
 
-            Assert.IsNotNull(method, "Handler abstract InitPackageAsync missing.");
+            Assert.IsNotNull(method, "Handler abstract InitializePackageAsync missing.");
             Assert.IsTrue(method.IsAbstract);
         }
 

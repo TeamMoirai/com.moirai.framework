@@ -169,7 +169,7 @@ namespace Moirai.Atropos.Resource
         /// 原封不动地活着，而 YooAssets 的 <c>s_packages</c> 与驱动器已经随场景重载没了：
         /// 下一句 <c>YooAssets.Initialize</c> 直接抛 "already initialized"；就算不抛，
         /// <see cref="PackageMap"/> 里那些 <c>ResourcePackage</c> 也全是孤儿，
-        /// 而 <c>InitPackage</c> 的快路径恰恰按它的命中来判定"这个包已经初始化过了"。</para>
+        /// 而 <c>InitializePackageAsync</c> 的快路径恰恰按它的命中来判定"这个包已经初始化过了"。</para>
         /// <para>反过来，正常开启域重载时这里等于空转一次——静态已归零、字典本就是空的。</para>
         /// </summary>
         private void ResetReloadUnsafeState()
@@ -187,7 +187,7 @@ namespace Moirai.Atropos.Resource
         }
 
         /// <inheritdoc />
-        public override async UniTask<ResourcePackageInitResult> InitPackage(string packageName, bool needInitManifest = false)
+        public override async UniTask<ResourcePackageInitResult> InitializePackageAsync(string packageName, bool needInitManifest = false)
         {
             LogUtility.Warning("Resource Service Used :{0}", ResourceServiceSettings.PlayMode);
 
@@ -276,7 +276,7 @@ namespace Moirai.Atropos.Resource
         }
 
         /// <inheritdoc />
-        public override async UniTask<bool> InitPackageAsync(string packageName = "", string hostServerURL = "", string fallbackHostServerURL = "")
+        public override async UniTask<bool> TryInitializePackageAsync(string packageName = "", string hostServerURL = "", string fallbackHostServerURL = "")
         {
             if (string.IsNullOrEmpty(packageName))
             {
@@ -299,7 +299,7 @@ namespace Moirai.Atropos.Resource
                 throw new GameException("Host server URL is invalid. Specify hostServerURL or set ResourceService.HostServerURL before initializing in HostPlay/WebPlay mode.");
             }
 
-            ResourcePackageInitResult result = await InitPackage(packageName);
+            ResourcePackageInitResult result = await InitializePackageAsync(packageName);
 
             // result == null：包已初始化成功但操作句柄缓存缺失（Shutdown→Initialize 循环复用场景），语义为已就绪。
             return result == null || result.Succeed;

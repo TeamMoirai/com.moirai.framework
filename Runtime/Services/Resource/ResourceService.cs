@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using Moirai.Atropos.Debugger;
@@ -430,20 +430,22 @@ namespace Moirai.Atropos.Resource
         #region 初始化 [INITIALIZATION]
 
         /// <summary>
-        /// 初始化资源包。
+        /// 初始化资源包并返回初始化结果。<paramref name="needInitManifest"/> 为 true 时顺带请求并更新清单。
         /// </summary>
-        public static UniTask<ResourcePackageInitResult> InitPackage(string customPackageName, bool needInitManifest = false) =>
-            s_Handler?.InitPackage(customPackageName, needInitManifest) ?? UniTask.FromResult<ResourcePackageInitResult>(null);
+        public static UniTask<ResourcePackageInitResult> InitializePackageAsync(string customPackageName, bool needInitManifest = false) =>
+            s_Handler?.InitializePackageAsync(customPackageName, needInitManifest) ?? UniTask.FromResult<ResourcePackageInitResult>(null);
 
         /// <summary>
-        /// 初始化资源包（仅初始化包，不更新清单），并发去重与幂等语义与 <see cref="InitPackage"/> 一致。
+        /// 初始化资源包并收成成败布尔（不更新清单）。非空的 host / fallback 写入
+        /// <see cref="HostServerURL"/> / <see cref="FallbackHostServerURL"/> 后再初始化；
+        /// 并发去重与幂等语义与 <see cref="InitializePackageAsync"/> 一致。
         /// </summary>
         /// <param name="packageName">资源包名称。为空时使用默认资源包。</param>
         /// <param name="hostServerURL">资源服务器地址。非空时写入 <see cref="HostServerURL"/>。</param>
         /// <param name="fallbackHostServerURL">备用资源服务器地址。非空时写入 <see cref="FallbackHostServerURL"/>。</param>
         /// <returns>初始化是否成功。</returns>
-        public static UniTask<bool> InitPackageAsync(string packageName = "", string hostServerURL = "", string fallbackHostServerURL = "") =>
-            s_Handler?.InitPackageAsync(packageName, hostServerURL, fallbackHostServerURL) ?? UniTask.FromResult(false);
+        public static UniTask<bool> TryInitializePackageAsync(string packageName = "", string hostServerURL = "", string fallbackHostServerURL = "") =>
+            s_Handler?.TryInitializePackageAsync(packageName, hostServerURL, fallbackHostServerURL) ?? UniTask.FromResult(false);
 
         #endregion
 

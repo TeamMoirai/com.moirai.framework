@@ -150,21 +150,26 @@ namespace Moirai.Atropos.Resource
         public abstract void Initialize();
 
         /// <summary>
-        /// 初始化指定资源包。
+        /// 初始化指定资源包，返回初始化结果；<paramref name="needInitManifest"/> 为 true 时顺带请求并更新清单。
+        /// <para>与 <see cref="TryInitializePackageAsync"/> 的关系：本方法是原语（返回操作句柄），
+        /// 布尔薄壳在它之上叠了远程地址写入并把结果收成 <c>bool</c>。</para>
         /// </summary>
         /// <param name="packageName">资源包名称。</param>
         /// <param name="needInitManifest">是否需要初始化清单。</param>
         /// <returns>资源包初始化结果。</returns>
-        public abstract UniTask<ResourcePackageInitResult> InitPackage(string packageName, bool needInitManifest = false);
+        public abstract UniTask<ResourcePackageInitResult> InitializePackageAsync(string packageName, bool needInitManifest = false);
 
         /// <summary>
-        /// 初始化指定资源包（仅初始化包，不更新清单），并发去重与幂等语义与 <see cref="InitPackage"/> 一致。
+        /// 初始化指定资源包并收成成败布尔——<see cref="InitializePackageAsync"/> 的便捷薄壳：
+        /// 非空的 <paramref name="hostServerURL"/> / <paramref name="fallbackHostServerURL"/> 写入
+        /// <see cref="HostServerURL"/> / <see cref="FallbackHostServerURL"/> 后再初始化，**不更新清单**。
+        /// <para>并发去重与幂等语义与 <see cref="InitializePackageAsync"/> 一致。</para>
         /// </summary>
         /// <param name="packageName">资源包名称。为空时使用默认资源包。</param>
         /// <param name="hostServerURL">资源服务器地址。非空时写入 <see cref="HostServerURL"/>。</param>
         /// <param name="fallbackHostServerURL">备用资源服务器地址。非空时写入 <see cref="FallbackHostServerURL"/>。</param>
         /// <returns>初始化是否成功。</returns>
-        public abstract UniTask<bool> InitPackageAsync(string packageName = "", string hostServerURL = "", string fallbackHostServerURL = "");
+        public abstract UniTask<bool> TryInitializePackageAsync(string packageName = "", string hostServerURL = "", string fallbackHostServerURL = "");
 
         #endregion
 

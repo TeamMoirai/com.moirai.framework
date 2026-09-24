@@ -358,7 +358,7 @@ Batch query for asset record states. Returns the number of entries written. Each
 
 Configured on the Handler (`YooAssetHandler`) serialized fields of the `ResourceServiceSettings` asset in the editor (can also be switched via the menu `YooAsset/Editor PlayMode`; editor settings take precedence over serialized values; on device, `EditorSimulateMode` automatically falls back to `OfflinePlayMode`):
 
-- `PlayMode`: Four play modes, determines whether `InitPackage` uses simulated build, built-in file system, cache file system, or web file system
+- `PlayMode`: Four play modes, determines whether `InitializePackageAsync` uses simulated build, built-in file system, cache file system, or web file system
 - Encryption is decided by the `[SerializeReference]` `YooAssetHandler.EncryptorHandler` setting (no encryption when unset); the runtime creates the matching decryptor from it. The build-side and runtime-side handlers must be the same pair.
 - `PackageName`: Default resource package name (default `DefaultPackage`); for multi-package projects, use the `packageName` parameter in each API to specify other packages
 
@@ -380,15 +380,16 @@ Other settings:
 ### Hot Update Process API
 
 ```csharp
-// Initialize a specified resource package (needInitMainFest: true also requests and updates the manifest, for standalone OtherPackage scenarios)
-await ResourceService.InitPackage("DefaultPackage");
+// Initialize a specified resource package (needInitManifest: true also requests and updates the manifest, for standalone OtherPackage scenarios)
+await ResourceService.InitializePackageAsync("DefaultPackage", needInitManifest: true);
 
-// Package-only initialization (no manifest update); dedup/idempotency semantics identical to
-// InitPackage. Non-empty hostServerURL/fallbackHostServerURL are written to
+// Boolean thin shell: may write remote URLs, does not update the manifest, folds to success/failure;
+// dedup/idempotency semantics identical to InitializePackageAsync.
+// Non-empty hostServerURL/fallbackHostServerURL are written to
 // HostServerURL/FallbackHostServerURL; in HostPlay/WebPlay modes with both empty, GameException is
 // thrown (fail-fast).
-bool succeed = await ResourceService.InitPackageAsync();
-bool succeed2 = await ResourceService.InitPackageAsync("OtherPackage", "https://cdn.example.com/res");
+bool succeed = await ResourceService.TryInitializePackageAsync();
+bool succeed2 = await ResourceService.TryInitializePackageAsync("OtherPackage", "https://cdn.example.com/res");
 
 // Online mode: request remote version -> update manifest -> create downloader -> download
 var op = await ResourceService.RequestPackageVersionAsync();
