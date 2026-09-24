@@ -42,7 +42,7 @@ namespace Moirai.Atropos.Resource
                 return;
             }
 
-            ResourceOwner owner = EnsureOwner(bindingService, image);
+            ResourceOwner owner = ResourceOwner.EnsureFor(image, bindingService);
             if (isAsync)
             {
                 FireAndForget(bindingService.BindImageMaterialAsync(owner, image,
@@ -87,7 +87,7 @@ namespace Moirai.Atropos.Resource
                 return;
             }
 
-            ResourceOwner owner = EnsureOwner(bindingService, spriteRenderer);
+            ResourceOwner owner = ResourceOwner.EnsureFor(spriteRenderer, bindingService);
             if (isAsync)
             {
                 FireAndForget(bindingService.BindSharedMaterialAsync(owner, spriteRenderer,
@@ -135,7 +135,7 @@ namespace Moirai.Atropos.Resource
                 return;
             }
 
-            ResourceOwner owner = EnsureOwner(bindingService, meshRenderer);
+            ResourceOwner owner = ResourceOwner.EnsureFor(meshRenderer, bindingService);
             if (isAsync)
             {
                 if (needInstance)
@@ -198,7 +198,7 @@ namespace Moirai.Atropos.Resource
                 return;
             }
 
-            ResourceOwner owner = EnsureOwner(bindingService, meshRenderer);
+            ResourceOwner owner = ResourceOwner.EnsureFor(meshRenderer, bindingService);
             if (isAsync)
             {
                 FireAndForget(bindingService.BindSharedMaterialAsync(owner, meshRenderer,

@@ -50,17 +50,6 @@ namespace Moirai.Atropos.Resource
             return true;
         }
 
-        private static ResourceOwner EnsureOwner(IResourceBindingService bindingService, Component target)
-        {
-            ResourceOwner owner = target.GetComponent<ResourceOwner>();
-            if (owner == null)
-            {
-                owner = target.gameObject.AddComponent<ResourceOwner>();
-            }
-
-            bindingService.RegisterOwner(owner);
-            return owner;
-        }
 
         /// <summary>
         /// 发起即忘的绑定：抛出必须落日志。
