@@ -30,6 +30,8 @@ namespace Moirai.Atropos.Localization
         [NonSerialized] private string _settingSource;
         // 本地化数据是否已加载（懒式初始化标记）
         [NonSerialized] private bool _dataLoaded;
+        // 数据未就绪期间记录的切换意图（首次加载成功时优先应用，避免启动早期切语言被静默吞掉）
+        [NonSerialized] private Language _pendingLanguage;
         // 数据加载失败日志只打一次（数据未就绪时每次查询都会重试加载，避免刷屏）
         [NonSerialized] private bool _hasLoggedLoadError;
         // "无可用语言"日志只打一次（ChangeLanguage 与 Activate 系列共一只闸门，成功加载后复位）
@@ -159,6 +161,7 @@ namespace Moirai.Atropos.Localization
             _currentLanguage = null;
             _settingSource = string.Empty;
             _dataLoaded = false;
+            _pendingLanguage = null;
             _hasLoggedLoadError = false;
             _hasLoggedNoLanguage = false;
             _hasLoggedFormatError = false;
@@ -220,8 +223,11 @@ namespace Moirai.Atropos.Localization
 
             _dataLoaded = true;
             ResolveFallbackChain();
-            // 首次自动解析不持久化设置，避免把系统语言固化进存档
-            ChangeLanguage(ResolveInitialLanguage(), true, false);
+            // 未就绪期间记录的切换意图优先于首启检测链（该意图来自显式 ChangeLanguage，按用户切换语义持久化）；
+            // 无意图时首次自动解析不持久化设置，避免把系统语言固化进存档
+            var pending = _pendingLanguage;
+            _pendingLanguage = null;
+            ChangeLanguage(pending ?? ResolveInitialLanguage(), true, pending != null);
         }
 
         /// <summary>
@@ -410,6 +416,9 @@ namespace Moirai.Atropos.Localization
 
             if (Store.LanguageCount == 0)
             {
+                // 数据未就绪（配置表未生成/包未下载完）：记录切换意图，首次加载成功时优先应用，
+                // 用户在启动早期改语言不该被静默吞掉后落回检测链默认
+                _pendingLanguage = language;
                 LogNoLanguageOnce();
                 return;
             }
@@ -499,8 +508,10 @@ namespace Moirai.Atropos.Localization
         /// 更改当前语言。
         /// </summary>
         /// <param name="language">要切换的语言Name或Code</param>
-        /// <remarks>不区分大小写。例如简体中文 => "ChineseSimplified" "zh-Hans" "chineseSimplified"均可</remarks>
-        public void ChangeLanguage(string language) => ChangeLanguage(LocalizationService.ToLanguage(language, true));
+        /// <remarks>不区分大小写。例如简体中文 => "ChineseSimplified" "zh-Hans" "chineseSimplified"均可。
+        /// 只做身份解析（无法识别的输入回落默认语言）；语言是否随包发行由批内可用性校验判定并告警，
+        /// 不再依赖任何全局注册表，未加载时也不会被静默回落默认语言。</remarks>
+        public void ChangeLanguage(string language) => ChangeLanguage(LocalizationService.ToLanguage(language, false));
 
         /// <summary>
         /// 更改当前语言。

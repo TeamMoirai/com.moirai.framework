@@ -165,6 +165,50 @@ namespace Service.Localization
 
         #endregion
 
+        #region 待决语言意图 [PENDING INTENT]
+
+        [Test]
+        public void ChangeLanguage_BeforeDataReady_AppliesIntentOnceLoaded()
+        {
+            // 启动早期（表未就绪）切语言不得被静默吞掉：数据加载成功时应落在意图语言，而非检测链默认。
+            // 意图语言取"与检测链不同的那只"，让"意图被忽略"在此处必败
+            var source = string.Empty;
+            var detected = LocalizationService.GetCurrentLanguage(false, ref source);
+            var intent = detected == English ? Chinese : English;
+
+            // 桩数据源保持全空（无任何语言自报）→ 未就绪语义
+            LogAssert.Expect(LogType.Error, new Regex("generate config first"));
+            LogAssert.Expect(LogType.Error, new Regex("No language available"));
+            _handler.ChangeLanguage(intent);
+
+            _handler.Languages = new List<Language> { English, Chinese };
+            _handler.Strings = new Dictionary<string, List<string>>
+            {
+                ["ui.title"] = new List<string> { "Title", "标题" },
+            };
+            _ = _handler.EntryCount; // 触发加载
+
+            Assert.AreEqual(intent, _handler.CurrentLanguage);
+        }
+
+        [Test]
+        public void ChangeLanguage_ByString_UsesIdentityResolutionAndWarnsOnceForUnavailable()
+        {
+            // 已识别但未随包发行的语言：告警一次且不破坏当前语言；
+            // 不再经全局注册表把 "ja" 静默落成默认英语
+            LoadStrings("ui.title", "Title", "标题");
+            _ = _handler.EntryCount; // 先完成加载，后续不再走首启解析
+            var before = _handler.CurrentLanguage;
+            LogAssert.Expect(LogType.Warning, new Regex("Japanese is not available"));
+
+            _handler.ChangeLanguage("ja");
+            _handler.ChangeLanguage("ja");
+
+            Assert.AreEqual(before, _handler.CurrentLanguage);
+        }
+
+        #endregion
+
         #region 切换语义 [LANGUAGE SWITCH]
 
         [Test]
