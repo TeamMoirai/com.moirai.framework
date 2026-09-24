@@ -12,11 +12,14 @@ namespace Moirai.Atropos.Resource
         [LabelText("资源运行模式")]
         [SerializeField] private EResourcePlayMode m_PlayMode = EResourcePlayMode.EditorSimulate;
 #if !UNITY_EDITOR
-        // 玩家构建里这条替换只发生一次，标志位无需跨域重载复位：进程内本来就是单次判定。
+        // getter 不回写资产值，所以"EditorSimulate 要归一"这个判定每次读取都会走到；
+        // 本标志只保证那条 Error 打一次。进程内单次判定即可，无需跨域重载复位。
         private static bool s_OfflineFallbackReported;
 #endif
         /// <summary>
-        /// 资源运行模式（非编辑器下 EditorSimulate 自动回退为 OfflinePlay）。
+        /// 资源运行模式。玩家构建里 <see cref="EResourcePlayMode.EditorSimulate"/> 只在本属性的
+        /// **读取结果**上归一为 <see cref="EResourcePlayMode.OfflinePlay"/>，资产里配置的原值保持不变
+        /// （要看配置原值，读检视面板或另存一份）；归一会在首次读取时打一次 Error。
         /// </summary>
         public static EResourcePlayMode PlayMode
         {
@@ -38,7 +41,10 @@ namespace Moirai.Atropos.Resource
                             "Assets/Settings/Framework/Resources/ResourceServiceSettings.asset to enable hot update.");
                     }
 
-                    Instance.m_PlayMode = EResourcePlayMode.OfflinePlay;
+                    // 只在读取处归一，不回写 Instance.m_PlayMode：那等于让一次 getter
+                    // 悄悄改掉一份共享的 ScriptableObject 实例，把"运维本该发现的配置错误"
+                    // 洗成一份看起来本来就对的资产。
+                    return EResourcePlayMode.OfflinePlay;
                 }
 #endif
                 return Instance.m_PlayMode;
