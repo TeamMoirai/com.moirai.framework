@@ -109,9 +109,15 @@ namespace Service.Save
         public void BuiltIns_RemainRegistered()
         {
             Assert.IsTrue(SaveSerializerRegistry.TryGet(ESaveBackend.Json, out _));
+#if MESSAGEPACK_INSTALLED
             Assert.IsTrue(SaveSerializerRegistry.TryGet(ESaveBackend.MessagePack, out _));
+#endif
+#if MEMORYPACK_INSTALLED
             Assert.IsTrue(SaveSerializerRegistry.TryGet(ESaveBackend.MemoryPack, out _));
+#endif
+#if PROTOBUF_INSTALLED
             Assert.IsTrue(SaveSerializerRegistry.TryGet(ESaveBackend.Protobuf, out _));
+#endif
         }
     }
 }

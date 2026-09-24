@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -154,6 +154,7 @@ namespace Moirai.Atropos.Resource
         public override string PackageVersion { set; get; }
 
         #endregion
+        
         #region 内部字段 [INTERNAL FIELDS]
 
         /// <summary>
@@ -184,6 +185,7 @@ namespace Moirai.Atropos.Resource
             new Dictionary<string, InitializePackageOperation>(StringComparer.Ordinal);
 
         #endregion
+        
         #region 资源回收 [ASSET RECYCLING]
 
         /// <inheritdoc />
@@ -307,6 +309,7 @@ namespace Moirai.Atropos.Resource
         }
 
         #endregion
+        
         #region 获取资源信息 [GET ASSET INFOS]
 
         /// <inheritdoc />
@@ -439,6 +442,7 @@ namespace Moirai.Atropos.Resource
         }
 
         #endregion
+        
         #region 句柄获取 [HANDLE ACCESS]
 
         private AssetHandle GetHandleSync(string location, Type assetType, string packageName = "")
@@ -479,6 +483,7 @@ namespace Moirai.Atropos.Resource
             GetSubSprite(handle, spriteName);
 
         #endregion
+        
         #region 资源加载 [ASSET LOADING]
 
         /// <inheritdoc />

@@ -71,7 +71,7 @@ namespace Service.Save
         [TearDown]
         public void TearDown()
         {
-            foreach (GameObject gameObject in UnityEngine.Object.FindObjectsOfType<GameObject>())
+            foreach (GameObject gameObject in UnityUtility.FindObjectsByType<GameObject>())
             {
                 if (gameObject.scene.IsValid() && gameObject.name.StartsWith("kv-test-", StringComparison.Ordinal))
                 {

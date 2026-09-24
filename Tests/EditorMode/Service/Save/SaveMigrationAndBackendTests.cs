@@ -1,10 +1,16 @@
 using System;
+#if MEMORYPACK_INSTALLED
 using MemoryPack;
+#endif
+#if MESSAGEPACK_INSTALLED
 using MessagePack;
+#endif
 using Moirai.Atropos;
 using Moirai.Atropos.Save;
 using NUnit.Framework;
+#if PROTOBUF_INSTALLED
 using ProtoBuf;
+#endif
 using System.IO;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -17,6 +23,8 @@ namespace Service.Save
     /// 序列化后端（MessagePack / MemoryPack / protobuf-net）与 <see cref="SaveDataBlock"/> 版本迁移管线测试。
     /// <para>数据类建在测试程序集内（<see cref="SaveDataBlock"/> 非 [SerializeReference] 持有类型，无 Inspector 污染）；
     /// 迁移/未来版本保护经 internal 管线直调（<c>InternalsVisibleTo</c>），真实文件 IO。</para>
+    /// <para>三个第三方后端的标注类型与对应用例整块由 <c>MESSAGEPACK_INSTALLED</c> / <c>MEMORYPACK_INSTALLED</c> /
+    /// <c>PROTOBUF_INSTALLED</c> 门控（与运行时注册表同一套符号）：依赖未接入的工程里本夹具只剩 JSON 用例，仍可编译执行。</para>
     /// </summary>
     public partial class SaveMigrationAndBackendTests
     {
@@ -57,20 +65,25 @@ namespace Service.Save
             public int X;
         }
 
+#if MESSAGEPACK_INSTALLED
         [MessagePackObject(true)]
         internal sealed class MpData
         {
             public int Hp;
             public string Name;
         }
+#endif
 
+#if MEMORYPACK_INSTALLED
         [MemoryPackable]
         internal sealed partial class MpkData
         {
             public int Hp;
             public string Name;
         }
+#endif
 
+#if PROTOBUF_INSTALLED
         [ProtoContract]
         private sealed class PbData
         {
@@ -80,6 +93,7 @@ namespace Service.Save
             [ProtoMember(2)]
             public string Name;
         }
+#endif
 
         private PlainSaveHandler _handler;
         private string _rootPath;
@@ -224,6 +238,7 @@ namespace Service.Save
 
         #region 序列化后端 [BACKENDS]
 
+#if MESSAGEPACK_INSTALLED
         [Test]
         public void MessagePackBackend_RoundTrips()
         {
@@ -237,7 +252,9 @@ namespace Service.Save
             Assert.AreEqual(88, loaded.Hp);
             Assert.AreEqual("Moirai", loaded.Name);
         }
+#endif
 
+#if MEMORYPACK_INSTALLED
         [Test]
         public void MemoryPackBackend_RoundTrips()
         {
@@ -251,7 +268,9 @@ namespace Service.Save
             Assert.AreEqual(77, loaded.Hp);
             Assert.AreEqual("MemoryPack⑵", loaded.Name);
         }
+#endif
 
+#if PROTOBUF_INSTALLED
         [Test]
         public void ProtobufBackend_RoundTrips()
         {
@@ -265,14 +284,21 @@ namespace Service.Save
             Assert.AreEqual(66, loaded.Hp);
             Assert.AreEqual("Proto", loaded.Name);
         }
+#endif
 
         [Test]
         public void Registry_ProvidesAllBinaryBackends()
         {
             Assert.IsTrue(SaveSerializerRegistry.TryGet(ESaveBackend.Json, out _));
+#if MESSAGEPACK_INSTALLED
             Assert.IsTrue(SaveSerializerRegistry.TryGet(ESaveBackend.MessagePack, out _));
+#endif
+#if MEMORYPACK_INSTALLED
             Assert.IsTrue(SaveSerializerRegistry.TryGet(ESaveBackend.MemoryPack, out _));
+#endif
+#if PROTOBUF_INSTALLED
             Assert.IsTrue(SaveSerializerRegistry.TryGet(ESaveBackend.Protobuf, out _));
+#endif
         }
 
         [Test]
@@ -287,19 +313,30 @@ namespace Service.Save
         {
             var paths = Paths("slot");
             _handler.SaveBlockCore(paths, "json-block", new PlainBox { X = 1 }, ESaveBackend.Json, 1, CancellationToken.None);
+#if MESSAGEPACK_INSTALLED
             _handler.SaveBlockCore(paths, "mp-block", new MpData { Hp = 2, Name = "x" }, ESaveBackend.MessagePack, 1, CancellationToken.None);
+#endif
+#if MEMORYPACK_INSTALLED
             _handler.SaveBlockCore(paths, "mpk-block", new MpkData { Hp = 3, Name = "y" }, ESaveBackend.MemoryPack, 1, CancellationToken.None);
+#endif
+#if PROTOBUF_INSTALLED
             _handler.SaveBlockCore(paths, "pb-block", new PbData { Hp = 4, Name = "z" }, ESaveBackend.Protobuf, 1, CancellationToken.None);
+#endif
 
             Assert.AreEqual(SaveError.None, _handler.TryLoadBlockCore<PlainBox>(paths, "json-block", out PlainBox a));
-            Assert.AreEqual(SaveError.None, _handler.TryLoadBlockCore<MpData>(paths, "mp-block", out MpData b));
-            Assert.AreEqual(SaveError.None, _handler.TryLoadBlockCore<MpkData>(paths, "mpk-block", out MpkData c));
-            Assert.AreEqual(SaveError.None, _handler.TryLoadBlockCore<PbData>(paths, "pb-block", out PbData d));
-
             Assert.AreEqual(1, a.X);
+#if MESSAGEPACK_INSTALLED
+            Assert.AreEqual(SaveError.None, _handler.TryLoadBlockCore<MpData>(paths, "mp-block", out MpData b));
             Assert.AreEqual(2, b.Hp);
+#endif
+#if MEMORYPACK_INSTALLED
+            Assert.AreEqual(SaveError.None, _handler.TryLoadBlockCore<MpkData>(paths, "mpk-block", out MpkData c));
             Assert.AreEqual(3, c.Hp);
+#endif
+#if PROTOBUF_INSTALLED
+            Assert.AreEqual(SaveError.None, _handler.TryLoadBlockCore<PbData>(paths, "pb-block", out PbData d));
             Assert.AreEqual(4, d.Hp);
+#endif
         }
 
         #endregion

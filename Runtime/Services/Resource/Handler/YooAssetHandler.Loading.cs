@@ -38,7 +38,7 @@ namespace Moirai.Atropos.Resource
                     // 双句柄会双计引用，且后完成的赢家会把先落地的句柄 Dispose 掉（GetOrCreateAssetRecord 的择一保留）。
                     // 同步 API 不能 await：主线程被本调用占住时异步赢家没有帧可推进，同栈重入的同步赢家则在等本帧返回——
                     // 两条路都等不起。契约：记录已落地则读同一条；仍在途则 fail-fast，调用方应改用异步 API。
-                    if (Store.TryGetCachedAssetRecordByKey(loadingKey, out _, out joinedAsset))
+                    if (Store.TryGetCachedAssetRecordByKey(loadingKey, out _, out var joinedAsset))
                     {
                         return joinedAsset;
                     }
