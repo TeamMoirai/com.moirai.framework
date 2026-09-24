@@ -152,7 +152,7 @@ namespace Moirai.Atropos.Resource
                 s_LastUnloadElapsedSeconds = 0f;
                 s_Handler.UnloadUnusedAssets(force);
                 s_AsyncOperation = useSystemUnload ? Resources.UnloadUnusedAssets() : null;
-                LogUtility.Info("Unload unused assets...");
+                LogUtility.Verbose("Unload unused assets...");
             }
 
             if (s_AsyncOperation == null && s_PerformGCCollect)
@@ -604,10 +604,12 @@ namespace Moirai.Atropos.Resource
         {
             if (s_LastGCCollectElapsedSeconds < minInterval) return;
 
-            LogUtility.Info("GC.Collect...");
+            // 时序已在 UnloadUnusedAssets 完成之后（见 Tick）。档位用 GCCollectionMode.Optimized——
+            // netstandard2.0/Unity 2022.3 均在；不是 .NET 9 的 GCCollectOptimizationOption。
+            LogUtility.Verbose("GC.Collect...");
             s_PerformGCCollect = false;
             s_LastGCCollectElapsedSeconds = 0f;
-            GC.Collect();
+            GC.Collect(GC.MaxGeneration, GCCollectionMode.Optimized);
         }
 
         #endregion

@@ -54,17 +54,14 @@ namespace Moirai.Atropos.Resource
             loadingOperation.AddWaiter();
             try
             {
-                while (!loadingOperation.IsDone)
-                {
-                    if (cancellationToken.IsCancellationRequested || IsDestroying)
-                    {
-                        return false;
-                    }
-
-                    await UniTask.Yield();
-                }
-
-                return loadingOperation.Succeeded;
+                // 完成源一次唤醒全部等待者；取消经外部令牌挂在等待上，不再 while-Yield 空转。
+                bool succeeded = await loadingOperation.WaitAsync()
+                    .AttachExternalCancellation(cancellationToken);
+                return succeeded;
+            }
+            catch (OperationCanceledException)
+            {
+                return false;
             }
             finally
             {
