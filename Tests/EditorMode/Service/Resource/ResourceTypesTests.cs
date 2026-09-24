@@ -71,7 +71,7 @@ namespace Service.Resource
         [Test]
         public void Key_LoadKeyIdConstructor_HasResolvedIds()
         {
-            var key = new ResourceKey(11, 22);
+            var key = new ResourceKey(11);
 
             Assert.IsTrue(key.HasResolvedIds);
             Assert.IsEmpty(key.Location);

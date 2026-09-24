@@ -104,11 +104,6 @@ namespace Moirai.Atropos.Resource
         public readonly int LoadKeyId;
 
         /// <summary>
-        /// 视图键 ID（内部使用）。
-        /// </summary>
-        public readonly int ViewKeyId;
-
-        /// <summary>
         /// 资源包名称。
         /// </summary>
         public readonly string PackageName;
@@ -139,7 +134,6 @@ namespace Moirai.Atropos.Resource
             EResourceAssetKind assetKind = EResourceAssetKind.Unknown)
         {
             LoadKeyId = 0;
-            ViewKeyId = 0;
             PackageName = packageName ?? string.Empty;
             Location = location ?? string.Empty;
             AssetType = assetType;
@@ -147,14 +141,12 @@ namespace Moirai.Atropos.Resource
         }
 
         /// <summary>
-        /// 创建资源标识键（内部使用）。
+        /// 创建已解析过 ID 的资源标识键（内部使用）。
         /// </summary>
         /// <param name="loadKeyId">加载键 ID。</param>
-        /// <param name="viewKeyId">视图键 ID。</param>
-        public ResourceKey(int loadKeyId, int viewKeyId)
+        public ResourceKey(int loadKeyId)
         {
             LoadKeyId = loadKeyId;
-            ViewKeyId = viewKeyId;
             PackageName = string.Empty;
             Location = string.Empty;
             AssetType = null;

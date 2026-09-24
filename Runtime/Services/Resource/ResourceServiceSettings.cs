@@ -4,7 +4,7 @@ using UnityEngine;
 namespace Moirai.Atropos.Resource
 {
     [FrameworkSetting("[服务]资源设置", "资源加载、缓存与绑定后端配置", -490)]
-    public sealed class ResourceServiceSettings : FrameworkSettings<ResourceServiceSettings>
+    public sealed partial class ResourceServiceSettings : FrameworkSettings<ResourceServiceSettings>
     {
         internal const string BASE_GROUP = "基础设置";
         

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using Moirai.Atropos.Debugger;
@@ -83,50 +83,14 @@ namespace Moirai.Atropos.Resource
 
             // 初始化后端（创建默认包与绑定服务）
             s_Handler.Initialize();
-            WarnOnSuspiciousSettings();
+            // 配置自检：只报不改，判据住在设置类里（构建期检查复用同一份，见 Editor 侧
+            // ResourceSettingsBuildValidator），这里只负责在启动时打一次。
+            ResourceServiceSettings.Instance.ReportConfigurationIssues();
             LogUtility.Info("ResourceService Run Mode：{0}", ResourceServiceSettings.PlayMode);
 
             Application.lowMemory += OnLowMemory;
 
             DebuggerService.RegisterDebuggerWindow("Profiler/Resource", new ResourceServiceDebuggerWindow());
-        }
-
-        /// <summary>
-        /// 配置自检——只报不改。挑出来的三项有一个共同形状：值配错了不会崩，
-        /// 也不会报错，只是那个设置项**永远不参与决策**，而它在 Inspector 里照样看得见、
-        /// 在版本库里照样能 diff。沉默的代价是它会带着一个从未被读取的值一路发到发行版，
-        /// 排查时人人都以为调过它了。刻意不动任何值：夹取会掩盖配置错误，
-        /// 而这些值本身都合法，只是相互之间的关系不成立。
-        /// </summary>
-        private static void WarnOnSuspiciousSettings()
-        {
-            int perFrame = ResourceServiceSettings.ExpireProcessCountPerFrame;
-            int whenUnloading = ResourceServiceSettings.ExpireProcessCountWhenUnloading;
-            // 帧驱动取二者较大值：卸载档配得比每帧还小，就永远被每帧值顶掉。
-            if (whenUnloading < perFrame)
-            {
-                LogUtility.Warning("ExpireProcessCountWhenUnloading ({0}) is below ExpireProcessCountPerFrame ({1}): " +
-                    "the unload-time budget never takes effect, because the frame drive keeps the larger of the two.",
-                    whenUnloading, perFrame);
-            }
-
-            // 销毁态回收完全依赖这条轮转配额：非正数意味着它一帧都不跑。
-            int sweepBudget = ResourceServiceSettings.DestroySweepBudget;
-            if (sweepBudget <= 0)
-            {
-                LogUtility.Warning("DestroySweepBudget is {0}: the destroyed owner/binding sweep never runs, so leases held " +
-                    "by objects whose OnDestroy was truncated are never reclaimed. Keep it at or above 1.", sweepBudget);
-            }
-
-            // 过期刻度按秒落进 256 格时间轮：超过一整圈的存活期不会提前释放，但会被跳过、
-            // 直到轮盘绕回来才重新遇到——表现为释放延迟最多整整一圈，而没有任何异常。
-            float expireTime = ResourceServiceSettings.IdleAssetExpireTime;
-            if (expireTime > 255f)
-            {
-                LogUtility.Warning("IdleAssetExpireTime ({0}s) is longer than the 256-bucket expiry wheel spans (255 ticks): " +
-                    "entries are skipped until the wheel wraps around once, so release is late by up to a full lap. " +
-                    "Keep it at or below 255.", expireTime);
-            }
         }
 
         /// <summary>

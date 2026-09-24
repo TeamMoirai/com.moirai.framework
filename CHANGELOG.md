@@ -48,6 +48,11 @@
 - 空闲资源记录容量上限 `IdleAssetCapacity`（默认 256），与 `IdleAssetExpireTime` 一起挡住长时间运行下的记录堆积。
 - 销毁态槽位兜底回收：`ResourceOwner` 的注销原本全押在 `OnDestroy` 上，场景卸载与关停路径上的槽位会永久占住租约。
   - 每帧查验数量由 `ResourceServiceSettings.DestroySweepBudget`（默认 64）给出。
+- 配置自检判据表（7 条）+ 构建期复用同一份判据的门禁：
+  - 启动期由 `ResourceService.OnInit` 打一次 Warning；构建期由 Editor 侧 `ResourceSettingsBuildValidator`（`IPreprocessBuildWithReport`）原样再走一遍。
+  - 构建期默认也只告警，设 `MOIRAI_RESOURCE_SETTINGS_STRICT=1` 才把构建拦停——本包被他人消费，因一项配置拦停别人的构建是工单不是提醒。
+  - 判据从 3 条扩到 7 条，新增每帧过期预算非正数（时间轮不推进）、卸载上限非正数（每帧卸载）、下限高于上限（预约档形同废弃）、GC 节流为负（每次请求都真收）。
+  - 政策仍是**只报不改**：夹取会把配置错误洗成"看起来本来就对"的值，与 `PlayMode` 读取只归一返回值、不回写资产同一条取向。
 
 #### `Kernel` 与工具面
 
@@ -112,6 +117,7 @@
   - `ProcessDestroyedObjects` 的默认参删除，让漏传在编译期报出来。
 - `ResourceBindingService.Shutdown` 拆为终态关停与可复用重置。
 - 外观写成员改走 `RequireHandler()`，未就绪不再伪装成"资源不存在"。
+- 配置自检的判据从 `ResourceService` 私有方法搬进 `ResourceServiceSettings` 自己（`GetConfigurationIssues` / `ReportConfigurationIssues`）：只有设置类知道自己的字段与取值，搬过来之后构建期那一份才能原样复用，而不是两处各写一遍规则。轮盘上限也从写死的 255 改成读内核的 `ResourceRecordStore.IdleWheelSpanSeconds`。
 - Addressables 后端接上同一套 `ResourceRecordStore`：异步租约 / 绑定 / 预制体实例化 / 图集子精灵 / 场景加载 / 缓存维护不再抛错，两后端共用记账、在途去重与过期，各自只实现一面 `IResourceRecordHost`。
   - 剩余缺口按原因分两类，都不是待办：Addressables 没有同步加载 API，同步取用族与两步式 Check→Update 的下载族统一 fail-fast；`IsNeedDownloadFromRemote` / `GetAssetInfo` / 按标签的 `GetAssetInfos` 要么只有异步版本、要么 `IResourceLocation` 不带对应信息，退化为恒定值。
   - 语义分歧一处：`HasAsset` 区分不出"已缓存"与"待远端下载"，`AssetOnline` 在该后端永不出现。
