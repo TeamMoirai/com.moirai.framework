@@ -118,7 +118,7 @@
 
 #### `Resource`
 
-- 绑定服务只握 internal `IResourceLeaseSource`（八个成员），不再拿后端全契约：后端与绑定服务第一次能各自构造，绑定层测试第一次能 mock 后端。
+- 绑定服务只握 internal `IResourceLeaseSource`（九个成员），不再拿后端全契约：后端与绑定服务第一次能各自构造，绑定层测试第一次能 mock 后端。
   - 接缝的抽象成员基线由 `ResourceSeamShapeGuardTests` 钉在 66（19 个抽象属性 + 47 个抽象方法，其中 11 个 `internal abstract`、0 个 `[Obsolete]`）。
 - packed key 三条名称轴合成一份 `ResourceNameRegistry` 实现，15 个字段收为 3，登记与回收只剩一条路径。
   - `Release` 与 `DecrementOnly` 刻意分开：整表清空时逐条回收既白做，也会在遍历一张表时反向改动另一张表。
@@ -178,6 +178,14 @@
 
 #### `Resource`
 
+- `ResourcePackageInitResult_Shape` 丢了 `[Test]` 从未执行，属性形状实际无守卫；补回 `[Test]`，并把两份重复的 `IResourceOperation` 冻结用例并成一份。
+- `GetAssetInfos(tag/tags)` 在 handler 未就绪时返回 `null` 而非空数组，调用方 `foreach` 直接 NRE；读降级口径与 `HasAsset→NotExist` 对齐，统一回空数组。
+- `[SerializeReference]` 后端解析为 null 时静默换 `CreateDefaultHandler()`，构建里完全看不见；现打一条 Error 留下痕迹。
+- Addressable 的 `BindingOwnerCapacity`/`BindingSlotCapacity` 是裸自动属性，setter 不触发 Warmup（Yoo 侧会），绑定槽位预热静默 no-op；补齐字段夹取与 `WarmupBindingRecords`，`Initialize` 后同样预热。
+- `IResourceLeaseSource` 注释/测试/CHANGELOG 写「八个成员」，接口实为九个（含 `TryAcquireBindingCached`）；文案统一为九，并新增成员名单守卫 `LeaseSource_MemberNames_MatchRecordedBaseline`。
+- `IResourceBindingService` 上 `TryBindSpriteCached` 的 summary 误挂到 `BindSprite(SpriteRenderer)`，两份文档块挤在错误成员上。
+- 外观配置属性 setter 原先 `if (s_Handler == null) return` 静默丢写，与「写成员 `RequireHandler()` fail-fast」总原则冲突；统一改为 `RequireHandler()`，启动期误写不再无声丢失。
+- 文档仍写帧驱动在 `ResourceService.Drive*` partial（已退役为 `OnInit`/`Tick`），中英双语同步更正。
 - 玩家构建里 `EditorSimulate` 的入库设置退回离线模式，从整片沉默改为启动时报一次 Error；三项"配了但永不参与决策"的设置同样各报一次。
 - 发起即忘的绑定把抛出整个吞掉（扩展层 7 处 `Binding….Async().Forget()`），"没反应"查不出原因；现在失败原因进日志。
 - 销毁态轮转的扫描被组件清理的抛出截断，租约永久泄漏且每帧重复抛异常：改为先记账后清理。

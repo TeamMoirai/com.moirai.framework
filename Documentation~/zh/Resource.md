@@ -4,7 +4,7 @@
 
 Resource 服务（`ResourceService`）对 [YooAsset](https://github.com/tuyoogame/YooAsset) 做了面向业务的封装。模块已全面重构为 **Lease/Binding 架构**：资源通过 generation 校验的槽位句柄（`ResourceLeaseHandle`）和类型化租约（`ResourceAssetLease<T>`）管理，UI/渲染组件可通过 `ResourceOwner` + `IResourceBindingService` 进行声明式绑定。通过 `ResourceService` 静态外观访问。
 
-内部引擎使用**分页槽位数组**（`AssetSlot[][]`、`LeaseSlot[][]`、`BindingSlot[][]`、`OwnerSlot[][]`）配合 generation 校验、**自研零 GC 哈希映射**（`ResourceUlongIntMap`，Murmur 终结器混合；`ResourceIndexMap<TKey,TValue>`）、以及**时间轮**过期系统（idle 桶 + keep-alive 桶，每帧 O(1) 处理）。加载去重通过池化的 `LoadingOperationState` 对象实现。帧驱动编排（配置注入、时间轮推进、销毁态槽位回收、卸载调度、GC 节流、低内存响应）由 `ResourceService.Drive*` partial 随服务生命周期自动接线，编辑器下的播放模式可通过 EditorPrefs 切换。
+内部引擎使用**分页槽位数组**（`AssetSlot[][]`、`LeaseSlot[][]`、`BindingSlot[][]`、`OwnerSlot[][]`）配合 generation 校验、**自研零 GC 哈希映射**（`ResourceUlongIntMap`，Murmur 终结器混合；`ResourceIndexMap<TKey,TValue>`）、以及**时间轮**过期系统（idle 桶 + keep-alive 桶，每帧 O(1) 处理）。加载去重通过池化的 `LoadingOperationState` 对象实现。帧驱动编排（配置注入、时间轮推进、销毁态槽位回收、卸载调度、GC 节流、低内存响应）由 `ResourceService.OnInit` / `Tick` 随服务生命周期自动接线，编辑器下的播放模式可通过 EditorPrefs 切换。
 
 ## 核心特性
 

@@ -8,13 +8,13 @@ using UObject = UnityEngine.Object;
 namespace Moirai.Atropos.Resource
 {
     /// <summary>
-    /// 租约取用与归还的窄接缝——绑定层所需的全部后端能力，恰好八个成员。
+    /// 租约取用与归还的窄接缝——绑定层所需的全部后端能力，恰好九个成员。
     /// <para>之所以单独存在：绑定层此前握的是 <see cref="ResourceServiceHandler"/>，那是 74 个抽象成员
     /// 的后端全契约，而它实际调用的只有这里这 8 个（其中 27 处是 <see cref="Release"/>）。
     /// 收口之前处理器构造并驱动绑定服务、绑定服务又回调处理器的内部成员，两边都既不能单独构造也不能
     /// mock——测试只能拿一个真后端裸实例，靠它"未初始化"来凑确定性。收窄之后一条 8 成员的接缝
     /// 就能假造，且后端实现者面对的能力面第一次是可枚举的。</para>
-    /// <para>八个成员在 <see cref="ResourceServiceHandler"/> 上是 <c>public abstract</c>，直接满足本接口；
+    /// <para>九个成员在 <see cref="ResourceServiceHandler"/> 上是 <c>public abstract</c>，直接满足本接口；
     /// 程序集外的后端只要派生处理器就能落地，不再被 <c>internal abstract</c> 锁在框架内。</para>
     /// </summary>
     internal interface IResourceLeaseSource

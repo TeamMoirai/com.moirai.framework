@@ -53,7 +53,17 @@ namespace Moirai.Atropos.Resource
         private static ResourceServiceHandler GetHandlerFromSettings()
         {
             GameServices.EnsureRegistered<ResourceService>();
-            return ResourceServiceSettings.ResourceServiceHandler;
+            ResourceServiceHandler handler = ResourceServiceSettings.ResourceServiceHandler;
+            if (handler == null)
+            {
+                // [SerializeReference] 类型名对不上时 Unity 只把字段还原成 null、不报错；
+                // 这里必须留下痕迹，否则「静默换默认后端」在构建里完全看不见。
+                LogUtility.Error(
+                    "ResourceServiceSettings.m_ResourceServiceHandler resolved to null " +
+                    "(SerializeReference type missing or field unset). Falling back to CreateDefaultHandler().");
+            }
+
+            return handler;
         }
 
         /// <inheritdoc />
@@ -187,8 +197,7 @@ namespace Moirai.Atropos.Resource
             get => s_Handler?.DefaultPackageName;
             set
             {
-                if (s_Handler == null) return;
-                s_Handler.DefaultPackageName = value;
+                RequireHandler().DefaultPackageName = value;
             }
         }
 
@@ -214,8 +223,7 @@ namespace Moirai.Atropos.Resource
             get => s_Handler?.HostServerURL;
             set
             {
-                if (s_Handler == null) return;
-                s_Handler.HostServerURL = value;
+                RequireHandler().HostServerURL = value;
             }
         }
 
@@ -227,8 +235,7 @@ namespace Moirai.Atropos.Resource
             get => s_Handler?.FallbackHostServerURL;
             set
             {
-                if (s_Handler == null) return;
-                s_Handler.FallbackHostServerURL = value;
+                RequireHandler().FallbackHostServerURL = value;
             }
         }
 
@@ -240,8 +247,7 @@ namespace Moirai.Atropos.Resource
             get => s_Handler?.LoadResWayWebGL ?? EResourceLoadWayWebGL.Undefined;
             set
             {
-                if (s_Handler == null) return;
-                s_Handler.LoadResWayWebGL = value;
+                RequireHandler().LoadResWayWebGL = value;
             }
         }
 
@@ -263,8 +269,7 @@ namespace Moirai.Atropos.Resource
             get => s_Handler?.PackageVersion;
             set
             {
-                if (s_Handler == null) return;
-                s_Handler.PackageVersion = value;
+                RequireHandler().PackageVersion = value;
             }
         }
 
@@ -285,8 +290,7 @@ namespace Moirai.Atropos.Resource
             get => s_Handler?.AutoUnloadBundleWhenUnused ?? false;
             set
             {
-                if (s_Handler == null) return;
-                s_Handler.AutoUnloadBundleWhenUnused = value;
+                RequireHandler().AutoUnloadBundleWhenUnused = value;
             }
         }
 
@@ -298,8 +302,7 @@ namespace Moirai.Atropos.Resource
             get => s_Handler?.DownloadingMaxNum ?? 0;
             set
             {
-                if (s_Handler == null) return;
-                s_Handler.DownloadingMaxNum = value;
+                RequireHandler().DownloadingMaxNum = value;
             }
         }
 
@@ -311,8 +314,7 @@ namespace Moirai.Atropos.Resource
             get => s_Handler?.FailedTryAgain ?? 0;
             set
             {
-                if (s_Handler == null) return;
-                s_Handler.FailedTryAgain = value;
+                RequireHandler().FailedTryAgain = value;
 
             }
         }
@@ -325,8 +327,7 @@ namespace Moirai.Atropos.Resource
             get => s_Handler?.Milliseconds ?? 0L;
             set
             {
-                if (s_Handler == null) return;
-                s_Handler.Milliseconds = value;
+                RequireHandler().Milliseconds = value;
             }
         }
 
@@ -342,8 +343,7 @@ namespace Moirai.Atropos.Resource
             get => s_Handler?.AssetRecordCapacity ?? 0;
             set
             {
-                if (s_Handler == null) return;
-                s_Handler.AssetRecordCapacity = value;
+                RequireHandler().AssetRecordCapacity = value;
             }
         }
 
@@ -355,8 +355,7 @@ namespace Moirai.Atropos.Resource
             get => s_Handler?.AssetLeaseCapacity ?? 0;
             set
             {
-                if (s_Handler == null) return;
-                s_Handler.AssetLeaseCapacity = value;
+                RequireHandler().AssetLeaseCapacity = value;
             }
         }
 
@@ -368,8 +367,7 @@ namespace Moirai.Atropos.Resource
             get => s_Handler?.BindingOwnerCapacity ?? 0;
             set
             {
-                if (s_Handler == null) return;
-                s_Handler.BindingOwnerCapacity = value;
+                RequireHandler().BindingOwnerCapacity = value;
             }
         }
 
@@ -381,8 +379,7 @@ namespace Moirai.Atropos.Resource
             get => s_Handler?.BindingSlotCapacity ?? 0;
             set
             {
-                if (s_Handler == null) return;
-                s_Handler.BindingSlotCapacity = value;
+                RequireHandler().BindingSlotCapacity = value;
             }
         }
 
@@ -394,8 +391,7 @@ namespace Moirai.Atropos.Resource
             get => s_Handler?.IdleAssetExpireTime ?? 0;
             set
             {
-                if (s_Handler == null) return;
-                s_Handler.IdleAssetExpireTime = value;
+                RequireHandler().IdleAssetExpireTime = value;
             }
         }
 
@@ -408,8 +404,7 @@ namespace Moirai.Atropos.Resource
             get => s_Handler?.IdleAssetCapacity ?? 0;
             set
             {
-                if (s_Handler == null) return;
-                s_Handler.IdleAssetCapacity = value;
+                RequireHandler().IdleAssetCapacity = value;
             }
         }
 
@@ -558,16 +553,16 @@ namespace Moirai.Atropos.Resource
             s_Handler?.GetDownloadSize(location, packageName) ?? -1L;
 
         /// <summary>
-        /// 获取资源信息列表。
+        /// 获取资源信息列表。服务未就绪时返回空数组而非 null——调用方按列表消费，null 会把「没起来」伪装成 NRE。
         /// </summary>
         public static ResourceAssetInfoEntry[] GetAssetInfos(string resTag, string packageName = "") =>
-            s_Handler?.GetAssetInfos(resTag, packageName);
+            s_Handler?.GetAssetInfos(resTag, packageName) ?? Array.Empty<ResourceAssetInfoEntry>();
 
         /// <summary>
-        /// 获取资源信息列表。
+        /// 获取资源信息列表。服务未就绪时返回空数组而非 null——调用方按列表消费，null 会把「没起来」伪装成 NRE。
         /// </summary>
         public static ResourceAssetInfoEntry[] GetAssetInfos(string[] tags, string packageName = "") =>
-            s_Handler?.GetAssetInfos(tags, packageName);
+            s_Handler?.GetAssetInfos(tags, packageName) ?? Array.Empty<ResourceAssetInfoEntry>();
 
         /// <summary>
         /// 获取资源信息。

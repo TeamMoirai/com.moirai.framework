@@ -137,7 +137,7 @@ namespace Service.Resource
         }
 
         /// <summary>
-        /// 只记账的假接缝：八个成员一个都不许造出临时对象，故连集合都不用。
+        /// 只记账的假接缝：九个成员一个都不许造出临时对象，故连集合都不用。
         /// </summary>
         private sealed class CountingLeaseSource : IResourceLeaseSource
         {

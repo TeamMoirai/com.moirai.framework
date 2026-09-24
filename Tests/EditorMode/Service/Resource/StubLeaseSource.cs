@@ -9,7 +9,7 @@ namespace Service.Resource
 {
     /// <summary>
     /// 八字节的假租约接缝：只记调用，不做任何真实记账。
-    /// <para>能这么假的全部前提是把后端契约收成 <see cref="IResourceLeaseSource"/> 八个成员：收之前
+    /// <para>能这么假的全部前提是把后端契约收成 <see cref="IResourceLeaseSource"/> 九个成员：收之前
     /// 假后端要落 74 个抽象成员，等于不可 mock。</para>
     /// </summary>
     internal sealed class StubLeaseSource : IResourceLeaseSource

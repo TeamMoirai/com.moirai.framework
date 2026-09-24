@@ -62,6 +62,43 @@ namespace Service.Resource
         }
 
         /// <summary>
+        /// <see cref="IResourceLeaseSource"/> 成员名单冻结——绑定层窄接缝是 mock 与 0-GC 验收的依赖面，
+        /// 加减成员必须在这里 diff 显形，且同步刷新注释/文档里的成员计数。
+        /// </summary>
+        [Test]
+        public void LeaseSource_MemberNames_MatchRecordedBaseline()
+        {
+            string[] expected =
+            {
+                "AcquireBinding",
+                "TryAcquireBindingCached",
+                "AcquireBindingAsync",
+                "AcquireSubAssetsBindingAsync",
+                "TryGetSubSpriteAsset",
+                "TryGetLeaseAsset",
+                "TryGetLeaseAssetId",
+                "SetLeaseOptions",
+                "Release",
+            };
+
+            Type type = typeof(IResourceLeaseSource);
+            var actual = new System.Collections.Generic.List<string>();
+            foreach (MethodInfo method in type.GetMethods(Declared))
+            {
+                if (!method.IsSpecialName)
+                {
+                    actual.Add(method.Name);
+                }
+            }
+
+            actual.Sort(StringComparer.Ordinal);
+            var sortedExpected = (string[])expected.Clone();
+            Array.Sort(sortedExpected, StringComparer.Ordinal);
+            CollectionAssert.AreEqual(sortedExpected, actual,
+                "IResourceLeaseSource 成员名单变了。有意变更时同步本基线，并把「八个/九个成员」文案一并改掉。");
+        }
+
+        /// <summary>
         /// 设置资产里序列化引用的后端必须真的解析出来。
         /// <para>[SerializeReference] 存的是托管引用的类型名三元组（class/ns/asm），重命名或挪动
         /// 处理器类型不会有任何编译错误，只会让该字段还原成 null；外观层随即落到

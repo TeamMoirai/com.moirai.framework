@@ -75,6 +75,7 @@ namespace Moirai.Atropos.Resource
         public override void Initialize()
         {
             _bindingService = new ResourceBindingService(this);
+            WarmupBindingRecords();
         }
 
         /// <inheritdoc />
@@ -363,11 +364,30 @@ namespace Moirai.Atropos.Resource
             }
         }
 
-        /// <inheritdoc />
-        public override int BindingOwnerCapacity { get; set; }
+        [NonSerialized] private int _bindingOwnerCapacity = 64;
+        [NonSerialized] private int _bindingSlotCapacity = 128;
 
         /// <inheritdoc />
-        public override int BindingSlotCapacity { get; set; }
+        public override int BindingOwnerCapacity
+        {
+            get => _bindingOwnerCapacity;
+            set
+            {
+                _bindingOwnerCapacity = value > 0 ? value : 0;
+                WarmupBindingRecords();
+            }
+        }
+
+        /// <inheritdoc />
+        public override int BindingSlotCapacity
+        {
+            get => _bindingSlotCapacity;
+            set
+            {
+                _bindingSlotCapacity = value > 0 ? value : 0;
+                WarmupBindingRecords();
+            }
+        }
 
         /// <inheritdoc />
         [NonSerialized] private float _idleAssetExpireTime = 60f;
@@ -411,6 +431,12 @@ namespace Moirai.Atropos.Resource
             {
                 Store.EnsureLeaseSlotPage(leaseCapacity - 1);
             }
+        }
+
+        private void WarmupBindingRecords()
+        {
+            _bindingService?.Warmup(_bindingOwnerCapacity, _bindingSlotCapacity);
+            ResourceOwner.WarmupReleaseBuffer(_bindingOwnerCapacity);
         }
 
         #endregion

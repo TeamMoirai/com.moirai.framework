@@ -137,7 +137,7 @@ namespace Moirai.Atropos.Resource
         /// 创建资源绑定服务。
         /// </summary>
         /// <param name="leaseSource">租约提供方。刻意不收 <see cref="ResourceServiceHandler"/>：
-        /// 绑定层用到的后端能力只有 <see cref="IResourceLeaseSource"/> 那八个成员，握整个后端契约
+        /// 绑定层用到的后端能力只有 <see cref="IResourceLeaseSource"/> 那九个成员，握整个后端契约
         /// 会让本服务与后端互相构造、互相驱动，两边都无法单独测试或替换。</param>
         public ResourceBindingService(IResourceLeaseSource leaseSource)
         {

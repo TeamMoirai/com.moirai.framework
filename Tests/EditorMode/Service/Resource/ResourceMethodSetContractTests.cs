@@ -1,7 +1,8 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Reflection;
 using Cysharp.Threading.Tasks;
+using Moirai.Atropos;
 using Moirai.Atropos.Resource;
 using NUnit.Framework;
 
@@ -182,33 +183,11 @@ namespace Service.Resource
         }
 
         /// <summary>
-        /// 返回 <see cref="IResourceOperation"/> 的 Handler 方法冻结在存量名单：新成员一律 <c>UniTask</c>，
-        /// 不得再引入轮询句柄（<c>LoadPackageManifestAsync</c> 的改名/适配留到下个 API 窗口）。
-        /// </summary>
-        [Test]
-        public void Handler_IResourceOperationReturns_FrozenAllowlist()
-        {
-            var returning = new System.Collections.Generic.List<string>();
-            foreach (MethodInfo method in typeof(ResourceServiceHandler).GetMethods(
-                         BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly))
-            {
-                if (!method.IsSpecialName && method.ReturnType == typeof(IResourceOperation))
-                {
-                    returning.Add(method.Name);
-                }
-            }
-
-            Assert.AreEqual(1, returning.Count,
-                "返回 IResourceOperation 的 Handler 方法应冻结为 1 个（LoadPackageManifestAsync），新成员一律 UniTask。");
-            Assert.AreEqual("LoadPackageManifestAsync", returning[0]);
-        }
-
-        /// <summary>
         /// 返回 <see cref="IResourceOperation"/> 的 Handler 方法冻结为存量名单：新成员一律走 UniTask，
         /// 不得再引入轮询句柄（改名/适配留到下个 API 窗口，这里只锁不再涨）。
         /// </summary>
         [Test]
-        public void Handler_IResourceOperation_Returns_FrozenAllowlist()
+        public void Handler_IResourceOperationReturns_FrozenAllowlist()
         {
             string[] allowed = { "LoadPackageManifestAsync" };
             var returning = new System.Collections.Generic.List<string>();
@@ -228,6 +207,10 @@ namespace Service.Resource
                 "存量 LoadPackageManifestAsync 的改名/适配留到下个 API 窗口。");
         }
 
+        /// <summary>
+        /// 初始化结果对象形状：包名 + 操作句柄 + 由句柄派生的只读 <c>Succeed</c>。
+        /// </summary>
+        [Test]
         public void ResourcePackageInitResult_Shape()
         {
             Type type = typeof(ResourcePackageInitResult);
@@ -255,6 +238,52 @@ namespace Service.Resource
             Assert.IsTrue(method.IsAbstract);
             Assert.AreEqual(typeof(UniTask<ResourcePackageInitResult>), method.ReturnType,
                 "Handler 与外观的返回类型必须一致。");
+        }
+
+        /// <summary>
+        /// 配置属性 setter 走 <c>RequireHandler()</c>——未就绪时抛 <see cref="GameException"/>，
+        /// 不得静默丢写（与租约/卸载写路径同一条 fail-fast 总原则）。
+        /// </summary>
+        [Test]
+        public void ConfigSetters_WhenHandlerUnready_ThrowInsteadOfSilentDrop()
+        {
+            ResourceServiceHandler saved = ResourceService.Internal_PeekHandler();
+            ResourceService.Internal_UseHandler(null);
+            try
+            {
+                Assert.Throws<GameException>(() => { ResourceService.HostServerURL = "https://example.invalid"; });
+                Assert.Throws<GameException>(() => { ResourceService.DefaultPackageName = "Pkg"; });
+                Assert.Throws<GameException>(() => { ResourceService.IdleAssetCapacity = 8; });
+            }
+            finally
+            {
+                ResourceService.Internal_UseHandler(saved);
+            }
+        }
+
+        /// <summary>
+        /// 服务未就绪时 <c>GetAssetInfos(tag/tags)</c> 必须回空数组而不是 null——读降级口径与
+        /// <c>HasAsset→NotExist</c>、<c>IsLocationValid→false</c> 对齐，调用方 <c>foreach</c> 不得 NRE。
+        /// </summary>
+        [Test]
+        public void GetAssetInfos_WhenHandlerUnready_ReturnsEmptyNotNull()
+        {
+            ResourceServiceHandler saved = ResourceService.Internal_PeekHandler();
+            ResourceService.Internal_UseHandler(null);
+            try
+            {
+                ResourceAssetInfoEntry[] byTag = ResourceService.GetAssetInfos("Preload");
+                Assert.IsNotNull(byTag, "GetAssetInfos(tag) 未就绪时不得返回 null。");
+                Assert.IsEmpty(byTag);
+
+                ResourceAssetInfoEntry[] byTags = ResourceService.GetAssetInfos(new[] { "Preload" });
+                Assert.IsNotNull(byTags, "GetAssetInfos(tags) 未就绪时不得返回 null。");
+                Assert.IsEmpty(byTags);
+            }
+            finally
+            {
+                ResourceService.Internal_UseHandler(saved);
+            }
         }
 
         #endregion
