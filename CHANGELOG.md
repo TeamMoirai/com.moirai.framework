@@ -97,6 +97,10 @@
   - `ProcessDestroyedObjects` 的默认参删除，让漏传在编译期报出来。
 - `ResourceBindingService.Shutdown` 拆为终态关停与可复用重置。
 - 外观写成员改走 `RequireHandler()`，未就绪不再伪装成"资源不存在"。
+- Addressables 后端接上同一套 `ResourceRecordStore`：异步租约 / 绑定 / 预制体实例化 / 图集子精灵 / 场景加载 / 缓存维护不再抛错，两后端共用记账、在途去重与过期，各自只实现一面 `IResourceRecordHost`。
+  - 剩余缺口按原因分两类，都不是待办：Addressables 没有同步加载 API，同步取用族与两步式 Check→Update 的下载族统一 fail-fast；`IsNeedDownloadFromRemote` / `GetAssetInfo` / 按标签的 `GetAssetInfos` 要么只有异步版本、要么 `IResourceLocation` 不带对应信息，退化为恒定值。
+  - 语义分歧一处：`HasAsset` 区分不出"已缓存"与"待远端下载"，`AssetOnline` 在该后端永不出现。
+  - 该层仍留在主程序集里按文件级 `#if ADDRESSABLES_INSTALLED` 整体剔除，不拆卫星 asmdef——内核类型是 `Moirai.Atropos` 的 `internal`，拆开只多换来一行 `InternalsVisibleTo`。
 
 #### `Kernel` 与工具面
 

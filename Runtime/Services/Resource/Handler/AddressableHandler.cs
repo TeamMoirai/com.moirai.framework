@@ -14,9 +14,12 @@ using UObject = UnityEngine.Object;
 namespace Moirai.Atropos.Resource
 {
     /// <summary>
-    /// 基于 Unity Addressables 的资源处理器实现（实验性）。
-    /// <para><see cref="ResourceServiceHandler"/> 的 Addressables 后端实现。</para>
-    /// <para>仅信息查询与真实缓存维护为可用行为；所有分发资源句柄或伪造成功语义的成员统一抛出 <see cref="GameException"/> fail-fast，禁止静默 no-op 掩盖误配置。</para>
+    /// <para>基于 Unity Addressables 的资源处理器实现（实验性）。</para>
+    /// <para><see cref="ResourceServiceHandler"/> 的 Addressables 后端实现，与 <see cref="YooAssetHandler"/> 共用
+    /// <see cref="ResourceRecordStore"/> 记录内核：异步租约 / 绑定 / 预制体实例化 / 图集子精灵 / 场景加载 / 缓存维护都是对等实现。</para>
+    /// <para>Addressables 既没有同步加载 API，也没有两步式 Check→Update 的下载器对应面，因此同步取用族与下载族成员统一抛出
+    /// <see cref="GameException"/> fail-fast，禁止静默 no-op 掩盖误配置；只有异步版本可答的查询
+    /// （<c>IsNeedDownloadFromRemote</c> / <c>GetAssetInfo</c> / 按标签的 <c>GetAssetInfos</c>）退化为恒定值。</para>
     /// </summary>
     [Serializable]
     internal sealed partial class AddressableHandler : ResourceServiceHandler
@@ -316,7 +319,6 @@ namespace Moirai.Atropos.Resource
 
         #endregion
 
-
         #region 容量属性 [CAPACITY PROPERTIES]
 
         /// <inheritdoc />
@@ -398,8 +400,7 @@ namespace Moirai.Atropos.Resource
         }
 
         #endregion
-
-
+        
         #region 公共 Lease API [PUBLIC LEASE API]
 
         /// <inheritdoc />
