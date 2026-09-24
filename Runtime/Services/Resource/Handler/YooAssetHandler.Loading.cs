@@ -250,25 +250,29 @@ namespace Moirai.Atropos.Resource
             }
 
             string normalizedPackageName = Store.NormalizePackageName(packageName);
+            // 入口打包两次、全程复用：loadingKey（去重，AssetHandle 口径）≠ recordKey（SubAssetsHandle 口径，
+            // Pack 的 handleKind 是独立 4 位域，两个 ulong 不相等，不能混用）。
             ulong loadingKey = Store.GetLoadingOperationKey(location, normalizedPackageName, typeof(Sprite),
                 EResourceAssetKind.SubAssets);
+            ulong recordKey = Store.GetAssetRecordKey(normalizedPackageName, location, typeof(Sprite),
+                EResourceAssetKind.SubAssets, EResourceHandleKind.SubAssetsHandle);
 
             if (cancellationToken.IsCancellationRequested || Store.IsDestroying)
             {
                 return UniTask.FromResult(ResourceLeaseHandle.Invalid);
             }
 
-            if (Store.TryGetCachedSubAssetsRecord(normalizedPackageName, location, out int cachedAssetId))
+            if (Store.TryGetCachedSubAssetsRecordByKey(recordKey, out int cachedAssetId))
             {
                 return UniTask.FromResult(Store.AcquireLease(cachedAssetId, EResourceLeaseKind.Binding, options));
             }
 
-            return AcquireSubAssetsPendingAsync(location, normalizedPackageName, loadingKey, options,
+            return AcquireSubAssetsPendingAsync(location, normalizedPackageName, loadingKey, recordKey, options,
                 cancellationToken);
         }
 
         private async UniTask<ResourceLeaseHandle> AcquireSubAssetsPendingAsync(string location,
-            string normalizedPackageName, ulong loadingKey, EResourceLeaseOption options,
+            string normalizedPackageName, ulong loadingKey, ulong recordKey, EResourceLeaseOption options,
             CancellationToken cancellationToken)
         {
             while (true)
@@ -278,7 +282,7 @@ namespace Moirai.Atropos.Resource
                     return ResourceLeaseHandle.Invalid;
                 }
 
-                if (Store.TryGetCachedSubAssetsRecord(normalizedPackageName, location, out int cachedAssetId))
+                if (Store.TryGetCachedSubAssetsRecordByKey(recordKey, out int cachedAssetId))
                 {
                     return Store.AcquireLease(cachedAssetId, EResourceLeaseKind.Binding, options);
                 }
@@ -348,7 +352,7 @@ namespace Moirai.Atropos.Resource
                         return ResourceLeaseHandle.Invalid;
                     }
 
-                    int assetId = Store.GetOrCreateSubAssetsRecord(normalizedPackageName, location, subHandle);
+                    int assetId = Store.GetOrCreateSubAssetsRecordByKey(recordKey, subHandle);
                     subHandle = null; // 所有权已移交记录，异常兜底不得再 dispose
                     Store.CompleteLoading(loadingKey);
                     return callerCancellationRequested

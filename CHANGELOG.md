@@ -87,6 +87,8 @@
 - ⚠ **包初始化 API 按真实语义改名**：`InitPackage` → `InitializePackageAsync`（原语，返回 `ResourcePackageInitResult`，`needInitManifest` 可选拉清单）；`InitPackageAsync` → `TryInitializePackageAsync`（在前者之上写远程地址并收成 `bool`，不更新清单）。旧名直接替换、不挂 `[Obsolete]`（接缝守卫钉死 `[Obsolete]=0`）；模板侧唯一调用点 `ProcedureInitPackage` 已跟上。
 - 加载去重等待改完成源一次唤醒（`LoadingOperationState.WaitAsync` + `Preserve`），不再 `while (!IsDone) await UniTask.Yield()` 空转。
 - `GC.Collect` 改 `GCCollectionMode.Optimized`（时序仍在 `UnloadUnusedAssets` 完成之后）；卸载/GC 日志降 `Verbose`。
+- 子资源热路径 key 入口打包一次：`GetOrCreateSubAssetsRecordByKey` / `TryGetCachedSubAssetsRecordByKey`；loadingKey（去重）与 recordKey（SubAssetsHandle 口径）分账，不再混用。
+- 空闲容量淘汰候选表改按 `IdleExpireTick` 的最小堆，淘汰 O(log n)；每趟受害者上限保留。
 - ⚠ **`EResourceLeaseOption` 从 internal 升为 public**：租约取用族签名要在程序集外被后端实现，参数类型不得再低于方法可见性。
 - 后端接缝 11 个 `internal abstract` 成员升为 `public abstract`（含 `AcquireBinding*` / `AcquireSubAssetsBindingAsync` / `AcquirePrefabSourceLease*` / `TryGetSubSpriteAsset` / `TryGetLeaseAssetId` / `SetLeaseOptions` / `ProcessResourceMaintenance` / `ReleaseAllUnusedAssetRecords` / `ForceReleaseAllAssetRecords`）：程序集外派生类第一次能真正落地后端。
 

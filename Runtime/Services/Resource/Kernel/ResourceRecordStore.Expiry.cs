@@ -29,6 +29,11 @@ namespace Moirai.Atropos.Resource
         /// </summary>
         internal bool IdleCapacityTrimPending => _idleCapacityTrimPending;
 
+        /// <summary>
+        /// 按最小堆弹出空闲最久（<see cref="AssetSlot.IdleExpireTick"/> 最小）的受害者淘汰。
+        /// <para>候选表是按过期刻度的二叉最小堆：<c>UnusedCandidateIndex</c> 即堆下标。
+        /// 每趟最多 <paramref name="maxVictims"/> 条，没做完把请求位留回。</para>
+        /// </summary>
         internal void TrimIdleAssetCapacity(int maxVictims)
         {
             _idleCapacityTrimPending = false;
@@ -47,37 +52,22 @@ namespace Moirai.Atropos.Resource
                     return;
                 }
 
-                int candidateCount = _unusedAssetCandidateCount;
-                int victimIndex = -1;
-                int victimExpireTick = int.MaxValue;
-
-                for (int i = 0; i < candidateCount; i++)
-                {
-                    int assetId = _unusedAssetCandidates[i];
-                    if (!IsValidAssetId(assetId))
-                    {
-                        continue;
-                    }
-
-                    ref AssetSlot slot = ref GetAssetSlotRef(assetId);
-                    if (slot.ExpireQueueKind != 2 || slot.IdleExpireTick >= victimExpireTick)
-                    {
-                        continue;
-                    }
-
-                    victimExpireTick = slot.IdleExpireTick;
-                    victimIndex = i;
-                }
-
-                if (victimIndex < 0)
+                if (!TryPeekLongestIdle(out int victimIndex, out int victimId, out int victimExpireTick))
                 {
                     return;
                 }
 
-                int victimId = _unusedAssetCandidates[victimIndex];
                 ref AssetSlot victim = ref GetAssetSlotRef(victimId);
+                // 堆顶若已被改成非 idle（竞态），弹掉重试；合法受害者按 IdleExpireTick 从旧到新。
+                if (victim.ExpireQueueKind != 2 || victim.IdleExpireTick != victimExpireTick)
+                {
+                    RemoveUnusedAssetCandidateAt(victimIndex);
+                    continue;
+                }
+
                 uint victimGeneration = victim.Generation;
                 victim.IdleReleaseRequested = 1;
+                int candidateCount = _unusedAssetCandidateCount;
                 ReleaseAssetStorage(victimId, victimGeneration);
 
                 if (_unusedAssetCandidateCount >= candidateCount)
@@ -86,6 +76,36 @@ namespace Moirai.Atropos.Resource
                     return;
                 }
             }
+        }
+
+        private bool TryPeekLongestIdle(out int heapIndex, out int assetId, out int expireTick)
+        {
+            // 最小堆根即空闲最久者，O(1)。
+            heapIndex = 0;
+            assetId = -1;
+            expireTick = int.MaxValue;
+            if (_unusedAssetCandidateCount <= 0)
+            {
+                return false;
+            }
+
+            int id = _unusedAssetCandidates[0];
+            if (!IsValidAssetId(id))
+            {
+                RemoveUnusedAssetCandidateAt(0);
+                return TryPeekLongestIdle(out heapIndex, out assetId, out expireTick);
+            }
+
+            ref AssetSlot slot = ref GetAssetSlotRef(id);
+            if (slot.ExpireQueueKind != 2)
+            {
+                RemoveUnusedAssetCandidateAt(0);
+                return TryPeekLongestIdle(out heapIndex, out assetId, out expireTick);
+            }
+
+            assetId = id;
+            expireTick = slot.IdleExpireTick;
+            return true;
         }
 
         private int ProcessDueKeepAliveBuckets(int currentTick, int maxCount)
@@ -326,8 +346,9 @@ namespace Moirai.Atropos.Resource
             if (slot.State == EResourceAssetState.Idle)
             {
                 slot.IdleReleaseRequested = 0;
-                AddUnusedAssetCandidate(assetId, ref slot);
+                // 先定过期刻度再入堆：候选表按 IdleExpireTick 排序，刻度未定就插入会堆序错乱。
                 EnterIdle(assetId, ref slot);
+                AddUnusedAssetCandidate(assetId, ref slot);
 
                 if (_unusedAssetCandidateCount > Host.IdleAssetCapacity)
                 {
@@ -510,6 +531,8 @@ namespace Moirai.Atropos.Resource
         {
             if (slot.UnusedCandidateIndex >= 0)
             {
+                // 已在堆中：刻度可能被 EnterIdle 更新，上浮/下沉校正堆序。
+                SiftUnusedCandidate(slot.UnusedCandidateIndex);
                 return;
             }
 
@@ -524,6 +547,7 @@ namespace Moirai.Atropos.Resource
 
             slot.UnusedCandidateIndex = _unusedAssetCandidateCount;
             _unusedAssetCandidates[_unusedAssetCandidateCount++] = assetId;
+            SiftUnusedCandidateUp(slot.UnusedCandidateIndex);
         }
 
         private void RemoveUnusedAssetCandidate(int assetId, ref AssetSlot slot)
@@ -571,6 +595,7 @@ namespace Moirai.Atropos.Resource
                 {
                     ref AssetSlot movedSlot = ref GetAssetSlotRef(movedAssetId);
                     movedSlot.UnusedCandidateIndex = index;
+                    SiftUnusedCandidate(index);
                 }
             }
 
@@ -578,6 +603,92 @@ namespace Moirai.Atropos.Resource
             {
                 ref AssetSlot removedSlot = ref GetAssetSlotRef(removedAssetId);
                 removedSlot.UnusedCandidateIndex = -1;
+            }
+        }
+
+        private void SiftUnusedCandidate(int index)
+        {
+            SiftUnusedCandidateUp(index);
+            SiftUnusedCandidateDown(index);
+        }
+
+        private void SiftUnusedCandidateUp(int index)
+        {
+            while (index > 0)
+            {
+                int parent = (index - 1) >> 1;
+                if (CompareUnusedIdleTick(index, parent) >= 0)
+                {
+                    return;
+                }
+
+                SwapUnusedCandidates(index, parent);
+                index = parent;
+            }
+        }
+
+        private void SiftUnusedCandidateDown(int index)
+        {
+            int count = _unusedAssetCandidateCount;
+            while (true)
+            {
+                int left = (index << 1) + 1;
+                if (left >= count)
+                {
+                    return;
+                }
+
+                int smallest = left;
+                int right = left + 1;
+                if (right < count && CompareUnusedIdleTick(right, left) < 0)
+                {
+                    smallest = right;
+                }
+
+                if (CompareUnusedIdleTick(index, smallest) <= 0)
+                {
+                    return;
+                }
+
+                SwapUnusedCandidates(index, smallest);
+                index = smallest;
+            }
+        }
+
+        /// <summary>堆比较：IdleExpireTick 越小越先淘汰（空闲最久）。失效槽排最后。</summary>
+        private int CompareUnusedIdleTick(int a, int b)
+        {
+            return GetUnusedIdleTick(a).CompareTo(GetUnusedIdleTick(b));
+        }
+
+        private int GetUnusedIdleTick(int heapIndex)
+        {
+            int assetId = _unusedAssetCandidates[heapIndex];
+            if (!IsValidAssetId(assetId))
+            {
+                return int.MaxValue;
+            }
+
+            ref AssetSlot slot = ref GetAssetSlotRef(assetId);
+            return slot.ExpireQueueKind == 2 ? slot.IdleExpireTick : int.MaxValue;
+        }
+
+        private void SwapUnusedCandidates(int a, int b)
+        {
+            int idA = _unusedAssetCandidates[a];
+            int idB = _unusedAssetCandidates[b];
+            _unusedAssetCandidates[a] = idB;
+            _unusedAssetCandidates[b] = idA;
+            if (IsValidAssetId(idA))
+            {
+                ref AssetSlot slotA = ref GetAssetSlotRef(idA);
+                slotA.UnusedCandidateIndex = b;
+            }
+
+            if (IsValidAssetId(idB))
+            {
+                ref AssetSlot slotB = ref GetAssetSlotRef(idB);
+                slotB.UnusedCandidateIndex = a;
             }
         }
 
