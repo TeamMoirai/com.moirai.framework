@@ -73,7 +73,8 @@ namespace Moirai.Atropos
                 BaseType = baseType;
                 Types = TypeCache.GetTypesDerivedFrom(baseType)
                     .Where(t => !t.IsAbstract
-                        && !t.Assembly.GetName().Name.EndsWith(".Tests"))
+                        && !t.Assembly.GetName().Name.EndsWith(".Tests")
+                        && !t.Assembly.GetName().Name.Contains(".Tests."))
                     .OrderBy(t => t.Name, StringComparer.Ordinal)
                     .ToArray();
 
