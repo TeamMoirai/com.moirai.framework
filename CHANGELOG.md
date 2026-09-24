@@ -90,6 +90,8 @@
   - `AssetSlot` 的两个具名句柄字段合成一个 `object RawHandle`（YooAsset 句柄是引用类型，存进去不装箱），取用只剩 `IsHandleValid` / `DisposeHandle` / `GetSubSprite` 三个操作。
   - 图集加载流程随之由 `Records` 移到 `Loading`。
   - `Records` / `Keys` / `Expiry` 三个文件里已无一个后端类型名。
+- 记账内核成形为 `ResourceRecordStore`（`Runtime/Services/Resource/Kernel/`，由后端持有）：记录槽、租约、两条索引表、在途去重与两座时间轮整体搬出 `YooAssetHandler`，后端与内核之间只剩一面 `IResourceRecordHost`——三个原生句柄算子加三个配置读数。`YooAssetHandler.Keys.cs` / `Expiry.cs` 随之退役。
+- 缓存命中不再为"已经完成的结果"造异步状态机：`GetOrLoadAssetAsync` 与 `AcquireSubAssetsBindingAsync` 剥成同步前缀 + 在途段，命中路径直接 `UniTask.FromResult`。
 - ⚠ 每帧维护入口 `ProcessKeepAlive` 更名 `ProcessResourceMaintenance(float unscaledTime, int expireBudget, int destroySweepBudget)`。
   - 到期与销毁两条预算刻意不合并：到期记录多的帧不该饿死销毁回收。
   - `ProcessDestroyedObjects` 的默认参删除，让漏传在编译期报出来。

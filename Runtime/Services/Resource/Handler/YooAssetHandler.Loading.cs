@@ -94,7 +94,9 @@ namespace Moirai.Atropos.Resource
             }
         }
 
-        private async UniTask<UObject> GetOrLoadAssetAsync(string location, Type assetType,
+        // 命中路径不进 async：取消/关停/缓存三条判定本来就在首个 await 之前同步跑完，
+        // 但方法体一旦标 async，命中也要为"已经完成的结果"造一趟状态机。剥成同步前缀 + 在途段。
+        private UniTask<UObject> GetOrLoadAssetAsync(string location, Type assetType,
             EResourceAssetKind assetKind, string packageName, ulong loadingKey,
             uint priority = 0, CancellationToken cancellationToken = default)
         {
@@ -102,6 +104,25 @@ namespace Moirai.Atropos.Resource
             assetKind = ResourceKeyCodec.NormalizeAssetKind(assetType, assetKind);
             assetType = ResourceKeyCodec.NormalizeAssetType(assetType, assetKind);
 
+            if (cancellationToken.IsCancellationRequested || Store.IsDestroying)
+            {
+                return UniTask.FromResult<UObject>(null);
+            }
+
+            if (Store.TryGetCachedAssetRecord(normalizedPackageName, location, assetType, assetKind,
+                    EResourceHandleKind.AssetHandle, out _, out UObject cachedAsset))
+            {
+                return UniTask.FromResult(cachedAsset);
+            }
+
+            return GetOrLoadAssetPendingAsync(location, assetType, assetKind, normalizedPackageName, loadingKey,
+                priority, cancellationToken);
+        }
+
+        private async UniTask<UObject> GetOrLoadAssetPendingAsync(string location, Type assetType,
+            EResourceAssetKind assetKind, string normalizedPackageName, ulong loadingKey,
+            uint priority, CancellationToken cancellationToken)
+        {
             while (true)
             {
                 if (cancellationToken.IsCancellationRequested)
@@ -140,7 +161,7 @@ namespace Moirai.Atropos.Resource
                         return null;
                     }
 
-                    handle = GetHandleAsync(location, assetType, packageName: packageName, priority: priority);
+                    handle = GetHandleAsync(location, assetType, packageName: normalizedPackageName, priority: priority);
                     if (handle == null)
                     {
                         Store.FailLoading(loadingKey, NewLoadingFailure("Asset", location, normalizedPackageName),
@@ -226,18 +247,38 @@ namespace Moirai.Atropos.Resource
             }
         }
 
-        internal override async UniTask<ResourceLeaseHandle> AcquireSubAssetsBindingAsync(string location,
+        // 图集命中时整条路径没有任何可等的东西，却仍要为已完成的结果造一趟状态机；
+        // 这条入口是 SetSubSprite 绑定的热路径，所以同步前缀剥在这里。
+        internal override UniTask<ResourceLeaseHandle> AcquireSubAssetsBindingAsync(string location,
             string packageName, EResourceLeaseOption options, CancellationToken cancellationToken)
         {
             if (string.IsNullOrEmpty(location))
             {
-                return ResourceLeaseHandle.Invalid;
+                return UniTask.FromResult(ResourceLeaseHandle.Invalid);
             }
 
             string normalizedPackageName = Store.NormalizePackageName(packageName);
             ulong loadingKey = Store.GetLoadingOperationKey(location, normalizedPackageName, typeof(Sprite),
                 EResourceAssetKind.SubAssets);
 
+            if (cancellationToken.IsCancellationRequested || Store.IsDestroying)
+            {
+                return UniTask.FromResult(ResourceLeaseHandle.Invalid);
+            }
+
+            if (Store.TryGetCachedSubAssetsRecord(normalizedPackageName, location, out int cachedAssetId))
+            {
+                return UniTask.FromResult(Store.AcquireLease(cachedAssetId, EResourceLeaseKind.Binding, options));
+            }
+
+            return AcquireSubAssetsPendingAsync(location, normalizedPackageName, loadingKey, options,
+                cancellationToken);
+        }
+
+        private async UniTask<ResourceLeaseHandle> AcquireSubAssetsPendingAsync(string location,
+            string normalizedPackageName, ulong loadingKey, EResourceLeaseOption options,
+            CancellationToken cancellationToken)
+        {
             while (true)
             {
                 if (cancellationToken.IsCancellationRequested || Store.IsDestroying)
