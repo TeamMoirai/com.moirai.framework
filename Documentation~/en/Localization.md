@@ -137,8 +137,9 @@ IEnumerator routine = translator.TranslateAsync(request,
 - Localized data is lazily initialized: no resources are loaded during service registration (`OnInit`); data is loaded from config tables on the first access to any multilingual API (query/switch) — by then the `Resource` service is guaranteed to be ready
 - The list of available languages is self-reported by the config table: the generated `LubanHandler` reflects `LocalizationBean`'s language columns and hands them to the framework through `ConfigTableServiceHandler.GetLocalizationLanguageCodes()`, which resolves them via `LocalizationService.ResolveLanguages` — there is no global language registry to fall back to. Calling `ChangeLanguage` with a language that is not part of the batch keeps the current language and warns once per language rather than throwing
 - A mismatch between an entry's language column count and the self-reported language count marks the dataset corrupt: **the whole batch is refused** and an error is logged (a shifted index only shows up as "the wrong language is displayed", never as an error, which is exactly why nothing is loaded)
-- In `ToLanguage(str, onlySupported)`, when `onlySupported` is `true`, a language outside the loaded batch falls back to the default language English (`LocalizationService.defaultLanguage`); use `TryGetBuiltInLanguage` to tell "typo" apart from "I do want the default"
+- In `ToLanguage(str, onlySupported)`, when `onlySupported` is `true`, a language outside the loaded batch falls back to the default language English (`LocalizationService.DefaultLanguage`); use `TryGetBuiltInLanguage` to tell "typo" apart from "I do want the default"
 - In the editor's non-play mode, `TextLocalizer.ChangeID` / `ImageLocalizer.ChangeID` directly return `false` (Timeline preview pending implementation); `LocalizationService.Localize` resolves through the editor preview there and only returns the input as-is when preview data is unavailable
+- While the localization data is not ready (tables still loading), localizers **defer injection silently** instead of logging per-component missing-key errors; the language switch raised by the first successful load re-injects every registered localizer. Use `LocalizationService.IsDataLoaded` (does not trigger a load) to tell "not ready" apart from "genuinely missing"
 - The arrays of `ImageLocalizer` / `AudioLocalizer` are injected by language index; after adding a new language to the config table, array elements must be supplemented accordingly
 - All language columns stay resident in memory. Don't guess whether it is time to split packs per language: read the "DATA FOOTPRINT" section of the in-game debugger (`Profiler/Localization`) — entry count, language count and total text length (a lower bound on the resident size) — or `LocalizationService.EntryCount` / `LoadedLanguageCount` / `ResidentChars`
 
@@ -159,6 +160,22 @@ LocalizationService.ClearStringOverlay("remote-ops");   // drops this source onl
 - The same `sourceId` is the same layer, and the last registered layer wins; layer count and sources show up in the debugger panel
 - An overlay never survives a service shutdown, and is not cleared by a table reload — it sits on top of the table data rather than replacing it
 
+## Missing-Key Watch
+
+A key that exhausts the whole resolution chain (overlay → current language → fallback chain) is recorded and warned about once per key, for QA sweeps and live mistranslation hunting:
+
+```csharp
+int distinct = LocalizationService.MissingKeyCount;        // distinct missing keys
+int events   = LocalizationService.MissingKeyEventCount;   // total miss events (repeats included)
+string[] keys = LocalizationService.GetMissingKeys();      // ordered snapshot
+LocalizationService.ClearMissingKeys();                    // reset between QA passes
+```
+
+- Queries made before the data finishes loading do not count as misses
+- A hit on the fallback chain is not a miss (something did get displayed)
+- The tracker holds at most 256 distinct keys: beyond that, events keep counting but per-key recording and warnings stop (a broken config must not flood memory or the log), with a single saturation warning
+- Records do not survive a service shutdown; the in-game debugger shows them live under `Profiler/Localization` → "MISSING KEYS"
+
 ## Editor Preview (no Play required)
 
 `TextLocalizer` / `ImageLocalizer` / `AudioLocalizer` show a "Preview" row under the ID field in the inspector, fed by the config table's **direct editor read** (`ConfigTableServiceHandler.GetLocalizedStringsForEditorPreview`) — no resource system, no play mode:
@@ -167,7 +184,7 @@ LocalizationService.ClearStringOverlay("remote-ops");   // drops this source onl
 - Image/audio localizers show the preview language, the array index that would be used and what sits at it (`missing` / `null reference` / asset name) — which is exactly how "the arrays were not extended after adding a language" gets caught before runtime
 - Language is the inspector's editor language; when unset or not shipped it falls back to the English column, then the first one
 - The preview is **not** written back into the target component (no dirty scenes, no forgotten restores) and deliberately skips the fallback chain: a blank cell showing its ID in the editor is information for the designer
-- Cache invalidates when the editor language changes; call `LocalizationService.InvalidateEditorPreview()` after a re-export
+- The preview cache invalidates automatically on any project asset change (an `EditorApplication.projectChanged` hook, covering table re-exports) and on editor language change; call `LocalizationService.InvalidateEditorPreview()` to drop it manually
 
 ## Formatted Queries (boxing-free path)
 
@@ -180,6 +197,7 @@ string line  = LocalizationService.GetTextFromId("Log.Buy.Confirmed", item, coun
 - Without ZString, `StringUtility` falls back to `StringBuilder.AppendFormat`, **which still boxes** — "boxing-free" is conditional on ZString being installed
 - Beyond four arguments use `GetTextFromId(id, params object[])` and consider splitting that entry into two keys
 - A malformed placeholder in the table degrades to the unformatted source text and logs one Error instead of throwing out of the query
+- **The formatting culture follows the game language** (`params` overload): a German device running the English build still prints `1.5`, not `1,5`; `GetTextFromIdLanguage` follows the queried language. The typed overloads go through ZString's fast path: primitive numbers format with invariant rules (never culture-sensitive), while custom `IFormattable` arguments use their default culture — use the `params` overload when strict culture awareness (dates/currencies) matters
 
 ## Handle-based Language Subscription
 
