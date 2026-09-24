@@ -40,6 +40,9 @@ namespace Moirai.Atropos.Localization
 				return;
 			}
 
+			// 数据未就绪（表未加载完）：静默推迟，首载成功的语言切换会重注入——「未就绪」不按缺译报错
+			if (!IsLocalizationDataReady) return;
+
 			// 资源模式（配置了文本 ID）下 clips 数组可空：注入器忽略传入数据、自行异步加载
 			if (!string.IsNullOrEmpty(localizedTextID))
 			{

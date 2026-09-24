@@ -72,6 +72,10 @@ namespace Moirai.Atropos.Localization
 			}
 #endif
 
+			// 数据未就绪（表未加载完）：静默推迟——首次加载成功的语言切换会重注入全部本地化器；
+			// 「未就绪」不是「缺译」，不该按缺译给每个本地化器刷一条错误日志
+			if (!IsLocalizationDataReady) return false;
+
 			if (!LocalizationService.Has(textId))
 			{
 				if (Application.isPlaying) LogUtility.Error($"Text ID: {textId} 不可用。");

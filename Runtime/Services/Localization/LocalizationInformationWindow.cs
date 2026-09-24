@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Moirai.Atropos.Debugger;
 using UnityEngine.UIElements;
@@ -53,6 +54,25 @@ namespace Moirai.Atropos.Localization
             // 常驻下限：UTF-16 每字符 2 字节，未计字符串对象头与字典开销
             long characters = LocalizationService.ResidentChars;
             AddRow(dataCard, "Resident Chars", $"{characters:N0} (~{characters * 2 / 1024:N0} KB lower bound)");
+
+            VisualElement missingCard = AddSection(root, "MISSING KEYS");
+            int missingCount = LocalizationService.MissingKeyCount;
+            AddRow(missingCard, "Distinct", missingCount.ToString());
+            AddRow(missingCard, "Events", LocalizationService.MissingKeyEventCount.ToString());
+            if (missingCount > 0)
+            {
+                string[] keys = LocalizationService.GetMissingKeys();
+                int shown = Math.Min(keys.Length, 8);
+                for (int i = 0; i < shown; i++)
+                {
+                    missingCard.Add(DebuggerUI.CreateHintLabel(keys[i]));
+                }
+
+                if (keys.Length > shown)
+                {
+                    missingCard.Add(DebuggerUI.CreateHintLabel($"... and {keys.Length - shown} more"));
+                }
+            }
 
             VisualElement switchCard = AddSection(root, "SWITCH LANGUAGE");
             _languages.Clear();

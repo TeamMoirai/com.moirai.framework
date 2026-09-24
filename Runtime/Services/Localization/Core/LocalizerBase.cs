@@ -35,6 +35,13 @@ namespace Moirai.Atropos.Localization
 		/// </summary>
 		internal abstract void Localize();
 
+		/// <summary>
+		/// 本地化数据是否就绪。
+		/// </summary>
+		/// <remarks>未就绪时注入应静默推迟：首次加载成功触发的语言切换会重注入全部已注册本地化器。
+		/// 「未就绪」与「词条真缺失」必须分开——前者不该按缺译刷错误日志。</remarks>
+		protected static bool IsLocalizationDataReady => LocalizationService.IsDataLoaded;
+
 #if UNITY_EDITOR
 		/// <summary>
 		/// Inspector 预览用的可读文本（当前 ID 解析出的译文 / 资源名）。
