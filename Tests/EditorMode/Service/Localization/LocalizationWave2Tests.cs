@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Cysharp.Threading.Tasks;
 using Moirai.Atropos.Localization;
@@ -49,6 +50,18 @@ namespace Service.Localization
         {
             handler.Internal_Init();
             _handlers.Add(handler);
+            return handler;
+        }
+
+        /// <summary>构造整批数据源探针：languages 列序即词条列序，entries 为 (key, 各语言译文)。</summary>
+        private static L10nProbeHandler CreateBatchProbe(Language[] languages, params (string key, string[] texts)[] entries)
+        {
+            var handler = new L10nProbeHandler { Languages = languages.ToList() };
+            foreach (var (key, texts) in entries)
+            {
+                handler.Strings[key] = texts.ToList();
+            }
+
             return handler;
         }
 
@@ -260,6 +273,171 @@ namespace Service.Localization
             }
 
             return count;
+        }
+
+        #endregion
+
+        #region RTL 识别 [RTL DETECTION]
+
+        [Test]
+        public void RightToLeft_RecognizedByLanguageCode()
+        {
+            Assert.IsTrue(Language.Arabic.IsRightToLeft);
+            Assert.IsTrue(Language.Hebrew.IsRightToLeft);
+            Assert.IsTrue(new Language("Farsi", "fa").IsRightToLeft, "波斯语按 Code 识别 RTL");
+            Assert.IsTrue(new Language("Urdu", "ur").IsRightToLeft);
+            Assert.IsFalse(Language.English.IsRightToLeft);
+            Assert.IsFalse(Language.ChineseSimplified.IsRightToLeft);
+            Assert.IsFalse(Language.Japanese.IsRightToLeft);
+        }
+
+        [Test]
+        public void IsCurrentLanguageRightToLeft_FollowsSwitch()
+        {
+            var handler = Track(CreateBatchProbe(new[] { English, Chinese, Language.Arabic },
+                ("ui.title", new[] { "Title", "标题", "عنوان" })));
+            handler.FallbackLanguageCodes = Array.Empty<string>();
+
+            handler.ChangeLanguage(Language.Arabic);
+            Assert.IsTrue(handler.IsCurrentLanguageRightToLeft);
+
+            handler.ChangeLanguage(Chinese);
+            Assert.IsFalse(handler.IsCurrentLanguageRightToLeft);
+        }
+
+        #endregion
+
+        #region 复数 [PLURALS]
+
+        [Test]
+        public void PluralRules_ResolveCategory_Matrix()
+        {
+            // one iff n==1 族与默认回落
+            Assert.AreEqual("one", LocalizationPluralRules.ResolveCategory("en", 1));
+            Assert.AreEqual("other", LocalizationPluralRules.ResolveCategory("en", 2));
+            Assert.AreEqual("other", LocalizationPluralRules.ResolveCategory("en", 0));
+            Assert.AreEqual("other", LocalizationPluralRules.ResolveCategory(null, 1));
+            Assert.AreEqual("other", LocalizationPluralRules.ResolveCategory("xx-custom", 5));
+
+            // 无形态变化族
+            Assert.AreEqual("other", LocalizationPluralRules.ResolveCategory("zh-Hans", 1));
+            Assert.AreEqual("other", LocalizationPluralRules.ResolveCategory("ja", 2));
+            Assert.AreEqual("other", LocalizationPluralRules.ResolveCategory("tr", 1));
+
+            // one for 0..1 族
+            Assert.AreEqual("one", LocalizationPluralRules.ResolveCategory("fr", 0));
+            Assert.AreEqual("one", LocalizationPluralRules.ResolveCategory("fr", 1));
+            Assert.AreEqual("other", LocalizationPluralRules.ResolveCategory("fr", 2));
+
+            // 斯拉夫基数族
+            Assert.AreEqual("one", LocalizationPluralRules.ResolveCategory("ru", 21));
+            Assert.AreEqual("few", LocalizationPluralRules.ResolveCategory("ru", 22));
+            Assert.AreEqual("many", LocalizationPluralRules.ResolveCategory("ru", 25));
+            Assert.AreEqual("many", LocalizationPluralRules.ResolveCategory("ru", 111));
+            Assert.AreEqual("few", LocalizationPluralRules.ResolveCategory("ru", 122));
+
+            // 波兰语
+            Assert.AreEqual("one", LocalizationPluralRules.ResolveCategory("pl", 1));
+            Assert.AreEqual("few", LocalizationPluralRules.ResolveCategory("pl", 3));
+            Assert.AreEqual("many", LocalizationPluralRules.ResolveCategory("pl", 5));
+            Assert.AreEqual("few", LocalizationPluralRules.ResolveCategory("pl", 103));
+
+            // 阿拉伯语（六种形态）
+            Assert.AreEqual("zero", LocalizationPluralRules.ResolveCategory("ar", 0));
+            Assert.AreEqual("one", LocalizationPluralRules.ResolveCategory("ar", 1));
+            Assert.AreEqual("two", LocalizationPluralRules.ResolveCategory("ar", 2));
+            Assert.AreEqual("few", LocalizationPluralRules.ResolveCategory("ar", 5));
+            Assert.AreEqual("many", LocalizationPluralRules.ResolveCategory("ar", 25));
+            Assert.AreEqual("other", LocalizationPluralRules.ResolveCategory("ar", 700));
+        }
+
+        [Test]
+        public void Plural_ResolvesCategoryAndFormatsCount()
+        {
+            var handler = Track(CreateBatchProbe(new[] { English, Language.Russian },
+                ("quest.items#one", new[] { "{0} item in bag", "{0} предмет" }),
+                ("quest.items#few", new[] { "{0} item-ish", "{0} предмета" }),
+                ("quest.items#other", new[] { "{0} items in bag", "{0} предметов" })));
+            handler.FallbackLanguageCodes = Array.Empty<string>();
+
+            handler.ChangeLanguage(English);
+            Assert.AreEqual("1 item in bag", handler.GetPluralTextFromId("quest.items", 1));
+            Assert.AreEqual("5 items in bag", handler.GetPluralTextFromId("quest.items", 5));
+
+            handler.ChangeLanguage(Language.Russian);
+            Assert.AreEqual("21 предмет", handler.GetPluralTextFromId("quest.items", 21));
+            Assert.AreEqual("22 предмета", handler.GetPluralTextFromId("quest.items", 22));
+            Assert.AreEqual("25 предметов", handler.GetPluralTextFromId("quest.items", 25));
+        }
+
+        [Test]
+        public void Plural_ExtraArguments_ShiftAfterCount()
+        {
+            var handler = Track(CreateBatchProbe(new[] { English },
+                ("greeting", new[] { "Hello {1}, you have {0} coins" })));
+            handler.FallbackLanguageCodes = Array.Empty<string>();
+
+            handler.ChangeLanguage(English);
+
+            Assert.AreEqual("Hello Moirai, you have 3 coins", handler.GetPluralTextFromId("greeting", 3, "Moirai"));
+        }
+
+        [Test]
+        public void Plural_BareKeyFallback_WhenNoCategoryEntries()
+        {
+            var handler = Track(CreateBatchProbe(new[] { English },
+                ("loot", new[] { "x{0}" })));
+            handler.FallbackLanguageCodes = Array.Empty<string>();
+
+            handler.ChangeLanguage(English);
+
+            Assert.AreEqual("x7", handler.GetPluralTextFromId("loot", 7));
+        }
+
+        [Test]
+        public void Plural_FullChainMiss_TracksBaseKeyOnce()
+        {
+            var handler = Track(CreateBatchProbe(new[] { English },
+                ("ui.title", new[] { "Title" })));
+            handler.FallbackLanguageCodes = Array.Empty<string>();
+            handler.ChangeLanguage(English);
+
+            UtfLogExpect.Warning();
+            Assert.AreEqual("quest.missing", handler.GetPluralTextFromId("quest.missing", 1));
+            Assert.AreEqual("quest.missing", handler.GetPluralTextFromId("quest.missing", 5));
+
+            Assert.AreEqual(1, handler.MissingKeyCount, "复数全链落空只按基础 key 计一次缺译");
+            Assert.AreEqual(2, handler.MissingKeyEventCount);
+        }
+
+        #endregion
+
+        #region 渠道烘焙 [CHANNEL BAKE]
+
+        [Test]
+        public void BakeLanguage_WritesAssetAndClear_Removes()
+        {
+            try
+            {
+                Moirai.Atropos.Localization.Editor.LocalizationBuildBaker.BakeLanguage("French");
+                Assert.AreEqual("fr", Moirai.Atropos.Localization.Editor.LocalizationBuildBaker.GetBakedLanguageCode(),
+                    "烘焙按语言 Code 落盘，与运行期消费面一致");
+
+                Assert.IsTrue(Moirai.Atropos.Localization.Editor.LocalizationBuildBaker.ClearBaked());
+                Assert.IsNull(Moirai.Atropos.Localization.Editor.LocalizationBuildBaker.GetBakedLanguageCode());
+                Assert.IsFalse(Moirai.Atropos.Localization.Editor.LocalizationBuildBaker.ClearBaked(), "重复清除应返回 false");
+            }
+            finally
+            {
+                Moirai.Atropos.Localization.Editor.LocalizationBuildBaker.ClearBaked();
+            }
+        }
+
+        [Test]
+        public void BakeLanguage_UnknownCode_Throws()
+        {
+            Assert.Throws<System.ArgumentException>(() =>
+                Moirai.Atropos.Localization.Editor.LocalizationBuildBaker.BakeLanguage("klingon"));
         }
 
         #endregion
