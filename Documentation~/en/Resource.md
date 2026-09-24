@@ -12,8 +12,8 @@ The internal engine uses **paged slot arrays** (`AssetSlot[][]`, `LeaseSlot[][]`
 - **Binding API (recommended):** `ResourceOwner` MonoBehaviour + `IResourceBindingService` provide declarative resource-component binding (Sprite, Material, PrefabSource, SubSprite) with automatic release on `OnDestroy`.
 - **Extension methods:** `Image.SetSprite(location)`, `SpriteRenderer.SetSprite(location)`, `Image.SetSubSprite(location, spriteName)`, `Image/SpriteRenderer/MeshRenderer.SetMaterial(location)`, `MeshRenderer.SetSharedMaterial(location)` — all auto-manage lifecycle via the binding system.
 - **Async binding safety:** Version-checked binding requests prevent stale async results from overwriting newer bindings.
-- Four play modes: `EditorSimulateMode` (editor simulation), `OfflinePlayMode` (standalone), `HostPlayMode` (online hot update), `WebPlayMode` (WebGL, supports WeChat Mini Game file system)
-- **Timer-wheel expiry:** Idle assets (refcount = 0) are released after `IdleAssetExpireTime` seconds, or immediately when the idle record count exceeds `IdleAssetCapacity` (the longest-idle record goes first). Keep-alive leases extend the lifetime temporarily. `ProcessResourceMaintenance` processes both queues in O(1) per frame and rotates a reclaim sweep over destroyed owners/bindings.
+- Four play modes: `EditorSimulateMode` (editor simulation), `OfflinePlayMode` (standalone), `HostPlayMode` (online hot update), `WebPlayMode` (WebGL, supports WeChat Mini Game file system). If the asset still says `EditorSimulate` in a player build, `ResourceServiceSettings.PlayMode` normalises to `OfflinePlay` **in the value it returns only** (logging one Error on first read); it does not write back into the shared settings instance, so the misconfiguration stays visible in the asset and the inspector.
+- **Timer-wheel expiry:** Idle assets (refcount = 0) are released after `IdleAssetExpireTime` seconds; when the idle record count exceeds `IdleAssetCapacity` the longest-idle records are trimmed, bounded per frame. Keep-alive leases can extend a record temporarily. `ProcessResourceMaintenance` handles both wheels in O(1) per frame and rotates the destroyed-state owner/binding slot sweep.
 - **Loading dedup:** Concurrent loads of the same address share a single `LoadingOperationState` (pooled `MemoryObject`), with waiter tracking and cancellation support.
 - Asset encryption: `YooAssetEncryptorHandler` 的 `FileOffsetEncryptorHandler` (32-byte offset) and `FileStreamEncryptorHandler` (XOR stream encryption), with web-side decryption implementation
 - Hot update download: Request remote manifest version, update manifest, create downloader, and clear cache files, all available
@@ -40,7 +40,10 @@ Namespace: `Moirai.Atropos.Resource`
 | Class/Interface | Description |
 |---------|------|
 | `ResourceService` | Static facade (`[HandlerHost]`) defining all APIs for loading, leasing, binding, unloading, and package operations; all static methods/properties forward through the `Handler` property (fail-fast: lazily initialized when not ready, throws if the default factory is missing, never silently degrades). Configuration is injected in `OnInit`; the per-frame driver (timer-wheel advancement, unload scheduling, GC throttling, destroyed-slot reclaim) runs in `Tick` |
-| `YooAssetHandler` | Default backend, `partial` split by responsibility: main (base properties, unload scheduling, asset info queries, prefab instantiation) / Records (paged slot & lease system) / Loading (load core & dedup) / Expiry (timer-wheel expiry, idle capacity eviction, record release) / Keys (packed-key codec & resource-name registry) / Initialization (package init, manifest update, download adapters) / Cache (capacity & warmup) / Scene (scene loading) / Attributes (editor-only `CollectorPackageDropdown`) |
+| `YooAssetHandler` | Default backend, `partial` split by responsibility: main (base properties, unload scheduling, asset info queries, prefab instantiation, host-interface wiring) / Leases (forwards of the Lease API on the seam) / Loading (acquiring YooAsset handles, attaching them, failure text) / Cache (settings injection and capacity warmup) / Initialization (package and manifest init) / Scene (scene handles) / Attributes (inspector annotations). **Bookkeeping no longer lives here** - see the three kernel types below |
+| `ResourceRecordStore` | The resource record kernel (`internal sealed partial`, under `Runtime/Services/Resource/Kernel/`), held by the backend: generation-checked asset and lease slots, two packed-key index maps, loading dedup, both expiry wheels and capacity trimming. It reaches the backend only through `IResourceRecordHost`: three raw-handle operations plus three configuration reads |
+| `ResourceKeyCodec` | Bit-field packing/unpacking of the resource key and `assetKind` / `assetType` inference (pure static, no state) |
+| `ResourceNameRegistry<TValue>` | Registration, refcounting and ID reclamation for one name axis; one instance per package / location / type axis |
 | `ResourceBindingService` | Binding service implementation (`internal sealed`), `partial` split by responsibility: main (owner registration, release, slot snapshots) / Bindings (binding registration & component application) / Async (async binding safety, request reservation and generation checks) / Maintenance (shutdown, reset, destroyed-slot reclaim) / Slots (paged slot allocation) |
 | `ResourceServiceHandler` | Handler abstract base class defining the backend contract; default implementation `YooAssetHandler` (plus experimental `AddressableHandler`) |
 | `IResourceBindingService` | Declarative resource-component binding service interface, accessed via `ResourceService.BindingService` |
@@ -155,7 +158,7 @@ Each page is 256 slots (8-bit page index). Slots are allocated from a free-list 
 
 ### Packed 64-bit ResourceKey
 
-Resource identity is packed into a single `ulong` key encoding: package ID (16 bits) + location ID (28 bits) + type ID (16 bits) + asset kind (2 bits) + handle kind (2 bits). String-to-ID mapping is managed via reference-counted registries (`_resourcePackagesById`, `_resourceLocationsById`, `_resourceTypesById`) with free-list recycling.
+Resource identity is packed into a single `ulong` key encoding: package ID (12 bits) + location ID (32 bits) + type ID (12 bits) + asset kind (4 bits) + handle kind (4 bits). String and `Type` to ID mapping is owned by three `ResourceNameRegistry<TValue>` axes (refcounted, IDs reclaimed), while the bit layout and its range checks live in `ResourceKeyCodec`. An ID exceeding its axis **throws `GameException` instead of silently truncating** - truncation would encode two different resources into the same key.
 
 ### Custom Zero-GC Data Structures
 
@@ -168,9 +171,9 @@ Two circular bucket arrays (256 buckets each) drive O(1) per-frame expiry:
 
 - **Idle buckets:** When an asset's refcount reaches zero, it enters an idle bucket scheduled to expire after `IdleAssetExpireTime` seconds.
 - **Keep-alive buckets:** When a lease is released with `KeepAliveOnRelease` option, the asset's keep-alive refcount is incremented and scheduled to expire after `IdleAssetExpireTime` seconds.
-- **Capacity cap:** When idle records exceed `IdleAssetCapacity`, the one with the earliest expiry tick (i.e. idle the longest) is released immediately, without waiting for its expiry; lowering the cap takes effect at once.
+- **Capacity cap:** When idle records exceed `IdleAssetCapacity`, the one with the earliest expiry tick (i.e. idle the longest) is released without waiting for expiry, at most 8 per pass; whatever is left over stays requested for the next frame. Lowering the cap only files that request too - it does not trim inline, because that would hang an O(n) burst on a property assignment. Capacity trimming runs after the wheel sweep, since removing nodes mid-sweep invalidates captured next pointers and skips whole buckets.
 
-`ProcessResourceMaintenance(unscaledTime, expireBudget, destroySweepBudget)` is called every frame by the facade, processing both queues and releasing assets whose expiry tick has passed; capacity-driven eviction runs after the wheel walk, so removing records never skips the rest of a bucket during the same frame.
+`ProcessResourceMaintenance(unscaledTime, expireBudget, destroySweepBudget)` is called every frame by the facade: the destroyed-slot sweep goes first (removing nodes mid-sweep would corrupt wheel cursors), then both queues are processed, and `IdleAssetCapacity` trimming runs last, bounded to 8 releases per pass. All of the bookkeeping lives in `ResourceRecordStore`; this entry point is only a forwarding layer on the backend seam.
 
 ### Loading Dedup
 
@@ -289,15 +292,18 @@ Flags enum: `None / KeepAliveOnRelease / SetNativeSize`
 
 | Extension | Description |
 |-----------|-------------|
-| `Image.SetSprite(string location, bool setNativeSize = false, CancellationToken)` | Set sprite on Image via binding. |
-| `SpriteRenderer.SetSprite(string location, CancellationToken)` | Set sprite on SpriteRenderer via binding. |
-| `Image.SetSubSprite(string location, string spriteName, bool setNativeSize = false, CancellationToken)` | Set sub-sprite from atlas on Image. |
+| `Image.SetSprite(string location, bool setNativeSize = false, CancellationToken, string packageName = "")`
+| `SpriteRenderer.SetSprite(string location, CancellationToken, string packageName = "")`
+| `Image.SetSubSprite(string location, string spriteName, bool setNativeSize = false, CancellationToken, string packageName = "")`
+| `SpriteRenderer.SetSubSprite(string location, string spriteName, CancellationToken, string packageName = "")` | Sets a sub-sprite on a SpriteRenderer from an atlas. |
 | `Image.SetMaterial(string location, bool isAsync = false, string packageName = "")` | Set material on Image. |
 | `SpriteRenderer.SetMaterial(string location, bool isAsync = false, string packageName = "")` | Set material on SpriteRenderer. |
 | `MeshRenderer.SetMaterial(string location, bool needInstance = true, bool isAsync = false, string packageName = "")` | Set material on MeshRenderer (instance or shared). |
 | `MeshRenderer.SetSharedMaterial(string location, bool isAsync = false, string packageName = "")` | Set shared material on MeshRenderer. |
 
 ### Async Binding Safety
+
+> **Null and destroyed targets:** every extension entry first checks the target component and its `gameObject`, and does **nothing silently** when either is gone (no throw, no log); the binding service answers an empty owner or target with `EResourceBindStatus.MissingOwner` / `MissingTarget`, leaving it to the caller to record. Hitting a destroyed object during shutdown is routine, so "nothing to do" is deliberately not an exception.
 
 Async binding methods (e.g. `BindSubSpriteAsync`, `BindImageMaterialAsync`, `BindSharedMaterialAsync`, `BindMaterialInstanceAsync`) use **version-checked binding requests** to prevent stale results:
 
