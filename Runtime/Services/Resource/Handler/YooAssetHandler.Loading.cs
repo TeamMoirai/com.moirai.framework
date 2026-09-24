@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
@@ -37,20 +37,20 @@ namespace Moirai.Atropos.Resource
 
                 if (!Store.TryBeginLoading(loadingKey))
                 {
-                    AssetHandle joinHandle = GetHandleSync(location, assetType, packageName);
-                    if (joinHandle == null || joinHandle.AssetObject == null ||
-                        joinHandle.Status == EOperationStatus.Failed)
+                    // 接力赢家：只读同一条已落地记录，绝不再开一次后端加载。
+                    // 双句柄会双计引用，且后完成的赢家会把先落地的句柄 Dispose 掉（GetOrCreateAssetRecord 的择一保留）。
+                    // 同步 API 不能 await：主线程被本调用占住时异步赢家没有帧可推进，同栈重入的同步赢家则在等本帧返回——
+                    // 两条路都等不起。契约：记录已落地则读同一条；仍在途则 fail-fast，调用方应改用异步 API。
+                    if (Store.TryGetCachedAssetRecord(normalizedPackageName, location, assetType, assetKind,
+                            EResourceHandleKind.AssetHandle, out _, out joinedAsset))
                     {
-                        DisposeHandle(joinHandle);
-                        return null;
+                        return joinedAsset;
                     }
 
-                    Store.GetOrCreateAssetRecord(normalizedPackageName, location, assetType, assetKind,
-                        EResourceHandleKind.AssetHandle, joinHandle.AssetObject, joinHandle);
-                    return Store.TryGetCachedAssetRecord(normalizedPackageName, location, assetType, assetKind,
-                        EResourceHandleKind.AssetHandle, out _, out cachedAsset)
-                        ? cachedAsset
-                        : null;
+                    LogUtility.Warning(
+                        "Sync load cannot join in-flight load; refuse to start a second backend load. Location:{0} Package:{1}. Use async API when loading the same key concurrently.",
+                        location, normalizedPackageName);
+                    return null;
                 }
 
                 int loadGeneration = unchecked((int)Store.UnloadGeneration);
