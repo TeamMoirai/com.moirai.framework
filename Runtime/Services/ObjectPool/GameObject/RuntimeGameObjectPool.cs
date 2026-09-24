@@ -342,26 +342,26 @@ namespace Moirai.Atropos.ObjectPool
         /// <summary>
         /// 按槽位与实例引用回收（代系由 Slot 独占校验）。
         /// </summary>
-        public PoolReleaseResult ReleaseByInstance(int slotIndex, GameObject instance)
+        public EPoolReleaseResult ReleaseByInstance(int slotIndex, GameObject instance)
         {
             if (!_storage.IsValidIndex(slotIndex))
             {
-                return PoolReleaseResult.NotOwned;
+                return EPoolReleaseResult.NotOwned;
             }
 
             ref Slot slot = ref _storage.GetSlotRef(slotIndex);
             if (!ReferenceEquals(slot.Instance, instance))
             {
-                return PoolReleaseResult.NotOwned;
+                return EPoolReleaseResult.NotOwned;
             }
 
             if (slot.State != SlotState.Active)
             {
-                return PoolReleaseResult.NotActive;
+                return EPoolReleaseResult.NotActive;
             }
 
             ReleaseTrackedInstance(slotIndex);
-            return PoolReleaseResult.Released;
+            return EPoolReleaseResult.Released;
         }
 
         /// <summary>

@@ -162,7 +162,7 @@ namespace Service.GameObjectPool
         {
             Assert.IsTrue(_registry.TryResolve(instance, out RuntimeGameObjectPool owner, out int slotIndex));
             Assert.AreSame(pool, owner);
-            Assert.AreEqual(PoolReleaseResult.Released, pool.ReleaseByInstance(slotIndex, instance));
+            Assert.AreEqual(EPoolReleaseResult.Released, pool.ReleaseByInstance(slotIndex, instance));
         }
 
         #endregion
@@ -229,8 +229,8 @@ namespace Service.GameObjectPool
             GameObject instance = SpawnOne(pool);
             Assert.IsTrue(_registry.TryResolve(instance, out _, out int slotIndex));
 
-            Assert.AreEqual(PoolReleaseResult.Released, pool.ReleaseByInstance(slotIndex, instance));
-            Assert.AreEqual(PoolReleaseResult.NotActive, pool.ReleaseByInstance(slotIndex, instance));
+            Assert.AreEqual(EPoolReleaseResult.Released, pool.ReleaseByInstance(slotIndex, instance));
+            Assert.AreEqual(EPoolReleaseResult.NotActive, pool.ReleaseByInstance(slotIndex, instance));
             Assert.AreEqual(1, pool.InactiveCount);
         }
 
@@ -546,7 +546,7 @@ namespace Service.GameObjectPool
 
                 GameObject first = _pool.Spawn(null);
                 Assert.IsTrue(_registry.TryResolve(first, out _, out int slotIndex));
-                Assert.AreEqual(PoolReleaseResult.Released, _pool.ReleaseByInstance(slotIndex, first));
+                Assert.AreEqual(EPoolReleaseResult.Released, _pool.ReleaseByInstance(slotIndex, first));
 
                 GameObject second = _pool.Spawn(null);
                 Assert.AreSame(first, second);
@@ -571,7 +571,7 @@ namespace Service.GameObjectPool
                 GameObject first = _pool.Spawn(null);
                 Assert.IsTrue(_registry.TryResolve(first, out _, out int slotIndex));
                 _pool.SetUserData(slotIndex, "cached");
-                Assert.AreEqual(PoolReleaseResult.Released, _pool.ReleaseByInstance(slotIndex, first));
+                Assert.AreEqual(EPoolReleaseResult.Released, _pool.ReleaseByInstance(slotIndex, first));
 
                 GameObject second = _pool.Spawn(null);
                 Assert.AreSame(first, second);
@@ -596,7 +596,7 @@ namespace Service.GameObjectPool
             Assert.IsTrue(_registry.TryResolve(first, out _, out int slotIndex));
             Assert.IsTrue(pool.TryBindLease(slotIndex, out uint gen1, out _, out _));
 
-            Assert.AreEqual(PoolReleaseResult.Released, pool.ReleaseByInstance(slotIndex, first));
+            Assert.AreEqual(EPoolReleaseResult.Released, pool.ReleaseByInstance(slotIndex, first));
             GameObject second = SpawnOne(pool);
             Assert.AreSame(first, second);
             Assert.IsTrue(_registry.TryResolve(second, out _, out int slot2));
@@ -615,7 +615,7 @@ namespace Service.GameObjectPool
             Assert.IsTrue(pool.TryBindLease(slotIndex, out uint generation, out GameObject bound, out Transform tr));
             Assert.IsTrue(pool.IsAlive(slotIndex, generation));
 
-            Assert.AreEqual(PoolReleaseResult.Released, pool.ReleaseByInstance(slotIndex, instance));
+            Assert.AreEqual(EPoolReleaseResult.Released, pool.ReleaseByInstance(slotIndex, instance));
             Assert.IsFalse(pool.IsAlive(slotIndex, generation), "lease identity dies with Active state");
         }
 
@@ -833,7 +833,7 @@ namespace Service.GameObjectPool
                 GameObject first = _pool.Spawn(null);
                 first.transform.localPosition = Vector3.one * 99f;
                 Assert.IsTrue(_registry.TryResolve(first, out _, out int slotIndex));
-                Assert.AreEqual(PoolReleaseResult.Released, _pool.ReleaseByInstance(slotIndex, first));
+                Assert.AreEqual(EPoolReleaseResult.Released, _pool.ReleaseByInstance(slotIndex, first));
 
                 GameObject second = _pool.Spawn(null);
                 Assert.AreSame(first, second);

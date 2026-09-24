@@ -306,9 +306,9 @@ namespace Moirai.Atropos.ObjectPool
             {
                 switch (pool.ReleaseByInstance(slotIndex, instance))
                 {
-                    case PoolReleaseResult.Released:
+                    case EPoolReleaseResult.Released:
                         return;
-                    case PoolReleaseResult.NotActive:
+                    case EPoolReleaseResult.NotActive:
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
                         LogUtility.Warning("[GameObjectPool] Despawn ignored: instance is not active (duplicate Despawn?): {0}", instance.name);
 #endif

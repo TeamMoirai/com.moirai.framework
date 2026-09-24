@@ -8,7 +8,7 @@ namespace Moirai.Atropos.ObjectPool
     /// <summary>
     /// 按实例引用回收的结果。
     /// </summary>
-    public enum PoolReleaseResult : byte
+    public enum EPoolReleaseResult : byte
     {
         /// <summary>
         /// 已成功回收到池。
