@@ -141,7 +141,7 @@ IEnumerator routine = translator.TranslateAsync(request,
 - In the editor's non-play mode, `TextLocalizer.ChangeID` / `ImageLocalizer.ChangeID` directly return `false` (Timeline preview pending implementation); `LocalizationService.Localize` resolves through the editor preview there and only returns the input as-is when preview data is unavailable
 - While the localization data is not ready (tables still loading), localizers **defer injection silently** instead of logging per-component missing-key errors; the language switch raised by the first successful load re-injects every registered localizer. Use `LocalizationService.IsDataLoaded` (does not trigger a load) to tell "not ready" apart from "genuinely missing"
 - The arrays of `ImageLocalizer` / `AudioLocalizer` are injected by language index; after adding a new language to the config table, array elements must be supplemented accordingly
-- All language columns stay resident in memory. Don't guess whether it is time to split packs per language: read the "DATA FOOTPRINT" section of the in-game debugger (`Profiler/Localization`) — entry count, language count and total text length (a lower bound on the resident size) — or `LocalizationService.EntryCount` / `LoadedLanguageCount` / `ResidentChars`
+- By default the whole batch loads eagerly and every language column stays resident (the store keeps entries as a flat row-index + cell array, halving container objects vs. a list per entry). To drop residency to "header + current column + fallback columns", implement the `SupportsPerLanguageLoad` trio on a custom handler — and make that call from `ResidentChars` evidence (the "DATA FOOTPRINT" card in `Profiler/Localization`, or `LocalizationService.EntryCount` / `LoadedLanguageCount` / `ResidentChars`), not gut feeling
 
 ## Runtime Overlay (live text patching)
 
@@ -175,6 +175,65 @@ LocalizationService.ClearMissingKeys();                    // reset between QA p
 - A hit on the fallback chain is not a miss (something did get displayed)
 - The tracker holds at most 256 distinct keys: beyond that, events keep counting but per-key recording and warnings stop (a broken config must not flood memory or the log), with a single saturation warning
 - Records do not survive a service shutdown; the in-game debugger shows them live under `Profiler/Localization` → "MISSING KEYS"
+
+## Async Preloading
+
+Call `await LocalizationService.PreloadAsync()` during startup so the whole-table expansion lands in a window you can wait on instead of the first UI query:
+
+```csharp
+// Early in launch (e.g. ProcedurePreload)
+await LocalizationService.PreloadAsync();
+```
+
+- Idempotent with in-flight deduplication: concurrent callers share one task; an already-loaded service completes immediately
+- Synchronous queries during the flight degrade to "not ready" (raw IDs, no miss tracking, no duplicate source reads); once done, every registered localizer is re-injected
+- The default handler yields a frame then does the sync batch; remote or very large sources override `LoadLocalizedTextBatchAsync` for a genuinely async pipeline
+- A load in flight at shutdown is discarded — partial results never leak into the next session's store
+
+## Per-Language Column Loading (opt-in)
+
+Eager full-table residency is right for most games. When `ResidentChars` says a per-column residency is worth it, declare the contract trio on a custom handler:
+
+```csharp
+public sealed class RemoteLocalizationHandler : LocalizationServiceHandler
+{
+    protected override bool SupportsPerLanguageLoad => true;
+    protected override IReadOnlyList<Language> LoadLanguageHeader() => ...;          // language header (codes + column order)
+    protected override Dictionary<string, string> LoadLanguageColumn(Language language) => ...; // key → text
+}
+```
+
+- Residency = header + current column + fallback columns; switching loads the target column lazily — if the target column cannot be fetched, **the switch is refused and the current language stays**
+- An "empty but loaded" column (language in the header with zero entries) is fetched only once; `null` means a retryable source miss
+- `GetDictionaryFromId` fetches every column on demand (the necessary cost of the "all languages" semantic — keep it off hot paths); `ReloadTexts` re-reads the header and all column caches without touching overlays
+- Corruption semantics mirror the batch path (reject-batch / keep-current) — a broken payload never dislodges a working snapshot
+
+## RTL and Per-Language Fonts
+
+- `Language.IsRightToLeft` recognizes the Arabic family (ar/fa/ur) and Hebrew (he) by code; `LocalizationService.IsCurrentLanguageRightToLeft` reports the current direction. On TMP targets `TextLocalizer` applies it to `isRightToLeftText` automatically
+- Two optional arrays on `TextLocalizer` swap fonts by current language column index: `m_TmpFontAssets` (`TMP_FontAsset[]`) and `m_UguiFonts` (`Font[]`) — same convention as the image/audio localizer arrays; out-of-range or empty slots keep the existing font
+- UGUI `Text` and `TextMesh` have no RTL layout support (TMP only)
+
+## Plural Entries (CLDR cardinal)
+
+```csharp
+// Table keys: quest.items#one / quest.items#few / quest.items#other (per language as needed)
+string text = LocalizationService.GetPluralTextFromId("quest.items", count);
+string detail = LocalizationService.GetPluralTextFromId("quest.items", count, playerName); // {0}=count {1}=playerName
+```
+
+- Key convention: base id + category suffix `id#zero|one|two|few|many|other`, falling back to `id#other` then the bare key; a full-chain miss is recorded under the base key in the missing-key watch
+- Built-in rules: zh/ja/ko/vi/th/id formless; en/de/es/it/nl/pt/no/nb/sv/da/fi/el/et/bg/ca/eu/af two-form (one iff n==1); fr/hi/fa/az one for 0..1; Slavic (ru/uk/be/hr/bs/sr), Polish, Czech/Slovak, Hebrew, Romanian, Lithuanian, Latvian and the six Arabic categories; unlisted languages always resolve to `other`
+- Placeholders: `{0}` is the count automatically; caller arguments start at `{1}`; the formatting culture follows the current game language
+
+## Build-Time Channel Default Language
+
+Give each channel package its own default language for first launch:
+
+- Detection order: command line → editor language → saved setting → **baked channel language** → system language; a player-chosen language still wins
+- CI: pass `localizationLanguage=xx` (e.g. `-CustomArgs:platform=Android;localizationLanguage=en`); the build hook bakes `Assets/Resources/LocalizationBuildConfig.asset` before packaging, and leaves the product untouched when the argument is absent
+- Manual: the `Tools/Config/烘焙渠道默认语言` window bakes/clears it; names or codes are validated (an unknown value throws instead of slipping into the build)
+- Only players consume the baked asset; the editor and Play-in-editor follow the editor detection chain
 
 ## Editor Preview (no Play required)
 

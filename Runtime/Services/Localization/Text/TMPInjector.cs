@@ -11,6 +11,9 @@ namespace Moirai.Atropos.Localization
 	{
 		readonly TMP_Text tmp;
 
+		/// <summary>目标 <see cref="TMP_Text"/> 组件（语言联动的呈现属性——RTL 方向与按语言字体——经此写回）。</summary>
+		public TMP_Text Component => tmp;
+
 		/// <summary>
 		/// 创建针对指定 <see cref="TMP_Text"/> 的本地化文本注入器。
 		/// </summary>

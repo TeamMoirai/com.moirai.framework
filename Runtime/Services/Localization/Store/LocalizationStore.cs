@@ -1,34 +1,71 @@
+using System;
 using System.Collections.Generic;
 
 namespace Moirai.Atropos.Localization
 {
     /// <summary>
-    /// 本地化词条存储：持有当前批快照与覆盖层，并执行「覆盖 → 指定语言 → 回退链」的取值解析。
+    /// 换入批的头部视图：语言表、来源、规模（不含词条本体——词条由 <see cref="LocalizationStore"/> 扁平持有）。
+    /// </summary>
+    internal readonly struct LocalizationBatchHeader
+    {
+        public readonly Language[] Languages;
+        public readonly string SourceId;
+        public readonly long ResidentChars;
+        public readonly int EntryCount;
+
+        public LocalizationBatchHeader(Language[] languages, string sourceId, long residentChars, int entryCount)
+        {
+            Languages = languages;
+            SourceId = sourceId;
+            ResidentChars = residentChars;
+            EntryCount = entryCount;
+        }
+    }
+
+    /// <summary>
+    /// 本地化词条存储：持有当前批的扁平词条与覆盖层，并执行「覆盖 → 指定语言 → 回退链」的取值解析。
+    /// <para>词条以「key → 行索引」+ 行主序扁平数组（row × 语言数 + 列）存放，不再保留
+    /// 「每词条一个 <c>List&lt;string&gt;</c> + 字典装箱」的批对象——万级词条下少一倍容器对象开销。</para>
     /// <para>与查询语义一起从处理器里拆出来，是为了让运行期数据源与编辑器预览共用同一套存储与解析
     /// （编辑器预览只是换一批数据源，不该有第二份取值逻辑）。</para>
     /// <para>本类不打日志、不做语言解析，失败一律以返回值交给调用方归因。</para>
     /// </summary>
     internal sealed class LocalizationStore
     {
-        private LocalizationTextBatch _batch = LocalizationTextBatch.Empty;
+        private Language[] _languages = Array.Empty<Language>();
+        private Dictionary<string, int> _rowByKey = new Dictionary<string, int>(StringComparer.Ordinal);
+        // 行主序扁平词条：[row * 语言数 + column]；null/仅空白即缺译
+        private string[] _cells = Array.Empty<string>();
+        // 按语言列模式（可选契约）：按列懒加载的字典数组，null 元素 = 该语言列尚未加载；
+        // 与扁平行表互斥——整批换入清空列态，进入列模式清空行表
+        private Dictionary<string, string>[] _sparseColumns;
+        // 列模式下所有已加载列的并集 key 集（HasKey/GetAllKeys/EntryCount 的口径）
+        private HashSet<string> _sparseKeySet;
+        private string _sourceId = "none";
+        private long _residentChars;
+        // 换批世代号：每次成功换入/清空自增——ReloadTexts 据此判断「快照是否真的换过」
+        private int _generation;
 
         // 覆盖层按注册顺序排列，后注册者优先；实践里同时存在的层不超过个位数，倒序直扫即可
         private readonly List<LocalizationOverlay> _overlays = new List<LocalizationOverlay>();
 
-        /// <summary>当前生效批快照（永不为 null；未加载时为 <see cref="LocalizationTextBatch.Empty"/>）。</summary>
-        public LocalizationTextBatch Batch => _batch;
+        /// <summary>当前生效批的头部视图（语言表/来源/规模；词条本体不随视图外泄）。</summary>
+        internal LocalizationBatchHeader Batch => new LocalizationBatchHeader(_languages, _sourceId, _residentChars, _rowByKey.Count);
 
-        public int EntryCount => _batch.Strings.Count;
+        /// <summary>换批世代号：每次成功换入新批或清空自增。</summary>
+        internal int Generation => _generation;
 
-        public int LanguageCount => _batch.Languages.Length;
+        public int EntryCount => _sparseColumns != null ? (_sparseKeySet?.Count ?? 0) : _rowByKey.Count;
 
-        public long ResidentChars => _batch.ResidentChars;
+        public int LanguageCount => _languages.Length;
+
+        public long ResidentChars => _residentChars;
 
         /// <summary>已登记的覆盖层数量。</summary>
         public int OverlayLayerCount => _overlays.Count;
 
         /// <summary>
-        /// 换入一批词条。
+        /// 换入一批词条：校验通过后把批矩阵转写为扁平行表，批对象本体随即释放给 GC。
         /// </summary>
         /// <param name="batch">待换入的批。</param>
         /// <param name="rejectedKey">失配的首个词条 key（成功时为 null）。</param>
@@ -42,33 +79,92 @@ namespace Moirai.Atropos.Localization
             rejectedKey = null;
             if (batch == null || batch.Languages.Length == 0 || batch.Strings.Count == 0) return false;
 
+            var languageCount = batch.Languages.Length;
             foreach (var pair in batch.Strings)
             {
                 var columns = pair.Value;
-                if (columns != null && columns.Count == batch.Languages.Length) continue;
+                if (columns != null && columns.Count == languageCount) continue;
 
                 rejectedKey = pair.Key;
                 return false;
             }
 
-            _batch = batch;
+            var rowByKey = new Dictionary<string, int>(batch.Strings.Count, StringComparer.Ordinal);
+            var cells = new string[batch.Strings.Count * languageCount];
+            var row = 0;
+            foreach (var pair in batch.Strings)
+            {
+                rowByKey.Add(pair.Key, row);
+                var columns = pair.Value;
+                var baseIndex = row * languageCount;
+                for (var i = 0; i < languageCount; i++)
+                {
+                    cells[baseIndex + i] = columns[i];
+                }
+
+                row++;
+            }
+
+            _languages = batch.Languages;
+            _rowByKey = rowByKey;
+            _cells = cells;
+            _sparseColumns = null;
+            _sparseKeySet = null;
+            _sourceId = batch.SourceId ?? "unknown";
+            _residentChars = batch.ResidentChars;
+            _generation++;
             return true;
         }
 
         /// <summary>清空到未加载态（关服时调用）。</summary>
         public void Clear()
         {
-            _batch = LocalizationTextBatch.Empty;
+            ClearData();
             _overlays.Clear();
         }
 
-        public bool HasKey(string key) => !string.IsNullOrEmpty(key) && _batch.Strings.ContainsKey(key);
+        /// <summary>
+        /// 仅清空词条数据（保留覆盖层）——按语言列整轮重载用；
+        /// 覆盖层契约独立于词条批，换批/换列都不得顺带抹掉运营热改。
+        /// </summary>
+        public void ClearData()
+        {
+            _languages = Array.Empty<Language>();
+            _rowByKey.Clear();
+            _cells = Array.Empty<string>();
+            _sparseColumns = null;
+            _sparseKeySet = null;
+            _sourceId = "none";
+            _residentChars = 0;
+            _generation++;
+        }
+
+        public bool HasKey(string key)
+        {
+            if (string.IsNullOrEmpty(key)) return false;
+
+            return _sparseKeySet != null ? _sparseKeySet.Contains(key) : _rowByKey.ContainsKey(key);
+        }
+
+        /// <summary>取全部词条 key 的新列表（诊断/工具用，逐次分配；列模式下为已加载列的并集）。</summary>
+        public List<string> GetAllKeys()
+        {
+            if (_sparseKeySet != null) return new List<string>(_sparseKeySet);
+
+            var keys = new List<string>(_rowByKey.Count);
+            foreach (var key in _rowByKey.Keys)
+            {
+                keys.Add(key);
+            }
+
+            return keys;
+        }
 
         public int IndexOf(Language language)
         {
             if (language == null) return -1;
 
-            var languages = _batch.Languages;
+            var languages = _languages;
             for (var i = 0; i < languages.Length; i++)
             {
                 if (languages[i] == language) return i;
@@ -77,7 +173,73 @@ namespace Moirai.Atropos.Localization
             return -1;
         }
 
-        public Language LanguageAt(int index) => _batch.Languages[index];
+        public Language LanguageAt(int index) => _languages[index];
+
+        #region 按语言列模式 [SPARSE COLUMNS]
+
+        /// <summary>当前是否处于按语言列模式（处理器声明 <c>SupportsPerLanguageLoad</c> 后进入）。</summary>
+        public bool IsSparse => _sparseColumns != null;
+
+        /// <summary>
+        /// 进入按语言列模式：语言头就位，全部列标记为未加载。
+        /// <para>若此前是整批行表，行表一并丢弃——两种存储形态互斥。</para>
+        /// </summary>
+        public void BeginSparse(Language[] languages)
+        {
+            _languages = languages ?? Array.Empty<Language>();
+            _sparseColumns = new Dictionary<string, string>[_languages.Length];
+            _sparseKeySet = new HashSet<string>(StringComparer.Ordinal);
+            _rowByKey.Clear();
+            _cells = Array.Empty<string>();
+            _residentChars = 0;
+            _generation++;
+        }
+
+        /// <summary>丢弃全部已加载列（保留语言头与覆盖层）——按语言列整轮重载用。</summary>
+        public void ClearSparseColumns()
+        {
+            if (_sparseColumns == null) return;
+
+            for (var i = 0; i < _sparseColumns.Length; i++)
+            {
+                _sparseColumns[i] = null;
+            }
+
+            _sparseKeySet.Clear();
+            _residentChars = 0;
+            _generation++;
+        }
+
+        /// <summary>指定语言的列是否已加载（含「已加载的空列」语义）。</summary>
+        public bool IsColumnLoaded(int languageIndex)
+        {
+            return _sparseColumns != null
+                   && languageIndex >= 0 && languageIndex < _sparseColumns.Length
+                   && _sparseColumns[languageIndex] != null;
+        }
+
+        /// <summary>
+        /// 换入一种语言的列（null 列视为「已加载的空列」：语言在头内但暂无任何词条）。
+        /// </summary>
+        public void ApplyColumn(int languageIndex, Dictionary<string, string> column)
+        {
+            if (_sparseColumns == null || languageIndex < 0 || languageIndex >= _sparseColumns.Length) return;
+
+            column ??= new Dictionary<string, string>(0, StringComparer.Ordinal);
+            _sparseColumns[languageIndex] = column;
+
+            long added = 0;
+            foreach (var pair in column)
+            {
+                _sparseKeySet.Add(pair.Key);
+                added += pair.Value?.Length ?? 0;
+            }
+
+            _residentChars += added;
+            _generation++;
+        }
+
+        #endregion
 
         /// <summary>
         /// 按「覆盖层 → 指定语言 → 回退链」取原始译文；全部缺译时返回 <c>null</c>（由调用方决定是否露 key）。
@@ -96,21 +258,39 @@ namespace Moirai.Atropos.Localization
             var text = TryOverlay(language, key);
             if (text != null) return text;
 
-            if (!_batch.Strings.TryGetValue(key, out var columns)) return null;
+            var row = -1;
+            if (_sparseColumns == null && !_rowByKey.TryGetValue(key, out row)) return null;
 
-            text = Select(columns, languageIndex);
+            text = Lookup(key, row, languageIndex);
             if (text != null) return text;
 
             if (fallbackIndices == null) return null;
 
             for (var i = 0; i < fallbackIndices.Count; i++)
             {
-                var fallbackLanguage = fallbackLanguages != null && i < fallbackLanguages.Count ? fallbackLanguages[i] : null;
-                text = TryOverlay(fallbackLanguage, key) ?? Select(columns, fallbackIndices[i]);
+                text = TryOverlay(fallbackLanguages != null && i < fallbackLanguages.Count ? fallbackLanguages[i] : null, key)
+                       ?? Lookup(key, row, fallbackIndices[i]);
                 if (text != null) return text;
             }
 
             return null;
+        }
+
+        /// <summary>按列下标取译文（两种存储形态的统一入口；列未加载/越界/空值一律 <c>null</c>）。</summary>
+        private string Lookup(string key, int row, int languageIndex)
+        {
+            return _sparseColumns != null ? SelectSparse(key, languageIndex) : Select(row, languageIndex);
+        }
+
+        /// <summary>列模式取译文：列未加载、key 缺失、空/仅空白一律返回 <c>null</c>。</summary>
+        private string SelectSparse(string key, int languageIndex)
+        {
+            if (_sparseColumns == null || languageIndex < 0 || languageIndex >= _sparseColumns.Length) return null;
+
+            var column = _sparseColumns[languageIndex];
+            if (column == null || !column.TryGetValue(key, out var text)) return null;
+
+            return string.IsNullOrWhiteSpace(text) ? null : text;
         }
 
         private string TryOverlay(Language language, string key)
@@ -123,12 +303,13 @@ namespace Moirai.Atropos.Localization
             return null;
         }
 
-        /// <summary>取指定下标的译文；越界或为空/仅空白时视为缺译，返回 <c>null</c>。</summary>
-        private static string Select(List<string> columns, int index)
+        /// <summary>取指定行/列的译文；越界或为空/仅空白时视为缺译，返回 <c>null</c>。</summary>
+        private string Select(int row, int column)
         {
-            if (columns == null || (uint)index >= (uint)columns.Count) return null;
+            if (column < 0) return null;
 
-            var text = columns[index];
+            var index = row * _languages.Length + column;
+            var text = _cells[index];
             return string.IsNullOrWhiteSpace(text) ? null : text;
         }
 

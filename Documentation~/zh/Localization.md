@@ -138,7 +138,7 @@ IEnumerator routine = translator.TranslateAsync(request,
 - 编辑器非运行模式下 `TextLocalizer.ChangeID` / `ImageLocalizer.ChangeID` 直接返回 `false`（Timeline 预览待实现）；`LocalizationService.Localize` 在非运行模式走编辑器预览直读，取不到预览数据时才原样返回
 - 数据未就绪（表未加载完）时，各 Localizer **静默推迟注入**——不按缺译刷错误日志；首次加载成功触发的语言切换会把全部已注册本地化器重注入一遍。可用 `LocalizationService.IsDataLoaded`（不触发加载）区分「未就绪」与「真缺失」
 - `ImageLocalizer` / `AudioLocalizer` 的数组是按语言索引注入的，配表新增语言后需同步补齐数组元素
-- 全部语言列常驻内存。是否到了必须按语言拆包的程度不要凭感觉：看游戏内调试器 `Profiler/Localization` 的「数据规模」一栏（词条数、语言数、译文总字符数即常驻下限），或读 `LocalizationService.EntryCount` / `LoadedLanguageCount` / `ResidentChars`
+- 默认整批加载、全部语言列常驻内存（词条在存储层为行表 + 扁平数组，比「每词条一个 List」省下一半容器对象）。要降到「语言头 + 当前列 + 回退列」常驻，自定义处理器实现 `SupportsPerLanguageLoad` 三件套即可，触发时机凭 `ResidentChars` 量化判断（游戏内调试器 `Profiler/Localization` 的「数据规模」），别凭感觉
 
 ## 运行时覆盖（热改文案）
 
@@ -172,6 +172,65 @@ LocalizationService.ClearMissingKeys();                    // 巡检回合之间
 - 回退链命中的不算缺译（最终有译文显示）
 - 记录容量上限 256 个去重 key：超上限后事件计数照走、逐 key 记录与告警停摆（防异常配置刷爆内存与日志），并告警一次
 - 记录不跨服务关闭存活；游戏内调试器 `Profiler/Localization` 的「MISSING KEYS」区实时可见
+
+## 异步预加载
+
+启动期推荐先 `await LocalizationService.PreloadAsync()`——把「首查询承担整表展开」挪到可等待的启动窗口：
+
+```csharp
+// 启动流程早期（如 ProcedurePreload）
+await LocalizationService.PreloadAsync();
+```
+
+- 幂等 + 在途去重：并发调用共享同一任务；已加载立即完成
+- 在途期间同步查询按「未就绪」降级（返回 ID 原文、不计缺译、不重复取源），完成后自动重注入全部本地化器
+- 默认实现让出一帧后走同步批；大数据源（远程词库等）自定义处理器覆写 `LoadLocalizedTextBatchAsync` 即得道真异步
+- 加载在途时服务关服，未完成的结果会被丢弃，不会写进下一次会话
+
+## 按语言列加载（可选契约）
+
+整批常驻对绝大多数项目够用。词条量级到了按列常驻更合理时（`ResidentChars` 量化判据），自定义处理器声明三件套即启用：
+
+```csharp
+public sealed class RemoteLocalizationHandler : LocalizationServiceHandler
+{
+    protected override bool SupportsPerLanguageLoad => true;
+    protected override IReadOnlyList<Language> LoadLanguageHeader() => ...;          // 语言头（可用语言与列序）
+    protected override Dictionary<string, string> LoadLanguageColumn(Language language) => ...; // key → 译文
+}
+```
+
+- 常驻 = 语言头 + 当前语言列 + 回退链列；切换语言按需装载目标列——目标列取不到源**拒绝切换并保持当前语言**
+- 空列（语言在头内但暂无词条）只装载一次；返回 `null` 视为可重试的缺源
+- `GetDictionaryFromId` 会按需装齐全列（「全语言」语义的必要代价，热路径请勿使用）；`ReloadTexts` 重取语言头与列缓存，覆盖层不清空
+- 批（整列拒载）与列（缺列保当前）的损坏语义一致：宁可停在旧可用状态，不把坏数据混进运行态
+
+## RTL 与按语言字体
+
+- `Language.IsRightToLeft` 按 Code 识别阿拉伯语族（ar/fa/ur）与希伯来语（he）；外观 `LocalizationService.IsCurrentLanguageRightToLeft` 读取当前语言方向。`TextLocalizer` 在目标为 TMP 时自动把该值写入 `isRightToLeftText`
+- `TextLocalizer` 两个可选数组按「当前语言列下标」换字体：`m_TmpFontAssets`（TMP_FontAsset[]）与 `m_UguiFonts`（Font[]）——与 `ImageLocalizer`/`AudioLocalizer` 数组同一约定，越界或空元素保持原字体
+- UGUI Text 与 TextMesh 无 RTL 排版能力（只有 TMP 这条路）
+
+## 复数词条（CLDR cardinal）
+
+```csharp
+// 表内：quest.items#one / quest.items#few / quest.items#other（按语言配需要的形态）
+string text = LocalizationService.GetPluralTextFromId("quest.items", count);
+string detail = LocalizationService.GetPluralTextFromId("quest.items", count, playerName); // {0}=数量 {1}=playerName
+```
+
+- 词条约定：基础 ID + 类别后缀 `id#zero|one|two|few|many|other`，回落 `id#other` → 裸 key；全链落空按基础 key 计入缺译巡检
+- 规则内置：中/日/韩/越/泰/印尼无形态，英/德/西/意/荷/葡/挪/瑞/丹/芬/希/两形态（one 当且仅当 n==1），法/印地/波斯/阿塞拜疆 0..1 为 one，斯拉夫族（ru/uk/be/hr/bs/sr）、波兰、捷克/斯洛伐克、犹太（he）、罗马尼亚、立陶宛、拉脱维亚、阿拉伯六形态；未收录语言一律「仅 other」
+- 占位符约定：`{0}` 自动放数量，调用方参数从 `{1}` 起；格式化文化跟随当前语言
+
+## 构建期渠道默认语言
+
+多渠道出包各带默认语言（首启未改语言的玩家落在渠道语言）：
+
+- 检测链顺序：命令行 → 编辑器语言 → 本地存档 → **烘焙渠道语言** → 系统语言；玩家改过语言后存档仍优先
+- CI：出包参数加 `localizationLanguage=xx`（如 `-CustomArgs:platform=Android;localizationLanguage=en`），构建钩子自动烘焙 `Assets/Resources/LocalizationBuildConfig.asset`；未给参数则不动产物
+- 手动：`Tools/Config/烘焙渠道默认语言` 窗口烘焙/清除；语言填 Name 或 Code（非法值直接抛异常不让坏值进包）
+- 仅播放器消费该资产；编辑器与 Play 预览按编辑器设置链走，不受烘焙影响
 
 ## 编辑器内预览（不进 Play）
 

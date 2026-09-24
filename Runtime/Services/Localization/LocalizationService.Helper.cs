@@ -9,10 +9,10 @@ namespace Moirai.Atropos.Localization
     /// <summary>
     /// 默认本地化辅助器。
     /// </summary>
-    public partial class LocalizationService
+    partial class LocalizationService
     {
         /// <summary>不存在时的默认语言</summary>
-        public static readonly Language defaultLanguage = Language.English;
+        public static readonly Language DefaultLanguage = Language.English;
 
         // 所有内置语言（Name / Code，忽略大小写直接命中，省掉每次查询的 ToLower 分配）
         private static readonly Dictionary<string, Language> s_AllBuildInLanguageMap =
@@ -257,7 +257,7 @@ namespace Moirai.Atropos.Localization
         /// </summary>
         /// <param name="str">语言 Name 或 Code（不区分大小写）</param>
         /// <param name="onlySupported">是否只获取当前批内收录的语言</param>
-        /// <returns>无法识别的输入、或 <paramref name="onlySupported"/> 为真且语言不在批内时为 <see cref="defaultLanguage"/></returns>
+        /// <returns>无法识别的输入、或 <paramref name="onlySupported"/> 为真且语言不在批内时为 <see cref="DefaultLanguage"/></returns>
         /// <remarks>「是否支持」的唯一真相源是已加载的语言批（全局注册表已删）：批未就绪时退化为身份解析
         /// 直接放行，可用性由切换方在加载完成后校验（<c>ChangeLanguage</c> 有一次性告警）——
         /// 不再出现"数据没加载就把 zh-Hans 静默落成默认英语"的双源歧义。</remarks>
@@ -266,10 +266,10 @@ namespace Moirai.Atropos.Localization
             // 处理边界条件：str 为空或 null
             if (string.IsNullOrEmpty(str))
             {
-                return defaultLanguage;
+                return DefaultLanguage;
             }
 
-            Language target = defaultLanguage;
+            Language target = DefaultLanguage;
             // 尝试从语言代码映射中获取语言
             if (s_AllBuildInLanguageCodeMap.TryGetValue(str, out var langFromCode))
             {
@@ -287,7 +287,7 @@ namespace Moirai.Atropos.Localization
             var handler = s_Handler;
             if (handler == null || !handler.IsDataLoaded) return target;
 
-            return handler.IsLanguageAvailable(target) ? target : defaultLanguage;
+            return handler.IsLanguageAvailable(target) ? target : DefaultLanguage;
         }
 
         #region 编辑器预览 [EDITOR PREVIEW]
@@ -320,7 +320,7 @@ namespace Moirai.Atropos.Localization
             {
                 var store = GetEditorPreviewStore();
                 var index = GetPreviewLanguageIndex(store);
-                return index < 0 ? defaultLanguage : store.Batch.Languages[index];
+                return index < 0 ? DefaultLanguage : store.Batch.Languages[index];
             }
         }
 
@@ -361,7 +361,7 @@ namespace Moirai.Atropos.Localization
                 if (preferredIndex >= 0) return preferredIndex;
             }
 #endif
-            var fallbackIndex = store.IndexOf(defaultLanguage);
+            var fallbackIndex = store.IndexOf(DefaultLanguage);
             return fallbackIndex >= 0 ? fallbackIndex : (languages.Length > 0 ? 0 : -1);
         }
 
