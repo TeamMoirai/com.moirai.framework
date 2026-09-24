@@ -131,6 +131,7 @@
 - `WaitForLoadingAsync` 的等待者计数不归还、失败原因被丢弃。
 - `LoadGameObject` / `LoadGameObjectAsync` 不防实例化期间的回收与关停。
 - `UnloadUnusedAssets` / `ForceUnloadAllAssets` 不校验包是否仍有有效清单。
+- 精灵绑定族的四个入口把资源包写死成空串（材质族早已透传），DLC 包里的精灵绑不上：`SetSprite` / `SetSubSprite` 全部 8 个重载补上末位可选 `packageName`，留空即走默认包，既有调用行为不变。
 - `RemoteService.GetRemoteUrls` 把内部字段数组直接交给调用方。
 - `ResourceOwner.ReleaseBindingsInHierarchy` 的共用缓冲被嵌套释放踩掉。
 
