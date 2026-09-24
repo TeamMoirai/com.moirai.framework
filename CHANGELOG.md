@@ -90,8 +90,6 @@
 - 子资源热路径 key 入口打包一次：`GetOrCreateSubAssetsRecordByKey` / `TryGetCachedSubAssetsRecordByKey`；loadingKey（去重）与 recordKey（SubAssetsHandle 口径）分账，不再混用。
 - 空闲容量淘汰候选表改按 `IdleExpireTick` 的最小堆，淘汰 O(log n)；每趟受害者上限保留。
 - 绑定 cache-only：`TryAcquireBindingCached` / `TryBindSpriteCached` / `Image.TrySetSprite`，未命中不进后端加载。
-- ⚠ **包管理 API 名实一致**：`RequestPackageVersionAsync` → `RequestPackageVersion`、`ClearCacheAsync` → `StartClearCache`（二者同步返回结果结构体、`Operation` 供轮询，不是 `UniTask`）。
-- 绑定 cache-only：`TryAcquireBindingCached` / `TryBindSpriteCached` / `Image.TrySetSprite`，未命中不进后端加载。
 - ⚠ **包管理 API 名实一致**：`RequestPackageVersionAsync` → `RequestPackageVersion`、`ClearCacheAsync` → `StartClearCache`（二者同步返回结果结构体、`Operation` 字段供轮询，不是 `UniTask`）；YooAsset 自身的 `package.*Async` 未动。
 - ⚠ **`EResourceLeaseOption` 从 internal 升为 public**：租约取用族签名要在程序集外被后端实现，参数类型不得再低于方法可见性。
 - 后端接缝 11 个 `internal abstract` 成员升为 `public abstract`（含 `AcquireBinding*` / `AcquireSubAssetsBindingAsync` / `AcquirePrefabSourceLease*` / `TryGetSubSpriteAsset` / `TryGetLeaseAssetId` / `SetLeaseOptions` / `ProcessResourceMaintenance` / `ReleaseAllUnusedAssetRecords` / `ForceReleaseAllAssetRecords`）：程序集外派生类第一次能真正落地后端。
