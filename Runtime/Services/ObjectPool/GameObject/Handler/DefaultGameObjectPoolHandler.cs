@@ -29,7 +29,17 @@ namespace Moirai.Atropos.ObjectPool
         #region 字段 [FIELDS]
 
         [Tooltip("池配置。为空时使用空配置（所有地址都会警告未注册）。")]
-        [SerializeField] private List<PoolEntry> m_PoolConfig = new List<PoolEntry>();
+        [SerializeField] private List<PoolEntry> m_PoolConfig = new List<PoolEntry>()
+        {
+            new PoolEntry()
+            {
+                entryName = "默认规则",
+                group = PoolEntry.DEFAULT_GROUP,
+                pattern = "Assets/AssetRaw/**",
+                policy = EPoolPolicy.Burst,
+                priority = -999,
+            }
+        };
 
         // struct 哈希表/调度器必须存于可变字段（方法直接改写字段状态），禁止 readonly。
         [NonSerialized] private PoolMaintenanceScheduler _scheduler;

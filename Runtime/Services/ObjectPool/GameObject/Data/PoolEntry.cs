@@ -68,7 +68,7 @@ namespace Moirai.Atropos.ObjectPool
         [LabelText("空池卸载Prefab")]
         public bool unloadPrefab = true;
 
-        [Tooltip("由左侧拖拽顺序自动维护，越靠上越先匹配。")]
+        [Tooltip("优先级越高越先匹配。")]
         [LabelText("优先级")]
         public int priority;
 

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Sirenix.OdinInspector;
 using UnityEngine;
 
 namespace Moirai.Atropos.ObjectPool
@@ -40,6 +41,7 @@ namespace Moirai.Atropos.ObjectPool
         /// </summary>
         /// <remarks>可涨到 hard。一有空闲且 `total > retain` 就立刻剪空闲；`retain = clamp(minIdle, 0, soft)`。在场对象不剪。</remarks>
         /// <example>适合 HUD</example>
+        [LabelText("Fixed (固定容量)")]
         Fixed = 0,
 
         /// <summary>
@@ -47,6 +49,7 @@ namespace Moirai.Atropos.ObjectPool
         /// </summary>
         /// <remarks>可涨到 hard。`total > soft` 时立刻剪空闲；未超 soft 时最老空闲超过 `idleSeconds` 再剪。</remarks>
         /// <example>适合特效 / 子弹</example>
+        [LabelText("Burst (突发容忍)")]
         Burst = 1,
 
         /// <summary>
@@ -54,6 +57,7 @@ namespace Moirai.Atropos.ObjectPool
         /// </summary>
         /// <remarks>只涨不自动剪，等 `Flush` 或 `Application.lowMemory`。</remarks>
         /// <example>适合关卡常驻</example>
+        [LabelText("Sticky (粘性保留)")]
         Sticky = 2
     }
 
