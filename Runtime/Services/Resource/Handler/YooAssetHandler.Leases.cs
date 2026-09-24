@@ -150,42 +150,42 @@ namespace Moirai.Atropos.Resource
         #region 内部 Lease 方法 [INTERNAL LEASE METHODS]
 
         /// <inheritdoc />
-        internal override bool TryGetSubSpriteAsset(ResourceLeaseHandle handle, string spriteName,
+        public override bool TryGetSubSpriteAsset(ResourceLeaseHandle handle, string spriteName,
             out Sprite sprite)
         {
             return Store.TryGetSubSpriteAsset(handle, spriteName, out sprite);
         }
 
         /// <inheritdoc />
-        internal override bool TryGetLeaseAssetId(ResourceLeaseHandle handle, out int assetId)
+        public override bool TryGetLeaseAssetId(ResourceLeaseHandle handle, out int assetId)
         {
             return Store.TryGetLeaseAssetId(handle, out assetId);
         }
 
         /// <inheritdoc />
-        internal override void SetLeaseOptions(ResourceLeaseHandle handle, EResourceLeaseOption options)
+        public override void SetLeaseOptions(ResourceLeaseHandle handle, EResourceLeaseOption options)
         {
             Store.SetLeaseOptions(handle, options);
         }
 
-        internal override ResourceLeaseHandle AcquireBinding(ResourceKey key)
+        public override ResourceLeaseHandle AcquireBinding(ResourceKey key)
         {
             return AcquireDirect(key);
         }
 
-        internal override UniTask<ResourceLeaseHandle> AcquireBindingAsync(ResourceKey key,
+        public override UniTask<ResourceLeaseHandle> AcquireBindingAsync(ResourceKey key,
             CancellationToken cancellationToken)
         {
             return AcquireDirectAsync(key, cancellationToken);
         }
 
-        internal override ResourceLeaseHandle AcquirePrefabSourceLease(string location, string packageName)
+        public override ResourceLeaseHandle AcquirePrefabSourceLease(string location, string packageName)
         {
             ResourceKey key = new ResourceKey(location, packageName, typeof(GameObject), EResourceAssetKind.Prefab);
             return AcquireDirect(key);
         }
 
-        internal override async UniTask<ResourceLeaseHandle> AcquirePrefabSourceLeaseAsync(string location,
+        public override async UniTask<ResourceLeaseHandle> AcquirePrefabSourceLeaseAsync(string location,
             string packageName, CancellationToken cancellationToken)
         {
             if (string.IsNullOrEmpty(location))

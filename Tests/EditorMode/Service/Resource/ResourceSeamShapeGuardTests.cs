@@ -13,11 +13,13 @@ namespace Service.Resource
     /// </summary>
     public sealed class ResourceSeamShapeGuardTests
     {
-        // 2026-09-23 基线：19 个抽象属性 + 47 个抽象方法；其中 11 个 internal abstract；0 个 [Obsolete]。
+        // 2026-09-24 基线：19 个抽象属性 + 47 个抽象方法；其中 0 个 internal abstract；0 个 [Obsolete]。
         // 起点 20/54=74；删 RegisteredTargetCapacity 与 TryAcquireDirect → 72；
-        // 再删遗留加载族 6 个抽象方法 → 19/47=66，且 [Obsolete] 随之清零。
+        // 再删遗留加载族 6 个抽象方法 → 19/47=66，且 [Obsolete] 随之清零；
+        // 11 个 internal abstract 升为 public abstract（EResourceLeaseOption 同步公开）→ internal=0，
+        // 程序集外后端第一次能真正派生实现。
         private const int BaselineAbstractMembers = 66;
-        private const int BaselineInternalAbstractMembers = 11;
+        private const int BaselineInternalAbstractMembers = 0;
         private const int BaselineObsoleteMembers = 0;
 
         private const BindingFlags Declared = BindingFlags.Public | BindingFlags.NonPublic |
@@ -35,9 +37,9 @@ namespace Service.Resource
 
         /// <summary>
         /// internal abstract 成员数停在基线上。
-        /// <para>这一项是"可插拔后端"名不副实的根因：抽象基类带 internal abstract 成员时，
-        /// 程序集外的派生类既看不见也落不下，接缝只能在框架内实现。收口方向是把这些成员
-        /// 移到一条 internal 的租约接缝上，届时本基线应降到 0。</para>
+        /// <para>抽象基类带 internal abstract 成员时，程序集外的派生类既看不见也落不下，接缝只能在框架内实现。
+        /// 已清零：租约接缝与维护族全部是 <c>public abstract</c>，程序集外后端可派生。再涨回来等于把
+        /// 后端实现权又收进程序集，要有理由。</para>
         /// </summary>
         [Test]
         public void Seam_InternalAbstractCount_MatchesRecordedBaseline()

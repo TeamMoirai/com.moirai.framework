@@ -487,49 +487,49 @@ namespace Moirai.Atropos.Resource
         #region 内部 Lease 方法 [INTERNAL LEASE METHODS]
 
         /// <inheritdoc />
-        internal override ResourceLeaseHandle AcquireBinding(ResourceKey key)
+        public override ResourceLeaseHandle AcquireBinding(ResourceKey key)
         {
             throw CreateNotSupported();
         }
 
         /// <inheritdoc />
-        internal override UniTask<ResourceLeaseHandle> AcquireBindingAsync(ResourceKey key, CancellationToken cancellationToken)
+        public override UniTask<ResourceLeaseHandle> AcquireBindingAsync(ResourceKey key, CancellationToken cancellationToken)
         {
             return AcquireLeaseAsync(key, EResourceLeaseKind.Binding, EResourceLeaseOption.None, cancellationToken);
         }
 
         /// <inheritdoc />
-        internal override UniTask<ResourceLeaseHandle> AcquireSubAssetsBindingAsync(string location, string packageName, EResourceLeaseOption options, CancellationToken cancellationToken)
+        public override UniTask<ResourceLeaseHandle> AcquireSubAssetsBindingAsync(string location, string packageName, EResourceLeaseOption options, CancellationToken cancellationToken)
         {
             return AcquireSubAssetsAsync(location, packageName, options, cancellationToken);
         }
 
         /// <inheritdoc />
-        internal override bool TryGetSubSpriteAsset(ResourceLeaseHandle handle, string spriteName, out Sprite sprite)
+        public override bool TryGetSubSpriteAsset(ResourceLeaseHandle handle, string spriteName, out Sprite sprite)
         {
             return Store.TryGetSubSpriteAsset(handle, spriteName, out sprite);
         }
 
         /// <inheritdoc />
-        internal override bool TryGetLeaseAssetId(ResourceLeaseHandle handle, out int assetId)
+        public override bool TryGetLeaseAssetId(ResourceLeaseHandle handle, out int assetId)
         {
             return Store.TryGetLeaseAssetId(handle, out assetId);
         }
 
         /// <inheritdoc />
-        internal override void SetLeaseOptions(ResourceLeaseHandle handle, EResourceLeaseOption options)
+        public override void SetLeaseOptions(ResourceLeaseHandle handle, EResourceLeaseOption options)
         {
             Store.SetLeaseOptions(handle, options);
         }
 
         /// <inheritdoc />
-        internal override ResourceLeaseHandle AcquirePrefabSourceLease(string location, string packageName)
+        public override ResourceLeaseHandle AcquirePrefabSourceLease(string location, string packageName)
         {
             throw CreateNotSupported();
         }
 
         /// <inheritdoc />
-        internal override UniTask<ResourceLeaseHandle> AcquirePrefabSourceLeaseAsync(string location, string packageName, CancellationToken cancellationToken)
+        public override UniTask<ResourceLeaseHandle> AcquirePrefabSourceLeaseAsync(string location, string packageName, CancellationToken cancellationToken)
         {
             return AcquireLeaseAsync(new ResourceKey(location, packageName, typeof(GameObject), EResourceAssetKind.Prefab),
                 EResourceLeaseKind.Direct, EResourceLeaseOption.None, cancellationToken);
@@ -540,7 +540,7 @@ namespace Moirai.Atropos.Resource
         #region 过期回收 [EXPIRY & RECYCLING]
 
         /// <inheritdoc />
-        internal override void ProcessResourceMaintenance(float unscaledTime, int expireBudget, int destroySweepBudget)
+        public override void ProcessResourceMaintenance(float unscaledTime, int expireBudget, int destroySweepBudget)
         {
             // 销毁态兜底回收先于预算判定，也先于内核的到期走查——与 YooAsset 侧同一口径，别调换。
             _bindingService?.ProcessDestroyedObjects(destroySweepBudget);
@@ -548,13 +548,13 @@ namespace Moirai.Atropos.Resource
         }
 
         /// <inheritdoc />
-        internal override int ReleaseAllUnusedAssetRecords()
+        public override int ReleaseAllUnusedAssetRecords()
         {
             return Store.ReleaseAllUnusedAssetRecords();
         }
 
         /// <inheritdoc />
-        internal override void ForceReleaseAllAssetRecords()
+        public override void ForceReleaseAllAssetRecords()
         {
             Store.ForceReleaseAllAssetRecords();
         }

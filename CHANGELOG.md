@@ -44,6 +44,7 @@
 
 - 同步加载同 key 在途时只接力赢家已落地的那条记录，绝不另开第二次后端加载（双句柄会双计引用，且后完成的赢家会把先落地的句柄 Dispose 掉）；仍在途则 fail-fast 返回空，调用方改用异步 API。
 - 租约热路径 key 一次打包、按 key 直查：`GetOrCreateAssetRecordByKey` / `TryGetCachedAssetRecordByKey` 跳过三条名称轴字典往返；`AcquireDirect` / 同步异步加载共用同一 packed key。
+- 后端接缝 `internal abstract` 清零：租约取用族与维护族升为 `public abstract`，`EResourceLeaseOption` 随之公开；程序集外后端可派生实现，`ResourceSeamShapeGuardTests` 基线 11→0。
 - 空闲资源记录容量上限 `IdleAssetCapacity`（默认 256），与 `IdleAssetExpireTime` 一起挡住长时间运行下的记录堆积。
 - 销毁态槽位兜底回收：`ResourceOwner` 的注销原本全押在 `OnDestroy` 上，场景卸载与关停路径上的槽位会永久占住租约。
   - 每帧查验数量由 `ResourceServiceSettings.DestroySweepBudget`（默认 64）给出。
@@ -75,6 +76,11 @@
 - Clip 缓存热路径的 CPU 预算基准 `AudioCacheBenchmark`（3 格 `[Explicit]`，与 `KernelBenchmark` 同一范式，量的是单次调用的纳秒数而不是条目数）。
 
 ### Changed
+
+#### `Resource`
+
+- ⚠ **`EResourceLeaseOption` 从 internal 升为 public**：租约取用族签名要在程序集外被后端实现，参数类型不得再低于方法可见性。
+- 后端接缝 11 个 `internal abstract` 成员升为 `public abstract`（含 `AcquireBinding*` / `AcquireSubAssetsBindingAsync` / `AcquirePrefabSourceLease*` / `TryGetSubSpriteAsset` / `TryGetLeaseAssetId` / `SetLeaseOptions` / `ProcessResourceMaintenance` / `ReleaseAllUnusedAssetRecords` / `ForceReleaseAllAssetRecords`）：程序集外派生类第一次能真正落地后端。
 
 #### `Audio`
 

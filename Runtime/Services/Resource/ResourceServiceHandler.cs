@@ -14,10 +14,8 @@ namespace Moirai.Atropos.Resource
     /// 收口之前处理器构造并驱动绑定服务、绑定服务又回调处理器的内部成员，两边都既不能单独构造也不能
     /// mock——测试只能拿一个真后端裸实例，靠它"未初始化"来凑确定性。收窄之后一条 8 成员的接缝
     /// 就能假造，且后端实现者面对的能力面第一次是可枚举的。</para>
-    /// <para>由 <see cref="ResourceServiceHandler"/> 以显式实现转发承接：其中六个成员是
-    /// <c>internal abstract</c>，而接口实现必须是 public，直接实现编不过；转发是唯一既不改它们
-    /// 的可见性、又不给接缝增加成员的做法。等记账内核落地后改由内核实现，这六个
-    /// <c>internal abstract</c> 才真正从接缝上消失。</para>
+    /// <para>八个成员在 <see cref="ResourceServiceHandler"/> 上是 <c>public abstract</c>，直接满足本接口；
+    /// 程序集外的后端只要派生处理器就能落地，不再被 <c>internal abstract</c> 锁在框架内。</para>
     /// </summary>
     internal interface IResourceLeaseSource
     {
@@ -408,67 +406,42 @@ namespace Moirai.Atropos.Resource
         /// <summary>
         /// 获取绑定资源租约。
         /// </summary>
-        internal abstract ResourceLeaseHandle AcquireBinding(ResourceKey key);
+        public abstract ResourceLeaseHandle AcquireBinding(ResourceKey key);
 
         /// <summary>
         /// 异步获取绑定资源租约。
         /// </summary>
-        internal abstract UniTask<ResourceLeaseHandle> AcquireBindingAsync(ResourceKey key, CancellationToken cancellationToken);
+        public abstract UniTask<ResourceLeaseHandle> AcquireBindingAsync(ResourceKey key, CancellationToken cancellationToken);
 
         /// <summary>
         /// 异步获取子资源绑定租约。
         /// </summary>
-        internal abstract UniTask<ResourceLeaseHandle> AcquireSubAssetsBindingAsync(string location, string packageName, EResourceLeaseOption options, CancellationToken cancellationToken);
+        public abstract UniTask<ResourceLeaseHandle> AcquireSubAssetsBindingAsync(string location, string packageName, EResourceLeaseOption options, CancellationToken cancellationToken);
 
         /// <summary>
         /// 尝试从租约获取子精灵。
         /// </summary>
-        internal abstract bool TryGetSubSpriteAsset(ResourceLeaseHandle handle, string spriteName, out Sprite sprite);
+        public abstract bool TryGetSubSpriteAsset(ResourceLeaseHandle handle, string spriteName, out Sprite sprite);
 
         /// <summary>
         /// 尝试从租约获取资源 ID。
         /// </summary>
-        internal abstract bool TryGetLeaseAssetId(ResourceLeaseHandle handle, out int assetId);
+        public abstract bool TryGetLeaseAssetId(ResourceLeaseHandle handle, out int assetId);
 
         /// <summary>
         /// 设置租约选项。
         /// </summary>
-        internal abstract void SetLeaseOptions(ResourceLeaseHandle handle, EResourceLeaseOption options);
+        public abstract void SetLeaseOptions(ResourceLeaseHandle handle, EResourceLeaseOption options);
 
         /// <summary>
         /// 获取预制体源租约。
         /// </summary>
-        internal abstract ResourceLeaseHandle AcquirePrefabSourceLease(string location, string packageName);
+        public abstract ResourceLeaseHandle AcquirePrefabSourceLease(string location, string packageName);
 
         /// <summary>
         /// 异步获取预制体源租约。
         /// </summary>
-        internal abstract UniTask<ResourceLeaseHandle> AcquirePrefabSourceLeaseAsync(string location, string packageName, CancellationToken cancellationToken);
-
-
-        // ---- IResourceLeaseSource 承接 ----
-        // 六个 internal abstract 成员无法直接实现接口（接口实现必须 public），故显式转发：
-        // 可见性一字未改、接缝成员数也没涨。Release / TryGetLeaseAsset 本来就是 public，
-        // 由其抽象声明直接满足接口，不在此重复。
-
-        ResourceLeaseHandle IResourceLeaseSource.AcquireBinding(ResourceKey key) =>
-            AcquireBinding(key);
-
-        UniTask<ResourceLeaseHandle> IResourceLeaseSource.AcquireBindingAsync(ResourceKey key,
-            CancellationToken cancellationToken) => AcquireBindingAsync(key, cancellationToken);
-
-        UniTask<ResourceLeaseHandle> IResourceLeaseSource.AcquireSubAssetsBindingAsync(string location,
-            string packageName, EResourceLeaseOption options, CancellationToken cancellationToken) =>
-            AcquireSubAssetsBindingAsync(location, packageName, options, cancellationToken);
-
-        bool IResourceLeaseSource.TryGetSubSpriteAsset(ResourceLeaseHandle handle, string spriteName,
-            out Sprite sprite) => TryGetSubSpriteAsset(handle, spriteName, out sprite);
-
-        bool IResourceLeaseSource.TryGetLeaseAssetId(ResourceLeaseHandle handle, out int assetId) =>
-            TryGetLeaseAssetId(handle, out assetId);
-
-        void IResourceLeaseSource.SetLeaseOptions(ResourceLeaseHandle handle, EResourceLeaseOption options) =>
-            SetLeaseOptions(handle, options);
+        public abstract UniTask<ResourceLeaseHandle> AcquirePrefabSourceLeaseAsync(string location, string packageName, CancellationToken cancellationToken);
 
         #endregion
 
@@ -481,17 +454,17 @@ namespace Moirai.Atropos.Resource
         /// <param name="expireBudget">本轮可处理的到期记录数上限。</param>
         /// <param name="destroySweepBudget">销毁态轮转每帧查验的槽位数（所有者与绑定各一份）。
         /// 它与 <paramref name="expireBudget"/> 是两件事，分开传：合成一个预算会让到期记录多的帧饿死销毁回收。</param>
-        internal abstract void ProcessResourceMaintenance(float unscaledTime, int expireBudget, int destroySweepBudget);
+        public abstract void ProcessResourceMaintenance(float unscaledTime, int expireBudget, int destroySweepBudget);
 
         /// <summary>
         /// 释放全部未使用资源记录。
         /// </summary>
-        internal abstract int ReleaseAllUnusedAssetRecords();
+        public abstract int ReleaseAllUnusedAssetRecords();
 
         /// <summary>
         /// 强制释放全部资源记录。
         /// </summary>
-        internal abstract void ForceReleaseAllAssetRecords();
+        public abstract void ForceReleaseAllAssetRecords();
 
         #endregion
 

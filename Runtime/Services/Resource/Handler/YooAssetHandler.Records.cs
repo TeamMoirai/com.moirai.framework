@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 
 namespace Moirai.Atropos.Resource
 {
@@ -19,7 +19,7 @@ namespace Moirai.Atropos.Resource
             Store.GetAssetInfos(results, startIndex, maxCount);
 
         /// <inheritdoc />
-        internal override void ProcessResourceMaintenance(float unscaledTime, int expireBudget, int destroySweepBudget)
+        public override void ProcessResourceMaintenance(float unscaledTime, int expireBudget, int destroySweepBudget)
         {
             // 销毁态兜底回收先于预算判定，也先于内核的到期走查：没有到期记录可处理时，
             // 被销毁对象的槽位照样要收——这条顺序是这段代码存在的理由，别调换。
@@ -28,9 +28,9 @@ namespace Moirai.Atropos.Resource
         }
 
         /// <inheritdoc />
-        internal override int ReleaseAllUnusedAssetRecords() => Store.ReleaseAllUnusedAssetRecords();
+        public override int ReleaseAllUnusedAssetRecords() => Store.ReleaseAllUnusedAssetRecords();
 
         /// <inheritdoc />
-        internal override void ForceReleaseAllAssetRecords() => Store.ForceReleaseAllAssetRecords();
+        public override void ForceReleaseAllAssetRecords() => Store.ForceReleaseAllAssetRecords();
     }
 }

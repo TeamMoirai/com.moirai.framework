@@ -241,7 +241,7 @@ namespace Moirai.Atropos.Resource
 
         // 图集命中时整条路径没有任何可等的东西，却仍要为已完成的结果造一趟状态机；
         // 这条入口是 SetSubSprite 绑定的热路径，所以同步前缀剥在这里。
-        internal override UniTask<ResourceLeaseHandle> AcquireSubAssetsBindingAsync(string location,
+        public override UniTask<ResourceLeaseHandle> AcquireSubAssetsBindingAsync(string location,
             string packageName, EResourceLeaseOption options, CancellationToken cancellationToken)
         {
             if (string.IsNullOrEmpty(location))
