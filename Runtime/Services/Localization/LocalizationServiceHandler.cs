@@ -334,7 +334,7 @@ namespace Moirai.Atropos.Localization
         /// <summary>
         /// 强制重载本地化词条（配置表热更、远程词库下发后调用）。
         /// <para>不走 <see cref="EnsureLocalizedStringsLoaded"/>：它能区分「从未加载」与「已加载」，
-        /// 但分不出「旧快照还在」与「重载成功」——引用比较换入前后的批快照，
+        /// 但分不出「旧快照还在」与「重载成功」——按换批世代号比较换入前后的快照，
         /// 失败的热更才不会触发一次假的语言变更广播。</para>
         /// <para>未换入新快照时一切保持不动（旧快照、当前语言、已显示文案）；
         /// 换入后当前语言仍在批内则强制重注入并广播（语言未变但词条可能已更新），
@@ -349,7 +349,7 @@ namespace Moirai.Atropos.Localization
                 return;
             }
 
-            var previousBatch = Store.Batch;
+            var previousGeneration = Store.Generation;
             LoadLocalizedStrings();
             if (Store.LanguageCount == 0)
             {
@@ -359,7 +359,7 @@ namespace Moirai.Atropos.Localization
             }
 
             _dataLoaded = true;
-            if (ReferenceEquals(Store.Batch, previousBatch)) return;
+            if (Store.Generation == previousGeneration) return;
 
             ResolveFallbackChain();
 
@@ -912,7 +912,7 @@ namespace Moirai.Atropos.Localization
         public List<string> GetAllIds()
         {
             EnsureLocalizedStringsLoaded();
-            return Store.Batch.Strings.Keys.ToList();
+            return Store.GetAllKeys();
         }
 
         #endregion
