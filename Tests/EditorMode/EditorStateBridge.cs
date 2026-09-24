@@ -54,12 +54,17 @@ namespace Moirai.Atropos.Tests.EditorMode
         /// <summary>域重载计数器在 <c>SessionState</c> 里的键：跨域重载保留，随编辑器退出清空。</summary>
         private const string DOMAIN_SEQ_KEY = "Moirai.EditorStateBridge.DomainSeq";
 
+        /// <summary>
+        /// 本桥自己住在哪份程序集：它的 mtime 就是「当前这个域加载的是哪一版代码」的对照物。
+        /// </summary>
+        private const string LoadedAssembly = "Moirai.Atropos.Tests.EditorMode";
+
         /// <summary>调用方按「源树 → 归属程序集」比新鲜度，所以逐份给出，而不是只给一个最新值。</summary>
         private static readonly string[] TrackedAssemblies =
         {
             "Moirai.Atropos",
             "Moirai.Atropos.Editor",
-            "Moirai.Atropos.Tests.EditorMode",
+            LoadedAssembly,
             "Moirai.Atropos.Tests.PlayMode",
         };
 
@@ -111,6 +116,13 @@ namespace Moirai.Atropos.Tests.EditorMode
             /// 状态文件也已删）之后，旧域拆走时又把运行态写回了磁盘，残留文件会把空闲报成在跑。
             /// </summary>
             public int testRunActive;
+
+            /// <summary>
+            /// 本域加载时 <c>Moirai.Atropos.Tests.EditorMode.dll</c> 的 UTC 秒。与 <c>assemblies[]</c> 里同名那份
+            /// 不等 = dll 已经更新而这个域还没重载（后台 <c>AssetImportWorker</c> 代编是常态，而"没有资产改动"的
+            /// <c>Refresh</c> 不触发重载）——只比 <c>assemblies[].unix</c> 与自己的改动时刻会把旧域读成新代码。
+            /// </summary>
+            public long domainDllUnix;
             public AssemblyStamp[] assemblies;
         }
 
@@ -152,6 +164,9 @@ namespace Moirai.Atropos.Tests.EditorMode
 
         private static readonly long s_Pid = System.Diagnostics.Process.GetCurrentProcess().Id;
         private static readonly int s_DomainSeq = NextDomainSeq();
+
+        /// <summary>加载时刻取一次就够：这一版代码在整个域生命周期里不会变。</summary>
+        private static readonly long s_DomainDllUnix = AssemblyUnix(LoadedAssembly);
         private static string s_LastSignature;
         private static double s_LastSampleAt = -1d;
         private static double s_LastWriteAt = -1d;
@@ -204,6 +219,7 @@ namespace Moirai.Atropos.Tests.EditorMode
                 schema = SCHEMA,
                 pid = s_Pid,
                 domainSeq = s_DomainSeq,
+                domainDllUnix = s_DomainDllUnix,
                 unix = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
                 utc = DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture),
                 uptime = EditorApplication.timeSinceStartup,
@@ -244,24 +260,30 @@ namespace Moirai.Atropos.Tests.EditorMode
             AssemblyStamp[] stamps = new AssemblyStamp[TrackedAssemblies.Length];
             for (int i = 0; i < stamps.Length; i++)
             {
-                string path = ASSEMBLY_DIR + TrackedAssemblies[i] + ".dll";
-                long unix = 0;
-                try
+                stamps[i] = new AssemblyStamp
                 {
-                    if (File.Exists(path))
-                    {
-                        unix = new DateTimeOffset(File.GetLastWriteTimeUtc(path)).ToUnixTimeSeconds();
-                    }
-                }
-                catch (IOException)
-                {
-                    // 编译中途 dll 正被替换：留 0，下一拍再取
-                }
-
-                stamps[i] = new AssemblyStamp { name = TrackedAssemblies[i], unix = unix };
+                    name = TrackedAssemblies[i],
+                    unix = AssemblyUnix(TrackedAssemblies[i]),
+                };
             }
 
             return stamps;
+        }
+
+        /// <summary>取已编译产物的 UTC 秒；不存在为 0，编译中途正被替换也当 0（下一拍再取）。</summary>
+        private static long AssemblyUnix(string assemblyName)
+        {
+            string path = ASSEMBLY_DIR + assemblyName + ".dll";
+            try
+            {
+                return File.Exists(path)
+                    ? new DateTimeOffset(File.GetLastWriteTimeUtc(path)).ToUnixTimeSeconds()
+                    : 0;
+            }
+            catch (IOException)
+            {
+                return 0;
+            }
         }
 
         /// <summary>
@@ -289,7 +311,7 @@ namespace Moirai.Atropos.Tests.EditorMode
             }
 
             return $"{state.domainSeq}|{flags}|{state.activeScenePath}|{state.dirtyScenes}|" +
-                   $"{state.consoleErrors}|{state.consoleWarnings}|{assemblies}";
+                   $"{state.consoleErrors}|{state.consoleWarnings}|{state.domainDllUnix}|{assemblies}";
         }
 
         #endregion
@@ -349,12 +371,17 @@ namespace Moirai.Atropos.Tests.EditorMode
                         break;
                     }
 
+                    Accept(command, action, "AssetDatabase.Refresh()");
                     // Refresh 自己会起编译（磁盘上有新增/改动的 .cs 时）。此时绝不再叠一次
                     // RequestScriptCompilation——那会重入编译管线、和 Bee 抢同一份在途构建。
                     AssetDatabase.Refresh();
+                    long dllNow = AssemblyUnix(LoadedAssembly);
                     Reply(command, action, true, EditorApplication.isCompiling
                         ? "已执行 AssetDatabase.Refresh()（等价 Ctrl+R），编译已随之开始，等状态文件 isCompiling 归 false"
-                        : "已执行 AssetDatabase.Refresh()（等价 Ctrl+R），未检测到需要编译的改动；要强制重编发 recompile");
+                        : dllNow != s_DomainDllUnix
+                            ? $"已执行 AssetDatabase.Refresh()（等价 Ctrl+R），本桥的 dll 已是 {dllNow} 而本域加载的是 {s_DomainDllUnix}：" +
+                              "后台代编换了 dll 但域没重载，跑的还是旧代码，要发 recompile 才会重载"
+                            : "已执行 AssetDatabase.Refresh()（等价 Ctrl+R），未检测到需要编译的改动；要强制重编发 recompile");
                     break;
                 }
 
@@ -372,6 +399,7 @@ namespace Moirai.Atropos.Tests.EditorMode
                         break;
                     }
 
+                    Accept(command, action, "CompilationPipeline.RequestScriptCompilation()");
                     CompilationPipeline.RequestScriptCompilation();
                     Reply(command, action, true,
                         "已请求强制重编译（CompilationPipeline.RequestScriptCompilation）。编译期间本桥停摆、" +
@@ -405,6 +433,17 @@ namespace Moirai.Atropos.Tests.EditorMode
 
             reason = null;
             return false;
+        }
+
+        /// <summary>
+        /// 受理回执先落一次盘，再由动作覆写成结论。<c>refresh</c>/<c>recompile</c> 有可能当场把本域拆走
+        /// （编译与域重载就是这次调用发起的），那样"动作之后"的永远不会执行——没有配对的 <c>.done</c>，
+        /// 调用方只能干等。受理回执只承诺「已接下这一单」，结论一律以状态文件为准。
+        /// </summary>
+        private static void Accept(EditorCommand command, string action, string what)
+        {
+            Reply(command, action, true,
+                $"已受理，正在执行 {what}；本域可能被这次动作当场拆走，效果以状态文件为准");
         }
 
         private static void Reply(EditorCommand command, string action, bool ok, string message)

@@ -203,7 +203,8 @@ com.moirai.framework/
 `Tests/EditorMode/EditorStateBridge.cs` 把编辑器此刻的状态每 ~1s 覆写到 `Client/Temp/MoiraiEditorState.json`：
 `pid`、`domainSeq`、`unix`（心跳 UTC 秒，与 `stat -c %Y` 同量纲）、`isCompiling` / `isUpdating` / `isPlaying` / `isPaused` /
 `isChangingPlayMode` / `isFocused` / `isActive`、`activeScenePath`、`dirtyScenes`、`consoleErrors` / `consoleWarnings`、
-`testRequestPending` / `testRunActive`（-1 探针不可用、0 空闲、1 有 run 在跑），以及 `assemblies[{name,unix}]`——
+`testRequestPending` / `testRunActive`（-1 探针不可用、0 空闲、1 有 run 在跑）、`domainDllUnix`（本域加载时
+`Moirai.Atropos.Tests.EditorMode.dll` 的 mtime），以及 `assemblies[{name,unix}]`——
 `Library/ScriptAssemblies/` 下四份 Moirai 产物的 mtime。`testRunActive` 走 `TestRunnerApi.IsRunActive()` 反射探针而不是
 看 `Temp/MoiraiTestRunState.json` 在不在：实测有一单超时收口（报告与 `.done` 都落了、状态文件也删了）之后，
 旧域拆走时又把运行态写回了磁盘，残留文件会把空闲报成在跑。
@@ -211,9 +212,15 @@ com.moirai.framework/
 - **判活**：`now - unix` 大到几秒即主线程没在跑 `update`——导入中、域重载中、被原生模态框挡住（`dirtyScenes` 大于 0 时刷新/重编译
   就可能撞上"保存场景？"对话框，本桥不代存），或者 Interaction Mode 不是 `No Throttling`（那时是走得慢而不是不动）。
   真原因去 `%LOCALAPPDATA%/Unity/Editor/Editor.log` 取。
+- **心跳陈旧时整份快照都作废**：里的位是"进阻塞之前"的读数，实测编辑器已经 `Compiling Scripts (busy for 09:51)`
+  （进程 CPU 几乎为 0、日志不涨＝编译在等待而非在跑）时，快照里仍是 `isCompiling: false`——把它读成"没在编译"就反了。
+  这时唯一可信的是 `unix` 与 `domainSeq` 本身，外加窗口标题/日志这类外部信号。
 - **判新域**：`domainSeq` 递增就是域重载真发生过（`SessionState` 计数：跨域保留、随编辑器退出清空，配 `pid` 可区分重载与重启）。
 - **判新鲜度**：逐源树比它归属的那份 `assemblies[].unix` 有没有越过自己的改动时刻（`Runtime/**` → `Moirai.Atropos`、
-  `Tests/EditorMode/**` → `.Tests.EditorMode`），别一律比测试 dll。`consoleErrors` 是 Console 当前条数
+  `Tests/EditorMode/**` → `.Tests.EditorMode`），别一律比测试 dll。还要比 `assemblies[]` 与 `domainDllUnix`：
+  **不相等就是"dll 已被后台代编换掉、而这个域还没重载"**，此时跑的还是旧代码——只比 `assemblies[].unix` 和自己的
+  改动时刻会把这种状态误判成"已进判据"（实测踩过：dll 14:35:30 出炉、域停在 seq=5，而"无资产改动"的 `refresh`
+  不会触发重载，得发 `recompile`）。`consoleErrors` 是 Console 当前条数
   （实测一轮重编译会把它清归零），刷新后 dll 没越过改动时刻且它有增量 = 编译失败；错误正文本桥不代报，仍去 `Editor.log`。
   磁盘上没东西可编时 Bee 不重写 dll，"dll 没变新"单独不构成失败判据。
 - **动作**：往 `Client/Temp/MoiraiEditorCommand.json` 投单（同样**必须**先写临时名再 `mv` 原子改名），
@@ -224,6 +231,8 @@ com.moirai.framework/
 - **回执**：`Temp/MoiraiEditorCommand.result.json` 配 `.done`（内容是请求 `id`）。回执只答「命令有没有被执行」，
   效果一律回状态文件读——包括 `focus` 之后 `isActive` 到底变了没有。**只认与本次 `id` 配对的 `.done`**：
   命令在编译期间会排在下一拍才消费，直接读回执文件会读到上一单的。
+  `refresh`/`recompile` 的回执会写两遍——受理一遍、结论覆写一遍：动作本身可能就当场把本域拆走（编译与域重载就是这次调用发起的），
+  先不落地这一单就永远没有配对回执了。读到"已受理"停在原地，是动作已发出、本域被拆走的正常形态，去看状态文件。
 - **投测试单前**：`testRunActive` 为 0 且 `isCompiling`/`isUpdating`/`isChangingPlayMode` 皆 false 才是接单窗口
   （与测试桥自己的接单门同源）；这个编辑器是共享的，别的会话随时可能占住它。
 - 桥与测试桥同住在测试程序集（`UNITY_INCLUDE_TESTS` 门控），关掉 Test Tools 包就没有心跳。**心跳只在桥进域之后才有**：
