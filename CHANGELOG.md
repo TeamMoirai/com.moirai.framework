@@ -57,6 +57,7 @@
 
 - `HandlerHost` 生成器多发无损换入接缝 `Internal_PeekHandler()` / `Internal_UseHandler(next)`：测试换入换出处理器不再反射私有字段，框架成员也不为此放宽访问级别。
 - `Tests/EditorMode/TestRequestRunner.cs` 让开着的编辑器自己跑 Test Runner（跨域重载续跑、请求先改名后读取、作业句柄判活与取消）。
+- `Tests/EditorMode/EditorStateBridge.cs` 把编辑器状态每 ~1s 落盘 `Temp/MoiraiEditorState.json`（心跳、域重载序号、编译/导入/播放态、前台与否、脏场景数、Console 错误数、四份产物的 mtime），并收 `Temp/MoiraiEditorCommand.json` 的 `focus` / `refresh` / `recompile`：让"要不要重编、域新不新"由状态判定，而不是喊人按 `Ctrl+R`。
 - 玩家专用测试程序集 `Moirai.Atropos.Tests.Player` 承载热路径 0-GC 验收：音频之后，绑定层也搬了进去（`ResourceBindingAllocationTests` 4 格：稳态重绑、空闲轮转扫描、诊断读表、注销+重登记往返）。
   - 编辑器套件里不再出现这几格：托管分配计数器在编辑器 Mono 下不推进，零分配断言在那里无条件成立，加它等于往套件里放一个恒绿的假阳性。
 - 真实设置资产的回归门禁 `ResourceSettingsAssetRegressionTests`（3 格）：读的是工程里那份 `ResourceServiceSettings.asset`，不是测试自造的实例。
