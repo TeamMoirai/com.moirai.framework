@@ -52,7 +52,9 @@ namespace Service.Save
         /// </summary>
         private static void ExpectWarningLogForUtf()
         {
+#if UNITY_LOGGING_INSTALLED
             if (LogUtility.Handler is not UnityLoggingHandler)
+#endif
             {
                 LogAssert.Expect(LogType.Warning, new Regex(".*"));
             }
