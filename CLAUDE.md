@@ -128,6 +128,140 @@ com.moirai.framework/
 
 **冲突怎么判**：DotSettings 与代码打架时以 DotSettings 为准（它是门禁，也是评审依据）；表里没写、仓内已成词汇的那一档（`Handler`/`Bridge`/`Registry`/`Support`）按仓库现状走。两类冲突都不许用 `// ReSharper disable` 或规则抑制绕过——要改先改规则，再改代码。
 
+## 测试规范
+
+完整规范见 [`Documentation~/zh/Testing.md`](Documentation~/zh/Testing.md)（英文对照 [`en/Testing.md`](Documentation~/en/Testing.md)）。以下是必须遵守的硬约束清单。
+
+### 分层与归属
+
+| 层 | 程序集 | 位置 | 放什么 |
+|---|---|---|---|
+| L1 单元/契约 | `Moirai.Atropos.Tests.EditorMode` | `Tests/EditorMode/` | 纯逻辑、数据结构、状态机、契约形状、降级路径 |
+| L2 集成 | `Moirai.Atropos.Tests.PlayMode` | `Tests/PlayMode/` | 跨组件协作、真实帧驱动、场景/宿主生命周期、真实 IO |
+| L3 玩家验收 | `Moirai.Atropos.Tests.Player` | `Tests/Player/` | 0-GC 热路径、托管分配计量（编辑器测不出来） |
+| L4 基准 | 所在程序集 | 模块目录 | 必须 `[Explicit]`，不进常规套件 |
+
+能在 EditMode 判定的**必须**放 L1；不要为了"更真实"把纯逻辑塞进 PlayMode（慢、难归因、易 flaky）。
+
+### 命名与结构
+
+- 文件/类 `<被测>Tests`（`AudioClipCacheTests`）；**禁止 `XxxTest` 单数式**。
+- 夹具基座 `XxxFixture`、共享支撑 `XxxTestSupport`/`XxxTestHost`、基准 `XxxBenchmark`。
+- 用例方法 `场景_条件_期望` 三段式（`RetainRelease_CycleAllocatesZeroBytes`）。
+- 命名空间用**短名**（`Service.Audio`、`Core.MemoryPool`、`Utility`），不带 `Moirai` 根；引用框架子命名空间类型**必须 `using` 别名**（`using Res = Moirai.Atropos.Resource;`），禁止裸限定名（会撞全局命名空间或 `UnityEngine` 类型，报 CS0246/CS0426）。
+- 测试目录镜像被测目录；一个文件一个公开测试类；测试专用类型一律 `internal`。
+- **禁止在测试里创建 `[Serializable]` 框架基类的子类**（`LogHandler`/`JsonHandler`/`TweenHandler`/`XxxServiceHandler` 等）——`[SerializeReference]` 类型扫描会把它们塞进生产资产的 Inspector 下拉框。捕获日志用内置实现 + `LogUtility.OnMessageLogged`。
+- 测试/Editor/非运行时脚本的日志用 `Debug.LogXX`，不用 `LogUtility`。
+
+### 夹具与隔离
+
+- 夹具基座 `[SetUp]`：快照全局旋钮 + 复位被测对象 + **断言初始状态干净**（带上个用例的名字便于归因）。`[TearDown]`：断言无残留（未归还租约/未注销订阅）+ 清理 + **在 `finally` 里还原全部旋钮** + 收集后聚合抛出多个异常（不吞）。
+- EditMode 与 PlayMode 的生命周期差异是高频坑：非 `[ExecuteInEditMode]` 组件的 `Awake`/`OnDestroy` **不执行**（含活跃物体 `AddComponent`）；`DontDestroyOnLoad` **抛 `InvalidOperationException`**；`Time.frameCount` **不推进**。相应地——运行期靠 `Awake` 注册的管线必须有 `EnsureActivated` 幂等兜底；`DontDestroyOnLoad` 调用点必须有 `Application.isPlaying` 守卫；EditMode 跨帧逻辑自带帧号游标 `Tick(++Frame)`。
+- 主线程敏感探针（托管分配计量、Unity API 时序、`ProfilerRecorder`）必须用 `[UnityTest]` + `IEnumerator` 逐帧驱动——`async Task` 的续体在线程池线程，结论全部无效。
+
+### 确定性
+
+- 禁真实墙钟（`Thread.Sleep`、`Task.Delay` 做时序断言、`DateTime.Now` 做判据）；时间必须**注入**（计时器用例自带帧号游标 + `Advance(delta)`）。
+- 随机必须定种；禁跨用例共享可变静态；禁依赖用例执行顺序（单跑绿与整套绿必须同时成立）。
+- `Assert.ThrowsAsync<T>` 对 async lambda 会因 `TaskCanceledException` 精确类型不匹配而失败——用 `task.GetAwaiter().GetResult()`。
+- 异常断言沿 `InnerException`/`AggregateException` 链判定；`SaveResult<T>` 等值类型结果先取 `.Error` 字段再断言。
+- flaky 处置：隔离重跑 → `git diff` 排除并行改动 → 修。**禁止用 `Assert.Ignore` 掩盖**（Ignore 只留给能力探测失败这类环境性原因，且须注释说明探测的能力与恢复条件）。
+
+### 反射政策
+
+`Runtime/AssemblyInfo.cs` 已对 `Moirai.Atropos.Editor` 与三个测试程序集开 `InternalsVisibleTo`，所以**需要触达的成员把 `private` 改 `internal`，不要用反射**——反射把字段名变成测试依赖，改名不报编译错、只在运行期 `GetField` 返回 null 后 NRE。序列化字段改 `internal` 不影响 Unity 序列化，前缀仍走 `m_`/`s_`/`_` 私有家族口径。
+
+白名单（必须能归入其一，且在文件头写明理由）：
+
+1. 契约形状守卫（`ResourceSeamShapeGuardTests`、`ResourceMethodSetContractTests`、`YooAssetHandlerSmokeTests.RuntimeArrayFields_AreNonSerialized`）；
+2. 唤起 Unity 生命周期回调（`Awake`/`OnEnable`/`OnInit`）；
+3. 产码字段探针（`MemoryPoolFixture.StaticField`）。
+
+### 日志断言
+
+`LogUtility` 的 Handler 可插拔：`DefaultLogHandler`/`ZLoggerHandler` 对 UTF 可见（须 `LogAssert.Expect`），`UnityLoggingHandler` **不可见**（声明 Expect 反报 "Expected log did not appear"）。
+
+- 内容断言一律走 `LogUtility.OnMessageLogged`（Handler 无关，唯一稳定通道）。
+- `LogAssert.Expect` 的正则一律 `".*"`，只承担消除未处理日志的职责，不耦合 Handler 的渲染前缀。
+- 按 Handler 分支**用黑名单** `LogUtility.Handler is not UnityLoggingHandler`；禁用 `is DefaultLogHandler` 白名单（第三种 Handler 会漏网）。
+
+### 基准
+
+- 一律 `[Explicit]`，不进常规套件；命名 `XxxBenchmark`。
+- 性能结论必须同工具同数据 before/after A/B；编辑器 Mono 基准 ±2× 噪声，只做同轮内比较。
+- 非 NUnit 的手动基准（`TimerServiceBenchmark`，MonoBehaviour + 菜单驱动）必须明确标注为非自动基准。
+
+### 契约守卫维护（强制）
+
+把 API 形状钉成基线常数的用例（`ResourceSeamShapeGuardTests` 等）**必须有人维护，否则退化成常年红**——那时它既不防回归，还掩盖真缺陷：
+
+1. API 有意变更时**同一提交内**同步基线常数，不留到"下次一起改"。
+2. 基线注释写清数字来源（`2026-09-24 基线：19 个抽象属性 + 47 个抽象方法；……`）。
+3. `CHANGELOG.md` 写明收掉了哪些成员（常数是"现在的形状"，CHANGELOG 是"为什么变成这样"）。
+4. 守卫红了必须判断「有意变更（同步基线）」还是「意外收敛（修代码）」；**不允许直接改常数让它变绿**。
+
+### 覆盖率与出口准则
+
+工具 `com.unity.testtools.codecoverage`；assemblyFilters `+Moirai.Atropos`，排除 `Moirai.Atropos.Editor`/`Moirai.Atropos.Tests.*`/生成代码；报告落盘 `Tests/Coverage/`。
+
+| 档 | 范围 | 行覆盖 | 分支覆盖 |
+|---|---|---|---|
+| 核心服务 | Resource/Save/Audio/UI/Kernel | ≥ 80% | ≥ 70% |
+| 其余服务 | ConfigTable/Debugger/Input/Localization/ObjectPool/Procedure/Scene/Timer | ≥ 70% | — |
+| Editor 工具与生成代码 | `Moirai.Atropos.Editor`、SourceGenerators | ≥ 50% | — |
+
+覆盖率是**找空洞的工具，不是质量指标**；评审用例看断言强度，不看百分比。新代码不得让所在模块覆盖率下降。
+
+**发布出口五门**（缺一不可）：编译 0 error → L1 全量 0 失败 → L2 全量 0 失败 → L3 `Run all in Player` 0 失败 → 覆盖率不低于分级阈值与上一版基线。**基线必须绿**——套件有红时"全绿"信号失效，必须先修红再继续开发。
+
+## AI 测试流程
+
+面向代理的执行流程；规范全文见 [`Documentation~/zh/Testing.md`](Documentation~/zh/Testing.md)。
+
+### 1. 何时必须写测试
+
+**必须**：新增或修改框架对外契约（服务外观、Handler 契约、公共 API 语义）；修 bug（先构造可复现失败用例）；性能承诺（0-GC/帧预算）；状态机与生命周期；序列化/迁移/编解码。
+
+**不必**：纯注释与文档改动；无行为变化的内部重命名；`Editor` 下一次性的手动工具脚本（除非含可复现的纯函数逻辑）。
+
+### 2. 写作顺序（不许跳步）
+
+1. **读被测**：读实现与相邻用例，弄清契约与既有夹具基座；确认要断的是**行为**而非实现。
+2. **选层**：按上表选 L1/L2/L3/L4；能在 EditMode 判定就 L1。
+3. **先写失败用例**：新增用例必须**先红后绿**——先跑一次确认它真的能失败（否则它可能什么都没断），再改代码让它变绿。这是"用例有效"的唯一证据。
+4. **实现 / 修复**。
+5. **验证**：编译 0 error → 目标夹具过滤回归 → 全量回归 0 失败。
+6. **同步文档**：公共 API 变更同步 `Documentation~/zh|en`；契约守卫基线变更同步常数与 `CHANGELOG.md`。
+
+### 3. 选通道
+
+| 场景 | 通道 |
+|---|---|
+| EditMode / PlayMode 全量或过滤 | **测试桥**（`Temp/MoriaiTestRequest.json` 文件协议，见《验证：让开着的编辑器自己跑测试》） |
+| 桥不可用（编辑器刚重载、桥未进域） | `TestRunnerApi` 直跑（`exec_editor_script` + `ICallbacks` 宿主） |
+| 判编辑器是否空闲 / dll 是否新鲜 | **状态桥**（`Temp/MoriaiEditorState.json`，见《验证：编辑器状态桥》） |
+| L3 玩家验收 | **只能** Test Runner 窗口 PlayMode 页签 → `Run all in Player`；不要自己 `BuildPipeline.BuildPlayer` 搭测试玩家 |
+
+### 4. 证据纪律
+
+- **唯一 `id` + 只认配对的 `.done`**：否则会把上一轮旧报告当本轮结论。
+- **`assemblies` 与 `tests` 不能都为空**：空过滤器会重跑"上一次窗口选择集"，看似成功实则文不对题。
+- **投单前先查状态桥**：`testRunActive` 为 0 且 `isCompiling`/`isUpdating`/`isChangingPlayMode` 皆 false 才接单；编辑器是共享的，别的会话随时占住它。
+- **以落盘报告为准**：结论取自 `report.txt`（含 ABORTED 的 `collected passed/failed/skipped`），不以"工具调用返回成功"为结论。
+- **客户端超时 ≠ 失败**：`exec_editor_script`/编译管线的超时只说明编辑器忙；用状态桥心跳与 `Library/ScriptAssemblies/*.dll` 时间戳判活，**不要重复提交**（会叠加运行）。
+
+### 5. 判绿门禁
+
+**0 失败才算通过。** 新增用例必须"先红后绿"；既有失败必须归因——先 `git diff` 排除并行改动（本项目用户会与代理并行编辑，也会 rebase/amend），确认是本次引入才动手修。
+
+**不允许**：用 `Assert.Ignore` 掩盖 flaky；直接改契约守卫常数让它变绿；把"测不出"当成"没问题"（编辑器 Mono 无托管分配计量，0-GC 只能 L3 验证）。
+
+### 6. 忙碌期与域重载处置
+
+- 编辑器编译/域重载期间测试桥与状态桥都会停摆——**请求文件留着，空闲后自动消费**，不要重复投单。
+- 域重载后桥脚本可能引用旧程序集（报 CS1061/CS0117 而成员确实存在）——改用反射调用，或等一次真正的重载。
+- 收尾前确认编辑器空闲（状态桥 `unix` 心跳新鲜、`isCompiling` 为 false）。
+
 ## Claude Code Skills
 
 项目提供以下 Skills（通过 `/` 命令调用）：
