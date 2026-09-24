@@ -6,7 +6,7 @@ using Mp = Moirai.Atropos.MemoryPool;
 
 namespace Core.MemoryPool
 {
-    public class MemoryPoolTest
+    public class MemoryPoolTests
     {
         private class TestMemory : MemoryObject
         {

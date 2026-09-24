@@ -4,7 +4,7 @@ using NUnit.Framework;
 
 namespace Utility
 {
-    public class StringUtilityTest
+    public class StringUtilityTests
     {
         [SetUp]
         public void SetUp()

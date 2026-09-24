@@ -8,7 +8,7 @@ namespace DataStructure
     /// 验证 <see cref="ShuffleBag{T}"/> 的轮次契约：一轮按权重表正好覆盖一次、换手不连点、
     /// 中途 Add 不倒拨本轮、空袋不抛、Reset 重开一轮。
     /// </summary>
-    public class ShuffleBagTest
+    public class ShuffleBagTests
     {
         [Test]
         public void Pick_FirstRound_CoversEveryItemOnce()

@@ -16,7 +16,7 @@ namespace Core.Singleton
     /// 覆盖：实例物化、退出窗口、多实例消解与销毁清理。
     /// </summary>
     [TestFixture]
-    public class SingletonMonoTest
+    public class SingletonMonoTests
     {
         /// <summary>带生命周期计数的测试单例（每个用例独立清理静态状态）。</summary>
         private class TestSingletonMono : SingletonMono<TestSingletonMono>

@@ -10,7 +10,7 @@ namespace Utility
     /// 位数区间不再有空集死循环、long 版不越界且上下界口径与 int 版一致、
     /// 每次 new Random 的老路子不会在同一 tick 里给出同一个数。
     /// </summary>
-    public class AlgorithmUtilityRandomTest
+    public class AlgorithmUtilityRandomTests
     {
         private ulong _seedBefore;
 

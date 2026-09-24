@@ -7,7 +7,7 @@ namespace Utility
     /// <summary>
     /// 验证 <see cref="ConverterUtility"/> 基础类型与字节数组互转（含缓冲区偏移写入与非法参数校验）的正确性，以及像素/英寸/厘米换算在 DPI 未设置与已设置两种情形下的行为。
     /// </summary>
-    public class ConverterUtilityTest
+    public class ConverterUtilityTests
     {
         [SetUp]
         public void SetUp()

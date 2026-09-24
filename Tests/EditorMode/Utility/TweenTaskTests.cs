@@ -15,7 +15,7 @@ namespace Utility
     /// 循环模式（Restart/Yoyo/Incremental/Rewind）、延迟、销毁目标、参数校验。
     /// </summary>
     [TestFixture]
-    public class TweenTaskTest
+    public class TweenTaskTests
     {
         private GameObject _go;
         private Transform _transform;
@@ -24,7 +24,7 @@ namespace Utility
         public void SetUp()
         {
             DefaultTweenHandler.TweenTask.ResetStatics();
-            _go = new GameObject("TweenTaskTest");
+            _go = new GameObject("TweenTaskTests");
             _transform = _go.transform;
             _transform.position = Vector3.zero;
         }

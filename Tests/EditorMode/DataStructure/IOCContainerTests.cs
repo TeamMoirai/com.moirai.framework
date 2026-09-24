@@ -6,7 +6,7 @@ namespace DataStructure
     /// <summary>
     /// 验证 <see cref="IOCContainer"/> 的注册、按类型解析、覆盖注册、按实例注销与清空等依赖注入行为。
     /// </summary>
-    public class IOCContainerTest
+    public class IOCContainerTests
     {
         private interface IService { string Name { get; } }
 

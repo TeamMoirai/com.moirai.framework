@@ -7,7 +7,7 @@ namespace Utility
     /// http://robertpenner.com/easing/
     /// </summary>
     /// <remarks>未优化版本，仅作实现参考</remarks>
-    public partial class TweenEaseTest
+    public partial class TweenEaseTests
     {
         // Linear       ---------------------------------------------------------------------------------------------------------------------------
 

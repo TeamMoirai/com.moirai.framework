@@ -15,7 +15,7 @@ namespace Core.Singleton
     /// 覆盖：惰性创建、初始化契约、线程安全、Dispose 幂等性与编辑器构造守卫。
     /// </summary>
     [TestFixture]
-    public class SingletonTest
+    public class SingletonTests
     {
         /// <summary>带生命周期计数的测试单例。</summary>
         private class CountingSingleton : Singleton<CountingSingleton>

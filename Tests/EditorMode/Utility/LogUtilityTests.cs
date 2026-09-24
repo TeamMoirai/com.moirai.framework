@@ -13,7 +13,7 @@ namespace Utility
     /// <para>不创建 LogHandler 子类（避免 [SerializeReference] Inspector 下拉污染），
     /// 使用 DefaultLogHandler + OnMessageLogged 事件捕获日志条目。</para>
     /// </summary>
-    public class LogUtilityTest
+    public class LogUtilityTests
     {
         private List<(ELogLevel Level, string Message, Exception Exception)> _entries;
         private DefaultLogHandler _handler;

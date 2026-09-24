@@ -9,7 +9,7 @@ namespace Utility
     /// 验证几何随机点从 UnityEngine.Random 换到框架随机源后分布仍然正确——
     /// 圆内/球内的"均匀"靠的是半径取 sqrt(u) / cbrt(u)，漏掉这一步点会往圆心堆。
     /// </summary>
-    public class MathsUtilityRandomTest
+    public class MathsUtilityRandomTests
     {
         private ulong _seedBefore;
 

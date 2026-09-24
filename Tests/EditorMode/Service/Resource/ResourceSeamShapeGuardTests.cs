@@ -13,12 +13,15 @@ namespace Service.Resource
     /// </summary>
     public sealed class ResourceSeamShapeGuardTests
     {
-        // 2026-09-24 基线：19 个抽象属性 + 47 个抽象方法；其中 0 个 internal abstract；0 个 [Obsolete]。
+        // 2026-09-24 基线：19 个抽象属性 + 48 个抽象方法；其中 0 个 internal abstract；0 个 [Obsolete]。
         // 起点 20/54=74；删 RegisteredTargetCapacity 与 TryAcquireDirect → 72；
         // 再删遗留加载族 6 个抽象方法 → 19/47=66，且 [Obsolete] 随之清零；
         // 11 个 internal abstract 升为 public abstract（EResourceLeaseOption 同步公开）→ internal=0，
         // 程序集外后端第一次能真正派生实现。
-        private const int BaselineAbstractMembers = 66;
+        // 2026-09-24 复核 +1：绑定 cache-only 落地，新增 TryAcquireBindingCached → 19/48=67
+        // （commit bbe7dcc3「绑定 cache-only；包管理 API 名实一致」；同一提交把 InitializePackageAsync
+        //  由 UniTask<bool> 改为 UniTask<ResourcePackageInitResult>，见 ResourceMethodSetContractTests）。
+        private const int BaselineAbstractMembers = 67;
         private const int BaselineInternalAbstractMembers = 0;
         private const int BaselineObsoleteMembers = 0;
 

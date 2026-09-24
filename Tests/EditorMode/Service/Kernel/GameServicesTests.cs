@@ -15,7 +15,7 @@ namespace Service.Kernel
     /// <see cref="ServiceWorld.Initialize"/> 按依赖图拓扑统一驱动——初始化顺序与注册顺序无关。</para>
     /// </summary>
     [TestFixture]
-    public class GameServicesTest
+    public class GameServicesTests
     {
         // --- 测试用契约（必须继承 IService 以满足注册约束） ---
 

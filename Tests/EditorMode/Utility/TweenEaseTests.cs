@@ -10,7 +10,7 @@ namespace Utility
     /// 缓动函数值与 Robert Penner 参考公式（见 TweenTest.Easing.cs partial）逐点比对；
     /// 零分配契约与隐式转换语义单独覆盖。
     /// </summary>
-    public partial class TweenEaseTest
+    public partial class TweenEaseTests
     {
         private static readonly float[] k_Samples = { 0f, 0.1f, 0.25f, 0.5f, 0.75f, 0.9f, 1f };
 

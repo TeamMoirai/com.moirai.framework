@@ -9,7 +9,7 @@ namespace Utility
     /// 验证 <see cref="RandomSource"/> 的可复现性、边界、无偏性与全零自愈。
     /// 全部用固定种子，结论不随运行抖动。
     /// </summary>
-    public class RandomSourceTest
+    public class RandomSourceTests
     {
         [Test]
         public void SameSeed_ProducesIdenticalStream()

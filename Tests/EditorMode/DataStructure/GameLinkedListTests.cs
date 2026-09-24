@@ -7,7 +7,7 @@ namespace DataStructure
     /// <summary>
     /// 验证 <see cref="GameLinkedList{T}"/> 的头尾插入、节点前后插入、按值/按节点移除、查找、节点缓存复用与枚举遍历等行为。
     /// </summary>
-    public class GameLinkedListTest
+    public class GameLinkedListTests
     {
         [Test]
         public void NewList_CountIsZero()

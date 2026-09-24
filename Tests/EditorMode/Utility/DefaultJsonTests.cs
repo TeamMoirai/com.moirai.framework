@@ -5,7 +5,7 @@ using NUnit.Framework;
 
 namespace Utility
 {
-    public class DefaultJsonTest
+    public class DefaultJsonTests
     {
         #region 辅助类型 [HELPER TYPES]
 

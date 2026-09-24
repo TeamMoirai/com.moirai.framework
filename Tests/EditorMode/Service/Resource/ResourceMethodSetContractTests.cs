@@ -136,12 +136,41 @@ namespace Service.Resource
 
         #region 包初始化 [PACKAGE INITIALIZATION]
 
+        /// <summary>
+        /// 包初始化原语签名：返回操作结果对象而非布尔；包名必填，是否初始化清单可选。
+        /// <para>2026-09-24 同步（commit bbe7dcc3「包管理 API 名实一致」）：本方法原为
+        /// <c>UniTask&lt;bool&gt;</c> + 三字符串参数，实为 <see cref="ResourceService.TryInitializePackageAsync"/>
+        /// 的形状，两条 API 名实对不上。改为 <c>UniTask&lt;ResourcePackageInitResult&gt;</c> +
+        /// <c>(customPackageName, needInitManifest)</c> 后，旧签名的断言移交下方 Try 版本用例。</para>
+        /// </summary>
         [Test]
         public void InitializePackageAsync_Signature()
         {
             MethodInfo method = typeof(ResourceService).GetMethod("InitializePackageAsync", StaticPublic);
 
             Assert.IsNotNull(method, "Facade InitializePackageAsync missing.");
+            Assert.AreEqual(typeof(UniTask<ResourcePackageInitResult>), method.ReturnType,
+                "return type must be UniTask<ResourcePackageInitResult>.");
+
+            ParameterInfo[] parameters = method.GetParameters();
+            CollectionAssert.AreEqual(new[] { "customPackageName", "needInitManifest" },
+                parameters.Select(p => p.Name).ToArray());
+
+            Assert.AreEqual(typeof(string), parameters[0].ParameterType);
+            Assert.IsFalse(parameters[0].HasDefaultValue, "包名是必填参数。");
+            Assert.AreEqual(typeof(bool), parameters[1].ParameterType);
+            Assert.IsTrue(parameters[1].HasDefaultValue, "needInitManifest 必须可选。");
+        }
+
+        /// <summary>
+        /// 便捷薄壳签名：收成成败布尔；三个字符串参数（含双服务器地址）全部可选。
+        /// </summary>
+        [Test]
+        public void TryInitializePackageAsync_Signature()
+        {
+            MethodInfo method = typeof(ResourceService).GetMethod("TryInitializePackageAsync", StaticPublic);
+
+            Assert.IsNotNull(method, "Facade TryInitializePackageAsync missing.");
             Assert.AreEqual(typeof(UniTask<bool>), method.ReturnType, "return type must be UniTask<bool>.");
 
             ParameterInfo[] parameters = method.GetParameters();
@@ -152,6 +181,28 @@ namespace Service.Resource
                 parameters.Select(p => p.Name).ToArray());
         }
 
+        /// <summary>
+        /// 初始化结果对象形状：包名 + 操作句柄 + 由句柄派生的只读 <c>Succeed</c>。
+        /// </summary>
+        [Test]
+        public void ResourcePackageInitResult_Shape()
+        {
+            Type type = typeof(ResourcePackageInitResult);
+
+            FieldInfo packageName = type.GetField("PackageName");
+            Assert.IsNotNull(packageName, "PackageName 缺失。");
+            Assert.AreEqual(typeof(string), packageName.FieldType);
+
+            FieldInfo operation = type.GetField("Operation");
+            Assert.IsNotNull(operation, "Operation 缺失。");
+            Assert.AreEqual(typeof(IResourceOperation), operation.FieldType);
+
+            PropertyInfo succeed = type.GetProperty("Succeed");
+            Assert.IsNotNull(succeed, "Succeed 缺失。");
+            Assert.AreEqual(typeof(bool), succeed.PropertyType);
+            Assert.IsNull(succeed.GetSetMethod(), "Succeed 由 Operation 派生，不得可写。");
+        }
+
         [Test]
         public void InitializePackageAsync_HandlerAbstract_Exists()
         {
@@ -159,6 +210,8 @@ namespace Service.Resource
 
             Assert.IsNotNull(method, "Handler abstract InitializePackageAsync missing.");
             Assert.IsTrue(method.IsAbstract);
+            Assert.AreEqual(typeof(UniTask<ResourcePackageInitResult>), method.ReturnType,
+                "Handler 与外观的返回类型必须一致。");
         }
 
         #endregion

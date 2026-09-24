@@ -9,7 +9,7 @@ namespace Utility
     /// 验证 <see cref="RandomUtility"/> 的门面语义：可复现播种、每线程独立流、
     /// 并发取值安全、私有流不扰动全局。
     /// </summary>
-    public class RandomUtilityTest
+    public class RandomUtilityTests
     {
         private ulong _seedBefore;
 

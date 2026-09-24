@@ -7,7 +7,7 @@ namespace DataStructure
     /// <summary>
     /// 验证 <see cref="TypeNamePair"/> 的构造校验（空类型抛异常、空名称归一为空串）、相等性比较、运算符重载、哈希码与字符串表示。
     /// </summary>
-    public class TypeNamePairTest
+    public class TypeNamePairTests
     {
         [Test]
         public void Constructor_TypeOnly_NameIsEmpty()

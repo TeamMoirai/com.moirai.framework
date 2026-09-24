@@ -17,7 +17,7 @@ namespace Utility
     /// 通过内部 API（InternalsVisibleTo）直接驱动 Pump，不依赖实例生命周期。
     /// </summary>
     [TestFixture]
-    public class MainThreadDispatcherTest
+    public class MainThreadDispatcherTests
     {
         [SetUp]
         public void SetUp()

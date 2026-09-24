@@ -6,7 +6,7 @@ namespace DataStructure
     /// <summary>
     /// 验证 <see cref="GameMultiDictionary{TKey, TValue}"/> 一键多值的添加、按键/按键值对查询、单值与整体移除、清空及枚举遍历等行为。
     /// </summary>
-    public class GameMultiDictionaryTest
+    public class GameMultiDictionaryTests
     {
         [Test]
         public void NewDictionary_CountIsZero()
