@@ -66,12 +66,15 @@ namespace Service.Resource
             // [SerializeReference] 反序列化会把未标注的数组字段还原为非 null 空数组（Length=0），
             // 使判空守卫失效（曾导致过期轮询 IOOR 错误风暴）。修复为运行时数组全部 [NonSerialized]
             // + 使用点长度校验懒重建，NormalizeDeserializedArrays 已随之移除——本用例锁定该序列化边界契约。
-            AssertNonSerialized(typeof(YooAssetHandler), "_idleBuckets");
-            AssertNonSerialized(typeof(YooAssetHandler), "_keepAliveBuckets");
-            AssertNonSerialized(typeof(YooAssetHandler), "_unusedAssetCandidates");
-            AssertNonSerialized(typeof(YooAssetHandler), "_assetSlotPages");
-            AssertNonSerialized(typeof(YooAssetHandler), "_leaseSlotPages");
-            // 这座 arena 已随去重槽搬进内核，契约跟着走。
+            //
+            // 记账字段已整体搬进 ResourceRecordStore，所以这条契约现在有两处要钉：数组本身，
+            // 以及挂住整棵子树的那个引用——_store 一旦被序列化，它下面每一条数组就都回来了。
+            AssertNonSerialized(typeof(YooAssetHandler), "_store");
+            AssertNonSerialized(typeof(ResourceRecordStore), "_idleBuckets");
+            AssertNonSerialized(typeof(ResourceRecordStore), "_keepAliveBuckets");
+            AssertNonSerialized(typeof(ResourceRecordStore), "_unusedAssetCandidates");
+            AssertNonSerialized(typeof(ResourceRecordStore), "_assetSlotPages");
+            AssertNonSerialized(typeof(ResourceRecordStore), "_leaseSlotPages");
             AssertNonSerialized(typeof(ResourceRecordStore), "_loadingOperationSlotPages");
         }
 
