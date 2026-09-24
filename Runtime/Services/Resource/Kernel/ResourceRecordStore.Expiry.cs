@@ -23,6 +23,12 @@ namespace Moirai.Atropos.Resource
             _idleCapacityTrimPending = true;
         }
 
+        /// <summary>
+        /// 淘汰请求位。运行期只有 <c>ProcessResourceMaintenance</c> 读它，这里另开一个读数给测试：
+        /// "预算用尽时把请求位留回"是这条路径唯一的续跑保证，漏掉就静默停在超限状态。
+        /// </summary>
+        internal bool IdleCapacityTrimPending => _idleCapacityTrimPending;
+
         internal void TrimIdleAssetCapacity(int maxVictims)
         {
             _idleCapacityTrimPending = false;

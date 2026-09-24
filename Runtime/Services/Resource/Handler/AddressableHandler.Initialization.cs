@@ -16,7 +16,7 @@ namespace Moirai.Atropos.Resource
     /// Addressables 后端的初始化、定位与实例化面——把 YooAsset 显式建模的"包 / 清单 / 位置有效性"
     /// 落到 Addressables 的实际形态上：一个隐式目录、按 key 定位、只能异步实例化。
     /// </summary>
-    internal sealed partial class AddressableHandler
+    partial class AddressableHandler
     {
         #region 初始化 [INITIALIZATION]
 
@@ -68,6 +68,7 @@ namespace Moirai.Atropos.Resource
         }
 
         #endregion
+        
         #region 定位 [LOCATE]
 
         /// <summary>
@@ -113,6 +114,7 @@ namespace Moirai.Atropos.Resource
         }
 
         #endregion
+        
         #region 实例化 [INSTANTIATE]
 
         /// <inheritdoc />

@@ -67,6 +67,8 @@
   - 对象池异常路径
   - 时间轮时钟污染（`WheelTimerClockPoisonTests`）
   - 后端接缝形状基线（`ResourceSeamShapeGuardTests`）
+  - 空闲容量淘汰的现状（`ResourceRecordStoreIdleTrimTests`）：受害者按空闲过期刻度从旧到新挑、每趟不超预算、超限没摘完时请求位留回下一帧、被租约握着的记录不参与。
+    - 这三格只带一面假 `IResourceRecordHost` 就能直接驱动内核——记账从 `YooAssetHandler` 抽出来之后第一次成立，此前这套锁在"不初始化 YooAsset 就进不去"的位置上。
 - Clip 缓存热路径的 CPU 预算基准 `AudioCacheBenchmark`（3 格 `[Explicit]`，与 `KernelBenchmark` 同一范式，量的是单次调用的纳秒数而不是条目数）。
 
 ### Changed

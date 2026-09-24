@@ -20,7 +20,7 @@ namespace Moirai.Atropos.Resource
     /// <c>AcquirePrefabSourceLease</c> 与图集族仍按 <see cref="CreateNotSupported"/> 快速失败——
     /// 这是后端能力差，不是没写完，静默返回 Invalid 才是必须避免的假成功。</para>
     /// </summary>
-    internal sealed partial class AddressableHandler : IResourceRecordHost
+    partial class AddressableHandler : IResourceRecordHost
     {
         #region 内核接线 [KERNEL WIRING]
 
@@ -61,6 +61,7 @@ namespace Moirai.Atropos.Resource
         // 隐式即满足接口的 get 要求，多写一层只会让两处读数各说各话。
 
         #endregion
+        
         #region 句柄包装 [HANDLE WRAPPER]
 
         /// <summary>内核侧只需要"还活着吗"和"放掉"，不需要知道 Addressables 的泛型参数。</summary>
@@ -120,6 +121,7 @@ namespace Moirai.Atropos.Resource
         }
 
         #endregion
+        
         #region 异步加载 [ASYNC LOAD]
 
         private UniTask<UObject> GetOrLoadAssetAsync(string location, Type assetType,
