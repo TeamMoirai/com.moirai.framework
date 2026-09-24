@@ -95,6 +95,17 @@ namespace Moirai.Atropos.Resource
             assetType = ResourceKeyCodec.NormalizeAssetType(assetType, assetKind);
             string normalizedPackageName = NormalizePackageName(packageName);
             ulong key = GetAssetRecordKey(normalizedPackageName, location, assetType, assetKind, handleKind);
+            return GetOrCreateAssetRecordByKey(key, assetKind, handleKind, asset, assetHandle);
+        }
+
+        /// <summary>
+        /// 按已打包的 key 建/并记录——热路径专用，跳过三条名称轴的字典往返。
+        /// <paramref name="key"/> 必须来自 <see cref="GetAssetRecordKey"/> / <see cref="GetLoadingOperationKey"/>
+        /// （名称已登记），否则 <see cref="RetainResourceKey"/> 会计在不存在的 id 上。
+        /// </summary>
+        internal int GetOrCreateAssetRecordByKey(ulong key, EResourceAssetKind assetKind,
+            EResourceHandleKind handleKind, UObject asset, object assetHandle)
+        {
             if (_assetRecordsByKey.TryGetValue(key, out int existingId) && IsValidAssetId(existingId))
             {
                 ref AssetSlot existing = ref GetAssetSlotRef(existingId);
@@ -208,13 +219,23 @@ namespace Moirai.Atropos.Resource
         internal bool TryGetCachedAssetRecord(string packageName, string location, Type assetType,
             EResourceAssetKind assetKind, EResourceHandleKind handleKind, out int assetId, out UObject asset)
         {
-            assetId = -1;
-            asset = null;
             if (!TryGetResourceKey(packageName, location, assetType, assetKind, handleKind, out ulong key))
             {
+                assetId = -1;
+                asset = null;
                 return false;
             }
 
+            return TryGetCachedAssetRecordByKey(key, out assetId, out asset);
+        }
+
+        /// <summary>
+        /// 按已打包的 key 直查缓存记录——热路径专用，跳过三条名称轴的字典往返。
+        /// </summary>
+        internal bool TryGetCachedAssetRecordByKey(ulong key, out int assetId, out UObject asset)
+        {
+            assetId = -1;
+            asset = null;
             if (!_assetRecordsByKey.TryGetValue(key, out assetId) || !IsValidAssetId(assetId))
             {
                 assetId = -1;

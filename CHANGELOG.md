@@ -43,6 +43,7 @@
 #### `Resource`
 
 - 同步加载同 key 在途时只接力赢家已落地的那条记录，绝不另开第二次后端加载（双句柄会双计引用，且后完成的赢家会把先落地的句柄 Dispose 掉）；仍在途则 fail-fast 返回空，调用方改用异步 API。
+- 租约热路径 key 一次打包、按 key 直查：`GetOrCreateAssetRecordByKey` / `TryGetCachedAssetRecordByKey` 跳过三条名称轴字典往返；`AcquireDirect` / 同步异步加载共用同一 packed key。
 - 空闲资源记录容量上限 `IdleAssetCapacity`（默认 256），与 `IdleAssetExpireTime` 一起挡住长时间运行下的记录堆积。
 - 销毁态槽位兜底回收：`ResourceOwner` 的注销原本全押在 `OnDestroy` 上，场景卸载与关停路径上的槽位会永久占住租约。
   - 每帧查验数量由 `ResourceServiceSettings.DestroySweepBudget`（默认 64）给出。

@@ -24,14 +24,16 @@ namespace Moirai.Atropos.Resource
             EResourceAssetKind assetKind = ResourceKeyCodec.NormalizeAssetKind(typedKey.AssetType, typedKey.AssetKind);
             Type assetType = ResourceKeyCodec.NormalizeAssetType(typedKey.AssetType, assetKind);
 
-            UObject asset = GetOrLoadAsset(typedKey.Location, assetType, assetKind, normalizedPackageName);
+            // AssetHandle 口径下 loading key 与 record key 同一打包结果：解析一次，缓存命中 / 加载 / 取租约共用。
+            ulong recordKey = Store.GetAssetRecordKey(normalizedPackageName, typedKey.Location, assetType, assetKind,
+                EResourceHandleKind.AssetHandle);
+
+            UObject asset = GetOrLoadAsset(typedKey.Location, assetType, assetKind, normalizedPackageName, recordKey);
             if (asset == null)
             {
                 return ResourceLeaseHandle.Invalid;
             }
 
-            ulong recordKey = Store.GetAssetRecordKey(normalizedPackageName, typedKey.Location, assetType, assetKind,
-                EResourceHandleKind.AssetHandle);
             if (!Store.TryGetRecordId(recordKey, out int assetId) || !Store.IsValidAssetId(assetId))
             {
                 return ResourceLeaseHandle.Invalid;
@@ -60,9 +62,7 @@ namespace Moirai.Atropos.Resource
                 return ResourceLeaseHandle.Invalid;
             }
 
-            ulong recordKey = Store.GetAssetRecordKey(normalizedPackageName, typedKey.Location, assetType, assetKind,
-                EResourceHandleKind.AssetHandle);
-            if (!Store.TryGetRecordId(recordKey, out int assetId) || !Store.IsValidAssetId(assetId))
+            if (!Store.TryGetRecordId(loadingKey, out int assetId) || !Store.IsValidAssetId(assetId))
             {
                 return ResourceLeaseHandle.Invalid;
             }
@@ -203,9 +203,7 @@ namespace Moirai.Atropos.Resource
                 return ResourceLeaseHandle.Invalid;
             }
 
-            ulong key = Store.GetAssetRecordKey(normalizedPackageName, location, typeof(GameObject),
-                EResourceAssetKind.Prefab, EResourceHandleKind.AssetHandle);
-            if (!Store.TryGetRecordId(key, out int assetId) || !Store.IsValidAssetId(assetId))
+            if (!Store.TryGetRecordId(loadingKey, out int assetId) || !Store.IsValidAssetId(assetId))
             {
                 return ResourceLeaseHandle.Invalid;
             }
