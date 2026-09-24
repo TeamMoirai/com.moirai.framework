@@ -116,6 +116,12 @@ namespace Moirai.Atropos.Localization
         /// <summary>已登记的运行时覆盖层数量。</summary>
         public static int StringOverlayLayerCount => s_Handler?.StringOverlayLayerCount ?? 0;
 
+        /// <summary>
+        /// 本地化数据是否已加载完成（只读快照，<b>不</b>触发懒加载）。
+        /// <para>本地化器据此区分「数据未就绪」（静默推迟注入，首载成功的语言切换会重注入）与「词条真缺失」（报错）。</para>
+        /// </summary>
+        public static bool IsDataLoaded => s_Handler?.IsDataLoaded ?? false;
+
         #endregion
 
         #region 事件 [EVENTS]
@@ -357,6 +363,26 @@ namespace Moirai.Atropos.Localization
 
         /// <summary>撤掉全部覆盖层。</summary>
         public static void ClearAllStringOverlays() => s_Handler?.ClearAllStringOverlays();
+
+        #endregion
+
+        #region 缺译追踪 [MISSING TRACKING]
+
+        /// <summary>已记录的去重缺译 key 数（未就绪为 0；数据未加载期间的查询不计缺译）。</summary>
+        public static int MissingKeyCount => s_Handler?.MissingKeyCount ?? 0;
+
+        /// <summary>缺译事件总数，含同一 key 的重复命中（未就绪为 0）。</summary>
+        public static int MissingKeyEventCount => s_Handler?.MissingKeyEventCount ?? 0;
+
+        /// <summary>
+        /// 取已记录缺译 key 的有序快照（未就绪为空数组；不触发数据加载）。
+        /// </summary>
+        public static string[] GetMissingKeys() => s_Handler?.GetMissingKeys() ?? Array.Empty<string>();
+
+        /// <summary>
+        /// 清空缺译记录（QA 巡检回合之间重置；未就绪为 no-op）。
+        /// </summary>
+        public static void ClearMissingKeys() => s_Handler?.ClearMissingKeys();
 
         #endregion
     }

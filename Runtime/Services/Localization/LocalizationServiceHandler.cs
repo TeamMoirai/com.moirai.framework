@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using UnityEngine;
 
@@ -47,6 +48,17 @@ namespace Moirai.Atropos.Localization
         [NonSerialized] private int[] _fallbackIndices = Array.Empty<int>();
         // 不存在的语言只在切换时警告一次
         [NonSerialized] private HashSet<Language> _warnedUnavailableLanguages;
+        // 缺译追踪：全链（覆盖层→指定语言→回退链）都取不到译文的 key，去重记录，供 QA 巡检与调试面板展示
+        [NonSerialized] private HashSet<string> _missingKeys;
+        // 缺译事件总数（含同一 key 的重复命中）——与去重集合对照可分辨「大面积漏翻」与「高频单点漏翻」
+        [NonSerialized] private int _missingKeyEvents;
+        // 追踪集合饱和告警只打一次（饱和后计数照走，逐 key 记录与告警停摆，防异常配置刷爆内存与日志）
+        [NonSerialized] private bool _hasLoggedMissingCap;
+        // 格式化文化：跟随当前游戏语言（数字/日期分隔符与文案语言一致），语言切换时重解析；解析失败回落不变文化
+        [NonSerialized] private CultureInfo _formatCulture;
+
+        /// <summary>缺译追踪集合的最大容量。</summary>
+        private const int MAX_TRACKED_MISSING_KEYS = 256;
 
         /// <summary>
         /// 当前使用的本地化语言
@@ -146,6 +158,35 @@ namespace Moirai.Atropos.Localization
             }
         }
 
+        /// <summary>已记录的去重缺译 key 数（纯诊断读取，不触发数据加载）。</summary>
+        public int MissingKeyCount => _missingKeys?.Count ?? 0;
+
+        /// <summary>缺译事件总数，含同一 key 的重复命中（纯诊断读取，不触发数据加载）。</summary>
+        public int MissingKeyEventCount => _missingKeyEvents;
+
+        /// <summary>
+        /// 取已记录缺译 key 的有序快照（诊断用；不触发数据加载）。
+        /// </summary>
+        public string[] GetMissingKeys()
+        {
+            if (_missingKeys == null || _missingKeys.Count == 0) return Array.Empty<string>();
+
+            var keys = new string[_missingKeys.Count];
+            _missingKeys.CopyTo(keys);
+            Array.Sort(keys, StringComparer.Ordinal);
+            return keys;
+        }
+
+        /// <summary>
+        /// 清空缺译记录（QA 巡检回合之间重置）。
+        /// </summary>
+        public void ClearMissingKeys()
+        {
+            _missingKeys?.Clear();
+            _missingKeyEvents = 0;
+            _hasLoggedMissingCap = false;
+        }
+
         /// <summary>
         /// 当语言改变时调用。
         /// </summary>
@@ -170,6 +211,10 @@ namespace Moirai.Atropos.Localization
             _fallbackChain = Array.Empty<Language>();
             _fallbackIndices = Array.Empty<int>();
             _warnedUnavailableLanguages = null;
+            _missingKeys = null;
+            _missingKeyEvents = 0;
+            _hasLoggedMissingCap = false;
+            _formatCulture = null;
             _localizers.Clear();
 
             if (_subscriptions.Count > 0)
@@ -437,6 +482,7 @@ namespace Moirai.Atropos.Localization
             {
                 _currentLanguage = Store.LanguageAt(languageIndex);
                 _currentLanguageIndex = languageIndex;
+                _formatCulture = ResolveFormatCulture(_currentLanguage);
 
                 ReinjectLocalizers();
                 RaiseLanguageChanged(_currentLanguage);
@@ -576,6 +622,29 @@ namespace Moirai.Atropos.Localization
             LogUtility.Warning("Language {0} is not available.", language);
         }
 
+        /// <summary>
+        /// 当前语言的格式化文化（数字/日期等随游戏语言而非设备系统文化）。
+        /// </summary>
+        /// <remarks>SerializeReference 还原的处理器不保证跑过构造器，读取侧做不变文化兜底。</remarks>
+        internal CultureInfo FormatCulture => _formatCulture ?? CultureInfo.InvariantCulture;
+
+        /// <summary>
+        /// 按语言 Code 解析格式化文化；未知/自定义语言 Code 回落 <see cref="CultureInfo.InvariantCulture"/>。
+        /// </summary>
+        private static CultureInfo ResolveFormatCulture(Language language)
+        {
+            if (language == null) return CultureInfo.InvariantCulture;
+
+            try
+            {
+                return CultureInfo.GetCultureInfo(language.Code);
+            }
+            catch (CultureNotFoundException)
+            {
+                return CultureInfo.InvariantCulture;
+            }
+        }
+
         #endregion
 
         #region 订阅与本地化器 [SUBSCRIPTIONS & LOCALIZERS]
@@ -632,6 +701,8 @@ namespace Moirai.Atropos.Localization
         /// <summary>
         /// 根据文本 ID 获取当前语言的本地化字符串。
         /// </summary>
+        /// <remarks>格式化文化跟随当前游戏语言（<see cref="FormatCulture"/>），不随设备系统文化漂移——
+        /// 德语设备跑英语包时数字仍显示为「1.5」而非「1,5」。</remarks>
         /// <param name="id">文本 ID</param>
         /// <param name="p">Format</param>
         public string GetTextFromId(string id, params object[] p)
@@ -644,7 +715,7 @@ namespace Moirai.Atropos.Localization
 
             try
             {
-                return string.Format(text, p);
+                return string.Format(FormatCulture, text, p);
             }
             catch (FormatException)
             {
@@ -658,6 +729,8 @@ namespace Moirai.Atropos.Localization
         /// </summary>
         /// <remarks>走 <see cref="StringUtility.Format{T1}(string,T1)"/>：装了 ZString 时不装箱、不建参数数组；
         /// 未装 ZString 时退化到 <c>StringBuilder.AppendFormat</c>，那条路径仍会装箱。
+        /// 文化边界：ZString 快路径下基元数字按不变规则格式化（不随文化漂移），自定义 <see cref="IFormattable"/> 实参按其默认文化；
+        /// 需要严格跟随游戏语言文化（日期/货币/小数分隔符）时改用 <see cref="GetTextFromId(string,object[])"/>。
         /// 参数超过 4 个的文案请改用 <see cref="GetTextFromId(string,object[])"/>，并考虑把它拆成两条 ID。</remarks>
         public string GetTextFromId<T1>(string id, T1 arg1)
         {
@@ -737,6 +810,7 @@ namespace Moirai.Atropos.Localization
         /// <summary>
         /// 根据文本 ID 和指定语言获取本地化字符串。
         /// </summary>
+        /// <remarks>格式化文化跟随<em>被查询的语言</em>（而非当前语言），与译文语义一致。</remarks>
         /// <param name="id">文本 ID</param>
         /// <param name="language">要获取的语言；<c>null</c> 表示当前语言</param>
         /// <param name="p">Format</param>
@@ -744,13 +818,15 @@ namespace Moirai.Atropos.Localization
         {
             EnsureLocalizedStringsLoaded();
 
-            var text = ResolveRaw(id, language ?? _currentLanguage);
+            var effectiveLanguage = language ?? _currentLanguage;
+            var text = ResolveRaw(id, effectiveLanguage);
             if (text == null) return id;
             if (p is not { Length: > 0 }) return text;
 
+            var culture = effectiveLanguage == _currentLanguage ? FormatCulture : ResolveFormatCulture(effectiveLanguage);
             try
             {
-                return string.Format(text, p);
+                return string.Format(culture, text, p);
             }
             catch (FormatException)
             {
@@ -769,7 +845,36 @@ namespace Moirai.Atropos.Localization
 
             // 当前语言的列下标已在切换时缓存——查询热路径不再每次线性扫语言表（回退链同样是预解析下标）
             var index = language == _currentLanguage ? _currentLanguageIndex : Store.IndexOf(language);
-            return Store.Resolve(id, language, index, _fallbackChain, _fallbackIndices);
+            var text = Store.Resolve(id, language, index, _fallbackChain, _fallbackIndices);
+            // 数据未加载时整库为空，「查不到」不等于「缺译」，不记录
+            if (text == null && _dataLoaded) TrackMissingKey(id, language);
+            return text;
+        }
+
+        /// <summary>
+        /// 记录一次全链缺译：去重进集合、逐 key 告警一次；超容量后仅保留计数。
+        /// </summary>
+        private void TrackMissingKey(string id, Language language)
+        {
+            _missingKeyEvents++;
+            _missingKeys ??= new HashSet<string>();
+
+            if (!_missingKeys.Contains(id) && _missingKeys.Count >= MAX_TRACKED_MISSING_KEYS)
+            {
+                if (!_hasLoggedMissingCap)
+                {
+                    _hasLoggedMissingCap = true;
+                    LogUtility.Warning("Missing localization keys exceeded {0}; further misses are counted but no longer tracked individually.", MAX_TRACKED_MISSING_KEYS);
+                }
+
+                return;
+            }
+
+            if (_missingKeys.Add(id))
+            {
+                LogUtility.Warning("Localized text '{0}' is missing for language '{1}' (fallback chain exhausted); the key itself is displayed.",
+                    id, language != null ? language.Code : "<unresolved>");
+            }
         }
 
         private void LogFormatError(string id, string text, int argCount)

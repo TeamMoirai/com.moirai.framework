@@ -134,8 +134,9 @@ IEnumerator routine = translator.TranslateAsync(request,
 - 本地化数据为懒式初始化：服务注册期（`OnInit`）不加载任何资源，首次访问多语言 API（查询/切换）时才从配置表加载——届时 `Resource` 服务必然已就绪
 - 可用语言由配表自报：生成侧 `LubanHandler` 反射 `LocalizationBean` 的语言列，经 `ConfigTableServiceHandler.GetLocalizationLanguageCodes()` 交给框架解析（`LocalizationService.ResolveLanguages`），不存在可回落的全局语言注册表。`ChangeLanguage` 传入未收录语言时保持原语言不变并告警（每种语言只警告一次），不抛异常
 - 词条的语言列数与自报语言数不一致会被判为数据损坏：**整批数据拒载**并报错（下标错位只会表现为「显示了别的语言」，不会报错，所以宁可不加载）
-- `ToLanguage(str, onlySupported)` 中 `onlySupported` 为 `true` 时，未收录进当前批的语言会回落到默认语言 English（`LocalizationService.defaultLanguage`）；需要区分「写错了」与「就是要默认语言」时用 `TryGetBuiltInLanguage`
+- `ToLanguage(str, onlySupported)` 中 `onlySupported` 为 `true` 时，未收录进当前批的语言会回落到默认语言 English（`LocalizationService.DefaultLanguage`）；需要区分「写错了」与「就是要默认语言」时用 `TryGetBuiltInLanguage`
 - 编辑器非运行模式下 `TextLocalizer.ChangeID` / `ImageLocalizer.ChangeID` 直接返回 `false`（Timeline 预览待实现）；`LocalizationService.Localize` 在非运行模式走编辑器预览直读，取不到预览数据时才原样返回
+- 数据未就绪（表未加载完）时，各 Localizer **静默推迟注入**——不按缺译刷错误日志；首次加载成功触发的语言切换会把全部已注册本地化器重注入一遍。可用 `LocalizationService.IsDataLoaded`（不触发加载）区分「未就绪」与「真缺失」
 - `ImageLocalizer` / `AudioLocalizer` 的数组是按语言索引注入的，配表新增语言后需同步补齐数组元素
 - 全部语言列常驻内存。是否到了必须按语言拆包的程度不要凭感觉：看游戏内调试器 `Profiler/Localization` 的「数据规模」一栏（词条数、语言数、译文总字符数即常驻下限），或读 `LocalizationService.EntryCount` / `LoadedLanguageCount` / `ResidentChars`
 
@@ -156,6 +157,22 @@ LocalizationService.ClearStringOverlay("remote-ops");   // 按来源撤销，不
 - 同名 `sourceId` 即同一层，后注册的层优先；层数与来源在调试面板「数据规模」可见
 - 覆盖层**不跨服务关闭存活**，也不会被换批/重加载清空——它是叠在表数据之上的一层，不是替代品
 
+## 缺译巡检（Missing Keys）
+
+全链缺译（覆盖层 → 当前语言 → 回退链全部落空）的 key 会被逐个记录并告警一次（每个 key 一条 Warning），供 QA 巡检与线上漏翻排查：
+
+```csharp
+int distinct = LocalizationService.MissingKeyCount;        // 去重后的缺译 key 数
+int events   = LocalizationService.MissingKeyEventCount;   // 缺译事件总数（含同一 key 重复命中）
+string[] keys = LocalizationService.GetMissingKeys();      // 有序快照
+LocalizationService.ClearMissingKeys();                    // 巡检回合之间重置
+```
+
+- 数据未加载期间的「查不到」不算缺译，不记录
+- 回退链命中的不算缺译（最终有译文显示）
+- 记录容量上限 256 个去重 key：超上限后事件计数照走、逐 key 记录与告警停摆（防异常配置刷爆内存与日志），并告警一次
+- 记录不跨服务关闭存活；游戏内调试器 `Profiler/Localization` 的「MISSING KEYS」区实时可见
+
 ## 编辑器内预览（不进 Play）
 
 `TextLocalizer` / `ImageLocalizer` / `AudioLocalizer` 的 Inspector 在 ID 字段下方显示「译文预览」一行，数据来自配置表在编辑器下的**直读**路径（`ConfigTableServiceHandler.GetLocalizedStringsForEditorPreview`），不经资源系统、不需要进 Play：
@@ -164,7 +181,7 @@ LocalizationService.ClearStringOverlay("remote-ops");   // 按来源撤销，不
 - 图/音类显示预览语言、将要取用的数组下标，以及该下标上的元素（`缺项` / `空引用` / 资源名）——「新增语言后数组没补齐」这类错位在这里当场能看见，不必等运行时
 - 语言取 Inspector 里的「编辑器语言」；未设置或该语言不在表内时取英语列，再退到首列
 - 预览**不写回**目标组件（不标脏场景、不留「忘了还原」的错文案），也不套用回退链：某格缺译时预览直接露 ID，那正是策划要看见的信息
-- 重新转表或改了编辑器语言后，预览缓存自动随语言键失效；需要手动丢弃时调 `LocalizationService.InvalidateEditorPreview()`
+- 预览缓存随项目资产变更自动失效（`EditorApplication.projectChanged` 钩子，含转表回写与编辑器语言切换），也可手动调 `LocalizationService.InvalidateEditorPreview()`
 
 ## 带参取文（不装箱路径）
 
@@ -177,6 +194,7 @@ string line  = LocalizationService.GetTextFromId("Log.Buy.Confirmed", item, coun
 - 未装 ZString 时 `StringUtility` 退化到 `StringBuilder.AppendFormat`，**那条路径仍会装箱**——「不装箱」是以装了 ZString 为前提的
 - 参数超过 4 个请改用 `GetTextFromId(id, params object[])`，并把那条文案考虑拆成两条 key
 - 表内占位符与参数不匹配时退化为未格式化原文并只报一次 Error，不会把异常抛到查询上
+- **格式化文化跟随游戏语言**（`params` 重载）：德语设备跑英语包时数字仍显示 `1.5` 而非 `1,5`；`GetTextFromIdLanguage` 跟随被查询的语言。泛型重载经 ZString 快路径：基元数字按不变规则格式化（本就不随文化漂移），自定义 `IFormattable` 实参按其默认文化——需要严格文化感知（日期/货币）时用 `params` 重载
 
 ## 句柄式订阅语言变更
 
