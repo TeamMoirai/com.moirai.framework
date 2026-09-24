@@ -80,6 +80,14 @@
     - 这三格只带一面假 `IResourceRecordHost` 就能直接驱动内核——记账从 `YooAssetHandler` 抽出来之后第一次成立，此前这套锁在"不初始化 YooAsset 就进不去"的位置上。
 - Clip 缓存热路径的 CPU 预算基准 `AudioCacheBenchmark`（3 格 `[Explicit]`，与 `KernelBenchmark` 同一范式，量的是单次调用的纳秒数而不是条目数）。
 
+#### 测试 [Testing]
+
+- 测试规范 `Documentation~/zh|en/Testing.md`：分层归属（L1 EditMode 单元契约 / L2 PlayMode 集成 / L3 Player 验收 / L4 基准）、用例与夹具规范、确定性纪律、反射政策、日志断言政策、基准政策、契约守卫维护流程、覆盖率分级阈值、发布出口五门、四条运行通道与常见陷阱速查；`CLAUDE.md` 增《测试规范》《AI 测试流程》两节作为面向代理的执行摘要。
+- 反射策略守卫 `ReflectionPolicyGuardTests`：把允许使用非公开反射的文件钉成白名单并**双向**断言——未登记文件出现该模式即红，已登记条目消失或不再命中同样红。
+- 覆盖率工具与门禁：`com.unity.testtools.codecoverage` 1.3.0；`Tests/Coverage/README.md` 记过滤口径与两条运行配方；`Tests/Coverage/coverage-gate.ps1` 按分级阈值判定，读不到报告、结构不认识或没有任何 class 行一律非零退出。
+- PR 门禁三条（均仅 `pull_request`）：`tests.yaml`（EditMode + PlayMode + 玩家程序集形状校验）、`coverage.yaml`、`metas.yaml`。
+- `ConfigTableServiceContractTests`：配置表此前零用例；补外观降级值（含"语言自报必须回空列表而非 null"）、默认后端兜底与转发证据、关闭语义、`[ServiceDependency(ResourceService)]` 存在性、后端接缝形状。
+
 ### Changed
 
 #### `Resource`
@@ -152,7 +160,18 @@
 
 - `GameAppMessageEvent` 的专用事件枚举内聚进 `EEventType`。
 
+#### 测试 [Testing]
+
+- 26 个遗留 `*Test.cs` 统一为 `*Tests.cs`（类名同步，`.meta` GUID 不变）；`TweenTest.Easing.cs` 更名 `TweenEaseTests.Easing.cs`；`GameDictionaryTests` 拆出 `GameSortedDictionaryTests`。
+- 测试里的字段反射改为 `internal` 直接访问；`SingletonMono.m_Replaceable` / `_initializationOrdinal` 取 `protected internal` 以保留派生类可见性；`MiddlewareAudioHandler` 新增 `Internal_PeekDefaultBridge()` 接缝。
+- 同批放宽为 `internal` 的成员：`ObjectBase._target`、`SaveServiceSettings.m_AssetCatalog`、`AudioGroupConfig` 的 `m_DefaultVolume` / `m_MaxChannel` / `m_CanExpand` / `m_MaxChannelCeiling`、`AudioServiceSettings.m_AutoDuckingOnVoice`、`AudioEmitter.m_Clip` / `_handle`、`BgmPlaylist.m_Tracks` / `m_PlayOnStart` / `_handle`、`UnityAudioHandler._handles` / `Initialize`、`InputButton` 与 `InputAxes` 的 `m_ActionName`、`PreventInputOnEnable` 的两个勾选字段、`UnityInputSystemHandler.m_InputActions`。
+- `TimerServiceBenchmark` 标注为非自动基准（MonoBehaviour + 菜单驱动，不参与测试套件）。
+
 ### Fixed
+
+#### 测试 [Testing]
+
+- 两个过期契约守卫同步到现行 API（同源于「绑定 cache-only；包管理 API 名实一致」）：`ResourceSeamShapeGuardTests` 抽象成员基线 66 → 67（新增 `TryAcquireBindingCached`）；`ResourceMethodSetContractTests.InitializePackageAsync` 期望签名改为 `UniTask<ResourcePackageInitResult>`——原断言实为 `TryInitializePackageAsync` 的形状，已移交新增的同名用例，并补 `ResourcePackageInitResult_Shape`。
 
 #### `Resource`
 
