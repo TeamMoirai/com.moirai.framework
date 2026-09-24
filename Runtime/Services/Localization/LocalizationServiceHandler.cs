@@ -84,6 +84,9 @@ namespace Moirai.Atropos.Localization
         /// <summary>数据是否已加载完成（<c>ToLanguage</c> 的「支持性」判定在未加载时退化为身份解析）。</summary>
         internal bool IsDataLoaded => _dataLoaded;
 
+        /// <summary>当前语言是否从右向左书写（未就绪为 <c>false</c>）。</summary>
+        internal bool IsCurrentLanguageRightToLeft => _currentLanguage?.IsRightToLeft ?? false;
+
         /// <summary>语言是否在当前批内（调用方须已确认数据加载完成，见 <see cref="IsDataLoaded"/>）。</summary>
         internal bool IsLanguageAvailable(Language language) => language != null && Store.IndexOf(language) >= 0;
 
@@ -1149,6 +1152,61 @@ namespace Moirai.Atropos.Localization
         }
 
         /// <summary>
+        /// 取复数词条：按当前语言的 CLDR cardinal 规则在 <c>id#zero|one|two|few|many|other</c> 中选中类别，
+        /// 回落顺序 <c>id#类别 → id#other → id</c> 裸 key；全链缺失按缺译处理（追踪 + 告警一次）并返回 ID 原文。
+        /// </summary>
+        /// <remarks>占位符约定：<c>{0}</c> = 数量，<c>{1..}</c> = 调用方参数——复数文案不该让调用方再手写一遍 count。
+        /// 格式化文化跟随当前语言。</remarks>
+        /// <param name="id">复数词条基础 ID。</param>
+        /// <param name="count">数量（决定 CLDR 类别，同时作为 <c>{0}</c>）。</param>
+        /// <param name="p">附加格式化参数（对应 <c>{1}</c> 起的占位符）。</param>
+        public string GetPluralTextFromId(string id, long count, params object[] p)
+        {
+            EnsureLocalizedStringsLoaded();
+
+            if (string.IsNullOrEmpty(id)) return id;
+
+            var category = LocalizationPluralRules.ResolveCategory(_currentLanguage?.Code, count);
+            // 复数回落链的分支候选不算缺译——只有全链（类别→other→裸 key）都落空才计一次
+            var text = ResolveRawUntracked(id + "#" + category, _currentLanguage)
+                       ?? (category == "other" ? null : ResolveRawUntracked(id + "#other", _currentLanguage))
+                       ?? ResolveRawUntracked(id, _currentLanguage);
+
+            if (text == null)
+            {
+                if (_dataLoaded) TrackMissingKey(id, _currentLanguage);
+                return id;
+            }
+
+            if (p is not { Length: > 0 })
+            {
+                try
+                {
+                    return string.Format(FormatCulture, text, count);
+                }
+                catch (FormatException)
+                {
+                    return text;
+                }
+            }
+
+            // {0} = 数量，调用方参数整体后移一位（一次装箱数组，复数属低频路径，不为省这一次分配把签名复杂化）
+            var args = new object[p.Length + 1];
+            args[0] = count;
+            Array.Copy(p, 0, args, 1, p.Length);
+
+            try
+            {
+                return string.Format(FormatCulture, text, args);
+            }
+            catch (FormatException)
+            {
+                LogFormatError(id, text, args.Length);
+                return text;
+            }
+        }
+
+        /// <summary>
         /// 按「覆盖层 → 指定语言 → 回退链」取原始译文；全链缺译时返回 <c>null</c>。调用方须已确保数据加载完成。
         /// </summary>
         private string ResolveRaw(string id, Language language)
@@ -1156,12 +1214,20 @@ namespace Moirai.Atropos.Localization
             // ID 为空、或词条整个不存在时无列可回退，一律由调用方露出 ID
             if (string.IsNullOrEmpty(id)) return null;
 
-            // 当前语言的列下标已在切换时缓存——查询热路径不再每次线性扫语言表（回退链同样是预解析下标）
-            var index = language == _currentLanguage ? _currentLanguageIndex : Store.IndexOf(language);
-            var text = Store.Resolve(id, language, index, _fallbackChain, _fallbackIndices);
+            var text = ResolveRawUntracked(id, language);
             // 数据未加载时整库为空，「查不到」不等于「缺译」，不记录
             if (text == null && _dataLoaded) TrackMissingKey(id, language);
             return text;
+        }
+
+        /// <summary>
+        /// 与 <see cref="ResolveRaw"/> 同一条解析路径，但不计缺译——复数回落链的分支候选不命中不算缺译。
+        /// </summary>
+        private string ResolveRawUntracked(string id, Language language)
+        {
+            // 当前语言的列下标已在切换时缓存——查询热路径不再每次线性扫语言表（回退链同样是预解析下标）
+            var index = language == _currentLanguage ? _currentLanguageIndex : Store.IndexOf(language);
+            return Store.Resolve(id, language, index, _fallbackChain, _fallbackIndices);
         }
 
         /// <summary>

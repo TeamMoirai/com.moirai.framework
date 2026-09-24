@@ -320,6 +320,18 @@ namespace Moirai.Atropos.Localization
         /// <example>English => English、ChineseSimplified => 简体中文、ChineseTraditional => 繁體中文</example>
         public string DisplayName => !string.IsNullOrEmpty(m_DisplayName) ? m_DisplayName : m_Name;
 
+        // 从右向左书写的语言 Code（ISO-639-1）：阿拉伯语族与希伯来语族
+        private static readonly HashSet<string> s_RtlCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "ar", "he", "fa", "ur",
+        };
+
+        /// <summary>
+        /// 该语言是否从右向左书写（阿拉伯语、希伯来语、波斯语、乌尔都语）。
+        /// </summary>
+        /// <remarks>仅 TMP 注入应用（<c>TMP_Text.isRightToLeftText</c>）；UGUI Text 与 TextMesh 无 RTL 排版能力。</remarks>
+        public bool IsRightToLeft => s_RtlCodes.Contains(m_Code);
+
         public Language(string name, string code)
         {
             m_Name = name ?? "";

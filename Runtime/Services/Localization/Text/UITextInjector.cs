@@ -9,6 +9,9 @@ namespace Moirai.Atropos.Localization
 	{
 		readonly Text uiText;
 
+		/// <summary>目标 <see cref="Text"/> 组件（按语言字体经此写回）。</summary>
+		public Text Component => uiText;
+
 		/// <summary>
 		/// 创建针对指定 <see cref="Text"/> 的本地化文本注入器。
 		/// </summary>

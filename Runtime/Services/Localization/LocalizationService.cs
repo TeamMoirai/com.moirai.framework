@@ -123,6 +123,12 @@ namespace Moirai.Atropos.Localization
         /// </summary>
         public static bool IsDataLoaded => s_Handler?.IsDataLoaded ?? false;
 
+        /// <summary>
+        /// 当前语言是否从右向左书写（未就绪为 <c>false</c>）。
+        /// </summary>
+        /// <remarks>仅 TMP 文本应用该方向（<c>TMP_Text.isRightToLeftText</c>）；UGUI Text 与 TextMesh 无 RTL 排版能力。</remarks>
+        public static bool IsCurrentLanguageRightToLeft => s_Handler?.IsCurrentLanguageRightToLeft ?? false;
+
         #endregion
 
         #region 事件 [EVENTS]
@@ -166,6 +172,14 @@ namespace Moirai.Atropos.Localization
                     language = SettingUtility.GetString(GameConstant.Setting.LANGUAGE);
                     settingSource = "SavedSetting";
                 }
+#if !UNITY_EDITOR
+                // 构建期渠道默认语言：先于系统语言生效（玩家改过语言后存档仍优先）
+                else if (!string.IsNullOrEmpty(GetBakedChannelLanguage()))
+                {
+                    language = GetBakedChannelLanguage();
+                    settingSource = "ChannelBake";
+                }
+#endif
                 // 否则，使用系统语言
                 else
                 {
@@ -182,6 +196,26 @@ namespace Moirai.Atropos.Localization
 
             return ToLanguage(language, onlySupported);
         }
+
+#if !UNITY_EDITOR
+        private static LocalizationBuildConfig s_BakedConfig;
+        private static bool s_BakedConfigResolved;
+
+        /// <summary>
+        /// 取构建期渠道默认语言（仅播放器读取，Resources 击中一次后静态缓存）。
+        /// </summary>
+        private static string GetBakedChannelLanguage()
+        {
+            if (!s_BakedConfigResolved)
+            {
+                s_BakedConfigResolved = true;
+                s_BakedConfig = Resources.Load<LocalizationBuildConfig>("LocalizationBuildConfig");
+            }
+
+            var code = s_BakedConfig != null ? s_BakedConfig.LanguageCode : null;
+            return string.IsNullOrEmpty(code) ? null : code;
+        }
+#endif
 
         /// <summary>
         /// 更改当前语言。
@@ -283,6 +317,17 @@ namespace Moirai.Atropos.Localization
         /// 获取所有多语言索引（未就绪时为 null）。
         /// </summary>
         public static List<string> GetAllIds() => s_Handler?.GetAllIds();
+
+        /// <summary>
+        /// 取复数词条（未就绪时返回 ID 原文）：按当前语言的 CLDR cardinal 规则在
+        /// <c>id#zero|one|two|few|many|other</c> 中选中类别，回落 <c>id#other</c> 与裸 key。
+        /// </summary>
+        /// <remarks>占位符约定：<c>{0}</c> = 数量，<c>{1..}</c> = 调用方参数；格式化文化跟随当前语言。</remarks>
+        /// <param name="id">复数词条基础 ID。</param>
+        /// <param name="count">数量（决定 CLDR 类别，同时作为 <c>{0}</c>）。</param>
+        /// <param name="p">附加格式化参数。</param>
+        public static string GetPluralTextFromId(string id, long count, params object[] p) =>
+            s_Handler?.GetPluralTextFromId(id, count, p) ?? id;
 
         #endregion
 

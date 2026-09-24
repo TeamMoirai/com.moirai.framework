@@ -9,6 +9,12 @@ namespace Moirai.Atropos.Localization
 	public class TextLocalizer : LocalizerBase
 	{
 		[SerializeField] private string m_TextId;
+#if (TEXT_MESH_PRO_INSTALLED || UNITY_UGUI2_INSTALLED)
+		// 按语言索引的 TMP 字体资产：下标 = 当前语言列下标（与 ImageLocalizer 数组同一约定）；下标越界或空元素保持原字体
+		[SerializeField] private TMP_FontAsset[] m_TmpFontAssets;
+#endif
+		// 按语言索引的 UGUI 字体：下标同上约定；下标越界或空元素保持原字体
+		[SerializeField] private Font[] m_UguiFonts;
 
 		protected override void Prepare()
 		{
@@ -90,7 +96,49 @@ namespace Moirai.Atropos.Localization
 
 			m_TextId = textId;
 			_injector.Inject(LocalizationService.GetTextFromId(textId), this);
+			ApplyLanguagePresentation();
 			return true;
+		}
+
+		/// <summary>
+		/// 应用语言联动的呈现属性：TMP 的 RTL 方向（阿拉伯/希伯来等）与按语言索引的字体资产。
+		/// <para>下标与 <c>LocalizationService.CurrentLanguageIndex</c> 同一约定（同 ImageLocalizer 数组语义）；
+		/// 越界或空元素一律保持组件原值，不做清空。</para>
+		/// </summary>
+		private void ApplyLanguagePresentation()
+		{
+			var languageIndex = LocalizationService.CurrentLanguageIndex;
+
+#if (TEXT_MESH_PRO_INSTALLED || UNITY_UGUI2_INSTALLED)
+			if (_injector is TMPInjector tmpInjector)
+			{
+				var tmp = tmpInjector.Component;
+				if (tmp == null) return;
+
+				tmp.isRightToLeftText = LocalizationService.IsCurrentLanguageRightToLeft;
+
+				if (m_TmpFontAssets != null && languageIndex >= 0 && languageIndex < m_TmpFontAssets.Length)
+				{
+					var fontAsset = m_TmpFontAssets[languageIndex];
+					if (fontAsset != null) tmp.font = fontAsset;
+				}
+
+				return;
+			}
+#endif
+
+			if (_injector is UITextInjector uiTextInjector)
+			{
+				var uiText = uiTextInjector.Component;
+				if (uiText == null) return;
+
+				// UGUI 无 RTL：只按语言索引换字体
+				if (m_UguiFonts != null && languageIndex >= 0 && languageIndex < m_UguiFonts.Length)
+				{
+					var font = m_UguiFonts[languageIndex];
+					if (font != null) uiText.font = font;
+				}
+			}
 		}
 
 		public void Clear()
