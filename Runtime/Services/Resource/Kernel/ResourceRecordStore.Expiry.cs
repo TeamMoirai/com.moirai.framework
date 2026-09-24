@@ -59,7 +59,7 @@ namespace Moirai.Atropos.Resource
 
                 ref AssetSlot victim = ref GetAssetSlotRef(victimId);
                 // 堆顶若已被改成非 idle（竞态），弹掉重试；合法受害者按 IdleExpireTick 从旧到新。
-                if (victim.ExpireQueueKind != 2 || victim.IdleExpireTick != victimExpireTick)
+                if (victim.ExpireQueueKind != WHEEL_KIND_IDLE || victim.IdleExpireTick != victimExpireTick)
                 {
                     RemoveUnusedAssetCandidateAt(victimIndex);
                     continue;
@@ -97,7 +97,7 @@ namespace Moirai.Atropos.Resource
             }
 
             ref AssetSlot slot = ref GetAssetSlotRef(id);
-            if (slot.ExpireQueueKind != 2)
+            if (slot.ExpireQueueKind != WHEEL_KIND_IDLE)
             {
                 RemoveUnusedAssetCandidateAt(0);
                 return TryPeekLongestIdle(out heapIndex, out assetId, out expireTick);
@@ -108,96 +108,79 @@ namespace Moirai.Atropos.Resource
             return true;
         }
 
-        private int ProcessDueKeepAliveBuckets(int currentTick, int maxCount)
+        private int ProcessDueWheelBuckets(int[] buckets, ref int lastProcessTick, int queueKind,
+            int currentTick, int maxCount)
         {
-            if (maxCount <= 0)
+            if (maxCount <= 0 || buckets == null)
             {
                 return 0;
             }
 
-            if (_lastKeepAliveProcessTick < 0 || currentTick - _lastKeepAliveProcessTick > KEEP_ALIVE_BUCKET_COUNT)
+            int span = buckets.Length;
+            if (lastProcessTick < 0 || currentTick - lastProcessTick > span)
             {
-                _lastKeepAliveProcessTick = currentTick - KEEP_ALIVE_BUCKET_COUNT;
+                lastProcessTick = currentTick - span;
             }
 
             int processed = 0;
-            while (_lastKeepAliveProcessTick < currentTick && processed < maxCount)
+            while (lastProcessTick < currentTick && processed < maxCount)
             {
-                int bucketTick = _lastKeepAliveProcessTick + 1;
-                int bucketProcessed = ProcessKeepAliveBucket(bucketTick, currentTick, maxCount - processed, out bool completed);
+                int bucketTick = lastProcessTick + 1;
+                int bucketProcessed = ProcessWheelBucket(buckets, queueKind, bucketTick, currentTick,
+                    maxCount - processed, out bool completed);
                 processed += bucketProcessed;
                 if (!completed)
                 {
                     break;
                 }
 
-                _lastKeepAliveProcessTick = bucketTick;
+                lastProcessTick = bucketTick;
             }
 
             return processed;
         }
 
-        private int ProcessDueIdleBuckets(int currentTick, int maxCount)
-        {
-            if (maxCount <= 0)
-            {
-                return 0;
-            }
-
-            if (_lastIdleProcessTick < 0 || currentTick - _lastIdleProcessTick > IDLE_BUCKET_COUNT)
-            {
-                _lastIdleProcessTick = currentTick - IDLE_BUCKET_COUNT;
-            }
-
-            int processed = 0;
-            while (_lastIdleProcessTick < currentTick && processed < maxCount)
-            {
-                int bucketTick = _lastIdleProcessTick + 1;
-                int bucketProcessed = ProcessIdleBucket(bucketTick, currentTick, maxCount - processed, out bool completed);
-                processed += bucketProcessed;
-                if (!completed)
-                {
-                    break;
-                }
-
-                _lastIdleProcessTick = bucketTick;
-            }
-
-            return processed;
-        }
-
-        private int ProcessKeepAliveBucket(int bucketTick, int currentTick, int maxCount, out bool completed)
+        /// <summary>
+        /// 两座时间轮共用的桶走查。KeepAlive（kind=1）到期清保活计数后转状态；Idle（kind=2）到期无引用则释放。
+        /// <para>摘链一律按槽里存下的桶号（<see cref="RemoveFromWheel"/>），走查途中只记 next、不在此同步摘除未到期节点。</para>
+        /// </summary>
+        private int ProcessWheelBucket(int[] buckets, int queueKind, int bucketTick, int currentTick,
+            int maxCount, out bool completed)
         {
             completed = true;
-            if (_keepAliveBuckets == null || maxCount <= 0)
+            if (buckets == null || maxCount <= 0)
             {
                 return 0;
             }
 
-            int bucket = bucketTick & (KEEP_ALIVE_BUCKET_COUNT - 1);
-            if (bucket >= _keepAliveBuckets.Length)
+            string logName = queueKind == WHEEL_KIND_KEEP_ALIVE ? "KA" : "Idle";
+            int lastProcessTick = queueKind == WHEEL_KIND_KEEP_ALIVE ? _lastKeepAliveProcessTick : _lastIdleProcessTick;
+            int bucket = bucketTick & (buckets.Length - 1);
+            if (bucket >= buckets.Length)
             {
-                LogUtility.Error("[Resource][Wheel] KA bucket OOB: bucketTick={0} bucket={1} len={2} lastTick={3} currentTick={4} nextIndex={5} pages={6}",
-                    bucketTick, bucket, _keepAliveBuckets.Length, _lastKeepAliveProcessTick, currentTick,
+                LogUtility.Error("[Resource][Wheel] {0} bucket OOB: bucketTick={1} bucket={2} len={3} lastTick={4} currentTick={5} nextIndex={6} pages={7}",
+                    logName, bucketTick, bucket, buckets.Length, lastProcessTick, currentTick,
                     _assetSlotNextIndex, _assetSlotPages != null ? _assetSlotPages.Length : 0);
                 return 0;
             }
 
             int processed = 0;
-            int current = _keepAliveBuckets[bucket];
+            int current = buckets[bucket];
             while (current >= 0)
             {
                 if (current >= _assetSlotNextIndex)
                 {
-                    LogUtility.Error("[Resource][Wheel] KA zombie id: id={0} bucket={1} nextIndex={2} pages={3} head={4}",
-                        current, bucket, _assetSlotNextIndex, _assetSlotPages != null ? _assetSlotPages.Length : 0, _keepAliveBuckets[bucket]);
-                    _keepAliveBuckets[bucket] = -1;
+                    LogUtility.Error("[Resource][Wheel] {0} zombie id: id={1} bucket={2} nextIndex={3} pages={4} head={5}",
+                        logName, current, bucket, _assetSlotNextIndex,
+                        _assetSlotPages != null ? _assetSlotPages.Length : 0, buckets[bucket]);
+                    buckets[bucket] = -1;
                     break;
                 }
 
                 ref AssetSlot slot = ref GetAssetSlotRef(current);
                 int next = slot.ExpireQueueNext;
-                if (slot.ExpireQueueKind == 1 && slot.KeepAliveExpireTick <= currentTick)
+                int expireTick = GetWheelExpireTick(ref slot, queueKind);
+                if (slot.ExpireQueueKind == queueKind && expireTick <= currentTick)
                 {
                     if (processed >= maxCount)
                     {
@@ -205,63 +188,17 @@ namespace Moirai.Atropos.Resource
                         break;
                     }
 
-                    RemoveFromKeepAliveBucket(current, ref slot);
-                    if (slot.KeepAliveRefCount > 0)
+                    RemoveFromWheel(buckets, queueKind, current, ref slot);
+                    if (queueKind == WHEEL_KIND_KEEP_ALIVE)
                     {
-                        slot.KeepAliveRefCount = 0;
+                        if (slot.KeepAliveRefCount > 0)
+                        {
+                            slot.KeepAliveRefCount = 0;
+                        }
+
+                        UpdateAssetStateAndIdleQueue(current, ref slot);
                     }
-
-                    UpdateAssetStateAndIdleQueue(current, ref slot);
-                    processed++;
-                }
-
-                current = next;
-            }
-
-            return processed;
-        }
-
-        private int ProcessIdleBucket(int bucketTick, int currentTick, int maxCount, out bool completed)
-        {
-            completed = true;
-            if (_idleBuckets == null || maxCount <= 0)
-            {
-                return 0;
-            }
-
-            int bucket = bucketTick & (IDLE_BUCKET_COUNT - 1);
-            if (bucket >= _idleBuckets.Length)
-            {
-                LogUtility.Error("[Resource][Wheel] Idle bucket OOB: bucketTick={0} bucket={1} len={2} lastTick={3} currentTick={4} nextIndex={5} pages={6}",
-                    bucketTick, bucket, _idleBuckets.Length, _lastIdleProcessTick, currentTick,
-                    _assetSlotNextIndex, _assetSlotPages != null ? _assetSlotPages.Length : 0);
-                return 0;
-            }
-
-            int processed = 0;
-            int current = _idleBuckets[bucket];
-            while (current >= 0)
-            {
-                if (current >= _assetSlotNextIndex)
-                {
-                    LogUtility.Error("[Resource][Wheel] Idle zombie id: id={0} bucket={1} nextIndex={2} pages={3} head={4}",
-                        current, bucket, _assetSlotNextIndex, _assetSlotPages != null ? _assetSlotPages.Length : 0, _idleBuckets[bucket]);
-                    _idleBuckets[bucket] = -1;
-                    break;
-                }
-
-                ref AssetSlot slot = ref GetAssetSlotRef(current);
-                int next = slot.ExpireQueueNext;
-                if (slot.ExpireQueueKind == 2 && slot.IdleExpireTick <= currentTick)
-                {
-                    if (processed >= maxCount)
-                    {
-                        completed = false;
-                        break;
-                    }
-
-                    RemoveFromIdleBucket(current, ref slot);
-                    if (HasNoResourceRefs(ref slot))
+                    else if (HasNoResourceRefs(ref slot))
                     {
                         slot.IdleReleaseRequested = 1;
                         ReleaseAssetStorage(current, slot.Generation);
@@ -278,6 +215,11 @@ namespace Moirai.Atropos.Resource
             }
 
             return processed;
+        }
+
+        private static int GetWheelExpireTick(ref AssetSlot slot, int queueKind)
+        {
+            return queueKind == WHEEL_KIND_KEEP_ALIVE ? slot.KeepAliveExpireTick : slot.IdleExpireTick;
         }
 
         private void ReleaseAssetStorage(int assetId, uint generation)
@@ -355,9 +297,9 @@ namespace Moirai.Atropos.Resource
                     _idleCapacityTrimPending = true;
                 }
             }
-            else if (slot.ExpireQueueKind == 2)
+            else if (slot.ExpireQueueKind == WHEEL_KIND_IDLE)
             {
-                RemoveFromIdleBucket(assetId, ref slot);
+                RemoveFromWheel(_idleBuckets, WHEEL_KIND_IDLE, assetId, ref slot);
                 slot.IdleReleaseRequested = 0;
                 RemoveUnusedAssetCandidate(assetId, ref slot);
             }
@@ -375,84 +317,78 @@ namespace Moirai.Atropos.Resource
             }
 
             int expireTick = ToKeepAliveTick(Time.unscaledTime) + Mathf.Max(0, Mathf.CeilToInt(Host.IdleAssetExpireTime));
-            if (slot.ExpireQueueKind == 2 && slot.IdleExpireTick == expireTick)
+            if (slot.ExpireQueueKind == WHEEL_KIND_IDLE && slot.IdleExpireTick == expireTick)
             {
                 return;
             }
 
             RemoveFromExpiryQueue(assetId, ref slot);
             slot.IdleExpireTick = expireTick;
-            if (_idleBuckets == null || _idleBuckets.Length != IDLE_BUCKET_COUNT)
-            {
-                _idleBuckets = new int[IDLE_BUCKET_COUNT];
-                for (int i = 0; i < IDLE_BUCKET_COUNT; i++)
-                {
-                    _idleBuckets[i] = -1;
-                }
-            }
-
-            int bucket = expireTick & (IDLE_BUCKET_COUNT - 1);
-            slot.ExpireQueueBucket = bucket;
-            slot.ExpireQueuePrev = -1;
-            slot.ExpireQueueNext = _idleBuckets[bucket];
-            if (slot.ExpireQueueNext >= 0)
-            {
-                ref AssetSlot next = ref GetAssetSlotRef(slot.ExpireQueueNext);
-                next.ExpireQueuePrev = assetId;
-            }
-
-            _idleBuckets[bucket] = assetId;
-            slot.ExpireQueueKind = 2;
+            ScheduleOnWheel(ref _idleBuckets, WHEEL_KIND_IDLE, assetId, ref slot, expireTick);
         }
 
         private void AddToKeepAliveBucket(int assetId, ref AssetSlot slot)
         {
-            if (_keepAliveBuckets == null || _keepAliveBuckets.Length != KEEP_ALIVE_BUCKET_COUNT)
-            {
-                _keepAliveBuckets = new int[KEEP_ALIVE_BUCKET_COUNT];
-                for (int i = 0; i < KEEP_ALIVE_BUCKET_COUNT; i++)
-                {
-                    _keepAliveBuckets[i] = -1;
-                }
-            }
+            ScheduleOnWheel(ref _keepAliveBuckets, WHEEL_KIND_KEEP_ALIVE, assetId, ref slot, slot.KeepAliveExpireTick);
+        }
 
-            RemoveFromKeepAliveBucket(assetId, ref slot);
-            int bucket = slot.KeepAliveExpireTick & (KEEP_ALIVE_BUCKET_COUNT - 1);
+        /// <summary>入轮：同一算法服务两座轮，仅队列种类与过期刻度来源不同。</summary>
+        private void ScheduleOnWheel(ref int[] buckets, int queueKind, int assetId, ref AssetSlot slot, int expireTick)
+        {
+            EnsureWheelBuckets(ref buckets);
+            RemoveFromWheel(buckets, queueKind, assetId, ref slot);
+            int bucket = expireTick & (buckets.Length - 1);
             slot.ExpireQueueBucket = bucket;
             slot.ExpireQueuePrev = -1;
-            slot.ExpireQueueNext = _keepAliveBuckets[bucket];
+            slot.ExpireQueueNext = buckets[bucket];
             if (slot.ExpireQueueNext >= 0)
             {
                 ref AssetSlot next = ref GetAssetSlotRef(slot.ExpireQueueNext);
                 next.ExpireQueuePrev = assetId;
             }
 
-            _keepAliveBuckets[bucket] = assetId;
-            slot.ExpireQueueKind = 1;
+            buckets[bucket] = assetId;
+            slot.ExpireQueueKind = queueKind;
+        }
+
+        private static void EnsureWheelBuckets(ref int[] buckets)
+        {
+            if (buckets != null && buckets.Length == EXPIRY_WHEEL_BUCKET_COUNT)
+            {
+                return;
+            }
+
+            buckets = new int[EXPIRY_WHEEL_BUCKET_COUNT];
+            for (int i = 0; i < buckets.Length; i++)
+            {
+                buckets[i] = -1;
+            }
         }
 
         private void RemoveFromExpiryQueue(int assetId, ref AssetSlot slot)
         {
-            if (slot.ExpireQueueKind == 1)
+            if (slot.ExpireQueueKind == WHEEL_KIND_KEEP_ALIVE)
             {
-                RemoveFromKeepAliveBucket(assetId, ref slot);
+                RemoveFromWheel(_keepAliveBuckets, WHEEL_KIND_KEEP_ALIVE, assetId, ref slot);
             }
-            else if (slot.ExpireQueueKind == 2)
+            else if (slot.ExpireQueueKind == WHEEL_KIND_IDLE)
             {
-                RemoveFromIdleBucket(assetId, ref slot);
+                RemoveFromWheel(_idleBuckets, WHEEL_KIND_IDLE, assetId, ref slot);
             }
         }
 
-        private void RemoveFromKeepAliveBucket(int assetId, ref AssetSlot slot)
+        /// <summary>
+        /// 摘链：读链接时存下的桶号，禁止由当前 tick 反推（反推会 unlink 静默失败、桶头挂僵尸 id）。
+        /// </summary>
+        private void RemoveFromWheel(int[] buckets, int queueKind, int assetId, ref AssetSlot slot)
         {
-            if (slot.ExpireQueueKind != 1 || _keepAliveBuckets == null)
+            if (slot.ExpireQueueKind != queueKind || buckets == null)
             {
                 return;
             }
 
-            // 链接时已存桶号：tick 可能在链接后被更新，反推桶号会定位到错误桶导致 unlink 静默失败、桶头悬挂僵尸 id。
             int bucket = slot.ExpireQueueBucket;
-            if (bucket < 0 || bucket >= KEEP_ALIVE_BUCKET_COUNT)
+            if (bucket < 0 || bucket >= buckets.Length)
             {
                 slot.ExpireQueuePrev = -1;
                 slot.ExpireQueueNext = -1;
@@ -468,51 +404,9 @@ namespace Moirai.Atropos.Resource
                 ref AssetSlot prevSlot = ref GetAssetSlotRef(prev);
                 prevSlot.ExpireQueueNext = next;
             }
-            else if (_keepAliveBuckets[bucket] == assetId)
+            else if (buckets[bucket] == assetId)
             {
-                _keepAliveBuckets[bucket] = next;
-            }
-
-            if (next >= 0)
-            {
-                ref AssetSlot nextSlot = ref GetAssetSlotRef(next);
-                nextSlot.ExpireQueuePrev = prev;
-            }
-
-            slot.ExpireQueuePrev = -1;
-            slot.ExpireQueueNext = -1;
-            slot.ExpireQueueKind = 0;
-            slot.ExpireQueueBucket = -1;
-        }
-
-        private void RemoveFromIdleBucket(int assetId, ref AssetSlot slot)
-        {
-            if (slot.ExpireQueueKind != 2 || _idleBuckets == null)
-            {
-                return;
-            }
-
-            // 同 KeepAlive：读链接时存储的桶号，禁止由当前 tick 反推。
-            int bucket = slot.ExpireQueueBucket;
-            if (bucket < 0 || bucket >= IDLE_BUCKET_COUNT)
-            {
-                slot.ExpireQueuePrev = -1;
-                slot.ExpireQueueNext = -1;
-                slot.ExpireQueueKind = 0;
-                slot.ExpireQueueBucket = -1;
-                return;
-            }
-
-            int prev = slot.ExpireQueuePrev;
-            int next = slot.ExpireQueueNext;
-            if (prev >= 0)
-            {
-                ref AssetSlot prevSlot = ref GetAssetSlotRef(prev);
-                prevSlot.ExpireQueueNext = next;
-            }
-            else if (_idleBuckets[bucket] == assetId)
-            {
-                _idleBuckets[bucket] = next;
+                buckets[bucket] = next;
             }
 
             if (next >= 0)
@@ -670,7 +564,7 @@ namespace Moirai.Atropos.Resource
             }
 
             ref AssetSlot slot = ref GetAssetSlotRef(assetId);
-            return slot.ExpireQueueKind == 2 ? slot.IdleExpireTick : int.MaxValue;
+            return slot.ExpireQueueKind == WHEEL_KIND_IDLE ? slot.IdleExpireTick : int.MaxValue;
         }
 
         private void SwapUnusedCandidates(int a, int b)
@@ -701,10 +595,12 @@ namespace Moirai.Atropos.Resource
             if ((_keepAliveBuckets != null || _idleBuckets != null) && expireBudget > 0)
             {
                 int currentTick = ToKeepAliveTick(unscaledTime);
-                int processed = ProcessDueKeepAliveBuckets(currentTick, expireBudget);
+                int processed = ProcessDueWheelBuckets(_keepAliveBuckets, ref _lastKeepAliveProcessTick,
+                    WHEEL_KIND_KEEP_ALIVE, currentTick, expireBudget);
                 if (processed < expireBudget)
                 {
-                    ProcessDueIdleBuckets(currentTick, expireBudget - processed);
+                    ProcessDueWheelBuckets(_idleBuckets, ref _lastIdleProcessTick,
+                        WHEEL_KIND_IDLE, currentTick, expireBudget - processed);
                 }
             }
 

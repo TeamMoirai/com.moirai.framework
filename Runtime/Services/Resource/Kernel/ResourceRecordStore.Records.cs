@@ -13,14 +13,15 @@ namespace Moirai.Atropos.Resource
     {
         #region 常量 [CONSTANTS]
 
-        private const int IDLE_BUCKET_COUNT = 256;
-        private const int KEEP_ALIVE_BUCKET_COUNT = 256;
+        private const int EXPIRY_WHEEL_BUCKET_COUNT = 256;
+        private const int WHEEL_KIND_KEEP_ALIVE = 1;
+        private const int WHEEL_KIND_IDLE = 2;
 
         /// <summary>
         /// 空闲/保活刻度按"一秒一格"落进 256 格轮盘，所以一套轮最多只能表达 255 格的存活期；
         /// 超过一圈的配置值不是报错，而是被跳过、直到轮盘绕回来——设置项自检要拿它当上限。
         /// </summary>
-        internal const int IdleWheelSpanSeconds = IDLE_BUCKET_COUNT - 1;
+        internal const int IdleWheelSpanSeconds = EXPIRY_WHEEL_BUCKET_COUNT - 1;
         #endregion
 
         #region Slot 结构体 [SLOT STRUCTS]
@@ -318,7 +319,7 @@ namespace Moirai.Atropos.Resource
                 info.KeepAliveExpireIn = slot.KeepAliveRefCount > 0
                     ? Math.Max(0, slot.KeepAliveExpireTick - currentTick)
                     : 0;
-                info.IdleExpireIn = slot.State == EResourceAssetState.Idle && slot.ExpireQueueKind == 2
+                info.IdleExpireIn = slot.State == EResourceAssetState.Idle && slot.ExpireQueueKind == WHEEL_KIND_IDLE
                     ? Math.Max(0, slot.IdleExpireTick - currentTick)
                     : 0;
                 info.IdleReleaseRequested = slot.IdleReleaseRequested != 0;
