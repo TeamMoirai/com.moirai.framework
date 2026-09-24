@@ -98,18 +98,25 @@ namespace Moirai.Atropos.Resource
 
         /// <summary>
         /// 打印配置问题并返回条数，供启动期与构建期各调一次。
+        /// <para>缓冲复用：启动与构建各跑一趟，不为 8 个槽位反复分配。</para>
         /// </summary>
         internal int ReportConfigurationIssues()
         {
-            var buffer = new ResourceSettingsIssue[8];
-            int count = GetConfigurationIssues(buffer, buffer.Length);
+            if (s_IssueBuffer == null)
+            {
+                s_IssueBuffer = new ResourceSettingsIssue[8];
+            }
+
+            int count = GetConfigurationIssues(s_IssueBuffer, s_IssueBuffer.Length);
             for (int i = 0; i < count; i++)
             {
-                LogUtility.Warning("[ResourceSettings] {0}", buffer[i].Detail);
+                LogUtility.Warning("[ResourceSettings] {0}", s_IssueBuffer[i].Detail);
             }
 
             return count;
         }
+
+        private static ResourceSettingsIssue[] s_IssueBuffer;
 
         private static int Add(ResourceSettingsIssue[] results, int written, int maxCount, string field,
             string format, params object[] args)
@@ -119,6 +126,7 @@ namespace Moirai.Atropos.Resource
                 return 0;
             }
 
+            // 冷路径格式化；params 仅在命中判据时产生，正常配置零开销。
             var issue = new ResourceSettingsIssue
             {
                 Field = field,
