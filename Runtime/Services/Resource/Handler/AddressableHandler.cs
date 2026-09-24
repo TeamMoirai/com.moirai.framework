@@ -19,7 +19,7 @@ namespace Moirai.Atropos.Resource
     /// <para>仅信息查询与真实缓存维护为可用行为；所有分发资源句柄或伪造成功语义的成员统一抛出 <see cref="GameException"/> fail-fast，禁止静默 no-op 掩盖误配置。</para>
     /// </summary>
     [Serializable]
-    internal sealed class AddressableHandler : ResourceServiceHandler
+    internal sealed partial class AddressableHandler : ResourceServiceHandler
     {
         #region 基础属性 [BASE PROPERTIES]
 
@@ -357,10 +357,32 @@ namespace Moirai.Atropos.Resource
         #region 容量属性 [CAPACITY PROPERTIES]
 
         /// <inheritdoc />
-        public override int AssetRecordCapacity { get; set; }
+        // 夹取后落进字段，生效值即字段值：记录内核按 IResourceRecordHost 活读这三项，
+        // 留成裸自动属性会让"写进去的值"与"内核读到的值"分家（这正是审计点名的静默 no-op）。
+        [NonSerialized] private int _assetRecordCapacity = 64;
+        [NonSerialized] private int _assetLeaseCapacity = 128;
 
         /// <inheritdoc />
-        public override int AssetLeaseCapacity { get; set; }
+        public override int AssetRecordCapacity
+        {
+            get => _assetRecordCapacity;
+            set
+            {
+                _assetRecordCapacity = value > 0 ? value : 0;
+                WarmupResourceRecords(_assetRecordCapacity, _assetLeaseCapacity);
+            }
+        }
+
+        /// <inheritdoc />
+        public override int AssetLeaseCapacity
+        {
+            get => _assetLeaseCapacity;
+            set
+            {
+                _assetLeaseCapacity = value > 0 ? value : 0;
+                WarmupResourceRecords(_assetRecordCapacity, _assetLeaseCapacity);
+            }
+        }
 
         /// <inheritdoc />
         public override int BindingOwnerCapacity { get; set; }
@@ -369,10 +391,27 @@ namespace Moirai.Atropos.Resource
         public override int BindingSlotCapacity { get; set; }
 
         /// <inheritdoc />
-        public override float IdleAssetExpireTime { get; set; }
+        [NonSerialized] private float _idleAssetExpireTime = 60f;
+        [NonSerialized] private int _idleAssetCapacity = 256;
 
         /// <inheritdoc />
-        public override int IdleAssetCapacity { get; set; }
+        public override float IdleAssetExpireTime
+        {
+            get => _idleAssetExpireTime;
+            set => _idleAssetExpireTime = value < 0f ? 0f : value;
+        }
+
+        /// <inheritdoc />
+        public override int IdleAssetCapacity
+        {
+            get => _idleAssetCapacity;
+            set
+            {
+                _idleAssetCapacity = value < 0 ? 0 : value;
+                // 不当场淘汰：那等于把一次 O(n) 突发挂在一次属性赋值上。
+                Store.RequestIdleCapacityTrim();
+            }
+        }
 
         #endregion
 
@@ -381,6 +420,18 @@ namespace Moirai.Atropos.Resource
         /// <inheritdoc />
         public override void WarmupResourceRecords(int assetCapacity, int leaseCapacity)
         {
+            Store.EnsureRecordCapacity(assetCapacity);
+            Store.EnsureLoadingOperationCapacity(assetCapacity);
+
+            if (assetCapacity > 0)
+            {
+                Store.EnsureAssetSlotPage(assetCapacity - 1);
+            }
+
+            if (leaseCapacity > 0)
+            {
+                Store.EnsureLeaseSlotPage(leaseCapacity - 1);
+            }
         }
 
         #endregion
@@ -388,6 +439,9 @@ namespace Moirai.Atropos.Resource
 
         #region 公共 Lease API [PUBLIC LEASE API]
 
+        /// <inheritdoc />
+        /// <remarks>Addressables 没有同步取资产的公开 API，同步族保持 fail-fast——
+        /// 用 <c>Task.Wait()</c> 硬等会把主线程挂在驱动上，比抛错更糟。</remarks>
         /// <inheritdoc />
         public override ResourceLeaseHandle AcquireDirect(ResourceKey key)
         {
@@ -397,13 +451,13 @@ namespace Moirai.Atropos.Resource
         /// <inheritdoc />
         public override UniTask<ResourceLeaseHandle> AcquireDirectAsync(ResourceKey key, CancellationToken cancellationToken = default)
         {
-            throw CreateNotSupported();
+            return AcquireLeaseAsync(key, EResourceLeaseKind.Direct, EResourceLeaseOption.None, cancellationToken);
         }
 
         /// <inheritdoc />
         public override void Release(ResourceLeaseHandle handle)
         {
-            throw CreateNotSupported();
+            Store.Release(handle);
         }
 
         /// <inheritdoc />
@@ -419,22 +473,35 @@ namespace Moirai.Atropos.Resource
         }
 
         /// <inheritdoc />
-        public override UniTask<ResourceAssetLease<T>> LoadLeaseAsync<T>(ResourceKey key, CancellationToken cancellationToken = default)
+        public override async UniTask<ResourceAssetLease<T>> LoadLeaseAsync<T>(ResourceKey key, CancellationToken cancellationToken = default)
         {
-            throw CreateNotSupported();
+            ResourceLeaseHandle handle = await AcquireLeaseAsync(key, EResourceLeaseKind.Direct,
+                EResourceLeaseOption.None, cancellationToken);
+            if (!handle.IsValid)
+            {
+                return default;
+            }
+
+            if (!Store.TryGetLeaseAsset(handle, out UObject asset) || asset is not T typedAsset)
+            {
+                Store.Release(handle);
+                return default;
+            }
+
+            return new ResourceAssetLease<T>(this, handle, typedAsset);
         }
 
         /// <inheritdoc />
         public override UniTask<ResourceAssetLease<T>> LoadLeaseAsync<T>(string location, CancellationToken cancellationToken = default, string packageName = "")
         {
-            throw CreateNotSupported();
+            return LoadLeaseAsync<T>(new ResourceKey(location, packageName, typeof(T),
+                ResourceKeyCodec.InferAssetKind(typeof(T))), cancellationToken);
         }
 
         /// <inheritdoc />
         public override bool TryGetLeaseAsset(ResourceLeaseHandle handle, out UObject asset)
         {
-            asset = null;
-            throw CreateNotSupported();
+            return Store.TryGetLeaseAsset(handle, out asset);
         }
 
         #endregion
@@ -450,7 +517,7 @@ namespace Moirai.Atropos.Resource
         /// <inheritdoc />
         internal override UniTask<ResourceLeaseHandle> AcquireBindingAsync(ResourceKey key, CancellationToken cancellationToken)
         {
-            throw CreateNotSupported();
+            return AcquireLeaseAsync(key, EResourceLeaseKind.Binding, EResourceLeaseOption.None, cancellationToken);
         }
 
         /// <inheritdoc />
@@ -469,14 +536,13 @@ namespace Moirai.Atropos.Resource
         /// <inheritdoc />
         internal override bool TryGetLeaseAssetId(ResourceLeaseHandle handle, out int assetId)
         {
-            assetId = 0;
-            throw CreateNotSupported();
+            return Store.TryGetLeaseAssetId(handle, out assetId);
         }
 
         /// <inheritdoc />
         internal override void SetLeaseOptions(ResourceLeaseHandle handle, EResourceLeaseOption options)
         {
-            throw CreateNotSupported();
+            Store.SetLeaseOptions(handle, options);
         }
 
         /// <inheritdoc />
@@ -488,7 +554,8 @@ namespace Moirai.Atropos.Resource
         /// <inheritdoc />
         internal override UniTask<ResourceLeaseHandle> AcquirePrefabSourceLeaseAsync(string location, string packageName, CancellationToken cancellationToken)
         {
-            throw CreateNotSupported();
+            return AcquireLeaseAsync(new ResourceKey(location, packageName, typeof(GameObject), EResourceAssetKind.Prefab),
+                EResourceLeaseKind.Direct, EResourceLeaseOption.None, cancellationToken);
         }
 
         #endregion
@@ -498,19 +565,21 @@ namespace Moirai.Atropos.Resource
         /// <inheritdoc />
         internal override void ProcessResourceMaintenance(float unscaledTime, int expireBudget, int destroySweepBudget)
         {
-            // 本后端不做记录级过期，但绑定槽位的销毁态回收与资源后端无关。
+            // 销毁态兜底回收先于预算判定，也先于内核的到期走查——与 YooAsset 侧同一口径，别调换。
             _bindingService?.ProcessDestroyedObjects(destroySweepBudget);
+            Store.ProcessResourceMaintenance(unscaledTime, expireBudget);
         }
 
         /// <inheritdoc />
         internal override int ReleaseAllUnusedAssetRecords()
         {
-            return 0;
+            return Store.ReleaseAllUnusedAssetRecords();
         }
 
         /// <inheritdoc />
         internal override void ForceReleaseAllAssetRecords()
         {
+            Store.ForceReleaseAllAssetRecords();
         }
 
         #endregion
@@ -520,7 +589,7 @@ namespace Moirai.Atropos.Resource
         /// <inheritdoc />
         public override int GetAssetInfos(ResourceAssetInfo[] results, int startIndex, int maxCount)
         {
-            return 0;
+            return Store.GetAssetInfos(results, startIndex, maxCount);
         }
 
         #endregion
