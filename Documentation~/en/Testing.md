@@ -262,7 +262,11 @@ Maintenance discipline:
 
 ## Coverage and gates
 
-Tooling: the `com.unity.testtools.codecoverage` UPM package.
+Tooling: the `com.unity.testtools.codecoverage` package (1.3.0). **The run recipes (editor window / batchmode CLI), filter scope and gate script live in [`Tests/Coverage/README.md`](../../Tests/Coverage/README.md)**; this section only covers the judgement rules.
+
+On CI the same rules run from `.github/workflows/coverage.yaml`: one instrumented EditMode pass, then `Tests/Coverage/coverage-gate.ps1`. If the script cannot find the report, does not recognise the XML shape, or finds no class rows, it exits non-zero — **"cannot measure" is not "meets the bar"**. Test and PlayMode regression live in `.github/workflows/tests.yaml`; `.meta` integrity in `.github/workflows/metas.yaml` (all three fire on `pull_request` only).
+
+> This repository is a UPM package with no `ProjectSettings/`, so Unity tests must run inside a **host project**; the workflows therefore check out the host repository (`HOST_REPOSITORY`) before running. Adjust that value for your setup and provide `HOST_REPO_TOKEN`.
 
 ### Configuration
 

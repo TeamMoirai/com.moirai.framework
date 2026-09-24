@@ -1,0 +1,36 @@
+﻿# .meta 完整性门禁。
+#
+# 触发：仅 pull_request。
+#
+# Unity 资源没有配套 .meta 时，引用会在别人机器上随机断掉（GUID 重新生成）。
+# 复用 TeamMoirai/GitHubActions 的 check-metas 复合操作：它扫 git 未跟踪文件里的 *.meta，
+# 有就红。本仓库是包仓库，检查目录就是仓库根——测试与运行时代码都在这里，不需要宿主工程。
+
+name: Metas
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: metas-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check-metas:
+    name: Check .meta committed
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: TeamMoirai/GitHubActions/.github/actions/checkout@master
+        with:
+          fetch-depth: 1
+
+      - name: Check all .meta files are committed
+        uses: TeamMoirai/GitHubActions/.github/actions/check-metas@master
+        with:
+          directory: .
+          exit-on-error: "true"

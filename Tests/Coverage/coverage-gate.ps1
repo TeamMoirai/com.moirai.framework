@@ -40,12 +40,16 @@ function Write-Note([string]$message) {
 
 # module namespace prefix -> @{ tier; line; branch }
 # Keep prefixes ordered longest-first: the first match wins.
+#
+# NOTE: the Kernel layer (GameApp / GameServices / ServiceWorld / ServiceScope ...) declares its
+# public types in the ROOT namespace 'Moirai.Atropos', so it cannot be sliced out by a namespace
+# prefix - a 'Moirai.Atropos' entry would swallow every other module. Those rows land in the
+# unclassified bucket and are printed but not gated until a reliable discriminator exists.
 $gatedModules = @(
     @{ Prefix = 'Moirai.Atropos.Resource';     Tier = 'core';    Line = 80.0; Branch = 70.0 },
     @{ Prefix = 'Moirai.Atropos.Save';         Tier = 'core';    Line = 80.0; Branch = 70.0 },
     @{ Prefix = 'Moirai.Atropos.Audio';        Tier = 'core';    Line = 80.0; Branch = 70.0 },
     @{ Prefix = 'Moirai.Atropos.UI';           Tier = 'core';    Line = 80.0; Branch = 70.0 },
-    @{ Prefix = 'Moirai.Atropos.Kernel';       Tier = 'core';    Line = 80.0; Branch = 70.0 },
     @{ Prefix = 'Moirai.Atropos.ConfigTable';  Tier = 'service'; Line = 70.0; Branch = 0.0 },
     @{ Prefix = 'Moirai.Atropos.Debugger';     Tier = 'service'; Line = 70.0; Branch = 0.0 },
     @{ Prefix = 'Moirai.Atropos.Input';        Tier = 'service'; Line = 70.0; Branch = 0.0 },

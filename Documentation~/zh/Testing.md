@@ -260,7 +260,11 @@ long bytes = AllocationCapture.MeasureManaged("cached-play-stop", 200,
 
 ## 覆盖率与门禁
 
-工具：`com.unity.testtools.codecoverage`（UPM 包）。
+工具：`com.unity.testtools.codecoverage`（1.3.0）。**运行配方（编辑器窗口 / batchmode CLI）、过滤口径与门禁脚本见 [`Tests/Coverage/README.md`](../../Tests/Coverage/README.md)**，本节只写判定口径。
+
+CI 侧由 `.github/workflows/coverage.yaml` 执行同一套：插桩跑一轮 EditMode，再用 `Tests/Coverage/coverage-gate.ps1` 判定；脚本读不到报告、XML 结构不认识、没有任何 class 行，一律非零退出——**「测不出来」不等于「达标」**。测试与 PlayMode 回归见 `.github/workflows/tests.yaml`，`.meta` 完整性见 `.github/workflows/metas.yaml`（三者均仅 `pull_request` 触发）。
+
+> 本仓库是 UPM 包，没有 `ProjectSettings/`，Unity 测试必须在**宿主工程**里跑；workflow 因此 checkout 宿主工程仓库（`HOST_REPOSITORY`）再执行。接入时需按实际情况调整该值并配置 `HOST_REPO_TOKEN`。
 
 ### 配置口径
 
