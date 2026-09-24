@@ -228,9 +228,7 @@ namespace Service.Save
 
             // 注入设置实例（仅内存，测试后还原——设置资产为并行改动高发区，不落盘）
             SaveAssetCatalog previous = SaveServiceSettings.AssetCatalog;
-            typeof(SaveServiceSettings)
-                .GetField("m_AssetCatalog", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
-                ?.SetValue(SaveServiceSettings.Instance, catalog);
+            SaveServiceSettings.Instance.m_AssetCatalog = catalog;
             try
             {
                 V2Component source = CreateComponent("asset-src");
@@ -243,9 +241,7 @@ namespace Service.Save
             }
             finally
             {
-                typeof(SaveServiceSettings)
-                    .GetField("m_AssetCatalog", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
-                    ?.SetValue(SaveServiceSettings.Instance, previous);
+                SaveServiceSettings.Instance.m_AssetCatalog = previous;
             }
         }
 

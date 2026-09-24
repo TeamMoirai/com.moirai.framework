@@ -31,7 +31,7 @@ namespace Moirai.Atropos.Save
         public static string SaveFileExtension => Instance.m_SaveFileExtension;
         
         [Tooltip("资产引用目录：无代码保存的资产引用字段（Texture/SO/Material 等）按目录双向解析定位串——被引用资产须登记入册，空 = 资产引用字段捕获恒写 Null。")]
-        [SerializeField] private SaveAssetCatalog m_AssetCatalog;
+        [SerializeField] internal SaveAssetCatalog m_AssetCatalog;
         /// <summary>
         /// 资产引用目录（由 Inspector 序列化配置；<c>null</c> = 无资产引用解析能力）。
         /// </summary>

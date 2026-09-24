@@ -11,7 +11,7 @@ namespace Moirai.Atropos.Input
     [AddComponentMenu("Tools/Input/UI/Input Button")]
     public class InputButton : MonoBehaviour, IPointerUpHandler, IPointerDownHandler, IUIBoolAction
     {
-        [SerializeField] private string m_ActionName = "";
+        [SerializeField] internal string m_ActionName = "";
 
         private bool _boolValue;
         private int _pressedFrame = int.MinValue;

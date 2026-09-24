@@ -35,13 +35,7 @@ namespace Service.Audio
                 "越界一律削到天花板，不做静默放大");
         }
 
-        private static void SetCeiling(AudioGroupConfig config, int value)
-        {
-            typeof(AudioGroupConfig)
-                .GetField("m_MaxChannelCeiling", System.Reflection.BindingFlags.Instance
-                    | System.Reflection.BindingFlags.NonPublic)
-                .SetValue(config, value);
-        }
+        private static void SetCeiling(AudioGroupConfig config, int value) => config.m_MaxChannelCeiling = value;
 
         #endregion 通道硬上限 [CHANNEL CAP]
 

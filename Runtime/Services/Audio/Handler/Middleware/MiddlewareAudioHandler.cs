@@ -138,6 +138,14 @@ namespace Moirai.Atropos.Audio.Middleware
         protected abstract IAudioMiddlewareBridge CreateDefaultBridge();
 
         /// <summary>
+        /// 测试接缝：取默认桥实例（懒建，与运行期同一实例）。
+        /// <para>用例要断言"该后端的默认桥实现了哪些能力接口"，而 <see cref="CreateDefaultBridge"/> 是 protected，
+        /// 直取只能靠反射。按框架口径（需要触达的成员开 internal，不用反射）在此开一个窄接缝。</para>
+        /// </summary>
+        /// <returns>默认中间件桥。</returns>
+        internal IAudioMiddlewareBridge Internal_PeekDefaultBridge() => _bridge ??= CreateDefaultBridge();
+
+        /// <summary>
         /// 覆盖总线路径（可选）。默认 bus:/{Track}。
         /// </summary>
         protected virtual string GetBusPath(EAudioTrack track)

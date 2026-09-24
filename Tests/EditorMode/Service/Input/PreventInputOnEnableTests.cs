@@ -9,7 +9,8 @@ namespace Service.Input
     /// <summary>
     /// <see cref="PreventInputOnEnable"/> 所有权语义测试：
     /// OnDisable 仅恢复本组件实际修改过的标志，未勾选选项不得触碰全局状态。
-    /// <para>Edit Mode 下普通 MonoBehaviour 不自动调用 OnEnable/OnDisable，经反射直驱。</para>
+    /// <para>Edit Mode 下普通 MonoBehaviour 不自动调用 OnEnable/OnDisable，经反射直驱（生命周期唤起，反射白名单第 2 类）。
+    /// 勾选字段是 internal，直接赋值，不再反射。</para>
     /// <para>经 <c>InputService.Handler</c> 注入真实 UIMobile 后端（InternalsVisibleTo + 生成的 setter）。</para>
     /// </summary>
     [TestFixture]
@@ -53,10 +54,8 @@ namespace Service.Input
             var go = new GameObject("prevent-input");
             _objects.Add(go);
             var component = go.AddComponent<PreventInputOnEnable>();
-            component.GetType().GetField("m_LockPlayerController", InstancePrivate)
-                .SetValue(component, lockPlayer);
-            component.GetType().GetField("m_PreventInteractionUI", InstancePrivate)
-                .SetValue(component, preventUi);
+            component.m_LockPlayerController = lockPlayer;
+            component.m_PreventInteractionUI = preventUi;
             return component;
         }
 

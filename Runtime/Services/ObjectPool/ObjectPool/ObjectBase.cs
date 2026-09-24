@@ -10,7 +10,7 @@ namespace Moirai.Atropos.ObjectPool
         #region 字段 [FIELDS]
 
         private string _name;
-        private object _target;
+        internal object _target;
         private bool _locked;
         private float _lastUseTime;
 

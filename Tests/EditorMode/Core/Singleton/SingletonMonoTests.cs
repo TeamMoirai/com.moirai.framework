@@ -175,9 +175,7 @@ namespace Core.Singleton
             TestSingletonMono first = CreateSingletonGameObject();
             InvokeAwake(first);
             // 仲裁依赖单调序号：固定为 MaxValue 确保新实例必然胜出
-            typeof(SingletonMono<TestSingletonMono>)
-                .GetField("_initializationOrdinal", BindingFlags.NonPublic | BindingFlags.Instance)
-                .SetValue(first, long.MaxValue);
+            first._initializationOrdinal = long.MaxValue;
 
             TestSingletonMono second = CreateSingletonGameObject();
             SetReplaceable(second, true);
@@ -244,13 +242,8 @@ namespace Core.Singleton
         /// <summary>反射调用受保护的 OnDestroy。</summary>
         private static void InvokeOnDestroy(TestSingletonMono instance) => OnDestroyMethod.Invoke(instance, null);
 
-        /// <summary>反射设置 m_Replaceable 序列化字段。</summary>
-        private static void SetReplaceable(TestSingletonMono instance, bool value)
-        {
-            typeof(SingletonMono<TestSingletonMono>)
-                .GetField("m_Replaceable", BindingFlags.NonPublic | BindingFlags.Instance)
-                .SetValue(instance, value);
-        }
+        /// <summary>设置 m_Replaceable 序列化字段（protected internal，直接赋值）。</summary>
+        private static void SetReplaceable(TestSingletonMono instance, bool value) => instance.m_Replaceable = value;
 
         #endregion
     }

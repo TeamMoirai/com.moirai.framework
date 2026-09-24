@@ -30,7 +30,7 @@ namespace Moirai.Atropos.Audio
         [SerializeField] private bool m_CanExpand;
 
         [Tooltip("扩展的通道硬上限（仅 CanExpand 生效）：按平台预算分轨设置，非法值回落到默认 32")]
-        [SerializeField, Min(1)] private int m_MaxChannelCeiling = HARD_CHANNEL_CEILING_DEFAULT;
+        [SerializeField, Min(1)] internal int m_MaxChannelCeiling = HARD_CHANNEL_CEILING_DEFAULT;
 
         // 最小音量：0 会走进 log10 而 -∞，用 -80dB 作为可表达的最底（与静音写 -80 的旧值同一条线）
         public const float MINIMAL_VOLUME = 0.0001f;
