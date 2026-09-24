@@ -15,6 +15,12 @@ namespace Moirai.Atropos.Resource
 
         private const int IDLE_BUCKET_COUNT = 256;
         private const int KEEP_ALIVE_BUCKET_COUNT = 256;
+
+        /// <summary>
+        /// 空闲/保活刻度按"一秒一格"落进 256 格轮盘，所以一套轮最多只能表达 255 格的存活期；
+        /// 超过一圈的配置值不是报错，而是被跳过、直到轮盘绕回来——设置项自检要拿它当上限。
+        /// </summary>
+        internal const int IdleWheelSpanSeconds = IDLE_BUCKET_COUNT - 1;
         #endregion
 
         #region Slot 结构体 [SLOT STRUCTS]

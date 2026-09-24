@@ -419,6 +419,22 @@ using var lease = ResourceService.LoadLeaseAsync<GameObject>("path").GetAwaiter(
 // ... use lease.Asset; released automatically at the end of the using scope
 ```
 
+### Configuration Self-Check
+
+Settings follow a **report, never rewrite** policy: values that are individually legal but inconsistent with each other each raise one Warning during `ResourceService.OnInit`; at build time `ResourceSettingsBuildValidator` re-runs **the exact same rules**, and it also only warns by default — set `MOIRAI_RESOURCE_SETTINGS_STRICT=1` to fail the build (this package is consumed by others, so stopping somebody else's build over one setting is a ticket, not a reminder).
+
+Deliberately no runtime clamping: clamping rewrites a configuration mistake into a value that looks fine, which is the same reasoning behind `PlayMode` normalising only its return value and never writing back to the asset.
+
+| Setting | Triggered when | What goes wrong |
+|---|---|---|
+| `ExpireProcessCountWhenUnloading` | below `ExpireProcessCountPerFrame` | the frame drive keeps the larger value, so the unload budget never applies |
+| `ExpireProcessCountPerFrame` | ≤ 0 | the expiry wheels advance only on a positive budget, so idle/keep-alive records never expire |
+| `DestroySweepBudget` | ≤ 0 | the destroyed-target sweep never runs, so leases left by a truncated `OnDestroy` are never reclaimed |
+| `IdleAssetExpireTime` | > 255 | expiry ticks land in a 256-bucket wheel one tick per second; a value past a full lap is skipped until the wheel wraps, delaying release by up to a whole lap |
+| `MaxUnloadUnusedAssetsInterval` | ≤ 0 | the trigger compares elapsed time against it, so a non-positive value unloads every frame |
+| `MinUnloadUnusedAssetsInterval` | above the max interval | preordered unloads are already fired by the periodic trigger, so the minimum decides nothing |
+| `MinGCCollectInterval` | < 0 | throttling never applies and every collect request runs `GC.Collect` |
+
 ## Notes
 
 - **Addressables backend (experimental):** `AddressableHandler` shares the same record kernel as `YooAssetHandler` (`ResourceRecordStore`); the async lease / binding / prefab instantiation / atlas sub-sprite / scene loading / cache maintenance and low-memory release families are all at parity. When `com.unity.addressables` is not installed the whole layer drops out via the asmdef `versionDefines` macro `ADDRESSABLES_INSTALLED` plus file-level `#if` — it is deliberately **not** split into its own assembly, because the kernel types are `internal` to `Moirai.Atropos` and a satellite assembly would only buy a line of `InternalsVisibleTo`.

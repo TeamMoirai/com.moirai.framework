@@ -418,6 +418,22 @@ using var lease = ResourceService.LoadLeaseAsync<GameObject>("path").GetAwaiter(
 // ... 使用 lease.Asset，using 结束自动释放
 ```
 
+### 配置自检
+
+设置项按**只报不改**处理：值单看都合法、只是相互关系不成立的那几类，会在 `ResourceService.OnInit` 各打一条 Warning；构建期由 `ResourceSettingsBuildValidator` 拿**同一份判据**再走一遍，默认也只告警——设环境变量 `MOIRAI_RESOURCE_SETTINGS_STRICT=1` 才会把构建拦停（本包被他人消费，因一项配置拦停别人的构建是工单，不是提醒）。
+
+刻意不做运行期夹取：夹取会把配置错误洗成"看起来本来就对"的值，这与 `PlayMode` 读取时"只归一返回值、不回写资产"是同一个取向。
+
+| 设置项 | 触发条件 | 不修会怎样 |
+|---|---|---|
+| `ExpireProcessCountWhenUnloading` | 小于 `ExpireProcessCountPerFrame` | 帧驱动取二者较大值，卸载档预算永远顶不上去 |
+| `ExpireProcessCountPerFrame` | ≤ 0 | 时间轮只在正预算下推进，空闲/保活记录永不过期 |
+| `DestroySweepBudget` | ≤ 0 | 销毁态轮转一帧都不跑，被 `OnDestroy` 截断留下的租约永不回收 |
+| `IdleAssetExpireTime` | > 255 | 过期刻度按一秒一格落进 256 格轮盘，超过一圈的值会被跳过直到轮盘绕回，释放最多晚一整圈 |
+| `MaxUnloadUnusedAssetsInterval` | ≤ 0 | 调度判据是"距上次卸载 ≥ 该值"，非正数使其恒真，卸载变成每帧一次 |
+| `MinUnloadUnusedAssetsInterval` | 大于上限 | 预约卸载先被周期触发抢掉，下限形同废弃 |
+| `MinGCCollectInterval` | < 0 | 节流失效，每次收集请求都真跑 `GC.Collect` |
+
 ## 注意事项
 
 - **Addressables 后端（实验性）：** `AddressableHandler` 与 `YooAssetHandler` 共用同一套记录内核（`ResourceRecordStore`），异步租约 / 绑定 / 预制体实例化 / 图集子精灵 / 场景加载 / 缓存维护与低内存回收均已对齐。未安装 `com.unity.addressables` 时整层由 asmdef 的 `versionDefines`（宏 `ADDRESSABLES_INSTALLED`）连同文件级 `#if` 一起剔除，**不拆独立程序集**——内核类型是 `Moirai.Atropos` 的 `internal`，拆出去只会逼出一行 `InternalsVisibleTo`，换不到任何东西。
