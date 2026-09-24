@@ -991,7 +991,7 @@ namespace Service.Localization
             Assert.AreEqual(English, LocalizationService.ToLanguage("EN", false));
             Assert.AreEqual(Chinese, LocalizationService.ToLanguage("chineseSimplified", false));
             Assert.AreEqual(Chinese, LocalizationService.ToLanguage("zh-hans", false));
-            Assert.AreEqual(LocalizationService.defaultLanguage, LocalizationService.ToLanguage("klingon", false));
+            Assert.AreEqual(LocalizationService.DefaultLanguage, LocalizationService.ToLanguage("klingon", false));
         }
 
         [Test]
