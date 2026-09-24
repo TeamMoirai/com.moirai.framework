@@ -1,6 +1,4 @@
 ﻿using System;
-using UnityEngine;
-using UObject = UnityEngine.Object;
 
 namespace Moirai.Atropos.Resource
 {
@@ -15,18 +13,6 @@ namespace Moirai.Atropos.Resource
         private ResourceRecordStore Store => _store ??= new ResourceRecordStore(this, () => DefaultPackageName);
 
         internal int LoadingOperationCount => Store.LoadingOperationCount;
-
-        private ResourceOwner EnsureResourceOwner(GameObject root)
-        {
-            ResourceOwner owner = root.GetComponent<ResourceOwner>();
-            if (owner == null)
-            {
-                owner = root.AddComponent<ResourceOwner>();
-            }
-
-            _bindingService.RegisterOwner(owner);
-            return owner;
-        }
 
         /// <inheritdoc />
         public override int GetAssetInfos(ResourceAssetInfo[] results, int startIndex, int maxCount) =>

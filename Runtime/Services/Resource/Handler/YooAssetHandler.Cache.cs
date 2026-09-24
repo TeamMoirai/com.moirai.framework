@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace Moirai.Atropos.Resource
+﻿namespace Moirai.Atropos.Resource
 {
     // ReSharper disable once ClassNeverInstantiated.Global
     partial class YooAssetHandler

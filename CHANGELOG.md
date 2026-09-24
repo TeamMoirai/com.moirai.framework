@@ -57,12 +57,18 @@
 
 - `HandlerHost` 生成器多发无损换入接缝 `Internal_PeekHandler()` / `Internal_UseHandler(next)`：测试换入换出处理器不再反射私有字段，框架成员也不为此放宽访问级别。
 - `Tests/EditorMode/TestRequestRunner.cs` 让开着的编辑器自己跑 Test Runner（跨域重载续跑、请求先改名后读取、作业句柄判活与取消）。
-- 玩家专用测试程序集 `Moirai.Atropos.Tests.Player` 承载热路径 0-GC 验收。
+- 玩家专用测试程序集 `Moirai.Atropos.Tests.Player` 承载热路径 0-GC 验收：音频之后，绑定层也搬了进去（`ResourceBindingAllocationTests` 4 格：稳态重绑、空闲轮转扫描、诊断读表、注销+重登记往返）。
+  - 编辑器套件里不再出现这几格：托管分配计数器在编辑器 Mono 下不推进，零分配断言在那里无条件成立，加它等于往套件里放一个恒绿的假阳性。
+- 真实设置资产的回归门禁 `ResourceSettingsAssetRegressionTests`（3 格）：读的是工程里那份 `ResourceServiceSettings.asset`，不是测试自造的实例。
+  - `[SerializeReference]` 的后端引用一旦静默失效（改名、挪程序集、类型下线），Unity 不报错、只读成 null，服务照样初始化成功——这是这条失效路径上唯一的自动防线。
+  - 另两格钉"按路径读到的那份就是 `Instance`"与"每个公开读数都等于资产里那个字段"：属性层加过夹取、换过默认值或忘了转发都会在这里露出来。
 - 回归补齐：
   - 内存池夹具基座
   - 对象池异常路径
   - 时间轮时钟污染（`WheelTimerClockPoisonTests`）
   - 后端接缝形状基线（`ResourceSeamShapeGuardTests`）
+  - 空闲容量淘汰的现状（`ResourceRecordStoreIdleTrimTests`）：受害者按空闲过期刻度从旧到新挑、每趟不超预算、超限没摘完时请求位留回下一帧、被租约握着的记录不参与。
+    - 这三格只带一面假 `IResourceRecordHost` 就能直接驱动内核——记账从 `YooAssetHandler` 抽出来之后第一次成立，此前这套锁在"不初始化 YooAsset 就进不去"的位置上。
 - Clip 缓存热路径的 CPU 预算基准 `AudioCacheBenchmark`（3 格 `[Explicit]`，与 `KernelBenchmark` 同一范式，量的是单次调用的纳秒数而不是条目数）。
 
 ### Changed
@@ -97,6 +103,10 @@
   - `ProcessDestroyedObjects` 的默认参删除，让漏传在编译期报出来。
 - `ResourceBindingService.Shutdown` 拆为终态关停与可复用重置。
 - 外观写成员改走 `RequireHandler()`，未就绪不再伪装成"资源不存在"。
+- Addressables 后端接上同一套 `ResourceRecordStore`：异步租约 / 绑定 / 预制体实例化 / 图集子精灵 / 场景加载 / 缓存维护不再抛错，两后端共用记账、在途去重与过期，各自只实现一面 `IResourceRecordHost`。
+  - 剩余缺口按原因分两类，都不是待办：Addressables 没有同步加载 API，同步取用族与两步式 Check→Update 的下载族统一 fail-fast；`IsNeedDownloadFromRemote` / `GetAssetInfo` / 按标签的 `GetAssetInfos` 要么只有异步版本、要么 `IResourceLocation` 不带对应信息，退化为恒定值。
+  - 语义分歧一处：`HasAsset` 区分不出"已缓存"与"待远端下载"，`AssetOnline` 在该后端永不出现。
+  - 该层仍留在主程序集里按文件级 `#if ADDRESSABLES_INSTALLED` 整体剔除，不拆卫星 asmdef——内核类型是 `Moirai.Atropos` 的 `internal`，拆开只多换来一行 `InternalsVisibleTo`。
 
 #### `Kernel` 与工具面
 
@@ -133,6 +143,9 @@
 - `WaitForLoadingAsync` 的等待者计数不归还、失败原因被丢弃。
 - `LoadGameObject` / `LoadGameObjectAsync` 不防实例化期间的回收与关停。
 - `UnloadUnusedAssets` / `ForceUnloadAllAssets` 不校验包是否仍有有效清单。
+- YooAsset 后端的实例状态与 YooAssets 的静态表不同一条命：同域重启（容器重启、或关掉脚本域重载进 Play）时 `[SerializeReference]` 里那份处理器原封不动，`Initialize()` 却直接抛 `YooAssets is already initialized`；即使不抛，`PackageMap` 里的 `ResourcePackage` 也全是孤儿，而 `InitPackage` 的快路径恰恰按它的 `InitializeStatus` 判"这个包已就绪"。现在 `Initialize()` 先走一次 `ResetReloadUnsafeState()`：静态已初始化就先 `Destroy`，随后清包表、`AssetInfo` 缓存与两本包初始化字典。
+- Addressables 后端把 `Application.lowMemory` 这条链整个吞掉：`SetForceUnloadUnusedAssetsAction` 丢掉委托、`OnLowMemory` 是空方法体，内存吃紧时既不收记录也不请求系统回收，而调用方看到的是"正常返回"。现按 YooAsset 的形状接上，`AddressableHandlerFailFastTests` 钉住委托真的以 force=true 被调用。
+  - 同处的强制档 `UnloadUnusedAssets(true)` 同样空转，现在走记录释放；非强制档刻意仍为空——那一档在 YooAsset 侧推进 bundle 卸载操作，本后端没有对应物。
 - 精灵绑定族的四个入口把资源包写死成空串（材质族早已透传），DLC 包里的精灵绑不上：`SetSprite` / `SetSubSprite` 全部 8 个重载补上末位可选 `packageName`，留空即走默认包，既有调用行为不变。
 - `RemoteService.GetRemoteUrls` 把内部字段数组直接交给调用方。
 - `ResourceOwner.ReleaseBindingsInHierarchy` 的共用缓冲被嵌套释放踩掉。

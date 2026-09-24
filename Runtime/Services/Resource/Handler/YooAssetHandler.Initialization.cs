@@ -124,6 +124,10 @@ namespace Moirai.Atropos.Resource
         /// <inheritdoc />
         public override void Initialize()
         {
+            // 实例状态与 YooAssets 的静态表不同一条命：先把它对齐，否则下一句就抛
+            // "YooAssets is already initialized"，即使不抛，PackageMap 里也全是孤儿。
+            ResetReloadUnsafeState();
+
             // 恢复 Shutdown→Initialize 循环复用契约：处理器实例来自资产 [SerializeReference]，
             // 容器重启后"重新创建"拿到的仍是同一实例，必须复位关闭标志。
             Store.IsDestroying = false;
@@ -155,6 +159,29 @@ namespace Moirai.Atropos.Resource
             _bindingService?.Shutdown();
             Store.ShutdownLoadingOperations();
             ForceReleaseAllAssetRecords();
+            _packageInitTasks.Clear();
+            _packageInitOperations.Clear();
+        }
+
+        /// <summary>
+        /// 复位"跨重启不安全"的那份状态：实例字段与 YooAssets 的静态表不同一条命。
+        /// <para>关掉脚本域重载、或容器在同一域里重启时，<c>[SerializeReference]</c> 里这份处理器
+        /// 原封不动地活着，而 YooAssets 的 <c>s_packages</c> 与驱动器已经随场景重载没了：
+        /// 下一句 <c>YooAssets.Initialize</c> 直接抛 "already initialized"；就算不抛，
+        /// <see cref="PackageMap"/> 里那些 <c>ResourcePackage</c> 也全是孤儿，
+        /// 而 <c>InitPackage</c> 的快路径恰恰按它的命中来判定"这个包已经初始化过了"。</para>
+        /// <para>反过来，正常开启域重载时这里等于空转一次——静态已归零、字典本就是空的。</para>
+        /// </summary>
+        private void ResetReloadUnsafeState()
+        {
+            if (YooAssets.IsInitialized)
+            {
+                YooAssets.Destroy();
+            }
+
+            DefaultPackage = null;
+            PackageMap.Clear();
+            _assetInfoMap.Clear();
             _packageInitTasks.Clear();
             _packageInitOperations.Clear();
         }

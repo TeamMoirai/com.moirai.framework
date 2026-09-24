@@ -503,5 +503,22 @@ namespace Moirai.Atropos.Resource
         public abstract int GetAssetInfos(ResourceAssetInfo[] results, int startIndex, int maxCount);
 
         #endregion
+
+        /// <summary>
+        /// 取或挂实例上的 <see cref="ResourceOwner"/> 并向绑定服务登记。属表现层动作、与后端无关，
+        /// 故放基类：两个后端的实例化路径此前各抄了一份，改一份忘一份就是下一处漂移。
+        /// </summary>
+        protected ResourceOwner EnsureResourceOwner(GameObject root)
+        {
+            ResourceOwner owner = root.GetComponent<ResourceOwner>();
+            if (owner == null)
+            {
+                owner = root.AddComponent<ResourceOwner>();
+            }
+
+            BindingService?.RegisterOwner(owner);
+            return owner;
+        }
+
     }
 }
