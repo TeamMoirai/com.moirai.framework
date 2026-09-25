@@ -12,43 +12,43 @@ using Luban;
 
 namespace Moirai.GameProto.Config.L10n
 {
-	public sealed partial class LocalizedStringsConfig : Luban.BeanBase
-	{
-		public LocalizedStringsConfig(ByteBuf _buf) 
-		{
-			Key = _buf.ReadString();
-			FormattedStrings = global::Moirai.GameProto.Config.L10n.LocalizationBean.DeserializeLocalizationBean(_buf);
-		}
+public sealed partial class LocalizedStringsConfig : Luban.BeanBase
+{
+    public LocalizedStringsConfig(ByteBuf _buf) 
+    {
+        Key = _buf.ReadString();
+        FormattedStrings = global::Moirai.GameProto.Config.L10n.LocalizationBean.DeserializeLocalizationBean(_buf);
+    }
 
-		public static LocalizedStringsConfig DeserializeLocalizedStringsConfig(ByteBuf _buf)
-		{
-			return new L10n.LocalizedStringsConfig(_buf);
-		}
+    public static LocalizedStringsConfig DeserializeLocalizedStringsConfig(ByteBuf _buf)
+    {
+        return new L10n.LocalizedStringsConfig(_buf);
+    }
 
-		/// <summary>
-		/// 占位符
-		/// </summary>
-		public readonly string Key;
-		/// <summary>
-		/// 支持的多语言
-		/// </summary>
-		public readonly L10n.LocalizationBean FormattedStrings;
-	   
-		public const int __ID__ = -345390924;
-		public override int GetTypeId() => __ID__;
+    /// <summary>
+    /// 占位符
+    /// </summary>
+    public readonly string Key;
+    /// <summary>
+    /// 支持的多语言
+    /// </summary>
+    public readonly L10n.LocalizationBean FormattedStrings;
+   
+    public const int __ID__ = -345390924;
+    public override int GetTypeId() => __ID__;
 
-		public  void ResolveRef(Tables tables)
-		{
-			FormattedStrings?.ResolveRef(tables);
-		}
+    public  void ResolveRef(Tables tables)
+    {
+        FormattedStrings?.ResolveRef(tables);
+    }
 
-		public override string ToString()
-		{
-			return "{ "
-			+ "key:" + Key + ","
-			+ "formattedStrings:" + FormattedStrings + ","
-			+ "}";
-		}
-	}
+    public override string ToString()
+    {
+        return "{ "
+        + "key:" + Key + ","
+        + "formattedStrings:" + FormattedStrings + ","
+        + "}";
+    }
+}
 }
 

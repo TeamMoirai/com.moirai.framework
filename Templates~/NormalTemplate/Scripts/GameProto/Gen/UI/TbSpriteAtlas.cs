@@ -12,43 +12,44 @@ using Luban;
 
 namespace Moirai.GameProto.Config.UI
 {
-	/// <summary>
-	/// UI图集配置
-	/// </summary>
-	public partial class TbSpriteAtlas
-	{
-		private readonly System.Collections.Generic.Dictionary<string, UI.SpriteAtlasConfig> _dataMap;
-		private readonly System.Collections.Generic.List<UI.SpriteAtlasConfig> _dataList;
-		
-		public TbSpriteAtlas(ByteBuf _buf)
-		{
-			_dataMap = new System.Collections.Generic.Dictionary<string, UI.SpriteAtlasConfig>();
-			_dataList = new System.Collections.Generic.List<UI.SpriteAtlasConfig>();
-			
-			for(int n = _buf.ReadSize() ; n > 0 ; --n)
-			{
-				UI.SpriteAtlasConfig _v;
-				_v = global::Moirai.GameProto.Config.UI.SpriteAtlasConfig.DeserializeSpriteAtlasConfig(_buf);
-				_dataList.Add(_v);
-				_dataMap.Add(_v.Id, _v);
-			}
-		}
+/// <summary>
+/// UI图集配置
+/// </summary>
+public partial class TbSpriteAtlas
+{
+    private readonly System.Collections.Generic.Dictionary<string, UI.SpriteAtlasConfig> _dataMap;
+    private readonly System.Collections.Generic.List<UI.SpriteAtlasConfig> _dataList;
+    
+    public TbSpriteAtlas(ByteBuf _buf)
+    {
+        int n = _buf.ReadSize();
+        _dataMap = new System.Collections.Generic.Dictionary<string, UI.SpriteAtlasConfig>(n);
+        _dataList = new System.Collections.Generic.List<UI.SpriteAtlasConfig>(n);
+        for(int i = n ; i > 0 ; --i)
+        {
+            UI.SpriteAtlasConfig _v;
+            _v = global::Moirai.GameProto.Config.UI.SpriteAtlasConfig.DeserializeSpriteAtlasConfig(_buf);
+            _dataList.Add(_v);
+            _dataMap.Add(_v.Id, _v);
+        }
+    }
 
-		public System.Collections.Generic.Dictionary<string, UI.SpriteAtlasConfig> DataMap => _dataMap;
-		public System.Collections.Generic.List<UI.SpriteAtlasConfig> DataList => _dataList;
+    public System.Collections.Generic.Dictionary<string, UI.SpriteAtlasConfig> DataMap => _dataMap;
+    public System.Collections.Generic.List<UI.SpriteAtlasConfig> DataList => _dataList;
 
-		public UI.SpriteAtlasConfig GetOrDefault(string key) => _dataMap.TryGetValue(key, out var v) ? v : null;
-		public UI.SpriteAtlasConfig Get(string key) => _dataMap[key];
-		public UI.SpriteAtlasConfig this[string key] => _dataMap[key];
+    public UI.SpriteAtlasConfig GetOrDefault(string key) => _dataMap.TryGetValue(key, out var v) ? v : null;
+    public UI.SpriteAtlasConfig Get(string key) => _dataMap[key];
+    public UI.SpriteAtlasConfig this[string key] => _dataMap[key];
 
-		public void ResolveRef(Tables tables)
-		{
-			foreach(var _v in _dataList)
-			{
-				_v.ResolveRef(tables);
-			}
-		}
+    public void ResolveRef(Tables tables)
+    {
+        foreach(var _v in _dataList)
+        {
+            _v.ResolveRef(tables);
+        }
+    }
 
-	}
+}
+
 }
 

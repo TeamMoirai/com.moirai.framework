@@ -12,54 +12,54 @@ using Luban;
 
 namespace Moirai.GameProto.Config.Test
 {
-	public sealed partial class ItemConfig : Luban.BeanBase
-	{
-		public ItemConfig(ByteBuf _buf) 
-		{
-			Id = _buf.ReadInt();
-			Name = _buf.ReadString();
-			Desc = _buf.ReadString();
-			{int n0 = _buf.ReadSize(); Data1 = new System.Collections.Generic.List<string>(n0);for(var i0 = 0 ; i0 < n0 ; i0++) { string _e0;  _e0 = _buf.ReadString(); Data1.Add(_e0);}}
-		}
+public sealed partial class ItemConfig : Luban.BeanBase
+{
+    public ItemConfig(ByteBuf _buf) 
+    {
+        Id = _buf.ReadInt();
+        Name = _buf.ReadString();
+        Desc = _buf.ReadString();
+        {int n0 = _buf.ReadSize(); Data1 = new System.Collections.Generic.List<string>(n0);for(var i0 = 0 ; i0 < n0 ; i0++) { string _e0;  _e0 = _buf.ReadString(); Data1.Add(_e0);}}
+    }
 
-		public static ItemConfig DeserializeItemConfig(ByteBuf _buf)
-		{
-			return new Test.ItemConfig(_buf);
-		}
+    public static ItemConfig DeserializeItemConfig(ByteBuf _buf)
+    {
+        return new Test.ItemConfig(_buf);
+    }
 
-		/// <summary>
-		/// 索引
-		/// </summary>
-		public readonly int Id;
-		/// <summary>
-		/// 名称
-		/// </summary>
-		public readonly string Name;
-		/// <summary>
-		/// 描述
-		/// </summary>
-		public readonly string Desc;
-		/// <summary>
-		/// 测试数据
-		/// </summary>
-		public readonly System.Collections.Generic.List<string> Data1;
-	   
-		public const int __ID__ = -848802031;
-		public override int GetTypeId() => __ID__;
+    /// <summary>
+    /// 索引
+    /// </summary>
+    public readonly int Id;
+    /// <summary>
+    /// 名称
+    /// </summary>
+    public readonly string Name;
+    /// <summary>
+    /// 描述
+    /// </summary>
+    public readonly string Desc;
+    /// <summary>
+    /// 测试数据
+    /// </summary>
+    public readonly System.Collections.Generic.List<string> Data1;
+   
+    public const int __ID__ = -848802031;
+    public override int GetTypeId() => __ID__;
 
-		public  void ResolveRef(Tables tables)
-		{
-		}
+    public  void ResolveRef(Tables tables)
+    {
+    }
 
-		public override string ToString()
-		{
-			return "{ "
-			+ "id:" + Id + ","
-			+ "name:" + Name + ","
-			+ "desc:" + Desc + ","
-			+ "data1:" + Luban.StringUtil.CollectionToString(Data1) + ","
-			+ "}";
-		}
-	}
+    public override string ToString()
+    {
+        return "{ "
+        + "id:" + Id + ","
+        + "name:" + Name + ","
+        + "desc:" + Desc + ","
+        + "data1:" + Luban.StringUtil.CollectionToString(Data1) + ","
+        + "}";
+    }
+}
 }
 

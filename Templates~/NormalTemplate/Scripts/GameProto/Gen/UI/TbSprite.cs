@@ -12,43 +12,44 @@ using Luban;
 
 namespace Moirai.GameProto.Config.UI
 {
-	/// <summary>
-	/// UI图标配置
-	/// </summary>
-	public partial class TbSprite
-	{
-		private readonly System.Collections.Generic.Dictionary<string, UI.SpriteConfig> _dataMap;
-		private readonly System.Collections.Generic.List<UI.SpriteConfig> _dataList;
-		
-		public TbSprite(ByteBuf _buf)
-		{
-			_dataMap = new System.Collections.Generic.Dictionary<string, UI.SpriteConfig>();
-			_dataList = new System.Collections.Generic.List<UI.SpriteConfig>();
-			
-			for(int n = _buf.ReadSize() ; n > 0 ; --n)
-			{
-				UI.SpriteConfig _v;
-				_v = global::Moirai.GameProto.Config.UI.SpriteConfig.DeserializeSpriteConfig(_buf);
-				_dataList.Add(_v);
-				_dataMap.Add(_v.Id, _v);
-			}
-		}
+/// <summary>
+/// UI图标配置
+/// </summary>
+public partial class TbSprite
+{
+    private readonly System.Collections.Generic.Dictionary<string, UI.SpriteConfig> _dataMap;
+    private readonly System.Collections.Generic.List<UI.SpriteConfig> _dataList;
+    
+    public TbSprite(ByteBuf _buf)
+    {
+        int n = _buf.ReadSize();
+        _dataMap = new System.Collections.Generic.Dictionary<string, UI.SpriteConfig>(n);
+        _dataList = new System.Collections.Generic.List<UI.SpriteConfig>(n);
+        for(int i = n ; i > 0 ; --i)
+        {
+            UI.SpriteConfig _v;
+            _v = global::Moirai.GameProto.Config.UI.SpriteConfig.DeserializeSpriteConfig(_buf);
+            _dataList.Add(_v);
+            _dataMap.Add(_v.Id, _v);
+        }
+    }
 
-		public System.Collections.Generic.Dictionary<string, UI.SpriteConfig> DataMap => _dataMap;
-		public System.Collections.Generic.List<UI.SpriteConfig> DataList => _dataList;
+    public System.Collections.Generic.Dictionary<string, UI.SpriteConfig> DataMap => _dataMap;
+    public System.Collections.Generic.List<UI.SpriteConfig> DataList => _dataList;
 
-		public UI.SpriteConfig GetOrDefault(string key) => _dataMap.TryGetValue(key, out var v) ? v : null;
-		public UI.SpriteConfig Get(string key) => _dataMap[key];
-		public UI.SpriteConfig this[string key] => _dataMap[key];
+    public UI.SpriteConfig GetOrDefault(string key) => _dataMap.TryGetValue(key, out var v) ? v : null;
+    public UI.SpriteConfig Get(string key) => _dataMap[key];
+    public UI.SpriteConfig this[string key] => _dataMap[key];
 
-		public void ResolveRef(Tables tables)
-		{
-			foreach(var _v in _dataList)
-			{
-				_v.ResolveRef(tables);
-			}
-		}
+    public void ResolveRef(Tables tables)
+    {
+        foreach(var _v in _dataList)
+        {
+            _v.ResolveRef(tables);
+        }
+    }
 
-	}
+}
+
 }
 

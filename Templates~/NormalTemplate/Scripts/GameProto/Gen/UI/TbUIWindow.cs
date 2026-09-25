@@ -12,43 +12,44 @@ using Luban;
 
 namespace Moirai.GameProto.Config.UI
 {
-	/// <summary>
-	/// UI弹窗配置
-	/// </summary>
-	public partial class TbUIWindow
-	{
-		private readonly System.Collections.Generic.Dictionary<string, UI.UIWindowConfig> _dataMap;
-		private readonly System.Collections.Generic.List<UI.UIWindowConfig> _dataList;
-		
-		public TbUIWindow(ByteBuf _buf)
-		{
-			_dataMap = new System.Collections.Generic.Dictionary<string, UI.UIWindowConfig>();
-			_dataList = new System.Collections.Generic.List<UI.UIWindowConfig>();
-			
-			for(int n = _buf.ReadSize() ; n > 0 ; --n)
-			{
-				UI.UIWindowConfig _v;
-				_v = global::Moirai.GameProto.Config.UI.UIWindowConfig.DeserializeUIWindowConfig(_buf);
-				_dataList.Add(_v);
-				_dataMap.Add(_v.Id, _v);
-			}
-		}
+/// <summary>
+/// UI弹窗配置
+/// </summary>
+public partial class TbUIWindow
+{
+    private readonly System.Collections.Generic.Dictionary<string, UI.UIWindowConfig> _dataMap;
+    private readonly System.Collections.Generic.List<UI.UIWindowConfig> _dataList;
+    
+    public TbUIWindow(ByteBuf _buf)
+    {
+        int n = _buf.ReadSize();
+        _dataMap = new System.Collections.Generic.Dictionary<string, UI.UIWindowConfig>(n);
+        _dataList = new System.Collections.Generic.List<UI.UIWindowConfig>(n);
+        for(int i = n ; i > 0 ; --i)
+        {
+            UI.UIWindowConfig _v;
+            _v = global::Moirai.GameProto.Config.UI.UIWindowConfig.DeserializeUIWindowConfig(_buf);
+            _dataList.Add(_v);
+            _dataMap.Add(_v.Id, _v);
+        }
+    }
 
-		public System.Collections.Generic.Dictionary<string, UI.UIWindowConfig> DataMap => _dataMap;
-		public System.Collections.Generic.List<UI.UIWindowConfig> DataList => _dataList;
+    public System.Collections.Generic.Dictionary<string, UI.UIWindowConfig> DataMap => _dataMap;
+    public System.Collections.Generic.List<UI.UIWindowConfig> DataList => _dataList;
 
-		public UI.UIWindowConfig GetOrDefault(string key) => _dataMap.TryGetValue(key, out var v) ? v : null;
-		public UI.UIWindowConfig Get(string key) => _dataMap[key];
-		public UI.UIWindowConfig this[string key] => _dataMap[key];
+    public UI.UIWindowConfig GetOrDefault(string key) => _dataMap.TryGetValue(key, out var v) ? v : null;
+    public UI.UIWindowConfig Get(string key) => _dataMap[key];
+    public UI.UIWindowConfig this[string key] => _dataMap[key];
 
-		public void ResolveRef(Tables tables)
-		{
-			foreach(var _v in _dataList)
-			{
-				_v.ResolveRef(tables);
-			}
-		}
+    public void ResolveRef(Tables tables)
+    {
+        foreach(var _v in _dataList)
+        {
+            _v.ResolveRef(tables);
+        }
+    }
 
-	}
+}
+
 }
 

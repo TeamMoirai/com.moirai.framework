@@ -12,43 +12,44 @@ using Luban;
 
 namespace Moirai.GameProto.Config.Test
 {
-	/// <summary>
-	/// 道具配置
-	/// </summary>
-	public partial class TbItem
-	{
-		private readonly System.Collections.Generic.Dictionary<int, Test.ItemConfig> _dataMap;
-		private readonly System.Collections.Generic.List<Test.ItemConfig> _dataList;
-		
-		public TbItem(ByteBuf _buf)
-		{
-			_dataMap = new System.Collections.Generic.Dictionary<int, Test.ItemConfig>();
-			_dataList = new System.Collections.Generic.List<Test.ItemConfig>();
-			
-			for(int n = _buf.ReadSize() ; n > 0 ; --n)
-			{
-				Test.ItemConfig _v;
-				_v = global::Moirai.GameProto.Config.Test.ItemConfig.DeserializeItemConfig(_buf);
-				_dataList.Add(_v);
-				_dataMap.Add(_v.Id, _v);
-			}
-		}
+/// <summary>
+/// 道具配置
+/// </summary>
+public partial class TbItem
+{
+    private readonly System.Collections.Generic.Dictionary<int, Test.ItemConfig> _dataMap;
+    private readonly System.Collections.Generic.List<Test.ItemConfig> _dataList;
+    
+    public TbItem(ByteBuf _buf)
+    {
+        int n = _buf.ReadSize();
+        _dataMap = new System.Collections.Generic.Dictionary<int, Test.ItemConfig>(n);
+        _dataList = new System.Collections.Generic.List<Test.ItemConfig>(n);
+        for(int i = n ; i > 0 ; --i)
+        {
+            Test.ItemConfig _v;
+            _v = global::Moirai.GameProto.Config.Test.ItemConfig.DeserializeItemConfig(_buf);
+            _dataList.Add(_v);
+            _dataMap.Add(_v.Id, _v);
+        }
+    }
 
-		public System.Collections.Generic.Dictionary<int, Test.ItemConfig> DataMap => _dataMap;
-		public System.Collections.Generic.List<Test.ItemConfig> DataList => _dataList;
+    public System.Collections.Generic.Dictionary<int, Test.ItemConfig> DataMap => _dataMap;
+    public System.Collections.Generic.List<Test.ItemConfig> DataList => _dataList;
 
-		public Test.ItemConfig GetOrDefault(int key) => _dataMap.TryGetValue(key, out var v) ? v : null;
-		public Test.ItemConfig Get(int key) => _dataMap[key];
-		public Test.ItemConfig this[int key] => _dataMap[key];
+    public Test.ItemConfig GetOrDefault(int key) => _dataMap.TryGetValue(key, out var v) ? v : null;
+    public Test.ItemConfig Get(int key) => _dataMap[key];
+    public Test.ItemConfig this[int key] => _dataMap[key];
 
-		public void ResolveRef(Tables tables)
-		{
-			foreach(var _v in _dataList)
-			{
-				_v.ResolveRef(tables);
-			}
-		}
+    public void ResolveRef(Tables tables)
+    {
+        foreach(var _v in _dataList)
+        {
+            _v.ResolveRef(tables);
+        }
+    }
 
-	}
+}
+
 }
 

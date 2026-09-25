@@ -12,45 +12,45 @@ using Luban;
 
 namespace Moirai.GameProto.Config.L10n
 {
-	/// <summary>
-	/// 支持的多语言
-	/// </summary>
-	public sealed partial class LocalizationBean : Luban.BeanBase
-	{
-		public LocalizationBean(ByteBuf _buf) 
-		{
-			English = _buf.ReadString();
-			ChineseSimplified = _buf.ReadString();
-		}
+/// <summary>
+/// 支持的多语言
+/// </summary>
+public sealed partial class LocalizationBean : Luban.BeanBase
+{
+    public LocalizationBean(ByteBuf _buf) 
+    {
+        English = _buf.ReadString();
+        ChineseSimplified = _buf.ReadString();
+    }
 
-		public static LocalizationBean DeserializeLocalizationBean(ByteBuf _buf)
-		{
-			return new L10n.LocalizationBean(_buf);
-		}
+    public static LocalizationBean DeserializeLocalizationBean(ByteBuf _buf)
+    {
+        return new L10n.LocalizationBean(_buf);
+    }
 
-		/// <summary>
-		/// 英语
-		/// </summary>
-		public readonly string English;
-		/// <summary>
-		/// 简体中文
-		/// </summary>
-		public readonly string ChineseSimplified;
-	   
-		public const int __ID__ = -1340020172;
-		public override int GetTypeId() => __ID__;
+    /// <summary>
+    /// 英语
+    /// </summary>
+    public readonly string English;
+    /// <summary>
+    /// 简体中文
+    /// </summary>
+    public readonly string ChineseSimplified;
+   
+    public const int __ID__ = -1340020172;
+    public override int GetTypeId() => __ID__;
 
-		public  void ResolveRef(Tables tables)
-		{
-		}
+    public  void ResolveRef(Tables tables)
+    {
+    }
 
-		public override string ToString()
-		{
-			return "{ "
-			+ "English:" + English + ","
-			+ "ChineseSimplified:" + ChineseSimplified + ","
-			+ "}";
-		}
-	}
+    public override string ToString()
+    {
+        return "{ "
+        + "English:" + English + ","
+        + "ChineseSimplified:" + ChineseSimplified + ","
+        + "}";
+    }
+}
 }
 

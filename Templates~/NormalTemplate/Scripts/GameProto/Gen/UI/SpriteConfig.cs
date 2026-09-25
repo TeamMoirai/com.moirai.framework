@@ -12,48 +12,48 @@ using Luban;
 
 namespace Moirai.GameProto.Config.UI
 {
-	public sealed partial class SpriteConfig : Luban.BeanBase
-	{
-		public SpriteConfig(ByteBuf _buf) 
-		{
-			Id = _buf.ReadString();
-			SpriteName = _buf.ReadString();
-			SpriteAtlasId = _buf.ReadString();
-		}
+public sealed partial class SpriteConfig : Luban.BeanBase
+{
+    public SpriteConfig(ByteBuf _buf) 
+    {
+        Id = _buf.ReadString();
+        SpriteName = _buf.ReadString();
+        SpriteAtlasId = _buf.ReadString();
+    }
 
-		public static SpriteConfig DeserializeSpriteConfig(ByteBuf _buf)
-		{
-			return new UI.SpriteConfig(_buf);
-		}
+    public static SpriteConfig DeserializeSpriteConfig(ByteBuf _buf)
+    {
+        return new UI.SpriteConfig(_buf);
+    }
 
-		/// <summary>
-		/// 资源ID
-		/// </summary>
-		public readonly string Id;
-		/// <summary>
-		/// SpriteAtlas 中的名字
-		/// </summary>
-		public readonly string SpriteName;
-		/// <summary>
-		/// 资源所在的 SpriteAtlas ID
-		/// </summary>
-		public readonly string SpriteAtlasId;
-	   
-		public const int __ID__ = -1097674847;
-		public override int GetTypeId() => __ID__;
+    /// <summary>
+    /// 资源ID
+    /// </summary>
+    public readonly string Id;
+    /// <summary>
+    /// SpriteAtlas 中的名字
+    /// </summary>
+    public readonly string SpriteName;
+    /// <summary>
+    /// 资源所在的 SpriteAtlas ID
+    /// </summary>
+    public readonly string SpriteAtlasId;
+   
+    public const int __ID__ = -1097674847;
+    public override int GetTypeId() => __ID__;
 
-		public  void ResolveRef(Tables tables)
-		{
-		}
+    public  void ResolveRef(Tables tables)
+    {
+    }
 
-		public override string ToString()
-		{
-			return "{ "
-			+ "id:" + Id + ","
-			+ "spriteName:" + SpriteName + ","
-			+ "spriteAtlasId:" + SpriteAtlasId + ","
-			+ "}";
-		}
-	}
+    public override string ToString()
+    {
+        return "{ "
+        + "id:" + Id + ","
+        + "spriteName:" + SpriteName + ","
+        + "spriteAtlasId:" + SpriteAtlasId + ","
+        + "}";
+    }
+}
 }
 

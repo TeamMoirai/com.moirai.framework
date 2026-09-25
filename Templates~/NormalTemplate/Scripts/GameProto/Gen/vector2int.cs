@@ -12,34 +12,34 @@ using Luban;
 
 namespace Moirai.GameProto.Config
 {
-	public partial struct vector2int
-	{
-		public vector2int(ByteBuf _buf) 
-		{
-			X = _buf.ReadInt();
-			Y = _buf.ReadInt();
-		}
+public partial struct vector2int
+{
+    public vector2int(ByteBuf _buf) 
+    {
+        X = _buf.ReadInt();
+        Y = _buf.ReadInt();
+    }
 
-		public static vector2int Deserializevector2int(ByteBuf _buf)
-		{
-			return new vector2int(_buf);
-		}
+    public static vector2int Deserializevector2int(ByteBuf _buf)
+    {
+        return new vector2int(_buf);
+    }
 
-		public readonly int X;
-		public readonly int Y;
-	   
+    public readonly int X;
+    public readonly int Y;
+   
 
-		public  void ResolveRef(Tables tables)
-		{
-		}
+    public  void ResolveRef(Tables tables)
+    {
+    }
 
-		public override string ToString()
-		{
-			return "{ "
-			+ "x:" + X + ","
-			+ "y:" + Y + ","
-			+ "}";
-		}
-	}
+    public override string ToString()
+    {
+        return "{ "
+        + "x:" + X + ","
+        + "y:" + Y + ","
+        + "}";
+    }
+}
 }
 

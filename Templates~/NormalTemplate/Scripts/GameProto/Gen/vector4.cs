@@ -12,40 +12,40 @@ using Luban;
 
 namespace Moirai.GameProto.Config
 {
-	public partial struct vector4
-	{
-		public vector4(ByteBuf _buf) 
-		{
-			X = _buf.ReadFloat();
-			Y = _buf.ReadFloat();
-			Z = _buf.ReadFloat();
-			W = _buf.ReadFloat();
-		}
+public partial struct vector4
+{
+    public vector4(ByteBuf _buf) 
+    {
+        X = _buf.ReadFloat();
+        Y = _buf.ReadFloat();
+        Z = _buf.ReadFloat();
+        W = _buf.ReadFloat();
+    }
 
-		public static vector4 Deserializevector4(ByteBuf _buf)
-		{
-			return new vector4(_buf);
-		}
+    public static vector4 Deserializevector4(ByteBuf _buf)
+    {
+        return new vector4(_buf);
+    }
 
-		public readonly float X;
-		public readonly float Y;
-		public readonly float Z;
-		public readonly float W;
-	   
+    public readonly float X;
+    public readonly float Y;
+    public readonly float Z;
+    public readonly float W;
+   
 
-		public  void ResolveRef(Tables tables)
-		{
-		}
+    public  void ResolveRef(Tables tables)
+    {
+    }
 
-		public override string ToString()
-		{
-			return "{ "
-			+ "x:" + X + ","
-			+ "y:" + Y + ","
-			+ "z:" + Z + ","
-			+ "w:" + W + ","
-			+ "}";
-		}
-	}
+    public override string ToString()
+    {
+        return "{ "
+        + "x:" + X + ","
+        + "y:" + Y + ","
+        + "z:" + Z + ","
+        + "w:" + W + ","
+        + "}";
+    }
+}
 }
 

@@ -11,133 +11,47 @@ using Luban;
 
 namespace Moirai.GameProto.Config
 {
-	public partial class Tables
-	{
+public partial class Tables
+{
+    /// <summary>
+    /// 道具配置
+    /// </summary>
+    public Test.TbItem TbItem {get; }
+    /// <summary>
+    /// 多语言配置
+    /// </summary>
+    public L10n.TbLocalizedStrings TbLocalizedStrings {get; }
+    /// <summary>
+    /// UI弹窗配置
+    /// </summary>
+    public UI.TbUIWindow TbUIWindow {get; }
+    /// <summary>
+    /// UI图标配置
+    /// </summary>
+    public UI.TbSprite TbSprite {get; }
+    /// <summary>
+    /// UI图集配置
+    /// </summary>
+    public UI.TbSpriteAtlas TbSpriteAtlas {get; }
 
-		#region The Tables
+    public Tables(System.Func<string, ByteBuf> loader)
+    {
+        TbItem = new Test.TbItem(loader("test_tbitem"));
+        TbLocalizedStrings = new L10n.TbLocalizedStrings(loader("l10n_tblocalizedstrings"));
+        TbUIWindow = new UI.TbUIWindow(loader("ui_tbuiwindow"));
+        TbSprite = new UI.TbSprite(loader("ui_tbsprite"));
+        TbSpriteAtlas = new UI.TbSpriteAtlas(loader("ui_tbspriteatlas"));
+        ResolveRef();
+    }
+    
+    private void ResolveRef()
+    {
+        TbItem.ResolveRef(this);
+        TbLocalizedStrings.ResolveRef(this);
+        TbUIWindow.ResolveRef(this);
+        TbSprite.ResolveRef(this);
+        TbSpriteAtlas.ResolveRef(this);
+    }
+}
 
-		/// <summary>
-		/// 道具配置
-		/// </summary>
-		private Test.TbItem m_TbItem;
-		public Test.TbItem TbItem 
-		{
-			get
-			{
-				if (m_TbItem == null)
-				{
-					m_TbItem = new Test.TbItem(_defaultLoader("test_tbitem"));
-					m_TbItem.ResolveRef(this);
-				}
-				return m_TbItem;
-			}
-			set
-			{
-				m_TbItem = value;
-				m_TbItem.ResolveRef(this);
-			}
-		}
-		/// <summary>
-		/// 多语言配置
-		/// </summary>
-		private L10n.TbLocalizedStrings m_TbLocalizedStrings;
-		public L10n.TbLocalizedStrings TbLocalizedStrings 
-		{
-			get
-			{
-				if (m_TbLocalizedStrings == null)
-				{
-					m_TbLocalizedStrings = new L10n.TbLocalizedStrings(_defaultLoader("l10n_tblocalizedstrings"));
-					m_TbLocalizedStrings.ResolveRef(this);
-				}
-				return m_TbLocalizedStrings;
-			}
-			set
-			{
-				m_TbLocalizedStrings = value;
-				m_TbLocalizedStrings.ResolveRef(this);
-			}
-		}
-		/// <summary>
-		/// UI弹窗配置
-		/// </summary>
-		private UI.TbUIWindow m_TbUIWindow;
-		public UI.TbUIWindow TbUIWindow 
-		{
-			get
-			{
-				if (m_TbUIWindow == null)
-				{
-					m_TbUIWindow = new UI.TbUIWindow(_defaultLoader("ui_tbuiwindow"));
-					m_TbUIWindow.ResolveRef(this);
-				}
-				return m_TbUIWindow;
-			}
-			set
-			{
-				m_TbUIWindow = value;
-				m_TbUIWindow.ResolveRef(this);
-			}
-		}
-		/// <summary>
-		/// UI图标配置
-		/// </summary>
-		private UI.TbSprite m_TbSprite;
-		public UI.TbSprite TbSprite 
-		{
-			get
-			{
-				if (m_TbSprite == null)
-				{
-					m_TbSprite = new UI.TbSprite(_defaultLoader("ui_tbsprite"));
-					m_TbSprite.ResolveRef(this);
-				}
-				return m_TbSprite;
-			}
-			set
-			{
-				m_TbSprite = value;
-				m_TbSprite.ResolveRef(this);
-			}
-		}
-		/// <summary>
-		/// UI图集配置
-		/// </summary>
-		private UI.TbSpriteAtlas m_TbSpriteAtlas;
-		public UI.TbSpriteAtlas TbSpriteAtlas 
-		{
-			get
-			{
-				if (m_TbSpriteAtlas == null)
-				{
-					m_TbSpriteAtlas = new UI.TbSpriteAtlas(_defaultLoader("ui_tbspriteatlas"));
-					m_TbSpriteAtlas.ResolveRef(this);
-				}
-				return m_TbSpriteAtlas;
-			}
-			set
-			{
-				m_TbSpriteAtlas = value;
-				m_TbSpriteAtlas.ResolveRef(this);
-			}
-		}
-
-		#endregion
-
-		System.Func<string, ByteBuf> _defaultLoader;
-
-		public Tables(System.Func<string, ByteBuf> loader)
-		{
-			Set_defaultLoader(loader);
-			Init();
-		}
-		
-		public void Set_defaultLoader(System.Func<string, ByteBuf> loader)
-		{
-			_defaultLoader = null;
-			_defaultLoader = loader;
-		}
-		
-		public void Init(){}
-	}
 }

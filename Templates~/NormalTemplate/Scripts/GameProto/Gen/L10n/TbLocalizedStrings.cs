@@ -12,43 +12,44 @@ using Luban;
 
 namespace Moirai.GameProto.Config.L10n
 {
-	/// <summary>
-	/// 多语言配置
-	/// </summary>
-	public partial class TbLocalizedStrings
-	{
-		private readonly System.Collections.Generic.Dictionary<string, L10n.LocalizedStringsConfig> _dataMap;
-		private readonly System.Collections.Generic.List<L10n.LocalizedStringsConfig> _dataList;
-		
-		public TbLocalizedStrings(ByteBuf _buf)
-		{
-			_dataMap = new System.Collections.Generic.Dictionary<string, L10n.LocalizedStringsConfig>();
-			_dataList = new System.Collections.Generic.List<L10n.LocalizedStringsConfig>();
-			
-			for(int n = _buf.ReadSize() ; n > 0 ; --n)
-			{
-				L10n.LocalizedStringsConfig _v;
-				_v = global::Moirai.GameProto.Config.L10n.LocalizedStringsConfig.DeserializeLocalizedStringsConfig(_buf);
-				_dataList.Add(_v);
-				_dataMap.Add(_v.Key, _v);
-			}
-		}
+/// <summary>
+/// 多语言配置
+/// </summary>
+public partial class TbLocalizedStrings
+{
+    private readonly System.Collections.Generic.Dictionary<string, L10n.LocalizedStringsConfig> _dataMap;
+    private readonly System.Collections.Generic.List<L10n.LocalizedStringsConfig> _dataList;
+    
+    public TbLocalizedStrings(ByteBuf _buf)
+    {
+        int n = _buf.ReadSize();
+        _dataMap = new System.Collections.Generic.Dictionary<string, L10n.LocalizedStringsConfig>(n);
+        _dataList = new System.Collections.Generic.List<L10n.LocalizedStringsConfig>(n);
+        for(int i = n ; i > 0 ; --i)
+        {
+            L10n.LocalizedStringsConfig _v;
+            _v = global::Moirai.GameProto.Config.L10n.LocalizedStringsConfig.DeserializeLocalizedStringsConfig(_buf);
+            _dataList.Add(_v);
+            _dataMap.Add(_v.Key, _v);
+        }
+    }
 
-		public System.Collections.Generic.Dictionary<string, L10n.LocalizedStringsConfig> DataMap => _dataMap;
-		public System.Collections.Generic.List<L10n.LocalizedStringsConfig> DataList => _dataList;
+    public System.Collections.Generic.Dictionary<string, L10n.LocalizedStringsConfig> DataMap => _dataMap;
+    public System.Collections.Generic.List<L10n.LocalizedStringsConfig> DataList => _dataList;
 
-		public L10n.LocalizedStringsConfig GetOrDefault(string key) => _dataMap.TryGetValue(key, out var v) ? v : null;
-		public L10n.LocalizedStringsConfig Get(string key) => _dataMap[key];
-		public L10n.LocalizedStringsConfig this[string key] => _dataMap[key];
+    public L10n.LocalizedStringsConfig GetOrDefault(string key) => _dataMap.TryGetValue(key, out var v) ? v : null;
+    public L10n.LocalizedStringsConfig Get(string key) => _dataMap[key];
+    public L10n.LocalizedStringsConfig this[string key] => _dataMap[key];
 
-		public void ResolveRef(Tables tables)
-		{
-			foreach(var _v in _dataList)
-			{
-				_v.ResolveRef(tables);
-			}
-		}
+    public void ResolveRef(Tables tables)
+    {
+        foreach(var _v in _dataList)
+        {
+            _v.ResolveRef(tables);
+        }
+    }
 
-	}
+}
+
 }
 
