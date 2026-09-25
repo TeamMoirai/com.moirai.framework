@@ -151,5 +151,16 @@ namespace Moirai.Atropos.Localization
         /// 检查加载的资源是否为可转换的类型。
         /// </summary>
         protected abstract bool IsConvertibleType(UObject asset);
+
+#if UNITY_EDITOR
+        /// <summary>预览用：注入器期望的类型名（与加载期的判据同一处来源）。</summary>
+        internal string ExpectedTypeNameForPreview => GetExpectedTypeName();
+
+        /// <summary>预览用：这份资产是不是注入器直接接受的那种。</summary>
+        internal bool IsExpectedAssetForPreview(UObject asset) => IsExpectedType(asset);
+
+        /// <summary>预览用：这份资产是不是要走自动转换路径的那种。</summary>
+        internal bool IsConvertibleAssetForPreview(UObject asset) => IsConvertibleType(asset);
+#endif
     }
 }

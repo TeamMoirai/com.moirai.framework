@@ -25,6 +25,8 @@
 - 运行时覆盖层 `SetStringOverlay`（按来源摘除）：不改表、不重出包就能换掉某语言的若干词条。
 - 配置表后端可选接缝 `SupportsPerLanguageLocalizationLoad` / `GetLocalizedStringsByLanguage`：按语言单独取一列词条。
 - 句柄式语言变更订阅、不装箱取文、编辑器内预览。
+- 组件预览报到资产一层：非播放态把资源模式的地址解析成资产并点名「取不到 / 类型不符 / 走自动转换」，播放态改读服务已解析的真值。
+- 预览解析收成单一入口 `ResolvePreviewText`（状态 `EPreviewResolveStatus`）：分得开「表内无此 ID / 该语言留空 / 数据未就绪」，取不到时给 `null` 而不是 key；`Localize` 标记仍按状态露 key。原 `TryResolvePreviewText` / `ResolveForEditorPreview` / `EditorPreviewHasText` 并入该入口。
 
 #### `Resource`
 
@@ -33,6 +35,7 @@
 - 后端接缝 `internal abstract` 清零：租约取用族与维护族升为 `public abstract`，`EResourceLeaseOption` 随之公开，程序集外后端可派生实现，`ResourceSeamShapeGuardTests` 基线 11→0。
 - 空闲资源记录容量上限 `IdleAssetCapacity`（默认 256），与 `IdleAssetExpireTime` 一起挡住长时间运行下的记录堆积。
 - 销毁态槽位兜底回收：`ResourceOwner` 的注销原本全押在 `OnDestroy` 上，现由每帧预算化轮扫补上场景卸载与关停路径，数量取自 `ResourceServiceSettings.DestroySweepBudget`（默认 64）。
+- 编辑器预览取资产：`ResourceService.EditorPreviewLoadAsset` 在非播放态直读 `AssetDatabase`、不建租约，后端可覆写 `ResourceServiceHandler.EditorPreviewLoadAsset` 补自己的地址→路径换算。
 - 配置自检判据表（7 条）+ 构建期复用同一份判据的门禁 `ResourceSettingsBuildValidator`：构建期默认同样只告警，设 `MOIRAI_RESOURCE_SETTINGS_STRICT=1` 才拦停；政策是只报不改，夹取会把配置错误洗成"看起来本来就对"的值。
 
 #### `Kernel` 与工具面

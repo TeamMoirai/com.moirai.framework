@@ -129,7 +129,7 @@ IEnumerator routine = translator.TranslateAsync(request,
 - 可用语言由配表自报：多语言按语言分份导出后，语言不再从生成代码的 bean 字段名反推，而是取自转表期生成的 `L10nLanguages.Codes`，经 `ConfigTableServiceHandler.GetLocalizationLanguageCodes()` 交给框架解析（`LocalizationService.ResolveLanguages`），不存在可回落的全局语言注册表。`ChangeLanguage` 传入未收录语言时保持原语言不变并告警（每种语言只警告一次），不抛异常
 - 词条的语言列数与自报语言数不一致会被判为数据损坏：**整批数据拒载**并报错（下标错位只会表现为「显示了别的语言」，不会报错，所以宁可不加载）
 - `ToLanguage(str, onlySupported)` 中 `onlySupported` 为 `true` 时，未收录进当前批的语言会回落到默认语言 English（`LocalizationService.DefaultLanguage`）；需要区分「写错了」与「就是要默认语言」时用 `TryGetBuiltInLanguage`
-- 编辑器非运行模式下 `TextLocalizer.ChangeID` / `ImageLocalizer.ChangeID` 直接返回 `false`（Timeline 预览待实现）；`LocalizationService.Localize` 在非运行模式走编辑器预览直读，取不到预览数据时才原样返回
+- 编辑器非运行模式下 `TextLocalizer.ChangeID` / `ImageLocalizer.ChangeID` 直接返回 `false`（编辑态没有后端可取资产，写进组件还会把场景标脏）；要看效果用组件 Inspector 的预览行，`LocalizationService.Localize` 在非运行模式也走同一条预览直读，取不到时才原样返回
 - 数据未就绪（表未加载完）时，各 Localizer **静默推迟注入**——不按缺译刷错误日志；首次加载成功触发的语言切换会把全部已注册本地化器重注入一遍。可用 `LocalizationService.IsDataLoaded`（不触发加载）区分「未就绪」与「真缺失」
 - `ImageLocalizer` / `AudioLocalizer` 的数组是按语言索引注入的，配表新增语言后需同步补齐数组元素
 - 默认整批加载、全部语言列常驻内存（词条在存储层为行表 + 扁平数组，比「每词条一个 List」省下一半容器对象）。要降到「语言头 + 当前列」常驻，自定义处理器实现 `SupportsPerLanguageLoad` 三件套即可；默认的**配置表数据源已自动接好**——转表按语言分份、且游戏侧 `ConfigTableServiceHandler` 自报 `SupportsPerLanguageLocalizationLoad` 时，[ConfigTable](ConfigTable.md) 服务就切到列模式，项目侧无需再写一个本地化处理器
@@ -226,12 +226,16 @@ string detail = LocalizationService.GetPluralTextFromId("quest.items", count, pl
 - 手动：`Tools/Config/烘焙渠道默认语言` 窗口烘焙/清除；语言填 Name 或 Code（非法值直接抛异常不让坏值进包）
 - 仅播放器消费该资产；编辑器与 Play 预览按编辑器设置链走，不受烘焙影响
 
-## 编辑器内预览（不进 Play）
+## 编辑器内预览
 
-`TextLocalizer` / `ImageLocalizer` / `AudioLocalizer` 的 Inspector 在 ID 字段下方显示「译文预览」一行，数据来自配置表在编辑器下的**直读**路径（`ConfigTableServiceHandler.GetLocalizedStringsForEditorPreview`），不经资源系统、不需要进 Play：
+`TextLocalizer` / `ImageLocalizer` / `AudioLocalizer` 的 Inspector 在 ID 字段下方显示一行「译文预览 [Preview]」，解析路径与运行期同源，只是数据源按状态分两条：
 
-- 文本类显示解析后的译文；表内没有该 ID 时点明「表内无此 ID」
-- 图/音类显示预览语言、将要取用的数组下标，以及该下标上的元素（`缺项` / `空引用` / 资源名）——「新增语言后数组没补齐」这类错位在这里当场能看见，不必等运行时
+- **播放态**读已注册的服务：语言、译文与注入器已经取到的资产都是真值
+- **非播放态**读配置表的编辑器直读路径（`ConfigTableServiceHandler.GetLocalizedStringsForEditorPreview`），资源模式那条地址再经 `ResourceService.EditorPreviewLoadAsset` 解析成资产，不需要进 Play
+- 文本类显示译文；取不到时按 `EPreviewResolveStatus` 分档点明「表内无此 ID」或「该语言留空」，不拿 key 冒充译文。解析入口是 `LocalizationService.ResolvePreviewText`（唯一）
+- 图/音的资源模式显示 `ID → 地址 → 资产类型 '名字'`，并点名三种在编辑器里就能看出来的错：地址指向的资产取不到、类型不符（注入器会拒绝）、类型可自动转换（运行期会为此告警一次）
+- 图/音的索引模式显示预览语言、将要取用的数组下标以及该下标上的元素（`缺项` / `空引用` / 资源名）——「新增语言后数组没补齐」这类错位在这里当场能看见，不必等运行时
+- 类型判据始终向注入器要（非播放态没有 `Awake`，预览会临时补建注入器，只建对象、不碰目标组件），预览侧不留第二份类型对照表
 - 语言取 Inspector 里的「编辑器语言」；未设置或该语言不在表内时取英语列，再退到首列
 - 预览**不写回**目标组件（不标脏场景、不留「忘了还原」的错文案）；某格缺译时预览直接露 ID，那正是策划要看见的信息
 - 预览缓存随项目资产变更自动失效（`EditorApplication.projectChanged` 钩子，含转表回写与编辑器语言切换），也可手动调 `LocalizationService.InvalidateEditorPreview()`

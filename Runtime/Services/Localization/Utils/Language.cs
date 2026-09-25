@@ -7,10 +7,10 @@ namespace Moirai.Atropos.Localization
     [Serializable]
     public class Language : IEquatable<Language>
     {
-        private static readonly Language[] s_BuiltinLanguages;
         private static readonly Dictionary<SystemLanguage, Language> s_FromSystemLanguage;
         private static readonly Dictionary<string, SystemLanguage> s_ToSystemLanguage;
 
+        private static readonly Language[] s_BuiltinLanguages;
         /// <summary>
         /// 参考自 <see cref="UnityEngine.SystemLanguage"/>
         /// </summary>
@@ -320,10 +320,10 @@ namespace Moirai.Atropos.Localization
         /// <example>English => English、ChineseSimplified => 简体中文、ChineseTraditional => 繁體中文</example>
         public string DisplayName => !string.IsNullOrEmpty(m_DisplayName) ? m_DisplayName : m_Name;
 
-        // 从右向左书写的语言 Code（ISO-639-1）：阿拉伯语族与希伯来语族
+        // 从右向左书写的语言：阿拉伯语族与希伯来语族
         private static readonly HashSet<string> s_RtlCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            "ar", "he", "fa", "ur",
+            Arabic.Code, Hebrew.Code,
         };
 
         /// <summary>
@@ -393,15 +393,13 @@ namespace Moirai.Atropos.Localization
 
         public static implicit operator Language(SystemLanguage systemLanguage)
         {
-            return s_FromSystemLanguage.TryGetValue(systemLanguage, out var language) ? language : Unspecified;
+            return s_FromSystemLanguage.GetValueOrDefault(systemLanguage, Unspecified);
         }
 
         public static explicit operator SystemLanguage(Language language)
         {
             if (language == null || language.Custom) return SystemLanguage.Unknown;
-            return s_ToSystemLanguage.TryGetValue(language.Name, out var systemLanguage)
-                ? systemLanguage
-                : SystemLanguage.Unknown;
+            return s_ToSystemLanguage.GetValueOrDefault(language.Name, SystemLanguage.Unknown);
         }
 
         static Language()

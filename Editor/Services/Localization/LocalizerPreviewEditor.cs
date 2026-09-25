@@ -5,15 +5,17 @@ using UnityEngine;
 namespace Moirai.Atropos.Localization.Editor
 {
     /// <summary>
-    /// 本地化组件的 Inspector 预览：在 ID 字段下方直接显示按编辑器语言解析出的译文 / 将要取用的资源。
-    /// <para>数据来源是配置表在编辑器下的直读路径（<c>ConfigTableServiceHandler.GetLocalizedStringsForEditorPreview</c>），
-    /// 不依赖资源系统、也不需要进 Play；预览取不到数据时只标注一行原因，不打断 Inspector 绘制。</para>
-    /// <para>刻意不把译文写回目标组件：那会把场景标脏，并留下"忘了还原"的错文案进版本库。</para>
+    /// 本地化组件的 Inspector 预览：在 ID 字段下方直接显示按预览语言解析出的译文 / 资源地址 / 该地址指向的资产。
+    /// <para>数据来源按状态分两条：<b>播放态</b>走已注册的服务（本地化语言、后端取到的资产都是真的那份）；
+    /// <b>非播放态</b>走配置表的编辑器直读（<c>ConfigTableServiceHandler.GetLocalizedStringsForEditorPreview</c>）
+    /// 与 <c>ResourceService.EditorPreviewLoadAsset</c>，不需要进 Play。</para>
+    /// <para>预览取不到数据时只标注一行原因，不打断 Inspector 绘制；也刻意不把内容写回目标组件：
+    /// 那会把场景标脏，并留下"忘了还原"的错文案进版本库。</para>
     /// </summary>
     [CustomEditor(typeof(LocalizerBase), true)]
     internal sealed class LocalizerPreviewEditor : UnityEditor.Editor
     {
-        private static readonly GUIContent PreviewContent = new GUIContent("译文预览 [Preview]");
+        private static readonly GUIContent s_PreviewContent = new GUIContent("译文预览 [Preview]");
 
         public override void OnInspectorGUI()
         {
@@ -25,7 +27,7 @@ namespace Moirai.Atropos.Localization.Editor
             EditorGUILayout.Space();
             using (new EditorGUI.DisabledScope(true))
             {
-                EditorGUILayout.TextField(PreviewContent, Describe(localizer));
+                EditorGUILayout.TextField(s_PreviewContent, Describe(localizer));
             }
         }
 
@@ -43,9 +45,10 @@ namespace Moirai.Atropos.Localization.Editor
             }
 
             if (!string.IsNullOrEmpty(descriptor)) return descriptor;
-            return LocalizationService.IsEditorPreviewAvailable
-                ? "(未配置文本 ID)"
-                : "(表未生成或编辑器语言不在表内)";
+            if (Application.isPlaying)
+                return LocalizationService.IsValid ? "(未配置文本 ID)" : "(本地化服务未就绪)";
+
+            return LocalizationService.IsEditorPreviewAvailable ? "(未配置文本 ID)" : "(表未生成或编辑器语言不在表内)";
         }
     }
 }

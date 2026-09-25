@@ -160,7 +160,7 @@ namespace Service.ConfigTable
 
             using (LogCapture capture = new LogCapture())
             {
-                Assert.IsNull(handler.GetLocalizedStringsForEditorPreview(),
+                Assert.IsNull(handler.GetAllLocalizedStrings(),
                     "默认实现应直接沿用 GetAllLocalizedStrings（此处默认后端回 null）。");
                 Assert.IsTrue(capture.Mentions("Generate Config first!"));
             }

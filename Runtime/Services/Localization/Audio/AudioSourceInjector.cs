@@ -86,6 +86,19 @@ namespace Moirai.Atropos.Localization
 			_audio.clip = null;
 		}
 
+#if UNITY_EDITOR
+		/// <summary>预览用：注入器期望的类型名（与加载期的 <c>LoadLeaseAsync&lt;AudioClip&gt;</c> 同一判据）。</summary>
+		internal string ExpectedTypeNameForPreview => GetExpectedTypeName();
+
+		/// <summary>预览用：这份资产能不能直接当片段用。</summary>
+		internal bool IsExpectedAssetForPreview(UnityEngine.Object asset) => IsExpectedType(asset);
+
+		/// <summary>本注入器只接受 AudioClip（口径由加载期的 <c>LoadLeaseAsync&lt;AudioClip&gt;</c> 定住，没有转换路径）。</summary>
+		private static string GetExpectedTypeName() => "AudioClip";
+
+		private static bool IsExpectedType(UnityEngine.Object asset) => asset is AudioClip;
+#endif
+
 		/// <summary>
 		/// 根据本地化文本 ID 从资源系统异步加载音频片段并播放。
 		/// </summary>

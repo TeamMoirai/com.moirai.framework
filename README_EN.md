@@ -12,7 +12,7 @@ Moirai Framework
 
 ---
 
-![Repobeats analytics image](https://repobeats.axiom.co/api/embed/ca083fb4de4734cda266b0a2ceaa8fe123310722.svg "Repobeats analytics image")
+![Alt](https://repobeats.axiom.co/api/embed/114f67c160a17e6fe1aa9958e876785705707774.svg "Repobeats analytics image")
 
 ---
 

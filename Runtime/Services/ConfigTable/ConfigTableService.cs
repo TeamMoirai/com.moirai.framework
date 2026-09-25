@@ -65,10 +65,6 @@ namespace Moirai.Atropos.ConfigTable
 
         #endregion
 
-        #region 属性 [PROPERTIES]
-		
-        #endregion
-
         #region 配置表查询 [CONFIG QUERIES]
 
         /// <summary>
@@ -98,26 +94,6 @@ namespace Moirai.Atropos.ConfigTable
         /// <returns>未注册处理器或该语言取不到时为 <c>null</c>。</returns>
         public static Dictionary<string, string> GetLocalizedStringsByLanguage(string languageCode) =>
             s_Handler?.GetLocalizedStringsByLanguage(languageCode);
-
-#if UNITY_EDITOR
-        /// <summary>
-        /// 编辑器预览入口：不注册服务世界、不经资源系统，向 Settings 里配置的处理器要一份多语言文本。
-        /// </summary>
-        /// <remarks>播放态下服务已就绪时直接走 <see cref="GetAllLocalizedStrings"/>，避免同一份表被读两遍。</remarks>
-        /// <returns>取不到时为 <c>null</c>（由调用方缓存失败并限流告警）。</returns>
-        public static Dictionary<string, List<string>> GetLocalizedStringsForEditorPreview()
-        {
-            var handler = s_Handler ?? ConfigTableServiceSettings.ConfigTableServiceHandler;
-            return handler?.GetLocalizedStringsForEditorPreview();
-        }
-
-        /// <summary>编辑器预览入口：与 <see cref="GetLocalizedStringsForEditorPreview"/> 同源的语言自报。</summary>
-        public static IReadOnlyList<string> GetLocalizationLanguageCodesForEditorPreview()
-        {
-            var handler = s_Handler ?? ConfigTableServiceSettings.ConfigTableServiceHandler;
-            return handler?.GetLocalizationLanguageCodes() ?? Array.Empty<string>();
-        }
-#endif
 
         /// <summary>
         /// 根据 ID 从配置表加载图标。
