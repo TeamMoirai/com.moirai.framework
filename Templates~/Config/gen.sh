@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
 # 转表唯一入口（也是唯一一份逻辑）。Windows 用 gen.bat，它只负责找到 bash 再调本文件。
 #
-#   ./gen.sh              # 客户端（等价于 ./gen.sh client）
-#   ./gen.sh client       # 常规表 + 多语言代码 + 按语言数据
-#   ./gen.sh server       # 服务端表（不含多语言，故不涉及变体）
-#   ./gen.sh all          # 客户端 + 服务端
-#   ./gen.sh client false # 第2参：lazyload 开关，非 true/空 走默认模板
+#   ./gen.sh                       客户端，路线与加载类型取 config.ini 的缺省值
+#   ./gen.sh server                服务端表（不含多语言，故不涉及变体）
+#   ./gen.sh all                   客户端 + 服务端
+#   ./gen.sh client --format=json  当次改用 json 路线（缺省 bin）
+#   ./gen.sh client --load=eager   当次退回内置模板：构造期加载全部表（缺省 lazy）
 #
-# 所有路径与语言清单都来自同目录的 config.ini；本文件不内嵌任何项目路径。
+# 缺省值写在 config.ini：DATA_FORMAT=bin|json 决定 -c/-d 这一对，LAZY_LOAD 决定用不用懒加载模板。
+# 所有路径与语言清单也都来自同目录的 config.ini；本文件不内嵌任何项目路径。
 
 set -o pipefail
 
@@ -232,9 +233,14 @@ run_client() {
 
     # 多语言代码落在 Gen/L10n/（与主趟同树、分目录）。必须在常规趟之后：常规趟的清理是递归的，
     # 会把 Gen/L10n/ 整个删掉；反过来这一趟的清理只及自己目录，不会碰常规表的类。
+    # 多语言代码一趟也要带 --variant：bean 的字段声明了 variants，Luban 每次解析 schema 都要求定一版，
+    # 不带就刷 "type:'L10n.LocalizationBean' field:'text' not set variant" 警告。
+    # 实测"不带 / zh-Hans / en"三种跑法的产物逐字节相同（bean 只剩一个字段，代码本就与语言无关），
+    # 所以这里取清单第一项只为满足解析器——它不进入任何文件名或路径，不是"默认语言"。
     step "客户端 2/3：多语言代码（bean 只剩一个变体字段，代码与语言无关）"
     dotnet "$LUBAN" -t client -c "$CODE_TARGET" --conf "${CFG[L10N_CONF]}" \
         "${template_args[@]}" \
+        --variant "default=${LANGUAGES[0]}" \
         -x code.lineEnding=crlf \
         "${optional_args[@]}" \
         -x "outputCodeDir=${CFG[CODE_OUTPUT_PATH_L10N]}" \
