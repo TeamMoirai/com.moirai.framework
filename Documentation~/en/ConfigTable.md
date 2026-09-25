@@ -71,8 +71,7 @@ string location = ConfigTableService.GetUIWindowLocation("MainWindow");
 | Output | Description |
 |--------|-------------|
 | Table code under `Gen/` | Individual table Beans and `Tables` collection; **does not include the multilingual tables** — language-independent tables store translation keys, so re-exporting them per language would be pointless |
-| Table code under `GenL10n/` | Multilingual table Beans (single-field variant bean) and the classes shared by all languages; must live in its own root, separate from `Gen/`, otherwise one pass's code saver deletes the other pass's output as surplus files |
-| `L10nLanguages.cs` | Language code constant generated at export time; the game-side handler self-reports available languages from it |
+| Table code under `Gen/L10n/` | Multilingual table Beans (single-field variant bean), the classes shared by all languages, and `L10nLanguages.cs`. It shares the `Gen/` tree in a subfolder and relies on **ordering** rather than separate roots: the main pass's cleanup is recursive and wipes `Gen/L10n/` too, so the multilingual code pass runs after it and the language constant is written last |
 | `Table/<language code>/l10n_*.bytes` | One set of multilingual data per language, containing every key (missing translations are empty strings) |
 | `LubanHandler.cs` | Game-side handler: implements the `ConfigTableServiceHandler` contract (per-language column loading, Sprite/UI querying) and installs itself automatically |
 | `ExternalTypeUtil.cs` | Luban extension type utility |

@@ -100,13 +100,11 @@ copy_runtime_scripts() {
     done
 }
 
-# 由 L10N_LANGUAGES 派生两个产物：Luban 用的变体声明 xml，与游戏侧自报语言用的 C# 常量。
+# 由 L10N_LANGUAGES 派生 Luban 用的变体声明 xml。必须在多语言那几趟之前写好。
 # 生成器只写 ASCII：无 BOM 的脚本被 PowerShell 按 cp936 解会产出看不懂的解析错误，
 # 这里干脆不用 PS，也就没有这件事。
-generate_l10n_artifacts() {
+generate_l10n_schema() {
     local xml="${CFG[L10N_SCHEMA_XML]:-Temp/l10n_schema.xml}"
-    local cs="${CFG[L10N_LANG_LIST_CODE]:-}"
-    local ns="${CFG[L10N_LANG_CLASS_NAMESPACE]:-Moirai.GameProto.Config}"
 
     mkdir -p "$(dirname "$xml")"
     {
@@ -117,6 +115,15 @@ generate_l10n_artifacts() {
         echo '</module>'
     } > "$xml" || fail "写 $xml 失败"
     echo "[l10n] 变体声明 -> $xml (variants=$VARIANTS)"
+}
+
+# 游戏侧自报语言用的 C# 常量。
+# ⚠ 必须在常规趟之后调用：常量落在 Luban 的代码输出目录里时，那一趟的代码 saver 会把
+# "不属于本次生成范围"的已存在文件当多余项删掉——实测主趟日志出现
+# [remove] .../Gen\L10n\L10nLanguages.cs 且退出码仍是 0，先写后跑等于白写。
+generate_language_constant() {
+    local cs="${CFG[L10N_LANG_LIST_CODE]:-}"
+    local ns="${CFG[L10N_LANG_CLASS_NAMESPACE]:-Moirai.GameProto.Config}"
 
     [ -n "$cs" ] || fail "$CONFIG_FILE 缺少键 L10N_LANG_LIST_CODE（节 [l10n]）"
     mkdir -p "$(dirname "$cs")"
@@ -158,8 +165,8 @@ run_client() {
     step "客户端：拷贝运行期处理器"
     copy_runtime_scripts
 
-    step "客户端：派生多语言 schema 与语言常量"
-    generate_l10n_artifacts
+    step "客户端：派生多语言变体声明 xml"
+    generate_l10n_schema
 
     step "客户端 1/3：常规表（语言无关，一趟出代码与数据）"
     dotnet "$LUBAN" -t client -c cs-bin -d bin --conf "${CFG[CONF]}" \
@@ -170,7 +177,8 @@ run_client() {
         -x "outputDataDir=${CFG[DATA_OUTPUT_PATH_CLIENT]}" \
         || fail "常规趟失败"
 
-    # 输出根目录必须与上一趟分开：代码 saver 会把不属于本次范围的文件当多余项删掉
+    # 多语言代码落在 Gen/L10n/（与主趟同树、分目录）。必须在常规趟之后：常规趟的清理是递归的，
+    # 会把 Gen/L10n/ 整个删掉；反过来这一趟的清理只及自己目录，不会碰常规表的类。
     step "客户端 2/3：多语言代码（bean 只剩一个变体字段，代码与语言无关）"
     dotnet "$LUBAN" -t client -c cs-bin --conf "${CFG[L10N_CONF]}" \
         "${template_args[@]}" \
@@ -192,6 +200,10 @@ run_client() {
             -x "outputDataDir=${data_root}${lang}" \
             || fail "语言 $lang 的数据趟失败"
     done
+
+    # 所有会清 Gen/ 的趟都跑完了，才写这个落在生成目录里的常量（见函数注释）
+    step "客户端：生成运行期语言常量"
+    generate_language_constant
 }
 
 run_server() {

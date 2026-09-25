@@ -71,8 +71,7 @@ string location = ConfigTableService.GetUIWindowLocation("MainWindow");
 | 产物 | 说明 |
 |------|------|
 | `Gen/` 下的表代码 | 各表 Bean 与 `Tables` 集合；**不含多语言表**，语言无关的表按 key 存译文标识，逐语言重导没有意义 |
-| `GenL10n/` 下的表代码 | 多语言表 Bean（单字段变体 bean）与各语言共用的类；必须与 `Gen/` 分根目录，否则其中一趟的代码 saver 会把另一趟的产物当多余文件删掉 |
-| `L10nLanguages.cs` | 转表期生成的语言码常量，游戏侧处理器据此自报可用语言 |
+| `Gen/L10n/` 下的表代码 | 多语言表 Bean（单字段变体 bean）、各语言共用的类，以及 `L10nLanguages.cs`。它与 `Gen/` 同树分目录，靠**顺序**而不是分根来避免互相删除：主趟清理是递归的会连 `Gen/L10n/` 一起删，所以多语言代码趟排在主趟之后、语言常量排在最后写 |
 | `Table/<语言码>/l10n_*.bytes` | 每种语言一份多语言数据，含全部键（缺译是空串） |
 | `LubanHandler.cs` | 游戏侧处理器：实现 `ConfigTableServiceHandler` 契约（按语言取列、Sprite/UI 查询）并自动安装 |
 | `ExternalTypeUtil.cs` | Luban 扩展类型工具 |
