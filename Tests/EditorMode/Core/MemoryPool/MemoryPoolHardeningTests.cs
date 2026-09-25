@@ -227,35 +227,6 @@ namespace Core.MemoryPool
             first.OnEviction = null;
         }
 
-        [Test]
-        public void NativeMetadataIsReleasedForTeardownWhenNothingIsLeased()
-        {
-            WarmChurn();
-            Assert.Greater(Info<PoolItem>().PageCapacity, 0, "没先攒出非托管元数据");
-
-            Assert.IsTrue(MemoryPoolRegistry.TryReleaseAllNativeMetadataForTeardown(), "无外借时收口被拒");
-            Assert.AreEqual(0, Info<PoolItem>().PageCapacity, "收口没释放页元数据");
-
-            // 收口之后池必须还能用：页与元数据都是按需重长的。
-            MemoryPool<PoolItem>.Release(MemoryPool<PoolItem>.Acquire());
-            Assert.AreEqual(1, Info<PoolItem>().UnusedCount);
-        }
-
-        [Test]
-        public void TeardownReleaseRefusesWhileObjectsAreLeased()
-        {
-            WarmChurn();
-            PoolItem retained = MemoryPool<PoolItem>.Acquire();
-            int pagesBefore = Info<PoolItem>().PageCapacity;
-            Assert.Greater(pagesBefore, 0);
-
-            // 有对象在外时宁可不回收：释放元数据后那次归还会往已释放内存里写。
-            Assert.IsFalse(MemoryPoolRegistry.TryReleaseAllNativeMetadataForTeardown(), "外借状态下不该收口");
-            Assert.AreEqual(pagesBefore, Info<PoolItem>().PageCapacity, "被拒的收口仍动了页元数据");
-
-            MemoryPool<PoolItem>.Release(retained);
-        }
-
         private void WarmChurn()
         {
             List<PoolItem> held = new List<PoolItem>();

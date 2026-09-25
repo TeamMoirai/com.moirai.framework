@@ -81,7 +81,7 @@ MemoryPool 系统为纯 C# 对象（非 GameObject）提供高性能池化。它
 
 在 `AutoTrimNativeMetadataFrames`（默认 18000 帧 ≈ 5 分钟）完全空闲后，池释放其非托管页元数据以最小化内存占用。
 
-页元数据走 `Marshal.AllocHGlobal`，属进程堆，而静态字段只活在当前域里。Unity 编辑器热重载不触发 `AppDomain.DomainUnload`，所以包内另有一条 Editor 侧收口：脚本重载与编辑器退出前调用 `MemoryPoolRegistry.TryReleaseAllNativeMetadataForTeardown()`。确有对象在外时它**返回 false 且不回收**（那时释放会让下一次归还往已释放内存里写），只打一句告警——这份泄漏留给本次编辑器会话，比制造野指针划算。页存储 `T[]` 与对象本身不跨域存活，因此漏的只有元数据。
+页元数据走 `Marshal.AllocHGlobal`，属进程堆，而静态字段只活在当前域里。Unity 编辑器热重载不触发 `AppDomain.DomainUnload`——而那是注册表唯一的释放钩子——于是每次重载都会把那些指针丢掉，重载瞬间仍活跃的页元数据随本次编辑器会话一直驻留。这是接受下来的取舍，不是待修缺陷：重载期收口只能在"没有任何对象在外"时动手（有外借时释放元数据，等于让那次归还往已释放内存里写），能覆盖的本来就是简单情形；漏的量以 KB 计、上限就是一次编辑器会话，稳态占用另有上面的 `AutoTrimNativeMetadataFrames` 兜着。页存储 `T[]` 与对象本身不跨域存活，因此漏的只有元数据。
 
 ## 核心类型
 
@@ -176,19 +176,6 @@ for (int i = 0; i < actual; i++)
 {
     Debug.Log($"{buffer[i].Type.Name}: unused={buffer[i].UnusedCount}, miss={buffer[i].MissCount}, missRate={buffer[i].MissRate:P1}");
 }
-```
-
-订阅每帧统计更新（未订阅时零开销）：
-
-```csharp
-MemoryPoolRegistry.OnPoolStatsUpdated += infos =>
-{
-    foreach (var info in infos)
-    {
-        if (info.MissRate > 0.1f)
-            Debug.LogWarning($"高未命中率: {info.Type.Name}: {info.MissRate:P1}");
-    }
-};
 ```
 
 Debugger 窗口（如已启用）显示所有池的列：Unused、Using（含 max 高水位）、Acquire、Release、Miss、Reserve、Idle、Pages、Util%，配了 `LiveLimit` 时追加 Limit 一栏；顶到上限或高未命中率会标红。

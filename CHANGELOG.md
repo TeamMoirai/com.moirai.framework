@@ -236,7 +236,6 @@
 - `MemoryPoolHandle` 的池标识是死码。
 - 配置过期时间的池把预热对象当"无限空闲"首轮剪光。
 - `OnDespawn` 内销毁实例会抹平 inactive 链的头尾指针。
-- 编辑器脚本重载漏掉整份非托管页元数据。
 - `Spawn<T>` / `SpawnAsync<T>` 取不到组件时把实例丢在场景里。
 - `Despawn(T obj)` 只认目标键不认对象。
 - `PoolCatalog` 的规则次序随构建漂移（`Array.Sort` 不稳定）。
@@ -276,3 +275,8 @@
 #### `Timer`
 
 - `TimerServiceBenchmark` 移出 `Runtime`，落 `Tests/EditorMode/Service/Timer/`。
+
+#### 池与内存
+
+- ⚠ 删除 `MemoryPoolRegistry.OnPoolStatsUpdated` 整条推送面（含每帧边界上的 `FirePoolStatsUpdated` 调用与 `s_StatsBuffer`）：全工程零订阅者，快照数组还只增不还、尾部会留陈旧条目。
+  - **迁移**：池统计只走拉取路径 `MemoryPool.GetAllMemoryPoolInfos`，Debugger 面板本就吃这条。

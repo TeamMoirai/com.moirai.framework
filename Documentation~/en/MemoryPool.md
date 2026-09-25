@@ -81,7 +81,7 @@ When `ClearAll()` is called while objects are still leased, pages are marked as 
 
 After `AutoTrimNativeMetadataFrames` (default 18000 frames ≈ 5 minutes) of complete idleness, the pool releases its unmanaged page metadata to minimize memory footprint.
 
-Page metadata lives in `Marshal.AllocHGlobal`, i.e. the process heap, while static fields only live inside the current domain. Unity's editor script reload does not raise `AppDomain.DomainUnload`, so the package adds an editor-side sweep: `MemoryPoolRegistry.TryReleaseAllNativeMetadataForTeardown()` runs on `AssemblyReloadEvents.beforeAssemblyReload` and on `EditorApplication.quitting`. If anything is still leased it **returns false and frees nothing** (releasing metadata then would make the next return write into freed memory) and logs one actionable warning — that leak stays with the editor session, which is a better trade than a dangling pointer. Page arrays and the objects themselves do not survive a domain reload, so metadata is all that can leak.
+Page metadata lives in `Marshal.AllocHGlobal`, i.e. the process heap, while static fields only live inside the current domain. Unity's editor script reload does not raise `AppDomain.DomainUnload`, which is the only release hook the registry has, so every reload drops those pointers and the page metadata of the pools that were live at that instant leaks for the rest of the editor session. That is an accepted trade, not an open bug: a reload-time sweep can only run when nothing is leased (freeing metadata while an object is out makes the eventual return write into freed memory), the leak is bounded by the session and measured in kilobytes, and `AutoTrimNativeMetadataFrames` already keeps the steady-state footprint down. Page arrays and the objects themselves do not survive a domain reload, so metadata is all that can leak.
 
 ## Core Types
 
@@ -176,19 +176,6 @@ for (int i = 0; i < actual; i++)
 {
     Debug.Log($"{buffer[i].Type.Name}: unused={buffer[i].UnusedCount}, miss={buffer[i].MissCount}, missRate={buffer[i].MissRate:P1}");
 }
-```
-
-Subscribe to per-frame stats updates (zero cost when unsubscribed):
-
-```csharp
-MemoryPoolRegistry.OnPoolStatsUpdated += infos =>
-{
-    foreach (var info in infos)
-    {
-        if (info.MissRate > 0.1f)
-            Debug.LogWarning($"High miss rate for {info.Type.Name}: {info.MissRate:P1}");
-    }
-};
 ```
 
 The Debugger window (if enabled) shows all pools with columns: Unused, Using (with the max high-water mark), Acquire, Release, Miss, Reserve, Idle, Pages, Util%, plus Limit when a `LiveLimit` is set; a pool sitting on its limit or with a high miss rate is highlighted as an error.

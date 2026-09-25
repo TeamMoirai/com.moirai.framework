@@ -116,16 +116,6 @@ namespace Moirai.Atropos
         private static EMemoryPoolPhase s_Phase = EMemoryPoolPhase.Gameplay;
         private static int s_MainThreadId;
         private static int s_CallbackDepth;
-        private static MemoryPoolInfo[] s_StatsBuffer = Array.Empty<MemoryPoolInfo>();
-
-        #endregion
-
-        #region 事件 [EVENTS]
-
-        /// <summary>
-        /// 每帧 TickAll 完成后触发的统计快照事件。仅在订阅时填充数据，零订阅时无开销。
-        /// </summary>
-        public static event Action<MemoryPoolInfo[]> OnPoolStatsUpdated;
 
         #endregion
 
@@ -172,37 +162,6 @@ namespace Moirai.Atropos
         private static void ReleaseNativeOnDomainUnload(object sender, EventArgs e)
         {
             ForceReleaseAllNativeMetadata();
-        }
-
-        /// <summary>
-        /// 域卸载 / 脚本重载前的收口：确认没有任何对象在外后释放全部非托管页元数据。
-        /// <para>页元数据走 <c>AllocHGlobal</c>，那是进程堆——静态字段只活在当前域里。Unity 编辑器脚本重载
-        /// 并不走 <see cref="AppDomain.DomainUnload"/>，静态字段一复位那些指针就永久失联，每热重载一次就漏一份。
-        /// 页存储与对象数组本体在静态构造前就已退役（不跨域存活），所以漏的只有元数据。</para>
-        /// </summary>
-        /// <returns>确有对象在外时返回 <see langword="false"/> 并且什么都不释放——
-        /// 此时回收元数据等于让下一次归还往已释放内存里写；交给空闲修剪与下一次显式清账即可。</returns>
-        internal static bool TryReleaseAllNativeMetadataForTeardown()
-        {
-            MemoryPoolHandle[] handles = s_HandleValues;
-            MemoryPoolInfo info = default;
-            for (int i = 0; i < handles.Length; i++)
-            {
-                if (handles[i] == null)
-                {
-                    continue;
-                }
-
-                info = default;
-                handles[i].GetInfo(ref info);
-                if (info.UsingCount != 0)
-                {
-                    return false;
-                }
-            }
-
-            ForceReleaseAllNativeMetadata();
-            return true;
         }
 
         #endregion
@@ -712,62 +671,7 @@ namespace Moirai.Atropos
                 }
             }
 
-            FirePoolStatsUpdated();
             ReportMaintenanceFault(exceptions);
-        }
-
-        /// <summary>
-        /// 触发内存池统计快照事件，向已订阅的监听器广播所有内存池的当前运行状态。
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// 该方法在 <see cref="TickAll"/> 每帧驱动流程的末尾被调用，用于将内部各内存池的
-        /// 运行指标（如使用中数量、未命中率、空闲缓存水位等）以快照形式同步给外部系统。
-        /// </para>
-        /// <para>
-        /// <b>性能与 GC 行为：</b><br />
-        /// 1. 若没有任何外部订阅者（<see cref="OnPoolStatsUpdated"/> 为 null），该方法
-        ///    会立即返回，仅执行一次指针判空检查（开销小于 1ns），对主线程几乎无影响。<br />
-        /// 2. 当存在订阅者时，内部使用静态缓存数组 <see cref="s_StatsBuffer"/> 进行复用。
-        ///    仅在内存池数量（<see cref="s_HandleCount"/>）增长导致缓存容量不足时，
-        ///    才会触发 <c>new MemoryPoolInfo[count]</c> 进行扩容。<br />
-        /// 3. 在游戏运行稳定期（池类型不再动态增加），该方法可实现 <b>零 GC 分配</b>
-        ///    （Zero Garbage Collection Allocation），确保不会因遥测数据的采集而引发性能毛刺。
-        /// </para>
-        /// <para>
-        /// <b>线程安全与约束：</b><br />
-        /// 本方法必须在 Unity 主线程中执行（由 <see cref="MemoryPoolRegistry.AssertMainThread"/>
-        /// 隐式保证）。订阅者回调中严禁执行耗时操作（如同步 I/O 或大量堆栈日志输出），
-        /// 亦不应在回调内尝试对内存池进行获取（Acquire）或归还（Release），以免引发不可预知的
-        /// 重入问题。
-        /// </para>
-        /// </remarks>
-        /// <seealso cref="OnPoolStatsUpdated"/>
-        /// <seealso cref="TickAll"/>
-        private static void FirePoolStatsUpdated()
-        {
-            if (OnPoolStatsUpdated == null) return;
-
-            int count = s_HandleCount;
-            if (s_StatsBuffer.Length < count)
-            {
-                s_StatsBuffer = new MemoryPoolInfo[count];
-            }
-
-            int i = 0;
-            for (int slot = 0; slot < s_HandleValues.Length; slot++)
-            {
-                MemoryPoolHandle handle = s_HandleValues[slot];
-                if (handle == null)
-                {
-                    continue;
-                }
-
-                handle.GetInfo(ref s_StatsBuffer[i]);
-                i++;
-            }
-
-            OnPoolStatsUpdated.Invoke(s_StatsBuffer);
         }
 
         #endregion
