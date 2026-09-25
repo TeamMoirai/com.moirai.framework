@@ -71,7 +71,8 @@ string location = ConfigTableService.GetUIWindowLocation("MainWindow");
 | 产物 | 说明 |
 |------|------|
 | `Gen/` 下的表代码 | 各表 Bean 与 `Tables` 集合；**不含多语言表**，语言无关的表按 key 存译文标识，逐语言重导没有意义 |
-| `Gen/L10n/` 下的表代码 | 多语言表 Bean（单字段变体 bean）、各语言共用的类，以及 `L10nLanguages.cs`。它与 `Gen/` 同树分目录，靠**顺序**而不是分根来避免互相删除：主趟清理是递归的会连 `Gen/L10n/` 一起删，所以多语言代码趟排在主趟之后、语言常量排在最后写 |
+| `Gen/L10n/` 下的表代码 | 多语言表 Bean（单字段变体 bean）、各语言共用的类，以及 `L10nLanguages.cs`。多语言那趟与主趟**共用一个代码根**，`L10n/` 这一层是 Luban 按模块名建的——把该趟的输出目录直接设成 `Gen/L10n/` 会得到 `Gen/L10n/L10n/`。所以该趟必须关掉清理（`outputSaver.cs-bin.cleanUpOutputDir=0`，否则主趟的 `Tables.cs`/`Test/`/`UI/` 会被当多余文件删掉），旧版残留交给主趟的递归清理，顺序仍是 常规 → 多语言 → 常量 |
+| `Gen/L10nTables.cs` | 多语言表的 manager 类（无模块名，故落在代码根下、与 `Tables.cs` 同级）。运行期不构造它，多语言表按语言逐张自建 |
 | `Table/<语言码>/l10n_*.bytes` | 每种语言一份多语言数据，含全部键（缺译是空串） |
 | `LubanHandler.cs` | 游戏侧处理器：实现 `ConfigTableServiceHandler` 契约（按语言取列、Sprite/UI 查询）并自动安装 |
 | `ExternalTypeUtil.cs` | Luban 扩展类型工具 |

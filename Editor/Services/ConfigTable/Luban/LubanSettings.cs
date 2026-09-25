@@ -204,9 +204,9 @@ namespace Moirai.Atropos.ConfigTable
             string content = File.ReadAllText(confPath);
             content = ReplaceConfValue(content, "DATA_OUTPUT_PATH_CLIENT", clientDataOutPutPath);
             content = ReplaceConfValue(content, "CODE_OUTPUT_PATH_CLIENT", clientCodeOutPutPath + "Gen/");
-            // 多语言代码与其余表同树但分目录（Gen/L10n/）：每趟的代码 saver 会清掉自己输出目录里
-            // 不属于本次范围的已存在文件，所以谁后跑谁覆盖——gen.sh 的顺序是 常规 → 多语言 → 语言常量。
-            content = ReplaceConfValue(content, "CODE_OUTPUT_PATH_L10N", clientCodeOutPutPath + "Gen/L10n/");
+            // 只有一代码根：多语言那趟与主趟共用它，Luban 按模块 L10n 再建一层，产物即 Gen/L10n/*.cs。
+            // 曾经单独配一个 CODE_OUTPUT_PATH_L10N=Gen/L10n/，结果生成出 Gen/L10n/L10n/ 双层嵌套；
+            // 该趟因此必须关掉自己的清理（否则会把主趟产物当多余文件删掉），见 gen.sh。
             content = ReplaceConfValue(content, "CONFIG_SCRIPT_TARGET", clientCodeOutPutPath + "LubanHandler.cs");
             // ReSharper disable once StringLiteralTypo
             content = ReplaceConfValue(content, "CONFIGINIT_SCRIPT_TARGET", clientCodeOutPutPath + "LubanHandler_Init.cs");

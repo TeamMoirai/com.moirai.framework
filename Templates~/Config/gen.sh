@@ -70,7 +70,6 @@ need CONF luban
 need L10N_CONF luban
 need DATA_OUTPUT_PATH_CLIENT client
 need CODE_OUTPUT_PATH_CLIENT client
-need CODE_OUTPUT_PATH_L10N client
 need L10N_LANGUAGES l10n
 
 LUBAN="${CFG[LUBAN_DLL]}"
@@ -237,13 +236,18 @@ run_client() {
     # 不带就刷 "type:'L10n.LocalizationBean' field:'text' not set variant" 警告。
     # 实测"不带 / zh-Hans / en"三种跑法的产物逐字节相同（bean 只剩一个字段，代码本就与语言无关），
     # 所以这里取清单第一项只为满足解析器——它不进入任何文件名或路径，不是"默认语言"。
+    # 多语言代码与主趟共用一个代码根：Luban 按模块 L10n 再建一层，产物就是 Gen/L10n/*.cs
+    # （把这一趟的输出目录本身设成 Gen/L10n/ 就会得到 Gen/L10n/L10n/）。
+    # 因此本趟必须关掉清理——实测开着会把主趟的 Tables.cs、Test/、UI/、vector*.cs 全删掉；
+    # 旧版残留则交给常规趟的递归清理，所以顺序仍是 常规 → 多语言，不能反。
     step "客户端 2/3：多语言代码（bean 只剩一个变体字段，代码与语言无关）"
     dotnet "$LUBAN" -t client -c "$CODE_TARGET" --conf "${CFG[L10N_CONF]}" \
         "${template_args[@]}" \
         --variant "default=${LANGUAGES[0]}" \
         -x code.lineEnding=crlf \
         "${optional_args[@]}" \
-        -x "outputCodeDir=${CFG[CODE_OUTPUT_PATH_L10N]}" \
+        -x "outputCodeDir=${CFG[CODE_OUTPUT_PATH_CLIENT]}" \
+        -x outputSaver.cs-bin.cleanUpOutputDir=0 \
         || fail "多语言代码趟失败"
 
     # 一次进程只解析一版变体，所以有几种语言就跑几趟；且必须排在常规趟之后
@@ -263,7 +267,7 @@ run_client() {
     # 所有会清 Gen/ 的趟都跑完了，才写这个落在生成目录里的常量（见函数注释）
     step "客户端：生成运行期语言常量"
     generate_language_constant
-    strip_generated_header_blank_line "${CFG[CODE_OUTPUT_PATH_CLIENT]}" "${CFG[CODE_OUTPUT_PATH_L10N]}"
+    strip_generated_header_blank_line "${CFG[CODE_OUTPUT_PATH_CLIENT]}"
 }
 
 run_server() {
