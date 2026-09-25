@@ -4,7 +4,6 @@ using System.Threading;
 using Cysharp.Threading.Tasks;
 using Moirai.Atropos;
 using Moirai.Atropos.ConfigTable;
-using Moirai.Atropos.Localization;
 using Moirai.GameProto.Config.L10n;
 using UnityEngine;
 using UnityEngine.U2D;

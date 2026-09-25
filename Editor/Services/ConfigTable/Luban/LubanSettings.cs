@@ -223,7 +223,7 @@ namespace Moirai.Atropos.ConfigTable
 
         private void UpdateLubanHandlerInit(string configRoot)
         {
-            string initPath = Path.Combine(configRoot, "CustomTemplate", "LubanHandler_Init.cs");
+            string initPath = Path.Combine(configRoot, "Templates", "LubanHandler_Init.cs");
             if (!File.Exists(initPath))
             {
                 Debug.LogWarning($"LubanHandler_Init.cs 不存在: {initPath}");

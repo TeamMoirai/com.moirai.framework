@@ -14,11 +14,33 @@ set -o pipefail
 cd "$(dirname "$0")" || exit 1
 CONFIG_FILE="config.ini"
 
-TARGET="${1:-client}"
-LAZYLOAD="${2:-}"
+TARGET=""
+FORMAT_OVERRIDE=""
+LOAD_OVERRIDE=""
 
 fail() { echo "[ERROR] $*" >&2; exit 1; }
 step() { echo "===== $* ====="; }
+
+usage() {
+    # 只打印 shebang 之后连续那段注释头，遇到第一行非注释就停
+    awk 'NR>1 && /^#/{print; next} NR>1{exit}' "$0"
+}
+
+# 参数：<目标> [--format=bin|json] [--load=lazy|eager]
+# 两个开关都只在缺省时才读 config.ini，显式传入即覆盖配置。
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        client|server|all)
+            [ -n "$TARGET" ] && fail "目标只能给一个，已确定是 $TARGET，又多给一个 $1"
+            TARGET="$1" ;;
+        --format=*) FORMAT_OVERRIDE="${1#*=}" ;;
+        --load=*)   LOAD_OVERRIDE="${1#*=}" ;;
+        -h|--help|help) usage; exit 0 ;;
+        *) fail "未知参数：$1（--help 看用法）" ;;
+    esac
+    shift
+done
+TARGET="${TARGET:-client}"
 
 [ -f "$CONFIG_FILE" ] || fail "$CONFIG_FILE 不存在（应与 gen.sh 同目录）"
 
@@ -57,19 +79,36 @@ LUBAN="${CFG[LUBAN_DLL]}"
 optional_args=()
 [ -n "${CFG[PATH_VALIDATOR_ROOT]:-}" ] && optional_args+=(-x "pathValidator.rootDir=${CFG[PATH_VALIDATOR_ROOT]}")
 
-# 模板目录：三趟必须用同一个模板，所以只在这里定一次。
-# 目录不存在时一致退回内置模板并显式告警——只让某一趟退回会让多语言类与其余表用不同模板。
-case "$LAZYLOAD" in
-    ""|true|TRUE|1) TEMPLATE_SUFFIX=LazyLoad ;;
-    *)              TEMPLATE_SUFFIX=Default ;;
+# ---------- 生成路线（数据格式）与加载类型 ----------
+# 缺省值写在 config.ini：DATA_FORMAT 决定 code/data target 这一对，LAZY_LOAD 决定用不用懒加载模板。
+# 命令行 --format / --load 只是当次覆盖，不改配置——排查问题时代价最低的做法。
+FORMAT="${FORMAT_OVERRIDE:-${CFG[DATA_FORMAT]:-bin}}"
+case "$FORMAT" in
+    bin)  CODE_TARGET=cs-bin       ; DATA_TARGET=bin  ;;
+    json) CODE_TARGET=cs-simple-json; DATA_TARGET=json ;;
+    *) fail "DATA_FORMAT/--format 只认 bin 或 json，收到：$FORMAT" ;;
 esac
-TEMPLATE_DIR="${CFG[CUSTOM_TEMPLATE_ROOT]:-CustomTemplate/}CustomTemplate_Client_${TEMPLATE_SUFFIX}"
+
+LOAD="${LOAD_OVERRIDE:-${CFG[LAZY_LOAD]:-true}}"
+case "$LOAD" in
+    lazy|true|TRUE|1)   LOAD=lazy ;;
+    eager|false|FALSE|0) LOAD=eager ;;
+    *) fail "LAZY_LOAD/--load 只认 lazy 或 eager，收到：$LOAD" ;;
+esac
+
+# 懒加载模板按 code target 分目录（Luban 找的是 <dir>/<codeTarget>/tables.sbn）：
+# 少一份就只是那一趟静默退回内置模板，症状是"换了 json 路线就不懒加载了"，所以逐份确认。
+# 三趟（常规 / 多语言代码 / 各语言数据）必须用同一个模板目录，故只在这里算一次。
+LAZY_TEMPLATE_DIR="${CFG[CUSTOM_TEMPLATE_ROOT]:-Templates/}Client_LazyLoad"
 template_args=()
-if [ -d "$TEMPLATE_DIR" ]; then
-    template_args=(--customTemplateDir "$TEMPLATE_DIR")
+if [ "$LOAD" = eager ]; then
+    echo "[gen.sh] 路线 $FORMAT，加载类型 eager：三趟统一用内置模板（构造期加载全部表）"
+elif [ -f "$LAZY_TEMPLATE_DIR/$CODE_TARGET/tables.sbn" ]; then
+    template_args=(--customTemplateDir "$LAZY_TEMPLATE_DIR")
+    echo "[gen.sh] 路线 $FORMAT，加载类型 lazy（模板 $LAZY_TEMPLATE_DIR/$CODE_TARGET/tables.sbn）"
 else
-    echo "[WARN] 模板目录不存在：$TEMPLATE_DIR"
-    echo "[WARN] 三趟统一使用内置模板（--customTemplateDir 未传）"
+    echo "[WARN] 懒加载模板缺失：$LAZY_TEMPLATE_DIR/$CODE_TARGET/tables.sbn"
+    echo "[WARN] 三趟统一退回内置模板（构造期加载全部表）"
 fi
 
 # 语言清单：唯一真源，空格分隔
@@ -120,7 +159,7 @@ generate_l10n_schema() {
 # ⚠ 必须在常规趟之后调用：常量落在 Luban 的代码输出目录里时，那一趟的代码 saver 会把
 # "不属于本次生成范围"的已存在文件当多余项删掉——实测主趟日志出现
 # [remove] .../Gen\L10n\L10nLanguages.cs 且退出码仍是 0，先写后跑等于白写。
-# 注释是中文，故文件带 UTF-8 BOM：与 CustomTemplate 下那几个 .cs 一致，也不看编辑器脸色。
+# 注释是中文，故文件带 UTF-8 BOM：与 Templates 下那几个 .cs 一致，也不看编辑器脸色。
 generate_language_constant() {
     local cs="${CFG[L10N_LANG_LIST_CODE]:-}"
     local ns="${CFG[L10N_LANG_CLASS_NAMESPACE]:-Moirai.GameProto.Config}"
@@ -183,7 +222,7 @@ run_client() {
     generate_l10n_schema
 
     step "客户端 1/3：常规表（语言无关，一趟出代码与数据）"
-    dotnet "$LUBAN" -t client -c cs-bin -d bin --conf "${CFG[CONF]}" \
+    dotnet "$LUBAN" -t client -c "$CODE_TARGET" -d "$DATA_TARGET" --conf "${CFG[CONF]}" \
         "${template_args[@]}" \
         -x code.lineEnding=crlf \
         "${optional_args[@]}" \
@@ -194,7 +233,7 @@ run_client() {
     # 多语言代码落在 Gen/L10n/（与主趟同树、分目录）。必须在常规趟之后：常规趟的清理是递归的，
     # 会把 Gen/L10n/ 整个删掉；反过来这一趟的清理只及自己目录，不会碰常规表的类。
     step "客户端 2/3：多语言代码（bean 只剩一个变体字段，代码与语言无关）"
-    dotnet "$LUBAN" -t client -c cs-bin --conf "${CFG[L10N_CONF]}" \
+    dotnet "$LUBAN" -t client -c "$CODE_TARGET" --conf "${CFG[L10N_CONF]}" \
         "${template_args[@]}" \
         -x code.lineEnding=crlf \
         "${optional_args[@]}" \
@@ -207,7 +246,7 @@ run_client() {
     local lang
     for lang in "${LANGUAGES[@]}"; do
         step "客户端 3/3：按语言导数据 -> ${data_root}${lang}"
-        dotnet "$LUBAN" -t client -d bin --conf "${CFG[L10N_CONF]}" \
+        dotnet "$LUBAN" -t client -d "$DATA_TARGET" --conf "${CFG[L10N_CONF]}" \
             "${template_args[@]}" \
             --variant "default=${lang}" \
             "${optional_args[@]}" \
@@ -223,8 +262,10 @@ run_client() {
 
 run_server() {
     [ -n "${CFG[DATA_OUTPUT_PATH_SERVER]:-}" ] || fail "$CONFIG_FILE 缺少键 DATA_OUTPUT_PATH_SERVER（节 [server]）"
-    step "服务端：常规表（不含多语言，故不带 --variant）"
-    dotnet "$LUBAN" -t server -c cs-bin -d bin --conf "${CFG[CONF]}" \
+    # 服务端一趟不带 --variant（多语言不在服务端 schema 里），也不带懒加载模板：
+    # Client_LazyLoad 只服务客户端，服务端要懒加载得另建一份模板目录并在这里显式传入。
+    step "服务端：常规表（$DATA_TARGET，内置模板 = 构造期加载）"
+    dotnet "$LUBAN" -t server -c "$CODE_TARGET" -d "$DATA_TARGET" --conf "${CFG[CONF]}" \
         -x code.lineEnding=crlf \
         "${optional_args[@]}" \
         -x "outputCodeDir=${CFG[CODE_OUTPUT_PATH_SERVER]}" \
@@ -237,10 +278,6 @@ case "$TARGET" in
     client) run_client ;;
     server) run_server ;;
     all)    run_client; run_server ;;
-    -h|--help|help)
-        # 只打印 shebang 之后连续那段注释头，遇到第一行非注释就停
-        awk 'NR>1 && /^#/{print; next} NR>1{exit}' "$0"
-        exit 0 ;;
     *)      fail "未知目标：$TARGET（可用 client | server | all）" ;;
 esac
 
