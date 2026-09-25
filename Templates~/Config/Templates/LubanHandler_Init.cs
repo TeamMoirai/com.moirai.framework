@@ -68,8 +68,8 @@ namespace Moirai.GameProto.Config
 			ConstructorInfo tableCtor = typeof(T).GetConstructors()[0];
 			Type bufferType = tableCtor.GetParameters()[0].ParameterType;
 			object buffer = bufferType == typeof(ByteBuf)
-				? (object)LoadByteBufFrom(relativePath)
-				: LoadJsonFrom(relativePath);
+				? (object)LoadByteBuf(relativePath)
+				: LoadJson(relativePath);
 
 			if (tableCtor.Invoke(new[] { buffer }) is not T table)
 			{
@@ -80,47 +80,27 @@ namespace Moirai.GameProto.Config
 
 			return table;
 		}
-
-		/// <summary>
-		/// 加载二进制配置。
-		/// </summary>
-		/// <param name="file">FileName</param>
-		/// <returns>ByteBuf</returns>
-		private static ByteBuf LoadByteBuf(string file)
-		{
-			return LoadByteBufFrom(file);
-		}
-
+		
 		/// <summary>
 		/// 从 CONFIG_PATH 下的相对路径加载二进制配置。多语言按语言子目录分份导出后走这一层。
 		/// </summary>
 		/// <param name="relativePath">相对 CONFIG_PATH 的路径，不含扩展名</param>
 		/// <returns>ByteBuf</returns>
-		private static ByteBuf LoadByteBufFrom(string relativePath)
+		private static ByteBuf LoadByteBuf(string relativePath)
 		{
 			LogUtility.Info("Load bin config: {0}.bytes", relativePath);
 			TextAsset textAsset = LoadTextAsset(CONFIG_PATH + relativePath + ".bytes");
 			byte[] bytes = textAsset.bytes;
 			return new ByteBuf(bytes);
 		}
-
+		
 		/// <summary>
-		/// 从文件中加载 json 配置。
-		/// </summary>
-		/// <param name="file"></param>
-		/// <returns></returns>
-		private static JSONNode LoadJson(string file)
-		{
-			return LoadJsonFrom(file);
-		}
-
-		/// <summary>
-		/// 从 CONFIG_PATH 下的相对路径加载 json 配置。与 <see cref="LoadByteBufFrom"/> 对称，
+		/// 从 CONFIG_PATH 下的相对路径加载 json 配置。与 <see cref="LoadByteBuf"/> 对称，
 		/// 供 <see cref="LoadTable{T}"/> 在 json 路线下按语言子目录取表。
 		/// </summary>
 		/// <param name="relativePath">相对 CONFIG_PATH 的路径，不含扩展名</param>
 		/// <returns>JSONNode</returns>
-		private static JSONNode LoadJsonFrom(string relativePath)
+		private static JSONNode LoadJson(string relativePath)
 		{
 			LogUtility.Info("Load json config: {0}.json", relativePath);
 			TextAsset textAsset = LoadTextAsset(CONFIG_PATH + relativePath + ".json");
