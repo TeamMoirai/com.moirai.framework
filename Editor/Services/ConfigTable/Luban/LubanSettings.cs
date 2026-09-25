@@ -42,8 +42,12 @@ namespace Moirai.Atropos.ConfigTable
         /// 计算从 <see cref="relativeTo"/> 到 <see cref="path"/> 的相对路径
         /// </summary>
         /// <remarks>将绝对路径转换为相对于指定目录的 Unity 风格相对路径</remarks>
+        /// <remarks>
+        /// 正斜杠：config.ini 由 gen.sh（bash 驱动）直接读，Windows 侧也接受正斜杠路径，
+        /// 因此不再需要"反斜杠写入 + 读时转换"这一层。
+        /// </remarks>
         private static string GetRelativePath(string relativeTo, string path) =>
-            PathUtility.FormatToSysFilePath(Path.GetRelativePath(relativeTo, path) + "/");
+            PathUtility.FormatToUnityPath(Path.GetRelativePath(relativeTo, path) + "/");
 
         #region 初始化配置根目录 [INIT CONFIG ROOT]
 
@@ -173,18 +177,20 @@ namespace Moirai.Atropos.ConfigTable
 
             string configRoot = ConfigRootFullPath;
 
-            UpdatePathExportConf(configRoot);
-            UpdateConfigTableServiceInit(configRoot);
+            UpdateConfigIni(configRoot);
+            UpdateLubanHandlerInit(configRoot);
 
-            Debug.Log("已更新 path_export.conf 和 ConfigTableService_Init.cs");
+            Debug.Log("已更新 config.ini 和 LubanHandler_Init.cs");
         }
 
-        private void UpdatePathExportConf(string configRoot)
+        private void UpdateConfigIni(string configRoot)
         {
-            string confPath = Path.Combine(configRoot, "path_export.conf");
+            // config.ini 是转表唯一配置：读它的是 gen.sh（bash 驱动），本方法只按键改值。
+            // 键名全局唯一所以不需要带节名定位；分节只是给人看的分组。
+            string confPath = Path.Combine(configRoot, "config.ini");
             if (!File.Exists(confPath))
             {
-                Debug.LogWarning($"path_export.conf 不存在: {confPath}");
+                Debug.LogWarning($"config.ini 不存在: {confPath}");
                 return;
             }
 
@@ -197,23 +203,28 @@ namespace Moirai.Atropos.ConfigTable
 
             string content = File.ReadAllText(confPath);
             content = ReplaceConfValue(content, "DATA_OUTPUT_PATH_CLIENT", clientDataOutPutPath);
-            content = ReplaceConfValue(content, "CODE_OUTPUT_PATH_CLIENT", clientCodeOutPutPath + "Gen\\");
-            content = ReplaceConfValue(content, "CONFIG_SCRIPT_TARGET", clientCodeOutPutPath + "ConfigTableService.cs");
+            // 只有一个代码根：多语言那趟与主趟共用它，Luban 按模块名再分一层才是 Gen/L10n/*.cs，
+            // 所以这一项不能配成 Gen/L10n/；该趟因此关掉自身清理，细节见 gen.sh。
+            content = ReplaceConfValue(content, "CODE_OUTPUT_PATH_CLIENT", clientCodeOutPutPath + "Gen/");
+            content = ReplaceConfValue(content, "CONFIG_SCRIPT_TARGET", clientCodeOutPutPath + "LubanHandler.cs");
             // ReSharper disable once StringLiteralTypo
-            content = ReplaceConfValue(content, "CONFIGINIT_SCRIPT_TARGET", clientCodeOutPutPath + "ConfigTableService_Init.cs");
+            content = ReplaceConfValue(content, "CONFIGINIT_SCRIPT_TARGET", clientCodeOutPutPath + "LubanHandler_Init.cs");
             // ReSharper disable once StringLiteralTypo
             content = ReplaceConfValue(content, "EXTERNALTYPEUTIL_SCRIPT_TARGET", clientCodeOutPutPath + "ExternalTypeUtil.cs");
+            // 转表期生成的语言常量：新增语言改 config.ini 的 L10N_LANGUAGES 后重跑转表。
+            // 它写在 Gen/L10n/ 里，由 gen.sh 在所有趟之后生成（常规趟的清理会波及该目录）。
+            content = ReplaceConfValue(content, "L10N_LANG_LIST_CODE", clientCodeOutPutPath + "Gen/L10n/L10nLanguages.cs");
             content = ReplaceConfValue(content, "PATH_VALIDATOR_ROOT", PathValidatorRoot);
 
             File.WriteAllText(confPath, content);
         }
 
-        private void UpdateConfigTableServiceInit(string configRoot)
+        private void UpdateLubanHandlerInit(string configRoot)
         {
-            string initPath = Path.Combine(configRoot, "CustomTemplate", "ConfigTableService_Init.cs");
+            string initPath = Path.Combine(configRoot, "Templates", "LubanHandler_Init.cs");
             if (!File.Exists(initPath))
             {
-                Debug.LogWarning($"ConfigTableService_Init.cs 不存在: {initPath}");
+                Debug.LogWarning($"LubanHandler_Init.cs 不存在: {initPath}");
                 return;
             }
 

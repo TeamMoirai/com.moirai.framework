@@ -23,6 +23,7 @@
 - 缺译回退链 `FallbackLanguageCodes` 与首启语言兜底：当前语言该列留空不再把 `UI.Shop.Title` 这样的 key 直接印到界面上。
 - 常驻规模以 `ResidentChars` 可观测。
 - 运行时覆盖层 `SetStringOverlay`（按来源摘除）：不改表、不重出包就能换掉某语言的若干词条。
+- 配置表后端可选接缝 `SupportsPerLanguageLocalizationLoad` / `GetLocalizedStringsByLanguage`：按语言单独取一列词条。
 - 句柄式语言变更订阅、不装箱取文、编辑器内预览。
 
 #### `Resource`
@@ -60,6 +61,14 @@
 - `ConfigTableServiceContractTests`：配置表此前零用例，补外观降级值、默认后端兜底与转发证据、关闭语义、`[ServiceDependency(ResourceService)]` 存在性、后端接缝形状。
 
 ### Changed
+
+#### `ConfigTable`
+
+- ⚠ 转表入口只有一个 `gen.sh`（唯一一份 bash 驱动），`gen.bat` 只是 Windows 下找到 bash 的启动器；目标由参数选（无参数 = 客户端，另有 `server` / `all`）。
+- ⚠ 转表配置是单文件 `config.ini`（分节 + 正斜杠路径），键名全局唯一；「更新配置路径」按这些键改写路径。
+- ⚠ 生成的 `Tables` 缺省是懒加载：构造期不取数，每张表首次访问才装载并就地解引用。靠覆盖 `tables.sbn` 实现，且按 code target 各一份（`Templates/Client_LazyLoad/<codeTarget>/`）。
+- 两条生成路线：`bin`（`cs-bin`+`bin`）与 `json`（`cs-simple-json`+`json`）；路线与加载类型的缺省值都在 `config.ini`（`DATA_FORMAT` / `LAZY_LOAD`），`--format=` / `--load=` 只做当次覆盖。
+- 生成码样式与框架一致：无 file header 前导空行、私有字段 `_小驼峰`（`_loader` / `_tbItem`）、注释与 bean comment 为中文。
 
 #### `Resource`
 
@@ -104,6 +113,7 @@
 
 - 词条交付改由「批」自带语言头，存储与解析搬进 `LocalizationStore`。
 - 全局语言注册表删除，可用语言随表自报（`ConfigTableService.GetLocalizationLanguageCodes`）。
+- 配置表数据源在自报支持按语言取列的后端下改走按语言列模式，常驻降为语言头 + 当前语言列 + 回退链列。
 - 语言切换的事件时序与查询热路径一并收口。
 
 #### 池与内存
@@ -125,6 +135,10 @@
 - UTF 预期判定内聚到 `Tests/EditorMode/Support/UtfLogExpect.cs`：原先 17 个用例文件各带一份 `#if UNITY_LOGGING_INSTALLED` 判定（共 20 处），现只这一处依赖该版本宏。
 
 ### Fixed
+
+#### `ConfigTable`
+
+- 编辑器「更新配置路径」原本指向两个不存在的文件，点击只在控制台留一行警告、什么也没改；现在确实改写 `config.ini` 与 `Templates/LubanHandler_Init.cs`。
 
 #### 测试 [Testing]
 

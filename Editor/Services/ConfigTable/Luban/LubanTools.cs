@@ -12,7 +12,9 @@ namespace Moirai.Atropos.ConfigTable.Editor
         {
             if (!CheckConfigRoot()) return;
 
-            string path = LubanSettings.ConfigRootFullPath + "/gen_code_bin_to_project";
+            // 转表唯一入口是 gen.sh；gen.bat 只是 Windows 启动器，按平台补后缀即可。
+            // 不带参数即客户端；服务端与两端要显式 gen.sh server / gen.sh all
+            string path = LubanSettings.ConfigRootFullPath + "/gen";
 #if UNITY_EDITOR_OSX || UNITY_EDITOR_LINUX
             path += ".sh";
 #elif UNITY_EDITOR_WIN

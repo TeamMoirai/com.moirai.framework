@@ -85,6 +85,20 @@ namespace Moirai.Atropos.ConfigTable
         public static IReadOnlyList<string> GetLocalizationLanguageCodes() =>
             s_Handler?.GetLocalizationLanguageCodes() ?? Array.Empty<string>();
 
+        /// <summary>
+        /// 当前配置表处理器是否支持按语言单独取列。未注册处理器时为 <c>false</c>（走整批加载）。
+        /// </summary>
+        public static bool SupportsPerLanguageLocalizationLoad =>
+            s_Handler != null && s_Handler.SupportsPerLanguageLocalizationLoad;
+
+        /// <summary>
+        /// 按语言取一列词条（key → 译文）。仅在 <see cref="SupportsPerLanguageLocalizationLoad"/> 为真时有意义。
+        /// </summary>
+        /// <param name="languageCode"><see cref="GetLocalizationLanguageCodes"/> 自报的语言码。</param>
+        /// <returns>未注册处理器或该语言取不到时为 <c>null</c>。</returns>
+        public static Dictionary<string, string> GetLocalizedStringsByLanguage(string languageCode) =>
+            s_Handler?.GetLocalizedStringsByLanguage(languageCode);
+
 #if UNITY_EDITOR
         /// <summary>
         /// 编辑器预览入口：不注册服务世界、不经资源系统，向 Settings 里配置的处理器要一份多语言文本。
