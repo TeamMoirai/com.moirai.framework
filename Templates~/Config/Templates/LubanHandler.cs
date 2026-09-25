@@ -37,7 +37,7 @@ namespace Moirai.GameProto.Config
         private const string LOCALIZED_STRINGS_TABLE = "l10n_tblocalizedstrings";
 
         /// <summary>
-        /// 词条按语言各存一份，走框架的按语言列模式：常驻只有语言头 + 当前语言列 + 回退链列。
+        /// 词条按语言各存一份，走框架的按语言列模式：常驻与取值都只有语言头 + 当前语言列。
         /// </summary>
         public override bool SupportsPerLanguageLocalizationLoad => true;
 

@@ -138,20 +138,19 @@ namespace Service.Localization
         public void PerLanguage_FirstQuery_LoadsHeaderAndOnlyNeededColumns()
         {
             var handler = CreateTrilingualProbe();
-            handler.FallbackLanguageCodes = new[] { "en" };
 
             handler.ChangeLanguage(Chinese);
 
-            // 目标列 + 回退列就位；日语列不允许被顺带装载
-            CollectionAssert.AreEquivalent(new[] { "zh-Hans", "en" }, handler.LoadedColumnCodes);
+            // 只装载当前语言列
+            CollectionAssert.AreEquivalent(new[] { "zh-Hans" }, handler.LoadedColumnCodes);
             Assert.AreEqual("标题", handler.GetTextFromId("ui.title"));
+            Assert.AreEqual(0, CountColumnLoads(handler, "en"), "当前列填全时别的语言列一次都不该取源");
         }
 
         [Test]
         public void PerLanguage_Switch_LoadsTargetColumnLazilyOnlyOnce()
         {
             var handler = CreateTrilingualProbe();
-            handler.FallbackLanguageCodes = Array.Empty<string>();
 
             handler.ChangeLanguage(Chinese); // 首启落在播种的中文：装载 zh-Hans 一列
             handler.LoadedColumnCodes.Clear();
@@ -162,7 +161,7 @@ namespace Service.Localization
 
             handler.ChangeLanguage(Chinese);
             Assert.AreEqual(0, CountColumnLoads(handler, "zh-Hans"), "已装载的列切换回来不得重取源");
-            Assert.AreEqual(0, CountColumnLoads(handler, "en"), "空回退链下英语列不应被装载");
+            Assert.AreEqual(0, CountColumnLoads(handler, "en"), "没被查到的语言列不应被装载");
         }
 
         [Test]
@@ -171,7 +170,6 @@ namespace Service.Localization
             SeedEditorLanguage(English);
             var handler = Track(new PerLanguageProbeHandler());
             handler.Header.AddRange(new[] { English, Chinese });
-            handler.FallbackLanguageCodes = Array.Empty<string>();
             handler.Columns["en"] = new Dictionary<string, string> { ["ui.title"] = "Title" };
             // zh-Hans 列返回 null：视为暂缺可重试，切换必须被拒绝
 
@@ -191,7 +189,6 @@ namespace Service.Localization
             SeedEditorLanguage(English);
             var handler = Track(new PerLanguageProbeHandler());
             handler.Header.AddRange(new[] { English, Chinese });
-            handler.FallbackLanguageCodes = Array.Empty<string>();
             handler.Columns["en"] = new Dictionary<string, string> { ["ui.title"] = "Title" };
             handler.Columns["zh-Hans"] = new Dictionary<string, string>(); // 已加载的空列：不重试
 
@@ -212,7 +209,6 @@ namespace Service.Localization
         public void PerLanguage_GetDictionaryFromId_LoadsAllColumnsOnDemand()
         {
             var handler = CreateTrilingualProbe();
-            handler.FallbackLanguageCodes = Array.Empty<string>();
 
             handler.ChangeLanguage(Chinese); // 首启中文：只装 zh-Hans
             handler.LoadedColumnCodes.Clear();
@@ -230,7 +226,6 @@ namespace Service.Localization
         public void PerLanguage_OverlayStillAppliesOnTopOfSparseColumns()
         {
             var handler = CreateTrilingualProbe();
-            handler.FallbackLanguageCodes = Array.Empty<string>();
             handler.ChangeLanguage(Chinese);
 
             Assert.AreEqual(1, handler.SetStringOverlay("qa", Chinese, new[]
@@ -241,17 +236,25 @@ namespace Service.Localization
             Assert.AreEqual("标题-热改", handler.GetTextFromId("ui.title"), "覆盖层在列模式同样压过表内译文");
         }
 
+        /// <summary>
+        /// 列模式只读当前语言列：别的语言那一列压根没装载，缺译时无从托底，直接露 key。
+        /// </summary>
         [Test]
-        public void PerLanguage_FallbackResolvesFromSparseColumns()
+        public void PerLanguage_BlankEntry_ExposesKeyWithoutReadingOtherLanguages()
         {
             var handler = CreateTrilingualProbe();
-            handler.FallbackLanguageCodes = new[] { "en" };
-            handler.Columns["zh-Hans"]["ui.title"] = null; // 中文列该格缺译
+            handler.Columns["zh-Hans"]["ui.title"] = null; // 中文列该格缺译，英文列有现成译文
+            handler.Columns["en"]["ui.english-only"] = "Only"; // 中文列压根没有这条 key
 
             handler.ChangeLanguage(Chinese);
 
-            Assert.AreEqual("Title", handler.GetTextFromId("ui.title"), "列模式缺译同样走回退链");
-            CollectionAssert.AreEquivalent(new[] { "zh-Hans", "en" }, handler.LoadedColumnCodes);
+            UtfLogExpect.Warning();
+            Assert.AreEqual("ui.title", handler.GetTextFromId("ui.title"), "缺译原样露 key");
+            Assert.AreEqual(1, handler.MissingKeyCount);
+            Assert.IsFalse(handler.Has("ui.english-only"), "列模式的 key 集只认已装载的本列");
+
+            Assert.AreEqual(0, CountColumnLoads(handler, "en"), "取值不得把别的语言列拉进来");
+            CollectionAssert.AreEquivalent(new[] { "zh-Hans" }, handler.LoadedColumnCodes);
         }
 
         /// <summary>
@@ -320,7 +323,6 @@ namespace Service.Localization
         {
             var handler = Track(CreateBatchProbe(new[] { English, Chinese, Language.Arabic },
                 ("ui.title", new[] { "Title", "标题", "عنوان" })));
-            handler.FallbackLanguageCodes = Array.Empty<string>();
 
             handler.ChangeLanguage(Language.Arabic);
             Assert.IsTrue(handler.IsCurrentLanguageRightToLeft);
@@ -382,7 +384,6 @@ namespace Service.Localization
                 ("quest.items#one", new[] { "{0} item in bag", "{0} предмет" }),
                 ("quest.items#few", new[] { "{0} item-ish", "{0} предмета" }),
                 ("quest.items#other", new[] { "{0} items in bag", "{0} предметов" })));
-            handler.FallbackLanguageCodes = Array.Empty<string>();
 
             handler.ChangeLanguage(English);
             Assert.AreEqual("1 item in bag", handler.GetPluralTextFromId("quest.items", 1));
@@ -399,7 +400,6 @@ namespace Service.Localization
         {
             var handler = Track(CreateBatchProbe(new[] { English },
                 ("greeting", new[] { "Hello {1}, you have {0} coins" })));
-            handler.FallbackLanguageCodes = Array.Empty<string>();
 
             handler.ChangeLanguage(English);
 
@@ -411,7 +411,6 @@ namespace Service.Localization
         {
             var handler = Track(CreateBatchProbe(new[] { English },
                 ("loot", new[] { "x{0}" })));
-            handler.FallbackLanguageCodes = Array.Empty<string>();
 
             handler.ChangeLanguage(English);
 
@@ -423,7 +422,6 @@ namespace Service.Localization
         {
             var handler = Track(CreateBatchProbe(new[] { English },
                 ("ui.title", new[] { "Title" })));
-            handler.FallbackLanguageCodes = Array.Empty<string>();
             handler.ChangeLanguage(English);
 
             UtfLogExpect.Warning();

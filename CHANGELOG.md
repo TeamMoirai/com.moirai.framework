@@ -20,7 +20,7 @@
 
 #### `Localization`
 
-- 缺译回退链 `FallbackLanguageCodes` 与首启语言兜底：当前语言该列留空不再把 `UI.Shop.Title` 这样的 key 直接印到界面上。
+- 首启语言兜底：检测链给出的语言没随这批词条发行时按语言表首项落。
 - 常驻规模以 `ResidentChars` 可观测。
 - 运行时覆盖层 `SetStringOverlay`（按来源摘除）：不改表、不重出包就能换掉某语言的若干词条。
 - 配置表后端可选接缝 `SupportsPerLanguageLocalizationLoad` / `GetLocalizedStringsByLanguage`：按语言单独取一列词条。
@@ -113,7 +113,7 @@
 
 - 词条交付改由「批」自带语言头，存储与解析搬进 `LocalizationStore`。
 - 全局语言注册表删除，可用语言随表自报（`ConfigTableService.GetLocalizationLanguageCodes`）。
-- 配置表数据源在自报支持按语言取列的后端下改走按语言列模式，常驻降为语言头 + 当前语言列 + 回退链列。
+- 配置表数据源在自报支持按语言取列的后端下改走按语言列模式：常驻与取值都只有语言头 + 当前语言列。
 - 语言切换的事件时序与查询热路径一并收口。
 
 #### 池与内存

@@ -9,19 +9,13 @@ namespace Moirai.Atropos.Localization
 {
     /// <summary>
     /// 本地化处理器抽象基类（策略模式抽象策略）。
-    /// <para>承载语言管理、语言切换、缺译回退、运行时覆盖与文本查询；词条存储与取值解析落在
+    /// <para>承载语言管理、语言切换、运行时覆盖与文本查询；词条存储与取值解析落在
     /// <see cref="LocalizationStore"/>，与编辑器预览共用同一套解析路径。</para>
-    /// <para>多语言数据在首次访问时一次性全量加载，各语言列随词条常驻内存；按语言拆分懒加载为
-    /// 门槛触发项，规模可经 <see cref="ResidentChars"/> 或调试面板量化判断后再实施。</para>
+    /// <para>默认整批加载、全语言常驻；数据源自报支持按语言取列时转为列模式，常驻与取值都只有当前语言列。</para>
     /// </summary>
     [Serializable]
     public abstract class LocalizationServiceHandler : FrameworkHandler
     {
-        // 缺译回退顺序，用语言 Code 而非 Language 配置：Language 无无参构造，
-        // Unity 序列化器无法还原其数组元素。留空即关闭回退（缺译直接返回 key）。
-        [Tooltip("缺译回退顺序，填语言 Code（如 en、zh-Hans）。当前语言缺译时按此顺序取译文；留空表示缺译直接返回 key。")]
-        [SerializeField] private string[] m_FallbackLanguageCodes = { "en" };
-
         // 本地化器列表
         [NonSerialized] internal readonly List<LocalizerBase> _localizers = new List<LocalizerBase>();
         // 句柄式订阅表——静态事件那条路上"忘了注销"是唯一没人收口的泄漏，这里在关服时统一作废
@@ -44,12 +38,9 @@ namespace Moirai.Atropos.Localization
         [NonSerialized] private int _currentLanguageIndex = -1;
         // 切换中标记：本地化器注入回调里再切语言会打乱快照与事件顺序，直接拦下
         [NonSerialized] private bool _isSwitching;
-        // 回退链解析后的语言与其列下标
-        [NonSerialized] private Language[] _fallbackChain = Array.Empty<Language>();
-        [NonSerialized] private int[] _fallbackIndices = Array.Empty<int>();
         // 不存在的语言只在切换时警告一次
         [NonSerialized] private HashSet<Language> _warnedUnavailableLanguages;
-        // 缺译追踪：全链（覆盖层→指定语言→回退链）都取不到译文的 key，去重记录，供 QA 巡检与调试面板展示
+        // 缺译追踪：覆盖层与当前语言都给不出译文的 key，去重记录，供 QA 巡检与调试面板展示
         [NonSerialized] private HashSet<string> _missingKeys;
         // 缺译事件总数（含同一 key 的重复命中）——与去重集合对照可分辨「大面积漏翻」与「高频单点漏翻」
         [NonSerialized] private int _missingKeyEvents;
@@ -100,34 +91,6 @@ namespace Moirai.Atropos.Localization
             {
                 EnsureLocalizedStringsLoaded();
                 return Store.Batch.Languages;
-            }
-        }
-
-        /// <summary>
-        /// 缺译回退链（不含当前语言，按 <see cref="m_FallbackLanguageCodes"/> 配置顺序）。
-        /// <para>访问会触发数据加载；配置了不可用的语言时按序剔除。</para>
-        /// </summary>
-        public IReadOnlyList<Language> FallbackChain
-        {
-            get
-            {
-                EnsureLocalizedStringsLoaded();
-                return _fallbackChain;
-            }
-        }
-
-        /// <summary>
-        /// 缺译回退链的语言 Code 配置（按回退顺序）。
-        /// </summary>
-        /// <remarks>用 Code 字符串而非 <see cref="Language"/>：后者无无参构造，Unity 序列化器还原不了数组元素。
-        /// 赋值时若数据已加载会立即重解析回退链。</remarks>
-        public string[] FallbackLanguageCodes
-        {
-            get => m_FallbackLanguageCodes;
-            set
-            {
-                m_FallbackLanguageCodes = value;
-                if (_dataLoaded) ResolveFallbackChain();
             }
         }
 
@@ -215,8 +178,6 @@ namespace Moirai.Atropos.Localization
             _hasLoggedFormatError = false;
             _currentLanguageIndex = -1;
             _isSwitching = false;
-            _fallbackChain = Array.Empty<Language>();
-            _fallbackIndices = Array.Empty<int>();
             _warnedUnavailableLanguages = null;
             _missingKeys = null;
             _missingKeyEvents = 0;
@@ -336,10 +297,9 @@ namespace Moirai.Atropos.Localization
 
         /// <summary>
         /// 声明本处理器支持按语言列加载（<b>可选契约</b>）。
-        /// <para>默认 <c>false</c>：整批加载、全语言列常驻。数据源可按语言单独取列时覆写为
-        /// <c>true</c> 并实现 <see cref="LoadLanguageHeader"/> 与 <see cref="LoadLanguageColumn"/>——
-        /// 常驻即降为「语言头 + 当前语言列 + 回退链列」，切换语言时按需装载目标列。
-        /// 是否值得启用按 <see cref="ResidentChars"/> 量级判断，不凭感觉。</para>
+        /// <para>默认 <c>false</c>：整批加载、全语言常驻。数据源可按语言单独取列时覆写为 <c>true</c>
+        /// 并实现 <see cref="LoadLanguageHeader"/> 与 <see cref="LoadLanguageColumn"/>，
+        /// 常驻即降为「语言头 + 当前语言列」，是否值得启用按 <see cref="ResidentChars"/> 量级判断。</para>
         /// </summary>
         protected virtual bool SupportsPerLanguageLoad => false;
 
@@ -383,13 +343,12 @@ namespace Moirai.Atropos.Localization
         }
 
         /// <summary>
-        /// 数据就绪后的统一收口：置已载标记、解析回退链、落实语言切换意图/首启检测。
+        /// 数据就绪后的统一收口：置已载标记、落实语言切换意图/首启检测。
         /// <para>同步懒加载、异步预加载、按语言列模式共用——保证三条路径的语言解析与持久化语义完全一致。</para>
         /// </summary>
         private void CompleteLoad()
         {
             _dataLoaded = true;
-            ResolveFallbackChain();
             // 未就绪期间记录的切换意图优先于首启检测链（该意图来自显式 ChangeLanguage，按用户切换语义持久化）；
             // 无意图时首次自动解析不持久化设置，避免把系统语言固化进存档
             var pending = _pendingLanguage;
@@ -519,7 +478,7 @@ namespace Moirai.Atropos.Localization
         /// 失败的热更才不会触发一次假的语言变更广播。</para>
         /// <para>未换入新快照时一切保持不动（旧快照、当前语言、已显示文案）；
         /// 换入后当前语言仍在批内则强制重注入并广播（语言未变但词条可能已更新），
-        /// 不在批内则按检测/回退/表首项兜底重选。覆盖层按契约不被换批清空。</para>
+        /// 不在批内则按检测链、再按语言表首项兜底重选。覆盖层按契约不被换批清空。</para>
         /// </summary>
         public void ReloadTexts()
         {
@@ -548,13 +507,12 @@ namespace Moirai.Atropos.Localization
             _dataLoaded = true;
             if (Store.Generation == previousGeneration) return;
 
-            ResolveFallbackChain();
             ReapplyCurrentLanguageAfterReload();
         }
 
         /// <summary>
         /// 换批后落实当前语言：仍在批内则强制重注入并广播（语言未变词条可能已更新），
-        /// 不在批内（热更砍掉了语言）则按检测/回退/表首项兜底重选。
+        /// 不在批内（热更砍掉了语言）则按检测链、再按语言表首项兜底重选。
         /// </summary>
         private void ReapplyCurrentLanguageAfterReload()
         {
@@ -611,7 +569,6 @@ namespace Moirai.Atropos.Localization
             Store.BeginSparse(languages.ToArray());
 
             _dataLoaded = true;
-            ResolveFallbackChain();
 
             var currentIndex = Store.IndexOf(_currentLanguage);
             if (currentIndex < 0)
@@ -623,54 +580,14 @@ namespace Moirai.Atropos.Localization
 
             _currentLanguageIndex = currentIndex;
             // 目标列必须先装上再重注入：列装载失败宁可不切广播也不能让界面整屏露 key
-            if (!EnsureSwitchColumnsLoaded(currentIndex)) return;
+            if (!EnsureColumnLoaded(currentIndex, true)) return;
 
             ReinjectLocalizers();
             RaiseLanguageChanged(_currentLanguage);
         }
 
         /// <summary>
-        /// 解析回退链配置：把语言 Code 换成批内真实存在的语言与其列下标。
-        /// <para>识别不了的语言 Code 会被剔除并警告——静默落到默认语言会让配置错误一路带到上线。</para>
-        /// </summary>
-        private void ResolveFallbackChain()
-        {
-            _fallbackChain = Array.Empty<Language>();
-            _fallbackIndices = Array.Empty<int>();
-
-            if (m_FallbackLanguageCodes == null || m_FallbackLanguageCodes.Length == 0) return;
-
-            var chain = new List<Language>(m_FallbackLanguageCodes.Length);
-            var indices = new List<int>(m_FallbackLanguageCodes.Length);
-            foreach (var code in m_FallbackLanguageCodes)
-            {
-                if (string.IsNullOrEmpty(code)) continue;
-
-                if (!LocalizationService.TryGetBuiltInLanguage(code, out var language))
-                {
-                    LogUtility.Warning("Fallback language '{0}' is not a built-in language Name/Code, skipped.", code);
-                    continue;
-                }
-
-                var index = Store.IndexOf(language);
-                if (index == -1)
-                {
-                    LogUtility.Warning("Fallback language {0} is not present in the localized data, skipped.", language);
-                    continue;
-                }
-
-                if (chain.Contains(language)) continue;
-
-                chain.Add(language);
-                indices.Add(index);
-            }
-
-            _fallbackChain = chain.ToArray();
-            _fallbackIndices = indices.ToArray();
-        }
-
-        /// <summary>
-        /// 解析首启语言：检测链结果优先，不在批内时按回退链、再按语言表首项兜底。
+        /// 解析首启语言：检测链结果优先，没随这批词条发行时按语言表首项兜底。
         /// <para>检测链给出的语言完全可能没随包发行（中文系统跑只出英日两语的包）。
         /// 早退会让 <see cref="_currentLanguage"/> 停在 null，于是<b>每一条</b>查询都露出 ID——
         /// 首启必须落在一个真实存在的语言上。</para>
@@ -678,12 +595,7 @@ namespace Moirai.Atropos.Localization
         private Language ResolveInitialLanguage()
         {
             var detectedIndex = Store.IndexOf(CurrentLanguage);
-            if (detectedIndex >= 0) return Store.LanguageAt(detectedIndex);
-
-            var fallbackIndices = _fallbackIndices;
-            if (fallbackIndices.Length > 0) return Store.LanguageAt(fallbackIndices[0]);
-
-            return Store.LanguageAt(0);
+            return detectedIndex >= 0 ? Store.LanguageAt(detectedIndex) : Store.LanguageAt(0);
         }
 
         #endregion
@@ -730,7 +642,7 @@ namespace Moirai.Atropos.Localization
                 return;
             }
 
-            if (SupportsPerLanguageLoad && !EnsureSwitchColumnsLoaded(languageIndex)) return;
+            if (SupportsPerLanguageLoad && !EnsureColumnLoaded(languageIndex, true)) return;
 
             _isSwitching = true;
             try
@@ -752,26 +664,11 @@ namespace Moirai.Atropos.Localization
         }
 
         /// <summary>
-        /// 按语言列模式切换前置：装载目标语言列 + 回退链列。
-        /// </summary>
-        /// <returns>目标列装载成功；目标列加载失败（或可重试的缺源）时拒绝切换并保持当前语言。</returns>
-        private bool EnsureSwitchColumnsLoaded(int targetIndex)
-        {
-            if (!EnsureColumnLoaded(targetIndex, true)) return false;
-
-            for (var i = 0; i < _fallbackIndices.Length; i++)
-            {
-                EnsureColumnLoaded(_fallbackIndices[i], false);
-            }
-
-            return true;
-        }
-
-        /// <summary>
         /// 幂等装载一种语言的列。
         /// </summary>
         /// <param name="index">语言头内列下标。</param>
-        /// <param name="required">目标列为 <c>true</c>（失败拒绝切换）；回退列为 <c>false</c>（失败跳过，下次再试）。</param>
+        /// <param name="required"><c>true</c> 表示这次装载是前置条件（失败拒绝切换）；
+        /// <c>false</c> 表示补齐（失败跳过，下次再试）。</param>
         private bool EnsureColumnLoaded(int index, bool required)
         {
             if (Store.IsColumnLoaded(index)) return true;
@@ -1007,7 +904,7 @@ namespace Moirai.Atropos.Localization
         /// <summary>
         /// 检查当前数据库是否有指定的文本 ID。
         /// </summary>
-        /// <remarks>只断言词条存在，不代表当前语言已有译文（缺译时仍会命中覆盖层、回退链或返回 ID）。</remarks>
+        /// <remarks>只断言词条存在，不代表当前语言已有译文（该格留空时命中覆盖层或直接返回 ID）。</remarks>
         public bool Has(string id)
         {
             EnsureLocalizedStringsLoaded();
@@ -1207,11 +1104,11 @@ namespace Moirai.Atropos.Localization
         }
 
         /// <summary>
-        /// 按「覆盖层 → 指定语言 → 回退链」取原始译文；全链缺译时返回 <c>null</c>。调用方须已确保数据加载完成。
+        /// 按「覆盖层 → 指定语言」取原始译文，两处都给不出时返回 <c>null</c>。调用方须已确保数据加载完成。
         /// </summary>
         private string ResolveRaw(string id, Language language)
         {
-            // ID 为空、或词条整个不存在时无列可回退，一律由调用方露出 ID
+            // ID 为空、或词条根本不存在时无从取值，一律由调用方露出 ID
             if (string.IsNullOrEmpty(id)) return null;
 
             var text = ResolveRawUntracked(id, language);
@@ -1225,13 +1122,13 @@ namespace Moirai.Atropos.Localization
         /// </summary>
         private string ResolveRawUntracked(string id, Language language)
         {
-            // 当前语言的列下标已在切换时缓存——查询热路径不再每次线性扫语言表（回退链同样是预解析下标）
+            // 当前语言的列下标已在切换时缓存——查询热路径不再每次线性扫语言表
             var index = language == _currentLanguage ? _currentLanguageIndex : Store.IndexOf(language);
-            return Store.Resolve(id, language, index, _fallbackChain, _fallbackIndices);
+            return Store.Resolve(id, language, index);
         }
 
         /// <summary>
-        /// 记录一次全链缺译：去重进集合、逐 key 告警一次；超容量后仅保留计数。
+        /// 记录一次缺译：去重进集合、逐 key 告警一次；超容量后仅保留计数。
         /// </summary>
         private void TrackMissingKey(string id, Language language)
         {
@@ -1251,7 +1148,7 @@ namespace Moirai.Atropos.Localization
 
             if (_missingKeys.Add(id))
             {
-                LogUtility.Warning("Localized text '{0}' is missing for language '{1}' (fallback chain exhausted); the key itself is displayed.",
+                LogUtility.Warning("Localized text '{0}' is missing for language '{1}'; the key itself is displayed.",
                     id, language != null ? language.Code : "<unresolved>");
             }
         }

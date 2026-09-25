@@ -9,7 +9,7 @@
 - 框架与配表解耦：框架仅依赖 `ConfigTableServiceHandler` 抽象契约，Luban 生成代码落在业务程序集，移除配表不影响框架其他服务编译
 - 懒加载 `Tables`：首次访问 `ConfigTableService.Tables` 时才加载，按生成代码的 Loader 返回类型自动选择二进制（`ByteBuf`）或 JSON（`JSONNode`）格式
 - 编辑器友好：非运行模式下配置 `TextAsset` 直接经 `AssetDatabase` 加载，无需启动资源系统
-- 多语言桥接：多语言表按语言分份导出到 `Table/<语言码>/`，bean 只剩一个变体字段，语言不再从生成代码的字段名反推；可用语言由转表期生成的 `L10nLanguages.Codes` 经 `GetLocalizationLanguageCodes()` 自报。后端可选实现 `SupportsPerLanguageLocalizationLoad` + `GetLocalizedStringsByLanguage`，[Localization](Localization.md) 服务据此只装载当前语言列与回退链列；不实现则回落 `GetAllLocalizedStrings()` 整批模式
+- 多语言桥接：多语言表按语言分份导出到 `Table/<语言码>/`，bean 只剩一个变体字段，语言不再从生成代码的字段名反推；可用语言由转表期生成的 `L10nLanguages.Codes` 经 `GetLocalizationLanguageCodes()` 自报。后端可选实现 `SupportsPerLanguageLocalizationLoad` + `GetLocalizedStringsByLanguage`，[Localization](Localization.md) 服务据此只装载、也只解析当前语言列（缺译直接露 key，不再去读别的语言那一列）；不实现则回落 `GetAllLocalizedStrings()` 整批模式
 - 图标与 UI 配置读取：`TbSprite` / `TbSpriteAtlas` / `TbUIWindow` 表驱动 Sprite 加载与窗口资源定位
 - 编辑器工作流：一键复制内置 Config 模板（含 Luban 可执行文件、示例表、生成模板）、转表脚本调用、导出路径同步
 

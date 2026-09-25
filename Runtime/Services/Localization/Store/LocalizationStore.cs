@@ -23,7 +23,7 @@ namespace Moirai.Atropos.Localization
     }
 
     /// <summary>
-    /// 本地化词条存储：持有当前批的扁平词条与覆盖层，并执行「覆盖 → 指定语言 → 回退链」的取值解析。
+    /// 本地化词条存储：持有当前批的扁平词条与覆盖层，并执行「覆盖层 → 指定语言」的取值解析。
     /// <para>词条以「key → 行索引」+ 行主序扁平数组（row × 语言数 + 列）存放，不再保留
     /// 「每词条一个 <c>List&lt;string&gt;</c> + 字典装箱」的批对象——万级词条下少一倍容器对象开销。</para>
     /// <para>与查询语义一起从处理器里拆出来，是为了让运行期数据源与编辑器预览共用同一套存储与解析
@@ -242,16 +242,13 @@ namespace Moirai.Atropos.Localization
         #endregion
 
         /// <summary>
-        /// 按「覆盖层 → 指定语言 → 回退链」取原始译文；全部缺译时返回 <c>null</c>（由调用方决定是否露 key）。
+        /// 按「覆盖层 → 指定语言」取原始译文；两处都给不出时返回 <c>null</c>（由调用方决定是否露 key）。
         /// </summary>
         /// <param name="language">指定语言（覆盖层按语言分格，故与列下标一并传入）。</param>
         /// <param name="languageIndex">指定语言在批内的列下标（-1 表示该语言不在批内）。</param>
-        /// <param name="fallbackLanguages">回退链语言。</param>
-        /// <param name="fallbackIndices">回退链列下标，与 <paramref name="fallbackLanguages"/> 一一对应。</param>
-        /// <remarks>覆盖层在<b>每一次</b>语言尝试上都先于批内译文：运营热改英语文案后，
-        /// 一个缺译的法语文案回退到英语时也必须拿到改后的那版，否则覆盖只在一半路径上生效。</remarks>
-        public string Resolve(string key, Language language, int languageIndex,
-            IReadOnlyList<Language> fallbackLanguages, IReadOnlyList<int> fallbackIndices)
+        /// <remarks>覆盖层先于批内译文：运营热改了某语言，该语言的查询必须拿到改后的那版。
+        /// 指定语言之外没有任何兜底。</remarks>
+        public string Resolve(string key, Language language, int languageIndex)
         {
             if (string.IsNullOrEmpty(key)) return null;
 
@@ -261,19 +258,7 @@ namespace Moirai.Atropos.Localization
             var row = -1;
             if (_sparseColumns == null && !_rowByKey.TryGetValue(key, out row)) return null;
 
-            text = Lookup(key, row, languageIndex);
-            if (text != null) return text;
-
-            if (fallbackIndices == null) return null;
-
-            for (var i = 0; i < fallbackIndices.Count; i++)
-            {
-                text = TryOverlay(fallbackLanguages != null && i < fallbackLanguages.Count ? fallbackLanguages[i] : null, key)
-                       ?? Lookup(key, row, fallbackIndices[i]);
-                if (text != null) return text;
-            }
-
-            return null;
+            return Lookup(key, row, languageIndex);
         }
 
         /// <summary>按列下标取译文（两种存储形态的统一入口；列未加载/越界/空值一律 <c>null</c>）。</summary>

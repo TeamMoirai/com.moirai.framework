@@ -10,7 +10,7 @@ namespace Service.Localization
 {
     /// <summary>
     /// 本地化处理器（<see cref="LocalizationServiceHandler"/>）行为测试：
-    /// 首启语言可解析性、首查询取译、缺译回退链、重注入与事件时序、格式化异常隔离、加载期校验。
+    /// 首启语言可解析性、首查询取译、缺译即露 key、重注入与事件时序、格式化异常隔离、加载期校验。
     /// <para>处理器级用例直接构造桩数据源（与 <c>DefaultProcedureHandlerTests</c> 同约定），
     /// 不碰 <see cref="LocalizationService"/> 的静态 Handler——那是跨用例状态，
     /// 写脏会让 <c>ServiceContractTests</c> 的降级断言按执行顺序随机失败。</para>
@@ -29,7 +29,7 @@ namespace Service.Localization
         [SetUp]
         public void SetUp()
         {
-            _handler = new L10nProbeHandler { FallbackLanguageCodes = new[] { "en" } };
+            _handler = new L10nProbeHandler();
             _handler.Internal_Init();
         }
 
@@ -63,7 +63,7 @@ namespace Service.Localization
         public void InitialLanguage_IsAlwaysPresentInLoadedLanguages()
         {
             // 检测链给出的语言完全可能没进这批词条（中文系统跑只出英日的包）。
-            // 此时必须兜到回退链/表头，而不是把当前语言停在表外——那会让每一条查询都露 key
+            // 此时必须兜到语言表首项，而不是把当前语言停在表外——那会让每一条查询都露 key
             _handler.Languages = new List<Language> { English, Japanese };
             _handler.Strings = new Dictionary<string, List<string>>
             {
@@ -80,8 +80,12 @@ namespace Service.Localization
         {
             // 回归：当前语言在数据加载之内才解析，而实参在加载前就求值成了 null，首查询会露 key
             LoadStrings("ui.title", "Title", "标题");
+            var text = _handler.GetTextFromId("ui.title");
 
-            Assert.AreEqual("Title", _handler.GetTextFromId("ui.title"));
+            // 首启落在哪一门由检测链与存档决定，这里不假定：取到的须是本批译文而不是 key
+            var expected = _handler.CurrentLanguage == Chinese ? "标题" : "Title";
+            Assert.AreEqual(expected, text);
+            Assert.AreNotEqual("ui.title", text);
             Assert.AreEqual(1, _handler.LoadCallCount, "数据只应加载一次");
         }
 
@@ -98,15 +102,16 @@ namespace Service.Localization
 
         #endregion
 
-        #region 缺译回退 [FALLBACK]
+        #region 缺译即露 key [MISSING TRANSLATION EXPOSES KEY]
 
         [Test]
-        public void MissingTranslation_FallsBackToChain()
+        public void MissingTranslation_ExposesKeyInsteadOfAnotherLanguage()
         {
             LoadStrings("ui.title", "Title", null);
             _handler.ChangeLanguage(Chinese);
 
-            Assert.AreEqual("Title", _handler.GetTextFromId("ui.title"));
+            // 中文列留空即缺译，不借英文顶上
+            Assert.AreEqual("ui.title", _handler.GetTextFromId("ui.title"));
         }
 
         [Test]
@@ -115,7 +120,7 @@ namespace Service.Localization
             LoadStrings("ui.title", "Title", "   ");
             _handler.ChangeLanguage(Chinese);
 
-            Assert.AreEqual("Title", _handler.GetTextFromId("ui.title"));
+            Assert.AreEqual("ui.title", _handler.GetTextFromId("ui.title"));
         }
 
         [Test]
@@ -127,40 +132,15 @@ namespace Service.Localization
         }
 
         [Test]
-        public void EmptyFallbackChain_KeepsLegacyKeyBehaviour()
+        public void EntryOfAnotherLanguage_StillResolvesAfterSwitching()
         {
+            // 露 key 不等于数据丢了：切到那门语言仍取得到它自己的译文
             LoadStrings("ui.title", "Title", null);
-            _handler.FallbackLanguageCodes = Array.Empty<string>();
             _handler.ChangeLanguage(Chinese);
-
             Assert.AreEqual("ui.title", _handler.GetTextFromId("ui.title"));
-            Assert.AreEqual(0, _handler.FallbackChain.Count);
-        }
 
-        [Test]
-        public void UnresolvedFallbackCode_IsSkipped()
-        {
-            LoadStrings("ui.title", "Title", null);
-            // 认不出的语言代码不能被静默折成默认语言放过，否则配置错误会一路带到上线
-            _handler.FallbackLanguageCodes = new[] { "zh-CN" };
-            _handler.ChangeLanguage(Chinese);
-
-            Assert.AreEqual(0, _handler.FallbackChain.Count);
-            Assert.AreEqual("ui.title", _handler.GetTextFromId("ui.title"));
-        }
-
-        [Test]
-        public void FallbackChain_SkipsLanguagesAbsentFromData()
-        {
-            _handler.Languages = new List<Language> { English, Japanese };
-            _handler.Strings = new Dictionary<string, List<string>>
-            {
-                ["ui.title"] = new List<string> { "Title", "タイトル" },
-            };
-            _handler.FallbackLanguageCodes = new[] { "zh-Hans", "ja" };
             _handler.ChangeLanguage(English);
-
-            CollectionAssert.AreEqual(new[] { Japanese }, _handler.FallbackChain);
+            Assert.AreEqual("Title", _handler.GetTextFromId("ui.title"));
         }
 
         #endregion
@@ -495,7 +475,6 @@ namespace Service.Localization
 
             Assert.AreEqual(0, _handler.EntryCount);
             Assert.AreEqual(-1, _handler.CurrentLanguageIndex);
-            Assert.AreEqual(0, _handler.FallbackChain.Count);
             Assert.AreEqual(0, _handler.ResidentChars);
         }
 
@@ -525,16 +504,16 @@ namespace Service.Localization
         }
 
         [Test]
-        public void Overlay_IsPerLanguageAndAppliesOnFallbackStepToo()
+        public void Overlay_IsPerLanguageAndDoesNotCoverAnotherLanguage()
         {
             LoadStrings("ui.title", "Title", null);
             _handler.ChangeLanguage(Chinese);
 
-            // 覆盖英语列：中文缺译回退到英语时，拿到的也必须是覆盖后的那版
+            // 覆盖英语列不替中文兜底：当前语言缺译仍是缺译
             _handler.SetStringOverlay("remote-ops", English, new[] { new KeyValuePair<string, string>("ui.title", "Title!") });
-            Assert.AreEqual("Title!", _handler.GetTextFromId("ui.title"));
+            Assert.AreEqual("ui.title", _handler.GetTextFromId("ui.title"));
 
-            // 覆盖只落在被指定的语言上，不越界污染另一列
+            // 覆盖只落在被指定的那一门语言
             _handler.SetStringOverlay("qa-force", Chinese, new[] { new KeyValuePair<string, string>("ui.title", "标题QA") });
             Assert.AreEqual("标题QA", _handler.GetTextFromId("ui.title"));
         }
@@ -635,12 +614,16 @@ namespace Service.Localization
         }
 
         [Test]
-        public void TypedOverloads_ResolveFallbackChainToo()
+        public void TypedOverloads_FollowTheSameResolutionAsPlainGet()
         {
             LoadStrings("fmt.a", "A:{0}", null);
             _handler.ChangeLanguage(Chinese);
 
-            Assert.AreEqual("A:7", _handler.GetTextFromId("fmt.a", 7));
+            Assert.AreEqual("fmt.a", _handler.GetTextFromId("fmt.a", 7), "当前语言缺译时带参调用同样露 key");
+            Assert.AreEqual("fmt.a", _handler.GetTextFromId<int>("fmt.a", 7));
+
+            _handler.ChangeLanguage(English);
+            Assert.AreEqual("A:7", _handler.GetTextFromId<int>("fmt.a", 7), "该语言有译文时照常格式化");
         }
 
         #endregion
@@ -730,7 +713,7 @@ namespace Service.Localization
             // 换批失败不该把本来能显示的文案一起抹掉
             Assert.AreEqual(1, store.EntryCount);
             Assert.AreEqual(1, store.LanguageCount);
-            Assert.AreEqual("T", store.Resolve("k", English, 0, null, null));
+            Assert.AreEqual("T", store.Resolve("k", English, 0));
         }
 
         [Test]
@@ -753,7 +736,7 @@ namespace Service.Localization
         {
             // 语言必须随表自报：EditMode 下 ConfigTableService 降级（无处理器），codes 为空 →
             // 整批拒载、保持未就绪可重试，不再回落任何全局注册表
-            var handler = new ConfigTableLocalizationHandler { FallbackLanguageCodes = new[] { "en" } };
+            var handler = new ConfigTableLocalizationHandler();
             handler.Internal_Init();
 
             try

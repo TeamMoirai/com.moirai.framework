@@ -11,7 +11,7 @@ namespace Moirai.Atropos.Localization
     /// <para><b>语言必须随表自报</b>：<c>GetLocalizationLanguageCodes</c> 返回空时本处理器产出空批，
     /// 由基类以「数据未就绪」拒载并保持重试——拒绝回落任何全局注册表，语言列序只有一个真相源。</para>
     /// <para>配置表按语言分份存储时（处理器自报 <see cref="ConfigTableService.SupportsPerLanguageLocalizationLoad"/>）
-    /// 走基类的按语言列模式：常驻降为「语言头 + 当前语言列 + 回退链列」。</para>
+    /// 走基类的按语言列模式：常驻与取值都只有「语言头 + 当前语言列」。</para>
     /// </summary>
     [Serializable]
     internal class ConfigTableLocalizationHandler : LocalizationServiceHandler

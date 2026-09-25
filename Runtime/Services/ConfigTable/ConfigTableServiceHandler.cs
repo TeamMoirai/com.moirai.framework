@@ -24,7 +24,7 @@ namespace Moirai.Atropos.ConfigTable
         /// </summary>
         /// <remarks>
         /// 顺序必须与 <see cref="GetAllLocalizedStrings"/> 里每条文本的列顺序一致——本地化侧据此校验列数、
-        /// 并按此解析回退链。<b>语言必须随表自报</b>：返回空时本地化侧以「数据未就绪」整批拒载并保持重试，
+        /// 并按此定位各语言列。<b>语言必须随表自报</b>：返回空时本地化侧以「数据未就绪」整批拒载并保持重试，
         /// 不存在可回落的全局注册表（双真相源已删）。认不出的 Code 会按自定义语言直通，列序不被重排。
         /// </remarks>
         public abstract IReadOnlyList<string> GetLocalizationLanguageCodes();
@@ -35,9 +35,9 @@ namespace Moirai.Atropos.ConfigTable
         /// <remarks>
         /// 默认 <c>false</c>：本地化侧走 <see cref="GetAllLocalizedStrings"/> 整批加载，全部语言列常驻内存。
         /// <para>词条按语言分份存储的表覆写为 <c>true</c> 并实现 <see cref="GetLocalizedStringsByLanguage"/>：
-        /// 本地化侧改用「语言头 + 按语言列」的稀疏存储，只装载当前语言列与回退链列，
+        /// 本地化侧改用「语言头 + 按语言列」的稀疏存储：装载与取值都只看当前语言列，缺译直接露 key。
         /// 语言头即 <see cref="GetLocalizationLanguageCodes"/> 的自报结果——两处必须是同一个顺序，
-        /// 否则回退链会指错列。</para>
+        /// 否则语言列会错位。</para>
         /// <para>开启本模式后 <see cref="GetAllLocalizedStrings"/> 不再被运行期调用，但仍被编辑器预览调用，
         /// 因此仍须给出可用的整批结果。</para>
         /// </remarks>

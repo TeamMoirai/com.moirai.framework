@@ -32,7 +32,7 @@ namespace Service.Localization
         [SetUp]
         public void SetUp()
         {
-            _handler = new L10nProbeHandler { FallbackLanguageCodes = new[] { "en" } };
+            _handler = new L10nProbeHandler();
             _handler.Internal_Init();
             _originalFacadeHandler = s_HandlerField?.GetValue(null);
         }
@@ -154,14 +154,15 @@ namespace Service.Localization
         }
 
         [Test]
-        public void MissingKey_FallbackHit_IsNotTracked()
+        public void MissingKey_BlankCurrentLanguage_IsTracked()
         {
             LoadStrings("ui.title", "Title", null);
             _handler.ChangeLanguage(Chinese);
 
-            Assert.AreEqual("Title", _handler.GetTextFromId("ui.title"), "回退链命中应取到译文");
-            Assert.AreEqual(0, _handler.MissingKeyCount, "回退链命中不算缺译");
-            Assert.AreEqual(0, _handler.MissingKeyEventCount);
+            UtfLogExpect.Warning();
+            Assert.AreEqual("ui.title", _handler.GetTextFromId("ui.title"), "该格留空即缺译");
+            Assert.AreEqual(1, _handler.MissingKeyCount, "缺译必须进追踪");
+            Assert.AreEqual(1, _handler.MissingKeyEventCount);
         }
 
         [Test]

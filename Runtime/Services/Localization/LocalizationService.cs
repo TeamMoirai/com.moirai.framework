@@ -86,11 +86,6 @@ namespace Moirai.Atropos.Localization
         /// </summary>
         public static int CurrentLanguageIndex => s_Handler?.CurrentLanguageIndex ?? -1;
 
-        /// <summary>
-        /// 缺译回退链（未就绪时为空）。
-        /// </summary>
-        public static IReadOnlyList<Language> FallbackChain => s_Handler?.FallbackChain ?? Array.Empty<Language>();
-
         #endregion
 
         #region 诊断 [DIAGNOSTICS]

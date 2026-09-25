@@ -334,15 +334,14 @@ namespace Moirai.Atropos.Localization
         /// <summary>
         /// 编辑器预览解析：非播放态直读配置表出译文，取不到时原样返回 ID。
         /// </summary>
-        /// <remarks>预览刻意<strong>不</strong>套用回退链：某格缺译时编辑器里直接露出 ID，
-        /// 正是策划要看见的信息（运行期仍按回退链兜底，两者语义不同是有意为之）。</remarks>
+        /// <remarks>预览只取所选语言那一格，空格或没有这条 key 一律露出 ID，与运行期同一条取向。</remarks>
         public static string ResolveForEditorPreview(string id)
         {
             var store = GetEditorPreviewStore();
             if (store == null || string.IsNullOrEmpty(id)) return id;
 
             var index = GetPreviewLanguageIndex(store);
-            var text = store.Resolve(id, index < 0 ? null : store.Batch.Languages[index], index, null, null);
+            var text = store.Resolve(id, index < 0 ? null : store.Batch.Languages[index], index);
             return text ?? id;
         }
 

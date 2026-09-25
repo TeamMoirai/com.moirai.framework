@@ -7,9 +7,9 @@
 ## 核心特性
 
 - `Language` 语言对象：携带 `Name`（枚举名）、`Code`（ISO-639-1）、`DisplayName`（本地显示名），内置 `SystemLanguage` 全量语言并支持自定义语言；内置语言与 `BuiltinLanguages` 为共享实例，不在访问时重建
-- 语言检测优先级：命令行 `-force-language` → 编辑器 `LocalizationServiceSettings.EditorLanguage` → `SettingUtility` 存档 → `Application.systemLanguage`（中文未区分简繁时回落简体）；检测出的语言没进这批词条时，按回退链、再按语言表首项兜底，不会让整套界面停留在露 key 状态
+- 语言检测优先级：命令行 `-force-language` → 编辑器 `LocalizationServiceSettings.EditorLanguage` → `SettingUtility` 存档 → `Application.systemLanguage`（中文未区分简繁时回落简体）；检测出的语言没进这批词条时按语言表首项兜底，不会让整套界面停留在露 key 状态
 - 文本查询：`GetTextFromId`（支持 `string.Format` 参数）、`GetTextFromIdLanguage`（语言传 `null` 即当前语言）、`GetDictionaryFromId`（取全部语言）、`GetAllIds`
-- 缺译回退链：当前语言该词条为空或仅空白时，按 `FallbackLanguageCodes` 配置的顺序继续取译文，全链缺译才返回 ID（详见「缺译回退」）
+- 缺译即露 key：当前语言该词条为空或仅空白时直接返回 ID，不借别的语言顶上（详见「缺译即露 key」）
 - 内联解析：`LocalizationService.Localize` 将 `{l10n:ID}`、`{i18n:ID}`、`{g11n:ID}` 替换为本地化条目
 - 组件注入：`TextLocalizer`（TextMesh / UGUI Text / TMP_Text）、`ImageLocalizer`（Image / RawImage / SpriteRenderer / Renderer 材质）、`AudioLocalizer`（AudioSource）
 - 语言切换自动刷新：所有 `LocalizerBase` 在 `ChangeLanguage` 时统一重新注入（快照遍历 + 单个失败隔离），注入完成后才抛事件
@@ -24,7 +24,7 @@
 |---------|------|
 | `LocalizationService` | 静态外观（`[HandlerHost]`），负责加载配表文本、语言切换与 Localizer 管理；`OnLanguageChanged` 事件由外观直接暴露；`ToLanguage` / `Localize` / `ResolveLanguages` 与编辑器预览 API 住在同一类的分部实现（`LocalizationService.Helper`）中 |
 | `Language` | 语言类（`IEquatable<Language>`，按 `Code` 比较）：`Name`、`Code`、`DisplayName`、`BuiltinLanguages`，支持与 `SystemLanguage` 互转；内置条目为共享只读实例 |
-| `LocalizationServiceHandler` | 处理器抽象基类：查询与回退链解析、语言切换、本地化器注册；`FallbackLanguageCodes` 配置回退顺序 |
+| `LocalizationServiceHandler` | 处理器抽象基类：按语言取值解析、语言切换、本地化器注册 |
 | `LocalizerBase` | 本地化器抽象基类（MonoBehaviour）：`Prepare` 获取目标组件引用，`Localize` 执行注入 |
 | `IInjector` | 注入器接口：`Inject<T1, T2>(localizedData, localizer)` |
 | `TextLocalizer` | 文本本地化器，自动发现 TextMesh / Text / TMP_Text 并注入文本 |
@@ -47,7 +47,7 @@ LocalizationService.ChangeLanguage("English");
 
 // 本地化数据为懒式加载：首次调用任一查询/切换 API 时自动从配置表加载，无需手动初始化
 
-// 按文本 ID 取本地化字符串（该语言缺译时按回退链取；全链缺译或 ID 不存在才原样返回 ID）
+// 按文本 ID 取本地化字符串（该语言缺译或 ID 不存在时原样返回 ID）
 string title = LocalizationService.GetTextFromId("main_title");
 
 // 带 string.Format 参数（表内占位符写坏时退化为未格式化原文，不会抛出）
@@ -81,20 +81,14 @@ string prev = LocalizationService.ActivatePreviousLanguage();
 string hint = LocalizationService.Localize("按 {l10n:btn_confirm} 继续");
 ```
 
-### 缺译回退
+### 缺译即露 key
 
-查询按「当前语言 → 回退链 → ID 原文」解析。译文为空或仅空白即视为缺译，因此表里留空就是「交给回退链」，不需要程序侧再判一次。
+查询按「覆盖层 → 当前语言 → ID 原文」解析。译文为空或仅空白即视为缺译，**没有任何跨语言兜底**：直接返回 ID，并计入缺译巡检。
 
-回退顺序配在处理器上（`Tools/Framework Settings` 的「[服务]本地化设置」条目，或代码赋值），填语言 `Code`：
+取向是「表必须填全，漏翻要看得见」——拿另一种语言的译文顶上一格，界面确实不露 key 了，策划与 QA 却再也不会发现这一格没翻。
 
-```csharp
-// 默认 { "en" }；置空即关闭回退——缺译直接露 key
-LocalizationServiceSettings.LocalizationServiceHandler.FallbackLanguageCodes = new[] { "en", "zh-Hans" };
-```
-
-- 配置里认不出、或没随这批词条发行的语言会被剔除并告警一次，不会静默折成默认语言
-- 首启语言（检测链结果）没随词条发行时，同样按回退链、再按语言表首项兜底，避免整套界面露 key
-- 查看当前生效的回退链：`LocalizationService.FallbackChain`，或游戏内调试器 `Profiler/Localization`
+- 首启语言（检测链结果）没随这批词条发行时按语言表首项兜底，避免整套界面从第一条查询起就露 key
+- 按语言列模式（见「按语言列加载」）下这条取向更是必然：别的语言那一整列压根没装载，无从兜底
 
 ### 订阅语言切换
 
@@ -138,7 +132,7 @@ IEnumerator routine = translator.TranslateAsync(request,
 - 编辑器非运行模式下 `TextLocalizer.ChangeID` / `ImageLocalizer.ChangeID` 直接返回 `false`（Timeline 预览待实现）；`LocalizationService.Localize` 在非运行模式走编辑器预览直读，取不到预览数据时才原样返回
 - 数据未就绪（表未加载完）时，各 Localizer **静默推迟注入**——不按缺译刷错误日志；首次加载成功触发的语言切换会把全部已注册本地化器重注入一遍。可用 `LocalizationService.IsDataLoaded`（不触发加载）区分「未就绪」与「真缺失」
 - `ImageLocalizer` / `AudioLocalizer` 的数组是按语言索引注入的，配表新增语言后需同步补齐数组元素
-- 默认整批加载、全部语言列常驻内存（词条在存储层为行表 + 扁平数组，比「每词条一个 List」省下一半容器对象）。要降到「语言头 + 当前列 + 回退列」常驻，自定义处理器实现 `SupportsPerLanguageLoad` 三件套即可；默认的**配置表数据源已自动接好**——转表按语言分份、且游戏侧 `ConfigTableServiceHandler` 自报 `SupportsPerLanguageLocalizationLoad` 时，[ConfigTable](ConfigTable.md) 服务就切到列模式，项目侧无需再写一个本地化处理器
+- 默认整批加载、全部语言列常驻内存（词条在存储层为行表 + 扁平数组，比「每词条一个 List」省下一半容器对象）。要降到「语言头 + 当前列」常驻，自定义处理器实现 `SupportsPerLanguageLoad` 三件套即可；默认的**配置表数据源已自动接好**——转表按语言分份、且游戏侧 `ConfigTableServiceHandler` 自报 `SupportsPerLanguageLocalizationLoad` 时，[ConfigTable](ConfigTable.md) 服务就切到列模式，项目侧无需再写一个本地化处理器
 
 ## 运行时覆盖（热改文案）
 
@@ -153,13 +147,13 @@ LocalizationService.ClearStringOverlay("remote-ops");   // 按来源撤销，不
 ```
 
 - 叠加语义：只替换指定语言下的指定 key，**未覆盖的词条照旧取表内译文**；值为空或仅空白等同于「不覆盖」
-- 覆盖层参与**每一次**语言尝试（含回退链）：热改了英语，缺译回退到英语时拿到的也是改后那版
+- 覆盖层先于表内译文、且只作用于被指定的那一门语言：热改了英语，改的是英语的查询结果，不替别的语言兜底
 - 同名 `sourceId` 即同一层，后注册的层优先；层数与来源在调试面板「数据规模」可见
 - 覆盖层**不跨服务关闭存活**，也不会被换批/重加载清空——它是叠在表数据之上的一层，不是替代品
 
 ## 缺译巡检（Missing Keys）
 
-全链缺译（覆盖层 → 当前语言 → 回退链全部落空）的 key 会被逐个记录并告警一次（每个 key 一条 Warning），供 QA 巡检与线上漏翻排查：
+覆盖层与当前语言都给不出译文的 key 会被逐个记录并告警一次（每个 key 一条 Warning），供 QA 巡检与线上漏翻排查：
 
 ```csharp
 int distinct = LocalizationService.MissingKeyCount;        // 去重后的缺译 key 数
@@ -169,7 +163,7 @@ LocalizationService.ClearMissingKeys();                    // 巡检回合之间
 ```
 
 - 数据未加载期间的「查不到」不算缺译，不记录
-- 回退链命中的不算缺译（最终有译文显示）
+- 覆盖层给出的译文不算缺译（覆盖层先于表内译文被查到）
 - 记录容量上限 256 个去重 key：超上限后事件计数照走、逐 key 记录与告警停摆（防异常配置刷爆内存与日志），并告警一次
 - 记录不跨服务关闭存活；游戏内调试器 `Profiler/Localization` 的「MISSING KEYS」区实时可见
 
@@ -200,7 +194,7 @@ public sealed class RemoteLocalizationHandler : LocalizationServiceHandler
 }
 ```
 
-- 常驻 = 语言头 + 当前语言列 + 回退链列；切换语言按需装载目标列——目标列取不到源**拒绝切换并保持当前语言**
+- 常驻 = 语言头 + 当前语言列；切换语言只装载目标列——目标列取不到源**拒绝切换并保持当前语言**
 - 空列（语言在头内但暂无词条）只装载一次；返回 `null` 视为可重试的缺源
 - `GetDictionaryFromId` 会按需装齐全列（「全语言」语义的必要代价，热路径请勿使用）；`ReloadTexts` 重取语言头与列缓存，覆盖层不清空
 - 批（整列拒载）与列（缺列保当前）的损坏语义一致：宁可停在旧可用状态，不把坏数据混进运行态
@@ -239,7 +233,7 @@ string detail = LocalizationService.GetPluralTextFromId("quest.items", count, pl
 - 文本类显示解析后的译文；表内没有该 ID 时点明「表内无此 ID」
 - 图/音类显示预览语言、将要取用的数组下标，以及该下标上的元素（`缺项` / `空引用` / 资源名）——「新增语言后数组没补齐」这类错位在这里当场能看见，不必等运行时
 - 语言取 Inspector 里的「编辑器语言」；未设置或该语言不在表内时取英语列，再退到首列
-- 预览**不写回**目标组件（不标脏场景、不留「忘了还原」的错文案），也不套用回退链：某格缺译时预览直接露 ID，那正是策划要看见的信息
+- 预览**不写回**目标组件（不标脏场景、不留「忘了还原」的错文案）；某格缺译时预览直接露 ID，那正是策划要看见的信息
 - 预览缓存随项目资产变更自动失效（`EditorApplication.projectChanged` 钩子，含转表回写与编辑器语言切换），也可手动调 `LocalizationService.InvalidateEditorPreview()`
 
 ## 带参取文（不装箱路径）

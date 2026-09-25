@@ -7,9 +7,9 @@ The `Localization` service is accessed via the `LocalizationService` static faca
 ## Core Features
 
 - `Language` object: carries `Name` (enum name), `Code` (ISO-639-1), `DisplayName` (localized display name), includes full `SystemLanguage` support and supports custom languages; built-in entries and `BuiltinLanguages` are shared instances rather than rebuilt on each access
-- Language detection priority: command-line `-force-language` -> editor `LocalizationServiceSettings.EditorLanguage` -> `SettingUtility` saved setting -> `Application.systemLanguage` (falls back to Simplified Chinese when Chinese is not distinguished between Simplified/Traditional). When the detected language is not part of the loaded entries, the fallback chain and then the first loaded language take over, so the UI never stays stuck on raw keys
+- Language detection priority: command-line `-force-language` -> editor `LocalizationServiceSettings.EditorLanguage` -> `SettingUtility` saved setting -> `Application.systemLanguage` (falls back to Simplified Chinese when Chinese is not distinguished between Simplified/Traditional). When the detected language is not part of the loaded entries, the first loaded language takes over, so the UI never stays stuck on raw keys
 - Text querying: `GetTextFromId` (supports `string.Format` parameters), `GetTextFromIdLanguage` (pass `null` for the current language), `GetDictionaryFromId` (retrieves all languages), `GetAllIds`
-- Missing-translation fallback: when the current language's entry is empty or whitespace-only, text is taken in `FallbackLanguageCodes` order; the ID is returned only when the whole chain is empty (see "Missing-Translation Fallback")
+- Missing translations expose the key: an empty or whitespace-only cell in the current language returns the ID as-is, with no cross-language safety net (see "Missing Translations Expose the Key")
 - Inline parsing: `LocalizationService.Localize` replaces `{l10n:ID}`, `{i18n:ID}`, `{g11n:ID}` with localized entries
 - Component injection: `TextLocalizer` (TextMesh / UGUI Text / TMP_Text), `ImageLocalizer` (Image / RawImage / SpriteRenderer / Renderer material), `AudioLocalizer` (AudioSource)
 - Auto-refresh on language switch: all `LocalizerBase` instances are re-injected on `ChangeLanguage` (snapshot iteration with per-instance fault isolation) before the event is raised
@@ -24,7 +24,7 @@ Namespace: `Moirai.Atropos.Localization`
 |----------------|-------------|
 | `LocalizationService` | Static facade (`[HandlerHost]`) responsible for loading config table text, language switching, and Localizer management; the `OnLanguageChanged` event is exposed directly on the facade; `ToLanguage` / `Localize` / `ResolveLanguages` and the editor-preview API live in the same class's partial implementation (`LocalizationService.Helper`) |
 | `Language` | Language class (`IEquatable<Language>`, compared by `Code`): `Name`, `Code`, `DisplayName`, `BuiltinLanguages`, supports conversion to/from `SystemLanguage`; built-in entries are shared read-only instances |
-| `LocalizationServiceHandler` | Abstract handler base class: querying with fallback resolution, language switching, localizer registration; `FallbackLanguageCodes` configures the fallback order |
+| `LocalizationServiceHandler` | Abstract handler base class: per-language text resolution, language switching, localizer registration |
 | `LocalizerBase` | Abstract base class for localizers (MonoBehaviour): `Prepare` gets the target component reference, `Localize` performs injection |
 | `IInjector` | Injector interface: `Inject<T1, T2>(localizedData, localizer)` |
 | `TextLocalizer` | Text localizer, automatically discovers TextMesh / Text / TMP_Text and injects text |
@@ -48,8 +48,8 @@ LocalizationService.ChangeLanguage("English");
 // Localized data is lazily loaded: it is automatically loaded from config tables on the first call
 // to any query/switch API — no manual initialization required
 
-// Get localized string by text ID (falls back along the chain when this language is untranslated;
-// the ID is returned as-is only when the whole chain is empty or the ID does not exist)
+// Get localized string by text ID (the ID is returned as-is when this language is
+// untranslated or the ID does not exist at all)
 string title = LocalizationService.GetTextFromId("main_title");
 
 // With string.Format parameters (a malformed placeholder in the table degrades to the raw text
@@ -84,20 +84,14 @@ Markers like `{l10n:ID}`, `{i18n:ID}`, `{g11n:ID}` in any string will be replace
 string hint = LocalizationService.Localize("Press {l10n:btn_confirm} to continue");
 ```
 
-### Missing-Translation Fallback
+### Missing Translations Expose the Key
 
-Queries resolve as "current language -> fallback chain -> ID". An entry that is empty or whitespace-only counts as untranslated, so leaving a cell blank in the table means "hand it to the chain" — no extra check on the code side.
+Queries resolve as "overlay -> current language -> ID". An entry that is empty or whitespace-only counts as untranslated, and **there is no cross-language safety net**: the ID is returned and the miss is recorded in the missing-key tracking.
 
-The order is configured on the handler (the localization entry under `Tools/Framework Settings`, i.e. `LocalizationServiceSettings`, or assigned in code) and takes language `Code` values:
+The stance is "the table must be complete, and a missing translation must be visible" — patching a blank cell with another language's text keeps the UI free of raw keys, but nobody, designer or QA, ever learns that the cell was never translated.
 
-```csharp
-// Defaults to { "en" }; set it empty to disable fallback — missing translations then expose the key
-LocalizationServiceSettings.LocalizationServiceHandler.FallbackLanguageCodes = new[] { "en", "zh-Hans" };
-```
-
-- Codes that cannot be resolved, or that are not part of the loaded entries, are dropped with a warning instead of silently becoming the default language
-- The first language picked at startup follows the same chain when the detected language is not shipped with these entries
-- Inspect the effective chain via `LocalizationService.FallbackChain`, or in the in-game debugger under `Profiler/Localization`
+- When the detected startup language is not shipped with these entries, the first language of the header is used instead, so the UI never starts out covered in keys
+- Under per-language column loading this stance is also inevitable: the other languages' columns are not in memory at all, so there is nothing to fall back to
 
 ### Subscribing to Language Switching
 
@@ -141,7 +135,7 @@ IEnumerator routine = translator.TranslateAsync(request,
 - In the editor's non-play mode, `TextLocalizer.ChangeID` / `ImageLocalizer.ChangeID` directly return `false` (Timeline preview pending implementation); `LocalizationService.Localize` resolves through the editor preview there and only returns the input as-is when preview data is unavailable
 - While the localization data is not ready (tables still loading), localizers **defer injection silently** instead of logging per-component missing-key errors; the language switch raised by the first successful load re-injects every registered localizer. Use `LocalizationService.IsDataLoaded` (does not trigger a load) to tell "not ready" apart from "genuinely missing"
 - The arrays of `ImageLocalizer` / `AudioLocalizer` are injected by language index; after adding a new language to the config table, array elements must be supplemented accordingly
-- By default the whole batch loads eagerly and every language column stays resident (the store keeps entries as a flat row-index + cell array, halving container objects vs. a list per entry). To drop residency to "header + current column + fallback columns", implement the `SupportsPerLanguageLoad` trio on a custom handler — and make that call from `ResidentChars` evidence (the "DATA FOOTPRINT" card in `Profiler/Localization`, or `LocalizationService.EntryCount` / `LoadedLanguageCount` / `ResidentChars`), not gut feeling. The default config-table source needs no handler work: once the export splits data by language and the game-side handler self-reports `SupportsPerLanguageLocalizationLoad`, the bridge switches into column mode on its own
+- By default the whole batch loads eagerly and every language column stays resident (the store keeps entries as a flat row-index + cell array, halving container objects vs. a list per entry). To drop residency to "header + current column", implement the `SupportsPerLanguageLoad` trio on a custom handler — and make that call from `ResidentChars` evidence (the "DATA FOOTPRINT" card in `Profiler/Localization`, or `LocalizationService.EntryCount` / `LoadedLanguageCount` / `ResidentChars`), not gut feeling. The default config-table source needs no handler work: once the export splits data by language and the game-side handler self-reports `SupportsPerLanguageLocalizationLoad`, the bridge switches into column mode on its own
 
 ## Runtime Overlay (live text patching)
 
@@ -156,13 +150,13 @@ LocalizationService.ClearStringOverlay("remote-ops");   // drops this source onl
 ```
 
 - Additive: only the given keys of the given language are replaced, everything else still comes from the table; an empty/whitespace value means "not an override"
-- The overlay participates in **every** language attempt, fallback included — patching English also changes what a missing French entry resolves to via the fallback chain
+- The overlay is consulted before the table text for the same language — patching English changes what an English query returns, and nothing else
 - The same `sourceId` is the same layer, and the last registered layer wins; layer count and sources show up in the debugger panel
 - An overlay never survives a service shutdown, and is not cleared by a table reload — it sits on top of the table data rather than replacing it
 
 ## Missing-Key Watch
 
-A key that exhausts the whole resolution chain (overlay → current language → fallback chain) is recorded and warned about once per key, for QA sweeps and live mistranslation hunting:
+A key that neither the overlay nor its own language column can serve is recorded and warned about once per key, for QA sweeps and live mistranslation hunting:
 
 ```csharp
 int distinct = LocalizationService.MissingKeyCount;        // distinct missing keys
@@ -172,7 +166,7 @@ LocalizationService.ClearMissingKeys();                    // reset between QA p
 ```
 
 - Queries made before the data finishes loading do not count as misses
-- A hit on the fallback chain is not a miss (something did get displayed)
+- An entry the overlay serves is not a miss either — the overlay is consulted before the table
 - The tracker holds at most 256 distinct keys: beyond that, events keep counting but per-key recording and warnings stop (a broken config must not flood memory or the log), with a single saturation warning
 - Records do not survive a service shutdown; the in-game debugger shows them live under `Profiler/Localization` → "MISSING KEYS"
 
@@ -192,7 +186,7 @@ await LocalizationService.PreloadAsync();
 
 ## Per-Language Column Loading (opt-in)
 
-Eager full-table residency is the default. To drop residency to "header + current column + fallback columns", declare the contract trio on a custom handler — and note the built-in **config-table source is already wired**: when the export splits data by language and the game-side `ConfigTableServiceHandler` self-reports `SupportsPerLanguageLocalizationLoad`, the [ConfigTable](ConfigTable.md) service switches the bridge into column mode, so a project does not need to write its own localization handler.
+Eager full-table residency is the default. To drop residency to "header + current column", declare the contract trio on a custom handler — and note the built-in **config-table source is already wired**: when the export splits data by language and the game-side `ConfigTableServiceHandler` self-reports `SupportsPerLanguageLocalizationLoad`, the [ConfigTable](ConfigTable.md) service switches the bridge into column mode, so a project does not need to write its own localization handler.
 
 ```csharp
 public sealed class RemoteLocalizationHandler : LocalizationServiceHandler
@@ -203,7 +197,7 @@ public sealed class RemoteLocalizationHandler : LocalizationServiceHandler
 }
 ```
 
-- Residency = header + current column + fallback columns; switching loads the target column lazily — if the target column cannot be fetched, **the switch is refused and the current language stays**
+- Residency = header + current column; switching fetches only the target column — if it cannot be fetched, **the switch is refused and the current language stays**
 - An "empty but loaded" column (language in the header with zero entries) is fetched only once; `null` means a retryable source miss
 - `GetDictionaryFromId` fetches every column on demand (the necessary cost of the "all languages" semantic — keep it off hot paths); `ReloadTexts` re-reads the header and all column caches without touching overlays
 - Corruption semantics mirror the batch path (reject-batch / keep-current) — a broken payload never dislodges a working snapshot
@@ -242,7 +236,7 @@ Give each channel package its own default language for first launch:
 - Text localizers show the resolved translation, or "no such ID in table"
 - Image/audio localizers show the preview language, the array index that would be used and what sits at it (`missing` / `null reference` / asset name) — which is exactly how "the arrays were not extended after adding a language" gets caught before runtime
 - Language is the inspector's editor language; when unset or not shipped it falls back to the English column, then the first one
-- The preview is **not** written back into the target component (no dirty scenes, no forgotten restores) and deliberately skips the fallback chain: a blank cell showing its ID in the editor is information for the designer
+- The preview is **not** written back into the target component (no dirty scenes, no forgotten restores); a blank cell showing its ID in the editor is exactly the information the designer wants
 - The preview cache invalidates automatically on any project asset change (an `EditorApplication.projectChanged` hook, covering table re-exports) and on editor language change; call `LocalizationService.InvalidateEditorPreview()` to drop it manually
 
 ## Formatted Queries (boxing-free path)
