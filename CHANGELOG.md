@@ -62,6 +62,11 @@
 
 ### Changed
 
+#### `ConfigTable`
+
+- ⚠ 配置工程的转表入口合并为 `gen.sh`（唯一一份 bash 驱动）+ `gen.bat`（Windows 启动器，只负责找到 bash）；`gen_code_bin_to_project.*` 与 `gen_code_bin_to_server.*` 退役，目标由参数选（无参数 = 客户端，另有 `server` / `all`）。
+- ⚠ 配置合并为单文件 `config.ini`（分节 + 正斜杠路径），`path_define.conf` 与 `path_export.bat` / `path_export.sh` 两个解析器一并删除；编辑器「更新配置路径」随之改写 `config.ini`。
+
 #### `Resource`
 
 - ⚠ **包初始化 API 按真实语义改名**：`InitPackage` → `InitializePackageAsync`（原语，返回 `ResourcePackageInitResult`，`needInitManifest` 可选拉清单），`InitPackageAsync` → `TryInitializePackageAsync`（在其上写远程地址并收成 `bool`）。旧名直接替换、不挂 `[Obsolete]`，模板侧唯一调用点 `ProcedureInitPackage` 已跟上。
@@ -127,6 +132,10 @@
 - UTF 预期判定内聚到 `Tests/EditorMode/Support/UtfLogExpect.cs`：原先 17 个用例文件各带一份 `#if UNITY_LOGGING_INSTALLED` 判定（共 20 处），现只这一处依赖该版本宏。
 
 ### Fixed
+
+#### `ConfigTable`
+
+- 编辑器「更新配置路径」此前指向不存在的 `path_export.conf` 与 `CustomTemplate/ConfigTableService_Init.cs`，点击只在控制台留一行警告、什么也没改；现指向 `config.ini` 与 `LubanHandler*.cs`，并补上 `CODE_OUTPUT_PATH_L10N` / `L10N_LANG_LIST_CODE` 两个键。
 
 #### 测试 [Testing]
 

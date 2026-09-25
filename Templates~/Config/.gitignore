@@ -1,5 +1,5 @@
 # Luban
 Luban/
 
-# 转表中间产物：Tools\gen_l10n_schema.ps1 按 L10N_LANGUAGES 每次重生成
+# 转表中间产物：gen.sh 每次按 config.ini 的 L10N_LANGUAGES 重生成变体声明 xml
 Temp/

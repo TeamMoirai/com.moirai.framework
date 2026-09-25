@@ -82,3 +82,6 @@ Thumbs.db
 # SourceGenerator
 !**/Source~/**/*.csproj
 !**/Source~/**/*.sln
+
+# 脚手架的转表配置是交付物，不是生成产物：前面的 *.ini 会把它静默吃掉。
+!Templates~/Config/config.ini

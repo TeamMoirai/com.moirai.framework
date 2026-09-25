@@ -57,11 +57,12 @@ string location = ConfigTableService.GetUIWindowLocation("MainWindow");
 
 ### Daily Table Export
 
-- Menu `Tools/Config/Luban Export Table` (menu item shortcut `Alt+X`) executes `gen_code_bin_to_project.bat` (`.sh` on OSX/Linux) in the config directory, generating data to `ClientDataOutPutPath` (default `Assets/AssetRaw/Default/Config/Table`) and code to `ClientCodeOutPutPath` (default `Assets/Scripts/GameProto`)
+- Menu `Tools/Config/Luban Export Table` (menu item shortcut `Alt+X`) executes `gen.bat` (`gen.sh` on OSX/Linux) in the config directory, generating data to `ClientDataOutPutPath` (default `Assets/AssetRaw/Default/Config/Table`) and code to `ClientCodeOutPutPath` (default `Assets/Scripts/GameProto`)
 - Export runs as **three serial passes**: regular tables (language-independent, `luban.conf`) → multilingual code (`luban_l10n.conf`, one set of classes shared by every language) → data per language (same conf plus `--variant default=<language code>`, written to `Table/<language code>/`). A single process resolves only one variant, so the data pass repeats once per language; the order cannot be flipped, because the regular pass's bin saver wipes its output directory including the language subdirectories
-- The supported language list is written once, in `L10N_LANGUAGES` inside `path_define.conf`; `Tools/gen_l10n_schema.ps1` derives both the variant declaration xml and the runtime constant `L10nLanguages.cs` from it. Adding a language also means adding a `<field>@<language code>` sub-header to `Excels/L10n/*.xlsx`
+- `gen.sh` is the only entry and the only copy of the logic (a bash driver); `gen.bat` is a Windows launcher that finds bash and hands it the arguments. The target is an argument: no argument means client, plus `server` / `all`, with the lazyload switch as the second argument — note that `all` creates the server output directories if they do not exist yet
+- The supported language list is written once, in `L10N_LANGUAGES` inside `config.ini`; `gen.sh` derives both the variant declaration xml and the runtime constant `L10nLanguages.cs` from it. Adding a language also means adding a `<field>@<language code>` sub-header to `Excels/L10n/*.xlsx`
 - Menu `Tools/Config/Open Table Directory` directly opens the config project
-- After moving the config table directory, use "Redirect Config Directory" in the settings interface to re-specify it; after modifying export paths, click "Update Config Path" to automatically synchronize the keys in `path_define.conf` (including `CODE_OUTPUT_PATH_L10N` and `L10N_LANG_LIST_CODE`) and the `CONFIG_PATH` constant in `CustomTemplate/LubanHandler_Init.cs`
+- After moving the config table directory, use "Redirect Config Directory" in the settings interface to re-specify it; after modifying export paths, click "Update Config Path" to automatically synchronize the keys in `config.ini` (including `CODE_OUTPUT_PATH_L10N` and `L10N_LANG_LIST_CODE`) and the `CONFIG_PATH` constant in `CustomTemplate/LubanHandler_Init.cs`
 
 ### Generated Outputs
 
@@ -79,7 +80,7 @@ string location = ConfigTableService.GetUIWindowLocation("MainWindow");
 - Generated code is table-export output; manual modifications will be overwritten on the next export. Custom logic should be written on the business side or by modifying the `CustomTemplate` templates
 - Configuration data is packaged according to the PRELOAD preload tag. At runtime it is loaded via `ResourceService`; ensure the resource system is ready. Collection rules are recursive, so `Table/<language code>/` inherits PRELOAD as well — splitting by language saves parsing and resident entries, but every language's asset bytes are still decoded at startup. To also split the bytes per language, first take those subdirectories out of PRELOAD and give per-language column loading an async implementation
 - When no game-side handler is installed, `ConfigTableService.GetAllLocalizedStrings()` returns an empty result with an error logged by `DefaultConfigTableHandler`; the [Localization](Localization.md) service will fail to load as a result
-- After modifying `m_ClientDataOutPutPath` / `m_ClientCodeOutPutPath`, you must manually execute "Update Config Path", otherwise `path_define.conf` still points to the old directory
+- After modifying `m_ClientDataOutPutPath` / `m_ClientCodeOutPutPath`, you must manually execute "Update Config Path", otherwise `config.ini` still points to the old directory
 - When the config root directory is located within Assets, a `~` suffix is automatically added (e.g., `Assets/Config~`); Unity will not import this directory, but the export script can still access it normally
 
 ---

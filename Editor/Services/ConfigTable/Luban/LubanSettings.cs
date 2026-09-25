@@ -42,8 +42,12 @@ namespace Moirai.Atropos.ConfigTable
         /// 计算从 <see cref="relativeTo"/> 到 <see cref="path"/> 的相对路径
         /// </summary>
         /// <remarks>将绝对路径转换为相对于指定目录的 Unity 风格相对路径</remarks>
+        /// <remarks>
+        /// 正斜杠：config.ini 由 gen.sh（bash 驱动）直接读，Windows 也接受正斜杠路径。
+        /// 旧配置走反斜杠 + 一层"\→/"转换，那一层被 xargs 连反斜杠一起吃掉过。
+        /// </remarks>
         private static string GetRelativePath(string relativeTo, string path) =>
-            PathUtility.FormatToSysFilePath(Path.GetRelativePath(relativeTo, path) + "/");
+            PathUtility.FormatToUnityPath(Path.GetRelativePath(relativeTo, path) + "/");
 
         #region 初始化配置根目录 [INIT CONFIG ROOT]
 
@@ -173,20 +177,20 @@ namespace Moirai.Atropos.ConfigTable
 
             string configRoot = ConfigRootFullPath;
 
-            UpdatePathExportConf(configRoot);
+            UpdateConfigIni(configRoot);
             UpdateLubanHandlerInit(configRoot);
 
-            Debug.Log("已更新 path_define.conf 和 LubanHandler_Init.cs");
+            Debug.Log("已更新 config.ini 和 LubanHandler_Init.cs");
         }
 
-        private void UpdatePathExportConf(string configRoot)
+        private void UpdateConfigIni(string configRoot)
         {
-            // 文件名是 path_define.conf（path_export.bat/.sh 才是读它的脚本）：
-            // 早前写的是 path_export.conf，那个文件根本不存在，本按钮点了只是打一行警告
-            string confPath = Path.Combine(configRoot, "path_define.conf");
+            // config.ini 是转表唯一配置：读它的是 gen.sh（bash 驱动），本方法只按键改值。
+            // 键名全局唯一所以不需要带节名定位；分节只是给人看的分组。
+            string confPath = Path.Combine(configRoot, "config.ini");
             if (!File.Exists(confPath))
             {
-                Debug.LogWarning($"path_define.conf 不存在: {confPath}");
+                Debug.LogWarning($"config.ini 不存在: {confPath}");
                 return;
             }
 
@@ -199,16 +203,16 @@ namespace Moirai.Atropos.ConfigTable
 
             string content = File.ReadAllText(confPath);
             content = ReplaceConfValue(content, "DATA_OUTPUT_PATH_CLIENT", clientDataOutPutPath);
-            content = ReplaceConfValue(content, "CODE_OUTPUT_PATH_CLIENT", clientCodeOutPutPath + "Gen\\");
+            content = ReplaceConfValue(content, "CODE_OUTPUT_PATH_CLIENT", clientCodeOutPutPath + "Gen/");
             // 多语言代码单独一个根目录：每趟的代码 saver 会把不属于本次范围的已存在文件当多余项删掉，
             // 与主趟共用目录会让常规表类被多语言那趟删光
-            content = ReplaceConfValue(content, "CODE_OUTPUT_PATH_L10N", clientCodeOutPutPath + "GenL10n\\");
+            content = ReplaceConfValue(content, "CODE_OUTPUT_PATH_L10N", clientCodeOutPutPath + "GenL10n/");
             content = ReplaceConfValue(content, "CONFIG_SCRIPT_TARGET", clientCodeOutPutPath + "LubanHandler.cs");
             // ReSharper disable once StringLiteralTypo
             content = ReplaceConfValue(content, "CONFIGINIT_SCRIPT_TARGET", clientCodeOutPutPath + "LubanHandler_Init.cs");
             // ReSharper disable once StringLiteralTypo
             content = ReplaceConfValue(content, "EXTERNALTYPEUTIL_SCRIPT_TARGET", clientCodeOutPutPath + "ExternalTypeUtil.cs");
-            // 转表期生成的语言常量：新增语言要先改 path_define.conf 的 L10N_LANGUAGES，再重跑转表
+            // 转表期生成的语言常量：新增语言要先改 config.ini 的 L10N_LANGUAGES，再重跑转表
             content = ReplaceConfValue(content, "L10N_LANG_LIST_CODE", clientCodeOutPutPath + "L10nLanguages.cs");
             content = ReplaceConfValue(content, "PATH_VALIDATOR_ROOT", PathValidatorRoot);
 

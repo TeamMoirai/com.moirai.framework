@@ -57,11 +57,12 @@ string location = ConfigTableService.GetUIWindowLocation("MainWindow");
 
 ### 日常转表
 
-- 菜单 `Tools/Config/Luban 转表`（菜单项标记快捷键 `Alt+X`）执行配置目录下的 `gen_code_bin_to_project.bat`（OSX/Linux 为 `.sh`），生成数据到 `ClientDataOutPutPath`（默认 `Assets/AssetRaw/Default/Config/Table`）、代码到 `ClientCodeOutPutPath`（默认 `Assets/Scripts/GameProto`）
+- 菜单 `Tools/Config/Luban 转表`（菜单项标记快捷键 `Alt+X`）执行配置目录下的 `gen.bat`（OSX/Linux 为 `gen.sh`），生成数据到 `ClientDataOutPutPath`（默认 `Assets/AssetRaw/Default/Config/Table`）、代码到 `ClientCodeOutPutPath`（默认 `Assets/Scripts/GameProto`）
 - 转表是**三趟串行**：常规表（语言无关，`luban.conf`）→ 多语言代码（`luban_l10n.conf`，各语言共用一份类）→ 按语言逐个导数据（同一 conf 加 `--variant default=<语言码>`，输出到 `Table/<语言码>/`）。一次进程只解析一版变体，所以有几种语言就跑几趟；顺序不能颠倒，常规趟的 bin saver 会把输出目录连同语言子目录一起清掉
-- 支持的语言清单只在 `path_define.conf` 的 `L10N_LANGUAGES` 里写一次，`Tools/gen_l10n_schema.ps1` 由它派生变体声明 xml 与运行期常量 `L10nLanguages.cs`；新增语言还要在 `Excels/L10n/*.xlsx` 的子列头补 `<字段>@<语言码>`
+- 入口只有 `gen.sh` 一份逻辑（bash 驱动），`gen.bat` 只是 Windows 启动器（找到 bash 后调 `gen.sh`）；目标由参数选：无参数即客户端，另有 `server` / `all`，第二参是 lazyload 开关。服务端输出目录尚不存在时用 `all` 会把它一并建出来
+- 支持的语言清单只在 `config.ini` 的 `L10N_LANGUAGES` 里写一次，`gen.sh` 由它派生变体声明 xml 与运行期常量 `L10nLanguages.cs`；新增语言还要在 `Excels/L10n/*.xlsx` 的子列头补 `<字段>@<语言码>`
 - 菜单 `Tools/Config/打开表格目录` 直接打开配置工程
-- 移动配置表目录后，在设置界面使用「重定向 Config 目录」重新指定；修改导出路径后点击「更新配置路径」，自动同步 `path_define.conf` 各键（含 `CODE_OUTPUT_PATH_L10N`、`L10N_LANG_LIST_CODE`）与 `CustomTemplate/LubanHandler_Init.cs` 中的 `CONFIG_PATH` 常量
+- 移动配置表目录后，在设置界面使用「重定向 Config 目录」重新指定；修改导出路径后点击「更新配置路径」，自动同步 `config.ini` 各键（含 `CODE_OUTPUT_PATH_L10N`、`L10N_LANG_LIST_CODE`）与 `CustomTemplate/LubanHandler_Init.cs` 中的 `CONFIG_PATH` 常量
 
 ### 生成产物
 
@@ -79,7 +80,7 @@ string location = ConfigTableService.GetUIWindowLocation("MainWindow");
 - 生成代码为转表产物，手动修改会在下次转表时被覆盖；定制逻辑应写在业务侧或修改 `CustomTemplate` 模板
 - 配置数据按 PRELOAD 预加载标签打包，运行时经 `ResourceService` 加载，需确保资源系统已就绪。收集规则是递归的，`Table/<语言码>/` 同样继承 PRELOAD——按语言分份省下的是解析与词条常驻，资产字节仍在启动期全部解码；要连字节一起按语言走，需要先把这些子目录摘出 PRELOAD 并给按语言取列补异步实现
 - 未安装游戏侧处理器时 `ConfigTableService.GetAllLocalizedStrings()` 由 `DefaultConfigTableHandler` 返回空结果并记录错误，[Localization](Localization.md) 服务会因此加载失败
-- 修改 `m_ClientDataOutPutPath` / `m_ClientCodeOutPutPath` 后必须手动执行「更新配置路径」，否则 `path_define.conf` 仍指向旧目录
+- 修改 `m_ClientDataOutPutPath` / `m_ClientCodeOutPutPath` 后必须手动执行「更新配置路径」，否则 `config.ini` 仍指向旧目录
 - 配置根目录位于 Assets 内时会自动加 `~` 后缀（如 `Assets/Config~`），Unity 不会导入该目录，转表脚本仍可正常访问
 
 ---
