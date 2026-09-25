@@ -64,8 +64,18 @@ namespace Moirai.GameProto.Config
 		/// <returns>ByteBuf</returns>
 		private static ByteBuf LoadByteBuf(string file)
 		{
-			LogUtility.Info("Load bin config: {0}.bytes", file);
-			TextAsset textAsset = LoadTextAsset(CONFIG_PATH + file + ".bytes");
+			return LoadByteBufFrom(file);
+		}
+
+		/// <summary>
+		/// 从 CONFIG_PATH 下的相对路径加载二进制配置。多语言按语言子目录分份导出后走这一层。
+		/// </summary>
+		/// <param name="relativePath">相对 CONFIG_PATH 的路径，不含扩展名</param>
+		/// <returns>ByteBuf</returns>
+		private static ByteBuf LoadByteBufFrom(string relativePath)
+		{
+			LogUtility.Info("Load bin config: {0}.bytes", relativePath);
+			TextAsset textAsset = LoadTextAsset(CONFIG_PATH + relativePath + ".bytes");
 			byte[] bytes = textAsset.bytes;
 			return new ByteBuf(bytes);
 		}

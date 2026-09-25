@@ -74,6 +74,22 @@ namespace Service.ConfigTable
             Assert.IsNull(sprite);
         }
 
+        /// <summary>
+        /// 按语言取列的开关在无后端时必须为 <c>false</c>：本地化侧据此留在整批路径，
+        /// 而不是进了列模式却永远取不到列。
+        /// </summary>
+        [Test]
+        public void NoHandler_SupportsPerLanguageLocalizationLoad_IsFalse()
+        {
+            Assert.IsFalse(ConfigTableService.SupportsPerLanguageLocalizationLoad);
+        }
+
+        [Test]
+        public void NoHandler_GetLocalizedStringsByLanguage_ReturnsNull()
+        {
+            Assert.IsNull(ConfigTableService.GetLocalizedStringsByLanguage("en"));
+        }
+
         #endregion
 
         #region 默认后端兜底语义 [DEFAULT BACKEND FALLBACK]
@@ -235,6 +251,32 @@ namespace Service.ConfigTable
             int abstractCount = seam.GetMethods(BindingFlags.Public | BindingFlags.Instance)
                 .Count(method => method.IsAbstract && !method.Name.StartsWith("get_", StringComparison.Ordinal));
             Assert.AreEqual(4, abstractCount, "后端接缝的抽象方法数变了；同步本基线并写明收掉了什么。");
+        }
+
+        /// <summary>
+        /// 按语言取列是<b>可选</b>接缝：两个成员都必须带默认实现，且默认落在整批模式。
+        /// <para>默认开成 <c>true</c> 会让存量整批后端进不了列模式却再也拿不到语言头，
+        /// 把接缝变抽象则会打断所有游戏侧生成代码——两者都只会在装机时炸，所以钉在这里。</para>
+        /// </summary>
+        [Test]
+        public void Seam_PerLanguageColumnLoad_IsVirtualWithBatchDefaults()
+        {
+            Type seam = typeof(ConfigTableServiceHandler);
+
+            MethodInfo supportGetter = seam.GetProperty("SupportsPerLanguageLocalizationLoad")?.GetMethod;
+            MethodInfo columnLoader = seam.GetMethod("GetLocalizedStringsByLanguage", new[] { typeof(string) });
+
+            Assert.IsNotNull(supportGetter, "按语言取列的开关缺失。");
+            Assert.IsNotNull(columnLoader, "按语言取列的取列入口缺失。");
+            Assert.IsFalse(supportGetter.IsAbstract, "开关必须带默认实现（存量整批后端零改）。");
+            Assert.IsFalse(columnLoader.IsAbstract, "取列入口必须带默认实现。");
+            Assert.IsTrue(supportGetter.IsVirtual && columnLoader.IsVirtual);
+
+            var defaultHandler = new DefaultConfigTableHandler();
+            Assert.IsFalse(defaultHandler.SupportsPerLanguageLocalizationLoad,
+                "未覆写的后端必须留在整批路径。");
+            Assert.IsNull(defaultHandler.GetLocalizedStringsByLanguage("en"),
+                "未覆写的取列实现必须回 null（视为未就绪），不得回空字典冒充已加载的空列。");
         }
 
         /// <summary>

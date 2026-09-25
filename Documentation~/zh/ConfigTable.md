@@ -9,7 +9,7 @@
 - 框架与配表解耦：框架仅依赖 `ConfigTableServiceHandler` 抽象契约，Luban 生成代码落在业务程序集，移除配表不影响框架其他服务编译
 - 懒加载 `Tables`：首次访问 `ConfigTableService.Tables` 时才加载，按生成代码的 Loader 返回类型自动选择二进制（`ByteBuf`）或 JSON（`JSONNode`）格式
 - 编辑器友好：非运行模式下配置 `TextAsset` 直接经 `AssetDatabase` 加载，无需启动资源系统
-- 多语言桥接：生成侧处理器反射读取生成代码中的 `LocalizationBean` 字段，按列序经 `GetLocalizationLanguageCodes()` 自报可用语言，并将 `TbLocalizedStrings` 展开为 `Dictionary<string, List<string>>` 供 [Localization](Localization.md) 服务使用
+- 多语言桥接：多语言表按语言分份导出到 `Table/<语言码>/`，bean 只剩一个变体字段，语言不再从生成代码的字段名反推；可用语言由转表期生成的 `L10nLanguages.Codes` 经 `GetLocalizationLanguageCodes()` 自报。后端可选实现 `SupportsPerLanguageLocalizationLoad` + `GetLocalizedStringsByLanguage`，[Localization](Localization.md) 服务据此只装载当前语言列与回退链列；不实现则回落 `GetAllLocalizedStrings()` 整批模式
 - 图标与 UI 配置读取：`TbSprite` / `TbSpriteAtlas` / `TbUIWindow` 表驱动 Sprite 加载与窗口资源定位
 - 编辑器工作流：一键复制内置 Config 模板（含 Luban 可执行文件、示例表、生成模板）、转表脚本调用、导出路径同步
 
@@ -17,7 +17,7 @@
 
 | 类/接口 | 说明 |
 |---------|------|
-| `Moirai.Atropos.ConfigTable.ConfigTableService` | 配置表静态外观（`[HandlerHost]`）：`GetAllLocalizedStrings`、`GetLocalizationLanguageCodes`、`LoadSpriteByID`、`GetUIWindowLocation`；查询 API 经 `s_Handler?.` 转发（未就绪时静默降级为 null / 空集），处理器懒加载优先从 settings 取、再回退默认工厂，两者都取不到才抛异常 |
+| `Moirai.Atropos.ConfigTable.ConfigTableService` | 配置表静态外观（`[HandlerHost]`）：`GetAllLocalizedStrings`、`GetLocalizationLanguageCodes`、`SupportsPerLanguageLocalizationLoad`、`GetLocalizedStringsByLanguage`、`LoadSpriteByID`、`GetUIWindowLocation`；查询 API 经 `s_Handler?.` 转发（未就绪时静默降级为 null / 空集，按语言取列的开关降级为 `false`），处理器懒加载优先从 settings 取、再回退默认工厂，两者都取不到才抛异常 |
 | `Moirai.Atropos.ConfigTable.ConfigTableServiceHandler` | 配置表处理器抽象基类（继承 `FrameworkHandler`），定义后端契约；未安装自定义处理器时使用 `DefaultConfigTableHandler`（记录错误并返回空结果） |
 | `Moirai.GameProto.Config.LubanHandler` | 游戏侧处理器（继承 `ConfigTableServiceHandler`），编辑器脚本重载时经 `ConfigTableServiceSettings.InjectConfigTableHandler<LubanHandler>()` 安装，桥接 Luban 生成代码与框架外观 |
 | `Moirai.GameProto.Config.Tables` | Luban 生成的表集合（如 `TbLocalizedStrings`、`TbUIWindow`、`TbSprite`、`TbSpriteAtlas` 及业务表） |
@@ -58,23 +58,28 @@ string location = ConfigTableService.GetUIWindowLocation("MainWindow");
 ### 日常转表
 
 - 菜单 `Tools/Config/Luban 转表`（菜单项标记快捷键 `Alt+X`）执行配置目录下的 `gen_code_bin_to_project.bat`（OSX/Linux 为 `.sh`），生成数据到 `ClientDataOutPutPath`（默认 `Assets/AssetRaw/Default/Config/Table`）、代码到 `ClientCodeOutPutPath`（默认 `Assets/Scripts/GameProto`）
+- 转表是**三趟串行**：常规表（语言无关，`luban.conf`）→ 多语言代码（`luban_l10n.conf`，各语言共用一份类）→ 按语言逐个导数据（同一 conf 加 `--variant default=<语言码>`，输出到 `Table/<语言码>/`）。一次进程只解析一版变体，所以有几种语言就跑几趟；顺序不能颠倒，常规趟的 bin saver 会把输出目录连同语言子目录一起清掉
+- 支持的语言清单只在 `path_define.conf` 的 `L10N_LANGUAGES` 里写一次，`Tools/gen_l10n_schema.ps1` 由它派生变体声明 xml 与运行期常量 `L10nLanguages.cs`；新增语言还要在 `Excels/L10n/*.xlsx` 的子列头补 `<字段>@<语言码>`
 - 菜单 `Tools/Config/打开表格目录` 直接打开配置工程
-- 移动配置表目录后，在设置界面使用「重定向 Config 目录」重新指定；修改导出路径后点击「更新配置路径」，自动同步 `path_export.conf` 各键与 `CustomTemplate/ConfigTableService_Init.cs` 中的 `CONFIG_PATH` 常量
+- 移动配置表目录后，在设置界面使用「重定向 Config 目录」重新指定；修改导出路径后点击「更新配置路径」，自动同步 `path_define.conf` 各键（含 `CODE_OUTPUT_PATH_L10N`、`L10N_LANG_LIST_CODE`）与 `CustomTemplate/LubanHandler_Init.cs` 中的 `CONFIG_PATH` 常量
 
 ### 生成产物
 
 | 产物 | 说明 |
 |------|------|
-| `Gen/` 下的表代码 | 各表 Bean 与 `Tables` 集合 |
-| `LubanHandler.cs` | 游戏侧处理器：实现 `ConfigTableServiceHandler` 契约（多语言解析、Sprite/UI 查询）并自动安装 |
+| `Gen/` 下的表代码 | 各表 Bean 与 `Tables` 集合；**不含多语言表**，语言无关的表按 key 存译文标识，逐语言重导没有意义 |
+| `GenL10n/` 下的表代码 | 多语言表 Bean（单字段变体 bean）与各语言共用的类；必须与 `Gen/` 分根目录，否则其中一趟的代码 saver 会把另一趟的产物当多余文件删掉 |
+| `L10nLanguages.cs` | 转表期生成的语言码常量，游戏侧处理器据此自报可用语言 |
+| `Table/<语言码>/l10n_*.bytes` | 每种语言一份多语言数据，含全部键（缺译是空串） |
+| `LubanHandler.cs` | 游戏侧处理器：实现 `ConfigTableServiceHandler` 契约（按语言取列、Sprite/UI 查询）并自动安装 |
 | `ExternalTypeUtil.cs` | Luban 扩展类型工具 |
 
 ## 注意事项
 
 - 生成代码为转表产物，手动修改会在下次转表时被覆盖；定制逻辑应写在业务侧或修改 `CustomTemplate` 模板
-- 配置数据按 PRELOAD 预加载标签打包，运行时经 `ResourceService` 加载，需确保资源系统已就绪
+- 配置数据按 PRELOAD 预加载标签打包，运行时经 `ResourceService` 加载，需确保资源系统已就绪。收集规则是递归的，`Table/<语言码>/` 同样继承 PRELOAD——按语言分份省下的是解析与词条常驻，资产字节仍在启动期全部解码；要连字节一起按语言走，需要先把这些子目录摘出 PRELOAD 并给按语言取列补异步实现
 - 未安装游戏侧处理器时 `ConfigTableService.GetAllLocalizedStrings()` 由 `DefaultConfigTableHandler` 返回空结果并记录错误，[Localization](Localization.md) 服务会因此加载失败
-- 修改 `m_ClientDataOutPutPath` / `m_ClientCodeOutPutPath` 后必须手动执行「更新配置路径」，否则 `path_export.conf` 仍指向旧目录
+- 修改 `m_ClientDataOutPutPath` / `m_ClientCodeOutPutPath` 后必须手动执行「更新配置路径」，否则 `path_define.conf` 仍指向旧目录
 - 配置根目录位于 Assets 内时会自动加 `~` 后缀（如 `Assets/Config~`），Unity 不会导入该目录，转表脚本仍可正常访问
 
 ---

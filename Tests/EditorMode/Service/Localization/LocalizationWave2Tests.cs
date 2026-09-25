@@ -254,6 +254,30 @@ namespace Service.Localization
             CollectionAssert.AreEquivalent(new[] { "zh-Hans", "en" }, handler.LoadedColumnCodes);
         }
 
+        /// <summary>
+        /// 配置表桥处理器的列模式开关完全跟随后端自报：无后端时必须是 <c>false</c>，
+        /// 否则桥会进列模式却永远拿不到语言头，把「整批可用」的存量项目变成不可用。
+        /// </summary>
+        [Test]
+        public void ConfigTableBridge_WithoutPerLanguageSource_StaysOnBatchPath()
+        {
+            var original = Moirai.Atropos.ConfigTable.ConfigTableService.Internal_PeekHandler();
+            Moirai.Atropos.ConfigTable.ConfigTableService.Internal_UseHandler(null);
+
+            try
+            {
+                var probe = Track(new ConfigTableBridgeProbe());
+
+                Assert.IsFalse(probe.PerLanguageMode, "后端未声明按语言取列时不得进列模式。");
+                Assert.AreEqual(0, probe.PeekHeader().Count, "无后端时语言头为空，按未就绪保持重试。");
+                Assert.IsNull(probe.PeekColumn(English), "无后端时取列返回 null，不得回空字典冒充空列。");
+            }
+            finally
+            {
+                Moirai.Atropos.ConfigTable.ConfigTableService.Internal_UseHandler(original);
+            }
+        }
+
         private PerLanguageProbeHandler CreateTrilingualProbe()
         {
             var handler = Track(new PerLanguageProbeHandler());
@@ -475,6 +499,20 @@ namespace Service.Localization
                 LoadedColumnCodes.Add(language.Code);
                 return Columns.TryGetValue(language.Code, out var column) ? column : null;
             }
+        }
+
+        /// <summary>
+        /// 配置表桥处理器的受保护接缝转成 internal 供用例直调（不经反射）。
+        /// <para>测试程序集里不建 <c>ConfigTableServiceHandler</c> 子类（见 ConfigTableServiceContractTests
+        /// 的 [SerializeReference] 污染说明），所以这里只能验「桥如何转发」，转发目标由外观的降级值给定。</para>
+        /// </summary>
+        internal sealed class ConfigTableBridgeProbe : ConfigTableLocalizationHandler
+        {
+            internal bool PerLanguageMode => SupportsPerLanguageLoad;
+
+            internal IReadOnlyList<Language> PeekHeader() => LoadLanguageHeader();
+
+            internal Dictionary<string, string> PeekColumn(Language language) => LoadLanguageColumn(language);
         }
 
         #endregion

@@ -9,7 +9,7 @@
 - Framework and config table decoupling: The framework only depends on the `ConfigTableServiceHandler` abstract contract; Luban-generated code lands in the business assembly, removing the config table does not affect compilation of other framework services
 - Lazy loading `Tables`: `Tables` is loaded only on first access to `ConfigTableService.Tables`, automatically selecting binary (`ByteBuf`) or JSON (`JSONNode`) format based on the Loader return type in the generated code
 - Editor-friendly: In non-play mode, `TextAsset` configuration is loaded directly via `AssetDatabase`, no need to start the resource system
-- Multilingual bridging: the generated handler reflects `LocalizationBean` fields in the generated code to self-report the available languages via `GetLocalizationLanguageCodes()` in column order, and expands `TbLocalizedStrings` into a `Dictionary<string, List<string>>` for use by the [Localization](Localization.md) service
+- Multilingual bridging: multilingual tables are exported split by language into `Table/<language code>/`, the bean keeps a single variant field, and languages are no longer inferred from generated field names; available languages are self-reported via `GetLocalizationLanguageCodes()` from the `L10nLanguages.Codes` constant generated at export time. A backend may optionally implement `SupportsPerLanguageLocalizationLoad` + `GetLocalizedStringsByLanguage`, in which case the [Localization](Localization.md) service loads only the current language column plus its fallback chain; otherwise it falls back to the whole-batch `GetAllLocalizedStrings()`
 - Sprite and UI configuration reading: `TbSprite` / `TbSpriteAtlas` / `TbUIWindow` tables drive sprite loading and window resource location
 - Editor workflow: One-click copy of built-in Config template (including Luban executable, sample tables, generation templates), table export script invocation, and export path synchronization
 
@@ -17,7 +17,7 @@
 
 | Class/Interface | Description |
 |----------------|-------------|
-| `Moirai.Atropos.ConfigTable.ConfigTableService` | Config table static facade (`[HandlerHost]`): `GetAllLocalizedStrings`, `GetLocalizationLanguageCodes`, `LoadSpriteByID`, `GetUIWindowLocation`; query APIs forward through `s_Handler?.` (silently degrading to null / empty when not ready), while handler lazy-loading resolves from settings first and falls back to the default factory, throwing only when both yield nothing |
+| `Moirai.Atropos.ConfigTable.ConfigTableService` | Config table static facade (`[HandlerHost]`): `GetAllLocalizedStrings`, `GetLocalizationLanguageCodes`, `SupportsPerLanguageLocalizationLoad`, `GetLocalizedStringsByLanguage`, `LoadSpriteByID`, `GetUIWindowLocation`; query APIs forward through `s_Handler?.` (silently degrading to null / empty when not ready, and the per-language switch degrades to `false`), while handler lazy-loading resolves from settings first and falls back to the default factory, throwing only when both yield nothing |
 | `Moirai.Atropos.ConfigTable.ConfigTableServiceHandler` | Config table handler abstract base class (inherits `FrameworkHandler`) defining the backend contract; when no custom handler is installed, `DefaultConfigTableHandler` is used (logs errors and returns empty results) |
 | `Moirai.GameProto.Config.LubanHandler` | Game-side handler (inherits `ConfigTableServiceHandler`), installed on editor script reload via `ConfigTableServiceSettings.InjectConfigTableHandler<LubanHandler>()`, bridging Luban-generated code and the framework facade |
 | `Moirai.GameProto.Config.Tables` | Luban-generated table collection (e.g., `TbLocalizedStrings`, `TbUIWindow`, `TbSprite`, `TbSpriteAtlas` and business tables) |
@@ -58,23 +58,28 @@ string location = ConfigTableService.GetUIWindowLocation("MainWindow");
 ### Daily Table Export
 
 - Menu `Tools/Config/Luban Export Table` (menu item shortcut `Alt+X`) executes `gen_code_bin_to_project.bat` (`.sh` on OSX/Linux) in the config directory, generating data to `ClientDataOutPutPath` (default `Assets/AssetRaw/Default/Config/Table`) and code to `ClientCodeOutPutPath` (default `Assets/Scripts/GameProto`)
+- Export runs as **three serial passes**: regular tables (language-independent, `luban.conf`) → multilingual code (`luban_l10n.conf`, one set of classes shared by every language) → data per language (same conf plus `--variant default=<language code>`, written to `Table/<language code>/`). A single process resolves only one variant, so the data pass repeats once per language; the order cannot be flipped, because the regular pass's bin saver wipes its output directory including the language subdirectories
+- The supported language list is written once, in `L10N_LANGUAGES` inside `path_define.conf`; `Tools/gen_l10n_schema.ps1` derives both the variant declaration xml and the runtime constant `L10nLanguages.cs` from it. Adding a language also means adding a `<field>@<language code>` sub-header to `Excels/L10n/*.xlsx`
 - Menu `Tools/Config/Open Table Directory` directly opens the config project
-- After moving the config table directory, use "Redirect Config Directory" in the settings interface to re-specify it; after modifying export paths, click "Update Config Path" to automatically synchronize the keys in `path_export.conf` and the `CONFIG_PATH` constant in `CustomTemplate/ConfigTableService_Init.cs`
+- After moving the config table directory, use "Redirect Config Directory" in the settings interface to re-specify it; after modifying export paths, click "Update Config Path" to automatically synchronize the keys in `path_define.conf` (including `CODE_OUTPUT_PATH_L10N` and `L10N_LANG_LIST_CODE`) and the `CONFIG_PATH` constant in `CustomTemplate/LubanHandler_Init.cs`
 
 ### Generated Outputs
 
 | Output | Description |
 |--------|-------------|
-| Table code under `Gen/` | Individual table Beans and `Tables` collection |
-| `LubanHandler.cs` | Game-side handler: implements the `ConfigTableServiceHandler` contract (multilingual parsing, Sprite/UI querying) and installs itself automatically |
+| Table code under `Gen/` | Individual table Beans and `Tables` collection; **does not include the multilingual tables** — language-independent tables store translation keys, so re-exporting them per language would be pointless |
+| Table code under `GenL10n/` | Multilingual table Beans (single-field variant bean) and the classes shared by all languages; must live in its own root, separate from `Gen/`, otherwise one pass's code saver deletes the other pass's output as surplus files |
+| `L10nLanguages.cs` | Language code constant generated at export time; the game-side handler self-reports available languages from it |
+| `Table/<language code>/l10n_*.bytes` | One set of multilingual data per language, containing every key (missing translations are empty strings) |
+| `LubanHandler.cs` | Game-side handler: implements the `ConfigTableServiceHandler` contract (per-language column loading, Sprite/UI querying) and installs itself automatically |
 | `ExternalTypeUtil.cs` | Luban extension type utility |
 
 ## Notes
 
 - Generated code is table-export output; manual modifications will be overwritten on the next export. Custom logic should be written on the business side or by modifying the `CustomTemplate` templates
-- Configuration data is packaged according to the PRELOAD preload tag. At runtime it is loaded via `ResourceService`; ensure the resource system is ready
+- Configuration data is packaged according to the PRELOAD preload tag. At runtime it is loaded via `ResourceService`; ensure the resource system is ready. Collection rules are recursive, so `Table/<language code>/` inherits PRELOAD as well — splitting by language saves parsing and resident entries, but every language's asset bytes are still decoded at startup. To also split the bytes per language, first take those subdirectories out of PRELOAD and give per-language column loading an async implementation
 - When no game-side handler is installed, `ConfigTableService.GetAllLocalizedStrings()` returns an empty result with an error logged by `DefaultConfigTableHandler`; the [Localization](Localization.md) service will fail to load as a result
-- After modifying `m_ClientDataOutPutPath` / `m_ClientCodeOutPutPath`, you must manually execute "Update Config Path", otherwise `path_export.conf` still points to the old directory
+- After modifying `m_ClientDataOutPutPath` / `m_ClientCodeOutPutPath`, you must manually execute "Update Config Path", otherwise `path_define.conf` still points to the old directory
 - When the config root directory is located within Assets, a `~` suffix is automatically added (e.g., `Assets/Config~`); Unity will not import this directory, but the export script can still access it normally
 
 ---

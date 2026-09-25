@@ -174,17 +174,19 @@ namespace Moirai.Atropos.ConfigTable
             string configRoot = ConfigRootFullPath;
 
             UpdatePathExportConf(configRoot);
-            UpdateConfigTableServiceInit(configRoot);
+            UpdateLubanHandlerInit(configRoot);
 
-            Debug.Log("已更新 path_export.conf 和 ConfigTableService_Init.cs");
+            Debug.Log("已更新 path_define.conf 和 LubanHandler_Init.cs");
         }
 
         private void UpdatePathExportConf(string configRoot)
         {
-            string confPath = Path.Combine(configRoot, "path_export.conf");
+            // 文件名是 path_define.conf（path_export.bat/.sh 才是读它的脚本）：
+            // 早前写的是 path_export.conf，那个文件根本不存在，本按钮点了只是打一行警告
+            string confPath = Path.Combine(configRoot, "path_define.conf");
             if (!File.Exists(confPath))
             {
-                Debug.LogWarning($"path_export.conf 不存在: {confPath}");
+                Debug.LogWarning($"path_define.conf 不存在: {confPath}");
                 return;
             }
 
@@ -198,22 +200,27 @@ namespace Moirai.Atropos.ConfigTable
             string content = File.ReadAllText(confPath);
             content = ReplaceConfValue(content, "DATA_OUTPUT_PATH_CLIENT", clientDataOutPutPath);
             content = ReplaceConfValue(content, "CODE_OUTPUT_PATH_CLIENT", clientCodeOutPutPath + "Gen\\");
-            content = ReplaceConfValue(content, "CONFIG_SCRIPT_TARGET", clientCodeOutPutPath + "ConfigTableService.cs");
+            // 多语言代码单独一个根目录：每趟的代码 saver 会把不属于本次范围的已存在文件当多余项删掉，
+            // 与主趟共用目录会让常规表类被多语言那趟删光
+            content = ReplaceConfValue(content, "CODE_OUTPUT_PATH_L10N", clientCodeOutPutPath + "GenL10n\\");
+            content = ReplaceConfValue(content, "CONFIG_SCRIPT_TARGET", clientCodeOutPutPath + "LubanHandler.cs");
             // ReSharper disable once StringLiteralTypo
-            content = ReplaceConfValue(content, "CONFIGINIT_SCRIPT_TARGET", clientCodeOutPutPath + "ConfigTableService_Init.cs");
+            content = ReplaceConfValue(content, "CONFIGINIT_SCRIPT_TARGET", clientCodeOutPutPath + "LubanHandler_Init.cs");
             // ReSharper disable once StringLiteralTypo
             content = ReplaceConfValue(content, "EXTERNALTYPEUTIL_SCRIPT_TARGET", clientCodeOutPutPath + "ExternalTypeUtil.cs");
+            // 转表期生成的语言常量：新增语言要先改 path_define.conf 的 L10N_LANGUAGES，再重跑转表
+            content = ReplaceConfValue(content, "L10N_LANG_LIST_CODE", clientCodeOutPutPath + "L10nLanguages.cs");
             content = ReplaceConfValue(content, "PATH_VALIDATOR_ROOT", PathValidatorRoot);
 
             File.WriteAllText(confPath, content);
         }
 
-        private void UpdateConfigTableServiceInit(string configRoot)
+        private void UpdateLubanHandlerInit(string configRoot)
         {
-            string initPath = Path.Combine(configRoot, "CustomTemplate", "ConfigTableService_Init.cs");
+            string initPath = Path.Combine(configRoot, "CustomTemplate", "LubanHandler_Init.cs");
             if (!File.Exists(initPath))
             {
-                Debug.LogWarning($"ConfigTableService_Init.cs 不存在: {initPath}");
+                Debug.LogWarning($"LubanHandler_Init.cs 不存在: {initPath}");
                 return;
             }
 

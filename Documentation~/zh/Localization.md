@@ -132,13 +132,13 @@ IEnumerator routine = translator.TranslateAsync(request,
 
 - 本地化数据来自 Luban 配置表：必须先在 `Tools/Framework Settings` 的 `LubanSettings`（「[框架]Luban 配置」）中生成并转表，否则加载失败并提示 "Failed to load localized text, generate config first!"（该错误只打一次，未就绪期间每次查询都返回 ID 原文）
 - 本地化数据为懒式初始化：服务注册期（`OnInit`）不加载任何资源，首次访问多语言 API（查询/切换）时才从配置表加载——届时 `Resource` 服务必然已就绪
-- 可用语言由配表自报：生成侧 `LubanHandler` 反射 `LocalizationBean` 的语言列，经 `ConfigTableServiceHandler.GetLocalizationLanguageCodes()` 交给框架解析（`LocalizationService.ResolveLanguages`），不存在可回落的全局语言注册表。`ChangeLanguage` 传入未收录语言时保持原语言不变并告警（每种语言只警告一次），不抛异常
+- 可用语言由配表自报：多语言按语言分份导出后，语言不再从生成代码的 bean 字段名反推，而是取自转表期生成的 `L10nLanguages.Codes`，经 `ConfigTableServiceHandler.GetLocalizationLanguageCodes()` 交给框架解析（`LocalizationService.ResolveLanguages`），不存在可回落的全局语言注册表。`ChangeLanguage` 传入未收录语言时保持原语言不变并告警（每种语言只警告一次），不抛异常
 - 词条的语言列数与自报语言数不一致会被判为数据损坏：**整批数据拒载**并报错（下标错位只会表现为「显示了别的语言」，不会报错，所以宁可不加载）
 - `ToLanguage(str, onlySupported)` 中 `onlySupported` 为 `true` 时，未收录进当前批的语言会回落到默认语言 English（`LocalizationService.DefaultLanguage`）；需要区分「写错了」与「就是要默认语言」时用 `TryGetBuiltInLanguage`
 - 编辑器非运行模式下 `TextLocalizer.ChangeID` / `ImageLocalizer.ChangeID` 直接返回 `false`（Timeline 预览待实现）；`LocalizationService.Localize` 在非运行模式走编辑器预览直读，取不到预览数据时才原样返回
 - 数据未就绪（表未加载完）时，各 Localizer **静默推迟注入**——不按缺译刷错误日志；首次加载成功触发的语言切换会把全部已注册本地化器重注入一遍。可用 `LocalizationService.IsDataLoaded`（不触发加载）区分「未就绪」与「真缺失」
 - `ImageLocalizer` / `AudioLocalizer` 的数组是按语言索引注入的，配表新增语言后需同步补齐数组元素
-- 默认整批加载、全部语言列常驻内存（词条在存储层为行表 + 扁平数组，比「每词条一个 List」省下一半容器对象）。要降到「语言头 + 当前列 + 回退列」常驻，自定义处理器实现 `SupportsPerLanguageLoad` 三件套即可，触发时机凭 `ResidentChars` 量化判断（游戏内调试器 `Profiler/Localization` 的「数据规模」），别凭感觉
+- 默认整批加载、全部语言列常驻内存（词条在存储层为行表 + 扁平数组，比「每词条一个 List」省下一半容器对象）。要降到「语言头 + 当前列 + 回退列」常驻，自定义处理器实现 `SupportsPerLanguageLoad` 三件套即可；默认的**配置表数据源已自动接好**——转表按语言分份、且游戏侧 `ConfigTableServiceHandler` 自报 `SupportsPerLanguageLocalizationLoad` 时，[ConfigTable](ConfigTable.md) 服务就切到列模式，项目侧无需再写一个本地化处理器
 
 ## 运行时覆盖（热改文案）
 
@@ -189,7 +189,7 @@ await LocalizationService.PreloadAsync();
 
 ## 按语言列加载（可选契约）
 
-整批常驻对绝大多数项目够用。词条量级到了按列常驻更合理时（`ResidentChars` 量化判据），自定义处理器声明三件套即启用：
+整批常驻对绝大多数项目够用。词条量级到了按列常驻更合理时（`ResidentChars` 量化判据），自定义处理器声明三件套即启用；配置表这条默认数据源不需要你动处理器——它按语言分份导出后由 `ConfigTableServiceHandler` 自报开关，桥处理器自动转列模式：
 
 ```csharp
 public sealed class RemoteLocalizationHandler : LocalizationServiceHandler
