@@ -133,8 +133,10 @@ namespace Moirai.GameProto.Config
                      "Start Load Localization Column[{0}]" +
                      " \u25bc\u25bc\u25bc\u25bc</color>", languageCode);
 
-            // Tables 里没有多语言表：它按语言分份，逐语言自建，不占启动期的整表展开
-            var table = new TbLocalizedStrings(LoadByteBufFrom(languageCode + "/" + LOCALIZED_STRINGS_TABLE));
+            // Tables 里没有多语言表：它按语言分份，逐语言自建，不占启动期的整表展开。
+            // 走 LoadTable 而不是直接 new：bin 与 json 两条路线的构造器收的缓冲类型不同，
+            // 由生成代码自己决定，换路线不必改这里。
+            var table = LoadTable<TbLocalizedStrings>(languageCode + "/" + LOCALIZED_STRINGS_TABLE);
 
             var column = new Dictionary<string, string>(table.DataList.Count);
             foreach (var data in table.DataList)

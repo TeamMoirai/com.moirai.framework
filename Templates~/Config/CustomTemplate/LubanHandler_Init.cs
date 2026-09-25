@@ -58,6 +58,30 @@ namespace Moirai.GameProto.Config
 		}
 
 		/// <summary>
+		/// 按当前生成路线装载一张独立表（不走 Tables）。
+		/// <remarks>路线写在转表配置里（bin 或 json），落到代码上就是生成表的构造器收 ByteBuf 还是 JSONNode；
+		/// 与 <see cref="Load"/> 同一个判据，所以换 --format=json 不需要改任何读取代码。</remarks>
+		/// </summary>
+		/// <param name="relativePath">相对 CONFIG_PATH 的路径，不含扩展名</param>
+		internal static T LoadTable<T>(string relativePath) where T : class
+		{
+			ConstructorInfo tableCtor = typeof(T).GetConstructors()[0];
+			Type bufferType = tableCtor.GetParameters()[0].ParameterType;
+			object buffer = bufferType == typeof(ByteBuf)
+				? (object)LoadByteBufFrom(relativePath)
+				: LoadJsonFrom(relativePath);
+
+			if (tableCtor.Invoke(new[] { buffer }) is not T table)
+			{
+				throw new GameException(StringUtility.Format(
+					"Failed to construct '{0}' via its constructor '{1}'.",
+					typeof(T).FullName, tableCtor));
+			}
+
+			return table;
+		}
+
+		/// <summary>
 		/// 加载二进制配置。
 		/// </summary>
 		/// <param name="file">FileName</param>
@@ -87,8 +111,19 @@ namespace Moirai.GameProto.Config
 		/// <returns></returns>
 		private static JSONNode LoadJson(string file)
 		{
-			LogUtility.Info("Load json config: {0}.json", file);
-			TextAsset textAsset = LoadTextAsset(CONFIG_PATH + file + ".json");
+			return LoadJsonFrom(file);
+		}
+
+		/// <summary>
+		/// 从 CONFIG_PATH 下的相对路径加载 json 配置。与 <see cref="LoadByteBufFrom"/> 对称，
+		/// 供 <see cref="LoadTable{T}"/> 在 json 路线下按语言子目录取表。
+		/// </summary>
+		/// <param name="relativePath">相对 CONFIG_PATH 的路径，不含扩展名</param>
+		/// <returns>JSONNode</returns>
+		private static JSONNode LoadJsonFrom(string relativePath)
+		{
+			LogUtility.Info("Load json config: {0}.json", relativePath);
+			TextAsset textAsset = LoadTextAsset(CONFIG_PATH + relativePath + ".json");
 			string json = textAsset.text;
 			return JSON.Parse(json);
 		}

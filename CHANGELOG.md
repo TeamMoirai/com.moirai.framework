@@ -64,6 +64,8 @@
 
 #### `ConfigTable`
 
+- ⚠ 脚手架生成的 `Tables` 缺省改为懒加载：构造期不再逐张取数，每张表首次访问才装载并就地解引用（`CustomTemplate/Client_LazyLoad/<codeTarget>/tables.sbn`）。Luban 本身没有懒加载开关，只能覆盖 `tables.sbn`；`--customTemplateDir` 按 code target 找模板，故 `cs-bin` 与 `cs-simple-json` 各一份副本。
+- 转表支持两条路线：`bin`（`cs-bin`+`bin`）与 `json`（`cs-simple-json`+`json`），缺省与加载类型都写在 `config.ini`（`DATA_FORMAT` / `LAZY_LOAD`），命令行 `--format=` / `--load=` 只做当次覆盖。
 - ⚠ 配置工程的转表入口合并为 `gen.sh`（唯一一份 bash 驱动）+ `gen.bat`（Windows 启动器，只负责找到 bash）；`gen_code_bin_to_project.*` 与 `gen_code_bin_to_server.*` 退役，目标由参数选（无参数 = 客户端，另有 `server` / `all`）。
 - ⚠ 配置合并为单文件 `config.ini`（分节 + 正斜杠路径），`path_define.conf` 与 `path_export.bat` / `path_export.sh` 两个解析器一并删除；编辑器「更新配置路径」随之改写 `config.ini`。
 

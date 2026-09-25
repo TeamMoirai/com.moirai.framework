@@ -1,0 +1,46 @@
+using Luban;
+
+{{namespace_with_grace_begin __namespace}}
+public partial class {{__name}}
+{
+    // 懒加载版本：构造期一张表都不读，每种语言/每张表都在首次访问时才展开并解引用。
+    // 取数入口仍是同一个 System.Func<string, ByteBuf>，所以调用方（LubanHandler）不需要改。
+    // 不做加锁保护：并发首访最多把同一张表读两遍（后写覆盖前写，结果一致），
+    // 配置读取按约定都在主线程发生。
+    // 本文件与 cs-simple-json/tables.sbn 是同一套逻辑的两个副本（Luban 按 code target 分目录找模板），
+    // 改一个必须改两个。
+    private readonly System.Func<string, ByteBuf> m_Loader;
+
+    {{~for table in __tables ~}}
+    private {{table.full_name}} m_{{format_property_name __code_style table.name}};
+    {{~end~}}
+
+    {{~for table in __tables ~}}
+{{~if table.comment != ''~}}
+    /// <summary>
+    /// {{escape_comment table.comment}}
+    /// </summary>
+{{~end~}}
+    public {{table.full_name}} {{format_property_name __code_style table.name}}
+    {
+        get
+        {
+            var loaded = m_{{format_property_name __code_style table.name}};
+            if (loaded != null) return loaded;
+
+            loaded = new {{table.full_name}}(m_Loader("{{table.output_data_file}}"));
+            m_{{format_property_name __code_style table.name}} = loaded;
+            // 引用只在本表装载后就地解一次：跨表引用会顺着对方属性取数，等价地触发对方装载+解引用
+            loaded.ResolveRef(this);
+            return loaded;
+        }
+    }
+    {{~end~}}
+
+    public {{__name}}(System.Func<string, ByteBuf> loader)
+    {
+        m_Loader = loader;
+    }
+}
+
+{{namespace_with_grace_end __namespace}}
