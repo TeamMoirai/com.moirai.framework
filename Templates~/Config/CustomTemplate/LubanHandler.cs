@@ -129,9 +129,8 @@ namespace Moirai.GameProto.Config
         /// </summary>
         private Dictionary<string, string> ReadLanguageColumn(string languageCode)
         {
-            LogUtility.Info("<color=yellow>\u25bc\u25bc\u25bc\u25bc " +
-                     "Start Load Localization Column[{0}]" +
-                     " \u25bc\u25bc\u25bc\u25bc</color>", languageCode);
+            LogUtility.Info("<color=yellow>▼▼▼ Start Load Localization Column[{0}] ▼▼▼</color>",
+                languageCode);
 
             // Tables 里没有多语言表：它按语言分份，逐语言自建，不占启动期的整表展开。
             // 走 LoadTable 而不是直接 new：bin 与 json 两条路线的构造器收的缓冲类型不同，
@@ -144,9 +143,8 @@ namespace Moirai.GameProto.Config
                 column[data.Key] = data.FormattedStrings.Text;
             }
 
-            LogUtility.Info("<color=yellow>\u25b2\u25b2\u25b2\u25b2 " +
-                            "Localization Column[{0}] Loaded: {1} entries" +
-                            " \u25b2\u25b2\u25b2\u25b2</color>", languageCode, column.Count);
+            LogUtility.Info("<color=yellow>▲▲▲ Localization Column[{0}] Loaded: {1} entries ▲▲▲</color>",
+                languageCode, column.Count);
 
             return column;
         }
