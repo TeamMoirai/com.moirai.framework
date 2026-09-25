@@ -64,12 +64,11 @@
 
 #### `ConfigTable`
 
-- ⚠ 脚手架生成的 `Tables` 缺省改为懒加载：构造期不再逐张取数，每张表首次访问才装载并就地解引用（`Templates/Client_LazyLoad/<codeTarget>/tables.sbn`）。Luban 本身没有懒加载开关，只能覆盖 `tables.sbn`；`--customTemplateDir` 按 code target 找模板，故 `cs-bin` 与 `cs-simple-json` 各一份副本。
-- 转表支持两条路线：`bin`（`cs-bin`+`bin`）与 `json`（`cs-simple-json`+`json`），缺省与加载类型都写在 `config.ini`（`DATA_FORMAT` / `LAZY_LOAD`），命令行 `--format=` / `--load=` 只做当次覆盖。
-- 生成码样式对齐框架口径：去掉 Luban file header 自带的前导空行、私有字段改 `_小驼峰`（`_loader` / `_tbItem`）、生成注释与 bean comment 用中文。
-- 多语言代码趟与主趟共用一个代码根，产物从 `Gen/L10n/L10n/` 收成 `Gen/L10n/`（原独立输出目录配成 `Gen/L10n/` 时，Luban 的模块分层又加了一层）；该趟同时关掉自身清理，配置项 `CODE_OUTPUT_PATH_L10N` 随之取消。
-- ⚠ 配置工程的转表入口合并为 `gen.sh`（唯一一份 bash 驱动）+ `gen.bat`（Windows 启动器，只负责找到 bash）；`gen_code_bin_to_project.*` 与 `gen_code_bin_to_server.*` 退役，目标由参数选（无参数 = 客户端，另有 `server` / `all`）。
-- ⚠ 配置合并为单文件 `config.ini`（分节 + 正斜杠路径），`path_define.conf` 与 `path_export.bat` / `path_export.sh` 两个解析器一并删除；编辑器「更新配置路径」随之改写 `config.ini`。
+- ⚠ 转表入口只有一个 `gen.sh`（唯一一份 bash 驱动），`gen.bat` 只是 Windows 下找到 bash 的启动器；目标由参数选（无参数 = 客户端，另有 `server` / `all`）。
+- ⚠ 转表配置是单文件 `config.ini`（分节 + 正斜杠路径），键名全局唯一；「更新配置路径」按这些键改写路径。
+- ⚠ 生成的 `Tables` 缺省是懒加载：构造期不取数，每张表首次访问才装载并就地解引用。靠覆盖 `tables.sbn` 实现，且按 code target 各一份（`Templates/Client_LazyLoad/<codeTarget>/`）。
+- 两条生成路线：`bin`（`cs-bin`+`bin`）与 `json`（`cs-simple-json`+`json`）；路线与加载类型的缺省值都在 `config.ini`（`DATA_FORMAT` / `LAZY_LOAD`），`--format=` / `--load=` 只做当次覆盖。
+- 生成码样式与框架一致：无 file header 前导空行、私有字段 `_小驼峰`（`_loader` / `_tbItem`）、注释与 bean comment 为中文。
 
 #### `Resource`
 
@@ -139,7 +138,7 @@
 
 #### `ConfigTable`
 
-- 编辑器「更新配置路径」此前指向不存在的 `path_export.conf` 与 `CustomTemplate/ConfigTableService_Init.cs`，点击只在控制台留一行警告、什么也没改；现指向 `config.ini` 与 `LubanHandler*.cs`，并补上 `CODE_OUTPUT_PATH_L10N` / `L10N_LANG_LIST_CODE` 两个键。
+- 编辑器「更新配置路径」原本指向两个不存在的文件，点击只在控制台留一行警告、什么也没改；现在确实改写 `config.ini` 与 `Templates/LubanHandler_Init.cs`。
 
 #### 测试 [Testing]
 

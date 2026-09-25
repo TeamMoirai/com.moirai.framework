@@ -7,8 +7,7 @@
 #   ./gen.sh client --format=json  当次改用 json 路线（缺省 bin）
 #   ./gen.sh client --load=eager   当次退回内置模板：构造期加载全部表（缺省 lazy）
 #
-# 缺省值写在 config.ini：DATA_FORMAT=bin|json 决定 -c/-d 这一对，LAZY_LOAD 决定用不用懒加载模板。
-# 所有路径与语言清单也都来自同目录的 config.ini；本文件不内嵌任何项目路径。
+# 路径、语言清单、路线与加载类型的缺省值全在同目录的 config.ini；本文件不内嵌任何项目路径。
 
 set -o pipefail
 
@@ -80,8 +79,7 @@ optional_args=()
 [ -n "${CFG[PATH_VALIDATOR_ROOT]:-}" ] && optional_args+=(-x "pathValidator.rootDir=${CFG[PATH_VALIDATOR_ROOT]}")
 
 # ---------- 生成路线（数据格式）与加载类型 ----------
-# 缺省值写在 config.ini：DATA_FORMAT 决定 code/data target 这一对，LAZY_LOAD 决定用不用懒加载模板。
-# 命令行 --format / --load 只是当次覆盖，不改配置——排查问题时代价最低的做法。
+# 缺省取 config.ini，--format / --load 只做当次覆盖：排查问题时不该去改配置。
 FORMAT="${FORMAT_OVERRIDE:-${CFG[DATA_FORMAT]:-bin}}"
 case "$FORMAT" in
     bin)  CODE_TARGET=cs-bin       ; DATA_TARGET=bin  ;;
@@ -155,11 +153,9 @@ generate_l10n_schema() {
     echo "[l10n] 变体声明 -> $xml (variants=$VARIANTS)"
 }
 
-# 游戏侧自报语言用的 C# 常量。
-# ⚠ 必须在常规趟之后调用：常量落在 Luban 的代码输出目录里时，那一趟的代码 saver 会把
-# "不属于本次生成范围"的已存在文件当多余项删掉——实测主趟日志出现
-# [remove] .../Gen\L10n\L10nLanguages.cs 且退出码仍是 0，先写后跑等于白写。
-# 注释是中文，故文件带 UTF-8 BOM：与 Templates 下那几个 .cs 一致，也不看编辑器脸色。
+# 游戏侧自报语言用的 C# 常量。⚠ 只能在所有趟之后调用：它写在 Luban 的代码输出目录里，
+# 那一趟的 saver 会把不属于本次范围的文件删掉，且退出码仍是 0——先写后跑等于白写。
+# 内容含中文，故带 UTF-8 BOM，与 Templates 下其余 .cs 一致。
 generate_language_constant() {
     local cs="${CFG[L10N_LANG_LIST_CODE]:-}"
     local ns="${CFG[L10N_LANG_CLASS_NAMESPACE]:-Moirai.GameProto.Config}"
@@ -201,9 +197,8 @@ generate_language_constant() {
     echo "[l10n] 语言常量 -> $cs"
 }
 
-# Luban 的 file header 自带一个前导空行（\r\n 打在 ////---- 之前），所有产物一律如此——
-# 内置模板生成的 ItemConfig.cs 也一样，所以这不是模板能改掉的，只在写完后统一去掉，
-# 让生成码与框架内其他文件的头部一致。
+# Luban 的 file header 自带前导空行（\r\n 打在 ////---- 之前），内置模板产物一样有，
+# 不是模板能改掉的 —— 写完后统一去掉，让生成码与框架其他文件头部一致。
 strip_generated_header_blank_line() {
     local dir file
     for dir in "$@"; do
@@ -230,16 +225,11 @@ run_client() {
         -x "outputDataDir=${CFG[DATA_OUTPUT_PATH_CLIENT]}" \
         || fail "常规趟失败"
 
-    # 多语言代码落在 Gen/L10n/（与主趟同树、分目录）。必须在常规趟之后：常规趟的清理是递归的，
-    # 会把 Gen/L10n/ 整个删掉；反过来这一趟的清理只及自己目录，不会碰常规表的类。
-    # 多语言代码一趟也要带 --variant：bean 的字段声明了 variants，Luban 每次解析 schema 都要求定一版，
-    # 不带就刷 "type:'L10n.LocalizationBean' field:'text' not set variant" 警告。
-    # 实测"不带 / zh-Hans / en"三种跑法的产物逐字节相同（bean 只剩一个字段，代码本就与语言无关），
-    # 所以这里取清单第一项只为满足解析器——它不进入任何文件名或路径，不是"默认语言"。
-    # 多语言代码与主趟共用一个代码根：Luban 按模块 L10n 再建一层，产物就是 Gen/L10n/*.cs
-    # （把这一趟的输出目录本身设成 Gen/L10n/ 就会得到 Gen/L10n/L10n/）。
-    # 因此本趟必须关掉清理——实测开着会把主趟的 Tables.cs、Test/、UI/、vector*.cs 全删掉；
-    # 旧版残留则交给常规趟的递归清理，所以顺序仍是 常规 → 多语言，不能反。
+    # 与主趟共用一个代码根：Luban 按模块名再分一层，产物才是 Gen/L10n/*.cs。
+    # 因此本趟必须关清理（否则主趟的 Tables.cs、Test/、UI/ 会被当多余文件删），
+    # 旧版残留由主趟的递归清理负责 —— 顺序只能是 常规 → 多语言。
+    # 也要带 --variant：bean 声明了 variants，不带每次刷一条 WARN；产物与选哪个 variant 无关
+    # （实测三种跑法逐字节相同），所以取清单第一项只为满足解析器，不是"默认语言"。
     step "客户端 2/3：多语言代码（bean 只剩一个变体字段，代码与语言无关）"
     dotnet "$LUBAN" -t client -c "$CODE_TARGET" --conf "${CFG[L10N_CONF]}" \
         "${template_args[@]}" \

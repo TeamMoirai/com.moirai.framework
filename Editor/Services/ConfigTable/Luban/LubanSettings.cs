@@ -43,8 +43,8 @@ namespace Moirai.Atropos.ConfigTable
         /// </summary>
         /// <remarks>将绝对路径转换为相对于指定目录的 Unity 风格相对路径</remarks>
         /// <remarks>
-        /// 正斜杠：config.ini 由 gen.sh（bash 驱动）直接读，Windows 也接受正斜杠路径。
-        /// 旧配置走反斜杠 + 一层"\→/"转换，那一层被 xargs 连反斜杠一起吃掉过。
+        /// 正斜杠：config.ini 由 gen.sh（bash 驱动）直接读，Windows 侧也接受正斜杠路径，
+        /// 因此不再需要"反斜杠写入 + 读时转换"这一层。
         /// </remarks>
         private static string GetRelativePath(string relativeTo, string path) =>
             PathUtility.FormatToUnityPath(Path.GetRelativePath(relativeTo, path) + "/");
@@ -203,18 +203,16 @@ namespace Moirai.Atropos.ConfigTable
 
             string content = File.ReadAllText(confPath);
             content = ReplaceConfValue(content, "DATA_OUTPUT_PATH_CLIENT", clientDataOutPutPath);
+            // 只有一个代码根：多语言那趟与主趟共用它，Luban 按模块名再分一层才是 Gen/L10n/*.cs，
+            // 所以这一项不能配成 Gen/L10n/；该趟因此关掉自身清理，细节见 gen.sh。
             content = ReplaceConfValue(content, "CODE_OUTPUT_PATH_CLIENT", clientCodeOutPutPath + "Gen/");
-            // 只有一代码根：多语言那趟与主趟共用它，Luban 按模块 L10n 再建一层，产物即 Gen/L10n/*.cs。
-            // 曾经单独配一个 CODE_OUTPUT_PATH_L10N=Gen/L10n/，结果生成出 Gen/L10n/L10n/ 双层嵌套；
-            // 该趟因此必须关掉自己的清理（否则会把主趟产物当多余文件删掉），见 gen.sh。
             content = ReplaceConfValue(content, "CONFIG_SCRIPT_TARGET", clientCodeOutPutPath + "LubanHandler.cs");
             // ReSharper disable once StringLiteralTypo
             content = ReplaceConfValue(content, "CONFIGINIT_SCRIPT_TARGET", clientCodeOutPutPath + "LubanHandler_Init.cs");
             // ReSharper disable once StringLiteralTypo
             content = ReplaceConfValue(content, "EXTERNALTYPEUTIL_SCRIPT_TARGET", clientCodeOutPutPath + "ExternalTypeUtil.cs");
-            // 转表期生成的语言常量：新增语言要先改 config.ini 的 L10N_LANGUAGES，再重跑转表。
-            // 它在 Gen/L10n/ 里而不是 Gen/ 根下——常规趟的代码 saver 会清掉输出目录中不属于本次范围的
-            // 文件，所以 gen.sh 把这一步放在所有趟之后；这里只是别把路径改回上一轮的位置。
+            // 转表期生成的语言常量：新增语言改 config.ini 的 L10N_LANGUAGES 后重跑转表。
+            // 它写在 Gen/L10n/ 里，由 gen.sh 在所有趟之后生成（常规趟的清理会波及该目录）。
             content = ReplaceConfValue(content, "L10N_LANG_LIST_CODE", clientCodeOutPutPath + "Gen/L10n/L10nLanguages.cs");
             content = ReplaceConfValue(content, "PATH_VALIDATOR_ROOT", PathValidatorRoot);
 
