@@ -5,7 +5,14 @@
 # 顺序：package.json 版本 → 从 CHANGELOG.md 切出 `[Unreleased]` 段当 Release notes →
 # 建 release → 把这份 notes 覆盖进 release 并 Publish → 开一个清空 `[Unreleased]` 段的 PR 等人工合并。
 # notes 取的是被打 tag 那个提交里的 CHANGELOG，所以 tag 树与 Release 页自洽；
-# master 上的清空要等 PR 合并才生效。dry-run 只跑到「切出 notes 并打日志」。
+# master 上的清空要等 PR 合并才生效。dry-run 会切 notes 并打日志、调 create-release（dry），
+# 但不 Publish、不建清空 PR。
+#
+# 两条硬约定（丢的是 CHANGELOG 内容，静默且难捞）：
+# 1. 合并本次清空 PR 之后才能打下一个 tag——否则 Unreleased 里上一版条目会被下一个
+#    Release 整段再发一次（空段闸门只挡「完全没写」，挡不住「重复发」）。
+# 2. 发版进行中不要往 master 的 `[Unreleased]` 写新条目——清空 PR 按自己 checkout 时
+#    的 tip 把整段删光，窗口期内新写的条目会一并消失且不进任何 Release。
 #
 # 为什么是事后改 body 而不是自己建 release：外部的 create-release 复用流硬编码
 # `gh release create --draft --generate-notes`，没有 notes 入口。
@@ -233,10 +240,11 @@ jobs:
           fi
           body="$(gh release view "${TAG}" --json body -q .body)"
           last="$(grep -v '^[[:space:]]*$' "${NOTES}" | tail -1)"
-          case "${body}" in
-            *"${last}"*) ;;
-            *) echo "::error::Release notes 没落到 release ${TAG} 上。"; exit 1 ;;
-          esac
+          # 固定子串匹配；case 写法要靠引号才按字面匹配，少一对引号就退化成 glob 假绿。
+          if ! grep -F -q -- "${last}" <<<"${body}"; then
+            echo "::error::Release notes 没落到 release ${TAG} 上。"
+            exit 1
+          fi
 
   clear-changelog:
     name: Open CHANGELOG clear PR
@@ -292,12 +300,17 @@ jobs:
             echo "这一段已作为 Release notes 发布：<https://github.com/${GH_REPO}/releases/tag/${TAG}>。"
             echo "合并后 \`[Unreleased]\` 重新从零记。"
             echo ""
+            echo "请在打下一个 tag 之前合并本 PR——否则上一版条目会被下一个 Release 整段再发一次。"
+            echo "若发版窗口里有人写了新条目，本 PR 会把它们一并清掉（整段删）；合并前请核对 diff。"
+            echo ""
             echo "PR 由 GITHUB_TOKEN 开出，不触发 checks（本 PR 只动 CHANGELOG.md）。"
           } > "${RUNNER_TEMP}/pr-body.md"
           gh pr create --base "${BASE}" --head "${branch}" --title "${title}" --body-file "${RUNNER_TEMP}/pr-body.md"
 
   cleanup:
-    if: ${{ needs.update-packagejson.outputs.is-branch-created == 'true' }}
+    # always()：release-notes 有意失败（空段）时 create-release 会被 skip，
+    # 默认语义会连带跳过本步，update-packagejson 建的临时分支就泄在远端。
+    if: ${{ always() && needs.update-packagejson.result == 'success' && needs.update-packagejson.outputs.is-branch-created == 'true' }}
     needs: [update-packagejson, create-release]
     permissions:
       contents: write

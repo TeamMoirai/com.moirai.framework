@@ -381,7 +381,7 @@ com.moirai.framework/
 
 ### 4. 提交时的文档与 CHANGELOG
 
-- `CHANGELOG.md` **只有 `[Unreleased]` 一段**：已发布的内容不留在文件里。发版由 `build-release` 工作流收尾——该段切成 GitHub Release 的 notes 并 Publish，之后自动开一个清空该段的 PR。版本号与 `package.json` 的 `version` 由同一条自动化写入，不在手上改。
+- `CHANGELOG.md` **只有 `[Unreleased]` 一段**：已发布的内容不留在文件里。发版由 `build-release` 工作流收尾——该段切成 GitHub Release 的 notes 并 Publish，之后自动开一个清空该段的 PR。版本号与 `package.json` 的 `version` 由同一条自动化写入，不在手上改。两条硬约定：**合并清空 PR 之后才能打下一个 tag**（否则上一版条目会被再发一次）；**发版进行中不要往 `[Unreleased]` 写新条目**（清空 PR 整段删，窗口期内新写的会一并消失）。
 - `CHANGELOG.md` 按**后覆盖**维护：一条只写当前仍然成立的净结果。加了又删的开关、改到一半的命名、逐轮刷新的测试格数与成员计数、当时判为"不采纳"的观察一律不立条目；同一件事被后续提交推翻时，改掉或删掉原条目，不要再追加一条把它推翻。
 - 诊断过程与被删改的来龙去脉写进 commit message，不写进 CHANGELOG。破坏性变更前置 ⚠ 并给出迁移口径。
 - `Documentation~/zh` 与 `Documentation~/en` 是成对副本，接口改动必须双语同步；文档里的类名、成员名与菜单路径要对着代码核真名——`E` 前缀、单复数这类差别会让照文档写出的代码直接编译不过。
