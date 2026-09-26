@@ -22,18 +22,18 @@ namespace Moirai.Atropos.Audio
         [Header("音频 [Audio]")]
         [InspectorGroup(AUDIO_CLIP_GROUP, ColorsUtility.EColor.Teal)]
         [Tooltip("要播放的音频")]
-        [SerializeField] private AudioClip m_Audio;
+        [SerializeField] internal AudioClip m_Audio;
         public AudioClip Audio => m_Audio;
 
         // 随机音频
         [Header("随机音频 [Random Audio]")]
         [InspectorGroup(AUDIO_CLIP_GROUP)]
         [Tooltip("播放随机音频的数组")]
-        [SerializeField] private AudioClip[] m_RandomAudio;
+        [SerializeField] internal AudioClip[] m_RandomAudio;
         public AudioClip[] RandomAudio => m_RandomAudio;
         [InspectorGroup(AUDIO_CLIP_GROUP)]
         [Tooltip("随机的 SFX 音频将按顺序播放，而不是随机播放")]
-        [SerializeField] private bool m_SequentialOrder = false;
+        [SerializeField] internal bool m_SequentialOrder = false;
         public bool SequentialOrder => m_SequentialOrder;
         [InspectorGroup(AUDIO_CLIP_GROUP)]
         [Tooltip("如果按顺序播放（SequentialOrder），则判断是否在最后一个索引处停住，直到冷却时间结束（SequentialOrderHoldCooldownDuration）或调用 ResetSequentialIndex 方法")]
@@ -86,19 +86,19 @@ namespace Moirai.Atropos.Audio
         [InspectorGroup(AUDIO_PROPERTIES_GROUP)]
         [Tooltip("开始播放音频的时间（以秒为单位，在定义的最小值和最大值之间随机），相当于 AudioSource API 的 Time")]
         [VectorLabel("Min", "Max")]
-        [SerializeField] private Vector2 m_PlaybackTime = new Vector2(0f, 0f);
+        [SerializeField] internal Vector2 m_PlaybackTime = new Vector2(0f, 0f);
         public Vector2 PlaybackTime => m_PlaybackTime;
         [InspectorGroup(AUDIO_PROPERTIES_GROUP)]
         [Tooltip("播放音频的持续时间（以秒为单位，在定义的最小值和最大值之间随机）。如果 min 和 max 为零，则忽略。")]
         [VectorLabel("Min", "Max")]
-        [SerializeField] private Vector2 m_PlaybackDuration = new Vector2(0f, 0f);
+        [SerializeField] internal Vector2 m_PlaybackDuration = new Vector2(0f, 0f);
         public Vector2 PlaybackDuration => m_PlaybackDuration;
 
         // 音频服务选项
         [Header("音频服务选项 [Audio Service Options]")]
         [InspectorGroup(AUDIO_PROPERTIES_GROUP)]
         [Tooltip("播放音频的音轨。选择与音频性质相匹配的")]
-        [SerializeField] private EAudioTrack m_AudioTrack = EAudioTrack.Sfx;
+        [SerializeField] internal EAudioTrack m_AudioTrack = EAudioTrack.Sfx;
         public EAudioTrack AudioTrack => m_AudioTrack;
         [InspectorGroup(AUDIO_PROPERTIES_GROUP)]
         [Tooltip("音频的 ID，用于之后再次找到该音频，eg：sound control")]
@@ -114,7 +114,7 @@ namespace Moirai.Atropos.Audio
         public AudioSource RecycleAudioSource => m_RecycleAudioSource;
         [InspectorGroup(AUDIO_PROPERTIES_GROUP)]
         [Tooltip("是否应循环播放")]
-        [SerializeField] private bool m_Loop = false;
+        [SerializeField] internal bool m_Loop = false;
         public bool Loop => m_Loop;
         [InspectorGroup(AUDIO_PROPERTIES_GROUP)]
         [Tooltip("转到另一个场景时是否应继续播放此音频")]
@@ -126,7 +126,7 @@ namespace Moirai.Atropos.Audio
         public bool DoNotPlayIfClipAlreadyPlaying => m_DoNotPlayIfClipAlreadyPlaying;
         [InspectorGroup(AUDIO_PROPERTIES_GROUP)]
         [Tooltip("此声音允许同时播放的最大实例数量。使用-1表示无同时播放数量限制。")]
-        [SerializeField] private int m_MaximumConcurrentInstances = 3;
+        [SerializeField] internal int m_MaximumConcurrentInstances = 3;
         public int MaximumConcurrentInstances => m_MaximumConcurrentInstances;
 
         // 淡入
@@ -271,7 +271,7 @@ namespace Moirai.Atropos.Audio
         [NonSerialized] private int _currentIndex = 0;
         [NonSerialized] private ShuffleBag<int> _randomUniqueShuffleBag;
         [NonSerialized] private int _randomUniqueShuffleBagSourceLength = -1;
-        [NonSerialized] private ulong _lastPlayHandle;
+        [NonSerialized] internal ulong _lastPlayHandle;
 
         public void Play(Vector3 location)
         {

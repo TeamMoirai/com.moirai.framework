@@ -1,5 +1,4 @@
 using System.Collections;
-using System.Reflection;
 using Moirai.Atropos.Audio;
 using NUnit.Framework;
 using UnityEngine;
@@ -10,6 +9,7 @@ namespace Service.Audio
     /// <summary>
     /// AudioPlayOptionsSO 回归：时间参数（PlaybackTime/PlaybackDuration）必须真的进入播放请求；
     /// 随机曲集下的并发/重播检查必须作用于「本次候选 clip」而非上一曲。
+    /// <para>成员触达一律走 internal 接缝（《测试规范》：测试禁反射）。</para>
     /// </summary>
     [TestFixture]
     public sealed class AudioPlayOptionsSOTests
@@ -41,12 +41,12 @@ namespace Service.Audio
         {
             AudioClip clip = CreateClip("so_time", 3f);
             AudioPlayOptionsSO so = CreateOptions(clip);
-            SetField(so, "m_PlaybackTime", new Vector2(0.5f, 0.5f));
+            so.m_PlaybackTime = new Vector2(0.5f, 0.5f);
 
             so.Play(Vector3.zero);
             yield return null;
 
-            ulong handle = LastPlayHandle(so);
+            ulong handle = so._lastPlayHandle;
             Assert.AreNotEqual(0UL, handle, "Play 应产出有效句柄");
 
             AudioAgent agent = AudioService.GetAgentByHandle(handle);
@@ -65,12 +65,12 @@ namespace Service.Audio
         {
             AudioClip clip = CreateClip("so_duration", 3f);
             AudioPlayOptionsSO so = CreateOptions(clip);
-            SetField(so, "m_PlaybackDuration", new Vector2(0.2f, 0.2f));
+            so.m_PlaybackDuration = new Vector2(0.2f, 0.2f);
 
             so.Play(Vector3.zero);
             yield return null;
 
-            ulong handle = LastPlayHandle(so);
+            ulong handle = so._lastPlayHandle;
             Assert.AreNotEqual(0UL, handle, "Play 应产出有效句柄");
             Assert.IsTrue(AudioService.IsPlaying(handle), "起播后应立即在播");
 
@@ -88,20 +88,20 @@ namespace Service.Audio
             AudioClip clipA = CreateClip("so_seq_a", 2f);
             AudioClip clipB = CreateClip("so_seq_b", 2f);
             AudioPlayOptionsSO so = CreateOptions(null);
-            SetField(so, "m_RandomAudio", new[] { clipA, clipB });
-            SetField(so, "m_SequentialOrder", true);
-            SetField(so, "m_MaximumConcurrentInstances", 1);
-            SetField(so, "m_Loop", true);
+            so.m_RandomAudio = new[] { clipA, clipB };
+            so.m_SequentialOrder = true;
+            so.m_MaximumConcurrentInstances = 1;
+            so.m_Loop = true;
 
             so.Play(Vector3.zero);
             yield return null;
-            ulong first = LastPlayHandle(so);
+            ulong first = so._lastPlayHandle;
             Assert.AreNotEqual(0UL, first, "第一次 Play 应产出有效句柄");
 
             // 顺序模式第二曲为 clipB；并发上限 1 只应统计候选 clipB（在播 0），不得被上一曲 clipA 拦截
             so.Play(Vector3.zero);
             yield return null;
-            ulong second = LastPlayHandle(so);
+            ulong second = so._lastPlayHandle;
 
             Assert.AreNotEqual(0UL, second, "第二曲不应被并发上限拦截（修复前检查作用于上一曲 clipA 而误拦）");
             Assert.AreNotEqual(first, second, "两次 Play 应产生不同句柄");
@@ -125,25 +125,10 @@ namespace Service.Audio
         private static AudioPlayOptionsSO CreateOptions(AudioClip clip)
         {
             var so = ScriptableObject.CreateInstance<AudioPlayOptionsSO>();
-            SetField(so, "m_Audio", clip);
-            SetField(so, "m_AudioTrack", EAudioTrack.Sfx);
-            SetField(so, "m_MaximumConcurrentInstances", -1);
+            so.m_Audio = clip;
+            so.m_AudioTrack = EAudioTrack.Sfx;
+            so.m_MaximumConcurrentInstances = -1;
             return so;
-        }
-
-        private static ulong LastPlayHandle(AudioPlayOptionsSO so)
-        {
-            FieldInfo field = typeof(AudioPlayOptionsSO).GetField("_lastPlayHandle",
-                BindingFlags.Instance | BindingFlags.NonPublic);
-            Assert.IsNotNull(field, "AudioPlayOptionsSO._lastPlayHandle 字段应存在");
-            return (ulong)field.GetValue(so);
-        }
-
-        private static void SetField(object target, string name, object value)
-        {
-            FieldInfo field = target.GetType().GetField(name, BindingFlags.Instance | BindingFlags.NonPublic);
-            Assert.IsNotNull(field, $"{target.GetType().Name}.{name} 字段应存在");
-            field.SetValue(target, value);
         }
     }
 }

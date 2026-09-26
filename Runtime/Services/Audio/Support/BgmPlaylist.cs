@@ -16,10 +16,11 @@ namespace Moirai.Atropos.Audio
         /// <summary>分层 ID 留空（0）时按实例自动分配，避免多个播放列表默认同 ID 互相停掉。</summary>
         public const int AutoId = 0;
 
-        private static readonly System.Collections.Generic.HashSet<int> s_ClaimedIds = new HashSet<int>();
+        internal static readonly System.Collections.Generic.HashSet<int> s_ClaimedIds = new HashSet<int>();
 
-        // 自动分配走负区间（-1 起递减），与显式正数 ID 值域不相交，杜绝自动值撞显式值
-        private static int s_NextAutoId = -1;
+        // 自动分配走负区间（-1 起递减），与显式正数 ID 值域不相交，杜绝自动值撞显式值。
+        // s_* 与下列成员走 internal 是测试接缝（《测试规范》：测试禁反射，需触达的成员放宽 internal）
+        internal static int s_NextAutoId = -1;
 
         public enum ELoopMode
         {
@@ -46,7 +47,7 @@ namespace Moirai.Atropos.Audio
 
         [Header("播放 [Playback]")]
         [Tooltip("分层 ID：正数 = 显式分层（与其它播放列表撞车会报错且本列表不播放）；0 = 按实例自动分配（负区间为自动分配保留）。")]
-        [SerializeField] private int m_ID = AutoId;
+        [SerializeField] internal int m_ID = AutoId;
         [SerializeField, Range(0f, 2f)] private float m_Volume = 1f;
         [SerializeField] internal bool m_PlayOnStart = true;
 
@@ -59,8 +60,8 @@ namespace Moirai.Atropos.Audio
         private int _index = -1;
         internal ulong _handle;
         private bool _playing;
-        private int _id;
-        private bool _layerConflicted;
+        internal int _id;
+        internal bool _layerConflicted;
 
         /// <summary>本列表实际占用的分层 ID（自动分配时为运行期才确定）。</summary>
         public int LayerId => _id;
@@ -88,8 +89,9 @@ namespace Moirai.Atropos.Audio
         /// <summary>
         /// 解析分层 ID：显式正数优先（撞车 fail-fast，本实例不启动播放）；
         /// 0（<see cref="AutoId"/>）走自动分配（负区间），避免多个列表默认同 ID 互相 StopByID。
+        /// <para>internal 为测试接缝（EditMode 无法自动执行 OnEnable）。</para>
         /// </summary>
-        private void ResolveLayerId()
+        internal void ResolveLayerId()
         {
             _layerConflicted = false;
 
