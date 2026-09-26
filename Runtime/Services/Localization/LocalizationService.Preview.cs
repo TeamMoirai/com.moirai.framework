@@ -123,8 +123,8 @@ namespace Moirai.Atropos.Localization
 
             try
             {
-                var strings = ConfigTableService.GetAllLocalizedStrings();
-                var codes = ConfigTableService.GetLocalizationLanguageCodes();
+                var strings = ConfigTableService.GetAllLocalizedStringsForEditor();
+                var codes = ConfigTableService.GetLocalizationLanguageCodesForEditor();
                 if (strings == null || strings.Count == 0)
                 {
                     s_PreviewFailed = true;

@@ -311,8 +311,9 @@ namespace Service.Localization
         {
             Assert.IsTrue(Language.Arabic.IsRightToLeft);
             Assert.IsTrue(Language.Hebrew.IsRightToLeft);
-            Assert.IsTrue(new Language("Farsi", "fa").IsRightToLeft, "波斯语按 Code 识别 RTL");
-            Assert.IsTrue(new Language("Urdu", "ur").IsRightToLeft);
+            // 白名单只有 ar/he 两枚：同属阿拉伯文字系统的波斯语、乌尔都语按现状不判 RTL（扩名单时连产码与文档一起改）
+            Assert.IsFalse(new Language("Farsi", "fa").IsRightToLeft);
+            Assert.IsFalse(new Language("Urdu", "ur").IsRightToLeft);
             Assert.IsFalse(Language.English.IsRightToLeft);
             Assert.IsFalse(Language.ChineseSimplified.IsRightToLeft);
             Assert.IsFalse(Language.Japanese.IsRightToLeft);

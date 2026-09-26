@@ -11,6 +11,9 @@ namespace Moirai.Atropos.Localization
 	/// <para>资源路径下租约由注入器持有直到下次加载或销毁，防止音频播放期间被周期性 UnloadUnusedAssets 回收。</para>
 	/// </summary>
 	public class AudioSourceInjector : IInjector, IDisposable
+#if UNITY_EDITOR
+		, IInjectorAssetPreview
+#endif
 	{
 		private string _localizedTextID;
 		private readonly AudioSource _audio;
@@ -87,16 +90,12 @@ namespace Moirai.Atropos.Localization
 		}
 
 #if UNITY_EDITOR
-		/// <summary>预览用：注入器期望的类型名（与加载期的 <c>LoadLeaseAsync&lt;AudioClip&gt;</c> 同一判据）。</summary>
-		internal string ExpectedTypeNameForPreview => GetExpectedTypeName();
+		// 本注入器只接受 AudioClip（口径由加载期的 LoadLeaseAsync<AudioClip> 定住），没有自动转换这条路。
+		string IInjectorAssetPreview.ExpectedTypeName => nameof(AudioClip);
 
-		/// <summary>预览用：这份资产能不能直接当片段用。</summary>
-		internal bool IsExpectedAssetForPreview(UnityEngine.Object asset) => IsExpectedType(asset);
+		bool IInjectorAssetPreview.Accepts(UnityEngine.Object asset) => asset is AudioClip;
 
-		/// <summary>本注入器只接受 AudioClip（口径由加载期的 <c>LoadLeaseAsync&lt;AudioClip&gt;</c> 定住，没有转换路径）。</summary>
-		private static string GetExpectedTypeName() => "AudioClip";
-
-		private static bool IsExpectedType(UnityEngine.Object asset) => asset is AudioClip;
+		bool IInjectorAssetPreview.Converts(UnityEngine.Object asset) => false;
 #endif
 
 		/// <summary>

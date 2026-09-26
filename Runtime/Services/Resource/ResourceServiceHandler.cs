@@ -375,6 +375,8 @@ namespace Moirai.Atropos.Resource
         /// 预览只要求「同一个地址指向同一份资产」，不要求同一条加载路径，
         /// 更不为此引入第二份清单中间源（迟早与真清单漂移，届时编辑器里的"对"就不等于运行期的"对"）。</para>
         /// <para>实现侧不要建租约、不要进记录表：预览取完即弃，进计数就是每次重绘租一次。</para>
+        /// <para>编辑态进来的是 settings 里那份实例，从没走过 <c>Internal_Init</c>——覆写里只准做地址到资产的换算，
+        /// 别碰包、句柄这类运行期状态。</para>
         /// </remarks>
         public virtual UObject LoadAssetForEditor(string location)
         {

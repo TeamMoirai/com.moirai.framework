@@ -111,5 +111,29 @@ namespace Moirai.Atropos.ConfigTable
             s_Handler?.GetUIWindowLocation(id);
 
         #endregion
+
+#if UNITY_EDITOR
+        #region 编辑器预览 [EDITOR PREVIEW]
+
+        /// <summary>
+        /// 编辑器预览取数用的处理器：运行期已注册那份优先，未注册时直读 <see cref="ConfigTableServiceSettings"/>
+        /// 里配置的实例——不装进 <c>s_Handler</c>、不调 <c>Internal_Init</c>，预览因此不需要服务世界。
+        /// <para>运行期一族静态查询读的是 <c>s_Handler</c>，非播放态恒为空：预览走它们等于永远拿不到表，
+        /// 而"表未生成"这种露法会把一个已生成的工程说成没生成。</para>
+        /// </summary>
+        private static ConfigTableServiceHandler PreviewHandler
+            => s_Handler ?? ConfigTableServiceSettings.ConfigTableServiceHandler;
+
+        /// <summary>编辑器预览取数：全表多语言文本，列序即 <see cref="GetLocalizationLanguageCodesForEditor"/> 的自报序。</summary>
+        /// <returns>取不到时为 <c>null</c>（由调用方缓存失败并限流告警）。</returns>
+        public static Dictionary<string, List<string>> GetAllLocalizedStringsForEditor() =>
+            PreviewHandler?.GetAllLocalizedStrings();
+
+        /// <summary>编辑器预览取数：与 <see cref="GetAllLocalizedStringsForEditor"/> 同源、同列序的语言自报。</summary>
+        public static IReadOnlyList<string> GetLocalizationLanguageCodesForEditor() =>
+            PreviewHandler?.GetLocalizationLanguageCodes() ?? Array.Empty<string>();
+
+        #endregion
+#endif
     }
 }

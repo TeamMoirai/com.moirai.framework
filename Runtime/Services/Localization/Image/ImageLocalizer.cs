@@ -37,20 +37,12 @@ namespace Moirai.Atropos.Localization
 #if UNITY_EDITOR
 		internal override string GetPreviewDescriptor()
 		{
-			if (!string.IsNullOrEmpty(localizedTextID))
-			{
-				// 类型判据向注入器要：预览与注入必须同一份口径，否则会出现"预览说没问题、运行期报类型错"
-				EnsurePreparedForPreview();
-				return _injector is ImageInjectorBase injector
-					? DescribeResourceIdPreview(localizedTextID, injector.IsExpectedAssetForPreview,
-						injector.ExpectedTypeNameForPreview, injector.IsConvertibleAssetForPreview)
-					: DescribeResourceIdPreview(localizedTextID);
-			}
+			if (!string.IsNullOrEmpty(localizedTextID)) return DescribeResourcePreview(localizedTextID);
 
 			var index = PreviewLanguageIndex();
 			if (index < 0) return null;
 
-			return $"[{PreviewLanguage().Code}] 索引 {index} → " +
+			return IndexedPreviewHeader(index) +
 			       $"sprites: {DescribeIndexedElement(sprites, index)} / " +
 			       $"textures: {DescribeIndexedElement(textures, index)} / " +
 			       $"texture2Ds: {DescribeIndexedElement(texture2Ds, index)}";

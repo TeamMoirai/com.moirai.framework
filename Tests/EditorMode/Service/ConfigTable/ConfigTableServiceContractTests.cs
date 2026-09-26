@@ -149,23 +149,6 @@ namespace Service.ConfigTable
             }
         }
 
-        /// <summary>
-        /// 编辑器预览的默认实现沿用运行期读表（不引入第二份中间源，避免与真表漂移）。
-        /// </summary>
-        [Test]
-        public void EditorPreview_DefaultsToRuntimeRead()
-        {
-            InstallDefaultHandler();
-            ConfigTableServiceHandler handler = ConfigTableService.Internal_PeekHandler();
-
-            using (LogCapture capture = new LogCapture())
-            {
-                Assert.IsNull(handler.GetAllLocalizedStrings(),
-                    "默认实现应直接沿用 GetAllLocalizedStrings（此处默认后端回 null）。");
-                Assert.IsTrue(capture.Mentions("Generate Config first!"));
-            }
-        }
-
         #endregion
 
         #region 关闭语义 [SHUTDOWN]
@@ -280,16 +263,20 @@ namespace Service.ConfigTable
         }
 
         /// <summary>
-        /// 编辑器预览是虚方法（默认沿用运行期读表），不得退化成抽象——存量项目零改也要能预览。
+        /// 编辑器预览取数挂在外观的静态入口上，后端不带预览专用虚方法。
+        /// <para>「非播放态不经服务世界取到表」由外观解决（未注册处理器时经 Settings 里配置的那份实例），
+        /// 后端因此只有一条读表路径——多挂一个预览虚方法就是第二条迟早与真路径漂移的路径。</para>
         /// </summary>
         [Test]
-        public void Seam_EditorPreview_IsVirtualNotAbstract()
+        public void Seam_EditorPreview_IsOnFacadeNotOnHandler()
         {
-            MethodInfo preview = typeof(ConfigTableServiceHandler).GetMethod("GetLocalizedStringsForEditorPreview");
+            Assert.IsNull(typeof(ConfigTableServiceHandler).GetMethod("GetLocalizedStringsForEditorPreview"),
+                "后端不该再挂预览专用虚方法：读表只有一条路径。");
 
-            Assert.IsNotNull(preview, "编辑器预览入口缺失。");
-            Assert.IsFalse(preview.IsAbstract, "编辑器预览必须带默认实现（存量项目零改可预览）。");
-            Assert.IsTrue(preview.IsVirtual);
+            MethodInfo preview = typeof(ConfigTableService).GetMethod("GetAllLocalizedStringsForEditor");
+
+            Assert.IsNotNull(preview, "编辑器预览取数入口缺失。");
+            Assert.IsTrue(preview.IsStatic, "预览取数是外观的静态入口，不要求服务世界起来。");
         }
 
         #endregion

@@ -43,7 +43,8 @@ namespace Service.Localization
 
         /// <summary>
         /// 预览不要求服务世界：摘掉运行期注册的那份处理器，预览仍该从 Settings 里那份读到同一张表。
-        /// <para>"不进 Play 也能预览"这条承诺的全部依赖就在这里——它借的是编辑器直读，不是已初始化的服务。</para>
+        /// <para>"不进 Play 也能预览"这条承诺的全部依赖就在这里——它借的是 settings 里那份实例，
+        /// 而不是已注册、已初始化的运行期处理器。</para>
         /// </summary>
         [Test]
         public void PreviewWorksWhileTheServiceIsNotRegistered()
@@ -54,12 +55,17 @@ namespace Service.Localization
 
             try
             {
-                if (ConfigTableService.GetAllLocalizedStrings() == null)
+                // 前置只能问"工程里有没有可读的表"，不能问运行期入口——未注册时它恒为 null，
+                // 拿它当门禁等于让本用例在自己要验的那个缺陷上永远 Ignore
+                var strings = ConfigTableService.GetAllLocalizedStringsForEditor();
+                if (strings == null || strings.Count == 0)
                 {
                     Assert.Ignore("工程里没有可直读的多语言表（Settings 未配处理器或表未生成）。");
                     return;
                 }
 
+                Assert.IsNull(ConfigTableService.GetAllLocalizedStrings(),
+                    "对照：运行期入口只认已注册的处理器，摘掉就取不到表");
                 Assert.IsTrue(LocalizationService.IsEditorPreviewAvailable,
                     "摘掉运行期注册的处理器后预览也应可用：它读的是 Settings 里那份处理器");
             }
@@ -76,7 +82,7 @@ namespace Service.Localization
         [Test]
         public void PreviewResolvesFromTheSameTableTheEditorReadsDirectly()
         {
-            var strings = ConfigTableService.GetAllLocalizedStrings();
+            var strings = ConfigTableService.GetAllLocalizedStringsForEditor();
             if (strings == null || strings.Count == 0)
             {
                 Assert.Ignore("工程里没有可直读的多语言表，预览正向用例无从验证。");
@@ -196,8 +202,8 @@ namespace Service.Localization
         {
             if (language == null || !strings.TryGetValue(key, out var row)) return -1;
 
-            // 直读表的列序与预览存储同一批语言自报；用行宽与语言列表对齐
-            var codes = ConfigTableService.GetLocalizationLanguageCodes();
+            // 直读表的列序与预览存储同一批语言自报；用行宽与语言列表对齐（问预览入口，非播放态运行期入口恒空）
+            var codes = ConfigTableService.GetLocalizationLanguageCodesForEditor();
             if (codes == null) return -1;
 
             for (var i = 0; i < codes.Count && i < row.Count; i++)

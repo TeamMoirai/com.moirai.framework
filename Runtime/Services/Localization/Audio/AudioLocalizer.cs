@@ -22,20 +22,12 @@ namespace Moirai.Atropos.Localization
 #if UNITY_EDITOR
 		internal override string GetPreviewDescriptor()
 		{
-			if (!string.IsNullOrEmpty(localizedTextID))
-			{
-				EnsurePreparedForPreview();
-				return _injector is AudioSourceInjector injector
-					? DescribeResourceIdPreview(localizedTextID, injector.IsExpectedAssetForPreview,
-						injector.ExpectedTypeNameForPreview)
-					: DescribeResourceIdPreview(localizedTextID);
-			}
+			if (!string.IsNullOrEmpty(localizedTextID)) return DescribeResourcePreview(localizedTextID);
 
 			var index = PreviewLanguageIndex();
 			if (index < 0) return null;
 
-			return $"[{PreviewLanguage().Code}] 索引 {index} → " +
-			       $"clips: {DescribeIndexedElement(clips, index)}";
+			return IndexedPreviewHeader(index) + $"clips: {DescribeIndexedElement(clips, index)}";
 		}
 #endif
 

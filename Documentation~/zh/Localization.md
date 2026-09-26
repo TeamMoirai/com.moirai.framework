@@ -201,7 +201,7 @@ public sealed class RemoteLocalizationHandler : LocalizationServiceHandler
 
 ## RTL 与按语言字体
 
-- `Language.IsRightToLeft` 按 Code 识别阿拉伯语族（ar/fa/ur）与希伯来语（he）；外观 `LocalizationService.IsCurrentLanguageRightToLeft` 读取当前语言方向。`TextLocalizer` 在目标为 TMP 时自动把该值写入 `isRightToLeftText`
+- `Language.IsRightToLeft` 按 Code 白名单识别阿拉伯语（ar）与希伯来语（he）两枚，不从语族或文字系统推断；外观 `LocalizationService.IsCurrentLanguageRightToLeft` 读取当前语言方向。`TextLocalizer` 在目标为 TMP 时自动把该值写入 `isRightToLeftText`
 - `TextLocalizer` 两个可选数组按「当前语言列下标」换字体：`m_TmpFontAssets`（TMP_FontAsset[]）与 `m_UguiFonts`（Font[]）——与 `ImageLocalizer`/`AudioLocalizer` 数组同一约定，越界或空元素保持原字体
 - UGUI Text 与 TextMesh 无 RTL 排版能力（只有 TMP 这条路）
 
@@ -231,11 +231,11 @@ string detail = LocalizationService.GetPluralTextFromId("quest.items", count, pl
 `TextLocalizer` / `ImageLocalizer` / `AudioLocalizer` 的 Inspector 在 ID 字段下方显示一行「译文预览 [Preview]」，解析路径与运行期同源，只是数据源按状态分两条：
 
 - **播放态**读已注册的服务：语言、译文与注入器已经取到的资产都是真值
-- **非播放态**读配置表的编辑器直读路径（`ConfigTableServiceHandler.GetLocalizedStringsForEditorPreview`），资源模式那条地址再经 `ResourceService.EditorPreviewLoadAsset` 解析成资产，不需要进 Play
+- **非播放态**读配置表的编辑器预览入口（`ConfigTableService.GetAllLocalizedStringsForEditor`：运行期没注册处理器时，经 Settings 里配置的那份实例取数），资源模式那条地址再经 `ResourceService.LoadAssetForEditor` 解析成资产，不需要进 Play
 - 文本类显示译文；取不到时按 `EPreviewResolveStatus` 分档点明「表内无此 ID」或「该语言留空」，不拿 key 冒充译文。解析入口是 `LocalizationService.ResolvePreviewText`（唯一）
 - 图/音的资源模式显示 `ID → 地址 → 资产类型 '名字'`，并点名三种在编辑器里就能看出来的错：地址指向的资产取不到、类型不符（注入器会拒绝）、类型可自动转换（运行期会为此告警一次）
 - 图/音的索引模式显示预览语言、将要取用的数组下标以及该下标上的元素（`缺项` / `空引用` / 资源名）——「新增语言后数组没补齐」这类错位在这里当场能看见，不必等运行时
-- 类型判据始终向注入器要（非播放态没有 `Awake`，预览会临时补建注入器，只建对象、不碰目标组件），预览侧不留第二份类型对照表
+- 类型判据始终向注入器要（接缝是 `IInjectorAssetPreview`；非播放态没有 `Awake`，预览会临时补建注入器，只建对象、不碰目标组件），预览侧不留第二份类型对照表
 - 语言取 Inspector 里的「编辑器语言」；未设置或该语言不在表内时取英语列，再退到首列
 - 预览**不写回**目标组件（不标脏场景、不留「忘了还原」的错文案）；某格缺译时预览直接露 ID，那正是策划要看见的信息
 - 预览缓存随项目资产变更自动失效（`EditorApplication.projectChanged` 钩子，含转表回写与编辑器语言切换），也可手动调 `LocalizationService.InvalidateEditorPreview()`

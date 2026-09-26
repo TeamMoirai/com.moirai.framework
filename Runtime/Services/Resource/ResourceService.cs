@@ -650,15 +650,17 @@ namespace Moirai.Atropos.Resource
         /// <para>播放态恒返回 <c>null</c>：真在跑时该读运行期已注入的那份，而不是从资产库另取一份绕过后端
         /// 与租约计数。</para>
         /// <para>不建记录、不返租约：Inspector 每重绘一次就取一次，进计数等于每次白租一份。</para>
+        /// <para>取不到一律是 <c>null</c>，不抛：本入口站在 Inspector 的重绘路径上，抛出等于把组件面板打死。</para>
         /// </summary>
         /// <param name="location">资源定位地址（本项目约定即 <c>Assets/...</c> 资产路径）。</param>
-        /// <returns>地址为空、播放态或资产不存在时为 <c>null</c>。</returns>
+        /// <returns>地址为空、播放态、settings 未配处理器或资产不存在时为 <c>null</c>。</returns>
         public static UObject LoadAssetForEditor(string location)
         {
             if (Application.isPlaying) return null;
 
-            // 编辑态通常压根没注册后端（服务世界没起来），直读配置。
-            return ResourceServiceSettings.ResourceServiceHandler.LoadAssetForEditor(location);
+            // 编辑态服务世界没起来、运行期处理器为空，直读 settings 里配置的那份实例（未 Internal_Init，
+            // 因此实现侧不得依赖后端运行时状态）。
+            return ResourceServiceSettings.ResourceServiceHandler?.LoadAssetForEditor(location);
         }
 
         #endregion

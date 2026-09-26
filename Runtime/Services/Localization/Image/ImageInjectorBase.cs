@@ -12,6 +12,9 @@ namespace Moirai.Atropos.Localization
     /// - 处理 Sprite/Texture 类型转换，并输出相应日志
     /// </summary>
     public abstract class ImageInjectorBase : IInjector, IDisposable
+#if UNITY_EDITOR
+        , IInjectorAssetPreview
+#endif
     {
         private string _localizedTextID;
         // 当前语言图片资源的租约：持有引用防止资源在显示期间被周期性 UnloadUnusedAssets 回收
@@ -153,14 +156,12 @@ namespace Moirai.Atropos.Localization
         protected abstract bool IsConvertibleType(UObject asset);
 
 #if UNITY_EDITOR
-        /// <summary>预览用：注入器期望的类型名（与加载期的判据同一处来源）。</summary>
-        internal string ExpectedTypeNameForPreview => GetExpectedTypeName();
+        // 预览判据全部转发到加载期那三个判据：一处口径，预览与注入不会分叉。
+        string IInjectorAssetPreview.ExpectedTypeName => GetExpectedTypeName();
 
-        /// <summary>预览用：这份资产是不是注入器直接接受的那种。</summary>
-        internal bool IsExpectedAssetForPreview(UObject asset) => IsExpectedType(asset);
+        bool IInjectorAssetPreview.Accepts(UObject asset) => IsExpectedType(asset);
 
-        /// <summary>预览用：这份资产是不是要走自动转换路径的那种。</summary>
-        internal bool IsConvertibleAssetForPreview(UObject asset) => IsConvertibleType(asset);
+        bool IInjectorAssetPreview.Converts(UObject asset) => IsConvertibleType(asset);
 #endif
     }
 }

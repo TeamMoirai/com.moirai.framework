@@ -242,10 +242,10 @@ public readonly struct ResourceKey
 
 | Method | Description |
 |--------|-------------|
-| `Object EditorPreviewLoadAsset(string location)` | Reads an asset by location while not playing, straight through `AssetDatabase.LoadAssetAtPath`; returns `null` in play mode, for an empty location, or when the asset is missing |
-| `ResourceServiceHandler.EditorPreviewLoadAsset(location)` | The **backend seam** for the same thing (`virtual`): backends whose locations are not asset paths override it with their own mapping |
+| `Object LoadAssetForEditor(string location)` | Reads an asset by location while not playing, straight through `AssetDatabase.LoadAssetAtPath`; returns `null` in play mode, for an empty location, when Settings carries no handler, or when the asset is missing |
+| `ResourceServiceHandler.LoadAssetForEditor(location)` | The **backend seam** for the same thing (`virtual`): backends whose locations are not asset paths override it with their own mapping |
 
-There is no usable backend runtime in edit mode (the service world is not started and packages are not initialised), so previews deliberately bypass leases: an object from one `LoadAssetAtPath` is used and dropped, and putting it into the refcount would mean leasing one more copy per Inspector repaint. Locations are asset paths by default here — the shipped collector configuration keeps `EnableAddressable` off, so manifests address by AssetPath.
+There is no usable backend runtime in edit mode (the service world is not started and packages are not initialised), so previews deliberately bypass leases: an object from one `LoadAssetAtPath` is used and dropped, and putting it into the refcount would mean leasing one more copy per Inspector repaint. Outside play mode this is the *only* way to turn a location into an asset — the localization preview looks up what sits behind an address here, and the config table reads its `TextAsset`s through it too, on the handler instance configured in Settings (never `Internal_Init`ed, so an override may only translate an address into an asset). Locations are asset paths by default here — the shipped collector configuration keeps `EnableAddressable` off, so manifests address by AssetPath.
 
 ## Binding API Reference
 

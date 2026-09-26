@@ -204,7 +204,7 @@ public sealed class RemoteLocalizationHandler : LocalizationServiceHandler
 
 ## RTL and Per-Language Fonts
 
-- `Language.IsRightToLeft` recognizes the Arabic family (ar/fa/ur) and Hebrew (he) by code; `LocalizationService.IsCurrentLanguageRightToLeft` reports the current direction. On TMP targets `TextLocalizer` applies it to `isRightToLeftText` automatically
+- `Language.IsRightToLeft` recognizes Arabic (ar) and Hebrew (he) through a Code allowlist — it infers nothing from language family or script; `LocalizationService.IsCurrentLanguageRightToLeft` reports the current direction. On TMP targets `TextLocalizer` applies it to `isRightToLeftText` automatically
 - Two optional arrays on `TextLocalizer` swap fonts by current language column index: `m_TmpFontAssets` (`TMP_FontAsset[]`) and `m_UguiFonts` (`Font[]`) — same convention as the image/audio localizer arrays; out-of-range or empty slots keep the existing font
 - UGUI `Text` and `TextMesh` have no RTL layout support (TMP only)
 
@@ -234,11 +234,11 @@ Give each channel package its own default language for first launch:
 `TextLocalizer` / `ImageLocalizer` / `AudioLocalizer` show a "Preview" row under the ID field in the inspector. Resolution follows the same path as at runtime; only the data source depends on the state:
 
 - **In play mode** it reads the registered service: language, translation and whatever asset the injector already holds are the real ones
-- **Outside play mode** it reads the config table through the editor direct read (`ConfigTableServiceHandler.GetLocalizedStringsForEditorPreview`), and a resource-mode address is turned into an asset via `ResourceService.EditorPreviewLoadAsset` — no Play required
+- **Outside play mode** it reads the config table through the editor preview entry (`ConfigTableService.GetAllLocalizedStringsForEditor`: with no handler registered it still gets data from the instance configured in Settings), and a resource-mode address is turned into an asset via `ResourceService.LoadAssetForEditor` — no Play required
 - Text localizers show the translation, or name the gap via `EPreviewResolveStatus` — "no such ID in the table" or "this language left it blank"; the key is never passed off as a translation. Resolution goes through the single entry `LocalizationService.ResolvePreviewText`
 - Resource-mode image/audio localizers show `ID -> address -> asset type 'name'` and name the three mistakes that are visible right here: no asset behind the address, wrong type (the injector will refuse it), convertible type (which costs one runtime warning)
 - Indexed image/audio localizers show the preview language, the array index that would be used and what sits at it (`missing` / `null reference` / asset name) — which is exactly how "the arrays were not extended after adding a language" gets caught before runtime
-- Type judgements always come from the injector (outside play mode there is no `Awake`, so the preview builds one temporarily — it only constructs the injector and never touches the target component); the preview keeps no second type table
+- Type judgements always come from the injector (the seam is `IInjectorAssetPreview`; outside play mode there is no `Awake`, so the preview builds one temporarily — it only constructs the injector and never touches the target component); the preview keeps no second type table
 - Language is the inspector's editor language; when unset or not shipped it falls back to the English column, then the first one
 - The preview is **not** written back into the target component (no dirty scenes, no forgotten restores); a blank cell showing its ID in the editor is exactly the information the designer wants
 - The preview cache invalidates automatically on any project asset change (an `EditorApplication.projectChanged` hook, covering table re-exports) and on editor language change; call `LocalizationService.InvalidateEditorPreview()` to drop it manually
