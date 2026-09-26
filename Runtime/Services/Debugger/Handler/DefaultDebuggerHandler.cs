@@ -29,6 +29,7 @@ namespace Moirai.Atropos.Debugger
         [NonSerialized] private bool _activeWindow;
         [NonSerialized] private bool _showFullWindow;
         [NonSerialized] private bool _hostPending;
+        [NonSerialized] private bool _builtInWindowsRegistered;
 
         #endregion
 
@@ -66,7 +67,8 @@ namespace Moirai.Atropos.Debugger
                 _activeWindow = value;
                 if (_activeWindow)
                 {
-                    // 运行期从关闭切到开启时补启日志捕获（OnInit 未激活路径下捕获未启动）
+                    // 运行期从关闭切到开启时补齐内置窗口与日志捕获（OnInit 未激活路径下两者都没起）
+                    EnsureBuiltInWindowsRegistered();
                     if (_logCapture != null && !_logCapture.IsRunning)
                     {
                         _logCapture.Start();
@@ -115,6 +117,13 @@ namespace Moirai.Atropos.Debugger
         /// <inheritdoc />
         public override DebuggerLogCapture LogCapture => _logCapture;
 
+        /// <summary>
+        /// 激活策略覆盖点（测试/代码装配用；<c>null</c> = 用 <see cref="DebuggerServiceSettings"/> 的配置）。
+        /// <para>刻意做成 internal 成员而非反射写私有字段：未激活形态（生产默认）在编辑器里靠改设置资产才可复现，
+        /// 而那会污染跨夹具的全局配置。</para>
+        /// </summary>
+        internal DebuggerActiveWindowType? Internal_ActiveWindowTypeOverride { get; set; }
+
         #endregion
 
         #region 生命周期 [LIFECYCLE]
@@ -126,12 +135,13 @@ namespace Moirai.Atropos.Debugger
             _logCapture = new DebuggerLogCapture(m_ConsoleCapacity > 0 ? m_ConsoleCapacity : DEFAULT_CONSOLE_CAPACITY);
             _showFullWindow = false;
             _hostPending = false;
+            _builtInWindowsRegistered = false;
 
-            RegisterBuiltInWindows();
-
-            _activeWindow = ResolveActivation(DebuggerServiceSettings.ActiveWindowType);
+            _activeWindow = ResolveActivation(Internal_ActiveWindowTypeOverride ?? DebuggerServiceSettings.ActiveWindowType);
             if (_activeWindow)
             {
+                // 内置窗口随激活门控：从不打开的构建里不该付 27 个窗体的构造与 Initialize
+                EnsureBuiltInWindowsRegistered();
                 // 日志捕获随激活门控——AlwaysClose（生产）下不订阅日志回调、不驻留环形缓冲
                 _logCapture.Start();
                 _hostPending = true;
@@ -288,6 +298,23 @@ namespace Moirai.Atropos.Debugger
                 default:
                     return CommandLineUtility.GetShowDebugger();
             }
+        }
+
+        /// <summary>
+        /// 补齐内置调试窗口：只在调试器真正激活时执行一次。
+        /// <para>未激活的构建（生产默认 <see cref="DebuggerActiveWindowType.OnlyOpenWhenDevelopment"/> 且非 debug，
+        /// 或 <see cref="DebuggerActiveWindowType.AlwaysClose"/>）连注册表都不填——注册表为空时
+        /// <see cref="DebuggerService"/> 的窗口枚举与浮窗入口本就不可达。</para>
+        /// </summary>
+        private void EnsureBuiltInWindowsRegistered()
+        {
+            if (_builtInWindowsRegistered)
+            {
+                return;
+            }
+
+            _builtInWindowsRegistered = true;
+            RegisterBuiltInWindows();
         }
 
         private void RegisterBuiltInWindows()
