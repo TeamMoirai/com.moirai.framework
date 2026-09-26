@@ -6,13 +6,11 @@ using UnityEngine;
 namespace Service.UI
 {
     /// <summary>
-    /// <see cref="UIRootBinding"/> 的登记语义测试：UI 根靠组件登记，不再按名字查找。
-    /// <para>钉住四件事：登记即成为当前根、当前根让位后清空、销毁次要绑定不得清掉当前根、
-    /// 重复登记以后者为准并留下可见错误。</para>
-    /// <para>EditMode 下 <c>AddComponent</c> 不触发 <c>Awake</c>/<c>OnDestroy</c>，所以用例直调
-    /// <see cref="UIRootBinding.Internal_Bind"/> / <see cref="UIRootBinding.Internal_Unbind"/>——
-    /// 那两个方法就是两个回调的全部实质，留出 internal 入口就是为了不必反射私有方法。</para>
-    /// <para>后端取用与挂起等待的分支住在 <c>UGUIHandler.TryBindRoot</c>，那要 Canvas 与 play mode 才走得到。</para>
+    /// <see cref="UIRootBinding"/> 的单例登记语义测试：UI 根靠组件登记，不再按名字查找。
+    /// <para>钉住四件事：登记即成为当前根、当前根销毁后清空、先到先得（后到者不得抢位）、
+    /// 基类 <c>Current</c> 的自动创建路径已被隐藏（取值只回读，场景没有就是没有）。</para>
+    /// <para>EditMode 下 <c>AddComponent</c> 不触发 <c>Awake</c>，所以用例直调
+    /// <see cref="UIRootBinding.Internal_Bind"/>——那是基类 <c>CheckMultipleInstance</c> 的同一入口。</para>
     /// </summary>
     [TestFixture]
     public sealed class UIRootBindingTests
@@ -25,8 +23,6 @@ namespace Service.UI
         [TearDown]
         public void TearDown()
         {
-            if (_b != null) _b.Internal_Unbind();
-            if (_a != null) _a.Internal_Unbind();
             if (_rootB != null) UnityEngine.Object.DestroyImmediate(_rootB);
             if (_rootA != null) UnityEngine.Object.DestroyImmediate(_rootA);
             _b = null;
@@ -48,20 +44,22 @@ namespace Service.UI
         }
 
         [Test]
-        public void Unbind_Current_ClearsCurrent()
+        public void Destroy_Current_ClearsCurrent()
         {
             _rootA = new GameObject(nameof(UIRootBinding));
             _a = _rootA.AddComponent<UIRootBinding>();
             _a.Internal_Bind();
             Assert.IsNotNull(UIRootBinding.Current, "前置条件：已登记");
 
-            _a.Internal_Unbind();
+            UnityEngine.Object.DestroyImmediate(_rootA);
+            _rootA = null;
+            _a = null;
 
-            Assert.IsNull(UIRootBinding.Current, "当前根让位后不应留下悬空引用");
+            Assert.IsNull(UIRootBinding.Current, "当前根销毁后不应留下悬空引用");
         }
 
         [Test]
-        public void Unbind_NonCurrent_KeepsCurrent()
+        public void Bind_Duplicate_FirstWinsAndLaterIsRejected()
         {
             _rootA = new GameObject("UIRootA");
             _a = _rootA.AddComponent<UIRootBinding>();
@@ -69,29 +67,18 @@ namespace Service.UI
 
             _rootB = new GameObject("UIRootB");
             _b = _rootB.AddComponent<UIRootBinding>();
-            UtfLogExpect.Error();
-            _b.Internal_Bind();
-            Assert.AreSame(_b, UIRootBinding.Current, "后置：后登记者在位");
-
-            _a.Internal_Unbind();
-
-            Assert.AreSame(_b, UIRootBinding.Current, "让位的不是当前根时，当前根不得被清掉");
-        }
-
-        [Test]
-        public void Bind_Duplicate_ReplacesCurrentAndLogsError()
-        {
-            _rootA = new GameObject("UIRootA");
-            _a = _rootA.AddComponent<UIRootBinding>();
-            _a.Internal_Bind();
-
-            _rootB = new GameObject("UIRootB");
-            _b = _rootB.AddComponent<UIRootBinding>();
+            // 基类先到先得：后到者整物体 Destroy（EditMode 下 Destroy 只报错不落账，仍以首任为准）
             UtfLogExpect.Error();
             _b.Internal_Bind();
 
-            Assert.AreSame(_b, UIRootBinding.Current, "重复登记以后者为准");
+            Assert.AreSame(_a, UIRootBinding.Current, "先到先得：后到者不得抢位");
             Assert.AreNotSame(_a, _b, "两次登记应是不同实例");
+        }
+
+        [Test]
+        public void Current_DoesNotAutoCreate()
+        {
+            Assert.IsNull(UIRootBinding.Current, "场景里没有 UIRootBinding 时取值必须是 null，不得自动创建空物体");
         }
     }
 }
