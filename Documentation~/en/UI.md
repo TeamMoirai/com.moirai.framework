@@ -143,7 +143,7 @@ protected override async UniTask OpenAnimation()
 
 ### Runtime Error Window
 
-When the debugger configuration (`DebuggerService.ActiveWindowType`) determines that error logging is not enabled, the service registers `ErrorLogger` to capture `LogType.Exception` and automatically displays the built-in `LogUI` window (`[Window(UILayer.System, fromResources:true)]`, prefab located at service `Resources/LogUI.prefab`) for viewing exception stack traces one by one.
+The service registers `ErrorLogger` (capturing `LogType.Exception` and automatically showing the built-in `LogUI` window — `[Window(UILayer.System, fromResources:true)]`, prefab at the service's `Resources/LogUI.prefab`) only when the debugger configuration (`DebuggerService.ActiveWindowType`) says error logging **is** enabled. Enablement rule: `AlwaysOpen` always; `OnlyOpenWhenDevelopment` follows development builds; `OnlyOpenInEditor` follows the editor; `AlwaysClose` and `OnlyOpenWhenDevelopment` outside a development build (i.e. the default release shape) never enable it, so exceptions pop no window.
 
 ### Editor Binding Code Generation
 

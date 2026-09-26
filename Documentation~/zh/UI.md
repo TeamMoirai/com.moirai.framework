@@ -143,7 +143,7 @@ protected override async UniTask OpenAnimation()
 
 ### 运行时错误窗口
 
-当调试器配置（`DebuggerService.ActiveWindowType`）判定不启用错误日志时，服务会注册 `ErrorLogger` 捕获 `LogType.Exception`，自动弹出内置 `LogUI` 窗口（`[Window(UILayer.System, fromResources:true)]`，预制体位于服务 `Resources/LogUI.prefab`）逐条查看异常堆栈。
+当调试器配置（`DebuggerService.ActiveWindowType`）判定**启用**错误日志时，服务才注册 `ErrorLogger` 捕获 `LogType.Exception`，自动弹出内置 `LogUI` 窗口（`[Window(UILayer.System, fromResources:true)]`，预制体位于服务 `Resources/LogUI.prefab`）逐条查看异常堆栈。启用判据：`AlwaysOpen` 恒启用；`OnlyOpenWhenDevelopment` 随开发构建；`OnlyOpenInEditor` 随编辑器；`AlwaysClose` 与非开发构建下的 `OnlyOpenWhenDevelopment`（即发布包默认形态）都不启用，异常不弹窗。
 
 ### 编辑器绑定代码生成
 

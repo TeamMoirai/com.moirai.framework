@@ -11,3 +11,9 @@
 #### 测试与门禁
 
 - 发版自动化 `build-release.yaml`：把 CHANGELOG 的 `[Unreleased]` 段切成 Release notes 并 Publish，随后自动开一个清空该段的 PR。
+
+### Fixed
+
+#### UI
+
+- 错误日志的启用判据方向反了：原写法在「不启用错误日志」时才注册 `ErrorLogger`，于是发布包（默认 `OnlyOpenWhenDevelopment` 且非开发构建）每次异常弹出 `LogUI`，编辑器与开发包反而静默。现按同一判据单向成立，双语 `UI.md` 里把反写成约定的那条说明一并改掉。

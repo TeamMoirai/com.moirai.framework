@@ -19,7 +19,6 @@ namespace Moirai.Atropos.UI
     {
         // 核心字段
         [NonSerialized] private Transform _instanceRoot = null; // UI根节点变换组件
-        [NonSerialized] private bool _enableErrorLog = true; // 是否启用错误日志
         [NonSerialized] private Camera _uiCamera = null; // UI专用摄像机
         [NonSerialized] private readonly List<UIWindow> _uiStack = new List<UIWindow>(128); // 窗口堆栈
         [NonSerialized] private readonly Dictionary<string, UIWindow> _cache = new Dictionary<string, UIWindow>(128);
@@ -79,30 +78,38 @@ namespace Moirai.Atropos.UI
                 UnityEngine.Object.DontDestroyOnLoad(_instanceRoot.parent != null ? _instanceRoot.parent : _instanceRoot);
                 _instanceRoot.gameObject.layer = LayerMask.NameToLayer("UI");
 
-                switch (DebuggerService.ActiveWindowType)
-                {
-                    case DebuggerActiveWindowType.AlwaysOpen:
-                        _enableErrorLog = true;
-                        break;
-
-                    case DebuggerActiveWindowType.OnlyOpenWhenDevelopment:
-                        _enableErrorLog = Debug.isDebugBuild;
-                        break;
-
-                    case DebuggerActiveWindowType.OnlyOpenInEditor:
-                        _enableErrorLog = Application.isEditor;
-                        break;
-
-                    default:
-                        _enableErrorLog = false;
-                        break;
-                }
-
-                if (!_enableErrorLog)
+                if (ShouldEnableErrorLog(DebuggerService.ActiveWindowType, Debug.isDebugBuild, Application.isEditor))
                 {
                     _errorLogger = new ErrorLogger();
                 }
             });
+        }
+
+        /// <summary>
+        /// 错误日志记录器的启用判据（跟随调试器窗口策略）。
+        /// <para>纯函数：入参已把 <see cref="Debug.isDebugBuild"/> 与 <see cref="Application.isEditor"/> 取出，
+        /// 便于在不依赖 UI 后端与场景的前提下锁住判据方向。</para>
+        /// </summary>
+        /// <param name="activeWindowType">调试器窗口激活策略。</param>
+        /// <param name="isDebugBuild">是否为开发（debug）构建。</param>
+        /// <param name="isEditor">是否运行在编辑器内。</param>
+        /// <returns>启用时为真，此时才构造并挂上 <see cref="ErrorLogger"/>。</returns>
+        internal static bool ShouldEnableErrorLog(DebuggerActiveWindowType activeWindowType, bool isDebugBuild, bool isEditor)
+        {
+            switch (activeWindowType)
+            {
+                case DebuggerActiveWindowType.AlwaysOpen:
+                    return true;
+
+                case DebuggerActiveWindowType.OnlyOpenWhenDevelopment:
+                    return isDebugBuild;
+
+                case DebuggerActiveWindowType.OnlyOpenInEditor:
+                    return isEditor;
+
+                default:
+                    return false;
+            }
         }
 
         /// <summary>
