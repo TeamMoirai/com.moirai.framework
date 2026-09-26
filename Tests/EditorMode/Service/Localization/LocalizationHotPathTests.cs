@@ -10,7 +10,7 @@ namespace Service.Localization
 {
     /// <summary>
     /// 热路径回归锁：注册去重集合与列表的并进退一致性、重注入/广播的池化快照遍历语义、单趟取值 <c>TryGetTextFromId</c>、
-    /// 文本展示「缺译即露 key」与注入器载荷类型派发。
+    /// 空白格在两条取值入口上的口径分叉（露 key / 给 null）与注入器载荷类型派发。
     /// <para>去重与异常隔离的行为面由 HandlerTests/HardeningTests 既有夹具锁定，这里补的是只有改坏内部容器
     /// 才会暴露的回归（快照遍历期间集合被改动、HashSet 与 List 失同步）与新增单趟查询/载荷派发的语义面；
     /// 0-GC 本身在编辑器 Mono 下不可计量（分配计数器恒 0），不在本夹具断言。</para>
@@ -65,6 +65,14 @@ namespace Service.Localization
             _ = _handler.EntryCount; // 触发懒加载 + 首启语言落位
             var current = _handler.CurrentLanguage;
             return current == English ? Chinese : English;
+        }
+
+        /// <summary>装载「中文格留空」的批并切到中文：空白格与缺失格在取值口径上必须同形。</summary>
+        private void LoadBlankChineseCellAndSwitchToChinese()
+        {
+            LoadStrings("ui.title", "Title", null);
+            _ = _handler.EntryCount;
+            _handler.ChangeLanguage(Chinese);
         }
 
         private L10nProbeLocalizer NewProbe(string name)
@@ -199,9 +207,7 @@ namespace Service.Localization
         [Test]
         public void TryGetTextFromId_BlankCell_ReturnsFalse()
         {
-            LoadStrings("ui.title", "Title", null);
-            _ = _handler.EntryCount;
-            _handler.ChangeLanguage(Chinese);
+            LoadBlankChineseCellAndSwitchToChinese();
 
             UtfLogExpect.Warning();
             Assert.IsFalse(_handler.TryGetTextFromId("ui.title", out var text));
@@ -243,23 +249,23 @@ namespace Service.Localization
 
         #endregion
 
-        #region 展示口径与载荷派发 [DISPLAY POLICY AND PAYLOAD DISPATCH]
+        #region 空白格取值口径与载荷派发 [BLANK-CELL QUERY POLICY AND PAYLOAD DISPATCH]
 
         [Test]
-        public void DisplayPolicy_BlankCell_GetTextFromIdExposesKey_TryGetDoesNot()
+        public void BlankCell_GetTextFromIdExposesKey_TryGetGivesNull()
         {
-            LoadStrings("ui.title", "Title", null);
-            _ = _handler.EntryCount;
-            _handler.ChangeLanguage(Chinese);
+            LoadBlankChineseCellAndSwitchToChinese();
 
-            // 文本展示（TextLocalizer）走 GetTextFromId：空白格露 key，漏翻在界面可见。
-            // 缺译 Warning 每 key 只打一次（TrackMissingKey），故只期望一条。
+            // 同一张空白格在两条入口上的口径分叉：展示用的 GetTextFromId 露 key，
+            // 资源模式用的 TryGet 判 false —— 后者绝不能把 ID 当 location 去加载。
+            // 缺译 Warning 每 key 只打一次（TrackMissingKey），故两条查询合起来只期望一条。
             UtfLogExpect.Warning();
             Assert.AreEqual("ui.title", _handler.GetTextFromId("ui.title"), "缺译即露 key");
-
-            // 资源模式走 TryGet：空白格=无 location，不得把 ID 当地址去加载
-            Assert.IsFalse(_handler.TryGetTextFromId("ui.title", out var location));
+            Assert.IsFalse(_handler.TryGetTextFromId("ui.title", out var location), "空白格即无 location");
             Assert.IsNull(location);
+
+            // 本用例锁的是处理器侧两条入口的口径；TextLocalizer 展示接的是哪一条锁不到——
+            // Apply 在非播放态于查询之前就早退，要锁那一步得开 PlayMode 夹具
         }
 
         [Test]
@@ -287,18 +293,22 @@ namespace Service.Localization
         }
 
         [Test]
-        public void AudioSourceInjector_ClipPayload_PlaysDirectly()
+        public void AudioSourceInjector_ClipAndNullPayload_PlayThenClear()
         {
             _container ??= new GameObject(nameof(LocalizationHotPathTests));
             var source = _container.AddComponent<AudioSource>();
             var injector = new AudioSourceInjector(source);
-            var localizer = NewProbe(nameof(AudioSourceInjector_ClipPayload_PlaysDirectly));
+            var localizer = NewProbe(nameof(AudioSourceInjector_ClipAndNullPayload_PlayThenClear));
             var clip = AudioClip.Create("probe-clip", 1024, 1, 44100, false);
 
             try
             {
                 injector.Inject(clip, localizer);
                 Assert.AreSame(clip, source.clip, "AudioClip 载荷直接播放，不进资源加载");
+
+                // 该语言没配语音时 AudioLocalizer 传的是 clips[index] = null：必须落到清空
+                injector.Inject((AudioClip)null, localizer);
+                Assert.IsNull(source.clip, "空载荷不得留着上一语言的片段继续播");
             }
             finally
             {

@@ -7,10 +7,11 @@ namespace Moirai.Atropos.Localization
 {
 	/// <summary>
 	/// 音频源注入器。
-	/// <para>按载荷类型派发：<see cref="string"/> 为资源 location（异步加载后播放），<see cref="AudioClip"/> 直接播放。</para>
+	/// <para>按载荷类型派发：<see cref="string"/> 为资源 location（异步加载后播放），<see cref="AudioClip"/> 直接播放，
+	/// <c>null</c> 表示该语言没有语音（清空音源）。</para>
 	/// <para>资源路径下租约由注入器持有直到下次加载或销毁，防止音频播放期间被周期性 UnloadUnusedAssets 回收。</para>
 	/// </summary>
-	public class AudioSourceInjector : IInjector, IDisposable
+	public class AudioSourceInjector : ILocalizationInjector, IDisposable
 #if UNITY_EDITOR
 		, IInjectorAssetPreview
 #endif
@@ -34,11 +35,11 @@ namespace Moirai.Atropos.Localization
 		/// <summary>
 		/// 按载荷类型向音频源注入并播放。
 		/// <para><see cref="string"/> = 资源 location（本地化器已经 <c>TryGetTextFromId</c> 单趟解析），异步加载后播放；
-		/// <see cref="AudioClip"/> = 直接播放传入片段。其余载荷类型忽略。</para>
+		/// <see cref="AudioClip"/> = 直接播放传入片段；<c>null</c> = 该语言没有语音，清空音源。其余载荷类型忽略。</para>
 		/// </summary>
-		/// <typeparam name="T1">载荷类型：<see cref="string"/> 或 <see cref="AudioClip"/>。</typeparam>
+		/// <typeparam name="T1">载荷类型：<see cref="string"/>、<see cref="AudioClip"/> 或 <c>null</c>。</typeparam>
 		/// <typeparam name="T2">本地化器类型。</typeparam>
-		/// <param name="localizedData">资源 location 或音频片段。</param>
+		/// <param name="localizedData">资源 location、音频片段，或表示「本语言无语音」的 <c>null</c>。</param>
 		/// <param name="localizer">发起注入的本地化器。</param>
 		public void Inject<T1, T2>(T1 localizedData, T2 localizer) where T2 : LocalizerBase
 		{
@@ -47,6 +48,11 @@ namespace Moirai.Atropos.Localization
 
 			switch (localizedData)
 			{
+				// 空载荷排在类型判据之前：类型模式永不匹配 null，漏掉这一支会让上一语言的音频继续播下去，
+				// 而「该语言没配语音」在 Inspector 里是正常态而不是异常输入
+				case null:
+					Play(null);
+					break;
 				case string location:
 					ApplyFromResource(location).Forget();
 					break;
@@ -119,7 +125,7 @@ namespace Moirai.Atropos.Localization
 		/// 播放指定音频片段，并保留原播放状态与进度。
 		/// <para>若播放前音频源正在播放，则更换片段后继续播放；是否恢复至原播放进度取决于 <see cref="AudioLocalizer.playFromSamePositionWhenInject"/> 配置。</para>
 		/// </summary>
-		/// <param name="audioClip">待播放的音频片段。</param>
+		/// <param name="audioClip">待播放的音频片段；传 <c>null</c> 即清空音源。</param>
 		void Play(AudioClip audioClip)
 		{
 			if (_audio == null) return; // 异步加载期间组件已销毁

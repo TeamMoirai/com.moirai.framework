@@ -3,10 +3,11 @@ namespace Moirai.Atropos.Localization
 	/// <summary>
 	/// 本地化数据注入器接口。
 	/// </summary>
-	public interface IInjector
+	public interface ILocalizationInjector
 	{
 		/// <summary>
-		/// 将本地化数据注入目标组件。载荷类型即模式：<c>int</c> 语言下标 / <c>string</c> 资源 location / 直注资产。
+		/// 将本地化数据注入目标组件。载荷类型的语义由具体注入器自定：文本注入器把 <c>string</c> 当译文；
+		/// 资源类注入器（图片 / 音频）按 <c>int</c> 语言下标、<c>string</c> 资源 location、资产直注派发。
 		/// </summary>
 		/// <typeparam name="T1">本地化数据的类型。</typeparam>
 		/// <typeparam name="T2">本地化器的类型。</typeparam>

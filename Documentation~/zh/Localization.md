@@ -11,7 +11,7 @@
 - 文本查询：`GetTextFromId`（支持 `string.Format` 参数；缺译即露 key）、`TryGetTextFromId`（单趟解析：命中给译文、缺失给 `false`+`null` 并按既有口径追踪缺译——资源模式本地化器的「有则注、无则报」判断走它，不再 `Has` + `GetTextFromId` 双查）、`GetTextFromIdLanguage`（语言传 `null` 即当前语言）、`GetDictionaryFromId`（取全部语言）、`GetAllIds`
 - 缺译即露 key：当前语言该词条为空或仅空白时直接返回 ID，不借别的语言顶上（详见「缺译即露 key」）；`TextLocalizer` 展示走这条口径
 - 内联解析：`LocalizationService.Localize` 将 `{l10n:ID}`、`{i18n:ID}`、`{g11n:ID}` 替换为本地化条目
-- 组件注入：`TextLocalizer`（TextMesh / UGUI Text / TMP_Text）、`ImageLocalizer`（Image / RawImage / SpriteRenderer / Renderer 材质）、`AudioLocalizer`（AudioSource）；注入器按载荷类型派发（`string` = 资源 location / `int` = 语言下标 / `AudioClip` = 直注）
+- 组件注入：`TextLocalizer`（TextMesh / UGUI Text / TMP_Text）、`ImageLocalizer`（Image / RawImage / SpriteRenderer / Renderer 材质）、`AudioLocalizer`（AudioSource）；载荷语义由各注入器自定——文本注入器的 `string` 就是译文，图片/音频注入器按 `int` = 语言下标、`string` = 资源 location、资产直注派发
 - 语言切换自动刷新：所有 `LocalizerBase` 在 `ChangeLanguage` 时统一重新注入（池化快照遍历 + 单个失败隔离，万级本地化器下切换不落常驻垃圾），注入完成后才抛事件
 - Timeline 支持：`TextLocalizerTrack` + `TextLocalizerPlayableAsset` 在时间轴片段上切换文本 ID
 
@@ -25,7 +25,7 @@
 | `Language` | 语言类（`IEquatable<Language>`，按 `Code` 比较）：`Name`、`Code`、`DisplayName`、`BuiltinLanguages`，支持与 `SystemLanguage` 互转；内置条目为共享只读实例 |
 | `LocalizationServiceHandler` | 处理器抽象基类：按语言取值解析、语言切换、本地化器注册 |
 | `LocalizerBase` | 本地化器抽象基类（MonoBehaviour）：`Prepare` 获取目标组件引用，`Localize` 执行注入 |
-| `IInjector` | 注入器接口：`Inject<T1, T2>(localizedData, localizer)` |
+| `ILocalizationInjector` | 注入器接口：`Inject<T1, T2>(localizedData, localizer)` |
 | `TextLocalizer` | 文本本地化器，自动发现 TextMesh / Text / TMP_Text 并注入文本 |
 | `ImageLocalizer` | 图片本地化器，按语言索引切换 `sprites` / `textures` / `texture2Ds` 数组 |
 | `AudioLocalizer` | 音频本地化器，按语言索引切换 `clips` 数组注入 AudioSource |
@@ -103,7 +103,7 @@ LocalizationService.OnLanguageChanged += language =>
 
 - 文本：在挂有 `TextMesh`、UGUI `Text` 或 `TMP_Text` 的物体上添加 `TextLocalizer`， Inspector 中填写 `m_TextId`；运行中可调用 `ChangeID(string textId)` 动态换文案，`Clear()` 清空
 - 图片：`ImageLocalizer` 按发现顺序作用于 Image / RawImage / SpriteRenderer / Renderer；`sprites` / `textures` / `texture2Ds` 数组元素须与表自报的语言列序一致（按 `CurrentLanguageIndex` 索引），`Renderer` 走材质属性（默认 `_MainTex`，可用 `propertyName` 指定）
-- 音频：`AudioLocalizer` 将 `clips[CurrentLanguageIndex]` 注入 AudioSource
+- 音频：`AudioLocalizer` 将 `clips[CurrentLanguageIndex]` 注入 AudioSource；该下标处是空元素时清空音源，不会留着上一语言的语音继续播
 
 ### Timeline 本地化
 

@@ -11,7 +11,7 @@ The `Localization` service is accessed via the `LocalizationService` static faca
 - Text querying: `GetTextFromId` (supports `string.Format` parameters; missing translations expose the key), `TryGetTextFromId` (single-pass resolve: hit yields the text, miss yields `false`+`null` and feeds the missing-key tracking under the same policy — resource-mode localizers use it for their "inject if present, report if not" check instead of calling `Has` + `GetTextFromId` twice), `GetTextFromIdLanguage` (pass `null` for the current language), `GetDictionaryFromId` (retrieves all languages), `GetAllIds`
 - Missing translations expose the key: an empty or whitespace-only cell in the current language returns the ID as-is, with no cross-language safety net (see "Missing Translations Expose the Key"); `TextLocalizer` display follows this policy
 - Inline parsing: `LocalizationService.Localize` replaces `{l10n:ID}`, `{i18n:ID}`, `{g11n:ID}` with localized entries
-- Component injection: `TextLocalizer` (TextMesh / UGUI Text / TMP_Text), `ImageLocalizer` (Image / RawImage / SpriteRenderer / Renderer material), `AudioLocalizer` (AudioSource); injectors dispatch by payload type (`string` = resource location / `int` = language index / `AudioClip` = direct asset)
+- Component injection: `TextLocalizer` (TextMesh / UGUI Text / TMP_Text), `ImageLocalizer` (Image / RawImage / SpriteRenderer / Renderer material), `AudioLocalizer` (AudioSource); payload semantics belong to each injector — for text injectors the `string` is the translated text, while image/audio injectors dispatch by `int` = language index / `string` = resource location / direct asset
 - Auto-refresh on language switch: all `LocalizerBase` instances are re-injected on `ChangeLanguage` (pooled snapshot iteration with per-instance fault isolation — no resident garbage per switch even at ten-thousand-localizer scale) before the event is raised
 - Timeline support: `TextLocalizerTrack` + `TextLocalizerPlayableAsset` switches text IDs on Timeline clips
 
@@ -25,7 +25,7 @@ Namespace: `Moirai.Atropos.Localization`
 | `Language` | Language class (`IEquatable<Language>`, compared by `Code`): `Name`, `Code`, `DisplayName`, `BuiltinLanguages`, supports conversion to/from `SystemLanguage`; built-in entries are shared read-only instances |
 | `LocalizationServiceHandler` | Abstract handler base class: per-language text resolution, language switching, localizer registration |
 | `LocalizerBase` | Abstract base class for localizers (MonoBehaviour): `Prepare` gets the target component reference, `Localize` performs injection |
-| `IInjector` | Injector interface: `Inject<T1, T2>(localizedData, localizer)` |
+| `ILocalizationInjector` | Injector interface: `Inject<T1, T2>(localizedData, localizer)` |
 | `TextLocalizer` | Text localizer, automatically discovers TextMesh / Text / TMP_Text and injects text |
 | `ImageLocalizer` | Image localizer, switches between `sprites` / `textures` / `texture2Ds` arrays by language index |
 | `AudioLocalizer` | Audio localizer, switches `clips` array by language index and injects into AudioSource |
@@ -106,7 +106,7 @@ LocalizationService.OnLanguageChanged += language =>
 
 - Text: Add `TextLocalizer` to objects with `TextMesh`, UGUI `Text`, or `TMP_Text`, fill in `m_TextId` in the Inspector; at runtime, call `ChangeID(string textId)` to dynamically change text, `Clear()` to clear
 - Image: `ImageLocalizer` acts on Image / RawImage / SpriteRenderer / Renderer in discovery order; `sprites` / `textures` / `texture2Ds` array elements must match the table's self-reported language column order (indexed by `CurrentLanguageIndex`), `Renderer` uses material properties (default `_MainTex`, can be specified via `propertyName`)
-- Audio: `AudioLocalizer` injects `clips[CurrentLanguageIndex]` into AudioSource
+- Audio: `AudioLocalizer` injects `clips[CurrentLanguageIndex]` into AudioSource; an empty element at that index clears the source instead of letting the previous language's voice keep playing
 
 ### Timeline Localization
 

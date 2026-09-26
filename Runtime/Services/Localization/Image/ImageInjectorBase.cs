@@ -11,7 +11,7 @@ namespace Moirai.Atropos.Localization
     /// - 从资源系统异步加载资源（租约由注入器持有，切换语言时释放上一份，销毁时随 IDisposable 释放）<br />
     /// - 处理 Sprite/Texture 类型转换，并输出相应日志
     /// </summary>
-    public abstract class ImageInjectorBase : IInjector, IDisposable
+    public abstract class ImageInjectorBase : ILocalizationInjector, IDisposable
 #if UNITY_EDITOR
         , IInjectorAssetPreview
 #endif

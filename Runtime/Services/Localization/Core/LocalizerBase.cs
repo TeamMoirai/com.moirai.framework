@@ -7,7 +7,7 @@ namespace Moirai.Atropos.Localization
 {
 	public abstract class LocalizerBase : MonoBehaviour
 	{
-		protected IInjector _injector;
+		protected ILocalizationInjector _injector;
 
 		protected virtual void Awake()
 		{
