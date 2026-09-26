@@ -9,9 +9,10 @@ using UObject = UnityEngine.Object;
 namespace Service.Localization
 {
     /// <summary>
-    /// 热路径回归锁：注册去重集合与列表的并进退一致性、重注入/广播的池化快照遍历语义、单趟取值 <c>TryGetTextFromId</c>。
+    /// 热路径回归锁：注册去重集合与列表的并进退一致性、重注入/广播的池化快照遍历语义、单趟取值 <c>TryGetTextFromId</c>、
+    /// 文本展示「缺译即露 key」与注入器载荷类型派发。
     /// <para>去重与异常隔离的行为面由 HandlerTests/HardeningTests 既有夹具锁定，这里补的是只有改坏内部容器
-    /// 才会暴露的回归（快照遍历期间集合被改动、HashSet 与 List 失同步）与新增单趟查询的语义面；
+    /// 才会暴露的回归（快照遍历期间集合被改动、HashSet 与 List 失同步）与新增单趟查询/载荷派发的语义面；
     /// 0-GC 本身在编辑器 Mono 下不可计量（分配计数器恒 0），不在本夹具断言。</para>
     /// </summary>
     [TestFixture]
@@ -241,5 +242,95 @@ namespace Service.Localization
         }
 
         #endregion
+
+        #region 展示口径与载荷派发 [DISPLAY POLICY AND PAYLOAD DISPATCH]
+
+        [Test]
+        public void DisplayPolicy_BlankCell_GetTextFromIdExposesKey_TryGetDoesNot()
+        {
+            LoadStrings("ui.title", "Title", null);
+            _ = _handler.EntryCount;
+            _handler.ChangeLanguage(Chinese);
+
+            // 文本展示（TextLocalizer）走 GetTextFromId：空白格露 key，漏翻在界面可见。
+            // 缺译 Warning 每 key 只打一次（TrackMissingKey），故只期望一条。
+            UtfLogExpect.Warning();
+            Assert.AreEqual("ui.title", _handler.GetTextFromId("ui.title"), "缺译即露 key");
+
+            // 资源模式走 TryGet：空白格=无 location，不得把 ID 当地址去加载
+            Assert.IsFalse(_handler.TryGetTextFromId("ui.title", out var location));
+            Assert.IsNull(location);
+        }
+
+        [Test]
+        public void ImageInjector_IntPayload_AppliesFromArray_ByLanguageIndex()
+        {
+            var injector = new ProbeImageInjector();
+            var localizer = NewProbe(nameof(ImageInjector_IntPayload_AppliesFromArray_ByLanguageIndex));
+
+            injector.Inject(3, localizer);
+            injector.Inject(0, localizer);
+
+            Assert.AreEqual(new[] { 3, 0 }, injector.AppliedIndices.ToArray(), "int 载荷唯一语义是语言下标");
+        }
+
+        [Test]
+        public void ImageInjector_UnsupportedPayload_IsIgnored()
+        {
+            var injector = new ProbeImageInjector();
+            var localizer = NewProbe(nameof(ImageInjector_UnsupportedPayload_IsIgnored));
+
+            injector.Inject(1.5f, localizer);
+            injector.Inject(true, localizer);
+
+            Assert.AreEqual(0, injector.AppliedIndices.Count, "非 int/string 载荷不得落入数组模式");
+        }
+
+        [Test]
+        public void AudioSourceInjector_ClipPayload_PlaysDirectly()
+        {
+            _container ??= new GameObject(nameof(LocalizationHotPathTests));
+            var source = _container.AddComponent<AudioSource>();
+            var injector = new AudioSourceInjector(source);
+            var localizer = NewProbe(nameof(AudioSourceInjector_ClipPayload_PlaysDirectly));
+            var clip = AudioClip.Create("probe-clip", 1024, 1, 44100, false);
+
+            try
+            {
+                injector.Inject(clip, localizer);
+                Assert.AreSame(clip, source.clip, "AudioClip 载荷直接播放，不进资源加载");
+            }
+            finally
+            {
+                UObject.DestroyImmediate(clip);
+                injector.Dispose();
+            }
+        }
+
+        #endregion
+
+        /// <summary>数组模式探针：只记下标，不碰目标组件。</summary>
+        private sealed class ProbeImageInjector : ImageInjectorBase
+        {
+            public readonly List<int> AppliedIndices = new List<int>();
+
+            protected override void ClearTarget()
+            {
+            }
+
+            protected override void ApplyFromArray(int index) => AppliedIndices.Add(index);
+
+            protected override void ApplyAsset(UObject asset)
+            {
+            }
+
+            protected override string GetExpectedTypeName() => nameof(UObject);
+
+            protected override bool IsExpectedType(UObject asset) => false;
+
+            protected override bool IsConvertibleType(UObject asset) => false;
+
+            protected override bool TryConvertAndApply(UObject asset) => false;
+        }
     }
 }

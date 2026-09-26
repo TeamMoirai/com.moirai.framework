@@ -8,10 +8,10 @@
 
 - `Language` 语言对象：携带 `Name`（枚举名）、`Code`（ISO-639-1）、`DisplayName`（本地显示名），内置 `SystemLanguage` 全量语言并支持自定义语言；内置语言与 `BuiltinLanguages` 为共享实例，不在访问时重建
 - 语言检测优先级：命令行 `-force-language` → 编辑器 `LocalizationServiceSettings.EditorLanguage` → `SettingUtility` 存档 → `Application.systemLanguage`（中文未区分简繁时回落简体）；检测出的语言没进这批词条时按语言表首项兜底，不会让整套界面停留在露 key 状态
-- 文本查询：`GetTextFromId`（支持 `string.Format` 参数）、`TryGetTextFromId`（单趟解析：命中给译文、缺失给 `false`+`null` 并按既有口径追踪缺译——本地化器与内联标记的「有则注、无则报」判断走它，不再 `Has` + `GetTextFromId` 双查）、`GetTextFromIdLanguage`（语言传 `null` 即当前语言）、`GetDictionaryFromId`（取全部语言）、`GetAllIds`
-- 缺译即露 key：当前语言该词条为空或仅空白时直接返回 ID，不借别的语言顶上（详见「缺译即露 key」）
+- 文本查询：`GetTextFromId`（支持 `string.Format` 参数；缺译即露 key）、`TryGetTextFromId`（单趟解析：命中给译文、缺失给 `false`+`null` 并按既有口径追踪缺译——资源模式本地化器的「有则注、无则报」判断走它，不再 `Has` + `GetTextFromId` 双查）、`GetTextFromIdLanguage`（语言传 `null` 即当前语言）、`GetDictionaryFromId`（取全部语言）、`GetAllIds`
+- 缺译即露 key：当前语言该词条为空或仅空白时直接返回 ID，不借别的语言顶上（详见「缺译即露 key」）；`TextLocalizer` 展示走这条口径
 - 内联解析：`LocalizationService.Localize` 将 `{l10n:ID}`、`{i18n:ID}`、`{g11n:ID}` 替换为本地化条目
-- 组件注入：`TextLocalizer`（TextMesh / UGUI Text / TMP_Text）、`ImageLocalizer`（Image / RawImage / SpriteRenderer / Renderer 材质）、`AudioLocalizer`（AudioSource）
+- 组件注入：`TextLocalizer`（TextMesh / UGUI Text / TMP_Text）、`ImageLocalizer`（Image / RawImage / SpriteRenderer / Renderer 材质）、`AudioLocalizer`（AudioSource）；注入器按载荷类型派发（`string` = 资源 location / `int` = 语言下标 / `AudioClip` = 直注）
 - 语言切换自动刷新：所有 `LocalizerBase` 在 `ChangeLanguage` 时统一重新注入（池化快照遍历 + 单个失败隔离，万级本地化器下切换不落常驻垃圾），注入完成后才抛事件
 - Timeline 支持：`TextLocalizerTrack` + `TextLocalizerPlayableAsset` 在时间轴片段上切换文本 ID
 

@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using UnityEngine.UI;
 
 namespace Moirai.Atropos.Localization
@@ -18,10 +18,8 @@ namespace Moirai.Atropos.Localization
 		/// 创建针对指定 <see cref="Image"/> 的本地化图片注入器。
 		/// </summary>
 		/// <param name="image">目标 <see cref="Image"/> 组件。</param>
-		/// <param name="localizedTextID">资源文本 ID，非空时改由资源系统按其加载本地化资源。</param>
 		/// <param name="sprites">预分配的 Sprite 数组，供索引模式使用。</param>
-		public ImageInjector(Image image, string localizedTextID, Sprite[] sprites)
-			: base(localizedTextID)
+		public ImageInjector(Image image, Sprite[] sprites)
 		{
 			_image = image;
 			_sprites = sprites;

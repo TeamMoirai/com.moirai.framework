@@ -6,7 +6,7 @@ namespace Moirai.Atropos.Localization
 	public interface IInjector
 	{
 		/// <summary>
-		/// 将本地化数据注入目标组件。
+		/// 将本地化数据注入目标组件。载荷类型即模式：<c>int</c> 语言下标 / <c>string</c> 资源 location / 直注资产。
 		/// </summary>
 		/// <typeparam name="T1">本地化数据的类型。</typeparam>
 		/// <typeparam name="T2">本地化器的类型。</typeparam>

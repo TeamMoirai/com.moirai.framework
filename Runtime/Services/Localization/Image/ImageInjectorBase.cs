@@ -7,7 +7,7 @@ namespace Moirai.Atropos.Localization
 {
     /// <summary>
     /// 基于图片的本地化注入器基类，共享以下通用模式：<br />
-    /// - 检查本地化使用的是索引还是资源文本 ID<br />
+    /// - 按载荷类型派发：<see cref="int"/> 为语言下标（数组模式），<see cref="string"/> 为资源 location（资源模式）<br />
     /// - 从资源系统异步加载资源（租约由注入器持有，切换语言时释放上一份，销毁时随 IDisposable 释放）<br />
     /// - 处理 Sprite/Texture 类型转换，并输出相应日志
     /// </summary>
@@ -16,47 +16,31 @@ namespace Moirai.Atropos.Localization
         , IInjectorAssetPreview
 #endif
     {
-        private string _localizedTextID;
         // 当前语言图片资源的租约：持有引用防止资源在显示期间被周期性 UnloadUnusedAssets 回收
         private ResourceAssetLease<UObject> _currentLease;
         // 加载版本号：语言快速连续切换或销毁时丢弃过期的异步加载结果
         private int _loadVersion;
 
-        protected ImageInjectorBase(string localizedTextID)
-        {
-            _localizedTextID = localizedTextID;
-        }
-
+        /// <summary>
+        /// 按载荷类型注入本地化数据。
+        /// <para><see cref="int"/> = 当前语言下标，从预分配数组取用；<see cref="string"/> = 资源 location
+        /// （本地化器已经 <c>TryGetTextFromId</c> 单趟解析），异步加载后应用。其余载荷类型忽略。</para>
+        /// </summary>
+        /// <typeparam name="T1">载荷类型：<see cref="int"/> 或 <see cref="string"/>。</typeparam>
+        /// <typeparam name="T2">本地化器类型。</typeparam>
+        /// <param name="localizedData">语言下标或资源 location。</param>
+        /// <param name="localizer">发起注入的本地化器。</param>
         public void Inject<T1, T2>(T1 localizedData, T2 localizer) where T2 : LocalizerBase
         {
             switch (localizedData)
             {
                 case int index:
-                    if (string.IsNullOrEmpty(_localizedTextID))
-                    {
-                        ApplyFromArray(index);
-                    }
-                    else
-                    {
-                        // 兼容旧调用形态（int + 资源模式）：地址在注入器内解析
-                        ApplyFromResource(LocalizationService.GetTextFromId(_localizedTextID)).Forget();
-                    }
+                    ApplyFromArray(index);
                     break;
-
-                // 资源模式的现行路径：本地化器已单趟解析出地址（TryGetTextFromId），
-                // 注入器不再自查第二趟字典
-                case string address:
-                    ApplyFromResource(address).Forget();
+                case string location:
+                    ApplyFromResource(location).Forget();
                     break;
             }
-        }
-
-        /// <summary>
-        /// 更新资源模式下使用的本地化文本 ID（仅记录，下次注入生效）。
-        /// </summary>
-        public void SetLocalizedId(string localizedTextID)
-        {
-            _localizedTextID = localizedTextID;
         }
 
         /// <summary>
@@ -72,11 +56,10 @@ namespace Moirai.Atropos.Localization
         }
 
         /// <summary>
-        /// 清空资源 ID、清除目标组件上的本地化内容，并释放资源租约。
+        /// 清除目标组件上的本地化内容，并释放资源租约。
         /// </summary>
         public void Clear()
         {
-            _localizedTextID = null;
             Dispose();
             ClearTarget();
         }
@@ -115,10 +98,13 @@ namespace Moirai.Atropos.Localization
         /// </summary>
         protected abstract bool TryConvertAndApply(UObject asset);
 
-        private async UniTaskVoid ApplyFromResource(string address)
+        /// <summary>
+        /// 按资源 location 从资源系统异步加载并应用。
+        /// </summary>
+        private async UniTaskVoid ApplyFromResource(string location)
         {
             var version = ++_loadVersion;
-            var lease = await ResourceService.LoadLeaseAsync<UObject>(address);
+            var lease = await ResourceService.LoadLeaseAsync<UObject>(location);
 
             // 加载期间发生了更新的切换或已销毁，丢弃过期结果
             if (version != _loadVersion)
@@ -129,13 +115,13 @@ namespace Moirai.Atropos.Localization
 
             if (!lease.IsValid)
             {
-                LogUtility.Error("Localized image load failed: {0}", address);
+                LogUtility.Error("Localized image load failed: {0}", location);
                 return;
             }
 
             if (!IsExpectedType(lease.Asset) && !IsConvertibleType(lease.Asset))
             {
-                LogUtility.Error("Localized image type error, expected {0}: {1}", GetExpectedTypeName(), address);
+                LogUtility.Error("Localized image type error, expected {0}: {1}", GetExpectedTypeName(), location);
                 lease.Dispose();
                 return;
             }

@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 
 namespace Moirai.Atropos.Localization
 {
@@ -16,11 +16,9 @@ namespace Moirai.Atropos.Localization
 		/// 创建针对指定 <see cref="Renderer"/> 的纹理本地化注入器。
 		/// </summary>
 		/// <param name="renderer">目标 <see cref="Renderer"/> 组件。</param>
-		/// <param name="localizedTextID">资源文本 ID，非空时改由资源系统按其加载本地化资源。</param>
 		/// <param name="propertyName">材质上的纹理属性名（如 <c>_MainTex</c>）。</param>
 		/// <param name="texture2Ds">预分配的 Texture2D 数组，供索引模式使用。</param>
-		public TextureInjector(Renderer renderer, string localizedTextID, string propertyName, Texture2D[] texture2Ds)
-			: base(localizedTextID)
+		public TextureInjector(Renderer renderer, string propertyName, Texture2D[] texture2Ds)
 		{
 			_renderer = renderer;
 			_propertyName = propertyName;

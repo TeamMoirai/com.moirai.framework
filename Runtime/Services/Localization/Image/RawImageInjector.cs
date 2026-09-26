@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using UnityEngine.UI;
 
 namespace Moirai.Atropos.Localization
@@ -16,10 +16,8 @@ namespace Moirai.Atropos.Localization
 		/// 创建针对指定 <see cref="RawImage"/> 的本地化纹理注入器。
 		/// </summary>
 		/// <param name="rawImage">目标 <see cref="RawImage"/> 组件。</param>
-		/// <param name="localizedTextID">资源文本 ID，非空时改由资源系统按其加载本地化资源。</param>
 		/// <param name="textures">预分配的纹理数组，供索引模式使用。</param>
-		public RawImageInjector(RawImage rawImage, string localizedTextID, Texture[] textures)
-			: base(localizedTextID)
+		public RawImageInjector(RawImage rawImage, Texture[] textures)
 		{
 			_rawImage = rawImage;
 			_textures = textures;

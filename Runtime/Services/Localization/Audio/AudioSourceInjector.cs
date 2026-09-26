@@ -7,7 +7,7 @@ namespace Moirai.Atropos.Localization
 {
 	/// <summary>
 	/// 音频源注入器。
-	/// <para>当指定本地化文本 ID 时，注入时会异步从资源系统加载对应的 <see cref="AudioClip"/> 并播放；否则直接播放传入的音频数据。</para>
+	/// <para>按载荷类型派发：<see cref="string"/> 为资源 location（异步加载后播放），<see cref="AudioClip"/> 直接播放。</para>
 	/// <para>资源路径下租约由注入器持有直到下次加载或销毁，防止音频播放期间被周期性 UnloadUnusedAssets 回收。</para>
 	/// </summary>
 	public class AudioSourceInjector : IInjector, IDisposable
@@ -15,7 +15,6 @@ namespace Moirai.Atropos.Localization
 		, IInjectorAssetPreview
 #endif
 	{
-		private string _localizedTextID;
 		private readonly AudioSource _audio;
 		private LocalizerBase _localizer;
 		// 当前语言音频资源的租约：持有引用防止资源在播放期间被回收
@@ -27,49 +26,34 @@ namespace Moirai.Atropos.Localization
 		/// 创建音频源注入器。
 		/// </summary>
 		/// <param name="audio">目标音频源。</param>
-		/// <param name="localizedTextID">本地化文本 ID，解析出的文本将作为资源地址加载音频；为空时直接播放传入数据。</param>
-		public AudioSourceInjector(AudioSource audio, string localizedTextID)
+		public AudioSourceInjector(AudioSource audio)
 		{
-			_localizedTextID = localizedTextID;
 			_audio = audio;
 		}
 
 		/// <summary>
-		/// 向音频源注入音频并播放。
-		/// <para>若构造时指定了本地化文本 ID，则忽略 <paramref name="localizedData"/>，异步从资源系统加载对应的 <see cref="AudioClip"/>；否则直接将 <paramref name="localizedData"/> 作为音频片段播放。</para>
+		/// 按载荷类型向音频源注入并播放。
+		/// <para><see cref="string"/> = 资源 location（本地化器已经 <c>TryGetTextFromId</c> 单趟解析），异步加载后播放；
+		/// <see cref="AudioClip"/> = 直接播放传入片段。其余载荷类型忽略。</para>
 		/// </summary>
-		/// <typeparam name="T1">待注入数据的类型，无文本 ID 时应为 <see cref="AudioClip"/>。</typeparam>
+		/// <typeparam name="T1">载荷类型：<see cref="string"/> 或 <see cref="AudioClip"/>。</typeparam>
 		/// <typeparam name="T2">本地化器类型。</typeparam>
-		/// <param name="localizedData">待注入的本地化数据，通常为音频片段。</param>
+		/// <param name="localizedData">资源 location 或音频片段。</param>
 		/// <param name="localizer">发起注入的本地化器。</param>
 		public void Inject<T1, T2>(T1 localizedData, T2 localizer) where T2 : LocalizerBase
 		{
 			// 数组模式也需要记录本地化器：Play 依赖其 playFromSamePositionWhenInject 配置
 			_localizer = localizer;
 
-			if (string.IsNullOrEmpty(_localizedTextID))
+			switch (localizedData)
 			{
-				Play(localizedData as AudioClip);
+				case string location:
+					ApplyFromResource(location).Forget();
+					break;
+				case AudioClip clip:
+					Play(clip);
+					break;
 			}
-			else if (localizedData is string address)
-			{
-				// 资源模式的现行路径：本地化器已单趟解析出地址（TryGetTextFromId），
-				// 注入器不再自查第二趟字典
-				ApplyFromResource(address).Forget();
-			}
-			else
-			{
-				// 兼容旧调用形态（数据被忽略 + 资源模式）：地址在注入器内解析
-				ApplyFromResource(LocalizationService.GetTextFromId(_localizedTextID)).Forget();
-			}
-		}
-
-		/// <summary>
-		/// 更新资源模式下使用的本地化文本 ID（仅记录，下次注入生效）。
-		/// </summary>
-		public void SetLocalizedId(string localizedTextID)
-		{
-			_localizedTextID = localizedTextID;
 		}
 
 		/// <summary>
@@ -84,11 +68,10 @@ namespace Moirai.Atropos.Localization
 		}
 
 		/// <summary>
-		/// 停止播放、清空资源 ID，并释放当前音频资源租约。
+		/// 停止播放，并释放当前音频资源租约。
 		/// </summary>
 		public void Clear()
 		{
-			_localizedTextID = null;
 			Dispose();
 			if (_audio == null) return;
 
@@ -106,12 +89,12 @@ namespace Moirai.Atropos.Localization
 #endif
 
 		/// <summary>
-		/// 按已解析的资源地址从资源系统异步加载音频片段并播放。
+		/// 按资源 location 从资源系统异步加载音频片段并播放。
 		/// </summary>
-		private async UniTaskVoid ApplyFromResource(string address)
+		private async UniTaskVoid ApplyFromResource(string location)
 		{
 			var version = ++_loadVersion;
-			var lease = await ResourceService.LoadLeaseAsync<AudioClip>(address);
+			var lease = await ResourceService.LoadLeaseAsync<AudioClip>(location);
 
 			// 加载期间发生了更新的切换或已销毁，丢弃过期结果
 			if (version != _loadVersion)
@@ -122,7 +105,7 @@ namespace Moirai.Atropos.Localization
 
 			if (!lease.IsValid)
 			{
-				LogUtility.Error("AudioSourceInjector: failed to load audio clip for id '{0}'.", address);
+				LogUtility.Error("AudioSourceInjector: failed to load audio clip for location '{0}'.", location);
 				return;
 			}
 
