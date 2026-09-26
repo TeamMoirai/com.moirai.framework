@@ -250,17 +250,16 @@ namespace Service.Audio
         public void SceneLoad_Single_AlwaysStopsNonPersistent()
         {
             Assert.IsTrue(AudioServiceHandler.ShouldStopNonPersistentOnSceneLoad(LoadSceneMode.Single),
-                "Single 整景切换必须停非持久音，不受设置开关影响");
+                "Single 整景切换必须停非持久音");
         }
 
         [Test]
-        public void SceneLoad_Additive_FollowsSettingsSwitch()
+        public void SceneLoad_Additive_NeverStopsNonPersistent()
         {
-            // Additive（流式分区/关卡分片）是否停音由设置开关决定（默认关），
-            // 断言与设置同源而非硬编码，改资产不会把契约测成假红
-            Assert.AreEqual(AudioServiceSettings.StopNonPersistentOnAdditiveSceneLoad,
-                AudioServiceHandler.ShouldStopNonPersistentOnSceneLoad(LoadSceneMode.Additive),
-                "Additive 加载必须由 StopNonPersistentOnAdditiveSceneLoad 开关决定");
+            // Additive（叠加/流式分区）加载没有"停掉全部非持久音"的合理用例，永不自动停；
+            // 需要收口的游戏流程应在自己的切换点显式 StopAllButPersistent
+            Assert.IsFalse(AudioServiceHandler.ShouldStopNonPersistentOnSceneLoad(LoadSceneMode.Additive),
+                "Additive 加载永不自动停非持久音");
         }
 
         #endregion 场景停音策略 [SCENE LOAD POLICY]
